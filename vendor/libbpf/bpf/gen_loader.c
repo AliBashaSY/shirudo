@@ -118,6 +118,11 @@ void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps
 	size_t stack_sz = sizeof(struct loader_stack), nr_progs_sz;
 	int i;
 
+	if (nr_progs < 0 || nr_progs > MAX_USED_PROGS) {
+		pr_warn("Total programs exceeds %d\n", MAX_USED_PROGS);
+		gen->error = -E2BIG;
+		return;
+	}
 	gen->fd_array = add_data(gen, NULL, MAX_FD_ARRAY_SZ * sizeof(int));
 	gen->log_level = log_level;
 	gen->nr_obj_maps = nr_maps;
@@ -388,7 +393,7 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 {
 	int i;
 
-	if (nr_progs < gen->nr_progs || nr_maps != gen->nr_maps) {
+	if (nr_progs != gen->nr_progs || nr_maps != gen->nr_maps) {
 		pr_warn("nr_progs %d/%u nr_maps %d/%u mismatch\n",
 			nr_progs, gen->nr_progs, nr_maps, gen->nr_maps);
 		gen->error = -EFAULT;
@@ -1027,6 +1032,11 @@ void bpf_gen__prog_load(struct bpf_gen *gen,
 	int prog_load_attr, license_off, insns_off, func_info, line_info, core_relos;
 	int attr_size = offsetofend(union bpf_attr, core_relo_rec_size);
 	union bpf_attr attr;
+
+	if (gen->nr_progs >= MAX_USED_PROGS) {
+		gen->error = -E2BIG;
+		return;
+	}
 
 	memset(&attr, 0, attr_size);
 	/* add license string to blob of bytes */
