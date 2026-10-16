@@ -15,7 +15,7 @@
 # unmounted, the trap re-inits to restore the host rather than leave it
 # unprotected.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

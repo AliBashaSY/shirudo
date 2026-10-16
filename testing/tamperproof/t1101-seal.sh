@@ -6,7 +6,7 @@
 # cannot modify a labelled file under /var/lib/shirudo, even as root.
 # Non-destructive: the seal denies the tamper, so the file survives.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

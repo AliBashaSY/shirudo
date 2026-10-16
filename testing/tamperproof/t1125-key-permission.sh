@@ -8,7 +8,7 @@
 # the certificate keys it holds, while viewing and listing them and
 # loading against them keep working.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

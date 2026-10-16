@@ -8,7 +8,7 @@
 # which would clobber the operator key), builds a foreign-signed upatch,
 # and confirms the load fails. Non-destructive (the load is refused).
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

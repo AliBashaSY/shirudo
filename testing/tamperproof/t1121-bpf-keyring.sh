@@ -7,7 +7,7 @@
 # re-run of init leaves it alone, and nothing can be linked into it any
 # more.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

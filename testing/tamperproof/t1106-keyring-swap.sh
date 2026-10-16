@@ -17,7 +17,7 @@
 # trust anchor has been destroyed -- so this test should be run on a host
 # that will be rebooted, or last.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

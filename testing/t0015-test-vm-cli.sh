@@ -550,14 +550,32 @@ test_expect_success 'operator and target runners have disjoint explicit scopes' 
 	grep -q "for t in t0\[0-9\]\[0-9\]\[0-9\]-\*.sh" ../testing/run-tests.sh &&
 	! grep -q "t1101" ../testing/run-tests.sh &&
 	for test_name in \
-		t1101-seal.sh t1102-eventlog-full.sh t1103-version-gate.sh \
-		t1104-payload-mismatch.sh t1105-siggate.sh t1106-keyring-swap.sh \
-		t1107-load-unload.sh t1108-tpm-chain.sh \
-		t1110-lsm-deny.sh t1111-upatch-get.sh \
-		t1112-prog-load-keyring-gate.sh t1113-mount-lockdown.sh \
-		t1114-uprobe-multi.sh t1115-map-export-all.sh \
-		t1116-otel-backend.sh t1117-otel-serialized-metric.sh \
-		t1200-target-fixtures.sh
+		t1200-target-fixtures.sh \
+		t1118-bpm-tree.sh \
+		t1119-bpm-tree-sequential.sh \
+		t1120-bpm-tree-delete.sh \
+		t1102-eventlog-full.sh \
+		t1103-version-gate.sh \
+		t1104-payload-mismatch.sh \
+		t1107-load-unload.sh \
+		t1108-tpm-chain.sh \
+		t1111-upatch-get.sh \
+		t1114-uprobe-multi.sh \
+		t1115-map-export-all.sh \
+		t1116-otel-backend.sh \
+		t1117-otel-serialized-metric.sh \
+		t1122-initrd.sh \
+		t1123-keys.sh \
+		t1124-keys-add.sh \
+		t1126-keys-revoke.sh \
+		tamperproof/t1101-seal.sh \
+		tamperproof/t1105-siggate.sh \
+		tamperproof/t1110-lsm-deny.sh \
+		tamperproof/t1112-prog-load-keyring-gate.sh \
+		tamperproof/t1113-mount-lockdown.sh \
+		tamperproof/t1121-bpf-keyring.sh \
+		tamperproof/t1125-key-permission.sh \
+		tamperproof/t1106-keyring-swap.sh
 	do
 		grep -q "$test_name" ../testing/run-target-tests.sh || return 1
 	done &&

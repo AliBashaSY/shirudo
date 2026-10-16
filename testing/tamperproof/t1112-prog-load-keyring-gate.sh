@@ -16,7 +16,7 @@
 # process's own session keyring, and never touches shirudo's keyring or
 # any pinned state.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 

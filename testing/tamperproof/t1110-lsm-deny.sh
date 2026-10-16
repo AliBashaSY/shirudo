@@ -8,7 +8,7 @@
 # reports the errno; the LSM rejects it with EACCES. Non-mutating: the
 # load never succeeds, so nothing enters the kernel.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 
