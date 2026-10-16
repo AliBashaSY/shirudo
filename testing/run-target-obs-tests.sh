@@ -10,6 +10,7 @@ fail=0
 : "${SHIRUDO_TEST_SUITE_FAILURES_FILE:=}"
 for test_script in \
 	kernel-obs/t1210-kernel-obs.sh \
+	kernel-obs/kernel-obs-priv.sh \
 	kernel-obs/t1211-kernel-obs-dns-matrix.sh
 do
 	if sh "$test_script"; then
