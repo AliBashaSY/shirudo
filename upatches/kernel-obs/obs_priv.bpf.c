@@ -3,9 +3,9 @@
  * obs_priv.bpf.c -- privilege transitions and persistence primitives.
  *
  * Records credential changes to root, root privileges that no exec or
- * setuid explains, ptrace attaches, mounts, kernel file and module
- * loads, user namespace creation and bpf() use, keyed by the executable
- * and cgroup that performed them.
+ * setuid explains, ptrace attaches, mounts, executable mappings, kernel
+ * file and module loads, user namespace creation and bpf() use, keyed by
+ * the executable and cgroup that performed them.
  */
 
 enum obs_priv_kind {
@@ -18,10 +18,14 @@ enum obs_priv_kind {
 	OBS_PRIV_MODULE_REQUEST = 7,
 	OBS_PRIV_USERNS_CREATE = 8,
 	OBS_PRIV_BPF = 9,
+	OBS_PRIV_MMAP_EXEC = 10,
+	OBS_PRIV_MPROTECT_EXEC = 11,
 };
 
 #define OBS_PRIV_DETAIL_LEN	96
 #define PTRACE_MODE_ATTACH	0x02
+#define OBS_PROT_EXEC		(1UL << 2)
+#define OBS_VM_EXEC		(1UL << 2)
 
 struct priv_key {
 	struct obs_ident ident;
@@ -112,6 +116,18 @@ static __always_inline void priv_set_detail(struct priv_entry __arena *e,
 					    const char *detail)
 {
 	obs_copy_in(e->val.detail, detail, OBS_PRIV_DETAIL_LEN / 8);
+}
+
+static __always_inline void priv_set_mapping_name(
+	struct priv_entry __arena *e, struct file *file)
+{
+	char name[OBS_NAME_LEN] = {};
+
+	if (file)
+		obs_name_from_file(file, name);
+	else
+		__builtin_memcpy(name, "anonymous", sizeof("anonymous"));
+	priv_set_name(e, name);
 }
 
 /*
@@ -309,6 +325,63 @@ int BPF_PROG(obs_module_request, char *kmod_name)
 		return 0;
 	bpf_probe_read_kernel_str(name, sizeof(name), kmod_name);
 	priv_set_name(e, name);
+	return 0;
+}
+
+SEC("lsm/mmap_file")
+int BPF_PROG(obs_mmap_file, struct file *file, unsigned long reqprot,
+	     unsigned long prot, unsigned long flags)
+{
+	struct priv_entry __arena *e;
+	struct obs_ident ident = {};
+	__u64 now = obs_now();
+	__u32 euid;
+	int status;
+
+	(void)reqprot;
+	if (!(prot & OBS_PROT_EXEC))
+		return 0;
+	obs_ident_checked(&ident, now);
+	euid = obs_current_euid();
+	e = priv_record(&ident, OBS_PRIV_MMAP_EXEC, (__u32)prot, euid, now,
+			&status);
+	if (!e)
+		return 0;
+	if (status == OBS_TOUCH_CREATED)
+		priv_set_mapping_name(e, file);
+	e->val.aux = flags;
+	return 0;
+}
+
+SEC("lsm/file_mprotect")
+int BPF_PROG(obs_file_mprotect, struct vm_area_struct *vma,
+	     unsigned long reqprot, unsigned long prot)
+{
+	struct priv_entry __arena *e;
+	struct obs_ident ident = {};
+	unsigned long vm_flags;
+	__u64 now = obs_now();
+	struct file *file;
+	__u32 euid;
+	int status;
+
+	(void)reqprot;
+	if (!(prot & OBS_PROT_EXEC))
+		return 0;
+	vm_flags = BPF_CORE_READ(vma, vm_flags);
+	if (vm_flags & OBS_VM_EXEC)
+		return 0;
+	file = BPF_CORE_READ(vma, vm_file);
+	obs_ident_checked(&ident, now);
+	euid = obs_current_euid();
+	e = priv_record(&ident, OBS_PRIV_MPROTECT_EXEC, (__u32)prot, euid,
+			now, &status);
+	if (!e)
+		return 0;
+	if (status == OBS_TOUCH_CREATED)
+		priv_set_mapping_name(e, file);
+	e->val.aux = BPF_CORE_READ(vma, vm_end) -
+		    BPF_CORE_READ(vma, vm_start);
 	return 0;
 }
 

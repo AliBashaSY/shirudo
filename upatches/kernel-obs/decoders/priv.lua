@@ -12,6 +12,8 @@ local KINDS = {
 	[7] = "module_request",
 	[8] = "userns_create",
 	[9] = "bpf",
+	[10] = "mmap_exec",
+	[11] = "mprotect_exec",
 }
 
 local function header(slot)

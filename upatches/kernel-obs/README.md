@@ -53,7 +53,7 @@ sudo shirudo upatch list
 | `listen` | executable, cgroup, protocol, local address and port | TCP listens and UDP binds to a fixed port, with backlog |
 | `watch` | executable, cgroup, protocol, destination | attempts and packets towards addresses in `watch.list` |
 | `dns` | executable, cgroup, answered address | up to four names that resolved to the address, with counts |
-| `priv` | executable, cgroup, kind, subtype, euid | setuid to root, root without an exec or setuid to explain it, ptrace attach, mount, kernel file and module loads, user namespace creation, bpf() use |
+| `priv` | executable, cgroup, kind, subtype, euid | setuid to root, root without an exec or setuid to explain it, ptrace attach, mount, executable mmap and mprotect requests, kernel file and module loads, user namespace creation, bpf() use |
 | `file` | executable, cgroup, euid, open mode, path | opens matching `file-watch.list`, with the filesystem magic |
 | `watch_stat` | per-CPU counters | metric: socket-level checks against the watch list and matches |
 
@@ -61,6 +61,13 @@ Every record carries the executable as `{dev, ino}` of the file, the
 cgroup id, and `first_seen_unix_nano` and `last_seen_unix_nano`. A task
 that started before the upatch loaded is attributed from its mapped
 executable and flagged `caller_inferred` on its next exec.
+
+The `mmap_exec` privilege records report mapping requests that include
+`PROT_EXEC`; `mprotect_exec` records transitions that newly grant it.
+Their subtype is the requested protection bits; `mmap_exec` stores
+mapping flags in `aux`, while `mprotect_exec` stores the VMA length.
+`name` is the backing file name or `anonymous`. These hooks observe
+requests, not whether the mapping succeeds or code runs.
 
 Packet counts come from the cgroup hooks on the root cgroup and cover
 every socket on the host, including sockets created before the load,
