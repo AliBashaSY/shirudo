@@ -10016,7 +10016,7 @@ static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const ch
 	 * permit cross-endian creation of "light skeleton".
 	 */
 	if (obj->gen_loader) {
-		int nr_func_ptr_maps = 0, i;
+		int nr_callx_progs = 0, nr_func_ptr_maps = 0, i;
 		bool text_has_callx = false;
 
 		/*
@@ -10031,11 +10031,17 @@ static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const ch
 			if (prog_is_subprog(obj, &obj->programs[i]) &&
 			    prog_has_callx(&obj->programs[i]))
 				text_has_callx = true;
-		for (i = 0; i < obj->nr_programs; i++)
-			if (obj->programs[i].autoload && !prog_is_subprog(obj, &obj->programs[i]))
-				nr_progs++;
+		for (i = 0; i < obj->nr_programs; i++) {
+			if (prog_is_subprog(obj, &obj->programs[i]) ||
+			    !obj->programs[i].autoload)
+				continue;
+			nr_progs++;
+			if (text_has_callx || prog_has_callx(&obj->programs[i]))
+				nr_callx_progs++;
+		}
 		bpf_gen__init(obj->gen_loader, obj->log_level | extra_log_level,
-			      nr_progs, obj->nr_maps, nr_func_ptr_maps * nr_progs);
+			      nr_progs, obj->nr_maps,
+			      nr_func_ptr_maps * nr_callx_progs);
 	} else if (!is_native_endianness(obj)) {
 		pr_warn("object '%s': loading non-native endianness is unsupported\n", obj->name);
 		return libbpf_err(-LIBBPF_ERRNO__ENDIAN);
