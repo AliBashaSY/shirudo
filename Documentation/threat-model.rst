@@ -128,7 +128,11 @@ T2  Detaching or replacing enforcement
     ``sb_remount`` deny everyone, so neither ``rm`` nor ``umount`` nor
     mounting over the directory removes a pin. Infrastructure maps are
     frozen at creation, so even with the LSM gone userspace could not
-    rewrite the identity map.  From the initrd, the identity records
+    rewrite the identity map. ``lsm/bpf_map`` denies writable map fds
+    to every process except shirudo; map updates and freezes have the
+    same executable gate. Root may inspect pinned maps but cannot alter
+    serializer arrays or writable-mmap arena state through the syscall
+    interface.  From the initrd, the identity records
     the root's binary as the executable that lasts and the initrd's
     own copy beside it for that one run; the copy is gone with the
     initrd, and its inode is on a file system nothing can reach after
@@ -260,8 +264,8 @@ Each of these is known, documented and bounded; none is silent.
 
 2.  ``CAP_SYS_RESOURCE`` can rewrite ``mm->exe_file`` with
     ``prctl(PR_SET_MM_EXE_FILE)``.  A root process with that capability
-    that can open shirudo's binary impersonates it to the seal and the
-    bpffs guards.  Bound ``CAP_SYS_RESOURCE`` out of untrusted contexts
+    that can open shirudo's binary impersonates it to the seal, bpffs
+    and BPF map guards.  Bound ``CAP_SYS_RESOURCE`` out of untrusted contexts
     with ``CapabilityBoundingSet=`` and container capability profiles.
     This is a property of the kernel's process model, not a shirudo
     bug to fix.

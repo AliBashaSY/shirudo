@@ -37,6 +37,7 @@ for t in \
 	tamperproof/t1110-lsm-deny.sh \
 	tamperproof/t1112-prog-load-keyring-gate.sh \
 	tamperproof/t1113-mount-lockdown.sh \
+	tamperproof/t1130-map-lockdown.sh \
 	tamperproof/t1121-bpf-keyring.sh \
 	tamperproof/t1125-key-permission.sh \
 	tamperproof/t1106-keyring-swap.sh

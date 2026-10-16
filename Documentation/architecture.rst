@@ -221,16 +221,25 @@ with a non-zero ``signature_size``, so the only program userspace can
 load is a signed loader.  Allowed without a signature are the commands
 that cannot introduce code: map create only from the executable
 ``init`` recorded as shirudo (signed-loader map creation runs in kernel
-context and is already allowed), map update and freeze (the
-loader-data pattern), object pin, link create and raw tracepoint open
+context and is already allowed), map update and freeze only from
+shirudo's executable, object pin, link create and raw tracepoint open
 (a program fd is only obtainable from a signed load or from an
-already-vetted program), and the read-only commands (``OBJ_GET``,
-``*_GET_FD_BY_ID``, ``*_GET_NEXT_ID``, ``OBJ_GET_INFO_BY_FD``,
+already-vetted program), and the read-only commands (``*_GET_FD_BY_ID``,
+``*_GET_NEXT_ID``, ``OBJ_GET_INFO_BY_FD``,
 ``MAP_LOOKUP_ELEM``, ``MAP_LOOKUP_BATCH``, ``MAP_GET_NEXT_KEY``,
 ``PROG_QUERY``, ``PROG_TEST_RUN``, ``TASK_FD_QUERY``) that keep
-``bpftool`` and ``shirudo status`` working.  Everything else, including
+``bpftool`` and ``shirudo status`` working. ``OBJ_GET`` is subject to
+``lsm/bpf_map``: non-Shirudo callers can get only read-only map fds.
+Everything else, including
 ``LINK_DETACH``, ``LINK_UPDATE``, ``PROG_ATTACH``/``PROG_DETACH``,
 ``BTF_LOAD`` and every map delete variant, is denied with ``-EACCES``.
+
+``lsm/bpf_map`` denies writable map file descriptors when the caller's
+executable identity is not shirudo. Root can retrieve read-only map fds
+for observation, but direct map updates and writable mappings of arena
+maps are denied. As with the other ``bpf2`` executable-identity gates,
+a process with ``CAP_SYS_RESOURCE`` can spoof ``mm->exe_file``; this
+remains a residual risk.
 
 ``lsm/bpf_prog_load`` runs after the kernel's signature check and admits
 a program only when the verdict is ``BPF_SIG_VERIFIED`` and the
@@ -244,7 +253,9 @@ bpffs and keyring guards.  The identity map (the bpffs ``s_dev``,
 shirudo's executable ``(dev, ino)``, the keyring kind and serial, and
 the serials of the keys the keyring holds) is written and
 ``BPF_MAP_FREEZE``'d before any link is created, so userspace cannot
-change it for the rest of the boot.  ``lsm/inode_unlink``,
+change it for the rest of the boot. Writable map fds and map updates
+are restricted by the same executable-identity gate.
+``lsm/inode_unlink``,
 ``lsm/inode_setxattr`` and ``lsm/inode_removexattr`` on shirudo's bpffs
 allow the operation only when the calling task's ``mm->exe_file`` is
 shirudo's binary: root ``rm`` cannot drop a pin, and nobody else can

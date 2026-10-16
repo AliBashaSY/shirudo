@@ -30,6 +30,10 @@
  *                       loads from userspace" a kernel-enforced
  *                       invariant rather than a best-effort keyring_id
  *                       choice by the caller.
+ *   lsm/bpf_map -- denies writable map file descriptors to every
+ *                       process except shirudo. Read-only map access
+ *                       remains available; this also blocks writable
+ *                       mmap of arena maps.
  *   lsm/inode_unlink -- denies VFS unlink on shirudo's private
  *                       bpffs superblock unless the caller is shirudo
  *                       itself (its exe_file inode matches the
@@ -83,6 +87,9 @@
 #endif
 #ifndef EACCES
 #define EACCES	13
+#endif
+#ifndef FMODE_WRITE
+#define FMODE_WRITE	0x2
 #endif
 
 char _license[] SEC("license") = "Dual BSD/GPL";
@@ -149,17 +156,14 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 
 	/*
 	 * Vetted mutating cmds the signed-loader data-map + attach/pin
-	 * pattern needs from userspace, plus MAP_UPDATE_ELEM for clearing
-	 * a serializer's reserved output map before BPF_PROG_TEST_RUN.
-	 * None can introduce unsigned code:
-	 * a prog_fd is only obtainable via the signature-gated
-	 * BPF_PROG_LOAD above or GET_FD_BY_ID of an already-vetted prog,
-	 * and shirudo's own infra maps are BPF_MAP_FREEZE'd at creation
-	 * (a userspace BPF_MAP_UPDATE_ELEM on them then fails -EPERM
-	 * regardless of this verdict). gen_loader emits no link-create and
-	 * bpf_sys_bpf() cannot BPF_OBJ_PIN, so shirudo's
-	 * one-shot CLI must create + pin the link itself. Attaching an
-	 * already-vetted program grants no new code-execution capability.
+	 * pattern needs from userspace. Map updates and freezes are restricted
+	 * below to shirudo itself; signed-loader map mutations run in kernel
+	 * context. A prog_fd is only obtainable via the signature-gated
+	 * BPF_PROG_LOAD above or GET_FD_BY_ID of an already-vetted prog.
+	 * gen_loader emits no link-create and bpf_sys_bpf() cannot
+	 * BPF_OBJ_PIN, so shirudo's one-shot CLI must create + pin the link
+	 * itself. Attaching an already-vetted program grants no new
+	 * code-execution capability.
 	 */
 	case BPF_MAP_CREATE:
 		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -169,6 +173,11 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_FREEZE:
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id || !shirudo_task_is_self(id))
+			return -EACCES;
+		return 0;
+
 	case BPF_OBJ_PIN:
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
@@ -217,6 +226,26 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	default:
 		return -EACCES;
 	}
+}
+
+/*
+ * Writable map fds let userspace alter array contents and writable
+ * mmap lets it alter arena pages without another bpf() command. Keep
+ * both paths exclusive to shirudo while leaving read-only map access
+ * available to observers.
+ */
+SEC("lsm/bpf_map")
+int BPF_PROG(shirudo_lsm_bpf_map, struct bpf_map *map, fmode_t fmode)
+{
+	struct shirudo_sb_id *id;
+	__u32 zero = 0;
+
+	if (!(fmode & FMODE_WRITE))
+		return 0;
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || !shirudo_task_is_self(id))
+		return -EACCES;
+	return 0;
 }
 
 /*
