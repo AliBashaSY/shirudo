@@ -23,6 +23,15 @@ def exec_event():
         shutil.copyfile("/bin/true", executable)
         os.chmod(executable, 0o755)
         subprocess.run([executable], check=True)
+        subprocess.run(["./kernel-obs/exec-paths", directory], check=True)
+        for method in ("execveat-empty", "fexecve"):
+            fd_executable = os.path.join(directory, f"true-{method}")
+            shutil.copyfile("/bin/true", fd_executable)
+            os.chmod(fd_executable, 0o755)
+            subprocess.run(["./kernel-obs/exec-paths", f"--{method}",
+                            fd_executable], check=True)
+        subprocess.run(["./kernel-obs/exec-paths", "--replace", executable],
+                       check=True)
 
 
 def tcp_event():

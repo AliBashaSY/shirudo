@@ -91,6 +91,40 @@ exec_ids = {(r["executable"]["dev"], r["executable"]["ino"])
 assert any(r["name"] == "true" and r["path"].endswith("/true")
            for r in tables["exec"]), tables["exec"]
 assert any("caller" in r for r in tables["exec"]), tables["exec"]
+helper_records = [r for r in tables["exec"]
+                  if r["path"].endswith("/kernel-obs/exec-paths")]
+helper = next(r for r in helper_records
+              if (r.get("caller", {}).get("dev"),
+                  r.get("caller", {}).get("ino")) !=
+              (r["executable"]["dev"], r["executable"]["ino"]))
+helper_id = (helper["executable"]["dev"], helper["executable"]["ino"])
+self_exec = [r for r in tables["exec"]
+             if (r["executable"]["dev"], r["executable"]["ino"]) == helper_id
+             and (r.get("caller", {}).get("dev"),
+                  r.get("caller", {}).get("ino")) == helper_id]
+assert sum(int(r["exec_count"]) for r in self_exec) >= 5, self_exec
+replace_exec = [r for r in tables["exec"]
+                if r["path"].endswith("/true") and
+                (r.get("caller", {}).get("dev"),
+                 r.get("caller", {}).get("ino")) == helper_id]
+assert replace_exec and any(r["pid"] == helper["pid"]
+                             for r in replace_exec), (helper, replace_exec)
+for method in ("execveat-empty", "fexecve"):
+    fd_exec = [r for r in tables["exec"]
+               if r["path"].endswith(f"/true-{method}") and
+               (r.get("caller", {}).get("dev"),
+                r.get("caller", {}).get("ino")) == helper_id]
+    assert fd_exec, (method, tables["exec"])
+script = [r for r in tables["exec"]
+          if r["path"].endswith("/exec-script") and
+          (r.get("caller", {}).get("dev"),
+           r.get("caller", {}).get("ino")) == helper_id]
+assert script and not any(r["interpreter"] for r in script), script
+script_id = (script[0]["executable"]["dev"], script[0]["executable"]["ino"])
+assert any(r["interpreter"] and
+           (r.get("caller", {}).get("dev"), r.get("caller", {}).get("ino")) ==
+           script_id and r["pid"] == script[0]["pid"]
+           for r in tables["exec"]), tables["exec"]
 for name in ("net", "dns"):
     assert any((r["executable"]["dev"], r["executable"]["ino"]) in exec_ids
                for r in tables[name]), (name, tables[name])

@@ -101,7 +101,8 @@ TEST_VM_BUNDLE_SOURCES := $(sort $(wildcard \
 	$(ROOT)/vendor/libbpf/include/linux/*.h \
 	$(ROOT)/vendor/libbpf/include/uapi/linux/*.h \
 	$(ROOT)/vendor/libbpf/include/asm/*.h \
-	$(ROOT)/testing/helper/*.c $(ROOT)/testing/helper/*.py $(ROOT)/completion/* $(ROOT)/systemd/*.in \
+	$(ROOT)/testing/helper/*.c $(ROOT)/testing/helper/*.py \
+	$(ROOT)/testing/kernel-obs/*.c $(ROOT)/completion/* $(ROOT)/systemd/*.in \
 	$(ROOT)/systemd/*.timer $(ROOT)/testing/fixtures/*.c $(ROOT)/testing/fixtures/*.lua \
 	$(ROOT)/testing/fixtures/decoders/* \
 	$(ROOT)/upatches/kernel-obs/*.c $(ROOT)/upatches/kernel-obs/*.h $(ROOT)/upatches/kernel-obs/*.list \
