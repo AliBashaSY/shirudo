@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
@@ -190,16 +190,16 @@ test_expect_success 'kernel-obs upatch loads with seven serializers' '
 '
 
 test_expect_success 'exec, net, listen, DNS, privilege and file events produce records' '
-	python3 kernel_obs_events.py all &&
-	python3 kernel_obs_events.py dns-long &&
-	python3 kernel_obs_events.py dns-many &&
+	python3 kernel-obs/kernel_obs_events.py all &&
+	python3 kernel-obs/kernel_obs_events.py dns-long &&
+	python3 kernel-obs/kernel_obs_events.py dns-many &&
 	export_maps "$WORK/events.ndjson" &&
 	python3 "$WORK/check.py" "$WORK/events.ndjson" &&
 	python3 "$WORK/check_events.py" "$WORK/events.ndjson"
 '
 
 test_expect_success 'watched destinations are recorded with the metric' '
-	python3 kernel_obs_events.py watch &&
+	python3 kernel-obs/kernel_obs_events.py watch &&
 	export_maps "$WORK/watch.ndjson" &&
 	python3 "$WORK/check_watch.py" "$WORK/watch.ndjson"
 '
@@ -210,7 +210,7 @@ test_expect_success 'an export drains the tables' '
 '
 
 test_expect_success 'only the touched tables carry records' '
-	python3 kernel_obs_events.py exec &&
+	python3 kernel-obs/kernel_obs_events.py exec &&
 	export_maps "$WORK/exec-only.ndjson" &&
 	python3 "$WORK/check_exec_only.py" "$WORK/exec-only.ndjson"
 '

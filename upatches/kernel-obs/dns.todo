@@ -5,7 +5,7 @@ the network-namespace cookie, address family, client/resolver addresses
 and ports, and transaction ID, and attributes the answer to the querying
 socket's owner. The items below are the remaining parser and
 correlation gaps. Each behavior change should promote its corresponding
-case in `testing/dns_obs_matrix.py` from a known-gap probe to a gating
+case in `testing/kernel-obs/dns_obs_matrix.py` from a known-gap probe to a gating
 test.
 
 ## Matching and response integrity

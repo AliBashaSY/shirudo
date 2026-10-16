@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./integration-lib.sh
 target_guard
 command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
@@ -54,7 +54,7 @@ load_observability()
 
 test_expect_success 'DNS matrix helper and generator are available' '
 	[ -x "$RUNNER" ] &&
-	python3 dns_obs_matrix.py --self-test >"$WORK/self-test.log" 2>&1
+	python3 kernel-obs/dns_obs_matrix.py --self-test >"$WORK/self-test.log" 2>&1
 '
 
 test_expect_success 'kernel-obs DNS programs load for packet tests' '
@@ -63,7 +63,7 @@ test_expect_success 'kernel-obs DNS programs load for packet tests' '
 '
 
 test_expect_success 'DNS UDP deterministic packet matrix passes' '
-	python3 dns_obs_matrix.py --deterministic --known-gaps \
+	python3 kernel-obs/dns_obs_matrix.py --deterministic --known-gaps \
 		--runner "$RUNNER" --shirudo "$SHIRUDO_BIN" --upatch "$NAME" \
 		--work "$WORK" >"$WORK/matrix.log" 2>&1 || save_failure
 '
@@ -74,7 +74,7 @@ fi
 
 if [ "${TEST_VM_DNS_FUZZ:-0}" = 1 ]; then
 	test_expect_success 'DNS UDP seeded mutation fuzz run passes' '
-		python3 dns_obs_matrix.py --fuzz \
+		python3 kernel-obs/dns_obs_matrix.py --fuzz \
 			--runner "$RUNNER" --work "$WORK" \
 			--seed "${TEST_VM_DNS_FUZZ_SEED:-0x53484952}" \
 			--cases "${TEST_VM_DNS_FUZZ_CASES:-5000}" \
