@@ -118,11 +118,16 @@ struct {
 	__type(value, struct shirudo_sb_id);
 } shirudo_bpffs_sb SEC(".maps");
 
+static __always_inline bool
+shirudo_task_is_self(const struct shirudo_sb_id *id);
+
 SEC("lsm/bpf")
 int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	     unsigned int size, bool kernel)
 {
+	struct shirudo_sb_id *id;
 	__u32 prog_type, sig_sz;
+	__u32 zero = 0;
 
 	if (kernel)
 		return 0;
@@ -157,6 +162,11 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	 * already-vetted program grants no new code-execution capability.
 	 */
 	case BPF_MAP_CREATE:
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id || !shirudo_task_is_self(id))
+			return -EACCES;
+		return 0;
+
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_FREEZE:
 	case BPF_OBJ_PIN:

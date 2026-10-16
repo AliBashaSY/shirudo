@@ -219,7 +219,9 @@ allowed; they come from a loader the kernel has already verified.
 Userspace ``BPF_PROG_LOAD`` is allowed only for ``BPF_PROG_TYPE_SYSCALL``
 with a non-zero ``signature_size``, so the only program userspace can
 load is a signed loader.  Allowed without a signature are the commands
-that cannot introduce code: map create, update and freeze (the
+that cannot introduce code: map create only from the executable
+``init`` recorded as shirudo (signed-loader map creation runs in kernel
+context and is already allowed), map update and freeze (the
 loader-data pattern), object pin, link create and raw tracepoint open
 (a program fd is only obtainable from a signed load or from an
 already-vetted program), and the read-only commands (``OBJ_GET``,

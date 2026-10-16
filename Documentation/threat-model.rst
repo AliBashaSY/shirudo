@@ -112,7 +112,9 @@ T1  Loading unsigned BPF
     and ``lsm/bpf_prog_load`` then requires the verdict
     ``BPF_SIG_VERIFIED`` from exactly that keyring kind and, while
     staging, that serial (the kernel records none for its own bpf
-    keyring).  The payload is hash-locked to the loader by
+    keyring).  Userspace ``BPF_MAP_CREATE`` is restricted to the
+    executable ``init`` recorded as shirudo; signed loader map creation
+    runs in kernel context.  The payload is hash-locked to the loader by
     ``excl_prog_hash``.  Root without the key gets ``-EACCES`` or
     ``-ENOKEY``; a certificate planted in any other keyring is ignored,
     and a foreign-signed artifact fails with ``ENOKEY``.
