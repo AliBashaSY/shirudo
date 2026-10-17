@@ -742,6 +742,17 @@ static int init_lsm(bool attach_filesystem_seal)
 		{ "shirudo_lsm_sb_mount",   SHIRUDO_SB_MOUNT_LINK_PIN },
 		{ "shirudo_lsm_sb_remount", SHIRUDO_SB_REMOUNT_LINK_PIN },
 	};
+	static const struct {
+		const char	*prog;
+		const char	*pin;
+	} prctl_hooks[] = {
+		{ "shirudo_lsm_file_permission",
+		  SHIRUDO_FILE_PERMISSION_LINK_PIN },
+		{ "shirudo_trace_sys_exit_prctl",
+		  SHIRUDO_PRCTL_EXIT_LINK_PIN },
+		{ "shirudo_lsm_task_prctl", SHIRUDO_TASK_PRCTL_LINK_PIN },
+	};
+	struct bpf_link *prctl_links[ARRAY_SIZE(prctl_hooks)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(mount_hooks)] = {};
 	const struct shirudo_embedded_bpf *blob = shirudo_bpf2_blob();
 	struct bpf_program *p_bpf, *p_unlink, *p_setx, *p_rmx, *p_pload;
@@ -876,6 +887,25 @@ static int init_lsm(bool attach_filesystem_seal)
 		goto out;
 	}
 
+	/* Install the narrow prctl guard before enabling the bpf() gates. */
+	for (i = 0; i < (int)ARRAY_SIZE(prctl_hooks); i++) {
+		struct bpf_program *p = bpf_object__find_program_by_name(
+						obj, prctl_hooks[i].prog);
+
+		if (!p) {
+			pr_err("program %s missing in bpf2 object",
+			       prctl_hooks[i].prog);
+			err = -ENOENT;
+			goto out;
+		}
+		err = attach_pin(p, prctl_hooks[i].pin, &prctl_links[i]);
+		if (err) {
+			pr_err("attach %s: %s", prctl_hooks[i].prog,
+			       strerror(-err));
+			goto out;
+		}
+	}
+
 	p_unlink = bpf_object__find_program_by_name(obj,
 						    "shirudo_lsm_inode_unlink");
 	p_setx = bpf_object__find_program_by_name(obj,
@@ -895,12 +925,11 @@ static int init_lsm(bool attach_filesystem_seal)
 	}
 
 	/*
-	 * Order: the bpffs guards (inode_unlink/setxattr/removexattr), then
-	 * seal's filesystem and exec-identity hooks, then the bpf() gates
-	 * (bpf_prog_load admission, then lsm/bpf) LAST. Pinning a link
-	 * creates a bpffs inode, gated by neither guard set; seal's unsigned
-	 * load and the identity-map freeze must both precede the load gates
-	 * going live.
+	 * The prctl identity guard is already active. Order the remaining
+	 * hooks as bpffs guards, seal's filesystem and exec-identity hooks,
+	 * then the bpf() gates (bpf_prog_load admission, then lsm/bpf) LAST.
+	 * Pinning a link creates a bpffs inode, gated by neither guard set;
+	 * seal's unsigned load and the identity-map freeze precede the gates.
 	 */
 	err = attach_pin(p_unlink, SHIRUDO_INODE_UNLINK_LINK_PIN, &link_unlink);
 	if (err) {
@@ -973,6 +1002,11 @@ static int init_lsm(bool attach_filesystem_seal)
 		", filesystem seal unavailable on this kernel");
 	err = 0;
 out:
+	for (i = 0; i < (int)ARRAY_SIZE(prctl_links); i++) {
+		if (err && prctl_links[i])
+			bpf_link__unpin(prctl_links[i]);
+		bpf_link__destroy(prctl_links[i]);
+	}
 	for (i = 0; i < (int)ARRAY_SIZE(seal_links); i++)
 		bpf_link__destroy(seal_links[i]);
 	for (i = 0; i < (int)ARRAY_SIZE(mount_links); i++)

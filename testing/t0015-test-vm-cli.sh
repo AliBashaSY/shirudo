@@ -574,6 +574,7 @@ test_expect_success 'operator and target runners have disjoint explicit scopes' 
 		tamperproof/t1112-prog-load-keyring-gate.sh \
 		tamperproof/t1113-mount-lockdown.sh \
 		tamperproof/t1130-map-lockdown.sh \
+		tamperproof/t1131-pr-set-mm-identity.sh \
 		tamperproof/t1121-bpf-keyring.sh \
 		tamperproof/t1125-key-permission.sh \
 		tamperproof/t1106-keyring-swap.sh

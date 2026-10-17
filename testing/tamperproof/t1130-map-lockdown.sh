@@ -4,7 +4,7 @@
 #
 # t1130 -- direct BPF syscalls from a root process with a different
 # executable cannot acquire writable map fds or mutate Shirudo's maps.
-# CAP_SYS_RESOURCE can spoof the executable identity and remains a risk.
+# PR_SET_MM executable spoofing is covered separately by t1131.
 
 cd "$(dirname "$0")/.."
 . ./integration-lib.sh

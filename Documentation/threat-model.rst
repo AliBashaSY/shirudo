@@ -262,13 +262,15 @@ Each of these is known, documented and bounded; none is silent.
     honest substitution; closing this fully needs an in-kernel detach so
     the compare runs against signed ``.rodata``.
 
-2.  ``CAP_SYS_RESOURCE`` can rewrite ``mm->exe_file`` with
-    ``prctl(PR_SET_MM_EXE_FILE)``.  A root process with that capability
-    that can open shirudo's binary impersonates it to the seal, bpffs
-    and BPF map guards.  Bound ``CAP_SYS_RESOURCE`` out of untrusted contexts
-    with ``CapabilityBoundingSet=`` and container capability profiles.
-    This is a property of the kernel's process model, not a shirudo
-    bug to fix.
+2.  ``CAP_SYS_RESOURCE`` can rewrite ``mm->exe_file``.  Shirudo's
+    ``task_prctl`` and ``file_permission`` LSM hooks deny
+    ``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` when the resolved file
+    is either frozen Shirudo executable inode, while leaving other
+    targets alone.  A process that directly executes the recorded
+    Shirudo binary is still identified as Shirudo, so its command
+    interface remains the authorization boundary.  Bound
+    ``CAP_SYS_RESOURCE`` out of untrusted contexts with
+    ``CapabilityBoundingSet=`` and container capability profiles.
 
 3.  A lazy (``MNT_DETACH``) unmount of an ancestor of
     ``/run/shirudo/bpffs`` tears the subtree down without firing
