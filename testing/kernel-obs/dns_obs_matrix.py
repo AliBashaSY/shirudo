@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
-"""Exercise the loaded Linux-observability DNS programs with exact frames."""
+"""Validate the DNS packet-case builders and batch encoding."""
 
 from __future__ import annotations
 
 import argparse
 import ipaddress
-import json
-import random
 import struct
-import subprocess
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Callable
 
 
@@ -91,8 +87,6 @@ class Case:
     request: bool | None = False
     request_name: str | None = None
     request_qtype: int | None = None
-    run_rc: int = 0
-    retval: int = 1
 
 
 def wire_name(name: str | list[bytes]) -> bytes:
@@ -299,12 +293,12 @@ def add_transport_cases(matrix: Matrix) -> None:
     txid = matrix.txid()
     matrix.add(Case("transport: truncated IPv4 header", QUERY, txid,
                     ethernet(b"\x45" + b"\x00" * 18),
-                    {}, False, run_rc=-22, retval=0))
+                    {}, False))
 
     txid = matrix.txid()
     matrix.add(Case("transport: truncated IPv6 header", RESPONSE, txid,
                     ethernet(b"\x60" + b"\x00" * 38, 0x86DD),
-                    {}, False, run_rc=-22, retval=0))
+                    {}, False))
 
     txid = matrix.txid()
     payload = query_payload(txid, wire_name("options.example"))
@@ -722,126 +716,6 @@ def encode_batch(cases: list[Case]) -> bytes:
     return bytes(output)
 
 
-def invoke_runner(runner: Path, cases: list[Case], artifact: Path | None = None) -> list[dict]:
-    batch = encode_batch(cases)
-    if artifact is not None:
-        artifact.write_bytes(batch)
-    process = subprocess.run([str(runner)], input=batch, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, check=False)
-    if process.returncode:
-        raise RuntimeError(
-            f"runner exited {process.returncode}: " +
-            process.stderr.decode("utf-8", "replace").strip())
-    try:
-        results = [json.loads(line) for line in process.stdout.splitlines()]
-    except json.JSONDecodeError as error:
-        raise RuntimeError(f"invalid runner JSON: {error}") from error
-    if len(results) != len(cases):
-        raise RuntimeError(f"runner returned {len(results)} results for {len(cases)} cases")
-    return results
-
-
-def assert_results(cases: list[Case], results: list[dict]) -> set[str]:
-    hit: set[str] = set()
-    failures: list[str] = []
-    for index, (case, result) in enumerate(zip(cases, results)):
-        prefix = f"case {index} ({case.name})"
-        if result.get("index") != index:
-            failures.append(f"{prefix}: result index is {result.get('index')!r}")
-        if (result.get("rc") != case.run_rc or
-                result.get("retval") != case.retval):
-            failures.append(
-                f"{prefix}: BPF_PROG_TEST_RUN rc={result.get('rc')} "
-                f"retval={result.get('retval')}, expected rc={case.run_rc} "
-                f"retval={case.retval}")
-        delta = result.get("counter_delta")
-        if not isinstance(delta, list) or len(delta) != len(COUNTERS):
-            failures.append(f"{prefix}: malformed counter delta")
-            continue
-        hit.update(COUNTERS[i] for i, value in enumerate(delta) if value)
-        for name, expected in case.counters.items():
-            actual = delta[COUNTER[name]]
-            if actual != expected:
-                failures.append(f"{prefix}: {name}={actual}, expected {expected}")
-        if case.request is not None and result.get("request") is not case.request:
-            failures.append(
-                f"{prefix}: request={result.get('request')!r}, expected {case.request}")
-        if case.request_name is not None:
-            actual_name = bytes.fromhex(result.get("request_name_hex", "")).decode(
-                "ascii", "backslashreplace")
-            if actual_name != case.request_name:
-                failures.append(
-                    f"{prefix}: request name {actual_name!r}, expected {case.request_name!r}")
-        if case.request_qtype is not None and result.get("request_qtype") != case.request_qtype:
-            failures.append(
-                f"{prefix}: qtype={result.get('request_qtype')}, expected {case.request_qtype}")
-    if failures:
-        raise AssertionError("\n".join(failures))
-    return hit
-
-
-def export_dns(shirudo: Path, upatch: str, output: Path) -> dict:
-    process = subprocess.run(
-        [str(shirudo), "upatch", "map", upatch, "dns",
-         f"--json={output}"], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        check=False, text=True)
-    if process.returncode:
-        raise RuntimeError(
-            f"DNS export exited {process.returncode}: {process.stderr.strip()}")
-    records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
-    if len(records) != 1 or records[0].get("map") != "dns":
-        raise AssertionError(f"unexpected DNS export: {records!r}")
-    return records[0]
-
-
-def names_by_address(export: dict) -> dict[str, dict[str, int]]:
-    output: dict[str, dict[str, int]] = {}
-    for record in export.get("records", []):
-        output.setdefault(record["address"], {}).update(
-            {item["name"]: int(item["seen_count"]) for item in record["names"]})
-    return output
-
-
-def assert_export(export: dict) -> None:
-    addresses = names_by_address(export)
-    required = {
-        "192.0.2.10": {"basic.example": 1},
-        "2001:0db8:0000:0000:0000:0000:0000:0010": {"v6.example": 1},
-        "192.0.2.11": {".".join(["a"] * 127): 1},
-        "192.0.2.20": {"duplicate.example": 2},
-        "192.0.2.21": {f"name{i}.example": 1 for i in range(2, 6)},
-        "192.0.2.30": {"multi-address.example": 1},
-        "192.0.2.31": {"multi-address.example": 1},
-        "203.0.113.75": {"slot75.example": 1},
-        "198.51.100.200": {"flow-port-first.example": 1},
-        "198.51.100.201": {"flow-port-second.example": 1},
-        "198.51.100.202": {"flow-address-first.example": 1},
-        "198.51.100.203": {"flow-address-second.example": 1},
-        "198.51.100.204": {"flow-family-v4.example": 1},
-        "198.51.100.205": {"flow-family-v6.example": 1},
-        "198.51.100.207": {"flow-wrong-tuple.example": 1},
-    }
-    failures: list[str] = []
-    for address, expected_names in required.items():
-        actual_names = addresses.get(address)
-        if actual_names is None:
-            failures.append(f"missing exported address {address}")
-            continue
-        for name, seen_count in expected_names.items():
-            if actual_names.get(name) != seen_count:
-                failures.append(
-                    f"{address} name {name!r}: seen_count={actual_names.get(name)}, "
-                    f"expected {seen_count}")
-    if "name1.example" in addresses.get("192.0.2.21", {}):
-        failures.append("oldest fifth-name slot was not evicted")
-    if "203.0.113.76" in addresses:
-        failures.append("answer 76 was parsed despite the 75-answer cap")
-    if "198.51.100.254" in addresses:
-        failures.append("wrong-tuple response unexpectedly produced an event")
-    if failures:
-        raise AssertionError("\n".join(failures))
-
-
 def build_known_gap_matrix() -> tuple[list[Case], list[tuple[str, Callable[[dict], bool]]]]:
     matrix = Matrix(0x7000)
     probes: list[tuple[str, Callable[[dict], bool]]] = []
@@ -956,151 +830,19 @@ def validate_matrix(cases: list[Case]) -> None:
         raise AssertionError("batch has trailing bytes")
 
 
-def run_deterministic(args: argparse.Namespace, work: Path) -> None:
-    matrix = build_deterministic_matrix()
-    validate_matrix(matrix.cases)
-    results = invoke_runner(args.runner, matrix.cases, work / "dns-matrix.batch")
-    hit = assert_results(matrix.cases, results)
-    (work / "dns-matrix-results.ndjson").write_text(
-        "".join(json.dumps(item, sort_keys=True) + "\n" for item in results),
-        encoding="utf-8")
-
-    required = set(COUNTERS) - NON_PACKET_COUNTERS
-    missing = sorted(required - hit)
-    if missing:
-        raise AssertionError("packet-controlled debug counters not covered: " +
-                             ", ".join(missing))
-
-    first_export = export_dns(args.shirudo, args.upatch,
-                              work / "dns-matrix-export.ndjson")
-    assert_export(first_export)
-    second_export = export_dns(args.shirudo, args.upatch,
-                               work / "dns-matrix-export-empty.ndjson")
-    if second_export.get("records"):
-        raise AssertionError("DNS serializer did not clear pending records")
-
-    print(f"PASS deterministic: {len(matrix.cases)} exact packets, "
-          f"{len(hit)} debug branches, serializer output and clear-on-export")
-
-    if args.known_gaps:
-        known_cases, probes = build_known_gap_matrix()
-        known_results = invoke_runner(args.runner, known_cases,
-                                      work / "dns-known-gaps.batch")
-        # Known gaps do not carry semantic assertions, but syscall execution
-        # and the runner protocol remain gating.
-        assert_results(known_cases, known_results)
-        report: list[str] = []
-        for label, predicate in probes:
-            status = "XFAIL known-gap" if predicate(known_results) else "RESOLVED"
-            report.append(f"{status}: {label}")
-        report.extend([
-            "LIMITATION: IPv6 extension headers are not walked",
-            "LIMITATION: response question class is read but not compared",
-            "LIMITATION: answer type is not constrained by the requested type",
-            "LIMITATION: IP/UDP checksums are not validated",
-        ])
-        text = "\n".join(report) + "\n"
-        (work / "dns-known-gaps.log").write_text(text, encoding="utf-8")
-        print(text, end="")
-
-
-def mutate_packet(rng: random.Random, corpus: list[bytes]) -> bytes:
-    packet = bytearray(rng.choice(corpus))
-    operation = rng.randrange(6)
-    if operation == 0 and packet:
-        del packet[rng.randrange(len(packet)):]
-    elif operation == 1 and packet:
-        for _ in range(rng.randint(1, min(16, len(packet)))):
-            index = rng.randrange(len(packet))
-            packet[index] ^= 1 << rng.randrange(8)
-    elif operation == 2:
-        at = rng.randrange(len(packet) + 1)
-        packet[at:at] = rng.randbytes(rng.randint(1, 32))
-    elif operation == 3 and len(packet) > 14:
-        start = rng.randrange(14, len(packet))
-        end = min(len(packet), start + rng.randint(1, 32))
-        del packet[start:end]
-    elif operation == 4:
-        packet.extend(rng.randbytes(rng.randint(0, 512)))
-    elif len(packet) >= 14:
-        packet[12:14] = rng.choice((b"\x08\x00", b"\x86\xdd", b"\x88\xb5"))
-    return bytes(packet[:65535])
-
-
-def assert_fuzz_results(cases: list[Case], results: list[dict]) -> None:
-    failures: list[str] = []
-    for index, (case, result) in enumerate(zip(cases, results)):
-        if result.get("index") != index:
-            failures.append(
-                f"case {index}: result index is {result.get('index')!r}")
-        outcome = (result.get("rc"), result.get("retval"))
-        # The skb test harness rejects frames that no longer satisfy its
-        # minimum L2/L3 shape before invoking BPF.  That is a valid fuzz
-        # outcome; anything besides success or EINVAL is not.
-        if outcome not in ((0, 1), (-22, 0)):
-            failures.append(
-                f"case {index} ({case.name}): unexpected rc/retval {outcome}")
-        delta = result.get("counter_delta")
-        if not isinstance(delta, list) or len(delta) != len(COUNTERS):
-            failures.append(f"case {index} ({case.name}): malformed counter delta")
-        if len(failures) >= 20:
-            break
-    if failures:
-        raise AssertionError("\n".join(failures))
-
-
-def run_fuzz(args: argparse.Namespace, work: Path) -> None:
-    rng = random.Random(args.seed)
-    deterministic = build_deterministic_matrix().cases
-    corpus = [case.frame for case in deterministic]
-    cases: list[Case] = []
-    for index in range(args.cases):
-        direction = rng.randrange(2)
-        cases.append(Case(f"fuzz-{index}", direction, rng.randrange(0x10000),
-                          mutate_packet(rng, corpus), request=None))
-    validate_matrix(cases)
-    results = invoke_runner(args.runner, cases, work / "dns-fuzz.batch")
-    assert_fuzz_results(cases, results)
-    (work / "dns-fuzz-results.ndjson").write_text(
-        "".join(json.dumps(item, sort_keys=True) + "\n" for item in results),
-        encoding="utf-8")
-    print(f"PASS fuzz: seed={args.seed:#x}, cases={args.cases}")
-
-
-def parse_int(value: str) -> int:
-    return int(value, 0)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--runner", type=Path, default=Path("helper/test-dns-prog-run"))
-    parser.add_argument("--shirudo", type=Path, default=Path("/usr/local/bin/shirudo"))
-    parser.add_argument("--upatch", default="kernel-obs")
-    parser.add_argument("--work", type=Path, default=Path("."))
     parser.add_argument("--self-test", action="store_true")
-    parser.add_argument("--deterministic", action="store_true")
-    parser.add_argument("--known-gaps", action="store_true")
-    parser.add_argument("--fuzz", action="store_true")
-    parser.add_argument("--seed", type=parse_int, default=0x53484952)
-    parser.add_argument("--cases", type=int, default=5000)
     args = parser.parse_args()
+    if not args.self_test:
+        parser.error("select --self-test")
 
-    if args.cases < 1 or args.cases > 100000:
-        parser.error("--cases must be between 1 and 100000")
-    args.work.mkdir(parents=True, exist_ok=True)
     matrix = build_deterministic_matrix()
     validate_matrix(matrix.cases)
-    if args.self_test:
-        known_cases, _ = build_known_gap_matrix()
-        validate_matrix(known_cases)
-        print(f"PASS matrix self-test: {len(matrix.cases)} deterministic packets, "
-              f"{len(known_cases)} known-gap packets")
-    if args.deterministic:
-        run_deterministic(args, args.work)
-    if args.fuzz:
-        run_fuzz(args, args.work)
-    if not (args.self_test or args.deterministic or args.fuzz):
-        parser.error("select --self-test, --deterministic, or --fuzz")
+    known_cases, _ = build_known_gap_matrix()
+    validate_matrix(known_cases)
+    print(f"PASS matrix self-test: {len(matrix.cases)} deterministic packets, "
+          f"{len(known_cases)} known-gap packets")
     return 0
 
 

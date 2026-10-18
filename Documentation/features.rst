@@ -207,9 +207,12 @@ Serializers
     ``shirudo_serialize__<map>`` renders ``<map>`` into the upatch's
     ``shirudo_ser`` output map as a stream of ``struct
     shirudo_serial_chunk`` records, which is how a map of structs or a
-    per-CPU map becomes a flat record the exporter can ship.  ``shirudo
+    per-CPU map becomes a flat record the exporter can ship. ``shirudo
     upatch map`` and the map-export timer run it on the target instead
-    of reading the map directly.  The builder refuses a serializer
+    of reading the map directly. The LSM permits userspace
+    ``BPF_PROG_TEST_RUN`` only to shirudo's recorded executable,
+    preventing root from invoking a pinned serializer directly. The
+    builder refuses a serializer
     without the output map, one for a reserved or missing map, and two
     for the same map.
 

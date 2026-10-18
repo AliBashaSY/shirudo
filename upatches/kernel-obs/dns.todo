@@ -4,9 +4,12 @@ The UDP DNS parser correlates requests with a canonical key made from
 the network-namespace cookie, address family, client/resolver addresses
 and ports, and transaction ID, and attributes the answer to the querying
 socket's owner. The items below are the remaining parser and
-correlation gaps. Each behavior change should promote its corresponding
-case in `testing/kernel-obs/dns_obs_matrix.py` from a known-gap probe to a gating
-test.
+correlation gaps. `testing/kernel-obs/dns_obs_matrix.py` now validates
+case construction and batch encoding only. Its former target runner used
+`BPF_PROG_TEST_RUN`, which is restricted to Shirudo. The target suite uses
+live loopback UDP exchanges for representative query and response
+coverage. Exact malformed-packet and mutation-fuzz coverage needs a live
+packet harness before it can gate target changes.
 
 ## Matching and response integrity
 
@@ -38,8 +41,9 @@ test.
 - [ ] Walk supported IPv6 extension headers or reject packets containing any
       extension header with a dedicated debug counter.
 - [ ] Validate the IP version against the Ethernet protocol.
-- [ ] Decide whether checksum validation belongs in this program. The packet
-      matrix currently demonstrates that invalid IP/UDP checksums are accepted.
+- [ ] Decide whether checksum validation belongs in this program. The case
+      builder includes invalid-checksum inputs, but target tests do not currently
+      inject those malformed packets over a live network path.
 
 ## Name and answer parsing
 

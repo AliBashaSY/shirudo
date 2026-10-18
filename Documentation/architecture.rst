@@ -217,8 +217,11 @@ bpf() admission.  ``lsm/bpf`` sees every ``bpf()`` command with a
 kernel context and false for userspace.  Kernel-context calls are
 allowed; they come from a loader the kernel has already verified.
 Userspace ``BPF_PROG_LOAD`` is allowed only for ``BPF_PROG_TYPE_SYSCALL``
-with a non-zero ``signature_size``, so the only program userspace can
-load is a signed loader.  Allowed without a signature are the commands
+with a non-zero ``signature_size``. Userspace ``BPF_PROG_TEST_RUN`` is
+restricted to the executable recorded at ``init``; kernel-context calls
+from verified loaders remain allowed. This lets shirudo run loaders and
+serializers while preventing root from invoking a serializer to drain
+its maps. Allowed without a signature are the commands
 that cannot introduce code: map create only from the executable
 ``init`` recorded as shirudo (signed-loader map creation runs in kernel
 context and is already allowed), map update and freeze only from
@@ -227,7 +230,7 @@ shirudo's executable, object pin, link create and raw tracepoint open
 already-vetted program), and the read-only commands (``*_GET_FD_BY_ID``,
 ``*_GET_NEXT_ID``, ``OBJ_GET_INFO_BY_FD``,
 ``MAP_LOOKUP_ELEM``, ``MAP_LOOKUP_BATCH``, ``MAP_GET_NEXT_KEY``,
-``PROG_QUERY``, ``PROG_TEST_RUN``, ``TASK_FD_QUERY``) that keep
+``PROG_QUERY``, ``TASK_FD_QUERY``) that keep
 ``bpftool`` and ``shirudo status`` working. ``OBJ_GET`` is subject to
 ``lsm/bpf_map``: non-Shirudo callers can get only read-only map fds.
 Everything else, including

@@ -17,7 +17,7 @@ root-path = $(if $(filter /%,$(1)),$(1),$(ROOT)/$(1))
 .DEFAULT_GOAL := help
 .PHONY: help clean test-helpers test-op test test-installer bundle test-vm-bundle kernel \
 	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-tgt-obs \
-	test-tgt-obs-fuzz test-vm test-vm-clean
+	test-vm test-vm-clean
 
 KERNEL_PATCHES ?= $(if $(wildcard $(ROOT)/kernel/*.patch),$(ROOT)/kernel/,)
 override KERNEL_PATCHES := $(if $(strip $(KERNEL_PATCHES)),$(call root-path,$(KERNEL_PATCHES)),)
@@ -44,8 +44,6 @@ TEST_VM_MEMORY ?= 4G
 TEST_VM_DISK_SIZE ?= 30G
 TEST_VM_UBUNTU_CODENAME ?= resolute
 TEST_VM_VERBOSE ?= 0
-DNS_OBS_FUZZ_SEED ?= 0x53484952
-DNS_OBS_FUZZ_CASES ?= 5000
 # `make -C testing vm` keeps bpf-next as its default, but can select a stable kernel
 # built from an upstream Linux tag. The stable list is intentionally explicit
 # so a typo cannot silently create a new VM kernel artifact directory.
@@ -214,7 +212,7 @@ test-tgt: $(VM_KERNEL_DEP) test-vm-bundle
 		$(ROOT)/contrib/test-vm.sh
 
 test-tgt-obs: $(VM_KERNEL_DEP) test-vm-bundle
-	$(Q)VM_MODE=test TEST_VM_SUITE=obs TEST_VM_DNS_FUZZ=0 VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(VM_NAME)" VM_TENANT="$(VM_TENANT)" \
+	$(Q)VM_MODE=test TEST_VM_SUITE=obs VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(VM_NAME)" VM_TENANT="$(VM_TENANT)" \
 		TEST_VM_KERNEL="$(abspath $(VM_KERNEL_IMAGE))" \
 		TEST_VM_KERNEL_ARTIFACT_DIR="$(abspath $(VM_KERNEL_ARTIFACT_DIR))" \
 		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" \
@@ -224,26 +222,6 @@ test-tgt-obs: $(VM_KERNEL_DEP) test-vm-bundle
 		TEST_VM_MAP_EXPORT_INSECURE="$(TEST_VM_MAP_EXPORT_INSECURE)" \
 		TEST_VM_MAP_EXPORT_CA="$(TEST_VM_MAP_EXPORT_CA)" \
 		TEST_VM_OCI_CA="$(TEST_VM_OCI_CA)" \
-		TEST_VM_BPM_OCI_REPOSITORY="$(TEST_VM_BPM_OCI_REPOSITORY)" \
-		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
-		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
-		$(ROOT)/contrib/test-vm.sh
-
-test-tgt-obs-fuzz: $(VM_KERNEL_DEP) test-vm-bundle
-	$(Q)VM_MODE=test TEST_VM_SUITE=obs TEST_VM_DNS_FUZZ=1 \
-		TEST_VM_DNS_FUZZ_SEED="$(DNS_OBS_FUZZ_SEED)" \
-		TEST_VM_DNS_FUZZ_CASES="$(DNS_OBS_FUZZ_CASES)" \
-		VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(VM_NAME)" VM_TENANT="$(VM_TENANT)" \
-		TEST_VM_KERNEL="$(abspath $(VM_KERNEL_IMAGE))" \
-		TEST_VM_KERNEL_ARTIFACT_DIR="$(abspath $(VM_KERNEL_ARTIFACT_DIR))" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" \
-		TEST_VM_RUNTIME_CACHE_DIR="$(TEST_VM_RUNTIME_CACHE_DIR)" \
-		TEST_VM_MAP_EXPORT_ENDPOINT="$(TEST_VM_MAP_EXPORT_ENDPOINT)" \
-		TEST_VM_MAP_EXPORT_TENANT_ID="$(TEST_VM_MAP_EXPORT_TENANT_ID)" \
-		TEST_VM_MAP_EXPORT_INSECURE="$(TEST_VM_MAP_EXPORT_INSECURE)" \
-		TEST_VM_MAP_EXPORT_CA="$(TEST_VM_MAP_EXPORT_CA)" \
-		TEST_VM_OCI_CA="$(TEST_VM_OCI_CA)" \
-		TEST_VM_PACKAGE_CERT="$(TEST_VM_PACKAGE_CERT)" \
 		TEST_VM_BPM_OCI_REPOSITORY="$(TEST_VM_BPM_OCI_REPOSITORY)" \
 		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
 		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
@@ -291,7 +269,7 @@ help:
 	  '  make -C testing test-op' \
 	  '  make -C testing test-helpers' \
 	  '  make -C testing test-tgt [TEST_VM_INITRD=1]' \
-	  '  make -C testing test-tgt-obs or test-tgt-obs-fuzz' \
+	  '  make -C testing test-tgt-obs' \
 	  '  make -C testing test-installer' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=6.18' \

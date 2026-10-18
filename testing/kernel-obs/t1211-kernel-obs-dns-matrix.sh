@@ -12,7 +12,6 @@ NAME=kernel-obs
 LOAD="$FIXTURES/$NAME.upatch"
 UNLOAD="$FIXTURES/$NAME.unload.upatch"
 PIN="/run/shirudo/bpffs/upatches/$NAME/link_0"
-RUNNER=./helper/test-dns-prog-run
 WORK=$(mktemp -d)
 
 cleanup()
@@ -26,63 +25,42 @@ cleanup()
 }
 trap cleanup EXIT
 
-save_failure()
-{
-	cat "$WORK/matrix.log" >&2 2>/dev/null || true
-	if [ -d /mnt/shirudo-out ]; then
-		mkdir -p /mnt/shirudo-out/dns-matrix
-		cp -a "$WORK/." /mnt/shirudo-out/dns-matrix/
-	fi
-	return 1
-}
-
-load_observability()
-{
-	if "$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck --report=- \
-		>"$WORK/load.log" 2>&1; then
-		return 0
-	fi
-	cat "$WORK/load.log" >&2
-	if [ -d /mnt/shirudo-out ]; then
-		cp "$WORK/load.log" /mnt/shirudo-out/dns-matrix-load.log
-	fi
-	return 1
-}
-
 [ -s "$LOAD" ] || test_skip_all "missing kernel-obs fixture"
 [ -s "$UNLOAD" ] || test_skip_all "missing kernel-obs unload fixture"
 
-test_expect_success 'DNS matrix helper and generator are available' '
-	[ -x "$RUNNER" ] &&
-	python3 kernel-obs/dns_obs_matrix.py --self-test >"$WORK/self-test.log" 2>&1
+cat >"$WORK/check.py" <<'PYTHON'
+import json
+import sys
+
+records = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
+assert len(records) == 1 and records[0].get("map") == "dns", records
+addresses = {item["address"]: item for item in records[0].get("records", [])}
+for address, name in (("203.0.113.10", ".".join(["a"] * 127)),
+                      ("203.0.113.75", "many.example")):
+    record = addresses.get(address)
+    assert record is not None, records
+    assert any(item["name"] == name for item in record["names"]), record
+assert records[0]["interval"]["overflow"] == 0, records
+assert records[0]["interval"]["lost"] == 0, records
+PYTHON
+
+cat >"$WORK/check-empty.py" <<'PYTHON'
+import json
+import sys
+
+records = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8")]
+assert len(records) == 1 and records[0].get("map") == "dns", records
+assert records[0].get("records") == [], records
+PYTHON
+
+test_expect_success 'DNS observations use real loopback UDP traffic' '
+	"$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck >/dev/null 2>&1 &&
+	python3 kernel-obs/kernel_obs_events.py dns-long &&
+	python3 kernel-obs/kernel_obs_events.py dns-many &&
+	"$SHIRUDO_BIN" upatch map "$NAME" dns --json="$WORK/dns.ndjson" >/dev/null &&
+	python3 "$WORK/check.py" "$WORK/dns.ndjson" &&
+	"$SHIRUDO_BIN" upatch map "$NAME" dns --json="$WORK/dns-empty.ndjson" >/dev/null &&
+	python3 "$WORK/check-empty.py" "$WORK/dns-empty.ndjson"
 '
-
-test_expect_success 'kernel-obs DNS programs load for packet tests' '
-	load_observability &&
-	[ -e "/run/shirudo/bpffs/upatches/$NAME/serializers/dns" ]
-'
-
-test_expect_success 'DNS UDP deterministic packet matrix passes' '
-	python3 kernel-obs/dns_obs_matrix.py --deterministic --known-gaps \
-		--runner "$RUNNER" --shirudo "$SHIRUDO_BIN" --upatch "$NAME" \
-		--work "$WORK" >"$WORK/matrix.log" 2>&1 || save_failure
-'
-
-if [ -s "$WORK/matrix.log" ]; then
-	sed 's/^/# dns-matrix: /' "$WORK/matrix.log"
-fi
-
-if [ "${TEST_VM_DNS_FUZZ:-0}" = 1 ]; then
-	test_expect_success 'DNS UDP seeded mutation fuzz run passes' '
-		python3 kernel-obs/dns_obs_matrix.py --fuzz \
-			--runner "$RUNNER" --work "$WORK" \
-			--seed "${TEST_VM_DNS_FUZZ_SEED:-0x53484952}" \
-			--cases "${TEST_VM_DNS_FUZZ_CASES:-5000}" \
-			>"$WORK/fuzz.log" 2>&1 || save_failure
-	'
-	if [ -s "$WORK/fuzz.log" ]; then
-		sed 's/^/# dns-fuzz: /' "$WORK/fuzz.log"
-	fi
-fi
 
 test_done

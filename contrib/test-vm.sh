@@ -64,9 +64,6 @@ VM_INITRD="${TEST_VM_INITRD:-0}"
 VM_INITRD_MODULES="${TEST_VM_INITRD_MODULES:-base systemd systemd-initrd dracut-systemd rootfs-block fs-lib udev-rules terminfo shirudo}"
 INITRD=""
 VM_VERBOSE="${VM_VERBOSE:-0}"
-DNS_FUZZ="${TEST_VM_DNS_FUZZ:-0}"
-DNS_FUZZ_SEED="${TEST_VM_DNS_FUZZ_SEED:-0x53484952}"
-DNS_FUZZ_CASES="${TEST_VM_DNS_FUZZ_CASES:-5000}"
 VM_NAME_REQUEST="${VM_NAME:-}"
 VM_TENANT="${VM_TENANT:-}"
 VM_SSH_COMMAND="${VM_SSH_COMMAND:-}"
@@ -163,10 +160,6 @@ validate_mode()
 		;;
 	*) die "TEST_VM_SUITE must be 'all', 'obs', or 'tree'" ;;
 	esac
-	case "$DNS_FUZZ" in
-	0|1) ;;
-	*) die "TEST_VM_DNS_FUZZ must be '0' or '1'" ;;
-	esac
 	case "$SKIP_SEAL" in
 	0|1) ;;
 	*) die "TEST_VM_SKIP_SEAL must be '0' or '1'" ;;
@@ -175,12 +168,6 @@ validate_mode()
 	0|1) ;;
 	*) die "TEST_VM_INITRD must be '0' or '1'" ;;
 	esac
-	[[ "$DNS_FUZZ_SEED" =~ ^(0[xX][0-9a-fA-F]+|[0-9]+)$ ]] ||
-		die "TEST_VM_DNS_FUZZ_SEED must be a decimal or hexadecimal integer"
-	[[ "$DNS_FUZZ_CASES" =~ ^[1-9][0-9]*$ ]] ||
-		die "TEST_VM_DNS_FUZZ_CASES must be a positive integer"
-	(( DNS_FUZZ_CASES <= 100000 )) ||
-		die "TEST_VM_DNS_FUZZ_CASES must be between 1 and 100000"
 }
 
 validate_map_export()
@@ -1315,9 +1302,6 @@ printf '      export VM_MODE=%q\n' "$VM_MODE" >>"$USER_DATA"
 printf '      export TEST_VM_SUITE=%q\n' "$VM_SUITE" >>"$USER_DATA"
 printf '      export TEST_VM_SKIP_SEAL=%q\n' "$SKIP_SEAL" >>"$USER_DATA"
 printf '      export TEST_VM_INITRD=%q\n' "$VM_INITRD" >>"$USER_DATA"
-printf '      export TEST_VM_DNS_FUZZ=%q\n' "$DNS_FUZZ" >>"$USER_DATA"
-printf '      export TEST_VM_DNS_FUZZ_SEED=%q\n' "$DNS_FUZZ_SEED" >>"$USER_DATA"
-printf '      export TEST_VM_DNS_FUZZ_CASES=%q\n' "$DNS_FUZZ_CASES" >>"$USER_DATA"
 printf '      export TEST_VM_SSH_PUBLIC_KEY=%q\n' "$SSH_PUBLIC_KEY" >>"$USER_DATA"
 if [[ -n "$OCI_CA_DIR" ]]; then
 	printf '      export TEST_VM_OCI_CA=/mnt/shirudo-oci/ca.crt\n' >>"$USER_DATA"

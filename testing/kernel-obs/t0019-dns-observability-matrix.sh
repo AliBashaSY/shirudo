@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
 
-test_expect_success 'DNS observability packet matrix and batch ABI are valid' '
+test_expect_success 'DNS packet-case builders and batch encoding are valid' '
 	python3 kernel-obs/dns_obs_matrix.py --self-test
 '
 

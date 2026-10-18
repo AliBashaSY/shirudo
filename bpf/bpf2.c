@@ -209,6 +209,12 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 			return -EACCES;
 		return 0;
 
+	case BPF_PROG_TEST_RUN:
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id || !shirudo_task_is_self(id))
+			return -EACCES;
+		return 0;
+
 	case BPF_OBJ_PIN:
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
@@ -216,8 +222,6 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	/*
 	 * Read-only / observability cmds, so `bpftool prog show`,
 	 * `shirudo status`, and `shirudo upatch get/map` keep working.
-	 * BPF_PROG_TEST_RUN is included so shirudo can invoke its own
-	 * signed loaders -- a TEST_RUN cannot introduce unsigned code.
 	 * BPF_OBJ_UNPIN does not exist as a bpf() cmd; VFS unlink removes
 	 * pins and shirudo's lsm/inode_unlink hook blocks `rm` on the
 	 * private bpffs.
@@ -227,7 +231,6 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	case BPF_MAP_LOOKUP_BATCH:
 	case BPF_OBJ_GET:
 	case BPF_OBJ_GET_INFO_BY_FD:
-	case BPF_PROG_TEST_RUN:
 	case BPF_PROG_QUERY:
 	case BPF_PROG_GET_NEXT_ID:
 	case BPF_MAP_GET_NEXT_ID:

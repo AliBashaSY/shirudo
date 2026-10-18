@@ -36,11 +36,14 @@ trap cleanup EXIT HUP INT TERM
 cat >"$WORK/check.py" <<'PYTHON'
 import ctypes
 import errno
+import json
 import os
 import platform
+import subprocess
 import sys
 
 BPF_MAP_UPDATE_ELEM = 2
+BPF_PROG_TEST_RUN = 10
 BPF_MAP_FREEZE = 22
 BPF_MAP_GET_FD_BY_ID = 14
 BPF_OBJ_GET = 7
@@ -98,6 +101,35 @@ class MapElemAttr(ctypes.Structure):
                 ("key", ctypes.c_uint64),
                 ("value", ctypes.c_uint64),
                 ("flags", ctypes.c_uint64)]
+
+
+class SerializerCtx(ctypes.Structure):
+    _fields_ = [("magic", ctypes.c_uint32),
+                ("version", ctypes.c_uint32),
+                ("flags", ctypes.c_uint32),
+                ("max_chunks", ctypes.c_uint32),
+                ("chunk_payload_size", ctypes.c_uint32),
+                ("page_index", ctypes.c_uint32),
+                ("cursor", ctypes.c_uint64),
+                ("invocation_id", ctypes.c_uint64)]
+
+
+class ProgTestRunAttr(ctypes.Structure):
+    _fields_ = [("prog_fd", ctypes.c_uint32),
+                ("retval", ctypes.c_uint32),
+                ("data_size_in", ctypes.c_uint32),
+                ("data_size_out", ctypes.c_uint32),
+                ("data_in", ctypes.c_uint64),
+                ("data_out", ctypes.c_uint64),
+                ("repeat", ctypes.c_uint32),
+                ("duration", ctypes.c_uint32),
+                ("ctx_size_in", ctypes.c_uint32),
+                ("ctx_size_out", ctypes.c_uint32),
+                ("ctx_in", ctypes.c_uint64),
+                ("ctx_out", ctypes.c_uint64),
+                ("flags", ctypes.c_uint32),
+                ("cpu", ctypes.c_uint32),
+                ("batch_size", ctypes.c_uint32)]
 
 
 def bpf(cmd, attr):
@@ -184,12 +216,42 @@ for map_name in ("shirudo_ser", "obs_i_arena"):
     finally:
         os.close(readonly_fd)
 
-print("direct root BPF map mutation denied")
+serializer_path = os.path.join(os.path.dirname(sys.argv[1]),
+                               "serializers/exec")
+serializer_fd, error = obj_get(serializer_path, 0)
+if serializer_fd < 0:
+    raise AssertionError(f"exec serializer fd: errno={error}")
+try:
+    ctx = SerializerCtx(0x5A4C5253, 3, 0, 1, 4032, 0, 0, 1)
+    attr = ProgTestRunAttr(serializer_fd, 0, 0, 0, 0, 0, 1, 0,
+                           ctypes.sizeof(ctx), 0,
+                           ctypes.addressof(ctx), 0, 0, 0, 0)
+    result, error = bpf(BPF_PROG_TEST_RUN, attr)
+    if result == 0 or error != errno.EACCES:
+        raise AssertionError(
+            f"serializer BPF_PROG_TEST_RUN: result={result}, errno={error}; "
+            "expected LSM EACCES")
+finally:
+    os.close(serializer_fd)
+
+output = os.path.join(sys.argv[3], "exec-after-test-run.ndjson")
+subprocess.run([sys.argv[2], "upatch", "map", "kernel-obs", "exec",
+                f"--json={output}"], check=True, stdout=subprocess.DEVNULL)
+documents = [json.loads(line) for line in open(output, encoding="utf-8")]
+records = [record for document in documents
+           if isinstance(document, dict) and document.get("map") == "exec"
+           for record in document.get("records", [])]
+python_exe = os.path.realpath(sys.executable)
+if not any(record.get("path") == python_exe for record in records):
+    raise AssertionError(
+        f"Python exec record was lost after denied serializer run: {records!r}")
+
+print("root BPF map mutation and serializer test-run denied; export preserved")
 PYTHON
 
-test_expect_success 'root direct BPF map mutation is denied' '
+test_expect_success 'root map mutation and serializer test-run are denied' '
 	"$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck >/dev/null 2>&1 &&
-	python3 "$WORK/check.py" "$MAPS"
+	python3 "$WORK/check.py" "$MAPS" "$SHIRUDO_BIN" "$WORK"
 '
 
 test_done

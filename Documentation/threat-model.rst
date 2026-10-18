@@ -130,9 +130,12 @@ T2  Detaching or replacing enforcement
     frozen at creation, so even with the LSM gone userspace could not
     rewrite the identity map. ``lsm/bpf_map`` denies writable map fds
     to every process except shirudo; map updates and freezes have the
-    same executable gate. Root may inspect pinned maps but cannot alter
-    serializer arrays or writable-mmap arena state through the syscall
-    interface.  From the initrd, the identity records
+    same executable gate. Userspace ``BPF_PROG_TEST_RUN`` is restricted
+    to shirudo's recorded executable; kernel-context loader calls remain
+    allowed. Root therefore cannot invoke a signed
+    serializer to drain or clear map state. Root may inspect pinned maps
+    but cannot alter serializer arrays or writable-mmap arena state
+    through the syscall interface. From the initrd, the identity records
     the root's binary as the executable that lasts and the initrd's
     own copy beside it for that one run; the copy is gone with the
     initrd, and its inode is on a file system nothing can reach after

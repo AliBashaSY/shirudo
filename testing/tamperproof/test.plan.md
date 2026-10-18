@@ -7,20 +7,14 @@ this review.
 
 ## Priority finding
 
-**Open bypass: a root caller can invoke a pinned serializer with
-`BPF_PROG_TEST_RUN`.** The Shirudo BPF LSM allows `BPF_PROG_TEST_RUN`,
-`BPF_OBJ_GET`, and `BPF_PROG_GET_FD_BY_ID` to all callers. Kernel-obs
-serializers are pinned signed syscall programs. A non-PEEK serializer context
-can flip the arena buffers and clear drained state, so a root caller can cause
-observation records to be drained or cleared without acquiring a writable map
-FD. This is a state-integrity/availability bypass through signed code, not
-unsigned code loading or arbitrary map writes.
-
-Restrict `BPF_PROG_TEST_RUN` to Shirudo's recorded executable, then add a
-negative root test that attempts a destructive serializer run and confirms
-the records remain. Keep a positive control proving Shirudo's own export still
-works. Relevant implementation: `bpf/bpf2.c`,
-`upatches/kernel-obs/obs_table.h`, and `util/upatch_maps.c`.
+**Resolved bypass: root could invoke a pinned serializer with
+`BPF_PROG_TEST_RUN`.** Kernel-obs serializers are pinned signed syscall
+programs. A non-PEEK serializer context can flip arena buffers and clear
+drained state, allowing a root caller to drain observations without a
+writable map FD. The LSM now restricts userspace `BPF_PROG_TEST_RUN` to
+Shirudo's recorded executable; verified kernel-context loader calls remain
+allowed. `t1130-map-lockdown.sh` asserts the denial and then
+checks that Shirudo can still export the pre-existing Python exec record.
 
 ## Coverage matrix
 
@@ -39,7 +33,7 @@ works. Relevant implementation: `bpf/bpf2.c`,
 | TP-11 | Read-only map FD access as a positive control | Covered | `t1130-map-lockdown.sh` | Preserve both path and map-ID read-only checks. |
 | TP-12 | Update serializer map or freeze serializer/arena map directly | Covered | `t1130-map-lockdown.sh` | Current test attempts update on serializer array and freeze on both. |
 | TP-13 | Writable mmap of arena | Covered | `t1130-map-lockdown.sh` | Preserve denial check. |
-| TP-14 | Invoke pinned serializer with destructive `BPF_PROG_TEST_RUN` context | **Open bypass** | None | After policy fix, root invocation must be denied and accumulated records must remain; Shirudo export must still succeed. |
+| TP-14 | Invoke pinned serializer with destructive `BPF_PROG_TEST_RUN` context | Covered | `t1130-map-lockdown.sh` | Root receives `EACCES`; Shirudo export still succeeds and contains the Python exec record created before the attempt. |
 | TP-15 | Delete map element; update/delete batch; lookup-and-delete variants | Not covered | None | Add raw-syscall denial cases for each applicable command. Policy default-denies them, but that behavior is not asserted. |
 | TP-16 | Create a BPF map from a non-Shirudo executable | Not covered | None in tamperproof | Add direct negative test for `BPF_MAP_CREATE`; cover authorized Shirudo loader creation as positive control. |
 | TP-17 | Create links or pin existing objects from root | Not covered | None | `BPF_LINK_CREATE` and `BPF_OBJ_PIN` are allowed. Test whether root can create an unwanted attachment or pin and whether the resulting object affects enforcement/state. |

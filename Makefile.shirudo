@@ -499,7 +499,6 @@ TEST_HELPERS := testing/helper/test-json-parser \
 		testing/helper/test-kernel-release \
 		testing/helper/test-kernel-build-id \
                 testing/helper/test-bpf-load \
-		testing/helper/test-dns-prog-run \
                 testing/helper/test-kernel-abi \
                 testing/helper/test-otel-map \
                 testing/helper/test-upatch-map-types \
@@ -570,10 +569,6 @@ testing/helper/test-kernel-build-id: testing/helper/test-kernel-build-id.c util/
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-bpf-load: testing/helper/test-bpf-load.c
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^
-
-testing/helper/test-dns-prog-run: testing/helper/test-dns-prog-run.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
