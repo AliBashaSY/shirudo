@@ -1,0 +1,648 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
+# Makefile.shirudo -- main build graph.
+#
+# Five strict build phases:
+#   1. vendored libbpf (vendor/libbpf) and the vmlinux.h generator
+#   2. generated headers   (vendor/linux/vmlinux.h)
+#   3. compiled objects    (util/*.o, builtin-*.o, shirudo.o, bpf/*.bpf.o)
+#   4. embedded BPF        (util/loader.o, .incbin of bpf/*.bpf.o)
+#   5. link                (shirudo, shirudo-target, shirudo-build)
+
+include Makefile.version
+
+PROFILE ?= operator
+CONFIG_MK ?= config.mk
+-include $(CONFIG_MK)
+
+# Both profiles run on OpenSSL: libcrypto for SHA-256, certificates and
+# CMS, libssl behind libcurl for TLS. The operator links the system
+# shared libraries; the target links the static OpenSSL and libcurl
+# staged by make target-deps.
+CRYPTO_SRC := util/crypto_openssl.c
+TLS_SRC := util/tls_openssl.c
+ifeq ($(PROFILE),target)
+OBJ_PREFIX := build/target/
+CRYPTO_CFLAGS := $(TARGET_TLS_CFLAGS)
+else
+OBJ_PREFIX :=
+CRYPTO_CFLAGS :=
+endif
+
+obj = $(OBJ_PREFIX)$(1)
+
+# ----- toolchain --------------------------------------------------
+
+CC      ?= cc
+LD      := $(CC)
+LDFLAGS ?=
+SHIRUDO_BUNDLE_RPATH ?= 0
+CLANG   ?= clang
+# libbpf, its BPF-side headers and the BPF UAPI headers are vendored under
+# vendor/libbpf (refreshed on demand with make bpf-deps); nothing in
+# a normal build reaches outside the repository for them. vmlinux.h is
+# dumped from BTF by the in-tree generator, so bpftool is not needed.
+LIBBPF_VENDOR    := vendor/libbpf
+LIBBPF_DIR       := $(LIBBPF_VENDOR)/bpf
+LIBBPF_A         := $(LIBBPF_VENDOR)/libbpf.a
+BPF_UAPI_INCLUDE := $(LIBBPF_VENDOR)/include/uapi
+VMLINUX_GEN      := tools/gen-vmlinux-h/gen-vmlinux-h
+BPF_VMLINUX_H ?=
+# Prefer BTF from the testing bpf-next target; otherwise use the running host.
+# A caller can still override this explicitly for another target kernel.
+BPF_VMLINUX_BTF ?= $(if $(wildcard artifacts/bpf-next-kernel-debs/vmlinux.btf),artifacts/bpf-next-kernel-debs/vmlinux.btf,/sys/kernel/btf/vmlinux)
+# Generated, never committed: the C rendering of the selected BTF.
+VMLINUX_H := vendor/linux/vmlinux.h
+VMLINUX_BTF_SOURCE := vendor/linux/.vmlinux-btf-source
+VMLINUX_BTF_SOURCE_CURRENT := $(shell cat $(VMLINUX_BTF_SOURCE) 2>/dev/null)
+VMLINUX_BTF_SOURCE_SELECTED := $(if $(BPF_VMLINUX_H),header:$(BPF_VMLINUX_H),$(BPF_VMLINUX_BTF))
+ifneq ($(VMLINUX_BTF_SOURCE_SELECTED),$(VMLINUX_BTF_SOURCE_CURRENT))
+VMLINUX_BTF_SOURCE_CHANGED := FORCE_VMLINUX_BTF
+endif
+
+SHIRUDO_LIBEXEC_DIR ?= $(libexecdir)/shirudo
+
+# Where operator-installed BPF headers live on a packaged host;
+# also baked into shirudo-build as a runtime fallback -I path.
+SHIRUDO_BPF_INCDIR  ?= $(sharedir)/shirudo/bpf/include
+# Installed kernel BTF types used as the default vmlinux.h fallback.
+SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
+
+WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes \
+            -Wmissing-prototypes -Wpointer-arith -Wshadow
+
+SHIRUDO_DEBUG ?= 1
+DEBUG_CFLAGS := $(if $(filter 1 yes y true,$(SHIRUDO_DEBUG)),-g,)
+
+CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) \
+               -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
+               -DSHIRUDO_LIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
+               -DSHIRUDO_BPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
+               -DSHIRUDO_VMLINUX_PATH='"$(SHIRUDO_VMLINUX_PATH)"'
+
+# make SANITIZE=address,undefined instruments the host-side binaries and
+# the test helpers; BPF objects come from clang -target bpf and are never
+# affected. Recovery is off so that every report fails the run.
+SANITIZE ?=
+ifneq ($(SANITIZE),)
+CFLAGS_BASE += -O1 -fno-omit-frame-pointer -fsanitize=$(SANITIZE) \
+               -fno-sanitize-recover=all
+endif
+
+INCLUDES := \
+    -I. \
+    -Iinclude \
+    -Iutil \
+    -I$(LIBBPF_VENDOR) \
+    -I$(BPF_UAPI_INCLUDE)
+
+CFLAGS := $(CFLAGS_BASE) $(INCLUDES) \
+          $(LIBCRYPTO_CFLAGS) $(TSS2_CFLAGS) \
+          $(LIBELF_CFLAGS) $(ZLIB_CFLAGS) $(LIBCURL_CFLAGS) \
+          $(CRYPTO_CFLAGS)
+
+# libbpf is always linked from its archive. The normal shirudo binary keeps
+# the existing dynamic OpenSSL/libcurl profile for operator builds.
+STATIC_LIBS = \
+    $(LIBBPF_A)
+
+DYNAMIC_LIBS := \
+    $(LIBCRYPTO_LIBS) -lssl $(TSS2_LIBS) \
+    $(LIBELF_LIBS) $(ZLIB_LIBS) $(LIBCURL_LIBS)
+
+CFLAGS += $(LUAJIT_CFLAGS) -DSHIRUDO_HAVE_LUAJIT
+DYNAMIC_LIBS += $(LUAJIT_LIBS)
+
+ifeq ($(SHIRUDO_BUNDLE_RPATH),1)
+RPATH_LDFLAGS := -Wl,--disable-new-dtags -Wl,-rpath,'$$ORIGIN/../lib/shirudo'
+else
+RPATH_LDFLAGS :=
+endif
+
+# vmlinux.h dumps anonymous structs in a way that trips
+# -Wmissing-declarations; the BPF_PROG() / BPF_KPROBE() macros
+# generate auto-named params that often go unused. Neither is
+# fixable upstream of us, so silence both for BPF compilation.
+CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra \
+             -Wno-missing-declarations -Wno-unused-parameter
+
+# ----- source manifests -------------------------------------------
+
+UTIL_SRCS := \
+	$(CRYPTO_SRC) \
+	$(TLS_SRC) \
+    util/parse-options.c \
+    util/loader.c \
+    util/upatch.c \
+    util/keyring.c \
+    util/keys.c \
+    util/identity.c \
+    util/initrd.c \
+    util/paths.c \
+    util/harden.c \
+    util/preflight.c \
+    util/kernel_abi.c \
+    util/log.c \
+    util/io.c \
+    util/tpm.c \
+    util/tpm_wire.c \
+    util/attest.c \
+    util/chain.c \
+    util/hex.c \
+    util/bpm_tree.c \
+    util/bpm_tree_state.c \
+    util/bpm_oci.c \
+    util/bpm_package.c \
+    util/kernel_build_id.c \
+    util/kernel_release.c \
+    util/config.c \
+    util/bpm_source_config.c \
+    util/eventlog.c \
+    util/json.c \
+    util/report.c \
+    util/malloc.c \
+    util/sysinfo.c \
+    util/similar.c \
+    util/help.c \
+    util/timefmt.c \
+    util/conditions.c \
+    util/format.c \
+    util/kmsg.c \
+    util/kmodules.c \
+    util/seal.c \
+    util/serializer.c \
+    util/upatch_maps.c \
+    util/upatch_decode.c \
+    util/upatch_maps_otel.c \
+    util/elf_target.c \
+    util/upatch_resolve.c \
+    util/upatch_table.c
+
+BUILTIN_GENKEY_SRC := builtin-genkey.c
+
+BUILTIN_SRCS := \
+    builtin-init.c \
+    $(BUILTIN_GENKEY_SRC) \
+    builtin-status.c \
+    builtin-keys.c \
+    builtin-config.c \
+    builtin-upatch.c \
+    builtin-bpm.c \
+    builtin-attest.c \
+    builtin-build.c \
+    builtin-version.c
+
+# BPF-side libbpf headers, used straight from vendor/libbpf (the BPF
+# compile rule adds it to the include path so <bpf/...> resolves) and
+# installed for shirudo build on operator hosts.
+BPF_VENDOR_HEADERS := bpf_helpers bpf_helper_defs bpf_tracing \
+                      bpf_core_read bpf_endian
+BPF_LIBBPF_HEADERS := $(addprefix $(LIBBPF_DIR)/,\
+                                  $(addsuffix .h,$(BPF_VENDOR_HEADERS)))
+BPF_LIB_HEADERS    := bpf/lib/shirudo_bpf_common.h \
+                      bpf/lib/shirudo_serializer.h \
+                      bpf/lib/shirudo_decoder.h
+
+# bpf/*.bpf.c sources compiled with clang -target bpf and embedded via
+# .incbin into util/loader.o. bpf/lib/ is include-only.
+BPF_SRCS := \
+    bpf/bpf2.c \
+    bpf/seal.c \
+    bpf/unload.c
+
+# shirudo-build is operator-only and links util/sign.c (CMS signer)
+# plus a small subset of util/. The core shirudo binary does NOT
+# link util/sign.c.
+BUILD_SRCS := \
+    tools/shirudo-build/shirudo-build.c \
+    tools/shirudo-build/compile.c \
+    tools/shirudo-build/package.c \
+    tools/shirudo-build/vmlinux.c \
+    tools/shirudo-build/bpm-build.c \
+    tools/shirudo-build/bpm-publish.c \
+    tools/shirudo-build/vouch.c
+
+# ----- derived names ----------------------------------------------
+
+UTIL_OBJS    := $(foreach s,$(UTIL_SRCS),$(call obj,$(s:.c=.o)))
+BUILTIN_OBJS := $(foreach s,$(BUILTIN_SRCS),$(call obj,$(s:.c=.o)))
+BPF_OBJS     := $(BPF_SRCS:.c=.bpf.o)
+BUILD_OBJS   := $(foreach s,$(BUILD_SRCS),$(call obj,$(s:.c=.o)))
+
+MAIN_OBJ     := $(call obj,shirudo.o)
+VERSION_OBJ  := $(call obj,util/version_id.o)
+
+# Header-dependency tracking (-MMD -MP writes a .d per .o). Without this,
+# changing a header would leave dependent .o files stale -- e.g. a struct
+# whose size grew in a header but whose .c was not re-touched, producing
+# an ABI mismatch and memory corruption at runtime.
+DEP_OBJS := $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
+            $(BUILD_OBJS)
+DEPS     := $(DEP_OBJS:.o=.d)
+
+# ----- top-level goals --------------------------------------------
+
+.PHONY: all install install-common install-target install-operator clean distclean check test \
+		test-helpers \
+        bpf libbpf
+
+all: shirudo
+
+# shirudo-build is built only when explicitly requested or on the
+# operator install target.
+shirudo-build: tools/shirudo-build/shirudo-build
+
+# ----- phase 1: vendored libbpf and the vmlinux.h generator -------
+
+LIBBPF_SRCS := $(wildcard $(LIBBPF_DIR)/*.c $(LIBBPF_DIR)/*.h \
+                          $(LIBBPF_VENDOR)/include/linux/*.h \
+                          $(LIBBPF_VENDOR)/include/asm/*.h \
+                          $(LIBBPF_VENDOR)/include/uapi/linux/*.h \
+                          $(LIBBPF_VENDOR)/Makefile)
+
+libbpf: $(LIBBPF_A)
+
+$(LIBBPF_A): $(LIBBPF_SRCS)
+	@printf '  LIBBPF\n'
+	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) CC="$(CC)" Q="$(Q)"
+
+# Build-time only; links the vendored libbpf and dumps BTF as C.
+$(VMLINUX_GEN): tools/gen-vmlinux-h/gen-vmlinux-h.c $(LIBBPF_A)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS_BASE) $(INCLUDES) -o $@ $< $(LIBBPF_A) \
+	    $(LIBELF_LIBS) $(ZLIB_LIBS)
+
+# ----- phase 2: generated headers ---------------------------------
+
+ifneq ($(BPF_VMLINUX_H),)
+$(VMLINUX_H): $(BPF_VMLINUX_H) $(VMLINUX_BTF_SOURCE_CHANGED)
+	@printf '  COPY    $@\n'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)cp $< $@
+	$(Q)printf '%s\n' '$(VMLINUX_BTF_SOURCE_SELECTED)' > $(VMLINUX_BTF_SOURCE)
+else
+$(VMLINUX_H): $(VMLINUX_GEN) $(BPF_VMLINUX_BTF) $(VMLINUX_BTF_SOURCE_CHANGED)
+	@printf '  GEN     $@\n'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$< $(BPF_VMLINUX_BTF) > $@
+	$(Q)printf '%s\n' '$(VMLINUX_BTF_SOURCE_SELECTED)' > $(VMLINUX_BTF_SOURCE)
+endif
+
+.PHONY: FORCE_VMLINUX_BTF
+FORCE_VMLINUX_BTF:
+
+# ----- phase 3: compile rules -------------------------------------
+
+%.o: %.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+build/target/%.o: %.c
+	@printf '  CC      $@\n'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+-include $(DEPS)
+
+# BPF objects pull vmlinux.h from vendor/linux, <bpf/...> helper headers
+# and UAPI kernel headers from vendor/libbpf, and shirudo's own BPF
+# library headers from bpf/lib.
+bpf/%.bpf.o: bpf/%.c $(VMLINUX_H) $(BPF_LIBBPF_HEADERS)
+	@printf '  CLANG   $@\n'
+	$(Q)$(CLANG_BPF) -Ibpf/lib -I$(dir $(VMLINUX_H)) -I$(LIBBPF_VENDOR) \
+	    -I$(BPF_UAPI_INCLUDE) \
+	    -c $< -o $@
+
+# ----- version_id ------------------------------------------------
+
+# Regenerated every build; cheap (one sha256sum invocation).
+.PHONY: util/version_id.c
+util/version_id.c:
+	@printf '  GEN     $@\n'
+	$(Q)set -eu; \
+	describe=$$($(SHIRUDO_GIT_DESCRIBE) 2>/dev/null || cat VERSION); \
+	describe_c=$$(printf '%s' "$$describe" | sed 's/[\\"]/\\&/g'); \
+	rev=$$(git rev-parse HEAD 2>/dev/null || cat VERSION); \
+	dirty=$$(git diff-index --quiet HEAD 2>/dev/null || echo -dirty); \
+	cfg=$$(sha256sum config.mk Makefile.shirudo 2>/dev/null | \
+	       sha256sum | cut -c1-16); \
+	id=$$(printf '%s%s|%s' "$$rev$$dirty" "$$cfg" | \
+	      sha256sum | cut -d' ' -f1); \
+	extra_c=$$(printf '%s' "$(EXTRAVERSION)" | sed 's/[\\"]/\\&/g'); \
+	name_c=$$(printf '%s' "$(NAME)" | sed 's/[\\"]/\\&/g'); \
+	{ \
+	    echo "// SPDX-License-Identifier: BSD-2-Clause"; \
+	    echo "/* Copyright (c) 2026 Authors of shirudo */"; \
+	    echo "/* AUTO-GENERATED. Do not edit. Do not commit. */"; \
+	    echo ""; \
+	    echo "const char shirudo_version[] = \"$$describe_c\";"; \
+	    echo "const char shirudo_version_id[] = \"$$id\";"; \
+	    echo "const char shirudo_extraversion[] = \"$$extra_c\";"; \
+	    echo "const char shirudo_release_name[] = \"$$name_c\";"; \
+	} > $@
+
+# ----- phase 5: link ---------------------------------------------
+
+shirudo: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A)
+	@printf '  LD      $@\n'
+	$(Q)$(LD) $(CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
+	    $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
+	    $(STATIC_LIBS) $(DYNAMIC_LIBS)
+
+shirudo-target: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A)
+	@printf '  LD      $@ (static OpenSSL)\n'
+	$(Q)$(LD) $(CFLAGS) $(TARGET_TLS_CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
+	    $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
+	    $(STATIC_LIBS) $(TARGET_TLS_STATIC_LINK_LIBS) \
+	    $(TARGET_STATIC_RUNTIME_LINK_LIBS) \
+	    -Wl,-Bdynamic $(TARGET_TLS_DYNAMIC_LINK_LIBS)
+
+# util/loader.o has a make-level dep on every embedded bpf object.
+util/loader.o: $(BPF_OBJS)
+build/target/util/loader.o: $(BPF_OBJS)
+
+# shirudo-build links util/sign.c (CMS signer) plus a subset of util,
+# util/loader.o for its .incbin of bpf/unload.bpf.o (used by the
+# --unload directive emission path), and the OCI client for the
+# operator-only `bpm build|push|tree append`. Not linked into the core
+# shirudo binary.
+tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
+                                   util/parse-options.o util/upatch.o \
+                                   util/log.o util/json.o util/loader.o \
+                                   util/io.o util/malloc.o util/paths.o \
+                                   util/elf_target.o util/hex.o util/keys.o \
+                                   util/crypto_openssl.o util/tls_openssl.o \
+                                   util/bpm_oci.o util/bpm_package.o \
+                                   util/bpm_tree.o $(VERSION_OBJ) \
+                                   $(LIBBPF_A)
+	@printf '  LD      $@\n'
+	$(Q)$(LD) $(CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
+
+# ----- install ----------------------------------------------------
+
+# The reboot-persistence units, with @bindir@ resolved to the install path.
+systemd/shirudo.service: systemd/shirudo.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+systemd/shirudo-initrd.service: systemd/shirudo-initrd.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+# The periodic map exporter is target-only and uses the same installed binary.
+systemd/shirudo-map-export.service: systemd/shirudo-map-export.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+# The periodic status keepalive is target-only and uses the same installed
+# binary and OTLP environment as the map exporter.
+systemd/shirudo-keepalive.service: systemd/shirudo-keepalive.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+# The BPM repository refresh is target-only and uses the same installed
+# binary plus the optional BPM OCI environment file.
+systemd/shirudo-bpm-repo-update.service: systemd/shirudo-bpm-repo-update.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+# The optional signed upatch tree refresh is target-only and exits cleanly
+# when /etc/shirudo/bpm/upatch-tree.conf is absent.
+systemd/shirudo-bpm-tree-sync.service: systemd/shirudo-bpm-tree-sync.service.in
+	@printf '  GEN     $@\n'
+	$(Q)sed 's|@bindir@|$(bindir)|g' $< > $@
+
+install: shirudo install-common
+	@printf '  INSTALL $(DESTDIR)$(bindir)/shirudo\n'
+	$(Q)install -d $(DESTDIR)$(bindir)
+	$(Q)install -m 0755 shirudo $(DESTDIR)$(bindir)/shirudo
+
+install-common:
+	@printf '  INSTALL $(DESTDIR)$(completionsdir)/shirudo\n'
+	$(Q)install -d $(DESTDIR)$(completionsdir)
+	$(Q)install -m 0644 completion/shirudo.bash \
+	    $(DESTDIR)$(completionsdir)/shirudo
+
+# Target machines additionally get the reboot-persistence, periodic map
+# export, and status keepalive units. They are deliberately NOT in
+# install-operator.
+install-target: shirudo-target install-common systemd/shirudo.service \
+		systemd/shirudo-initrd.service \
+		systemd/shirudo-map-export.service \
+		systemd/shirudo-map-export.timer \
+		systemd/shirudo-keepalive.service \
+		systemd/shirudo-keepalive.timer \
+		systemd/shirudo-bpm-repo-update.service \
+		systemd/shirudo-bpm-repo-update.timer \
+		systemd/shirudo-bpm-tree-sync.service \
+		systemd/shirudo-bpm-tree-sync.timer
+	@printf '  INSTALL $(DESTDIR)$(bindir)/shirudo (static OpenSSL)\n'
+	$(Q)install -d $(DESTDIR)$(bindir)
+	$(Q)install -m 0755 shirudo-target $(DESTDIR)$(bindir)/shirudo
+	@printf '  INSTALL $(DESTDIR)$(bindir)/shirudo-gen-initrd\n'
+	$(Q)install -m 0755 tools/gen-initrd/shirudo-gen-initrd \
+	    $(DESTDIR)$(bindir)/shirudo-gen-initrd
+	@printf '  INSTALL $(DESTDIR)$(dracutmodulesdir)/90shirudo\n'
+	$(Q)install -d $(DESTDIR)$(dracutmodulesdir)/90shirudo
+	$(Q)install -m 0755 tools/gen-initrd/module-setup.sh \
+	    $(DESTDIR)$(dracutmodulesdir)/90shirudo/module-setup.sh
+	@printf '  INSTALL $(DESTDIR)$(systemdunitdir)/shirudo*.service,timer\n'
+	$(Q)install -d $(DESTDIR)$(systemdunitdir)
+	$(Q)install -m 0644 systemd/shirudo.service \
+	    systemd/shirudo-initrd.service \
+	    systemd/shirudo-map-export.service \
+	    systemd/shirudo-map-export.timer \
+	    systemd/shirudo-keepalive.service \
+	    systemd/shirudo-keepalive.timer \
+	    systemd/shirudo-bpm-repo-update.service \
+	    systemd/shirudo-bpm-repo-update.timer \
+	    systemd/shirudo-bpm-tree-sync.service \
+	    systemd/shirudo-bpm-tree-sync.timer \
+	    $(DESTDIR)$(systemdunitdir)/
+
+install-operator: install shirudo-build $(VMLINUX_H) $(BPF_LIBBPF_HEADERS) $(BPF_LIB_HEADERS)
+	@printf '  INSTALL $(DESTDIR)$(libexecdir)/shirudo/shirudo-build\n'
+	$(Q)install -d $(DESTDIR)$(libexecdir)/shirudo
+	$(Q)install -m 0755 tools/shirudo-build/shirudo-build \
+	    $(DESTDIR)$(libexecdir)/shirudo/shirudo-build
+	@printf '  INSTALL $(DESTDIR)$(sharedir)/shirudo/vmlinux.h\n'
+	$(Q)install -d $(DESTDIR)$(sharedir)/shirudo
+	$(Q)install -m 0644 $(VMLINUX_H) \
+	    $(DESTDIR)$(sharedir)/shirudo/vmlinux.h
+	@printf '  INSTALL $(DESTDIR)$(SHIRUDO_BPF_INCDIR)/bpf/\n'
+	$(Q)install -d $(DESTDIR)$(SHIRUDO_BPF_INCDIR)/bpf
+	$(Q)install -m 0644 $(BPF_LIBBPF_HEADERS) \
+	    $(DESTDIR)$(SHIRUDO_BPF_INCDIR)/bpf/
+	@printf '  INSTALL $(DESTDIR)$(SHIRUDO_BPF_INCDIR)/\n'
+	$(Q)install -m 0644 $(BPF_LIB_HEADERS) \
+	    $(DESTDIR)$(SHIRUDO_BPF_INCDIR)/
+
+# ----- test -------------------------------------------------------
+
+# A libtpms-backed TPM for the host-side register tests; built only
+# where libtpms is installed, the tests skip without it.
+TPMSIM_CFLAGS := $(shell pkg-config --cflags libtpms 2>/dev/null)
+TPMSIM_LIBS := $(shell pkg-config --libs libtpms 2>/dev/null)
+TPMSIM_HELPER := $(if $(TPMSIM_LIBS),testing/helper/tpmsim-cmd,)
+
+# Compiled test helpers (also usable as fuzz entry points).
+TEST_HELPERS := testing/helper/test-json-parser \
+                testing/helper/test-chain \
+                testing/helper/test-tpm-wire \
+                testing/helper/test-register \
+                testing/helper/test-eventlog \
+                testing/helper/test-keys \
+                $(TPMSIM_HELPER) \
+		testing/helper/test-config \
+		testing/helper/test-bpm-source \
+		testing/helper/test-kernel-release \
+		testing/helper/test-kernel-build-id \
+                testing/helper/test-bpf-load \
+		testing/helper/test-dns-prog-run \
+                testing/helper/test-kernel-abi \
+                testing/helper/test-otel-map \
+                testing/helper/test-upatch-map-types \
+                testing/helper/test-upatch-prog-metadata \
+                testing/helper/test-upatch-decode \
+                testing/helper/test-upatch-serializer-pages \
+                testing/helper/test-signed-load \
+                testing/helper/test-exec-churn
+
+testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+# chain.o's read/extend paths reference util/tpm (libtss2); the tests
+# only exercise the pure helpers, but the symbols must still resolve.
+# util/malloc.o brings in x*/shirudo_libc_free that chain.o/tpm.o use.
+# util/config.o resolves shirudo_config_load(), called by tpm.o.
+# The register code pulls in the eventlog, which pulls in the seal
+# label writer and the JSON codec.
+REGISTER_OBJS := util/chain.o util/tpm.o util/tpm_wire.o util/eventlog.o \
+                 util/hex.o util/crypto_openssl.o util/json.o util/io.o \
+                 util/seal.o util/config.o util/log.o util/malloc.o \
+                 util/initrd.o $(VERSION_OBJ)
+REGISTER_LIBS := -lcrypto -lssl -ltss2-esys -ltss2-tctildr
+
+testing/helper/test-keys: testing/helper/test-keys.c util/keys.o \
+                          util/upatch.o $(REGISTER_OBJS)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
+
+testing/helper/test-eventlog: testing/helper/test-eventlog.c $(REGISTER_OBJS)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
+
+testing/helper/test-chain: testing/helper/test-chain.c $(REGISTER_OBJS)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
+
+testing/helper/test-tpm-wire: testing/helper/test-tpm-wire.c util/tpm_wire.o util/hex.o \
+                        util/crypto_openssl.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ -lcrypto -lssl
+
+testing/helper/test-register: testing/helper/test-register.c util/attest.o \
+                        $(REGISTER_OBJS)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
+
+testing/helper/tpmsim-cmd: testing/helper/tpmsim-cmd.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS_BASE) $(TPMSIM_CFLAGS) -o $@ $< $(TPMSIM_LIBS) -lcrypto
+
+testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o util/log.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-bpm-source: testing/helper/test-bpm-source.c util/bpm_source_config.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-kernel-release: testing/helper/test-kernel-release.c util/kernel_release.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-kernel-build-id: testing/helper/test-kernel-build-id.c util/kernel_build_id.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-bpf-load: testing/helper/test-bpf-load.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-dns-prog-run: testing/helper/test-dns-prog-run.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+# Needs the vendored uapi bpf.h (excl_prog_hash / fd_array_cnt / keyring_id
+# are newer than a stock system header) and libcrypto for SHA-256.
+testing/helper/test-signed-load: testing/helper/test-signed-load.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -I$(BPF_UAPI_INCLUDE) \
+	    -o $@ $^ -lcrypto
+
+testing/helper/test-kernel-abi: testing/helper/test-kernel-abi.c util/kernel_abi.o \
+                          $(LIBBPF_A)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(LIBELF_LIBS) $(ZLIB_LIBS)
+
+testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o \
+                        util/upatch_maps_otel.o util/crypto_openssl.o \
+                        util/tls_openssl.o util/serializer.o \
+                        util/upatch_decode.o util/upatch_resolve.o \
+                        util/upatch.o util/json.o \
+                        util/io.o util/malloc.o $(LIBBPF_A)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
+
+testing/helper/test-upatch-map-types: testing/helper/test-upatch-map-types.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-upatch-prog-metadata: testing/helper/test-upatch-prog-metadata.c \
+                                    util/upatch.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializer-pages.c \
+                                       util/upatch_maps.o util/upatch_resolve.o \
+                                       util/serializer.o \
+                                       util/json.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
+
+testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
+			      util/upatch_decode.o util/upatch.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
+
+testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+test-helpers: $(TEST_HELPERS)
+
+check test: shirudo $(TEST_HELPERS)
+	@printf '  TEST\n'
+	$(Q)cd testing && ./run-tests.sh
+
+# ----- clean ------------------------------------------------------
+
+clean:
+	$(Q)rm -f shirudo shirudo-target tools/shirudo-build/shirudo-build $(TEST_HELPERS)
+	$(Q)rm -f $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) \
+	          $(BUILD_OBJS) $(VERSION_OBJ) util/version_id.c
+	$(Q)rm -rf build/target
+	$(Q)rm -f $(DEPS) testing/helper/*.d
+	$(Q)rm -f $(BPF_OBJS) $(VMLINUX_H) systemd/shirudo.service \
+	    systemd/shirudo-initrd.service \
+	          systemd/shirudo-map-export.service \
+	          systemd/shirudo-keepalive.service \
+	          systemd/shirudo-bpm-repo-update.service \
+	          systemd/shirudo-bpm-tree-sync.service
+
+distclean:
+	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) clean
+	$(Q)rm -f $(VMLINUX_GEN)

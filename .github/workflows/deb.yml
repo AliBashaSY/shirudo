@@ -1,0 +1,388 @@
+name: Build packages
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine build version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            version=$REF_NAME
+          else
+            version=$(git describe --tags --always --dirty)
+          fi
+          mkdir -p build
+          printf '%s\n' "$version" > build/ci-version
+
+      - name: Build the tarball, deb and target rpm packages and run shirudo in LVH VM
+        uses: cilium/little-vm-helper@v0.0.30
+        with:
+          test-name: shirudo-apt
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cpu: 4
+          mem: 8G
+          cmd: |
+            grep -qw bpf /sys/kernel/security/lsm
+            grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
+              echo 'kernel BTF lacks bpf_attr.signature_size; needs a signed-BPF capable bpf-next kernel' >&2
+              exit 1
+            }
+            cd /host
+
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              build-essential \
+              ca-certificates \
+              clang \
+              llvm \
+              python3 \
+              pkg-config \
+              autoconf \
+              autoconf-archive \
+              automake \
+              doxygen \
+              libacl1-dev \
+              libftdi1-dev \
+              libini-config-dev \
+              libssl-dev \
+              libfido2-dev \
+              libtss2-dev \
+              libelf-dev \
+              zlib1g-dev \
+              libzstd-dev \
+              libcurl4-openssl-dev \
+              libjson-c-dev \
+              libtool \
+              libtool-bin \
+              libltdl-dev \
+              libusb-1.0-0-dev \
+              libluajit-5.1-dev \
+              uuid-dev \
+              dpkg-dev \
+              rpm \
+              curl \
+              binutils \
+              file \
+              git
+
+            git config --global --add safe.directory /host
+
+            # Build the static target dependencies outside the /host mount.
+            # The recursive Make-based builder crashes in the LVH guest, so
+            # keep this CI-only path explicit and pass the staged paths below.
+            rm -rf /tmp/shirudo-target-deps /tmp/shirudo-openssl /tmp/shirudo-curl \
+              /tmp/openssl-3.5.9 /tmp/curl-8.18.0
+            mkdir -p /tmp/shirudo-target-deps/lib
+
+            # OpenSSL 3.5+ as a static archive: the distribution's libcrypto.a
+            # predates ML-DSA and ML-KEM. Static-only, no providers on disk.
+            curl -fsSL https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz \
+              -o /tmp/openssl-3.5.9.tar.gz
+            tar -C /tmp -xf /tmp/openssl-3.5.9.tar.gz
+            cd /tmp/openssl-3.5.9
+            ./Configure --prefix=/tmp/shirudo-openssl --openssldir=/etc/ssl \
+              --libdir=lib no-shared no-module no-docs no-tests no-apps
+            make -j4
+            make install_sw
+
+            curl -fsSL https://curl.se/download/curl-8.18.0.tar.xz \
+              -o /tmp/curl-8.18.0.tar.xz
+            tar -C /tmp -xf /tmp/curl-8.18.0.tar.xz
+            cd /tmp/curl-8.18.0
+            PKG_CONFIG_PATH=/tmp/shirudo-openssl/lib/pkgconfig \
+            CPPFLAGS=-I/tmp/shirudo-openssl/include \
+            LDFLAGS=-L/tmp/shirudo-openssl/lib \
+            ./configure \
+              --prefix=/tmp/shirudo-curl \
+              --with-openssl=/tmp/shirudo-openssl \
+              --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+              --with-ca-path=/etc/ssl/certs \
+              --enable-static \
+              --disable-shared \
+              --without-libpsl --without-brotli --without-zstd \
+              --without-nghttp2 --without-nghttp3 --without-ngtcp2 \
+              --without-libidn2 --without-librtmp --without-libssh2 \
+              --without-libssh --without-libgsasl --without-winidn \
+              --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+              --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
+              --disable-smtp --disable-gopher --disable-mqtt --disable-smb \
+              --disable-ftp --disable-file --disable-manual --disable-docs
+            make -j4
+            make install
+
+            git clone --depth 1 --branch 4.1.3 \
+              https://github.com/tpm2-software/tpm2-tss.git \
+              /tmp/shirudo-target-deps/tpm2-tss
+            cd /tmp/shirudo-target-deps/tpm2-tss
+            ./bootstrap
+            PKG_CONFIG_PATH=/tmp/shirudo-openssl/lib/pkgconfig \
+            ./configure \
+              --prefix=/tmp/shirudo-target-deps \
+              --libdir=/tmp/shirudo-target-deps/lib \
+              --enable-static \
+              --disable-shared \
+              --disable-fapi \
+              --disable-policy \
+              --disable-tcti-cmd \
+              --disable-tcti-i2c-ftdi \
+              --disable-tcti-i2c-helper \
+              --disable-tcti-libtpms \
+              --disable-tcti-pcap \
+              --disable-tcti-spi-ftdi \
+              --disable-tcti-spi-helper \
+              --disable-tcti-spi-ltt2go \
+              --disable-tcti-spidev \
+              --disable-tcti-mssim \
+              --disable-tcti-swtpm
+            make -j4
+            make install
+
+            install -m 0644 /tmp/shirudo-openssl/lib/libcrypto.a /tmp/shirudo-target-deps/lib/libcrypto.a
+            install -m 0644 /tmp/shirudo-openssl/lib/libssl.a /tmp/shirudo-target-deps/lib/libssl.a
+            install -m 0644 /usr/lib/x86_64-linux-gnu/libelf.a /tmp/shirudo-target-deps/lib/libelf.a
+            install -m 0644 /usr/lib/x86_64-linux-gnu/libz.a /tmp/shirudo-target-deps/lib/libz.a
+            install -m 0644 /usr/lib/x86_64-linux-gnu/libzstd.a /tmp/shirudo-target-deps/lib/libzstd.a
+            install -m 0644 /usr/lib/x86_64-linux-gnu/libluajit-5.1.a /tmp/shirudo-target-deps/lib/libluajit-5.1.a
+
+            cd /host
+
+            # Read the workflow version through /host so it also reaches the VM.
+            # LVH expands cmd in a host-side heredoc; escape guest-side dollars.
+            export SHIRUDO_CI_VERSION="\$(cat build/ci-version)"
+            test -n "\$SHIRUDO_CI_VERSION"
+            deb_version=\$(printf '%s' "\$SHIRUDO_CI_VERSION" | \
+              sed 's/^v//; s/[^A-Za-z0-9.+:~-]/./g; /^[0-9]/!s/^/0~/')
+            test -n "\$deb_version"
+            # Every package target starts from make clean, which also removes
+            # the other families' outputs, so stash each result as it is built.
+            mkdir -p /tmp/shirudo-packages
+            make -C packaging bintar-pkg \
+              SHIRUDO_GIT_DESCRIBE='printenv SHIRUDO_CI_VERSION' \
+              TARGET_DEPS_PREBUILT=1 \
+              SHIRUDO_TARGET_PKG_CONFIG_PATH=/tmp/shirudo-curl/lib/pkgconfig:/tmp/shirudo-openssl/lib/pkgconfig \
+              SHIRUDO_TARGET_STATIC_LIBDIR=/tmp/shirudo-target-deps/lib
+            cp shirudo.tar.gz shirudo-static.tar.gz /tmp/shirudo-packages/
+            # The operator package ships vmlinux.h for the target kernel; the
+            # Fedora job below builds against this bpf-next one, not its host's.
+            cp vendor/linux/vmlinux.h /tmp/shirudo-packages/vmlinux.h
+
+            # Both installers relocate under DESTDIR; the static image also
+            # carries its remaining shared libraries next to the binary.
+            for tarball in shirudo.tar.gz shirudo-static.tar.gz; do
+              rm -rf /tmp/bintar && mkdir -p /tmp/bintar/archive /tmp/bintar/root
+              tar -C /tmp/bintar/archive -xzf "\$tarball" --strip-components=1
+              DESTDIR=/tmp/bintar/root /tmp/bintar/archive/install.sh
+              test -x /tmp/bintar/root/usr/local/bin/shirudo
+              test -f /tmp/bintar/root/usr/lib/systemd/system/shirudo.service
+              /tmp/bintar/root/usr/local/bin/shirudo version
+            done
+            test -d /tmp/bintar/root/usr/local/lib/shirudo
+
+            make -C packaging bindeb-pkg \
+              DEB_RAW_VERSION="\$SHIRUDO_CI_VERSION" \
+              DEB_VERSION="\$deb_version" \
+              SHIRUDO_GIT_DESCRIBE='printenv SHIRUDO_CI_VERSION' \
+              TARGET_DEPS_PREBUILT=1 \
+              SHIRUDO_TARGET_PKG_CONFIG_PATH=/tmp/shirudo-curl/lib/pkgconfig:/tmp/shirudo-openssl/lib/pkgconfig \
+              SHIRUDO_TARGET_STATIC_LIBDIR=/tmp/shirudo-target-deps/lib
+            cp shirudo-*.deb /tmp/shirudo-packages/
+
+            # These libraries must be present in the target executable rather
+            # than in its DT_NEEDED list.
+            ! readelf -d shirudo-target | grep -Eq \
+              'lib(rtmp|psl|z|tss2-esys|tss2-tctildr|elf|luajit-5\.1)\.so'
+
+            # The target rpm is static apart from glibc and portable, so it is
+            # built here; the operator rpm links the distribution's shared
+            # libraries and is built natively in the Fedora job below.
+            make -C packaging binrpm-pkg PKG_ROLES=target \
+              PKG_RAW_VERSION="\$SHIRUDO_CI_VERSION" \
+              SHIRUDO_GIT_DESCRIBE='printenv SHIRUDO_CI_VERSION' \
+              TARGET_DEPS_PREBUILT=1 \
+              SHIRUDO_TARGET_PKG_CONFIG_PATH=/tmp/shirudo-curl/lib/pkgconfig:/tmp/shirudo-openssl/lib/pkgconfig \
+              SHIRUDO_TARGET_STATIC_LIBDIR=/tmp/shirudo-target-deps/lib
+            rpm -qpi shirudo-target-*.rpm
+            rpm -qp --scripts shirudo-target-*.rpm | grep -q 'systemctl enable shirudo.service'
+            cp shirudo-target-*.rpm /tmp/shirudo-packages/
+            cp /tmp/shirudo-packages/* .
+
+            apt-get update
+            apt-get install -y /host/shirudo-operator_*.deb
+
+            /usr/bin/shirudo genkey
+
+            # Verify that shirudo build works without a local copy of vmlinux.h
+            rm -rf /tmp/shirudo-smoke && mkdir -p /tmp/shirudo-smoke
+            cp testing/fixtures/basic.bpf.c /tmp/shirudo-smoke/
+            pushd /tmp/shirudo-smoke
+            # TODO: shirudo build should include multiarch include path.
+            shirudo build basic.bpf.c --extra-cflags "-I/usr/include/\$(gcc -dumpmachine)"
+            popd
+
+            apt-get remove -y shirudo-operator
+
+      - name: Upload deb package
+        uses: actions/upload-artifact@v4
+        with:
+          name: shirudo-deb
+          path: shirudo-*.deb
+          if-no-files-found: error
+
+      - name: Upload target rpm package
+        uses: actions/upload-artifact@v4
+        with:
+          name: shirudo-rpm-target
+          path: shirudo-target-*.rpm
+          if-no-files-found: error
+
+      - name: Upload installer tarballs
+        uses: actions/upload-artifact@v4
+        with:
+          name: shirudo-tar
+          path: |
+            shirudo.tar.gz
+            shirudo-static.tar.gz
+          if-no-files-found: error
+
+      - name: Upload the bpf-next vmlinux.h
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpf-next-vmlinux-h
+          path: vmlinux.h
+          if-no-files-found: error
+
+  rpm-operator:
+    needs: deb
+    runs-on: ubuntu-latest
+    container: fedora:44
+
+    steps:
+      - name: Install the build dependencies
+        run: |
+          dnf -q install -y gcc make pkgconf-pkg-config git python3 rpm-build \
+            clang llvm openssl openssl-devel libcurl-devel tpm2-tss-devel \
+            elfutils-libelf-devel zlib-ng-compat-devel luajit-devel
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download the target rpm package
+        uses: actions/download-artifact@v4
+        with:
+          name: shirudo-rpm-target
+          path: target-rpm
+
+      - name: Download the bpf-next vmlinux.h
+        uses: actions/download-artifact@v4
+        with:
+          name: bpf-next-vmlinux-h
+          path: bpf-next
+
+      - name: Build the operator rpm natively
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          if [ "$REF_TYPE" = tag ]; then
+            version=$REF_NAME
+          else
+            version=$(git describe --tags --always --dirty)
+          fi
+          export SHIRUDO_CI_VERSION="$version"
+          make -C packaging binrpm-pkg PKG_ROLES=operator \
+            BPF_VMLINUX_H="$PWD/bpf-next/vmlinux.h" \
+            PKG_RAW_VERSION="$SHIRUDO_CI_VERSION" \
+            SHIRUDO_GIT_DESCRIBE='printenv SHIRUDO_CI_VERSION'
+          cmp bpf-next/vmlinux.h build/rpm/operator/usr/share/shirudo/vmlinux.h
+          rpm -qpi shirudo-operator-*.rpm
+          rpm -qp --requires shirudo-operator-*.rpm | grep -qx clang
+
+      - name: Install, exercise and remove both packages
+        run: |
+          set -eux
+          dnf -q install -y ./target-rpm/shirudo-target-*.rpm
+          rpm -q shirudo-target
+          rpm -qV shirudo-target
+          rpm -q --scripts shirudo-target | grep -q 'systemctl enable shirudo.service'
+          test -f /usr/lib/systemd/system/shirudo.service
+          test -f /usr/lib/systemd/system/shirudo-bpm-tree-sync.timer
+          shirudo version
+          if dnf -q install -y ./shirudo-operator-*.rpm; then
+            echo 'shirudo-operator must conflict with shirudo-target' >&2
+            exit 1
+          fi
+          dnf -q remove -y shirudo-target
+          dnf -q install -y ./shirudo-operator-*.rpm
+          rpm -q shirudo-operator clang
+          rpm -qV shirudo-operator
+          shirudo genkey
+          rm -rf /tmp/shirudo-smoke && mkdir -p /tmp/shirudo-smoke
+          cp testing/fixtures/basic.bpf.c /tmp/shirudo-smoke/
+          cd /tmp/shirudo-smoke
+          shirudo build basic.bpf.c
+          shirudo upatch info basic.bpf.upatch
+          dnf -q remove -y shirudo-operator
+          hash -r
+          ! command -v shirudo
+
+      - name: Upload operator rpm package
+        uses: actions/upload-artifact@v4
+        with:
+          name: shirudo-rpm-operator
+          path: shirudo-operator-*.rpm
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [deb, rpm-operator]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download deb, rpm and tarball packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shirudo-*
+          merge-multiple: true
+
+      - name: Upload packages to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" shirudo-*.deb shirudo-*.rpm shirudo*.tar.gz --clobber
+          else
+            gh release create "$RELEASE_TAG" shirudo-*.deb shirudo-*.rpm shirudo*.tar.gz \
+              --draft --verify-tag --title "$RELEASE_TAG" --generate-notes
+          fi
