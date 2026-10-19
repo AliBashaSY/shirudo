@@ -2,12 +2,11 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Attempts the signed-loader load of a .upatch through the new
- * load-time fold path -- exactly the sequence builtin-upatch.c uses --
- * but against a caller-chosen keyring: the cert at argv[2] is added to
- * the process session keyring and that keyring's serial is passed as
- * attr.keyring_id. Prints "loaded" on success or "errno=<n>" on
- * failure (the errno the kernel returned from BPF_PROG_LOAD).
+ * Attempts the signed-loader load of a .upatch against a caller-chosen
+ * keyring: the cert at argv[2] is added to the process session keyring
+ * and that keyring's serial is passed as attr.keyring_id. It omits the
+ * loader data map so BPF_MAP_CREATE policy cannot mask the load gate.
+ * Prints "loaded" on success or "errno=<n>" on BPF_PROG_LOAD failure.
  *
  * Used by t1112 to show that a loader carrying a perfectly valid
  * signature -- one the kernel verifies (BPF_SIG_VERIFIED) -- is still
@@ -30,8 +29,6 @@
 
 #include <linux/bpf.h>
 #include <linux/keyctl.h>
-#include <openssl/evp.h>
-
 #include "shirudo/upatch.h"
 
 static long sys_bpf(int cmd, union bpf_attr *a)
@@ -50,15 +47,12 @@ static uint32_t rd_le32(const void *p)
 int main(int argc, char **argv)
 {
 	const struct shirudo_upatch_header *h;
-	uint8_t insns_sha[32];
 	unsigned char *m, cert[16384];	/* an ML-DSA-87 cert is ~7.5 KiB */
-	unsigned int shalen = 32;
-	const void *insns, *sig, *data;
-	int ufd, cfd, cn, map_fd, prog_fd, key = 0;
+	const void *insns, *sig;
+	int ufd, cfd, cn, prog_fd;
 	long serial;
 	union bpf_attr a;
 	struct stat st;
-	int fda[1];
 
 	if (argc < 3) {
 		fprintf(stderr, "usage: %s <upatch> <cert.der>\n", argv[0]);
@@ -78,7 +72,6 @@ int main(int argc, char **argv)
 	h = (const struct shirudo_upatch_header *)m;
 	insns = m + rd_le32(&h->loader_insns_off);
 	sig   = m + rd_le32(&h->signature_off);
-	data  = m + rd_le32(&h->data_off);
 
 	cfd = open(argv[2], O_RDONLY);
 	if (cfd < 0) {
@@ -105,40 +98,6 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	/* excl_prog_hash = SHA-256(insns): the map -> loader digest bind. */
-	EVP_Digest(insns, rd_le32(&h->loader_insns_len), insns_sha, &shalen,
-		   EVP_sha256(), NULL);
-
-	memset(&a, 0, sizeof(a));
-	a.map_type = BPF_MAP_TYPE_ARRAY;
-	a.key_size = 4;
-	a.value_size = rd_le32(&h->data_len);
-	a.max_entries = 1;
-	a.excl_prog_hash = (uint64_t)(uintptr_t)insns_sha;
-	a.excl_prog_hash_size = sizeof(insns_sha);
-	memcpy(a.map_name, "__loader.map", 12);
-	map_fd = sys_bpf(BPF_MAP_CREATE, &a);
-	if (map_fd < 0) {
-		fprintf(stderr, "MAP_CREATE: %s\n", strerror(errno));
-		return 2;
-	}
-
-	memset(&a, 0, sizeof(a));
-	a.map_fd = map_fd;
-	a.key = (uint64_t)(uintptr_t)&key;
-	a.value = (uint64_t)(uintptr_t)data;
-	if (sys_bpf(BPF_MAP_UPDATE_ELEM, &a) < 0) {
-		fprintf(stderr, "UPDATE: %s\n", strerror(errno));
-		return 2;
-	}
-	memset(&a, 0, sizeof(a));
-	a.map_fd = map_fd;
-	if (sys_bpf(BPF_MAP_FREEZE, &a) < 0) {
-		fprintf(stderr, "FREEZE: %s\n", strerror(errno));
-		return 2;
-	}
-
-	fda[0] = map_fd;
 	memset(&a, 0, sizeof(a));
 	a.prog_type = BPF_PROG_TYPE_SYSCALL;
 	a.insn_cnt = rd_le32(&h->loader_insns_len) / sizeof(struct bpf_insn);
@@ -148,8 +107,6 @@ int main(int argc, char **argv)
 	a.signature = (uint64_t)(uintptr_t)sig;
 	a.signature_size = rd_le32(&h->signature_len);
 	a.keyring_id = (int32_t)serial;
-	a.fd_array = (uint64_t)(uintptr_t)fda;
-	a.fd_array_cnt = 1;
 	memcpy(a.prog_name, "sigtest", 7);
 	prog_fd = sys_bpf(BPF_PROG_LOAD, &a);
 	if (prog_fd >= 0) {

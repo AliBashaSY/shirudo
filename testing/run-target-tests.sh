@@ -30,6 +30,7 @@ for t in \
 	t1117-otel-serialized-metric.sh \
 	t1122-initrd.sh \
 	t1123-keys.sh \
+	tamperproof/t1121-bpf-keyring.sh \
 	t1124-keys-add.sh \
 	t1126-keys-revoke.sh \
 	tamperproof/t1101-seal.sh \
@@ -39,7 +40,6 @@ for t in \
 	tamperproof/t1113-mount-lockdown.sh \
 	tamperproof/t1130-map-lockdown.sh \
 	tamperproof/t1131-pr-set-mm-identity.sh \
-	tamperproof/t1121-bpf-keyring.sh \
 	tamperproof/t1125-key-permission.sh \
 	tamperproof/t1106-keyring-swap.sh
 do
