@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Dual BSD/GPL
+// SPDX-License-Identifier: BSD-2-Clause
 static volatile int sink;
 __attribute__((noinline, used)) int fooFunc(int value) { return value + 1; }
 __attribute__((noinline, used)) int barFunc(int value) { return value + 2; }
