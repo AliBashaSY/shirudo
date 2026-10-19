@@ -299,8 +299,10 @@ one usually still compiles and passes tests.
 - `.github/scripts/check-spdx.sh` checks the SPDX tag of every tracked
   source against the licensing rules above: the form for the file type,
   the expression, the dual licence for everything a BPF object compiles
-  and a Beefile ships. CI runs it on every pull request; run it before
-  handing work over.
+  and a Beefile ships. `.github/scripts/check-dco.sh <range>` checks
+  that every commit has a one-line subject, a body beyond its tags and
+  the author's sign-off. CI runs both on every pull request; run them
+  before handing work over.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the
   distribution packages. The target package is static apart from glibc
   and portable; the operator package links the host's shared libraries

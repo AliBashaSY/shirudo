@@ -1,0 +1,43 @@
+name: DCO
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: Signed-off-by
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Every commit a pull request adds, or a push brings to main, needs
+      # a subject, a body and its author's sign-off. A push whose previous
+      # tip is unknown, after a force push, is checked at the pushed tip
+      # alone.
+      - name: Check the sign-off of every commit
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = pull_request ]; then
+            set -- "$BASE_SHA..$HEAD_SHA"
+          elif git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            set -- "$BEFORE_SHA..$SHA"
+          else
+            echo "::notice::previous tip $BEFORE_SHA is unknown; checking the pushed tip alone"
+            set -- -1 "$SHA"
+          fi
+          .github/scripts/check-dco.sh "$@"

@@ -126,7 +126,10 @@ A commit without a valid sign-off is not merged, and a maintainer who
 applies a commit adds their own sign-off after the author's, so the
 chain of ``Signed-off-by:`` lines records the real route the change
 took. The first sign-off is the author's; the last is the person who
-submits the commit.
+submits the commit. ``.github/scripts/check-dco.sh`` verifies that
+every commit in a range has a one-line subject, a body that says more
+than its tags and its author's sign-off, and CI runs it on every pull
+request as the ``DCO`` check.
 
 Only a person can certify the DCO. Coding agents and other automated
 tools must never add a ``Signed-off-by:`` line; the human who reviews
@@ -203,7 +206,9 @@ Before sending
   every source carries an SPDX tag in the kernel's form for its type,
   ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for
   everything compiled into a BPF object, the headers it includes and
-  the decoders a package ships. CI runs it.
+  the decoders a package ships. Run
+  ``.github/scripts/check-dco.sh origin/main..HEAD`` on the commits. CI
+  runs both.
 * Keep each commit to one logical change that builds and passes on its
   own, so the history bisects.
 * Read `threat-model <threat-model.rst>`__ before changing anything on a
