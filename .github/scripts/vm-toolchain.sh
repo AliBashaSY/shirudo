@@ -1,0 +1,69 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
+# .github/scripts/vm-toolchain.sh -- prepare the LVH guest a workflow builds
+# in: check that its kernel takes signed BPF, install the build
+# dependencies and build an OpenSSL 3.5 toolchain, since the
+# distribution's predates ML-DSA. The environment the build then needs
+# is written to build/vm-toolchain.env for the caller to source.
+#
+#   .github/scripts/vm-toolchain.sh [<apt package>...]
+#
+# Packages beyond the build dependencies, a sanitizer runtime for
+# instance, go on the command line. Runs as root in the guest, from any
+# directory; git is not available until it has been installed, so the
+# checkout is found from the script's own path.
+
+set -eu
+
+OPENSSL_VERSION=3.5.9
+OPENSSL_SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+OPENSSL_PREFIX=/tmp/shirudo-openssl
+
+root=$(cd "$(dirname "$0")/../.." && pwd)
+
+grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
+	echo 'kernel BTF lacks bpf_attr.signature_size; needs a signed-BPF capable bpf-next kernel' >&2
+	exit 1
+}
+
+apt-get update
+apt-get install -y --no-install-recommends \
+	build-essential \
+	ca-certificates \
+	clang \
+	llvm \
+	curl \
+	git \
+	pkg-config \
+	python3 \
+	libcurl4-openssl-dev \
+	libelf-dev \
+	libluajit-5.1-dev \
+	libtpms-dev \
+	libtss2-dev \
+	zlib1g-dev \
+	"$@"
+
+# The checkout is mounted from the host under another owner.
+git config --global --add safe.directory "$root"
+
+tarball=openssl-$OPENSSL_VERSION.tar.gz
+curl -fsSL --retry 3 -o "/tmp/$tarball" \
+	"https://github.com/openssl/openssl/releases/download/openssl-$OPENSSL_VERSION/$tarball"
+printf '%s  /tmp/%s\n' "$OPENSSL_SHA256" "$tarball" | sha256sum -c --quiet
+tar -C /tmp -xf "/tmp/$tarball"
+cd "/tmp/openssl-$OPENSSL_VERSION"
+./Configure --prefix="$OPENSSL_PREFIX" --openssldir=/etc/ssl --libdir=lib \
+	no-docs no-tests
+make -j"$(nproc)"
+make install_sw
+cd "$root"
+
+mkdir -p build
+cat >build/vm-toolchain.env <<EOT
+export PATH=$OPENSSL_PREFIX/bin:\$PATH
+export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig
+export LD_LIBRARY_PATH=$OPENSSL_PREFIX/lib
+EOT

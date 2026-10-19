@@ -307,7 +307,9 @@ one usually still compiles and passes tests.
   checkpatch.pl in strict mode over the C each commit touches and over
   its message, with the userspace exceptions listed in the script, and
   rejects the netdev block-comment opener. CI runs all three on every
-  pull request; run them before handing work over.
+  pull request, and `.github/scripts/build-commits.sh <range>` builds
+  every commit of a pull request on its own; run them before handing
+  work over.
 - Shell that a workflow runs lives in `.github/scripts/`, not inline in
   the workflow file.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the

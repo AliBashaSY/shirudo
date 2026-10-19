@@ -1,0 +1,49 @@
+name: Build every commit
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A new push to the pull request supersedes the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-commits:
+    name: Build each commit on its own
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Documentation/contributing.rst asks for every commit to build on
+      # its own, so that the history bisects; the other workflows build
+      # the head of the pull request alone. The BPF objects need the BTF
+      # of a signed-BPF capable bpf-next kernel, so the builds run in the
+      # same LVH VM as the package build. The guest does not inherit the
+      # runner's environment; GITHUB_ACTIONS is set for the annotations.
+      - name: Build every commit the pull request adds in LVH VM
+        uses: cilium/little-vm-helper@v0.0.30
+        with:
+          test-name: shirudo-build-commits
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cpu: 4
+          mem: 8G
+          cmd: |
+            cd /host
+            .github/scripts/vm-toolchain.sh
+            . build/vm-toolchain.env
+            GITHUB_ACTIONS=true .github/scripts/build-commits.sh \
+              ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}

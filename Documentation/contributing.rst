@@ -223,7 +223,10 @@ Before sending
   whole files and ``--types`` lists what stays enabled. CI runs it as
   the ``Checkpatch`` check.
 * Keep each commit to one logical change that builds and passes on its
-  own, so the history bisects.
+  own, so the history bisects. CI builds every commit of a pull request
+  on its own as the ``Build every commit`` check;
+  ``.github/scripts/build-commits.sh origin/main..HEAD`` does the same
+  locally.
 * Read `threat-model <threat-model.rst>`__ before changing anything on a
   security-relevant path, and say in the commit message which invariant
   the change preserves or extends.
