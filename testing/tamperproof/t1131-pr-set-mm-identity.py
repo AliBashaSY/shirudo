@@ -4,6 +4,7 @@
 import ctypes
 import errno
 import os
+import platform
 import sys
 
 PR_SET_MM = 35
@@ -20,6 +21,65 @@ libc = ctypes.CDLL(None, use_errno=True)
 libc.prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong,
                        ctypes.c_ulong, ctypes.c_ulong]
 libc.prctl.restype = ctypes.c_int
+libc.syscall.restype = ctypes.c_long
+
+BPF_SYSCALL = {"x86_64": 321, "aarch64": 280,
+               "riscv64": 280}[platform.machine()]
+BPF_OBJ_GET = 7
+BPF_MAP_LOOKUP_ELEM = 1
+BPF_F_RDONLY = 1 << 3
+
+
+class ObjGetAttr(ctypes.Structure):
+    _fields_ = [("pathname", ctypes.c_uint64),
+                ("bpf_fd", ctypes.c_uint32),
+                ("file_flags", ctypes.c_uint32)]
+
+
+class MapElemAttr(ctypes.Structure):
+    _fields_ = [("map_fd", ctypes.c_uint32),
+                ("pad", ctypes.c_uint32),
+                ("key", ctypes.c_uint64),
+                ("value", ctypes.c_uint64),
+                ("flags", ctypes.c_uint64)]
+
+
+class ShirudoIdentity(ctypes.Structure):
+    _fields_ = [("sb_dev", ctypes.c_uint32),
+                ("exe_dev", ctypes.c_uint32),
+                ("exe_ino", ctypes.c_uint64),
+                ("keyring_serial", ctypes.c_int32),
+                ("keyring_type", ctypes.c_uint32),
+                ("alt_exe_dev", ctypes.c_uint32),
+                ("pad", ctypes.c_uint32),
+                ("alt_exe_ino", ctypes.c_uint64),
+                ("n_keys", ctypes.c_uint32),
+                ("pad2", ctypes.c_uint32),
+                ("key_serials", ctypes.c_int32 * 16)]
+
+
+def assert_frozen_executable_identity():
+    path = b"/run/shirudo/bpffs/identity\0"
+    name = ctypes.create_string_buffer(path)
+    get_attr = ObjGetAttr(ctypes.addressof(name), 0, BPF_F_RDONLY)
+    fd = libc.syscall(BPF_SYSCALL, BPF_OBJ_GET, ctypes.byref(get_attr),
+                      ctypes.sizeof(get_attr))
+    assert fd >= 0, ("open identity map", ctypes.get_errno())
+    try:
+        key = ctypes.c_uint32(0)
+        value = ShirudoIdentity()
+        lookup_attr = MapElemAttr(fd, 0, ctypes.addressof(key),
+                                  ctypes.addressof(value), 0)
+        result = libc.syscall(BPF_SYSCALL, BPF_MAP_LOOKUP_ELEM,
+                              ctypes.byref(lookup_attr),
+                              ctypes.sizeof(lookup_attr))
+        assert result == 0, ("read identity map", ctypes.get_errno())
+    finally:
+        os.close(fd)
+    st = os.stat(SHIRUDO)
+    expected_dev = (os.major(st.st_dev) << 20) | os.minor(st.st_dev)
+    assert (value.exe_dev, value.exe_ino) == (expected_dev, st.st_ino), \
+        ((value.exe_dev, value.exe_ino), (expected_dev, st.st_ino))
 
 
 class PrctlMmMap(ctypes.Structure):
@@ -92,7 +152,8 @@ def exe_file_result(path, expect_denied):
         os.close(fd)
     after = file_identity("/proc/self/exe")
     if expect_denied:
-        assert result == -1 and err == errno.EPERM, (result, err)
+        assert result == -1 and err in (errno.EPERM, errno.EBUSY), \
+            (result, err)
         assert after == before, (before, after)
     else:
         assert result == 0, (result, err)
@@ -118,12 +179,14 @@ def mm_map_result(path, expect_denied):
         assert after == file_identity(path), (after, file_identity(path))
 
 
+assert_frozen_executable_identity()
+
 assert child_succeeds(lambda: exe_file_result(SHIRUDO, True)), \
-    "PR_SET_MM_EXE_FILE accepted Shirudo's executable"
+    "PR_SET_MM_EXE_FILE did not reject Shirudo's executable"
 assert child_succeeds(lambda: exe_file_result(OTHER, False)), \
     "PR_SET_MM_EXE_FILE rejected an unrelated executable"
 assert child_succeeds(lambda: mm_map_result(SHIRUDO, True)), \
-    "PR_SET_MM_MAP accepted Shirudo's executable"
+    "PR_SET_MM_MAP did not reject Shirudo's executable"
 assert child_succeeds(lambda: mm_map_result(OTHER, False)), \
     "PR_SET_MM_MAP rejected an unrelated executable"
 
