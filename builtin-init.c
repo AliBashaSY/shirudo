@@ -755,9 +755,11 @@ static int init_lsm(bool attach_filesystem_seal)
 	struct bpf_link *prctl_links[ARRAY_SIZE(prctl_hooks)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(mount_hooks)] = {};
 	const struct shirudo_embedded_bpf *blob = shirudo_bpf2_blob();
-	struct bpf_program *p_bpf, *p_unlink, *p_setx, *p_rmx, *p_pload;
+	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
+	struct bpf_program *p_pload;
 	struct bpf_object *obj = NULL, *seal_obj = NULL;
-	struct bpf_link *link_bpf = NULL, *link_unlink = NULL;
+	struct bpf_link *link_bpf = NULL, *link_bpf_map = NULL;
+	struct bpf_link *link_unlink = NULL;
 	struct bpf_link *link_setx = NULL, *link_rmx = NULL, *link_pload = NULL;
 	struct bpf_link *link_keyperm = NULL;
 	struct bpf_link *seal_links[8] = {};
@@ -914,10 +916,13 @@ static int init_lsm(bool attach_filesystem_seal)
 						 "shirudo_lsm_inode_removexattr");
 	p_pload = bpf_object__find_program_by_name(obj,
 						   "shirudo_lsm_bpf_prog_load");
+	p_bpf_map = bpf_object__find_program_by_name(obj,
+						     "shirudo_lsm_bpf_map");
 	p_keyperm = bpf_object__find_program_by_name(
 				obj, "shirudo_lsm_key_permission");
 	p_bpf = bpf_object__find_program_by_name(obj, "shirudo_lsm_bpf");
-	if (!p_unlink || !p_setx || !p_rmx || !p_pload || !p_bpf ||
+	if (!p_unlink || !p_setx || !p_rmx || !p_pload || !p_bpf_map ||
+	    !p_bpf ||
 	    !p_keyperm) {
 		pr_err("expected programs missing in bpf2 object");
 		err = -ENOENT;
@@ -927,7 +932,8 @@ static int init_lsm(bool attach_filesystem_seal)
 	/*
 	 * The prctl identity guard is already active. Order the remaining
 	 * hooks as bpffs guards, seal's filesystem and exec-identity hooks,
-	 * then the bpf() gates (bpf_prog_load admission, then lsm/bpf) LAST.
+	 * then the bpf() gates (map fd access, bpf_prog_load admission, then
+	 * lsm/bpf) LAST.
 	 * Pinning a link creates a bpffs inode, gated by neither guard set;
 	 * seal's unsigned load and the identity-map freeze precede the gates.
 	 */
@@ -984,6 +990,13 @@ static int init_lsm(bool attach_filesystem_seal)
 			goto out;
 	}
 
+	err = attach_pin(p_bpf_map, SHIRUDO_LSM_BPF_MAP_LINK_PIN,
+			 &link_bpf_map);
+	if (err) {
+		pr_err("attach lsm/bpf_map: %s", strerror(-err));
+		goto out;
+	}
+
 	err = attach_pin(p_pload, SHIRUDO_LSM_PROG_LOAD_LINK_PIN, &link_pload);
 	if (err) {
 		pr_err("attach lsm/bpf_prog_load: %s", strerror(-err));
@@ -1013,6 +1026,7 @@ out:
 		bpf_link__destroy(mount_links[i]);
 	bpf_object__close(seal_obj);
 	bpf_link__destroy(link_bpf);
+	bpf_link__destroy(link_bpf_map);
 	bpf_link__destroy(link_pload);
 	bpf_link__destroy(link_keyperm);
 	bpf_link__destroy(link_rmx);

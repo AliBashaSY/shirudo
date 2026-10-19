@@ -56,6 +56,7 @@
 #define SHIRUDO_BPM_LOCK_PATH	SHIRUDO_LOCKS_DIR "/bpm.lock"
 #define SHIRUDO_LSM_LINK_PIN		SHIRUDO_BPFFS_DIR "/lsm_link"
 #define SHIRUDO_LSM_PROG_LOAD_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_bpf_prog_load_link"
+#define SHIRUDO_LSM_BPF_MAP_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_bpf_map_link"
 #define SHIRUDO_SB_UMOUNT_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_sb_umount_link"
 #define SHIRUDO_MOVE_MOUNT_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_move_mount_link"
 #define SHIRUDO_SB_MOUNT_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_sb_mount_link"
