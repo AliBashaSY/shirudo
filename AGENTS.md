@@ -303,6 +303,8 @@ one usually still compiles and passes tests.
   that every commit has a one-line subject, a body beyond its tags and
   the author's sign-off. CI runs both on every pull request; run them
   before handing work over.
+- Shell that a workflow runs lives in `.github/scripts/`, not inline in
+  the workflow file.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the
   distribution packages. The target package is static apart from glibc
   and portable; the operator package links the host's shared libraries
