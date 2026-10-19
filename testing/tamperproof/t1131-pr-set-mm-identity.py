@@ -143,7 +143,7 @@ def child_succeeds(fn):
     return os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0
 
 
-def exe_file_result(path, expect_denied):
+def exe_file_result(path):
     before = file_identity("/proc/self/exe")
     fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC)
     try:
@@ -151,16 +151,11 @@ def exe_file_result(path, expect_denied):
     finally:
         os.close(fd)
     after = file_identity("/proc/self/exe")
-    if expect_denied:
-        assert result == -1 and err in (errno.EPERM, errno.EBUSY), \
-            (result, err)
-        assert after == before, (before, after)
-    else:
-        assert result == 0, (result, err)
-        assert after == file_identity(path), (after, file_identity(path))
+    assert result == -1 and err == errno.EPERM, (result, err)
+    assert after == before, (before, after)
 
 
-def mm_map_result(path, expect_denied):
+def mm_map_result(path):
     before = file_identity("/proc/self/exe")
     fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC)
     try:
@@ -171,29 +166,25 @@ def mm_map_result(path, expect_denied):
     finally:
         os.close(fd)
     after = file_identity("/proc/self/exe")
-    if expect_denied:
-        assert result == -1 and err == errno.EPERM, (result, err)
-        assert after == before, (before, after)
-    else:
-        assert result == 0, (result, err)
-        assert after == file_identity(path), (after, file_identity(path))
+    assert result == -1 and err == errno.EPERM, (result, err)
+    assert after == before, (before, after)
 
 
 assert_frozen_executable_identity()
 
-assert child_succeeds(lambda: exe_file_result(SHIRUDO, True)), \
-    "PR_SET_MM_EXE_FILE did not reject Shirudo's executable"
-assert child_succeeds(lambda: exe_file_result(OTHER, False)), \
-    "PR_SET_MM_EXE_FILE rejected an unrelated executable"
-assert child_succeeds(lambda: mm_map_result(SHIRUDO, True)), \
-    "PR_SET_MM_MAP did not reject Shirudo's executable"
-assert child_succeeds(lambda: mm_map_result(OTHER, False)), \
-    "PR_SET_MM_MAP rejected an unrelated executable"
+assert child_succeeds(lambda: exe_file_result(SHIRUDO)), \
+    "PR_SET_MM_EXE_FILE was allowed for a non-Shirudo caller"
+assert child_succeeds(lambda: exe_file_result(OTHER)), \
+    "PR_SET_MM_EXE_FILE accepted an unrelated executable"
+assert child_succeeds(lambda: mm_map_result(SHIRUDO)), \
+    "PR_SET_MM_MAP was allowed for a non-Shirudo caller"
+assert child_succeeds(lambda: mm_map_result(OTHER)), \
+    "PR_SET_MM_MAP accepted an unrelated executable"
 
 
 def invalid_fd_then_exec():
     result, err = call_prctl(PR_SET_MM, PR_SET_MM_EXE_FILE, 1 << 30)
-    assert result == -1 and err == errno.EBADF, (result, err)
+    assert result == -1 and err == errno.EPERM, (result, err)
     os.execve(SHIRUDO, [SHIRUDO, "status", "--json"], os.environ.copy())
 
 

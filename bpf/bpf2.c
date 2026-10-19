@@ -44,9 +44,9 @@
  *                       while letting `shirudo upatch unload` remove
  *                       a pin to detach a program. The exe-inode check
  *                       is the interim of the xattr-based identity
- *                       seal will use. The task_prctl and
- *                       file_permission hooks below prevent changing
- *                       mm->exe_file to either recorded Shirudo inode.
+ *                       seal will use. The task_prctl hook below
+ *                       prevents non-Shirudo callers from changing
+ *                       mm->exe_file through PR_SET_MM.
  *   lsm/key_permission -- guards the trust anchor in the kernel's
  *                       keyrings: the sealed keyring init froze and the
  *                       keys it holds may be viewed and searched by
@@ -76,12 +76,8 @@
  *                       the pinned links and detaches ALL enforcement,
  *                       since shirudo is agentless and the pins are the
  *                       links' only reference. See the hook block below.
- *   lsm/task_prctl,
- *   lsm/file_permission,
- *   tracepoint/sys_exit_prctl -- scope PR_SET_MM executable changes and deny
- *                       only when the resolved file is one of the frozen
- *                       Shirudo executable inodes. Task storage is cleared
- *                       at syscall exit when an earlier kernel check fails.
+ *   lsm/task_prctl     -- deny PR_SET_MM executable changes to callers
+ *                       outside the frozen Shirudo executable identity.
  */
 
 #include "vmlinux.h"
@@ -104,10 +100,6 @@
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif
-#ifndef MAY_EXEC
-#define MAY_EXEC	0x1
-#endif
-
 #define PR_SET_MM		35
 #define PR_SET_MM_EXE_FILE	13
 #define PR_SET_MM_MAP		14
@@ -144,17 +136,6 @@ struct {
 	__type(key, __u32);
 	__type(value, struct shirudo_sb_id);
 } shirudo_bpffs_sb SEC(".maps");
-
-struct shirudo_prctl_state {
-	__u32	pending;
-};
-
-struct {
-	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
-	__type(key, int);
-	__type(value, struct shirudo_prctl_state);
-} shirudo_prctl_state_map SEC(".maps");
 
 static __always_inline bool
 shirudo_task_is_self(const struct shirudo_sb_id *id);
@@ -361,34 +342,13 @@ static __always_inline bool shirudo_task_is_self(const struct shirudo_sb_id *id)
 	       exe_ino == id->alt_exe_ino;
 }
 
-static __always_inline bool shirudo_file_is_self(
-					const struct shirudo_sb_id *id,
-					struct file *file)
-{
-	struct inode *inode;
-	__u32 dev;
-	__u64 ino;
-
-	if (!file)
-		return false;
-	inode = BPF_CORE_READ(file, f_inode);
-	if (!inode)
-		return false;
-	dev = BPF_CORE_READ(inode, i_sb, s_dev);
-	ino = BPF_CORE_READ(inode, i_ino);
-	if (dev == id->exe_dev && ino == id->exe_ino)
-		return true;
-	return id->alt_exe_ino && dev == id->alt_exe_dev &&
-	       ino == id->alt_exe_ino;
-}
-
 SEC("lsm/task_prctl")
 int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	     unsigned long arg3, unsigned long arg4, unsigned long arg5,
 	     int ret)
 {
-	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_prctl_state *state;
+	struct shirudo_sb_id *id;
+	__u32 zero = 0;
 
 	(void)arg3;
 	(void)arg4;
@@ -396,47 +356,12 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	if ((ret && ret != -ENOSYS) || option != PR_SET_MM ||
 	    (arg2 != PR_SET_MM_EXE_FILE && arg2 != PR_SET_MM_MAP))
 		return ret ? ret : -ENOSYS;
-	state = bpf_task_storage_get(&shirudo_prctl_state_map, task, NULL,
-				     BPF_LOCAL_STORAGE_GET_F_CREATE);
-	if (!state)
-		return -ENOMEM;
-	state->pending = 1;
-	return -ENOSYS;
-}
-
-SEC("lsm/file_permission")
-int BPF_PROG(shirudo_lsm_file_permission, struct file *file, int mask,
-	     int ret)
-{
-	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_prctl_state *state;
-	struct shirudo_sb_id *id;
-	__u32 zero = 0;
-
-	if (ret || !(mask & MAY_EXEC))
-		return ret;
-	state = bpf_task_storage_get(&shirudo_prctl_state_map, task, NULL, 0);
-	if (!state || !state->pending)
-		return ret;
-	state->pending = 0;
-	bpf_task_storage_delete(&shirudo_prctl_state_map, task);
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
 	if (!id)
 		return -EACCES;
-	return shirudo_file_is_self(id, file) ? -EPERM : 0;
-}
-
-SEC("tracepoint/syscalls/sys_exit_prctl")
-int shirudo_trace_sys_exit_prctl(struct trace_event_raw_sys_exit *ctx)
-{
-	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_prctl_state *state;
-
-	(void)ctx;
-	state = bpf_task_storage_get(&shirudo_prctl_state_map, task, NULL, 0);
-	if (state)
-		bpf_task_storage_delete(&shirudo_prctl_state_map, task);
-	return 0;
+	if (!shirudo_task_is_self(id))
+		return -EPERM;
+	return -ENOSYS;
 }
 
 /*

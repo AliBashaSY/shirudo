@@ -496,7 +496,6 @@ require_config CONFIG_BPF_LSM y
 require_config CONFIG_BPF_SYSCALL y
 require_config CONFIG_BPF_JIT y
 require_config CONFIG_CGROUP_BPF y
-require_config CONFIG_FTRACE_SYSCALLS y
 require_config CONFIG_FUNCTION_TRACER y
 require_config CONFIG_DYNAMIC_FTRACE y
 require_config CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS y

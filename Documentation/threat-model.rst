@@ -266,12 +266,13 @@ Each of these is known, documented and bounded; none is silent.
     the compare runs against signed ``.rodata``.
 
 2.  ``CAP_SYS_RESOURCE`` can rewrite ``mm->exe_file``.  Shirudo's
-    ``task_prctl`` and ``file_permission`` LSM hooks deny
-    ``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` when the resolved file
-    is either frozen Shirudo executable inode, while leaving other
-    targets alone.  A process that directly executes the recorded
-    Shirudo binary is still identified as Shirudo, so its command
-    interface remains the authorization boundary.  Bound
+    ``task_prctl`` LSM hook denies ``PR_SET_MM_EXE_FILE`` and
+    ``PR_SET_MM_MAP`` to every caller outside the frozen Shirudo
+    executable identity, preventing a root process from impersonating
+    Shirudo through these operations.  This also denies those two
+    operations to checkpoint and restore tools.  A process that directly
+    executes the recorded Shirudo binary is still identified as Shirudo,
+    so its command interface remains the authorization boundary.  Bound
     ``CAP_SYS_RESOURCE`` out of untrusted contexts with
     ``CapabilityBoundingSet=`` and container capability profiles.
 

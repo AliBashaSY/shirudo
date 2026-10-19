@@ -38,7 +38,7 @@ checks that Shirudo can still export the pre-existing Python exec record.
 | TP-16 | Create a BPF map from a non-Shirudo executable | Not covered | None in tamperproof | Add direct negative test for `BPF_MAP_CREATE`; cover authorized Shirudo loader creation as positive control. |
 | TP-17 | Create links or pin existing objects from root | Not covered | None | `BPF_LINK_CREATE` and `BPF_OBJ_PIN` are allowed. Test whether root can create an unwanted attachment or pin and whether the resulting object affects enforcement/state. |
 | TP-18 | Detach/update links or attach/detach programs from root | Not covered | None | Add negative raw-syscall cases for `BPF_LINK_DETACH`, `BPF_LINK_UPDATE`, `BPF_PROG_ATTACH`, and `BPF_PROG_DETACH`. |
-| TP-19 | Root assigns Shirudo's executable identity using `PR_SET_MM` | Covered | `t1131-pr-set-mm-identity.sh` and `t1131-pr-set-mm-identity.py` | Requires `CAP_SYS_RESOURCE`; preserve allowed unrelated-executable control. |
+| TP-19 | Root assigns Shirudo's executable identity using `PR_SET_MM` | Covered | `t1131-pr-set-mm-identity.sh` and `t1131-pr-set-mm-identity.py` | Requires `CAP_SYS_RESOURCE`; verify both `PR_SET_MM_EXE_FILE` and `PR_SET_MM_MAP` are denied to non-Shirudo callers. |
 | TP-20 | Obtain or transfer Shirudo's open map FDs via `/proc/<pid>/fd`, `pidfd_getfd`, or `SCM_RIGHTS` | Not covered | None | Test each applicable acquisition/transfer route and verify a received FD cannot be used to mutate protected maps. |
 | TP-21 | Concurrent or repeated serializer invocation changes/loses records | Not covered | None | Add after TP-14 policy fix; exercise repeated and concurrent export attempts and verify record integrity. |
 

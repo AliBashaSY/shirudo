@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t1131 -- PR_SET_MM cannot assign Shirudo's frozen executable identity,
-# while unrelated executable-file changes retain normal kernel behavior.
+# t1131 -- non-Shirudo callers cannot change executable identity with
+# PR_SET_MM.
 
 cd "$(dirname "$0")/.."
 . ./integration-lib.sh
@@ -17,7 +17,7 @@ caps = next(line.split()[1] for line in status if line.startswith("CapEff:"))
 sys.exit(0 if int(caps, 16) & (1 << 24) else 1)
 ' || test_skip_all "CAP_SYS_RESOURCE unavailable"
 
-test_expect_success 'PR_SET_MM guards only the recorded Shirudo executable' '
+test_expect_success 'PR_SET_MM executable changes require Shirudo identity' '
 	python3 tamperproof/t1131-pr-set-mm-identity.py "$SHIRUDO_BIN"
 '
 

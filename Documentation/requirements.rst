@@ -56,11 +56,6 @@ fixture.
        ``ENOTSUPP``.  Either way ``shirudo init`` cannot attach its
        enforcement.  The same trampolines later carry ``fentry``,
        ``fexit``, ``fmod_ret`` and ``lsm`` upatches at no extra cost.
-   * - ``CONFIG_FTRACE_SYSCALLS``
-     - Provides the ``syscalls/sys_exit_prctl`` tracepoint used by
-       shirudo's ``PR_SET_MM`` identity guard.  Without it,
-       ``shirudo init`` cannot attach the cleanup hook and does not
-       complete.
    * - ``CONFIG_SECURITYFS``
      - ``/sys/kernel/security/lsm``, which the pre-flight reads to
        confirm the BPF LSM is active (``bpf_lsm_active``).

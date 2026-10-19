@@ -240,14 +240,13 @@ Everything else, including
 ``lsm/bpf_map`` denies writable map file descriptors when the caller's
 executable identity is not shirudo. Root can retrieve read-only map fds
 for observation, but direct map updates and writable mappings of arena
-maps are denied. The ``task_prctl`` and ``file_permission`` hooks scope
-the kernel's executable-file check during ``PR_SET_MM_EXE_FILE`` and
-``PR_SET_MM_MAP``. They deny only when the resolved file matches the
-device and inode of Shirudo's frozen executable identity, including the
-initrd copy. Other ``PR_SET_MM`` targets and ordinary executable-file
-checks are unaffected. A process that directly executes the recorded
-Shirudo binary is still identified as Shirudo; its command interface is
-the authorization boundary for those operations.
+maps are denied. The ``task_prctl`` hook denies
+``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` to callers whose executable
+identity is not the frozen Shirudo executable or its initrd copy. This
+also denies these two operations to checkpoint and restore tools. A
+process that directly executes the recorded Shirudo binary is still
+identified as Shirudo; its command interface is the authorization
+boundary for those operations.
 
 ``lsm/bpf_prog_load`` runs after the kernel's signature check and admits
 a program only when the verdict is ``BPF_SIG_VERIFIED`` and the

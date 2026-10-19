@@ -746,10 +746,6 @@ static int init_lsm(bool attach_filesystem_seal)
 		const char	*prog;
 		const char	*pin;
 	} prctl_hooks[] = {
-		{ "shirudo_lsm_file_permission",
-		  SHIRUDO_FILE_PERMISSION_LINK_PIN },
-		{ "shirudo_trace_sys_exit_prctl",
-		  SHIRUDO_PRCTL_EXIT_LINK_PIN },
 		{ "shirudo_lsm_task_prctl", SHIRUDO_TASK_PRCTL_LINK_PIN },
 	};
 	struct bpf_link *prctl_links[ARRAY_SIZE(prctl_hooks)] = {};
