@@ -199,6 +199,11 @@ Before sending
   touches memory handling or binary formats; CI runs the same sweep.
 * Run ``make -C Documentation html-docs`` when the change touches ``Documentation/``;
   every document must render clean under docutils' strict mode.
+* Run ``.github/scripts/check-spdx.sh`` when the change adds a file:
+  every source carries an SPDX tag in the kernel's form for its type,
+  ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for
+  everything compiled into a BPF object, the headers it includes and
+  the decoders a package ships. CI runs it.
 * Keep each commit to one logical change that builds and passes on its
   own, so the history bisects.
 * Read `threat-model <threat-model.rst>`__ before changing anything on a

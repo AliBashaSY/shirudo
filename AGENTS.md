@@ -296,6 +296,11 @@ one usually still compiles and passes tests.
 - `make -C Documentation html-docs` renders `Documentation/*.rst` with docutils in strict
   mode into `Documentation/output/`; CI runs it on every push, so run it
   after touching any document (python3-docutils provides `rst2html`).
+- `.github/scripts/check-spdx.sh` checks the SPDX tag of every tracked
+  source against the licensing rules above: the form for the file type,
+  the expression, the dual licence for everything a BPF object compiles
+  and a Beefile ships. CI runs it on every pull request; run it before
+  handing work over.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the
   distribution packages. The target package is static apart from glibc
   and portable; the operator package links the host's shared libraries

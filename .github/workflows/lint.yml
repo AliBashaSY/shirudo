@@ -23,3 +23,14 @@ jobs:
         with:
           severity: error
           ignore_paths: vendor
+
+  spdx:
+    name: SPDX
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check the SPDX tag of every tracked source
+        run: .github/scripts/check-spdx.sh
