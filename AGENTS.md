@@ -301,8 +301,9 @@ one usually still compiles and passes tests.
   the expression, the dual licence for everything a BPF object compiles
   and a Beefile ships. `.github/scripts/check-dco.sh <range>` checks
   that every commit has a one-line subject, a body beyond its tags and
-  the author's sign-off. CI runs both on every pull request; run them
-  before handing work over.
+  the author's sign-off from a real address: a noreply address or a
+  `[bot]` is rejected as author, signer or co-developer. CI runs both
+  on every pull request; run them before handing work over.
 - Shell that a workflow runs lives in `.github/scripts/`, not inline in
   the workflow file.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the

@@ -121,15 +121,19 @@ If you can certify that, add::
     Signed-off-by: Random J Developer <random@developer.example.org>
 
 using a known identity; anonymous or pseudonymous sign-offs are not
-accepted. ``git commit -s`` and ``git revert -s`` add the line for you.
+accepted, and neither is an address nobody answers at: a GitHub noreply
+address, the address a coding agent writes with, or anything called
+``[bot]`` is rejected as the author, in a ``Signed-off-by:`` and in a
+``Co-developed-by:``. ``git commit -s`` and ``git revert -s`` add the
+line for you.
 A commit without a valid sign-off is not merged, and a maintainer who
 applies a commit adds their own sign-off after the author's, so the
 chain of ``Signed-off-by:`` lines records the real route the change
 took. The first sign-off is the author's; the last is the person who
 submits the commit. ``.github/scripts/check-dco.sh`` verifies that
 every commit in a range has a one-line subject, a body that says more
-than its tags and its author's sign-off, and CI runs it on every pull
-request as the ``DCO`` check.
+than its tags and its author's sign-off from a real address, and CI
+runs it on every pull request as the ``DCO`` check.
 
 Only a person can certify the DCO. Coding agents and other automated
 tools must never add a ``Signed-off-by:`` line; the human who reviews

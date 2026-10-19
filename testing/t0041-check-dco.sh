@@ -156,6 +156,50 @@ Why the change is made." -s &&
 	grep -q "DCO: 2 commits checked" "$W/out"
 '
 
+test_expect_success 'a bot is not an author' '
+	commit "a: bot author
+
+Why the change is made.
+
+Signed-off-by: helper[bot] <helper@bots.example.org>" \
+		--author="helper[bot] <helper@bots.example.org>" &&
+	! check &&
+	grep -q "the author is a noreply or bot identity, not a person: helper\[bot\] <helper@bots.example.org>" "$W/err"
+'
+
+test_expect_success 'a noreply sign-off cannot certify the DCO' '
+	commit "a: noreply sign-off
+
+Why the change is made.
+
+Signed-off-by: Random J Developer <random@developer.example.org>
+Signed-off-by: Some Agent <noreply@agent.example.org>" &&
+	! check &&
+	grep -q "cannot certify the DCO: Signed-off-by: Some Agent <noreply@agent.example.org>" "$W/err"
+'
+
+test_expect_success 'a GitHub privacy address is no identity either' '
+	commit "a: privacy address
+
+Why the change is made.
+
+Signed-off-by: Random J Developer <12345+random@users.noreply.github.com>" \
+		--author="Random J Developer <12345+random@users.noreply.github.com>" &&
+	! check &&
+	grep -q "the author is a noreply or bot identity" "$W/err"
+'
+
+test_expect_success 'a noreply co-developer is rejected' '
+	commit "a: noreply co-developer
+
+Why the change is made.
+
+Co-developed-by: Some Agent <noreply@agent.example.org>
+Signed-off-by: Random J Developer <random@developer.example.org>" &&
+	! check &&
+	grep -q "cannot be a co-developer: Co-developed-by: Some Agent <noreply@agent.example.org>" "$W/err"
+'
+
 test_expect_success 'an unknown range fails' '
 	! check nonexistent..HEAD
 '
