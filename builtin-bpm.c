@@ -721,8 +721,10 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 	return rc;
 }
 
-/* Strict enough for repository selection: numeric dotted core, optional
- * prerelease, and build metadata.  Build metadata does not affect order. */
+/*
+ * Strict enough for repository selection: numeric dotted core, optional
+ * prerelease, and build metadata.  Build metadata does not affect order.
+ */
 static int semver_compare(const char *a, const char *b)
 {
 	const char *pa = a, *pb = b;
@@ -818,8 +820,10 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 	if ((rc = bpm_oci_parse_endpoint(s->endpoint, &c))) return rc;
 	if ((rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name, "manifests", entry->manifest_digest, url, sizeof(url)))) return rc;
 	if ((rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest))) goto out;
-	/* Repository indexes carry a sha256 manifest digest; direct OCI
-	 * references carry the tag in this field and cannot be digest-checked. */
+	/*
+	 * Repository indexes carry a sha256 manifest digest; direct OCI
+	 * references carry the tag in this field and cannot be digest-checked.
+	 */
 	if (!strncmp(entry->manifest_digest, "sha256:", 7)) {
 		char manifest_hex[65];
 		if (bpm_sha256_hex(manifest.data, manifest.len, manifest_hex, sizeof(manifest_hex)) ||
@@ -1365,8 +1369,10 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
 	return shirudo_eventlog_append(line);
 }
 
-/* Complete the only non-idempotent window: the process may have
- * appended the event before the sealed cursor was committed. */
+/*
+ * Complete the only non-idempotent window: the process may have
+ * appended the event before the sealed cursor was committed.
+ */
 static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 					struct shirudo_tree_state *state)
 {
@@ -2065,8 +2071,11 @@ int cmd_bpm(int argc, const char **argv)
 			bpm_tree_usage();
 			return 0;
 		}
-		/* The tree is optional. Avoid taking the BPM lock (and avoid
-		 * requiring writable state directories) when it is not configured. */
+		/*
+		 * The tree is optional. Avoid taking the BPM lock (and
+		 * avoid requiring writable state directories) when it is
+		 * not configured.
+		 */
 		if (access(SHIRUDO_BPM_TREE_ETC_PATH, F_OK) != 0 && errno == ENOENT)
 			return 0;
 		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
@@ -2105,9 +2114,12 @@ int cmd_bpm(int argc, const char **argv)
 			return bpm_finish(lock, rc, "install");
 		for (i = 0; i < n_state; i++) {
 			if (!strcmp(state[i].name, direct ? selected.name : name))
-				/* Installation is idempotent by package name.  This also
-				 * avoids contacting the repository for a package that is
-				 * already active.  Use `bpm upgrade` to change versions. */
+				/*
+				 * Installation is idempotent by package name.
+				 * This also avoids contacting the repository
+				 * for a package that is already active.  Use
+				 * `bpm upgrade` to change versions.
+				 */
 				return bpm_finish(lock, 0, "install");
 		}
 		if (!direct) {

@@ -44,8 +44,10 @@ int shirudo_upatch_remove(const char *path);
  */
 int shirudo_upatch_purge(const char *name, const char *reason);
 
-/* Internal lifecycle result: the signed payload was valid, but its kprobe
- * target is unavailable because the backing module is not loaded. */
+/*
+ * Internal lifecycle result: the signed payload was valid, but its kprobe
+ * target is unavailable because the backing module is not loaded.
+ */
 #define SHIRUDO_UPATCH_INSTALL_TARGET_MISSING 2
 
 /* Either-side. */

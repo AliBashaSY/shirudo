@@ -3075,8 +3075,10 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	return rc ? rc : 1;
 }
 
-/* Native BPM lifecycle hooks.  Keep package installation on the exact
- * same signed/persisted path as the public upatch commands. */
+/*
+ * Native BPM lifecycle hooks.  Keep package installation on the exact
+ * same signed/persisted path as the public upatch commands.
+ */
 int shirudo_upatch_install(const char *path)
 {
 	const char *argv[] = { "load", "--no-precheck", path };

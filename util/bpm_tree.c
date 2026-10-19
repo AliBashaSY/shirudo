@@ -15,9 +15,11 @@
 #include "macros.h"
 #include "malloc.h"
 
-/* The tree payload is deliberately parsed here instead of through the
+/*
+ * The tree payload is deliberately parsed here instead of through the
  * schema parser: selectors contain maps whose keys are not known ahead of
- * time.  The parser is still bounded and ignores unknown fields. */
+ * time.  The parser is still bounded and ignores unknown fields.
+ */
 struct tree_parser {
 	const char *p;
 	const char *end;

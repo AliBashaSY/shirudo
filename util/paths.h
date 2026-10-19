@@ -116,7 +116,8 @@ int shirudo_key_paths(const char *keys_dir,
 		      char *cert_path, size_t cert_sz);
 const char *shirudo_keys_dir_resolve(const char *keys_dir_arg);
 
-/* Convert a userspace upatch name to a bpffs path component.  bpffs
+/*
+ * Convert a userspace upatch name to a bpffs path component.  bpffs
  * reserves dots in path components, while the userspace/persisted name
  * format permits them (for example, kernel-version-qualified patches).
  * The returned component is intentionally only a path representation; the

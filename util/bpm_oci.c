@@ -307,8 +307,11 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	}
 	rc = bpm_read_file(authfile, &body, &body_len, 4u * 1024u * 1024u);
 	if (rc) return rc == -ENOENT ? 0 : rc;
-	/* The auth file is local input; require the registry key and auth member
-	 * to occur in the same JSON object before accepting credentials. */
+	/*
+	 * The auth file is local input; require the registry key and auth
+	 * member to occur in the same JSON object before accepting
+	 * credentials.
+	 */
 	snprintf(needle, sizeof(needle), "\"%s\"", registry);
 	p = strstr((char *)body, needle);
 	if (!p) { xfree(body, body_len + 1); return 0; }
@@ -406,8 +409,10 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-	/* OCI registries commonly redirect blob GETs to a signed CDN URL.
-	 * Follow only for file downloads, never for manifest or upload calls. */
+	/*
+	 * OCI registries commonly redirect blob GETs to a signed CDN URL.
+	 * Follow only for file downloads, never for manifest or upload calls.
+	 */
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, file ? 1L : 0L);
 	if (file) {
 		const char *redirect_protocols =
@@ -671,9 +676,11 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 	return rc;
 }
 
-/* A request helper for OCI uploads. Unlike the download helpers above, it
+/*
+ * A request helper for OCI uploads. Unlike the download helpers above, it
  * preserves the response headers (notably Location) and supports a request
- * body while still retrying once after a registry authentication challenge. */
+ * body while still retrying once after a registry authentication challenge.
+ */
 int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 			const char *url, const char *accept, const char *content_type,
 			const void *body, size_t body_len, struct bpm_http_response *r)

@@ -221,9 +221,11 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 
 	/* qsort scrambled indices; rebuild raws[].mod_idx by lookup. */
 	for (size_t i = 0; i < n_raw; i++) {
-		/* The original raws[i].mod_idx is invalid post-sort. We
+		/*
+		 * The original raws[i].mod_idx is invalid post-sort. We
 		 * stored the *raw* name slice but lost which module it
-		 * belonged to. Re-discover by reparsing. */
+		 * belonged to. Re-discover by reparsing.
+		 */
 		(void)0;
 	}
 	/*

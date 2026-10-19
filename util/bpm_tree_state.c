@@ -138,10 +138,12 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 	return rc;
 }
 
-/* The kernel config can contain thousands of entries.  Index only the
+/*
+ * The kernel config can contain thousands of entries.  Index only the
  * selector keys, then scan the complete config once and retain matching
  * values.  This avoids both an arbitrary config-entry cap and an O(N*M)
- * lookup for N config entries and M selector keys. */
+ * lookup for N config entries and M selector keys.
+ */
 #define SHIRUDO_TREE_SELECTOR_HASH_SIZE 128
 
 static unsigned int selector_hash(const char *key)
@@ -303,9 +305,11 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 	char path[PATH_MAX];
 	bool matched, config_any;
 
-	/* An empty selector is the tree's explicit wildcard.  Evaluate this
+	/*
+	 * An empty selector is the tree's explicit wildcard.  Evaluate this
 	 * before consulting node metadata so an unconstrained operation is
-	 * still applicable if uname(2) is unavailable. */
+	 * still applicable if uname(2) is unavailable.
+	 */
 	if (!s)
 		return 0;
 	if (!s->n_kernel_release_prefix && !s->n_kernel_build_id && !s->n_architecture &&
@@ -327,8 +331,10 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 	if (s->n_kernel_build_id) {
 		char build_id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
 
-		/* A selector carrying a build ID is deliberately fail-closed when
-		 * the running kernel does not publish a GNU build ID. */
+		/*
+		 * A selector carrying a build ID is deliberately fail-closed
+		 * when the running kernel does not publish a GNU build ID.
+		 */
 		if (shirudo_kernel_build_id_read(build_id))
 			return 0;
 		matched = false;

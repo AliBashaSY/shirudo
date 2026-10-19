@@ -1065,8 +1065,10 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	lua_setfield(L, -2, "upatch");
 	lua_pushstring(L, v->name);
 	lua_setfield(L, -2, "map");
-	/* Metric decoders need valid OTLP wall-clock timestamps. Keep these
-	 * as decimal strings because Lua numbers cannot represent uint64_ns. */
+	/*
+	 * Metric decoders need valid OTLP wall-clock timestamps. Keep these
+	 * as decimal strings because Lua numbers cannot represent uint64_ns.
+	 */
 	lua_push_u64_string(L, start_ns);
 	lua_setfield(L, -2, "startTimeUnixNano");
 	lua_push_u64_string(L, now_ns);

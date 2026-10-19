@@ -264,10 +264,12 @@ static X509 *read_x509_memory(const unsigned char *body, size_t len)
 	return x;
 }
 
-/* Hash the exact DER SubjectPublicKeyInfo representation used by Go's
+/*
+ * Hash the exact DER SubjectPublicKeyInfo representation used by Go's
  * x509.MarshalPKIXPublicKey.  Keep this explicit instead of relying on
  * X509_pubkey_digest(), whose meaning is easy to confuse with a digest of
- * the key material itself when diagnosing package signer mismatches. */
+ * the key material itself when diagnosing package signer mismatches.
+ */
 static int x509_spki_sha256(const X509 *cert, unsigned char digest[32])
 {
 	X509_PUBKEY *spki;
