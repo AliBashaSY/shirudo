@@ -52,4 +52,6 @@ The full index is in [Documentation/index.rst](Documentation/index.rst).
 
 shirudo is licensed under the [BSD-2-Clause License](LICENSE). BPF
 programs are dual-licensed `Dual BSD/GPL`. Each source file holds a
-SPDX license identifier.
+SPDX license identifier. The tree vendors a few source files from
+third-party projects under different but compatible licenses; those
+files retain their original SPDX identifier and copyright notices.
