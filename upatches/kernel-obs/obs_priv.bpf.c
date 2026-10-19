@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
  * obs_priv.bpf.c -- privilege transitions and persistence primitives.
  *

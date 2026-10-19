@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /* Copyright (c) 2026 Authors of shirudo */
 #ifndef KERNEL_OBS_COMMON_H
 #define KERNEL_OBS_COMMON_H

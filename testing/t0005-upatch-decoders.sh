@@ -51,7 +51,7 @@ openssl req -x509 -newkey ML-DSA-87 -nodes -keyout "$WORK/k.pem" \
 	>/dev/null 2>&1 || test_skip_all "openssl ML-DSA keygen failed (needs OpenSSL >= 3.5)"
 
 cat > "$WORK/t.bpf.c" <<'EOF'
-// SPDX-License-Identifier: Dual BSD/GPL
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>

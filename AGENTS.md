@@ -112,7 +112,10 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   `//`-style. Every other comment is `/* */`.
 - **License: BSD-2-Clause** for userspace. The BPF program must declare
   `char _license[] SEC("license") = "Dual BSD/GPL";` (the LSM hook framework
-  rejects non-GPL-compatible BPF).
+  rejects non-GPL-compatible BPF), and every file compiled into a BPF
+  object, including the headers it includes and the package's Lua
+  decoders, carries `SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause`,
+  the kernel's form of the dual licence, matching the Beefile.
 - **No emojis** anywhere — code, comments, commit messages, logs.
 - **Comments are scarce.** Kernel style: explain the *why*, not the *what*.
   No multi-paragraph docstrings. No "added for issue X" or "used by Y" — those

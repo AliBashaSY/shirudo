@@ -30,7 +30,7 @@ case "$SHB" in
 esac
 
 cat > "$WORK/sk-skb.bpf.c" <<'EOF'
-// SPDX-License-Identifier: Dual BSD/GPL
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
@@ -44,7 +44,7 @@ int verdict(struct __sk_buff *skb)
 EOF
 
 cat > "$WORK/socket-filter.bpf.c" <<'EOF'
-// SPDX-License-Identifier: Dual BSD/GPL
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
@@ -58,7 +58,7 @@ int filter(struct __sk_buff *skb)
 EOF
 
 cat > "$WORK/cgroup-skb-generic.bpf.c" <<'EOF'
-// SPDX-License-Identifier: Dual BSD/GPL
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 

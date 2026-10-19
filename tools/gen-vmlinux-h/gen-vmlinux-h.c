@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
  * Copyright (C) 2019 Facebook
  * Copyright (c) 2026 Authors of shirudo
