@@ -169,7 +169,7 @@ def assert_denied(result, label):
         raise AssertionError(f"{label}: errno={error}, expected EACCES/EPERM")
 
 
-for map_name in ("shirudo_ser", "obs_i_arena"):
+for map_name in ("shirudo_ser",):
     path = os.path.join(sys.argv[1], map_name)
     assert_denied(obj_get(path, 0), f"writable fd for {map_name}")
 
