@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
 set -euo pipefail
 
 KERNEL_TAG="${KERNEL_TAG:-bpf-next}"

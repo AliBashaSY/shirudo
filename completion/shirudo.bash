@@ -1,4 +1,7 @@
-# bash completion for shirudo                              -*- shell-script -*-
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
+# bash completion for shirudo
 #
 # Command and subcommand name lists are pulled live from the binary via
 # `shirudo <command> --list-cmds`, so adding a (sub)command in the

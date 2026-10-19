@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
 # shirudo initrd unit: the first half of bringing enforcement up.
 #
 # Runs `shirudo init` while the initrd still runs, with the root file
