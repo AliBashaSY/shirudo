@@ -61,6 +61,9 @@ util/version_id.c
 *~
 .DS_Store
 
+# The CamelCase cache checkpatch.pl writes where it runs
+.checkpatch-camelcase.*
+
 # Coverage / sanitisers
 *.gcda
 *.gcno

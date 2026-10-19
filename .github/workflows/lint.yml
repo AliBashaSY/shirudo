@@ -34,3 +34,28 @@ jobs:
 
       - name: Check the SPDX tag of every tracked source
         run: .github/scripts/check-spdx.sh
+
+  checkpatch:
+    name: Checkpatch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The kernel's checkpatch.pl, in strict mode, over the C sources and
+      # the message of every commit the event covers; the script fetches
+      # the pinned copy it runs, and its tests then run against that copy.
+      - name: Run checkpatch over every commit
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: .github/scripts/ci-commit-range.sh .github/scripts/check-style.sh
+
+      - name: Test the checker against the fetched copy
+        run: sh testing/t0043-check-style.sh

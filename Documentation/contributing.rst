@@ -213,6 +213,15 @@ Before sending
   the decoders a package ships. Run
   ``.github/scripts/check-dco.sh origin/main..HEAD`` on the commits. CI
   runs both.
+* Run ``.github/scripts/check-style.sh origin/main..HEAD`` on the
+  commits: it runs the kernel's ``checkpatch.pl`` in strict mode over
+  the C each commit touches, at the 80 columns of the coding style, and
+  over its message, with the checks that have no meaning in userspace
+  switched off, each listed in the script with its reason, and it
+  rejects a block comment whose text starts on the ``/*`` line, the
+  netdev form. ``--diff`` checks the uncommitted changes, ``--files``
+  whole files and ``--types`` lists what stays enabled. CI runs it as
+  the ``Checkpatch`` check.
 * Keep each commit to one logical change that builds and passes on its
   own, so the history bisects.
 * Read `threat-model <threat-model.rst>`__ before changing anything on a
