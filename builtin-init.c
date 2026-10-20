@@ -787,10 +787,10 @@ static int init_lsm(bool attach_filesystem_seal)
 	struct bpf_link *mount_links[ARRAY_SIZE(mount_hooks)] = {};
 	const struct shirudo_embedded_bpf *blob = shirudo_bpf2_blob();
 	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
-	struct bpf_program *p_pload;
+	struct bpf_program *p_pload, *p_rename;
 	struct bpf_object *obj = NULL, *seal_obj = NULL;
 	struct bpf_link *link_bpf = NULL, *link_bpf_map = NULL;
-	struct bpf_link *link_unlink = NULL;
+	struct bpf_link *link_unlink = NULL, *link_rename = NULL;
 	struct bpf_link *link_setx = NULL, *link_rmx = NULL, *link_pload = NULL;
 	struct bpf_link *link_keyperm = NULL;
 	struct bpf_link *seal_links[ARRAY_SIZE(seal_hooks)] = {};
@@ -941,6 +941,8 @@ static int init_lsm(bool attach_filesystem_seal)
 
 	p_unlink = bpf_object__find_program_by_name(obj,
 						    "shirudo_lsm_inode_unlink");
+	p_rename = bpf_object__find_program_by_name(obj,
+						    "shirudo_lsm_inode_rename");
 	p_setx = bpf_object__find_program_by_name(obj,
 						  "shirudo_lsm_inode_setxattr");
 	p_rmx = bpf_object__find_program_by_name(obj,
@@ -952,9 +954,8 @@ static int init_lsm(bool attach_filesystem_seal)
 	p_keyperm = bpf_object__find_program_by_name(
 				obj, "shirudo_lsm_key_permission");
 	p_bpf = bpf_object__find_program_by_name(obj, "shirudo_lsm_bpf");
-	if (!p_unlink || !p_setx || !p_rmx || !p_pload || !p_bpf_map ||
-	    !p_bpf ||
-	    !p_keyperm) {
+	if (!p_unlink || !p_rename || !p_setx || !p_rmx || !p_pload ||
+	    !p_bpf_map || !p_bpf || !p_keyperm) {
 		pr_err("expected programs missing in bpf2 object");
 		err = -ENOENT;
 		goto out;
@@ -971,6 +972,11 @@ static int init_lsm(bool attach_filesystem_seal)
 	err = attach_pin(p_unlink, SHIRUDO_INODE_UNLINK_LINK_PIN, &link_unlink);
 	if (err) {
 		pr_err("attach lsm/inode_unlink: %s", strerror(-err));
+		goto out;
+	}
+	err = attach_pin(p_rename, SHIRUDO_INODE_RENAME_LINK_PIN, &link_rename);
+	if (err) {
+		pr_err("attach lsm/inode_rename: %s", strerror(-err));
 		goto out;
 	}
 	err = attach_pin(p_setx, SHIRUDO_INODE_SETXATTR_LINK_PIN, &link_setx);
@@ -1062,6 +1068,7 @@ out:
 	bpf_link__destroy(link_keyperm);
 	bpf_link__destroy(link_rmx);
 	bpf_link__destroy(link_setx);
+	bpf_link__destroy(link_rename);
 	bpf_link__destroy(link_unlink);
 	bpf_object__close(obj);
 	return err;

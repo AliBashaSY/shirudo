@@ -123,10 +123,13 @@ T2  Detaching or replacing enforcement
     ``lsm/bpf`` denies ``LINK_DETACH``, ``LINK_UPDATE``,
     ``PROG_ATTACH``, ``PROG_DETACH`` and ``BTF_LOAD`` from userspace.
     The links are kept alive by pins in a private bpffs;
-    ``inode_unlink`` on that filesystem allows only shirudo's own
-    executable, and ``sb_umount``, ``move_mount``, ``sb_mount`` and
-    ``sb_remount`` deny everyone, so neither ``rm`` nor ``umount`` nor
-    mounting over the directory removes a pin. Infrastructure maps are
+    ``inode_unlink`` and ``inode_rename`` on it allow only shirudo's own
+    executable (the VFS unlinks the victim of a rename without
+    ``inode_unlink``, so a rename over a link's pin would otherwise
+    drop its only reference), and ``sb_umount``, ``move_mount``,
+    ``sb_mount`` and ``sb_remount`` deny everyone, so neither ``rm``
+    nor ``mv`` nor ``umount`` nor mounting over the directory removes a
+    pin. Infrastructure maps are
     frozen at creation, so even with the LSM gone userspace could not
     rewrite the identity map. ``lsm/bpf_map`` denies writable map fds
     to every process except shirudo; map updates and freezes have the

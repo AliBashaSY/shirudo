@@ -62,6 +62,7 @@
 #define SHIRUDO_SB_MOUNT_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_sb_mount_link"
 #define SHIRUDO_SB_REMOUNT_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_sb_remount_link"
 #define SHIRUDO_INODE_UNLINK_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_inode_unlink_link"
+#define SHIRUDO_INODE_RENAME_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_inode_rename_link"
 #define SHIRUDO_INODE_SETXATTR_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_inode_setxattr_link"
 #define SHIRUDO_INODE_RMXATTR_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_inode_removexattr_link"
 #define SHIRUDO_KEY_PERMISSION_LINK_PIN	SHIRUDO_BPFFS_DIR "/bpf2_key_permission_link"

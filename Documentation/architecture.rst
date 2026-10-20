@@ -262,11 +262,12 @@ the serials of the keys the keyring holds) is written and
 ``BPF_MAP_FREEZE``'d before any link is created, so userspace cannot
 change it for the rest of the boot. Writable map fds and map updates
 are restricted by the same executable-identity gate.
-``lsm/inode_unlink``,
+``lsm/inode_unlink``, ``lsm/inode_rename``,
 ``lsm/inode_setxattr`` and ``lsm/inode_removexattr`` on shirudo's bpffs
 allow the operation only when the calling task's ``mm->exe_file`` is
-shirudo's binary: root ``rm`` cannot drop a pin, and nobody else can
-forge the payload xattr.  ``lsm/key_permission`` applies the same test
+shirudo's binary: root ``rm`` cannot drop a pin, ``mv`` cannot replace
+one (the VFS unlinks a rename's victim without ``inode_unlink``), and
+nobody else can forge the payload xattr.  ``lsm/key_permission`` applies the same test
 to the trust anchor in the kernel's keyrings: write, setattr and unlink
 on the sealed keyring and on the keys it holds, and the unpossessed
 search ``keyctl invalidate`` uses to reach a key by serial, are denied

@@ -34,16 +34,22 @@
  *                       process except shirudo. Read-only map access
  *                       remains available; this also blocks writable
  *                       mmap of arena maps.
- *   lsm/inode_unlink -- denies VFS unlink on shirudo's private
+ *   lsm/inode_unlink,
+ *   lsm/inode_rename -- deny VFS unlink and rename on shirudo's private
  *                       bpffs superblock unless the caller is shirudo
  *                       itself (its exe_file inode matches the
  *                       identity recorded at init). Permanently
  *                       protects the LSM-link and upatch pins from an
- *                       attacker's `rm` (seal excludes the bpffs
- *                       mount, so bpf2 is the only protector here),
- *                       while letting `shirudo upatch unload` remove
- *                       a pin to detach a program. seal applies the
- *                       same exe-inode check. The task_prctl hook below
+ *                       attacker's `rm` and `mv` (seal excludes the
+ *                       bpffs mount, so bpf2 is the only protector
+ *                       here), while letting `shirudo upatch unload`
+ *                       remove a pin to detach a program. Rename is
+ *                       guarded because the VFS asks only the rename
+ *                       hook of it and the victim of a rename is
+ *                       unlinked without inode_unlink, so renaming any
+ *                       pin over a link's pin would drop that link's
+ *                       only reference. seal applies the same
+ *                       exe-inode check. The task_prctl hook below
  *                       prevents non-Shirudo callers from changing
  *                       mm->exe_file through PR_SET_MM.
  *   lsm/key_permission -- guards the trust anchor in the kernel's
@@ -313,8 +319,9 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
  * Verdict for an operation targeting an inode in superblock target_dev:
  * allow (0) if it is not shirudo's bpffs, or if the calling task's
  * exe_file matches the identity recorded at init; deny (-EPERM)
- * otherwise. The single guard shared by inode_unlink, inode_setxattr
- * and inode_removexattr -- "only shirudo may mutate its own bpffs".
+ * otherwise. The single guard shared by inode_unlink, inode_rename,
+ * inode_setxattr and inode_removexattr -- "only shirudo may mutate its
+ * own bpffs".
  */
 static __always_inline int shirudo_bpffs_guard(__u32 target_dev)
 {
@@ -388,6 +395,21 @@ int BPF_PROG(shirudo_lsm_inode_unlink, struct inode *dir,
 	     struct dentry *dentry)
 {
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev));
+}
+
+/*
+ * Rename is the other way a pin can go: the VFS asks only this hook of
+ * it, and simple_rename() unlinks the victim without inode_unlink, so
+ * renaming any pin over a link's pin would drop that link's only
+ * reference. Both directories share the superblock, a rename never
+ * crossing one, so the source directory names it for both ends.
+ */
+SEC("lsm/inode_rename")
+int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
+	     struct dentry *old_dentry, struct inode *new_dir,
+	     struct dentry *new_dentry)
+{
+	return shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev));
 }
 
 /*
