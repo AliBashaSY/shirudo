@@ -725,20 +725,6 @@ static int prog_attach_raw_tp(int prog_fd)
 static int prog_attach_cgroup_skb(int prog_fd,
 				  enum bpf_attach_type attach_type);
 
-static bool attach_type_has_raw_tp_fallback(enum bpf_attach_type attach_type)
-{
-	switch (attach_type) {
-	case BPF_TRACE_RAW_TP:
-	case BPF_TRACE_FENTRY:
-	case BPF_TRACE_FEXIT:
-	case BPF_MODIFY_RETURN:
-	case BPF_LSM_MAC:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static int prog_attach_btf_link(int prog_fd, enum bpf_attach_type attach_type)
 {
 	union bpf_attr attr = {};
@@ -749,18 +735,6 @@ static int prog_attach_btf_link(int prog_fd, enum bpf_attach_type attach_type)
 	attr.link_create.attach_type = attach_type;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
 	return fd >= 0 ? (int)fd : -errno;
-}
-
-static int prog_attach_btf_link_or_raw_tp(int prog_fd,
-					  enum bpf_attach_type attach_type)
-{
-	int rc;
-
-	rc = prog_attach_btf_link(prog_fd, attach_type);
-	if (rc < 0 && rc == -EINVAL &&
-	    attach_type_has_raw_tp_fallback(attach_type))
-		return prog_attach_raw_tp(prog_fd);
-	return rc;
 }
 
 static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
@@ -878,7 +852,7 @@ static int prog_attach_default(int prog_fd)
 	enum bpf_attach_type attach_type;
 
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &info_len) != 0)
-		return prog_attach_raw_tp(prog_fd);
+		return -errno;
 
 	switch (info.type) {
 	case BPF_PROG_TYPE_LSM:
@@ -890,7 +864,7 @@ static int prog_attach_default(int prog_fd)
 		return prog_attach_raw_tp(prog_fd);
 	}
 
-	return prog_attach_btf_link_or_raw_tp(prog_fd, attach_type);
+	return prog_attach_btf_link(prog_fd, attach_type);
 }
 
 static int prog_attach_cgroup_skb(int prog_fd, enum bpf_attach_type attach_type)
@@ -1343,9 +1317,7 @@ static int prog_attach_uprobe_multi(int prog_fd,
 				    const struct shirudo_prog_spec *spec)
 {
 	union bpf_attr attr = {};
-	struct stat path_stat;
 	long fd;
-	int first_err;
 
 	if (spec->target_fd < 0 || !spec->uprobe_path ||
 	    !spec->uprobe_offsets || !spec->nr_uprobe_offsets)
@@ -1358,38 +1330,7 @@ static int prog_attach_uprobe_multi(int prog_fd,
 	attr.link_create.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD;
 	attr.link_create.uprobe_multi.path_fd = (uint32_t)spec->target_fd;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
-	if (fd >= 0)
-		return (int)fd;
-	first_err = errno;
-	if (first_err != EINVAL && first_err != EOPNOTSUPP)
-		return -first_err;
-
-	/*
-	 * Older uprobe.multi kernels accept only a pathname. Make sure the
-	 * current name still resolves to the inode whose build ID was checked
-	 * before falling back; the path-fd ABI remains the preferred path.
-	 */
-	if (stat(spec->uprobe_path, &path_stat) != 0)
-		return -errno;
-	if (path_stat.st_dev != spec->target_stat.st_dev ||
-	    path_stat.st_ino != spec->target_stat.st_ino)
-		return -ESTALE;
-	pr_warn("uprobe.multi path-fd attach unsupported; falling back to pathname for %s",
-		spec->uprobe_path);
-	memset(&attr, 0, sizeof(attr));
-	attr.link_create.prog_fd = (uint32_t)prog_fd;
-	attr.link_create.attach_type = BPF_TRACE_UPROBE_MULTI;
-	attr.link_create.uprobe_multi.path =
-		(uint64_t)(uintptr_t)spec->uprobe_path;
-	attr.link_create.uprobe_multi.offsets =
-		(uint64_t)(uintptr_t)spec->uprobe_offsets;
-	attr.link_create.uprobe_multi.cnt = spec->nr_uprobe_offsets;
-	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
-	if (fd >= 0)
-		return (int)fd;
-	if (errno == EINVAL || errno == EOPNOTSUPP)
-		return -EOPNOTSUPP;
-	return -errno;
+	return fd >= 0 ? (int)fd : -errno;
 }
 
 static int prog_attach_for_spec(int prog_fd,
@@ -1407,8 +1348,7 @@ static int prog_attach_for_spec(int prog_fd,
 		return prog_attach_cgroup_skb(prog_fd,
 					      BPF_CGROUP_INET_EGRESS);
 	case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
-		return prog_attach_btf_link_or_raw_tp(prog_fd,
-						      BPF_MODIFY_RETURN);
+		return prog_attach_btf_link(prog_fd, BPF_MODIFY_RETURN);
 	case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
 		return prog_attach_netfilter_ipv6_pre_routing(prog_fd);
 	case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
