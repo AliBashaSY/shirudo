@@ -48,25 +48,32 @@ TEST_VM_MEMORY ?= 4G
 TEST_VM_DISK_SIZE ?= 30G
 TEST_VM_UBUNTU_CODENAME ?= resolute
 TEST_VM_VERBOSE ?= 0
-# `make -C testing vm` keeps bpf-next as its default, but can select a stable kernel
-# built from an upstream Linux tag. The stable list is intentionally explicit
-# so a typo cannot silently create a new VM kernel artifact directory.
+# `make -C testing vm` keeps bpf-next as its default, but can boot a kernel
+# built from an upstream release tag, Linux v7.4 or newer being what a
+# target runs.
 VM_KERNEL ?= $(if $(strip $(KERNEL)),$(KERNEL),bpf-next)
 VM_KERNEL_VERSION := $(patsubst v%,%,$(VM_KERNEL))
-VM_KERNEL_STABLE_VERSIONS := 7.2 6.18 6.12 6.6 6.1
+VM_KERNEL_MIN := 7.4
+VM_KERNEL_IS_RELEASE := $(shell printf '%s\n' '$(VM_KERNEL_VERSION)' | \
+                          grep -Ec '^[0-9]+\.[0-9]+(\.[0-9]+)?$$')
+VM_KERNEL_OLDEST := $(firstword $(shell printf '%s\n' '$(VM_KERNEL_MIN)' \
+                                '$(VM_KERNEL_VERSION)' | sort -V))
 KERNEL_COMMIT ?=
 KERNEL_COMMIT_SUFFIX := $(if $(strip $(KERNEL_COMMIT)),-$(KERNEL_COMMIT),)
 ifeq ($(VM_KERNEL),bpf-next)
 ifneq ($(strip $(KERNEL_COMMIT)),)
-  $(error KERNEL_COMMIT is supported only for stable/LTS VM kernels)
+  $(error KERNEL_COMMIT is supported only for release VM kernels)
 endif
   VM_KERNEL_TAG := bpf-next
   VM_KERNEL_ARTIFACT_DIR := $(ROOT)/artifacts/bpf-next-kernel-debs
-else ifneq ($(filter $(VM_KERNEL_VERSION),$(VM_KERNEL_STABLE_VERSIONS)),)
+else ifeq ($(VM_KERNEL_IS_RELEASE),1)
+ifneq ($(VM_KERNEL_OLDEST),$(VM_KERNEL_MIN))
+  $(error shirudo requires Linux v$(VM_KERNEL_MIN) or newer; KERNEL '$(VM_KERNEL)' is older)
+endif
   VM_KERNEL_TAG := v$(VM_KERNEL_VERSION)
   VM_KERNEL_ARTIFACT_DIR := $(ROOT)/artifacts/linux-$(VM_KERNEL_TAG)$(KERNEL_COMMIT_SUFFIX)-kernel-debs
 else
-  $(error unsupported VM KERNEL '$(VM_KERNEL)'; choose bpf-next, 7.2, 6.18, 6.12, 6.6, or 6.1)
+  $(error unsupported VM KERNEL '$(VM_KERNEL)'; choose bpf-next or a release such as $(VM_KERNEL_MIN))
 endif
 VM_KERNEL_IMAGE_NAME := $(call test-vm-arch,TEST_VM_ARCH_KIMAGE)
 VM_KERNEL_IMAGE := $(VM_KERNEL_ARTIFACT_DIR)/$(VM_KERNEL_IMAGE_NAME)
@@ -84,7 +91,7 @@ KERNEL_BUILD_JOBS ?= $(shell nproc)
 ifeq ($(KERNEL_TAG),bpf-next)
 ifneq ($(filter kernel bpf-next,$(MAKECMDGOALS)),)
 ifneq ($(strip $(KERNEL_COMMIT)),)
-  $(error KERNEL_COMMIT is supported only for stable/LTS kernel tags)
+  $(error KERNEL_COMMIT is supported only for release kernel tags)
 endif
 endif
   KERNEL_TAG_NORMALIZED := bpf-next
@@ -278,8 +285,8 @@ help:
 	  '  make -C testing test-tgt-obs' \
 	  '  make -C testing test-installer' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
-	  '  make -C testing vm KERNEL=6.18' \
-	  '  make -C testing kernel KERNEL_TAG=v6.18' \
+	  '  make -C testing vm KERNEL=7.4' \
+	  '  make -C testing kernel KERNEL_TAG=v7.4' \
 	  '  make -C testing bpf-next or test-vm-bundle' \
 	  '  make -C testing clean'
 

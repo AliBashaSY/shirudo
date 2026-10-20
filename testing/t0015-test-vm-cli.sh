@@ -420,16 +420,25 @@ test_expect_success 'make -C testing vm and test-vm share named mode support' '
 	grep -q "VM_TENANT" ../contrib/test-vm.sh &&
 	grep -q "while :; do sleep 3600; done" ../contrib/test-vm.sh
 '
-test_expect_success 'make -C testing vm selects supported stable kernel artifacts' '
-	grep -q "VM_KERNEL_STABLE_VERSIONS := 7.2 6.18 6.12 6.6 6.1" ../testing/Makefile &&
-	grep -q "make -C testing vm KERNEL=6.18" ../testing/Makefile &&
+test_expect_success 'make -C testing vm boots a release kernel at or above the floor' '
+	grep -q "VM_KERNEL_MIN := 7.4" ../testing/Makefile &&
+	grep -q "make -C testing vm KERNEL=7.4" ../testing/Makefile &&
 	grep -Fq "VM_KERNEL_ARTIFACT_DIR := \$(ROOT)/artifacts/linux-\$(VM_KERNEL_TAG)\$(KERNEL_COMMIT_SUFFIX)-kernel-debs" ../testing/Makefile &&
 	grep -q "TEST_VM_KERNEL=\"\$(abspath \$(VM_KERNEL_IMAGE))\"" ../testing/Makefile &&
-	make -n -C .. -f testing/Makefile vm KERNEL=6.18 TEST_VM_ARCH=x86_64 \
-		TEST_VM_WORK_DIR="$WORK/stable-vm" \
-		>"$WORK/stable-vm-make.out" 2>&1 &&
-	grep -q "artifacts/linux-v6.18-kernel-debs/bzImage" \
-		"$WORK/stable-vm-make.out"
+	make -n -C .. -f testing/Makefile vm KERNEL=7.4 TEST_VM_ARCH=x86_64 \
+		TEST_VM_WORK_DIR="$WORK/release-vm" \
+		>"$WORK/release-vm-make.out" 2>&1 &&
+	grep -q "artifacts/linux-v7.4-kernel-debs/bzImage" \
+		"$WORK/release-vm-make.out" &&
+	make -n -C .. -f testing/Makefile vm KERNEL=7.10 TEST_VM_ARCH=x86_64 \
+		TEST_VM_WORK_DIR="$WORK/newer-vm" \
+		>"$WORK/newer-vm-make.out" 2>&1 &&
+	grep -q "artifacts/linux-v7.10-kernel-debs/bzImage" \
+		"$WORK/newer-vm-make.out" &&
+	! make -n -C .. -f testing/Makefile vm KERNEL=6.18 TEST_VM_ARCH=x86_64 \
+		TEST_VM_WORK_DIR="$WORK/old-vm" \
+		>"$WORK/old-vm-make.out" 2>&1 &&
+	grep -q "requires Linux v7.4 or newer" "$WORK/old-vm-make.out"
 '
 
 test_expect_success 'the VM kernel image is named for the host architecture' '
@@ -437,10 +446,10 @@ test_expect_success 'the VM kernel image is named for the host architecture' '
 		riscv64:bzImage
 	do
 		arch=${spec%%:*} image=${spec#*:} &&
-		make -n -C .. -f testing/Makefile vm KERNEL=6.18 \
+		make -n -C .. -f testing/Makefile vm KERNEL=7.4 \
 			TEST_VM_ARCH=$arch TEST_VM_WORK_DIR="$WORK/arch-$arch" \
 			>"$WORK/arch-$arch.out" 2>&1 &&
-		grep -q "artifacts/linux-v6.18-kernel-debs/$image" \
+		grep -q "artifacts/linux-v7.4-kernel-debs/$image" \
 			"$WORK/arch-$arch.out" || return 1
 	done
 '
@@ -460,7 +469,7 @@ test_expect_success 'all kernel and VM builds use the slim profile' '
 	grep -q "kernel-slim.config" ../contrib/build-kernel-package.sh &&
 	grep -q "config_profile=slim" ../contrib/build-kernel-package.sh &&
 	grep -q "CONFIG_CC_OPTIMIZE_FOR_SIZE=y" ../contrib/build-kernel-package.sh &&
-	grep -q "make -C testing vm KERNEL=6.18" ../testing/Makefile &&
+	grep -q "make -C testing vm KERNEL=7.4" ../testing/Makefile &&
 	make -n -C .. -f testing/Makefile vm VM_NAME=slim-cli-vm \
 		TEST_VM_ARCH=x86_64 TEST_VM_WORK_DIR="$WORK/slim-vm" \
 		>"$WORK/slim-vm-make.out" 2>&1 &&
@@ -488,25 +497,28 @@ test_expect_success 'make -C testing kernel builds a tagged third-party Linux so
 	grep -q "KERNEL_REPOSITORY=\"\${KERNEL_REPOSITORY:-https://git.kernel.org" \
 		../contrib/build-kernel-package.sh &&
 	grep -q "git clone --depth 1 --branch" ../contrib/build-kernel-package.sh &&
-	grep -q "make -C testing kernel KERNEL_TAG=v6.18" ../testing/Makefile &&
+	grep -q "make -C testing kernel KERNEL_TAG=v7.4" ../testing/Makefile &&
 	! KERNEL_TAG=not-a-kernel-tag ../contrib/build-kernel-package.sh \
 		>"$WORK/invalid-kernel-tag.out" 2>&1 &&
 	grep -q "KERNEL_TAG must be bpf-next or a Linux release tag" \
-		"$WORK/invalid-kernel-tag.out"
+		"$WORK/invalid-kernel-tag.out" &&
+	! KERNEL_TAG=v6.18 ../contrib/build-kernel-package.sh \
+		>"$WORK/old-kernel-tag.out" 2>&1 &&
+	grep -q "requires Linux v7.4 or newer" "$WORK/old-kernel-tag.out"
 '
-test_expect_success 'make -C testing vm and kernel select an exact stable commit' '
-	make -n -C .. -f testing/Makefile vm KERNEL=6.18 KERNEL_COMMIT=abcdef1234567 \
+test_expect_success 'make -C testing vm and kernel select an exact release commit' '
+	make -n -C .. -f testing/Makefile vm KERNEL=7.4 KERNEL_COMMIT=abcdef1234567 \
 		TEST_VM_ARCH=x86_64 TEST_VM_WORK_DIR="$WORK/commit-vm" \
 		>"$WORK/commit-vm-make.out" 2>&1 &&
-	grep -q "artifacts/linux-v6.18-abcdef1234567-kernel-debs/bzImage" \
+	grep -q "artifacts/linux-v7.4-abcdef1234567-kernel-debs/bzImage" \
 		"$WORK/commit-vm-make.out" &&
 	grep -q "KERNEL_COMMIT=" "$WORK/commit-vm-make.out" &&
-	grep -q "KERNEL_COMMIT is supported only for stable/LTS VM kernels" ../testing/Makefile &&
+	grep -q "KERNEL_COMMIT is supported only for release VM kernels" ../testing/Makefile &&
 	! make -n -C .. -f testing/Makefile vm KERNEL=bpf-next KERNEL_COMMIT=abcdef1234567 \
 		>"$WORK/commit-bpf-next.out" 2>&1 &&
-	grep -q "KERNEL_COMMIT is supported only for stable/LTS VM kernels" \
+	grep -q "KERNEL_COMMIT is supported only for release VM kernels" \
 		"$WORK/commit-bpf-next.out" &&
-	! KERNEL_TAG=v6.18 KERNEL_COMMIT=not-a-sha \
+	! KERNEL_TAG=v7.4 KERNEL_COMMIT=not-a-sha \
 		../contrib/build-kernel-package.sh >"$WORK/invalid-kernel-commit.out" 2>&1 &&
 	grep -q "KERNEL_COMMIT must contain 7 to 40 hexadecimal characters" \
 		"$WORK/invalid-kernel-commit.out"

@@ -18,12 +18,20 @@ if [[ "$KERNEL_TAG" =~ ^[0-9]+\.[0-9]+([.][0-9]+)?$ ]]; then
 fi
 if [[ "$KERNEL_TAG" != "bpf-next" &&
       ! "$KERNEL_TAG" =~ ^v[0-9]+\.[0-9]+([.][0-9]+)?$ ]]; then
-  echo "KERNEL_TAG must be bpf-next or a Linux release tag such as v6.18" >&2
+  echo "KERNEL_TAG must be bpf-next or a Linux release tag such as v7.4" >&2
   exit 1
+fi
+KERNEL_MIN_VERSION="7.4"
+if [[ "$KERNEL_TAG" != "bpf-next" ]]; then
+  oldest=$(printf '%s\n' "$KERNEL_MIN_VERSION" "${KERNEL_TAG#v}" | sort -V | head -n 1)
+  if [[ "$oldest" != "$KERNEL_MIN_VERSION" ]]; then
+    echo "shirudo requires Linux v${KERNEL_MIN_VERSION} or newer; ${KERNEL_TAG} is older" >&2
+    exit 1
+  fi
 fi
 if [[ -n "$KERNEL_COMMIT" ]]; then
   if [[ "$KERNEL_TAG" == "bpf-next" ]]; then
-    echo "KERNEL_COMMIT is supported only for stable/LTS kernel tags" >&2
+    echo "KERNEL_COMMIT is supported only for release kernel tags" >&2
     exit 1
   fi
   if [[ ! "$KERNEL_COMMIT" =~ ^[0-9a-fA-F]{7,40}$ ]]; then

@@ -199,7 +199,7 @@ BTF, the attach points the shield will use.  Run that loop in a VM
 booting the target kernel rather than on the operator host.  ``make -C testing
 kernel KERNEL_TAG=<tag> KERNEL_CONFIG=<the fleet's .config>`` builds
 such a kernel with its BTF, ``make -C testing vm KERNEL=<version>`` boots a
-supported selection with a software TPM and a prepared shirudo, and
+release of v7.4 or newer with a software TPM and a prepared shirudo, and
 ``make -C testing test-tgt`` runs the target suite in it; any VM of the operator's
 own serves the same purpose.  A mitigation that loads and passes its
 reproducer on a kernel unlike the fleet's proves nothing about the
