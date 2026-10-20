@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "hex.h"
 #include "json.h"
 
 static void put(struct shirudo_json_emit *e, char c)
@@ -243,23 +244,12 @@ static void skip_ws(struct pctx *c)
 	}
 }
 
-static int hex_nibble(char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return ch - '0';
-	if (ch >= 'a' && ch <= 'f')
-		return ch - 'a' + 10;
-	if (ch >= 'A' && ch <= 'F')
-		return ch - 'A' + 10;
-	return -1;
-}
-
 static int hex4(const char *s)
 {
 	int v = 0, i;
 
 	for (i = 0; i < 4; i++) {
-		int n = hex_nibble(s[i]);
+		int n = shirudo_hex_nibble(s[i]);
 
 		if (n < 0)
 			return -1;

@@ -138,6 +138,5 @@ char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
 char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 					   const void *values_per_cpu,
 					   const char *btf_type);
-char *shirudo_upatch_map_hex_alloc(const void *data, uint32_t len);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_H */

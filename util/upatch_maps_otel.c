@@ -32,6 +32,7 @@
 #include <zlib.h>
 
 #include "crypto.h"
+#include "hex.h"
 #include "json.h"
 #include "config.h"
 #include "malloc.h"
@@ -635,7 +636,7 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 		otlp_array_begin(e, "pages");
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct shirudo_serial_page *page = &v->serial_pages[p];
-			char *hex = shirudo_upatch_map_hex_alloc(page->data,
+			char *hex = shirudo_hex_alloc(page->data,
 							 page->bytes);
 
 			otlp_array_kvlist_begin(e);
@@ -1316,14 +1317,6 @@ static int append_header(struct otel_state *st, const char *line)
 	return 0;
 }
 
-static int hex_digit(char c)
-{
-	if (c >= '0' && c <= '9') return c - '0';
-	if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-	if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-	return -1;
-}
-
 static int percent_decode(char *s)
 {
 	char *src = s, *dst = s;
@@ -1332,8 +1325,8 @@ static int percent_decode(char *s)
 		if (*src == '%') {
 			if (!src[1] || !src[2])
 				return -EINVAL;
-			int hi = hex_digit(src[1]);
-			int lo = hex_digit(src[2]);
+			int hi = shirudo_hex_nibble(src[1]);
+			int lo = shirudo_hex_nibble(src[2]);
 
 			if (hi < 0 || lo < 0)
 				return -EINVAL;

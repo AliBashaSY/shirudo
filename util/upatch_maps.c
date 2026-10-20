@@ -25,6 +25,7 @@
 #include <shirudo/upatch.h>
 
 #include "json.h"
+#include "hex.h"
 #include "malloc.h"
 #include "paths.h"
 #include "serializer.h"
@@ -1404,24 +1405,6 @@ static void print_type_def(const char *label, const char *def, uint32_t size)
 	printf(" (%u B)\n", size);
 }
 
-char *shirudo_upatch_map_hex_alloc(const void *data, uint32_t len)
-{
-	static const char hexdigits[] = "0123456789abcdef";
-	const unsigned char *p = data;
-	char *out;
-	uint32_t i;
-
-	out = xmalloc((size_t)len * 2 + 1);
-	if (!out)
-		return NULL;
-	for (i = 0; i < len; i++) {
-		out[2 * i] = hexdigits[p[i] >> 4];
-		out[2 * i + 1] = hexdigits[p[i] & 0xf];
-	}
-	out[(size_t)len * 2] = '\0';
-	return out;
-}
-
 static void print_serialized_hex(const unsigned char *data, uint32_t len)
 {
 	uint32_t i;
@@ -1572,7 +1555,7 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct shirudo_serial_page *page =
 				&v->serial_pages[p];
-			char *hex = shirudo_upatch_map_hex_alloc(page->data,
+			char *hex = shirudo_hex_alloc(page->data,
 							 page->bytes);
 
 			shirudo_json_obj_open(e);

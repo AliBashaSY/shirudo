@@ -512,7 +512,7 @@ TEST_HELPERS := testing/helper/test-json-parser \
                 testing/helper/test-exec-churn \
 		testing/kernel-obs/exec-paths
 
-testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o
+testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
@@ -560,7 +560,7 @@ testing/helper/tpmsim-cmd: testing/helper/tpmsim-cmd.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS_BASE) $(TPMSIM_CFLAGS) -o $@ $< $(TPMSIM_LIBS) -lcrypto
 
-testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o util/log.o
+testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o util/log.o util/hex.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
@@ -601,7 +601,7 @@ testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o 
                         util/tls_openssl.o util/serializer.o util/seal.o \
                         util/upatch_decode.o util/upatch_resolve.o \
                         util/upatch.o util/json.o util/log.o \
-                        util/io.o util/malloc.o $(LIBBPF_A)
+                        util/io.o util/malloc.o $(LIBBPF_A) util/hex.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
@@ -618,12 +618,12 @@ testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializ
                                        util/upatch_maps.o util/upatch_resolve.o \
                                        util/serializer.o util/seal.o \
                                        util/json.o util/malloc.o util/io.o \
-                                       util/log.o
+                                       util/log.o util/hex.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
-			      util/upatch_decode.o util/upatch.o util/malloc.o
+			      util/upatch_decode.o util/upatch.o util/malloc.o util/hex.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 

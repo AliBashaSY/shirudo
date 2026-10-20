@@ -24,6 +24,7 @@
 
 #include "malloc.h"
 #include "paths.h"
+#include "hex.h"
 #include "upatch_resolve.h"
 
 #ifndef NFPROTO_IPV6
@@ -207,7 +208,6 @@ void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	uint8_t raw[32];
 	ssize_t n;
-	size_t i;
 
 	out[0] = '\0';
 	if (cap < 65)
@@ -220,6 +220,5 @@ void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
 	n = getxattr(dir, SHIRUDO_XATTR_PAYLOAD, raw, sizeof(raw));
 	if (n != (ssize_t)sizeof(raw))
 		return;
-	for (i = 0; i < sizeof(raw); i++)
-		snprintf(out + 2 * i, cap - 2 * i, "%02x", raw[i]);
+	shirudo_hex_encode(raw, sizeof(raw), out);
 }

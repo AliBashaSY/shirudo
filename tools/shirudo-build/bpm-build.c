@@ -27,6 +27,7 @@
 #include "crypto.h"
 #include "json.h"
 #include "log.h"
+#include "hex.h"
 #include "malloc.h"
 #include "package.h"
 #include "paths.h"
@@ -682,17 +683,6 @@ static int build_entry_name(char *out, size_t cap, const char *top,
 	return 0;
 }
 
-static void build_hex(const unsigned char *in, char *out, size_t n)
-{
-	static const char hex[] = "0123456789abcdef";
-
-	for (size_t i = 0; i < n; i++) {
-		out[i * 2] = hex[in[i] >> 4];
-		out[i * 2 + 1] = hex[in[i] & 15];
-	}
-	out[n * 2] = '\0';
-}
-
 static bool build_ends_with(const char *s, const char *suffix)
 {
 	size_t n = strlen(s), m = strlen(suffix);
@@ -782,8 +772,9 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			return -EINVAL;
 		}
 		build_copy(u->name, sizeof(u->name), parsed.hdr.name);
-		build_hex(parsed.hdr.payload_sha256, u->payload_sha256,
-			  SHIRUDO_CRYPTO_SHA256_LEN);
+		shirudo_hex_encode(parsed.hdr.payload_sha256,
+				   SHIRUDO_CRYPTO_SHA256_LEN,
+				   u->payload_sha256);
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
 		build_copy(u->type, sizeof(u->type), shirudo_upatch_type_str(&parsed));
 		shirudo_upatch_close(&parsed);
@@ -1148,7 +1139,7 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 	rc = shirudo_cert_pubkey_digest(&cert, digest);
 	if (rc)
 		goto out_cert;
-	build_hex(digest, fingerprint, sizeof(digest));
+	shirudo_hex_encode(digest, sizeof(digest), fingerprint);
 	/*
 	 * Compile in the package directory so ./vmlinux.h and the vendored
 	 * headers resolve the way they do for `shirudo build` run there.

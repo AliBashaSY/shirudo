@@ -45,6 +45,7 @@
 #include "util/identity.h"
 #include "util/keyring.h"
 #include "util/log.h"
+#include "util/hex.h"
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/report.h"
@@ -124,10 +125,10 @@ static const char *decoder_signal_str(uint32_t signal)
 
 static int print_sha256_hex(const unsigned char hash[32])
 {
-	for (int i = 0; i < 32; i++)
-		if (printf("%02x", hash[i]) < 0)
-			return -1;
-	return 0;
+	char hex[65];
+
+	shirudo_hex_encode(hash, 32, hex);
+	return fputs(hex, stdout) < 0 ? -1 : 0;
 }
 
 static const struct shirudo_help upatch_info_help = {
@@ -3328,21 +3329,6 @@ static int cmd_upatch_map(int argc, const char **argv)
 	return ret;
 }
 
-static void payload_hex(const char *upatch, char *out, size_t cap)
-{
-	uint8_t raw[32];
-	int rc = get_pin_payload(upatch, raw);
-	size_t i;
-
-	out[0] = '\0';
-	if (rc != 0)
-		return;
-	if (cap < 65)
-		return;
-	for (i = 0; i < 32; i++)
-		snprintf(out + 2 * i, cap - 2 * i, "%02x", raw[i]);
-}
-
 struct upatch_get_ctx {
 	const char	*upatch;
 	uint32_t	prog_id;
@@ -3400,7 +3386,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 		return -EINVAL;
 	c->prog_id = linfo.prog_id;
 	shirudo_upatch_loaded_at(want, c->loaded_at, sizeof(c->loaded_at));
-	payload_hex(want, c->payload, sizeof(c->payload));
+	shirudo_upatch_payload_sha256(want, c->payload, sizeof(c->payload));
 
 	vbtf = btf__load_vmlinux_btf();
 	shirudo_upatch_resolve_location(vbtf, want, c->location,

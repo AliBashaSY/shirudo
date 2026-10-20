@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "config.h"
+#include "hex.h"
 #include "json.h"
 #include "log.h"
 #include "paths.h"
@@ -67,17 +68,6 @@ static void config_defaults(struct shirudo_config *cfg)
 	cfg->map_export_otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
 }
 
-static int hexval(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-	return -1;
-}
-
 /*
  * Owner auth is a literal passphrase, or "hex:<even hex>" for a binary
  * auth value (what provisioning tools that randomise owner auth emit).
@@ -96,7 +86,8 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 			return;
 		}
 		for (i = 0; i < hl / 2; i++) {
-			int hi = hexval(h[2 * i]), lo = hexval(h[2 * i + 1]);
+			int hi = shirudo_hex_nibble(h[2 * i]);
+			int lo = shirudo_hex_nibble(h[2 * i + 1]);
 
 			if (hi < 0 || lo < 0) {
 				pr_warn("config: tpm.owner_auth: bad hex "

@@ -19,6 +19,7 @@
 #include "bpm.h"
 #include "compile.h"
 #include "log.h"
+#include "hex.h"
 #include "malloc.h"
 #include "package.h"
 #include "paths.h"
@@ -29,7 +30,6 @@
 #define SHIRUDO_VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
-#define SHIRUDO_SHA256_HEX_LEN	64
 
 static void usage(FILE *fp)
 {
@@ -76,22 +76,6 @@ static void usage(FILE *fp)
 		SHIRUDO_KEYS_DIR_ENV, SHIRUDO_KEYS_DIR_ENV,
 		SHIRUDO_SIGNING_KEY_PATH, SHIRUDO_KEYS_DIR_ENV,
 		SHIRUDO_CERT_PATH, SHIRUDO_VMLINUX_PATH);
-}
-
-static int parse_hex_sha256(const char *s, uint8_t out[32])
-{
-	int i;
-
-	if (strlen(s) != SHIRUDO_SHA256_HEX_LEN)
-		return -EINVAL;
-	for (i = 0; i < 32; i++) {
-		unsigned int b;
-
-		if (sscanf(s + 2 * i, "%2x", &b) != 1)
-			return -EINVAL;
-		out[i] = (uint8_t)b;
-	}
-	return 0;
 }
 
 static const char *derive_name(const char *input, char *buf, size_t buf_sz)
@@ -335,8 +319,8 @@ int main(int argc, char **argv)
 			return 2;
 		}
 		if (payload_sha256_hex) {
-			if (parse_hex_sha256(payload_sha256_hex,
-					     payload_sha256)) {
+			if (shirudo_hex_decode(payload_sha256_hex,
+					       payload_sha256, 32)) {
 				pr_err("--payload-sha256 must be 64 hex chars");
 				return 2;
 			}

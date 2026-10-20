@@ -80,6 +80,7 @@ int shirudo_upatch_decode_map_file_otel(const char *path,
 #include <luajit.h>
 
 #include "json.h"
+#include "hex.h"
 #include "malloc.h"
 #include "paths.h"
 #include "upatch.h"
@@ -549,17 +550,6 @@ static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
 	return out->err;
 }
 
-static int hex_nibble(int c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	if (c >= 'A' && c <= 'F')
-		return c - 'A' + 10;
-	return -1;
-}
-
 static int hex_decode_alloc(const char *hex, size_t len,
 			    unsigned char **out, size_t *out_len)
 {
@@ -583,14 +573,14 @@ static int hex_decode_alloc(const char *hex, size_t len,
 			i++;
 		if (i >= len)
 			break;
-		hi = hex_nibble((unsigned char)hex[i++]);
+		hi = shirudo_hex_nibble((unsigned char)hex[i++]);
 		while (i < len && isspace((unsigned char)hex[i]))
 			i++;
 		if (i >= len) {
 			xfree(buf, digits / 2);
 			return -EINVAL;
 		}
-		lo = hex_nibble((unsigned char)hex[i++]);
+		lo = shirudo_hex_nibble((unsigned char)hex[i++]);
 		if (hi < 0 || lo < 0) {
 			xfree(buf, digits / 2);
 			return -EINVAL;
@@ -600,24 +590,6 @@ static int hex_decode_alloc(const char *hex, size_t len,
 	*out = buf;
 	*out_len = off;
 	return 0;
-}
-
-static char *hex_alloc(const void *data, uint32_t len)
-{
-	static const char hexdigits[] = "0123456789abcdef";
-	const unsigned char *p = data;
-	char *out;
-	uint32_t i;
-
-	out = xmalloc((size_t)len * 2 + 1);
-	if (!out)
-		return NULL;
-	for (i = 0; i < len; i++) {
-		out[2 * i] = hexdigits[p[i] >> 4];
-		out[2 * i + 1] = hexdigits[p[i] & 0xf];
-	}
-	out[(size_t)len * 2] = '\0';
-	return out;
 }
 
 static struct lua_slot *lua_check_slot(lua_State *L)
@@ -898,7 +870,8 @@ static int lua_shirudo_hex_u64(lua_State *L)
 	}
 	for (i = 7; i >= 0; i--) {
 		const char *p = hex + (size_t)off * 2 + (size_t)i * 2;
-		int hi = hex_nibble(p[0]), lo = hex_nibble(p[1]);
+		int hi = shirudo_hex_nibble(p[0]);
+		int lo = shirudo_hex_nibble(p[1]);
 
 		if (hi < 0 || lo < 0) {
 			lua_push_u64_string(L, 0);
@@ -1095,8 +1068,8 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *entry = &v->entries[i];
 		size_t value_bytes = (size_t)v->value_stride * v->n_cpus;
-		char *key_hex = hex_alloc(entry->key, v->key_size);
-		char *value_hex = hex_alloc(entry->value, value_bytes);
+		char *key_hex = shirudo_hex_alloc(entry->key, v->key_size);
+		char *value_hex = shirudo_hex_alloc(entry->value, value_bytes);
 
 		if (!key_hex || !value_hex) {
 			xfree(key_hex, (size_t)v->key_size * 2 + 1);
@@ -1117,7 +1090,7 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	lua_newtable(L);
 	for (p = 0; p < v->n_serial_pages; p++) {
 		const struct shirudo_serial_page *page = &v->serial_pages[p];
-		char *hex = hex_alloc(page->data, page->bytes);
+		char *hex = shirudo_hex_alloc(page->data, page->bytes);
 
 		if (!hex)
 			luaL_error(L, "decoder page data is too large");

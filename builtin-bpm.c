@@ -312,8 +312,8 @@ static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
 	while ((nr = read(fd, buf, sizeof(buf))) > 0)
 		if (shirudo_sha256_update(&ctx, buf, (size_t)nr) != 0) goto done;
 	if (nr < 0 || shirudo_sha256_final(&ctx, digest) != 0) goto done;
-	for (unsigned int i = 0; i < sizeof(digest); i++) snprintf(hex + i * 2, 3, "%02x", digest[i]);
-	hex[64] = 0; rc = 0;
+	shirudo_hex_encode(digest, sizeof(digest), hex);
+	rc = 0;
 done:
 	close(fd); shirudo_sha256_free(&ctx); return rc;
 }
