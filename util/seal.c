@@ -20,8 +20,8 @@
 
 int shirudo_seal_label(const char *path)
 {
-	if (setxattr(path, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
-		     sizeof(SHIRUDO_SEAL_LABEL) - 1, 0) != 0)
+	if (lsetxattr(path, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
+		      sizeof(SHIRUDO_SEAL_LABEL) - 1, 0) != 0)
 		return -errno;
 	return 0;
 }

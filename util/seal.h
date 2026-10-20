@@ -17,9 +17,10 @@
 	"94442b45cfcdc59aabc2a91364ed2ae129418e05a5c1985231b9c032e673f469"
 
 /*
- * Set security.bpf.shirudo = SHIRUDO_SEAL_LABEL on one path. Idempotent
- * (create-or-replace). Call after creating any regular-fs file under
- * /var/lib/shirudo/ so the seal LSM protects it. Returns 0 or -errno.
+ * Set security.bpf.shirudo = SHIRUDO_SEAL_LABEL on one inode, a
+ * symlink's own rather than its target's. Idempotent (create-or-replace).
+ * Call after creating any regular-fs file under /var/lib/shirudo/ so the
+ * seal LSM protects it. Returns 0 or -errno.
  */
 int shirudo_seal_label(const char *path);
 
