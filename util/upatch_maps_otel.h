@@ -68,7 +68,11 @@ int shirudo_upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
 					  enum shirudo_otel_signal signal,
 					  const struct shirudo_otel_opts *opts);
 
-/* Send an already-built JSON object as the structured body of one OTLP log. */
+/*
+ * Send an already-built JSON object as the structured body of one OTLP
+ * log. A tamper_attempts of 0 or more rides along as an attribute; a
+ * negative one leaves it out.
+ */
 int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 				       const char *scope_name,
 				       const char *event_name,
@@ -76,6 +80,7 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 				       const char *severity_text,
 				       const char *status,
 				       const char *version_id,
+				       int64_t tamper_attempts,
 				       const char *body_json, size_t body_len);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_OTEL_H */

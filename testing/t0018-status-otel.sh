@@ -76,6 +76,7 @@ doc = json.load(open(sys.argv[1]))
 assert doc["schema"] == 1
 assert "status" in doc
 assert "tpm" in doc
+assert "tamper_attempts" in doc
 PY
 '
 

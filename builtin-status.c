@@ -53,6 +53,7 @@
 #include "util/timefmt.h"
 #include "util/upatch_maps.h"
 #include "util/upatch_maps_otel.h"
+#include "util/tamper.h"
 #include "util/upatch_resolve.h"
 #include "util/upatch_table.h"
 
@@ -585,6 +586,8 @@ int cmd_status(int argc, const char **argv)
 	struct shirudo_config otel_cfg = {};
 	struct shirudo_otel_opts otel_opts = {};
 	struct asset_view assets;
+	struct shirudo_tamper_counts tamper = {};
+	int tamper_rc = -ENOENT;
 	struct dirent **ups = NULL;
 	char pcr_before_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
 	char phase_before_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
@@ -731,6 +734,7 @@ int cmd_status(int argc, const char **argv)
 		n_ups = 0;
 
 	gather_assets(&assets);
+	tamper_rc = shirudo_tamper_read(&tamper);
 
 	{
 		snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
@@ -907,6 +911,23 @@ int cmd_status(int argc, const char **argv)
 			shirudo_json_kv_null(&e, "incoming");
 		shirudo_json_kv_bool(&e, "bpffs_mounted", assets.bpffs_mounted);
 		shirudo_json_obj_close(&e);
+		/*
+		 * What the guards refused this boot, every counter by name
+		 * so a collector's keys stay the same from one record to
+		 * the next; null until init has pinned the map.
+		 */
+		if (tamper_rc == 0) {
+			shirudo_json_obj_open_key(&e, "tamper_attempts");
+			shirudo_json_kv_int(&e, "total", (int64_t)tamper.total);
+			shirudo_json_obj_open_key(&e, "counters");
+			for (i = 0; i < SHIRUDO_TAMPER_MAX; i++)
+				shirudo_json_kv_int(&e, shirudo_tamper_name(i),
+						    (int64_t)tamper.count[i]);
+			shirudo_json_obj_close(&e);
+			shirudo_json_obj_close(&e);
+		} else {
+			shirudo_json_kv_null(&e, "tamper_attempts");
+		}
 		if (include_system)
 			shirudo_sysinfo_emit_json(&e, &sysi);
 		{
@@ -1055,6 +1076,8 @@ int cmd_status(int argc, const char **argv)
 				strerror(-e.err));
 		else {
 			if (otel && otel_endpoint_configured) {
+				int64_t refused = tamper_rc == 0 ?
+						  (int64_t)tamper.total : -1;
 				const char *severity_text;
 				int severity_number;
 				int rc;
@@ -1065,8 +1088,8 @@ int cmd_status(int argc, const char **argv)
 					&otel_opts, "shirudo.keepalive",
 					"shirudo.keepalive", severity_number,
 					severity_text, otel_status,
-					shirudo_version_id, json_buf,
-					strlen(json_buf));
+					shirudo_version_id, refused,
+					json_buf, strlen(json_buf));
 				if (rc) {
 					pr_err("status: OTEL export failed: %s",
 					       strerror(-rc));
@@ -1122,6 +1145,21 @@ int cmd_status(int argc, const char **argv)
 
 		printf("\n");
 		shirudo_conditions_print(conds, nc);
+
+		printf("\nTamper attempts (refused this boot):\n");
+		if (tamper_rc == -ENOENT)
+			printf("  (none recorded: init has not pinned the counters "
+			       "this boot)\n");
+		else if (tamper_rc)
+			printf("  (unavailable: %s)\n", strerror(-tamper_rc));
+		else if (tamper.total == 0)
+			printf("  none\n");
+		for (i = 0; tamper_rc == 0 && i < SHIRUDO_TAMPER_MAX; i++)
+			if (tamper.count[i])
+				printf("  %-20s %6llu  %s\n",
+				       shirudo_tamper_name(i),
+				       (unsigned long long)tamper.count[i],
+				       shirudo_tamper_meaning(i));
 
 		printf("\nKeyring (%s):\n", SHIRUDO_KEYRING_NAME);
 		if (keyring_present)

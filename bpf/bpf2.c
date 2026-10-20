@@ -88,6 +88,9 @@
  *                       links' only reference. See the hook block below.
  *   lsm/task_prctl     -- deny PR_SET_MM executable changes to callers
  *                       outside the frozen Shirudo executable identity.
+ *
+ * Every refusal is counted at its point in the tamper map
+ * (shirudo_tamper.h), which `shirudo status` reads back.
  */
 
 #include "vmlinux.h"
@@ -117,14 +120,25 @@
 char _license[] SEC("license") = "Dual BSD/GPL";
 
 #include "shirudo_identity.h"
+#include "shirudo_tamper.h"
+
+/* 0 for shirudo's own executable, else a counted -EACCES. */
+static __always_inline int shirudo_self_or_deny(enum shirudo_tamper_point point)
+{
+	struct shirudo_sb_id *id;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || !shirudo_task_is_self(id))
+		return shirudo_tamper_deny(point, -EACCES);
+	return 0;
+}
 
 SEC("lsm/bpf")
 int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	     unsigned int size, bool kernel)
 {
-	struct shirudo_sb_id *id;
-	__u32 prog_type, sig_sz;
-	__u32 zero = 0;
+	enum shirudo_tamper_point point;
 
 	if (kernel)
 		return 0;
@@ -136,13 +150,13 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 		 * non-zero signature; the kernel verifies the CMS blob
 		 * against attr->keyring_id immediately after this hook.
 		 */
-		prog_type = BPF_CORE_READ(attr, prog_type);
-		if (prog_type != BPF_PROG_TYPE_SYSCALL)
-			return -EACCES;
-		sig_sz = BPF_CORE_READ(attr, signature_size);
-		if (sig_sz == 0)
-			return -EACCES;
-		return 0;
+		if (BPF_CORE_READ(attr, prog_type) != BPF_PROG_TYPE_SYSCALL)
+			point = SHIRUDO_TAMPER_LOAD_NOT_LOADER;
+		else if (BPF_CORE_READ(attr, signature_size) == 0)
+			point = SHIRUDO_TAMPER_LOAD_UNSIGNED;
+		else
+			return 0;
+		return shirudo_tamper_deny(point, -EACCES);
 
 	/*
 	 * Vetted mutating cmds the signed-loader data-map + attach/pin
@@ -158,36 +172,21 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	 * root's into the private bpffs is an entry shirudo did not make.
 	 */
 	case BPF_MAP_CREATE:
-		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-		if (!id || !shirudo_task_is_self(id))
-			return -EACCES;
-		return 0;
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_CREATE);
 
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_FREEZE:
-		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-		if (!id || !shirudo_task_is_self(id))
-			return -EACCES;
-		return 0;
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_WRITE);
 
 	case BPF_PROG_TEST_RUN:
-		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-		if (!id || !shirudo_task_is_self(id))
-			return -EACCES;
-		return 0;
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_PROG_RUN);
 
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
-		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-		if (!id || !shirudo_task_is_self(id))
-			return -EACCES;
-		return 0;
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_ATTACH);
 
 	case BPF_OBJ_PIN:
-		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-		if (!id || !shirudo_task_is_self(id))
-			return -EACCES;
-		return 0;
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_PIN);
 
 	/*
 	 * Read-only / observability cmds, so `bpftool prog show`,
@@ -228,7 +227,7 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	 * denial errno used throughout (threat-model.rst T1/T2).
 	 */
 	default:
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPF_CMD, -EACCES);
 	}
 }
 
@@ -241,15 +240,9 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 SEC("lsm/bpf_map")
 int BPF_PROG(shirudo_lsm_bpf_map, struct bpf_map *map, fmode_t fmode)
 {
-	struct shirudo_sb_id *id;
-	__u32 zero = 0;
-
 	if (!(fmode & FMODE_WRITE))
 		return 0;
-	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-	if (!id || !shirudo_task_is_self(id))
-		return -EACCES;
-	return 0;
+	return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_FD);
 }
 
 /*
@@ -288,10 +281,18 @@ int BPF_PROG(shirudo_lsm_bpf_prog_load, struct bpf_prog *prog,
 	ktype   = BPF_CORE_READ(prog, aux, sig.keyring_type);
 	serial  = BPF_CORE_READ(prog, aux, sig.keyring_serial);
 
+	/*
+	 * Three ways to fail, each counted apart: no verified signature
+	 * on the program, a signature verified against a keyring of the
+	 * wrong kind, or against a keyring of the right kind that is not
+	 * the one init froze.
+	 */
 	if (verdict != BPF_SIG_VERIFIED)
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_UNVERIFIED,
+					   -EACCES);
 	if (ktype != id->keyring_type)
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_KEYRING_KIND,
+					   -EACCES);
 	/*
 	 * The bpf keyring is the kernel's own singleton, resolved by the
 	 * kernel and recorded without a serial (0) because it is held
@@ -301,9 +302,11 @@ int BPF_PROG(shirudo_lsm_bpf_prog_load, struct bpf_prog *prog,
 	 */
 	if (ktype == BPF_SIG_KEYRING_BPF) {
 		if (serial && serial != id->keyring_serial)
-			return -EACCES;
+			return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_KEYRING,
+						   -EACCES);
 	} else if (serial != id->keyring_serial) {
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_KEYRING,
+					   -EACCES);
 	}
 
 	return 0;
@@ -327,19 +330,20 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	if (!id)
 		return -EACCES;
 	if (!shirudo_task_is_self(id))
-		return -EPERM;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_EXE_IDENTITY, -EPERM);
 	return -ENOSYS;
 }
 
 /*
  * Verdict for an operation targeting an inode in superblock target_dev:
  * allow (0) if it is not shirudo's bpffs, or if the calling task's
- * exe_file matches the identity recorded at init; deny (-EPERM)
- * otherwise. The single guard shared by inode_unlink, inode_rename,
- * inode_setxattr and inode_removexattr -- "only shirudo may mutate its
- * own bpffs".
+ * exe_file matches the identity recorded at init; deny (-EPERM),
+ * counted at `point`, otherwise. The single guard shared by
+ * inode_unlink, inode_rename, inode_setxattr and inode_removexattr --
+ * "only shirudo may mutate its own bpffs".
  */
-static __always_inline int shirudo_bpffs_guard(__u32 target_dev)
+static __always_inline int shirudo_bpffs_guard(__u32 target_dev,
+					       enum shirudo_tamper_point point)
 {
 	struct shirudo_sb_id *id;
 	__u32 zero = 0;
@@ -349,7 +353,8 @@ static __always_inline int shirudo_bpffs_guard(__u32 target_dev)
 		return 0;
 	if (target_dev != id->sb_dev)
 		return 0;	/* not shirudo's bpffs -- not ours to guard */
-	return shirudo_task_is_self(id) ? 0 : -EPERM;
+	return shirudo_task_is_self(id) ? 0 :
+	       shirudo_tamper_deny(point, -EPERM);
 }
 
 /*
@@ -397,7 +402,8 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	}
 	if (need == KEY_NEED_SEARCH && possessed)
 		return 0;
-	return shirudo_task_is_self(id) ? 0 : -EACCES;
+	return shirudo_task_is_self(id) ? 0 :
+	       shirudo_tamper_deny(SHIRUDO_TAMPER_KEYRING, -EACCES);
 }
 
 /*
@@ -410,7 +416,8 @@ SEC("lsm/inode_unlink")
 int BPF_PROG(shirudo_lsm_inode_unlink, struct inode *dir,
 	     struct dentry *dentry)
 {
-	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev));
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_UNLINK);
 }
 
 /*
@@ -425,7 +432,8 @@ int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 	     struct dentry *old_dentry, struct inode *new_dir,
 	     struct dentry *new_dentry)
 {
-	return shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev));
+	return shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_RENAME);
 }
 
 /*
@@ -438,7 +446,8 @@ int BPF_PROG(shirudo_lsm_inode_setxattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, const char *name, const void *value,
 	     __u64 size, int flags)
 {
-	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev));
+	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_XATTR);
 }
 
 /* Symmetric to setxattr: deny removing a pin's xattrs from non-shirudo. */
@@ -446,7 +455,8 @@ SEC("lsm/inode_removexattr")
 int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, const char *name)
 {
-	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev));
+	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_XATTR);
 }
 
 /*
@@ -473,15 +483,24 @@ int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
  * bpffs beneath it. Nothing unmounts /run or the root on a live
  * system; switch-root moves /run and never unmounts it.
  */
-static __always_inline int shirudo_deny_bpffs_mount(__u32 sb_dev)
+static __always_inline __u32 shirudo_bpffs_dev(void)
 {
 	struct shirudo_sb_id *id;
 	__u32 zero = 0;
 
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-	if (!id || id->sb_dev == 0)
+	return id ? id->sb_dev : 0;
+}
+
+/* -EPERM, counted at `point`, when sb_dev is the bpffs; else 0. */
+static __always_inline int
+shirudo_deny_bpffs_mount(__u32 sb_dev, enum shirudo_tamper_point point)
+{
+	__u32 bpffs = shirudo_bpffs_dev();
+
+	if (!bpffs || sb_dev != bpffs)
 		return 0;
-	return sb_dev == id->sb_dev ? -EPERM : 0;
+	return shirudo_tamper_deny(point, -EPERM);
 }
 
 /* The address a trusted pointer holds, as a plain number. */
@@ -547,26 +566,30 @@ static __always_inline bool shirudo_mount_tree_has(struct mount *root,
 SEC("lsm/sb_umount")
 int BPF_PROG(shirudo_lsm_sb_umount, struct vfsmount *mnt, int flags)
 {
-	struct shirudo_sb_id *id;
+	__u32 bpffs = shirudo_bpffs_dev();
 	struct mount *target;
-	__u32 zero = 0;
 
-	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-	if (!id || id->sb_dev == 0)
+	if (!bpffs)
 		return 0;
-	if (BPF_CORE_READ(mnt, mnt_sb, s_dev) == id->sb_dev)
-		return -EPERM;
+	if (BPF_CORE_READ(mnt, mnt_sb, s_dev) == bpffs)
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT, -EPERM);
 	target = shirudo_mount_of(shirudo_ptr_addr(mnt), mnt);
-	return shirudo_mount_tree_has(target, id->sb_dev) ? -EPERM : 0;
+	if (shirudo_mount_tree_has(target, bpffs))
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT_ABOVE,
+					   -EPERM);
+	return 0;
 }
 
 SEC("lsm/move_mount")
 int BPF_PROG(shirudo_lsm_move_mount, const struct path *from_path,
 	     const struct path *to_path)
 {
-	if (shirudo_deny_bpffs_mount(BPF_CORE_READ(from_path, mnt, mnt_sb, s_dev)))
+	__u32 from = BPF_CORE_READ(from_path, mnt, mnt_sb, s_dev);
+	__u32 to = BPF_CORE_READ(to_path, mnt, mnt_sb, s_dev);
+
+	if (shirudo_deny_bpffs_mount(from, SHIRUDO_TAMPER_BPFFS_MOUNT))
 		return -EPERM;
-	return shirudo_deny_bpffs_mount(BPF_CORE_READ(to_path, mnt, mnt_sb, s_dev));
+	return shirudo_deny_bpffs_mount(to, SHIRUDO_TAMPER_BPFFS_MOUNT);
 }
 
 /*
@@ -581,11 +604,13 @@ int BPF_PROG(shirudo_lsm_sb_mount, const char *dev_name,
 	     const struct path *path, const char *type,
 	     unsigned long flags, void *data)
 {
-	return shirudo_deny_bpffs_mount(BPF_CORE_READ(path, mnt, mnt_sb, s_dev));
+	return shirudo_deny_bpffs_mount(BPF_CORE_READ(path, mnt, mnt_sb, s_dev),
+					SHIRUDO_TAMPER_BPFFS_MOUNT);
 }
 
 SEC("lsm/sb_remount")
 int BPF_PROG(shirudo_lsm_sb_remount, struct super_block *sb, void *mnt_opts)
 {
-	return shirudo_deny_bpffs_mount(BPF_CORE_READ(sb, s_dev));
+	return shirudo_deny_bpffs_mount(BPF_CORE_READ(sb, s_dev),
+					SHIRUDO_TAMPER_BPFFS_MOUNT);
 }

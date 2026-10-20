@@ -21,7 +21,8 @@
  * not read the file, is taken to be there. No bpf_d_path(), no path
  * strings: the label rides the inode, immune to bind-mount / namespace /
  * TOCTOU games. Reads are not gated; only write-mode opens and the
- * mutating inode ops are.
+ * mutating inode ops are. Every refusal is counted in the tamper map
+ * bpf2 shares with the seal (shirudo_tamper.h).
  *
  * An inode created under a labelled directory is born with the label:
  * lsm/inode_init_security hands it to the filesystem inside the
@@ -46,6 +47,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "shirudo_identity.h"
+#include "shirudo_tamper.h"
 
 #ifndef EPERM
 #define EPERM		1
@@ -110,8 +112,11 @@ extern int bpf_inode_init_xattr(struct xattr *xattrs,
 				const char *name__str,
 				const struct bpf_dynptr *value_p) __ksym;
 
-/* 0 if the caller runs the executable recorded at init, else -EACCES. */
-static __always_inline int seal_caller(void)
+/*
+ * 0 if the caller runs the executable recorded at init, else -EACCES,
+ * counted at `point`.
+ */
+static __always_inline int seal_caller(enum shirudo_tamper_point point)
 {
 	struct shirudo_sb_id *id;
 	__u32 zero = 0;
@@ -119,7 +124,8 @@ static __always_inline int seal_caller(void)
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
 	if (!id)
 		return -EACCES;
-	return shirudo_task_is_self(id) ? 0 : -EACCES;
+	return shirudo_task_is_self(id) ? 0 :
+	       shirudo_tamper_deny(point, -EACCES);
 }
 
 /*
@@ -131,7 +137,8 @@ static __always_inline int seal_caller(void)
  * unreadable file. A label of any size, or any other error, requires the
  * caller to be shirudo. 0 = allow, -EACCES = deny.
  */
-static __always_inline int seal_verdict(int tlen)
+static __always_inline int seal_verdict(int tlen,
+					enum shirudo_tamper_point point)
 {
 	switch (tlen) {
 	case -ENODATA:
@@ -140,7 +147,7 @@ static __always_inline int seal_verdict(int tlen)
 	case -EPERM:
 		return 0;
 	default:
-		return seal_caller();
+		return seal_caller(point);
 	}
 }
 
@@ -268,7 +275,7 @@ int BPF_PROG(shirudo_seal_perf_event_alloc,
 
 	s = bpf_task_storage_get(&seal_scratch_map, target, NULL, 0);
 	if (s && s->exe_is_shirudo)
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_PERF, -EACCES);
 
 	return 0;
 }
@@ -286,7 +293,7 @@ int BPF_PROG(shirudo_seal_ptrace_access_check,
 
 	s = bpf_task_storage_get(&seal_scratch_map, child, NULL, 0);
 	if (s && s->exe_is_shirudo)
-		return -EACCES;
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_PTRACE, -EACCES);
 
 	return 0;
 }
@@ -313,10 +320,11 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file)
 	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
 		return 0;		/* reads are fine */
 	s = seal_scratch_get(task);
-	if (!s)
-		return seal_caller();	/* cannot read the label */
+	if (!s)				/* cannot read the label */
+		return seal_caller(SHIRUDO_TAMPER_SEAL_WRITE);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
-	return seal_verdict(bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp));
+	return seal_verdict(bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp),
+			    SHIRUDO_TAMPER_SEAL_WRITE);
 }
 
 /* Refresh a directory's mark from its label after an xattr change. */
@@ -386,23 +394,25 @@ int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
 	return 0;
 }
 
-static __always_inline int seal_dentry(struct dentry *dentry)
+static __always_inline int seal_dentry(struct dentry *dentry,
+				       enum shirudo_tamper_point point)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct seal_scratch *s = seal_scratch_get(task);
 	struct bpf_dynptr tdp;
 
 	if (!s)
-		return seal_caller();
+		return seal_caller(point);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
-	return seal_verdict(bpf_get_dentry_xattr(dentry, SHIRUDO_XATTR, &tdp));
+	return seal_verdict(bpf_get_dentry_xattr(dentry, SHIRUDO_XATTR, &tdp),
+			    point);
 }
 
 SEC("lsm.s/inode_unlink")
 int BPF_PROG(shirudo_seal_inode_unlink, struct inode *dir,
 	     struct dentry *dentry)
 {
-	return seal_dentry(dentry);
+	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_UNLINK);
 }
 
 /* Whether an inode is the executable recorded at init. */
@@ -429,12 +439,12 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 	struct inode *target = BPF_CORE_READ(new_dentry, d_inode);
 	int err;
 
-	err = seal_dentry(old_dentry);
+	err = seal_dentry(old_dentry, SHIRUDO_TAMPER_SEAL_RENAME);
 	if (err)
 		return err;
 	if (!target || seal_is_exe(target))
 		return 0;
-	return seal_dentry(new_dentry);
+	return seal_dentry(new_dentry, SHIRUDO_TAMPER_SEAL_RENAME);
 }
 
 /* Truncate, chmod, chown and utimes all come through here. */
@@ -442,7 +452,7 @@ SEC("lsm.s/inode_setattr")
 int BPF_PROG(shirudo_seal_inode_setattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, struct iattr *attr)
 {
-	return seal_dentry(dentry);
+	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_SETATTR);
 }
 
 SEC("lsm.s/inode_setxattr")
@@ -451,13 +461,13 @@ int BPF_PROG(shirudo_seal_inode_setxattr, struct mnt_idmap *idmap,
 	     __u64 size, int flags)
 {
 	if (seal_is_label(name))
-		return seal_caller();
-	return seal_dentry(dentry);
+		return seal_caller(SHIRUDO_TAMPER_SEAL_LABEL);
+	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_XATTR);
 }
 
 SEC("lsm.s/inode_removexattr")
 int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, const char *name)
 {
-	return seal_dentry(dentry);
+	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_XATTR);
 }

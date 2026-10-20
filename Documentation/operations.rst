@@ -124,6 +124,19 @@ Conditions
     Two init records for one TPM reset means the register was bound
     again, which only a TPM reset should allow.
 
+``tamper_attempts``
+    What the guards refused this boot: ``total`` and one counter per
+    point of refusal under ``counters`` (``LoadNotLoader``,
+    ``LoadUnsigned``, ``LoadUnverified``, ``LoadKeyringKind``,
+    ``LoadKeyring``, ``MapFdWrite``, ``PinRename``,
+    ``BpffsUmountAbove``, ``SealWrite``, ``SealPtrace`` and the rest,
+    named in ``util/tamper.c`` like the condition types), or
+    ``null`` before ``init`` has run.  The human report lists the
+    counters that are not zero with what each means under ``Tamper
+    attempts``.  A count is an attempt that was refused, so the
+    conditions stay ``OK``; it is the operator's cue to look at the
+    journal and the host.
+
 The same conditions leave the target every five seconds as the OTLP
 keepalive, so a collector sees a target go ``WARN`` or ``FAIL``, or go
 silent, without anyone logging in.

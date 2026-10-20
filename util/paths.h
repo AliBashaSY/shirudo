@@ -84,6 +84,8 @@
 #define SHIRUDO_BPFFS_UPATCHES_DIR	SHIRUDO_BPFFS_DIR "/upatches"
 /* The frozen identity map: bpffs device, executable, trust anchor. */
 #define SHIRUDO_IDENTITY_PIN		SHIRUDO_BPFFS_DIR "/identity"
+/* The tamper counters: one per guard, counted where it refuses. */
+#define SHIRUDO_TAMPER_PIN		SHIRUDO_BPFFS_DIR "/tamper"
 
 /* Operator-side. */
 #define SHIRUDO_SIGNING_KEY_FILE	"signing_key.pem"

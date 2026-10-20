@@ -1835,6 +1835,7 @@ static int build_generic_log_payload(
 		const char *scope_name, const char *event_name,
 		int severity_number, const char *severity_text,
 		const char *status, const char *version_id,
+		int64_t tamper_attempts,
 		const char *body_json, size_t body_len,
 		char **out, size_t *out_len, size_t *alloc_len)
 {
@@ -1888,6 +1889,8 @@ static int build_generic_log_payload(
 		otlp_kv_string(&e, "shirudo.status", status);
 	if (version_id)
 		otlp_kv_string(&e, "shirudo.version_id", version_id);
+	if (tamper_attempts >= 0)
+		otlp_kv_int(&e, "shirudo.tamper_attempts", tamper_attempts);
 	shirudo_json_arr_close(&e);
 	shirudo_json_obj_close(&e);
 	shirudo_json_arr_close(&e);
@@ -1913,6 +1916,7 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 				       const char *severity_text,
 				       const char *status,
 				       const char *version_id,
+				       int64_t tamper_attempts,
 				       const char *body_json, size_t body_len)
 {
 	char *payload = NULL;
@@ -1927,6 +1931,7 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 	rc = build_generic_log_payload(scope_name, event_name,
 					       severity_number, severity_text,
 					       status, version_id,
+					       tamper_attempts,
 					       body_json, body_len,
 					       &payload, &payload_len, &alloc_len);
 	if (!rc)

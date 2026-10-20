@@ -138,6 +138,7 @@ UTIL_SRCS := \
     util/keyring.c \
     util/keys.c \
     util/identity.c \
+    util/tamper.c \
     util/initrd.c \
     util/paths.c \
     util/harden.c \

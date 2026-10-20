@@ -672,10 +672,11 @@ static const struct {
  * unsigned and is not prog_type SYSCALL, so once the bpf() gate is live
  * it would refuse this very load -- the same bootstrap window bpf2 uses.
  * identity_fd is bpf2's frozen identity map, which the seal reads to
- * recognise shirudo's executable instead of declaring its own copy.
+ * recognise shirudo's executable instead of declaring its own copy, and
+ * tamper_fd its counters, so one set counts the refusals of both.
  */
 static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
-		       int identity_fd)
+		       int identity_fd, int tamper_fd)
 {
 	const struct shirudo_embedded_bpf *blob = shirudo_seal_blob();
 	struct bpf_object *obj;
@@ -702,6 +703,18 @@ static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
 	err = bpf_map__reuse_fd(m, identity_fd);
 	if (err) {
 		pr_err("seal: share the identity map: %s", strerror(-err));
+		bpf_object__close(obj);
+		return err;
+	}
+	m = bpf_object__find_map_by_name(obj, "shirudo_tamper");
+	if (!m) {
+		pr_err("seal: shirudo_tamper map not in embedded seal");
+		bpf_object__close(obj);
+		return -ENOENT;
+	}
+	err = bpf_map__reuse_fd(m, tamper_fd);
+	if (err) {
+		pr_err("seal: share the tamper map: %s", strerror(-err));
 		bpf_object__close(obj);
 		return err;
 	}
@@ -797,10 +810,10 @@ static int init_lsm(bool attach_filesystem_seal)
 	struct bpf_program *p_keyperm;
 	struct anchor_keys keys = {};
 	key_serial_t keyring;
-	struct bpf_map *m_sb;
+	struct bpf_map *m_sb, *m_tamper;
 	struct stat st;
 	uint32_t zero = 0;
-	int err, map_fd, i;
+	int err, map_fd, tamper_fd, i;
 
 	if (access(SHIRUDO_LSM_LINK_PIN, F_OK) == 0) {
 		pr_info("bpf2 already attached (%s exists)",
@@ -810,6 +823,11 @@ static int init_lsm(bool attach_filesystem_seal)
 	/* A pin without the links behind it is what a failed attempt leaves. */
 	if (unlink(SHIRUDO_IDENTITY_PIN) != 0 && errno != ENOENT) {
 		pr_err("unlink stale %s: %s", SHIRUDO_IDENTITY_PIN,
+		       strerror(errno));
+		return -errno;
+	}
+	if (unlink(SHIRUDO_TAMPER_PIN) != 0 && errno != ENOENT) {
+		pr_err("unlink stale %s: %s", SHIRUDO_TAMPER_PIN,
 		       strerror(errno));
 		return -errno;
 	}
@@ -920,6 +938,30 @@ static int init_lsm(bool attach_filesystem_seal)
 		goto out;
 	}
 
+	/*
+	 * The tamper counters, pinned for status to read and frozen so
+	 * that no task, shirudo included, can reset them from userspace;
+	 * the hooks write them.
+	 */
+	m_tamper = bpf_object__find_map_by_name(obj, "shirudo_tamper");
+	if (!m_tamper) {
+		pr_err("shirudo_tamper map not in embedded bpf2");
+		err = -ENOENT;
+		goto out;
+	}
+	tamper_fd = bpf_map__fd(m_tamper);
+	if (bpf_map_freeze(tamper_fd) != 0) {
+		err = -errno;
+		pr_err("freeze tamper map: %s", strerror(errno));
+		goto out;
+	}
+	if (bpf_obj_pin(tamper_fd, SHIRUDO_TAMPER_PIN) != 0) {
+		err = -errno;
+		pr_err("pin tamper map at %s: %s", SHIRUDO_TAMPER_PIN,
+		       strerror(errno));
+		goto out;
+	}
+
 	/* Install the narrow prctl guard before enabling the bpf() gates. */
 	for (i = 0; i < (int)ARRAY_SIZE(prctl_hooks); i++) {
 		struct bpf_program *p = bpf_object__find_program_by_name(
@@ -1022,7 +1064,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	}
 
 	if (attach_filesystem_seal) {
-		err = attach_seal(&seal_obj, seal_links, map_fd);
+		err = attach_seal(&seal_obj, seal_links, map_fd, tamper_fd);
 		if (err)
 			goto out;
 	}

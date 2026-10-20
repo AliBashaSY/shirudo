@@ -273,6 +273,22 @@ T9  A target lying about its state
     owner's policy; ``--expect-pcr`` pins them and the logs in the
     evidence explain them.
 
+T10 An attempt that leaves no trace
+    Every guard counts what it refuses, by the point of refusal (a
+    load that is no signed loader, one without a signature, one whose
+    signature was verified against the wrong kind of keyring or the
+    wrong keyring, a writable map descriptor, a rename of a pin, an
+    unmount above the bpffs, a write to a sealed file, a ptrace of a
+    shirudo task, and so on), in a map ``init`` pins and freezes, so
+    that no task, shirudo included, can reset it from userspace while
+    the hooks still add to it. ``shirudo status`` lists the counters
+    that are not zero with what each means, ``status --json`` carries
+    them all, and the keepalive takes them to the collector with the
+    total as the ``shirudo.tamper_attempts`` attribute, so an attempt
+    is seen where it was made and not only where it failed. A counter
+    is evidence of an attempt, not of a compromise: the refusal is what
+    moved it.
+
 
 5) Residual risks
 -----------------

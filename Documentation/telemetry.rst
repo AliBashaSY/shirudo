@@ -216,8 +216,10 @@ Keepalive, one log record from ``shirudo status --otel``::
                           17 / ERROR   lsm-off, tampered
     body                  the status --json document as a key-value
                           list (schema, status, conditions, tpm,
-                          system, ...)
-    attributes            shirudo.status, shirudo.version_id
+                          tamper_attempts, system, ...)
+    attributes            shirudo.status, shirudo.version_id,
+                          shirudo.tamper_attempts (the total of the
+                          refusals the guards counted this boot)
 
 The keepalive is sent only when an endpoint is configured explicitly,
 through ``map_export.otel_endpoint`` or the
@@ -385,6 +387,13 @@ its ``Body``, ``SeverityNumber``, ``ResourceAttributes`` and
     FROM shirudo.upatch_logs
     WHERE SeverityNumber >= 13 AND Timestamp > now() - INTERVAL 5 MINUTE;
 
+    -- hosts where a guard refused something this boot
+    SELECT ResourceAttributes['host.name'] AS host,
+           max(toInt64(LogAttributes['shirudo.tamper_attempts'])) AS refused
+    FROM shirudo.upatch_logs
+    WHERE LogAttributes['shirudo.tamper_attempts'] != ''
+    GROUP BY host HAVING refused > 0;
+
     -- the latest snapshot of one map on one host
     SELECT Body FROM shirudo.upatch_logs
     WHERE LogAttributes['shirudo.upatch.name'] = 'kernel-obs'
@@ -399,8 +408,9 @@ attributes.
 Splunk.  The ``splunk_hec`` exporter turns each log record into an HEC
 event with the body as the event and the attributes as fields, so
 ``shirudo.status``, ``shirudo.upatch.name`` and ``shirudo.map.name``
-are searchable and ``index=shirudo shirudo.status!=ok`` lists the
-unhealthy hosts.  Metrics go to a metrics index through the same
+are searchable, ``index=shirudo shirudo.status!=ok`` lists the
+unhealthy hosts and ``index=shirudo shirudo.tamper_attempts>0`` the
+hosts where a guard refused something.  Metrics go to a metrics index through the same
 exporter.  An HEC endpoint can also be the direct target of a custom
 sink as described below.
 

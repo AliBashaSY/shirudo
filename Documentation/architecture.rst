@@ -284,7 +284,9 @@ the bpffs beneath it, which a lazy unmount would take down too.  This
 last set is load-bearing, not
 defence in depth: shirudo is agentless, the pins are the only thing
 keeping the enforcement programs alive, and one ``umount`` would
-otherwise detach everything.
+otherwise detach everything.  Every guard counts what it refuses, by
+point, in a frozen map pinned beside the identity map
+(``bpf/lib/shirudo_tamper.h``); ``shirudo status`` reads it back.
 
 Filesystem seal.  ``bpf/seal.c`` relies on every inode under
 ``/var/lib/shirudo/`` and the installed binary carrying the xattr
