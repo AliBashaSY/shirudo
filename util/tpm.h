@@ -25,7 +25,6 @@ struct shirudo_tpm;
 int shirudo_tpm_open(struct shirudo_tpm **out);
 void shirudo_tpm_close(struct shirudo_tpm *t);
 
-/* PCRs of the SHA-256 bank. */
 int shirudo_tpm_pcr_read(struct shirudo_tpm *t, unsigned int pcr,
 			 uint8_t out[SHIRUDO_TPM_DIGEST_LEN]);
 int shirudo_tpm_pcr_extend(struct shirudo_tpm *t, unsigned int pcr,

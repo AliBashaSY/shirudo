@@ -16,9 +16,7 @@ struct shirudo_tamper_counts {
 	uint64_t	total;
 };
 
-/* The name status and the keepalive report a point under. */
 const char *shirudo_tamper_name(enum shirudo_tamper_point point);
-/* What a count at that point means. */
 const char *shirudo_tamper_meaning(enum shirudo_tamper_point point);
 
 /*

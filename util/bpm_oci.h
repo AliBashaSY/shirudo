@@ -74,7 +74,6 @@ struct bpm_descriptor {
 	int64_t size;
 };
 
-/* Small helpers shared by every BPM command. */
 void bpm_copy_string(char *dst, size_t dst_sz, const char *src);
 void bpm_trim(const char *in, char *out, size_t out_sz);
 bool bpm_name_ok(const char *s);

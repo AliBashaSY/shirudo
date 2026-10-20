@@ -33,15 +33,12 @@ struct bpm_package_info {
 	size_t cert_len;
 };
 
-/* Parse and validate shirudo/bpm-index:stable; at most BPM_MAX_ENTRIES. */
 int bpm_index_parse(const unsigned char *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries);
-/* Detached CMS over payload against the certificate at cert_path. */
 int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
 		   const unsigned char *sig, size_t sig_len,
 		   const char *cert_path);
 
-/* ustar helpers shared with the installer's extractor. */
 int bpm_tar_octal(const char *p, size_t n, uint64_t *out);
 bool bpm_archive_rel_ok(const char *name);
 
@@ -57,7 +54,6 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   size_t *out_len, size_t max);
 int bpm_pkg_read_member(const char *archive, const char *member,
 			unsigned char **out, size_t *out_len, size_t max);
-/* Name, version, signer fingerprint and cert.der (xmalloc'd) of a .bee. */
 int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info);
 
 /*

@@ -22,7 +22,6 @@ struct btf;
 int shirudo_kernel_abi_validate_btf(const struct btf *btf,
 				    char *detail, size_t detail_sz);
 
-/* Load the running kernel's BTF and validate signed-loader capabilities. */
 int shirudo_kernel_abi_check(char *detail, size_t detail_sz);
 
 #endif /* SHIRUDO_KERNEL_ABI_H */

@@ -2,13 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Shared NAME / LOCATION / MAPS / AGE renderer for the "upatches
- * loaded" section. Used by:
- *   - `shirudo status` (local view, both human and --json).
- *
- * The caller assembles a row[] vector from the target-local file walk;
- * the renderer doesn't
- * touch syscalls or eventlog state itself.
+ * The upatches-loaded table of `shirudo status`.
  */
 
 #ifndef SHIRUDO_UTIL_UPATCH_TABLE_H
@@ -31,25 +25,13 @@ struct shirudo_upatch_table_row {
 	char		payload_sha256[65];	/* "" if unavailable; JSON only */
 };
 
-/*
- * Print the table to stdout. Renders the heading line "upatches
- * loaded (N):" and an empty body when n == 0.
- */
 void shirudo_upatch_table_print(const struct shirudo_upatch_table_row *rows,
 				size_t n);
 
-/*
- * Emit the JSON "upatches_loaded": [...] array on the open emitter.
- * Caller has already opened the parent object.
- */
 void shirudo_upatch_table_emit_json(struct shirudo_json_emit *e,
 				    const struct shirudo_upatch_table_row *rows,
 				    size_t n);
 
-/*
- * Derive a wall-clock age in seconds from an ISO-8601 UTC timestamp.
- * Returns -1 if ts is empty / unparseable.
- */
 int64_t shirudo_upatch_age_sec(const char *ts);
 
 #endif /* SHIRUDO_UTIL_UPATCH_TABLE_H */

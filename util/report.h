@@ -2,10 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Per-operation JSON report for `upatch load`/`upatch unload --report`.
- * The structured input AI agents iterate on -- category/phase tell the
- * agent whether it's a policy problem or a code problem, and
- * verifier_log carries the kernel's rejection verbatim.
+ * The JSON report of `upatch load` and `unload --report`: category and
+ * phase tell a policy problem from a code problem, and the verifier
+ * log comes verbatim.
  */
 
 #ifndef SHIRUDO_REPORT_H
@@ -41,12 +40,9 @@ struct shirudo_op_report {
 	char		chain_after[65];
 };
 
-/* Emit r as one JSON document to path ("-" for stdout). 0 / -errno. */
 int shirudo_report_emit(const char *path, const struct shirudo_op_report *r);
 
-/* Copy a verifier log into the report (truncating to the cap). */
 void shirudo_report_set_log(struct shirudo_op_report *r, const char *log);
-/* Free heap-owned report fields. */
 void shirudo_report_free(struct shirudo_op_report *r);
 
 #endif /* SHIRUDO_REPORT_H */

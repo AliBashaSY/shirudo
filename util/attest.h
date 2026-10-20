@@ -43,10 +43,8 @@ int shirudo_attest_challenge_read(const char *path,
 				  struct shirudo_attest_challenge *out);
 
 /*
- * Target side: the evidence document for nonce over the PCRs in
- * pcr_mask, activating the challenge when one is given. The buffer is
- * xmalloc'd to *cap bytes and NUL-terminated; the caller frees it with
- * xfree(buf, cap). -EKEYREJECTED when the TPM refuses the challenge.
+ * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
+ * -EKEYREJECTED when the TPM refuses the challenge.
  */
 int shirudo_attest_evidence(const uint8_t *nonce, size_t nonce_len,
 			    uint32_t pcr_mask,
@@ -54,13 +52,9 @@ int shirudo_attest_evidence(const uint8_t *nonce, size_t nonce_len,
 			    char **out, size_t *len, size_t *cap);
 
 /*
- * Operator side: from an evidence document, a challenge for its
- * attestation key under its endorsement key. The credential the
- * target has to recover is handed to the caller and kept nowhere
- * else. ek_ca names a PEM bundle the endorsement certificate must
- * chain to, or NULL. report receives one line per check; the document
- * is xmalloc'd to *cap bytes. -EKEYREJECTED when a check failed and no
- * challenge was made.
+ * Operator side. The credential the target has to recover is handed
+ * to the caller and kept nowhere else; ek_ca is a PEM bundle or NULL.
+ * -EKEYREJECTED when a check failed and no challenge was made.
  */
 struct shirudo_attest_challenge_policy {
 	const char	*ek_ca;		/* issuer bundle, or NULL */
@@ -98,10 +92,8 @@ struct shirudo_attest_expect {
 };
 
 /*
- * Operator side: check an evidence document against the expectation.
- * report receives one line per check. Returns 0 when every check
- * passed, -EKEYREJECTED when one failed, -EINVAL when the document is
- * malformed.
+ * Operator side: 0 when every check passed, -EKEYREJECTED when one
+ * failed, -EINVAL when the document is malformed.
  */
 int shirudo_attest_verify(const char *evidence, size_t len,
 			  const struct shirudo_attest_expect *expect,

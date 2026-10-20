@@ -15,13 +15,8 @@
 #define SHIRUDO_BUILD_BUG_ON_ZERO(e)	((int)(sizeof(struct { int:(-!!(e)); })))
 
 /*
- * ARRAY_SIZE(arr) -- element count of a true C array, with a
- * compile-time gate that rejects a pointer that has decayed from an
- * array (the classic bug). GCC's __builtin_types_compatible_p (also
- * supported by clang) returns 1 when `arr` is a pointer (its type
- * matches typeof(&arr[0]) = T*) and 0 for a real array (T[N] vs T*
- * are not compatible). The bitfield trick then errors out on the
- * pointer case while leaving the value unchanged for the array case.
+ * ARRAY_SIZE() refuses a pointer: __builtin_types_compatible_p tells
+ * T[N] from T*.
  */
 #define ARRAY_SIZE(arr)							\
 	(sizeof(arr) / sizeof((arr)[0]) +				\

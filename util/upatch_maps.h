@@ -2,15 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Read pinned upatch maps under /run/shirudo/bpffs/upatches/<name>/
- * maps/<map>. Shared by `shirudo upatch map` (CLI), `shirudo status
- * --include-maps` (target-local JSON/human), and direct target inspection
- * (operator pulls the same JSON over SSH).
- *
- * Surface targets the common observability case (counters, small
- * hash tables). Richer types degrade gracefully unless an upatch pins
- * a serializer for the map; arena maps without a serializer are listed
- * as skipped instead of being read generically.
+ * The pinned maps of loaded upatches, for `upatch map` and status.
+ * Arena maps are read through the upatch's serializer alone.
  */
 
 #ifndef SHIRUDO_UTIL_UPATCH_MAPS_H
@@ -30,11 +23,6 @@
 
 struct shirudo_json_emit;
 
-/*
- * One key+value pair as the reader produced it. The raw key/value
- * bytes are heap-owned (xmalloc); render code decides how to
- * format them based on the surrounding `shirudo_map_view`.
- */
 struct shirudo_map_entry {
 	void		*key;		/* key_size bytes */
 	void		*value;		/* value_stride * (per-CPU ? n_cpus : 1) */
@@ -94,11 +82,7 @@ struct shirudo_map_view {
 
 void shirudo_map_view_free(struct shirudo_map_view *v);
 
-/*
- * Lightweight directory enumeration: list every pinned map across
- * every loaded upatch, with name/type/max_entries only (no entry
- * read). out[] is xmalloc'd, free with shirudo_map_summary_free().
- */
+/* Name, type and max_entries alone, without reading entries. */
 struct shirudo_map_summary {
 	char		upatch[64];
 	char		name[SHIRUDO_MAP_NAME_MAX + 1];
@@ -135,28 +119,18 @@ int  shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
 				    uint32_t max_entries_cap, uint32_t flags,
 				    struct shirudo_map_view *out);
 
-/* Human-readable describe-style render. */
 void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
 				       size_t n);
 void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v);
 
-/* Compact one-liner used inside the upatches loaded section. */
 void shirudo_upatch_map_print_inline(const struct shirudo_map_summary *m);
 
-/*
- * Emit one map view. The fields-only helper is for callers that are
- * already inside the object that should carry the map details; the
- * object helper is for callers wrapping map views in arrays.
- *
- * NULL `v` emits nothing. The shape is part of the status report format,
- * so target-local status output remains stable.
- */
+/* NULL v emits nothing. The shape is part of the status report. */
 void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v);
 void shirudo_upatch_maps_emit_json_object(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v);
 
-/* Shared value formatting used by local and telemetry emitters. */
 bool shirudo_upatch_map_is_percpu(uint32_t type);
 uint32_t shirudo_upatch_map_value_stride(const struct shirudo_map_view *v);
 char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,

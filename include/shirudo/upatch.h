@@ -21,7 +21,6 @@
 #define SHIRUDO_UPATCH_LEGACY_HEADER_SIZE	352u
 #define SHIRUDO_UPATCH_HEADER_SIZE	360u
 
-/* Flag bits in struct shirudo_upatch_header.flags. */
 #define SHIRUDO_DIRECTIVE_UNLOAD	(1u << 0)
 
 enum shirudo_upatch_type {

@@ -14,11 +14,8 @@
 #include <stdint.h>
 
 /*
- * Fields mirror the `shirudo status` JSON one-for-one. `reachable`
- * and `parsed` are true for the local caller.
- * The *_seen flags reflect "did the JSON carry a non-null value for
- * this nullable scalar," since the schema parser leaves them untouched
- * on null.
+ * The *_seen flags say whether the JSON carried a non-null value,
+ * since the parser leaves a null untouched.
  */
 struct shirudo_conditions_input {
 	bool		reachable;
@@ -51,17 +48,9 @@ struct shirudo_condition {
  */
 #define SHIRUDO_CONDITIONS_MAX	4
 
-/*
- * Fill `out[0..cap)` with the security-operator conditions derived
- * from `in`. Returns the number actually written (<= cap).
- */
 size_t shirudo_conditions(const struct shirudo_conditions_input *in,
 			  struct shirudo_condition *out, size_t cap);
 
-/*
- * Print a `Conditions:` block in the same describe-style table the
- * rest of the project uses, with consistent column widths.
- */
 void shirudo_conditions_print(const struct shirudo_condition *c, size_t n);
 
 /*
@@ -72,10 +61,6 @@ void shirudo_conditions_print(const struct shirudo_condition *c, size_t n);
  */
 const char *shirudo_status_verdict(const struct shirudo_conditions_input *in);
 
-/*
- * Short reason (no surrounding parens) suitable for inlining on a
- * `Status:` line when the verdict isn't ok. Empty when ok.
- */
 void shirudo_status_reason(const struct shirudo_conditions_input *in,
 			   char *buf, size_t cap);
 

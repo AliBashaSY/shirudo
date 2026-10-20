@@ -17,11 +17,9 @@ struct shirudo_elf_target {
 	uint32_t	nr_offsets;
 };
 
-/* Resolve libbpf-style '*'/'?' function glob matches and GNU build ID. */
 int shirudo_elf_target_resolve(const char *path, const char *pattern,
 			       struct shirudo_elf_target *out);
 
-/* Read the GNU build ID from an already-open ELF file descriptor. */
 int shirudo_elf_build_id_fd(int fd,
 			    uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
 			    uint32_t *build_id_len);

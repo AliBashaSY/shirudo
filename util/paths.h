@@ -82,16 +82,13 @@
 #define SHIRUDO_SEAL_POST_RMXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_post_removexattr_link"
 #define SHIRUDO_SEAL_INIT_SECURITY_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_init_security_link"
 #define SHIRUDO_BPFFS_UPATCHES_DIR	SHIRUDO_BPFFS_DIR "/upatches"
-/* The frozen identity map: bpffs device, executable, trust anchor. */
 #define SHIRUDO_IDENTITY_PIN		SHIRUDO_BPFFS_DIR "/identity"
-/* The tamper counters: one per guard, counted where it refuses. */
 #define SHIRUDO_TAMPER_PIN		SHIRUDO_BPFFS_DIR "/tamper"
 
 /* Operator-side. */
 #define SHIRUDO_SIGNING_KEY_FILE	"signing_key.pem"
 #define SHIRUDO_SIGNING_KEY_PATH	SHIRUDO_KEYS_DIR "/" SHIRUDO_SIGNING_KEY_FILE
 
-/* Inode-xattr label of the filesystem seal (threat-model.rst, target hardening). */
 #define SHIRUDO_XATTR_NAME		"security.bpf.shirudo"
 
 /*
@@ -101,7 +98,6 @@
  */
 #define SHIRUDO_XATTR_PAYLOAD		"security.bpf.shirudo.payload"
 
-/* Named kernel keyring that scopes signature verification. */
 #define SHIRUDO_KEYRING_NAME		"shirudo"
 
 /*
@@ -126,13 +122,10 @@ int shirudo_key_paths(const char *keys_dir,
 const char *shirudo_keys_dir_resolve(const char *keys_dir_arg);
 
 /*
- * Convert a userspace upatch name to a bpffs path component.  bpffs
- * reserves dots in path components, while the userspace/persisted name
- * format permits them (for example, kernel-version-qualified patches).
- * The returned component is intentionally only a path representation; the
- * Dots are escaped as "~d"; '~' is not permitted by safe_upatch_name, so
- * this representation cannot collide with a raw userspace name. The
- * original name remains the identity used by the upatch format and eventlog.
+ * bpffs reserves dots in path components, which upatch names may
+ * carry, so a dot becomes ~d; ~ is not a valid name character, so no
+ * raw name collides. The raw name stays the identity in the format and
+ * the eventlog.
  */
 static inline int shirudo_upatch_bpffs_name(char *out, size_t out_sz,
 					    const char *name)
@@ -156,7 +149,6 @@ static inline int shirudo_upatch_bpffs_name(char *out, size_t out_sz,
 	return 0;
 }
 
-/* Reverse shirudo_upatch_bpffs_name for names read back from bpffs. */
 static inline int shirudo_upatch_name_from_bpffs(char *out, size_t out_sz,
 						const char *name)
 {

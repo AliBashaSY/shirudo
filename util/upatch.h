@@ -17,7 +17,6 @@ struct shirudo_upatch {
 	const unsigned char		*map;
 	size_t				map_size;
 	size_t				header_size;
-	/* Parsed signed decoder blob (all zero when absent). */
 	const struct shirudo_upatch_decoder_blob *decoder_blob;
 	uint32_t			decoder_blob_len;
 	uint32_t			nr_decoders;

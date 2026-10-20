@@ -431,7 +431,6 @@ void shirudo_keys_set_digest(const struct shirudo_trusted_set *set,
 	shirudo_keys_anchor_digest(sha, set->n, out);
 }
 
-/* Write whole, then rename into place; a stale .tmp is overwritten. */
 int shirudo_keys_write_file(const char *path, const void *data, size_t len)
 {
 	return shirudo_seal_write_file(path, data, len, 0644);

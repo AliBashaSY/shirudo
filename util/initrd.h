@@ -16,7 +16,6 @@
  */
 bool shirudo_in_initrd(void);
 
-/* The root file system's mount point while the initrd runs. */
 const char *shirudo_sysroot(void);
 
 /*

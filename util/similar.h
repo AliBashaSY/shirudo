@@ -2,9 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Edit-distance "did you mean ..." helper used by the top-level
- * subcommand dispatcher when the user mistypes a command. Keep it
- * small and allocation-free: shirudo's command set is tiny.
+ * The did-you-mean helpers of the dispatchers, allocation-free.
  */
 
 #ifndef SHIRUDO_SIMILAR_H
@@ -24,37 +22,18 @@ struct shirudo_suggestion {
 	int		dist;
 };
 
-/*
- * Levenshtein edit distance between s and t, capped at `max`: returns
- * the real distance when it fits, or any value > max otherwise (with
- * early exit). NUL-terminated inputs; either side longer than
- * SHIRUDO_SIMILAR_MAX_LEN is reported as "exceeds max".
- */
+/* Any value above max once the cap is exceeded, with an early exit. */
 int shirudo_edit_distance(const char *s, const char *t, int max);
 
-/*
- * Pick up to `cap` candidates from `commands[0..n_commands)` whose
- * edit distance to `name` is at most `max_dist`. Writes them into
- * `out` sorted by ascending distance and returns the count. `out` is
- * a caller-provided stack array of size `cap`.
- */
 size_t shirudo_suggest(const char *name,
 		       const char *const *commands, size_t n_commands,
 		       int max_dist,
 		       struct shirudo_suggestion *out, size_t cap);
 
 /*
- * Resolve `input` against `candidates[0..n)` and fill `matches[]`
- * with the indices that match, returning the count (clamped to cap).
- *
- * Three resolution tiers, short-circuit at the first that hits:
- *   1. exact match (strcmp).
- *   2. input is a prefix of candidate ("node" -> "nodes", "li" -> "list").
- *   3. candidate is a prefix of input ("remotes" -> "remote").
- *
- * Caller dispatches on count: 1 = unique match (matches[0]), 0 = no
- * match (let Levenshtein "did you mean" kick in), >1 = ambiguous
- * (list `matches` to the user).
+ * Three tiers, the first that hits wins: exact, input a prefix of a
+ * candidate, candidate a prefix of input. The count tells unique from
+ * none from ambiguous.
  */
 size_t shirudo_resolve(const char *input,
 		       const char *const *candidates, size_t n,

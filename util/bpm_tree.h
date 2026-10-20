@@ -81,10 +81,8 @@ struct shirudo_tree_state {
 	char manifest_digest[128];
 };
 
-/* Parse the signed tree payload. Unknown JSON fields are ignored. */
 int shirudo_tree_parse(const char *body, size_t len,
 			       struct shirudo_tree_publication *out);
-/* Grow the operations array by one copied operation (publisher side). */
 int shirudo_tree_publication_append(struct shirudo_tree_publication *pub,
 				    const struct shirudo_tree_operation *op);
 void shirudo_tree_publication_free(struct shirudo_tree_publication *pub);
@@ -106,14 +104,12 @@ int shirudo_tree_emit_publication(const struct shirudo_tree_publication *pub,
  */
 int shirudo_tree_selector_matches(const struct shirudo_tree_selector *selector);
 
-/* Persistent tree state and selected-operation eventlog. */
 int shirudo_tree_state_read(struct shirudo_tree_state *out);
 int shirudo_tree_state_write(const struct shirudo_tree_state *state);
 int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
 			      const uint8_t projection_root[32]);
 int shirudo_tree_event_replay(uint8_t out[32]);
 
-/* Emit report-only tree state into an already-open JSON object. */
 void shirudo_tree_emit_status(struct shirudo_json_emit *e);
 
 #endif /* SHIRUDO_BPM_TREE_H */

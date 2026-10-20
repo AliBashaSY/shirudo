@@ -2,8 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Read /dev/kmsg records with ISO wallclock timestamps. No subprocess
- * fallback to dmesg(1) -- direct kernel interface only.
+ * /dev/kmsg records with wallclock timestamps.
  */
 
 #ifndef SHIRUDO_UTIL_KMSG_H
@@ -20,11 +19,8 @@ struct shirudo_kmsg_record {
 };
 
 /*
- * Read the last <cap> records from /dev/kmsg in chronological order
- * into <out>. Returns the number written (<= cap) on success, -errno
- * otherwise. Records older than the ring buffer's current head are
- * silently skipped (the ring buffer wraps; kernel returns EPIPE which
- * we treat as "restart and skip ahead").
+ * Records the ring buffer has dropped are skipped: EPIPE restarts the
+ * read.
  */
 int shirudo_kmsg_tail(struct shirudo_kmsg_record *out, size_t cap);
 

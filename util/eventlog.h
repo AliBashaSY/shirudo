@@ -34,11 +34,7 @@ const char *shirudo_eventlog_pending_path(void);
 int shirudo_eventlog_append(const char *json_line);
 int shirudo_eventlog_append_to(const char *path, const char *json_line);
 
-/*
- * Fold the pending record into the eventlog: every pending line this
- * boot's part of the log does not already hold is appended, then the
- * pending file goes. 0 when nothing was pending.
- */
+/* 0 when nothing was pending. */
 int shirudo_eventlog_adopt_pending(void);
 
 /*
@@ -69,7 +65,6 @@ struct shirudo_eventlog_init {
 
 int shirudo_eventlog_boot_init(struct shirudo_eventlog_init *out);
 
-/* This boot's records in order, from its last init record on. */
 int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 					  void *ctx), void *ctx);
 
@@ -81,7 +76,6 @@ int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
  */
 int shirudo_eventlog_would_exceed(unsigned long max_bytes);
 
-/* Helpers for building eventlog entries. */
 void shirudo_eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
 void shirudo_eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */
 

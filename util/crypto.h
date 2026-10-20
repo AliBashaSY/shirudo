@@ -2,12 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Small crypto interface shared by the operator and target profiles.
- * Hashing, X.509, CMS verification and the libcurl TLS policy all run
- * on OpenSSL (shared on the operator, static on the target), so every
- * key algorithm the kernel verifies and the hybrid ML-KEM key exchange
- * come from one implementation. Callers must not depend on the
- * provider's types.
+ * The crypto interface of both profiles, on OpenSSL alone, so every key
+ * algorithm the kernel verifies and the hybrid key exchange come from
+ * one implementation.
  */
 
 #ifndef SHIRUDO_CRYPTO_H
@@ -36,11 +33,7 @@ int shirudo_sha256_buffer(const void *data, size_t len,
 int shirudo_base64_encode(const uint8_t *data, size_t len,
 			  char *out, size_t out_sz);
 
-/*
- * Verify an ECDSA P-256 signature (r, s) over a SHA-256 digest with
- * the public point (x, y). Returns 0 when valid, -EKEYREJECTED when
- * not, another -errno when the key or signature cannot be built.
- */
+/* 0 when valid, -EKEYREJECTED when not. */
 int shirudo_ecdsa_p256_verify(const uint8_t x[32], const uint8_t y[32],
 			      const uint8_t digest[SHIRUDO_CRYPTO_SHA256_LEN],
 			      const uint8_t r[32], const uint8_t s[32]);
@@ -87,7 +80,6 @@ CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr);
  */
 int shirudo_tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca);
 
-/* HMAC-SHA-256 of data under key. */
 int shirudo_hmac_sha256(const uint8_t *key, size_t key_len,
 			const void *data, size_t len,
 			uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN]);
@@ -119,7 +111,6 @@ int shirudo_base64_decode(const char *in, size_t in_len, uint8_t *out,
 int shirudo_cert_read_der(const uint8_t *der, size_t len,
 			  struct shirudo_cert *cert);
 
-/* The raw public key of a certificate: RSA (n, e) or EC P-256 (x, y). */
 struct shirudo_cert_pubkey {
 	bool		rsa;
 	uint8_t		n[512];

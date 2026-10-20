@@ -39,7 +39,6 @@
 #define SHIRUDO_TPM_REGISTER_ATTRS	0x0E060048u
 #define SHIRUDO_TPM_NV_WRITTEN		0x20000000u
 
-/* Policy digest evolution for the assertions the register uses. */
 void shirudo_tpm_policy_nv_written(const uint8_t prev[SHIRUDO_TPM_DIGEST_LEN],
 				   bool written,
 				   uint8_t out[SHIRUDO_TPM_DIGEST_LEN]);
@@ -63,7 +62,6 @@ void shirudo_tpm_register_policy(uint32_t pcr_mask,
 				 uint8_t branch_init[32],
 				 uint8_t policy[32]);
 
-/* TPML_PCR_SELECTION with one SHA-256 bank over the 24 PCRs in mask. */
 void shirudo_tpm_pcr_selection(uint32_t pcr_mask,
 			       uint8_t out[SHIRUDO_TPM_PCR_SELECTION_LEN]);
 
@@ -73,7 +71,6 @@ void shirudo_tpm_nv_name(uint32_t index, uint32_t attrs,
 			 uint16_t data_size,
 			 uint8_t name[SHIRUDO_TPM_NAME_LEN]);
 
-/* Name of a SHA-256-named object from its marshalled TPMT_PUBLIC. */
 int shirudo_tpm_object_name(const uint8_t *public, size_t len,
 			    uint8_t name[SHIRUDO_TPM_NAME_LEN]);
 
@@ -133,7 +130,6 @@ struct shirudo_tpm_ecc_public {
 	uint8_t		y[32];
 };
 
-/* Parse a marshalled TPMT_PUBLIC of a P-256 ECDSA key. */
 int shirudo_tpm_ecc_public_parse(const uint8_t *buf, size_t len,
 				 struct shirudo_tpm_ecc_public *out);
 
@@ -164,7 +160,6 @@ int shirudo_tpm_credential_protect(const uint8_t seed[32],
 				   const uint8_t credential[SHIRUDO_TPM_CREDENTIAL_LEN],
 				   uint8_t out[SHIRUDO_TPM_ID_OBJECT_LEN]);
 
-/* Parse a marshalled TPMT_SIGNATURE carrying ECDSA/SHA-256 r and s. */
 int shirudo_tpm_ecdsa_signature_parse(const uint8_t *buf, size_t len,
 				      uint8_t r[32], uint8_t s[32]);
 

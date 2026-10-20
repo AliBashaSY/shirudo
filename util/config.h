@@ -30,18 +30,11 @@ struct shirudo_config {
 	char		tpm_owner_auth[SHIRUDO_OWNER_AUTH_MAX];
 	size_t		tpm_owner_auth_len;
 	/*
-	 * TCTI override for util/tpm.c. Empty (default) means
-	 * `device:/dev/tpmrm0`. A non-empty value (e.g.
-	 * `swtpm:host=127.0.0.1,port=2321`) redirects to a
-	 * software TPM for dev/CI. The pre-flight skips the
-	 * /dev/tpmrm0 check when the override is set. The
-	 * SHIRUDO_TPM_TCTI env var overrides this in turn.
+	 * The TCTI of util/tpm.c, empty for /dev/tpmrm0; the environment
+	 * overrides it.
 	 */
 	char		tpm_tcti[SHIRUDO_TPM_TCTI_MAX];
-	/*
-	 * Periodic `shirudo upatch map --all` export settings. Empty sinks
-	 * are intentionally idle.
-	 */
+	/* Empty sinks are idle. */
 	bool		map_export_valid;
 	char		map_export_json_path[SHIRUDO_MAP_EXPORT_PATH_MAX];
 	char		map_export_otel_endpoint[SHIRUDO_MAP_EXPORT_ENDPOINT_MAX];
@@ -53,11 +46,7 @@ struct shirudo_config {
 	unsigned int	map_export_otlp_max_bytes;
 };
 
-/*
- * Load shirudo.conf into <cfg>, applying defaults first. A missing file
- * is not an error (defaults stand). Returns 0, or -errno on an I/O error
- * other than ENOENT.
- */
+/* A missing file is not an error. */
 int shirudo_config_load(struct shirudo_config *cfg);
 
 /* Testable path-specific loader; unlike shirudo_config_load(), no env. */

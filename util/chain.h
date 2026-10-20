@@ -36,16 +36,14 @@
 void shirudo_sha256(const void *data, size_t len,
 		    uint8_t out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
-/* SHA-256 over the concatenation a || b, without allocating a joined buffer. */
 void shirudo_sha256_2(const void *a, size_t a_len,
 		      const void *b, size_t b_len,
 		      uint8_t out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
-/* Constant-time equality of two equal-length buffers (1 == equal). */
+/* Constant time; 1 when equal. */
 int shirudo_ct_eq(const void *a, const void *b, size_t n);
 
 
-/* One upatch of the set an init event covers. */
 struct shirudo_measured_upatch {
 	char	name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char	payload_hex[2 * SHIRUDO_UPATCH_PAYLOAD_HASH_LEN + 1];
@@ -86,17 +84,12 @@ struct shirudo_chain_init_info {
 };
 
 /*
- * Bind the register to this boot and perform its first write with the
- * init event: define (or redefine) the index under a policy computed
- * from the anchoring PCR, extend it through the init branch, then
- * extend the PCR with the index name so the branch can never be
- * satisfied again until the next reset. A register written this boot
- * and on record for the TPM's current reset count is reused untouched;
- * a record for this reset count whose index is gone, unwritten or
- * renamed refuses with -EEXIST, since binding another would restart
- * the history the record vouches for. -ENODEV without a TPM, -EACCES
+ * Bind the register to this boot and write the init event. A register
+ * written this boot and on record is reused; a record whose index is
+ * gone, unwritten or renamed is -EEXIST, since binding again would
+ * restart the history it vouches for. -ENODEV without a TPM, -EACCES
  * when the owner hierarchy refuses, -EPROTO when the TPM's name is not
- * the computed one, or another -errno.
+ * the computed one.
  */
 int shirudo_chain_init(const uint8_t event[SHIRUDO_CHAIN_DIGEST_LEN],
 		       struct shirudo_chain_init_info *info);

@@ -40,11 +40,9 @@ struct shirudo_preflight_result {
 };
 
 /*
- * Run every prerequisite check. All checks always run and every one is
- * hard: there is no opt-out for a missing TPM or a classical
- * certificate. n_failed is the total number of failures. The function
- * does not write to stdout/stderr/syslog -- the caller presents the
- * outcome.
+ * Every check runs and every one is hard: no opt-out for a missing TPM
+ * or a classical certificate. Nothing is printed; the caller presents
+ * the outcome.
  */
 void shirudo_preflight_run(struct shirudo_preflight_result *out);
 

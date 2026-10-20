@@ -2,8 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Parse /proc/modules and render an ASCII dependency tree. Used by
- * `shirudo status --include-modules`.
+ * /proc/modules as a dependency tree, for `status --include-modules`.
  */
 
 #ifndef SHIRUDO_UTIL_KMODULES_H
@@ -37,19 +36,14 @@ struct shirudo_kmod_set {
 	size_t			n_deps;
 };
 
-/* Read /proc/modules into <set>. Returns 0 / -errno. */
 int  shirudo_kmodules_read(struct shirudo_kmod_set *set);
 void shirudo_kmodules_free(struct shirudo_kmod_set *set);
 
-/* Render as an ASCII tree with the describe-style 2-space indent. */
 void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set);
 
 /*
- * Render the <last_n> most recently loaded modules in reverse-
- * chronological order ([ISO ts]  name (size, refs=K, Ts since boot)):
- * newest at top, oldest at bottom. <boot_sec> is the wallclock instant
- * of boot, used to compute the "since boot" column (elapsed time
- * between boot and load, not time ago).
+ * boot_sec is the wallclock instant of boot: the since-boot column is
+ * elapsed from boot, not time ago.
  */
 void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 				   size_t last_n, int64_t boot_sec);

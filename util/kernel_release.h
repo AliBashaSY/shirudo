@@ -6,7 +6,6 @@
 
 #include <stdbool.h>
 
-/* Match a complete kernel release component prefix, such as 6.1. */
 bool shirudo_kernel_release_prefix_matches(const char *release,
 						   const char *prefix);
 

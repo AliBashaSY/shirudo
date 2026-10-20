@@ -8,7 +8,6 @@
 
 #include <stddef.h>
 
-/* Parse one line from a target-local BPM repository source file. */
 int shirudo_bpm_parse_source_line(char *line,
 				  char *endpoint, size_t endpoint_sz,
 				  char *key_file, size_t key_file_sz);

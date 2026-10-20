@@ -19,20 +19,12 @@
 #define SHIRUDO_SEAL_LABEL \
 	"94442b45cfcdc59aabc2a91364ed2ae129418e05a5c1985231b9c032e673f469"
 
-/*
- * Set security.bpf.shirudo = SHIRUDO_SEAL_LABEL on one inode, a
- * symlink's own rather than its target's. Idempotent (create-or-replace).
- * Call after creating any regular-fs file under /var/lib/shirudo/ so the
- * seal LSM protects it. Returns 0 or -errno.
- */
+/* A symlink's own inode, not its target's. Idempotent. */
 int shirudo_seal_label(const char *path);
 
 /*
- * Label the running binary's inode and walk /var/lib/shirudo/ labelling
- * every inode on that filesystem (the bpffs mount is skipped -- bpf2
- * guards it). Best-effort per entry. Call BEFORE the seal LSM attaches,
- * so the bulk setxattr is not gated. Returns 0 or -errno on a fatal
- * (stat/walk) failure.
+ * Before the seal attaches, so the bulk setxattr is not gated; best
+ * effort per entry.
  */
 int shirudo_seal_label_tree(void);
 
@@ -48,16 +40,11 @@ int shirudo_seal_label_tree(void);
  * failure, a sealed inode that could not be labelled included.
  */
 
-/* Open or create path under its directory. Returns the fd. */
 int shirudo_seal_open(const char *path, int flags, mode_t mode);
 
 /* mkdir -p, every directory created labelled as its parent is. */
 int shirudo_seal_mkdir_p(const char *path, mode_t mode);
 
-/*
- * Replace path by data atomically: written to <path>.tmp beside it,
- * labelled and synced, renamed over path, the directory synced.
- */
 int shirudo_seal_write_file(const char *path, const void *data, size_t len,
 			    mode_t mode);
 

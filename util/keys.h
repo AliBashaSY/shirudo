@@ -58,7 +58,6 @@ int shirudo_keys_load(const char *keys_dir, const char *revoked_dir,
 int shirudo_keys_read_der(const char *path, unsigned char **out,
 			  size_t *out_sz);
 
-/* One certificate's digests, from its DER or from its file. */
 int shirudo_keys_digest_der(const unsigned char *der, size_t der_sz,
 			    uint8_t sha256[32], uint8_t fingerprint[32]);
 int shirudo_keys_digest_file(const char *path, uint8_t sha256[32],
@@ -74,7 +73,6 @@ void shirudo_keys_anchor_digest(const uint8_t (*sha256)[32], size_t n,
 void shirudo_keys_set_digest(const struct shirudo_trusted_set *set,
 			     uint8_t out[32]);
 
-/* Whether <revoked_dir>/<fingerprint>.der exists for this public key. */
 bool shirudo_keys_is_revoked(const char *revoked_dir,
 			     const uint8_t fingerprint[32]);
 
@@ -96,7 +94,6 @@ int shirudo_keys_verify_vouch(const struct shirudo_trusted_set *set,
 			      const unsigned char *sig, size_t sig_sz,
 			      uint8_t voucher[32]);
 
-/* Write a file whole and rename it into place, mode 0644. */
 int shirudo_keys_write_file(const char *path, const void *data, size_t len);
 
 /*

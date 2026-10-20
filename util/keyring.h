@@ -18,10 +18,7 @@ typedef void (*shirudo_keyring_cb)(key_serial_t serial,
 				   const char *description,
 				   void *ud);
 
-/*
- * Look up a named keyring under the user keyring (@u). Returns the
- * serial, -ENOKEY if absent, or another -errno on failure.
- */
+/* -ENOKEY if absent. */
 key_serial_t shirudo_keyring_find(const char *name);
 
 /*
@@ -34,9 +31,6 @@ key_serial_t shirudo_keyring_open_or_create(const char *name);
  */
 int shirudo_keyring_unlink_from_user(key_serial_t keyring);
 
-/*
- * Add an X.509 cert (DER bytes) as an "asymmetric" key.
- */
 key_serial_t shirudo_keyring_add_cert(key_serial_t keyring,
 				      const void *cert, size_t cert_len);
 
@@ -68,9 +62,6 @@ key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
 /* Unlink <key> from <keyring>; sealing does not stop this, the LSM may. */
 int shirudo_keyring_unlink_key(key_serial_t keyring, key_serial_t key);
 
-/*
- * Iterate every key linked into <keyring>. Returns 0 / -errno.
- */
 int shirudo_keyring_list(key_serial_t keyring,
 			 shirudo_keyring_cb cb, void *ud);
 
