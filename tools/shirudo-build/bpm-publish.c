@@ -99,10 +99,7 @@ static int index_entry_compare(const void *left, const void *right)
 	return rc ? rc : strcmp(a->version, b->version);
 }
 
-/*
- * Fetch, verify and parse the signed repository index of the registry.
- * A registry without one yields an empty index.
- */
+/* A registry without an index yields an empty one. */
 static int fetch_index(struct bpm_oci_client *c, const char *cert,
 		       struct bpm_index_entry *entries, int *n)
 {
@@ -578,12 +575,6 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	return 0;
 }
 
-/*
- * Append the tree-enabled upatches of a built package to the signed tree
- * at <repository>:<reference>: fetch and verify the current publication,
- * push each artifact, append one operation per entry, sign the new
- * publication through shirudo-build and replace the reference.
- */
 static int cmd_bpm_tree_append(int argc, char **argv)
 {
 	const char *package = NULL, *raw_repository = NULL, *keys_dir_arg = NULL;

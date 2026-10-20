@@ -38,12 +38,6 @@ static int push(const char **argv, int *n, const char *arg)
 	return 0;
 }
 
-/*
- * Look for the vendor BPF headers under a few well-known locations.
- * Returns a static "-I<path>" string, or NULL if no candidate exists
- * (in which case the operator must supply --extra-cflags / install
- * libbpf-dev).
- */
 static const char *locate_bpf_headers(void)
 {
 	static const char installed[] = "-I" SHIRUDO_BPF_INCDIR;
@@ -85,7 +79,6 @@ int shirudo_build_compile(const char *source, const char *output,
 		return -ENOENT;
 	}
 
-	/* -I <dirname(vmlinux_h)> so #include "vmlinux.h" resolves. */
 	snprintf(vmlinux_dir, sizeof(vmlinux_dir), "%s", vmlinux_h);
 	{
 		char *slash = strrchr(vmlinux_dir, '/');

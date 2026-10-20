@@ -69,20 +69,14 @@ int bpm_build_parse_beefile(const unsigned char *body, size_t len,
 			    struct bpm_build_spec *spec);
 void bpm_build_spec_free(struct bpm_build_spec *spec);
 
-/*
- * `shirudo-build bpm <build|push|tree append> ...`, reached through the
- * core binary's `shirudo bpm` dispatch. argv[0] is the subcommand.
- */
 int shirudo_build_bpm(int argc, char **argv);
 int shirudo_build_bpm_build(int argc, char **argv);
 int shirudo_build_bpm_push(int argc, char **argv);
 int shirudo_build_bpm_tree(int argc, char **argv);
 bool shirudo_build_is_help(const char *arg);
 
-/* Readable 0600 private key and readable certificate, else 1 with a diagnostic. */
 int shirudo_build_check_keys(const char *pkey, const char *cert);
 
-/* `shirudo-build keys vouch ...`, argv[0] being "vouch". */
 int shirudo_build_keys_vouch(int argc, char **argv);
 
 #endif /* SHIRUDO_BUILD_BPM_H */

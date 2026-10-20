@@ -122,11 +122,7 @@ static int ends_with(const char *s, const char *suf)
 	return ns >= nf && strcmp(s + ns - nf, suf) == 0;
 }
 
-/*
- * Default output path when -o is omitted: strip a trailing .c or .o
- * and append .upatch, keeping the directory and any .bpf stem, so
- * foo/bar.bpf.c lands at foo/bar.bpf.upatch next to its input.
- */
+/* foo/bar.bpf.c lands at foo/bar.bpf.upatch beside its input. */
 static int derive_output(const char *input, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(input);
@@ -142,12 +138,7 @@ static int derive_output(const char *input, char *buf, size_t buf_sz)
 	return 0;
 }
 
-/*
- * --emit-artifacts artifact path: the .bpf.o sits beside the .upatch,
- * so strip a trailing .upatch off the (already resolved) output path
- * and append .o, keeping the .bpf stem (foo/bar.bpf.upatch ->
- * foo/bar.bpf.o).
- */
+/* The .bpf.o sits beside the .upatch. */
 static int derive_artifact_o(const char *output, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(output);

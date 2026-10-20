@@ -121,7 +121,6 @@ static uint32_t rd_le32(const void *p)
 	return le32toh(v);
 }
 
-/* Read a regular payload (<= 16 MiB) into a malloc'd buffer. 0/-errno. */
 static int read_small_file(const char *path, char **out, uint32_t *out_len)
 {
 	struct stat st;
@@ -1081,11 +1080,8 @@ static void unregister_target_attach_types(int handler_ids[2])
 }
 
 /*
- * Run gen_loader on an already-opened object, CMS-sign the produced
- * loader bytes, and write the .upatch container. Takes ownership of
- * obj (closes it on every exit path). src_path, if non-NULL, is the C
- * source whose directory anchors relative decoder paths (NULL for a
- * .bpf.o input or an unload directive).
+ * Takes ownership of obj. src_path anchors relative decoder paths;
+ * NULL for a .bpf.o input or an unload directive.
  */
 static int finalize_object(struct bpf_object *obj, const char *out_path,
 			   const char *upatch_name, uint32_t flags,

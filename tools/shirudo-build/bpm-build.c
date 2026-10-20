@@ -700,7 +700,6 @@ static bool build_ends_with(const char *s, const char *suffix)
 	return n >= m && !strcmp(s + n - m, suffix);
 }
 
-/* The upatch name shirudo-build derives from an input file name. */
 static void build_upatch_name(const char *source, char *out, size_t cap)
 {
 	const char *base = strrchr(source, '/');
@@ -715,9 +714,8 @@ static void build_upatch_name(const char *source, char *out, size_t cap)
 }
 
 /*
- * Compile, sign and package every upatch of the spec with the same
- * pipeline as `shirudo build`, then its unload directive bound to the
- * payload digest the load artifact ended up with.
+ * The unload directive is bound to the payload digest the load artifact
+ * ended up with.
  */
 static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			  const char *cert)
