@@ -2,9 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Local readiness + state report: shirudo status [--json] [--otel].
- * Local-only -- never contacts another host. Safe to run before `init`
- * (everything degrades to "absent"/false).
+ * The local readiness and state report, safe before `init`.
  */
 
 #include <dirent.h>
@@ -64,7 +62,6 @@ static int notdot(const struct dirent *e)
 	return strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0;
 }
 
-/* Count JSON-lines (one chain event per line) and the file size. */
 static int count_eventlog(long *entries, long *bytes)
 {
 	char buf[65536];
@@ -91,7 +88,6 @@ static int count_eventlog(long *entries, long *bytes)
 	return 0;
 }
 
-/* On-disk inventory under /var/lib/shirudo. -1 counts mean "dir absent". */
 struct asset_view {
 	long eventlog_bytes;
 	int n_upatches;
@@ -102,7 +98,6 @@ struct asset_view {
 	bool bpffs_mounted;
 };
 
-/* Count entries in <dir>; with upatch_only, only ".upatch" files. */
 static int count_dir(const char *dir, bool upatch_only)
 {
 	struct dirent **list = NULL;
@@ -118,9 +113,9 @@ static int count_dir(const char *dir, bool upatch_only)
 		if (!upatch_only ||
 		    (len > 7 && strcmp(nm + len - 7, ".upatch") == 0))
 			count++;
-		shirudo_libc_free(list[i]);	/* scandir-owned */
+		shirudo_libc_free(list[i]);
 	}
-	shirudo_libc_free(list);		/* scandir-owned */
+	shirudo_libc_free(list);
 	return count;
 }
 
@@ -163,9 +158,8 @@ static void gather_assets(struct asset_view *a)
 }
 
 /*
- * Projection of one eventlog line for display: enough for the compact
- * table and the events[] JSON, not the full record (the authoritative
- * copy stays the on-disk log, which status always replays).
+ * Enough of a record for the table and events[]; the log itself stays
+ * the authoritative copy.
  */
 struct ev_proj {
 	char ts[40];
@@ -200,7 +194,6 @@ static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 	return shirudo_json_parse(line, len, f, ARRAY_SIZE(f));
 }
 
-/* Slurp the whole eventlog. 0 with buf/len set, or -errno (buf == NULL). */
 static int read_eventlog(char **buf, size_t *len)
 {
 	struct stat st;
@@ -234,7 +227,6 @@ static int read_eventlog(char **buf, size_t *len)
 	return 0;
 }
 
-/* Emit the eventlog as a JSON "events":[...] array (projected fields). */
 static void emit_eventlog_events(struct shirudo_json_emit *e)
 {
 	char *save, *line, *buf;
@@ -273,7 +265,6 @@ static void emit_eventlog_events(struct shirudo_json_emit *e)
 	shirudo_json_arr_close(e);
 }
 
-/* One-line human detail for an eventlog row. */
 static void event_detail(const struct ev_proj *ev, char *out, size_t cap)
 {
 	if (ev->up_name[0])
@@ -285,7 +276,6 @@ static void event_detail(const struct ev_proj *ev, char *out, size_t cap)
 		out[0] = '\0';
 }
 
-/* Compact TIME/TYPE/DIGEST/DETAIL table, read from the local log. */
 static void print_eventlog_table(void)
 {
 	char *save, *line, *buf;
@@ -313,10 +303,6 @@ static void print_eventlog_table(void)
 	xfree(buf, len);
 }
 
-/*
- * Print the "System Info:" section with a 2-space indent and 16-column
- * label column. Caller prints any preceding blank line.
- */
 static void print_system_human(const struct shirudo_sysinfo *si)
 {
 	printf("\nSystem Info:\n");
@@ -417,12 +403,6 @@ static void usage(void)
 	fprintf(stderr, "usage: %s\n", status_help.usage);
 }
 
-/*
- * Build the upatches_loaded table rows from a scandir() listing.
- * Each row is resolved via the shared util (location + pin ctime +
- * payload xattr). Returns the row count; *out is heap-owned (xfree
- * by caller with n * sizeof(*out)).
- */
 static size_t build_upatches_table(struct dirent **ups, int n_ups,
 				   struct shirudo_upatch_table_row **out)
 {
@@ -476,11 +456,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 	return (size_t)n_ups;
 }
 
-/*
- * Convert local probes into the shared conditions input. `shirudo
- * status` always runs on-host, so reachable/parsed are trivially true;
- * this gives the shared verdict / Conditions block its local meaning.
- */
+/* Status runs on the host, so reachable and parsed are trivially true. */
 static void local_cond_input(struct shirudo_conditions_input *in,
 			     int lsm_attached, int keyring_present, int staging,
 			     int64_t keyring_serial,
@@ -509,7 +485,6 @@ static void local_cond_input(struct shirudo_conditions_input *in,
 	};
 }
 
-/* Compose the locally detected roles: "target", "operator", or both. */
 static const char *roles_str(int is_target, int is_operator)
 {
 	if (is_target && is_operator)
@@ -555,7 +530,6 @@ static bool status_otel_endpoint_configured(const struct shirudo_config *cfg)
 	return endpoint && endpoint[0];
 }
 
-/* shirudo_keyring_list callback: count the asymmetric keys. */
 static void count_asymmetric(key_serial_t serial, const char *type,
 			     const char *description, void *ud)
 {
@@ -776,14 +750,10 @@ int cmd_status(int argc, const char **argv)
 		struct shirudo_json_emit e;
 
 		/*
-		 * The events[] dump re-emits one object per logged line, so
-		 * size the buffer to the on-disk log plus headroom for the
-		 * fixed fields; 16 KiB covers the no-eventlog case.
-		 * --include-modules pads ~250 B per module; --include-kernellog
-		 * pads up to 8 KiB total (15 lines * ~500 B); --include-system
-		 * includes the kernel config, which is typically hundreds of KiB.
-		 * Eyeball-padded,
-		 * the cap-clamp at the bottom keeps us under SHIRUDO_JSON_MAX_BYTES.
+		 * The events[] dump re-emits the log, so size the buffer
+		 * from it with headroom for the fixed fields and the
+		 * optional sections; the clamp below keeps it under
+		 * SHIRUDO_JSON_MAX_BYTES.
 		 */
 		json_cap = 16384;
 		if (include_eventlog && ev_rc == 0)
@@ -1329,8 +1299,8 @@ int cmd_status(int argc, const char **argv)
 
 out:
 	for (i = 0; i < n_ups; i++)
-		shirudo_libc_free(ups[i]);	/* scandir-owned */
-	shirudo_libc_free(ups);			/* scandir-owned */
+		shirudo_libc_free(ups[i]);
+	shirudo_libc_free(ups);
 	if (json_buf)
 		xfree(json_buf, json_cap);
 	return ret;

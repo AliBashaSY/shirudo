@@ -18,10 +18,6 @@
 #include "util/macros.h"
 #include "util/similar.h"
 
-/*
- * Which side a command runs on. The operator holds the signing key; the
- * target commands run one-shot locally; local commands work on either side.
- */
 enum cmd_group {
 	GROUP_OPERATOR,
 	GROUP_TARGET,
@@ -39,11 +35,8 @@ struct cmd {
 static int cmd_help(int argc, const char **argv);
 
 /*
- * Single source of truth for subcommands. Adding an entry updates the
- * dispatch, `shirudo help`, and bash completion's top-level list (which
- * is pulled live via `shirudo help --list-cmds`, so it never drifts).
- * completion/shirudo.bash needs editing only for new *sub*commands or
- * flags, not for new top-level commands.
+ * Adding an entry updates the dispatch, `shirudo help` and bash
+ * completion, which pulls the list live through --list-cmds.
  */
 static const struct cmd commands[] = {
 	{ "genkey",	cmd_genkey,	GROUP_OPERATOR,	"generate the signing key + cert" },
@@ -84,11 +77,6 @@ static void print_group(enum cmd_group g, const char *header)
 
 static int cmd_help(int argc, const char **argv)
 {
-	/*
-	 * `help --list-cmds` prints the bare command names to stdout, one
-	 * per line -- the hook bash completion uses so a newly added
-	 * command shows up without editing the completion script.
-	 */
 	if (argc > 1 && strcmp(argv[1], "--list-cmds") == 0) {
 		for (size_t i = 0; i < commands_n; i++)
 			printf("%s\n", commands[i].name);
@@ -120,31 +108,19 @@ int main(int argc, const char **argv)
 		cmd_help(0, NULL);
 		return 1;
 	}
-	/*
-	 * Top-level --list-cmds prints bare top-level command names to
-	 * stdout. Bash completion uses this so new commands appear in
-	 * tab-completion without editing the completion script.
-	 */
 	if (shirudo_is_list_cmds(argv[1])) {
 		for (i = 0; i < commands_n; i++)
 			printf("%s\n", commands[i].name);
 		return 0;
 	}
-	/*
-	 * Top-level --help / -h are equivalent to the `help` subcommand.
-	 * Pass the rest of argv through so `shirudo --help --list-cmds`
-	 * reaches cmd_help's --list-cmds emit path too.
-	 */
+	/* With the rest of argv, so `--help --list-cmds` still lists. */
 	if (shirudo_is_help(argv[1]))
 		return cmd_help(argc - 1, argv + 1);
 
 	for (i = 0; i < commands_n; i++)
 		names[i] = commands[i].name;
 
-	/*
-	 * Tolerant resolution is left to the Levenshtein "did you mean" pass
-	 * below.
-	 */
+	/* Tolerant matching is the Levenshtein pass below. */
 	n_match = shirudo_resolve(argv[1], names, commands_n,
 				  matches, ARRAY_SIZE(matches));
 	if (n_match == 1) {

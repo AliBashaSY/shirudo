@@ -85,11 +85,7 @@ bool shirudo_build_available(void)
 	return use_path ? on_path(helper) : access(helper, X_OK) == 0;
 }
 
-/*
- * Replace argv[0] with the resolved helper and exec it. Returns only on
- * failure, with the exit status to report; label names the subcommand
- * in diagnostics.
- */
+/* Returns only on failure, with the exit status to report. */
 int shirudo_build_exec(const char *label, char **argv)
 {
 	bool use_path;

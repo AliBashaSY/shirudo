@@ -113,7 +113,6 @@ static void keyring_count_asymmetric(key_serial_t serial, const char *type,
 		(*n)++;
 }
 
-/* The asymmetric keys a keyring holds, or -errno. */
 static int keyring_asymmetric_count(key_serial_t ring)
 {
 	size_t n = 0;
@@ -124,13 +123,11 @@ static int keyring_asymmetric_count(key_serial_t ring)
 	return (int)n;
 }
 
-/* Set once init_keyring has chosen the trust anchor for this boot. */
 static bool bpf_keyring_mode;
 
 /* The certificates init enrolled this boot; the init event covers them. */
 static struct shirudo_trusted_set enrolled;
 
-/* Set when init runs in the initrd, the root file system at /sysroot. */
 static bool initrd_mode;
 
 /*
@@ -166,7 +163,6 @@ static void warn_root_keys_differ(const struct shirudo_trusted_set *set)
 			SHIRUDO_INITRD_KEYS_DIR, SHIRUDO_KEYS_DIR);
 }
 
-/* How many of the set's certificates <ring> holds, or -errno. */
 static int keyring_holds_set(key_serial_t ring,
 			     const struct shirudo_trusted_set *set)
 {
@@ -514,12 +510,7 @@ static int init_bpffs(void)
 	return 0;
 }
 
-/*
- * Pack a userspace dev_t (glibc-encoded by stat) into the kernel's
- * internal dev_t encoding so the BPF program's read of
- * inode->i_sb->s_dev compares equal. Kernel uses MKDEV(major, minor)
- * == (major << 20) | minor.
- */
+/* The BPF side compares s_dev in the kernel's encoding, not glibc's. */
 static uint32_t kernel_dev_t(dev_t st_dev)
 {
 	return ((uint32_t)major(st_dev) << 20) | (minor(st_dev) & 0xfffffu);
@@ -615,7 +606,6 @@ static int identity_executables(struct shirudo_identity *id)
 	return 0;
 }
 
-/* Attach a program and pin its link; *out is NULL on failure. */
 static int attach_pin(struct bpf_program *p, const char *pin,
 		      struct bpf_link **out)
 {
@@ -636,11 +626,7 @@ static int attach_pin(struct bpf_program *p, const char *pin,
 	return 0;
 }
 
-/*
- * The seal's programs and their pins. The directory-marking hooks
- * (file_open and the post-xattr hooks) precede inode_init_security,
- * which labels on the strength of those marks.
- */
+/* The marking hooks come before inode_init_security, which relies on them. */
 static const struct {
 	const char	*prog;
 	const char	*pin;
@@ -666,14 +652,9 @@ static const struct {
 };
 
 /*
- * Load seal.bpf.o and attach + pin its filesystem-sealing and exec hooks.
- * Keeps the object open via *obj_out (the caller tears it and the links
- * down together). Must run BEFORE lsm/bpf is attached: seal is loaded
- * unsigned and is not prog_type SYSCALL, so once the bpf() gate is live
- * it would refuse this very load -- the same bootstrap window bpf2 uses.
- * identity_fd is bpf2's frozen identity map, which the seal reads to
- * recognise shirudo's executable instead of declaring its own copy, and
- * tamper_fd its counters, so one set counts the refusals of both.
+ * Before lsm/bpf attaches: the seal is loaded unsigned and would be
+ * refused once the gate is live. It reads bpf2's identity map and
+ * counts into its tamper map, so one set covers both.
  */
 static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
 		       int identity_fd, int tamper_fd)
@@ -776,11 +757,6 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 static int init_lsm(bool attach_filesystem_seal)
 {
 	struct shirudo_identity id = {};
-	/*
-	 * The four mount-lifecycle guards over shirudo's bpffs. Table-driven
-	 * so the attach loop stays short; each pin is destroyed in the out:
-	 * path via mount_links[].
-	 */
 	static const struct {
 		const char	*prog;
 		const char	*pin;
@@ -857,11 +833,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	}
 	id.sb_dev = kernel_dev_t(st.st_dev);
 
-	/*
-	 * Record shirudo's executable identity so the inode_unlink hook
-	 * can tell shirudo's `upatch unload` from an attacker's `rm` of a
-	 * pin.
-	 */
+	/* So inode guards can tell `upatch unload` from an attacker's rm. */
 	err = identity_executables(&id);
 	if (err)
 		goto out;
@@ -1039,11 +1011,8 @@ static int init_lsm(bool attach_filesystem_seal)
 	}
 
 	/*
-	 * Mount-lifecycle guards over the bpffs -- attached here with the
-	 * other bpffs guards so the mount is immutable before enforcement
-	 * goes live. Without these a `umount` of the bpffs would drop every
-	 * pin and detach all enforcement (the pins are the links' only
-	 * reference, shirudo being agentless).
+	 * With the other bpffs guards, so the mount is immutable before
+	 * enforcement goes live.
 	 */
 	for (i = 0; i < (int)ARRAY_SIZE(mount_hooks); i++) {
 		struct bpf_program *p = bpf_object__find_program_by_name(
@@ -1209,25 +1178,17 @@ static void remove_stale_state(void)
 			     names[i]->d_name) < (int)sizeof(path) &&
 		    is_java_upatch(path))
 			unlink_stale(path);
-		shirudo_libc_free(names[i]);	/* scandir-owned */
+		shirudo_libc_free(names[i]);
 	}
 	if (n >= 0)
-		shirudo_libc_free(names);	/* scandir-owned */
+		shirudo_libc_free(names);
 }
 
 /*
- * Boot-restore: re-apply the installed upatch set after a reboot.
- * Scans /var/lib/shirudo/upatches/ and runs each through the same
- * signed load + attach + pin path as `shirudo upatch load`. On a
- * re-run of init an upatch whose link is already pinned this boot is
- * counted and left alone, provided the payload the pin records is the
- * archived one; loading it again would only attach a second link to
- * fail at the pin. All-or-nothing: a single failure stops the sweep
- * and leaves init incomplete (the chain is not extended). On success,
- * returns the loaded set (sorted by upatch name) so the caller can
- * extend the measurement register by exactly one event over the whole
- * set. The set may be empty (no upatches installed) -- the init event
- * still fires.
+ * All or nothing: one failure leaves init incomplete and the register
+ * unextended. On a re-run an upatch already pinned this boot with the
+ * archived payload is counted and left alone; loading it again would
+ * only attach a second link to fail at the pin.
  */
 static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 {
@@ -1242,21 +1203,21 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 	n = scandir(SHIRUDO_UPATCHES_DIR, &names, select_upatch, alphasort);
 	if (n < 0) {
 		if (errno == ENOENT)
-			return 0;	/* nothing installed -- empty set */
+			return 0;
 		pr_err("boot-restore: scandir %s: %s",
 		       SHIRUDO_UPATCHES_DIR, strerror(errno));
 		return -errno;
 	}
 	if (n == 0) {
-		shirudo_libc_free(names);	/* scandir-owned */
+		shirudo_libc_free(names);
 		return 0;
 	}
 
 	set = xcalloc((size_t)n, sizeof(*set));
 	if (!set) {
 		for (i = 0; i < n; i++)
-			shirudo_libc_free(names[i]);	/* scandir-owned */
-		shirudo_libc_free(names);		/* scandir-owned */
+			shirudo_libc_free(names[i]);
+		shirudo_libc_free(names);
 		return -ENOMEM;
 	}
 
@@ -1278,7 +1239,6 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 			rc = -ENAMETOOLONG;
 			goto next;
 		}
-		/* Canonical name + payload hash for set_digest / eventlog. */
 		if (shirudo_upatch_open(path, &u) == 0) {
 			memcpy(set[cnt].name, u.hdr.name,
 			       SHIRUDO_UPATCH_NAME_MAX);
@@ -1313,9 +1273,9 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 		}
 		cnt++;
 next:
-		shirudo_libc_free(names[i]);	/* scandir-owned */
+		shirudo_libc_free(names[i]);
 	}
-	shirudo_libc_free(names);		/* scandir-owned */
+	shirudo_libc_free(names);
 
 	if (rc) {
 		xfree(set, (size_t)n * sizeof(*set));
@@ -1329,12 +1289,7 @@ next:
 	return 0;
 }
 
-/*
- * Append the single "init" eventlog entry recording this boot's
- * register: the event digest, the set it covers, and the binding
- * (anchoring PCR value, index name, anchor record) a verifier needs
- * to recompute the register's public area.
- */
+/* The binding a verifier needs to recompute the register's public area. */
 static int append_init_event(const struct shirudo_measured_upatch *set,
 			     size_t n,
 			     const uint8_t cert_sha[32],
@@ -1418,7 +1373,6 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 					  shirudo_eventlog_path(), buf);
 }
 
-/* A PCR nothing has extended since the TPM reset. */
 static bool phase_unmeasured(const uint8_t pcr[32])
 {
 	int i;
@@ -1429,7 +1383,6 @@ static bool phase_unmeasured(const uint8_t pcr[32])
 	return true;
 }
 
-/* The upatch tree's projection root at boot, zeros when no tree is kept. */
 static void tree_root_at_boot(uint8_t out[32])
 {
 	struct shirudo_tree_state s = {};
@@ -1567,7 +1520,6 @@ static void usage(void)
 	fprintf(stderr, "usage: %s\n", init_help.usage);
 }
 
-/* mkdir -p for a path of plain directories. */
 static int mkdir_parents(const char *path, mode_t mode)
 {
 	char buf[PATH_MAX], *p;

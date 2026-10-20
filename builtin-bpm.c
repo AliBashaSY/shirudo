@@ -2,9 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Target-local BPM package manager: repositories, signed indexes, the
- * upatch tree and the .bee lifecycle. The operator-only build, push and
- * tree append commands live in shirudo-build and are only dispatched.
+ * The target's package manager; build, push and tree append are the
+ * operator's and are dispatched to shirudo-build.
  */
 
 #include <ctype.h>
@@ -1306,10 +1305,9 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 }
 
 /*
- * Measure one applied tree operation into this boot's register and
- * record it: event = SHA256("shirudo-tree\0" || seq || operation_digest).
- * The tree's own projection stays a file-based chain; the register is
- * what an operator attests.
+ * event = SHA256("shirudo-tree\0" || seq || operation_digest). The
+ * tree's own projection stays a file chain; the register is what an
+ * operator attests.
  */
 static int tree_measure_operation(const struct shirudo_tree_operation *op,
 				  const uint8_t operation_digest[32])

@@ -2,10 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * `shirudo config` -- dump the effective shirudo.conf. When the file
- * is absent, prints the defaults that would apply, in the same syntax
- * so the output is usable as a starting-point template (modulo the
- * redacted secret).
+ * `shirudo config`: the effective shirudo.conf, or without one the
+ * defaults in the same syntax, as a template.
  */
 
 #include <errno.h>

@@ -121,10 +121,6 @@ static long days_remaining(const ASN1_TIME *not_after)
 	return days;
 }
 
-/*
- * Format an "Expires in:" value: "9y 213d" / "182d" / "EXPIRED 3 days ago".
- * Keeps the same expired-on-negative convention as days_remaining().
- */
 static void format_expires_in(long days, char *out, size_t out_sz)
 {
 	if (days < 0) {
@@ -674,7 +670,6 @@ static const struct shirudo_help keys_revoke_help = {
 	.n_sections = ARRAY_SIZE(keys_revoke_sections),
 };
 
-/* Eventlog entry for a key event, mirroring an extend. */
 static int append_key_event(const char *type, const char *fp_hex,
 			    const char *sha_hex, const uint8_t event[32])
 {
@@ -754,11 +749,10 @@ static int select_upatch(const struct dirent *e)
 }
 
 /*
- * Every archived upatch whose signer is the revoked certificate goes:
- * the kernel would refuse to restore it at the next boot, and keeping
- * it loaded would keep running what a key nobody trusts any more
- * authorised. Returns the number purged, or -errno when one could not
- * be; the rest are still tried.
+ * Every archived upatch the revoked certificate signed goes: the kernel
+ * would refuse to restore it at the next boot, and keeping it loaded
+ * would keep running what a key nobody trusts any more authorised. The
+ * rest are still tried when one fails.
  */
 static int purge_signed_by(const unsigned char *der, size_t der_sz,
 			   size_t *unloaded)
@@ -806,13 +800,12 @@ static int purge_signed_by(const unsigned char *der, size_t der_sz,
 		*unloaded += prc;
 	}
 	for (i = 0; i < n; i++)
-		shirudo_libc_free(names[i]);	/* scandir-owned */
-	shirudo_libc_free(names);		/* scandir-owned */
+		shirudo_libc_free(names[i]);
+	shirudo_libc_free(names);
 	shirudo_cert_free(&cert);
 	return rc ? rc : purged;
 }
 
-/* Replace the primary with a member: its file becomes cert.der. */
 static int promote(const struct shirudo_trusted_cert *c)
 {
 	unsigned char *der = NULL;
@@ -1127,10 +1120,6 @@ static int keys_show(int argc, const char **argv)
 		shown = true;
 	}
 
-	/*
-	 * The set a target enrols in the bpf keyring: the primary and the
-	 * trusted certificates beside it, less the revoked ones.
-	 */
 	if (shirudo_keys_load(keys_dir, NULL, true, &set) == 0 &&
 	    (set.n > 1 || set.n_revoked || set.n_unvouched)) {
 		size_t i;
