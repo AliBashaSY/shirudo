@@ -2,8 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * BPF-side decoder manifest ABI. Include after vmlinux.h so __u16/__u32
- * are available.
+ * The decoder manifest a BPF program declares in .rodata.
  */
 
 #ifndef SHIRUDO_DECODER_H

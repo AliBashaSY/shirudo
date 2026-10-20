@@ -10,11 +10,8 @@
 #define SHIRUDO_BPF_IDENTITY_H
 
 /*
- * Frozen identity record, populated by `shirudo init` before the programs
- * attach: the private bpffs superblock device, the (dev, ino) of shirudo's
- * own executable, and the serial and kind (enum bpf_sig_keyring) of the
- * sealed keyring a signed load must have been verified against. Must match
- * struct shirudo_identity in util/identity.h byte-for-byte.
+ * Populated by init before the programs attach. Must match struct
+ * shirudo_identity in util/identity.h byte for byte.
  */
 #define SHIRUDO_IDENTITY_KEYS_MAX	16
 

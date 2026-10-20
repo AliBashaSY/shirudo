@@ -2,19 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Signed UNLOAD-directive template. shirudo-build --unload patches
- * shirudo_unload_params via libbpf bpf_map__set_initial_value() on
- * the synthetic .rodata map, then runs gen_loader + CMS sign on
- * this object. Loading this signed program is the unload
- * authorization gate (the kernel verifies its CMS signature against
- * the keyring); the body returns 0 because the actual work runs in
- * userspace today -- shirudo VFS-unlinks the pin to detach, and does
- * the payload_mismatch compare against the bpf2-protected
- * security.bpf.shirudo.payload pin xattr. The signature-covered
- * expected_sha256 in .rodata is the value a future in-kernel
- * detach + compare would use once bpf_sys_bpf gains the
- * BPF_LINK_DETACH / BPF_OBJ_GET ops; until then
- * it documents intent and pins the value into the signature.
+ * The signed unload directive: loading it is the authorization, the
+ * detach itself still runs in userspace.
  */
 
 #include "vmlinux.h"
