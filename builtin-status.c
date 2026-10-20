@@ -981,12 +981,8 @@ int cmd_status(int argc, const char **argv)
 			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
 			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0) {
 				boot_sec = (int64_t)rt.tv_sec - bt.tv_sec;
-				struct tm tm = {};
-				time_t t = (time_t)boot_sec;
-
-				if (gmtime_r(&t, &tm))
-					strftime(boot_iso, sizeof(boot_iso),
-						 "%Y-%m-%dT%H:%M:%SZ", &tm);
+				shirudo_iso8601((time_t)boot_sec, boot_iso,
+						sizeof(boot_iso));
 			}
 			shirudo_json_kv_string(&e, "boot_at",
 					       boot_iso[0] ? boot_iso : "");
@@ -995,19 +991,13 @@ int cmd_status(int argc, const char **argv)
 				for (mi = 0; mi < ks.n; mi++) {
 					const struct shirudo_kmod *m =
 						&ks.mods[mi];
-					char loaded_iso[32] = "";
+					time_t at = m->loaded_at_sec;
+					char iso[32] = "";
 					uint16_t di;
 
-					if (m->loaded_at_sec > 0) {
-						struct tm tm = {};
-						time_t t = (time_t)m->loaded_at_sec;
-
-						if (gmtime_r(&t, &tm))
-							strftime(loaded_iso,
-								 sizeof(loaded_iso),
-								 "%Y-%m-%dT%H:%M:%SZ",
-								 &tm);
-					}
+					if (at > 0)
+						shirudo_iso8601(at, iso,
+								sizeof(iso));
 					shirudo_json_obj_open(&e);
 					shirudo_json_kv_string(&e, "name",
 							       m->name);
@@ -1016,7 +1006,7 @@ int cmd_status(int argc, const char **argv)
 					shirudo_json_kv_int(&e, "refcount",
 							    m->refcount);
 					shirudo_json_kv_string(&e, "loaded_at",
-							       loaded_iso);
+							       iso);
 					if (boot_sec > 0 &&
 					    m->loaded_at_sec >= boot_sec)
 						shirudo_json_kv_int(&e,

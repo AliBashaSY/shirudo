@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "kmsg.h"
+#include "timefmt.h"
 #include "malloc.h"
 
 /* Per-record buffer size accepted by /dev/kmsg: kernel allows up to 8 KiB. */
@@ -104,7 +105,6 @@ static void monotonic_to_iso(uint64_t mono_us,
 			     const struct timespec *mt_at_open,
 			     char *out, size_t out_cap)
 {
-	struct tm tm = {};
 	struct timespec rec;
 	int64_t delta_ns;
 
@@ -125,9 +125,7 @@ static void monotonic_to_iso(uint64_t mono_us,
 		rec.tv_sec++;
 	}
 
-	if (gmtime_r(&rec.tv_sec, &tm))
-		strftime(out, out_cap, "%Y-%m-%dT%H:%M:%SZ", &tm);
-	else
+	if (shirudo_iso8601(rec.tv_sec, out, out_cap))
 		snprintf(out, out_cap, "?");
 }
 

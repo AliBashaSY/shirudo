@@ -29,6 +29,7 @@
 #include "log.h"
 #include "hex.h"
 #include "malloc.h"
+#include "timefmt.h"
 #include "package.h"
 #include "paths.h"
 #include "upatch.h"
@@ -796,11 +797,10 @@ static int build_environment(const struct bpm_build_spec *spec,
 	char self[PATH_MAX] = "shirudo";
 	char timestamp[32] = {};
 	time_t now = time(NULL);
-	struct tm tm;
 	ssize_t self_len;
 
-	if (!body || uname(&un) || !gmtime_r(&now, &tm) ||
-	    !strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &tm)) {
+	if (!body || uname(&un) ||
+	    shirudo_iso8601(now, timestamp, sizeof(timestamp))) {
 		if (body)
 			xfree(body, BPM_BUILD_MAX_JSON);
 		return -EIO;

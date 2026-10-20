@@ -5,6 +5,7 @@
  * Shared compact duration formatter.
  */
 
+#include <errno.h>
 #include <stdio.h>
 
 #include "timefmt.h"
@@ -21,4 +22,15 @@ void shirudo_format_duration(long seconds, char *buf, size_t cap)
 		snprintf(buf, cap, "%ldh", seconds / 3600);
 	else
 		snprintf(buf, cap, "%ldd", seconds / 86400);
+}
+
+int shirudo_iso8601(time_t t, char *out, size_t cap)
+{
+	struct tm tm;
+
+	if (gmtime_r(&t, &tm) && strftime(out, cap, "%Y-%m-%dT%H:%M:%SZ", &tm))
+		return 0;
+	if (cap)
+		out[0] = '\0';
+	return -EINVAL;
 }

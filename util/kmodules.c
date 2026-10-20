@@ -471,17 +471,6 @@ void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
 	xfree(roots, set->n * sizeof(*roots));
 }
 
-static void iso_utc(int64_t sec, char *out, size_t out_cap)
-{
-	struct tm tm = {};
-	time_t t = (time_t)sec;
-
-	if (sec > 0 && gmtime_r(&t, &tm))
-		strftime(out, out_cap, "%Y-%m-%dT%H:%M:%SZ", &tm);
-	else
-		snprintf(out, out_cap, "?");
-}
-
 /*
  * qsort comparator: descending by (loaded_at_sec, loaded_at_nsec).
  * Indices into set->mods[]. Modules with loaded_at_sec == 0 (stat
@@ -535,7 +524,9 @@ void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 		const struct shirudo_kmod *m = &set->mods[all[i].idx];
 		char ts[32], size_s[16], age[24];
 
-		iso_utc(m->loaded_at_sec, ts, sizeof(ts));
+		if (m->loaded_at_sec <= 0 ||
+		    shirudo_iso8601((time_t)m->loaded_at_sec, ts, sizeof(ts)))
+			snprintf(ts, sizeof(ts), "?");
 		shirudo_human_size(m->size, size_s, sizeof(size_s));
 		if (boot_sec > 0 && m->loaded_at_sec >= boot_sec)
 			shirudo_format_duration(

@@ -26,6 +26,7 @@
 #include "paths.h"
 #include "hex.h"
 #include "upatch_resolve.h"
+#include "timefmt.h"
 
 #ifndef NFPROTO_IPV6
 #define NFPROTO_IPV6			10
@@ -187,7 +188,6 @@ void shirudo_upatch_loaded_at(const char *name, char *out, size_t cap)
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
-	struct tm tm;
 
 	out[0] = '\0';
 	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
@@ -197,9 +197,7 @@ void shirudo_upatch_loaded_at(const char *name, char *out, size_t cap)
 		return;
 	if (stat(dir, &st) != 0)
 		return;
-	if (!gmtime_r(&st.st_ctim.tv_sec, &tm))
-		return;
-	strftime(out, cap, "%Y-%m-%dT%H:%M:%SZ", &tm);
+	shirudo_iso8601(st.st_ctim.tv_sec, out, cap);
 }
 
 void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)

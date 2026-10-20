@@ -370,7 +370,7 @@ build/target/util/loader.o: $(BPF_OBJS)
 tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
                                    util/log.o util/json.o util/loader.o \
                                    util/io.o util/malloc.o util/paths.o \
-                                   util/upatch.o \
+                                   util/upatch.o util/timefmt.o \
                                    util/elf_target.o util/hex.o util/keys.o \
                                    util/seal.o \
                                    util/crypto_openssl.o util/tls_openssl.o \
@@ -523,6 +523,7 @@ testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o u
 # The register code pulls in the eventlog, which pulls in the seal
 # label writer and the JSON codec.
 REGISTER_OBJS := util/chain.o util/tpm.o util/tpm_wire.o util/eventlog.o \
+                 util/timefmt.o \
                  util/hex.o util/crypto_openssl.o util/json.o util/io.o \
                  util/seal.o util/config.o util/log.o util/malloc.o \
                  util/initrd.o $(VERSION_OBJ)
@@ -601,7 +602,7 @@ testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o 
                         util/tls_openssl.o util/serializer.o util/seal.o \
                         util/upatch_decode.o util/upatch_resolve.o \
                         util/upatch.o util/json.o util/log.o \
-                        util/io.o util/malloc.o $(LIBBPF_A) util/hex.o
+                        util/io.o util/malloc.o $(LIBBPF_A) util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
@@ -618,7 +619,7 @@ testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializ
                                        util/upatch_maps.o util/upatch_resolve.o \
                                        util/serializer.o util/seal.o \
                                        util/json.o util/malloc.o util/io.o \
-                                       util/log.o util/hex.o
+                                       util/log.o util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
 

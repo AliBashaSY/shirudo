@@ -16,6 +16,7 @@
 
 #include "chain.h"
 #include "eventlog.h"
+#include "timefmt.h"
 #include "io.h"
 #include "json.h"
 #include "log.h"
@@ -408,11 +409,7 @@ int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 
 void shirudo_eventlog_timestamp(char *out, size_t cap)
 {
-	time_t now = time(NULL);
-	struct tm tm;
-
-	gmtime_r(&now, &tm);
-	strftime(out, cap, "%Y-%m-%dT%H:%M:%SZ", &tm);
+	shirudo_iso8601(time(NULL), out, cap);
 }
 
 void shirudo_eventlog_boot_id(char *out, size_t cap)

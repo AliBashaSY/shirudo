@@ -31,6 +31,7 @@
 #include "malloc.h"
 #include "paths.h"
 #include "sign.h"
+#include "timefmt.h"
 #include "upatch.h"
 
 #define BPM_MANIFEST_CAP	8192u
@@ -195,7 +196,6 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	size_t cap, sig_len = 0;
 	time_t now = time(NULL);
 	int n = 0, rc;
-	struct tm tm;
 
 	entries = xcalloc(BPM_MAX_ENTRIES, sizeof(*entries));
 	if (!entries)
@@ -234,8 +234,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	bpm_copy_string(entry->signer, sizeof(entry->signer), info->signer);
 	qsort(entries, (size_t)n, sizeof(*entries), index_entry_compare);
 
-	if (!gmtime_r(&now, &tm) ||
-	    !strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &tm)) {
+	if (shirudo_iso8601(now, timestamp, sizeof(timestamp))) {
 		rc = -EIO;
 		goto out;
 	}
