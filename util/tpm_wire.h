@@ -12,6 +12,29 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+
+static inline void tpm_put16(uint8_t *p, uint16_t v)
+{
+	p[0] = (uint8_t)(v >> 8);
+	p[1] = (uint8_t)v;
+}
+
+static inline void tpm_put32(uint8_t *p, uint32_t v)
+{
+	p[0] = (uint8_t)(v >> 24);
+	p[1] = (uint8_t)(v >> 16);
+	p[2] = (uint8_t)(v >> 8);
+	p[3] = (uint8_t)v;
+}
+
+/* A TPM2B: the size, then the bytes. */
+static inline size_t tpm_put2b(uint8_t *p, const uint8_t *data, size_t len)
+{
+	tpm_put16(p, (uint16_t)len);
+	memcpy(p + 2, data, len);
+	return 2 + len;
+}
 
 #define SHIRUDO_TPM_DIGEST_LEN		32
 #define SHIRUDO_TPM_NAME_LEN		(2 + SHIRUDO_TPM_DIGEST_LEN)

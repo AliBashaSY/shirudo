@@ -8,7 +8,9 @@
 #ifndef SHIRUDO_UPATCH_H
 #define SHIRUDO_UPATCH_H
 
+#include <endian.h>
 #include <stdint.h>
+#include <string.h>
 
 #define SHIRUDO_UPATCH_MAGIC		0x53485244554e4150ULL	/* "SHRDUNAP" */
 /*
@@ -198,5 +200,29 @@ struct shirudo_upatch_uprobe_target {
 	uint32_t	build_id_len;
 	uint32_t	nr_offsets;
 };
+
+static inline uint16_t rd_le16(const void *p)
+{
+	uint16_t v;
+
+	memcpy(&v, p, sizeof(v));
+	return le16toh(v);
+}
+
+static inline uint32_t rd_le32(const void *p)
+{
+	uint32_t v;
+
+	memcpy(&v, p, sizeof(v));
+	return le32toh(v);
+}
+
+static inline uint64_t rd_le64(const void *p)
+{
+	uint64_t v;
+
+	memcpy(&v, p, sizeof(v));
+	return le64toh(v);
+}
 
 #endif /* SHIRUDO_UPATCH_H */

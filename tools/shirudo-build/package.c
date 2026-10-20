@@ -105,22 +105,6 @@ static void pack_header(struct shirudo_upatch_header *h,
 	h->reserved1        = 0;
 }
 
-static uint16_t rd_le16(const void *p)
-{
-	uint16_t v;
-
-	memcpy(&v, p, sizeof(v));
-	return le16toh(v);
-}
-
-static uint32_t rd_le32(const void *p)
-{
-	uint32_t v;
-
-	memcpy(&v, p, sizeof(v));
-	return le32toh(v);
-}
-
 static int read_small_file(const char *path, char **out, uint32_t *out_len)
 {
 	struct stat st;

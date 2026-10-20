@@ -702,8 +702,8 @@ static int open_serializer_pin(const char *upatch, const char *map_name)
 	return fd;
 }
 
-static int prog_test_run_ctx(int prog_fd, void *ctx, uint32_t ctx_sz,
-			     uint32_t *retval)
+int shirudo_prog_test_run(int prog_fd, void *ctx, uint32_t ctx_sz,
+			  uint32_t *retval)
 {
 	union bpf_attr attr = {};
 	long ret;
@@ -928,7 +928,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 		ctx.cursor = cursor;
 		ctx.invocation_id = invocation_id;
 
-		rc = prog_test_run_ctx(prog_fd, &ctx, sizeof(ctx), &retval);
+		rc = shirudo_prog_test_run(prog_fd, &ctx, sizeof(ctx), &retval);
 		if (rc)
 			goto out;
 		if ((int32_t)retval < 0) {

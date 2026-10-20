@@ -139,4 +139,7 @@ char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 					   const void *values_per_cpu,
 					   const char *btf_type);
 
+int shirudo_prog_test_run(int prog_fd, void *ctx, uint32_t ctx_sz,
+			  uint32_t *retval);
+
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_H */

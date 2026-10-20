@@ -501,19 +501,6 @@ int shirudo_tpm_nv_extend(struct shirudo_tpm *t, uint32_t index,
 	return err;
 }
 
-static void put16(uint8_t *p, uint16_t v)
-{
-	p[0] = (uint8_t)(v >> 8);
-	p[1] = (uint8_t)v;
-}
-
-static size_t put2b(uint8_t *p, const uint8_t *data, uint16_t len)
-{
-	put16(p, len);
-	memcpy(p + 2, data, len);
-	return 2u + len;
-}
-
 static int public_from_tss(const TPMT_PUBLIC *p, uint8_t *out, size_t cap,
 			   size_t *len)
 {
@@ -574,12 +561,12 @@ static int marshal_signature(const TPMT_SIGNATURE *sig, uint8_t *out,
 	if (sig->sigAlg != TPM2_ALG_ECDSA || e->signatureR.size > 64 ||
 	    e->signatureS.size > 64 || cap < 8u + 128u)
 		return -EINVAL;
-	put16(out + off, sig->sigAlg);
+	tpm_put16(out + off, sig->sigAlg);
 	off += 2;
-	put16(out + off, e->hash);
+	tpm_put16(out + off, e->hash);
 	off += 2;
-	off += put2b(out + off, e->signatureR.buffer, e->signatureR.size);
-	off += put2b(out + off, e->signatureS.buffer, e->signatureS.size);
+	off += tpm_put2b(out + off, e->signatureR.buffer, e->signatureR.size);
+	off += tpm_put2b(out + off, e->signatureS.buffer, e->signatureS.size);
 	*len = off;
 	return 0;
 }

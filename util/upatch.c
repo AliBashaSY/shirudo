@@ -17,22 +17,6 @@
 
 #include "upatch.h"
 
-static uint32_t rd_le32(const void *p)
-{
-	uint32_t v;
-
-	memcpy(&v, p, sizeof(v));
-	return le32toh(v);
-}
-
-static uint64_t rd_le64(const void *p)
-{
-	uint64_t v;
-
-	memcpy(&v, p, sizeof(v));
-	return le64toh(v);
-}
-
 static int parse_header(const unsigned char *m, size_t n,
 			struct shirudo_upatch_header *out, size_t *header_size)
 {

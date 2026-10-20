@@ -710,22 +710,6 @@ static int prog_load_signed(const struct bpf_insn *insns, size_t insn_cnt,
 	return (int)fd;
 }
 
-static int prog_test_run_ctx(int prog_fd, void *ctx, uint32_t ctx_sz,
-			     uint32_t *retval)
-{
-	union bpf_attr attr = {};
-	long ret;
-
-	attr.test.prog_fd = prog_fd;
-	attr.test.ctx_in = (uint64_t)(uintptr_t)ctx;
-	attr.test.ctx_size_in = ctx_sz;
-	ret = syscall(__NR_bpf, BPF_PROG_TEST_RUN, &attr, sizeof(attr));
-	if (ret < 0)
-		return -errno;
-	*retval = attr.test.retval;
-	return 0;
-}
-
 /* A NULL name attaches at the attach_btf_id the signed program carries. */
 static int prog_attach_raw_tp(int prog_fd)
 {
@@ -1606,8 +1590,8 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		uint32_t retval = 0;
 
 		/* A zero context is the load-time arena initialization call. */
-		rc = prog_test_run_ctx(test_fd, init_ctx, sizeof(init_ctx),
-					&retval);
+		rc = shirudo_prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
+					   &retval);
 		if (rc || (int32_t)retval < 0) {
 			pr_err("initialize test-run arena: %s",
 			       rc ? strerror(-rc) : strerror(-(int32_t)retval));
@@ -2049,7 +2033,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	cx->log_size = SHIRUDO_VERIFIER_LOG_MAX;
 	cx->log_buf = (uint64_t)(uintptr_t)vlog;
 
-	rc = prog_test_run_ctx(prog_fd, cx, (uint32_t)ctx_sz, &retval);
+	rc = shirudo_prog_test_run(prog_fd, cx, (uint32_t)ctx_sz, &retval);
 	if (rc) {
 		pr_err("BPF_PROG_TEST_RUN: %s", strerror(errno));
 		if (vlog[0])
