@@ -4,8 +4,8 @@
 #
 # t0042 -- .github/scripts/check-spdx.sh: the tag every source needs, its form
 # by file type, the two expressions, the dual licence of everything a
-# BPF object compiles and a Beefile ships, on a throwaway repository,
-# and the tree itself.
+# BPF object compiles and a Beefile ships, the licences vendored C may
+# carry, on a throwaway repository, and the tree itself.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -46,7 +46,10 @@ put "$R/block.rst" '..' '   SPDX-License-Identifier: BSD-2-Clause' '   Copyright
 put "$R/line.rst" '.. SPDX-License-Identifier: BSD-2-Clause'
 put "$R/notes.md" 'no tag here'
 put "$R/data.json" '{}'
-put "$R/vendor/x.c" 'int x;'
+put "$R/vendor/x.c" '// SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)' 'int x;'
+put "$R/vendor/uapi.h" '/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */'
+put "$R/vendor/libbpf/bpf/bpf_helper_defs.h" '/* This is auto-generated file. */'
+put "$R/vendor/README.md" 'no tag here'
 put "$R/vendor/linux/vmlinux.h" 'struct task_struct;'
 put "$R/pkg/vmlinux.h" 'struct task_struct;'
 put "$R/Documentation/coding-style.rst" 'Linux kernel coding style'
@@ -63,7 +66,7 @@ put "$R/pkg/gen.py" '#!/usr/bin/env python3' '# SPDX-License-Identifier: BSD-2-C
 
 test_expect_success 'a tree of well-tagged files passes' '
 	check "$R" &&
-	grep -q "SPDX: 16 files checked" "$W/out"
+	grep -q "SPDX: 18 files checked" "$W/out"
 '
 
 B=$W/bad
@@ -91,10 +94,12 @@ put "$B/pkg/Beefile" '[package]' 'license = "GPL-2.0 OR BSD-2-Clause"' \
 put "$B/pkg/decoders/x.lua" '-- SPDX-License-Identifier: BSD-2-Clause'
 put "$B/pkg/gen.py" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$B/nolic/Beefile" '[package]' 'name = "x"'
+put "$B/vendor/types.h" '/* SPDX-License-Identifier: GPL-2.0 */'
+put "$B/vendor/bare.c" 'int x;'
 
 test_expect_success 'a tree of badly tagged files fails' '
 	! check "$B" &&
-	grep -q "^14 SPDX problems" "$W/err"
+	grep -q "^16 SPDX problems" "$W/err"
 '
 
 test_expect_success 'the form of the tag follows the file type' '
@@ -126,6 +131,11 @@ test_expect_success 'a package ships its sources under the licence of its Beefil
 	grep -q "^pkg/decoders/x.lua: shipped by pkg/Beefile under .GPL-2.0 OR BSD-2-Clause. but licensed .BSD-2-Clause." "$W/err" &&
 	! grep -q "^pkg/gen.py" "$W/err" &&
 	grep -q "^nolic/Beefile: no license field" "$W/err"
+'
+
+test_expect_success 'vendored C carries a licence the binaries can take' '
+	grep -q "^vendor/types.h: licence expression .GPL-2.0. is not one vendored code may carry" "$W/err" &&
+	grep -q "^vendor/bare.c: vendored without an SPDX-License-Identifier tag on line 1" "$W/err"
 '
 
 test_expect_success 'the tree passes' '

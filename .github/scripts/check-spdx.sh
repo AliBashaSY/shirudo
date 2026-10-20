@@ -11,8 +11,8 @@
 #
 #   .github/scripts/check-spdx.sh
 #
-# Runs from anywhere inside the checkout. The vendored trees keep their
-# own licences and are not checked.
+# Runs from anywhere inside the checkout. Vendored C keeps its upstream
+# tag, which has to name one of the licences listed in vendor_ok().
 
 set -eu
 
@@ -35,14 +35,44 @@ report() {
 	printf '%s: %s\n' "$1" "$2" >&2
 }
 
-# Vendored code keeps its own licence, the kernel's coding-style.rst is
-# carried verbatim and vmlinux.h is generated from BTF.
+# The kernel's coding-style.rst is carried verbatim and vmlinux.h is
+# generated from BTF.
 excluded() {
 	case "$1" in
-	vendor/*|Documentation/coding-style.rst|vmlinux.h|*/vmlinux.h)
+	Documentation/coding-style.rst|vmlinux.h|*/vmlinux.h)
 		return 0 ;;
 	esac
 	return 1
+}
+
+# The licences vendored C may carry, each one the binaries can take next
+# to OpenSSL's Apache-2.0: libbpf's dual licence, the UAPI headers' GPL
+# with the syscall note, and shirudo's own shims.
+vendor_ok() {
+	case "$1" in
+	'(LGPL-2.1 OR BSD-2-Clause)'|'BSD-2-Clause'|\
+	'GPL-2.0 WITH Linux-syscall-note'|\
+	'((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
+		return 0 ;;
+	esac
+	return 1
+}
+
+check_vendor() {
+	f=$1
+	l1=''
+	IFS= read -r l1 <"$f" || :
+	case "$l1" in
+	*SPDX-License-Identifier:*)
+		;;
+	*)
+		report "$f" "vendored without an SPDX-License-Identifier tag on line 1"
+		return ;;
+	esac
+	expr=$(printf '%s' "${l1#*SPDX-License-Identifier:}" |
+		sed 's/^[[:space:]]*//; s/[[:space:]]*\*\/[[:space:]]*$//; s/[[:space:]]*$//')
+	vendor_ok "$expr" ||
+		report "$f" "licence expression '$expr' is not one vendored code may carry"
 }
 
 # The comment form of the tag by file type, the kernel's rules with --
@@ -140,10 +170,16 @@ expr_of() {
 }
 
 : >"$work/files"
+: >"$work/vendor"
 : >"$work/exprs"
 git ls-files | while IFS= read -r f; do
 	excluded "$f" && continue
-	printf '%s\n' "$f" >>"$work/files"
+	case "$f" in
+	vendor/*)
+		printf '%s\n' "$f" >>"$work/vendor" ;;
+	*)
+		printf '%s\n' "$f" >>"$work/files" ;;
+	esac
 done
 
 while IFS= read -r f; do
@@ -152,6 +188,20 @@ while IFS= read -r f; do
 	checked=$((checked + 1))
 	check_file "$f" "$kind"
 done <"$work/files"
+
+# bpf_doc.py writes bpf_helper_defs.h without a tag; it is libbpf's.
+while IFS= read -r f; do
+	case "$f" in
+	vendor/libbpf/bpf/bpf_helper_defs.h)
+		continue ;;
+	*.c|*.h)
+		;;
+	*)
+		continue ;;
+	esac
+	checked=$((checked + 1))
+	check_vendor "$f"
+done <"$work/vendor"
 
 # Everything clang -target bpf compiles, the LSM and its loaders under
 # bpf/ and every *.bpf.c, plus the headers they include by relative

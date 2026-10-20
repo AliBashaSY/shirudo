@@ -16,7 +16,7 @@ source commit in `COMMIT`, and rebuilds `libbpf.a` as a check.
 |---|---|---|
 | `bpf/*.c`, `bpf/*.h` | `tools/lib/bpf/` (verbatim, but see below) | `LGPL-2.1 OR BSD-2-Clause`; shirudo consumes the BSD branch |
 | `bpf/bpf_helper_defs.h` | generated from `bpf.h` by `scripts/bpf_doc.py` | as libbpf |
-| `include/uapi/linux/*.h` | `tools/include/uapi/linux/` (verbatim) | `GPL-2.0 WITH Linux-syscall-note`: the syscall note permits user programs to include them |
+| `include/uapi/linux/*.h` | `tools/include/uapi/linux/` (verbatim) | `GPL-2.0 WITH Linux-syscall-note`, `netdev.h` also `OR BSD-3-Clause`: the syscall note permits user programs to include them |
 | `include/linux/*.h`, `include/asm/*.h` | shirudo-owned shims replacing the kernel's `tools/include` internals | BSD-2-Clause |
 | `Makefile`, `README.md` | shirudo-owned | BSD-2-Clause |
 
@@ -32,3 +32,7 @@ of `bpf-deps` fails on the missing symbol; extend the shim.
 the recorded commit, 5de632280142 ("libbpf: validate generated loader
 program counts"). `bpf-deps` overwrites both files, so re-apply that
 change after a refresh until it is upstream.
+
+`.github/scripts/check-spdx.sh` holds every vendored `.c` and `.h` to
+the licences in this table, so a refresh that brings in a file under
+any other licence fails CI.
