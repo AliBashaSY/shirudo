@@ -1075,97 +1075,6 @@ out:
 #define HEXLEN(n)	((n) * 2 + 1)
 
 /*
- * State an older shirudo may have left behind for features this
- * version no longer has: the trusted-root mode record, the Java agent
- * payload with its lock and JAVA_TOOL_OPTIONS selector, and persisted
- * Java-type upatches. None of it can load any more, and a Java upatch
- * would fail every boot-restore, so init removes it before labelling
- * the tree. The selector is removed only when shirudo wrote it.
- */
-#define STALE_MODE_PATH		SHIRUDO_VAR_LIB "/mode"
-#define STALE_JAVAAGENT_PATH	SHIRUDO_VAR_LIB "/javaagent.jar"
-#define STALE_JAVAAGENT_LOCK	SHIRUDO_LOCKS_DIR "/javaagent.lock"
-#define STALE_JAVAAGENT_ENV	"/etc/environment.d/shirudo.conf"
-#define STALE_JAVAAGENT_ENV_HEAD \
-	"JAVA_TOOL_OPTIONS=\"-javaagent:" STALE_JAVAAGENT_PATH
-#define STALE_UPATCH_TYPE_JAVA	2u
-
-static void unlink_stale(const char *path)
-{
-	if (unlink(path) == 0)
-		pr_warn("init: removed stale %s", path);
-	else if (errno != ENOENT)
-		pr_warn("init: cannot remove stale %s: %s", path,
-			strerror(errno));
-}
-
-static bool is_javaagent_env(void)
-{
-	static const char head[] = STALE_JAVAAGENT_ENV_HEAD;
-	char buf[sizeof(head) - 1];
-	ssize_t n;
-	int fd;
-
-	fd = open(STALE_JAVAAGENT_ENV, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-	if (fd < 0)
-		return false;
-	n = read(fd, buf, sizeof(buf));
-	close(fd);
-	return n == (ssize_t)sizeof(buf) && memcmp(buf, head, sizeof(buf)) == 0;
-}
-
-static bool is_java_upatch(const char *path)
-{
-	unsigned char hdr[SHIRUDO_UPATCH_HEADER_SIZE];
-	uint32_t version, type, reserved;
-	uint64_t magic;
-	ssize_t n;
-	int fd;
-
-	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-	if (fd < 0)
-		return false;
-	n = read(fd, hdr, sizeof(hdr));
-	close(fd);
-	if (n != (ssize_t)sizeof(hdr))
-		return false;
-	memcpy(&magic, hdr, sizeof(magic));
-	memcpy(&version, hdr + 8, sizeof(version));
-	memcpy(&type, hdr + SHIRUDO_UPATCH_LEGACY_HEADER_SIZE, sizeof(type));
-	memcpy(&reserved, hdr + SHIRUDO_UPATCH_LEGACY_HEADER_SIZE + 4,
-	       sizeof(reserved));
-	return le64toh(magic) == SHIRUDO_UPATCH_MAGIC &&
-	       le32toh(version) == SHIRUDO_UPATCH_VERSION &&
-	       le32toh(type) == STALE_UPATCH_TYPE_JAVA && reserved == 0;
-}
-
-static void remove_stale_state(void)
-{
-	struct dirent **names = NULL;
-	int n, i;
-
-	unlink_stale(STALE_MODE_PATH);
-	unlink_stale(STALE_JAVAAGENT_PATH);
-	unlink_stale(STALE_JAVAAGENT_LOCK);
-	if (is_javaagent_env())
-		unlink_stale(STALE_JAVAAGENT_ENV);
-
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, shirudo_upatch_select,
-		    alphasort);
-	for (i = 0; i < n; i++) {
-		char path[PATH_MAX];
-
-		if (snprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
-			     names[i]->d_name) < (int)sizeof(path) &&
-		    is_java_upatch(path))
-			unlink_stale(path);
-		shirudo_libc_free(names[i]);
-	}
-	if (n >= 0)
-		shirudo_libc_free(names);
-}
-
-/*
  * All or nothing: one failure leaves init incomplete and the register
  * unextended. On a re-run an upatch already pinned this boot with the
  * archived payload is counted and left alone; loading it again would
@@ -1564,8 +1473,6 @@ static int run_init(bool no_seal)
 	rc = init_bpffs();
 	if (rc)
 		return rc;
-	if (!initrd_mode)
-		remove_stale_state();
 
 	rc = init_keyring();
 	if (rc)
