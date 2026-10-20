@@ -97,8 +97,12 @@ fixture.
        provides a software TPM for machines without one.
    * - ``CONFIG_EXT4_FS_SECURITY`` (when ``/var/lib/shirudo`` is on ext4)
      - Allows ``init`` to store the ``security.bpf.shirudo`` label used by
-       the filesystem seal.  Other filesystems hosting this state must
-       support security xattrs.
+       the filesystem seal, and the seal to write it on a new inode
+       inside the transaction that creates it.  Other filesystems hosting
+       this state must support security xattrs, at creation included.
+   * - ``CONFIG_TMPFS_XATTR``
+     - The label on ``/run/shirudo`` and on the init record an initrd
+       run leaves there for the root file system's run.
 
 ``CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA`` is not required: it
 only relaxes module-signature checks, and BPF signature verification

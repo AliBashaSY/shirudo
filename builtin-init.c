@@ -481,6 +481,10 @@ static int init_bpffs(void)
 		pr_err("mkdir %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
 		return rc;
 	}
+	/* So that the init record left here is sealed from its creation. */
+	rc = shirudo_seal_label(SHIRUDO_RUN_DIR);
+	if (rc)
+		pr_warn("seal: label %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
 	rc = mkdir_p_mode(SHIRUDO_BPFFS_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s",

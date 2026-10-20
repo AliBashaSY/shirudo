@@ -69,9 +69,10 @@ needs nothing from the root file system.
 The kernel keyring is kernel state and survives by itself; so do the
 TPM's NV index and PCRs.  The init record cannot be written to the
 root's eventlog while the root is read-only, so it waits under ``/run``
-in the same tmpfs, labelled with the sealing xattr, and the eventlog
-readers treat it as part of this boot's log until the root file
-system's run appends it and removes the file.
+in the same tmpfs, in ``/run/shirudo``, which ``init`` labels with the
+sealing xattr so that the record is sealed from the instant it is
+created, and the eventlog readers treat it as part of this boot's log
+until the root file system's run appends it and removes the file.
 
 The bpffs guards admit the executable recorded at init.  From the
 initrd the running binary is the initrd's copy, which is gone after
