@@ -94,47 +94,37 @@ static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 
 int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 {
-	char *buf = NULL;
-	size_t buf_cap = 0;
-	size_t mod_cap = 64, deps_cap = 256;
-	char *line, *save = NULL;
+	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
+	struct edge { uint16_t user, dep; } *edges = NULL;
+	char *buf = NULL, *line, *end;
+	size_t buf_cap = 0, i, j;
 	int rc;
 
 	memset(set, 0, sizeof(*set));
 	rc = slurp(&buf, &buf_cap);
 	if (rc)
 		return rc;
+	end = buf + strlen(buf);
+	for (line = buf; line < end; line++)
+		if (*line == '\n')
+			*line = '\0';
 
 	set->mods = xmalloc(mod_cap * sizeof(*set->mods));
 	set->deps = xmalloc(deps_cap * sizeof(*set->deps));
-	if (!set->mods || !set->deps) {
+	edges = xmalloc(edge_cap * sizeof(*edges));
+	if (!set->mods || !set->deps || !edges) {
 		rc = -ENOMEM;
-		goto fail;
+		goto out;
 	}
 
 	/*
-	 * First pass: collect each module's name, size, refcount, and
-	 * a dep-string slice. We resolve dep names to indices after the
-	 * full set is sorted (so we know all names exist).
+	 * Names first, sorted, so that the second pass can turn the
+	 * used-by column into indices.
 	 */
-	struct raw_dep {
-		uint16_t	mod_idx;	/* index into set->mods */
-		const char	*dep_name;
-		size_t		dep_len;
-	};
-	size_t raw_cap = 256, n_raw = 0;
-	struct raw_dep *raws = xmalloc(raw_cap * sizeof(*raws));
-
-	if (!raws) {
-		rc = -ENOMEM;
-		goto fail;
-	}
-
-	for (line = strtok_r(buf, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
+	for (line = buf; line < end; line += strlen(line) + 1) {
+		struct shirudo_kmod *m;
 		char *p = line, *e;
 		size_t name_len;
-		struct shirudo_kmod *m;
 
 		while (*p == ' ' || *p == '\t')
 			p++;
@@ -146,103 +136,35 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		name_len = (size_t)(e - p);
 		if (name_len == 0 || name_len >= SHIRUDO_KMOD_NAME_LEN)
 			continue;
-
 		if (set->n == mod_cap) {
 			void *np = xreallocarray(set->mods, mod_cap,
 						 mod_cap * 2,
 						 sizeof(*set->mods));
+
 			if (!np) {
 				rc = -ENOMEM;
-				goto fail_raws;
+				goto out;
 			}
 			set->mods = np;
 			mod_cap *= 2;
 		}
-		m = &set->mods[set->n];
+		m = &set->mods[set->n++];
 		memcpy(m->name, p, name_len);
 		m->name[name_len] = '\0';
-		p = e;
-		while (*p == ' ' || *p == '\t')
-			p++;
-
-		m->size = strtoull(p, &p, 10);
-		while (*p == ' ' || *p == '\t')
-			p++;
-		m->refcount = (uint32_t)strtoul(p, &p, 10);
-		while (*p == ' ' || *p == '\t')
-			p++;
-
-		m->n_deps = 0;
-		m->deps_off = 0;
-
-		if (*p && *p != '-') {
-			const char *q = p;
-
-			while (*q && *q != ' ' && *q != '\t') {
-				const char *start = q;
-
-				while (*q && *q != ',' && *q != ' ' && *q != '\t')
-					q++;
-				if (q > start) {
-					if (n_raw == raw_cap) {
-						void *np = xreallocarray(raws,
-							raw_cap, raw_cap * 2,
-							sizeof(*raws));
-						if (!np) {
-							rc = -ENOMEM;
-							goto fail_raws;
-						}
-						raws = np;
-						raw_cap *= 2;
-					}
-					raws[n_raw].mod_idx = (uint16_t)set->n;
-					raws[n_raw].dep_name = start;
-					raws[n_raw].dep_len =
-						(size_t)(q - start);
-					n_raw++;
-				}
-				if (*q == ',')
-					q++;
-			}
-		}
-		set->n++;
+		m->size = strtoull(e, &p, 10);
+		m->refcount = (uint32_t)strtoul(p, NULL, 10);
 	}
-
 	qsort(set->mods, set->n, sizeof(*set->mods), kmod_cmp);
 
-	for (size_t i = 0; i < n_raw; i++) {
-		(void)0;
-	}
 	/*
-	 * The qsort above invalidated raws[].mod_idx. We have no way
-	 * to recover the owner without re-parsing, so do a second pass
-	 * over /proc/modules' text. Cheap: typically ~100 lines.
+	 * The fourth column of a line names who uses the module, so each
+	 * entry there is an edge from that user down to the module.
 	 */
-	n_raw = 0;
-	/*
-	 * Reload /proc/modules: strtok_r mutated `buf` on the first
-	 * pass and there is no portable rewind for an in-memory blob,
-	 * so we slurp fresh.
-	 */
-	{
-		char *buf2;
-		size_t buf2_cap;
-
-		rc = slurp(&buf2, &buf2_cap);
-		if (rc)
-			goto fail_raws;
-		xfree(buf, buf_cap);
-		buf = buf2;
-		buf_cap = buf2_cap;
-	}
-	save = NULL;
-	for (line = strtok_r(buf, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
+	for (line = buf; line < end; line += strlen(line) + 1) {
+		char name[SHIRUDO_KMOD_NAME_LEN];
 		char *p = line, *e;
 		size_t name_len;
-		int child_idx;
-		char namebuf[SHIRUDO_KMOD_NAME_LEN];
-		int col;
+		int dep, col;
 
 		while (*p == ' ' || *p == '\t')
 			p++;
@@ -252,22 +174,13 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		while (*e && *e != ' ' && *e != '\t')
 			e++;
 		name_len = (size_t)(e - p);
-		if (name_len == 0 || name_len >= SHIRUDO_KMOD_NAME_LEN)
+		if (name_len == 0 || name_len >= sizeof(name))
 			continue;
-		memcpy(namebuf, p, name_len);
-		namebuf[name_len] = '\0';
-		child_idx = kmod_find(set, namebuf);
-		if (child_idx < 0)
+		memcpy(name, p, name_len);
+		name[name_len] = '\0';
+		dep = kmod_find(set, name);
+		if (dep < 0)
 			continue;
-
-		/*
-		 * /proc/modules columns: name size refcount used_by state
-		 * offset. The 4th column is *who uses this module*, not
-		 * the other way around. So for line `m ... ... u1,u2,u3`
-		 * we want edges u1->m, u2->m, u3->m (m becomes a child
-		 * of each user in the tree). Skip 2 columns to land on
-		 * the used_by list.
-		 */
 		p = e;
 		for (col = 0; col < 2 && *p; col++) {
 			while (*p == ' ' || *p == '\t')
@@ -280,69 +193,57 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		if (!*p || *p == '-')
 			continue;
 		while (*p && *p != ' ' && *p != '\t') {
-			const char *start = p;
+			int user = -1;
 
-			while (*p && *p != ',' && *p != ' ' && *p != '\t')
-				p++;
-			if (p > start) {
-				char user[SHIRUDO_KMOD_NAME_LEN];
-				size_t ulen = (size_t)(p - start);
-				int user_idx;
-
-				if (ulen >= sizeof(user))
-					goto skip;
-				memcpy(user, start, ulen);
-				user[ulen] = '\0';
-				user_idx = kmod_find(set, user);
-				if (user_idx < 0)
-					goto skip;
-				if (n_raw == raw_cap) {
-					void *np = xreallocarray(raws, raw_cap,
-						raw_cap * 2, sizeof(*raws));
-					if (!np) {
-						rc = -ENOMEM;
-						goto fail_raws;
-					}
-					raws = np;
-					raw_cap *= 2;
-				}
-				raws[n_raw].mod_idx = (uint16_t)user_idx;
-				raws[n_raw].dep_name = set->mods[child_idx].name;
-				raws[n_raw].dep_len = strlen(raws[n_raw].dep_name);
-				n_raw++;
+			e = p;
+			while (*e && *e != ',' && *e != ' ' && *e != '\t')
+				e++;
+			name_len = (size_t)(e - p);
+			if (name_len && name_len < sizeof(name)) {
+				memcpy(name, p, name_len);
+				name[name_len] = '\0';
+				user = kmod_find(set, name);
 			}
-skip:
-			if (*p == ',')
-				p++;
+			p = *e == ',' ? e + 1 : e;
+			if (user < 0)
+				continue;
+			if (n_edges == edge_cap) {
+				void *np = xreallocarray(edges, edge_cap,
+							 edge_cap * 2,
+							 sizeof(*edges));
+
+				if (!np) {
+					rc = -ENOMEM;
+					goto out;
+				}
+				edges = np;
+				edge_cap *= 2;
+			}
+			edges[n_edges].user = (uint16_t)user;
+			edges[n_edges].dep = (uint16_t)dep;
+			n_edges++;
 		}
 	}
 
-	for (size_t i = 0; i < set->n; i++) {
+	for (i = 0; i < set->n; i++) {
 		set->mods[i].deps_off = (uint16_t)set->n_deps;
-		for (size_t j = 0; j < n_raw; j++) {
-			char namebuf[SHIRUDO_KMOD_NAME_LEN];
-			int idx;
-
-			if (raws[j].mod_idx != i)
-				continue;
-			if (raws[j].dep_len >= sizeof(namebuf))
-				continue;
-			memcpy(namebuf, raws[j].dep_name, raws[j].dep_len);
-			namebuf[raws[j].dep_len] = '\0';
-			idx = kmod_find(set, namebuf);
-			if (idx < 0)
+		set->mods[i].n_deps = 0;
+		for (j = 0; j < n_edges; j++) {
+			if (edges[j].user != i)
 				continue;
 			if (set->n_deps == deps_cap) {
 				void *np = xreallocarray(set->deps, deps_cap,
-					deps_cap * 2, sizeof(*set->deps));
+							 deps_cap * 2,
+							 sizeof(*set->deps));
+
 				if (!np) {
 					rc = -ENOMEM;
-					goto fail_raws;
+					goto out;
 				}
 				set->deps = np;
 				deps_cap *= 2;
 			}
-			set->deps[set->n_deps++] = (uint16_t)idx;
+			set->deps[set->n_deps++] = edges[j].dep;
 			set->mods[i].n_deps++;
 		}
 	}
@@ -354,7 +255,7 @@ skip:
 	 * load time. ENOENT on a race (rmmod between /proc/modules read
 	 * and this stat) is non-fatal; leave loaded_at zero.
 	 */
-	for (size_t i = 0; i < set->n; i++) {
+	for (i = 0; i < set->n; i++) {
 		struct shirudo_kmod *m = &set->mods[i];
 		char path[64 + sizeof("/sys/module/")];
 		struct stat st;
@@ -365,18 +266,15 @@ skip:
 			m->loaded_at_nsec = (int32_t)st.st_mtim.tv_nsec;
 		}
 	}
-
-	xfree(raws, raw_cap * sizeof(*raws));
+	rc = 0;
+out:
+	xfree(edges, edge_cap * sizeof(*edges));
 	xfree(buf, buf_cap);
-	return 0;
-
-fail_raws:
-	xfree(raws, raw_cap * sizeof(*raws));
-fail:
-	xfree(buf, buf_cap);
-	xfree(set->mods, mod_cap * sizeof(*set->mods));
-	xfree(set->deps, deps_cap * sizeof(*set->deps));
-	memset(set, 0, sizeof(*set));
+	if (rc) {
+		xfree(set->mods, mod_cap * sizeof(*set->mods));
+		xfree(set->deps, deps_cap * sizeof(*set->deps));
+		memset(set, 0, sizeof(*set));
+	}
 	return rc;
 }
 
