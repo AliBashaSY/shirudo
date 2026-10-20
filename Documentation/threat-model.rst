@@ -156,9 +156,11 @@ T3  Tampering with shirudo's files and process
     opened, unlinked or renamed by anyone else; what another process
     creates there is sealed from the same instant, out of its own
     reach as well.
-    Marked shirudo tasks cannot be ptraced or perf-sampled, and the
-    process drops dumpability, forbids new privileges and locks
-    sensitive buffers. The bpf keyring is sealed with
+    Marked shirudo tasks cannot be ptraced, which also closes the
+    ``/proc`` files that need ptrace access, and no perf event can be
+    bound to one of them; a system-wide profile still sees them as it
+    sees every task.  The process drops dumpability, forbids new
+    privileges and locks sensitive buffers. The bpf keyring is sealed with
     ``KEYCTL_RESTRICT_KEYRING`` so no key can be linked into it for the
     rest of the boot, ``lsm/key_permission`` leaves writing, unlinking,
     revoking, invalidating and re-permissioning it and the keys it

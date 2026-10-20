@@ -299,8 +299,9 @@ strings, nothing a bind mount or a mount namespace can confuse.
 ``bprm_check_security`` and ``bprm_committed_creds`` mark tasks that
 exec a labelled binary in task-local storage, ``task_alloc`` inherits
 the mark, and ``ptrace_access_check`` and ``perf_event_alloc`` deny
-against marked tasks, so a root debugger or profiler cannot attach to a
-running shirudo; a forged label can only mark its forger.  An inode
+against marked tasks, so a root debugger cannot attach to a running
+shirudo and a profiler cannot bind an event to one; a forged label can
+only mark its forger.  An inode
 created under a labelled directory is born with the label:
 ``inode_init_security`` hands it to the file system inside the
 transaction that creates the inode, through

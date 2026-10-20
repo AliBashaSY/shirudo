@@ -45,6 +45,8 @@ checks that Shirudo can still export the pre-existing Python exec record.
 | TP-23 | Root renames an unlabelled file over a labelled file and so replaces it | Covered | `t1132-seal-scratch.sh` | The seal checks the destination of a rename as well as its source; only the recorded executable may be replaced, as a package upgrade does. |
 | TP-24 | Root truncates, chmods or chowns a labelled file without opening it | Covered | `t1132-seal-scratch.sh` | `truncate(2)` changes the contents without a write open, and `chmod` can make a labelled file unreadable to a caller that may still write it; the seal guards attribute changes like writes. |
 | TP-25 | Root creates a file, directory, symlink or O_TMPFILE under a labelled directory | Covered | `t1133-seal-init-xattr.sh` | The inode is born labelled and sealed from that instant; a child of a new directory needs no reopen; the run directory is labelled; a file outside the tree is not. |
+| TP-26 | Root attaches a debugger to a running shirudo task with `PTRACE_ATTACH` | Covered | `t1134-seal-task.sh` | The seal refuses with `EACCES`, Yama's `EPERM` would not do; the task is unharmed and finishes. |
+| TP-27 | Root binds a perf event to a running shirudo task | Covered | `t1134-seal-task.sh` | `perf_event_open` on the task is refused with `EACCES`; the same event on the caller's own task is the positive control. |
 
 ## Review notes
 

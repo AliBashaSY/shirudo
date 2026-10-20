@@ -649,6 +649,8 @@ static const struct {
 	{ "shirudo_seal_bprm_committed_creds",
 	  SHIRUDO_SEAL_BPRM_COMMITTED_PIN },
 	{ "shirudo_seal_task_alloc",		SHIRUDO_SEAL_TASK_ALLOC_PIN },
+	{ "shirudo_seal_ptrace_access_check",	SHIRUDO_SEAL_PTRACE_PIN },
+	{ "shirudo_seal_perf_event_alloc",	SHIRUDO_SEAL_PERF_PIN },
 	{ "shirudo_seal_file_open",		SHIRUDO_SEAL_FILE_OPEN_PIN },
 	{ "shirudo_seal_inode_post_setxattr",
 	  SHIRUDO_SEAL_POST_SETXATTR_PIN },
