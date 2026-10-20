@@ -494,6 +494,7 @@ TEST_HELPERS := testing/helper/test-json-parser \
                 testing/helper/test-register \
                 testing/helper/test-eventlog \
                 testing/helper/test-keys \
+                testing/helper/test-seal \
                 $(TPMSIM_HELPER) \
 		testing/helper/test-config \
 		testing/helper/test-bpm-source \
@@ -530,6 +531,11 @@ testing/helper/test-keys: testing/helper/test-keys.c util/keys.o \
                           util/upatch.o $(REGISTER_OBJS)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
+
+testing/helper/test-seal: testing/helper/test-seal.c util/seal.o util/io.o \
+                          util/log.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-eventlog: testing/helper/test-eventlog.c $(REGISTER_OBJS)
 	@printf '  CC      $@\n'

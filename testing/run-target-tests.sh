@@ -35,6 +35,7 @@ for t in \
 	t1126-keys-revoke.sh \
 	tamperproof/t1101-seal.sh \
 	tamperproof/t1132-seal-scratch.sh \
+	tamperproof/t1133-seal-init-xattr.sh \
 	tamperproof/t1105-siggate.sh \
 	tamperproof/t1110-lsm-deny.sh \
 	tamperproof/t1112-prog-load-keyring-gate.sh \
