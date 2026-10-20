@@ -54,7 +54,7 @@ There is no official shirudo release yet.
 
 [main](https://github.com/shirudo-dev/shirudo/commits/main/) is the
 development branch and no stable branches are maintained at this point.
-Until the first release, every push to mainbuilds the packages in the
+Until the first release, every push to main builds the packages in the
 [Build packages](https://github.com/shirudo-dev/shirudo/actions/workflows/deb.yml)
 workflow, where they are available as run artifacts. Once releases
 start, each release tag publishes its packages on
