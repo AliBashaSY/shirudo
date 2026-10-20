@@ -128,4 +128,7 @@ int shirudo_cert_pubkey(const struct shirudo_cert *cert,
 int shirudo_cert_verify_chain(const struct shirudo_cert *cert,
 			      const char *bundle_path, const char **reason);
 
+/* Log libcrypto's last error under where. */
+void shirudo_openssl_complain(const char *where);
+
 #endif /* SHIRUDO_CRYPTO_H */

@@ -44,11 +44,6 @@ void bpm_copy_string(char *dst, size_t dst_sz, const char *src)
 	dst[len] = '\0';
 }
 
-int bpm_mkdir_p(const char *path, mode_t mode)
-{
-	return shirudo_seal_mkdir_p(path, mode);
-}
-
 static bool bpm_component_ok(const char *s, bool plus)
 {
 	const unsigned char *p = (const unsigned char *)s;

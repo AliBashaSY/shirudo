@@ -102,8 +102,6 @@ int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 /* 2xx fills out; 404 is -ENOENT, other failures -EACCES. */
 int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
 		       const char *accept, struct bpm_buffer *out);
-/* mkdir -p under the state tree: born sealed as the parent is. */
-int bpm_mkdir_p(const char *path, mode_t mode);
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		     const char *accept, const char *path);
 int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,

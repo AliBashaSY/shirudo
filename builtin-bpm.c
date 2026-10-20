@@ -275,11 +275,19 @@ static int save_source(const struct bpm_source *s)
 
 static int with_bpm_lock(void)
 {
-	int fd;
-	{ int rc = bpm_mkdir_p(SHIRUDO_LOCKS_DIR, 0700); if (rc) return rc; }
+	int fd, rc;
+
+	rc = shirudo_seal_mkdir_p(SHIRUDO_LOCKS_DIR, 0700);
+	if (rc)
+		return rc;
 	fd = shirudo_seal_open(SHIRUDO_BPM_LOCK_PATH, O_RDWR | O_CREAT, 0600);
-	if (fd < 0) return fd;
-	if (flock(fd, LOCK_EX)) { int rc = -errno; close(fd); return rc; }
+	if (fd < 0)
+		return fd;
+	if (flock(fd, LOCK_EX)) {
+		rc = -errno;
+		close(fd);
+		return rc;
+	}
 	return fd;
 }
 
@@ -369,7 +377,11 @@ static int extract_archive(const char *archive, const char *dest)
 	int rc = 0;
 
 	if (!gz) return -EINVAL;
-	if ((rc = bpm_mkdir_p(dest, 0700))) { gzclose(gz); return rc; }
+	rc = shirudo_seal_mkdir_p(dest, 0700);
+	if (rc) {
+		gzclose(gz);
+		return rc;
+	}
 	for (;;) {
 		int n = gzread(gz, h, sizeof(h));
 		uint64_t size, remain, pad;
@@ -392,12 +404,20 @@ static int extract_archive(const char *archive, const char *dest)
 		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) { rc = -EINVAL; break; }
 		if (snprintf(path, sizeof(path), "%s/%s", dest, rel) >= (int)sizeof(path)) { rc = -ENAMETOOLONG; break; }
 		if (type == '5') {
-			if ((rc = bpm_mkdir_p(path, 0700))) break;
+			rc = shirudo_seal_mkdir_p(path, 0700);
+			if (rc)
+				break;
 		} else if (type == '0') {
 			char parent[PATH_MAX];
 			FILE *fp;
 			snprintf(parent, sizeof(parent), "%s", path);
-			slash = strrchr(parent, '/'); if (slash) { *slash = 0; if ((rc = bpm_mkdir_p(parent, 0700))) break; }
+			slash = strrchr(parent, '/');
+			if (slash) {
+				*slash = 0;
+				rc = shirudo_seal_mkdir_p(parent, 0700);
+				if (rc)
+					break;
+			}
 			fp = fopen(path, "wb"); if (!fp) { rc = -errno; break; }
 			remain = size;
 			while (remain) {
@@ -461,7 +481,7 @@ static int install_key_file(const char *src)
 	rc = key_file_fingerprint(src, hex);
 	if (rc)
 		return rc;
-	rc = bpm_mkdir_p(SHIRUDO_KEYS_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_KEYS_DIR, 0700);
 	if (rc)
 		return rc;
 	active = lstat(SHIRUDO_CERT_PATH, &st) == 0;
@@ -683,7 +703,7 @@ static int state_write(const struct bpm_state_entry *st, int n)
 	shirudo_json_arr_close(&e);
 	shirudo_json_obj_close(&e);
 	if (e.err) return -E2BIG;
-	rc = bpm_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
 	if (!rc)
 		rc = shirudo_seal_write_file(SHIRUDO_BPM_STATE_PATH, buf, e.len,
 					     0600);
@@ -770,7 +790,9 @@ static int repo_update_one(const char *name)
 		if (bpm_index_parse(index.data, index.len, checked, &checked_n)) { rc = -EINVAL; goto out; }
 	}
 	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_REPOS_DIR, name) >= (int)sizeof(dir)) { rc = -ENAMETOOLONG; goto out; }
-	if ((rc = bpm_mkdir_p(dir, 0700))) goto out;
+	rc = shirudo_seal_mkdir_p(dir, 0700);
+	if (rc)
+		goto out;
 	if ((rc = cache_path(name, cache, sizeof(cache)))) goto out;
 	rc = shirudo_seal_write_file(cache, index.data, index.len, 0600);
 out:
@@ -827,9 +849,13 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 		if (entry->package_size > 0 && entry->package_size != layers[i].size) { rc = -EKEYREJECTED; goto out; }
 		if ((rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
 		if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_PACKAGES_DIR, entry->name) >= (int)sizeof(dir)) { rc = -ENAMETOOLONG; goto out; }
-		if ((rc = bpm_mkdir_p(dir, 0700))) goto out;
+		rc = shirudo_seal_mkdir_p(dir, 0700);
+		if (rc)
+			goto out;
 		if (snprintf(package_dir, sizeof(package_dir), "%s/%s", dir, entry->version) >= (int)sizeof(package_dir)) { rc = -ENAMETOOLONG; goto out; }
-		if ((rc = bpm_mkdir_p(SHIRUDO_BPM_STAGING_DIR, 0700))) goto out;
+		rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_STAGING_DIR, 0700);
+		if (rc)
+			goto out;
 		if (snprintf(archive, sizeof(archive), "%s/%s-%s.bee", SHIRUDO_BPM_STAGING_DIR, entry->name, entry->version) >= (int)sizeof(archive)) { rc = -ENAMETOOLONG; goto out; }
 		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, archive); if (rc) goto out;
 	if (sha256_file_hex(archive, digest, sizeof(digest)) || !bpm_digest_matches(layers[i].digest, digest)) { rc = -EKEYREJECTED; goto out; }
@@ -990,7 +1016,9 @@ static int cmd_bpm_config(int argc, const char **argv)
 		if (!key || shirudo_cert_read_file(key, &cert)) { shirudo_cert_free(&cert); pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate"); return 2; }
 		if (!bpm_name_ok(s.name) || bpm_oci_parse_endpoint(s.endpoint, &(struct bpm_oci_client){}) ) { shirudo_cert_free(&cert); pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate"); return 2; }
 		shirudo_cert_free(&cert);
-		if (bpm_mkdir_p(SHIRUDO_BPM_REGISTRIES_DIR, 0700) || bpm_mkdir_p(SHIRUDO_BPM_KEYS_DIR, 0700)) return 1;
+		if (shirudo_seal_mkdir_p(SHIRUDO_BPM_REGISTRIES_DIR, 0700) ||
+		    shirudo_seal_mkdir_p(SHIRUDO_BPM_KEYS_DIR, 0700))
+			return 1;
 		if (snprintf(managed, sizeof(managed), "%s/%s.der", SHIRUDO_BPM_KEYS_DIR, s.name) >= (int)sizeof(managed)) return 1;
 		if (copy_file(key, managed, 0644)) return 1;
 		if (strlen(managed) >= sizeof(s.key_file))
@@ -1176,10 +1204,9 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 			rc = -EKEYREJECTED;
 		if (rc)
 			goto out;
-		if (bpm_mkdir_p(SHIRUDO_BPM_TREE_ARTIFACTS_DIR, 0700)) {
-			rc = -errno;
+		rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_ARTIFACTS_DIR, 0700);
+		if (rc)
 			goto out;
-		}
 		rc = shirudo_seal_write_file(cache, blob.data, blob.len, 0600);
 		if (rc)
 			goto out;
@@ -1238,7 +1265,7 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 	shirudo_json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	if (bpm_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
+	if (shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
 		return -errno;
 	return shirudo_seal_write_file(SHIRUDO_BPM_TREE_PENDING_PATH, buf,
 				       e.len, 0600);
@@ -1251,7 +1278,7 @@ static int tree_status_write(const char *id, const char *status)
 
 	if (!id || !shirudo_upatch_name_valid(id) || !status || !status[0])
 		return -EINVAL;
-	rc = bpm_mkdir_p(SHIRUDO_BPM_TREE_STATUS_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_STATUS_DIR, 0700);
 	if (rc)
 		return rc;
 	if (snprintf(path, sizeof(path), "%s/%s",

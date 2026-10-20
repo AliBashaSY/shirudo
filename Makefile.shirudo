@@ -547,7 +547,7 @@ testing/helper/test-chain: testing/helper/test-chain.c $(REGISTER_OBJS)
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
 testing/helper/test-tpm-wire: testing/helper/test-tpm-wire.c util/tpm_wire.o util/hex.o \
-                        util/crypto_openssl.o util/malloc.o
+                        util/crypto_openssl.o util/malloc.o util/log.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ -lcrypto -lssl
 

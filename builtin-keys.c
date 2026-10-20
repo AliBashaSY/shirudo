@@ -42,22 +42,6 @@
 #include "util/seal.h"
 #include "util/upatch.h"
 
-static void openssl_complain(const char *where)
-{
-	unsigned long e = ERR_get_error();
-	char buf[256];
-
-	ERR_error_string_n(e, buf, sizeof(buf));
-	pr_err("openssl: %s: %s", where, buf);
-}
-
-static int path_exists(const char *p)
-{
-	struct stat st;
-
-	return stat(p, &st) == 0;
-}
-
 static X509 *read_cert_der(const char *path)
 {
 	BIO *bio;
@@ -65,13 +49,13 @@ static X509 *read_cert_der(const char *path)
 
 	bio = BIO_new_file(path, "rb");
 	if (!bio) {
-		openssl_complain("BIO_new_file");
+		shirudo_openssl_complain("BIO_new_file");
 		return NULL;
 	}
 	c = d2i_X509_bio(bio, NULL);
 	BIO_free(bio);
 	if (!c)
-		openssl_complain("d2i_X509_bio");
+		shirudo_openssl_complain("d2i_X509_bio");
 	return c;
 }
 
@@ -88,7 +72,7 @@ static EVP_PKEY *read_priv_pem(const char *path)
 	k = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
 	fclose(fp);
 	if (!k)
-		openssl_complain("PEM_read_PrivateKey");
+		shirudo_openssl_complain("PEM_read_PrivateKey");
 	return k;
 }
 
@@ -138,7 +122,7 @@ static int compute_cert_fpr(X509 *c, unsigned char fpr[SHA256_DIGEST_LENGTH])
 	unsigned int n = SHA256_DIGEST_LENGTH;
 
 	if (X509_digest(c, EVP_sha256(), fpr, &n) != 1) {
-		openssl_complain("X509_digest");
+		shirudo_openssl_complain("X509_digest");
 		return -1;
 	}
 	return 0;
@@ -155,12 +139,12 @@ static int compute_spki_fpr(EVP_PKEY *pkey,
 
 	der_len = i2d_PUBKEY(pkey, &der);
 	if (der_len <= 0) {
-		openssl_complain("i2d_PUBKEY");
+		shirudo_openssl_complain("i2d_PUBKEY");
 		return -1;
 	}
 	if (EVP_Digest(der, (size_t)der_len, fpr, &n,
 		       EVP_sha256(), NULL) != 1) {
-		openssl_complain("EVP_Digest");
+		shirudo_openssl_complain("EVP_Digest");
 		goto out;
 	}
 	rc = 0;
@@ -242,7 +226,7 @@ static int dump_signing_key(const char *pkey_path,
 	EVP_PKEY *priv;
 	int rc = 0;
 
-	if (!path_exists(pkey_path)) {
+	if (!shirudo_path_exists(pkey_path)) {
 		printf("Signing key (%s):\n", pkey_path);
 		printf("  %-22s %s\n", "Present:",
 		       "no  (target host -- private key lives on the operator)");
@@ -741,13 +725,6 @@ static int measure_revoke(const struct shirudo_trusted_cert *c,
 	return 0;
 }
 
-static int select_upatch(const struct dirent *e)
-{
-	size_t n = strlen(e->d_name);
-
-	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
-}
-
 /*
  * Every archived upatch the revoked certificate signed goes: the kernel
  * would refuse to restore it at the next boot, and keeping it loaded
@@ -764,7 +741,8 @@ static int purge_signed_by(const unsigned char *der, size_t der_sz,
 	*unloaded = 0;
 	if (shirudo_cert_read_der(der, der_sz, &cert))
 		return -EINVAL;
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, select_upatch, alphasort);
+	n = scandir(SHIRUDO_UPATCHES_DIR, &names, shirudo_upatch_select,
+		    alphasort);
 	if (n < 0) {
 		shirudo_cert_free(&cert);
 		return errno == ENOENT ? 0 : -errno;
@@ -1114,7 +1092,7 @@ static int keys_show(int argc, const char **argv)
 	 * rather than picking one mode: the on-disk cert + signing key,
 	 * then the kernel keyring once `shirudo init` has populated one.
 	 */
-	if (path_exists(cert_path)) {
+	if (shirudo_path_exists(cert_path)) {
 		if (keys_dump_disk_material(cert_path, pkey_path))
 			rc = 1;
 		shown = true;

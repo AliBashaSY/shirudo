@@ -375,3 +375,10 @@ bool shirudo_upatch_name_valid(const char *name)
 	}
 	return true;
 }
+
+int shirudo_upatch_select(const struct dirent *e)
+{
+	size_t n = strlen(e->d_name);
+
+	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
+}

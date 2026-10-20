@@ -25,6 +25,7 @@
 #include <openssl/x509_vfy.h>
 
 #include "crypto.h"
+#include "log.h"
 #include "malloc.h"
 
 static X509 *read_x509(const char *path)
@@ -577,4 +578,12 @@ out:
 	X509_STORE_CTX_free(ctx);
 	X509_STORE_free(store);
 	return rc;
+}
+
+void shirudo_openssl_complain(const char *where)
+{
+	char buf[256];
+
+	ERR_error_string_n(ERR_get_error(), buf, sizeof(buf));
+	pr_err("openssl: %s: %s", where, buf);
 }

@@ -450,28 +450,16 @@ static int is_bpffs_mounted(const char *path)
 	return found;
 }
 
-static int mkdir_p_mode(const char *path, mode_t mode)
-{
-	if (mkdir(path, mode) == 0) {
-		if (chmod(path, mode) != 0)
-			return -errno;
-		return 0;
-	}
-	if (errno == EEXIST)
-		return 0;
-	return -errno;
-}
-
 static int init_bpffs(void)
 {
 	int rc;
 
-	rc = mkdir_p_mode(SHIRUDO_VAR_LIB, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
 		return rc;
 	}
-	rc = mkdir_p_mode(SHIRUDO_RUN_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_RUN_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
 		return rc;
@@ -480,7 +468,7 @@ static int init_bpffs(void)
 	rc = shirudo_seal_label(SHIRUDO_RUN_DIR);
 	if (rc)
 		pr_warn("seal: label %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
-	rc = mkdir_p_mode(SHIRUDO_BPFFS_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_BPFFS_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s",
 		       SHIRUDO_BPFFS_DIR, strerror(-rc));
@@ -1086,13 +1074,6 @@ out:
 
 #define HEXLEN(n)	((n) * 2 + 1)
 
-static int select_upatch(const struct dirent *e)
-{
-	size_t n = strlen(e->d_name);
-
-	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
-}
-
 /*
  * State an older shirudo may have left behind for features this
  * version no longer has: the trusted-root mode record, the Java agent
@@ -1169,7 +1150,8 @@ static void remove_stale_state(void)
 	if (is_javaagent_env())
 		unlink_stale(STALE_JAVAAGENT_ENV);
 
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, select_upatch, alphasort);
+	n = scandir(SHIRUDO_UPATCHES_DIR, &names, shirudo_upatch_select,
+		    alphasort);
 	for (i = 0; i < n; i++) {
 		char path[PATH_MAX];
 
@@ -1199,7 +1181,8 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 	*out_set = NULL;
 	*out_n = 0;
 
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, select_upatch, alphasort);
+	n = scandir(SHIRUDO_UPATCHES_DIR, &names, shirudo_upatch_select,
+		    alphasort);
 	if (n < 0) {
 		if (errno == ENOENT)
 			return 0;
@@ -1519,25 +1502,6 @@ static void usage(void)
 	fprintf(stderr, "usage: %s\n", init_help.usage);
 }
 
-static int mkdir_parents(const char *path, mode_t mode)
-{
-	char buf[PATH_MAX], *p;
-
-	if (snprintf(buf, sizeof(buf), "%s", path) >= (int)sizeof(buf))
-		return -ENAMETOOLONG;
-	for (p = buf + 1; *p; p++) {
-		if (*p != '/')
-			continue;
-		*p = '\0';
-		if (mkdir(buf, mode) != 0 && errno != EEXIST)
-			return -errno;
-		*p = '/';
-	}
-	if (mkdir(buf, mode) != 0 && errno != EEXIST)
-		return -errno;
-	return 0;
-}
-
 /*
  * The initrd phase reads the root's state tree: the archived upatches
  * to restore, the eventlog to continue, the keys to compare. A
@@ -1562,7 +1526,7 @@ static int initrd_enter(void)
 		       "there (x-initrd.mount)", src, shirudo_sysroot());
 		return -ENOENT;
 	}
-	rc = mkdir_parents(SHIRUDO_VAR_LIB, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
 	if (rc) {
 		pr_err("initrd: mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
 		return rc;

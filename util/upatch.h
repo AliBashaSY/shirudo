@@ -9,6 +9,7 @@
 #define SHIRUDO_UTIL_UPATCH_H
 
 #include <shirudo/upatch.h>
+#include <dirent.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -64,5 +65,8 @@ int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, uint32_t idx,
  * could escape the bpffs / on-disk path namespace.
  */
 bool shirudo_upatch_name_valid(const char *name);
+
+/* A scandir() filter for the archived .upatch files. */
+int shirudo_upatch_select(const struct dirent *e);
 
 #endif /* SHIRUDO_UTIL_UPATCH_H */

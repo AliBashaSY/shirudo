@@ -8,6 +8,8 @@
 #ifndef SHIRUDO_PATHS_H
 #define SHIRUDO_PATHS_H
 
+#include <stdbool.h>
+
 #include <errno.h>
 #include <stddef.h>
 #include <string.h>
@@ -171,5 +173,7 @@ static inline int shirudo_upatch_name_from_bpffs(char *out, size_t out_sz,
 	out[j] = '\0';
 	return 0;
 }
+
+bool shirudo_path_exists(const char *path);
 
 #endif /* SHIRUDO_PATHS_H */

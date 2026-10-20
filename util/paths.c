@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "paths.h"
 
@@ -53,4 +54,11 @@ int shirudo_key_paths(const char *keys_dir,
 		return rc;
 	return shirudo_key_path(cert_path, cert_sz, keys_dir,
 				SHIRUDO_CERT_FILE);
+}
+
+bool shirudo_path_exists(const char *path)
+{
+	struct stat st;
+
+	return stat(path, &st) == 0;
 }
