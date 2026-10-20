@@ -535,7 +535,7 @@ testing/helper/test-keys: testing/helper/test-keys.c util/keys.o \
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
 testing/helper/test-seal: testing/helper/test-seal.c util/seal.o util/io.o \
-                          util/log.o
+                          util/log.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
@@ -628,7 +628,7 @@ testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
-testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o
+testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

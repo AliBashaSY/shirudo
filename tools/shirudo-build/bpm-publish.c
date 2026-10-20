@@ -338,8 +338,9 @@ static int push_package(const char *package_path, const char *raw_repository,
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	if ((rc = bpm_read_file(package_path, &archive, &archive_len,
-				  BPM_MAX_HTTP_BODY)))
+	rc = shirudo_read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
+			       &archive_len);
+	if (rc)
 		return rc;
 	if ((rc = bpm_pkg_load_info(package_path, &info)))
 		goto out;

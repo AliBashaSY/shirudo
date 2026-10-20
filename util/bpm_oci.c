@@ -23,6 +23,7 @@
 
 #include "bpm_oci.h"
 #include "crypto.h"
+#include "io.h"
 #include "seal.h"
 #include "json.h"
 #include "log.h"
@@ -224,39 +225,6 @@ static int encode_basic(const char *user, const char *pass,
 	return 0;
 }
 
-int bpm_read_file(const char *path, unsigned char **out, size_t *out_len,
-			   size_t max)
-{
-	struct stat st;
-	unsigned char *p;
-	ssize_t n;
-	int fd;
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) || st.st_size < 0 || (uintmax_t)st.st_size > max) {
-		int rc = errno ? -errno : -E2BIG;
-		close(fd);
-		return rc;
-	}
-	p = xmalloc((size_t)st.st_size + 1);
-	if (!p) {
-		close(fd);
-		return -ENOMEM;
-	}
-	n = read(fd, p, (size_t)st.st_size);
-	close(fd);
-	if (n != st.st_size) {
-		xfree(p, (size_t)st.st_size + 1);
-		return n < 0 ? -errno : -EIO;
-	}
-	p[n] = 0;
-	*out = p;
-	*out_len = (size_t)n;
-	return 0;
-}
-
 static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 {
 	const char *authfile = getenv("REGISTRY_AUTH_FILE");
@@ -285,7 +253,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 			return -ENAMETOOLONG;
 		authfile = path;
 	}
-	rc = bpm_read_file(authfile, &body, &body_len, 4u * 1024u * 1024u);
+	rc = shirudo_read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
 	if (rc) return rc == -ENOENT ? 0 : rc;
 	/*
 	 * The auth file is local input; require the registry key and auth

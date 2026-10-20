@@ -78,9 +78,6 @@ void bpm_trim(const char *in, char *out, size_t out_sz);
 bool bpm_name_ok(const char *s);
 bool bpm_version_ok(const char *s);
 bool bpm_package_name_ok(const char *s);
-/* Whole file into an xmalloc'd buffer of out_len + 1 bytes (NUL added). */
-int bpm_read_file(const char *path, unsigned char **out, size_t *out_len,
-		  size_t max);
 int bpm_sha256_hex(const void *data, size_t len, char *hex, size_t hex_sz);
 /* want is "sha256:<hex>" or bare hex; hex is the computed digest. */
 bool bpm_digest_matches(const char *want, const char *hex);

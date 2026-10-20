@@ -105,44 +105,6 @@ static void pack_header(struct shirudo_upatch_header *h,
 	h->reserved1        = 0;
 }
 
-static int read_small_file(const char *path, char **out, uint32_t *out_len)
-{
-	struct stat st;
-	ssize_t got;
-	char *buf;
-	int fd;
-
-	*out = NULL;
-	*out_len = 0;
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) != 0) {
-		int e = -errno;
-
-		close(fd);
-		return e;
-	}
-	if (!S_ISREG(st.st_mode) || st.st_size <= 0 ||
-	    st.st_size > 16 * 1024 * 1024) {
-		close(fd);
-		return -EINVAL;
-	}
-	buf = xmalloc((size_t)st.st_size);
-	if (!buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, buf, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(buf, (size_t)st.st_size);
-		return -EIO;
-	}
-	*out = buf;
-	*out_len = (uint32_t)st.st_size;
-	return 0;
-}
 
 static bool unsupported_kprobe_section(const char *sec)
 {
@@ -452,7 +414,7 @@ static void free_decoder_set(struct decoder_set *set)
 
 	for (i = 0; i < set->nr_items; i++) {
 		xstrfree(set->items[i].path);
-		xfree(set->items[i].source, set->items[i].source_len);
+		xfree(set->items[i].source, set->items[i].source_len + 1);
 	}
 	xfree(set->items, (size_t)set->nr_items * sizeof(set->items[0]));
 	memset(set, 0, sizeof(*set));
@@ -465,8 +427,8 @@ static int decoder_set_add(struct decoder_set *set,
 	struct decoder_file *items;
 	struct decoder_file *item;
 	char *path = NULL;
+	size_t source_len = 0;
 	char *source = NULL;
-	uint32_t source_len = 0;
 	int err;
 
 	err = make_decoder_path(src_path, manifest->source, &path);
@@ -474,7 +436,10 @@ static int decoder_set_add(struct decoder_set *set,
 		pr_err("decoder source path '%s' is invalid", manifest->source);
 		return err;
 	}
-	err = read_small_file(path, &source, &source_len);
+	err = shirudo_read_file(path, 16u * 1024u * 1024u, &source,
+				&source_len);
+	if (!err && !source_len)
+		err = -EINVAL;
 	if (err) {
 		pr_err("read decoder source %s: %s", path, strerror(-err));
 		xstrfree(path);
@@ -485,7 +450,7 @@ static int decoder_set_add(struct decoder_set *set,
 			      sizeof(set->items[0]));
 	if (!items) {
 		xstrfree(path);
-		xfree(source, source_len);
+		xfree(source, source_len + 1);
 		return -ENOMEM;
 	}
 	set->items = items;
@@ -493,7 +458,7 @@ static int decoder_set_add(struct decoder_set *set,
 	item->manifest = *manifest;
 	item->path = path;
 	item->source = source;
-	item->source_len = source_len;
+	item->source_len = (uint32_t)source_len;
 	return 0;
 }
 

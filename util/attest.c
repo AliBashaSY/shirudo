@@ -21,6 +21,7 @@
 #include "crypto.h"
 #include "eventlog.h"
 #include "hex.h"
+#include "io.h"
 #include "json.h"
 #include "log.h"
 #include "macros.h"
@@ -1086,40 +1087,6 @@ out:
 	return rc;
 }
 
-static int read_file(const char *path, char **out, size_t *len, size_t *cap)
-{
-	struct stat st;
-	ssize_t got;
-	int fd;
-
-	*out = NULL;
-	*len = 0;
-	*cap = 0;
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
-	    st.st_size > (off_t)SHIRUDO_ATTEST_CHALLENGE_MAX) {
-		close(fd);
-		return -EFBIG;
-	}
-	*out = xmalloc((size_t)st.st_size + 1);
-	if (!*out) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, *out, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(*out, (size_t)st.st_size + 1);
-		*out = NULL;
-		return -EIO;
-	}
-	(*out)[got] = '\0';
-	*len = (size_t)got;
-	*cap = (size_t)st.st_size + 1;
-	return 0;
-}
 
 int shirudo_attest_challenge_read(const char *path,
 				  struct shirudo_attest_challenge *out)
@@ -1142,17 +1109,17 @@ int shirudo_attest_challenge_read(const char *path,
 		{ "secret", SHIRUDO_JSON_T_STRING, secret_hex,
 		  sizeof(secret_hex), 0, NULL, 0 },
 	};
-	size_t len, cap, ak_len;
+	size_t len, ak_len;
 	char *doc;
 	int rc;
 
 	memset(out, 0, sizeof(*out));
 	kind[0] = type[0] = ak_hex[0] = blob_hex[0] = secret_hex[0] = '\0';
-	rc = read_file(path, &doc, &len, &cap);
+	rc = shirudo_read_file(path, SHIRUDO_ATTEST_CHALLENGE_MAX, &doc, &len);
 	if (rc)
 		return rc;
 	rc = shirudo_json_parse(doc, len, top, ARRAY_SIZE(top));
-	xfree(doc, cap);
+	xfree(doc, len + 1);
 	if (rc || !top[0].seen || strcmp(kind, "shirudo-credential") ||
 	    !ek_sub[0].seen || !top[2].seen || !top[3].seen || !top[4].seen)
 		return -EINVAL;

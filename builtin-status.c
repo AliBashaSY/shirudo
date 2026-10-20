@@ -36,6 +36,7 @@
 
 #define SHIRUDO_KERNEL_LOG_MAX 100
 #include "util/help.h"
+#include "util/io.h"
 #include "util/json.h"
 #include "util/macros.h"
 #include "util/identity.h"
@@ -194,38 +195,6 @@ static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 	return shirudo_json_parse(line, len, f, ARRAY_SIZE(f));
 }
 
-static int read_eventlog(char **buf, size_t *len)
-{
-	struct stat st;
-	ssize_t got;
-	int fd, rc = 0;
-
-	*buf = NULL;
-	*len = 0;
-	fd = open(shirudo_eventlog_path(), O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) != 0 || st.st_size > (off_t)SHIRUDO_JSON_MAX_BYTES) {
-		rc = fd < 0 ? -errno : -EFBIG;
-		close(fd);
-		return rc;
-	}
-	*buf = xmalloc((size_t)st.st_size + 1);
-	if (!*buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, *buf, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(*buf, (size_t)st.st_size + 1);
-		*buf = NULL;
-		return -EIO;
-	}
-	(*buf)[got] = '\0';
-	*len = (size_t)st.st_size + 1;
-	return 0;
-}
 
 static void emit_eventlog_events(struct shirudo_json_emit *e)
 {
@@ -233,7 +202,8 @@ static void emit_eventlog_events(struct shirudo_json_emit *e)
 	size_t len;
 
 	shirudo_json_arr_open(e, "events");
-	if (read_eventlog(&buf, &len) != 0) {
+	if (shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+			      &buf, &len) != 0) {
 		shirudo_json_arr_close(e);
 		return;
 	}
@@ -261,7 +231,7 @@ static void emit_eventlog_events(struct shirudo_json_emit *e)
 		}
 		shirudo_json_obj_close(e);
 	}
-	xfree(buf, len);
+	xfree(buf, len + 1);
 	shirudo_json_arr_close(e);
 }
 
@@ -281,7 +251,8 @@ static void print_eventlog_table(void)
 	char *save, *line, *buf;
 	size_t len;
 
-	if (read_eventlog(&buf, &len) != 0)
+	if (shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+			      &buf, &len) != 0)
 		return;
 	printf("\nEventlog (audit trail):\n");
 	printf("  %-20s %-13s %-13s %s\n", "TIME", "TYPE", "DIGEST",
@@ -300,7 +271,7 @@ static void print_eventlog_table(void)
 		printf("  %-20s %-13s %-13.12s %s\n", ev.ts, ev.type,
 		       ev.digest[0] ? ev.digest : "-", detail);
 	}
-	xfree(buf, len);
+	xfree(buf, len + 1);
 }
 
 static void print_system_human(const struct shirudo_sysinfo *si)

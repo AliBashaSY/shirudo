@@ -81,41 +81,6 @@ int shirudo_eventlog_would_exceed(unsigned long max_bytes)
 	return cur + SHIRUDO_EVENTLOG_LINE_MAX > max_bytes;
 }
 
-static int read_file(const char *path, char **out, size_t *out_len)
-{
-	struct stat st;
-	ssize_t got;
-	char *buf;
-	int fd, rc;
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) != 0) {
-		rc = -errno;
-		close(fd);
-		return rc;
-	}
-	if (st.st_size > (off_t)SHIRUDO_JSON_MAX_BYTES) {
-		close(fd);
-		return -EFBIG;
-	}
-	buf = xmalloc((size_t)st.st_size + 1);
-	if (!buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, buf, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(buf, (size_t)st.st_size + 1);
-		return -EIO;
-	}
-	buf[got] = '\0';
-	*out = buf;
-	*out_len = (size_t)st.st_size;
-	return 0;
-}
 
 static int read_log(char **out, size_t *out_len)
 {
@@ -123,11 +88,13 @@ static int read_log(char **out, size_t *out_len)
 	char *base = NULL, *pending = NULL, *buf;
 	int rc, rc_pending;
 
-	rc = read_file(shirudo_eventlog_path(), &base, &base_len);
+	rc = shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+			       &base, &base_len);
 	if (rc && rc != -ENOENT)
 		return rc;
-	rc_pending = read_file(shirudo_eventlog_pending_path(), &pending,
-			       &pending_len);
+	rc_pending = shirudo_read_file(shirudo_eventlog_pending_path(),
+				       SHIRUDO_JSON_MAX_BYTES, &pending,
+				       &pending_len);
 	if (rc_pending && rc_pending != -ENOENT) {
 		xfree(base, base_len + 1);
 		return rc_pending;
@@ -249,7 +216,8 @@ static int log_holds(const char *line, size_t len)
 	size_t blen = 0;
 	int rc;
 
-	rc = read_file(shirudo_eventlog_path(), &buf, &blen);
+	rc = shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+			       &buf, &blen);
 	if (rc == -ENOENT)
 		return 0;
 	if (rc)
@@ -268,7 +236,7 @@ int shirudo_eventlog_adopt_pending(void)
 	size_t len = 0;
 	int rc;
 
-	rc = read_file(pending, &buf, &len);
+	rc = shirudo_read_file(pending, SHIRUDO_JSON_MAX_BYTES, &buf, &len);
 	if (rc == -ENOENT)
 		return 0;
 	if (rc)

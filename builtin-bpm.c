@@ -669,7 +669,8 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	struct shirudo_json_field sub[4], root[1];
 	int64_t unused = 0;
 
-	rc = bpm_read_file(SHIRUDO_BPM_STATE_PATH, &body, &len, 8u * 1024u * 1024u);
+	rc = shirudo_read_file(SHIRUDO_BPM_STATE_PATH, 8u * 1024u * 1024u,
+			       &body, &len);
 	if (rc == -ENOENT) { *n = 0; return 0; }
 	if (rc) return rc;
 	sub[0] = (struct shirudo_json_field){ .key = "name", .type = SHIRUDO_JSON_T_STRING, .dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name) };
@@ -720,7 +721,7 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 	rc = cache_path(source, path, sizeof(path));
 	if (rc)
 		return rc;
-	rc = bpm_read_file(path, &body, &len, 64u * 1024u * 1024u);
+	rc = shirudo_read_file(path, 64u * 1024u * 1024u, &body, &len);
 	if (rc)
 		return rc;
 	rc = bpm_index_parse(body, len, entries, n);
@@ -1318,8 +1319,8 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 		  pending->operation_digest, sizeof(pending->operation_digest),
 		  0, NULL, 0 },
 	};
-	int rc = bpm_read_file(SHIRUDO_BPM_TREE_PENDING_PATH, &body, &len,
-					 64u * 1024u);
+	int rc = shirudo_read_file(SHIRUDO_BPM_TREE_PENDING_PATH, 64u * 1024u,
+				   &body, &len);
 	if (rc)
 		return rc;
 	rc = shirudo_json_parse((const char *)body, len, fields, ARRAY_SIZE(fields));
