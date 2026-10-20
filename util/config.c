@@ -257,10 +257,8 @@ int shirudo_config_load(struct shirudo_config *cfg)
 		set_owner_auth(cfg, env);
 
 	/*
-	 * TCTI env override -- mirrors the pre-existing
-	 * SHIRUDO_TPM_TCTI behaviour in util/tpm.c so the env wins
-	 * over the on-disk config (handy when the conf file is shared
-	 * but a single dev run wants swtpm).
+	 * The env wins over the file, as in util/tpm.c, so one dev run can
+	 * point at swtpm while the file is shared.
 	 */
 	env = getenv("SHIRUDO_TPM_TCTI");
 	if (env && *env) {

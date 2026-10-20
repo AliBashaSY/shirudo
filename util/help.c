@@ -17,12 +17,6 @@
 /* Wrap target for help-item summaries; covers a 100-col terminal with slack. */
 #define SHIRUDO_HELP_WIDTH	90
 
-/*
- * Word-wrap <text> at <avail> chars. The first word continues whatever
- * the caller already printed; every subsequent line starts with
- * <indent> spaces so continuation aligns under the summary column.
- * Single-spaces between words; trailing whitespace dropped.
- */
 static void wrap_print(const char *text, size_t indent, size_t avail)
 {
 	const char *p = text;
@@ -100,10 +94,8 @@ void shirudo_print_help(const struct shirudo_help *h)
 		if (s->n_items == 0)
 			continue;
 		/*
-		 * Per-section column width: align the summaries under the
-		 * longest name + a 2-char gutter. Computing it here so an
-		 * "Options:" section with --include-eventlog reads as
-		 * cleanly as a "Subcommands:" section with `add`/`rm`.
+		 * Per section, so an Options section reads as cleanly as a
+		 * Subcommands one.
 		 */
 		for (j = 0; j < s->n_items; j++) {
 			size_t l = strlen(s->items[j].name);
@@ -184,7 +176,6 @@ const char *shirudo_resolve_subcommand(const char *cmd_label,
 						subcmds, n_subcmds);
 		return NULL;
 	}
-	/* Ambiguous: list the colliding matches so the user can pick. */
 	fprintf(stderr, "%s: '%s' is ambiguous; matches:\n", cmd_label, input);
 	for (i = 0; i < n; i++)
 		fprintf(stderr, "\t%s\n", names[matches[i]]);

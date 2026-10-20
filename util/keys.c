@@ -227,12 +227,11 @@ static size_t count_der(const char *dir)
 	if (n < 0)
 		return 0;
 	for (i = 0; i < n; i++)
-		shirudo_libc_free(names[i]);	/* scandir-owned */
-	shirudo_libc_free(names);		/* scandir-owned */
+		shirudo_libc_free(names[i]);
+	shirudo_libc_free(names);
 	return (size_t)n;
 }
 
-/* <name>.der has its vouch at <name>.vouch. */
 static int vouch_path_for(const char *der_path, char *out, size_t cap)
 {
 	size_t n = strlen(der_path) - 4;
@@ -348,8 +347,8 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 		(*n_cand)++;
 	}
 	for (i = 0; i < n; i++)
-		shirudo_libc_free(names[i]);	/* scandir-owned */
-	shirudo_libc_free(names);		/* scandir-owned */
+		shirudo_libc_free(names[i]);
+	shirudo_libc_free(names);
 	return rc;
 }
 

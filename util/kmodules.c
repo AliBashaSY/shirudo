@@ -2,10 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * /proc/modules parser + ASCII dependency-tree printer. Roots are
- * modules nothing else depends on (the operator-loaded entry points);
- * each root descends into its `Depends:` chain. Shared subtrees
- * expand once and are marked `(shared)` thereafter.
+ * /proc/modules parser and dependency-tree printer.
  */
 
 #include <ctype.h>
@@ -25,7 +22,6 @@
 #include "malloc.h"
 #include "timefmt.h"
 
-/* Read /proc/modules into a heap-grown buffer. */
 static int slurp(char **buf_out, size_t *len_out)
 {
 	size_t cap = 16384, len = 0;
@@ -78,7 +74,6 @@ static int kmod_cmp(const void *a, const void *b)
 		      ((const struct shirudo_kmod *)b)->name);
 }
 
-/* Find module index by name; -1 if not present (a stale dep entry). */
 static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 {
 	size_t lo = 0, hi = set->n;
@@ -180,10 +175,6 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		m->n_deps = 0;
 		m->deps_off = 0;
 
-		/*
-		 * Dep column is `dep1,dep2,...,` (trailing comma) or `-`.
-		 * Stash raw name slices; resolve to indices after sort.
-		 */
 		if (*p && *p != '-') {
 			const char *q = p;
 
@@ -219,13 +210,7 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 
 	qsort(set->mods, set->n, sizeof(*set->mods), kmod_cmp);
 
-	/* qsort scrambled indices; rebuild raws[].mod_idx by lookup. */
 	for (size_t i = 0; i < n_raw; i++) {
-		/*
-		 * The original raws[i].mod_idx is invalid post-sort. We
-		 * stored the *raw* name slice but lost which module it
-		 * belonged to. Re-discover by reparsing.
-		 */
 		(void)0;
 	}
 	/*
@@ -332,7 +317,6 @@ skip:
 		}
 	}
 
-	/* Compact raws[] into set->deps[]. Group by mod_idx. */
 	for (size_t i = 0; i < set->n; i++) {
 		set->mods[i].deps_off = (uint16_t)set->n_deps;
 		for (size_t j = 0; j < n_raw; j++) {
@@ -403,12 +387,6 @@ void shirudo_kmodules_free(struct shirudo_kmod_set *set)
 	memset(set, 0, sizeof(*set));
 }
 
-/*
- * Print one module + its dependency subtree. `prefix` carries the
- * accumulated `│   `/`    ` indent for nested levels. `is_last` picks
- * `└── ` vs `├── `. `seen[]` is a bitset of "already expanded
- * somewhere above"; on a hit, the subtree collapses to `(shared)`.
- */
 static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 			  const char *prefix, int is_last, uint8_t *seen)
 {
@@ -493,7 +471,6 @@ void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
 	xfree(roots, set->n * sizeof(*roots));
 }
 
-/* Format an int64 epoch seconds value as ISO-8601 UTC. */
 static void iso_utc(int64_t sec, char *out, size_t out_cap)
 {
 	struct tm tm = {};
@@ -554,7 +531,6 @@ void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 	}
 	qsort(all, set->n, sizeof(*all), recent_cmp);
 	take = set->n < last_n ? set->n : last_n;
-	/* qsort already put the freshest first -- print in that order. */
 	for (i = 0; i < take; i++) {
 		const struct shirudo_kmod *m = &set->mods[all[i].idx];
 		char ts[32], size_s[16], age[24];

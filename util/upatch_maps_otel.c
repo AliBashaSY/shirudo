@@ -2,11 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * OTLP/HTTP JSON export for pinned upatch map snapshots. Automatic mode
- * chooses a signal from the map's structural BTF; explicit log and metric
- * modes bypass that classifier. S3 mode stores the complete snapshot in S3
- * and sends a small OTLP log reference. Network delivery is synchronous and
- * bounded by the caller-selected retry count.
+ * OTLP/HTTP JSON export of map snapshots: a signal chosen from the
+ * map's BTF or named by the caller, or a snapshot in S3 behind a log
+ * reference.
  */
 
 #include <ctype.h>
@@ -182,8 +180,6 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 		 mt.width * 8);
 	return 0;
 }
-
-/* ---- OTLP JSON AnyValue helpers ------------------------------------ */
 
 static void otlp_kv_string(struct shirudo_json_emit *e, const char *key,
 			   const char *value)
@@ -806,8 +802,6 @@ int shirudo_upatch_maps_otel_build_log_file(
 	return build_log_payload(path, v, out, out_len);
 }
 
-/* ---- Metrics ------------------------------------------------------- */
-
 static int read_integer(const void *p, const struct metric_type *mt,
 			__int128 *signed_out, unsigned __int128 *unsigned_out)
 {
@@ -1080,7 +1074,6 @@ static int build_metric_decoded_payload(
 		return rc;
 	decoded_buf = decoded;
 	decoded_alloc_len = decoded_len;
-	/* Metric decoders return an array of OTLP Metric objects. */
 	while (decoded_len && isspace((unsigned char)decoded[0])) {
 		decoded++;
 		decoded_len--;
@@ -1124,8 +1117,6 @@ static int build_metric_decoded_payload(
 	*out_len = e.len;
 	return 0;
 }
-
-/* ---- Configuration and HTTP --------------------------------------- */
 
 static const char *signal_name(enum shirudo_otel_signal signal)
 {
@@ -1708,8 +1699,6 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 	return rc;
 }
 
-/* ---- Export lifecycle --------------------------------------------- */
-
 static int otel_open_transport(enum shirudo_otel_signal signal,
 				       const char *spec,
 				       const struct shirudo_otel_opts *opts,
@@ -1941,8 +1930,6 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 	otel_close(state);
 	return rc;
 }
-
-/* ---- S3-backed log references ------------------------------------ */
 
 struct snapshot_writer {
 	FILE		*file;

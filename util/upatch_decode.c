@@ -2,10 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Signed userspace decoders for serialized upatch maps. The decoder source
- * lives inside the upatch's signature-covered data trailer; this file only
- * supplies a small LuaJIT host API and JSON/OTLP serialization of the
- * returned value.
+ * Signed Lua decoders for serialized maps: a small LuaJIT host API and
+ * the serialisation of what they return.
  */
 
 #include <errno.h>
@@ -776,7 +774,6 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 			for (i = 0; i < local_slots; i++) {
 				uint64_t page_slot = chunk * slots_per_chunk + i;
 
-				/* Every serialized page starts with its header slot. */
 				if (page_slot == 0)
 					continue;
 				lua_store_slot(L, slots_idx, cursor + page_slot,
@@ -795,10 +792,6 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 
 static void lua_push_u64_string(lua_State *L, uint64_t value);
 
-/*
- * Every slot of one serialized page in order, header first, honouring
- * the per-chunk packing of records that do not divide the chunk payload.
- */
 static int lua_shirudo_page_slots(lua_State *L)
 {
 	const char *hex;
@@ -890,7 +883,6 @@ static int lua_shirudo_u64_sub(lua_State *L)
 	return 1;
 }
 
-/* Little-endian u64 at a byte offset of a hex string, as a decimal string. */
 static int lua_shirudo_hex_u64(lua_State *L)
 {
 	const char *hex;

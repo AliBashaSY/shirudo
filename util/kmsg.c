@@ -2,10 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * /dev/kmsg reader with ISO wallclock timestamps. Records carry a
- * monotonic microsecond timestamp; we offset against the realtime/
- * monotonic delta computed at open to produce wallclock UTC, the
- * same approach `dmesg --time-format=iso` uses.
+ * /dev/kmsg reader; the records' monotonic timestamps become wallclock
+ * UTC the way `dmesg --time-format=iso` does.
  */
 
 #include <errno.h>
@@ -24,13 +22,6 @@
 /* Per-record buffer size accepted by /dev/kmsg: kernel allows up to 8 KiB. */
 #define KMSG_READ_BUF	8192
 
-/*
- * Read one record from <fd>. Returns:
- *   >0  bytes read
- *   0   EOF / EAGAIN at tail
- *   -EPIPE  reader fell behind the ring buffer; caller may continue
- *   other negative errno on hard failure
- */
 static ssize_t read_record(int fd, char *buf, size_t cap)
 {
 	ssize_t n = read(fd, buf, cap);
@@ -46,13 +37,6 @@ static ssize_t read_record(int fd, char *buf, size_t cap)
 	return -errno;
 }
 
-/*
- * Parse one /dev/kmsg record. Format (one line, terminated by '\n'):
- *   <prio,seq,monotonic_us,flags[,extra]>;message_text\n
- *   [optional ' KEY=value\n' continuation lines until '\n']
- *
- * Returns 0 on success, -EINVAL on malformed header.
- */
 static int parse_record(const char *rec, size_t len,
 			uint64_t *monotonic_us_out,
 			const char **msg_out, size_t *msg_len_out)
@@ -66,11 +50,6 @@ static int parse_record(const char *rec, size_t len,
 	if (!semi)
 		return -EINVAL;
 
-	/*
-	 * Walk the header counting commas until the third one, which
-	 * sits immediately after monotonic_us. We don't care about the
-	 * prio or seq columns -- just the timestamp.
-	 */
 	for (p = rec; p < semi; p++) {
 		if (*p == ',') {
 			commas++;
@@ -91,7 +70,6 @@ static int parse_record(const char *rec, size_t len,
 		return -EINVAL;
 
 	*msg_out = semi + 1;
-	/* Message ends at first '\n' (continuation lines start with ' '). */
 	{
 		const char *nl = memchr(*msg_out, '\n',
 					(size_t)(end - *msg_out));
@@ -117,12 +95,10 @@ static void copy_msg(char *dst, size_t dst_cap,
 			dst[o++] = (char)c;
 		else if (c >= 0x80)
 			dst[o++] = (char)c;
-		/* drop other control bytes silently */
 	}
 	dst[o] = '\0';
 }
 
-/* Compute the wallclock instant corresponding to monotonic_us-since-boot. */
 static void monotonic_to_iso(uint64_t mono_us,
 			     const struct timespec *rt_at_open,
 			     const struct timespec *mt_at_open,
@@ -178,11 +154,6 @@ int shirudo_kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
 		return -errno;
 	}
 
-	/*
-	 * Ring-buffer of size <cap> over <out> indexed by head. Walk
-	 * every record from the buffer head to tail; only the last <cap>
-	 * survive. O(N), but N is bounded by the kernel ring buffer.
-	 */
 	for (;;) {
 		uint64_t mono_us = 0;
 		const char *msg = NULL;

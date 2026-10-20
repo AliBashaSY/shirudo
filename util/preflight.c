@@ -379,17 +379,10 @@ static void check_tpm(struct shirudo_preflight_result *r)
 		next_slot(r, SHIRUDO_PRE_TPM, "tpm2_reachable");
 
 	/*
-	 * Either SHIRUDO_TPM_TCTI env or tpm.tcti in shirudo.conf
-	 * redirects the TCTI string consumed by util/tpm.c (e.g.
-	 * "swtpm:host=127.0.0.1,port=2321" for a socket-backed
-	 * software TPM in dev/CI). When set, the kernel resource
-	 * manager isn't in play -- the device check would spuriously
-	 * refuse a perfectly valid swtpm setup. Trust the override and
-	 * let TPM-open report any real connectivity problem; the
-	 * operator-side chain expectation still rejects any value a
-	 * fake TPM produces, so this is a dev convenience, not a
-	 * security relaxation. shirudo_config_load consults the env
-	 * after the file, so checking cfg.tpm_tcti is sufficient.
+	 * A TCTI override points at a software TPM, where the kernel resource
+	 * manager is not in play, so the device check would refuse a valid
+	 * setup. The operator's expectation still rejects what a fake TPM
+	 * produces, so this is a convenience, not a relaxation.
 	 */
 	{
 		struct shirudo_config cfg = {};

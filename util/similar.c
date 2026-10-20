@@ -2,16 +2,13 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Levenshtein edit distance + a top-N "closest match" helper. Used by
- * the top-level dispatcher to suggest a real subcommand when the user
- * mistypes one.
+ * Levenshtein distance and the did-you-mean helpers of the dispatcher.
  */
 
 #include <string.h>
 
 #include "similar.h"
 
-/* Two-row Levenshtein DP, allocation-free, early-out at `max`. */
 int shirudo_edit_distance(const char *s, const char *t, int max)
 {
 	int prev[SHIRUDO_SIMILAR_MAX_LEN + 1];
@@ -111,7 +108,6 @@ size_t shirudo_resolve(const char *input,
 {
 	size_t i, m = 0, len = strlen(input);
 
-	/* Tier 1: exact match. Unique by definition; short-circuit. */
 	for (i = 0; i < n; i++) {
 		if (strcmp(input, candidates[i]) == 0) {
 			if (cap >= 1)
@@ -119,7 +115,6 @@ size_t shirudo_resolve(const char *input,
 			return 1;
 		}
 	}
-	/* Tier 2: input is a prefix of a candidate ("node" -> "nodes"). */
 	for (i = 0; i < n; i++) {
 		size_t clen = strlen(candidates[i]);
 
@@ -131,7 +126,6 @@ size_t shirudo_resolve(const char *input,
 	}
 	if (m)
 		return m;
-	/* Tier 3: candidate is a prefix of input ("remotes" -> "remote"). */
 	for (i = 0; i < n; i++) {
 		size_t clen = strlen(candidates[i]);
 

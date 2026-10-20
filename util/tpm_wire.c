@@ -75,7 +75,6 @@ static int get64(struct reader *r, uint64_t *v)
 	return 0;
 }
 
-/* A TPM2B: 16-bit size then that many bytes, returned by reference. */
 static int get2b(struct reader *r, const uint8_t **data, size_t *len,
 		 size_t max)
 {

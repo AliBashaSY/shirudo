@@ -656,7 +656,6 @@ static size_t tree_selector_kv_bound(const struct shirudo_tree_selector_kv *kv)
 	return n;
 }
 
-/* Upper bound on the serialised size of one operation. */
 static size_t tree_operation_bound(const struct shirudo_tree_operation *op)
 {
 	const struct shirudo_tree_selector *s = &op->selector;

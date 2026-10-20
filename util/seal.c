@@ -104,7 +104,6 @@ static ssize_t seal_lget(const char *path, char label[SEAL_LABEL_LEN])
 					SEAL_LABEL_LEN));
 }
 
-/* Open the directory of path to create in it; *name is the last component. */
 static int seal_open_parent(const char *path, const char **name)
 {
 	const char *slash = strrchr(path, '/');

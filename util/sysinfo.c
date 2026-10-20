@@ -20,7 +20,6 @@
 #include "malloc.h"
 #include "sysinfo.h"
 
-/* Read the first line of a file into buf, trimming the trailing newline. */
 static void read_first_line(const char *path, char *buf, size_t cap)
 {
 	ssize_t n;
@@ -40,10 +39,6 @@ static void read_first_line(const char *path, char *buf, size_t cap)
 	buf[strcspn(buf, "\r\n")] = '\0';
 }
 
-/*
- * Pull PRETTY_NAME from /etc/os-release into buf, stripping the
- * surrounding double quotes os-release uses for the human label.
- */
 static void read_os_pretty(char *buf, size_t cap)
 {
 	char line[512];
@@ -72,7 +67,6 @@ static void read_os_pretty(char *buf, size_t cap)
 	fclose(f);
 }
 
-/* Seconds since boot from /proc/uptime's first (float) field, or -1. */
 static long read_uptime_sec(void)
 {
 	char buf[64];
@@ -90,12 +84,6 @@ static long read_uptime_sec(void)
 	return (long)strtod(buf, NULL);
 }
 
-/*
- * MemTotal + MemAvailable in KiB from /proc/meminfo. -1 each on failure.
- * MemAvailable is the modern "free + reclaimable" measure introduced in
- * 3.14; on a kernel that old we leave it as -1 and the renderer omits
- * the "used" half.
- */
 static void read_mem(long *total_kb, long *avail_kb)
 {
 	char line[256];
@@ -121,7 +109,6 @@ static void read_mem(long *total_kb, long *avail_kb)
 	fclose(f);
 }
 
-/* statvfs("/") -> total + used in KiB. -1 each on failure. */
 static void read_root_disk(long *total_kb, long *used_kb)
 {
 	struct statvfs s;
@@ -273,7 +260,6 @@ static void emit_kernel_config_entry(void *ctx, const char *key,
 	shirudo_json_kv_string(ctx, key, value);
 }
 
-/* Emit set entries from /boot/config-<uname -r> as a JSON object. */
 static void emit_kernel_config(struct shirudo_json_emit *e,
 				       const char *kernel_release)
 {

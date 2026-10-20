@@ -2,10 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * In-tree JSON emitter and schema-callback parser. The emitter is
- * streaming with a caller-supplied buffer, automatic comma placement
- * and string escaping; the parser dispatches declared keys into caller
- * structs and parses-and-discards everything else.
+ * JSON emitter and schema parser; the parser dispatches declared keys
+ * and parses and discards the rest.
  */
 
 #include <errno.h>
@@ -61,9 +59,8 @@ static void put_raw(struct shirudo_json_emit *e, const char *s)
 }
 
 /*
- * Emit one escaped JSON string (surrounding quotes included). Escapes
- * the mandatory characters and rejects malformed UTF-8 with -EILSEQ so
- * a stray byte can never produce invalid JSON.
+ * Malformed UTF-8 is -EILSEQ, so a stray byte can never produce
+ * invalid JSON.
  */
 static void put_string(struct shirudo_json_emit *e, const char *s)
 {
@@ -96,7 +93,6 @@ static void put_string(struct shirudo_json_emit *e, const char *s)
 			put(e, (char)c);
 			p++;
 		} else {
-			/* Validate a UTF-8 multi-byte sequence. */
 			int n;
 
 			if ((c & 0xE0) == 0xC0)
@@ -123,7 +119,6 @@ static void put_string(struct shirudo_json_emit *e, const char *s)
 	put(e, '"');
 }
 
-/* Comma before the next member of the innermost open container. */
 static void sep(struct shirudo_json_emit *e)
 {
 	if (e->err)
@@ -261,8 +256,6 @@ int shirudo_json_emit_flush(struct shirudo_json_emit *e)
 	return flush_sink(e);
 }
 
-/* ---- Schema-driven parser ---------------------------------------- */
-
 struct pctx {
 	const char			*p;
 	const char			*end;
@@ -308,7 +301,6 @@ static int hex4(const char *s)
 	return v;
 }
 
-/* Append one byte to dst (if non-NULL), tracking decoded length. */
 static int emit_byte(char *dst, size_t cap, size_t *len, unsigned char b)
 {
 	size_t n = *len;
@@ -344,10 +336,6 @@ static int utf8_emit(char *dst, size_t cap, size_t *len, unsigned cp)
 	return rc;
 }
 
-/*
- * Parse a JSON string starting at *p == '"'. Decodes escapes into dst
- * (NUL-terminated) when dst != NULL, or just consumes when dst == NULL.
- */
 static int parse_string(struct pctx *c, char *dst, size_t cap)
 {
 	size_t len = 0;
@@ -526,12 +514,6 @@ static int parse_array(struct pctx *c)
 	return 0;
 }
 
-/*
- * Parse a '['-led array into a declared SHIRUDO_JSON_T_ARRAY field:
- * each element is dispatched against f->sub[] (an object element uses
- * the whole sub-schema; a scalar element goes to sub[0]), then the
- * sink's on_elem(ctx) is called so the caller can copy the element out.
- */
 static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 {
 	struct shirudo_json_array *sink = f->dst;
@@ -565,7 +547,6 @@ static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 			c->fields = save_f;
 			c->n_fields = save_n;
 		} else {
-			/* Scalar (or nested array/object) element -> sub[0]. */
 			rc = parse_value(c, f->n_sub ? &f->sub[0] : NULL);
 		}
 		if (rc)

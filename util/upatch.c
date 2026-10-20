@@ -136,7 +136,6 @@ static int validate_bounds(const struct shirudo_upatch_header *h, size_t n,
 		return -EINVAL;
 	if (!section_inside(h->data_off, h->data_len, n, header_size))
 		return -EINVAL;
-	/* loader insns and signature are mandatory; data may be empty */
 	if (h->loader_insns_len == 0 || h->signature_len == 0)
 		return -EINVAL;
 	return 0;

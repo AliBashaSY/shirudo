@@ -27,7 +27,6 @@
 #define KEY_SPEC_USER_KEYRING	(-4)
 #endif
 
-/* keyring permission bits (avoid a libkeyutils dependency). */
 #define KEY_POS_VIEW	0x01000000
 #define KEY_POS_READ	0x02000000
 #define KEY_POS_WRITE	0x04000000
@@ -152,7 +151,6 @@ static int describe_key(key_serial_t serial,
 	return 0;
 }
 
-/* "type;uid;gid;perm;description" -> &type, &description */
 static void split_describe(char *desc, const char **type,
 			   const char **description)
 {

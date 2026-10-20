@@ -247,11 +247,9 @@ int shirudo_cert_key_algorithm(const struct shirudo_cert *cert,
 }
 
 /*
- * Verify a detached CMS signature against one operator certificate. The
- * signature algorithm comes from the SignerInfo, so an ML-DSA signature
- * (signedAttrs + SHA-512, or no attributes on OpenSSL 4) and an RSA
- * signature verify through the same call; libcrypto >= 3.5 is needed for
- * ML-DSA.
+ * The algorithm comes from the SignerInfo, so an ML-DSA signature,
+ * with signedAttrs and SHA-512 or bare on OpenSSL 4, and an RSA one
+ * verify through one call; ML-DSA needs libcrypto >= 3.5.
  */
 int shirudo_verify_detached(const uint8_t *payload, size_t payload_len,
 			    const uint8_t *signature, size_t signature_len,

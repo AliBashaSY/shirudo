@@ -48,15 +48,9 @@ int shirudo_tpm_open(struct shirudo_tpm **out)
 	setenv("TSS2_LOG", "all+none", 0);
 
 	/*
-	 * Default to the kernel resource manager. Precedence:
-	 *   1. SHIRUDO_TPM_TCTI env var (highest)
-	 *   2. tpm.tcti in /etc/shirudo/shirudo.conf
-	 *   3. compiled-in default `device:/dev/tpmrm0`
-	 * Override is for VMs/CI whose /dev/tpmrm0 is
-	 * owner-provisioned and for tests against a software TPM.
-	 * Redirecting the TCTI on a target cannot defeat the
-	 * operator-side guarantee: the evidence is signed by the key
-	 * the operator pinned, so a substitute TPM fails verification.
+	 * The env, then the file, then /dev/tpmrm0. An override is for VMs,
+	 * CI and a software TPM; it cannot defeat the operator-side guarantee,
+	 * since evidence is signed by the key the operator pinned.
 	 */
 	tcti = getenv("SHIRUDO_TPM_TCTI");
 	if ((!tcti || !*tcti) && shirudo_config_load(&cfg) == 0 &&
@@ -96,7 +90,6 @@ void shirudo_tpm_close(struct shirudo_tpm *t)
 	xfree(t, sizeof(*t));
 }
 
-/* Compare a TPM return code with a base code, masking handle numbers. */
 static bool rc_is(TSS2_RC rc, TSS2_RC code)
 {
 	if ((rc & 0xFFFF0000u) != 0)
@@ -240,7 +233,6 @@ int shirudo_tpm_nv_info(struct shirudo_tpm *t, uint32_t index,
 	return 0;
 }
 
-/* Owner-hierarchy auth for DefineSpace/UndefineSpace; cleared after use. */
 static int owner_auth_set(struct shirudo_tpm *t, const void *auth, size_t len)
 {
 	TPM2B_AUTH owner = {};
@@ -522,7 +514,6 @@ static size_t put2b(uint8_t *p, const uint8_t *data, uint16_t len)
 	return 2u + len;
 }
 
-/* The marshalled form of a public area libtss2 handed back. */
 static int public_from_tss(const TPMT_PUBLIC *p, uint8_t *out, size_t cap,
 			   size_t *len)
 {

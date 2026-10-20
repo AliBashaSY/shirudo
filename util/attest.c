@@ -41,7 +41,6 @@
 
 extern const char shirudo_version_id[];
 
-/* Read a log file (bounded) and base64 it into an xmalloc'd string. */
 static int read_file_base64(const char *path, char **out, size_t *out_cap)
 {
 	unsigned char *raw;
@@ -370,8 +369,6 @@ out:
 	return rc;
 }
 
-/* ---- verification ---------------------------------------------------- */
-
 struct record {
 	char	type[16];
 	char	label[SHIRUDO_UPATCH_NAME_MAX + 64];
@@ -395,7 +392,6 @@ struct init_record {
 };
 
 struct parse {
-	/* scalars straight from the document */
 	char		nonce_hex[2 * SHIRUDO_ATTEST_NONCE_MAX + 1];
 	int64_t		pcr_mask;
 	char		ak_public_hex[2 * SHIRUDO_TPM_PUBLIC_MAX + 1];
@@ -412,12 +408,10 @@ struct parse {
 	char		reg_value_hex[65];
 	char		reg_attest_hex[2 * SHIRUDO_TPM_ATTEST_MAX + 1];
 	char		reg_sig_hex[2 * SHIRUDO_TPM_SIGNATURE_MAX + 1];
-	/* pcrs[] element scratch and result */
 	int64_t		pcr_index;
 	char		pcr_value_hex[65];
 	uint32_t	pcr_have;
 	uint8_t		pcrs[24][32];
-	/* eventlog[] element scratch */
 	char		type[16];
 	char		digest_hex[65];
 	char		pcr_before_hex[65];
@@ -435,7 +429,6 @@ struct parse {
 	char		tree_op[16];
 	int64_t		tree_seq;
 	char		key_fingerprint[65];
-	/* results */
 	struct record	*recs;
 	size_t		n_recs;
 	unsigned int	inits;		/* init records this boot */
@@ -604,7 +597,6 @@ static int hex_bytes(const char *hex, uint8_t *out, size_t cap, size_t *len)
 	return shirudo_hex_decode(hex, out, n / 2);
 }
 
-/* Structure and signature checks the quote and the certification share. */
 static int check_signed(struct reporter *rep, const char *what,
 			const char *attest_hex, const char *sig_hex,
 			const struct shirudo_tpm_ecc_public *ak,
@@ -820,7 +812,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	     shirudo_ct_eq(nonce, expect->nonce, nonce_len)),
 	    "nonce matches the request");
 
-	/* The attestation key: a restricted signer with the pinned name. */
 	if (hex_bytes(p->ak_public_hex, ak_public, sizeof(ak_public),
 		      &ak_public_len) ||
 	    hex_bytes(p->ak_name_hex, ak_name, sizeof(ak_name), &ak_name_len) ||
@@ -851,7 +842,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		note(&rep, "attestation key not pinned: name %s",
 		     p->ak_name_hex);
 
-	/* The endorsement key beside it, and the credential it opened. */
 	if (have_ek) {
 		uint8_t ek_public[SHIRUDO_TPM_PUBLIC_MAX];
 		uint8_t ek_name[SHIRUDO_TPM_NAME_LEN], computed[SHIRUDO_TPM_NAME_LEN];
@@ -904,7 +894,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		note(&rep, "a credential was activated but none is expected "
 		     "(--expect-credential)");
 
-	/* The quote over the PCR bank. */
 	rc = check_signed(&rep, "quote", p->quote_attest_hex, p->quote_sig_hex,
 			  &ak_pub, ak_name, nonce, nonce_len, attest,
 			  sizeof(attest), &attest_len, &quote);
@@ -933,7 +922,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		    "quote: PCR digest matches the listed values");
 	}
 
-	/* The register certification. */
 	rc = check_signed(&rep, "register", p->reg_attest_hex, p->reg_sig_hex,
 			  &ak_pub, ak_name, nonce, nonce_len, attest,
 			  sizeof(attest), &attest_len, &certify);
@@ -1021,7 +1009,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		    "register: init record is of the TPM's current reset "
 		    "count");
 
-	/* The replay: this boot's records reproduce the certified value. */
 	for (i = 0; i < p->n_recs; i++) {
 		shirudo_chain_fold(chain, p->recs[i].digest);
 		if (i)
@@ -1031,7 +1018,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
 	    p->n_recs == 1 ? "" : "s");
 
-	/* The anchor: PCR holds the record of the binding. */
 	{
 		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
 
@@ -1060,7 +1046,6 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		}
 	}
 
-	/* The expected state. */
 	if (expect->have_init)
 		say(&rep, shirudo_ct_eq(p->init.digest, expect->init_event, 32),
 		    "state: init event covers the expected certificate, set "
@@ -1100,8 +1085,6 @@ out:
 	xfree(p, sizeof(*p));
 	return rc;
 }
-
-/* ---- the challenge ---------------------------------------------------- */
 
 static int read_file(const char *path, char **out, size_t *len, size_t *cap)
 {
@@ -1350,7 +1333,6 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 		goto out;
 	}
 
-	/* The seed the endorsement key alone can recover, then the blob. */
 	rc = -EIO;
 	if (getrandom(credential, SHIRUDO_TPM_CREDENTIAL_LEN, 0) !=
 	    SHIRUDO_TPM_CREDENTIAL_LEN)

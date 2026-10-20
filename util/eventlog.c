@@ -2,10 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * /var/lib/shirudo/eventlog appender. Append-only JSON-lines, one
- * line per register extension. The eventlog and the register must
- * stay in lockstep: replaying this boot's records must reproduce the
- * live value, so a caller only appends here after a successful extend.
+ * The eventlog: one JSON line per register extension, appended only
+ * after the extend succeeded so a replay reproduces the live value.
  */
 
 #include <errno.h>
@@ -118,7 +116,6 @@ static int read_file(const char *path, char **out, size_t *out_len)
 	return 0;
 }
 
-/* The log and, after it, whatever the initrd phase left pending. */
 static int read_log(char **out, size_t *out_len)
 {
 	size_t base_len = 0, pending_len = 0, off;
@@ -171,10 +168,8 @@ out:
 }
 
 /*
- * Walk this boot's records in <buf>: every line whose boot_id is the
- * running boot's, from the last "init" line on. The callback learns
- * whether a line is that init so a replay can start over from zero.
- * -ENOENT when no init of this boot exists. Consumes <buf>.
+ * This boot's records from its last init line on; the callback learns
+ * which line that is so a replay can start from zero.
  */
 static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 					   bool is_init, void *ctx), void *ctx)
@@ -246,7 +241,6 @@ static int adopt_seen(const char *line, size_t len, bool is_init, void *ctx)
 	return 0;
 }
 
-/* Whether this boot's part of the log already holds <line>. */
 static int log_holds(const char *line, size_t len)
 {
 	struct adopt_ctx a = { .line = line, .len = len };

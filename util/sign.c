@@ -122,10 +122,6 @@ static bool pkey_is_mldsa(const EVP_PKEY *pkey)
 int shirudo_cms_sign(struct shirudo_sign_io *io,
 		     const char *pkey_path, const char *cert_path)
 {
-	/*
-	 * TODO: add an issuerAndSerialNumber signing mode so signed BPF
-	 * upatches can exercise both kernel-supported CMS forms.
-	 */
 	unsigned int signer_flags = CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
 #ifdef CMS_NO_SIGNING_TIME
 				    CMS_NO_SIGNING_TIME |

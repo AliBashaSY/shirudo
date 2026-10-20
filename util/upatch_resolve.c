@@ -2,8 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Lifted out of builtin-status.c so `shirudo upatch get` can share
- * the same hook-string + loaded_at resolvers.
+ * The hook string and load time of a loaded upatch, from its pin.
  */
 
 #include <errno.h>

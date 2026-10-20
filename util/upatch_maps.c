@@ -2,15 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Pinned upatch maps reader. Walks /run/shirudo/bpffs/upatches/
- * <name>/maps/<map>, opens each pin via BPF_OBJ_GET, dispatches to a
- * per-type reader for the entries. BTF type names come from
- * libbpf::btf__name_by_offset() when the map carries a btf_id.
- *
- * Generic map reads are read-only. Serializer-backed reads also clear
- * the reserved output map and run the pinned serializer program with
- * BPF_PROG_TEST_RUN; the serializer writes serialized chunks back to
- * that reserved map for userspace to print.
+ * Reader of the pinned upatch maps, generic or through the upatch's
+ * serializer.
  */
 
 #include <dirent.h>
@@ -48,7 +41,6 @@
  */
 #define SHIRUDO_BTF_MAX_DEPTH		6
 
-/* Resolve the parent upatch location without making it required for reads. */
 static void resolve_map_location(struct shirudo_map_view *v)
 {
 	struct btf *vbtf;
@@ -101,7 +93,6 @@ static bool is_hash_type(uint32_t type)
 	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
-/* Resolve a BTF type id to a printable type name in dst[]. */
 static void btf_type_name(struct btf *btf, uint32_t type_id,
 			  char *dst, size_t dst_cap)
 {
@@ -143,13 +134,8 @@ static void btf_type_name(struct btf *btf, uint32_t type_id,
 	}
 }
 
-/* Forward decl: defined further down, used by the BTF formatters. */
 static char *fmt_alloc(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
-/*
- * Unwrap qualifier / typedef chains. Returns the resolved type id
- * (or `id` unchanged if no unwrap was possible / depth exceeded).
- */
 static uint32_t btf_unwrap(const struct btf *btf, uint32_t id)
 {
 	const struct btf_type *t;
@@ -190,13 +176,6 @@ static const char *btf_kind_prefix(uint16_t kind)
 	}
 }
 
-/*
- * `btf_type_signature_into` writes a multi-line definition of `id`
- * into the caller-owned buffer at offset *off (bounded by cap). For
- * struct/union it emits `struct foo {\n  type field;\n  ...\n}`; for
- * anything else, just the type name. Truncates with `; ...` rather
- * than failing if the buffer is too small. depth bounds recursion.
- */
 static void btf_type_signature_into(const struct btf *btf, uint32_t id,
 				    char *buf, size_t cap, size_t *off,
 				    int depth);
@@ -313,18 +292,10 @@ static void btf_type_signature_into(const struct btf *btf, uint32_t id,
 	append_str(buf, cap, off, name && name[0] ? name : "?");
 }
 
-/*
- * Compose a heap-owned formatted-value string for a BTF type. For
- * structs/unions: `{ field=val, field=val }`. For arrays: `[v0, v1, ...]`.
- * For primitives: decimal (signed/unsigned by BTF_INT_SIGNED); for ptr,
- * hex; for enum, the symbol name when known.
- * Returns NULL only on allocation failure.
- */
 static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			      const void *bytes, uint32_t bytes_size,
 			      int depth);
 
-/* Append one heap-formatted token to an open `out` buffer; takes ownership. */
 static int strbuf_append_take(char **out, size_t *cap, size_t *off,
 			      char *piece)
 {
@@ -373,7 +344,6 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 
 		for (i = 0; i < bytes_used; i++)
 			v |= (int64_t)((const uint8_t *)bytes)[i] << (8 * i);
-		/* Sign-extend from `bits`. */
 		if (bits < 64 && (v & ((int64_t)1 << (bits - 1))))
 			v |= ~(((int64_t)1 << bits) - 1);
 		return fmt_alloc("%" PRId64, v);
@@ -546,7 +516,6 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 	return NULL;
 }
 
-/* Heap snprintf into a fresh buffer with the printf result. */
 static char *fmt_alloc(const char *fmt, ...)
 {
 	char small[64];
@@ -577,11 +546,6 @@ static int nproc_possible(void)
 	return n > 0 ? (int)n : 1;
 }
 
-/*
- * Dispatch on (size, signedness) to render a primitive value. Falls
- * back to a hex dump for anything else (string, struct, unknown).
- * out_buf is heap-owned; caller xfree's. value_bytes are read-only.
- */
 static char *format_value(const void *value, uint32_t value_size,
 			  const char *btf_type)
 {
@@ -684,7 +648,6 @@ char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 	return xstrdup("(unsupported width)");
 }
 
-/* Open a pinned map and return its fd + filled info. -errno on failure. */
 static int open_map_pin(const char *upatch, const char *map_name,
 			int *fd_out, struct bpf_map_info *info_out)
 {
@@ -906,10 +869,6 @@ out_chunk:
 	return rc;
 }
 
-/*
- * Return 1 when a serializer was found and populated out, 0 when none
- * exists for this map, or -errno on serializer/output failure.
- */
 static int try_read_serialized(const char *upatch, const char *map,
 			       uint32_t flags, struct shirudo_map_view *out)
 {
@@ -1044,7 +1003,6 @@ out:
 	return rc;
 }
 
-/* Iterate every entry of a map with cap; populate v->entries. */
 static int read_entries(int fd, struct shirudo_map_view *v,
 			uint32_t cap)
 {
@@ -1285,8 +1243,6 @@ int shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
 	return rc;
 }
 
-/* === Listing === */
-
 static void summary_append(struct shirudo_map_summary **list, size_t *n,
 			   size_t *cap, const struct shirudo_map_summary *one)
 {
@@ -1302,7 +1258,6 @@ static void summary_append(struct shirudo_map_summary **list, size_t *n,
 	(*list)[(*n)++] = *one;
 }
 
-/* Read /run/shirudo/bpffs/upatches/<upatch>/maps/<entry> dir. */
 static void scan_upatch_maps(const char *upatch,
 			     struct shirudo_map_summary **list, size_t *n,
 			     size_t *cap)
@@ -1396,8 +1351,6 @@ void shirudo_map_summary_free(struct shirudo_map_summary *list, size_t n)
 		xfree(list, n * sizeof(*list));
 }
 
-/* === Human render === */
-
 void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
 				       size_t n)
 {
@@ -1425,12 +1378,6 @@ void shirudo_upatch_map_print_inline(const struct shirudo_map_summary *m)
 	       m->n_cpus > 1 ? "  (per-cpu)" : "");
 }
 
-/*
- * Format one (key, value) cell. Prefer the BTF-aware recursive
- * renderer (struct/union/array/enum expansion) when the view carries
- * the loaded BTF; fall back to the primitive/hex formatter for raw
- * scalars and the no-BTF case.
- */
 char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
 				     uint32_t type_id, const void *bytes,
 				     uint32_t bytes_size,
@@ -1445,13 +1392,6 @@ char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
 	return s;
 }
 
-/*
- * Render a captured multi-line type-def block under a "<label>:" header,
- * indenting continuation lines so the block lines up under the header
- * column. The first line stays inline with the label; every subsequent
- * '\n' gets 21 spaces of indent (the width of the existing
- * "Value type:          " label).
- */
 static void print_type_def(const char *label, const char *def, uint32_t size)
 {
 	const char *p = def;
@@ -1613,8 +1553,6 @@ void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 		xstrfree(key_s);
 	}
 }
-
-/* === JSON === */
 
 void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v)

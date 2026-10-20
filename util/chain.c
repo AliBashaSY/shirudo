@@ -196,7 +196,6 @@ static bool name_equals(const struct shirudo_tpm_nv_info *info,
 	       shirudo_ct_eq(info->name, name, SHIRUDO_TPM_NAME_LEN);
 }
 
-/* Define the register under policy, undefining a stale index first. */
 static int register_define(struct shirudo_tpm *tpm, bool defined,
 			   const uint8_t policy[32])
 {
