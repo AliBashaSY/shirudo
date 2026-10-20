@@ -132,7 +132,6 @@ CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra \
 UTIL_SRCS := \
 	$(CRYPTO_SRC) \
 	$(TLS_SRC) \
-    util/parse-options.c \
     util/loader.c \
     util/upatch.c \
     util/keyring.c \
@@ -369,9 +368,9 @@ build/target/util/loader.o: $(BPF_OBJS)
 # operator-only `bpm build|push|tree append`. Not linked into the core
 # shirudo binary.
 tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
-                                   util/parse-options.o util/upatch.o \
                                    util/log.o util/json.o util/loader.o \
                                    util/io.o util/malloc.o util/paths.o \
+                                   util/upatch.o \
                                    util/elf_target.o util/hex.o util/keys.o \
                                    util/seal.o \
                                    util/crypto_openssl.o util/tls_openssl.o \
