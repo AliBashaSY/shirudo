@@ -98,6 +98,16 @@ Why the change is made." &&
 	grep -q "^WARNING:LONG_LINE: line length of 9[0-9] exceeds 80 columns" "$W/out"
 '
 
+test_expect_success 'a string literal running past 80 columns is not reported' '
+	put names.h "/* SPDX-License-Identifier: BSD-2-Clause */" "" \
+		"#define NAMES_LONG_PIN_PATH	NAMES_DIR \"/a_pin_name_that_runs_past_the_limit_link\"" &&
+	commit "a: add a long name
+
+Why the change is made." &&
+	check &&
+	! grep -q "LONG_LINE" "$W/out"
+'
+
 test_expect_success 'a commit touching no C source still has its message checked' '
 	put run.sh "#!/bin/sh" "$(printf "%0150d" 0)" &&
 	commit "a: a shell file

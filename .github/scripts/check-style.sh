@@ -59,6 +59,11 @@ ignored_types() {
 	# Warnings
 	COMMIT_LOG_LONG_LINE
 	COMMIT_MESSAGE
+	# A string literal is not broken across lines, as the kernel's
+	# coding style says of user-visible strings, so that it can be
+	# grepped for; the pin and xattr names in util/paths.h run past
+	# the limit for that reason.
+	LONG_LINE_STRING
 	CONSTANT_CONVERSION
 	CONST_STRUCT
 	EMAIL_SUBJECT
