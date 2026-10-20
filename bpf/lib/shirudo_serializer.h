@@ -9,6 +9,8 @@
 #ifndef SHIRUDO_SERIALIZER_H
 #define SHIRUDO_SERIALIZER_H
 
+#include "shirudo_misc.h"
+
 #define SHIRUDO_SERIAL_MAP_NAME		"shirudo_ser"
 #define SHIRUDO_SERIAL_MAGIC		0x5a4c5253u	/* "SRLZ" le */
 #define SHIRUDO_SERIAL_VERSION		3u
@@ -60,10 +62,8 @@ struct shirudo_serial_chunk {
 	unsigned char	data[SHIRUDO_SERIAL_CHUNK_PAYLOAD];
 };
 
-_Static_assert(sizeof(struct shirudo_serialize_ctx) ==
-	       SHIRUDO_SERIAL_CTX_MAX_BYTES,
-	       "serializer context ABI size changed");
-_Static_assert(sizeof(struct shirudo_serial_chunk) == 4096,
-	       "serializer chunk ABI must remain one page");
+BUILD_BUG_ON(sizeof(struct shirudo_serialize_ctx) !=
+	     SHIRUDO_SERIAL_CTX_MAX_BYTES);
+BUILD_BUG_ON(sizeof(struct shirudo_serial_chunk) != 4096);
 
 #endif /* SHIRUDO_SERIALIZER_H */

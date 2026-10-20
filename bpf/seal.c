@@ -2,44 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Filesystem-sealing LSM: xattr-based labels, never paths.
- *
- * Every file/directory under /var/lib/shirudo/ (except the private bpffs
- * mount, which bpf/bpf2.c guards) is labelled with the inode xattr
- * security.bpf.shirudo whose value is one fixed 64-character string; the
- * shirudo binary carries the same label. The filesystem hooks read the
- * target's label and, if present, require the calling task to run the
- * executable shirudo init recorded in the identity map (the test bpf2
- * applies to the bpffs) -- so only shirudo may modify, unlink, rename,
- * or relabel its own on-disk state. The label only marks a target, and
- * only shirudo may set it; its value is public and a mounted file system
- * can present it, so a binary carrying it proves nothing about the
- * caller. The exec hooks cache whether the successfully executed file
- * carries a Shirudo label in task storage for later access-control
- * decisions. An unlabelled filesystem target is not ours and is allowed
- * through untouched; a label that cannot be read, unless the caller may
- * not read the file, is taken to be there. No bpf_d_path(), no path
- * strings: the label rides the inode, immune to bind-mount / namespace /
- * TOCTOU games. Reads are not gated; only write-mode opens and the
- * mutating inode ops are. Every refusal is counted in the tamper map
- * bpf2 shares with the seal (shirudo_tamper.h).
- *
- * An inode created under a labelled directory is born with the label:
- * lsm/inode_init_security hands it to the filesystem inside the
- * transaction that creates the inode, so there is no instant at which
- * one of shirudo's files exists unlabelled. That hook gets the parent
- * as a bare inode and cannot sleep to read its label, so a labelled
- * directory is remembered in inode storage by the hooks that hold a
- * trusted handle on it: file_open of the directory itself, a setxattr
- * or removexattr on it, and its own creation under a marked parent.
- *
- * The filesystem and exec xattr hooks are sleepable (lsm.s/) because
- * reading an xattr can sleep. The xattr-reading kfuncs write into a
- * bpf_dynptr over map memory (the verifier rejects stack), so the
- * scratch buffer lives in per-task storage: a task is in only one of
- * these syscalls at a time, and its storage survives CPU migration
- * across the sleeping read -- so no cross-invocation races, unlike a
- * shared global buffer.
+ * Filesystem-sealing LSM: an inode label, never a path, marks what only
+ * shirudo may modify.
  */
 
 #include "vmlinux.h"
@@ -74,9 +38,13 @@
 char _license[] SEC("license") = "Dual BSD/GPL";
 
 #define SHIRUDO_XATTR	"security.bpf.shirudo"
-/* The label is a SHA-256 hex string (util/seal.h) -- always 64 bytes. */
+/* SHA-256 hex, as util/seal.h writes it. */
 #define LABEL_LEN	64
 
+/*
+ * The xattr kfuncs refuse a stack buffer, and a task is in one of these
+ * hooks at a time.
+ */
 struct seal_scratch {
 	char	target[LABEL_LEN];
 	__u8	exec_candidate_valid;
@@ -91,7 +59,6 @@ struct {
 	__type(value, struct seal_scratch);
 } seal_scratch_map SEC(".maps");
 
-/* The label of a directory, as the last hook with a handle on it read it. */
 struct seal_dir_mark {
 	char	label[LABEL_LEN];
 };
@@ -112,10 +79,6 @@ extern int bpf_inode_init_xattr(struct xattr *xattrs,
 				const char *name__str,
 				const struct bpf_dynptr *value_p) __ksym;
 
-/*
- * 0 if the caller runs the executable recorded at init, else -EACCES,
- * counted at `point`.
- */
 static __always_inline int seal_caller(enum shirudo_tamper_point point)
 {
 	struct shirudo_sb_id *id;
@@ -129,13 +92,11 @@ static __always_inline int seal_caller(enum shirudo_tamper_point point)
 }
 
 /*
- * Decide on the result of reading the target's label (tlen). No label
- * (-ENODATA) or no security xattrs on the file system (-EOPNOTSUPP) is
- * not shirudo's inode. Neither is one the caller may not read (-EACCES,
- * -EPERM): the kfunc checks read permission for the caller, so failing
- * those closed would refuse every write-only open and every unlink of an
- * unreadable file. A label of any size, or any other error, requires the
- * caller to be shirudo. 0 = allow, -EACCES = deny.
+ * No label, or a file system without security xattrs, is not shirudo's
+ * inode. Neither is one the caller may not read: the kfunc checks read
+ * permission, and failing that closed would refuse every write-only
+ * open and every unlink of an unreadable file. Anything else needs
+ * shirudo.
  */
 static __always_inline int seal_verdict(int tlen,
 					enum shirudo_tamper_point point)
@@ -151,7 +112,6 @@ static __always_inline int seal_verdict(int tlen,
 	}
 }
 
-/* Whether an xattr name is the label itself, not a longer name under it. */
 static __always_inline bool seal_is_label(const char *name)
 {
 	char buf[sizeof(SHIRUDO_XATTR) + 1];
@@ -175,7 +135,6 @@ static __always_inline bool seal_is_dir(struct inode *inode)
 	return (BPF_CORE_READ(inode, i_mode) & S_IFMT) == S_IFDIR;
 }
 
-/* Remember a directory's label as just read (len bytes), or forget it. */
 static __always_inline void seal_mark(struct inode *inode, const char *label,
 				      int len)
 {
@@ -192,11 +151,8 @@ static __always_inline void seal_mark(struct inode *inode, const char *label,
 }
 
 /*
- * Stage the candidate executable's seal label during exec. A later LSM
- * hook may still reject the exec, so the persistent task marker is only
- * updated by bprm_committed_creds after a successful exec. This is because
- * the task struct storage would be reused on the error case for some
- * other task.
+ * A later hook may still reject the exec, so the label is only staged
+ * here and becomes the task's mark in bprm_committed_creds.
  */
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(shirudo_seal_bprm_check_security,
@@ -231,7 +187,6 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	if (!s || !s->exec_candidate_valid)
 		return;
 	if (!s->exec_candidate_labelled) {
-		/* Scratch is transient; unlabelled tasks need no persistent entry. */
 		bpf_task_storage_delete(&seal_scratch_map, task);
 		return;
 	}
@@ -258,7 +213,6 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	return 0;
 }
 
-/* Do not create task-bound perf events for a committed Shirudo task. */
 SEC("lsm/perf_event_alloc")
 int BPF_PROG(shirudo_seal_perf_event_alloc,
 	     struct perf_event *event, int ret)
@@ -271,7 +225,7 @@ int BPF_PROG(shirudo_seal_perf_event_alloc,
 
 	target = event->hw.target;
 	if (!target)
-		return 0; /* CPU-wide events have no task target to inspect. */
+		return 0;
 
 	s = bpf_task_storage_get(&seal_scratch_map, target, NULL, 0);
 	if (s && s->exe_is_shirudo)
@@ -280,7 +234,6 @@ int BPF_PROG(shirudo_seal_perf_event_alloc,
 	return 0;
 }
 
-/* Do not allow ptrace access to tasks whose committed executable is Shirudo. */
 SEC("lsm/ptrace_access_check")
 int BPF_PROG(shirudo_seal_ptrace_access_check,
 	     struct task_struct *child, unsigned int mode, int ret)
@@ -308,7 +261,7 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file)
 
 	task = bpf_get_current_task_btf();
 	if (seal_is_dir(inode)) {
-		/* Only ever opened for reading; its label marks it. */
+		/* never opened for writing; mark it */
 		s = seal_scratch_get(task);
 		if (!s)
 			return 0;
@@ -318,16 +271,15 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file)
 		return 0;
 	}
 	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
-		return 0;		/* reads are fine */
+		return 0;
 	s = seal_scratch_get(task);
-	if (!s)				/* cannot read the label */
+	if (!s) /* cannot read the label */
 		return seal_caller(SHIRUDO_TAMPER_SEAL_WRITE);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 	return seal_verdict(bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp),
 			    SHIRUDO_TAMPER_SEAL_WRITE);
 }
 
-/* Refresh a directory's mark from its label after an xattr change. */
 static __always_inline void seal_mark_dentry(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
@@ -359,15 +311,12 @@ void BPF_PROG(shirudo_seal_inode_post_removexattr, struct dentry *dentry,
 }
 
 /*
- * Label a new inode inside the transaction that creates it when its
- * parent directory is marked, with the parent's label, and mark a new
- * directory in turn so a subtree created in one go needs no reopen.
- * The hook cannot sleep, so the label comes from the mark, not from
- * disk. A claim that fails (no slot left, no memory) aborts the
+ * The hook cannot sleep, so a new inode takes its label from the
+ * parent's mark, and a new directory is marked in turn so a subtree
+ * created in one go needs no reopen. A failed claim aborts the
  * creation: better no inode than one of shirudo's without its label,
- * and the verifier wants a constant in the LSM's error range rather
- * than the kfunc's. A filesystem that takes no xattrs at creation
- * passes none; the label follows from userspace there.
+ * and the verifier wants an LSM errno, not the kfunc's. A file system
+ * that takes no xattrs at creation gets its label from userspace.
  */
 SEC("lsm/inode_init_security")
 int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
@@ -415,7 +364,6 @@ int BPF_PROG(shirudo_seal_inode_unlink, struct inode *dir,
 	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_UNLINK);
 }
 
-/* Whether an inode is the executable recorded at init. */
 static __always_inline bool seal_is_exe(struct inode *inode)
 {
 	struct shirudo_sb_id *id;
@@ -427,9 +375,8 @@ static __always_inline bool seal_is_exe(struct inode *inode)
 }
 
 /*
- * Protect both ends of a rename: moving a labelled inode out and
- * replacing one. The recorded executable may be replaced, as a package
- * upgrade does; the new binary is not shirudo until init records it.
+ * The recorded executable may be renamed over, as a package upgrade
+ * does; the new binary is not shirudo until init records it.
  */
 SEC("lsm.s/inode_rename")
 int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
@@ -447,7 +394,6 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 	return seal_dentry(new_dentry, SHIRUDO_TAMPER_SEAL_RENAME);
 }
 
-/* Truncate, chmod, chown and utimes all come through here. */
 SEC("lsm.s/inode_setattr")
 int BPF_PROG(shirudo_seal_inode_setattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, struct iattr *attr)

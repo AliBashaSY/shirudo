@@ -4,16 +4,12 @@
  *
  * The tamper counters: one per point at which a guard refuses a caller,
  * counted where the refusal happens and read back by `shirudo status`.
- * Include after vmlinux.h and the libbpf BPF headers.
+ * On the BPF side, include after vmlinux.h and the libbpf headers.
  */
 
-#ifndef SHIRUDO_BPF_TAMPER_H
-#define SHIRUDO_BPF_TAMPER_H
+#ifndef SHIRUDO_TAMPER_H
+#define SHIRUDO_TAMPER_H
 
-/*
- * Must match SHIRUDO_TAMPER_POINTS in util/tamper.h in order and
- * number; the reader refuses a map of another size.
- */
 enum shirudo_tamper_point {
 	SHIRUDO_TAMPER_LOAD_NOT_LOADER,
 	SHIRUDO_TAMPER_LOAD_UNSIGNED,
@@ -46,6 +42,7 @@ enum shirudo_tamper_point {
 	SHIRUDO_TAMPER_MAX
 };
 
+#ifdef __BPF__
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, SHIRUDO_TAMPER_MAX);
@@ -53,12 +50,6 @@ struct {
 	__type(value, __u64);
 } shirudo_tamper SEC(".maps");
 
-/*
- * Count a refusal at `point` and hand back `err`, so that a deny reads
- * `return shirudo_tamper_deny(SHIRUDO_TAMPER_X, -EACCES);`. Atomic,
- * since refusals on two CPUs may race, and cheap enough for a path
- * that is the exception.
- */
 static __always_inline int shirudo_tamper_deny(enum shirudo_tamper_point point,
 					       int err)
 {
@@ -70,5 +61,5 @@ static __always_inline int shirudo_tamper_deny(enum shirudo_tamper_point point,
 		__sync_fetch_and_add(count, 1);
 	return err;
 }
-
-#endif /* SHIRUDO_BPF_TAMPER_H */
+#endif /* __BPF__ */
+#endif /* SHIRUDO_TAMPER_H */

@@ -5,6 +5,7 @@
 
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
+#include "shirudo_misc.h"
 
 #if !defined(__BPF_FEATURE_ADDR_SPACE_CAST)
 #error "BPF arena access requires clang address-space cast support"
@@ -356,8 +357,7 @@ struct obs_serial_header {
 	__u32 reserved;
 };
 
-_Static_assert(sizeof(struct obs_serial_header) == 64,
-	       "kernel-obs serializer header must stay 64 bytes");
+BUILD_BUG_ON(sizeof(struct obs_serial_header) != 64);
 
 #define OBS_SERIAL_VERSION	1
 #define OBS_SERIAL_PAGE_CHUNKS	4

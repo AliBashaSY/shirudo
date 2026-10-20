@@ -23,15 +23,14 @@
 #define OBS_T_PER_CHUNK		(SHIRUDO_SERIAL_CHUNK_PAYLOAD / OBS_T_RECORD)
 #define OBS_T_PER_PAGE		(OBS_T_PER_CHUNK * OBS_SERIAL_PAGE_CHUNKS)
 
-_Static_assert(sizeof(OBS_T_KEY) % 8 == 0, "table key must be 8-byte words");
-_Static_assert(sizeof(OBS_T_VAL) % 8 == 0, "table value must be 8-byte words");
-_Static_assert((OBS_T_BUCKETS & (OBS_T_BUCKETS - 1)) == 0,
-	       "table buckets must be a power of two");
-_Static_assert(OBS_T_RECORD >= sizeof(struct obs_serial_header),
-	       "table record must hold the page header");
-_Static_assert(OBS_T_RECORD % 8 == 0, "table record must be 8-byte aligned");
-_Static_assert(OBS_T_PER_CHUNK >= 1, "table record must fit a chunk");
-_Static_assert(OBS_T_CAPACITY <= 0xffff, "table capacity must fit the header");
+BUILD_BUG_ON(sizeof(OBS_T_KEY) % 8);
+BUILD_BUG_ON(sizeof(OBS_T_VAL) % 8);
+BUILD_BUG_ON(OBS_T_BUCKETS & (OBS_T_BUCKETS - 1));
+BUILD_BUG_ON(sizeof(struct obs_serial_header) > OBS_T_RECORD);
+BUILD_BUG_ON(OBS_T_RECORD % 8);
+BUILD_BUG_ON(OBS_T_PER_CHUNK < 1);
+BUILD_BUG_ON_MSG(OBS_T_CAPACITY > 0xffff,
+		 "table capacity must fit the header");
 
 struct OBS_FN(entry) {
 	__u32 next;

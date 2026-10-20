@@ -131,10 +131,10 @@ struct dns_hdr {
 	__u16 arcount;
 };
 
-_Static_assert(sizeof(struct dns_request_key) == 48,
-	       "dns request key ABI must remain verifier-friendly");
-_Static_assert(sizeof(struct dns_request) == 288,
-	       "dns request value ABI is shared with the test helper");
+BUILD_BUG_ON_MSG(sizeof(struct dns_request_key) != 48,
+		 "dns request key ABI must remain verifier-friendly");
+BUILD_BUG_ON_MSG(sizeof(struct dns_request) != 288,
+		 "dns request value ABI is shared with the test helper");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);

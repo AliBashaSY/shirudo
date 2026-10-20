@@ -201,7 +201,7 @@ BPF_VENDOR_HEADERS := bpf_helpers bpf_helper_defs bpf_tracing \
                       bpf_core_read bpf_endian
 BPF_LIBBPF_HEADERS := $(addprefix $(LIBBPF_DIR)/,\
                                   $(addsuffix .h,$(BPF_VENDOR_HEADERS)))
-BPF_LIB_HEADERS    := bpf/lib/shirudo_bpf_common.h \
+BPF_LIB_HEADERS    := bpf/lib/shirudo_misc.h \
                       bpf/lib/shirudo_serializer.h \
                       bpf/lib/shirudo_decoder.h
 

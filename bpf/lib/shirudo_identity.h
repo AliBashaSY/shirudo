@@ -39,11 +39,6 @@ struct {
 	__type(value, struct shirudo_sb_id);
 } shirudo_bpffs_sb SEC(".maps");
 
-/*
- * Whether the calling task runs shirudo's own executable, the one
- * recorded at init, or the initrd's copy of it while that finishes
- * init. A task without an executable is not shirudo.
- */
 static __always_inline bool shirudo_task_is_self(const struct shirudo_sb_id *id)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
