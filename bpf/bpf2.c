@@ -76,7 +76,9 @@
  *   lsm/sb_remount -- mount-lifecycle lockdown of the private bpffs
  *                       superblock (identified by s_dev). Unconditional
  *                       deny: no caller, not even shirudo, may unmount,
- *                       relocate, mount over, or remount it for the boot.
+ *                       relocate, mount over, or remount it for the boot,
+ *                       nor unmount any mount with the bpffs beneath it,
+ *                       which a lazy unmount would take down with it.
  *                       Without this a single `umount` of the bpffs drops
  *                       the pinned links and detaches ALL enforcement,
  *                       since shirudo is agentless and the pins are the
@@ -451,10 +453,11 @@ int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
  * hooks are self-protecting: their own pins live in the bpffs they keep
  * mounted.
  *
- * Residual: a lazy unmount (MNT_DETACH) of an *ancestor* mount can tear
- * down the subtree without firing sb_umount on this child; that needs
- * the ancestor (e.g. /var) to be unmountable, a far higher bar than the
- * trivial direct unmount closed here.
+ * A lazy unmount (MNT_DETACH) of a mount above the bpffs, /run or the
+ * root, takes the subtree down with it and fires sb_umount for the
+ * ancestor alone, so sb_umount also refuses any mount that has the
+ * bpffs beneath it. Nothing unmounts /run or the root on a live
+ * system; switch-root moves /run and never unmounts it.
  */
 static __always_inline int shirudo_deny_bpffs_mount(__u32 sb_dev)
 {
@@ -467,10 +470,80 @@ static __always_inline int shirudo_deny_bpffs_mount(__u32 sb_dev)
 	return sb_dev == id->sb_dev ? -EPERM : 0;
 }
 
+/* The address a trusted pointer holds, as a plain number. */
+static __always_inline unsigned long shirudo_ptr_addr(const void *ptr)
+{
+	unsigned long addr = 0;
+
+	bpf_probe_read_kernel(&addr, sizeof(addr), &ptr);
+	return addr;
+}
+
+#define shirudo_mount_of(ptr, member)					\
+	((struct mount *)((unsigned long)(ptr) -			\
+			  bpf_core_field_offset(struct mount, member)))
+
+#define SHIRUDO_MOUNT_WALK_MAX	4096
+#define SHIRUDO_MOUNT_DEPTH_MAX	64
+
+/*
+ * Whether `root` or a mount below it is of the file system `sb_dev`:
+ * the subtree an unmount of `root` takes down. The walk is over the
+ * caller's own mount tree, so a copy of the bpffs mount in another
+ * namespace is found where a propagated unmount would reach it.
+ * Stackless: down to the first child, else across to the next sibling
+ * of the nearest ancestor that has one, until the walk is back at
+ * `root`. A tree the budget cannot cover is taken to hold the bpffs.
+ */
+static __always_inline bool shirudo_mount_tree_has(struct mount *root,
+						   __u32 sb_dev)
+{
+	struct mount *cur = root, *parent;
+	struct list_head *next;
+	bool climbed;
+	int i, j;
+
+	bpf_for(i, 0, SHIRUDO_MOUNT_WALK_MAX) {
+		if (BPF_CORE_READ(cur, mnt.mnt_sb, s_dev) == sb_dev)
+			return true;
+		next = BPF_CORE_READ(cur, mnt_mounts.next);
+		if (next != &cur->mnt_mounts) {
+			cur = shirudo_mount_of(next, mnt_child);
+			continue;
+		}
+		climbed = false;
+		bpf_for(j, 0, SHIRUDO_MOUNT_DEPTH_MAX) {
+			if (cur == root)
+				return false;
+			parent = BPF_CORE_READ(cur, mnt_parent);
+			next = BPF_CORE_READ(cur, mnt_child.next);
+			if (next != &parent->mnt_mounts) {
+				cur = shirudo_mount_of(next, mnt_child);
+				climbed = true;
+				break;
+			}
+			cur = parent;
+		}
+		if (!climbed)
+			return true;
+	}
+	return true;
+}
+
 SEC("lsm/sb_umount")
 int BPF_PROG(shirudo_lsm_sb_umount, struct vfsmount *mnt, int flags)
 {
-	return shirudo_deny_bpffs_mount(BPF_CORE_READ(mnt, mnt_sb, s_dev));
+	struct shirudo_sb_id *id;
+	struct mount *target;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || id->sb_dev == 0)
+		return 0;
+	if (BPF_CORE_READ(mnt, mnt_sb, s_dev) == id->sb_dev)
+		return -EPERM;
+	target = shirudo_mount_of(shirudo_ptr_addr(mnt), mnt);
+	return shirudo_mount_tree_has(target, id->sb_dev) ? -EPERM : 0;
 }
 
 SEC("lsm/move_mount")
