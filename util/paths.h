@@ -75,6 +75,9 @@
 #define SHIRUDO_SEAL_SETATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_setattr_link"
 #define SHIRUDO_SEAL_SETXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_setxattr_link"
 #define SHIRUDO_SEAL_RMXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_removexattr_link"
+#define SHIRUDO_SEAL_POST_SETXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_post_setxattr_link"
+#define SHIRUDO_SEAL_POST_RMXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_post_removexattr_link"
+#define SHIRUDO_SEAL_INIT_SECURITY_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_init_security_link"
 #define SHIRUDO_BPFFS_UPATCHES_DIR	SHIRUDO_BPFFS_DIR "/upatches"
 /* The frozen identity map: bpffs device, executable, trust anchor. */
 #define SHIRUDO_IDENTITY_PIN		SHIRUDO_BPFFS_DIR "/identity"

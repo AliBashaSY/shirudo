@@ -23,6 +23,15 @@
  * TOCTOU games. Reads are not gated; only write-mode opens and the
  * mutating inode ops are.
  *
+ * An inode created under a labelled directory is born with the label:
+ * lsm/inode_init_security hands it to the filesystem inside the
+ * transaction that creates the inode, so there is no instant at which
+ * one of shirudo's files exists unlabelled. That hook gets the parent
+ * as a bare inode and cannot sleep to read its label, so a labelled
+ * directory is remembered in inode storage by the hooks that hold a
+ * trusted handle on it: file_open of the directory itself, a setxattr
+ * or removexattr on it, and its own creation under a marked parent.
+ *
  * The filesystem and exec xattr hooks are sleepable (lsm.s/) because
  * reading an xattr can sleep. The xattr-reading kfuncs write into a
  * bpf_dynptr over map memory (the verifier rejects stack), so the
@@ -53,6 +62,12 @@
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif
+#ifndef S_IFMT
+#define S_IFMT		00170000
+#endif
+#ifndef S_IFDIR
+#define S_IFDIR		0040000
+#endif
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
@@ -74,10 +89,26 @@ struct {
 	__type(value, struct seal_scratch);
 } seal_scratch_map SEC(".maps");
 
+/* The label of a directory, as the last hook with a handle on it read it. */
+struct seal_dir_mark {
+	char	label[LABEL_LEN];
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_INODE_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct seal_dir_mark);
+} seal_dir_marks SEC(".maps");
+
 extern int bpf_get_dentry_xattr(struct dentry *dentry, const char *name__str,
 				struct bpf_dynptr *value_p) __ksym;
 extern int bpf_get_file_xattr(struct file *file, const char *name__str,
 			      struct bpf_dynptr *value_p) __ksym;
+extern int bpf_inode_init_xattr(struct xattr *xattrs,
+				int *xattr_count__ctx_out,
+				const char *name__str,
+				const struct bpf_dynptr *value_p) __ksym;
 
 /* 0 if the caller runs the executable recorded at init, else -EACCES. */
 static __always_inline int seal_caller(void)
@@ -130,6 +161,27 @@ static __always_inline struct seal_scratch *seal_scratch_get(
 {
 	return bpf_task_storage_get(&seal_scratch_map, task, NULL,
 				    BPF_LOCAL_STORAGE_GET_F_CREATE);
+}
+
+static __always_inline bool seal_is_dir(struct inode *inode)
+{
+	return (BPF_CORE_READ(inode, i_mode) & S_IFMT) == S_IFDIR;
+}
+
+/* Remember a directory's label as just read (len bytes), or forget it. */
+static __always_inline void seal_mark(struct inode *inode, const char *label,
+				      int len)
+{
+	struct seal_dir_mark *m;
+
+	if (len != LABEL_LEN) {
+		bpf_inode_storage_delete(&seal_dir_marks, inode);
+		return;
+	}
+	m = bpf_inode_storage_get(&seal_dir_marks, inode, NULL,
+				  BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (m)
+		__builtin_memcpy(m->label, label, LABEL_LEN);
 }
 
 /*
@@ -242,18 +294,96 @@ int BPF_PROG(shirudo_seal_ptrace_access_check,
 SEC("lsm.s/file_open")
 int BPF_PROG(shirudo_seal_file_open, struct file *file)
 {
+	struct inode *inode = file->f_inode;
 	struct task_struct *task;
 	struct seal_scratch *s;
 	struct bpf_dynptr tdp;
 
+	task = bpf_get_current_task_btf();
+	if (seal_is_dir(inode)) {
+		/* Only ever opened for reading; its label marks it. */
+		s = seal_scratch_get(task);
+		if (!s)
+			return 0;
+		bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
+		seal_mark(inode, s->target,
+			  bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp));
+		return 0;
+	}
 	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
 		return 0;		/* reads are fine */
-	task = bpf_get_current_task_btf();
 	s = seal_scratch_get(task);
 	if (!s)
 		return seal_caller();	/* cannot read the label */
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 	return seal_verdict(bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp));
+}
+
+/* Refresh a directory's mark from its label after an xattr change. */
+static __always_inline void seal_mark_dentry(struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	struct seal_scratch *s;
+	struct bpf_dynptr tdp;
+
+	if (!inode || !seal_is_dir(inode))
+		return;
+	s = seal_scratch_get(bpf_get_current_task_btf());
+	if (!s)
+		return;
+	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
+	seal_mark(inode, s->target,
+		  bpf_get_dentry_xattr(dentry, SHIRUDO_XATTR, &tdp));
+}
+
+SEC("lsm.s/inode_post_setxattr")
+void BPF_PROG(shirudo_seal_inode_post_setxattr, struct dentry *dentry,
+	      const char *name, const void *value, __u64 size, int flags)
+{
+	seal_mark_dentry(dentry);
+}
+
+SEC("lsm.s/inode_post_removexattr")
+void BPF_PROG(shirudo_seal_inode_post_removexattr, struct dentry *dentry,
+	      const char *name)
+{
+	seal_mark_dentry(dentry);
+}
+
+/*
+ * Label a new inode inside the transaction that creates it when its
+ * parent directory is marked, with the parent's label, and mark a new
+ * directory in turn so a subtree created in one go needs no reopen.
+ * The hook cannot sleep, so the label comes from the mark, not from
+ * disk. A claim that fails (no slot left, no memory) aborts the
+ * creation: better no inode than one of shirudo's without its label,
+ * and the verifier wants a constant in the LSM's error range rather
+ * than the kfunc's. A filesystem that takes no xattrs at creation
+ * passes none; the label follows from userspace there.
+ */
+SEC("lsm/inode_init_security")
+int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
+	     struct inode *dir, const struct qstr *qstr,
+	     struct xattr *xattrs, int *xattr_count)
+{
+	struct seal_dir_mark *m, *child;
+	struct bpf_dynptr dp;
+
+	if (!xattrs)
+		return 0;
+	m = bpf_inode_storage_get(&seal_dir_marks, dir, NULL, 0);
+	if (!m)
+		return 0;
+	bpf_dynptr_from_mem(m->label, LABEL_LEN, 0, &dp);
+	if (bpf_inode_init_xattr(xattrs, xattr_count, SHIRUDO_XATTR, &dp))
+		return -EACCES;
+	if (!seal_is_dir(inode))
+		return 0;
+	child = bpf_inode_storage_get(&seal_dir_marks, inode, NULL,
+				      BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (child)
+		__builtin_memcpy(child->label, m->label, LABEL_LEN);
+	return 0;
 }
 
 static __always_inline int seal_dentry(struct dentry *dentry)

@@ -633,6 +633,33 @@ static int attach_pin(struct bpf_program *p, const char *pin,
 }
 
 /*
+ * The seal's programs and their pins. The directory-marking hooks
+ * (file_open and the post-xattr hooks) precede inode_init_security,
+ * which labels on the strength of those marks.
+ */
+static const struct {
+	const char	*prog;
+	const char	*pin;
+} seal_hooks[] = {
+	{ "shirudo_seal_bprm_check_security", SHIRUDO_SEAL_BPRM_CHECK_PIN },
+	{ "shirudo_seal_bprm_committed_creds",
+	  SHIRUDO_SEAL_BPRM_COMMITTED_PIN },
+	{ "shirudo_seal_task_alloc",		SHIRUDO_SEAL_TASK_ALLOC_PIN },
+	{ "shirudo_seal_file_open",		SHIRUDO_SEAL_FILE_OPEN_PIN },
+	{ "shirudo_seal_inode_post_setxattr",
+	  SHIRUDO_SEAL_POST_SETXATTR_PIN },
+	{ "shirudo_seal_inode_post_removexattr",
+	  SHIRUDO_SEAL_POST_RMXATTR_PIN },
+	{ "shirudo_seal_inode_init_security",
+	  SHIRUDO_SEAL_INIT_SECURITY_PIN },
+	{ "shirudo_seal_inode_unlink",		SHIRUDO_SEAL_UNLINK_PIN },
+	{ "shirudo_seal_inode_rename",		SHIRUDO_SEAL_RENAME_PIN },
+	{ "shirudo_seal_inode_setattr",		SHIRUDO_SEAL_SETATTR_PIN },
+	{ "shirudo_seal_inode_setxattr",	SHIRUDO_SEAL_SETXATTR_PIN },
+	{ "shirudo_seal_inode_removexattr",	SHIRUDO_SEAL_RMXATTR_PIN },
+};
+
+/*
  * Load seal.bpf.o and attach + pin its filesystem-sealing and exec hooks.
  * Keeps the object open via *obj_out (the caller tears it and the links
  * down together). Must run BEFORE lsm/bpf is attached: seal is loaded
@@ -644,22 +671,6 @@ static int attach_pin(struct bpf_program *p, const char *pin,
 static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
 		       int identity_fd)
 {
-	static const struct {
-		const char	*prog;
-		const char	*pin;
-	} hooks[] = {
-		{ "shirudo_seal_bprm_check_security",
-		  SHIRUDO_SEAL_BPRM_CHECK_PIN },
-		{ "shirudo_seal_bprm_committed_creds",
-		  SHIRUDO_SEAL_BPRM_COMMITTED_PIN },
-		{ "shirudo_seal_task_alloc",       SHIRUDO_SEAL_TASK_ALLOC_PIN },
-		{ "shirudo_seal_file_open",        SHIRUDO_SEAL_FILE_OPEN_PIN },
-		{ "shirudo_seal_inode_unlink",     SHIRUDO_SEAL_UNLINK_PIN },
-		{ "shirudo_seal_inode_rename",     SHIRUDO_SEAL_RENAME_PIN },
-		{ "shirudo_seal_inode_setattr",    SHIRUDO_SEAL_SETATTR_PIN },
-		{ "shirudo_seal_inode_setxattr",   SHIRUDO_SEAL_SETXATTR_PIN },
-		{ "shirudo_seal_inode_removexattr", SHIRUDO_SEAL_RMXATTR_PIN },
-	};
 	const struct shirudo_embedded_bpf *blob = shirudo_seal_blob();
 	struct bpf_object *obj;
 	struct bpf_map *m;
@@ -694,18 +705,19 @@ static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
 		bpf_object__close(obj);
 		return err;
 	}
-	for (i = 0; i < (int)ARRAY_SIZE(hooks); i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(seal_hooks); i++) {
 		struct bpf_program *p =
-			bpf_object__find_program_by_name(obj, hooks[i].prog);
+			bpf_object__find_program_by_name(obj,
+							 seal_hooks[i].prog);
 
 		if (!p) {
-			pr_err("seal: program %s missing", hooks[i].prog);
+			pr_err("seal: program %s missing", seal_hooks[i].prog);
 			err = -ENOENT;
 			break;
 		}
-		err = attach_pin(p, hooks[i].pin, &links[i]);
+		err = attach_pin(p, seal_hooks[i].pin, &links[i]);
 		if (err) {
-			pr_err("seal: attach %s: %s", hooks[i].prog,
+			pr_err("seal: attach %s: %s", seal_hooks[i].prog,
 			       strerror(-err));
 			break;
 		}
@@ -775,7 +787,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	struct bpf_link *link_unlink = NULL;
 	struct bpf_link *link_setx = NULL, *link_rmx = NULL, *link_pload = NULL;
 	struct bpf_link *link_keyperm = NULL;
-	struct bpf_link *seal_links[9] = {};
+	struct bpf_link *seal_links[ARRAY_SIZE(seal_hooks)] = {};
 	struct bpf_program *p_keyperm;
 	struct anchor_keys keys = {};
 	key_serial_t keyring;

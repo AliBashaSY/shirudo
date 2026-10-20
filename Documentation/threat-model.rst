@@ -150,6 +150,12 @@ T3  Tampering with shirudo's files and process
     the label. The label marks what is protected and is public; it is
     not what identifies the caller, as a file system root mounts can
     present it on any binary.
+    An inode created under a labelled directory is born with the
+    label, written by the seal inside the transaction that creates it,
+    so there is no instant at which a new file of shirudo's can be
+    opened, unlinked or renamed by anyone else; what another process
+    creates there is sealed from the same instant, out of its own
+    reach as well.
     Marked shirudo tasks cannot be ptraced or perf-sampled, and the
     process drops dumpability, forbids new privileges and locks
     sensitive buffers. The bpf keyring is sealed with
@@ -376,6 +382,17 @@ Each of these is known, documented and bounded; none is silent.
     the sealed keyring, so what used to be a denial of service with
     one keyctl is now shirudo's revocation primitive and nothing else.
 
+14. The label at creation follows a mark the seal keeps on a directory
+    it has seen since the inode came into memory: one opened, one
+    relabelled, or one created under a marked parent.  shirudo opens a
+    directory before creating in it and puts the label on afterwards
+    where the kernel could not, so its own files never exist
+    unlabelled; another process creating under a labelled directory
+    the seal has not seen since the inode was evicted gets an
+    unlabelled inode, as every creation did before, until the next
+    ``init`` labels the tree.  Rename and link bring an existing inode
+    in without creating one, so they bring it in unlabelled.
+
 Deferred mitigations
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -385,8 +402,12 @@ values of each boot and systemd-aware verifiers find it in PCR 9 before
 the separator, and measuring the anchor through ``systemd-pcrextend`` so
 systemd's measurement log explains it (residual risk 11); signed PCR
 policies for the kernel and initrd PCRs so a verifier needs no golden
-values; and an in-kernel detach so the unload compare runs against
-signed ``.rodata`` (residual risk 1).
+values; an in-kernel detach so the unload compare runs against
+signed ``.rodata`` (residual risk 1); and refusing creation, rename
+and link into a labelled directory from any process but shirudo, which
+would keep foreign entries out of the tree altogether, and a
+``d_instantiate`` hook the BPF LSM can sleep in, which would mark a
+directory the moment its dentry is bound (residual risk 14).
 
 
 6) Out of scope

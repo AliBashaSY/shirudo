@@ -300,7 +300,18 @@ strings, nothing a bind mount or a mount namespace can confuse.
 exec a labelled binary in task-local storage, ``task_alloc`` inherits
 the mark, and ``ptrace_access_check`` and ``perf_event_alloc`` deny
 against marked tasks, so a root debugger or profiler cannot attach to a
-running shirudo; a forged label can only mark its forger.
+running shirudo; a forged label can only mark its forger.  An inode
+created under a labelled directory is born with the label:
+``inode_init_security`` hands it to the file system inside the
+transaction that creates the inode, through
+``bpf_inode_init_xattr()``, so a new file of shirudo's never exists
+unlabelled.  That hook sees the parent as a bare inode and cannot
+sleep to read its label, so the seal remembers a labelled directory in
+inode storage from the hooks that hold a trusted handle on it:
+``file_open`` of the directory, ``inode_post_setxattr`` and
+``inode_post_removexattr`` on it, and the creation of a directory
+under a marked parent, which marks the child in turn.  The label a new
+inode gets is its parent's.
 
 Process hardening.  ``util/harden.c`` runs at startup on the target:
 ``PR_SET_DUMPABLE`` off, ``PR_SET_NO_NEW_PRIVS``, ``PR_SET_PTRACER`` to
@@ -662,9 +673,8 @@ flight rather than by shirudo code:
   (residual risk 1);
 - BPF in-kernel sockets, so keepalive, status and alerting can be sent
   from kernel context without a userspace timer;
-- xattr getters and setters for dentries, files and kernfs, so
-  ``security.bpf.*`` labels can be propagated race-free at inode
-  creation and enforced on cgroups;
+- xattr getters for kernfs, so ``security.bpf.*`` labels can be
+  enforced on cgroups;
 - ``fmod_ret`` coverage of the whole kernel build, so a shield can
   reject a call at any function rather than at the instrumented ones;
 - signed-loader support for every program type, including struct_ops.
