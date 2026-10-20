@@ -28,12 +28,6 @@ struct shirudo_json_emit {
 	int		err;	/* sticky; -ENOSPC, -EILSEQ, -E2BIG */
 	unsigned	depth;	/* open-container nesting */
 	uint32_t	nonempty; /* bit d set: container at depth d has a member */
-	/*
-	 * Buffer-only callers leave the sink NULL; a sink is flushed when the
-	 * buffer fills and by shirudo_json_emit_flush().
-	 */
-	int		(*sink)(void *ctx, const char *data, size_t len);
-	void		*sink_ctx;
 };
 
 /*
@@ -59,8 +53,6 @@ void shirudo_json_kv_raw(struct shirudo_json_emit *e, const char *key,
 void shirudo_json_str(struct shirudo_json_emit *e, const char *val);
 void shirudo_json_raw(struct shirudo_json_emit *e, const char *value,
 		      size_t value_len);
-
-int shirudo_json_emit_flush(struct shirudo_json_emit *e);
 
 /*
  * Not a generic deserialiser: declared keys are dispatched, everything

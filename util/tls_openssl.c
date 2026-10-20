@@ -29,7 +29,7 @@ void shirudo_tls_ca_cleanup(struct shirudo_tls_ca *ca)
 		ca->impl = NULL;
 }
 
-CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
+static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 {
 	const struct shirudo_tls_ca *ca = userptr;
 	const char *path = ca ? ca->path : NULL;

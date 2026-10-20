@@ -89,8 +89,8 @@ int shirudo_keys_digest_der(const unsigned char *der, size_t der_sz,
 	return rc;
 }
 
-int shirudo_keys_digest_file(const char *path, uint8_t sha256[32],
-			     uint8_t fingerprint[32])
+static int shirudo_keys_digest_file(const char *path, uint8_t sha256[32],
+				    uint8_t fingerprint[32])
 {
 	unsigned char *der = NULL;
 	size_t der_sz = 0;

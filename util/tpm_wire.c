@@ -130,8 +130,9 @@ void shirudo_tpm_policy_nv_written(const uint8_t prev[32], bool written,
 	policy_hash(prev, TPM_CC_POLICY_NV_WRITTEN, &set, 1, NULL, 0, out);
 }
 
-void shirudo_tpm_pcr_selection(uint32_t pcr_mask,
-			       uint8_t out[SHIRUDO_TPM_PCR_SELECTION_LEN])
+static void
+shirudo_tpm_pcr_selection(uint32_t pcr_mask,
+			  uint8_t out[SHIRUDO_TPM_PCR_SELECTION_LEN])
 {
 	put32(out, 1);
 	put16(out + 4, SHIRUDO_TPM_ALG_SHA256);

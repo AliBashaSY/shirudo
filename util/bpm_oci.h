@@ -24,7 +24,6 @@ struct shirudo_json_emit;
 #define BPM_MAX_DIGEST 128
 #define BPM_MAX_MEDIA 192
 #define BPM_MAX_ENTRIES 512
-#define BPM_MAX_SOURCES 64
 #define BPM_MAX_STATE 256
 #define BPM_MAX_HTTP_BODY (256u * 1024u * 1024u)
 #define BPM_INDEX_REPOSITORY "shirudo/bpm-index"
@@ -100,10 +99,6 @@ int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 			    char *repository, size_t repository_sz);
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 		const char *kind, const char *ref, char *out, size_t sz);
-int bpm_oci_request(struct bpm_oci_client *c, const char *method,
-		    const char *url, const char *accept,
-		    const char *content_type, const void *body,
-		    size_t body_len, struct bpm_http_response *r);
 /* 2xx fills out; 404 is -ENOENT, other failures -EACCES. */
 int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
 		       const char *accept, struct bpm_buffer *out);

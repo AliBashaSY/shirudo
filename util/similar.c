@@ -9,7 +9,7 @@
 
 #include "similar.h"
 
-int shirudo_edit_distance(const char *s, const char *t, int max)
+static int shirudo_edit_distance(const char *s, const char *t, int max)
 {
 	int prev[SHIRUDO_SIMILAR_MAX_LEN + 1];
 	int curr[SHIRUDO_SIMILAR_MAX_LEN + 1];

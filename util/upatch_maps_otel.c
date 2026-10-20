@@ -787,8 +787,8 @@ static int build_log_payload(const char *path,
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_build_log(const struct shirudo_map_view *v,
-				       char **out, size_t *out_len)
+static int shirudo_upatch_maps_otel_build_log(const struct shirudo_map_view *v,
+					      char **out, size_t *out_len)
 {
 	return build_log_payload(NULL, v, out, out_len);
 }
@@ -1263,10 +1263,10 @@ out:
 	return rc;
 }
 
-int shirudo_upatch_maps_otel_build_metric(
-	const struct shirudo_map_view *v,
-	const struct shirudo_otel_opts *opts,
-	char **out, size_t *out_len)
+static int
+shirudo_upatch_maps_otel_build_metric(const struct shirudo_map_view *v,
+				      const struct shirudo_otel_opts *opts,
+				      char **out, size_t *out_len)
 {
 	return build_metric_decoded_payload(NULL, v, opts, out, out_len);
 }

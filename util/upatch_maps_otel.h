@@ -45,13 +45,8 @@ struct shirudo_otel_opts {
 int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 				      enum shirudo_otel_signal *signal,
 				      char *reason, size_t reason_sz);
-int shirudo_upatch_maps_otel_build_log(const struct shirudo_map_view *v,
-				       char **out, size_t *out_len);
 int shirudo_upatch_maps_otel_build_log_file(
 	const char *path, const struct shirudo_map_view *v,
-	char **out, size_t *out_len);
-int shirudo_upatch_maps_otel_build_metric(
-	const struct shirudo_map_view *v, const struct shirudo_otel_opts *opts,
 	char **out, size_t *out_len);
 int shirudo_upatch_maps_otel_build_metric_file(
 	const char *path, const struct shirudo_map_view *v,

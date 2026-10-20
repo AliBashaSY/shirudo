@@ -118,9 +118,10 @@ void shirudo_print_help(const struct shirudo_help *h)
 		fprintf(stderr, "\n%s\n", h->footer);
 }
 
-void shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
-				     const struct shirudo_help_item *subcmds,
-				     size_t n_subcmds)
+static void
+shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
+				const struct shirudo_help_item *subcmds,
+				size_t n_subcmds)
 {
 	struct shirudo_suggestion sugg[4];
 	const char *names[SHIRUDO_SUBCMD_MAX];

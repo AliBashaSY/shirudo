@@ -39,11 +39,6 @@ void shirudo_print_help(const struct shirudo_help *h);
 void shirudo_print_subcmd_list(const struct shirudo_help_item *items,
 			       size_t n_items);
 
-void shirudo_help_unknown_subcommand(const char *cmd_label,
-				     const char *bad,
-				     const struct shirudo_help_item *subcmds,
-				     size_t n_subcmds);
-
 /*
  * NULL on failure with stderr already written: a did-you-mean block,
  * or the ambiguous matches.

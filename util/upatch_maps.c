@@ -1371,13 +1371,6 @@ void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
 	}
 }
 
-void shirudo_upatch_map_print_inline(const struct shirudo_map_summary *m)
-{
-	printf("      %-22s %-16s max=%u%s\n",
-	       m->name, m->type_name, m->max_entries,
-	       m->n_cpus > 1 ? "  (per-cpu)" : "");
-}
-
 char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
 				     uint32_t type_id, const void *bytes,
 				     uint32_t bytes_size,

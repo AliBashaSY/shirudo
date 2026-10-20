@@ -60,8 +60,6 @@ int shirudo_keys_read_der(const char *path, unsigned char **out,
 
 int shirudo_keys_digest_der(const unsigned char *der, size_t der_sz,
 			    uint8_t sha256[32], uint8_t fingerprint[32]);
-int shirudo_keys_digest_file(const char *path, uint8_t sha256[32],
-			     uint8_t fingerprint[32]);
 
 /*
  * The digest the init event covers: the one certificate's digest, or

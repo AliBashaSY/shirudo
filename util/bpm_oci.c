@@ -666,9 +666,10 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
  * preserves the response headers (notably Location) and supports a request
  * body while still retrying once after a registry authentication challenge.
  */
-int bpm_oci_request(struct bpm_oci_client *c, const char *method,
-			const char *url, const char *accept, const char *content_type,
-			const void *body, size_t body_len, struct bpm_http_response *r)
+static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
+			   const char *url, const char *accept,
+			   const char *content_type, const void *body,
+			   size_t body_len, struct bpm_http_response *r)
 {
 	char auth[8192] = {};
 	int rc;

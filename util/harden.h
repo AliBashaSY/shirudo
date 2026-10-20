@@ -12,7 +12,4 @@
 
 void shirudo_harden_self(void);
 
-int shirudo_mlock_buffer(void *buf, size_t len);
-void shirudo_zero_buffer(void *buf, size_t len);
-
 #endif /* SHIRUDO_HARDEN_H */

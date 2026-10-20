@@ -67,9 +67,6 @@ struct shirudo_tls_ca {
 
 void shirudo_tls_ca_cleanup(struct shirudo_tls_ca *ca);
 
-/* CURLOPT_SSL_CTX_FUNCTION callback. userptr points to shirudo_tls_ca. */
-CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr);
-
 /*
  * shirudo's TLS policy for every libcurl handle it opens: TLS 1.3 only
  * and hybrid ML-KEM key exchange only (X25519MLKEM768, with the P-256

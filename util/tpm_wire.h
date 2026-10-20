@@ -62,9 +62,6 @@ void shirudo_tpm_register_policy(uint32_t pcr_mask,
 				 uint8_t branch_init[32],
 				 uint8_t policy[32]);
 
-void shirudo_tpm_pcr_selection(uint32_t pcr_mask,
-			       uint8_t out[SHIRUDO_TPM_PCR_SELECTION_LEN]);
-
 /* Name of an NV index: nameAlg || SHA-256(TPMS_NV_PUBLIC). */
 void shirudo_tpm_nv_name(uint32_t index, uint32_t attrs,
 			 const uint8_t policy[SHIRUDO_TPM_DIGEST_LEN],

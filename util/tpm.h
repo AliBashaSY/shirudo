@@ -18,7 +18,6 @@
 #define SHIRUDO_TPM_PUBLIC_MAX		512
 #define SHIRUDO_TPM_ATTEST_MAX		1024
 #define SHIRUDO_TPM_SIGNATURE_MAX	160
-#define SHIRUDO_TPM_NONCE_MAX		64
 
 struct shirudo_tpm;
 

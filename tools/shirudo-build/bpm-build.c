@@ -1051,7 +1051,7 @@ static void build_usage(void)
 		"is available only in shirudo-operator and requires signing keys.\n");
 }
 
-int shirudo_build_bpm_build(int argc, char **argv)
+static int shirudo_build_bpm_build(int argc, char **argv)
 {
 	const char *context = ".", *file_arg = NULL, *version = NULL, *keys_arg = NULL;
 	char build_file[PATH_MAX], resolved_file[PATH_MAX], keys_dir[PATH_MAX];

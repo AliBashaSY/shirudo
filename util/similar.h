@@ -22,9 +22,6 @@ struct shirudo_suggestion {
 	int		dist;
 };
 
-/* Any value above max once the cap is exceeded, with an early exit. */
-int shirudo_edit_distance(const char *s, const char *t, int max);
-
 size_t shirudo_suggest(const char *name,
 		       const char *const *commands, size_t n_commands,
 		       int max_dist,

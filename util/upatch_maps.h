@@ -123,8 +123,6 @@ void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
 				       size_t n);
 void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v);
 
-void shirudo_upatch_map_print_inline(const struct shirudo_map_summary *m);
-
 /* NULL v emits nothing. The shape is part of the status report. */
 void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v);
