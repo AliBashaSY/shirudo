@@ -20,7 +20,6 @@
  * and Documentation/upatch-spec.rst in this tree.
  */
 #define SHIRUDO_UPATCH_VERSION		1u
-#define SHIRUDO_UPATCH_LEGACY_HEADER_SIZE	352u
 #define SHIRUDO_UPATCH_HEADER_SIZE	360u
 
 #define SHIRUDO_DIRECTIVE_UNLOAD	(1u << 0)

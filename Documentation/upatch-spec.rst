@@ -28,8 +28,7 @@ architecture.  Operator and target may differ in architecture; the
 wire format does not.
 
 The file begins with a 360-byte header of naturally aligned fields
-with no padding.  Readers also accept the original 352-byte header
-and treat it as ``type = bpf``.  All other content is referenced by
+with no padding.  All other content is referenced by
 ``*_off``/``*_len`` pairs in the header, as byte offsets from the start
 of the file.  Sections do not overlap the header and must lie within
 the file.
@@ -57,8 +56,8 @@ Artifacts are small in practice.
 
 The writer emits the sections in this order, but a reader must rely
 only on the header offsets, never on adjacency.  ``loader_insns``
-begins at offset 360, immediately after the header; legacy artifacts
-begin at 352.  ``data`` and ``metadata`` are optional; an absent section
+begins at offset 360, immediately after the header.  ``data`` and
+``metadata`` are optional; an absent section
 has its ``*_off`` set to 0.
 
 

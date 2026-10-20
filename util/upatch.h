@@ -17,7 +17,6 @@ struct shirudo_upatch {
 	struct shirudo_upatch_header	hdr;	/* host byte order */
 	const unsigned char		*map;
 	size_t				map_size;
-	size_t				header_size;
 	const struct shirudo_upatch_decoder_blob *decoder_blob;
 	uint32_t			decoder_blob_len;
 	uint32_t			nr_decoders;
