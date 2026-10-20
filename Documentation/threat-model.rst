@@ -121,8 +121,12 @@ T1  Loading unsigned BPF
 
 T2  Detaching or replacing enforcement
     ``lsm/bpf`` denies ``LINK_DETACH``, ``LINK_UPDATE``,
-    ``PROG_ATTACH``, ``PROG_DETACH`` and ``BTF_LOAD`` from userspace.
-    The links are kept alive by pins in a private bpffs;
+    ``PROG_ATTACH``, ``PROG_DETACH`` and ``BTF_LOAD`` from userspace,
+    and leaves ``LINK_CREATE``, ``RAW_TRACEPOINT_OPEN`` and ``OBJ_PIN``
+    to shirudo's own executable, so root cannot re-attach a vetted
+    kprobe program at a site its signer never meant it for, nor pin
+    anything into the private bpffs.
+    The links are kept alive by pins in that bpffs;
     ``inode_unlink`` and ``inode_rename`` on it allow only shirudo's own
     executable (the VFS unlinks the victim of a rename without
     ``inode_unlink``, so a rename over a link's pin would otherwise

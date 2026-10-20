@@ -260,8 +260,9 @@ bpffs and keyring guards.  The identity map (the bpffs ``s_dev``,
 shirudo's executable ``(dev, ino)``, the keyring kind and serial, and
 the serials of the keys the keyring holds) is written and
 ``BPF_MAP_FREEZE``'d before any link is created, so userspace cannot
-change it for the rest of the boot. Writable map fds and map updates
-are restricted by the same executable-identity gate.
+change it for the rest of the boot. Writable map fds, map updates,
+link creation, raw tracepoint opens and pins are restricted by the
+same executable-identity gate.
 ``lsm/inode_unlink``, ``lsm/inode_rename``,
 ``lsm/inode_setxattr`` and ``lsm/inode_removexattr`` on shirudo's bpffs
 allow the operation only when the calling task's ``mm->exe_file`` is

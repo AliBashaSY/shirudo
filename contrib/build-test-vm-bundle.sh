@@ -311,6 +311,7 @@ testing/helper/test-json-parser
 testing/helper/test-chain
 testing/helper/test-config
 testing/helper/test-bpf-load
+testing/helper/test-bpf-cmd
 testing/helper/test-kernel-abi
 testing/helper/test-otel-map
 testing/helper/test-upatch-map-types

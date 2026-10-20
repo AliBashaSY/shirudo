@@ -11,7 +11,10 @@
  *                       a non-zero signature in this cheap pre-filter.
  *                       The authoritative verdict is enforced by
  *                       lsm/bpf_prog_load below, after the kernel has
- *                       verified the signature.
+ *                       verified the signature. Map creation, updates
+ *                       and freezes, test runs, link creation, raw
+ *                       tracepoint opens and pins are shirudo's own
+ *                       executable's alone.
  *   lsm/bpf_prog_load -- the admission gate that runs INSIDE the
  *                       verifier, after signature verification, so the
  *                       kernel-recorded verdict is final here. A
@@ -143,14 +146,16 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 
 	/*
 	 * Vetted mutating cmds the signed-loader data-map + attach/pin
-	 * pattern needs from userspace. Map updates and freezes are restricted
-	 * below to shirudo itself; signed-loader map mutations run in kernel
-	 * context. A prog_fd is only obtainable via the signature-gated
+	 * pattern needs from userspace, each left to shirudo's own
+	 * executable. Signed-loader map mutations run in kernel context.
+	 * A prog_fd is only obtainable via the signature-gated
 	 * BPF_PROG_LOAD above or GET_FD_BY_ID of an already-vetted prog.
 	 * gen_loader emits no link-create and bpf_sys_bpf() cannot
-	 * BPF_OBJ_PIN, so shirudo's one-shot CLI must create + pin the link
-	 * itself. Attaching an already-vetted program grants no new
-	 * code-execution capability.
+	 * BPF_OBJ_PIN, so shirudo's one-shot CLI must create + pin the
+	 * link itself, and nobody else has a reason to: a vetted kprobe
+	 * program re-attached by root at a site of its choosing would run
+	 * signed code where its signer never meant it to, and a pin of
+	 * root's into the private bpffs is an entry shirudo did not make.
 	 */
 	case BPF_MAP_CREATE:
 		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -171,9 +176,18 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 			return -EACCES;
 		return 0;
 
-	case BPF_OBJ_PIN:
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id || !shirudo_task_is_self(id))
+			return -EACCES;
+		return 0;
+
+	case BPF_OBJ_PIN:
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id || !shirudo_task_is_self(id))
+			return -EACCES;
+		return 0;
 
 	/*
 	 * Read-only / observability cmds, so `bpftool prog show`,

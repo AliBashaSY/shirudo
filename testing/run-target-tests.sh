@@ -42,6 +42,7 @@ for t in \
 	tamperproof/t1112-prog-load-keyring-gate.sh \
 	tamperproof/t1113-mount-lockdown.sh \
 	tamperproof/t1135-pin-rename.sh \
+	tamperproof/t1137-bpf-cmd-deny.sh \
 	tamperproof/t1130-map-lockdown.sh \
 	tamperproof/t1131-pr-set-mm-identity.sh \
 	tamperproof/t1125-key-permission.sh \
