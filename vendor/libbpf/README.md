@@ -14,7 +14,7 @@ source commit in `COMMIT`, and rebuilds `libbpf.a` as a check.
 
 | Path | Origin | License |
 |---|---|---|
-| `bpf/*.c`, `bpf/*.h` | `tools/lib/bpf/` (verbatim) | `LGPL-2.1 OR BSD-2-Clause`; shirudo consumes the BSD branch |
+| `bpf/*.c`, `bpf/*.h` | `tools/lib/bpf/` (verbatim, but see below) | `LGPL-2.1 OR BSD-2-Clause`; shirudo consumes the BSD branch |
 | `bpf/bpf_helper_defs.h` | generated from `bpf.h` by `scripts/bpf_doc.py` | as libbpf |
 | `include/uapi/linux/*.h` | `tools/include/uapi/linux/` (verbatim) | `GPL-2.0 WITH Linux-syscall-note`: the syscall note permits user programs to include them |
 | `include/linux/*.h`, `include/asm/*.h` | shirudo-owned shims replacing the kernel's `tools/include` internals | BSD-2-Clause |
@@ -27,3 +27,8 @@ acquire/release ring-buffer accessors), all GPL-2.0-only in the kernel, so
 shirudo provides its own definitions of exactly that surface. When an
 update makes libbpf need a new helper, the `libbpf.a` rebuild at the end
 of `bpf-deps` fails on the missing symbol; extend the shim.
+
+`bpf/gen_loader.c` and `bpf/libbpf.c` carry one local change on top of
+the recorded commit, 5de632280142 ("libbpf: validate generated loader
+program counts"). `bpf-deps` overwrites both files, so re-apply that
+change after a refresh until it is upstream.
