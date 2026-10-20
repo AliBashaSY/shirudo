@@ -80,7 +80,6 @@ void bpm_trim(const char *in, char *out, size_t out_sz);
 bool bpm_name_ok(const char *s);
 bool bpm_version_ok(const char *s);
 bool bpm_package_name_ok(const char *s);
-int bpm_mkdir_p(const char *path, mode_t mode);
 /* Whole file into an xmalloc'd buffer of out_len + 1 bytes (NUL added). */
 int bpm_read_file(const char *path, unsigned char **out, size_t *out_len,
 		  size_t max);
@@ -109,6 +108,8 @@ int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 /* 2xx fills out; 404 is -ENOENT, other failures -EACCES. */
 int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
 		       const char *accept, struct bpm_buffer *out);
+/* mkdir -p under the state tree: born sealed as the parent is. */
+int bpm_mkdir_p(const char *path, mode_t mode);
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		     const char *accept, const char *path);
 int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,

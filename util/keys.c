@@ -20,6 +20,7 @@
 #include "keys.h"
 #include "malloc.h"
 #include "paths.h"
+#include "seal.h"
 
 /* Files under trusted/ a load looks at, members or not. */
 #define KEYS_SCAN_MAX	64
@@ -431,24 +432,7 @@ void shirudo_keys_set_digest(const struct shirudo_trusted_set *set,
 /* Write whole, then rename into place; a stale .tmp is overwritten. */
 int shirudo_keys_write_file(const char *path, const void *data, size_t len)
 {
-	char tmp[PATH_MAX];
-	int fd, rc;
-
-	if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) >= (int)sizeof(tmp))
-		return -ENAMETOOLONG;
-	fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
-	if (fd < 0)
-		return -errno;
-	rc = shirudo_write_all(fd, data, len);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
-	if (!rc && rename(tmp, path))
-		rc = -errno;
-	if (rc)
-		unlink(tmp);
-	return rc;
+	return shirudo_seal_write_file(path, data, len, 0644);
 }
 
 int shirudo_keys_install(const char *keys_dir, const unsigned char *der,
@@ -466,8 +450,9 @@ int shirudo_keys_install(const char *keys_dir, const unsigned char *der,
 	if (snprintf(dir, sizeof(dir), "%s/trusted", keys_dir) >=
 	    (int)sizeof(dir))
 		return -ENAMETOOLONG;
-	if (mkdir(dir, 0700) && errno != EEXIST)
-		return -errno;
+	rc = shirudo_seal_mkdir_p(dir, 0700);
+	if (rc)
+		return rc;
 	rc = shirudo_keys_path_for(dir, fingerprint, ".der", out, cap);
 	if (!rc)
 		rc = shirudo_keys_path_for(dir, fingerprint, ".vouch", vouch,

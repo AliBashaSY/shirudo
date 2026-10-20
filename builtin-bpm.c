@@ -214,9 +214,9 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 
 	in = open(src, O_RDONLY | O_CLOEXEC);
 	if (in < 0) return -errno;
-	out = open(dst, O_WRONLY | O_CREAT | O_CLOEXEC |
-		   (exclusive ? O_EXCL : O_TRUNC), mode);
-	if (out < 0) { rc = -errno; close(in); return rc; }
+	out = shirudo_seal_open(dst, O_WRONLY | O_CREAT |
+				(exclusive ? O_EXCL : O_TRUNC), mode);
+	if (out < 0) { close(in); return out; }
 	while ((n = read(in, buf, sizeof(buf))) > 0) {
 		rc = shirudo_write_all(out, buf, (size_t)n);
 		if (rc)
@@ -232,21 +232,6 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 static int copy_file(const char *src, const char *dst, mode_t mode)
 {
 	return copy_file_ex(src, dst, mode, false);
-}
-
-static int atomic_write(const char *path, const void *data, size_t len, mode_t mode)
-{
-	char tmp[PATH_MAX];
-	int fd, rc = 0;
-	if (snprintf(tmp, sizeof(tmp), "%s.tmp.%ld", path, (long)getpid()) >= (int)sizeof(tmp)) return -ENAMETOOLONG;
-	fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, mode);
-	if (fd < 0) return -errno;
-	rc = shirudo_write_all(fd, data, len);
-	if (!rc && fsync(fd)) rc = -errno;
-	close(fd);
-	if (!rc && rename(tmp, path)) rc = -errno;
-	if (rc) unlink(tmp);
-	return rc;
 }
 
 static int source_path(const char *name, char *out, size_t out_sz)
@@ -286,15 +271,15 @@ static int save_source(const struct bpm_source *s)
 	int rc = source_path(s->name, path, sizeof(path));
 	if (rc) return rc;
 	if (snprintf(data, sizeof(data), "endpoint = %s\nkey_file = %s\n", s->endpoint, s->key_file) >= (int)sizeof(data)) return -E2BIG;
-	return atomic_write(path, data, strlen(data), 0644);
+	return shirudo_seal_write_file(path, data, strlen(data), 0644);
 }
 
 static int with_bpm_lock(void)
 {
 	int fd;
 	{ int rc = bpm_mkdir_p(SHIRUDO_LOCKS_DIR, 0700); if (rc) return rc; }
-	fd = open(SHIRUDO_BPM_LOCK_PATH, O_RDWR | O_CREAT | O_CLOEXEC, 0600);
-	if (fd < 0) return -errno;
+	fd = shirudo_seal_open(SHIRUDO_BPM_LOCK_PATH, O_RDWR | O_CREAT, 0600);
+	if (fd < 0) return fd;
 	if (flock(fd, LOCK_EX)) { int rc = -errno; close(fd); return rc; }
 	return fd;
 }
@@ -501,13 +486,14 @@ static int install_key_file(const char *src)
 		if (rc)
 			return rc;
 	}
-	if (!active && symlink(dst, SHIRUDO_CERT_PATH)) {
+	if (active)
+		return 0;
+	if (symlink(dst, SHIRUDO_CERT_PATH)) {
 		if (errno != EEXIST)
 			return -errno;
-		if (cert_matches_active(src))
-			return -EPERM;
+		return cert_matches_active(src) ? -EPERM : 0;
 	}
-	return 0;
+	return shirudo_seal_inherit_path(SHIRUDO_CERT_PATH);
 }
 
 static int extract_package_cert(const char *archive, char *out, size_t out_sz)
@@ -699,7 +685,9 @@ static int state_write(const struct bpm_state_entry *st, int n)
 	shirudo_json_obj_close(&e);
 	if (e.err) return -E2BIG;
 	rc = bpm_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
-	if (!rc) rc = atomic_write(SHIRUDO_BPM_STATE_PATH, buf, e.len, 0600);
+	if (!rc)
+		rc = shirudo_seal_write_file(SHIRUDO_BPM_STATE_PATH, buf, e.len,
+					     0600);
 	return rc;
 }
 
@@ -785,7 +773,7 @@ static int repo_update_one(const char *name)
 	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_REPOS_DIR, name) >= (int)sizeof(dir)) { rc = -ENAMETOOLONG; goto out; }
 	if ((rc = bpm_mkdir_p(dir, 0700))) goto out;
 	if ((rc = cache_path(name, cache, sizeof(cache)))) goto out;
-	rc = atomic_write(cache, index.data, index.len, 0600);
+	rc = shirudo_seal_write_file(cache, index.data, index.len, 0600);
 out:
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&index);
@@ -1193,10 +1181,9 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 			rc = -errno;
 			goto out;
 		}
-		rc = atomic_write(cache, blob.data, blob.len, 0600);
+		rc = shirudo_seal_write_file(cache, blob.data, blob.len, 0600);
 		if (rc)
 			goto out;
-		(void)shirudo_seal_label(cache);
 		bpm_copy_string(path, path_sz, cache);
 		rc = tree_verify_upatch(path, op->artifact.payload_sha256, op->id,
 					 !strcmp(op->op, "delete"));
@@ -1234,7 +1221,7 @@ static int tree_write_report(const char *path, const struct shirudo_tree_state *
 	if (e.err)
 		return e.err;
 	if (path)
-		return atomic_write(path, buf, e.len, 0600);
+		return shirudo_seal_write_file(path, buf, e.len, 0600);
 	printf("%s\n", buf);
 	return 0;
 }
@@ -1243,7 +1230,6 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 {
 	char buf[1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	int rc;
 
 	shirudo_json_obj_open(&e);
 	shirudo_json_kv_int(&e, "schema", 1);
@@ -1255,11 +1241,8 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 		return e.err;
 	if (bpm_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
 		return -errno;
-	rc = atomic_write(SHIRUDO_BPM_TREE_PENDING_PATH, buf, e.len, 0600);
-	if (rc)
-		return rc;
-	(void)shirudo_seal_label(SHIRUDO_BPM_TREE_PENDING_PATH);
-	return 0;
+	return shirudo_seal_write_file(SHIRUDO_BPM_TREE_PENDING_PATH, buf,
+				       e.len, 0600);
 }
 
 static int tree_status_write(const char *id, const char *status)
@@ -1275,7 +1258,7 @@ static int tree_status_write(const char *id, const char *status)
 	if (snprintf(path, sizeof(path), "%s/%s",
 		     SHIRUDO_BPM_TREE_STATUS_DIR, id) >= (int)sizeof(path))
 		return -ENAMETOOLONG;
-	return atomic_write(path, status, strlen(status), 0600);
+	return shirudo_seal_write_file(path, status, strlen(status), 0600);
 }
 
 static void tree_status_clear(const char *id)

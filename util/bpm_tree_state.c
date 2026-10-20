@@ -32,27 +32,6 @@
 #include "paths.h"
 #include "seal.h"
 
-static int tree_mkdir_p(const char *path, mode_t mode)
-{
-	char tmp[PATH_MAX];
-	char *p;
-
-	if (!path || strlen(path) >= sizeof(tmp))
-		return -ENAMETOOLONG;
-	strcpy(tmp, path);
-	for (p = tmp + 1; *p; p++) {
-		if (*p != '/')
-			continue;
-		*p = '\0';
-		if (mkdir(tmp, mode) && errno != EEXIST)
-			return -errno;
-		*p = '/';
-	}
-	if (mkdir(tmp, mode) && errno != EEXIST)
-		return -errno;
-	return 0;
-}
-
 static int kv_add(struct shirudo_tree_kv *dst, int *n, int max,
 			  const char *key, const char *value)
 {
@@ -459,38 +438,20 @@ int shirudo_tree_state_read(struct shirudo_tree_state *out)
 
 static int tree_atomic_write(const char *path, const void *data, size_t len)
 {
-	char tmp[PATH_MAX];
-	char dir[PATH_MAX];
 	const char *slash = strrchr(path, '/');
-	int fd, dirfd = -1, rc;
-	if (!slash || (size_t)(slash - path) >= sizeof(dir)) return -EINVAL;
-	memcpy(dir, path, slash - path); dir[slash - path] = '\0';
-	{
-		int mkdir_rc = tree_mkdir_p(dir, 0700);
-		if (mkdir_rc) {
-			pr_err("tree state mkdir %s rc=%d errno=%d", dir, mkdir_rc, errno);
-			return mkdir_rc;
-		}
+	char dir[PATH_MAX];
+	int rc;
+
+	if (!slash || (size_t)(slash - path) >= sizeof(dir))
+		return -EINVAL;
+	memcpy(dir, path, slash - path);
+	dir[slash - path] = '\0';
+	rc = shirudo_seal_mkdir_p(dir, 0700);
+	if (rc) {
+		pr_err("tree state mkdir %s: %s", dir, strerror(-rc));
+		return rc;
 	}
-	if (snprintf(tmp, sizeof(tmp), "%s/.tmp.%ld", dir, (long)getpid()) >= (int)sizeof(tmp)) return -ENAMETOOLONG;
-	fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
-	if (fd < 0) return -errno;
-	rc = shirudo_write_all(fd, data, len);
-	if (!rc && fsync(fd)) rc = -errno;
-	if (close(fd) && !rc) rc = -errno;
-	if (!rc && rename(tmp, path)) rc = -errno;
-	if (!rc) {
-		dirfd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-		if (dirfd < 0)
-			rc = -errno;
-		else if (fsync(dirfd))
-			rc = -errno;
-		if (dirfd >= 0 && close(dirfd) && !rc)
-			rc = -errno;
-	}
-	if (rc) unlink(tmp);
-	if (!rc) (void)shirudo_seal_label(path);
-	return rc;
+	return shirudo_seal_write_file(path, data, len, 0600);
 }
 
 int shirudo_tree_state_write(const struct shirudo_tree_state *s)
@@ -527,17 +488,17 @@ int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
 	shirudo_json_kv_string(&e, "projection_root", root);
 	shirudo_json_obj_close(&e);
 	if (e.err) return e.err;
-	{
-		int mkdir_rc = tree_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
-		if (mkdir_rc) return mkdir_rc;
-	}
-	fd = open(SHIRUDO_BPM_TREE_EVENTLOG_PATH, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0600);
-	if (fd < 0) return -errno;
+	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
+	if (rc)
+		return rc;
+	fd = shirudo_seal_open(SHIRUDO_BPM_TREE_EVENTLOG_PATH,
+			       O_WRONLY | O_CREAT | O_APPEND, 0600);
+	if (fd < 0)
+		return fd;
 	rc = shirudo_write_all(fd, buf, e.len);
 	if (!rc) rc = shirudo_write_all(fd, "\n", 1);
 	if (!rc && fsync(fd)) rc = -errno;
 	if (close(fd) && !rc) rc = -errno;
-	if (!rc) (void)shirudo_seal_label(SHIRUDO_BPM_TREE_EVENTLOG_PATH);
 	return rc;
 }
 

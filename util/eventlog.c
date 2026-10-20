@@ -49,10 +49,10 @@ int shirudo_eventlog_append_to(const char *path, const char *json_line)
 	size_t len = strlen(json_line);
 	int fd, rc;
 
-	fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	fd = shirudo_seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0) {
-		pr_err("eventlog: open %s: %s", path, strerror(errno));
-		return -errno;
+		pr_err("eventlog: open %s: %s", path, strerror(-fd));
+		return fd;
 	}
 
 	rc = shirudo_write_all(fd, json_line, len);
@@ -67,10 +67,6 @@ int shirudo_eventlog_append_to(const char *path, const char *json_line)
 		pr_err("eventlog: append: %s", strerror(-rc));
 		return rc;
 	}
-	/* Keep the eventlog sealed (idempotent; no-op if seal not yet up). */
-	if (shirudo_seal_label(path) != 0)
-		pr_warn("eventlog: could not seal-label %s: %s", path,
-			strerror(errno));
 	return 0;
 }
 

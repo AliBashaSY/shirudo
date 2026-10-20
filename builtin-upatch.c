@@ -2554,11 +2554,11 @@ static int copy_file_atomic(const char *src, const char *dst)
 	in = open(src, O_RDONLY | O_CLOEXEC);
 	if (in < 0)
 		return -errno;
-	out = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+	out = shirudo_seal_open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW,
+				0644);
 	if (out < 0) {
-		rc = -errno;
 		close(in);
-		return rc;
+		return out;
 	}
 	while ((r = read(in, buf, sizeof(buf))) > 0) {
 		rc = shirudo_write_all(out, buf, (size_t)r);
@@ -2601,7 +2601,7 @@ static int persist_upatch(const char *src, const char *name)
 	struct stat ss, ds;
 	int rc;
 
-	rc = mkdir_if_absent(SHIRUDO_UPATCHES_DIR, 0700);
+	rc = shirudo_seal_mkdir_p(SHIRUDO_UPATCHES_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_UPATCHES_DIR, strerror(-rc));
 		return rc;
@@ -2614,14 +2614,7 @@ static int persist_upatch(const char *src, const char *name)
 	    ss.st_ino == ds.st_ino && ss.st_dev == ds.st_dev)
 		return 0;	/* already the installed copy */
 
-	rc = copy_file_atomic(src, dst);
-	if (rc)
-		return rc;
-	/* Bring the new file under the seal LSM. */
-	if (shirudo_seal_label(dst) != 0)
-		pr_warn("upatch: could not seal-label %s: %s", dst,
-			strerror(errno));
-	return 0;
+	return copy_file_atomic(src, dst);
 }
 
 /*

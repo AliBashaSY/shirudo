@@ -372,6 +372,7 @@ tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
                                    util/log.o util/json.o util/loader.o \
                                    util/io.o util/malloc.o util/paths.o \
                                    util/elf_target.o util/hex.o util/keys.o \
+                                   util/seal.o \
                                    util/crypto_openssl.o util/tls_openssl.o \
                                    util/bpm_oci.o util/bpm_package.o \
                                    util/bpm_tree.o $(VERSION_OBJ) \
@@ -586,9 +587,9 @@ testing/helper/test-kernel-abi: testing/helper/test-kernel-abi.c util/kernel_abi
 
 testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o \
                         util/upatch_maps_otel.o util/crypto_openssl.o \
-                        util/tls_openssl.o util/serializer.o \
+                        util/tls_openssl.o util/serializer.o util/seal.o \
                         util/upatch_decode.o util/upatch_resolve.o \
-                        util/upatch.o util/json.o \
+                        util/upatch.o util/json.o util/log.o \
                         util/io.o util/malloc.o $(LIBBPF_A)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
@@ -604,8 +605,9 @@ testing/helper/test-upatch-prog-metadata: testing/helper/test-upatch-prog-metada
 
 testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializer-pages.c \
                                        util/upatch_maps.o util/upatch_resolve.o \
-                                       util/serializer.o \
-                                       util/json.o util/malloc.o
+                                       util/serializer.o util/seal.o \
+                                       util/json.o util/malloc.o util/io.o \
+                                       util/log.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
 

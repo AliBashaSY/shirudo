@@ -23,6 +23,7 @@
 
 #include "bpm_oci.h"
 #include "crypto.h"
+#include "seal.h"
 #include "json.h"
 #include "log.h"
 #include "macros.h"
@@ -45,23 +46,7 @@ void bpm_copy_string(char *dst, size_t dst_sz, const char *src)
 
 int bpm_mkdir_p(const char *path, mode_t mode)
 {
-	char tmp[PATH_MAX];
-	char *p;
-
-	if (!path || strlen(path) >= sizeof(tmp))
-		return -ENAMETOOLONG;
-	snprintf(tmp, sizeof(tmp), "%s", path);
-	for (p = tmp + 1; *p; p++) {
-		if (*p != '/')
-			continue;
-		*p = '\0';
-		if (mkdir(tmp, mode) && errno != EEXIST)
-			return -errno;
-		*p = '/';
-	}
-	if (mkdir(tmp, mode) && errno != EEXIST)
-		return -errno;
-	return 0;
+	return shirudo_seal_mkdir_p(path, mode);
 }
 
 static bool bpm_component_ok(const char *s, bool plus)

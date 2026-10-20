@@ -59,9 +59,10 @@ State lives in two places.  ``/var/lib/shirudo`` is persistent:
 ``keys/`` (the primary certificate, the trusted set with its vouches,
 the revoked certificates), ``eventlog``, the ``upatches/`` archive
 ``init`` restores at boot, ``bpm/`` (indexes, cached packages, tree
-state) and
-``locks/``, all labelled with the seal xattr so that only shirudo can
-change them.  ``/run/shirudo`` is per boot: the private bpffs with the
+state) and ``locks/``, all labelled with the seal xattr so that only
+shirudo can change them, each from the instant it is created: a new
+inode gets the label of the directory it is created in.
+``/run/shirudo`` is per boot: the private bpffs with the
 LSM pins, the frozen identity map and the pending init record between
 the initrd run and the root's.
 

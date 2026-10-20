@@ -39,6 +39,7 @@
 #include "util/macros.h"
 #include "util/malloc.h"
 #include "util/paths.h"
+#include "util/seal.h"
 #include "util/upatch.h"
 
 static void openssl_complain(const char *where)
@@ -948,10 +949,10 @@ static int keys_revoke(int argc, const char **argv)
 	}
 
 	/* The marker first: whatever happens next, no boot enrols it again. */
-	if (mkdir(SHIRUDO_KEYS_REVOKED_DIR, 0700) && errno != EEXIST) {
+	rc = shirudo_seal_mkdir_p(SHIRUDO_KEYS_REVOKED_DIR, 0700);
+	if (rc) {
 		pr_err("keys revoke: mkdir %s: %s", SHIRUDO_KEYS_REVOKED_DIR,
-		       strerror(errno));
-		rc = -errno;
+		       strerror(-rc));
 		goto out;
 	}
 	rc = shirudo_keys_path_for(SHIRUDO_KEYS_REVOKED_DIR, fp, ".der",

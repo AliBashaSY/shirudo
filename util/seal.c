@@ -6,17 +6,23 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <ftw.h>
 #include <limits.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include "io.h"
 #include "log.h"
 #include "paths.h"
 #include "seal.h"
+
+#define SEAL_LABEL_LEN	(sizeof(SHIRUDO_SEAL_LABEL) - 1)
 
 int shirudo_seal_label(const char *path)
 {
@@ -71,4 +77,196 @@ int shirudo_seal_label_tree(void)
 	if (nftw(SHIRUDO_VAR_LIB, seal_label_cb, 16, FTW_PHYS | FTW_MOUNT) != 0)
 		return -errno;
 	return 0;
+}
+
+/*
+ * The length of an inode's label, 0 when it carries none or one of
+ * another size, which the seal takes for none, -errno for a failed read.
+ */
+static ssize_t seal_label_len(ssize_t n)
+{
+	if (n >= 0)
+		return n == (ssize_t)SEAL_LABEL_LEN ? n : 0;
+	if (errno == ENODATA || errno == ENOTSUP || errno == ERANGE)
+		return 0;
+	return -errno;
+}
+
+static ssize_t seal_fget(int fd, char label[SEAL_LABEL_LEN])
+{
+	return seal_label_len(fgetxattr(fd, SHIRUDO_XATTR_NAME, label,
+					SEAL_LABEL_LEN));
+}
+
+static ssize_t seal_lget(const char *path, char label[SEAL_LABEL_LEN])
+{
+	return seal_label_len(lgetxattr(path, SHIRUDO_XATTR_NAME, label,
+					SEAL_LABEL_LEN));
+}
+
+/* Open the directory of path to create in it; *name is the last component. */
+static int seal_open_parent(const char *path, const char **name)
+{
+	const char *slash = strrchr(path, '/');
+	char dir[PATH_MAX];
+	size_t len;
+	int fd;
+
+	if (!slash) {
+		*name = path;
+		fd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	} else {
+		len = slash == path ? 1 : (size_t)(slash - path);
+		if (len >= sizeof(dir))
+			return -ENAMETOOLONG;
+		memcpy(dir, path, len);
+		dir[len] = '\0';
+		*name = slash + 1;
+		fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	}
+	if (fd < 0)
+		return -errno;
+	if (!**name) {
+		close(fd);
+		return -EINVAL;
+	}
+	return fd;
+}
+
+int shirudo_seal_inherit(int dfd, int fd)
+{
+	char parent[SEAL_LABEL_LEN], own[SEAL_LABEL_LEN];
+	ssize_t plen, olen;
+
+	plen = seal_fget(dfd, parent);
+	if (plen <= 0)
+		return (int)plen;
+	olen = seal_fget(fd, own);
+	if (olen < 0)
+		return (int)olen;
+	if (olen == plen && !memcmp(parent, own, (size_t)plen))
+		return 0;
+	if (fsetxattr(fd, SHIRUDO_XATTR_NAME, parent, (size_t)plen, 0))
+		return -errno;
+	return 0;
+}
+
+int shirudo_seal_inherit_path(const char *path)
+{
+	char parent[SEAL_LABEL_LEN], own[SEAL_LABEL_LEN];
+	ssize_t plen, olen;
+	const char *name;
+	int dfd;
+
+	dfd = seal_open_parent(path, &name);
+	if (dfd < 0)
+		return dfd;
+	plen = seal_fget(dfd, parent);
+	close(dfd);
+	if (plen <= 0)
+		return (int)plen;
+	olen = seal_lget(path, own);
+	if (olen < 0)
+		return (int)olen;
+	if (olen == plen && !memcmp(parent, own, (size_t)plen))
+		return 0;
+	if (lsetxattr(path, SHIRUDO_XATTR_NAME, parent, (size_t)plen, 0))
+		return -errno;
+	return 0;
+}
+
+int shirudo_seal_open(const char *path, int flags, mode_t mode)
+{
+	const char *name;
+	int dfd, fd, rc;
+
+	dfd = seal_open_parent(path, &name);
+	if (dfd < 0)
+		return dfd;
+	fd = openat(dfd, name, flags | O_CLOEXEC, mode);
+	if (fd < 0) {
+		rc = -errno;
+		close(dfd);
+		return rc;
+	}
+	rc = shirudo_seal_inherit(dfd, fd);
+	close(dfd);
+	if (rc) {
+		close(fd);
+		return rc;
+	}
+	return fd;
+}
+
+int shirudo_seal_mkdir_p(const char *path, mode_t mode)
+{
+	char buf[PATH_MAX], *comp, *save;
+	int dfd, nfd, rc = 0;
+	bool created;
+
+	if (snprintf(buf, sizeof(buf), "%s", path) >= (int)sizeof(buf))
+		return -ENAMETOOLONG;
+	dfd = open(buf[0] == '/' ? "/" : ".",
+		   O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (dfd < 0)
+		return -errno;
+	for (comp = strtok_r(buf, "/", &save); comp;
+	     comp = strtok_r(NULL, "/", &save)) {
+		created = mkdirat(dfd, comp, mode) == 0;
+		if (!created && errno != EEXIST) {
+			rc = -errno;
+			break;
+		}
+		nfd = openat(dfd, comp, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (nfd < 0) {
+			rc = -errno;
+			break;
+		}
+		if (created)
+			rc = shirudo_seal_inherit(dfd, nfd);
+		close(dfd);
+		dfd = nfd;
+		if (rc)
+			break;
+	}
+	close(dfd);
+	return rc;
+}
+
+int shirudo_seal_write_file(const char *path, const void *data, size_t len,
+			    mode_t mode)
+{
+	char tmp[NAME_MAX + 1];
+	const char *name;
+	int dfd, fd, rc;
+
+	dfd = seal_open_parent(path, &name);
+	if (dfd < 0)
+		return dfd;
+	if (snprintf(tmp, sizeof(tmp), "%s.tmp", name) >= (int)sizeof(tmp)) {
+		close(dfd);
+		return -ENAMETOOLONG;
+	}
+	fd = openat(dfd, tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC |
+		    O_NOFOLLOW, mode);
+	if (fd < 0) {
+		rc = -errno;
+		close(dfd);
+		return rc;
+	}
+	rc = shirudo_seal_inherit(dfd, fd);
+	if (!rc)
+		rc = shirudo_write_all(fd, data, len);
+	if (!rc && fsync(fd))
+		rc = -errno;
+	if (close(fd) && !rc)
+		rc = -errno;
+	if (!rc && renameat(dfd, tmp, dfd, name))
+		rc = -errno;
+	if (!rc && fsync(dfd))
+		rc = -errno;
+	if (rc)
+		unlinkat(dfd, tmp, 0);
+	close(dfd);
+	return rc;
 }

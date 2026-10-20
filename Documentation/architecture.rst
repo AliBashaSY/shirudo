@@ -311,7 +311,11 @@ inode storage from the hooks that hold a trusted handle on it:
 ``file_open`` of the directory, ``inode_post_setxattr`` and
 ``inode_post_removexattr`` on it, and the creation of a directory
 under a marked parent, which marks the child in turn.  The label a new
-inode gets is its parent's.
+inode gets is its parent's.  shirudo's own writers (``util/seal.c``)
+open the directory before creating in it, so that it is marked and its
+inode stays in memory for the duration, create relative to it, and put
+the label on afterwards where the kernel could not, with no seal
+attached or on a file system that takes no xattrs at creation.
 
 Process hardening.  ``util/harden.c`` runs at startup on the target:
 ``PR_SET_DUMPABLE`` off, ``PR_SET_NO_NEW_PRIVS``, ``PR_SET_PTRACER`` to

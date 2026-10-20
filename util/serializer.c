@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "paths.h"
+#include "seal.h"
 #include "serializer.h"
 
 int shirudo_serializer_lock_acquire_at(const char *dir, uint32_t map_id)
@@ -20,8 +21,9 @@ int shirudo_serializer_lock_acquire_at(const char *dir, uint32_t map_id)
 
 	if (!dir || !dir[0] || map_id == 0)
 		return -EINVAL;
-	if (mkdir(dir, 0700) != 0 && errno != EEXIST)
-		return -errno;
+	rc = shirudo_seal_mkdir_p(dir, 0700);
+	if (rc)
+		return rc;
 	dir_fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (dir_fd < 0)
 		return -errno;
@@ -31,9 +33,17 @@ int shirudo_serializer_lock_acquire_at(const char *dir, uint32_t map_id)
 		return -ENAMETOOLONG;
 	}
 	fd = openat(dir_fd, name, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600);
+	if (fd < 0) {
+		rc = -errno;
+		close(dir_fd);
+		return rc;
+	}
+	rc = shirudo_seal_inherit(dir_fd, fd);
 	close(dir_fd);
-	if (fd < 0)
-		return -errno;
+	if (rc) {
+		close(fd);
+		return rc;
+	}
 	if (fstat(fd, &st) != 0) {
 		rc = -errno;
 		close(fd);
