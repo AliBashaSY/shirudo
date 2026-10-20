@@ -43,6 +43,7 @@ for t in \
 	tamperproof/t1113-mount-lockdown.sh \
 	tamperproof/t1135-pin-rename.sh \
 	tamperproof/t1137-bpf-cmd-deny.sh \
+	tamperproof/t1136-tamper-counters.sh \
 	tamperproof/t1130-map-lockdown.sh \
 	tamperproof/t1131-pr-set-mm-identity.sh \
 	tamperproof/t1125-key-permission.sh \

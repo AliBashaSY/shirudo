@@ -48,6 +48,7 @@ checks that Shirudo can still export the pre-existing Python exec record.
 | TP-26 | Root attaches a debugger to a running shirudo task with `PTRACE_ATTACH` | Covered | `t1134-seal-task.sh` | The seal refuses with `EACCES`, Yama's `EPERM` would not do; the task is unharmed and finishes. |
 | TP-27 | Root binds a perf event to a running shirudo task | Covered | `t1134-seal-task.sh` | `perf_event_open` on the task is refused with `EACCES`; the same event on the caller's own task is the positive control. |
 | TP-28 | Root renames a pin in the private bpffs, or renames one over the lsm/bpf link's pin | Covered | `t1135-pin-rename.sh` | Both are refused with `EPERM`; the pins stay and enforcement survives. Before `lsm/inode_rename` the rename over a pin dropped the link with no guard firing. |
+| TP-29 | A refused attempt leaves no trace | Covered | `t1136-tamper-counters.sh` | Every guard counts its refusals by point in a frozen pinned map; `status` lists the non-zero counters, `status --json` and the keepalive carry them all, and root cannot reset them. |
 
 ## Review notes
 
