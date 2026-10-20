@@ -70,7 +70,6 @@ static bool safe_upatch_name(const char *name);
 #define NF_IP6_PRI_RAW_BEFORE_DEFRAG	(-450)
 #endif
 
-/* Fill one failure into a report (NULL report = no-op). */
 static void rep_fail(struct shirudo_op_report *rep, const char *phase,
 		     const char *cat, int err, const char *msg)
 {
@@ -85,9 +84,8 @@ static void rep_fail(struct shirudo_op_report *rep, const char *phase,
 }
 
 /*
- * Map a BPF_PROG_LOAD errno (positive) to a report category. ENOPKG is
- * the kernel's PKCS#7/X.509 parser meeting an algorithm it was not
- * built with (an ML-DSA signature without CONFIG_CRYPTO_MLDSA).
+ * ENOPKG is the kernel's X.509 parser meeting an algorithm it was not
+ * built with: an ML-DSA signature without CONFIG_CRYPTO_MLDSA.
  */
 static const char *cat_from_load_errno(int e)
 {
@@ -431,7 +429,6 @@ static int is_upatch_file(const struct dirent *e)
 	return len > 7 && strcmp(e->d_name + len - 7, ".upatch") == 0;
 }
 
-/* Loaded == its bpffs link or test-run program pin is present. */
 static bool upatch_is_loaded(const char *name)
 {
 	char pin[PATH_MAX];
@@ -455,11 +452,9 @@ test_pin:
 }
 
 /*
- * Cross-reference the persisted archive (/var/lib/shirudo/upatches/
- * *.upatch -- what survives reboot) against the live bpffs pins (what is
- * currently loaded). Drift in either direction is the point: a persisted
- * upatch that is not loaded, or a loaded one with no persisted .upatch
- * (an orphan that will not survive reboot), both show up here.
+ * Drift in either direction is the point: a persisted upatch that is
+ * not loaded, or a loaded one with no persisted copy to survive a
+ * reboot.
  */
 static int cmd_upatch_list(int argc, const char **argv)
 {
@@ -554,7 +549,6 @@ static int cmd_upatch_list(int argc, const char **argv)
 		}
 	}
 
-	/* Orphans: a live pin with no persisted .upatch behind it. */
 	for (i = 0; i < na; i++) {
 		char persist[1024];
 		char raw_name[SHIRUDO_UPATCH_NAME_MAX + 1];
@@ -569,7 +563,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 				     SHIRUDO_UPATCHES_DIR, raw_name) >= sizeof(persist))
 			continue;
 		if (stat(persist, &st) == 0)
-			continue;	/* persisted -- already listed above */
+			continue;
 
 		if (json) {
 			shirudo_json_obj_open(&e);
@@ -600,24 +594,21 @@ static int cmd_upatch_list(int argc, const char **argv)
 
 out:
 	for (i = 0; i < np; i++)
-		shirudo_libc_free(persisted[i]);	/* scandir-owned */
-	shirudo_libc_free(persisted);			/* scandir-owned */
+		shirudo_libc_free(persisted[i]);
+	shirudo_libc_free(persisted);
 	for (j = 0; j < na; j++)
-		shirudo_libc_free(active[j]);		/* scandir-owned */
-	shirudo_libc_free(active);			/* scandir-owned */
+		shirudo_libc_free(active[j]);
+	shirudo_libc_free(active);
 	if (jbuf)
 		xfree(jbuf, 65536);
 	return rc;
 }
 
 /*
- * The signed-loader path needs a __loader.map populated and frozen
- * before BPF_PROG_LOAD, with the FD passed via attr.fd_array and a
- * bpf_loader_ctx via attr.test.ctx_in. Mirrors upstream
- * tools/lib/bpf/skel_internal.h:bpf_load_and_run(). libbpf's
- * bpf_prog_load_opts wrapper doesn't yet expose
- * signature/signature_size/keyring_id, so the BPF_PROG_LOAD attr
- * is built by hand.
+ * The context and the descriptors trailing it mirror
+ * tools/lib/bpf/skel_internal.h, which the loader writes and
+ * BPF_PROG_TEST_RUN copies back. libbpf's load wrapper exposes no
+ * signature or keyring, so the attr is built by hand.
  */
 
 struct shirudo_loader_ctx {
@@ -628,11 +619,6 @@ struct shirudo_loader_ctx {
 	uint64_t	log_buf;
 };
 
-/*
- * Descriptor arrays trailing the loader ctx. Layout must match
- * tools/lib/bpf/skel_internal.h: the loader writes map_fd/prog_fd
- * here, and BPF_PROG_TEST_RUN copies the ctx back to userspace.
- */
 struct shirudo_map_desc {
 	int		map_fd;
 	uint32_t	max_entries;
@@ -719,7 +705,6 @@ static int prog_load_signed(const struct bpf_insn *insns, size_t insn_cnt,
 	memcpy(attr.prog_name, prog_name,
 	       strnlen(prog_name, sizeof(attr.prog_name)));
 
-
 	fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	return (int)fd;
 }
@@ -740,15 +725,7 @@ static int prog_test_run_ctx(int prog_fd, void *ctx, uint32_t ctx_sz,
 	return 0;
 }
 
-/*
- * Attach a loaded LSM/tracing prog by opening a raw-tracepoint link
- * with a NULL name -- the kernel uses the prog's baked-in
- * attach_btf_id. Older kernels required this path, while newer kernels
- * prefer BPF_LINK_CREATE for BTF-attached programs such as sleepable
- * LSM. The gen loader resolves attach_btf_id at load time, so the link
- * target is fixed by the signed program, not chosen here. Returns a link
- * fd. On failure, returns a negative errno.
- */
+/* A NULL name attaches at the attach_btf_id the signed program carries. */
 static int prog_attach_raw_tp(int prog_fd)
 {
 	union bpf_attr attr = {};
@@ -1495,11 +1472,7 @@ static void count_attach_progs(const struct shirudo_prog_spec *specs,
 	*out = n;
 }
 
-/*
- * Attach or pin each inner program according to the upatch program
- * metadata. Attached programs get pinned links; serializer programs are
- * pinned as programs and invoked later by `shirudo upatch map`.
- */
+/* Serializers are pinned as programs for `upatch map`; the rest as links. */
 static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				 size_t prog_desc_off, uint32_t nr_progs,
 				 const char *name,
@@ -1644,21 +1617,9 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 }
 
 /*
- * For each map the signed loader created (cx->map_descs[].map_fd is
- * populated by gen_loader's MAP_CREATE-from-kernel-context, see
- * skel_internal.h), pin it under <upatches>/<name>/maps/<map_name>.
- * The maps/ dir is created on first hit (mode 0700, under the same
- * seal-LSM coverage as the link pin). Best-effort: a failure to pin
- * one map is logged and skipped -- the upatch already loaded ok, so
- * we want the rest of the loading to succeed, and the unpinned map
- * just isn't observable via `shirudo upatch map` until next load.
- *
- * Skips:
- *  - map_fd <= 0 (loader produced no fd, nothing to pin)
- *  - empty name (kernel will reject the BPF_OBJ_PIN anyway)
- *  - names containing '.' (bpffs reserves dots in path components;
- *    libbpf synthetic global-data maps such as .bss use them)
- *  - already-pinned maps_dir/name (idempotent on re-runs)
+ * Best effort: the upatch is loaded, so a map that cannot be pinned is
+ * logged and left unobservable until the next load. bpffs reserves dots
+ * in path components, so libbpf's .bss, .data and .rodata are skipped.
  */
 static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 				   uint32_t nr_maps, const char *name)
@@ -1728,14 +1689,9 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 }
 
 /*
- * Record the loaded upatch's payload_sha256 as an xattr on its pin
- * directory. `upatch unload` reads it back to confirm what is actually
- * loaded under <name> matches the directive's signed expectation; the
- * bpf2 inode_setxattr guard restricts this write to shirudo, so a root
- * attacker cannot forge it. Not fatal -- the load already succeeded and
- * there is nothing to roll back -- but unload is fail-closed on a
- * missing value, so a failure here is an error, not a warning: it leaves
- * <name> loaded and un-unloadable through the normal path.
+ * The value `upatch unload` checks, unforgeable behind bpf2's xattr
+ * guard. The load stands, so a failure is not fatal, but it leaves the
+ * upatch un-unloadable through the normal path: an error, not a warning.
  */
 static void set_pin_payload(const char *name, const uint8_t payload[32])
 {
@@ -1753,11 +1709,6 @@ static void set_pin_payload(const char *name, const uint8_t payload[32])
 		       dir, strerror(errno));
 }
 
-/*
- * Read the payload_sha256 recorded on <name>'s pin directory. Returns 0
- * and fills out on success, -ENOENT if the pin dir is gone, -ENODATA if
- * the xattr is absent, or another -errno.
- */
 static int get_pin_payload(const char *name, uint8_t out[32])
 {
 	char dir[PATH_MAX];
@@ -1778,19 +1729,11 @@ static int get_pin_payload(const char *name, uint8_t out[32])
 }
 
 /*
- * The keyring a signed loader is verified against: the anchor init
- * froze into the identity map, read back from its bpffs pin. Enrolled
- * in the kernel's bpf keyring, that is KEY_SPEC_BPF_KEYRING, which the
- * kernel sealed for the boot and names as such in the verdict. Staged
- * in the user keyring, it is the sealed "shirudo" keyring's own serial
- * rather than KEY_SPEC_USER_KEYRING (-4): with -4 the kernel's
- * keyring_search recurses through the whole user keyring (_uid.0), so
- * a root attacker who links their own cert anywhere in _uid.0 could
- * get BPF they signed accepted. The frozen serial also catches a
- * same-named "shirudo" keyring substituted for the sealed one, which a
- * root attacker can do by unlinking the real one from _uid.0 and
- * linking a fake; the bpf keyring cannot be substituted. Returns 0
- * with *keyring set, or -1 with rep filled.
+ * The anchor init froze into the identity map: the kernel's bpf keyring
+ * by its spec, or a staged user keyring by its own serial rather than
+ * KEY_SPEC_USER_KEYRING, whose search recurses through all of _uid.0,
+ * where root can link a certificate of their own. The frozen serial
+ * also catches a same-named keyring substituted for the sealed one.
  */
 static int trust_anchor_keyring(key_serial_t *keyring,
 				struct shirudo_op_report *rep)
@@ -1841,12 +1784,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 	return 0;
 }
 
-/*
- * Load, attach, and pin one signed LOAD upatch. Shared by the
- * operator-facing `shirudo upatch load` and by `shirudo init`
- * boot-restore, so both go through the identical signature-verified
- * path. Returns 0 on success, non-zero on failure.
- */
+/* Shared by `upatch load` and boot restore: one signature-verified path. */
 static int upatch_apply(const char *path, bool verify_only,
 			struct shirudo_op_report *rep)
 {
@@ -1901,7 +1839,6 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	/* The keyring the kernel verifies the CMS signature against. */
 	if (trust_anchor_keyring(&keyring, rep)) {
 		rc = 1;
 		goto out;
@@ -1912,13 +1849,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	data  = shirudo_upatch_data(&u);
 	insn_cnt = u.hdr.loader_insns_len / sizeof(struct bpf_insn);
 
-	/*
-	 * Sanitise the on-disk upatch name into a bpf_obj_name_cpy-
-	 * compatible string: keep alphanumerics, '_', '.'; replace
-	 * everything else (notably '-' which is common in CVE-style
-	 * names) with '_'. The kernel returns EINVAL on any other
-	 * character.
-	 */
+	/* bpf_obj_name_cpy() takes alphanumerics, '_' and '.' alone. */
 	memset(prog_name, 0, sizeof(prog_name));
 	{
 		size_t i, n = strnlen(u.hdr.name, sizeof(u.hdr.name));
@@ -1935,11 +1866,9 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 
 	/*
-	 * The pin directory uses the canonical (raw) upatch name -- the
-	 * same name persist and unload use -- so the three agree. The
-	 * sanitised prog_name above is only for attr.prog_name (the
-	 * kernel restricts that charset). Validate the raw name here too,
-	 * since boot-restore reaches this path without the cmd-level check.
+	 * The pin directory, the archive and unload share the raw name. Boot
+	 * restore reaches here without the command-level check, so validate it
+	 * again.
 	 */
 	memcpy(upatch_name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	upatch_name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
@@ -1952,13 +1881,9 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 
 	/*
-	 * Bind the recorded identity to the signed bytes: the header's
-	 * payload_sha256 must equal SHA-256(insns || data), the exact
-	 * content the kernel folds and verifies below. The signature is
-	 * authoritative for the load itself, but payload_sha256 is what
-	 * shirudo records as the pin xattr, the chain event, and the unload
-	 * match target -- so a corrupted or mis-set header value must not be
-	 * trusted as identity even if the signature is valid.
+	 * The signature authorises the load, but payload_sha256 is what the pin
+	 * xattr, the register event and the unload match record, so a header
+	 * value that is not SHA-256(insns || data) is refused even when signed.
 	 */
 	{
 		uint8_t content_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
@@ -2019,12 +1944,9 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 
 	/*
-	 * 1. Create __loader.map bound to the loader's own digest
-	 *    (excl_prog_hash = SHA-256(insns)). The verifier enforces
-	 *    map->excl_prog_sha == prog->digest, so this frozen metadata map
-	 *    can be used by exactly this signed loader and no other program.
-	 *    Note this is the digest of the instructions alone -- distinct
-	 *    from payload_sha256, which covers insns || data.
+	 * The metadata map is exclusive to the loader by the digest of its
+	 * instructions alone, which the verifier enforces; payload_sha256
+	 * covers insns || data.
 	 */
 	{
 		uint8_t loader_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
@@ -2041,7 +1963,6 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	/* 2. Populate the loader map with opts.data. */
 	rc = loader_map_update(map_fd, data, u.hdr.data_len);
 	if (rc) {
 		pr_err("__loader.map update: %s", strerror(errno));
@@ -2051,12 +1972,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	/*
-	 * 3. Freeze: userspace can no longer mutate the metadata map, so the
-	 *    bytes the kernel folds into the signature cannot change before
-	 *    the loader runs. The kernel refuses a signed load whose bound
-	 *    map is not frozen.
-	 */
+	/* The kernel refuses a signed load whose bound map is not frozen. */
 	rc = loader_map_freeze(map_fd);
 	if (rc) {
 		pr_err("__loader.map freeze: %s", strerror(errno));
@@ -2067,14 +1983,8 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 
 	/*
-	 * 4. BPF_PROG_LOAD with signature + keyring_id + fd_array_cnt=1.
-	 *    The kernel resolves the exclusive metadata map from fd_array,
-	 *    appends its frozen contents to the instructions, and verifies
-	 *    the CMS signature over insns || metadata against the keyring --
-	 *    all before the verifier proper and the lsm/bpf_prog_load
-	 *    admission hook run. The loader carries no metadata self-check;
-	 *    the kernel attests the metadata directly (see
-	 *    Documentation/bpf/signing.rst, "Load-time verification").
+	 * The kernel attests the metadata itself; the loader carries no
+	 * self-check.
 	 */
 	vlog[0] = '\0';
 	prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
@@ -2099,40 +2009,22 @@ static int upatch_apply(const char *path, bool verify_only,
 		prog_fd, (int)keyring, u.hdr.signature_len, insn_cnt,
 		u.hdr.data_len);
 
-	/*
-	 * Signature verified by the successful PROG_LOAD above. For the
-	 * unload-directive authorization check that is all we need --
-	 * stop before running/attaching anything.
-	 */
 	if (verify_only) {
 		rc = 0;
 		goto out;
 	}
 
 	/*
-	 * 6. Invoke the loader. Kernel context (kernel == true) inside
-	 *    the loader -- it does BPF_PROG_LOAD/BTF_LOAD/MAP_CREATE for
-	 *    the embedded upatch programs from there, bypassing the
-	 *    userspace lsm/bpf restrictions. The loader does NOT attach:
-	 *    gen_loader has no link-create emit, and bpf_sys_bpf() can't
-	 *    BPF_OBJ_PIN. The inner prog fds it opens are installed in
-	 *    shirudo's fd table and surface in the ctx; shirudo attaches
-	 *    and pins them below (step 7).
-	 *
-	 * gen_loader writes map/prog descriptors into the trailing bytes
-	 * of its ctx, so the ctx is larger than struct
-	 * shirudo_loader_ctx. Size the descriptor tail from the recorded
-	 * counts; bpftool over-allocates a fixed 1024, but the exact
-	 * size is known here from the header.
+	 * The loader creates the programs and maps from kernel context but
+	 * cannot attach or pin: gen_loader emits no link-create and
+	 * bpf_sys_bpf() cannot BPF_OBJ_PIN. Its descriptors trail the context,
+	 * sized from the header's counts.
 	 */
 	prog_desc_off = sizeof(struct shirudo_loader_ctx) +
 			(size_t)u.hdr.nr_maps * sizeof(struct shirudo_map_desc);
 	/*
-	 * prog_fd[i] lands at prog_desc_off + i*sizeof(prog_desc) -- the
-	 * exact offset gen_loader writes (bpf_gen__finish). The loader's
-	 * verifier-recorded max_ctx_offset can exceed that tail, so
-	 * over-allocate a generous pad; TEST_RUN rejects ctx_size_in
-	 * below max_ctx_offset. Extra bytes are harmless.
+	 * The loader's max_ctx_offset can exceed the descriptor tail, and
+	 * TEST_RUN rejects a smaller ctx_size_in, so pad generously.
 	 */
 	ctx_sz = prog_desc_off +
 		 (size_t)u.hdr.nr_progs * sizeof(struct shirudo_prog_desc) +
@@ -2184,11 +2076,8 @@ static int upatch_apply(const char *path, bool verify_only,
 		u.hdr.nr_maps, u.hdr.nr_progs);
 
 	/*
-	 * 7. Attach and pin each inner program. The loader left them
-	 *    loaded; without a pinned link they detach the moment this
-	 *    one-shot CLI exits and the link fd closes. Pins live under
-	 *    the private bpffs so the seal/inode_unlink LSM protects
-	 *    them.
+	 * Without a pinned link a program detaches when this one-shot CLI
+	 * exits.
 	 */
 	rc = attach_and_pin_progs(cx, prog_desc_off, u.hdr.nr_progs,
 				  upatch_name, prog_specs);
@@ -2212,20 +2101,9 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	/*
-	 * 7b. Pin every map the signed loader created under
-	 *     <pin_dir>/maps/<map_name>, so userspace can read it back
-	 *     via `shirudo upatch map`. Non-fatal: a pin failure here
-	 *     does not roll back the load (which already succeeded);
-	 *     it just makes that map unobservable until next load.
-	 */
 	pin_upatch_maps(cx, u.hdr.nr_maps, upatch_name);
 
-	/*
-	 * Record payload_sha256 on the pin dir for the unload-time
-	 * payload_mismatch check. After attach+pin so the dir exists and
-	 * the value reflects an actually-loaded upatch (no rollback window).
-	 */
+	/* After attach and pin, so the value records a loaded upatch. */
 	set_pin_payload(upatch_name, u.hdr.payload_sha256);
 
 	pr_audit("upatch load: name=%s keyring=%d progs=%u", upatch_name,
@@ -2251,16 +2129,9 @@ int shirudo_upatch_apply(const char *path)
 }
 
 /*
- * Operator-side pre-flight gate (threat-model.rst, pre-flight checks).
- * Runs before any BPF_PROG_LOAD: the live kernel must expose the private
- * signed-loader ABI, the trust anchor init pinned must be present, the LSM
- * link must still be pinned (enforcing), and -- when the caller supplied
- * --expect-chain --
- * the live register must still match what the operator expects.
- * An ABI mismatch is kernel_abi_unsupported; state mismatches are tampered.
- * No kernel state is touched. This is the optimistic-concurrency / tamper
- * gate: a concurrent operator that advanced the chain, a detached LSM, or a
- * missing keyring all surface here. Returns 0 to proceed.
+ * The tamper gate before any BPF_PROG_LOAD: a concurrent operator who
+ * advanced the register, a detached LSM or a missing anchor surface
+ * here, without touching kernel state.
  */
 static int upatch_preflight(const char *expect_chain,
 			    struct shirudo_op_report *rep)
@@ -2323,11 +2194,8 @@ static int upatch_preflight(const char *expect_chain,
 }
 
 /*
- * Refuse if the eventlog would overflow its configured cap before any
- * state change. The chain and the log must advance together, so an
- * extend we could not log would break replay -- no load, no extend, no
- * append. Default eventlog.max_bytes=0 (unlimited) makes this a no-op.
- * Returns 0 to proceed.
+ * The register and the log advance together, so an extend that could
+ * not be logged must not happen: refuse before any state changes.
  */
 static int eventlog_room(struct shirudo_op_report *rep, const char *op)
 {
@@ -2346,13 +2214,8 @@ static int eventlog_room(struct shirudo_op_report *rep, const char *op)
 }
 
 /*
- * First pre-flight gate: refuse a version-skewed caller/target pair.
- * A caller may pass the expected SHIRUDO_VERSION_ID as
- * --expect-version-id; if it differs from this target's, the two were
- * built from different shirudo sources and the operation should not proceed
- * (version_mismatch, EPERM). Runs before the chain/keyring checks
- * because a skew makes those comparisons meaningless. A standalone load
- * with no --expect-version-id (or --no-version-check) skips it.
+ * A caller built from other sources than this target makes every later
+ * comparison meaningless, so the version check runs first.
  */
 static int version_gate(const char *expect_version_id, bool no_version_check,
 			struct shirudo_op_report *rep, const char *op)
@@ -2371,7 +2234,6 @@ static int version_gate(const char *expect_version_id, bool no_version_check,
 	return 0;
 }
 
-/* Eventlog entry ("upatch_load" / "upatch_unload") mirroring an extend. */
 static int append_upatch_event(const char *type, const char *name,
 			       const uint8_t payload[32],
 			       const uint8_t event[32], const char *reason)
@@ -2411,13 +2273,9 @@ static int append_upatch_event(const char *type, const char *name,
 }
 
 /*
- * Operator-driven chain event. load extends with tag "shirudo-upatch"
- * and logs type "upatch_load"; unload extends with "shirudo-unload"
- * and logs "upatch_unload". Each operator op is its own
- * forward-progress event (boot-restore coalesces into one init event
- * instead). Returns 0 on success, negative on the tpm_error case (op
- * done but chain not advanced): a missing TPM or chain is an error,
- * never an unmeasured success, since init guarantees the chain exists.
+ * Each operator operation is its own register event, where boot restore
+ * coalesces into one. A missing TPM or register is an error, never an
+ * unmeasured success: init guarantees the register exists.
  */
 static int upatch_chain_event(const char *tag, const char *type,
 			      const char *op, const char *name,
@@ -2466,11 +2324,8 @@ static int upatch_chain_event(const char *tag, const char *type,
 }
 
 /*
- * The upatch's on-disk name is NOT covered by the loader signature, so
- * treat it as untrusted when it becomes a filesystem path: allow only
- * a single safe path component (no '/', no leading '.', bounded
- * charset). Prevents an attacker-crafted name from escaping the
- * upatches dir when persisted.
+ * The name is not covered by the signature and becomes a path, so only
+ * one safe component is allowed.
  */
 static bool safe_upatch_name(const char *name)
 {
@@ -2489,7 +2344,6 @@ static bool safe_upatch_name(const char *name)
 	return true;
 }
 
-/* Append one complete JSON document as an NDJSON record. */
 static int append_json_record(const char *path, const char *json, size_t len)
 {
 	struct stat st;
@@ -2590,11 +2444,6 @@ static int copy_file_atomic(const char *src, const char *dst)
 	return 0;
 }
 
-/*
- * Persist the loaded .upatch into /var/lib/shirudo/upatches/<name>.upatch
- * so boot-restore re-applies it after a reboot. Idempotent when the
- * source already is that file (re-applying an installed upatch).
- */
 static int persist_upatch(const char *src, const char *name)
 {
 	char dst[PATH_MAX];
@@ -2617,11 +2466,6 @@ static int persist_upatch(const char *src, const char *name)
 	return copy_file_atomic(src, dst);
 }
 
-/*
- * Shared option parsing for `upatch load` / `upatch unload`:
- * [--expect-chain=<hex>] [--no-precheck] [--report=<path>] <file.upatch>.
- * Returns 0 on success, 2 on a usage error (message already printed).
- */
 static int parse_op_args(int argc, const char **argv, const char *verb,
 			 const struct shirudo_help *help,
 			 const char **file, const char **expect_chain,
@@ -2668,7 +2512,6 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 	return 0;
 }
 
-/* Unlink every file under <dir>, then rmdir <dir>. -errno on failure. */
 static int wipe_dir_flat(const char *dir)
 {
 	struct dirent *e;
@@ -2695,14 +2538,7 @@ static int wipe_dir_flat(const char *dir)
 	return 0;
 }
 
-/*
- * Detach + unpin an upatch: descend into <upatches>/<name>/, wipe the
- * maps/ subdir first (unpinning every BPF_OBJ_PIN'd map), then unlink
- * the link pin (dropping the link refcount detaches the program), then
- * rmdir the top dir. The bpf2 inode_unlink hook permits this because
- * the caller is shirudo. Returns 0 on success, -ENOENT if the dir is
- * absent (already unloaded), -errno otherwise.
- */
+/* Unlinking the link pin drops its last reference, which detaches. */
 static int remove_pin_dir(const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
@@ -2724,10 +2560,6 @@ static int remove_pin_dir(const char *name)
 		return -ENAMETOOLONG;
 	if (stat(dir, &st) != 0)
 		return -errno;
-	/*
-	 * Child pin directories must be torn down before the top dir, so
-	 * the parent isn't holding unwipeable subdirs when we rmdir it.
-	 */
 	if (stat(maps_dir, &st) == 0) {
 		rc = wipe_dir_flat(maps_dir);
 		if (rc)
@@ -2766,7 +2598,6 @@ static int cmd_upatch_load(int argc, const char **argv)
 	if (version_gate(expect_version_id, no_version_check, &rep, "load") != 0)
 		goto done;
 
-	/* Capture the identity before any type-specific gate. */
 	rc = shirudo_upatch_open(file, &u);
 	if (rc) {
 		pr_err("open %s: %s", file, strerror(-rc));
@@ -2810,11 +2641,9 @@ static int cmd_upatch_load(int argc, const char **argv)
 	}
 
 	/*
-	 * Persist before extending: the upatches dir is the on-disk
-	 * record of intent that boot-restore replays, and the chain
-	 * measures that intent. If we can't persist, don't measure --
-	 * a chain event for an upatch that won't survive reboot would
-	 * drift from reality.
+	 * Persist before measuring: the archive is the intent boot restore
+	 * replays, and an event for an upatch that will not survive a reboot
+	 * would drift from it.
 	 */
 	rc = persist_upatch(file, name);
 	if (rc) {
@@ -2870,7 +2699,6 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	if (version_gate(expect_version_id, no_version_check, &rep, "unload") != 0)
 		goto done;
 
-	/* Read the target name + expected payload from the directive. */
 	rc = shirudo_upatch_open(file, &u);
 	if (rc) {
 		pr_err("open %s: %s", file, strerror(-rc));
@@ -2920,30 +2748,18 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	if (eventlog_room(&rep, "unload") != 0)
 		goto done;
 
-	/*
-	 * Authorization: load the directive's signed loader so the kernel
-	 * verifies its CMS signature. A bad signature fails here and
-	 * nothing is removed.
-	 */
+	/* A bad signature fails here, before anything is removed. */
 	if (upatch_apply(file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");
 		goto done;
 	}
 
 	/*
-	 * payload_mismatch: confirm the upatch actually loaded under
-	 * <name> is the one the directive was signed to remove. The live
-	 * value is the xattr bpf2 protects on the pin dir (unforgeable). The
-	 * expected value read here is the directive's unsigned metadata
-	 * blob; a signature-covered copy also rides in the loader's .rodata
-	 * (inside insns || data), but the in-kernel detach that would read
-	 * it back is not implementable yet, so this
-	 * catches honest/accidental substitution, not a root attacker who
-	 * edits both the metadata and the expected value in lockstep.
-	 * Fail-closed: a live pin whose payload cannot be read is refused.
-	 * -ENOENT means there is no pin dir at all, which falls through to
-	 * the idempotent already_unloaded path below. Skipped only when the
-	 * directive carries no expected payload (all-zero).
+	 * The live value is the xattr bpf2 guards; the expected one is the
+	 * directive's unsigned metadata, so this catches an honest
+	 * substitution, not an attacker editing both. A pin whose value
+	 * cannot be read is refused; no pin at all is the already-unloaded
+	 * case below.
 	 */
 	{
 		uint8_t zero[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
@@ -2973,7 +2789,6 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		}
 	}
 
-	/* Idempotent: no live pin -> already unloaded. */
 	rc = remove_pin_dir(name);
 	if (rc == -ENOENT) {
 		if (unlink(persisted) != 0 && errno != ENOENT)
@@ -2997,7 +2812,6 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	}
 	pr_info("upatch unload: detached + unpinned %s", name);
 
-	/* Drop the on-disk record so boot-restore won't re-apply it. */
 	if (unlink(persisted) != 0 && errno != ENOENT)
 		pr_warn("upatch unload: could not remove %s: %s",
 			persisted, strerror(errno));
@@ -3068,10 +2882,7 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	return rc ? rc : 1;
 }
 
-/*
- * Native BPM lifecycle hooks.  Keep package installation on the exact
- * same signed/persisted path as the public upatch commands.
- */
+/* Package installs take the same path as the upatch commands. */
 int shirudo_upatch_install(const char *path)
 {
 	const char *argv[] = { "load", "--no-precheck", path };
@@ -3087,12 +2898,8 @@ int shirudo_upatch_remove(const char *path)
 }
 
 /*
- * Render the source lines clang -g embedded in a program's BTF
- * (resolved via line_info records: line_off -> the source text, in the
- * BTF string section). Grouped by source file. rec_size is the record
- * stride (the kernel may grow struct bpf_line_info; we read the prefix
- * we know). Shared by `upatch get` (kernel BTF) and `upatch info` (the
- * .upatch's stored copy).
+ * Source lines from a program's BTF line_info. rec_size is the record
+ * stride, since the kernel may grow struct bpf_line_info.
  */
 struct li_entry {
 	const char	*file;	/* into the BTF string section */
@@ -3111,12 +2918,8 @@ static int li_cmp(const void *a, const void *b)
 }
 
 /*
- * line_info records are in instruction order, so a source line maps to
- * several records (prologue, body, return all carry the same line) and
- * lines reappear out of order. For a *source* view that reads badly, so
- * collect the unique (file, line, src) tuples and sort them by file then
- * line. Returns the count; *out (allocated, caller xfrees with the same
- * n) holds the sorted unique entries pointing into the BTF strings.
+ * line_info is in instruction order, so a source line recurs and lines
+ * come out of order; a source view wants unique lines sorted by file.
  */
 static uint32_t li_collect(const struct btf *btf, const void *recs,
 			   uint32_t rec_size, uint32_t n, struct li_entry **out)
@@ -3179,11 +2982,6 @@ static void dump_line_info_text(struct li_entry *ents, uint32_t k)
 	}
 }
 
-/*
- * Emit a {"files":[{"path":..., "lines":[{line, src}, ...]}, ...]}
- * object body inside the caller's open "source" key. ents is the
- * file-then-line sorted unique tuple list from li_collect().
- */
 static void emit_line_info_json(struct shirudo_json_emit *e,
 				struct li_entry *ents, uint32_t k)
 {
@@ -3210,7 +3008,6 @@ static void emit_line_info_json(struct shirudo_json_emit *e,
 	shirudo_json_arr_close(e);
 }
 
-/* Build and append one detailed schema-1 map snapshot. */
 static int append_one_map_json(const char *path,
 			       const struct shirudo_map_view *v)
 {
@@ -3531,10 +3328,6 @@ static int cmd_upatch_map(int argc, const char **argv)
 	return ret;
 }
 
-/*
- * Format a payload SHA-256 (32 raw bytes) as lowercase hex; "" if the
- * xattr is not readable (upatch not loaded, or value never recorded).
- */
 static void payload_hex(const char *upatch, char *out, size_t cap)
 {
 	uint8_t raw[32];
@@ -3572,12 +3365,7 @@ static void upatch_get_ctx_free(struct upatch_get_ctx *c)
 	c->btf = NULL;
 }
 
-/*
- * Populate the ctx: open the pin, read link+prog info, load BTF,
- * collect line_info. Returns 0 on success; -errno on failure. On
- * partial failure (e.g. no line_info), still returns 0 and leaves
- * the source-related fields empty so the caller can render the rest.
- */
+/* Missing line_info is not a failure: the rest of the get still renders. */
 static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 {
 	struct bpf_link_info linfo = {};
@@ -3665,7 +3453,6 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	return 0;
 }
 
-/* "since <ts>" human helper. "" if ts is empty / unparseable. */
 static void age_from_ts(const char *ts, char *out, size_t cap)
 {
 	struct tm tm = {};
@@ -3697,7 +3484,6 @@ static void render_one_map_text(const char *upatch, const char *map,
 	shirudo_map_view_free(&v);
 }
 
-/* Text render of the bundled get document. */
 static void render_get_text(const struct upatch_get_ctx *c,
 			    const struct shirudo_map_summary *maps, size_t nm,
 			    uint32_t map_cap)
@@ -3733,7 +3519,6 @@ static void render_get_text(const struct upatch_get_ctx *c,
 		render_one_map_text(c->upatch, maps[k].name, map_cap);
 }
 
-/* JSON render of the bundled get document. */
 static int render_get_json(const struct upatch_get_ctx *c,
 			   const struct shirudo_map_summary *maps, size_t nm,
 			   uint32_t map_cap)
