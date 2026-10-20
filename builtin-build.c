@@ -85,7 +85,6 @@ bool shirudo_build_available(void)
 	return use_path ? on_path(helper) : access(helper, X_OK) == 0;
 }
 
-/* Returns only on failure, with the exit status to report. */
 int shirudo_build_exec(const char *label, char **argv)
 {
 	bool use_path;

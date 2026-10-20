@@ -125,7 +125,6 @@ static int keyring_asymmetric_count(key_serial_t ring)
 
 static bool bpf_keyring_mode;
 
-/* The certificates init enrolled this boot; the init event covers them. */
 static struct shirudo_trusted_set enrolled;
 
 static bool initrd_mode;

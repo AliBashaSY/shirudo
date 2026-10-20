@@ -230,7 +230,6 @@ static int cert_digest(const char *path, uint8_t out[32])
 	return got == st.st_size ? 0 : -EIO;
 }
 
-/* One "--event=<kind>:<name>=<hex>" after boot, folded in order. */
 static int apply_event(const char *spec, uint8_t chain[32])
 {
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
@@ -262,7 +261,6 @@ static int apply_event(const char *spec, uint8_t chain[32])
 			return -EINVAL;
 		shirudo_chain_tree_event(seq, digest, event);
 	} else if (kind_len == 6 && !strncmp(spec, "revoke", 6)) {
-		/* <name> is the fingerprint, <hex> the certificate digest. */
 		shirudo_chain_key_event("shirudo-key-revoke", digest, event);
 	} else {
 		return -EINVAL;

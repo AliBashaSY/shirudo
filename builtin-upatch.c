@@ -3465,7 +3465,6 @@ static void age_from_ts(const char *ts, char *out, size_t cap)
 	shirudo_format_duration((long)(time(NULL) - timegm(&tm)), out, cap);
 }
 
-/* Text render of one map; cap=0 means "lift the truncation". */
 static void render_one_map_text(const char *upatch, const char *map,
 				uint32_t cap)
 {
