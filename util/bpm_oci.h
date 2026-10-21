@@ -118,8 +118,9 @@ int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
 			 const char *reference, const unsigned char *body,
 			 size_t body_len, char *digest, size_t digest_sz);
 int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
-			   struct bpm_descriptor *layers, int *n_layers,
-			   char *package_name, size_t package_name_sz);
+			   struct bpm_descriptor *layers, int max_layers,
+			   int *n_layers, char *package_name,
+			   size_t package_name_sz);
 void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
 			     const struct bpm_descriptor *d, const char *title);
 

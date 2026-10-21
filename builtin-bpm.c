@@ -87,8 +87,10 @@ static int prepare_direct_install(const char *raw, struct bpm_source *source,
 				 "application/vnd.oci.image.manifest.v1+json",
 				 &manifest)))
 		goto out;
-	if ((rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &n_layers,
-				 package_name, sizeof(package_name))))
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    ARRAY_SIZE(layers), &n_layers, package_name,
+				    sizeof(package_name));
+	if (rc)
 		goto out;
 	if (!package_name[0]) {
 		const char *base = strrchr(repository, '/');
@@ -141,8 +143,10 @@ static int download_package(const char *raw, const char *destination)
 	if ((rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json",
 				 &manifest)))
 		goto out;
-	if ((rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &n_layers,
-				 package_name, sizeof(package_name))))
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    ARRAY_SIZE(layers), &n_layers, package_name,
+				    sizeof(package_name));
+	if (rc)
 		goto out;
 	bpm_trim(package_name, package_name, sizeof(package_name));
 	for (int i = 0; i < n_layers; i++) {
@@ -760,8 +764,10 @@ static int repo_update_one(const char *name)
 	if ((rc = bpm_oci_parse_endpoint(s.endpoint, &c))) return rc;
 	if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG, url, sizeof(url)))) return rc;
 	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest); if (rc) goto out;
-	if ((rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &nl,
-				 NULL, 0)) || nl < 2) goto out;
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    ARRAY_SIZE(layers), &nl, NULL, 0);
+	if (rc || nl < 2)
+		goto out;
 	for (int i = 0; i < nl; i++) {
 		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA)) {
 			char layer_hex[65];
@@ -842,8 +848,10 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			goto out;
 		}
 	}
-	if ((rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &nl,
-				 NULL, 0))) goto out;
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    ARRAY_SIZE(layers), &nl, NULL, 0);
+	if (rc)
+		goto out;
 	for (int i = 0; i < nl; i++) if (!strcmp(layers[i].media, BPM_PACKAGE_MEDIA)) {
 		found_package = true;
 		if (entry->package_digest[0] && strcmp(entry->package_digest, layers[i].digest)) { rc = -EKEYREJECTED; goto out; }
@@ -1185,7 +1193,8 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &nl, NULL, 0);
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    ARRAY_SIZE(layers), &nl, NULL, 0);
 	if (rc)
 		goto out;
 	for (int i = 0; i < nl; i++) {

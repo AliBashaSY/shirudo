@@ -419,8 +419,9 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 		rc = -ENOMEM;
 		goto out;
 	}
-	if ((rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &nl,
-				 NULL, 0)))
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    BPM_MAX_ENTRIES, &nl, NULL, 0);
+	if (rc)
 		goto out;
 	for (int i = 0; i < nl; i++) {
 		struct bpm_buffer *dst;

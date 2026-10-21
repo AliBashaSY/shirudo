@@ -686,7 +686,7 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 
 struct desc_sink {
 	struct bpm_descriptor *items;
-	int n;
+	int n, max;
 	struct bpm_descriptor scratch;
 	char package_name[BPM_MAX_NAME];
 };
@@ -694,17 +694,18 @@ struct desc_sink {
 static int on_descriptor(void *ud)
 {
 	struct desc_sink *s = ud;
-	if (s->n >= BPM_MAX_ENTRIES) return -E2BIG;
+	if (s->n >= s->max) return -E2BIG;
 	s->items[s->n++] = s->scratch;
 	memset(&s->scratch, 0, sizeof(s->scratch));
 	return 0;
 }
 
 int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
-			  struct bpm_descriptor *layers, int *n_layers,
-			  char *package_name, size_t package_name_sz)
+			  struct bpm_descriptor *layers, int max_layers,
+			  int *n_layers, char *package_name,
+			  size_t package_name_sz)
 {
-	struct desc_sink sink = { .items = layers };
+	struct desc_sink sink = { .items = layers, .max = max_layers };
 	struct shirudo_json_array arr = { on_descriptor, &sink };
 	struct shirudo_json_field layer_annotations[1], manifest_annotations[1];
 	struct shirudo_json_field sub[4], root[3];

@@ -124,7 +124,8 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers, &nl, NULL, 0);
+	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				    BPM_MAX_ENTRIES, &nl, NULL, 0);
 	if (rc)
 		goto out;
 	for (int i = 0; i < nl; i++) {
