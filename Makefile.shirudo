@@ -708,6 +708,15 @@ testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
                            $(FUZZ_PACKAGE)
 testing/fuzz/fuzz-bpm-package: testing/fuzz/fuzz-bpm-package.c $(FUZZ_BASE) \
                                $(FUZZ_PACKAGE)
+testing/fuzz/fuzz-tpm-wire: testing/fuzz/fuzz-tpm-wire.c $(FUZZ_BASE) \
+                            util/tpm_wire.c util/crypto_openssl.c util/io.c
+testing/fuzz/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
+                          util/attest.c util/chain.c util/tpm.c \
+                          util/tpm_wire.c util/eventlog.c util/timefmt.c \
+                          util/crypto_openssl.c util/io.c util/seal.c \
+                          util/config.c util/initrd.c util/version_id.c
+testing/fuzz/fuzz-attest: FUZZ_CFLAGS += $(TSS2_CFLAGS)
+testing/fuzz/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c
