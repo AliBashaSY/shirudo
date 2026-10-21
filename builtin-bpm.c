@@ -29,6 +29,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "builtin.h"
 #include "util/bpm_oci.h"
@@ -1170,18 +1171,19 @@ static int parse_package_ref(const char *raw, char *source, size_t ssz,
 	source[slash - raw] = 0;
 	at = strchr(slash + 1, '@');
 	if (!at) {
-		snprintf(name, nsz, "%s", slash + 1);
+		if (strscpy(name, slash + 1, nsz) < 0)
+			return -ENAMETOOLONG;
 		version[0] = 0;
 	} else {
 		if ((size_t)(at - slash - 1) >= nsz)
 			return -ENAMETOOLONG;
 		memcpy(name, slash + 1, at - slash - 1);
 		name[at - slash - 1] = 0;
-		snprintf(version, vsz, "%s", at + 1);
+		if (strscpy(version, at + 1, vsz) < 0)
+			return -ENAMETOOLONG;
 	}
-	return bpm_name_ok(source) && bpm_name_ok(name) && strlen(name) < nsz &&
-		(!version[0] || (strlen(version) < vsz && bpm_version_ok(version))) ?
-		0 : -EINVAL;
+	return bpm_name_ok(source) && bpm_name_ok(name) &&
+		(!version[0] || bpm_version_ok(version)) ? 0 : -EINVAL;
 }
 
 static int cmd_bpm_config(int argc, const char **argv)
