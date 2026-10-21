@@ -33,14 +33,15 @@ int shirudo_upatch_decode_map_otel(const struct shirudo_map_view *v,
 int shirudo_upatch_decode_map_file_json(const char *path,
 					const struct shirudo_map_view *v,
 					char **out, size_t *out_len);
-int shirudo_upatch_decode_map_file_json_limit(
-					const char *path, const struct shirudo_map_view *v,
-					size_t max_bytes, char **out, size_t *out_len);
+int shirudo_upatch_decode_map_file_json_limit(const char *path,
+					      const struct shirudo_map_view *v,
+					      size_t max_bytes, char **out,
+					      size_t *out_len);
 int shirudo_upatch_decode_map_file_otel(const char *path,
 					const struct shirudo_map_view *v,
 					char **out, size_t *out_len);
 
 int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				    uint32_t *signal_out);
+				     uint32_t *signal_out);
 
 #endif /* SHIRUDO_UTIL_UPATCH_DECODE_H */

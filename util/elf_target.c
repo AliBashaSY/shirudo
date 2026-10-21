@@ -27,9 +27,9 @@
  * headers that are not part of Shirudo's userspace build).
  */
 extern int elf_resolve_pattern_offsets(const char *binary_path,
-					      const char *pattern,
-					      unsigned long **poffsets,
-					      size_t *pcnt);
+				       const char *pattern,
+				       unsigned long **poffsets,
+				       size_t *pcnt);
 
 static int u64_cmp(const void *a, const void *b)
 {

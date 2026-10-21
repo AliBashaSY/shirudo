@@ -56,6 +56,7 @@ static void resolve_map_location(struct shirudo_map_view *v)
 	if (vbtf)
 		btf__free(vbtf);
 }
+
 #define SHIRUDO_SERIAL_MAX_BYTES \
 	(SHIRUDO_SERIAL_MAX_CHUNKS * SHIRUDO_SERIAL_CHUNK_PAYLOAD)
 #define SHIRUDO_SERIAL_MAX_TOTAL_BYTES \
@@ -135,7 +136,7 @@ static void btf_type_name(struct btf *btf, uint32_t type_id,
 	}
 }
 
-static char *fmt_alloc(const char *fmt, ...) __attribute__((format(printf,1,2)));
+static char *fmt_alloc(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
 static uint32_t btf_unwrap(const struct btf *btf, uint32_t id)
 {
@@ -169,11 +170,16 @@ static uint32_t btf_unwrap(const struct btf *btf, uint32_t id)
 static const char *btf_kind_prefix(uint16_t kind)
 {
 	switch (kind) {
-	case BTF_KIND_STRUCT:		return "struct ";
-	case BTF_KIND_UNION:		return "union ";
-	case BTF_KIND_ENUM:		return "enum ";
-	case BTF_KIND_ENUM64:		return "enum ";
-	default:			return "";
+	case BTF_KIND_STRUCT:
+		return "struct ";
+	case BTF_KIND_UNION:
+		return "union ";
+	case BTF_KIND_ENUM:
+		return "enum ";
+	case BTF_KIND_ENUM64:
+		return "enum ";
+	default:
+		return "";
 	}
 }
 
@@ -254,7 +260,7 @@ static void btf_type_signature_into(const struct btf *btf, uint32_t id,
 				const struct btf_type *mt = btf__type_by_id(btf, mid);
 				const char *mtype = mt ?
 						    btf__name_by_offset(btf,
-								mt->name_off) :
+									mt->name_off) :
 						    NULL;
 				uint16_t mkind = mt ? BTF_INFO_KIND(mt->info)
 						    : 0;
@@ -435,12 +441,13 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 		if (BTF_INFO_KFLAG(t->info) && size < 4 &&
 		    (v & (1u << (8 * size - 1))))
 			v |= ~((1u << (8 * size)) - 1);
-		for (i = 0; i < (uint32_t)vlen; i++)
+		for (i = 0; i < (uint32_t)vlen; i++) {
 			if ((uint32_t)e[i].val == v) {
 				const char *nm = btf__name_by_offset(btf,
 								e[i].name_off);
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
+		}
 		return BTF_INFO_KFLAG(t->info) ?
 		       fmt_alloc("%" PRId32, (int32_t)v) :
 		       fmt_alloc("%" PRIu32, v);
@@ -1555,25 +1562,27 @@ void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 	printf("\nContents:\n");
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *en = &v->entries[i];
-		char *key_s = shirudo_upatch_map_format_cell(v, v->key_type_id,
-						  en->key, v->key_size,
-						  v->btf_key_type);
+		char *key_s;
 
+		key_s = shirudo_upatch_map_format_cell(v, v->key_type_id,
+						       en->key, v->key_size,
+						       v->btf_key_type);
 		if (shirudo_upatch_map_is_percpu(v->type)) {
-			char *sum_s = shirudo_upatch_map_format_percpu_sum(v,
-				en->value, v->btf_value_type);
+			char *sum_s;
 			int j;
 
+			sum_s = shirudo_upatch_map_format_percpu_sum(v, en->value,
+								     v->btf_value_type);
 			printf("  key=%s: sum=%s\n", key_s ? key_s : "?",
 			       sum_s ? sum_s : "?");
 			for (j = 0; j < (int)v->n_cpus; j++) {
-				char *one = shirudo_upatch_map_format_cell(v,
-					v->value_type_id,
-					(const char *)en->value
-						+ (size_t)j *
-						  shirudo_upatch_map_value_stride(v),
-					v->value_size, v->btf_value_type);
+				const char *p = (const char *)en->value +
+						(size_t)j * shirudo_upatch_map_value_stride(v);
+				char *one;
 
+				one = shirudo_upatch_map_format_cell(v, v->value_type_id,
+								     p, v->value_size,
+								     v->btf_value_type);
 				if (j % 4 == 0)
 					printf("    ");
 				printf("cpu%d=%-7s  ", j, one ? one : "?");
@@ -1585,10 +1594,11 @@ void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 				printf("\n");
 			xstrfree(sum_s);
 		} else {
-			char *val_s = shirudo_upatch_map_format_cell(v,
-				v->value_type_id, en->value, v->value_size,
-				v->btf_value_type);
+			char *val_s;
 
+			val_s = shirudo_upatch_map_format_cell(v, v->value_type_id,
+							       en->value, v->value_size,
+							       v->btf_value_type);
 			printf("  key = %s\n     -> %s\n", key_s ? key_s : "?",
 			       val_s ? val_s : "?");
 			xstrfree(val_s);
@@ -1672,25 +1682,27 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 	shirudo_json_arr_open(e, "entries");
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *en = &v->entries[i];
-		char *key_s = shirudo_upatch_map_format_cell(v, v->key_type_id,
-						  en->key, v->key_size,
-						  v->btf_key_type);
+		char *key_s;
 
+		key_s = shirudo_upatch_map_format_cell(v, v->key_type_id,
+						       en->key, v->key_size,
+						       v->btf_key_type);
 		shirudo_json_obj_open(e);
 		shirudo_json_kv_string(e, "key", key_s ? key_s : "");
 		if (shirudo_upatch_map_is_percpu(v->type)) {
-			char *sum_s = shirudo_upatch_map_format_percpu_sum(v,
-				en->value, v->btf_value_type);
+			char *sum_s;
 
+			sum_s = shirudo_upatch_map_format_percpu_sum(v, en->value,
+								     v->btf_value_type);
 			shirudo_json_arr_open(e, "values_per_cpu");
 			for (j = 0; j < v->n_cpus; j++) {
-				char *one = shirudo_upatch_map_format_cell(v,
-					v->value_type_id,
-					(const char *)en->value
-						+ (size_t)j *
-						  shirudo_upatch_map_value_stride(v),
-					v->value_size, v->btf_value_type);
+				const char *p = (const char *)en->value +
+						(size_t)j * shirudo_upatch_map_value_stride(v);
+				char *one;
 
+				one = shirudo_upatch_map_format_cell(v, v->value_type_id,
+								     p, v->value_size,
+								     v->btf_value_type);
 				shirudo_json_str(e, one ? one : "");
 				xstrfree(one);
 			}
@@ -1699,10 +1711,11 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 					       sum_s ? sum_s : "");
 			xstrfree(sum_s);
 		} else {
-			char *val_s = shirudo_upatch_map_format_cell(v,
-				v->value_type_id, en->value, v->value_size,
-				v->btf_value_type);
+			char *val_s;
 
+			val_s = shirudo_upatch_map_format_cell(v, v->value_type_id,
+							       en->value, v->value_size,
+							       v->btf_value_type);
 			shirudo_json_kv_string(e, "value",
 					       val_s ? val_s : "");
 			xstrfree(val_s);

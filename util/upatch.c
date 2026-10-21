@@ -25,15 +25,18 @@ static int parse_header(const unsigned char *m, size_t n,
 	if (n < SHIRUDO_UPATCH_HEADER_SIZE)
 		return -EINVAL;
 
-	out->magic = rd_le64(p); p += 8;
+	out->magic = rd_le64(p);
+	p += 8;
 	if (out->magic != SHIRUDO_UPATCH_MAGIC)
 		return -EINVAL;
 
-	out->version = rd_le32(p); p += 4;
+	out->version = rd_le32(p);
+	p += 4;
 	if (out->version != SHIRUDO_UPATCH_VERSION)
 		return -EINVAL;
 
-	out->flags = rd_le32(p); p += 4;
+	out->flags = rd_le32(p);
+	p += 4;
 
 	memcpy(out->name, p, sizeof(out->name));
 	p += sizeof(out->name);
@@ -41,20 +44,34 @@ static int parse_header(const unsigned char *m, size_t n,
 	memcpy(out->payload_sha256, p, sizeof(out->payload_sha256));
 	p += sizeof(out->payload_sha256);
 
-	out->loader_insns_off	= rd_le32(p); p += 4;
-	out->loader_insns_len	= rd_le32(p); p += 4;
-	out->signature_off	= rd_le32(p); p += 4;
-	out->signature_len	= rd_le32(p); p += 4;
-	out->metadata_off	= rd_le32(p); p += 4;
-	out->metadata_len	= rd_le32(p); p += 4;
-	out->data_off		= rd_le32(p); p += 4;
-	out->data_len		= rd_le32(p); p += 4;
-	out->log_buf_sz		= rd_le32(p); p += 4;
-	out->nr_maps		= rd_le32(p); p += 4;
-	out->nr_progs		= rd_le32(p); p += 4;
-	out->reserved0		= rd_le32(p); p += 4;
-	out->type		= rd_le32(p); p += 4;
-	out->reserved1		= rd_le32(p); p += 4;
+	out->loader_insns_off	= rd_le32(p);
+	p += 4;
+	out->loader_insns_len	= rd_le32(p);
+	p += 4;
+	out->signature_off	= rd_le32(p);
+	p += 4;
+	out->signature_len	= rd_le32(p);
+	p += 4;
+	out->metadata_off	= rd_le32(p);
+	p += 4;
+	out->metadata_len	= rd_le32(p);
+	p += 4;
+	out->data_off		= rd_le32(p);
+	p += 4;
+	out->data_len		= rd_le32(p);
+	p += 4;
+	out->log_buf_sz		= rd_le32(p);
+	p += 4;
+	out->nr_maps		= rd_le32(p);
+	p += 4;
+	out->nr_progs		= rd_le32(p);
+	p += 4;
+	out->reserved0		= rd_le32(p);
+	p += 4;
+	out->type		= rd_le32(p);
+	p += 4;
+	out->reserved1		= rd_le32(p);
+	p += 4;
 	if (out->reserved0 != 0 || out->reserved1 != 0)
 		return -EINVAL;
 	return 0;
@@ -90,7 +107,7 @@ static int validate_bounds(const struct shirudo_upatch_header *h, size_t n)
 
 static bool has_nul(const char *s, size_t n)
 {
-	return memchr(s, '\0', n) != NULL;
+	return memchr(s, '\0', n);
 }
 
 /*

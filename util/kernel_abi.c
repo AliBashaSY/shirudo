@@ -55,9 +55,9 @@ static const struct btf_type *unwrap_type(const struct btf *btf, uint32_t id)
 }
 
 static const struct btf_member *find_member(const struct btf *btf,
-					     const struct btf_type *t,
-					     const char *name,
-					     uint32_t *index)
+					    const struct btf_type *t,
+					    const char *name,
+					    uint32_t *index)
 {
 	const struct btf_member *members = btf_members(t);
 	uint32_t i;

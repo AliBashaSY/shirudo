@@ -71,12 +71,18 @@ static const char *loc_prefix(uint32_t prog_type, uint32_t attach_type)
 		return "netfilter";
 	if (prog_type == BPF_PROG_TYPE_TRACING) {
 		switch (attach_type) {
-		case BPF_TRACE_FENTRY:		return "fentry";
-		case BPF_TRACE_FEXIT:		return "fexit";
-		case BPF_MODIFY_RETURN:		return "fmod_ret";
-		case BPF_TRACE_RAW_TP:		return "tp_btf";
-		case BPF_TRACE_ITER:		return "iter";
-		default:			return NULL;
+		case BPF_TRACE_FENTRY:
+			return "fentry";
+		case BPF_TRACE_FEXIT:
+			return "fexit";
+		case BPF_MODIFY_RETURN:
+			return "fmod_ret";
+		case BPF_TRACE_RAW_TP:
+			return "tp_btf";
+		case BPF_TRACE_ITER:
+			return "iter";
+		default:
+			return NULL;
 		}
 	}
 	return NULL;

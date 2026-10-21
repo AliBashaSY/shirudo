@@ -44,9 +44,10 @@ int shirudo_upatch_decode_map_file_json(const char *path,
 	return shirudo_upatch_decode_map_json(v, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json_limit(
-					const char *path, const struct shirudo_map_view *v,
-					size_t max_bytes, char **out, size_t *out_len)
+int shirudo_upatch_decode_map_file_json_limit(const char *path,
+					      const struct shirudo_map_view *v,
+					      size_t max_bytes, char **out,
+					      size_t *out_len)
 {
 	(void)path;
 	(void)max_bytes;
@@ -81,6 +82,7 @@ int shirudo_upatch_decode_map_file_otel(const char *path,
 
 #include "json.h"
 #include "hex.h"
+#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "upatch.h"
@@ -252,13 +254,13 @@ static void json_put_string(struct json_out *out, const char *s, size_t n)
 			} else if (c >= 0x80) {
 				size_t width, j;
 
-				if ((c & 0xe0) == 0xc0)
+				if ((c & 0xe0) == 0xc0) {
 					width = 2;
-				else if ((c & 0xf0) == 0xe0)
+				} else if ((c & 0xf0) == 0xe0) {
 					width = 3;
-				else if ((c & 0xf8) == 0xf0)
+				} else if ((c & 0xf8) == 0xf0) {
 					width = 4;
-				else {
+				} else {
 					out->err = -EILSEQ;
 					break;
 				}
@@ -558,9 +560,10 @@ static int hex_decode_alloc(const char *hex, size_t len,
 
 	*out = NULL;
 	*out_len = 0;
-	for (i = 0; i < len; i++)
+	for (i = 0; i < len; i++) {
 		if (!isspace((unsigned char)hex[i]))
 			digits++;
+	}
 	if (digits & 1)
 		return -EINVAL;
 	buf = xmalloc(digits / 2);
@@ -820,12 +823,12 @@ static int lua_check_u64_string(lua_State *L, int arg, uint64_t *out)
 	if (!s[0] || strlen(s) > 20)
 		return luaL_argerror(L, arg, "expected a decimal u64 string");
 	for (i = 0; s[i]; i++) {
-		unsigned digit;
+		unsigned int digit;
 
 		if (s[i] < '0' || s[i] > '9')
 			return luaL_argerror(L, arg,
 					     "expected a decimal u64 string");
-		digit = (unsigned)(s[i] - '0');
+		digit = (unsigned int)(s[i] - '0');
 		if (v > (UINT64_MAX - digit) / 10)
 			return luaL_argerror(L, arg, "u64 string out of range");
 		v = v * 10 + digit;
@@ -969,14 +972,14 @@ static void lua_install_host_api(lua_State *L)
 
 static void lua_disable_globals(lua_State *L)
 {
-	static const char *deny[] = {
+	static const char *const deny[] = {
 		"io", "os", "package", "require", "debug", "jit", "ffi",
 		"dofile", "loadfile", "load", "loadstring", "module",
 		"collectgarbage",
 	};
 	size_t i;
 
-	for (i = 0; i < sizeof(deny) / sizeof(deny[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(deny); i++) {
 		lua_pushnil(L);
 		lua_setglobal(L, deny[i]);
 	}
@@ -1227,7 +1230,8 @@ static int run_lua_decoder(const struct shirudo_upatch_decoder_view *d,
 	*out = jo.buf;
 	*out_len = jo.len;
 	jo.buf = NULL;
-	jo.len = jo.cap = 0;
+	jo.len = 0;
+	jo.cap = 0;
 
 out_close:
 	if (jo.buf)
@@ -1287,7 +1291,7 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 }
 
 int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				    uint32_t *signal_out)
+				     uint32_t *signal_out)
 {
 	struct shirudo_upatch u;
 	char path[PATH_MAX];
@@ -1318,7 +1322,7 @@ int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
 }
 
 static int decode_map(const struct shirudo_map_view *v, bool otel,
-			      size_t max_bytes, char **out, size_t *out_len)
+		      size_t max_bytes, char **out, size_t *out_len)
 {
 	char path[PATH_MAX];
 
@@ -1362,9 +1366,10 @@ int shirudo_upatch_decode_map_file_json(const char *path,
 							out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json_limit(
-					const char *path, const struct shirudo_map_view *v,
-					size_t max_bytes, char **out, size_t *out_len)
+int shirudo_upatch_decode_map_file_json_limit(const char *path,
+					      const struct shirudo_map_view *v,
+					      size_t max_bytes, char **out,
+					      size_t *out_len)
 {
 	if (!max_bytes)
 		return -EINVAL;

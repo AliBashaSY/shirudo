@@ -14,20 +14,30 @@
 static inline const char *shirudo_map_type_name(uint32_t type)
 {
 	switch (type) {
-	case BPF_MAP_TYPE_ARRAY:		return "array";
-	case BPF_MAP_TYPE_PERCPU_ARRAY:	return "percpu_array";
-	case BPF_MAP_TYPE_HASH:		return "hash";
-	case BPF_MAP_TYPE_PERCPU_HASH:	return "percpu_hash";
-	case BPF_MAP_TYPE_LRU_HASH:	return "lru_hash";
+	case BPF_MAP_TYPE_ARRAY:
+		return "array";
+	case BPF_MAP_TYPE_PERCPU_ARRAY:
+		return "percpu_array";
+	case BPF_MAP_TYPE_HASH:
+		return "hash";
+	case BPF_MAP_TYPE_PERCPU_HASH:
+		return "percpu_hash";
+	case BPF_MAP_TYPE_LRU_HASH:
+		return "lru_hash";
 	case BPF_MAP_TYPE_LRU_PERCPU_HASH:
 		return "lru_percpu_hash";
-	case BPF_MAP_TYPE_RINGBUF:	return "ringbuf";
+	case BPF_MAP_TYPE_RINGBUF:
+		return "ringbuf";
 	case BPF_MAP_TYPE_PERF_EVENT_ARRAY:
 		return "perf_event_array";
-	case BPF_MAP_TYPE_STACK_TRACE:	return "stack_trace";
-	case BPF_MAP_TYPE_PROG_ARRAY:	return "prog_array";
-	case BPF_MAP_TYPE_ARENA:	return "arena";
-	default:			return "unknown";
+	case BPF_MAP_TYPE_STACK_TRACE:
+		return "stack_trace";
+	case BPF_MAP_TYPE_PROG_ARRAY:
+		return "prog_array";
+	case BPF_MAP_TYPE_ARENA:
+		return "arena";
+	default:
+		return "unknown";
 	}
 }
 
