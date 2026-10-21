@@ -9,6 +9,7 @@
 #include <errno.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "upatch_decode.h"
 
@@ -819,24 +820,14 @@ static int lua_shirudo_page_slots(lua_State *L)
 
 static int lua_check_u64_string(lua_State *L, int arg, __u64 *out)
 {
-	const char *s = luaL_checkstring(L, arg);
-	__u64 v = 0;
-	size_t i;
+	size_t len;
+	const char *s = luaL_checklstring(L, arg, &len);
+	int rc = parse_u64(s, len, UINT64_MAX, out);
 
-	if (!s[0] || strlen(s) > 20)
+	if (rc == -ERANGE)
+		return luaL_argerror(L, arg, "u64 string out of range");
+	if (rc)
 		return luaL_argerror(L, arg, "expected a decimal u64 string");
-	for (i = 0; s[i]; i++) {
-		__u32 digit;
-
-		if (s[i] < '0' || s[i] > '9')
-			return luaL_argerror(L, arg,
-					     "expected a decimal u64 string");
-		digit = (__u32)(s[i] - '0');
-		if (v > (UINT64_MAX - digit) / 10)
-			return luaL_argerror(L, arg, "u64 string out of range");
-		v = v * 10 + digit;
-	}
-	*out = v;
 	return 0;
 }
 

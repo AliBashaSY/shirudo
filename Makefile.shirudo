@@ -672,7 +672,8 @@ testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializ
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
-			      util/upatch_decode.o util/upatch.o util/malloc.o util/hex.o
+			      util/upatch_decode.o util/upatch.o util/malloc.o util/hex.o \
+			      util/string.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
