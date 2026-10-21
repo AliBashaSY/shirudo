@@ -2400,12 +2400,20 @@ static int s3_headers(const struct otel_s3_state *st,
 	S3_HEADER_LITERAL(line);
 	snprintf(line, sizeof(line), "x-amz-meta-shirudo-map: %s", v->name);
 	S3_HEADER_LITERAL(line);
+	/* STS session tokens run well past a kilobyte. */
 	if (st->session_token) {
-		if (strlen(st->session_token) > sizeof(line) - 24)
-			return -E2BIG;
-		snprintf(line, sizeof(line), "x-amz-security-token: %s",
+		size_t len = strlen("x-amz-security-token: ") +
+			     strlen(st->session_token) + 1;
+		char *token = xmalloc(len);
+
+		if (!token)
+			return -ENOMEM;
+		snprintf(token, len, "x-amz-security-token: %s",
 			 st->session_token);
-		S3_HEADER_LITERAL(line);
+		rc = s3_header(out, token);
+		xfree(token, len);
+		if (rc)
+			return rc;
 	}
 #undef S3_HEADER_LITERAL
 	return 0;
