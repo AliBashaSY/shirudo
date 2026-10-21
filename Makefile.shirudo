@@ -705,10 +705,19 @@ testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
                                  $(FUZZ_BASE) $(FUZZ_OCI)
 testing/fuzz/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
                           util/config.c util/io.c util/bpm_source_config.c
+FUZZ_TREE_STATE := util/bpm_tree_state.c util/io.c util/seal.c \
+                   util/kernel_build_id.c util/kernel_release.c \
+                   util/crypto_openssl.c testing/fuzz/chain.c
+testing/fuzz/fuzz-tree-state: testing/fuzz/fuzz-tree-state.c $(FUZZ_BASE) \
+                              $(FUZZ_TREE_STATE)
+testing/fuzz/fuzz-kconfig: testing/fuzz/fuzz-kconfig.c $(FUZZ_BASE) \
+                           $(FUZZ_TREE_STATE)
 
 # A target that reaches static parsers includes their source, which it
 # then depends on without linking it a second time.
 testing/fuzz/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
+testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
+	FUZZ_INCLUDED := util/bpm_tree_state.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
