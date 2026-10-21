@@ -70,13 +70,13 @@ static void put_string(struct shirudo_json_emit *e, const char *s)
 		} else {
 			int n;
 
-			if ((c & 0xE0) == 0xC0)
+			if ((c & 0xE0) == 0xC0) {
 				n = 2;
-			else if ((c & 0xF0) == 0xE0)
+			} else if ((c & 0xF0) == 0xE0) {
 				n = 3;
-			else if ((c & 0xF8) == 0xF0)
+			} else if ((c & 0xF8) == 0xF0) {
 				n = 4;
-			else {
+			} else {
 				e->err = -EILSEQ;
 				return;
 			}
@@ -227,7 +227,7 @@ void shirudo_json_raw(struct shirudo_json_emit *e, const char *value,
 struct pctx {
 	const char			*p;
 	const char			*end;
-	unsigned			depth;
+	unsigned int			depth;
 	struct shirudo_json_field	*fields;
 	size_t				n_fields;
 };
@@ -273,7 +273,7 @@ static int emit_byte(char *dst, size_t cap, size_t *len, unsigned char b)
 	return 0;
 }
 
-static int utf8_emit(char *dst, size_t cap, size_t *len, unsigned cp)
+static int utf8_emit(char *dst, size_t cap, size_t *len, unsigned int cp)
 {
 	int rc;
 
@@ -316,14 +316,30 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 				return -EINVAL;
 			e = *c->p++;
 			switch (e) {
-			case '"': rc = emit_byte(dst, cap, &len, '"'); break;
-			case '\\': rc = emit_byte(dst, cap, &len, '\\'); break;
-			case '/': rc = emit_byte(dst, cap, &len, '/'); break;
-			case 'b': rc = emit_byte(dst, cap, &len, '\b'); break;
-			case 'f': rc = emit_byte(dst, cap, &len, '\f'); break;
-			case 'n': rc = emit_byte(dst, cap, &len, '\n'); break;
-			case 'r': rc = emit_byte(dst, cap, &len, '\r'); break;
-			case 't': rc = emit_byte(dst, cap, &len, '\t'); break;
+			case '"':
+				rc = emit_byte(dst, cap, &len, '"');
+				break;
+			case '\\':
+				rc = emit_byte(dst, cap, &len, '\\');
+				break;
+			case '/':
+				rc = emit_byte(dst, cap, &len, '/');
+				break;
+			case 'b':
+				rc = emit_byte(dst, cap, &len, '\b');
+				break;
+			case 'f':
+				rc = emit_byte(dst, cap, &len, '\f');
+				break;
+			case 'n':
+				rc = emit_byte(dst, cap, &len, '\n');
+				break;
+			case 'r':
+				rc = emit_byte(dst, cap, &len, '\r');
+				break;
+			case 't':
+				rc = emit_byte(dst, cap, &len, '\t');
+				break;
 			case 'u': {
 				int cp, lo;
 
@@ -348,20 +364,20 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 				} else if (cp >= 0xDC00 && cp <= 0xDFFF) {
 					return -EINVAL;	/* lone low surrogate */
 				}
-				if (cp < 0x10000)
+				if (cp < 0x10000) {
 					rc = utf8_emit(dst, cap, &len, cp);
-				else {
+				} else {
 					rc = emit_byte(dst, cap, &len,
 						       0xF0 | (cp >> 18));
 					if (!rc)
 						rc = emit_byte(dst, cap, &len,
-							0x80 | ((cp >> 12) & 0x3F));
+							       0x80 | ((cp >> 12) & 0x3F));
 					if (!rc)
 						rc = emit_byte(dst, cap, &len,
-							0x80 | ((cp >> 6) & 0x3F));
+							       0x80 | ((cp >> 6) & 0x3F));
 					if (!rc)
 						rc = emit_byte(dst, cap, &len,
-							0x80 | (cp & 0x3F));
+							       0x80 | (cp & 0x3F));
 				}
 				break;
 			}

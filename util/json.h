@@ -26,7 +26,7 @@ struct shirudo_json_emit {
 	size_t		cap;
 	size_t		len;
 	int		err;	/* sticky; -ENOSPC, -EILSEQ, -E2BIG */
-	unsigned	depth;	/* open-container nesting */
+	unsigned int	depth;	/* open-container nesting */
 	uint32_t	nonempty; /* bit d set: container at depth d has a member */
 };
 
