@@ -270,7 +270,8 @@ int shirudo_verify_detached(const uint8_t *payload, size_t payload_len,
 	out = BIO_new(BIO_s_null());
 	store = X509_STORE_new();
 	if (!sig || !data || !out || !store ||
-	    X509_STORE_add_cert(store, cert->impl) != 1)
+	    X509_STORE_add_cert(store, cert->impl) != 1 ||
+	    X509_STORE_set_flags(store, X509_V_FLAG_NO_CHECK_TIME) != 1)
 		goto done;
 	signers = sk_X509_new_null();
 	if (!signers || !sk_X509_push(signers, cert->impl))
