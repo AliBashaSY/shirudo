@@ -180,6 +180,7 @@ UTIL_SRCS := \
     util/attest.c \
     util/chain.c \
     util/hex.c \
+    util/string.c \
     util/bpm_tree.c \
     util/bpm_tree_state.c \
     util/bpm_oci.c \
@@ -406,7 +407,7 @@ tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
                                    util/io.o util/malloc.o util/paths.o \
                                    util/upatch.o util/timefmt.o \
                                    util/elf_target.o util/hex.o util/keys.o \
-                                   util/seal.o util/harden.o \
+                                   util/seal.o util/harden.o util/string.o \
                                    util/crypto_openssl.o util/tls_openssl.o \
                                    util/bpm_oci.o util/bpm_package.o \
                                    util/bpm_tree.o $(VERSION_OBJ) \
@@ -524,6 +525,7 @@ TPMSIM_HELPER := $(if $(TPMSIM_LIBS),testing/helper/tpmsim-cmd,)
 
 # Compiled test helpers (also usable as fuzz entry points).
 TEST_HELPERS := testing/helper/test-json-parser \
+                testing/helper/test-string \
                 testing/helper/test-chain \
                 testing/helper/test-tpm-wire \
                 testing/helper/test-register \
@@ -549,6 +551,9 @@ TEST_HELPERS := testing/helper/test-json-parser \
 		testing/upatch/kernel-obs/exec/exec-paths
 
 testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+testing/helper/test-string: testing/helper/test-string.c util/string.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
