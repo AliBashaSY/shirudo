@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -476,6 +477,7 @@ int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
 {
 	char buf[1024], root[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct stat st;
 	int fd, rc;
 	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
 	    shirudo_hex_decode(operation_digest + 7, (uint8_t[32]){}, 32))
@@ -495,10 +497,28 @@ int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
 			       O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
+	/* A partial line would fail every later replay; roll it back. */
+	while (flock(fd, LOCK_EX) != 0) {
+		if (errno != EINTR) {
+			rc = -errno;
+			goto out;
+		}
+	}
+	if (fstat(fd, &st) != 0) {
+		rc = -errno;
+		goto out;
+	}
 	rc = shirudo_write_all(fd, buf, e.len);
-	if (!rc) rc = shirudo_write_all(fd, "\n", 1);
-	if (!rc && fsync(fd)) rc = -errno;
-	if (close(fd) && !rc) rc = -errno;
+	if (!rc)
+		rc = shirudo_write_all(fd, "\n", 1);
+	if (!rc && fsync(fd))
+		rc = -errno;
+	if (rc && ftruncate(fd, st.st_size))
+		pr_warn("tree: could not roll back a partial append to %s: %s",
+			SHIRUDO_BPM_TREE_EVENTLOG_PATH, strerror(errno));
+out:
+	if (close(fd) && !rc)
+		rc = -errno;
 	return rc;
 }
 
