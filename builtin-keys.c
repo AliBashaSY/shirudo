@@ -1086,7 +1086,7 @@ finish:
 	}
 	pr_audit("keys revoke: fingerprint=%s unloaded=%zu purged=%d "
 		 "promoted=%s", fp_hex, n_unloaded, purged < 0 ? -1 : purged,
-		 promote_arg ? promote_arg : "-");
+		 heir ? promote_arg : "-");
 	printf("revoked %s\n", fp_hex);
 	if (purged > 0)
 		printf("purged %d upatch%s it signed, %zu of them loaded\n",
