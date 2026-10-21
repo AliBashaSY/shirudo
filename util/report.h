@@ -40,9 +40,9 @@ struct shirudo_op_report {
 	char		chain_after[65];
 };
 
-int shirudo_report_emit(const char *path, const struct shirudo_op_report *r);
+int report_emit(const char *path, const struct shirudo_op_report *r);
 
-void shirudo_report_set_log(struct shirudo_op_report *r, const char *log);
-void shirudo_report_free(struct shirudo_op_report *r);
+void report_set_log(struct shirudo_op_report *r, const char *log);
+void report_free(struct shirudo_op_report *r);
 
 #endif /* SHIRUDO_REPORT_H */

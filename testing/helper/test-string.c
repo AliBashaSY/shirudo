@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	int rc;
 
 	if (!strcmp(op, "digits") && argc == 3) {
-		printf("n=%zu\n", shirudo_digits(argv[2], strlen(argv[2])));
+		printf("n=%zu\n", digits(argv[2], strlen(argv[2])));
 		return 0;
 	}
 	if ((!strcmp(op, "u64") || !strcmp(op, "x64")) &&

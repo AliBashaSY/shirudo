@@ -53,7 +53,7 @@ static int ensure_keys_dir(const char *keys_dir)
 		pr_err("keys dir cannot be /");
 		return -EINVAL;
 	}
-	rc = shirudo_seal_mkdir_p(keys_dir, 0700);
+	rc = seal_mkdir_p(keys_dir, 0700);
 	if (rc)
 		pr_err("mkdir %s: %s", keys_dir, strerror(-rc));
 	return rc;
@@ -64,7 +64,7 @@ static EVP_PKEY *gen_keypair(void)
 	EVP_PKEY *k = EVP_PKEY_Q_keygen(NULL, NULL, GENKEY_ALG);
 
 	if (!k) {
-		shirudo_openssl_complain("EVP_PKEY_Q_keygen");
+		openssl_complain("EVP_PKEY_Q_keygen");
 		if (OPENSSL_version_major() < 3 ||
 		    (OPENSSL_version_major() == 3 &&
 		     OPENSSL_version_minor() < 5))
@@ -82,11 +82,11 @@ static int set_subject_and_issuer(X509 *c)
 	if (X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8,
 				       (const __u8 *)CERT_CN,
 				       -1, -1, 0) != 1) {
-		shirudo_openssl_complain("X509_NAME_add_entry_by_txt");
+		openssl_complain("X509_NAME_add_entry_by_txt");
 		return -1;
 	}
 	if (X509_set_issuer_name(c, name) != 1) {
-		shirudo_openssl_complain("X509_set_issuer_name");
+		openssl_complain("X509_set_issuer_name");
 		return -1;
 	}
 	return 0;
@@ -103,13 +103,13 @@ static int add_ext(X509 *c, int nid, const char *value)
 
 	ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, value);
 	if (!ex) {
-		shirudo_openssl_complain("X509V3_EXT_conf_nid");
+		openssl_complain("X509V3_EXT_conf_nid");
 		return -1;
 	}
 	rc = X509_add_ext(c, ex, -1);
 	X509_EXTENSION_free(ex);
 	if (rc != 1) {
-		shirudo_openssl_complain("X509_add_ext");
+		openssl_complain("X509_add_ext");
 		return -1;
 	}
 	return 0;
@@ -118,7 +118,7 @@ static int add_ext(X509 *c, int nid, const char *value)
 static int build_serial(X509 *c)
 {
 	if (ASN1_INTEGER_set(X509_get_serialNumber(c), 1) != 1) {
-		shirudo_openssl_complain("ASN1_INTEGER_set");
+		openssl_complain("ASN1_INTEGER_set");
 		return -1;
 	}
 	return 0;
@@ -127,12 +127,12 @@ static int build_serial(X509 *c)
 static int build_validity(X509 *c)
 {
 	if (!X509_gmtime_adj(X509_getm_notBefore(c), 0)) {
-		shirudo_openssl_complain("X509_gmtime_adj notBefore");
+		openssl_complain("X509_gmtime_adj notBefore");
 		return -1;
 	}
 	if (!X509_gmtime_adj(X509_getm_notAfter(c),
 			     VALIDITY_DAYS * 24L * 60L * 60L)) {
-		shirudo_openssl_complain("X509_gmtime_adj notAfter");
+		openssl_complain("X509_gmtime_adj notAfter");
 		return -1;
 	}
 	return 0;
@@ -142,7 +142,7 @@ static int build_validity(X509 *c)
 static int build_cert(X509 *c, EVP_PKEY *pkey)
 {
 	if (X509_set_version(c, 2) != 1) {	/* X.509 v3 */
-		shirudo_openssl_complain("X509_set_version");
+		openssl_complain("X509_set_version");
 		return -1;
 	}
 	if (build_serial(c) != 0)
@@ -150,7 +150,7 @@ static int build_cert(X509 *c, EVP_PKEY *pkey)
 	if (build_validity(c) != 0)
 		return -1;
 	if (X509_set_pubkey(c, pkey) != 1) {
-		shirudo_openssl_complain("X509_set_pubkey");
+		openssl_complain("X509_set_pubkey");
 		return -1;
 	}
 	if (set_subject_and_issuer(c) != 0)
@@ -166,7 +166,7 @@ static int build_cert(X509 *c, EVP_PKEY *pkey)
 		return -1;
 
 	if (X509_sign(c, pkey, NULL) == 0) {
-		shirudo_openssl_complain("X509_sign");
+		openssl_complain("X509_sign");
 		return -1;
 	}
 	return 0;
@@ -193,7 +193,7 @@ static int write_private_pem(EVP_PKEY *pkey, const char *path)
 	}
 	fd = -1;	/* now owned by fp */
 	if (PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL) != 1) {
-		shirudo_openssl_complain("PEM_write_PrivateKey");
+		openssl_complain("PEM_write_PrivateKey");
 		goto out;
 	}
 	if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
@@ -227,11 +227,11 @@ static int write_cert_der(X509 *c, const char *path)
 	}
 	bio = BIO_new_fd(fd, BIO_NOCLOSE);
 	if (!bio) {
-		shirudo_openssl_complain("BIO_new_fd");
+		openssl_complain("BIO_new_fd");
 		goto out;
 	}
 	if (i2d_X509_bio(bio, c) != 1) {
-		shirudo_openssl_complain("i2d_X509_bio");
+		openssl_complain("i2d_X509_bio");
 		goto out;
 	}
 	if (fsync(fd) != 0) {
@@ -299,8 +299,8 @@ int cmd_genkey(int argc, const char **argv)
 			keys_dir_arg = argv[++i];
 		} else if (strncmp(argv[i], "--keys-dir=", 11) == 0) {
 			keys_dir_arg = argv[i] + 11;
-		} else if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&genkey_help);
+		} else if (is_help(argv[i])) {
+			print_help(&genkey_help);
 			return 0;
 		} else {
 			pr_err("genkey: unknown option '%s'", argv[i]);
@@ -309,10 +309,10 @@ int cmd_genkey(int argc, const char **argv)
 		}
 	}
 
-	keys_dir = shirudo_keys_dir_resolve(keys_dir_arg);
+	keys_dir = keys_dir_resolve(keys_dir_arg);
 
-	rc = shirudo_key_paths(keys_dir, pkey_path, sizeof(pkey_path),
-			       cert_path, sizeof(cert_path));
+	rc = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
+		       cert_path, sizeof(cert_path));
 	if (rc) {
 		pr_err("genkey: invalid keys dir %s: %s",
 		       keys_dir, strerror(-rc));
@@ -330,8 +330,8 @@ int cmd_genkey(int argc, const char **argv)
 		return 1;
 	rc = 1;
 
-	if (!force && (shirudo_path_exists(pkey_path) ||
-		       shirudo_path_exists(cert_path))) {
+	if (!force && (path_exists(pkey_path) ||
+		       path_exists(cert_path))) {
 		pr_err("genkey: %s or %s already exists; pass --force",
 		       pkey_path, cert_path);
 		return 1;
@@ -342,7 +342,7 @@ int cmd_genkey(int argc, const char **argv)
 		goto out;
 	cert = X509_new();
 	if (!cert) {
-		shirudo_openssl_complain("X509_new");
+		openssl_complain("X509_new");
 		goto out;
 	}
 	if (build_cert(cert, pkey) != 0)

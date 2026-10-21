@@ -23,7 +23,7 @@ static int write_config(const char *path, const char *contents)
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
 	if (fd < 0)
 		return -errno;
-	rc = shirudo_write_all(fd, contents, strlen(contents));
+	rc = write_all(fd, contents, strlen(contents));
 	if (rc) {
 		close(fd);
 		return rc;
@@ -36,7 +36,7 @@ static int check_defaults(const char *path)
 	struct shirudo_config cfg;
 
 	unlink(path);
-	if (shirudo_config_load_path(&cfg, path) != 0)
+	if (config_load_path(&cfg, path) != 0)
 		return 1;
 	return !cfg.map_export_valid || cfg.map_export_json_path[0] ||
 	       cfg.map_export_tenant_id[0] ||
@@ -62,7 +62,7 @@ static int check_valid(const char *path)
 	struct shirudo_config cfg;
 
 	if (write_config(path, input) != 0 ||
-	    shirudo_config_load_path(&cfg, path) != 0)
+	    config_load_path(&cfg, path) != 0)
 		return 1;
 	return !cfg.map_export_valid ||
 	       strcmp(cfg.map_export_json_path,
@@ -82,7 +82,7 @@ static int check_invalid(const char *path, const char *input)
 	struct shirudo_config cfg;
 
 	return write_config(path, input) != 0 ||
-	       shirudo_config_load_path(&cfg, path) != 0 ||
+	       config_load_path(&cfg, path) != 0 ||
 	       cfg.map_export_valid;
 }
 
@@ -95,7 +95,7 @@ static int check_max_bytes(const char *path, const char *value,
 
 	snprintf(input, sizeof(input), "eventlog.max_bytes = %s\n", value);
 	return write_config(path, input) != 0 ||
-	       shirudo_config_load_path(&cfg, path) != 0 ||
+	       config_load_path(&cfg, path) != 0 ||
 	       cfg.eventlog_max_bytes != expected;
 }
 

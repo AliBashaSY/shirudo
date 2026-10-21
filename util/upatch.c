@@ -193,7 +193,7 @@ static void parse_decoders(struct shirudo_upatch *u)
 	u->nr_decoders = nr_decoders;
 }
 
-int shirudo_upatch_open(const char *path, struct shirudo_upatch *out)
+int upatch_open(const char *path, struct shirudo_upatch *out)
 {
 	struct stat st;
 	void *m;
@@ -230,19 +230,19 @@ int shirudo_upatch_open(const char *path, struct shirudo_upatch *out)
 
 	rc = parse_header(out->map, out->map_size, &out->hdr);
 	if (rc != 0) {
-		shirudo_upatch_close(out);
+		upatch_close(out);
 		return rc;
 	}
 	rc = validate_bounds(&out->hdr, out->map_size);
 	if (rc != 0) {
-		shirudo_upatch_close(out);
+		upatch_close(out);
 		return rc;
 	}
 	parse_decoders(out);
 	return 0;
 }
 
-void shirudo_upatch_close(struct shirudo_upatch *u)
+void upatch_close(struct shirudo_upatch *u)
 {
 	if (u->map) {
 		munmap((void *)u->map, u->map_size);
@@ -254,51 +254,51 @@ void shirudo_upatch_close(struct shirudo_upatch *u)
 	}
 }
 
-const void *shirudo_upatch_loader(const struct shirudo_upatch *u)
+const void *upatch_loader(const struct shirudo_upatch *u)
 {
 	if (!u->map)
 		return NULL;
 	return u->map + u->hdr.loader_insns_off;
 }
 
-const void *shirudo_upatch_signature(const struct shirudo_upatch *u)
+const void *upatch_signature(const struct shirudo_upatch *u)
 {
 	if (!u->map)
 		return NULL;
 	return u->map + u->hdr.signature_off;
 }
 
-const void *shirudo_upatch_metadata(const struct shirudo_upatch *u)
+const void *upatch_metadata(const struct shirudo_upatch *u)
 {
 	if (!u->map || u->hdr.metadata_len == 0)
 		return NULL;
 	return u->map + u->hdr.metadata_off;
 }
 
-const void *shirudo_upatch_data(const struct shirudo_upatch *u)
+const void *upatch_data(const struct shirudo_upatch *u)
 {
 	if (!u->map || u->hdr.data_len == 0)
 		return NULL;
 	return u->map + u->hdr.data_off;
 }
 
-bool shirudo_upatch_is_unload(const struct shirudo_upatch *u)
+bool upatch_is_unload(const struct shirudo_upatch *u)
 {
 	return (u->hdr.flags & SHIRUDO_DIRECTIVE_UNLOAD) != 0;
 }
 
-const char *shirudo_upatch_type_str(const struct shirudo_upatch *u)
+const char *upatch_type_str(const struct shirudo_upatch *u)
 {
 	return "bpf";
 }
 
-bool shirudo_upatch_has_decoders(const struct shirudo_upatch *u)
+bool upatch_has_decoders(const struct shirudo_upatch *u)
 {
 	return u->map && u->decoder_blob && u->nr_decoders > 0;
 }
 
-int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
-				struct shirudo_upatch_decoder_view *out)
+int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
+			struct upatch_decoder_view *out)
 {
 	struct shirudo_upatch_decoder_entry d;
 	const __u8 *bp;
@@ -306,7 +306,7 @@ int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 	if (!out)
 		return -EINVAL;
 	memset(out, 0, sizeof(*out));
-	if (!shirudo_upatch_has_decoders(u) || idx >= u->nr_decoders)
+	if (!upatch_has_decoders(u) || idx >= u->nr_decoders)
 		return -ENOENT;
 
 	bp = (const __u8 *)u->decoder_blob;
@@ -325,7 +325,7 @@ int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 	return 0;
 }
 
-bool shirudo_upatch_name_valid(const char *name)
+bool upatch_name_valid(const char *name)
 {
 	size_t i;
 
@@ -342,14 +342,14 @@ bool shirudo_upatch_name_valid(const char *name)
 	return true;
 }
 
-int shirudo_upatch_select(const struct dirent *e)
+int upatch_select(const struct dirent *e)
 {
 	size_t n = strlen(e->d_name);
 
 	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
 }
 
-void shirudo_prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs)
+void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs)
 {
 	__u32 i;
 
@@ -366,8 +366,8 @@ void shirudo_prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs)
 	xfree(specs, (size_t)nr_progs * sizeof(*specs));
 }
 
-int shirudo_prog_specs_parse(const void *metadata, __u32 metadata_len,
-			     __u32 nr_progs, struct shirudo_prog_spec **out)
+int prog_specs_parse(const void *metadata, __u32 metadata_len,
+		     __u32 nr_progs, struct shirudo_prog_spec **out)
 {
 	struct shirudo_upatch_prog_metadata md;
 	struct shirudo_prog_spec *specs = NULL;
@@ -578,6 +578,6 @@ int shirudo_prog_specs_parse(const void *metadata, __u32 metadata_len,
 	*out = specs;
 	return 0;
 out:
-	shirudo_prog_specs_free(specs, nr_progs);
+	prog_specs_free(specs, nr_progs);
 	return rc;
 }

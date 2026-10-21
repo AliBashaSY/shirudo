@@ -82,11 +82,11 @@ struct shirudo_tree_state {
 	char manifest_digest[128];
 };
 
-int shirudo_tree_parse(const char *body, size_t len,
-		       struct shirudo_tree_publication *out);
-int shirudo_tree_publication_append(struct shirudo_tree_publication *pub,
-				    const struct shirudo_tree_operation *op);
-void shirudo_tree_publication_free(struct shirudo_tree_publication *pub);
+int tree_parse(const char *body, size_t len,
+	       struct shirudo_tree_publication *out);
+int tree_publication_append(struct shirudo_tree_publication *pub,
+			    const struct shirudo_tree_operation *op);
+void tree_publication_free(struct shirudo_tree_publication *pub);
 
 /*
  * Canonical forms shared by publisher and target: the operation digest
@@ -94,24 +94,24 @@ void shirudo_tree_publication_free(struct shirudo_tree_publication *pub);
  * the publication document. The emitted document is xmalloc'd; release
  * it with xfree(out, out_len).
  */
-int shirudo_tree_operation_digest(const struct shirudo_tree_operation *op,
-				  char out[72]);
-int shirudo_tree_emit_publication(const struct shirudo_tree_publication *pub,
-				  char **out, size_t *out_len);
+int tree_operation_digest(const struct shirudo_tree_operation *op,
+			  char out[72]);
+int tree_emit_publication(const struct shirudo_tree_publication *pub,
+			  char **out, size_t *out_len);
 
 /*
  * Evaluate a publication selector against the running node.  An empty
  * selector is an unconstrained wildcard and matches every node.  1 on a
  * match, 0 without one, -errno when the node's labels cannot be read.
  */
-int shirudo_tree_selector_matches(const struct shirudo_tree_selector *selector);
+int tree_selector_matches(const struct shirudo_tree_selector *selector);
 
-int shirudo_tree_state_read(struct shirudo_tree_state *out);
-int shirudo_tree_state_write(const struct shirudo_tree_state *state);
-int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
-			      const __u8 projection_root[32]);
-int shirudo_tree_event_replay(__u8 out[32]);
+int tree_state_read(struct shirudo_tree_state *out);
+int tree_state_write(const struct shirudo_tree_state *state);
+int tree_event_append(__s64 seq, const char *operation_digest,
+		      const __u8 projection_root[32]);
+int tree_event_replay(__u8 out[32]);
 
-void shirudo_tree_emit_status(struct shirudo_json_emit *e);
+void tree_emit_status(struct shirudo_json_emit *e);
 
 #endif /* SHIRUDO_BPM_TREE_H */

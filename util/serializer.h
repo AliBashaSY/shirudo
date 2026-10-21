@@ -8,16 +8,16 @@
 
 #include "bpf/lib/shirudo_serializer.h"
 
-int shirudo_serializer_lock_acquire(__u32 map_id);
-int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id);
-int shirudo_serializer_new_invocation_id(__u64 *out);
+int serializer_lock_acquire(__u32 map_id);
+int serializer_lock_acquire_at(const char *dir, __u32 map_id);
+int serializer_new_invocation_id(__u64 *out);
 
-int shirudo_serial_chunk_validate(const struct shirudo_serial_chunk *chunk,
-				  __u32 want_index,
-				  __u32 total_chunks,
-				  __u32 page_index,
-				  __u64 cursor,
-				  __u64 next_cursor,
-				  __u64 invocation_id);
+int serial_chunk_validate(const struct shirudo_serial_chunk *chunk,
+			  __u32 want_index,
+			  __u32 total_chunks,
+			  __u32 page_index,
+			  __u64 cursor,
+			  __u64 next_cursor,
+			  __u64 invocation_id);
 
 #endif /* SHIRUDO_UTIL_SERIALIZER_H */

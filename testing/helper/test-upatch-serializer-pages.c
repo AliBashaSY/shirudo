@@ -50,11 +50,11 @@ static int check_abi_and_nonce(void)
 	    sizeof(struct shirudo_serial_chunk) != 4096 ||
 	    SHIRUDO_SERIAL_CHUNK_PAYLOAD != 4032)
 		return fail("serializer v3 ABI layout mismatch");
-	if (shirudo_serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x12345678) != 0)
+	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x12345678) != 0)
 		return fail("valid serializer nonce rejected");
-	if (shirudo_serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x87654321) != -EBADMSG)
+	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x87654321) != -EBADMSG)
 		return fail("serializer nonce mismatch accepted");
-	if (shirudo_serializer_new_invocation_id(&generated) != 0 || generated == 0)
+	if (serializer_new_invocation_id(&generated) != 0 || generated == 0)
 		return fail("serializer invocation ID generation failed");
 	return 0;
 }
@@ -67,24 +67,24 @@ static int check_map_locks(void)
 
 	if (!mkdtemp(dir))
 		return fail("mkdtemp failed");
-	first = shirudo_serializer_lock_acquire_at(dir, 101);
+	first = serializer_lock_acquire_at(dir, 101);
 	if (first < 0) {
 		fail("first serializer lock failed");
 		goto out;
 	}
-	busy = shirudo_serializer_lock_acquire_at(dir, 101);
+	busy = serializer_lock_acquire_at(dir, 101);
 	if (busy != -EBUSY) {
 		fail("contended serializer lock did not return EBUSY");
 		goto out;
 	}
-	other = shirudo_serializer_lock_acquire_at(dir, 202);
+	other = serializer_lock_acquire_at(dir, 202);
 	if (other < 0) {
 		fail("independent serializer map lock failed");
 		goto out;
 	}
 	close(first);
 	first = -1;
-	again = shirudo_serializer_lock_acquire_at(dir, 101);
+	again = serializer_lock_acquire_at(dir, 101);
 	if (again < 0) {
 		fail("released serializer lock could not be reacquired");
 		goto out;
@@ -151,7 +151,7 @@ int main(void)
 
 	e.buf = buf;
 	e.cap = sizeof(buf);
-	shirudo_upatch_maps_emit_json_object(&e, &v);
+	upatch_maps_emit_json_object(&e, &v);
 	if (e.err)
 		return fail("json emit failed");
 
@@ -180,14 +180,14 @@ int main(void)
 		return fail("old chunk field still emitted");
 
 	e = (struct shirudo_json_emit){ .buf = doc, .cap = sizeof(doc) };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_string(&e, "upatch", "exec-uid-arena");
-	shirudo_json_kv_string(&e, "map", "tree_arena");
-	shirudo_json_obj_open_key(&e, "data");
-	shirudo_upatch_maps_emit_json_fields(&e, &v);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "upatch", "exec-uid-arena");
+	json_kv_string(&e, "map", "tree_arena");
+	json_obj_open_key(&e, "data");
+	upatch_maps_emit_json_fields(&e, &v);
+	json_obj_close(&e);
+	json_obj_close(&e);
 	if (e.err)
 		return fail("wrapped json emit failed");
 	if (has(doc, "\"data\":{{"))

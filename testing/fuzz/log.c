@@ -10,7 +10,7 @@
 
 #include "log.h"
 
-void shirudo_log_init(void)
+void log_init(void)
 {
 }
 

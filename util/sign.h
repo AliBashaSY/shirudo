@@ -36,13 +36,13 @@ struct shirudo_sign_io {
  * -ENOSPC when the signature buffer is too small, -EINVAL on a parse
  * failure, -EIO on an OpenSSL failure.
  */
-int shirudo_cms_sign(struct shirudo_sign_io *io,
-		     const char *pkey_path, const char *cert_path);
+int cms_sign(struct shirudo_sign_io *io,
+	     const char *pkey_path, const char *cert_path);
 
 /*
  * Opens the private key and checks, on that descriptor, that it is a
  * regular file of mode 0600. The descriptor, or -errno logged.
  */
-int shirudo_open_signing_key(const char *pkey_path);
+int open_signing_key(const char *pkey_path);
 
 #endif /* SHIRUDO_SIGN_H */

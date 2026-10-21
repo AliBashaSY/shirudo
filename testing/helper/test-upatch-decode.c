@@ -38,11 +38,11 @@ int main(int argc, char **argv)
 	else if (strcmp(argv[1], "loop") == 0)
 		view.serial_bytes_total = 999;
 	if (strcmp(argv[1], "otel") == 0)
-		rc = shirudo_upatch_decode_map_file_otel(argv[2], &view,
-							 &out, &out_len);
+		rc = upatch_decode_map_file_otel(argv[2], &view,
+						 &out, &out_len);
 	else
-		rc = shirudo_upatch_decode_map_file_json(argv[2], &view,
-							 &out, &out_len);
+		rc = upatch_decode_map_file_json(argv[2], &view,
+						 &out, &out_len);
 	if (rc) {
 		fprintf(stderr, "decode: %d\n", rc);
 		return 1;

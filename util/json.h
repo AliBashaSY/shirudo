@@ -36,24 +36,24 @@ struct shirudo_json_emit {
  * latches and later calls are no-ops: check it once after the final
  * close.
  */
-void shirudo_json_obj_open(struct shirudo_json_emit *e);
-void shirudo_json_obj_open_key(struct shirudo_json_emit *e, const char *key);
-void shirudo_json_obj_close(struct shirudo_json_emit *e);
-void shirudo_json_arr_open(struct shirudo_json_emit *e, const char *key);
-void shirudo_json_arr_close(struct shirudo_json_emit *e);
-void shirudo_json_kv_string(struct shirudo_json_emit *e,
-			    const char *key, const char *val);
-void shirudo_json_kv_int(struct shirudo_json_emit *e,
-			 const char *key, __s64 val);
-void shirudo_json_kv_bool(struct shirudo_json_emit *e,
-			  const char *key, int val);
-void shirudo_json_kv_null(struct shirudo_json_emit *e, const char *key);
+void json_obj_open(struct shirudo_json_emit *e);
+void json_obj_open_key(struct shirudo_json_emit *e, const char *key);
+void json_obj_close(struct shirudo_json_emit *e);
+void json_arr_open(struct shirudo_json_emit *e, const char *key);
+void json_arr_close(struct shirudo_json_emit *e);
+void json_kv_string(struct shirudo_json_emit *e,
+		    const char *key, const char *val);
+void json_kv_int(struct shirudo_json_emit *e,
+		 const char *key, __s64 val);
+void json_kv_bool(struct shirudo_json_emit *e,
+		  const char *key, int val);
+void json_kv_null(struct shirudo_json_emit *e, const char *key);
 /* Insert an internally-generated, already-valid JSON value verbatim. */
-void shirudo_json_kv_raw(struct shirudo_json_emit *e, const char *key,
-			 const char *value, size_t value_len);
-void shirudo_json_str(struct shirudo_json_emit *e, const char *val);
-void shirudo_json_raw(struct shirudo_json_emit *e, const char *value,
-		      size_t value_len);
+void json_kv_raw(struct shirudo_json_emit *e, const char *key,
+		 const char *value, size_t value_len);
+void json_str(struct shirudo_json_emit *e, const char *val);
+void json_raw(struct shirudo_json_emit *e, const char *value,
+	      size_t value_len);
 
 /*
  * Not a generic deserialiser: declared keys are dispatched, everything
@@ -92,7 +92,7 @@ struct shirudo_json_field {
  * -EINVAL on malformed input or a type mismatch, -E2BIG on a bounds
  * violation, -ENOSPC when a string exceeds its dst_cap.
  */
-int shirudo_json_parse(const char *data, size_t len,
-		       struct shirudo_json_field *fields, size_t n_fields);
+int json_parse(const char *data, size_t len,
+	       struct shirudo_json_field *fields, size_t n_fields);
 
 #endif /* SHIRUDO_JSON_H */

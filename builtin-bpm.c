@@ -233,14 +233,14 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 		close(in);
 		return exclusive ? -EEXIST : 0;
 	}
-	out = shirudo_seal_open(dst, O_WRONLY | O_CREAT |
-				(exclusive ? O_EXCL : O_TRUNC), mode);
+	out = seal_open(dst, O_WRONLY | O_CREAT |
+			(exclusive ? O_EXCL : O_TRUNC), mode);
 	if (out < 0) {
 		close(in);
 		return out;
 	}
 	while ((n = read(in, buf, sizeof(buf))) > 0) {
-		rc = shirudo_write_all(out, buf, (size_t)n);
+		rc = write_all(out, buf, (size_t)n);
 		if (rc)
 			break;
 	}
@@ -282,15 +282,15 @@ static int load_source(const char *name, struct bpm_source *s)
 	fp = fopen(path, "r");
 	if (!fp)
 		return -errno;
-	if (shirudo_check_trusted(fileno(fp), path, false)) {
+	if (check_trusted(fileno(fp), path, false)) {
 		fclose(fp);
 		return -EPERM;
 	}
 	snprintf(s->name, sizeof(s->name), "%s", name);
 	while (fgets(line, sizeof(line), fp)) {
-		rc = shirudo_bpm_parse_source_line(line,
-						   s->endpoint, sizeof(s->endpoint),
-						   s->key_file, sizeof(s->key_file));
+		rc = bpm_parse_source_line(line,
+					   s->endpoint, sizeof(s->endpoint),
+					   s->key_file, sizeof(s->key_file));
 		if (rc) {
 			fclose(fp);
 			return rc;
@@ -312,17 +312,17 @@ static int save_source(const struct bpm_source *s)
 	if (snprintf(data, sizeof(data), "endpoint = %s\nkey_file = %s\n",
 		     s->endpoint, s->key_file) >= (int)sizeof(data))
 		return -E2BIG;
-	return shirudo_seal_write_file(path, data, strlen(data), 0644);
+	return seal_write_file(path, data, strlen(data), 0644);
 }
 
 static int with_bpm_lock(void)
 {
 	int fd, rc;
 
-	rc = shirudo_seal_mkdir_p(SHIRUDO_LOCKS_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_LOCKS_DIR, 0700);
 	if (rc)
 		return rc;
-	fd = shirudo_seal_open(SHIRUDO_BPM_LOCK_PATH, O_RDWR | O_CREAT, 0600);
+	fd = seal_open(SHIRUDO_BPM_LOCK_PATH, O_RDWR | O_CREAT, 0600);
 	if (fd < 0)
 		return fd;
 	if (flock(fd, LOCK_EX)) {
@@ -359,24 +359,24 @@ static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
 	ssize_t nr;
 	int fd, rc = -EIO;
 
-	if (hex_sz < 65 || shirudo_sha256_init(&ctx) != 0)
+	if (hex_sz < 65 || sha256_init(&ctx) != 0)
 		return -EINVAL;
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		shirudo_sha256_free(&ctx);
+		sha256_free(&ctx);
 		return -errno;
 	}
 	while ((nr = read(fd, buf, sizeof(buf))) > 0) {
-		if (shirudo_sha256_update(&ctx, buf, (size_t)nr) != 0)
+		if (sha256_update(&ctx, buf, (size_t)nr) != 0)
 			goto done;
 	}
-	if (nr < 0 || shirudo_sha256_final(&ctx, digest) != 0)
+	if (nr < 0 || sha256_final(&ctx, digest) != 0)
 		goto done;
-	shirudo_hex_encode(digest, sizeof(digest), hex);
+	hex_encode(digest, sizeof(digest), hex);
 	rc = 0;
 done:
 	close(fd);
-	shirudo_sha256_free(&ctx);
+	sha256_free(&ctx);
 	return rc;
 }
 
@@ -414,7 +414,7 @@ static int print_package_readme(const char *source)
 			pr_err("bpm info: package %s does not include README.md", source);
 		goto out;
 	}
-	rc = shirudo_write_all(STDOUT_FILENO, readme, readme_len);
+	rc = write_all(STDOUT_FILENO, readme, readme_len);
 out:
 	xfree(beefile, beefile_len + 1);
 	xfree(readme, readme_len + 1);
@@ -429,14 +429,14 @@ static int cert_matches_active(const char *path)
 	__u8 da[SHIRUDO_CRYPTO_SHA256_LEN], db[SHIRUDO_CRYPTO_SHA256_LEN];
 	int rc = -EINVAL;
 
-	if (!shirudo_cert_read_file(path, &a) &&
-	    !shirudo_cert_read_file(SHIRUDO_CERT_PATH, &b) &&
-	    !shirudo_cert_pubkey_digest(&a, da) &&
-	    !shirudo_cert_pubkey_digest(&b, db) &&
+	if (!cert_read_file(path, &a) &&
+	    !cert_read_file(SHIRUDO_CERT_PATH, &b) &&
+	    !cert_pubkey_digest(&a, da) &&
+	    !cert_pubkey_digest(&b, db) &&
 	    !memcmp(da, db, sizeof(da)))
 		rc = 0;
-	shirudo_cert_free(&a);
-	shirudo_cert_free(&b);
+	cert_free(&a);
+	cert_free(&b);
 	return rc;
 }
 
@@ -446,10 +446,10 @@ static int key_file_fingerprint(const char *path, char hex[65])
 	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
 	int rc;
 
-	rc = shirudo_cert_read_file(path, &cert);
+	rc = cert_read_file(path, &cert);
 	if (!rc)
-		rc = shirudo_cert_pubkey_digest(&cert, digest);
-	shirudo_cert_free(&cert);
+		rc = cert_pubkey_digest(&cert, digest);
+	cert_free(&cert);
 	if (rc)
 		return rc;
 	for (size_t i = 0; i < sizeof(digest); i++)
@@ -467,7 +467,7 @@ static int install_key_file(const char *src)
 	rc = key_file_fingerprint(src, hex);
 	if (rc)
 		return rc;
-	rc = shirudo_seal_mkdir_p(SHIRUDO_KEYS_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_KEYS_DIR, 0700);
 	if (rc)
 		return rc;
 	active = lstat(SHIRUDO_CERT_PATH, &st) == 0;
@@ -498,7 +498,7 @@ static int install_key_file(const char *src)
 			return -errno;
 		return cert_matches_active(src) ? -EPERM : 0;
 	}
-	return shirudo_seal_inherit_path(SHIRUDO_CERT_PATH);
+	return seal_inherit_path(SHIRUDO_CERT_PATH);
 }
 
 static int extract_package_cert(const char *archive, char *out, size_t out_sz)
@@ -520,7 +520,7 @@ static int extract_package_cert(const char *archive, char *out, size_t out_sz)
 		xfree(body, len + 1);
 		return -errno;
 	}
-	rc = shirudo_write_all(fd, body, len);
+	rc = write_all(fd, body, len);
 	if (close(fd) && !rc)
 		rc = -errno;
 	xfree(body, len + 1);
@@ -658,8 +658,8 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	struct shirudo_json_field sub[4], root[1];
 	__s64 unused = 0;
 
-	rc = shirudo_read_file(SHIRUDO_BPM_STATE_PATH, 8u * 1024u * 1024u,
-			       &body, &len);
+	rc = read_file(SHIRUDO_BPM_STATE_PATH, 8u * 1024u * 1024u,
+		       &body, &len);
 	if (rc == -ENOENT) {
 		*n = 0;
 		return 0;
@@ -689,7 +689,7 @@ static int state_read(struct bpm_state_entry *st, int *n)
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
 	(void)unused;
-	rc = shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root));
+	rc = json_parse((const char *)body, len, root, ARRAY_SIZE(root));
 	xfree(body, len + 1);
 	if (rc || !root[0].seen)
 		return rc ? rc : -EINVAL;
@@ -703,25 +703,25 @@ static int state_write(const struct bpm_state_entry *st, int n)
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	int rc;
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_arr_open(&e, "packages");
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_arr_open(&e, "packages");
 	for (int i = 0; i < n; i++) {
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_string(&e, "name", st[i].name);
-		shirudo_json_kv_string(&e, "version", st[i].version);
-		shirudo_json_kv_string(&e, "source", st[i].source);
-		shirudo_json_kv_string(&e, "path", st[i].path);
-		shirudo_json_obj_close(&e);
+		json_obj_open(&e);
+		json_kv_string(&e, "name", st[i].name);
+		json_kv_string(&e, "version", st[i].version);
+		json_kv_string(&e, "source", st[i].source);
+		json_kv_string(&e, "path", st[i].path);
+		json_obj_close(&e);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err)
 		return -E2BIG;
-	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
 	if (!rc)
-		rc = shirudo_seal_write_file(SHIRUDO_BPM_STATE_PATH, buf, e.len,
-					     0600);
+		rc = seal_write_file(SHIRUDO_BPM_STATE_PATH, buf, e.len,
+				     0600);
 	return rc;
 }
 
@@ -735,7 +735,7 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 	rc = cache_path(source, path, sizeof(path));
 	if (rc)
 		return rc;
-	rc = shirudo_read_file(path, 64u * 1024u * 1024u, &body, &len);
+	rc = read_file(path, 64u * 1024u * 1024u, &body, &len);
 	if (rc)
 		return rc;
 	rc = bpm_index_parse(body, len, entries, n);
@@ -827,13 +827,13 @@ static int repo_update_one(const char *name)
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
-	rc = shirudo_seal_mkdir_p(dir, 0700);
+	rc = seal_mkdir_p(dir, 0700);
 	if (rc)
 		goto out;
 	rc = cache_path(name, cache, sizeof(cache));
 	if (rc)
 		goto out;
-	rc = shirudo_seal_write_file(cache, index.data, index.len, 0600);
+	rc = seal_write_file(cache, index.data, index.len, 0600);
 out:
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&index);
@@ -956,7 +956,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			rc = -ENAMETOOLONG;
 			goto out;
 		}
-		rc = shirudo_seal_mkdir_p(dir, 0700);
+		rc = seal_mkdir_p(dir, 0700);
 		if (rc)
 			goto out;
 		if (snprintf(package_dir, sizeof(package_dir), "%s/%s", dir,
@@ -964,7 +964,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			rc = -ENAMETOOLONG;
 			goto out;
 		}
-		rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_STAGING_DIR, 0700);
+		rc = seal_mkdir_p(SHIRUDO_BPM_STAGING_DIR, 0700);
 		if (rc)
 			goto out;
 		if (snprintf(archive, sizeof(archive), "%s/%s-%s.bee",
@@ -1188,7 +1188,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 {
 	const char *op = argc > 1 ? argv[1] : NULL;
 
-	if (!op || shirudo_is_help(op)) {
+	if (!op || is_help(op)) {
 		fprintf(stderr, "usage: shirudo bpm config register {add|list|remove} ...\n");
 		return op ? 0 : 2;
 	}
@@ -1240,16 +1240,16 @@ static int cmd_bpm_config(int argc, const char **argv)
 			else if (!strcmp(argv[i], "--key-file") && i + 1 < argc)
 				key = argv[++i];
 		}
-		if (!key || shirudo_cert_read_file(key, &cert) ||
+		if (!key || cert_read_file(key, &cert) ||
 		    !bpm_name_ok(s.name) ||
 		    bpm_oci_parse_endpoint(s.endpoint, &(struct bpm_oci_client){})) {
-			shirudo_cert_free(&cert);
+			cert_free(&cert);
 			pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate");
 			return 2;
 		}
-		shirudo_cert_free(&cert);
-		if (shirudo_seal_mkdir_p(SHIRUDO_BPM_REGISTRIES_DIR, 0700) ||
-		    shirudo_seal_mkdir_p(SHIRUDO_BPM_KEYS_DIR, 0700))
+		cert_free(&cert);
+		if (seal_mkdir_p(SHIRUDO_BPM_REGISTRIES_DIR, 0700) ||
+		    seal_mkdir_p(SHIRUDO_BPM_KEYS_DIR, 0700))
 			return 1;
 		if (snprintf(managed, sizeof(managed), "%s/%s.der",
 			     SHIRUDO_BPM_KEYS_DIR, s.name) >= (int)sizeof(managed))
@@ -1278,15 +1278,15 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	fp = fopen(SHIRUDO_BPM_TREE_ETC_PATH, "r");
 	if (!fp)
 		return -errno;
-	if (shirudo_check_trusted(fileno(fp), SHIRUDO_BPM_TREE_ETC_PATH, false)) {
+	if (check_trusted(fileno(fp), SHIRUDO_BPM_TREE_ETC_PATH, false)) {
 		fclose(fp);
 		return -EPERM;
 	}
 	while (fgets(line, sizeof(line), fp)) {
-		if (shirudo_bpm_parse_tree_line(line, cfg->endpoint,
-						sizeof(cfg->endpoint),
-						cfg->reference,
-						sizeof(cfg->reference))) {
+		if (bpm_parse_tree_line(line, cfg->endpoint,
+					sizeof(cfg->endpoint),
+					cfg->reference,
+					sizeof(cfg->reference))) {
 			fclose(fp);
 			return -EINVAL;
 		}
@@ -1301,7 +1301,7 @@ static int tree_digest_hex(const char *digest, __u8 out[32])
 {
 	if (!digest || strncmp(digest, "sha256:", 7))
 		return -EINVAL;
-	return shirudo_hex_decode(digest + 7, out, 32);
+	return hex_decode(digest + 7, out, 32);
 }
 
 static bool tree_digest_valid(const char *digest)
@@ -1315,7 +1315,7 @@ static bool tree_tpm_available(void)
 {
 	__u8 value[32];
 
-	return !shirudo_chain_read(value);
+	return !chain_read(value);
 }
 
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
@@ -1340,18 +1340,18 @@ static int tree_verify_upatch(const char *path, const char *expected,
 	struct shirudo_upatch u;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char actual[65];
-	int rc = shirudo_upatch_open(path, &u);
+	int rc = upatch_open(path, &u);
 
 	if (rc)
 		return rc;
 	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-	shirudo_hex_encode(u.hdr.payload_sha256, 32, actual);
+	hex_encode(u.hdr.payload_sha256, 32, actual);
 	if (!bpm_digest_matches(expected, actual) ||
 	    (id && strcmp(name, id)) ||
-	    shirudo_upatch_is_unload(&u) != unload)
+	    upatch_is_unload(&u) != unload)
 		rc = -EKEYREJECTED;
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	return rc;
 }
 
@@ -1420,10 +1420,10 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 			rc = -EKEYREJECTED;
 		if (rc)
 			goto out;
-		rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_ARTIFACTS_DIR, 0700);
+		rc = seal_mkdir_p(SHIRUDO_BPM_TREE_ARTIFACTS_DIR, 0700);
 		if (rc)
 			goto out;
-		rc = shirudo_seal_write_file(cache, blob.data, blob.len, 0600);
+		rc = seal_write_file(cache, blob.data, blob.len, 0600);
 		if (rc)
 			goto out;
 		bpm_copy_string(path, path_sz, cache);
@@ -1446,25 +1446,25 @@ static int tree_write_report(const char *path, const struct shirudo_tree_state *
 	char buf[4096];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_bool(&e, "dry_run", dry_run);
-	shirudo_json_kv_int(&e, "selected", selected);
-	shirudo_json_kv_int(&e, "skipped", skipped);
-	shirudo_json_kv_int(&e, "applied", applied);
-	shirudo_json_kv_int(&e, "module_skipped", module_skipped);
-	shirudo_json_kv_bool(&e, "tpm_available", tpm_available);
-	shirudo_json_kv_int(&e, "last_seq", s->last_seq);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_bool(&e, "dry_run", dry_run);
+	json_kv_int(&e, "selected", selected);
+	json_kv_int(&e, "skipped", skipped);
+	json_kv_int(&e, "applied", applied);
+	json_kv_int(&e, "module_skipped", module_skipped);
+	json_kv_bool(&e, "tpm_available", tpm_available);
+	json_kv_int(&e, "last_seq", s->last_seq);
 	if (tpm_available)
-		shirudo_json_kv_string(&e, "projection_root_tpm",
-				       s->projection_root_tpm);
+		json_kv_string(&e, "projection_root_tpm",
+			       s->projection_root_tpm);
 	else
-		shirudo_json_kv_null(&e, "projection_root_tpm");
-	shirudo_json_obj_close(&e);
+		json_kv_null(&e, "projection_root_tpm");
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
 	if (path)
-		return shirudo_seal_write_file(path, buf, e.len, 0600);
+		return seal_write_file(path, buf, e.len, 0600);
 	printf("%s\n", buf);
 	return 0;
 }
@@ -1474,18 +1474,18 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 	char buf[1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_int(&e, "seq", op->seq);
-	shirudo_json_kv_string(&e, "id", op->id);
-	shirudo_json_kv_string(&e, "operation_digest", op->operation_digest);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_int(&e, "seq", op->seq);
+	json_kv_string(&e, "id", op->id);
+	json_kv_string(&e, "operation_digest", op->operation_digest);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	if (shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
+	if (seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
 		return -errno;
-	return shirudo_seal_write_file(SHIRUDO_BPM_TREE_PENDING_PATH, buf,
-				       e.len, 0600);
+	return seal_write_file(SHIRUDO_BPM_TREE_PENDING_PATH, buf,
+			       e.len, 0600);
 }
 
 static int tree_status_write(const char *id, const char *status)
@@ -1493,22 +1493,22 @@ static int tree_status_write(const char *id, const char *status)
 	char path[PATH_MAX];
 	int rc;
 
-	if (!id || !shirudo_upatch_name_valid(id) || !status || !status[0])
+	if (!id || !upatch_name_valid(id) || !status || !status[0])
 		return -EINVAL;
-	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_STATUS_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_BPM_TREE_STATUS_DIR, 0700);
 	if (rc)
 		return rc;
 	if (snprintf(path, sizeof(path), "%s/%s",
 		     SHIRUDO_BPM_TREE_STATUS_DIR, id) >= (int)sizeof(path))
 		return -ENAMETOOLONG;
-	return shirudo_seal_write_file(path, status, strlen(status), 0600);
+	return seal_write_file(path, status, strlen(status), 0600);
 }
 
 static void tree_status_clear(const char *id)
 {
 	char path[PATH_MAX];
 
-	if (!id || !shirudo_upatch_name_valid(id) ||
+	if (!id || !upatch_name_valid(id) ||
 	    snprintf(path, sizeof(path), "%s/%s",
 		     SHIRUDO_BPM_TREE_STATUS_DIR, id) >= (int)sizeof(path))
 		return;
@@ -1535,13 +1535,13 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 		  pending->operation_digest, sizeof(pending->operation_digest),
 		  0, NULL, 0 },
 	};
-	int rc = shirudo_read_file(SHIRUDO_BPM_TREE_PENDING_PATH, 64u * 1024u,
-				   &body, &len);
+	int rc = read_file(SHIRUDO_BPM_TREE_PENDING_PATH, 64u * 1024u,
+			   &body, &len);
 	if (rc)
 		return rc;
-	rc = shirudo_json_parse((const char *)body, len, fields, ARRAY_SIZE(fields));
+	rc = json_parse((const char *)body, len, fields, ARRAY_SIZE(fields));
 	if (!rc && (schema != 1 || pending->seq <= 0 ||
-		    !shirudo_upatch_name_valid(pending->id) ||
+		    !upatch_name_valid(pending->id) ||
 		    !tree_digest_valid(pending->operation_digest)))
 		rc = -EINVAL;
 	xfree(body, len + 1);
@@ -1562,36 +1562,36 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
 	char digest_hex[65], chain_hex[65];
 	int rc;
 
-	shirudo_chain_tree_event(op->seq, operation_digest, event);
-	rc = shirudo_chain_extend(event, chain);
+	chain_tree_event(op->seq, operation_digest, event);
+	rc = chain_extend(event, chain);
 	if (rc)
 		return rc;
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_hex_encode(event, 32, digest_hex);
-	shirudo_hex_encode(chain, 32, chain_hex);
+	hex_encode(event, 32, digest_hex);
+	hex_encode(chain, 32, chain_hex);
 	e = (struct shirudo_json_emit){ .buf = line, .cap = sizeof(line) };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_json_kv_string(&e, "digest", digest_hex);
-	shirudo_json_kv_string(&e, "type", "tree_op");
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_obj_open_key(&e, "tree");
-	shirudo_json_kv_int(&e, "seq", op->seq);
-	shirudo_json_kv_string(&e, "op", op->op);
-	shirudo_json_kv_string(&e, "id", op->id);
-	shirudo_json_kv_string(&e, "operation_digest", op->operation_digest);
-	shirudo_json_obj_close(&e);
-	shirudo_json_kv_string(&e, "chain", chain_hex);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	json_kv_string(&e, "digest", digest_hex);
+	json_kv_string(&e, "type", "tree_op");
+	json_kv_string(&e, "boot_id", boot_id);
+	json_obj_open_key(&e, "tree");
+	json_kv_int(&e, "seq", op->seq);
+	json_kv_string(&e, "op", op->op);
+	json_kv_string(&e, "id", op->id);
+	json_kv_string(&e, "operation_digest", op->operation_digest);
+	json_obj_close(&e);
+	json_kv_string(&e, "chain", chain_hex);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	return shirudo_eventlog_append(line);
+	return eventlog_append(line);
 }
 
 /*
@@ -1628,16 +1628,16 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 		return 0;
 	}
 	if (tree_digest_hex(pending.operation_digest, digest) ||
-	    shirudo_hex_decode(state->projection_root, previous, 32))
+	    hex_decode(state->projection_root, previous, 32))
 		return -EINVAL;
-	shirudo_sha256_2(previous, sizeof(previous), digest, sizeof(digest), next);
+	sha256_2(previous, sizeof(previous), digest, sizeof(digest), next);
 
-	rc = shirudo_tree_event_replay(replay);
+	rc = tree_event_replay(replay);
 	if (!rc) {
-		if (shirudo_ct_eq(replay, next, sizeof(replay))) {
+		if (ct_eq(replay, next, sizeof(replay))) {
 			applied = true;
 			event_present = true;
-		} else if (!shirudo_ct_eq(replay, previous, sizeof(replay))) {
+		} else if (!ct_eq(replay, previous, sizeof(replay))) {
 			return -EKEYREJECTED;
 		}
 	} else if (rc != -ENOENT) {
@@ -1647,14 +1647,14 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 	if (!applied)
 		return 0;
 	if (!event_present) {
-		rc = shirudo_tree_event_append(op->seq, op->operation_digest, next);
+		rc = tree_event_append(op->seq, op->operation_digest, next);
 		if (rc)
 			return rc;
 	}
-	shirudo_hex_encode(next, sizeof(next), state->projection_root);
-	shirudo_hex_encode(next, sizeof(next), state->projection_root_tpm);
+	hex_encode(next, sizeof(next), state->projection_root);
+	hex_encode(next, sizeof(next), state->projection_root_tpm);
 	state->last_seq = op->seq;
-	rc = shirudo_tree_state_write(state);
+	rc = tree_state_write(state);
 	if (rc)
 		return rc;
 	(void)unlink(SHIRUDO_BPM_TREE_PENDING_PATH);
@@ -1666,7 +1666,7 @@ static int tree_validate_operation(const struct shirudo_tree_operation *op)
 	__u8 digest[32];
 	char expected_digest[72];
 
-	if (!op || op->seq <= 0 || !shirudo_upatch_name_valid(op->id) ||
+	if (!op || op->seq <= 0 || !upatch_name_valid(op->id) ||
 	    (strcmp(op->op, "add") && strcmp(op->op, "delete")))
 		return -EINVAL;
 	if (tree_digest_hex(op->operation_digest, digest) ||
@@ -1674,7 +1674,7 @@ static int tree_validate_operation(const struct shirudo_tree_operation *op)
 	    tree_digest_hex(op->artifact.layer_digest, digest) ||
 	    tree_digest_hex(op->artifact.payload_sha256, digest))
 		return -EINVAL;
-	if (shirudo_tree_operation_digest(op, expected_digest))
+	if (tree_operation_digest(op, expected_digest))
 		return -EINVAL;
 	if (strcmp(op->operation_digest, expected_digest))
 		return -EKEYREJECTED;
@@ -1734,7 +1734,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			bpm_copy_string(report, sizeof(report), argv[i] + 9);
 		} else if (!strcmp(argv[i], "--report") && i + 1 < argc) {
 			bpm_copy_string(report, sizeof(report), argv[++i]);
-		} else if (shirudo_is_help(argv[i])) {
+		} else if (is_help(argv[i])) {
 			printf("usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
 			rc = 0;
 			goto out;
@@ -1751,7 +1751,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	}
 	if (rc)
 		goto out;
-	rc = shirudo_tree_state_read(&state);
+	rc = tree_state_read(&state);
 	if (!rc)
 		have_state = true;
 	else if (rc != -ENOENT)
@@ -1844,7 +1844,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 
 		if (op->seq <= state.last_seq)
 			continue;
-		rc = shirudo_tree_selector_matches(&op->selector);
+		rc = tree_selector_matches(&op->selector);
 		if (rc < 0) {
 			tree_sync_report_error("selector_evaluate", op, rc);
 			goto out;
@@ -1900,7 +1900,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("upatch_install", op, rc);
 			goto out;
 		}
-		if (shirudo_hex_decode(state.projection_root, previous, 32)) {
+		if (hex_decode(state.projection_root, previous, 32)) {
 			tree_sync_report_error("projection_root_decode", op, -EINVAL);
 			rc = -EINVAL;
 			goto out;
@@ -1910,17 +1910,17 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("register_extend", op, rc);
 			goto out;
 		}
-		shirudo_sha256_2(previous, 32, digest, 32, next);
-		shirudo_hex_encode(next, 32, state.projection_root);
-		shirudo_hex_encode(next, 32, state.projection_root_tpm);
-		rc = shirudo_tree_event_append(op->seq, op->operation_digest, next);
+		sha256_2(previous, 32, digest, 32, next);
+		hex_encode(next, 32, state.projection_root);
+		hex_encode(next, 32, state.projection_root_tpm);
+		rc = tree_event_append(op->seq, op->operation_digest, next);
 		if (rc) {
 			tree_sync_report_error("tree_event_append", op, rc);
 			goto out;
 		}
 		state.last_seq = op->seq;
 		applied++;
-		rc = shirudo_tree_state_write(&state);
+		rc = tree_state_write(&state);
 		if (rc) {
 			tree_sync_report_error("tree_state_commit", op, rc);
 			goto out;
@@ -1941,7 +1941,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 				manifest_digest);
 		if (!state.tree_id[0])
 			bpm_copy_string(state.tree_id, sizeof(state.tree_id), pub.tree_id);
-		rc = shirudo_tree_state_write(&state);
+		rc = tree_state_write(&state);
 		if (rc) {
 			tree_sync_report_error("tree_state_commit_final", NULL, rc);
 			goto out;
@@ -1952,7 +1952,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			       &state, selected, skipped, applied,
 			       module_skipped, dry_run, tpm_available);
 out:
-	shirudo_tree_publication_free(&pub);
+	tree_publication_free(&pub);
 	return rc;
 }
 
@@ -2179,26 +2179,26 @@ static int cmd_bpm_key(int argc, const char **argv)
 	const char *sub, *src;
 	int rc;
 
-	if (argc < 2 || shirudo_is_help(argv[1])) {
-		shirudo_print_help(&bpm_key_help);
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(&bpm_key_help);
 		return argc < 2 ? 2 : 0;
 	}
-	if (shirudo_is_list_cmds(argv[1])) {
-		shirudo_print_subcmd_list(bpm_key_subcmds,
-					  ARRAY_SIZE(bpm_key_subcmds));
+	if (is_list_cmds(argv[1])) {
+		print_subcmd_list(bpm_key_subcmds,
+				  ARRAY_SIZE(bpm_key_subcmds));
 		return 0;
 	}
-	sub = shirudo_resolve_subcommand("bpm key", argv[1], bpm_key_subcmds,
-					 ARRAY_SIZE(bpm_key_subcmds));
+	sub = resolve_subcommand("bpm key", argv[1], bpm_key_subcmds,
+				 ARRAY_SIZE(bpm_key_subcmds));
 	if (!sub)
 		return 2;
-	if (argc == 3 && shirudo_is_help(argv[2])) {
-		shirudo_print_help(&bpm_key_help);
+	if (argc == 3 && is_help(argv[2])) {
+		print_help(&bpm_key_help);
 		return 0;
 	}
 	if ((!strcmp(sub, "list") && argc != 2) ||
 	    (strcmp(sub, "list") && argc != 3)) {
-		shirudo_print_help(&bpm_key_help);
+		print_help(&bpm_key_help);
 		return 2;
 	}
 	if (!strcmp(sub, "list")) {
@@ -2234,16 +2234,16 @@ int cmd_bpm(int argc, const char **argv)
 		ARRAY_SIZE(bpm_target_subcmds);
 	const char *sub;
 
-	if (argc < 2 || shirudo_is_help(argv[1])) {
-		shirudo_print_help(help);
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(help);
 		return argc < 2 ? 2 : 0;
 	}
-	if (shirudo_is_list_cmds(argv[1])) {
-		shirudo_print_subcmd_list(subcmds, n_subcmds);
+	if (is_list_cmds(argv[1])) {
+		print_subcmd_list(subcmds, n_subcmds);
 		return 0;
 	}
-	sub = shirudo_resolve_subcommand("shirudo bpm", argv[1], subcmds,
-					 n_subcmds);
+	sub = resolve_subcommand("shirudo bpm", argv[1], subcmds,
+				 n_subcmds);
 	if (!sub)
 		return 2;
 	if (!strcmp(sub, "config"))
@@ -2251,7 +2251,7 @@ int cmd_bpm(int argc, const char **argv)
 	if (!strcmp(sub, "info")) {
 		int rc;
 
-		if (argc == 3 && shirudo_is_help(argv[2])) {
+		if (argc == 3 && is_help(argv[2])) {
 			bpm_info_usage();
 			return 0;
 		}
@@ -2264,7 +2264,7 @@ int cmd_bpm(int argc, const char **argv)
 		rc = print_package_readme(argv[2]);
 		return bpm_finish(-1, rc, "info");
 	}
-	if (!strcmp(sub, "tree") && (argc < 3 || shirudo_is_help(argv[2]))) {
+	if (!strcmp(sub, "tree") && (argc < 3 || is_help(argv[2]))) {
 		bpm_tree_usage();
 		return argc < 3 ? 2 : 0;
 	}
@@ -2279,7 +2279,7 @@ int cmd_bpm(int argc, const char **argv)
 	if (!strcmp(sub, "pull")) {
 		int rc;
 
-		if (argc == 3 && shirudo_is_help(argv[2])) {
+		if (argc == 3 && is_help(argv[2])) {
 			bpm_pull_usage();
 			return 0;
 		}
@@ -2336,7 +2336,7 @@ int cmd_bpm(int argc, const char **argv)
 
 		if (argc > 6)
 			return 2;
-		if (argc == 4 && shirudo_is_help(argv[3])) {
+		if (argc == 4 && is_help(argv[3])) {
 			bpm_tree_usage();
 			return 0;
 		}
@@ -2426,7 +2426,7 @@ int cmd_bpm(int argc, const char **argv)
 
 		if (argc != 2) {
 			fprintf(stderr, "usage: shirudo bpm list\n");
-			return argc == 3 && shirudo_is_help(argv[2]) ? 0 : 2;
+			return argc == 3 && is_help(argv[2]) ? 0 : 2;
 		}
 		state = xcalloc(BPM_MAX_STATE, sizeof(*state));
 		if (!state)
@@ -2442,7 +2442,7 @@ int cmd_bpm(int argc, const char **argv)
 		struct bpm_state_entry *state;
 		int n_state, lock, rc, i;
 
-		if (argc != 3 || shirudo_is_help(argv[2])) {
+		if (argc != 3 || is_help(argv[2])) {
 			fprintf(stderr, "usage: shirudo bpm uninstall <package>\n");
 			return argc == 3 ? 0 : 2;
 		}

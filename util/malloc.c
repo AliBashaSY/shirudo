@@ -103,7 +103,7 @@ void xstrfree(char *s)
 	free(s);
 }
 
-void shirudo_libc_free(void *p)
+void libc_free(void *p)
 {
 	free(p);
 }

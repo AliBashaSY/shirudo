@@ -19,7 +19,7 @@ static void puthex(const __u8 *b, size_t n)
 {
 	char h[2 * 64 + 1];
 
-	shirudo_hex_encode(b, n, h);
+	hex_encode(b, n, h);
 	printf("%s\n", h);
 }
 
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
 		if (n > sizeof(buf))
 			return 2;
-		rc = shirudo_hex_decode(argv[2], buf, n);
+		rc = hex_decode(argv[2], buf, n);
 		printf("rc=%d\n", rc);
 		if (rc == 0)
 			puthex(buf, n);
@@ -54,10 +54,10 @@ int main(int argc, char **argv)
 
 		if (na != nb || na > sizeof(a))
 			return 2;
-		if (shirudo_hex_decode(argv[2], a, na) ||
-		    shirudo_hex_decode(argv[3], b, nb))
+		if (hex_decode(argv[2], a, na) ||
+		    hex_decode(argv[3], b, nb))
 			return 2;
-		printf("%d\n", shirudo_ct_eq(a, b, na));
+		printf("%d\n", ct_eq(a, b, na));
 		return 0;
 	}
 	return 2;

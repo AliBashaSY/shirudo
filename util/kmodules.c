@@ -93,7 +93,7 @@ static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 	return -1;
 }
 
-int shirudo_kmodules_parse(char *buf, struct shirudo_kmod_set *set)
+int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 {
 	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
 	struct edge { __u16 user, dep; } *edges = NULL;
@@ -258,7 +258,7 @@ out:
 	return rc;
 }
 
-int shirudo_kmodules_read(struct shirudo_kmod_set *set)
+int kmodules_read(struct shirudo_kmod_set *set)
 {
 	size_t buf_cap = 0, i;
 	char *buf = NULL;
@@ -268,7 +268,7 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 	rc = slurp(&buf, &buf_cap);
 	if (rc)
 		return rc;
-	rc = shirudo_kmodules_parse(buf, set);
+	rc = kmodules_parse(buf, set);
 	xfree(buf, buf_cap);
 	if (rc)
 		return rc;
@@ -294,7 +294,7 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 	return 0;
 }
 
-void shirudo_kmodules_free(struct shirudo_kmod_set *set)
+void kmodules_free(struct shirudo_kmod_set *set)
 {
 	xfree(set->mods, set->n * sizeof(*set->mods));
 	xfree(set->deps, set->n_deps * sizeof(*set->deps));
@@ -310,7 +310,7 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	char size_s[16];
 	char child_prefix[256];
 
-	shirudo_human_size(m->size, size_s, sizeof(size_s));
+	human_size(m->size, size_s, sizeof(size_s));
 
 	if (already) {
 		printf("%s%s%s (shared)\n", prefix, branch, m->name);
@@ -332,7 +332,7 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	}
 }
 
-void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
+void kmodules_print_tree(const struct shirudo_kmod_set *set)
 {
 	__u8 *used_by;
 	__u8 *seen;
@@ -413,8 +413,8 @@ static int recent_cmp(const void *a, const void *b)
 	return strcmp(mx->name, my->name);
 }
 
-void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
-				   size_t last_n, __s64 boot_sec)
+void kmodules_print_recent(const struct shirudo_kmod_set *set,
+			   size_t last_n, __s64 boot_sec)
 {
 	struct recent_idx *all;
 	size_t take, i;
@@ -440,12 +440,12 @@ void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 		char ts[32], size_s[16], age[24];
 
 		if (m->loaded_at_sec <= 0 ||
-		    shirudo_iso8601((time_t)m->loaded_at_sec, ts, sizeof(ts)))
+		    iso8601((time_t)m->loaded_at_sec, ts, sizeof(ts)))
 			snprintf(ts, sizeof(ts), "?");
-		shirudo_human_size(m->size, size_s, sizeof(size_s));
+		human_size(m->size, size_s, sizeof(size_s));
 		if (boot_sec > 0 && m->loaded_at_sec >= boot_sec)
-			shirudo_format_duration((long)(m->loaded_at_sec - boot_sec),
-						age, sizeof(age));
+			format_duration((long)(m->loaded_at_sec - boot_sec),
+					age, sizeof(age));
 		else
 			snprintf(age, sizeof(age), "?");
 

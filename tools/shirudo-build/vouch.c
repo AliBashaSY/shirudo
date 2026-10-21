@@ -46,13 +46,13 @@ static int cert_algorithm_ok(const __u8 *der, size_t der_sz,
 	char name[64] = {};
 	int rc;
 
-	rc = shirudo_cert_read_der(der, der_sz, &cert);
+	rc = cert_read_der(der, der_sz, &cert);
 	if (rc) {
 		pr_err("%s is not a certificate", what);
 		return rc;
 	}
-	rc = shirudo_cert_key_algorithm(&cert, name, sizeof(name));
-	shirudo_cert_free(&cert);
+	rc = cert_key_algorithm(&cert, name, sizeof(name));
+	cert_free(&cert);
 	if (rc || strcmp(name, "ML-DSA-87")) {
 		pr_err("%s is %s; shirudo accepts only ML-DSA-87", what,
 		       rc ? "of an unknown algorithm" : name);
@@ -68,7 +68,7 @@ static int write_file(const char *path, const void *data, size_t len)
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	if (fd < 0)
 		return -errno;
-	rc = shirudo_write_all(fd, data, len);
+	rc = write_all(fd, data, len);
 	if (close(fd) && !rc)
 		rc = -errno;
 	if (rc)
@@ -125,7 +125,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		usage(stderr);
 		return 2;
 	}
-	keys_dir = shirudo_keys_dir_resolve(keys_dir_arg);
+	keys_dir = keys_dir_resolve(keys_dir_arg);
 	if (keys_dir) {
 		if (!pkey_explicit) {
 			if (shirudo_key_path(pkey_path, sizeof(pkey_path),
@@ -156,12 +156,12 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		output = out_path;
 	}
 
-	rc = shirudo_keys_read_der(input, &der, &der_sz);
+	rc = keys_read_der(input, &der, &der_sz);
 	if (rc) {
 		pr_err("keys vouch: read %s: %s", input, strerror(-rc));
 		return 1;
 	}
-	rc = shirudo_keys_digest_der(der, der_sz, sha, fp);
+	rc = keys_digest_der(der, der_sz, sha, fp);
 	if (rc) {
 		pr_err("keys vouch: %s is not a certificate", input);
 		goto out;
@@ -169,25 +169,25 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 	rc = cert_algorithm_ok(der, der_sz, input);
 	if (rc)
 		goto out;
-	rc = shirudo_keys_read_der(cert, &own, &own_sz);
+	rc = keys_read_der(cert, &own, &own_sz);
 	if (rc) {
 		pr_err("keys vouch: read %s: %s", cert, strerror(-rc));
 		goto out;
 	}
-	rc = shirudo_keys_digest_der(own, own_sz, sha, own_fp);
+	rc = keys_digest_der(own, own_sz, sha, own_fp);
 	if (rc) {
 		pr_err("keys vouch: %s is not a certificate", cert);
 		goto out;
 	}
-	shirudo_hex_encode(fp, 32, fp_hex);
-	shirudo_hex_encode(own_fp, 32, own_hex);
+	hex_encode(fp, 32, fp_hex);
+	hex_encode(own_fp, 32, own_hex);
 	if (!memcmp(fp, own_fp, 32)) {
 		pr_err("keys vouch: %s holds the signing key itself; a key "
 		       "cannot vouch for its own certificate", input);
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = shirudo_keys_vouch_payload(der, der_sz, &payload, &payload_sz);
+	rc = keys_vouch_payload(der, der_sz, &payload, &payload_sz);
 	if (rc)
 		goto out;
 	io.insns = payload;
@@ -198,7 +198,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = shirudo_cms_sign(&io, pkey, cert);
+	rc = cms_sign(&io, pkey, cert);
 	if (rc) {
 		pr_err("keys vouch: sign: %s", strerror(-rc));
 		goto out;

@@ -50,7 +50,7 @@ static const struct shirudo_embedded_bpf unload = {
 	.data = shirudo_unload_bpf_o,
 };
 
-const struct shirudo_embedded_bpf *shirudo_bpf2_blob(void)
+const struct shirudo_embedded_bpf *bpf2_blob(void)
 {
 	static struct shirudo_embedded_bpf b;
 
@@ -59,7 +59,7 @@ const struct shirudo_embedded_bpf *shirudo_bpf2_blob(void)
 	return &b;
 }
 
-const struct shirudo_embedded_bpf *shirudo_seal_blob(void)
+const struct shirudo_embedded_bpf *seal_blob(void)
 {
 	static struct shirudo_embedded_bpf b;
 
@@ -68,7 +68,7 @@ const struct shirudo_embedded_bpf *shirudo_seal_blob(void)
 	return &b;
 }
 
-const struct shirudo_embedded_bpf *shirudo_unload_blob(void)
+const struct shirudo_embedded_bpf *unload_blob(void)
 {
 	static struct shirudo_embedded_bpf b;
 

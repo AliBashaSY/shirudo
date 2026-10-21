@@ -283,7 +283,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 			return -ENAMETOOLONG;
 		authfile = path;
 	}
-	rc = shirudo_read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
+	rc = read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
 	if (rc)
 		return rc == -ENOENT ? 0 : rc;
 	/*
@@ -353,11 +353,11 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 		if (strlen(ca_file) >= sizeof(c->ca_file))
 			return -ENAMETOOLONG;
 		bpm_copy_string(c->ca_file, sizeof(c->ca_file), ca_file);
-		if (shirudo_cert_read_file(c->ca_file, &ca) != 0) {
+		if (cert_read_file(c->ca_file, &ca) != 0) {
 			pr_err("bpm OCI: BPM_OCI_CA_FILE is not a readable certificate");
 			return -EINVAL;
 		}
-		shirudo_cert_free(&ca);
+		cert_free(&ca);
 	}
 	if (c->ca_file[0]) {
 		struct stat st;
@@ -445,7 +445,7 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	}
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	if (shirudo_tls_curl_policy(curl, &c->tls_ca)) {
+	if (tls_curl_policy(curl, &c->tls_ca)) {
 		pr_err("bpm OCI request %s: cannot apply TLS policy", url);
 		curl_slist_free_all(headers);
 		curl_easy_cleanup(curl);
@@ -477,7 +477,7 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 		file->overflow = true;
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-	shirudo_tls_ca_cleanup(&c->tls_ca);
+	tls_ca_cleanup(&c->tls_ca);
 	return status < 0 ? -EHOSTUNREACH : 0;
 }
 
@@ -625,7 +625,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &r);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-	if (shirudo_tls_curl_policy(curl, &c->tls_ca)) {
+	if (tls_curl_policy(curl, &c->tls_ca)) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -648,7 +648,7 @@ out:
 	curl_free(esc_scope);
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
-	shirudo_tls_ca_cleanup(&c->tls_ca);
+	tls_ca_cleanup(&c->tls_ca);
 	bpm_buffer_free(&r.body);
 	return rc;
 }
@@ -880,7 +880,7 @@ int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub) };
 	root[2] = (struct shirudo_json_field){ .key = "annotations", .type = SHIRUDO_JSON_T_OBJECT,
 		.sub = manifest_annotations, .n_sub = ARRAY_SIZE(manifest_annotations) };
-	if (shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
+	if (json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
 	    !root[0].seen || schema != 2 || !root[1].seen)
 		return -EINVAL;
 	*n_layers = sink.n;
@@ -1054,7 +1054,7 @@ int bpm_sha256_hex(const void *data, size_t len,
 {
 	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
 
-	if (hex_sz < 65 || shirudo_sha256_buffer(data, len, digest) != 0)
+	if (hex_sz < 65 || sha256_buffer(data, len, digest) != 0)
 		return -EINVAL;
 	for (__u32 i = 0; i < sizeof(digest); i++)
 		snprintf(hex + i * 2, 3, "%02x", digest[i]);
@@ -1158,18 +1158,18 @@ void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
 			     const struct bpm_descriptor *d, const char *title)
 {
 	if (key)
-		shirudo_json_obj_open_key(e, key);
+		json_obj_open_key(e, key);
 	else
-		shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "mediaType", d->media);
-	shirudo_json_kv_string(e, "digest", d->digest);
-	shirudo_json_kv_int(e, "size", d->size);
+		json_obj_open(e);
+	json_kv_string(e, "mediaType", d->media);
+	json_kv_string(e, "digest", d->digest);
+	json_kv_int(e, "size", d->size);
 	if (title) {
-		shirudo_json_obj_open_key(e, "annotations");
-		shirudo_json_kv_string(e, "org.opencontainers.image.title", title);
-		shirudo_json_obj_close(e);
+		json_obj_open_key(e, "annotations");
+		json_kv_string(e, "org.opencontainers.image.title", title);
+		json_obj_close(e);
 	}
-	shirudo_json_obj_close(e);
+	json_obj_close(e);
 }
 
 int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,

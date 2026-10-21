@@ -303,7 +303,7 @@ static int read_selector_config_file(const char *path,
 	return rc;
 }
 
-int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
+int tree_selector_matches(const struct shirudo_tree_selector *s)
 {
 	struct utsname u;
 	struct shirudo_tree_kv labels[SHIRUDO_TREE_MAX_LABELS];
@@ -330,8 +330,8 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 	if (s->n_kernel_release_prefix) {
 		matched = false;
 		for (int i = 0; i < s->n_kernel_release_prefix; i++) {
-			if (shirudo_kernel_release_prefix_matches(u.release,
-								  s->kernel_release_prefix[i])) {
+			if (kernel_release_prefix_matches(u.release,
+							  s->kernel_release_prefix[i])) {
 				matched = true;
 				break;
 			}
@@ -346,7 +346,7 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 		 * A selector carrying a build ID is deliberately fail-closed
 		 * when the running kernel does not publish a GNU build ID.
 		 */
-		if (shirudo_kernel_build_id_read(build_id))
+		if (kernel_build_id_read(build_id))
 			return 0;
 		matched = false;
 		for (int i = 0; i < s->n_kernel_build_id; i++) {
@@ -443,10 +443,10 @@ static bool hex32_valid(const char *hex)
 {
 	__u8 raw[32];
 
-	return !shirudo_hex_decode(hex, raw, sizeof(raw));
+	return !hex_decode(hex, raw, sizeof(raw));
 }
 
-int shirudo_tree_state_read(struct shirudo_tree_state *out)
+int tree_state_read(struct shirudo_tree_state *out)
 {
 	__u8 *body;
 	size_t len;
@@ -470,7 +470,7 @@ int shirudo_tree_state_read(struct shirudo_tree_state *out)
 	rc = tree_read_file(SHIRUDO_BPM_TREE_STATE_PATH, &body, &len);
 	if (rc)
 		return rc;
-	rc = shirudo_json_parse((const char *)body, len, f, ARRAY_SIZE(f));
+	rc = json_parse((const char *)body, len, f, ARRAY_SIZE(f));
 	if (!rc && (schema != 1 || !f[1].seen || !f[3].seen || !f[4].seen))
 		rc = -EINVAL;
 	if (!rc && !f[5].seen) {
@@ -504,35 +504,35 @@ static int tree_atomic_write(const char *path, const void *data, size_t len)
 		return -EINVAL;
 	memcpy(dir, path, slash - path);
 	dir[slash - path] = '\0';
-	rc = shirudo_seal_mkdir_p(dir, 0700);
+	rc = seal_mkdir_p(dir, 0700);
 	if (rc) {
 		pr_err("tree state mkdir %s: %s", dir, strerror(-rc));
 		return rc;
 	}
-	return shirudo_seal_write_file(path, data, len, 0600);
+	return seal_write_file(path, data, len, 0600);
 }
 
-int shirudo_tree_state_write(const struct shirudo_tree_state *s)
+int tree_state_write(const struct shirudo_tree_state *s)
 {
 	char buf[4096];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_string(&e, "tree_id", s->tree_id);
-	shirudo_json_kv_int(&e, "generation", s->generation);
-	shirudo_json_kv_int(&e, "last_seq", s->last_seq);
-	shirudo_json_kv_string(&e, "projection_root", s->projection_root);
-	shirudo_json_kv_string(&e, "projection_root_tpm", s->projection_root_tpm);
-	shirudo_json_kv_string(&e, "manifest_digest", s->manifest_digest);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "tree_id", s->tree_id);
+	json_kv_int(&e, "generation", s->generation);
+	json_kv_int(&e, "last_seq", s->last_seq);
+	json_kv_string(&e, "projection_root", s->projection_root);
+	json_kv_string(&e, "projection_root_tpm", s->projection_root_tpm);
+	json_kv_string(&e, "manifest_digest", s->manifest_digest);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
 	return tree_atomic_write(SHIRUDO_BPM_TREE_STATE_PATH, buf, e.len);
 }
 
-int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
-			      const __u8 projection_root[32])
+int tree_event_append(__s64 seq, const char *operation_digest,
+		      const __u8 projection_root[32])
 {
 	char buf[1024], root[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -542,20 +542,20 @@ int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
 	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
 	    !hex32_valid(operation_digest + 7))
 		return -EINVAL;
-	shirudo_hex_encode(projection_root, 32, root);
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_int(&e, "seq", seq);
-	shirudo_json_kv_string(&e, "digest", operation_digest);
-	shirudo_json_kv_string(&e, "projection_root", root);
-	shirudo_json_obj_close(&e);
+	hex_encode(projection_root, 32, root);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_int(&e, "seq", seq);
+	json_kv_string(&e, "digest", operation_digest);
+	json_kv_string(&e, "projection_root", root);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
 	if (rc)
 		return rc;
-	fd = shirudo_seal_open(SHIRUDO_BPM_TREE_EVENTLOG_PATH,
-			       O_WRONLY | O_CREAT | O_APPEND, 0600);
+	fd = seal_open(SHIRUDO_BPM_TREE_EVENTLOG_PATH,
+		       O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
 	/* A partial line would fail every later replay; roll it back. */
@@ -569,9 +569,9 @@ int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
 		rc = -errno;
 		goto out;
 	}
-	rc = shirudo_write_all(fd, buf, e.len);
+	rc = write_all(fd, buf, e.len);
 	if (!rc)
-		rc = shirudo_write_all(fd, "\n", 1);
+		rc = write_all(fd, "\n", 1);
 	if (!rc && fsync(fd))
 		rc = -errno;
 	if (rc && ftruncate(fd, st.st_size))
@@ -583,7 +583,7 @@ out:
 	return rc;
 }
 
-int shirudo_tree_event_replay(__u8 out[32])
+int tree_event_replay(__u8 out[32])
 {
 	__u8 *body;
 	size_t len;
@@ -608,23 +608,23 @@ int shirudo_tree_event_replay(__u8 out[32])
 		};
 		__u8 d[32], next[64], recorded[32];
 
-		rc = shirudo_json_parse(line, strlen(line), f, ARRAY_SIZE(f));
+		rc = json_parse(line, strlen(line), f, ARRAY_SIZE(f));
 		if (rc || !f[0].seen || !f[1].seen || !f[2].seen ||
 		    seq <= previous_seq || strlen(projection) != 64 ||
-		    shirudo_hex_decode(projection, recorded, 32)) {
+		    hex_decode(projection, recorded, 32)) {
 			rc = -EINVAL;
 			break;
 		}
 		previous_seq = seq;
 		if (strncmp(digest, "sha256:", 7) ||
-		    shirudo_hex_decode(digest + 7, d, sizeof(d))) {
+		    hex_decode(digest + 7, d, sizeof(d))) {
 			rc = -EINVAL;
 			break;
 		}
 		memcpy(next, chain, 32);
 		memcpy(next + 32, d, 32);
 		shirudo_sha256(next, sizeof(next), chain);
-		if (!shirudo_ct_eq(chain, recorded, 32)) {
+		if (!ct_eq(chain, recorded, 32)) {
 			rc = -EINVAL;
 			break;
 		}
@@ -635,36 +635,36 @@ int shirudo_tree_event_replay(__u8 out[32])
 	return rc;
 }
 
-void shirudo_tree_emit_status(struct shirudo_json_emit *e)
+void tree_emit_status(struct shirudo_json_emit *e)
 {
 	struct shirudo_tree_state s = {};
 	__u8 live[32], replay[32];
 	char hex[65];
 	bool configured = access(SHIRUDO_BPM_TREE_ETC_PATH, R_OK) == 0;
 
-	shirudo_json_obj_open_key(e, "upatch_tree");
-	shirudo_json_kv_bool(e, "configured", configured);
-	shirudo_json_kv_bool(e, "pending", access(SHIRUDO_BPM_TREE_PENDING_PATH,
-						  R_OK) == 0);
-	if (shirudo_tree_state_read(&s) == 0) {
-		shirudo_json_kv_string(e, "tree_id", s.tree_id);
-		shirudo_json_kv_int(e, "generation", s.generation);
-		shirudo_json_kv_int(e, "last_seq", s.last_seq);
-		shirudo_json_kv_string(e, "projection_root", s.projection_root);
-		shirudo_json_kv_string(e, "manifest_digest", s.manifest_digest);
+	json_obj_open_key(e, "upatch_tree");
+	json_kv_bool(e, "configured", configured);
+	json_kv_bool(e, "pending", access(SHIRUDO_BPM_TREE_PENDING_PATH,
+					  R_OK) == 0);
+	if (tree_state_read(&s) == 0) {
+		json_kv_string(e, "tree_id", s.tree_id);
+		json_kv_int(e, "generation", s.generation);
+		json_kv_int(e, "last_seq", s.last_seq);
+		json_kv_string(e, "projection_root", s.projection_root);
+		json_kv_string(e, "manifest_digest", s.manifest_digest);
 	} else {
-		shirudo_json_kv_null(e, "state");
+		json_kv_null(e, "state");
 	}
-	if (shirudo_tree_event_replay(replay) == 0) {
-		shirudo_hex_encode(replay, 32, hex);
-		shirudo_json_kv_string(e, "eventlog_projection_root", hex);
-		shirudo_json_kv_bool(e, "eventlog_matches_state",
-				     shirudo_hex_decode(s.projection_root, live,
-							32) == 0 &&
-				     shirudo_ct_eq(live, replay, 32));
+	if (tree_event_replay(replay) == 0) {
+		hex_encode(replay, 32, hex);
+		json_kv_string(e, "eventlog_projection_root", hex);
+		json_kv_bool(e, "eventlog_matches_state",
+			     hex_decode(s.projection_root, live,
+					32) == 0 &&
+			     ct_eq(live, replay, 32));
 	} else {
-		shirudo_json_kv_null(e, "eventlog_projection_root");
-		shirudo_json_kv_null(e, "eventlog_matches_state");
+		json_kv_null(e, "eventlog_projection_root");
+		json_kv_null(e, "eventlog_matches_state");
 	}
-	shirudo_json_obj_close(e);
+	json_obj_close(e);
 }

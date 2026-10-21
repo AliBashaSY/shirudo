@@ -112,8 +112,8 @@ int shirudo_build_exec(const char *label, char **argv)
 
 int cmd_build(int argc, const char **argv)
 {
-	if (argc >= 2 && shirudo_is_help(argv[1])) {
-		shirudo_print_help(&build_help);
+	if (argc >= 2 && is_help(argv[1])) {
+		print_help(&build_help);
 		return 0;
 	}
 	return shirudo_build_exec("build", (char **)argv);

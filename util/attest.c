@@ -84,7 +84,7 @@ static int read_file_base64(const char *path, char **out, size_t *out_cap)
 	}
 	cap = 4 * ((len + 2) / 3) + 1;
 	*out = xmalloc(cap);
-	rc = *out ? shirudo_base64_encode(raw, len, *out, cap) : -ENOMEM;
+	rc = *out ? base64_encode(raw, len, *out, cap) : -ENOMEM;
 	xfree(raw, LOG_MAX_BYTES + 1);
 	if (rc) {
 		xfree(*out, cap);
@@ -97,7 +97,7 @@ static int read_file_base64(const char *path, char **out, size_t *out_cap)
 
 static int emit_line(const char *line, size_t len, void *ctx)
 {
-	shirudo_json_raw(ctx, line, len);
+	json_raw(ctx, line, len);
 	return 0;
 }
 
@@ -110,8 +110,8 @@ static void emit_hex(struct shirudo_json_emit *e, const char *key,
 		e->err = -E2BIG;
 		return;
 	}
-	shirudo_hex_encode(data, len, hex);
-	shirudo_json_kv_string(e, key, hex);
+	hex_encode(data, len, hex);
+	json_kv_string(e, key, hex);
 }
 
 /* A quote is accepted only when it covers the PCR values read beside it. */
@@ -123,32 +123,32 @@ static bool quote_covers(const struct shirudo_tpm_attestation *quote,
 	__u8 digest[32];
 	__u32 i;
 
-	if (shirudo_tpm_attest_parse(quote->attest, quote->attest_len, &a) ||
+	if (tpm_attest_parse(quote->attest, quote->attest_len, &a) ||
 	    a.type != SHIRUDO_TPM_ST_ATTEST_QUOTE || a.pcr_mask != mask)
 		return false;
-	if (shirudo_sha256_init(&ctx) != 0)
+	if (sha256_init(&ctx) != 0)
 		return false;
 	for (i = 0; i < 24; i++) {
 		if ((mask & (1u << i)) &&
-		    shirudo_sha256_update(&ctx, values[i], 32) != 0) {
-			shirudo_sha256_free(&ctx);
+		    sha256_update(&ctx, values[i], 32) != 0) {
+			sha256_free(&ctx);
 			return false;
 		}
 	}
-	if (shirudo_sha256_final(&ctx, digest) != 0)
+	if (sha256_final(&ctx, digest) != 0)
 		return false;
-	return shirudo_ct_eq(digest, a.pcr_digest, 32);
+	return ct_eq(digest, a.pcr_digest, 32);
 }
 
-int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
-			    __u32 pcr_mask,
-			    const struct shirudo_attest_challenge *challenge,
-			    char **out, size_t *len, size_t *cap)
+int attest_evidence(const __u8 *nonce, size_t nonce_len,
+		    __u32 pcr_mask,
+		    const struct shirudo_attest_challenge *challenge,
+		    char **out, size_t *len, size_t *cap)
 {
 	struct shirudo_tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
 	struct shirudo_tpm_key ak_copy = {}, ek_copy = {};
 	struct shirudo_tpm_attestation quote = {}, certify = {};
-	struct shirudo_tpm_nv_info nv;
+	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	struct shirudo_json_emit e;
 	__u8 values[24][32] = {};
@@ -169,10 +169,10 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 	    (pcr_mask & ~0x00FFFFFFu))
 		return -EINVAL;
 
-	rc = shirudo_tpm_open(&tpm);
+	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
-	rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	if (!nv.defined || !nv.written) {
@@ -181,22 +181,22 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 		rc = -ENODEV;
 		goto out;
 	}
-	rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX, reg);
+	rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, reg);
 	if (rc)
 		goto out;
-	rc = shirudo_tpm_ak_create(tpm, &ak);
+	rc = tpm_ak_create(tpm, &ak);
 	if (rc)
 		goto out;
 	for (attempt = 0; attempt < QUOTE_ATTEMPTS; attempt++) {
 		for (i = 0; i < 24; i++) {
 			if (!(pcr_mask & (1u << i)))
 				continue;
-			rc = shirudo_tpm_pcr_read(tpm, i, values[i]);
+			rc = tpm_pcr_read(tpm, i, values[i]);
 			if (rc)
 				goto out;
 		}
-		rc = shirudo_tpm_quote(tpm, &ak, nonce, nonce_len, pcr_mask,
-				       &quote);
+		rc = tpm_quote(tpm, &ak, nonce, nonce_len, pcr_mask,
+			       &quote);
 		if (rc)
 			goto out;
 		if (quote_covers(&quote, pcr_mask, values))
@@ -207,8 +207,8 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 		rc = -EAGAIN;
 		goto out;
 	}
-	rc = shirudo_tpm_nv_certify(tpm, &ak, SHIRUDO_NV_INDEX, nonce,
-				    nonce_len, &certify);
+	rc = tpm_nv_certify(tpm, &ak, SHIRUDO_NV_INDEX, nonce,
+			    nonce_len, &certify);
 	if (rc)
 		goto out;
 	ek_cert = xmalloc(EK_CERT_MAX);
@@ -216,12 +216,12 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 		rc = -ENOMEM;
 		goto out;
 	}
-	if (shirudo_tpm_ek_certificate(tpm, ek_cert, EK_CERT_MAX, &ek_cert_len,
-				       &ek_cert_rsa) == 0) {
+	if (tpm_ek_certificate(tpm, ek_cert, EK_CERT_MAX, &ek_cert_len,
+			       &ek_cert_rsa) == 0) {
 		ek_b64_cap = 4 * ((ek_cert_len + 2) / 3) + 1;
 		ek_b64 = xmalloc(ek_b64_cap);
-		if (!ek_b64 || shirudo_base64_encode(ek_cert, ek_cert_len, ek_b64,
-						     ek_b64_cap)) {
+		if (!ek_b64 || base64_encode(ek_cert, ek_cert_len, ek_b64,
+					     ek_b64_cap)) {
 			xfree(ek_b64, ek_b64_cap);
 			ek_b64 = NULL;
 			ek_b64_cap = 0;
@@ -233,7 +233,7 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 	 * ECC key, which the operator pins by name.
 	 */
 	ek_rsa = challenge ? challenge->ek_rsa : ek_cert_rsa;
-	rc = shirudo_tpm_ek_create(tpm, ek_rsa, &ek);
+	rc = tpm_ek_create(tpm, ek_rsa, &ek);
 	if (rc)
 		goto out;
 	if (challenge) {
@@ -244,13 +244,13 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 			rc = -EKEYREJECTED;
 			goto out;
 		}
-		rc = shirudo_tpm_activate_credential(tpm, &ak, &ek,
-						     challenge->blob,
-						     challenge->blob_len,
-						     challenge->secret,
-						     challenge->secret_len,
-						     cred, sizeof(cred),
-						     &cred_len);
+		rc = tpm_activate_credential(tpm, &ak, &ek,
+					     challenge->blob,
+					     challenge->blob_len,
+					     challenge->secret,
+					     challenge->secret_len,
+					     cred, sizeof(cred),
+					     &cred_len);
 		if (rc) {
 			pr_err("attest: the TPM refused the challenge: not "
 			       "made for this attestation key under this "
@@ -261,15 +261,15 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 	/* The keys are flushed before the file work; keep their public parts. */
 	memcpy(&ak_copy, &ak, sizeof(ak_copy));
 	memcpy(&ek_copy, &ek, sizeof(ek_copy));
-	shirudo_tpm_key_flush(tpm, &ek);
-	shirudo_tpm_key_flush(tpm, &ak);
-	shirudo_tpm_close(tpm);
+	tpm_key_flush(tpm, &ek);
+	tpm_key_flush(tpm, &ak);
+	tpm_close(tpm);
 	tpm = NULL;
 
 	read_file_base64(FIRMWARE_LOG_PATH, &fw, &fw_cap);
 	read_file_base64(SYSTEMD_LOG_PATH, &sd, &sd_cap);
 	need = 64 * 1024 + fw_cap + sd_cap + ek_b64_cap;
-	if (stat(shirudo_eventlog_path(), &st) == 0 && st.st_size > 0)
+	if (stat(eventlog_path(), &st) == 0 && st.st_size > 0)
 		need += 2 * (size_t)st.st_size;
 	if (need > SHIRUDO_JSON_MAX_BYTES)
 		need = SHIRUDO_JSON_MAX_BYTES;
@@ -280,77 +280,77 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 	}
 	*cap = need;
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_hex_encode(nonce, nonce_len, nonce_hex);
+	hex_encode(nonce, nonce_len, nonce_hex);
 
 	e = (struct shirudo_json_emit){ .buf = *out, .cap = need };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_string(&e, "kind", "shirudo-attestation");
-	shirudo_json_kv_string(&e, "version_id", shirudo_version_id);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_kv_string(&e, "nonce", nonce_hex);
-	shirudo_json_kv_string(&e, "pcr_bank", "sha256");
-	shirudo_json_kv_int(&e, "pcr_mask", pcr_mask);
-	shirudo_json_arr_open(&e, "pcrs");
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "kind", "shirudo-attestation");
+	json_kv_string(&e, "version_id", shirudo_version_id);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "boot_id", boot_id);
+	json_kv_string(&e, "nonce", nonce_hex);
+	json_kv_string(&e, "pcr_bank", "sha256");
+	json_kv_int(&e, "pcr_mask", pcr_mask);
+	json_arr_open(&e, "pcrs");
 	for (i = 0; i < 24; i++) {
 		if (!(pcr_mask & (1u << i)))
 			continue;
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_int(&e, "index", i);
+		json_obj_open(&e);
+		json_kv_int(&e, "index", i);
 		emit_hex(&e, "value", values[i], 32);
-		shirudo_json_obj_close(&e);
+		json_obj_close(&e);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_open_key(&e, "ak");
+	json_arr_close(&e);
+	json_obj_open_key(&e, "ak");
 	emit_hex(&e, "public", ak_copy.public, ak_copy.public_len);
 	emit_hex(&e, "name", ak_copy.name, ak_copy.name_len);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_open_key(&e, "ek");
-	shirudo_json_kv_string(&e, "type", ek_rsa ? "rsa" : "ecc");
+	json_obj_close(&e);
+	json_obj_open_key(&e, "ek");
+	json_kv_string(&e, "type", ek_rsa ? "rsa" : "ecc");
 	emit_hex(&e, "public", ek_copy.public, ek_copy.public_len);
 	emit_hex(&e, "name", ek_copy.name, ek_copy.name_len);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_open_key(&e, "quote");
+	json_obj_close(&e);
+	json_obj_open_key(&e, "quote");
 	emit_hex(&e, "attest", quote.attest, quote.attest_len);
 	emit_hex(&e, "signature", quote.signature, quote.signature_len);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_open_key(&e, "register");
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_obj_close(&e);
+	json_obj_open_key(&e, "register");
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
 	emit_hex(&e, "name", nv.name, nv.name_len);
 	emit_hex(&e, "value", reg, sizeof(reg));
 	emit_hex(&e, "attest", certify.attest, certify.attest_len);
 	emit_hex(&e, "signature", certify.signature, certify.signature_len);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "eventlog");
-	shirudo_eventlog_boot_lines(emit_line, &e);
-	shirudo_json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_open(&e, "eventlog");
+	eventlog_boot_lines(emit_line, &e);
+	json_arr_close(&e);
 	if (cred_len) {
-		shirudo_json_obj_open_key(&e, "credential");
+		json_obj_open_key(&e, "credential");
 		emit_hex(&e, "value", cred, cred_len);
-		shirudo_json_obj_close(&e);
+		json_obj_close(&e);
 	} else {
-		shirudo_json_kv_null(&e, "credential");
+		json_kv_null(&e, "credential");
 	}
 	if (ek_b64)
-		shirudo_json_kv_string(&e, "ek_certificate", ek_b64);
+		json_kv_string(&e, "ek_certificate", ek_b64);
 	else
-		shirudo_json_kv_null(&e, "ek_certificate");
-	shirudo_json_obj_open_key(&e, "logs");
+		json_kv_null(&e, "ek_certificate");
+	json_obj_open_key(&e, "logs");
 	if (fw)
-		shirudo_json_kv_string(&e, "firmware", fw);
+		json_kv_string(&e, "firmware", fw);
 	else
-		shirudo_json_kv_null(&e, "firmware");
+		json_kv_null(&e, "firmware");
 	if (sd)
-		shirudo_json_kv_string(&e, "systemd", sd);
+		json_kv_string(&e, "systemd", sd);
 	else
-		shirudo_json_kv_null(&e, "systemd");
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+		json_kv_null(&e, "systemd");
+	json_obj_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		rc = e.err;
 		goto out;
@@ -360,9 +360,9 @@ int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
 	rc = 0;
 out:
 	if (tpm) {
-		shirudo_tpm_key_flush(tpm, &ek);
-		shirudo_tpm_key_flush(tpm, &ak);
-		shirudo_tpm_close(tpm);
+		tpm_key_flush(tpm, &ek);
+		tpm_key_flush(tpm, &ak);
+		tpm_close(tpm);
 	}
 	xfree(ek_cert, ek_cert ? EK_CERT_MAX : 0);
 	xfree(ek_b64, ek_b64_cap);
@@ -454,7 +454,7 @@ static int on_pcr(void *ctx)
 	struct parse *p = ctx;
 
 	if (p->pcr_index < 0 || p->pcr_index >= 24 ||
-	    shirudo_hex_decode(p->pcr_value_hex, p->pcrs[p->pcr_index], 32))
+	    hex_decode(p->pcr_value_hex, p->pcrs[p->pcr_index], 32))
 		return -EINVAL;
 	p->pcr_have |= 1u << p->pcr_index;
 	return 0;
@@ -470,7 +470,7 @@ static int on_record(void *ctx)
 	r = &p->recs[p->n_recs];
 	memset(r, 0, sizeof(*r));
 	snprintf(r->type, sizeof(r->type), "%s", p->type);
-	if (shirudo_hex_decode(p->digest_hex, r->digest, 32))
+	if (hex_decode(p->digest_hex, r->digest, 32))
 		return -EINVAL;
 	if (!strcmp(p->type, "init")) {
 		struct init_record *in = &p->init;
@@ -482,14 +482,14 @@ static int on_record(void *ctx)
 		    p->rec_phase_pcr <= p->rec_pcr || p->rec_phase_pcr >= 24 ||
 		    p->rec_reset > UINT32_MAX ||
 		    strlen(p->nv_name_hex) != 2 * SHIRUDO_TPM_NAME_LEN ||
-		    shirudo_hex_decode(p->pcr_before_hex, in->pcr_before, 32) ||
-		    shirudo_hex_decode(p->phase_before_hex, in->phase_before,
-				       32) ||
-		    shirudo_hex_decode(p->nv_name_hex, in->name,
-				       SHIRUDO_TPM_NAME_LEN) ||
-		    shirudo_hex_decode(p->anchor_digest_hex, in->anchor_digest,
-				       32) ||
-		    shirudo_hex_decode(p->chain_hex, in->chain, 32))
+		    hex_decode(p->pcr_before_hex, in->pcr_before, 32) ||
+		    hex_decode(p->phase_before_hex, in->phase_before,
+			       32) ||
+		    hex_decode(p->nv_name_hex, in->name,
+			       SHIRUDO_TPM_NAME_LEN) ||
+		    hex_decode(p->anchor_digest_hex, in->anchor_digest,
+			       32) ||
+		    hex_decode(p->chain_hex, in->chain, 32))
 			return -EINVAL;
 		memcpy(in->digest, r->digest, 32);
 		in->pcr = (__u32)p->rec_pcr;
@@ -606,7 +606,7 @@ static int hex_bytes(const char *hex, __u8 *out, size_t cap, size_t *len)
 	if (n & 1 || n / 2 > cap)
 		return -EINVAL;
 	*len = n / 2;
-	return shirudo_hex_decode(hex, out, n / 2);
+	return hex_decode(hex, out, n / 2);
 }
 
 static int check_signed(struct reporter *rep, const char *what,
@@ -625,30 +625,30 @@ static int check_signed(struct reporter *rep, const char *what,
 	if (hex_bytes(attest_hex, attest, attest_cap, attest_len) ||
 	    hex_bytes(sig_hex, sig, sizeof(sig), &sig_len))
 		return -EINVAL;
-	if (shirudo_tpm_attest_parse(attest, *attest_len, parsed)) {
+	if (tpm_attest_parse(attest, *attest_len, parsed)) {
 		say(rep, false, "%s: attestation structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	if (shirudo_tpm_ecdsa_signature_parse(sig, sig_len, r, s)) {
+	if (tpm_ecdsa_signature_parse(sig, sig_len, r, s)) {
 		say(rep, false, "%s: signature structure unparseable", what);
 		return -EKEYREJECTED;
 	}
 	shirudo_sha256(attest, *attest_len, digest);
-	rc = shirudo_ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
+	rc = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
 	say(rep, rc == 0, "%s: ECDSA signature by the attestation key", what);
-	shirudo_tpm_qualified_name(SHIRUDO_TPM_RH_ENDORSEMENT, ak_name, qn);
+	tpm_qualified_name(SHIRUDO_TPM_RH_ENDORSEMENT, ak_name, qn);
 	say(rep, parsed->signer_len == SHIRUDO_TPM_NAME_LEN &&
-	    shirudo_ct_eq(parsed->signer, qn, SHIRUDO_TPM_NAME_LEN),
+	    ct_eq(parsed->signer, qn, SHIRUDO_TPM_NAME_LEN),
 	    "%s: signed by the key as an endorsement primary", what);
 	say(rep, parsed->extra_len == nonce_len &&
-	    (nonce_len == 0 || shirudo_ct_eq(parsed->extra, nonce, nonce_len)),
+	    (nonce_len == 0 || ct_eq(parsed->extra, nonce, nonce_len)),
 	    "%s: carries the nonce", what);
 	return 0;
 }
 
-int shirudo_attest_verify(const char *evidence, size_t len,
-			  const struct shirudo_attest_expect *expect,
-			  char *report, size_t report_cap)
+int attest_verify(const char *evidence, size_t len,
+		  const struct shirudo_attest_expect *expect,
+		  char *report, size_t report_cap)
 {
 	struct reporter rep = { .buf = report, .cap = report_cap };
 	struct shirudo_tpm_attest quote = {}, certify = {};
@@ -803,7 +803,7 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 			  cred_sub, ARRAY_SIZE(cred_sub) },
 		};
 
-		rc = shirudo_json_parse(evidence, len, top, ARRAY_SIZE(top));
+		rc = json_parse(evidence, len, top, ARRAY_SIZE(top));
 		if (rc || !top[0].seen || !top[1].seen || !top[2].seen ||
 		    !top[3].seen || !top[4].seen || !top[5].seen ||
 		    !top[6].seen) {
@@ -821,7 +821,7 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	}
 	say(&rep, expect->nonce_len == nonce_len &&
 	    (nonce_len == 0 ||
-	     shirudo_ct_eq(nonce, expect->nonce, nonce_len)),
+	     ct_eq(nonce, expect->nonce, nonce_len)),
 	    "nonce matches the request");
 
 	if (hex_bytes(p->ak_public_hex, ak_public, sizeof(ak_public),
@@ -831,7 +831,7 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		rc = -EINVAL;
 		goto out;
 	}
-	if (shirudo_tpm_ecc_public_parse(ak_public, ak_public_len, &ak_pub)) {
+	if (tpm_ecc_public_parse(ak_public, ak_public_len, &ak_pub)) {
 		say(&rep, false, "attestation key: public area is not a "
 		    "P-256 ECDSA key");
 		rc = -EKEYREJECTED;
@@ -842,13 +842,13 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	{
 		__u8 computed[SHIRUDO_TPM_NAME_LEN];
 
-		shirudo_tpm_object_name(ak_public, ak_public_len, computed);
-		say(&rep, shirudo_ct_eq(computed, ak_name, sizeof(computed)),
+		tpm_object_name(ak_public, ak_public_len, computed);
+		say(&rep, ct_eq(computed, ak_name, sizeof(computed)),
 		    "attestation key: name matches its public area");
 	}
 	if (expect->have_ak_name)
-		say(&rep, shirudo_ct_eq(ak_name, expect->ak_name,
-					SHIRUDO_TPM_NAME_LEN),
+		say(&rep, ct_eq(ak_name, expect->ak_name,
+				SHIRUDO_TPM_NAME_LEN),
 		    "attestation key: the pinned key");
 	else
 		note(&rep, "attestation key not pinned: name %s",
@@ -868,15 +868,15 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 			rc = -EINVAL;
 			goto out;
 		}
-		parsed = shirudo_tpm_public_parse(ek_public, ek_public_len,
-						  &ek_pub) == 0;
-		shirudo_tpm_object_name(ek_public, ek_public_len, computed);
-		say(&rep, parsed && shirudo_ct_eq(computed, ek_name,
-						  SHIRUDO_TPM_NAME_LEN),
+		parsed = tpm_public_parse(ek_public, ek_public_len,
+					  &ek_pub) == 0;
+		tpm_object_name(ek_public, ek_public_len, computed);
+		say(&rep, parsed && ct_eq(computed, ek_name,
+					  SHIRUDO_TPM_NAME_LEN),
 		    "endorsement key: name matches its public area");
 		say(&rep, parsed && ek_pub.attrs == SHIRUDO_TPM_EK_ATTRS &&
 		    ek_pub.policy_len == 32 &&
-		    shirudo_ct_eq(ek_pub.policy, shirudo_tpm_ek_policy, 32),
+		    ct_eq(ek_pub.policy, shirudo_tpm_ek_policy, 32),
 		    "endorsement key: TCG default template under the "
 		    "endorsement policy");
 	} else {
@@ -889,7 +889,7 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		say(&rep, have_ek &&
 		    !hex_bytes(p->ek_name_hex, ek_name, sizeof(ek_name), &n) &&
 		    n == SHIRUDO_TPM_NAME_LEN &&
-		    shirudo_ct_eq(ek_name, expect->ek_name, SHIRUDO_TPM_NAME_LEN),
+		    ct_eq(ek_name, expect->ek_name, SHIRUDO_TPM_NAME_LEN),
 		    "endorsement key: the pinned key");
 	}
 	if (have_cred && hex_bytes(p->cred_hex, cred, sizeof(cred), &cred_len)) {
@@ -898,8 +898,8 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	}
 	if (expect->have_credential)
 		say(&rep, have_cred && cred_len == SHIRUDO_TPM_CREDENTIAL_LEN &&
-		    shirudo_ct_eq(cred, expect->credential,
-				  SHIRUDO_TPM_CREDENTIAL_LEN),
+		    ct_eq(cred, expect->credential,
+			  SHIRUDO_TPM_CREDENTIAL_LEN),
 		    "attestation key: activated the credential made for it "
 		    "under the endorsement key");
 	else if (have_cred)
@@ -923,16 +923,16 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 
 		say(&rep, complete,
 		    "quote: covers the PCRs the document lists");
-		if (complete && shirudo_sha256_init(&ctx) == 0) {
+		if (complete && sha256_init(&ctx) == 0) {
 			for (bit = 0; bit < 24; bit++) {
 				if (quote.pcr_mask & (1u << bit))
-					shirudo_sha256_update(&ctx,
-							      p->pcrs[bit], 32);
+					sha256_update(&ctx,
+						      p->pcrs[bit], 32);
 			}
-			shirudo_sha256_final(&ctx, digest);
+			sha256_final(&ctx, digest);
 		}
 		vouched = complete &&
-			  shirudo_ct_eq(digest, quote.pcr_digest, 32);
+			  ct_eq(digest, quote.pcr_digest, 32);
 		say(&rep, vouched,
 		    "quote: PCR digest matches the listed values");
 		if (!vouched)
@@ -960,12 +960,12 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	if (rc == 0) {
 		say(&rep, certify.type == SHIRUDO_TPM_ST_ATTEST_NV &&
 		    certify.index_name_len == SHIRUDO_TPM_NAME_LEN &&
-		    shirudo_ct_eq(certify.index_name, reg_name,
-				  SHIRUDO_TPM_NAME_LEN),
+		    ct_eq(certify.index_name, reg_name,
+			  SHIRUDO_TPM_NAME_LEN),
 		    "register: certification names the listed index");
 		say(&rep, certify.type == SHIRUDO_TPM_ST_ATTEST_NV &&
 		    certify.offset == 0 && certify.nv_len == 32 &&
-		    shirudo_ct_eq(certify.nv_data, reg_value, 32),
+		    ct_eq(certify.nv_data, reg_value, 32),
 		    "register: certified contents match the listed value");
 	}
 	if (qrc == 0 && crc == 0)
@@ -986,15 +986,15 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	}
 	memcpy(bind, p->init.pcr_before, 32);
 	memcpy(bind + 32, p->init.phase_before, 32);
-	shirudo_tpm_register_policy((1u << p->init.pcr) |
-				    (1u << p->init.phase_pcr), bind, 2,
-				    branch_written, branch_init, policy);
-	shirudo_tpm_nv_name(reg_index,
-			    SHIRUDO_TPM_REGISTER_ATTRS | SHIRUDO_TPM_NV_WRITTEN,
-			    policy, 32, expected_name);
+	tpm_register_policy((1u << p->init.pcr) |
+			    (1u << p->init.phase_pcr), bind, 2,
+			    branch_written, branch_init, policy);
+	tpm_nv_name(reg_index,
+		    SHIRUDO_TPM_REGISTER_ATTRS | SHIRUDO_TPM_NV_WRITTEN,
+		    policy, 32, expected_name);
 	say(&rep, (__u32)p->reg_pcr == p->init.pcr &&
-	    shirudo_ct_eq(expected_name, reg_name, SHIRUDO_TPM_NAME_LEN) &&
-	    shirudo_ct_eq(expected_name, p->init.name, SHIRUDO_TPM_NAME_LEN),
+	    ct_eq(expected_name, reg_name, SHIRUDO_TPM_NAME_LEN) &&
+	    ct_eq(expected_name, p->init.name, SHIRUDO_TPM_NAME_LEN),
 	    "register: public area is bound to PCRs %u and %u as recorded",
 	    p->init.pcr, p->init.phase_pcr);
 	for (bit = 0; bit < 24; bit++) {
@@ -1004,8 +1004,8 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 			continue;
 		held = bit == p->init.pcr ? p->init.pcr_before :
 		       bit == p->init.phase_pcr ? p->init.phase_before : NULL;
-		say(&rep, held && shirudo_ct_eq(held, expect->bind_values[bit],
-						32),
+		say(&rep, held && ct_eq(held, expect->bind_values[bit],
+					32),
 		    "binding: PCR %u held the expected value", bit);
 	}
 	if (expect->require_initrd)
@@ -1029,27 +1029,27 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		    "count");
 
 	for (i = 0; i < p->n_recs; i++) {
-		shirudo_chain_fold(chain, p->recs[i].digest);
+		chain_fold(chain, p->recs[i].digest);
 		if (i)
 			runtime++;
 	}
-	say(&rep, shirudo_ct_eq(chain, reg_value, 32),
+	say(&rep, ct_eq(chain, reg_value, 32),
 	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
 	    p->n_recs == 1 ? "" : "s");
 
 	{
 		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
 
-		shirudo_chain_anchor(p->init.name, anchor, sizeof(anchor));
+		chain_anchor(p->init.name, anchor, sizeof(anchor));
 		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
-		say(&rep, shirudo_ct_eq(anchor_digest, p->init.anchor_digest,
-					32),
+		say(&rep, ct_eq(anchor_digest, p->init.anchor_digest,
+				32),
 		    "anchor: record digest matches the index name");
 		memcpy(pcr_expected, p->init.pcr_before, 32);
-		shirudo_chain_fold(pcr_expected, anchor_digest);
+		chain_fold(pcr_expected, anchor_digest);
 		if (p->pcr_have & (1u << p->init.pcr)) {
-			bool exact = shirudo_ct_eq(pcr_expected,
-						   p->pcrs[p->init.pcr], 32);
+			bool exact = ct_eq(pcr_expected,
+					   p->pcrs[p->init.pcr], 32);
 
 			if (exact || expect->strict_anchor)
 				say(&rep, exact, "anchor: PCR %u equals the "
@@ -1066,18 +1066,18 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 	}
 
 	if (expect->have_init)
-		say(&rep, shirudo_ct_eq(p->init.digest, expect->init_event, 32),
+		say(&rep, ct_eq(p->init.digest, expect->init_event, 32),
 		    "state: init event covers the expected certificate, set "
 		    "and tree root");
 	if (expect->have_chain) {
-		say(&rep, shirudo_ct_eq(reg_value, expect->chain, 32),
+		say(&rep, ct_eq(reg_value, expect->chain, 32),
 		    "state: register equals the expected value");
 	} else if (expect->have_init) {
 		__u8 predicted[32] = {};
 
-		shirudo_chain_fold(predicted, expect->init_event);
+		chain_fold(predicted, expect->init_event);
 		if (runtime == 0)
-			say(&rep, shirudo_ct_eq(reg_value, predicted, 32),
+			say(&rep, ct_eq(reg_value, predicted, 32),
 			    "state: register equals the value predicted for "
 			    "the set at boot");
 		else
@@ -1095,7 +1095,7 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		if (!(expect->pcr_expect_mask & (1u << bit)))
 			continue;
 		say(&rep, (p->pcr_have & (1u << bit)) &&
-		    shirudo_ct_eq(p->pcrs[bit], expect->pcrs[bit], 32),
+		    ct_eq(p->pcrs[bit], expect->pcrs[bit], 32),
 		    "PCR %u matches the expected value", bit);
 	}
 	rc = rep.failed ? -EKEYREJECTED : 0;
@@ -1105,8 +1105,8 @@ out:
 	return rc;
 }
 
-int shirudo_attest_challenge_read(const char *path,
-				  struct shirudo_attest_challenge *out)
+int attest_challenge_read(const char *path,
+			  struct shirudo_attest_challenge *out)
 {
 	char blob_hex[2 * SHIRUDO_TPM_ID_OBJECT_LEN + 1], secret_hex[2 * 256 + 1];
 	char ak_hex[2 * SHIRUDO_TPM_NAME_LEN + 1], kind[32], type[8];
@@ -1136,10 +1136,10 @@ int shirudo_attest_challenge_read(const char *path,
 	ak_hex[0] = '\0';
 	blob_hex[0] = '\0';
 	secret_hex[0] = '\0';
-	rc = shirudo_read_file(path, SHIRUDO_ATTEST_CHALLENGE_MAX, &doc, &len);
+	rc = read_file(path, SHIRUDO_ATTEST_CHALLENGE_MAX, &doc, &len);
 	if (rc)
 		return rc;
-	rc = shirudo_json_parse(doc, len, top, ARRAY_SIZE(top));
+	rc = json_parse(doc, len, top, ARRAY_SIZE(top));
 	xfree(doc, len + 1);
 	if (rc || !top[0].seen || strcmp(kind, "shirudo-credential") ||
 	    !ek_sub[0].seen || !top[2].seen || !top[3].seen || !top[4].seen)
@@ -1159,24 +1159,24 @@ int shirudo_attest_challenge_read(const char *path,
 }
 
 /* The certificate's key must be the endorsement key of the evidence. */
-static bool cert_describes(const struct shirudo_cert_pubkey *key,
+static bool cert_describes(const struct cert_pubkey *key,
 			   const struct shirudo_tpm_public *pub)
 {
 	if (key->rsa != (pub->type == SHIRUDO_TPM_ALG_RSA))
 		return false;
 	if (key->rsa)
 		return key->n_len == pub->n_len &&
-		       shirudo_ct_eq(key->n, pub->n, pub->n_len) &&
+		       ct_eq(key->n, pub->n, pub->n_len) &&
 		       key->e == (pub->rsa_exponent ? pub->rsa_exponent : 65537);
-	return shirudo_ct_eq(key->x, pub->x, 32) &&
-	       shirudo_ct_eq(key->y, pub->y, 32);
+	return ct_eq(key->x, pub->x, 32) &&
+	       ct_eq(key->y, pub->y, 32);
 }
 
-int shirudo_attest_challenge_make(const char *evidence, size_t len,
-				  const struct shirudo_attest_challenge_policy *pol,
-				  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
-				  char **out, size_t *out_len, size_t *cap,
-				  char *report, size_t report_cap)
+int attest_challenge_make(const char *evidence, size_t len,
+			  const struct shirudo_attest_challenge_policy *pol,
+			  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+			  char **out, size_t *out_len, size_t *cap,
+			  char *report, size_t report_cap)
 {
 	const char *ek_ca = pol->ek_ca;
 	bool vouched = pol->ek_name || pol->trust_presented;
@@ -1188,7 +1188,7 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 	__u8 ek_public[SHIRUDO_TPM_PUBLIC_MAX], computed[SHIRUDO_TPM_NAME_LEN];
 	__u8 seed[32], z[32], eph_x[32], eph_y[32], secret[256];
 	__u8 blob[SHIRUDO_TPM_ID_OBJECT_LEN], *der = NULL;
-	struct shirudo_cert_pubkey cert_key;
+	struct cert_pubkey cert_key;
 	struct shirudo_tpm_public pub;
 	struct shirudo_cert cert = {};
 	struct shirudo_json_emit e;
@@ -1230,7 +1230,7 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 	ek_type[0] = '\0';
 	ek_public_hex[0] = '\0';
 	ek_name_hex[0] = '\0';
-	if (shirudo_json_parse(evidence, len, top, ARRAY_SIZE(top)) ||
+	if (json_parse(evidence, len, top, ARRAY_SIZE(top)) ||
 	    !ak_sub[0].seen || !ek_sub[0].seen || !ek_sub[1].seen ||
 	    !ek_sub[2].seen ||
 	    hex_bytes(ak_hex, ak_name, sizeof(ak_name), &ak_len) ||
@@ -1246,8 +1246,8 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 		rsa = false;
 	else
 		goto out;
-	if (shirudo_tpm_public_parse(ek_public, ek_public_len, &pub) ||
-	    (pub.type == SHIRUDO_TPM_ALG_RSA) != rsa)
+	if (tpm_public_parse(ek_public, ek_public_len, &pub) ||
+	    pub.type != (rsa ? SHIRUDO_TPM_ALG_RSA : SHIRUDO_TPM_ALG_ECC))
 		goto out;
 
 	/*
@@ -1255,20 +1255,20 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 	 * operator enrolled, not for whatever the document names.
 	 */
 	if (pol->ak_name)
-		say(&rep, shirudo_ct_eq(ak_name, pol->ak_name,
-					SHIRUDO_TPM_NAME_LEN),
+		say(&rep, ct_eq(ak_name, pol->ak_name,
+				SHIRUDO_TPM_NAME_LEN),
 		    "attestation key: the pinned key");
 	if (pol->ek_name)
-		say(&rep, shirudo_ct_eq(ek_name, pol->ek_name,
-					SHIRUDO_TPM_NAME_LEN),
+		say(&rep, ct_eq(ek_name, pol->ek_name,
+				SHIRUDO_TPM_NAME_LEN),
 		    "endorsement key: the pinned key");
 
 	/* The key must be an endorsement key, not any decryption key. */
-	shirudo_tpm_object_name(ek_public, ek_public_len, computed);
-	say(&rep, shirudo_ct_eq(computed, ek_name, SHIRUDO_TPM_NAME_LEN),
+	tpm_object_name(ek_public, ek_public_len, computed);
+	say(&rep, ct_eq(computed, ek_name, SHIRUDO_TPM_NAME_LEN),
 	    "endorsement key: name matches its public area");
 	say(&rep, pub.attrs == SHIRUDO_TPM_EK_ATTRS && pub.policy_len == 32 &&
-	    shirudo_ct_eq(pub.policy, shirudo_tpm_ek_policy, 32),
+	    ct_eq(pub.policy, shirudo_tpm_ek_policy, 32),
 	    "endorsement key: TCG default template under the endorsement "
 	    "policy");
 	if (top[2].seen) {
@@ -1277,10 +1277,10 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 			rc = -ENOMEM;
 			goto out;
 		}
-		if (shirudo_base64_decode(cert_b64, strlen(cert_b64), der,
-					  EK_CERT_MAX, &der_len) ||
-		    shirudo_cert_read_der(der, der_len, &cert) ||
-		    shirudo_cert_pubkey(&cert, &cert_key)) {
+		if (base64_decode(cert_b64, strlen(cert_b64), der,
+				  EK_CERT_MAX, &der_len) ||
+		    cert_read_der(der, der_len, &cert) ||
+		    cert_pubkey(&cert, &cert_key)) {
 			say(&rep, false, "endorsement certificate: parseable "
 			    "with a P-256 or RSA-2048 key");
 		} else {
@@ -1288,8 +1288,8 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 			    "endorsement certificate: describes the "
 			    "endorsement key");
 			if (ek_ca) {
-				int vrc = shirudo_cert_verify_chain(&cert, ek_ca,
-								    &reason);
+				int vrc = cert_verify_chain(&cert, ek_ca,
+							    &reason);
 
 				if (vrc == -EINVAL)
 					say(&rep, false, "endorsement "
@@ -1330,15 +1330,15 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 		goto out;
 	if (rsa) {
 		if (getrandom(seed, sizeof(seed), 0) != (ssize_t)sizeof(seed) ||
-		    shirudo_rsa_oaep_encrypt(pub.n, pub.n_len, pub.rsa_exponent,
-					     "IDENTITY", sizeof("IDENTITY"),
-					     seed, sizeof(seed), secret,
-					     sizeof(secret), &secret_len))
+		    rsa_oaep_encrypt(pub.n, pub.n_len, pub.rsa_exponent,
+				     "IDENTITY", sizeof("IDENTITY"),
+				     seed, sizeof(seed), secret,
+				     sizeof(secret), &secret_len))
 			goto out;
 	} else {
-		if (shirudo_ecdh_p256_ephemeral(pub.x, pub.y, eph_x, eph_y, z))
+		if (ecdh_p256_ephemeral(pub.x, pub.y, eph_x, eph_y, z))
 			goto out;
-		shirudo_tpm_kdfe(z, "IDENTITY", eph_x, 32, pub.x, 32, seed);
+		tpm_kdfe(z, "IDENTITY", eph_x, 32, pub.x, 32, seed);
 		secret[0] = 0;
 		secret[1] = 32;
 		memcpy(secret + 2, eph_x, 32);
@@ -1347,7 +1347,7 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 		memcpy(secret + 36, eph_y, 32);
 		secret_len = 68;
 	}
-	if (shirudo_tpm_credential_protect(seed, ak_name, credential, blob))
+	if (tpm_credential_protect(seed, ak_name, credential, blob))
 		goto out;
 
 	*cap = 4096;
@@ -1357,19 +1357,19 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = *out, .cap = *cap };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_string(&e, "kind", "shirudo-credential");
-	shirudo_json_obj_open_key(&e, "ek");
-	shirudo_json_kv_string(&e, "type", rsa ? "rsa" : "ecc");
-	shirudo_json_kv_string(&e, "name", ek_name_hex);
-	shirudo_json_obj_close(&e);
-	shirudo_json_kv_string(&e, "ak_name", ak_hex);
-	shirudo_hex_encode(blob, sizeof(blob), hex);
-	shirudo_json_kv_string(&e, "credential_blob", hex);
-	shirudo_hex_encode(secret, secret_len, hex);
-	shirudo_json_kv_string(&e, "secret", hex);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "kind", "shirudo-credential");
+	json_obj_open_key(&e, "ek");
+	json_kv_string(&e, "type", rsa ? "rsa" : "ecc");
+	json_kv_string(&e, "name", ek_name_hex);
+	json_obj_close(&e);
+	json_kv_string(&e, "ak_name", ak_hex);
+	hex_encode(blob, sizeof(blob), hex);
+	json_kv_string(&e, "credential_blob", hex);
+	hex_encode(secret, secret_len, hex);
+	json_kv_string(&e, "secret", hex);
+	json_obj_close(&e);
 	if (e.err) {
 		rc = e.err;
 		goto out;
@@ -1380,7 +1380,7 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 out:
 	explicit_bzero(seed, sizeof(seed));
 	explicit_bzero(z, sizeof(z));
-	shirudo_cert_free(&cert);
+	cert_free(&cert);
 	xfree(der, der ? EK_CERT_MAX : 0);
 	xfree(cert_b64, EK_CERT_B64_MAX);
 	if (rc) {

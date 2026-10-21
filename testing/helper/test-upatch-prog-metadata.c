@@ -32,7 +32,7 @@ static int expect_attach(const struct shirudo_upatch *u, __u32 kind,
 		return fail("unexpected metadata prog count");
 	if (u->hdr.metadata_len != sizeof(md) + sizeof(prog))
 		return fail("unexpected metadata length");
-	raw = shirudo_upatch_metadata(u);
+	raw = upatch_metadata(u);
 	if (!raw)
 		return fail("missing metadata");
 	memcpy(&md, raw, sizeof(md));
@@ -73,7 +73,7 @@ static int expect_serializer(const struct shirudo_upatch *u)
 		return fail("unexpected map/prog counts");
 	if (u->hdr.metadata_len != sizeof(md) + sizeof(progs))
 		return fail("unexpected metadata length");
-	raw = shirudo_upatch_metadata(u);
+	raw = upatch_metadata(u);
 	if (!raw)
 		return fail("missing metadata");
 	memcpy(&md, raw, sizeof(md));
@@ -110,7 +110,7 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 
 	if (u->hdr.nr_progs != 1)
 		return fail("unexpected metadata prog count");
-	raw = shirudo_upatch_metadata(u);
+	raw = upatch_metadata(u);
 	if (!raw || u->hdr.metadata_len < sizeof(md) + sizeof(prog) +
 	    sizeof(targets) + sizeof(record))
 		return fail("missing uprobe metadata");
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 	if (argc >= 3)
 		mode = argv[2];
 
-	rc = shirudo_upatch_open(argv[1], &u);
+	rc = upatch_open(argv[1], &u);
 	if (rc)
 		return fail("open upatch failed");
 
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 		rc = fail("unknown metadata check mode");
 	}
 
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	if (rc)
 		return rc;
 	puts("ok");

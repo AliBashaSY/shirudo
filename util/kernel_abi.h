@@ -19,9 +19,9 @@ struct btf;
  * structural contract can be tested with synthetic BTF without depending on
  * the kernel running the test.
  */
-int shirudo_kernel_abi_validate_btf(const struct btf *btf,
-				    char *detail, size_t detail_sz);
+int kernel_abi_validate_btf(const struct btf *btf,
+			    char *detail, size_t detail_sz);
 
-int shirudo_kernel_abi_check(char *detail, size_t detail_sz);
+int kernel_abi_check(char *detail, size_t detail_sz);
 
 #endif /* SHIRUDO_KERNEL_ABI_H */

@@ -43,8 +43,8 @@ int cmd_config(int argc, const char **argv)
 	int i;
 
 	for (i = 1; i < argc; i++) {
-		if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&config_help);
+		if (is_help(argv[i])) {
+			print_help(&config_help);
 			return 0;
 		}
 		pr_err("config: unknown option '%s'", argv[i]);
@@ -53,7 +53,7 @@ int cmd_config(int argc, const char **argv)
 	}
 
 	file_present = access(SHIRUDO_CONF_PATH, F_OK) == 0;
-	rc = shirudo_config_load(&cfg);
+	rc = config_load(&cfg);
 	if (rc && rc != -ENOENT) {
 		pr_err("config: load %s: %s",
 		       SHIRUDO_CONF_PATH, strerror(-rc));

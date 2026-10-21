@@ -14,7 +14,7 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_cert_pubkey pub;
+	struct cert_pubkey pub;
 	struct shirudo_cert cert = {};
 	size_t der_len, sig_len, n;
 	const __u8 *der, *sig;
@@ -30,18 +30,18 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	sig = der + der_len;
 	sig_len = size - 2 - der_len;
 
-	shirudo_keys_digest_der(der, der_len, sha, fp);
-	if (!shirudo_cert_read_der(der, der_len, &cert)) {
-		shirudo_cert_pubkey(&cert, &pub);
-		shirudo_verify_detached(der, der_len, sig, sig_len, &cert);
-		shirudo_cms_signed_by(sig, sig_len, &cert);
-		shirudo_cert_free(&cert);
+	keys_digest_der(der, der_len, sha, fp);
+	if (!cert_read_der(der, der_len, &cert)) {
+		cert_pubkey(&cert, &pub);
+		verify_detached(der, der_len, sig, sig_len, &cert);
+		cms_signed_by(sig, sig_len, &cert);
+		cert_free(&cert);
 	}
 
 	raw = xmalloc(sig_len + 1);
 	if (raw) {
-		shirudo_base64_decode((const char *)sig, sig_len, raw,
-				      sig_len + 1, &n);
+		base64_decode((const char *)sig, sig_len, raw,
+			      sig_len + 1, &n);
 		xfree(raw, sig_len + 1);
 	}
 	return 0;

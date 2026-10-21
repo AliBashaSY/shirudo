@@ -12,8 +12,8 @@
 
 #include "conditions.h"
 
-size_t shirudo_conditions(const struct shirudo_conditions_input *in,
-			  struct shirudo_condition *c, size_t cap)
+size_t conditions(const struct shirudo_conditions_input *in,
+		  struct shirudo_condition *c, size_t cap)
 {
 	size_t n = 0;
 
@@ -91,7 +91,7 @@ size_t shirudo_conditions(const struct shirudo_conditions_input *in,
 	return n;
 }
 
-void shirudo_conditions_print(const struct shirudo_condition *c, size_t n)
+void conditions_print(const struct shirudo_condition *c, size_t n)
 {
 	size_t i;
 
@@ -102,7 +102,7 @@ void shirudo_conditions_print(const struct shirudo_condition *c, size_t n)
 		       c[i].detail);
 }
 
-const char *shirudo_status_verdict(const struct shirudo_conditions_input *in)
+const char *status_verdict(const struct shirudo_conditions_input *in)
 {
 	if (!in->reachable)
 		return "unreachable";
@@ -120,10 +120,10 @@ const char *shirudo_status_verdict(const struct shirudo_conditions_input *in)
 	return "ok";
 }
 
-void shirudo_status_reason(const struct shirudo_conditions_input *in,
-			   char *buf, size_t cap)
+void status_reason(const struct shirudo_conditions_input *in,
+		   char *buf, size_t cap)
 {
-	const char *v = shirudo_status_verdict(in);
+	const char *v = status_verdict(in);
 
 	buf[0] = '\0';
 	if (strcmp(v, "unreachable") == 0) {

@@ -106,29 +106,29 @@ int main(int argc, const char **argv)
 	size_t matches[ARRAY_SIZE(commands)];
 	size_t i, n_match;
 
-	shirudo_harden_stdio();
-	shirudo_log_init();
-	shirudo_harden_self();
+	harden_stdio();
+	log_init();
+	harden_self();
 
 	if (argc < 2) {
 		cmd_help(0, NULL);
 		return 1;
 	}
-	if (shirudo_is_list_cmds(argv[1])) {
+	if (is_list_cmds(argv[1])) {
 		for (i = 0; i < commands_n; i++)
 			printf("%s\n", commands[i].name);
 		return 0;
 	}
 	/* With the rest of argv, so `--help --list-cmds` still lists. */
-	if (shirudo_is_help(argv[1]))
+	if (is_help(argv[1]))
 		return cmd_help(argc - 1, argv + 1);
 
 	for (i = 0; i < commands_n; i++)
 		names[i] = commands[i].name;
 
 	/* Tolerant matching is the Levenshtein pass below. */
-	n_match = shirudo_resolve(argv[1], names, commands_n,
-				  matches, ARRAY_SIZE(matches));
+	n_match = resolve(argv[1], names, commands_n,
+			  matches, ARRAY_SIZE(matches));
 	if (n_match == 1) {
 		c = &commands[matches[0]];
 	} else if (n_match > 1) {
@@ -156,8 +156,8 @@ int main(int argc, const char **argv)
 		if (max_dist > 3)
 			max_dist = 3;
 
-		n = shirudo_suggest(argv[1], names, commands_n, max_dist,
-				    sugg, ARRAY_SIZE(sugg));
+		n = suggest(argv[1], names, commands_n, max_dist,
+			    sugg, ARRAY_SIZE(sugg));
 		if (n) {
 			fprintf(stderr, "\nDid you mean one of:\n");
 			for (i = 0; i < n; i++)

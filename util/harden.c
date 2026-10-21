@@ -19,7 +19,7 @@
  * that number to the next file it opens, and what it prints lands in
  * that file: point each closed one at /dev/null before anything opens.
  */
-void shirudo_harden_stdio(void)
+void harden_stdio(void)
 {
 	int fd;
 
@@ -32,7 +32,7 @@ void shirudo_harden_stdio(void)
 	}
 }
 
-void shirudo_harden_self(void)
+void harden_self(void)
 {
 	struct rlimit no_core = { 0, 0 };
 

@@ -26,13 +26,13 @@ struct shirudo_upatch_table_row {
 	char		payload_sha256[65];	/* "" if unavailable; JSON only */
 };
 
-void shirudo_upatch_table_print(const struct shirudo_upatch_table_row *rows,
-				size_t n);
+void upatch_table_print(const struct shirudo_upatch_table_row *rows,
+			size_t n);
 
-void shirudo_upatch_table_emit_json(struct shirudo_json_emit *e,
-				    const struct shirudo_upatch_table_row *rows,
-				    size_t n);
+void upatch_table_emit_json(struct shirudo_json_emit *e,
+			    const struct shirudo_upatch_table_row *rows,
+			    size_t n);
 
-__s64 shirudo_upatch_age_sec(const char *ts);
+__s64 upatch_age_sec(const char *ts);
 
 #endif /* SHIRUDO_UTIL_UPATCH_TABLE_H */

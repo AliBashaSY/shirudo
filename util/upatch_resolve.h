@@ -19,15 +19,15 @@ struct btf;
  * "link"; multi-program upatches use "link_0", "link_1", ...
  * Returns a link fd on success, negative errno on failure.
  */
-int shirudo_upatch_open_first_link(const char *name);
+int upatch_open_first_link(const char *name);
 
 /* vbtf may be NULL; the location then degrades to the bare prefix. */
-int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
-				    char *out, size_t cap);
+int upatch_resolve_location(struct btf *vbtf, const char *name,
+			    char *out, size_t cap);
 
-void shirudo_upatch_loaded_at(const char *name, char *out, size_t cap);
+void upatch_loaded_at(const char *name, char *out, size_t cap);
 
 /* Empty on any failure. */
-void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap);
+void upatch_payload_sha256(const char *name, char *out, size_t cap);
 
 #endif /* SHIRUDO_UTIL_UPATCH_RESOLVE_H */

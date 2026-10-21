@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * shirudo_elf_build_id_fd() on the binary a uprobe target names, which
+ * elf_build_id_fd() on the binary a uprobe target names, which
  * the unsigned program metadata of a upatch chooses.
  */
 
@@ -20,7 +20,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (fd < 0)
 		return 0;
 	len = sizeof(build_id);
-	shirudo_elf_build_id_fd(fd, build_id, &len);
+	elf_build_id_fd(fd, build_id, &len);
 	close(fd);
 	return 0;
 }

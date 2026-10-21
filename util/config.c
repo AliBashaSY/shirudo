@@ -93,8 +93,8 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 		}
 		/* An ignored value must leave the one set before intact. */
 		for (i = 0; i < hl / 2; i++) {
-			int hi = shirudo_hex_nibble(h[2 * i]);
-			int lo = shirudo_hex_nibble(h[2 * i + 1]);
+			int hi = hex_nibble(h[2 * i]);
+			int lo = hex_nibble(h[2 * i + 1]);
 
 			if (hi < 0 || lo < 0) {
 				pr_warn("config: tpm.owner_auth: bad hex "
@@ -119,7 +119,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 	cfg->tpm_owner_auth_len = l;
 }
 
-int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
+int config_load_path(struct shirudo_config *cfg, const char *path)
 {
 	char line[SHIRUDO_MAP_EXPORT_PATH_MAX + 128];
 	int rc = 0;
@@ -133,7 +133,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 	if (!f) {
 		if (errno != ENOENT)
 			rc = -errno;	/* still apply env override below */
-	} else if (shirudo_check_trusted(fileno(f), path, false)) {
+	} else if (check_trusted(fileno(f), path, false)) {
 		fclose(f);
 		return -EPERM;
 	} else {
@@ -190,7 +190,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 						sizeof(cfg->map_export_otel_endpoint), val))
 					map_export_bad(cfg, key, val, "value too long");
 			} else if (strcmp(key, "map_export.tenant_id") == 0) {
-				if (val[0] && !shirudo_tenant_id_valid(val))
+				if (val[0] && !tenant_id_valid(val))
 					map_export_bad(cfg, key, val,
 						       "expected 1..128 characters from "
 						       "A-Z, a-z, 0-9, '.', '_', '-'");
@@ -239,7 +239,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 			rc = -EIO;
 		/* The TPM owner's authorization is for no other user's eyes. */
 		if (cfg->tpm_owner_auth_len &&
-		    shirudo_check_trusted(fileno(f), path, true)) {
+		    check_trusted(fileno(f), path, true)) {
 			explicit_bzero(cfg->tpm_owner_auth,
 				       sizeof(cfg->tpm_owner_auth));
 			cfg->tpm_owner_auth_len = 0;
@@ -257,12 +257,12 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 	return rc;
 }
 
-int shirudo_config_load(struct shirudo_config *cfg)
+int config_load(struct shirudo_config *cfg)
 {
 	const char *env;
 	int rc;
 
-	rc = shirudo_config_load_path(cfg, SHIRUDO_CONF_PATH);
+	rc = config_load_path(cfg, SHIRUDO_CONF_PATH);
 	if (rc && rc != -ENOENT)
 		return rc;
 

@@ -560,8 +560,8 @@ testing/helper/test-string: testing/helper/test-string.c util/string.o util/mall
 
 # chain.o's read/extend paths reference util/tpm (libtss2); the tests
 # only exercise the pure helpers, but the symbols must still resolve.
-# util/malloc.o brings in x*/shirudo_libc_free that chain.o/tpm.o use.
-# util/config.o resolves shirudo_config_load(), called by tpm.o.
+# util/malloc.o brings in x*/libc_free that chain.o/tpm.o use.
+# util/config.o resolves config_load(), called by tpm.o.
 # The register code pulls in the eventlog, which pulls in the seal
 # label writer and the JSON codec.
 REGISTER_OBJS := util/chain.o util/tpm.o util/tpm_wire.o util/eventlog.o \

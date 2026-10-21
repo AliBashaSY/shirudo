@@ -33,16 +33,16 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	char *out;
 	int fd;
 
-	shirudo_attest_verify((const char *)data, size, &expect, report,
-			      sizeof(report));
-	if (!shirudo_attest_challenge_make((const char *)data, size, &pol,
-					   credential, &out, &out_len, &cap,
-					   report, sizeof(report)))
+	attest_verify((const char *)data, size, &expect, report,
+		      sizeof(report));
+	if (!attest_challenge_make((const char *)data, size, &pol,
+				   credential, &out, &out_len, &cap,
+				   report, sizeof(report)))
 		xfree(out, cap);
 	fd = fuzz_file(data, size, path, sizeof(path));
 	if (fd < 0)
 		return 0;
-	shirudo_attest_challenge_read(path, &challenge);
+	attest_challenge_read(path, &challenge);
 	close(fd);
 	return 0;
 }

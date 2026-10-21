@@ -20,20 +20,20 @@ typedef void (*shirudo_keyring_cb)(key_serial_t serial,
 				   void *ud);
 
 /* -ENOKEY if absent. */
-key_serial_t shirudo_keyring_find(const char *name);
+key_serial_t keyring_find(const char *name);
 
 /*
  * As above, but adds the keyring to @u if absent.
  */
-key_serial_t shirudo_keyring_open_or_create(const char *name);
+key_serial_t keyring_open_or_create(const char *name);
 
 /*
  * Unlink a keyring from @u so init can replace an incomplete stale keyring.
  */
-int shirudo_keyring_unlink_from_user(key_serial_t keyring);
+int keyring_unlink_from_user(key_serial_t keyring);
 
-key_serial_t shirudo_keyring_add_cert(key_serial_t keyring,
-				      const void *cert, size_t cert_len);
+key_serial_t keyring_add_cert(key_serial_t keyring,
+			      const void *cert, size_t cert_len);
 
 /*
  * Freeze a keyring for the rest of the boot: drop write/link/setattr
@@ -42,7 +42,7 @@ key_serial_t shirudo_keyring_add_cert(key_serial_t keyring,
  * one-way change. The kernel can still find the cert at BPF_PROG_LOAD.
  * Returns 0 or -errno.
  */
-int shirudo_keyring_seal(key_serial_t keyring);
+int keyring_seal(key_serial_t keyring);
 
 /*
  * Whether <keyring> holds the certificate <der>: 1 when one of its
@@ -52,19 +52,19 @@ int shirudo_keyring_seal(key_serial_t keyring);
  * the certificate gets on the thread keyring and those of the keys in
  * <keyring>; no key material leaves the kernel.
  */
-int shirudo_keyring_holds_cert(key_serial_t keyring,
-			       const __u8 *der, size_t der_len);
+int keyring_holds_cert(key_serial_t keyring,
+		       const __u8 *der, size_t der_len);
 
 /* The serial of <keyring>'s key for the certificate, -ENOKEY, -errno. */
-key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
-				       const __u8 *der,
-				       size_t der_len);
+key_serial_t keyring_find_cert(key_serial_t keyring,
+			       const __u8 *der,
+			       size_t der_len);
 
 /* Unlink <key> from <keyring>; sealing does not stop this, the LSM may. */
-int shirudo_keyring_unlink_key(key_serial_t keyring, key_serial_t key);
+int keyring_unlink_key(key_serial_t keyring, key_serial_t key);
 
-int shirudo_keyring_list(key_serial_t keyring,
-			 shirudo_keyring_cb cb, void *ud);
+int keyring_list(key_serial_t keyring,
+		 shirudo_keyring_cb cb, void *ud);
 
 /*
  * The kernel's bpf keyring, the trust anchor a signed loader names with
@@ -78,11 +78,11 @@ int shirudo_keyring_list(key_serial_t keyring,
 #endif
 
 /* Its serial, or -errno on a kernel without one. */
-key_serial_t shirudo_keyring_bpf_serial(void);
+key_serial_t keyring_bpf_serial(void);
 /* Enrol a DER certificate; -EPERM once the keyring is sealed. */
-key_serial_t shirudo_keyring_bpf_add_cert(const __u8 *cert,
-					  size_t cert_len);
+key_serial_t keyring_bpf_add_cert(const __u8 *cert,
+				  size_t cert_len);
 /* Seal it for the rest of the boot: no key can be linked afterwards. */
-int shirudo_keyring_bpf_seal(void);
+int keyring_bpf_seal(void);
 
 #endif /* SHIRUDO_KEYRING_H */

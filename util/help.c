@@ -57,20 +57,20 @@ static void wrap_print(const char *text, size_t indent, size_t avail)
 	fputc('\n', stderr);
 }
 
-int shirudo_is_help(const char *arg)
+int is_help(const char *arg)
 {
 	return arg && (strcmp(arg, "help") == 0 ||
 		       strcmp(arg, "--help") == 0 ||
 		       strcmp(arg, "-h") == 0);
 }
 
-int shirudo_is_list_cmds(const char *arg)
+int is_list_cmds(const char *arg)
 {
 	return arg && strcmp(arg, "--list-cmds") == 0;
 }
 
-void shirudo_print_subcmd_list(const struct shirudo_help_item *items,
-			       size_t n_items)
+void print_subcmd_list(const struct shirudo_help_item *items,
+		       size_t n_items)
 {
 	size_t i;
 
@@ -78,7 +78,7 @@ void shirudo_print_subcmd_list(const struct shirudo_help_item *items,
 		printf("%s\n", items[i].name);
 }
 
-void shirudo_print_help(const struct shirudo_help *h)
+void print_help(const struct shirudo_help *h)
 {
 	size_t i, j;
 
@@ -142,8 +142,8 @@ shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
 
 	for (i = 0; i < n_subcmds && n_names < SHIRUDO_SUBCMD_MAX; i++)
 		names[n_names++] = subcmds[i].name;
-	n = shirudo_suggest(bad, names, n_names, max_dist, sugg,
-			    ARRAY_SIZE(sugg));
+	n = suggest(bad, names, n_names, max_dist, sugg,
+		    ARRAY_SIZE(sugg));
 	if (n) {
 		fprintf(stderr, "\nDid you mean one of:\n");
 		for (i = 0; i < n; i++)
@@ -151,10 +151,10 @@ shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
 	}
 }
 
-const char *shirudo_resolve_subcommand(const char *cmd_label,
-				       const char *input,
-				       const struct shirudo_help_item *subcmds,
-				       size_t n_subcmds)
+const char *resolve_subcommand(const char *cmd_label,
+			       const char *input,
+			       const struct shirudo_help_item *subcmds,
+			       size_t n_subcmds)
 {
 	const char *names[SHIRUDO_SUBCMD_MAX];
 	size_t matches[SHIRUDO_SUBCMD_MAX];
@@ -168,8 +168,8 @@ const char *shirudo_resolve_subcommand(const char *cmd_label,
 	for (i = 0; i < n_subcmds && n_names < ARRAY_SIZE(names); i++)
 		names[n_names++] = subcmds[i].name;
 
-	n = shirudo_resolve(input, names, n_names, matches,
-			    ARRAY_SIZE(matches));
+	n = resolve(input, names, n_names, matches,
+		    ARRAY_SIZE(matches));
 	if (n == 1)
 		return names[matches[0]];
 	if (n == 0) {

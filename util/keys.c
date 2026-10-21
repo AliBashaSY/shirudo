@@ -36,8 +36,8 @@ struct keys_candidate {
 	bool		done;
 };
 
-int shirudo_keys_read_der(const char *path, __u8 **out,
-			  size_t *out_sz)
+int keys_read_der(const char *path, __u8 **out,
+		  size_t *out_sz)
 {
 	struct stat st;
 	__u8 *buf;
@@ -58,7 +58,7 @@ int shirudo_keys_read_der(const char *path, __u8 **out,
 		close(fd);
 		return -EINVAL;
 	}
-	if (shirudo_check_trusted(fd, path, false)) {
+	if (check_trusted(fd, path, false)) {
 		close(fd);
 		return -EPERM;
 	}
@@ -78,62 +78,62 @@ int shirudo_keys_read_der(const char *path, __u8 **out,
 	return 0;
 }
 
-int shirudo_keys_digest_der(const __u8 *der, size_t der_sz,
-			    __u8 sha256[32], __u8 fingerprint[32])
+int keys_digest_der(const __u8 *der, size_t der_sz,
+		    __u8 sha256[32], __u8 fingerprint[32])
 {
 	struct shirudo_cert cert = {};
 	int rc;
 
-	rc = shirudo_sha256_buffer(der, der_sz, sha256);
+	rc = sha256_buffer(der, der_sz, sha256);
 	if (rc)
 		return rc;
-	rc = shirudo_cert_read_der(der, der_sz, &cert);
+	rc = cert_read_der(der, der_sz, &cert);
 	if (rc)
 		return rc;
-	rc = shirudo_cert_pubkey_digest(&cert, fingerprint);
-	shirudo_cert_free(&cert);
+	rc = cert_pubkey_digest(&cert, fingerprint);
+	cert_free(&cert);
 	return rc;
 }
 
-static int shirudo_keys_digest_file(const char *path, __u8 sha256[32],
-				    __u8 fingerprint[32])
+static int keys_digest_file(const char *path, __u8 sha256[32],
+			    __u8 fingerprint[32])
 {
 	size_t der_sz = 0;
 	__u8 *der = NULL;
 	int rc;
 
-	rc = shirudo_keys_read_der(path, &der, &der_sz);
+	rc = keys_read_der(path, &der, &der_sz);
 	if (rc)
 		return rc;
-	rc = shirudo_keys_digest_der(der, der_sz, sha256, fingerprint);
+	rc = keys_digest_der(der, der_sz, sha256, fingerprint);
 	xfree(der, der_sz);
 	return rc;
 }
 
-int shirudo_keys_path_for(const char *dir, const __u8 fingerprint[32],
-			  const char *suffix, char *out, size_t cap)
+int keys_path_for(const char *dir, const __u8 fingerprint[32],
+		  const char *suffix, char *out, size_t cap)
 {
 	char hex[65];
 
-	shirudo_hex_encode(fingerprint, 32, hex);
+	hex_encode(fingerprint, 32, hex);
 	if ((size_t)snprintf(out, cap, "%s/%s%s", dir, hex, suffix) >= cap)
 		return -ENAMETOOLONG;
 	return 0;
 }
 
-bool shirudo_keys_is_revoked(const char *revoked_dir,
-			     const __u8 fingerprint[32])
+bool keys_is_revoked(const char *revoked_dir,
+		     const __u8 fingerprint[32])
 {
 	char path[PATH_MAX];
 
-	if (shirudo_keys_path_for(revoked_dir, fingerprint, ".der", path,
-				  sizeof(path)))
+	if (keys_path_for(revoked_dir, fingerprint, ".der", path,
+			  sizeof(path)))
 		return false;
 	return access(path, F_OK) == 0;
 }
 
-int shirudo_keys_vouch_payload(const __u8 *der, size_t der_sz,
-			       __u8 **out, size_t *out_sz)
+int keys_vouch_payload(const __u8 *der, size_t der_sz,
+		       __u8 **out, size_t *out_sz)
 {
 	size_t n = sizeof(SHIRUDO_KEYS_VOUCH_PREFIX) + der_sz;
 	__u8 *buf = xmalloc(n);
@@ -148,30 +148,30 @@ int shirudo_keys_vouch_payload(const __u8 *der, size_t der_sz,
 	return 0;
 }
 
-int shirudo_keys_verify_vouch(const struct shirudo_trusted_set *set,
-			      const __u8 *der, size_t der_sz,
-			      const __u8 *sig, size_t sig_sz,
-			      __u8 voucher[32])
+int keys_verify_vouch(const struct shirudo_trusted_set *set,
+		      const __u8 *der, size_t der_sz,
+		      const __u8 *sig, size_t sig_sz,
+		      __u8 voucher[32])
 {
 	size_t payload_sz = 0, i;
 	__u8 *payload = NULL;
 	int rc;
 
-	rc = shirudo_keys_vouch_payload(der, der_sz, &payload, &payload_sz);
+	rc = keys_vouch_payload(der, der_sz, &payload, &payload_sz);
 	if (rc)
 		return rc;
 	rc = -EKEYREJECTED;
 	for (i = 0; i < set->n && rc; i++) {
 		struct shirudo_cert cert = {};
 
-		if (shirudo_cert_read_file(set->certs[i].path, &cert))
+		if (cert_read_file(set->certs[i].path, &cert))
 			continue;
-		if (shirudo_verify_detached(payload, payload_sz, sig, sig_sz,
-					    &cert) == 0) {
+		if (verify_detached(payload, payload_sz, sig, sig_sz,
+				    &cert) == 0) {
 			memcpy(voucher, set->certs[i].fingerprint, 32);
 			rc = 0;
 		}
-		shirudo_cert_free(&cert);
+		cert_free(&cert);
 	}
 	xfree(payload, payload_sz);
 	return rc;
@@ -234,8 +234,8 @@ static size_t count_der(const char *dir)
 	if (n < 0)
 		return 0;
 	for (i = 0; i < n; i++)
-		shirudo_libc_free(names[i]);
-	shirudo_libc_free(names);
+		libc_free(names[i]);
+	libc_free(names);
 	return (size_t)n;
 }
 
@@ -275,10 +275,10 @@ static int admit_vouched(struct shirudo_trusted_set *set,
 				continue;
 			}
 			if (vouch_path_for(c->path, vouch, sizeof(vouch)) ||
-			    shirudo_keys_read_der(vouch, &sig, &sig_sz))
+			    keys_read_der(vouch, &sig, &sig_sz))
 				continue;
-			rc = shirudo_keys_verify_vouch(set, c->der, c->der_sz,
-						       sig, sig_sz, voucher);
+			rc = keys_verify_vouch(set, c->der, c->der_sz,
+					       sig, sig_sz, voucher);
 			xfree(sig, sig_sz);
 			if (rc)
 				continue;
@@ -338,17 +338,17 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 			rc = -ENAMETOOLONG;
 			break;
 		}
-		rc = shirudo_keys_read_der(c->path, &c->der, &c->der_sz);
+		rc = keys_read_der(c->path, &c->der, &c->der_sz);
 		if (rc)
 			break;
-		rc = shirudo_keys_digest_der(c->der, c->der_sz, c->sha256,
-					     c->fingerprint);
+		rc = keys_digest_der(c->der, c->der_sz, c->sha256,
+				     c->fingerprint);
 		if (rc) {
 			xfree(c->der, c->der_sz);
 			c->der = NULL;
 			break;
 		}
-		if (shirudo_keys_is_revoked(revoked_dir, c->fingerprint)) {
+		if (keys_is_revoked(revoked_dir, c->fingerprint)) {
 			xfree(c->der, c->der_sz);
 			c->der = NULL;
 			continue;
@@ -356,13 +356,13 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 		(*n_cand)++;
 	}
 	for (i = 0; i < n; i++)
-		shirudo_libc_free(names[i]);
-	shirudo_libc_free(names);
+		libc_free(names[i]);
+	libc_free(names);
 	return rc;
 }
 
-int shirudo_keys_load(const char *keys_dir, const char *revoked_dir,
-		      bool with_trusted, struct shirudo_trusted_set *set)
+int keys_load(const char *keys_dir, const char *revoked_dir,
+	      bool with_trusted, struct shirudo_trusted_set *set)
 {
 	struct keys_candidate *cand = NULL;
 	__u8 sha256[32], fingerprint[32];
@@ -381,10 +381,10 @@ int shirudo_keys_load(const char *keys_dir, const char *revoked_dir,
 	if (snprintf(path, sizeof(path), "%s/%s", keys_dir,
 		     SHIRUDO_CERT_FILE) >= (int)sizeof(path))
 		return -ENAMETOOLONG;
-	rc = shirudo_keys_digest_file(path, sha256, fingerprint);
+	rc = keys_digest_file(path, sha256, fingerprint);
 	if (rc)
 		return rc;
-	if (!shirudo_keys_is_revoked(revoked_dir, fingerprint))
+	if (!keys_is_revoked(revoked_dir, fingerprint))
 		set_add(set, path, sha256, fingerprint, NULL);
 	set->n_revoked = count_der(revoked_dir);
 	if (!with_trusted)
@@ -409,8 +409,8 @@ static int digest_cmp(const void *a, const void *b)
 	return memcmp(a, b, 32);
 }
 
-void shirudo_keys_anchor_digest(const __u8 sha256[][32], size_t n,
-				__u8 out[32])
+void keys_anchor_digest(const __u8 sha256[][32], size_t n,
+			__u8 out[32])
 {
 	__u8 sorted[SHIRUDO_KEYS_MAX][32];
 	size_t i;
@@ -426,53 +426,53 @@ void shirudo_keys_anchor_digest(const __u8 sha256[][32], size_t n,
 	for (i = 0; i < n; i++)
 		memcpy(sorted[i], sha256[i], 32);
 	qsort(sorted, n, 32, digest_cmp);
-	shirudo_sha256_buffer(sorted, n * 32, out);
+	sha256_buffer(sorted, n * 32, out);
 }
 
-void shirudo_keys_set_digest(const struct shirudo_trusted_set *set,
-			     __u8 out[32])
+void keys_set_digest(const struct shirudo_trusted_set *set,
+		     __u8 out[32])
 {
 	__u8 sha[SHIRUDO_KEYS_MAX][32];
 	size_t i;
 
 	for (i = 0; i < set->n; i++)
 		memcpy(sha[i], set->certs[i].sha256, 32);
-	shirudo_keys_anchor_digest(sha, set->n, out);
+	keys_anchor_digest(sha, set->n, out);
 }
 
-int shirudo_keys_write_file(const char *path, const void *data, size_t len)
+int keys_write_file(const char *path, const void *data, size_t len)
 {
-	return shirudo_seal_write_file(path, data, len, 0644);
+	return seal_write_file(path, data, len, 0644);
 }
 
-int shirudo_keys_install(const char *keys_dir, const __u8 *der,
-			 size_t der_sz, const __u8 *sig,
-			 size_t sig_sz, char *out, size_t cap)
+int keys_install(const char *keys_dir, const __u8 *der,
+		 size_t der_sz, const __u8 *sig,
+		 size_t sig_sz, char *out, size_t cap)
 {
 	__u8 sha256[32], fingerprint[32];
 	char vouch[PATH_MAX];
 	char dir[PATH_MAX];
 	int rc;
 
-	rc = shirudo_keys_digest_der(der, der_sz, sha256, fingerprint);
+	rc = keys_digest_der(der, der_sz, sha256, fingerprint);
 	if (rc)
 		return rc;
 	if (snprintf(dir, sizeof(dir), "%s/trusted", keys_dir) >=
 	    (int)sizeof(dir))
 		return -ENAMETOOLONG;
-	rc = shirudo_seal_mkdir_p(dir, 0700);
+	rc = seal_mkdir_p(dir, 0700);
 	if (rc)
 		return rc;
-	rc = shirudo_keys_path_for(dir, fingerprint, ".der", out, cap);
+	rc = keys_path_for(dir, fingerprint, ".der", out, cap);
 	if (!rc)
-		rc = shirudo_keys_path_for(dir, fingerprint, ".vouch", vouch,
-					   sizeof(vouch));
+		rc = keys_path_for(dir, fingerprint, ".vouch", vouch,
+				   sizeof(vouch));
 	if (rc)
 		return rc;
-	rc = shirudo_keys_write_file(vouch, sig, sig_sz);
+	rc = keys_write_file(vouch, sig, sig_sz);
 	if (rc)
 		return rc;
-	rc = shirudo_keys_write_file(out, der, der_sz);
+	rc = keys_write_file(out, der, der_sz);
 	if (rc)
 		unlink(vouch);
 	return rc;

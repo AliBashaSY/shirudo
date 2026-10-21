@@ -137,7 +137,7 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	trailer.decoder_len = htole32(decoder_len);
 	memcpy(file + data_off + decoder_len, &trailer, sizeof(trailer));
 
-	rc = shirudo_write_all(fd, file, file_len);
+	rc = write_all(fd, file, file_len);
 	if (close(fd) != 0 && rc == 0)
 		rc = -errno;
 	xfree(file, file_len);
@@ -214,8 +214,8 @@ static int print_classification(__u32 type, bool is_signed, bool with_btf,
 	if (rc)
 		return 1;
 	f.view.serialized = serialized;
-	rc = shirudo_upatch_maps_otel_classify(&f.view, &signal, reason,
-					       sizeof(reason));
+	rc = upatch_maps_otel_classify(&f.view, &signal, reason,
+				       sizeof(reason));
 	if (!rc)
 		printf("%s:%s\n", signal == SHIRUDO_OTEL_METRIC ?
 		       "metric" : "log", reason);
@@ -245,13 +245,13 @@ static int print_payload(bool metric, bool counter, bool with_location)
 	rc = make_decoder(metric, counter, false, decoder_path,
 			  sizeof(decoder_path));
 	if (!rc && metric)
-		rc = shirudo_upatch_maps_otel_build_metric_file(decoder_path,
-								&f.view, &opts,
-								&buf, &len);
+		rc = upatch_maps_otel_build_metric_file(decoder_path,
+							&f.view, &opts,
+							&buf, &len);
 	else if (!rc)
-		rc = shirudo_upatch_maps_otel_build_log_file(decoder_path,
-							     &f.view, &buf,
-							     &len);
+		rc = upatch_maps_otel_build_log_file(decoder_path,
+						     &f.view, &buf,
+						     &len);
 	if (!rc && buf)
 		fwrite(buf, 1, len, stdout);
 	if (buf)
@@ -272,9 +272,9 @@ static int print_local_json(void)
 		return 1;
 	e.buf = buf;
 	e.cap = sizeof(buf);
-	shirudo_json_obj_open(&e);
-	shirudo_upatch_maps_emit_json_fields(&e, &f.view);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	upatch_maps_emit_json_fields(&e, &f.view);
+	json_obj_close(&e);
 	if (!e.err)
 		printf("%s", buf);
 	fixture_destroy(&f);
@@ -298,8 +298,8 @@ static int send_log(const char *url, __u32 retries, bool insecure)
 	rc = make_decoder(false, false, false, decoder_path,
 			  sizeof(decoder_path));
 	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_LOG, &opts);
+		rc = upatch_maps_otel_send_file(decoder_path, &f.view,
+						SHIRUDO_OTEL_FORCE_LOG, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
@@ -318,8 +318,8 @@ static int send_auto(const char *base, bool is_signed)
 	rc = make_decoder(!is_signed, !is_signed, false, decoder_path,
 			  sizeof(decoder_path));
 	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_AUTO, &opts);
+		rc = upatch_maps_otel_send_file(decoder_path, &f.view,
+						SHIRUDO_OTEL_AUTO, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
@@ -343,8 +343,8 @@ static int send_metric(const char *url)
 	rc = make_decoder(true, false, false, decoder_path,
 			  sizeof(decoder_path));
 	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_METRIC, &opts);
+		rc = upatch_maps_otel_send_file(decoder_path, &f.view,
+						SHIRUDO_OTEL_FORCE_METRIC, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
@@ -420,8 +420,8 @@ static int send_s3(const char *endpoint, __u32 retries, bool large)
 	rc = make_decoder(false, false, true, decoder_path,
 			  sizeof(decoder_path));
 	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_S3, &opts);
+		rc = upatch_maps_otel_send_file(decoder_path, &f.view,
+						SHIRUDO_OTEL_S3, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	large_serialized_destroy(&f);
@@ -441,25 +441,25 @@ static int tenant_validation(void)
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
 	opts.tenant_id = "bad tenant";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+				   &opts);
 	failed += rc != -EINVAL;
 	opts.tenant_id = NULL;
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=bad%20tenant", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+				   &opts);
 	failed += rc != -EINVAL;
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=one,x-tenant-id=two", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+				   &opts);
 	failed += rc != -EINVAL;
 	opts.tenant_id = "tenant-cli-1234";
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=ignored%20invalid", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+				   &opts);
 	failed += rc == -EINVAL;
 	unsetenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS");
 	fixture_destroy(&f);
@@ -480,28 +480,28 @@ static int s3_validation(void)
 	setenv("AWS_ENDPOINT_URL_S3", "http://127.0.0.1:1", 1);
 	unsetenv("AWS_ACCESS_KEY_ID");
 	unsetenv("AWS_SECRET_ACCESS_KEY");
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	if (rc != -EACCES)
 		goto fail;
 	setenv("AWS_ACCESS_KEY_ID", "test", 1);
 	setenv("AWS_SECRET_ACCESS_KEY", "secret", 1);
 	opts.s3_uri = "s3://BAD_BUCKET/prefix";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	if (rc != -EINVAL)
 		goto fail;
 	opts.s3_uri = "s3://test-bucket/prefix";
 	f.view.truncated = true;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	f.view.truncated = false;
 	if (rc != -E2BIG)
 		goto fail;
 	f.view.skipped = true;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	f.view.skipped = false;
 	if (rc != -EOPNOTSUPP)
 		goto fail;
 	setenv("AWS_ENDPOINT_URL_S3", "http://storage.example", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	if (rc != -EPERM)
 		goto fail;
 	fixture_destroy(&f);
@@ -522,8 +522,8 @@ static int security_check(void)
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	rc = upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+				   &opts);
 	fixture_destroy(&f);
 	return rc != -EPERM;
 }

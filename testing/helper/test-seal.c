@@ -21,10 +21,10 @@ static int append(const char *path, const char *text)
 {
 	int fd, rc;
 
-	fd = shirudo_seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	fd = seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
-	rc = shirudo_write_all(fd, text, strlen(text));
+	rc = write_all(fd, text, strlen(text));
 	if (close(fd) && !rc)
 		rc = -errno;
 	return rc;
@@ -59,16 +59,16 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "label") == 0) {
-		rc = shirudo_seal_label(argv[2]);
+		rc = seal_label(argv[2]);
 	} else if (strcmp(argv[1], "mkdir") == 0) {
-		rc = shirudo_seal_mkdir_p(argv[2], 0700);
+		rc = seal_mkdir_p(argv[2], 0700);
 	} else if (strcmp(argv[1], "open") == 0 && argc == 4) {
 		rc = append(argv[2], argv[3]);
 	} else if (strcmp(argv[1], "write") == 0 && argc == 4) {
-		rc = shirudo_seal_write_file(argv[2], argv[3], strlen(argv[3]),
-					     0600);
+		rc = seal_write_file(argv[2], argv[3], strlen(argv[3]),
+				     0600);
 	} else if (strcmp(argv[1], "inherit") == 0) {
-		rc = shirudo_seal_inherit_path(argv[2]);
+		rc = seal_inherit_path(argv[2]);
 	} else {
 		fprintf(stderr, "unknown subcommand\n");
 		return 2;

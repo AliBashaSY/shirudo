@@ -16,13 +16,13 @@ struct shirudo_elf_target {
 	__u32		nr_offsets;
 };
 
-int shirudo_elf_target_resolve(const char *path, const char *pattern,
-			       struct shirudo_elf_target *out);
+int elf_target_resolve(const char *path, const char *pattern,
+		       struct shirudo_elf_target *out);
 
-int shirudo_elf_build_id_fd(int fd,
-			    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			    __u32 *build_id_len);
+int elf_build_id_fd(int fd,
+		    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+		    __u32 *build_id_len);
 
-void shirudo_elf_target_free(struct shirudo_elf_target *target);
+void elf_target_free(struct shirudo_elf_target *target);
 
 #endif /* SHIRUDO_ELF_TARGET_H */

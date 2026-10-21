@@ -24,15 +24,15 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	fd = fuzz_file(data, size, path, sizeof(path));
 	if (fd < 0)
 		return 0;
-	shirudo_config_load_path(&cfg, path);
+	config_load_path(&cfg, path);
 	/* Read as load_source() and load_tree_config() read their files. */
 	fp = fopen(path, "r");
 	while (fp && fgets(line, sizeof(line), fp)) {
 		memcpy(copy, line, sizeof(line));
-		shirudo_bpm_parse_source_line(copy, endpoint, sizeof(endpoint),
-					      key_file, sizeof(key_file));
-		shirudo_bpm_parse_tree_line(line, endpoint, sizeof(endpoint),
-					    reference, sizeof(reference));
+		bpm_parse_source_line(copy, endpoint, sizeof(endpoint),
+				      key_file, sizeof(key_file));
+		bpm_parse_tree_line(line, endpoint, sizeof(endpoint),
+				    reference, sizeof(reference));
 	}
 	if (fp)
 		fclose(fp);

@@ -101,7 +101,7 @@ int bpm_index_parse(const __u8 *body, size_t len,
 		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
-	if (shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
+	if (json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
 	    schema != 1 || !root[1].seen)
 		return -EINVAL;
 	*n_entries = sink.n;
@@ -158,8 +158,8 @@ int bpm_semver_compare(const char *a, const char *b)
 	const char *pa = a, *pb = b;
 
 	for (int part = 0; part < 3; part++) {
-		size_t na = shirudo_digits(pa, strlen(pa));
-		size_t nb = shirudo_digits(pb, strlen(pb));
+		size_t na = digits(pa, strlen(pa));
+		size_t nb = digits(pb, strlen(pb));
 		__u64 va, vb;
 
 		if (parse_u64(pa, na, UINT64_MAX, &va) ||
@@ -184,9 +184,9 @@ int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 	struct shirudo_cert cert = {};
 	int rc = -EINVAL;
 
-	if (!shirudo_cert_read_file(cert_path, &cert))
-		rc = shirudo_verify_detached(payload, payload_len, sig, sig_len, &cert);
-	shirudo_cert_free(&cert);
+	if (!cert_read_file(cert_path, &cert))
+		rc = verify_detached(payload, payload_len, sig, sig_len, &cert);
+	cert_free(&cert);
 	return rc;
 }
 
@@ -420,7 +420,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 
 	if (!gz)
 		return -EINVAL;
-	rc = shirudo_seal_mkdir_p(dest, 0700);
+	rc = seal_mkdir_p(dest, 0700);
 	if (rc) {
 		gzclose(gz);
 		return rc;
@@ -481,7 +481,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			break;
 		}
 		if (type == '5') {
-			rc = shirudo_seal_mkdir_p(path, 0700);
+			rc = seal_mkdir_p(path, 0700);
 			if (rc)
 				break;
 		} else if (type == '0') {
@@ -492,7 +492,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			slash = strrchr(parent, '/');
 			if (slash) {
 				*slash = 0;
-				rc = shirudo_seal_mkdir_p(parent, 0700);
+				rc = seal_mkdir_p(parent, 0700);
 				if (rc)
 					break;
 			}
@@ -584,8 +584,8 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 				 &environment_len, 4u * 1024u * 1024u);
 	if (rc)
 		return rc;
-	if (shirudo_json_parse((const char *)environment, environment_len,
-			       root, ARRAY_SIZE(root)) ||
+	if (json_parse((const char *)environment, environment_len,
+		       root, ARRAY_SIZE(root)) ||
 	    !root[0].seen || !parsed.name[0] || !parsed.version[0] ||
 	    !bpm_package_name_ok(parsed.name) || !bpm_version_ok(parsed.version)) {
 		rc = -EINVAL;
@@ -705,7 +705,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-	rc = shirudo_tree_parse((const char *)payload.data, payload.len, pub);
+	rc = tree_parse((const char *)payload.data, payload.len, pub);
 out:
 	if (layers)
 		xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));

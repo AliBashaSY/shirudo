@@ -146,7 +146,7 @@ static int check(enum fixture fixture, int want_ok, const char *want_detail)
 		fprintf(stderr, "cannot construct fixture %d\n", fixture);
 		return 1;
 	}
-	rc = shirudo_kernel_abi_validate_btf(btf, detail, sizeof(detail));
+	rc = kernel_abi_validate_btf(btf, detail, sizeof(detail));
 	btf__free(btf);
 	if ((rc == 0) != want_ok) {
 		fprintf(stderr, "fixture %d: rc=%d detail=%s\n",

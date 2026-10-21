@@ -96,22 +96,22 @@ static void policy_hash(const __u8 prev[32], __u32 cc,
 	__u8 cc_be[4];
 
 	tpm_put32(cc_be, cc);
-	if (shirudo_sha256_init(&ctx) != 0) {
+	if (sha256_init(&ctx) != 0) {
 		memset(out, 0, 32);
 		return;
 	}
-	if (shirudo_sha256_update(&ctx, prev, 32) != 0 ||
-	    shirudo_sha256_update(&ctx, cc_be, sizeof(cc_be)) != 0 ||
-	    (a_len && shirudo_sha256_update(&ctx, a, a_len) != 0) ||
-	    (b_len && shirudo_sha256_update(&ctx, b, b_len) != 0) ||
-	    shirudo_sha256_final(&ctx, out) != 0) {
+	if (sha256_update(&ctx, prev, 32) != 0 ||
+	    sha256_update(&ctx, cc_be, sizeof(cc_be)) != 0 ||
+	    (a_len && sha256_update(&ctx, a, a_len) != 0) ||
+	    (b_len && sha256_update(&ctx, b, b_len) != 0) ||
+	    sha256_final(&ctx, out) != 0) {
 		memset(out, 0, 32);
-		shirudo_sha256_free(&ctx);
+		sha256_free(&ctx);
 	}
 }
 
-void shirudo_tpm_policy_nv_written(const __u8 prev[32], bool written,
-				   __u8 out[32])
+void tpm_policy_nv_written(const __u8 prev[32], bool written,
+			   __u8 out[32])
 {
 	__u8 set = written ? 1 : 0;
 
@@ -130,8 +130,8 @@ shirudo_tpm_pcr_selection(__u32 pcr_mask,
 	out[9] = (__u8)(pcr_mask >> 16);
 }
 
-void shirudo_tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
-			    const __u8 pcr_digest[32], __u8 out[32])
+void tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
+		    const __u8 pcr_digest[32], __u8 out[32])
 {
 	__u8 sel[SHIRUDO_TPM_PCR_SELECTION_LEN];
 
@@ -140,32 +140,32 @@ void shirudo_tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
 		    out);
 }
 
-void shirudo_tpm_policy_or(const __u8 a[32], const __u8 b[32],
-			   __u8 out[32])
+void tpm_policy_or(const __u8 a[32], const __u8 b[32],
+		   __u8 out[32])
 {
 	static const __u8 zero[32];
 
 	policy_hash(zero, TPM_CC_POLICY_OR, a, 32, b, 32, out);
 }
 
-void shirudo_tpm_register_policy(__u32 pcr_mask,
-				 const __u8 *pcr_values, size_t n_values,
-				 __u8 branch_written[32],
-				 __u8 branch_init[32], __u8 policy[32])
+void tpm_register_policy(__u32 pcr_mask,
+			 const __u8 *pcr_values, size_t n_values,
+			 __u8 branch_written[32],
+			 __u8 branch_init[32], __u8 policy[32])
 {
 	static const __u8 zero[32];
 	__u8 pcr_digest[32], unwritten[32];
 
-	shirudo_tpm_policy_nv_written(zero, true, branch_written);
-	shirudo_tpm_policy_nv_written(zero, false, unwritten);
-	shirudo_sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
-	shirudo_tpm_policy_pcr(unwritten, pcr_mask, pcr_digest, branch_init);
-	shirudo_tpm_policy_or(branch_written, branch_init, policy);
+	tpm_policy_nv_written(zero, true, branch_written);
+	tpm_policy_nv_written(zero, false, unwritten);
+	sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
+	tpm_policy_pcr(unwritten, pcr_mask, pcr_digest, branch_init);
+	tpm_policy_or(branch_written, branch_init, policy);
 }
 
-void shirudo_tpm_nv_name(__u32 index, __u32 attrs,
-			 const __u8 policy[32], __u16 data_size,
-			 __u8 name[SHIRUDO_TPM_NAME_LEN])
+void tpm_nv_name(__u32 index, __u32 attrs,
+		 const __u8 policy[32], __u16 data_size,
+		 __u8 name[SHIRUDO_TPM_NAME_LEN])
 {
 	__u8 pub[4 + 2 + 4 + 2 + 32 + 2];
 
@@ -176,11 +176,11 @@ void shirudo_tpm_nv_name(__u32 index, __u32 attrs,
 	memcpy(pub + 12, policy, 32);
 	tpm_put16(pub + 44, data_size);
 	tpm_put16(name, SHIRUDO_TPM_ALG_SHA256);
-	shirudo_sha256_buffer(pub, sizeof(pub), name + 2);
+	sha256_buffer(pub, sizeof(pub), name + 2);
 }
 
-int shirudo_tpm_object_name(const __u8 *public, size_t len,
-			    __u8 name[SHIRUDO_TPM_NAME_LEN])
+int tpm_object_name(const __u8 *public, size_t len,
+		    __u8 name[SHIRUDO_TPM_NAME_LEN])
 {
 	struct reader r = { public, len };
 	__u16 type, alg;
@@ -189,20 +189,20 @@ int shirudo_tpm_object_name(const __u8 *public, size_t len,
 	    alg != SHIRUDO_TPM_ALG_SHA256)
 		return -EINVAL;
 	tpm_put16(name, SHIRUDO_TPM_ALG_SHA256);
-	shirudo_sha256_buffer(public, len, name + 2);
+	sha256_buffer(public, len, name + 2);
 	return 0;
 }
 
-void shirudo_tpm_qualified_name(__u32 hierarchy,
-				const __u8 name[SHIRUDO_TPM_NAME_LEN],
-				__u8 out[SHIRUDO_TPM_NAME_LEN])
+void tpm_qualified_name(__u32 hierarchy,
+			const __u8 name[SHIRUDO_TPM_NAME_LEN],
+			__u8 out[SHIRUDO_TPM_NAME_LEN])
 {
 	__u8 buf[4 + SHIRUDO_TPM_NAME_LEN];
 
 	tpm_put32(buf, hierarchy);
 	memcpy(buf + 4, name, SHIRUDO_TPM_NAME_LEN);
 	tpm_put16(out, SHIRUDO_TPM_ALG_SHA256);
-	shirudo_sha256_buffer(buf, sizeof(buf), out + 2);
+	sha256_buffer(buf, sizeof(buf), out + 2);
 }
 
 const __u8 shirudo_tpm_ek_policy[32] = {
@@ -211,8 +211,8 @@ const __u8 shirudo_tpm_ek_policy[32] = {
 	0x0b, 0x64, 0xf2, 0xa1, 0xda, 0x1b, 0x33, 0x14, 0x69, 0xaa,
 };
 
-int shirudo_tpm_public_parse(const __u8 *buf, size_t len,
-			     struct shirudo_tpm_public *out)
+int tpm_public_parse(const __u8 *buf, size_t len,
+		     struct shirudo_tpm_public *out)
 {
 	struct reader r = { buf, len };
 	const __u8 *policy, *n;
@@ -263,8 +263,8 @@ int shirudo_tpm_public_parse(const __u8 *buf, size_t len,
 	return 0;
 }
 
-int shirudo_tpm_public_marshal(const struct shirudo_tpm_public *pub,
-			       __u8 *out, size_t cap, size_t *len)
+int tpm_public_marshal(const struct shirudo_tpm_public *pub,
+		       __u8 *out, size_t cap, size_t *len)
 {
 	size_t need = 2 + 2 + 4 + 2 + pub->policy_len + 2 + 2, off = 0;
 
@@ -318,14 +318,14 @@ int shirudo_tpm_public_marshal(const struct shirudo_tpm_public *pub,
 	return 0;
 }
 
-int shirudo_tpm_ecc_public_parse(const __u8 *buf, size_t len,
-				 struct shirudo_tpm_ecc_public *out)
+int tpm_ecc_public_parse(const __u8 *buf, size_t len,
+			 struct shirudo_tpm_ecc_public *out)
 {
 	struct shirudo_tpm_public pub;
 	int rc;
 
 	memset(out, 0, sizeof(*out));
-	rc = shirudo_tpm_public_parse(buf, len, &pub);
+	rc = tpm_public_parse(buf, len, &pub);
 	if (rc)
 		return rc;
 	if (pub.type != SHIRUDO_TPM_ALG_ECC ||
@@ -341,10 +341,10 @@ int shirudo_tpm_ecc_public_parse(const __u8 *buf, size_t len,
 	return 0;
 }
 
-int shirudo_tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
-		     const __u8 *ctx_u, size_t u_len,
-		     const __u8 *ctx_v, size_t v_len,
-		     __u8 *out, size_t out_len)
+int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
+	     const __u8 *ctx_u, size_t u_len,
+	     const __u8 *ctx_v, size_t v_len,
+	     __u8 *out, size_t out_len)
 {
 	__u8 buf[4 + 64 + 1 + 2 * SHIRUDO_TPM_NAME_LEN + 4], block[32];
 	size_t label_len = strlen(label), done = 0, off, n;
@@ -367,7 +367,7 @@ int shirudo_tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 		off += v_len;
 		tpm_put32(buf + off, (__u32)(out_len * 8));
 		off += 4;
-		if (shirudo_hmac_sha256(key, key_len, buf, off, block))
+		if (hmac_sha256(key, key_len, buf, off, block))
 			return -EIO;
 		n = out_len - done < 32 ? out_len - done : 32;
 		memcpy(out + done, block, n);
@@ -377,9 +377,9 @@ int shirudo_tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 	return 0;
 }
 
-void shirudo_tpm_kdfe(const __u8 z[32], const char *label,
-		      const __u8 *party_u, size_t u_len,
-		      const __u8 *party_v, size_t v_len, __u8 out[32])
+void tpm_kdfe(const __u8 z[32], const char *label,
+	      const __u8 *party_u, size_t u_len,
+	      const __u8 *party_v, size_t v_len, __u8 out[32])
 {
 	__u8 buf[4 + 32 + 64 + 1 + 2 * 64];
 	size_t label_len = strlen(label), off = 4;
@@ -400,33 +400,33 @@ void shirudo_tpm_kdfe(const __u8 z[32], const char *label,
 	if (v_len)
 		memcpy(buf + off, party_v, v_len);
 	off += v_len;
-	shirudo_sha256_buffer(buf, off, out);
+	sha256_buffer(buf, off, out);
 	explicit_bzero(buf, sizeof(buf));
 }
 
-int shirudo_tpm_credential_protect(const __u8 seed[32],
-				   const __u8 name[SHIRUDO_TPM_NAME_LEN],
-				   const __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
-				   __u8 out[SHIRUDO_TPM_ID_OBJECT_LEN])
+int tpm_credential_protect(const __u8 seed[32],
+			   const __u8 name[SHIRUDO_TPM_NAME_LEN],
+			   const __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+			   __u8 out[SHIRUDO_TPM_ID_OBJECT_LEN])
 {
 	__u8 plain[2 + SHIRUDO_TPM_CREDENTIAL_LEN], enc[sizeof(plain)];
 	__u8 mac_in[sizeof(enc) + SHIRUDO_TPM_NAME_LEN], mac[32];
 	__u8 sym_key[16], hmac_key[32];
 	int rc = -EIO;
 
-	if (shirudo_tpm_kdfa(seed, 32, "STORAGE", name, SHIRUDO_TPM_NAME_LEN,
-			     NULL, 0, sym_key, sizeof(sym_key)))
+	if (tpm_kdfa(seed, 32, "STORAGE", name, SHIRUDO_TPM_NAME_LEN,
+		     NULL, 0, sym_key, sizeof(sym_key)))
 		goto out;
 	tpm_put16(plain, SHIRUDO_TPM_CREDENTIAL_LEN);
 	memcpy(plain + 2, credential, SHIRUDO_TPM_CREDENTIAL_LEN);
-	if (shirudo_aes128_cfb_encrypt(sym_key, plain, sizeof(plain), enc) ||
-	    shirudo_tpm_kdfa(seed, 32, "INTEGRITY", NULL, 0, NULL, 0, hmac_key,
-			     sizeof(hmac_key)))
+	if (aes128_cfb_encrypt(sym_key, plain, sizeof(plain), enc) ||
+	    tpm_kdfa(seed, 32, "INTEGRITY", NULL, 0, NULL, 0, hmac_key,
+		     sizeof(hmac_key)))
 		goto out;
 	memcpy(mac_in, enc, sizeof(enc));
 	memcpy(mac_in + sizeof(enc), name, SHIRUDO_TPM_NAME_LEN);
-	if (shirudo_hmac_sha256(hmac_key, sizeof(hmac_key), mac_in,
-				sizeof(mac_in), mac))
+	if (hmac_sha256(hmac_key, sizeof(hmac_key), mac_in,
+			sizeof(mac_in), mac))
 		goto out;
 	tpm_put16(out, 32);
 	memcpy(out + 2, mac, 32);
@@ -439,8 +439,8 @@ out:
 	return rc;
 }
 
-int shirudo_tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
-				      __u8 r_out[32], __u8 s_out[32])
+int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
+			      __u8 r_out[32], __u8 s_out[32])
 {
 	struct reader r = { buf, len };
 	__u16 alg, hash;
@@ -465,8 +465,8 @@ static int get_name(struct reader *r, __u8 *name, size_t *name_len)
 	return 0;
 }
 
-int shirudo_tpm_attest_parse(const __u8 *buf, size_t len,
-			     struct shirudo_tpm_attest *out)
+int tpm_attest_parse(const __u8 *buf, size_t len,
+		     struct shirudo_tpm_attest *out)
 {
 	struct reader r = { buf, len };
 	__u32 magic;

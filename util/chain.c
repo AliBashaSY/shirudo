@@ -28,28 +28,28 @@
 
 void shirudo_sha256(const void *data, size_t len, __u8 out[32])
 {
-	if (shirudo_sha256_buffer(data, len, out) != 0)
+	if (sha256_buffer(data, len, out) != 0)
 		memset(out, 0, 32);
 }
 
-void shirudo_sha256_2(const void *a, size_t a_len,
-		      const void *b, size_t b_len, __u8 out[32])
+void sha256_2(const void *a, size_t a_len,
+	      const void *b, size_t b_len, __u8 out[32])
 {
 	struct shirudo_sha256_ctx ctx;
 
-	if (shirudo_sha256_init(&ctx) != 0) {
+	if (sha256_init(&ctx) != 0) {
 		memset(out, 0, 32);
 		return;
 	}
-	if (shirudo_sha256_update(&ctx, a, a_len) != 0 ||
-	    (b_len && shirudo_sha256_update(&ctx, b, b_len) != 0) ||
-	    shirudo_sha256_final(&ctx, out) != 0) {
+	if (sha256_update(&ctx, a, a_len) != 0 ||
+	    (b_len && sha256_update(&ctx, b, b_len) != 0) ||
+	    sha256_final(&ctx, out) != 0) {
 		memset(out, 0, 32);
-		shirudo_sha256_free(&ctx);
+		sha256_free(&ctx);
 	}
 }
 
-int shirudo_ct_eq(const void *a, const void *b, size_t n)
+int ct_eq(const void *a, const void *b, size_t n)
 {
 	const __u8 *pa = a, *pb = b;
 	__u8 diff = 0;
@@ -66,10 +66,10 @@ static int member_cmp(const void *a, const void *b)
 		      ((const struct shirudo_measured_upatch *)b)->name);
 }
 
-void shirudo_chain_init_event(const __u8 cert_sha[32],
-			      struct shirudo_measured_upatch *set, size_t n,
-			      const __u8 tree_root[32],
-			      __u8 set_digest[32], __u8 event[32])
+void chain_init_event(const __u8 cert_sha[32],
+		      struct shirudo_measured_upatch *set, size_t n,
+		      const __u8 tree_root[32],
+		      __u8 set_digest[32], __u8 event[32])
 {
 	__u8 tag[sizeof("shirudo-init") + 96];
 	size_t taglen = sizeof("shirudo-init"), listing_len = 0, off = 0, i;
@@ -101,8 +101,8 @@ void shirudo_chain_init_event(const __u8 cert_sha[32],
 	shirudo_sha256(tag, taglen + 96, event);
 }
 
-void shirudo_chain_upatch_event(const char *tag, const char *name,
-				const __u8 payload[32], __u8 event[32])
+void chain_upatch_event(const char *tag, const char *name,
+			const __u8 payload[32], __u8 event[32])
 {
 	__u8 buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
 	size_t taglen = strlen(tag) + 1, off = 0;
@@ -117,14 +117,14 @@ void shirudo_chain_upatch_event(const char *tag, const char *name,
 	shirudo_sha256(buf, off, event);
 }
 
-void shirudo_chain_key_event(const char *tag, const __u8 cert_sha[32],
-			     __u8 event[32])
+void chain_key_event(const char *tag, const __u8 cert_sha[32],
+		     __u8 event[32])
 {
-	shirudo_sha256_2(tag, strlen(tag) + 1, cert_sha, 32, event);
+	sha256_2(tag, strlen(tag) + 1, cert_sha, 32, event);
 }
 
-void shirudo_chain_tree_event(__s64 seq, const __u8 operation_digest[32],
-			      __u8 event[32])
+void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
+		      __u8 event[32])
 {
 	__u8 buf[sizeof("shirudo-tree") + 8 + 32];
 	size_t taglen = sizeof("shirudo-tree"), i;
@@ -137,7 +137,7 @@ void shirudo_chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	shirudo_sha256(buf, taglen + 40, event);
 }
 
-void shirudo_chain_fold(__u8 chain[32], const __u8 event[32])
+void chain_fold(__u8 chain[32], const __u8 event[32])
 {
 	__u8 cat[64];
 
@@ -146,12 +146,12 @@ void shirudo_chain_fold(__u8 chain[32], const __u8 event[32])
 	shirudo_sha256(cat, sizeof(cat), chain);
 }
 
-void shirudo_chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
-			  char *out, size_t cap)
+void chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+		  char *out, size_t cap)
 {
 	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
 
-	shirudo_hex_encode(name, SHIRUDO_TPM_NAME_LEN, hex);
+	hex_encode(name, SHIRUDO_TPM_NAME_LEN, hex);
 	snprintf(out, cap, "nvpcr-init:%s:0x%x:%s", SHIRUDO_CHAIN_NAME,
 		 SHIRUDO_NV_INDEX, hex);
 }
@@ -182,20 +182,20 @@ static void register_expectation(const __u8 pcr_before[32],
 	__u8 values[64];
 
 	bind_values(pcr_before, phase_before, values);
-	shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
-				    branch_written, branch_init, policy);
-	shirudo_tpm_nv_name(SHIRUDO_NV_INDEX, SHIRUDO_TPM_REGISTER_ATTRS,
-			    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_unwritten);
-	shirudo_tpm_nv_name(SHIRUDO_NV_INDEX,
-			    SHIRUDO_TPM_REGISTER_ATTRS | SHIRUDO_TPM_NV_WRITTEN,
-			    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_written);
+	tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
+			    branch_written, branch_init, policy);
+	tpm_nv_name(SHIRUDO_NV_INDEX, SHIRUDO_TPM_REGISTER_ATTRS,
+		    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_unwritten);
+	tpm_nv_name(SHIRUDO_NV_INDEX,
+		    SHIRUDO_TPM_REGISTER_ATTRS | SHIRUDO_TPM_NV_WRITTEN,
+		    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_written);
 }
 
-static bool name_equals(const struct shirudo_tpm_nv_info *info,
+static bool name_equals(const struct tpm_nv_info *info,
 			const __u8 name[SHIRUDO_TPM_NAME_LEN])
 {
 	return info->name_len == SHIRUDO_TPM_NAME_LEN &&
-	       shirudo_ct_eq(info->name, name, SHIRUDO_TPM_NAME_LEN);
+	       ct_eq(info->name, name, SHIRUDO_TPM_NAME_LEN);
 }
 
 static int register_define(struct shirudo_tpm *tpm, bool defined,
@@ -204,40 +204,40 @@ static int register_define(struct shirudo_tpm *tpm, bool defined,
 	struct shirudo_config cfg = {};
 	int rc;
 
-	shirudo_config_load(&cfg);
+	config_load(&cfg);
 	if (defined) {
-		rc = shirudo_tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
-					     cfg.tpm_owner_auth,
-					     cfg.tpm_owner_auth_len);
+		rc = tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
+				     cfg.tpm_owner_auth,
+				     cfg.tpm_owner_auth_len);
 		if (rc)
 			goto out;
 	}
-	rc = shirudo_tpm_nv_define(tpm, SHIRUDO_NV_INDEX, policy,
-				   cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
+	rc = tpm_nv_define(tpm, SHIRUDO_NV_INDEX, policy,
+			   cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
 out:
 	explicit_bzero(&cfg, sizeof(cfg));
 	return rc;
 }
 
-int shirudo_chain_init(const __u8 event[32],
-		       struct shirudo_chain_init_info *info)
+int chain_init(const __u8 event[32],
+	       struct shirudo_chain_init_info *info)
 {
 	__u8 unwritten[SHIRUDO_TPM_NAME_LEN], written[SHIRUDO_TPM_NAME_LEN];
 	__u8 branch_written[32], branch_init[32], policy[32];
 	struct shirudo_eventlog_init rec;
-	struct shirudo_tpm_nv_info nv;
+	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	bool recorded;
 	int rc;
 
 	memset(info, 0, sizeof(*info));
-	rc = shirudo_tpm_open(&tpm);
+	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
-	rc = shirudo_tpm_reset_count(tpm, &info->reset_count);
+	rc = tpm_reset_count(tpm, &info->reset_count);
 	if (rc)
 		goto out;
-	rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;
 
@@ -252,10 +252,10 @@ int shirudo_chain_init(const __u8 event[32],
 	 * PCR keeps the record of both bindings. A log that cannot be
 	 * read may hold the record, so it is refused as well.
 	 */
-	rc = shirudo_eventlog_boot_init(&rec);
+	rc = eventlog_boot_init(&rec);
 	if (rc && rc != -ENOENT) {
 		pr_err("tpm: eventlog %s unreadable: %s; not binding register "
-		       "0x%08x", shirudo_eventlog_path(), strerror(-rc),
+		       "0x%08x", eventlog_path(), strerror(-rc),
 		       SHIRUDO_NV_INDEX);
 		goto out;
 	}
@@ -263,8 +263,8 @@ int shirudo_chain_init(const __u8 event[32],
 			   rec.reset_count == info->reset_count);
 	if (recorded) {
 		if (nv.defined && nv.written && name_equals(&nv, rec.name)) {
-			rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX,
-						 info->value);
+			rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX,
+					 info->value);
 			if (rc)
 				goto out;
 			memcpy(info->name, nv.name, nv.name_len);
@@ -272,8 +272,8 @@ int shirudo_chain_init(const __u8 event[32],
 			memcpy(info->pcr_before, rec.pcr_before, 32);
 			memcpy(info->phase_before, rec.phase_before, 32);
 			memcpy(info->anchor_digest, rec.anchor_digest, 32);
-			shirudo_chain_anchor(info->name, info->anchor,
-					     sizeof(info->anchor));
+			chain_anchor(info->name, info->anchor,
+				     sizeof(info->anchor));
 			info->initrd = rec.initrd;
 			info->reused = true;
 			goto out;
@@ -289,13 +289,13 @@ int shirudo_chain_init(const __u8 event[32],
 		pr_warn("tpm: register 0x%08x written this boot without a "
 			"record; rebinding it", SHIRUDO_NV_INDEX);
 
-	rc = shirudo_tpm_pcr_read(tpm, SHIRUDO_CHAIN_PCR, info->pcr_before);
+	rc = tpm_pcr_read(tpm, SHIRUDO_CHAIN_PCR, info->pcr_before);
 	if (!rc)
-		rc = shirudo_tpm_pcr_read(tpm, SHIRUDO_CHAIN_PHASE_PCR,
-					  info->phase_before);
+		rc = tpm_pcr_read(tpm, SHIRUDO_CHAIN_PHASE_PCR,
+				  info->phase_before);
 	if (rc)
 		goto out;
-	info->initrd = shirudo_in_initrd();
+	info->initrd = in_initrd();
 	register_expectation(info->pcr_before, info->phase_before,
 			     branch_written, branch_init, policy, unwritten,
 			     written);
@@ -304,7 +304,7 @@ int shirudo_chain_init(const __u8 event[32],
 		rc = register_define(tpm, nv.defined, policy);
 		if (rc)
 			goto out;
-		rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+		rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 		if (rc)
 			goto out;
 		if (!nv.defined || !name_equals(&nv, unwritten)) {
@@ -315,48 +315,48 @@ int shirudo_chain_init(const __u8 event[32],
 		}
 	}
 
-	rc = shirudo_tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
-					 SHIRUDO_CHAIN_PCR_MASK, branch_written,
-					 branch_init, event);
+	rc = tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
+				 SHIRUDO_CHAIN_PCR_MASK, branch_written,
+				 branch_init, event);
 	if (rc)
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	shirudo_chain_anchor(info->name, info->anchor, sizeof(info->anchor));
+	chain_anchor(info->name, info->anchor, sizeof(info->anchor));
 	shirudo_sha256(info->anchor, strlen(info->anchor), info->anchor_digest);
-	rc = shirudo_tpm_pcr_extend(tpm, SHIRUDO_CHAIN_PCR,
-				    info->anchor_digest);
+	rc = tpm_pcr_extend(tpm, SHIRUDO_CHAIN_PCR,
+			    info->anchor_digest);
 	if (rc) {
 		pr_err("tpm: register written but PCR %u not anchored; "
 		       "the init branch stays open until reboot",
 		       SHIRUDO_CHAIN_PCR);
 		goto out;
 	}
-	rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX, info->value);
+	rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, info->value);
 out:
-	shirudo_tpm_close(tpm);
+	tpm_close(tpm);
 	return rc;
 }
 
-int shirudo_chain_extend(const __u8 event[32], __u8 out_chain[32])
+int chain_extend(const __u8 event[32], __u8 out_chain[32])
 {
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
 	struct shirudo_eventlog_init rec;
-	struct shirudo_tpm_nv_info nv;
+	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	int rc;
 
-	rc = shirudo_eventlog_boot_init(&rec);
+	rc = eventlog_boot_init(&rec);
 	if (rc)
 		return -ENODEV;		/* no register this boot */
 	bind_values(rec.pcr_before, rec.phase_before, values);
-	shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
-				    branch_written, branch_init, policy);
+	tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
+			    branch_written, branch_init, policy);
 
-	rc = shirudo_tpm_open(&tpm);
+	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
-	rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	if (!nv.defined || !nv.written) {
@@ -369,51 +369,51 @@ int shirudo_chain_extend(const __u8 event[32], __u8 out_chain[32])
 		rc = -EACCES;
 		goto out;
 	}
-	rc = shirudo_tpm_nv_extend(tpm, SHIRUDO_NV_INDEX, branch_written,
-				   branch_init, event);
+	rc = tpm_nv_extend(tpm, SHIRUDO_NV_INDEX, branch_written,
+			   branch_init, event);
 	if (rc) {
 		rc = -EIO;
 		goto out;
 	}
 	if (out_chain)
-		rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out_chain) ?
+		rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out_chain) ?
 		     -EIO : 0;
 out:
-	shirudo_tpm_close(tpm);
+	tpm_close(tpm);
 	return rc;
 }
 
-int shirudo_chain_read(__u8 out[32])
+int chain_read(__u8 out[32])
 {
 	struct shirudo_tpm *tpm = NULL;
 	int rc;
 
-	rc = shirudo_tpm_open(&tpm);
+	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
-	rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out);
-	shirudo_tpm_close(tpm);
+	rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out);
+	tpm_close(tpm);
 	return rc ? -ENODEV : 0;
 }
 
-int shirudo_chain_status(struct shirudo_chain_status *st)
+int chain_status(struct chain_status *st)
 {
-	struct shirudo_tpm_nv_info nv;
+	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	__u32 reset_count = 0;
 	int rc;
 
 	memset(st, 0, sizeof(*st));
-	st->logged = shirudo_eventlog_boot_init(&st->init) == 0;
+	st->logged = eventlog_boot_init(&st->init) == 0;
 	st->rebound = st->logged && st->init.records_epoch > 1;
-	rc = shirudo_tpm_open(&tpm);
+	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
 	st->tpm = true;
-	rc = shirudo_tpm_reset_count(tpm, &reset_count);
+	rc = tpm_reset_count(tpm, &reset_count);
 	if (rc)
 		goto out;
-	rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	st->defined = nv.defined;
@@ -421,12 +421,12 @@ int shirudo_chain_status(struct shirudo_chain_status *st)
 	memcpy(st->name, nv.name, nv.name_len);
 	st->name_len = nv.name_len;
 	if (nv.defined && nv.written)
-		rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX, st->value);
+		rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, st->value);
 	st->anchored = nv.defined && nv.written && st->logged &&
 		       name_equals(&nv, st->init.name) &&
 		       (!st->init.have_reset_count ||
 			st->init.reset_count == reset_count);
 out:
-	shirudo_tpm_close(tpm);
+	tpm_close(tpm);
 	return rc;
 }

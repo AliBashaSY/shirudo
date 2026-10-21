@@ -13,7 +13,7 @@
 
 #include "paths.h"
 
-const char *shirudo_keys_dir_resolve(const char *keys_dir_arg)
+const char *keys_dir_resolve(const char *keys_dir_arg)
 {
 	const char *env;
 
@@ -42,9 +42,9 @@ int shirudo_key_path(char *out, size_t out_sz,
 	return 0;
 }
 
-int shirudo_key_paths(const char *keys_dir,
-		      char *pkey_path, size_t pkey_sz,
-		      char *cert_path, size_t cert_sz)
+int key_paths(const char *keys_dir,
+	      char *pkey_path, size_t pkey_sz,
+	      char *cert_path, size_t cert_sz)
 {
 	int rc;
 
@@ -56,7 +56,7 @@ int shirudo_key_paths(const char *keys_dir,
 				SHIRUDO_CERT_FILE);
 }
 
-bool shirudo_path_exists(const char *path)
+bool path_exists(const char *path)
 {
 	struct stat st;
 

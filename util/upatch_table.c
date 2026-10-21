@@ -15,7 +15,7 @@
 #include "timefmt.h"
 #include "upatch_table.h"
 
-__s64 shirudo_upatch_age_sec(const char *ts)
+__s64 upatch_age_sec(const char *ts)
 {
 	struct tm tm = {};
 
@@ -26,8 +26,8 @@ __s64 shirudo_upatch_age_sec(const char *ts)
 	return (__s64)(time(NULL) - timegm(&tm));
 }
 
-void shirudo_upatch_table_print(const struct shirudo_upatch_table_row *rows,
-				size_t n)
+void upatch_table_print(const struct shirudo_upatch_table_row *rows,
+			size_t n)
 {
 	size_t i;
 
@@ -41,41 +41,41 @@ void shirudo_upatch_table_print(const struct shirudo_upatch_table_row *rows,
 		char age[16] = "?";
 
 		if (r->age_sec >= 0)
-			shirudo_format_duration((long)r->age_sec,
-						age, sizeof(age));
+			format_duration((long)r->age_sec,
+					age, sizeof(age));
 		printf("  %-24s  %-28s  %5u  %-28s  %s\n", r->name,
 		       r->location[0] ? r->location : "-",
 		       r->n_maps, r->status[0] ? r->status : "success", age);
 	}
 }
 
-void shirudo_upatch_table_emit_json(struct shirudo_json_emit *e,
-				    const struct shirudo_upatch_table_row *rows,
-				    size_t n)
+void upatch_table_emit_json(struct shirudo_json_emit *e,
+			    const struct shirudo_upatch_table_row *rows,
+			    size_t n)
 {
 	size_t i;
 
-	shirudo_json_arr_open(e, "upatches_loaded");
+	json_arr_open(e, "upatches_loaded");
 	for (i = 0; i < n; i++) {
 		const struct shirudo_upatch_table_row *r = &rows[i];
 
-		shirudo_json_obj_open(e);
-		shirudo_json_kv_string(e, "name", r->name);
-		shirudo_json_kv_string(e, "location", r->location);
-		shirudo_json_kv_string(e, "status",
-				       r->status[0] ? r->status : "success");
-		shirudo_json_kv_int(e, "n_maps", (__s64)r->n_maps);
-		shirudo_json_kv_string(e, "loaded_at", r->loaded_at);
+		json_obj_open(e);
+		json_kv_string(e, "name", r->name);
+		json_kv_string(e, "location", r->location);
+		json_kv_string(e, "status",
+			       r->status[0] ? r->status : "success");
+		json_kv_int(e, "n_maps", (__s64)r->n_maps);
+		json_kv_string(e, "loaded_at", r->loaded_at);
 		if (r->age_sec >= 0)
-			shirudo_json_kv_int(e, "age_sec", r->age_sec);
+			json_kv_int(e, "age_sec", r->age_sec);
 		else
-			shirudo_json_kv_null(e, "age_sec");
+			json_kv_null(e, "age_sec");
 		if (r->payload_sha256[0])
-			shirudo_json_kv_string(e, "payload_sha256",
-					       r->payload_sha256);
+			json_kv_string(e, "payload_sha256",
+				       r->payload_sha256);
 		else
-			shirudo_json_kv_null(e, "payload_sha256");
-		shirudo_json_obj_close(e);
+			json_kv_null(e, "payload_sha256");
+		json_obj_close(e);
 	}
-	shirudo_json_arr_close(e);
+	json_arr_close(e);
 }

@@ -10,7 +10,7 @@
 
 #include <stdarg.h>
 
-void shirudo_log_init(void);
+void log_init(void);
 
 void pr_err(const char *fmt, ...)
 	__attribute__((format(printf, 1, 2)));

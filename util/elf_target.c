@@ -120,9 +120,9 @@ static int elf_build_id(Elf *elf,
 	return -ENOENT;
 }
 
-int shirudo_elf_build_id_fd(int fd,
-			    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			    __u32 *build_id_len)
+int elf_build_id_fd(int fd,
+		    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+		    __u32 *build_id_len)
 {
 	Elf *elf;
 	int err;
@@ -143,8 +143,8 @@ int shirudo_elf_build_id_fd(int fd,
 	return err;
 }
 
-int shirudo_elf_target_resolve(const char *path, const char *pattern,
-			       struct shirudo_elf_target *out)
+int elf_target_resolve(const char *path, const char *pattern,
+		       struct shirudo_elf_target *out)
 {
 	Elf *elf = NULL;
 	unsigned long *resolved_offsets = NULL;
@@ -195,7 +195,7 @@ int shirudo_elf_target_resolve(const char *path, const char *pattern,
 	for (i = 0; i < nr_resolved; i++)
 		out->offsets[i] = resolved_offsets[i];
 	out->nr_offsets = (__u32)nr_resolved;
-	shirudo_libc_free(resolved_offsets);
+	libc_free(resolved_offsets);
 	resolved_offsets = NULL;
 
 	qsort(out->offsets, out->nr_offsets, sizeof(*out->offsets), u64_cmp);
@@ -210,13 +210,13 @@ out:
 		elf_end(elf);
 	if (fd >= 0)
 		close(fd);
-	shirudo_libc_free(resolved_offsets);
+	libc_free(resolved_offsets);
 	if (err)
-		shirudo_elf_target_free(out);
+		elf_target_free(out);
 	return err;
 }
 
-void shirudo_elf_target_free(struct shirudo_elf_target *target)
+void elf_target_free(struct shirudo_elf_target *target)
 {
 	if (!target)
 		return;

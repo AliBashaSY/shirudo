@@ -26,7 +26,7 @@
  */
 #define SHIRUDO_TLS_GROUPS	"*X25519MLKEM768:SecP256r1MLKEM768"
 
-void shirudo_tls_ca_cleanup(struct shirudo_tls_ca *ca)
+void tls_ca_cleanup(struct shirudo_tls_ca *ca)
 {
 	if (ca)
 		ca->impl = NULL;
@@ -52,7 +52,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return CURLE_SSL_CACERT_BADFILE;
-	if (shirudo_check_trusted(fd, path, false)) {
+	if (check_trusted(fd, path, false)) {
 		close(fd);
 		return CURLE_SSL_CACERT_BADFILE;
 	}
@@ -71,7 +71,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	return CURLE_OK;
 }
 
-int shirudo_tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca)
+int tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca)
 {
 	if (!curl)
 		return -EINVAL;

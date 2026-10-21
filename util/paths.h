@@ -118,10 +118,10 @@
 
 int shirudo_key_path(char *out, size_t out_sz,
 		     const char *keys_dir, const char *file);
-int shirudo_key_paths(const char *keys_dir,
-		      char *pkey_path, size_t pkey_sz,
-		      char *cert_path, size_t cert_sz);
-const char *shirudo_keys_dir_resolve(const char *keys_dir_arg);
+int key_paths(const char *keys_dir,
+	      char *pkey_path, size_t pkey_sz,
+	      char *cert_path, size_t cert_sz);
+const char *keys_dir_resolve(const char *keys_dir_arg);
 
 /*
  * bpffs reserves dots in path components, which upatch names may
@@ -129,8 +129,8 @@ const char *shirudo_keys_dir_resolve(const char *keys_dir_arg);
  * raw name collides. The raw name stays the identity in the format and
  * the eventlog.
  */
-static inline int shirudo_upatch_bpffs_name(char *out, size_t out_sz,
-					    const char *name)
+static inline int upatch_bpffs_name(char *out, size_t out_sz,
+				    const char *name)
 {
 	size_t i, j, len;
 
@@ -151,8 +151,8 @@ static inline int shirudo_upatch_bpffs_name(char *out, size_t out_sz,
 	return 0;
 }
 
-static inline int shirudo_upatch_name_from_bpffs(char *out, size_t out_sz,
-						 const char *name)
+static inline int upatch_name_from_bpffs(char *out, size_t out_sz,
+					 const char *name)
 {
 	size_t i, j;
 
@@ -175,6 +175,6 @@ static inline int shirudo_upatch_name_from_bpffs(char *out, size_t out_sz,
 	return 0;
 }
 
-bool shirudo_path_exists(const char *path);
+bool path_exists(const char *path);
 
 #endif /* SHIRUDO_PATHS_H */

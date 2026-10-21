@@ -20,13 +20,13 @@
 	"94442b45cfcdc59aabc2a91364ed2ae129418e05a5c1985231b9c032e673f469"
 
 /* A symlink's own inode, not its target's. Idempotent. */
-int shirudo_seal_label(const char *path);
+int seal_label(const char *path);
 
 /*
  * Before the seal attaches, so the bulk setxattr is not gated; best
  * effort per entry.
  */
-int shirudo_seal_label_tree(void);
+int seal_label_tree(void);
 
 /*
  * Creating under a sealed directory. The directory decides: an inode
@@ -40,18 +40,18 @@ int shirudo_seal_label_tree(void);
  * failure, a sealed inode that could not be labelled included.
  */
 
-int shirudo_seal_open(const char *path, int flags, mode_t mode);
+int seal_open(const char *path, int flags, mode_t mode);
 
 /* mkdir -p, every directory created labelled as its parent is. */
-int shirudo_seal_mkdir_p(const char *path, mode_t mode);
+int seal_mkdir_p(const char *path, mode_t mode);
 
-int shirudo_seal_write_file(const char *path, const void *data, size_t len,
-			    mode_t mode);
+int seal_write_file(const char *path, const void *data, size_t len,
+		    mode_t mode);
 
 /* Give the inode behind fd the label of its directory, open as dfd. */
-int shirudo_seal_inherit(int dfd, int fd);
+int seal_inherit(int dfd, int fd);
 
 /* The same by path, without following a symlink. */
-int shirudo_seal_inherit_path(const char *path);
+int seal_inherit_path(const char *path);
 
 #endif /* SHIRUDO_SEAL_H */

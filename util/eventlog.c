@@ -28,14 +28,14 @@
 #include "paths.h"
 #include "seal.h"
 
-const char *shirudo_eventlog_path(void)
+const char *eventlog_path(void)
 {
 	const char *env = getenv("SHIRUDO_EVENTLOG_PATH");
 
 	return env && *env ? env : SHIRUDO_EVENTLOG_PATH;
 }
 
-const char *shirudo_eventlog_pending_path(void)
+const char *eventlog_pending_path(void)
 {
 	const char *env = getenv("SHIRUDO_EVENTLOG_PENDING_PATH");
 
@@ -49,14 +49,14 @@ static int adopt_pending(void);
  * log: a line appended ahead of it would drop out of every replay, so
  * the record is adopted first.
  */
-int shirudo_eventlog_append(const char *json_line)
+int eventlog_append(const char *json_line)
 {
 	int rc;
 
 	rc = adopt_pending();
 	if (rc)
 		return rc;
-	return shirudo_eventlog_append_to(shirudo_eventlog_path(), json_line);
+	return eventlog_append_to(eventlog_path(), json_line);
 }
 
 /*
@@ -64,13 +64,13 @@ int shirudo_eventlog_append(const char *json_line)
  * of the log failing on it, so a failed append is rolled back under the
  * lock that keeps appenders from interleaving.
  */
-int shirudo_eventlog_append_to(const char *path, const char *json_line)
+int eventlog_append_to(const char *path, const char *json_line)
 {
 	size_t len = strlen(json_line);
 	struct stat st;
 	int fd, rc;
 
-	fd = shirudo_seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	fd = seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0) {
 		pr_err("eventlog: open %s: %s", path, strerror(-fd));
 		return fd;
@@ -86,9 +86,9 @@ int shirudo_eventlog_append_to(const char *path, const char *json_line)
 		goto out;
 	}
 
-	rc = shirudo_write_all(fd, json_line, len);
+	rc = write_all(fd, json_line, len);
 	if (!rc && (len == 0 || json_line[len - 1] != '\n'))
-		rc = shirudo_write_all(fd, "\n", 1);
+		rc = write_all(fd, "\n", 1);
 	if (!rc && fsync(fd) != 0)
 		rc = -errno;
 	if (rc && ftruncate(fd, st.st_size) != 0)
@@ -104,14 +104,14 @@ out:
 	return 0;
 }
 
-int shirudo_eventlog_would_exceed(__u64 max_bytes)
+int eventlog_would_exceed(__u64 max_bytes)
 {
 	struct stat st;
 	__u64 cur = 0;
 
 	if (max_bytes == 0)
 		return 0;	/* unlimited */
-	if (stat(shirudo_eventlog_path(), &st) == 0)
+	if (stat(eventlog_path(), &st) == 0)
 		cur = (__u64)st.st_size;
 	return cur + SHIRUDO_EVENTLOG_LINE_MAX > max_bytes;
 }
@@ -122,13 +122,13 @@ static int read_log(char **out, size_t *out_len)
 	char *base = NULL, *pending = NULL, *buf;
 	int rc, rc_pending;
 
-	rc = shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
-			       &base, &base_len);
+	rc = read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+		       &base, &base_len);
 	if (rc && rc != -ENOENT)
 		return rc;
-	rc_pending = shirudo_read_file(shirudo_eventlog_pending_path(),
-				       SHIRUDO_JSON_MAX_BYTES, &pending,
-				       &pending_len);
+	rc_pending = read_file(eventlog_pending_path(),
+			       SHIRUDO_JSON_MAX_BYTES, &pending,
+			       &pending_len);
 	if (rc_pending && rc_pending != -ENOENT) {
 		xfree(base, base_len + 1);
 		return rc_pending;
@@ -181,7 +181,7 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 	char *line, *save;
 	int rc = 0;
 
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	for (line = strtok_r(buf, "\n", &save); line && !rc;
 	     line = strtok_r(NULL, "\n", &save)) {
 		struct shirudo_json_field f[] = {
@@ -194,7 +194,7 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 
 		line_boot[0] = '\0';
 		type[0] = '\0';
-		if (shirudo_json_parse(line, strlen(line), f, 2)) {
+		if (json_parse(line, strlen(line), f, 2)) {
 			rc = -EINVAL;
 			break;
 		}
@@ -250,8 +250,8 @@ static int log_holds(const char *line, size_t len)
 	size_t blen = 0;
 	int rc;
 
-	rc = shirudo_read_file(shirudo_eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
-			       &buf, &blen);
+	rc = read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+		       &buf, &blen);
 	if (rc == -ENOENT)
 		return 0;
 	if (rc)
@@ -265,12 +265,12 @@ static int log_holds(const char *line, size_t len)
 
 static int adopt_pending(void)
 {
-	const char *pending = shirudo_eventlog_pending_path();
+	const char *pending = eventlog_pending_path();
 	char *buf = NULL, *line, *save;
 	size_t len = 0;
 	int rc;
 
-	rc = shirudo_read_file(pending, SHIRUDO_JSON_MAX_BYTES, &buf, &len);
+	rc = read_file(pending, SHIRUDO_JSON_MAX_BYTES, &buf, &len);
 	if (rc == -ENOENT)
 		return 0;
 	if (rc)
@@ -285,8 +285,8 @@ static int adopt_pending(void)
 			continue;
 		}
 		if (!rc)
-			rc = shirudo_eventlog_append_to(shirudo_eventlog_path(),
-							line);
+			rc = eventlog_append_to(eventlog_path(),
+						line);
 	}
 	xfree(buf, len + 1);
 	if (rc)
@@ -296,7 +296,7 @@ static int adopt_pending(void)
 	return 0;
 }
 
-int shirudo_eventlog_adopt_pending(void)
+int eventlog_adopt_pending(void)
 {
 	return adopt_pending();
 }
@@ -311,8 +311,8 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 	__u8 digest[32], cat[64];
 	__u8 *chain = ctx;
 
-	if (shirudo_json_parse(line, len, f, 1) || !f[0].seen ||
-	    shirudo_hex_decode(digest_hex, digest, sizeof(digest)))
+	if (json_parse(line, len, f, 1) || !f[0].seen ||
+	    hex_decode(digest_hex, digest, sizeof(digest)))
 		return -EINVAL;
 	if (is_init)
 		memset(chain, 0, 32);
@@ -322,7 +322,7 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 	return 0;
 }
 
-int shirudo_eventlog_replay(__u8 out[32])
+int eventlog_replay(__u8 out[32])
 {
 	__u8 chain[32] = {};
 	int rc;
@@ -359,14 +359,14 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	if (!is_init)
 		return 0;
 	bound_in[0] = '\0';
-	if (shirudo_json_parse(line, len, f, 7) || !f[0].seen || !f[1].seen ||
+	if (json_parse(line, len, f, 7) || !f[0].seen || !f[1].seen ||
 	    !f[2].seen || !f[3].seen || !f[5].seen || pcr < 0 || pcr >= 24 ||
 	    (f[4].seen && (reset_count < 0 || reset_count > UINT32_MAX)) ||
 	    strlen(name) != 2 * SHIRUDO_TPM_NAME_LEN ||
-	    shirudo_hex_decode(pcr_before, out->pcr_before, 32) ||
-	    shirudo_hex_decode(phase_before, out->phase_before, 32) ||
-	    shirudo_hex_decode(name, out->name, SHIRUDO_TPM_NAME_LEN) ||
-	    shirudo_hex_decode(anchor, out->anchor_digest, 32))
+	    hex_decode(pcr_before, out->pcr_before, 32) ||
+	    hex_decode(phase_before, out->phase_before, 32) ||
+	    hex_decode(name, out->name, SHIRUDO_TPM_NAME_LEN) ||
+	    hex_decode(anchor, out->anchor_digest, 32))
 		return -EINVAL;
 	out->initrd = f[6].seen && !strcmp(bound_in, "initrd");
 	/*
@@ -389,7 +389,7 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	return 0;
 }
 
-int shirudo_eventlog_boot_init(struct shirudo_eventlog_init *out)
+int eventlog_boot_init(struct shirudo_eventlog_init *out)
 {
 	memset(out, 0, sizeof(*out));
 	return walk_boot(init_line, out);
@@ -407,20 +407,20 @@ static int lines_line(const char *line, size_t len, bool is_init, void *ctx)
 	return l->cb(line, len, l->ctx);
 }
 
-int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
-					  void *ctx), void *ctx)
+int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
+				  void *ctx), void *ctx)
 {
 	struct lines_ctx l = { cb, ctx };
 
 	return walk_boot(lines_line, &l);
 }
 
-void shirudo_eventlog_timestamp(char *out, size_t cap)
+void eventlog_timestamp(char *out, size_t cap)
 {
-	shirudo_iso8601(time(NULL), out, cap);
+	iso8601(time(NULL), out, cap);
 }
 
-void shirudo_eventlog_boot_id(char *out, size_t cap)
+void eventlog_boot_id(char *out, size_t cap)
 {
 	ssize_t n;
 	int fd;

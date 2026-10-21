@@ -9,7 +9,7 @@
 
 #include "similar.h"
 
-static int shirudo_edit_distance(const char *s, const char *t, int max)
+static int edit_distance(const char *s, const char *t, int max)
 {
 	int prev[SHIRUDO_SIMILAR_MAX_LEN + 1];
 	int curr[SHIRUDO_SIMILAR_MAX_LEN + 1];
@@ -64,10 +64,10 @@ static int shirudo_edit_distance(const char *s, const char *t, int max)
 	return prev[n];
 }
 
-size_t shirudo_suggest(const char *name,
-		       const char *const *commands, size_t n_commands,
-		       int max_dist,
-		       struct shirudo_suggestion *out, size_t cap)
+size_t suggest(const char *name,
+	       const char *const *commands, size_t n_commands,
+	       int max_dist,
+	       struct shirudo_suggestion *out, size_t cap)
 {
 	size_t n_out = 0;
 	size_t i;
@@ -76,7 +76,7 @@ size_t shirudo_suggest(const char *name,
 		return 0;
 
 	for (i = 0; i < n_commands; i++) {
-		int d = shirudo_edit_distance(name, commands[i], max_dist);
+		int d = edit_distance(name, commands[i], max_dist);
 		size_t pos;
 
 		if (d > max_dist)
@@ -102,9 +102,9 @@ size_t shirudo_suggest(const char *name,
 	return n_out;
 }
 
-size_t shirudo_resolve(const char *input,
-		       const char *const *candidates, size_t n,
-		       size_t *matches, size_t cap)
+size_t resolve(const char *input,
+	       const char *const *candidates, size_t n,
+	       size_t *matches, size_t cap)
 {
 	size_t i, m = 0, len = strlen(input);
 

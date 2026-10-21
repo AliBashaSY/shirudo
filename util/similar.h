@@ -22,18 +22,18 @@ struct shirudo_suggestion {
 	int		dist;
 };
 
-size_t shirudo_suggest(const char *name,
-		       const char *const *commands, size_t n_commands,
-		       int max_dist,
-		       struct shirudo_suggestion *out, size_t cap);
+size_t suggest(const char *name,
+	       const char *const *commands, size_t n_commands,
+	       int max_dist,
+	       struct shirudo_suggestion *out, size_t cap);
 
 /*
  * Three tiers, the first that hits wins: exact, input a prefix of a
  * candidate, candidate a prefix of input. The count tells unique from
  * none from ambiguous.
  */
-size_t shirudo_resolve(const char *input,
-		       const char *const *candidates, size_t n,
-		       size_t *matches, size_t cap);
+size_t resolve(const char *input,
+	       const char *const *candidates, size_t n,
+	       size_t *matches, size_t cap);
 
 #endif /* SHIRUDO_SIMILAR_H */

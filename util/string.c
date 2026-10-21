@@ -11,7 +11,7 @@
 
 #include <shirudo/string.h>
 
-size_t shirudo_digits(const char *s, size_t len)
+size_t digits(const char *s, size_t len)
 {
 	size_t n = 0;
 

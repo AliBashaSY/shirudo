@@ -31,33 +31,33 @@ static int append_init(const char *path, const char *bound_in,
 	char name_hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
 	__u8 zero[SHIRUDO_TPM_NAME_LEN] = {};
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_hex_encode(zero, 32, hex);
-	shirudo_hex_encode(zero, SHIRUDO_TPM_NAME_LEN, name_hex);
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_json_kv_string(&e, "digest", hex);
-	shirudo_json_kv_string(&e, "type", "init");
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_kv_int(&e, "tpm_reset_count", reset_count);
-	shirudo_json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
-	shirudo_json_kv_string(&e, "pcr_before", hex);
-	shirudo_json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
-	shirudo_json_kv_string(&e, "phase_before", hex);
-	shirudo_json_kv_string(&e, "bound_in", bound_in);
-	shirudo_json_kv_string(&e, "nv_name", name_hex);
-	shirudo_json_kv_string(&e, "anchor", "shirudo-anchor:test");
-	shirudo_json_kv_string(&e, "anchor_digest", hex);
-	shirudo_json_kv_string(&e, "chain", hex);
-	shirudo_json_obj_close(&e);
+	hex_encode(zero, 32, hex);
+	hex_encode(zero, SHIRUDO_TPM_NAME_LEN, name_hex);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	json_kv_string(&e, "digest", hex);
+	json_kv_string(&e, "type", "init");
+	json_kv_string(&e, "boot_id", boot_id);
+	json_kv_int(&e, "tpm_reset_count", reset_count);
+	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_kv_string(&e, "pcr_before", hex);
+	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	json_kv_string(&e, "phase_before", hex);
+	json_kv_string(&e, "bound_in", bound_in);
+	json_kv_string(&e, "nv_name", name_hex);
+	json_kv_string(&e, "anchor", "shirudo-anchor:test");
+	json_kv_string(&e, "anchor_digest", hex);
+	json_kv_string(&e, "chain", hex);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	return shirudo_eventlog_append_to(path, buf);
+	return eventlog_append_to(path, buf);
 }
 
 static int count_lines(const char *line, size_t len, void *ctx)
@@ -79,8 +79,8 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "init") == 0 && (argc == 4 || argc == 5)) {
 		const char *path = strcmp(argv[2], "pending") == 0 ?
-				   shirudo_eventlog_pending_path() :
-				   shirudo_eventlog_path();
+				   eventlog_pending_path() :
+				   eventlog_path();
 		__u32 reset = 1;
 		int rc;
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "boot-init") == 0) {
 		struct shirudo_eventlog_init rec;
-		int rc = shirudo_eventlog_boot_init(&rec);
+		int rc = eventlog_boot_init(&rec);
 
 		printf("rc=%d\n", rc);
 		if (rc)
@@ -105,16 +105,16 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "lines") == 0) {
 		__u32 n = 0;
-		int rc = shirudo_eventlog_boot_lines(count_lines, &n);
+		int rc = eventlog_boot_lines(count_lines, &n);
 
 		printf("rc=%d\nlines=%u\n", rc, n);
 		return rc ? 1 : 0;
 	}
 	if (strcmp(argv[1], "adopt") == 0) {
-		int rc = shirudo_eventlog_adopt_pending();
+		int rc = eventlog_adopt_pending();
 
 		printf("rc=%d\npending=%s\n", rc,
-		       access(shirudo_eventlog_pending_path(), F_OK) == 0 ?
+		       access(eventlog_pending_path(), F_OK) == 0 ?
 		       "present" : "absent");
 		return rc ? 1 : 0;
 	}

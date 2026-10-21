@@ -69,7 +69,7 @@ static int worker(__u64 deadline, int fd)
 			completed++;
 	}
 
-	if (shirudo_write_all(fd, &completed, sizeof(completed)))
+	if (write_all(fd, &completed, sizeof(completed)))
 		return 1;
 	return 0;
 }

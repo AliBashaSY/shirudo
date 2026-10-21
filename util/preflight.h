@@ -44,6 +44,6 @@ struct shirudo_preflight_result {
  * or a classical certificate. Nothing is printed; the caller presents
  * the outcome.
  */
-void shirudo_preflight_run(struct shirudo_preflight_result *out);
+void preflight_run(struct shirudo_preflight_result *out);
 
 #endif /* SHIRUDO_PREFLIGHT_H */

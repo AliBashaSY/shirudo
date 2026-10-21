@@ -8,12 +8,12 @@
 
 #include <stddef.h>
 
-int shirudo_bpm_parse_source_line(char *line,
-				  char *endpoint, size_t endpoint_sz,
-				  char *key_file, size_t key_file_sz);
+int bpm_parse_source_line(char *line,
+			  char *endpoint, size_t endpoint_sz,
+			  char *key_file, size_t key_file_sz);
 /* A line of upatch-tree.conf: endpoint and reference, either quoted. */
-int shirudo_bpm_parse_tree_line(char *line,
-				char *endpoint, size_t endpoint_sz,
-				char *reference, size_t reference_sz);
+int bpm_parse_tree_line(char *line,
+			char *endpoint, size_t endpoint_sz,
+			char *reference, size_t reference_sz);
 
 #endif /* SHIRUDO_BPM_SOURCE_CONFIG_H */

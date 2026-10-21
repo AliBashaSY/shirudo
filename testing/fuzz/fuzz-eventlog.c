@@ -25,7 +25,7 @@ static int on_line(const char *line, size_t len, void *ctx)
 
 int LLVMFuzzerInitialize(int *argc, char ***argv)
 {
-	shirudo_eventlog_boot_id(boot, sizeof(boot));
+	eventlog_boot_id(boot, sizeof(boot));
 	if (strlen(boot) != sizeof(seed_boot) - 1)
 		abort();
 	setenv("SHIRUDO_EVENTLOG_PENDING_PATH", "/nonexistent/eventlog", 1);
@@ -57,9 +57,9 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (fd < 0)
 		return 0;
 	setenv("SHIRUDO_EVENTLOG_PATH", path, 1);
-	shirudo_eventlog_replay(root);
-	shirudo_eventlog_boot_init(&init);
-	shirudo_eventlog_boot_lines(on_line, &seen);
+	eventlog_replay(root);
+	eventlog_boot_init(&init);
+	eventlog_boot_lines(on_line, &seen);
 	close(fd);
 	return 0;
 }

@@ -22,6 +22,6 @@ struct shirudo_kmsg_record {
  * Records the ring buffer has dropped are skipped: EPIPE restarts the
  * read.
  */
-int shirudo_kmsg_tail(struct shirudo_kmsg_record *out, size_t cap);
+int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap);
 
 #endif /* SHIRUDO_UTIL_KMSG_H */

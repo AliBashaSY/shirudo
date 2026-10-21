@@ -171,7 +171,7 @@ static int tp_int(struct tree_parser *p, __s64 *out)
 	tp_ws(p);
 	len = (size_t)(p->end - p->p);
 	neg = len && *p->p == '-';
-	n = neg + shirudo_digits(p->p + neg, len - neg);
+	n = neg + digits(p->p + neg, len - neg);
 	if (parse_s64(p->p, n, INT64_MIN, INT64_MAX, out))
 		return -EINVAL;
 	p->p += n;
@@ -380,7 +380,7 @@ static int tp_operation(struct tree_parser *p, struct shirudo_tree_operation *o)
 	}
 }
 
-void shirudo_tree_publication_free(struct shirudo_tree_publication *pub)
+void tree_publication_free(struct shirudo_tree_publication *pub)
 {
 	if (!pub)
 		return;
@@ -411,8 +411,8 @@ static int tree_operations_reserve(struct shirudo_tree_publication *pub)
 	return 0;
 }
 
-int shirudo_tree_publication_append(struct shirudo_tree_publication *pub,
-				    const struct shirudo_tree_operation *op)
+int tree_publication_append(struct shirudo_tree_publication *pub,
+			    const struct shirudo_tree_operation *op)
 {
 	int rc;
 
@@ -451,8 +451,8 @@ static int tp_seq_object(struct tree_parser *p, char *key, size_t cap,
 	}
 }
 
-int shirudo_tree_parse(const char *body, size_t len,
-		       struct shirudo_tree_publication *out)
+int tree_parse(const char *body, size_t len,
+	       struct shirudo_tree_publication *out)
 {
 	struct tree_parser p;
 	char key[SHIRUDO_TREE_STRING_MAX];
@@ -584,7 +584,7 @@ int shirudo_tree_parse(const char *body, size_t len,
 	}
 	return 0;
 fail:
-	shirudo_tree_publication_free(out);
+	tree_publication_free(out);
 	return rc;
 }
 
@@ -620,58 +620,58 @@ static int tree_emit_selector(struct shirudo_json_emit *e,
 	qsort(labels, (size_t)s->n_labels, sizeof(labels[0]),
 	      tree_selector_kv_compare);
 
-	shirudo_json_obj_open_key(e, "selector");
+	json_obj_open_key(e, "selector");
 	if (s->n_architecture) {
-		shirudo_json_arr_open(e, "architecture");
+		json_arr_open(e, "architecture");
 		for (int i = 0; i < s->n_architecture; i++)
-			shirudo_json_str(e, s->architecture[i]);
-		shirudo_json_arr_close(e);
+			json_str(e, s->architecture[i]);
+		json_arr_close(e);
 	}
 	if (s->n_kconfig) {
-		shirudo_json_obj_open_key(e, "kconfig");
+		json_obj_open_key(e, "kconfig");
 		for (int i = 0; i < s->n_kconfig; i++) {
-			shirudo_json_arr_open(e, kconfig[i]->key);
+			json_arr_open(e, kconfig[i]->key);
 			for (int j = 0; j < kconfig[i]->n_values; j++)
-				shirudo_json_str(e, kconfig[i]->values[j]);
-			shirudo_json_arr_close(e);
+				json_str(e, kconfig[i]->values[j]);
+			json_arr_close(e);
 		}
-		shirudo_json_obj_close(e);
+		json_obj_close(e);
 	}
 	if (s->n_kernel_build_id) {
-		shirudo_json_arr_open(e, "kernel_build_id");
+		json_arr_open(e, "kernel_build_id");
 		for (int i = 0; i < s->n_kernel_build_id; i++)
-			shirudo_json_str(e, s->kernel_build_id[i]);
-		shirudo_json_arr_close(e);
+			json_str(e, s->kernel_build_id[i]);
+		json_arr_close(e);
 	}
 	if (s->n_kernel_release_prefix) {
-		shirudo_json_arr_open(e, "kernel_release_prefix");
+		json_arr_open(e, "kernel_release_prefix");
 		for (int i = 0; i < s->n_kernel_release_prefix; i++)
-			shirudo_json_str(e, s->kernel_release_prefix[i]);
-		shirudo_json_arr_close(e);
+			json_str(e, s->kernel_release_prefix[i]);
+		json_arr_close(e);
 	}
 	if (s->n_labels) {
-		shirudo_json_obj_open_key(e, "labels");
+		json_obj_open_key(e, "labels");
 		for (int i = 0; i < s->n_labels; i++) {
-			shirudo_json_arr_open(e, labels[i]->key);
+			json_arr_open(e, labels[i]->key);
 			for (int j = 0; j < labels[i]->n_values; j++)
-				shirudo_json_str(e, labels[i]->values[j]);
-			shirudo_json_arr_close(e);
+				json_str(e, labels[i]->values[j]);
+			json_arr_close(e);
 		}
-		shirudo_json_obj_close(e);
+		json_obj_close(e);
 	}
-	shirudo_json_obj_close(e);
+	json_obj_close(e);
 	return 0;
 }
 
 static void tree_emit_artifact(struct shirudo_json_emit *e,
 			       const struct shirudo_tree_artifact *a)
 {
-	shirudo_json_obj_open_key(e, "artifact");
-	shirudo_json_kv_string(e, "repository", a->repository);
-	shirudo_json_kv_string(e, "manifest_digest", a->manifest_digest);
-	shirudo_json_kv_string(e, "layer_digest", a->layer_digest);
-	shirudo_json_kv_string(e, "payload_sha256", a->payload_sha256);
-	shirudo_json_obj_close(e);
+	json_obj_open_key(e, "artifact");
+	json_kv_string(e, "repository", a->repository);
+	json_kv_string(e, "manifest_digest", a->manifest_digest);
+	json_kv_string(e, "layer_digest", a->layer_digest);
+	json_kv_string(e, "payload_sha256", a->payload_sha256);
+	json_obj_close(e);
 }
 
 static int tree_emit_operation(struct shirudo_json_emit *e,
@@ -680,17 +680,17 @@ static int tree_emit_operation(struct shirudo_json_emit *e,
 {
 	int rc;
 
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_int(e, "seq", op->seq);
-	shirudo_json_kv_string(e, "op", op->op);
-	shirudo_json_kv_string(e, "id", op->id);
+	json_obj_open(e);
+	json_kv_int(e, "seq", op->seq);
+	json_kv_string(e, "op", op->op);
+	json_kv_string(e, "id", op->id);
 	rc = tree_emit_selector(e, &op->selector);
 	if (rc)
 		return rc;
 	tree_emit_artifact(e, &op->artifact);
 	if (with_digest)
-		shirudo_json_kv_string(e, "operation_digest", op->operation_digest);
-	shirudo_json_obj_close(e);
+		json_kv_string(e, "operation_digest", op->operation_digest);
+	json_obj_close(e);
 	return e->err;
 }
 
@@ -698,8 +698,8 @@ static int tree_emit_operation(struct shirudo_json_emit *e,
  * The operation digest covers the canonical operation without the digest
  * field itself: seq, op, id, selector and artifact.
  */
-int shirudo_tree_operation_digest(const struct shirudo_tree_operation *op,
-				  char out[72])
+int tree_operation_digest(const struct shirudo_tree_operation *op,
+			  char out[72])
 {
 	size_t body_cap = 1024u * 1024u;
 	struct shirudo_json_emit e;
@@ -712,10 +712,10 @@ int shirudo_tree_operation_digest(const struct shirudo_tree_operation *op,
 		return -ENOMEM;
 	e = (struct shirudo_json_emit){ .buf = body, .cap = body_cap };
 	rc = tree_emit_operation(&e, op, false);
-	if (!rc && shirudo_sha256_buffer(body, e.len, digest))
+	if (!rc && sha256_buffer(body, e.len, digest))
 		rc = -EIO;
 	if (!rc) {
-		shirudo_hex_encode(digest, sizeof(digest), hex);
+		hex_encode(digest, sizeof(digest), hex);
 		memcpy(out, "sha256:", 7);
 		memcpy(out + 7, hex, sizeof(hex));
 	}
@@ -766,8 +766,8 @@ static size_t tree_operation_bound(const struct shirudo_tree_operation *op)
  * schema, tree_id, generation, parent_manifest_digest (when any), base,
  * operations, head.
  */
-int shirudo_tree_emit_publication(const struct shirudo_tree_publication *pub,
-				  char **out, size_t *out_len)
+int tree_emit_publication(const struct shirudo_tree_publication *pub,
+			  char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e;
 	size_t cap = 4096;
@@ -780,24 +780,24 @@ int shirudo_tree_emit_publication(const struct shirudo_tree_publication *pub,
 	if (!body)
 		return -ENOMEM;
 	e = (struct shirudo_json_emit){ .buf = body, .cap = cap };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", pub->schema);
-	shirudo_json_kv_string(&e, "tree_id", pub->tree_id);
-	shirudo_json_kv_int(&e, "generation", pub->generation);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", pub->schema);
+	json_kv_string(&e, "tree_id", pub->tree_id);
+	json_kv_int(&e, "generation", pub->generation);
 	if (pub->parent_manifest_digest[0])
-		shirudo_json_kv_string(&e, "parent_manifest_digest",
-				       pub->parent_manifest_digest);
-	shirudo_json_obj_open_key(&e, "base");
-	shirudo_json_kv_int(&e, "seq", pub->base_seq);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "operations");
+		json_kv_string(&e, "parent_manifest_digest",
+			       pub->parent_manifest_digest);
+	json_obj_open_key(&e, "base");
+	json_kv_int(&e, "seq", pub->base_seq);
+	json_obj_close(&e);
+	json_arr_open(&e, "operations");
 	for (int i = 0; !rc && i < pub->n_operations; i++)
 		rc = tree_emit_operation(&e, &pub->operations[i], true);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_open_key(&e, "head");
-	shirudo_json_kv_int(&e, "seq", pub->head_seq);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_open_key(&e, "head");
+	json_kv_int(&e, "seq", pub->head_seq);
+	json_obj_close(&e);
+	json_obj_close(&e);
 	if (!rc)
 		rc = e.err;
 	if (rc) {

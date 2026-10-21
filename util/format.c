@@ -11,7 +11,7 @@
 
 #include "format.h"
 
-void shirudo_human_size(__u64 bytes, char *out, size_t out_cap)
+void human_size(__u64 bytes, char *out, size_t out_cap)
 {
 	double v = (double)bytes;
 	const char *suf = "B";

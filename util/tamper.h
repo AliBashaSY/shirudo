@@ -16,14 +16,14 @@ struct shirudo_tamper_counts {
 	__u64		total;
 };
 
-const char *shirudo_tamper_name(enum shirudo_tamper_point point);
-const char *shirudo_tamper_meaning(enum shirudo_tamper_point point);
+const char *tamper_name(enum shirudo_tamper_point point);
+const char *tamper_meaning(enum shirudo_tamper_point point);
 
 /*
  * The counters the LSM has kept this boot. -ENOENT when init has not
  * run, -EPROTO when the pinned map is not the shape this binary knows,
  * another -errno when the pin cannot be read.
  */
-int shirudo_tamper_read(struct shirudo_tamper_counts *out);
+int tamper_read(struct shirudo_tamper_counts *out);
 
 #endif /* SHIRUDO_UTIL_TAMPER_H */

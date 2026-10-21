@@ -10,7 +10,7 @@
 
 #include "timefmt.h"
 
-void shirudo_format_duration(long seconds, char *buf, size_t cap)
+void format_duration(long seconds, char *buf, size_t cap)
 {
 	if (seconds < 0)
 		snprintf(buf, cap, "?");
@@ -24,7 +24,7 @@ void shirudo_format_duration(long seconds, char *buf, size_t cap)
 		snprintf(buf, cap, "%ldd", seconds / 86400);
 }
 
-int shirudo_iso8601(time_t t, char *out, size_t cap)
+int iso8601(time_t t, char *out, size_t cap)
 {
 	struct tm tm;
 

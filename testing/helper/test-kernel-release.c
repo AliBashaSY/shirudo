@@ -28,8 +28,8 @@ int main(void)
 	for (size_t i = 0; i < ARRAY_SIZE(cases); i++) {
 		int matches;
 
-		matches = shirudo_kernel_release_prefix_matches(cases[i].release,
-								cases[i].prefix);
+		matches = kernel_release_prefix_matches(cases[i].release,
+							cases[i].prefix);
 
 		if (matches != cases[i].matches) {
 			fprintf(stderr, "case %zu: unexpected match result %d\n",

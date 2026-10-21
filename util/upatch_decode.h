@@ -19,30 +19,30 @@ struct shirudo_map_view;
  * xmalloc'd; -ENOENT without a usable decoder, which an export treats
  * as failing the map.
  */
-int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len);
+int upatch_decode_map_json(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len);
 
 /* Variant for consumers such as S3 archival with a larger output budget. */
-int shirudo_upatch_decode_map_json_limit(const struct shirudo_map_view *v,
-					 size_t max_bytes,
-					 char **out, size_t *out_len);
+int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+				 size_t max_bytes,
+				 char **out, size_t *out_len);
 
-int shirudo_upatch_decode_map_otel(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len);
+int upatch_decode_map_otel(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len);
 
 /* Explicit-artifact variants used by offline consumers and tests. */
-int shirudo_upatch_decode_map_file_json(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len);
-int shirudo_upatch_decode_map_file_json_limit(const char *path,
-					      const struct shirudo_map_view *v,
-					      size_t max_bytes, char **out,
-					      size_t *out_len);
-int shirudo_upatch_decode_map_file_otel(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len);
+int upatch_decode_map_file_json(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len);
+int upatch_decode_map_file_json_limit(const char *path,
+				      const struct shirudo_map_view *v,
+				      size_t max_bytes, char **out,
+				      size_t *out_len);
+int upatch_decode_map_file_otel(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len);
 
-int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				     __u32 *signal_out);
+int upatch_decode_map_signal(const struct shirudo_map_view *v,
+			     __u32 *signal_out);
 
 #endif /* SHIRUDO_UTIL_UPATCH_DECODE_H */

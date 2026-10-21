@@ -11,7 +11,7 @@
 
 #define SHIRUDO_TENANT_ID_MAX	128
 
-static inline bool shirudo_tenant_id_valid(const char *id)
+static inline bool tenant_id_valid(const char *id)
 {
 	size_t i;
 

@@ -49,9 +49,9 @@ struct shirudo_config {
 };
 
 /* A missing file is not an error. */
-int shirudo_config_load(struct shirudo_config *cfg);
+int config_load(struct shirudo_config *cfg);
 
-/* Testable path-specific loader; unlike shirudo_config_load(), no env. */
-int shirudo_config_load_path(struct shirudo_config *cfg, const char *path);
+/* Testable path-specific loader; unlike config_load(), no env. */
+int config_load_path(struct shirudo_config *cfg, const char *path);
 
 #endif /* SHIRUDO_CONFIG_H */

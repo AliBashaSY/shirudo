@@ -63,16 +63,16 @@ static inline size_t tpm_put2b(__u8 *p, const __u8 *data, size_t len)
 #define SHIRUDO_TPM_REGISTER_ATTRS	0x0E060048u
 #define SHIRUDO_TPM_NV_WRITTEN		0x20000000u
 
-void shirudo_tpm_policy_nv_written(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
-				   bool written,
-				   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-void shirudo_tpm_policy_pcr(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
-			    __u32 pcr_mask,
-			    const __u8 pcr_digest[SHIRUDO_TPM_DIGEST_LEN],
-			    __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-void shirudo_tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
-			   const __u8 b[SHIRUDO_TPM_DIGEST_LEN],
+void tpm_policy_nv_written(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+			   bool written,
 			   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+void tpm_policy_pcr(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+		    __u32 pcr_mask,
+		    const __u8 pcr_digest[SHIRUDO_TPM_DIGEST_LEN],
+		    __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+void tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
+		   const __u8 b[SHIRUDO_TPM_DIGEST_LEN],
+		   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
 
 /*
  * The register's write policy from the values the binding PCRs held
@@ -80,29 +80,29 @@ void shirudo_tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
  * PolicyNvWritten(NO) + PolicyPCR(mask, SHA-256(values))). The two
  * branch digests are what a session has to present to PolicyOR.
  */
-void shirudo_tpm_register_policy(__u32 pcr_mask,
-				 const __u8 *pcr_values, size_t n_values,
-				 __u8 branch_written[32],
-				 __u8 branch_init[32],
-				 __u8 policy[32]);
+void tpm_register_policy(__u32 pcr_mask,
+			 const __u8 *pcr_values, size_t n_values,
+			 __u8 branch_written[32],
+			 __u8 branch_init[32],
+			 __u8 policy[32]);
 
 /* Name of an NV index: nameAlg || SHA-256(TPMS_NV_PUBLIC). */
-void shirudo_tpm_nv_name(__u32 index, __u32 attrs,
-			 const __u8 policy[SHIRUDO_TPM_DIGEST_LEN],
-			 __u16 data_size,
-			 __u8 name[SHIRUDO_TPM_NAME_LEN]);
+void tpm_nv_name(__u32 index, __u32 attrs,
+		 const __u8 policy[SHIRUDO_TPM_DIGEST_LEN],
+		 __u16 data_size,
+		 __u8 name[SHIRUDO_TPM_NAME_LEN]);
 
-int shirudo_tpm_object_name(const __u8 *public, size_t len,
-			    __u8 name[SHIRUDO_TPM_NAME_LEN]);
+int tpm_object_name(const __u8 *public, size_t len,
+		    __u8 name[SHIRUDO_TPM_NAME_LEN]);
 
 /*
  * Qualified name of a primary object: nameAlg || SHA-256(hierarchy
  * handle || name). Attestations carry the signer's qualified name.
  */
 #define SHIRUDO_TPM_RH_ENDORSEMENT	0x4000000Bu
-void shirudo_tpm_qualified_name(__u32 hierarchy,
-				const __u8 name[SHIRUDO_TPM_NAME_LEN],
-				__u8 out[SHIRUDO_TPM_NAME_LEN]);
+void tpm_qualified_name(__u32 hierarchy,
+			const __u8 name[SHIRUDO_TPM_NAME_LEN],
+			__u8 out[SHIRUDO_TPM_NAME_LEN]);
 
 /*
  * The TCG default endorsement key templates: a restricted decryption
@@ -137,10 +137,10 @@ struct shirudo_tpm_public {
 	__u8		n[256];
 };
 
-int shirudo_tpm_public_parse(const __u8 *buf, size_t len,
-			     struct shirudo_tpm_public *out);
-int shirudo_tpm_public_marshal(const struct shirudo_tpm_public *pub,
-			       __u8 *out, size_t cap, size_t *len);
+int tpm_public_parse(const __u8 *buf, size_t len,
+		     struct shirudo_tpm_public *out);
+int tpm_public_marshal(const struct shirudo_tpm_public *pub,
+		       __u8 *out, size_t cap, size_t *len);
 
 struct shirudo_tpm_ecc_public {
 	__u32		attrs;
@@ -151,21 +151,21 @@ struct shirudo_tpm_ecc_public {
 	__u8		y[32];
 };
 
-int shirudo_tpm_ecc_public_parse(const __u8 *buf, size_t len,
-				 struct shirudo_tpm_ecc_public *out);
+int tpm_ecc_public_parse(const __u8 *buf, size_t len,
+			 struct shirudo_tpm_ecc_public *out);
 
 /*
  * The key derivations of TPM 2.0 Part 1 with SHA-256: KDFa (SP800-108
  * in counter mode) and KDFe (SP800-56A one-step). Labels are given
  * without their terminating NUL, which the derivation adds.
  */
-int shirudo_tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
-		     const __u8 *ctx_u, size_t u_len,
-		     const __u8 *ctx_v, size_t v_len,
-		     __u8 *out, size_t out_len);
-void shirudo_tpm_kdfe(const __u8 z[32], const char *label,
-		      const __u8 *party_u, size_t u_len,
-		      const __u8 *party_v, size_t v_len, __u8 out[32]);
+int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
+	     const __u8 *ctx_u, size_t u_len,
+	     const __u8 *ctx_v, size_t v_len,
+	     __u8 *out, size_t out_len);
+void tpm_kdfe(const __u8 z[32], const char *label,
+	      const __u8 *party_u, size_t u_len,
+	      const __u8 *party_v, size_t v_len, __u8 out[32]);
 
 /*
  * Credential protection (Part 1, 24.4): from a seed shared with the
@@ -176,13 +176,13 @@ void shirudo_tpm_kdfe(const __u8 z[32], const char *label,
  */
 #define SHIRUDO_TPM_CREDENTIAL_LEN	32
 #define SHIRUDO_TPM_ID_OBJECT_LEN	(2 + 32 + 2 + SHIRUDO_TPM_CREDENTIAL_LEN)
-int shirudo_tpm_credential_protect(const __u8 seed[32],
-				   const __u8 name[SHIRUDO_TPM_NAME_LEN],
-				   const __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
-				   __u8 out[SHIRUDO_TPM_ID_OBJECT_LEN]);
+int tpm_credential_protect(const __u8 seed[32],
+			   const __u8 name[SHIRUDO_TPM_NAME_LEN],
+			   const __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+			   __u8 out[SHIRUDO_TPM_ID_OBJECT_LEN]);
 
-int shirudo_tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
-				      __u8 r[32], __u8 s[32]);
+int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
+			      __u8 r[32], __u8 s[32]);
 
 struct shirudo_tpm_attest {
 	__u16		type;
@@ -211,7 +211,7 @@ struct shirudo_tpm_attest {
  * single SHA-256 PCR bank is accepted in a quote. Pointers into the
  * input stay valid as long as buf does.
  */
-int shirudo_tpm_attest_parse(const __u8 *buf, size_t len,
-			     struct shirudo_tpm_attest *out);
+int tpm_attest_parse(const __u8 *buf, size_t len,
+		     struct shirudo_tpm_attest *out);
 
 #endif /* SHIRUDO_TPM_WIRE_H */

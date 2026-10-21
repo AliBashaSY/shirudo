@@ -17,7 +17,7 @@
 #include "malloc.h"
 #include "paths.h"
 
-int shirudo_write_all(int fd, const void *buf, size_t len)
+int write_all(int fd, const void *buf, size_t len)
 {
 	const __u8 *p = buf;
 
@@ -37,7 +37,7 @@ int shirudo_write_all(int fd, const void *buf, size_t len)
 	return 0;
 }
 
-int shirudo_read_file(const char *path, size_t max, void *out, size_t *len)
+int read_file(const char *path, size_t max, void *out, size_t *len)
 {
 	struct stat st;
 	char *buf, *p;
@@ -55,7 +55,7 @@ int shirudo_read_file(const char *path, size_t max, void *out, size_t *len)
 		rc = -EINVAL;
 		goto out;
 	}
-	rc = shirudo_check_trusted(fd, path, false);
+	rc = check_trusted(fd, path, false);
 	if (rc)
 		goto out;
 	if ((uintmax_t)st.st_size > max) {
@@ -100,7 +100,7 @@ static bool trusted_owner(uid_t uid)
 	return uid == 0 || uid == geteuid();
 }
 
-int shirudo_check_trusted(int fd, const char *path, bool secret)
+int check_trusted(int fd, const char *path, bool secret)
 {
 	char real[PATH_MAX], *slash;
 	struct stat st;

@@ -29,18 +29,18 @@ struct shirudo_sysinfo {
 };
 
 /* Fill *si; missing values become "" (strings) or -1 (numbers). */
-void shirudo_sysinfo_gather(struct shirudo_sysinfo *si);
+void sysinfo_gather(struct shirudo_sysinfo *si);
 
 struct shirudo_json_emit;
 
 typedef void (*shirudo_kernel_config_cb)(void *ctx, const char *key,
 					 const char *value);
 
-int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
-					  shirudo_kernel_config_cb cb,
-					  void *ctx);
+int sysinfo_kernel_config_foreach(const char *kernel_release,
+				  shirudo_kernel_config_cb cb,
+				  void *ctx);
 
-void shirudo_sysinfo_emit_json(struct shirudo_json_emit *e,
-			       const struct shirudo_sysinfo *si);
+void sysinfo_emit_json(struct shirudo_json_emit *e,
+		       const struct shirudo_sysinfo *si);
 
 #endif /* SHIRUDO_SYSINFO_H */

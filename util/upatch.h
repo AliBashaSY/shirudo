@@ -27,7 +27,7 @@ struct shirudo_upatch {
 	__u32				nr_decoders;
 };
 
-struct shirudo_upatch_decoder_view {
+struct upatch_decoder_view {
 	__u32		language;
 	__u32		api_version;
 	__u32		input_format;
@@ -44,34 +44,34 @@ struct shirudo_upatch_decoder_view {
  * Returns 0 on success, -errno on failure. Logs nothing -- caller
  * decides whether to emit user-facing diagnostics.
  */
-int  shirudo_upatch_open(const char *path, struct shirudo_upatch *out);
-void shirudo_upatch_close(struct shirudo_upatch *u);
+int  upatch_open(const char *path, struct shirudo_upatch *out);
+void upatch_close(struct shirudo_upatch *u);
 
 /*
  * Section accessors. Pointers reference the mmap; valid only until
- * shirudo_upatch_close().
+ * upatch_close().
  */
-const void *shirudo_upatch_loader(const struct shirudo_upatch *u);
-const void *shirudo_upatch_signature(const struct shirudo_upatch *u);
-const void *shirudo_upatch_metadata(const struct shirudo_upatch *u);
-const void *shirudo_upatch_data(const struct shirudo_upatch *u);
+const void *upatch_loader(const struct shirudo_upatch *u);
+const void *upatch_signature(const struct shirudo_upatch *u);
+const void *upatch_metadata(const struct shirudo_upatch *u);
+const void *upatch_data(const struct shirudo_upatch *u);
 
-bool shirudo_upatch_is_unload(const struct shirudo_upatch *u);
-const char *shirudo_upatch_type_str(const struct shirudo_upatch *u);
+bool upatch_is_unload(const struct shirudo_upatch *u);
+const char *upatch_type_str(const struct shirudo_upatch *u);
 
-bool shirudo_upatch_has_decoders(const struct shirudo_upatch *u);
-int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
-				struct shirudo_upatch_decoder_view *out);
+bool upatch_has_decoders(const struct shirudo_upatch *u);
+int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
+			struct upatch_decoder_view *out);
 
 /*
  * Validate an externally-provided upatch name: non-empty, doesn't
  * start with '.', and matches [A-Za-z0-9._-]+. Rejects anything that
  * could escape the bpffs / on-disk path namespace.
  */
-bool shirudo_upatch_name_valid(const char *name);
+bool upatch_name_valid(const char *name);
 
 /* A scandir() filter for the archived .upatch files. */
-int shirudo_upatch_select(const struct dirent *e);
+int upatch_select(const struct dirent *e);
 
 struct shirudo_prog_spec {
 	__u32 role;
@@ -92,10 +92,10 @@ struct shirudo_prog_spec {
 /*
  * The program metadata of a load upatch, which the loader signature does
  * not cover: parsed strictly into one spec per program, target_fd -1.
- * 0 or -errno; free with shirudo_prog_specs_free().
+ * 0 or -errno; free with prog_specs_free().
  */
-int shirudo_prog_specs_parse(const void *metadata, __u32 metadata_len,
-			     __u32 nr_progs, struct shirudo_prog_spec **out);
-void shirudo_prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
+int prog_specs_parse(const void *metadata, __u32 metadata_len,
+		     __u32 nr_progs, struct shirudo_prog_spec **out);
+void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
 
 #endif /* SHIRUDO_UTIL_UPATCH_H */

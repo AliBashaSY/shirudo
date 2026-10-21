@@ -42,6 +42,6 @@ struct shirudo_identity {
  * The identity map init populated, froze and pinned this boot. -ENOENT
  * when init has not run, another -errno when the pin cannot be read.
  */
-int shirudo_identity_read(struct shirudo_identity *out);
+int identity_read(struct shirudo_identity *out);
 
 #endif /* SHIRUDO_UTIL_IDENTITY_H */

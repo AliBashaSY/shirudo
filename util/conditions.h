@@ -49,10 +49,10 @@ struct shirudo_condition {
  */
 #define SHIRUDO_CONDITIONS_MAX	4
 
-size_t shirudo_conditions(const struct shirudo_conditions_input *in,
-			  struct shirudo_condition *out, size_t cap);
+size_t conditions(const struct shirudo_conditions_input *in,
+		  struct shirudo_condition *out, size_t cap);
 
-void shirudo_conditions_print(const struct shirudo_condition *c, size_t n);
+void conditions_print(const struct shirudo_condition *c, size_t n);
 
 /*
  * Single-word aggregate verdict (severity worst -> best):
@@ -60,9 +60,9 @@ void shirudo_conditions_print(const struct shirudo_condition *c, size_t n);
  *   init-pending -> degraded -> ok
  * Used by the `Status:` line in `shirudo status` and its JSON output.
  */
-const char *shirudo_status_verdict(const struct shirudo_conditions_input *in);
+const char *status_verdict(const struct shirudo_conditions_input *in);
 
-void shirudo_status_reason(const struct shirudo_conditions_input *in,
-			   char *buf, size_t cap);
+void status_reason(const struct shirudo_conditions_input *in,
+		   char *buf, size_t cap);
 
 #endif /* SHIRUDO_CONDITIONS_H */

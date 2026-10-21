@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * shirudo_json_parse() over a schema with every field type.
+ * json_parse() over a schema with every field type.
  */
 
 #include "fuzz.h"
@@ -37,6 +37,6 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		{ "a", SHIRUDO_JSON_T_ARRAY, &arr, 0, 0, elem, ARRAY_SIZE(elem) },
 	};
 
-	shirudo_json_parse((const char *)data, size, root, ARRAY_SIZE(root));
+	json_parse((const char *)data, size, root, ARRAY_SIZE(root));
 	return 0;
 }

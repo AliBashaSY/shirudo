@@ -27,8 +27,8 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	fd = fuzz_file(data, size, fuzz_path, sizeof(fuzz_path));
 	if (fd < 0)
 		return 0;
-	shirudo_tree_state_read(&state);
-	shirudo_tree_event_replay(root);
+	tree_state_read(&state);
+	tree_event_replay(root);
 	close(fd);
 	return 0;
 }

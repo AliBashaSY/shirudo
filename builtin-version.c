@@ -33,8 +33,8 @@ static const struct shirudo_help version_help = {
 
 int cmd_version(int argc, const char **argv)
 {
-	if (argc >= 2 && shirudo_is_help(argv[1])) {
-		shirudo_print_help(&version_help);
+	if (argc >= 2 && is_help(argv[1])) {
+		print_help(&version_help);
 		return 0;
 	}
 	if (argc >= 2 && strcmp(argv[1], "--version-id") == 0) {

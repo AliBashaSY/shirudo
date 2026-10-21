@@ -117,7 +117,7 @@ static void keyring_count_asymmetric(key_serial_t serial, const char *type,
 static int keyring_asymmetric_count(key_serial_t ring)
 {
 	size_t n = 0;
-	int rc = shirudo_keyring_list(ring, keyring_count_asymmetric, &n);
+	int rc = keyring_list(ring, keyring_count_asymmetric, &n);
 
 	if (rc)
 		return rc;
@@ -144,7 +144,7 @@ static void warn_root_keys_differ(const struct shirudo_trusted_set *set)
 	size_t i;
 	int rc;
 
-	rc = shirudo_keys_load(SHIRUDO_KEYS_DIR, NULL, true, &root);
+	rc = keys_load(SHIRUDO_KEYS_DIR, NULL, true, &root);
 	if (rc) {
 		pr_warn("initrd: the root file system has no certificate "
 			"under %s (%s); the copies under %s are the anchor",
@@ -176,7 +176,7 @@ static int keyring_holds_set(key_serial_t ring,
 		rc = read_der(set->certs[i].path, &der, &der_sz);
 		if (rc)
 			return rc;
-		rc = shirudo_keyring_holds_cert(ring, der, der_sz);
+		rc = keyring_holds_cert(ring, der, der_sz);
 		xfree(der, der_sz);
 		if (rc < 0)
 			return rc;
@@ -212,7 +212,7 @@ static int init_bpf_keyring(key_serial_t ring,
 			       strerror(-rc));
 			return rc;
 		}
-		key = shirudo_keyring_bpf_add_cert(der, der_sz);
+		key = keyring_bpf_add_cert(der, der_sz);
 		xfree(der, der_sz);
 		if (key >= 0) {
 			pr_info("bpf keyring serial=%d: %s enrolled (key "
@@ -261,7 +261,7 @@ static int init_bpf_keyring(key_serial_t ring,
 		       (int)ring, count, count == 1 ? "" : "s", held, set->n);
 		return -EKEYREJECTED;
 	}
-	rc = shirudo_keyring_bpf_seal();
+	rc = keyring_bpf_seal();
 	if (rc) {
 		pr_err("bpf keyring: certificates enrolled but the keyring "
 		       "could not be sealed: %s", strerror(-rc));
@@ -283,8 +283,8 @@ static int init_keyring(void)
 	bool frozen;
 	int rc;
 
-	rc = shirudo_keys_load(shirudo_keys_dir(), SHIRUDO_KEYS_REVOKED_DIR,
-			       true, &set);
+	rc = keys_load(shirudo_keys_dir(), SHIRUDO_KEYS_REVOKED_DIR,
+		       true, &set);
 	if (rc) {
 		pr_err("read the keys under %s: %s", shirudo_keys_dir(),
 		       strerror(-rc));
@@ -296,9 +296,9 @@ static int init_keyring(void)
 			set.n_revoked == 1 ? "" : "s", shirudo_keys_dir());
 	if (initrd_mode)
 		warn_root_keys_differ(&set);
-	frozen = shirudo_identity_read(&id) == 0;
+	frozen = identity_read(&id) == 0;
 
-	ring = shirudo_keyring_bpf_serial();
+	ring = keyring_bpf_serial();
 	if (ring > 0) {
 		rc = init_bpf_keyring(ring, &set);
 		if (rc == 0 || rc == -EEXIST) {
@@ -352,7 +352,7 @@ static int init_keyring(void)
 	enrolled.certs[0] = *primary;
 	enrolled.n = 1;
 
-	ring = shirudo_keyring_find(SHIRUDO_KEYRING_NAME);
+	ring = keyring_find(SHIRUDO_KEYRING_NAME);
 	if (frozen && id.keyring_type == SHIRUDO_SIG_KEYRING_USER &&
 	    ring != id.keyring_serial) {
 		pr_err("keyring \"%s\" is %s; the anchor frozen this boot is "
@@ -363,10 +363,10 @@ static int init_keyring(void)
 		return -EKEYREJECTED;
 	}
 	if (ring >= 0) {
-		rc = shirudo_keyring_holds_cert(ring, der, der_sz);
+		rc = keyring_holds_cert(ring, der, der_sz);
 		if (rc > 0) {
 			xfree(der, der_sz);
-			rc = shirudo_keyring_seal(ring);
+			rc = keyring_seal(ring);
 			if (rc && rc != -EACCES)
 				pr_warn("keyring \"%s\": could not seal (mutable): %s",
 					SHIRUDO_KEYRING_NAME, strerror(-rc));
@@ -378,7 +378,7 @@ static int init_keyring(void)
 			SHIRUDO_KEYRING_NAME, (int)ring,
 			rc == 0 ? "does not hold the certificate" :
 			strerror(-rc));
-		rc = shirudo_keyring_unlink_from_user(ring);
+		rc = keyring_unlink_from_user(ring);
 		if (rc) {
 			pr_err("unlink stale keyring \"%s\": %s",
 			       SHIRUDO_KEYRING_NAME, strerror(-rc));
@@ -392,7 +392,7 @@ static int init_keyring(void)
 		return ring;
 	}
 
-	ring = shirudo_keyring_open_or_create(SHIRUDO_KEYRING_NAME);
+	ring = keyring_open_or_create(SHIRUDO_KEYRING_NAME);
 	if (ring < 0) {
 		pr_err("open/create keyring \"%s\": %s",
 		       SHIRUDO_KEYRING_NAME, strerror(-ring));
@@ -400,7 +400,7 @@ static int init_keyring(void)
 		return ring;
 	}
 
-	key = shirudo_keyring_add_cert(ring, der, der_sz);
+	key = keyring_add_cert(ring, der, der_sz);
 	xfree(der, der_sz);
 	if (key < 0) {
 		pr_err("add cert to keyring: %s", strerror(-key));
@@ -418,7 +418,7 @@ static int init_keyring(void)
 	 * kernel accept BPF they signed. Not fatal if it fails: the LSM
 	 * still enforces; the keyring is just left mutable.
 	 */
-	rc = shirudo_keyring_seal(ring);
+	rc = keyring_seal(ring);
 	if (rc)
 		pr_warn("keyring \"%s\": could not seal (mutable): %s",
 			SHIRUDO_KEYRING_NAME, strerror(-rc));
@@ -456,21 +456,21 @@ static int init_bpffs(void)
 {
 	int rc;
 
-	rc = shirudo_seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
+	rc = seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
 		return rc;
 	}
-	rc = shirudo_seal_mkdir_p(SHIRUDO_RUN_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_RUN_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
 		return rc;
 	}
 	/* So that the init record left here is sealed from its creation. */
-	rc = shirudo_seal_label(SHIRUDO_RUN_DIR);
+	rc = seal_label(SHIRUDO_RUN_DIR);
 	if (rc)
 		pr_warn("seal: label %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
-	rc = shirudo_seal_mkdir_p(SHIRUDO_BPFFS_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_BPFFS_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s",
 		       SHIRUDO_BPFFS_DIR, strerror(-rc));
@@ -523,8 +523,8 @@ static bool binaries_differ(const char *a, const char *b)
 	fb = open(b, O_RDONLY | O_CLOEXEC);
 	if (fa < 0 || fb < 0)
 		goto out;
-	if (shirudo_elf_build_id_fd(fa, ida, &lena) == 0 && lena &&
-	    shirudo_elf_build_id_fd(fb, idb, &lenb) == 0 && lenb) {
+	if (elf_build_id_fd(fa, ida, &lena) == 0 && lena &&
+	    elf_build_id_fd(fb, idb, &lenb) == 0 && lenb) {
 		differ = lena != lenb || memcmp(ida, idb, lena) != 0;
 		goto out;
 	}
@@ -578,7 +578,7 @@ static int identity_executables(struct shirudo_identity *id)
 		return -errno;
 	}
 	self[n] = '\0';
-	if (snprintf(root_exe, sizeof(root_exe), "%s%s", shirudo_sysroot(),
+	if (snprintf(root_exe, sizeof(root_exe), "%s%s", sysroot(),
 		     self) >= (int)sizeof(root_exe))
 		return -ENAMETOOLONG;
 	if (stat(root_exe, &st) != 0) {
@@ -648,7 +648,7 @@ static const struct {
 static int attach_seal(struct bpf_object **obj_out, struct bpf_link **links,
 		       int identity_fd, int tamper_fd)
 {
-	const struct shirudo_embedded_bpf *blob = shirudo_seal_blob();
+	const struct shirudo_embedded_bpf *blob = seal_blob();
 	struct bpf_object *obj;
 	struct bpf_map *m;
 	int err, i;
@@ -763,7 +763,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	};
 	struct bpf_link *prctl_links[ARRAY_SIZE(prctl_hooks)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(mount_hooks)] = {};
-	const struct shirudo_embedded_bpf *blob = shirudo_bpf2_blob();
+	const struct shirudo_embedded_bpf *blob = bpf2_blob();
 	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
 	struct bpf_program *p_pload, *p_rename;
 	struct bpf_object *obj = NULL, *seal_obj = NULL;
@@ -835,10 +835,10 @@ static int init_lsm(bool attach_filesystem_seal)
 	 * serial the kernel records for a load that names it as keyring_id.
 	 */
 	if (bpf_keyring_mode) {
-		keyring = shirudo_keyring_bpf_serial();
+		keyring = keyring_bpf_serial();
 		id.keyring_type = SHIRUDO_SIG_KEYRING_BPF;
 	} else {
-		keyring = shirudo_keyring_find(SHIRUDO_KEYRING_NAME);
+		keyring = keyring_find(SHIRUDO_KEYRING_NAME);
 		id.keyring_type = SHIRUDO_SIG_KEYRING_USER;
 	}
 	if (keyring < 0) {
@@ -855,7 +855,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	 * keyring itself, what no task but shirudo may write, unlink,
 	 * revoke or invalidate for the rest of the boot.
 	 */
-	err = shirudo_keyring_list(keyring, collect_asymmetric, &keys);
+	err = keyring_list(keyring, collect_asymmetric, &keys);
 	if (err) {
 		pr_err("list the anchor keyring %d: %s", (int)keyring,
 		       strerror(-err));
@@ -1092,7 +1092,7 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 	*out_set = NULL;
 	*out_n = 0;
 
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, shirudo_upatch_select,
+	n = scandir(SHIRUDO_UPATCHES_DIR, &names, upatch_select,
 		    alphasort);
 	if (n < 0) {
 		if (errno == ENOENT)
@@ -1102,15 +1102,15 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 		return -errno;
 	}
 	if (n == 0) {
-		shirudo_libc_free(names);
+		libc_free(names);
 		return 0;
 	}
 
 	set = xcalloc((size_t)n, sizeof(*set));
 	if (!set) {
 		for (i = 0; i < n; i++)
-			shirudo_libc_free(names[i]);
-		shirudo_libc_free(names);
+			libc_free(names[i]);
+		libc_free(names);
 		return -ENOMEM;
 	}
 
@@ -1132,20 +1132,20 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 			rc = -ENAMETOOLONG;
 			goto next;
 		}
-		if (shirudo_upatch_open(path, &u) == 0) {
+		if (upatch_open(path, &u) == 0) {
 			memcpy(set[cnt].name, u.hdr.name,
 			       SHIRUDO_UPATCH_NAME_MAX);
 			set[cnt].name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-			shirudo_hex_encode(u.hdr.payload_sha256,
-					   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
-					   set[cnt].payload_hex);
-			shirudo_upatch_close(&u);
+			hex_encode(u.hdr.payload_sha256,
+				   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
+				   set[cnt].payload_hex);
+			upatch_close(&u);
 		}
-		fd = shirudo_upatch_open_first_link(set[cnt].name);
+		fd = upatch_open_first_link(set[cnt].name);
 		if (fd >= 0) {
 			close(fd);
-			shirudo_upatch_payload_sha256(set[cnt].name, pinned_hex,
-						      sizeof(pinned_hex));
+			upatch_payload_sha256(set[cnt].name, pinned_hex,
+					      sizeof(pinned_hex));
 			if (strcmp(pinned_hex, set[cnt].payload_hex) != 0) {
 				pr_err("boot-restore: %s is loaded with a "
 				       "payload other than the archived one "
@@ -1166,9 +1166,9 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 		}
 		cnt++;
 next:
-		shirudo_libc_free(names[i]);
+		libc_free(names[i]);
 	}
-	shirudo_libc_free(names);
+	libc_free(names);
 
 	if (rc) {
 		xfree(set, (size_t)n * sizeof(*set));
@@ -1200,57 +1200,57 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	char ts[32], boot_id[64], nv_index[16];
 	size_t i;
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_hex_encode(cert_sha, 32, cert_hex);
-	shirudo_hex_encode(set_digest, 32, set_hex);
-	shirudo_hex_encode(tree_root, 32, tree_hex);
-	shirudo_hex_encode(init_digest, 32, digest_hex);
-	shirudo_hex_encode(info->pcr_before, 32, pcr_hex);
-	shirudo_hex_encode(info->phase_before, 32, phase_hex);
-	shirudo_hex_encode(info->name, SHIRUDO_TPM_NAME_LEN, name_hex);
-	shirudo_hex_encode(info->anchor_digest, 32, anchor_hex);
-	shirudo_hex_encode(info->value, 32, chain_hex);
+	hex_encode(cert_sha, 32, cert_hex);
+	hex_encode(set_digest, 32, set_hex);
+	hex_encode(tree_root, 32, tree_hex);
+	hex_encode(init_digest, 32, digest_hex);
+	hex_encode(info->pcr_before, 32, pcr_hex);
+	hex_encode(info->phase_before, 32, phase_hex);
+	hex_encode(info->name, SHIRUDO_TPM_NAME_LEN, name_hex);
+	hex_encode(info->anchor_digest, 32, anchor_hex);
+	hex_encode(info->value, 32, chain_hex);
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_json_kv_string(&e, "digest", digest_hex);
-	shirudo_json_kv_string(&e, "type", "init");
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_kv_int(&e, "tpm_reset_count", info->reset_count);
-	shirudo_json_kv_string(&e, "cert_sha256", cert_hex);
-	shirudo_json_arr_open(&e, "certs");
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	json_kv_string(&e, "digest", digest_hex);
+	json_kv_string(&e, "type", "init");
+	json_kv_string(&e, "boot_id", boot_id);
+	json_kv_int(&e, "tpm_reset_count", info->reset_count);
+	json_kv_string(&e, "cert_sha256", cert_hex);
+	json_arr_open(&e, "certs");
 	for (i = 0; i < enrolled.n; i++) {
 		char sha_hex[HEXLEN(32)];
 
-		shirudo_hex_encode(enrolled.certs[i].sha256, 32, sha_hex);
-		shirudo_json_str(&e, sha_hex);
+		hex_encode(enrolled.certs[i].sha256, 32, sha_hex);
+		json_str(&e, sha_hex);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_kv_string(&e, "set_digest", set_hex);
-	shirudo_json_kv_string(&e, "tree_root", tree_hex);
-	shirudo_json_arr_open(&e, "set");
+	json_arr_close(&e);
+	json_kv_string(&e, "set_digest", set_hex);
+	json_kv_string(&e, "tree_root", tree_hex);
+	json_arr_open(&e, "set");
 	for (i = 0; i < n; i++) {
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_string(&e, "name", set[i].name);
-		shirudo_json_kv_string(&e, "payload_sha256", set[i].payload_hex);
-		shirudo_json_obj_close(&e);
+		json_obj_open(&e);
+		json_kv_string(&e, "name", set[i].name);
+		json_kv_string(&e, "payload_sha256", set[i].payload_hex);
+		json_obj_close(&e);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
-	shirudo_json_kv_string(&e, "pcr_before", pcr_hex);
-	shirudo_json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
-	shirudo_json_kv_string(&e, "phase_before", phase_hex);
-	shirudo_json_kv_string(&e, "bound_in", info->initrd ? "initrd" : "root");
-	shirudo_json_kv_string(&e, "nv_name", name_hex);
-	shirudo_json_kv_string(&e, "anchor", info->anchor);
-	shirudo_json_kv_string(&e, "anchor_digest", anchor_hex);
-	shirudo_json_kv_string(&e, "chain", chain_hex);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_kv_string(&e, "pcr_before", pcr_hex);
+	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	json_kv_string(&e, "phase_before", phase_hex);
+	json_kv_string(&e, "bound_in", info->initrd ? "initrd" : "root");
+	json_kv_string(&e, "nv_name", name_hex);
+	json_kv_string(&e, "anchor", info->anchor);
+	json_kv_string(&e, "anchor_digest", anchor_hex);
+	json_kv_string(&e, "chain", chain_hex);
+	json_obj_close(&e);
 
 	if (e.err) {
 		pr_err("eventlog: init entry encode failed: %s",
@@ -1261,9 +1261,9 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	 * From the initrd the record waits under /run for the root file
 	 * system's init: the eventlog is on a root that is read-only here.
 	 */
-	return shirudo_eventlog_append_to(initrd_mode ?
-					  shirudo_eventlog_pending_path() :
-					  shirudo_eventlog_path(), buf);
+	return eventlog_append_to(initrd_mode ?
+				  eventlog_pending_path() :
+				  eventlog_path(), buf);
 }
 
 static bool phase_unmeasured(const __u8 pcr[32])
@@ -1282,8 +1282,8 @@ static void tree_root_at_boot(__u8 out[32])
 	struct shirudo_tree_state s = {};
 
 	memset(out, 0, 32);
-	if (shirudo_tree_state_read(&s) == 0 &&
-	    shirudo_hex_decode(s.projection_root, out, 32) != 0)
+	if (tree_state_read(&s) == 0 &&
+	    hex_decode(s.projection_root, out, 32) != 0)
 		memset(out, 0, 32);
 }
 
@@ -1308,14 +1308,14 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		__u64 max_bytes;
 		bool full;
 
-		shirudo_config_load(&cfg);
+		config_load(&cfg);
 		max_bytes = cfg.eventlog_max_bytes;
-		full = shirudo_eventlog_would_exceed(max_bytes);
+		full = eventlog_would_exceed(max_bytes);
 		explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 		if (full) {
 			pr_err("eventlog %s would exceed eventlog.max_bytes=%llu; "
 			       "refusing chain extend (eventlog_full)",
-			       shirudo_eventlog_path(), max_bytes);
+			       eventlog_path(), max_bytes);
 			return -ENOSPC;
 		}
 	}
@@ -1324,7 +1324,7 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		pr_err("chain: no certificate enrolled");
 		return -ENOENT;
 	}
-	shirudo_keys_set_digest(&enrolled, cert_sha);
+	keys_set_digest(&enrolled, cert_sha);
 
 	/*
 	 * init_event = SHA256("shirudo-init\0" || cert_sha256 || set_digest
@@ -1332,10 +1332,10 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	 * predictor shares (util/attest.c).
 	 */
 	tree_root_at_boot(tree_root);
-	shirudo_chain_init_event(cert_sha, set, n, tree_root, set_digest,
-				 init_digest);
+	chain_init_event(cert_sha, set, n, tree_root, set_digest,
+			 init_digest);
 
-	rc = shirudo_chain_init(init_digest, &info);
+	rc = chain_init(init_digest, &info);
 	if (rc == -ENODEV) {
 		pr_err("tpm: not usable; shirudo requires a TPM 2.0 "
 		       "(tpm_error)");
@@ -1429,16 +1429,16 @@ static int initrd_enter(void)
 	struct stat st;
 	int rc;
 
-	if (snprintf(src, sizeof(src), "%s%s", shirudo_sysroot(),
+	if (snprintf(src, sizeof(src), "%s%s", sysroot(),
 		     SHIRUDO_VAR_LIB) >= (int)sizeof(src))
 		return -ENAMETOOLONG;
 	if (stat(src, &st) != 0 || !S_ISDIR(st.st_mode)) {
 		pr_err("initrd: %s is not a directory; the root file system "
 		       "must be mounted at %s with /var on it or mounted "
-		       "there (x-initrd.mount)", src, shirudo_sysroot());
+		       "there (x-initrd.mount)", src, sysroot());
 		return -ENOENT;
 	}
-	rc = shirudo_seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
+	rc = seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
 	if (rc) {
 		pr_err("initrd: mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
 		return rc;
@@ -1492,14 +1492,14 @@ static int run_init(bool no_seal)
 		pr_info("initrd: labels and the eventlog are left to the root "
 			"file system's init");
 	} else {
-		rc = shirudo_seal_label_tree();
+		rc = seal_label_tree();
 		if (rc)
 			pr_warn("init: seal label-walk incomplete: %s "
 				"(some files may be unsealed)", strerror(-rc));
-		rc = shirudo_eventlog_adopt_pending();
+		rc = eventlog_adopt_pending();
 		if (rc) {
 			pr_err("init: the initrd's record in %s could not be "
-			       "adopted: %s", shirudo_eventlog_pending_path(),
+			       "adopted: %s", eventlog_pending_path(),
 			       strerror(-rc));
 			return rc;
 		}
@@ -1547,8 +1547,8 @@ int cmd_init(int argc, const char **argv)
 			check_only = true;
 		} else if (strcmp(a, "--no-seal") == 0) {
 			no_seal = true;
-		} else if (shirudo_is_help(a)) {
-			shirudo_print_help(&init_help);
+		} else if (is_help(a)) {
+			print_help(&init_help);
 			return 0;
 		} else {
 			pr_err("init: unknown option '%s'", a);
@@ -1557,8 +1557,8 @@ int cmd_init(int argc, const char **argv)
 		}
 	}
 
-	initrd_mode = shirudo_in_initrd();
-	shirudo_preflight_run(&res);
+	initrd_mode = in_initrd();
+	preflight_run(&res);
 	print_preflight(&res);
 
 	if (res.n_failed > 0) {

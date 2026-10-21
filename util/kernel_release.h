@@ -6,7 +6,7 @@
 
 #include <stdbool.h>
 
-bool shirudo_kernel_release_prefix_matches(const char *release,
-					   const char *prefix);
+bool kernel_release_prefix_matches(const char *release,
+				   const char *prefix);
 
 #endif /* SHIRUDO_KERNEL_RELEASE_H */

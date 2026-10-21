@@ -78,21 +78,21 @@ static const struct {
 		"perf event bound to a shirudo task" },
 };
 
-const char *shirudo_tamper_name(enum shirudo_tamper_point point)
+const char *tamper_name(enum shirudo_tamper_point point)
 {
 	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].name)
 		return "?";
 	return tamper_points[point].name;
 }
 
-const char *shirudo_tamper_meaning(enum shirudo_tamper_point point)
+const char *tamper_meaning(enum shirudo_tamper_point point)
 {
 	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].meaning)
 		return "?";
 	return tamper_points[point].meaning;
 }
 
-int shirudo_tamper_read(struct shirudo_tamper_counts *out)
+int tamper_read(struct shirudo_tamper_counts *out)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);

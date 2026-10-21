@@ -29,23 +29,23 @@ struct shirudo_help {
 	const char				*footer;
 };
 
-int shirudo_is_help(const char *arg);
+int is_help(const char *arg);
 
-int shirudo_is_list_cmds(const char *arg);
+int is_list_cmds(const char *arg);
 
-void shirudo_print_help(const struct shirudo_help *h);
+void print_help(const struct shirudo_help *h);
 
 /* What bash completion reads through --list-cmds. */
-void shirudo_print_subcmd_list(const struct shirudo_help_item *items,
-			       size_t n_items);
+void print_subcmd_list(const struct shirudo_help_item *items,
+		       size_t n_items);
 
 /*
  * NULL on failure with stderr already written: a did-you-mean block,
  * or the ambiguous matches.
  */
-const char *shirudo_resolve_subcommand(const char *cmd_label,
-				       const char *input,
-				       const struct shirudo_help_item *subcmds,
-				       size_t n_subcmds);
+const char *resolve_subcommand(const char *cmd_label,
+			       const char *input,
+			       const struct shirudo_help_item *subcmds,
+			       size_t n_subcmds);
 
 #endif /* SHIRUDO_HELP_H */

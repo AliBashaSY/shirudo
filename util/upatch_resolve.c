@@ -38,13 +38,13 @@
 #define NF_IP6_PRI_RAW_BEFORE_DEFRAG	(-450)
 #endif
 
-int shirudo_upatch_open_first_link(const char *name)
+int upatch_open_first_link(const char *name)
 {
 	char pin[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	int fd, first_errno;
 
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 	if ((size_t)snprintf(pin, sizeof(pin), "%s/%s/link",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(pin))
@@ -88,8 +88,8 @@ static const char *loc_prefix(__u32 prog_type, __u32 attach_type)
 	return NULL;
 }
 
-int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
-				    char *out, size_t cap)
+int upatch_resolve_location(struct btf *vbtf, const char *name,
+			    char *out, size_t cap)
 {
 	struct bpf_link_info linfo = {};
 	struct bpf_prog_info info = {};
@@ -100,7 +100,7 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 	__u32 len;
 
 	out[0] = '\0';
-	link_fd = shirudo_upatch_open_first_link(name);
+	link_fd = upatch_open_first_link(name);
 	if (link_fd < 0)
 		return link_fd;
 	len = sizeof(linfo);
@@ -189,24 +189,24 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 	return 0;
 }
 
-void shirudo_upatch_loaded_at(const char *name, char *out, size_t cap)
+void upatch_loaded_at(const char *name, char *out, size_t cap)
 {
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 
 	out[0] = '\0';
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
 	if ((size_t)snprintf(dir, sizeof(dir), "%s/%s",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(dir))
 		return;
 	if (stat(dir, &st) != 0)
 		return;
-	shirudo_iso8601(st.st_ctim.tv_sec, out, cap);
+	iso8601(st.st_ctim.tv_sec, out, cap);
 }
 
-void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
+void upatch_payload_sha256(const char *name, char *out, size_t cap)
 {
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
@@ -216,7 +216,7 @@ void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
 	out[0] = '\0';
 	if (cap < 65)
 		return;
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
 	if ((size_t)snprintf(dir, sizeof(dir), "%s/%s",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(dir))
@@ -224,5 +224,5 @@ void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
 	n = getxattr(dir, SHIRUDO_XATTR_PAYLOAD, raw, sizeof(raw));
 	if (n != (ssize_t)sizeof(raw))
 		return;
-	shirudo_hex_encode(raw, sizeof(raw), out);
+	hex_encode(raw, sizeof(raw), out);
 }

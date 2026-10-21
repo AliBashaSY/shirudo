@@ -13,7 +13,7 @@
 
 #include <shirudo/misc.h>
 
-static inline const char *shirudo_map_type_name(__u32 type)
+static inline const char *map_type_name(__u32 type)
 {
 	switch (type) {
 	case BPF_MAP_TYPE_ARRAY:
@@ -43,7 +43,7 @@ static inline const char *shirudo_map_type_name(__u32 type)
 	}
 }
 
-static inline const char *shirudo_map_skip_reason(__u32 type)
+static inline const char *map_skip_reason(__u32 type)
 {
 	switch (type) {
 	case BPF_MAP_TYPE_RINGBUF:

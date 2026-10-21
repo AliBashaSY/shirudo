@@ -52,7 +52,7 @@ void xstrfree(char *s);
  * The one path for memory libc allocated, as scandir, getline and
  * realpath do; free() itself is poisoned below.
  */
-void shirudo_libc_free(void *p);
+void libc_free(void *p);
 
 /*
  * The poison sits at the end so that the system declarations pulled in

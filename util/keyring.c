@@ -58,7 +58,7 @@ static long sys_keyctl(int cmd, long a, long b, long c, long d)
 	return syscall(__NR_keyctl, cmd, a, b, c, d);
 }
 
-key_serial_t shirudo_keyring_find(const char *name)
+key_serial_t keyring_find(const char *name)
 {
 	long ret = sys_keyctl(KEYCTL_SEARCH, KEY_SPEC_USER_KEYRING,
 			      (long)"keyring", (long)name, 0);
@@ -67,7 +67,7 @@ key_serial_t shirudo_keyring_find(const char *name)
 	return (key_serial_t)ret;
 }
 
-static int shirudo_keyring_make_mutable(key_serial_t keyring)
+static int keyring_make_mutable(key_serial_t keyring)
 {
 	/*
 	 * A named keyring linked only from @u is not necessarily possessed by
@@ -84,9 +84,9 @@ static int shirudo_keyring_make_mutable(key_serial_t keyring)
 	return 0;
 }
 
-key_serial_t shirudo_keyring_open_or_create(const char *name)
+key_serial_t keyring_open_or_create(const char *name)
 {
-	key_serial_t s = shirudo_keyring_find(name);
+	key_serial_t s = keyring_find(name);
 	long ret;
 	int rc;
 
@@ -98,7 +98,7 @@ key_serial_t shirudo_keyring_open_or_create(const char *name)
 	if (ret < 0)
 		return (key_serial_t)-errno;
 
-	rc = shirudo_keyring_make_mutable((key_serial_t)ret);
+	rc = keyring_make_mutable((key_serial_t)ret);
 	if (rc)
 		return (key_serial_t)rc;
 
@@ -108,15 +108,15 @@ key_serial_t shirudo_keyring_open_or_create(const char *name)
 	return (key_serial_t)ret;
 }
 
-int shirudo_keyring_unlink_from_user(key_serial_t keyring)
+int keyring_unlink_from_user(key_serial_t keyring)
 {
 	if (sys_keyctl(KEYCTL_UNLINK, keyring, KEY_SPEC_USER_KEYRING, 0, 0) < 0)
 		return -errno;
 	return 0;
 }
 
-key_serial_t shirudo_keyring_add_cert(key_serial_t keyring,
-				      const void *cert, size_t cert_len)
+key_serial_t keyring_add_cert(key_serial_t keyring,
+			      const void *cert, size_t cert_len)
 {
 	long ret = sys_add_key("asymmetric", NULL, cert, cert_len, keyring);
 
@@ -125,7 +125,7 @@ key_serial_t shirudo_keyring_add_cert(key_serial_t keyring,
 	return (key_serial_t)ret;
 }
 
-int shirudo_keyring_seal(key_serial_t keyring)
+int keyring_seal(key_serial_t keyring)
 {
 	/*
 	 * Possessor + user keep view/read/search (so any root process can
@@ -172,8 +172,8 @@ static void split_describe(char *desc, const char **type,
 	*description = p;
 }
 
-int shirudo_keyring_list(key_serial_t keyring,
-			 shirudo_keyring_cb cb, void *ud)
+int keyring_list(key_serial_t keyring,
+		 shirudo_keyring_cb cb, void *ud)
 {
 	key_serial_t *serials = NULL;
 	size_t cap = 64 * sizeof(*serials);
@@ -246,8 +246,8 @@ static void holds_cert_cb(key_serial_t serial, const char *type,
 	}
 }
 
-int shirudo_keyring_holds_cert(key_serial_t keyring,
-			       const __u8 *der, size_t der_len)
+int keyring_holds_cert(key_serial_t keyring,
+		       const __u8 *der, size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
 	const char *type, *description;
@@ -268,15 +268,15 @@ int shirudo_keyring_holds_cert(key_serial_t keyring,
 		return -ERANGE;
 	memcpy(ctx.want, description, strlen(description) + 1);
 
-	rc = shirudo_keyring_list(keyring, holds_cert_cb, &ctx);
+	rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
 		return rc;
 	return ctx.found ? 1 : 0;
 }
 
-key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
-				       const __u8 *der,
-				       size_t der_len)
+key_serial_t keyring_find_cert(key_serial_t keyring,
+			       const __u8 *der,
+			       size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
 	const char *type, *description;
@@ -296,20 +296,20 @@ key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
 	if (strlen(description) >= sizeof(ctx.want))
 		return -ERANGE;
 	memcpy(ctx.want, description, strlen(description) + 1);
-	rc = shirudo_keyring_list(keyring, holds_cert_cb, &ctx);
+	rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
 		return rc;
 	return ctx.found ? ctx.serial : -ENOKEY;
 }
 
-int shirudo_keyring_unlink_key(key_serial_t keyring, key_serial_t key)
+int keyring_unlink_key(key_serial_t keyring, key_serial_t key)
 {
 	if (sys_keyctl(KEYCTL_UNLINK, key, keyring, 0, 0) < 0)
 		return -errno;
 	return 0;
 }
 
-key_serial_t shirudo_keyring_bpf_serial(void)
+key_serial_t keyring_bpf_serial(void)
 {
 	long ret = sys_keyctl(KEYCTL_GET_KEYRING_ID, KEY_SPEC_BPF_KEYRING, 0, 0,
 			      0);
@@ -317,8 +317,8 @@ key_serial_t shirudo_keyring_bpf_serial(void)
 	return ret < 0 ? -errno : (key_serial_t)ret;
 }
 
-key_serial_t shirudo_keyring_bpf_add_cert(const __u8 *cert,
-					  size_t cert_len)
+key_serial_t keyring_bpf_add_cert(const __u8 *cert,
+				  size_t cert_len)
 {
 	long ret = sys_add_key("asymmetric", NULL, cert, cert_len,
 			       KEY_SPEC_BPF_KEYRING);
@@ -326,7 +326,7 @@ key_serial_t shirudo_keyring_bpf_add_cert(const __u8 *cert,
 	return ret < 0 ? -errno : (key_serial_t)ret;
 }
 
-int shirudo_keyring_bpf_seal(void)
+int keyring_bpf_seal(void)
 {
 	/* No restriction type: the keyring rejects every further link. */
 	if (sys_keyctl(KEYCTL_RESTRICT_KEYRING, KEY_SPEC_BPF_KEYRING, 0, 0, 0) < 0)

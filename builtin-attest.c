@@ -126,12 +126,12 @@ static int parse_hex(const char *hex, __u8 *out, size_t cap, size_t *len)
 	if (n == 0 || (n & 1) || n / 2 > cap)
 		return -EINVAL;
 	*len = n / 2;
-	return shirudo_hex_decode(hex, out, n / 2);
+	return hex_decode(hex, out, n / 2);
 }
 
 static int parse_hex32(const char *what, const char *hex, __u8 out[32])
 {
-	if (strlen(hex) != 64 || shirudo_hex_decode(hex, out, 32)) {
+	if (strlen(hex) != 64 || hex_decode(hex, out, 32)) {
 		pr_err("attest: %s must be 64 hex characters", what);
 		return -EINVAL;
 	}
@@ -144,7 +144,7 @@ static int parse_pcrs(const char *list, __u32 *mask)
 
 	*mask = 0;
 	while (*p) {
-		size_t len = shirudo_digits(p, strlen(p));
+		size_t len = digits(p, strlen(p));
 		__u64 n;
 
 		if (parse_u64(p, len, 23, &n))
@@ -162,7 +162,7 @@ static int parse_pcrs(const char *list, __u32 *mask)
 /* "<pcr>=<value>": the PCR, below 24, and where its value starts. */
 static int parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
 {
-	size_t len = shirudo_digits(arg, strlen(arg));
+	size_t len = digits(arg, strlen(arg));
 
 	if (arg[len] != '=' || parse_u64(arg, len, 23, pcr))
 		return -EINVAL;
@@ -183,7 +183,7 @@ static int member_add_file(struct members *m, const char *path)
 
 	if (m->n >= SHIRUDO_ATTEST_MEMBERS_MAX)
 		return -E2BIG;
-	rc = shirudo_upatch_open(path, &u);
+	rc = upatch_open(path, &u);
 	if (rc) {
 		pr_err("attest: open %s: %s", path, strerror(-rc));
 		return rc;
@@ -191,9 +191,9 @@ static int member_add_file(struct members *m, const char *path)
 	e = &m->set[m->n++];
 	memcpy(e->name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	e->name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-	shirudo_hex_encode(u.hdr.payload_sha256,
-			   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN, e->payload_hex);
-	shirudo_upatch_close(&u);
+	hex_encode(u.hdr.payload_sha256,
+		   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN, e->payload_hex);
+	upatch_close(&u);
 	return 0;
 }
 
@@ -212,7 +212,7 @@ static int member_add_spec(struct members *m, const char *spec)
 	e = &m->set[m->n++];
 	memcpy(e->name, spec, (size_t)(eq - spec));
 	e->name[eq - spec] = '\0';
-	shirudo_hex_encode(payload, 32, e->payload_hex);
+	hex_encode(payload, 32, e->payload_hex);
 	return 0;
 }
 
@@ -264,23 +264,23 @@ static int apply_event(const char *spec, __u8 chain[32])
 	memcpy(name, colon + 1, name_len);
 	name[name_len] = '\0';
 	if (kind_len == 4 && !strncmp(spec, "load", 4)) {
-		shirudo_chain_upatch_event("shirudo-upatch", name, digest,
-					   event);
+		chain_upatch_event("shirudo-upatch", name, digest,
+				   event);
 	} else if (kind_len == 6 && !strncmp(spec, "unload", 6)) {
-		shirudo_chain_upatch_event("shirudo-unload", name, digest,
-					   event);
+		chain_upatch_event("shirudo-unload", name, digest,
+				   event);
 	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
 		__s64 seq;
 
 		if (parse_s64(name, strlen(name), 1, INT64_MAX, &seq))
 			return -EINVAL;
-		shirudo_chain_tree_event(seq, digest, event);
+		chain_tree_event(seq, digest, event);
 	} else if (kind_len == 6 && !strncmp(spec, "revoke", 6)) {
-		shirudo_chain_key_event("shirudo-key-revoke", digest, event);
+		chain_key_event("shirudo-key-revoke", digest, event);
 	} else {
 		return -EINVAL;
 	}
-	shirudo_chain_fold(chain, event);
+	chain_fold(chain, event);
 	return 0;
 }
 
@@ -344,8 +344,8 @@ static int cmd_attest_predict(int argc, const char **argv)
 				goto out;
 			}
 			have_bind[slot] = true;
-		} else if (shirudo_is_help(a)) {
-			shirudo_print_help(&attest_help);
+		} else if (is_help(a)) {
+			print_help(&attest_help);
 			ret = 0;
 			goto out;
 		} else {
@@ -357,15 +357,15 @@ static int cmd_attest_predict(int argc, const char **argv)
 		pr_err("attest predict: --cert is required");
 		goto out;
 	}
-	shirudo_keys_anchor_digest(cert_shas, n_certs, cert_sha);
-	shirudo_chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
-				 init);
-	shirudo_hex_encode(set_digest, 32, hex);
+	keys_anchor_digest(cert_shas, n_certs, cert_sha);
+	chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
+			 init);
+	hex_encode(set_digest, 32, hex);
 	printf("set_digest: %s\n", hex);
-	shirudo_hex_encode(init, 32, hex);
+	hex_encode(init, 32, hex);
 	printf("init_event: %s\n", hex);
-	shirudo_chain_fold(chain, init);
-	shirudo_hex_encode(chain, 32, hex);
+	chain_fold(chain, init);
+	hex_encode(chain, 32, hex);
 	printf("register_at_boot: %s\n", hex);
 	for (i = 0; i < n_events; i++) {
 		if (apply_event(events[i], chain)) {
@@ -374,7 +374,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 		}
 	}
 	if (n_events) {
-		shirudo_hex_encode(chain, 32, hex);
+		hex_encode(chain, 32, hex);
 		printf("register_after_events: %s\n", hex);
 	}
 	if (have_bind[0] && have_bind[1]) {
@@ -382,19 +382,19 @@ static int cmd_attest_predict(int argc, const char **argv)
 		__u8 name[SHIRUDO_TPM_NAME_LEN], anchor_digest[32];
 		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
 
-		shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, bind[0], 2,
-					    branch_written, branch_init,
-					    policy);
-		shirudo_tpm_nv_name(SHIRUDO_NV_INDEX,
-				    SHIRUDO_TPM_REGISTER_ATTRS |
-				    SHIRUDO_TPM_NV_WRITTEN, policy, 32, name);
-		shirudo_hex_encode(name, sizeof(name), hex);
+		tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, bind[0], 2,
+				    branch_written, branch_init,
+				    policy);
+		tpm_nv_name(SHIRUDO_NV_INDEX,
+			    SHIRUDO_TPM_REGISTER_ATTRS |
+			    SHIRUDO_TPM_NV_WRITTEN, policy, 32, name);
+		hex_encode(name, sizeof(name), hex);
 		printf("register_name: %s\n", hex);
-		shirudo_chain_anchor(name, anchor, sizeof(anchor));
+		chain_anchor(name, anchor, sizeof(anchor));
 		printf("anchor: %s\n", anchor);
 		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
-		shirudo_chain_fold(bind[0], anchor_digest);
-		shirudo_hex_encode(bind[0], 32, hex);
+		chain_fold(bind[0], anchor_digest);
+		hex_encode(bind[0], 32, hex);
 		printf("pcr%u_after_anchor: %s\n", SHIRUDO_CHAIN_PCR, hex);
 	} else if (have_bind[0] || have_bind[1]) {
 		pr_err("attest predict: --bind-pcr needs both %u and %u",
@@ -551,8 +551,8 @@ static int cmd_attest_verify(int argc, const char **argv)
 			x.bind_expect_mask |= 1u << n;
 		} else if (!strcmp(a, "--require-initrd")) {
 			x.require_initrd = true;
-		} else if (shirudo_is_help(a)) {
-			shirudo_print_help(&attest_help);
+		} else if (is_help(a)) {
+			print_help(&attest_help);
 			ret = 0;
 			goto out;
 		} else {
@@ -575,15 +575,15 @@ static int cmd_attest_verify(int argc, const char **argv)
 	x.nonce = nonce;
 	x.nonce_len = nonce_len;
 	if (have_cert) {
-		shirudo_keys_anchor_digest(cert_shas, n_certs, cert_sha);
-		shirudo_chain_init_event(cert_sha, m.set, m.n, tree_root,
-					 set_digest, x.init_event);
+		keys_anchor_digest(cert_shas, n_certs, cert_sha);
+		chain_init_event(cert_sha, m.set, m.n, tree_root,
+				 set_digest, x.init_event);
 		x.have_init = true;
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
 		goto out;
-	rc = shirudo_attest_verify(evidence, evidence_len, &x, report,
-				   SHIRUDO_ATTEST_REPORT_MAX);
+	rc = attest_verify(evidence, evidence_len, &x, report,
+			   SHIRUDO_ATTEST_REPORT_MAX);
 	fputs(report, stdout);
 	if (rc == -EINVAL) {
 		pr_err("attest verify: %s is not a shirudo evidence document",
@@ -644,8 +644,8 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			pol.trust_presented = true;
 		} else if (!strncmp(a, "--out=", 6)) {
 			out_path = a + 6;
-		} else if (shirudo_is_help(a)) {
-			shirudo_print_help(&attest_help);
+		} else if (is_help(a)) {
+			print_help(&attest_help);
 			ret = 0;
 			goto out;
 		} else {
@@ -659,9 +659,9 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
 		goto out;
-	rc = shirudo_attest_challenge_make(evidence, evidence_len, &pol,
-					   credential, &doc, &len, &cap, report,
-					   SHIRUDO_ATTEST_REPORT_MAX);
+	rc = attest_challenge_make(evidence, evidence_len, &pol,
+				   credential, &doc, &len, &cap, report,
+				   SHIRUDO_ATTEST_REPORT_MAX);
 	fputs(report, stdout);
 	if (rc == -EINVAL) {
 		pr_err("attest challenge: %s carries no endorsement key",
@@ -677,8 +677,8 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		int fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
 			      0600);
 
-		if (fd < 0 || shirudo_write_all(fd, doc, len) ||
-		    shirudo_write_all(fd, "\n", 1) || close(fd)) {
+		if (fd < 0 || write_all(fd, doc, len) ||
+		    write_all(fd, "\n", 1) || close(fd)) {
 			pr_err("attest challenge: write %s: %s", out_path,
 			       strerror(errno));
 			if (fd >= 0)
@@ -687,7 +687,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			goto out;
 		}
 	}
-	shirudo_hex_encode(credential, sizeof(credential), hex);
+	hex_encode(credential, sizeof(credential), hex);
 	printf("challenge: %s\ncredential: %s\n", out_path, hex);
 	ret = 0;
 out:
@@ -728,8 +728,8 @@ static int cmd_attest_evidence(int argc, const char **argv)
 			}
 		} else if (!strncmp(a, "--out=", 6)) {
 			out_path = a + 6;
-		} else if (shirudo_is_help(a)) {
-			shirudo_print_help(&attest_help);
+		} else if (is_help(a)) {
+			print_help(&attest_help);
 			return 0;
 		} else {
 			pr_err("attest: unknown option '%s'", a);
@@ -739,15 +739,15 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	if (!nonce_len)
 		pr_warn("attest: no --nonce; the evidence proves no freshness");
 	if (challenge_path &&
-	    shirudo_attest_challenge_read(challenge_path, &challenge)) {
+	    attest_challenge_read(challenge_path, &challenge)) {
 		pr_err("attest: %s is not a shirudo credential challenge",
 		       challenge_path);
 		return 2;
 	}
 
-	rc = shirudo_attest_evidence(nonce, nonce_len, mask,
-				     challenge_path ? &challenge : NULL, &doc,
-				     &len, &cap);
+	rc = attest_evidence(nonce, nonce_len, mask,
+			     challenge_path ? &challenge : NULL, &doc,
+			     &len, &cap);
 	if (rc == -ENODEV) {
 		pr_err("attest: no bound register (tpm_error); run shirudo "
 		       "init first");
@@ -765,8 +765,8 @@ static int cmd_attest_evidence(int argc, const char **argv)
 		int fd = open(out_path,
 			      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
 
-		if (fd < 0 || shirudo_write_all(fd, doc, len) ||
-		    shirudo_write_all(fd, "\n", 1) || close(fd)) {
+		if (fd < 0 || write_all(fd, doc, len) ||
+		    write_all(fd, "\n", 1) || close(fd)) {
 			pr_err("attest: write %s: %s", out_path,
 			       strerror(errno));
 			if (fd >= 0)
@@ -783,21 +783,21 @@ static int cmd_attest_evidence(int argc, const char **argv)
 
 int cmd_attest(int argc, const char **argv)
 {
-	if (argc >= 2 && shirudo_is_help(argv[1])) {
-		shirudo_print_help(&attest_help);
+	if (argc >= 2 && is_help(argv[1])) {
+		print_help(&attest_help);
 		return 0;
 	}
-	if (argc >= 2 && shirudo_is_list_cmds(argv[1])) {
-		shirudo_print_subcmd_list(attest_subcmds,
-					  ARRAY_SIZE(attest_subcmds));
+	if (argc >= 2 && is_list_cmds(argv[1])) {
+		print_subcmd_list(attest_subcmds,
+				  ARRAY_SIZE(attest_subcmds));
 		return 0;
 	}
 	if (argc >= 2 && argv[1][0] != '-') {
 		const char *sub;
 
-		sub = shirudo_resolve_subcommand("attest", argv[1],
-						 attest_subcmds,
-						 ARRAY_SIZE(attest_subcmds));
+		sub = resolve_subcommand("attest", argv[1],
+					 attest_subcmds,
+					 ARRAY_SIZE(attest_subcmds));
 
 		if (!sub)
 			return 2;

@@ -18,7 +18,7 @@
 #include "identity.h"
 #include "paths.h"
 
-int shirudo_identity_read(struct shirudo_identity *out)
+int identity_read(struct shirudo_identity *out)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);

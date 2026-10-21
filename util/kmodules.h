@@ -37,18 +37,18 @@ struct shirudo_kmod_set {
 	size_t			n_deps;
 };
 
-int  shirudo_kmodules_read(struct shirudo_kmod_set *set);
+int  kmodules_read(struct shirudo_kmod_set *set);
 /* The text of /proc/modules, modified in place, into set. */
-int  shirudo_kmodules_parse(char *buf, struct shirudo_kmod_set *set);
-void shirudo_kmodules_free(struct shirudo_kmod_set *set);
+int  kmodules_parse(char *buf, struct shirudo_kmod_set *set);
+void kmodules_free(struct shirudo_kmod_set *set);
 
-void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set);
+void kmodules_print_tree(const struct shirudo_kmod_set *set);
 
 /*
  * boot_sec is the wallclock instant of boot: the since-boot column is
  * elapsed from boot, not time ago.
  */
-void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
-				   size_t last_n, __s64 boot_sec);
+void kmodules_print_recent(const struct shirudo_kmod_set *set,
+			   size_t last_n, __s64 boot_sec);
 
 #endif /* SHIRUDO_UTIL_KMODULES_H */

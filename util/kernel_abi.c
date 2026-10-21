@@ -95,8 +95,8 @@ static bool is_byte_int(const struct btf_type *t)
 	       btf_int_offset(t) == 0 && btf_int_bits(t) == 8;
 }
 
-int shirudo_kernel_abi_validate_btf(const struct btf *btf,
-				    char *detail, size_t detail_sz)
+int kernel_abi_validate_btf(const struct btf *btf,
+			    char *detail, size_t detail_sz)
 {
 	const struct btf_member *sha, *excl_prog_sha, *sig;
 	const struct btf_member *keyring_serial, *keyring_type, *verdict;
@@ -192,7 +192,7 @@ int shirudo_kernel_abi_validate_btf(const struct btf *btf,
 	return 0;
 }
 
-int shirudo_kernel_abi_check(char *detail, size_t detail_sz)
+int kernel_abi_check(char *detail, size_t detail_sz)
 {
 	struct btf *btf;
 	long err;
@@ -207,7 +207,7 @@ int shirudo_kernel_abi_check(char *detail, size_t detail_sz)
 				"cannot read target kernel BTF: %s; boot a Shirudo-patched kernel",
 				strerror((int)-err));
 
-	rc = shirudo_kernel_abi_validate_btf(btf, detail, detail_sz);
+	rc = kernel_abi_validate_btf(btf, detail, detail_sz);
 	btf__free(btf);
 	return rc;
 }

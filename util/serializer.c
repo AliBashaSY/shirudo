@@ -15,7 +15,7 @@
 #include "seal.h"
 #include "serializer.h"
 
-int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id)
+int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 {
 	char name[64];
 	struct stat st;
@@ -23,7 +23,7 @@ int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id)
 
 	if (!dir || !dir[0] || map_id == 0)
 		return -EINVAL;
-	rc = shirudo_seal_mkdir_p(dir, 0700);
+	rc = seal_mkdir_p(dir, 0700);
 	if (rc)
 		return rc;
 	dir_fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
@@ -40,7 +40,7 @@ int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id)
 		close(dir_fd);
 		return rc;
 	}
-	rc = shirudo_seal_inherit(dir_fd, fd);
+	rc = seal_inherit(dir_fd, fd);
 	close(dir_fd);
 	if (rc) {
 		close(fd);
@@ -64,12 +64,12 @@ int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id)
 	return fd;
 }
 
-int shirudo_serializer_lock_acquire(__u32 map_id)
+int serializer_lock_acquire(__u32 map_id)
 {
-	return shirudo_serializer_lock_acquire_at(SHIRUDO_LOCKS_DIR, map_id);
+	return serializer_lock_acquire_at(SHIRUDO_LOCKS_DIR, map_id);
 }
 
-int shirudo_serializer_new_invocation_id(__u64 *out)
+int serializer_new_invocation_id(__u64 *out)
 {
 	__u64 id;
 	__u8 *p = (__u8 *)&id;
@@ -96,13 +96,13 @@ int shirudo_serializer_new_invocation_id(__u64 *out)
 	return 0;
 }
 
-int shirudo_serial_chunk_validate(const struct shirudo_serial_chunk *c,
-				  __u32 want_index,
-				  __u32 total_chunks,
-				  __u32 page_index,
-				  __u64 cursor,
-				  __u64 next_cursor,
-				  __u64 invocation_id)
+int serial_chunk_validate(const struct shirudo_serial_chunk *c,
+			  __u32 want_index,
+			  __u32 total_chunks,
+			  __u32 page_index,
+			  __u64 cursor,
+			  __u64 next_cursor,
+			  __u64 invocation_id)
 {
 	if (!c || invocation_id == 0)
 		return -EINVAL;

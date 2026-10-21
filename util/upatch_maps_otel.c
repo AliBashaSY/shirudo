@@ -146,9 +146,9 @@ static int metric_type_from_view(const struct shirudo_map_view *v,
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
-				      enum shirudo_otel_signal *signal,
-				      char *reason, size_t reason_sz)
+int upatch_maps_otel_classify(const struct shirudo_map_view *v,
+			      enum shirudo_otel_signal *signal,
+			      char *reason, size_t reason_sz)
 {
 	struct metric_type mt;
 	int rc;
@@ -164,7 +164,7 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 		snprintf(reason, reason_sz, "map type is not generically readable");
 		return 0;
 	}
-	if (!shirudo_upatch_map_is_percpu(v->type)) {
+	if (!upatch_map_is_percpu(v->type)) {
 		snprintf(reason, reason_sz, "map is not per-CPU");
 		return 0;
 	}
@@ -186,12 +186,12 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 static void otlp_kv_string(struct shirudo_json_emit *e, const char *key,
 			   const char *value)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "key", key);
-	shirudo_json_obj_open_key(e, "value");
-	shirudo_json_kv_string(e, "stringValue", value ? value : "");
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_obj_open(e);
+	json_kv_string(e, "key", key);
+	json_obj_open_key(e, "value");
+	json_kv_string(e, "stringValue", value ? value : "");
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 static void otlp_kv_int(struct shirudo_json_emit *e, const char *key,
@@ -200,78 +200,78 @@ static void otlp_kv_int(struct shirudo_json_emit *e, const char *key,
 	char num[32];
 
 	snprintf(num, sizeof(num), "%lld", value);
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "key", key);
-	shirudo_json_obj_open_key(e, "value");
-	shirudo_json_kv_string(e, "intValue", num);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_obj_open(e);
+	json_kv_string(e, "key", key);
+	json_obj_open_key(e, "value");
+	json_kv_string(e, "intValue", num);
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 static void otlp_kv_bool(struct shirudo_json_emit *e, const char *key,
 			 bool value)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "key", key);
-	shirudo_json_obj_open_key(e, "value");
-	shirudo_json_kv_bool(e, "boolValue", value);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_obj_open(e);
+	json_kv_string(e, "key", key);
+	json_obj_open_key(e, "value");
+	json_kv_bool(e, "boolValue", value);
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 static void otlp_kvlist_begin(struct shirudo_json_emit *e, const char *key)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "key", key);
-	shirudo_json_obj_open_key(e, "value");
-	shirudo_json_obj_open_key(e, "kvlistValue");
-	shirudo_json_arr_open(e, "values");
+	json_obj_open(e);
+	json_kv_string(e, "key", key);
+	json_obj_open_key(e, "value");
+	json_obj_open_key(e, "kvlistValue");
+	json_arr_open(e, "values");
 }
 
 static void otlp_kvlist_end(struct shirudo_json_emit *e)
 {
-	shirudo_json_arr_close(e);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 static void otlp_array_begin(struct shirudo_json_emit *e, const char *key)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "key", key);
-	shirudo_json_obj_open_key(e, "value");
-	shirudo_json_obj_open_key(e, "arrayValue");
-	shirudo_json_arr_open(e, "values");
+	json_obj_open(e);
+	json_kv_string(e, "key", key);
+	json_obj_open_key(e, "value");
+	json_obj_open_key(e, "arrayValue");
+	json_arr_open(e, "values");
 }
 
 static void otlp_array_end(struct shirudo_json_emit *e)
 {
-	shirudo_json_arr_close(e);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 static void otlp_array_string(struct shirudo_json_emit *e, const char *value)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_kv_string(e, "stringValue", value ? value : "");
-	shirudo_json_obj_close(e);
+	json_obj_open(e);
+	json_kv_string(e, "stringValue", value ? value : "");
+	json_obj_close(e);
 }
 
 static void otlp_array_kvlist_begin(struct shirudo_json_emit *e)
 {
-	shirudo_json_obj_open(e);
-	shirudo_json_obj_open_key(e, "kvlistValue");
-	shirudo_json_arr_open(e, "values");
+	json_obj_open(e);
+	json_obj_open_key(e, "kvlistValue");
+	json_arr_open(e, "values");
 }
 
 static void otlp_array_kvlist_end(struct shirudo_json_emit *e)
 {
-	shirudo_json_arr_close(e);
-	shirudo_json_obj_close(e);
-	shirudo_json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
 }
 
 /*
@@ -388,9 +388,9 @@ static int json_anyvalue_number(struct json_anyvalue_ctx *c,
 	memcpy(number, start, len);
 	number[len] = '\0';
 	if (fraction)
-		shirudo_json_kv_string(e, "doubleValue", number);
+		json_kv_string(e, "doubleValue", number);
 	else
-		shirudo_json_kv_string(e, "intValue", number);
+		json_kv_string(e, "intValue", number);
 	return 0;
 }
 
@@ -411,16 +411,16 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 	}
 	c->p++;
 	if (wrap)
-		shirudo_json_obj_open(e);
-	shirudo_json_obj_open_key(e, "kvlistValue");
-	shirudo_json_arr_open(e, "values");
+		json_obj_open(e);
+	json_obj_open_key(e, "kvlistValue");
+	json_arr_open(e, "values");
 	json_anyvalue_skip_ws(c);
 	if (c->p < c->end && *c->p == '}') {
 		c->p++;
-		shirudo_json_arr_close(e);
-		shirudo_json_obj_close(e);
+		json_arr_close(e);
+		json_obj_close(e);
 		if (wrap)
-			shirudo_json_obj_close(e);
+			json_obj_close(e);
 		c->depth--;
 		return 0;
 	}
@@ -437,12 +437,12 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 			break;
 		}
 		json_anyvalue_skip_ws(c);
-		shirudo_json_obj_open(e);
-		shirudo_json_kv_raw(e, "key", key, key_len);
-		shirudo_json_obj_open_key(e, "value");
+		json_obj_open(e);
+		json_kv_raw(e, "key", key, key_len);
+		json_obj_open_key(e, "value");
 		rc = json_anyvalue_emit_contents(c, e);
-		shirudo_json_obj_close(e);
-		shirudo_json_obj_close(e);
+		json_obj_close(e);
+		json_obj_close(e);
 		if (rc)
 			break;
 		json_anyvalue_skip_ws(c);
@@ -461,10 +461,10 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 		}
 		json_anyvalue_skip_ws(c);
 	}
-	shirudo_json_arr_close(e);
-	shirudo_json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
 	if (wrap)
-		shirudo_json_obj_close(e);
+		json_obj_close(e);
 	c->depth--;
 	return rc;
 }
@@ -480,9 +480,9 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 	}
 	c->p++;
 	if (wrap)
-		shirudo_json_obj_open(e);
-	shirudo_json_obj_open_key(e, "arrayValue");
-	shirudo_json_arr_open(e, "values");
+		json_obj_open(e);
+	json_obj_open_key(e, "arrayValue");
+	json_arr_open(e, "values");
 	json_anyvalue_skip_ws(c);
 	if (c->p < c->end && *c->p == ']') {
 		c->p++;
@@ -507,10 +507,10 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 			}
 		}
 	}
-	shirudo_json_arr_close(e);
-	shirudo_json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
 	if (wrap)
-		shirudo_json_obj_close(e);
+		json_obj_close(e);
 	c->depth--;
 	return rc;
 }
@@ -534,19 +534,19 @@ static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
 		rc = json_anyvalue_string(c, &start, &len);
 		if (rc)
 			return rc;
-		shirudo_json_kv_raw(e, "stringValue", start, len);
+		json_kv_raw(e, "stringValue", start, len);
 		return 0;
 	case 't':
 		rc = json_anyvalue_literal(c, "true");
 		if (rc)
 			return rc;
-		shirudo_json_kv_bool(e, "boolValue", true);
+		json_kv_bool(e, "boolValue", true);
 		return 0;
 	case 'f':
 		rc = json_anyvalue_literal(c, "false");
 		if (rc)
 			return rc;
-		shirudo_json_kv_bool(e, "boolValue", false);
+		json_kv_bool(e, "boolValue", false);
 		return 0;
 	case 'n':
 		rc = json_anyvalue_literal(c, "null");
@@ -564,9 +564,9 @@ static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
 {
 	int rc;
 
-	shirudo_json_obj_open(e);
+	json_obj_open(e);
 	rc = json_anyvalue_emit_contents(c, e);
-	shirudo_json_obj_close(e);
+	json_obj_close(e);
 	return rc;
 }
 
@@ -596,11 +596,11 @@ static void emit_resource_attributes(struct shirudo_json_emit *e)
 	if (gethostname(hostname, sizeof(hostname)) != 0)
 		snprintf(hostname, sizeof(hostname), "unknown");
 	hostname[sizeof(hostname) - 1] = '\0';
-	shirudo_json_arr_open(e, "attributes");
+	json_arr_open(e, "attributes");
 	otlp_kv_string(e, "service.name", "shirudo");
 	otlp_kv_string(e, "service.version", shirudo_version);
 	otlp_kv_string(e, "host.name", hostname);
-	shirudo_json_arr_close(e);
+	json_arr_close(e);
 }
 
 static __u64 realtime_ns(void)
@@ -626,7 +626,7 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 	otlp_kv_string(e, "type", v->type_name);
 	otlp_kv_int(e, "max_entries", v->max_entries);
 	otlp_kv_int(e, "n_entries", v->n_entries);
-	if (shirudo_upatch_map_is_percpu(v->type))
+	if (upatch_map_is_percpu(v->type))
 		otlp_kv_int(e, "n_cpus", v->n_cpus);
 	if (v->serialized) {
 		__u32 p;
@@ -638,8 +638,8 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 		otlp_array_begin(e, "pages");
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct shirudo_serial_page *page = &v->serial_pages[p];
-			char *hex = shirudo_hex_alloc(page->data,
-						      page->bytes);
+			char *hex = hex_alloc(page->data,
+					      page->bytes);
 
 			otlp_array_kvlist_begin(e);
 			otlp_kv_int(e, "page_index", page->page_index);
@@ -680,25 +680,25 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 		const struct shirudo_map_entry *en = &v->entries[i];
 		char *key;
 
-		key = shirudo_upatch_map_format_cell(v, v->key_type_id,
-						     en->key, v->key_size,
-						     v->btf_key_type);
+		key = upatch_map_format_cell(v, v->key_type_id,
+					     en->key, v->key_size,
+					     v->btf_key_type);
 		otlp_array_kvlist_begin(e);
 		otlp_kv_string(e, "key", key ?: "");
-		if (shirudo_upatch_map_is_percpu(v->type)) {
+		if (upatch_map_is_percpu(v->type)) {
 			char *sum;
 
-			sum = shirudo_upatch_map_format_percpu_sum(v, en->value,
-								   v->btf_value_type);
+			sum = upatch_map_format_percpu_sum(v, en->value,
+							   v->btf_value_type);
 			otlp_array_begin(e, "values_per_cpu");
 			for (j = 0; j < v->n_cpus; j++) {
 				const char *p = (const char *)en->value +
-						(size_t)j * shirudo_upatch_map_value_stride(v);
+						(size_t)j * upatch_map_value_stride(v);
 				char *one;
 
-				one = shirudo_upatch_map_format_cell(v, v->value_type_id,
-								     p, v->value_size,
-								     v->btf_value_type);
+				one = upatch_map_format_cell(v, v->value_type_id,
+							     p, v->value_size,
+							     v->btf_value_type);
 				otlp_array_string(e, one ?: "");
 				xstrfree(one);
 			}
@@ -708,9 +708,9 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 		} else {
 			char *value;
 
-			value = shirudo_upatch_map_format_cell(v, v->value_type_id,
-							       en->value, v->value_size,
-							       v->btf_value_type);
+			value = upatch_map_format_cell(v, v->value_type_id,
+						       en->value, v->value_size,
+						       v->btf_value_type);
 			otlp_kv_string(e, "value", value ?: "");
 			xstrfree(value);
 		}
@@ -740,40 +740,40 @@ static int build_log_payload(const char *path,
 	e.cap = SHIRUDO_JSON_MAX_BYTES;
 	u64_decimal(realtime_ns(), now);
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_arr_open(&e, "resourceLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "resource");
+	json_obj_open(&e);
+	json_arr_open(&e, "resourceLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "resource");
 	emit_resource_attributes(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "scopeLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "scope");
-	shirudo_json_kv_string(&e, "name", "shirudo.upatch.maps");
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "logRecords");
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_string(&e, "timeUnixNano", now);
-	shirudo_json_kv_string(&e, "observedTimeUnixNano", now);
-	shirudo_json_kv_int(&e, "severityNumber", 9);
-	shirudo_json_kv_string(&e, "severityText", "INFO");
-	shirudo_json_kv_string(&e, "eventName", "shirudo.bpf.map.snapshot");
-	decode_rc = path ? shirudo_upatch_decode_map_file_otel(path, v,
-							       &decoded, &decoded_len) :
-			shirudo_upatch_decode_map_otel(v, &decoded, &decoded_len);
+	json_obj_close(&e);
+	json_arr_open(&e, "scopeLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "scope");
+	json_kv_string(&e, "name", "shirudo.upatch.maps");
+	json_kv_string(&e, "version", shirudo_version);
+	json_obj_close(&e);
+	json_arr_open(&e, "logRecords");
+	json_obj_open(&e);
+	json_kv_string(&e, "timeUnixNano", now);
+	json_kv_string(&e, "observedTimeUnixNano", now);
+	json_kv_int(&e, "severityNumber", 9);
+	json_kv_string(&e, "severityText", "INFO");
+	json_kv_string(&e, "eventName", "shirudo.bpf.map.snapshot");
+	decode_rc = path ? upatch_decode_map_file_otel(path, v,
+						       &decoded, &decoded_len) :
+			upatch_decode_map_otel(v, &decoded, &decoded_len);
 	if (!decode_rc && record_max && decoded_len > record_max) {
 		xfree(decoded, decoded_len + 1);
 		decode_rc = -E2BIG;
 	}
 	if (decode_rc == 0) {
-		shirudo_json_kv_raw(&e, "body", decoded, decoded_len);
+		json_kv_raw(&e, "body", decoded, decoded_len);
 	} else {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
 		return decode_rc;
 	}
 	xfree(decoded, decoded_len + 1);
-	shirudo_json_arr_open(&e, "attributes");
+	json_arr_open(&e, "attributes");
 	otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
 	otlp_kv_string(&e, "shirudo.upatch.location", v->location);
 	otlp_kv_string(&e, "shirudo.map.name", v->name);
@@ -783,14 +783,14 @@ static int build_log_payload(const char *path,
 	otlp_kv_int(&e, "shirudo.map.n_cpus", v->n_cpus);
 	otlp_kv_bool(&e, "shirudo.map.serialized", v->serialized);
 	otlp_kv_bool(&e, "shirudo.map.truncated", v->truncated);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 
 	if (e.err) {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
@@ -801,9 +801,9 @@ static int build_log_payload(const char *path,
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_build_log_file(const char *path,
-					    const struct shirudo_map_view *v,
-					    char **out, size_t *out_len)
+int upatch_maps_otel_build_log_file(const char *path,
+				    const struct shirudo_map_view *v,
+				    char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
@@ -845,12 +845,12 @@ static int entry_metric_value(const struct shirudo_map_view *v,
 			      const struct shirudo_map_entry *en,
 			      const struct metric_type *mt, __s64 *out)
 {
-	__u32 count = shirudo_upatch_map_is_percpu(v->type) ?
+	__u32 count = upatch_map_is_percpu(v->type) ?
 		v->n_cpus : 1;
 	__int128 signed_sum = 0;
 
 	unsigned __int128 unsigned_sum = 0;
-	__u32 stride = shirudo_upatch_map_value_stride(v);
+	__u32 stride = upatch_map_value_stride(v);
 	__u32 i;
 
 	for (i = 0; i < count; i++) {
@@ -931,7 +931,7 @@ static int map_start_ns(const struct shirudo_map_view *v, __u64 *out)
 		*out = v->lifetime_start_ns;
 		return 0;
 	}
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), v->upatch))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), v->upatch))
 		return -ENAMETOOLONG;
 	if ((size_t)snprintf(path, sizeof(path), "%s/%s",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
@@ -1000,34 +1000,34 @@ static __attribute__((unused)) int build_metric_payload(const struct otel_state 
 	e.buf = buf;
 	e.cap = SHIRUDO_JSON_MAX_BYTES;
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_arr_open(&e, "resourceMetrics");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "resource");
+	json_obj_open(&e);
+	json_arr_open(&e, "resourceMetrics");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "resource");
 	emit_resource_attributes(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "scopeMetrics");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "scope");
-	shirudo_json_kv_string(&e, "name", "shirudo.upatch.maps");
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "metrics");
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_string(&e, "name", name);
+	json_obj_close(&e);
+	json_arr_open(&e, "scopeMetrics");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "scope");
+	json_kv_string(&e, "name", "shirudo.upatch.maps");
+	json_kv_string(&e, "version", shirudo_version);
+	json_obj_close(&e);
+	json_arr_open(&e, "metrics");
+	json_obj_open(&e);
+	json_kv_string(&e, "name", name);
 	if (st->opts.metric_description && st->opts.metric_description[0])
-		shirudo_json_kv_string(&e, "description",
-				       st->opts.metric_description);
-	shirudo_json_kv_string(&e, "unit",
-			       st->opts.metric_unit ?: "1");
-	shirudo_json_obj_open_key(&e,
-				  st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER ?
-				  "sum" : "gauge");
+		json_kv_string(&e, "description",
+			       st->opts.metric_description);
+	json_kv_string(&e, "unit",
+		       st->opts.metric_unit ?: "1");
+	json_obj_open_key(&e,
+			  st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER ?
+			  "sum" : "gauge");
 	if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER) {
-		shirudo_json_kv_int(&e, "aggregationTemporality", 2);
-		shirudo_json_kv_bool(&e, "isMonotonic", true);
+		json_kv_int(&e, "aggregationTemporality", 2);
+		json_kv_bool(&e, "isMonotonic", true);
 	}
-	shirudo_json_arr_open(&e, "dataPoints");
+	json_arr_open(&e, "dataPoints");
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *en = &v->entries[i];
 		char value[32];
@@ -1040,32 +1040,32 @@ static __attribute__((unused)) int build_metric_payload(const struct otel_state 
 			return rc;
 		}
 		snprintf(value, sizeof(value), "%lld", point);
-		key = shirudo_upatch_map_format_cell(v, v->key_type_id,
-						     en->key, v->key_size, v->btf_key_type);
-		shirudo_json_obj_open(&e);
+		key = upatch_map_format_cell(v, v->key_type_id,
+					     en->key, v->key_size, v->btf_key_type);
+		json_obj_open(&e);
 		if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER)
-			shirudo_json_kv_string(&e, "startTimeUnixNano", start);
-		shirudo_json_kv_string(&e, "timeUnixNano", now);
-		shirudo_json_kv_string(&e, "asInt", value);
-		shirudo_json_arr_open(&e, "attributes");
+			json_kv_string(&e, "startTimeUnixNano", start);
+		json_kv_string(&e, "timeUnixNano", now);
+		json_kv_string(&e, "asInt", value);
+		json_arr_open(&e, "attributes");
 		otlp_kv_string(&e, "shirudo.map.key", key ?: "");
 		otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
 		otlp_kv_string(&e, "shirudo.upatch.location", v->location);
 		otlp_kv_string(&e, "shirudo.map.name", v->name);
 		otlp_kv_string(&e, "shirudo.map.type", v->type_name);
-		shirudo_json_arr_close(&e);
-		shirudo_json_obj_close(&e);
+		json_arr_close(&e);
+		json_obj_close(&e);
 		xstrfree(key);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 
 	if (e.err) {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
@@ -1087,9 +1087,9 @@ static int build_metric_decoded_payload(const char *path,
 	int rc;
 
 	(void)opts;
-	rc = path ? shirudo_upatch_decode_map_file_json(path, v,
-							&decoded, &decoded_len) :
-		shirudo_upatch_decode_map_json(v, &decoded, &decoded_len);
+	rc = path ? upatch_decode_map_file_json(path, v,
+						&decoded, &decoded_len) :
+		upatch_decode_map_json(v, &decoded, &decoded_len);
 	if (rc)
 		return rc;
 	decoded_buf = decoded;
@@ -1109,24 +1109,24 @@ static int build_metric_decoded_payload(const char *path,
 	}
 	e.buf = buf;
 	e.cap = SHIRUDO_JSON_MAX_BYTES;
-	shirudo_json_obj_open(&e);
-	shirudo_json_arr_open(&e, "resourceMetrics");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "resource");
+	json_obj_open(&e);
+	json_arr_open(&e, "resourceMetrics");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "resource");
 	emit_resource_attributes(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "scopeMetrics");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "scope");
-	shirudo_json_kv_string(&e, "name", "shirudo.upatch.maps");
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_kv_raw(&e, "metrics", decoded, decoded_len);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_obj_close(&e);
+	json_arr_open(&e, "scopeMetrics");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "scope");
+	json_kv_string(&e, "name", "shirudo.upatch.maps");
+	json_kv_string(&e, "version", shirudo_version);
+	json_obj_close(&e);
+	json_kv_raw(&e, "metrics", decoded, decoded_len);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
 		xfree(decoded_buf, decoded_alloc_len + 1);
@@ -1291,10 +1291,10 @@ shirudo_upatch_maps_otel_build_metric(const struct shirudo_map_view *v,
 	return build_metric_decoded_payload(NULL, v, opts, out, out_len);
 }
 
-int shirudo_upatch_maps_otel_build_metric_file(const char *path,
-					       const struct shirudo_map_view *v,
-					       const struct shirudo_otel_opts *opts,
-					       char **out, size_t *out_len)
+int upatch_maps_otel_build_metric_file(const char *path,
+				       const struct shirudo_map_view *v,
+				       const struct shirudo_otel_opts *opts,
+				       char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
@@ -1347,8 +1347,8 @@ static int percent_decode(char *s)
 
 			if (!src[1] || !src[2])
 				return -EINVAL;
-			hi = shirudo_hex_nibble(src[1]);
-			lo = shirudo_hex_nibble(src[2]);
+			hi = hex_nibble(src[1]);
+			lo = hex_nibble(src[2]);
 			if (hi < 0 || lo < 0)
 				return -EINVAL;
 			*dst++ = (char)((hi << 4) | lo);
@@ -1406,7 +1406,7 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		if (tenant) {
 			if (st->opts.tenant_id)
 				continue;
-			if (tenant_seen || !shirudo_tenant_id_valid(value)) {
+			if (tenant_seen || !tenant_id_valid(value)) {
 				rc = -EINVAL;
 				break;
 			}
@@ -1470,7 +1470,7 @@ static int configure_state(struct otel_state *st, const char *spec,
 	rc = add_configured_headers(st, headers);
 	if (rc || !st->opts.tenant_id)
 		return rc;
-	if (!shirudo_tenant_id_valid(st->opts.tenant_id))
+	if (!tenant_id_valid(st->opts.tenant_id))
 		return -EINVAL;
 	{
 		char line[sizeof("X-Tenant-ID: ") + SHIRUDO_TENANT_ID_MAX];
@@ -1605,11 +1605,11 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 
 	if (len == 0)
 		return 0;
-	rc = shirudo_json_parse(body, len, root, ARRAY_SIZE(root));
+	rc = json_parse(body, len, root, ARRAY_SIZE(root));
 	if (rc) {
 		partial[0] = (struct shirudo_json_field){
 			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
-		if (shirudo_json_parse(body, len, root, ARRAY_SIZE(root)))
+		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			return -EBADMSG;
 	} else if (partial[0].seen) {
 		char *end;
@@ -1625,7 +1625,7 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 		partial[0] = (struct shirudo_json_field){
 			"errorMessage", SHIRUDO_JSON_T_STRING, error,
 			sizeof(error), 0, NULL, 0 };
-		if (shirudo_json_parse(body, len, root, ARRAY_SIZE(root)))
+		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			error[0] = '\0';
 		pr_err("otel: Collector partially rejected %lld %s%s%s",
 		       rejected, signal == SHIRUDO_OTEL_LOG ? "log record(s)" :
@@ -1709,7 +1709,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 				 st->insecure_tls ? 0L : 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST,
 				 st->insecure_tls ? 0L : 2L);
-		if (shirudo_tls_curl_policy(curl, NULL)) {
+		if (tls_curl_policy(curl, NULL)) {
 			curl_easy_cleanup(curl);
 			rc = -EINVAL;
 			break;
@@ -1805,8 +1805,8 @@ static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 	if (!v || !state)
 		return -EINVAL;
 	if (automatic) {
-		rc = shirudo_upatch_maps_otel_classify(v, &signal,
-						       reason, sizeof(reason));
+		rc = upatch_maps_otel_classify(v, &signal,
+					       reason, sizeof(reason));
 		if (rc)
 			return rc;
 		fprintf(stderr, "otel: selected %s for %s map %s: %s\n",
@@ -1837,9 +1837,9 @@ static int otel_emit(void *state, const struct shirudo_map_view *v)
 				       st->opts.log_record_max_bytes,
 				       &payload, &len);
 	else if (st->decoder_path)
-		rc = shirudo_upatch_maps_otel_build_metric_file(st->decoder_path, v,
-								&st->opts,
-								&payload, &len);
+		rc = upatch_maps_otel_build_metric_file(st->decoder_path, v,
+							&st->opts,
+							&payload, &len);
 	else
 		rc = shirudo_upatch_maps_otel_build_metric(v, &st->opts,
 							   &payload, &len);
@@ -1903,47 +1903,47 @@ static int build_generic_log_payload(const char *scope_name,
 	e.cap = cap;
 	u64_decimal(realtime_ns(), now);
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_arr_open(&e, "resourceLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "resource");
+	json_obj_open(&e);
+	json_arr_open(&e, "resourceLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "resource");
 	emit_resource_attributes(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "scopeLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "scope");
-	shirudo_json_kv_string(&e, "name", scope_name);
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "logRecords");
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_string(&e, "timeUnixNano", now);
-	shirudo_json_kv_string(&e, "observedTimeUnixNano", now);
-	shirudo_json_kv_int(&e, "severityNumber", severity_number);
-	shirudo_json_kv_string(&e, "severityText", severity_text);
-	shirudo_json_kv_string(&e, "eventName", event_name);
-	shirudo_json_obj_open_key(&e, "body");
+	json_obj_close(&e);
+	json_arr_open(&e, "scopeLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "scope");
+	json_kv_string(&e, "name", scope_name);
+	json_kv_string(&e, "version", shirudo_version);
+	json_obj_close(&e);
+	json_arr_open(&e, "logRecords");
+	json_obj_open(&e);
+	json_kv_string(&e, "timeUnixNano", now);
+	json_kv_string(&e, "observedTimeUnixNano", now);
+	json_kv_int(&e, "severityNumber", severity_number);
+	json_kv_string(&e, "severityText", severity_text);
+	json_kv_string(&e, "eventName", event_name);
+	json_obj_open_key(&e, "body");
 	rc = json_anyvalue_from_document(&e, body_json, body_len, false);
-	shirudo_json_obj_close(&e);
+	json_obj_close(&e);
 	if (rc) {
 		xfree(buf, cap);
 		return rc;
 	}
-	shirudo_json_arr_open(&e, "attributes");
+	json_arr_open(&e, "attributes");
 	if (status)
 		otlp_kv_string(&e, "shirudo.status", status);
 	if (version_id)
 		otlp_kv_string(&e, "shirudo.version_id", version_id);
 	if (tamper_attempts >= 0)
 		otlp_kv_int(&e, "shirudo.tamper_attempts", tamper_attempts);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		xfree(buf, cap);
 		return e.err;
@@ -1954,15 +1954,15 @@ static int build_generic_log_payload(const char *scope_name,
 	return 0;
 }
 
-int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
-			       const char *scope_name,
-			       const char *event_name,
-			       int severity_number,
-			       const char *severity_text,
-			       const char *status,
-			       const char *version_id,
-			       __s64 tamper_attempts,
-			       const char *body_json, size_t body_len)
+int otel_send_log_json(const struct shirudo_otel_opts *opts,
+		       const char *scope_name,
+		       const char *event_name,
+		       int severity_number,
+		       const char *severity_text,
+		       const char *status,
+		       const char *version_id,
+		       __s64 tamper_attempts,
+		       const char *body_json, size_t body_len)
 {
 	char *payload = NULL;
 	void *state = NULL;
@@ -2044,7 +2044,7 @@ static int snapshot_write_compressed(struct snapshot_writer *w,
 		return -EOVERFLOW;
 	if (len && fwrite(data, 1, len, w->file) != len)
 		return -EIO;
-	if (len && shirudo_sha256_update(&w->md, data, len) != 0)
+	if (len && sha256_update(&w->md, data, len) != 0)
 		return -EIO;
 	w->object_bytes += len;
 	return 0;
@@ -2056,7 +2056,7 @@ static int snapshot_writer_init(struct snapshot_writer *w, FILE *file)
 
 	memset(w, 0, sizeof(*w));
 	w->file = file;
-	if (shirudo_sha256_init(&w->md) != 0)
+	if (sha256_init(&w->md) != 0)
 		return -EIO;
 	zr = deflateInit2(&w->z, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 + 16,
 			  8, Z_DEFAULT_STRATEGY);
@@ -2075,7 +2075,7 @@ static void snapshot_writer_abort(struct snapshot_writer *w)
 {
 	if (w->deflate_ready)
 		deflateEnd(&w->z);
-	shirudo_sha256_free(&w->md);
+	sha256_free(&w->md);
 	w->deflate_ready = false;
 }
 
@@ -2134,7 +2134,7 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 	if (deflateEnd(&w->z) != Z_OK)
 		return -EIO;
 	w->deflate_ready = false;
-	if (shirudo_sha256_final(&w->md, snapshot->sha256) != 0)
+	if (sha256_final(&w->md, snapshot->sha256) != 0)
 		return -EIO;
 	if (fflush(w->file) != 0 || fseeko(w->file, 0, SEEK_SET) != 0)
 		return -EIO;
@@ -2143,9 +2143,9 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 	for (size_t i = 0; i < sizeof(snapshot->sha256); i++)
 		snprintf(snapshot->sha256_hex + i * 2, 3, "%02x",
 			 snapshot->sha256[i]);
-	if (shirudo_base64_encode(snapshot->sha256, sizeof(snapshot->sha256),
-				  snapshot->sha256_b64,
-				  sizeof(snapshot->sha256_b64)) != 0)
+	if (base64_encode(snapshot->sha256, sizeof(snapshot->sha256),
+			  snapshot->sha256_b64,
+			  sizeof(snapshot->sha256_b64)) != 0)
 		return -EIO;
 	snapshot->sha256_b64[44] = '\0';
 	return 0;
@@ -2163,15 +2163,15 @@ static int build_s3_snapshot(const char *decoder_path,
 	memset(snapshot, 0, sizeof(*snapshot));
 	/* S3 stores exactly the canonical value returned by the signed decoder. */
 	if (decoder_path)
-		rc = shirudo_upatch_decode_map_file_json_limit(decoder_path, v,
-							       S3_DECODER_JSON_MAX_BYTES,
-							       &decoded,
-							       &decoded_len);
+		rc = upatch_decode_map_file_json_limit(decoder_path, v,
+						       S3_DECODER_JSON_MAX_BYTES,
+						       &decoded,
+						       &decoded_len);
 	else
-		rc = shirudo_upatch_decode_map_json_limit(v,
-							  S3_DECODER_JSON_MAX_BYTES,
-							  &decoded,
-							  &decoded_len);
+		rc = upatch_decode_map_json_limit(v,
+						  S3_DECODER_JSON_MAX_BYTES,
+						  &decoded,
+						  &decoded_len);
 	if (rc)
 		return rc;
 	rc = snapshot_temp_file(&snapshot->file);
@@ -2558,7 +2558,7 @@ static int s3_put(struct otel_s3_state *st,
 				 st->insecure_tls ? 0L : 1L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST,
 				 st->insecure_tls ? 0L : 2L);
-		if (shirudo_tls_curl_policy(curl, NULL)) {
+		if (tls_curl_policy(curl, NULL)) {
 			curl_easy_cleanup(curl);
 			rc = -EINVAL;
 			break;
@@ -2611,30 +2611,30 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 	u64_decimal(realtime_ns(), now);
 	snprintf(description, sizeof(description),
 		 "BPF map snapshot stored in S3: %s", uri);
-	shirudo_json_obj_open(&e);
-	shirudo_json_arr_open(&e, "resourceLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "resource");
+	json_obj_open(&e);
+	json_arr_open(&e, "resourceLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "resource");
 	emit_resource_attributes(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "scopeLogs");
-	shirudo_json_obj_open(&e);
-	shirudo_json_obj_open_key(&e, "scope");
-	shirudo_json_kv_string(&e, "name", "shirudo.upatch.maps");
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "logRecords");
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_string(&e, "timeUnixNano", now);
-	shirudo_json_kv_string(&e, "observedTimeUnixNano", now);
-	shirudo_json_kv_int(&e, "severityNumber", 9);
-	shirudo_json_kv_string(&e, "severityText", "INFO");
-	shirudo_json_kv_string(&e, "eventName",
-			       "shirudo.bpf.map.snapshot.reference");
-	shirudo_json_obj_open_key(&e, "body");
-	shirudo_json_kv_string(&e, "stringValue", description);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "attributes");
+	json_obj_close(&e);
+	json_arr_open(&e, "scopeLogs");
+	json_obj_open(&e);
+	json_obj_open_key(&e, "scope");
+	json_kv_string(&e, "name", "shirudo.upatch.maps");
+	json_kv_string(&e, "version", shirudo_version);
+	json_obj_close(&e);
+	json_arr_open(&e, "logRecords");
+	json_obj_open(&e);
+	json_kv_string(&e, "timeUnixNano", now);
+	json_kv_string(&e, "observedTimeUnixNano", now);
+	json_kv_int(&e, "severityNumber", 9);
+	json_kv_string(&e, "severityText", "INFO");
+	json_kv_string(&e, "eventName",
+		       "shirudo.bpf.map.snapshot.reference");
+	json_obj_open_key(&e, "body");
+	json_kv_string(&e, "stringValue", description);
+	json_obj_close(&e);
+	json_arr_open(&e, "attributes");
 	otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
 	otlp_kv_string(&e, "shirudo.upatch.location", v->location);
 	otlp_kv_string(&e, "shirudo.map.name", v->name);
@@ -2656,14 +2656,14 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 		    (__s64)snapshot->json_bytes);
 	otlp_kv_string(&e, "shirudo.map.snapshot.sha256",
 		       snapshot->sha256_hex);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err || e.depth) {
 		if (!e.err)
 			e.err = -EBADMSG;
@@ -2776,10 +2776,10 @@ static int otel_s3_close(void *state)
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
-				       const struct shirudo_map_view *v,
-				       enum shirudo_otel_mode mode,
-				       const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send_file(const char *decoder_path,
+			       const struct shirudo_map_view *v,
+			       enum shirudo_otel_mode mode,
+			       const struct shirudo_otel_opts *opts)
 {
 	const char *endpoint = opts ? opts->endpoint : NULL;
 	bool automatic = mode == SHIRUDO_OTEL_AUTO;
@@ -2814,28 +2814,28 @@ int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
 	return rc ? rc : close_rc;
 }
 
-int shirudo_upatch_maps_otel_send(const struct shirudo_map_view *v,
-				  enum shirudo_otel_mode mode,
-				  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send(const struct shirudo_map_view *v,
+			  enum shirudo_otel_mode mode,
+			  const struct shirudo_otel_opts *opts)
 {
-	return shirudo_upatch_maps_otel_send_file(NULL, v, mode, opts);
+	return upatch_maps_otel_send_file(NULL, v, mode, opts);
 }
 
-int shirudo_upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
-					  enum shirudo_otel_signal signal,
-					  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
+				  enum shirudo_otel_signal signal,
+				  const struct shirudo_otel_opts *opts)
 {
 	int rc;
 
 	if (signal == SHIRUDO_OTEL_LOG)
-		rc = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
-						   opts);
+		rc = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
+					   opts);
 	else if (signal == SHIRUDO_OTEL_METRIC)
-		rc = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
-						   opts);
+		rc = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
+					   opts);
 	else
 		return -EINVAL;
 	if (rc == -E2BIG && opts && opts->s3_uri)
-		return shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
+		return upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
 	return rc;
 }

@@ -10,7 +10,7 @@
 
 #include <stddef.h>
 
-void shirudo_harden_stdio(void);
-void shirudo_harden_self(void);
+void harden_stdio(void);
+void harden_self(void);
 
 #endif /* SHIRUDO_HARDEN_H */

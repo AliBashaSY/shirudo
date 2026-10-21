@@ -33,10 +33,10 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		return 0;
 	memcpy(text, data, size);
 	text[size] = '\0';
-	if (!shirudo_kmodules_parse(text, &set))
-		shirudo_kmodules_free(&set);
+	if (!kmodules_parse(text, &set))
+		kmodules_free(&set);
 	xfree(text, size + 1);
 
-	shirudo_kernel_build_id_from_notes(data, size, build_id);
+	kernel_build_id_from_notes(data, size, build_id);
 	return 0;
 }

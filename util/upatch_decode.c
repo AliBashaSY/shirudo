@@ -14,8 +14,8 @@
 
 #ifndef SHIRUDO_HAVE_LUAJIT
 
-int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_json(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
 	if (!v || !out || !out_len)
 		return -EINVAL;
@@ -24,44 +24,44 @@ int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_json_limit(const struct shirudo_map_view *v,
-					 size_t max_bytes,
-					 char **out, size_t *out_len)
+int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+				 size_t max_bytes,
+				 char **out, size_t *out_len)
 {
 	(void)max_bytes;
-	return shirudo_upatch_decode_map_json(v, out, out_len);
+	return upatch_decode_map_json(v, out, out_len);
 }
 
-int shirudo_upatch_decode_map_otel(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_otel(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
-	return shirudo_upatch_decode_map_json(v, out, out_len);
+	return upatch_decode_map_json(v, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_json(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
 	(void)path;
-	return shirudo_upatch_decode_map_json(v, out, out_len);
+	return upatch_decode_map_json(v, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json_limit(const char *path,
-					      const struct shirudo_map_view *v,
-					      size_t max_bytes, char **out,
-					      size_t *out_len)
+int upatch_decode_map_file_json_limit(const char *path,
+				      const struct shirudo_map_view *v,
+				      size_t max_bytes, char **out,
+				      size_t *out_len)
 {
 	(void)path;
 	(void)max_bytes;
-	return shirudo_upatch_decode_map_json(v, out, out_len);
+	return upatch_decode_map_json(v, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_otel(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_otel(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
 	(void)path;
-	return shirudo_upatch_decode_map_json(v, out, out_len);
+	return upatch_decode_map_json(v, out, out_len);
 }
 
 #else /* SHIRUDO_HAVE_LUAJIT */
@@ -581,14 +581,14 @@ static int hex_decode_push(lua_State *L, const char *hex, size_t len,
 			i++;
 		if (i >= len)
 			break;
-		hi = shirudo_hex_nibble((__u8)hex[i++]);
+		hi = hex_nibble((__u8)hex[i++]);
 		while (i < len && isspace((__u8)hex[i]))
 			i++;
 		if (i >= len) {
 			lua_pop(L, 1);
 			return -EINVAL;
 		}
-		lo = shirudo_hex_nibble((__u8)hex[i++]);
+		lo = hex_nibble((__u8)hex[i++]);
 		if (hi < 0 || lo < 0) {
 			lua_pop(L, 1);
 			return -EINVAL;
@@ -876,8 +876,8 @@ static int lua_shirudo_hex_u64(lua_State *L)
 	}
 	for (i = 7; i >= 0; i--) {
 		const char *p = hex + (size_t)off * 2 + (size_t)i * 2;
-		int hi = shirudo_hex_nibble(p[0]);
-		int lo = shirudo_hex_nibble(p[1]);
+		int hi = hex_nibble(p[0]);
+		int lo = hex_nibble(p[1]);
 
 		if (hi < 0 || lo < 0) {
 			lua_push_u64_string(L, 0);
@@ -1072,8 +1072,8 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *entry = &v->entries[i];
 		size_t value_bytes = (size_t)v->value_stride * v->n_cpus;
-		char *key_hex = shirudo_hex_alloc(entry->key, v->key_size);
-		char *value_hex = shirudo_hex_alloc(entry->value, value_bytes);
+		char *key_hex = hex_alloc(entry->key, v->key_size);
+		char *value_hex = hex_alloc(entry->value, value_bytes);
 
 		if (!key_hex || !value_hex) {
 			xfree(key_hex, (size_t)v->key_size * 2 + 1);
@@ -1094,7 +1094,7 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	lua_newtable(L);
 	for (p = 0; p < v->n_serial_pages; p++) {
 		const struct shirudo_serial_page *page = &v->serial_pages[p];
-		char *hex = shirudo_hex_alloc(page->data, page->bytes);
+		char *hex = hex_alloc(page->data, page->bytes);
 
 		if (!hex)
 			luaL_error(L, "decoder page data is too large");
@@ -1162,7 +1162,7 @@ static const char *lua_error_message(lua_State *L)
 	return message ? message : "unknown Lua error";
 }
 
-static int run_lua_decoder(const struct shirudo_upatch_decoder_view *d,
+static int run_lua_decoder(const struct upatch_decoder_view *d,
 			   const struct shirudo_map_view *v,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
@@ -1243,7 +1243,7 @@ out_close:
 	return rc;
 }
 
-static int decoder_matches(const struct shirudo_upatch_decoder_view *d,
+static int decoder_matches(const struct upatch_decoder_view *d,
 			   const struct shirudo_map_view *v)
 {
 	if (d->language != SHIRUDO_UPATCH_DECODER_LANG_LUA ||
@@ -1271,54 +1271,54 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 		return -EINVAL;
 	*out = NULL;
 	*out_len = 0;
-	if (!shirudo_upatch_name_valid(v->upatch))
+	if (!upatch_name_valid(v->upatch))
 		return -EINVAL;
-	rc = shirudo_upatch_open(path, &u);
+	rc = upatch_open(path, &u);
 	if (rc)
 		return rc == -ENOENT ? -ENOENT : rc;
 	rc = -ENOENT;
 	for (i = 0; i < u.nr_decoders; i++) {
-		struct shirudo_upatch_decoder_view d;
+		struct upatch_decoder_view d;
 
-		if (shirudo_upatch_decoder_view(&u, i, &d))
+		if (upatch_decoder_view(&u, i, &d))
 			continue;
 		if (!decoder_matches(&d, v))
 			continue;
 		rc = run_lua_decoder(&d, v, otel, max_bytes, out, out_len);
 		break;
 	}
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	return rc;
 }
 
-int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				     __u32 *signal_out)
+int upatch_decode_map_signal(const struct shirudo_map_view *v,
+			     __u32 *signal_out)
 {
 	struct shirudo_upatch u;
 	char path[PATH_MAX];
 	__u32 i;
 	int rc;
 
-	if (!v || !signal_out || !shirudo_upatch_name_valid(v->upatch))
+	if (!v || !signal_out || !upatch_name_valid(v->upatch))
 		return -EINVAL;
 	if (snprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
 		     v->upatch) >= (int)sizeof(path))
 		return -ENAMETOOLONG;
-	rc = shirudo_upatch_open(path, &u);
+	rc = upatch_open(path, &u);
 	if (rc)
 		return rc == -ENOENT ? -ENOENT : rc;
 	rc = -ENOENT;
 	for (i = 0; i < u.nr_decoders; i++) {
-		struct shirudo_upatch_decoder_view d;
+		struct upatch_decoder_view d;
 
-		if (shirudo_upatch_decoder_view(&u, i, &d) ||
+		if (upatch_decoder_view(&u, i, &d) ||
 		    !decoder_matches(&d, v))
 			continue;
 		*signal_out = d.export_signal;
 		rc = 0;
 		break;
 	}
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	return rc;
 }
 
@@ -1335,51 +1335,51 @@ static int decode_map(const struct shirudo_map_view *v, bool otel,
 	return decode_map_file(path, v, otel, max_bytes, out, out_len);
 }
 
-int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_json(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
-	return shirudo_upatch_decode_map_json_limit(v,
-						    SHIRUDO_JSON_MAX_BYTES,
-						    out, out_len);
+	return upatch_decode_map_json_limit(v,
+					    SHIRUDO_JSON_MAX_BYTES,
+					    out, out_len);
 }
 
-int shirudo_upatch_decode_map_json_limit(const struct shirudo_map_view *v,
-					 size_t max_bytes,
-					 char **out, size_t *out_len)
+int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+				 size_t max_bytes,
+				 char **out, size_t *out_len)
 {
 	if (!max_bytes)
 		return -EINVAL;
 	return decode_map(v, false, max_bytes, out, out_len);
 }
 
-int shirudo_upatch_decode_map_otel(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_otel(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
 	return decode_map(v, true, SHIRUDO_JSON_MAX_BYTES, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_json(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
-	return shirudo_upatch_decode_map_file_json_limit(path, v,
-							 SHIRUDO_JSON_MAX_BYTES,
-							 out, out_len);
+	return upatch_decode_map_file_json_limit(path, v,
+						 SHIRUDO_JSON_MAX_BYTES,
+						 out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_json_limit(const char *path,
-					      const struct shirudo_map_view *v,
-					      size_t max_bytes, char **out,
-					      size_t *out_len)
+int upatch_decode_map_file_json_limit(const char *path,
+				      const struct shirudo_map_view *v,
+				      size_t max_bytes, char **out,
+				      size_t *out_len)
 {
 	if (!max_bytes)
 		return -EINVAL;
 	return decode_map_file(path, v, false, max_bytes, out, out_len);
 }
 
-int shirudo_upatch_decode_map_file_otel(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_otel(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
 	return decode_map_file(path, v, true, SHIRUDO_JSON_MAX_BYTES,
 			       out, out_len);

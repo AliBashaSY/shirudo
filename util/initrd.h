@@ -14,9 +14,9 @@
  * The initrd marks itself with /etc/initrd-release; tests point
  * SHIRUDO_INITRD_RELEASE elsewhere.
  */
-bool shirudo_in_initrd(void);
+bool in_initrd(void);
 
-const char *shirudo_sysroot(void);
+const char *sysroot(void);
 
 /*
  * The keys init enrols: the initrd's own, measured copies while the

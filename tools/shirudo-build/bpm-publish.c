@@ -76,7 +76,7 @@ static int sign_detached(const void *payload, size_t len,
 	io.signature = xmalloc(io.signature_sz);
 	if (!io.signature)
 		return -ENOMEM;
-	rc = shirudo_cms_sign(&io, key, cert);
+	rc = cms_sign(&io, key, cert);
 	if (rc) {
 		xfree(io.signature, BPM_SIGN_MAX);
 		return rc;
@@ -235,7 +235,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	bpm_copy_string(entry->signer, sizeof(entry->signer), info->signer);
 	qsort(entries, (size_t)n, sizeof(*entries), index_entry_compare);
 
-	if (shirudo_iso8601(now, timestamp, sizeof(timestamp))) {
+	if (iso8601(now, timestamp, sizeof(timestamp))) {
 		rc = -EIO;
 		goto out;
 	}
@@ -246,23 +246,23 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = body, .cap = cap };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_kv_string(&e, "generated_at", timestamp);
-	shirudo_json_arr_open(&e, "packages");
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "generated_at", timestamp);
+	json_arr_open(&e, "packages");
 	for (int i = 0; i < n; i++) {
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_string(&e, "name", entries[i].name);
-		shirudo_json_kv_string(&e, "version", entries[i].version);
-		shirudo_json_kv_string(&e, "repository", entries[i].repository);
-		shirudo_json_kv_string(&e, "manifest_digest", entries[i].manifest_digest);
-		shirudo_json_kv_string(&e, "package_digest", entries[i].package_digest);
-		shirudo_json_kv_int(&e, "package_size", entries[i].package_size);
-		shirudo_json_kv_string(&e, "signer_fingerprint", entries[i].signer);
-		shirudo_json_obj_close(&e);
+		json_obj_open(&e);
+		json_kv_string(&e, "name", entries[i].name);
+		json_kv_string(&e, "version", entries[i].version);
+		json_kv_string(&e, "repository", entries[i].repository);
+		json_kv_string(&e, "manifest_digest", entries[i].manifest_digest);
+		json_kv_string(&e, "package_digest", entries[i].package_digest);
+		json_kv_int(&e, "package_size", entries[i].package_size);
+		json_kv_string(&e, "signer_fingerprint", entries[i].signer);
+		json_obj_close(&e);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		rc = e.err;
 		goto out;
@@ -289,16 +289,16 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schemaVersion", 2);
-	shirudo_json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
-	shirudo_json_kv_string(&e, "artifactType", BPM_INDEX_ARTIFACT);
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
+	json_kv_string(&e, "artifactType", BPM_INDEX_ARTIFACT);
 	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
-	shirudo_json_arr_open(&e, "layers");
+	json_arr_open(&e, "layers");
 	bpm_oci_emit_descriptor(&e, NULL, &payload_layer, NULL);
 	bpm_oci_emit_descriptor(&e, NULL, &sig_layer, NULL);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		rc = e.err;
 		goto out;
@@ -344,8 +344,8 @@ static int push_package(const char *package_path, const char *raw_repository,
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	rc = shirudo_read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
-			       &archive_len);
+	rc = read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
+		       &archive_len);
 	if (rc)
 		return rc;
 	rc = bpm_pkg_load_info(package_path, &info);
@@ -379,20 +379,20 @@ static int push_package(const char *package_path, const char *raw_repository,
 	}
 	e.buf = manifest_body;
 	e.cap = BPM_MANIFEST_CAP;
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schemaVersion", 2);
-	shirudo_json_kv_string(&e, "mediaType", "application/vnd.oci.image.manifest.v1+json");
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", "application/vnd.oci.image.manifest.v1+json");
 	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
-	shirudo_json_arr_open(&e, "layers");
+	json_arr_open(&e, "layers");
 	bpm_oci_emit_descriptor(&e, NULL, &layer, package_title);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_open_key(&e, "annotations");
-	shirudo_json_kv_string(&e, "dev.shirudo.bpm.package.name", info.name);
-	shirudo_json_kv_string(&e, "dev.shirudo.bpm.package.version", info.version);
-	shirudo_json_kv_string(&e, "org.opencontainers.image.title", info.name);
-	shirudo_json_kv_string(&e, "org.opencontainers.image.version", info.version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_open_key(&e, "annotations");
+	json_kv_string(&e, "dev.shirudo.bpm.package.name", info.name);
+	json_kv_string(&e, "dev.shirudo.bpm.package.version", info.version);
+	json_kv_string(&e, "org.opencontainers.image.title", info.name);
+	json_kv_string(&e, "org.opencontainers.image.version", info.version);
+	json_obj_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		xfree(manifest_body, BPM_MANIFEST_CAP);
 		rc = e.err;
@@ -439,20 +439,20 @@ static int push_package(const char *package_path, const char *raw_repository,
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = key_manifest_body, .cap = BPM_MANIFEST_CAP };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schemaVersion", 2);
-	shirudo_json_kv_string(&e, "mediaType", "application/vnd.oci.image.manifest.v1+json");
-	shirudo_json_kv_string(&e, "artifactType", BPM_PUBLIC_KEY_ARTIFACT);
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", "application/vnd.oci.image.manifest.v1+json");
+	json_kv_string(&e, "artifactType", BPM_PUBLIC_KEY_ARTIFACT);
 	bpm_oci_emit_descriptor(&e, "config", &key_config, NULL);
-	shirudo_json_arr_open(&e, "layers");
+	json_arr_open(&e, "layers");
 	bpm_oci_emit_descriptor(&e, NULL, &key_layer, NULL);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_open_key(&e, "subject");
-	shirudo_json_kv_string(&e, "mediaType", subject.media);
-	shirudo_json_kv_string(&e, "digest", subject.digest);
-	shirudo_json_kv_int(&e, "size", subject.size);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_open_key(&e, "subject");
+	json_kv_string(&e, "mediaType", subject.media);
+	json_kv_string(&e, "digest", subject.digest);
+	json_kv_int(&e, "size", subject.size);
+	json_obj_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		rc = e.err;
 		goto out;
@@ -547,10 +547,10 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	fd = mkstemp(temporary);
 	if (fd < 0)
 		return -errno;
-	rc = shirudo_write_all(fd, body, len);
+	rc = write_all(fd, body, len);
 	close(fd);
 	if (!rc)
-		rc = shirudo_upatch_open(temporary, &u);
+		rc = upatch_open(temporary, &u);
 	unlink(temporary);
 	if (rc) {
 		pr_err("bpm tree append: %s is not a valid upatch", id);
@@ -558,10 +558,10 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	}
 	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-	shirudo_hex_encode(u.hdr.payload_sha256, 32, hex);
-	if (strcmp(name, id) || shirudo_upatch_is_unload(&u) != unload)
+	hex_encode(u.hdr.payload_sha256, 32, hex);
+	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
 		rc = -EKEYREJECTED;
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	if (rc) {
 		pr_err("bpm tree append: the %s artifact for %s is a %s directive named %s",
 		       unload ? "unload" : "load", id,
@@ -585,18 +585,18 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	if (!manifest)
 		return -ENOMEM;
 	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schemaVersion", 2);
-	shirudo_json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
-	shirudo_json_kv_string(&e, "artifactType", BPM_UPATCH_MEDIA);
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
+	json_kv_string(&e, "artifactType", BPM_UPATCH_MEDIA);
 	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
-	shirudo_json_arr_open(&e, "layers");
+	json_arr_open(&e, "layers");
 	bpm_oci_emit_descriptor(&e, NULL, &layer, NULL);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_open_key(&e, "annotations");
-	shirudo_json_kv_string(&e, "org.opencontainers.image.title", title);
-	shirudo_json_obj_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_open_key(&e, "annotations");
+	json_kv_string(&e, "org.opencontainers.image.title", title);
+	json_obj_close(&e);
+	json_obj_close(&e);
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(c, repository, tag,
@@ -685,7 +685,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	}
 	unload = !strcmp(operation, "delete");
 	if (!key || !cert) {
-		const char *keys_dir = shirudo_keys_dir_resolve(keys_dir_arg);
+		const char *keys_dir = keys_dir_resolve(keys_dir_arg);
 
 		if (!key) {
 			if (shirudo_key_path(key_path, sizeof(key_path), keys_dir,
@@ -787,9 +787,9 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		xfree(body, body_len + 1);
 		if (rc)
 			goto out;
-		rc = shirudo_tree_operation_digest(op, op->operation_digest);
+		rc = tree_operation_digest(op, op->operation_digest);
 		if (!rc)
-			rc = shirudo_tree_publication_append(&pub, op);
+			rc = tree_publication_append(&pub, op);
 		if (rc)
 			goto out;
 		pub.head_seq = op->seq;
@@ -800,7 +800,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		rc = -ENOENT;
 		goto out;
 	}
-	rc = shirudo_tree_emit_publication(&pub, &payload, &payload_len);
+	rc = tree_emit_publication(&pub, &payload, &payload_len);
 	if (rc)
 		goto out;
 	rc = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
@@ -825,16 +825,16 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schemaVersion", 2);
-	shirudo_json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
-	shirudo_json_kv_string(&e, "artifactType", BPM_TREE_ARTIFACT);
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
+	json_kv_string(&e, "artifactType", BPM_TREE_ARTIFACT);
 	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
-	shirudo_json_arr_open(&e, "layers");
+	json_arr_open(&e, "layers");
 	bpm_oci_emit_descriptor(&e, NULL, &payload_layer, NULL);
 	bpm_oci_emit_descriptor(&e, NULL, &sig_layer, NULL);
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(&c, repository, reference,
@@ -851,7 +851,7 @@ out:
 		xfree(payload, payload_len);
 	if (op)
 		xfree(op, sizeof(*op));
-	shirudo_tree_publication_free(&pub);
+	tree_publication_free(&pub);
 	bpm_build_spec_free(spec);
 	if (beefile)
 		xfree(beefile, len + 1);

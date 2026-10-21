@@ -7,14 +7,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-int shirudo_write_all(int fd, const void *buf, size_t len);
+int write_all(int fd, const void *buf, size_t len);
 
 /*
  * A regular file of at most max bytes, into *out xmalloc'd to *len + 1
  * bytes and NUL-terminated; out is the address of a char or unsigned
  * char pointer.
  */
-int shirudo_read_file(const char *path, size_t max, void *out, size_t *len);
+int read_file(const char *path, size_t max, void *out, size_t *len);
 
 /*
  * Whether the file open on fd at path may steer what shirudo trusts.
@@ -25,6 +25,6 @@ int shirudo_read_file(const char *path, size_t max, void *out, size_t *len);
  * root's guards its files the same way. A path elsewhere, where a test
  * points shirudo, is the caller's to vouch for. 0, or -EPERM logged.
  */
-int shirudo_check_trusted(int fd, const char *path, bool secret);
+int check_trusted(int fd, const char *path, bool secret);
 
 #endif /* SHIRUDO_IO_H */

@@ -16,48 +16,48 @@ const struct btf_type *btf__type_by_id(const struct btf *btf, __u32 id)
 	return NULL;
 }
 
-bool shirudo_upatch_map_is_percpu(__u32 type)
+bool upatch_map_is_percpu(__u32 type)
 {
 	return false;
 }
 
-int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_json(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_json_limit(const struct shirudo_map_view *v,
-					 size_t max_bytes,
-					 char **out, size_t *out_len)
+int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+				 size_t max_bytes,
+				 char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_otel(const struct shirudo_map_view *v,
-				   char **out, size_t *out_len)
+int upatch_decode_map_otel(const struct shirudo_map_view *v,
+			   char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_file_json(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_json(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_file_json_limit(const char *path,
-					      const struct shirudo_map_view *v,
-					      size_t max_bytes, char **out,
-					      size_t *out_len)
+int upatch_decode_map_file_json_limit(const char *path,
+				      const struct shirudo_map_view *v,
+				      size_t max_bytes, char **out,
+				      size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int shirudo_upatch_decode_map_file_otel(const char *path,
-					const struct shirudo_map_view *v,
-					char **out, size_t *out_len)
+int upatch_decode_map_file_otel(const char *path,
+				const struct shirudo_map_view *v,
+				char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
@@ -98,7 +98,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	e.buf = xmalloc(cap);
 	if (e.buf) {
 		e.cap = cap;
-		shirudo_json_obj_open(&e);
+		json_obj_open(&e);
 		json_anyvalue_from_document(&e, body, size, false);
 		xfree(e.buf, cap);
 	}

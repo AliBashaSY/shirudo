@@ -68,7 +68,7 @@ static void display_openssl_errors(void)
 			display_openssl_errors();	\
 	} while (0)
 
-int shirudo_open_signing_key(const char *pkey_path)
+int open_signing_key(const char *pkey_path)
 {
 	struct stat st;
 	int fd, rc;
@@ -108,7 +108,7 @@ static EVP_PKEY *read_private_key(const char *pkey_path)
 	BIO *b;
 	int fd;
 
-	fd = shirudo_open_signing_key(pkey_path);
+	fd = open_signing_key(pkey_path);
 	if (fd < 0)
 		return NULL;
 	b = BIO_new_fd(fd, BIO_CLOSE);
@@ -159,8 +159,8 @@ static bool pkey_is_mldsa(const EVP_PKEY *pkey)
 	return name && strncasecmp(name, "ML-DSA", 6) == 0;
 }
 
-int shirudo_cms_sign(struct shirudo_sign_io *io,
-		     const char *pkey_path, const char *cert_path)
+int cms_sign(struct shirudo_sign_io *io,
+	     const char *pkey_path, const char *cert_path)
 {
 	unsigned int signer_flags = CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
 #ifdef CMS_NO_SIGNING_TIME

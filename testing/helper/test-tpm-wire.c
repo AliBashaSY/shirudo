@@ -21,7 +21,7 @@ static void puthex(const __u8 *b, size_t n)
 
 	if (n > 2048)
 		return;
-	shirudo_hex_encode(b, n, h);
+	hex_encode(b, n, h);
 	printf("%s\n", h);
 }
 
@@ -32,7 +32,7 @@ static int gethex(const char *hex, __u8 *out, size_t cap, size_t *len)
 	if (n & 1 || n / 2 > cap)
 		return -1;
 	*len = n / 2;
-	return shirudo_hex_decode(hex, out, n / 2);
+	return hex_decode(hex, out, n / 2);
 }
 
 int main(int argc, char **argv)
@@ -43,37 +43,37 @@ int main(int argc, char **argv)
 	if (argc < 2)
 		return 2;
 	if (strcmp(argv[1], "nv-written") == 0 && argc == 4) {
-		if (shirudo_hex_decode(argv[2], a, 32))
+		if (hex_decode(argv[2], a, 32))
 			return 2;
-		shirudo_tpm_policy_nv_written(a, atoi(argv[3]) != 0, out);
+		tpm_policy_nv_written(a, atoi(argv[3]) != 0, out);
 		puthex(out, 32);
 		return 0;
 	}
 	if (strcmp(argv[1], "pcr") == 0 && argc == 5) {
-		if (shirudo_hex_decode(argv[2], a, 32) ||
-		    shirudo_hex_decode(argv[4], b, 32))
+		if (hex_decode(argv[2], a, 32) ||
+		    hex_decode(argv[4], b, 32))
 			return 2;
-		shirudo_tpm_policy_pcr(a, (__u32)strtoul(argv[3], NULL, 0),
-				       b, out);
+		tpm_policy_pcr(a, (__u32)strtoul(argv[3], NULL, 0),
+			       b, out);
 		puthex(out, 32);
 		return 0;
 	}
 	if (strcmp(argv[1], "or") == 0 && argc == 4) {
-		if (shirudo_hex_decode(argv[2], a, 32) ||
-		    shirudo_hex_decode(argv[3], b, 32))
+		if (hex_decode(argv[2], a, 32) ||
+		    hex_decode(argv[3], b, 32))
 			return 2;
-		shirudo_tpm_policy_or(a, b, out);
+		tpm_policy_or(a, b, out);
 		puthex(out, 32);
 		return 0;
 	}
 	if (strcmp(argv[1], "register-policy") == 0 && argc == 5) {
 		__u8 w[32], i[32], p[32], values[64];
 
-		if (shirudo_hex_decode(argv[3], values, 32) ||
-		    shirudo_hex_decode(argv[4], values + 32, 32))
+		if (hex_decode(argv[3], values, 32) ||
+		    hex_decode(argv[4], values + 32, 32))
 			return 2;
-		shirudo_tpm_register_policy((__u32)strtoul(argv[2], NULL, 0),
-					    values, 2, w, i, p);
+		tpm_register_policy((__u32)strtoul(argv[2], NULL, 0),
+				    values, 2, w, i, p);
 		puthex(w, 32);
 		puthex(i, 32);
 		puthex(p, 32);
@@ -82,11 +82,11 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "nv-name") == 0 && argc == 5) {
 		__u8 name[SHIRUDO_TPM_NAME_LEN];
 
-		if (shirudo_hex_decode(argv[4], a, 32))
+		if (hex_decode(argv[4], a, 32))
 			return 2;
-		shirudo_tpm_nv_name((__u32)strtoul(argv[2], NULL, 0),
-				    (__u32)strtoul(argv[3], NULL, 0), a, 32,
-				    name);
+		tpm_nv_name((__u32)strtoul(argv[2], NULL, 0),
+			    (__u32)strtoul(argv[3], NULL, 0), a, 32,
+			    name);
 		puthex(name, sizeof(name));
 		return 0;
 	}
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 		__u8 name[SHIRUDO_TPM_NAME_LEN];
 
 		if (gethex(argv[2], buf, sizeof(buf), &len) ||
-		    shirudo_tpm_object_name(buf, len, name))
+		    tpm_object_name(buf, len, name))
 			return 1;
 		puthex(name, sizeof(name));
 		return 0;
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = shirudo_tpm_ecc_public_parse(buf, len, &pub);
+		rc = tpm_ecc_public_parse(buf, len, &pub);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 0;
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = shirudo_tpm_public_parse(buf, len, &pub);
+		rc = tpm_public_parse(buf, len, &pub);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 0;
@@ -133,8 +133,8 @@ int main(int argc, char **argv)
 		       pub.sym_alg, pub.sym_bits, pub.sym_mode, pub.scheme,
 		       pub.scheme_hash, pub.curve, pub.rsa_bits,
 		       pub.rsa_exponent, pub.n_len);
-		rc = shirudo_tpm_public_marshal(&pub, again, sizeof(again),
-						&again_len);
+		rc = tpm_public_marshal(&pub, again, sizeof(again),
+					&again_len);
 		printf("marshal_rc=%d same=%d\n", rc,
 		       rc == 0 && again_len == len && !memcmp(again, buf, len));
 		return 0;
@@ -147,8 +147,8 @@ int main(int argc, char **argv)
 		    gethex(strcmp(argv[4], "-") ? argv[4] : "", ctx, sizeof(ctx),
 			   &ctx_len) || res_len > sizeof(res))
 			return 2;
-		if (shirudo_tpm_kdfa(key, key_len, argv[3], ctx, ctx_len, NULL, 0,
-				     res, res_len))
+		if (tpm_kdfa(key, key_len, argv[3], ctx, ctx_len, NULL, 0,
+			     res, res_len))
 			return 1;
 		puthex(res, res_len);
 		return 0;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 		    gethex(argv[4], u, sizeof(u), &u_len) ||
 		    gethex(argv[5], v, sizeof(v), &v_len))
 			return 2;
-		shirudo_tpm_kdfe(z, argv[3], u, u_len, v, v_len, res);
+		tpm_kdfe(z, argv[3], u, u_len, v, v_len, res);
 		puthex(res, 32);
 		return 0;
 	}
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 		    n != SHIRUDO_TPM_NAME_LEN ||
 		    gethex(argv[4], cred, sizeof(cred), &n) || n != 32)
 			return 2;
-		if (shirudo_tpm_credential_protect(seed, name, cred, blob))
+		if (tpm_credential_protect(seed, name, cred, blob))
 			return 1;
 		puthex(blob, sizeof(blob));
 		return 0;
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = shirudo_tpm_ecdsa_signature_parse(buf, len, r, s);
+		rc = tpm_ecdsa_signature_parse(buf, len, r, s);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 0;
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = shirudo_tpm_attest_parse(buf, len, &at);
+		rc = tpm_attest_parse(buf, len, &at);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 0;

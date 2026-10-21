@@ -69,7 +69,7 @@ int main(void)
 		{ NULL, 0, NULL, 0, 0, NULL, 0 },
 	};
 	size_t n = fread(buf, 1, sizeof(buf), stdin);
-	int rc = shirudo_json_parse(buf, n, f, ARRAY_SIZE(f));
+	int rc = json_parse(buf, n, f, ARRAY_SIZE(f));
 
 	printf("rc=%d\n", rc);
 	if (rc == 0) {

@@ -30,7 +30,7 @@ static void puthex(const __u8 *b, size_t n)
 
 	if (n > 1024)
 		return;
-	shirudo_hex_encode(b, n, h);
+	hex_encode(b, n, h);
 	printf("%s\n", h);
 }
 
@@ -41,37 +41,37 @@ static int append_init(const __u8 event[32],
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[256];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_hex_encode(event, 32, hex);
-	shirudo_json_kv_string(&e, "digest", hex);
-	shirudo_json_kv_string(&e, "type", "init");
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_kv_int(&e, "tpm_reset_count", info->reset_count);
-	shirudo_json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
-	shirudo_hex_encode(info->pcr_before, 32, hex);
-	shirudo_json_kv_string(&e, "pcr_before", hex);
-	shirudo_json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
-	shirudo_hex_encode(info->phase_before, 32, hex);
-	shirudo_json_kv_string(&e, "phase_before", hex);
-	shirudo_json_kv_string(&e, "bound_in", info->initrd ? "initrd" : "root");
-	shirudo_hex_encode(info->name, info->name_len, hex);
-	shirudo_json_kv_string(&e, "nv_name", hex);
-	shirudo_json_kv_string(&e, "anchor", info->anchor);
-	shirudo_hex_encode(info->anchor_digest, 32, hex);
-	shirudo_json_kv_string(&e, "anchor_digest", hex);
-	shirudo_hex_encode(info->value, 32, hex);
-	shirudo_json_kv_string(&e, "chain", hex);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	hex_encode(event, 32, hex);
+	json_kv_string(&e, "digest", hex);
+	json_kv_string(&e, "type", "init");
+	json_kv_string(&e, "boot_id", boot_id);
+	json_kv_int(&e, "tpm_reset_count", info->reset_count);
+	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	hex_encode(info->pcr_before, 32, hex);
+	json_kv_string(&e, "pcr_before", hex);
+	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	hex_encode(info->phase_before, 32, hex);
+	json_kv_string(&e, "phase_before", hex);
+	json_kv_string(&e, "bound_in", info->initrd ? "initrd" : "root");
+	hex_encode(info->name, info->name_len, hex);
+	json_kv_string(&e, "nv_name", hex);
+	json_kv_string(&e, "anchor", info->anchor);
+	hex_encode(info->anchor_digest, 32, hex);
+	json_kv_string(&e, "anchor_digest", hex);
+	hex_encode(info->value, 32, hex);
+	json_kv_string(&e, "chain", hex);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	return shirudo_eventlog_append(buf);
+	return eventlog_append(buf);
 }
 
 static int append_event(const char *type, const char *name,
@@ -80,27 +80,27 @@ static int append_event(const char *type, const char *name,
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_hex_encode(event, 32, hex);
-	shirudo_json_kv_string(&e, "digest", hex);
-	shirudo_json_kv_string(&e, "type", type);
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_obj_open_key(&e, "upatch");
-	shirudo_json_kv_string(&e, "name", name);
-	shirudo_json_obj_close(&e);
-	shirudo_hex_encode(chain, 32, hex);
-	shirudo_json_kv_string(&e, "chain", hex);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	hex_encode(event, 32, hex);
+	json_kv_string(&e, "digest", hex);
+	json_kv_string(&e, "type", type);
+	json_kv_string(&e, "boot_id", boot_id);
+	json_obj_open_key(&e, "upatch");
+	json_kv_string(&e, "name", name);
+	json_obj_close(&e);
+	hex_encode(chain, 32, hex);
+	json_kv_string(&e, "chain", hex);
+	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	return shirudo_eventlog_append(buf);
+	return eventlog_append(buf);
 }
 
 int main(int argc, char **argv)
@@ -114,9 +114,9 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "init") == 0 && argc == 3) {
 		struct shirudo_chain_init_info info;
 
-		if (shirudo_hex_decode(argv[2], event, 32))
+		if (hex_decode(argv[2], event, 32))
 			return 2;
-		rc = shirudo_chain_init(event, &info);
+		rc = chain_init(event, &info);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 1;
@@ -139,11 +139,11 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "load") == 0 && argc == 4) {
 		__u8 payload[32];
 
-		if (shirudo_hex_decode(argv[3], payload, 32))
+		if (hex_decode(argv[3], payload, 32))
 			return 2;
-		shirudo_chain_upatch_event("shirudo-upatch", argv[2], payload,
-					   event);
-		rc = shirudo_chain_extend(event, chain);
+		chain_upatch_event("shirudo-upatch", argv[2], payload,
+				   event);
+		rc = chain_extend(event, chain);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 1;
@@ -153,9 +153,9 @@ int main(int argc, char **argv)
 		       1 : 0;
 	}
 	if (strcmp(argv[1], "extend-raw") == 0 && argc == 3) {
-		if (shirudo_hex_decode(argv[2], event, 32))
+		if (hex_decode(argv[2], event, 32))
 			return 2;
-		rc = shirudo_chain_extend(event, chain);
+		rc = chain_extend(event, chain);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 1;
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "read") == 0) {
-		rc = shirudo_chain_read(chain);
+		rc = chain_read(chain);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 1;
@@ -173,9 +173,9 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "status") == 0) {
-		struct shirudo_chain_status st;
+		struct chain_status st;
 
-		rc = shirudo_chain_status(&st);
+		rc = chain_status(&st);
 		printf("rc=%d\n", rc);
 		printf("tpm=%d defined=%d written=%d logged=%d anchored=%d\n",
 		       st.tpm, st.defined, st.written, st.logged, st.anchored);
@@ -191,10 +191,10 @@ int main(int argc, char **argv)
 		struct shirudo_tpm *tpm = NULL;
 		__u8 d[32];
 
-		if (shirudo_hex_decode(argv[3], d, 32) || shirudo_tpm_open(&tpm))
+		if (hex_decode(argv[3], d, 32) || tpm_open(&tpm))
 			return 2;
-		rc = shirudo_tpm_pcr_extend(tpm, (__u32)atoi(argv[2]), d);
-		shirudo_tpm_close(tpm);
+		rc = tpm_pcr_extend(tpm, (__u32)atoi(argv[2]), d);
+		tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		return rc ? 1 : 0;
 	}
@@ -202,10 +202,10 @@ int main(int argc, char **argv)
 		struct shirudo_tpm *tpm = NULL;
 		__u8 v[32];
 
-		if (shirudo_tpm_open(&tpm))
+		if (tpm_open(&tpm))
 			return 1;
-		rc = shirudo_tpm_pcr_read(tpm, (__u32)atoi(argv[2]), v);
-		shirudo_tpm_close(tpm);
+		rc = tpm_pcr_read(tpm, (__u32)atoi(argv[2]), v);
+		tpm_close(tpm);
 		if (rc)
 			return 1;
 		puthex(v, 32);
@@ -219,38 +219,38 @@ int main(int argc, char **argv)
 		struct shirudo_tpm_key ek = { .handle = 0 };
 		struct shirudo_tpm *tpm = NULL;
 
-		if (shirudo_tpm_open(&tpm))
+		if (tpm_open(&tpm))
 			return 1;
-		rc = shirudo_tpm_ek_create(tpm, strcmp(argv[2], "rsa") == 0,
-					   &ek);
+		rc = tpm_ek_create(tpm, strcmp(argv[2], "rsa") == 0,
+				   &ek);
 		if (!rc) {
 			printf("public=");
 			puthex(ek.public, ek.public_len);
 			printf("name=");
 			puthex(ek.name, ek.name_len);
-			shirudo_tpm_key_flush(tpm, &ek);
+			tpm_key_flush(tpm, &ek);
 		}
-		shirudo_tpm_close(tpm);
+		tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		return rc ? 1 : 0;
 	}
 	/* The attack: recreate the index with the same public area. */
 	if (strcmp(argv[1], "recreate") == 0) {
-		struct shirudo_tpm_nv_info nv;
+		struct tpm_nv_info nv;
 		struct shirudo_tpm *tpm = NULL;
 
-		if (shirudo_tpm_open(&tpm))
+		if (tpm_open(&tpm))
 			return 1;
-		rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+		rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 		if (!rc && nv.defined)
-			rc = shirudo_tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
-						     NULL, 0);
+			rc = tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
+					     NULL, 0);
 		if (!rc)
-			rc = shirudo_tpm_nv_define(tpm, SHIRUDO_NV_INDEX,
-						   nv.policy, NULL, 0);
+			rc = tpm_nv_define(tpm, SHIRUDO_NV_INDEX,
+					   nv.policy, NULL, 0);
 		if (!rc)
-			rc = shirudo_tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
-		shirudo_tpm_close(tpm);
+			rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+		tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		if (rc)
 			return 1;
@@ -265,21 +265,21 @@ int main(int argc, char **argv)
 		struct shirudo_tpm *tpm = NULL;
 		__u8 values[64];
 
-		if (shirudo_hex_decode(argv[2], event, 32) ||
-		    shirudo_eventlog_boot_init(&rec))
+		if (hex_decode(argv[2], event, 32) ||
+		    eventlog_boot_init(&rec))
 			return 2;
 		memcpy(values, rec.pcr_before, 32);
 		memcpy(values + 32, rec.phase_before, 32);
-		shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
-					    branch_written, branch_init,
-					    policy);
-		if (shirudo_tpm_open(&tpm))
+		tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
+				    branch_written, branch_init,
+				    policy);
+		if (tpm_open(&tpm))
 			return 1;
-		rc = shirudo_tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
-						 SHIRUDO_CHAIN_PCR_MASK,
-						 branch_written, branch_init,
-						 event);
-		shirudo_tpm_close(tpm);
+		rc = tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
+					 SHIRUDO_CHAIN_PCR_MASK,
+					 branch_written, branch_init,
+					 event);
+		tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		return rc ? 1 : 0;
 	}
@@ -290,17 +290,17 @@ int main(int argc, char **argv)
 		char *doc;
 
 		if (nonce_len > sizeof(nonce) ||
-		    shirudo_hex_decode(argv[2], nonce, nonce_len))
+		    hex_decode(argv[2], nonce, nonce_len))
 			return 2;
 		if (argc == 4 &&
-		    shirudo_attest_challenge_read(argv[3], &challenge)) {
+		    attest_challenge_read(argv[3], &challenge)) {
 			fprintf(stderr, "evidence: bad challenge\n");
 			return 2;
 		}
-		rc = shirudo_attest_evidence(nonce, nonce_len,
-					     SHIRUDO_ATTEST_PCR_DEFAULT,
-					     argc == 4 ? &challenge : NULL,
-					     &doc, &len, &cap);
+		rc = attest_evidence(nonce, nonce_len,
+				     SHIRUDO_ATTEST_PCR_DEFAULT,
+				     argc == 4 ? &challenge : NULL,
+				     &doc, &len, &cap);
 		if (rc) {
 			fprintf(stderr, "evidence: %s\n", strerror(-rc));
 			return 1;

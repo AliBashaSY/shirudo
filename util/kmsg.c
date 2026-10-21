@@ -125,11 +125,11 @@ static void monotonic_to_iso(__u64 mono_us,
 		rec.tv_sec++;
 	}
 
-	if (shirudo_iso8601(rec.tv_sec, out, out_cap))
+	if (iso8601(rec.tv_sec, out, out_cap))
 		snprintf(out, out_cap, "?");
 }
 
-int shirudo_kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
+int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
 {
 	struct timespec rt_at_open, mt_at_open;
 	char buf[KMSG_READ_BUF];

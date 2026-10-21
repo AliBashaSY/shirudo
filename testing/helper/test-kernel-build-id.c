@@ -25,19 +25,19 @@ int main(void)
 	__u8 malformed[sizeof(notes)];
 	char build_id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
 
-	if (shirudo_kernel_build_id_from_notes(notes, sizeof(notes), build_id) ||
+	if (kernel_build_id_from_notes(notes, sizeof(notes), build_id) ||
 	    strcmp(build_id, "01234567")) {
 		fprintf(stderr, "failed to parse GNU build-id note: %s\n", build_id);
 		return 1;
 	}
-	if (shirudo_kernel_build_id_from_notes(notes, 0, build_id) != -ENOENT) {
+	if (kernel_build_id_from_notes(notes, 0, build_id) != -ENOENT) {
 		fprintf(stderr, "empty notes should return -ENOENT\n");
 		return 1;
 	}
 	memcpy(malformed, notes, sizeof(notes));
 	put_u32(malformed, UINT32_MAX);
-	if (shirudo_kernel_build_id_from_notes(malformed, sizeof(malformed),
-					       build_id) != -EINVAL) {
+	if (kernel_build_id_from_notes(malformed, sizeof(malformed),
+				       build_id) != -EINVAL) {
 		fprintf(stderr, "malformed notes should return -EINVAL\n");
 		return 1;
 	}

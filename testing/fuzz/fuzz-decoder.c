@@ -27,7 +27,7 @@ static const char * const sources[] = {
 	"../fixtures/decoders/counters.lua",
 };
 
-static struct shirudo_upatch_decoder_view views[ARRAY_SIZE(sources)];
+static struct upatch_decoder_view views[ARRAY_SIZE(sources)];
 
 /* The decoders sit beside the target in the tree, wherever it runs from. */
 int LLVMFuzzerInitialize(int *argc, char ***argv)
@@ -40,7 +40,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 	for (size_t i = 0; i < ARRAY_SIZE(sources); i++) {
 		snprintf(path, sizeof(path), "%s/%s", dirname(self), sources[i]);
 		snprintf(self, sizeof(self), "%s", (*argv)[0]);
-		if (shirudo_read_file(path, 1 << 20, &src, &len))
+		if (read_file(path, 1 << 20, &src, &len))
 			abort();
 		views[i].source = src;
 		views[i].source_len = (__u32)len;
@@ -55,7 +55,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	struct shirudo_map_entry entries[32];
-	struct shirudo_upatch_decoder_view *d;
+	struct upatch_decoder_view *d;
 	struct shirudo_serial_page page = {};
 	struct shirudo_map_view v = {
 		.type_name = "array",

@@ -27,8 +27,8 @@ static int read_u32(const __u8 *p, size_t remaining, __u32 *out)
 	return 0;
 }
 
-int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
-				       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+int kernel_build_id_from_notes(const void *notes, size_t notes_len,
+			       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
 	const __u8 *p = notes;
 
@@ -65,7 +65,7 @@ int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
 	return -ENOENT;
 }
 
-int shirudo_kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+int kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
 	__u8 notes[KERNEL_NOTES_MAX];
 	size_t len = 0;
@@ -88,7 +88,7 @@ int shirudo_kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 		len += (size_t)n;
 	}
 	rc = len == sizeof(notes) ? -E2BIG :
-		shirudo_kernel_build_id_from_notes(notes, len, out);
+		kernel_build_id_from_notes(notes, len, out);
 out:
 	close(fd);
 	return rc;

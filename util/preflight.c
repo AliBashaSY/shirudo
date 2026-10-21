@@ -163,7 +163,7 @@ static void check_signed_loader_abi(struct shirudo_preflight_result *r)
 		next_slot(r, SHIRUDO_PRE_SIGNED_LOADER_ABI,
 			  "signed_loader_kernel_abi");
 
-	if (shirudo_kernel_abi_check(c->detail, sizeof(c->detail)) == 0) {
+	if (kernel_abi_check(c->detail, sizeof(c->detail)) == 0) {
 		pass(c);
 	} else {
 		c->ok = false;
@@ -234,8 +234,8 @@ static int read_cert(const char *path, __u8 **out, size_t *out_sz)
  */
 static int preflight_keys(struct shirudo_trusted_set *set)
 {
-	return shirudo_keys_load(shirudo_keys_dir(), SHIRUDO_KEYS_REVOKED_DIR,
-				 true, set);
+	return keys_load(shirudo_keys_dir(), SHIRUDO_KEYS_REVOKED_DIR,
+			 true, set);
 }
 
 static void check_cert_algorithm(struct shirudo_preflight_result *r)
@@ -256,12 +256,12 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
 		char name[64];
 		int rc;
 
-		if (shirudo_cert_read_file(set.certs[i].path, &cert)) {
+		if (cert_read_file(set.certs[i].path, &cert)) {
 			fail(r, c, "%s: cannot parse", set.certs[i].path);
 			return;
 		}
-		rc = shirudo_cert_key_algorithm(&cert, name, sizeof(name));
-		shirudo_cert_free(&cert);
+		rc = cert_key_algorithm(&cert, name, sizeof(name));
+		cert_free(&cert);
 		if (rc) {
 			fail(r, c, "%s: cannot determine public-key algorithm",
 			     set.certs[i].path);
@@ -363,8 +363,8 @@ static void check_embedded_loader(struct shirudo_preflight_result *r)
 {
 	struct shirudo_preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_EMBEDDED_LOADER, "embedded_loader");
-	const struct shirudo_embedded_bpf *bpf2 = shirudo_bpf2_blob();
-	const struct shirudo_embedded_bpf *seal = shirudo_seal_blob();
+	const struct shirudo_embedded_bpf *bpf2 = bpf2_blob();
+	const struct shirudo_embedded_bpf *seal = seal_blob();
 	size_t bpf2_sz = bpf2 ? bpf2->size : 0;
 	size_t seal_sz = seal ? seal->size : 0;
 
@@ -389,7 +389,7 @@ static void check_tpm(struct shirudo_preflight_result *r)
 	 */
 	{
 		struct shirudo_config cfg = {};
-		bool override = shirudo_config_load(&cfg) == 0 && cfg.tpm_tcti[0];
+		bool override = config_load(&cfg) == 0 && cfg.tpm_tcti[0];
 
 		if (override) {
 			pass(c);
@@ -413,7 +413,7 @@ static void check_tpm(struct shirudo_preflight_result *r)
 		     strerror(errno));
 }
 
-void shirudo_preflight_run(struct shirudo_preflight_result *out)
+void preflight_run(struct shirudo_preflight_result *out)
 {
 	memset(out, 0, sizeof(*out));
 	check_root(out);

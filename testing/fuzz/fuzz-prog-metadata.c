@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * shirudo_prog_specs_parse() on a load upatch's program metadata, which
+ * prog_specs_parse() on a load upatch's program metadata, which
  * the loader signature does not cover.
  */
 
@@ -26,7 +26,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		memcpy(&md, data, sizeof(md));
 		nr_progs = le32toh(md.nr_progs);
 	}
-	if (!shirudo_prog_specs_parse(data, (__u32)size, nr_progs, &specs))
-		shirudo_prog_specs_free(specs, nr_progs);
+	if (!prog_specs_parse(data, (__u32)size, nr_progs, &specs))
+		prog_specs_free(specs, nr_progs);
 	return 0;
 }

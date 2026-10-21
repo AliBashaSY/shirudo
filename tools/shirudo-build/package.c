@@ -462,8 +462,8 @@ static int decoder_set_add(struct decoder_set *set,
 		pr_err("decoder source path '%s' is invalid", manifest->source);
 		return err;
 	}
-	err = shirudo_read_file(path, 16u * 1024u * 1024u, &source,
-				&source_len);
+	err = read_file(path, 16u * 1024u * 1024u, &source,
+			&source_len);
 	if (!err && !source_len)
 		err = -EINVAL;
 	if (err) {
@@ -889,8 +889,8 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			}
 			ut->prog_idx = i;
 			nr_uprobe_targets++;
-			err = shirudo_elf_target_resolve(ut->path,
-							 md->progs[i].target, &ut->elf);
+			err = elf_target_resolve(ut->path,
+						 md->progs[i].target, &ut->elf);
 			if (err) {
 				if (err == -ENOENT)
 					pr_err("uprobe.multi pattern '%s' matched no functions in %s (or the ELF has no GNU build ID)",
@@ -988,7 +988,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	xfree(seen_maps, (size_t)nr_progs * sizeof(*seen_maps));
 	for (i = 0; i < nr_uprobe_targets; i++) {
 		xstrfree(uprobe_targets[i].path);
-		shirudo_elf_target_free(&uprobe_targets[i].elf);
+		elf_target_free(&uprobe_targets[i].elf);
 	}
 	xfree(uprobe_targets, (size_t)nr_progs * sizeof(*uprobe_targets));
 	return 0;
@@ -997,7 +997,7 @@ err_free:
 	xfree(seen_maps, (size_t)nr_progs * sizeof(*seen_maps));
 	for (i = 0; i < nr_uprobe_targets; i++) {
 		xstrfree(uprobe_targets[i].path);
-		shirudo_elf_target_free(&uprobe_targets[i].elf);
+		elf_target_free(&uprobe_targets[i].elf);
 	}
 	xfree(uprobe_targets, (size_t)nr_progs * sizeof(*uprobe_targets));
 	xfree(md, md_alloc_len);
@@ -1167,9 +1167,9 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	sio.data_sz      = signed_data_len;
 	sio.signature    = sig_buf;
 	sio.signature_sz = SHIRUDO_MAX_SIG_SIZE;
-	err = shirudo_cms_sign(&sio, pkey_path, cert_path);
+	err = cms_sign(&sio, pkey_path, cert_path);
 	if (err) {
-		pr_err("shirudo_cms_sign: %d", err);
+		pr_err("cms_sign: %d", err);
 		goto out;
 	}
 
@@ -1194,15 +1194,15 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		pr_err("open %s: %s", out_path, strerror(errno));
 		goto out;
 	}
-	err = shirudo_write_all(fd, &hdr, sizeof(hdr));
+	err = write_all(fd, &hdr, sizeof(hdr));
 	if (!err)
-		err = shirudo_write_all(fd, opts.insns, opts.insns_sz);
+		err = write_all(fd, opts.insns, opts.insns_sz);
 	if (!err)
-		err = shirudo_write_all(fd, sig_buf, sio.signature_sz);
+		err = write_all(fd, sig_buf, sio.signature_sz);
 	if (!err && data_len)
-		err = shirudo_write_all(fd, signed_data, data_len);
+		err = write_all(fd, signed_data, data_len);
 	if (!err && write_meta_len)
-		err = shirudo_write_all(fd, write_meta, write_meta_len);
+		err = write_all(fd, write_meta, write_meta_len);
 	if (!err && fsync(fd) != 0)
 		err = -errno;
 	close(fd);
@@ -1279,7 +1279,7 @@ int shirudo_build_package_unload(const char *upatch_name,
 				 const char *pkey_path,
 				 const char *cert_path)
 {
-	const struct shirudo_embedded_bpf *blob = shirudo_unload_blob();
+	const struct shirudo_embedded_bpf *blob = unload_blob();
 	struct shirudo_unload_params params = {};
 	struct bpf_object *obj;
 	struct bpf_map *rodata;

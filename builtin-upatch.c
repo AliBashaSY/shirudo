@@ -109,7 +109,7 @@ static const char *cat_from_load_errno(int e)
 
 static const char *flag_str(const struct shirudo_upatch *u)
 {
-	return shirudo_upatch_is_unload(u) ? "UNLOAD-directive" : "LOAD";
+	return upatch_is_unload(u) ? "UNLOAD-directive" : "LOAD";
 }
 
 static const char *decoder_language_str(__u32 language)
@@ -134,7 +134,7 @@ static int print_sha256_hex(const __u8 hash[32])
 {
 	char hex[65];
 
-	shirudo_hex_encode(hash, 32, hex);
+	hex_encode(hash, 32, hex);
 	return fputs(hex, stdout) < 0 ? -1 : 0;
 }
 
@@ -285,8 +285,8 @@ static int cmd_upatch_info(int argc, const char **argv)
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--json") == 0) {
 			json = true;
-		} else if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&upatch_info_help);
+		} else if (is_help(argv[i])) {
+			print_help(&upatch_info_help);
 			return 0;
 		} else if (argv[i][0] == '-') {
 			fprintf(stderr, "upatch info: unknown option '%s'\n",
@@ -301,11 +301,11 @@ static int cmd_upatch_info(int argc, const char **argv)
 		}
 	}
 	if (!path) {
-		shirudo_print_help(&upatch_info_help);
+		print_help(&upatch_info_help);
 		return 2;
 	}
 
-	rc = shirudo_upatch_open(path, &u);
+	rc = upatch_open(path, &u);
 	if (rc != 0) {
 		pr_err("upatch info: %s: %s", path, strerror(-rc));
 		return 1;
@@ -324,48 +324,48 @@ static int cmd_upatch_info(int argc, const char **argv)
 			goto out;
 		e.buf = buf;
 		e.cap = cap;
-		shirudo_hex_encode(u.hdr.payload_sha256, 32, payload_hex);
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_int(&e, "schema", 1);
-		shirudo_json_kv_string(&e, "path", path);
-		shirudo_json_kv_string(&e, "name", name);
-		shirudo_json_kv_string(&e, "type",
-				       shirudo_upatch_is_unload(&u) ? "unload"
+		hex_encode(u.hdr.payload_sha256, 32, payload_hex);
+		json_obj_open(&e);
+		json_kv_int(&e, "schema", 1);
+		json_kv_string(&e, "path", path);
+		json_kv_string(&e, "name", name);
+		json_kv_string(&e, "type",
+			       upatch_is_unload(&u) ? "unload"
 								    : "load");
-		shirudo_json_kv_string(&e, "payload_type",
-				       shirudo_upatch_type_str(&u));
-		shirudo_json_kv_int(&e, "version", u.hdr.version);
-		shirudo_json_kv_string(&e, "payload_sha256", payload_hex);
-		shirudo_json_kv_int(&e, "loader_insns_len",
-				    u.hdr.loader_insns_len);
-		shirudo_json_kv_int(&e, "signature_len", u.hdr.signature_len);
-		shirudo_json_kv_int(&e, "metadata_len", u.hdr.metadata_len);
-		shirudo_json_kv_int(&e, "data_len", u.hdr.data_len);
-		shirudo_json_kv_int(&e, "log_buf_sz", u.hdr.log_buf_sz);
-		shirudo_json_kv_int(&e, "file_size", (__s64)u.map_size);
-		shirudo_json_arr_open(&e, "decoders");
+		json_kv_string(&e, "payload_type",
+			       upatch_type_str(&u));
+		json_kv_int(&e, "version", u.hdr.version);
+		json_kv_string(&e, "payload_sha256", payload_hex);
+		json_kv_int(&e, "loader_insns_len",
+			    u.hdr.loader_insns_len);
+		json_kv_int(&e, "signature_len", u.hdr.signature_len);
+		json_kv_int(&e, "metadata_len", u.hdr.metadata_len);
+		json_kv_int(&e, "data_len", u.hdr.data_len);
+		json_kv_int(&e, "log_buf_sz", u.hdr.log_buf_sz);
+		json_kv_int(&e, "file_size", (__s64)u.map_size);
+		json_arr_open(&e, "decoders");
 		for (__u32 j = 0; j < u.nr_decoders; j++) {
-			struct shirudo_upatch_decoder_view d;
+			struct upatch_decoder_view d;
 
-			if (shirudo_upatch_decoder_view(&u, j, &d))
+			if (upatch_decoder_view(&u, j, &d))
 				continue;
-			shirudo_json_obj_open(&e);
-			shirudo_json_kv_string(&e, "language",
-					       decoder_language_str(d.language));
-			shirudo_json_kv_int(&e, "api_version", d.api_version);
-			shirudo_json_kv_string(&e, "input_format",
-					       decoder_input_str(d.input_format));
-			shirudo_json_kv_string(&e, "export_signal",
-					       decoder_signal_str(d.export_signal));
-			shirudo_json_kv_string(&e, "upatch", d.upatch);
-			shirudo_json_kv_string(&e, "map", d.map);
-			shirudo_json_kv_string(&e, "source_file", d.source_name);
-			shirudo_json_kv_string(&e, "entrypoint", d.entrypoint);
-			shirudo_json_kv_int(&e, "source_len", d.source_len);
-			shirudo_json_obj_close(&e);
+			json_obj_open(&e);
+			json_kv_string(&e, "language",
+				       decoder_language_str(d.language));
+			json_kv_int(&e, "api_version", d.api_version);
+			json_kv_string(&e, "input_format",
+				       decoder_input_str(d.input_format));
+			json_kv_string(&e, "export_signal",
+				       decoder_signal_str(d.export_signal));
+			json_kv_string(&e, "upatch", d.upatch);
+			json_kv_string(&e, "map", d.map);
+			json_kv_string(&e, "source_file", d.source_name);
+			json_kv_string(&e, "entrypoint", d.entrypoint);
+			json_kv_int(&e, "source_len", d.source_len);
+			json_obj_close(&e);
 		}
-		shirudo_json_arr_close(&e);
-		shirudo_json_obj_close(&e);
+		json_arr_close(&e);
+		json_obj_close(&e);
 		if (e.err)
 			fprintf(stderr, "upatch info: json encode failed: %s\n",
 				strerror(-e.err));
@@ -379,7 +379,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	printf("File:                  %s\n", path);
 	printf("Name:                  %s\n", name);
 	printf("Type:                  %s\n", flag_str(&u));
-	printf("Payload type:          %s\n", shirudo_upatch_type_str(&u));
+	printf("Payload type:          %s\n", upatch_type_str(&u));
 	printf("Version:               %u\n", u.hdr.version);
 	printf("Payload SHA256:        ");
 	print_sha256_hex(u.hdr.payload_sha256);
@@ -406,13 +406,13 @@ static int cmd_upatch_info(int argc, const char **argv)
 	printf("  %-22s %u bytes\n", "Length:", u.hdr.signature_len);
 
 	printf("\nDecoders:\n");
-	if (!shirudo_upatch_has_decoders(&u)) {
+	if (!upatch_has_decoders(&u)) {
 		printf("  (none)\n");
 	} else {
 		for (__u32 j = 0; j < u.nr_decoders; j++) {
-			struct shirudo_upatch_decoder_view d;
+			struct upatch_decoder_view d;
 
-			if (shirudo_upatch_decoder_view(&u, j, &d))
+			if (upatch_decoder_view(&u, j, &d))
 				continue;
 			printf("  %-22s %s/%s\n", "Target:", d.upatch, d.map);
 			printf("    %-20s %s (api=%u)\n", "Language:",
@@ -427,7 +427,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	}
 	ret = 0;
 out:
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	return ret;
 }
 
@@ -445,14 +445,14 @@ static bool upatch_is_loaded(const char *name)
 	struct stat st;
 	int fd;
 
-	fd = shirudo_upatch_open_first_link(name);
+	fd = upatch_open_first_link(name);
 	if (fd < 0)
 		goto test_pin;
 	close(fd);
 	return true;
 
 test_pin:
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return false;
 	if (snprintf(pin, sizeof(pin), "%s/%s/test",
 		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= (int)sizeof(pin))
@@ -476,8 +476,8 @@ static int cmd_upatch_list(int argc, const char **argv)
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--json") == 0) {
 			json = true;
-		} else if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&upatch_list_help);
+		} else if (is_help(argv[i])) {
+			print_help(&upatch_list_help);
 			return 0;
 		} else {
 			fprintf(stderr, "upatch list: unknown option '%s'\n",
@@ -502,9 +502,9 @@ static int cmd_upatch_list(int argc, const char **argv)
 		}
 		e.buf = jbuf;
 		e.cap = 65536;
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_int(&e, "schema", 1);
-		shirudo_json_arr_open(&e, "upatches");
+		json_obj_open(&e);
+		json_kv_int(&e, "schema", 1);
+		json_arr_open(&e, "upatches");
 	} else {
 		printf("upatches (%s):\n", SHIRUDO_UPATCHES_DIR);
 		if (np == 0)
@@ -525,7 +525,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 				     SHIRUDO_UPATCHES_DIR,
 				     persisted[i]->d_name) >= sizeof(path))
 			continue;
-		if (shirudo_upatch_open(path, &u) != 0) {
+		if (upatch_open(path, &u) != 0) {
 			if (!json)
 				printf("  %-6s  %-6s  %-18s  %s\n", "?", "?",
 				       "(unreadable)", persisted[i]->d_name);
@@ -533,21 +533,21 @@ static int cmd_upatch_list(int argc, const char **argv)
 		}
 		memcpy(name, u.hdr.name, sizeof(u.hdr.name));
 		name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-		shirudo_hex_encode(u.hdr.payload_sha256, 32, payload_hex);
-		type = shirudo_upatch_is_unload(&u) ? "unload" : "load";
-		payload_type = shirudo_upatch_type_str(&u);
+		hex_encode(u.hdr.payload_sha256, 32, payload_hex);
+		type = upatch_is_unload(&u) ? "unload" : "load";
+		payload_type = upatch_type_str(&u);
 		loaded = upatch_is_loaded(name);
-		shirudo_upatch_close(&u);
+		upatch_close(&u);
 
 		if (json) {
-			shirudo_json_obj_open(&e);
-			shirudo_json_kv_string(&e, "name", name);
-			shirudo_json_kv_string(&e, "type", type);
-			shirudo_json_kv_string(&e, "payload_type", payload_type);
-			shirudo_json_kv_bool(&e, "loaded", loaded);
-			shirudo_json_kv_bool(&e, "persisted", 1);
-			shirudo_json_kv_string(&e, "payload_sha256", payload_hex);
-			shirudo_json_obj_close(&e);
+			json_obj_open(&e);
+			json_kv_string(&e, "name", name);
+			json_kv_string(&e, "type", type);
+			json_kv_string(&e, "payload_type", payload_type);
+			json_kv_bool(&e, "loaded", loaded);
+			json_kv_bool(&e, "persisted", 1);
+			json_kv_string(&e, "payload_sha256", payload_hex);
+			json_obj_close(&e);
 		} else {
 			char shown[19];
 
@@ -566,7 +566,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 
 		if (strcmp(nm, ".") == 0 || strcmp(nm, "..") == 0)
 			continue;
-		if (shirudo_upatch_name_from_bpffs(raw_name, sizeof(raw_name), nm))
+		if (upatch_name_from_bpffs(raw_name, sizeof(raw_name), nm))
 			continue;
 		if ((size_t)snprintf(persist, sizeof(persist), "%s/%s.upatch",
 				     SHIRUDO_UPATCHES_DIR, raw_name) >= sizeof(persist))
@@ -575,13 +575,13 @@ static int cmd_upatch_list(int argc, const char **argv)
 			continue;
 
 		if (json) {
-			shirudo_json_obj_open(&e);
-			shirudo_json_kv_string(&e, "name", raw_name);
-			shirudo_json_kv_null(&e, "type");
-			shirudo_json_kv_bool(&e, "loaded", 1);
-			shirudo_json_kv_bool(&e, "persisted", 0);
-			shirudo_json_kv_null(&e, "payload_sha256");
-			shirudo_json_obj_close(&e);
+			json_obj_open(&e);
+			json_kv_string(&e, "name", raw_name);
+			json_kv_null(&e, "type");
+			json_kv_bool(&e, "loaded", 1);
+			json_kv_bool(&e, "persisted", 0);
+			json_kv_null(&e, "payload_sha256");
+			json_obj_close(&e);
 		} else {
 			printf("  %-6s  %-6s  %-18s  %s  (orphan: no persisted "
 			       ".upatch, will not survive reboot)\n",
@@ -590,8 +590,8 @@ static int cmd_upatch_list(int argc, const char **argv)
 	}
 
 	if (json) {
-		shirudo_json_arr_close(&e);
-		shirudo_json_obj_close(&e);
+		json_arr_close(&e);
+		json_obj_close(&e);
 		if (e.err) {
 			fprintf(stderr, "upatch list: json encode failed: %s\n",
 				strerror(-e.err));
@@ -603,11 +603,11 @@ static int cmd_upatch_list(int argc, const char **argv)
 
 out:
 	for (i = 0; i < np; i++)
-		shirudo_libc_free(persisted[i]);
-	shirudo_libc_free(persisted);
+		libc_free(persisted[i]);
+	libc_free(persisted);
 	for (j = 0; j < na; j++)
-		shirudo_libc_free(active[j]);
-	shirudo_libc_free(active);
+		libc_free(active[j]);
+	libc_free(active);
 	if (jbuf)
 		xfree(jbuf, 65536);
 	return rc;
@@ -1055,7 +1055,7 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 				return -ERANGE;
 			}
 		}
-		rc = shirudo_elf_build_id_fd(fd, build_id, &build_id_len);
+		rc = elf_build_id_fd(fd, build_id, &build_id_len);
 		if (rc) {
 			close(fd);
 			return rc == -EACCES || rc == -EPERM ? rc : -ESTALE;
@@ -1198,7 +1198,7 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		pr_warn("upatch carries no programs to attach");
 		return 0;
 	}
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 
 	rc = mkdir_if_absent(SHIRUDO_BPFFS_UPATCHES_DIR, 0700, NULL);
@@ -1313,8 +1313,8 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		__u32 retval = 0;
 
 		/* A zero context is the load-time arena initialization call. */
-		rc = shirudo_prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
-					   &retval);
+		rc = prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
+				   &retval);
 		if (rc || (__s32)retval < 0) {
 			pr_err("initialize test-run arena: %s",
 			       rc ? strerror(-rc) : strerror(-(__s32)retval));
@@ -1360,7 +1360,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 
 	if (nr_maps == 0)
 		return 0;
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return 0;
 	if (snprintf(dir, sizeof(dir), "%s/%s",
 		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
@@ -1426,7 +1426,7 @@ static void set_pin_payload(const char *name, const __u8 payload[32])
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
 	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
 		     bpffs_name) >= (int)sizeof(dir))
@@ -1443,7 +1443,7 @@ static int get_pin_payload(const char *name, __u8 out[32])
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	ssize_t n;
 
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
 		     bpffs_name) >= (int)sizeof(dir))
@@ -1470,7 +1470,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 	key_serial_t ring;
 	int rc;
 
-	rc = shirudo_identity_read(&id);
+	rc = identity_read(&id);
 	if (rc) {
 		pr_err("no trust anchor frozen this boot: %s (run `shirudo "
 		       "init`)", strerror(-rc));
@@ -1479,7 +1479,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 		return -1;
 	}
 	if (id.keyring_type == SHIRUDO_SIG_KEYRING_BPF) {
-		ring = shirudo_keyring_bpf_serial();
+		ring = keyring_bpf_serial();
 		if (ring != id.keyring_serial) {
 			pr_err("the kernel's bpf keyring (%d) is not the one "
 			       "init sealed (%d)", (int)ring,
@@ -1491,7 +1491,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 		*keyring = KEY_SPEC_BPF_KEYRING;
 		return 0;
 	}
-	ring = shirudo_keyring_find(SHIRUDO_KEYRING_NAME);
+	ring = keyring_find(SHIRUDO_KEYRING_NAME);
 	if (ring < 0) {
 		pr_err("keyring \"%s\" not found: %s; the anchor frozen this "
 		       "boot was serial %d", SHIRUDO_KEYRING_NAME,
@@ -1558,7 +1558,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 	vlog[0] = '\0';
 
-	rc = shirudo_upatch_open(path, &u);
+	rc = upatch_open(path, &u);
 	if (rc) {
 		pr_err("open %s: %s", path, strerror(-rc));
 		rep_fail(rep, "parse", "parser_rejected", -rc,
@@ -1572,7 +1572,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * gate) -- so it deliberately accepts an UNLOAD directive and
 	 * stops before TEST_RUN/attach.
 	 */
-	if (!verify_only && shirudo_upatch_is_unload(&u)) {
+	if (!verify_only && upatch_is_unload(&u)) {
 		pr_err("upatch load: %s is an UNLOAD directive; "
 		       "use `shirudo upatch unload`", path);
 		rep_fail(rep, "parse", "parser_rejected", 0,
@@ -1594,9 +1594,9 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	insns = shirudo_upatch_loader(&u);
-	sig   = shirudo_upatch_signature(&u);
-	data  = shirudo_upatch_data(&u);
+	insns = upatch_loader(&u);
+	sig   = upatch_signature(&u);
+	data  = upatch_data(&u);
 	insn_cnt = u.hdr.loader_insns_len / sizeof(struct bpf_insn);
 
 	/* bpf_obj_name_cpy() takes alphanumerics, '_' and '.' alone. */
@@ -1639,10 +1639,10 @@ static int upatch_apply(const char *path, bool verify_only,
 	{
 		__u8 content_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 
-		shirudo_sha256_2(insns, u.hdr.loader_insns_len,
-				 data, u.hdr.data_len, content_digest);
-		if (!shirudo_ct_eq(content_digest, u.hdr.payload_sha256,
-				   sizeof(content_digest))) {
+		sha256_2(insns, u.hdr.loader_insns_len,
+			 data, u.hdr.data_len, content_digest);
+		if (!ct_eq(content_digest, u.hdr.payload_sha256,
+			   sizeof(content_digest))) {
 			pr_err("upatch: payload_sha256 does not match signed "
 			       "content (insns || data); refusing");
 			rep_fail(rep, "parse", "parser_rejected", 0,
@@ -1659,9 +1659,9 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * through link creation to prevent pathname replacement races.
 	 */
 	if (!verify_only) {
-		rc = shirudo_prog_specs_parse(shirudo_upatch_metadata(&u),
-					      u.hdr.metadata_len,
-					      u.hdr.nr_progs, &prog_specs);
+		rc = prog_specs_parse(upatch_metadata(&u),
+				      u.hdr.metadata_len,
+				      u.hdr.nr_progs, &prog_specs);
 		if (rc) {
 			pr_err("upatch program metadata rejected: %s",
 			       strerror(-rc));
@@ -1750,7 +1750,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			fprintf(stderr, "loader verifier log:\n%s\n", vlog);
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(e), e,
 			 "BPF_PROG_LOAD of signed loader failed");
-		shirudo_report_set_log(rep, vlog);
+		report_set_log(rep, vlog);
 		rc = 1;
 		goto out;
 	}
@@ -1799,14 +1799,14 @@ static int upatch_apply(const char *path, bool verify_only,
 	cx->log_size = SHIRUDO_VERIFIER_LOG_MAX;
 	cx->log_buf = ptr_to_u64(vlog);
 
-	rc = shirudo_prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
+	rc = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
 	if (rc) {
 		pr_err("BPF_PROG_TEST_RUN: %s", strerror(errno));
 		if (vlog[0])
 			fprintf(stderr, "loader runtime log:\n%s\n", vlog);
 		rep_fail(rep, "payload_load", "verifier_rejected", errno,
 			 "BPF_PROG_TEST_RUN failed");
-		shirudo_report_set_log(rep, vlog);
+		report_set_log(rep, vlog);
 		rc = 1;
 		goto out;
 	}
@@ -1818,7 +1818,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			 -(__s32)retval, "inner loader returned error");
 		if (rep)
 			rep->loader_return = (__s32)retval;
-		shirudo_report_set_log(rep, vlog);
+		report_set_log(rep, vlog);
 		rc = 1;
 		goto out;
 	}
@@ -1863,7 +1863,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		rep->loader_return = (__s32)retval;
 	rc = 0;
 out:
-	shirudo_prog_specs_free(prog_specs, u.hdr.nr_progs);
+	prog_specs_free(prog_specs, u.hdr.nr_progs);
 	xfree(vlog, SHIRUDO_VERIFIER_LOG_MAX);
 	if (cx)
 		close_loader_fds(cx, u.hdr.nr_maps, u.hdr.nr_progs);
@@ -1872,7 +1872,7 @@ out:
 		close(prog_fd);
 	if (map_fd >= 0)
 		close(map_fd);
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	return rc;
 }
 
@@ -1895,7 +1895,7 @@ static int upatch_preflight(const char *expect_chain,
 	key_serial_t keyring;
 	int fd, rc;
 
-	rc = shirudo_kernel_abi_check(abi_detail, sizeof(abi_detail));
+	rc = kernel_abi_check(abi_detail, sizeof(abi_detail));
 	if (rc) {
 		pr_err("upatch: pre-flight refused (category: "
 		       "kernel_abi_unsupported, message: %s)", abi_detail);
@@ -1919,12 +1919,12 @@ static int upatch_preflight(const char *expect_chain,
 	if (!expect_chain)
 		return 0;
 
-	if (shirudo_hex_decode(expect_chain, want, sizeof(want))) {
+	if (hex_decode(expect_chain, want, sizeof(want))) {
 		pr_err("upatch load: --expect-chain must be %d hex chars",
 		       2 * SHIRUDO_CHAIN_DIGEST_LEN);
 		return -1;
 	}
-	rc = shirudo_chain_read(have);
+	rc = chain_read(have);
 	if (rc == -ENODEV) {
 		pr_err("upatch load: pre-flight refused (category: tampered, "
 		       "message: chain_drift) -- register unreadable, cannot "
@@ -1935,8 +1935,8 @@ static int upatch_preflight(const char *expect_chain,
 		pr_err("upatch load: chain read failed: %s", strerror(-rc));
 		return -1;
 	}
-	if (!shirudo_ct_eq(want, have, sizeof(want))) {
-		shirudo_hex_encode(have, sizeof(have), have_hex);
+	if (!ct_eq(want, have, sizeof(want))) {
+		hex_encode(have, sizeof(have), have_hex);
 		pr_err("upatch load: pre-flight refused (category: tampered, "
 		       "message: chain_drift) -- live chain %s != expected; "
 		       "re-status and re-issue with the refreshed value",
@@ -1954,11 +1954,11 @@ static int eventlog_room(struct shirudo_op_report *rep, const char *op)
 {
 	struct shirudo_config cfg;
 
-	shirudo_config_load(&cfg);
-	if (shirudo_eventlog_would_exceed(cfg.eventlog_max_bytes)) {
+	config_load(&cfg);
+	if (eventlog_would_exceed(cfg.eventlog_max_bytes)) {
 		pr_err("upatch %s: eventlog %s would exceed "
 		       "eventlog.max_bytes=%llu; refusing -- no load, no extend",
-		       op, shirudo_eventlog_path(), cfg.eventlog_max_bytes);
+		       op, eventlog_path(), cfg.eventlog_max_bytes);
 		rep_fail(rep, "pre_flight", "eventlog_full", ENOSPC,
 			 "eventlog would exceed eventlog.max_bytes");
 		return -1;
@@ -1995,34 +1995,34 @@ static int append_upatch_event(const char *type, const char *name,
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char ts[32], boot_id[64], nv_index[16], payload_hex[65], digest_hex[65];
 
-	shirudo_eventlog_timestamp(ts, sizeof(ts));
-	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
-	shirudo_hex_encode(payload, 32, payload_hex);
-	shirudo_hex_encode(event, 32, digest_hex);
+	hex_encode(payload, 32, payload_hex);
+	hex_encode(event, 32, digest_hex);
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 2);
-	shirudo_json_kv_string(&e, "ts", ts);
-	shirudo_json_kv_string(&e, "nv_index", nv_index);
-	shirudo_json_kv_string(&e, "alg", "sha256");
-	shirudo_json_kv_string(&e, "digest", digest_hex);
-	shirudo_json_kv_string(&e, "type", type);
-	shirudo_json_kv_string(&e, "boot_id", boot_id);
-	shirudo_json_obj_open_key(&e, "upatch");
-	shirudo_json_kv_string(&e, "name", name);
-	shirudo_json_kv_string(&e, "payload_sha256", payload_hex);
-	shirudo_json_obj_close(&e);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 2);
+	json_kv_string(&e, "ts", ts);
+	json_kv_string(&e, "nv_index", nv_index);
+	json_kv_string(&e, "alg", "sha256");
+	json_kv_string(&e, "digest", digest_hex);
+	json_kv_string(&e, "type", type);
+	json_kv_string(&e, "boot_id", boot_id);
+	json_obj_open_key(&e, "upatch");
+	json_kv_string(&e, "name", name);
+	json_kv_string(&e, "payload_sha256", payload_hex);
+	json_obj_close(&e);
 	if (reason)
-		shirudo_json_kv_string(&e, "reason", reason);
-	shirudo_json_obj_close(&e);
+		json_kv_string(&e, "reason", reason);
+	json_obj_close(&e);
 
 	if (e.err) {
 		pr_err("eventlog: %s entry encode failed: %s", type,
 		       strerror(-e.err));
 		return e.err;
 	}
-	return shirudo_eventlog_append(buf);
+	return eventlog_append(buf);
 }
 
 /*
@@ -2041,9 +2041,9 @@ static int upatch_chain_event(const char *tag, const char *type,
 
 	if (out_chain)
 		out_chain[0] = '\0';
-	shirudo_chain_upatch_event(tag, name, payload, event);
+	chain_upatch_event(tag, name, payload, event);
 
-	rc = shirudo_chain_extend(event, chain);
+	rc = chain_extend(event, chain);
 	if (rc == -ENODEV) {
 		pr_err("upatch %s: TPM/register unavailable (category: "
 		       "tpm_error) -- op done but NOT measured; shirudo "
@@ -2068,7 +2068,7 @@ static int upatch_chain_event(const char *tag, const char *type,
 		       "chain/log desync; operator must reconcile", op);
 		return rc;
 	}
-	shirudo_hex_encode(chain, 32, chain_hex);
+	hex_encode(chain, 32, chain_hex);
 	if (out_chain)
 		memcpy(out_chain, chain_hex, sizeof(chain_hex));
 	pr_info("upatch %s: chain extended, value=%s", op, chain_hex);
@@ -2132,12 +2132,12 @@ static int append_json_record(const char *path, const char *json, size_t len)
 			goto out_unlock;
 		}
 		if (last != '\n')
-			rc = shirudo_write_all(fd, "\n", 1);
+			rc = write_all(fd, "\n", 1);
 	}
 	if (!rc)
-		rc = shirudo_write_all(fd, json, len);
+		rc = write_all(fd, json, len);
 	if (!rc)
-		rc = shirudo_write_all(fd, "\n", 1);
+		rc = write_all(fd, "\n", 1);
 	if (!rc && fsync(fd) != 0)
 		rc = -errno;
 	if (rc && ftruncate(fd, original_size) != 0)
@@ -2155,9 +2155,9 @@ static int print_json_record(const char *json, size_t len)
 {
 	int rc;
 
-	rc = shirudo_write_all(STDOUT_FILENO, json, len);
+	rc = write_all(STDOUT_FILENO, json, len);
 	if (!rc)
-		rc = shirudo_write_all(STDOUT_FILENO, "\n", 1);
+		rc = write_all(STDOUT_FILENO, "\n", 1);
 	return rc;
 }
 
@@ -2177,14 +2177,14 @@ static int copy_file_atomic(const char *src, const char *dst)
 	in = open(src, O_RDONLY | O_CLOEXEC);
 	if (in < 0)
 		return -errno;
-	out = shirudo_seal_open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW,
-				0644);
+	out = seal_open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW,
+			0644);
 	if (out < 0) {
 		close(in);
 		return out;
 	}
 	while ((r = read(in, buf, sizeof(buf))) > 0) {
-		rc = shirudo_write_all(out, buf, (size_t)r);
+		rc = write_all(out, buf, (size_t)r);
 		if (rc)
 			break;
 	}
@@ -2219,7 +2219,7 @@ static int persist_upatch(const char *src, const char *name)
 	struct stat ss, ds;
 	int rc;
 
-	rc = shirudo_seal_mkdir_p(SHIRUDO_UPATCHES_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_UPATCHES_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_UPATCHES_DIR, strerror(-rc));
 		return rc;
@@ -2275,7 +2275,7 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 		}
 	}
 	if (!*file) {
-		shirudo_print_help(help);
+		print_help(help);
 		return 2;
 	}
 	return 0;
@@ -2316,7 +2316,7 @@ static int remove_pin_dir(const char *name)
 	struct stat st;
 	int rc;
 
-	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
 		     bpffs_name) >= (int)sizeof(dir))
@@ -2354,15 +2354,15 @@ static int stage_upatch(const char *src, char *staged, size_t sz)
 	size_t len = 0;
 	int rc;
 
-	rc = shirudo_read_file(src, SHIRUDO_UPATCH_FILE_MAX, &buf, &len);
+	rc = read_file(src, SHIRUDO_UPATCH_FILE_MAX, &buf, &len);
 	if (rc)
 		return rc;
-	rc = shirudo_seal_mkdir_p(SHIRUDO_INCOMING_DIR, 0700);
+	rc = seal_mkdir_p(SHIRUDO_INCOMING_DIR, 0700);
 	if (!rc && snprintf(staged, sz, "%s/load-%d.upatch",
 			    SHIRUDO_INCOMING_DIR, (int)getpid()) >= (int)sz)
 		rc = -ENAMETOOLONG;
 	if (!rc)
-		rc = shirudo_seal_write_file(staged, buf, len, 0600);
+		rc = seal_write_file(staged, buf, len, 0600);
 	xfree(buf, len + 1);
 	if (rc)
 		staged[0] = '\0';
@@ -2381,8 +2381,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 	int rc, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
-		if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&upatch_load_help);
+		if (is_help(argv[i])) {
+			print_help(&upatch_load_help);
 			return 0;
 		}
 	}
@@ -2405,7 +2405,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	}
 	file = staged;
 
-	rc = shirudo_upatch_open(file, &u);
+	rc = upatch_open(file, &u);
 	if (rc) {
 		pr_err("open %s: %s", file, strerror(-rc));
 		rep_fail(&rep, "parse", "parser_rejected", -rc,
@@ -2415,9 +2415,9 @@ static int cmd_upatch_load(int argc, const char **argv)
 	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
-	shirudo_hex_encode(payload, sizeof(payload), rep.payload_hex);
+	hex_encode(payload, sizeof(payload), rep.payload_hex);
 	rep.name = name;
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	have_id = true;
 
 	if (no_precheck) {
@@ -2477,8 +2477,8 @@ done:
 	if (staged[0])
 		unlink(staged);
 	if (report)
-		shirudo_report_emit(report, &rep);
-	shirudo_report_free(&rep);
+		report_emit(report, &rep);
+	report_free(&rep);
 	return ret;
 }
 
@@ -2494,8 +2494,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	int rc, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
-		if (shirudo_is_help(argv[i])) {
-			shirudo_print_help(&upatch_unload_help);
+		if (is_help(argv[i])) {
+			print_help(&upatch_unload_help);
 			return 0;
 		}
 	}
@@ -2509,31 +2509,31 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	if (version_gate(expect_version_id, no_version_check, &rep, "unload") != 0)
 		goto done;
 
-	rc = shirudo_upatch_open(file, &u);
+	rc = upatch_open(file, &u);
 	if (rc) {
 		pr_err("open %s: %s", file, strerror(-rc));
 		rep_fail(&rep, "parse", "parser_rejected", -rc,
 			 "cannot open .upatch");
 		goto done;
 	}
-	if (!shirudo_upatch_is_unload(&u)) {
+	if (!upatch_is_unload(&u)) {
 		pr_err("upatch unload: %s is a LOAD upatch; use "
 		       "`shirudo upatch load`", file);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "is a LOAD upatch");
-		shirudo_upatch_close(&u);
+		upatch_close(&u);
 		goto done;
 	}
 	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
 	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
 	if (u.hdr.metadata_len == sizeof(payload))
-		memcpy(payload, shirudo_upatch_metadata(&u), sizeof(payload));
+		memcpy(payload, upatch_metadata(&u), sizeof(payload));
 	else
 		pr_warn("upatch unload: directive carries no payload metadata; "
 			"chain event uses zeros");
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 	rep.name = name;
-	shirudo_hex_encode(payload, sizeof(payload), rep.payload_hex);
+	hex_encode(payload, sizeof(payload), rep.payload_hex);
 
 	if (!safe_upatch_name(name)) {
 		pr_err("upatch unload: refusing unsafe upatch name '%s'", name);
@@ -2582,7 +2582,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		} else {
 			xrc = get_pin_payload(name, live);
 			if (xrc == 0) {
-				if (!shirudo_ct_eq(live, payload, sizeof(payload))) {
+				if (!ct_eq(live, payload, sizeof(payload))) {
 					pr_err("upatch unload: payload_mismatch -- the "
 					       "upatch loaded under '%s' is not what the "
 					       "directive expects; refusing", name);
@@ -2650,8 +2650,8 @@ done:
 		       rep.err ? strerror(rep.err) : "none",
 		       rep.message[0] ? rep.message : "(none)");
 	if (report)
-		shirudo_report_emit(report, &rep);
-	shirudo_report_free(&rep);
+		report_emit(report, &rep);
+	report_free(&rep);
 	return ret;
 }
 
@@ -2668,11 +2668,11 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	if (snprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		     SHIRUDO_UPATCHES_DIR, name) >= (int)sizeof(persisted))
 		return -ENAMETOOLONG;
-	rc = shirudo_upatch_open(persisted, &u);
+	rc = upatch_open(persisted, &u);
 	if (rc)
 		return rc;
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
-	shirudo_upatch_close(&u);
+	upatch_close(&u);
 
 	rc = remove_pin_dir(name);
 	if (rc && rc != -ENOENT) {
@@ -2801,25 +2801,25 @@ static void emit_line_info_json(struct shirudo_json_emit *e,
 {
 	__u32 i = 0;
 
-	shirudo_json_arr_open(e, "files");
+	json_arr_open(e, "files");
 	while (i < k) {
 		const char *path = ents[i].file;
 		__u32 j;
 
-		shirudo_json_obj_open(e);
-		shirudo_json_kv_string(e, "path", path);
-		shirudo_json_arr_open(e, "lines");
+		json_obj_open(e);
+		json_kv_string(e, "path", path);
+		json_arr_open(e, "lines");
 		for (j = i; j < k && strcmp(ents[j].file, path) == 0; j++) {
-			shirudo_json_obj_open(e);
-			shirudo_json_kv_int(e, "line", ents[j].line);
-			shirudo_json_kv_string(e, "src", ents[j].src);
-			shirudo_json_obj_close(e);
+			json_obj_open(e);
+			json_kv_int(e, "line", ents[j].line);
+			json_kv_string(e, "src", ents[j].src);
+			json_obj_close(e);
 		}
-		shirudo_json_arr_close(e);
-		shirudo_json_obj_close(e);
+		json_arr_close(e);
+		json_obj_close(e);
 		i = j;
 	}
-	shirudo_json_arr_close(e);
+	json_arr_close(e);
 }
 
 static int append_one_map_json(const char *path,
@@ -2829,7 +2829,7 @@ static int append_one_map_json(const char *path,
 	size_t decoded_len = 0;
 	int rc;
 
-	rc = shirudo_upatch_decode_map_json(v, &decoded, &decoded_len);
+	rc = upatch_decode_map_json(v, &decoded, &decoded_len);
 	if (rc == 0) {
 		while (decoded_len && (decoded[decoded_len - 1] == '\n' ||
 				       decoded[decoded_len - 1] == '\r'))
@@ -2851,13 +2851,13 @@ static int export_one_map(const char *upatch, const char *map,
 		SHIRUDO_MAP_ENTRIES_DEFAULT;
 	int rc, ret = 0;
 
-	rc = shirudo_upatch_maps_read_flags(upatch, map, cap,
-					    peek ? SHIRUDO_MAP_READ_PEEK : 0,
-					    &v);
+	rc = upatch_maps_read_flags(upatch, map, cap,
+				    peek ? SHIRUDO_MAP_READ_PEEK : 0,
+				    &v);
 	if (rc) {
 		pr_err("upatch map: read %s/%s: %s", upatch, map,
 		       strerror(-rc));
-		shirudo_map_view_free(&v);
+		map_view_free(&v);
 		return 1;
 	}
 	if (json_output) {
@@ -2875,10 +2875,10 @@ static int export_one_map(const char *upatch, const char *map,
 	if (otel) {
 		__u32 decoder_signal;
 
-		rc = shirudo_upatch_decode_map_signal(&v, &decoder_signal);
+		rc = upatch_decode_map_signal(&v, &decoder_signal);
 		if (!rc)
-			rc = shirudo_upatch_maps_otel_send_decoded(&v, decoder_signal,
-								   otel_opts);
+			rc = upatch_maps_otel_send_decoded(&v, decoder_signal,
+							   otel_opts);
 		if (rc) {
 			pr_err("upatch map: OTLP export %s/%s: %s", upatch, map,
 			       strerror(-rc));
@@ -2886,11 +2886,11 @@ static int export_one_map(const char *upatch, const char *map,
 		}
 	}
 	if (print_detail) {
-		shirudo_upatch_maps_print_detail(&v);
+		upatch_maps_print_detail(&v);
 		if (ferror(stdout))
 			ret = 1;
 	}
-	shirudo_map_view_free(&v);
+	map_view_free(&v);
 	return ret;
 }
 
@@ -2912,8 +2912,8 @@ static int cmd_upatch_map(int argc, const char **argv)
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (shirudo_is_help(a)) {
-			shirudo_print_help(&upatch_map_help);
+		if (is_help(a)) {
+			print_help(&upatch_map_help);
 			return 0;
 		}
 		if (strcmp(a, "--all") == 0) {
@@ -2955,7 +2955,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 			otel_opts.endpoint = a + 16;
 		} else if (strncmp(a, "--tenant-id=", 12) == 0) {
 			if (otel_opts.tenant_id ||
-			    !shirudo_tenant_id_valid(a + 12)) {
+			    !tenant_id_valid(a + 12)) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
 					"--tenant-id; expected 1..128 characters using "
 					"A-Z, a-z, 0-9, '.', '_', or '-'\n");
@@ -3004,7 +3004,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 		}
 	}
 	if (all) {
-		int rc = shirudo_config_load(&export_cfg);
+		int rc = config_load(&export_cfg);
 
 		if (rc) {
 			pr_err("upatch map: load export configuration: %s",
@@ -3075,7 +3075,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 	if (all) {
 		size_t k;
 
-		shirudo_upatch_maps_list_all(&list, &n);
+		upatch_maps_list_all(&list, &n);
 		for (k = 0; k < n; k++) {
 			if (export_one_map(list[k].upatch, list[k].name,
 					   json_output, json_path, otel,
@@ -3083,7 +3083,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 					   !json_output && !otel) != 0)
 				ret = 1;
 		}
-		shirudo_map_summary_free(list, n);
+		map_summary_free(list, n);
 		return ret;
 	}
 
@@ -3092,9 +3092,9 @@ static int cmd_upatch_map(int argc, const char **argv)
 			pr_err("upatch map: invalid upatch name '%s'", upatch);
 			return 2;
 		}
-		shirudo_upatch_maps_list_one(upatch, &list, &n);
+		upatch_maps_list_one(upatch, &list, &n);
 	} else {
-		shirudo_upatch_maps_list_all(&list, &n);
+		upatch_maps_list_all(&list, &n);
 	}
 
 	if (json_output) {
@@ -3105,29 +3105,29 @@ static int cmd_upatch_map(int argc, const char **argv)
 
 		buf = xmalloc(cap);
 		if (!buf) {
-			shirudo_map_summary_free(list, n);
+			map_summary_free(list, n);
 			return 1;
 		}
 		e.buf = buf;
 		e.cap = cap;
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_int(&e, "schema", 1);
-		shirudo_json_arr_open(&e, "maps");
+		json_obj_open(&e);
+		json_kv_int(&e, "schema", 1);
+		json_arr_open(&e, "maps");
 		for (k = 0; k < n; k++) {
-			shirudo_json_obj_open(&e);
-			shirudo_json_kv_string(&e, "upatch", list[k].upatch);
-			shirudo_json_kv_string(&e, "name", list[k].name);
-			shirudo_json_kv_string(&e, "type",
-					       list[k].type_name);
-			shirudo_json_kv_int(&e, "max_entries",
-					    list[k].max_entries);
+			json_obj_open(&e);
+			json_kv_string(&e, "upatch", list[k].upatch);
+			json_kv_string(&e, "name", list[k].name);
+			json_kv_string(&e, "type",
+				       list[k].type_name);
+			json_kv_int(&e, "max_entries",
+				    list[k].max_entries);
 			if (list[k].n_cpus > 1)
-				shirudo_json_kv_int(&e, "n_cpus",
-						    list[k].n_cpus);
-			shirudo_json_obj_close(&e);
+				json_kv_int(&e, "n_cpus",
+					    list[k].n_cpus);
+			json_obj_close(&e);
 		}
-		shirudo_json_arr_close(&e);
-		shirudo_json_obj_close(&e);
+		json_arr_close(&e);
+		json_obj_close(&e);
 		if (e.err) {
 			ret = 1;
 		} else {
@@ -3145,9 +3145,9 @@ static int cmd_upatch_map(int argc, const char **argv)
 		}
 		xfree(buf, cap);
 	} else {
-		shirudo_upatch_maps_print_summary(list, n);
+		upatch_maps_print_summary(list, n);
 	}
-	shirudo_map_summary_free(list, n);
+	map_summary_free(list, n);
 	return ret;
 }
 
@@ -3194,7 +3194,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	c->payload[0] = '\0';
 	c->prog_id = 0;
 
-	link_fd = shirudo_upatch_open_first_link(want);
+	link_fd = upatch_open_first_link(want);
 	if (link_fd < 0)
 		return link_fd;
 	len = sizeof(linfo);
@@ -3207,12 +3207,12 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	if (linfo.prog_id == 0)
 		return -EINVAL;
 	c->prog_id = linfo.prog_id;
-	shirudo_upatch_loaded_at(want, c->loaded_at, sizeof(c->loaded_at));
-	shirudo_upatch_payload_sha256(want, c->payload, sizeof(c->payload));
+	upatch_loaded_at(want, c->loaded_at, sizeof(c->loaded_at));
+	upatch_payload_sha256(want, c->payload, sizeof(c->payload));
 
 	vbtf = btf__load_vmlinux_btf();
-	shirudo_upatch_resolve_location(vbtf, want, c->location,
-					sizeof(c->location));
+	upatch_resolve_location(vbtf, want, c->location,
+				sizeof(c->location));
 	if (vbtf)
 		btf__free(vbtf);
 
@@ -3270,24 +3270,24 @@ static void age_from_ts(const char *ts, char *out, size_t cap)
 		return;
 	if (!strptime(ts, "%Y-%m-%dT%H:%M:%SZ", &tm))
 		return;
-	shirudo_format_duration((long)(time(NULL) - timegm(&tm)), out, cap);
+	format_duration((long)(time(NULL) - timegm(&tm)), out, cap);
 }
 
 static void render_one_map_text(const char *upatch, const char *map,
 				__u32 cap)
 {
 	struct shirudo_map_view v = {};
-	int rc = shirudo_upatch_maps_read_flags(upatch, map, cap,
-						SHIRUDO_MAP_READ_PEEK, &v);
+	int rc = upatch_maps_read_flags(upatch, map, cap,
+					SHIRUDO_MAP_READ_PEEK, &v);
 
 	printf("\n== Map: %s ==\n", map);
 	if (rc != 0) {
 		printf("  (read failed: %s)\n", strerror(-rc));
-		shirudo_map_view_free(&v);
+		map_view_free(&v);
 		return;
 	}
-	shirudo_upatch_maps_print_detail(&v);
-	shirudo_map_view_free(&v);
+	upatch_maps_print_detail(&v);
+	map_view_free(&v);
 }
 
 static void render_get_text(const struct upatch_get_ctx *c,
@@ -3346,46 +3346,46 @@ static int render_get_json(const struct upatch_get_ctx *c,
 
 	age_from_ts(c->loaded_at, age, sizeof(age));
 
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "schema", 1);
-	shirudo_json_obj_open_key(&e, "upatch");
-	shirudo_json_kv_string(&e, "name", c->upatch);
-	shirudo_json_kv_string(&e, "location", c->location);
-	shirudo_json_kv_int(&e, "prog_id", c->prog_id);
-	shirudo_json_kv_string(&e, "loaded_at", c->loaded_at);
-	shirudo_json_kv_string(&e, "age", age);
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_obj_open_key(&e, "upatch");
+	json_kv_string(&e, "name", c->upatch);
+	json_kv_string(&e, "location", c->location);
+	json_kv_int(&e, "prog_id", c->prog_id);
+	json_kv_string(&e, "loaded_at", c->loaded_at);
+	json_kv_string(&e, "age", age);
 	if (c->payload[0])
-		shirudo_json_kv_string(&e, "payload_sha256", c->payload);
+		json_kv_string(&e, "payload_sha256", c->payload);
 	else
-		shirudo_json_kv_null(&e, "payload_sha256");
-	shirudo_json_obj_open_key(&e, "source");
+		json_kv_null(&e, "payload_sha256");
+	json_obj_open_key(&e, "source");
 	emit_line_info_json(&e, c->ents, c->n_ents);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "maps");
+	json_obj_close(&e);
+	json_arr_open(&e, "maps");
 	for (k = 0; k < nm; k++) {
 		struct shirudo_map_view v = {};
 		int rc;
 
-		rc = shirudo_upatch_maps_read_flags(c->upatch, maps[k].name,
-						    map_cap,
-						    SHIRUDO_MAP_READ_PEEK, &v);
+		rc = upatch_maps_read_flags(c->upatch, maps[k].name,
+					    map_cap,
+					    SHIRUDO_MAP_READ_PEEK, &v);
 		if (rc != 0) {
-			shirudo_json_obj_open(&e);
-			shirudo_json_kv_string(&e, "name", maps[k].name);
-			shirudo_json_kv_string(&e, "type",
-					       maps[k].type_name);
-			shirudo_json_kv_int(&e, "max_entries",
-					    maps[k].max_entries);
-			shirudo_json_kv_string(&e, "error", strerror(-rc));
-			shirudo_json_obj_close(&e);
+			json_obj_open(&e);
+			json_kv_string(&e, "name", maps[k].name);
+			json_kv_string(&e, "type",
+				       maps[k].type_name);
+			json_kv_int(&e, "max_entries",
+				    maps[k].max_entries);
+			json_kv_string(&e, "error", strerror(-rc));
+			json_obj_close(&e);
 		} else {
-			shirudo_upatch_maps_emit_json_object(&e, &v);
+			upatch_maps_emit_json_object(&e, &v);
 		}
-		shirudo_map_view_free(&v);
+		map_view_free(&v);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);	/* upatch */
-	shirudo_json_obj_close(&e);	/* root */
+	json_arr_close(&e);
+	json_obj_close(&e);	/* upatch */
+	json_obj_close(&e);	/* root */
 	if (e.err) {
 		fprintf(stderr, "upatch get: json encode failed: %s\n",
 			strerror(-e.err));
@@ -3410,8 +3410,8 @@ static int cmd_upatch_get(int argc, const char **argv)
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (shirudo_is_help(a)) {
-			shirudo_print_help(&upatch_get_help);
+		if (is_help(a)) {
+			print_help(&upatch_get_help);
 			return 0;
 		}
 		if (strcmp(a, "--json") == 0) {
@@ -3430,7 +3430,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 		}
 	}
 	if (!want) {
-		shirudo_print_help(&upatch_get_help);
+		print_help(&upatch_get_help);
 		return 2;
 	}
 	if (!safe_upatch_name(want)) {
@@ -3444,7 +3444,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 		upatch_get_ctx_free(&ctx);
 		return 1;
 	}
-	shirudo_upatch_maps_list_one(want, &maps, &nm);
+	upatch_maps_list_one(want, &maps, &nm);
 	map_cap = show_full ? 0 : SHIRUDO_MAP_ENTRIES_DEFAULT;
 
 	if (json)
@@ -3452,7 +3452,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 	else
 		render_get_text(&ctx, maps, nm, map_cap), rc = 0;
 
-	shirudo_map_summary_free(maps, nm);
+	map_summary_free(maps, nm);
 	upatch_get_ctx_free(&ctx);
 	return rc;
 }
@@ -3484,18 +3484,18 @@ int cmd_upatch(int argc, const char **argv)
 {
 	const char *canonical;
 
-	if (argc < 2 || shirudo_is_help(argv[1])) {
-		shirudo_print_help(&upatch_help);
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(&upatch_help);
 		return argc < 2 ? 2 : 0;
 	}
-	if (shirudo_is_list_cmds(argv[1])) {
-		shirudo_print_subcmd_list(upatch_subcmds,
-					  ARRAY_SIZE(upatch_subcmds));
+	if (is_list_cmds(argv[1])) {
+		print_subcmd_list(upatch_subcmds,
+				  ARRAY_SIZE(upatch_subcmds));
 		return 0;
 	}
-	canonical = shirudo_resolve_subcommand("shirudo upatch", argv[1],
-					       upatch_subcmds,
-					       ARRAY_SIZE(upatch_subcmds));
+	canonical = resolve_subcommand("shirudo upatch", argv[1],
+				       upatch_subcmds,
+				       ARRAY_SIZE(upatch_subcmds));
 	if (!canonical)
 		return 2;
 	if (strcmp(canonical, "info") == 0)

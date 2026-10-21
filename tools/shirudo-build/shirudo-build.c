@@ -165,7 +165,7 @@ static int compile_to_temp(const char *source, const char *vmlinux_h,
 
 int shirudo_build_check_keys(const char *pkey, const char *cert)
 {
-	int fd = shirudo_open_signing_key(pkey);
+	int fd = open_signing_key(pkey);
 
 	if (fd < 0) {
 		if (fd != -EPERM)
@@ -211,9 +211,9 @@ int main(int argc, char **argv)
 	int rc;
 	int i;
 
-	shirudo_harden_stdio();
-	shirudo_log_init();
-	shirudo_harden_self();
+	harden_stdio();
+	log_init();
+	harden_self();
 
 	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
 		return shirudo_build_bpm(argc - 1, argv + 1);
@@ -263,7 +263,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	keys_dir = shirudo_keys_dir_resolve(keys_dir_arg);
+	keys_dir = keys_dir_resolve(keys_dir_arg);
 
 	if (keys_dir) {
 		if (!pkey_explicit) {
@@ -298,8 +298,8 @@ int main(int argc, char **argv)
 			return 2;
 		}
 		if (payload_sha256_hex) {
-			if (shirudo_hex_decode(payload_sha256_hex,
-					       payload_sha256, 32)) {
+			if (hex_decode(payload_sha256_hex,
+				       payload_sha256, 32)) {
 				pr_err("--payload-sha256 must be 64 hex chars");
 				return 2;
 			}
@@ -317,10 +317,10 @@ int main(int argc, char **argv)
 
 			snprintf(archive, sizeof(archive), "%s/%s.upatch",
 				 SHIRUDO_UPATCHES_DIR, unload_name);
-			if (shirudo_upatch_open(archive, &u) == 0) {
+			if (upatch_open(archive, &u) == 0) {
 				memcpy(payload_sha256, u.hdr.payload_sha256,
 				       sizeof(payload_sha256));
-				shirudo_upatch_close(&u);
+				upatch_close(&u);
 				pr_info("--payload-sha256 derived from archive %s",
 					archive);
 			} else {

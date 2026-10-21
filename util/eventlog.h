@@ -22,7 +22,7 @@
 #define SHIRUDO_EVENTLOG_LINE_MAX	4096
 
 /* The on-disk path; SHIRUDO_EVENTLOG_PATH in the environment overrides it. */
-const char *shirudo_eventlog_path(void);
+const char *eventlog_path(void);
 
 /*
  * Where an init run from the initrd leaves its record until the root
@@ -30,20 +30,20 @@ const char *shirudo_eventlog_path(void);
  * environment overrides it. Every reader below sees a pending record
  * as part of this boot's log.
  */
-const char *shirudo_eventlog_pending_path(void);
+const char *eventlog_pending_path(void);
 
-int shirudo_eventlog_append(const char *json_line);
-int shirudo_eventlog_append_to(const char *path, const char *json_line);
+int eventlog_append(const char *json_line);
+int eventlog_append_to(const char *path, const char *json_line);
 
 /* 0 when nothing was pending. */
-int shirudo_eventlog_adopt_pending(void);
+int eventlog_adopt_pending(void);
 
 /*
  * Replay this boot's records, from its last "init" record on, the way
  * the register accumulates them. -ENOENT when this boot has no init
  * record, -EINVAL on a malformed line.
  */
-int shirudo_eventlog_replay(__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+int eventlog_replay(__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
 
 /*
  * What the last init record of this boot says about the register, and
@@ -64,10 +64,10 @@ struct shirudo_eventlog_init {
 	__u32		records_epoch;	/* for this reset count */
 };
 
-int shirudo_eventlog_boot_init(struct shirudo_eventlog_init *out);
+int eventlog_boot_init(struct shirudo_eventlog_init *out);
 
-int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
-					  void *ctx), void *ctx);
+int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
+				  void *ctx), void *ctx);
 
 /*
  * 1 if appending one more event would push the eventlog past max_bytes;
@@ -75,9 +75,9 @@ int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
  * must stay in lockstep, so a caller refuses the whole operation (no
  * PROG_LOAD, no extend, no append) when this returns 1.
  */
-int shirudo_eventlog_would_exceed(__u64 max_bytes);
+int eventlog_would_exceed(__u64 max_bytes);
 
-void shirudo_eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
-void shirudo_eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */
+void eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
+void eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */
 
 #endif /* SHIRUDO_EVENTLOG_H */

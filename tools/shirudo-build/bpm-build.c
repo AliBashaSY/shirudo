@@ -561,7 +561,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			return -EINVAL;
 		if (!u->tree.present)
 			continue;
-		if (!u->tree.id[0] || !shirudo_upatch_name_valid(u->tree.id))
+		if (!u->tree.id[0] || !upatch_name_valid(u->tree.id))
 			return -EINVAL;
 		if (!u->tree.load_artifact[0])
 			build_copy(u->tree.load_artifact, sizeof(u->tree.load_artifact),
@@ -843,19 +843,19 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			unlink(object);
 		if (rc)
 			return rc < 0 ? rc : -EIO;
-		if (shirudo_upatch_open(load, &parsed))
+		if (upatch_open(load, &parsed))
 			return -EINVAL;
-		if (shirudo_upatch_is_unload(&parsed) || !parsed.hdr.name[0]) {
-			shirudo_upatch_close(&parsed);
+		if (upatch_is_unload(&parsed) || !parsed.hdr.name[0]) {
+			upatch_close(&parsed);
 			return -EINVAL;
 		}
 		build_copy(u->name, sizeof(u->name), parsed.hdr.name);
-		shirudo_hex_encode(parsed.hdr.payload_sha256,
-				   SHIRUDO_CRYPTO_SHA256_LEN,
-				   u->payload_sha256);
+		hex_encode(parsed.hdr.payload_sha256,
+			   SHIRUDO_CRYPTO_SHA256_LEN,
+			   u->payload_sha256);
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
-		build_copy(u->type, sizeof(u->type), shirudo_upatch_type_str(&parsed));
-		shirudo_upatch_close(&parsed);
+		build_copy(u->type, sizeof(u->type), upatch_type_str(&parsed));
+		upatch_close(&parsed);
 		rc = shirudo_build_package_unload(u->name, payload, unload, pkey,
 						  cert);
 		if (rc)
@@ -877,7 +877,7 @@ static int build_environment(const struct bpm_build_spec *spec,
 	ssize_t self_len;
 
 	if (!body || uname(&un) ||
-	    shirudo_iso8601(now, timestamp, sizeof(timestamp))) {
+	    iso8601(now, timestamp, sizeof(timestamp))) {
 		if (body)
 			xfree(body, BPM_BUILD_MAX_JSON);
 		return -EIO;
@@ -885,41 +885,41 @@ static int build_environment(const struct bpm_build_spec *spec,
 	self_len = readlink("/proc/self/exe", self, sizeof(self) - 1);
 	if (self_len > 0)
 		self[self_len] = '\0';
-	shirudo_json_obj_open(&e);
-	shirudo_json_kv_int(&e, "format_version", 1);
-	shirudo_json_kv_string(&e, "builder", "bpm build");
-	shirudo_json_kv_string(&e, "created_at", timestamp);
-	shirudo_json_obj_open_key(&e, "package");
-	shirudo_json_kv_string(&e, "name", spec->name);
-	shirudo_json_kv_string(&e, "version", version);
-	shirudo_json_obj_close(&e);
-	shirudo_json_kv_string(&e, "os", un.sysname);
-	shirudo_json_kv_string(&e, "arch", un.machine);
-	shirudo_json_kv_string(&e, "bpm_version", shirudo_version);
-	shirudo_json_obj_open_key(&e, "shirudo");
-	shirudo_json_kv_string(&e, "path", self);
-	shirudo_json_kv_string(&e, "version", shirudo_version);
-	shirudo_json_kv_string(&e, "spki_sha256_fingerprint", fingerprint);
-	shirudo_json_obj_close(&e);
-	shirudo_json_arr_open(&e, "upatches");
+	json_obj_open(&e);
+	json_kv_int(&e, "format_version", 1);
+	json_kv_string(&e, "builder", "bpm build");
+	json_kv_string(&e, "created_at", timestamp);
+	json_obj_open_key(&e, "package");
+	json_kv_string(&e, "name", spec->name);
+	json_kv_string(&e, "version", version);
+	json_obj_close(&e);
+	json_kv_string(&e, "os", un.sysname);
+	json_kv_string(&e, "arch", un.machine);
+	json_kv_string(&e, "bpm_version", shirudo_version);
+	json_obj_open_key(&e, "shirudo");
+	json_kv_string(&e, "path", self);
+	json_kv_string(&e, "version", shirudo_version);
+	json_kv_string(&e, "spki_sha256_fingerprint", fingerprint);
+	json_obj_close(&e);
+	json_arr_open(&e, "upatches");
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		const struct bpm_build_upatch *u = &spec->upatches[i];
 
-		shirudo_json_obj_open(&e);
-		shirudo_json_kv_string(&e, "source", u->source);
-		shirudo_json_kv_string(&e, "type", u->type);
-		shirudo_json_kv_string(&e, "load_target", u->load_target);
-		shirudo_json_kv_string(&e, "load_output", strrchr(u->load_target, '/') ?
-				       strrchr(u->load_target, '/') + 1 : u->load_target);
-		shirudo_json_kv_string(&e, "unload_target", u->unload_target);
-		shirudo_json_kv_string(&e, "unload_output", strrchr(u->unload_target, '/') ?
-				       strrchr(u->unload_target, '/') + 1 : u->unload_target);
-		shirudo_json_kv_string(&e, "upatch_name", u->name);
-		shirudo_json_kv_string(&e, "payload_sha256", u->payload_sha256);
-		shirudo_json_obj_close(&e);
+		json_obj_open(&e);
+		json_kv_string(&e, "source", u->source);
+		json_kv_string(&e, "type", u->type);
+		json_kv_string(&e, "load_target", u->load_target);
+		json_kv_string(&e, "load_output", strrchr(u->load_target, '/') ?
+			       strrchr(u->load_target, '/') + 1 : u->load_target);
+		json_kv_string(&e, "unload_target", u->unload_target);
+		json_kv_string(&e, "unload_output", strrchr(u->unload_target, '/') ?
+			       strrchr(u->unload_target, '/') + 1 : u->unload_target);
+		json_kv_string(&e, "upatch_name", u->name);
+		json_kv_string(&e, "payload_sha256", u->payload_sha256);
+		json_obj_close(&e);
 	}
-	shirudo_json_arr_close(&e);
-	shirudo_json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
 	if (e.err) {
 		xfree(body, BPM_BUILD_MAX_JSON);
 		return e.err;
@@ -1097,7 +1097,7 @@ static const char *build_resolve_keys_dir(const char *arg, char *out, size_t cap
 	const char *home = getenv("HOME");
 
 	if (!arg || !*arg)
-		arg = shirudo_keys_dir_resolve(NULL);
+		arg = keys_dir_resolve(NULL);
 	if (arg[0] == '~' && (!arg[1] || arg[1] == '/')) {
 		if (!home || snprintf(out, cap, "%s%s", home, arg + 1) >= (int)cap)
 			return NULL;
@@ -1172,8 +1172,8 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		pr_err("bpm build: keys directory %s is not usable", keys_dir);
 		return -ENOENT;
 	}
-	rc = shirudo_key_paths(keys_abs, pkey, sizeof(pkey), cert_path,
-			       sizeof(cert_path));
+	rc = key_paths(keys_abs, pkey, sizeof(pkey), cert_path,
+		       sizeof(cert_path));
 	if (rc)
 		return rc;
 	if (shirudo_build_check_keys(pkey, cert_path))
@@ -1209,14 +1209,14 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		pr_err("bpm build: %s is not a valid Beefile", resolved_file);
 		goto out;
 	}
-	if (shirudo_cert_read_file(cert_path, &cert)) {
+	if (cert_read_file(cert_path, &cert)) {
 		rc = -ENOENT;
 		goto out;
 	}
-	rc = shirudo_cert_pubkey_digest(&cert, digest);
+	rc = cert_pubkey_digest(&cert, digest);
 	if (rc)
 		goto out_cert;
-	shirudo_hex_encode(digest, sizeof(digest), fingerprint);
+	hex_encode(digest, sizeof(digest), fingerprint);
 	/*
 	 * Compile in the package directory so ./vmlinux.h and the vendored
 	 * headers resolve the way they do for `shirudo build` run there.
@@ -1233,7 +1233,7 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		rc = build_archive(spec, version, cert_path, fingerprint, out_dir);
 	build_stage_close(spec);
 out_cert:
-	shirudo_cert_free(&cert);
+	cert_free(&cert);
 out:
 	if (body)
 		xfree(body, body_len + 1);

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * shirudo_tree_parse() on an upatch tree publication, the canonical
+ * tree_parse() on an upatch tree publication, the canonical
  * digest of every operation it accepts and the publication emitted again.
  */
 
@@ -16,12 +16,12 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	char digest[72], *out;
 	size_t len;
 
-	if (shirudo_tree_parse((const char *)data, size, &pub))
+	if (tree_parse((const char *)data, size, &pub))
 		return 0;
 	for (int i = 0; i < pub.n_operations; i++)
-		shirudo_tree_operation_digest(&pub.operations[i], digest);
-	if (!shirudo_tree_emit_publication(&pub, &out, &len))
+		tree_operation_digest(&pub.operations[i], digest);
+	if (!tree_emit_publication(&pub, &out, &len))
 		xfree(out, len);
-	shirudo_tree_publication_free(&pub);
+	tree_publication_free(&pub);
 	return 0;
 }

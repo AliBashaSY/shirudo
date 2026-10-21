@@ -82,7 +82,7 @@ struct shirudo_map_view {
 	struct shirudo_map_entry	*entries;	/* n_entries long */
 };
 
-void shirudo_map_view_free(struct shirudo_map_view *v);
+void map_view_free(struct shirudo_map_view *v);
 
 /* Name, type and max_entries alone, without reading entries. */
 struct shirudo_map_summary {
@@ -94,21 +94,21 @@ struct shirudo_map_summary {
 	__u32		n_cpus;
 };
 
-int  shirudo_upatch_maps_list_all(struct shirudo_map_summary **out,
-				  size_t *n_out);
-int  shirudo_upatch_maps_list_one(const char *upatch,
-				  struct shirudo_map_summary **out,
-				  size_t *n_out);
-void shirudo_map_summary_free(struct shirudo_map_summary *list, size_t n);
+int  upatch_maps_list_all(struct shirudo_map_summary **out,
+			  size_t *n_out);
+int  upatch_maps_list_one(const char *upatch,
+			  struct shirudo_map_summary **out,
+			  size_t *n_out);
+void map_summary_free(struct shirudo_map_summary *list, size_t n);
 
 /*
  * Read one map's contents. <max_entries_cap> bounds the number of
  * (key, value) pairs returned; SHIRUDO_MAP_ENTRIES_DEFAULT for the
  * default, 0 for unlimited (--show-full). Returns 0/-errno.
  */
-int  shirudo_upatch_maps_read(const char *upatch, const char *map,
-			      __u32 max_entries_cap,
-			      struct shirudo_map_view *out);
+int  upatch_maps_read(const char *upatch, const char *map,
+		      __u32 max_entries_cap,
+		      struct shirudo_map_view *out);
 
 /*
  * Serializer-backed maps are drained by a read, as the map-export timer
@@ -117,31 +117,31 @@ int  shirudo_upatch_maps_read(const char *upatch, const char *map,
  */
 #define SHIRUDO_MAP_READ_PEEK	(1u << 0)
 
-int  shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
-				    __u32 max_entries_cap, __u32 flags,
-				    struct shirudo_map_view *out);
+int  upatch_maps_read_flags(const char *upatch, const char *map,
+			    __u32 max_entries_cap, __u32 flags,
+			    struct shirudo_map_view *out);
 
-void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
-				       size_t n);
-void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v);
+void upatch_maps_print_summary(const struct shirudo_map_summary *list,
+			       size_t n);
+void upatch_maps_print_detail(const struct shirudo_map_view *v);
 
 /* NULL v emits nothing. The shape is part of the status report. */
-void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
-					  const struct shirudo_map_view *v);
-void shirudo_upatch_maps_emit_json_object(struct shirudo_json_emit *e,
-					  const struct shirudo_map_view *v);
+void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
+				  const struct shirudo_map_view *v);
+void upatch_maps_emit_json_object(struct shirudo_json_emit *e,
+				  const struct shirudo_map_view *v);
 
-bool shirudo_upatch_map_is_percpu(__u32 type);
-__u32 shirudo_upatch_map_value_stride(const struct shirudo_map_view *v);
-char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
-				     __u32 type_id, const void *value,
-				     __u32 value_size,
-				     const char *btf_type);
-char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
-					   const void *values_per_cpu,
-					   const char *btf_type);
+bool upatch_map_is_percpu(__u32 type);
+__u32 upatch_map_value_stride(const struct shirudo_map_view *v);
+char *upatch_map_format_cell(const struct shirudo_map_view *v,
+			     __u32 type_id, const void *value,
+			     __u32 value_size,
+			     const char *btf_type);
+char *upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
+				   const void *values_per_cpu,
+				   const char *btf_type);
 
-int shirudo_prog_test_run(int prog_fd, void *ctx, __u32 ctx_sz,
-			  __u32 *retval);
+int prog_test_run(int prog_fd, void *ctx, __u32 ctx_sz,
+		  __u32 *retval);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_H */

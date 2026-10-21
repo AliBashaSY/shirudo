@@ -41,7 +41,7 @@ static X509 *read_x509(const char *path)
 
 	if (fd < 0)
 		return NULL;
-	if (shirudo_check_trusted(fd, path, false)) {
+	if (check_trusted(fd, path, false)) {
 		close(fd);
 		return NULL;
 	}
@@ -63,7 +63,7 @@ static X509 *read_x509(const char *path)
 	return cert;
 }
 
-int shirudo_sha256_init(struct shirudo_sha256_ctx *ctx)
+int sha256_init(struct shirudo_sha256_ctx *ctx)
 {
 	EVP_MD_CTX *md;
 
@@ -79,16 +79,16 @@ int shirudo_sha256_init(struct shirudo_sha256_ctx *ctx)
 	return 0;
 }
 
-int shirudo_sha256_update(struct shirudo_sha256_ctx *ctx,
-			  const void *data, size_t len)
+int sha256_update(struct shirudo_sha256_ctx *ctx,
+		  const void *data, size_t len)
 {
 	if (!ctx || !ctx->impl || (len && !data))
 		return -EINVAL;
 	return EVP_DigestUpdate(ctx->impl, data, len) == 1 ? 0 : -EIO;
 }
 
-int shirudo_sha256_final(struct shirudo_sha256_ctx *ctx,
-			 __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+int sha256_final(struct shirudo_sha256_ctx *ctx,
+		 __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	__u32 len = 0;
 	int rc;
@@ -101,7 +101,7 @@ int shirudo_sha256_final(struct shirudo_sha256_ctx *ctx,
 	return rc;
 }
 
-void shirudo_sha256_free(struct shirudo_sha256_ctx *ctx)
+void sha256_free(struct shirudo_sha256_ctx *ctx)
 {
 	if (!ctx)
 		return;
@@ -109,24 +109,24 @@ void shirudo_sha256_free(struct shirudo_sha256_ctx *ctx)
 	ctx->impl = NULL;
 }
 
-int shirudo_sha256_buffer(const void *data, size_t len,
-			  __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+int sha256_buffer(const void *data, size_t len,
+		  __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	struct shirudo_sha256_ctx ctx;
 	int rc;
 
-	rc = shirudo_sha256_init(&ctx);
+	rc = sha256_init(&ctx);
 	if (!rc)
-		rc = shirudo_sha256_update(&ctx, data, len);
+		rc = sha256_update(&ctx, data, len);
 	if (!rc)
-		rc = shirudo_sha256_final(&ctx, out);
+		rc = sha256_final(&ctx, out);
 	else
-		shirudo_sha256_free(&ctx);
+		sha256_free(&ctx);
 	return rc;
 }
 
-int shirudo_base64_encode(const __u8 *data, size_t len,
-			  char *out, size_t out_sz)
+int base64_encode(const __u8 *data, size_t len,
+		  char *out, size_t out_sz)
 {
 	size_t need = 4 * ((len + 2) / 3) + 1;
 
@@ -138,9 +138,9 @@ int shirudo_base64_encode(const __u8 *data, size_t len,
 	return 0;
 }
 
-int shirudo_ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
-			      const __u8 digest[32],
-			      const __u8 r[32], const __u8 s[32])
+int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
+		      const __u8 digest[32],
+		      const __u8 r[32], const __u8 s[32])
 {
 	__u8 point[65], *der = NULL;
 	EVP_PKEY_CTX *kctx = NULL, *vctx = NULL;
@@ -192,7 +192,7 @@ out:
 	return rc;
 }
 
-int shirudo_cert_read_file(const char *path, struct shirudo_cert *cert)
+int cert_read_file(const char *path, struct shirudo_cert *cert)
 {
 	if (!path || !cert)
 		return -EINVAL;
@@ -200,7 +200,7 @@ int shirudo_cert_read_file(const char *path, struct shirudo_cert *cert)
 	return cert->impl ? 0 : -EINVAL;
 }
 
-void shirudo_cert_free(struct shirudo_cert *cert)
+void cert_free(struct shirudo_cert *cert)
 {
 	if (!cert)
 		return;
@@ -214,8 +214,8 @@ void shirudo_cert_free(struct shirudo_cert *cert)
  * X.509 parser accepts, including ML-DSA keys libcrypto cannot otherwise
  * marshal as a bare EVP_PKEY on older releases.
  */
-int shirudo_cert_pubkey_digest(const struct shirudo_cert *cert,
-			       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+int cert_pubkey_digest(const struct shirudo_cert *cert,
+		       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	__u8 *der = NULL, *p;
 	int der_len, encoded_len, rc = -EINVAL;
@@ -246,8 +246,8 @@ out:
 	return rc;
 }
 
-int shirudo_cert_key_algorithm(const struct shirudo_cert *cert,
-			       char *out, size_t out_sz)
+int cert_key_algorithm(const struct shirudo_cert *cert,
+		       char *out, size_t out_sz)
 {
 	const char *name;
 	EVP_PKEY *pub;
@@ -267,9 +267,9 @@ int shirudo_cert_key_algorithm(const struct shirudo_cert *cert,
  * with signedAttrs and SHA-512 or bare on OpenSSL 4, and an RSA one
  * verify through one call; ML-DSA needs libcrypto >= 3.5.
  */
-int shirudo_verify_detached(const __u8 *payload, size_t payload_len,
-			    const __u8 *signature, size_t signature_len,
-			    const struct shirudo_cert *cert)
+int verify_detached(const __u8 *payload, size_t payload_len,
+		    const __u8 *signature, size_t signature_len,
+		    const struct shirudo_cert *cert)
 {
 	BIO *sig = NULL, *data = NULL, *out = NULL;
 	CMS_ContentInfo *cms = NULL;
@@ -307,8 +307,8 @@ done:
 	return rc;
 }
 
-int shirudo_cms_signed_by(const __u8 *signature, size_t signature_len,
-			  const struct shirudo_cert *cert)
+int cms_signed_by(const __u8 *signature, size_t signature_len,
+		  const struct shirudo_cert *cert)
 {
 	STACK_OF(CMS_SignerInfo) *sis;
 	CMS_ContentInfo *cms = NULL;
@@ -340,8 +340,8 @@ done:
 	return rc;
 }
 
-int shirudo_hmac_sha256(const __u8 *key, size_t key_len,
-			const void *data, size_t len, __u8 out[32])
+int hmac_sha256(const __u8 *key, size_t key_len,
+		const void *data, size_t len, __u8 out[32])
 {
 	EVP_MAC_CTX *ctx = NULL;
 	OSSL_PARAM params[2];
@@ -365,8 +365,8 @@ int shirudo_hmac_sha256(const __u8 *key, size_t key_len,
 	return rc;
 }
 
-int shirudo_aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
-			       size_t len, __u8 *out)
+int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
+		       size_t len, __u8 *out)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	int n = 0, fin = 0, rc = -EIO;
@@ -385,10 +385,10 @@ out:
 	return rc;
 }
 
-int shirudo_rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
-			     const void *label, size_t label_len,
-			     const __u8 *in, size_t in_len,
-			     __u8 *out, size_t cap, size_t *out_len)
+int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
+		     const void *label, size_t label_len,
+		     const __u8 *in, size_t in_len,
+		     __u8 *out, size_t cap, size_t *out_len)
 {
 	EVP_PKEY_CTX *kctx = NULL, *ectx = NULL;
 	BIGNUM *bn = NULL, *be = NULL;
@@ -442,9 +442,9 @@ out:
 	return rc;
 }
 
-int shirudo_ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
-				__u8 eph_x[32], __u8 eph_y[32],
-				__u8 z[32])
+int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
+			__u8 eph_x[32], __u8 eph_y[32],
+			__u8 z[32])
 {
 	EVP_PKEY_CTX *kctx = NULL, *dctx = NULL;
 	EVP_PKEY *eph = NULL, *peer = NULL;
@@ -490,8 +490,8 @@ out:
 	return rc;
 }
 
-int shirudo_base64_decode(const char *in, size_t in_len, __u8 *out,
-			  size_t cap, size_t *out_len)
+int base64_decode(const char *in, size_t in_len, __u8 *out,
+		  size_t cap, size_t *out_len)
 {
 	EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
 	int n = 0, fin = 0, rc = -EINVAL;
@@ -510,8 +510,8 @@ out:
 	return rc;
 }
 
-int shirudo_cert_read_der(const __u8 *der, size_t len,
-			  struct shirudo_cert *cert)
+int cert_read_der(const __u8 *der, size_t len,
+		  struct shirudo_cert *cert)
 {
 	const __u8 *p = der;
 
@@ -521,8 +521,8 @@ int shirudo_cert_read_der(const __u8 *der, size_t len,
 	return cert->impl ? 0 : -EINVAL;
 }
 
-int shirudo_cert_pubkey(const struct shirudo_cert *cert,
-			struct shirudo_cert_pubkey *out)
+int cert_pubkey(const struct shirudo_cert *cert,
+		struct cert_pubkey *out)
 {
 	BIGNUM *a = NULL, *b = NULL;
 	char group[32] = "";
@@ -562,8 +562,8 @@ out:
 	return rc;
 }
 
-int shirudo_cert_verify_chain(const struct shirudo_cert *cert,
-			      const char *bundle_path, const char **reason)
+int cert_verify_chain(const struct shirudo_cert *cert,
+		      const char *bundle_path, const char **reason)
 {
 	X509_STORE_CTX *ctx = NULL;
 	X509_STORE *store;
@@ -596,7 +596,7 @@ out:
 	return rc;
 }
 
-void shirudo_openssl_complain(const char *where)
+void openssl_complain(const char *where)
 {
 	char buf[256];
 

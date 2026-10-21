@@ -210,7 +210,7 @@ key revocation
     each loaded upatch of which then follows as its own unload event.
 
 The register after an event is ``SHA256(register || event)``, starting
-from zeros; ``shirudo_chain_fold()`` and the eventlog replay use the
+from zeros; ``chain_fold()`` and the eventlog replay use the
 same fold.  Boot restore is exactly one init event however many
 upatches it re-applies.
 

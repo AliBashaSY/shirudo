@@ -19,21 +19,21 @@ int main(int argc, char **argv)
 		return 2;
 
 	if (strcmp(argv[1], "arena-name") == 0) {
-		puts(shirudo_map_type_name(BPF_MAP_TYPE_ARENA));
+		puts(map_type_name(BPF_MAP_TYPE_ARENA));
 		return 0;
 	}
 	if (strcmp(argv[1], "arena-skip") == 0) {
-		s = shirudo_map_skip_reason(BPF_MAP_TYPE_ARENA);
+		s = map_skip_reason(BPF_MAP_TYPE_ARENA);
 		puts(s ? s : "");
 		return 0;
 	}
 	if (strcmp(argv[1], "array-skip") == 0) {
-		s = shirudo_map_skip_reason(BPF_MAP_TYPE_ARRAY);
+		s = map_skip_reason(BPF_MAP_TYPE_ARRAY);
 		puts(s ? s : "");
 		return 0;
 	}
 	if (strcmp(argv[1], "ringbuf-name") == 0) {
-		puts(shirudo_map_type_name(BPF_MAP_TYPE_RINGBUF));
+		puts(map_type_name(BPF_MAP_TYPE_RINGBUF));
 		return 0;
 	}
 	return 2;

@@ -15,7 +15,7 @@
 
 #define LOG_MSG_MAX	8192
 
-void shirudo_log_init(void)
+void log_init(void)
 {
 	openlog("shirudo", LOG_PID | LOG_NDELAY, LOG_AUTHPRIV);
 }

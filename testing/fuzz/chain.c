@@ -13,10 +13,10 @@
 void shirudo_sha256(const void *data, size_t len,
 		    __u8 out[SHIRUDO_CHAIN_DIGEST_LEN])
 {
-	shirudo_sha256_buffer(data, len, out);
+	sha256_buffer(data, len, out);
 }
 
-int shirudo_ct_eq(const void *a, const void *b, size_t n)
+int ct_eq(const void *a, const void *b, size_t n)
 {
 	return !memcmp(a, b, n);
 }

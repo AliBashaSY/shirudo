@@ -9,7 +9,7 @@
 #include "hex.h"
 #include "malloc.h"
 
-void shirudo_hex_encode(const __u8 *in, size_t n, char *out)
+void hex_encode(const __u8 *in, size_t n, char *out)
 {
 	static const char d[] = "0123456789abcdef";
 	size_t i;
@@ -21,16 +21,16 @@ void shirudo_hex_encode(const __u8 *in, size_t n, char *out)
 	out[2 * n] = '\0';
 }
 
-char *shirudo_hex_alloc(const void *in, size_t n)
+char *hex_alloc(const void *in, size_t n)
 {
 	char *out = xmalloc(2 * n + 1);
 
 	if (out)
-		shirudo_hex_encode(in, n, out);
+		hex_encode(in, n, out);
 	return out;
 }
 
-int shirudo_hex_nibble(int c)
+int hex_nibble(int c)
 {
 	if (c >= '0' && c <= '9')
 		return c - '0';
@@ -41,15 +41,15 @@ int shirudo_hex_nibble(int c)
 	return -1;
 }
 
-int shirudo_hex_decode(const char *hex, __u8 *out, size_t n)
+int hex_decode(const char *hex, __u8 *out, size_t n)
 {
 	size_t i;
 
 	if (strlen(hex) != 2 * n)
 		return -EINVAL;
 	for (i = 0; i < n; i++) {
-		int hi = shirudo_hex_nibble(hex[2 * i]);
-		int lo = shirudo_hex_nibble(hex[2 * i + 1]);
+		int hi = hex_nibble(hex[2 * i]);
+		int lo = hex_nibble(hex[2 * i + 1]);
 
 		if (hi < 0 || lo < 0)
 			return -EINVAL;

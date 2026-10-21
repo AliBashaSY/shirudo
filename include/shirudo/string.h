@@ -13,7 +13,7 @@
 #include <shirudo/misc.h>
 
 /* How many of the len bytes at s, from the first, are decimal digits. */
-size_t shirudo_digits(const char *s, size_t len);
+size_t digits(const char *s, size_t len);
 
 /*
  * The number the len bytes at s spell, decimal for u64 and s64 and

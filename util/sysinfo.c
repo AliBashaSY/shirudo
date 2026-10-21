@@ -168,9 +168,9 @@ static void kernel_config_entries_free(struct kernel_config_entry *entries,
 	xfree(entries, n * sizeof(*entries));
 }
 
-int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
-					  shirudo_kernel_config_cb cb,
-					  void *ctx)
+int sysinfo_kernel_config_foreach(const char *kernel_release,
+				  shirudo_kernel_config_cb cb,
+				  void *ctx)
 {
 	char path[PATH_MAX];
 	char line[8192];
@@ -259,20 +259,20 @@ int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
 static void emit_kernel_config_entry(void *ctx, const char *key,
 				     const char *value)
 {
-	shirudo_json_kv_string(ctx, key, value);
+	json_kv_string(ctx, key, value);
 }
 
 static void emit_kernel_config(struct shirudo_json_emit *e,
 			       const char *kernel_release)
 {
-	shirudo_json_obj_open_key(e, "kernel_config");
-	shirudo_sysinfo_kernel_config_foreach(kernel_release,
-					      emit_kernel_config_entry, e);
+	json_obj_open_key(e, "kernel_config");
+	sysinfo_kernel_config_foreach(kernel_release,
+				      emit_kernel_config_entry, e);
 
-	shirudo_json_obj_close(e);
+	json_obj_close(e);
 }
 
-void shirudo_sysinfo_gather(struct shirudo_sysinfo *si)
+void sysinfo_gather(struct shirudo_sysinfo *si)
 {
 	struct utsname u;
 
@@ -304,7 +304,7 @@ void shirudo_sysinfo_gather(struct shirudo_sysinfo *si)
 			sizeof(si->machine_id));
 	read_first_line("/proc/sys/kernel/random/boot_id", si->boot_id,
 			sizeof(si->boot_id));
-	(void)shirudo_kernel_build_id_read(si->kernel_build_id);
+	(void)kernel_build_id_read(si->kernel_build_id);
 
 	si->nproc = sysconf(_SC_NPROCESSORS_ONLN);
 	read_mem(&si->mem_total_kb, &si->mem_avail_kb);
@@ -312,24 +312,24 @@ void shirudo_sysinfo_gather(struct shirudo_sysinfo *si)
 	si->uptime_sec = read_uptime_sec();
 }
 
-void shirudo_sysinfo_emit_json(struct shirudo_json_emit *e,
-			       const struct shirudo_sysinfo *si)
+void sysinfo_emit_json(struct shirudo_json_emit *e,
+		       const struct shirudo_sysinfo *si)
 {
-	shirudo_json_obj_open_key(e, "system");
-	shirudo_json_kv_string(e, "hostname", si->hostname);
-	shirudo_json_kv_string(e, "os", si->os_pretty);
-	shirudo_json_kv_string(e, "kernel_release", si->kernel_release);
-	shirudo_json_kv_string(e, "kernel_version", si->kernel_version);
-	shirudo_json_kv_string(e, "kernel_build_id", si->kernel_build_id);
+	json_obj_open_key(e, "system");
+	json_kv_string(e, "hostname", si->hostname);
+	json_kv_string(e, "os", si->os_pretty);
+	json_kv_string(e, "kernel_release", si->kernel_release);
+	json_kv_string(e, "kernel_version", si->kernel_version);
+	json_kv_string(e, "kernel_build_id", si->kernel_build_id);
 	emit_kernel_config(e, si->kernel_release);
-	shirudo_json_kv_string(e, "architecture", si->machine);
-	shirudo_json_kv_string(e, "machine_id", si->machine_id);
-	shirudo_json_kv_string(e, "boot_id", si->boot_id);
-	shirudo_json_kv_int(e, "nproc", si->nproc);
-	shirudo_json_kv_int(e, "mem_total_kb", si->mem_total_kb);
-	shirudo_json_kv_int(e, "mem_avail_kb", si->mem_avail_kb);
-	shirudo_json_kv_int(e, "disk_total_kb", si->disk_total_kb);
-	shirudo_json_kv_int(e, "disk_used_kb", si->disk_used_kb);
-	shirudo_json_kv_int(e, "uptime_seconds", si->uptime_sec);
-	shirudo_json_obj_close(e);
+	json_kv_string(e, "architecture", si->machine);
+	json_kv_string(e, "machine_id", si->machine_id);
+	json_kv_string(e, "boot_id", si->boot_id);
+	json_kv_int(e, "nproc", si->nproc);
+	json_kv_int(e, "mem_total_kb", si->mem_total_kb);
+	json_kv_int(e, "mem_avail_kb", si->mem_avail_kb);
+	json_kv_int(e, "disk_total_kb", si->disk_total_kb);
+	json_kv_int(e, "disk_used_kb", si->disk_used_kb);
+	json_kv_int(e, "uptime_seconds", si->uptime_sec);
+	json_obj_close(e);
 }

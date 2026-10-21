@@ -16,10 +16,10 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	struct shirudo_tpm_public pub;
 	struct shirudo_tpm_attest at;
 
-	shirudo_tpm_public_parse(data, size, &pub);
-	shirudo_tpm_ecc_public_parse(data, size, &ecc);
-	shirudo_tpm_object_name(data, size, name);
-	shirudo_tpm_ecdsa_signature_parse(data, size, r, s);
-	shirudo_tpm_attest_parse(data, size, &at);
+	tpm_public_parse(data, size, &pub);
+	tpm_ecc_public_parse(data, size, &ecc);
+	tpm_object_name(data, size, name);
+	tpm_ecdsa_signature_parse(data, size, r, s);
+	tpm_attest_parse(data, size, &at);
 	return 0;
 }

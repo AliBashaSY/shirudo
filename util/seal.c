@@ -24,7 +24,7 @@
 
 #define SEAL_LABEL_LEN	(sizeof(SHIRUDO_SEAL_LABEL) - 1)
 
-int shirudo_seal_label(const char *path)
+int seal_label(const char *path)
 {
 	if (lsetxattr(path, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
 		      sizeof(SHIRUDO_SEAL_LABEL) - 1, 0) != 0)
@@ -52,12 +52,12 @@ static int seal_label_cb(const char *path, const struct stat *sb,
 	 */
 	if (sb->st_dev != seal_root_dev)
 		return 0;
-	if (shirudo_seal_label(path) != 0)
+	if (seal_label(path) != 0)
 		pr_warn("seal: label %s: %s", path, strerror(errno));
 	return 0;	/* best-effort: keep walking */
 }
 
-int shirudo_seal_label_tree(void)
+int seal_label_tree(void)
 {
 	char self[PATH_MAX];
 	struct stat st;
@@ -67,7 +67,7 @@ int shirudo_seal_label_tree(void)
 	n = readlink("/proc/self/exe", self, sizeof(self) - 1);
 	if (n > 0) {
 		self[n] = '\0';
-		if (shirudo_seal_label(self) != 0)
+		if (seal_label(self) != 0)
 			pr_warn("seal: label %s: %s", self, strerror(errno));
 	}
 
@@ -132,7 +132,7 @@ static int seal_open_parent(const char *path, const char **name)
 	return fd;
 }
 
-int shirudo_seal_inherit(int dfd, int fd)
+int seal_inherit(int dfd, int fd)
 {
 	char parent[SEAL_LABEL_LEN], own[SEAL_LABEL_LEN];
 	ssize_t plen, olen;
@@ -150,7 +150,7 @@ int shirudo_seal_inherit(int dfd, int fd)
 	return 0;
 }
 
-int shirudo_seal_inherit_path(const char *path)
+int seal_inherit_path(const char *path)
 {
 	char parent[SEAL_LABEL_LEN], own[SEAL_LABEL_LEN];
 	ssize_t plen, olen;
@@ -174,7 +174,7 @@ int shirudo_seal_inherit_path(const char *path)
 	return 0;
 }
 
-int shirudo_seal_open(const char *path, int flags, mode_t mode)
+int seal_open(const char *path, int flags, mode_t mode)
 {
 	const char *name;
 	int dfd, fd, rc;
@@ -188,7 +188,7 @@ int shirudo_seal_open(const char *path, int flags, mode_t mode)
 		close(dfd);
 		return rc;
 	}
-	rc = shirudo_seal_inherit(dfd, fd);
+	rc = seal_inherit(dfd, fd);
 	close(dfd);
 	if (rc) {
 		close(fd);
@@ -197,7 +197,7 @@ int shirudo_seal_open(const char *path, int flags, mode_t mode)
 	return fd;
 }
 
-int shirudo_seal_mkdir_p(const char *path, mode_t mode)
+int seal_mkdir_p(const char *path, mode_t mode)
 {
 	char buf[PATH_MAX], *comp, *save;
 	int dfd, nfd, rc = 0;
@@ -222,7 +222,7 @@ int shirudo_seal_mkdir_p(const char *path, mode_t mode)
 			break;
 		}
 		if (created)
-			rc = shirudo_seal_inherit(dfd, nfd);
+			rc = seal_inherit(dfd, nfd);
 		close(dfd);
 		dfd = nfd;
 		if (rc)
@@ -232,8 +232,8 @@ int shirudo_seal_mkdir_p(const char *path, mode_t mode)
 	return rc;
 }
 
-int shirudo_seal_write_file(const char *path, const void *data, size_t len,
-			    mode_t mode)
+int seal_write_file(const char *path, const void *data, size_t len,
+		    mode_t mode)
 {
 	char tmp[NAME_MAX + 1];
 	const char *name;
@@ -253,9 +253,9 @@ int shirudo_seal_write_file(const char *path, const void *data, size_t len,
 		close(dfd);
 		return rc;
 	}
-	rc = shirudo_seal_inherit(dfd, fd);
+	rc = seal_inherit(dfd, fd);
 	if (!rc)
-		rc = shirudo_write_all(fd, data, len);
+		rc = write_all(fd, data, len);
 	if (!rc && fsync(fd))
 		rc = -errno;
 	if (close(fd) && !rc)

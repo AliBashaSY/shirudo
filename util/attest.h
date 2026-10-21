@@ -40,17 +40,17 @@ struct shirudo_attest_challenge {
 
 #define SHIRUDO_ATTEST_CHALLENGE_MAX	(16 * 1024)
 
-int shirudo_attest_challenge_read(const char *path,
-				  struct shirudo_attest_challenge *out);
+int attest_challenge_read(const char *path,
+			  struct shirudo_attest_challenge *out);
 
 /*
  * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
  * -EKEYREJECTED when the TPM refuses the challenge.
  */
-int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
-			    __u32 pcr_mask,
-			    const struct shirudo_attest_challenge *challenge,
-			    char **out, size_t *len, size_t *cap);
+int attest_evidence(const __u8 *nonce, size_t nonce_len,
+		    __u32 pcr_mask,
+		    const struct shirudo_attest_challenge *challenge,
+		    char **out, size_t *len, size_t *cap);
 
 /*
  * Operator side. The credential the target has to recover is handed
@@ -64,11 +64,11 @@ struct shirudo_attest_challenge_policy {
 	bool		trust_presented; /* accept an unvouched endorsement key */
 };
 
-int shirudo_attest_challenge_make(const char *evidence, size_t len,
-				  const struct shirudo_attest_challenge_policy *pol,
-				  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
-				  char **out, size_t *out_len, size_t *cap,
-				  char *report, size_t report_cap);
+int attest_challenge_make(const char *evidence, size_t len,
+			  const struct shirudo_attest_challenge_policy *pol,
+			  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+			  char **out, size_t *out_len, size_t *cap,
+			  char *report, size_t report_cap);
 
 struct shirudo_attest_expect {
 	const __u8	*nonce;
@@ -96,8 +96,8 @@ struct shirudo_attest_expect {
  * Operator side: 0 when every check passed, -EKEYREJECTED when one
  * failed, -EINVAL when the document is malformed.
  */
-int shirudo_attest_verify(const char *evidence, size_t len,
-			  const struct shirudo_attest_expect *expect,
-			  char *report, size_t report_cap);
+int attest_verify(const char *evidence, size_t len,
+		  const struct shirudo_attest_expect *expect,
+		  char *report, size_t report_cap);
 
 #endif /* SHIRUDO_ATTEST_H */
