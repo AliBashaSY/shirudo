@@ -144,8 +144,11 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 				unsigned long v;
 				char *end;
 
+				/* strtoul takes "-1" and "" as numbers. */
+				errno = 0;
 				v = strtoul(val, &end, 0);
-				if (*end != '\0')
+				if (errno || end == val || *end != '\0' ||
+				    val[0] == '-')
 					pr_warn("config: eventlog.max_bytes: "
 						"bad value '%s' (ignored)", val);
 				else
