@@ -1,8 +1,0 @@
-# Python dependencies for repository tooling.
-# All other Python scripts use the standard library.
-
-# Required for `make -C Documentation html-docs`.
-docutils
-
-# Optional: enables the TPM wire-format cross-check in testing/t0033-tpm-wire.sh.
-cryptography

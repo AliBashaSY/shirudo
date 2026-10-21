@@ -322,3 +322,15 @@ static archives.  The build host then needs static ``libelf``,
 the system one.  The operator package, by contrast, links the host's
 shared libraries and must be built on the distribution it is installed
 on.
+
+
+7) Documentation and tests
+--------------------------
+
+* ``make -C Documentation html-docs`` renders the documents with
+  docutils' ``rst2html`` (``python3-docutils``).
+* The host-side suite, ``make -C testing test-op``, runs its Python
+  helpers on the standard library alone.  With the ``cryptography``
+  module installed, ``t0033-tpm-wire.sh`` also cross-checks the TPM
+  credential blob it builds against an independent implementation;
+  without it that one check is skipped.
