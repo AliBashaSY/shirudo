@@ -433,9 +433,10 @@ static int extract_archive(const char *archive, const char *dest)
 		return rc;
 	}
 	for (;;) {
+		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
 		int n = gzread(gz, h, sizeof(h));
 		uint64_t size, remain, pad;
-		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
+		bool zero = true;
 		int type;
 
 		if (n == 0)
@@ -444,8 +445,6 @@ static int extract_archive(const char *archive, const char *dest)
 			rc = -EINVAL;
 			break;
 		}
-		bool zero = true;
-
 		for (size_t i = 0; i < sizeof(h); i++) {
 			if (h[i]) {
 				zero = false;

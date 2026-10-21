@@ -75,11 +75,11 @@ static int worker(uint64_t deadline, int fd)
 
 int main(int argc, char **argv)
 {
+	uint64_t start, deadline, elapsed, completed = 0;
 	unsigned long duration_sec = 0, workers = 0;
-	uint64_t start, deadline, completed = 0;
+	int exit_status = 0;
 	int result_fd[2];
 	pid_t *children;
-	int exit_status = 0;
 
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i], "--duration") && i + 1 < argc) {
@@ -135,8 +135,7 @@ int main(int argc, char **argv)
 	free(children);
 	if (exit_status)
 		return 1;
-
-	uint64_t elapsed = monotonic_ns() - start;
+	elapsed = monotonic_ns() - start;
 	printf("execs=%" PRIu64 " elapsed_ns=%" PRIu64
 	       " execs_per_sec=%.3f workers=%lu\n", completed, elapsed,
 	       elapsed ? (double)completed * 1e9 / (double)elapsed : 0.0,

@@ -1326,11 +1326,12 @@ static int percent_decode(char *s)
 
 	while (*src) {
 		if (*src == '%') {
+			int hi, lo;
+
 			if (!src[1] || !src[2])
 				return -EINVAL;
-			int hi = shirudo_hex_nibble(src[1]);
-			int lo = shirudo_hex_nibble(src[2]);
-
+			hi = shirudo_hex_nibble(src[1]);
+			lo = shirudo_hex_nibble(src[2]);
 			if (hi < 0 || lo < 0)
 				return -EINVAL;
 			*dst++ = (char)((hi << 4) | lo);

@@ -1072,24 +1072,24 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 			   const char *pkey_path, const char *cert_path)
 {
 	LIBBPF_OPTS(gen_loader_opts, opts);
-	struct shirudo_sign_io sio = {};
-	struct shirudo_upatch_header hdr;
-	struct decoder_set decoders = {};
-	struct bpf_map *m;
-	struct bpf_program *p;
-	void *sig_buf = NULL;
-	void *attach_meta = NULL;
-	void *decoder_blob = NULL;
-	void *signed_data_buf = NULL;
-	const void *signed_data = NULL;
-	const void *write_meta = meta;
+	uint32_t loader_off, sig_off, data_off, data_len, meta_off;
 	uint32_t write_meta_len = meta_len, attach_meta_len = 0;
 	uint32_t decoder_blob_len = 0, signed_data_len = 0;
-	int fd = -1;
-	int err = 0;
-	uint32_t loader_off, sig_off;
 	uint32_t nr_maps = 0, nr_progs = 0;
+	struct shirudo_upatch_header hdr;
+	struct decoder_set decoders = {};
+	struct shirudo_sign_io sio = {};
+	const void *signed_data = NULL;
+	const void *write_meta = meta;
+	void *signed_data_buf = NULL;
+	void *decoder_blob = NULL;
 	uint32_t nr_decoders = 0;
+	void *attach_meta = NULL;
+	struct bpf_program *p;
+	void *sig_buf = NULL;
+	struct bpf_map *m;
+	int err = 0;
+	int fd = -1;
 
 	/*
 	 * The loader writes map_fd/prog_fd back into descriptor arrays
@@ -1171,9 +1171,9 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 
 	loader_off = (uint32_t)sizeof(hdr);
 	sig_off    = loader_off + opts.insns_sz;
-	uint32_t data_off = sig_off + (uint32_t)sio.signature_sz;
-	uint32_t data_len = signed_data_len;
-	uint32_t meta_off = data_off + data_len;
+	data_off   = sig_off + (uint32_t)sio.signature_sz;
+	data_len   = signed_data_len;
+	meta_off   = data_off + data_len;
 
 	pack_header(&hdr, upatch_name, SHIRUDO_UPATCH_TYPE_BPF, flags,
 		    sio.payload_sha256,
