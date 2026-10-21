@@ -408,6 +408,13 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 						return -ENOMEM;
 				}
 				sel = tree_owner->tree.selector;
+			} else if (!strncmp(section, "upatches.tree",
+					    strlen("upatches.tree"))) {
+				/*
+				 * A selector the builder cannot read would
+				 * widen the rollout.
+				 */
+				return -EINVAL;
 			} else {
 				tree_owner = NULL;
 			}
@@ -481,7 +488,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 				dst = sel->architecture;
 				n = &sel->n_architecture;
 			} else {
-				continue;
+				return -EINVAL;
 			}
 			if (*n || build_parse_string_array(value, dst,
 					SHIRUDO_TREE_MAX_SELECTOR_VALUES, n))
