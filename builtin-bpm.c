@@ -64,9 +64,8 @@ struct bpm_state_entry {
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz);
 static int remove_tree(const char *path);
 
-
 static int prepare_direct_install(const char *raw, struct bpm_source *source,
-					  struct bpm_index_entry *entry)
+				  struct bpm_index_entry *entry)
 {
 	struct bpm_oci_client c = {};
 	struct bpm_descriptor layers[8];
@@ -78,15 +77,16 @@ static int prepare_direct_install(const char *raw, struct bpm_source *source,
 	int n_layers, rc;
 
 	rc = bpm_oci_parse_pull_ref(raw, &c, repository, sizeof(repository), tag,
-			    sizeof(tag));
+				    sizeof(tag));
 	if (rc)
 		return rc;
-	if ((rc = bpm_oci_url(&c, repository, "manifests", tag, url,
-				       sizeof(url))))
+	rc = bpm_oci_url(&c, repository, "manifests", tag, url, sizeof(url));
+	if (rc)
 		return rc;
-	if ((rc = bpm_oci_get_memory(&c, url,
-				 "application/vnd.oci.image.manifest.v1+json",
-				 &manifest)))
+	rc = bpm_oci_get_memory(&c, url,
+				"application/vnd.oci.image.manifest.v1+json",
+				&manifest);
+	if (rc)
 		goto out;
 	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				    ARRAY_SIZE(layers), &n_layers, package_name,
@@ -135,14 +135,16 @@ static int download_package(const char *raw, const char *destination)
 	int n_layers = 0, rc;
 
 	rc = bpm_oci_parse_pull_ref(raw, &c, repository, sizeof(repository),
-			    tag, sizeof(tag));
+				    tag, sizeof(tag));
 	if (rc)
 		return rc;
-	if ((rc = bpm_oci_url(&c, repository, "manifests", tag,
-			       url, sizeof(url))))
+	rc = bpm_oci_url(&c, repository, "manifests", tag, url, sizeof(url));
+	if (rc)
 		return rc;
-	if ((rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json",
-				 &manifest)))
+	rc = bpm_oci_get_memory(&c, url,
+				"application/vnd.oci.image.manifest.v1+json",
+				&manifest);
+	if (rc)
 		goto out;
 	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				    ARRAY_SIZE(layers), &n_layers, package_name,
@@ -153,8 +155,9 @@ static int download_package(const char *raw, const char *destination)
 	for (int i = 0; i < n_layers; i++) {
 		if (strcmp(layers[i].media, BPM_PACKAGE_MEDIA))
 			continue;
-		if ((rc = bpm_oci_url(&c, repository, "blobs", layers[i].digest,
-				       url, sizeof(url))))
+		rc = bpm_oci_url(&c, repository, "blobs", layers[i].digest,
+				 url, sizeof(url));
+		if (rc)
 			goto out;
 		bpm_trim(layers[i].title, title, sizeof(title));
 		if (destination) {
@@ -165,6 +168,7 @@ static int download_package(const char *raw, const char *destination)
 			bpm_copy_string(filename, sizeof(filename), title);
 		} else {
 			const char *base = strrchr(repository, '/');
+
 			base = base ? base + 1 : repository;
 			if (package_name[0])
 				base = package_name;
@@ -190,6 +194,7 @@ static int download_package(const char *raw, const char *destination)
 		}
 		if (layers[i].size >= 0) {
 			struct stat st;
+
 			if (stat(filename, &st) || st.st_size != layers[i].size) {
 				rc = -EKEYREJECTED;
 				unlink(filename);
@@ -219,7 +224,8 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 	ssize_t n;
 
 	in = open(src, O_RDONLY | O_CLOEXEC);
-	if (in < 0) return -errno;
+	if (in < 0)
+		return -errno;
 	/* O_TRUNC on a destination that is the source would empty both. */
 	if (!fstat(in, &in_st) && !stat(dst, &out_st) &&
 	    in_st.st_dev == out_st.st_dev && in_st.st_ino == out_st.st_ino) {
@@ -228,16 +234,23 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 	}
 	out = shirudo_seal_open(dst, O_WRONLY | O_CREAT |
 				(exclusive ? O_EXCL : O_TRUNC), mode);
-	if (out < 0) { close(in); return out; }
+	if (out < 0) {
+		close(in);
+		return out;
+	}
 	while ((n = read(in, buf, sizeof(buf))) > 0) {
 		rc = shirudo_write_all(out, buf, (size_t)n);
 		if (rc)
 			break;
 	}
-	if (n < 0 && !rc) rc = -errno;
-	if (fsync(out) && !rc) rc = -errno;
-	close(in); close(out);
-	if (rc) unlink(dst);
+	if (n < 0 && !rc)
+		rc = -errno;
+	if (fsync(out) && !rc)
+		rc = -errno;
+	close(in);
+	close(out);
+	if (rc)
+		unlink(dst);
 	return rc;
 }
 
@@ -248,8 +261,10 @@ static int copy_file(const char *src, const char *dst, mode_t mode)
 
 static int source_path(const char *name, char *out, size_t out_sz)
 {
-	if (!bpm_name_ok(name)) return -EINVAL;
-	if (snprintf(out, out_sz, "%s/%s.conf", SHIRUDO_BPM_REGISTRIES_DIR, name) >= (int)out_sz) return -ENAMETOOLONG;
+	if (!bpm_name_ok(name))
+		return -EINVAL;
+	if (snprintf(out, out_sz, "%s/%s.conf", SHIRUDO_BPM_REGISTRIES_DIR, name) >= (int)out_sz)
+		return -ENAMETOOLONG;
 	return 0;
 }
 
@@ -260,12 +275,16 @@ static int load_source(const char *name, struct bpm_source *s)
 	int rc;
 
 	memset(s, 0, sizeof(*s));
-	rc = source_path(name, path, sizeof(path)); if (rc) return rc;
-	fp = fopen(path, "r"); if (!fp) return -errno;
+	rc = source_path(name, path, sizeof(path));
+	if (rc)
+		return rc;
+	fp = fopen(path, "r");
+	if (!fp)
+		return -errno;
 	snprintf(s->name, sizeof(s->name), "%s", name);
 	while (fgets(line, sizeof(line), fp)) {
 		rc = shirudo_bpm_parse_source_line(line,
-					    s->endpoint, sizeof(s->endpoint),
+						   s->endpoint, sizeof(s->endpoint),
 					    s->key_file, sizeof(s->key_file));
 		if (rc) {
 			fclose(fp);
@@ -273,7 +292,8 @@ static int load_source(const char *name, struct bpm_source *s)
 		}
 	}
 	fclose(fp);
-	if (!s->endpoint[0] || !s->key_file[0]) return -EINVAL;
+	if (!s->endpoint[0] || !s->key_file[0])
+		return -EINVAL;
 	return 0;
 }
 
@@ -281,8 +301,12 @@ static int save_source(const struct bpm_source *s)
 {
 	char path[PATH_MAX], data[PATH_MAX * 2];
 	int rc = source_path(s->name, path, sizeof(path));
-	if (rc) return rc;
-	if (snprintf(data, sizeof(data), "endpoint = %s\nkey_file = %s\n", s->endpoint, s->key_file) >= (int)sizeof(data)) return -E2BIG;
+
+	if (rc)
+		return rc;
+	if (snprintf(data, sizeof(data), "endpoint = %s\nkey_file = %s\n",
+		     s->endpoint, s->key_file) >= (int)sizeof(data))
+		return -E2BIG;
 	return shirudo_seal_write_file(path, data, strlen(data), 0644);
 }
 
@@ -315,8 +339,10 @@ static int bpm_fail(const char *action, int rc)
 
 static int cache_path(const char *source, char *out, size_t sz)
 {
-	if (!bpm_name_ok(source)) return -EINVAL;
-	if (snprintf(out, sz, "%s/%s/index.json", SHIRUDO_BPM_REPOS_DIR, source) >= (int)sz) return -ENAMETOOLONG;
+	if (!bpm_name_ok(source))
+		return -EINVAL;
+	if (snprintf(out, sz, "%s/%s/index.json", SHIRUDO_BPM_REPOS_DIR, source) >= (int)sz)
+		return -ENAMETOOLONG;
 	return 0;
 }
 
@@ -328,15 +354,25 @@ static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
 	ssize_t nr;
 	int fd, rc = -EIO;
 
-	if (hex_sz < 65 || shirudo_sha256_init(&ctx) != 0) return -EINVAL;
-	fd = open(path, O_RDONLY | O_CLOEXEC); if (fd < 0) { shirudo_sha256_free(&ctx); return -errno; }
-	while ((nr = read(fd, buf, sizeof(buf))) > 0)
-		if (shirudo_sha256_update(&ctx, buf, (size_t)nr) != 0) goto done;
-	if (nr < 0 || shirudo_sha256_final(&ctx, digest) != 0) goto done;
+	if (hex_sz < 65 || shirudo_sha256_init(&ctx) != 0)
+		return -EINVAL;
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
+		shirudo_sha256_free(&ctx);
+		return -errno;
+	}
+	while ((nr = read(fd, buf, sizeof(buf))) > 0) {
+		if (shirudo_sha256_update(&ctx, buf, (size_t)nr) != 0)
+			goto done;
+	}
+	if (nr < 0 || shirudo_sha256_final(&ctx, digest) != 0)
+		goto done;
 	shirudo_hex_encode(digest, sizeof(digest), hex);
 	rc = 0;
 done:
-	close(fd); shirudo_sha256_free(&ctx); return rc;
+	close(fd);
+	shirudo_sha256_free(&ctx);
+	return rc;
 }
 
 static int print_package_readme(const char *source)
@@ -389,7 +425,8 @@ static int extract_archive(const char *archive, const char *dest)
 	char root[256] = {};
 	int rc = 0;
 
-	if (!gz) return -EINVAL;
+	if (!gz)
+		return -EINVAL;
 	rc = shirudo_seal_mkdir_p(dest, 0700);
 	if (rc) {
 		gzclose(gz);
@@ -400,22 +437,57 @@ static int extract_archive(const char *archive, const char *dest)
 		uint64_t size, remain, pad;
 		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
 		int type;
-		if (n == 0) break;
-		if (n != (int)sizeof(h)) { rc = -EINVAL; break; }
-		bool zero = true; for (size_t i = 0; i < sizeof(h); i++) if (h[i]) { zero = false; break; }
-		if (zero) break;
-		if (!memchr(h, '\0', 100)) { rc = -EINVAL; break; }
-		snprintf(name, sizeof(name), "%s", (char *)h);
-		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) { rc = -EINVAL; break; }
-		type = h[156]; if (!type) type = '0';
-		if (!root[0]) {
-			slash = strchr(name, '/'); if (!slash || slash == name || (size_t)(slash - name) >= sizeof(root)) { rc = -EINVAL; break; }
-			memcpy(root, name, slash - name); root[slash - name] = 0;
+
+		if (n == 0)
+			break;
+		if (n != (int)sizeof(h)) {
+			rc = -EINVAL;
+			break;
 		}
-		if (strncmp(name, root, strlen(root)) || name[strlen(root)] != '/') { rc = -EINVAL; break; }
+		bool zero = true;
+
+		for (size_t i = 0; i < sizeof(h); i++) {
+			if (h[i]) {
+				zero = false;
+				break;
+			}
+		}
+		if (zero)
+			break;
+		if (!memchr(h, '\0', 100)) {
+			rc = -EINVAL;
+			break;
+		}
+		snprintf(name, sizeof(name), "%s", (char *)h);
+		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) {
+			rc = -EINVAL;
+			break;
+		}
+		type = h[156];
+		if (!type)
+			type = '0';
+		if (!root[0]) {
+			slash = strchr(name, '/');
+			if (!slash || slash == name || (size_t)(slash - name) >= sizeof(root)) {
+				rc = -EINVAL;
+				break;
+			}
+			memcpy(root, name, slash - name);
+			root[slash - name] = 0;
+		}
+		if (strncmp(name, root, strlen(root)) || name[strlen(root)] != '/') {
+			rc = -EINVAL;
+			break;
+		}
 		snprintf(rel, sizeof(rel), "%s", name + strlen(root) + 1);
-		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) { rc = -EINVAL; break; }
-		if (snprintf(path, sizeof(path), "%s/%s", dest, rel) >= (int)sizeof(path)) { rc = -ENAMETOOLONG; break; }
+		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
+			rc = -EINVAL;
+			break;
+		}
+		if (snprintf(path, sizeof(path), "%s/%s", dest, rel) >= (int)sizeof(path)) {
+			rc = -ENAMETOOLONG;
+			break;
+		}
 		if (type == '5') {
 			rc = shirudo_seal_mkdir_p(path, 0700);
 			if (rc)
@@ -423,6 +495,7 @@ static int extract_archive(const char *archive, const char *dest)
 		} else if (type == '0') {
 			char parent[PATH_MAX];
 			FILE *fp;
+
 			snprintf(parent, sizeof(parent), "%s", path);
 			slash = strrchr(parent, '/');
 			if (slash) {
@@ -431,23 +504,50 @@ static int extract_archive(const char *archive, const char *dest)
 				if (rc)
 					break;
 			}
-			fp = fopen(path, "wb"); if (!fp) { rc = -errno; break; }
+			fp = fopen(path, "wb");
+			if (!fp) {
+				rc = -errno;
+				break;
+			}
 			remain = size;
 			while (remain) {
-				unsigned char buf[65536]; size_t want = remain > sizeof(buf) ? sizeof(buf) : (size_t)remain;
-				n = gzread(gz, buf, (unsigned)want);
-				if (n <= 0 || fwrite(buf, 1, (size_t)n, fp) != (size_t)n) { rc = -EIO; break; }
+				unsigned char buf[65536];
+				size_t want = remain > sizeof(buf) ? sizeof(buf) : (size_t)remain;
+
+				n = gzread(gz, buf, (unsigned int)want);
+				if (n <= 0 || fwrite(buf, 1, (size_t)n, fp) != (size_t)n) {
+					rc = -EIO;
+					break;
+				}
 				remain -= (size_t)n;
 			}
-			fclose(fp); if (rc) break;
+			fclose(fp);
+			if (rc)
+				break;
 			chmod(path, 0644);
-		} else { rc = -EPERM; break; }
+		} else {
+			rc = -EPERM;
+			break;
+		}
 		pad = (512 - (size % 512)) % 512;
-		while (pad) { unsigned char buf[512]; size_t want = pad > sizeof(buf) ? sizeof(buf) : (size_t)pad; n = gzread(gz, buf, (unsigned)want); if (n <= 0) { rc = -EINVAL; break; } pad -= (size_t)n; }
-		if (rc) break;
+		while (pad) {
+			unsigned char buf[512];
+			size_t want = pad > sizeof(buf) ? sizeof(buf) : (size_t)pad;
+
+			n = gzread(gz, buf, (unsigned int)want);
+			if (n <= 0) {
+				rc = -EINVAL;
+				break;
+			}
+			pad -= (size_t)n;
+		}
+		if (rc)
+			break;
 	}
-	if (gzclose(gz) != Z_OK && !rc) rc = -EINVAL;
-	if (rc) return rc;
+	if (gzclose(gz) != Z_OK && !rc)
+		rc = -EINVAL;
+	if (rc)
+		return rc;
 	return root[0] ? 0 : -EINVAL;
 }
 
@@ -456,6 +556,7 @@ static int cert_matches_active(const char *path)
 	struct shirudo_cert a = {}, b = {};
 	unsigned char da[SHIRUDO_CRYPTO_SHA256_LEN], db[SHIRUDO_CRYPTO_SHA256_LEN];
 	int rc = -EINVAL;
+
 	if (!shirudo_cert_read_file(path, &a) &&
 	    !shirudo_cert_read_file(SHIRUDO_CERT_PATH, &b) &&
 	    !shirudo_cert_pubkey_digest(&a, da) &&
@@ -610,9 +711,10 @@ static int list_keys(void)
 		if (strlen(entry->d_name) != 68 ||
 		    strcasecmp(entry->d_name + 64, ".der"))
 			continue;
-		for (size_t i = 0; i < 64; i++)
+		for (size_t i = 0; i < 64; i++) {
 			if (!isxdigit((unsigned char)entry->d_name[i]))
 				valid = false;
+		}
 		if (!valid || snprintf(path, sizeof(path), "%s/%s",
 				       SHIRUDO_KEYS_DIR, entry->d_name) >=
 				       (int)sizeof(path))
@@ -666,7 +768,7 @@ static int on_state_entry(void *ud)
 	    !bpm_name_ok(s->scratch.source))
 		return -EINVAL;
 	if (snprintf(expected, sizeof(expected), "%s/%s/%s",
-			SHIRUDO_BPM_PACKAGES_DIR, s->scratch.name,
+		     SHIRUDO_BPM_PACKAGES_DIR, s->scratch.name,
 			s->scratch.version) >= (int)sizeof(expected) ||
 	    strcmp(expected, s->scratch.path))
 		return -EINVAL;
@@ -676,7 +778,9 @@ static int on_state_entry(void *ud)
 
 static int state_read(struct bpm_state_entry *st, int *n)
 {
-	unsigned char *body; size_t len; int rc;
+	unsigned char *body;
+	size_t len;
+	int rc;
 	struct state_sink sink = { .items = st };
 	struct shirudo_json_array arr = { on_state_entry, &sink };
 	struct shirudo_json_field sub[4], root[1];
@@ -684,25 +788,49 @@ static int state_read(struct bpm_state_entry *st, int *n)
 
 	rc = shirudo_read_file(SHIRUDO_BPM_STATE_PATH, 8u * 1024u * 1024u,
 			       &body, &len);
-	if (rc == -ENOENT) { *n = 0; return 0; }
-	if (rc) return rc;
-	sub[0] = (struct shirudo_json_field){ .key = "name", .type = SHIRUDO_JSON_T_STRING, .dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name) };
-	sub[1] = (struct shirudo_json_field){ .key = "version", .type = SHIRUDO_JSON_T_STRING, .dst = sink.scratch.version, .dst_cap = sizeof(sink.scratch.version) };
-	sub[2] = (struct shirudo_json_field){ .key = "source", .type = SHIRUDO_JSON_T_STRING, .dst = sink.scratch.source, .dst_cap = sizeof(sink.scratch.source) };
-	sub[3] = (struct shirudo_json_field){ .key = "path", .type = SHIRUDO_JSON_T_STRING, .dst = sink.scratch.path, .dst_cap = sizeof(sink.scratch.path) };
-	root[0] = (struct shirudo_json_field){ .key = "packages", .type = SHIRUDO_JSON_T_ARRAY, .dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub) };
+	if (rc == -ENOENT) {
+		*n = 0;
+		return 0;
+	}
+	if (rc)
+		return rc;
+	sub[0] = (struct shirudo_json_field){
+		.key = "name", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
+	};
+	sub[1] = (struct shirudo_json_field){
+		.key = "version", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.version,
+		.dst_cap = sizeof(sink.scratch.version),
+	};
+	sub[2] = (struct shirudo_json_field){
+		.key = "source", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.source,
+		.dst_cap = sizeof(sink.scratch.source),
+	};
+	sub[3] = (struct shirudo_json_field){
+		.key = "path", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.path, .dst_cap = sizeof(sink.scratch.path),
+	};
+	root[0] = (struct shirudo_json_field){
+		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
+		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
+	};
 	(void)unused;
 	rc = shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root));
 	xfree(body, len + 1);
-	if (rc || !root[0].seen) return rc ? rc : -EINVAL;
+	if (rc || !root[0].seen)
+		return rc ? rc : -EINVAL;
 	*n = sink.n;
 	return 0;
 }
 
 static int state_write(const struct bpm_state_entry *st, int n)
 {
-	char buf[1024 * 1024]; struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	char buf[1024 * 1024];
+	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	int rc;
+
 	shirudo_json_obj_open(&e);
 	shirudo_json_kv_int(&e, "schema", 1);
 	shirudo_json_arr_open(&e, "packages");
@@ -716,7 +844,8 @@ static int state_write(const struct bpm_state_entry *st, int n)
 	}
 	shirudo_json_arr_close(&e);
 	shirudo_json_obj_close(&e);
-	if (e.err) return -E2BIG;
+	if (e.err)
+		return -E2BIG;
 	rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_VAR_DIR, 0700);
 	if (!rc)
 		rc = shirudo_seal_write_file(SHIRUDO_BPM_STATE_PATH, buf, e.len,
@@ -790,15 +919,23 @@ static int prerelease_compare(const char *a, const char *b)
 static int semver_compare(const char *a, const char *b)
 {
 	const char *pa = a, *pb = b;
+
 	for (int part = 0; part < 3; part++) {
-		char *ea, *eb; unsigned long va, vb;
-		va = strtoul(pa, &ea, 10); vb = strtoul(pb, &eb, 10);
-		if (ea == pa || eb == pb) return strcmp(a, b);
-		if (va != vb) return va > vb ? 1 : -1;
-		pa = *ea == '.' ? ea + 1 : ea; pb = *eb == '.' ? eb + 1 : eb;
+		char *ea, *eb;
+		unsigned long va, vb;
+
+		va = strtoul(pa, &ea, 10);
+		vb = strtoul(pb, &eb, 10);
+		if (ea == pa || eb == pb)
+			return strcmp(a, b);
+		if (va != vb)
+			return va > vb ? 1 : -1;
+		pa = *ea == '.' ? ea + 1 : ea;
+		pb = *eb == '.' ? eb + 1 : eb;
 	}
 	if (*pa == '-' || *pb == '-') {
-		if (*pa != '-' || *pb != '-') return *pa == '-' ? -1 : 1;
+		if (*pa != '-' || *pb != '-')
+			return *pa == '-' ? -1 : 1;
 		return prerelease_compare(pa + 1, pb + 1);
 	}
 	return 0;
@@ -806,14 +943,26 @@ static int semver_compare(const char *a, const char *b)
 
 static int repo_update_one(const char *name)
 {
-	struct bpm_source s; struct bpm_oci_client c = {};
-	struct bpm_descriptor layers[8]; int nl = 0;
+	struct bpm_source s;
+	struct bpm_oci_client c = {};
+	struct bpm_descriptor layers[8];
+	int nl = 0;
 	struct bpm_buffer manifest = {}, index = {}, sig = {};
-	char url[PATH_MAX], cache[PATH_MAX], dir[PATH_MAX]; int rc;
-	if ((rc = load_source(name, &s))) return rc;
-	if ((rc = bpm_oci_parse_endpoint(s.endpoint, &c))) return rc;
-	if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG, url, sizeof(url)))) return rc;
-	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest); if (rc) goto out;
+	char url[PATH_MAX], cache[PATH_MAX], dir[PATH_MAX];
+	int rc;
+
+	rc = load_source(name, &s);
+	if (rc)
+		return rc;
+	rc = bpm_oci_parse_endpoint(s.endpoint, &c);
+	if (rc)
+		return rc;
+	rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG, url, sizeof(url));
+	if (rc)
+		return rc;
+	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest);
+	if (rc)
+		goto out;
 	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				    ARRAY_SIZE(layers), &nl, NULL, 0);
 	if (rc)
@@ -825,39 +974,63 @@ static int repo_update_one(const char *name)
 	for (int i = 0; i < nl; i++) {
 		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA)) {
 			char layer_hex[65];
-			if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
+
+			rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs",
+					 layers[i].digest, url, sizeof(url));
+			if (rc)
+				goto out;
 			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_MEDIA, &index);
-			if (!rc && (bpm_sha256_hex(index.data, index.len, layer_hex, sizeof(layer_hex)) ||
+			if (!rc && (bpm_sha256_hex(index.data, index.len, layer_hex,
+						   sizeof(layer_hex)) ||
 				    !bpm_digest_matches(layers[i].digest, layer_hex)))
 				rc = -EKEYREJECTED;
 			break;
 		}
 	}
-	if (rc) goto out;
-	for (int i = 0; i < nl; i++) if (!strcmp(layers[i].media, BPM_INDEX_SIG_MEDIA)) {
+	if (rc)
+		goto out;
+	for (int i = 0; i < nl; i++) {
+		if (!strcmp(layers[i].media, BPM_INDEX_SIG_MEDIA)) {
 			char sig_hex[65];
-			if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
+
+			rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs",
+					 layers[i].digest, url, sizeof(url));
+			if (rc)
+				goto out;
 			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_SIG_MEDIA, &sig);
 			if (!rc && (bpm_sha256_hex(sig.data, sig.len, sig_hex, sizeof(sig_hex)) ||
 				    !bpm_digest_matches(layers[i].digest, sig_hex)))
 				rc = -EKEYREJECTED;
 			break;
+		}
 	}
 	if (!rc && !sig.data)
 		rc = -EINVAL;
 	if (rc)
 		goto out;
-	if (bpm_verify_cms(index.data, index.len, sig.data, sig.len, s.key_file)) { rc = -EKEYREJECTED; goto out; }
+	if (bpm_verify_cms(index.data, index.len, sig.data, sig.len, s.key_file)) {
+		rc = -EKEYREJECTED;
+		goto out;
+	}
 	{
 		struct bpm_index_entry checked[BPM_MAX_ENTRIES];
 		int checked_n = 0;
-		if (bpm_index_parse(index.data, index.len, checked, &checked_n)) { rc = -EINVAL; goto out; }
+
+		if (bpm_index_parse(index.data, index.len, checked, &checked_n)) {
+			rc = -EINVAL;
+			goto out;
+		}
 	}
-	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_REPOS_DIR, name) >= (int)sizeof(dir)) { rc = -ENAMETOOLONG; goto out; }
+	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_REPOS_DIR, name) >= (int)sizeof(dir)) {
+		rc = -ENAMETOOLONG;
+		goto out;
+	}
 	rc = shirudo_seal_mkdir_p(dir, 0700);
 	if (rc)
 		goto out;
-	if ((rc = cache_path(name, cache, sizeof(cache)))) goto out;
+	rc = cache_path(name, cache, sizeof(cache));
+	if (rc)
+		goto out;
 	rc = shirudo_seal_write_file(cache, index.data, index.len, 0600);
 out:
 	bpm_buffer_free(&manifest);
@@ -870,13 +1043,19 @@ static int find_entry(const struct bpm_index_entry *e, int n, const char *name,
 		      const char *version, struct bpm_index_entry *out)
 {
 	int found = -1;
+
 	for (int i = 0; i < n; i++) {
-		if (strcmp(e[i].name, name)) continue;
-		if (version && strcmp(e[i].version, version)) continue;
-		if (found < 0 || (!version && semver_compare(e[found].version, e[i].version) < 0)) found = i;
+		if (strcmp(e[i].name, name))
+			continue;
+		if (version && strcmp(e[i].version, version))
+			continue;
+		if (found < 0 || (!version && semver_compare(e[found].version, e[i].version) < 0))
+			found = i;
 	}
-	if (found < 0) return -ENOENT;
-	*out = e[found]; return 0;
+	if (found < 0)
+		return -ENOENT;
+	*out = e[found];
+	return 0;
 }
 
 static int path_compare(const void *left, const void *right)
@@ -909,24 +1088,40 @@ static void sort_old_pairs(char (*unloads)[PATH_MAX], char (*loads)[PATH_MAX],
 static int package_install(const struct bpm_source *s, const struct bpm_index_entry *entry,
 			   const char *old_path, const char *old_version)
 {
-	struct bpm_oci_client c = {}; struct bpm_descriptor layers[8]; int nl = 0;
+	struct bpm_oci_client c = {};
+	struct bpm_descriptor layers[8];
+	int nl = 0;
 	struct bpm_buffer manifest = {};
 	char url[PATH_MAX], archive[PATH_MAX] = {}, dir[PATH_MAX], package_dir[PATH_MAX];
-	char digest[65]; int rc; DIR *d; struct dirent *de;
+	char digest[65];
+	int rc;
+	DIR *d;
+	struct dirent *de;
 	bool found_package = false, extracted = false;
-	char loaded[128][PATH_MAX]; char old_loads[128][PATH_MAX];
-	char old_unloads[128][PATH_MAX]; int nloaded = 0, nactive = 0, nold = 0, nold_removed = 0;
+	char loaded[128][PATH_MAX];
+	char old_loads[128][PATH_MAX];
+	char old_unloads[128][PATH_MAX];
+	int nloaded = 0, nactive = 0, nold = 0, nold_removed = 0;
 	(void)old_version;
-	if ((rc = bpm_oci_parse_endpoint(s->endpoint, &c))) return rc;
-	if ((rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name, "manifests", entry->manifest_digest, url, sizeof(url)))) return rc;
-	if ((rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest))) goto out;
+	rc = bpm_oci_parse_endpoint(s->endpoint, &c);
+	if (rc)
+		return rc;
+	rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name,
+			 "manifests", entry->manifest_digest, url, sizeof(url));
+	if (rc)
+		return rc;
+	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest);
+	if (rc)
+		goto out;
 	/*
 	 * Repository indexes carry a sha256 manifest digest; direct OCI
 	 * references carry the tag in this field and cannot be digest-checked.
 	 */
 	if (!strncmp(entry->manifest_digest, "sha256:", 7)) {
 		char manifest_hex[65];
-		if (bpm_sha256_hex(manifest.data, manifest.len, manifest_hex, sizeof(manifest_hex)) ||
+
+		if (bpm_sha256_hex(manifest.data, manifest.len, manifest_hex,
+				   sizeof(manifest_hex)) ||
 		    !bpm_digest_matches(entry->manifest_digest, manifest_hex)) {
 			rc = -EKEYREJECTED;
 			goto out;
@@ -936,83 +1131,155 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				    ARRAY_SIZE(layers), &nl, NULL, 0);
 	if (rc)
 		goto out;
-	for (int i = 0; i < nl; i++) if (!strcmp(layers[i].media, BPM_PACKAGE_MEDIA)) {
+	for (int i = 0; i < nl; i++) {
+		if (strcmp(layers[i].media, BPM_PACKAGE_MEDIA))
+			continue;
 		found_package = true;
-		if (entry->package_digest[0] && strcmp(entry->package_digest, layers[i].digest)) { rc = -EKEYREJECTED; goto out; }
-		if (entry->package_size > 0 && entry->package_size != layers[i].size) { rc = -EKEYREJECTED; goto out; }
-		if ((rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
-		if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_PACKAGES_DIR, entry->name) >= (int)sizeof(dir)) { rc = -ENAMETOOLONG; goto out; }
+		if (entry->package_digest[0] && strcmp(entry->package_digest, layers[i].digest)) {
+			rc = -EKEYREJECTED;
+			goto out;
+		}
+		if (entry->package_size > 0 && entry->package_size != layers[i].size) {
+			rc = -EKEYREJECTED;
+			goto out;
+		}
+		rc = bpm_oci_url(&c, entry->repository[0] ? entry->repository : entry->name,
+				 "blobs", layers[i].digest, url, sizeof(url));
+		if (rc)
+			goto out;
+		if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPM_PACKAGES_DIR,
+			     entry->name) >= (int)sizeof(dir)) {
+			rc = -ENAMETOOLONG;
+			goto out;
+		}
 		rc = shirudo_seal_mkdir_p(dir, 0700);
 		if (rc)
 			goto out;
-		if (snprintf(package_dir, sizeof(package_dir), "%s/%s", dir, entry->version) >= (int)sizeof(package_dir)) { rc = -ENAMETOOLONG; goto out; }
+		if (snprintf(package_dir, sizeof(package_dir), "%s/%s", dir,
+			     entry->version) >= (int)sizeof(package_dir)) {
+			rc = -ENAMETOOLONG;
+			goto out;
+		}
 		rc = shirudo_seal_mkdir_p(SHIRUDO_BPM_STAGING_DIR, 0700);
 		if (rc)
 			goto out;
-		if (snprintf(archive, sizeof(archive), "%s/%s-%s.bee", SHIRUDO_BPM_STAGING_DIR, entry->name, entry->version) >= (int)sizeof(archive)) { rc = -ENAMETOOLONG; goto out; }
+		if (snprintf(archive, sizeof(archive), "%s/%s-%s.bee",
+			     SHIRUDO_BPM_STAGING_DIR, entry->name,
+			     entry->version) >= (int)sizeof(archive)) {
+			rc = -ENAMETOOLONG;
+			goto out;
+		}
 		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, archive,
 				      layers[i].size);
 		if (rc)
 			goto out;
-	if (sha256_file_hex(archive, digest, sizeof(digest)) || !bpm_digest_matches(layers[i].digest, digest)) { rc = -EKEYREJECTED; goto out; }
-		if (access(package_dir, F_OK) == 0) { rc = -EEXIST; goto out; }
+		if (sha256_file_hex(archive, digest, sizeof(digest)) ||
+		    !bpm_digest_matches(layers[i].digest, digest)) {
+			rc = -EKEYREJECTED;
+			goto out;
+		}
+		if (access(package_dir, F_OK) == 0) {
+			rc = -EEXIST;
+			goto out;
+		}
 		extracted = true;
-		rc = extract_archive(archive, package_dir); if (rc) goto out;
+		rc = extract_archive(archive, package_dir);
+		if (rc)
+			goto out;
 		{
 			char cert[PATH_MAX];
+
 			if (strlen(package_dir) + strlen("/cert.der") >= sizeof(cert)) {
 				rc = -ENAMETOOLONG;
 				goto out;
 			}
 			sprintf(cert, "%s/cert.der", package_dir);
-			if (cert_matches_active(cert)) { rc = -EKEYREJECTED; goto out; }
+			if (cert_matches_active(cert)) {
+				rc = -EKEYREJECTED;
+				goto out;
+			}
 		}
 		{
 			char updir[PATH_MAX];
-			if (snprintf(updir, sizeof(updir), "%s/upatches", package_dir) >= (int)sizeof(updir)) { rc = -ENAMETOOLONG; goto out; }
-			d = opendir(updir); if (!d) { rc = -errno; goto out; }
+
+			if (snprintf(updir, sizeof(updir), "%s/upatches",
+				     package_dir) >= (int)sizeof(updir)) {
+				rc = -ENAMETOOLONG;
+				goto out;
+			}
+			d = opendir(updir);
+			if (!d) {
+				rc = -errno;
+				goto out;
+			}
 		}
 		while ((de = readdir(d))) {
-			char up[PATH_MAX]; struct stat st;
-			if (de->d_name[0] == '.') continue;
-			if (!strstr(de->d_name, ".upatch") || strstr(de->d_name, ".unload.upatch")) continue;
-			if (snprintf(up, sizeof(up), "%s/upatches/%s", package_dir, de->d_name) >= (int)sizeof(up)) { rc = -ENAMETOOLONG; break; }
-			if (stat(up, &st) || !S_ISREG(st.st_mode)) continue;
-			if (nloaded >= 128) { rc = -E2BIG; break; }
+			char up[PATH_MAX];
+			struct stat st;
+
+			if (de->d_name[0] == '.')
+				continue;
+			if (!strstr(de->d_name, ".upatch") || strstr(de->d_name, ".unload.upatch"))
+				continue;
+			if (snprintf(up, sizeof(up), "%s/upatches/%s", package_dir,
+				     de->d_name) >= (int)sizeof(up)) {
+				rc = -ENAMETOOLONG;
+				break;
+			}
+			if (stat(up, &st) || !S_ISREG(st.st_mode))
+				continue;
+			if (nloaded >= 128) {
+				rc = -E2BIG;
+				break;
+			}
 			snprintf(loaded[nloaded], sizeof(loaded[nloaded]), "%s", up);
 			nloaded++;
 		}
 		closedir(d);
-		if (rc || !nloaded) { if (!rc) rc = -EINVAL; goto out; }
+		if (rc || !nloaded) {
+			if (!rc)
+				rc = -EINVAL;
+			goto out;
+		}
 		/* Measured in name order, not in the file system's. */
 		qsort(loaded, (size_t)nloaded, sizeof(loaded[0]), path_compare);
 		if (old_path && old_path[0]) {
 			char olddir[PATH_MAX];
-			if (snprintf(olddir, sizeof(olddir), "%s/upatches", old_path) >= (int)sizeof(olddir)) { rc = -ENAMETOOLONG; goto out; }
+
+			if (snprintf(olddir, sizeof(olddir), "%s/upatches",
+				     old_path) >= (int)sizeof(olddir)) {
+				rc = -ENAMETOOLONG;
+				goto out;
+			}
 			d = opendir(olddir);
 			if (d) {
 				while ((de = readdir(d))) {
 					const char *suffix = strstr(de->d_name, ".unload.upatch");
-					if (suffix && nold < 128) {
-						size_t dir_len = strlen(olddir);
-						size_t entry_len = strlen(de->d_name);
-						size_t base_len = (size_t)(suffix - de->d_name);
-						if (dir_len + 1 + entry_len + 1 >= sizeof(old_unloads[nold]) ||
-							dir_len + 1 + base_len + strlen(".upatch") + 1 >= sizeof(old_loads[nold])) {
-							rc = -ENAMETOOLONG;
-							break;
-						}
-						memcpy(old_unloads[nold], olddir, dir_len);
-						old_unloads[nold][dir_len] = '/';
-						memcpy(old_unloads[nold] + dir_len + 1, de->d_name,
-							entry_len + 1);
-						memcpy(old_loads[nold], olddir, dir_len);
-						old_loads[nold][dir_len] = '/';
-						memcpy(old_loads[nold] + dir_len + 1, de->d_name, base_len);
-						memcpy(old_loads[nold] + dir_len + 1 + base_len,
-							".upatch", strlen(".upatch") + 1);
-						nold++;
+					size_t dir_len, entry_len, base_len;
+
+					if (!suffix || nold >= 128)
+						continue;
+					dir_len = strlen(olddir);
+					entry_len = strlen(de->d_name);
+					base_len = (size_t)(suffix - de->d_name);
+					if (dir_len + 1 + entry_len + 1 >=
+					    sizeof(old_unloads[nold]) ||
+					    dir_len + 1 + base_len + strlen(".upatch") + 1 >=
+					    sizeof(old_loads[nold])) {
+						rc = -ENAMETOOLONG;
+						break;
 					}
+					memcpy(old_unloads[nold], olddir, dir_len);
+					old_unloads[nold][dir_len] = '/';
+					memcpy(old_unloads[nold] + dir_len + 1, de->d_name,
+					       entry_len + 1);
+					memcpy(old_loads[nold], olddir, dir_len);
+					old_loads[nold][dir_len] = '/';
+					memcpy(old_loads[nold] + dir_len + 1, de->d_name,
+					       base_len);
+					memcpy(old_loads[nold] + dir_len + 1 + base_len,
+					       ".upatch", strlen(".upatch") + 1);
+					nold++;
 				}
 				closedir(d);
 			}
@@ -1020,7 +1287,8 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			for (int old_i = 0; old_i < nold; old_i++) {
 				if (shirudo_upatch_remove(old_unloads[old_i])) {
 					rc = -EIO;
-					for (int restore_i = nold_removed - 1; restore_i >= 0; restore_i--)
+					for (int restore_i = nold_removed - 1;
+					     restore_i >= 0; restore_i--)
 						(void)shirudo_upatch_install(old_loads[restore_i]);
 					goto out;
 				}
@@ -1028,36 +1296,45 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			}
 		}
 		for (int loaded_i = 0; loaded_i < nloaded; loaded_i++) {
-			if (shirudo_upatch_install(loaded[loaded_i])) { rc = -EIO; goto rollback; }
+			if (shirudo_upatch_install(loaded[loaded_i])) {
+				rc = -EIO;
+				goto rollback;
+			}
 			nactive++;
 		}
 		{
 			char saved[PATH_MAX];
-			if (snprintf(saved, sizeof(saved), "%s/%s-%s.bee", dir, entry->name, entry->version) < (int)sizeof(saved))
+
+			if (snprintf(saved, sizeof(saved), "%s/%s-%s.bee", dir,
+				     entry->name, entry->version) < (int)sizeof(saved))
 				(void)rename(archive, saved);
 		}
 		break;
 	}
-	if (!rc && !found_package) rc = -EINVAL;
+	if (!rc && !found_package)
+		rc = -EINVAL;
 	goto out;
 rollback:
 	for (int active_i = nactive - 1; active_i >= 0; active_i--) {
 		char unload[PATH_MAX];
 		const char *base = strrchr(loaded[active_i], '/');
-		if (!base) continue;
+
+		if (!base)
+			continue;
 		{
 			size_t dir_len = (size_t)(base - loaded[active_i]);
 			size_t name_len = strlen(base + 1);
+
 			if (name_len < strlen(".upatch") ||
-				dir_len + 1 + name_len - strlen(".upatch") +
+			    dir_len + 1 + name_len - strlen(".upatch") +
 				strlen(".unload.upatch") + 1 >= sizeof(unload))
 				continue;
 			memcpy(unload, loaded[active_i], dir_len);
 			unload[dir_len] = '/';
 			memcpy(unload + dir_len + 1, base + 1,
-				name_len - strlen(".upatch"));
+			       name_len - strlen(".upatch"));
 			memcpy(unload + dir_len + 1 + name_len - strlen(".upatch"),
-				".unload.upatch", strlen(".unload.upatch") + 1);
+			       ".unload.upatch", strlen(".unload.upatch") + 1);
 		}
 		(void)shirudo_upatch_remove(unload);
 	}
@@ -1065,7 +1342,8 @@ rollback:
 		(void)shirudo_upatch_install(old_loads[restore_i]);
 out:
 	bpm_buffer_free(&manifest);
-	if (rc && archive[0]) unlink(archive);
+	if (rc && archive[0])
+		unlink(archive);
 	/* What failed to install must not block the next attempt. */
 	if (rc && extracted)
 		(void)remove_tree(package_dir);
@@ -1076,12 +1354,27 @@ static int parse_package_ref(const char *raw, char *source, size_t ssz,
 			     char *name, size_t nsz, char *version, size_t vsz)
 {
 	const char *slash, *at;
-	if (!raw || !(slash = strchr(raw, '/')) || slash == raw) return -EINVAL;
-	if ((size_t)(slash - raw) >= ssz) return -ENAMETOOLONG;
-	memcpy(source, raw, slash - raw); source[slash - raw] = 0;
+
+	if (!raw)
+		return -EINVAL;
+	slash = strchr(raw, '/');
+	if (!slash || slash == raw)
+		return -EINVAL;
+	if ((size_t)(slash - raw) >= ssz)
+		return -ENAMETOOLONG;
+	memcpy(source, raw, slash - raw);
+	source[slash - raw] = 0;
 	at = strchr(slash + 1, '@');
-	if (!at) { snprintf(name, nsz, "%s", slash + 1); version[0] = 0; }
-	else { if ((size_t)(at - slash - 1) >= nsz) return -ENAMETOOLONG; memcpy(name, slash + 1, at - slash - 1); name[at - slash - 1] = 0; snprintf(version, vsz, "%s", at + 1); }
+	if (!at) {
+		snprintf(name, nsz, "%s", slash + 1);
+		version[0] = 0;
+	} else {
+		if ((size_t)(at - slash - 1) >= nsz)
+			return -ENAMETOOLONG;
+		memcpy(name, slash + 1, at - slash - 1);
+		name[at - slash - 1] = 0;
+		snprintf(version, vsz, "%s", at + 1);
+	}
 	return bpm_name_ok(source) && bpm_name_ok(name) && strlen(name) < nsz &&
 		(!version[0] || (strlen(version) < vsz && bpm_version_ok(version))) ?
 		0 : -EINVAL;
@@ -1090,40 +1383,75 @@ static int parse_package_ref(const char *raw, char *source, size_t ssz,
 static int cmd_bpm_config(int argc, const char **argv)
 {
 	const char *op = argc > 1 ? argv[1] : NULL;
-	if (!op || shirudo_is_help(op)) { fprintf(stderr, "usage: shirudo bpm config register {add|list|remove} ...\n"); return op ? 0 : 2; }
-	if (strcmp(op, "register")) return 2;
-	if (argc < 3) return 2;
+
+	if (!op || shirudo_is_help(op)) {
+		fprintf(stderr, "usage: shirudo bpm config register {add|list|remove} ...\n");
+		return op ? 0 : 2;
+	}
+	if (strcmp(op, "register"))
+		return 2;
+	if (argc < 3)
+		return 2;
 	if (!strcmp(argv[2], "list")) {
-		DIR *d = opendir(SHIRUDO_BPM_REGISTRIES_DIR); struct dirent *e;
-		if (!d) return errno == ENOENT ? 0 : 1;
-		while ((e = readdir(d))) { size_t n = strlen(e->d_name); if (n > 5 && !strcmp(e->d_name + n - 5, ".conf")) printf("%.*s\n", (int)(n - 5), e->d_name); }
-		closedir(d); return 0;
+		DIR *d = opendir(SHIRUDO_BPM_REGISTRIES_DIR);
+		struct dirent *e;
+
+		if (!d)
+			return errno == ENOENT ? 0 : 1;
+		while ((e = readdir(d))) {
+			size_t n = strlen(e->d_name);
+
+			if (n > 5 && !strcmp(e->d_name + n - 5, ".conf"))
+				printf("%.*s\n", (int)(n - 5), e->d_name);
+		}
+		closedir(d);
+		return 0;
 	}
 	if ((!strcmp(argv[2], "remove") || !strcmp(argv[2], "rm")) && argc == 4) {
-		char p[PATH_MAX], key[PATH_MAX]; struct bpm_source s;
-		if (source_path(argv[3], p, sizeof(p))) return 2;
-		if (load_source(argv[3], &s) == 0 && s.key_file[0]) unlink(s.key_file);
-		if (unlink(p) && errno != ENOENT) return 1;
-		if (snprintf(key, sizeof(key), "%s/%s.der", SHIRUDO_BPM_KEYS_DIR, argv[3]) < (int)sizeof(key)) unlink(key);
+		char p[PATH_MAX], key[PATH_MAX];
+		struct bpm_source s;
+
+		if (source_path(argv[3], p, sizeof(p)))
+			return 2;
+		if (load_source(argv[3], &s) == 0 && s.key_file[0])
+			unlink(s.key_file);
+		if (unlink(p) && errno != ENOENT)
+			return 1;
+		if (snprintf(key, sizeof(key), "%s/%s.der", SHIRUDO_BPM_KEYS_DIR,
+			     argv[3]) < (int)sizeof(key))
+			unlink(key);
 		return 0;
 	}
 	if (!strcmp(argv[2], "add") && argc >= 5) {
-		struct bpm_source s = {}; const char *key = NULL; char managed[PATH_MAX];
+		struct bpm_source s = {};
+		const char *key = NULL;
+		char managed[PATH_MAX];
 		struct shirudo_cert cert = {};
+
 		bpm_copy_string(s.name, sizeof(s.name), argv[3]);
 		bpm_copy_string(s.endpoint, sizeof(s.endpoint), argv[4]);
 		for (int i = 5; i < argc; i++) {
-			if (!strncmp(argv[i], "--key-file=", 11)) key = argv[i] + 11;
-			else if (!strcmp(argv[i], "--key-file") && i + 1 < argc) key = argv[++i];
+			if (!strncmp(argv[i], "--key-file=", 11))
+				key = argv[i] + 11;
+			else if (!strcmp(argv[i], "--key-file") && i + 1 < argc)
+				key = argv[++i];
 		}
-		if (!key || shirudo_cert_read_file(key, &cert)) { shirudo_cert_free(&cert); pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate"); return 2; }
-		if (!bpm_name_ok(s.name) || bpm_oci_parse_endpoint(s.endpoint, &(struct bpm_oci_client){}) ) { shirudo_cert_free(&cert); pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate"); return 2; }
+		if (!key || shirudo_cert_read_file(key, &cert) ||
+		    !bpm_name_ok(s.name) ||
+		    bpm_oci_parse_endpoint(s.endpoint, &(struct bpm_oci_client){})) {
+			shirudo_cert_free(&cert);
+			pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate");
+			return 2;
+		}
 		shirudo_cert_free(&cert);
 		if (shirudo_seal_mkdir_p(SHIRUDO_BPM_REGISTRIES_DIR, 0700) ||
 		    shirudo_seal_mkdir_p(SHIRUDO_BPM_KEYS_DIR, 0700))
 			return 1;
-		if (snprintf(managed, sizeof(managed), "%s/%s.der", SHIRUDO_BPM_KEYS_DIR, s.name) >= (int)sizeof(managed)) return 1;
-		if (copy_file(key, managed, 0644)) return 1;
+		if (snprintf(managed, sizeof(managed), "%s/%s.der",
+			     SHIRUDO_BPM_KEYS_DIR, s.name) >= (int)sizeof(managed))
+			return 1;
+		if (copy_file(key, managed, 0644))
+			return 1;
 		if (strlen(managed) >= sizeof(s.key_file))
 			return 1;
 		bpm_copy_string(s.key_file, sizeof(s.key_file), managed);
@@ -1149,6 +1477,7 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	while (fgets(line, sizeof(line), fp)) {
 		char key[64], value[PATH_MAX];
 		char *eq = strchr(line, '=');
+
 		if (!eq)
 			continue;
 		*eq++ = '\0';
@@ -1156,6 +1485,7 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 		bpm_trim(eq, value, sizeof(value));
 		if (value[0] == '"') {
 			size_t len = strlen(value);
+
 			if (len < 2 || value[len - 1] != '"') {
 				fclose(fp);
 				return -EINVAL;
@@ -1175,7 +1505,7 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 }
 
 static int parse_tree_repository(const char *raw, struct bpm_oci_client *c,
-					 char *repository, size_t repository_sz)
+				 char *repository, size_t repository_sz)
 {
 	const char *p, *slash;
 	char endpoint[BPM_MAX_ENDPOINT];
@@ -1207,8 +1537,15 @@ static int tree_digest_hex(const char *digest, uint8_t out[32])
 	return shirudo_hex_decode(digest + 7, out, 32);
 }
 
+static bool tree_digest_valid(const char *digest)
+{
+	uint8_t raw[32];
+
+	return !tree_digest_hex(digest, raw);
+}
+
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
-					 struct shirudo_tree_publication *pub,
+				  struct shirudo_tree_publication *pub,
 					 char *manifest_digest, size_t digest_sz)
 {
 	struct bpm_oci_client c = {};
@@ -1224,12 +1561,13 @@ static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 }
 
 static int tree_verify_upatch(const char *path, const char *expected,
-				      const char *id, bool unload)
+			      const char *id, bool unload)
 {
 	struct shirudo_upatch u;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char actual[65];
 	int rc = shirudo_upatch_open(path, &u);
+
 	if (rc)
 		return rc;
 	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
@@ -1244,7 +1582,7 @@ static int tree_verify_upatch(const char *path, const char *expected,
 }
 
 static int tree_pull_artifact(const struct shirudo_tree_operation *op,
-				      char *path, size_t path_sz)
+			      char *path, size_t path_sz)
 {
 	struct bpm_oci_client c = {};
 	struct bpm_descriptor layers[BPM_MAX_ENTRIES];
@@ -1253,7 +1591,7 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 	char hex[65];
 	int nl = 0, rc;
 
-	if (tree_digest_hex(op->artifact.layer_digest, (uint8_t[32]){}))
+	if (!tree_digest_valid(op->artifact.layer_digest))
 		return -EINVAL;
 	/*
 	 * The cache holds the blob exactly as fetched, so its content
@@ -1271,11 +1609,11 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 					  !strcmp(op->op, "delete"));
 	}
 	rc = parse_tree_repository(op->artifact.repository, &c, repository,
-					   sizeof(repository));
+				   sizeof(repository));
 	if (rc)
 		return rc;
 	rc = bpm_oci_url(&c, repository, "manifests",
-				  op->artifact.manifest_digest, url, sizeof(url));
+			 op->artifact.manifest_digest, url, sizeof(url));
 	if (rc)
 		return rc;
 	rc = bpm_oci_get_memory(&c, url,
@@ -1296,7 +1634,7 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 		    strcmp(layers[i].media, BPM_UPATCH_MEDIA))
 			continue;
 		rc = bpm_oci_url(&c, repository, "blobs", layers[i].digest,
-				   url, sizeof(url));
+				 url, sizeof(url));
 		if (rc)
 			goto out;
 		rc = bpm_oci_get_blob(&c, url, layers[i].media, &blob);
@@ -1316,7 +1654,7 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 			goto out;
 		bpm_copy_string(path, path_sz, cache);
 		rc = tree_verify_upatch(path, op->artifact.payload_sha256, op->id,
-					 !strcmp(op->op, "delete"));
+					!strcmp(op->op, "delete"));
 		goto out;
 	}
 	rc = -ENOENT;
@@ -1327,12 +1665,13 @@ out:
 }
 
 static int tree_write_report(const char *path, const struct shirudo_tree_state *s,
-				     int selected, int skipped, int applied,
+			     int selected, int skipped, int applied,
 				     int module_skipped, int dry_run,
 				     int tpm_available)
 {
 	char buf[4096];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+
 	shirudo_json_obj_open(&e);
 	shirudo_json_kv_int(&e, "schema", 1);
 	shirudo_json_kv_bool(&e, "dry_run", dry_run);
@@ -1428,8 +1767,8 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 		return rc;
 	rc = shirudo_json_parse((const char *)body, len, fields, ARRAY_SIZE(fields));
 	if (!rc && (schema != 1 || pending->seq <= 0 ||
-			!shirudo_upatch_name_valid(pending->id) ||
-			tree_digest_hex(pending->operation_digest, (uint8_t[32]){})))
+		    !shirudo_upatch_name_valid(pending->id) ||
+		    !tree_digest_valid(pending->operation_digest)))
 		rc = -EINVAL;
 	xfree(body, len + 1);
 	return rc;
@@ -1486,7 +1825,7 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
  * appended the event before the sealed cursor was committed.
  */
 static int tree_recover_pending(const struct shirudo_tree_publication *pub,
-					struct shirudo_tree_state *state)
+				struct shirudo_tree_state *state)
 {
 	struct bpm_tree_pending pending = {};
 	const struct shirudo_tree_operation *op = NULL;
@@ -1530,8 +1869,9 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 	} else if (rc != -ENOENT) {
 		return -EKEYREJECTED;
 	}
+	/* Still pre-operation; retry normally. */
 	if (!applied)
-		return 0; /* Still pre-operation; retry normally. */
+		return 0;
 	if (!event_present) {
 		rc = shirudo_tree_event_append(op->seq, op->operation_digest, next);
 		if (rc)
@@ -1616,13 +1956,13 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	if (argc < 2 || strcmp(argv[1], "sync"))
 		TREE_SYNC_RETURN(-EINVAL);
 	for (int i = 2; i < argc; i++) {
-		if (!strcmp(argv[i], "--dry-run"))
+		if (!strcmp(argv[i], "--dry-run")) {
 			dry_run = true;
-		else if (!strncmp(argv[i], "--report=", 9))
+		} else if (!strncmp(argv[i], "--report=", 9)) {
 			bpm_copy_string(report, sizeof(report), argv[i] + 9);
-		else if (!strcmp(argv[i], "--report") && i + 1 < argc)
+		} else if (!strcmp(argv[i], "--report") && i + 1 < argc) {
 			bpm_copy_string(report, sizeof(report), argv[++i]);
-		else if (shirudo_is_help(argv[i])) {
+		} else if (shirudo_is_help(argv[i])) {
 			printf("usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
 			TREE_SYNC_RETURN(0);
 		} else {
@@ -1630,25 +1970,26 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		}
 	}
 	rc = load_tree_config(&cfg);
+	/* Optional integration: manual `shirudo upatch` remains valid. */
 	if (rc == -ENOENT)
-		TREE_SYNC_RETURN(0); /* Optional integration: manual `shirudo upatch` remains valid. */
+		TREE_SYNC_RETURN(0);
 	if (rc)
 		TREE_SYNC_RETURN(rc);
 	rc = shirudo_tree_state_read(&state);
-	if (!rc) {
+	if (!rc)
 		have_state = true;
-	} else if (rc != -ENOENT) {
+	else if (rc != -ENOENT)
 		TREE_SYNC_RETURN(rc);
-	}
 	rc = tree_fetch_publication(&cfg, &pub, manifest_digest,
-					 sizeof(manifest_digest));
+				    sizeof(manifest_digest));
 	if (rc)
 		TREE_SYNC_RETURN(rc);
 	if (pub.parent_manifest_digest[0] &&
 	    tree_digest_hex(pub.parent_manifest_digest, (uint8_t[32]){}))
 		TREE_SYNC_RETURN(-EINVAL);
+	/* Snapshot compaction belongs to a later schema. */
 	if (pub.base_seq != 0)
-		TREE_SYNC_RETURN(-ENOTSUP); /* snapshot compaction belongs to a later schema */
+		TREE_SYNC_RETURN(-ENOTSUP);
 	if (pub.n_operations && pub.operations[0].seq != pub.base_seq + 1)
 		TREE_SYNC_RETURN(-EINVAL);
 	if (pub.n_operations && pub.head_seq != pub.operations[pub.n_operations - 1].seq)
@@ -1678,8 +2019,9 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		TREE_SYNC_RETURN(-ERANGE);
 	if (have_state && pub.head_seq < state.last_seq)
 		TREE_SYNC_RETURN(-ERANGE);
+	/* The publication must contain the cursor base. */
 	if (have_state && pub.base_seq > state.last_seq)
-		TREE_SYNC_RETURN(-ERANGE); /* The publication must contain the cursor base. */
+		TREE_SYNC_RETURN(-ERANGE);
 	if (!have_state && pub.base_seq != 0)
 		TREE_SYNC_RETURN(-ERANGE);
 	if (!have_state) {
@@ -1711,7 +2053,8 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		}
 		if (!rc) {
 			skipped++;
-			if (!dry_run) state.last_seq = op->seq;
+			if (!dry_run)
+				state.last_seq = op->seq;
 			continue;
 		}
 		selected++;
@@ -1755,8 +2098,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("upatch_install", op, rc);
 			TREE_SYNC_RETURN(rc);
 		}
-		if (shirudo_hex_decode(state.projection_root, previous, 32))
-		{
+		if (shirudo_hex_decode(state.projection_root, previous, 32)) {
 			tree_sync_report_error("projection_root_decode", op, -EINVAL);
 			TREE_SYNC_RETURN(-EINVAL);
 		}
@@ -1924,7 +2266,6 @@ static const struct shirudo_help_item bpm_subcmds[] = {
 	{ "uninstall", "unload and remove an installed package" },
 };
 
-
 static const struct shirudo_help_item bpm_target_subcmds[] = {
 	{ "config", "register and manage OCI repositories" },
 	{ "repo", "refresh signed repository indexes" },
@@ -2041,11 +2382,11 @@ static int cmd_bpm_key(int argc, const char **argv)
 	}
 	if (shirudo_is_list_cmds(argv[1])) {
 		shirudo_print_subcmd_list(bpm_key_subcmds,
-					ARRAY_SIZE(bpm_key_subcmds));
+					  ARRAY_SIZE(bpm_key_subcmds));
 		return 0;
 	}
 	sub = shirudo_resolve_subcommand("bpm key", argv[1], bpm_key_subcmds,
-					ARRAY_SIZE(bpm_key_subcmds));
+					 ARRAY_SIZE(bpm_key_subcmds));
 	if (!sub)
 		return 2;
 	if (argc == 3 && shirudo_is_help(argv[2])) {
@@ -2172,7 +2513,8 @@ int cmd_bpm(int argc, const char **argv)
 				if (len <= 5 || strcmp(entry->d_name + len - 5, ".conf"))
 					continue;
 				if ((size_t)snprintf(source, sizeof(source), "%.*s",
-						(int)(len - 5), entry->d_name) >= sizeof(source)) {
+						     (int)(len - 5), entry->d_name) >=
+				    sizeof(source)) {
 					rc = -ENAMETOOLONG;
 					continue;
 				}
@@ -2230,7 +2572,7 @@ int cmd_bpm(int argc, const char **argv)
 			rc = prepare_direct_install(argv[2], &source_cfg, &selected);
 		} else {
 			rc = parse_package_ref(argv[2], source, sizeof(source), name,
-					 sizeof(name), version, sizeof(version));
+					       sizeof(name), version, sizeof(version));
 		}
 		if (!rc)
 			rc = state_read(state, &n_state);
@@ -2252,7 +2594,7 @@ int cmd_bpm(int argc, const char **argv)
 				rc = load_cached_index(source, entries, &n_entries);
 			if (!rc)
 				rc = find_entry(entries, n_entries, name,
-					version[0] ? version : NULL, &selected);
+						version[0] ? version : NULL, &selected);
 		}
 		if (rc)
 			return bpm_finish(lock, rc, "install");
@@ -2268,7 +2610,7 @@ int cmd_bpm(int argc, const char **argv)
 		bpm_copy_string(state[n_state].source, sizeof(state[n_state].source),
 				direct ? "direct" : source);
 		if (snprintf(state[n_state].path, sizeof(state[n_state].path),
-				"%s/%s/%s", SHIRUDO_BPM_PACKAGES_DIR,
+			     "%s/%s/%s", SHIRUDO_BPM_PACKAGES_DIR,
 				direct ? selected.name : name,
 				selected.version) >= (int)sizeof(state[n_state].path))
 			return bpm_finish(lock, -ENAMETOOLONG, "install");
@@ -2312,9 +2654,10 @@ int cmd_bpm(int argc, const char **argv)
 			return bpm_finish(-1, lock, "lock");
 		}
 		rc = state_read(state, &n_state);
-		for (i = 0; !rc && i < n_state; i++)
+		for (i = 0; !rc && i < n_state; i++) {
 			if (!strcmp(state[i].name, argv[2]))
 				break;
+		}
 		if (!rc && i == n_state)
 			rc = -ENOENT;
 		if (!rc)
@@ -2361,13 +2704,13 @@ int cmd_bpm(int argc, const char **argv)
 			if (semver_compare(selected.version, state[i].version) <= 0)
 				continue;
 			rc = package_install(&source_cfg, &selected, state[i].path,
-						state[i].version);
+					     state[i].version);
 			if (rc)
 				break;
 			bpm_copy_string(state[i].version, sizeof(state[i].version),
 					selected.version);
 			if (snprintf(state[i].path, sizeof(state[i].path), "%s/%s/%s",
-					SHIRUDO_BPM_PACKAGES_DIR, state[i].name,
+				     SHIRUDO_BPM_PACKAGES_DIR, state[i].name,
 					selected.version) >= (int)sizeof(state[i].path)) {
 				rc = -ENAMETOOLONG;
 				break;
