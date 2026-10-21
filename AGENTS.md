@@ -89,9 +89,12 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   they take a length, read nothing past it and refuse a sign, blank or
   base prefix. `check-style.sh` rejects `strtoul()` and its kin and
   `atoi()` outside `testing/`.
-- **Copy strings with `strscpy()`** from `<shirudo/string.h>`: it always
+- **Copy strings with `strscpy()` and format into a fixed buffer with
+  `strsprintf()`**, both from `<shirudo/string.h>`: `strscpy()` always
   terminates and returns `-E2BIG` when it cut, which a caller checks
-  wherever a cut path or name would mean a different one.
+  wherever a cut path or name would mean a different one, and
+  `strsprintf()` returns `-E2BIG` with the buffer left empty rather than
+  a cut path, in place of comparing `snprintf()` with the size by hand.
   `check-style.sh` rejects `strcpy()`, `strncpy()` and their kin and a
   `snprintf(dst, size, "%s", src)` copy outside `testing/`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
@@ -274,7 +277,8 @@ one usually still compiles and passes tests.
   `xstrfree` scrub before freeing. The libc allocators are poisoned
   project-wide; do not add exceptions, wrap in `util/malloc.c` instead.
   `xstrdup` is strlen-based, so never apply it to user, file or network
-  input; use `xstrndup(s, bound)`.
+  input; use `xstrndup(s, bound)`. `xasprintf` formats into memory of
+  the size needed, freed with `xstrfree`.
 - `util/json.{c,h}` is the only JSON code. Extend its schema
   definitions for new fields or documents; never open-code JSON bytes
   elsewhere.
