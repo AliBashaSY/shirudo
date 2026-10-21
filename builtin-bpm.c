@@ -2299,7 +2299,7 @@ int cmd_bpm(int argc, const char **argv)
 	}
 	if (!strcmp(sub, "upgrade") && argc == 2) {
 		struct bpm_state_entry state[BPM_MAX_STATE];
-		int n_state, lock, rc, i;
+		int n_state, lock, rc, wrc, i;
 
 		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 			return bpm_fail("initialize curl", -EIO);
@@ -2322,25 +2322,32 @@ int cmd_bpm(int argc, const char **argv)
 			if (!rc)
 				rc = find_entry(entries, n_entries, state[i].name, NULL,
 						&selected);
-			if (rc == -ENOENT)
+			if (rc == -ENOENT) {
+				rc = 0;
 				continue;
+			}
 			if (rc)
-				return bpm_finish(lock, rc, "upgrade");
+				break;
 			if (semver_compare(selected.version, state[i].version) <= 0)
 				continue;
 			rc = package_install(&source_cfg, &selected, state[i].path,
 						state[i].version);
 			if (rc)
-				return bpm_finish(lock, rc, "upgrade");
+				break;
 			bpm_copy_string(state[i].version, sizeof(state[i].version),
 					selected.version);
 			if (snprintf(state[i].path, sizeof(state[i].path), "%s/%s/%s",
 					SHIRUDO_BPM_PACKAGES_DIR, state[i].name,
-					selected.version) >= (int)sizeof(state[i].path))
-				return bpm_finish(lock, -ENAMETOOLONG, "upgrade");
+					selected.version) >= (int)sizeof(state[i].path)) {
+				rc = -ENAMETOOLONG;
+				break;
+			}
 		}
-		rc = state_write(state, n_state);
-		return bpm_finish(lock, rc, "write state");
+		/* Packages upgraded before a failure stay on record. */
+		wrc = state_write(state, n_state);
+		if (rc)
+			return bpm_finish(lock, rc, "upgrade");
+		return bpm_finish(lock, wrc, "write state");
 	}
 	return 2;
 }
