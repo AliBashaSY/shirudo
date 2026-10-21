@@ -1210,7 +1210,7 @@ static int resolve_endpoint(struct otel_state *st, const char *spec,
 static bool loopback_host(const char *host)
 {
 	return strcasecmp(host, "localhost") == 0 ||
-	       strcmp(host, "127.0.0.1") == 0 || strcmp(host, "::1") == 0;
+	       strcmp(host, "127.0.0.1") == 0 || strcmp(host, "[::1]") == 0;
 }
 
 static int validate_endpoint_security(struct otel_state *st)
