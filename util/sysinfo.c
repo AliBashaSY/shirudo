@@ -155,7 +155,7 @@ static int kernel_config_entry_cmp(const void *a, const void *b)
 }
 
 static void kernel_config_entries_free(struct kernel_config_entry *entries,
-					       size_t n)
+				       size_t n)
 {
 	size_t i;
 
@@ -167,8 +167,8 @@ static void kernel_config_entries_free(struct kernel_config_entry *entries,
 }
 
 int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
-						  shirudo_kernel_config_cb cb,
-						  void *ctx)
+					  shirudo_kernel_config_cb cb,
+					  void *ctx)
 {
 	char path[PATH_MAX];
 	char line[8192];
@@ -223,7 +223,7 @@ int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
 			struct kernel_config_entry *next;
 
 			next = xreallocarray(entries, n, n + 1,
-					      sizeof(*entries));
+					     sizeof(*entries));
 			if (!next) {
 				fclose(f);
 				kernel_config_entries_free(entries, n);
@@ -255,17 +255,17 @@ int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
 }
 
 static void emit_kernel_config_entry(void *ctx, const char *key,
-					      const char *value)
+				     const char *value)
 {
 	shirudo_json_kv_string(ctx, key, value);
 }
 
 static void emit_kernel_config(struct shirudo_json_emit *e,
-				       const char *kernel_release)
+			       const char *kernel_release)
 {
 	shirudo_json_obj_open_key(e, "kernel_config");
 	shirudo_sysinfo_kernel_config_foreach(kernel_release,
-						      emit_kernel_config_entry, e);
+					      emit_kernel_config_entry, e);
 
 	shirudo_json_obj_close(e);
 }

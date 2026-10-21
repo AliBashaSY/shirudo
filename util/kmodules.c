@@ -105,9 +105,10 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 	if (rc)
 		return rc;
 	end = buf + strlen(buf);
-	for (line = buf; line < end; line++)
+	for (line = buf; line < end; line++) {
 		if (*line == '\n')
 			*line = '\0';
+	}
 
 	set->mods = xmalloc(mod_cap * sizeof(*set->mods));
 	set->deps = xmalloc(deps_cap * sizeof(*set->deps));
@@ -303,7 +304,7 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	seen[i >> 3] |= (uint8_t)(1U << (i & 7));
 
 	printf("%s%s%s (%s, refs=%u)\n", prefix, branch, m->name,
-	       size_s, (unsigned)m->refcount);
+	       size_s, (unsigned int)m->refcount);
 
 	snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix,
 		 is_last ? "    " : "│   ");
@@ -354,9 +355,10 @@ void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
 			used_by[d >> 3] |= (uint8_t)(1U << (d & 7));
 		}
 	}
-	for (size_t i = 0; i < set->n; i++)
+	for (size_t i = 0; i < set->n; i++) {
 		if (((used_by[i >> 3] >> (i & 7)) & 1) == 0)
 			roots[n_roots++] = i;
+	}
 
 	for (size_t r = 0; r < n_roots; r++) {
 		int is_last = (r == n_roots - 1);
@@ -427,14 +429,13 @@ void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 			snprintf(ts, sizeof(ts), "?");
 		shirudo_human_size(m->size, size_s, sizeof(size_s));
 		if (boot_sec > 0 && m->loaded_at_sec >= boot_sec)
-			shirudo_format_duration(
-				(long)(m->loaded_at_sec - boot_sec),
-				age, sizeof(age));
+			shirudo_format_duration((long)(m->loaded_at_sec - boot_sec),
+						age, sizeof(age));
 		else
 			snprintf(age, sizeof(age), "?");
 
 		printf("  [%s]  %s (%s, refs=%u, %s since boot)\n",
-		       ts, m->name, size_s, (unsigned)m->refcount, age);
+		       ts, m->name, size_s, (unsigned int)m->refcount, age);
 	}
 	xfree(all, set->n * sizeof(*all));
 }

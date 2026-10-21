@@ -6,7 +6,7 @@
 #include "kernel_release.h"
 
 bool shirudo_kernel_release_prefix_matches(const char *release,
-						   const char *prefix)
+					   const char *prefix)
 {
 	size_t len;
 

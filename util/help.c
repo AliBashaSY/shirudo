@@ -107,7 +107,7 @@ void shirudo_print_help(const struct shirudo_help *h)
 		fprintf(stderr, "\n%s\n", s->header);
 		for (j = 0; j < s->n_items; j++) {
 			size_t indent = 2 + w;
-			size_t avail = SHIRUDO_HELP_WIDTH > indent ?
+			size_t avail = indent < SHIRUDO_HELP_WIDTH ?
 				       SHIRUDO_HELP_WIDTH - indent : 1;
 
 			fprintf(stderr, "  %-*s", (int)w, s->items[j].name);

@@ -181,7 +181,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 					map_export_bad(cfg, key, val, "value too long");
 				else if (val[0] && val[0] != '/')
 					map_export_bad(cfg, key, val,
-							"path must be absolute");
+						       "path must be absolute");
 			} else if (strcmp(key, "map_export.otel_endpoint") == 0) {
 				if (!set_string(cfg->map_export_otel_endpoint,
 						sizeof(cfg->map_export_otel_endpoint), val))
@@ -189,8 +189,8 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 			} else if (strcmp(key, "map_export.tenant_id") == 0) {
 				if (val[0] && !shirudo_tenant_id_valid(val))
 					map_export_bad(cfg, key, val,
-							"expected 1..128 characters from "
-							"A-Z, a-z, 0-9, '.', '_', '-'");
+						       "expected 1..128 characters from "
+						       "A-Z, a-z, 0-9, '.', '_', '-'");
 				else
 					(void)set_string(cfg->map_export_tenant_id,
 							 sizeof(cfg->map_export_tenant_id),
@@ -199,7 +199,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 				if (!parse_bool(val,
 						&cfg->map_export_otel_insecure))
 					map_export_bad(cfg, key, val,
-							"expected true or false");
+						       "expected true or false");
 			} else if (strcmp(key, "map_export.otel_retries") == 0) {
 				unsigned long v;
 				char *end;
@@ -208,7 +208,7 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 				v = strtoul(val, &end, 10);
 				if (errno || *end || v > 10)
 					map_export_bad(cfg, key, val,
-							"expected 0..10");
+						       "expected 0..10");
 				else
 					cfg->map_export_otel_retries =
 						(unsigned int)v;

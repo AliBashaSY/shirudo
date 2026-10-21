@@ -38,9 +38,9 @@
 
 #define PREFLIGHT_CERT_MAX	(1u * 1024u * 1024u)
 
-static struct shirudo_preflight_check *next_slot(
-		struct shirudo_preflight_result *r,
-		enum shirudo_preflight_id id, const char *name)
+static struct shirudo_preflight_check *
+next_slot(struct shirudo_preflight_result *r, enum shirudo_preflight_id id,
+	  const char *name)
 {
 	struct shirudo_preflight_check *c = &r->checks[r->n++];
 
@@ -77,7 +77,7 @@ static void check_root(struct shirudo_preflight_result *r)
 		pass(c);
 	else
 		fail(r, c, "must run as root (EUID=%u)",
-		     (unsigned)geteuid());
+		     (unsigned int)geteuid());
 }
 
 static bool lsm_lists_bpf(void)
@@ -95,9 +95,10 @@ static bool lsm_lists_bpf(void)
 		return false;
 	buf[n] = '\0';
 
-	for (char *p = strtok(buf, ",\n"); p; p = strtok(NULL, ",\n"))
+	for (char *p = strtok(buf, ",\n"); p; p = strtok(NULL, ",\n")) {
 		if (strcmp(p, "bpf") == 0)
 			return true;
+	}
 	return false;
 }
 

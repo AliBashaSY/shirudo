@@ -151,7 +151,7 @@ static inline int shirudo_upatch_bpffs_name(char *out, size_t out_sz,
 }
 
 static inline int shirudo_upatch_name_from_bpffs(char *out, size_t out_sz,
-						const char *name)
+						 const char *name)
 {
 	size_t i, j;
 

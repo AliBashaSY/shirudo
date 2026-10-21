@@ -11,9 +11,8 @@
 	(SHIRUDO_KERNEL_BUILD_ID_MAX * 2u + 1u)
 
 int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
-					       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX]);
+				       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX]);
 
-int shirudo_kernel_build_id_read(
-		char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX]);
+int shirudo_kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX]);
 
 #endif /* SHIRUDO_KERNEL_BUILD_ID_H */

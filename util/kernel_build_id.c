@@ -27,7 +27,7 @@ static int read_u32(const unsigned char *p, size_t remaining, uint32_t *out)
 }
 
 int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
-					       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+				       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
 	const unsigned char *p = notes;
 
@@ -64,8 +64,7 @@ int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
 	return -ENOENT;
 }
 
-int shirudo_kernel_build_id_read(
-	char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+int shirudo_kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
 	unsigned char notes[KERNEL_NOTES_MAX];
 	size_t len = 0;
