@@ -774,6 +774,8 @@ static int build_log_payload(const char *path,
 	otlp_kv_string(&e, "shirudo.upatch.location", v->location);
 	otlp_kv_string(&e, "shirudo.map.name", v->name);
 	otlp_kv_string(&e, "shirudo.map.type", v->type_name);
+	otlp_kv_int(&e, "shirudo.map.max_entries", v->max_entries);
+	otlp_kv_int(&e, "shirudo.map.n_entries", v->n_entries);
 	otlp_kv_int(&e, "shirudo.map.n_cpus", v->n_cpus);
 	otlp_kv_bool(&e, "shirudo.map.serialized", v->serialized);
 	otlp_kv_bool(&e, "shirudo.map.truncated", v->truncated);
