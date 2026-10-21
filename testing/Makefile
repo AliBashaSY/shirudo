@@ -19,7 +19,7 @@ test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 	. $(ROOT)/contrib/test-vm-arch.sh && printf '%s' "$$$(1)")
 
 .DEFAULT_GOAL := help
-.PHONY: help clean test-helpers test-op test test-installer bundle test-vm-bundle kernel \
+.PHONY: help clean test-helpers test-op fuzz test test-installer bundle test-vm-bundle kernel \
 	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-tgt-obs \
 	test-vm test-vm-clean
 
@@ -260,6 +260,15 @@ test-helpers:
 	+$(Q)$(MAKE) -C $(ROOT) config
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo test-helpers
 
+# The parsers of input from outside the host under libFuzzer, each target
+# for FUZZ_SECONDS on its seed corpus; needs clang with its fuzzer runtime.
+FUZZ_SECONDS ?= 60
+
+fuzz:
+	+$(Q)$(MAKE) -C $(ROOT) config
+	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo fuzz-targets
+	$(Q)sh $(ROOT)/testing/fuzz/run.sh $(FUZZ_SECONDS)
+
 # The installer end to end: a stock cloud image in QEMU with a vTPM, the
 # bpf-next kernel packages, tools/gen-initrd/install.sh with a local
 # target package, two reboots and the production configuration.
@@ -281,6 +290,7 @@ help:
 	  '  make -C testing test' \
 	  '  make -C testing test-op' \
 	  '  make -C testing test-helpers' \
+	  '  make -C testing fuzz [FUZZ_SECONDS=60]' \
 	  '  make -C testing test-tgt [TEST_VM_INITRD=1]' \
 	  '  make -C testing test-tgt-obs' \
 	  '  make -C testing test-installer' \

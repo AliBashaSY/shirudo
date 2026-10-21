@@ -334,3 +334,6 @@ on.
   module installed, ``t0033-tpm-wire.sh`` also cross-checks the TPM
   credential blob it builds against an independent implementation;
   without it that one check is skipped.
+* ``make -C testing fuzz`` builds the parsers' libFuzzer targets with
+  ``clang`` and needs its fuzzer and sanitizer runtime
+  (``libclang-rt-<version>-dev`` on Debian and Ubuntu).

@@ -304,6 +304,10 @@ one usually still compiles and passes tests.
   that runs `shirudo-initrd.service`; `make -C testing test-installer` runs
   `testing/t1300-installer-e2e.sh`, the installer end to end in a QEMU
   guest with a vTPM, two reboots included.
+- `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
+  `testing/fuzz/` for the parsers of input from outside the host, under
+  ASan and UBSan, on their seed corpora; CI runs them too. A parser that
+  takes such input gets a target there.
 - `make -C Documentation html-docs` renders `Documentation/*.rst` with docutils in strict
   mode into `Documentation/output/`; CI runs it on every push, so run it
   after touching any document (python3-docutils provides `rst2html`).

@@ -89,3 +89,31 @@ jobs:
             make SANITIZE=address,undefined shirudo-build
             make -C testing SANITIZE=address,undefined test-helpers
             make -C testing SANITIZE=address,undefined test-op
+
+  libfuzzer:
+    name: libFuzzer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The targets need no BPF objects, but the toolchain the other jobs
+      # build in comes with the LVH guest.
+      - name: Fuzz the parsers of input from outside the host in LVH VM
+        uses: cilium/little-vm-helper@f86d344aca812dda5aef167867a9a0a90ca6cca5 # v0.0.31
+        with:
+          test-name: shirudo-libfuzzer
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cpu: 4
+          mem: 8G
+          cmd: |
+            cd /host
+            .github/scripts/vm-toolchain.sh libclang-rt-21-dev
+            . build/vm-toolchain.env
+            make -C testing fuzz FUZZ_SECONDS=60

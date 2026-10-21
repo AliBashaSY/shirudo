@@ -666,6 +666,45 @@ testing/kernel-obs/exec-paths: testing/kernel-obs/exec_paths.c
 
 test-helpers: $(TEST_HELPERS)
 
+# ----- fuzzing ----------------------------------------------------
+
+# libFuzzer targets for the parsers of input from outside the host, built
+# with clang from the util sources under ASan and UBSan; make -C testing
+# fuzz builds and runs them.
+FUZZ_CC ?= clang
+FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer \
+               -fsanitize=fuzzer,address,undefined \
+               -fno-sanitize-recover=all $(WARNINGS) \
+               -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
+               $(LIBCRYPTO_CFLAGS) $(LIBCURL_CFLAGS) $(ZLIB_CFLAGS)
+FUZZ_LIBS := $(LIBCRYPTO_LIBS) $(LIBSSL_LIBS) $(LIBCURL_LIBS) $(ZLIB_LIBS)
+FUZZ_BASE := util/json.c util/hex.c util/malloc.c util/log.c
+FUZZ_OCI := util/bpm_oci.c util/io.c util/seal.c util/crypto_openssl.c \
+            util/tls_openssl.c
+FUZZ_PACKAGE := util/bpm_package.c util/bpm_tree.c $(FUZZ_OCI)
+
+FUZZ_TARGETS := testing/fuzz/fuzz-json testing/fuzz/fuzz-oci-manifest \
+                testing/fuzz/fuzz-bpm-index testing/fuzz/fuzz-tree \
+                testing/fuzz/fuzz-upatch testing/fuzz/fuzz-bpm-tar
+
+testing/fuzz/fuzz-json: testing/fuzz/fuzz-json.c $(FUZZ_BASE)
+testing/fuzz/fuzz-oci-manifest: testing/fuzz/fuzz-oci-manifest.c \
+                                $(FUZZ_BASE) $(FUZZ_OCI)
+testing/fuzz/fuzz-bpm-index: testing/fuzz/fuzz-bpm-index.c \
+                             $(FUZZ_BASE) $(FUZZ_PACKAGE)
+testing/fuzz/fuzz-tree: testing/fuzz/fuzz-tree.c $(FUZZ_BASE) \
+                        util/bpm_tree.c util/crypto_openssl.c
+testing/fuzz/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
+                          util/upatch.c
+testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
+                           $(FUZZ_PACKAGE)
+
+$(FUZZ_TARGETS): testing/fuzz/fuzz.h
+	@printf '  FUZZ    $@\n'
+	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ $(filter %.c,$^) $(FUZZ_LIBS)
+
+fuzz-targets: $(FUZZ_TARGETS)
+
 check test: shirudo $(TEST_HELPERS)
 	@printf '  TEST\n'
 	$(Q)cd testing && ./run-tests.sh

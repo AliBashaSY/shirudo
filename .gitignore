@@ -50,6 +50,11 @@
 !/testing/helper/test-bpm-key.py
 !/testing/helper/test-bpm-info.py
 
+# libFuzzer targets and the inputs that crashed them
+/testing/fuzz/fuzz-*
+!/testing/fuzz/fuzz-*.c
+/testing/fuzz/crash-*
+
 # Local config (PLAN.md "Build system": Makefile.config is a committed
 # probe file that writes the cached config.mk; util/version_id.c is
 # regenerated every build).
