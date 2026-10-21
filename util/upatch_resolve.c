@@ -20,6 +20,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include "malloc.h"
@@ -185,7 +186,7 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	if (attach_name && *attach_name)
 		snprintf(out, cap, "%s/%s", prefix, attach_name);
 	else
-		snprintf(out, cap, "%s", prefix);
+		strscpy(out, prefix, cap);
 	return 0;
 }
 

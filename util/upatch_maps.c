@@ -23,6 +23,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include "json.h"
@@ -110,7 +111,7 @@ static void btf_type_name(struct btf *btf, __u32 type_id,
 		return;
 	name = btf__name_by_offset(btf, t->name_off);
 	if (name && name[0]) {
-		snprintf(dst, dst_cap, "%s", name);
+		strscpy(dst, name, dst_cap);
 		return;
 	}
 	/*
@@ -127,7 +128,7 @@ static void btf_type_name(struct btf *btf, __u32 type_id,
 				break;
 			name = btf__name_by_offset(btf, t->name_off);
 			if (name && name[0]) {
-				snprintf(dst, dst_cap, "%s", name);
+				strscpy(dst, name, dst_cap);
 				return;
 			}
 			id = t->type;
@@ -1251,8 +1252,9 @@ int upatch_maps_read_flags(const char *upatch, const char *map,
 	int rc;
 
 	memset(out, 0, sizeof(*out));
-	snprintf(out->upatch, sizeof(out->upatch), "%s", upatch);
-	snprintf(out->name, sizeof(out->name), "%s", map);
+	if (strscpy(out->upatch, upatch, sizeof(out->upatch)) < 0 ||
+	    strscpy(out->name, map, sizeof(out->name)) < 0)
+		return -ENAMETOOLONG;
 
 	rc = open_map_pin(upatch, map, &fd, &info);
 	if (rc)
@@ -1365,7 +1367,7 @@ static void scan_upatch_maps(const char *upatch,
 		if (rc)
 			continue;
 		close(fd);
-		snprintf(one.upatch, sizeof(one.upatch), "%s", upatch);
+		strscpy(one.upatch, upatch, sizeof(one.upatch));
 		snprintf(one.name, sizeof(one.name), "%.*s",
 			 (int)(sizeof(one.name) - 1), e->d_name);
 		one.type = info.type;

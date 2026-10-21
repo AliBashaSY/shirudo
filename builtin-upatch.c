@@ -83,7 +83,7 @@ static void rep_fail(struct shirudo_op_report *rep, const char *phase,
 	rep->category = cat;
 	rep->err = err < 0 ? -err : err;
 	if (msg)
-		snprintf(rep->message, sizeof(rep->message), "%s", msg);
+		strscpy(rep->message, msg, sizeof(rep->message));
 }
 
 /*
@@ -651,7 +651,7 @@ static int loader_map_create(const char *name, __u32 value_size,
 	attr.max_entries = 1;
 	attr.excl_prog_hash = ptr_to_u64(excl_prog_hash);
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
-	snprintf(attr.map_name, sizeof(attr.map_name), "%s", name);
+	strscpy(attr.map_name, name, sizeof(attr.map_name));
 
 	fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 	return (int)fd;
@@ -789,8 +789,10 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 	name = t ? btf__name_by_offset(btf, t->name_off) : NULL;
 	if (!name || !name[0]) {
 		rc = -ENOENT;
+	} else if (strlen(name) >= cap) {
+		rc = -ENAMETOOLONG;
 	} else {
-		snprintf(out, cap, "%s", name);
+		strscpy(out, name, cap);
 		rc = 0;
 	}
 	btf__free(btf);
@@ -824,7 +826,7 @@ static int prog_attach_cgroup_skb_fallback(int prog_fd,
 	char func[128];
 	int rc;
 
-	snprintf(func, sizeof(func), "%s", info->name);
+	strscpy(func, info->name, sizeof(func));
 	rc = prog_func_name(prog_fd, info, func, sizeof(func));
 	if (rc && !func[0]) {
 		pr_err("program metadata says raw_tracepoint, but loaded "

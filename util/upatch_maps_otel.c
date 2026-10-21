@@ -907,7 +907,7 @@ static int metric_name(const struct otel_state *st,
 	if (st->opts.metric_name) {
 		if (!valid_metric_name(st->opts.metric_name))
 			return -EINVAL;
-		snprintf(out, 256, "%s", st->opts.metric_name);
+		strscpy(out, st->opts.metric_name, 256);
 		return 0;
 	}
 	n = snprintf(out, 256, "shirudo.%s.%s", v->upatch, v->name);
@@ -1207,17 +1207,15 @@ static int resolve_endpoint(struct otel_state *st, const char *spec,
 		if (spec_is_base)
 			return append_signal_path(spec, st->signal, st->endpoint,
 						  sizeof(st->endpoint));
-		if (strlen(spec) >= sizeof(st->endpoint))
+		if (strscpy(st->endpoint, spec, sizeof(st->endpoint)) < 0)
 			return -ENAMETOOLONG;
-		snprintf(st->endpoint, sizeof(st->endpoint), "%s", spec);
 		return 0;
 	}
 	signal_endpoint = otel_signal_env(st->signal, "ENDPOINT");
 	if (signal_endpoint) {
-		if (strlen(signal_endpoint) >= sizeof(st->endpoint))
+		if (strscpy(st->endpoint, signal_endpoint,
+			    sizeof(st->endpoint)) < 0)
 			return -ENAMETOOLONG;
-		snprintf(st->endpoint, sizeof(st->endpoint), "%s",
-			 signal_endpoint);
 		return 0;
 	}
 	generic_endpoint = getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
@@ -1256,7 +1254,10 @@ static int validate_endpoint_security(struct otel_state *st)
 		rc = -EINVAL;
 		goto out;
 	}
-	snprintf(st->host, sizeof(st->host), "%s", host);
+	if (strscpy(st->host, host, sizeof(st->host)) < 0) {
+		rc = -ENAMETOOLONG;
+		goto out;
+	}
 	if (strcmp(scheme, "http") == 0) {
 		if (!loopback_host(host) && !st->opts.allow_insecure) {
 			rc = -EPERM;
@@ -2250,7 +2251,7 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 		region = "us-east-1";
 	if (!valid_region(region))
 		return -EINVAL;
-	snprintf(st->region, sizeof(st->region), "%s", region);
+	strscpy(st->region, region, sizeof(st->region));
 	endpoint = getenv("AWS_ENDPOINT_URL_S3");
 	if (endpoint && endpoint[0]) {
 		size_t len = strlen(endpoint);
@@ -2318,11 +2319,10 @@ static int validate_s3_endpoint(struct otel_s3_state *st)
 		rc = -EINVAL;
 		goto out;
 	}
-	if (strlen(host) >= sizeof(st->host)) {
+	if (strscpy(st->host, host, sizeof(st->host)) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
-	snprintf(st->host, sizeof(st->host), "%s", host);
 	if (strcmp(scheme, "http") == 0) {
 		if (!loopback_host(host) && !st->opts.allow_insecure) {
 			rc = -EPERM;
