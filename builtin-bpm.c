@@ -743,6 +743,47 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 }
 
 /*
+ * SemVer 2.0.0, 11.4: dot-separated identifiers, numeric ones by value
+ * and below alphanumeric ones, a longer list after a shorter equal one.
+ */
+static int prerelease_compare(const char *a, const char *b)
+{
+	while (*a && *b) {
+		size_t la = strcspn(a, "."), lb = strcspn(b, ".");
+		bool na = strspn(a, "0123456789") == la;
+		bool nb = strspn(b, "0123456789") == lb;
+		int c;
+
+		if (na && nb) {
+			while (la > 1 && *a == '0') {
+				a++;
+				la--;
+			}
+			while (lb > 1 && *b == '0') {
+				b++;
+				lb--;
+			}
+			c = la != lb ? (la > lb ? 1 : -1) : strncmp(a, b, la);
+		} else if (na != nb) {
+			c = na ? -1 : 1;
+		} else {
+			c = strncmp(a, b, la < lb ? la : lb);
+			if (!c && la != lb)
+				c = la > lb ? 1 : -1;
+		}
+		if (c)
+			return c > 0 ? 1 : -1;
+		a += la;
+		b += lb;
+		if (*a == '.')
+			a++;
+		if (*b == '.')
+			b++;
+	}
+	return *a ? 1 : *b ? -1 : 0;
+}
+
+/*
  * Strict enough for repository selection: numeric dotted core, optional
  * prerelease, and build metadata.  Build metadata does not affect order.
  */
@@ -758,7 +799,7 @@ static int semver_compare(const char *a, const char *b)
 	}
 	if (*pa == '-' || *pb == '-') {
 		if (*pa != '-' || *pb != '-') return *pa == '-' ? -1 : 1;
-		return strcmp(pa + 1, pb + 1);
+		return prerelease_compare(pa + 1, pb + 1);
 	}
 	return 0;
 }
