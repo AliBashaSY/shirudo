@@ -454,8 +454,8 @@ static bool upatch_is_loaded(const char *name)
 test_pin:
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return false;
-	if (snprintf(pin, sizeof(pin), "%s/%s/test",
-		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= (int)sizeof(pin))
+	if (strsprintf(pin, sizeof(pin), "%s/%s/test",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return false;
 	return stat(pin, &st) == 0;
 }
@@ -521,9 +521,9 @@ static int cmd_upatch_list(int argc, const char **argv)
 		const char *type, *payload_type;
 		bool loaded;
 
-		if ((size_t)snprintf(path, sizeof(path), "%s/%s",
-				     SHIRUDO_UPATCHES_DIR,
-				     persisted[i]->d_name) >= sizeof(path))
+		if (strsprintf(path, sizeof(path), "%s/%s",
+			       SHIRUDO_UPATCHES_DIR,
+			       persisted[i]->d_name) < 0)
 			continue;
 		if (upatch_open(path, &u) != 0) {
 			if (!json)
@@ -568,8 +568,8 @@ static int cmd_upatch_list(int argc, const char **argv)
 			continue;
 		if (upatch_name_from_bpffs(raw_name, sizeof(raw_name), nm))
 			continue;
-		if ((size_t)snprintf(persist, sizeof(persist), "%s/%s.upatch",
-				     SHIRUDO_UPATCHES_DIR, raw_name) >= sizeof(persist))
+		if (strsprintf(persist, sizeof(persist), "%s/%s.upatch",
+			       SHIRUDO_UPATCHES_DIR, raw_name) < 0)
 			continue;
 		if (stat(persist, &st) == 0)
 			continue;
@@ -1167,14 +1167,14 @@ static int prog_pin_path(char *pin, size_t sz, const char *dir,
 	int n;
 
 	if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER)
-		n = snprintf(pin, sz, "%s/%s", serializers_dir, spec->map);
+		n = strsprintf(pin, sz, "%s/%s", serializers_dir, spec->map);
 	else if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN)
-		n = snprintf(pin, sz, "%s/test", dir);
+		n = strsprintf(pin, sz, "%s/test", dir);
 	else if (attach_count == 1)
-		n = snprintf(pin, sz, "%s/link", dir);
+		n = strsprintf(pin, sz, "%s/link", dir);
 	else
-		n = snprintf(pin, sz, "%s/link_%u", dir, attach_idx);
-	return n < 0 || (size_t)n >= sz ? -ENAMETOOLONG : 0;
+		n = strsprintf(pin, sz, "%s/link_%u", dir, attach_idx);
+	return n < 0 ? -ENAMETOOLONG : 0;
 }
 
 /*
@@ -1209,11 +1209,11 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		       strerror(-rc));
 		return rc;
 	}
-	if (snprintf(dir, sizeof(dir), "%s/%s",
-		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
-	if (snprintf(serializers_dir, sizeof(serializers_dir),
-		     "%s/serializers", dir) >= (int)sizeof(serializers_dir))
+	if (strsprintf(serializers_dir, sizeof(serializers_dir),
+		       "%s/serializers", dir) < 0)
 		return -ENAMETOOLONG;
 	made = xcalloc(nr_progs, sizeof(*made));
 	if (!made)
@@ -1364,12 +1364,10 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 		return 0;
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return 0;
-	if (snprintf(dir, sizeof(dir), "%s/%s",
-		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
-	    (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
-	if (snprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) >=
-	    (int)sizeof(maps_dir))
+	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
 	rc = mkdir_if_absent(maps_dir, 0700, NULL);
 	if (rc) {
@@ -1402,8 +1400,8 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 		/* upatch-private maps are intentionally not operator-visible. */
 		if (strncmp(info.name, "obs_i_", 6) == 0)
 			continue;
-		if (snprintf(pin, sizeof(pin), "%s/%s", maps_dir,
-			     info.name) >= (int)sizeof(pin))
+		if (strsprintf(pin, sizeof(pin), "%s/%s", maps_dir,
+			       info.name) < 0)
 			continue;
 		if (stat(pin, &st) == 0)
 			continue;	/* already pinned (idempotent) */
@@ -1430,8 +1428,8 @@ static void set_pin_payload(const char *name, const __u8 payload[32])
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
-	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
-		     bpffs_name) >= (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+		       bpffs_name) < 0)
 		return;
 	if (setxattr(dir, SHIRUDO_XATTR_PAYLOAD, payload, 32, 0) != 0)
 		pr_err("upatch: cannot record payload xattr on %s: %s "
@@ -1447,8 +1445,8 @@ static int get_pin_payload(const char *name, __u8 out[32])
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
-	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
-		     bpffs_name) >= (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+		       bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	n = getxattr(dir, SHIRUDO_XATTR_PAYLOAD, out, 32);
 	if (n < 0)
@@ -2226,8 +2224,8 @@ static int persist_upatch(const char *src, const char *name)
 		pr_err("mkdir %s: %s", SHIRUDO_UPATCHES_DIR, strerror(-rc));
 		return rc;
 	}
-	if (snprintf(dst, sizeof(dst), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
-		     name) >= (int)sizeof(dst))
+	if (strsprintf(dst, sizeof(dst), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
+		       name) < 0)
 		return -ENAMETOOLONG;
 
 	if (stat(src, &ss) == 0 && stat(dst, &ds) == 0 &&
@@ -2320,14 +2318,13 @@ static int remove_pin_dir(const char *name)
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
-	if (snprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
-		     bpffs_name) >= (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+		       bpffs_name) < 0)
 		return -ENAMETOOLONG;
-	if (snprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) >=
-	    (int)sizeof(maps_dir))
+	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
-	if (snprintf(serializers_dir, sizeof(serializers_dir),
-		     "%s/serializers", dir) >= (int)sizeof(serializers_dir))
+	if (strsprintf(serializers_dir, sizeof(serializers_dir),
+		       "%s/serializers", dir) < 0)
 		return -ENAMETOOLONG;
 	if (stat(dir, &st) != 0)
 		return -errno;
@@ -2360,8 +2357,8 @@ static int stage_upatch(const char *src, char *staged, size_t sz)
 	if (rc)
 		return rc;
 	rc = seal_mkdir_p(SHIRUDO_INCOMING_DIR, 0700);
-	if (!rc && snprintf(staged, sz, "%s/load-%d.upatch",
-			    SHIRUDO_INCOMING_DIR, (int)getpid()) >= (int)sz)
+	if (!rc && strsprintf(staged, sz, "%s/load-%d.upatch",
+			      SHIRUDO_INCOMING_DIR, (int)getpid()) < 0)
 		rc = -ENAMETOOLONG;
 	if (!rc)
 		rc = seal_write_file(staged, buf, len, 0600);
@@ -2543,8 +2540,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 			 "unsafe upatch name");
 		goto done;
 	}
-	if (snprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-		     SHIRUDO_UPATCHES_DIR, name) >= (int)sizeof(persisted))
+	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
+		       SHIRUDO_UPATCHES_DIR, name) < 0)
 		goto done;
 
 	if (no_precheck) {
@@ -2667,8 +2664,8 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 
 	if (!safe_upatch_name(name))
 		return -EINVAL;
-	if (snprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-		     SHIRUDO_UPATCHES_DIR, name) >= (int)sizeof(persisted))
+	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
+		       SHIRUDO_UPATCHES_DIR, name) < 0)
 		return -ENAMETOOLONG;
 	rc = upatch_open(persisted, &u);
 	if (rc)

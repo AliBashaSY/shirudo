@@ -47,16 +47,16 @@ int upatch_open_first_link(const char *name)
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
-	if ((size_t)snprintf(pin, sizeof(pin), "%s/%s/link",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(pin))
+	if (strsprintf(pin, sizeof(pin), "%s/%s/link",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(pin);
 	if (fd >= 0)
 		return fd;
 	first_errno = errno;
 
-	if ((size_t)snprintf(pin, sizeof(pin), "%s/%s/link_0",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(pin))
+	if (strsprintf(pin, sizeof(pin), "%s/%s/link_0",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(pin);
 	if (fd >= 0)
@@ -199,8 +199,8 @@ void upatch_loaded_at(const char *name, char *out, size_t cap)
 	out[0] = '\0';
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
-	if ((size_t)snprintf(dir, sizeof(dir), "%s/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return;
 	if (stat(dir, &st) != 0)
 		return;
@@ -219,8 +219,8 @@ void upatch_payload_sha256(const char *name, char *out, size_t cap)
 		return;
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
-	if ((size_t)snprintf(dir, sizeof(dir), "%s/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return;
 	n = getxattr(dir, SHIRUDO_XATTR_PAYLOAD, raw, sizeof(raw));
 	if (n != (ssize_t)sizeof(raw))

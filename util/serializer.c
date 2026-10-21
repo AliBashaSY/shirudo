@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "paths.h"
 #include "seal.h"
@@ -29,8 +30,7 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 	dir_fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (dir_fd < 0)
 		return -errno;
-	if (snprintf(name, sizeof(name), "serializer-map-%u.lock", map_id) >=
-	    (int)sizeof(name)) {
+	if (strsprintf(name, sizeof(name), "serializer-map-%u.lock", map_id) < 0) {
 		close(dir_fd);
 		return -ENAMETOOLONG;
 	}

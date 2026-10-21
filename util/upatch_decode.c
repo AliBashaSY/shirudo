@@ -1292,8 +1292,8 @@ int upatch_decode_map_signal(const struct shirudo_map_view *v,
 
 	if (!v || !signal_out || !upatch_name_valid(v->upatch))
 		return -EINVAL;
-	if (snprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
-		     v->upatch) >= (int)sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
+		       v->upatch) < 0)
 		return -ENAMETOOLONG;
 	rc = upatch_open(path, &u);
 	if (rc)
@@ -1320,8 +1320,8 @@ static int decode_map(const struct shirudo_map_view *v, bool otel,
 
 	if (!v)
 		return -EINVAL;
-	if (snprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
-		     v->upatch) >= (int)sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
+		       v->upatch) < 0)
 		return -ENAMETOOLONG;
 	return decode_map_file(path, v, otel, max_bytes, out, out_len);
 }

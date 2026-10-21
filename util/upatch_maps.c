@@ -735,9 +735,8 @@ static int open_map_pin(const char *upatch, const char *map_name,
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return -ENAMETOOLONG;
-	if ((size_t)snprintf(path, sizeof(path), "%s/%s/maps/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name)
-	    >= sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s/maps/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -768,9 +767,8 @@ static int open_serializer_pin(const char *upatch, const char *map_name)
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return -ENAMETOOLONG;
-	if ((size_t)snprintf(path, sizeof(path), "%s/%s/serializers/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) >=
-	    sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s/serializers/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -1269,9 +1267,9 @@ int upatch_maps_read_flags(const char *upatch, const char *map,
 			(__u32)nproc_possible() : 1;
 	resolve_map_location(out);
 	if (!upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch) &&
-	    (size_t)snprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) <
-	    sizeof(upatch_dir) && stat(upatch_dir, &upatch_st) == 0)
+	    strsprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= 0 &&
+	    stat(upatch_dir, &upatch_st) == 0)
 		out->lifetime_start_ns =
 			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
 			(__u64)upatch_st.st_ctim.tv_nsec;
@@ -1347,9 +1345,8 @@ static void scan_upatch_maps(const char *upatch,
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return;
-	if ((size_t)snprintf(dir, sizeof(dir), "%s/%s/maps",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
-	    sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/%s/maps",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return;
 	d = opendir(dir);
 	if (!d)
