@@ -6,8 +6,9 @@
 # enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
-# it lets through, the C library's integer names and number parsers it
-# refuses and the list of what stays enabled, on a throwaway repository.
+# it lets through, the C library's integer names, number parsers and
+# string copies it refuses and the list of what stays enabled, on a
+# throwaway repository.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -163,7 +164,7 @@ test_expect_success 'the userspace spellings checkpatch would reject pass' '
 	put user.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
 		"#include <string.h>" "" "#include <shirudo/misc.h>" "" \
 		"__u32 user(X509 *c, char *dst, const char *src)" "{" \
-		"	gzFile gz = NULL;" "" "	(void)gz;" "	strcpy(dst, src);" \
+		"	gzFile gz = NULL;" "" "	(void)gz;" "	strscpy(dst, src, 8);" \
 		"	return (__u32)ASN1_INTEGER_get(X509_get_serialNumber(c));" "}" &&
 	commit "a: userspace
 
@@ -182,6 +183,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "BLOCK_COMMENT_STYLE" "$W/out" &&
 	grep -qx "KERNEL_INT_TYPES" "$W/out" &&
 	grep -qx "NUMBER_PARSING" "$W/out" &&
+	grep -qx "STRING_COPY" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
 '
@@ -214,6 +216,27 @@ test_expect_success 'the C library'"'"'s number parsers are refused outside the 
 		"long arg(const char *s)" "{" "	return strtol(s, NULL, 10);" "}" &&
 	check --files testing/helper/args.c &&
 	rm -r "$R/testing"
+'
+
+test_expect_success 'strings are copied with strscpy() outside the tests' '
+	printf "%s\n" "/* strcpy() in a comment */" \
+		"static const char *op = \"strncpy(a, b, c)\";" "" \
+		"void copy(char *d, const char *s)" "{" "	strcpy(d, s);" \
+		"	snprintf(d, 8, \"%s\", s);" "	snprintf(d, 8, \"%d\", 1);" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_COPY: copy strings with strscpy() from <shirudo/string.h>, not strcpy()" "$W/out" &&
+	grep -q "^ERROR:STRING_COPY: copy strings with strscpy() from <shirudo/string.h>, not snprintf()" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_COPY" "$W/out")" = 2 ] &&
+	git -C "$R" checkout -q -- good.c &&
+	put tools/x/name.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"void name(char *d, const char *s)" "{" "	strncpy(d, s, 8);" "}" &&
+	! check --files tools/x/name.c &&
+	grep -q "^ERROR:STRING_COPY: copy strings with strscpy() from <shirudo/string.h>, not strncpy()" "$W/out" &&
+	put testing/helper/name.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"void name(char *d, const char *s)" "{" "	strcpy(d, s);" "}" &&
+	check --files testing/helper/name.c &&
+	rm -r "$R/tools" "$R/testing"
 '
 
 test_expect_success 'a BPF program keeps the kernel'"'"'s argument types' '

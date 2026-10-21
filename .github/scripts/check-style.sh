@@ -6,8 +6,9 @@
 # mode, over the C sources a commit touches and over its message, the way
 # cilium checks its BPF tree, plus the block-comment opener that checkpatch
 # leaves to the netdev trees, the kernel's spelling of fixed-width
-# integers and the project's number parsers. The kernel checks that have
-# no meaning in userspace are switched off below, each with its reason.
+# integers and the project's number parsers and string copies. The
+# kernel checks that have no meaning in userspace are switched off below,
+# each with its reason.
 #
 #   .github/scripts/check-style.sh [<rev-list arguments>]
 #   .github/scripts/check-style.sh --diff
@@ -89,10 +90,12 @@ ignored_types() {
 	# _Static_assert.
 	CAMELCASE
 	# It asks for the kernel-internal u32, which userspace does not have;
-	# check_int_types below asks for __u32 and its kin instead.
+	# check_spellings below asks for __u32 and its kin instead.
 	PREFER_KERNEL_TYPES
-	# strscpy, fallthrough;, __packed and the other compiler.h macros do
-	# not exist in userspace; BPF has what bpf_helpers.h defines.
+	# check_spellings below asks for the strscpy() of <shirudo/string.h>
+	# in tools/ too, which these leave out, and fallthrough;, __packed
+	# and the other compiler.h macros do not exist in userspace; BPF has
+	# what bpf_helpers.h defines.
 	STRCPY
 	STRNCPY
 	PREFER_FALLTHROUGH
@@ -182,8 +185,10 @@ locate_checkpatch() {
 # it takes, and util/sign.c is vendored. A call to strtoul() and its kin
 # or atoi() is reported too, outside the tests: a number is parsed with
 # parse_u64() and its kin from <shirudo/string.h>, which take a length,
-# read nothing past it and refuse a sign, blank or base prefix.
-check_int_types() {
+# read nothing past it and refuse a sign, blank or base prefix. So is a
+# string copied with strcpy() and its kin or with snprintf("%s") on one
+# line: strscpy() always terminates and says when it cut.
+check_spellings() {
 	awk '
 	function c_names_kept(f) {
 		return f ~ /^(bpf|upatches)\// || f ~ /\.bpf\.c$/ ||
@@ -268,6 +273,17 @@ check_int_types() {
 			fn = substr(code, RSTART, RLENGTH)
 			gsub(/[^A-Za-z0-9_]/, "", fn)
 			printf "ERROR:NUMBER_PARSING: parse numbers with parse_u64(), parse_s64() or parse_x64() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+				fn, NR, file, line, $0
+			bad = 1
+		}
+		if (!parsers_kept(file) &&
+		    (match(code, /(^|[^A-Za-z0-9_])str(n?cpy|n?cat|lcpy)[ \t]*\(/) ||
+		     (match(code, /(^|[^A-Za-z0-9_])snprintf[ \t]*\([^,]*,[^,]*,[ \t]*""[ \t]*,/) &&
+		      $0 ~ /"%s"[ \t]*,/))) {
+			fn = substr(code, RSTART, RLENGTH)
+			sub(/\(.*/, "", fn)
+			gsub(/[^A-Za-z0-9_]/, "", fn)
+			printf "ERROR:STRING_COPY: copy strings with strscpy() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
 				fn, NR, file, line, $0
 			bad = 1
 		}
@@ -373,7 +389,7 @@ check_patch() {
 		--quiet --show-types --ignore "$IGNORE" \
 		"$@" "$work/patch") >"$work/out" 2>&1 || rc=1
 	check_block_comments "$work/patch" >>"$work/out" || rc=1
-	check_int_types "$work/patch" >>"$work/out" || rc=1
+	check_spellings "$work/patch" >>"$work/out" || rc=1
 	annotate <"$work/out"
 	return $rc
 }
@@ -441,7 +457,8 @@ list_types() {
 	ignored_types | grep -v '^#' | sort >"$work/ignored"
 	{
 		comm -23 "$work/all" "$work/ignored"
-		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING
+		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING \
+			STRING_COPY
 	} | sort
 }
 

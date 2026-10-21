@@ -89,6 +89,11 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   they take a length, read nothing past it and refuse a sign, blank or
   base prefix. `check-style.sh` rejects `strtoul()` and its kin and
   `atoi()` outside `testing/`.
+- **Copy strings with `strscpy()`** from `<shirudo/string.h>`: it always
+  terminates and returns `-E2BIG` when it cut, which a caller checks
+  wherever a cut path or name would mean a different one.
+  `check-style.sh` rejects `strcpy()`, `strncpy()` and their kin and a
+  `snprintf(dst, size, "%s", src)` copy outside `testing/`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
