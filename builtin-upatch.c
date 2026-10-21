@@ -1461,9 +1461,10 @@ static int get_pin_payload(const char *name, __u8 out[32])
  * by its spec, or a staged user keyring by its own serial rather than
  * KEY_SPEC_USER_KEYRING, whose search recurses through all of _uid.0,
  * where root can link a certificate of their own. The frozen serial
- * also catches a same-named keyring substituted for the sealed one.
+ * also catches a same-named keyring substituted for the sealed one;
+ * *serial is the keyring's own serial either way, for the logs.
  */
-static int trust_anchor_keyring(key_serial_t *keyring,
+static int trust_anchor_keyring(key_serial_t *keyring, key_serial_t *serial,
 				struct shirudo_op_report *rep)
 {
 	struct shirudo_identity id;
@@ -1489,6 +1490,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 			return -1;
 		}
 		*keyring = KEY_SPEC_BPF_KEYRING;
+		*serial = ring;
 		return 0;
 	}
 	ring = keyring_find(SHIRUDO_KEYRING_NAME);
@@ -1509,6 +1511,7 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 		return -1;
 	}
 	*keyring = ring;
+	*serial = ring;
 	return 0;
 }
 
@@ -1542,7 +1545,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	struct shirudo_prog_spec *prog_specs = NULL;
 	const struct bpf_insn *insns;
 	const void *sig, *data;
-	key_serial_t keyring;
+	key_serial_t keyring, serial;
 	char prog_name[BPF_OBJ_NAME_LEN];
 	char upatch_name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char *vlog;			/* shared PROG_LOAD / TEST_RUN log_buf */
@@ -1589,7 +1592,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	if (trust_anchor_keyring(&keyring, rep)) {
+	if (trust_anchor_keyring(&keyring, &serial, rep)) {
 		rc = 1;
 		goto out;
 	}
@@ -1757,7 +1760,7 @@ static int upatch_apply(const char *path, bool verify_only,
 
 	pr_info("loaded signed loader: prog_fd=%d keyring=%d "
 		"sig=%uB insns=%zu data=%uB",
-		prog_fd, (int)keyring, u.hdr.signature_len, insn_cnt,
+		prog_fd, (int)serial, u.hdr.signature_len, insn_cnt,
 		u.hdr.data_len);
 
 	if (verify_only) {
@@ -1858,7 +1861,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	set_pin_payload(upatch_name, u.hdr.payload_sha256);
 
 	pr_audit("upatch load: name=%s keyring=%d progs=%u", upatch_name,
-		 (int)keyring, u.hdr.nr_progs);
+		 (int)serial, u.hdr.nr_progs);
 	if (rep)
 		rep->loader_return = (__s32)retval;
 	rc = 0;
@@ -1892,7 +1895,7 @@ static int upatch_preflight(const char *expect_chain,
 	__u8 want[SHIRUDO_CHAIN_DIGEST_LEN], have[SHIRUDO_CHAIN_DIGEST_LEN];
 	char have_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1];
 	char abi_detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX];
-	key_serial_t keyring;
+	key_serial_t keyring, serial;
 	int fd, rc;
 
 	rc = kernel_abi_check(abi_detail, sizeof(abi_detail));
@@ -1904,7 +1907,7 @@ static int upatch_preflight(const char *expect_chain,
 		return rc;
 	}
 
-	if (trust_anchor_keyring(&keyring, rep))
+	if (trust_anchor_keyring(&keyring, &serial, rep))
 		return -1;
 
 	fd = bpf_obj_get(SHIRUDO_LSM_LINK_PIN);
