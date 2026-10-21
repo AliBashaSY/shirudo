@@ -735,6 +735,10 @@ testing/fuzz/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
 testing/fuzz/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
                        util/crypto_openssl.c util/io.c util/seal.c
+testing/fuzz/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
+                           util/upatch_decode.c util/upatch.c util/io.c
+testing/fuzz/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DSHIRUDO_HAVE_LUAJIT
+testing/fuzz/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c
@@ -766,6 +770,7 @@ testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
 testing/fuzz/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
 testing/fuzz/fuzz-kernel: FUZZ_INCLUDED := util/kmsg.c
 testing/fuzz/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
+testing/fuzz/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
