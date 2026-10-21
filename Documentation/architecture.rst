@@ -559,9 +559,11 @@ sorted.  ``tree append`` fetches and verifies the current publication
 pushes each artifact as a manifest tagged ``upatch-<id>-<payload16>``,
 appends one operation per entry with ``seq = head + 1``, and
 republishes with ``generation + 1`` and ``parent_manifest_digest`` set
-to the manifest it replaced.  A ``delete`` publishes the entry's unload
-directive and is accepted by a target only for an id it loaded from the
-same tree.
+to the manifest it replaced.  A publication with a number outside the
+signed 64-bit range, or a ``generation`` or ``head`` at its top that
+leaves no successor, is refused.  A ``delete`` publishes the entry's
+unload directive and is accepted by a target only for an id it loaded
+from the same tree.
 
 
 9) Observability

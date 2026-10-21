@@ -166,8 +166,9 @@ static int tp_int(struct tree_parser *p, int64_t *out)
 	long long v;
 
 	tp_ws(p);
+	errno = 0;
 	v = strtoll(p->p, &end, 10);
-	if (end == p->p || end > p->end)
+	if (end == p->p || end > p->end || errno == ERANGE)
 		return -EINVAL;
 	p->p = end;
 	*out = (int64_t)v;
@@ -565,12 +566,15 @@ int shirudo_tree_parse(const char *body, size_t len,
 	if (p.p != p.end || !seen_schema || !seen_generation || !seen_base ||
 	    !seen_base_seq || !seen_operations || !seen_head || !seen_head_seq ||
 	    schema != 2 || !out->tree_id[0] ||
-	    out->generation < 0 || out->base_seq < 0 || out->head_seq < out->base_seq) {
+	    out->generation < 0 || out->generation == INT64_MAX ||
+	    out->base_seq < 0 || out->head_seq < out->base_seq ||
+	    out->head_seq == INT64_MAX) {
 		rc = -EINVAL;
 		goto fail;
 	}
+	/* Every operation's seq is positive, so seq - 1 cannot overflow. */
 	for (int i = 0; i < out->n_operations; i++) {
-		if (i && out->operations[i].seq != out->operations[i - 1].seq + 1) {
+		if (i && out->operations[i].seq - 1 != out->operations[i - 1].seq) {
 			rc = -EINVAL;
 			goto fail;
 		}
