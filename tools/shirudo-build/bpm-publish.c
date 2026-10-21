@@ -18,6 +18,7 @@
 #include <curl/curl.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm.h"
 #include "bpm_oci.h"
@@ -401,8 +402,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	manifest_len = e.len;
 	manifest = (__u8 *)manifest_body;
 	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
-	    snprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) >=
-	    (int)sizeof(package_digest)) {
+	    strsprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) < 0) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -460,8 +460,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	key_manifest_len = e.len;
 	if (bpm_sha256_hex(key_manifest_body, key_manifest_len, hex,
 			   sizeof(hex)) ||
-	    snprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) >=
-	    (int)sizeof(key_digest)) {
+	    strsprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) < 0) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -482,8 +481,8 @@ static int push_package(const char *package_path, const char *raw_repository,
 				  sizeof(package_digest));
 	if (rc)
 		goto out;
-	if (snprintf(reference, sizeof(reference), "oci://%s/%s:%s",
-		     c.registry, repository, info.version) >= (int)sizeof(reference)) {
+	if (strsprintf(reference, sizeof(reference), "oci://%s/%s:%s",
+		       c.registry, repository, info.version) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
@@ -568,8 +567,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 		       unload ? "load" : "unload", name);
 		return rc;
 	}
-	if (snprintf(tag, sizeof(tag), "upatch-%s-%.16s", id, hex) >=
-	    (int)sizeof(tag) || strlen(tag) > 128)
+	if (strsprintf(tag, sizeof(tag), "upatch-%s-%.16s", id, hex) < 0 || strlen(tag) > 128)
 		return -ENAMETOOLONG;
 	snprintf(title, sizeof(title), "%s.upatch", id);
 	rc = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,

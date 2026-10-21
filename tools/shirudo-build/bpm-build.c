@@ -340,12 +340,12 @@ static int build_default_targets(struct bpm_build_upatch *u)
 	if (!*base)
 		return -EINVAL;
 	if (!u->load_target[0] &&
-	    snprintf(u->load_target, sizeof(u->load_target),
-		     "upatches/%s.upatch", base) >= (int)sizeof(u->load_target))
+	    strsprintf(u->load_target, sizeof(u->load_target),
+		       "upatches/%s.upatch", base) < 0)
 		return -ENAMETOOLONG;
-	if (!u->unload_target[0] && snprintf(u->unload_target,
-					     sizeof(u->unload_target), "upatches/%s.unload.upatch",
-					     base) >= (int)sizeof(u->unload_target))
+	if (!u->unload_target[0] && strsprintf(u->unload_target,
+					       sizeof(u->unload_target), "upatches/%s.unload.upatch",
+					       base) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -630,7 +630,7 @@ static int build_resolve_source(const struct bpm_build_spec *spec,
 	if (!source[0] || source[0] == '/' || strstr(source, "../") ||
 	    !strcmp(source, ".."))
 		return -EINVAL;
-	if (snprintf(path, sizeof(path), "%s/%s", spec->scope, source) >= (int)sizeof(path) ||
+	if (strsprintf(path, sizeof(path), "%s/%s", spec->scope, source) < 0 ||
 	    stat(path, st) || !S_ISREG(st->st_mode) || !build_within(spec->scope, path) ||
 	    !realpath(path, out))
 		return errno ? -errno : -EINVAL;
@@ -700,7 +700,7 @@ static int build_validate(struct bpm_build_spec *spec)
 
 static int build_join(char *out, size_t cap, const char *dir, const char *name)
 {
-	return snprintf(out, cap, "%s/%s", dir, name) >= (int)cap ? -ENAMETOOLONG : 0;
+	return strsprintf(out, cap, "%s/%s", dir, name) < 0 ? -ENAMETOOLONG : 0;
 }
 
 static int build_entry_name(char *out, size_t cap, const char *top,
@@ -749,9 +749,8 @@ static int build_stage_open(struct bpm_build_spec *spec)
 
 	if (!tmpdir || !tmpdir[0])
 		tmpdir = "/tmp";
-	if (snprintf(spec->stage, sizeof(spec->stage),
-		     "%s/shirudo-bpm-build.XXXXXX", tmpdir) >=
-	    (int)sizeof(spec->stage))
+	if (strsprintf(spec->stage, sizeof(spec->stage),
+		       "%s/shirudo-bpm-build.XXXXXX", tmpdir) < 0)
 		return -ENAMETOOLONG;
 	if (!mkdtemp(spec->stage))
 		return -errno;
@@ -796,10 +795,10 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		if (build_resolve_source(spec, u->source, source, sizeof(source),
 					 &(struct stat){}))
 			return -EINVAL;
-		if (snprintf(load, sizeof(load), "%s/%zu.upatch", spec->stage,
-			     i) >= (int)sizeof(load) ||
-		    snprintf(unload, sizeof(unload), "%s/%zu.unload.upatch",
-			     spec->stage, i) >= (int)sizeof(unload))
+		if (strsprintf(load, sizeof(load), "%s/%zu.upatch", spec->stage,
+			       i) < 0 ||
+		    strsprintf(unload, sizeof(unload), "%s/%zu.unload.upatch",
+			       spec->stage, i) < 0)
 			return -ENAMETOOLONG;
 		strscpy(u->load_path, load, sizeof(u->load_path));
 		strscpy(u->unload_path, unload, sizeof(u->unload_path));
@@ -813,8 +812,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 					return -ENOENT;
 				}
 			}
-			if (snprintf(object, sizeof(object), "%s.bpf.o", load) >=
-			    (int)sizeof(object))
+			if (strsprintf(object, sizeof(object), "%s.bpf.o", load) < 0)
 				return -ENAMETOOLONG;
 			rc = shirudo_build_compile(source, object, vmlinux_h, NULL);
 			if (rc) {
@@ -990,8 +988,8 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 	struct bpm_tar tar;
 	int rc;
 
-	if (snprintf(top, sizeof(top), "%s-%s", spec->name, version) >= (int)sizeof(top) ||
-	    snprintf(output, sizeof(output), "%s/%s.bee", out_dir, top) >= (int)sizeof(output))
+	if (strsprintf(top, sizeof(top), "%s-%s", spec->name, version) < 0 ||
+	    strsprintf(output, sizeof(output), "%s/%s.bee", out_dir, top) < 0)
 		return -ENAMETOOLONG;
 	if (build_environment(spec, version, fingerprint, &environment,
 			      &environment_len))
@@ -1091,7 +1089,7 @@ static const char *build_resolve_keys_dir(const char *arg, char *out, size_t cap
 	if (!arg || !*arg)
 		arg = keys_dir_resolve(NULL);
 	if (arg[0] == '~' && (!arg[1] || arg[1] == '/')) {
-		if (!home || snprintf(out, cap, "%s%s", home, arg + 1) >= (int)cap)
+		if (!home || strsprintf(out, cap, "%s%s", home, arg + 1) < 0)
 			return NULL;
 		return out;
 	}

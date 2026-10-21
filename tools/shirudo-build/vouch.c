@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm.h"
 #include "util/crypto.h"
@@ -148,8 +149,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 	if (shirudo_build_check_keys(pkey, cert))
 		return 1;
 	if (!output) {
-		if (snprintf(out_path, sizeof(out_path), "%s.vouch", input) >=
-		    (int)sizeof(out_path)) {
+		if (strsprintf(out_path, sizeof(out_path), "%s.vouch", input) < 0) {
 			pr_err("keys vouch: output path too long");
 			return 2;
 		}

@@ -108,14 +108,12 @@ static int ends_with(const char *s, const char *suf)
 static int derive_output(const char *input, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(input);
-	int len;
 
 	if (stem > 2 && (strcmp(input + stem - 2, ".c") == 0 ||
 			 strcmp(input + stem - 2, ".o") == 0))
 		stem -= 2;
 
-	len = snprintf(buf, buf_sz, "%.*s.upatch", (int)stem, input);
-	if (len < 0 || (size_t)len >= buf_sz)
+	if (strsprintf(buf, buf_sz, "%.*s.upatch", (int)stem, input) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -124,13 +122,11 @@ static int derive_output(const char *input, char *buf, size_t buf_sz)
 static int derive_artifact_o(const char *output, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(output);
-	int len;
 
 	if (stem > 7 && strcmp(output + stem - 7, ".upatch") == 0)
 		stem -= 7;
 
-	len = snprintf(buf, buf_sz, "%.*s.o", (int)stem, output);
-	if (len < 0 || (size_t)len >= buf_sz)
+	if (strsprintf(buf, buf_sz, "%.*s.o", (int)stem, output) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -330,10 +326,8 @@ int main(int argc, char **argv)
 		}
 
 		if (!output) {
-			int len = snprintf(output_buf, sizeof(output_buf),
-					   "%s.unload.upatch", unload_name);
-
-			if (len < 0 || (size_t)len >= sizeof(output_buf)) {
+			if (strsprintf(output_buf, sizeof(output_buf),
+				       "%s.unload.upatch", unload_name) < 0) {
 				pr_err("derived output path too long for '%s'",
 				       unload_name);
 				return 1;
