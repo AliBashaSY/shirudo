@@ -1577,7 +1577,13 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		TREE_SYNC_RETURN(-EINVAL);
 	if (have_state && !same_manifest && pub.generation <= state.generation)
 		TREE_SYNC_RETURN(-ERANGE);
-	if (have_state && !same_manifest && pub.parent_manifest_digest[0] &&
+	/*
+	 * Only a direct successor names the manifest this target recorded
+	 * as its parent; one that missed a generation never saw the parent.
+	 */
+	if (have_state && !same_manifest &&
+	    pub.generation == state.generation + 1 &&
+	    pub.parent_manifest_digest[0] &&
 	    strcmp(pub.parent_manifest_digest, state.manifest_digest))
 		TREE_SYNC_RETURN(-ERANGE);
 	if (have_state && pub.head_seq < state.last_seq)
