@@ -95,4 +95,32 @@ test_expect_success 'unterminated array -> EINVAL (no crash)' '
 	printf "%s" "{\"names\":[\"a\",\"b\"" | ./$H | grep -qx "rc=-22"
 '
 
+test_expect_success 'an integer field takes an integer as JSON spells one' '
+	for v in 1.9 1e9 1E9 7-3 1+1 - . 01 -01 1. .5 1e --1 0x1 +1; do
+		printf "%s" "{\"schema\":$v}" | ./$H | grep -qx "rc=-22" ||
+			return 1
+	done
+'
+
+test_expect_success 'an integer field holds any __s64 and nothing past it' '
+	printf "%s" "{\"schema\":-9223372036854775808}" | ./$H |
+		grep -q "schema=-9223372036854775808 " &&
+	printf "%s" "{\"schema\":9223372036854775807}" | ./$H |
+		grep -q "schema=9223372036854775807 " &&
+	printf "%s" "{\"schema\":-0}" | ./$H | grep -q "schema=0 " &&
+	printf "%s" "{\"schema\":9223372036854775808}" | ./$H |
+		grep -qx "rc=-22" &&
+	printf "%s" "{\"schema\":-9223372036854775809}" | ./$H |
+		grep -qx "rc=-22"
+'
+
+test_expect_success 'a number in a discarded value follows the grammar too' '
+	printf "%s" "{\"x\":[1.5e+10,-0.0E-1,2e5,0],\"schema\":2}" | ./$H |
+		grep -q "schema=2 " &&
+	for v in 1. 01 1e+ -.5 1.e5; do
+		printf "%s" "{\"x\":$v,\"schema\":2}" | ./$H |
+			grep -qx "rc=-22" || return 1
+	done
+'
+
 test_done

@@ -7,11 +7,12 @@
  */
 
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "hex.h"
 #include "json.h"
@@ -558,38 +559,50 @@ static int lit(struct pctx *c, const char *s)
 	return 0;
 }
 
+static int skip_digits(struct pctx *c)
+{
+	size_t n = shirudo_digits(c->p, (size_t)(c->end - c->p));
+
+	c->p += n;
+	return n ? 0 : -EINVAL;
+}
+
+/*
+ * A number as JSON spells one: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)?
+ * An integer field takes the integer part alone, and only within __s64.
+ */
 static int parse_number(struct pctx *c, struct shirudo_json_field *f)
 {
 	const char *start = c->p;
+	const char *int_end;
 
 	if (c->p < c->end && *c->p == '-')
 		c->p++;
-	while (c->p < c->end && ((*c->p >= '0' && *c->p <= '9') ||
-				 *c->p == '.' || *c->p == 'e' ||
-				 *c->p == 'E' || *c->p == '+' || *c->p == '-'))
+	if (c->p < c->end && *c->p == '0')
 		c->p++;
-	if (c->p == start)
+	else if (skip_digits(c))
 		return -EINVAL;
-	if (f) {
-		char numbuf[32];
-		size_t nlen = (size_t)(c->p - start);
-
-		if (f->type != SHIRUDO_JSON_T_INT)
+	int_end = c->p;
+	if (c->p < c->end && *c->p == '.') {
+		c->p++;
+		if (skip_digits(c))
 			return -EINVAL;
-		/*
-		 * strtoll scans to a non-numeric byte or NUL; the input
-		 * buffer is not guaranteed NUL-terminated (the API is
-		 * (data, len)), so copy the already-bounded token into a
-		 * NUL-terminated scratch first. A token too long to be a
-		 * valid int64 is rejected rather than read.
-		 */
-		if (nlen >= sizeof(numbuf))
-			return -EINVAL;
-		memcpy(numbuf, start, nlen);
-		numbuf[nlen] = '\0';
-		*(__s64 *)f->dst = (__s64)strtoll(numbuf, NULL, 10);
-		f->seen = 1;
 	}
+	if (c->p < c->end && (*c->p == 'e' || *c->p == 'E')) {
+		c->p++;
+		if (c->p < c->end && (*c->p == '+' || *c->p == '-'))
+			c->p++;
+		if (skip_digits(c))
+			return -EINVAL;
+	}
+	if (!f)
+		return 0;
+	if (f->type != SHIRUDO_JSON_T_INT || c->p != int_end)
+		return -EINVAL;
+	if (parse_s64(start, (size_t)(int_end - start), INT64_MIN, INT64_MAX,
+		      f->dst))
+		return -EINVAL;
+	f->seen = 1;
 	return 0;
 }
 

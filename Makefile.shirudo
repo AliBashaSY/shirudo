@@ -550,7 +550,8 @@ TEST_HELPERS := testing/helper/test-json-parser \
                 testing/helper/test-exec-churn \
 		testing/upatch/kernel-obs/exec/exec-paths
 
-testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o util/malloc.o
+testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o \
+                                 util/string.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 testing/helper/test-string: testing/helper/test-string.c util/string.o util/malloc.o
@@ -565,8 +566,8 @@ testing/helper/test-string: testing/helper/test-string.c util/string.o util/mall
 # label writer and the JSON codec.
 REGISTER_OBJS := util/chain.o util/tpm.o util/tpm_wire.o util/eventlog.o \
                  util/timefmt.o \
-                 util/hex.o util/crypto_openssl.o util/json.o util/io.o \
-                 util/seal.o util/config.o util/log.o util/malloc.o \
+                 util/hex.o util/crypto_openssl.o util/json.o util/string.o \
+                 util/io.o util/seal.o util/config.o util/log.o util/malloc.o \
                  util/initrd.o $(VERSION_OBJ)
 REGISTER_LIBS := $(LIBCRYPTO_LIBS) $(LIBSSL_LIBS) $(TSS2_LIBS)
 
@@ -646,7 +647,7 @@ testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o 
                         util/upatch_maps_otel.o util/crypto_openssl.o \
                         util/tls_openssl.o util/serializer.o util/seal.o \
                         util/upatch_decode.o util/upatch_resolve.o \
-                        util/upatch.o util/json.o util/log.o \
+                        util/upatch.o util/json.o util/string.o util/log.o \
                         util/io.o util/malloc.o $(LIBBPF_A) util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
@@ -663,7 +664,8 @@ testing/helper/test-upatch-prog-metadata: testing/helper/test-upatch-prog-metada
 testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializer-pages.c \
                                        util/upatch_maps.o util/upatch_resolve.o \
                                        util/serializer.o util/seal.o \
-                                       util/json.o util/malloc.o util/io.o \
+                                       util/json.o util/string.o \
+                                       util/malloc.o util/io.o \
                                        util/log.o util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
@@ -696,7 +698,8 @@ FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
                $(LIBCRYPTO_CFLAGS) $(LIBCURL_CFLAGS) $(ZLIB_CFLAGS)
 FUZZ_LIBS := $(LIBCRYPTO_LIBS) $(LIBSSL_LIBS) $(LIBCURL_LIBS) $(ZLIB_LIBS)
-FUZZ_BASE := util/json.c util/hex.c util/malloc.c testing/fuzz/log.c
+FUZZ_BASE := util/json.c util/string.c util/hex.c util/malloc.c \
+             testing/fuzz/log.c
 FUZZ_OCI := util/bpm_oci.c util/io.c util/seal.c util/crypto_openssl.c \
             util/tls_openssl.c
 FUZZ_PACKAGE := util/bpm_package.c util/bpm_tree.c $(FUZZ_OCI)
