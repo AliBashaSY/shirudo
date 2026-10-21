@@ -5,6 +5,7 @@ of the shirudo project:
 
  * [Daniel Borkmann] (Isovalent)
  * [John Fastabend] (Isovalent)
+ * [KP Singh]
  * [Michi Mutsuzaki] (Isovalent)
 
 # Reporting a Vulnerability
@@ -31,4 +32,5 @@ signed off on commits in the shirudo project:
 
 [John Fastabend]: https://github.com/jrfastab
 [Daniel Borkmann]: https://github.com/borkmann
+[KP Singh]: https://github.com/sinkap
 [Michi Mutsuzaki]: https://github.com/michi-covalent
