@@ -1756,6 +1756,26 @@ static int trust_anchor_keyring(key_serial_t *keyring,
 	return 0;
 }
 
+/*
+ * The loader hands the programs and maps it created over to the caller,
+ * whose pins keep them once attached; boot restore applies every archived
+ * upatch in one process.
+ */
+static void close_loader_fds(const struct shirudo_loader_ctx *cx,
+			     uint32_t nr_maps, uint32_t nr_progs)
+{
+	const struct shirudo_map_desc *md = (const void *)(cx + 1);
+	const struct shirudo_prog_desc *pd = (const void *)(md + nr_maps);
+	uint32_t i;
+
+	for (i = 0; i < nr_maps; i++)
+		if (md[i].map_fd > 0)
+			close(md[i].map_fd);
+	for (i = 0; i < nr_progs; i++)
+		if (pd[i].prog_fd > 0)
+			close(pd[i].prog_fd);
+}
+
 /* Shared by `upatch load` and boot restore: one signature-verified path. */
 static int upatch_apply(const char *path, bool verify_only,
 			struct shirudo_op_report *rep)
@@ -2086,6 +2106,8 @@ static int upatch_apply(const char *path, bool verify_only,
 out:
 	prog_specs_free(prog_specs, u.hdr.nr_progs);
 	xfree(vlog, SHIRUDO_VERIFIER_LOG_MAX);
+	if (cx)
+		close_loader_fds(cx, u.hdr.nr_maps, u.hdr.nr_progs);
 	xfree(cx, ctx_sz);
 	if (prog_fd >= 0)
 		close(prog_fd);
