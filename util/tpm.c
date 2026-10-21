@@ -14,6 +14,7 @@
 #include <tss2/tss2_tctildr.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "config.h"
 #include "log.h"
@@ -30,16 +31,34 @@ struct shirudo_tpm {
 	ESYS_CONTEXT		*esys;
 };
 
-int tpm_open(struct shirudo_tpm **out)
+/*
+ * The env, then the file, then /dev/tpmrm0. An override is for VMs,
+ * CI and a software TPM; it cannot defeat the operator-side guarantee,
+ * since evidence is signed by the key the operator pinned.
+ */
+int tpm_tcti(char *buf, size_t size)
 {
 	struct shirudo_config cfg = {};
-	struct shirudo_tpm *t;
 	const char *tcti;
-	TSS2_RC rc;
+	ssize_t n;
 
-	t = xcalloc(1, sizeof(*t));
-	if (!t)
-		return -ENOMEM;
+	tcti = getenv("SHIRUDO_TPM_TCTI");
+	if ((!tcti || !*tcti) && config_load(&cfg) == 0 &&
+	    cfg.tpm_tcti[0])
+		tcti = cfg.tpm_tcti;
+	if (!tcti || !*tcti)
+		tcti = "device:/dev/tpmrm0";
+	n = strscpy(buf, tcti, size);
+	explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
+	return n < 0 ? (int)n : 0;
+}
+
+int tpm_open(struct shirudo_tpm **out)
+{
+	char tcti[SHIRUDO_TPM_TCTI_MAX];
+	struct shirudo_tpm *t;
+	TSS2_RC rc;
+	int err;
 
 	/*
 	 * Quiet libtss2's own stderr logging (it screams ERROR on the
@@ -49,24 +68,20 @@ int tpm_open(struct shirudo_tpm **out)
 	 */
 	setenv("TSS2_LOG", "all+none", 0);
 
-	/*
-	 * The env, then the file, then /dev/tpmrm0. An override is for VMs,
-	 * CI and a software TPM; it cannot defeat the operator-side guarantee,
-	 * since evidence is signed by the key the operator pinned.
-	 */
-	tcti = getenv("SHIRUDO_TPM_TCTI");
-	if ((!tcti || !*tcti) && config_load(&cfg) == 0 &&
-	    cfg.tpm_tcti[0])
-		tcti = cfg.tpm_tcti;
-	if (!tcti || !*tcti)
-		tcti = "device:/dev/tpmrm0";
+	err = tpm_tcti(tcti, sizeof(tcti));
+	if (err) {
+		pr_err("tpm: the TCTI is longer than %d bytes",
+		       SHIRUDO_TPM_TCTI_MAX - 1);
+		return err;
+	}
 
+	t = xcalloc(1, sizeof(*t));
+	if (!t)
+		return -ENOMEM;
 	rc = Tss2_TctiLdr_Initialize(tcti, &t->tcti);
-	if (rc != TSS2_RC_SUCCESS)
+	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: TctiLdr_Initialize(%s): rc=0x%08x", tcti,
 		       (__u32)rc);
-	explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
-	if (rc != TSS2_RC_SUCCESS) {
 		xfree(t, sizeof(*t));
 		return -EIO;
 	}

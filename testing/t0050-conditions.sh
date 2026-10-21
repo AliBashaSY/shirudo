@@ -3,8 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0050 -- util/conditions.c: the KeyringSealed condition names the kind
-# of keyring the anchor is in, and a keyring other than the one init
-# froze, or none where it froze one, makes the status tampered.
+# of keyring the anchor is in, a keyring other than the one init froze,
+# or none where it froze one, makes the status tampered, and the register
+# conditions tell a TPM that does not answer from one with no register.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -61,6 +62,27 @@ test_expect_success 'with the LSM off a gone keyring is still tampered' '
 test_expect_success 'a register mismatch is the reason given first' '
 	./$H 1 user -1 200 mismatch |
 		grep -qx "reason=live register != eventlog replay"
+'
+
+test_expect_success 'no TPM answering is told apart from an unbound register' '
+	out=$(./$H 1 bpf 100 100 notpm) &&
+	echo "$out" | grep -qx "status=degraded" &&
+	echo "$out" | grep -qx "reason=no TPM answered" &&
+	echo "$out" | grep -qx "ChainIntact WARN no TPM answered, no register to replay" &&
+	echo "$out" | grep -qx "TpmMeasured WARN no TPM answered"
+'
+
+test_expect_success 'a TPM without a register this boot says so' '
+	out=$(./$H 1 bpf 100 100 none) &&
+	echo "$out" | grep -qx "status=degraded" &&
+	echo "$out" | grep -qx "reason=no register bound this boot" &&
+	echo "$out" | grep -qx "ChainIntact WARN no register bound this boot (init incomplete)" &&
+	echo "$out" | grep -qx "TpmMeasured WARN NV index 0x01818E00 not bound this boot"
+'
+
+test_expect_success 'a bound register is measured' '
+	./$H 1 bpf 100 100 match |
+		grep -qx "TpmMeasured OK NV index 0x01818E00 readable"
 '
 
 test_done

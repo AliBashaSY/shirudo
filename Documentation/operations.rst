@@ -76,6 +76,10 @@ machine-readable one.  The fields that matter day to day:
     up), ``staging`` (enforcement up, certificate in the user keyring
     until the next reboot) or ``inactive`` (``init`` has not run).
 
+``tpm.reachable``
+    Whether a TPM answered on the TCTI, which the human report names on
+    its ``TPM:`` line.
+
 ``tpm.bound_in``
     ``initrd`` or ``root``: where the register was bound.  Production
     means ``initrd``.
@@ -103,7 +107,8 @@ Conditions
            shirudo did not record.
        * - ``TpmMeasured``
          - ``WARN`` when no register is bound this boot
-           (``init-pending``) or the TPM cannot be read.
+           (``init-pending``) or no TPM answers; the detail says
+           which.
 
 ``keyring_serial`` and ``keyring_serial_pinned``
     The live keyring and the one frozen at ``init``; they match on a

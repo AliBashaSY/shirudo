@@ -71,7 +71,9 @@ size_t conditions(const struct shirudo_conditions_input *in,
 		if (!in->chain_seen) {
 			c[n].status = "WARN";
 			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "no TPM register (init incomplete or TPM lost)");
+				 in->tpm_reachable ?
+				 "no register bound this boot (init incomplete)" :
+				 "no TPM answered, no register to replay");
 		} else if (in->cm_seen && in->chain_matches) {
 			c[n].status = "OK";
 			snprintf(c[n].detail, sizeof(c[n].detail),
@@ -94,9 +96,13 @@ size_t conditions(const struct shirudo_conditions_input *in,
 			snprintf(c[n].detail, sizeof(c[n].detail),
 				 "NV index %s readable",
 				 in->nv_index ? in->nv_index : "?");
+		else if (in->tpm_reachable)
+			snprintf(c[n].detail, sizeof(c[n].detail),
+				 "NV index %s not bound this boot",
+				 in->nv_index ? in->nv_index : "?");
 		else
 			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "not measured");
+				 "no TPM answered");
 		n++;
 	}
 	return n;
@@ -155,6 +161,7 @@ void status_reason(const struct shirudo_conditions_input *in,
 	} else if (strcmp(v, "init-pending") == 0) {
 		snprintf(buf, cap, "target hasn't been `shirudo init`'d");
 	} else if (strcmp(v, "degraded") == 0) {
-		snprintf(buf, cap, "no TPM register (unmeasured)");
+		snprintf(buf, cap, in->tpm_reachable ?
+			 "no register bound this boot" : "no TPM answered");
 	}
 }

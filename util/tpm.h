@@ -22,6 +22,7 @@
 
 struct shirudo_tpm;
 
+int tpm_tcti(char *buf, size_t size);
 int tpm_open(struct shirudo_tpm **out);
 void tpm_close(struct shirudo_tpm *t);
 

@@ -6,10 +6,11 @@
  * derives from what it reads off the host.
  *
  *   test-conditions <lsm 0|1> <bpf|user|none> <serial> <pinned> \
- *                   <none|match|mismatch>
+ *                   <notpm|none|match|mismatch>
  *
  * serial is the live keyring's, -1 when it is absent; pinned the one init
- * froze, 0 when it froze none; the last word the register's replay.
+ * froze, 0 when it froze none; the last word the register's replay, with
+ * notpm for no TPM answering and none for no register bound.
  */
 
 #include <stdint.h>
@@ -38,7 +39,7 @@ int main(int argc, char **argv)
 	if (argc != 6 || arg_s64(argv[1], &lsm) || arg_s64(argv[3], &serial) ||
 	    arg_s64(argv[4], &pinned)) {
 		fprintf(stderr, "usage: test-conditions <lsm> <mode> <serial> "
-			"<pinned> <none|match|mismatch>\n");
+			"<pinned> <notpm|none|match|mismatch>\n");
 		return 2;
 	}
 	mode = argv[2];
@@ -55,7 +56,8 @@ int main(int argc, char **argv)
 	in.ksp_seen = pinned >= 1;
 	in.ksm_seen = in.keyring_present && pinned >= 1;
 	in.keyring_serial_matches = in.ksm_seen && serial == pinned;
-	in.chain_seen = strcmp(argv[5], "none") != 0;
+	in.tpm_reachable = strcmp(argv[5], "notpm") != 0;
+	in.chain_seen = in.tpm_reachable && strcmp(argv[5], "none") != 0;
 	in.cm_seen = in.chain_seen;
 	in.chain_matches = !strcmp(argv[5], "match");
 	in.nv_index = "0x01818E00";

@@ -51,6 +51,7 @@
 #include "util/format.h"
 #include "util/sysinfo.h"
 #include "util/timefmt.h"
+#include "util/tpm.h"
 #include "util/upatch_maps.h"
 #include "util/upatch_maps_otel.h"
 #include "util/tamper.h"
@@ -435,7 +436,7 @@ static void local_cond_input(struct shirudo_conditions_input *in,
 			     __s64 keyring_serial,
 			     __s64 keyring_serial_pinned,
 			     int ks_seen, int ksp_seen, int ksm_seen,
-			     int ks_matches,
+			     int ks_matches, int tpm_reachable,
 			     int chain_seen, int chain_matches, int cm_seen,
 			     const char *nv_index)
 {
@@ -449,6 +450,7 @@ static void local_cond_input(struct shirudo_conditions_input *in,
 		.keyring_serial		= keyring_serial,
 		.keyring_serial_pinned	= keyring_serial_pinned,
 		.keyring_serial_matches	= ks_matches,
+		.tpm_reachable		= tpm_reachable,
 		.ks_seen		= ks_seen,
 		.ksp_seen		= ksp_seen,
 		.ksm_seen		= ksm_seen,
@@ -542,6 +544,7 @@ int cmd_status(int argc, const char **argv)
 	char chain_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
 	char name_hex[2 * SHIRUDO_TPM_NAME_LEN + 1] = "";
 	struct chain_status cst = {};
+	char tcti[SHIRUDO_TPM_TCTI_MAX];
 	char nv_index[16];
 	char *json_buf = NULL;
 	size_t json_cap = 0;
@@ -684,6 +687,8 @@ int cmd_status(int argc, const char **argv)
 
 	{
 		snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+		if (tpm_tcti(tcti, sizeof(tcti)))
+			strscpy(tcti, "?", sizeof(tcti));
 		chain_rc = chain_status(&cst);
 		if (chain_rc == 0 && !(cst.defined && cst.written))
 			chain_rc = -ENODEV;
@@ -765,7 +770,7 @@ int cmd_status(int argc, const char **argv)
 					 keyring_present && keyring_pinned >= 1,
 					 keyring_present && keyring_pinned >= 1 &&
 					 keyring_serial == keyring_pinned,
-					 chain_rc == 0,
+					 cst.tpm, chain_rc == 0,
 					 match == 1, match >= 0,
 					 nv_index);
 			otel_status = status_verdict(&cin);
@@ -875,6 +880,7 @@ int cmd_status(int argc, const char **argv)
 			sysinfo_emit_json(&e, &sysi);
 		{
 			json_obj_open_key(&e, "tpm");
+			json_kv_bool(&e, "reachable", cst.tpm);
 			json_kv_string(&e, "nv_index", nv_index);
 			if (chain_rc == 0)
 				json_kv_string(&e, "chain", chain_hex);
@@ -1054,7 +1060,7 @@ int cmd_status(int argc, const char **argv)
 				 keyring_present && keyring_pinned >= 1,
 				 keyring_present && keyring_pinned >= 1 &&
 				 keyring_serial == keyring_pinned,
-				 chain_rc == 0,
+				 cst.tpm, chain_rc == 0,
 				 match == 1, match >= 0,
 				 nv_index);
 		verdict = status_verdict(&cin);
@@ -1156,6 +1162,8 @@ int cmd_status(int argc, const char **argv)
 
 		{
 			printf("\nTPM Measurement:\n");
+			printf("  %-18s %s (%s)\n", "TPM:",
+			       cst.tpm ? "reachable" : "NOT reachable", tcti);
 			printf("  %-18s %s (anchored in PCR %u)\n", "NV index:",
 			       nv_index, SHIRUDO_CHAIN_PCR);
 			if (chain_rc == 0) {
@@ -1165,10 +1173,16 @@ int cmd_status(int argc, const char **argv)
 				printf("  %-18s %s\n", "Anchored:",
 				       cst.anchored ? "yes (name on record)" :
 				       "NO (index is not the one init bound)");
-			} else {
+			} else if (!cst.tpm) {
 				printf("  %-18s %s\n", "Chain:",
-				       "unavailable (no TPM / register not "
-				       "bound this boot)");
+				       "unavailable (no TPM answered)");
+			} else if (chain_rc == -ENODEV) {
+				printf("  %-18s %s\n", "Chain:",
+				       "unavailable (register not bound this "
+				       "boot)");
+			} else {
+				printf("  %-18s unavailable (TPM error: %s)\n",
+				       "Chain:", strerror(-chain_rc));
 			}
 			if (cst.logged) {
 				printf("  %-18s %s\n", "PCR before init:",

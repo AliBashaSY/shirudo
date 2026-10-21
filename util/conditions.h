@@ -31,6 +31,7 @@ struct shirudo_conditions_input {
 	__s64		keyring_serial_pinned;
 	int		keyring_serial_matches;	/* 0/1 if ksm_seen */
 	int		ks_seen, ksp_seen, ksm_seen;
+	int		tpm_reachable;
 	int		chain_seen;
 	int		chain_matches;		/* 0/1 if cm_seen */
 	int		cm_seen;
