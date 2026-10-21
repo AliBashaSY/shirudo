@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * The kernel's fixed-width integer types and ptr_to_u64(), for userspace.
+ * The kernel's fixed-width integer types, ptr_to_u64() and shirudo_trunc(),
+ * for userspace.
  */
 
 #ifndef SHIRUDO_MISC_H
@@ -26,6 +27,19 @@ typedef unsigned long long	__u64;
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64)(unsigned long)ptr;
+}
+
+/*
+ * trunc() without libm, which clang calls for it and the binaries do
+ * not link. A double of 2^52 or more is integral already.
+ */
+static inline double shirudo_trunc(double x)
+{
+	if (x == 0 || !(x > -0x1p52 && x < 0x1p52))
+		return x;
+	if (x < 0)
+		return -(double)(__s64)-x;
+	return (double)(__s64)x;
 }
 
 #endif

@@ -482,7 +482,8 @@ static int lua_otel_emit_value(lua_State *L, int idx, struct json_out *out,
 			out->err = -EINVAL;
 			break;
 		}
-		if (trunc(value) == value && fabs(value) <= max_exact_integer) {
+		if (shirudo_trunc(value) == value &&
+		    fabs(value) <= max_exact_integer) {
 			snprintf(num, sizeof(num), "%.0f", value == 0 ? 0 : value);
 			json_puts(out, "{\"intValue\":");
 			json_put_string(out, num, strlen(num));
