@@ -648,7 +648,7 @@ static int loader_map_create(const char *name, __u32 value_size,
 	attr.key_size = 4;
 	attr.value_size = value_size ? value_size : 4;
 	attr.max_entries = 1;
-	attr.excl_prog_hash = (__u64)(uintptr_t)excl_prog_hash;
+	attr.excl_prog_hash = ptr_to_u64(excl_prog_hash);
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
 	memcpy(attr.map_name, name, strnlen(name, sizeof(attr.map_name)));
 
@@ -664,8 +664,8 @@ static int loader_map_update(int map_fd, const void *value, __u32 value_sz)
 	long ret;
 
 	attr.map_fd = map_fd;
-	attr.key = (__u64)(uintptr_t)&key;
-	attr.value = (__u64)(uintptr_t)(value_sz ? value : zero);
+	attr.key = ptr_to_u64(&key);
+	attr.value = ptr_to_u64(value_sz ? value : zero);
 	attr.flags = 0;
 	ret = syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 	return (int)ret;
@@ -693,16 +693,16 @@ static int prog_load_signed(const struct bpf_insn *insns, size_t insn_cnt,
 
 	attr.prog_type = BPF_PROG_TYPE_SYSCALL;
 	attr.insn_cnt = (__u32)insn_cnt;
-	attr.insns = (__u64)(uintptr_t)insns;
-	attr.license = (__u64)(uintptr_t)"Dual BSD/GPL";
+	attr.insns = ptr_to_u64(insns);
+	attr.license = ptr_to_u64("Dual BSD/GPL");
 	attr.prog_flags = BPF_F_SLEEPABLE;
 	attr.log_level = log_buf ? 1 : 0;
 	attr.log_size = (__u32)log_sz;
-	attr.log_buf = (__u64)(uintptr_t)log_buf;
-	attr.signature = (__u64)(uintptr_t)signature;
+	attr.log_buf = ptr_to_u64(log_buf);
+	attr.signature = ptr_to_u64(signature);
 	attr.signature_size = signature_sz;
 	attr.keyring_id = keyring_id;
-	attr.fd_array = (__u64)(uintptr_t)fd_array;
+	attr.fd_array = ptr_to_u64(fd_array);
 	/*
 	 * fd_array_cnt makes the verifier resolve the exclusive metadata
 	 * map up front and fold its frozen contents into the signed buffer
@@ -772,7 +772,7 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 
 	info.nr_func_info = base->nr_func_info;
 	info.func_info_rec_size = base->func_info_rec_size;
-	info.func_info = (__u64)(uintptr_t)recs;
+	info.func_info = ptr_to_u64(recs);
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
 		rc = -errno;
@@ -953,7 +953,7 @@ static int perf_event_open_kprobe(const char *target, __u64 offset,
 		return type;
 	attr.size = sizeof(attr);
 	attr.type = (__u32)type;
-	attr.config1 = (__u64)(uintptr_t)target;
+	attr.config1 = ptr_to_u64(target);
 	attr.config2 = offset;
 	if (retprobe) {
 		bit = determine_kprobe_retprobe_bit();
@@ -1332,7 +1332,7 @@ static int prog_attach_uprobe_multi(int prog_fd,
 	attr.link_create.prog_fd = (__u32)prog_fd;
 	attr.link_create.attach_type = BPF_TRACE_UPROBE_MULTI;
 	attr.link_create.uprobe_multi.offsets =
-		(__u64)(uintptr_t)spec->uprobe_offsets;
+		ptr_to_u64(spec->uprobe_offsets);
 	attr.link_create.uprobe_multi.cnt = spec->nr_uprobe_offsets;
 	attr.link_create.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD;
 	attr.link_create.uprobe_multi.path_fd = (__u32)spec->target_fd;
@@ -1379,7 +1379,7 @@ static int obj_pin(int fd, const char *path)
 	union bpf_attr attr = {};
 	long ret;
 
-	attr.pathname = (__u64)(uintptr_t)path;
+	attr.pathname = ptr_to_u64(path);
 	attr.bpf_fd = (__u32)fd;
 	ret = syscall(__NR_bpf, BPF_OBJ_PIN, &attr, sizeof(attr));
 	return ret >= 0 ? 0 : -errno;
@@ -2047,7 +2047,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 */
 	cx->log_level = 1;
 	cx->log_size = SHIRUDO_VERIFIER_LOG_MAX;
-	cx->log_buf = (__u64)(uintptr_t)vlog;
+	cx->log_buf = ptr_to_u64(vlog);
 
 	rc = shirudo_prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
 	if (rc) {

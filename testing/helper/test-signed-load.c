@@ -19,7 +19,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -95,10 +94,10 @@ int main(int argc, char **argv)
 	memset(&a, 0, sizeof(a));
 	a.prog_type = BPF_PROG_TYPE_SYSCALL;
 	a.insn_cnt = rd_le32(&h->loader_insns_len) / sizeof(struct bpf_insn);
-	a.insns = (__u64)(uintptr_t)insns;
-	a.license = (__u64)(uintptr_t)"Dual BSD/GPL";
+	a.insns = ptr_to_u64(insns);
+	a.license = ptr_to_u64("Dual BSD/GPL");
 	a.prog_flags = BPF_F_SLEEPABLE;
-	a.signature = (__u64)(uintptr_t)sig;
+	a.signature = ptr_to_u64(sig);
 	a.signature_size = rd_le32(&h->signature_len);
 	a.keyring_id = (__s32)serial;
 	memcpy(a.prog_name, "sigtest", 7);

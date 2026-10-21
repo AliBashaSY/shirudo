@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/bpf.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -125,7 +124,7 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 			close(link_fd);
 			return -ENOMEM;
 		}
-		detail.uprobe_multi.path = (__u64)(uintptr_t)path;
+		detail.uprobe_multi.path = ptr_to_u64(path);
 		detail.uprobe_multi.path_size = path_size;
 		len = sizeof(detail);
 		rc = bpf_link_get_info_by_fd(link_fd, &detail, &len);

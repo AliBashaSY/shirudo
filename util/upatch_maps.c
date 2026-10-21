@@ -784,7 +784,7 @@ int shirudo_prog_test_run(int prog_fd, void *ctx, __u32 ctx_sz,
 	long ret;
 
 	attr.test.prog_fd = prog_fd;
-	attr.test.ctx_in = (__u64)(uintptr_t)ctx;
+	attr.test.ctx_in = ptr_to_u64(ctx);
 	attr.test.ctx_size_in = ctx_sz;
 	ret = syscall(__NR_bpf, BPF_PROG_TEST_RUN, &attr, sizeof(attr));
 	if (ret < 0)
