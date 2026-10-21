@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include <shirudo/misc.h>
 
@@ -38,6 +39,38 @@ static inline int fuzz_file(const __u8 *data, size_t size, char *path,
 			return -1;
 		}
 		off += (size_t)n;
+	}
+	snprintf(path, cap, "/proc/self/fd/%d", fd);
+	return fd;
+}
+
+/*
+ * The input as a gzip'd file, compressed here unless it is already, so
+ * that the fuzzer mutates the archive inside rather than the stream.
+ */
+static inline int fuzz_gzip_file(const __u8 *data, size_t size, char *path,
+				 size_t cap)
+{
+	gzFile gz;
+	int fd, wfd;
+
+	if (size >= 2 && data[0] == 0x1f && data[1] == 0x8b)
+		return fuzz_file(data, size, path, cap);
+	fd = memfd_create("fuzz", MFD_CLOEXEC);
+	if (fd < 0)
+		return -1;
+	wfd = dup(fd);
+	gz = wfd < 0 ? NULL : gzdopen(wfd, "wb1");
+	if (!gz) {
+		if (wfd >= 0)
+			close(wfd);
+		close(fd);
+		return -1;
+	}
+	if ((size && gzwrite(gz, data, (__u32)size) != (int)size) ||
+	    gzclose(gz) != Z_OK) {
+		close(fd);
+		return -1;
 	}
 	snprintf(path, cap, "/proc/self/fd/%d", fd);
 	return fd;

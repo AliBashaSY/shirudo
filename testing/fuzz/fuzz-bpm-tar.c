@@ -17,7 +17,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	__u8 *body;
 	int fd;
 
-	fd = fuzz_file(data, size, path, sizeof(path));
+	fd = fuzz_gzip_file(data, size, path, sizeof(path));
 	if (fd < 0)
 		return 0;
 	if (!bpm_pkg_read_member_in(path, "Beefile", NULL, dir, sizeof(dir),
