@@ -5,11 +5,11 @@
  * Helpers shared by every BPF program.
  */
 
-#ifndef SHIRUDO_MISC_H
-#define SHIRUDO_MISC_H
+#ifndef SHIRUDO_BPF_MISC_H
+#define SHIRUDO_BPF_MISC_H
 
 #define BUILD_BUG_ON_MSG(cond, msg)	_Static_assert(!(cond), msg)
 #define BUILD_BUG_ON(cond)						\
 	BUILD_BUG_ON_MSG(cond, "BUILD_BUG_ON failed: " #cond)
 
-#endif /* SHIRUDO_MISC_H */
+#endif /* SHIRUDO_BPF_MISC_H */
