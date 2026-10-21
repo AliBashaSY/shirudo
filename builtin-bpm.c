@@ -1947,13 +1947,11 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	int selected = 0, skipped = 0, applied = 0, module_skipped = 0;
 	int tpm_available = 0;
 	int rc;
-	#define TREE_SYNC_RETURN(value) do { \
-		shirudo_tree_publication_free(&pub); \
-		return (value); \
-	} while (0)
 
-	if (argc < 2 || strcmp(argv[1], "sync"))
-		TREE_SYNC_RETURN(-EINVAL);
+	if (argc < 2 || strcmp(argv[1], "sync")) {
+		rc = -EINVAL;
+		goto out;
+	}
 	for (int i = 2; i < argc; i++) {
 		if (!strcmp(argv[i], "--dry-run")) {
 			dry_run = true;
@@ -1963,50 +1961,68 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			bpm_copy_string(report, sizeof(report), argv[++i]);
 		} else if (shirudo_is_help(argv[i])) {
 			printf("usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
-			TREE_SYNC_RETURN(0);
+			rc = 0;
+			goto out;
 		} else {
-			TREE_SYNC_RETURN(-EINVAL);
+			rc = -EINVAL;
+			goto out;
 		}
 	}
 	rc = load_tree_config(&cfg);
 	/* Optional integration: manual `shirudo upatch` remains valid. */
-	if (rc == -ENOENT)
-		TREE_SYNC_RETURN(0);
+	if (rc == -ENOENT) {
+		rc = 0;
+		goto out;
+	}
 	if (rc)
-		TREE_SYNC_RETURN(rc);
+		goto out;
 	rc = shirudo_tree_state_read(&state);
 	if (!rc)
 		have_state = true;
 	else if (rc != -ENOENT)
-		TREE_SYNC_RETURN(rc);
+		goto out;
 	rc = tree_fetch_publication(&cfg, &pub, manifest_digest,
 				    sizeof(manifest_digest));
 	if (rc)
-		TREE_SYNC_RETURN(rc);
+		goto out;
 	if (pub.parent_manifest_digest[0] &&
-	    tree_digest_hex(pub.parent_manifest_digest, (uint8_t[32]){}))
-		TREE_SYNC_RETURN(-EINVAL);
+	    !tree_digest_valid(pub.parent_manifest_digest)) {
+		rc = -EINVAL;
+		goto out;
+	}
 	/* Snapshot compaction belongs to a later schema. */
-	if (pub.base_seq != 0)
-		TREE_SYNC_RETURN(-ENOTSUP);
-	if (pub.n_operations && pub.operations[0].seq != pub.base_seq + 1)
-		TREE_SYNC_RETURN(-EINVAL);
-	if (pub.n_operations && pub.head_seq != pub.operations[pub.n_operations - 1].seq)
-		TREE_SYNC_RETURN(-EINVAL);
-	if (!pub.n_operations && pub.head_seq != pub.base_seq)
-		TREE_SYNC_RETURN(-EINVAL);
+	if (pub.base_seq != 0) {
+		rc = -ENOTSUP;
+		goto out;
+	}
+	if (pub.n_operations && pub.operations[0].seq != pub.base_seq + 1) {
+		rc = -EINVAL;
+		goto out;
+	}
+	if (pub.n_operations && pub.head_seq != pub.operations[pub.n_operations - 1].seq) {
+		rc = -EINVAL;
+		goto out;
+	}
+	if (!pub.n_operations && pub.head_seq != pub.base_seq) {
+		rc = -EINVAL;
+		goto out;
+	}
 	for (int i = 0; i < pub.n_operations; i++) {
 		rc = tree_validate_operation(&pub.operations[i]);
 		if (rc) {
 			tree_sync_report_error("operation_validate", &pub.operations[i], rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 	}
 	same_manifest = have_state && !strcmp(state.manifest_digest, manifest_digest);
-	if (have_state && strcmp(state.tree_id, pub.tree_id))
-		TREE_SYNC_RETURN(-EINVAL);
-	if (have_state && !same_manifest && pub.generation <= state.generation)
-		TREE_SYNC_RETURN(-ERANGE);
+	if (have_state && strcmp(state.tree_id, pub.tree_id)) {
+		rc = -EINVAL;
+		goto out;
+	}
+	if (have_state && !same_manifest && pub.generation <= state.generation) {
+		rc = -ERANGE;
+		goto out;
+	}
 	/*
 	 * Only a direct successor names the manifest this target recorded
 	 * as its parent; one that missed a generation never saw the parent.
@@ -2014,15 +2030,23 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	if (have_state && !same_manifest &&
 	    pub.generation == state.generation + 1 &&
 	    pub.parent_manifest_digest[0] &&
-	    strcmp(pub.parent_manifest_digest, state.manifest_digest))
-		TREE_SYNC_RETURN(-ERANGE);
-	if (have_state && pub.head_seq < state.last_seq)
-		TREE_SYNC_RETURN(-ERANGE);
+	    strcmp(pub.parent_manifest_digest, state.manifest_digest)) {
+		rc = -ERANGE;
+		goto out;
+	}
+	if (have_state && pub.head_seq < state.last_seq) {
+		rc = -ERANGE;
+		goto out;
+	}
 	/* The publication must contain the cursor base. */
-	if (have_state && pub.base_seq > state.last_seq)
-		TREE_SYNC_RETURN(-ERANGE);
-	if (!have_state && pub.base_seq != 0)
-		TREE_SYNC_RETURN(-ERANGE);
+	if (have_state && pub.base_seq > state.last_seq) {
+		rc = -ERANGE;
+		goto out;
+	}
+	if (!have_state && pub.base_seq != 0) {
+		rc = -ERANGE;
+		goto out;
+	}
 	if (!have_state) {
 		state.schema = 1;
 		bpm_copy_string(state.tree_id, sizeof(state.tree_id), pub.tree_id);
@@ -2034,7 +2058,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	rc = tree_recover_pending(&pub, &state);
 	if (rc) {
 		tree_sync_report_error("pending_recovery", NULL, rc);
-		TREE_SYNC_RETURN(rc);
+		goto out;
 	}
 	tpm_available = shirudo_chain_read((uint8_t[32]){}) == 0;
 	for (int i = 0; i < pub.n_operations; i++) {
@@ -2048,7 +2072,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		rc = shirudo_tree_selector_matches(&op->selector);
 		if (rc < 0) {
 			tree_sync_report_error("selector_evaluate", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		if (!rc) {
 			skipped++;
@@ -2062,30 +2086,34 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		rc = tree_digest_hex(op->operation_digest, digest);
 		if (rc) {
 			tree_sync_report_error("operation_digest_parse", op, rc);
-			TREE_SYNC_RETURN(-EINVAL);
+			rc = -EINVAL;
+			goto out;
 		}
 		if (op->expected_payload_sha256[0] &&
 		    strcmp(op->expected_payload_sha256, op->artifact.payload_sha256)) {
 			tree_sync_report_error("expected_payload_digest", op,
 					       -EKEYREJECTED);
-			TREE_SYNC_RETURN(-EKEYREJECTED);
+			rc = -EKEYREJECTED;
+			goto out;
 		}
 		rc = tree_write_pending(op);
 		if (rc) {
 			tree_sync_report_error("pending_write", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		rc = tree_pull_artifact(op, artifact, sizeof(artifact));
 		if (rc) {
 			tree_sync_report_error("artifact_fetch_or_verify", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
-		if (!strcmp(op->op, "add"))
+		if (!strcmp(op->op, "add")) {
 			rc = shirudo_upatch_install(artifact);
-		else if (!strcmp(op->op, "delete"))
+		} else if (!strcmp(op->op, "delete")) {
 			rc = shirudo_upatch_remove(artifact);
-		else
-			TREE_SYNC_RETURN(-EINVAL);
+		} else {
+			rc = -EINVAL;
+			goto out;
+		}
 		if (rc == SHIRUDO_UPATCH_INSTALL_TARGET_MISSING &&
 		    !strcmp(op->op, "add")) {
 			skipped_module = true;
@@ -2095,16 +2123,17 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		}
 		if (rc) {
 			tree_sync_report_error("upatch_install", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		if (shirudo_hex_decode(state.projection_root, previous, 32)) {
 			tree_sync_report_error("projection_root_decode", op, -EINVAL);
-			TREE_SYNC_RETURN(-EINVAL);
+			rc = -EINVAL;
+			goto out;
 		}
 		rc = tree_measure_operation(op, digest);
 		if (rc) {
 			tree_sync_report_error("register_extend", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		shirudo_sha256_2(previous, 32, digest, 32, next);
 		shirudo_hex_encode(next, 32, state.projection_root);
@@ -2112,14 +2141,14 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		rc = shirudo_tree_event_append(op->seq, op->operation_digest, next);
 		if (rc) {
 			tree_sync_report_error("tree_event_append", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		state.last_seq = op->seq;
 		applied++;
 		rc = shirudo_tree_state_write(&state);
 		if (rc) {
 			tree_sync_report_error("tree_state_commit", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		if (skipped_module)
 			rc = tree_status_write(op->id, "skipped: module not loaded");
@@ -2127,7 +2156,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_status_clear(op->id);
 		if (rc) {
 			tree_sync_report_error("tree_status_write", op, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 		(void)unlink(SHIRUDO_BPM_TREE_PENDING_PATH);
 	}
@@ -2140,15 +2169,15 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		rc = shirudo_tree_state_write(&state);
 		if (rc) {
 			tree_sync_report_error("tree_state_commit_final", NULL, rc);
-			TREE_SYNC_RETURN(rc);
+			goto out;
 		}
 	}
 	/* "-" is standard output, where the report goes without --report. */
 	rc = tree_write_report(report[0] && strcmp(report, "-") ? report : NULL,
 			       &state, selected, skipped, applied,
 			       module_skipped, dry_run, tpm_available);
+out:
 	shirudo_tree_publication_free(&pub);
-	#undef TREE_SYNC_RETURN
 	return rc;
 }
 
