@@ -282,12 +282,14 @@ disables certificate verification for ``https://``, with a warning each
 time; it exists for test rigs.
 
 Retries.  ``OTEL_EXPORTER_OTLP_TIMEOUT`` (milliseconds, default 10000)
-bounds each attempt.  A transport error or a 5xx response is retried
-with exponential backoff from 250 ms, honouring ``Retry-After`` up to
-30 s, for ``--otel-retries`` attempts (``map_export.otel_retries``,
-default 3, at most 10).  A 4xx response is not retried.  A 200 whose
-body carries ``partialSuccess`` is a non-retryable failure, so a
-collector that drops records is reported rather than silently accepted.
+bounds each attempt.  A transport error and the responses OTLP calls
+retryable, 429, 502, 503 and 504, are retried with exponential backoff
+from 250 ms, honouring ``Retry-After`` up to 30 s, for
+``--otel-retries`` attempts (``map_export.otel_retries``, default 3,
+at most 10).  Any other 4xx or 5xx response is not retried.  A 200
+whose ``partialSuccess`` rejected records is a non-retryable failure,
+so a collector that drops records is reported rather than silently
+accepted; one that rejected none only carries a warning.
 
 Limits.  A record larger than ``map_export.log_record_max_bytes``
 (default 1 MiB) and a request larger than ``map_export.otlp_max_bytes``
@@ -424,10 +426,11 @@ Any HTTPS server that accepts two requests is a valid destination::
                               plus OTEL_EXPORTER_OTLP_HEADERS
 
     200 {}                                  accepted
-    200 {"partialSuccess": {...}}           rejected, not retried
-    4xx                                     rejected, not retried
-    5xx, timeout, connection error          retried with backoff;
-                                            Retry-After honoured
+    200 {"partialSuccess": {...}}           rejected, not retried, when
+                                            it rejected records
+    429, 502, 503, 504, timeout,            retried with backoff;
+    connection error                        Retry-After honoured
+    other 4xx and 5xx                       rejected, not retried
 
 The body is the OTLP ``ExportLogsServiceRequest`` or
 ``ExportMetricsServiceRequest`` in its JSON encoding:
