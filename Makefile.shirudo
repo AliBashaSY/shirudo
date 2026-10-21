@@ -720,6 +720,13 @@ testing/fuzz/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS)
 testing/fuzz/fuzz-eventlog: testing/fuzz/fuzz-eventlog.c $(FUZZ_BASE) \
                             util/eventlog.c util/timefmt.c util/seal.c \
                             util/io.c util/crypto_openssl.c testing/fuzz/chain.c
+testing/fuzz/fuzz-kernel: testing/fuzz/fuzz-kernel.c $(FUZZ_BASE) \
+                          util/kmsg.c util/kmodules.c util/kernel_build_id.c \
+                          util/format.c util/timefmt.c
+testing/fuzz/fuzz-elf: testing/fuzz/fuzz-elf.c $(FUZZ_BASE) \
+                       util/elf_target.c $(LIBBPF_A)
+testing/fuzz/fuzz-elf: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
+testing/fuzz/fuzz-elf: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c
@@ -749,6 +756,7 @@ testing/fuzz/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
 testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
 	FUZZ_INCLUDED := util/bpm_tree_state.c
 testing/fuzz/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
+testing/fuzz/fuzz-kernel: FUZZ_INCLUDED := util/kmsg.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
