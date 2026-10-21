@@ -89,7 +89,7 @@ static void pack_header(struct shirudo_upatch_header *h,
 	h->magic   = htole64(SHIRUDO_UPATCH_MAGIC);
 	h->version = htole32(SHIRUDO_UPATCH_VERSION);
 	h->flags   = htole32(flags);
-	strncpy(h->name, name, sizeof(h->name) - 1);
+	strscpy(h->name, name, sizeof(h->name));
 	memcpy(h->payload_sha256, payload_sha256,
 	       SHIRUDO_UPATCH_PAYLOAD_HASH_LEN);
 	h->loader_insns_off = htole32(loader_off);
@@ -603,13 +603,11 @@ static int build_decoder_blob(const struct decoder_set *set,
 		d->api_version = htole32(file->manifest.api_version);
 		d->input_format = htole32(file->manifest.input_format);
 		d->export_signal = htole32(file->manifest.export_signal);
-		snprintf(d->upatch, sizeof(d->upatch), "%s",
-			 file->manifest.upatch);
-		snprintf(d->map, sizeof(d->map), "%s", file->manifest.map);
-		snprintf(d->source, sizeof(d->source), "%s",
-			 file->manifest.source);
-		snprintf(d->entrypoint, sizeof(d->entrypoint), "%s",
-			 file->manifest.entrypoint);
+		strscpy(d->upatch, file->manifest.upatch, sizeof(d->upatch));
+		strscpy(d->map, file->manifest.map, sizeof(d->map));
+		strscpy(d->source, file->manifest.source, sizeof(d->source));
+		strscpy(d->entrypoint, file->manifest.entrypoint,
+			sizeof(d->entrypoint));
 		d->source_off = htole32(off);
 		d->source_len = htole32(file->source_len);
 		memcpy((__u8 *)blob + off, file->source,
@@ -799,12 +797,11 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 					goto err_free;
 				}
 			}
-			snprintf(seen_maps[n_seen++], sizeof(seen_maps[0]),
-				 "%s", ser_map);
+			strscpy(seen_maps[n_seen++], ser_map, sizeof(seen_maps[0]));
 			md->progs[i].role =
 				htole32(SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER);
-			snprintf(md->progs[i].map, sizeof(md->progs[i].map),
-				 "%s", ser_map);
+			strscpy(md->progs[i].map, ser_map,
+				sizeof(md->progs[i].map));
 			i++;
 			continue;
 		}
@@ -1313,7 +1310,7 @@ int shirudo_build_package_unload(const char *upatch_name,
 		return -EINVAL;
 	}
 
-	strncpy(params.name, upatch_name, sizeof(params.name) - 1);
+	strscpy(params.name, upatch_name, sizeof(params.name));
 	memcpy(params.expected_sha256, payload_sha256,
 	       sizeof(params.expected_sha256));
 	err = bpf_map__set_initial_value(rodata, &params, sizeof(params));

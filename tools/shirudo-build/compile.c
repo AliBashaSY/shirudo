@@ -16,6 +16,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <shirudo/string.h>
+
 #include "compile.h"
 #include "log.h"
 #include "malloc.h"
@@ -79,7 +81,10 @@ int shirudo_build_compile(const char *source, const char *output,
 		return -ENOENT;
 	}
 
-	snprintf(vmlinux_dir, sizeof(vmlinux_dir), "%s", vmlinux_h);
+	if (strscpy(vmlinux_dir, vmlinux_h, sizeof(vmlinux_dir)) < 0) {
+		pr_err("vmlinux.h path too long: %s", vmlinux_h);
+		return -ENAMETOOLONG;
+	}
 	{
 		char *slash = strrchr(vmlinux_dir, '/');
 

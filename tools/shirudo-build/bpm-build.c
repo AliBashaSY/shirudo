@@ -23,6 +23,7 @@
 #include <zlib.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm.h"
 #include "compile.h"
@@ -45,15 +46,6 @@
 #define BPM_BUILD_MAX_FILE (256u * 1024u * 1024u)
 #define BPM_BUILD_MAX_JSON (256u * 1024u)
 #define BPM_BUILD_MAX_VALUE 1024
-
-static void build_copy(char *dst, size_t cap, const char *src)
-{
-	if (!cap)
-		return;
-	if (!src)
-		src = "";
-	snprintf(dst, cap, "%s", src);
-}
 
 static char *build_trim(char *s)
 {
@@ -331,7 +323,7 @@ static int build_default_targets(struct bpm_build_upatch *u)
 	char base[PATH_MAX];
 	char *slash;
 
-	build_copy(base, sizeof(base), u->source);
+	strscpy(base, u->source, sizeof(base));
 	slash = strrchr(base, '/');
 	if (slash)
 		memmove(base, slash + 1, strlen(slash + 1) + 1);
@@ -544,8 +536,8 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 		if (!spec->files[i].source[0])
 			return -EINVAL;
 		if (!spec->files[i].target[0])
-			build_copy(spec->files[i].target, sizeof(spec->files[i].target),
-				   spec->files[i].source);
+			strscpy(spec->files[i].target, spec->files[i].source,
+				sizeof(spec->files[i].target));
 	}
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		struct bpm_build_upatch *u = &spec->upatches[i];
@@ -554,7 +546,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 		if (!u->source[0])
 			return -EINVAL;
 		if (!u->type[0])
-			build_copy(u->type, sizeof(u->type), "bpf");
+			strscpy(u->type, "bpf", sizeof(u->type));
 		for (p = u->type; *p; p++)
 			*p = (char)tolower((__u8)*p);
 		if (strcmp(u->type, "bpf") || build_default_targets(u))
@@ -564,11 +556,11 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 		if (!u->tree.id[0] || !upatch_name_valid(u->tree.id))
 			return -EINVAL;
 		if (!u->tree.load_artifact[0])
-			build_copy(u->tree.load_artifact, sizeof(u->tree.load_artifact),
-				   u->load_target);
+			strscpy(u->tree.load_artifact, u->load_target,
+				sizeof(u->tree.load_artifact));
 		if (!u->tree.unload_artifact[0])
-			build_copy(u->tree.unload_artifact,
-				   sizeof(u->tree.unload_artifact), u->unload_target);
+			strscpy(u->tree.unload_artifact, u->unload_target,
+				sizeof(u->tree.unload_artifact));
 		if (build_target_ok(u->tree.load_artifact) ||
 		    build_target_ok(u->tree.unload_artifact))
 			return -EINVAL;
@@ -678,7 +670,7 @@ static int build_add_target(char seen[][PATH_MAX], size_t *n, const char *target
 	}
 	if (*n >= BPM_BUILD_MAX_ENTRIES * 3)
 		return -E2BIG;
-	build_copy(seen[(*n)++], PATH_MAX, target);
+	strscpy(seen[(*n)++], target, PATH_MAX);
 	return 0;
 }
 
@@ -738,7 +730,7 @@ static void build_upatch_name(const char *source, char *out, size_t cap)
 	const char *base = strrchr(source, '/');
 	size_t n;
 
-	build_copy(out, cap, base ? base + 1 : source);
+	strscpy(out, base ? base + 1 : source, cap);
 	n = strlen(out);
 	if (n > 6 && (!strcmp(out + n - 6, ".bpf.c") || !strcmp(out + n - 6, ".bpf.o")))
 		out[n - 6] = '\0';
@@ -809,8 +801,8 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		    snprintf(unload, sizeof(unload), "%s/%zu.unload.upatch",
 			     spec->stage, i) >= (int)sizeof(unload))
 			return -ENAMETOOLONG;
-		build_copy(u->load_path, sizeof(u->load_path), load);
-		build_copy(u->unload_path, sizeof(u->unload_path), unload);
+		strscpy(u->load_path, load, sizeof(u->load_path));
+		strscpy(u->unload_path, unload, sizeof(u->unload_path));
 		if (build_ends_with(source, ".bpf.c")) {
 			if (!vmlinux_h) {
 				vmlinux_h = shirudo_build_locate_vmlinux(NULL);
@@ -849,12 +841,12 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			upatch_close(&parsed);
 			return -EINVAL;
 		}
-		build_copy(u->name, sizeof(u->name), parsed.hdr.name);
+		strscpy(u->name, parsed.hdr.name, sizeof(u->name));
 		hex_encode(parsed.hdr.payload_sha256,
 			   SHIRUDO_CRYPTO_SHA256_LEN,
 			   u->payload_sha256);
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
-		build_copy(u->type, sizeof(u->type), upatch_type_str(&parsed));
+		strscpy(u->type, upatch_type_str(&parsed), sizeof(u->type));
 		upatch_close(&parsed);
 		rc = shirudo_build_package_unload(u->name, payload, unload, pkey,
 						  cert);
@@ -1103,9 +1095,8 @@ static const char *build_resolve_keys_dir(const char *arg, char *out, size_t cap
 			return NULL;
 		return out;
 	}
-	if (strlen(arg) >= cap)
+	if (strscpy(out, arg, cap) < 0)
 		return NULL;
-	build_copy(out, cap, arg);
 	return out;
 }
 
@@ -1180,16 +1171,19 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		return -EACCES;
 	if (!getcwd(out_dir, sizeof(out_dir)))
 		return -errno;
-	if (file_arg)
-		build_copy(build_file, sizeof(build_file), file_arg);
-	else if (build_join(build_file, sizeof(build_file), context, "Beefile"))
+	if (file_arg) {
+		if (strscpy(build_file, file_arg, sizeof(build_file)) < 0)
+			return -ENAMETOOLONG;
+	} else if (build_join(build_file, sizeof(build_file), context,
+			      "Beefile")) {
 		return -ENAMETOOLONG;
+	}
 	if (!realpath(build_file, resolved_file))
 		return -errno;
 	spec = xmalloc(sizeof(*spec));
 	if (!spec)
 		return -ENOMEM;
-	build_copy(spec->scope, sizeof(spec->scope), resolved_file);
+	strscpy(spec->scope, resolved_file, sizeof(spec->scope));
 	{
 		char *slash = strrchr(spec->scope, '/');
 

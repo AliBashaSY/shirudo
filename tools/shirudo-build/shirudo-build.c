@@ -7,7 +7,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +14,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm.h"
 #include "compile.h"
@@ -81,13 +81,10 @@ static void usage(FILE *fp)
 
 static const char *derive_name(const char *input, char *buf, size_t buf_sz)
 {
-	const char *base;
-	char tmp[1024];
+	const char *base = strrchr(input, '/');
 	size_t n;
 
-	snprintf(tmp, sizeof(tmp), "%s", input);
-	base = basename(tmp);
-	snprintf(buf, buf_sz, "%s", base);
+	strscpy(buf, base ? base + 1 : input, buf_sz);
 
 	n = strlen(buf);
 	if (n > 6 && strcmp(buf + n - 6, ".bpf.c") == 0)
