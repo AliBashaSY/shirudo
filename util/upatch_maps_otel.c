@@ -35,6 +35,7 @@
 #include "hex.h"
 #include "json.h"
 #include "config.h"
+#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "tenant_id.h"
@@ -1538,40 +1539,53 @@ static bool retryable_http(long code)
 	return code == 429 || code == 502 || code == 503 || code == 504;
 }
 
+/*
+ * The proto3 JSON mapping lets a receiver send the rejected count as a
+ * string or a number, and the message is advisory: one that does not
+ * fit is left out rather than failing an export the collector took.
+ */
 static int check_partial_success(enum shirudo_otel_signal signal,
 				 const char *body, size_t len)
 {
+	const char *count = signal == SHIRUDO_OTEL_LOG ?
+			    "rejectedLogRecords" : "rejectedDataPoints";
 	char rejected_text[32] = {};
 	char error[256] = {};
 	struct shirudo_json_field partial[] = {
-		{ signal == SHIRUDO_OTEL_LOG ? "rejectedLogRecords" :
-		  "rejectedDataPoints", SHIRUDO_JSON_T_STRING, rejected_text,
+		{ count, SHIRUDO_JSON_T_STRING, rejected_text,
 		  sizeof(rejected_text), 0, NULL, 0 },
-		{ "errorMessage", SHIRUDO_JSON_T_STRING, error, sizeof(error),
-		  0, NULL, 0 },
 	};
 	struct shirudo_json_field root[] = {
 		{ "partialSuccess", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0,
-		  partial, sizeof(partial) / sizeof(partial[0]) },
+		  partial, ARRAY_SIZE(partial) },
 	};
 	int64_t rejected = 0;
 	int rc;
 
 	if (len == 0)
 		return 0;
-	rc = shirudo_json_parse(body, len, root,
-			       sizeof(root) / sizeof(root[0]));
-	if (rc)
-		return -EBADMSG;
-	if (partial[0].seen) {
+	rc = shirudo_json_parse(body, len, root, ARRAY_SIZE(root));
+	if (rc) {
+		partial[0] = (struct shirudo_json_field){
+			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
+		if (shirudo_json_parse(body, len, root, ARRAY_SIZE(root)))
+			return -EBADMSG;
+	} else if (partial[0].seen) {
 		char *end;
 
 		errno = 0;
 		rejected = strtoll(rejected_text, &end, 10);
-		if (errno || !end || *end || rejected < 0)
+		if (errno || !end || *end)
 			return -EBADMSG;
 	}
+	if (rejected < 0)
+		return -EBADMSG;
 	if (rejected > 0) {
+		partial[0] = (struct shirudo_json_field){
+			"errorMessage", SHIRUDO_JSON_T_STRING, error,
+			sizeof(error), 0, NULL, 0 };
+		if (shirudo_json_parse(body, len, root, ARRAY_SIZE(root)))
+			error[0] = '\0';
 		fprintf(stderr, "otel: Collector partially rejected %" PRId64
 			" %s%s%s\n", rejected,
 			signal == SHIRUDO_OTEL_LOG ? "log record(s)" :
