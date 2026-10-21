@@ -328,17 +328,11 @@ int cmd_genkey(int argc, const char **argv)
 		return 1;
 	rc = 1;
 
-	if (!force) {
-		if (shirudo_path_exists(pkey_path) ||
-		    shirudo_path_exists(cert_path)) {
-			pr_err("genkey: %s or %s already exists; pass --force",
-			       pkey_path, cert_path);
-			return 1;
-		}
-	} else {
-		/* clear the way for the O_EXCL writes below */
-		unlink(pkey_path);
-		unlink(cert_path);
+	if (!force && (shirudo_path_exists(pkey_path) ||
+		       shirudo_path_exists(cert_path))) {
+		pr_err("genkey: %s or %s already exists; pass --force",
+		       pkey_path, cert_path);
+		return 1;
 	}
 
 	pkey = gen_keypair();
@@ -351,6 +345,12 @@ int cmd_genkey(int argc, const char **argv)
 	}
 	if (build_cert(cert, pkey) != 0)
 		goto out;
+
+	if (force) {
+		/* Make way for the O_EXCL writes only once a new pair exists. */
+		unlink(pkey_path);
+		unlink(cert_path);
+	}
 
 	if (write_private_pem(pkey, pkey_path) != 0)
 		goto out;
