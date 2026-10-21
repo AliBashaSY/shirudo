@@ -2,12 +2,14 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing and string copies.
+ * Bounded number parsing, string copies and formatting.
  */
 
 #include <errno.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <shirudo/string.h>
@@ -104,4 +106,19 @@ ssize_t strscpy(char *dst, const char *src, size_t size)
 	}
 	memcpy(dst, src, len + 1);
 	return (ssize_t)len;
+}
+
+int strsprintf(char *buf, size_t size, const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+
+	va_start(ap, fmt);
+	n = vsnprintf(buf, size, fmt, ap);
+	va_end(ap);
+	if (n >= 0 && (size_t)n < size)
+		return n;
+	if (size)
+		buf[0] = '\0';
+	return -E2BIG;
 }

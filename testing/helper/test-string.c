@@ -9,6 +9,7 @@
  *   test-string u64|x64 <max> <text> [<len>]
  *   test-string s64 <min> <max> <text> [<len>]
  *   test-string strscpy <size> <text>
+ *   test-string strsprintf <size> <text>
  */
 
 #include <stdint.h>
@@ -94,6 +95,21 @@ int main(int argc, char **argv)
 		xfree(buf, max ? max : 1);
 		return 0;
 	}
-	fprintf(stderr, "usage: test-string digits|u64|x64|s64|strscpy ...\n");
+	if (!strcmp(op, "strsprintf") && argc == 4) {
+		int n;
+
+		if (bound_u64(argv[2], &max))
+			return 2;
+		buf = xmalloc(max ? max : 1);
+		if (!buf)
+			return 2;
+		buf[0] = 'x';
+		n = strsprintf(buf, max, "<%s>", argv[3]);
+		printf("rc=%d buf=%s\n", n, max ? buf : "-");
+		xfree(buf, max ? max : 1);
+		return 0;
+	}
+	fprintf(stderr,
+		"usage: test-string digits|u64|x64|s64|strscpy|strsprintf ...\n");
 	return 2;
 }

@@ -3,8 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0049 -- util/string.c: numbers parsed from a bounded, unterminated
-# span, digits only, within the bounds the caller gives, and strings
-# copied into a buffer that is always terminated and says when it cut.
+# span, digits only, within the bounds the caller gives, strings copied
+# into a buffer that is always terminated and says when it cut, and
+# output formatted whole or not at all.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -90,6 +91,17 @@ test_expect_success 'a string that does not fit is cut and says so' '
 	./$H strscpy 5 hello | grep -qx "rc=-7 dst=hell" &&
 	./$H strscpy 1 hello | grep -qx "rc=-7 dst=" &&
 	./$H strscpy 0 hello | grep -qx "rc=-7 dst=-"
+'
+
+test_expect_success 'formatted output that fits is written whole' '
+	./$H strsprintf 8 hello | grep -qx "rc=7 buf=<hello>" &&
+	./$H strsprintf 64 "" | grep -qx "rc=2 buf=<>"
+'
+
+test_expect_success 'formatted output that does not fit leaves nothing' '
+	./$H strsprintf 7 hello | grep -qx "rc=-7 buf=" &&
+	./$H strsprintf 1 hello | grep -qx "rc=-7 buf=" &&
+	./$H strsprintf 0 hello | grep -qx "rc=-7 buf=-"
 '
 
 test_done
