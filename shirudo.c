@@ -106,6 +106,7 @@ int main(int argc, const char **argv)
 	size_t matches[ARRAY_SIZE(commands)];
 	size_t i, n_match;
 
+	shirudo_harden_stdio();
 	shirudo_log_init();
 	shirudo_harden_self();
 

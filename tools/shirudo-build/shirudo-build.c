@@ -19,6 +19,7 @@
 
 #include "bpm.h"
 #include "compile.h"
+#include "harden.h"
 #include "log.h"
 #include "hex.h"
 #include "malloc.h"
@@ -234,6 +235,7 @@ int main(int argc, char **argv)
 	int rc;
 	int i;
 
+	shirudo_harden_stdio();
 	shirudo_log_init();
 
 	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
