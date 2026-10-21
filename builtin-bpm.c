@@ -879,6 +879,33 @@ static int find_entry(const struct bpm_index_entry *e, int n, const char *name,
 	*out = e[found]; return 0;
 }
 
+static int path_compare(const void *left, const void *right)
+{
+	return strcmp(left, right);
+}
+
+/*
+ * The old version's unload directives in reverse name order, as
+ * uninstall runs them, each kept beside the load it undoes.
+ */
+static void sort_old_pairs(char (*unloads)[PATH_MAX], char (*loads)[PATH_MAX],
+			   int n)
+{
+	char tmp[PATH_MAX];
+
+	for (int i = 1; i < n; i++) {
+		for (int j = i; j > 0 && strcmp(unloads[j - 1], unloads[j]) < 0;
+		     j--) {
+			memcpy(tmp, unloads[j], PATH_MAX);
+			memcpy(unloads[j], unloads[j - 1], PATH_MAX);
+			memcpy(unloads[j - 1], tmp, PATH_MAX);
+			memcpy(tmp, loads[j], PATH_MAX);
+			memcpy(loads[j], loads[j - 1], PATH_MAX);
+			memcpy(loads[j - 1], tmp, PATH_MAX);
+		}
+	}
+}
+
 static int package_install(const struct bpm_source *s, const struct bpm_index_entry *entry,
 			   const char *old_path, const char *old_version)
 {
@@ -957,6 +984,8 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 		}
 		closedir(d);
 		if (rc || !nloaded) { if (!rc) rc = -EINVAL; goto out; }
+		/* Measured in name order, not in the file system's. */
+		qsort(loaded, (size_t)nloaded, sizeof(loaded[0]), path_compare);
 		if (old_path && old_path[0]) {
 			char olddir[PATH_MAX];
 			if (snprintf(olddir, sizeof(olddir), "%s/upatches", old_path) >= (int)sizeof(olddir)) { rc = -ENAMETOOLONG; goto out; }
@@ -987,6 +1016,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				}
 				closedir(d);
 			}
+			sort_old_pairs(old_unloads, old_loads, nold);
 			for (int old_i = 0; old_i < nold; old_i++) {
 				if (shirudo_upatch_remove(old_unloads[old_i])) {
 					rc = -EIO;
