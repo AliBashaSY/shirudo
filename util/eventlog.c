@@ -39,8 +39,20 @@ const char *shirudo_eventlog_pending_path(void)
 	return env && *env ? env : SHIRUDO_EVENTLOG_PENDING_PATH;
 }
 
+static int adopt_pending(void);
+
+/*
+ * The init record the initrd left pending opens this boot's part of the
+ * log: a line appended ahead of it would drop out of every replay, so
+ * the record is adopted first.
+ */
 int shirudo_eventlog_append(const char *json_line)
 {
+	int rc;
+
+	rc = adopt_pending();
+	if (rc)
+		return rc;
 	return shirudo_eventlog_append_to(shirudo_eventlog_path(), json_line);
 }
 
@@ -249,7 +261,7 @@ static int log_holds(const char *line, size_t len)
 	return a.found ? 1 : 0;
 }
 
-int shirudo_eventlog_adopt_pending(void)
+static int adopt_pending(void)
 {
 	const char *pending = shirudo_eventlog_pending_path();
 	char *buf = NULL, *line, *save;
@@ -271,7 +283,8 @@ int shirudo_eventlog_adopt_pending(void)
 			continue;
 		}
 		if (!rc)
-			rc = shirudo_eventlog_append(line);
+			rc = shirudo_eventlog_append_to(shirudo_eventlog_path(),
+							line);
 	}
 	xfree(buf, len + 1);
 	if (rc)
@@ -279,6 +292,11 @@ int shirudo_eventlog_adopt_pending(void)
 	if (unlink(pending) != 0 && errno != ENOENT)
 		return -errno;
 	return 0;
+}
+
+int shirudo_eventlog_adopt_pending(void)
+{
+	return adopt_pending();
 }
 
 static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
