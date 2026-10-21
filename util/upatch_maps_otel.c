@@ -715,8 +715,10 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 	otlp_array_end(e);
 }
 
+/* record_max bounds the decoded body, 0 for none. */
 static int build_log_payload(const char *path,
 				      const struct shirudo_map_view *v,
+				      size_t record_max,
 				      char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e = {};
@@ -755,6 +757,10 @@ static int build_log_payload(const char *path,
 	decode_rc = path ? shirudo_upatch_decode_map_file_otel(path, v,
 								 &decoded, &decoded_len) :
 			shirudo_upatch_decode_map_otel(v, &decoded, &decoded_len);
+	if (!decode_rc && record_max && decoded_len > record_max) {
+		xfree(decoded, decoded_len + 1);
+		decode_rc = -E2BIG;
+	}
 	if (decode_rc == 0) {
 		shirudo_json_kv_raw(&e, "body", decoded, decoded_len);
 	} else {
@@ -788,19 +794,13 @@ static int build_log_payload(const char *path,
 	return 0;
 }
 
-static int shirudo_upatch_maps_otel_build_log(const struct shirudo_map_view *v,
-					      char **out, size_t *out_len)
-{
-	return build_log_payload(NULL, v, out, out_len);
-}
-
 int shirudo_upatch_maps_otel_build_log_file(
 	const char *path, const struct shirudo_map_view *v,
 	char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
-	return build_log_payload(path, v, out, out_len);
+	return build_log_payload(path, v, 0, out, out_len);
 }
 
 static int read_integer(const void *p, const struct metric_type *mt,
@@ -1713,6 +1713,9 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 	/* Callers without the configuration leave the limits at 0. */
 	if (!st->opts.otlp_max_bytes)
 		st->opts.otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
+	if (!st->opts.log_record_max_bytes)
+		st->opts.log_record_max_bytes =
+			SHIRUDO_MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
 	st->decoder_path = decoder_path;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
 		rc = -EIO;
@@ -1773,10 +1776,9 @@ static int otel_emit(void *state, const struct shirudo_map_view *v)
 	if (!st || !v)
 		return -EINVAL;
 	if (st->signal == SHIRUDO_OTEL_LOG)
-		rc = st->decoder_path ?
-		shirudo_upatch_maps_otel_build_log_file(st->decoder_path, v,
-								&payload, &len) :
-		shirudo_upatch_maps_otel_build_log(v, &payload, &len);
+		rc = build_log_payload(st->decoder_path, v,
+				       st->opts.log_record_max_bytes,
+				       &payload, &len);
 	else
 		rc = st->decoder_path ?
 		shirudo_upatch_maps_otel_build_metric_file(st->decoder_path, v,
