@@ -1707,10 +1707,12 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 		return -ENOMEM;
 	st->signal = signal;
 	st->opts.retries = 3;
-	st->opts.otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
 	st->opts.metric_kind = SHIRUDO_OTEL_METRIC_COUNTER;
 	if (opts)
 		st->opts = *opts;
+	/* Callers without the configuration leave the limits at 0. */
+	if (!st->opts.otlp_max_bytes)
+		st->opts.otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
 	st->decoder_path = decoder_path;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
 		rc = -EIO;
