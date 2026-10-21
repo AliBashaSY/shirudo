@@ -333,27 +333,30 @@ static void collect_key(key_serial_t serial, const char *type,
 	c->count++;
 }
 
-static int keys_list_keyring(key_serial_t ring, const char *label)
+static int keys_list_keyring(key_serial_t ring, const char *label,
+			     const struct shirudo_identity *id, int id_rc)
 {
-	struct shirudo_identity id;
 	struct list_ctx c = {};
 	int rc, i;
 
 	printf("Keyring (%s):\n", label);
 	printf("  %-22s %d\n", "Serial:", (int)ring);
 
-	if (identity_read(&id) == 0) {
-		const char *match = id.keyring_serial == ring ?
+	if (id_rc == 0) {
+		const char *match = id->keyring_serial == ring ?
 				    "matches" : "MISMATCH";
 
 		printf("  %-22s %d  (%s)\n", "Frozen serial:",
-		       (int)id.keyring_serial, match);
-		if (id.keyring_serial != ring)
+		       (int)id->keyring_serial, match);
+		if (id->keyring_serial != ring)
 			pr_warn("keyring serial %d != frozen %d (swap?)",
-				(int)ring, (int)id.keyring_serial);
-	} else {
+				(int)ring, (int)id->keyring_serial);
+	} else if (id_rc == -ENOENT) {
 		printf("  %-22s %s\n", "Frozen serial:",
 		       "(none this boot)");
+	} else {
+		printf("  %-22s unreadable: %s\n", "Frozen serial:",
+		       strerror(-id_rc));
 	}
 
 	rc = keyring_list(ring, collect_key, &c);
@@ -377,15 +380,22 @@ out:
 	return rc ? 1 : 0;
 }
 
-static void keyring_absent(key_serial_t rc)
+static void keyring_absent(const char *label, key_serial_t rc,
+			   const struct shirudo_identity *id, int id_rc)
 {
-	printf("Keyring (%s):\n", SHIRUDO_KEYRING_NAME);
-	if (rc == (key_serial_t)-ENOKEY)
+	printf("Keyring (%s):\n", label);
+	if (rc != (key_serial_t)-ENOKEY)
+		printf("  %-22s lookup error: %s\n", "Present:",
+		       strerror(-rc));
+	else if (id_rc == 0)
+		printf("  %-22s no  (gone: init froze serial %d this boot)\n",
+		       "Present:", (int)id->keyring_serial);
+	else if (id_rc == -ENOENT)
 		printf("  %-22s %s\n", "Present:",
 		       "no  (operator host, or `shirudo init` not yet run)");
 	else
-		printf("  %-22s lookup error: %s\n", "Present:",
-		       strerror(-rc));
+		printf("  %-22s unknown  (frozen identity unreadable: %s)\n",
+		       "Present:", strerror(-id_rc));
 }
 
 static const struct shirudo_help_item keys_subcmds[] = {
@@ -1169,7 +1179,8 @@ static int keys_show(int argc, const char **argv)
 	char cert_path[PATH_MAX];
 	bool shown = false;
 	key_serial_t ring;
-	int rc = 0;
+	const char *label;
+	int rc = 0, id_rc;
 
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--keys-dir") == 0 &&
@@ -1235,35 +1246,30 @@ static int keys_show(int argc, const char **argv)
 		shown = true;
 	}
 
-	/* The live anchor: the bpf keyring, or the staged one below. */
-	if (identity_read(&id) == 0 &&
-	    id.keyring_type == SHIRUDO_SIG_KEYRING_BPF) {
+	id_rc = identity_read(&id);
+	if (id_rc == 0 && id.keyring_type == SHIRUDO_SIG_KEYRING_BPF) {
+		label = ".bpf";
 		ring = keyring_bpf_serial();
-		if (ring > 0) {
-			if (shown)
-				printf("\n");
-			if (keys_list_keyring(ring, ".bpf"))
-				rc = 1;
-			shown = true;
-		}
+	} else {
+		label = SHIRUDO_KEYRING_NAME;
+		ring = keyring_find(SHIRUDO_KEYRING_NAME);
 	}
-
-	ring = keyring_find(SHIRUDO_KEYRING_NAME);
 	if (ring >= 0) {
 		if (shown)
 			printf("\n");
-		if (keys_list_keyring(ring, SHIRUDO_KEYRING_NAME))
+		if (keys_list_keyring(ring, label, &id, id_rc))
 			rc = 1;
 		shown = true;
-	} else if (ring == -ENOKEY) {
+	} else if (ring == -ENOKEY && id_rc) {
 		if (shown) {
 			printf("\n");
-			keyring_absent(ring);
+			keyring_absent(label, ring, &id, id_rc);
 		}
 	} else {
 		if (shown)
 			printf("\n");
-		keyring_absent(ring);
+		keyring_absent(label, ring, &id, id_rc);
+		shown = true;
 		rc = 1;
 	}
 
