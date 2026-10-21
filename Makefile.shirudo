@@ -70,7 +70,8 @@ SHIRUDO_BPF_INCDIR  ?= $(sharedir)/shirudo/bpf/include
 SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
 
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes \
-            -Wmissing-prototypes -Wpointer-arith -Wshadow
+            -Wmissing-prototypes -Wpointer-arith -Wshadow \
+            -Wdeclaration-after-statement
 
 SHIRUDO_DEBUG ?= 1
 DEBUG_CFLAGS := $(if $(filter 1 yes y true,$(SHIRUDO_DEBUG)),-g,)
@@ -125,7 +126,8 @@ endif
 # generate auto-named params that often go unused. Neither is
 # fixable upstream of us, so silence both for BPF compilation.
 CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra \
-             -Wno-missing-declarations -Wno-unused-parameter
+             -Wno-missing-declarations -Wno-unused-parameter \
+             -Wdeclaration-after-statement
 
 # ----- source manifests -------------------------------------------
 
