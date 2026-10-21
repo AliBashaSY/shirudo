@@ -100,7 +100,8 @@ int shirudo_tree_emit_publication(const struct shirudo_tree_publication *pub,
 
 /*
  * Evaluate a publication selector against the running node.  An empty
- * selector is an unconstrained wildcard and matches every node.
+ * selector is an unconstrained wildcard and matches every node.  1 on a
+ * match, 0 without one, -errno when the node's labels cannot be read.
  */
 int shirudo_tree_selector_matches(const struct shirudo_tree_selector *selector);
 

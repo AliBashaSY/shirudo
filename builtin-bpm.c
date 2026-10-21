@@ -1610,12 +1610,16 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		struct shirudo_tree_operation *op = &pub.operations[i];
 		uint8_t digest[32], previous[32], next[32];
 		char artifact[PATH_MAX];
-		bool match, skipped_module = false;
+		bool skipped_module = false;
 
 		if (op->seq <= state.last_seq)
 			continue;
-		match = shirudo_tree_selector_matches(&op->selector);
-		if (!match) {
+		rc = shirudo_tree_selector_matches(&op->selector);
+		if (rc < 0) {
+			tree_sync_report_error("selector_evaluate", op, rc);
+			TREE_SYNC_RETURN(rc);
+		}
+		if (!rc) {
 			skipped++;
 			if (!dry_run) state.last_seq = op->seq;
 			continue;

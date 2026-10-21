@@ -280,7 +280,7 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 	char cfg_values[SHIRUDO_TREE_MAX_KCONFIG][SHIRUDO_TREE_STRING_MAX];
 	int cfg_slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE];
 	bool cfg_found[SHIRUDO_TREE_MAX_KCONFIG] = {};
-	int nl = 0, config_rc;
+	int nl = 0, config_rc, rc;
 	const char *v;
 	char path[PATH_MAX];
 	bool matched, config_any;
@@ -359,9 +359,12 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 		}
 	}
 	if (s->n_labels) {
-		if (read_config_file("/etc/shirudo/node.labels", labels, &nl,
-				     ARRAY_SIZE(labels), false))
+		rc = read_config_file("/etc/shirudo/node.labels", labels, &nl,
+				      ARRAY_SIZE(labels), false);
+		if (rc == -ENOENT)
 			return 0;
+		if (rc)
+			return rc;
 		for (int i = 0; i < s->n_labels; i++) {
 			v = kv_value(labels, nl, s->labels[i].key);
 			if (!v || !selector_values_match(&s->labels[i], v))
