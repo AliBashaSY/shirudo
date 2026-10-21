@@ -62,6 +62,7 @@ struct bpm_state_entry {
 };
 
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz);
+static int remove_tree(const char *path);
 
 
 static int prepare_direct_install(const char *raw, struct bpm_source *source,
@@ -830,7 +831,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 	struct bpm_buffer manifest = {};
 	char url[PATH_MAX], archive[PATH_MAX] = {}, dir[PATH_MAX], package_dir[PATH_MAX];
 	char digest[65]; int rc; DIR *d; struct dirent *de;
-	bool found_package = false;
+	bool found_package = false, extracted = false;
 	char loaded[128][PATH_MAX]; char old_loads[128][PATH_MAX];
 	char old_unloads[128][PATH_MAX]; int nloaded = 0, nactive = 0, nold = 0, nold_removed = 0;
 	(void)old_version;
@@ -873,6 +874,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			goto out;
 	if (sha256_file_hex(archive, digest, sizeof(digest)) || !bpm_digest_matches(layers[i].digest, digest)) { rc = -EKEYREJECTED; goto out; }
 		if (access(package_dir, F_OK) == 0) { rc = -EEXIST; goto out; }
+		extracted = true;
 		rc = extract_archive(archive, package_dir); if (rc) goto out;
 		{
 			char cert[PATH_MAX];
@@ -979,6 +981,9 @@ rollback:
 out:
 	bpm_buffer_free(&manifest);
 	if (rc && archive[0]) unlink(archive);
+	/* What failed to install must not block the next attempt. */
+	if (rc && extracted)
+		(void)remove_tree(package_dir);
 	return rc;
 }
 
