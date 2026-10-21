@@ -748,9 +748,14 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	rc = attest_evidence(nonce, nonce_len, mask,
 			     challenge_path ? &challenge : NULL, &doc,
 			     &len, &cap);
+	if (rc == -ENXIO) {
+		pr_err("attest: no TPM answered (tpm_error)");
+		return 1;
+	}
 	if (rc == -ENODEV) {
-		pr_err("attest: no bound register (tpm_error); run shirudo "
-		       "init first");
+		pr_err("attest: register 0x%08X is not bound this boot "
+		       "(tpm_error); run shirudo init first",
+		       SHIRUDO_NV_INDEX);
 		return 1;
 	}
 	if (rc == -EKEYREJECTED) {

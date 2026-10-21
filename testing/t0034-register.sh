@@ -38,6 +38,20 @@ ENTER=$(py "import hashlib; print(hashlib.sha256(b\"enter-initrd\").hexdigest())
 LEAVE=$(py "import hashlib; print(hashlib.sha256(b\"leave-initrd\").hexdigest())")
 PHASE=$(sha "$Z$ENTER")
 
+test_expect_success 'attest names a register that is not bound yet' '
+	! $S attest --nonce=00 >/dev/null 2>"$WORK/attest-unbound.err" &&
+	grep -qx "attest: register 0x01818E00 is not bound this boot (tpm_error); run shirudo init first" \
+		"$WORK/attest-unbound.err" &&
+	[ "$(grep -c "not bound" "$WORK/attest-unbound.err")" = 1 ]
+'
+
+test_expect_success 'attest tells no TPM apart from an unbound register' '
+	! SHIRUDO_TPM_TCTI=device:/nonexistent/tpm $S attest --nonce=00 \
+		>/dev/null 2>"$WORK/attest-notpm.err" &&
+	grep -qx "attest: no TPM answered (tpm_error)" "$WORK/attest-notpm.err" &&
+	! grep -q "shirudo init" "$WORK/attest-notpm.err"
+'
+
 test_expect_success 'init binds the register to PCRs 9 and 11 from the initrd and anchors in PCR 9' '
 	./$R pcr-extend 11 "$ENTER" | grep -qx "rc=0" &&
 	[ "$(./$R pcr 11)" = "$PHASE" ] &&

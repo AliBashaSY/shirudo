@@ -45,7 +45,8 @@ int attest_challenge_read(const char *path,
 
 /*
  * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
- * -EKEYREJECTED when the TPM refuses the challenge.
+ * -ENXIO when no TPM answers, -ENODEV when no register is bound this
+ * boot, -EKEYREJECTED when the TPM refuses the challenge.
  */
 int attest_evidence(const __u8 *nonce, size_t nonce_len,
 		    __u32 pcr_mask,

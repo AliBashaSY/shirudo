@@ -172,13 +172,11 @@ int attest_evidence(const __u8 *nonce, size_t nonce_len,
 
 	rc = tpm_open(&tpm);
 	if (rc)
-		return -ENODEV;
+		return -ENXIO;
 	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	if (!nv.defined || !nv.written) {
-		pr_err("attest: register 0x%08x is not bound this boot; run "
-		       "shirudo init first", SHIRUDO_NV_INDEX);
 		rc = -ENODEV;
 		goto out;
 	}
