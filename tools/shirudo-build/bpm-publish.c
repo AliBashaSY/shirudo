@@ -391,8 +391,19 @@ static int push_package(const char *package_path, const char *raw_repository,
 	}
 	manifest_len = e.len;
 	manifest = (unsigned char *)manifest_body;
-	if ((rc = bpm_oci_put_manifest(&c, repository, info.version, manifest,
-				   manifest_len, package_digest, sizeof(package_digest))))
+	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
+	    snprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) >=
+		(int)sizeof(package_digest)) {
+		rc = -EINVAL;
+		goto out;
+	}
+	/*
+	 * By digest until the index takes the version, so a refused re-push
+	 * leaves the tag on the package already published.
+	 */
+	rc = bpm_oci_put_manifest(&c, repository, package_digest, manifest,
+				  manifest_len, key_digest, sizeof(key_digest));
+	if (rc)
 		goto out;
 
 	/*
@@ -449,6 +460,11 @@ static int push_package(const char *package_path, const char *raw_repository,
 	if (index_key && index_cert &&
 	    (rc = push_index(&c, repository, &info, package_digest, &layer,
 			     index_key, index_cert)))
+		goto out;
+	rc = bpm_oci_put_manifest(&c, repository, info.version, manifest,
+				  manifest_len, package_digest,
+				  sizeof(package_digest));
+	if (rc)
 		goto out;
 	if (snprintf(reference, sizeof(reference), "oci://%s/%s:%s",
 		     c.registry, repository, info.version) >= (int)sizeof(reference)) {
