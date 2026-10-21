@@ -418,8 +418,8 @@ int shirudo_tree_state_read(struct shirudo_tree_state *out)
 		rc = -EINVAL;
 	if (!rc && !f[5].seen) {
 		/* State written before the software projection field was added. */
-		memcpy(out->projection_root, out->projection_root_tpm,
-		       sizeof(out->projection_root));
+		memcpy(out->projection_root_tpm, out->projection_root,
+		       sizeof(out->projection_root_tpm));
 	}
 	if (!rc && (strlen(out->projection_root) != 64 ||
 		    shirudo_hex_decode(out->projection_root, (uint8_t[32]){}, 32) ||
