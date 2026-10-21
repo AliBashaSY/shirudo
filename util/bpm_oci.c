@@ -179,7 +179,8 @@ static int decode_basic(const char *in, char *user, size_t usz,
 {
 	unsigned char out[BPM_OCI_BASIC_RAW_SIZE];
 	size_t n = 0, i = 0;
-	int val = 0, bits = -8, x;
+	unsigned int val = 0;
+	int bits = -8, x;
 	char *colon;
 
 	for (; *in && *in != '"' && n < sizeof(out); in++) {
@@ -188,7 +189,8 @@ static int decode_basic(const char *in, char *user, size_t usz,
 		x = base64_value((unsigned char)*in);
 		if (x < 0)
 			return -EINVAL;
-		val = (val << 6) | x;
+		/* No more than 12 bits are ever pending. */
+		val = ((val << 6) | (unsigned int)x) & 0xfff;
 		bits += 6;
 		if (bits >= 0) {
 			out[n++] = (unsigned char)((val >> bits) & 0xff);
