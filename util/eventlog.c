@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -43,9 +44,15 @@ int shirudo_eventlog_append(const char *json_line)
 	return shirudo_eventlog_append_to(shirudo_eventlog_path(), json_line);
 }
 
+/*
+ * A line cut short, by a full file system say, would leave every reader
+ * of the log failing on it, so a failed append is rolled back under the
+ * lock that keeps appenders from interleaving.
+ */
 int shirudo_eventlog_append_to(const char *path, const char *json_line)
 {
 	size_t len = strlen(json_line);
+	struct stat st;
 	int fd, rc;
 
 	fd = shirudo_seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
@@ -53,13 +60,26 @@ int shirudo_eventlog_append_to(const char *path, const char *json_line)
 		pr_err("eventlog: open %s: %s", path, strerror(-fd));
 		return fd;
 	}
+	while (flock(fd, LOCK_EX) != 0) {
+		if (errno != EINTR) {
+			rc = -errno;
+			goto out;
+		}
+	}
+	if (fstat(fd, &st) != 0) {
+		rc = -errno;
+		goto out;
+	}
 
 	rc = shirudo_write_all(fd, json_line, len);
 	if (!rc && (len == 0 || json_line[len - 1] != '\n'))
 		rc = shirudo_write_all(fd, "\n", 1);
 	if (!rc && fsync(fd) != 0)
 		rc = -errno;
-
+	if (rc && ftruncate(fd, st.st_size) != 0)
+		pr_warn("eventlog: could not roll back a partial append to "
+			"%s: %s", path, strerror(errno));
+out:
 	if (close(fd) != 0 && !rc)
 		rc = -errno;
 	if (rc) {
