@@ -8,6 +8,7 @@
  *   test-string digits <text>
  *   test-string u64|x64 <max> <text> [<len>]
  *   test-string s64 <min> <max> <text> [<len>]
+ *   test-string strscpy <size> <text>
  */
 
 #include <stdint.h>
@@ -80,6 +81,19 @@ int main(int argc, char **argv)
 		xfree(buf, len ? len : 1);
 		return 0;
 	}
-	fprintf(stderr, "usage: test-string digits|u64|x64|s64 ...\n");
+	if (!strcmp(op, "strscpy") && argc == 4) {
+		ssize_t n;
+
+		if (bound_u64(argv[2], &max))
+			return 2;
+		buf = xmalloc(max ? max : 1);
+		if (!buf)
+			return 2;
+		n = strscpy(buf, argv[3], max);
+		printf("rc=%zd dst=%s\n", n, max ? buf : "-");
+		xfree(buf, max ? max : 1);
+		return 0;
+	}
+	fprintf(stderr, "usage: test-string digits|u64|x64|s64|strscpy ...\n");
 	return 2;
 }

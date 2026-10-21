@@ -2,13 +2,14 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, from util/string.c.
+ * Bounded number parsing and string copies, from util/string.c.
  */
 
 #ifndef SHIRUDO_STRING_H
 #define SHIRUDO_STRING_H
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #include <shirudo/misc.h>
 
@@ -26,5 +27,12 @@ size_t digits(const char *s, size_t len);
 int parse_u64(const char *s, size_t len, __u64 max, __u64 *out);
 int parse_x64(const char *s, size_t len, __u64 max, __u64 *out);
 int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out);
+
+/*
+ * Copy the string src into the size bytes at dst, terminated whenever
+ * size is not 0: its length, or -E2BIG when it did not fit and dst holds
+ * as much of it as did.
+ */
+ssize_t strscpy(char *dst, const char *src, size_t size);
 
 #endif /* SHIRUDO_STRING_H */

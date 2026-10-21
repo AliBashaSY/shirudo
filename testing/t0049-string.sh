@@ -3,7 +3,8 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0049 -- util/string.c: numbers parsed from a bounded, unterminated
-# span, digits only, within the bounds the caller gives.
+# span, digits only, within the bounds the caller gives, and strings
+# copied into a buffer that is always terminated and says when it cut.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -13,7 +14,7 @@ U64_MAX=18446744073709551615
 S64_MIN=-9223372036854775808
 S64_MAX=9223372036854775807
 
-# EINVAL=22, ERANGE=34 on Linux.
+# E2BIG=7, EINVAL=22, ERANGE=34 on Linux.
 
 test_expect_success 'leading digits are counted' '
 	./$H digits 123abc | grep -qx "n=3" &&
@@ -77,6 +78,18 @@ test_expect_success 'a signed number keeps to its bounds and form' '
 		./$H s64 $S64_MIN $S64_MAX "$t" | grep -qx "rc=-22 v=0" ||
 			return 1
 	done
+'
+
+test_expect_success 'a string that fits is copied whole' '
+	./$H strscpy 6 hello | grep -qx "rc=5 dst=hello" &&
+	./$H strscpy 64 hello | grep -qx "rc=5 dst=hello" &&
+	./$H strscpy 1 "" | grep -qx "rc=0 dst="
+'
+
+test_expect_success 'a string that does not fit is cut and says so' '
+	./$H strscpy 5 hello | grep -qx "rc=-7 dst=hell" &&
+	./$H strscpy 1 hello | grep -qx "rc=-7 dst=" &&
+	./$H strscpy 0 hello | grep -qx "rc=-7 dst=-"
 '
 
 test_done

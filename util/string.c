@@ -2,12 +2,13 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing.
+ * Bounded number parsing and string copies.
  */
 
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <shirudo/string.h>
 
@@ -87,4 +88,20 @@ int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out)
 		return -ERANGE;
 	*out = r;
 	return 0;
+}
+
+ssize_t strscpy(char *dst, const char *src, size_t size)
+{
+	size_t len;
+
+	if (!size)
+		return -E2BIG;
+	len = strnlen(src, size);
+	if (len == size) {
+		memcpy(dst, src, size - 1);
+		dst[size - 1] = '\0';
+		return -E2BIG;
+	}
+	memcpy(dst, src, len + 1);
+	return (ssize_t)len;
 }
