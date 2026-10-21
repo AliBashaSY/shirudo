@@ -164,7 +164,8 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		pr_err("keys vouch: %s is not a certificate", input);
 		goto out;
 	}
-	if (cert_algorithm_ok(der, der_sz, input))
+	rc = cert_algorithm_ok(der, der_sz, input);
+	if (rc)
 		goto out;
 	rc = shirudo_keys_read_der(cert, &own, &own_sz);
 	if (rc) {

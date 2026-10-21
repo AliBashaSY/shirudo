@@ -569,7 +569,8 @@ static int keys_add(int argc, const char **argv)
 		pr_err("keys add: %s is not a certificate", cert);
 		goto out;
 	}
-	if (check_cert_algorithm(der, der_sz, cert))
+	rc = check_cert_algorithm(der, der_sz, cert);
+	if (rc)
 		goto out;
 	shirudo_hex_encode(fp, 32, fp_hex);
 
