@@ -71,6 +71,20 @@ int generic(struct __sk_buff *skb)
 }
 EOF
 
+cat > "$WORK/xdp.bpf.c" <<'EOF'
+// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+
+char _license[] SEC("license") = "Dual BSD/GPL";
+
+SEC("xdp")
+int xdp_prog(struct xdp_md *ctx)
+{
+	return XDP_PASS;
+}
+EOF
+
 test_expect_success 'sk_skb sections are rejected for now' '
 	! ( cd .. && "$B" "$WORK/sk-skb.bpf.c" \
 		-o "$WORK/sk-skb.upatch" \
@@ -97,6 +111,16 @@ test_expect_success 'generic cgroup skb sections require ingress or egress' '
 		>"$WORK/cgroup-skb-generic.out" 2>&1 &&
 	grep -q "use cgroup_skb/ingress or cgroup_skb/egress" \
 		"$WORK/cgroup-skb-generic.out"
+'
+
+test_expect_success 'a section the target cannot attach is rejected' '
+	! ( cd .. && "$B" "$WORK/xdp.bpf.c" \
+		-o "$WORK/xdp.upatch" \
+		--vmlinux vendor/linux/vmlinux.h --name xdp \
+		--key "$WORK/k.pem" --cert "$WORK/c.der" ) \
+		>"$WORK/xdp.out" 2>&1 &&
+	grep -q "unsupported section .xdp." "$WORK/xdp.out" &&
+	! test -e "$WORK/xdp.upatch"
 '
 
 test_done

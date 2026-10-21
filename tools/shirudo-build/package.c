@@ -28,6 +28,7 @@
 #include "io.h"
 #include "loader.h"
 #include "log.h"
+#include "macros.h"
 #include "malloc.h"
 #include "package.h"
 #include "sign.h"
@@ -177,6 +178,31 @@ static bool unsupported_fmod_ret_section(const char *sec)
 	       strcmp(sec, "fmod_ret/") == 0 ||
 	       strcmp(sec, "fmod_ret.s") == 0 ||
 	       strcmp(sec, "fmod_ret.s/") == 0;
+}
+
+/*
+ * The sections the target attaches by their BTF target alone, through
+ * BPF_RAW_TRACEPOINT_OPEN or a BPF_LSM_MAC link; every other type fails
+ * there.
+ */
+static bool default_attach_section(const char *sec)
+{
+	static const char * const prefixes[] = {
+		"fentry/", "fentry.s/", "fexit/", "fexit.s/",
+		"lsm/", "lsm.s/", "tp_btf/",
+	};
+	size_t i, n;
+
+	if (!sec)
+		return false;
+	if (sec[0] == '?')
+		sec++;
+	for (i = 0; i < ARRAY_SIZE(prefixes); i++) {
+		n = strlen(prefixes[i]);
+		if (!strncmp(sec, prefixes[i], n) && sec[n])
+			return true;
+	}
+	return false;
 }
 
 static uint32_t attach_kind_from_section(const char *sec,
@@ -834,6 +860,13 @@ static int build_prog_metadata(struct bpf_object *obj, uint32_t nr_progs,
 			goto err_free;
 		}
 		kind = attach_kind_from_section(sec, &target);
+		if (kind == SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT &&
+		    !default_attach_section(sec)) {
+			pr_err("unsupported section '%s'; supported are fentry, fexit, fmod_ret, lsm, tp_btf, kprobe, kretprobe, uprobe.multi, cgroup_skb and netfilter",
+			       sec);
+			err = -EOPNOTSUPP;
+			goto err_free;
+		}
 		md->progs[i].role =
 			htole32(SHIRUDO_UPATCH_PROG_ROLE_ATTACH);
 		md->progs[i].kind = htole32(kind);
