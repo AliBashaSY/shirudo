@@ -55,8 +55,7 @@
 #include "util/tamper.h"
 #include "util/upatch_resolve.h"
 #include "util/upatch_table.h"
-
-extern const char shirudo_version_id[];
+#include "util/version.h"
 
 static int notdot(const struct dirent *e)
 {

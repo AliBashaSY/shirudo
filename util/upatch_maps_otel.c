@@ -41,6 +41,7 @@
 #include "tenant_id.h"
 #include "upatch_decode.h"
 #include "upatch_maps_otel.h"
+#include "version.h"
 
 #define OTEL_ENDPOINT_MAX	2048
 #define OTEL_RESPONSE_MAX	(64U * 1024U)
@@ -57,8 +58,6 @@
 #define S3_JSON_BUFFER_SIZE	(64U * 1024U)
 #define S3_GZIP_BUFFER_SIZE	(64U * 1024U)
 #define S3_REFERENCE_MAX	(64U * 1024U)
-
-extern const char shirudo_version[];
 
 struct otel_response {
 	char		buf[OTEL_RESPONSE_MAX];

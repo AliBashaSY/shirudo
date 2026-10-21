@@ -11,11 +11,7 @@
 #include "builtin.h"
 #include "util/help.h"
 #include "util/macros.h"
-
-extern const char shirudo_version[];
-extern const char shirudo_version_id[];
-extern const char shirudo_extraversion[];
-extern const char shirudo_release_name[];
+#include "util/version.h"
 
 static const struct shirudo_help_item version_options[] = {
 	{ "--version-id", "print only the raw SHIRUDO_VERSION_ID, one line" },

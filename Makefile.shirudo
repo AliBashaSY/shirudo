@@ -338,6 +338,8 @@ util/version_id.c:
 	    echo "/* Copyright (c) 2026 Authors of shirudo */"; \
 	    echo "/* AUTO-GENERATED. Do not edit. Do not commit. */"; \
 	    echo ""; \
+	    echo "#include \"version.h\""; \
+	    echo ""; \
 	    echo "const char shirudo_version[] = \"$$describe_c\";"; \
 	    echo "const char shirudo_version_id[] = \"$$id\";"; \
 	    echo "const char shirudo_extraversion[] = \"$$extra_c\";"; \

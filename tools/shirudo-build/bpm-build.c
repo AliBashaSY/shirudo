@@ -33,6 +33,7 @@
 #include "package.h"
 #include "paths.h"
 #include "upatch.h"
+#include "version.h"
 #include "vmlinux.h"
 
 #ifndef SHIRUDO_VMLINUX_PATH
@@ -42,8 +43,6 @@
 #define BPM_BUILD_MAX_FILE (256u * 1024u * 1024u)
 #define BPM_BUILD_MAX_JSON (256u * 1024u)
 #define BPM_BUILD_MAX_VALUE 1024
-
-extern const char shirudo_version[];
 
 static void build_copy(char *dst, size_t cap, const char *src)
 {

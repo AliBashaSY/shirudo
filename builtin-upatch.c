@@ -56,8 +56,7 @@
 #include "util/upatch_maps.h"
 #include "util/upatch_maps_otel.h"
 #include "util/upatch_resolve.h"
-
-extern const char shirudo_version_id[];
+#include "util/version.h"
 
 static bool safe_upatch_name(const char *name);
 

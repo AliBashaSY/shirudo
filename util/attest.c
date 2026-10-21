@@ -28,6 +28,7 @@
 #include "malloc.h"
 #include "paths.h"
 #include "tpm.h"
+#include "version.h"
 
 #define FIRMWARE_LOG_PATH \
 	"/sys/kernel/security/tpm0/binary_bios_measurements"
@@ -39,8 +40,6 @@
 #define EK_CERT_B64_MAX		(4 * ((EK_CERT_MAX + 2) / 3) + 1)
 /* restricted | sign | fixedTPM | fixedParent | sensitiveDataOrigin */
 #define AK_ATTRS_REQUIRED	0x00050032u
-
-extern const char shirudo_version_id[];
 
 /*
  * securityfs reports a size of 0 for the firmware event log, so the log

@@ -22,6 +22,7 @@
 #include "malloc.h"
 #include "upatch_maps.h"
 #include "upatch_maps_otel.h"
+#include "version.h"
 
 const char shirudo_version[] = "test-1";
 
