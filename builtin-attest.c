@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "builtin.h"
 #include "util/attest.h"
@@ -142,19 +144,30 @@ static int parse_pcrs(const char *list, __u32 *mask)
 
 	*mask = 0;
 	while (*p) {
-		char *end;
-		__u64 n = strtoul(p, &end, 10);
+		size_t len = shirudo_digits(p, strlen(p));
+		__u64 n;
 
-		if (end == p || n >= 24)
+		if (parse_u64(p, len, 23, &n))
 			return -EINVAL;
 		*mask |= 1u << n;
-		if (*end == ',')
-			end++;
-		else if (*end)
+		p += len;
+		if (*p == ',')
+			p++;
+		else if (*p)
 			return -EINVAL;
-		p = end;
 	}
 	return *mask ? 0 : -EINVAL;
+}
+
+/* "<pcr>=<value>": the PCR, below 24, and where its value starts. */
+static int parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
+{
+	size_t len = shirudo_digits(arg, strlen(arg));
+
+	if (arg[len] != '=' || parse_u64(arg, len, 23, pcr))
+		return -EINVAL;
+	*value = arg + len + 1;
+	return 0;
 }
 
 struct members {
@@ -257,10 +270,9 @@ static int apply_event(const char *spec, __u8 chain[32])
 		shirudo_chain_upatch_event("shirudo-unload", name, digest,
 					   event);
 	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
-		char *end;
-		__s64 seq = strtoll(name, &end, 10);
+		__s64 seq;
 
-		if (end == name || *end || seq <= 0)
+		if (parse_s64(name, strlen(name), 1, INT64_MAX, &seq))
 			return -EINVAL;
 		shirudo_chain_tree_event(seq, digest, event);
 	} else if (kind_len == 6 && !strncmp(spec, "revoke", 6)) {
@@ -317,14 +329,15 @@ static int cmd_attest_predict(int argc, const char **argv)
 				goto out;
 			events[n_events++] = a + 8;
 		} else if (!strncmp(a, "--bind-pcr=", 11)) {
-			char *end;
-			__u64 n = strtoul(a + 11, &end, 10);
-			int slot = n == SHIRUDO_CHAIN_PCR ? 0 :
-				   n == SHIRUDO_CHAIN_PHASE_PCR ? 1 : -1;
+			const char *value = NULL;
+			int slot = -1;
+			__u64 n;
 
-			if (end == a + 11 || *end != '=' || slot < 0 ||
-			    parse_hex32("--bind-pcr value", end + 1,
-					bind[slot])) {
+			if (!parse_pcr_value(a + 11, &n, &value))
+				slot = n == SHIRUDO_CHAIN_PCR ? 0 :
+				       n == SHIRUDO_CHAIN_PHASE_PCR ? 1 : -1;
+			if (slot < 0 ||
+			    parse_hex32("--bind-pcr value", value, bind[slot])) {
 				pr_err("attest predict: --bind-pcr takes "
 				       "%u=<hex> or %u=<hex>", SHIRUDO_CHAIN_PCR,
 				       SHIRUDO_CHAIN_PHASE_PCR);
@@ -500,12 +513,11 @@ static int cmd_attest_verify(int argc, const char **argv)
 				goto out;
 			x.have_chain = true;
 		} else if (!strncmp(a, "--expect-pcr=", 13)) {
-			char *end;
-			__u64 n = strtoul(a + 13, &end, 10);
+			const char *value;
+			__u64 n;
 
-			if (end == a + 13 || *end != '=' || n >= 24 ||
-			    parse_hex32("--expect-pcr value", end + 1,
-					x.pcrs[n]))
+			if (parse_pcr_value(a + 13, &n, &value) ||
+			    parse_hex32("--expect-pcr value", value, x.pcrs[n]))
 				goto out;
 			x.pcr_expect_mask |= 1u << n;
 		} else if (!strcmp(a, "--allow-runtime-events")) {
@@ -529,11 +541,11 @@ static int cmd_attest_verify(int argc, const char **argv)
 			}
 			x.have_ek_name = true;
 		} else if (!strncmp(a, "--expect-bind-pcr=", 18)) {
-			char *end;
-			__u64 n = strtoul(a + 18, &end, 10);
+			const char *value;
+			__u64 n;
 
-			if (end == a + 18 || *end != '=' || n >= 24 ||
-			    parse_hex32("--expect-bind-pcr value", end + 1,
+			if (parse_pcr_value(a + 18, &n, &value) ||
+			    parse_hex32("--expect-bind-pcr value", value,
 					x.bind_values[n]))
 				goto out;
 			x.bind_expect_mask |= 1u << n;
