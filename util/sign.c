@@ -16,10 +16,13 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <openssl/bio.h>
 #include <openssl/cms.h>
@@ -65,15 +68,52 @@ static void display_openssl_errors(void)
 			display_openssl_errors();	\
 	} while (0)
 
+int shirudo_open_signing_key(const char *pkey_path)
+{
+	struct stat st;
+	int fd, rc;
+
+	/* A FIFO in its place would block open() before fstat() refuses it. */
+	fd = open(pkey_path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+	if (fd < 0) {
+		rc = -errno;
+		pr_err("open private key %s: %s", pkey_path, strerror(errno));
+		return rc;
+	}
+	if (fstat(fd, &st)) {
+		rc = -errno;
+		pr_err("stat private key %s: %s", pkey_path, strerror(errno));
+		goto err;
+	}
+	rc = -EPERM;
+	if (!S_ISREG(st.st_mode)) {
+		pr_err("signing key %s is not a regular file", pkey_path);
+		goto err;
+	}
+	if ((st.st_mode & 07777) != 0600) {
+		pr_err("signing key %s has mode 0%o, must be 0600 "
+		       "(run `chmod 0600 %s`)",
+		       pkey_path, (__u32)(st.st_mode & 07777), pkey_path);
+		goto err;
+	}
+	return fd;
+err:
+	close(fd);
+	return rc;
+}
+
 static EVP_PKEY *read_private_key(const char *pkey_path)
 {
 	EVP_PKEY *private_key = NULL;
 	BIO *b;
+	int fd;
 
-	b = BIO_new_file(pkey_path, "rb");
+	fd = shirudo_open_signing_key(pkey_path);
+	if (fd < 0)
+		return NULL;
+	b = BIO_new_fd(fd, BIO_CLOSE);
 	if (!b) {
-		pr_err("open private key %s: %s",
-		       pkey_path, strerror(errno));
+		close(fd);
 		DISPLAY_OSSL_ERR(1);
 		return NULL;
 	}

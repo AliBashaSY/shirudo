@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <shirudo/misc.h>
@@ -25,6 +24,7 @@
 #include "malloc.h"
 #include "package.h"
 #include "paths.h"
+#include "sign.h"
 #include "upatch.h"
 #include "vmlinux.h"
 
@@ -165,38 +165,14 @@ static int compile_to_temp(const char *source, const char *vmlinux_h,
 
 int shirudo_build_check_keys(const char *pkey, const char *cert)
 {
-	if (access(pkey, R_OK) != 0) {
-		pr_err("signing key not readable: %s: %s",
-		       pkey, strerror(errno));
-		pr_err("run `shirudo genkey` on the operator (or pass --key).");
+	int fd = shirudo_open_signing_key(pkey);
+
+	if (fd < 0) {
+		if (fd != -EPERM)
+			pr_err("run `shirudo genkey` on the operator (or pass --key).");
 		return 1;
 	}
-	{
-		struct stat st;
-
-		if (stat(pkey, &st) != 0) {
-			pr_err("signing key not statable: %s: %s",
-			       pkey, strerror(errno));
-			return 1;
-		}
-		if (!S_ISREG(st.st_mode)) {
-			pr_err("signing key %s is not a regular file", pkey);
-			return 1;
-		}
-		/*
-		 * Refuse to sign with a private key that any other user
-		 * on this host can read. 0600 is what `shirudo genkey`
-		 * produces; anything broader has been loosened after the
-		 * fact, deliberately or accidentally, and we'd rather fail
-		 * loudly than silently sign with a leakable key.
-		 */
-		if ((st.st_mode & 07777) != 0600) {
-			pr_err("signing key %s has mode 0%o, must be 0600 "
-			       "(run `chmod 0600 %s`)",
-			       pkey, st.st_mode & 07777, pkey);
-			return 1;
-		}
-	}
+	close(fd);
 	if (access(cert, R_OK) != 0) {
 		pr_err("cert not readable: %s: %s",
 		       cert, strerror(errno));
