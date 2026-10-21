@@ -319,9 +319,10 @@ static __always_inline bool obs_words_equal(const void __arena *a,
 	__u32 i;
 
 #pragma clang loop unroll(full)
-	for (i = 0; i < words; i++)
+	for (i = 0; i < words; i++) {
 		if (x[i] != y[i])
 			return false;
+	}
 	return true;
 }
 
@@ -399,8 +400,8 @@ static __always_inline void obs_emit_bytes(struct shirudo_serial_chunk *chunk,
 		*(__u64 *)&chunk->data[off + i * 8] = s[i];
 }
 
-static __always_inline bool obs_serial_ctx_valid(
-	const struct shirudo_serialize_ctx *ctx)
+static __always_inline bool
+obs_serial_ctx_valid(const struct shirudo_serialize_ctx *ctx)
 {
 	return ctx && ctx->magic == SHIRUDO_SERIAL_MAGIC &&
 	       ctx->version == SHIRUDO_SERIAL_VERSION &&

@@ -229,9 +229,9 @@ static __always_inline int OBS_FN(chunk_meta)(__u32 key, __u32 flags,
 	return 0;
 }
 
-static __always_inline int OBS_FN(emit_header)(
-	const struct OBS_FN(state) __arena *state, __u32 hdr_flags,
-	__u64 now)
+static __always_inline int
+OBS_FN(emit_header)(const struct OBS_FN(state) __arena *state, __u32 hdr_flags,
+		    __u64 now)
 {
 	struct shirudo_serial_chunk *chunk;
 	__u32 off, used;

@@ -118,8 +118,8 @@ static __always_inline void priv_set_detail(struct priv_entry __arena *e,
 	obs_copy_in(e->val.detail, detail, OBS_PRIV_DETAIL_LEN / 8);
 }
 
-static __always_inline void priv_set_mapping_name(
-	struct priv_entry __arena *e, struct file *file)
+static __always_inline void priv_set_mapping_name(struct priv_entry __arena *e,
+						  struct file *file)
 {
 	char name[OBS_NAME_LEN] = {};
 
