@@ -28,6 +28,10 @@ size_t conditions(const struct shirudo_conditions_input *in,
 		n++;
 	}
 	if (n < cap) {
+		const char *kind = in->keyring_mode &&
+				   !strcmp(in->keyring_mode, "bpf") ?
+				   "bpf" : "user";
+
 		c[n].type = "KeyringSealed";
 		if (!in->keyring_present) {
 			c[n].status = "WARN";
@@ -49,8 +53,8 @@ size_t conditions(const struct shirudo_conditions_input *in,
 		} else {
 			c[n].status = "OK";
 			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "serial=%lld in the bpf keyring, %s",
-				 (__s64)in->keyring_serial,
+				 "serial=%lld in the %s keyring, %s",
+				 (__s64)in->keyring_serial, kind,
 				 in->ksp_seen ? "pin matches"
 					      : "no pin recorded");
 		}

@@ -526,6 +526,7 @@ TPMSIM_HELPER := $(if $(TPMSIM_LIBS),testing/helper/tpmsim-cmd,)
 # Compiled test helpers (also usable as fuzz entry points).
 TEST_HELPERS := testing/helper/test-json-parser \
                 testing/helper/test-string \
+                testing/helper/test-conditions \
                 testing/helper/test-chain \
                 testing/helper/test-tpm-wire \
                 testing/helper/test-register \
@@ -555,6 +556,10 @@ testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o u
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 testing/helper/test-string: testing/helper/test-string.c util/string.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+testing/helper/test-conditions: testing/helper/test-conditions.c util/conditions.o \
+                                util/string.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

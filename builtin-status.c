@@ -430,7 +430,8 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 
 /* Status runs on the host, so reachable and parsed are trivially true. */
 static void local_cond_input(struct shirudo_conditions_input *in,
-			     int lsm_attached, int keyring_present, int staging,
+			     int lsm_attached, int keyring_present,
+			     const char *keyring_mode, int staging,
 			     __s64 keyring_serial,
 			     __s64 keyring_serial_pinned,
 			     int ks_seen, int ksp_seen, int ksm_seen,
@@ -443,6 +444,7 @@ static void local_cond_input(struct shirudo_conditions_input *in,
 		.parsed			= true,
 		.lsm_attached		= lsm_attached,
 		.keyring_present	= keyring_present,
+		.keyring_mode		= keyring_mode,
 		.staging		= staging,
 		.keyring_serial		= keyring_serial,
 		.keyring_serial_pinned	= keyring_serial_pinned,
@@ -632,7 +634,8 @@ int cmd_status(int argc, const char **argv)
 	 * The anchor init froze is the kernel's record; the live keyring
 	 * of that kind is what a load would name, and the two must agree.
 	 */
-	if (identity_read(&ident) == 0) {
+	keyring_pinned = identity_read(&ident);
+	if (keyring_pinned == 0) {
 		keyring_pinned = ident.keyring_serial;
 		if (ident.keyring_type == SHIRUDO_SIG_KEYRING_BPF) {
 			keyring_serial = keyring_bpf_serial();
@@ -643,7 +646,6 @@ int cmd_status(int argc, const char **argv)
 			keyring_mode = "user";
 		}
 	} else {
-		keyring_pinned = -ENOENT;
 		keyring_serial = keyring_find(SHIRUDO_KEYRING_NAME);
 		keyring_mode = keyring_serial >= 0 ? "user" : "none";
 	}
@@ -755,6 +757,7 @@ int cmd_status(int argc, const char **argv)
 			size_t nc, ci;
 
 			local_cond_input(&cin, lsm_attached, keyring_present,
+					 keyring_mode,
 					 lsm_attached && strcmp(keyring_mode, "bpf") != 0,
 					 keyring_serial,
 					 keyring_pinned >= 1 ? keyring_pinned : 0,
@@ -1043,6 +1046,7 @@ int cmd_status(int argc, const char **argv)
 		const char *verdict;
 
 		local_cond_input(&cin, lsm_attached, keyring_present,
+				 keyring_mode,
 				 lsm_attached && strcmp(keyring_mode, "bpf") != 0,
 				 keyring_serial,
 				 keyring_pinned >= 1 ? keyring_pinned : 0,
@@ -1095,20 +1099,30 @@ int cmd_status(int argc, const char **argv)
 				       tamper_meaning(i));
 		}
 
-		printf("\nKeyring (%s):\n", SHIRUDO_KEYRING_NAME);
+		printf("\nKeyring (%s):\n", !strcmp(keyring_mode, "bpf") ?
+		       ".bpf" : SHIRUDO_KEYRING_NAME);
 		if (keyring_present)
 			printf("  %-22s %lld\n", "Serial:",
 			       (__s64)keyring_serial);
-		else
+		else if (keyring_pinned == -ENOENT)
 			printf("  %-22s %s\n", "Serial:",
 			       "absent  (operator host, or `shirudo init` "
 			       "not yet run)");
-		if (keyring_pinned < 0)
+		else if (keyring_serial == -ENOKEY)
+			printf("  %-22s %s\n", "Serial:", "absent");
+		else
+			printf("  %-22s lookup error: %s\n", "Serial:",
+			       strerror(-keyring_serial));
+		if (keyring_pinned == -ENOENT)
 			printf("  %-22s %s\n", "Frozen serial:",
 			       "(none this boot)");
+		else if (keyring_pinned < 0)
+			printf("  %-22s unreadable: %s\n", "Frozen serial:",
+			       strerror(-keyring_pinned));
 		else
 			printf("  %-22s %lld%s\n", "Frozen serial:",
-			       (__s64)keyring_pinned, !keyring_present ? "" :
+			       (__s64)keyring_pinned, !keyring_present ?
+			       "  (GONE -- removed?)" :
 			       keyring_serial == keyring_pinned ?
 			       "  (matches)" :
 			       "  (MISMATCH -- swapped?)");

@@ -96,7 +96,8 @@ Conditions
          - ``WARN`` while staging or before ``init``; ``ALERT`` when
            the live keyring is not the one ``init`` froze into the
            identity map (a swapped keyring: every load refuses
-           ``tampered``).
+           ``tampered``).  The detail names the kind of keyring,
+           ``bpf`` or ``user``.
        * - ``ChainIntact``
          - ``ALERT`` when replaying this boot's eventlog does not
            reproduce the live register: something extended it that
