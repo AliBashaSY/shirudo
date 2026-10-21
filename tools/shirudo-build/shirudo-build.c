@@ -237,6 +237,7 @@ int main(int argc, char **argv)
 
 	shirudo_harden_stdio();
 	shirudo_log_init();
+	shirudo_harden_self();
 
 	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
 		return shirudo_build_bpm(argc - 1, argv + 1);
