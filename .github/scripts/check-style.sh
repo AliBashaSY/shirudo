@@ -5,9 +5,9 @@
 # .github/scripts/check-style.sh -- run the kernel's checkpatch.pl, in strict
 # mode, over the C sources a commit touches and over its message, the way
 # cilium checks its BPF tree, plus the block-comment opener that checkpatch
-# leaves to the netdev trees and the kernel's spelling of fixed-width
-# integers. The kernel checks that have no meaning in userspace are
-# switched off below, each with its reason.
+# leaves to the netdev trees, the kernel's spelling of fixed-width
+# integers and the project's number parsers. The kernel checks that have
+# no meaning in userspace are switched off below, each with its reason.
 #
 #   .github/scripts/check-style.sh [<rev-list arguments>]
 #   .github/scripts/check-style.sh --diff
@@ -179,13 +179,19 @@ locate_checkpatch() {
 # where an interface fixes them: BPF programs spell hook arguments as
 # the kernel's prototypes do, include/shirudo/misc.h defines the kernel
 # types from them, util/elf_target.c hands libbpf the unsigned long **
-# it takes, and util/sign.c is vendored.
+# it takes, and util/sign.c is vendored. A call to strtoul() and its kin
+# or atoi() is reported too, outside the tests: a number is parsed with
+# parse_u64() and its kin from <shirudo/string.h>, which take a length,
+# read nothing past it and refuse a sign, blank or base prefix.
 check_int_types() {
 	awk '
 	function c_names_kept(f) {
 		return f ~ /^(bpf|upatches)\// || f ~ /\.bpf\.c$/ ||
 		       f == "include/shirudo/misc.h" ||
 		       f == "util/elf_target.c" || f == "util/sign.c"
+	}
+	function parsers_kept(f) {
+		return f ~ /^(bpf|upatches|testing)\// || f ~ /\.bpf\.c$/
 	}
 	/^\+\+\+ / {
 		file = $0
@@ -255,6 +261,14 @@ check_int_types() {
 			}
 			printf "ERROR:KERNEL_INT_TYPES: spell unsigned %s as %s, from <shirudo/misc.h> in userspace\n#%d: FILE: %s:%d:\n%s\n\n",
 				c, k, NR, file, line, $0
+			bad = 1
+		}
+		if (!parsers_kept(file) &&
+		    match(code, /(^|[^A-Za-z0-9_])(strto(u?ll?|d|f|ld|imax|umax)|ato(i|l|ll|f))[ \t]*\(/)) {
+			fn = substr(code, RSTART, RLENGTH)
+			gsub(/[^A-Za-z0-9_]/, "", fn)
+			printf "ERROR:NUMBER_PARSING: parse numbers with parse_u64(), parse_s64() or parse_x64() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+				fn, NR, file, line, $0
 			bad = 1
 		}
 	}
@@ -427,7 +441,7 @@ list_types() {
 	ignored_types | grep -v '^#' | sort >"$work/ignored"
 	{
 		comm -23 "$work/all" "$work/ignored"
-		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT
+		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING
 	} | sort
 }
 

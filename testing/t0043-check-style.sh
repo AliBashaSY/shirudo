@@ -6,8 +6,8 @@
 # enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
-# it lets through, the C library's integer names it refuses and the list
-# of what stays enabled, on a throwaway repository.
+# it lets through, the C library's integer names and number parsers it
+# refuses and the list of what stays enabled, on a throwaway repository.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -181,6 +181,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "C99_COMMENTS" "$W/out" &&
 	grep -qx "BLOCK_COMMENT_STYLE" "$W/out" &&
 	grep -qx "KERNEL_INT_TYPES" "$W/out" &&
+	grep -qx "NUMBER_PARSING" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
 '
@@ -197,6 +198,22 @@ test_expect_success 'the C library'"'"'s integer names are refused in code only'
 	grep -q "^ERROR:KERNEL_INT_TYPES: spell unsigned char as __u8" "$W/out" &&
 	[ "$(grep -c "^ERROR:KERNEL_INT_TYPES" "$W/out")" = 3 ] &&
 	git -C "$R" checkout -q -- good.c
+'
+
+test_expect_success 'the C library'"'"'s number parsers are refused outside the tests' '
+	printf "%s\n" "/* strtoul() in a comment */" \
+		"static const char *name = \"atoi(s)\";" "" \
+		"long parse(const char *s)" "{" \
+		"	return strtoll(s, NULL, 10) + atoi(s);" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:NUMBER_PARSING: parse numbers with parse_u64(), parse_s64() or parse_x64() from <shirudo/string.h>, not strtoll()" "$W/out" &&
+	[ "$(grep -c "^ERROR:NUMBER_PARSING" "$W/out")" = 1 ] &&
+	git -C "$R" checkout -q -- good.c &&
+	put testing/helper/args.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"long arg(const char *s)" "{" "	return strtol(s, NULL, 10);" "}" &&
+	check --files testing/helper/args.c &&
+	rm -r "$R/testing"
 '
 
 test_expect_success 'a BPF program keeps the kernel'"'"'s argument types' '

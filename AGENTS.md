@@ -84,6 +84,11 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   kernel's prototypes do. `check-style.sh` rejects `uint32_t` and its kin
   everywhere and `unsigned char`, `short`, `int` and `long` in userspace,
   less the files it names.
+- **Parse numbers with `parse_u64()`, `parse_s64()` and `parse_x64()`**
+  from `<shirudo/string.h>`, and find where one ends with `digits()`:
+  they take a length, read nothing past it and refuse a sign, blank or
+  base prefix. `check-style.sh` rejects `strtoul()` and its kin and
+  `atoi()` outside `testing/`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
