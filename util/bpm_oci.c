@@ -334,6 +334,17 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 	return load_registry_auth(c->registry, c);
 }
 
+/*
+ * A registry that stops answering must not hold a timer's unit forever;
+ * a slow transfer that still moves is left alone.
+ */
+static void bpm_curl_deadlines(CURL *curl)
+{
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30L);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
+}
+
 static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 			const char *url, const char *accept,
 			const char *content_type, const void *body, size_t body_len,
@@ -370,6 +381,7 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+	bpm_curl_deadlines(curl);
 	/*
 	 * OCI registries commonly redirect blob GETs to a signed CDN URL.
 	 * Follow only for blobs, never for manifest or upload calls.
@@ -525,6 +537,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	bpm_curl_deadlines(curl);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bpm_write_memory);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &r);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
