@@ -74,6 +74,13 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   form is the kernel convention (a GNU extension shirudo's `-std=gnu11`
   accepts). Use it for every struct/array/union zero-init. When adding
   new code, write `= {}`.
+- **Spell fixed-width integers the kernel's way**: `__u8`, `__u16`,
+  `__u32`, `__u64` and `__s8` to `__s64`, from `<shirudo/misc.h>` in
+  userspace and `vmlinux.h` in BPF, not `uint32_t` and its kin nor
+  `unsigned int`, `unsigned long` and the like. `__u64` is `unsigned long
+  long`, so it prints with `%llu`. A library interface that takes another
+  type keeps it, as does `(unsigned long)` in a pointer-to-integer cast.
+  `check-style.sh` rejects the C library's names.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by

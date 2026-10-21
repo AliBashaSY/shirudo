@@ -5,8 +5,9 @@
 # .github/scripts/check-style.sh -- run the kernel's checkpatch.pl, in strict
 # mode, over the C sources a commit touches and over its message, the way
 # cilium checks its BPF tree, plus the block-comment opener that checkpatch
-# leaves to the netdev trees. The kernel checks that have no meaning in
-# userspace are switched off below, each with its reason.
+# leaves to the netdev trees and the kernel's spelling of fixed-width
+# integers. The kernel checks that have no meaning in userspace are
+# switched off below, each with its reason.
 #
 #   .github/scripts/check-style.sh [<rev-list arguments>]
 #   .github/scripts/check-style.sh --diff
@@ -87,8 +88,8 @@ ignored_types() {
 	# The OpenSSL, zlib and tpm2-tss APIs are CamelCase, as is
 	# _Static_assert.
 	CAMELCASE
-	# uint32_t and its kin are the userspace spelling, and the BPF side
-	# shares headers with it.
+	# It asks for the kernel-internal u32, which userspace does not have;
+	# check_int_types below asks for __u32 and its kin instead.
 	PREFER_KERNEL_TYPES
 	# strscpy, fallthrough;, __packed and the other compiler.h macros do
 	# not exist in userspace; BPF has what bpf_helpers.h defines.
@@ -166,6 +167,70 @@ locate_checkpatch() {
 			"$dir/const_structs.checkpatch"
 	fi
 	printf '%s\n' "$dir/checkpatch.pl"
+}
+
+# Fixed-width integers are spelled the kernel's way, __u32 and its kin from
+# <shirudo/misc.h> in userspace and from vmlinux.h in BPF, not the C
+# library's uint32_t. checkpatch's PREFER_KERNEL_TYPES suggests the
+# kernel-internal u32 and leaves tools/ out, so it stays off and this
+# reports an added line that names uint8_t through int64_t outside a
+# string or a comment, in the form checkpatch reports in.
+check_int_types() {
+	awk '
+	/^\+\+\+ / {
+		file = $0
+		sub(/^\+\+\+ b\//, "", file)
+		incomment = 0
+		next
+	}
+	/^@@ / {
+		split($0, h, " ")
+		sub(/^\+/, "", h[3])
+		split(h[3], r, ",")
+		line = r[1] - 1
+		incomment = 0
+		next
+	}
+	/^[ +]/ {
+		line++
+		text = substr($0, 2)
+		gsub(/"([^"\\]|\\.)*"/, "\"\"", text)
+		code = ""
+		while (text != "") {
+			if (incomment) {
+				if ((end = index(text, "*/")) == 0)
+					break
+				text = substr(text, end + 2)
+				incomment = 0
+			} else if ((at = index(text, "/*")) > 0) {
+				code = code substr(text, 1, at - 1)
+				text = substr(text, at + 2)
+				incomment = 1
+			} else {
+				if ((at = index(text, "//")) > 0)
+					text = substr(text, 1, at - 1)
+				code = code text
+				text = ""
+			}
+		}
+		# A hunk can open inside a comment: " * ..." is one.
+		if (code ~ /^[ \t]*\*/)
+			next
+		if (substr($0, 1, 1) != "+")
+			next
+		if (match(code, /(^|[^A-Za-z0-9_])u?int(8|16|32|64)_t([^A-Za-z0-9_]|$)/)) {
+			type = substr(code, RSTART, RLENGTH)
+			gsub(/[^A-Za-z0-9_]/, "", type)
+			bits = type
+			gsub(/[^0-9]/, "", bits)
+			printf "ERROR:KERNEL_INT_TYPES: spell %s as %s%s, from <shirudo/misc.h> in userspace\n#%d: FILE: %s:%d:\n%s\n\n",
+				type, substr(type, 1, 1) == "u" ? "__u" : "__s", bits,
+				NR, file, line, $0
+			bad = 1
+		}
+	}
+	END { exit bad }
+	' "$1"
 }
 
 # checkpatch enforces the kernel's block-comment form everywhere but at the
@@ -265,6 +330,7 @@ check_patch() {
 		--quiet --show-types --ignore "$IGNORE" \
 		"$@" "$work/patch") >"$work/out" 2>&1 || rc=1
 	check_block_comments "$work/patch" >>"$work/out" || rc=1
+	check_int_types "$work/patch" >>"$work/out" || rc=1
 	annotate <"$work/out"
 	return $rc
 }
@@ -330,7 +396,10 @@ list_types() {
 	perl "$checkpatch" --list-types | awk 'NR > 2 && NF >= 2 { print $2 }' |
 		sort >"$work/all"
 	ignored_types | grep -v '^#' | sort >"$work/ignored"
-	comm -23 "$work/all" "$work/ignored"
+	{
+		comm -23 "$work/all" "$work/ignored"
+		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT
+	} | sort
 }
 
 check_files() {

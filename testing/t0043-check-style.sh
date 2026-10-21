@@ -6,8 +6,8 @@
 # enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
-# it lets through and the list of what stays enabled, on a throwaway
-# repository.
+# it lets through, the C library's integer names it refuses and the list
+# of what stays enabled, on a throwaway repository.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -161,10 +161,10 @@ Why the change is made." &&
 
 test_expect_success 'the userspace spellings checkpatch would reject pass' '
 	put user.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
-		"#include <stdint.h>" "#include <string.h>" "" \
-		"uint32_t user(X509 *c, char *dst, const char *src)" "{" \
+		"#include <string.h>" "" "#include <shirudo/misc.h>" "" \
+		"__u32 user(X509 *c, char *dst, const char *src)" "{" \
 		"	gzFile gz = NULL;" "" "	(void)gz;" "	strcpy(dst, src);" \
-		"	return (uint32_t)ASN1_INTEGER_get(X509_get_serialNumber(c));" "}" &&
+		"	return (__u32)ASN1_INTEGER_get(X509_get_serialNumber(c));" "}" &&
 	commit "a: userspace
 
 Why the change is made." &&
@@ -180,8 +180,19 @@ test_expect_success '--types lists what stays enabled' '
 	check --types &&
 	grep -qx "C99_COMMENTS" "$W/out" &&
 	grep -qx "BLOCK_COMMENT_STYLE" "$W/out" &&
+	grep -qx "KERNEL_INT_TYPES" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
+'
+
+test_expect_success 'the C library'"'"'s integer names are refused in code only' '
+	printf "%s\n" "/* uint32_t in a comment */" \
+		"static const char *name = \"uint64_t\";" \
+		"static __u16 kept;" "static uint32_t width;" >>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:KERNEL_INT_TYPES: spell uint32_t as __u32" "$W/out" &&
+	[ "$(grep -c "^ERROR:KERNEL_INT_TYPES" "$W/out")" = 1 ] &&
+	git -C "$R" checkout -q -- good.c
 '
 
 test_expect_success '--files checks whole files' '
