@@ -60,6 +60,9 @@ void shirudo_libc_free(void *p);
  * SHIRUDO_MALLOC_INTERNAL.
  */
 #ifndef SHIRUDO_MALLOC_INTERNAL
+/* Fortified glibc makes these macros for clang; poison the names alone. */
+# undef asprintf
+# undef vasprintf
 # pragma GCC poison malloc calloc realloc reallocarray free strdup strndup asprintf vasprintf
 #endif
 
