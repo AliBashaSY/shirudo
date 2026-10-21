@@ -27,7 +27,6 @@
 #include "macros.h"
 #include "malloc.h"
 
-
 struct index_sink {
 	struct bpm_index_entry *items;
 	int n;
@@ -37,7 +36,9 @@ struct index_sink {
 static int on_index_entry(void *ud)
 {
 	struct index_sink *s = ud;
-	if (s->n >= BPM_MAX_ENTRIES) return -E2BIG;
+
+	if (s->n >= BPM_MAX_ENTRIES)
+		return -E2BIG;
 	if (!bpm_name_ok(s->scratch.name) || !bpm_version_ok(s->scratch.version) ||
 	    !s->scratch.repository[0] || !s->scratch.manifest_digest[0] ||
 	    !s->scratch.package_digest[0] || s->scratch.package_size < 0)
@@ -47,7 +48,7 @@ static int on_index_entry(void *ud)
 }
 
 int bpm_index_parse(const unsigned char *body, size_t len,
-		       struct bpm_index_entry *entries, int *n_entries)
+		    struct bpm_index_entry *entries, int *n_entries)
 {
 	struct index_sink sink = { .items = entries };
 	struct shirudo_json_array arr = { on_index_entry, &sink };
@@ -55,32 +56,55 @@ int bpm_index_parse(const unsigned char *body, size_t len,
 	int64_t schema = 0;
 
 	memset(sub, 0, sizeof(sub));
-	sub[0] = (struct shirudo_json_field){ .key = "name", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name) };
-	sub[1] = (struct shirudo_json_field){ .key = "version", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.version, .dst_cap = sizeof(sink.scratch.version) };
-	sub[2] = (struct shirudo_json_field){ .key = "repository", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.repository, .dst_cap = sizeof(sink.scratch.repository) };
-	sub[3] = (struct shirudo_json_field){ .key = "manifest_digest", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.manifest_digest, .dst_cap = sizeof(sink.scratch.manifest_digest) };
-	sub[4] = (struct shirudo_json_field){ .key = "package_digest", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.package_digest, .dst_cap = sizeof(sink.scratch.package_digest) };
-	sub[5] = (struct shirudo_json_field){ .key = "signer_fingerprint", .type = SHIRUDO_JSON_T_STRING,
-		.dst = sink.scratch.signer, .dst_cap = sizeof(sink.scratch.signer) };
-	sub[6] = (struct shirudo_json_field){ .key = "package_size", .type = SHIRUDO_JSON_T_INT,
-		.dst = &sink.scratch.package_size };
-	root[0] = (struct shirudo_json_field){ .key = "schema", .type = SHIRUDO_JSON_T_INT,
-		.dst = &schema };
-	root[1] = (struct shirudo_json_field){ .key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
-		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub) };
-	if (shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root)) || schema != 1 || !root[1].seen)
+	sub[0] = (struct shirudo_json_field){
+		.key = "name", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
+	};
+	sub[1] = (struct shirudo_json_field){
+		.key = "version", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.version,
+		.dst_cap = sizeof(sink.scratch.version),
+	};
+	sub[2] = (struct shirudo_json_field){
+		.key = "repository", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.repository,
+		.dst_cap = sizeof(sink.scratch.repository),
+	};
+	sub[3] = (struct shirudo_json_field){
+		.key = "manifest_digest", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.manifest_digest,
+		.dst_cap = sizeof(sink.scratch.manifest_digest),
+	};
+	sub[4] = (struct shirudo_json_field){
+		.key = "package_digest", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.package_digest,
+		.dst_cap = sizeof(sink.scratch.package_digest),
+	};
+	sub[5] = (struct shirudo_json_field){
+		.key = "signer_fingerprint", .type = SHIRUDO_JSON_T_STRING,
+		.dst = sink.scratch.signer,
+		.dst_cap = sizeof(sink.scratch.signer),
+	};
+	sub[6] = (struct shirudo_json_field){
+		.key = "package_size", .type = SHIRUDO_JSON_T_INT,
+		.dst = &sink.scratch.package_size,
+	};
+	root[0] = (struct shirudo_json_field){
+		.key = "schema", .type = SHIRUDO_JSON_T_INT, .dst = &schema,
+	};
+	root[1] = (struct shirudo_json_field){
+		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
+		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
+	};
+	if (shirudo_json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
+	    schema != 1 || !root[1].seen)
 		return -EINVAL;
 	*n_entries = sink.n;
 	return 0;
 }
 
 int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
-		      const unsigned char *sig, size_t sig_len, const char *cert_path)
+		   const unsigned char *sig, size_t sig_len, const char *cert_path)
 {
 	struct shirudo_cert cert = {};
 	int rc = -EINVAL;
@@ -93,23 +117,32 @@ int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
 
 int bpm_tar_octal(const char *p, size_t n, uint64_t *out)
 {
-	uint64_t v = 0; size_t i = 0;
-	while (i < n && (p[i] == ' ' || p[i] == '\0')) i++;
+	uint64_t v = 0;
+	size_t i = 0;
+
+	while (i < n && (p[i] == ' ' || p[i] == '\0'))
+		i++;
 	for (; i < n && p[i] >= '0' && p[i] <= '7'; i++) {
-		if (v > (UINT64_MAX >> 3)) return -EOVERFLOW;
-		v = (v << 3) | (unsigned)(p[i] - '0');
+		if (v > (UINT64_MAX >> 3))
+			return -EOVERFLOW;
+		v = (v << 3) | (unsigned int)(p[i] - '0');
 	}
-	*out = v; return 0;
+	*out = v;
+	return 0;
 }
 
 bool bpm_archive_rel_ok(const char *name)
 {
 	const char *p = name, *q;
-	if (!name || !*name || *name == '/') return false;
+
+	if (!name || !*name || *name == '/')
+		return false;
 	while (*p) {
 		q = strchr(p, '/');
-		if (!q) q = p + strlen(p);
-		if (q == p || (q - p == 2 && !strncmp(p, "..", 2))) return false;
+		if (!q)
+			q = p + strlen(p);
+		if (q == p || (q - p == 2 && !strncmp(p, "..", 2)))
+			return false;
 		p = *q ? q + 1 : q;
 	}
 	return true;
@@ -127,7 +160,7 @@ static bool package_member_name_ok(const char *name, const char *member)
 }
 
 int bpm_pkg_read_member_in(const char *archive, const char *member,
-				 const char *package_dir, char *found_dir,
+			   const char *package_dir, char *found_dir,
 				 size_t found_dir_sz, unsigned char **out,
 				 size_t *out_len, size_t max)
 {
@@ -153,11 +186,12 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			rc = -EINVAL;
 			break;
 		}
-		for (size_t i = 0; i < sizeof(h); i++)
+		for (size_t i = 0; i < sizeof(h); i++) {
 			if (h[i]) {
 				zero = false;
 				break;
 			}
+		}
 		if (zero)
 			break;
 		memcpy(name, h, 100);
@@ -190,7 +224,8 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			}
 			while (remain) {
 				size_t want = remain > 65536 ? 65536 : (size_t)remain;
-				n = gzread(gz, body + size - remain, (unsigned)want);
+
+				n = gzread(gz, body + size - remain, (unsigned int)want);
 				if (n <= 0) {
 					xfree(body, (size_t)size + 1);
 					rc = -EINVAL;
@@ -211,7 +246,8 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		while (remain) {
 			unsigned char discard[65536];
 			size_t want = remain > sizeof(discard) ? sizeof(discard) : (size_t)remain;
-			n = gzread(gz, discard, (unsigned)want);
+
+			n = gzread(gz, discard, (unsigned int)want);
 			if (n <= 0) {
 				rc = -EINVAL;
 				goto done;
@@ -222,7 +258,8 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		while (pad) {
 			unsigned char discard[512];
 			size_t want = pad > sizeof(discard) ? sizeof(discard) : (size_t)pad;
-			n = gzread(gz, discard, (unsigned)want);
+
+			n = gzread(gz, discard, (unsigned int)want);
 			if (n <= 0) {
 				rc = -EINVAL;
 				goto done;
@@ -241,7 +278,7 @@ done:
 }
 
 int bpm_pkg_read_member(const char *archive, const char *member,
-			       unsigned char **out, size_t *out_len, size_t max)
+			unsigned char **out, size_t *out_len, size_t max)
 {
 	return bpm_pkg_read_member_in(archive, member, NULL, NULL, 0,
 				      out, out_len, max);
@@ -341,7 +378,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 	if (rc)
 		return rc;
 	if (shirudo_json_parse((const char *)environment, environment_len,
-				       root, ARRAY_SIZE(root)) ||
+			       root, ARRAY_SIZE(root)) ||
 	    !root[0].seen || !parsed.name[0] || !parsed.version[0] ||
 	    !bpm_package_name_ok(parsed.name) || !bpm_version_ok(parsed.version)) {
 		rc = -EINVAL;
@@ -383,7 +420,7 @@ out:
 }
 
 int bpm_tree_fetch_publication(struct bpm_oci_client *c,
-				     const char *repository,
+			       const char *repository,
 				     const char *reference,
 				     const char *cert_path,
 				     struct shirudo_tree_publication *pub,
@@ -399,7 +436,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 	    strchr(reference, '#') || strstr(reference, ".."))
 		return -EINVAL;
 	rc = bpm_oci_url(c, repository, "manifests", reference, url,
-			  sizeof(url));
+			 sizeof(url));
 	if (rc)
 		return rc;
 	rc = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
@@ -439,8 +476,9 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			rc = -EINVAL;
 			goto out;
 		}
-		if ((rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
-				       url, sizeof(url))))
+		rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
+				 url, sizeof(url));
+		if (rc)
 			goto out;
 		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
 		if (rc)
