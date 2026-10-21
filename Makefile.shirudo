@@ -639,7 +639,7 @@ testing/helper/test-upatch-map-types: testing/helper/test-upatch-map-types.c
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-upatch-prog-metadata: testing/helper/test-upatch-prog-metadata.c \
-                                    util/upatch.o
+                                    util/upatch.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

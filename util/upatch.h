@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <sys/stat.h>
 
 /* The largest container the parser accepts. */
 #define SHIRUDO_UPATCH_FILE_MAX		(16u * 1024u * 1024u)
@@ -71,5 +72,30 @@ bool shirudo_upatch_name_valid(const char *name);
 
 /* A scandir() filter for the archived .upatch files. */
 int shirudo_upatch_select(const struct dirent *e);
+
+struct shirudo_prog_spec {
+	__u32 role;
+	__u32 kind;
+	__u64 offset;
+	char target[SHIRUDO_UPATCH_ATTACH_TARGET_MAX];
+	char map[SHIRUDO_UPATCH_PROG_MAP_MAX];
+	char *uprobe_path;
+	__u32 uprobe_path_len;
+	__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u32 build_id_len;
+	__u64 *uprobe_offsets;
+	__u32 nr_uprobe_offsets;
+	int target_fd;
+	struct stat target_stat;
+};
+
+/*
+ * The program metadata of a load upatch, which the loader signature does
+ * not cover: parsed strictly into one spec per program, target_fd -1.
+ * 0 or -errno; free with shirudo_prog_specs_free().
+ */
+int shirudo_prog_specs_parse(const void *metadata, __u32 metadata_len,
+			     __u32 nr_progs, struct shirudo_prog_spec **out);
+void shirudo_prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
 
 #endif /* SHIRUDO_UTIL_UPATCH_H */
