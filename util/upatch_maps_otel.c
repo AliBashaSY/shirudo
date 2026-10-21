@@ -1494,6 +1494,7 @@ static size_t response_write(char *ptr, size_t size, size_t nmemb, void *ctx)
 	return n;
 }
 
+/* curl hands over the line without a NUL: strtoul() sees a copy. */
 static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 {
 	struct otel_response *r = ctx;
@@ -1503,14 +1504,21 @@ static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 	if (n > sizeof(prefix) - 1 &&
 	    strncasecmp(ptr, prefix, sizeof(prefix) - 1) == 0) {
 		char *p = ptr + sizeof(prefix) - 1;
-		char *end;
+		char num[32], *end;
+		size_t len = 0;
 		__u64 value;
 
 		while (p < ptr + n && isspace((__u8)*p))
 			p++;
+		while (p + len < ptr + n && isdigit((__u8)p[len]))
+			len++;
+		if (!len || len >= sizeof(num))
+			return n;
+		memcpy(num, p, len);
+		num[len] = '\0';
 		errno = 0;
-		value = strtoul(p, &end, 10);
-		if (!errno && end > p)
+		value = strtoul(num, &end, 10);
+		if (!errno)
 			r->retry_after = value > 30 ? 30 : value;
 	}
 	return n;
