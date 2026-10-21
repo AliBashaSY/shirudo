@@ -115,12 +115,24 @@ static size_t bpm_write_memory(void *ptr, size_t size, size_t nmemb, void *ud)
 	return n;
 }
 
+/* A download bounded by the size its manifest declares. */
+struct bpm_file_sink {
+	FILE		*fp;
+	uint64_t	room;
+	bool		overflow;
+};
+
 static size_t bpm_write_file(void *ptr, size_t size, size_t nmemb, void *ud)
 {
-	FILE *fp = ud;
+	struct bpm_file_sink *s = ud;
 	size_t n = size * nmemb;
 
-	return fwrite(ptr, 1, n, fp);
+	if (n > s->room) {
+		s->overflow = true;
+		return 0;
+	}
+	s->room -= n;
+	return fwrite(ptr, 1, n, s->fp);
 }
 
 static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
@@ -325,8 +337,8 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 			const char *url, const char *accept,
 			const char *content_type, const void *body, size_t body_len,
-			const char *auth, struct bpm_http_response *r, FILE *file,
-			bool follow)
+			const char *auth, struct bpm_http_response *r,
+			struct bpm_file_sink *file, bool follow)
 {
 	CURL *curl;
 	struct curl_slist *headers = NULL;
@@ -391,6 +403,8 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
 	}
 	if (file) {
+		curl_easy_setopt(curl, CURLOPT_MAXFILESIZE_LARGE,
+				 (curl_off_t)file->room);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bpm_write_file);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
 	} else {
@@ -409,6 +423,8 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 		pr_err("bpm OCI request %s: %s", url, errbuf[0] ? errbuf : curl_easy_strerror(cc));
 		status = -1;
 	}
+	if (file && cc == CURLE_FILESIZE_EXCEEDED)
+		file->overflow = true;
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 	shirudo_tls_ca_cleanup(&c->tls_ca);
@@ -417,7 +433,8 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 
 static int curl_once(struct bpm_oci_client *c, const char *method,
 			     const char *url, const char *accept, const char *auth,
-			     struct bpm_http_response *r, FILE *file, bool follow)
+			     struct bpm_http_response *r, struct bpm_file_sink *file,
+			     bool follow)
 {
 	return curl_once_ex(c, method, url, accept, NULL, NULL, 0, auth, r, file,
 			    follow);
@@ -596,16 +613,20 @@ int bpm_oci_get_blob(struct bpm_oci_client *c, const char *url,
 }
 
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
-			const char *accept, const char *path)
+			const char *accept, const char *path, int64_t size)
 {
 	struct bpm_http_response r = {};
+	struct bpm_file_sink sink = {};
 	FILE *fp;
 	char auth[BPM_OCI_AUTH_VALUE_SIZE];
 	int rc;
 
+	if (size < 0)
+		return -EINVAL;
 	fp = fopen(path, "wb");
 	if (!fp) return -errno;
-	rc = curl_once(c, "GET", url, accept, NULL, &r, fp, true);
+	sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
+	rc = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
 	if (!rc && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
 		fclose(fp); unlink(path); fp = fopen(path, "wb");
 		if (!fp) {
@@ -613,11 +634,12 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			bpm_buffer_free(&r.body);
 			return rc;
 		}
+		sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
 		rc = get_bearer_token(c, r.www_auth);
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
 			memset(&r, 0, sizeof(r));
-			rc = curl_once(c, "GET", url, accept, auth, &r, fp, true);
+			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	} else if (!rc && r.status == 401 && r.www_auth[0] &&
 		   !strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
@@ -628,13 +650,16 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			bpm_buffer_free(&r.body);
 			return rc;
 		}
+		sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
 		rc = encode_basic(c->username, c->password, encoded, sizeof(encoded));
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Basic %s", encoded);
 			memset(&r, 0, sizeof(r));
-			rc = curl_once(c, "GET", url, accept, auth, &r, fp, true);
+			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	}
+	if (sink.overflow)
+		rc = -EFBIG;
 	if (!rc && (r.status < 200 || r.status >= 300)) rc = r.status == 404 ? -ENOENT : -EACCES;
 	if (fclose(fp) && !rc) rc = -EIO;
 	bpm_buffer_free(&r.body);

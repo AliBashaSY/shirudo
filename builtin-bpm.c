@@ -177,7 +177,8 @@ static int download_package(const char *raw, const char *destination)
 				goto out;
 			}
 		}
-		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, filename);
+		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, filename,
+				      layers[i].size);
 		if (rc)
 			goto out;
 		if (sha256_file_hex(filename, digest, sizeof(digest)) ||
@@ -866,7 +867,10 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 		if (rc)
 			goto out;
 		if (snprintf(archive, sizeof(archive), "%s/%s-%s.bee", SHIRUDO_BPM_STAGING_DIR, entry->name, entry->version) >= (int)sizeof(archive)) { rc = -ENAMETOOLONG; goto out; }
-		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, archive); if (rc) goto out;
+		rc = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, archive,
+				      layers[i].size);
+		if (rc)
+			goto out;
 	if (sha256_file_hex(archive, digest, sizeof(digest)) || !bpm_digest_matches(layers[i].digest, digest)) { rc = -EKEYREJECTED; goto out; }
 		if (access(package_dir, F_OK) == 0) { rc = -EEXIST; goto out; }
 		rc = extract_archive(archive, package_dir); if (rc) goto out;
