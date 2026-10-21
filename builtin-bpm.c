@@ -2078,7 +2078,8 @@ int cmd_bpm(int argc, const char **argv)
 
 			if (!d && errno != ENOENT)
 				rc = -errno;
-			while (!rc && d && (entry = readdir(d))) {
+			/* One unreachable registry must not hold back the others. */
+			while (d && (entry = readdir(d))) {
 				size_t len = strlen(entry->d_name);
 				char source[BPM_MAX_NAME];
 
@@ -2087,7 +2088,7 @@ int cmd_bpm(int argc, const char **argv)
 				if ((size_t)snprintf(source, sizeof(source), "%.*s",
 						(int)(len - 5), entry->d_name) >= sizeof(source)) {
 					rc = -ENAMETOOLONG;
-					break;
+					continue;
 				}
 				if (repo_update_one(source))
 					rc = -EIO;
