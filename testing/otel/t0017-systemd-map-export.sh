@@ -21,6 +21,13 @@ test_expect_success 'map export service runs the configured batch exporter' '
 		../../systemd/shirudo-map-export.service.in
 '
 
+test_expect_success 'the exporter services have a start timeout' '
+	for u in map-export keepalive; do
+		grep -q "^TimeoutStartSec=" ../../systemd/shirudo-$u.service.in ||
+			return 1
+	done
+'
+
 test_expect_success 'map export timer waits five seconds between runs' '
 	grep -q "^OnBootSec=5s$" ../../systemd/shirudo-map-export.timer &&
 	grep -q "^OnUnitInactiveSec=5s$" \
