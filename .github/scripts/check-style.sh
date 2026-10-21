@@ -216,13 +216,49 @@ annotate() {
 	fi
 }
 
+# Two BPF forms checkpatch does not know. A pointer into an arena carries
+# the __arena address space, which checkpatch takes for an identifier and
+# the * after it for a multiplication; it becomes __user, an annotation
+# checkpatch parses. A BPF program names a kernel symbol or a kconfig value
+# with an extern __ksym or __kconfig declaration, which AVOID_EXTERNS
+# flags; such a declaration loses its extern, so the check stays on for
+# every other extern.
+bpf_idioms() {
+	perl -ne '
+	sub flush {
+		$buf =~ s/^(\+\s*)extern\s+/$1/ if $buf =~ /\b__(?:ksym|kconfig)\b/;
+		print $buf;
+		$in = 0;
+	}
+	if ($in) {
+		if (/^\+/) {
+			$buf .= $_;
+			flush() if /;\s*$/;
+			next;
+		}
+		flush();
+	}
+	if (/^\+\s*extern\b/) {
+		$buf = $_;
+		$in = 1;
+		flush() if /;\s*$/;
+		next;
+	}
+	s/\b__arena\b/__user/g if /^[-+ ]/ && !/^(?:\+\+\+|---) /;
+	print;
+	END { flush() if $in }
+	'
+}
+
 # Check one patch stream. The // SPDX tag of a .c file becomes the /* */
 # form first, so the C99 check, which cannot tell the two uses of //
-# apart, sees only real comments. checkpatch seeds a CamelCase cache from
-# the include/ under its root and writes it where it runs, strict mode or
-# not: it runs in the work directory, over an empty include/.
+# apart, sees only real comments, and the BPF forms above are rewritten.
+# checkpatch seeds a CamelCase cache from the include/ under its root and
+# writes it where it runs, strict mode or not: it runs in the work
+# directory, over an empty include/.
 check_patch() {
-	sed -E 's|^([-+ ])// (SPDX-License-Identifier: .*)$|\1/* \2 */|' "$1" >"$work/patch"
+	sed -E 's|^([-+ ])// (SPDX-License-Identifier: .*)$|\1/* \2 */|' "$1" |
+		bpf_idioms >"$work/patch"
 	shift
 	rc=0
 	(cd "$work" && perl "$checkpatch" --no-tree --root="$work" --strict \
