@@ -69,9 +69,15 @@ SHIRUDO_BPF_INCDIR  ?= $(sharedir)/shirudo/bpf/include
 # Installed kernel BTF types used as the default vmlinux.h fallback.
 SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
 
+# A warning fails the build, ours and that of the vendored libbpf and
+# the BPF objects alike; WERROR=0 lets a compiler newer than the tree
+# finish the build while its new warnings get fixed.
+WERROR ?= 1
+WERROR_CFLAGS := $(if $(filter 1,$(WERROR)),-Werror)
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes \
             -Wmissing-prototypes -Wpointer-arith -Wshadow \
-            -Wdeclaration-after-statement -Wformat-security
+            -Wdeclaration-after-statement -Wformat-security \
+            $(WERROR_CFLAGS)
 
 SHIRUDO_DEBUG ?= 1
 DEBUG_CFLAGS := $(if $(filter 1 yes y true,$(SHIRUDO_DEBUG)),-g,)
@@ -149,7 +155,7 @@ endif
 # fixable upstream of us, so silence both for BPF compilation.
 CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra \
              -Wno-missing-declarations -Wno-unused-parameter \
-             -Wdeclaration-after-statement
+             -Wdeclaration-after-statement $(WERROR_CFLAGS)
 
 # ----- source manifests -------------------------------------------
 
@@ -289,7 +295,8 @@ libbpf: $(LIBBPF_A)
 
 $(LIBBPF_A): $(LIBBPF_SRCS)
 	@printf '  LIBBPF\n'
-	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) CC="$(CC)" Q="$(Q)"
+	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) CC="$(CC)" Q="$(Q)" \
+		EXTRA_CFLAGS="$(WERROR_CFLAGS)"
 
 # Build-time only; links the vendored libbpf and dumps BTF as C.
 $(VMLINUX_GEN): tools/gen-vmlinux-h/gen-vmlinux-h.c $(LIBBPF_A)

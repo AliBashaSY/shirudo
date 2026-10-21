@@ -296,6 +296,10 @@ one usually still compiles and passes tests.
 - `make` builds the operator binary; `make shirudo-build` the helper;
   `make target` the static-OpenSSL target profile (`make target-deps`
   builds OpenSSL, libcurl and tpm2-tss from source first).
+- A compiler warning fails every build the Makefiles drive, the BPF
+  objects, vendored libbpf, test helpers and fuzz targets included;
+  fix the warning rather than silence it. `WERROR=0` is for a compiler
+  newer than the tree, while its new warnings get fixed.
 - `make -C testing test-op` runs the host-side suite (`testing/t0*`), no root needed;
   `make -C testing SANITIZE=address,undefined test-op` runs it under ASan and
   UBSan (CI does too); `make -C testing test-tgt` runs the target suite in the

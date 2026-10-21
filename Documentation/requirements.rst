@@ -262,7 +262,9 @@ since the libguestfs appliance resolves names through DNS alone.
 4) Operator host
 ----------------
 
-* A C toolchain (``cc``, ``make``, ``pkg-config``).
+* A C toolchain (``cc``, ``make``, ``pkg-config``).  A compiler warning
+  fails the build; ``make WERROR=0`` lets a compiler newer than the tree
+  finish it.
 * Current upstream ``clang`` and ``llvm`` with the BPF target, for
   ``shirudo build`` and the embedded enforcement programs.
 * OpenSSL 3.5 or newer: ``libcrypto`` and ``libssl`` development files
