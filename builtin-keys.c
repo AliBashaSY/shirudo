@@ -824,10 +824,82 @@ set_find(const struct shirudo_trusted_set *set, const uint8_t fp[32])
 	return NULL;
 }
 
+struct revoke_seen {
+	const char	*fp_hex;
+	bool		found;
+};
+
+static int revoke_logged(const char *line, size_t len, void *ctx)
+{
+	struct revoke_seen *r = ctx;
+	char type[32] = {}, fp[65] = {};
+	struct shirudo_json_field key[] = {
+		{ "fingerprint", SHIRUDO_JSON_T_STRING, fp, sizeof(fp), 0,
+		  NULL, 0 },
+	};
+	struct shirudo_json_field f[] = {
+		{ "type", SHIRUDO_JSON_T_STRING, type, sizeof(type), 0, NULL,
+		  0 },
+		{ "key", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, key,
+		  ARRAY_SIZE(key) },
+	};
+
+	if (!shirudo_json_parse(line, len, f, ARRAY_SIZE(f)) &&
+	    !strcmp(type, "key_revoke") && !strcmp(fp, r->fp_hex))
+		r->found = true;
+	return 0;
+}
+
+/*
+ * A revocation left unmeasured: its marker is from this boot and this
+ * boot's log does not hold it. One from an earlier boot never had its
+ * key enrolled in this one, so there is nothing to measure.
+ */
+static bool revoke_unmeasured(const char *marker, const char *fp_hex)
+{
+	struct revoke_seen r = { .fp_hex = fp_hex };
+	struct timespec up;
+	struct stat st;
+
+	if (stat(marker, &st) || clock_gettime(CLOCK_BOOTTIME, &up))
+		return true;
+	if (st.st_mtime < time(NULL) - up.tv_sec)
+		return false;
+	return shirudo_eventlog_boot_lines(revoke_logged, &r) || !r.found;
+}
+
+/* The certificate a revoked marker holds, as a member it once was. */
+static int revoked_cert(const uint8_t fp[32], const char *marker,
+			struct shirudo_trusted_cert *c, unsigned char **der,
+			size_t *der_sz)
+{
+	char trusted[PATH_MAX];
+	int rc;
+
+	rc = shirudo_keys_read_der(marker, der, der_sz);
+	if (rc)
+		return rc;
+	memset(c, 0, sizeof(*c));
+	rc = shirudo_keys_digest_der(*der, *der_sz, c->sha256, c->fingerprint);
+	if (!rc && memcmp(c->fingerprint, fp, 32))
+		rc = -EKEYREJECTED;
+	if (!rc)
+		rc = shirudo_keys_path_for(SHIRUDO_KEYS_DIR "/trusted", fp,
+					   ".der", trusted, sizeof(trusted));
+	if (rc) {
+		xfree(*der, *der_sz);
+		*der = NULL;
+		return rc;
+	}
+	snprintf(c->path, sizeof(c->path), "%s", trusted);
+	return 0;
+}
+
 static int keys_revoke(int argc, const char **argv)
 {
 	const struct shirudo_trusted_cert *victim, *heir = NULL;
 	const char *fp_arg = NULL, *promote_arg = NULL;
+	struct shirudo_trusted_cert gone;
 	uint8_t fp[32], promote_fp[32];
 	struct shirudo_trusted_set set;
 	unsigned char *der = NULL;
@@ -835,7 +907,7 @@ static int keys_revoke(int argc, const char **argv)
 	char revoked[PATH_MAX];
 	key_serial_t ring, key;
 	size_t der_sz = 0, n_unloaded = 0;
-	bool force = false;
+	bool force = false, resume = false;
 	char fp_hex[65];
 	int rc, purged;
 
@@ -898,13 +970,29 @@ static int keys_revoke(int argc, const char **argv)
 		return 1;
 	}
 	victim = set_find(&set, fp);
-	if (!victim) {
-		if (shirudo_keys_is_revoked(SHIRUDO_KEYS_REVOKED_DIR, fp)) {
-			pr_info("keys revoke: %s is already revoked", fp_hex);
-			return 0;
-		}
+	if (!victim && !shirudo_keys_is_revoked(SHIRUDO_KEYS_REVOKED_DIR, fp)) {
 		pr_err("keys revoke: %s is not a trusted certificate", fp_hex);
 		return 1;
+	}
+	if (!victim) {
+		/*
+		 * Revoked before: a run that failed after the marker left
+		 * the unlink, the measurement or the purge to this one.
+		 */
+		rc = shirudo_keys_path_for(SHIRUDO_KEYS_REVOKED_DIR, fp,
+					   ".der", revoked, sizeof(revoked));
+		if (!rc)
+			rc = revoked_cert(fp, revoked, &gone, &der, &der_sz);
+		if (rc) {
+			pr_err("keys revoke: read the revoked certificate: %s",
+			       strerror(-rc));
+			return 1;
+		}
+		pr_info("keys revoke: %s is already revoked; finishing it",
+			fp_hex);
+		victim = &gone;
+		resume = true;
+		goto finish;
 	}
 	if (set.n == 1 && !force) {
 		pr_err("keys revoke: %s is the only certificate; revoking it "
@@ -950,6 +1038,7 @@ static int keys_revoke(int argc, const char **argv)
 		}
 	}
 
+finish:
 	/* The kernel: from this moment nothing it signed verifies. */
 	key = shirudo_keyring_find_cert(ring, der, der_sz);
 	if (key == -ENOKEY) {
@@ -973,9 +1062,11 @@ static int keys_revoke(int argc, const char **argv)
 			(int)key);
 	}
 
-	rc = measure_revoke(victim, fp_hex);
-	if (rc)
-		goto out;
+	if (!resume || revoke_unmeasured(revoked, fp_hex)) {
+		rc = measure_revoke(victim, fp_hex);
+		if (rc)
+			goto out;
+	}
 
 	/* The archive, then the files the set was read from. */
 	purged = purge_signed_by(der, der_sz, &n_unloaded);
