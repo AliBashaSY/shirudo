@@ -34,6 +34,7 @@
 #include "crypto.h"
 #include "hex.h"
 #include "json.h"
+#include "log.h"
 #include "config.h"
 #include "macros.h"
 #include "malloc.h"
@@ -1618,10 +1619,9 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 			sizeof(error), 0, NULL, 0 };
 		if (shirudo_json_parse(body, len, root, ARRAY_SIZE(root)))
 			error[0] = '\0';
-		fprintf(stderr, "otel: Collector partially rejected %lld"
-			" %s%s%s\n", rejected,
-			signal == SHIRUDO_OTEL_LOG ? "log record(s)" :
-			"data point(s)", error[0] ? ": " : "", error);
+		pr_err("otel: Collector partially rejected %lld %s%s%s",
+		       rejected, signal == SHIRUDO_OTEL_LOG ? "log record(s)" :
+		       "data point(s)", error[0] ? ": " : "", error);
 		return -EREMOTEIO;
 	}
 	return 0;

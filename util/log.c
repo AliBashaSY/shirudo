@@ -9,22 +9,53 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#include <shirudo/misc.h>
+
 #include "log.h"
+
+#define LOG_MSG_MAX	8192
 
 void shirudo_log_init(void)
 {
 	openlog("shirudo", LOG_PID | LOG_NDELAY, LOG_AUTHPRIV);
 }
 
+/*
+ * A message can carry text from outside, a registry's error body or a
+ * name from a package, and with it terminal escape sequences or line
+ * breaks that forge records. Keep printable ASCII, double a backslash and
+ * write every other byte as a backslash and three octal digits.
+ */
+static void escape(char *dst, size_t cap, const char *src)
+{
+	size_t n = 0;
+
+	for (; *src && n + 5 <= cap; src++) {
+		__u8 c = *src;
+
+		if (c == '\\') {
+			dst[n++] = '\\';
+			dst[n++] = '\\';
+		} else if (c >= 0x20 && c < 0x7f) {
+			dst[n++] = c;
+		} else {
+			dst[n++] = '\\';
+			dst[n++] = '0' + (c >> 6);
+			dst[n++] = '0' + ((c >> 3) & 7);
+			dst[n++] = '0' + (c & 7);
+		}
+	}
+	dst[n] = '\0';
+}
+
 static void emit(int priority, const char *fmt, va_list ap)
 {
-	va_list ap2;
+	char msg[LOG_MSG_MAX], out[4 * LOG_MSG_MAX + 1];
 
-	va_copy(ap2, ap);
-	vsyslog(priority, fmt, ap);
-	vfprintf(stderr, fmt, ap2);
-	fputc('\n', stderr);
-	va_end(ap2);
+	vsnprintf(msg, sizeof(msg), fmt, ap);
+	escape(out, sizeof(out), msg);
+	syslog(priority, "%s", out);
+	fprintf(stderr, "%s\n", out);
 }
 
 #define PR_DEFINE(name, prio)					\
