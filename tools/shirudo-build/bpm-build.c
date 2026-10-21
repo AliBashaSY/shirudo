@@ -712,6 +712,43 @@ static void build_upatch_name(const char *source, char *out, size_t cap)
 }
 
 /*
+ * The artifacts are signed into a directory of their own under names of
+ * their own, so no target name can reach a file of the operator's and the
+ * build leaves nothing behind.
+ */
+static int build_stage_open(struct bpm_build_spec *spec)
+{
+	const char *tmpdir = getenv("TMPDIR");
+
+	if (!tmpdir || !tmpdir[0])
+		tmpdir = "/tmp";
+	if (snprintf(spec->stage, sizeof(spec->stage),
+		     "%s/shirudo-bpm-build.XXXXXX", tmpdir) >=
+	    (int)sizeof(spec->stage))
+		return -ENAMETOOLONG;
+	if (!mkdtemp(spec->stage))
+		return -errno;
+	return 0;
+}
+
+static void build_stage_close(struct bpm_build_spec *spec)
+{
+	char object[PATH_MAX + 8];
+
+	for (size_t i = 0; i < spec->n_upatches; i++) {
+		struct bpm_build_upatch *u = &spec->upatches[i];
+
+		if (!u->load_path[0])
+			continue;
+		snprintf(object, sizeof(object), "%s.bpf.o", u->load_path);
+		unlink(object);
+		unlink(u->load_path);
+		unlink(u->unload_path);
+	}
+	rmdir(spec->stage);
+}
+
+/*
  * The unload directive is bound to the payload digest the load artifact
  * ended up with.
  */
@@ -732,15 +769,13 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		if (build_resolve_source(spec, u->source, source, sizeof(source),
 					 &(struct stat){}))
 			return -EINVAL;
-		if (build_join(load, sizeof(load), spec->scope, strrchr(u->load_target, '/') ?
-					 strrchr(u->load_target, '/') + 1 : u->load_target) ||
-		    build_join(unload, sizeof(unload), spec->scope, strrchr(u->unload_target, '/') ?
-					 strrchr(u->unload_target, '/') + 1 : u->unload_target))
+		if (snprintf(load, sizeof(load), "%s/%zu.upatch", spec->stage,
+			     i) >= (int)sizeof(load) ||
+		    snprintf(unload, sizeof(unload), "%s/%zu.unload.upatch",
+			     spec->stage, i) >= (int)sizeof(unload))
 			return -ENAMETOOLONG;
 		build_copy(u->load_path, sizeof(u->load_path), load);
 		build_copy(u->unload_path, sizeof(u->unload_path), unload);
-		unlink(load);
-		unlink(unload);
 		if (build_ends_with(source, ".bpf.c")) {
 			if (!vmlinux_h) {
 				vmlinux_h = shirudo_build_locate_vmlinux(NULL);
@@ -1155,9 +1190,13 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		rc = -errno;
 		goto out_cert;
 	}
+	rc = build_stage_open(spec);
+	if (rc)
+		goto out_cert;
 	rc = build_upatches(spec, pkey, cert_path);
 	if (!rc)
 		rc = build_archive(spec, version, cert_path, fingerprint, out_dir);
+	build_stage_close(spec);
 out_cert:
 	shirudo_cert_free(&cert);
 out:

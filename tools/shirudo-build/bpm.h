@@ -52,6 +52,7 @@ struct bpm_build_upatch {
 struct bpm_build_spec {
 	char name[128];
 	char scope[PATH_MAX];
+	char stage[PATH_MAX];
 	unsigned char *build_file;
 	size_t build_file_len;
 	struct bpm_build_file files[BPM_BUILD_MAX_ENTRIES];
