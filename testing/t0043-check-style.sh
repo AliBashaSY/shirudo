@@ -188,11 +188,26 @@ test_expect_success '--types lists what stays enabled' '
 test_expect_success 'the C library'"'"'s integer names are refused in code only' '
 	printf "%s\n" "/* uint32_t in a comment */" \
 		"static const char *name = \"uint64_t\";" \
-		"static __u16 kept;" "static uint32_t width;" >>"$R/good.c" &&
+		"static __u16 kept;" "static uint32_t width;" \
+		"static unsigned long mask;" "static unsigned char byte;" \
+		>>"$R/good.c" &&
 	! check --diff &&
 	grep -q "^ERROR:KERNEL_INT_TYPES: spell uint32_t as __u32" "$W/out" &&
-	[ "$(grep -c "^ERROR:KERNEL_INT_TYPES" "$W/out")" = 1 ] &&
+	grep -q "^ERROR:KERNEL_INT_TYPES: spell unsigned long as __u64" "$W/out" &&
+	grep -q "^ERROR:KERNEL_INT_TYPES: spell unsigned char as __u8" "$W/out" &&
+	[ "$(grep -c "^ERROR:KERNEL_INT_TYPES" "$W/out")" = 3 ] &&
 	git -C "$R" checkout -q -- good.c
+'
+
+test_expect_success 'a BPF program keeps the kernel'"'"'s argument types' '
+	put hook.bpf.c "// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause" "" \
+		"int hook(unsigned long arg, unsigned short port, unsigned char c)" \
+		"{" "	return arg > port + c;" "}" &&
+	check --files hook.bpf.c &&
+	printf "%s\n" "static uint32_t width;" >>"$R/hook.bpf.c" &&
+	! check --files hook.bpf.c &&
+	grep -q "^ERROR:KERNEL_INT_TYPES: spell uint32_t as __u32" "$W/out" &&
+	rm "$R/hook.bpf.c"
 '
 
 test_expect_success '--files checks whole files' '

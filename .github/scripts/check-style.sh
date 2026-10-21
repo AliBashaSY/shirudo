@@ -174,9 +174,19 @@ locate_checkpatch() {
 # library's uint32_t. checkpatch's PREFER_KERNEL_TYPES suggests the
 # kernel-internal u32 and leaves tools/ out, so it stays off and this
 # reports an added line that names uint8_t through int64_t outside a
-# string or a comment, in the form checkpatch reports in.
+# string or a comment, in the form checkpatch reports in, and in
+# userspace one that names unsigned char, short, int or long. Those stay
+# where an interface fixes them: BPF programs spell hook arguments as
+# the kernel's prototypes do, include/shirudo/misc.h defines the kernel
+# types from them, util/elf_target.c hands libbpf the unsigned long **
+# it takes, and util/sign.c is vendored.
 check_int_types() {
 	awk '
+	function c_names_kept(f) {
+		return f ~ /^(bpf|upatches)\// || f ~ /\.bpf\.c$/ ||
+		       f == "include/shirudo/misc.h" ||
+		       f == "util/elf_target.c" || f == "util/sign.c"
+	}
 	/^\+\+\+ / {
 		file = $0
 		sub(/^\+\+\+ b\//, "", file)
@@ -226,6 +236,25 @@ check_int_types() {
 			printf "ERROR:KERNEL_INT_TYPES: spell %s as %s%s, from <shirudo/misc.h> in userspace\n#%d: FILE: %s:%d:\n%s\n\n",
 				type, substr(type, 1, 1) == "u" ? "__u" : "__s", bits,
 				NR, file, line, $0
+			bad = 1
+		} else if (!c_names_kept(file) &&
+			   match(code, /(^|[^A-Za-z0-9_])unsigned[ \t]+(char|short|int|long)([^A-Za-z0-9_]|$)/)) {
+			type = substr(code, RSTART, RLENGTH)
+			if (type ~ /char/) {
+				c = "char"
+				k = "__u8"
+			} else if (type ~ /short/) {
+				c = "short"
+				k = "__u16"
+			} else if (type ~ /int/) {
+				c = "int"
+				k = "__u32"
+			} else {
+				c = "long"
+				k = "__u64"
+			}
+			printf "ERROR:KERNEL_INT_TYPES: spell unsigned %s as %s, from <shirudo/misc.h> in userspace\n#%d: FILE: %s:%d:\n%s\n\n",
+				c, k, NR, file, line, $0
 			bad = 1
 		}
 	}

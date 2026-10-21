@@ -78,9 +78,12 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   `__u32`, `__u64` and `__s8` to `__s64`, from `<shirudo/misc.h>` in
   userspace and `vmlinux.h` in BPF, not `uint32_t` and its kin nor
   `unsigned int`, `unsigned long` and the like. `__u64` is `unsigned long
-  long`, so it prints with `%llu`. A library interface that takes another
-  type keeps it, as does `(unsigned long)` in a pointer-to-integer cast.
-  `check-style.sh` rejects the C library's names.
+  long`, so it prints with `%llu`, and `ptr_to_u64()` turns a pointer
+  into the `__u64` the bpf() ABI carries. A library interface that takes
+  another type keeps it, and BPF programs spell hook arguments as the
+  kernel's prototypes do. `check-style.sh` rejects `uint32_t` and its kin
+  everywhere and `unsigned char`, `short`, `int` and `long` in userspace,
+  less the files it names.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
