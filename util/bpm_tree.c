@@ -277,7 +277,7 @@ static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 					    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
 				return -EINVAL;
 		} else if (!strcmp(key, "kconfig") ||
-				   !strcmp(key, "kernel_config")) {
+			   !strcmp(key, "kernel_config")) {
 			if (tp_selector_string_map(p, s->kconfig, &s->n_kconfig,
 						   SHIRUDO_TREE_MAX_KCONFIG))
 				return -EINVAL;

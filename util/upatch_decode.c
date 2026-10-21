@@ -1338,8 +1338,8 @@ int shirudo_upatch_decode_map_json(const struct shirudo_map_view *v,
 				   char **out, size_t *out_len)
 {
 	return shirudo_upatch_decode_map_json_limit(v,
-						      SHIRUDO_JSON_MAX_BYTES,
-						      out, out_len);
+						    SHIRUDO_JSON_MAX_BYTES,
+						    out, out_len);
 }
 
 int shirudo_upatch_decode_map_json_limit(const struct shirudo_map_view *v,
@@ -1362,8 +1362,8 @@ int shirudo_upatch_decode_map_file_json(const char *path,
 					char **out, size_t *out_len)
 {
 	return shirudo_upatch_decode_map_file_json_limit(path, v,
-							SHIRUDO_JSON_MAX_BYTES,
-							out, out_len);
+							 SHIRUDO_JSON_MAX_BYTES,
+							 out, out_len);
 }
 
 int shirudo_upatch_decode_map_file_json_limit(const char *path,
@@ -1381,7 +1381,7 @@ int shirudo_upatch_decode_map_file_otel(const char *path,
 					char **out, size_t *out_len)
 {
 	return decode_map_file(path, v, true, SHIRUDO_JSON_MAX_BYTES,
-				      out, out_len);
+			       out, out_len);
 }
 
 #endif /* SHIRUDO_HAVE_LUAJIT */

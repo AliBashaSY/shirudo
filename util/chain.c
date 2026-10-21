@@ -66,8 +66,8 @@ static int member_cmp(const void *a, const void *b)
 
 void shirudo_chain_init_event(const uint8_t cert_sha[32],
 			      struct shirudo_measured_upatch *set, size_t n,
-			       const uint8_t tree_root[32],
-			       uint8_t set_digest[32], uint8_t event[32])
+			      const uint8_t tree_root[32],
+			      uint8_t set_digest[32], uint8_t event[32])
 {
 	uint8_t tag[sizeof("shirudo-init") + 96];
 	size_t taglen = sizeof("shirudo-init"), listing_len = 0, off = 0, i;

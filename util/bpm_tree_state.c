@@ -181,14 +181,14 @@ static void selector_hash_build(const struct shirudo_tree_selector *s,
 
 static int selector_hash_find(const struct shirudo_tree_selector *s,
 			      const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
-				      const char *key)
+			      const char *key)
 {
 	unsigned int slot = selector_hash(key) &
 		(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
 
 	for (int probes = 0; probes < SHIRUDO_TREE_SELECTOR_HASH_SIZE;
 	     probes++, slot = (slot + 1) &
-			(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1)) {
+	     (SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1)) {
 		if (slots[slot] < 0)
 			return -1;
 		if (!strcmp(s->kconfig[slots[slot]].key, key))
@@ -260,9 +260,9 @@ static int selector_config_line(const char *line,
 
 static int read_selector_config_file(const char *path,
 				     const struct shirudo_tree_selector *s,
-					 const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
-					 char values[][SHIRUDO_TREE_STRING_MAX],
-					 bool found[], bool gz)
+				     const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
+				     char values[][SHIRUDO_TREE_STRING_MAX],
+				     bool found[], bool gz)
 {
 	char line[1024];
 	int rc = 0;

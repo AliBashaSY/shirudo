@@ -102,7 +102,7 @@ int main(void)
 	failed += check_invalid(path, "map_export.otel_insecure = yes\n");
 	failed += check_invalid(path, "map_export.otlp_max_bytes = 0\n");
 	failed += check_invalid(path, "map_export.otlp_max_bytes = 1024\n"
-					"map_export.log_record_max_bytes = 2048\n");
+				"map_export.log_record_max_bytes = 2048\n");
 	failed += check_invalid(path, "map_export.tenant_id = tenant uuid\n");
 	failed += check_invalid(path, "map_export.tenant_id = tenant/id\n");
 	failed += check_invalid(path,

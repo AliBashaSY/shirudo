@@ -1236,7 +1236,7 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 				cursor += sizeof(offset);
 				spec->uprobe_offsets[j] = le64toh(offset);
 				if (j && spec->uprobe_offsets[j] <=
-					 spec->uprobe_offsets[j - 1])
+				    spec->uprobe_offsets[j - 1])
 					goto out;
 			}
 		}
@@ -1612,7 +1612,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 		return 0;
 	if (snprintf(dir, sizeof(dir), "%s/%s",
 		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
-		    (int)sizeof(dir))
+	    (int)sizeof(dir))
 		return -ENAMETOOLONG;
 	if (snprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) >=
 	    (int)sizeof(maps_dir))

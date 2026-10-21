@@ -351,7 +351,7 @@ static int build_default_targets(struct bpm_build_upatch *u)
 		return -ENAMETOOLONG;
 	if (!u->unload_target[0] && snprintf(u->unload_target,
 					     sizeof(u->unload_target), "upatches/%s.unload.upatch",
-				 base) >= (int)sizeof(u->unload_target))
+					     base) >= (int)sizeof(u->unload_target))
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -864,7 +864,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 
 static int build_environment(const struct bpm_build_spec *spec,
 			     const char *version, const char *fingerprint,
-				     unsigned char **out, size_t *out_len)
+			     unsigned char **out, size_t *out_len)
 {
 	char *body = xmalloc(BPM_BUILD_MAX_JSON);
 	struct shirudo_json_emit e = { .buf = body, .cap = BPM_BUILD_MAX_JSON };
@@ -908,10 +908,10 @@ static int build_environment(const struct bpm_build_spec *spec,
 		shirudo_json_kv_string(&e, "type", u->type);
 		shirudo_json_kv_string(&e, "load_target", u->load_target);
 		shirudo_json_kv_string(&e, "load_output", strrchr(u->load_target, '/') ?
-					strrchr(u->load_target, '/') + 1 : u->load_target);
+				       strrchr(u->load_target, '/') + 1 : u->load_target);
 		shirudo_json_kv_string(&e, "unload_target", u->unload_target);
 		shirudo_json_kv_string(&e, "unload_output", strrchr(u->unload_target, '/') ?
-					strrchr(u->unload_target, '/') + 1 : u->unload_target);
+				       strrchr(u->unload_target, '/') + 1 : u->unload_target);
 		shirudo_json_kv_string(&e, "upatch_name", u->name);
 		shirudo_json_kv_string(&e, "payload_sha256", u->payload_sha256);
 		shirudo_json_obj_close(&e);

@@ -61,7 +61,7 @@ struct shirudo_upatch_header {
 };
 
 _Static_assert(sizeof(struct shirudo_upatch_header) ==
-		SHIRUDO_UPATCH_HEADER_SIZE, "unexpected upatch header padding");
+	       SHIRUDO_UPATCH_HEADER_SIZE, "unexpected upatch header padding");
 
 /*
  * Optional decoder metadata embedded inside the signature-covered data

@@ -617,7 +617,7 @@ static void u64_decimal(uint64_t value, char out[32])
 }
 
 static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *e,
-			      const struct shirudo_map_view *v)
+						      const struct shirudo_map_view *v)
 {
 	uint32_t i, j;
 
@@ -638,7 +638,7 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct shirudo_serial_page *page = &v->serial_pages[p];
 			char *hex = shirudo_hex_alloc(page->data,
-							 page->bytes);
+						      page->bytes);
 
 			otlp_array_kvlist_begin(e);
 			otlp_kv_int(e, "page_index", page->page_index);
@@ -722,8 +722,8 @@ static __attribute__((unused)) void emit_log_map_data(struct shirudo_json_emit *
 /* record_max bounds the decoded body, 0 for none. */
 static int build_log_payload(const char *path,
 			     const struct shirudo_map_view *v,
-				      size_t record_max,
-				      char **out, size_t *out_len)
+			     size_t record_max,
+			     char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e = {};
 	char *decoded = NULL;
@@ -759,7 +759,7 @@ static int build_log_payload(const char *path,
 	shirudo_json_kv_string(&e, "severityText", "INFO");
 	shirudo_json_kv_string(&e, "eventName", "shirudo.bpf.map.snapshot");
 	decode_rc = path ? shirudo_upatch_decode_map_file_otel(path, v,
-								 &decoded, &decoded_len) :
+							       &decoded, &decoded_len) :
 			shirudo_upatch_decode_map_otel(v, &decoded, &decoded_len);
 	if (!decode_rc && record_max && decoded_len > record_max) {
 		xfree(decoded, decoded_len + 1);
@@ -857,7 +857,7 @@ static int entry_metric_value(const struct shirudo_map_view *v,
 
 		unsigned __int128 u = 0;
 		int rc = read_integer((const char *)en->value +
-			(size_t)i * stride, mt, &s, &u);
+				      (size_t)i * stride, mt, &s, &u);
 
 		if (rc)
 			return rc;
@@ -963,8 +963,8 @@ static int validate_metric_view(const struct otel_state *st,
 }
 
 static __attribute__((unused)) int build_metric_payload(const struct otel_state *st,
-				const struct shirudo_map_view *v,
-				char **out, size_t *out_len)
+							const struct shirudo_map_view *v,
+							char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e = {};
 	struct metric_type mt;
@@ -1021,7 +1021,7 @@ static __attribute__((unused)) int build_metric_payload(const struct otel_state 
 			       st->opts.metric_unit ?: "1");
 	shirudo_json_obj_open_key(&e,
 				  st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER ?
-		"sum" : "gauge");
+				  "sum" : "gauge");
 	if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER) {
 		shirudo_json_kv_int(&e, "aggregationTemporality", 2);
 		shirudo_json_kv_bool(&e, "isMonotonic", true);
@@ -1087,7 +1087,7 @@ static int build_metric_decoded_payload(const char *path,
 
 	(void)opts;
 	rc = path ? shirudo_upatch_decode_map_file_json(path, v,
-								&decoded, &decoded_len) :
+							&decoded, &decoded_len) :
 		shirudo_upatch_decode_map_json(v, &decoded, &decoded_len);
 	if (rc)
 		return rc;
@@ -1204,7 +1204,7 @@ static int resolve_endpoint(struct otel_state *st, const char *spec,
 	if (spec && spec[0]) {
 		if (spec_is_base)
 			return append_signal_path(spec, st->signal, st->endpoint,
-					  sizeof(st->endpoint));
+						  sizeof(st->endpoint));
 		if (strlen(spec) >= sizeof(st->endpoint))
 			return -ENAMETOOLONG;
 		snprintf(st->endpoint, sizeof(st->endpoint), "%s", spec);
@@ -1743,8 +1743,8 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 
 static int otel_open_transport(enum shirudo_otel_signal signal,
 			       const char *spec,
-				       const struct shirudo_otel_opts *opts,
-				       const char *decoder_path, void **state)
+			       const struct shirudo_otel_opts *opts,
+			       const char *decoder_path, void **state)
 {
 	struct otel_state *st;
 	int rc;
@@ -1787,8 +1787,8 @@ err:
 
 static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 			    const struct shirudo_otel_opts *opts,
-				    bool automatic, enum shirudo_otel_signal forced,
-				    const char *decoder_path, void **state)
+			    bool automatic, enum shirudo_otel_signal forced,
+			    const char *decoder_path, void **state)
 {
 	enum shirudo_otel_signal signal;
 	char reason[160];
@@ -1948,13 +1948,13 @@ static int build_generic_log_payload(const char *scope_name,
 
 int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 			       const char *scope_name,
-				       const char *event_name,
-				       int severity_number,
-				       const char *severity_text,
-				       const char *status,
-				       const char *version_id,
-				       int64_t tamper_attempts,
-				       const char *body_json, size_t body_len)
+			       const char *event_name,
+			       int severity_number,
+			       const char *severity_text,
+			       const char *status,
+			       const char *version_id,
+			       int64_t tamper_attempts,
+			       const char *body_json, size_t body_len)
 {
 	char *payload = NULL;
 	void *state = NULL;
@@ -1967,10 +1967,10 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 		return rc;
 	rc = build_generic_log_payload(scope_name, event_name,
 				       severity_number, severity_text,
-					       status, version_id,
-					       tamper_attempts,
-					       body_json, body_len,
-					       &payload, &payload_len, &alloc_len);
+				       status, version_id,
+				       tamper_attempts,
+				       body_json, body_len,
+				       &payload, &payload_len, &alloc_len);
 	if (!rc)
 		rc = otel_post(state, payload, payload_len);
 	if (payload)
@@ -2145,7 +2145,7 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 
 static int build_s3_snapshot(const char *decoder_path,
 			     const struct shirudo_map_view *v,
-				     struct s3_snapshot *snapshot)
+			     struct s3_snapshot *snapshot)
 {
 	struct snapshot_writer writer;
 	char *decoded = NULL;
@@ -2682,8 +2682,8 @@ static void otel_s3_state_free(struct otel_s3_state *st)
 
 static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
 			const struct shirudo_otel_opts *opts,
-				const char *decoder_path,
-				void **state)
+			const char *decoder_path,
+			void **state)
 {
 	struct otel_s3_state *st;
 	void *otel = NULL;

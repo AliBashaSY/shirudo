@@ -304,7 +304,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	}
 	rc = bpm_oci_put_manifest(c, BPM_INDEX_REPOSITORY, BPM_INDEX_TAG,
 				  (const unsigned char *)manifest, e.len, digest,
-			      sizeof(digest));
+				  sizeof(digest));
 out:
 	if (manifest)
 		xfree(manifest, BPM_MANIFEST_CAP);
@@ -401,7 +401,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	manifest = (unsigned char *)manifest_body;
 	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
 	    snprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) >=
-		(int)sizeof(package_digest)) {
+	    (int)sizeof(package_digest)) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -460,7 +460,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	if (bpm_sha256_hex(key_manifest_body, key_manifest_len, hex,
 			   sizeof(hex)) ||
 	    snprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) >=
-		(int)sizeof(key_digest)) {
+	    (int)sizeof(key_digest)) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -600,8 +600,8 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	if (!rc)
 		rc = bpm_oci_put_manifest(c, repository, tag,
 					  (const unsigned char *)manifest, e.len,
-				      out->manifest_digest,
-				      sizeof(out->manifest_digest));
+					  out->manifest_digest,
+					  sizeof(out->manifest_digest));
 	xfree(manifest, BPM_MANIFEST_CAP);
 	if (rc)
 		return rc;
@@ -838,7 +838,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	if (!rc)
 		rc = bpm_oci_put_manifest(&c, repository, reference,
 					  (const unsigned char *)manifest, e.len,
-				      digest, sizeof(digest));
+					  digest, sizeof(digest));
 	if (!rc)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
 		       digest);

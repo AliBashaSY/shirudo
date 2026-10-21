@@ -444,7 +444,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 		for (i = 0; i < (uint32_t)vlen; i++) {
 			if ((uint32_t)e[i].val == v) {
 				const char *nm = btf__name_by_offset(btf,
-								e[i].name_off);
+								     e[i].name_off);
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
 		}
@@ -468,7 +468,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 
 			if (ev == v) {
 				const char *nm = btf__name_by_offset(btf,
-								e[i].name_off);
+								     e[i].name_off);
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
 		}
@@ -530,7 +530,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 					   fmt_alloc("%s%s=%s",
 						     i ? ", " : "",
 						     fname && fname[0] ?
-								fname : "?",
+						     fname : "?",
 						     fval ? fval : "?"));
 			xstrfree(fval);
 		}
@@ -554,8 +554,8 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 		strbuf_append_take(&out, &cap, &off, fmt_alloc("[ "));
 		for (i = 0; i < n && i < 16; i++) {
 			char *ev = btf_format_value(btf, a->type,
-				(const char *)bytes + i * (size_t)esz,
-				(uint32_t)esz, depth + 1);
+						    (const char *)bytes + i * (size_t)esz,
+						    (uint32_t)esz, depth + 1);
 
 			strbuf_append_take(&out, &cap, &off,
 					   fmt_alloc("%s%s",
@@ -768,7 +768,7 @@ static int open_serializer_pin(const char *upatch, const char *map_name)
 		return -ENAMETOOLONG;
 	if ((size_t)snprintf(path, sizeof(path), "%s/%s/serializers/%s",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) >=
-		    sizeof(path))
+	    sizeof(path))
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -1122,7 +1122,7 @@ static int read_entries(int fd, struct shirudo_map_view *v,
 				return -ENOMEM;
 			}
 			memcpy(key, &i, sizeof(i) <= v->key_size ?
-				       sizeof(i) : v->key_size);
+			       sizeof(i) : v->key_size);
 			if (v->key_size > sizeof(i))
 				memset((char *)key + sizeof(i), 0,
 				       v->key_size - sizeof(i));
@@ -1167,8 +1167,8 @@ static int read_entries(int fd, struct shirudo_map_view *v,
 			}
 			if (v->n_entries == entries_cap) {
 				void *p = xreallocarray(v->entries,
-					entries_cap, entries_cap * 2,
-					sizeof(*v->entries));
+							entries_cap, entries_cap * 2,
+							sizeof(*v->entries));
 				if (!p) {
 					xfree(key, v->key_size);
 					xfree(value, value_alloc);
@@ -1633,7 +1633,7 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 			const struct shirudo_serial_page *page =
 				&v->serial_pages[p];
 			char *hex = shirudo_hex_alloc(page->data,
-							 page->bytes);
+						      page->bytes);
 
 			shirudo_json_obj_open(e);
 			shirudo_json_kv_int(e, "page_index",
@@ -1657,7 +1657,7 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 	if (v->skipped) {
 		shirudo_json_kv_string(e, "skipped",
 				       v->skipped_reason ?
-					       v->skipped_reason : "");
+				       v->skipped_reason : "");
 		return;
 	}
 	shirudo_json_kv_bool(e, "truncated", v->truncated);
@@ -1670,7 +1670,7 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 							  : "");
 		shirudo_json_kv_string(e, "value_type",
 				       v->btf_value_type[0] ?
-					       v->btf_value_type : "");
+				       v->btf_value_type : "");
 		if (v->key_type_def[0])
 			shirudo_json_kv_string(e, "key_type_def",
 					       v->key_type_def);

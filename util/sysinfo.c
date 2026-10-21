@@ -179,7 +179,7 @@ int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
 
 	if (!kernel_release || !kernel_release[0] || !cb ||
 	    snprintf(path, sizeof(path), "/boot/config-%s", kernel_release) >=
-		(int)sizeof(path))
+	    (int)sizeof(path))
 		return -1;
 	f = fopen(path, "re");
 	if (!f)

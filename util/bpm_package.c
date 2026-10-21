@@ -161,8 +161,8 @@ static bool package_member_name_ok(const char *name, const char *member)
 
 int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   const char *package_dir, char *found_dir,
-				 size_t found_dir_sz, unsigned char **out,
-				 size_t *out_len, size_t max)
+			   size_t found_dir_sz, unsigned char **out,
+			   size_t *out_len, size_t max)
 {
 	gzFile gz = gzopen(archive, "rb");
 	unsigned char h[512];
@@ -421,10 +421,10 @@ out:
 
 int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			       const char *repository,
-				     const char *reference,
-				     const char *cert_path,
-				     struct shirudo_tree_publication *pub,
-				     char *manifest_digest, size_t digest_sz)
+			       const char *reference,
+			       const char *cert_path,
+			       struct shirudo_tree_publication *pub,
+			       char *manifest_digest, size_t digest_sz)
 {
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;

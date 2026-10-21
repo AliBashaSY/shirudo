@@ -20,8 +20,8 @@ size_t shirudo_conditions(const struct shirudo_conditions_input *in,
 		c[n].status = in->lsm_attached ? "OK" : "ALERT";
 		snprintf(c[n].detail, sizeof(c[n].detail), "%s",
 			 in->lsm_attached ?
-				"lsm/bpf link present and pinned" :
-				"lsm/bpf absent -- enforcement OFF");
+			 "lsm/bpf link present and pinned" :
+			 "lsm/bpf absent -- enforcement OFF");
 		n++;
 	}
 	if (n < cap) {

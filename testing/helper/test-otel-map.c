@@ -85,7 +85,7 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 
 	if (file_len > UINT32_MAX || decoder_len > UINT32_MAX ||
 	    source_len > UINT32_MAX || snprintf(path, path_sz, "%s", template) >=
-		(int)path_sz)
+	    (int)path_sz)
 		return -EOVERFLOW;
 	file = xcalloc(1, file_len);
 	if (!file)
@@ -119,8 +119,8 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	entry.api_version = htole32(1);
 	entry.input_format = htole32(SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1);
 	entry.export_signal = htole32(metric ?
-		SHIRUDO_UPATCH_DECODER_EXPORT_METRIC :
-		SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+				      SHIRUDO_UPATCH_DECODER_EXPORT_METRIC :
+				      SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
 	strncpy(entry.upatch, "test-upatch", sizeof(entry.upatch) - 1);
 	strncpy(entry.map, "hits_total", sizeof(entry.map) - 1);
 	strncpy(entry.source, "test.lua", sizeof(entry.source) - 1);
@@ -575,10 +575,10 @@ int main(int argc, char **argv)
 		return send_metric(argv[2]);
 	if (strcmp(argv[1], "send-s3") == 0 && argc == 4)
 		return send_s3(argv[2],
-			(unsigned int)strtoul(argv[3], NULL, 10), false);
+			       (unsigned int)strtoul(argv[3], NULL, 10), false);
 	if (strcmp(argv[1], "send-s3-large") == 0 && argc == 4)
 		return send_s3(argv[2],
-			(unsigned int)strtoul(argv[3], NULL, 10), true);
+			       (unsigned int)strtoul(argv[3], NULL, 10), true);
 	if (strcmp(argv[1], "s3-validation") == 0)
 		return s3_validation();
 	if (strcmp(argv[1], "tenant-validation") == 0)

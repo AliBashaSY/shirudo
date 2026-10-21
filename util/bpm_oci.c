@@ -482,8 +482,8 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 
 static int curl_once(struct bpm_oci_client *c, const char *method,
 		     const char *url, const char *accept, const char *auth,
-			     struct bpm_http_response *r, struct bpm_file_sink *file,
-			     bool follow)
+		     struct bpm_http_response *r, struct bpm_file_sink *file,
+		     bool follow)
 {
 	return curl_once_ex(c, method, url, accept, NULL, NULL, 0, auth, r, file,
 			    follow);
@@ -844,8 +844,8 @@ static int on_descriptor(void *ud)
 
 int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
 			   struct bpm_descriptor *layers, int max_layers,
-			  int *n_layers, char *package_name,
-			  size_t package_name_sz)
+			   int *n_layers, char *package_name,
+			   size_t package_name_sz)
 {
 	struct desc_sink sink = { .items = layers, .max = max_layers };
 	struct shirudo_json_array arr = { on_descriptor, &sink };
@@ -899,7 +899,7 @@ bool bpm_package_name_ok(const char *s)
 
 int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 			   char *repository, size_t repository_sz,
-			  char *tag, size_t tag_sz)
+			   char *tag, size_t tag_sz)
 {
 	const char *p, *slash, *colon, *last_slash;
 	char endpoint[BPM_MAX_ENDPOINT];
@@ -1061,7 +1061,7 @@ static int upload_location(const struct bpm_oci_client *c, const char *location,
 
 int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 		      const void *body, size_t body_len, const char *media,
-			 struct bpm_descriptor *out)
+		      struct bpm_descriptor *out)
 {
 	struct bpm_http_response r = {};
 	char hex[65], digest[72], url[PATH_MAX], upload[PATH_MAX];
@@ -1143,7 +1143,7 @@ void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
 
 int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
 			 const char *reference, const unsigned char *body,
-			    size_t body_len, char *digest, size_t digest_sz)
+			 size_t body_len, char *digest, size_t digest_sz)
 {
 	struct bpm_http_response r = {};
 	char hex[65], url[PATH_MAX];

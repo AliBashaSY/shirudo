@@ -761,7 +761,7 @@ int cmd_status(int argc, const char **argv)
 					 keyring_present, keyring_pinned >= 1,
 					 keyring_present && keyring_pinned >= 1,
 					 keyring_present && keyring_pinned >= 1 &&
-					keyring_serial == keyring_pinned,
+					 keyring_serial == keyring_pinned,
 					 chain_rc == 0,
 					 match == 1, match >= 0,
 					 nv_index);
@@ -1049,7 +1049,7 @@ int cmd_status(int argc, const char **argv)
 				 keyring_present, keyring_pinned >= 1,
 				 keyring_present && keyring_pinned >= 1,
 				 keyring_present && keyring_pinned >= 1 &&
-				keyring_serial == keyring_pinned,
+				 keyring_serial == keyring_pinned,
 				 chain_rc == 0,
 				 match == 1, match >= 0,
 				 nv_index);
@@ -1110,8 +1110,8 @@ int cmd_status(int argc, const char **argv)
 			printf("  %-22s %lld%s\n", "Frozen serial:",
 			       (long long)keyring_pinned, !keyring_present ? "" :
 			       keyring_serial == keyring_pinned ?
-				       "  (matches)" :
-				       "  (MISMATCH -- swapped?)");
+			       "  (matches)" :
+			       "  (MISMATCH -- swapped?)");
 		if (certs_rc == 0) {
 			printf("  %-22s %zu trusted, %zu revoked, %zu "
 			       "unvouched", "Certificates:", certs.n,

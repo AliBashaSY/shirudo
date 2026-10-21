@@ -163,8 +163,8 @@ static int download_package(const char *raw, const char *destination)
 		if (destination) {
 			bpm_copy_string(filename, sizeof(filename), destination);
 		} else if (title[0] && !strchr(title, '/') &&
-		    strlen(title) >= strlen(".bee") &&
-		    !strcmp(title + strlen(title) - strlen(".bee"), ".bee")) {
+			   strlen(title) >= strlen(".bee") &&
+			   !strcmp(title + strlen(title) - strlen(".bee"), ".bee")) {
 			bpm_copy_string(filename, sizeof(filename), title);
 		} else {
 			const char *base = strrchr(repository, '/');
@@ -285,7 +285,7 @@ static int load_source(const char *name, struct bpm_source *s)
 	while (fgets(line, sizeof(line), fp)) {
 		rc = shirudo_bpm_parse_source_line(line,
 						   s->endpoint, sizeof(s->endpoint),
-					    s->key_file, sizeof(s->key_file));
+						   s->key_file, sizeof(s->key_file));
 		if (rc) {
 			fclose(fp);
 			return rc;
@@ -716,7 +716,7 @@ static int list_keys(void)
 		}
 		if (!valid || snprintf(path, sizeof(path), "%s/%s",
 				       SHIRUDO_KEYS_DIR, entry->d_name) >=
-				       (int)sizeof(path))
+		    (int)sizeof(path))
 			continue;
 		if (lstat(path, &st) || !S_ISREG(st.st_mode) ||
 		    key_file_fingerprint(path, hex) ||
@@ -768,7 +768,7 @@ static int on_state_entry(void *ud)
 		return -EINVAL;
 	if (snprintf(expected, sizeof(expected), "%s/%s/%s",
 		     SHIRUDO_BPM_PACKAGES_DIR, s->scratch.name,
-			s->scratch.version) >= (int)sizeof(expected) ||
+		     s->scratch.version) >= (int)sizeof(expected) ||
 	    strcmp(expected, s->scratch.path))
 		return -EINVAL;
 	s->items[s->n++] = s->scratch;
@@ -1326,7 +1326,7 @@ rollback:
 
 			if (name_len < strlen(".upatch") ||
 			    dir_len + 1 + name_len - strlen(".upatch") +
-				strlen(".unload.upatch") + 1 >= sizeof(unload))
+			    strlen(".unload.upatch") + 1 >= sizeof(unload))
 				continue;
 			memcpy(unload, loaded[active_i], dir_len);
 			unload[dir_len] = '/';
@@ -1545,18 +1545,18 @@ static bool tree_digest_valid(const char *digest)
 
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 				  struct shirudo_tree_publication *pub,
-					 char *manifest_digest, size_t digest_sz)
+				  char *manifest_digest, size_t digest_sz)
 {
 	struct bpm_oci_client c = {};
 	char repository[BPM_MAX_ENDPOINT];
 	int rc = parse_tree_repository(cfg->endpoint, &c,
-						 repository, sizeof(repository));
+				       repository, sizeof(repository));
 
 	if (rc)
 		return rc;
 	return bpm_tree_fetch_publication(&c, repository, cfg->reference,
-					 SHIRUDO_CERT_PATH, pub,
-					 manifest_digest, digest_sz);
+					  SHIRUDO_CERT_PATH, pub,
+					  manifest_digest, digest_sz);
 }
 
 static int tree_verify_upatch(const char *path, const char *expected,
@@ -1665,8 +1665,8 @@ out:
 
 static int tree_write_report(const char *path, const struct shirudo_tree_state *s,
 			     int selected, int skipped, int applied,
-				     int module_skipped, int dry_run,
-				     int tpm_available)
+			     int module_skipped, int dry_run,
+			     int tpm_available)
 {
 	char buf[4096];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -2639,8 +2639,8 @@ int cmd_bpm(int argc, const char **argv)
 				direct ? "direct" : source);
 		if (snprintf(state[n_state].path, sizeof(state[n_state].path),
 			     "%s/%s/%s", SHIRUDO_BPM_PACKAGES_DIR,
-				direct ? selected.name : name,
-				selected.version) >= (int)sizeof(state[n_state].path))
+			     direct ? selected.name : name,
+			     selected.version) >= (int)sizeof(state[n_state].path))
 			return bpm_finish(lock, -ENAMETOOLONG, "install");
 		rc = state_write(state, n_state + 1);
 		return bpm_finish(lock, rc, "write state");
@@ -2739,7 +2739,7 @@ int cmd_bpm(int argc, const char **argv)
 					selected.version);
 			if (snprintf(state[i].path, sizeof(state[i].path), "%s/%s/%s",
 				     SHIRUDO_BPM_PACKAGES_DIR, state[i].name,
-					selected.version) >= (int)sizeof(state[i].path)) {
+				     selected.version) >= (int)sizeof(state[i].path)) {
 				rc = -ENAMETOOLONG;
 				break;
 			}

@@ -34,7 +34,7 @@ void shirudo_sysinfo_gather(struct shirudo_sysinfo *si);
 struct shirudo_json_emit;
 
 typedef void (*shirudo_kernel_config_cb)(void *ctx, const char *key,
-						 const char *value);
+					 const char *value);
 
 int shirudo_sysinfo_kernel_config_foreach(const char *kernel_release,
 					  shirudo_kernel_config_cb cb,

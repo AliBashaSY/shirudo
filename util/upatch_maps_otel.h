@@ -72,12 +72,12 @@ int shirudo_upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
  */
 int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 			       const char *scope_name,
-				       const char *event_name,
-				       int severity_number,
-				       const char *severity_text,
-				       const char *status,
-				       const char *version_id,
-				       int64_t tamper_attempts,
-				       const char *body_json, size_t body_len);
+			       const char *event_name,
+			       int severity_number,
+			       const char *severity_text,
+			       const char *status,
+			       const char *version_id,
+			       int64_t tamper_attempts,
+			       const char *body_json, size_t body_len);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_OTEL_H */
