@@ -78,7 +78,8 @@ static const struct shirudo_help_item predict_options[] = {
 	{ "--upatch=<file>",       "an installed artifact (repeatable)" },
 	{ "--expect=<name>=<hex>", "an installed upatch by name and payload digest" },
 	{ "--tree-root=<hex>",     "the upatch tree projection root at boot" },
-	{ "--event=<kind>:<name>=<hex>", "a load, unload, tree:<seq> or revoke:<fingerprint> event after boot" },
+	{ "--event=<kind>:<name>=<hex>",
+	  "a load, unload, tree:<seq> or revoke:<fingerprint> event after boot" },
 	{ "--bind-pcr=<n>=<hex>",  "PCR 9 and 11 values at binding, for the register name" },
 };
 
@@ -249,10 +250,10 @@ static int apply_event(const char *spec, uint8_t chain[32])
 	name[name_len] = '\0';
 	if (kind_len == 4 && !strncmp(spec, "load", 4)) {
 		shirudo_chain_upatch_event("shirudo-upatch", name, digest,
-					    event);
+					   event);
 	} else if (kind_len == 6 && !strncmp(spec, "unload", 6)) {
 		shirudo_chain_upatch_event("shirudo-unload", name, digest,
-					    event);
+					   event);
 	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
 		char *end;
 		long long seq = strtoll(name, &end, 10);
@@ -343,7 +344,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 	}
 	shirudo_keys_anchor_digest(cert_shas, n_certs, cert_sha);
 	shirudo_chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
-				  init);
+				 init);
 	shirudo_hex_encode(set_digest, 32, hex);
 	printf("set_digest: %s\n", hex);
 	shirudo_hex_encode(init, 32, hex);
@@ -562,7 +563,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 	if (have_cert) {
 		shirudo_keys_anchor_digest(cert_shas, n_certs, cert_sha);
 		shirudo_chain_init_event(cert_sha, m.set, m.n, tree_root,
-					  set_digest, x.init_event);
+					 set_digest, x.init_event);
 		x.have_init = true;
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))

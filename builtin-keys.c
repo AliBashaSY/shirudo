@@ -497,9 +497,10 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 	ring = shirudo_keyring_bpf_serial();
 	if (ring <= 0)
 		return 0;
-	for (i = 0; i < set->n; i++)
+	for (i = 0; i < set->n; i++) {
 		if (memcmp(set->certs[i].fingerprint, voucher, 32) == 0)
 			break;
+	}
 	if (i == set->n)
 		return -ENOKEY;
 	rc = shirudo_keys_read_der(set->certs[i].path, &der, &der_sz);
@@ -643,8 +644,10 @@ out:
 }
 
 static const struct shirudo_help_item keys_revoke_options[] = {
-	{ "--promote <fingerprint>", "the member that becomes the primary when the primary goes" },
-	{ "--force", "revoke the last certificate; nothing verifies until a reboot with a new one" },
+	{ "--promote <fingerprint>",
+	  "the member that becomes the primary when the primary goes" },
+	{ "--force",
+	  "revoke the last certificate; nothing verifies until a reboot with a new one" },
 };
 
 static const struct shirudo_help_section keys_revoke_sections[] = {
@@ -818,9 +821,10 @@ set_find(const struct shirudo_trusted_set *set, const uint8_t fp[32])
 {
 	size_t i;
 
-	for (i = 0; i < set->n; i++)
+	for (i = 0; i < set->n; i++) {
 		if (memcmp(set->certs[i].fingerprint, fp, 32) == 0)
 			return &set->certs[i];
+	}
 	return NULL;
 }
 

@@ -42,16 +42,21 @@ static const struct cmd commands[] = {
 	{ "genkey",	cmd_genkey,	GROUP_OPERATOR,	"generate the signing key + cert" },
 	{ "build",	cmd_build,	GROUP_OPERATOR,	"compile + sign a .upatch" },
 
-	{ "init",	cmd_init,	GROUP_TARGET,	"bootstrap shirudo enforcement on this target" },
-	{ "upatch",	cmd_upatch,	GROUP_TARGET,	"load / unload (target); list / info (read-only, anywhere)" },
-	{ "bpm",	cmd_bpm,	GROUP_TARGET,	"manage signed OCI packages on this target" },
+	{ "init",	cmd_init,	GROUP_TARGET,
+	  "bootstrap shirudo enforcement on this target" },
+	{ "upatch",	cmd_upatch,	GROUP_TARGET,
+	  "load / unload (target); list / info (read-only, anywhere)" },
+	{ "bpm",	cmd_bpm,	GROUP_TARGET,
+	  "manage signed OCI packages on this target" },
 
 	{ "status",	cmd_status,	GROUP_LOCAL,	"local readiness + state report" },
-	{ "attest",	cmd_attest,	GROUP_LOCAL,	"TPM-signed evidence (target); verify / predict (operator)" },
+	{ "attest",	cmd_attest,	GROUP_LOCAL,
+	  "TPM-signed evidence (target); verify / predict (operator)" },
 	{ "keys",	cmd_keys,	GROUP_LOCAL,	"inspect cert / keyring contents" },
 	{ "version",	cmd_version,	GROUP_LOCAL,	"print version and SHIRUDO_VERSION_ID" },
 
-	{ "config",	cmd_config,	GROUP_GENERAL,	"print the effective shirudo.conf (defaults if absent)" },
+	{ "config",	cmd_config,	GROUP_GENERAL,
+	  "print the effective shirudo.conf (defaults if absent)" },
 	{ "help",	cmd_help,	GROUP_GENERAL,	"show this list" },
 };
 

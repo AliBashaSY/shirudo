@@ -79,9 +79,10 @@ static int count_eventlog(long *entries, long *bytes)
 	while ((n = read(fd, buf, sizeof(buf))) > 0) {
 		ssize_t i;
 
-		for (i = 0; i < n; i++)
+		for (i = 0; i < n; i++) {
 			if (buf[i] == '\n')
 				lines++;
+		}
 	}
 	close(fd);
 	*entries = lines;
@@ -194,7 +195,6 @@ static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 	return shirudo_json_parse(line, len, f, ARRAY_SIZE(f));
 }
 
-
 static void emit_eventlog_events(struct shirudo_json_emit *e)
 {
 	char *save, *line, *buf;
@@ -293,10 +293,9 @@ static void print_system_human(const struct shirudo_sysinfo *si)
 				   tot, sizeof(tot));
 		if (si->mem_avail_kb >= 0 &&
 		    si->mem_avail_kb <= si->mem_total_kb) {
-			shirudo_human_size(
-				(uint64_t)(si->mem_total_kb -
-					   si->mem_avail_kb) * 1024,
-				used, sizeof(used));
+			shirudo_human_size((uint64_t)(si->mem_total_kb -
+						      si->mem_avail_kb) * 1024,
+					   used, sizeof(used));
 			printf("  %-16s %s/%s\n", "Memory:", used, tot);
 		} else {
 			printf("  %-16s %s\n", "Memory:", tot);
@@ -325,7 +324,7 @@ static void print_system_human(const struct shirudo_sysinfo *si)
 }
 
 static void print_kernel_config_entry(void *ctx, const char *key,
-					      const char *value)
+				      const char *value)
 {
 	(void)ctx;
 	printf("    %s=%s\n", key, value);
@@ -334,8 +333,9 @@ static void print_kernel_config_entry(void *ctx, const char *key,
 static void print_kernel_config_human(const struct shirudo_sysinfo *si)
 {
 	printf("  Kernel Config:\n");
-	if (shirudo_sysinfo_kernel_config_foreach(
-			si->kernel_release, print_kernel_config_entry, NULL) < 0)
+	if (shirudo_sysinfo_kernel_config_foreach(si->kernel_release,
+						  print_kernel_config_entry,
+						  NULL) < 0)
 		printf("    (unavailable)\n");
 }
 
@@ -344,9 +344,10 @@ static const struct shirudo_help_item status_options[] = {
 	{ "--otel",                 "export the status report as an OTLP log" },
 	{ "--include-system",       "add a `system` block (hostname, kernel, arch, cpus, ...)" },
 	{ "--include-eventlog",     "dump eventlog entries" },
-	{ "--include-kernellog[=N]","last N lines of the kernel ring buffer "
-				    "(default 10, max 100)" },
-	{ "--include-modules",      "loaded kernel modules (10 most recent; --show-full for tree)" },
+	{ "--include-kernellog[=N]", "last N lines of the kernel ring buffer "
+				     "(default 10, max 100)" },
+	{ "--include-modules",
+	  "loaded kernel modules (10 most recent; --show-full for tree)" },
 	{ "--show-full",            "opt into a full dump: implies every --include-* flag and "
 				    "expands the loaded-modules dependency tree" },
 };
@@ -411,7 +412,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 						r->location,
 						sizeof(r->location));
 		shirudo_upatch_loaded_at(name, r->loaded_at,
-						sizeof(r->loaded_at));
+					 sizeof(r->loaded_at));
 		shirudo_upatch_payload_sha256(name,
 					      r->payload_sha256,
 					      sizeof(r->payload_sha256));
@@ -549,15 +550,15 @@ int cmd_status(int argc, const char **argv)
 	bool otel_endpoint_configured = false;
 
 	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0)
+		if (strcmp(argv[i], "--json") == 0) {
 			json_stdout = true;
-		else if (strcmp(argv[i], "--otel") == 0)
+		} else if (strcmp(argv[i], "--otel") == 0) {
 			otel = true;
-		else if (strcmp(argv[i], "--include-system") == 0)
+		} else if (strcmp(argv[i], "--include-system") == 0) {
 			include_system = true;
-		else if (strcmp(argv[i], "--include-eventlog") == 0)
+		} else if (strcmp(argv[i], "--include-eventlog") == 0) {
 			include_eventlog = true;
-		else if (strcmp(argv[i], "--include-kernellog") == 0) {
+		} else if (strcmp(argv[i], "--include-kernellog") == 0) {
 			include_kernel_log = true;
 		} else if (strncmp(argv[i], "--include-kernellog=", 20) == 0) {
 			unsigned long v;
@@ -573,12 +574,11 @@ int cmd_status(int argc, const char **argv)
 			}
 			include_kernel_log = true;
 			kernel_log_lines = (unsigned int)v;
-		}
-		else if (strcmp(argv[i], "--include-modules") == 0)
+		} else if (strcmp(argv[i], "--include-modules") == 0) {
 			include_modules = true;
-		else if (strcmp(argv[i], "--show-full") == 0)
+		} else if (strcmp(argv[i], "--show-full") == 0) {
 			show_full = true;
-		else if (shirudo_is_help(argv[i])) {
+		} else if (shirudo_is_help(argv[i])) {
 			shirudo_print_help(&status_help);
 			return 0;
 		} else {
@@ -755,16 +755,16 @@ int cmd_status(int argc, const char **argv)
 			size_t nc, ci;
 
 			local_cond_input(&cin, lsm_attached, keyring_present,
-				lsm_attached && strcmp(keyring_mode, "bpf") != 0,
-				keyring_serial,
-				keyring_pinned >= 1 ? keyring_pinned : 0,
-				keyring_present, keyring_pinned >= 1,
-				keyring_present && keyring_pinned >= 1,
-				keyring_present && keyring_pinned >= 1 &&
+					 lsm_attached && strcmp(keyring_mode, "bpf") != 0,
+					 keyring_serial,
+					 keyring_pinned >= 1 ? keyring_pinned : 0,
+					 keyring_present, keyring_pinned >= 1,
+					 keyring_present && keyring_pinned >= 1,
+					 keyring_present && keyring_pinned >= 1 &&
 					keyring_serial == keyring_pinned,
-				chain_rc == 0,
-				match == 1, match >= 0,
-				nv_index);
+					 chain_rc == 0,
+					 match == 1, match >= 0,
+					 nv_index);
 			otel_status = shirudo_status_verdict(&cin);
 			shirudo_json_kv_string(&e, "status",
 					       otel_status);
@@ -980,17 +980,17 @@ int cmd_status(int argc, const char **argv)
 					if (boot_sec > 0 &&
 					    m->loaded_at_sec >= boot_sec)
 						shirudo_json_kv_int(&e,
-							"since_boot_sec",
-							m->loaded_at_sec - boot_sec);
+								    "since_boot_sec",
+								    m->loaded_at_sec - boot_sec);
 					else
 						shirudo_json_kv_null(&e,
-							"since_boot_sec");
+								     "since_boot_sec");
 					shirudo_json_arr_open(&e, "deps");
 					for (di = 0; di < m->n_deps; di++) {
 						size_t dk = ks.deps[m->deps_off
 								    + di];
 						shirudo_json_str(&e,
-							ks.mods[dk].name);
+								 ks.mods[dk].name);
 					}
 					shirudo_json_arr_close(&e);
 					shirudo_json_obj_close(&e);
@@ -1001,10 +1001,10 @@ int cmd_status(int argc, const char **argv)
 		}
 		shirudo_json_obj_close(&e);
 
-		if (e.err)
+		if (e.err) {
 			fprintf(stderr, "status: json encode failed: %s\n",
 				strerror(-e.err));
-		else {
+		} else {
 			if (otel && otel_endpoint_configured) {
 				int64_t refused = tamper_rc == 0 ?
 						  (int64_t)tamper.total : -1;
@@ -1013,13 +1013,16 @@ int cmd_status(int argc, const char **argv)
 				int rc;
 
 				severity_number = status_otel_severity(otel_status,
-								      &severity_text);
-				rc = shirudo_otel_send_log_json(
-					&otel_opts, "shirudo.keepalive",
-					"shirudo.keepalive", severity_number,
-					severity_text, otel_status,
-					shirudo_version_id, refused,
-					json_buf, strlen(json_buf));
+								       &severity_text);
+				rc = shirudo_otel_send_log_json(&otel_opts,
+								"shirudo.keepalive",
+								"shirudo.keepalive",
+								severity_number,
+								severity_text,
+								otel_status,
+								shirudo_version_id,
+								refused, json_buf,
+								strlen(json_buf));
 				if (rc) {
 					pr_err("status: OTEL export failed: %s",
 					       strerror(-rc));
@@ -1040,16 +1043,16 @@ int cmd_status(int argc, const char **argv)
 		const char *verdict;
 
 		local_cond_input(&cin, lsm_attached, keyring_present,
-			lsm_attached && strcmp(keyring_mode, "bpf") != 0,
-			keyring_serial,
-			keyring_pinned >= 1 ? keyring_pinned : 0,
-			keyring_present, keyring_pinned >= 1,
-			keyring_present && keyring_pinned >= 1,
-			keyring_present && keyring_pinned >= 1 &&
+				 lsm_attached && strcmp(keyring_mode, "bpf") != 0,
+				 keyring_serial,
+				 keyring_pinned >= 1 ? keyring_pinned : 0,
+				 keyring_present, keyring_pinned >= 1,
+				 keyring_present && keyring_pinned >= 1,
+				 keyring_present && keyring_pinned >= 1 &&
 				keyring_serial == keyring_pinned,
-			chain_rc == 0,
-			match == 1, match >= 0,
-			nv_index);
+				 chain_rc == 0,
+				 match == 1, match >= 0,
+				 nv_index);
 		verdict = shirudo_status_verdict(&cin);
 		shirudo_status_reason(&cin, reason, sizeof(reason));
 		nc = shirudo_conditions(&cin, conds, ARRAY_SIZE(conds));
@@ -1084,12 +1087,13 @@ int cmd_status(int argc, const char **argv)
 			printf("  (unavailable: %s)\n", strerror(-tamper_rc));
 		else if (tamper.total == 0)
 			printf("  none\n");
-		for (i = 0; tamper_rc == 0 && i < SHIRUDO_TAMPER_MAX; i++)
+		for (i = 0; tamper_rc == 0 && i < SHIRUDO_TAMPER_MAX; i++) {
 			if (tamper.count[i])
 				printf("  %-20s %6llu  %s\n",
 				       shirudo_tamper_name(i),
 				       (unsigned long long)tamper.count[i],
 				       shirudo_tamper_meaning(i));
+		}
 
 		printf("\nKeyring (%s):\n", SHIRUDO_KEYRING_NAME);
 		if (keyring_present)
@@ -1215,12 +1219,13 @@ int cmd_status(int argc, const char **argv)
 
 			printf("\nKernel log (last %u lines, newest first):\n",
 			       kernel_log_lines);
-			if (nr <= 0)
+			if (nr <= 0) {
 				printf("  (unavailable)\n");
-			else
+			} else {
 				for (j = nr; j-- > 0;)
 					printf("  [%s]  %s\n", recs[j].ts,
 					       recs[j].msg);
+			}
 			xfree(recs, bytes);
 		}
 		if (include_modules) {
@@ -1244,11 +1249,11 @@ int cmd_status(int argc, const char **argv)
 				       ks.n, shown);
 				shirudo_kmodules_print_recent(&ks, last,
 							      boot_sec);
-				if (!show_full)
+				if (!show_full) {
 					printf("  (Use --show-full to show "
 					       "all loaded modules in a "
 					       "dependency tree)\n");
-				else {
+				} else {
 					printf("\nDependency tree:\n");
 					shirudo_kmodules_print_tree(&ks);
 				}

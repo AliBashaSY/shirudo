@@ -90,12 +90,17 @@ static void rep_fail(struct shirudo_op_report *rep, const char *phase,
 static const char *cat_from_load_errno(int e)
 {
 	switch (e) {
-	case EKEYREJECTED:	return "signature_rejected";
-	case ENOKEY:		return "keyring_missing";
-	case ENOPKG:		return "signature_unsupported";
+	case EKEYREJECTED:
+		return "signature_rejected";
+	case ENOKEY:
+		return "keyring_missing";
+	case ENOPKG:
+		return "signature_unsupported";
 	case EACCES:
-	case EPERM:		return "lsm_denied";
-	default:		return "verifier_rejected";
+	case EPERM:
+		return "lsm_denied";
+	default:
+		return "verifier_rejected";
 	}
 }
 
@@ -275,9 +280,9 @@ static int cmd_upatch_info(int argc, const char **argv)
 	int i, rc, ret = 1;
 
 	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0)
+		if (strcmp(argv[i], "--json") == 0) {
 			json = true;
-		else if (shirudo_is_help(argv[i])) {
+		} else if (shirudo_is_help(argv[i])) {
 			shirudo_print_help(&upatch_info_help);
 			return 0;
 		} else if (argv[i][0] == '-') {
@@ -466,9 +471,9 @@ static int cmd_upatch_list(int argc, const char **argv)
 	char *jbuf = NULL;
 
 	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0)
+		if (strcmp(argv[i], "--json") == 0) {
 			json = true;
-		else if (shirudo_is_help(argv[i])) {
+		} else if (shirudo_is_help(argv[i])) {
 			shirudo_print_help(&upatch_list_help);
 			return 0;
 		} else {
@@ -889,10 +894,10 @@ static int prog_attach_cgroup_skb(int prog_fd, enum bpf_attach_type attach_type)
 static int prog_attach_netfilter_ipv6_pre_routing(int prog_fd)
 {
 	LIBBPF_OPTS(bpf_link_create_opts, opts,
-		.netfilter.pf = NFPROTO_IPV6,
-		.netfilter.hooknum = NF_INET_PRE_ROUTING,
-		.netfilter.priority = NF_IP6_PRI_RAW_BEFORE_DEFRAG,
-		.netfilter.flags = 0);
+		    .netfilter.pf = NFPROTO_IPV6,
+		    .netfilter.hooknum = NF_INET_PRE_ROUTING,
+		    .netfilter.priority = NF_IP6_PRI_RAW_BEFORE_DEFRAG,
+		    .netfilter.flags = 0);
 
 	return bpf_link_create(prog_fd, 0, BPF_NETFILTER, &opts);
 }
@@ -1082,25 +1087,25 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 		       (size_t)i * sizeof(prog), sizeof(prog));
 		role = le32toh(prog.role);
 		switch (role) {
-	case SHIRUDO_UPATCH_PROG_ROLE_ATTACH:
-		break;
-	case SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER:
-		if (prog.kind || prog.offset || prog.target[0])
+		case SHIRUDO_UPATCH_PROG_ROLE_ATTACH:
+			break;
+		case SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER:
+			if (prog.kind || prog.offset || prog.target[0])
+				goto out;
+			if (!memchr(prog.map, '\0', sizeof(prog.map)) ||
+			    prog.map[0] == '\0')
+				goto out;
+			spec->role = role;
+			memcpy(spec->map, prog.map, sizeof(spec->map));
+			spec->map[sizeof(spec->map) - 1] = '\0';
+			continue;
+		case SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN:
+			if (prog.kind || prog.offset || prog.target[0] || prog.map[0])
+				goto out;
+			spec->role = role;
+			continue;
+		default:
 			goto out;
-		if (!memchr(prog.map, '\0', sizeof(prog.map)) ||
-		    prog.map[0] == '\0')
-			goto out;
-		spec->role = role;
-		memcpy(spec->map, prog.map, sizeof(spec->map));
-		spec->map[sizeof(spec->map) - 1] = '\0';
-		continue;
-	case SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN:
-		if (prog.kind || prog.offset || prog.target[0] || prog.map[0])
-			goto out;
-		spec->role = role;
-		continue;
-	default:
-		goto out;
 		}
 		if (prog.map[0])
 			goto out;
@@ -1108,33 +1113,33 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 
 		kind = le32toh(prog.kind);
 		switch (kind) {
-	case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
-		spec->kind = kind;
-		if (prog.target[0] || prog.offset)
+		case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
+			spec->kind = kind;
+			if (prog.target[0] || prog.offset)
+				goto out;
+			continue;
+		case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
+		case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
+		case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
+			spec->kind = kind;
+			if (prog.target[0] || prog.offset)
+				goto out;
+			continue;
+		case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
+			spec->kind = kind;
+			if (prog.target[0] || prog.offset)
+				goto out;
+			continue;
+		case SHIRUDO_UPATCH_ATTACH_KPROBE:
+		case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
+			break;
+		case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
+			if (prog.offset)
+				goto out;
+			nr_uprobes++;
+			break;
+		default:
 			goto out;
-		continue;
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
-	case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
-		spec->kind = kind;
-		if (prog.target[0] || prog.offset)
-			goto out;
-		continue;
-	case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
-		spec->kind = kind;
-		if (prog.target[0] || prog.offset)
-			goto out;
-		continue;
-	case SHIRUDO_UPATCH_ATTACH_KPROBE:
-	case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
-		break;
-	case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
-		if (prog.offset)
-			goto out;
-		nr_uprobes++;
-		break;
-	default:
-		goto out;
 		}
 		if (!memchr(prog.target, '\0', sizeof(prog.target)) ||
 		    prog.target[0] == '\0')
@@ -1356,7 +1361,7 @@ static int prog_attach_for_spec(int prog_fd,
 	case SHIRUDO_UPATCH_ATTACH_KPROBE:
 	case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
 		perf_fd = perf_event_open_kprobe(spec->target, spec->offset,
-				spec->kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE);
+						 spec->kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE);
 		if (perf_fd < 0)
 			return perf_fd;
 		link_fd = prog_attach_perf_event(prog_fd, perf_fd);
@@ -1424,9 +1429,9 @@ static int prog_pin_path(char *pin, size_t sz, const char *dir,
  * archived nor measured, so none of its programs may stay attached.
  */
 static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
-				 size_t prog_desc_off, uint32_t nr_progs,
-				 const char *name,
-				 const struct shirudo_prog_spec *specs)
+				size_t prog_desc_off, uint32_t nr_progs,
+				const char *name,
+				const struct shirudo_prog_spec *specs)
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
@@ -1593,7 +1598,7 @@ out:
  * in path components, so libbpf's .bss, .data and .rodata are skipped.
  */
 static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
-				   uint32_t nr_maps, const char *name)
+			   uint32_t nr_maps, const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
@@ -1654,7 +1659,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 			continue;
 		}
 		pr_info("pinned map %u (%s, type=%u) -> %s",
-			i, info.name, (unsigned)info.type, pin);
+			i, info.name, (unsigned int)info.type, pin);
 	}
 	return 0;
 }
@@ -1767,12 +1772,14 @@ static void close_loader_fds(const struct shirudo_loader_ctx *cx,
 	const struct shirudo_prog_desc *pd = (const void *)(md + nr_maps);
 	uint32_t i;
 
-	for (i = 0; i < nr_maps; i++)
+	for (i = 0; i < nr_maps; i++) {
 		if (md[i].map_fd > 0)
 			close(md[i].map_fd);
-	for (i = 0; i < nr_progs; i++)
+	}
+	for (i = 0; i < nr_progs; i++) {
 		if (pd[i].prog_fd > 0)
 			close(pd[i].prog_fd);
+	}
 }
 
 /* Shared by `upatch load` and boot restore: one signature-verified path. */
@@ -1844,6 +1851,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	memset(prog_name, 0, sizeof(prog_name));
 	{
 		size_t i, n = strnlen(u.hdr.name, sizeof(u.hdr.name));
+
 		if (n > sizeof(prog_name) - 1)
 			n = sizeof(prog_name) - 1;
 		for (i = 0; i < n; i++) {
@@ -2492,17 +2500,17 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (strncmp(a, "--expect-chain=", 15) == 0)
+		if (strncmp(a, "--expect-chain=", 15) == 0) {
 			*expect_chain = a + 15;
-		else if (strncmp(a, "--expect-version-id=", 20) == 0)
+		} else if (strncmp(a, "--expect-version-id=", 20) == 0) {
 			*expect_version_id = a + 20;
-		else if (strcmp(a, "--no-version-check") == 0)
+		} else if (strcmp(a, "--no-version-check") == 0) {
 			*no_version_check = true;
-		else if (strncmp(a, "--report=", 9) == 0)
+		} else if (strncmp(a, "--report=", 9) == 0) {
 			*report = a + 9;
-		else if (strcmp(a, "--no-precheck") == 0)
+		} else if (strcmp(a, "--no-precheck") == 0) {
 			*no_precheck = true;
-		else if (a[0] == '-') {
+		} else if (a[0] == '-') {
 			fprintf(stderr, "upatch %s: unknown option '%s'\n",
 				verb, a);
 			return 2;
@@ -2620,11 +2628,12 @@ static int cmd_upatch_load(int argc, const char **argv)
 	bool no_precheck, no_version_check, have_id = false;
 	int rc, ret = 1;
 
-	for (int i = 1; i < argc; i++)
+	for (int i = 1; i < argc; i++) {
 		if (shirudo_is_help(argv[i])) {
 			shirudo_print_help(&upatch_load_help);
 			return 0;
 		}
+	}
 	rc = parse_op_args(argc, argv, "load", &upatch_load_help,
 			   &file, &expect_chain, &expect_version_id,
 			   &no_precheck, &no_version_check, &report);
@@ -2732,11 +2741,12 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	bool no_precheck, no_version_check;
 	int rc, ret = 1;
 
-	for (int i = 1; i < argc; i++)
+	for (int i = 1; i < argc; i++) {
 		if (shirudo_is_help(argv[i])) {
 			shirudo_print_help(&upatch_unload_help);
 			return 0;
 		}
+	}
 	rc = parse_op_args(argc, argv, "unload", &upatch_unload_help,
 			   &file, &expect_chain, &expect_version_id,
 			   &no_precheck, &no_version_check, &report);
@@ -2817,23 +2827,26 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		if (memcmp(payload, zero, sizeof(payload)) == 0) {
 			pr_warn("upatch unload: directive carries no expected "
 				"payload; skipping payload_mismatch check");
-		} else if ((xrc = get_pin_payload(name, live)) == 0) {
-			if (!shirudo_ct_eq(live, payload, sizeof(payload))) {
-				pr_err("upatch unload: payload_mismatch -- the "
-				       "upatch loaded under '%s' is not what the "
-				       "directive expects; refusing", name);
-				rep_fail(&rep, "pin", "payload_mismatch", EPERM,
-					 "loaded payload does not match directive");
+		} else {
+			xrc = get_pin_payload(name, live);
+			if (xrc == 0) {
+				if (!shirudo_ct_eq(live, payload, sizeof(payload))) {
+					pr_err("upatch unload: payload_mismatch -- the "
+					       "upatch loaded under '%s' is not what the "
+					       "directive expects; refusing", name);
+					rep_fail(&rep, "pin", "payload_mismatch", EPERM,
+						 "loaded payload does not match directive");
+					goto done;
+				}
+				pr_info("upatch unload: payload matches for '%s'", name);
+			} else if (xrc != -ENOENT) {
+				pr_err("upatch unload: cannot read the payload "
+				       "recorded for '%s': %s; refusing", name,
+				       strerror(-xrc));
+				rep_fail(&rep, "pin", "payload_mismatch", -xrc,
+					 "payload xattr unreadable");
 				goto done;
 			}
-			pr_info("upatch unload: payload matches for '%s'", name);
-		} else if (xrc != -ENOENT) {
-			pr_err("upatch unload: cannot read the payload "
-			       "recorded for '%s': %s; refusing", name,
-			       strerror(-xrc));
-			rep_fail(&rep, "pin", "payload_mismatch", -xrc,
-				 "payload xattr unreadable");
-			goto done;
 		}
 	}
 
@@ -2987,9 +3000,10 @@ static uint32_t li_collect(const struct btf *btf, const void *recs,
 		const char *src = btf__name_by_offset(btf, li->line_off);
 		const char *file = btf__name_by_offset(btf, li->file_name_off);
 
-		if (src)
+		if (src) {
 			while (*src == ' ' || *src == '\t')
 				src++;
+		}
 		if (!src || !*src)
 			continue;
 		e[c].file = (file && *file) ? file : "?";
@@ -3066,7 +3080,7 @@ static int append_one_map_json(const char *path,
 	rc = shirudo_upatch_decode_map_json(v, &decoded, &decoded_len);
 	if (rc == 0) {
 		while (decoded_len && (decoded[decoded_len - 1] == '\n' ||
-		       decoded[decoded_len - 1] == '\r'))
+				       decoded[decoded_len - 1] == '\r'))
 			decoded_len--;
 		rc = emit_json_record(path, decoded, decoded_len);
 		xfree(decoded, decoded_len + 1);
@@ -3112,7 +3126,7 @@ static int export_one_map(const char *upatch, const char *map,
 		rc = shirudo_upatch_decode_map_signal(&v, &decoder_signal);
 		if (!rc)
 			rc = shirudo_upatch_maps_otel_send_decoded(&v, decoder_signal,
-								    otel_opts);
+								   otel_opts);
 		if (rc) {
 			pr_err("upatch map: OTLP export %s/%s: %s", upatch, map,
 			       strerror(-rc));
@@ -3256,9 +3270,8 @@ static int cmd_upatch_map(int argc, const char **argv)
 			json_path = export_cfg.map_export_json_path;
 			json_output = true;
 		}
-		if (!otel && export_cfg.map_export_otel_endpoint[0]) {
+		if (!otel && export_cfg.map_export_otel_endpoint[0])
 			otel = true;
-		}
 		if (otel) {
 			if (!otel_opts.endpoint &&
 			    export_cfg.map_export_otel_endpoint[0])

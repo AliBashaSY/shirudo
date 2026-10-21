@@ -79,6 +79,7 @@ static int read_der(const char *path, unsigned char **out, size_t *out_sz)
 		return -errno;
 	if (fstat(fd, &st) < 0) {
 		int rc = -errno;
+
 		close(fd);
 		return rc;
 	}
@@ -334,9 +335,10 @@ static int init_keyring(void)
 	 * cannot be repaired before the next boot, because the frozen
 	 * identity is what lsm/bpf_prog_load enforces.
 	 */
-	for (i = 0; i < set.n; i++)
+	for (i = 0; i < set.n; i++) {
 		if (set.certs[i].primary)
 			primary = &set.certs[i];
+	}
 	if (!primary) {
 		pr_err("no primary certificate at %s", shirudo_cert_path());
 		return -ENOENT;
@@ -923,9 +925,9 @@ static int init_lsm(bool attach_filesystem_seal)
 
 	/* Install the narrow prctl guard before enabling the bpf() gates. */
 	for (i = 0; i < (int)ARRAY_SIZE(prctl_hooks); i++) {
-		struct bpf_program *p = bpf_object__find_program_by_name(
-						obj, prctl_hooks[i].prog);
+		struct bpf_program *p;
 
+		p = bpf_object__find_program_by_name(obj, prctl_hooks[i].prog);
 		if (!p) {
 			pr_err("program %s missing in bpf2 object",
 			       prctl_hooks[i].prog);
@@ -952,8 +954,8 @@ static int init_lsm(bool attach_filesystem_seal)
 						   "shirudo_lsm_bpf_prog_load");
 	p_bpf_map = bpf_object__find_program_by_name(obj,
 						     "shirudo_lsm_bpf_map");
-	p_keyperm = bpf_object__find_program_by_name(
-				obj, "shirudo_lsm_key_permission");
+	p_keyperm = bpf_object__find_program_by_name(obj,
+						     "shirudo_lsm_key_permission");
 	p_bpf = bpf_object__find_program_by_name(obj, "shirudo_lsm_bpf");
 	if (!p_unlink || !p_rename || !p_setx || !p_rmx || !p_pload ||
 	    !p_bpf_map || !p_bpf || !p_keyperm) {
@@ -1002,9 +1004,9 @@ static int init_lsm(bool attach_filesystem_seal)
 	 * enforcement goes live.
 	 */
 	for (i = 0; i < (int)ARRAY_SIZE(mount_hooks); i++) {
-		struct bpf_program *p = bpf_object__find_program_by_name(
-						obj, mount_hooks[i].prog);
+		struct bpf_program *p;
 
+		p = bpf_object__find_program_by_name(obj, mount_hooks[i].prog);
 		if (!p) {
 			pr_err("program %s missing in bpf2 object",
 			       mount_hooks[i].prog);
@@ -1135,8 +1137,8 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 			       SHIRUDO_UPATCH_NAME_MAX);
 			set[cnt].name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
 			shirudo_hex_encode(u.hdr.payload_sha256,
-				   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
-				   set[cnt].payload_hex);
+					   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
+					   set[cnt].payload_hex);
 			shirudo_upatch_close(&u);
 		}
 		fd = shirudo_upatch_open_first_link(set[cnt].name);
@@ -1268,9 +1270,10 @@ static bool phase_unmeasured(const uint8_t pcr[32])
 {
 	int i;
 
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < 32; i++) {
 		if (pcr[i])
 			return false;
+	}
 	return true;
 }
 
@@ -1330,7 +1333,7 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	 */
 	tree_root_at_boot(tree_root);
 	shirudo_chain_init_event(cert_sha, set, n, tree_root, set_digest,
-				  init_digest);
+				 init_digest);
 
 	rc = shirudo_chain_init(init_digest, &info);
 	if (rc == -ENODEV) {
