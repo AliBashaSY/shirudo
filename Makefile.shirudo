@@ -727,6 +727,12 @@ testing/fuzz/fuzz-elf: testing/fuzz/fuzz-elf.c $(FUZZ_BASE) \
                        util/elf_target.c $(LIBBPF_A)
 testing/fuzz/fuzz-elf: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-elf: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
+testing/fuzz/fuzz-serializer: testing/fuzz/fuzz-serializer.c $(FUZZ_BASE) \
+                              util/upatch_maps.c util/upatch_resolve.c \
+                              util/serializer.c util/seal.c util/io.c \
+                              util/timefmt.c $(LIBBPF_A)
+testing/fuzz/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
+testing/fuzz/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c
@@ -757,6 +763,7 @@ testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
 	FUZZ_INCLUDED := util/bpm_tree_state.c
 testing/fuzz/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
 testing/fuzz/fuzz-kernel: FUZZ_INCLUDED := util/kmsg.c
+testing/fuzz/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
