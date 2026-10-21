@@ -9,6 +9,7 @@
 #define SHIRUDO_UTIL_UPATCH_MAP_TYPES_H
 
 #include <linux/bpf.h>
+#include <stddef.h>
 
 #include <shirudo/misc.h>
 
