@@ -77,6 +77,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 	size_t l;
 
 	if (strncmp(val, "hex:", 4) == 0) {
+		char auth[sizeof(cfg->tpm_owner_auth)];
 		const char *h = val + 4;
 		size_t hl = strlen(h), i;
 
@@ -85,6 +86,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 				"(ignored)");
 			return;
 		}
+		/* An ignored value must leave the one set before intact. */
 		for (i = 0; i < hl / 2; i++) {
 			int hi = shirudo_hex_nibble(h[2 * i]);
 			int lo = shirudo_hex_nibble(h[2 * i + 1]);
@@ -92,11 +94,14 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 			if (hi < 0 || lo < 0) {
 				pr_warn("config: tpm.owner_auth: bad hex "
 					"(ignored)");
+				explicit_bzero(auth, sizeof(auth));
 				return;
 			}
-			cfg->tpm_owner_auth[i] = (char)((hi << 4) | lo);
+			auth[i] = (char)((hi << 4) | lo);
 		}
+		memcpy(cfg->tpm_owner_auth, auth, hl / 2);
 		cfg->tpm_owner_auth_len = hl / 2;
+		explicit_bzero(auth, sizeof(auth));
 		return;
 	}
 
