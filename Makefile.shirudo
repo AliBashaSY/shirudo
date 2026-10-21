@@ -733,6 +733,8 @@ testing/fuzz/fuzz-serializer: testing/fuzz/fuzz-serializer.c $(FUZZ_BASE) \
                               util/timefmt.c $(LIBBPF_A)
 testing/fuzz/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
+testing/fuzz/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
+                       util/crypto_openssl.c util/io.c util/seal.c
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c
