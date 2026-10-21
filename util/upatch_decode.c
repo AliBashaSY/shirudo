@@ -553,11 +553,16 @@ static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
 	return out->err;
 }
 
-static int hex_decode_alloc(const char *hex, size_t len,
-			    __u8 **out, size_t *out_len)
+/*
+ * The bytes go into a userdata pushed on the stack, which the collector
+ * frees: a Lua error raised while they are in use, a slot index out of
+ * range or the memory limit, would leak a buffer of our own.
+ */
+static int hex_decode_push(lua_State *L, const char *hex, size_t len,
+			   __u8 **out, size_t *out_len)
 {
-	__u8 *buf;
 	size_t digits = 0, off = 0, i;
+	__u8 *buf;
 
 	*out = NULL;
 	*out_len = 0;
@@ -567,9 +572,7 @@ static int hex_decode_alloc(const char *hex, size_t len,
 	}
 	if (digits & 1)
 		return -EINVAL;
-	buf = xmalloc(digits / 2);
-	if (!buf)
-		return -ENOMEM;
+	buf = lua_newuserdata(L, digits / 2);
 	for (i = 0; i < len;) {
 		int hi, lo;
 
@@ -581,12 +584,12 @@ static int hex_decode_alloc(const char *hex, size_t len,
 		while (i < len && isspace((__u8)hex[i]))
 			i++;
 		if (i >= len) {
-			xfree(buf, digits / 2);
+			lua_pop(L, 1);
 			return -EINVAL;
 		}
 		lo = shirudo_hex_nibble((__u8)hex[i++]);
 		if (hi < 0 || lo < 0) {
-			xfree(buf, digits / 2);
+			lua_pop(L, 1);
 			return -EINVAL;
 		}
 		buf[off++] = (__u8)((hi << 4) | lo);
@@ -788,8 +791,7 @@ static int lua_shirudo_page_slots(lua_State *L)
 		lua_newtable(L);
 		return 1;
 	}
-	rc = hex_decode_alloc(hex, hex_len, &data, &data_len);
-	lua_pop(L, 1);
+	rc = hex_decode_push(L, hex, hex_len, &data, &data_len);
 	if (rc)
 		return luaL_error(L, "invalid page data_hex");
 	per_chunk = SHIRUDO_SERIAL_CHUNK_PAYLOAD / (size_t)slot_size;
@@ -811,7 +813,6 @@ static int lua_shirudo_page_slots(lua_State *L)
 			break;
 		off += chunk_bytes;
 	}
-	xfree(data, data_len);
 	return 1;
 }
 
@@ -922,16 +923,14 @@ static int lua_shirudo_fixed_records(lua_State *L)
 			lua_pop(L, 2);
 			continue;
 		}
-		rc = hex_decode_alloc(hex, hex_len, &data, &data_len);
-		lua_pop(L, 1);
+		rc = hex_decode_push(L, hex, hex_len, &data, &data_len);
 		if (rc) {
-			lua_pop(L, 1);
+			lua_pop(L, 2);
 			return luaL_error(L, "invalid page data_hex");
 		}
 		lua_split_page_slots(L, slots_idx, data, data_len, cursor,
 				     chunks, (size_t)slot_size);
-		xfree(data, data_len);
-		lua_pop(L, 1);
+		lua_pop(L, 3);
 	}
 	return 1;
 }
