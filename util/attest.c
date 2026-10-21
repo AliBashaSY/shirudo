@@ -42,40 +42,48 @@
 
 extern const char shirudo_version_id[];
 
+/*
+ * securityfs reports a size of 0 for the firmware event log, so the log
+ * is read to its end rather than for the size fstat() gives.
+ */
 static int read_file_base64(const char *path, char **out, size_t *out_cap)
 {
 	unsigned char *raw;
-	struct stat st;
+	size_t len = 0, cap;
 	ssize_t got;
-	size_t cap;
-	int fd, rc;
+	int fd, rc = 0;
 
 	*out = NULL;
 	*out_cap = 0;
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
-	    st.st_size > (off_t)LOG_MAX_BYTES) {
-		close(fd);
-		return -EFBIG;
-	}
-	raw = xmalloc((size_t)st.st_size);
+	raw = xmalloc(LOG_MAX_BYTES + 1);
 	if (!raw) {
 		close(fd);
 		return -ENOMEM;
 	}
-	got = read(fd, raw, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(raw, (size_t)st.st_size);
-		return -EIO;
+	while (len <= LOG_MAX_BYTES) {
+		got = read(fd, raw + len, LOG_MAX_BYTES + 1 - len);
+		if (got < 0 && errno == EINTR)
+			continue;
+		if (got < 0)
+			rc = -errno;
+		if (got <= 0)
+			break;
+		len += (size_t)got;
 	}
-	cap = 4 * (((size_t)got + 2) / 3) + 1;
+	close(fd);
+	if (!rc && (len == 0 || len > LOG_MAX_BYTES))
+		rc = -EFBIG;
+	if (rc) {
+		xfree(raw, LOG_MAX_BYTES + 1);
+		return rc;
+	}
+	cap = 4 * ((len + 2) / 3) + 1;
 	*out = xmalloc(cap);
-	rc = *out ? shirudo_base64_encode(raw, (size_t)got, *out, cap) :
-	     -ENOMEM;
-	xfree(raw, (size_t)st.st_size);
+	rc = *out ? shirudo_base64_encode(raw, len, *out, cap) : -ENOMEM;
+	xfree(raw, LOG_MAX_BYTES + 1);
 	if (rc) {
 		xfree(*out, cap);
 		*out = NULL;
