@@ -284,7 +284,9 @@ A package is a directory with a ``Beefile`` next to the sources::
 
 ``[package]``
     ``name`` (also the package file's base name), ``description``,
-    ``license`` and ``authors``; they go into the package's README.
+    ``license`` and ``authors``, which document the Beefile and are
+    not copied into the package; its README is the ``README.md``
+    beside the Beefile, when there is one.
 
 ``[[files]]``
     Files copied into the package as they are: headers, decoders,
@@ -318,11 +320,11 @@ decoders and shared headers.  Build and inspect::
 ``bpm build [context] --version <v> [-f <Beefile>] [--keys-dir <dir>]``
 builds and signs every entry through ``shirudo-build`` and writes
 ``<name>-<version>.bee``: a gzip tarball with the ``Beefile``, the
-``upatches/*.upatch`` and ``*.unload.upatch`` artifacts, a
-``README.md``, the signing ``cert.der`` and a ``build-environment.json``
-recording the toolchain.  Versions are what the registry index orders
-by and are immutable once published, so a rebuilt package gets a new
-version.
+``upatches/*.upatch`` and ``*.unload.upatch`` artifacts, the
+``README.md`` when there is one, the signing ``cert.der`` and a
+``build-environment.json`` recording the toolchain.  Versions are what
+the registry index orders by and are immutable once published, so a
+rebuilt package gets a new version.
 
 
 6) Publishing

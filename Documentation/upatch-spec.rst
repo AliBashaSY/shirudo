@@ -181,13 +181,13 @@ The final 16 bytes of ``data`` are:
 offset      size  field                  meaning
 ==========  ====  =====================  ====================================
 +0          4     magic                  ``0x52544344`` (``"DCTR"`` LE)
-+4          4     version                ``2`` (``1`` remains readable)
++4          4     version                ``1``
 +8          4     decoder_off            offset from the start of ``data``
 +12         4     decoder_len            decoder blob length
 ==========  ====  =====================  ====================================
 
 The blob starts with magic ``0x42444344`` (``"DCDB"`` LE), a version, a
-decoder count and a reserved word.  Each 196-byte entry holds the
+decoder count and a reserved word.  Each 200-byte entry holds the
 language, API version, input format, fixed-size upatch, map, source
 and entrypoint strings, and the source offset and length within the
 blob.  Version 1 defines language ``1`` as Lua and input format ``1``
