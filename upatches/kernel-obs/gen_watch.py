@@ -107,7 +107,7 @@ def main() -> int:
 		f"#define OBS_WATCH_RULES {len(networks)}u",
 		emit_nodes("V4", build_trie(networks, 4)),
 		emit_nodes("V6", build_trie(networks, 6)),
-		"#endif",
+		"#endif /* OBS_WATCH_GENERATED_H */",
 		"",
 	])
 	args.output.write_text(body)

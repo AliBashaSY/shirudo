@@ -32,4 +32,4 @@
 	{ .name = "", .parent = "profile.d", .flags = 3 }, \
 	{ .name = "", .parent = "modules-load.d", .flags = 3 }, \
 }
-#endif
+#endif /* OBS_FILE_WATCH_GENERATED_H */

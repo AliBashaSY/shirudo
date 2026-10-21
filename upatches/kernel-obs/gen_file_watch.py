@@ -73,7 +73,7 @@ def main() -> int:
 		lines.append(f"\t{{ .name = {c_string(name)}, .parent = {c_string(parent)}, "
 			     f".flags = {flags} }}, \\")
 	lines.append("}")
-	lines.append("#endif")
+	lines.append("#endif /* OBS_FILE_WATCH_GENERATED_H */")
 	lines.append("")
 	args.output.write_text("\n".join(lines))
 	return 0

@@ -42,4 +42,4 @@ static inline double shirudo_trunc(double x)
 	return (double)(__s64)x;
 }
 
-#endif
+#endif /* SHIRUDO_MISC_H */

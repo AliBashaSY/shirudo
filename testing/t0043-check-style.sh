@@ -57,7 +57,8 @@ test_expect_success 'kernel-style C with the SPDX tag of each file type passes' 
 		"	 * to a second line." "	 */" \
 		"	return x + 1; /* trailing */" "}" &&
 	put good.h "/* SPDX-License-Identifier: BSD-2-Clause */" \
-		"#ifndef GOOD_H" "#define GOOD_H" "" "int good(int x);" "" "#endif" &&
+		"#ifndef GOOD_H" "#define GOOD_H" "" "int good(int x);" "" \
+		"#endif /* GOOD_H */" &&
 	commit "a: add good
 
 Why the change is made." &&

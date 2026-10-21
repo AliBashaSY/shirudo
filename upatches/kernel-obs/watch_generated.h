@@ -32,4 +32,4 @@
 	{ .child = {[84] = 17}, .terminal = 0 }, \
 	{ .child = {0}, .terminal = 1 }, \
 }
-#endif
+#endif /* OBS_WATCH_GENERATED_H */

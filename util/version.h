@@ -13,4 +13,4 @@ extern const char shirudo_version_id[];
 extern const char shirudo_extraversion[];
 extern const char shirudo_release_name[];
 
-#endif
+#endif /* SHIRUDO_VERSION_H */

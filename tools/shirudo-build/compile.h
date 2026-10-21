@@ -12,4 +12,4 @@ int shirudo_build_compile(const char *source, const char *output,
 			  const char *vmlinux_h,
 			  const char *extra_cflags);
 
-#endif
+#endif /* SHIRUDO_BUILD_COMPILE_H */
