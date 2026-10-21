@@ -476,7 +476,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			rc = -EINVAL;
 			break;
 		}
-		if (snprintf(path, sizeof(path), "%s/%s", dest, rel) >= (int)sizeof(path)) {
+		if (strsprintf(path, sizeof(path), "%s/%s", dest, rel) < 0) {
 			rc = -ENAMETOOLONG;
 			break;
 		}
@@ -653,8 +653,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-	if (snprintf(manifest_digest, digest_sz, "sha256:%s", hex) >=
-	    (int)digest_sz) {
+	if (strsprintf(manifest_digest, digest_sz, "sha256:%s", hex) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}

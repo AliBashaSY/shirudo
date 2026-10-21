@@ -231,7 +231,7 @@ static int encode_basic(const char *user, const char *pass,
 	char raw[BPM_OCI_BASIC_RAW_SIZE];
 	size_t len, need, i, o = 0;
 
-	if (snprintf(raw, sizeof(raw), "%s:%s", user, pass) >= (int)sizeof(raw))
+	if (strsprintf(raw, sizeof(raw), "%s:%s", user, pass) < 0)
 		return -E2BIG;
 	len = strlen(raw);
 	need = 4 * ((len + 2) / 3) + 1;
@@ -273,7 +273,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 		return 0;
 	}
 	if (!authfile && docker) {
-		if (snprintf(path, sizeof(path), "%s/config.json", docker) >= (int)sizeof(path))
+		if (strsprintf(path, sizeof(path), "%s/config.json", docker) < 0)
 			return -ENAMETOOLONG;
 		authfile = path;
 	}
@@ -282,8 +282,8 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 
 		if (!home)
 			home = "/root";
-		if (snprintf(path, sizeof(path), "%s/.docker/config.json",
-			     home) >= (int)sizeof(path))
+		if (strsprintf(path, sizeof(path), "%s/.docker/config.json",
+			       home) < 0)
 			return -ENAMETOOLONG;
 		authfile = path;
 	}
@@ -348,8 +348,7 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 	}
 	if (strscpy(c->registry, p, sizeof(c->registry)) < 0)
 		return -ENAMETOOLONG;
-	if (snprintf(c->base_url, sizeof(c->base_url), "%s://%s", transport, p) >=
-	    (int)sizeof(c->base_url))
+	if (strsprintf(c->base_url, sizeof(c->base_url), "%s://%s", transport, p) < 0)
 		return -ENAMETOOLONG;
 	if (getenv("BPM_OCI_CA_FILE")) {
 		const char *ca_file = getenv("BPM_OCI_CA_FILE");
@@ -600,8 +599,8 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	esc_scope = curl_easy_escape(curl, scope, 0);
 	if (!esc_service || !esc_scope)
 		goto out;
-	if (snprintf(url, sizeof(url), "%s?service=%s&scope=%s", realm,
-		     esc_service, esc_scope) >= (int)sizeof(url)) {
+	if (strsprintf(url, sizeof(url), "%s?service=%s&scope=%s", realm,
+		       esc_service, esc_scope) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
@@ -610,9 +609,8 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 				  sizeof(basic));
 		if (rc)
 			goto out;
-		if (snprintf(auth_header, sizeof(auth_header),
-			     "Authorization: Basic %s", basic) >=
-		    (int)sizeof(auth_header)) {
+		if (strsprintf(auth_header, sizeof(auth_header),
+			       "Authorization: Basic %s", basic) < 0) {
 			rc = -E2BIG;
 			goto out;
 		}
@@ -1049,7 +1047,7 @@ int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 	    strchr(repo, '#') || strstr(ref, "..") || strchr(ref, '/') ||
 	    strchr(ref, '?') || strchr(ref, '#'))
 		return -EINVAL;
-	if (snprintf(out, sz, "%s/v2/%s/%s/%s", c->base_url, repo, kind, ref) >= (int)sz)
+	if (strsprintf(out, sz, "%s/v2/%s/%s/%s", c->base_url, repo, kind, ref) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -1081,8 +1079,7 @@ static int upload_location(const struct bpm_oci_client *c, const char *location,
 	if (!location || !*location)
 		return -EINVAL;
 	if (location[0] == '/') {
-		if (snprintf(out, out_sz, "%s%s", c->base_url, location) >=
-		    (int)out_sz)
+		if (strsprintf(out, out_sz, "%s%s", c->base_url, location) < 0)
 			return -ENAMETOOLONG;
 		return 0;
 	}
@@ -1106,8 +1103,7 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 
 	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)))
 		return -EINVAL;
-	if (snprintf(digest, sizeof(digest), "sha256:%s", hex) >=
-	    (int)sizeof(digest))
+	if (strsprintf(digest, sizeof(digest), "sha256:%s", hex) < 0)
 		return -ENAMETOOLONG;
 	rc = bpm_oci_url(c, repository, "blobs", digest, url, sizeof(url));
 	if (rc)
@@ -1140,8 +1136,7 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 	if (rc)
 		goto out;
 	sep = strchr(upload, '?') ? "&" : "?";
-	if (snprintf(url, sizeof(url), "%s%sdigest=%s", upload, sep, digest) >=
-	    (int)sizeof(url)) {
+	if (strsprintf(url, sizeof(url), "%s%sdigest=%s", upload, sep, digest) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
@@ -1186,7 +1181,7 @@ int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
 	int rc;
 
 	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)) ||
-	    snprintf(digest, digest_sz, "sha256:%s", hex) >= (int)digest_sz)
+	    strsprintf(digest, digest_sz, "sha256:%s", hex) < 0)
 		return -ENAMETOOLONG;
 	rc = bpm_oci_url(c, repository, "manifests", reference, url,
 			 sizeof(url));
