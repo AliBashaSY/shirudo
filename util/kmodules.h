@@ -38,6 +38,8 @@ struct shirudo_kmod_set {
 };
 
 int  shirudo_kmodules_read(struct shirudo_kmod_set *set);
+/* The text of /proc/modules, modified in place, into set. */
+int  shirudo_kmodules_parse(char *buf, struct shirudo_kmod_set *set);
 void shirudo_kmodules_free(struct shirudo_kmod_set *set);
 
 void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set);

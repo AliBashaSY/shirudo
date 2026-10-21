@@ -93,18 +93,15 @@ static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 	return -1;
 }
 
-int shirudo_kmodules_read(struct shirudo_kmod_set *set)
+int shirudo_kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 {
 	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
 	struct edge { __u16 user, dep; } *edges = NULL;
-	char *buf = NULL, *line, *end;
-	size_t buf_cap = 0, i, j;
+	char *line, *end;
+	size_t i, j;
 	int rc;
 
 	memset(set, 0, sizeof(*set));
-	rc = slurp(&buf, &buf_cap);
-	if (rc)
-		return rc;
 	end = buf + strlen(buf);
 	for (line = buf; line < end; line++) {
 		if (*line == '\n')
@@ -250,6 +247,32 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		}
 	}
 
+	rc = 0;
+out:
+	xfree(edges, edge_cap * sizeof(*edges));
+	if (rc) {
+		xfree(set->mods, mod_cap * sizeof(*set->mods));
+		xfree(set->deps, deps_cap * sizeof(*set->deps));
+		memset(set, 0, sizeof(*set));
+	}
+	return rc;
+}
+
+int shirudo_kmodules_read(struct shirudo_kmod_set *set)
+{
+	size_t buf_cap = 0, i;
+	char *buf = NULL;
+	int rc;
+
+	memset(set, 0, sizeof(*set));
+	rc = slurp(&buf, &buf_cap);
+	if (rc)
+		return rc;
+	rc = shirudo_kmodules_parse(buf, set);
+	xfree(buf, buf_cap);
+	if (rc)
+		return rc;
+
 	/*
 	 * Stat each /sys/module/<name>/ for its kernfs mtime, which the
 	 * kernel sets when sysfs_create_dir registers the module's
@@ -268,16 +291,7 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 			m->loaded_at_nsec = (__s32)st.st_mtim.tv_nsec;
 		}
 	}
-	rc = 0;
-out:
-	xfree(edges, edge_cap * sizeof(*edges));
-	xfree(buf, buf_cap);
-	if (rc) {
-		xfree(set->mods, mod_cap * sizeof(*set->mods));
-		xfree(set->deps, deps_cap * sizeof(*set->deps));
-		memset(set, 0, sizeof(*set));
-	}
-	return rc;
+	return 0;
 }
 
 void shirudo_kmodules_free(struct shirudo_kmod_set *set)
