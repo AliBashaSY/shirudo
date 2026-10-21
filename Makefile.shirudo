@@ -701,6 +701,10 @@ testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
                            $(FUZZ_PACKAGE)
 testing/fuzz/fuzz-bpm-package: testing/fuzz/fuzz-bpm-package.c $(FUZZ_BASE) \
                                $(FUZZ_PACKAGE)
+testing/fuzz/fuzz-beefile: testing/fuzz/fuzz-beefile.c $(FUZZ_BASE) \
+                           tools/shirudo-build/bpm-build.c util/upatch.c \
+                           util/timefmt.c util/paths.c util/crypto_openssl.c \
+                           util/io.c util/version_id.c
 testing/fuzz/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \
                             $(FUZZ_OCI)
 testing/fuzz/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \
