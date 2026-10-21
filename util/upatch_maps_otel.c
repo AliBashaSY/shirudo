@@ -25,6 +25,7 @@
 #include <linux/btf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include <bpf/btf.h>
@@ -1303,16 +1304,13 @@ int upatch_maps_otel_build_metric_file(const char *path,
 
 static int parse_timeout(const char *value, long *out)
 {
-	char *end;
 	__u64 n;
 
 	if (!value) {
 		*out = OTEL_DEFAULT_TIMEOUT_MS;
 		return 0;
 	}
-	errno = 0;
-	n = strtoul(value, &end, 10);
-	if (errno || !end || *end || n > LONG_MAX)
+	if (parse_u64(value, strlen(value), LONG_MAX, &n))
 		return -EINVAL;
 	*out = (long)n;
 	return 0;
@@ -1494,7 +1492,7 @@ static size_t response_write(char *ptr, size_t size, size_t nmemb, void *ctx)
 	return n;
 }
 
-/* curl hands over the line without a NUL: strtoul() sees a copy. */
+/* curl hands over the line without a NUL behind it. */
 static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 {
 	struct otel_response *r = ctx;
@@ -1504,21 +1502,12 @@ static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 	if (n > sizeof(prefix) - 1 &&
 	    strncasecmp(ptr, prefix, sizeof(prefix) - 1) == 0) {
 		char *p = ptr + sizeof(prefix) - 1;
-		char num[32], *end;
-		size_t len = 0;
 		__u64 value;
 
 		while (p < ptr + n && isspace((__u8)*p))
 			p++;
-		while (p + len < ptr + n && isdigit((__u8)p[len]))
-			len++;
-		if (!len || len >= sizeof(num))
-			return n;
-		memcpy(num, p, len);
-		num[len] = '\0';
-		errno = 0;
-		value = strtoul(num, &end, 10);
-		if (!errno)
+		if (!parse_u64(p, digits(p, (size_t)(ptr + n - p)), UINT64_MAX,
+			       &value))
 			r->retry_after = value > 30 ? 30 : value;
 	}
 	return n;
@@ -1611,13 +1600,10 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			return -EBADMSG;
-	} else if (partial[0].seen) {
-		char *end;
-
-		errno = 0;
-		rejected = strtoll(rejected_text, &end, 10);
-		if (errno || !end || *end)
-			return -EBADMSG;
+	} else if (partial[0].seen &&
+		   parse_s64(rejected_text, strlen(rejected_text), 0,
+			     INT64_MAX, &rejected)) {
+		return -EBADMSG;
 	}
 	if (rejected < 0)
 		return -EBADMSG;
