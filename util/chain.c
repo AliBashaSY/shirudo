@@ -247,11 +247,18 @@ int shirudo_chain_init(const uint8_t event[32],
 	 * history the record vouches for, and only a TPM reset clears a
 	 * register legitimately. Without such a record the index is
 	 * bound, after a warning if someone wrote it before we ran; the
-	 * PCR keeps the record of both bindings.
+	 * PCR keeps the record of both bindings. A log that cannot be
+	 * read may hold the record, so it is refused as well.
 	 */
-	recorded = shirudo_eventlog_boot_init(&rec) == 0 &&
-		   (!rec.have_reset_count ||
-		    rec.reset_count == info->reset_count);
+	rc = shirudo_eventlog_boot_init(&rec);
+	if (rc && rc != -ENOENT) {
+		pr_err("tpm: eventlog %s unreadable: %s; not binding register "
+		       "0x%08x", shirudo_eventlog_path(), strerror(-rc),
+		       SHIRUDO_NV_INDEX);
+		goto out;
+	}
+	recorded = !rc && (!rec.have_reset_count ||
+			   rec.reset_count == info->reset_count);
 	if (recorded) {
 		if (nv.defined && nv.written && name_equals(&nv, rec.name)) {
 			rc = shirudo_tpm_nv_read(tpm, SHIRUDO_NV_INDEX,
