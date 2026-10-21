@@ -3,9 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # testing/fuzz/run.sh -- run the named libFuzzer targets, or one for each
-# fuzz-*.c here, for the given seconds on their seed corpora, keeping what
-# they find in a scratch directory. A crash fails the run and leaves the
-# input that caused it in testing/fuzz.
+# fuzz-*.c here, for the given seconds on their seed corpora and FUZZ_JOBS
+# of them at a time, keeping what they find in a scratch directory. A
+# crash fails the run and leaves the input that caused it in testing/fuzz.
 #
 #   testing/fuzz/run.sh <seconds> [<target>...]
 
@@ -24,12 +24,29 @@ fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
+run() {
+	mkdir -p "$work/$1"
+	./fuzz-"$1" -max_total_time="$seconds" -timeout=10 \
+		-rss_limit_mb=2048 -artifact_prefix="$PWD/crash-$1-" \
+		"$work/$1" "corpus/$1" >"$work/$1.log" 2>&1
+	echo $? >"$work/$1.rc"
+}
+
+# FUZZ_JOBS targets at a time, one per CPU unless told otherwise.
+jobs=${FUZZ_JOBS:-$(nproc 2>/dev/null || echo 1)}
+n=0
+for t in "$@"; do
+	run "$t" &
+	n=$((n + 1))
+	if [ $((n % jobs)) -eq 0 ]; then
+		wait
+	fi
+done
+wait
+
 rc=0
 for t in "$@"; do
-	mkdir -p "$work/$t"
-	if ./fuzz-"$t" -max_total_time="$seconds" -timeout=10 \
-		-rss_limit_mb=2048 -artifact_prefix="$PWD/crash-$t-" \
-		"$work/$t" "corpus/$t" >"$work/$t.log" 2>&1; then
+	if [ "$(cat "$work/$t.rc")" = 0 ]; then
 		printf 'fuzz: %s: %s\n' "$t" "$(tail -n 1 "$work/$t.log")"
 	else
 		tail -n 40 "$work/$t.log" >&2
