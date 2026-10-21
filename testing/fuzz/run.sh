@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# testing/fuzz/run.sh -- run each libFuzzer target for the given seconds on
-# its seed corpus, keeping what it finds in a scratch directory. A crash
-# fails the run and leaves the input that caused it in testing/fuzz.
+# testing/fuzz/run.sh -- run the named libFuzzer targets, or one for each
+# fuzz-*.c here, for the given seconds on their seed corpora, keeping what
+# they find in a scratch directory. A crash fails the run and leaves the
+# input that caused it in testing/fuzz.
 #
 #   testing/fuzz/run.sh <seconds> [<target>...]
 
@@ -14,7 +15,10 @@ cd "$(dirname "$0")"
 seconds=${1:?usage: run.sh <seconds> [<target>...]}
 shift
 if [ $# -eq 0 ]; then
-	set -- json oci-manifest bpm-index tree upatch bpm-tar
+	for c in fuzz-*.c; do
+		t=${c#fuzz-}
+		set -- "$@" "${t%.c}"
+	done
 fi
 
 work=$(mktemp -d)

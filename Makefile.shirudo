@@ -679,14 +679,12 @@ FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
                $(LIBCRYPTO_CFLAGS) $(LIBCURL_CFLAGS) $(ZLIB_CFLAGS)
 FUZZ_LIBS := $(LIBCRYPTO_LIBS) $(LIBSSL_LIBS) $(LIBCURL_LIBS) $(ZLIB_LIBS)
-FUZZ_BASE := util/json.c util/hex.c util/malloc.c util/log.c
+FUZZ_BASE := util/json.c util/hex.c util/malloc.c testing/fuzz/log.c
 FUZZ_OCI := util/bpm_oci.c util/io.c util/seal.c util/crypto_openssl.c \
             util/tls_openssl.c
 FUZZ_PACKAGE := util/bpm_package.c util/bpm_tree.c $(FUZZ_OCI)
 
-FUZZ_TARGETS := testing/fuzz/fuzz-json testing/fuzz/fuzz-oci-manifest \
-                testing/fuzz/fuzz-bpm-index testing/fuzz/fuzz-tree \
-                testing/fuzz/fuzz-upatch testing/fuzz/fuzz-bpm-tar
+FUZZ_TARGETS := $(patsubst %.c,%,$(wildcard testing/fuzz/fuzz-*.c))
 
 testing/fuzz/fuzz-json: testing/fuzz/fuzz-json.c $(FUZZ_BASE)
 testing/fuzz/fuzz-oci-manifest: testing/fuzz/fuzz-oci-manifest.c \
