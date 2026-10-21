@@ -96,10 +96,13 @@ int shirudo_report_emit(const char *path, const struct shirudo_op_report *r)
 		xfree(buf, cap);
 		return rc;
 	}
-	fprintf(f, "%s\n", buf);
-	fclose(f);
+	rc = fprintf(f, "%s\n", buf) < 0 ? -EIO : 0;
+	if (fclose(f) != 0 && !rc)
+		rc = -errno;
+	if (rc)
+		pr_err("report: write %s: %s", path, strerror(-rc));
 	xfree(buf, cap);
-	return 0;
+	return rc;
 }
 
 void shirudo_report_set_log(struct shirudo_op_report *r, const char *log)
