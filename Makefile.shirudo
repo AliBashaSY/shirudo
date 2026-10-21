@@ -71,12 +71,30 @@ SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
 
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes \
             -Wmissing-prototypes -Wpointer-arith -Wshadow \
-            -Wdeclaration-after-statement
+            -Wdeclaration-after-statement -Wformat-security
 
 SHIRUDO_DEBUG ?= 1
 DEBUG_CFLAGS := $(if $(filter 1 yes y true,$(SHIRUDO_DEBUG)),-g,)
 
-CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) \
+# Toolchain hardening, set here rather than left to the compiler's
+# defaults, which differ between distributions, or to packaging flags,
+# which CFLAGS below replaces. Stack-clash protection, zeroing the
+# call-used registers and control-flow protection exist for x86-64 and
+# arm64; riscv64 gets the rest.
+HARDEN_ARCH := $(firstword $(subst -, ,$(shell $(CC) -dumpmachine)))
+HARDEN_CFLAGS := -fPIE -fstack-protector-strong \
+                 -ftrivial-auto-var-init=zero
+ifeq ($(HARDEN_ARCH),x86_64)
+HARDEN_CFLAGS += -fstack-clash-protection -fzero-call-used-regs=used \
+                 -fcf-protection=full
+endif
+ifeq ($(HARDEN_ARCH),aarch64)
+HARDEN_CFLAGS += -fstack-clash-protection -fzero-call-used-regs=used \
+                 -mbranch-protection=standard
+endif
+HARDEN_LDFLAGS := -pie -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack
+
+CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(HARDEN_CFLAGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
                -DSHIRUDO_LIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
                -DSHIRUDO_BPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
@@ -84,11 +102,15 @@ CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) \
 
 # make SANITIZE=address,undefined instruments the host-side binaries and
 # the test helpers; BPF objects come from clang -target bpf and are never
-# affected. Recovery is off so that every report fails the run.
+# affected. Recovery is off so that every report fails the run. The
+# fortified libc calls stay out of such a build, as they would bypass the
+# sanitizer's own checks.
 SANITIZE ?=
 ifneq ($(SANITIZE),)
 CFLAGS_BASE += -O1 -fno-omit-frame-pointer -fsanitize=$(SANITIZE) \
                -fno-sanitize-recover=all
+else
+CFLAGS_BASE += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 endif
 
 INCLUDES := \
@@ -350,13 +372,14 @@ util/version_id.c:
 
 shirudo: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A)
 	@printf '  LD      $@\n'
-	$(Q)$(LD) $(CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
+	$(Q)$(LD) $(CFLAGS) $(HARDEN_LDFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
 	    $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
 	    $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 shirudo-target: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A)
 	@printf '  LD      $@ (static OpenSSL)\n'
-	$(Q)$(LD) $(CFLAGS) $(TARGET_TLS_CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
+	$(Q)$(LD) $(CFLAGS) $(TARGET_TLS_CFLAGS) $(HARDEN_LDFLAGS) $(LDFLAGS) \
+	    $(RPATH_LDFLAGS) -o $@ \
 	    $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
 	    $(STATIC_LIBS) $(TARGET_TLS_STATIC_LINK_LIBS) \
 	    $(TARGET_STATIC_RUNTIME_LINK_LIBS) \
@@ -382,7 +405,8 @@ tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o \
                                    util/bpm_tree.o $(VERSION_OBJ) \
                                    $(LIBBPF_A)
 	@printf '  LD      $@\n'
-	$(Q)$(LD) $(CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
+	$(Q)$(LD) $(CFLAGS) $(HARDEN_LDFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ $^ \
+	    $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 # ----- install ----------------------------------------------------
 
