@@ -86,6 +86,19 @@ static int check_invalid(const char *path, const char *input)
 	       cfg.map_export_valid;
 }
 
+/* A bad eventlog.max_bytes is ignored, leaving the default of 0. */
+static int check_max_bytes(const char *path, const char *value,
+			   __u64 expected)
+{
+	struct shirudo_config cfg;
+	char input[128];
+
+	snprintf(input, sizeof(input), "eventlog.max_bytes = %s\n", value);
+	return write_config(path, input) != 0 ||
+	       shirudo_config_load_path(&cfg, path) != 0 ||
+	       cfg.eventlog_max_bytes != expected;
+}
+
 int main(void)
 {
 	char path[] = "/tmp/shirudo-config-test.XXXXXX";
@@ -99,8 +112,12 @@ int main(void)
 	failed += check_valid(path);
 	failed += check_invalid(path, "map_export.json_path = relative.json\n");
 	failed += check_invalid(path, "map_export.otel_retries = 11\n");
+	failed += check_invalid(path, "map_export.otel_retries = +5\n");
+	failed += check_invalid(path, "map_export.otel_retries = -1\n");
 	failed += check_invalid(path, "map_export.otel_insecure = yes\n");
 	failed += check_invalid(path, "map_export.otlp_max_bytes = 0\n");
+	failed += check_invalid(path, "map_export.otlp_max_bytes = +1024\n");
+	failed += check_invalid(path, "map_export.otlp_max_bytes = 0x400\n");
 	failed += check_invalid(path, "map_export.otlp_max_bytes = 1024\n"
 				"map_export.log_record_max_bytes = 2048\n");
 	failed += check_invalid(path, "map_export.tenant_id = tenant uuid\n");
@@ -111,6 +128,12 @@ int main(void)
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		"a\n");
 	failed += check_invalid(path, "map_export.unknown = value\n");
+	failed += check_max_bytes(path, "1048576", 1048576);
+	failed += check_max_bytes(path, "010", 10);
+	failed += check_max_bytes(path, "0x10", 0);
+	failed += check_max_bytes(path, "+16", 0);
+	failed += check_max_bytes(path, "-1", 0);
+	failed += check_max_bytes(path, "", 0);
 	unlink(path);
 	return failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }

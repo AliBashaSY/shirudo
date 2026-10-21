@@ -8,11 +8,13 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "config.h"
 #include "hex.h"
@@ -157,14 +159,9 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 			key = trim(p);
 			val = trim(eq + 1);
 			if (strcmp(key, "eventlog.max_bytes") == 0) {
-				char *end;
 				__u64 v;
 
-				/* strtoul takes "-1" and "" as numbers. */
-				errno = 0;
-				v = strtoul(val, &end, 0);
-				if (errno || end == val || *end != '\0' ||
-				    val[0] == '-')
+				if (parse_u64(val, strlen(val), UINT64_MAX, &v))
 					pr_warn("config: eventlog.max_bytes: "
 						"bad value '%s' (ignored)", val);
 				else
@@ -207,12 +204,9 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 					map_export_bad(cfg, key, val,
 						       "expected true or false");
 			} else if (strcmp(key, "map_export.otel_retries") == 0) {
-				char *end;
 				__u64 v;
 
-				errno = 0;
-				v = strtoul(val, &end, 10);
-				if (errno || *end || v > 10)
+				if (parse_u64(val, strlen(val), 10, &v))
 					map_export_bad(cfg, key, val,
 						       "expected 0..10");
 				else
@@ -224,12 +218,10 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 					map_export_bad(cfg, key, val, "value too long");
 			} else if (strcmp(key, "map_export.log_record_max_bytes") == 0 ||
 				   strcmp(key, "map_export.otlp_max_bytes") == 0) {
-				char *end;
 				__u64 v;
 
-				errno = 0;
-				v = strtoul(val, &end, 10);
-				if (errno || *end || v == 0 || v > SHIRUDO_JSON_MAX_BYTES)
+				if (parse_u64(val, strlen(val), SHIRUDO_JSON_MAX_BYTES,
+					      &v) || v == 0)
 					map_export_bad(cfg, key, val, "expected 1..8388608 bytes");
 				else if (strcmp(key, "map_export.log_record_max_bytes") == 0)
 					cfg->map_export_log_record_max_bytes = (__u32)v;
