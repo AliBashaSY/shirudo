@@ -1483,28 +1483,13 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 		return -EPERM;
 	}
 	while (fgets(line, sizeof(line), fp)) {
-		char key[64], value[PATH_MAX];
-		char *eq = strchr(line, '=');
-
-		if (!eq)
-			continue;
-		*eq++ = '\0';
-		bpm_trim(line, key, sizeof(key));
-		bpm_trim(eq, value, sizeof(value));
-		if (value[0] == '"') {
-			size_t len = strlen(value);
-
-			if (len < 2 || value[len - 1] != '"') {
-				fclose(fp);
-				return -EINVAL;
-			}
-			memmove(value, value + 1, len - 2);
-			value[len - 2] = '\0';
+		if (shirudo_bpm_parse_tree_line(line, cfg->endpoint,
+						sizeof(cfg->endpoint),
+						cfg->reference,
+						sizeof(cfg->reference))) {
+			fclose(fp);
+			return -EINVAL;
 		}
-		if (!strcmp(key, "endpoint"))
-			bpm_copy_string(cfg->endpoint, sizeof(cfg->endpoint), value);
-		else if (!strcmp(key, "reference"))
-			bpm_copy_string(cfg->reference, sizeof(cfg->reference), value);
 	}
 	fclose(fp);
 	if (!cfg->endpoint[0] || !cfg->reference[0])

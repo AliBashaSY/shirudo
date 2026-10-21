@@ -67,10 +67,12 @@ test_expect_success 'bpm uninstall and list validate their arguments' '
 	$SHIRUDO bpm uninstall --help 2>&1 | grep -q "usage: shirudo bpm uninstall <package>"
 '
 
-test_expect_success 'bpm parses spaced repository source assignments' '
+test_expect_success 'bpm parses repository source and tree configuration lines' '
 	out=$($BPM_SOURCE_HELPER) &&
 	echo "$out" | grep -qx "endpoint=oci://registry.test:5443" &&
-	echo "$out" | grep -qx "key_file=/etc/shirudo/bpm/keys/jbrust.pem"
+	echo "$out" | grep -qx "key_file=/etc/shirudo/bpm/keys/jbrust.pem" &&
+	echo "$out" | grep -qx "tree endpoint=oci://registry.test/tree" &&
+	echo "$out" | grep -qx "tree reference=sha256:feed"
 '
 
 test_done

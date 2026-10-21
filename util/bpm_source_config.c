@@ -43,3 +43,43 @@ int shirudo_bpm_parse_source_line(char *line,
 		snprintf(key_file, key_file_sz, "%s", val);
 	return 0;
 }
+
+static char *trim(char *s)
+{
+	char *end;
+
+	while (isspace((__u8)*s))
+		s++;
+	end = s + strlen(s);
+	while (end > s && isspace((__u8)end[-1]))
+		end--;
+	*end = '\0';
+	return s;
+}
+
+int shirudo_bpm_parse_tree_line(char *line,
+				char *endpoint, size_t endpoint_sz,
+				char *reference, size_t reference_sz)
+{
+	char *eq = strchr(line, '=');
+	char *key, *value;
+	size_t len;
+
+	if (!eq)
+		return 0;
+	*eq++ = '\0';
+	key = trim(line);
+	value = trim(eq);
+	len = strlen(value);
+	if (value[0] == '"') {
+		if (len < 2 || value[len - 1] != '"')
+			return -EINVAL;
+		value[len - 1] = '\0';
+		value++;
+	}
+	if (!strcmp(key, "endpoint"))
+		snprintf(endpoint, endpoint_sz, "%s", value);
+	else if (!strcmp(key, "reference"))
+		snprintf(reference, reference_sz, "%s", value);
+	return 0;
+}
