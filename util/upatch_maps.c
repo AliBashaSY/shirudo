@@ -340,14 +340,15 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 	if (bytes_used == 0 || bytes_used > bytes_size || bytes_used > 8)
 		return fmt_alloc("?");
 	if (is_signed) {
-		int64_t v = 0;
+		uint64_t v = 0;
 		uint8_t i;
 
+		/* Shifting into the sign bit of an int64_t is undefined. */
 		for (i = 0; i < bytes_used; i++)
-			v |= (int64_t)((const uint8_t *)bytes)[i] << (8 * i);
-		if (bits < 64 && (v & ((int64_t)1 << (bits - 1))))
-			v |= ~(((int64_t)1 << bits) - 1);
-		return fmt_alloc("%" PRId64, v);
+			v |= (uint64_t)((const uint8_t *)bytes)[i] << (8 * i);
+		if (bits < 64 && (v & ((uint64_t)1 << (bits - 1))))
+			v |= ~(((uint64_t)1 << bits) - 1);
+		return fmt_alloc("%" PRId64, (int64_t)v);
 	} else {
 		uint64_t v = 0;
 		uint8_t i;
