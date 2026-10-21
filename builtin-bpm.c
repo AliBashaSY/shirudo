@@ -423,138 +423,6 @@ out:
 	return rc;
 }
 
-static int extract_archive(const char *archive, const char *dest)
-{
-	gzFile gz = gzopen(archive, "rb");
-	char root[256] = {};
-	__u8 h[512];
-	int rc = 0;
-
-	if (!gz)
-		return -EINVAL;
-	rc = shirudo_seal_mkdir_p(dest, 0700);
-	if (rc) {
-		gzclose(gz);
-		return rc;
-	}
-	for (;;) {
-		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
-		int n = gzread(gz, h, sizeof(h));
-		__u64 size, remain, pad;
-		bool zero = true;
-		int type;
-
-		if (n == 0)
-			break;
-		if (n != (int)sizeof(h)) {
-			rc = -EINVAL;
-			break;
-		}
-		for (size_t i = 0; i < sizeof(h); i++) {
-			if (h[i]) {
-				zero = false;
-				break;
-			}
-		}
-		if (zero)
-			break;
-		if (!memchr(h, '\0', 100)) {
-			rc = -EINVAL;
-			break;
-		}
-		snprintf(name, sizeof(name), "%s", (char *)h);
-		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) {
-			rc = -EINVAL;
-			break;
-		}
-		type = h[156];
-		if (!type)
-			type = '0';
-		if (!root[0]) {
-			slash = strchr(name, '/');
-			if (!slash || slash == name || (size_t)(slash - name) >= sizeof(root)) {
-				rc = -EINVAL;
-				break;
-			}
-			memcpy(root, name, slash - name);
-			root[slash - name] = 0;
-		}
-		if (strncmp(name, root, strlen(root)) || name[strlen(root)] != '/') {
-			rc = -EINVAL;
-			break;
-		}
-		snprintf(rel, sizeof(rel), "%s", name + strlen(root) + 1);
-		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
-			rc = -EINVAL;
-			break;
-		}
-		if (snprintf(path, sizeof(path), "%s/%s", dest, rel) >= (int)sizeof(path)) {
-			rc = -ENAMETOOLONG;
-			break;
-		}
-		if (type == '5') {
-			rc = shirudo_seal_mkdir_p(path, 0700);
-			if (rc)
-				break;
-		} else if (type == '0') {
-			char parent[PATH_MAX];
-			FILE *fp;
-
-			snprintf(parent, sizeof(parent), "%s", path);
-			slash = strrchr(parent, '/');
-			if (slash) {
-				*slash = 0;
-				rc = shirudo_seal_mkdir_p(parent, 0700);
-				if (rc)
-					break;
-			}
-			fp = fopen(path, "wb");
-			if (!fp) {
-				rc = -errno;
-				break;
-			}
-			remain = size;
-			while (remain) {
-				__u8 buf[65536];
-				size_t want = remain > sizeof(buf) ? sizeof(buf) : (size_t)remain;
-
-				n = gzread(gz, buf, (__u32)want);
-				if (n <= 0 || fwrite(buf, 1, (size_t)n, fp) != (size_t)n) {
-					rc = -EIO;
-					break;
-				}
-				remain -= (size_t)n;
-			}
-			fclose(fp);
-			if (rc)
-				break;
-			chmod(path, 0644);
-		} else {
-			rc = -EPERM;
-			break;
-		}
-		pad = (512 - (size % 512)) % 512;
-		while (pad) {
-			__u8 buf[512];
-			size_t want = pad > sizeof(buf) ? sizeof(buf) : (size_t)pad;
-
-			n = gzread(gz, buf, (__u32)want);
-			if (n <= 0) {
-				rc = -EINVAL;
-				break;
-			}
-			pad -= (size_t)n;
-		}
-		if (rc)
-			break;
-	}
-	if (gzclose(gz) != Z_OK && !rc)
-		rc = -EINVAL;
-	if (rc)
-		return rc;
-	return root[0] ? 0 : -EINVAL;
-}
-
 static int cert_matches_active(const char *path)
 {
 	struct shirudo_cert a = {}, b = {};
@@ -875,76 +743,6 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 	return rc;
 }
 
-/*
- * SemVer 2.0.0, 11.4: dot-separated identifiers, numeric ones by value
- * and below alphanumeric ones, a longer list after a shorter equal one.
- */
-static int prerelease_compare(const char *a, const char *b)
-{
-	while (*a && *b) {
-		size_t la = strcspn(a, "."), lb = strcspn(b, ".");
-		bool na = strspn(a, "0123456789") == la;
-		bool nb = strspn(b, "0123456789") == lb;
-		int c;
-
-		if (na && nb) {
-			while (la > 1 && *a == '0') {
-				a++;
-				la--;
-			}
-			while (lb > 1 && *b == '0') {
-				b++;
-				lb--;
-			}
-			c = la != lb ? (la > lb ? 1 : -1) : strncmp(a, b, la);
-		} else if (na != nb) {
-			c = na ? -1 : 1;
-		} else {
-			c = strncmp(a, b, la < lb ? la : lb);
-			if (!c && la != lb)
-				c = la > lb ? 1 : -1;
-		}
-		if (c)
-			return c > 0 ? 1 : -1;
-		a += la;
-		b += lb;
-		if (*a == '.')
-			a++;
-		if (*b == '.')
-			b++;
-	}
-	return *a ? 1 : *b ? -1 : 0;
-}
-
-/*
- * Strict enough for repository selection: numeric dotted core, optional
- * prerelease, and build metadata.  Build metadata does not affect order.
- */
-static int semver_compare(const char *a, const char *b)
-{
-	const char *pa = a, *pb = b;
-
-	for (int part = 0; part < 3; part++) {
-		char *ea, *eb;
-		__u64 va, vb;
-
-		va = strtoul(pa, &ea, 10);
-		vb = strtoul(pb, &eb, 10);
-		if (ea == pa || eb == pb)
-			return strcmp(a, b);
-		if (va != vb)
-			return va > vb ? 1 : -1;
-		pa = *ea == '.' ? ea + 1 : ea;
-		pb = *eb == '.' ? eb + 1 : eb;
-	}
-	if (*pa == '-' || *pb == '-') {
-		if (*pa != '-' || *pb != '-')
-			return *pa == '-' ? -1 : 1;
-		return prerelease_compare(pa + 1, pb + 1);
-	}
-	return 0;
-}
-
 static int repo_update_one(const char *name)
 {
 	struct bpm_source s;
@@ -1053,7 +851,9 @@ static int find_entry(const struct bpm_index_entry *e, int n, const char *name,
 			continue;
 		if (version && strcmp(e[i].version, version))
 			continue;
-		if (found < 0 || (!version && semver_compare(e[found].version, e[i].version) < 0))
+		if (found < 0 ||
+		    (!version && bpm_semver_compare(e[found].version,
+						    e[i].version) < 0))
 			found = i;
 	}
 	if (found < 0)
@@ -1187,7 +987,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			goto out;
 		}
 		extracted = true;
-		rc = extract_archive(archive, package_dir);
+		rc = bpm_pkg_extract(archive, package_dir);
 		if (rc)
 			goto out;
 		{
@@ -2704,7 +2504,7 @@ int cmd_bpm(int argc, const char **argv)
 			}
 			if (rc)
 				break;
-			if (semver_compare(selected.version, state[i].version) <= 0)
+			if (bpm_semver_compare(selected.version, state[i].version) <= 0)
 				continue;
 			rc = package_install(&source_cfg, &selected, state[i].path,
 					     state[i].version);

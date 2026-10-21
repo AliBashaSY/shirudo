@@ -36,6 +36,8 @@ struct bpm_package_info {
 
 int bpm_index_parse(const __u8 *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries);
+/* The order of two package versions: below 0, 0 or above 0. */
+int bpm_semver_compare(const char *a, const char *b);
 int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 		   const __u8 *sig, size_t sig_len,
 		   const char *cert_path);
@@ -55,6 +57,11 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   size_t *out_len, size_t max);
 int bpm_pkg_read_member(const char *archive, const char *member,
 			__u8 **out, size_t *out_len, size_t max);
+/*
+ * Unpack the regular files and directories under the single top-level
+ * directory of a .bee into dest; anything else fails the archive.
+ */
+int bpm_pkg_extract(const char *archive, const char *dest);
 int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info);
 
 /*
