@@ -107,17 +107,16 @@ static void monotonic_to_iso(__u64 mono_us,
 			     char *out, size_t out_cap)
 {
 	struct timespec rec;
-	__s64 delta_ns;
 
 	/*
 	 * record_realtime = realtime_at_open + (record_monotonic
-	 *                                       - monotonic_at_open)
+	 *                                       - monotonic_at_open),
+	 * seconds and nanoseconds apart so that no timestamp overflows.
 	 */
-	delta_ns = (__s64)mono_us * 1000
-		 - ((__s64)mt_at_open->tv_sec * 1000000000LL
-		    + mt_at_open->tv_nsec);
-	rec.tv_sec  = rt_at_open->tv_sec + delta_ns / 1000000000LL;
-	rec.tv_nsec = rt_at_open->tv_nsec + delta_ns % 1000000000LL;
+	rec.tv_sec = rt_at_open->tv_sec - mt_at_open->tv_sec +
+		     (__s64)(mono_us / 1000000);
+	rec.tv_nsec = rt_at_open->tv_nsec - mt_at_open->tv_nsec +
+		      (__s64)(mono_us % 1000000) * 1000;
 	if (rec.tv_nsec < 0) {
 		rec.tv_nsec += 1000000000LL;
 		rec.tv_sec--;
