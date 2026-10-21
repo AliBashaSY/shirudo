@@ -81,7 +81,7 @@ machine-readable one.  The fields that matter day to day:
     means ``initrd``.
 
 Conditions
-    Four, each ``OK``, ``WARN`` or ``FAIL`` with a detail:
+    Four, each ``OK``, ``WARN`` or ``ALERT`` with a detail:
 
     .. list-table::
        :header-rows: 1
@@ -90,18 +90,19 @@ Conditions
        * - Condition
          - Meaning when not ``OK``
        * - ``LsmAttached``
-         - ``FAIL``: the ``lsm/bpf`` link is not pinned; enforcement
+         - ``ALERT``: the ``lsm/bpf`` link is not pinned; enforcement
            is off and the target has not been initialised this boot.
        * - ``KeyringSealed``
-         - ``WARN`` while staging; ``FAIL`` when the live keyring is
-           not the one ``init`` froze into the identity map (a swapped
-           keyring: every load refuses ``tampered``).
+         - ``WARN`` while staging or before ``init``; ``ALERT`` when
+           the live keyring is not the one ``init`` froze into the
+           identity map (a swapped keyring: every load refuses
+           ``tampered``).
        * - ``ChainIntact``
-         - ``FAIL`` when replaying this boot's eventlog does not
+         - ``ALERT`` when replaying this boot's eventlog does not
            reproduce the live register: something extended it that
            shirudo did not record.
        * - ``TpmMeasured``
-         - ``FAIL`` when no register is bound this boot
+         - ``WARN`` when no register is bound this boot
            (``init-pending``) or the TPM cannot be read.
 
 ``keyring_serial`` and ``keyring_serial_pinned``
@@ -136,7 +137,7 @@ Conditions
     journal and the host.
 
 The same conditions leave the target every five seconds as the OTLP
-keepalive, so a collector sees a target go ``WARN`` or ``FAIL``, or go
+keepalive, so a collector sees a target go ``WARN`` or ``ERROR``, or go
 silent, without anyone logging in.
 
 Logs go to the journal under the ``shirudo`` identifier::
