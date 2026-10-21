@@ -1731,9 +1731,10 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			TREE_SYNC_RETURN(rc);
 		}
 	}
-	rc = tree_write_report(report[0] ? report : NULL, &state, selected,
-			       skipped, applied, module_skipped, dry_run,
-			       tpm_available);
+	/* "-" is standard output, where the report goes without --report. */
+	rc = tree_write_report(report[0] && strcmp(report, "-") ? report : NULL,
+			       &state, selected, skipped, applied,
+			       module_skipped, dry_run, tpm_available);
 	shirudo_tree_publication_free(&pub);
 	#undef TREE_SYNC_RETURN
 	return rc;
