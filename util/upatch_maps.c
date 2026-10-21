@@ -359,6 +359,40 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 	}
 }
 
+/*
+ * A struct member declared with a bit width: BTF gives its offset and
+ * width in bits, and the value is no whole number of bytes.
+ */
+static char *btf_format_bitfield(const struct btf *btf, uint32_t type_id,
+				 const void *bytes, uint32_t bytes_size,
+				 uint32_t bit_off, uint32_t bit_size)
+{
+	uint32_t shift = bit_off % 8, n = (shift + bit_size + 7) / 8, i;
+	const uint8_t *b = (const uint8_t *)bytes + bit_off / 8;
+	const struct btf_type *t;
+	bool is_signed = false;
+	uint64_t v = 0;
+
+	if (!bit_size || shift + bit_size > 64 || bit_off / 8 + n > bytes_size)
+		return fmt_alloc("?");
+	for (i = 0; i < n; i++)
+		v |= (uint64_t)b[i] << (8 * i);
+	v >>= shift;
+	t = btf__type_by_id(btf, btf_unwrap(btf, type_id));
+	if (bit_size < 64)
+		v &= ((uint64_t)1 << bit_size) - 1;
+	if (t && BTF_INFO_KIND(t->info) == BTF_KIND_INT)
+		is_signed = BTF_INT_ENCODING(*(const uint32_t *)(t + 1)) &
+			    BTF_INT_SIGNED;
+	else if (t && (BTF_INFO_KIND(t->info) == BTF_KIND_ENUM ||
+		       BTF_INFO_KIND(t->info) == BTF_KIND_ENUM64))
+		is_signed = BTF_INFO_KFLAG(t->info);
+	if (is_signed && bit_size < 64 && (v & ((uint64_t)1 << (bit_size - 1))))
+		v |= ~(((uint64_t)1 << bit_size) - 1);
+	return is_signed ? fmt_alloc("%" PRId64, (int64_t)v) :
+			   fmt_alloc("%" PRIu64, v);
+}
+
 static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			      const void *bytes, uint32_t bytes_size,
 			      int depth)
@@ -391,18 +425,25 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 	if (kind == BTF_KIND_ENUM) {
 		const struct btf_enum *e = (const struct btf_enum *)(t + 1);
 		int vlen = BTF_INFO_VLEN(t->info);
-		int32_t v = 0;
-		int i;
+		uint32_t v = 0, size = t->size, i;
 
-		if (bytes_size >= 4)
-			memcpy(&v, bytes, 4);
-		for (i = 0; i < vlen; i++)
-			if (e[i].val == v) {
+		/* An enum is as wide as BTF says, one byte for a packed one. */
+		if (!size || size > 4 || size > bytes_size)
+			return fmt_alloc("?");
+		for (i = 0; i < size; i++)
+			v |= (uint32_t)((const uint8_t *)bytes)[i] << (8 * i);
+		if (BTF_INFO_KFLAG(t->info) && size < 4 &&
+		    (v & (1u << (8 * size - 1))))
+			v |= ~((1u << (8 * size)) - 1);
+		for (i = 0; i < (uint32_t)vlen; i++)
+			if ((uint32_t)e[i].val == v) {
 				const char *nm = btf__name_by_offset(btf,
 								e[i].name_off);
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
-		return fmt_alloc("%" PRId32, v);
+		return BTF_INFO_KFLAG(t->info) ?
+		       fmt_alloc("%" PRId32, (int32_t)v) :
+		       fmt_alloc("%" PRIu32, v);
 	}
 
 	if (kind == BTF_KIND_ENUM64) {
@@ -447,7 +488,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			uint32_t bit_off = BTF_INFO_KFLAG(t->info) ?
 					   BTF_MEMBER_BIT_OFFSET(m[i].offset) :
 					   m[i].offset;
-			uint32_t byte_off = bit_off / 8;
+			uint32_t byte_off = bit_off / 8, bit_size = 0;
 			const struct btf_type *ft;
 			uint32_t fsize = 0;
 			const char *fname;
@@ -455,6 +496,8 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 
 			if (byte_off >= bytes_size)
 				continue;
+			if (BTF_INFO_KFLAG(t->info))
+				bit_size = BTF_MEMBER_BITFIELD_SIZE(m[i].offset);
 			ft = btf__type_by_id(btf, btf_unwrap(btf, m[i].type));
 			fname = btf__name_by_offset(btf, m[i].name_off);
 			if (ft) {
@@ -465,9 +508,15 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			}
 			if (!fsize || byte_off + fsize > bytes_size)
 				fsize = bytes_size - byte_off;
-			fval = btf_format_value(btf, m[i].type,
-						(const char *)bytes + byte_off,
-						fsize, depth + 1);
+			if (bit_size)
+				fval = btf_format_bitfield(btf, m[i].type,
+							   bytes, bytes_size,
+							   bit_off, bit_size);
+			else
+				fval = btf_format_value(btf, m[i].type,
+							(const char *)bytes +
+							byte_off, fsize,
+							depth + 1);
 			if (!fval)
 				fval = fmt_alloc("?");
 			strbuf_append_take(&out, &cap, &off,
