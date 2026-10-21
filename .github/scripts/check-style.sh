@@ -216,18 +216,17 @@ annotate() {
 	fi
 }
 
-# Check one patch stream, at the 80 columns of Documentation/coding-style.rst
-# rather than checkpatch's 100. The // SPDX tag of a .c file becomes the
-# /* */ form first, so the C99 check, which cannot tell the two uses of
-# // apart, sees only real comments. checkpatch seeds a CamelCase cache
-# from the include/ under its root and writes it where it runs, strict
-# mode or not: it runs in the work directory, over an empty include/.
+# Check one patch stream. The // SPDX tag of a .c file becomes the /* */
+# form first, so the C99 check, which cannot tell the two uses of //
+# apart, sees only real comments. checkpatch seeds a CamelCase cache from
+# the include/ under its root and writes it where it runs, strict mode or
+# not: it runs in the work directory, over an empty include/.
 check_patch() {
 	sed -E 's|^([-+ ])// (SPDX-License-Identifier: .*)$|\1/* \2 */|' "$1" >"$work/patch"
 	shift
 	rc=0
 	(cd "$work" && perl "$checkpatch" --no-tree --root="$work" --strict \
-		--quiet --show-types --max-line-length=80 --ignore "$IGNORE" \
+		--quiet --show-types --ignore "$IGNORE" \
 		"$@" "$work/patch") >"$work/out" 2>&1 || rc=1
 	check_block_comments "$work/patch" >>"$work/out" || rc=1
 	annotate <"$work/out"

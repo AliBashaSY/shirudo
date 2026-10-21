@@ -82,7 +82,8 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   Apply this whenever you add or touch a declaration block.
 - **Linux kernel coding style** (`Documentation/coding-style.rst` —
   the kernel's own coding-style.rst, copied into this tree). Tabs
-  (8-wide), 80-col soft limit, K&R braces, no spaces inside parens.
+  (8-wide), 80-col soft limit and 100-col hard limit (checkpatch),
+  K&R braces, no spaces inside parens.
   Apply to userspace too — eases review. **Comments are scarce and
   follow §8**: WHAT/WHY at the function head, not HOW inside the
   body; file headers are SPDX + Copyright + at most one line of

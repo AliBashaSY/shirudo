@@ -215,7 +215,7 @@ Before sending
   runs both.
 * Run ``.github/scripts/check-style.sh origin/main..HEAD`` on the
   commits: it runs the kernel's ``checkpatch.pl`` in strict mode over
-  the C each commit touches, at the 80 columns of the coding style, and
+  the C each commit touches, at its default limit of 100 columns, and
   over its message, with the checks that have no meaning in userspace
   switched off, each listed in the script with its reason, and it
   rejects a block comment whose text starts on the ``/*`` line, the

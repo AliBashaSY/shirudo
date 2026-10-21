@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0043 -- .github/scripts/check-style.sh: the kernel style checkpatch.pl
-# enforces on the C a commit touches at 80 columns, the block-comment
+# enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
 # it lets through and the list of what stays enabled, on a throwaway
@@ -87,20 +87,31 @@ Why the change is made." &&
 	grep -q "FILE: netdev.c:3:" "$W/out"
 '
 
-test_expect_success 'a line beyond 80 columns is reported' '
+test_expect_success 'a line of 100 columns passes' '
+	put edge.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"int edge(void)" "{" \
+		"	return 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 123456;" "}" &&
+	commit "a: add edge
+
+Why the change is made." &&
+	check &&
+	! grep -q "LONG_LINE" "$W/out"
+'
+
+test_expect_success 'a line beyond 100 columns is reported' '
 	put wide.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
 		"int wide(void)" "{" \
-		"	return 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 123456789;" "}" &&
+		"	return 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1234567890 + 1;" "}" &&
 	commit "a: add wide
 
 Why the change is made." &&
 	! check &&
-	grep -q "^WARNING:LONG_LINE: line length of 9[0-9] exceeds 80 columns" "$W/out"
+	grep -q "^WARNING:LONG_LINE: line length of 108 exceeds 100 columns" "$W/out"
 '
 
-test_expect_success 'a string literal running past 80 columns is not reported' '
+test_expect_success 'a string literal running past 100 columns is not reported' '
 	put names.h "/* SPDX-License-Identifier: BSD-2-Clause */" "" \
-		"#define NAMES_LONG_PIN_PATH	NAMES_DIR \"/a_pin_name_that_runs_past_the_limit_link\"" &&
+		"#define NAMES_LONG_PIN_PATH	NAMES_DIR \"/a_pin_name_that_runs_well_past_the_limit_of_the_style_check_link\"" &&
 	commit "a: add a long name
 
 Why the change is made." &&
