@@ -123,8 +123,8 @@ static __always_inline bool seal_is_label(const char *name)
 	return !bpf_strncmp(buf, sizeof(SHIRUDO_XATTR), SHIRUDO_XATTR);
 }
 
-static __always_inline struct seal_scratch *seal_scratch_get(
-						struct task_struct *task)
+static __always_inline struct seal_scratch *
+seal_scratch_get(struct task_struct *task)
 {
 	return bpf_task_storage_get(&seal_scratch_map, task, NULL,
 				    BPF_LOCAL_STORAGE_GET_F_CREATE);

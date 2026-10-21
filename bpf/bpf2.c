@@ -222,9 +222,10 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	key = (struct key *)((unsigned long)key_ref & ~1UL);
 	serial = BPF_CORE_READ(key, serial);
 	if (serial != id->keyring_serial) {
-		for (i = 0; i < SHIRUDO_IDENTITY_KEYS_MAX; i++)
+		for (i = 0; i < SHIRUDO_IDENTITY_KEYS_MAX; i++) {
 			if (i < id->n_keys && id->key_serials[i] == serial)
 				break;
+		}
 		if (i == SHIRUDO_IDENTITY_KEYS_MAX)
 			return 0; /* not the anchor -- not ours */
 	}
