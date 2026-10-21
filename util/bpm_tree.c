@@ -23,7 +23,7 @@
 struct tree_parser {
 	const char *p;
 	const char *end;
-	unsigned depth;
+	unsigned int depth;
 };
 
 static void tp_ws(struct tree_parser *p)
@@ -61,13 +61,27 @@ static int tp_string(struct tree_parser *p, char *out, size_t cap)
 				return -EINVAL;
 			c = (unsigned char)*p->p++;
 			switch (c) {
-			case '"': case '\\': case '/': break;
-			case 'b': c = '\b'; break;
-			case 'f': c = '\f'; break;
-			case 'n': c = '\n'; break;
-			case 'r': c = '\r'; break;
-			case 't': c = '\t'; break;
-			default: return -EINVAL;
+			case '"':
+			case '\\':
+			case '/':
+				break;
+			case 'b':
+				c = '\b';
+				break;
+			case 'f':
+				c = '\f';
+				break;
+			case 'n':
+				c = '\n';
+				break;
+			case 'r':
+				c = '\r';
+				break;
+			case 't':
+				c = '\t';
+				break;
+			default:
+				return -EINVAL;
 			}
 		}
 		if (c < 0x20)
@@ -90,6 +104,7 @@ static int tp_skip(struct tree_parser *p)
 		return tp_string(p, scratch, sizeof(scratch));
 	if (*p->p == '{' || *p->p == '[') {
 		char open = *p->p++, close = open == '{' ? '}' : ']';
+
 		if (++p->depth > 32)
 			return -E2BIG;
 		for (;;) {
@@ -189,7 +204,7 @@ static int tp_string_array(struct tree_parser *p,
 			return 0;
 		}
 		if (count >= max || tp_string(p, values[count],
-					       SHIRUDO_TREE_STRING_MAX))
+					      SHIRUDO_TREE_STRING_MAX))
 			return count >= max ? -E2BIG : -EINVAL;
 		count++;
 		tp_ws(p);
@@ -223,7 +238,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 		}
 		if (tp_key(p, key, sizeof(key), &first) || *n >= max ||
 		    tp_string_array(p, dst[*n].values, &values,
-					SHIRUDO_TREE_MAX_SELECTOR_VALUES))
+				    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
 			return -EINVAL;
 		strcpy(dst[*n].key, key);
 		dst[*n].n_values = values;
@@ -264,11 +279,11 @@ static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 		} else if (!strcmp(key, "kconfig") ||
 				   !strcmp(key, "kernel_config")) {
 			if (tp_selector_string_map(p, s->kconfig, &s->n_kconfig,
-						SHIRUDO_TREE_MAX_KCONFIG))
+						   SHIRUDO_TREE_MAX_KCONFIG))
 				return -EINVAL;
 		} else if (!strcmp(key, "labels")) {
 			if (tp_selector_string_map(p, s->labels, &s->n_labels,
-						SHIRUDO_TREE_MAX_LABELS))
+						   SHIRUDO_TREE_MAX_LABELS))
 				return -EINVAL;
 		} else if (tp_skip(p)) {
 			return -EINVAL;
@@ -333,15 +348,20 @@ static int tp_operation(struct tree_parser *p, struct shirudo_tree_operation *o)
 		if (tp_key(p, key, sizeof(key), &first))
 			return -EINVAL;
 		if (!strcmp(key, "seq")) {
-			if (tp_int(p, &o->seq)) return -EINVAL;
+			if (tp_int(p, &o->seq))
+				return -EINVAL;
 		} else if (!strcmp(key, "op")) {
-			if (tp_string(p, o->op, sizeof(o->op))) return -EINVAL;
+			if (tp_string(p, o->op, sizeof(o->op)))
+				return -EINVAL;
 		} else if (!strcmp(key, "id")) {
-			if (tp_string(p, o->id, sizeof(o->id))) return -EINVAL;
+			if (tp_string(p, o->id, sizeof(o->id)))
+				return -EINVAL;
 		} else if (!strcmp(key, "selector")) {
-			if (tp_selector(p, &o->selector)) return -EINVAL;
+			if (tp_selector(p, &o->selector))
+				return -EINVAL;
 		} else if (!strcmp(key, "artifact")) {
-			if (tp_artifact(p, &o->artifact)) return -EINVAL;
+			if (tp_artifact(p, &o->artifact))
+				return -EINVAL;
 		} else if (!strcmp(key, "expected_payload_sha256")) {
 			if (tp_string(p, o->expected_payload_sha256,
 				      sizeof(o->expected_payload_sha256)))
@@ -401,8 +421,34 @@ int shirudo_tree_publication_append(struct shirudo_tree_publication *pub,
 	return 0;
 }
 
+/* The "base" and "head" objects: {"seq": <int>} plus fields to skip. */
+static int tp_seq_object(struct tree_parser *p, char *key, size_t cap,
+			 int64_t *seq, bool *seen_seq)
+{
+	bool first = true;
+
+	if (tp_char(p, '{'))
+		return -EINVAL;
+	for (;;) {
+		tp_ws(p);
+		if (p->p < p->end && *p->p == '}') {
+			p->p++;
+			return 0;
+		}
+		if (tp_key(p, key, cap, &first))
+			return -EINVAL;
+		if (!strcmp(key, "seq")) {
+			if (tp_int(p, seq))
+				return -EINVAL;
+			*seen_seq = true;
+		} else if (tp_skip(p)) {
+			return -EINVAL;
+		}
+	}
+}
+
 int shirudo_tree_parse(const char *body, size_t len,
-			       struct shirudo_tree_publication *out)
+		       struct shirudo_tree_publication *out)
 {
 	struct tree_parser p;
 	char key[SHIRUDO_TREE_STRING_MAX];
@@ -417,94 +463,122 @@ int shirudo_tree_parse(const char *body, size_t len,
 		return -EINVAL;
 	p = (struct tree_parser){ .p = body, .end = body + len };
 	*out = (struct shirudo_tree_publication){};
-	#define TREE_PARSE_FAIL(err) do { \
-		shirudo_tree_publication_free(out); \
-		return (err); \
-	} while (0)
-	if (tp_char(&p, '{')) TREE_PARSE_FAIL(-EINVAL);
+	if (tp_char(&p, '{')) {
+		rc = -EINVAL;
+		goto fail;
+	}
 	for (;;) {
 		tp_ws(&p);
 		if (p.p < p.end && *p.p == '}') {
 			p.p++;
 			break;
 		}
-		if (tp_key(&p, key, sizeof(key), &first)) TREE_PARSE_FAIL(-EINVAL);
+		if (tp_key(&p, key, sizeof(key), &first)) {
+			rc = -EINVAL;
+			goto fail;
+		}
 		if (!strcmp(key, "schema")) {
-			if (tp_int(&p, &schema)) TREE_PARSE_FAIL(-EINVAL);
+			if (tp_int(&p, &schema)) {
+				rc = -EINVAL;
+				goto fail;
+			}
 			out->schema = (int)schema;
 			seen_schema = true;
 		} else if (!strcmp(key, "tree_id")) {
-			if (tp_string(&p, out->tree_id, sizeof(out->tree_id))) TREE_PARSE_FAIL(-EINVAL);
+			if (tp_string(&p, out->tree_id, sizeof(out->tree_id))) {
+				rc = -EINVAL;
+				goto fail;
+			}
 		} else if (!strcmp(key, "generation")) {
-			if (tp_int(&p, &out->generation)) TREE_PARSE_FAIL(-EINVAL);
+			if (tp_int(&p, &out->generation)) {
+				rc = -EINVAL;
+				goto fail;
+			}
 			seen_generation = true;
 		} else if (!strcmp(key, "parent_manifest_digest")) {
 			if (tp_string(&p, out->parent_manifest_digest,
-				      sizeof(out->parent_manifest_digest))) TREE_PARSE_FAIL(-EINVAL);
+				      sizeof(out->parent_manifest_digest))) {
+				rc = -EINVAL;
+				goto fail;
+			}
 		} else if (!strcmp(key, "base")) {
 			seen_base = true;
-			if (tp_char(&p, '{')) TREE_PARSE_FAIL(-EINVAL);
-			{
-				bool bf = true;
-				for (;;) {
-					tp_ws(&p);
-					if (p.p < p.end && *p.p == '}') { p.p++; break; }
-					if (tp_key(&p, key, sizeof(key), &bf)) TREE_PARSE_FAIL(-EINVAL);
-					if (!strcmp(key, "seq")) {
-						if (tp_int(&p, &out->base_seq)) TREE_PARSE_FAIL(-EINVAL);
-						seen_base_seq = true;
-					} else if (tp_skip(&p)) TREE_PARSE_FAIL(-EINVAL);
-				}
+			if (tp_seq_object(&p, key, sizeof(key), &out->base_seq,
+					  &seen_base_seq)) {
+				rc = -EINVAL;
+				goto fail;
 			}
 		} else if (!strcmp(key, "operations")) {
 			seen_operations = true;
-			if (tp_char(&p, '[')) TREE_PARSE_FAIL(-EINVAL);
+			if (tp_char(&p, '[')) {
+				rc = -EINVAL;
+				goto fail;
+			}
 			for (;;) {
 				tp_ws(&p);
-				if (p.p < p.end && *p.p == ']') { p.p++; break; }
+				if (p.p < p.end && *p.p == ']') {
+					p.p++;
+					break;
+				}
 				rc = tree_operations_reserve(out);
 				if (rc)
-					TREE_PARSE_FAIL(rc);
-				if (tp_operation(&p, &out->operations[out->n_operations]))
-					TREE_PARSE_FAIL(-EINVAL);
+					goto fail;
+				if (tp_operation(&p, &out->operations[out->n_operations])) {
+					rc = -EINVAL;
+					goto fail;
+				}
 				out->n_operations++;
 				tp_ws(&p);
-				if (p.p < p.end && *p.p == ',') { p.p++; continue; }
-				if (p.p < p.end && *p.p == ']') { p.p++; break; }
-				TREE_PARSE_FAIL(-EINVAL);
+				if (p.p < p.end && *p.p == ',') {
+					p.p++;
+					continue;
+				}
+				if (p.p < p.end && *p.p == ']') {
+					p.p++;
+					break;
+				}
+				rc = -EINVAL;
+				goto fail;
 			}
 		} else if (!strcmp(key, "head")) {
 			seen_head = true;
-			if (tp_char(&p, '{')) TREE_PARSE_FAIL(-EINVAL);
-			{
-				bool hf = true;
-				for (;;) {
-					tp_ws(&p);
-					if (p.p < p.end && *p.p == '}') { p.p++; break; }
-					if (tp_key(&p, key, sizeof(key), &hf)) TREE_PARSE_FAIL(-EINVAL);
-					if (!strcmp(key, "seq")) {
-						if (tp_int(&p, &out->head_seq)) TREE_PARSE_FAIL(-EINVAL);
-						seen_head_seq = true;
-					} else if (tp_skip(&p)) TREE_PARSE_FAIL(-EINVAL);
-				}
+			if (tp_seq_object(&p, key, sizeof(key), &out->head_seq,
+					  &seen_head_seq)) {
+				rc = -EINVAL;
+				goto fail;
 			}
-		} else if (tp_skip(&p)) TREE_PARSE_FAIL(-EINVAL);
+		} else if (tp_skip(&p)) {
+			rc = -EINVAL;
+			goto fail;
+		}
 		tp_ws(&p);
-		if (p.p < p.end && *p.p == '}') { p.p++; break; }
-		if (p.p >= p.end) TREE_PARSE_FAIL(-EINVAL);
+		if (p.p < p.end && *p.p == '}') {
+			p.p++;
+			break;
+		}
+		if (p.p >= p.end) {
+			rc = -EINVAL;
+			goto fail;
+		}
 	}
 	tp_ws(&p);
 	if (p.p != p.end || !seen_schema || !seen_generation || !seen_base ||
 	    !seen_base_seq || !seen_operations || !seen_head || !seen_head_seq ||
 	    schema != 2 || !out->tree_id[0] ||
-	    out->generation < 0 || out->base_seq < 0 || out->head_seq < out->base_seq)
-		TREE_PARSE_FAIL(-EINVAL);
-	for (int i = 0; i < out->n_operations; i++) {
-		if (i && out->operations[i].seq != out->operations[i - 1].seq + 1)
-			TREE_PARSE_FAIL(-EINVAL);
+	    out->generation < 0 || out->base_seq < 0 || out->head_seq < out->base_seq) {
+		rc = -EINVAL;
+		goto fail;
 	}
-	#undef TREE_PARSE_FAIL
+	for (int i = 0; i < out->n_operations; i++) {
+		if (i && out->operations[i].seq != out->operations[i - 1].seq + 1) {
+			rc = -EINVAL;
+			goto fail;
+		}
+	}
 	return 0;
+fail:
+	shirudo_tree_publication_free(out);
+	return rc;
 }
 
 static int tree_selector_kv_compare(const void *left, const void *right)
