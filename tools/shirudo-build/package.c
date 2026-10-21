@@ -22,6 +22,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include "bpf/lib/shirudo_serializer.h"
@@ -267,6 +268,10 @@ static int split_uprobe_target(const char *src, char **path,
 	return 0;
 }
 
+/*
+ * "<symbol>[+<offset>]", the offset in decimal or 0x hexadecimal; a
+ * leading zero is refused rather than read as octal.
+ */
 static int split_probe_target(const char *src, char *target,
 			      size_t target_sz, __u64 *offset)
 {
@@ -277,16 +282,20 @@ static int split_probe_target(const char *src, char *target,
 	if (!src || !src[0])
 		return -EINVAL;
 	if (plus) {
-		char *end = NULL;
-		__u64 parsed;
+		const char *num = plus + 1;
+		size_t n = strlen(num);
+		int rc;
 
-		if (plus == src || plus[1] == '\0')
+		if (plus == src)
 			return -EINVAL;
-		errno = 0;
-		parsed = strtoull(plus + 1, &end, 0);
-		if (errno || !end || *end != '\0')
+		if (n > 2 && num[0] == '0' && (num[1] == 'x' || num[1] == 'X'))
+			rc = parse_x64(num + 2, n - 2, UINT64_MAX, offset);
+		else if (n > 1 && num[0] == '0')
+			rc = -EINVAL;
+		else
+			rc = parse_u64(num, n, UINT64_MAX, offset);
+		if (rc)
 			return -EINVAL;
-		*offset = (__u64)parsed;
 		len = (size_t)(plus - src);
 	} else {
 		len = strlen(src);
