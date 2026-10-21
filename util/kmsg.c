@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -16,6 +17,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "kmsg.h"
 #include "timefmt.h"
@@ -56,14 +58,11 @@ static int parse_record(const char *rec, size_t len,
 		if (*p == ',') {
 			commas++;
 			if (commas == 2) {
-				__u64 us = 0;
 				const char *q = p + 1;
 
-				while (q < semi && *q >= '0' && *q <= '9') {
-					us = us * 10 + (__u64)(*q - '0');
-					q++;
-				}
-				*monotonic_us_out = us;
+				if (parse_u64(q, digits(q, (size_t)(semi - q)),
+					      UINT64_MAX, monotonic_us_out))
+					return -EINVAL;
 				break;
 			}
 		}

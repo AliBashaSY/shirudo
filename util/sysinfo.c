@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "json.h"
 #include "kernel_build_id.h"
@@ -69,11 +70,13 @@ static void read_os_pretty(char *buf, size_t cap)
 	fclose(f);
 }
 
+/* /proc/uptime holds the seconds since boot, with a fraction. */
 static long read_uptime_sec(void)
 {
 	char buf[64];
-	int fd;
 	ssize_t n;
+	__u64 sec;
+	int fd;
 
 	fd = open("/proc/uptime", O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
@@ -82,8 +85,9 @@ static long read_uptime_sec(void)
 	close(fd);
 	if (n <= 0)
 		return -1;
-	buf[n] = '\0';
-	return (long)strtod(buf, NULL);
+	if (parse_u64(buf, digits(buf, (size_t)n), LONG_MAX, &sec))
+		return -1;
+	return (long)sec;
 }
 
 static void read_mem(long *total_kb, long *avail_kb)

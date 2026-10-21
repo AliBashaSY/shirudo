@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include <time.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "format.h"
 #include "kmodules.h"
@@ -93,6 +95,21 @@ static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 	return -1;
 }
 
+/*
+ * The number in the next column, which *p then points past, or 0 when
+ * there is none: the kernel prints "-" as the use count of a module it
+ * cannot unload.
+ */
+static __u64 next_column(char **p, __u64 max)
+{
+	char *s = *p + strspn(*p, " \t");
+	size_t n = digits(s, strlen(s));
+	__u64 v;
+
+	*p = s + n;
+	return parse_u64(s, n, max, &v) ? 0 : v;
+}
+
 int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 {
 	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
@@ -150,8 +167,8 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 		m = &set->mods[set->n++];
 		memcpy(m->name, p, name_len);
 		m->name[name_len] = '\0';
-		m->size = strtoull(e, &p, 10);
-		m->refcount = (__u32)strtoul(p, NULL, 10);
+		m->size = next_column(&e, UINT64_MAX);
+		m->refcount = (__u32)next_column(&e, UINT32_MAX);
 	}
 	qsort(set->mods, set->n, sizeof(*set->mods), kmod_cmp);
 
