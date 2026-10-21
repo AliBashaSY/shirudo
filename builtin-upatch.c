@@ -2583,10 +2583,38 @@ static int remove_pin_dir(const char *name)
 	return wipe_dir_flat(dir);
 }
 
+/*
+ * The operator's file is read once: the name and payload measured, the
+ * program loaded and the copy archived all come from that one read, in
+ * a directory only shirudo writes, so another artifact renamed over the
+ * path midway cannot set them apart.
+ */
+static int stage_upatch(const char *src, char *staged, size_t sz)
+{
+	unsigned char *buf = NULL;
+	size_t len = 0;
+	int rc;
+
+	rc = shirudo_read_file(src, SHIRUDO_UPATCH_FILE_MAX, &buf, &len);
+	if (rc)
+		return rc;
+	rc = shirudo_seal_mkdir_p(SHIRUDO_INCOMING_DIR, 0700);
+	if (!rc && snprintf(staged, sz, "%s/load-%d.upatch",
+			    SHIRUDO_INCOMING_DIR, (int)getpid()) >= (int)sz)
+		rc = -ENAMETOOLONG;
+	if (!rc)
+		rc = shirudo_seal_write_file(staged, buf, len, 0600);
+	xfree(buf, len + 1);
+	if (rc)
+		staged[0] = '\0';
+	return rc;
+}
+
 static int cmd_upatch_load(int argc, const char **argv)
 {
 	const char *file, *expect_chain, *expect_version_id, *report;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1] = {};
+	char staged[PATH_MAX] = {};
 	uint8_t payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_load", .phase = "done" };
@@ -2607,6 +2635,15 @@ static int cmd_upatch_load(int argc, const char **argv)
 
 	if (version_gate(expect_version_id, no_version_check, &rep, "load") != 0)
 		goto done;
+
+	rc = stage_upatch(file, staged, sizeof(staged));
+	if (rc) {
+		pr_err("upatch load: read %s: %s", file, strerror(-rc));
+		rep_fail(&rep, "parse", "parser_rejected", -rc,
+			 "cannot read .upatch");
+		goto done;
+	}
+	file = staged;
 
 	rc = shirudo_upatch_open(file, &u);
 	if (rc) {
@@ -2677,6 +2714,8 @@ done:
 	if (ret == 1 && rep.category &&
 	    !strcmp(rep.category, "attach_target_missing"))
 		ret = SHIRUDO_UPATCH_INSTALL_TARGET_MISSING;
+	if (staged[0])
+		unlink(staged);
 	if (report)
 		shirudo_report_emit(report, &rep);
 	shirudo_report_free(&rep);

@@ -194,7 +194,7 @@ int shirudo_upatch_open(const char *path, struct shirudo_upatch *out)
 		return -EINVAL;
 	}
 	/* refuse pathologically-large inputs; .upatch is small */
-	if ((uintmax_t)st.st_size > 16u * 1024u * 1024u) {
+	if ((uintmax_t)st.st_size > SHIRUDO_UPATCH_FILE_MAX) {
 		close(fd);
 		return -EFBIG;
 	}

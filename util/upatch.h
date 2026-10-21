@@ -13,6 +13,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* The largest container the parser accepts. */
+#define SHIRUDO_UPATCH_FILE_MAX		(16u * 1024u * 1024u)
+
 struct shirudo_upatch {
 	struct shirudo_upatch_header	hdr;	/* host byte order */
 	const unsigned char		*map;
