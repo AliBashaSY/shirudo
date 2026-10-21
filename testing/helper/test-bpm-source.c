@@ -21,8 +21,8 @@ int main(void)
 					  sizeof(endpoint), key_file,
 					  sizeof(key_file)) ||
 	    shirudo_bpm_parse_source_line(key_file_line, endpoint,
-					   sizeof(endpoint), key_file,
-					   sizeof(key_file)))
+					  sizeof(endpoint), key_file,
+					  sizeof(key_file)))
 		return 1;
 	if (strcmp(endpoint, "oci://registry.test:5443") ||
 	    strcmp(key_file, "/etc/shirudo/bpm/keys/jbrust.pem"))

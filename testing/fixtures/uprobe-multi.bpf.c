@@ -16,6 +16,7 @@ int probe(struct pt_regs *ctx)
 {
 	__u32 key = 0;
 	__u64 *value = bpf_map_lookup_elem(&hits, &key);
+
 	if (value)
 		__sync_fetch_and_add(value, 1);
 	return 0;

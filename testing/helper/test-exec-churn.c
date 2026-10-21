@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-2-Clause
-// Copyright (c) 2026 Authors of shirudo
+/* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
 #include <inttypes.h>
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 		return 2;
 	start = monotonic_ns();
 	if (!start || duration_sec > UINT64_MAX / UINT64_C(1000000000) ||
-		start > UINT64_MAX - duration_sec * UINT64_C(1000000000))
+	    start > UINT64_MAX - duration_sec * UINT64_C(1000000000))
 		return 1;
 	deadline = start + duration_sec * UINT64_C(1000000000);
 	if (pipe(result_fd) != 0)

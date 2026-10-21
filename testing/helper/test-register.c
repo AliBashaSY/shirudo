@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 		if (shirudo_hex_decode(argv[3], payload, 32))
 			return 2;
 		shirudo_chain_upatch_event("shirudo-upatch", argv[2], payload,
-					    event);
+					   event);
 		rc = shirudo_chain_extend(event, chain);
 		printf("rc=%d\n", rc);
 		if (rc)

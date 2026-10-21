@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "util/kernel_release.h"
+#include "util/macros.h"
 
 struct test_case {
 	const char *release;
@@ -24,9 +25,11 @@ int main(void)
 		{ "6.1.0", NULL, 0 },
 	};
 
-	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-		int matches = shirudo_kernel_release_prefix_matches(
-			cases[i].release, cases[i].prefix);
+	for (size_t i = 0; i < ARRAY_SIZE(cases); i++) {
+		int matches;
+
+		matches = shirudo_kernel_release_prefix_matches(cases[i].release,
+								cases[i].prefix);
 
 		if (matches != cases[i].matches) {
 			fprintf(stderr, "case %zu: unexpected match result %d\n",

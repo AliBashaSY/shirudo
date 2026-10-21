@@ -58,9 +58,10 @@ int main(int argc, char **argv)
 			argv[0]);
 		return 2;
 	}
-	for (i = 0; i < ARRAY_SIZE(cmds); i++)
+	for (i = 0; i < ARRAY_SIZE(cmds); i++) {
 		if (strcmp(cmds[i].name, argv[1]) == 0)
 			break;
+	}
 	if (i == ARRAY_SIZE(cmds)) {
 		fprintf(stderr, "%s: unknown command %s\n", argv[0], argv[1]);
 		return 2;

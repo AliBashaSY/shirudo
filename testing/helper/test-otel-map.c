@@ -156,7 +156,7 @@ static int fixture_init(struct fixture *f, uint32_t map_type, bool is_signed,
 	snprintf(f->view.upatch, sizeof(f->view.upatch), "test-upatch");
 	snprintf(f->view.name, sizeof(f->view.name), "hits_total");
 	snprintf(f->view.location, sizeof(f->view.location),
-		  "fentry/test_hook");
+		 "fentry/test_hook");
 	f->view.type = map_type;
 	f->view.type_name = map_type == BPF_MAP_TYPE_ARRAY ? "array" :
 		"percpu_array";
@@ -180,11 +180,11 @@ static int fixture_init(struct fixture *f, uint32_t map_type, bool is_signed,
 		return -ENOMEM;
 	key_int = btf__add_int(f->btf, "unsigned int", 4, 0);
 	value_int = btf__add_int(f->btf,
-		is_signed ? "int" : "unsigned int", 4,
-		is_signed ? BTF_INT_SIGNED : 0);
+				 is_signed ? "int" : "unsigned int", 4,
+				 is_signed ? BTF_INT_SIGNED : 0);
 	key_type = btf__add_typedef(f->btf, "__u32", key_int);
 	value_type = btf__add_typedef(f->btf,
-		is_signed ? "__s32" : "__u32", value_int);
+				      is_signed ? "__s32" : "__u32", value_int);
 	if (key_int < 0 || value_int < 0 || key_type < 0 || value_type < 0)
 		return -EINVAL;
 	f->view.btf = f->btf;
@@ -192,7 +192,7 @@ static int fixture_init(struct fixture *f, uint32_t map_type, bool is_signed,
 	f->view.value_type_id = (uint32_t)value_type;
 	snprintf(f->view.btf_key_type, sizeof(f->view.btf_key_type), "__u32");
 	snprintf(f->view.btf_value_type, sizeof(f->view.btf_value_type), "%s",
-		is_signed ? "__s32" : "__u32");
+		 is_signed ? "__s32" : "__u32");
 	return 0;
 }
 
@@ -241,12 +241,15 @@ static int print_payload(bool metric, bool counter, bool with_location)
 	if (!with_location)
 		f.view.location[0] = '\0';
 	rc = make_decoder(metric, counter, false, decoder_path,
-				  sizeof(decoder_path));
-	if (!rc)
-		rc = metric ? shirudo_upatch_maps_otel_build_metric_file(
-			decoder_path, &f.view, &opts, &buf, &len) :
-		shirudo_upatch_maps_otel_build_log_file(decoder_path, &f.view,
+			  sizeof(decoder_path));
+	if (!rc && metric)
+		rc = shirudo_upatch_maps_otel_build_metric_file(decoder_path,
+								&f.view, &opts,
 								&buf, &len);
+	else if (!rc)
+		rc = shirudo_upatch_maps_otel_build_log_file(decoder_path,
+							     &f.view, &buf,
+							     &len);
 	if (!rc && buf)
 		fwrite(buf, 1, len, stdout);
 	if (buf)
@@ -291,7 +294,7 @@ static int send_log(const char *url, unsigned int retries, bool insecure)
 	if (rc)
 		return 1;
 	rc = make_decoder(false, false, false, decoder_path,
-				  sizeof(decoder_path));
+			  sizeof(decoder_path));
 	if (!rc)
 		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
 							SHIRUDO_OTEL_FORCE_LOG, &opts);
@@ -311,7 +314,7 @@ static int send_auto(const char *base, bool is_signed)
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, is_signed, true))
 		return 1;
 	rc = make_decoder(!is_signed, !is_signed, false, decoder_path,
-				  sizeof(decoder_path));
+			  sizeof(decoder_path));
 	if (!rc)
 		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
 							SHIRUDO_OTEL_AUTO, &opts);
@@ -336,7 +339,7 @@ static int send_metric(const char *url)
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
 	rc = make_decoder(true, false, false, decoder_path,
-				  sizeof(decoder_path));
+			  sizeof(decoder_path));
 	if (!rc)
 		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
 							SHIRUDO_OTEL_FORCE_METRIC, &opts);
@@ -416,7 +419,7 @@ static int send_s3(const char *endpoint, unsigned int retries, bool large)
 			  sizeof(decoder_path));
 	if (!rc)
 		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-						SHIRUDO_OTEL_S3, &opts);
+							SHIRUDO_OTEL_S3, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	large_serialized_destroy(&f);

@@ -166,27 +166,27 @@ int main(int argc, char **argv)
 	if (rc)
 		return fail("open upatch failed");
 
-	if (strcmp(mode, "serializer") == 0)
+	if (strcmp(mode, "serializer") == 0) {
 		rc = expect_serializer(&u);
-	else if (strcmp(mode, "cgroup-ingress") == 0)
+	} else if (strcmp(mode, "cgroup-ingress") == 0) {
 		rc = expect_attach(&u,
-				SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS,
-				NULL, 0);
-	else if (strcmp(mode, "cgroup-egress") == 0)
+				   SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS,
+				   NULL, 0);
+	} else if (strcmp(mode, "cgroup-egress") == 0) {
 		rc = expect_attach(&u,
-				SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS,
-				NULL, 0);
-	else if (strcmp(mode, "kprobe-override") == 0)
+				   SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS,
+				   NULL, 0);
+	} else if (strcmp(mode, "kprobe-override") == 0) {
 		rc = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_KPROBE,
 				   "bpf_modify_return_test", 0);
-	else if (strcmp(mode, "fmod-ret") == 0)
+	} else if (strcmp(mode, "fmod-ret") == 0) {
 		rc = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_FMOD_RET,
 				   NULL, 0);
-	else if (strcmp(mode, "netfilter-ipv6-pre-routing") == 0)
+	} else if (strcmp(mode, "netfilter-ipv6-pre-routing") == 0) {
 		rc = expect_attach(&u,
-			SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
-			NULL, 0);
-	else if (strcmp(mode, "uprobe-multi") == 0 && argc == 6) {
+				   SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
+				   NULL, 0);
+	} else if (strcmp(mode, "uprobe-multi") == 0 && argc == 6) {
 		char *end = NULL;
 		unsigned long count = strtoul(argv[5], &end, 10);
 
@@ -195,9 +195,9 @@ int main(int argc, char **argv)
 		else
 			rc = expect_uprobe_multi(&u, argv[3], argv[4],
 						 (uint32_t)count);
-	}
-	else
+	} else {
 		rc = fail("unknown metadata check mode");
+	}
 
 	shirudo_upatch_close(&u);
 	if (rc)
