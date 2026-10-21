@@ -907,7 +907,8 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		bool complete =
 			quote.type == SHIRUDO_TPM_ST_ATTEST_QUOTE &&
 			quote.pcr_mask == (uint32_t)p->pcr_mask &&
-			(p->pcr_have & quote.pcr_mask) == quote.pcr_mask;
+			p->pcr_have == quote.pcr_mask;
+		bool vouched;
 
 		say(&rep, complete,
 		    "quote: covers the PCRs the document lists");
@@ -918,9 +919,14 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 							      p->pcrs[bit], 32);
 			shirudo_sha256_final(&ctx, digest);
 		}
-		say(&rep, complete &&
-		    shirudo_ct_eq(digest, quote.pcr_digest, 32),
+		vouched = complete &&
+			  shirudo_ct_eq(digest, quote.pcr_digest, 32);
+		say(&rep, vouched,
 		    "quote: PCR digest matches the listed values");
+		if (!vouched)
+			p->pcr_have = 0;
+	} else {
+		p->pcr_have = 0;
 	}
 
 	rc = check_signed(&rep, "register", p->reg_attest_hex, p->reg_sig_hex,
