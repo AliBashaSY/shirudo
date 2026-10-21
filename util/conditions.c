@@ -33,7 +33,13 @@ size_t conditions(const struct shirudo_conditions_input *in,
 				   "bpf" : "user";
 
 		c[n].type = "KeyringSealed";
-		if (!in->keyring_present) {
+		if (!in->keyring_present && in->ksp_seen) {
+			c[n].status = "ALERT";
+			snprintf(c[n].detail, sizeof(c[n].detail),
+				 "pin serial=%lld, the %s keyring is gone "
+				 "(removed?)",
+				 (__s64)in->keyring_serial_pinned, kind);
+		} else if (!in->keyring_present) {
 			c[n].status = "WARN";
 			snprintf(c[n].detail, sizeof(c[n].detail),
 				 "shirudo keyring absent (not init'd?)");
@@ -114,7 +120,8 @@ const char *status_verdict(const struct shirudo_conditions_input *in)
 	if (!in->parsed)
 		return "unparseable";
 	if ((in->cm_seen && !in->chain_matches) ||
-	    (in->ksm_seen && !in->keyring_serial_matches))
+	    (in->ksm_seen && !in->keyring_serial_matches) ||
+	    (in->ksp_seen && !in->keyring_present))
 		return "tampered";
 	if (!in->lsm_attached)
 		return "lsm-off";
@@ -139,6 +146,8 @@ void status_reason(const struct shirudo_conditions_input *in,
 	} else if (strcmp(v, "tampered") == 0) {
 		if (in->cm_seen && !in->chain_matches)
 			snprintf(buf, cap, "live register != eventlog replay");
+		else if (!in->keyring_present)
+			snprintf(buf, cap, "the keyring init froze is gone");
 		else
 			snprintf(buf, cap, "keyring serial swap detected");
 	} else if (strcmp(v, "lsm-off") == 0) {

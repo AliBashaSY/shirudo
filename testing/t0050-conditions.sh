@@ -4,7 +4,7 @@
 #
 # t0050 -- util/conditions.c: the KeyringSealed condition names the kind
 # of keyring the anchor is in, and a keyring other than the one init
-# froze makes the status tampered.
+# froze, or none where it froze one, makes the status tampered.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -39,6 +39,28 @@ test_expect_success 'a swapped keyring is tampered' '
 	echo "$out" | grep -qx "status=tampered" &&
 	echo "$out" | grep -qx "reason=keyring serial swap detected" &&
 	echo "$out" | grep -qx "KeyringSealed ALERT pin serial=100 != live serial=101 (swapped?)"
+'
+
+test_expect_success 'a frozen user keyring that is gone is tampered' '
+	out=$(./$H 1 user -1 200 match) &&
+	echo "$out" | grep -qx "status=tampered" &&
+	echo "$out" | grep -qx "reason=the keyring init froze is gone" &&
+	echo "$out" | grep -qx "KeyringSealed ALERT pin serial=200, the user keyring is gone (removed?)"
+'
+
+test_expect_success 'a frozen bpf keyring that is gone is tampered' '
+	out=$(./$H 1 bpf -1 100 match) &&
+	echo "$out" | grep -qx "status=tampered" &&
+	echo "$out" | grep -qx "KeyringSealed ALERT pin serial=100, the bpf keyring is gone (removed?)"
+'
+
+test_expect_success 'with the LSM off a gone keyring is still tampered' '
+	./$H 0 user -1 200 none | grep -qx "status=tampered"
+'
+
+test_expect_success 'a register mismatch is the reason given first' '
+	./$H 1 user -1 200 mismatch |
+		grep -qx "reason=live register != eventlog replay"
 '
 
 test_done
