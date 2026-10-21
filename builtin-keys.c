@@ -616,6 +616,13 @@ static int keys_add(int argc, const char **argv)
 		rc = 0;
 		goto out;
 	}
+	/* A set past the limit would fail to load at all, init included. */
+	if (set.n >= SHIRUDO_KEYS_MAX) {
+		pr_err("keys add: the trusted set holds %d certificates, the "
+		       "most a target enrols", SHIRUDO_KEYS_MAX);
+		rc = -E2BIG;
+		goto out;
+	}
 	rc = shirudo_keys_install(keys_dir, der, der_sz, sig, sig_sz, out,
 				  sizeof(out));
 	if (rc) {
