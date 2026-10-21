@@ -213,12 +213,19 @@ static int pull_package(const char *raw)
 static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 			bool exclusive)
 {
+	struct stat in_st, out_st;
 	unsigned char buf[65536];
-	ssize_t n;
 	int in, out, rc = 0;
+	ssize_t n;
 
 	in = open(src, O_RDONLY | O_CLOEXEC);
 	if (in < 0) return -errno;
+	/* O_TRUNC on a destination that is the source would empty both. */
+	if (!fstat(in, &in_st) && !stat(dst, &out_st) &&
+	    in_st.st_dev == out_st.st_dev && in_st.st_ino == out_st.st_ino) {
+		close(in);
+		return exclusive ? -EEXIST : 0;
+	}
 	out = shirudo_seal_open(dst, O_WRONLY | O_CREAT |
 				(exclusive ? O_EXCL : O_TRUNC), mode);
 	if (out < 0) { close(in); return out; }
