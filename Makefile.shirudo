@@ -695,6 +695,8 @@ testing/fuzz/fuzz-tree: testing/fuzz/fuzz-tree.c $(FUZZ_BASE) \
                         util/bpm_tree.c util/crypto_openssl.c util/io.c
 testing/fuzz/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
                           util/upatch.c
+testing/fuzz/fuzz-prog-metadata: testing/fuzz/fuzz-prog-metadata.c \
+                                 $(FUZZ_BASE) util/upatch.c
 testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
                            $(FUZZ_PACKAGE)
 testing/fuzz/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \

@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: BSD-2-Clause
+/*
+ * Copyright (c) 2026 Authors of shirudo
+ *
+ * shirudo_prog_specs_parse() on a load upatch's program metadata, which
+ * the loader signature does not cover.
+ */
+
+#include <endian.h>
+#include <stdint.h>
+#include <string.h>
+
+#include "fuzz.h"
+#include "upatch.h"
+
+int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
+{
+	struct shirudo_upatch_prog_metadata md;
+	struct shirudo_prog_spec *specs;
+	__u32 nr_progs = 0;
+
+	if (size > UINT32_MAX)
+		return 0;
+	/* The header claims the count the container's header must match. */
+	if (size >= sizeof(md)) {
+		memcpy(&md, data, sizeof(md));
+		nr_progs = le32toh(md.nr_progs);
+	}
+	if (!shirudo_prog_specs_parse(data, (__u32)size, nr_progs, &specs))
+		shirudo_prog_specs_free(specs, nr_progs);
+	return 0;
+}

@@ -10,6 +10,7 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
+	struct shirudo_prog_spec *specs;
 	struct shirudo_upatch u;
 	char path[64];
 	int fd;
@@ -18,6 +19,10 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (fd < 0)
 		return 0;
 	if (!shirudo_upatch_open(path, &u)) {
+		if (!shirudo_prog_specs_parse(shirudo_upatch_metadata(&u),
+					      u.hdr.metadata_len,
+					      u.hdr.nr_progs, &specs))
+			shirudo_prog_specs_free(specs, u.hdr.nr_progs);
 		shirudo_upatch_is_unload(&u);
 		if (shirudo_upatch_has_decoders(&u)) {
 			struct shirudo_upatch_decoder_view d;
