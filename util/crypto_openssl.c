@@ -65,7 +65,7 @@ int shirudo_sha256_init(struct shirudo_sha256_ctx *ctx)
 }
 
 int shirudo_sha256_update(struct shirudo_sha256_ctx *ctx,
-			 const void *data, size_t len)
+			  const void *data, size_t len)
 {
 	if (!ctx || !ctx->impl || (len && !data))
 		return -EINVAL;
@@ -73,7 +73,7 @@ int shirudo_sha256_update(struct shirudo_sha256_ctx *ctx,
 }
 
 int shirudo_sha256_final(struct shirudo_sha256_ctx *ctx,
-			uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
+			 uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	unsigned int len = 0;
 	int rc;
@@ -95,7 +95,7 @@ void shirudo_sha256_free(struct shirudo_sha256_ctx *ctx)
 }
 
 int shirudo_sha256_buffer(const void *data, size_t len,
-			 uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
+			  uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	struct shirudo_sha256_ctx ctx;
 	int rc;
@@ -278,7 +278,7 @@ int shirudo_verify_detached(const uint8_t *payload, size_t payload_len,
 		goto done;
 	cms = d2i_CMS_bio(sig, NULL);
 	if (cms && CMS_verify(cms, signers, store, data, out,
-				     CMS_BINARY | CMS_DETACHED) == 1)
+			      CMS_BINARY | CMS_DETACHED) == 1)
 		rc = 0;
 done:
 	if (rc)
@@ -312,10 +312,11 @@ int shirudo_cms_signed_by(const uint8_t *signature, size_t signature_len,
 	if (!sis)
 		goto done;
 	rc = 0;
-	for (i = 0; i < sk_CMS_SignerInfo_num(sis) && !rc; i++)
+	for (i = 0; i < sk_CMS_SignerInfo_num(sis) && !rc; i++) {
 		if (CMS_SignerInfo_cert_cmp(sk_CMS_SignerInfo_value(sis, i),
 					    cert->impl) == 0)
 			rc = 1;
+	}
 done:
 	if (rc < 0)
 		ERR_clear_error();
@@ -571,8 +572,7 @@ int shirudo_cert_verify_chain(const struct shirudo_cert *cert,
 	if (X509_verify_cert(ctx) == 1) {
 		rc = 0;
 	} else {
-		*reason = X509_verify_cert_error_string(
-				X509_STORE_CTX_get_error(ctx));
+		*reason = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));
 		rc = -EKEYREJECTED;
 	}
 out:

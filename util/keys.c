@@ -182,9 +182,10 @@ static bool set_holds(const struct shirudo_trusted_set *set,
 {
 	size_t i;
 
-	for (i = 0; i < set->n; i++)
+	for (i = 0; i < set->n; i++) {
 		if (memcmp(set->certs[i].fingerprint, fingerprint, 32) == 0)
 			return true;
+	}
 	return false;
 }
 
@@ -283,9 +284,10 @@ static int admit_vouched(struct shirudo_trusted_set *set,
 			progress = true;
 		}
 	}
-	for (i = 0; i < n_cand; i++)
+	for (i = 0; i < n_cand; i++) {
 		if (!cand[i].done)
 			set->n_unvouched++;
+	}
 	return 0;
 }
 
@@ -293,9 +295,10 @@ static void candidates_free(struct keys_candidate *cand, size_t n)
 {
 	size_t i;
 
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++) {
 		if (cand[i].der)
 			xfree(cand[i].der, cand[i].der_sz);
+	}
 	xfree(cand, KEYS_SCAN_MAX * sizeof(*cand));
 }
 

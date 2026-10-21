@@ -24,12 +24,12 @@ struct shirudo_sha256_ctx {
 
 int shirudo_sha256_init(struct shirudo_sha256_ctx *ctx);
 int shirudo_sha256_update(struct shirudo_sha256_ctx *ctx,
-			 const void *data, size_t len);
+			  const void *data, size_t len);
 int shirudo_sha256_final(struct shirudo_sha256_ctx *ctx,
-			uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN]);
+			 uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN]);
 void shirudo_sha256_free(struct shirudo_sha256_ctx *ctx);
 int shirudo_sha256_buffer(const void *data, size_t len,
-			 uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN]);
+			  uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN]);
 int shirudo_base64_encode(const uint8_t *data, size_t len,
 			  char *out, size_t out_sz);
 
