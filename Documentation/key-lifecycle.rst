@@ -141,7 +141,7 @@ Three facts shape every operation below:
   the archived upatches under ``/var/lib/shirudo/upatches``.  An
   archive signed by a key the set no longer covers fails verification,
   the restore stops, and the target comes up with the LSM active but
-  nothing loaded and no register bound (``init-pending``) until the
+  nothing loaded and no register bound (``degraded``) until the
   archive is cleaned up.  Revocation purges what the revoked key
   signed for that reason; a key that merely disappears from the set
   does not.

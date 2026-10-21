@@ -107,8 +107,7 @@ Conditions
            shirudo did not record.
        * - ``TpmMeasured``
          - ``WARN`` when no register is bound this boot
-           (``init-pending``) or no TPM answers; the detail says
-           which.
+           (``degraded``) or no TPM answers; the detail says which.
 
 ``keyring_serial`` and ``keyring_serial_pinned``
     The live keyring and the one frozen at ``init``; they match on a
@@ -203,8 +202,8 @@ archived set on every boot, and a upatch built for another kernel
 generation fails its load with ``btf_mismatch`` or
 ``verifier_rejected``; boot-restore is all or nothing, so one such
 upatch leaves the target with the LSM up, nothing loaded and no
-register bound (``TpmMeasured`` fails, ``status`` says
-``init-pending``).  Before rebooting into a new kernel generation,
+register bound (``TpmMeasured`` warns, ``status`` says
+``degraded``).  Before rebooting into a new kernel generation,
 either uninstall the packages that do not cover it or make sure the
 tree the node follows has selectors that do: an operation whose
 ``kernel_release_prefix`` or ``kernel_build_id`` no longer matches is
@@ -289,10 +288,10 @@ reinstall time, and size the cap to the lifetime of the installation.
     restores a clean boot and the evidence of the bad one is in the
     eventlog, the journal and whatever the TPM certified before.
 
-``init-pending`` and ``TpmMeasured`` failing
+``degraded`` and ``TpmMeasured`` warning
     ``init`` attached the LSM but did not bind the register: a
     boot-restore failure (section 4) or a TPM that could not be
-    reached.  The journal of ``shirudo-initrd.service`` or
+    reached, which the ``TpmMeasured`` detail tells apart.  The journal of ``shirudo-initrd.service`` or
     ``shirudo.service`` names the step.  Fix the cause and re-run
     ``shirudo init``; it is idempotent and completes what it can.
 

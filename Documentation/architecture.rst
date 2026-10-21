@@ -390,7 +390,7 @@ upatches it restores.  The register starts from zero at every boot, so
 an operator predicts its value from the certificate and the installed
 set alone (``shirudo attest predict``); no history is needed.  If any
 re-apply fails the register is not written and ``status`` reports
-``init-pending``.  A re-run of ``init`` finds the register bound and on
+``degraded``.  A re-run of ``init`` finds the register bound and on
 record and leaves it alone; one that finds the recorded register gone
 refuses ``tampered`` until the next TPM reset.
 
