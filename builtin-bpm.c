@@ -993,11 +993,11 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 		{
 			char cert[PATH_MAX];
 
-			if (strlen(package_dir) + strlen("/cert.der") >= sizeof(cert)) {
+			if (snprintf(cert, sizeof(cert), "%s/cert.der",
+				     package_dir) >= (int)sizeof(cert)) {
 				rc = -ENAMETOOLONG;
 				goto out;
 			}
-			sprintf(cert, "%s/cert.der", package_dir);
 			if (cert_matches_active(cert)) {
 				rc = -EKEYREJECTED;
 				goto out;
@@ -2486,8 +2486,9 @@ int cmd_bpm(int argc, const char **argv)
 		if (rc)
 			return bpm_finish(lock, rc, "read state");
 		for (i = 0; i < n_state; i++) {
-			struct bpm_source source_cfg;
 			struct bpm_index_entry entries[BPM_MAX_ENTRIES], selected;
+			struct bpm_source source_cfg;
+			char path[PATH_MAX];
 			int n_entries;
 
 			if (!strcmp(state[i].source, "direct"))
@@ -2512,12 +2513,13 @@ int cmd_bpm(int argc, const char **argv)
 				break;
 			bpm_copy_string(state[i].version, sizeof(state[i].version),
 					selected.version);
-			if (snprintf(state[i].path, sizeof(state[i].path), "%s/%s/%s",
+			if (snprintf(path, sizeof(path), "%s/%s/%s",
 				     SHIRUDO_BPM_PACKAGES_DIR, state[i].name,
-				     selected.version) >= (int)sizeof(state[i].path)) {
+				     selected.version) >= (int)sizeof(path)) {
 				rc = -ENAMETOOLONG;
 				break;
 			}
+			bpm_copy_string(state[i].path, sizeof(state[i].path), path);
 		}
 		/* Packages upgraded before a failure stay on record. */
 		wrc = state_write(state, n_state);

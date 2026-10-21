@@ -650,7 +650,7 @@ static int loader_map_create(const char *name, __u32 value_size,
 	attr.max_entries = 1;
 	attr.excl_prog_hash = ptr_to_u64(excl_prog_hash);
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
-	memcpy(attr.map_name, name, strnlen(name, sizeof(attr.map_name)));
+	snprintf(attr.map_name, sizeof(attr.map_name), "%s", name);
 
 	fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 	return (int)fd;
