@@ -2,7 +2,6 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
-#include <inttypes.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -12,24 +11,26 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "io.h"
 
 extern char **environ;
 
-static uint64_t monotonic_ns(void)
+static __u64 monotonic_ns(void)
 {
 	struct timespec ts;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
 		return 0;
-	return (uint64_t)ts.tv_sec * UINT64_C(1000000000) +
-		(uint64_t)ts.tv_nsec;
+	return (__u64)ts.tv_sec * 1000000000ULL +
+		(__u64)ts.tv_nsec;
 }
 
-static int parse_positive(const char *text, unsigned long *value)
+static int parse_positive(const char *text, __u64 *value)
 {
 	char *end;
-	unsigned long parsed;
+	__u64 parsed;
 
 	errno = 0;
 	parsed = strtoul(text, &end, 10);
@@ -39,10 +40,10 @@ static int parse_positive(const char *text, unsigned long *value)
 	return 0;
 }
 
-static int worker(uint64_t deadline, int fd)
+static int worker(__u64 deadline, int fd)
 {
 	char *const argv[] = { (char *)"/bin/true", NULL };
-	uint64_t completed = 0;
+	__u64 completed = 0;
 
 	for (;;) {
 		pid_t child;
@@ -75,8 +76,8 @@ static int worker(uint64_t deadline, int fd)
 
 int main(int argc, char **argv)
 {
-	uint64_t start, deadline, elapsed, completed = 0;
-	unsigned long duration_sec = 0, workers = 0;
+	__u64 start, deadline, elapsed, completed = 0;
+	__u64 duration_sec = 0, workers = 0;
 	int exit_status = 0;
 	int result_fd[2];
 	pid_t *children;
@@ -97,17 +98,17 @@ int main(int argc, char **argv)
 	if (!duration_sec || !workers || workers > 1024)
 		return 2;
 	start = monotonic_ns();
-	if (!start || duration_sec > UINT64_MAX / UINT64_C(1000000000) ||
-	    start > UINT64_MAX - duration_sec * UINT64_C(1000000000))
+	if (!start || duration_sec > UINT64_MAX / 1000000000ULL ||
+	    start > UINT64_MAX - duration_sec * 1000000000ULL)
 		return 1;
-	deadline = start + duration_sec * UINT64_C(1000000000);
+	deadline = start + duration_sec * 1000000000ULL;
 	if (pipe(result_fd) != 0)
 		return 1;
 	children = calloc(workers, sizeof(*children));
 	if (!children)
 		return 1;
 
-	for (unsigned long i = 0; i < workers; i++) {
+	for (__u64 i = 0; i < workers; i++) {
 		children[i] = fork();
 		if (children[i] == 0) {
 			close(result_fd[0]);
@@ -119,8 +120,8 @@ int main(int argc, char **argv)
 		}
 	}
 	close(result_fd[1]);
-	for (unsigned long i = 0; i < workers; i++) {
-		uint64_t count;
+	for (__u64 i = 0; i < workers; i++) {
+		__u64 count;
 
 		if (!children[i])
 			continue;
@@ -136,8 +137,8 @@ int main(int argc, char **argv)
 	if (exit_status)
 		return 1;
 	elapsed = monotonic_ns() - start;
-	printf("execs=%" PRIu64 " elapsed_ns=%" PRIu64
-	       " execs_per_sec=%.3f workers=%lu\n", completed, elapsed,
+	printf("execs=%llu elapsed_ns=%llu"
+	       " execs_per_sec=%.3f workers=%llu\n", completed, elapsed,
 	       elapsed ? (double)completed * 1e9 / (double)elapsed : 0.0,
 	       workers);
 	return 0;

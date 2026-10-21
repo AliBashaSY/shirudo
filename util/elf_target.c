@@ -17,6 +17,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "elf_target.h"
 #include "malloc.h"
 
@@ -33,22 +35,22 @@ extern int elf_resolve_pattern_offsets(const char *binary_path,
 
 static int u64_cmp(const void *a, const void *b)
 {
-	uint64_t av = *(const uint64_t *)a;
-	uint64_t bv = *(const uint64_t *)b;
+	__u64 av = *(const __u64 *)a;
+	__u64 bv = *(const __u64 *)b;
 
 	return av > bv ? 1 : av < bv ? -1 : 0;
 }
 
 static int note_build_id(Elf_Data *data,
-			 uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			 uint32_t *build_id_len)
+			 __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			 __u32 *build_id_len)
 {
 	size_t off = 0;
 
 	while (off < data->d_size) {
 		GElf_Nhdr nhdr;
 		size_t name_off, desc_off, next;
-		const unsigned char *p = data->d_buf;
+		const __u8 *p = data->d_buf;
 
 		next = gelf_getnote(data, off, &nhdr, &name_off, &desc_off);
 		if (!next)
@@ -72,8 +74,8 @@ static int note_build_id(Elf_Data *data,
 }
 
 static int elf_build_id(Elf *elf,
-			uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			uint32_t *build_id_len)
+			__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			__u32 *build_id_len)
 {
 	Elf_Scn *scn = NULL;
 	GElf_Ehdr ehdr;
@@ -119,8 +121,8 @@ static int elf_build_id(Elf *elf,
 }
 
 int shirudo_elf_build_id_fd(int fd,
-			    uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			    uint32_t *build_id_len)
+			    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			    __u32 *build_id_len)
 {
 	Elf *elf;
 	int err;
@@ -146,7 +148,7 @@ int shirudo_elf_target_resolve(const char *path, const char *pattern,
 {
 	Elf *elf = NULL;
 	unsigned long *resolved_offsets = NULL;
-	uint32_t i, unique;
+	__u32 i, unique;
 	size_t nr_resolved = 0;
 	int fd = -1, err;
 
@@ -192,7 +194,7 @@ int shirudo_elf_target_resolve(const char *path, const char *pattern,
 	}
 	for (i = 0; i < nr_resolved; i++)
 		out->offsets[i] = resolved_offsets[i];
-	out->nr_offsets = (uint32_t)nr_resolved;
+	out->nr_offsets = (__u32)nr_resolved;
 	shirudo_libc_free(resolved_offsets);
 	resolved_offsets = NULL;
 

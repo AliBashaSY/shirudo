@@ -15,12 +15,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "upatch.h"
 
-static int parse_header(const unsigned char *m, size_t n,
+static int parse_header(const __u8 *m, size_t n,
 			struct shirudo_upatch_header *out)
 {
-	const unsigned char *p = m;
+	const __u8 *p = m;
 
 	if (n < SHIRUDO_UPATCH_HEADER_SIZE)
 		return -EINVAL;
@@ -77,11 +79,11 @@ static int parse_header(const unsigned char *m, size_t n,
 	return 0;
 }
 
-static int section_inside(uint32_t off, uint32_t len, size_t n)
+static int section_inside(__u32 off, __u32 len, size_t n)
 {
 	if (off > n || len > n)
 		return 0;
-	if ((uint64_t)off + (uint64_t)len > (uint64_t)n)
+	if ((__u64)off + (__u64)len > (__u64)n)
 		return 0;
 	if (len != 0 && off < SHIRUDO_UPATCH_HEADER_SIZE)
 		return 0;
@@ -117,9 +119,9 @@ static bool has_nul(const char *s, size_t n)
  */
 static void parse_decoders(struct shirudo_upatch *u)
 {
-	const unsigned char *data, *trp, *bp;
-	uint32_t magic, version, decoder_off, decoder_len, nr_decoders;
-	uint64_t entries_end;
+	const __u8 *data, *trp, *bp;
+	__u32 magic, version, decoder_off, decoder_len, nr_decoders;
+	__u64 entries_end;
 	size_t i;
 
 	if (u->hdr.data_len < sizeof(struct shirudo_upatch_decoder_trailer))
@@ -139,8 +141,8 @@ static void parse_decoders(struct shirudo_upatch *u)
 	decoder_len = rd_le32(trp + 12);
 	if (decoder_len < sizeof(struct shirudo_upatch_decoder_blob))
 		return;
-	if ((uint64_t)decoder_off + decoder_len >
-	    (uint64_t)u->hdr.data_len -
+	if ((__u64)decoder_off + decoder_len >
+	    (__u64)u->hdr.data_len -
 	    sizeof(struct shirudo_upatch_decoder_trailer))
 		return;
 
@@ -153,7 +155,7 @@ static void parse_decoders(struct shirudo_upatch *u)
 	if (nr_decoders == 0)
 		return;
 	entries_end = sizeof(struct shirudo_upatch_decoder_blob) +
-		      (uint64_t)nr_decoders *
+		      (__u64)nr_decoders *
 		      sizeof(struct shirudo_upatch_decoder_entry);
 	if (entries_end > decoder_len)
 		return;
@@ -161,7 +163,7 @@ static void parse_decoders(struct shirudo_upatch *u)
 	/* The blob sits behind the signature, so entries are unaligned. */
 	for (i = 0; i < nr_decoders; i++) {
 		struct shirudo_upatch_decoder_entry d;
-		uint32_t source_off, source_len;
+		__u32 source_off, source_len;
 
 		memcpy(&d, bp + sizeof(struct shirudo_upatch_decoder_blob) +
 		       i * sizeof(d), sizeof(d));
@@ -293,11 +295,11 @@ bool shirudo_upatch_has_decoders(const struct shirudo_upatch *u)
 	return u->map && u->decoder_blob && u->nr_decoders > 0;
 }
 
-int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, uint32_t idx,
+int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 				struct shirudo_upatch_decoder_view *out)
 {
 	struct shirudo_upatch_decoder_entry d;
-	const unsigned char *bp;
+	const __u8 *bp;
 
 	if (!out)
 		return -EINVAL;
@@ -305,7 +307,7 @@ int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, uint32_t idx,
 	if (!shirudo_upatch_has_decoders(u) || idx >= u->nr_decoders)
 		return -ENOENT;
 
-	bp = (const unsigned char *)u->decoder_blob;
+	bp = (const __u8 *)u->decoder_blob;
 	memcpy(&d, bp + sizeof(struct shirudo_upatch_decoder_blob) +
 	       (size_t)idx * sizeof(d), sizeof(d));
 	out->language = le32toh(d.language);

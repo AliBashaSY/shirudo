@@ -25,6 +25,8 @@
 #include <openssl/sha.h>
 #include <openssl/x509.h>
 
+#include <shirudo/misc.h>
+
 #include "builtin.h"
 #include "util/chain.h"
 #include "util/crypto.h"
@@ -117,9 +119,9 @@ static void format_expires_in(long days, char *out, size_t out_sz)
 		snprintf(out, out_sz, "%ldd", days);
 }
 
-static int compute_cert_fpr(X509 *c, unsigned char fpr[SHA256_DIGEST_LENGTH])
+static int compute_cert_fpr(X509 *c, __u8 fpr[SHA256_DIGEST_LENGTH])
 {
-	unsigned int n = SHA256_DIGEST_LENGTH;
+	__u32 n = SHA256_DIGEST_LENGTH;
 
 	if (X509_digest(c, EVP_sha256(), fpr, &n) != 1) {
 		shirudo_openssl_complain("X509_digest");
@@ -130,10 +132,10 @@ static int compute_cert_fpr(X509 *c, unsigned char fpr[SHA256_DIGEST_LENGTH])
 
 /* SHA-256 over the SPKI; comparable across a cert and its key. */
 static int compute_spki_fpr(EVP_PKEY *pkey,
-			    unsigned char fpr[SHA256_DIGEST_LENGTH])
+			    __u8 fpr[SHA256_DIGEST_LENGTH])
 {
-	unsigned int n = SHA256_DIGEST_LENGTH;
-	unsigned char *der = NULL;
+	__u32 n = SHA256_DIGEST_LENGTH;
+	__u8 *der = NULL;
 	int der_len;
 	int rc = -1;
 
@@ -153,7 +155,7 @@ out:
 	return rc;
 }
 
-static void print_fpr(const char *label, const unsigned char *fpr)
+static void print_fpr(const char *label, const __u8 *fpr)
 {
 	printf("  %-22s SHA256:", label);
 	for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
@@ -180,7 +182,7 @@ static void format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 }
 
 static int dump_operator_cert(X509 *cert, const char *cert_path,
-			      const unsigned char cert_spki_fpr[SHA256_DIGEST_LENGTH])
+			      const __u8 cert_spki_fpr[SHA256_DIGEST_LENGTH])
 {
 	X509_NAME *subj = X509_get_subject_name(cert);
 	X509_NAME *iss  = X509_get_issuer_name(cert);
@@ -188,7 +190,7 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	const ASN1_TIME *na = X509_get0_notAfter(cert);
 	EVP_PKEY *pub = X509_get0_pubkey(cert);
 	char subj_s[256], iss_s[256], nb_s[32], na_s[32], exp_s[48];
-	unsigned char fpr[SHA256_DIGEST_LENGTH];
+	__u8 fpr[SHA256_DIGEST_LENGTH];
 	char alg_s[64];
 	int self_signed;
 	long left;
@@ -219,9 +221,9 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 }
 
 static int dump_signing_key(const char *pkey_path,
-			    const unsigned char cert_spki_fpr[SHA256_DIGEST_LENGTH])
+			    const __u8 cert_spki_fpr[SHA256_DIGEST_LENGTH])
 {
-	unsigned char fpr_priv[SHA256_DIGEST_LENGTH];
+	__u8 fpr_priv[SHA256_DIGEST_LENGTH];
 	char alg_s[64];
 	EVP_PKEY *priv;
 	int rc = 0;
@@ -267,7 +269,7 @@ static int keys_dump_disk_material(const char *cert_path,
 {
 	X509 *cert;
 	EVP_PKEY *pub;
-	unsigned char cert_spki_fpr[SHA256_DIGEST_LENGTH];
+	__u8 cert_spki_fpr[SHA256_DIGEST_LENGTH];
 	int rc;
 
 	cert = read_cert_der(cert_path);
@@ -454,7 +456,7 @@ static const struct shirudo_help keys_vouch_help = {
 };
 
 /* The public key must be one the kernel verifies loaders with. */
-static int check_cert_algorithm(const unsigned char *der, size_t der_sz,
+static int check_cert_algorithm(const __u8 *der, size_t der_sz,
 				const char *what)
 {
 	struct shirudo_cert cert = {};
@@ -482,12 +484,12 @@ static int check_cert_algorithm(const unsigned char *der, size_t der_sz,
  * one being extended.
  */
 static int check_voucher_live(const struct shirudo_trusted_set *set,
-			      const uint8_t voucher[32])
+			      const __u8 voucher[32])
 {
 	struct shirudo_identity id;
-	unsigned char *der = NULL;
 	key_serial_t ring;
 	size_t der_sz = 0;
+	__u8 *der = NULL;
 	int rc = 0;
 	size_t i;
 
@@ -516,8 +518,8 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 static int keys_add(int argc, const char **argv)
 {
 	const char *keys_dir_arg = NULL, *vouch_path = NULL, *cert = NULL;
-	unsigned char *der = NULL, *sig = NULL;
-	uint8_t sha256[32], fp[32], by[32];
+	__u8 *der = NULL, *sig = NULL;
+	__u8 sha256[32], fp[32], by[32];
 	struct shirudo_trusted_set set;
 	char fp_hex[65], by_hex[65];
 	size_t der_sz = 0, sig_sz = 0;
@@ -666,7 +668,7 @@ static const struct shirudo_help keys_revoke_help = {
 };
 
 static int append_key_event(const char *type, const char *fp_hex,
-			    const char *sha_hex, const uint8_t event[32])
+			    const char *sha_hex, const __u8 event[32])
 {
 	char buf[1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -707,7 +709,7 @@ static int append_key_event(const char *type, const char *fp_hex,
 static int measure_revoke(const struct shirudo_trusted_cert *c,
 			  const char *fp_hex)
 {
-	uint8_t event[32], chain[32];
+	__u8 event[32], chain[32];
 	char sha_hex[65], chain_hex[65];
 	int rc;
 
@@ -742,7 +744,7 @@ static int measure_revoke(const struct shirudo_trusted_cert *c,
  * would keep running what a key nobody trusts any more authorised. The
  * rest are still tried when one fails.
  */
-static int purge_signed_by(const unsigned char *der, size_t der_sz,
+static int purge_signed_by(const __u8 *der, size_t der_sz,
 			   size_t *unloaded)
 {
 	struct shirudo_cert cert = {};
@@ -797,9 +799,9 @@ static int purge_signed_by(const unsigned char *der, size_t der_sz,
 
 static int promote(const struct shirudo_trusted_cert *c)
 {
-	unsigned char *der = NULL;
 	char vouch[PATH_MAX];
 	size_t der_sz = 0;
+	__u8 *der = NULL;
 	int rc;
 
 	rc = shirudo_keys_read_der(c->path, &der, &der_sz);
@@ -817,7 +819,7 @@ static int promote(const struct shirudo_trusted_cert *c)
 }
 
 static const struct shirudo_trusted_cert *
-set_find(const struct shirudo_trusted_set *set, const uint8_t fp[32])
+set_find(const struct shirudo_trusted_set *set, const __u8 fp[32])
 {
 	size_t i;
 
@@ -873,8 +875,8 @@ static bool revoke_unmeasured(const char *marker, const char *fp_hex)
 }
 
 /* The certificate a revoked marker holds, as a member it once was. */
-static int revoked_cert(const uint8_t fp[32], const char *marker,
-			struct shirudo_trusted_cert *c, unsigned char **der,
+static int revoked_cert(const __u8 fp[32], const char *marker,
+			struct shirudo_trusted_cert *c, __u8 **der,
 			size_t *der_sz)
 {
 	char trusted[PATH_MAX];
@@ -904,9 +906,9 @@ static int keys_revoke(int argc, const char **argv)
 	const struct shirudo_trusted_cert *victim, *heir = NULL;
 	const char *fp_arg = NULL, *promote_arg = NULL;
 	struct shirudo_trusted_cert gone;
-	uint8_t fp[32], promote_fp[32];
+	__u8 fp[32], promote_fp[32];
 	struct shirudo_trusted_set set;
-	unsigned char *der = NULL;
+	__u8 *der = NULL;
 	struct shirudo_identity id;
 	char revoked[PATH_MAX];
 	key_serial_t ring, key;

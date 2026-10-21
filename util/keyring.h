@@ -9,9 +9,10 @@
 #define SHIRUDO_KEYRING_H
 
 #include <stddef.h>
-#include <stdint.h>
 
-typedef int32_t key_serial_t;
+#include <shirudo/misc.h>
+
+typedef __s32 key_serial_t;
 
 typedef void (*shirudo_keyring_cb)(key_serial_t serial,
 				   const char *type,
@@ -52,11 +53,11 @@ int shirudo_keyring_seal(key_serial_t keyring);
  * <keyring>; no key material leaves the kernel.
  */
 int shirudo_keyring_holds_cert(key_serial_t keyring,
-			       const unsigned char *der, size_t der_len);
+			       const __u8 *der, size_t der_len);
 
 /* The serial of <keyring>'s key for the certificate, -ENOKEY, -errno. */
 key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
-				       const unsigned char *der,
+				       const __u8 *der,
 				       size_t der_len);
 
 /* Unlink <key> from <keyring>; sealing does not stop this, the LSM may. */
@@ -79,7 +80,7 @@ int shirudo_keyring_list(key_serial_t keyring,
 /* Its serial, or -errno on a kernel without one. */
 key_serial_t shirudo_keyring_bpf_serial(void);
 /* Enrol a DER certificate; -EPERM once the keyring is sealed. */
-key_serial_t shirudo_keyring_bpf_add_cert(const unsigned char *cert,
+key_serial_t shirudo_keyring_bpf_add_cert(const __u8 *cert,
 					  size_t cert_len);
 /* Seal it for the rest of the boot: no key can be linked afterwards. */
 int shirudo_keyring_bpf_seal(void);

@@ -11,8 +11,9 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
+
+#include <shirudo/misc.h>
 
 #include "crypto.h"
 
@@ -53,7 +54,7 @@ struct shirudo_json_emit;
 #define BPM_UPATCH_MEDIA "application/vnd.shirudo.upatch.v1"
 
 struct bpm_buffer {
-	unsigned char *data;
+	__u8 *data;
 	size_t len;
 	size_t cap;
 };
@@ -80,7 +81,7 @@ struct bpm_descriptor {
 	char media[BPM_MAX_MEDIA];
 	char digest[BPM_MAX_DIGEST];
 	char title[PATH_MAX];
-	int64_t size;
+	__s64 size;
 };
 
 void bpm_copy_string(char *dst, size_t dst_sz, const char *src);
@@ -116,14 +117,14 @@ int bpm_oci_get_blob(struct bpm_oci_client *c, const char *url,
 		     const char *accept, struct bpm_buffer *out);
 /* At most size bytes, the size the manifest declares; -EFBIG beyond. */
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
-		     const char *accept, const char *path, int64_t size);
+		     const char *accept, const char *path, __s64 size);
 int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 		      const void *body, size_t body_len, const char *media,
 		      struct bpm_descriptor *out);
 int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
-			 const char *reference, const unsigned char *body,
+			 const char *reference, const __u8 *body,
 			 size_t body_len, char *digest, size_t digest_sz);
-int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
+int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 			   struct bpm_descriptor *layers, int max_layers,
 			   int *n_layers, char *package_name,
 			   size_t package_name_sz);

@@ -9,9 +9,10 @@
 #define SHIRUDO_UTIL_UPATCH_MAP_TYPES_H
 
 #include <linux/bpf.h>
-#include <stdint.h>
 
-static inline const char *shirudo_map_type_name(uint32_t type)
+#include <shirudo/misc.h>
+
+static inline const char *shirudo_map_type_name(__u32 type)
 {
 	switch (type) {
 	case BPF_MAP_TYPE_ARRAY:
@@ -41,7 +42,7 @@ static inline const char *shirudo_map_type_name(uint32_t type)
 	}
 }
 
-static inline const char *shirudo_map_skip_reason(uint32_t type)
+static inline const char *shirudo_map_skip_reason(__u32 type)
 {
 	switch (type) {
 	case BPF_MAP_TYPE_RINGBUF:

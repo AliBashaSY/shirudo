@@ -7,10 +7,11 @@
  */
 
 #include <errno.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <shirudo/misc.h>
 
 #include "hex.h"
 #include "json.h"
@@ -39,11 +40,11 @@ static void put_raw(struct shirudo_json_emit *e, const char *s)
  */
 static void put_string(struct shirudo_json_emit *e, const char *s)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const __u8 *p = (const __u8 *)s;
 
 	put(e, '"');
 	while (*p && !e->err) {
-		unsigned char c = *p;
+		__u8 c = *p;
 
 		if (c == '"' || c == '\\') {
 			put(e, '\\');
@@ -169,14 +170,14 @@ void shirudo_json_kv_string(struct shirudo_json_emit *e,
 }
 
 void shirudo_json_kv_int(struct shirudo_json_emit *e,
-			 const char *key, int64_t val)
+			 const char *key, __s64 val)
 {
 	char num[24];
 
 	sep(e);
 	put_string(e, key);
 	put(e, ':');
-	snprintf(num, sizeof(num), "%lld", (long long)val);
+	snprintf(num, sizeof(num), "%lld", (__s64)val);
 	put_raw(e, num);
 }
 
@@ -227,7 +228,7 @@ void shirudo_json_raw(struct shirudo_json_emit *e, const char *value,
 struct pctx {
 	const char			*p;
 	const char			*end;
-	unsigned int			depth;
+	__u32				depth;
 	struct shirudo_json_field	*fields;
 	size_t				n_fields;
 };
@@ -258,7 +259,7 @@ static int hex4(const char *s)
 	return v;
 }
 
-static int emit_byte(char *dst, size_t cap, size_t *len, unsigned char b)
+static int emit_byte(char *dst, size_t cap, size_t *len, __u8 b)
 {
 	size_t n = *len;
 
@@ -273,7 +274,7 @@ static int emit_byte(char *dst, size_t cap, size_t *len, unsigned char b)
 	return 0;
 }
 
-static int utf8_emit(char *dst, size_t cap, size_t *len, unsigned int cp)
+static int utf8_emit(char *dst, size_t cap, size_t *len, __u32 cp)
 {
 	int rc;
 
@@ -302,11 +303,11 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 		return -EINVAL;
 	c->p++;
 	for (;;) {
-		unsigned char ch;
+		__u8 ch;
 
 		if (c->p >= c->end)
 			return -EINVAL;		/* unterminated */
-		ch = (unsigned char)*c->p++;
+		ch = (__u8)*c->p++;
 		if (ch == '"')
 			break;
 		if (ch == '\\') {
@@ -586,7 +587,7 @@ static int parse_number(struct pctx *c, struct shirudo_json_field *f)
 			return -EINVAL;
 		memcpy(numbuf, start, nlen);
 		numbuf[nlen] = '\0';
-		*(int64_t *)f->dst = (int64_t)strtoll(numbuf, NULL, 10);
+		*(__s64 *)f->dst = (__s64)strtoll(numbuf, NULL, 10);
 		f->seen = 1;
 	}
 	return 0;

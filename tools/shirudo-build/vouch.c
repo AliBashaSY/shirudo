@@ -13,6 +13,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm.h"
 #include "util/crypto.h"
 #include "util/hex.h"
@@ -37,7 +39,7 @@ static void usage(FILE *fp)
 		"key. -o defaults to <cert.der>.vouch.\n");
 }
 
-static int cert_algorithm_ok(const unsigned char *der, size_t der_sz,
+static int cert_algorithm_ok(const __u8 *der, size_t der_sz,
 			     const char *what)
 {
 	struct shirudo_cert cert = {};
@@ -78,10 +80,10 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 {
 	const char *pkey = SHIRUDO_SIGNING_KEY_PATH, *cert = SHIRUDO_CERT_PATH;
 	const char *keys_dir_arg = NULL, *input = NULL, *output = NULL;
-	unsigned char *der = NULL, *own = NULL, *payload = NULL;
+	__u8 *der = NULL, *own = NULL, *payload = NULL;
 	size_t der_sz = 0, own_sz = 0, payload_sz = 0;
 	struct shirudo_sign_io io = {};
-	uint8_t sha[32], fp[32], own_fp[32];
+	__u8 sha[32], fp[32], own_fp[32];
 	int pkey_explicit = 0, cert_explicit = 0;
 	char fp_hex[65], own_hex[65];
 	char pkey_path[PATH_MAX];

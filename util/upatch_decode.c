@@ -8,6 +8,8 @@
 
 #include <errno.h>
 
+#include <shirudo/misc.h>
+
 #include "upatch_decode.h"
 
 #ifndef SHIRUDO_HAVE_LUAJIT
@@ -66,7 +68,6 @@ int shirudo_upatch_decode_map_file_otel(const char *path,
 
 #include <ctype.h>
 #include <errno.h>
-#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -106,8 +107,8 @@ static int lua_absindex(lua_State *L, int idx)
 #endif
 
 struct lua_slot {
-	uint32_t	len;
-	unsigned char	data[];
+	__u32		len;
+	__u8		data[];
 };
 
 struct json_out {
@@ -223,7 +224,7 @@ static void json_put_string(struct json_out *out, const char *s, size_t n)
 
 	json_putc(out, '"');
 	for (i = 0; i < n && !out->err; i++) {
-		unsigned char c = s[i];
+		__u8 c = s[i];
 
 		switch (c) {
 		case '"':
@@ -269,7 +270,7 @@ static void json_put_string(struct json_out *out, const char *s, size_t n)
 					break;
 				}
 				for (j = 1; j < width; j++) {
-					if (((unsigned char)s[i + j] & 0xc0) != 0x80) {
+					if (((__u8)s[i + j] & 0xc0) != 0x80) {
 						out->err = -EILSEQ;
 						break;
 					}
@@ -553,15 +554,15 @@ static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
 }
 
 static int hex_decode_alloc(const char *hex, size_t len,
-			    unsigned char **out, size_t *out_len)
+			    __u8 **out, size_t *out_len)
 {
-	unsigned char *buf;
+	__u8 *buf;
 	size_t digits = 0, off = 0, i;
 
 	*out = NULL;
 	*out_len = 0;
 	for (i = 0; i < len; i++) {
-		if (!isspace((unsigned char)hex[i]))
+		if (!isspace((__u8)hex[i]))
 			digits++;
 	}
 	if (digits & 1)
@@ -572,23 +573,23 @@ static int hex_decode_alloc(const char *hex, size_t len,
 	for (i = 0; i < len;) {
 		int hi, lo;
 
-		while (i < len && isspace((unsigned char)hex[i]))
+		while (i < len && isspace((__u8)hex[i]))
 			i++;
 		if (i >= len)
 			break;
-		hi = shirudo_hex_nibble((unsigned char)hex[i++]);
-		while (i < len && isspace((unsigned char)hex[i]))
+		hi = shirudo_hex_nibble((__u8)hex[i++]);
+		while (i < len && isspace((__u8)hex[i]))
 			i++;
 		if (i >= len) {
 			xfree(buf, digits / 2);
 			return -EINVAL;
 		}
-		lo = shirudo_hex_nibble((unsigned char)hex[i++]);
+		lo = shirudo_hex_nibble((__u8)hex[i++]);
 		if (hi < 0 || lo < 0) {
 			xfree(buf, digits / 2);
 			return -EINVAL;
 		}
-		buf[off++] = (unsigned char)((hi << 4) | lo);
+		buf[off++] = (__u8)((hi << 4) | lo);
 	}
 	*out = buf;
 	*out_len = off;
@@ -619,20 +620,20 @@ static int lua_slot_u8(lua_State *L)
 	return 1;
 }
 
-static uint16_t rd_u16(const unsigned char *p)
+static __u16 rd_u16(const __u8 *p)
 {
-	return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+	return (__u16)p[0] | ((__u16)p[1] << 8);
 }
 
-static uint32_t rd_u32(const unsigned char *p)
+static __u32 rd_u32(const __u8 *p)
 {
-	return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-	       ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+	return (__u32)p[0] | ((__u32)p[1] << 8) |
+	       ((__u32)p[2] << 16) | ((__u32)p[3] << 24);
 }
 
-static uint64_t rd_u64(const unsigned char *p)
+static __u64 rd_u64(const __u8 *p)
 {
-	return (uint64_t)rd_u32(p) | ((uint64_t)rd_u32(p + 4) << 32);
+	return (__u64)rd_u32(p) | ((__u64)rd_u32(p + 4) << 32);
 }
 
 static int lua_slot_u16(lua_State *L)
@@ -660,11 +661,11 @@ static int lua_slot_u64(lua_State *L)
 	struct lua_slot *slot = lua_check_slot(L);
 	char buf[32];
 	int off = lua_check_c_int(L, 2);
-	uint64_t v = 0;
+	__u64 v = 0;
 
 	if (off >= 0 && off <= (int)slot->len - 8)
 		v = rd_u64(slot->data + off);
-	snprintf(buf, sizeof(buf), "%" PRIu64, v);
+	snprintf(buf, sizeof(buf), "%llu", v);
 	lua_pushstring(L, buf);
 	return 1;
 }
@@ -691,18 +692,18 @@ static int lua_slot_cstring(lua_State *L)
 	return 1;
 }
 
-static void lua_push_slot(lua_State *L, const unsigned char *data, size_t len)
+static void lua_push_slot(lua_State *L, const __u8 *data, size_t len)
 {
 	struct lua_slot *slot;
 
 	slot = lua_newuserdata(L, sizeof(*slot) + len);
-	slot->len = (uint32_t)len;
+	slot->len = (__u32)len;
 	memcpy(slot->data, data, len);
 	luaL_getmetatable(L, SHIRUDO_LUA_SLOT_MT);
 	lua_setmetatable(L, -2);
 }
 
-static uint64_t lua_page_u64(lua_State *L, int idx, const char *field)
+static __u64 lua_page_u64(lua_State *L, int idx, const char *field)
 {
 	lua_Number n;
 
@@ -712,11 +713,11 @@ static uint64_t lua_page_u64(lua_State *L, int idx, const char *field)
 	lua_pop(L, 1);
 	if (!isfinite((double)n) || n < 0 || n > 9007199254740991.0)
 		return 0;
-	return (uint64_t)n;
+	return (__u64)n;
 }
 
-static int lua_store_slot(lua_State *L, int slots_idx, uint64_t abs,
-			  const unsigned char *data, size_t slot_size)
+static int lua_store_slot(lua_State *L, int slots_idx, __u64 abs,
+			  const __u8 *data, size_t slot_size)
 {
 	if (abs >= INT_MAX)
 		return luaL_error(L, "slot index too large");
@@ -726,8 +727,8 @@ static int lua_store_slot(lua_State *L, int slots_idx, uint64_t abs,
 }
 
 static void lua_split_page_slots(lua_State *L, int slots_idx,
-				 const unsigned char *data, size_t len,
-				 uint64_t cursor, uint64_t chunks,
+				 const __u8 *data, size_t len,
+				 __u64 cursor, __u64 chunks,
 				 size_t slot_size)
 {
 	size_t slots_per_chunk = SHIRUDO_SERIAL_CHUNK_PAYLOAD / slot_size;
@@ -735,7 +736,7 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 	if (chunks > 1 && slots_per_chunk > 0 &&
 	    SHIRUDO_SERIAL_CHUNK_PAYLOAD % slot_size != 0) {
 		size_t off = 0;
-		uint64_t chunk;
+		__u64 chunk;
 
 		for (chunk = 0; chunk < chunks && off < len; chunk++) {
 			size_t chunk_bytes = len - off;
@@ -747,7 +748,7 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 			if (local_slots > slots_per_chunk)
 				local_slots = slots_per_chunk;
 			for (i = 0; i < local_slots; i++) {
-				uint64_t page_slot = chunk * slots_per_chunk + i;
+				__u64 page_slot = chunk * slots_per_chunk + i;
 
 				if (page_slot == 0)
 					continue;
@@ -765,14 +766,14 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 			       data + i, slot_size);
 }
 
-static void lua_push_u64_string(lua_State *L, uint64_t value);
+static void lua_push_u64_string(lua_State *L, __u64 value);
 
 static int lua_shirudo_page_slots(lua_State *L)
 {
 	const char *hex;
-	unsigned char *data = NULL;
+	__u8 *data = NULL;
 	size_t hex_len, data_len = 0, off = 0, per_chunk;
-	uint64_t chunks;
+	__u64 chunks;
 	int slot_size, n = 0, rc;
 
 	luaL_checktype(L, 1, LUA_TTABLE);
@@ -814,21 +815,21 @@ static int lua_shirudo_page_slots(lua_State *L)
 	return 1;
 }
 
-static int lua_check_u64_string(lua_State *L, int arg, uint64_t *out)
+static int lua_check_u64_string(lua_State *L, int arg, __u64 *out)
 {
 	const char *s = luaL_checkstring(L, arg);
-	uint64_t v = 0;
+	__u64 v = 0;
 	size_t i;
 
 	if (!s[0] || strlen(s) > 20)
 		return luaL_argerror(L, arg, "expected a decimal u64 string");
 	for (i = 0; s[i]; i++) {
-		unsigned int digit;
+		__u32 digit;
 
 		if (s[i] < '0' || s[i] > '9')
 			return luaL_argerror(L, arg,
 					     "expected a decimal u64 string");
-		digit = (unsigned int)(s[i] - '0');
+		digit = (__u32)(s[i] - '0');
 		if (v > (UINT64_MAX - digit) / 10)
 			return luaL_argerror(L, arg, "u64 string out of range");
 		v = v * 10 + digit;
@@ -840,7 +841,7 @@ static int lua_check_u64_string(lua_State *L, int arg, uint64_t *out)
 /* Exact 64-bit arithmetic on decimal strings; Lua numbers lose nanoseconds. */
 static int lua_shirudo_u64_add(lua_State *L)
 {
-	uint64_t a, b;
+	__u64 a, b;
 
 	lua_check_u64_string(L, 1, &a);
 	lua_check_u64_string(L, 2, &b);
@@ -850,7 +851,7 @@ static int lua_shirudo_u64_add(lua_State *L)
 
 static int lua_shirudo_u64_sub(lua_State *L)
 {
-	uint64_t a, b;
+	__u64 a, b;
 
 	lua_check_u64_string(L, 1, &a);
 	lua_check_u64_string(L, 2, &b);
@@ -863,7 +864,7 @@ static int lua_shirudo_hex_u64(lua_State *L)
 	const char *hex;
 	size_t hex_len;
 	int off = lua_check_c_int(L, 2);
-	uint64_t v = 0;
+	__u64 v = 0;
 	int i;
 
 	hex = luaL_checklstring(L, 1, &hex_len);
@@ -880,7 +881,7 @@ static int lua_shirudo_hex_u64(lua_State *L)
 			lua_push_u64_string(L, 0);
 			return 1;
 		}
-		v = (v << 8) | (uint64_t)((hi << 4) | lo);
+		v = (v << 8) | (__u64)((hi << 4) | lo);
 	}
 	lua_push_u64_string(L, v);
 	return 1;
@@ -903,8 +904,8 @@ static int lua_shirudo_fixed_records(lua_State *L)
 	n_pages = lua_objlen(L, pages_idx);
 	for (i = 1; i <= n_pages; i++) {
 		const char *hex;
-		unsigned char *data = NULL;
-		uint64_t cursor, chunks;
+		__u8 *data = NULL;
+		__u64 cursor, chunks;
 		size_t hex_len, data_len = 0;
 		int rc;
 
@@ -1002,29 +1003,29 @@ static void lua_install_budget(lua_State *L, struct lua_budget *budget)
 	lua_sethook(L, lua_budget_hook, LUA_MASKCOUNT, SHIRUDO_LUA_HOOK_COUNT);
 }
 
-static uint64_t decoder_realtime_ns(void)
+static __u64 decoder_realtime_ns(void)
 {
 	struct timespec ts;
 
 	if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
 		return 0;
-	return (uint64_t)ts.tv_sec * 1000000000ULL +
-		(uint64_t)ts.tv_nsec;
+	return (__u64)ts.tv_sec * 1000000000ULL +
+		(__u64)ts.tv_nsec;
 }
 
-static void lua_push_u64_string(lua_State *L, uint64_t value)
+static void lua_push_u64_string(lua_State *L, __u64 value)
 {
 	char buf[32];
 
-	snprintf(buf, sizeof(buf), "%" PRIu64, value);
+	snprintf(buf, sizeof(buf), "%llu", value);
 	lua_pushstring(L, buf);
 }
 
 static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 {
-	uint64_t now_ns = decoder_realtime_ns();
-	uint64_t start_ns = v->lifetime_start_ns ?: now_ns;
-	uint32_t p, i;
+	__u64 now_ns = decoder_realtime_ns();
+	__u64 start_ns = v->lifetime_start_ns ?: now_ns;
+	__u32 p, i;
 
 	lua_newtable(L);
 	lua_pushinteger(L, 1);
@@ -1263,7 +1264,7 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 			   char **out, size_t *out_len)
 {
 	struct shirudo_upatch u;
-	uint32_t i;
+	__u32 i;
 	int rc;
 
 	if (!path || !v || !out || !out_len)
@@ -1291,11 +1292,11 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 }
 
 int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				     uint32_t *signal_out)
+				     __u32 *signal_out)
 {
 	struct shirudo_upatch u;
 	char path[PATH_MAX];
-	uint32_t i;
+	__u32 i;
 	int rc;
 
 	if (!v || !signal_out || !shirudo_upatch_name_valid(v->upatch))

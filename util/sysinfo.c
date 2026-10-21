@@ -15,6 +15,8 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "json.h"
 #include "kernel_build_id.h"
 #include "malloc.h"
@@ -112,7 +114,7 @@ static void read_mem(long *total_kb, long *avail_kb)
 static void read_root_disk(long *total_kb, long *used_kb)
 {
 	struct statvfs s;
-	uint64_t tot_b, free_b;
+	__u64 tot_b, free_b;
 
 	*total_kb = -1;
 	*used_kb = -1;
@@ -123,8 +125,8 @@ static void read_root_disk(long *total_kb, long *used_kb)
 	 * against; tot/used in raw bytes, then KiB so the JSON wire type
 	 * matches mem_*_kb.
 	 */
-	tot_b  = (uint64_t)s.f_blocks * s.f_frsize;
-	free_b = (uint64_t)s.f_bfree  * s.f_frsize;
+	tot_b  = (__u64)s.f_blocks * s.f_frsize;
+	free_b = (__u64)s.f_bfree     * s.f_frsize;
 	*total_kb = (long)(tot_b / 1024);
 	*used_kb  = (long)((tot_b - free_b) / 1024);
 }
@@ -133,10 +135,10 @@ static char *trim_config_text(char *text)
 {
 	char *end;
 
-	while (*text && isspace((unsigned char)*text))
+	while (*text && isspace((__u8)*text))
 		text++;
 	end = text + strlen(text);
-	while (end > text && isspace((unsigned char)end[-1]))
+	while (end > text && isspace((__u8)end[-1]))
 		*--end = '\0';
 	return text;
 }

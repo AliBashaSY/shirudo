@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm_tree.h"
 #include "crypto.h"
 #include "hex.h"
@@ -23,12 +25,12 @@
 struct tree_parser {
 	const char *p;
 	const char *end;
-	unsigned int depth;
+	__u32 depth;
 };
 
 static void tp_ws(struct tree_parser *p)
 {
-	while (p->p < p->end && isspace((unsigned char)*p->p))
+	while (p->p < p->end && isspace((__u8)*p->p))
 		p->p++;
 }
 
@@ -49,7 +51,7 @@ static int tp_string(struct tree_parser *p, char *out, size_t cap)
 	if (p->p >= p->end || *p->p++ != '"')
 		return -EINVAL;
 	while (p->p < p->end) {
-		unsigned char c = (unsigned char)*p->p++;
+		__u8 c = (__u8)*p->p++;
 
 		if (c == '"') {
 			if (cap)
@@ -59,7 +61,7 @@ static int tp_string(struct tree_parser *p, char *out, size_t cap)
 		if (c == '\\') {
 			if (p->p >= p->end)
 				return -EINVAL;
-			c = (unsigned char)*p->p++;
+			c = (__u8)*p->p++;
 			switch (c) {
 			case '"':
 			case '\\':
@@ -133,14 +135,14 @@ static int tp_skip(struct tree_parser *p)
 			return -EINVAL;
 		}
 	}
-	if (*p->p == '-' || isdigit((unsigned char)*p->p)) {
+	if (*p->p == '-' || isdigit((__u8)*p->p)) {
 		if (*p->p == '-')
 			p->p++;
-		while (p->p < p->end && isdigit((unsigned char)*p->p))
+		while (p->p < p->end && isdigit((__u8)*p->p))
 			p->p++;
 		if (p->p < p->end && *p->p == '.') {
 			p->p++;
-			while (p->p < p->end && isdigit((unsigned char)*p->p))
+			while (p->p < p->end && isdigit((__u8)*p->p))
 				p->p++;
 		}
 		return 0;
@@ -160,10 +162,10 @@ static int tp_skip(struct tree_parser *p)
 	return -EINVAL;
 }
 
-static int tp_int(struct tree_parser *p, int64_t *out)
+static int tp_int(struct tree_parser *p, __s64 *out)
 {
 	char *end;
-	long long v;
+	__s64 v;
 
 	tp_ws(p);
 	errno = 0;
@@ -171,7 +173,7 @@ static int tp_int(struct tree_parser *p, int64_t *out)
 	if (end == p->p || end > p->end || errno == ERANGE)
 		return -EINVAL;
 	p->p = end;
-	*out = (int64_t)v;
+	*out = (__s64)v;
 	return 0;
 }
 
@@ -424,7 +426,7 @@ int shirudo_tree_publication_append(struct shirudo_tree_publication *pub,
 
 /* The "base" and "head" objects: {"seq": <int>} plus fields to skip. */
 static int tp_seq_object(struct tree_parser *p, char *key, size_t cap,
-			 int64_t *seq, bool *seen_seq)
+			 __s64 *seq, bool *seen_seq)
 {
 	bool first = true;
 
@@ -457,7 +459,7 @@ int shirudo_tree_parse(const char *body, size_t len,
 	bool seen_schema = false, seen_generation = false;
 	bool seen_base = false, seen_base_seq = false;
 	bool seen_operations = false, seen_head = false, seen_head_seq = false;
-	int64_t schema = 0;
+	__s64 schema = 0;
 	int rc;
 
 	if (!body || !out || len > SHIRUDO_JSON_MAX_BYTES)
@@ -701,7 +703,7 @@ int shirudo_tree_operation_digest(const struct shirudo_tree_operation *op,
 	size_t body_cap = 1024u * 1024u;
 	struct shirudo_json_emit e;
 	char *body, hex[65];
-	uint8_t digest[32];
+	__u8 digest[32];
 	int rc;
 
 	body = xmalloc(body_cap);

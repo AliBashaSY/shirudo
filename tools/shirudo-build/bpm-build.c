@@ -22,6 +22,8 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm.h"
 #include "compile.h"
 #include "crypto.h"
@@ -57,10 +59,10 @@ static char *build_trim(char *s)
 {
 	char *end;
 
-	while (isspace((unsigned char)*s))
+	while (isspace((__u8)*s))
 		s++;
 	end = s + strlen(s);
-	while (end > s && isspace((unsigned char)end[-1]))
+	while (end > s && isspace((__u8)end[-1]))
 		*--end = '\0';
 	return s;
 }
@@ -93,11 +95,11 @@ static void build_strip_comment(char *s)
 	}
 }
 
-static int build_read_file(const char *path, unsigned char **out, size_t *len,
+static int build_read_file(const char *path, __u8 **out, size_t *len,
 			   size_t max)
 {
 	struct stat st;
-	unsigned char *body;
+	__u8 *body;
 	ssize_t n;
 	int fd;
 
@@ -141,16 +143,16 @@ static int build_parse_string(const char *value, char *out, size_t cap)
 	char quote;
 	size_t n = 0;
 
-	while (isspace((unsigned char)*p))
+	while (isspace((__u8)*p))
 		p++;
 	if (*p != '"' && *p != '\'')
 		return -EINVAL;
 	quote = *p++;
 	while (*p && *p != quote) {
-		unsigned char c = (unsigned char)*p++;
+		__u8 c = (__u8)*p++;
 
 		if (c == '\\' && quote == '"') {
-			c = (unsigned char)*p++;
+			c = (__u8)*p++;
 			switch (c) {
 			case 'n':
 				c = '\n';
@@ -175,7 +177,7 @@ static int build_parse_string(const char *value, char *out, size_t cap)
 	if (*p != quote)
 		return -EINVAL;
 	p++;
-	while (isspace((unsigned char)*p))
+	while (isspace((__u8)*p))
 		p++;
 	if (*p)
 		return -EINVAL;
@@ -188,14 +190,14 @@ static int build_parse_value(const char *value, char *out, size_t cap,
 {
 	const char *p = value;
 
-	while (isspace((unsigned char)*p))
+	while (isspace((__u8)*p))
 		p++;
 	if (array_ok && *p == '[') {
 		const char *end = strrchr(p, ']');
 
 		if (!end)
 			return -EINVAL;
-		while (isspace((unsigned char)end[1]))
+		while (isspace((__u8)end[1]))
 			end++;
 		return end[1] ? -EINVAL : 0;
 	}
@@ -215,7 +217,7 @@ static int build_parse_string_array(const char *value,
 	const char *p = value;
 	int count = 0;
 
-	while (isspace((unsigned char)*p))
+	while (isspace((__u8)*p))
 		p++;
 	if (*p++ != '[')
 		return -EINVAL;
@@ -223,7 +225,7 @@ static int build_parse_string_array(const char *value,
 		const char *start, *end;
 		char quote;
 
-		while (isspace((unsigned char)*p))
+		while (isspace((__u8)*p))
 			p++;
 		if (*p == ']')
 			break;
@@ -248,7 +250,7 @@ static int build_parse_string_array(const char *value,
 		if (build_parse_string(item, out[count], SHIRUDO_TREE_STRING_MAX))
 			return -EINVAL;
 		count++;
-		while (isspace((unsigned char)*p))
+		while (isspace((__u8)*p))
 			p++;
 		if (*p == ',') {
 			p++;
@@ -258,7 +260,7 @@ static int build_parse_string_array(const char *value,
 			return -EINVAL;
 	}
 	p++;
-	while (isspace((unsigned char)*p))
+	while (isspace((__u8)*p))
 		p++;
 	if (*p || !count)
 		return -EINVAL;
@@ -300,9 +302,9 @@ static int build_parse_selector_kv(const char *key, const char *value,
 
 static bool build_name_ok(const char *s)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const __u8 *p = (const __u8 *)s;
 
-	if (!s || !*s || !isalnum((unsigned char)s[0]) || strlen(s) >= 128)
+	if (!s || !*s || !isalnum((__u8)s[0]) || strlen(s) >= 128)
 		return false;
 	for (; *p; p++) {
 		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-'))
@@ -313,9 +315,9 @@ static bool build_name_ok(const char *s)
 
 static bool build_version_ok(const char *s)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const __u8 *p = (const __u8 *)s;
 
-	if (!s || !*s || !isalnum((unsigned char)s[0]) || strlen(s) >= 128)
+	if (!s || !*s || !isalnum((__u8)s[0]) || strlen(s) >= 128)
 		return false;
 	for (; *p; p++) {
 		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-' || *p == '+'))
@@ -554,7 +556,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 		if (!u->type[0])
 			build_copy(u->type, sizeof(u->type), "bpf");
 		for (p = u->type; *p; p++)
-			*p = (char)tolower((unsigned char)*p);
+			*p = (char)tolower((__u8)*p);
 		if (strcmp(u->type, "bpf") || build_default_targets(u))
 			return -EINVAL;
 		if (!u->tree.present)
@@ -574,10 +576,10 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 	return 0;
 }
 
-int bpm_build_parse_beefile(const unsigned char *body, size_t len,
+int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec)
 {
-	unsigned char *scratch;
+	__u8 *scratch;
 	int rc;
 
 	if (!body || !spec || memchr(body, '\0', len))
@@ -793,9 +795,9 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		char source[PATH_MAX], load[PATH_MAX], unload[PATH_MAX];
 		char object[PATH_MAX], name[SHIRUDO_UPATCH_NAME_MAX];
-		unsigned char payload[SHIRUDO_CRYPTO_SHA256_LEN];
 		struct bpm_build_upatch *u = &spec->upatches[i];
 		const char *bpf_o = source, *src_path = NULL;
+		__u8 payload[SHIRUDO_CRYPTO_SHA256_LEN];
 		struct shirudo_upatch parsed = {};
 		int rc;
 
@@ -864,7 +866,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 
 static int build_environment(const struct bpm_build_spec *spec,
 			     const char *version, const char *fingerprint,
-			     unsigned char **out, size_t *out_len)
+			     __u8 **out, size_t *out_len)
 {
 	char *body = xmalloc(BPM_BUILD_MAX_JSON);
 	struct shirudo_json_emit e = { .buf = body, .cap = BPM_BUILD_MAX_JSON };
@@ -922,7 +924,7 @@ static int build_environment(const struct bpm_build_spec *spec,
 		xfree(body, BPM_BUILD_MAX_JSON);
 		return e.err;
 	}
-	*out = (unsigned char *)body;
+	*out = (__u8 *)body;
 	*out_len = e.len;
 	return 0;
 }
@@ -935,26 +937,26 @@ static int tar_write(struct bpm_tar *tar, const void *data, size_t len)
 {
 	if (!len)
 		return 0;
-	return gzwrite(tar->gz, data, (unsigned int)len) == (int)len ? 0 : -EIO;
+	return gzwrite(tar->gz, data, (__u32)len) == (int)len ? 0 : -EIO;
 }
 
 static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 		     size_t len, mode_t mode, char type)
 {
-	unsigned char h[512] = {};
-	unsigned int sum = 0;
-	unsigned char zeros[512] = {};
+	__u8 h[512] = {};
+	__u32 sum = 0;
+	__u8 zeros[512] = {};
 
 	if (strlen(name) >= 100 || (type == '0' && len > 077777777777ULL))
 		return -ENAMETOOLONG;
 	memcpy(h, name, strlen(name));
-	snprintf((char *)h + 100, 8, "%07o", (unsigned int)(mode & 07777));
+	snprintf((char *)h + 100, 8, "%07o", (__u32)(mode & 07777));
 	snprintf((char *)h + 108, 8, "%07o", 0u);
 	snprintf((char *)h + 116, 8, "%07o", 0u);
-	snprintf((char *)h + 124, 12, "%011o", (unsigned int)len);
+	snprintf((char *)h + 124, 12, "%011o", (__u32)len);
 	snprintf((char *)h + 136, 12, "%011o", 0u);
 	memset(h + 148, ' ', 8);
-	h[156] = (unsigned char)type;
+	h[156] = (__u8)type;
 	memcpy(h + 257, "ustar\0", 6);
 	memcpy(h + 263, "00", 2);
 	for (size_t i = 0; i < sizeof(h); i++)
@@ -969,7 +971,7 @@ static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 
 static int tar_path(struct bpm_tar *tar, const char *name, const char *path)
 {
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
 	struct stat st;
 	int rc;
@@ -991,8 +993,8 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 			 const char *out_dir)
 {
 	char output[PATH_MAX], top[PATH_MAX], name[PATH_MAX];
-	unsigned char *environment = NULL, *cert = NULL;
 	size_t environment_len = 0, cert_len = 0;
+	__u8 *environment = NULL, *cert = NULL;
 	struct bpm_tar tar;
 	int rc;
 
@@ -1075,7 +1077,7 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 			rc = tar_entry(&tar, name, environment, environment_len, 0644, '0');
 	}
 	if (!rc) {
-		unsigned char end[1024] = {};
+		__u8 end[1024] = {};
 
 		rc = tar_write(&tar, end, sizeof(end));
 	}
@@ -1123,13 +1125,13 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 	char build_file[PATH_MAX], resolved_file[PATH_MAX], keys_dir[PATH_MAX];
 	char keys_abs[PATH_MAX], pkey[PATH_MAX], cert_path[PATH_MAX];
 	char fingerprint[SHIRUDO_CRYPTO_SHA256_LEN * 2 + 1];
-	unsigned char digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
 	struct shirudo_cert cert = {};
 	struct bpm_build_spec *spec;
-	unsigned char *body = NULL;
 	int positional = 0, rc;
 	char out_dir[PATH_MAX];
 	size_t body_len = 0;
+	__u8 *body = NULL;
 
 	for (int i = 1; i < argc; i++) {
 		if (shirudo_build_is_help(argv[i])) {

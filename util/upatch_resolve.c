@@ -20,6 +20,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include "malloc.h"
@@ -63,7 +64,7 @@ int shirudo_upatch_open_first_link(const char *name)
 	return errno == ENOENT ? -first_errno : -errno;
 }
 
-static const char *loc_prefix(uint32_t prog_type, uint32_t attach_type)
+static const char *loc_prefix(__u32 prog_type, __u32 attach_type)
 {
 	if (prog_type == BPF_PROG_TYPE_LSM)
 		return "lsm";
@@ -94,10 +95,10 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 	struct bpf_link_info linfo = {};
 	struct bpf_prog_info info = {};
 	const char *attach_name = NULL;
-	uint32_t attach_type = 0;
 	int link_fd, prog_fd, rc;
+	__u32 attach_type = 0;
 	const char *prefix;
-	uint32_t len;
+	__u32 len;
 
 	out[0] = '\0';
 	link_fd = shirudo_upatch_open_first_link(name);
@@ -111,8 +112,8 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 	}
 	if (linfo.type == BPF_LINK_TYPE_UPROBE_MULTI) {
 		struct bpf_link_info detail = {};
-		uint32_t count = linfo.uprobe_multi.count;
-		uint32_t path_size = linfo.uprobe_multi.path_size;
+		__u32 count = linfo.uprobe_multi.count;
+		__u32 path_size = linfo.uprobe_multi.path_size;
 		char *path;
 
 		if (!path_size || path_size > PATH_MAX) {
@@ -124,7 +125,7 @@ int shirudo_upatch_resolve_location(struct btf *vbtf, const char *name,
 			close(link_fd);
 			return -ENOMEM;
 		}
-		detail.uprobe_multi.path = (uint64_t)(uintptr_t)path;
+		detail.uprobe_multi.path = (__u64)(uintptr_t)path;
 		detail.uprobe_multi.path_size = path_size;
 		len = sizeof(detail);
 		rc = bpf_link_get_info_by_fd(link_fd, &detail, &len);
@@ -210,7 +211,7 @@ void shirudo_upatch_payload_sha256(const char *name, char *out, size_t cap)
 {
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
-	uint8_t raw[32];
+	__u8 raw[32];
 	ssize_t n;
 
 	out[0] = '\0';

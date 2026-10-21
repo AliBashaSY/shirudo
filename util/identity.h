@@ -8,7 +8,7 @@
 #ifndef SHIRUDO_UTIL_IDENTITY_H
 #define SHIRUDO_UTIL_IDENTITY_H
 
-#include <stdint.h>
+#include <shirudo/misc.h>
 
 /* The keyring kinds the kernel names in a verdict (enum bpf_sig_keyring). */
 #define SHIRUDO_SIG_KEYRING_USER	4
@@ -25,17 +25,17 @@
  * lsm/key_permission guards with the keyring itself.
  */
 struct shirudo_identity {
-	uint32_t	sb_dev;
-	uint32_t	exe_dev;
-	uint64_t	exe_ino;
-	int32_t		keyring_serial;
-	uint32_t	keyring_type;
-	uint32_t	alt_exe_dev;
-	uint32_t	pad;
-	uint64_t	alt_exe_ino;
-	uint32_t	n_keys;
-	uint32_t	pad2;
-	int32_t		key_serials[SHIRUDO_IDENTITY_KEYS_MAX];
+	__u32		sb_dev;
+	__u32		exe_dev;
+	__u64		exe_ino;
+	__s32		keyring_serial;
+	__u32		keyring_type;
+	__u32		alt_exe_dev;
+	__u32		pad;
+	__u64		alt_exe_ino;
+	__u32		n_keys;
+	__u32		pad2;
+	__s32		key_serials[SHIRUDO_IDENTITY_KEYS_MAX];
 };
 
 /*

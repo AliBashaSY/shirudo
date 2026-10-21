@@ -15,6 +15,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "builtin.h"
 #include "util/attest.h"
 #include "util/chain.h"
@@ -115,7 +117,7 @@ static const struct shirudo_help attest_help = {
 	.n_sections = ARRAY_SIZE(attest_help_sections),
 };
 
-static int parse_hex(const char *hex, uint8_t *out, size_t cap, size_t *len)
+static int parse_hex(const char *hex, __u8 *out, size_t cap, size_t *len)
 {
 	size_t n = strlen(hex);
 
@@ -125,7 +127,7 @@ static int parse_hex(const char *hex, uint8_t *out, size_t cap, size_t *len)
 	return shirudo_hex_decode(hex, out, n / 2);
 }
 
-static int parse_hex32(const char *what, const char *hex, uint8_t out[32])
+static int parse_hex32(const char *what, const char *hex, __u8 out[32])
 {
 	if (strlen(hex) != 64 || shirudo_hex_decode(hex, out, 32)) {
 		pr_err("attest: %s must be 64 hex characters", what);
@@ -134,14 +136,14 @@ static int parse_hex32(const char *what, const char *hex, uint8_t out[32])
 	return 0;
 }
 
-static int parse_pcrs(const char *list, uint32_t *mask)
+static int parse_pcrs(const char *list, __u32 *mask)
 {
 	const char *p = list;
 
 	*mask = 0;
 	while (*p) {
 		char *end;
-		unsigned long n = strtoul(p, &end, 10);
+		__u64 n = strtoul(p, &end, 10);
 
 		if (end == p || n >= 24)
 			return -EINVAL;
@@ -186,7 +188,7 @@ static int member_add_spec(struct members *m, const char *spec)
 {
 	struct shirudo_measured_upatch *e;
 	const char *eq = strchr(spec, '=');
-	uint8_t payload[32];
+	__u8 payload[32];
 
 	if (!eq || eq == spec ||
 	    (size_t)(eq - spec) > SHIRUDO_UPATCH_NAME_MAX ||
@@ -201,11 +203,11 @@ static int member_add_spec(struct members *m, const char *spec)
 	return 0;
 }
 
-static int cert_digest(const char *path, uint8_t out[32])
+static int cert_digest(const char *path, __u8 out[32])
 {
-	unsigned char *buf;
 	struct stat st;
 	ssize_t got;
+	__u8 *buf;
 	int fd;
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
@@ -231,11 +233,11 @@ static int cert_digest(const char *path, uint8_t out[32])
 	return got == st.st_size ? 0 : -EIO;
 }
 
-static int apply_event(const char *spec, uint8_t chain[32])
+static int apply_event(const char *spec, __u8 chain[32])
 {
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	const char *colon = strchr(spec, ':'), *eq;
-	uint8_t digest[32], event[32];
+	__u8 digest[32], event[32];
 	size_t kind_len, name_len;
 
 	eq = colon ? strchr(colon, '=') : NULL;
@@ -256,7 +258,7 @@ static int apply_event(const char *spec, uint8_t chain[32])
 					   event);
 	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
 		char *end;
-		long long seq = strtoll(name, &end, 10);
+		__s64 seq = strtoll(name, &end, 10);
 
 		if (end == name || *end || seq <= 0)
 			return -EINVAL;
@@ -272,10 +274,10 @@ static int apply_event(const char *spec, uint8_t chain[32])
 
 static int cmd_attest_predict(int argc, const char **argv)
 {
-	uint8_t cert_sha[32], tree_root[32] = {}, set_digest[32], init[32];
-	uint8_t cert_shas[SHIRUDO_KEYS_MAX][32];
+	__u8 cert_sha[32], tree_root[32] = {}, set_digest[32], init[32];
+	__u8 cert_shas[SHIRUDO_KEYS_MAX][32];
 	size_t n_certs = 0;
-	uint8_t bind[2][32], chain[32] = {};
+	__u8 bind[2][32], chain[32] = {};
 	const char *events[EVENTS_MAX];
 	struct members m = {};
 	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
@@ -316,7 +318,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 			events[n_events++] = a + 8;
 		} else if (!strncmp(a, "--bind-pcr=", 11)) {
 			char *end;
-			unsigned long n = strtoul(a + 11, &end, 10);
+			__u64 n = strtoul(a + 11, &end, 10);
 			int slot = n == SHIRUDO_CHAIN_PCR ? 0 :
 				   n == SHIRUDO_CHAIN_PHASE_PCR ? 1 : -1;
 
@@ -363,8 +365,8 @@ static int cmd_attest_predict(int argc, const char **argv)
 		printf("register_after_events: %s\n", hex);
 	}
 	if (have_bind[0] && have_bind[1]) {
-		uint8_t branch_written[32], branch_init[32], policy[32];
-		uint8_t name[SHIRUDO_TPM_NAME_LEN], anchor_digest[32];
+		__u8 branch_written[32], branch_init[32], policy[32];
+		__u8 name[SHIRUDO_TPM_NAME_LEN], anchor_digest[32];
 		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
 
 		shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, bind[0], 2,
@@ -430,10 +432,10 @@ static int read_evidence(const char *path, char **out, size_t *len)
 static int cmd_attest_verify(int argc, const char **argv)
 {
 	struct shirudo_attest_expect x = {};
-	uint8_t nonce[SHIRUDO_ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
-	uint8_t cert_shas[SHIRUDO_KEYS_MAX][32];
+	__u8 nonce[SHIRUDO_ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
+	__u8 cert_shas[SHIRUDO_KEYS_MAX][32];
 	size_t n_certs = 0;
-	uint8_t tree_root[32] = {};
+	__u8 tree_root[32] = {};
 	const char *evidence_path = NULL;
 	struct members m = {};
 	char *evidence = NULL, *report;
@@ -499,7 +501,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 			x.have_chain = true;
 		} else if (!strncmp(a, "--expect-pcr=", 13)) {
 			char *end;
-			unsigned long n = strtoul(a + 13, &end, 10);
+			__u64 n = strtoul(a + 13, &end, 10);
 
 			if (end == a + 13 || *end != '=' || n >= 24 ||
 			    parse_hex32("--expect-pcr value", end + 1,
@@ -528,7 +530,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 			x.have_ek_name = true;
 		} else if (!strncmp(a, "--expect-bind-pcr=", 18)) {
 			char *end;
-			unsigned long n = strtoul(a + 18, &end, 10);
+			__u64 n = strtoul(a + 18, &end, 10);
 
 			if (end == a + 18 || *end != '=' || n >= 24 ||
 			    parse_hex32("--expect-bind-pcr value", end + 1,
@@ -592,8 +594,8 @@ out:
 static int cmd_attest_challenge(int argc, const char **argv)
 {
 	struct shirudo_attest_challenge_policy pol = {};
-	uint8_t credential[SHIRUDO_TPM_CREDENTIAL_LEN];
-	uint8_t ak_name[SHIRUDO_TPM_NAME_LEN], ek_name[SHIRUDO_TPM_NAME_LEN];
+	__u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN];
+	__u8 ak_name[SHIRUDO_TPM_NAME_LEN], ek_name[SHIRUDO_TPM_NAME_LEN];
 	const char *evidence_path = NULL, *out_path = NULL;
 	char *evidence = NULL, *doc = NULL, *report;
 	char hex[2 * SHIRUDO_TPM_CREDENTIAL_LEN + 1];
@@ -687,8 +689,8 @@ out:
 static int cmd_attest_evidence(int argc, const char **argv)
 {
 	struct shirudo_attest_challenge challenge = {};
-	uint8_t nonce[SHIRUDO_ATTEST_NONCE_MAX];
-	uint32_t mask = SHIRUDO_ATTEST_PCR_DEFAULT;
+	__u8 nonce[SHIRUDO_ATTEST_NONCE_MAX];
+	__u32 mask = SHIRUDO_ATTEST_PCR_DEFAULT;
 	const char *out_path = NULL, *challenge_path = NULL;
 	char *doc = NULL;
 	size_t nonce_len = 0, len = 0, cap = 0, i;

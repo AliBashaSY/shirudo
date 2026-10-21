@@ -23,6 +23,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include <shirudo/misc.h>
+
 #include "builtin.h"
 #include "util/help.h"
 #include "util/log.h"
@@ -78,7 +80,7 @@ static int set_subject_and_issuer(X509 *c)
 	X509_NAME *name = X509_get_subject_name(c);
 
 	if (X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8,
-				       (const unsigned char *)CERT_CN,
+				       (const __u8 *)CERT_CN,
 				       -1, -1, 0) != 1) {
 		shirudo_openssl_complain("X509_NAME_add_entry_by_txt");
 		return -1;

@@ -16,6 +16,8 @@
 
 #include <linux/keyctl.h>
 
+#include <shirudo/misc.h>
+
 #include "config.h"
 #include "initrd.h"
 #include "crypto.h"
@@ -77,7 +79,7 @@ static void check_root(struct shirudo_preflight_result *r)
 		pass(c);
 	else
 		fail(r, c, "must run as root (EUID=%u)",
-		     (unsigned int)geteuid());
+		     (__u32)geteuid());
 }
 
 static bool lsm_lists_bpf(void)
@@ -184,10 +186,10 @@ static void check_cert(struct shirudo_preflight_result *r)
 		     shirudo_cert_path());
 }
 
-static int read_cert(const char *path, unsigned char **out, size_t *out_sz)
+static int read_cert(const char *path, __u8 **out, size_t *out_sz)
 {
-	unsigned char *buf;
 	struct stat st;
+	__u8 *buf;
 	ssize_t n;
 	int fd;
 
@@ -299,8 +301,8 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
-		unsigned char *der = NULL;
 		size_t der_sz = 0;
+		__u8 *der = NULL;
 		long key;
 		int rc;
 

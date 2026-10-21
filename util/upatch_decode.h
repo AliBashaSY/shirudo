@@ -9,7 +9,8 @@
 #define SHIRUDO_UTIL_UPATCH_DECODE_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 struct shirudo_map_view;
 
@@ -42,6 +43,6 @@ int shirudo_upatch_decode_map_file_otel(const char *path,
 					char **out, size_t *out_len);
 
 int shirudo_upatch_decode_map_signal(const struct shirudo_map_view *v,
-				     uint32_t *signal_out);
+				     __u32 *signal_out);
 
 #endif /* SHIRUDO_UTIL_UPATCH_DECODE_H */

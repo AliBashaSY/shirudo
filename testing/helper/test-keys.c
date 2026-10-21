@@ -12,12 +12,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "crypto.h"
 #include "hex.h"
 #include "keys.h"
 #include "upatch.h"
 
-static void puthex(const uint8_t *b, size_t n)
+static void puthex(const __u8 *b, size_t n)
 {
 	char h[65];
 
@@ -28,7 +30,7 @@ static void puthex(const uint8_t *b, size_t n)
 int main(int argc, char **argv)
 {
 	struct shirudo_trusted_set set;
-	uint8_t digest[32];
+	__u8 digest[32];
 	size_t i;
 	int rc;
 

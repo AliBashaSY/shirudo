@@ -8,12 +8,14 @@
 #ifndef SHIRUDO_BUILD_PACKAGE_H
 #define SHIRUDO_BUILD_PACKAGE_H
 
+#include <shirudo/misc.h>
+
 int shirudo_build_package_load(const char *bpf_o, const char *src_path,
 			       const char *out_upatch, const char *upatch_name,
 			       const char *pkey_path, const char *cert_path);
 
 int shirudo_build_package_unload(const char *name,
-				 const unsigned char payload_sha256[32],
+				 const __u8 payload_sha256[32],
 				 const char *out_upatch,
 				 const char *pkey_path,
 				 const char *cert_path);

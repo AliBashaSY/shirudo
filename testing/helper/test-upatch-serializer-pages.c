@@ -11,6 +11,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "json.h"
 #include "serializer.h"
 #include "upatch_maps.h"
@@ -29,7 +31,7 @@ static int has(const char *haystack, const char *needle)
 
 static int check_abi_and_nonce(void)
 {
-	uint64_t generated = 0;
+	__u64 generated = 0;
 	struct shirudo_serial_chunk chunk = {
 		.magic = SHIRUDO_SERIAL_MAGIC,
 		.version = SHIRUDO_SERIAL_VERSION,
@@ -107,8 +109,8 @@ out:
 
 int main(void)
 {
-	unsigned char page0_data[] = { 0xaa, 0xbb };
-	unsigned char page1_data[] = { 0xcc };
+	__u8 page0_data[] = { 0xaa, 0xbb };
+	__u8 page1_data[] = { 0xcc };
 	struct shirudo_serial_page pages[2] = {
 		{
 			.page_index = 0,

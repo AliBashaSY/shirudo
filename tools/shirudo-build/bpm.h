@@ -12,6 +12,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm_tree.h"
 #include "crypto.h"
 #include "upatch.h"
@@ -53,7 +55,7 @@ struct bpm_build_spec {
 	char name[128];
 	char scope[PATH_MAX];
 	char stage[PATH_MAX];
-	unsigned char *build_file;
+	__u8 *build_file;
 	size_t build_file_len;
 	struct bpm_build_file files[BPM_BUILD_MAX_ENTRIES];
 	size_t n_files;
@@ -66,7 +68,7 @@ struct bpm_build_spec {
  * in build_file (the archive embeds them verbatim). Release with
  * bpm_build_spec_free(); the spec itself is large and belongs on the heap.
  */
-int bpm_build_parse_beefile(const unsigned char *body, size_t len,
+int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec);
 void bpm_build_spec_free(struct bpm_build_spec *spec);
 

@@ -4,9 +4,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <shirudo/misc.h>
 
 #include "kernel_build_id.h"
 
@@ -18,7 +19,7 @@ static size_t align4(size_t value)
 	return (value + 3u) & ~(size_t)3u;
 }
 
-static int read_u32(const unsigned char *p, size_t remaining, uint32_t *out)
+static int read_u32(const __u8 *p, size_t remaining, __u32 *out)
 {
 	if (remaining < sizeof(*out))
 		return -EINVAL;
@@ -29,13 +30,13 @@ static int read_u32(const unsigned char *p, size_t remaining, uint32_t *out)
 int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
 				       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
-	const unsigned char *p = notes;
+	const __u8 *p = notes;
 
 	if (!notes || !out)
 		return -EINVAL;
 	out[0] = '\0';
 	while (notes_len) {
-		uint32_t namesz, descsz, type;
+		__u32 namesz, descsz, type;
 		size_t name_off, desc_off, next;
 
 		if (notes_len < 12 || read_u32(p, notes_len, &namesz) ||
@@ -54,7 +55,7 @@ int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
 		if (type == 3 && namesz >= 3 && !memcmp(p + name_off, "GNU", 3)) {
 			if (!descsz || descsz > SHIRUDO_KERNEL_BUILD_ID_MAX)
 				return -E2BIG;
-			for (uint32_t i = 0; i < descsz; i++)
+			for (__u32 i = 0; i < descsz; i++)
 				snprintf(out + i * 2, 3, "%02x", p[desc_off + i]);
 			return 0;
 		}
@@ -66,7 +67,7 @@ int shirudo_kernel_build_id_from_notes(const void *notes, size_t notes_len,
 
 int shirudo_kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
 {
-	unsigned char notes[KERNEL_NOTES_MAX];
+	__u8 notes[KERNEL_NOTES_MAX];
 	size_t len = 0;
 	int fd, rc;
 

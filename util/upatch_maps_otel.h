@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/misc.h>
+
 #include "upatch_maps.h"
 
 enum shirudo_otel_signal {
@@ -32,9 +34,9 @@ struct shirudo_otel_opts {
 	const char	*tenant_id;
 	const char	*s3_uri;
 	bool		allow_insecure;
-	unsigned int	retries;
-	unsigned int	log_record_max_bytes;
-	unsigned int	otlp_max_bytes;
+	__u32		retries;
+	__u32		log_record_max_bytes;
+	__u32		otlp_max_bytes;
 	enum shirudo_otel_metric_kind metric_kind;
 	bool		metric_kind_set;
 	const char	*metric_name;
@@ -77,7 +79,7 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 			       const char *severity_text,
 			       const char *status,
 			       const char *version_id,
-			       int64_t tamper_attempts,
+			       __s64 tamper_attempts,
 			       const char *body_json, size_t body_len);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_OTEL_H */

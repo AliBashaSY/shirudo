@@ -9,12 +9,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <shirudo/misc.h>
 
 #include "kmsg.h"
 #include "timefmt.h"
@@ -39,7 +40,7 @@ static ssize_t read_record(int fd, char *buf, size_t cap)
 }
 
 static int parse_record(const char *rec, size_t len,
-			uint64_t *monotonic_us_out,
+			__u64 *monotonic_us_out,
 			const char **msg_out, size_t *msg_len_out)
 {
 	const char *semi, *end;
@@ -55,11 +56,11 @@ static int parse_record(const char *rec, size_t len,
 		if (*p == ',') {
 			commas++;
 			if (commas == 2) {
-				uint64_t us = 0;
+				__u64 us = 0;
 				const char *q = p + 1;
 
 				while (q < semi && *q >= '0' && *q <= '9') {
-					us = us * 10 + (uint64_t)(*q - '0');
+					us = us * 10 + (__u64)(*q - '0');
 					q++;
 				}
 				*monotonic_us_out = us;
@@ -90,7 +91,7 @@ static void copy_msg(char *dst, size_t dst_cap,
 	if (dst_cap == 0)
 		return;
 	for (i = 0; i < src_len && o + 1 < dst_cap; i++) {
-		unsigned char c = (unsigned char)src[i];
+		__u8 c = (__u8)src[i];
 
 		if (c == '\t' || c == ' ' || (c >= 0x20 && c < 0x7f))
 			dst[o++] = (char)c;
@@ -100,20 +101,20 @@ static void copy_msg(char *dst, size_t dst_cap,
 	dst[o] = '\0';
 }
 
-static void monotonic_to_iso(uint64_t mono_us,
+static void monotonic_to_iso(__u64 mono_us,
 			     const struct timespec *rt_at_open,
 			     const struct timespec *mt_at_open,
 			     char *out, size_t out_cap)
 {
 	struct timespec rec;
-	int64_t delta_ns;
+	__s64 delta_ns;
 
 	/*
 	 * record_realtime = realtime_at_open + (record_monotonic
 	 *                                       - monotonic_at_open)
 	 */
-	delta_ns = (int64_t)mono_us * 1000
-		 - ((int64_t)mt_at_open->tv_sec * 1000000000LL
+	delta_ns = (__s64)mono_us * 1000
+		 - ((__s64)mt_at_open->tv_sec * 1000000000LL
 		    + mt_at_open->tv_nsec);
 	rec.tv_sec  = rt_at_open->tv_sec + delta_ns / 1000000000LL;
 	rec.tv_nsec = rt_at_open->tv_nsec + delta_ns % 1000000000LL;
@@ -153,7 +154,7 @@ int shirudo_kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
 	}
 
 	for (;;) {
-		uint64_t mono_us = 0;
+		__u64 mono_us = 0;
 		const char *msg = NULL;
 		size_t msg_len = 0;
 		size_t slot;

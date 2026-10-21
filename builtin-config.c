@@ -69,7 +69,7 @@ int cmd_config(int argc, const char **argv)
 
 	printf("# Eventlog cap; 0 = unlimited. When the log would exceed this,\n"
 	       "# the state-changing op refuses with category: eventlog_full.\n");
-	printf("eventlog.max_bytes = %lu\n\n", cfg.eventlog_max_bytes);
+	printf("eventlog.max_bytes = %llu\n\n", cfg.eventlog_max_bytes);
 
 	printf("# TPM owner-hierarchy password used at NV-index define time.\n"
 	       "# Empty by default (works on fresh TPMs, swtpm, most cloud VMs);\n"

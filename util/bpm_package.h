@@ -10,7 +10,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #include "bpm_oci.h"
 #include "bpm_tree.h"
@@ -22,24 +23,24 @@ struct bpm_index_entry {
 	char manifest_digest[BPM_MAX_DIGEST];
 	char package_digest[BPM_MAX_DIGEST];
 	char signer[BPM_MAX_DIGEST];
-	int64_t package_size;
+	__s64 package_size;
 };
 
 struct bpm_package_info {
 	char name[BPM_MAX_NAME];
 	char version[BPM_MAX_NAME];
 	char signer[BPM_MAX_DIGEST];
-	unsigned char *cert;
+	__u8 *cert;
 	size_t cert_len;
 };
 
-int bpm_index_parse(const unsigned char *body, size_t len,
+int bpm_index_parse(const __u8 *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries);
-int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
-		   const unsigned char *sig, size_t sig_len,
+int bpm_verify_cms(const __u8 *payload, size_t payload_len,
+		   const __u8 *sig, size_t sig_len,
 		   const char *cert_path);
 
-int bpm_tar_octal(const char *p, size_t n, uint64_t *out);
+int bpm_tar_octal(const char *p, size_t n, __u64 *out);
 bool bpm_archive_rel_ok(const char *name);
 
 /*
@@ -50,10 +51,10 @@ bool bpm_archive_rel_ok(const char *name);
  */
 int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   const char *package_dir, char *found_dir,
-			   size_t found_dir_sz, unsigned char **out,
+			   size_t found_dir_sz, __u8 **out,
 			   size_t *out_len, size_t max);
 int bpm_pkg_read_member(const char *archive, const char *member,
-			unsigned char **out, size_t *out_len, size_t max);
+			__u8 **out, size_t *out_len, size_t max);
 int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info);
 
 /*

@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm_source_config.h"
 
 int shirudo_bpm_parse_source_line(char *line,
@@ -20,18 +22,18 @@ int shirudo_bpm_parse_source_line(char *line,
 		return -EINVAL;
 
 	key = line;
-	while (isspace((unsigned char)*key))
+	while (isspace((__u8)*key))
 		key++;
 	eq = strchr(key, '=');
 	if (!eq)
 		return 0;
 	*eq++ = '\0';
 	key_end = eq - 1;
-	while (key_end > key && isspace((unsigned char)key_end[-1]))
+	while (key_end > key && isspace((__u8)key_end[-1]))
 		*--key_end = '\0';
 
 	val = eq;
-	while (isspace((unsigned char)*val))
+	while (isspace((__u8)*val))
 		val++;
 	val[strcspn(val, "\r\n")] = '\0';
 

@@ -9,11 +9,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "paths.h"
 #include "seal.h"
 #include "serializer.h"
 
-int shirudo_serializer_lock_acquire_at(const char *dir, uint32_t map_id)
+int shirudo_serializer_lock_acquire_at(const char *dir, __u32 map_id)
 {
 	char name[64];
 	struct stat st;
@@ -62,15 +64,15 @@ int shirudo_serializer_lock_acquire_at(const char *dir, uint32_t map_id)
 	return fd;
 }
 
-int shirudo_serializer_lock_acquire(uint32_t map_id)
+int shirudo_serializer_lock_acquire(__u32 map_id)
 {
 	return shirudo_serializer_lock_acquire_at(SHIRUDO_LOCKS_DIR, map_id);
 }
 
-int shirudo_serializer_new_invocation_id(uint64_t *out)
+int shirudo_serializer_new_invocation_id(__u64 *out)
 {
-	uint64_t id;
-	unsigned char *p = (unsigned char *)&id;
+	__u64 id;
+	__u8 *p = (__u8 *)&id;
 	size_t off;
 
 	if (!out)
@@ -95,12 +97,12 @@ int shirudo_serializer_new_invocation_id(uint64_t *out)
 }
 
 int shirudo_serial_chunk_validate(const struct shirudo_serial_chunk *c,
-				  uint32_t want_index,
-				  uint32_t total_chunks,
-				  uint32_t page_index,
-				  uint64_t cursor,
-				  uint64_t next_cursor,
-				  uint64_t invocation_id)
+				  __u32 want_index,
+				  __u32 total_chunks,
+				  __u32 page_index,
+				  __u64 cursor,
+				  __u64 next_cursor,
+				  __u64 invocation_id)
 {
 	if (!c || invocation_id == 0)
 		return -EINVAL;

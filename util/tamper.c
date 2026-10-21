@@ -5,12 +5,13 @@
  * Read back the tamper counters init pinned in the private bpffs.
  */
 #include <errno.h>
-#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
+
+#include <shirudo/misc.h>
 
 #include "paths.h"
 #include "tamper.h"
@@ -94,9 +95,9 @@ const char *shirudo_tamper_meaning(enum shirudo_tamper_point point)
 int shirudo_tamper_read(struct shirudo_tamper_counts *out)
 {
 	struct bpf_map_info info = {};
-	uint32_t len = sizeof(info);
-	uint32_t key;
+	__u32 len = sizeof(info);
 	int fd, rc;
+	__u32 key;
 
 	memset(out, 0, sizeof(*out));
 	fd = bpf_obj_get(SHIRUDO_TAMPER_PIN);

@@ -4,10 +4,12 @@
 #include <errno.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "hex.h"
 #include "malloc.h"
 
-void shirudo_hex_encode(const uint8_t *in, size_t n, char *out)
+void shirudo_hex_encode(const __u8 *in, size_t n, char *out)
 {
 	static const char d[] = "0123456789abcdef";
 	size_t i;
@@ -39,7 +41,7 @@ int shirudo_hex_nibble(int c)
 	return -1;
 }
 
-int shirudo_hex_decode(const char *hex, uint8_t *out, size_t n)
+int shirudo_hex_decode(const char *hex, __u8 *out, size_t n)
 {
 	size_t i;
 
@@ -51,7 +53,7 @@ int shirudo_hex_decode(const char *hex, uint8_t *out, size_t n)
 
 		if (hi < 0 || lo < 0)
 			return -EINVAL;
-		out[i] = (uint8_t)((hi << 4) | lo);
+		out[i] = (__u8)((hi << 4) | lo);
 	}
 	return 0;
 }

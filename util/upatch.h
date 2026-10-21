@@ -8,6 +8,7 @@
 #ifndef SHIRUDO_UTIL_UPATCH_H
 #define SHIRUDO_UTIL_UPATCH_H
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 #include <dirent.h>
 #include <stdbool.h>
@@ -18,24 +19,24 @@
 
 struct shirudo_upatch {
 	struct shirudo_upatch_header	hdr;	/* host byte order */
-	const unsigned char		*map;
+	const __u8			*map;
 	size_t				map_size;
 	const struct shirudo_upatch_decoder_blob *decoder_blob;
-	uint32_t			decoder_blob_len;
-	uint32_t			nr_decoders;
+	__u32				decoder_blob_len;
+	__u32				nr_decoders;
 };
 
 struct shirudo_upatch_decoder_view {
-	uint32_t	language;
-	uint32_t	api_version;
-	uint32_t	input_format;
-	uint32_t	export_signal;
+	__u32		language;
+	__u32		api_version;
+	__u32		input_format;
+	__u32		export_signal;
 	char		upatch[64];
 	char		map[16];
 	char		source_name[64];
 	char		entrypoint[32];
 	const char	*source;
-	uint32_t	source_len;
+	__u32		source_len;
 };
 
 /*
@@ -58,7 +59,7 @@ bool shirudo_upatch_is_unload(const struct shirudo_upatch *u);
 const char *shirudo_upatch_type_str(const struct shirudo_upatch *u);
 
 bool shirudo_upatch_has_decoders(const struct shirudo_upatch *u);
-int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, uint32_t idx,
+int shirudo_upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 				struct shirudo_upatch_decoder_view *out);
 
 /*

@@ -6,23 +6,22 @@
 #ifndef SHIRUDO_ELF_TARGET_H
 #define SHIRUDO_ELF_TARGET_H
 
-#include <stdint.h>
-
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 struct shirudo_elf_target {
-	uint8_t		build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
-	uint32_t	build_id_len;
-	uint64_t	*offsets;
-	uint32_t	nr_offsets;
+	__u8		build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u32		build_id_len;
+	__u64		*offsets;
+	__u32		nr_offsets;
 };
 
 int shirudo_elf_target_resolve(const char *path, const char *pattern,
 			       struct shirudo_elf_target *out);
 
 int shirudo_elf_build_id_fd(int fd,
-			    uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
-			    uint32_t *build_id_len);
+			    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			    __u32 *build_id_len);
 
 void shirudo_elf_target_free(struct shirudo_elf_target *target);
 

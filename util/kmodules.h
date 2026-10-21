@@ -9,30 +9,31 @@
 #define SHIRUDO_UTIL_KMODULES_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #define SHIRUDO_KMOD_NAME_LEN	64
 
 struct shirudo_kmod {
 	char		name[SHIRUDO_KMOD_NAME_LEN];
-	uint64_t	size;		/* bytes */
-	uint32_t	refcount;	/* /proc/modules column 3 */
-	uint16_t	n_deps;
-	uint16_t	deps_off;	/* index into the global deps[] */
+	__u64		size;		/* bytes */
+	__u32		refcount;	/* /proc/modules column 3 */
+	__u16		n_deps;
+	__u16		deps_off;	/* index into the global deps[] */
 	/*
 	 * sysfs `/sys/module/<name>` mtime -- the moment the kernel's
 	 * kobject for this module was created, i.e. when it was loaded.
 	 * Zero if the stat() failed (race: rmmod between /proc/modules
 	 * read and the per-module stat).
 	 */
-	int64_t		loaded_at_sec;
-	int32_t		loaded_at_nsec;
+	__s64		loaded_at_sec;
+	__s32		loaded_at_nsec;
 };
 
 struct shirudo_kmod_set {
 	struct shirudo_kmod	*mods;	/* sorted by name, ascending */
 	size_t			n;
-	uint16_t		*deps;	/* flat: mods[i].deps_off..+n_deps */
+	__u16			*deps;	/* flat: mods[i].deps_off..+n_deps */
 	size_t			n_deps;
 };
 
@@ -46,6 +47,6 @@ void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set);
  * elapsed from boot, not time ago.
  */
 void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
-				   size_t last_n, int64_t boot_sec);
+				   size_t last_n, __s64 boot_sec);
 
 #endif /* SHIRUDO_UTIL_KMODULES_H */

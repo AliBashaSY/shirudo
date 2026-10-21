@@ -15,6 +15,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "chain.h"
 #include "config.h"
 #include "crypto.h"
@@ -24,14 +26,14 @@
 #include "paths.h"
 #include "tpm.h"
 
-void shirudo_sha256(const void *data, size_t len, uint8_t out[32])
+void shirudo_sha256(const void *data, size_t len, __u8 out[32])
 {
 	if (shirudo_sha256_buffer(data, len, out) != 0)
 		memset(out, 0, 32);
 }
 
 void shirudo_sha256_2(const void *a, size_t a_len,
-		      const void *b, size_t b_len, uint8_t out[32])
+		      const void *b, size_t b_len, __u8 out[32])
 {
 	struct shirudo_sha256_ctx ctx;
 
@@ -49,8 +51,8 @@ void shirudo_sha256_2(const void *a, size_t a_len,
 
 int shirudo_ct_eq(const void *a, const void *b, size_t n)
 {
-	const uint8_t *pa = a, *pb = b;
-	uint8_t diff = 0;
+	const __u8 *pa = a, *pb = b;
+	__u8 diff = 0;
 	size_t i;
 
 	for (i = 0; i < n; i++)
@@ -64,12 +66,12 @@ static int member_cmp(const void *a, const void *b)
 		      ((const struct shirudo_measured_upatch *)b)->name);
 }
 
-void shirudo_chain_init_event(const uint8_t cert_sha[32],
+void shirudo_chain_init_event(const __u8 cert_sha[32],
 			      struct shirudo_measured_upatch *set, size_t n,
-			      const uint8_t tree_root[32],
-			      uint8_t set_digest[32], uint8_t event[32])
+			      const __u8 tree_root[32],
+			      __u8 set_digest[32], __u8 event[32])
 {
-	uint8_t tag[sizeof("shirudo-init") + 96];
+	__u8 tag[sizeof("shirudo-init") + 96];
 	size_t taglen = sizeof("shirudo-init"), listing_len = 0, off = 0, i;
 	char *listing;
 
@@ -100,9 +102,9 @@ void shirudo_chain_init_event(const uint8_t cert_sha[32],
 }
 
 void shirudo_chain_upatch_event(const char *tag, const char *name,
-				const uint8_t payload[32], uint8_t event[32])
+				const __u8 payload[32], __u8 event[32])
 {
-	uint8_t buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
+	__u8 buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
 	size_t taglen = strlen(tag) + 1, off = 0;
 	size_t namelen = strnlen(name, SHIRUDO_UPATCH_NAME_MAX);
 
@@ -115,36 +117,36 @@ void shirudo_chain_upatch_event(const char *tag, const char *name,
 	shirudo_sha256(buf, off, event);
 }
 
-void shirudo_chain_key_event(const char *tag, const uint8_t cert_sha[32],
-			     uint8_t event[32])
+void shirudo_chain_key_event(const char *tag, const __u8 cert_sha[32],
+			     __u8 event[32])
 {
 	shirudo_sha256_2(tag, strlen(tag) + 1, cert_sha, 32, event);
 }
 
-void shirudo_chain_tree_event(int64_t seq, const uint8_t operation_digest[32],
-			      uint8_t event[32])
+void shirudo_chain_tree_event(__s64 seq, const __u8 operation_digest[32],
+			      __u8 event[32])
 {
-	uint8_t buf[sizeof("shirudo-tree") + 8 + 32];
+	__u8 buf[sizeof("shirudo-tree") + 8 + 32];
 	size_t taglen = sizeof("shirudo-tree"), i;
-	uint64_t s = (uint64_t)seq;
+	__u64 s = (__u64)seq;
 
 	memcpy(buf, "shirudo-tree", taglen);
 	for (i = 0; i < 8; i++)
-		buf[taglen + i] = (uint8_t)(s >> (56 - 8 * i));
+		buf[taglen + i] = (__u8)(s >> (56 - 8 * i));
 	memcpy(buf + taglen + 8, operation_digest, 32);
 	shirudo_sha256(buf, taglen + 40, event);
 }
 
-void shirudo_chain_fold(uint8_t chain[32], const uint8_t event[32])
+void shirudo_chain_fold(__u8 chain[32], const __u8 event[32])
 {
-	uint8_t cat[64];
+	__u8 cat[64];
 
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, event, 32);
 	shirudo_sha256(cat, sizeof(cat), chain);
 }
 
-void shirudo_chain_anchor(const uint8_t name[SHIRUDO_TPM_NAME_LEN],
+void shirudo_chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
 			  char *out, size_t cap)
 {
 	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
@@ -155,8 +157,8 @@ void shirudo_chain_anchor(const uint8_t name[SHIRUDO_TPM_NAME_LEN],
 }
 
 /* The binding PCR values in PCR order, as PolicyPCR hashes them. */
-static void bind_values(const uint8_t pcr_before[32],
-			const uint8_t phase_before[32], uint8_t out[64])
+static void bind_values(const __u8 pcr_before[32],
+			const __u8 phase_before[32], __u8 out[64])
 {
 	memcpy(out, pcr_before, 32);
 	memcpy(out + 32, phase_before, 32);
@@ -169,15 +171,15 @@ static void bind_values(const uint8_t pcr_before[32],
  * the written name is the one the record, the anchor and every later
  * comparison use.
  */
-static void register_expectation(const uint8_t pcr_before[32],
-				 const uint8_t phase_before[32],
-				 uint8_t branch_written[32],
-				 uint8_t branch_init[32],
-				 uint8_t policy[32],
-				 uint8_t name_unwritten[SHIRUDO_TPM_NAME_LEN],
-				 uint8_t name_written[SHIRUDO_TPM_NAME_LEN])
+static void register_expectation(const __u8 pcr_before[32],
+				 const __u8 phase_before[32],
+				 __u8 branch_written[32],
+				 __u8 branch_init[32],
+				 __u8 policy[32],
+				 __u8 name_unwritten[SHIRUDO_TPM_NAME_LEN],
+				 __u8 name_written[SHIRUDO_TPM_NAME_LEN])
 {
-	uint8_t values[64];
+	__u8 values[64];
 
 	bind_values(pcr_before, phase_before, values);
 	shirudo_tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
@@ -190,14 +192,14 @@ static void register_expectation(const uint8_t pcr_before[32],
 }
 
 static bool name_equals(const struct shirudo_tpm_nv_info *info,
-			const uint8_t name[SHIRUDO_TPM_NAME_LEN])
+			const __u8 name[SHIRUDO_TPM_NAME_LEN])
 {
 	return info->name_len == SHIRUDO_TPM_NAME_LEN &&
 	       shirudo_ct_eq(info->name, name, SHIRUDO_TPM_NAME_LEN);
 }
 
 static int register_define(struct shirudo_tpm *tpm, bool defined,
-			   const uint8_t policy[32])
+			   const __u8 policy[32])
 {
 	struct shirudo_config cfg = {};
 	int rc;
@@ -217,11 +219,11 @@ out:
 	return rc;
 }
 
-int shirudo_chain_init(const uint8_t event[32],
+int shirudo_chain_init(const __u8 event[32],
 		       struct shirudo_chain_init_info *info)
 {
-	uint8_t unwritten[SHIRUDO_TPM_NAME_LEN], written[SHIRUDO_TPM_NAME_LEN];
-	uint8_t branch_written[32], branch_init[32], policy[32];
+	__u8 unwritten[SHIRUDO_TPM_NAME_LEN], written[SHIRUDO_TPM_NAME_LEN];
+	__u8 branch_written[32], branch_init[32], policy[32];
 	struct shirudo_eventlog_init rec;
 	struct shirudo_tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
@@ -336,9 +338,9 @@ out:
 	return rc;
 }
 
-int shirudo_chain_extend(const uint8_t event[32], uint8_t out_chain[32])
+int shirudo_chain_extend(const __u8 event[32], __u8 out_chain[32])
 {
-	uint8_t branch_written[32], branch_init[32], policy[32], values[64];
+	__u8 branch_written[32], branch_init[32], policy[32], values[64];
 	struct shirudo_eventlog_init rec;
 	struct shirudo_tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
@@ -381,7 +383,7 @@ out:
 	return rc;
 }
 
-int shirudo_chain_read(uint8_t out[32])
+int shirudo_chain_read(__u8 out[32])
 {
 	struct shirudo_tpm *tpm = NULL;
 	int rc;
@@ -398,7 +400,7 @@ int shirudo_chain_status(struct shirudo_chain_status *st)
 {
 	struct shirudo_tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
-	uint32_t reset_count = 0;
+	__u32 reset_count = 0;
 	int rc;
 
 	memset(st, 0, sizeof(*st));

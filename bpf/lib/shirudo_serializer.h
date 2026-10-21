@@ -35,31 +35,31 @@
 #define SHIRUDO_SERIAL_CHUNK_PAYLOAD	4032u
 
 struct shirudo_serialize_ctx {
-	uint32_t	magic;
-	uint32_t	version;
-	uint32_t	flags;
-	uint32_t	max_chunks;
-	uint32_t	chunk_payload_size;
-	uint32_t	page_index;
-	uint64_t	cursor;
-	uint64_t	invocation_id;
+	__u32		magic;
+	__u32		version;
+	__u32		flags;
+	__u32		max_chunks;
+	__u32		chunk_payload_size;
+	__u32		page_index;
+	__u64		cursor;
+	__u64		invocation_id;
 };
 
 struct shirudo_serial_chunk {
-	uint32_t	magic;
-	uint32_t	version;
-	uint32_t	flags;
+	__u32		magic;
+	__u32		version;
+	__u32		flags;
 	int		status;
-	uint32_t	chunk_index;
-	uint32_t	total_chunks;
-	uint32_t	bytes_total;
-	uint32_t	bytes_in_chunk;
-	uint32_t	page_index;
-	uint32_t	reserved;
-	uint64_t	cursor;
-	uint64_t	next_cursor;
-	uint64_t	invocation_id;
-	unsigned char	data[SHIRUDO_SERIAL_CHUNK_PAYLOAD];
+	__u32		chunk_index;
+	__u32		total_chunks;
+	__u32		bytes_total;
+	__u32		bytes_in_chunk;
+	__u32		page_index;
+	__u32		reserved;
+	__u64		cursor;
+	__u64		next_cursor;
+	__u64		invocation_id;
+	__u8		data[SHIRUDO_SERIAL_CHUNK_PAYLOAD];
 };
 
 BUILD_BUG_ON(sizeof(struct shirudo_serialize_ctx) !=

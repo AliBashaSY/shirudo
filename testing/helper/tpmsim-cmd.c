@@ -8,7 +8,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,17 +17,19 @@
 #include <libtpms/tpm_error.h>
 #include <libtpms/tpm_library.h>
 
+#include <shirudo/misc.h>
+
 #define SIM_CMD_MAX	(64u * 1024u)
 
 /* TPM2_Startup(TPM_SU_CLEAR): sent when no volatile state was restored. */
-static const unsigned char startup_clear[] = {
+static const __u8 startup_clear[] = {
 	0x80, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x01, 0x44, 0x00, 0x00,
 };
 
 static int read_full(int fd, void *buf, size_t n)
 {
-	unsigned char *p = buf;
 	size_t off = 0;
+	__u8 *p = buf;
 
 	while (off < n) {
 		ssize_t got = read(fd, p + off, n - off);
@@ -44,7 +45,7 @@ static int read_full(int fd, void *buf, size_t n)
 
 static int write_full(int fd, const void *buf, size_t n)
 {
-	const unsigned char *p = buf;
+	const __u8 *p = buf;
 	size_t off = 0;
 
 	while (off < n) {
@@ -59,10 +60,10 @@ static int write_full(int fd, const void *buf, size_t n)
 	return 0;
 }
 
-static int load_blob(const char *path, unsigned char **out, uint32_t *len)
+static int load_blob(const char *path, __u8 **out, __u32 *len)
 {
-	unsigned char *buf;
 	struct stat st;
+	__u8 *buf;
 	int fd;
 
 	*out = NULL;
@@ -83,12 +84,12 @@ static int load_blob(const char *path, unsigned char **out, uint32_t *len)
 	}
 	close(fd);
 	*out = buf;
-	*len = (uint32_t)st.st_size;
+	*len = (__u32)st.st_size;
 	return 0;
 }
 
-static int store_blob(const char *path, const unsigned char *buf,
-		      uint32_t len)
+static int store_blob(const char *path, const __u8 *buf,
+		      __u32 len)
 {
 	char tmp[4096 + 8];
 	int fd, rc;
@@ -105,11 +106,11 @@ static int store_blob(const char *path, const unsigned char *buf,
 	return rc;
 }
 
-static int process(unsigned char **resp, uint32_t *resp_size,
-		   uint32_t *resp_cap, const unsigned char *cmd, uint32_t len)
+static int process(__u8 **resp, __u32 *resp_size,
+		   __u32 *resp_cap, const __u8 *cmd, __u32 len)
 {
 	TPM_RESULT r = TPMLIB_Process(resp, resp_size, resp_cap,
-				      (unsigned char *)cmd, len);
+				      (__u8 *)cmd, len);
 
 	return r == TPM_SUCCESS ? 0 : -1;
 }
@@ -128,8 +129,8 @@ static int save_state(const char *dir)
 	int rc = 0;
 
 	for (i = 0; i < sizeof(blobs) / sizeof(blobs[0]); i++) {
-		unsigned char *blob = NULL;
-		uint32_t blob_len = 0;
+		__u32 blob_len = 0;
+		__u8 *blob = NULL;
 
 		if (TPMLIB_GetState(blobs[i].type, &blob, &blob_len) !=
 		    TPM_SUCCESS || !blob) {
@@ -146,8 +147,8 @@ static int save_state(const char *dir)
 
 int main(int argc, char **argv)
 {
-	unsigned char *resp = NULL, *permanent = NULL, *vol = NULL;
-	uint32_t resp_size = 0, resp_cap = 0, permanent_len, vol_len;
+	__u8 *resp = NULL, *permanent = NULL, *vol = NULL;
+	__u32 resp_size = 0, resp_cap = 0, permanent_len, vol_len;
 	char path[4096];
 	int rc = 0;
 
@@ -191,13 +192,13 @@ int main(int argc, char **argv)
 	}
 
 	for (;;) {
-		unsigned char cmd[SIM_CMD_MAX];
-		uint32_t len;
+		__u8 cmd[SIM_CMD_MAX];
+		__u32 len;
 
 		if (read_full(STDIN_FILENO, cmd, 10) != 0)
 			break;
-		len = ((uint32_t)cmd[2] << 24) | ((uint32_t)cmd[3] << 16) |
-		      ((uint32_t)cmd[4] << 8) | cmd[5];
+		len = ((__u32)cmd[2] << 24) | ((__u32)cmd[3] << 16) |
+		      ((__u32)cmd[4] << 8) | cmd[5];
 		if (len < 10 || len > sizeof(cmd) ||
 		    (len > 10 && read_full(STDIN_FILENO, cmd + 10,
 					   len - 10) != 0)) {

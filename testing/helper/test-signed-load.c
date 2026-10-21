@@ -29,6 +29,8 @@
 
 #include <linux/bpf.h>
 #include <linux/keyctl.h>
+#include <shirudo/misc.h>
+
 #include "shirudo/upatch.h"
 
 static long sys_bpf(int cmd, union bpf_attr *a)
@@ -39,7 +41,7 @@ static long sys_bpf(int cmd, union bpf_attr *a)
 int main(int argc, char **argv)
 {
 	const struct shirudo_upatch_header *h;
-	unsigned char *m, cert[16384];	/* an ML-DSA-87 cert is ~7.5 KiB */
+	__u8 *m, cert[16384];		/* an ML-DSA-87 cert is ~7.5 KiB */
 	const void *insns, *sig;
 	int ufd, cfd, cn, prog_fd;
 	long serial;
@@ -93,12 +95,12 @@ int main(int argc, char **argv)
 	memset(&a, 0, sizeof(a));
 	a.prog_type = BPF_PROG_TYPE_SYSCALL;
 	a.insn_cnt = rd_le32(&h->loader_insns_len) / sizeof(struct bpf_insn);
-	a.insns = (uint64_t)(uintptr_t)insns;
-	a.license = (uint64_t)(uintptr_t)"Dual BSD/GPL";
+	a.insns = (__u64)(uintptr_t)insns;
+	a.license = (__u64)(uintptr_t)"Dual BSD/GPL";
 	a.prog_flags = BPF_F_SLEEPABLE;
-	a.signature = (uint64_t)(uintptr_t)sig;
+	a.signature = (__u64)(uintptr_t)sig;
 	a.signature_size = rd_le32(&h->signature_len);
-	a.keyring_id = (int32_t)serial;
+	a.keyring_id = (__s32)serial;
 	memcpy(a.prog_name, "sigtest", 7);
 	prog_fd = sys_bpf(BPF_PROG_LOAD, &a);
 	if (prog_fd >= 0) {

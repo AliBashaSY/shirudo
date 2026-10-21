@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <endian.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include "json.h"
@@ -30,8 +32,8 @@ struct fixture {
 	struct shirudo_map_view view;
 	struct shirudo_map_entry entry;
 	struct btf *btf;
-	uint32_t key;
-	unsigned char values[16];
+	__u32 key;
+	__u8 values[16];
 };
 
 /* Build the smallest valid artifact carrying a decoder for offline tests. */
@@ -79,7 +81,7 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	struct shirudo_upatch_decoder_entry entry = {};
 	struct shirudo_upatch_decoder_blob blob = {};
 	struct shirudo_upatch_header header = {};
-	unsigned char *file;
+	__u8 *file;
 	char template[] = "/tmp/test-otel-map-decoder-XXXXXX";
 	int fd, rc;
 
@@ -146,11 +148,11 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	return 0;
 }
 
-static int fixture_init(struct fixture *f, uint32_t map_type, bool is_signed,
+static int fixture_init(struct fixture *f, __u32 map_type, bool is_signed,
 			bool with_btf)
 {
 	int key_int, value_int, key_type, value_type;
-	uint32_t cpu0 = 5, cpu1 = 7, poison = 0xdeadbeef;
+	__u32 cpu0 = 5, cpu1 = 7, poison = 0xdeadbeef;
 
 	memset(f, 0, sizeof(*f));
 	snprintf(f->view.upatch, sizeof(f->view.upatch), "test-upatch");
@@ -188,8 +190,8 @@ static int fixture_init(struct fixture *f, uint32_t map_type, bool is_signed,
 	if (key_int < 0 || value_int < 0 || key_type < 0 || value_type < 0)
 		return -EINVAL;
 	f->view.btf = f->btf;
-	f->view.key_type_id = (uint32_t)key_type;
-	f->view.value_type_id = (uint32_t)value_type;
+	f->view.key_type_id = (__u32)key_type;
+	f->view.value_type_id = (__u32)value_type;
 	snprintf(f->view.btf_key_type, sizeof(f->view.btf_key_type), "__u32");
 	snprintf(f->view.btf_value_type, sizeof(f->view.btf_value_type), "%s",
 		 is_signed ? "__s32" : "__u32");
@@ -201,7 +203,7 @@ static void fixture_destroy(struct fixture *f)
 	btf__free(f->btf);
 }
 
-static int print_classification(uint32_t type, bool is_signed, bool with_btf,
+static int print_classification(__u32 type, bool is_signed, bool with_btf,
 				bool serialized)
 {
 	struct fixture f;
@@ -279,7 +281,7 @@ static int print_local_json(void)
 	return e.err != 0;
 }
 
-static int send_log(const char *url, unsigned int retries, bool insecure)
+static int send_log(const char *url, __u32 retries, bool insecure)
 {
 	struct shirudo_otel_opts opts = {
 		.endpoint = url,
@@ -351,17 +353,17 @@ static int send_metric(const char *url)
 
 static bool large_serialized_fixture(struct fixture *f)
 {
-	const uint32_t pages = 1;
-	const uint32_t bytes = 1024;
+	const __u32 pages = 1;
+	const __u32 bytes = 1024;
 
 	f->view.serialized = true;
 	f->view.n_entries = 0;
 	f->view.n_serial_pages = pages;
-	f->view.serial_bytes_total = (uint64_t)pages * bytes;
+	f->view.serial_bytes_total = (__u64)pages * bytes;
 	f->view.serial_pages = xcalloc(pages, sizeof(*f->view.serial_pages));
 	if (!f->view.serial_pages)
 		return false;
-	for (uint32_t i = 0; i < pages; i++) {
+	for (__u32 i = 0; i < pages; i++) {
 		struct shirudo_serial_page *page = &f->view.serial_pages[i];
 
 		page->page_index = i;
@@ -383,7 +385,7 @@ static void large_serialized_destroy(struct fixture *f)
 {
 	if (!f->view.serial_pages)
 		return;
-	for (uint32_t i = 0; i < f->view.n_serial_pages; i++)
+	for (__u32 i = 0; i < f->view.n_serial_pages; i++)
 		xfree(f->view.serial_pages[i].data,
 		      f->view.serial_pages[i].bytes);
 	xfree(f->view.serial_pages,
@@ -391,7 +393,7 @@ static void large_serialized_destroy(struct fixture *f)
 	f->view.serial_pages = NULL;
 }
 
-static int send_s3(const char *endpoint, unsigned int retries, bool large)
+static int send_s3(const char *endpoint, __u32 retries, bool large)
 {
 	struct shirudo_otel_opts opts = {
 		.s3_uri = "s3://test-bucket/prefix",
@@ -562,10 +564,10 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "local-json") == 0)
 		return print_local_json();
 	if (strcmp(argv[1], "send-log") == 0 && argc == 4)
-		return send_log(argv[2], (unsigned int)strtoul(argv[3], NULL, 10),
+		return send_log(argv[2], (__u32)strtoul(argv[3], NULL, 10),
 				false);
 	if (strcmp(argv[1], "send-log-insecure") == 0 && argc == 4)
-		return send_log(argv[2], (unsigned int)strtoul(argv[3], NULL, 10),
+		return send_log(argv[2], (__u32)strtoul(argv[3], NULL, 10),
 				true);
 	if (strcmp(argv[1], "send-auto-log") == 0 && argc == 3)
 		return send_auto(argv[2], true);
@@ -575,10 +577,10 @@ int main(int argc, char **argv)
 		return send_metric(argv[2]);
 	if (strcmp(argv[1], "send-s3") == 0 && argc == 4)
 		return send_s3(argv[2],
-			       (unsigned int)strtoul(argv[3], NULL, 10), false);
+			       (__u32)strtoul(argv[3], NULL, 10), false);
 	if (strcmp(argv[1], "send-s3-large") == 0 && argc == 4)
 		return send_s3(argv[2],
-			       (unsigned int)strtoul(argv[3], NULL, 10), true);
+			       (__u32)strtoul(argv[3], NULL, 10), true);
 	if (strcmp(argv[1], "s3-validation") == 0)
 		return s3_validation();
 	if (strcmp(argv[1], "tenant-validation") == 0)

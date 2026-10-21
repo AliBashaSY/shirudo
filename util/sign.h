@@ -9,7 +9,8 @@
 #define SHIRUDO_SIGN_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #define SHIRUDO_SHA256_LEN	32
 
@@ -28,7 +29,7 @@ struct shirudo_sign_io {
 	void		*signature;
 	size_t		signature_sz;
 
-	uint8_t		payload_sha256[SHIRUDO_SHA256_LEN];
+	__u8		payload_sha256[SHIRUDO_SHA256_LEN];
 };
 
 /*

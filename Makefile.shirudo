@@ -563,7 +563,7 @@ testing/helper/test-register: testing/helper/test-register.c util/attest.o \
 
 testing/helper/tpmsim-cmd: testing/helper/tpmsim-cmd.c
 	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS_BASE) $(TPMSIM_CFLAGS) -o $@ $< $(TPMSIM_LIBS) -lcrypto
+	$(Q)$(CC) $(CFLAGS_BASE) -Iinclude $(TPMSIM_CFLAGS) -o $@ $< $(TPMSIM_LIBS) -lcrypto
 
 testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o util/log.o util/hex.o util/malloc.o
 	@printf '  CC      $@\n'

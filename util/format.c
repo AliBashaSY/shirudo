@@ -7,9 +7,11 @@
 
 #include <stdio.h>
 
+#include <shirudo/misc.h>
+
 #include "format.h"
 
-void shirudo_human_size(uint64_t bytes, char *out, size_t out_cap)
+void shirudo_human_size(__u64 bytes, char *out, size_t out_cap)
 {
 	double v = (double)bytes;
 	const char *suf = "B";
@@ -25,7 +27,7 @@ void shirudo_human_size(uint64_t bytes, char *out, size_t out_cap)
 		suf = "K";
 	} else {
 		snprintf(out, out_cap, "%llu%s",
-			 (unsigned long long)bytes, suf);
+			 (__u64)bytes, suf);
 		return;
 	}
 	if (v >= 100.0)

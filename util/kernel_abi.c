@@ -11,7 +11,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -20,6 +19,8 @@
 
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
+
+#include <shirudo/misc.h>
 
 #include "kernel_abi.h"
 
@@ -38,7 +39,7 @@ static int abi_fail(char *detail, size_t detail_sz, const char *fmt, ...)
 	return -EOPNOTSUPP;
 }
 
-static const struct btf_type *unwrap_type(const struct btf *btf, uint32_t id)
+static const struct btf_type *unwrap_type(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t;
 	int i;
@@ -57,10 +58,10 @@ static const struct btf_type *unwrap_type(const struct btf *btf, uint32_t id)
 static const struct btf_member *find_member(const struct btf *btf,
 					    const struct btf_type *t,
 					    const char *name,
-					    uint32_t *index)
+					    __u32 *index)
 {
 	const struct btf_member *members = btf_members(t);
-	uint32_t i;
+	__u32 i;
 
 	for (i = 0; i < btf_vlen(t); i++) {
 		const char *member_name =
@@ -74,14 +75,14 @@ static const struct btf_member *find_member(const struct btf *btf,
 	return NULL;
 }
 
-static bool is_unsigned_int(const struct btf_type *t, uint32_t bytes)
+static bool is_unsigned_int(const struct btf_type *t, __u32 bytes)
 {
 	return t && btf_is_int(t) && t->size == bytes &&
 	       btf_int_offset(t) == 0 && btf_int_bits(t) == bytes * 8 &&
 	       !(btf_int_encoding(t) & BTF_INT_SIGNED);
 }
 
-static bool is_signed_int(const struct btf_type *t, uint32_t bytes)
+static bool is_signed_int(const struct btf_type *t, __u32 bytes)
 {
 	return t && btf_is_int(t) && t->size == bytes &&
 	       btf_int_offset(t) == 0 && btf_int_bits(t) == bytes * 8 &&
@@ -102,7 +103,7 @@ int shirudo_kernel_abi_validate_btf(const struct btf *btf,
 	const struct btf_type *map, *aux, *sha_type, *elem_type;
 	const struct btf_type *excl_type, *sig_type, *member_type;
 	const struct btf_array *array;
-	uint32_t member_idx;
+	__u32 member_idx;
 	int map_id, aux_id;
 
 	if (detail && detail_sz)
@@ -115,7 +116,7 @@ int shirudo_kernel_abi_validate_btf(const struct btf *btf,
 	if (map_id < 0)
 		return abi_fail(detail, detail_sz,
 				"kernel BTF has no struct bpf_map; boot a Shirudo-patched kernel");
-	map = btf__type_by_id(btf, (uint32_t)map_id);
+	map = btf__type_by_id(btf, (__u32)map_id);
 	if (!map)
 		return abi_fail(detail, detail_sz,
 				"kernel BTF cannot resolve struct bpf_map");
@@ -158,7 +159,7 @@ int shirudo_kernel_abi_validate_btf(const struct btf *btf,
 	if (aux_id < 0)
 		return abi_fail(detail, detail_sz,
 				"kernel BTF has no struct bpf_prog_aux; boot a Shirudo-patched kernel");
-	aux = btf__type_by_id(btf, (uint32_t)aux_id);
+	aux = btf__type_by_id(btf, (__u32)aux_id);
 	if (!aux)
 		return abi_fail(detail, detail_sz,
 				"kernel BTF cannot resolve struct bpf_prog_aux");

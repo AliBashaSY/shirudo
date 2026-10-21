@@ -31,6 +31,8 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
+
 #include "builtin.h"
 #include "util/chain.h"
 #include "util/config.h"
@@ -109,25 +111,25 @@ static const char *flag_str(const struct shirudo_upatch *u)
 	return shirudo_upatch_is_unload(u) ? "UNLOAD-directive" : "LOAD";
 }
 
-static const char *decoder_language_str(uint32_t language)
+static const char *decoder_language_str(__u32 language)
 {
 	return language == SHIRUDO_UPATCH_DECODER_LANG_LUA ? "lua" : "unknown";
 }
 
-static const char *decoder_input_str(uint32_t input_format)
+static const char *decoder_input_str(__u32 input_format)
 {
 	return input_format == SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 ?
 		"shirudo.map.v1" : "unknown";
 }
 
-static const char *decoder_signal_str(uint32_t signal)
+static const char *decoder_signal_str(__u32 signal)
 {
 	return signal == SHIRUDO_UPATCH_DECODER_EXPORT_LOG ? "log" :
 		signal == SHIRUDO_UPATCH_DECODER_EXPORT_METRIC ? "metric" :
 		"unknown";
 }
 
-static int print_sha256_hex(const unsigned char hash[32])
+static int print_sha256_hex(const __u8 hash[32])
 {
 	char hex[65];
 
@@ -339,9 +341,9 @@ static int cmd_upatch_info(int argc, const char **argv)
 		shirudo_json_kv_int(&e, "metadata_len", u.hdr.metadata_len);
 		shirudo_json_kv_int(&e, "data_len", u.hdr.data_len);
 		shirudo_json_kv_int(&e, "log_buf_sz", u.hdr.log_buf_sz);
-		shirudo_json_kv_int(&e, "file_size", (int64_t)u.map_size);
+		shirudo_json_kv_int(&e, "file_size", (__s64)u.map_size);
 		shirudo_json_arr_open(&e, "decoders");
-		for (uint32_t j = 0; j < u.nr_decoders; j++) {
+		for (__u32 j = 0; j < u.nr_decoders; j++) {
 			struct shirudo_upatch_decoder_view d;
 
 			if (shirudo_upatch_decoder_view(&u, j, &d))
@@ -406,7 +408,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	if (!shirudo_upatch_has_decoders(&u)) {
 		printf("  (none)\n");
 	} else {
-		for (uint32_t j = 0; j < u.nr_decoders; j++) {
+		for (__u32 j = 0; j < u.nr_decoders; j++) {
 			struct shirudo_upatch_decoder_view d;
 
 			if (shirudo_upatch_decoder_view(&u, j, &d))
@@ -618,26 +620,26 @@ out:
  */
 
 struct shirudo_loader_ctx {
-	uint32_t	sz;
-	uint32_t	flags;
-	uint32_t	log_level;
-	uint32_t	log_size;
-	uint64_t	log_buf;
+	__u32		sz;
+	__u32		flags;
+	__u32		log_level;
+	__u32		log_size;
+	__u64		log_buf;
 };
 
 struct shirudo_map_desc {
 	int		map_fd;
-	uint32_t	max_entries;
-	uint64_t	initial_value;
+	__u32		max_entries;
+	__u64		initial_value;
 };
 
 struct shirudo_prog_desc {
 	int		prog_fd;
 };
 
-static int loader_map_create(const char *name, uint32_t value_size,
+static int loader_map_create(const char *name, __u32 value_size,
 			     const void *excl_prog_hash,
-			     uint32_t excl_prog_hash_sz)
+			     __u32 excl_prog_hash_sz)
 {
 	union bpf_attr attr = {};
 	long fd;
@@ -646,7 +648,7 @@ static int loader_map_create(const char *name, uint32_t value_size,
 	attr.key_size = 4;
 	attr.value_size = value_size ? value_size : 4;
 	attr.max_entries = 1;
-	attr.excl_prog_hash = (uint64_t)(uintptr_t)excl_prog_hash;
+	attr.excl_prog_hash = (__u64)(uintptr_t)excl_prog_hash;
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
 	memcpy(attr.map_name, name, strnlen(name, sizeof(attr.map_name)));
 
@@ -654,16 +656,16 @@ static int loader_map_create(const char *name, uint32_t value_size,
 	return (int)fd;
 }
 
-static int loader_map_update(int map_fd, const void *value, uint32_t value_sz)
+static int loader_map_update(int map_fd, const void *value, __u32 value_sz)
 {
 	union bpf_attr attr = {};
-	uint8_t zero[4] = {};
-	uint32_t key = 0;
+	__u8 zero[4] = {};
+	__u32 key = 0;
 	long ret;
 
 	attr.map_fd = map_fd;
-	attr.key = (uint64_t)(uintptr_t)&key;
-	attr.value = (uint64_t)(uintptr_t)(value_sz ? value : zero);
+	attr.key = (__u64)(uintptr_t)&key;
+	attr.value = (__u64)(uintptr_t)(value_sz ? value : zero);
 	attr.flags = 0;
 	ret = syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 	return (int)ret;
@@ -681,8 +683,8 @@ static int loader_map_freeze(int map_fd)
 
 static int prog_load_signed(const struct bpf_insn *insns, size_t insn_cnt,
 			    const char *prog_name,
-			    const void *signature, uint32_t signature_sz,
-			    int32_t keyring_id, int loader_map_fd,
+			    const void *signature, __u32 signature_sz,
+			    __s32 keyring_id, int loader_map_fd,
 			    char *log_buf, size_t log_sz)
 {
 	union bpf_attr attr = {};
@@ -690,17 +692,17 @@ static int prog_load_signed(const struct bpf_insn *insns, size_t insn_cnt,
 	long fd;
 
 	attr.prog_type = BPF_PROG_TYPE_SYSCALL;
-	attr.insn_cnt = (uint32_t)insn_cnt;
-	attr.insns = (uint64_t)(uintptr_t)insns;
-	attr.license = (uint64_t)(uintptr_t)"Dual BSD/GPL";
+	attr.insn_cnt = (__u32)insn_cnt;
+	attr.insns = (__u64)(uintptr_t)insns;
+	attr.license = (__u64)(uintptr_t)"Dual BSD/GPL";
 	attr.prog_flags = BPF_F_SLEEPABLE;
 	attr.log_level = log_buf ? 1 : 0;
-	attr.log_size = (uint32_t)log_sz;
-	attr.log_buf = (uint64_t)(uintptr_t)log_buf;
-	attr.signature = (uint64_t)(uintptr_t)signature;
+	attr.log_size = (__u32)log_sz;
+	attr.log_buf = (__u64)(uintptr_t)log_buf;
+	attr.signature = (__u64)(uintptr_t)signature;
 	attr.signature_size = signature_sz;
 	attr.keyring_id = keyring_id;
-	attr.fd_array = (uint64_t)(uintptr_t)fd_array;
+	attr.fd_array = (__u64)(uintptr_t)fd_array;
 	/*
 	 * fd_array_cnt makes the verifier resolve the exclusive metadata
 	 * map up front and fold its frozen contents into the signed buffer
@@ -722,7 +724,7 @@ static int prog_attach_raw_tp(int prog_fd)
 	long fd;
 
 	attr.raw_tracepoint.name = 0;
-	attr.raw_tracepoint.prog_fd = (uint32_t)prog_fd;
+	attr.raw_tracepoint.prog_fd = (__u32)prog_fd;
 	fd = syscall(__NR_bpf, BPF_RAW_TRACEPOINT_OPEN, &attr, sizeof(attr));
 	return fd >= 0 ? (int)fd : -errno;
 }
@@ -735,7 +737,7 @@ static int prog_attach_btf_link(int prog_fd, enum bpf_attach_type attach_type)
 	union bpf_attr attr = {};
 	long fd;
 
-	attr.link_create.prog_fd = (uint32_t)prog_fd;
+	attr.link_create.prog_fd = (__u32)prog_fd;
 	attr.link_create.target_fd = 0;
 	attr.link_create.attach_type = attach_type;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
@@ -752,7 +754,7 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 	const char *name;
 	void *recs;
 	size_t recs_sz;
-	uint32_t len;
+	__u32 len;
 	int rc = 0;
 
 	if (!out || cap == 0)
@@ -770,7 +772,7 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 
 	info.nr_func_info = base->nr_func_info;
 	info.func_info_rec_size = base->func_info_rec_size;
-	info.func_info = (uint64_t)(uintptr_t)recs;
+	info.func_info = (__u64)(uintptr_t)recs;
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
 		rc = -errno;
@@ -853,7 +855,7 @@ static int prog_attach_cgroup_skb_fallback(int prog_fd,
 static int prog_attach_default(int prog_fd)
 {
 	struct bpf_prog_info info = {};
-	uint32_t info_len = sizeof(info);
+	__u32 info_len = sizeof(info);
 	enum bpf_attach_type attach_type;
 
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &info_len) != 0)
@@ -882,8 +884,8 @@ static int prog_attach_cgroup_skb(int prog_fd, enum bpf_attach_type attach_type)
 	if (cgroup_fd < 0)
 		return -errno;
 
-	attr.link_create.prog_fd = (uint32_t)prog_fd;
-	attr.link_create.target_fd = (uint32_t)cgroup_fd;
+	attr.link_create.prog_fd = (__u32)prog_fd;
+	attr.link_create.target_fd = (__u32)cgroup_fd;
 	attr.link_create.attach_type = attach_type;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
 	rc = fd >= 0 ? (int)fd : -errno;
@@ -939,7 +941,7 @@ static int determine_kprobe_retprobe_bit(void)
 			     "config:%d\n");
 }
 
-static int perf_event_open_kprobe(const char *target, uint64_t offset,
+static int perf_event_open_kprobe(const char *target, __u64 offset,
 				  bool retprobe)
 {
 	struct perf_event_attr attr = {};
@@ -950,8 +952,8 @@ static int perf_event_open_kprobe(const char *target, uint64_t offset,
 	if (type < 0)
 		return type;
 	attr.size = sizeof(attr);
-	attr.type = (uint32_t)type;
-	attr.config1 = (uint64_t)(uintptr_t)target;
+	attr.type = (__u32)type;
+	attr.config1 = (__u64)(uintptr_t)target;
 	attr.config2 = offset;
 	if (retprobe) {
 		bit = determine_kprobe_retprobe_bit();
@@ -973,30 +975,30 @@ static int prog_attach_perf_event(int prog_fd, int perf_fd)
 	union bpf_attr attr = {};
 	long fd;
 
-	attr.link_create.prog_fd = (uint32_t)prog_fd;
-	attr.link_create.target_fd = (uint32_t)perf_fd;
+	attr.link_create.prog_fd = (__u32)prog_fd;
+	attr.link_create.target_fd = (__u32)perf_fd;
 	attr.link_create.attach_type = BPF_PERF_EVENT;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
 	return fd >= 0 ? (int)fd : -errno;
 }
 
 struct shirudo_prog_spec {
-	uint32_t role;
-	uint32_t kind;
-	uint64_t offset;
+	__u32 role;
+	__u32 kind;
+	__u64 offset;
 	char target[SHIRUDO_UPATCH_ATTACH_TARGET_MAX];
 	char map[SHIRUDO_UPATCH_PROG_MAP_MAX];
 	char *uprobe_path;
-	uint32_t uprobe_path_len;
-	uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
-	uint32_t build_id_len;
-	uint64_t *uprobe_offsets;
-	uint32_t nr_uprobe_offsets;
+	__u32 uprobe_path_len;
+	__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u32 build_id_len;
+	__u64 *uprobe_offsets;
+	__u32 nr_uprobe_offsets;
 	int target_fd;
 	struct stat target_stat;
 };
 
-static const char *attach_kind_name(uint32_t kind)
+static const char *attach_kind_name(__u32 kind)
 {
 	switch (kind) {
 	case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
@@ -1021,9 +1023,9 @@ static const char *attach_kind_name(uint32_t kind)
 }
 
 static void prog_specs_free(struct shirudo_prog_spec *specs,
-			    uint32_t nr_progs)
+			    __u32 nr_progs)
 {
-	uint32_t i;
+	__u32 i;
 
 	if (!specs)
 		return;
@@ -1038,19 +1040,19 @@ static void prog_specs_free(struct shirudo_prog_spec *specs,
 	xfree(specs, (size_t)nr_progs * sizeof(*specs));
 }
 
-static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
-			    uint32_t nr_progs,
+static int prog_specs_parse(const void *metadata, __u32 metadata_len,
+			    __u32 nr_progs,
 			    struct shirudo_prog_spec **out)
 {
 	struct shirudo_upatch_prog_metadata md;
 	struct shirudo_prog_spec *specs = NULL;
-	const unsigned char *cursor, *end;
+	const __u8 *cursor, *end;
 	size_t base_len;
-	uint32_t magic, version, count, i, nr_uprobes = 0;
+	__u32 magic, version, count, i, nr_uprobes = 0;
 	int rc = -EINVAL;
 
 	*out = NULL;
-	if (!metadata || metadata_len < sizeof(uint32_t))
+	if (!metadata || metadata_len < sizeof(__u32))
 		return -EINVAL;
 	memcpy(&magic, metadata, sizeof(magic));
 	magic = le32toh(magic);
@@ -1081,9 +1083,9 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 	for (i = 0; i < nr_progs; i++) {
 		struct shirudo_upatch_prog_entry prog;
 		struct shirudo_prog_spec *spec = &specs[i];
-		uint32_t role, kind;
+		__u32 role, kind;
 
-		memcpy(&prog, (const unsigned char *)metadata + sizeof(md) +
+		memcpy(&prog, (const __u8 *)metadata + sizeof(md) +
 		       (size_t)i * sizeof(prog), sizeof(prog));
 		role = le32toh(prog.role);
 		switch (role) {
@@ -1162,14 +1164,14 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 		return 0;
 	}
 
-	cursor = (const unsigned char *)metadata + base_len;
-	end = (const unsigned char *)metadata + metadata_len;
+	cursor = (const __u8 *)metadata + base_len;
+	end = (const __u8 *)metadata + metadata_len;
 	if ((size_t)(end - cursor) <
 	    sizeof(struct shirudo_upatch_uprobe_targets))
 		goto out;
 	{
 		struct shirudo_upatch_uprobe_targets targets;
-		uint32_t nr_targets;
+		__u32 nr_targets;
 
 		memcpy(&targets, cursor, sizeof(targets));
 		cursor += sizeof(targets);
@@ -1184,7 +1186,7 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 		for (i = 0; i < nr_targets; i++) {
 			struct shirudo_upatch_uprobe_target record;
 			struct shirudo_prog_spec *spec;
-			uint32_t prog_idx, path_len, build_id_len, nr_offsets, j;
+			__u32 prog_idx, path_len, build_id_len, nr_offsets, j;
 			size_t payload_len;
 
 			if ((size_t)(end - cursor) < sizeof(record))
@@ -1206,7 +1208,7 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 			    nr_offsets > SHIRUDO_UPATCH_UPROBE_OFFSETS_MAX)
 				goto out;
 			payload_len = (size_t)path_len + build_id_len +
-				      (size_t)nr_offsets * sizeof(uint64_t);
+				      (size_t)nr_offsets * sizeof(__u64);
 			if ((size_t)(end - cursor) < payload_len ||
 			    cursor[0] != '/' || memchr(cursor, '\0', path_len))
 				goto out;
@@ -1230,7 +1232,7 @@ static int prog_specs_parse(const void *metadata, uint32_t metadata_len,
 			}
 			spec->nr_uprobe_offsets = nr_offsets;
 			for (j = 0; j < nr_offsets; j++) {
-				uint64_t offset;
+				__u64 offset;
 
 				memcpy(&offset, cursor, sizeof(offset));
 				cursor += sizeof(offset);
@@ -1256,14 +1258,14 @@ out:
 }
 
 static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
-				  uint32_t nr_progs)
+				  __u32 nr_progs)
 {
-	uint32_t i;
+	__u32 i;
 
 	for (i = 0; i < nr_progs; i++) {
 		struct shirudo_prog_spec *spec = &specs[i];
-		uint8_t build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
-		uint32_t build_id_len = 0;
+		__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+		__u32 build_id_len = 0;
 		char proc_path[64];
 		struct stat opened_stat;
 		int path_fd, fd, rc;
@@ -1297,8 +1299,8 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 			close(fd);
 			return -ESTALE;
 		}
-		for (uint32_t j = 0; j < spec->nr_uprobe_offsets; j++) {
-			if (spec->uprobe_offsets[j] >= (uint64_t)opened_stat.st_size) {
+		for (__u32 j = 0; j < spec->nr_uprobe_offsets; j++) {
+			if (spec->uprobe_offsets[j] >= (__u64)opened_stat.st_size) {
 				close(fd);
 				return -ERANGE;
 			}
@@ -1327,13 +1329,13 @@ static int prog_attach_uprobe_multi(int prog_fd,
 	if (spec->target_fd < 0 || !spec->uprobe_path ||
 	    !spec->uprobe_offsets || !spec->nr_uprobe_offsets)
 		return -EINVAL;
-	attr.link_create.prog_fd = (uint32_t)prog_fd;
+	attr.link_create.prog_fd = (__u32)prog_fd;
 	attr.link_create.attach_type = BPF_TRACE_UPROBE_MULTI;
 	attr.link_create.uprobe_multi.offsets =
-		(uint64_t)(uintptr_t)spec->uprobe_offsets;
+		(__u64)(uintptr_t)spec->uprobe_offsets;
 	attr.link_create.uprobe_multi.cnt = spec->nr_uprobe_offsets;
 	attr.link_create.uprobe_multi.flags = BPF_F_UPROBE_MULTI_PATH_FD;
-	attr.link_create.uprobe_multi.path_fd = (uint32_t)spec->target_fd;
+	attr.link_create.uprobe_multi.path_fd = (__u32)spec->target_fd;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
 	return fd >= 0 ? (int)fd : -errno;
 }
@@ -1377,8 +1379,8 @@ static int obj_pin(int fd, const char *path)
 	union bpf_attr attr = {};
 	long ret;
 
-	attr.pathname = (uint64_t)(uintptr_t)path;
-	attr.bpf_fd = (uint32_t)fd;
+	attr.pathname = (__u64)(uintptr_t)path;
+	attr.bpf_fd = (__u32)fd;
 	ret = syscall(__NR_bpf, BPF_OBJ_PIN, &attr, sizeof(attr));
 	return ret >= 0 ? 0 : -errno;
 }
@@ -1394,9 +1396,9 @@ static int mkdir_if_absent(const char *path, mode_t mode, bool *made)
 }
 
 static void count_attach_progs(const struct shirudo_prog_spec *specs,
-			       uint32_t nr_progs, uint32_t *out)
+			       __u32 nr_progs, __u32 *out)
 {
-	uint32_t i, n = 0;
+	__u32 i, n = 0;
 
 	for (i = 0; i < nr_progs; i++) {
 		if (specs[i].role == SHIRUDO_UPATCH_PROG_ROLE_ATTACH)
@@ -1408,7 +1410,7 @@ static void count_attach_progs(const struct shirudo_prog_spec *specs,
 static int prog_pin_path(char *pin, size_t sz, const char *dir,
 			 const char *serializers_dir,
 			 const struct shirudo_prog_spec *spec,
-			 uint32_t attach_count, uint32_t attach_idx)
+			 __u32 attach_count, __u32 attach_idx)
 {
 	int n;
 
@@ -1429,13 +1431,13 @@ static int prog_pin_path(char *pin, size_t sz, const char *dir,
  * archived nor measured, so none of its programs may stay attached.
  */
 static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
-				size_t prog_desc_off, uint32_t nr_progs,
+				size_t prog_desc_off, __u32 nr_progs,
 				const char *name,
 				const struct shirudo_prog_spec *specs)
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
-	uint32_t i, attach_count = 0, attach_seen = 0;
+	__u32 i, attach_count = 0, attach_seen = 0;
 	bool made_dir = false, made_serializers = false;
 	char pin[PATH_MAX + 32];
 	bool *made = NULL;
@@ -1557,17 +1559,17 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 			i, attach_kind_name(spec->kind), pin);
 	}
 	if (test_fd >= 0) {
-		uint64_t init_ctx[2] = {};
-		uint32_t retval = 0;
+		__u64 init_ctx[2] = {};
+		__u32 retval = 0;
 
 		/* A zero context is the load-time arena initialization call. */
 		rc = shirudo_prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
 					   &retval);
-		if (rc || (int32_t)retval < 0) {
+		if (rc || (__s32)retval < 0) {
 			pr_err("initialize test-run arena: %s",
-			       rc ? strerror(-rc) : strerror(-(int32_t)retval));
+			       rc ? strerror(-rc) : strerror(-(__s32)retval));
 			if (!rc)
-				rc = (int32_t)retval;
+				rc = (__s32)retval;
 			goto out;
 		}
 	}
@@ -1598,12 +1600,12 @@ out:
  * in path components, so libbpf's .bss, .data and .rodata are skipped.
  */
 static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
-			   uint32_t nr_maps, const char *name)
+			   __u32 nr_maps, const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
 	char pin[PATH_MAX + 32];
-	uint32_t i;
+	__u32 i;
 	int rc;
 
 	if (nr_maps == 0)
@@ -1629,7 +1631,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 				       sizeof(struct shirudo_loader_ctx) +
 				       (size_t)i * sizeof(*md));
 		struct bpf_map_info info = {};
-		uint32_t info_len = sizeof(info);
+		__u32 info_len = sizeof(info);
 		struct stat st;
 		int err;
 
@@ -1659,7 +1661,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 			continue;
 		}
 		pr_info("pinned map %u (%s, type=%u) -> %s",
-			i, info.name, (unsigned int)info.type, pin);
+			i, info.name, (__u32)info.type, pin);
 	}
 	return 0;
 }
@@ -1669,7 +1671,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
  * guard. The load stands, so a failure is not fatal, but it leaves the
  * upatch un-unloadable through the normal path: an error, not a warning.
  */
-static void set_pin_payload(const char *name, const uint8_t payload[32])
+static void set_pin_payload(const char *name, const __u8 payload[32])
 {
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
@@ -1685,7 +1687,7 @@ static void set_pin_payload(const char *name, const uint8_t payload[32])
 		       dir, strerror(errno));
 }
 
-static int get_pin_payload(const char *name, uint8_t out[32])
+static int get_pin_payload(const char *name, __u8 out[32])
 {
 	char dir[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
@@ -1766,11 +1768,11 @@ static int trust_anchor_keyring(key_serial_t *keyring,
  * upatch in one process.
  */
 static void close_loader_fds(const struct shirudo_loader_ctx *cx,
-			     uint32_t nr_maps, uint32_t nr_progs)
+			     __u32 nr_maps, __u32 nr_progs)
 {
 	const struct shirudo_map_desc *md = (const void *)(cx + 1);
 	const struct shirudo_prog_desc *pd = (const void *)(md + nr_maps);
-	uint32_t i;
+	__u32 i;
 
 	for (i = 0; i < nr_maps; i++) {
 		if (md[i].map_fd > 0)
@@ -1797,7 +1799,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	size_t insn_cnt, ctx_sz = 0, prog_desc_off;
 	int prog_fd = -1, map_fd = -1, rc;
 	struct shirudo_loader_ctx *cx = NULL;
-	uint32_t retval = 0;
+	__u32 retval = 0;
 
 	vlog = xmalloc(SHIRUDO_VERIFIER_LOG_MAX);
 	if (!vlog) {
@@ -1885,7 +1887,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * value that is not SHA-256(insns || data) is refused even when signed.
 	 */
 	{
-		uint8_t content_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 content_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 
 		shirudo_sha256_2(insns, u.hdr.loader_insns_len,
 				 data, u.hdr.data_len, content_digest);
@@ -1948,7 +1950,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * covers insns || data.
 	 */
 	{
-		uint8_t loader_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 loader_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 
 		shirudo_sha256(insns, u.hdr.loader_insns_len, loader_digest);
 		map_fd = loader_map_create("__loader.map", u.hdr.data_len,
@@ -1988,7 +1990,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	vlog[0] = '\0';
 	prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
 				   sig, u.hdr.signature_len,
-				   (int32_t)keyring, map_fd,
+				   (__s32)keyring, map_fd,
 				   vlog, SHIRUDO_VERIFIER_LOG_MAX);
 	if (prog_fd < 0) {
 		int e = errno;
@@ -2037,7 +2039,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 	vlog[0] = '\0';
-	cx->sz = (uint32_t)ctx_sz;
+	cx->sz = (__u32)ctx_sz;
 	/*
 	 * Keep inner verifier diagnostics enabled without bpftool's full
 	 * accepted-program trace; the verbose mode can make valid payload
@@ -2045,9 +2047,9 @@ static int upatch_apply(const char *path, bool verify_only,
 	 */
 	cx->log_level = 1;
 	cx->log_size = SHIRUDO_VERIFIER_LOG_MAX;
-	cx->log_buf = (uint64_t)(uintptr_t)vlog;
+	cx->log_buf = (__u64)(uintptr_t)vlog;
 
-	rc = shirudo_prog_test_run(prog_fd, cx, (uint32_t)ctx_sz, &retval);
+	rc = shirudo_prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
 	if (rc) {
 		pr_err("BPF_PROG_TEST_RUN: %s", strerror(errno));
 		if (vlog[0])
@@ -2058,20 +2060,20 @@ static int upatch_apply(const char *path, bool verify_only,
 		rc = 1;
 		goto out;
 	}
-	if ((int32_t)retval < 0) {
-		pr_err("loader returned error: %d", (int32_t)retval);
+	if ((__s32)retval < 0) {
+		pr_err("loader returned error: %d", (__s32)retval);
 		fprintf(stderr, "loader runtime log (len=%zu):\n%.4096s\n",
 			strnlen(vlog, SHIRUDO_VERIFIER_LOG_MAX), vlog);
 		rep_fail(rep, "payload_load", "verifier_rejected",
-			 -(int32_t)retval, "inner loader returned error");
+			 -(__s32)retval, "inner loader returned error");
 		if (rep)
-			rep->loader_return = (int32_t)retval;
+			rep->loader_return = (__s32)retval;
 		shirudo_report_set_log(rep, vlog);
 		rc = 1;
 		goto out;
 	}
 
-	pr_info("loader ok, retval=%d (maps=%u progs=%u)", (int32_t)retval,
+	pr_info("loader ok, retval=%d (maps=%u progs=%u)", (__s32)retval,
 		u.hdr.nr_maps, u.hdr.nr_progs);
 
 	/*
@@ -2108,7 +2110,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	pr_audit("upatch load: name=%s keyring=%d progs=%u", upatch_name,
 		 (int)keyring, u.hdr.nr_progs);
 	if (rep)
-		rep->loader_return = (int32_t)retval;
+		rep->loader_return = (__s32)retval;
 	rc = 0;
 out:
 	prog_specs_free(prog_specs, u.hdr.nr_progs);
@@ -2137,7 +2139,7 @@ int shirudo_upatch_apply(const char *path)
 static int upatch_preflight(const char *expect_chain,
 			    struct shirudo_op_report *rep)
 {
-	uint8_t want[SHIRUDO_CHAIN_DIGEST_LEN], have[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8 want[SHIRUDO_CHAIN_DIGEST_LEN], have[SHIRUDO_CHAIN_DIGEST_LEN];
 	char have_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1];
 	char abi_detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX];
 	key_serial_t keyring;
@@ -2205,7 +2207,7 @@ static int eventlog_room(struct shirudo_op_report *rep, const char *op)
 	shirudo_config_load(&cfg);
 	if (shirudo_eventlog_would_exceed(cfg.eventlog_max_bytes)) {
 		pr_err("upatch %s: eventlog %s would exceed "
-		       "eventlog.max_bytes=%lu; refusing -- no load, no extend",
+		       "eventlog.max_bytes=%llu; refusing -- no load, no extend",
 		       op, shirudo_eventlog_path(), cfg.eventlog_max_bytes);
 		rep_fail(rep, "pre_flight", "eventlog_full", ENOSPC,
 			 "eventlog would exceed eventlog.max_bytes");
@@ -2236,8 +2238,8 @@ static int version_gate(const char *expect_version_id, bool no_version_check,
 }
 
 static int append_upatch_event(const char *type, const char *name,
-			       const uint8_t payload[32],
-			       const uint8_t event[32], const char *reason)
+			       const __u8 payload[32],
+			       const __u8 event[32], const char *reason)
 {
 	char buf[4096];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -2280,10 +2282,10 @@ static int append_upatch_event(const char *type, const char *name,
  */
 static int upatch_chain_event(const char *tag, const char *type,
 			      const char *op, const char *name,
-			      const uint8_t payload[32], const char *reason,
+			      const __u8 payload[32], const char *reason,
 			      char out_chain[65])
 {
-	uint8_t event[32], chain[32];
+	__u8 event[32], chain[32];
 	char chain_hex[65];
 	int rc;
 
@@ -2598,7 +2600,7 @@ static int remove_pin_dir(const char *name)
  */
 static int stage_upatch(const char *src, char *staged, size_t sz)
 {
-	unsigned char *buf = NULL;
+	__u8 *buf = NULL;
 	size_t len = 0;
 	int rc;
 
@@ -2622,7 +2624,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	const char *file, *expect_chain, *expect_version_id, *report;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1] = {};
 	char staged[PATH_MAX] = {};
-	uint8_t payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false;
@@ -2735,7 +2737,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	const char *file, *expect_chain, *expect_version_id, *report;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1] = {};
 	char persisted[PATH_MAX];
-	uint8_t payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
+	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_unload", .phase = "done" };
 	bool no_precheck, no_version_check;
@@ -2820,8 +2822,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * case below.
 	 */
 	{
-		uint8_t zero[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
-		uint8_t live[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 zero[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
+		__u8 live[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 		int xrc;
 
 		if (memcmp(payload, zero, sizeof(payload)) == 0) {
@@ -2905,7 +2907,7 @@ done:
 
 int shirudo_upatch_purge(const char *name, const char *reason)
 {
-	uint8_t payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
+	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
 	struct shirudo_upatch u;
 	bool loaded;
@@ -2965,7 +2967,7 @@ int shirudo_upatch_remove(const char *path)
 struct li_entry {
 	const char	*file;	/* into the BTF string section */
 	const char	*src;
-	uint32_t	line;
+	__u32		line;
 };
 
 static int li_cmp(const void *a, const void *b)
@@ -2982,11 +2984,11 @@ static int li_cmp(const void *a, const void *b)
  * line_info is in instruction order, so a source line recurs and lines
  * come out of order; a source view wants unique lines sorted by file.
  */
-static uint32_t li_collect(const struct btf *btf, const void *recs,
-			   uint32_t rec_size, uint32_t n, struct li_entry **out)
+static __u32 li_collect(const struct btf *btf, const void *recs,
+			__u32 rec_size, __u32 n, struct li_entry **out)
 {
 	struct li_entry *e;
-	uint32_t i, c = 0, k;
+	__u32 i, c = 0, k;
 
 	*out = NULL;
 	if (!btf || !recs || n == 0 || rec_size < sizeof(struct bpf_line_info))
@@ -3026,10 +3028,10 @@ static uint32_t li_collect(const struct btf *btf, const void *recs,
 	return k;
 }
 
-static void dump_line_info_text(struct li_entry *ents, uint32_t k)
+static void dump_line_info_text(struct li_entry *ents, __u32 k)
 {
 	const char *last = NULL;
-	uint32_t i;
+	__u32 i;
 
 	if (k == 0) {
 		printf("  (no line info)\n");
@@ -3045,14 +3047,14 @@ static void dump_line_info_text(struct li_entry *ents, uint32_t k)
 }
 
 static void emit_line_info_json(struct shirudo_json_emit *e,
-				struct li_entry *ents, uint32_t k)
+				struct li_entry *ents, __u32 k)
 {
-	uint32_t i = 0;
+	__u32 i = 0;
 
 	shirudo_json_arr_open(e, "files");
 	while (i < k) {
 		const char *path = ents[i].file;
-		uint32_t j;
+		__u32 j;
 
 		shirudo_json_obj_open(e);
 		shirudo_json_kv_string(e, "path", path);
@@ -3095,7 +3097,7 @@ static int export_one_map(const char *upatch, const char *map,
 			  bool show_full, bool peek, bool print_detail)
 {
 	struct shirudo_map_view v = {};
-	uint32_t cap = (show_full || json_output || otel) ? 0 :
+	__u32 cap = (show_full || json_output || otel) ? 0 :
 		SHIRUDO_MAP_ENTRIES_DEFAULT;
 	int rc, ret = 0;
 
@@ -3121,7 +3123,7 @@ static int export_one_map(const char *upatch, const char *map,
 		}
 	}
 	if (otel) {
-		uint32_t decoder_signal;
+		__u32 decoder_signal;
 
 		rc = shirudo_upatch_decode_map_signal(&v, &decoder_signal);
 		if (!rc)
@@ -3219,7 +3221,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 			otel_opts.allow_insecure = true;
 		} else if (strncmp(a, "--otel-retries=", 15) == 0) {
 			char *end;
-			unsigned long value;
+			__u64 value;
 
 			if (retries_set || !a[15]) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
@@ -3232,7 +3234,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 				fprintf(stderr, "upatch map: --otel-retries must be 0..10\n");
 				return 2;
 			}
-			otel_opts.retries = (unsigned int)value;
+			otel_opts.retries = (__u32)value;
 			retries_set = true;
 		} else if (strncmp(a, "--s3-uri=", 9) == 0) {
 			if (otel_opts.s3_uri || !a[9]) {
@@ -3404,13 +3406,13 @@ static int cmd_upatch_map(int argc, const char **argv)
 
 struct upatch_get_ctx {
 	const char	*upatch;
-	uint32_t	prog_id;
+	__u32		prog_id;
 	char		location[160];
 	char		loaded_at[32];
 	char		payload[65];
 	struct li_entry	*ents;	/* sorted unique source lines */
-	uint32_t	n_ents;
-	uint32_t	n_recs;	/* raw line_info record count, for free() */
+	__u32		n_ents;
+	__u32		n_recs;	/* raw line_info record count, for free() */
 	struct btf	*btf;
 };
 
@@ -3432,7 +3434,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	struct btf *vbtf = NULL;
 	void *recs = NULL;
 	size_t recs_sz = 0;
-	uint32_t len, nr, rec_size, btf_id;
+	__u32 len, nr, rec_size, btf_id;
 	int link_fd = -1, prog_fd = -1, rc = 0;
 
 	c->upatch = want;
@@ -3492,7 +3494,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	memset(&info, 0, sizeof(info));
 	info.nr_line_info = nr;
 	info.line_info_rec_size = rec_size;
-	info.line_info = (uint64_t)(unsigned long)recs;
+	info.line_info = ptr_to_u64(recs);
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
 		rc = -errno;
@@ -3525,7 +3527,7 @@ static void age_from_ts(const char *ts, char *out, size_t cap)
 }
 
 static void render_one_map_text(const char *upatch, const char *map,
-				uint32_t cap)
+				__u32 cap)
 {
 	struct shirudo_map_view v = {};
 	int rc = shirudo_upatch_maps_read_flags(upatch, map, cap,
@@ -3543,7 +3545,7 @@ static void render_one_map_text(const char *upatch, const char *map,
 
 static void render_get_text(const struct upatch_get_ctx *c,
 			    const struct shirudo_map_summary *maps, size_t nm,
-			    uint32_t map_cap)
+			    __u32 map_cap)
 {
 	char age[16] = "";
 	size_t k;
@@ -3578,7 +3580,7 @@ static void render_get_text(const struct upatch_get_ctx *c,
 
 static int render_get_json(const struct upatch_get_ctx *c,
 			   const struct shirudo_map_summary *maps, size_t nm,
-			   uint32_t map_cap)
+			   __u32 map_cap)
 {
 	struct shirudo_json_emit e = {};
 	size_t cap = 64 * 1024 + 1024 * nm;
@@ -3655,7 +3657,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 	const char *want = NULL;
 	bool json = false, show_full = false;
 	size_t nm = 0;
-	uint32_t map_cap;
+	__u32 map_cap;
 	int rc, i;
 
 	for (i = 1; i < argc; i++) {

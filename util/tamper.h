@@ -7,13 +7,13 @@
 #ifndef SHIRUDO_UTIL_TAMPER_H
 #define SHIRUDO_UTIL_TAMPER_H
 
-#include <stdint.h>
+#include <shirudo/misc.h>
 
 #include "bpf/lib/shirudo_tamper.h"
 
 struct shirudo_tamper_counts {
-	uint64_t	count[SHIRUDO_TAMPER_MAX];
-	uint64_t	total;
+	__u64		count[SHIRUDO_TAMPER_MAX];
+	__u64		total;
 };
 
 const char *shirudo_tamper_name(enum shirudo_tamper_point point);

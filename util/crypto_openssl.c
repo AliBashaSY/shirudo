@@ -24,6 +24,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
+#include <shirudo/misc.h>
+
 #include "crypto.h"
 #include "log.h"
 #include "malloc.h"
@@ -73,9 +75,9 @@ int shirudo_sha256_update(struct shirudo_sha256_ctx *ctx,
 }
 
 int shirudo_sha256_final(struct shirudo_sha256_ctx *ctx,
-			 uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
+			 __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
-	unsigned int len = 0;
+	__u32 len = 0;
 	int rc;
 
 	if (!ctx || !ctx->impl || !out)
@@ -95,7 +97,7 @@ void shirudo_sha256_free(struct shirudo_sha256_ctx *ctx)
 }
 
 int shirudo_sha256_buffer(const void *data, size_t len,
-			  uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
+			  __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
 	struct shirudo_sha256_ctx ctx;
 	int rc;
@@ -110,24 +112,24 @@ int shirudo_sha256_buffer(const void *data, size_t len,
 	return rc;
 }
 
-int shirudo_base64_encode(const uint8_t *data, size_t len,
+int shirudo_base64_encode(const __u8 *data, size_t len,
 			  char *out, size_t out_sz)
 {
 	size_t need = 4 * ((len + 2) / 3) + 1;
 
 	if (!data || !out || out_sz < need || len > INT_MAX)
 		return -EINVAL;
-	if (EVP_EncodeBlock((unsigned char *)out, data, (int)len) < 0)
+	if (EVP_EncodeBlock((__u8 *)out, data, (int)len) < 0)
 		return -EIO;
 	out[need - 1] = '\0';
 	return 0;
 }
 
-int shirudo_ecdsa_p256_verify(const uint8_t x[32], const uint8_t y[32],
-			      const uint8_t digest[32],
-			      const uint8_t r[32], const uint8_t s[32])
+int shirudo_ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
+			      const __u8 digest[32],
+			      const __u8 r[32], const __u8 s[32])
 {
-	unsigned char point[65], *der = NULL;
+	__u8 point[65], *der = NULL;
 	EVP_PKEY_CTX *kctx = NULL, *vctx = NULL;
 	OSSL_PARAM params[3];
 	BIGNUM *br = NULL, *bs = NULL;
@@ -200,11 +202,11 @@ void shirudo_cert_free(struct shirudo_cert *cert)
  * marshal as a bare EVP_PKEY on older releases.
  */
 int shirudo_cert_pubkey_digest(const struct shirudo_cert *cert,
-			       uint8_t out[SHIRUDO_CRYPTO_SHA256_LEN])
+			       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
 {
-	unsigned char *der = NULL, *p;
+	__u8 *der = NULL, *p;
 	int der_len, encoded_len, rc = -EINVAL;
-	unsigned int len = 0;
+	__u32 len = 0;
 	X509_PUBKEY *spki;
 
 	if (!cert || !cert->impl || !out)
@@ -252,8 +254,8 @@ int shirudo_cert_key_algorithm(const struct shirudo_cert *cert,
  * with signedAttrs and SHA-512 or bare on OpenSSL 4, and an RSA one
  * verify through one call; ML-DSA needs libcrypto >= 3.5.
  */
-int shirudo_verify_detached(const uint8_t *payload, size_t payload_len,
-			    const uint8_t *signature, size_t signature_len,
+int shirudo_verify_detached(const __u8 *payload, size_t payload_len,
+			    const __u8 *signature, size_t signature_len,
 			    const struct shirudo_cert *cert)
 {
 	BIO *sig = NULL, *data = NULL, *out = NULL;
@@ -292,7 +294,7 @@ done:
 	return rc;
 }
 
-int shirudo_cms_signed_by(const uint8_t *signature, size_t signature_len,
+int shirudo_cms_signed_by(const __u8 *signature, size_t signature_len,
 			  const struct shirudo_cert *cert)
 {
 	STACK_OF(CMS_SignerInfo) *sis;
@@ -325,8 +327,8 @@ done:
 	return rc;
 }
 
-int shirudo_hmac_sha256(const uint8_t *key, size_t key_len,
-			const void *data, size_t len, uint8_t out[32])
+int shirudo_hmac_sha256(const __u8 *key, size_t key_len,
+			const void *data, size_t len, __u8 out[32])
 {
 	EVP_MAC_CTX *ctx = NULL;
 	OSSL_PARAM params[2];
@@ -350,12 +352,12 @@ int shirudo_hmac_sha256(const uint8_t *key, size_t key_len,
 	return rc;
 }
 
-int shirudo_aes128_cfb_encrypt(const uint8_t key[16], const uint8_t *in,
-			       size_t len, uint8_t *out)
+int shirudo_aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
+			       size_t len, __u8 *out)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	int n = 0, fin = 0, rc = -EIO;
-	uint8_t iv[16] = {};
+	__u8 iv[16] = {};
 
 	if (!ctx || len > INT_MAX)
 		goto out;
@@ -370,16 +372,16 @@ out:
 	return rc;
 }
 
-int shirudo_rsa_oaep_encrypt(const uint8_t *n, size_t n_len, uint32_t e,
+int shirudo_rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
 			     const void *label, size_t label_len,
-			     const uint8_t *in, size_t in_len,
-			     uint8_t *out, size_t cap, size_t *out_len)
+			     const __u8 *in, size_t in_len,
+			     __u8 *out, size_t cap, size_t *out_len)
 {
 	EVP_PKEY_CTX *kctx = NULL, *ectx = NULL;
 	BIGNUM *bn = NULL, *be = NULL;
 	OSSL_PARAM_BLD *bld = NULL;
 	OSSL_PARAM *params = NULL;
-	unsigned char *lbl = NULL;
+	__u8 *lbl = NULL;
 	EVP_PKEY *pkey = NULL;
 	int rc = -EIO;
 
@@ -427,14 +429,14 @@ out:
 	return rc;
 }
 
-int shirudo_ecdh_p256_ephemeral(const uint8_t x[32], const uint8_t y[32],
-				uint8_t eph_x[32], uint8_t eph_y[32],
-				uint8_t z[32])
+int shirudo_ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
+				__u8 eph_x[32], __u8 eph_y[32],
+				__u8 z[32])
 {
 	EVP_PKEY_CTX *kctx = NULL, *dctx = NULL;
 	EVP_PKEY *eph = NULL, *peer = NULL;
 	BIGNUM *bx = NULL, *by = NULL;
-	unsigned char point[65];
+	__u8 point[65];
 	OSSL_PARAM params[3];
 	size_t zlen = 32;
 	int rc = -EIO;
@@ -475,7 +477,7 @@ out:
 	return rc;
 }
 
-int shirudo_base64_decode(const char *in, size_t in_len, uint8_t *out,
+int shirudo_base64_decode(const char *in, size_t in_len, __u8 *out,
 			  size_t cap, size_t *out_len)
 {
 	EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
@@ -484,7 +486,7 @@ int shirudo_base64_decode(const char *in, size_t in_len, uint8_t *out,
 	if (!ctx || in_len > INT_MAX || cap < 3 * (in_len / 4) + 3)
 		goto out;
 	EVP_DecodeInit(ctx);
-	if (EVP_DecodeUpdate(ctx, out, &n, (const unsigned char *)in,
+	if (EVP_DecodeUpdate(ctx, out, &n, (const __u8 *)in,
 			     (int)in_len) < 0 ||
 	    EVP_DecodeFinal(ctx, out + n, &fin) < 0)
 		goto out;
@@ -495,10 +497,10 @@ out:
 	return rc;
 }
 
-int shirudo_cert_read_der(const uint8_t *der, size_t len,
+int shirudo_cert_read_der(const __u8 *der, size_t len,
 			  struct shirudo_cert *cert)
 {
-	const unsigned char *p = der;
+	const __u8 *p = der;
 
 	if (!der || !cert || len > LONG_MAX)
 		return -EINVAL;
@@ -526,7 +528,7 @@ int shirudo_cert_pubkey(const struct shirudo_cert *cert,
 			goto out;
 		out->rsa = true;
 		out->n_len = (size_t)BN_bn2bin(a, out->n);
-		out->e = (uint32_t)BN_get_word(b);
+		out->e = (__u32)BN_get_word(b);
 		rc = 0;
 	} else if (id == EVP_PKEY_EC) {
 		if (!EVP_PKEY_get_utf8_string_param(pk, OSSL_PKEY_PARAM_GROUP_NAME,

@@ -10,7 +10,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #include "tpm_wire.h"
 
@@ -42,7 +43,7 @@ int shirudo_eventlog_adopt_pending(void);
  * the register accumulates them. -ENOENT when this boot has no init
  * record, -EINVAL on a malformed line.
  */
-int shirudo_eventlog_replay(uint8_t out[SHIRUDO_TPM_DIGEST_LEN]);
+int shirudo_eventlog_replay(__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
 
 /*
  * What the last init record of this boot says about the register, and
@@ -50,17 +51,17 @@ int shirudo_eventlog_replay(uint8_t out[SHIRUDO_TPM_DIGEST_LEN]);
  * the last one names means the register was bound again.
  */
 struct shirudo_eventlog_init {
-	unsigned int	pcr;
+	__u32		pcr;
 	bool		initrd;		/* bound while the initrd ran */
-	uint8_t		pcr_before[SHIRUDO_TPM_DIGEST_LEN];
-	uint8_t		phase_before[SHIRUDO_TPM_DIGEST_LEN];
-	uint8_t		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		pcr_before[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		phase_before[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		name[SHIRUDO_TPM_NAME_LEN];
 	size_t		name_len;
-	uint8_t		anchor_digest[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		anchor_digest[SHIRUDO_TPM_DIGEST_LEN];
 	bool		have_reset_count;
-	uint32_t	reset_count;
-	unsigned int	records;	/* init records this boot */
-	unsigned int	records_epoch;	/* for this reset count */
+	__u32		reset_count;
+	__u32		records;	/* init records this boot */
+	__u32		records_epoch;	/* for this reset count */
 };
 
 int shirudo_eventlog_boot_init(struct shirudo_eventlog_init *out);
@@ -74,7 +75,7 @@ int shirudo_eventlog_boot_lines(int (*cb)(const char *line, size_t len,
  * must stay in lockstep, so a caller refuses the whole operation (no
  * PROG_LOAD, no extend, no append) when this returns 1.
  */
-int shirudo_eventlog_would_exceed(unsigned long max_bytes);
+int shirudo_eventlog_would_exceed(__u64 max_bytes);
 
 void shirudo_eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
 void shirudo_eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */

@@ -9,7 +9,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <stdio.h>
@@ -22,6 +22,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include "json.h"
@@ -60,34 +61,34 @@ static void resolve_map_location(struct shirudo_map_view *v)
 #define SHIRUDO_SERIAL_MAX_BYTES \
 	(SHIRUDO_SERIAL_MAX_CHUNKS * SHIRUDO_SERIAL_CHUNK_PAYLOAD)
 #define SHIRUDO_SERIAL_MAX_TOTAL_BYTES \
-	((uint64_t)SHIRUDO_SERIAL_MAX_PAGES * SHIRUDO_SERIAL_MAX_BYTES)
+	((__u64)SHIRUDO_SERIAL_MAX_PAGES * SHIRUDO_SERIAL_MAX_BYTES)
 
-bool shirudo_upatch_map_is_percpu(uint32_t type)
+bool shirudo_upatch_map_is_percpu(__u32 type)
 {
 	return type == BPF_MAP_TYPE_PERCPU_ARRAY ||
 	       type == BPF_MAP_TYPE_PERCPU_HASH ||
 	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
-static uint32_t map_value_stride(uint32_t type, uint32_t value_size)
+static __u32 map_value_stride(__u32 type, __u32 value_size)
 {
 	if (!shirudo_upatch_map_is_percpu(type))
 		return value_size;
 	return (value_size + 7U) & ~7U;
 }
 
-uint32_t shirudo_upatch_map_value_stride(const struct shirudo_map_view *v)
+__u32 shirudo_upatch_map_value_stride(const struct shirudo_map_view *v)
 {
 	return v->value_stride ? v->value_stride : v->value_size;
 }
 
-static bool is_array_type(uint32_t type)
+static bool is_array_type(__u32 type)
 {
 	return type == BPF_MAP_TYPE_ARRAY ||
 	       type == BPF_MAP_TYPE_PERCPU_ARRAY;
 }
 
-static bool is_hash_type(uint32_t type)
+static bool is_hash_type(__u32 type)
 {
 	return type == BPF_MAP_TYPE_HASH ||
 	       type == BPF_MAP_TYPE_PERCPU_HASH ||
@@ -95,7 +96,7 @@ static bool is_hash_type(uint32_t type)
 	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
-static void btf_type_name(struct btf *btf, uint32_t type_id,
+static void btf_type_name(struct btf *btf, __u32 type_id,
 			  char *dst, size_t dst_cap)
 {
 	const struct btf_type *t;
@@ -117,7 +118,7 @@ static void btf_type_name(struct btf *btf, uint32_t type_id,
 	 * label (e.g. unnamed PTR -> named STRUCT). Bounded loop.
 	 */
 	{
-		uint32_t id = type_id;
+		__u32 id = type_id;
 		int hops;
 
 		for (hops = 0; hops < 4; hops++) {
@@ -138,7 +139,7 @@ static void btf_type_name(struct btf *btf, uint32_t type_id,
 
 static char *fmt_alloc(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-static uint32_t btf_unwrap(const struct btf *btf, uint32_t id)
+static __u32 btf_unwrap(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t;
 	int hops;
@@ -167,7 +168,7 @@ static uint32_t btf_unwrap(const struct btf *btf, uint32_t id)
  * prefix; for typedefs and primitives the BTF name carries enough
  * context on its own (no prefix needed).
  */
-static const char *btf_kind_prefix(uint16_t kind)
+static const char *btf_kind_prefix(__u16 kind)
 {
 	switch (kind) {
 	case BTF_KIND_STRUCT:
@@ -183,7 +184,7 @@ static const char *btf_kind_prefix(uint16_t kind)
 	}
 }
 
-static void btf_type_signature_into(const struct btf *btf, uint32_t id,
+static void btf_type_signature_into(const struct btf *btf, __u32 id,
 				    char *buf, size_t cap, size_t *off,
 				    int depth);
 
@@ -213,14 +214,14 @@ static void append_indent(char *buf, size_t cap, size_t *off, int depth)
 		buf[*off] = '\0';
 }
 
-static void btf_type_signature_into(const struct btf *btf, uint32_t id,
+static void btf_type_signature_into(const struct btf *btf, __u32 id,
 				    char *buf, size_t cap, size_t *off,
 				    int depth)
 {
 	const struct btf_type *t;
 	const char *name;
-	uint16_t kind;
 	int i, vlen;
+	__u16 kind;
 
 	if (depth >= SHIRUDO_BTF_MAX_DEPTH || !btf || !id || *off >= cap)
 		return;
@@ -256,13 +257,13 @@ static void btf_type_signature_into(const struct btf *btf, uint32_t id,
 			 * recursing, to keep the signature single-screen.
 			 */
 			{
-				uint32_t mid = btf_unwrap(btf, m[i].type);
+				__u32 mid = btf_unwrap(btf, m[i].type);
 				const struct btf_type *mt = btf__type_by_id(btf, mid);
 				const char *mtype = mt ?
 						    btf__name_by_offset(btf,
 									mt->name_off) :
 						    NULL;
-				uint16_t mkind = mt ? BTF_INFO_KIND(mt->info)
+				__u16 mkind = mt ? BTF_INFO_KIND(mt->info)
 						    : 0;
 
 				append_str(buf, cap, off, btf_kind_prefix(mkind));
@@ -299,8 +300,8 @@ static void btf_type_signature_into(const struct btf *btf, uint32_t id,
 	append_str(buf, cap, off, name && name[0] ? name : "?");
 }
 
-static char *btf_format_value(const struct btf *btf, uint32_t type_id,
-			      const void *bytes, uint32_t bytes_size,
+static char *btf_format_value(const struct btf *btf, __u32 type_id,
+			      const void *bytes, __u32 bytes_size,
 			      int depth);
 
 static int strbuf_append_take(char **out, size_t *cap, size_t *off,
@@ -335,33 +336,33 @@ static int strbuf_append_take(char **out, size_t *cap, size_t *off,
 }
 
 static char *btf_format_int(const struct btf_type *t, const void *bytes,
-			    uint32_t bytes_size)
+			    __u32 bytes_size)
 {
-	uint32_t enc_word = *(const uint32_t *)(t + 1);
-	uint32_t bits = BTF_INT_BITS(enc_word);
-	uint32_t encoding = BTF_INT_ENCODING(enc_word);
+	__u32 enc_word = *(const __u32 *)(t + 1);
+	__u32 bits = BTF_INT_BITS(enc_word);
+	__u32 encoding = BTF_INT_ENCODING(enc_word);
 	bool is_signed = (encoding & BTF_INT_SIGNED) != 0;
-	uint8_t bytes_used = (uint8_t)((bits + 7) / 8);
+	__u8 bytes_used = (__u8)((bits + 7) / 8);
 
 	if (bytes_used == 0 || bytes_used > bytes_size || bytes_used > 8)
 		return fmt_alloc("?");
 	if (is_signed) {
-		uint64_t v = 0;
-		uint8_t i;
+		__u64 v = 0;
+		__u8 i;
 
-		/* Shifting into the sign bit of an int64_t is undefined. */
+		/* Shifting into the sign bit of an __s64 is undefined. */
 		for (i = 0; i < bytes_used; i++)
-			v |= (uint64_t)((const uint8_t *)bytes)[i] << (8 * i);
-		if (bits < 64 && (v & ((uint64_t)1 << (bits - 1))))
-			v |= ~(((uint64_t)1 << bits) - 1);
-		return fmt_alloc("%" PRId64, (int64_t)v);
+			v |= (__u64)((const __u8 *)bytes)[i] << (8 * i);
+		if (bits < 64 && (v & ((__u64)1 << (bits - 1))))
+			v |= ~(((__u64)1 << bits) - 1);
+		return fmt_alloc("%lld", (__s64)v);
 	} else {
-		uint64_t v = 0;
-		uint8_t i;
+		__u64 v = 0;
+		__u8 i;
 
 		for (i = 0; i < bytes_used; i++)
-			v |= (uint64_t)((const uint8_t *)bytes)[i] << (8 * i);
-		return fmt_alloc("%" PRIu64, v);
+			v |= (__u64)((const __u8 *)bytes)[i] << (8 * i);
+		return fmt_alloc("%llu", v);
 	}
 }
 
@@ -369,42 +370,42 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
  * A struct member declared with a bit width: BTF gives its offset and
  * width in bits, and the value is no whole number of bytes.
  */
-static char *btf_format_bitfield(const struct btf *btf, uint32_t type_id,
-				 const void *bytes, uint32_t bytes_size,
-				 uint32_t bit_off, uint32_t bit_size)
+static char *btf_format_bitfield(const struct btf *btf, __u32 type_id,
+				 const void *bytes, __u32 bytes_size,
+				 __u32 bit_off, __u32 bit_size)
 {
-	uint32_t shift = bit_off % 8, n = (shift + bit_size + 7) / 8, i;
-	const uint8_t *b = (const uint8_t *)bytes + bit_off / 8;
+	__u32 shift = bit_off % 8, n = (shift + bit_size + 7) / 8, i;
+	const __u8 *b = (const __u8 *)bytes + bit_off / 8;
 	const struct btf_type *t;
 	bool is_signed = false;
-	uint64_t v = 0;
+	__u64 v = 0;
 
 	if (!bit_size || shift + bit_size > 64 || bit_off / 8 + n > bytes_size)
 		return fmt_alloc("?");
 	for (i = 0; i < n; i++)
-		v |= (uint64_t)b[i] << (8 * i);
+		v |= (__u64)b[i] << (8 * i);
 	v >>= shift;
 	t = btf__type_by_id(btf, btf_unwrap(btf, type_id));
 	if (bit_size < 64)
-		v &= ((uint64_t)1 << bit_size) - 1;
+		v &= ((__u64)1 << bit_size) - 1;
 	if (t && BTF_INFO_KIND(t->info) == BTF_KIND_INT)
-		is_signed = BTF_INT_ENCODING(*(const uint32_t *)(t + 1)) &
+		is_signed = BTF_INT_ENCODING(*(const __u32 *)(t + 1)) &
 			    BTF_INT_SIGNED;
 	else if (t && (BTF_INFO_KIND(t->info) == BTF_KIND_ENUM ||
 		       BTF_INFO_KIND(t->info) == BTF_KIND_ENUM64))
 		is_signed = BTF_INFO_KFLAG(t->info);
-	if (is_signed && bit_size < 64 && (v & ((uint64_t)1 << (bit_size - 1))))
-		v |= ~(((uint64_t)1 << bit_size) - 1);
-	return is_signed ? fmt_alloc("%" PRId64, (int64_t)v) :
-			   fmt_alloc("%" PRIu64, v);
+	if (is_signed && bit_size < 64 && (v & ((__u64)1 << (bit_size - 1))))
+		v |= ~(((__u64)1 << bit_size) - 1);
+	return is_signed ? fmt_alloc("%lld", (__s64)v) :
+			   fmt_alloc("%llu", v);
 }
 
-static char *btf_format_value(const struct btf *btf, uint32_t type_id,
-			      const void *bytes, uint32_t bytes_size,
+static char *btf_format_value(const struct btf *btf, __u32 type_id,
+			      const void *bytes, __u32 bytes_size,
 			      int depth)
 {
 	const struct btf_type *t;
-	uint16_t kind;
+	__u16 kind;
 
 	if (depth >= SHIRUDO_BTF_MAX_DEPTH || !btf || !type_id || !bytes ||
 	    !bytes_size)
@@ -419,51 +420,51 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 		return btf_format_int(t, bytes, bytes_size);
 
 	if (kind == BTF_KIND_PTR) {
-		uint64_t v = 0;
+		__u64 v = 0;
 
 		if (bytes_size >= 8)
 			memcpy(&v, bytes, 8);
 		else if (bytes_size >= 4)
 			memcpy(&v, bytes, 4);
-		return fmt_alloc("0x%" PRIx64, v);
+		return fmt_alloc("0x%llx", v);
 	}
 
 	if (kind == BTF_KIND_ENUM) {
 		const struct btf_enum *e = (const struct btf_enum *)(t + 1);
 		int vlen = BTF_INFO_VLEN(t->info);
-		uint32_t v = 0, size = t->size, i;
+		__u32 v = 0, size = t->size, i;
 
 		/* An enum is as wide as BTF says, one byte for a packed one. */
 		if (!size || size > 4 || size > bytes_size)
 			return fmt_alloc("?");
 		for (i = 0; i < size; i++)
-			v |= (uint32_t)((const uint8_t *)bytes)[i] << (8 * i);
+			v |= (__u32)((const __u8 *)bytes)[i] << (8 * i);
 		if (BTF_INFO_KFLAG(t->info) && size < 4 &&
 		    (v & (1u << (8 * size - 1))))
 			v |= ~((1u << (8 * size)) - 1);
-		for (i = 0; i < (uint32_t)vlen; i++) {
-			if ((uint32_t)e[i].val == v) {
+		for (i = 0; i < (__u32)vlen; i++) {
+			if ((__u32)e[i].val == v) {
 				const char *nm = btf__name_by_offset(btf,
 								     e[i].name_off);
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
 		}
 		return BTF_INFO_KFLAG(t->info) ?
-		       fmt_alloc("%" PRId32, (int32_t)v) :
-		       fmt_alloc("%" PRIu32, v);
+		       fmt_alloc("%d", (__s32)v) :
+		       fmt_alloc("%u", v);
 	}
 
 	if (kind == BTF_KIND_ENUM64) {
 		const struct btf_enum64 *e =
 			(const struct btf_enum64 *)(t + 1);
 		int vlen = BTF_INFO_VLEN(t->info);
-		uint64_t v = 0;
+		__u64 v = 0;
 		int i;
 
 		if (bytes_size >= 8)
 			memcpy(&v, bytes, 8);
 		for (i = 0; i < vlen; i++) {
-			uint64_t ev = ((uint64_t)e[i].val_hi32 << 32) |
+			__u64 ev = ((__u64)e[i].val_hi32 << 32) |
 				      e[i].val_lo32;
 
 			if (ev == v) {
@@ -472,7 +473,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
 			}
 		}
-		return fmt_alloc("0x%" PRIx64, v);
+		return fmt_alloc("0x%llx", v);
 	}
 
 	if (kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION) {
@@ -492,12 +493,12 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			return NULL;
 		}
 		for (i = 0; i < vlen; i++) {
-			uint32_t bit_off = BTF_INFO_KFLAG(t->info) ?
+			__u32 bit_off = BTF_INFO_KFLAG(t->info) ?
 					   BTF_MEMBER_BIT_OFFSET(m[i].offset) :
 					   m[i].offset;
-			uint32_t byte_off = bit_off / 8, bit_size = 0;
+			__u32 byte_off = bit_off / 8, bit_size = 0;
 			const struct btf_type *ft;
-			uint32_t fsize = 0;
+			__u32 fsize = 0;
 			const char *fname;
 			char *fval;
 
@@ -508,10 +509,10 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 			ft = btf__type_by_id(btf, btf_unwrap(btf, m[i].type));
 			fname = btf__name_by_offset(btf, m[i].name_off);
 			if (ft) {
-				int64_t sz = btf__resolve_size(btf, m[i].type);
+				__s64 sz = btf__resolve_size(btf, m[i].type);
 
 				if (sz > 0)
-					fsize = (uint32_t)sz;
+					fsize = (__u32)sz;
 			}
 			if (!fsize || byte_off + fsize > bytes_size)
 				fsize = bytes_size - byte_off;
@@ -540,12 +541,12 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 
 	if (kind == BTF_KIND_ARRAY) {
 		const struct btf_array *a = (const struct btf_array *)(t + 1);
-		int64_t esz = btf__resolve_size(btf, a->type);
-		uint32_t i, n = a->nelems;
+		__s64 esz = btf__resolve_size(btf, a->type);
 		size_t cap = 64, off = 0;
+		__u32 i, n = a->nelems;
 		char *out;
 
-		if (esz <= 0 || (uint64_t)esz * n > bytes_size)
+		if (esz <= 0 || (__u64)esz * n > bytes_size)
 			return NULL;
 		out = xmalloc(cap);
 		if (!out)
@@ -555,7 +556,7 @@ static char *btf_format_value(const struct btf *btf, uint32_t type_id,
 		for (i = 0; i < n && i < 16; i++) {
 			char *ev = btf_format_value(btf, a->type,
 						    (const char *)bytes + i * (size_t)esz,
-						    (uint32_t)esz, depth + 1);
+						    (__u32)esz, depth + 1);
 
 			strbuf_append_take(&out, &cap, &off,
 					   fmt_alloc("%s%s",
@@ -604,7 +605,7 @@ static int nproc_possible(void)
 	return n > 0 ? (int)n : 1;
 }
 
-static char *format_value(const void *value, uint32_t value_size,
+static char *format_value(const void *value, __u32 value_size,
 			  const char *btf_type)
 {
 	if (btf_type && btf_type[0]) {
@@ -612,59 +613,59 @@ static char *format_value(const void *value, uint32_t value_size,
 		    (strcmp(btf_type, "__u64") == 0 ||
 		     strcmp(btf_type, "u64") == 0 ||
 		     strcmp(btf_type, "long long unsigned int") == 0)) {
-			uint64_t v;
+			__u64 v;
 
 			memcpy(&v, value, 8);
-			return fmt_alloc("%" PRIu64, v);
+			return fmt_alloc("%llu", v);
 		}
 		if (value_size == 8 &&
 		    (strcmp(btf_type, "__s64") == 0 ||
 		     strcmp(btf_type, "s64") == 0 ||
 		     strcmp(btf_type, "long long int") == 0)) {
-			int64_t v;
+			__s64 v;
 
 			memcpy(&v, value, 8);
-			return fmt_alloc("%" PRId64, v);
+			return fmt_alloc("%lld", v);
 		}
 		if (value_size == 4 &&
 		    (strcmp(btf_type, "__u32") == 0 ||
 		     strcmp(btf_type, "u32") == 0 ||
 		     strcmp(btf_type, "unsigned int") == 0)) {
-			uint32_t v;
+			__u32 v;
 
 			memcpy(&v, value, 4);
-			return fmt_alloc("%" PRIu32, v);
+			return fmt_alloc("%u", v);
 		}
 		if (value_size == 4 &&
 		    (strcmp(btf_type, "__s32") == 0 ||
 		     strcmp(btf_type, "s32") == 0 ||
 		     strcmp(btf_type, "int") == 0)) {
-			int32_t v;
+			__s32 v;
 
 			memcpy(&v, value, 4);
-			return fmt_alloc("%" PRId32, v);
+			return fmt_alloc("%d", v);
 		}
 	}
 	if (value_size == 8) {
-		uint64_t v;
+		__u64 v;
 
 		memcpy(&v, value, 8);
-		return fmt_alloc("%" PRIu64, v);
+		return fmt_alloc("%llu", v);
 	}
 	if (value_size == 4) {
-		uint32_t v;
+		__u32 v;
 
 		memcpy(&v, value, 4);
-		return fmt_alloc("%" PRIu32, v);
+		return fmt_alloc("%u", v);
 	}
 	/* Hex fallback (cap at 32 bytes shown for readability). */
 	{
-		const unsigned char *p = value;
-		uint32_t cap = value_size < 32 ? value_size : 32;
+		const __u8 *p = value;
+		__u32 cap = value_size < 32 ? value_size : 32;
 		size_t buf_sz = (size_t)cap * 2 + 8;
 		char *out = xmalloc(buf_sz);
 		size_t off = 0;
-		uint32_t i;
+		__u32 i;
 
 		if (!out)
 			return NULL;
@@ -689,35 +690,35 @@ char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 {
 	if (v->value_size == 1 || v->value_size == 2 ||
 	    v->value_size == 4 || v->value_size == 8) {
-		uint32_t bits = 8 * v->value_size, i;
+		__u32 bits = 8 * v->value_size, i;
 		const struct btf_type *t = NULL;
 		bool is_signed = false;
-		uint64_t sum = 0;
+		__u64 sum = 0;
 
 		if (v->btf && v->value_type_id) {
-			uint32_t id = btf_unwrap(v->btf, v->value_type_id);
+			__u32 id = btf_unwrap(v->btf, v->value_type_id);
 
 			t = btf__type_by_id(v->btf, id);
 		}
 		if (t && BTF_INFO_KIND(t->info) == BTF_KIND_INT) {
-			uint32_t enc = *(const uint32_t *)(t + 1);
+			__u32 enc = *(const __u32 *)(t + 1);
 
 			is_signed = BTF_INT_ENCODING(enc) & BTF_INT_SIGNED;
 		}
 		for (i = 0; i < v->n_cpus; i++) {
-			uint64_t one = 0;
+			__u64 one = 0;
 
 			memcpy(&one, (const char *)values_per_cpu +
 			       (size_t)i * shirudo_upatch_map_value_stride(v),
 			       v->value_size);
 			/* A negative per-CPU count must not add as 2^n - 1. */
 			if (is_signed && bits < 64 &&
-			    (one & ((uint64_t)1 << (bits - 1))))
-				one |= ~(((uint64_t)1 << bits) - 1);
+			    (one & ((__u64)1 << (bits - 1))))
+				one |= ~(((__u64)1 << bits) - 1);
 			sum += one;
 		}
-		return is_signed ? fmt_alloc("%" PRId64, (int64_t)sum) :
-				   fmt_alloc("%" PRIu64, sum);
+		return is_signed ? fmt_alloc("%lld", (__s64)sum) :
+				   fmt_alloc("%llu", sum);
 	}
 	(void)btf_type;
 	return xstrdup("(unsupported width)");
@@ -728,7 +729,7 @@ static int open_map_pin(const char *upatch, const char *map_name,
 {
 	char path[PATH_MAX];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
-	uint32_t info_len = sizeof(*info_out);
+	__u32 info_len = sizeof(*info_out);
 	int fd;
 
 	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
@@ -751,7 +752,7 @@ static int open_map_pin(const char *upatch, const char *map_name,
 	return 0;
 }
 
-static struct btf *try_load_btf(uint32_t btf_id)
+static struct btf *try_load_btf(__u32 btf_id)
 {
 	if (!btf_id)
 		return NULL;
@@ -776,14 +777,14 @@ static int open_serializer_pin(const char *upatch, const char *map_name)
 	return fd;
 }
 
-int shirudo_prog_test_run(int prog_fd, void *ctx, uint32_t ctx_sz,
-			  uint32_t *retval)
+int shirudo_prog_test_run(int prog_fd, void *ctx, __u32 ctx_sz,
+			  __u32 *retval)
 {
 	union bpf_attr attr = {};
 	long ret;
 
 	attr.test.prog_fd = prog_fd;
-	attr.test.ctx_in = (uint64_t)(uintptr_t)ctx;
+	attr.test.ctx_in = (__u64)(uintptr_t)ctx;
 	attr.test.ctx_size_in = ctx_sz;
 	ret = syscall(__NR_bpf, BPF_PROG_TEST_RUN, &attr, sizeof(attr));
 	if (ret < 0)
@@ -796,7 +797,7 @@ static int validate_serial_map(const struct bpf_map_info *info)
 {
 	if (info->type != BPF_MAP_TYPE_ARRAY)
 		return -EINVAL;
-	if (info->key_size != sizeof(uint32_t))
+	if (info->key_size != sizeof(__u32))
 		return -EINVAL;
 	if (info->value_size != sizeof(struct shirudo_serial_chunk))
 		return -EINVAL;
@@ -809,7 +810,7 @@ static int validate_serial_map(const struct bpf_map_info *info)
 static int clear_serial_map(int fd, const struct bpf_map_info *info)
 {
 	void *zero;
-	uint32_t i;
+	__u32 i;
 
 	zero = xcalloc(1, info->value_size);
 	if (!zero)
@@ -843,15 +844,15 @@ static int append_serial_page(struct shirudo_map_view *out,
 
 static int read_serial_page(int serial_fd,
 			    const struct bpf_map_info *serial_info,
-			    uint32_t want_page_index, uint64_t want_cursor,
-			    uint64_t invocation_id,
+			    __u32 want_page_index, __u64 want_cursor,
+			    __u64 invocation_id,
 			    struct shirudo_serial_page *page)
 {
 	struct shirudo_serial_chunk *chunk;
-	uint32_t key, total_chunks, bytes_total, copied = 0;
-	uint32_t page_index, flags;
-	uint64_t cursor, next_cursor;
-	unsigned char *data = NULL;
+	__u32 key, total_chunks, bytes_total, copied = 0;
+	__u32 page_index, flags;
+	__u64 cursor, next_cursor;
+	__u8 *data = NULL;
 	int rc;
 
 	chunk = xmalloc(sizeof(*chunk));
@@ -945,11 +946,11 @@ out_chunk:
 }
 
 static int try_read_serialized(const char *upatch, const char *map,
-			       uint32_t flags, struct shirudo_map_view *out)
+			       __u32 flags, struct shirudo_map_view *out)
 {
 	struct bpf_map_info serial_info = {};
-	uint64_t cursor = 0, bytes_total = 0, invocation_id;
-	uint32_t page_index;
+	__u64 cursor = 0, bytes_total = 0, invocation_id;
+	__u32 page_index;
 	int prog_fd = -1, serial_fd = -1, lock_fd = -1, rc;
 
 	if (strcmp(map, SHIRUDO_SERIAL_MAP_NAME) == 0)
@@ -986,7 +987,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 	     page_index++) {
 		struct shirudo_serialize_ctx ctx = {};
 		struct shirudo_serial_page page = {};
-		uint32_t retval = 0;
+		__u32 retval = 0;
 
 		rc = clear_serial_map(serial_fd, &serial_info);
 		if (rc)
@@ -1005,8 +1006,8 @@ static int try_read_serialized(const char *upatch, const char *map,
 		rc = shirudo_prog_test_run(prog_fd, &ctx, sizeof(ctx), &retval);
 		if (rc)
 			goto out;
-		if ((int32_t)retval < 0) {
-			rc = (int32_t)retval;
+		if ((__s32)retval < 0) {
+			rc = (__s32)retval;
 			goto out;
 		}
 		if (ctx.magic != SHIRUDO_SERIAL_MAGIC ||
@@ -1058,7 +1059,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 
 out:
 	if (rc < 0 && out->serial_pages) {
-		uint32_t i;
+		__u32 i;
 
 		for (i = 0; i < out->n_serial_pages; i++)
 			xfree(out->serial_pages[i].data,
@@ -1079,12 +1080,12 @@ out:
 }
 
 static int read_entries(int fd, struct shirudo_map_view *v,
-			uint32_t cap)
+			__u32 cap)
 {
 	size_t value_count = shirudo_upatch_map_is_percpu(v->type) ?
 		v->n_cpus : 1;
 	size_t value_alloc;
-	uint32_t i;
+	__u32 i;
 	int err;
 
 	if (shirudo_upatch_map_value_stride(v) != 0 &&
@@ -1098,7 +1099,7 @@ static int read_entries(int fd, struct shirudo_map_view *v,
 	v->n_truncated_at = cap;
 
 	if (is_array_type(v->type)) {
-		uint32_t take = v->max_entries;
+		__u32 take = v->max_entries;
 		size_t bytes;
 
 		if (cap && take > cap) {
@@ -1198,7 +1199,7 @@ static int read_entries(int fd, struct shirudo_map_view *v,
 void shirudo_map_view_free(struct shirudo_map_view *v)
 {
 	size_t value_alloc;
-	uint32_t i;
+	__u32 i;
 
 	if (!v)
 		return;
@@ -1231,7 +1232,7 @@ void shirudo_map_view_free(struct shirudo_map_view *v)
 }
 
 int shirudo_upatch_maps_read(const char *upatch, const char *map,
-			     uint32_t max_entries_cap,
+			     __u32 max_entries_cap,
 			     struct shirudo_map_view *out)
 {
 	return shirudo_upatch_maps_read_flags(upatch, map, max_entries_cap, 0,
@@ -1239,7 +1240,7 @@ int shirudo_upatch_maps_read(const char *upatch, const char *map,
 }
 
 int shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
-				   uint32_t max_entries_cap, uint32_t flags,
+				   __u32 max_entries_cap, __u32 flags,
 				   struct shirudo_map_view *out)
 {
 	struct bpf_map_info info = {};
@@ -1263,15 +1264,15 @@ int shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
 	out->value_stride = map_value_stride(info.type, info.value_size);
 	out->max_entries = info.max_entries;
 	out->n_cpus = shirudo_upatch_map_is_percpu(info.type) ?
-			(uint32_t)nproc_possible() : 1;
+			(__u32)nproc_possible() : 1;
 	resolve_map_location(out);
 	if (!shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch) &&
 	    (size_t)snprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
 			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) <
 	    sizeof(upatch_dir) && stat(upatch_dir, &upatch_st) == 0)
 		out->lifetime_start_ns =
-			(uint64_t)upatch_st.st_ctim.tv_sec * 1000000000ULL +
-			(uint64_t)upatch_st.st_ctim.tv_nsec;
+			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
+			(__u64)upatch_st.st_ctim.tv_nsec;
 
 	rc = try_read_serialized(upatch, map, flags, out);
 	if (rc < 0) {
@@ -1371,7 +1372,7 @@ static void scan_upatch_maps(const char *upatch,
 		one.type_name = shirudo_map_type_name(info.type);
 		one.max_entries = info.max_entries;
 		one.n_cpus = shirudo_upatch_map_is_percpu(info.type) ?
-				(uint32_t)nproc_possible() : 1;
+				(__u32)nproc_possible() : 1;
 		summary_append(list, n, cap, &one);
 	}
 	closedir(d);
@@ -1447,8 +1448,8 @@ void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
 }
 
 char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
-				     uint32_t type_id, const void *bytes,
-				     uint32_t bytes_size,
+				     __u32 type_id, const void *bytes,
+				     __u32 bytes_size,
 				     const char *btf_name)
 {
 	char *s = NULL;
@@ -1460,7 +1461,7 @@ char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
 	return s;
 }
 
-static void print_type_def(const char *label, const char *def, uint32_t size)
+static void print_type_def(const char *label, const char *def, __u32 size)
 {
 	const char *p = def;
 
@@ -1479,9 +1480,9 @@ static void print_type_def(const char *label, const char *def, uint32_t size)
 	printf(" (%u B)\n", size);
 }
 
-static void print_serialized_hex(const unsigned char *data, uint32_t len)
+static void print_serialized_hex(const __u8 *data, __u32 len)
 {
-	uint32_t i;
+	__u32 i;
 
 	for (i = 0; i < len; i++) {
 		if (i % 16 == 0)
@@ -1496,7 +1497,7 @@ static void print_serialized_hex(const unsigned char *data, uint32_t len)
 
 void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 {
-	uint32_t i;
+	__u32 i;
 
 	printf("upatch:              %s\n", v->upatch);
 	printf("Map:                 %s\n", v->name);
@@ -1512,20 +1513,20 @@ void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 		return;
 	}
 	if (v->serialized) {
-		uint32_t p;
+		__u32 p;
 
 		printf("Status:              serialized\n");
 		printf("Serialized pages:    %u\n", v->n_serial_pages);
-		printf("Serialized bytes:    %" PRIu64 "\n",
+		printf("Serialized bytes:    %llu\n",
 		       v->serial_bytes_total);
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct shirudo_serial_page *page =
 				&v->serial_pages[p];
 
 			printf("\nPage %u:\n", page->page_index);
-			printf("  Cursor:            %" PRIu64 "\n",
+			printf("  Cursor:            %llu\n",
 			       page->cursor);
-			printf("  Next cursor:       %" PRIu64 "\n",
+			printf("  Next cursor:       %llu\n",
 			       page->next_cursor);
 			printf("  Done:              %s\n",
 			       page->done ? "true" : "false");
@@ -1610,7 +1611,7 @@ void shirudo_upatch_maps_print_detail(const struct shirudo_map_view *v)
 void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v)
 {
-	uint32_t i, j;
+	__u32 i, j;
 
 	if (!v)
 		return;
@@ -1621,7 +1622,7 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 	if (shirudo_upatch_map_is_percpu(v->type))
 		shirudo_json_kv_int(e, "n_cpus", v->n_cpus);
 	if (v->serialized) {
-		uint32_t p;
+		__u32 p;
 
 		shirudo_json_kv_bool(e, "serialized", true);
 		shirudo_json_kv_int(e, "serialized_pages",

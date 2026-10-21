@@ -11,7 +11,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 /*
  * The *_seen flags say whether the JSON carried a non-null value,
@@ -25,8 +26,8 @@ struct shirudo_conditions_input {
 	int		lsm_attached;	/* 0/1 */
 	int		keyring_present;
 	int		staging;	/* enforcing with the cert in the user keyring */
-	int64_t		keyring_serial;
-	int64_t		keyring_serial_pinned;
+	__s64		keyring_serial;
+	__s64		keyring_serial_pinned;
 	int		keyring_serial_matches;	/* 0/1 if ksm_seen */
 	int		ks_seen, ksp_seen, ksm_seen;
 	int		chain_seen;

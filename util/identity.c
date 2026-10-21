@@ -6,7 +6,6 @@
  */
 
 #include <errno.h>
-#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -14,14 +13,16 @@
 
 #include <bpf/bpf.h>
 
+#include <shirudo/misc.h>
+
 #include "identity.h"
 #include "paths.h"
 
 int shirudo_identity_read(struct shirudo_identity *out)
 {
 	struct bpf_map_info info = {};
-	uint32_t len = sizeof(info);
-	uint32_t zero = 0;
+	__u32 len = sizeof(info);
+	__u32 zero = 0;
 	int fd, rc;
 
 	memset(out, 0, sizeof(*out));

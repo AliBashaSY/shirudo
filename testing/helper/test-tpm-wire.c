@@ -6,15 +6,16 @@
  * structure parsing. Subcommand on argv[1]; hex inputs as argv.
  */
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "hex.h"
 #include "tpm_wire.h"
 
-static void puthex(const uint8_t *b, size_t n)
+static void puthex(const __u8 *b, size_t n)
 {
 	char h[2 * 2048 + 1];
 
@@ -24,7 +25,7 @@ static void puthex(const uint8_t *b, size_t n)
 	printf("%s\n", h);
 }
 
-static int gethex(const char *hex, uint8_t *out, size_t cap, size_t *len)
+static int gethex(const char *hex, __u8 *out, size_t cap, size_t *len)
 {
 	size_t n = strlen(hex);
 
@@ -36,7 +37,7 @@ static int gethex(const char *hex, uint8_t *out, size_t cap, size_t *len)
 
 int main(int argc, char **argv)
 {
-	uint8_t a[32], b[32], out[32], buf[2048];
+	__u8 a[32], b[32], out[32], buf[2048];
 	size_t len;
 
 	if (argc < 2)
@@ -52,7 +53,7 @@ int main(int argc, char **argv)
 		if (shirudo_hex_decode(argv[2], a, 32) ||
 		    shirudo_hex_decode(argv[4], b, 32))
 			return 2;
-		shirudo_tpm_policy_pcr(a, (uint32_t)strtoul(argv[3], NULL, 0),
+		shirudo_tpm_policy_pcr(a, (__u32)strtoul(argv[3], NULL, 0),
 				       b, out);
 		puthex(out, 32);
 		return 0;
@@ -66,12 +67,12 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "register-policy") == 0 && argc == 5) {
-		uint8_t w[32], i[32], p[32], values[64];
+		__u8 w[32], i[32], p[32], values[64];
 
 		if (shirudo_hex_decode(argv[3], values, 32) ||
 		    shirudo_hex_decode(argv[4], values + 32, 32))
 			return 2;
-		shirudo_tpm_register_policy((uint32_t)strtoul(argv[2], NULL, 0),
+		shirudo_tpm_register_policy((__u32)strtoul(argv[2], NULL, 0),
 					    values, 2, w, i, p);
 		puthex(w, 32);
 		puthex(i, 32);
@@ -79,18 +80,18 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "nv-name") == 0 && argc == 5) {
-		uint8_t name[SHIRUDO_TPM_NAME_LEN];
+		__u8 name[SHIRUDO_TPM_NAME_LEN];
 
 		if (shirudo_hex_decode(argv[4], a, 32))
 			return 2;
-		shirudo_tpm_nv_name((uint32_t)strtoul(argv[2], NULL, 0),
-				    (uint32_t)strtoul(argv[3], NULL, 0), a, 32,
+		shirudo_tpm_nv_name((__u32)strtoul(argv[2], NULL, 0),
+				    (__u32)strtoul(argv[3], NULL, 0), a, 32,
 				    name);
 		puthex(name, sizeof(name));
 		return 0;
 	}
 	if (strcmp(argv[1], "object-name") == 0 && argc == 3) {
-		uint8_t name[SHIRUDO_TPM_NAME_LEN];
+		__u8 name[SHIRUDO_TPM_NAME_LEN];
 
 		if (gethex(argv[2], buf, sizeof(buf), &len) ||
 		    shirudo_tpm_object_name(buf, len, name))
@@ -116,7 +117,7 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "public") == 0 && argc == 3) {
 		struct shirudo_tpm_public pub;
-		uint8_t again[512];
+		__u8 again[512];
 		size_t again_len = 0;
 		int rc;
 
@@ -139,7 +140,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "kdfa") == 0 && argc == 6) {
-		uint8_t key[64], ctx[64], res[64];
+		__u8 key[64], ctx[64], res[64];
 		size_t key_len, ctx_len, res_len = (size_t)atoi(argv[5]);
 
 		if (gethex(argv[2], key, sizeof(key), &key_len) ||
@@ -153,7 +154,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "kdfe") == 0 && argc == 6) {
-		uint8_t z[32], u[64], v[64], res[32];
+		__u8 z[32], u[64], v[64], res[32];
 		size_t z_len, u_len, v_len;
 
 		if (gethex(argv[2], z, sizeof(z), &z_len) || z_len != 32 ||
@@ -169,8 +170,8 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "credential") == 0 && argc == 5) {
-		uint8_t seed[32], name[SHIRUDO_TPM_NAME_LEN], cred[32];
-		uint8_t blob[SHIRUDO_TPM_ID_OBJECT_LEN];
+		__u8 seed[32], name[SHIRUDO_TPM_NAME_LEN], cred[32];
+		__u8 blob[SHIRUDO_TPM_ID_OBJECT_LEN];
 		size_t n;
 
 		if (gethex(argv[2], seed, sizeof(seed), &n) || n != 32 ||
@@ -184,7 +185,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "signature") == 0 && argc == 3) {
-		uint8_t r[32], s[32];
+		__u8 r[32], s[32];
 		int rc;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))

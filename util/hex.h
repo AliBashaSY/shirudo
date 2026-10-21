@@ -9,10 +9,11 @@
 #define SHIRUDO_HEX_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 /* out needs 2 * n + 1 bytes. */
-void shirudo_hex_encode(const uint8_t *in, size_t n, char *out);
+void shirudo_hex_encode(const __u8 *in, size_t n, char *out);
 /* The same, xmalloc'd to 2 * n + 1 bytes. */
 char *shirudo_hex_alloc(const void *in, size_t n);
 
@@ -20,6 +21,6 @@ char *shirudo_hex_alloc(const void *in, size_t n);
 int shirudo_hex_nibble(int c);
 
 /* Exactly 2 * n hex digits, either case. 0 or -EINVAL. */
-int shirudo_hex_decode(const char *hex, uint8_t *out, size_t n);
+int shirudo_hex_decode(const char *hex, __u8 *out, size_t n);
 
 #endif /* SHIRUDO_HEX_H */

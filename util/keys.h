@@ -11,7 +11,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #define SHIRUDO_KEYS_MAX	16
 #define SHIRUDO_KEYS_DER_MAX	(1024 * 1024)
@@ -25,9 +26,9 @@
 /* voucher is the admitting member's fingerprint, zero for the primary. */
 struct shirudo_trusted_cert {
 	char		path[PATH_MAX];
-	uint8_t		sha256[32];		/* of the DER file */
-	uint8_t		fingerprint[32];	/* of the public key */
-	uint8_t		voucher[32];
+	__u8		sha256[32];		/* of the DER file */
+	__u8		fingerprint[32];	/* of the public key */
+	__u8		voucher[32];
 	bool		primary;		/* cert.der */
 };
 
@@ -55,32 +56,32 @@ int shirudo_keys_load(const char *keys_dir, const char *revoked_dir,
 		      bool with_trusted, struct shirudo_trusted_set *set);
 
 /* A whole file of at most SHIRUDO_KEYS_DER_MAX bytes, xmalloc'd. */
-int shirudo_keys_read_der(const char *path, unsigned char **out,
+int shirudo_keys_read_der(const char *path, __u8 **out,
 			  size_t *out_sz);
 
-int shirudo_keys_digest_der(const unsigned char *der, size_t der_sz,
-			    uint8_t sha256[32], uint8_t fingerprint[32]);
+int shirudo_keys_digest_der(const __u8 *der, size_t der_sz,
+			    __u8 sha256[32], __u8 fingerprint[32]);
 
 /*
  * The digest the init event covers: the one certificate's digest, or
  * the SHA-256 over the sorted digests of several. The same function
  * serves the operator predicting a register for a set.
  */
-void shirudo_keys_anchor_digest(const uint8_t (*sha256)[32], size_t n,
-				uint8_t out[32]);
+void shirudo_keys_anchor_digest(const __u8 sha256[][32], size_t n,
+				__u8 out[32]);
 void shirudo_keys_set_digest(const struct shirudo_trusted_set *set,
-			     uint8_t out[32]);
+			     __u8 out[32]);
 
 bool shirudo_keys_is_revoked(const char *revoked_dir,
-			     const uint8_t fingerprint[32]);
+			     const __u8 fingerprint[32]);
 
 /* <dir>/<fingerprint hex><suffix>, the name a certificate has in a set. */
-int shirudo_keys_path_for(const char *dir, const uint8_t fingerprint[32],
+int shirudo_keys_path_for(const char *dir, const __u8 fingerprint[32],
 			  const char *suffix, char *out, size_t cap);
 
 /* The bytes a vouch signs: the prefix and the certificate, xmalloc'd. */
-int shirudo_keys_vouch_payload(const unsigned char *der, size_t der_sz,
-			       unsigned char **out, size_t *out_sz);
+int shirudo_keys_vouch_payload(const __u8 *der, size_t der_sz,
+			       __u8 **out, size_t *out_sz);
 
 /*
  * Whether a member of the set signed the vouch for this certificate:
@@ -88,9 +89,9 @@ int shirudo_keys_vouch_payload(const unsigned char *der, size_t der_sz,
  * did.
  */
 int shirudo_keys_verify_vouch(const struct shirudo_trusted_set *set,
-			      const unsigned char *der, size_t der_sz,
-			      const unsigned char *sig, size_t sig_sz,
-			      uint8_t voucher[32]);
+			      const __u8 *der, size_t der_sz,
+			      const __u8 *sig, size_t sig_sz,
+			      __u8 voucher[32]);
 
 int shirudo_keys_write_file(const char *path, const void *data, size_t len);
 
@@ -99,8 +100,8 @@ int shirudo_keys_write_file(const char *path, const void *data, size_t len);
  * by fingerprint, the vouch first so a visible certificate always has
  * one. out gets the certificate's path.
  */
-int shirudo_keys_install(const char *keys_dir, const unsigned char *der,
-			 size_t der_sz, const unsigned char *sig,
+int shirudo_keys_install(const char *keys_dir, const __u8 *der,
+			 size_t der_sz, const __u8 *sig,
 			 size_t sig_sz, char *out, size_t cap);
 
 #endif /* SHIRUDO_UTIL_KEYS_H */

@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +16,8 @@
 #include <unistd.h>
 
 #include <linux/keyctl.h>
+
+#include <shirudo/misc.h>
 
 #include "keyring.h"
 #include "io.h"
@@ -246,7 +247,7 @@ static void holds_cert_cb(key_serial_t serial, const char *type,
 }
 
 int shirudo_keyring_holds_cert(key_serial_t keyring,
-			       const unsigned char *der, size_t der_len)
+			       const __u8 *der, size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
 	const char *type, *description;
@@ -274,7 +275,7 @@ int shirudo_keyring_holds_cert(key_serial_t keyring,
 }
 
 key_serial_t shirudo_keyring_find_cert(key_serial_t keyring,
-				       const unsigned char *der,
+				       const __u8 *der,
 				       size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
@@ -316,7 +317,7 @@ key_serial_t shirudo_keyring_bpf_serial(void)
 	return ret < 0 ? -errno : (key_serial_t)ret;
 }
 
-key_serial_t shirudo_keyring_bpf_add_cert(const unsigned char *cert,
+key_serial_t shirudo_keyring_bpf_add_cert(const __u8 *cert,
 					  size_t cert_len)
 {
 	long ret = sys_add_key("asymmetric", NULL, cert, cert_len,

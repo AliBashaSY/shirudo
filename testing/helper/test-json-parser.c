@@ -9,8 +9,9 @@
  * arbitrary bytes -- it must never crash, only return a clean -errno.
  */
 
-#include <stdint.h>
 #include <stdio.h>
+
+#include <shirudo/misc.h>
 
 #include "json.h"
 #include "macros.h"
@@ -45,7 +46,7 @@ int main(void)
 {
 	char digest[65] = {}, type[64] = {};
 	static char buf[2 * 1024 * 1024];
-	int64_t schema = -1;
+	__s64 schema = -1;
 	struct shirudo_json_array name_sink = { name_on_elem, NULL };
 	struct shirudo_json_field name_sub[] = {
 		{ "", SHIRUDO_JSON_T_STRING, name_scratch,
@@ -73,7 +74,7 @@ int main(void)
 	printf("rc=%d\n", rc);
 	if (rc == 0) {
 		printf("schema=%lld type=%s digest=%s\n",
-		       (long long)schema, type, digest);
+		       (__s64)schema, type, digest);
 		printf("names=%d first_name=%s events=%d last_type=%s\n",
 		       names_seen, first_name, events_seen, last_event_type);
 	}

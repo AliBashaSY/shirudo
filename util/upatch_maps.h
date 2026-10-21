@@ -11,8 +11,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include "upatch_resolve.h"
@@ -41,12 +41,12 @@ struct shirudo_map_entry {
 struct btf;
 
 struct shirudo_serial_page {
-	uint32_t	page_index;
-	uint64_t	cursor;
-	uint64_t	next_cursor;
-	uint32_t	flags;
-	uint32_t	chunks;
-	uint32_t	bytes;
+	__u32		page_index;
+	__u64		cursor;
+	__u64		next_cursor;
+	__u32		flags;
+	__u32		chunks;
+	__u32		bytes;
 	bool		done;
 	void		*data;
 };
@@ -55,20 +55,20 @@ struct shirudo_map_view {
 	char		upatch[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char		name[SHIRUDO_MAP_NAME_MAX + 1];
 	char		location[SHIRUDO_UPATCH_LOCATION_MAX];
-	uint32_t	type;		/* BPF_MAP_TYPE_* */
+	__u32		type;		/* BPF_MAP_TYPE_* */
 	const char	*type_name;	/* "percpu_array" / "hash" / ... */
-	uint32_t	key_size;
-	uint32_t	value_size;	/* per-CPU value size (not multiplied) */
-	uint32_t	value_stride;	/* per-CPU kernel ABI stride; else value_size */
-	uint32_t	max_entries;
-	uint32_t	n_entries;	/* live entries iterated */
-	uint32_t	n_cpus;		/* 1 for non-percpu types */
-	uint64_t	lifetime_start_ns; /* pin-dir ctime; metric reset boundary */
+	__u32		key_size;
+	__u32		value_size;	/* per-CPU value size (not multiplied) */
+	__u32		value_stride;	/* per-CPU kernel ABI stride; else value_size */
+	__u32		max_entries;
+	__u32		n_entries;	/* live entries iterated */
+	__u32		n_cpus;		/* 1 for non-percpu types */
+	__u64		lifetime_start_ns; /* pin-dir ctime; metric reset boundary */
 	bool		truncated;
-	uint32_t	n_truncated_at;
+	__u32		n_truncated_at;
 	bool		serialized;
-	uint32_t	n_serial_pages;
-	uint64_t	serial_bytes_total;
+	__u32		n_serial_pages;
+	__u64		serial_bytes_total;
 	struct shirudo_serial_page *serial_pages;
 	bool		skipped;
 	const char	*skipped_reason;
@@ -76,8 +76,8 @@ struct shirudo_map_view {
 	char		btf_value_type[SHIRUDO_MAP_TYPENAME_MAX];
 	char		key_type_def[SHIRUDO_MAP_TYPEDEF_MAX];
 	char		value_type_def[SHIRUDO_MAP_TYPEDEF_MAX];
-	uint32_t	key_type_id;
-	uint32_t	value_type_id;
+	__u32		key_type_id;
+	__u32		value_type_id;
 	struct btf	*btf;		/* heap; owned by the view */
 	struct shirudo_map_entry	*entries;	/* n_entries long */
 };
@@ -88,10 +88,10 @@ void shirudo_map_view_free(struct shirudo_map_view *v);
 struct shirudo_map_summary {
 	char		upatch[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char		name[SHIRUDO_MAP_NAME_MAX + 1];
-	uint32_t	type;
+	__u32		type;
 	const char	*type_name;
-	uint32_t	max_entries;
-	uint32_t	n_cpus;
+	__u32		max_entries;
+	__u32		n_cpus;
 };
 
 int  shirudo_upatch_maps_list_all(struct shirudo_map_summary **out,
@@ -107,7 +107,7 @@ void shirudo_map_summary_free(struct shirudo_map_summary *list, size_t n);
  * default, 0 for unlimited (--show-full). Returns 0/-errno.
  */
 int  shirudo_upatch_maps_read(const char *upatch, const char *map,
-			      uint32_t max_entries_cap,
+			      __u32 max_entries_cap,
 			      struct shirudo_map_view *out);
 
 /*
@@ -118,7 +118,7 @@ int  shirudo_upatch_maps_read(const char *upatch, const char *map,
 #define SHIRUDO_MAP_READ_PEEK	(1u << 0)
 
 int  shirudo_upatch_maps_read_flags(const char *upatch, const char *map,
-				    uint32_t max_entries_cap, uint32_t flags,
+				    __u32 max_entries_cap, __u32 flags,
 				    struct shirudo_map_view *out);
 
 void shirudo_upatch_maps_print_summary(const struct shirudo_map_summary *list,
@@ -131,17 +131,17 @@ void shirudo_upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 void shirudo_upatch_maps_emit_json_object(struct shirudo_json_emit *e,
 					  const struct shirudo_map_view *v);
 
-bool shirudo_upatch_map_is_percpu(uint32_t type);
-uint32_t shirudo_upatch_map_value_stride(const struct shirudo_map_view *v);
+bool shirudo_upatch_map_is_percpu(__u32 type);
+__u32 shirudo_upatch_map_value_stride(const struct shirudo_map_view *v);
 char *shirudo_upatch_map_format_cell(const struct shirudo_map_view *v,
-				     uint32_t type_id, const void *value,
-				     uint32_t value_size,
+				     __u32 type_id, const void *value,
+				     __u32 value_size,
 				     const char *btf_type);
 char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 					   const void *values_per_cpu,
 					   const char *btf_type);
 
-int shirudo_prog_test_run(int prog_fd, void *ctx, uint32_t ctx_sz,
-			  uint32_t *retval);
+int shirudo_prog_test_run(int prog_fd, void *ctx, __u32 ctx_sz,
+			  __u32 *retval);
 
 #endif /* SHIRUDO_UTIL_UPATCH_MAPS_H */

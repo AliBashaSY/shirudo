@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +22,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include <time.h>
@@ -289,12 +289,12 @@ static void print_system_human(const struct shirudo_sysinfo *si)
 	if (si->mem_total_kb > 0) {
 		char tot[16], used[16];
 
-		shirudo_human_size((uint64_t)si->mem_total_kb * 1024,
+		shirudo_human_size((__u64)si->mem_total_kb * 1024,
 				   tot, sizeof(tot));
 		if (si->mem_avail_kb >= 0 &&
 		    si->mem_avail_kb <= si->mem_total_kb) {
-			shirudo_human_size((uint64_t)(si->mem_total_kb -
-						      si->mem_avail_kb) * 1024,
+			shirudo_human_size((__u64)(si->mem_total_kb -
+						   si->mem_avail_kb) * 1024,
 					   used, sizeof(used));
 			printf("  %-16s %s/%s\n", "Memory:", used, tot);
 		} else {
@@ -304,9 +304,9 @@ static void print_system_human(const struct shirudo_sysinfo *si)
 	if (si->disk_total_kb > 0) {
 		char tot[16], used[16];
 
-		shirudo_human_size((uint64_t)si->disk_total_kb * 1024,
+		shirudo_human_size((__u64)si->disk_total_kb * 1024,
 				   tot, sizeof(tot));
-		shirudo_human_size((uint64_t)si->disk_used_kb * 1024,
+		shirudo_human_size((__u64)si->disk_used_kb * 1024,
 				   used, sizeof(used));
 		printf("  %-16s %s/%s\n", "Disk:", used, tot);
 	}
@@ -417,7 +417,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 					      r->payload_sha256,
 					      sizeof(r->payload_sha256));
 		shirudo_upatch_maps_list_one(name, &list, &nm);
-		r->n_maps = (uint32_t)nm;
+		r->n_maps = (__u32)nm;
 		shirudo_map_summary_free(list, nm);
 		r->age_sec = shirudo_upatch_age_sec(r->loaded_at);
 	}
@@ -430,8 +430,8 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 /* Status runs on the host, so reachable and parsed are trivially true. */
 static void local_cond_input(struct shirudo_conditions_input *in,
 			     int lsm_attached, int keyring_present, int staging,
-			     int64_t keyring_serial,
-			     int64_t keyring_serial_pinned,
+			     __s64 keyring_serial,
+			     __s64 keyring_serial_pinned,
 			     int ks_seen, int ksp_seen, int ksm_seen,
 			     int ks_matches,
 			     int chain_seen, int chain_matches, int cm_seen,
@@ -519,7 +519,7 @@ int cmd_status(int argc, const char **argv)
 	bool include_system = false, include_eventlog = false;
 	bool include_kernel_log = false, include_modules = false;
 	bool show_full = false;
-	unsigned int kernel_log_lines = 10;
+	__u32 kernel_log_lines = 10;
 	bool lsm_attached, keyring_present, is_operator, cert_present, is_target;
 	key_serial_t keyring_serial, keyring_pinned;
 	const char *keyring_mode, *mode;
@@ -561,8 +561,8 @@ int cmd_status(int argc, const char **argv)
 		} else if (strcmp(argv[i], "--include-kernellog") == 0) {
 			include_kernel_log = true;
 		} else if (strncmp(argv[i], "--include-kernellog=", 20) == 0) {
-			unsigned long v;
 			char *end;
+			__u64 v;
 
 			v = strtoul(argv[i] + 20, &end, 0);
 			if (*end != '\0' || v < 1 ||
@@ -573,7 +573,7 @@ int cmd_status(int argc, const char **argv)
 				return 2;
 			}
 			include_kernel_log = true;
-			kernel_log_lines = (unsigned int)v;
+			kernel_log_lines = (__u32)v;
 		} else if (strcmp(argv[i], "--include-modules") == 0) {
 			include_modules = true;
 		} else if (strcmp(argv[i], "--show-full") == 0) {
@@ -707,7 +707,7 @@ int cmd_status(int argc, const char **argv)
 		 * no init record while a register exists) is a mismatch.
 		 */
 		if (chain_rc == 0) {
-			uint8_t replay[SHIRUDO_CHAIN_DIGEST_LEN];
+			__u8 replay[SHIRUDO_CHAIN_DIGEST_LEN];
 
 			match = cst.anchored && !cst.rebound &&
 				shirudo_eventlog_replay(replay) == 0 &&
@@ -858,11 +858,11 @@ int cmd_status(int argc, const char **argv)
 		 */
 		if (tamper_rc == 0) {
 			shirudo_json_obj_open_key(&e, "tamper_attempts");
-			shirudo_json_kv_int(&e, "total", (int64_t)tamper.total);
+			shirudo_json_kv_int(&e, "total", (__s64)tamper.total);
 			shirudo_json_obj_open_key(&e, "counters");
 			for (i = 0; i < SHIRUDO_TAMPER_MAX; i++)
 				shirudo_json_kv_int(&e, shirudo_tamper_name(i),
-						    (int64_t)tamper.count[i]);
+						    (__s64)tamper.count[i]);
 			shirudo_json_obj_close(&e);
 			shirudo_json_obj_close(&e);
 		} else {
@@ -944,13 +944,13 @@ int cmd_status(int argc, const char **argv)
 			struct shirudo_kmod_set ks = {};
 			int mrc = shirudo_kmodules_read(&ks);
 			struct timespec rt = {}, bt = {};
-			int64_t boot_sec = 0;
+			__s64 boot_sec = 0;
 			char boot_iso[32] = "";
 			size_t mi;
 
 			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
 			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0) {
-				boot_sec = (int64_t)rt.tv_sec - bt.tv_sec;
+				boot_sec = (__s64)rt.tv_sec - bt.tv_sec;
 				shirudo_iso8601((time_t)boot_sec, boot_iso,
 						sizeof(boot_iso));
 			}
@@ -963,7 +963,7 @@ int cmd_status(int argc, const char **argv)
 						&ks.mods[mi];
 					time_t at = m->loaded_at_sec;
 					char iso[32] = "";
-					uint16_t di;
+					__u16 di;
 
 					if (at > 0)
 						shirudo_iso8601(at, iso,
@@ -972,7 +972,7 @@ int cmd_status(int argc, const char **argv)
 					shirudo_json_kv_string(&e, "name",
 							       m->name);
 					shirudo_json_kv_int(&e, "size",
-							    (int64_t)m->size);
+							    (__s64)m->size);
 					shirudo_json_kv_int(&e, "refcount",
 							    m->refcount);
 					shirudo_json_kv_string(&e, "loaded_at",
@@ -1006,8 +1006,8 @@ int cmd_status(int argc, const char **argv)
 				strerror(-e.err));
 		} else {
 			if (otel && otel_endpoint_configured) {
-				int64_t refused = tamper_rc == 0 ?
-						  (int64_t)tamper.total : -1;
+				__s64 refused = tamper_rc == 0 ?
+						  (__s64)tamper.total : -1;
 				const char *severity_text;
 				int severity_number;
 				int rc;
@@ -1091,14 +1091,14 @@ int cmd_status(int argc, const char **argv)
 			if (tamper.count[i])
 				printf("  %-20s %6llu  %s\n",
 				       shirudo_tamper_name(i),
-				       (unsigned long long)tamper.count[i],
+				       (__u64)tamper.count[i],
 				       shirudo_tamper_meaning(i));
 		}
 
 		printf("\nKeyring (%s):\n", SHIRUDO_KEYRING_NAME);
 		if (keyring_present)
 			printf("  %-22s %lld\n", "Serial:",
-			       (long long)keyring_serial);
+			       (__s64)keyring_serial);
 		else
 			printf("  %-22s %s\n", "Serial:",
 			       "absent  (operator host, or `shirudo init` "
@@ -1108,7 +1108,7 @@ int cmd_status(int argc, const char **argv)
 			       "(none this boot)");
 		else
 			printf("  %-22s %lld%s\n", "Frozen serial:",
-			       (long long)keyring_pinned, !keyring_present ? "" :
+			       (__s64)keyring_pinned, !keyring_present ? "" :
 			       keyring_serial == keyring_pinned ?
 			       "  (matches)" :
 			       "  (MISMATCH -- swapped?)");
@@ -1232,13 +1232,13 @@ int cmd_status(int argc, const char **argv)
 			struct shirudo_kmod_set ks = {};
 			int mrc = shirudo_kmodules_read(&ks);
 			struct timespec rt = {}, bt = {};
-			int64_t boot_sec = 0;
+			__s64 boot_sec = 0;
 			size_t last = 10;
 			size_t shown = ks.n < last ? ks.n : last;
 
 			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
 			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0)
-				boot_sec = (int64_t)rt.tv_sec - bt.tv_sec;
+				boot_sec = (__s64)rt.tv_sec - bt.tv_sec;
 
 			if (mrc != 0) {
 				printf("\nLoaded modules:\n");

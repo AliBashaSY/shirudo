@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "conditions.h"
 
 size_t shirudo_conditions(const struct shirudo_conditions_input *in,
@@ -34,20 +36,20 @@ size_t shirudo_conditions(const struct shirudo_conditions_input *in,
 			c[n].status = "ALERT";
 			snprintf(c[n].detail, sizeof(c[n].detail),
 				 "pin serial=%lld != live serial=%lld (swapped?)",
-				 (long long)in->keyring_serial_pinned,
-				 (long long)in->keyring_serial);
+				 (__s64)in->keyring_serial_pinned,
+				 (__s64)in->keyring_serial);
 		} else if (in->staging) {
 			c[n].status = "WARN";
 			snprintf(c[n].detail, sizeof(c[n].detail),
 				 "staging mode: serial=%lld in the user "
 				 "keyring; boot with bpf.keyring_unsealed=1 "
 				 "and run init from the initrd",
-				 (long long)in->keyring_serial);
+				 (__s64)in->keyring_serial);
 		} else {
 			c[n].status = "OK";
 			snprintf(c[n].detail, sizeof(c[n].detail),
 				 "serial=%lld in the bpf keyring, %s",
-				 (long long)in->keyring_serial,
+				 (__s64)in->keyring_serial,
 				 in->ksp_seen ? "pin matches"
 					      : "no pin recorded");
 		}

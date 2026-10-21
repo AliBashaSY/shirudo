@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "attest.h"
 #include "chain.h"
 #include "config.h"
@@ -22,7 +24,7 @@
 #include "paths.h"
 #include "tpm.h"
 
-static void puthex(const uint8_t *b, size_t n)
+static void puthex(const __u8 *b, size_t n)
 {
 	char h[2 * 1024 + 1];
 
@@ -33,7 +35,7 @@ static void puthex(const uint8_t *b, size_t n)
 }
 
 /* Record an init the way shirudo init does, minus the set details. */
-static int append_init(const uint8_t event[32],
+static int append_init(const __u8 event[32],
 		       const struct shirudo_chain_init_info *info)
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[256];
@@ -73,7 +75,7 @@ static int append_init(const uint8_t event[32],
 }
 
 static int append_event(const char *type, const char *name,
-			const uint8_t event[32], const uint8_t chain[32])
+			const __u8 event[32], const __u8 chain[32])
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -103,7 +105,7 @@ static int append_event(const char *type, const char *name,
 
 int main(int argc, char **argv)
 {
-	uint8_t event[32], chain[32];
+	__u8 event[32], chain[32];
 	int rc;
 
 	if (argc < 2)
@@ -135,7 +137,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "load") == 0 && argc == 4) {
-		uint8_t payload[32];
+		__u8 payload[32];
 
 		if (shirudo_hex_decode(argv[3], payload, 32))
 			return 2;
@@ -187,22 +189,22 @@ int main(int argc, char **argv)
 	/* A measurement into a PCR, as systemd's boot phases make them. */
 	if (strcmp(argv[1], "pcr-extend") == 0 && argc == 4) {
 		struct shirudo_tpm *tpm = NULL;
-		uint8_t d[32];
+		__u8 d[32];
 
 		if (shirudo_hex_decode(argv[3], d, 32) || shirudo_tpm_open(&tpm))
 			return 2;
-		rc = shirudo_tpm_pcr_extend(tpm, (unsigned int)atoi(argv[2]), d);
+		rc = shirudo_tpm_pcr_extend(tpm, (__u32)atoi(argv[2]), d);
 		shirudo_tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		return rc ? 1 : 0;
 	}
 	if (strcmp(argv[1], "pcr") == 0 && argc == 3) {
 		struct shirudo_tpm *tpm = NULL;
-		uint8_t v[32];
+		__u8 v[32];
 
 		if (shirudo_tpm_open(&tpm))
 			return 1;
-		rc = shirudo_tpm_pcr_read(tpm, (unsigned int)atoi(argv[2]), v);
+		rc = shirudo_tpm_pcr_read(tpm, (__u32)atoi(argv[2]), v);
 		shirudo_tpm_close(tpm);
 		if (rc)
 			return 1;
@@ -258,10 +260,10 @@ int main(int argc, char **argv)
 	}
 	/* The attack: try the init branch again after the anchor. */
 	if (strcmp(argv[1], "first-write") == 0 && argc == 3) {
-		uint8_t branch_written[32], branch_init[32], policy[32];
+		__u8 branch_written[32], branch_init[32], policy[32];
 		struct shirudo_eventlog_init rec;
 		struct shirudo_tpm *tpm = NULL;
-		uint8_t values[64];
+		__u8 values[64];
 
 		if (shirudo_hex_decode(argv[2], event, 32) ||
 		    shirudo_eventlog_boot_init(&rec))
@@ -283,7 +285,7 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "evidence") == 0 && (argc == 3 || argc == 4)) {
 		struct shirudo_attest_challenge challenge = {};
-		uint8_t nonce[64];
+		__u8 nonce[64];
 		size_t nonce_len = strlen(argv[2]) / 2, len, cap;
 		char *doc;
 

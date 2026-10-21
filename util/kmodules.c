@@ -8,7 +8,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +15,8 @@
 #include <unistd.h>
 
 #include <time.h>
+
+#include <shirudo/misc.h>
 
 #include "format.h"
 #include "kmodules.h"
@@ -95,7 +96,7 @@ static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
 int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 {
 	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
-	struct edge { uint16_t user, dep; } *edges = NULL;
+	struct edge { __u16 user, dep; } *edges = NULL;
 	char *buf = NULL, *line, *end;
 	size_t buf_cap = 0, i, j;
 	int rc;
@@ -153,7 +154,7 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 		memcpy(m->name, p, name_len);
 		m->name[name_len] = '\0';
 		m->size = strtoull(e, &p, 10);
-		m->refcount = (uint32_t)strtoul(p, NULL, 10);
+		m->refcount = (__u32)strtoul(p, NULL, 10);
 	}
 	qsort(set->mods, set->n, sizeof(*set->mods), kmod_cmp);
 
@@ -220,14 +221,14 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 				edges = np;
 				edge_cap *= 2;
 			}
-			edges[n_edges].user = (uint16_t)user;
-			edges[n_edges].dep = (uint16_t)dep;
+			edges[n_edges].user = (__u16)user;
+			edges[n_edges].dep = (__u16)dep;
 			n_edges++;
 		}
 	}
 
 	for (i = 0; i < set->n; i++) {
-		set->mods[i].deps_off = (uint16_t)set->n_deps;
+		set->mods[i].deps_off = (__u16)set->n_deps;
 		set->mods[i].n_deps = 0;
 		for (j = 0; j < n_edges; j++) {
 			if (edges[j].user != i)
@@ -263,8 +264,8 @@ int shirudo_kmodules_read(struct shirudo_kmod_set *set)
 
 		snprintf(path, sizeof(path), "/sys/module/%s", m->name);
 		if (stat(path, &st) == 0) {
-			m->loaded_at_sec  = (int64_t)st.st_mtim.tv_sec;
-			m->loaded_at_nsec = (int32_t)st.st_mtim.tv_nsec;
+			m->loaded_at_sec  = (__s64)st.st_mtim.tv_sec;
+			m->loaded_at_nsec = (__s32)st.st_mtim.tv_nsec;
 		}
 	}
 	rc = 0;
@@ -287,7 +288,7 @@ void shirudo_kmodules_free(struct shirudo_kmod_set *set)
 }
 
 static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
-			  const char *prefix, int is_last, uint8_t *seen)
+			  const char *prefix, int is_last, __u8 *seen)
 {
 	const struct shirudo_kmod *m = &set->mods[i];
 	const char *branch = is_last ? "└── " : "├── ";
@@ -301,15 +302,15 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 		printf("%s%s%s (shared)\n", prefix, branch, m->name);
 		return;
 	}
-	seen[i >> 3] |= (uint8_t)(1U << (i & 7));
+	seen[i >> 3] |= (__u8)(1U << (i & 7));
 
 	printf("%s%s%s (%s, refs=%u)\n", prefix, branch, m->name,
-	       size_s, (unsigned int)m->refcount);
+	       size_s, (__u32)m->refcount);
 
 	snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix,
 		 is_last ? "    " : "│   ");
 
-	for (uint16_t k = 0; k < m->n_deps; k++) {
+	for (__u16 k = 0; k < m->n_deps; k++) {
 		size_t dep = set->deps[m->deps_off + k];
 		int last_child = (k == m->n_deps - 1);
 
@@ -319,8 +320,8 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 
 void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
 {
-	uint8_t *used_by;
-	uint8_t *seen;
+	__u8 *used_by;
+	__u8 *seen;
 	size_t bitmap_bytes;
 	size_t n_roots = 0;
 	size_t *roots;
@@ -349,10 +350,10 @@ void shirudo_kmodules_print_tree(const struct shirudo_kmod_set *set)
 	for (size_t i = 0; i < set->n; i++) {
 		const struct shirudo_kmod *m = &set->mods[i];
 
-		for (uint16_t k = 0; k < m->n_deps; k++) {
+		for (__u16 k = 0; k < m->n_deps; k++) {
 			size_t d = set->deps[m->deps_off + k];
 
-			used_by[d >> 3] |= (uint8_t)(1U << (d & 7));
+			used_by[d >> 3] |= (__u8)(1U << (d & 7));
 		}
 	}
 	for (size_t i = 0; i < set->n; i++) {
@@ -399,7 +400,7 @@ static int recent_cmp(const void *a, const void *b)
 }
 
 void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
-				   size_t last_n, int64_t boot_sec)
+				   size_t last_n, __s64 boot_sec)
 {
 	struct recent_idx *all;
 	size_t take, i;
@@ -435,7 +436,7 @@ void shirudo_kmodules_print_recent(const struct shirudo_kmod_set *set,
 			snprintf(age, sizeof(age), "?");
 
 		printf("  [%s]  %s (%s, refs=%u, %s since boot)\n",
-		       ts, m->name, size_s, (unsigned int)m->refcount, age);
+		       ts, m->name, size_s, (__u32)m->refcount, age);
 	}
 	xfree(all, set->n * sizeof(*all));
 }

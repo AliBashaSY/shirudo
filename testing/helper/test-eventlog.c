@@ -14,6 +14,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "chain.h"
 #include "eventlog.h"
 #include "hex.h"
@@ -22,12 +24,12 @@
 
 /* An init record of this boot with fixed values, bound where told. */
 static int append_init(const char *path, const char *bound_in,
-		       unsigned int reset_count)
+		       __u32 reset_count)
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char name_hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
-	uint8_t zero[SHIRUDO_TPM_NAME_LEN] = {};
+	__u8 zero[SHIRUDO_TPM_NAME_LEN] = {};
 
 	shirudo_eventlog_timestamp(ts, sizeof(ts));
 	shirudo_eventlog_boot_id(boot_id, sizeof(boot_id));
@@ -60,7 +62,7 @@ static int append_init(const char *path, const char *bound_in,
 
 static int count_lines(const char *line, size_t len, void *ctx)
 {
-	unsigned int *n = ctx;
+	__u32 *n = ctx;
 
 	(void)line;
 	(void)len;
@@ -79,11 +81,11 @@ int main(int argc, char **argv)
 		const char *path = strcmp(argv[2], "pending") == 0 ?
 				   shirudo_eventlog_pending_path() :
 				   shirudo_eventlog_path();
-		unsigned int reset = 1;
+		__u32 reset = 1;
 		int rc;
 
 		if (argc == 5)
-			reset = (unsigned int)strtoul(argv[4], NULL, 10);
+			reset = (__u32)strtoul(argv[4], NULL, 10);
 		rc = append_init(path, argv[3], reset);
 
 		printf("rc=%d\n", rc);
@@ -102,7 +104,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "lines") == 0) {
-		unsigned int n = 0;
+		__u32 n = 0;
 		int rc = shirudo_eventlog_boot_lines(count_lines, &n);
 
 		printf("rc=%d\nlines=%u\n", rc, n);

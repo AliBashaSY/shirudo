@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +16,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <curl/curl.h>
+
+#include <shirudo/misc.h>
 
 #include "bpm.h"
 #include "bpm_oci.h"
@@ -65,7 +66,7 @@ static int publish_fail(const char *action, int rc)
  */
 static int sign_detached(const void *payload, size_t len,
 			 const char *key, const char *cert,
-			 unsigned char **sig, size_t *sig_len)
+			 __u8 **sig, size_t *sig_len)
 {
 	struct shirudo_sign_io io = {
 		.insns = payload, .insns_sz = len, .signature_sz = BPM_SIGN_MAX,
@@ -85,7 +86,7 @@ static int sign_detached(const void *payload, size_t len,
 	return 0;
 }
 
-static void sig_free(unsigned char *sig)
+static void sig_free(__u8 *sig)
 {
 	if (sig)
 		xfree(sig, BPM_SIGN_MAX);
@@ -147,7 +148,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
 		if (rc)
 			goto out;
-		if ((layers[i].size >= 0 && (int64_t)dst->len != layers[i].size) ||
+		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
 		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
 		    !bpm_digest_matches(layers[i].digest, hex)) {
 			rc = -EKEYREJECTED;
@@ -192,9 +193,9 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	struct shirudo_json_emit e = {};
 	char timestamp[32], digest[72];
 	char empty_config[] = "{}";
-	unsigned char *sig = NULL;
 	size_t cap, sig_len = 0;
 	time_t now = time(NULL);
+	__u8 *sig = NULL;
 	int n = 0, rc;
 
 	entries = xcalloc(BPM_MAX_ENTRIES, sizeof(*entries));
@@ -303,7 +304,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		goto out;
 	}
 	rc = bpm_oci_put_manifest(c, BPM_INDEX_REPOSITORY, BPM_INDEX_TAG,
-				  (const unsigned char *)manifest, e.len, digest,
+				  (const __u8 *)manifest, e.len, digest,
 				  sizeof(digest));
 out:
 	if (manifest)
@@ -323,7 +324,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	struct bpm_package_info info = {};
 	struct bpm_descriptor config, layer, key_config, key_layer, subject;
 	struct shirudo_json_emit e = {};
-	unsigned char *archive = NULL, *manifest = NULL;
+	__u8 *archive = NULL, *manifest = NULL;
 	const char *base;
 	char repository[BPM_MAX_ENDPOINT], package_digest[72], key_digest[72];
 	char hex[65];
@@ -398,7 +399,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 		goto out;
 	}
 	manifest_len = e.len;
-	manifest = (unsigned char *)manifest_body;
+	manifest = (__u8 *)manifest_body;
 	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
 	    snprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) >=
 	    (int)sizeof(package_digest)) {
@@ -431,7 +432,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 		.media = "application/vnd.oci.image.manifest.v1+json",
 	};
 	bpm_copy_string(subject.digest, sizeof(subject.digest), package_digest);
-	subject.size = (int64_t)manifest_len;
+	subject.size = (__s64)manifest_len;
 	key_manifest_body = xmalloc(BPM_MANIFEST_CAP);
 	if (!key_manifest_body) {
 		rc = -ENOMEM;
@@ -465,7 +466,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 		goto out;
 	}
 	rc = bpm_oci_put_manifest(&c, repository, key_digest,
-				  (const unsigned char *)key_manifest_body,
+				  (const __u8 *)key_manifest_body,
 				  key_manifest_len, key_digest,
 				  sizeof(key_digest));
 	if (rc)
@@ -529,7 +530,7 @@ static void tree_selector_canonicalize(struct shirudo_tree_selector *s)
  */
 static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 			      const char *raw_repository,
-			      const unsigned char *body, size_t len,
+			      const __u8 *body, size_t len,
 			      const char *id, bool unload,
 			      struct shirudo_tree_artifact *out)
 {
@@ -599,7 +600,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(c, repository, tag,
-					  (const unsigned char *)manifest, e.len,
+					  (const __u8 *)manifest, e.len,
 					  out->manifest_digest,
 					  sizeof(out->manifest_digest));
 	xfree(manifest, BPM_MANIFEST_CAP);
@@ -620,12 +621,12 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	const char *reference = "stable", *operation = "add";
 	char key_path[PATH_MAX], cert_path[PATH_MAX];
 	char parent[BPM_MAX_DIGEST] = {}, digest[72];
-	unsigned char *beefile = NULL, *sig = NULL;
 	struct shirudo_tree_publication pub = {};
 	struct shirudo_tree_operation *op = NULL;
 	size_t len, payload_len = 0, sig_len = 0;
 	char *payload = NULL, *manifest = NULL;
 	struct bpm_build_spec *spec = NULL;
+	__u8 *beefile = NULL, *sig = NULL;
 	struct bpm_package_info info = {};
 	struct bpm_oci_client c = {};
 	struct shirudo_json_emit e;
@@ -762,8 +763,8 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	}
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		const struct bpm_build_upatch *u = &spec->upatches[i];
-		unsigned char *body = NULL;
 		const char *member;
+		__u8 *body = NULL;
 		size_t body_len;
 
 		if (!u->tree.present)
@@ -837,7 +838,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(&c, repository, reference,
-					  (const unsigned char *)manifest, e.len,
+					  (const __u8 *)manifest, e.len,
 					  digest, sizeof(digest));
 	if (!rc)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,

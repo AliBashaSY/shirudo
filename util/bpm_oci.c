@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +19,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <curl/curl.h>
+
+#include <shirudo/misc.h>
 
 #include "bpm_oci.h"
 #include "crypto.h"
@@ -47,7 +48,7 @@ void bpm_copy_string(char *dst, size_t dst_sz, const char *src)
 
 static bool bpm_component_ok(const char *s, bool plus)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const __u8 *p = (const __u8 *)s;
 
 	if (!s || !*s || strlen(s) >= BPM_MAX_NAME || s[0] == '.')
 		return false;
@@ -72,7 +73,7 @@ bool bpm_version_ok(const char *s)
 static int bpm_buffer_append(struct bpm_buffer *b, const void *data, size_t len)
 {
 	size_t want;
-	unsigned char *p;
+	__u8 *p;
 
 	if (len >= BPM_MAX_HTTP_BODY - b->len)
 		return -E2BIG;
@@ -119,7 +120,7 @@ static size_t bpm_write_memory(void *ptr, size_t size, size_t nmemb, void *ud)
 /* A download bounded by the size its manifest declares. */
 struct bpm_file_sink {
 	FILE		*fp;
-	uint64_t	room;
+	__u64		room;
 	bool		overflow;
 };
 
@@ -149,18 +150,18 @@ static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 	line[n] = '\0';
 	if (!strncasecmp(line, "WWW-Authenticate:", 17)) {
 		v = line + 17;
-		while (isspace((unsigned char)*v))
+		while (isspace((__u8)*v))
 			v++;
 		bpm_copy_string(r->www_auth, sizeof(r->www_auth), v);
 	} else if (!strncasecmp(line, "Content-Type:", 13)) {
 		v = line + 13;
-		while (isspace((unsigned char)*v))
+		while (isspace((__u8)*v))
 			v++;
 		v[strcspn(v, " ;\r\n")] = '\0';
 		bpm_copy_string(r->content_type, sizeof(r->content_type), v);
 	} else if (!strncasecmp(line, "Location:", 9)) {
 		v = line + 9;
-		while (isspace((unsigned char)*v))
+		while (isspace((__u8)*v))
 			v++;
 		v[strcspn(v, "\r\n")] = '\0';
 		bpm_copy_string(r->location, sizeof(r->location), v);
@@ -186,23 +187,23 @@ static int base64_value(int c)
 static int decode_basic(const char *in, char *user, size_t usz,
 			char *pass, size_t psz)
 {
-	unsigned char out[BPM_OCI_BASIC_RAW_SIZE];
+	__u8 out[BPM_OCI_BASIC_RAW_SIZE];
 	size_t n = 0, i = 0;
-	unsigned int val = 0;
+	__u32 val = 0;
 	int bits = -8, x;
 	char *colon;
 
 	for (; *in && *in != '"' && n < sizeof(out); in++) {
-		if (isspace((unsigned char)*in) || *in == '=')
+		if (isspace((__u8)*in) || *in == '=')
 			continue;
-		x = base64_value((unsigned char)*in);
+		x = base64_value((__u8)*in);
 		if (x < 0)
 			return -EINVAL;
 		/* No more than 12 bits are ever pending. */
-		val = ((val << 6) | (unsigned int)x) & 0xfff;
+		val = ((val << 6) | (__u32)x) & 0xfff;
 		bits += 6;
 		if (bits >= 0) {
-			out[n++] = (unsigned char)((val >> bits) & 0xff);
+			out[n++] = (__u8)((val >> bits) & 0xff);
 			bits -= 8;
 		}
 	}
@@ -236,12 +237,12 @@ static int encode_basic(const char *user, const char *pass,
 	if (need > out_sz)
 		return -ENOSPC;
 	for (i = 0; i < len; i += 3) {
-		unsigned int v = (unsigned char)raw[i] << 16;
+		__u32 v = (__u8)raw[i] << 16;
 
 		if (i + 1 < len)
-			v |= (unsigned char)raw[i + 1] << 8;
+			v |= (__u8)raw[i + 1] << 8;
 		if (i + 2 < len)
-			v |= (unsigned char)raw[i + 2];
+			v |= (__u8)raw[i + 2];
 		out[o++] = alphabet[(v >> 18) & 63];
 		out[o++] = alphabet[(v >> 12) & 63];
 		out[o++] = i + 1 < len ? alphabet[(v >> 6) & 63] : '=';
@@ -257,7 +258,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	const char *docker = getenv("DOCKER_CONFIG");
 	char path[PATH_MAX];
 	char needle[BPM_MAX_ENDPOINT + 8];
-	unsigned char *body = NULL;
+	__u8 *body = NULL;
 	size_t body_len = 0;
 	char *p, *end, *auth;
 	int rc;
@@ -312,7 +313,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 		return -EINVAL;
 	}
 	auth++;
-	while (*auth && isspace((unsigned char)*auth))
+	while (*auth && isspace((__u8)*auth))
 		auth++;
 	if (*auth != '"') {
 		xfree(body, body_len + 1);
@@ -625,7 +626,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	if (!token)
 		goto out;
 	token++;
-	while (*token && isspace((unsigned char)*token))
+	while (*token && isspace((__u8)*token))
 		token++;
 	if (*token++ != '"')
 		goto out;
@@ -703,7 +704,7 @@ int bpm_oci_get_blob(struct bpm_oci_client *c, const char *url,
 }
 
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
-		     const char *accept, const char *path, int64_t size)
+		     const char *accept, const char *path, __s64 size)
 {
 	struct bpm_http_response r = {};
 	struct bpm_file_sink sink = {};
@@ -716,7 +717,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 	fp = fopen(path, "wb");
 	if (!fp)
 		return -errno;
-	sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
+	sink = (struct bpm_file_sink){ .fp = fp, .room = (__u64)size };
 	rc = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
 	if (!rc && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
 		fclose(fp);
@@ -727,7 +728,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			bpm_buffer_free(&r.body);
 			return rc;
 		}
-		sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
+		sink = (struct bpm_file_sink){ .fp = fp, .room = (__u64)size };
 		rc = get_bearer_token(c, r.www_auth);
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
@@ -746,7 +747,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			bpm_buffer_free(&r.body);
 			return rc;
 		}
-		sink = (struct bpm_file_sink){ .fp = fp, .room = (uint64_t)size };
+		sink = (struct bpm_file_sink){ .fp = fp, .room = (__u64)size };
 		rc = encode_basic(c->username, c->password, encoded, sizeof(encoded));
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Basic %s", encoded);
@@ -842,7 +843,7 @@ static int on_descriptor(void *ud)
 	return 0;
 }
 
-int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
+int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 			   struct bpm_descriptor *layers, int max_layers,
 			   int *n_layers, char *package_name,
 			   size_t package_name_sz)
@@ -851,7 +852,7 @@ int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
 	struct shirudo_json_array arr = { on_descriptor, &sink };
 	struct shirudo_json_field layer_annotations[1], manifest_annotations[1];
 	struct shirudo_json_field sub[4], root[3];
-	int64_t schema = 0;
+	__s64 schema = 0;
 
 	memset(sub, 0, sizeof(sub));
 	sub[0] = (struct shirudo_json_field){ .key = "mediaType", .type = SHIRUDO_JSON_T_STRING,
@@ -886,9 +887,9 @@ int bpm_oci_parse_manifest(const unsigned char *body, size_t len,
 
 bool bpm_package_name_ok(const char *s)
 {
-	const unsigned char *p = (const unsigned char *)s;
+	const __u8 *p = (const __u8 *)s;
 
-	if (!s || !isalnum((unsigned char)*p))
+	if (!s || !isalnum((__u8)*p))
 		return false;
 	for (; *p; p++) {
 		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-'))
@@ -944,7 +945,7 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 	}
 	if (!bpm_package_name_ok(strrchr(repository, '/') ?
 				 strrchr(repository, '/') + 1 : repository) ||
-	    !bpm_version_ok(tag) || !isalnum((unsigned char)tag[0]))
+	    !bpm_version_ok(tag) || !isalnum((__u8)tag[0]))
 		return -EINVAL;
 	return bpm_oci_parse_endpoint(endpoint, c);
 }
@@ -995,10 +996,10 @@ void bpm_trim(const char *in, char *out, size_t out_sz)
 {
 	const char *start = in, *end;
 
-	while (*start && isspace((unsigned char)*start))
+	while (*start && isspace((__u8)*start))
 		start++;
 	end = start + strlen(start);
-	while (end > start && isspace((unsigned char)end[-1]))
+	while (end > start && isspace((__u8)end[-1]))
 		end--;
 	if ((size_t)(end - start) >= out_sz)
 		end = start + out_sz - 1;
@@ -1021,11 +1022,11 @@ int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 int bpm_sha256_hex(const void *data, size_t len,
 		   char *hex, size_t hex_sz)
 {
-	unsigned char digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
 
 	if (hex_sz < 65 || shirudo_sha256_buffer(data, len, digest) != 0)
 		return -EINVAL;
-	for (unsigned int i = 0; i < sizeof(digest); i++)
+	for (__u32 i = 0; i < sizeof(digest); i++)
 		snprintf(hex + i * 2, 3, "%02x", digest[i]);
 	hex[64] = 0;
 	return 0;
@@ -1081,7 +1082,7 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 	if (!rc) {
 		bpm_copy_string(out->media, sizeof(out->media), media);
 		bpm_copy_string(out->digest, sizeof(out->digest), digest);
-		out->size = (int64_t)body_len;
+		out->size = (__s64)body_len;
 		return 0;
 	}
 	if (rc != -ENOENT)
@@ -1116,7 +1117,7 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 	if (!rc) {
 		bpm_copy_string(out->media, sizeof(out->media), media);
 		bpm_copy_string(out->digest, sizeof(out->digest), digest);
-		out->size = (int64_t)body_len;
+		out->size = (__s64)body_len;
 	}
 out:
 	bpm_buffer_free(&r.body);
@@ -1142,7 +1143,7 @@ void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
 }
 
 int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
-			 const char *reference, const unsigned char *body,
+			 const char *reference, const __u8 *body,
 			 size_t body_len, char *digest, size_t digest_sz)
 {
 	struct bpm_http_response r = {};

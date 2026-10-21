@@ -7,12 +7,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <shirudo/misc.h>
+
 #include "io.h"
 #include "malloc.h"
 
 int shirudo_write_all(int fd, const void *buf, size_t len)
 {
-	const unsigned char *p = buf;
+	const __u8 *p = buf;
 
 	while (len) {
 		ssize_t n = write(fd, p, len);

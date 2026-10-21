@@ -11,7 +11,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #include "chain.h"
 #include "tpm_wire.h"
@@ -30,10 +31,10 @@
  */
 struct shirudo_attest_challenge {
 	bool		ek_rsa;
-	uint8_t		ak_name[SHIRUDO_TPM_NAME_LEN];
-	uint8_t		blob[SHIRUDO_TPM_ID_OBJECT_LEN];
+	__u8		ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		blob[SHIRUDO_TPM_ID_OBJECT_LEN];
 	size_t		blob_len;
-	uint8_t		secret[256];
+	__u8		secret[256];
 	size_t		secret_len;
 };
 
@@ -46,8 +47,8 @@ int shirudo_attest_challenge_read(const char *path,
  * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
  * -EKEYREJECTED when the TPM refuses the challenge.
  */
-int shirudo_attest_evidence(const uint8_t *nonce, size_t nonce_len,
-			    uint32_t pcr_mask,
+int shirudo_attest_evidence(const __u8 *nonce, size_t nonce_len,
+			    __u32 pcr_mask,
 			    const struct shirudo_attest_challenge *challenge,
 			    char **out, size_t *len, size_t *cap);
 
@@ -58,37 +59,37 @@ int shirudo_attest_evidence(const uint8_t *nonce, size_t nonce_len,
  */
 struct shirudo_attest_challenge_policy {
 	const char	*ek_ca;		/* issuer bundle, or NULL */
-	const uint8_t	*ak_name;	/* pinned attestation key, or NULL */
-	const uint8_t	*ek_name;	/* pinned endorsement key, or NULL */
+	const __u8	*ak_name;	/* pinned attestation key, or NULL */
+	const __u8	*ek_name;	/* pinned endorsement key, or NULL */
 	bool		trust_presented; /* accept an unvouched endorsement key */
 };
 
 int shirudo_attest_challenge_make(const char *evidence, size_t len,
 				  const struct shirudo_attest_challenge_policy *pol,
-				  uint8_t credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+				  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
 				  char **out, size_t *out_len, size_t *cap,
 				  char *report, size_t report_cap);
 
 struct shirudo_attest_expect {
-	const uint8_t	*nonce;
+	const __u8	*nonce;
 	size_t		nonce_len;
 	bool		have_ak_name;
-	uint8_t		ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		ak_name[SHIRUDO_TPM_NAME_LEN];
 	bool		have_chain;
-	uint8_t		chain[32];
+	__u8		chain[32];
 	bool		have_init;	/* cert, set, tree root known */
-	uint8_t		init_event[32];
+	__u8		init_event[32];
 	bool		allow_runtime_events;
 	bool		strict_anchor;
-	uint32_t	pcr_expect_mask;
-	uint8_t		pcrs[24][32];
+	__u32		pcr_expect_mask;
+	__u8		pcrs[24][32];
 	bool		have_credential;
-	uint8_t		credential[SHIRUDO_TPM_CREDENTIAL_LEN];
+	__u8		credential[SHIRUDO_TPM_CREDENTIAL_LEN];
 	bool		have_ek_name;
-	uint8_t		ek_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		ek_name[SHIRUDO_TPM_NAME_LEN];
 	bool		require_initrd;	/* the binding must be the initrd's */
-	uint32_t	bind_expect_mask; /* PCR values at binding time */
-	uint8_t		bind_values[24][32];
+	__u32		bind_expect_mask; /* PCR values at binding time */
+	__u8		bind_values[24][32];
 };
 
 /*

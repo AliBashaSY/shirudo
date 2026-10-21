@@ -7,14 +7,15 @@
  * so a shell test can assert on it.
  */
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "chain.h"
 
-static void puthex(const uint8_t *b, size_t n)
+static void puthex(const __u8 *b, size_t n)
 {
 	char h[2 * 64 + 1];
 
@@ -28,7 +29,7 @@ int main(int argc, char **argv)
 		return 2;
 
 	if (strcmp(argv[1], "sha256") == 0 && argc == 3) {
-		uint8_t d[32];
+		__u8 d[32];
 
 		shirudo_sha256(argv[2], strlen(argv[2]), d);
 		puthex(d, 32);
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "decode") == 0 && argc == 4) {
 		size_t n = (size_t)strtoul(argv[3], NULL, 10);
-		uint8_t buf[256];
+		__u8 buf[256];
 		int rc;
 
 		if (n > sizeof(buf))
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "cteq") == 0 && argc == 4) {
-		uint8_t a[256], b[256];
+		__u8 a[256], b[256];
 		size_t na = strlen(argv[2]) / 2, nb = strlen(argv[3]) / 2;
 
 		if (na != nb || na > sizeof(a))

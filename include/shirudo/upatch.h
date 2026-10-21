@@ -9,8 +9,9 @@
 #define SHIRUDO_UPATCH_H
 
 #include <endian.h>
-#include <stdint.h>
 #include <string.h>
+
+#include <shirudo/misc.h>
 
 #define SHIRUDO_UPATCH_MAGIC		0x53485244554e4150ULL	/* "SHRDUNAP" */
 /*
@@ -33,9 +34,9 @@ enum shirudo_upatch_type {
 #define SHIRUDO_UPATCH_PAYLOAD_HASH_LEN	32	/* SHA-256 */
 
 struct shirudo_upatch_header {
-	uint64_t	magic;			/* SHIRUDO_UPATCH_MAGIC */
-	uint32_t	version;		/* SHIRUDO_UPATCH_VERSION */
-	uint32_t	flags;			/* SHIRUDO_DIRECTIVE_* */
+	__u64		magic;			/* SHIRUDO_UPATCH_MAGIC */
+	__u32		version;		/* SHIRUDO_UPATCH_VERSION */
+	__u32		flags;			/* SHIRUDO_DIRECTIVE_* */
 	char		name[SHIRUDO_UPATCH_NAME_MAX];
 	/*
 	 * SHA-256 of the signed content, insns || data. Distinct from the
@@ -43,21 +44,21 @@ struct shirudo_upatch_header {
 	 * recomputes at load. This is the value recorded as the pin xattr,
 	 * the TPM register event, and the unload match target.
 	 */
-	uint8_t		payload_sha256[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
-	uint32_t	loader_insns_off;	/* file offset */
-	uint32_t	loader_insns_len;
-	uint32_t	signature_off;
-	uint32_t	signature_len;
-	uint32_t	metadata_off;
-	uint32_t	metadata_len;
-	uint32_t	data_off;		/* gen_loader_opts.data */
-	uint32_t	data_len;
-	uint32_t	log_buf_sz;		/* verifier-log buf size */
-	uint32_t	nr_maps;		/* loader ctx bpf_map_desc count */
-	uint32_t	nr_progs;		/* loader ctx bpf_prog_desc count */
-	uint32_t	reserved0;		/* zero */
-	uint32_t	type;			/* enum shirudo_upatch_type */
-	uint32_t	reserved1;		/* zero; keeps the v1 header 8-byte aligned */
+	__u8		payload_sha256[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+	__u32		loader_insns_off;	/* file offset */
+	__u32		loader_insns_len;
+	__u32		signature_off;
+	__u32		signature_len;
+	__u32		metadata_off;
+	__u32		metadata_len;
+	__u32		data_off;		/* gen_loader_opts.data */
+	__u32		data_len;
+	__u32		log_buf_sz;		/* verifier-log buf size */
+	__u32		nr_maps;		/* loader ctx bpf_map_desc count */
+	__u32		nr_progs;		/* loader ctx bpf_prog_desc count */
+	__u32		reserved0;		/* zero */
+	__u32		type;			/* enum shirudo_upatch_type */
+	__u32		reserved1;		/* zero; keeps the v1 header 8-byte aligned */
 };
 
 _Static_assert(sizeof(struct shirudo_upatch_header) ==
@@ -81,13 +82,13 @@ enum shirudo_upatch_decoder_export_signal {
 };
 
 struct shirudo_decoder_manifest {
-	uint32_t	magic;
-	uint16_t	version;
-	uint16_t	language;
-	uint16_t	api_version;
-	uint16_t	input_format; /* SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 */
-	uint16_t	export_signal;
-	uint16_t	reserved;
+	__u32		magic;
+	__u16		version;
+	__u16		language;
+	__u16		api_version;
+	__u16		input_format; /* SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 */
+	__u16		export_signal;
+	__u16		reserved;
 	char	upatch[64];
 	char	map[16];
 	char	source[64];
@@ -95,31 +96,31 @@ struct shirudo_decoder_manifest {
 };
 
 struct shirudo_upatch_decoder_entry {
-	uint32_t	language;
-	uint32_t	api_version;
-	uint32_t	input_format;
-	uint32_t	export_signal;
+	__u32		language;
+	__u32		api_version;
+	__u32		input_format;
+	__u32		export_signal;
 	char	upatch[64];
 	char	map[16];
 	char	source[64];
 	char	entrypoint[32];
-	uint32_t	source_off;
-	uint32_t	source_len;
+	__u32		source_off;
+	__u32		source_len;
 };
 
 struct shirudo_upatch_decoder_blob {
-	uint32_t	magic;
-	uint32_t	version;
-	uint32_t	nr_decoders;
-	uint32_t	reserved;
+	__u32		magic;
+	__u32		version;
+	__u32		nr_decoders;
+	__u32		reserved;
 	struct shirudo_upatch_decoder_entry decoders[];
 };
 
 struct shirudo_upatch_decoder_trailer {
-	uint32_t	magic;
-	uint32_t	version;
-	uint32_t	decoder_off;
-	uint32_t	decoder_len;
+	__u32		magic;
+	__u32		version;
+	__u32		decoder_off;
+	__u32		decoder_len;
 };
 
 /*
@@ -160,18 +161,18 @@ enum shirudo_upatch_prog_role {
 };
 
 struct shirudo_upatch_prog_entry {
-	uint32_t	role;		/* enum shirudo_upatch_prog_role */
-	uint32_t	kind;		/* enum shirudo_upatch_attach_kind */
-	uint64_t	offset;		/* kprobe offset; zero for kretprobe */
+	__u32		role;		/* enum shirudo_upatch_prog_role */
+	__u32		kind;		/* enum shirudo_upatch_attach_kind */
+	__u64		offset;		/* kprobe offset; zero for kretprobe */
 	char		target[SHIRUDO_UPATCH_ATTACH_TARGET_MAX]; /* kprobe symbol */
 	char		map[SHIRUDO_UPATCH_PROG_MAP_MAX];
 };
 
 struct shirudo_upatch_prog_metadata {
-	uint32_t	magic;		/* SHIRUDO_UPATCH_PROG_MAGIC */
-	uint32_t	version;		/* SHIRUDO_UPATCH_PROG_VERSION */
-	uint32_t	nr_progs;
-	uint32_t	reserved;
+	__u32		magic;		/* SHIRUDO_UPATCH_PROG_MAGIC */
+	__u32		version;		/* SHIRUDO_UPATCH_PROG_VERSION */
+	__u32		nr_progs;
+	__u32		reserved;
 	/*
 	 * Then: nr_progs struct shirudo_upatch_prog_entry entries in
 	 * libbpf/gen_loader program iteration order.
@@ -184,41 +185,41 @@ struct shirudo_upatch_prog_metadata {
  * entries. It is required when any program has UPROBE_MULTI attach kind
  * and absent otherwise. Each variable-length record is followed by
  * path_len path bytes (without NUL), build_id_len build-ID bytes, and
- * nr_offsets little-endian uint64_t file offsets. Records have no padding.
+ * nr_offsets little-endian __u64 file offsets. Records have no padding.
  */
 struct shirudo_upatch_uprobe_targets {
-	uint32_t	magic;		/* SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC */
-	uint32_t	version;	/* SHIRUDO_UPATCH_UPROBE_TARGET_VERSION */
-	uint32_t	nr_targets;
-	uint32_t	reserved;
+	__u32		magic;		/* SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC */
+	__u32		version;	/* SHIRUDO_UPATCH_UPROBE_TARGET_VERSION */
+	__u32		nr_targets;
+	__u32		reserved;
 };
 
 struct shirudo_upatch_uprobe_target {
-	uint32_t	prog_idx;
-	uint32_t	path_len;
-	uint32_t	build_id_len;
-	uint32_t	nr_offsets;
+	__u32		prog_idx;
+	__u32		path_len;
+	__u32		build_id_len;
+	__u32		nr_offsets;
 };
 
-static inline uint16_t rd_le16(const void *p)
+static inline __u16 rd_le16(const void *p)
 {
-	uint16_t v;
+	__u16 v;
 
 	memcpy(&v, p, sizeof(v));
 	return le16toh(v);
 }
 
-static inline uint32_t rd_le32(const void *p)
+static inline __u32 rd_le32(const void *p)
 {
-	uint32_t v;
+	__u32 v;
 
 	memcpy(&v, p, sizeof(v));
 	return le32toh(v);
 }
 
-static inline uint64_t rd_le64(const void *p)
+static inline __u64 rd_le64(const void *p)
 {
-	uint64_t v;
+	__u64 v;
 
 	memcpy(&v, p, sizeof(v));
 	return le64toh(v);

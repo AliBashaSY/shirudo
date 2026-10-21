@@ -18,6 +18,8 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm_oci.h"
 #include "bpm_package.h"
 #include "bpm_tree.h"
@@ -47,13 +49,13 @@ static int on_index_entry(void *ud)
 	return 0;
 }
 
-int bpm_index_parse(const unsigned char *body, size_t len,
+int bpm_index_parse(const __u8 *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries)
 {
 	struct index_sink sink = { .items = entries };
 	struct shirudo_json_array arr = { on_index_entry, &sink };
 	struct shirudo_json_field sub[7], root[2];
-	int64_t schema = 0;
+	__s64 schema = 0;
 
 	memset(sub, 0, sizeof(sub));
 	sub[0] = (struct shirudo_json_field){
@@ -103,8 +105,8 @@ int bpm_index_parse(const unsigned char *body, size_t len,
 	return 0;
 }
 
-int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
-		   const unsigned char *sig, size_t sig_len, const char *cert_path)
+int bpm_verify_cms(const __u8 *payload, size_t payload_len,
+		   const __u8 *sig, size_t sig_len, const char *cert_path)
 {
 	struct shirudo_cert cert = {};
 	int rc = -EINVAL;
@@ -115,17 +117,17 @@ int bpm_verify_cms(const unsigned char *payload, size_t payload_len,
 	return rc;
 }
 
-int bpm_tar_octal(const char *p, size_t n, uint64_t *out)
+int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 {
-	uint64_t v = 0;
 	size_t i = 0;
+	__u64 v = 0;
 
 	while (i < n && (p[i] == ' ' || p[i] == '\0'))
 		i++;
 	for (; i < n && p[i] >= '0' && p[i] <= '7'; i++) {
 		if (v > (UINT64_MAX >> 3))
 			return -EOVERFLOW;
-		v = (v << 3) | (unsigned int)(p[i] - '0');
+		v = (v << 3) | (__u32)(p[i] - '0');
 	}
 	*out = v;
 	return 0;
@@ -161,12 +163,12 @@ static bool package_member_name_ok(const char *name, const char *member)
 
 int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   const char *package_dir, char *found_dir,
-			   size_t found_dir_sz, unsigned char **out,
+			   size_t found_dir_sz, __u8 **out,
 			   size_t *out_len, size_t max)
 {
 	gzFile gz = gzopen(archive, "rb");
-	unsigned char h[512];
 	int rc = -ENOENT;
+	__u8 h[512];
 
 	if (!gz)
 		return -errno;
@@ -176,7 +178,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 	}
 	for (;;) {
 		int n = gzread(gz, h, sizeof(h));
-		uint64_t size, remain, pad;
+		__u64 size, remain, pad;
 		char name[101];
 		bool zero = true;
 
@@ -206,7 +208,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		     ((size_t)(strchr(name, '/') - name) == strlen(package_dir) &&
 		      !strncmp(name, package_dir, strlen(package_dir))))) {
 			size_t dir_len = (size_t)(strchr(name, '/') - name);
-			unsigned char *body;
+			__u8 *body;
 
 			if ((h[156] && h[156] != '0') || h[345] ||
 			    (found_dir && dir_len >= found_dir_sz)) {
@@ -225,7 +227,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			while (remain) {
 				size_t want = remain > 65536 ? 65536 : (size_t)remain;
 
-				n = gzread(gz, body + size - remain, (unsigned int)want);
+				n = gzread(gz, body + size - remain, (__u32)want);
 				if (n <= 0) {
 					xfree(body, (size_t)size + 1);
 					rc = -EINVAL;
@@ -244,10 +246,10 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			break;
 		}
 		while (remain) {
-			unsigned char discard[65536];
+			__u8 discard[65536];
 			size_t want = remain > sizeof(discard) ? sizeof(discard) : (size_t)remain;
 
-			n = gzread(gz, discard, (unsigned int)want);
+			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
 				rc = -EINVAL;
 				goto done;
@@ -256,10 +258,10 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		}
 		pad = (512 - (size % 512)) % 512;
 		while (pad) {
-			unsigned char discard[512];
+			__u8 discard[512];
 			size_t want = pad > sizeof(discard) ? sizeof(discard) : (size_t)pad;
 
-			n = gzread(gz, discard, (unsigned int)want);
+			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
 				rc = -EINVAL;
 				goto done;
@@ -278,13 +280,13 @@ done:
 }
 
 int bpm_pkg_read_member(const char *archive, const char *member,
-			unsigned char **out, size_t *out_len, size_t max)
+			__u8 **out, size_t *out_len, size_t max)
 {
 	return bpm_pkg_read_member_in(archive, member, NULL, NULL, 0,
 				      out, out_len, max);
 }
 
-static X509 *read_x509_memory(const unsigned char *body, size_t len)
+static X509 *read_x509_memory(const __u8 *body, size_t len)
 {
 	BIO *b;
 	X509 *x;
@@ -307,11 +309,11 @@ static X509 *read_x509_memory(const unsigned char *body, size_t len)
  * X509_pubkey_digest(), whose meaning is easy to confuse with a digest of
  * the key material itself when diagnosing package signer mismatches.
  */
-static int x509_spki_sha256(const X509 *cert, unsigned char digest[32])
+static int x509_spki_sha256(const X509 *cert, __u8 digest[32])
 {
 	X509_PUBKEY *spki;
-	unsigned char *der = NULL, *p;
-	unsigned int digest_len = 0;
+	__u8 *der = NULL, *p;
+	__u32 digest_len = 0;
 	int der_len, encoded_len, rc = -EINVAL;
 
 	spki = X509_get_X509_PUBKEY((X509 *)cert);
@@ -338,14 +340,14 @@ out:
 
 int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 {
-	unsigned char *environment = NULL;
+	__u8 *environment = NULL;
 	struct {
 		char name[BPM_MAX_NAME];
 		char version[BPM_MAX_NAME];
 		char signer[BPM_MAX_DIGEST];
 	} parsed = {};
 	struct shirudo_json_field package_fields[2], shirudo_fields[1], root[2];
-	unsigned char digest[32];
+	__u8 digest[32];
 	X509 *cert = NULL;
 	char hex[EVP_MAX_MD_SIZE * 2 + 1];
 	size_t environment_len;
@@ -394,7 +396,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		rc = -EINVAL;
 		goto out;
 	}
-	for (unsigned int i = 0; i < sizeof(digest); i++)
+	for (__u32 i = 0; i < sizeof(digest); i++)
 		snprintf(hex + i * 2, 3, "%02x", digest[i]);
 	hex[sizeof(digest) * 2] = '\0';
 	if (parsed.signer[0] && strcasecmp(parsed.signer, hex)) {
@@ -483,7 +485,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
 		if (rc)
 			goto out;
-		if ((layers[i].size >= 0 && (int64_t)dst->len != layers[i].size) ||
+		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
 		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
 		    !bpm_digest_matches(layers[i].digest, hex)) {
 			rc = -EKEYREJECTED;

@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/misc.h>
+
 #include "tenant_id.h"
 
 #define SHIRUDO_OWNER_AUTH_MAX	256
@@ -22,7 +24,7 @@
 #define SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT		(4u * 1024u * 1024u)
 
 struct shirudo_config {
-	unsigned long	eventlog_max_bytes;	/* 0 = unlimited */
+	__u64		eventlog_max_bytes;	/* 0 = unlimited */
 	/*
 	 * Owner-hierarchy auth used to define the NV index on TPMs whose
 	 * owner auth is set. Empty (len 0) = empty-password session.
@@ -40,10 +42,10 @@ struct shirudo_config {
 	char		map_export_otel_endpoint[SHIRUDO_MAP_EXPORT_ENDPOINT_MAX];
 	char		map_export_tenant_id[SHIRUDO_TENANT_ID_MAX + 1];
 	bool		map_export_otel_insecure;
-	unsigned int	map_export_otel_retries;
+	__u32		map_export_otel_retries;
 	char		map_export_s3_uri[SHIRUDO_MAP_EXPORT_URI_MAX];
-	unsigned int	map_export_log_record_max_bytes;
-	unsigned int	map_export_otlp_max_bytes;
+	__u32		map_export_log_record_max_bytes;
+	__u32		map_export_otlp_max_bytes;
 };
 
 /* A missing file is not an error. */

@@ -11,7 +11,8 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #include "eventlog.h"
 #include "hex.h"
@@ -34,11 +35,11 @@
 #define SHIRUDO_CHAIN_ANCHOR_MAX	128
 
 void shirudo_sha256(const void *data, size_t len,
-		    uint8_t out[SHIRUDO_CHAIN_DIGEST_LEN]);
+		    __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
 void shirudo_sha256_2(const void *a, size_t a_len,
 		      const void *b, size_t b_len,
-		      uint8_t out[SHIRUDO_CHAIN_DIGEST_LEN]);
+		      __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
 /* Constant time; 1 when equal. */
 int shirudo_ct_eq(const void *a, const void *b, size_t n);
@@ -52,34 +53,34 @@ struct shirudo_measured_upatch {
  * The event digests every measuring path and the predictor share.
  * The set is sorted by name before hashing.
  */
-void shirudo_chain_init_event(const uint8_t cert_sha[32],
+void shirudo_chain_init_event(const __u8 cert_sha[32],
 			      struct shirudo_measured_upatch *set, size_t n,
-			      const uint8_t tree_root[32],
-			      uint8_t set_digest[32], uint8_t event[32]);
+			      const __u8 tree_root[32],
+			      __u8 set_digest[32], __u8 event[32]);
 /* SHA256(tag || NUL || cert_sha256), tag "shirudo-key-revoke". */
-void shirudo_chain_key_event(const char *tag, const uint8_t cert_sha[32],
-			     uint8_t event[32]);
+void shirudo_chain_key_event(const char *tag, const __u8 cert_sha[32],
+			     __u8 event[32]);
 void shirudo_chain_upatch_event(const char *tag, const char *name,
-				const uint8_t payload[32], uint8_t event[32]);
-void shirudo_chain_tree_event(int64_t seq, const uint8_t operation_digest[32],
-			      uint8_t event[32]);
-void shirudo_chain_fold(uint8_t chain[32], const uint8_t event[32]);
+				const __u8 payload[32], __u8 event[32]);
+void shirudo_chain_tree_event(__s64 seq, const __u8 operation_digest[32],
+			      __u8 event[32]);
+void shirudo_chain_fold(__u8 chain[32], const __u8 event[32]);
 
 /* The PCR record anchoring a register name: nvpcr-init:shirudo:0x..:<name>. */
-void shirudo_chain_anchor(const uint8_t name[SHIRUDO_TPM_NAME_LEN],
+void shirudo_chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
 			  char *out, size_t cap);
 
 struct shirudo_chain_init_info {
 	bool		reused;		/* written and on record */
 	bool		initrd;		/* bound while the initrd ran */
-	uint32_t	reset_count;	/* the TPM's, for the record */
-	uint8_t		value[SHIRUDO_CHAIN_DIGEST_LEN];
-	uint8_t		pcr_before[SHIRUDO_CHAIN_DIGEST_LEN];
-	uint8_t		phase_before[SHIRUDO_CHAIN_DIGEST_LEN];
-	uint8_t		name[SHIRUDO_TPM_NAME_LEN];
+	__u32		reset_count;	/* the TPM's, for the record */
+	__u8		value[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8		pcr_before[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8		phase_before[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8		name[SHIRUDO_TPM_NAME_LEN];
 	size_t		name_len;
 	char		anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
-	uint8_t		anchor_digest[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8		anchor_digest[SHIRUDO_CHAIN_DIGEST_LEN];
 };
 
 /*
@@ -90,7 +91,7 @@ struct shirudo_chain_init_info {
  * when the owner hierarchy refuses, -EPROTO when the TPM's name is not
  * the computed one.
  */
-int shirudo_chain_init(const uint8_t event[SHIRUDO_CHAIN_DIGEST_LEN],
+int shirudo_chain_init(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
 		       struct shirudo_chain_init_info *info);
 
 /*
@@ -99,11 +100,11 @@ int shirudo_chain_init(const uint8_t event[SHIRUDO_CHAIN_DIGEST_LEN],
  * init record, index unwritten), -EACCES when the index on the TPM is
  * not the one init recorded (recreated), -EIO on a TPM failure.
  */
-int shirudo_chain_extend(const uint8_t event[SHIRUDO_CHAIN_DIGEST_LEN],
-			 uint8_t out_chain[SHIRUDO_CHAIN_DIGEST_LEN]);
+int shirudo_chain_extend(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
+			 __u8 out_chain[SHIRUDO_CHAIN_DIGEST_LEN]);
 
 /* The live value; -ENODEV when no register is written this boot. */
-int shirudo_chain_read(uint8_t out[SHIRUDO_CHAIN_DIGEST_LEN]);
+int shirudo_chain_read(__u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
 struct shirudo_chain_status {
 	bool		tpm;		/* a TPM answered */
@@ -112,8 +113,8 @@ struct shirudo_chain_status {
 	bool		logged;		/* init record this boot */
 	bool		anchored;	/* recorded name, same reset */
 	bool		rebound;	/* two records for one reset */
-	uint8_t		value[SHIRUDO_CHAIN_DIGEST_LEN];
-	uint8_t		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		value[SHIRUDO_CHAIN_DIGEST_LEN];
+	__u8		name[SHIRUDO_TPM_NAME_LEN];
 	size_t		name_len;
 	struct shirudo_eventlog_init init;
 };

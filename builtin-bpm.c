@@ -13,7 +13,6 @@
 #include <ftw.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +27,8 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
+
+#include <shirudo/misc.h>
 
 #include "builtin.h"
 #include "util/bpm_oci.h"
@@ -219,8 +220,8 @@ static int copy_file_ex(const char *src, const char *dst, mode_t mode,
 			bool exclusive)
 {
 	struct stat in_st, out_st;
-	unsigned char buf[65536];
 	int in, out, rc = 0;
+	__u8 buf[65536];
 	ssize_t n;
 
 	in = open(src, O_RDONLY | O_CLOEXEC);
@@ -349,8 +350,8 @@ static int cache_path(const char *source, char *out, size_t sz)
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
 {
 	struct shirudo_sha256_ctx ctx;
-	unsigned char digest[SHIRUDO_CRYPTO_SHA256_LEN];
-	unsigned char buf[65536];
+	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 buf[65536];
 	ssize_t nr;
 	int fd, rc = -EIO;
 
@@ -378,8 +379,8 @@ done:
 static int print_package_readme(const char *source)
 {
 	char temporary[] = "/tmp/shirudo-bpm-info-XXXXXX";
-	unsigned char *beefile = NULL, *readme = NULL;
 	size_t beefile_len = 0, readme_len = 0;
+	__u8 *beefile = NULL, *readme = NULL;
 	const char *archive = source;
 	char package_dir[101];
 	int fd, rc;
@@ -421,8 +422,8 @@ out:
 static int extract_archive(const char *archive, const char *dest)
 {
 	gzFile gz = gzopen(archive, "rb");
-	unsigned char h[512];
 	char root[256] = {};
+	__u8 h[512];
 	int rc = 0;
 
 	if (!gz)
@@ -435,7 +436,7 @@ static int extract_archive(const char *archive, const char *dest)
 	for (;;) {
 		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
 		int n = gzread(gz, h, sizeof(h));
-		uint64_t size, remain, pad;
+		__u64 size, remain, pad;
 		bool zero = true;
 		int type;
 
@@ -510,10 +511,10 @@ static int extract_archive(const char *archive, const char *dest)
 			}
 			remain = size;
 			while (remain) {
-				unsigned char buf[65536];
+				__u8 buf[65536];
 				size_t want = remain > sizeof(buf) ? sizeof(buf) : (size_t)remain;
 
-				n = gzread(gz, buf, (unsigned int)want);
+				n = gzread(gz, buf, (__u32)want);
 				if (n <= 0 || fwrite(buf, 1, (size_t)n, fp) != (size_t)n) {
 					rc = -EIO;
 					break;
@@ -530,10 +531,10 @@ static int extract_archive(const char *archive, const char *dest)
 		}
 		pad = (512 - (size % 512)) % 512;
 		while (pad) {
-			unsigned char buf[512];
+			__u8 buf[512];
 			size_t want = pad > sizeof(buf) ? sizeof(buf) : (size_t)pad;
 
-			n = gzread(gz, buf, (unsigned int)want);
+			n = gzread(gz, buf, (__u32)want);
 			if (n <= 0) {
 				rc = -EINVAL;
 				break;
@@ -553,7 +554,7 @@ static int extract_archive(const char *archive, const char *dest)
 static int cert_matches_active(const char *path)
 {
 	struct shirudo_cert a = {}, b = {};
-	unsigned char da[SHIRUDO_CRYPTO_SHA256_LEN], db[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 da[SHIRUDO_CRYPTO_SHA256_LEN], db[SHIRUDO_CRYPTO_SHA256_LEN];
 	int rc = -EINVAL;
 
 	if (!shirudo_cert_read_file(path, &a) &&
@@ -570,7 +571,7 @@ static int cert_matches_active(const char *path)
 static int key_file_fingerprint(const char *path, char hex[65])
 {
 	struct shirudo_cert cert = {};
-	unsigned char digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
 	int rc;
 
 	rc = shirudo_cert_read_file(path, &cert);
@@ -631,7 +632,7 @@ static int install_key_file(const char *src)
 static int extract_package_cert(const char *archive, char *out, size_t out_sz)
 {
 	char tmp[] = "/tmp/shirudo-bpm-cert-XXXXXX";
-	unsigned char *body = NULL;
+	__u8 *body = NULL;
 	size_t len = 0;
 	int fd, rc;
 
@@ -711,7 +712,7 @@ static int list_keys(void)
 		    strcasecmp(entry->d_name + 64, ".der"))
 			continue;
 		for (size_t i = 0; i < 64; i++) {
-			if (!isxdigit((unsigned char)entry->d_name[i]))
+			if (!isxdigit((__u8)entry->d_name[i]))
 				valid = false;
 		}
 		if (!valid || snprintf(path, sizeof(path), "%s/%s",
@@ -777,13 +778,13 @@ static int on_state_entry(void *ud)
 
 static int state_read(struct bpm_state_entry *st, int *n)
 {
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
 	int rc;
 	struct state_sink sink = { .items = st };
 	struct shirudo_json_array arr = { on_state_entry, &sink };
 	struct shirudo_json_field sub[4], root[1];
-	int64_t unused = 0;
+	__s64 unused = 0;
 
 	rc = shirudo_read_file(SHIRUDO_BPM_STATE_PATH, 8u * 1024u * 1024u,
 			       &body, &len);
@@ -855,7 +856,7 @@ static int state_write(const struct bpm_state_entry *st, int n)
 static int load_cached_index(const char *source, struct bpm_index_entry *entries, int *n)
 {
 	char path[PATH_MAX];
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
 	int rc;
 
@@ -921,7 +922,7 @@ static int semver_compare(const char *a, const char *b)
 
 	for (int part = 0; part < 3; part++) {
 		char *ea, *eb;
-		unsigned long va, vb;
+		__u64 va, vb;
 
 		va = strtoul(pa, &ea, 10);
 		vb = strtoul(pb, &eb, 10);
@@ -1529,7 +1530,7 @@ static int parse_tree_repository(const char *raw, struct bpm_oci_client *c,
 	return bpm_oci_parse_endpoint(endpoint, c);
 }
 
-static int tree_digest_hex(const char *digest, uint8_t out[32])
+static int tree_digest_hex(const char *digest, __u8 out[32])
 {
 	if (!digest || strncmp(digest, "sha256:", 7))
 		return -EINVAL;
@@ -1538,9 +1539,16 @@ static int tree_digest_hex(const char *digest, uint8_t out[32])
 
 static bool tree_digest_valid(const char *digest)
 {
-	uint8_t raw[32];
+	__u8 raw[32];
 
 	return !tree_digest_hex(digest, raw);
+}
+
+static bool tree_tpm_available(void)
+{
+	__u8 value[32];
+
+	return !shirudo_chain_read(value);
 }
 
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
@@ -1641,7 +1649,7 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 			goto out;
 		if (bpm_sha256_hex(blob.data, blob.len, hex, sizeof(hex)) ||
 		    !bpm_digest_matches(layers[i].digest, hex) ||
-		    (layers[i].size >= 0 && (int64_t)blob.len != layers[i].size))
+		    (layers[i].size >= 0 && (__s64)blob.len != layers[i].size))
 			rc = -EKEYREJECTED;
 		if (rc)
 			goto out;
@@ -1741,16 +1749,16 @@ static void tree_status_clear(const char *id)
 }
 
 struct bpm_tree_pending {
-	int64_t seq;
+	__s64 seq;
 	char id[SHIRUDO_TREE_STRING_MAX];
 	char operation_digest[128];
 };
 
 static int tree_read_pending(struct bpm_tree_pending *pending)
 {
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
-	int64_t schema = 0;
+	__s64 schema = 0;
 	struct shirudo_json_field fields[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "seq", SHIRUDO_JSON_T_INT, &pending->seq, 0, 0, NULL, 0 },
@@ -1779,9 +1787,9 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
  * operator attests.
  */
 static int tree_measure_operation(const struct shirudo_tree_operation *op,
-				  const uint8_t operation_digest[32])
+				  const __u8 operation_digest[32])
 {
-	uint8_t event[32], chain[32];
+	__u8 event[32], chain[32];
 	struct shirudo_json_emit e;
 	char line[4096], ts[32], boot_id[64], nv_index[16];
 	char digest_hex[65], chain_hex[65];
@@ -1828,7 +1836,7 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 {
 	struct bpm_tree_pending pending = {};
 	const struct shirudo_tree_operation *op = NULL;
-	uint8_t digest[32], previous[32], next[32], replay[32];
+	__u8 digest[32], previous[32], next[32], replay[32];
 	bool applied = false, event_present = false;
 	int rc;
 
@@ -1888,7 +1896,7 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 
 static int tree_validate_operation(const struct shirudo_tree_operation *op)
 {
-	uint8_t digest[32];
+	__u8 digest[32];
 	char expected_digest[72];
 
 	if (!op || op->seq <= 0 || !shirudo_upatch_name_valid(op->id) ||
@@ -1917,7 +1925,7 @@ static void tree_sync_report_error(const char *phase,
 	if (rc > 0) {
 		if (op)
 			pr_err("bpm tree sync: phase=%s seq=%lld id=%s rc=%d "
-			       "(command status)", phase, (long long)op->seq,
+			       "(command status)", phase, (__s64)op->seq,
 			       op->id, rc);
 		else
 			pr_err("bpm tree sync: phase=%s rc=%d (command status)",
@@ -1928,7 +1936,7 @@ static void tree_sync_report_error(const char *phase,
 
 	if (op)
 		pr_err("bpm tree sync: phase=%s seq=%lld id=%s rc=%d (%s)",
-		       phase, (long long)op->seq, op->id, rc,
+		       phase, (__s64)op->seq, op->id, rc,
 		       err ? strerror(err) : "success");
 	else
 		pr_err("bpm tree sync: phase=%s rc=%d (%s)", phase, rc,
@@ -2060,10 +2068,10 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		tree_sync_report_error("pending_recovery", NULL, rc);
 		goto out;
 	}
-	tpm_available = shirudo_chain_read((uint8_t[32]){}) == 0;
+	tpm_available = tree_tpm_available();
 	for (int i = 0; i < pub.n_operations; i++) {
 		struct shirudo_tree_operation *op = &pub.operations[i];
-		uint8_t digest[32], previous[32], next[32];
+		__u8 digest[32], previous[32], next[32];
 		char artifact[PATH_MAX];
 		bool skipped_module = false;
 

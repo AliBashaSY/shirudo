@@ -5,7 +5,8 @@
 #define SHIRUDO_BPM_TREE_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #include "chain.h"
 
@@ -49,7 +50,7 @@ struct shirudo_tree_artifact {
 };
 
 struct shirudo_tree_operation {
-	int64_t seq;
+	__s64 seq;
 	char op[16];
 	char id[SHIRUDO_TREE_STRING_MAX];
 	struct shirudo_tree_selector selector;
@@ -61,20 +62,20 @@ struct shirudo_tree_operation {
 struct shirudo_tree_publication {
 	int schema;
 	char tree_id[SHIRUDO_TREE_STRING_MAX];
-	int64_t generation;
+	__s64 generation;
 	char parent_manifest_digest[128];
-	int64_t base_seq;
+	__s64 base_seq;
 	struct shirudo_tree_operation *operations;
 	int operations_capacity;
 	int n_operations;
-	int64_t head_seq;
+	__s64 head_seq;
 };
 
 struct shirudo_tree_state {
 	int schema;
 	char tree_id[SHIRUDO_TREE_STRING_MAX];
-	int64_t generation;
-	int64_t last_seq;
+	__s64 generation;
+	__s64 last_seq;
 	/* Software projection is only a crash-recovery cursor when TPM is absent. */
 	char projection_root[65];
 	char projection_root_tpm[65];
@@ -107,9 +108,9 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *selector);
 
 int shirudo_tree_state_read(struct shirudo_tree_state *out);
 int shirudo_tree_state_write(const struct shirudo_tree_state *state);
-int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
-			      const uint8_t projection_root[32]);
-int shirudo_tree_event_replay(uint8_t out[32]);
+int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
+			      const __u8 projection_root[32]);
+int shirudo_tree_event_replay(__u8 out[32]);
 
 void shirudo_tree_emit_status(struct shirudo_json_emit *e);
 

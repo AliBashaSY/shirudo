@@ -9,12 +9,13 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <shirudo/misc.h>
 
 #include "bpm.h"
 #include "compile.h"
@@ -213,7 +214,7 @@ int main(int argc, char **argv)
 	const char *keys_dir;
 	const char *vmlinux_override = NULL;
 	const char *extra_cflags = NULL;
-	uint8_t payload_sha256[32] = {};
+	__u8 payload_sha256[32] = {};
 	const char *unload_name = NULL;
 	const char *output = NULL;
 	const char *input = NULL;

@@ -9,7 +9,8 @@
 #define SHIRUDO_JSON_H
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include <shirudo/misc.h>
 
 #ifndef SHIRUDO_JSON_MAX_BYTES
 #define SHIRUDO_JSON_MAX_BYTES		(8u * 1024u * 1024u)
@@ -26,8 +27,8 @@ struct shirudo_json_emit {
 	size_t		cap;
 	size_t		len;
 	int		err;	/* sticky; -ENOSPC, -EILSEQ, -E2BIG */
-	unsigned int	depth;	/* open-container nesting */
-	uint32_t	nonempty; /* bit d set: container at depth d has a member */
+	__u32		depth;	/* open-container nesting */
+	__u32		nonempty; /* bit d set: container at depth d has a member */
 };
 
 /*
@@ -43,7 +44,7 @@ void shirudo_json_arr_close(struct shirudo_json_emit *e);
 void shirudo_json_kv_string(struct shirudo_json_emit *e,
 			    const char *key, const char *val);
 void shirudo_json_kv_int(struct shirudo_json_emit *e,
-			 const char *key, int64_t val);
+			 const char *key, __s64 val);
 void shirudo_json_kv_bool(struct shirudo_json_emit *e,
 			  const char *key, int val);
 void shirudo_json_kv_null(struct shirudo_json_emit *e, const char *key);
@@ -61,7 +62,7 @@ void shirudo_json_raw(struct shirudo_json_emit *e, const char *value,
  */
 enum shirudo_json_vtype {
 	SHIRUDO_JSON_T_STRING,	/* dst: char[dst_cap] (NUL-terminated)   */
-	SHIRUDO_JSON_T_INT,	/* dst: int64_t *                        */
+	SHIRUDO_JSON_T_INT,	/* dst: __s64 *                          */
 	SHIRUDO_JSON_T_BOOL,	/* dst: int *  (0/1)                     */
 	SHIRUDO_JSON_T_OBJECT,	/* nested object -> sub[] sub-schema     */
 	SHIRUDO_JSON_T_ARRAY,	/* sub[] schema; dst = shirudo_json_array * */

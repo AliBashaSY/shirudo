@@ -6,9 +6,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "util/kernel_build_id.h"
 
-static void put_u32(unsigned char *p, uint32_t value)
+static void put_u32(__u8 *p, __u32 value)
 {
 	memcpy(p, &value, sizeof(value));
 }
@@ -16,11 +18,11 @@ static void put_u32(unsigned char *p, uint32_t value)
 int main(void)
 {
 	/* One GNU build-id note with a four-byte descriptor: 01 23 45 67. */
-	static const unsigned char notes[] = {
+	static const __u8 notes[] = {
 		4, 0, 0, 0, 4, 0, 0, 0, 3, 0, 0, 0,
 		'G', 'N', 'U', 0, 1, 0x23, 0x45, 0x67,
 	};
-	unsigned char malformed[sizeof(notes)];
+	__u8 malformed[sizeof(notes)];
 	char build_id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
 
 	if (shirudo_kernel_build_id_from_notes(notes, sizeof(notes), build_id) ||

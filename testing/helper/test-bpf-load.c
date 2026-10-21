@@ -10,12 +10,13 @@
  */
 
 #include <errno.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 
 #include <linux/bpf.h>
+
+#include <shirudo/misc.h>
 
 int main(void)
 {
@@ -29,8 +30,8 @@ int main(void)
 
 	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
 	attr.insn_cnt = 2;
-	attr.insns = (uint64_t)(unsigned long)insns;
-	attr.license = (uint64_t)(unsigned long)"GPL";
+	attr.insns = ptr_to_u64(insns);
+	attr.license = ptr_to_u64("GPL");
 
 	fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	if (fd >= 0) {

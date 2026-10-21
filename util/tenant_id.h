@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/misc.h>
+
 #define SHIRUDO_TENANT_ID_MAX	128
 
 static inline bool shirudo_tenant_id_valid(const char *id)
@@ -16,7 +18,7 @@ static inline bool shirudo_tenant_id_valid(const char *id)
 	if (!id || !id[0])
 		return false;
 	for (i = 0; id[i]; i++) {
-		unsigned char c = (unsigned char)id[i];
+		__u8 c = (__u8)id[i];
 
 		if (i >= SHIRUDO_TENANT_ID_MAX ||
 		    !((c >= 'a' && c <= 'z') ||

@@ -6,9 +6,12 @@
  */
 
 #include <endian.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <shirudo/misc.h>
 
 #include "upatch.h"
 
@@ -18,12 +21,12 @@ static int fail(const char *msg)
 	return 1;
 }
 
-static int expect_attach(const struct shirudo_upatch *u, uint32_t kind,
-			 const char *target, uint64_t offset)
+static int expect_attach(const struct shirudo_upatch *u, __u32 kind,
+			 const char *target, __u64 offset)
 {
 	struct shirudo_upatch_prog_metadata md;
 	struct shirudo_upatch_prog_entry prog;
-	const unsigned char *raw;
+	const __u8 *raw;
 
 	if (u->hdr.nr_progs != 1)
 		return fail("unexpected metadata prog count");
@@ -62,7 +65,7 @@ static int expect_serializer(const struct shirudo_upatch *u)
 {
 	struct shirudo_upatch_prog_metadata md;
 	struct shirudo_upatch_prog_entry prog;
-	const unsigned char *raw;
+	const __u8 *raw;
 
 	if (u->hdr.nr_maps != 3 || u->hdr.nr_progs != 1)
 		return fail("unexpected map/prog counts");
@@ -88,15 +91,15 @@ static int expect_serializer(const struct shirudo_upatch *u)
 
 static int expect_uprobe_multi(const struct shirudo_upatch *u,
 			       const char *path, const char *pattern,
-			       uint32_t expected_offsets)
+			       __u32 expected_offsets)
 {
 	struct shirudo_upatch_uprobe_targets targets;
 	struct shirudo_upatch_uprobe_target record;
 	struct shirudo_upatch_prog_metadata md;
 	struct shirudo_upatch_prog_entry prog;
-	const unsigned char *raw, *cursor, *end;
-	uint32_t path_len, build_id_len, nr_offsets, i;
-	uint64_t previous = 0;
+	const __u8 *raw, *cursor, *end;
+	__u32 path_len, build_id_len, nr_offsets, i;
+	__u64 previous = 0;
 
 	if (u->hdr.nr_progs != 1)
 		return fail("unexpected metadata prog count");
@@ -134,12 +137,12 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 	    nr_offsets != expected_offsets)
 		return fail("uprobe target record mismatch");
 	if ((size_t)(end - cursor) != (size_t)path_len + build_id_len +
-	    (size_t)nr_offsets * sizeof(uint64_t) ||
+	    (size_t)nr_offsets * sizeof(__u64) ||
 	    memcmp(cursor, path, path_len) != 0)
 		return fail("uprobe path or metadata length mismatch");
 	cursor += path_len + build_id_len;
 	for (i = 0; i < nr_offsets; i++) {
-		uint64_t offset;
+		__u64 offset;
 
 		memcpy(&offset, cursor, sizeof(offset));
 		cursor += sizeof(offset);
@@ -188,13 +191,13 @@ int main(int argc, char **argv)
 				   NULL, 0);
 	} else if (strcmp(mode, "uprobe-multi") == 0 && argc == 6) {
 		char *end = NULL;
-		unsigned long count = strtoul(argv[5], &end, 10);
+		__u64 count = strtoul(argv[5], &end, 10);
 
 		if (!end || *end || count > UINT32_MAX)
 			rc = fail("invalid expected uprobe offset count");
 		else
 			rc = expect_uprobe_multi(&u, argv[3], argv[4],
-						 (uint32_t)count);
+						 (__u32)count);
 	} else {
 		rc = fail("unknown metadata check mode");
 	}

@@ -9,11 +9,13 @@
 #include <string.h>
 #include <time.h>
 
+#include <shirudo/misc.h>
+
 #include "json.h"
 #include "timefmt.h"
 #include "upatch_table.h"
 
-int64_t shirudo_upatch_age_sec(const char *ts)
+__s64 shirudo_upatch_age_sec(const char *ts)
 {
 	struct tm tm = {};
 
@@ -21,7 +23,7 @@ int64_t shirudo_upatch_age_sec(const char *ts)
 		return -1;
 	if (!strptime(ts, "%Y-%m-%dT%H:%M:%SZ", &tm))
 		return -1;
-	return (int64_t)(time(NULL) - timegm(&tm));
+	return (__s64)(time(NULL) - timegm(&tm));
 }
 
 void shirudo_upatch_table_print(const struct shirudo_upatch_table_row *rows,
@@ -62,7 +64,7 @@ void shirudo_upatch_table_emit_json(struct shirudo_json_emit *e,
 		shirudo_json_kv_string(e, "location", r->location);
 		shirudo_json_kv_string(e, "status",
 				       r->status[0] ? r->status : "success");
-		shirudo_json_kv_int(e, "n_maps", (int64_t)r->n_maps);
+		shirudo_json_kv_int(e, "n_maps", (__s64)r->n_maps);
 		shirudo_json_kv_string(e, "loaded_at", r->loaded_at);
 		if (r->age_sec >= 0)
 			shirudo_json_kv_int(e, "age_sec", r->age_sec);

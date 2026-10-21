@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +23,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
 #include "builtin.h"
@@ -67,10 +67,10 @@ static void print_preflight(const struct shirudo_preflight_result *r)
 	       r->n - r->n_failed, r->n, r->n_failed);
 }
 
-static int read_der(const char *path, unsigned char **out, size_t *out_sz)
+static int read_der(const char *path, __u8 **out, size_t *out_sz)
 {
-	unsigned char *buf;
 	struct stat st;
+	__u8 *buf;
 	ssize_t n;
 	int fd;
 
@@ -169,8 +169,8 @@ static int keyring_holds_set(key_serial_t ring,
 	size_t i, held = 0;
 
 	for (i = 0; i < set->n; i++) {
-		unsigned char *der = NULL;
 		size_t der_sz = 0;
+		__u8 *der = NULL;
 		int rc;
 
 		rc = read_der(set->certs[i].path, &der, &der_sz);
@@ -202,8 +202,8 @@ static int init_bpf_keyring(key_serial_t ring,
 	size_t i;
 
 	for (i = 0; i < set->n; i++) {
-		unsigned char *der = NULL;
 		size_t der_sz = 0;
+		__u8 *der = NULL;
 		key_serial_t key;
 
 		rc = read_der(set->certs[i].path, &der, &der_sz);
@@ -277,9 +277,9 @@ static int init_keyring(void)
 	const struct shirudo_trusted_cert *primary = NULL;
 	struct shirudo_trusted_set set;
 	struct shirudo_identity id;
-	unsigned char *der = NULL;
 	key_serial_t ring, key;
 	size_t der_sz = 0, i;
+	__u8 *der = NULL;
 	bool frozen;
 	int rc;
 
@@ -500,9 +500,9 @@ static int init_bpffs(void)
 }
 
 /* The BPF side compares s_dev in the kernel's encoding, not glibc's. */
-static uint32_t kernel_dev_t(dev_t st_dev)
+static __u32 kernel_dev_t(dev_t st_dev)
 {
-	return ((uint32_t)major(st_dev) << 20) | (minor(st_dev) & 0xfffffu);
+	return ((__u32)major(st_dev) << 20) | (minor(st_dev) & 0xfffffu);
 }
 
 /*
@@ -512,9 +512,9 @@ static uint32_t kernel_dev_t(dev_t st_dev)
  */
 static bool binaries_differ(const char *a, const char *b)
 {
-	uint8_t ida[SHIRUDO_UPATCH_BUILD_ID_MAX], idb[SHIRUDO_UPATCH_BUILD_ID_MAX];
-	unsigned char ba[65536], bb[65536];
-	uint32_t lena = 0, lenb = 0;
+	__u8 ida[SHIRUDO_UPATCH_BUILD_ID_MAX], idb[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u8 ba[65536], bb[65536];
+	__u32 lena = 0, lenb = 0;
 	bool differ = true;
 	ssize_t na, nb;
 	int fa, fb;
@@ -566,11 +566,11 @@ static int identity_executables(struct shirudo_identity *id)
 	}
 	if (!initrd_mode) {
 		id->exe_dev = kernel_dev_t(st.st_dev);
-		id->exe_ino = (uint64_t)st.st_ino;
+		id->exe_ino = (__u64)st.st_ino;
 		return 0;
 	}
 	id->alt_exe_dev = kernel_dev_t(st.st_dev);
-	id->alt_exe_ino = (uint64_t)st.st_ino;
+	id->alt_exe_ino = (__u64)st.st_ino;
 
 	n = readlink("/proc/self/exe", self, sizeof(self) - 1);
 	if (n < 0) {
@@ -588,7 +588,7 @@ static int identity_executables(struct shirudo_identity *id)
 		return -errno;
 	}
 	id->exe_dev = kernel_dev_t(st.st_dev);
-	id->exe_ino = (uint64_t)st.st_ino;
+	id->exe_ino = (__u64)st.st_ino;
 	if (binaries_differ("/proc/self/exe", root_exe))
 		pr_warn("initrd: %s differs from the initrd's copy of shirudo; "
 			"regenerate the initrd after upgrading", root_exe);
@@ -723,7 +723,7 @@ _Static_assert(SHIRUDO_IDENTITY_KEYS_MAX == SHIRUDO_KEYS_MAX,
 	       "the identity map holds one serial per trusted certificate");
 
 struct anchor_keys {
-	int32_t	serials[SHIRUDO_IDENTITY_KEYS_MAX];
+	__s32	serials[SHIRUDO_IDENTITY_KEYS_MAX];
 	size_t	n;
 	bool	overflow;
 };
@@ -740,7 +740,7 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 		k->overflow = true;
 		return;
 	}
-	k->serials[k->n++] = (int32_t)serial;
+	k->serials[k->n++] = (__s32)serial;
 }
 
 static int init_lsm(bool attach_filesystem_seal)
@@ -777,7 +777,7 @@ static int init_lsm(bool attach_filesystem_seal)
 	key_serial_t keyring;
 	struct bpf_map *m_sb, *m_tamper;
 	struct stat st;
-	uint32_t zero = 0;
+	__u32 zero = 0;
 	int err, map_fd, tamper_fd, i;
 
 	if (access(SHIRUDO_LSM_LINK_PIN, F_OK) == 0) {
@@ -848,7 +848,7 @@ static int init_lsm(bool attach_filesystem_seal)
 		       strerror(-err));
 		goto out;
 	}
-	id.keyring_serial = (int32_t)keyring;
+	id.keyring_serial = (__s32)keyring;
 
 	/*
 	 * The keys that keyring holds, for lsm/key_permission: with the
@@ -867,7 +867,7 @@ static int init_lsm(bool attach_filesystem_seal)
 		err = keys.overflow ? -E2BIG : -ENOKEY;
 		goto out;
 	}
-	id.n_keys = (uint32_t)keys.n;
+	id.n_keys = (__u32)keys.n;
 	memcpy(id.key_serials, keys.serials, keys.n * sizeof(keys.serials[0]));
 
 	m_sb = bpf_object__find_map_by_name(obj, "shirudo_bpffs_sb");
@@ -1185,10 +1185,10 @@ next:
 /* The binding a verifier needs to recompute the register's public area. */
 static int append_init_event(const struct shirudo_measured_upatch *set,
 			     size_t n,
-			     const uint8_t cert_sha[32],
-			     const uint8_t set_digest[32],
-			     const uint8_t tree_root[32],
-			     const uint8_t init_digest[32],
+			     const __u8 cert_sha[32],
+			     const __u8 set_digest[32],
+			     const __u8 tree_root[32],
+			     const __u8 init_digest[32],
 			     const struct shirudo_chain_init_info *info)
 {
 	char buf[64 * 1024];
@@ -1266,7 +1266,7 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 					  shirudo_eventlog_path(), buf);
 }
 
-static bool phase_unmeasured(const uint8_t pcr[32])
+static bool phase_unmeasured(const __u8 pcr[32])
 {
 	int i;
 
@@ -1277,7 +1277,7 @@ static bool phase_unmeasured(const uint8_t pcr[32])
 	return true;
 }
 
-static void tree_root_at_boot(uint8_t out[32])
+static void tree_root_at_boot(__u8 out[32])
 {
 	struct shirudo_tree_state s = {};
 
@@ -1299,13 +1299,13 @@ static void tree_root_at_boot(uint8_t out[32])
  */
 static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 {
-	uint8_t cert_sha[32], set_digest[32], tree_root[32], init_digest[32];
+	__u8 cert_sha[32], set_digest[32], tree_root[32], init_digest[32];
 	struct shirudo_chain_init_info info;
 	int rc;
 
 	{
 		struct shirudo_config cfg;
-		unsigned long max_bytes;
+		__u64 max_bytes;
 		bool full;
 
 		shirudo_config_load(&cfg);
@@ -1313,7 +1313,7 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		full = shirudo_eventlog_would_exceed(max_bytes);
 		explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 		if (full) {
-			pr_err("eventlog %s would exceed eventlog.max_bytes=%lu; "
+			pr_err("eventlog %s would exceed eventlog.max_bytes=%llu; "
 			       "refusing chain extend (eventlog_full)",
 			       shirudo_eventlog_path(), max_bytes);
 			return -ENOSPC;

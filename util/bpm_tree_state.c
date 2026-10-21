@@ -21,6 +21,8 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include <shirudo/misc.h>
+
 #include "bpm_tree.h"
 #include "chain.h"
 #include "io.h"
@@ -121,21 +123,21 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 		while (fgets(line, sizeof(line), f)) {
 			char *start = line, *end, *eq;
 
-			while (*start && isspace((unsigned char)*start))
+			while (*start && isspace((__u8)*start))
 				start++;
 			if (*start == '#' || *start == '\0')
 				continue;
 			end = start + strlen(start);
-			while (end > start && isspace((unsigned char)end[-1]))
+			while (end > start && isspace((__u8)end[-1]))
 				*--end = '\0';
 			eq = strchr(start, '=');
 			if (!eq)
 				continue;
 			*eq++ = '\0';
 			end = eq + strlen(eq);
-			while (end > eq && isspace((unsigned char)end[-1]))
+			while (end > eq && isspace((__u8)end[-1]))
 				*--end = '\0';
-			while (*eq && isspace((unsigned char)*eq))
+			while (*eq && isspace((__u8)*eq))
 				eq++;
 			rc = kv_add(out, n, max, start, eq);
 			if (rc)
@@ -154,12 +156,12 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
  */
 #define SHIRUDO_TREE_SELECTOR_HASH_SIZE 128
 
-static unsigned int selector_hash(const char *key)
+static __u32 selector_hash(const char *key)
 {
-	uint32_t hash = 2166136261u;
+	__u32 hash = 2166136261u;
 
 	for (; *key; key++)
-		hash = (hash ^ (unsigned char)*key) * 16777619u;
+		hash = (hash ^ (__u8)*key) * 16777619u;
 	return hash;
 }
 
@@ -168,7 +170,7 @@ static void selector_hash_build(const struct shirudo_tree_selector *s,
 {
 	memset(slots, 0xff, sizeof(int) * SHIRUDO_TREE_SELECTOR_HASH_SIZE);
 	for (int i = 0; i < s->n_kconfig; i++) {
-		unsigned int slot = selector_hash(s->kconfig[i].key) &
+		__u32 slot = selector_hash(s->kconfig[i].key) &
 			(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
 
 		while (slots[slot] >= 0 &&
@@ -183,7 +185,7 @@ static int selector_hash_find(const struct shirudo_tree_selector *s,
 			      const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
 			      const char *key)
 {
-	unsigned int slot = selector_hash(key) &
+	__u32 slot = selector_hash(key) &
 		(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
 
 	for (int probes = 0; probes < SHIRUDO_TREE_SELECTOR_HASH_SIZE;
@@ -210,7 +212,7 @@ static int selector_config_line(const char *line,
 		return 0;
 	strcpy(copy, line);
 	start = copy;
-	while (*start && isspace((unsigned char)*start))
+	while (*start && isspace((__u8)*start))
 		start++;
 	if (!*start)
 		return 0;
@@ -230,12 +232,12 @@ static int selector_config_line(const char *line,
 			return 0;
 		*eq++ = '\0';
 		end = start + strlen(start);
-		while (end > start && isspace((unsigned char)end[-1]))
+		while (end > start && isspace((__u8)end[-1]))
 			*--end = '\0';
-		while (*eq && isspace((unsigned char)*eq))
+		while (*eq && isspace((__u8)*eq))
 			eq++;
 		end = eq + strlen(eq);
-		while (end > eq && isspace((unsigned char)end[-1]))
+		while (end > eq && isspace((__u8)end[-1]))
 			*--end = '\0';
 		value = eq;
 		if (value[0] == '"') {
@@ -406,10 +408,10 @@ int shirudo_tree_selector_matches(const struct shirudo_tree_selector *s)
 	return 1;
 }
 
-static int tree_read_file(const char *path, unsigned char **body, size_t *len)
+static int tree_read_file(const char *path, __u8 **body, size_t *len)
 {
 	struct stat st;
-	unsigned char *p;
+	__u8 *p;
 	ssize_t got;
 	int fd = open(path, O_RDONLY | O_CLOEXEC);
 
@@ -436,11 +438,19 @@ static int tree_read_file(const char *path, unsigned char **body, size_t *len)
 	return 0;
 }
 
+/* hex is exactly 64 hex digits: a SHA-256 digest. */
+static bool hex32_valid(const char *hex)
+{
+	__u8 raw[32];
+
+	return !shirudo_hex_decode(hex, raw, sizeof(raw));
+}
+
 int shirudo_tree_state_read(struct shirudo_tree_state *out)
 {
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
-	int64_t schema = 0;
+	__s64 schema = 0;
 	struct shirudo_json_field f[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "tree_id", SHIRUDO_JSON_T_STRING, out->tree_id,
@@ -469,15 +479,15 @@ int shirudo_tree_state_read(struct shirudo_tree_state *out)
 		       sizeof(out->projection_root_tpm));
 	}
 	if (!rc && (strlen(out->projection_root) != 64 ||
-		    shirudo_hex_decode(out->projection_root, (uint8_t[32]){}, 32) ||
+		    !hex32_valid(out->projection_root) ||
 		    (out->projection_root_tpm[0] &&
 		     (strlen(out->projection_root_tpm) != 64 ||
-		      shirudo_hex_decode(out->projection_root_tpm, (uint8_t[32]){}, 32)))))
+		      !hex32_valid(out->projection_root_tpm)))))
 		rc = -EINVAL;
 	if (!rc && out->manifest_digest[0] &&
 	    (strlen(out->manifest_digest) != 71 ||
 	     strncmp(out->manifest_digest, "sha256:", 7) ||
-	     shirudo_hex_decode(out->manifest_digest + 7, (uint8_t[32]){}, 32)))
+	     !hex32_valid(out->manifest_digest + 7)))
 		rc = -EINVAL;
 	out->schema = (int)schema;
 	xfree(body, len + 1);
@@ -521,8 +531,8 @@ int shirudo_tree_state_write(const struct shirudo_tree_state *s)
 	return tree_atomic_write(SHIRUDO_BPM_TREE_STATE_PATH, buf, e.len);
 }
 
-int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
-			      const uint8_t projection_root[32])
+int shirudo_tree_event_append(__s64 seq, const char *operation_digest,
+			      const __u8 projection_root[32])
 {
 	char buf[1024], root[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
@@ -530,7 +540,7 @@ int shirudo_tree_event_append(int64_t seq, const char *operation_digest,
 	int fd, rc;
 
 	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
-	    shirudo_hex_decode(operation_digest + 7, (uint8_t[32]){}, 32))
+	    !hex32_valid(operation_digest + 7))
 		return -EINVAL;
 	shirudo_hex_encode(projection_root, 32, root);
 	shirudo_json_obj_open(&e);
@@ -573,13 +583,13 @@ out:
 	return rc;
 }
 
-int shirudo_tree_event_replay(uint8_t out[32])
+int shirudo_tree_event_replay(__u8 out[32])
 {
-	unsigned char *body;
+	__u8 *body;
 	size_t len;
 	char *save, *line;
-	uint8_t chain[32] = {};
-	int64_t previous_seq = 0;
+	__u8 chain[32] = {};
+	__s64 previous_seq = 0;
 	int rc = tree_read_file(SHIRUDO_BPM_TREE_EVENTLOG_PATH, &body, &len);
 
 	if (rc)
@@ -588,7 +598,7 @@ int shirudo_tree_event_replay(uint8_t out[32])
 	     line = strtok_r(NULL, "\n", &save)) {
 		char digest[128] = {};
 		char projection[65] = {};
-		int64_t seq = 0;
+		__s64 seq = 0;
 		struct shirudo_json_field f[] = {
 			{ "seq", SHIRUDO_JSON_T_INT, &seq, 0, 0, NULL, 0 },
 			{ "digest", SHIRUDO_JSON_T_STRING, digest, sizeof(digest),
@@ -596,7 +606,7 @@ int shirudo_tree_event_replay(uint8_t out[32])
 			{ "projection_root", SHIRUDO_JSON_T_STRING, projection,
 			  sizeof(projection), 0, NULL, 0 },
 		};
-		uint8_t d[32], next[64], recorded[32];
+		__u8 d[32], next[64], recorded[32];
 
 		rc = shirudo_json_parse(line, strlen(line), f, ARRAY_SIZE(f));
 		if (rc || !f[0].seen || !f[1].seen || !f[2].seen ||
@@ -628,7 +638,7 @@ int shirudo_tree_event_replay(uint8_t out[32])
 void shirudo_tree_emit_status(struct shirudo_json_emit *e)
 {
 	struct shirudo_tree_state s = {};
-	uint8_t live[32], replay[32];
+	__u8 live[32], replay[32];
 	char hex[65];
 	bool configured = access(SHIRUDO_BPM_TREE_ETC_PATH, R_OK) == 0;
 

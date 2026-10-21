@@ -8,12 +8,15 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <shirudo/misc.h>
 
 #include "chain.h"
 #include "eventlog.h"
@@ -101,15 +104,15 @@ out:
 	return 0;
 }
 
-int shirudo_eventlog_would_exceed(unsigned long max_bytes)
+int shirudo_eventlog_would_exceed(__u64 max_bytes)
 {
-	unsigned long cur = 0;
 	struct stat st;
+	__u64 cur = 0;
 
 	if (max_bytes == 0)
 		return 0;	/* unlimited */
 	if (stat(shirudo_eventlog_path(), &st) == 0)
-		cur = (unsigned long)st.st_size;
+		cur = (__u64)st.st_size;
 	return cur + SHIRUDO_EVENTLOG_LINE_MAX > max_bytes;
 }
 
@@ -305,8 +308,8 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 		{ "digest", SHIRUDO_JSON_T_STRING, digest_hex,
 		  sizeof(digest_hex), 0, NULL, 0 },
 	};
-	uint8_t digest[32], cat[64];
-	uint8_t *chain = ctx;
+	__u8 digest[32], cat[64];
+	__u8 *chain = ctx;
 
 	if (shirudo_json_parse(line, len, f, 1) || !f[0].seen ||
 	    shirudo_hex_decode(digest_hex, digest, sizeof(digest)))
@@ -319,9 +322,9 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 	return 0;
 }
 
-int shirudo_eventlog_replay(uint8_t out[32])
+int shirudo_eventlog_replay(__u8 out[32])
 {
-	uint8_t chain[32] = {};
+	__u8 chain[32] = {};
 	int rc;
 
 	rc = walk_boot(replay_line, chain);
@@ -335,7 +338,7 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	char pcr_before[2 * 32 + 1], name[2 * SHIRUDO_TPM_NAME_LEN + 1];
 	char phase_before[2 * 32 + 1], anchor[2 * 32 + 1], bound_in[8];
 	struct shirudo_eventlog_init *out = ctx;
-	int64_t pcr = -1, reset_count = -1;
+	__s64 pcr = -1, reset_count = -1;
 	struct shirudo_json_field f[] = {
 		{ "pcr_before", SHIRUDO_JSON_T_STRING, pcr_before,
 		  sizeof(pcr_before), 0, NULL, 0 },
@@ -375,14 +378,14 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	out->records++;
 	if (out->records == 1 ||
 	    (have_reset_count && out->have_reset_count &&
-	     (uint32_t)reset_count != out->reset_count))
+	     (__u32)reset_count != out->reset_count))
 		out->records_epoch = 1;
 	else
 		out->records_epoch++;
 	out->have_reset_count = have_reset_count;
-	out->reset_count = (uint32_t)reset_count;
+	out->reset_count = (__u32)reset_count;
 	out->name_len = SHIRUDO_TPM_NAME_LEN;
-	out->pcr = (unsigned int)pcr;
+	out->pcr = (__u32)pcr;
 	return 0;
 }
 
