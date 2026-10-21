@@ -25,11 +25,12 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 run() {
+	status=0
 	mkdir -p "$work/$1"
 	./fuzz-"$1" -max_total_time="$seconds" -timeout=10 \
 		-rss_limit_mb=2048 -artifact_prefix="$PWD/crash-$1-" \
-		"$work/$1" "corpus/$1" >"$work/$1.log" 2>&1
-	echo $? >"$work/$1.rc"
+		"$work/$1" "corpus/$1" >"$work/$1.log" 2>&1 || status=$?
+	echo $status >"$work/$1.rc"
 }
 
 # FUZZ_JOBS targets at a time, one per CPU unless told otherwise.
