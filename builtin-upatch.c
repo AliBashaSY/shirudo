@@ -1379,11 +1379,14 @@ static int obj_pin(int fd, const char *path)
 	return ret >= 0 ? 0 : -errno;
 }
 
-static int mkdir_if_absent(const char *path, mode_t mode)
+static int mkdir_if_absent(const char *path, mode_t mode, bool *made)
 {
-	if (mkdir(path, mode) == 0 || errno == EEXIST)
+	if (mkdir(path, mode) == 0) {
+		if (made)
+			*made = true;
 		return 0;
-	return -errno;
+	}
+	return errno == EEXIST ? 0 : -errno;
 }
 
 static void count_attach_progs(const struct shirudo_prog_spec *specs,
@@ -1398,7 +1401,29 @@ static void count_attach_progs(const struct shirudo_prog_spec *specs,
 	*out = n;
 }
 
-/* Serializers are pinned as programs for `upatch map`; the rest as links. */
+static int prog_pin_path(char *pin, size_t sz, const char *dir,
+			 const char *serializers_dir,
+			 const struct shirudo_prog_spec *spec,
+			 uint32_t attach_count, uint32_t attach_idx)
+{
+	int n;
+
+	if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER)
+		n = snprintf(pin, sz, "%s/%s", serializers_dir, spec->map);
+	else if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN)
+		n = snprintf(pin, sz, "%s/test", dir);
+	else if (attach_count == 1)
+		n = snprintf(pin, sz, "%s/link", dir);
+	else
+		n = snprintf(pin, sz, "%s/link_%u", dir, attach_idx);
+	return n < 0 || (size_t)n >= sz ? -ENAMETOOLONG : 0;
+}
+
+/*
+ * Serializers are pinned as programs for `upatch map`; the rest as links.
+ * A failure unpins what this call pinned: the upatch is then neither
+ * archived nor measured, so none of its programs may stay attached.
+ */
 static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				 size_t prog_desc_off, uint32_t nr_progs,
 				 const char *name,
@@ -1406,8 +1431,10 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
 	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
-	char pin[PATH_MAX + 32];
 	uint32_t i, attach_count = 0, attach_seen = 0;
+	bool made_dir = false, made_serializers = false;
+	char pin[PATH_MAX + 32];
+	bool *made = NULL;
 	int test_fd = -1;
 	int rc;
 
@@ -1418,7 +1445,7 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	if (shirudo_upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 
-	rc = mkdir_if_absent(SHIRUDO_BPFFS_UPATCHES_DIR, 0700);
+	rc = mkdir_if_absent(SHIRUDO_BPFFS_UPATCHES_DIR, 0700, NULL);
 	if (rc) {
 		pr_err("mkdir %s: %s", SHIRUDO_BPFFS_UPATCHES_DIR,
 		       strerror(-rc));
@@ -1427,15 +1454,18 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	if (snprintf(dir, sizeof(dir), "%s/%s",
 		     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= (int)sizeof(dir))
 		return -ENAMETOOLONG;
-	rc = mkdir_if_absent(dir, 0700);
-	if (rc) {
-		pr_err("mkdir %s: %s", dir, strerror(-rc));
-		return rc;
-	}
-	count_attach_progs(specs, nr_progs, &attach_count);
 	if (snprintf(serializers_dir, sizeof(serializers_dir),
 		     "%s/serializers", dir) >= (int)sizeof(serializers_dir))
 		return -ENAMETOOLONG;
+	made = xcalloc(nr_progs, sizeof(*made));
+	if (!made)
+		return -ENOMEM;
+	rc = mkdir_if_absent(dir, 0700, &made_dir);
+	if (rc) {
+		pr_err("mkdir %s: %s", dir, strerror(-rc));
+		goto out;
+	}
+	count_attach_progs(specs, nr_progs, &attach_count);
 
 	for (i = 0; i < nr_progs; i++) {
 		const struct shirudo_prog_desc *pd =
@@ -1447,29 +1477,32 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 
 		if (inner_fd <= 0) {
 			pr_err("loader produced no fd for prog %u", i);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
+		rc = prog_pin_path(pin, sizeof(pin), dir, serializers_dir,
+				   spec, attach_count, attach_seen);
+		if (rc)
+			goto out;
 		if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER) {
 			struct stat st;
 
-			rc = mkdir_if_absent(serializers_dir, 0700);
+			rc = mkdir_if_absent(serializers_dir, 0700,
+					     &made_serializers);
 			if (rc) {
 				pr_err("mkdir %s: %s", serializers_dir,
 				       strerror(-rc));
-				return rc;
+				goto out;
 			}
-			if (snprintf(pin, sizeof(pin), "%s/%s",
-				     serializers_dir, spec->map) >=
-			    (int)sizeof(pin))
-				return -ENAMETOOLONG;
 			if (stat(pin, &st) == 0)
 				continue;	/* idempotent re-run */
 			rc = obj_pin(inner_fd, pin);
 			if (rc) {
 				pr_err("pin serializer %s: %s", pin,
 				       strerror(-rc));
-				return rc;
+				goto out;
 			}
+			made[i] = true;
 			pr_info("pinned serializer prog %u -> %s", i, pin);
 			continue;
 		}
@@ -1477,26 +1510,18 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 			struct stat st;
 
 			test_fd = inner_fd;
-
-			if (snprintf(pin, sizeof(pin), "%s/test", dir) >=
-			    (int)sizeof(pin))
-				return -ENAMETOOLONG;
 			if (stat(pin, &st) == 0)
 				continue;
 			rc = obj_pin(inner_fd, pin);
 			if (rc) {
 				pr_err("pin test-run program %s: %s", pin,
 				       strerror(-rc));
-				return rc;
+				goto out;
 			}
+			made[i] = true;
 			pr_info("pinned test-run prog %u -> %s", i, pin);
 			continue;
 		}
-		if (attach_count == 1)
-			snprintf(pin, sizeof(pin), "%s/link", dir);
-		else
-			snprintf(pin, sizeof(pin), "%s/link_%u", dir,
-				 attach_seen);
 		attach_seen++;
 
 		link_fd = prog_attach_for_spec(inner_fd, spec);
@@ -1514,15 +1539,16 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				pr_err("attach prog %u (%s): %s",
 				       i, attach_kind_name(spec->kind),
 				       strerror(-link_fd));
-			return link_fd;
+			rc = link_fd;
+			goto out;
 		}
 		rc = obj_pin(link_fd, pin);
+		close(link_fd);
 		if (rc) {
 			pr_err("pin %s: %s", pin, strerror(-rc));
-			close(link_fd);
-			return rc;
+			goto out;
 		}
-		close(link_fd);
+		made[i] = true;
 		pr_info("attached + pinned prog %u (%s) -> %s",
 			i, attach_kind_name(spec->kind), pin);
 	}
@@ -1536,10 +1562,30 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		if (rc || (int32_t)retval < 0) {
 			pr_err("initialize test-run arena: %s",
 			       rc ? strerror(-rc) : strerror(-(int32_t)retval));
-			return rc ? rc : (int32_t)retval;
+			if (!rc)
+				rc = (int32_t)retval;
+			goto out;
 		}
 	}
-	return 0;
+out:
+	if (rc) {
+		attach_seen = 0;
+		for (i = 0; i < nr_progs; i++) {
+			if (made[i] &&
+			    !prog_pin_path(pin, sizeof(pin), dir,
+					   serializers_dir, &specs[i],
+					   attach_count, attach_seen))
+				unlink(pin);
+			if (specs[i].role == SHIRUDO_UPATCH_PROG_ROLE_ATTACH)
+				attach_seen++;
+		}
+		if (made_serializers)
+			rmdir(serializers_dir);
+		if (made_dir)
+			rmdir(dir);
+	}
+	xfree(made, nr_progs * sizeof(*made));
+	return rc;
 }
 
 /*
@@ -1567,7 +1613,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 	if (snprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) >=
 	    (int)sizeof(maps_dir))
 		return -ENAMETOOLONG;
-	rc = mkdir_if_absent(maps_dir, 0700);
+	rc = mkdir_if_absent(maps_dir, 0700, NULL);
 	if (rc) {
 		pr_warn("upatch maps: mkdir %s: %s (continuing without "
 			"map pins)", maps_dir, strerror(-rc));
