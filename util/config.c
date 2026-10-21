@@ -116,7 +116,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 
 int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 {
-	char line[1024];
+	char line[SHIRUDO_MAP_EXPORT_PATH_MAX + 128];
 	int rc = 0;
 	FILE *f;
 
@@ -130,8 +130,18 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 			rc = -errno;	/* still apply env override below */
 	} else {
 		while (fgets(line, sizeof(line), f)) {
-			char *p = trim(line), *eq, *key, *val;
+			char *p, *eq, *key, *val;
+			int c;
 
+			/* Never take a line the buffer cut short. */
+			if (!strchr(line, '\n') && !feof(f)) {
+				pr_warn("config: line longer than %zu bytes "
+					"(ignored)", sizeof(line) - 1);
+				while ((c = fgetc(f)) != EOF && c != '\n')
+					continue;
+				continue;
+			}
+			p = trim(line);
 			if (*p == '\0' || *p == '#')
 				continue;
 			eq = strchr(p, '=');
