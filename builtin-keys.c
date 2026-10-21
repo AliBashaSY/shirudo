@@ -34,6 +34,7 @@
 #include "util/help.h"
 #include "util/hex.h"
 #include "util/identity.h"
+#include "util/io.h"
 #include "util/json.h"
 #include "util/keyring.h"
 #include "util/keys.h"
@@ -46,12 +47,22 @@
 
 static X509 *read_cert_der(const char *path)
 {
+	int fd = open(path, O_RDONLY | O_CLOEXEC);
 	BIO *bio;
 	X509 *c;
 
-	bio = BIO_new_file(path, "rb");
+	if (fd < 0) {
+		pr_err("open %s: %s", path, strerror(errno));
+		return NULL;
+	}
+	if (shirudo_check_trusted(fd, path, false)) {
+		close(fd);
+		return NULL;
+	}
+	bio = BIO_new_fd(fd, BIO_CLOSE);
 	if (!bio) {
-		shirudo_openssl_complain("BIO_new_file");
+		close(fd);
+		shirudo_openssl_complain("BIO_new_fd");
 		return NULL;
 	}
 	c = d2i_X509_bio(bio, NULL);

@@ -6,6 +6,8 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -14,6 +16,7 @@
 #include <openssl/x509.h>
 
 #include "crypto.h"
+#include "io.h"
 
 /*
  * Hybrid ML-KEM only: X25519MLKEM768 with a key share, the P-256 hybrid
@@ -36,6 +39,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	SSL_CTX *ctx = sslctx;
 	X509 *cert;
 	BIO *bio;
+	int fd;
 
 	(void)curl;
 	if (SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) != 1 ||
@@ -45,9 +49,18 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	}
 	if (!path || !path[0])
 		return CURLE_OK;
-	bio = BIO_new_file(path, "rb");
-	if (!bio)
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
 		return CURLE_SSL_CACERT_BADFILE;
+	if (shirudo_check_trusted(fd, path, false)) {
+		close(fd);
+		return CURLE_SSL_CACERT_BADFILE;
+	}
+	bio = BIO_new_fd(fd, BIO_CLOSE);
+	if (!bio) {
+		close(fd);
+		return CURLE_SSL_CACERT_BADFILE;
+	}
 	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
 	BIO_free(bio);
 	if (!cert)

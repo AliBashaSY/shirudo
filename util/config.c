@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "hex.h"
+#include "io.h"
 #include "json.h"
 #include "log.h"
 #include "paths.h"
@@ -130,6 +131,9 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 	if (!f) {
 		if (errno != ENOENT)
 			rc = -errno;	/* still apply env override below */
+	} else if (shirudo_check_trusted(fileno(f), path, false)) {
+		fclose(f);
+		return -EPERM;
 	} else {
 		while (fgets(line, sizeof(line), f)) {
 			char *p, *eq, *key, *val;
@@ -241,6 +245,14 @@ int shirudo_config_load_path(struct shirudo_config *cfg, const char *path)
 		}
 		if (ferror(f) && !rc)
 			rc = -EIO;
+		/* The TPM owner's authorization is for no other user's eyes. */
+		if (cfg->tpm_owner_auth_len &&
+		    shirudo_check_trusted(fileno(f), path, true)) {
+			explicit_bzero(cfg->tpm_owner_auth,
+				       sizeof(cfg->tpm_owner_auth));
+			cfg->tpm_owner_auth_len = 0;
+			rc = -EPERM;
+		}
 		if (fclose(f) && !rc)
 			rc = -errno;
 	}

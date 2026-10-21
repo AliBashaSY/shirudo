@@ -4,6 +4,7 @@
 #ifndef SHIRUDO_IO_H
 #define SHIRUDO_IO_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 int shirudo_write_all(int fd, const void *buf, size_t len);
@@ -14,5 +15,16 @@ int shirudo_write_all(int fd, const void *buf, size_t len);
  * char pointer.
  */
 int shirudo_read_file(const char *path, size_t max, void *out, size_t *len);
+
+/*
+ * Whether the file open on fd at path may steer what shirudo trusts.
+ * Under /etc/shirudo and /var/lib/shirudo, where an installed shirudo
+ * keeps such files, it must be a regular file of root's or of the user
+ * running shirudo that nobody else can write, nor with secret read, in
+ * directories up to / that nobody else can change; a sticky directory of
+ * root's guards its files the same way. A path elsewhere, where a test
+ * points shirudo, is the caller's to vouch for. 0, or -EPERM logged.
+ */
+int shirudo_check_trusted(int fd, const char *path, bool secret);
 
 #endif /* SHIRUDO_IO_H */

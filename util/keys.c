@@ -58,6 +58,10 @@ int shirudo_keys_read_der(const char *path, __u8 **out,
 		close(fd);
 		return -EINVAL;
 	}
+	if (shirudo_check_trusted(fd, path, false)) {
+		close(fd);
+		return -EPERM;
+	}
 	buf = xmalloc((size_t)st.st_size);
 	if (!buf) {
 		close(fd);

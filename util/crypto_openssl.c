@@ -6,10 +6,12 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <openssl/bio.h>
 #include <openssl/cms.h>
@@ -27,16 +29,27 @@
 #include <shirudo/misc.h>
 
 #include "crypto.h"
+#include "io.h"
 #include "log.h"
 #include "malloc.h"
 
 static X509 *read_x509(const char *path)
 {
-	BIO *bio = BIO_new_file(path, "rb");
+	int fd = open(path, O_RDONLY | O_CLOEXEC);
 	X509 *cert;
+	BIO *bio;
 
-	if (!bio)
+	if (fd < 0)
 		return NULL;
+	if (shirudo_check_trusted(fd, path, false)) {
+		close(fd);
+		return NULL;
+	}
+	bio = BIO_new_fd(fd, BIO_CLOSE);
+	if (!bio) {
+		close(fd);
+		return NULL;
+	}
 	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
 	if (!cert) {
 		ERR_clear_error();

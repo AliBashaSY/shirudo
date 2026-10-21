@@ -282,6 +282,10 @@ static int load_source(const char *name, struct bpm_source *s)
 	fp = fopen(path, "r");
 	if (!fp)
 		return -errno;
+	if (shirudo_check_trusted(fileno(fp), path, false)) {
+		fclose(fp);
+		return -EPERM;
+	}
 	snprintf(s->name, sizeof(s->name), "%s", name);
 	while (fgets(line, sizeof(line), fp)) {
 		rc = shirudo_bpm_parse_source_line(line,
@@ -1474,6 +1478,10 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	fp = fopen(SHIRUDO_BPM_TREE_ETC_PATH, "r");
 	if (!fp)
 		return -errno;
+	if (shirudo_check_trusted(fileno(fp), SHIRUDO_BPM_TREE_ETC_PATH, false)) {
+		fclose(fp);
+		return -EPERM;
+	}
 	while (fgets(line, sizeof(line), fp)) {
 		char key[64], value[PATH_MAX];
 		char *eq = strchr(line, '=');

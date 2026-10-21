@@ -15,6 +15,7 @@
 #include <string.h>
 
 /* Target-side. */
+#define SHIRUDO_ETC_DIR			"/etc/shirudo"
 #define SHIRUDO_VAR_LIB			"/var/lib/shirudo"
 #define SHIRUDO_KEYS_DIR		SHIRUDO_VAR_LIB "/keys"
 #define SHIRUDO_KEYS_DIR_ENV		"SHIRUDO_KEYS_DIR"

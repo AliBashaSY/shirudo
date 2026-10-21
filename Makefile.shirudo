@@ -576,7 +576,7 @@ testing/helper/test-chain: testing/helper/test-chain.c $(REGISTER_OBJS)
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
 testing/helper/test-tpm-wire: testing/helper/test-tpm-wire.c util/tpm_wire.o util/hex.o \
-                        util/crypto_openssl.o util/malloc.o util/log.o
+                        util/crypto_openssl.o util/io.o util/malloc.o util/log.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ -lcrypto -lssl
 
@@ -656,7 +656,8 @@ testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
-testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/malloc.o
+testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/malloc.o \
+                                 util/log.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
@@ -693,7 +694,7 @@ testing/fuzz/fuzz-oci-manifest: testing/fuzz/fuzz-oci-manifest.c \
 testing/fuzz/fuzz-bpm-index: testing/fuzz/fuzz-bpm-index.c \
                              $(FUZZ_BASE) $(FUZZ_PACKAGE)
 testing/fuzz/fuzz-tree: testing/fuzz/fuzz-tree.c $(FUZZ_BASE) \
-                        util/bpm_tree.c util/crypto_openssl.c
+                        util/bpm_tree.c util/crypto_openssl.c util/io.c
 testing/fuzz/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
                           util/upatch.c
 testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
