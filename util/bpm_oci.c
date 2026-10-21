@@ -540,6 +540,31 @@ static int parse_challenge(const char *header, char *realm, size_t rsz,
 	return realm[0] ? 0 : -EINVAL;
 }
 
+/* The token in a token server's JSON answer, "token" or "access_token". */
+static int token_from_body(const char *body, char *out, size_t out_sz)
+{
+	const char *token, *end;
+
+	token = strstr(body, "\"token\"");
+	if (!token)
+		token = strstr(body, "\"access_token\"");
+	if (token)
+		token = strchr(token, ':');
+	if (!token)
+		return -EINVAL;
+	token++;
+	while (*token && isspace((__u8)*token))
+		token++;
+	if (*token++ != '"')
+		return -EINVAL;
+	end = strchr(token, '"');
+	if (!end || (size_t)(end - token) >= out_sz)
+		return -EINVAL;
+	memcpy(out, token, end - token);
+	out[end - token] = '\0';
+	return 0;
+}
+
 static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 {
 	const char *provided_token = getenv("BPM_OCI_BEARER_TOKEN");
@@ -552,7 +577,6 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	struct bpm_http_response r = {};
 	CURLcode cc;
 	char *esc_service = NULL, *esc_scope = NULL;
-	char *token;
 	int rc = -EINVAL;
 
 	if (provided_token && *provided_token) {
@@ -618,27 +642,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	/* curl never calls the write callback for an empty body. */
 	if (!r.body.data)
 		goto out;
-	token = strstr((char *)r.body.data, "\"token\"");
-	if (!token)
-		token = strstr((char *)r.body.data, "\"access_token\"");
-	if (token)
-		token = strchr(token, ':');
-	if (!token)
-		goto out;
-	token++;
-	while (*token && isspace((__u8)*token))
-		token++;
-	if (*token++ != '"')
-		goto out;
-	{
-		char *end = strchr(token, '"');
-
-		if (!end || (size_t)(end - token) >= sizeof(c->token))
-			goto out;
-		memcpy(c->token, token, end - token);
-		c->token[end - token] = 0;
-	}
-	rc = 0;
+	rc = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
 out:
 	curl_free(esc_service);
 	curl_free(esc_scope);
@@ -988,6 +992,32 @@ int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 	}
 	if (!bpm_package_name_ok(strrchr(repository, '/') ?
 				 strrchr(repository, '/') + 1 : repository))
+		return -EINVAL;
+	return bpm_oci_parse_endpoint(endpoint, c);
+}
+
+int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
+			    char *repository, size_t repository_sz)
+{
+	char endpoint[BPM_MAX_ENDPOINT];
+	const char *p, *slash;
+
+	if (!raw || strncmp(raw, "oci://", 6))
+		return -EINVAL;
+	p = raw + 6;
+	slash = strchr(p, '/');
+	if (!slash || slash == p || !slash[1] || strchr(p, '?') ||
+	    strchr(p, '#') || strchr(p, '@'))
+		return -EINVAL;
+	if ((size_t)(slash - p) + 6 >= sizeof(endpoint) ||
+	    strlen(slash + 1) >= repository_sz)
+		return -ENAMETOOLONG;
+	memcpy(endpoint, "oci://", 6);
+	memcpy(endpoint + 6, p, (size_t)(slash - p));
+	endpoint[6 + (size_t)(slash - p)] = '\0';
+	bpm_copy_string(repository, repository_sz, slash + 1);
+	if (strstr(repository, "..") || strstr(repository, "//") ||
+	    strchr(repository, ':'))
 		return -EINVAL;
 	return bpm_oci_parse_endpoint(endpoint, c);
 }

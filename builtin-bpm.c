@@ -1512,32 +1512,6 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	return 0;
 }
 
-static int parse_tree_repository(const char *raw, struct bpm_oci_client *c,
-				 char *repository, size_t repository_sz)
-{
-	const char *p, *slash;
-	char endpoint[BPM_MAX_ENDPOINT];
-
-	if (!raw || strncmp(raw, "oci://", 6))
-		return -EINVAL;
-	p = raw + 6;
-	slash = strchr(p, '/');
-	if (!slash || slash == p || !slash[1] || strchr(p, '?') ||
-	    strchr(p, '#') || strchr(p, '@'))
-		return -EINVAL;
-	if ((size_t)(slash - p) + 6 >= sizeof(endpoint) ||
-	    strlen(slash + 1) >= repository_sz)
-		return -ENAMETOOLONG;
-	memcpy(endpoint, "oci://", 6);
-	memcpy(endpoint + 6, p, (size_t)(slash - p));
-	endpoint[6 + (size_t)(slash - p)] = '\0';
-	bpm_copy_string(repository, repository_sz, slash + 1);
-	if (strstr(repository, "..") || strstr(repository, "//") ||
-	    strchr(repository, ':'))
-		return -EINVAL;
-	return bpm_oci_parse_endpoint(endpoint, c);
-}
-
 static int tree_digest_hex(const char *digest, __u8 out[32])
 {
 	if (!digest || strncmp(digest, "sha256:", 7))
@@ -1565,8 +1539,8 @@ static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 {
 	struct bpm_oci_client c = {};
 	char repository[BPM_MAX_ENDPOINT];
-	int rc = parse_tree_repository(cfg->endpoint, &c,
-				       repository, sizeof(repository));
+	int rc = bpm_oci_parse_tree_repo(cfg->endpoint, &c,
+					 repository, sizeof(repository));
 
 	if (rc)
 		return rc;
@@ -1623,8 +1597,8 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 		return tree_verify_upatch(path, op->artifact.payload_sha256, op->id,
 					  !strcmp(op->op, "delete"));
 	}
-	rc = parse_tree_repository(op->artifact.repository, &c, repository,
-				   sizeof(repository));
+	rc = bpm_oci_parse_tree_repo(op->artifact.repository, &c, repository,
+				     sizeof(repository));
 	if (rc)
 		return rc;
 	rc = bpm_oci_url(&c, repository, "manifests",

@@ -105,6 +105,9 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 			   char *tag, size_t tag_sz);
 int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 			    char *repository, size_t repository_sz);
+/* An upatch tree's oci://host/repository, which names no tag. */
+int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
+			    char *repository, size_t repository_sz);
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 		const char *kind, const char *ref, char *out, size_t sz);
 /*
