@@ -23,6 +23,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include <time.h>
@@ -561,12 +562,11 @@ int cmd_status(int argc, const char **argv)
 		} else if (strcmp(argv[i], "--include-kernellog") == 0) {
 			include_kernel_log = true;
 		} else if (strncmp(argv[i], "--include-kernellog=", 20) == 0) {
-			char *end;
+			const char *n = argv[i] + 20;
 			__u64 v;
 
-			v = strtoul(argv[i] + 20, &end, 0);
-			if (*end != '\0' || v < 1 ||
-			    v > SHIRUDO_KERNEL_LOG_MAX) {
+			if (parse_u64(n, strlen(n), SHIRUDO_KERNEL_LOG_MAX, &v) ||
+			    v < 1) {
 				fprintf(stderr, "status: --include-kernellog=N "
 					"must be 1..%d\n",
 					SHIRUDO_KERNEL_LOG_MAX);

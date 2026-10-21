@@ -32,6 +32,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "builtin.h"
 #include "util/chain.h"
@@ -2969,7 +2970,6 @@ static int cmd_upatch_map(int argc, const char **argv)
 			insecure_set = true;
 			otel_opts.allow_insecure = true;
 		} else if (strncmp(a, "--otel-retries=", 15) == 0) {
-			char *end;
 			__u64 value;
 
 			if (retries_set || !a[15]) {
@@ -2977,9 +2977,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 					"--otel-retries\n");
 				return 2;
 			}
-			errno = 0;
-			value = strtoul(a + 15, &end, 10);
-			if (errno || *end || value > 10) {
+			if (parse_u64(a + 15, strlen(a + 15), 10, &value)) {
 				fprintf(stderr, "upatch map: --otel-retries must be 0..10\n");
 				return 2;
 			}
