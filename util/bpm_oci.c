@@ -524,6 +524,9 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		rc = -EACCES;
 		goto out;
 	}
+	/* curl never calls the write callback for an empty body. */
+	if (!r.body.data)
+		goto out;
 	token = strstr((char *)r.body.data, "\"token\"");
 	if (!token) token = strstr((char *)r.body.data, "\"access_token\"");
 	if (!token || !(token = strchr(token, ':')))
