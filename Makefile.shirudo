@@ -703,6 +703,8 @@ testing/fuzz/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \
                            $(FUZZ_OCI)
 testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
                                  $(FUZZ_BASE) $(FUZZ_OCI)
+testing/fuzz/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
+                          util/config.c util/io.c util/bpm_source_config.c
 
 # A target that reaches static parsers includes their source, which it
 # then depends on without linking it a second time.
