@@ -1311,13 +1311,6 @@ static bool tree_digest_valid(const char *digest)
 	return !tree_digest_hex(digest, raw);
 }
 
-static bool tree_tpm_available(void)
-{
-	__u8 value[32];
-
-	return !chain_read(value);
-}
-
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 				  struct shirudo_tree_publication *pub,
 				  char *manifest_digest, size_t digest_sz)
@@ -1834,7 +1827,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		tree_sync_report_error("pending_recovery", NULL, rc);
 		goto out;
 	}
-	tpm_available = tree_tpm_available();
+	tpm_available = chain_bound();
 	for (int i = 0; i < pub.n_operations; i++) {
 		struct shirudo_tree_operation *op = &pub.operations[i];
 		__u8 digest[32], previous[32], next[32];

@@ -396,6 +396,20 @@ int chain_read(__u8 out[32])
 	return rc ? -ENODEV : 0;
 }
 
+bool chain_bound(void)
+{
+	struct shirudo_tpm *tpm = NULL;
+	struct tpm_nv_info nv;
+	bool bound;
+
+	if (tpm_open_quiet(&tpm))
+		return false;
+	bound = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv) == 0 &&
+		nv.defined && nv.written;
+	tpm_close(tpm);
+	return bound;
+}
+
 int chain_status(struct chain_status *st)
 {
 	struct tpm_nv_info nv;
@@ -406,7 +420,7 @@ int chain_status(struct chain_status *st)
 	memset(st, 0, sizeof(*st));
 	st->logged = eventlog_boot_init(&st->init) == 0;
 	st->rebound = st->logged && st->init.records_epoch > 1;
-	rc = tpm_open(&tpm);
+	rc = tpm_open_quiet(&tpm);
 	if (rc)
 		return -ENODEV;
 	st->tpm = true;

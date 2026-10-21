@@ -53,7 +53,7 @@ int tpm_tcti(char *buf, size_t size)
 	return n < 0 ? (int)n : 0;
 }
 
-int tpm_open(struct shirudo_tpm **out)
+static int open_tpm(struct shirudo_tpm **out, bool quiet)
 {
 	char tcti[SHIRUDO_TPM_TCTI_MAX];
 	struct shirudo_tpm *t;
@@ -70,8 +70,9 @@ int tpm_open(struct shirudo_tpm **out)
 
 	err = tpm_tcti(tcti, sizeof(tcti));
 	if (err) {
-		pr_err("tpm: the TCTI is longer than %d bytes",
-		       SHIRUDO_TPM_TCTI_MAX - 1);
+		if (!quiet)
+			pr_err("tpm: the TCTI is longer than %d bytes",
+			       SHIRUDO_TPM_TCTI_MAX - 1);
 		return err;
 	}
 
@@ -80,20 +81,32 @@ int tpm_open(struct shirudo_tpm **out)
 		return -ENOMEM;
 	rc = Tss2_TctiLdr_Initialize(tcti, &t->tcti);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: TctiLdr_Initialize(%s): rc=0x%08x", tcti,
-		       (__u32)rc);
+		if (!quiet)
+			pr_err("tpm: TctiLdr_Initialize(%s): rc=0x%08x", tcti,
+			       (__u32)rc);
 		xfree(t, sizeof(*t));
 		return -EIO;
 	}
 	rc = Esys_Initialize(&t->esys, t->tcti, NULL);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: Esys_Initialize: rc=0x%08x", (__u32)rc);
+		if (!quiet)
+			pr_err("tpm: Esys_Initialize: rc=0x%08x", (__u32)rc);
 		Tss2_TctiLdr_Finalize(&t->tcti);
 		xfree(t, sizeof(*t));
 		return -EIO;
 	}
 	*out = t;
 	return 0;
+}
+
+int tpm_open(struct shirudo_tpm **out)
+{
+	return open_tpm(out, false);
+}
+
+int tpm_open_quiet(struct shirudo_tpm **out)
+{
+	return open_tpm(out, true);
 }
 
 void tpm_close(struct shirudo_tpm *t)

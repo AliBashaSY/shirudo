@@ -24,6 +24,7 @@ struct shirudo_tpm;
 
 int tpm_tcti(char *buf, size_t size);
 int tpm_open(struct shirudo_tpm **out);
+int tpm_open_quiet(struct shirudo_tpm **out);
 void tpm_close(struct shirudo_tpm *t);
 
 int tpm_pcr_read(struct shirudo_tpm *t, __u32 pcr,

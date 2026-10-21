@@ -106,6 +106,9 @@ int chain_extend(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
 /* The live value; -ENODEV when no register is written this boot. */
 int chain_read(__u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
+/* For a probe: a TPM that does not answer is not logged. */
+bool chain_bound(void);
+
 struct chain_status {
 	bool		tpm;		/* a TPM answered */
 	bool		defined;
