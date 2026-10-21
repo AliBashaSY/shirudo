@@ -104,6 +104,8 @@ int shirudo_report_emit(const char *path, const struct shirudo_op_report *r)
 
 void shirudo_report_set_log(struct shirudo_op_report *r, const char *log)
 {
+	if (!r)
+		return;
 	xstrfree(r->verifier_log);
 	r->verifier_log = NULL;
 	if (!log || !*log)
