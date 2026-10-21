@@ -20,6 +20,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm_oci.h"
 #include "bpm_package.h"
@@ -157,17 +158,17 @@ int bpm_semver_compare(const char *a, const char *b)
 	const char *pa = a, *pb = b;
 
 	for (int part = 0; part < 3; part++) {
-		char *ea, *eb;
+		size_t na = shirudo_digits(pa, strlen(pa));
+		size_t nb = shirudo_digits(pb, strlen(pb));
 		__u64 va, vb;
 
-		va = strtoul(pa, &ea, 10);
-		vb = strtoul(pb, &eb, 10);
-		if (ea == pa || eb == pb)
+		if (parse_u64(pa, na, UINT64_MAX, &va) ||
+		    parse_u64(pb, nb, UINT64_MAX, &vb))
 			return strcmp(a, b);
 		if (va != vb)
 			return va > vb ? 1 : -1;
-		pa = *ea == '.' ? ea + 1 : ea;
-		pb = *eb == '.' ? eb + 1 : eb;
+		pa = pa[na] == '.' ? pa + na + 1 : pa + na;
+		pb = pb[nb] == '.' ? pb + nb + 1 : pb + nb;
 	}
 	if (*pa == '-' || *pb == '-') {
 		if (*pa != '-' || *pb != '-')

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm_tree.h"
 #include "crypto.h"
@@ -164,33 +165,16 @@ static int tp_skip(struct tree_parser *p)
 
 static int tp_int(struct tree_parser *p, __s64 *out)
 {
-	const char *start, *scan;
-	__u64 value = 0, limit;
-	__u8 digit;
-	bool negative = false;
+	size_t len, n;
+	bool neg;
 
 	tp_ws(p);
-	start = p->p;
-	scan = start;
-	if (scan < p->end && *scan == '-') {
-		negative = true;
-		scan++;
-	}
-	if (scan >= p->end || !isdigit((__u8)*scan))
+	len = (size_t)(p->end - p->p);
+	neg = len && *p->p == '-';
+	n = neg + shirudo_digits(p->p + neg, len - neg);
+	if (parse_s64(p->p, n, INT64_MIN, INT64_MAX, out))
 		return -EINVAL;
-	limit = negative ? (__u64)INT64_MAX + 1 : INT64_MAX;
-	while (scan < p->end && isdigit((__u8)*scan)) {
-		digit = (__u8)*scan - '0';
-		if (value > (limit - digit) / 10)
-			return -EINVAL;
-		value = value * 10 + digit;
-		scan++;
-	}
-	p->p = scan;
-	if (negative && value == (__u64)INT64_MAX + 1)
-		*out = INT64_MIN;
-	else
-		*out = negative ? -(__s64)value : (__s64)value;
+	p->p += n;
 	return 0;
 }
 
