@@ -138,8 +138,6 @@ static void btf_type_name(struct btf *btf, __u32 type_id,
 	}
 }
 
-static char *fmt_alloc(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-
 static __u32 btf_unwrap(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t;
@@ -346,7 +344,7 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 	__u8 bytes_used = (__u8)((bits + 7) / 8);
 
 	if (bytes_used == 0 || bytes_used > bytes_size || bytes_used > 8)
-		return fmt_alloc("?");
+		return xasprintf("?");
 	if (is_signed) {
 		__u64 v = 0;
 		__u8 i;
@@ -356,14 +354,14 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 			v |= (__u64)((const __u8 *)bytes)[i] << (8 * i);
 		if (bits < 64 && (v & ((__u64)1 << (bits - 1))))
 			v |= ~(((__u64)1 << bits) - 1);
-		return fmt_alloc("%lld", (__s64)v);
+		return xasprintf("%lld", (__s64)v);
 	} else {
 		__u64 v = 0;
 		__u8 i;
 
 		for (i = 0; i < bytes_used; i++)
 			v |= (__u64)((const __u8 *)bytes)[i] << (8 * i);
-		return fmt_alloc("%llu", v);
+		return xasprintf("%llu", v);
 	}
 }
 
@@ -382,7 +380,7 @@ static char *btf_format_bitfield(const struct btf *btf, __u32 type_id,
 	__u64 v = 0;
 
 	if (!bit_size || shift + bit_size > 64 || bit_off / 8 + n > bytes_size)
-		return fmt_alloc("?");
+		return xasprintf("?");
 	for (i = 0; i < n; i++)
 		v |= (__u64)b[i] << (8 * i);
 	v >>= shift;
@@ -397,8 +395,8 @@ static char *btf_format_bitfield(const struct btf *btf, __u32 type_id,
 		is_signed = BTF_INFO_KFLAG(t->info);
 	if (is_signed && bit_size < 64 && (v & ((__u64)1 << (bit_size - 1))))
 		v |= ~(((__u64)1 << bit_size) - 1);
-	return is_signed ? fmt_alloc("%lld", (__s64)v) :
-			   fmt_alloc("%llu", v);
+	return is_signed ? xasprintf("%lld", (__s64)v) :
+			   xasprintf("%llu", v);
 }
 
 static char *btf_format_value(const struct btf *btf, __u32 type_id,
@@ -427,7 +425,7 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 			memcpy(&v, bytes, 8);
 		else if (bytes_size >= 4)
 			memcpy(&v, bytes, 4);
-		return fmt_alloc("0x%llx", v);
+		return xasprintf("0x%llx", v);
 	}
 
 	if (kind == BTF_KIND_ENUM) {
@@ -437,7 +435,7 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 
 		/* An enum is as wide as BTF says, one byte for a packed one. */
 		if (!size || size > 4 || size > bytes_size)
-			return fmt_alloc("?");
+			return xasprintf("?");
 		for (i = 0; i < size; i++)
 			v |= (__u32)((const __u8 *)bytes)[i] << (8 * i);
 		if (BTF_INFO_KFLAG(t->info) && size < 4 &&
@@ -447,12 +445,12 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 			if ((__u32)e[i].val == v) {
 				const char *nm = btf__name_by_offset(btf,
 								     e[i].name_off);
-				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
+				return xasprintf("%s", nm && nm[0] ? nm : "?");
 			}
 		}
 		return BTF_INFO_KFLAG(t->info) ?
-		       fmt_alloc("%d", (__s32)v) :
-		       fmt_alloc("%u", v);
+		       xasprintf("%d", (__s32)v) :
+		       xasprintf("%u", v);
 	}
 
 	if (kind == BTF_KIND_ENUM64) {
@@ -471,10 +469,10 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 			if (ev == v) {
 				const char *nm = btf__name_by_offset(btf,
 								     e[i].name_off);
-				return fmt_alloc("%s", nm && nm[0] ? nm : "?");
+				return xasprintf("%s", nm && nm[0] ? nm : "?");
 			}
 		}
-		return fmt_alloc("0x%llx", v);
+		return xasprintf("0x%llx", v);
 	}
 
 	if (kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION) {
@@ -489,7 +487,7 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 			return NULL;
 		out[0] = '\0';
 		if (strbuf_append_take(&out, &cap, &off,
-				       fmt_alloc("{ ")) != 0) {
+				       xasprintf("{ ")) != 0) {
 			xfree(out, cap);
 			return NULL;
 		}
@@ -527,16 +525,16 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 							byte_off, fsize,
 							depth + 1);
 			if (!fval)
-				fval = fmt_alloc("?");
+				fval = xasprintf("?");
 			strbuf_append_take(&out, &cap, &off,
-					   fmt_alloc("%s%s=%s",
+					   xasprintf("%s%s=%s",
 						     i ? ", " : "",
 						     fname && fname[0] ?
 						     fname : "?",
 						     fval ? fval : "?"));
 			xstrfree(fval);
 		}
-		strbuf_append_take(&out, &cap, &off, fmt_alloc(" }"));
+		strbuf_append_take(&out, &cap, &off, xasprintf(" }"));
 		return out;
 	}
 
@@ -553,50 +551,27 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 		if (!out)
 			return NULL;
 		out[0] = '\0';
-		strbuf_append_take(&out, &cap, &off, fmt_alloc("[ "));
+		strbuf_append_take(&out, &cap, &off, xasprintf("[ "));
 		for (i = 0; i < n && i < 16; i++) {
 			char *ev = btf_format_value(btf, a->type,
 						    (const char *)bytes + i * (size_t)esz,
 						    (__u32)esz, depth + 1);
 
 			strbuf_append_take(&out, &cap, &off,
-					   fmt_alloc("%s%s",
+					   xasprintf("%s%s",
 						     i ? ", " : "",
 						     ev ? ev : "?"));
 			xstrfree(ev);
 		}
 		if (n > 16)
 			strbuf_append_take(&out, &cap, &off,
-					   fmt_alloc(", ... (%u more)",
+					   xasprintf(", ... (%u more)",
 						     n - 16));
-		strbuf_append_take(&out, &cap, &off, fmt_alloc(" ]"));
+		strbuf_append_take(&out, &cap, &off, xasprintf(" ]"));
 		return out;
 	}
 
 	return NULL;
-}
-
-static char *fmt_alloc(const char *fmt, ...)
-{
-	char small[64];
-	va_list ap;
-	int n;
-	char *p;
-
-	va_start(ap, fmt);
-	n = vsnprintf(small, sizeof(small), fmt, ap);
-	va_end(ap);
-	if (n < 0)
-		return NULL;
-	if ((size_t)n < sizeof(small))
-		return xstrdup(small);
-	p = xmalloc((size_t)n + 1);
-	if (!p)
-		return NULL;
-	va_start(ap, fmt);
-	vsnprintf(p, (size_t)n + 1, fmt, ap);
-	va_end(ap);
-	return p;
 }
 
 static int nproc_possible(void)
@@ -617,7 +592,7 @@ static char *format_value(const void *value, __u32 value_size,
 			__u64 v;
 
 			memcpy(&v, value, 8);
-			return fmt_alloc("%llu", v);
+			return xasprintf("%llu", v);
 		}
 		if (value_size == 8 &&
 		    (strcmp(btf_type, "__s64") == 0 ||
@@ -626,7 +601,7 @@ static char *format_value(const void *value, __u32 value_size,
 			__s64 v;
 
 			memcpy(&v, value, 8);
-			return fmt_alloc("%lld", v);
+			return xasprintf("%lld", v);
 		}
 		if (value_size == 4 &&
 		    (strcmp(btf_type, "__u32") == 0 ||
@@ -635,7 +610,7 @@ static char *format_value(const void *value, __u32 value_size,
 			__u32 v;
 
 			memcpy(&v, value, 4);
-			return fmt_alloc("%u", v);
+			return xasprintf("%u", v);
 		}
 		if (value_size == 4 &&
 		    (strcmp(btf_type, "__s32") == 0 ||
@@ -644,20 +619,20 @@ static char *format_value(const void *value, __u32 value_size,
 			__s32 v;
 
 			memcpy(&v, value, 4);
-			return fmt_alloc("%d", v);
+			return xasprintf("%d", v);
 		}
 	}
 	if (value_size == 8) {
 		__u64 v;
 
 		memcpy(&v, value, 8);
-		return fmt_alloc("%llu", v);
+		return xasprintf("%llu", v);
 	}
 	if (value_size == 4) {
 		__u32 v;
 
 		memcpy(&v, value, 4);
-		return fmt_alloc("%u", v);
+		return xasprintf("%u", v);
 	}
 	/* Hex fallback (cap at 32 bytes shown for readability). */
 	{
@@ -718,8 +693,8 @@ char *upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 				one |= ~(((__u64)1 << bits) - 1);
 			sum += one;
 		}
-		return is_signed ? fmt_alloc("%lld", (__s64)sum) :
-				   fmt_alloc("%llu", sum);
+		return is_signed ? xasprintf("%lld", (__s64)sum) :
+				   xasprintf("%llu", sum);
 	}
 	(void)btf_type;
 	return xstrdup("(unsupported width)");

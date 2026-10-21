@@ -10,6 +10,7 @@
  *   test-string s64 <min> <max> <text> [<len>]
  *   test-string strscpy <size> <text>
  *   test-string strsprintf <size> <text>
+ *   test-string xasprintf <text>
  */
 
 #include <stdint.h>
@@ -109,7 +110,16 @@ int main(int argc, char **argv)
 		xfree(buf, max ? max : 1);
 		return 0;
 	}
-	fprintf(stderr,
-		"usage: test-string digits|u64|x64|s64|strscpy|strsprintf ...\n");
+	if (!strcmp(op, "xasprintf") && argc == 3) {
+		char *str = xasprintf("<%s|%d>", argv[2], 42);
+
+		if (!str)
+			return 2;
+		printf("s=%s\n", str);
+		xstrfree(str);
+		return 0;
+	}
+	fprintf(stderr, "usage: test-string "
+		"digits|u64|x64|s64|strscpy|strsprintf|xasprintf ...\n");
 	return 2;
 }

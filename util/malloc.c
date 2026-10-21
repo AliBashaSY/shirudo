@@ -5,7 +5,9 @@
  * Zeroing allocator (see util/malloc.h).
  */
 
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -84,6 +86,26 @@ char *xstrndup(const char *s, size_t n)
 		return NULL;
 	memcpy(p, s, len);
 	p[len] = '\0';
+	return p;
+}
+
+char *xasprintf(const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+	int n;
+
+	va_start(ap, fmt);
+	n = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+	if (n < 0)
+		return NULL;
+	p = xmalloc((size_t)n + 1);
+	if (!p)
+		return NULL;
+	va_start(ap, fmt);
+	vsnprintf(p, (size_t)n + 1, fmt, ap);
+	va_end(ap);
 	return p;
 }
 

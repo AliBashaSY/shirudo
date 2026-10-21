@@ -36,6 +36,9 @@ void *xreallocarray(void *ptr, size_t old_nmemb, size_t new_nmemb,
 char *xstrdup(const char *s);
 char *xstrndup(const char *s, size_t n);
 
+/* A formatted string, freed with xstrfree(); NULL if formatting fails. */
+char *xasprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 /*
  * Scrubs, so key material, signatures and TPM auth do not linger in
  * freed heap or a core dump.

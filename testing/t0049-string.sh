@@ -4,8 +4,8 @@
 #
 # t0049 -- util/string.c: numbers parsed from a bounded, unterminated
 # span, digits only, within the bounds the caller gives, strings copied
-# into a buffer that is always terminated and says when it cut, and
-# output formatted whole or not at all.
+# into a buffer that is always terminated and says when it cut, output
+# formatted whole or not at all, and xasprintf() from util/malloc.c.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -102,6 +102,13 @@ test_expect_success 'formatted output that does not fit leaves nothing' '
 	./$H strsprintf 7 hello | grep -qx "rc=-7 buf=" &&
 	./$H strsprintf 1 hello | grep -qx "rc=-7 buf=" &&
 	./$H strsprintf 0 hello | grep -qx "rc=-7 buf=-"
+'
+
+test_expect_success 'xasprintf() formats into memory of the size needed' '
+	./$H xasprintf hello | grep -qx "s=<hello|42>" &&
+	./$H xasprintf "" | grep -qx "s=<|42>" &&
+	long=$(printf "%0300d" 0) &&
+	./$H xasprintf "$long" | grep -qx "s=<$long|42>"
 '
 
 test_done
