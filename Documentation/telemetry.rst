@@ -102,13 +102,14 @@ instruction budget.  Its entry point receives one table::
 
     input.schema, input.upatch, input.map
     input.startTimeUnixNano, input.timeUnixNano
-    input.name, input.type, input.max_entries, input.n_entries
-    input.key_size, input.value_size, input.n_cpus, input.truncated
-    input.entries[i].key_hex, input.entries[i].value_hex     -- direct reads
+    input.data.name, input.data.type, input.data.max_entries,
+    input.data.n_entries, input.data.key_size, input.data.value_size,
+    input.data.n_cpus, input.data.truncated
+    input.data.entries[i].key_hex, .value_hex                -- direct reads
     input.data.serialized, input.data.serialized_pages,
     input.data.serialized_bytes
     input.data.pages[i].page_index, .cursor, .next_cursor, .done,
-                       .flags, .chunks, .bytes, .hex             -- serializer
+                       .flags, .chunks, .bytes, .data_hex        -- serializer
 
 and a host API for the common case of fixed-size records::
 
