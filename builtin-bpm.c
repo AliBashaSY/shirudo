@@ -768,8 +768,12 @@ static int repo_update_one(const char *name)
 	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest); if (rc) goto out;
 	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				    ARRAY_SIZE(layers), &nl, NULL, 0);
-	if (rc || nl < 2)
+	if (rc)
 		goto out;
+	if (nl < 2) {
+		rc = -EINVAL;
+		goto out;
+	}
 	for (int i = 0; i < nl; i++) {
 		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA)) {
 			char layer_hex[65];
@@ -791,7 +795,10 @@ static int repo_update_one(const char *name)
 				rc = -EKEYREJECTED;
 			break;
 	}
-	if (rc || !sig.data) { rc = -EINVAL; goto out; }
+	if (!rc && !sig.data)
+		rc = -EINVAL;
+	if (rc)
+		goto out;
 	if (bpm_verify_cms(index.data, index.len, sig.data, sig.len, s.key_file)) { rc = -EKEYREJECTED; goto out; }
 	{
 		struct bpm_index_entry checked[BPM_MAX_ENTRIES];
