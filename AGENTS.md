@@ -107,8 +107,8 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   the kernel's own coding-style.rst, copied into this tree). Tabs
   (8-wide), 80-col soft limit and 100-col hard limit (checkpatch),
   K&R braces, no spaces inside parens.
-  Apply to userspace too — eases review. **Comments are scarce and
-  follow §8**: WHAT/WHY at the function head, not HOW inside the
+  Apply to userspace too — eases review. **Comments are rare and
+  follow §8** (see below): at the function head, not inside the
   body; file headers are SPDX + Copyright + at most one line of
   purpose, never multi-paragraph descriptions.
 - **Multi-line comments**: the opening `/*` and closing `*/` each
@@ -141,9 +141,13 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   decoders, carries `SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause`,
   the kernel's form of the dual licence, matching the Beefile.
 - **No emojis** anywhere — code, comments, commit messages, logs.
-- **Comments are scarce.** Kernel style: explain the *why*, not the *what*.
-  No multi-paragraph docstrings. No "added for issue X" or "used by Y" — those
-  go in commit messages.
+- **Comments are rare.** Add one only for what is non-obvious and cannot
+  be inferred from the code: a hidden invariant, a kernel or library
+  quirk, why the code takes the less obvious path. It explains *why*,
+  never *what*: no comment that restates a function, parameter or field
+  name, the return value, or the messages the code prints. No
+  multi-paragraph docstrings. No "added for issue X" or "used by Y" —
+  those go in commit messages.
 
 ## Commits
 
