@@ -21,9 +21,13 @@ subscribed to, and is treated as top priority.
 The following people, in alphabetical order, have either authored or
 signed off on commits in the shirudo project:
 
+ * Bill Mulligan             \<billmulligan516@gmail.com\>
  * Daniel Borkmann           \<daniel@iogearbox.net\>
  * John Fastabend            \<john.fastabend@gmail.com\>
+ * KP Singh                  \<kpsingh@kernel.org\>
+ * Liz Rice                  \<liz@lizrice.com\>
  * Michi Mutsuzaki           \<michi@isovalent.com\>
+ * Puranjay Mohan            \<puranjay@kernel.org\>
 
 [John Fastabend]: https://github.com/jrfastab
 [Daniel Borkmann]: https://github.com/borkmann
