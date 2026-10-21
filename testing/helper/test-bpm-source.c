@@ -22,6 +22,7 @@ int main(void)
 	char key_file[256] = {};
 	char reference[80] = {};
 	char endpoint[512] = {};
+	char long_line[512];
 
 	if (bpm_parse_source_line(endpoint_line, endpoint,
 				  sizeof(endpoint), key_file,
@@ -47,5 +48,16 @@ int main(void)
 				sizeof(reference)) != -EINVAL)
 		return 1;
 	printf("tree endpoint=%s\ntree reference=%s\n", endpoint, reference);
+	/* A value that does not fit is refused, not cut. */
+	snprintf(long_line, sizeof(long_line), "reference = sha256:%0*d\n",
+		 (int)sizeof(reference), 0);
+	if (bpm_parse_tree_line(long_line, endpoint, sizeof(endpoint),
+				reference, sizeof(reference)) != -E2BIG)
+		return 1;
+	snprintf(long_line, sizeof(long_line), "key_file = /%0*d\n",
+		 (int)sizeof(key_file), 0);
+	if (bpm_parse_source_line(long_line, endpoint, sizeof(endpoint),
+				  key_file, sizeof(key_file)) != -E2BIG)
+		return 1;
 	return 0;
 }

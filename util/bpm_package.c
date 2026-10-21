@@ -450,7 +450,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			rc = -EINVAL;
 			break;
 		}
-		snprintf(name, sizeof(name), "%s", (char *)h);
+		strscpy(name, (char *)h, sizeof(name));
 		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) {
 			rc = -EINVAL;
 			break;
@@ -471,7 +471,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			rc = -EINVAL;
 			break;
 		}
-		snprintf(rel, sizeof(rel), "%s", name + strlen(root) + 1);
+		strscpy(rel, name + strlen(root) + 1, sizeof(rel));
 		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
 			rc = -EINVAL;
 			break;
@@ -488,7 +488,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			char parent[PATH_MAX];
 			FILE *fp;
 
-			snprintf(parent, sizeof(parent), "%s", path);
+			strscpy(parent, path, sizeof(parent));
 			slash = strrchr(parent, '/');
 			if (slash) {
 				*slash = 0;

@@ -244,7 +244,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 		    tp_string_array(p, dst[*n].values, &values,
 				    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
 			return -EINVAL;
-		strcpy(dst[*n].key, key);
+		strscpy(dst[*n].key, key, sizeof(dst[*n].key));
 		dst[*n].n_values = values;
 		(*n)++;
 	}

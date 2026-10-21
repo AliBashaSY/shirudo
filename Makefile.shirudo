@@ -608,7 +608,8 @@ testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
-testing/helper/test-bpm-source: testing/helper/test-bpm-source.c util/bpm_source_config.o
+testing/helper/test-bpm-source: testing/helper/test-bpm-source.c util/bpm_source_config.o \
+                                util/string.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

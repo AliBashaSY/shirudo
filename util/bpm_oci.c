@@ -21,6 +21,7 @@
 #include <curl/curl.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm_oci.h"
 #include "crypto.h"
@@ -264,8 +265,11 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	int rc;
 
 	if (getenv("BPM_OCI_USERNAME") && getenv("BPM_OCI_PASSWORD")) {
-		snprintf(c->username, sizeof(c->username), "%s", getenv("BPM_OCI_USERNAME"));
-		snprintf(c->password, sizeof(c->password), "%s", getenv("BPM_OCI_PASSWORD"));
+		if (strscpy(c->username, getenv("BPM_OCI_USERNAME"),
+			    sizeof(c->username)) < 0 ||
+		    strscpy(c->password, getenv("BPM_OCI_PASSWORD"),
+			    sizeof(c->password)) < 0)
+			return -E2BIG;
 		return 0;
 	}
 	if (!authfile && docker) {
@@ -340,9 +344,10 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 			pr_err("bpm OCI: BPM_OCI_SCHEME must be https or http");
 			return -EINVAL;
 		}
-		snprintf(transport, sizeof(transport), "%s", scheme);
+		strscpy(transport, scheme, sizeof(transport));
 	}
-	snprintf(c->registry, sizeof(c->registry), "%s", p);
+	if (strscpy(c->registry, p, sizeof(c->registry)) < 0)
+		return -ENAMETOOLONG;
 	if (snprintf(c->base_url, sizeof(c->base_url), "%s://%s", transport, p) >=
 	    (int)sizeof(c->base_url))
 		return -ENAMETOOLONG;

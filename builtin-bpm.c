@@ -287,7 +287,7 @@ static int load_source(const char *name, struct bpm_source *s)
 		fclose(fp);
 		return -EPERM;
 	}
-	snprintf(s->name, sizeof(s->name), "%s", name);
+	strscpy(s->name, name, sizeof(s->name));
 	while (fgets(line, sizeof(line), fp)) {
 		rc = bpm_parse_source_line(line,
 					   s->endpoint, sizeof(s->endpoint),
@@ -1037,7 +1037,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				rc = -E2BIG;
 				break;
 			}
-			snprintf(loaded[nloaded], sizeof(loaded[nloaded]), "%s", up);
+			strscpy(loaded[nloaded], up, sizeof(loaded[nloaded]));
 			nloaded++;
 		}
 		closedir(d);

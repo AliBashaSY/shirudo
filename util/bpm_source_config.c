@@ -5,10 +5,10 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm_source_config.h"
 
@@ -37,10 +37,10 @@ int bpm_parse_source_line(char *line,
 		val++;
 	val[strcspn(val, "\r\n")] = '\0';
 
-	if (!strcmp(key, "endpoint"))
-		snprintf(endpoint, endpoint_sz, "%s", val);
-	else if (!strcmp(key, "key_file"))
-		snprintf(key_file, key_file_sz, "%s", val);
+	if (!strcmp(key, "endpoint") && strscpy(endpoint, val, endpoint_sz) < 0)
+		return -E2BIG;
+	if (!strcmp(key, "key_file") && strscpy(key_file, val, key_file_sz) < 0)
+		return -E2BIG;
 	return 0;
 }
 
@@ -77,9 +77,11 @@ int bpm_parse_tree_line(char *line,
 		value[len - 1] = '\0';
 		value++;
 	}
-	if (!strcmp(key, "endpoint"))
-		snprintf(endpoint, endpoint_sz, "%s", value);
-	else if (!strcmp(key, "reference"))
-		snprintf(reference, reference_sz, "%s", value);
+	if (!strcmp(key, "endpoint") &&
+	    strscpy(endpoint, value, endpoint_sz) < 0)
+		return -E2BIG;
+	if (!strcmp(key, "reference") &&
+	    strscpy(reference, value, reference_sz) < 0)
+		return -E2BIG;
 	return 0;
 }

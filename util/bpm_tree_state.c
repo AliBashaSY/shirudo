@@ -22,6 +22,7 @@
 #include <zlib.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "bpm_tree.h"
 #include "chain.h"
@@ -40,11 +41,9 @@ static int kv_add(struct shirudo_tree_kv *dst, int *n, int max,
 {
 	if (*n >= max)
 		return -E2BIG;
-	if (strlen(key) >= sizeof(dst[0].key) ||
-	    strlen(value) >= sizeof(dst[0].value))
+	if (strscpy(dst[*n].key, key, sizeof(dst[0].key)) < 0 ||
+	    strscpy(dst[*n].value, value, sizeof(dst[0].value)) < 0)
 		return -ENOSPC;
-	strcpy(dst[*n].key, key);
-	strcpy(dst[*n].value, value);
 	(*n)++;
 	return 0;
 }
@@ -208,9 +207,8 @@ static int selector_config_line(const char *line,
 	char copy[1024], *start, *eq, *end, *value;
 	int index;
 
-	if (strlen(line) >= sizeof(copy))
+	if (strscpy(copy, line, sizeof(copy)) < 0)
 		return 0;
-	strcpy(copy, line);
 	start = copy;
 	while (*start && isspace((__u8)*start))
 		start++;
@@ -253,9 +251,8 @@ static int selector_config_line(const char *line,
 	index = selector_hash_find(s, slots, start);
 	if (index < 0)
 		return 0;
-	if (strlen(value) >= SHIRUDO_TREE_STRING_MAX)
+	if (strscpy(values[index], value, SHIRUDO_TREE_STRING_MAX) < 0)
 		return -ENOSPC;
-	strcpy(values[index], value);
 	found[index] = true;
 	return 0;
 }
