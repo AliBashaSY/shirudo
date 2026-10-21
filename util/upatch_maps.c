@@ -682,18 +682,35 @@ char *shirudo_upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
 {
 	if (v->value_size == 1 || v->value_size == 2 ||
 	    v->value_size == 4 || v->value_size == 8) {
+		uint32_t bits = 8 * v->value_size, i;
+		const struct btf_type *t = NULL;
+		bool is_signed = false;
 		uint64_t sum = 0;
-		uint32_t i;
 
+		if (v->btf && v->value_type_id) {
+			uint32_t id = btf_unwrap(v->btf, v->value_type_id);
+
+			t = btf__type_by_id(v->btf, id);
+		}
+		if (t && BTF_INFO_KIND(t->info) == BTF_KIND_INT) {
+			uint32_t enc = *(const uint32_t *)(t + 1);
+
+			is_signed = BTF_INT_ENCODING(enc) & BTF_INT_SIGNED;
+		}
 		for (i = 0; i < v->n_cpus; i++) {
 			uint64_t one = 0;
 
 			memcpy(&one, (const char *)values_per_cpu +
 			       (size_t)i * shirudo_upatch_map_value_stride(v),
 			       v->value_size);
+			/* A negative per-CPU count must not add as 2^n - 1. */
+			if (is_signed && bits < 64 &&
+			    (one & ((uint64_t)1 << (bits - 1))))
+				one |= ~(((uint64_t)1 << bits) - 1);
 			sum += one;
 		}
-		return fmt_alloc("%" PRIu64, sum);
+		return is_signed ? fmt_alloc("%" PRId64, (int64_t)sum) :
+				   fmt_alloc("%" PRIu64, sum);
 	}
 	(void)btf_type;
 	return xstrdup("(unsupported width)");
