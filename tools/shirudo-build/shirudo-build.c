@@ -30,7 +30,6 @@
 #define SHIRUDO_VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
-
 static void usage(FILE *fp)
 {
 	fprintf(fp,
@@ -292,20 +291,20 @@ int main(int argc, char **argv)
 					      keys_dir,
 					      SHIRUDO_SIGNING_KEY_FILE);
 			if (rc) {
-					pr_err("invalid keys dir %s: %s",
-					       keys_dir, strerror(-rc));
-					return 2;
-				}
+				pr_err("invalid keys dir %s: %s",
+				       keys_dir, strerror(-rc));
+				return 2;
+			}
 			pkey = pkey_path;
 		}
 		if (!cert_explicit) {
 			rc = shirudo_key_path(cert_path, sizeof(cert_path),
 					      keys_dir, SHIRUDO_CERT_FILE);
 			if (rc) {
-					pr_err("invalid keys dir %s: %s",
-					       keys_dir, strerror(-rc));
-					return 2;
-				}
+				pr_err("invalid keys dir %s: %s",
+				       keys_dir, strerror(-rc));
+				return 2;
+			}
 			cert = cert_path;
 		}
 	}

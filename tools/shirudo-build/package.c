@@ -106,7 +106,6 @@ static void pack_header(struct shirudo_upatch_header *h,
 	h->reserved1        = 0;
 }
 
-
 static bool unsupported_kprobe_section(const char *sec)
 {
 	if (sec && sec[0] == '?')
@@ -328,7 +327,7 @@ static bool object_has_map(struct bpf_object *obj, const char *want)
 
 static bool fixed_cstr_nonempty(const char *s, size_t n)
 {
-	return n && s[0] && memchr(s, '\0', n) != NULL;
+	return n && s[0] && memchr(s, '\0', n);
 }
 
 static void copy_fixed_cstr(char *dst, size_t dst_sz,
@@ -875,20 +874,22 @@ static int build_prog_metadata(struct bpf_object *obj, uint32_t nr_progs,
 				&uprobe_targets[nr_uprobe_targets];
 
 			err = split_uprobe_target(target, &ut->path,
-						 &ut->path_len,
-						 md->progs[i].target,
-						 sizeof(md->progs[i].target));
+						  &ut->path_len,
+						  md->progs[i].target,
+						  sizeof(md->progs[i].target));
 			if (err) {
 				if (err == -EOPNOTSUPP)
-					pr_err("invalid uprobe.multi section '%s': ',' and '|' alternation are unsupported; use one '*'/'?' glob", sec);
+					pr_err("invalid uprobe.multi section '%s': ',' and '|' alternation are unsupported; use one '*'/'?' glob",
+					       sec);
 				else
-					pr_err("invalid uprobe.multi section '%s'; expected uprobe.multi//absolute/path:function_glob", sec);
+					pr_err("invalid uprobe.multi section '%s'; expected uprobe.multi//absolute/path:function_glob",
+					       sec);
 				goto err_free;
 			}
 			ut->prog_idx = i;
 			nr_uprobe_targets++;
 			err = shirudo_elf_target_resolve(ut->path,
-						 md->progs[i].target, &ut->elf);
+							 md->progs[i].target, &ut->elf);
 			if (err) {
 				if (err == -ENOENT)
 					pr_err("uprobe.multi pattern '%s' matched no functions in %s (or the ELF has no GNU build ID)",
@@ -1034,15 +1035,17 @@ static int set_target_attach_types(struct bpf_object *obj)
 
 static int register_target_attach_types(int handler_ids[2])
 {
-	handler_ids[0] = libbpf_register_prog_handler(
-		"cgroup_skb/ingress", BPF_PROG_TYPE_CGROUP_SKB,
-		BPF_CGROUP_INET_INGRESS, NULL);
+	handler_ids[0] = libbpf_register_prog_handler("cgroup_skb/ingress",
+						      BPF_PROG_TYPE_CGROUP_SKB,
+						      BPF_CGROUP_INET_INGRESS,
+						      NULL);
 	if (handler_ids[0] < 0)
 		return handler_ids[0];
 
-	handler_ids[1] = libbpf_register_prog_handler(
-		"cgroup_skb/egress", BPF_PROG_TYPE_CGROUP_SKB,
-		BPF_CGROUP_INET_EGRESS, NULL);
+	handler_ids[1] = libbpf_register_prog_handler("cgroup_skb/egress",
+						      BPF_PROG_TYPE_CGROUP_SKB,
+						      BPF_CGROUP_INET_EGRESS,
+						      NULL);
 	if (handler_ids[1] < 0) {
 		libbpf_unregister_prog_handler(handler_ids[0]);
 		handler_ids[0] = -1;

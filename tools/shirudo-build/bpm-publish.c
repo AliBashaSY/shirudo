@@ -91,7 +91,6 @@ static void sig_free(unsigned char *sig)
 		xfree(sig, BPM_SIGN_MAX);
 }
 
-
 static int index_entry_compare(const void *left, const void *right)
 {
 	const struct bpm_index_entry *a = left, *b = right;
@@ -111,7 +110,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 
 	*n = 0;
 	rc = bpm_oci_url(c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG,
-			  url, sizeof(url));
+			 url, sizeof(url));
 	if (rc)
 		return rc;
 	rc = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
@@ -142,7 +141,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 			goto out;
 		}
 		rc = bpm_oci_url(c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest,
-				  url, sizeof(url));
+				 url, sizeof(url));
 		if (rc)
 			goto out;
 		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
@@ -270,13 +269,18 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	rc = sign_detached(body, e.len, key, cert, &sig, &sig_len);
 	if (rc)
 		goto out;
-	if ((rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, empty_config,
-				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-				&config)) ||
-	    (rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, body, e.len,
-				BPM_INDEX_MEDIA, &payload_layer)) ||
-	    (rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, sig, sig_len,
-				BPM_INDEX_SIG_MEDIA, &sig_layer)))
+	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, empty_config,
+			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+			       &config);
+	if (rc)
+		goto out;
+	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, body, e.len,
+			       BPM_INDEX_MEDIA, &payload_layer);
+	if (rc)
+		goto out;
+	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, sig, sig_len,
+			       BPM_INDEX_SIG_MEDIA, &sig_layer);
+	if (rc)
 		goto out;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest) {
@@ -299,7 +303,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		goto out;
 	}
 	rc = bpm_oci_put_manifest(c, BPM_INDEX_REPOSITORY, BPM_INDEX_TAG,
-			      (const unsigned char *)manifest, e.len, digest,
+				  (const unsigned char *)manifest, e.len, digest,
 			      sizeof(digest));
 out:
 	if (manifest)
@@ -343,10 +347,12 @@ static int push_package(const char *package_path, const char *raw_repository,
 			       &archive_len);
 	if (rc)
 		return rc;
-	if ((rc = bpm_pkg_load_info(package_path, &info)))
+	rc = bpm_pkg_load_info(package_path, &info);
+	if (rc)
 		goto out;
-	if ((rc = bpm_oci_parse_push_repo(raw_repository, &c, repository,
-					 sizeof(repository))))
+	rc = bpm_oci_parse_push_repo(raw_repository, &c, repository,
+				     sizeof(repository));
+	if (rc)
 		goto out;
 	base = strrchr(package_path, '/');
 	base = base ? base + 1 : package_path;
@@ -356,11 +362,13 @@ static int push_package(const char *package_path, const char *raw_repository,
 	}
 	bpm_copy_string(package_title, sizeof(package_title), base);
 
-	if ((rc = bpm_oci_push_blob(&c, repository, config_body,
-				 strlen(config_body), BPM_CONFIG_MEDIA, &config)))
+	rc = bpm_oci_push_blob(&c, repository, config_body, strlen(config_body),
+			       BPM_CONFIG_MEDIA, &config);
+	if (rc)
 		goto out;
-	if ((rc = bpm_oci_push_blob(&c, repository, archive, archive_len,
-				 BPM_PACKAGE_MEDIA, &layer)))
+	rc = bpm_oci_push_blob(&c, repository, archive, archive_len,
+			       BPM_PACKAGE_MEDIA, &layer);
+	if (rc)
 		goto out;
 
 	manifest_body = xmalloc(BPM_MANIFEST_CAP);
@@ -410,11 +418,14 @@ static int push_package(const char *package_path, const char *raw_repository,
 	 * Publish the package certificate as an OCI referrer so `bpm key add`
 	 * can fetch it without downloading the package.
 	 */
-	if ((rc = bpm_oci_push_blob(&c, repository, empty_config, strlen(empty_config),
-				 BPM_EMPTY_CONFIG_MEDIA, &key_config)))
+	rc = bpm_oci_push_blob(&c, repository, empty_config,
+			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+			       &key_config);
+	if (rc)
 		goto out;
-	if ((rc = bpm_oci_push_blob(&c, repository, info.cert, info.cert_len,
-				 BPM_PUBLIC_KEY_MEDIA, &key_layer)))
+	rc = bpm_oci_push_blob(&c, repository, info.cert, info.cert_len,
+			       BPM_PUBLIC_KEY_MEDIA, &key_layer);
+	if (rc)
 		goto out;
 	subject = (struct bpm_descriptor){
 		.media = "application/vnd.oci.image.manifest.v1+json",
@@ -447,20 +458,24 @@ static int push_package(const char *package_path, const char *raw_repository,
 	}
 	key_manifest_len = e.len;
 	if (bpm_sha256_hex(key_manifest_body, key_manifest_len, hex,
-			      sizeof(hex)) ||
+			   sizeof(hex)) ||
 	    snprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) >=
 		(int)sizeof(key_digest)) {
 		rc = -EINVAL;
 		goto out;
 	}
-	if ((rc = bpm_oci_put_manifest(&c, repository, key_digest,
-				   (const unsigned char *)key_manifest_body,
-				   key_manifest_len, key_digest, sizeof(key_digest))))
+	rc = bpm_oci_put_manifest(&c, repository, key_digest,
+				  (const unsigned char *)key_manifest_body,
+				  key_manifest_len, key_digest,
+				  sizeof(key_digest));
+	if (rc)
 		goto out;
-	if (index_key && index_cert &&
-	    (rc = push_index(&c, repository, &info, package_digest, &layer,
-			     index_key, index_cert)))
-		goto out;
+	if (index_key && index_cert) {
+		rc = push_index(&c, repository, &info, package_digest, &layer,
+				index_key, index_cert);
+		if (rc)
+			goto out;
+	}
 	rc = bpm_oci_put_manifest(&c, repository, info.version, manifest,
 				  manifest_len, package_digest,
 				  sizeof(package_digest));
@@ -556,10 +571,14 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	    (int)sizeof(tag) || strlen(tag) > 128)
 		return -ENAMETOOLONG;
 	snprintf(title, sizeof(title), "%s.upatch", id);
-	if ((rc = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
-				&layer)) ||
-	    (rc = bpm_oci_push_blob(c, repository, empty_config, strlen(empty_config),
-				BPM_EMPTY_CONFIG_MEDIA, &config)))
+	rc = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
+			       &layer);
+	if (rc)
+		return rc;
+	rc = bpm_oci_push_blob(c, repository, empty_config,
+			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+			       &config);
+	if (rc)
 		return rc;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest)
@@ -580,7 +599,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(c, repository, tag,
-				      (const unsigned char *)manifest, e.len,
+					  (const unsigned char *)manifest, e.len,
 				      out->manifest_digest,
 				      sizeof(out->manifest_digest));
 	xfree(manifest, BPM_MANIFEST_CAP);
@@ -618,37 +637,38 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	for (int i = 2; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (!strcmp(a, "--keys-dir") && i + 1 < argc)
+		if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
 			keys_dir_arg = argv[++i];
-		else if (!strncmp(a, "--keys-dir=", 11))
+		} else if (!strncmp(a, "--keys-dir=", 11)) {
 			keys_dir_arg = a + 11;
-		else if (!strcmp(a, "--key") && i + 1 < argc)
+		} else if (!strcmp(a, "--key") && i + 1 < argc) {
 			key = argv[++i];
-		else if (!strncmp(a, "--key=", 6))
+		} else if (!strncmp(a, "--key=", 6)) {
 			key = a + 6;
-		else if (!strcmp(a, "--cert") && i + 1 < argc)
+		} else if (!strcmp(a, "--cert") && i + 1 < argc) {
 			cert = argv[++i];
-		else if (!strncmp(a, "--cert=", 7))
+		} else if (!strncmp(a, "--cert=", 7)) {
 			cert = a + 7;
-		else if (!strcmp(a, "--tree-id") && i + 1 < argc)
+		} else if (!strcmp(a, "--tree-id") && i + 1 < argc) {
 			tree_id = argv[++i];
-		else if (!strncmp(a, "--tree-id=", 10))
+		} else if (!strncmp(a, "--tree-id=", 10)) {
 			tree_id = a + 10;
-		else if (!strcmp(a, "--reference") && i + 1 < argc)
+		} else if (!strcmp(a, "--reference") && i + 1 < argc) {
 			reference = argv[++i];
-		else if (!strncmp(a, "--reference=", 12))
+		} else if (!strncmp(a, "--reference=", 12)) {
 			reference = a + 12;
-		else if (!strcmp(a, "--op") && i + 1 < argc)
+		} else if (!strcmp(a, "--op") && i + 1 < argc) {
 			operation = argv[++i];
-		else if (!strncmp(a, "--op=", 5))
+		} else if (!strncmp(a, "--op=", 5)) {
 			operation = a + 5;
-		else if (a[0] == '-' || (package && raw_repository)) {
+		} else if (a[0] == '-' || (package && raw_repository)) {
 			tree_append_usage();
 			return -EINVAL;
-		} else if (!package)
+		} else if (!package) {
 			package = a;
-		else
+		} else {
 			raw_repository = a;
+		}
 	}
 	if (!package || !raw_repository) {
 		tree_append_usage();
@@ -709,7 +729,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		goto out;
 	}
 	rc = bpm_tree_fetch_publication(&c, repository, reference, cert, &pub,
-				       parent, sizeof(parent));
+					parent, sizeof(parent));
 	if (rc == -ENOENT) {
 		pub = (struct shirudo_tree_publication){ .schema = 2,
 							 .generation = 1 };
@@ -785,12 +805,18 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	rc = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
 	if (rc)
 		goto out;
-	if ((rc = bpm_oci_push_blob(&c, repository, empty_config, strlen(empty_config),
-				BPM_EMPTY_CONFIG_MEDIA, &config)) ||
-	    (rc = bpm_oci_push_blob(&c, repository, payload, payload_len,
-				BPM_TREE_MEDIA, &payload_layer)) ||
-	    (rc = bpm_oci_push_blob(&c, repository, sig, sig_len, BPM_TREE_SIG_MEDIA,
-				&sig_layer)))
+	rc = bpm_oci_push_blob(&c, repository, empty_config,
+			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+			       &config);
+	if (rc)
+		goto out;
+	rc = bpm_oci_push_blob(&c, repository, payload, payload_len,
+			       BPM_TREE_MEDIA, &payload_layer);
+	if (rc)
+		goto out;
+	rc = bpm_oci_push_blob(&c, repository, sig, sig_len, BPM_TREE_SIG_MEDIA,
+			       &sig_layer);
+	if (rc)
 		goto out;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest) {
@@ -811,7 +837,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	rc = e.err;
 	if (!rc)
 		rc = bpm_oci_put_manifest(&c, repository, reference,
-				      (const unsigned char *)manifest, e.len,
+					  (const unsigned char *)manifest, e.len,
 				      digest, sizeof(digest));
 	if (!rc)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
@@ -863,25 +889,26 @@ int shirudo_build_bpm_push(int argc, char **argv)
 	for (int i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (!strcmp(a, "--keys-dir") && i + 1 < argc)
+		if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
 			keys_dir_arg = argv[++i];
-		else if (!strncmp(a, "--keys-dir=", 11))
+		} else if (!strncmp(a, "--keys-dir=", 11)) {
 			keys_dir_arg = a + 11;
-		else if (!strcmp(a, "--index-cert") && i + 1 < argc)
+		} else if (!strcmp(a, "--index-cert") && i + 1 < argc) {
 			index_cert = argv[++i];
-		else if (!strncmp(a, "--index-cert=", 13))
+		} else if (!strncmp(a, "--index-cert=", 13)) {
 			index_cert = a + 13;
-		else if (!strcmp(a, "--index-key") && i + 1 < argc)
+		} else if (!strcmp(a, "--index-key") && i + 1 < argc) {
 			index_key = argv[++i];
-		else if (!strncmp(a, "--index-key=", 12))
+		} else if (!strncmp(a, "--index-key=", 12)) {
 			index_key = a + 12;
-		else if (a[0] == '-' || (package && repository)) {
+		} else if (a[0] == '-' || (package && repository)) {
 			bpm_push_usage();
 			return 2;
-		} else if (!package)
+		} else if (!package) {
 			package = a;
-		else
+		} else {
 			repository = a;
+		}
 	}
 	if (!package || !repository) {
 		bpm_push_usage();

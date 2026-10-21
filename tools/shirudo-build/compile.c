@@ -160,9 +160,9 @@ int shirudo_build_compile(const char *source, const char *output,
 	if (WIFEXITED(status)) {
 		int es = WEXITSTATUS(status);
 
-		if (es == 0)
+		if (es == 0) {
 			rc = 0;
-		else {
+		} else {
 			pr_err("clang exited with status %d", es);
 			rc = -EIO;
 		}

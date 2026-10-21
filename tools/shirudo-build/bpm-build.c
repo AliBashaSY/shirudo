@@ -153,11 +153,20 @@ static int build_parse_string(const char *value, char *out, size_t cap)
 		if (c == '\\' && quote == '"') {
 			c = (unsigned char)*p++;
 			switch (c) {
-			case 'n': c = '\n'; break;
-			case 'r': c = '\r'; break;
-			case 't': c = '\t'; break;
-			case '\\': case '"': break;
-			default: return -EINVAL;
+			case 'n':
+				c = '\n';
+				break;
+			case 'r':
+				c = '\r';
+				break;
+			case 't':
+				c = '\t';
+				break;
+			case '\\':
+			case '"':
+				break;
+			default:
+				return -EINVAL;
 			}
 		}
 		if (n + 1 >= cap)
@@ -272,10 +281,11 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	}
 	if (!key_len || key_len >= SHIRUDO_TREE_STRING_MAX)
 		return -EINVAL;
-	for (int i = 0; i < *n; i++)
+	for (int i = 0; i < *n; i++) {
 		if (strlen(kvs[i].key) == key_len &&
 		    !strncmp(kvs[i].key, key, key_len))
 			return -EEXIST;
+	}
 	if (*n >= max)
 		return -E2BIG;
 	kv = &kvs[*n];
@@ -295,9 +305,10 @@ static bool build_name_ok(const char *s)
 
 	if (!s || !*s || !isalnum((unsigned char)s[0]) || strlen(s) >= 128)
 		return false;
-	for (; *p; p++)
+	for (; *p; p++) {
 		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-'))
 			return false;
+	}
 	return true;
 }
 
@@ -307,9 +318,10 @@ static bool build_version_ok(const char *s)
 
 	if (!s || !*s || !isalnum((unsigned char)s[0]) || strlen(s) >= 128)
 		return false;
-	for (; *p; p++)
+	for (; *p; p++) {
 		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-' || *p == '+'))
 			return false;
+	}
 	return true;
 }
 
@@ -322,22 +334,24 @@ static int build_default_targets(struct bpm_build_upatch *u)
 	slash = strrchr(base, '/');
 	if (slash)
 		memmove(base, slash + 1, strlen(slash + 1) + 1);
-	if (strlen(base) > 6 && !strcmp(base + strlen(base) - 6, ".bpf.c"))
+	if (strlen(base) > 6 && !strcmp(base + strlen(base) - 6, ".bpf.c")) {
 		base[strlen(base) - 6] = '\0';
-	else if (strlen(base) > 6 && !strcmp(base + strlen(base) - 6, ".bpf.o"))
+	} else if (strlen(base) > 6 &&
+		   !strcmp(base + strlen(base) - 6, ".bpf.o")) {
 		base[strlen(base) - 6] = '\0';
-	else {
+	} else {
 		slash = strrchr(base, '.');
 		if (slash)
 			*slash = '\0';
 	}
 	if (!*base)
 		return -EINVAL;
-	if (!u->load_target[0] && snprintf(u->load_target, sizeof(u->load_target),
-				"upatches/%s.upatch", base) >= (int)sizeof(u->load_target))
+	if (!u->load_target[0] &&
+	    snprintf(u->load_target, sizeof(u->load_target),
+		     "upatches/%s.upatch", base) >= (int)sizeof(u->load_target))
 		return -ENAMETOOLONG;
 	if (!u->unload_target[0] && snprintf(u->unload_target,
-				 sizeof(u->unload_target), "upatches/%s.unload.upatch",
+					     sizeof(u->unload_target), "upatches/%s.unload.upatch",
 				 base) >= (int)sizeof(u->unload_target))
 		return -ENAMETOOLONG;
 	return 0;
@@ -455,11 +469,21 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			char *dst = NULL;
 			size_t cap = 0;
 
-			if (!strcmp(key, "source")) { dst = upatch->source; cap = sizeof(upatch->source); }
-			else if (!strcmp(key, "type")) { dst = upatch->type; cap = sizeof(upatch->type); }
-			else if (!strcmp(key, "load_target")) { dst = upatch->load_target; cap = sizeof(upatch->load_target); }
-			else if (!strcmp(key, "unload_target")) { dst = upatch->unload_target; cap = sizeof(upatch->unload_target); }
-			else return -EINVAL;
+			if (!strcmp(key, "source")) {
+				dst = upatch->source;
+				cap = sizeof(upatch->source);
+			} else if (!strcmp(key, "type")) {
+				dst = upatch->type;
+				cap = sizeof(upatch->type);
+			} else if (!strcmp(key, "load_target")) {
+				dst = upatch->load_target;
+				cap = sizeof(upatch->load_target);
+			} else if (!strcmp(key, "unload_target")) {
+				dst = upatch->unload_target;
+				cap = sizeof(upatch->unload_target);
+			} else {
+				return -EINVAL;
+			}
 			if (build_parse_string(value, dst, cap))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree")) {
@@ -468,10 +492,18 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			size_t cap = 0;
 
 			/* Unknown tree keys are additive metadata for newer publishers. */
-			if (!strcmp(key, "id")) { dst = t->id; cap = sizeof(t->id); }
-			else if (!strcmp(key, "load_artifact")) { dst = t->load_artifact; cap = sizeof(t->load_artifact); }
-			else if (!strcmp(key, "unload_artifact")) { dst = t->unload_artifact; cap = sizeof(t->unload_artifact); }
-			else continue;
+			if (!strcmp(key, "id")) {
+				dst = t->id;
+				cap = sizeof(t->id);
+			} else if (!strcmp(key, "load_artifact")) {
+				dst = t->load_artifact;
+				cap = sizeof(t->load_artifact);
+			} else if (!strcmp(key, "unload_artifact")) {
+				dst = t->unload_artifact;
+				cap = sizeof(t->unload_artifact);
+			} else {
+				continue;
+			}
 			if (build_parse_string(value, dst, cap))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree.selector")) {
@@ -491,7 +523,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 				return -EINVAL;
 			}
 			if (*n || build_parse_string_array(value, dst,
-					SHIRUDO_TREE_MAX_SELECTOR_VALUES, n))
+							   SHIRUDO_TREE_MAX_SELECTOR_VALUES, n))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree.selector.kconfig")) {
 			if (build_parse_selector_kv(key, value, sel->kconfig,
@@ -575,10 +607,11 @@ void bpm_build_spec_free(struct bpm_build_spec *spec)
 {
 	if (!spec)
 		return;
-	for (size_t i = 0; i < spec->n_upatches; i++)
+	for (size_t i = 0; i < spec->n_upatches; i++) {
 		if (spec->upatches[i].tree.selector)
 			xfree(spec->upatches[i].tree.selector,
 			      sizeof(*spec->upatches[i].tree.selector));
+	}
 	if (spec->build_file)
 		xfree(spec->build_file, spec->build_file_len + 1);
 	xfree(spec, sizeof(*spec));
@@ -638,9 +671,10 @@ static int build_add_target(char seen[][PATH_MAX], size_t *n, const char *target
 	if (!strcmp(target, "Beefile") || !strcmp(target, "README.md") ||
 	    !strcmp(target, "cert.der") || !strcmp(target, "build-environment.json"))
 		return -EEXIST;
-	for (size_t i = 0; i < *n; i++)
+	for (size_t i = 0; i < *n; i++) {
 		if (!strcmp(seen[i], target))
 			return -EEXIST;
+	}
 	if (*n >= BPM_BUILD_MAX_ENTRIES * 3)
 		return -E2BIG;
 	build_copy(seen[(*n)++], PATH_MAX, target);
@@ -657,7 +691,7 @@ static int build_validate(struct bpm_build_spec *spec)
 	for (size_t i = 0; i < spec->n_files; i++) {
 		if (build_add_target(seen, &n, spec->files[i].target) ||
 		    build_resolve_source(spec, spec->files[i].source, resolved,
-					  sizeof(resolved), &st))
+					 sizeof(resolved), &st))
 			return -EINVAL;
 	}
 	for (size_t i = 0; i < spec->n_upatches; i++) {
@@ -677,7 +711,7 @@ static int build_join(char *out, size_t cap, const char *dir, const char *name)
 }
 
 static int build_entry_name(char *out, size_t cap, const char *top,
-				    const char *entry)
+			    const char *entry)
 {
 	size_t top_len = strlen(top);
 	size_t entry_len = strlen(entry);
@@ -830,7 +864,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 }
 
 static int build_environment(const struct bpm_build_spec *spec,
-				     const char *version, const char *fingerprint,
+			     const char *version, const char *fingerprint,
 				     unsigned char **out, size_t *out_len)
 {
 	char *body = xmalloc(BPM_BUILD_MAX_JSON);
@@ -902,11 +936,11 @@ static int tar_write(struct bpm_tar *tar, const void *data, size_t len)
 {
 	if (!len)
 		return 0;
-	return gzwrite(tar->gz, data, (unsigned)len) == (int)len ? 0 : -EIO;
+	return gzwrite(tar->gz, data, (unsigned int)len) == (int)len ? 0 : -EIO;
 }
 
 static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
-			     size_t len, mode_t mode, char type)
+		     size_t len, mode_t mode, char type)
 {
 	unsigned char h[512] = {};
 	unsigned int sum = 0;
@@ -915,10 +949,10 @@ static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 	if (strlen(name) >= 100 || (type == '0' && len > 077777777777ULL))
 		return -ENAMETOOLONG;
 	memcpy(h, name, strlen(name));
-	snprintf((char *)h + 100, 8, "%07o", (unsigned)(mode & 07777));
+	snprintf((char *)h + 100, 8, "%07o", (unsigned int)(mode & 07777));
 	snprintf((char *)h + 108, 8, "%07o", 0u);
 	snprintf((char *)h + 116, 8, "%07o", 0u);
-	snprintf((char *)h + 124, 12, "%011o", (unsigned)len);
+	snprintf((char *)h + 124, 12, "%011o", (unsigned int)len);
 	snprintf((char *)h + 136, 12, "%011o", 0u);
 	memset(h + 148, ' ', 8);
 	h[156] = (unsigned char)type;
@@ -967,7 +1001,7 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 	    snprintf(output, sizeof(output), "%s/%s.bee", out_dir, top) >= (int)sizeof(output))
 		return -ENAMETOOLONG;
 	if (build_environment(spec, version, fingerprint, &environment,
-			       &environment_len))
+			      &environment_len))
 		return -EIO;
 	if (build_read_file(cert_path, &cert, &cert_len, BPM_BUILD_MAX_FILE)) {
 		xfree(environment, BPM_BUILD_MAX_JSON);
@@ -986,14 +1020,14 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 		rc = build_entry_name(name, sizeof(name), top, "Beefile");
 		if (!rc)
 			rc = tar_entry(&tar, name, spec->build_file,
-					spec->build_file_len, 0644, '0');
+				       spec->build_file_len, 0644, '0');
 	}
 	for (size_t i = 0; !rc && i < spec->n_files; i++) {
 		char resolved[PATH_MAX];
 		struct stat st;
 
 		rc = build_resolve_source(spec, spec->files[i].source, resolved,
-					   sizeof(resolved), &st);
+					  sizeof(resolved), &st);
 		if (!rc)
 			rc = build_entry_name(name, sizeof(name), top,
 					      spec->files[i].target);
@@ -1037,7 +1071,7 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 	}
 	if (!rc) {
 		rc = build_entry_name(name, sizeof(name), top,
-				       "build-environment.json");
+				      "build-environment.json");
 		if (!rc)
 			rc = tar_entry(&tar, name, environment, environment_len, 0644, '0');
 	}
