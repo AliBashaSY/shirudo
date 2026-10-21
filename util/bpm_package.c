@@ -442,7 +442,8 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 		if ((rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
 				       url, sizeof(url))))
 			goto out;
-		if ((rc = bpm_oci_get_memory(c, url, layers[i].media, dst)))
+		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
+		if (rc)
 			goto out;
 		if ((layers[i].size >= 0 && (int64_t)dst->len != layers[i].size) ||
 		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||

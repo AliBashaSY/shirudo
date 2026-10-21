@@ -145,7 +145,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 				  url, sizeof(url));
 		if (rc)
 			goto out;
-		rc = bpm_oci_get_memory(c, url, layers[i].media, dst);
+		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
 		if (rc)
 			goto out;
 		if ((layers[i].size >= 0 && (int64_t)dst->len != layers[i].size) ||

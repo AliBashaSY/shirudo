@@ -106,9 +106,14 @@ int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 			    char *repository, size_t repository_sz);
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 		const char *kind, const char *ref, char *out, size_t sz);
-/* 2xx fills out; 404 is -ENOENT, other failures -EACCES. */
+/*
+ * 2xx fills out; 404 is -ENOENT, other failures -EACCES. A blob GET
+ * follows the registry's redirects, a manifest GET does not.
+ */
 int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
 		       const char *accept, struct bpm_buffer *out);
+int bpm_oci_get_blob(struct bpm_oci_client *c, const char *url,
+		     const char *accept, struct bpm_buffer *out);
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		     const char *accept, const char *path);
 int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,

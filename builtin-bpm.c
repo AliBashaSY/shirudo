@@ -772,7 +772,7 @@ static int repo_update_one(const char *name)
 		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA)) {
 			char layer_hex[65];
 			if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
-			rc = bpm_oci_get_memory(&c, url, BPM_INDEX_MEDIA, &index);
+			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_MEDIA, &index);
 			if (!rc && (bpm_sha256_hex(index.data, index.len, layer_hex, sizeof(layer_hex)) ||
 				    !bpm_digest_matches(layers[i].digest, layer_hex)))
 				rc = -EKEYREJECTED;
@@ -783,7 +783,7 @@ static int repo_update_one(const char *name)
 	for (int i = 0; i < nl; i++) if (!strcmp(layers[i].media, BPM_INDEX_SIG_MEDIA)) {
 			char sig_hex[65];
 			if ((rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest, url, sizeof(url)))) goto out;
-			rc = bpm_oci_get_memory(&c, url, BPM_INDEX_SIG_MEDIA, &sig);
+			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_SIG_MEDIA, &sig);
 			if (!rc && (bpm_sha256_hex(sig.data, sig.len, sig_hex, sizeof(sig_hex)) ||
 				    !bpm_digest_matches(layers[i].digest, sig_hex)))
 				rc = -EKEYREJECTED;
@@ -1205,7 +1205,7 @@ static int tree_pull_artifact(const struct shirudo_tree_operation *op,
 				   url, sizeof(url));
 		if (rc)
 			goto out;
-		rc = bpm_oci_get_memory(&c, url, layers[i].media, &blob);
+		rc = bpm_oci_get_blob(&c, url, layers[i].media, &blob);
 		if (rc)
 			goto out;
 		if (bpm_sha256_hex(blob.data, blob.len, hex, sizeof(hex)) ||

@@ -325,7 +325,8 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 			const char *url, const char *accept,
 			const char *content_type, const void *body, size_t body_len,
-			const char *auth, struct bpm_http_response *r, FILE *file)
+			const char *auth, struct bpm_http_response *r, FILE *file,
+			bool follow)
 {
 	CURL *curl;
 	struct curl_slist *headers = NULL;
@@ -359,10 +360,10 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 	/*
 	 * OCI registries commonly redirect blob GETs to a signed CDN URL.
-	 * Follow only for file downloads, never for manifest or upload calls.
+	 * Follow only for blobs, never for manifest or upload calls.
 	 */
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, file ? 1L : 0L);
-	if (file) {
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, follow ? 1L : 0L);
+	if (follow) {
 		const char *redirect_protocols =
 			!strncmp(c->base_url, "https://", 8) ? "https" : "http,https";
 
@@ -416,9 +417,10 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 
 static int curl_once(struct bpm_oci_client *c, const char *method,
 			     const char *url, const char *accept, const char *auth,
-			     struct bpm_http_response *r, FILE *file)
+			     struct bpm_http_response *r, FILE *file, bool follow)
 {
-	return curl_once_ex(c, method, url, accept, NULL, NULL, 0, auth, r, file);
+	return curl_once_ex(c, method, url, accept, NULL, NULL, 0, auth, r, file,
+			    follow);
 }
 
 static int parse_challenge(const char *header, char *realm, size_t rsz,
@@ -551,14 +553,14 @@ out:
 	return rc;
 }
 
-int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
-			   const char *accept, struct bpm_buffer *out)
+static int get_memory(struct bpm_oci_client *c, const char *url,
+		      const char *accept, struct bpm_buffer *out, bool follow)
 {
 	struct bpm_http_response r = {};
 	char auth[BPM_OCI_AUTH_VALUE_SIZE];
 	int rc;
 
-	rc = curl_once(c, "GET", url, accept, NULL, &r, NULL);
+	rc = curl_once(c, "GET", url, accept, NULL, &r, NULL, follow);
 	if (rc) goto out;
 	if (r.status == 401 && r.www_auth[0]) {
 		if (!strncasecmp(r.www_auth, "Bearer", 6)) {
@@ -572,13 +574,25 @@ int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
 			snprintf(auth, sizeof(auth), "Basic %s", encoded);
 		} else { rc = -EACCES; goto out; }
 		bpm_buffer_free(&r.body); r = (struct bpm_http_response){};
-		rc = curl_once(c, "GET", url, accept, auth, &r, NULL);
+		rc = curl_once(c, "GET", url, accept, auth, &r, NULL, follow);
 	}
 	if (!rc && (r.status < 200 || r.status >= 300)) rc = r.status == 404 ? -ENOENT : -EACCES;
 	if (!rc) { *out = r.body; r.body.data = NULL; }
 out:
 	bpm_buffer_free(&r.body);
 	return rc;
+}
+
+int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
+		       const char *accept, struct bpm_buffer *out)
+{
+	return get_memory(c, url, accept, out, false);
+}
+
+int bpm_oci_get_blob(struct bpm_oci_client *c, const char *url,
+		     const char *accept, struct bpm_buffer *out)
+{
+	return get_memory(c, url, accept, out, true);
 }
 
 int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
@@ -591,7 +605,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 
 	fp = fopen(path, "wb");
 	if (!fp) return -errno;
-	rc = curl_once(c, "GET", url, accept, NULL, &r, fp);
+	rc = curl_once(c, "GET", url, accept, NULL, &r, fp, true);
 	if (!rc && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
 		fclose(fp); unlink(path); fp = fopen(path, "wb");
 		if (!fp) {
@@ -603,7 +617,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
 			memset(&r, 0, sizeof(r));
-			rc = curl_once(c, "GET", url, accept, auth, &r, fp);
+			rc = curl_once(c, "GET", url, accept, auth, &r, fp, true);
 		}
 	} else if (!rc && r.status == 401 && r.www_auth[0] &&
 		   !strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
@@ -618,7 +632,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		if (!rc) {
 			snprintf(auth, sizeof(auth), "Basic %s", encoded);
 			memset(&r, 0, sizeof(r));
-			rc = curl_once(c, "GET", url, accept, auth, &r, fp);
+			rc = curl_once(c, "GET", url, accept, auth, &r, fp, true);
 		}
 	}
 	if (!rc && (r.status < 200 || r.status >= 300)) rc = r.status == 404 ? -ENOENT : -EACCES;
@@ -643,7 +657,7 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 
 	*r = (struct bpm_http_response){};
 	rc = curl_once_ex(c, method, url, accept, content_type, body, body_len,
-			  NULL, r, NULL);
+			  NULL, r, NULL, false);
 	if (rc)
 		return rc;
 	if (r->status == 401 && r->www_auth[0]) {
@@ -666,7 +680,7 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 		bpm_buffer_free(&r->body);
 		*r = (struct bpm_http_response){};
 		rc = curl_once_ex(c, method, url, accept, content_type, body,
-				   body_len, auth, r, NULL);
+				   body_len, auth, r, NULL, false);
 		if (rc)
 			return rc;
 	}
