@@ -568,8 +568,7 @@ static int keys_add(int argc, const char **argv)
 		return 2;
 	}
 	keys_dir = keys_dir_resolve(keys_dir_arg);
-	if (snprintf(revoked, sizeof(revoked), "%s/revoked", keys_dir) >=
-	    (int)sizeof(revoked)) {
+	if (strsprintf(revoked, sizeof(revoked), "%s/revoked", keys_dir) < 0) {
 		pr_err("keys add: keys directory path too long");
 		return 2;
 	}
@@ -778,8 +777,8 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 		char path[PATH_MAX];
 		int signed_by, prc;
 
-		if (snprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
-			     names[i]->d_name) >= (int)sizeof(path))
+		if (strsprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
+			       names[i]->d_name) < 0)
 			continue;
 		if (upatch_open(path, &u))
 			continue;
@@ -823,8 +822,8 @@ static int promote(const struct shirudo_trusted_cert *c)
 	xfree(der, der_sz);
 	if (rc)
 		return rc;
-	if (snprintf(vouch, sizeof(vouch), "%.*s.vouch",
-		     (int)(strlen(c->path) - 4), c->path) < (int)sizeof(vouch))
+	if (strsprintf(vouch, sizeof(vouch), "%.*s.vouch",
+		       (int)(strlen(c->path) - 4), c->path) >= 0)
 		unlink(vouch);
 	unlink(c->path);
 	return 0;
@@ -1096,9 +1095,8 @@ finish:
 	if (!victim->primary) {
 		char vouch[PATH_MAX];
 
-		if (snprintf(vouch, sizeof(vouch), "%.*s.vouch",
-			     (int)(strlen(victim->path) - 4), victim->path) <
-		    (int)sizeof(vouch))
+		if (strsprintf(vouch, sizeof(vouch), "%.*s.vouch",
+			       (int)(strlen(victim->path) - 4), victim->path) >= 0)
 			unlink(vouch);
 		unlink(victim->path);
 	}

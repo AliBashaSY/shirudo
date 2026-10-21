@@ -24,6 +24,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
 #include "builtin.h"
@@ -578,8 +579,8 @@ static int identity_executables(struct shirudo_identity *id)
 		return -errno;
 	}
 	self[n] = '\0';
-	if (snprintf(root_exe, sizeof(root_exe), "%s%s", sysroot(),
-		     self) >= (int)sizeof(root_exe))
+	if (strsprintf(root_exe, sizeof(root_exe), "%s%s", sysroot(),
+		       self) < 0)
 		return -ENAMETOOLONG;
 	if (stat(root_exe, &st) != 0) {
 		pr_err("initrd: %s: %s; the root file system needs shirudo "
@@ -1125,8 +1126,8 @@ static int boot_restore(struct shirudo_measured_upatch **out_set, size_t *out_n)
 
 		if (rc)
 			goto next;
-		if (snprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
-			     names[i]->d_name) >= (int)sizeof(path)) {
+		if (strsprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
+			       names[i]->d_name) < 0) {
 			pr_err("boot-restore: path too long: %s",
 			       names[i]->d_name);
 			rc = -ENAMETOOLONG;
@@ -1429,8 +1430,8 @@ static int initrd_enter(void)
 	struct stat st;
 	int rc;
 
-	if (snprintf(src, sizeof(src), "%s%s", sysroot(),
-		     SHIRUDO_VAR_LIB) >= (int)sizeof(src))
+	if (strsprintf(src, sizeof(src), "%s%s", sysroot(),
+		       SHIRUDO_VAR_LIB) < 0)
 		return -ENAMETOOLONG;
 	if (stat(src, &st) != 0 || !S_ISDIR(st.st_mode)) {
 		pr_err("initrd: %s is not a directory; the root file system "

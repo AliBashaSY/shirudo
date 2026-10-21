@@ -11,6 +11,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include <shirudo/string.h>
+
 #include "paths.h"
 
 const char *keys_dir_resolve(const char *keys_dir_arg)
@@ -30,14 +32,12 @@ int shirudo_key_path(char *out, size_t out_sz,
 {
 	const char *dir = keys_dir ? keys_dir : SHIRUDO_KEYS_DIR;
 	const char *sep;
-	int n;
 
 	if (!out || out_sz == 0 || !dir || !*dir || !file || !*file)
 		return -EINVAL;
 
 	sep = dir[strlen(dir) - 1] == '/' ? "" : "/";
-	n = snprintf(out, out_sz, "%s%s%s", dir, sep, file);
-	if (n < 0 || (size_t)n >= out_sz)
+	if (strsprintf(out, out_sz, "%s%s%s", dir, sep, file) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }

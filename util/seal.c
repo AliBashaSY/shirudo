@@ -244,7 +244,7 @@ int seal_write_file(const char *path, const void *data, size_t len,
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
 		return dfd;
-	if (snprintf(tmp, sizeof(tmp), "%s.tmp", name) >= (int)sizeof(tmp)) {
+	if (strsprintf(tmp, sizeof(tmp), "%s.tmp", name) < 0) {
 		close(dfd);
 		return -ENAMETOOLONG;
 	}

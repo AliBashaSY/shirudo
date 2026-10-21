@@ -184,8 +184,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 	size_t i;
 
 	if (!kernel_release || !kernel_release[0] || !cb ||
-	    snprintf(path, sizeof(path), "/boot/config-%s", kernel_release) >=
-	    (int)sizeof(path))
+	    strsprintf(path, sizeof(path), "/boot/config-%s", kernel_release) < 0)
 		return -1;
 	f = fopen(path, "re");
 	if (!f)

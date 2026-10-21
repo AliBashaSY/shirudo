@@ -117,7 +117,7 @@ int keys_path_for(const char *dir, const __u8 fingerprint[32],
 	char hex[65];
 
 	hex_encode(fingerprint, 32, hex);
-	if ((size_t)snprintf(out, cap, "%s/%s%s", dir, hex, suffix) >= cap)
+	if (strsprintf(out, cap, "%s/%s%s", dir, hex, suffix) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -243,7 +243,7 @@ static int vouch_path_for(const char *der_path, char *out, size_t cap)
 {
 	size_t n = strlen(der_path) - 4;
 
-	if ((size_t)snprintf(out, cap, "%.*s.vouch", (int)n, der_path) >= cap)
+	if (strsprintf(out, cap, "%.*s.vouch", (int)n, der_path) < 0)
 		return -ENAMETOOLONG;
 	return 0;
 }
@@ -320,8 +320,7 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 	char dir[PATH_MAX];
 	int n, i, rc = 0;
 
-	if (snprintf(dir, sizeof(dir), "%s/trusted", keys_dir) >=
-	    (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/trusted", keys_dir) < 0)
 		return -ENAMETOOLONG;
 	n = scandir(dir, &names, select_der, alphasort);
 	if (n < 0)
@@ -333,8 +332,8 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 			rc = -E2BIG;
 			break;
 		}
-		if (snprintf(c->path, sizeof(c->path), "%s/%s", dir,
-			     names[i]->d_name) >= (int)sizeof(c->path)) {
+		if (strsprintf(c->path, sizeof(c->path), "%s/%s", dir,
+			       names[i]->d_name) < 0) {
 			rc = -ENAMETOOLONG;
 			break;
 		}
@@ -373,13 +372,13 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
 
 	memset(set, 0, sizeof(*set));
 	if (!revoked_dir) {
-		if (snprintf(revoked, sizeof(revoked), "%s/revoked",
-			     keys_dir) >= (int)sizeof(revoked))
+		if (strsprintf(revoked, sizeof(revoked), "%s/revoked",
+			       keys_dir) < 0)
 			return -ENAMETOOLONG;
 		revoked_dir = revoked;
 	}
-	if (snprintf(path, sizeof(path), "%s/%s", keys_dir,
-		     SHIRUDO_CERT_FILE) >= (int)sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s", keys_dir,
+		       SHIRUDO_CERT_FILE) < 0)
 		return -ENAMETOOLONG;
 	rc = keys_digest_file(path, sha256, fingerprint);
 	if (rc)
@@ -457,8 +456,7 @@ int keys_install(const char *keys_dir, const __u8 *der,
 	rc = keys_digest_der(der, der_sz, sha256, fingerprint);
 	if (rc)
 		return rc;
-	if (snprintf(dir, sizeof(dir), "%s/trusted", keys_dir) >=
-	    (int)sizeof(dir))
+	if (strsprintf(dir, sizeof(dir), "%s/trusted", keys_dir) < 0)
 		return -ENAMETOOLONG;
 	rc = seal_mkdir_p(dir, 0700);
 	if (rc)
