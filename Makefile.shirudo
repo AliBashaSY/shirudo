@@ -697,10 +697,21 @@ testing/fuzz/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
                           util/upatch.c
 testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
                            $(FUZZ_PACKAGE)
+testing/fuzz/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \
+                            $(FUZZ_OCI)
+testing/fuzz/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \
+                           $(FUZZ_OCI)
+testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
+                                 $(FUZZ_BASE) $(FUZZ_OCI)
+
+# A target that reaches static parsers includes their source, which it
+# then depends on without linking it a second time.
+testing/fuzz/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
-	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ $(filter %.c,$^) $(FUZZ_LIBS)
+	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ \
+		$(filter-out $(FUZZ_INCLUDED),$(filter %.c,$^)) $(FUZZ_LIBS)
 
 fuzz-targets: $(FUZZ_TARGETS)
 

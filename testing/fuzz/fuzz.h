@@ -15,6 +15,7 @@
 
 #include <shirudo/misc.h>
 
+int LLVMFuzzerInitialize(int *argc, char ***argv);
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size);
 
 /*
