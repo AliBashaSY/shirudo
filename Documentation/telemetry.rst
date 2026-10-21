@@ -18,7 +18,6 @@ that give a record its shape, the documents on the wire, the transport
 and its configuration, and how to land the data in the OpenTelemetry
 Collector, ClickHouse, Splunk or a collector of your own.
 
-
 1) The pipeline
 ---------------
 
@@ -51,7 +50,6 @@ it, exactly as the timer does, because the serializer hands over what
 it collected since the previous read; ``upatch map --peek`` asks for
 the interval still being collected and leaves it for the exporter.
 
-
 2) From a map to a record
 -------------------------
 
@@ -79,7 +77,6 @@ unsigned per-CPU BTF integer scalar map becomes a metric named
 ``asInt`` data point per key and the key as the ``shirudo.map.key``
 attribute; every other map becomes a log record whose body carries the
 entries.
-
 
 3) Decoders
 -----------
@@ -186,7 +183,6 @@ The ``kernel-obs`` package carries decoders for its exec, net, listen,
 watch, dns, priv and file tables; they are the reference for writing new
 ones, the timestamp conversion included.
 
-
 4) The documents on the wire
 ----------------------------
 
@@ -249,7 +245,6 @@ JSON lines.  ``--json`` prints the map listing or decoded records to
 stdout.  ``--json=<path>`` (or ``map_export.json_path``) appends them
 as JSON lines to a file for a log shipper that tails files.
 
-
 5) Transport
 ------------
 
@@ -296,7 +291,6 @@ Limits.  A record larger than ``map_export.log_record_max_bytes``
 (default 4 MiB) are refused with a diagnostic, never truncated; the S3
 path exists for snapshots that are legitimately larger.
 
-
 6) Configuration and timers
 ---------------------------
 
@@ -324,7 +318,6 @@ or nothing.  ``shirudo-keepalive.timer`` runs ``shirudo status --otel
 --include-system`` on the same cadence.  Both are
 ordinary one-shot services; disable a timer to stop an export, and
 nothing else changes.
-
 
 7) Integrating with collectors
 ------------------------------
@@ -446,7 +439,6 @@ any file-tailing shipper picks up (the collector's ``filelog``
 receiver, Vector, Fluent Bit, a Splunk forwarder), and ``shirudo status
 --json`` and ``--report=<path>`` produce files the same way.
 Air-gapped fleets use this path.
-
 
 8) Checking a pipeline
 ----------------------

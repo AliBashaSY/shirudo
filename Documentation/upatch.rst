@@ -15,7 +15,6 @@ load path and the registry formats, and the `telemetry
 <telemetry.rst>`__ document covers decoders and the export pipeline in
 depth.  This guide is the workflow that ties them together.
 
-
 1) What an upatch is
 --------------------
 
@@ -43,7 +42,6 @@ unload directive
 Every upatch has a name, by default the source file's base name, that
 becomes the pin directory and the eventlog's ``name``; it is sanitised
 to what bpffs accepts.
-
 
 2) Writing the BPF side
 -----------------------
@@ -163,7 +161,6 @@ upatch does what its author wrote, within the kernel's verifier;
 shirudo guarantees provenance, not correctness.  Test on a kernel like
 the target's before signing for a fleet.
 
-
 3) Building and signing
 -----------------------
 
@@ -214,7 +211,6 @@ Review the result before it leaves the operator::
 signed decoders.  The signing key is never needed on a target, and the
 operator never touches a keyring or a TPM.
 
-
 4) Testing on a target
 ----------------------
 
@@ -244,7 +240,6 @@ the source.  Two options matter when scripting against a target:
 
 ``--no-precheck`` skips the state check that guards a load; it exists
 for tests and ``init``'s own boot-restore, not for operation.
-
 
 5) Packaging
 ------------
@@ -326,7 +321,6 @@ builds and signs every entry through ``shirudo-build`` and writes
 the registry index orders by and are immutable once published, so a
 rebuilt package gets a new version.
 
-
 6) Publishing
 -------------
 
@@ -379,7 +373,6 @@ for an id it loaded from the same tree.  To withdraw a shield from the
 fleet, append a delete; to replace it, append a delete and then an add
 of the new version.  Nothing is ever removed from the sequence, which
 is what lets a verifier replay a node's projection.
-
 
 7) On the target
 ----------------
@@ -452,7 +445,6 @@ on the target and ``shirudo attest verify`` against ``shirudo attest
 predict``, which takes the installed artifacts and the tree state and
 computes the register value a healthy target must certify; the
 `tpm <tpm.rst>`__ document describes both.
-
 
 8) Releasing a mitigation
 -------------------------

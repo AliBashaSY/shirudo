@@ -19,7 +19,6 @@ instructions reference, a detached CMS signature, and a small amount of
 metadata.  There is exactly one container shape for both LOAD artifacts
 and UNLOAD directives; a flag bit distinguishes them.
 
-
 1) Conventions
 --------------
 
@@ -35,7 +34,6 @@ the file.
 
 Sizes are bounded: a reader rejects a file larger than 16 MiB.
 Artifacts are small in practice.
-
 
 2) File layout
 --------------
@@ -59,7 +57,6 @@ only on the header offsets, never on adjacency.  ``loader_insns``
 begins at offset 360, immediately after the header.  ``data`` and
 ``metadata`` are optional; an absent section
 has its ``*_off`` set to 0.
-
 
 3) Header
 ---------
@@ -115,7 +112,6 @@ context, in libbpf's object-iteration order.  The target has only the
 ``.upatch``, not the original object, so these counts tell it where to
 find the resulting ``prog_fd`` to attach and pin.  They mirror
 gen_loader's own iteration.
-
 
 4) Sections
 -----------
@@ -285,7 +281,6 @@ link creation.  It creates a system-wide ``BPF_TRACE_UPROBE_MULTI``
 entry link with ``BPF_F_UPROBE_MULTI_PATH_FD``.  ``shirudo status``
 renders such a link as ``uprobe.multi/<path> (<count> funcs)``.
 
-
 5) flags
 --------
 
@@ -296,7 +291,6 @@ reserved and must be zero.  The flag changes the loader program and the
 metadata semantics but nothing about the layout, the signed-content
 digest or the kernel verification: both kinds load through the same
 ``BPF_PROG_LOAD`` + signature + ``keyring_id`` check.
-
 
 6) payload_sha256
 -----------------
@@ -310,7 +304,6 @@ separately in its loader ``.rodata`` and in its metadata.
 
 It also lets ``shirudo upatch list`` and ``status`` identify an artifact
 without parsing the instruction stream.
-
 
 7) What is signed
 -----------------
@@ -332,7 +325,6 @@ signed.  The integrity model is therefore:
   ``payload_mismatch``; the residual that remains is risk 1 in
   `threat-model <threat-model.rst>`__.
 
-
 8) Versioning and compatibility
 -------------------------------
 
@@ -351,7 +343,6 @@ bump:
 A reader must reject a file whose ``magic`` or ``version`` does not
 match, before trusting any offset.
 
-
 9) Reader validation rules
 --------------------------
 
@@ -367,7 +358,6 @@ match, before trusting any offset.
    all blob and entry bounds fit, fixed strings are NUL-terminated, and
    every source range stays inside the blob.  Malformed decoder
    metadata is treated as absent by offline inspection.
-
 
 10) Production and consumption
 ------------------------------

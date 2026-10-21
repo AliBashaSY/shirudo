@@ -206,7 +206,6 @@ binrpm-pkg:
 	    '$(RPM_VERSION)' '$(RPM_RELEASE)' '$(RPM_ARCH)' '$(PKG_MAINTAINER)' $(RPM_OPERATOR_PKG_PATH))
 	@printf 'shirudo: wrote %s\n' "$(strip $(if $(filter target,$(PKG_ROLES)),$(RPM_TARGET_PKG_PATH)) $(if $(filter operator,$(PKG_ROLES)),$(RPM_OPERATOR_PKG_PATH)))"
 
-
 config:
 	+$(Q)$(MAKE) -C $(ROOT) config
 

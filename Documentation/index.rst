@@ -28,7 +28,6 @@ This index points at the documents in the tree.  The code is
 authoritative for behaviour; the documents describe it and say why it
 is the way it is.
 
-
 1) Which document
 -----------------
 
@@ -101,7 +100,6 @@ Contributing
     `coding-style <coding-style.rst>`__ is the kernel's coding style,
     copied verbatim from ``Documentation/process/coding-style.rst``
     and applied to userspace C and BPF alike.
-
 
 2) Companion files in the repository root
 -----------------------------------------

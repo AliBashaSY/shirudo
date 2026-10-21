@@ -24,7 +24,6 @@ target that cannot bind its register does not initialise, and a load
 whose extension fails refuses with ``tpm_error`` rather than succeed
 unmeasured.  The operator side never touches a TPM.
 
-
 1) The register
 ---------------
 
@@ -173,7 +172,6 @@ the evidence is signed by the key the operator pinned, and a
 substitute TPM fails verification.  libtss2's own logging is silenced
 unless ``TSS2_LOG`` is set.
 
-
 2) Events
 ---------
 
@@ -213,7 +211,6 @@ The register after an event is ``SHA256(register || event)``, starting
 from zeros; ``chain_fold()`` and the eventlog replay use the
 same fold.  Boot restore is exactly one init event however many
 upatches it re-applies.
-
 
 3) The eventlog
 ---------------
@@ -259,7 +256,6 @@ record for one reset count shows was bound again, is reported as a
 mismatch.  An operation that would push the eventlog past
 ``eventlog.max_bytes`` refuses with ``eventlog_full`` before it
 touches the TPM, so register and log never diverge.
-
 
 4) Attestation
 --------------
@@ -396,7 +392,6 @@ can buy or emulate, so the evidence stays classical even though the
 artifacts it describes are not (residual risk 9).  The RSA branch
 exists because many TPMs carry only an RSA endorsement certificate.
 
-
 5) Verification and prediction
 ------------------------------
 
@@ -474,7 +469,6 @@ name and PCR 9 can be pinned from values the operator knows.
 [--ek-ca=<bundle>]`` is described in section 4; it prints its checks,
 the path of the challenge it wrote and the credential to expect.
 
-
 6) Relation to systemd's NvPCRs
 -------------------------------
 
@@ -526,7 +520,6 @@ the UKI signing key and systemd anchors it before the separator while
 shirudo only extends it, is the deferred step that would remove the
 remaining differences; until then the two coexist without interfering.
 
-
 7) Limits
 ---------
 
@@ -576,7 +569,6 @@ context and the deferred mitigations the plan.
 
 * **The evidence is classical.**  TPMs sign with ECDSA P-256; the
   artifacts the evidence describes are ML-DSA-87.
-
 
 8) Testing
 ----------

@@ -13,7 +13,6 @@ and how the pieces survive the switch from one to the other.  The
 ``threat-model`` document says why it matters; ``tpm`` describes the
 register the initrd binds.
 
-
 1) Two runs of init
 -------------------
 
@@ -52,7 +51,6 @@ user keyring until the next reboot, and the register binds after
 condition warns, and a verifier can refuse the evidence with
 ``--require-initrd`` or by pinning PCR 11.
 
-
 2) What survives the switch to the root file system
 ---------------------------------------------------
 
@@ -82,7 +80,6 @@ initrd's copy is recorded beside it for the rest of that one run.  The
 root file system therefore needs shirudo installed at the path the
 initrd runs it from, which the dracut module guarantees by copying the
 installed binary.
-
 
 3) What the initrd needs
 ------------------------
@@ -129,7 +126,6 @@ result, and the installer; the ``getting-started`` document shows how
 they are used.  Non-systemd initrds (initramfs-tools, busybox) are
 not supported: without the phase measurements an initrd binding is no
 stronger than a late one.
-
 
 4) Building the initrd
 ----------------------
@@ -191,7 +187,6 @@ section and the initrd from their build; on such systems the module
 does its work when ``kernel-install`` or ``ukify`` runs dracut, and the
 parameter goes into ``/etc/kernel/cmdline`` before the image is
 rebuilt.
-
 
 5) Checking a target
 --------------------

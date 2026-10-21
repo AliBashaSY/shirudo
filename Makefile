@@ -117,7 +117,6 @@ install-target: all
 install-operator: all
 	+$(Q)$(MAKE) -f Makefile.shirudo install-operator
 
-
 clean:
 	+$(Q)$(MAKE) -C Documentation clean
 	+$(Q)$(MAKE) -C testing clean

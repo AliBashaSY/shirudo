@@ -14,7 +14,6 @@ document has a bug.  The security argument behind the design is in
 `upatch-spec <upatch-spec.rst>`__, and the export path in
 `telemetry <telemetry.rst>`__.
 
-
 1) What shirudo is
 ------------------
 
@@ -45,7 +44,6 @@ The userspace side is one binary with git-like subcommands; on the
 target there is no daemon and no socket, only one-shot invocations
 driven by systemd timers.
 
-
 2) Why shirudo exists
 ---------------------
 
@@ -74,7 +72,6 @@ documented BPF LSM mitigation reached a large edge fleet in 26 to 30
 hours, where the regular kernel update and reboot cycle of that fleet
 was four weeks.  shirudo is built to make that the normal path, and to
 make it signed, measured and agentless.
-
 
 3) Design properties
 --------------------
@@ -105,7 +102,6 @@ classify, reproduce in a pinned kernel VM, derive a shield as a
 source tree is a set of small gadgets so an agent can hold the relevant
 context at once.  The outcome is always an operator-signed upatch: the
 agent proposes, the key holder signs.
-
 
 4) Operator and target
 ----------------------
@@ -138,7 +134,6 @@ signed index and the package digest, and loads the upatches inside.
 shirudo owns no push transport, no fleet inventory and no rollout
 coordinator.  A single ``.upatch`` copied to the target by any means
 loads through the same path.
-
 
 5) The signed-loader path
 -------------------------
@@ -200,7 +195,6 @@ Attach kinds.  The attach metadata selects a raw tracepoint attach
 ``fmod_ret``, cgroup v2 root ``cgroup_skb`` ingress and egress, IPv6
 pre-routing netfilter, or ``uprobe.multi`` entry probes bound to the
 target ELF's GNU build ID.  The format specification has the encoding.
-
 
 6) Enforcement in the kernel
 ----------------------------
@@ -329,7 +323,6 @@ Process hardening.  ``util/harden.c`` runs at startup on the target:
 nobody, ``RLIMIT_CORE`` zero, sensitive buffers locked in memory and
 scrubbed after use.  The zeroing allocator in ``util/malloc.c`` wipes
 freed memory; the libc allocators are poisoned project-wide.
-
 
 7) Target state
 ---------------
@@ -485,7 +478,6 @@ made before the switch keep their links.  Under
 ``upatch-tree.conf``, ``environment``).  ``shirudo config`` prints the
 effective configuration with a comment on every key.
 
-
 8) Packages and registries
 --------------------------
 
@@ -565,7 +557,6 @@ leaves no successor, is refused.  A ``delete`` publishes the entry's
 unload directive and is accepted by a target only for an id it loaded
 from the same tree.
 
-
 9) Observability
 ----------------
 
@@ -596,7 +587,6 @@ decoders and the collector integration are described in
 Every command logs through ``syslog(3)`` as ``shirudo`` to
 ``LOG_AUTHPRIV``; ``journalctl -t shirudo`` shows it.
 
-
 10) Failure reporting
 ---------------------
 
@@ -617,7 +607,6 @@ The categories are ``ok``, ``tampered``, ``keyring_missing``,
 Automation treats ``tampered`` as "refresh state, then decide", never
 as "retry the same input": a concurrent legitimate operator produces
 it too.
-
 
 11) Runtime design
 ------------------
@@ -647,7 +636,6 @@ There are no fallbacks for older kernels: a missing feature
 fails the build or the pre-flight with a message, never a degraded
 mode.
 
-
 12) Project layout
 ------------------
 
@@ -673,7 +661,6 @@ mode.
         Documentation/          this tree
 
 ``shirudo help --list-cmds`` prints the supported command set.
-
 
 13) Kernel work this design waits for
 -------------------------------------

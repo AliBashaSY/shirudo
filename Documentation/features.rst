@@ -28,7 +28,6 @@ whose attachment cannot be a pinnable link are refused by the builder,
 which is why plain ``socket`` filters and ``sk_skb`` programs are not
 in the list.
 
-
 1) Kernel functions: fentry, fexit, fmod_ret
 --------------------------------------------
 
@@ -57,7 +56,6 @@ shield that rejects a call before the vulnerable code runs: return
 error.  ``fmod_ret.s/<function>`` declares the sleepable variant.  The
 builder refuses a bare ``fmod_ret`` without a function.
 
-
 2) LSM hooks: lsm
 -----------------
 
@@ -81,7 +79,6 @@ requirements already demand for shirudo itself, so every target that
 runs shirudo accepts LSM upatches.  The program's return value matters
 only on hooks that return an ``int``; on ``void`` hooks it observes.
 
-
 3) Tracepoints: tp_btf
 ----------------------
 
@@ -98,7 +95,6 @@ Attachment is a raw-tracepoint link on the BTF target, pinned.  Nothing
 beyond the base requirements is needed; the tracepoint must exist in
 the target kernel, which CO-RE checks at load and reports as
 ``btf_mismatch`` when it does not.
-
 
 4) Probes on kernel functions: kprobe, kretprobe
 ------------------------------------------------
@@ -123,7 +119,6 @@ builder requires the symbol in the section name, refuses
 export fails at load with the kernel's error in the report; when the
 function is in a module that is not loaded, the report says so and
 ``bpm`` treats the package as installed but not attached.
-
 
 5) Probes on userspace binaries: uprobe.multi
 ---------------------------------------------
@@ -152,7 +147,6 @@ The target needs ``CONFIG_UPROBE_EVENTS``.  Return probes, the
 single-function ``uprobe/`` form and ``,`` or ``|`` alternation in the
 glob are refused by the builder; one ``*`` or ``?`` glob per section.
 
-
 6) Packets at the cgroup: cgroup_skb
 ------------------------------------
 
@@ -173,7 +167,6 @@ and a bare ``cgroup_skb`` are refused.  Several ``cgroup_skb`` programs
 on the host coexist; the kernel runs all of them and drops the packet
 if any says so.
 
-
 7) Packets at netfilter: netfilter
 ----------------------------------
 
@@ -193,7 +186,6 @@ Attachment is ``BPF_LINK_CREATE`` with ``BPF_NETFILTER`` for
 one kind whose hook, family and priority are fixed by shirudo rather
 than by the section name; a shield that needs another family or hook
 is written as a ``cgroup_skb`` or an ``lsm`` program instead.
-
 
 8) Programs that attach nowhere
 -------------------------------
@@ -227,7 +219,6 @@ Both roles ride inside the signed loader with the attached programs,
 so a serializer is as much the operator's code as the shield beside
 it, and neither can introduce anything the signature does not cover.
 
-
 9) Maps and decoders
 --------------------
 
@@ -240,7 +231,6 @@ with ``obs_i_`` is private to the upatch and neither pinned for the
 operator nor exported.  The metadata the loader needs rides in frozen
 array maps the builder creates.  The `telemetry <telemetry.rst>`__
 document describes the export and the decoder API.
-
 
 10) At a glance
 ---------------

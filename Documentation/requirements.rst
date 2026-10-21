@@ -12,7 +12,6 @@ shirudo requires Linux v7.4 or newer and a current toolchain and has
 no fallback paths for older ones, so a missing item here fails loudly at
 build or pre-flight time rather than degrading silently.
 
-
 1) Target kernel
 ----------------
 
@@ -143,7 +142,6 @@ report; it never attaches somewhere else.
    * - ``CONFIG_NETFILTER``, ``CONFIG_NETFILTER_BPF_LINK``
      - ``netfilter`` upatches at IPv6 pre-routing.
 
-
 2) Operator kernel
 ------------------
 
@@ -217,7 +215,6 @@ or ``TEST_VM_APT_PROXY``; a proxy that only the host's ``/etc/hosts``
 names must be given by address, as in ``http://[2001:db8::1]:8080``,
 since the libguestfs appliance resolves names through DNS alone.
 
-
 3) Cryptography
 ---------------
 
@@ -258,7 +255,6 @@ since the libguestfs appliance resolves names through DNS alone.
        refused; there is no fallback.  Server certificates are whatever
        the registry or collector presents.
 
-
 4) Operator host
 ----------------
 
@@ -284,7 +280,6 @@ since the libguestfs appliance resolves names through DNS alone.
 
 The operator never needs a TPM, the kernel keyring or ``CAP_BPF``; only
 the private key under ``/var/lib/shirudo/keys/``.
-
 
 5) Target host
 --------------
@@ -312,7 +307,6 @@ the private key under ``/var/lib/shirudo/keys/``.
 Operator and target may be on different architectures; the artifact
 format is little-endian and the signature is architecture-neutral.
 
-
 6) Build host for the target binary
 -----------------------------------
 
@@ -324,7 +318,6 @@ static archives.  The build host then needs static ``libelf``,
 the system one.  The operator package, by contrast, links the host's
 shared libraries and must be built on the distribution it is installed
 on.
-
 
 7) Documentation and tests
 --------------------------

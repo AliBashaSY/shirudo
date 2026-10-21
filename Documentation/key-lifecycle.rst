@@ -13,7 +13,6 @@ in protection, and what to do when one is compromised.  The
 `threat-model <threat-model.rst>`__ says why the mechanisms are shaped
 the way they are; this document says what to do.
 
-
 1) The keys in the system
 -------------------------
 
@@ -59,7 +58,6 @@ operator, the key on disk; on a target the trusted set with each
 member's voucher, and the kernel keyring that holds it once ``init``
 has run.  Two roles may share a host for development; production
 operators and targets do not.
-
 
 2) The trusted set on a target
 ------------------------------
@@ -127,7 +125,6 @@ verifies a signature, and shirudo adds no date check of its own.  The
 ten years are a statement of intent and the trigger for rotation, not
 a cut-off a target enforces.
 
-
 3) What the design fixes
 ------------------------
 
@@ -156,7 +153,6 @@ Three facts shape every operation below:
 
 Together these make adding a key cheap and removing one deliberate,
 and they make the order of a rotation matter.
-
 
 4) Adding a key
 ---------------
@@ -190,7 +186,6 @@ Record the new set's ``init_event`` from ``shirudo attest predict
 --cert=old.der --cert=new.der`` for the verifiers: a target that has
 rebooted with the new set measures that value, one that has not still
 measures the old.
-
 
 5) Rotating a key
 -----------------
@@ -237,7 +232,6 @@ with no window in which the fleet is unprotected or unenforced.
 When the old pair is no longer needed anywhere, shred the private key
 and keep the certificate: old evidence and old eventlogs name its
 digest, and verifying them later needs it.
-
 
 6) Revocation
 -------------
@@ -306,7 +300,6 @@ A compromised key
     revoke.  A target whose binary or state is in doubt is reinstalled,
     not repaired; the `operations <operations.rst>`__ guide covers
     both.
-
 
 7) Custody
 ----------

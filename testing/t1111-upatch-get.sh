@@ -28,7 +28,6 @@ restore() {
 }
 trap restore EXIT
 
-
 [ -s "$LOAD" ] || test_skip_all "missing marker fixture"
 [ -s "$UNLOAD" ] || test_skip_all "missing marker unload fixture"
 "$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck >/dev/null 2>&1 ||

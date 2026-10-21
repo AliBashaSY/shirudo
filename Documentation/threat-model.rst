@@ -14,7 +14,6 @@ breaks one of the properties below is worse than no change, because it
 ships a false sense of safety to fleets and devices that are hard to
 patch.
 
-
 1) Scope and assets
 -------------------
 
@@ -39,7 +38,6 @@ The assets, in the order an attacker would want them:
 - the installed artifacts and the configuration under
   ``/var/lib/shirudo`` and ``/etc/shirudo``;
 - the status, reports and exported telemetry an operator acts on.
-
 
 2) Trust boundaries
 -------------------
@@ -78,7 +76,6 @@ authenticated on the target by its ML-DSA signature.
 The kernel is trusted.  shirudo does not defend against a compromised
 kernel, verifier, TPM or hardware, and it does not harden the kernel.
 
-
 3) Adversaries
 --------------
 
@@ -98,7 +95,6 @@ C.  A network adversary between registry and target, or a hostile
 
 D.  An adversary holding the operator's signing key.  Out of scope:
     that adversary is the operator.
-
 
 4) Threats addressed
 --------------------
@@ -289,7 +285,6 @@ T10 An attempt that leaves no trace
     is evidence of an attempt, not of a compromise: the refusal is what
     moved it.
 
-
 5) Residual risks
 -----------------
 
@@ -444,7 +439,6 @@ would keep foreign entries out of the tree altogether, and a
 ``d_instantiate`` hook the BPF LSM can sleep in, which would mark a
 directory the moment its dentry is bound (residual risk 14).
 
-
 6) Out of scope
 ---------------
 
@@ -458,7 +452,6 @@ directory the moment its dentry is bound (residual risk 14).
   is the collector's job.
 - SSH, remote access and audit retention.  Those belong to the
   infrastructure the operator already runs.
-
 
 7) Operational guidance
 -----------------------

@@ -14,7 +14,6 @@ first if the target kernel is older than Linux v7.4 or not built with
 the BPF LSM, BTF and ML-DSA enabled.  For local development one host
 can play both roles.
 
-
 1) Build
 --------
 
@@ -56,7 +55,6 @@ When working from a checkout instead of an installed package, put the
 checkout root first on ``$PATH`` so ``shirudo build`` finds the helper,
 or point ``SHIRUDO_BUILD`` at it.
 
-
 2) Create a signing key
 -----------------------
 
@@ -82,7 +80,6 @@ add <cert.der> --vouch <file>``, the vouch coming from ``shirudo keys
 vouch`` on an operator the target already trusts, and leaves it with
 ``shirudo keys revoke <fingerprint>``.  The `key-lifecycle
 <key-lifecycle.rst>`__ guide covers both.
-
 
 3) Build a signed upatch
 ------------------------
@@ -115,7 +112,6 @@ signed decoders.  It is an offline view of the file; the program as
 the kernel actually loaded it is shown by ``upatch get`` after the
 load.  The `upatch <upatch.rst>`__ guide covers the BPF side of a
 upatch, decoders, serializers and the release workflow.
-
 
 4) Initialise a target
 ----------------------
@@ -190,7 +186,6 @@ against its pin, the register against this boot's eventlog replay and
 its anchor, and the assets on disk; ``--json`` emits the same as a
 document.
 
-
 5) Load and unload a local artifact
 -----------------------------------
 
@@ -229,7 +224,6 @@ same signature check as a load, compares the live pin's payload against
 the directive, detaches, removes the persisted artifact and extends the
 chain.  Unloading something that is not loaded is ``already_unloaded``
 and extends nothing.
-
 
 6) Packages and registries
 --------------------------
@@ -297,7 +291,6 @@ names it (``endpoint=`` and ``reference=``); ``shirudo bpm tree sync
 ``shirudo-bpm-tree-sync.timer`` runs it every minute.  Node labels for
 selectors live in ``/etc/shirudo/node.labels``.
 
-
 7) Export telemetry
 -------------------
 
@@ -315,7 +308,6 @@ push map snapshots and a status keepalive every five seconds.
 `telemetry <telemetry.rst>`__ describes the records, the decoders and
 how to land them in ClickHouse, Splunk or a collector of your own.
 
-
 8) Inspect
 ----------
 
@@ -331,7 +323,6 @@ how to land them in ClickHouse, Splunk or a collector of your own.
 
 ``config`` prints the effective configuration with every key explained.
 Every command logs to syslog under the ``shirudo`` tag.
-
 
 9) Attest a target
 ------------------
@@ -393,7 +384,6 @@ tool computes, and ``--require-initrd`` refuses a binding made from the
 root file system; ``--ek-name`` pins the endorsement key;
 ``--strict-anchor`` fails instead of noting when PCR 9 holds more than
 the initrd and the anchor.  Neither command needs the other machine.
-
 
 10) Troubleshooting
 -------------------

@@ -13,7 +13,6 @@ The `getting-started <getting-started.rst>`__ document brings a target
 up; the `initrd <initrd.rst>`__ document describes the production
 configuration; this one is about the time after that.
 
-
 1) The moving parts
 -------------------
 
@@ -65,7 +64,6 @@ inode gets the label of the directory it is created in.
 ``/run/shirudo`` is per boot: the private bpffs with the
 LSM pins, the frozen identity map and the pending init record between
 the initrd run and the root's.
-
 
 2) Watching a target
 --------------------
@@ -160,7 +158,6 @@ computes from what was installed, with a fresh nonce each time; the
 `tpm <tpm.rst>`__ document describes the loop and what each refusal
 means.
 
-
 3) Upgrading shirudo
 --------------------
 
@@ -186,7 +183,6 @@ time, the package enables ``shirudo.service`` for the next boot and
 nothing more; ``systemctl start shirudo.service`` brings enforcement up
 immediately, in the staging configuration until the reboot.
 
-
 4) Kernel updates
 -----------------
 
@@ -211,7 +207,6 @@ until a ``delete`` removes it.  The `upatch <upatch.rst>`__ guide
 covers selectors.  After the reboot, ``shirudo init`` reports the
 upatch that failed; remove it (``bpm uninstall``, or the tree's
 ``delete``) and re-run ``init``, which then binds the register.
-
 
 5) Taking a target out of service
 ---------------------------------
@@ -239,7 +234,6 @@ sealed empty again at boot.  The state directory can only be removed
 after the reboot: while the seal is attached, its labels stop root
 from deleting it.  An unload before the reboot is optional but
 measured, which keeps the last evidence of the node complete.
-
 
 6) Backup and restore
 ---------------------
@@ -275,7 +269,6 @@ does anything, so the register and the log never diverge.  Because the
 file is sealed, nothing but shirudo can truncate or rotate it while
 enforcement is up, and shirudo has no command to; archive it at
 reinstall time, and size the cap to the lifetime of the installation.
-
 
 7) Recovering
 -------------
@@ -343,7 +336,6 @@ A pending record lingers
 
 ``shirudo init --check-only`` runs the pre-flight without touching
 anything and is the first thing to run on a target that misbehaves.
-
 
 8) Categories and exit status
 -----------------------------
