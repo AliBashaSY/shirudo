@@ -108,7 +108,7 @@ CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(HARDEN_CFLAGS) \
 SANITIZE ?=
 ifneq ($(SANITIZE),)
 CFLAGS_BASE += -O1 -fno-omit-frame-pointer -fsanitize=$(SANITIZE) \
-               -fno-sanitize-recover=all
+               -fno-sanitize-recover=all -U_FORTIFY_SOURCE
 else
 CFLAGS_BASE += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 endif
