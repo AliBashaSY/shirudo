@@ -113,7 +113,6 @@ int shirudo_eventlog_would_exceed(unsigned long max_bytes)
 	return cur + SHIRUDO_EVENTLOG_LINE_MAX > max_bytes;
 }
 
-
 static int read_log(char **out, size_t *out_len)
 {
 	size_t base_len = 0, pending_len = 0, off;

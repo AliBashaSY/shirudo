@@ -125,12 +125,13 @@ static bool quote_covers(const struct shirudo_tpm_attestation *quote,
 		return false;
 	if (shirudo_sha256_init(&ctx) != 0)
 		return false;
-	for (i = 0; i < 24; i++)
+	for (i = 0; i < 24; i++) {
 		if ((mask & (1u << i)) &&
 		    shirudo_sha256_update(&ctx, values[i], 32) != 0) {
 			shirudo_sha256_free(&ctx);
 			return false;
 		}
+	}
 	if (shirudo_sha256_final(&ctx, digest) != 0)
 		return false;
 	return shirudo_ct_eq(digest, a.pcr_digest, 32);
@@ -920,10 +921,11 @@ int shirudo_attest_verify(const char *evidence, size_t len,
 		say(&rep, complete,
 		    "quote: covers the PCRs the document lists");
 		if (complete && shirudo_sha256_init(&ctx) == 0) {
-			for (bit = 0; bit < 24; bit++)
+			for (bit = 0; bit < 24; bit++) {
 				if (quote.pcr_mask & (1u << bit))
 					shirudo_sha256_update(&ctx,
 							      p->pcrs[bit], 32);
+			}
 			shirudo_sha256_final(&ctx, digest);
 		}
 		vouched = complete &&
@@ -1100,7 +1102,6 @@ out:
 	return rc;
 }
 
-
 int shirudo_attest_challenge_read(const char *path,
 				  struct shirudo_attest_challenge *out)
 {
@@ -1127,7 +1128,11 @@ int shirudo_attest_challenge_read(const char *path,
 	int rc;
 
 	memset(out, 0, sizeof(*out));
-	kind[0] = type[0] = ak_hex[0] = blob_hex[0] = secret_hex[0] = '\0';
+	kind[0] = '\0';
+	type[0] = '\0';
+	ak_hex[0] = '\0';
+	blob_hex[0] = '\0';
+	secret_hex[0] = '\0';
 	rc = shirudo_read_file(path, SHIRUDO_ATTEST_CHALLENGE_MAX, &doc, &len);
 	if (rc)
 		return rc;
@@ -1218,7 +1223,10 @@ int shirudo_attest_challenge_make(const char *evidence, size_t len,
 	if (!cert_b64)
 		return -ENOMEM;
 	cert_b64[0] = '\0';
-	ak_hex[0] = ek_type[0] = ek_public_hex[0] = ek_name_hex[0] = '\0';
+	ak_hex[0] = '\0';
+	ek_type[0] = '\0';
+	ek_public_hex[0] = '\0';
+	ek_name_hex[0] = '\0';
 	if (shirudo_json_parse(evidence, len, top, ARRAY_SIZE(top)) ||
 	    !ak_sub[0].seen || !ek_sub[0].seen || !ek_sub[1].seen ||
 	    !ek_sub[2].seen ||

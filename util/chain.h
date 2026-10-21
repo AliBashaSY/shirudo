@@ -43,7 +43,6 @@ void shirudo_sha256_2(const void *a, size_t a_len,
 /* Constant time; 1 when equal. */
 int shirudo_ct_eq(const void *a, const void *b, size_t n);
 
-
 struct shirudo_measured_upatch {
 	char	name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char	payload_hex[2 * SHIRUDO_UPATCH_PAYLOAD_HASH_LEN + 1];
@@ -54,16 +53,16 @@ struct shirudo_measured_upatch {
  * The set is sorted by name before hashing.
  */
 void shirudo_chain_init_event(const uint8_t cert_sha[32],
-			       struct shirudo_measured_upatch *set, size_t n,
+			      struct shirudo_measured_upatch *set, size_t n,
 			       const uint8_t tree_root[32],
 			       uint8_t set_digest[32], uint8_t event[32]);
 /* SHA256(tag || NUL || cert_sha256), tag "shirudo-key-revoke". */
 void shirudo_chain_key_event(const char *tag, const uint8_t cert_sha[32],
 			     uint8_t event[32]);
 void shirudo_chain_upatch_event(const char *tag, const char *name,
-				 const uint8_t payload[32], uint8_t event[32]);
+				const uint8_t payload[32], uint8_t event[32]);
 void shirudo_chain_tree_event(int64_t seq, const uint8_t operation_digest[32],
-			       uint8_t event[32]);
+			      uint8_t event[32]);
 void shirudo_chain_fold(uint8_t chain[32], const uint8_t event[32]);
 
 /* The PCR record anchoring a register name: nvpcr-init:shirudo:0x..:<name>. */

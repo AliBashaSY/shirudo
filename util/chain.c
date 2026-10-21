@@ -65,7 +65,7 @@ static int member_cmp(const void *a, const void *b)
 }
 
 void shirudo_chain_init_event(const uint8_t cert_sha[32],
-			       struct shirudo_measured_upatch *set, size_t n,
+			      struct shirudo_measured_upatch *set, size_t n,
 			       const uint8_t tree_root[32],
 			       uint8_t set_digest[32], uint8_t event[32])
 {
@@ -100,7 +100,7 @@ void shirudo_chain_init_event(const uint8_t cert_sha[32],
 }
 
 void shirudo_chain_upatch_event(const char *tag, const char *name,
-				 const uint8_t payload[32], uint8_t event[32])
+				const uint8_t payload[32], uint8_t event[32])
 {
 	uint8_t buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
 	size_t taglen = strlen(tag) + 1, off = 0;
@@ -122,7 +122,7 @@ void shirudo_chain_key_event(const char *tag, const uint8_t cert_sha[32],
 }
 
 void shirudo_chain_tree_event(int64_t seq, const uint8_t operation_digest[32],
-			       uint8_t event[32])
+			      uint8_t event[32])
 {
 	uint8_t buf[sizeof("shirudo-tree") + 8 + 32];
 	size_t taglen = sizeof("shirudo-tree"), i;

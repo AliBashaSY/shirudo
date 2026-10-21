@@ -62,7 +62,7 @@ int shirudo_tpm_open(struct shirudo_tpm **out)
 	rc = Tss2_TctiLdr_Initialize(tcti, &t->tcti);
 	if (rc != TSS2_RC_SUCCESS)
 		pr_err("tpm: TctiLdr_Initialize(%s): rc=0x%08x", tcti,
-		       (unsigned)rc);
+		       (unsigned int)rc);
 	explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 	if (rc != TSS2_RC_SUCCESS) {
 		xfree(t, sizeof(*t));
@@ -70,7 +70,7 @@ int shirudo_tpm_open(struct shirudo_tpm **out)
 	}
 	rc = Esys_Initialize(&t->esys, t->tcti, NULL);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: Esys_Initialize: rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: Esys_Initialize: rc=0x%08x", (unsigned int)rc);
 		Tss2_TctiLdr_Finalize(&t->tcti);
 		xfree(t, sizeof(*t));
 		return -EIO;
@@ -131,7 +131,7 @@ int shirudo_tpm_pcr_read(struct shirudo_tpm *t, unsigned int pcr,
 	rc = Esys_PCR_Read(t->esys, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
 			   &sel, &counter, NULL, &values);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: PCR_Read(%u): rc=0x%08x", pcr, (unsigned)rc);
+		pr_err("tpm: PCR_Read(%u): rc=0x%08x", pcr, (unsigned int)rc);
 		return -EIO;
 	}
 	if (values->count != 1 || values->digests[0].size != 32) {
@@ -157,7 +157,7 @@ int shirudo_tpm_pcr_extend(struct shirudo_tpm *t, unsigned int pcr,
 	rc = Esys_PCR_Extend(t->esys, ESYS_TR_PCR0 + pcr, ESYS_TR_PASSWORD,
 			     ESYS_TR_NONE, ESYS_TR_NONE, &dv);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: PCR_Extend(%u): rc=0x%08x", pcr, (unsigned)rc);
+		pr_err("tpm: PCR_Extend(%u): rc=0x%08x", pcr, (unsigned int)rc);
 		return -EIO;
 	}
 	return 0;
@@ -171,7 +171,7 @@ int shirudo_tpm_reset_count(struct shirudo_tpm *t, uint32_t *out)
 	rc = Esys_ReadClock(t->esys, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
 			    &info);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: ReadClock: rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: ReadClock: rc=0x%08x", (unsigned int)rc);
 		return -EIO;
 	}
 	*out = info->clockInfo.resetCount;
@@ -189,7 +189,7 @@ static int nv_handle(struct shirudo_tpm *t, uint32_t index, ESYS_TR *out)
 		return -ENOENT;		/* quiet: undefined is normal */
 	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: TR_FromTPMPublic(0x%08x): rc=0x%08x", index,
-		       (unsigned)rc);
+		       (unsigned int)rc);
 		return -EIO;
 	}
 	return 0;
@@ -215,7 +215,7 @@ int shirudo_tpm_nv_info(struct shirudo_tpm *t, uint32_t index,
 	Esys_TR_Close(t->esys, &nv);
 	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: NV_ReadPublic(0x%08x): rc=0x%08x", index,
-		       (unsigned)rc);
+		       (unsigned int)rc);
 		return -EIO;
 	}
 	info->defined = true;
@@ -247,7 +247,7 @@ static int owner_auth_set(struct shirudo_tpm *t, const void *auth, size_t len)
 	rc = Esys_TR_SetAuth(t->esys, ESYS_TR_RH_OWNER, &owner);
 	explicit_bzero(owner.buffer, sizeof(owner.buffer));
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: TR_SetAuth(owner): rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: TR_SetAuth(owner): rc=0x%08x", (unsigned int)rc);
 		return -EIO;
 	}
 	return 0;
@@ -267,10 +267,10 @@ static int owner_auth_error(const char *op, uint32_t index, TSS2_RC rc)
 		       "failed (rc=0x%08x). This TPM has owner auth set; "
 		       "supply it via tpm.owner_auth in %s (or "
 		       "SHIRUDO_TPM_OWNER_AUTH), or clear the TPM owner "
-		       "auth.", op, index, (unsigned)rc, SHIRUDO_CONF_PATH);
+		       "auth.", op, index, (unsigned int)rc, SHIRUDO_CONF_PATH);
 		return -EACCES;
 	}
-	pr_err("tpm: %s(0x%08x): rc=0x%08x", op, index, (unsigned)rc);
+	pr_err("tpm: %s(0x%08x): rc=0x%08x", op, index, (unsigned int)rc);
 	return -EIO;
 }
 
@@ -341,7 +341,7 @@ int shirudo_tpm_nv_read(struct shirudo_tpm *t, uint32_t index, uint8_t out[32])
 	if (rc_is(rc, TPM2_RC_NV_UNINITIALIZED))
 		return -ENODATA;	/* quiet: nothing written this boot */
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: NV_Read(0x%08x): rc=0x%08x", index, (unsigned)rc);
+		pr_err("tpm: NV_Read(0x%08x): rc=0x%08x", index, (unsigned int)rc);
 		return -EIO;
 	}
 	if (data->size != SHIRUDO_TPM_NV_DIGEST_LEN) {
@@ -365,7 +365,7 @@ static int policy_session_start(struct shirudo_tpm *t, ESYS_TR *session)
 				   NULL, TPM2_SE_POLICY, &sym, TPM2_ALG_SHA256,
 				   session);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: StartAuthSession: rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: StartAuthSession: rc=0x%08x", (unsigned int)rc);
 		return -EIO;
 	}
 	return 0;
@@ -422,7 +422,7 @@ static int policy_session_register(struct shirudo_tpm *t, bool init,
 			       "can only be initialised in the boot window");
 		else
 			pr_err("tpm: register policy assertion: rc=0x%08x",
-			       (unsigned)rc);
+			       (unsigned int)rc);
 		session_flush(t, *session);
 		*session = ESYS_TR_NONE;
 		return -EACCES;
@@ -433,7 +433,7 @@ static int policy_session_register(struct shirudo_tpm *t, bool init,
 	if (rc != TSS2_RC_SUCCESS || digest->size != 32 ||
 	    memcmp(digest->buffer, expected, 32) != 0) {
 		pr_err("tpm: register policy digest does not match the "
-		       "computed policy (rc=0x%08x)", (unsigned)rc);
+		       "computed policy (rc=0x%08x)", (unsigned int)rc);
 		Esys_Free(digest);
 		session_flush(t, *session);
 		*session = ESYS_TR_NONE;
@@ -460,7 +460,7 @@ static int nv_extend_session(struct shirudo_tpm *t, uint32_t index,
 	Esys_TR_Close(t->esys, &nv);
 	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: NV_Extend(0x%08x): rc=0x%08x", index,
-		       (unsigned)rc);
+		       (unsigned int)rc);
 		return rc_is_auth_failure(rc) ? -EACCES : -EIO;
 	}
 	return 0;
@@ -599,10 +599,10 @@ static int endorsement_primary(struct shirudo_tpm *t,
 		if (rc_is_auth_failure(rc))
 			pr_err("tpm: CreatePrimary(%s): the endorsement "
 			       "hierarchy has an auth value (rc=0x%08x)", what,
-			       (unsigned)rc);
+			       (unsigned int)rc);
 		else
 			pr_err("tpm: CreatePrimary(%s): rc=0x%08x", what,
-			       (unsigned)rc);
+			       (unsigned int)rc);
 		return -EIO;
 	}
 	key->handle = handle;
@@ -726,7 +726,7 @@ int shirudo_tpm_quote(struct shirudo_tpm *t, const struct shirudo_tpm_key *ak,
 	rc = Esys_Quote(t->esys, ak->handle, ESYS_TR_PASSWORD, ESYS_TR_NONE,
 			ESYS_TR_NONE, &qual, &scheme, &sel, &quoted, &sig);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: Quote: rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: Quote: rc=0x%08x", (unsigned int)rc);
 		return -EIO;
 	}
 	err = attestation_copy(quoted, sig, out);
@@ -761,7 +761,7 @@ int shirudo_tpm_nv_certify(struct shirudo_tpm *t,
 	Esys_TR_Close(t->esys, &nv);
 	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: NV_Certify(0x%08x): rc=0x%08x", index,
-		       (unsigned)rc);
+		       (unsigned int)rc);
 		return rc_is(rc, TPM2_RC_NV_UNINITIALIZED) ? -ENODATA : -EIO;
 	}
 	err = attestation_copy(info, sig, out);
@@ -799,7 +799,7 @@ int shirudo_tpm_activate_credential(struct shirudo_tpm *t,
 			       NULL, NULL, NULL, 0, NULL, NULL);
 	if (rc != TSS2_RC_SUCCESS) {
 		pr_err("tpm: PolicySecret(endorsement): rc=0x%08x",
-		       (unsigned)rc);
+		       (unsigned int)rc);
 		session_flush(t, session);
 		return -EACCES;
 	}
@@ -808,7 +808,7 @@ int shirudo_tpm_activate_credential(struct shirudo_tpm *t,
 				     &id, &sec, &cert_info);
 	session_flush(t, session);
 	if (rc != TSS2_RC_SUCCESS) {
-		pr_err("tpm: ActivateCredential: rc=0x%08x", (unsigned)rc);
+		pr_err("tpm: ActivateCredential: rc=0x%08x", (unsigned int)rc);
 		return (rc & 0xFFFF0000u) == 0 ? -EKEYREJECTED : -EIO;
 	}
 	if (cert_info->size > cap) {
