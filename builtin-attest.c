@@ -437,7 +437,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 	struct members m = {};
 	char *evidence = NULL, *report;
 	size_t evidence_len = 0, nonce_len = 0, i;
-	bool have_cert = false, have_nonce = false;
+	bool have_cert = false, have_nonce = false, have_tree_root = false;
 	int rc, ret = 2;
 
 	m.set = xcalloc(SHIRUDO_ATTEST_MEMBERS_MAX, sizeof(*m.set));
@@ -491,6 +491,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 		} else if (!strncmp(a, "--tree-root=", 12)) {
 			if (parse_hex32("--tree-root", a + 12, tree_root))
 				goto out;
+			have_tree_root = true;
 		} else if (!strncmp(a, "--expect-chain=", 15)) {
 			if (parse_hex32("--expect-chain", a + 15, x.chain))
 				goto out;
@@ -546,6 +547,11 @@ static int cmd_attest_verify(int argc, const char **argv)
 	}
 	if (!evidence_path || !have_nonce) {
 		pr_err("attest verify: --evidence and --nonce are required");
+		goto out;
+	}
+	if (!have_cert && (m.n || have_tree_root)) {
+		pr_err("attest verify: --upatch, --expect and --tree-root "
+		       "describe the init event and need --cert");
 		goto out;
 	}
 	if (!x.have_ak_name)
