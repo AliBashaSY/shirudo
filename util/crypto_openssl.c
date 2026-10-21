@@ -27,6 +27,7 @@
 #include <openssl/x509_vfy.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "crypto.h"
 #include "io.h"
@@ -258,7 +259,8 @@ int cert_key_algorithm(const struct shirudo_cert *cert,
 	name = pub ? EVP_PKEY_get0_type_name(pub) : NULL;
 	if (!name)
 		return -ENOPKG;
-	snprintf(out, out_sz, "%s", name);
+	if (strscpy(out, name, out_sz) < 0)
+		return -ENAMETOOLONG;
 	return 0;
 }
 

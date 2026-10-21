@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "attest.h"
 #include "chain.h"
@@ -469,7 +470,7 @@ static int on_record(void *ctx)
 		return -E2BIG;
 	r = &p->recs[p->n_recs];
 	memset(r, 0, sizeof(*r));
-	snprintf(r->type, sizeof(r->type), "%s", p->type);
+	strscpy(r->type, p->type, sizeof(r->type));
 	if (hex_decode(p->digest_hex, r->digest, 32))
 		return -EINVAL;
 	if (!strcmp(p->type, "init")) {
@@ -497,7 +498,7 @@ static int on_record(void *ctx)
 		in->initrd = !strcmp(p->bound_in, "initrd");
 		in->have_reset_count = p->rec_reset >= 0;
 		in->reset_count = (__u32)p->rec_reset;
-		snprintf(in->anchor, sizeof(in->anchor), "%s", p->anchor);
+		strscpy(in->anchor, p->anchor, sizeof(in->anchor));
 		in->present = true;
 		/*
 		 * Records are of one TPM reset unless both carry a count
@@ -516,12 +517,12 @@ static int on_record(void *ctx)
 		snprintf(r->type, sizeof(r->type), "init");
 		memcpy(r->digest, in->digest, 32);
 	} else if (!strncmp(p->type, "upatch_", 7)) {
-		snprintf(r->label, sizeof(r->label), "%s", p->upatch_name);
+		strscpy(r->label, p->upatch_name, sizeof(r->label));
 	} else if (!strcmp(p->type, "tree_op")) {
 		snprintf(r->label, sizeof(r->label), "%s %s seq %lld",
 			 p->tree_op, p->tree_id, (__s64)p->tree_seq);
 	} else if (!strncmp(p->type, "key_", 4)) {
-		snprintf(r->label, sizeof(r->label), "%s", p->key_fingerprint);
+		strscpy(r->label, p->key_fingerprint, sizeof(r->label));
 	}
 	p->n_recs++;
 	/* Reset the per-element scratch the next element may not set. */

@@ -17,6 +17,8 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <shirudo/string.h>
+
 #include "io.h"
 #include "log.h"
 #include "paths.h"
@@ -203,7 +205,7 @@ int seal_mkdir_p(const char *path, mode_t mode)
 	int dfd, nfd, rc = 0;
 	bool created;
 
-	if (snprintf(buf, sizeof(buf), "%s", path) >= (int)sizeof(buf))
+	if (strscpy(buf, path, sizeof(buf)) < 0)
 		return -ENAMETOOLONG;
 	dfd = open(buf[0] == '/' ? "/" : ".",
 		   O_RDONLY | O_DIRECTORY | O_CLOEXEC);

@@ -13,6 +13,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <shirudo/string.h>
+
 #include "builtin.h"
 #include "util/help.h"
 #include "util/log.h"
@@ -66,7 +68,8 @@ static bool on_path(const char *name)
 		if (len && len + 1 + strlen(name) < sizeof(candidate)) {
 			memcpy(candidate, path, len);
 			candidate[len] = '/';
-			strcpy(candidate + len + 1, name);
+			strscpy(candidate + len + 1, name,
+				sizeof(candidate) - len - 1);
 			if (access(candidate, X_OK) == 0)
 				return true;
 		}

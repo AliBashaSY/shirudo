@@ -58,10 +58,7 @@ static bool parse_bool(const char *val, bool *out)
 
 static bool set_string(char *dst, size_t cap, const char *val)
 {
-	if (strlen(val) >= cap)
-		return false;
-	snprintf(dst, cap, "%s", val);
-	return true;
+	return strscpy(dst, val, cap) >= 0;
 }
 
 static void config_defaults(struct shirudo_config *cfg)
@@ -169,15 +166,12 @@ int config_load_path(struct shirudo_config *cfg, const char *path)
 			} else if (strcmp(key, "tpm.owner_auth") == 0) {
 				set_owner_auth(cfg, val);
 			} else if (strcmp(key, "tpm.tcti") == 0) {
-				size_t l = strlen(val);
-
-				if (l >= sizeof(cfg->tpm_tcti))
+				if (strlen(val) >= sizeof(cfg->tpm_tcti))
 					pr_warn("config: tpm.tcti too long "
 						"(ignored)");
 				else
-					snprintf(cfg->tpm_tcti,
-						 sizeof(cfg->tpm_tcti),
-						 "%s", val);
+					strscpy(cfg->tpm_tcti, val,
+						sizeof(cfg->tpm_tcti));
 			} else if (strcmp(key, "map_export.json_path") == 0) {
 				if (!set_string(cfg->map_export_json_path,
 						sizeof(cfg->map_export_json_path), val))
@@ -277,11 +271,8 @@ int config_load(struct shirudo_config *cfg)
 	 */
 	env = getenv("SHIRUDO_TPM_TCTI");
 	if (env && *env) {
-		size_t l = strlen(env);
-
-		if (l < sizeof(cfg->tpm_tcti))
-			snprintf(cfg->tpm_tcti, sizeof(cfg->tpm_tcti),
-				 "%s", env);
+		if (strlen(env) < sizeof(cfg->tpm_tcti))
+			strscpy(cfg->tpm_tcti, env, sizeof(cfg->tpm_tcti));
 		else
 			pr_warn("SHIRUDO_TPM_TCTI too long (ignored)");
 	}

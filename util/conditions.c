@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "conditions.h"
 
@@ -20,10 +21,10 @@ size_t conditions(const struct shirudo_conditions_input *in,
 	if (n < cap) {
 		c[n].type = "LsmAttached";
 		c[n].status = in->lsm_attached ? "OK" : "ALERT";
-		snprintf(c[n].detail, sizeof(c[n].detail), "%s",
-			 in->lsm_attached ?
-			 "lsm/bpf link present and pinned" :
-			 "lsm/bpf absent -- enforcement OFF");
+		strscpy(c[n].detail, in->lsm_attached ?
+			"lsm/bpf link present and pinned" :
+			"lsm/bpf absent -- enforcement OFF",
+			sizeof(c[n].detail));
 		n++;
 	}
 	if (n < cap) {
@@ -128,7 +129,7 @@ void status_reason(const struct shirudo_conditions_input *in,
 	buf[0] = '\0';
 	if (strcmp(v, "unreachable") == 0) {
 		if (in->unreach)
-			snprintf(buf, cap, "%s", in->unreach);
+			strscpy(buf, in->unreach, cap);
 	} else if (strcmp(v, "unparseable") == 0) {
 		snprintf(buf, cap, "status JSON unparseable");
 	} else if (strcmp(v, "tampered") == 0) {

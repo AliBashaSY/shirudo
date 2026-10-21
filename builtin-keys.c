@@ -26,6 +26,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "builtin.h"
 #include "util/chain.h"
@@ -189,7 +190,7 @@ static void format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 	if (id == EVP_PKEY_RSA || id == EVP_PKEY_EC)
 		snprintf(out, out_sz, "%s-%d", name, EVP_PKEY_get_bits(pkey));
 	else
-		snprintf(out, out_sz, "%s", name);
+		strscpy(out, name, out_sz);
 }
 
 static int dump_operator_cert(X509 *cert, const char *cert_path,
@@ -908,7 +909,7 @@ static int revoked_cert(const __u8 fp[32], const char *marker,
 		*der = NULL;
 		return rc;
 	}
-	snprintf(c->path, sizeof(c->path), "%s", trusted);
+	strscpy(c->path, trusted, sizeof(c->path));
 	return 0;
 }
 

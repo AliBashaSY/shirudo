@@ -293,14 +293,14 @@ void sysinfo_gather(struct shirudo_sysinfo *si)
 	si->hostname[sizeof(si->hostname) - 1] = '\0';
 
 	if (uname(&u) == 0) {
-		snprintf(si->kernel_release, sizeof(si->kernel_release),
-			 "%s", u.release);
-		snprintf(si->kernel_version, sizeof(si->kernel_version),
-			 "%s", u.version);
-		snprintf(si->machine, sizeof(si->machine), "%s", u.machine);
+		strscpy(si->kernel_release, u.release,
+			sizeof(si->kernel_release));
+		strscpy(si->kernel_version, u.version,
+			sizeof(si->kernel_version));
+		strscpy(si->machine, u.machine, sizeof(si->machine));
 		if (si->hostname[0] == '\0')
-			snprintf(si->hostname, sizeof(si->hostname), "%s",
-				 u.nodename);
+			strscpy(si->hostname, u.nodename,
+				sizeof(si->hostname));
 	}
 
 	read_os_pretty(si->os_pretty, sizeof(si->os_pretty));

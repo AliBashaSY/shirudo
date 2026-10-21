@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "crypto.h"
 #include "hex.h"
@@ -205,8 +206,7 @@ static int set_add(struct shirudo_trusted_set *set, const char *path,
 		return -E2BIG;
 	c = &set->certs[set->n];
 	memset(c, 0, sizeof(*c));
-	if (snprintf(c->path, sizeof(c->path), "%s", path) >=
-	    (int)sizeof(c->path))
+	if (strscpy(c->path, path, sizeof(c->path)) < 0)
 		return -ENAMETOOLONG;
 	memcpy(c->sha256, sha256, 32);
 	memcpy(c->fingerprint, fingerprint, 32);
