@@ -17,6 +17,6 @@
  * picked so the rendered value stays within four significant digits
  * regardless of magnitude (16K / 1.8M / 5.57G / 1.23G / 124G).
  */
-void human_size(__u64 bytes, char *out, size_t out_cap);
+int human_size(__u64 bytes, char *out, size_t out_cap);
 
 #endif /* SHIRUDO_UTIL_FORMAT_H */

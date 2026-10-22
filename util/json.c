@@ -63,7 +63,10 @@ static void put_string(struct shirudo_json_emit *e, const char *s)
 		} else if (c < 0x20) {
 			char u[7];
 
-			snprintf(u, sizeof(u), "\\u%04x", c);
+			if (strsprintf(u, sizeof(u), "\\u%04x", c) < 0) {
+				e->err = -E2BIG;
+				break;
+			}
 			put_raw(e, u);
 			p++;
 		} else if (c < 0x80) {
@@ -175,10 +178,13 @@ void json_kv_int(struct shirudo_json_emit *e,
 {
 	char num[24];
 
+	if (strsprintf(num, sizeof(num), "%lld", (__s64)val) < 0) {
+		e->err = -E2BIG;
+		return;
+	}
 	sep(e);
 	put_string(e, key);
 	put(e, ':');
-	snprintf(num, sizeof(num), "%lld", (__s64)val);
 	put_raw(e, num);
 }
 

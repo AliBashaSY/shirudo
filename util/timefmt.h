@@ -12,7 +12,7 @@
 #include <time.h>
 
 /* A negative seconds writes "?"; cap must hold the worst-case %ldd. */
-void format_duration(long seconds, char *buf, size_t cap);
+int format_duration(long seconds, char *buf, size_t cap);
 
 /* UTC to the second; "" and -EINVAL when t cannot be rendered. */
 int iso8601(time_t t, char *out, size_t cap);

@@ -60,12 +60,10 @@ const char *shirudo_image_path(enum shirudo_image_path which)
 
 int shirudo_image_path_relative(char *out, __u64 cap, const char *path)
 {
-	int n;
-
 	if (config_fd < 0 || !path || path[0] == '/' || strstr(path, ".."))
 		return -EINVAL;
-	n = snprintf(out, cap, "/proc/self/fd/%d/%s", config_fd, path);
-	return n < 0 || (__u64)n >= cap ? -ENAMETOOLONG : 0;
+	return strsprintf(out, cap, "/proc/self/fd/%d/%s", config_fd, path) < 0 ?
+	       -ENAMETOOLONG : 0;
 }
 
 static int validate_tree(int root_fd, dev_t device, __u32 depth,
@@ -206,9 +204,11 @@ int shirudo_image_config_validate(int root_fd)
 	rc = validate_tree(root_fd, st.st_dev, 0, &entries);
 	if (!rc)
 		rc = validate_settings(root_fd);
+	if (!rc && strsprintf(path, sizeof(path),
+			      "/proc/self/fd/%d/etc/shirudo/shirudo.conf",
+			      root_fd) < 0)
+		rc = -ENAMETOOLONG;
 	if (!rc) {
-		snprintf(path, sizeof(path),
-			 "/proc/self/fd/%d/etc/shirudo/shirudo.conf", root_fd);
 		rc = config_load_path(&candidate, path);
 		if (!rc && !candidate.map_export_valid)
 			rc = -EINVAL;
@@ -233,8 +233,11 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 		fd = fcntl(root_fd, F_DUPFD_CLOEXEC, 3);
 		if (fd < 0)
 			return -errno;
-		snprintf(path, sizeof(path),
-			 "/proc/self/fd/%d/etc/shirudo/shirudo.conf", fd);
+		if (strsprintf(path, sizeof(path),
+			       "/proc/self/fd/%d/etc/shirudo/shirudo.conf", fd) < 0) {
+			close(fd);
+			return -ENAMETOOLONG;
+		}
 		rc = config_load_path(&candidate, path);
 		if (rc || !candidate.map_export_valid) {
 			close(fd);
@@ -251,9 +254,13 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 	config_fd = fd;
 	effective = candidate;
 	active = true;
-	for (i = 0; i < SHIRUDO_IMAGE_PATH_COUNT; i++)
-		snprintf(paths[i], sizeof(paths[i]), "/proc/self/fd/%d/%s",
-			 config_fd, relative[i]);
+	for (i = 0; i < SHIRUDO_IMAGE_PATH_COUNT; i++) {
+		if (strsprintf(paths[i], sizeof(paths[i]), "/proc/self/fd/%d/%s",
+			       config_fd, relative[i]) < 0) {
+			shirudo_image_config_clear();
+			return -ENAMETOOLONG;
+		}
+	}
 	return 0;
 }
 

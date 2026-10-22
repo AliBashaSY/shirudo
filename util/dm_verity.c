@@ -174,7 +174,8 @@ static int loop_attach(int file_fd, __u64 bytes, int *out)
 	close(control);
 	if (rc)
 		return rc;
-	snprintf(path, sizeof(path), "/dev/loop%d", n);
+	if (strsprintf(path, sizeof(path), "/dev/loop%d", n) < 0)
+		return -ENAMETOOLONG;
 	loop = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (loop < 0)
 		return -errno;
@@ -194,12 +195,10 @@ static int loop_attach(int file_fd, __u64 bytes, int *out)
 static int device_path(struct shirudo_dm_verity *device, __u64 dev)
 {
 	struct stat st;
-	int n;
 
 	device->device = (dev_t)dev;
-	n = snprintf(device->path, sizeof(device->path), "/dev/dm-%u",
-		     minor(device->device));
-	if (n < 0 || (size_t)n >= sizeof(device->path))
+	if (strsprintf(device->path, sizeof(device->path), "/dev/dm-%u",
+		       minor(device->device)) < 0)
 		return -ENAMETOOLONG;
 	if (lstat(device->path, &st)) {
 		if (errno != ENOENT)
@@ -406,7 +405,8 @@ static key_serial_t signature_key(int fd, char description[64])
 		done += n;
 	}
 	hex_encode(random, sizeof(random), suffix);
-	snprintf(description, 64, "shirudo-verity-%s", suffix);
+	if (strsprintf(description, 64, "shirudo-verity-%s", suffix) < 0)
+		return -ENAMETOOLONG;
 	key = syscall(__NR_add_key, "user", description, signature,
 		      (size_t)st.st_size, KEY_SPEC_THREAD_KEYRING);
 	if (key < 0)
@@ -465,12 +465,12 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	}
 	hex_encode(image->image.root_hash, 32, root);
 	hex_encode(image->image.salt, 32, salt);
-	n = snprintf(params, sizeof(params),
-		     "1 %u:%u %u:%u 4096 4096 %llu 1 sha256 %s %s",
-		     major(data_st.st_rdev), minor(data_st.st_rdev),
-		     major(hash_st.st_rdev), minor(hash_st.st_rdev),
-		     (__u64)image->image.data_blocks, root, salt);
-	if (n < 0 || (size_t)n >= sizeof(params)) {
+	n = strsprintf(params, sizeof(params),
+		       "1 %u:%u %u:%u 4096 4096 %llu 1 sha256 %s %s",
+		       major(data_st.st_rdev), minor(data_st.st_rdev),
+		       major(hash_st.st_rdev), minor(hash_st.st_rdev),
+		       (__u64)image->image.data_blocks, root, salt);
+	if (n < 0) {
 		rc = -EOVERFLOW;
 		goto out;
 	}
@@ -483,9 +483,9 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 			rc = key;
 			goto out;
 		}
-		written = snprintf(params + n, remaining,
-				   " 2 root_hash_sig_key_desc %s", signature);
-		if (written < 0 || written >= remaining) {
+		written = strsprintf(params + n, remaining,
+				     " 2 root_hash_sig_key_desc %s", signature);
+		if (written < 0) {
 			rc = -EOVERFLOW;
 			goto out;
 		}
@@ -559,7 +559,8 @@ static int loop_open(dev_t device)
 
 	if (major(device) != 7)
 		return -ENODEV;
-	snprintf(path, sizeof(path), "/dev/loop%u", minor(device));
+	if (strsprintf(path, sizeof(path), "/dev/loop%u", minor(device)) < 0)
+		return -ENAMETOOLONG;
 	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;

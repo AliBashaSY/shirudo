@@ -5,16 +5,19 @@
  * Human-readable formatters.
  */
 
+#include <errno.h>
 #include <stdio.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "format.h"
 
-void human_size(__u64 bytes, char *out, size_t out_cap)
+int human_size(__u64 bytes, char *out, size_t out_cap)
 {
 	double v = (double)bytes;
 	const char *suf = "B";
+	int n;
 
 	if (bytes >= (1ULL << 30)) {
 		v /= (double)(1ULL << 30);
@@ -26,14 +29,14 @@ void human_size(__u64 bytes, char *out, size_t out_cap)
 		v /= (double)(1ULL << 10);
 		suf = "K";
 	} else {
-		snprintf(out, out_cap, "%llu%s",
-			 (__u64)bytes, suf);
-		return;
+		return strsprintf(out, out_cap, "%llu%s", (__u64)bytes,
+				  suf) < 0 ? -E2BIG : 0;
 	}
 	if (v >= 100.0)
-		snprintf(out, out_cap, "%.0f%s", v, suf);
+		n = strsprintf(out, out_cap, "%.0f%s", v, suf);
 	else if (v >= 10.0)
-		snprintf(out, out_cap, "%.1f%s", v, suf);
+		n = strsprintf(out, out_cap, "%.1f%s", v, suf);
 	else
-		snprintf(out, out_cap, "%.2f%s", v, suf);
+		n = strsprintf(out, out_cap, "%.2f%s", v, suf);
+	return n < 0 ? -E2BIG : 0;
 }

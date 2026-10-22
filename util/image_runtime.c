@@ -162,12 +162,12 @@ static int mkdir_owned(const char *path)
 	return created ? seal_label(path) : 0;
 }
 
-static void mapping_name(const __u8 root[32], char out[128])
+static int mapping_name(const __u8 root[32], char out[128])
 {
 	char hex[65];
 
 	hex_encode(root, 32, hex);
-	snprintf(out, 128, "shirudo-config-%s", hex);
+	return strsprintf(out, 128, "shirudo-config-%s", hex) < 0 ? -ENAMETOOLONG : 0;
 }
 
 static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
@@ -179,7 +179,8 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 	char path[64];
 	int fd, block, rc = -EACCES;
 
-	snprintf(path, sizeof(path), "/dev/dm-%u", minor(device));
+	if (strsprintf(path, sizeof(path), "/dev/dm-%u", minor(device)) < 0)
+		return -ENAMETOOLONG;
 	block = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (block < 0)
 		return -errno;
@@ -273,8 +274,10 @@ static int load_runtime_config(bool trusted_boot)
 	fd = open_runtime_file(SHIRUDO_RUNTIME_CONF_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
-	snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
-	rc = shirudo_image_bootstrap_read(path, &image.bootstrap, false);
+	if (strsprintf(path, sizeof(path), "/proc/self/fd/%d", fd) < 0)
+		rc = -ENAMETOOLONG;
+	else
+		rc = shirudo_image_bootstrap_read(path, &image.bootstrap, false);
 	if (!rc)
 		rc = config_load_path(&image.bootstrap_config, path);
 	close(fd);
@@ -303,9 +306,10 @@ static int load_runtime_config(bool trusted_boot)
 		return rc;
 
 	/* Keep the verified config certificate open through key enrollment. */
-	snprintf(image.bootstrap.certificate,
-		 sizeof(image.bootstrap.certificate), "/proc/self/fd/%d",
-		 image.certificate_fd);
+	if (strsprintf(image.bootstrap.certificate,
+		       sizeof(image.bootstrap.certificate), "/proc/self/fd/%d",
+		       image.certificate_fd) < 0)
+		return -ENAMETOOLONG;
 	return 0;
 }
 
@@ -525,7 +529,9 @@ static int prepare_config(struct image_context *current,
 		return rc;
 	if (memcmp(target->root_hash, current->candidate.image.root_hash, 32))
 		return -EKEYREJECTED;
-	mapping_name(target->root_hash, name);
+	rc = mapping_name(target->root_hash, name);
+	if (rc)
+		return rc;
 	rc = shirudo_dm_verity_inspect(name, &current->candidate.image,
 				       device);
 	if (rc == -ENXIO || rc == -ENODEV || rc == -ENOENT) {
@@ -812,7 +818,8 @@ static int config_mount_check(const struct shirudo_config_update_record *record)
 		return rc;
 	if (memcmp(record->target.root_hash, opened.image.root_hash, 32))
 		rc = -EKEYREJECTED;
-	mapping_name(record->target.root_hash, name);
+	if (!rc)
+		rc = mapping_name(record->target.root_hash, name);
 	if (!rc)
 		rc = shirudo_dm_verity_inspect(name, &opened.image, &device);
 	shirudo_config_image_close(&opened);

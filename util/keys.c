@@ -446,8 +446,7 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
 		return shirudo_keys_load_image(SHIRUDO_RUNTIME_CERT_PATH, keys,
 			SHIRUDO_KEYS_REVOKED_DIR, with_trusted, set);
 	}
-	if (snprintf(primary, sizeof(primary), "%s/%s", keys_dir,
-		     SHIRUDO_CERT_FILE) >= (int)sizeof(primary))
+	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, SHIRUDO_CERT_FILE) < 0)
 		return -ENAMETOOLONG;
 	return shirudo_keys_load_split(primary, keys_dir, revoked_dir,
 				      with_trusted, set);

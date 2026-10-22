@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include <endian.h>
 #include <errno.h>
@@ -153,10 +154,9 @@ int shirudo_config_image_check_files(int data_fd, int hash_fd,
 static int open_part(const char *prefix, const char *suffix)
 {
 	char path[PATH_MAX];
-	int n, fd;
+	int fd;
 
-	n = snprintf(path, sizeof(path), "%s%s", prefix, suffix);
-	if (n < 0 || (size_t)n >= sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s%s", prefix, suffix) < 0)
 		return -ENAMETOOLONG;
 	fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
 	return fd < 0 ? -errno : fd;

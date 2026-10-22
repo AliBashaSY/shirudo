@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <shirudo/misc.h>
-
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,6 +13,9 @@
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
+
+#include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "identity.h"
 #include "image_guards.h"
@@ -363,8 +364,7 @@ static int guard_link(const struct shirudo_image_guard *guard,
 		return -EPROTO;
 	suffix = !strncmp(guard->prog, "shirudo_lsm_", 12) ?
 		 guard->prog + 12 : guard->prog + 13;
-	if (snprintf(function, sizeof(function), "bpf_lsm_%s", suffix) >=
-	    (int)sizeof(function))
+	if (strsprintf(function, sizeof(function), "bpf_lsm_%s", suffix) < 0)
 		return -ENAMETOOLONG;
 	type_id = btf__find_by_name_kind(*kernel, function, BTF_KIND_FUNC);
 	if (type_id <= 0 || (__u32)type_id != program.attach_btf_id)

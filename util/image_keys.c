@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include <dirent.h>
 #include <errno.h>
@@ -81,7 +82,8 @@ static int revocations(int root_fd, bool apply, bool boot)
 			    st.st_size <= 0 ||
 			    st.st_size > SHIRUDO_KEYS_DER_MAX))
 			rc = -EINVAL;
-		snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
+		if (!rc && strsprintf(path, sizeof(path), "/proc/self/fd/%d", fd) < 0)
+			rc = -ENAMETOOLONG;
 		if (!rc)
 			rc = keys_read_der(path, &der, &size);
 		close(fd);
@@ -114,8 +116,9 @@ int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 		rc = revocations(root_fd, false, false);
 	if (rc)
 		return rc;
-	snprintf(keys, sizeof(keys), "/proc/self/fd/%d/keys", root_fd);
-	snprintf(revoked, sizeof(revoked), "%s/revoked", keys);
+	if (strsprintf(keys, sizeof(keys), "/proc/self/fd/%d/keys", root_fd) < 0 ||
+	    strsprintf(revoked, sizeof(revoked), "%s/revoked", keys) < 0)
+		return -ENAMETOOLONG;
 	rc = shirudo_keys_load_image(primary, keys, revoked, true, set);
 	if (!rc && (!set->n || set->n_unvouched))
 		rc = -EKEYREJECTED;

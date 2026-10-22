@@ -302,8 +302,8 @@ int kmodules_read(struct shirudo_kmod_set *set)
 		char path[64 + sizeof("/sys/module/")];
 		struct stat st;
 
-		snprintf(path, sizeof(path), "/sys/module/%s", m->name);
-		if (stat(path, &st) == 0) {
+		if (strsprintf(path, sizeof(path), "/sys/module/%s",
+			       m->name) >= 0 && stat(path, &st) == 0) {
 			m->loaded_at_sec  = (__s64)st.st_mtim.tv_sec;
 			m->loaded_at_nsec = (__s32)st.st_mtim.tv_nsec;
 		}
@@ -324,8 +324,9 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	const struct shirudo_kmod *m = &set->mods[i];
 	const char *branch = is_last ? "└── " : "├── ";
 	int already = (seen[i >> 3] >> (i & 7)) & 1;
-	char size_s[16];
+	const char *child = prefix;
 	char child_prefix[256];
+	char size_s[16];
 
 	human_size(m->size, size_s, sizeof(size_s));
 
@@ -338,14 +339,15 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	printf("%s%s%s (%s, refs=%u)\n", prefix, branch, m->name,
 	       size_s, (__u32)m->refcount);
 
-	snprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix,
-		 is_last ? "    " : "│   ");
+	if (strsprintf(child_prefix, sizeof(child_prefix), "%s%s", prefix,
+		       is_last ? "    " : "│   ") >= 0)
+		child = child_prefix;
 
 	for (__u16 k = 0; k < m->n_deps; k++) {
 		size_t dep = set->deps[m->deps_off + k];
 		int last_child = (k == m->n_deps - 1);
 
-		print_subtree(set, dep, child_prefix, last_child, seen);
+		print_subtree(set, dep, child, last_child, seen);
 	}
 }
 

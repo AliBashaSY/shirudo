@@ -390,11 +390,10 @@ static void check_tpm(struct shirudo_preflight_result *r)
 
 		if (override) {
 			pass(c);
-			snprintf(c->detail, sizeof(c->detail),
-				 "TCTI override: %.*s",
-				 (int)(sizeof(c->detail) -
-				       sizeof("TCTI override: ")),
-				 cfg.tpm_tcti);
+			if (strsprintf(c->detail, sizeof(c->detail),
+				       "TCTI override: %s", cfg.tpm_tcti) < 0)
+				strscpy(c->detail, "TCTI override",
+					sizeof(c->detail));
 		}
 		explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 		if (override)

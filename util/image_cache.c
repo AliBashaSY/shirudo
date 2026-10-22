@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -146,8 +147,8 @@ static int verify_incoming(const struct shirudo_config_image_open *opened,
 	int rc, cleanup;
 	char name[128];
 
-	snprintf(name, sizeof(name), "shirudo-verify-%s",
-		 strrchr(staging, '/') + 1);
+	if (strsprintf(name, sizeof(name), "shirudo-verify-%s", strrchr(staging, '/') + 1) < 0)
+		return -ENAMETOOLONG;
 	rc = shirudo_dm_verity_create(opened, name, &device);
 	if (rc)
 		return rc;
@@ -184,13 +185,13 @@ int shirudo_image_cache_fetch(const char *source,
 	rc = seal_label(staging);
 	if (rc)
 		goto out;
-	snprintf(incoming, sizeof(incoming), "%s/image", staging);
+	if (strsprintf(incoming, sizeof(incoming), "%s/image", staging) < 0) {
+		rc = -ENAMETOOLONG;
+		goto out;
+	}
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
-		if (snprintf(from, sizeof(from), "%s%s", source,
-			     files[i].suffix) >= (int)sizeof(from) ||
-		    snprintf(to, sizeof(to), "%s%s", incoming,
-			     files[i].suffix) >=
-			    (int)sizeof(to)) {
+		if (strsprintf(from, sizeof(from), "%s%s", source, files[i].suffix) < 0 ||
+		    strsprintf(to, sizeof(to), "%s%s", incoming, files[i].suffix) < 0) {
 			rc = -ENAMETOOLONG;
 			goto out;
 		}
@@ -205,16 +206,19 @@ int shirudo_image_cache_fetch(const char *source,
 	if (!rc) {
 		memcpy(target->root_hash, opened.image.root_hash, 32);
 		hex_encode(target->root_hash, 32, hex);
-		snprintf(target->prefix, sizeof(target->prefix), "%s/%s",
-			 SHIRUDO_IMAGE_CACHE_DIR, hex);
+		if (strsprintf(target->prefix, sizeof(target->prefix), "%s/%s",
+			       SHIRUDO_IMAGE_CACHE_DIR, hex) < 0)
+			rc = -ENAMETOOLONG;
 	}
 	shirudo_config_image_close(&opened);
 	if (rc)
 		goto out;
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
-		snprintf(from, sizeof(from), "%s%s", incoming, files[i].suffix);
-		snprintf(to, sizeof(to), "%s%s", target->prefix,
-			 files[i].suffix);
+		if (strsprintf(from, sizeof(from), "%s%s", incoming, files[i].suffix) < 0 ||
+		    strsprintf(to, sizeof(to), "%s%s", target->prefix, files[i].suffix) < 0) {
+			rc = -ENAMETOOLONG;
+			goto out;
+		}
 		if (link(from, to) && errno != EEXIST) {
 			rc = -errno;
 			goto out;
@@ -236,9 +240,8 @@ out:
 	if (dir >= 0)
 		close(dir);
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
-		snprintf(to, sizeof(to), "%s/image%s", staging,
-			 files[i].suffix);
-		unlink(to);
+		if (strsprintf(to, sizeof(to), "%s/image%s", staging, files[i].suffix) >= 0)
+			unlink(to);
 	}
 	rmdir(staging);
 	return rc;

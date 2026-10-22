@@ -12,18 +12,21 @@
 
 #include "timefmt.h"
 
-void format_duration(long seconds, char *buf, size_t cap)
+int format_duration(long seconds, char *buf, size_t cap)
 {
+	int n;
+
 	if (seconds < 0)
-		strscpy(buf, "?", cap);
-	else if (seconds < 60)
-		snprintf(buf, cap, "%lds", seconds);
+		return strscpy(buf, "?", cap) < 0 ? -E2BIG : 0;
+	if (seconds < 60)
+		n = strsprintf(buf, cap, "%lds", seconds);
 	else if (seconds < 3600)
-		snprintf(buf, cap, "%ldm", seconds / 60);
+		n = strsprintf(buf, cap, "%ldm", seconds / 60);
 	else if (seconds < 86400)
-		snprintf(buf, cap, "%ldh", seconds / 3600);
+		n = strsprintf(buf, cap, "%ldh", seconds / 3600);
 	else
-		snprintf(buf, cap, "%ldd", seconds / 86400);
+		n = strsprintf(buf, cap, "%ldd", seconds / 86400);
+	return n < 0 ? -E2BIG : 0;
 }
 
 int iso8601(time_t t, char *out, size_t cap)
