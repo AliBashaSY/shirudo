@@ -81,22 +81,26 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   long`, so it prints with `%llu`, and `ptr_to_u64()` turns a pointer
   into the `__u64` the bpf() ABI carries. A library interface that takes
   another type keeps it, and BPF programs spell hook arguments as the
-  kernel's prototypes do. `check-style.sh` rejects `uint32_t` and its kin
+  kernel's prototypes do. `<shirudo/misc.h>` poisons `uint8_t` to
+  `int64_t`, so a system header that uses them, `<netinet/in.h>`,
+  `<elf.h>` or one of OpenSSL's or tpm2-tss's, goes above the first
+  shirudo header. `check-style.sh` rejects `uint32_t` and its kin
   everywhere and `unsigned char`, `short`, `int` and `long` in userspace,
   less the files it names.
 - **Parse numbers with `parse_u64()`, `parse_s64()` and `parse_x64()`**
   from `<shirudo/string.h>`, and find where one ends with `digits()`:
   they take a length, read nothing past it and refuse a sign, blank or
-  base prefix. `check-style.sh` rejects `strtoul()` and its kin and
-  `atoi()` outside `testing/`.
+  base prefix. `<shirudo/string.h>` poisons `strtoul()` and its kin and
+  `atoi()`, and `check-style.sh` rejects them outside `testing/`.
 - **Copy strings with `strscpy()` and format into a fixed buffer with
   `strsprintf()`**, both from `<shirudo/string.h>`: `strscpy()` always
   terminates and returns `-E2BIG` when it cut, which a caller checks
   wherever a cut path or name would mean a different one, and
   `strsprintf()` returns `-E2BIG` with the buffer left empty rather than
   a cut path, in place of comparing `snprintf()` with the size by hand.
-  `check-style.sh` rejects `strcpy()`, `strncpy()` and their kin and a
-  `snprintf(dst, size, "%s", src)` copy outside `testing/`.
+  `<shirudo/string.h>` poisons `strcpy()`, `strncpy()` and their kin and
+  `sprintf()` and `vsprintf()`, and `check-style.sh` rejects the copies
+  and a `snprintf(dst, size, "%s", src)` copy outside `testing/`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
