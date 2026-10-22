@@ -36,18 +36,21 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 	size_t len;
 	char *src;
 
-	snprintf(self, sizeof(self), "%s", (*argv)[0]);
+	if (strscpy(self, (*argv)[0], sizeof(self)) < 0)
+		abort();
 	for (size_t i = 0; i < ARRAY_SIZE(sources); i++) {
-		snprintf(path, sizeof(path), "%s/%s", dirname(self), sources[i]);
-		snprintf(self, sizeof(self), "%s", (*argv)[0]);
+		if (strsprintf(path, sizeof(path), "%s/%s", dirname(self),
+			       sources[i]) < 0)
+			abort();
+		strscpy(self, (*argv)[0], sizeof(self));
 		if (read_file(path, 1 << 20, &src, &len))
 			abort();
 		views[i].source = src;
 		views[i].source_len = (__u32)len;
-		snprintf(views[i].source_name, sizeof(views[i].source_name),
-			 "%s", strrchr(sources[i], '/') + 1);
-		snprintf(views[i].entrypoint, sizeof(views[i].entrypoint),
-			 "decode");
+		strscpy(views[i].source_name, strrchr(sources[i], '/') + 1,
+			sizeof(views[i].source_name));
+		strscpy(views[i].entrypoint, "decode",
+			sizeof(views[i].entrypoint));
 	}
 	return 0;
 }
@@ -77,8 +80,8 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	memcpy(&page.cursor, data + 1, sizeof(page.cursor));
 	data += 9;
 	size -= 9;
-	snprintf(v.upatch, sizeof(v.upatch), "fuzz");
-	snprintf(v.name, sizeof(v.name), "fuzz_map");
+	strscpy(v.upatch, "fuzz", sizeof(v.upatch));
+	strscpy(v.name, "fuzz_map", sizeof(v.name));
 
 	page.data = xmalloc(size + 1);
 	if (!page.data)

@@ -52,13 +52,17 @@ int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 
 /*
  * What the functions above replace, refused once the headers included
- * above have declared it, so that a later include of those still works.
+ * above have declared it, so that a later include of those still works;
+ * util/string.c opts out with SHIRUDO_STRING_INTERNAL.
  */
-#pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
-#pragma GCC poison strtod strtof strtold atoi atol atoll atof
-#pragma GCC poison strcpy strncpy strcat strncat strlcpy
-/* Fortified glibc makes sprintf() a macro for clang; poison the name alone. */
-#undef sprintf
-#pragma GCC poison sprintf vsprintf
+#ifndef SHIRUDO_STRING_INTERNAL
+# pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
+# pragma GCC poison strtod strtof strtold atoi atol atoll atof
+# pragma GCC poison strcpy strncpy strcat strncat strlcpy
+/* Fortified glibc makes these macros for clang; poison the names alone. */
+# undef sprintf
+# undef snprintf
+# pragma GCC poison sprintf vsprintf snprintf vsnprintf
+#endif
 
 #endif /* SHIRUDO_STRING_H */

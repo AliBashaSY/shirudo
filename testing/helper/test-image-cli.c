@@ -42,8 +42,7 @@ int main(int argc, const char **argv)
 	if (!rc) {
 		memcpy(bootstrap.tpm_owner_auth, "bootstrap-owner", 15);
 		bootstrap.tpm_owner_auth_len = 15;
-		snprintf(bootstrap.tpm_tcti, sizeof(bootstrap.tpm_tcti),
-			 "bootstrap-tcti");
+		strscpy(bootstrap.tpm_tcti, "bootstrap-tcti", sizeof(bootstrap.tpm_tcti));
 		rc = shirudo_image_config_set(&bootstrap, fd);
 	}
 	close(fd);
@@ -78,9 +77,8 @@ int main(int argc, const char **argv)
 		struct bpm_tree_config config = {};
 		char digest[BPM_MAX_DIGEST];
 
-		snprintf(config.endpoint, sizeof(config.endpoint),
-			 "oci://example.invalid/tree");
-		snprintf(config.reference, sizeof(config.reference), "latest");
+		strscpy(config.endpoint, "oci://example.invalid/tree", sizeof(config.endpoint));
+		strscpy(config.reference, "latest", sizeof(config.reference));
 		rc = tree_fetch_publication(&config, &publication, digest,
 					    sizeof(digest));
 	} else {

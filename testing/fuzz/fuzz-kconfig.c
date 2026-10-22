@@ -20,8 +20,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(keys); i++)
-		snprintf(sel.kconfig[i].key, sizeof(sel.kconfig[i].key), "%s",
-			 keys[i]);
+		strscpy(sel.kconfig[i].key, keys[i], sizeof(sel.kconfig[i].key));
 	sel.n_kconfig = ARRAY_SIZE(keys);
 	selector_hash_build(&sel, slots);
 	return 0;
