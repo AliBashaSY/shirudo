@@ -8,9 +8,6 @@
 
 #include <errno.h>
 
-#include <shirudo/misc.h>
-#include <shirudo/string.h>
-
 #include "upatch_decode.h"
 
 #ifndef SHIRUDO_HAVE_LUAJIT
@@ -81,6 +78,9 @@ int upatch_decode_map_file_otel(const char *path,
 #include <lauxlib.h>
 #include <lualib.h>
 #include <luajit.h>
+
+#include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "json.h"
 #include "hex.h"

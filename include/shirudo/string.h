@@ -8,7 +8,11 @@
 #ifndef SHIRUDO_STRING_H
 #define SHIRUDO_STRING_H
 
+#include <inttypes.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 
 #include <shirudo/misc.h>
@@ -41,5 +45,16 @@ ssize_t strscpy(char *dst, const char *src, size_t size);
  */
 int strsprintf(char *buf, size_t size, const char *fmt, ...)
 	__attribute__((format(printf, 3, 4), warn_unused_result));
+
+/*
+ * What the functions above replace, refused once the headers included
+ * above have declared it, so that a later include of those still works.
+ */
+#pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
+#pragma GCC poison strtod strtof strtold atoi atol atoll atof
+#pragma GCC poison strcpy strncpy strcat strncat strlcpy
+/* Fortified glibc makes sprintf() a macro for clang; poison the name alone. */
+#undef sprintf
+#pragma GCC poison sprintf vsprintf
 
 #endif /* SHIRUDO_STRING_H */

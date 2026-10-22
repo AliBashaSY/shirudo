@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <shirudo/misc.h>
-#include <shirudo/string.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -22,6 +19,9 @@
 #include <unistd.h>
 
 #include <bpf/bpf.h>
+
+#include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "../builtin.h"
 #include "config.h"
