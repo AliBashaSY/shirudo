@@ -8,9 +8,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <nss.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <unistd.h>
+
+#include <openssl/crypto.h>
 
 #include "harden.h"
 
@@ -32,6 +35,14 @@ void harden_stdio(void)
 	}
 }
 
+/*
+ * No host file may name code for the process to load: an OpenSSL
+ * configuration file can activate a provider module, and nsswitch.conf
+ * can name an NSS module for the host lookups libcurl makes, both
+ * dlopen()ed from paths root controls whatever secure-exec mode does to
+ * the environment. glibc's own files and dns services answer host
+ * lookups without a module, in a static binary too.
+ */
 void harden_self(void)
 {
 	struct rlimit no_core = { 0, 0 };
@@ -40,4 +51,6 @@ void harden_self(void)
 	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	prctl(PR_SET_PTRACER, 0, 0, 0, 0);
 	setrlimit(RLIMIT_CORE, &no_core);
+	OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL);
+	__nss_configure_lookup("hosts", "files dns");
 }

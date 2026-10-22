@@ -337,8 +337,13 @@ attached or on a file system that takes no xattrs at creation.
 Process hardening.  ``util/harden.c`` runs at startup on the target:
 ``PR_SET_DUMPABLE`` off, ``PR_SET_NO_NEW_PRIVS``, ``PR_SET_PTRACER`` to
 nobody, ``RLIMIT_CORE`` zero, sensitive buffers locked in memory and
-scrubbed after use.  The zeroing allocator in ``util/malloc.c`` wipes
-freed memory; the libc allocators are poisoned project-wide.
+scrubbed after use.  No host file may name code for it to load:
+OpenSSL reads no configuration file, so none can activate a provider
+module, and host names resolve through glibc's built-in ``files`` and
+``dns`` services alone, so ``nsswitch.conf`` cannot add a module
+either; ``/etc/hosts`` and ``/etc/resolv.conf``, a local resolver stub
+included, still apply.  The zeroing allocator in ``util/malloc.c``
+wipes freed memory; the libc allocators are poisoned project-wide.
 
 7) Target state
 ---------------
