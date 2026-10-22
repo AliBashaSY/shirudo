@@ -25,6 +25,7 @@
 
 #include "bpm_oci.h"
 #include "crypto.h"
+#include "hex.h"
 #include "io.h"
 #include "seal.h"
 #include "json.h"
@@ -1059,9 +1060,7 @@ int bpm_sha256_hex(const void *data, size_t len,
 
 	if (hex_sz < 65 || sha256_buffer(data, len, digest) != 0)
 		return -EINVAL;
-	for (__u32 i = 0; i < sizeof(digest); i++)
-		snprintf(hex + i * 2, 3, "%02x", digest[i]);
-	hex[64] = 0;
+	hex_encode(digest, sizeof(digest), hex);
 	return 0;
 }
 

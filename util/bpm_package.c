@@ -26,6 +26,7 @@
 #include "bpm_package.h"
 #include "bpm_tree.h"
 #include "crypto.h"
+#include "hex.h"
 #include "json.h"
 #include "log.h"
 #include "macros.h"
@@ -601,9 +602,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		rc = -EINVAL;
 		goto out;
 	}
-	for (__u32 i = 0; i < sizeof(digest); i++)
-		snprintf(hex + i * 2, 3, "%02x", digest[i]);
-	hex[sizeof(digest) * 2] = '\0';
+	hex_encode(digest, sizeof(digest), hex);
 	if (parsed.signer[0] && strcasecmp(parsed.signer, hex)) {
 		pr_err("bpm: package signer fingerprint mismatch: "
 		       "certificate=%s build-environment.json=%s",

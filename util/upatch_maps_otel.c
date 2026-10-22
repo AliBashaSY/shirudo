@@ -2219,9 +2219,8 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 		return -EIO;
 	snapshot->json_bytes = w->json_bytes;
 	snapshot->object_bytes = w->object_bytes;
-	for (size_t i = 0; i < sizeof(snapshot->sha256); i++)
-		snprintf(snapshot->sha256_hex + i * 2, 3, "%02x",
-			 snapshot->sha256[i]);
+	hex_encode(snapshot->sha256, sizeof(snapshot->sha256),
+		   snapshot->sha256_hex);
 	if (base64_encode(snapshot->sha256, sizeof(snapshot->sha256),
 			  snapshot->sha256_b64,
 			  sizeof(snapshot->sha256_b64)) != 0)

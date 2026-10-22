@@ -641,18 +641,15 @@ static char *format_value(const void *value, __u32 value_size,
 		size_t buf_sz = (size_t)cap * 2 + 8;
 		char *out = xmalloc(buf_sz);
 		size_t off = 0;
-		__u32 i;
 
 		if (!out)
 			return NULL;
 		out[off++] = '0';
 		out[off++] = 'x';
-		for (i = 0; i < cap; i++) {
-			snprintf(out + off, buf_sz - off, "%02x", p[i]);
-			off += 2;
-		}
+		hex_encode(p, cap, out + off);
+		off += (size_t)cap * 2;
 		if (value_size > cap) {
-			snprintf(out + off, buf_sz - off, "...");
+			memcpy(out + off, "...", 3);
 			off += 3;
 		}
 		out[off] = '\0';

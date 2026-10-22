@@ -9,6 +9,7 @@
 
 #include <shirudo/misc.h>
 
+#include "hex.h"
 #include "kernel_build_id.h"
 
 #define KERNEL_NOTES_PATH "/sys/kernel/notes"
@@ -55,8 +56,7 @@ int kernel_build_id_from_notes(const void *notes, size_t notes_len,
 		if (type == 3 && namesz >= 3 && !memcmp(p + name_off, "GNU", 3)) {
 			if (!descsz || descsz > SHIRUDO_KERNEL_BUILD_ID_MAX)
 				return -E2BIG;
-			for (__u32 i = 0; i < descsz; i++)
-				snprintf(out + i * 2, 3, "%02x", p[desc_off + i]);
+			hex_encode(p + desc_off, descsz, out);
 			return 0;
 		}
 		p += next;

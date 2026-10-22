@@ -465,8 +465,7 @@ static int key_file_fingerprint(const char *path, char hex[65])
 	cert_free(&cert);
 	if (rc)
 		return rc;
-	for (size_t i = 0; i < sizeof(digest); i++)
-		snprintf(hex + 2 * i, 3, "%02x", digest[i]);
+	hex_encode(digest, sizeof(digest), hex);
 	return 0;
 }
 

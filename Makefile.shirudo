@@ -696,7 +696,8 @@ testing/helper/test-kernel-release: testing/helper/test-kernel-release.c util/ke
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
-testing/helper/test-kernel-build-id: testing/helper/test-kernel-build-id.c util/kernel_build_id.o
+testing/helper/test-kernel-build-id: testing/helper/test-kernel-build-id.c util/kernel_build_id.o \
+                                     util/hex.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
