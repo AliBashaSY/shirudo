@@ -66,7 +66,8 @@ static void fail(struct shirudo_preflight_result *r,
 
 	c->ok = false;
 	va_start(ap, fmt);
-	vsnprintf(c->detail, sizeof(c->detail), fmt, ap);
+	if (vstrsprintf(c->detail, sizeof(c->detail), fmt, ap) < 0)
+		strscpy(c->detail, "?", sizeof(c->detail));
 	va_end(ap);
 	r->n_failed++;
 }

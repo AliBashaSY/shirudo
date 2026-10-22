@@ -10,6 +10,7 @@
 #include <syslog.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "log.h"
 
@@ -52,7 +53,8 @@ static void emit(int priority, const char *fmt, va_list ap)
 {
 	char msg[LOG_MSG_MAX], out[4 * LOG_MSG_MAX + 1];
 
-	vsnprintf(msg, sizeof(msg), fmt, ap);
+	if (vstrsprintf(msg, sizeof(msg), fmt, ap) < 0)
+		strscpy(msg, fmt, sizeof(msg));
 	escape(out, sizeof(out), msg);
 	syslog(priority, "%s", out);
 	fprintf(stderr, "%s\n", out);

@@ -604,11 +604,10 @@ static void say(struct reporter *r, bool ok, const char *fmt, ...)
 	if (n > 0)
 		r->len += (size_t)n;
 	va_start(ap, fmt);
-	n = vsnprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
+	n = vstrsprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
 	va_end(ap);
 	if (n > 0)
-		r->len += (size_t)n < r->cap - r->len ? (size_t)n :
-			  r->cap - r->len - 1;
+		r->len += (size_t)n;
 	if (r->len + 1 < r->cap) {
 		r->buf[r->len++] = '\n';
 		r->buf[r->len] = '\0';
@@ -629,11 +628,10 @@ static void note(struct reporter *r, const char *fmt, ...)
 	if (n > 0)
 		r->len += (size_t)n;
 	va_start(ap, fmt);
-	n = vsnprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
+	n = vstrsprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
 	va_end(ap);
 	if (n > 0)
-		r->len += (size_t)n < r->cap - r->len ? (size_t)n :
-			  r->cap - r->len - 1;
+		r->len += (size_t)n;
 	if (r->len + 1 < r->cap) {
 		r->buf[r->len++] = '\n';
 		r->buf[r->len] = '\0';

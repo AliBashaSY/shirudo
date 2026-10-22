@@ -721,7 +721,7 @@ testing/helper/test-signed-load: testing/helper/test-signed-load.c
 	    -o $@ $^ -lcrypto
 
 testing/helper/test-kernel-abi: testing/helper/test-kernel-abi.c util/kernel_abi.o \
-                          $(LIBBPF_A)
+                          util/string.o $(LIBBPF_A)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(LIBELF_LIBS) $(ZLIB_LIBS)
 
@@ -761,7 +761,7 @@ testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
 testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/malloc.o \
-                                 util/log.o
+                                 util/log.o util/string.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

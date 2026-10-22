@@ -21,6 +21,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "kernel_abi.h"
 
@@ -33,7 +34,8 @@ static int abi_fail(char *detail, size_t detail_sz, const char *fmt, ...)
 
 	if (detail && detail_sz) {
 		va_start(ap, fmt);
-		vsnprintf(detail, detail_sz, fmt, ap);
+		if (vstrsprintf(detail, detail_sz, fmt, ap) < 0)
+			strscpy(detail, "?", detail_sz);
 		va_end(ap);
 	}
 	return -EOPNOTSUPP;
