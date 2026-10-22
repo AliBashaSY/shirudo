@@ -177,17 +177,18 @@ locate_checkpatch() {
 # library's uint32_t. checkpatch's PREFER_KERNEL_TYPES suggests the
 # kernel-internal u32 and leaves tools/ out, so it stays off and this
 # reports an added line that names uint8_t through int64_t outside a
-# string or a comment, in the form checkpatch reports in, and in
-# userspace one that names unsigned char, short, int or long. Those stay
-# where an interface fixes them: BPF programs spell hook arguments as
-# the kernel's prototypes do, include/shirudo/misc.h defines the kernel
-# types from them, util/elf_target.c hands libbpf the unsigned long **
-# it takes, and util/sign.c is vendored. A call to strtoul() and its kin
-# or atoi() is reported too, outside the tests: a number is parsed with
-# parse_u64() and its kin from <shirudo/string.h>, which take a length,
-# read nothing past it and refuse a sign, blank or base prefix. So is a
-# string copied with strcpy() and its kin or with snprintf("%s") on one
-# line: strscpy() always terminates and says when it cut.
+# string, a comment or the #pragma GCC poison that refuses them, in the
+# form checkpatch reports in, and in userspace one that names unsigned
+# char, short, int or long. Those stay where an interface fixes them: BPF
+# programs spell hook arguments as the kernel's prototypes do,
+# include/shirudo/misc.h defines the kernel types from them,
+# util/elf_target.c hands libbpf the unsigned long ** it takes, and
+# util/sign.c is vendored. A call to strtoul() and its kin or atoi() is
+# reported too, outside the tests: a number is parsed with parse_u64() and
+# its kin from <shirudo/string.h>, which take a length, read nothing past
+# it and refuse a sign, blank or base prefix. So is a string copied with
+# strcpy() and its kin or with snprintf("%s") on one line: strscpy() always
+# terminates and says when it cut.
 check_spellings() {
 	awk '
 	function c_names_kept(f) {
@@ -238,6 +239,8 @@ check_spellings() {
 		if (code ~ /^[ \t]*\*/)
 			next
 		if (substr($0, 1, 1) != "+")
+			next
+		if (code ~ /^[ \t]*#[ \t]*pragma[ \t]+GCC[ \t]+poison[ \t]/)
 			next
 		if (match(code, /(^|[^A-Za-z0-9_])u?int(8|16|32|64)_t([^A-Za-z0-9_]|$)/)) {
 			type = substr(code, RSTART, RLENGTH)

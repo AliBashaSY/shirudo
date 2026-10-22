@@ -193,6 +193,7 @@ test_expect_success 'the C library'"'"'s integer names are refused in code only'
 	printf "%s\n" "/* uint32_t in a comment */" \
 		"static const char *name = \"uint64_t\";" \
 		"static __u16 kept;" "static uint32_t width;" \
+		"#pragma GCC poison uint8_t uint32_t" \
 		"static unsigned long mask;" "static unsigned char byte;" \
 		>>"$R/good.c" &&
 	! check --diff &&
