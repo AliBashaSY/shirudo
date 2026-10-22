@@ -250,9 +250,7 @@ set-user-ID program does.  The dynamic loader then ignores
 variables glibc treats as unsafe, and libraries ignore what they read
 with ``secure_getenv()``, among them OpenSSL's ``OPENSSL_CONF`` and
 ``OPENSSL_MODULES``.  The hook runs on every binary handler pass, so
-a script that names shirudo as its interpreter gets the same.  glibc
-drops ``TMPDIR`` in this mode too, so the map export's snapshot file
-goes to ``/tmp`` on a target.
+a script that names shirudo as its interpreter gets the same.
 
 ``lsm/bpf_prog_load`` runs after the kernel's signature check and admits
 a program only when the verdict is ``BPF_SIG_VERIFIED`` and the

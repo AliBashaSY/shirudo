@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -1985,33 +1986,13 @@ struct snapshot_writer {
 
 static int snapshot_temp_file(FILE **out)
 {
-	const char *tmpdir = getenv("TMPDIR");
-	char path[PATH_MAX];
 	FILE *file;
-	int fd, n;
+	int fd;
 
-	if (!tmpdir || !tmpdir[0])
-		tmpdir = "/tmp";
-	n = strsprintf(path, sizeof(path), "%s/%s", tmpdir,
-		       "shirudo-map-snapshot.XXXXXX");
-	if (n < 0)
-		return -ENAMETOOLONG;
-	fd = mkstemp(path);
+	fd = memfd_create("shirudo-map-snapshot",
+			  MFD_CLOEXEC | MFD_NOEXEC_SEAL);
 	if (fd < 0)
 		return -errno;
-	if (fchmod(fd, 0600) != 0) {
-		int rc = -errno;
-
-		unlink(path);
-		close(fd);
-		return rc;
-	}
-	if (unlink(path) != 0) {
-		int rc = -errno;
-
-		close(fd);
-		return rc;
-	}
 	file = fdopen(fd, "w+b");
 	if (!file) {
 		int rc = -errno;
