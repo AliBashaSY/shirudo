@@ -1580,7 +1580,9 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0)
+		return -E2BIG;
 	hex_encode(event, 32, digest_hex);
 	hex_encode(chain, 32, chain_hex);
 	e = (struct shirudo_json_emit){ .buf = line, .cap = sizeof(line) };
@@ -2104,7 +2106,10 @@ static int bpm_exec_operator(const char *sub, int argc, const char **argv)
 
 	if (!helper_argv)
 		return bpm_fail(sub, -ENOMEM);
-	snprintf(label, sizeof(label), "bpm %s", sub);
+	if (strsprintf(label, sizeof(label), "bpm %s", sub) < 0) {
+		xfree(helper_argv, ((size_t)argc + 2) * sizeof(*helper_argv));
+		return bpm_fail(sub, -E2BIG);
+	}
 	helper_argv[1] = "bpm";
 	helper_argv[2] = sub;
 	for (int i = 3; i < argc + 1; i++)

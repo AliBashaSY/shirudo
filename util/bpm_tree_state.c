@@ -378,8 +378,9 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 		}
 		if (config_rc || !config_any) {
 			memset(cfg_found, 0, sizeof(cfg_found));
-			snprintf(path, sizeof(path), "/boot/config-%s", u.release);
-			if (read_selector_config_file(path, s, cfg_slots, cfg_values,
+			if (strsprintf(path, sizeof(path), "/boot/config-%s",
+				       u.release) < 0 ||
+			    read_selector_config_file(path, s, cfg_slots, cfg_values,
 						      cfg_found, false))
 				return 0;
 		}

@@ -288,6 +288,8 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 			return -ENAMETOOLONG;
 		authfile = path;
 	}
+	if (strsprintf(needle, sizeof(needle), "\"%s\"", registry) < 0)
+		return -ENAMETOOLONG;
 	rc = read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
 	if (rc)
 		return rc == -ENOENT ? 0 : rc;
@@ -296,7 +298,6 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	 * member to occur in the same JSON object before accepting
 	 * credentials.
 	 */
-	snprintf(needle, sizeof(needle), "\"%s\"", registry);
 	p = strstr((char *)body, needle);
 	if (!p) {
 		xfree(body, body_len + 1);
@@ -399,26 +400,32 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	long status = 0;
 	char errbuf[CURL_ERROR_SIZE] = {};
 
-	curl = curl_easy_init();
-	if (!curl)
-		return -ENOMEM;
 	if (accept) {
 		char h[256];
 
-		snprintf(h, sizeof(h), "Accept: %s", accept);
+		if (strsprintf(h, sizeof(h), "Accept: %s", accept) < 0)
+			goto too_long;
 		headers = curl_slist_append(headers, h);
 	}
 	if (content_type) {
 		char h[256];
 
-		snprintf(h, sizeof(h), "Content-Type: %s", content_type);
+		if (strsprintf(h, sizeof(h), "Content-Type: %s",
+			       content_type) < 0)
+			goto too_long;
 		headers = curl_slist_append(headers, h);
 	}
 	if (auth) {
 		char h[8192];
 
-		snprintf(h, sizeof(h), "Authorization: %s", auth);
+		if (strsprintf(h, sizeof(h), "Authorization: %s", auth) < 0)
+			goto too_long;
 		headers = curl_slist_append(headers, h);
+	}
+	curl = curl_easy_init();
+	if (!curl) {
+		curl_slist_free_all(headers);
+		return -ENOMEM;
 	}
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
@@ -484,6 +491,10 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_cleanup(curl);
 	tls_ca_cleanup(&c->tls_ca);
 	return status < 0 ? -EHOSTUNREACH : 0;
+
+too_long:
+	curl_slist_free_all(headers);
+	return -E2BIG;
 }
 
 static int curl_once(struct bpm_oci_client *c, const char *method,
@@ -672,14 +683,22 @@ static int get_memory(struct bpm_oci_client *c, const char *url,
 			rc = get_bearer_token(c, r.www_auth);
 			if (rc)
 				goto out;
-			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
+			if (strsprintf(auth, sizeof(auth), "Bearer %s",
+				       c->token) < 0) {
+				rc = -E2BIG;
+				goto out;
+			}
 		} else if (!strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 			rc = encode_basic(c->username, c->password, encoded, sizeof(encoded));
 			if (rc)
 				goto out;
-			snprintf(auth, sizeof(auth), "Basic %s", encoded);
+			if (strsprintf(auth, sizeof(auth), "Basic %s",
+				       encoded) < 0) {
+				rc = -E2BIG;
+				goto out;
+			}
 		} else {
 			rc = -EACCES;
 			goto out;
@@ -738,8 +757,10 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		}
 		sink = (struct bpm_file_sink){ .fp = fp, .room = (__u64)size };
 		rc = get_bearer_token(c, r.www_auth);
+		if (!rc && strsprintf(auth, sizeof(auth), "Bearer %s",
+				      c->token) < 0)
+			rc = -E2BIG;
 		if (!rc) {
-			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
 			memset(&r, 0, sizeof(r));
 			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
@@ -757,8 +778,10 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		}
 		sink = (struct bpm_file_sink){ .fp = fp, .room = (__u64)size };
 		rc = encode_basic(c->username, c->password, encoded, sizeof(encoded));
+		if (!rc && strsprintf(auth, sizeof(auth), "Basic %s",
+				      encoded) < 0)
+			rc = -E2BIG;
 		if (!rc) {
-			snprintf(auth, sizeof(auth), "Basic %s", encoded);
 			memset(&r, 0, sizeof(r));
 			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
@@ -798,7 +821,9 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 			rc = get_bearer_token(c, r->www_auth);
 			if (rc)
 				return rc;
-			snprintf(auth, sizeof(auth), "Bearer %s", c->token);
+			if (strsprintf(auth, sizeof(auth), "Bearer %s",
+				       c->token) < 0)
+				return -E2BIG;
 		} else if (!strncasecmp(r->www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
@@ -806,7 +831,9 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 					  sizeof(encoded));
 			if (rc)
 				return rc;
-			snprintf(auth, sizeof(auth), "Basic %s", encoded);
+			if (strsprintf(auth, sizeof(auth), "Basic %s",
+				       encoded) < 0)
+				return -E2BIG;
 		} else {
 			return -EACCES;
 		}
