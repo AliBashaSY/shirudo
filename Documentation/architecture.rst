@@ -242,6 +242,18 @@ process that directly executes the recorded Shirudo binary is still
 identified as Shirudo; its command interface is the authorization
 boundary for those operations.
 
+``lsm/bprm_check_security`` keeps that boundary from being stepped
+around through the environment: every exec of the recorded executable
+or its initrd copy runs in secure-exec mode (``AT_SECURE``), as a
+set-user-ID program does.  The dynamic loader then ignores
+``LD_PRELOAD``, ``LD_AUDIT``, ``LD_LIBRARY_PATH`` and the other
+variables glibc treats as unsafe, and libraries ignore what they read
+with ``secure_getenv()``, among them OpenSSL's ``OPENSSL_CONF`` and
+``OPENSSL_MODULES``.  The hook runs on every binary handler pass, so
+a script that names shirudo as its interpreter gets the same.  glibc
+drops ``TMPDIR`` in this mode too, so the map export's snapshot file
+goes to ``/tmp`` on a target.
+
 ``lsm/bpf_prog_load`` runs after the kernel's signature check and admits
 a program only when the verdict is ``BPF_SIG_VERIFIED`` and the
 signature was resolved from the keyring whose kind shirudo froze into

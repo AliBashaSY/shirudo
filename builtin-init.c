@@ -759,10 +759,12 @@ static int init_lsm(bool attach_filesystem_seal)
 	static const struct {
 		const char	*prog;
 		const char	*pin;
-	} prctl_hooks[] = {
+	} identity_hooks[] = {
 		{ "shirudo_lsm_task_prctl", SHIRUDO_TASK_PRCTL_LINK_PIN },
+		{ "shirudo_lsm_bprm_check_security",
+		  SHIRUDO_BPRM_CHECK_LINK_PIN },
 	};
-	struct bpf_link *prctl_links[ARRAY_SIZE(prctl_hooks)] = {};
+	struct bpf_link *identity_links[ARRAY_SIZE(identity_hooks)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(mount_hooks)] = {};
 	const struct shirudo_embedded_bpf *blob = bpf2_blob();
 	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
@@ -924,20 +926,21 @@ static int init_lsm(bool attach_filesystem_seal)
 		goto out;
 	}
 
-	/* Install the narrow prctl guard before enabling the bpf() gates. */
-	for (i = 0; i < (int)ARRAY_SIZE(prctl_hooks); i++) {
+	/* Install the identity guards before enabling the bpf() gates. */
+	for (i = 0; i < (int)ARRAY_SIZE(identity_hooks); i++) {
 		struct bpf_program *p;
 
-		p = bpf_object__find_program_by_name(obj, prctl_hooks[i].prog);
+		p = bpf_object__find_program_by_name(obj,
+						     identity_hooks[i].prog);
 		if (!p) {
 			pr_err("program %s missing in bpf2 object",
-			       prctl_hooks[i].prog);
+			       identity_hooks[i].prog);
 			err = -ENOENT;
 			goto out;
 		}
-		err = attach_pin(p, prctl_hooks[i].pin, &prctl_links[i]);
+		err = attach_pin(p, identity_hooks[i].pin, &identity_links[i]);
 		if (err) {
-			pr_err("attach %s: %s", prctl_hooks[i].prog,
+			pr_err("attach %s: %s", identity_hooks[i].prog,
 			       strerror(-err));
 			goto out;
 		}
@@ -1053,10 +1056,10 @@ static int init_lsm(bool attach_filesystem_seal)
 		", filesystem seal unavailable on this kernel");
 	err = 0;
 out:
-	for (i = 0; i < (int)ARRAY_SIZE(prctl_links); i++) {
-		if (err && prctl_links[i])
-			bpf_link__unpin(prctl_links[i]);
-		bpf_link__destroy(prctl_links[i]);
+	for (i = 0; i < (int)ARRAY_SIZE(identity_links); i++) {
+		if (err && identity_links[i])
+			bpf_link__unpin(identity_links[i]);
+		bpf_link__destroy(identity_links[i]);
 	}
 	for (i = 0; i < (int)ARRAY_SIZE(seal_links); i++)
 		bpf_link__destroy(seal_links[i]);

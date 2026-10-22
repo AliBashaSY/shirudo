@@ -166,7 +166,9 @@ T3  Tampering with shirudo's files and process
     ``/proc`` files that need ptrace access, and no perf event can be
     bound to one of them; a system-wide profile still sees them as it
     sees every task.  The process drops dumpability, forbids new
-    privileges and locks sensitive buffers. The bpf keyring is sealed with
+    privileges and locks sensitive buffers, and it runs in secure-exec
+    mode, so the dynamic loader takes no code from the environment of
+    whoever started it (residual risk 2). The bpf keyring is sealed with
     ``KEYCTL_RESTRICT_KEYRING`` so no key can be linked into it for the
     rest of the boot, ``lsm/key_permission`` leaves writing, unlinking,
     revoking, invalidating and re-permissioning it and the keys it
@@ -305,7 +307,13 @@ Each of these is known, documented and bounded; none is silent.
     Shirudo through these operations.  This also denies those two
     operations to checkpoint and restore tools.  A process that directly
     executes the recorded Shirudo binary is still identified as Shirudo,
-    so its command interface remains the authorization boundary.  Bound
+    so its command interface remains the authorization boundary.  That
+    process runs in secure-exec mode, so ``LD_PRELOAD``, ``LD_AUDIT``
+    and the like cannot put the caller's code into it; the loader still
+    reads ``/etc/ld.so.preload`` and the shared libraries the binary
+    names, which root controls, and a tracer that attached before the
+    exec keeps its hold.  A statically linked executable and a refusal
+    of traced execs would close those.  Bound
     ``CAP_SYS_RESOURCE`` out of untrusted contexts with
     ``CapabilityBoundingSet=`` and container capability profiles.
 

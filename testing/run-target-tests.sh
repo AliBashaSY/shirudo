@@ -46,6 +46,7 @@ for t in \
 	tamperproof/t1136-tamper-counters.sh \
 	tamperproof/t1130-map-lockdown.sh \
 	tamperproof/t1131-pr-set-mm-identity.sh \
+	tamperproof/t1138-secure-exec.sh \
 	tamperproof/t1125-key-permission.sh \
 	tamperproof/t1132-upatch-integrity.sh \
 	t1133-upatch-arena-serializer.sh \

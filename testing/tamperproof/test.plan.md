@@ -49,6 +49,7 @@ checks that Shirudo can still export the pre-existing Python exec record.
 | TP-27 | Root binds a perf event to a running shirudo task | Covered | `t1134-seal-task.sh` | `perf_event_open` on the task is refused with `EACCES`; the same event on the caller's own task is the positive control. |
 | TP-28 | Root renames a pin in the private bpffs, or renames one over the lsm/bpf link's pin | Covered | `t1135-pin-rename.sh` | Both are refused with `EPERM`; the pins stay and enforcement survives. Before `lsm/inode_rename` the rename over a pin dropped the link with no guard firing. |
 | TP-29 | A refused attempt leaves no trace | Covered | `t1136-tamper-counters.sh` | Every guard counts its refusals by point in a frozen pinned map; `status` lists the non-zero counters, `status --json` and the keepalive carry them all, and root cannot reset them. |
+| TP-30 | Root starts shirudo with `LD_PRELOAD`, `LD_AUDIT` or `LD_LIBRARY_PATH` naming its own code, directly or through a script that names shirudo as its interpreter | Covered | `t1138-secure-exec.sh` | `lsm/bprm_check_security` puts the recorded executables in secure-exec mode; `LD_SHOW_AUXV`, which glibc also ignores then, stands in for the others, with `env` as the positive control. `/etc/ld.so.preload` and a tracer attached before the exec stay open (residual risk 2). |
 
 | TP-22 | Mutate a trusted upatch loader and recompute its userspace digest | Covered | `t1132-upatch-integrity.sh` | The kernel signature gate rejects the altered loader as `signature_rejected`; no pin or archive is created. |
 

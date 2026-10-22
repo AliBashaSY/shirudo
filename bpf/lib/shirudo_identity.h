@@ -36,21 +36,27 @@ struct {
 	__type(value, struct shirudo_sb_id);
 } shirudo_bpffs_sb SEC(".maps");
 
+static __always_inline bool shirudo_file_is_self(const struct shirudo_sb_id *id,
+						 struct file *file)
+{
+	__u32 dev;
+	__u64 ino;
+
+	if (!file)
+		return false;
+	dev = BPF_CORE_READ(file, f_inode, i_sb, s_dev);
+	ino = BPF_CORE_READ(file, f_inode, i_ino);
+	if (dev == id->exe_dev && ino == id->exe_ino)
+		return true;
+	return id->alt_exe_ino && dev == id->alt_exe_dev &&
+	       ino == id->alt_exe_ino;
+}
+
 static __always_inline bool shirudo_task_is_self(const struct shirudo_sb_id *id)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct file *exe = BPF_CORE_READ(task, mm, exe_file);
-	__u32 exe_dev;
-	__u64 exe_ino;
 
-	if (!exe)
-		return false;
-	exe_dev = BPF_CORE_READ(exe, f_inode, i_sb, s_dev);
-	exe_ino = BPF_CORE_READ(exe, f_inode, i_ino);
-	if (exe_dev == id->exe_dev && exe_ino == id->exe_ino)
-		return true;
-	return id->alt_exe_ino && exe_dev == id->alt_exe_dev &&
-	       exe_ino == id->alt_exe_ino;
+	return shirudo_file_is_self(id, BPF_CORE_READ(task, mm, exe_file));
 }
 
 #endif /* SHIRUDO_BPF_IDENTITY_H */

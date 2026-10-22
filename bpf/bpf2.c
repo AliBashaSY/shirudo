@@ -170,6 +170,21 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	return -ENOSYS;
 }
 
+SEC("lsm/bprm_check_security")
+int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
+	     int ret)
+{
+	struct shirudo_sb_id *id;
+	__u32 zero = 0;
+
+	if (ret)
+		return ret;
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (id && shirudo_file_is_self(id, bprm->file))
+		bpf_bprm_opts_set(bprm, BPF_F_BPRM_SECUREEXEC);
+	return 0;
+}
+
 static __always_inline int shirudo_bpffs_guard(__u32 target_dev,
 					       enum shirudo_tamper_point point)
 {
