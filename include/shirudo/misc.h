@@ -9,6 +9,9 @@
 #ifndef SHIRUDO_MISC_H
 #define SHIRUDO_MISC_H
 
+#include <stdint.h>
+#include <stdlib.h>
+
 /*
  * Defined as asm-generic/int-ll64.h defines them on x86-64, arm64 and
  * riscv64, so a file that also includes <linux/types.h> sees the same
@@ -41,5 +44,15 @@ static inline double shirudo_trunc(double x)
 		return -(double)(__s64)-x;
 	return (double)(__s64)x;
 }
+
+/*
+ * The C library's names for them, refused once <stdint.h> has defined
+ * them and <stdlib.h> used them for random_r(), so that a later include
+ * of either still works. Any other system header that uses them,
+ * <netinet/in.h>, <elf.h> or one of OpenSSL's or tpm2-tss's, goes above
+ * the first shirudo header.
+ */
+#pragma GCC poison uint8_t uint16_t uint32_t uint64_t
+#pragma GCC poison int8_t int16_t int32_t int64_t
 
 #endif /* SHIRUDO_MISC_H */
