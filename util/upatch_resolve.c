@@ -150,7 +150,7 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	    linfo.netfilter.pf == NFPROTO_IPV6 &&
 	    linfo.netfilter.hooknum == NF_INET_PRE_ROUTING &&
 	    linfo.netfilter.priority == NF_IP6_PRI_RAW_BEFORE_DEFRAG) {
-		snprintf(out, cap, "netfilter/ipv6-pre-routing");
+		strscpy(out, "netfilter/ipv6-pre-routing", cap);
 		return 0;
 	}
 

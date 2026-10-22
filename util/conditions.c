@@ -37,8 +37,9 @@ size_t conditions(const struct shirudo_conditions_input *in,
 				 (__s64)in->keyring_serial_pinned);
 		} else if (!in->keyring_present) {
 			c[n].status = "WARN";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "shirudo keyring absent (not init'd?)");
+			strscpy(c[n].detail,
+				"shirudo keyring absent (not init'd?)",
+				sizeof(c[n].detail));
 		} else if (in->ksm_seen && !in->keyring_serial_matches) {
 			c[n].status = "ALERT";
 			snprintf(c[n].detail, sizeof(c[n].detail),
@@ -59,22 +60,24 @@ size_t conditions(const struct shirudo_conditions_input *in,
 		c[n].type = "ChainIntact";
 		if (!in->chain_seen) {
 			c[n].status = "WARN";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 in->tpm_reachable ?
-				 "no register bound this boot (init incomplete)" :
-				 "no TPM answered, no register to replay");
+			strscpy(c[n].detail, in->tpm_reachable ?
+				"no register bound this boot (init incomplete)" :
+				"no TPM answered, no register to replay",
+				sizeof(c[n].detail));
 		} else if (in->cm_seen && in->chain_matches) {
 			c[n].status = "OK";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "live register == eventlog replay");
+			strscpy(c[n].detail, "live register == eventlog replay",
+				sizeof(c[n].detail));
 		} else if (in->cm_seen) {
 			c[n].status = "ALERT";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "live register != eventlog replay (tamper?)");
+			strscpy(c[n].detail,
+				"live register != eventlog replay (tamper?)",
+				sizeof(c[n].detail));
 		} else {
 			c[n].status = "WARN";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "chain present, replay not evaluated");
+			strscpy(c[n].detail,
+				"chain present, replay not evaluated",
+				sizeof(c[n].detail));
 		}
 		n++;
 	}
@@ -90,8 +93,8 @@ size_t conditions(const struct shirudo_conditions_input *in,
 				 "NV index %s not bound this boot",
 				 in->nv_index ? in->nv_index : "?");
 		else
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "no TPM answered");
+			strscpy(c[n].detail, "no TPM answered",
+				sizeof(c[n].detail));
 		n++;
 	}
 	return n;
@@ -137,20 +140,20 @@ void status_reason(const struct shirudo_conditions_input *in,
 		if (in->unreach)
 			strscpy(buf, in->unreach, cap);
 	} else if (strcmp(v, "unparseable") == 0) {
-		snprintf(buf, cap, "status JSON unparseable");
+		strscpy(buf, "status JSON unparseable", cap);
 	} else if (strcmp(v, "tampered") == 0) {
 		if (in->cm_seen && !in->chain_matches)
-			snprintf(buf, cap, "live register != eventlog replay");
+			strscpy(buf, "live register != eventlog replay", cap);
 		else if (!in->keyring_present)
-			snprintf(buf, cap, "the keyring init froze is gone");
+			strscpy(buf, "the keyring init froze is gone", cap);
 		else
-			snprintf(buf, cap, "keyring serial swap detected");
+			strscpy(buf, "keyring serial swap detected", cap);
 	} else if (strcmp(v, "lsm-off") == 0) {
-		snprintf(buf, cap, "LSM not attached -- enforcement OFF");
+		strscpy(buf, "LSM not attached -- enforcement OFF", cap);
 	} else if (strcmp(v, "init-pending") == 0) {
-		snprintf(buf, cap, "target hasn't been `shirudo init`'d");
+		strscpy(buf, "target hasn't been `shirudo init`'d", cap);
 	} else if (strcmp(v, "degraded") == 0) {
-		snprintf(buf, cap, in->tpm_reachable ?
-			 "no register bound this boot" : "no TPM answered");
+		strscpy(buf, in->tpm_reachable ?
+			"no register bound this boot" : "no TPM answered", cap);
 	}
 }

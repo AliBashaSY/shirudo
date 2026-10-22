@@ -1337,8 +1337,7 @@ static void scan_upatch_maps(const char *upatch,
 			continue;
 		close(fd);
 		strscpy(one.upatch, upatch, sizeof(one.upatch));
-		snprintf(one.name, sizeof(one.name), "%.*s",
-			 (int)(sizeof(one.name) - 1), e->d_name);
+		strscpy(one.name, e->d_name, sizeof(one.name));
 		one.type = info.type;
 		one.type_name = map_type_name(info.type);
 		one.max_entries = info.max_entries;

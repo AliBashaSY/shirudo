@@ -94,7 +94,7 @@ static EVP_PKEY *read_priv_pem(const char *path)
 static void name_to_str(X509_NAME *name, char *out, size_t out_sz)
 {
 	if (!X509_NAME_oneline(name, out, (int)out_sz)) {
-		snprintf(out, out_sz, "(parse error)");
+		strscpy(out, "(parse error)", out_sz);
 		return;
 	}
 }
@@ -104,11 +104,11 @@ static void asn1_time_to_iso(const ASN1_TIME *t, char *out, size_t out_sz)
 	struct tm tm;
 
 	if (!ASN1_TIME_to_tm(t, &tm)) {
-		snprintf(out, out_sz, "(unparseable)");
+		strscpy(out, "(unparseable)", out_sz);
 		return;
 	}
 	if (!strftime(out, out_sz, "%Y-%m-%dT%H:%M:%SZ", &tm))
-		snprintf(out, out_sz, "(format error)");
+		strscpy(out, "(format error)", out_sz);
 }
 
 static long days_remaining(const ASN1_TIME *not_after)

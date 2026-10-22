@@ -550,7 +550,7 @@ static int on_record(void *ctx)
 		p->n_recs = 0;	/* this boot's register starts here */
 		r = &p->recs[0];
 		memset(r, 0, sizeof(*r));
-		snprintf(r->type, sizeof(r->type), "init");
+		strscpy(r->type, "init", sizeof(r->type));
 		memcpy(r->digest, in->digest, 32);
 	} else if (!strncmp(p->type, "upatch_", 7)) {
 		strscpy(r->label, p->upatch_name, sizeof(r->label));
@@ -621,7 +621,7 @@ static void note(struct reporter *r, const char *fmt, ...)
 
 	if (r->len + 8 >= r->cap)
 		return;
-	n = snprintf(r->buf + r->len, r->cap - r->len, "note: ");
+	n = strscpy(r->buf + r->len, "note: ", r->cap - r->len);
 	if (n > 0)
 		r->len += (size_t)n;
 	va_start(ap, fmt);

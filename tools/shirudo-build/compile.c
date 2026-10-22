@@ -90,7 +90,7 @@ int shirudo_build_compile(const char *source, const char *output,
 		if (slash)
 			*slash = '\0';
 		else
-			snprintf(vmlinux_dir, sizeof(vmlinux_dir), ".");
+			strscpy(vmlinux_dir, ".", sizeof(vmlinux_dir));
 	}
 	snprintf(inc_vmlinux, sizeof(inc_vmlinux), "-I%s", vmlinux_dir);
 

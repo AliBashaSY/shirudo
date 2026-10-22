@@ -8,12 +8,14 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <shirudo/string.h>
+
 #include "timefmt.h"
 
 void format_duration(long seconds, char *buf, size_t cap)
 {
 	if (seconds < 0)
-		snprintf(buf, cap, "?");
+		strscpy(buf, "?", cap);
 	else if (seconds < 60)
 		snprintf(buf, cap, "%lds", seconds);
 	else if (seconds < 3600)

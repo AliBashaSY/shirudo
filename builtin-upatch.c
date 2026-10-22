@@ -2598,7 +2598,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		rep.ok = true;
 		rep.phase = "done";
 		rep.category = "already_unloaded";
-		snprintf(rep.message, sizeof(rep.message), "already unloaded");
+		strscpy(rep.message, "already unloaded", sizeof(rep.message));
 		ret = 0;
 		goto done;
 	}

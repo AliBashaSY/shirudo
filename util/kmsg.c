@@ -125,7 +125,7 @@ static void monotonic_to_iso(__u64 mono_us,
 	}
 
 	if (iso8601(rec.tv_sec, out, out_cap))
-		snprintf(out, out_cap, "?");
+		strscpy(out, "?", out_cap);
 }
 
 int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)

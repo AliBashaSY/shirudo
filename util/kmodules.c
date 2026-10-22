@@ -458,13 +458,13 @@ void kmodules_print_recent(const struct shirudo_kmod_set *set,
 
 		if (m->loaded_at_sec <= 0 ||
 		    iso8601((time_t)m->loaded_at_sec, ts, sizeof(ts)))
-			snprintf(ts, sizeof(ts), "?");
+			strscpy(ts, "?", sizeof(ts));
 		human_size(m->size, size_s, sizeof(size_s));
 		if (boot_sec > 0 && m->loaded_at_sec >= boot_sec)
 			format_duration((long)(m->loaded_at_sec - boot_sec),
 					age, sizeof(age));
 		else
-			snprintf(age, sizeof(age), "?");
+			strscpy(age, "?", sizeof(age));
 
 		printf("  [%s]  %s (%s, refs=%u, %s since boot)\n",
 		       ts, m->name, size_s, (__u32)m->refcount, age);

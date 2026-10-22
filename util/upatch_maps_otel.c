@@ -159,24 +159,25 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 		return -EINVAL;
 	*signal = SHIRUDO_OTEL_LOG;
 	if (v->serialized) {
-		snprintf(reason, reason_sz, "map uses a serializer");
+		strscpy(reason, "map uses a serializer", reason_sz);
 		return 0;
 	}
 	if (v->skipped) {
-		snprintf(reason, reason_sz, "map type is not generically readable");
+		strscpy(reason, "map type is not generically readable",
+			reason_sz);
 		return 0;
 	}
 	if (!upatch_map_is_percpu(v->type)) {
-		snprintf(reason, reason_sz, "map is not per-CPU");
+		strscpy(reason, "map is not per-CPU", reason_sz);
 		return 0;
 	}
 	rc = metric_type_from_view(v, &mt);
 	if (rc) {
-		snprintf(reason, reason_sz, "value is not a BTF integer scalar");
+		strscpy(reason, "value is not a BTF integer scalar", reason_sz);
 		return 0;
 	}
 	if (mt.is_signed) {
-		snprintf(reason, reason_sz, "value is signed");
+		strscpy(reason, "value is signed", reason_sz);
 		return 0;
 	}
 	*signal = SHIRUDO_OTEL_METRIC;
@@ -596,7 +597,7 @@ static void emit_resource_attributes(struct shirudo_json_emit *e)
 	char hostname[256] = "unknown";
 
 	if (gethostname(hostname, sizeof(hostname)) != 0)
-		snprintf(hostname, sizeof(hostname), "unknown");
+		strscpy(hostname, "unknown", sizeof(hostname));
 	hostname[sizeof(hostname) - 1] = '\0';
 	json_arr_open(e, "attributes");
 	otlp_kv_string(e, "service.name", "shirudo");
@@ -2494,7 +2495,7 @@ static int build_s3_urls(const struct otel_s3_state *st,
 	int n, rc;
 
 	if (gethostname(hostname, sizeof(hostname)) != 0)
-		snprintf(hostname, sizeof(hostname), "unknown");
+		strscpy(hostname, "unknown", sizeof(hostname));
 	hostname[sizeof(hostname) - 1] = '\0';
 	safe_key_segment(hostname);
 	n = snprintf(key, sizeof(key), "%s%s%s/%s/%s/%s.json.gz",

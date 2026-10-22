@@ -409,8 +409,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 					   ups[i]->d_name) == 0)
 			name = raw_name;
 
-		snprintf(r->name, sizeof(r->name), "%.*s",
-			 (int)(sizeof(r->name) - 1), name);
+		strscpy(r->name, name, sizeof(r->name));
 		upatch_resolve_location(vbtf, name,
 					r->location,
 					sizeof(r->location));

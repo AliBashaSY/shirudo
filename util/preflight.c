@@ -17,6 +17,7 @@
 #include <linux/keyctl.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "config.h"
 #include "initrd.h"
@@ -247,8 +248,8 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
 
 	if (preflight_keys(&set)) {
 		pass(c);
-		snprintf(c->detail, sizeof(c->detail),
-			 "skipped (cert unreadable)");
+		strscpy(c->detail, "skipped (cert unreadable)",
+			sizeof(c->detail));
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
@@ -296,8 +297,8 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 
 	if (preflight_keys(&set)) {
 		pass(c);
-		snprintf(c->detail, sizeof(c->detail),
-			 "skipped (cert unreadable)");
+		strscpy(c->detail, "skipped (cert unreadable)",
+			sizeof(c->detail));
 		return;
 	}
 	for (i = 0; i < set.n; i++) {

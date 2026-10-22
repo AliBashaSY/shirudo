@@ -60,7 +60,7 @@ static void read_os_pretty(char *buf, size_t cap)
 		v = line + 12;
 		if (*v == '"')
 			v++;
-		snprintf(buf, cap, "%.*s", (int)(cap - 1), v);
+		strscpy(buf, v, cap);
 		len = strlen(buf);
 		while (len && (buf[len - 1] == '\n' || buf[len - 1] == '\r' ||
 			       buf[len - 1] == '"'))

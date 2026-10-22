@@ -507,7 +507,7 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	target = (void *)(buf.bytes + buf.io.data_start);
 	target->length = image->image.data_blocks *
 			 (SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE / 512);
-	snprintf(target->target_type, sizeof(target->target_type), "verity");
+	strscpy(target->target_type, "verity", sizeof(target->target_type));
 	memcpy(target + 1, params, n + 1);
 	target->next = (sizeof(*target) + n + 1 + 7) & ~7u;
 	buf.io.data_size = buf.io.data_start + target->next;
