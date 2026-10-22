@@ -9,6 +9,7 @@
 #define SHIRUDO_STRING_H
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,10 +42,13 @@ ssize_t strscpy(char *dst, const char *src, size_t size);
 
 /*
  * snprintf() into the size bytes at buf: the length written, or -E2BIG,
- * with buf left empty, when the output did not fit.
+ * with buf left empty, when the output did not fit. vstrsprintf() takes
+ * the arguments as a va_list.
  */
 int strsprintf(char *buf, size_t size, const char *fmt, ...)
 	__attribute__((format(printf, 3, 4), warn_unused_result));
+int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
+	__attribute__((format(printf, 3, 0), warn_unused_result));
 
 /*
  * What the functions above replace, refused once the headers included

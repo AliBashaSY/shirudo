@@ -108,17 +108,24 @@ ssize_t strscpy(char *dst, const char *src, size_t size)
 	return (ssize_t)len;
 }
 
+int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
+{
+	int n = vsnprintf(buf, size, fmt, ap);
+
+	if (n >= 0 && (size_t)n < size)
+		return n;
+	if (size)
+		buf[0] = '\0';
+	return -E2BIG;
+}
+
 int strsprintf(char *buf, size_t size, const char *fmt, ...)
 {
 	va_list ap;
 	int n;
 
 	va_start(ap, fmt);
-	n = vsnprintf(buf, size, fmt, ap);
+	n = vstrsprintf(buf, size, fmt, ap);
 	va_end(ap);
-	if (n >= 0 && (size_t)n < size)
-		return n;
-	if (size)
-		buf[0] = '\0';
-	return -E2BIG;
+	return n;
 }
