@@ -394,7 +394,10 @@ static int cmd_attest_predict(int argc, const char **argv)
 			    SHIRUDO_TPM_NV_WRITTEN, policy, 32, name);
 		hex_encode(name, sizeof(name), hex);
 		printf("register_name: %s\n", hex);
-		chain_anchor(name, anchor, sizeof(anchor));
+		if (chain_anchor(name, anchor, sizeof(anchor))) {
+			pr_err("attest predict: the anchor does not fit");
+			goto out;
+		}
 		printf("anchor: %s\n", anchor);
 		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
 		chain_fold(bind[0], anchor_digest);

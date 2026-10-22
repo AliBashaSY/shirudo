@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "chain.h"
 #include "config.h"
@@ -87,10 +88,18 @@ void chain_init_event(const __u8 cert_sha[32],
 		memset(event, 0, 32);
 		return;
 	}
-	for (i = 0; i < n; i++)
-		off += (size_t)snprintf(listing + off, listing_len + 1 - off,
-					"%s %s\n", set[i].payload_hex,
-					set[i].name);
+	for (i = 0; i < n; i++) {
+		int w = strsprintf(listing + off, listing_len + 1 - off,
+				   "%s %s\n", set[i].payload_hex, set[i].name);
+
+		if (w < 0) {
+			xfree(listing, listing_len + 1);
+			memset(set_digest, 0, 32);
+			memset(event, 0, 32);
+			return;
+		}
+		off += (size_t)w;
+	}
 	shirudo_sha256(listing, listing_len, set_digest);
 	xfree(listing, listing_len + 1);
 
@@ -152,14 +161,15 @@ void chain_fold(__u8 chain[32], const __u8 event[32])
 		memset(chain, 0, 32);
 }
 
-void chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
-		  char *out, size_t cap)
+int chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+		 char *out, size_t cap)
 {
 	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
 
 	hex_encode(name, SHIRUDO_TPM_NAME_LEN, hex);
-	snprintf(out, cap, "nvpcr-init:%s:0x%x:%s", SHIRUDO_CHAIN_NAME,
-		 SHIRUDO_NV_INDEX, hex);
+	return strsprintf(out, cap, "nvpcr-init:%s:0x%x:%s",
+			  SHIRUDO_CHAIN_NAME, SHIRUDO_NV_INDEX, hex) < 0 ?
+	       -E2BIG : 0;
 }
 
 /* The binding PCR values in PCR order, as PolicyPCR hashes them. */
@@ -278,8 +288,10 @@ int chain_init(const __u8 event[32],
 			memcpy(info->pcr_before, rec.pcr_before, 32);
 			memcpy(info->phase_before, rec.phase_before, 32);
 			memcpy(info->anchor_digest, rec.anchor_digest, 32);
-			chain_anchor(info->name, info->anchor,
-				     sizeof(info->anchor));
+			rc = chain_anchor(info->name, info->anchor,
+					  sizeof(info->anchor));
+			if (rc)
+				goto out;
 			info->initrd = rec.initrd;
 			info->reused = true;
 			goto out;
@@ -305,6 +317,9 @@ int chain_init(const __u8 event[32],
 	register_expectation(info->pcr_before, info->phase_before,
 			     branch_written, branch_init, policy, unwritten,
 			     written);
+	rc = chain_anchor(written, info->anchor, sizeof(info->anchor));
+	if (rc)
+		goto out;
 
 	if (!nv.defined || nv.written || !name_equals(&nv, unwritten)) {
 		rc = register_define(tpm, nv.defined, policy);
@@ -328,7 +343,6 @@ int chain_init(const __u8 event[32],
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	chain_anchor(info->name, info->anchor, sizeof(info->anchor));
 	shirudo_sha256(info->anchor, strlen(info->anchor), info->anchor_digest);
 	rc = tpm_pcr_extend(tpm, SHIRUDO_CHAIN_PCR,
 			    info->anchor_digest);

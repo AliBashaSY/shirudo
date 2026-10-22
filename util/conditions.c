@@ -31,10 +31,11 @@ size_t conditions(const struct shirudo_conditions_input *in,
 		c[n].type = "KeyringSealed";
 		if (!in->keyring_present && in->ksp_seen) {
 			c[n].status = "ALERT";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "pin serial=%lld, the BPF keyring is gone "
-				 "(removed?)",
-				 (__s64)in->keyring_serial_pinned);
+			if (strsprintf(c[n].detail, sizeof(c[n].detail),
+				       "pin serial=%lld, the BPF keyring is "
+				       "gone (removed?)",
+				       (__s64)in->keyring_serial_pinned) < 0)
+				strscpy(c[n].detail, "?", sizeof(c[n].detail));
 		} else if (!in->keyring_present) {
 			c[n].status = "WARN";
 			strscpy(c[n].detail,
@@ -42,17 +43,20 @@ size_t conditions(const struct shirudo_conditions_input *in,
 				sizeof(c[n].detail));
 		} else if (in->ksm_seen && !in->keyring_serial_matches) {
 			c[n].status = "ALERT";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "pin serial=%lld != live serial=%lld (swapped?)",
-				 (__s64)in->keyring_serial_pinned,
-				 (__s64)in->keyring_serial);
+			if (strsprintf(c[n].detail, sizeof(c[n].detail),
+				       "pin serial=%lld != live serial=%lld "
+				       "(swapped?)",
+				       (__s64)in->keyring_serial_pinned,
+				       (__s64)in->keyring_serial) < 0)
+				strscpy(c[n].detail, "?", sizeof(c[n].detail));
 		} else {
 			c[n].status = "OK";
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "serial=%lld in the BPF keyring, %s",
-				 (__s64)in->keyring_serial,
-				 in->ksp_seen ? "pin matches"
-					      : "no pin recorded");
+			if (strsprintf(c[n].detail, sizeof(c[n].detail),
+				       "serial=%lld in the BPF keyring, %s",
+				       (__s64)in->keyring_serial,
+				       in->ksp_seen ? "pin matches" :
+				       "no pin recorded") < 0)
+				strscpy(c[n].detail, "?", sizeof(c[n].detail));
 		}
 		n++;
 	}
@@ -84,17 +88,20 @@ size_t conditions(const struct shirudo_conditions_input *in,
 	if (n < cap) {
 		c[n].type = "TpmMeasured";
 		c[n].status = in->chain_seen ? "OK" : "WARN";
-		if (in->chain_seen)
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "NV index %s readable",
-				 in->nv_index ? in->nv_index : "?");
-		else if (in->tpm_reachable)
-			snprintf(c[n].detail, sizeof(c[n].detail),
-				 "NV index %s not bound this boot",
-				 in->nv_index ? in->nv_index : "?");
-		else
+		if (in->chain_seen) {
+			if (strsprintf(c[n].detail, sizeof(c[n].detail),
+				       "NV index %s readable",
+				       in->nv_index ? in->nv_index : "?") < 0)
+				strscpy(c[n].detail, "?", sizeof(c[n].detail));
+		} else if (in->tpm_reachable) {
+			if (strsprintf(c[n].detail, sizeof(c[n].detail),
+				       "NV index %s not bound this boot",
+				       in->nv_index ? in->nv_index : "?") < 0)
+				strscpy(c[n].detail, "?", sizeof(c[n].detail));
+		} else {
 			strscpy(c[n].detail, "no TPM answered",
 				sizeof(c[n].detail));
+		}
 		n++;
 	}
 	return n;

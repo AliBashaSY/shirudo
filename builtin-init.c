@@ -966,7 +966,9 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0)
+		return -E2BIG;
 	hex_encode(cert_sha, 32, cert_hex);
 	hex_encode(set_digest, 32, set_hex);
 	hex_encode(tree_root, 32, tree_hex);

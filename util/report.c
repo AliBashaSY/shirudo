@@ -11,6 +11,8 @@
 #include <string.h>
 #include <sys/utsname.h>
 
+#include <shirudo/string.h>
+
 #include "json.h"
 #include "log.h"
 #include "malloc.h"
@@ -30,12 +32,14 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 	FILE *f;
 	int rc = 0;
 
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0)
+		return -E2BIG;
 	buf = xmalloc(cap);
 	if (!buf)
 		return -ENOMEM;
 	e = (struct shirudo_json_emit){ .buf = buf, .cap = cap };
 
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
 	errname = r->err ? strerrorname_np(r->err) : NULL;
 
 	json_obj_open(&e);

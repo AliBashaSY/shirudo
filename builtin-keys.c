@@ -120,16 +120,14 @@ static long days_remaining(const ASN1_TIME *not_after)
 	return days;
 }
 
-static void format_expires_in(long days, char *out, size_t out_sz)
+static int format_expires_in(long days, char *out, size_t out_sz)
 {
-	if (days < 0) {
-		snprintf(out, out_sz, "EXPIRED %ld days ago", -days);
-		return;
-	}
+	if (days < 0)
+		return strsprintf(out, out_sz, "EXPIRED %ld days ago", -days);
 	if (days >= 365)
-		snprintf(out, out_sz, "%ldy %ldd", days / 365, days % 365);
-	else
-		snprintf(out, out_sz, "%ldd", days);
+		return strsprintf(out, out_sz, "%ldy %ldd", days / 365,
+				  days % 365);
+	return strsprintf(out, out_sz, "%ldd", days);
 }
 
 static int compute_cert_fpr(X509 *c, __u8 fpr[SHA256_DIGEST_LENGTH])
@@ -181,7 +179,7 @@ static void print_fpr(const char *label, const __u8 *fpr)
  * provider's own name ("ML-DSA-87"), whose parameter set already says
  * everything a bit count would.
  */
-static void format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
+static int format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 {
 	const char *name = EVP_PKEY_get0_type_name(pkey);
 	int id = EVP_PKEY_get_base_id(pkey);
@@ -189,9 +187,9 @@ static void format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 	if (!name)
 		name = "unknown";
 	if (id == EVP_PKEY_RSA || id == EVP_PKEY_EC)
-		snprintf(out, out_sz, "%s-%d", name, EVP_PKEY_get_bits(pkey));
-	else
-		strscpy(out, name, out_sz);
+		return strsprintf(out, out_sz, "%s-%d", name,
+				  EVP_PKEY_get_bits(pkey));
+	return strscpy(out, name, out_sz) < 0 ? -E2BIG : 0;
 }
 
 static int dump_operator_cert(X509 *cert, const char *cert_path,
@@ -687,7 +685,9 @@ static int append_key_event(const char *type, const char *fp_hex,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0)
+		return -E2BIG;
 	hex_encode(event, 32, digest_hex);
 
 	json_obj_open(&e);

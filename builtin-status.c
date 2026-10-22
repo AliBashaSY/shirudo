@@ -237,15 +237,16 @@ static void emit_eventlog_events(struct shirudo_json_emit *e)
 	json_arr_close(e);
 }
 
-static void event_detail(const struct ev_proj *ev, char *out, size_t cap)
+static int event_detail(const struct ev_proj *ev, char *out, size_t cap)
 {
 	if (ev->up_name[0])
-		snprintf(out, cap, "%s payload=%.12s..", ev->up_name,
-			 ev->up_payload);
-	else if (ev->set_digest[0])
-		snprintf(out, cap, "set_digest=%.12s..", ev->set_digest);
-	else
-		out[0] = '\0';
+		return strsprintf(out, cap, "%s payload=%.12s..", ev->up_name,
+				  ev->up_payload);
+	if (ev->set_digest[0])
+		return strsprintf(out, cap, "set_digest=%.12s..",
+				  ev->set_digest);
+	out[0] = '\0';
+	return 0;
 }
 
 static void print_eventlog_table(void)
@@ -654,7 +655,9 @@ int cmd_status(int argc, const char **argv)
 	tamper_rc = tamper_read(&tamper);
 
 	{
-		snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+		if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+			       SHIRUDO_NV_INDEX) < 0)
+			strscpy(nv_index, "?", sizeof(nv_index));
 		if (tpm_tcti(tcti, sizeof(tcti)))
 			strscpy(tcti, "?", sizeof(tcti));
 		chain_rc = chain_status(&cst);

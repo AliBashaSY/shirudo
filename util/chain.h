@@ -68,8 +68,8 @@ int shirudo_chain_fold_checked(__u8 chain[32], const __u8 event[32]);
 void chain_fold(__u8 chain[32], const __u8 event[32]);
 
 /* The PCR record anchoring a register name: nvpcr-init:shirudo:0x..:<name>. */
-void chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
-		  char *out, size_t cap);
+int chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+		 char *out, size_t cap);
 
 struct shirudo_chain_init_info {
 	bool		reused;		/* written and on record */

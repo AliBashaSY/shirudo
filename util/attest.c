@@ -304,7 +304,11 @@ int shirudo_attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0) {
+		rc = -E2BIG;
+		goto out;
+	}
 	hex_encode(nonce, nonce_len, nonce_hex);
 
 	e = (struct shirudo_json_emit){ .buf = *out, .cap = need };
@@ -555,8 +559,9 @@ static int on_record(void *ctx)
 	} else if (!strncmp(p->type, "upatch_", 7)) {
 		strscpy(r->label, p->upatch_name, sizeof(r->label));
 	} else if (!strcmp(p->type, "tree_op")) {
-		snprintf(r->label, sizeof(r->label), "%s %s seq %lld",
-			 p->tree_op, p->tree_id, (__s64)p->tree_seq);
+		if (strsprintf(r->label, sizeof(r->label), "%s %s seq %lld",
+			       p->tree_op, p->tree_id, (__s64)p->tree_seq) < 0)
+			return -E2BIG;
 	} else if (!strncmp(p->type, "key_", 4)) {
 		strscpy(r->label, p->key_fingerprint, sizeof(r->label));
 	}
@@ -595,8 +600,7 @@ static void say(struct reporter *r, bool ok, const char *fmt, ...)
 		r->failed++;
 	if (r->len + 8 >= r->cap)
 		return;
-	n = snprintf(r->buf + r->len, r->cap - r->len, "%s ", ok ? "ok:  " :
-		     "FAIL:");
+	n = strscpy(r->buf + r->len, ok ? "ok:   " : "FAIL: ", r->cap - r->len);
 	if (n > 0)
 		r->len += (size_t)n;
 	va_start(ap, fmt);
@@ -1103,11 +1107,12 @@ int attest_verify(const char *evidence, size_t len,
 
 	{
 		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
+		bool named = !chain_anchor(p->init.name, anchor,
+					   sizeof(anchor));
 
-		chain_anchor(p->init.name, anchor, sizeof(anchor));
 		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
-		say(&rep, ct_eq(anchor_digest, p->init.anchor_digest,
-				32),
+		say(&rep, named && ct_eq(anchor_digest, p->init.anchor_digest,
+					 32),
 		    "anchor: record digest matches the index name");
 		memcpy(pcr_expected, p->init.pcr_before, 32);
 		chain_fold(pcr_expected, anchor_digest);
