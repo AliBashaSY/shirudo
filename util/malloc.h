@@ -9,6 +9,9 @@
 #define SHIRUDO_MALLOC_H
 
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*
  * NULL on failure, never die(): a one-shot CLI reports -ENOMEM up its
@@ -58,8 +61,8 @@ void xstrfree(char *s);
 void libc_free(void *p);
 
 /*
- * The poison sits at the end so that the system declarations pulled in
- * earlier are processed first; util/malloc.c opts out with
+ * Refused once the headers included above have declared them, so that a
+ * later include of those still works; util/malloc.c opts out with
  * SHIRUDO_MALLOC_INTERNAL.
  */
 #ifndef SHIRUDO_MALLOC_INTERNAL

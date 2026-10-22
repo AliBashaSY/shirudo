@@ -9,12 +9,11 @@
 #include <errno.h>
 
 #include "fuzz.h"
+#include "malloc.h"
 #include "tools/shirudo-build/bpm.h"
 #include "tools/shirudo-build/compile.h"
 #include "tools/shirudo-build/package.h"
 #include "tools/shirudo-build/vmlinux.h"
-/* Last: it poisons the libc allocators the headers above declare. */
-#include "malloc.h"
 
 /* What bpm build does with a parsed Beefile is out of reach from here. */
 int shirudo_build_bpm_push(int argc, char **argv)
