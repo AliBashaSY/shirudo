@@ -92,7 +92,9 @@ int shirudo_build_compile(const char *source, const char *output,
 		else
 			strscpy(vmlinux_dir, ".", sizeof(vmlinux_dir));
 	}
-	snprintf(inc_vmlinux, sizeof(inc_vmlinux), "-I%s", vmlinux_dir);
+	if (strsprintf(inc_vmlinux, sizeof(inc_vmlinux), "-I%s",
+		       vmlinux_dir) < 0)
+		return -ENAMETOOLONG;
 
 	push(argv, &n, SHIRUDO_CLANG_PATH);
 	push(argv, &n, "-target");

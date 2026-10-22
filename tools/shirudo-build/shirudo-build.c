@@ -312,8 +312,12 @@ int main(int argc, char **argv)
 			char archive[PATH_MAX];
 			struct shirudo_upatch u;
 
-			snprintf(archive, sizeof(archive), "%s/%s.upatch",
-				 SHIRUDO_UPATCHES_DIR, unload_name);
+			if (strsprintf(archive, sizeof(archive), "%s/%s.upatch",
+				       SHIRUDO_UPATCHES_DIR, unload_name) < 0) {
+				pr_err("archive path too long for '%s'",
+				       unload_name);
+				return 1;
+			}
 			if (upatch_open(archive, &u) == 0) {
 				memcpy(payload_sha256, u.hdr.payload_sha256,
 				       sizeof(payload_sha256));

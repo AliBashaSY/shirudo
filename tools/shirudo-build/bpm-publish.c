@@ -569,7 +569,8 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	}
 	if (strsprintf(tag, sizeof(tag), "upatch-%s-%.16s", id, hex) < 0 || strlen(tag) > 128)
 		return -ENAMETOOLONG;
-	snprintf(title, sizeof(title), "%s.upatch", id);
+	if (strsprintf(title, sizeof(title), "%s.upatch", id) < 0)
+		return -ENAMETOOLONG;
 	rc = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
 			       &layer);
 	if (rc)
@@ -606,7 +607,9 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 		return rc;
 	bpm_copy_string(out->repository, sizeof(out->repository), raw_repository);
 	bpm_copy_string(out->layer_digest, sizeof(out->layer_digest), layer.digest);
-	snprintf(out->payload_sha256, sizeof(out->payload_sha256), "sha256:%s", hex);
+	if (strsprintf(out->payload_sha256, sizeof(out->payload_sha256),
+		       "sha256:%s", hex) < 0)
+		return -E2BIG;
 	return 0;
 }
 

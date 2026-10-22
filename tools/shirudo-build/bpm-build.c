@@ -766,8 +766,9 @@ static void build_stage_close(struct bpm_build_spec *spec)
 
 		if (!u->load_path[0])
 			continue;
-		snprintf(object, sizeof(object), "%s.bpf.o", u->load_path);
-		unlink(object);
+		if (strsprintf(object, sizeof(object), "%s.bpf.o",
+			       u->load_path) >= 0)
+			unlink(object);
 		unlink(u->load_path);
 		unlink(u->unload_path);
 	}
@@ -930,6 +931,12 @@ static int tar_write(struct bpm_tar *tar, const void *data, size_t len)
 	return gzwrite(tar->gz, data, (__u32)len) == (int)len ? 0 : -EIO;
 }
 
+static int tar_octal(__u8 *h, size_t off, size_t size, __u64 value)
+{
+	return strsprintf((char *)h + off, size, "%0*llo", (int)(size - 1),
+			  value) < 0 ? -E2BIG : 0;
+}
+
 static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 		     size_t len, mode_t mode, char type)
 {
@@ -940,18 +947,18 @@ static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 	if (strlen(name) >= 100 || (type == '0' && len > 077777777777ULL))
 		return -ENAMETOOLONG;
 	memcpy(h, name, strlen(name));
-	snprintf((char *)h + 100, 8, "%07o", (__u32)(mode & 07777));
-	snprintf((char *)h + 108, 8, "%07o", 0u);
-	snprintf((char *)h + 116, 8, "%07o", 0u);
-	snprintf((char *)h + 124, 12, "%011o", (__u32)len);
-	snprintf((char *)h + 136, 12, "%011o", 0u);
+	if (tar_octal(h, 100, 8, mode & 07777) || tar_octal(h, 108, 8, 0) ||
+	    tar_octal(h, 116, 8, 0) || tar_octal(h, 124, 12, len) ||
+	    tar_octal(h, 136, 12, 0))
+		return -E2BIG;
 	memset(h + 148, ' ', 8);
 	h[156] = (__u8)type;
 	memcpy(h + 257, "ustar\0", 6);
 	memcpy(h + 263, "00", 2);
 	for (size_t i = 0; i < sizeof(h); i++)
 		sum += h[i];
-	snprintf((char *)h + 148, 8, "%06o ", sum);
+	if (strsprintf((char *)h + 148, 8, "%06o ", sum) < 0)
+		return -E2BIG;
 	if (tar_write(tar, h, sizeof(h)) || tar_write(tar, data, len))
 		return -EIO;
 	if (type == '0' && (len & 511))

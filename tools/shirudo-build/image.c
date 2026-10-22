@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -45,7 +46,7 @@ static int build_image(int argc, char **argv)
 	char **command;
 	ssize_t size;
 	char *slash;
-	int i, n;
+	int i;
 
 	size = readlink("/proc/self/exe", executable, sizeof(executable) - 1);
 	if (size < 0 || (size_t)size >= sizeof(executable) - 1)
@@ -56,16 +57,13 @@ static int build_image(int argc, char **argv)
 	if (!slash)
 		return 1;
 	*slash = '\0';
-	n = snprintf(script, sizeof(script),
-		     "%s/../gen-image/shirudo-gen-verity", directory);
-	if (n < 0 || (size_t)n >= sizeof(script))
+	if (strsprintf(script, sizeof(script),
+		       "%s/../gen-image/shirudo-gen-verity", directory) < 0)
 		return 1;
-	if (access(script, X_OK)) {
-		n = snprintf(script, sizeof(script),
-			     "%s/gen-image/shirudo-gen-verity", directory);
-		if (n < 0 || (size_t)n >= sizeof(script))
-			return 1;
-	}
+	if (access(script, X_OK) &&
+	    strsprintf(script, sizeof(script),
+		       "%s/gen-image/shirudo-gen-verity", directory) < 0)
+		return 1;
 	command = xcalloc((size_t)argc + 2, sizeof(*command));
 	if (!command)
 		return 1;
@@ -87,8 +85,11 @@ static int verify_verity(int data_fd, int hash_fd, const char *root)
 	pid_t pid;
 	int status;
 
-	snprintf(data_path, sizeof(data_path), "/proc/self/fd/%d", data_fd);
-	snprintf(hash_path, sizeof(hash_path), "/proc/self/fd/%d", hash_fd);
+	if (strsprintf(data_path, sizeof(data_path), "/proc/self/fd/%d",
+		       data_fd) < 0 ||
+	    strsprintf(hash_path, sizeof(hash_path), "/proc/self/fd/%d",
+		       hash_fd) < 0)
+		return -ENAMETOOLONG;
 	pid = fork();
 	if (pid < 0)
 		return -errno;
