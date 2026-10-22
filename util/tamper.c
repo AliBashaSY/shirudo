@@ -76,6 +76,8 @@ static const struct {
 		"ptrace of a shirudo task" },
 	[SHIRUDO_TAMPER_SEAL_PERF] = { "SealPerf",
 		"perf event bound to a shirudo task" },
+	[SHIRUDO_TAMPER_EXEC_TRACED] = { "ExecTraced",
+		"exec of shirudo by a traced task" },
 };
 
 const char *tamper_name(enum shirudo_tamper_point point)

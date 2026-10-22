@@ -249,8 +249,14 @@ set-user-ID program does.  The dynamic loader then ignores
 ``LD_PRELOAD``, ``LD_AUDIT``, ``LD_LIBRARY_PATH`` and the other
 variables glibc treats as unsafe, and libraries ignore what they read
 with ``secure_getenv()``, among them OpenSSL's ``OPENSSL_CONF`` and
-``OPENSSL_MODULES``.  The hook runs on every binary handler pass, so
-a script that names shirudo as its interpreter gets the same.
+``OPENSSL_MODULES``.  The same hook refuses the exec, counted as
+``ExecTraced``, when the task is traced (``LSM_UNSAFE_PTRACE``): a
+tracer that carries over into the new image, set up with
+``PTRACE_TRACEME`` or attached to the parent, would own it, and the
+seal's ptrace guard only stops a tracer attaching later.  ``strace``
+and ``gdb`` therefore cannot start shirudo on a target.  The hook runs
+on every binary handler pass, so a script that names shirudo as its
+interpreter gets the same.
 
 ``lsm/bpf_prog_load`` runs after the kernel's signature check and admits
 a program only when the verdict is ``BPF_SIG_VERIFIED`` and the

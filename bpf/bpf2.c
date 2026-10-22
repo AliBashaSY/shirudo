@@ -26,6 +26,7 @@
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif
+#define LSM_UNSAFE_PTRACE	2
 #define PR_SET_MM		35
 #define PR_SET_MM_EXE_FILE	13
 #define PR_SET_MM_MAP		14
@@ -180,8 +181,11 @@ int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
 	if (ret)
 		return ret;
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
-	if (id && shirudo_file_is_self(id, bprm->file))
-		bpf_bprm_opts_set(bprm, BPF_F_BPRM_SECUREEXEC);
+	if (!id || !shirudo_file_is_self(id, bprm->file))
+		return 0;
+	if (BPF_CORE_READ(bprm, unsafe) & LSM_UNSAFE_PTRACE)
+		return shirudo_tamper_deny(SHIRUDO_TAMPER_EXEC_TRACED, -EPERM);
+	bpf_bprm_opts_set(bprm, BPF_F_BPRM_SECUREEXEC);
 	return 0;
 }
 
