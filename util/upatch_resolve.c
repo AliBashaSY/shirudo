@@ -139,9 +139,10 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 			xfree(path, path_size);
 			return -EINVAL;
 		}
-		snprintf(out, cap, "uprobe.multi/%s (%u funcs)", path, count);
+		rc = strsprintf(out, cap, "uprobe.multi/%s (%u funcs)", path,
+				count) < 0 ? -E2BIG : 0;
 		xfree(path, path_size);
-		return 0;
+		return rc;
 	}
 	close(link_fd);
 	if (linfo.type == BPF_LINK_TYPE_TRACING)
@@ -184,9 +185,9 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 		attach_name += 8;
 
 	if (attach_name && *attach_name)
-		snprintf(out, cap, "%s/%s", prefix, attach_name);
-	else
-		strscpy(out, prefix, cap);
+		return strsprintf(out, cap, "%s/%s", prefix, attach_name) < 0 ?
+		       -E2BIG : 0;
+	strscpy(out, prefix, cap);
 	return 0;
 }
 

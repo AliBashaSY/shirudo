@@ -343,7 +343,11 @@ static void lua_json_emit_key(lua_State *L, int idx, struct json_out *out)
 		json_put_string(out, s ? s : "", n);
 		break;
 	case LUA_TNUMBER:
-		snprintf(num, sizeof(num), "%.17g", (double)lua_tonumber(L, idx));
+		if (strsprintf(num, sizeof(num), "%.17g",
+			       (double)lua_tonumber(L, idx)) < 0) {
+			out->err = -E2BIG;
+			break;
+		}
 		json_put_string(out, num, strlen(num));
 		break;
 	case LUA_TBOOLEAN:
@@ -485,12 +489,19 @@ static int lua_otel_emit_value(lua_State *L, int idx, struct json_out *out,
 		}
 		if (shirudo_trunc(value) == value &&
 		    fabs(value) <= max_exact_integer) {
-			snprintf(num, sizeof(num), "%.0f", value == 0 ? 0 : value);
+			if (strsprintf(num, sizeof(num), "%.0f",
+				       value == 0 ? 0 : value) < 0) {
+				out->err = -E2BIG;
+				break;
+			}
 			json_puts(out, "{\"intValue\":");
 			json_put_string(out, num, strlen(num));
 			json_putc(out, '}');
 		} else {
-			snprintf(num, sizeof(num), "%.17g", value);
+			if (strsprintf(num, sizeof(num), "%.17g", value) < 0) {
+				out->err = -E2BIG;
+				break;
+			}
 			json_puts(out, "{\"doubleValue\":");
 			json_puts(out, num);
 			json_putc(out, '}');
@@ -538,7 +549,11 @@ static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
 			out->err = -EINVAL;
 			break;
 		}
-		snprintf(num, sizeof(num), "%.17g", (double)lua_tonumber(L, idx));
+		if (strsprintf(num, sizeof(num), "%.17g",
+			       (double)lua_tonumber(L, idx)) < 0) {
+			out->err = -E2BIG;
+			break;
+		}
 		json_puts(out, num);
 		break;
 	case LUA_TSTRING:
@@ -670,8 +685,10 @@ static int lua_slot_u64(lua_State *L)
 
 	if (off >= 0 && off <= (int)slot->len - 8)
 		v = rd_u64(slot->data + off);
-	snprintf(buf, sizeof(buf), "%llu", v);
-	lua_pushstring(L, buf);
+	if (strsprintf(buf, sizeof(buf), "%llu", v) < 0)
+		lua_pushnil(L);
+	else
+		lua_pushstring(L, buf);
 	return 1;
 }
 
@@ -1008,8 +1025,10 @@ static void lua_push_u64_string(lua_State *L, __u64 value)
 {
 	char buf[32];
 
-	snprintf(buf, sizeof(buf), "%llu", value);
-	lua_pushstring(L, buf);
+	if (strsprintf(buf, sizeof(buf), "%llu", value) < 0)
+		lua_pushnil(L);
+	else
+		lua_pushstring(L, buf);
 }
 
 static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)

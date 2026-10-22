@@ -1037,7 +1037,11 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 			close(path_fd);
 			return -ESTALE;
 		}
-		snprintf(proc_path, sizeof(proc_path), "/proc/self/fd/%d", path_fd);
+		if (strsprintf(proc_path, sizeof(proc_path), "/proc/self/fd/%d",
+			       path_fd) < 0) {
+			close(path_fd);
+			return -E2BIG;
+		}
 		fd = open(proc_path, O_RDONLY | O_CLOEXEC);
 		close(path_fd);
 		if (fd < 0)
@@ -1972,7 +1976,9 @@ static int format_upatch_event(const char *type, const char *name,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0)
+		return -E2BIG;
 	hex_encode(payload, 32, payload_hex);
 	hex_encode(event, 32, digest_hex);
 
@@ -2160,7 +2166,8 @@ static int copy_file_atomic(const char *src, const char *dst)
 	int in, out, dir, rc = 0;
 	ssize_t r;
 
-	snprintf(tmp, sizeof(tmp), "%s.new", dst);
+	if (strsprintf(tmp, sizeof(tmp), "%s.new", dst) < 0)
+		return -ENAMETOOLONG;
 	in = open(src, O_RDONLY | O_CLOEXEC);
 	if (in < 0)
 		return -errno;

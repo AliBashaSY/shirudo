@@ -287,8 +287,9 @@ static void btf_type_signature_into(const struct btf *btf, __u32 id,
 		char nbuf[32];
 
 		append_str(buf, cap, off, en && en[0] ? en : "?");
-		snprintf(nbuf, sizeof(nbuf), "[%u]", a->nelems);
-		append_str(buf, cap, off, nbuf);
+		append_str(buf, cap, off,
+			   strsprintf(nbuf, sizeof(nbuf), "[%u]", a->nelems) < 0 ?
+			   "[?]" : nbuf);
 		return;
 	}
 	if (kind == BTF_KIND_ENUM || kind == BTF_KIND_ENUM64) {

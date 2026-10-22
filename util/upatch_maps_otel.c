@@ -181,8 +181,9 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 		return 0;
 	}
 	*signal = SHIRUDO_OTEL_METRIC;
-	snprintf(reason, reason_sz, "unsigned per-CPU %u-bit scalar",
-		 mt.width * 8);
+	if (strsprintf(reason, reason_sz, "unsigned per-CPU %u-bit scalar",
+		       mt.width * 8) < 0)
+		return -E2BIG;
 	return 0;
 }
 
@@ -202,7 +203,10 @@ static void otlp_kv_int(struct shirudo_json_emit *e, const char *key,
 {
 	char num[32];
 
-	snprintf(num, sizeof(num), "%lld", value);
+	if (strsprintf(num, sizeof(num), "%lld", value) < 0) {
+		e->err = -E2BIG;
+		return;
+	}
 	json_obj_open(e);
 	json_kv_string(e, "key", key);
 	json_obj_open_key(e, "value");
@@ -615,9 +619,9 @@ static __u64 realtime_ns(void)
 	return (__u64)ts.tv_sec * 1000000000ULL + (__u64)ts.tv_nsec;
 }
 
-static void u64_decimal(__u64 value, char out[32])
+static int u64_decimal(__u64 value, char out[32])
 {
-	snprintf(out, 32, "%llu", value);
+	return strsprintf(out, 32, "%llu", value);
 }
 
 static void emit_log_map_data(struct shirudo_json_emit *e,
@@ -912,7 +916,6 @@ static int metric_name(const struct otel_state *st,
 		       const struct shirudo_map_view *v, char out[256])
 {
 	size_t i;
-	int n;
 
 	if (st->opts.metric_name) {
 		if (!valid_metric_name(st->opts.metric_name))
@@ -921,8 +924,7 @@ static int metric_name(const struct otel_state *st,
 			return -ENAMETOOLONG;
 		return 0;
 	}
-	n = snprintf(out, 256, "shirudo.%s.%s", v->upatch, v->name);
-	if (n < 0 || n >= 256)
+	if (strsprintf(out, 256, "shirudo.%s.%s", v->upatch, v->name) < 0)
 		return -ENAMETOOLONG;
 	for (i = 0; out[i]; i++) {
 		__u8 c = (__u8)out[i];
@@ -945,9 +947,8 @@ static int map_start_ns(const struct shirudo_map_view *v, __u64 *out)
 	}
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), v->upatch))
 		return -ENAMETOOLONG;
-	if ((size_t)snprintf(path, sizeof(path), "%s/%s",
-			     SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >=
-	    sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s",
+		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	if (stat(path, &st) != 0)
 		return -errno;
@@ -1051,7 +1052,10 @@ static __attribute__((unused)) int build_metric_payload(const struct otel_state 
 			xfree(buf, SHIRUDO_JSON_MAX_BYTES);
 			return rc;
 		}
-		snprintf(value, sizeof(value), "%lld", point);
+		if (strsprintf(value, sizeof(value), "%lld", point) < 0) {
+			xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+			return -E2BIG;
+		}
 		key = upatch_map_format_cell(v, v->key_type_id,
 					     en->key, v->key_size, v->btf_key_type);
 		json_obj_open(&e);
@@ -1160,30 +1164,30 @@ static const char *signal_path(enum shirudo_otel_signal signal)
 	return signal == SHIRUDO_OTEL_LOG ? "v1/logs" : "v1/metrics";
 }
 
-static const char *otel_env(enum shirudo_otel_signal signal,
-			    const char *suffix)
-{
-	char name[128];
-	const char *value;
-
-	snprintf(name, sizeof(name), "OTEL_EXPORTER_OTLP_%s_%s",
-		 signal_name(signal), suffix);
-	value = getenv(name);
-	if (value && value[0])
-		return value;
-	snprintf(name, sizeof(name), "OTEL_EXPORTER_OTLP_%s", suffix);
-	value = getenv(name);
-	return value && value[0] ? value : NULL;
-}
-
 static const char *otel_signal_env(enum shirudo_otel_signal signal,
 				   const char *suffix)
 {
 	char name[128];
 	const char *value;
 
-	snprintf(name, sizeof(name), "OTEL_EXPORTER_OTLP_%s_%s",
-		 signal_name(signal), suffix);
+	if (strsprintf(name, sizeof(name), "OTEL_EXPORTER_OTLP_%s_%s",
+		       signal_name(signal), suffix) < 0)
+		return NULL;
+	value = getenv(name);
+	return value && value[0] ? value : NULL;
+}
+
+static const char *otel_env(enum shirudo_otel_signal signal,
+			    const char *suffix)
+{
+	const char *value = otel_signal_env(signal, suffix);
+	char name[128];
+
+	if (value)
+		return value;
+	if (strsprintf(name, sizeof(name), "OTEL_EXPORTER_OTLP_%s",
+		       suffix) < 0)
+		return NULL;
 	value = getenv(name);
 	return value && value[0] ? value : NULL;
 }
@@ -1191,10 +1195,9 @@ static const char *otel_signal_env(enum shirudo_otel_signal signal,
 static int append_signal_path(const char *base, enum shirudo_otel_signal signal,
 			      char *out, size_t out_sz)
 {
-	const char *tail;
 	size_t prefix_len;
 	const char *slash;
-	int n;
+	const char *tail;
 
 	if (!base || !base[0])
 		return -EINVAL;
@@ -1203,10 +1206,9 @@ static int append_signal_path(const char *base, enum shirudo_otel_signal signal,
 	if (prefix_len == 0)
 		return -EINVAL;
 	slash = base[prefix_len - 1] == '/' ? "" : "/";
-	n = snprintf(out, out_sz, "%.*s%s%s%s", (int)prefix_len, base,
-		     slash, signal_path(signal), tail ? tail : "");
-
-	return n < 0 || (size_t)n >= out_sz ? -ENAMETOOLONG : 0;
+	return strsprintf(out, out_sz, "%.*s%s%s%s", (int)prefix_len, base,
+			  slash, signal_path(signal), tail ? tail : "") < 0 ?
+	       -ENAMETOOLONG : 0;
 }
 
 static int resolve_endpoint(struct otel_state *st, const char *spec,
@@ -1433,8 +1435,8 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 			rc = -ENOMEM;
 			break;
 		}
-		snprintf(line, n, "%s: %s", name, value);
-		rc = append_header(st, line);
+		rc = strsprintf(line, n, "%s: %s", name, value) < 0 ? -E2BIG :
+		     append_header(st, line);
 		explicit_bzero(line, n);
 		xfree(line, n);
 		if (rc)
@@ -1489,8 +1491,9 @@ static int configure_state(struct otel_state *st, const char *spec,
 	{
 		char line[sizeof("X-Tenant-ID: ") + SHIRUDO_TENANT_ID_MAX];
 
-		snprintf(line, sizeof(line), "X-Tenant-ID: %s",
-			 st->opts.tenant_id);
+		if (strsprintf(line, sizeof(line), "X-Tenant-ID: %s",
+			       st->opts.tenant_id) < 0)
+			return -E2BIG;
 		return append_header(st, line);
 	}
 }
@@ -2082,13 +2085,12 @@ static int snapshot_temp_file(FILE **out)
 	const char *tmpdir = getenv("TMPDIR");
 	char path[PATH_MAX];
 	FILE *file;
-	int fd, n;
+	int fd;
 
 	if (!tmpdir || !tmpdir[0])
 		tmpdir = "/tmp";
-	n = snprintf(path, sizeof(path), "%s/%s", tmpdir,
-		     "shirudo-map-snapshot.XXXXXX");
-	if (n < 0 || (size_t)n >= sizeof(path))
+	if (strsprintf(path, sizeof(path), "%s/%s", tmpdir,
+		       "shirudo-map-snapshot.XXXXXX") < 0)
 		return -ENAMETOOLONG;
 	fd = mkstemp(path);
 	if (fd < 0)
@@ -2378,7 +2380,9 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 	if (!st->credentials)
 		return -ENOMEM;
 	st->credentials_len = credentials_len;
-	snprintf(st->credentials, credentials_len, "%s:%s", access, secret);
+	if (strsprintf(st->credentials, credentials_len, "%s:%s", access,
+		       secret) < 0)
+		return -E2BIG;
 	st->session_token = getenv("AWS_SESSION_TOKEN");
 	if (st->session_token &&
 	    (!st->session_token[0] || strpbrk(st->session_token, "\r\n")))
@@ -2498,29 +2502,26 @@ static int build_s3_urls(const struct otel_s3_state *st,
 		strscpy(hostname, "unknown", sizeof(hostname));
 	hostname[sizeof(hostname) - 1] = '\0';
 	safe_key_segment(hostname);
-	n = snprintf(key, sizeof(key), "%s%s%s/%s/%s/%s.json.gz",
-		     st->prefix, st->prefix[0] ? "/" : "", hostname,
-		     v->upatch, v->name, snapshot->sha256_hex);
-	if (n < 0 || (size_t)n >= sizeof(key))
-		return -ENAMETOOLONG;
-	if ((size_t)n > S3_KEY_MAX)
+	n = strsprintf(key, sizeof(key), "%s%s%s/%s/%s/%s.json.gz",
+		       st->prefix, st->prefix[0] ? "/" : "", hostname,
+		       v->upatch, v->name, snapshot->sha256_hex);
+	if (n < 0 || (size_t)n > S3_KEY_MAX)
 		return -ENAMETOOLONG;
 	rc = escape_s3_path(key, escaped, sizeof(escaped));
 	if (rc)
 		return rc;
-	n = snprintf(uri, uri_sz, "s3://%s/%s", st->bucket, escaped);
-	if (n < 0 || (size_t)n >= uri_sz)
+	if (strsprintf(uri, uri_sz, "s3://%s/%s", st->bucket, escaped) < 0)
 		return -ENAMETOOLONG;
 	if (st->custom_endpoint)
-		n = snprintf(url, url_sz, "%s/%s/%s", st->endpoint,
-			     st->bucket, escaped);
+		n = strsprintf(url, url_sz, "%s/%s/%s", st->endpoint,
+			       st->bucket, escaped);
 	else if (strchr(st->bucket, '.'))
-		n = snprintf(url, url_sz, "https://s3.%s.amazonaws.com/%s/%s",
-			     st->region, st->bucket, escaped);
+		n = strsprintf(url, url_sz, "https://s3.%s.amazonaws.com/%s/%s",
+			       st->region, st->bucket, escaped);
 	else
-		n = snprintf(url, url_sz, "https://%s.s3.%s.amazonaws.com/%s",
-			     st->bucket, st->region, escaped);
-	return n < 0 || (size_t)n >= url_sz ? -ENAMETOOLONG : 0;
+		n = strsprintf(url, url_sz, "https://%s.s3.%s.amazonaws.com/%s",
+			       st->bucket, st->region, escaped);
+	return n < 0 ? -ENAMETOOLONG : 0;
 }
 
 static int s3_header(struct curl_slist **headers, const char *line)
@@ -2553,13 +2554,15 @@ static int s3_headers(const struct otel_s3_state *st,
 	};
 	int rc;
 
-	snprintf(sha256, sizeof(sha256), "x-amz-content-sha256: %s",
-		 snapshot->sha256_hex);
-	snprintf(checksum, sizeof(checksum), "x-amz-checksum-sha256: %s",
-		 snapshot->sha256_b64);
-	snprintf(upatch, sizeof(upatch), "x-amz-meta-shirudo-upatch: %s",
-		 v->upatch);
-	snprintf(map, sizeof(map), "x-amz-meta-shirudo-map: %s", v->name);
+	if (strsprintf(sha256, sizeof(sha256), "x-amz-content-sha256: %s",
+		       snapshot->sha256_hex) < 0 ||
+	    strsprintf(checksum, sizeof(checksum), "x-amz-checksum-sha256: %s",
+		       snapshot->sha256_b64) < 0 ||
+	    strsprintf(upatch, sizeof(upatch), "x-amz-meta-shirudo-upatch: %s",
+		       v->upatch) < 0 ||
+	    strsprintf(map, sizeof(map), "x-amz-meta-shirudo-map: %s",
+		       v->name) < 0)
+		return -E2BIG;
 	for (size_t i = 0; i < ARRAY_SIZE(lines); i++) {
 		rc = s3_header(out, lines[i]);
 		if (rc)
@@ -2573,9 +2576,9 @@ static int s3_headers(const struct otel_s3_state *st,
 
 		if (!token)
 			return -ENOMEM;
-		snprintf(token, len, "x-amz-security-token: %s",
-			 st->session_token);
-		rc = s3_header(out, token);
+		rc = strsprintf(token, len, "x-amz-security-token: %s",
+				st->session_token) < 0 ? -E2BIG :
+		     s3_header(out, token);
 		xfree(token, len);
 		if (rc)
 			return rc;
@@ -2605,8 +2608,7 @@ static int s3_put(struct otel_s3_state *st,
 		curl_slist_free_all(headers);
 		return rc;
 	}
-	if (snprintf(sigv4, sizeof(sigv4), "aws:amz:%s:s3", st->region) >=
-	    (int)sizeof(sigv4)) {
+	if (strsprintf(sigv4, sizeof(sigv4), "aws:amz:%s:s3", st->region) < 0) {
 		rc = -ENAMETOOLONG;
 		goto out;
 	}
@@ -2693,15 +2695,17 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 {
 	struct shirudo_json_emit e = {};
 	char now[32], description[S3_URL_MAX + 64];
-	char *buf = xmalloc(S3_REFERENCE_MAX);
+	char *buf;
 
+	if (strsprintf(description, sizeof(description),
+		       "BPF map snapshot stored in S3: %s", uri) < 0)
+		return -E2BIG;
+	buf = xmalloc(S3_REFERENCE_MAX);
 	if (!buf)
 		return -ENOMEM;
 	e.buf = buf;
 	e.cap = S3_REFERENCE_MAX;
 	u64_decimal(realtime_ns(), now);
-	snprintf(description, sizeof(description),
-		 "BPF map snapshot stored in S3: %s", uri);
 	json_obj_open(&e);
 	json_arr_open(&e, "resourceLogs");
 	json_obj_open(&e);
