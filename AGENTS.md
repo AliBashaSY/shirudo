@@ -93,14 +93,19 @@ before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
   base prefix. `<shirudo/string.h>` poisons `strtoul()` and its kin and
   `atoi()`, and `check-style.sh` rejects them outside `testing/`.
 - **Copy strings with `strscpy()` and format into a fixed buffer with
-  `strsprintf()`**, both from `<shirudo/string.h>`: `strscpy()` always
-  terminates and returns `-E2BIG` when it cut, which a caller checks
-  wherever a cut path or name would mean a different one, and
-  `strsprintf()` returns `-E2BIG` with the buffer left empty rather than
-  a cut path, in place of comparing `snprintf()` with the size by hand.
-  `<shirudo/string.h>` poisons `strcpy()`, `strncpy()` and their kin and
-  `sprintf()` and `vsprintf()`, and `check-style.sh` rejects the copies
-  and a `snprintf(dst, size, "%s", src)` copy outside `testing/`.
+  `strsprintf()`**, or `vstrsprintf()` from a `va_list`, all from
+  `<shirudo/string.h>`: `strscpy()` always terminates and returns
+  `-E2BIG` when it cut, which a caller checks wherever a cut path or name
+  would mean a different one, and `strsprintf()` returns `-E2BIG` with
+  the buffer left empty rather than a cut value, and its result must be
+  used: a path or value is refused, a helper that formats display text
+  returns it, and status shows `"?"` for a field it cannot fill. Bytes
+  are hex-encoded with `hex_encode()` and constant text is copied, not
+  formatted. `<shirudo/string.h>` poisons `strcpy()`,
+  `strncpy()` and their kin and `sprintf()`, `snprintf()` and their
+  `va_list` forms, which only `util/string.c` and the `xasprintf()` of
+  `util/malloc.c` call, and `check-style.sh` rejects them outside
+  `testing/`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
