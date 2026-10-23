@@ -4,9 +4,9 @@
 #ifndef SHIRUDO_TEST_IMAGE_FAULT_H
 #define SHIRUDO_TEST_IMAGE_FAULT_H
 
-#include <shirudo/misc.h>
-
 #include <tss2/tss2_esys.h>
+
+#include <shirudo/misc.h>
 
 #include "util/image_guards.h"
 

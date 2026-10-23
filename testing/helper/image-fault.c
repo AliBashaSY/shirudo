@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <shirudo/misc.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/fs.h>
@@ -14,6 +12,9 @@
 #include <unistd.h>
 
 #include <bpf/bpf.h>
+#include <tss2/tss2_esys.h>
+
+#include <shirudo/misc.h>
 
 #include "image-fault.h"
 #include "util/config_image.h"
