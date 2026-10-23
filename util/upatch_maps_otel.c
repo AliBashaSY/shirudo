@@ -24,13 +24,13 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 
-#include <shirudo/misc.h>
-#include <shirudo/string.h>
-#include <shirudo/upatch.h>
-
 #include <bpf/btf.h>
 #include <curl/curl.h>
 #include <zlib.h>
+
+#include <shirudo/misc.h>
+#include <shirudo/string.h>
+#include <shirudo/upatch.h>
 
 #include "crypto.h"
 #include "hex.h"
