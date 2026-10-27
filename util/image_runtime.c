@@ -776,7 +776,8 @@ int shirudo_image_boot_keys(struct shirudo_trusted_set *set)
 			break;
 	if (i == set->n) {
 		if (set->n == SHIRUDO_KEYS_MAX)
-			return -E2BIG;
+			return boot_keys_error("add runtime certificate to "
+					       "trusted set", -E2BIG);
 		set->certs[set->n++] = primary;
 	}
 	image.boot_target_valid = true;
