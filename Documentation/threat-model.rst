@@ -178,8 +178,11 @@ T3  Tampering with shirudo's files and process
     writers hold the parent directory open to populate and retain that
     mark, open nothing in sealed state through a symbolic link, and take
     no entry without the label for shirudo's own: ``init`` labels the
-    tree on its first run and afterwards ignores a foreign entry rather
-    than labelling, following, restoring or failing on it. Directory
+    tree on the run that brings enforcement up and afterwards ignores a
+    foreign entry rather than labelling, following, restoring or
+    failing on it, and refuses a state root without the label once
+    enforcement is live, since root could bind a tree of its own over
+    the path in a mount namespace and have it labelled. Directory
     eviction remains subject to residual risk 15; existing writable
     references are not revoked.
     The authority the seal grants shirudo is not root's to aim: a path

@@ -87,7 +87,14 @@ static int seal_label_cb(const char *path, const struct stat *sb,
 	return 0;
 }
 
-int seal_label_tree(void)
+/*
+ * The first labelling is the bootstrap's alone, before enforcement is
+ * live: with the hooks attached, a state root without the label is not
+ * the one init sealed but a tree bound over its path, in a mount
+ * namespace of root's say, and labelling it would hand root inodes the
+ * seal takes for shirudo's own.
+ */
+int seal_label_tree(bool allow_first)
 {
 	char label[SEAL_LABEL_LEN];
 	struct stat st;
@@ -97,6 +104,11 @@ int seal_label_tree(void)
 	seal_root_dev = st.st_dev;
 	seal_walk_error = 0;
 	seal_first_init = seal_lget(SHIRUDO_VAR_LIB, label) <= 0;
+	if (seal_first_init && !allow_first) {
+		pr_err("seal: %s carries no label with enforcement live "
+		       "(foreign state tree); refusing", SHIRUDO_VAR_LIB);
+		return -EPERM;
+	}
 	if (nftw(SHIRUDO_VAR_LIB, seal_label_cb, 16, FTW_PHYS | FTW_MOUNT) != 0)
 		return seal_walk_error ? seal_walk_error : -errno;
 	return 0;

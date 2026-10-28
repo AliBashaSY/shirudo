@@ -30,7 +30,7 @@ int seal_label(const char *path);
  * a kind shirudo never makes is someone else's and is ignored. Stop on
  * the first failed label; partial sealing is an init failure.
  */
-int seal_label_tree(void);
+int seal_label_tree(bool allow_first);
 
 /*
  * Creating under a sealed directory. The directory decides: an inode

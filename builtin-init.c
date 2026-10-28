@@ -1335,10 +1335,15 @@ static int run_init(void)
 {
 	struct shirudo_measured_upatch *set = NULL;
 	struct shirudo_eventlog_init rec;
-	bool recorded;
+	bool recorded, bootstrap;
 	size_t n = 0;
 	int rc;
 
+	/* Only the run that brings enforcement up may label an unlabelled tree. */
+	rc = shirudo_enforcement_active();
+	if (rc < 0)
+		return init_phase_error(rc, "reading the enforcement state");
+	bootstrap = rc == 0;
 	rc = init_bpffs();
 	if (rc)
 		return init_phase_error(rc, "private bpffs setup");
@@ -1351,7 +1356,7 @@ static int run_init(void)
 		return init_phase_error(rc, "closing the boot key image");
 
 	/* Seal writable state before the hooks attach, then adopt the initrd log. */
-	rc = seal_label_tree();
+	rc = seal_label_tree(bootstrap);
 	if (rc)
 		return init_phase_error(rc, "sealing persistent state");
 	rc = eventlog_adopt_pending();
@@ -1362,7 +1367,7 @@ static int run_init(void)
 	if (rc)
 		return init_phase_error(rc, "loading enforcement");
 
-	rc = seal_label_tree();
+	rc = seal_label_tree(bootstrap);
 	if (rc)
 		return init_phase_error(rc, "sealing initialized state");
 	rc = shirudo_image_runtime_mount();
