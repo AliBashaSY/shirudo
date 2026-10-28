@@ -740,7 +740,7 @@ int attest_verify(const char *evidence, size_t len,
 	struct parse *p;
 	size_t ak_public_len, ak_name_len, nonce_len, attest_len;
 	size_t reg_name_len, reg_value_len, cred_len = 0, i, runtime = 0;
-	__u32 reg_index;
+	__u64 reg_index;
 	__u32 bit;
 	bool have_ek = false, have_cred = false;
 	int rc = 0, qrc = -1, crc = -1;
@@ -1043,7 +1043,9 @@ int attest_verify(const char *evidence, size_t len,
 	    reg_name_len != SHIRUDO_TPM_NAME_LEN ||
 	    hex_bytes(p->reg_value_hex, reg_value, sizeof(reg_value),
 		      &reg_value_len) || reg_value_len != 32 ||
-	    sscanf(p->reg_index, "0x%x", &reg_index) != 1 ||
+	    strncmp(p->reg_index, "0x", 2) ||
+	    parse_x64(p->reg_index + 2, strlen(p->reg_index + 2), 0xffffffffULL,
+		      &reg_index) ||
 	    p->reg_pcr < 0 || p->reg_pcr >= 24) {
 		rc = -EINVAL;
 		goto out;
