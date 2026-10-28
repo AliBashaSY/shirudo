@@ -296,11 +296,12 @@ static __always_inline int handle_nv_keyring(const struct shirudo_sb_id *id,
 }
 
 /*
- * The trust anchor in the kernel's keyrings: the keyring init froze
- * and the keys it holds. Root owns the bpf keyring with write and
- * setattr permission, so without this hook a single keyctl could
- * unlink, clear, revoke or invalidate the certificates every load is
- * verified against. Deny those needs to every task but shirudo. A
+ * The trust anchors in the kernel's keyrings: the bpf and dm-verity
+ * keyrings init froze and the keys they hold. Root owns both with write
+ * and setattr permission, so without this hook a single keyctl could
+ * unlink, clear, revoke or invalidate the certificates every load and
+ * every config root is verified against. Deny those needs to every
+ * task but shirudo. A
  * search is denied only through an unpossessed reference, which is
  * how keyctl reaches a key by serial to invalidate it; the kernel
  * verifies a signature by searching the keyring it possesses, and
@@ -340,7 +341,8 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	if (id->keyring_serial == 0)
 		return 0;
 	possessed = (unsigned long)key_ref & 1;
-	if (serial != id->keyring_serial) {
+	if (serial != id->keyring_serial && serial != id->dm_verity_ring &&
+	    serial != id->dm_verity_key) {
 		for (i = 0; i < SHIRUDO_IDENTITY_KEYS_MAX; i++)
 			if (i < id->n_keys && id->key_serials[i] == serial)
 				break;

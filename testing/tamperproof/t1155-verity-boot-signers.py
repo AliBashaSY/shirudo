@@ -87,10 +87,19 @@ def expect_error(expected, number, *arguments):
         raise AssertionError(f"syscall {number} unexpectedly succeeded")
 
 
+def proc_keys_serial(name):
+    serials = [int(line.split()[0], 16)
+               for line in Path("/proc/keys").read_text().splitlines()
+               if line.split()[7:9] == ["keyring", name + ":"]]
+    require(len(serials) == 1, f"expected one {name} keyring: {serials}")
+    return serials[0]
+
+
 def config_keyring():
     special = -10  # KEY_SPEC_DM_VERITY_KEYRING
-    serial = syscall(KEYCTL, 0, special, 0, 0, 0)
-    require(serial > 0, "dm-verity special ID did not resolve")
+    # GET_KEYRING_ID requests unpossessed SEARCH, which the guard denies.
+    expect_error(errno.EACCES, KEYCTL, 0, special, 0, 0, 0)
+    serial = proc_keys_serial(".dm-verity")
     identity = describe(special)
     require(identity[0] == "keyring" and identity[4] == ".dm-verity",
             identity)
@@ -109,13 +118,14 @@ def config_keyring():
     name = ctypes.create_string_buffer(b".dm-verity")
     expect_error(errno.EPERM, ADD_KEY, ctypes.addressof(key_type),
                  ctypes.addressof(name), 0, 0, -1)
-    expect_error(errno.EEXIST, KEYCTL, 29, special, 0, 0, 0)
+    # The guard denies setattr and write before the restriction is reached.
+    expect_error(errno.EACCES, KEYCTL, 29, special, 0, 0, 0)
     key_type = ctypes.create_string_buffer(b"asymmetric")
     der = (FIXTURES / "live.der").read_bytes()
     payload = ctypes.create_string_buffer(der)
-    expect_error(errno.EPERM, ADD_KEY, ctypes.addressof(key_type), 0,
+    expect_error(errno.EACCES, ADD_KEY, ctypes.addressof(key_type), 0,
                  ctypes.addressof(payload), len(der), special)
-    require(syscall(KEYCTL, 0, special, 0, 0, 0) == serial,
+    require(proc_keys_serial(".dm-verity") == serial,
             "dm-verity serial changed")
     after_length = syscall(KEYCTL, 11, special, ctypes.addressof(buffer),
                            len(buffer), 0)

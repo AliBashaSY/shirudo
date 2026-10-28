@@ -22,6 +22,8 @@ struct shirudo_sb_id {
 	__u8	nv_writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
 	__u8	ak_name[SHIRUDO_TPM_NAME_LEN];
 	__u32	ak_name_len;
+	__s32	dm_verity_ring;
+	__s32	dm_verity_key;
 };
 
 struct {

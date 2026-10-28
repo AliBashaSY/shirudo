@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t1125 -- the trust anchor in the kernel's keyrings is root's to look
+# t1125 -- the trust anchors in the kernel's keyrings are root's to look
 # at and nobody's but shirudo's to change: keyctl cannot unlink, clear,
-# revoke, invalidate or re-permission the sealed keyring init froze or
-# the certificate keys it holds, while viewing and listing them and
-# loading against them keep working.
+# revoke, invalidate or re-permission the sealed bpf and dm-verity
+# keyrings init froze or the certificate keys they hold, while viewing
+# and listing them and loading against them keep working.
 
 cd "$(dirname "$0")/.."
 . ./integration-lib.sh
@@ -65,6 +65,44 @@ test_expect_success 'root cannot link a key into the anchor keyring' '
 	! keyctl link "$k" "$RING" 2>/dev/null &&
 	keyctl unlink "$k" @s &&
 	[ "$(keys_now)" = "$N_BEFORE" ]
+'
+
+DM_RING=$(awk '$8 == "keyring" && $9 == ".dm-verity:" { print $1 }' /proc/keys)
+[ -n "$DM_RING" ] && DM_RING=$((0x$DM_RING))
+DM_KEY=$([ -n "$DM_RING" ] && keyctl rlist "$DM_RING" 2>/dev/null)
+dm_keys_now() { set -- $(keyctl rlist "$DM_RING" 2>/dev/null); echo $#; }
+
+test_expect_success 'the dm-verity keyring holds the config key alone' '
+	[ -n "$DM_RING" ] && [ -n "$DM_KEY" ] &&
+	[ "$(dm_keys_now)" = 1 ] &&
+	keyctl rdescribe "$DM_KEY" | grep -q "^asymmetric;"
+'
+
+test_expect_success 'root cannot unlink, clear, revoke or invalidate it' '
+	[ -n "$DM_RING" ] && [ -n "$DM_KEY" ] &&
+	! keyctl unlink "$DM_KEY" "$DM_RING" 2>/dev/null &&
+	! keyctl clear "$DM_RING" 2>/dev/null &&
+	! keyctl revoke "$DM_KEY" 2>/dev/null &&
+	! keyctl revoke "$DM_RING" 2>/dev/null &&
+	! keyctl invalidate "$DM_KEY" 2>/dev/null &&
+	! keyctl invalidate "$DM_RING" 2>/dev/null &&
+	keyctl describe "$DM_KEY" >/dev/null &&
+	[ "$(dm_keys_now)" = 1 ]
+'
+
+test_expect_success 'root cannot re-permission it or link into it' '
+	[ -n "$DM_RING" ] && [ -n "$DM_KEY" ] &&
+	! keyctl setperm "$DM_KEY" 0x3f3f3f3f 2>/dev/null &&
+	! keyctl setperm "$DM_RING" 0x3f3f3f3f 2>/dev/null &&
+	! keyctl timeout "$DM_KEY" 1 2>/dev/null &&
+	! keyctl timeout "$DM_RING" 1 2>/dev/null &&
+	! keyctl chown "$DM_RING" 1 2>/dev/null &&
+	k=$(keyctl add user shirudo-test-t1125 x @s) &&
+	! keyctl link "$k" "$DM_RING" 2>/dev/null &&
+	keyctl unlink "$k" @s &&
+	sleep 2 &&
+	keyctl describe "$DM_RING" >/dev/null &&
+	[ "$(dm_keys_now)" = 1 ]
 '
 
 test_expect_success 'status still finds the anchor it froze' '

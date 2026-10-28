@@ -393,7 +393,8 @@ T11 Image-mode config and executable substitution
     hex bytes, verified by the kernel's dm-verity trust path, including
     built-in trusted keys. The initrd enrolls its config certificate and
     seals the dedicated ``.dm-verity`` keyring, which must then hold exactly
-    that certificate. A signed config never grants
+    that certificate, and ``lsm/key_permission`` guards the keyring and its
+    key as it guards the bpf keyring. A signed config never grants
     runtime executable authority. Shirudo validates the standard superblock,
     fixed format and exact backing-file sizes, creates or validates a strict
     read-only mapping and reads every data block before parsing contents or

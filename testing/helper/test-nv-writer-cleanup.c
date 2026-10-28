@@ -85,8 +85,15 @@ static int enroll(const char *path)
 	if (rc)
 		return rc;
 	rc = keyring_bpf_add_cert(der, len);
+	if (rc >= 0)
+		rc = keyring_bpf_seal();
+	/* init_lsm records the one config key boot keys leave there. */
+	if (!rc)
+		rc = shirudo_keyring_dm_verity_add_cert(der, len);
+	if (rc >= 0)
+		rc = shirudo_keyring_dm_verity_seal();
 	xfree(der, len);
-	return rc < 0 ? rc : keyring_bpf_seal();
+	return rc;
 }
 
 static int exercise(const char *mode, const char *object)

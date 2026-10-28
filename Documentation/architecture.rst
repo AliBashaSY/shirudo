@@ -315,8 +315,8 @@ nobody else can forge the payload xattr. ``lsm/inode_mkdir``,
 ``lsm/inode_symlink`` and ``lsm/inode_link`` there are shirudo's too,
 so that no symbolic link of root's stands where a load would make its
 pin directory and no hard link of root's keeps a pin past its unlink.  ``lsm/key_permission`` applies the same test
-to the trust anchor in the kernel's keyrings: write, setattr and unlink
-on the sealed keyring and on the keys it holds, and the unpossessed
+to the trust anchors in the kernel's keyrings: write, setattr and unlink
+on the sealed bpf and dm-verity keyrings and on the keys they hold, and the unpossessed
 search ``keyctl invalidate`` uses to reach a key by serial, are denied
 to every task but shirudo, while viewing, listing and the possessed
 search the kernel verifies signatures with stay open.  Sealing stops

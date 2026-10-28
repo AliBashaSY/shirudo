@@ -495,6 +495,36 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 	k->serials[k->n++] = (__s32)serial;
 }
 
+/* Boot keys left the sealed keyring holding the config certificate alone. */
+static int dm_verity_anchor(struct shirudo_identity *id)
+{
+	struct anchor_keys keys = {};
+	key_serial_t ring;
+	int err;
+
+	ring = shirudo_keyring_dm_verity_serial();
+	if (ring <= 0) {
+		err = ring ? ring : -ENOKEY;
+		pr_err("resolve the dm-verity keyring serial: %s",
+		       strerror(-err));
+		return err;
+	}
+	err = keyring_list(ring, collect_asymmetric, &keys);
+	if (err) {
+		pr_err("list the dm-verity keyring %d: %s", (int)ring,
+		       strerror(-err));
+		return err;
+	}
+	if (keys.n != 1) {
+		pr_err("dm-verity keyring %d holds %zu keys, not the config "
+		       "certificate alone", (int)ring, keys.n);
+		return -EKEYREJECTED;
+	}
+	id->dm_verity_ring = (__s32)ring;
+	id->dm_verity_key = keys.serials[0];
+	return 0;
+}
+
 /* Seed bootstrap and freeze shared state except the expected config root. */
 static int freeze_task_maps(struct bpf_object *obj)
 {
@@ -675,6 +705,9 @@ static int init_lsm(void)
 	}
 	id.n_keys = (__u32)keys.n;
 	memcpy(id.key_serials, keys.serials, keys.n * sizeof(keys.serials[0]));
+	err = dm_verity_anchor(&id);
+	if (err)
+		goto out;
 	err = nv_writer_create(&id.nv_writer_ring, &id.nv_writer_key, id.nv_writer_public);
 	if (err) {
 		pr_err("init: create RSA-3072 NV writer: %s "
