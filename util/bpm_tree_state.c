@@ -627,6 +627,11 @@ int tree_event_replay(__u8 out[32])
 
 	if (rc)
 		return rc;
+	/* A NUL would end the walk early and replay a shorter chain. */
+	if (memchr(body, '\0', len)) {
+		xfree(body, len + 1);
+		return -EINVAL;
+	}
 	for (line = strtok_r((char *)body, "\n", &save); line;
 	     line = strtok_r(NULL, "\n", &save)) {
 		char digest[128] = {};
