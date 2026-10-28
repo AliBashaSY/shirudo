@@ -42,6 +42,8 @@ static int parse_header(const __u8 *m, size_t n,
 	p += 4;
 
 	memcpy(out->name, p, sizeof(out->name));
+	if (!memchr(out->name, '\0', sizeof(out->name)))
+		return -EINVAL;
 	p += sizeof(out->name);
 
 	memcpy(out->payload_sha256, p, sizeof(out->payload_sha256));
@@ -96,6 +98,7 @@ static int validate_bounds(const struct shirudo_upatch_header *h, size_t n)
 	if (h->type != SHIRUDO_UPATCH_TYPE_BPF)
 		return -EINVAL;
 	if (h->loader_insns_off < SHIRUDO_UPATCH_HEADER_SIZE ||
+	    h->loader_insns_off % 8 || h->loader_insns_len % 8 ||
 	    !section_inside(h->loader_insns_off, h->loader_insns_len, n))
 		return -EINVAL;
 	if (!section_inside(h->signature_off, h->signature_len, n))

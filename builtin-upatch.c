@@ -1389,8 +1389,16 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				       strerror(-rc));
 				goto out;
 			}
-			if (stat(pin, &st) == 0)
-				continue;	/* idempotent re-run */
+			/*
+			 * A pin a load left when it died before its link is
+			 * bound to maps nothing reaches any more: replace it.
+			 */
+			if (stat(pin, &st) == 0 && unlink(pin)) {
+				rc = -errno;
+				pr_err("unlink stale serializer pin %s: %s", pin,
+				       strerror(-rc));
+				goto out;
+			}
 			rc = obj_pin(inner_fd, pin);
 			if (rc) {
 				pr_err("pin serializer %s: %s", pin,
@@ -1405,8 +1413,12 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 			struct stat st;
 
 			test_fd = inner_fd;
-			if (stat(pin, &st) == 0)
-				continue;
+			if (stat(pin, &st) == 0 && unlink(pin)) {
+				rc = -errno;
+				pr_err("unlink stale test-run pin %s: %s", pin,
+				       strerror(-rc));
+				goto out;
+			}
 			rc = obj_pin(inner_fd, pin);
 			if (rc) {
 				pr_err("pin test-run program %s: %s", pin,
@@ -1884,9 +1896,11 @@ static int upatch_apply(const char *path, bool verify_only,
 	/* The kernel refuses a signed load whose bound map is not frozen. */
 	rc = loader_map_freeze(map_fd);
 	if (rc) {
-		pr_err("__loader.map freeze: %s", strerror(errno));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(errno),
-			 errno, "__loader.map freeze failed");
+		int err = errno;
+
+		pr_err("__loader.map freeze: %s", strerror(err));
+		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
+			 err, "__loader.map freeze failed");
 		rc = 1;
 		goto out;
 	}
@@ -1959,10 +1973,12 @@ static int upatch_apply(const char *path, bool verify_only,
 
 	rc = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
 	if (rc) {
-		pr_err("BPF_PROG_TEST_RUN: %s", strerror(errno));
+		int err = errno;
+
+		pr_err("BPF_PROG_TEST_RUN: %s", strerror(err));
 		if (vlog[0])
 			fprintf(stderr, "loader runtime log:\n%s\n", vlog);
-		rep_fail(rep, "payload_load", "verifier_rejected", errno,
+		rep_fail(rep, "payload_load", "verifier_rejected", err,
 			 "BPF_PROG_TEST_RUN failed");
 		report_set_log(rep, vlog);
 		rc = 1;
