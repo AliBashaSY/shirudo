@@ -34,7 +34,7 @@ Type=oneshot
 LimitMEMLOCK=infinity
 RemainAfterExit=yes
 KeyringMode=inherit
-ExecStartPre=/usr/bin/mount -o remount,rw /sysroot
+ExecStartPre=-mount -o remount,rw /sysroot
 ExecStart=@bindir@/shirudo init
 
 [Install]
