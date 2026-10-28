@@ -187,8 +187,9 @@ Load.  ``shirudo upatch load fix.upatch`` on the target:
 6. copies the artifact to ``/var/lib/shirudo/upatches/`` for
    boot-restore;
 7. extends the register with ``SHA256("shirudo-upatch\0" ||
-   payload_sha256 || name)`` and appends the event to the eventlog; a
-   register that refuses the event undoes the load, pins and archive.
+   payload_sha256 || name)`` and appends the event to the eventlog; an
+   archive copy that fails, or a register that refuses the event, undoes
+   the load, pins and archive.
 
 Unload.  ``shirudo upatch unload fix.unload.upatch`` runs the same
 pre-flight and the same signature-gated ``BPF_PROG_LOAD`` of the

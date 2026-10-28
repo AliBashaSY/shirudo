@@ -2654,7 +2654,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 	/*
 	 * Persist before measuring: the archive is the intent boot restore
 	 * replays, and an event for an upatch that will not survive a reboot
-	 * would drift from it. A load the register then refuses to take is
+	 * would drift from it. A load whose archive copy fails, a file system
+	 * root filled say, or one the register then refuses to take is
 	 * undone, pins and archive, so that no upatch runs unmeasured; a
 	 * caller who stops this process first gets the same at the next
 	 * init, which refuses to restore what the register does not cover.
@@ -2663,7 +2664,9 @@ static int cmd_upatch_load(int argc, const char **argv)
 	if (rc) {
 		pr_err("upatch load: loaded but failed to persist to %s: %s "
 		       "-- not measured", SHIRUDO_UPATCHES_DIR, strerror(-rc));
-		rep_fail(&rep, "persist", "unknown", -rc, "persist failed");
+		unload_unmeasured(name);
+		rep_fail(&rep, "persist", "unknown", -rc,
+			 "persist failed; the load was undone");
 		goto done;
 	}
 

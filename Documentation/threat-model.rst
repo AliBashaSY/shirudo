@@ -229,9 +229,9 @@ T5  Silent state change
     with the index name right after that write, so nothing that runs
     later can bind, an index undefined and recreated at runtime cannot
     be written again, and one recreated under another policy has a name
-    the eventlog does not know.  A load whose extension fails is
-    undone, pins and archive, and reports ``tpm_error`` rather than
-    running unmeasured; an unload or purge is measured before it
+    the eventlog does not know.  A load whose archive copy or
+    whose extension fails is undone, pins and archive, and reports the
+    failure rather than running unmeasured; an unload or purge is measured before it
     detaches, so a process stopped between the two, or a TPM made
     unreachable for the moment, leaves a register that claims more
     than happened and never a detach it does not know; a re-run of
