@@ -87,7 +87,8 @@ struct bpm_descriptor {
 };
 
 void bpm_copy_string(char *dst, size_t dst_sz, const char *src);
-void bpm_trim(const char *in, char *out, size_t out_sz);
+/* Blanks trimmed off both ends; -E2BIG when out had to cut it, as strscpy. */
+int bpm_trim(const char *in, char *out, size_t out_sz);
 bool bpm_name_ok(const char *s);
 bool bpm_version_ok(const char *s);
 bool bpm_package_name_ok(const char *s);

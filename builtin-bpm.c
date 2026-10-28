@@ -168,7 +168,9 @@ static int download_package(const char *raw, const char *destination, int fd)
 				 url, sizeof(url));
 		if (rc)
 			goto out;
-		bpm_trim(layers[i].title, title, sizeof(title));
+		/* A cut title would name another file; fall back to the package name. */
+		if (bpm_trim(layers[i].title, title, sizeof(title)))
+			title[0] = '\0';
 		if (destination) {
 			bpm_copy_string(filename, sizeof(filename), destination);
 		} else if (title[0] && !strchr(title, '/') &&

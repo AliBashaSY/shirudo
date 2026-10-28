@@ -703,7 +703,11 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	}
 	if (shirudo_build_check_keys(key, cert))
 		return -EACCES;
-	bpm_trim(raw_repository, repo_ref, sizeof(repo_ref));
+	if (bpm_trim(raw_repository, repo_ref, sizeof(repo_ref))) {
+		pr_err("bpm tree append: repository is longer than %zu bytes",
+		       sizeof(repo_ref) - 1);
+		return -ENAMETOOLONG;
+	}
 
 	rc = bpm_pkg_load_info(package, &info);
 	if (rc)

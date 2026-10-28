@@ -1063,19 +1063,23 @@ int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
 	return bpm_oci_parse_endpoint(endpoint, c);
 }
 
-void bpm_trim(const char *in, char *out, size_t out_sz)
+int bpm_trim(const char *in, char *out, size_t out_sz)
 {
 	const char *start = in, *end;
+	int rc = 0;
 
 	while (*start && isspace((__u8)*start))
 		start++;
 	end = start + strlen(start);
 	while (end > start && isspace((__u8)end[-1]))
 		end--;
-	if ((size_t)(end - start) >= out_sz)
+	if ((size_t)(end - start) >= out_sz) {
 		end = start + out_sz - 1;
+		rc = -E2BIG;
+	}
 	memmove(out, start, end - start);
 	out[end - start] = '\0';
+	return rc;
 }
 
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
