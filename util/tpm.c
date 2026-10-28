@@ -372,14 +372,18 @@ int tpm_nv_undefine(struct shirudo_tpm *t, __u32 index,
 	if (err)
 		return err;
 	err = owner_auth_set(t, owner_auth, owner_auth_len);
-	if (err)
+	if (err) {
+		Esys_TR_Close(t->esys, &nv);
 		return err;
+	}
 	rc = Esys_NV_UndefineSpace(t->esys, ESYS_TR_RH_OWNER, nv,
 				   ESYS_TR_PASSWORD, ESYS_TR_NONE,
 				   ESYS_TR_NONE);
 	owner_auth_clear(t);
-	if (rc != TSS2_RC_SUCCESS)
+	if (rc != TSS2_RC_SUCCESS) {
+		Esys_TR_Close(t->esys, &nv);
 		return owner_auth_error("NV_UndefineSpace", index, rc);
+	}
 	return 0;
 }
 

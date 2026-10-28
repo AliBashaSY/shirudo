@@ -231,8 +231,10 @@ static int cert_digest(const char *path, __u8 out[32])
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		pr_err("attest: open %s: %s", path, strerror(errno));
-		return -errno;
+		int err = -errno;
+
+		pr_err("attest: open %s: %s", path, strerror(-err));
+		return err;
 	}
 	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
 	    st.st_size > 1024 * 1024) {
@@ -444,8 +446,10 @@ static int read_evidence(const char *path, char **out, size_t *len)
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		pr_err("attest verify: open %s: %s", path, strerror(errno));
-		return -errno;
+		int err = -errno;
+
+		pr_err("attest verify: open %s: %s", path, strerror(-err));
+		return err;
 	}
 	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
 	    st.st_size > (off_t)EVIDENCE_MAX) {
@@ -745,11 +749,13 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			ret = 1;
 			goto out;
 		}
-		if (write_complete(fd, doc, len) ||
-		    write_complete(fd, "\n", 1) || close(fd)) {
+		rc = write_complete(fd, doc, len) ||
+		     write_complete(fd, "\n", 1) ? -EIO : 0;
+		if (close(fd) && !rc)
+			rc = -EIO;
+		if (rc) {
 			pr_err("attest challenge: write %s: %s", out_path,
 			       strerror(errno));
-			close(fd);
 			ret = 1;
 			goto out;
 		}
@@ -842,12 +848,15 @@ static int cmd_attest_evidence(int argc, const char **argv)
 		if (fd < 0) {
 			pr_err("attest: open %s: %s", out_path, strerror(-fd));
 			rc = fd;
-		} else if (write_complete(fd, doc, len) ||
-			   write_complete(fd, "\n", 1) || close(fd)) {
-			pr_err("attest: write %s: %s", out_path,
-			       strerror(errno));
-			close(fd);
-			rc = -EIO;
+		} else {
+			if (write_complete(fd, doc, len) ||
+			    write_complete(fd, "\n", 1))
+				rc = -EIO;
+			if (close(fd) && !rc)
+				rc = -EIO;
+			if (rc)
+				pr_err("attest: write %s: %s", out_path,
+				       strerror(errno));
 		}
 	} else if (fwrite(doc, 1, len, stdout) != len ||
 		   fputc('\n', stdout) == EOF) {
