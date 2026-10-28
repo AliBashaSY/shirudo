@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "image_config.h"
+#include "io.h"
 #include "malloc.h"
 
 static const char *const relative[SHIRUDO_IMAGE_PATH_COUNT] = {
@@ -28,7 +29,6 @@ static const char *const relative[SHIRUDO_IMAGE_PATH_COUNT] = {
 	[SHIRUDO_IMAGE_REVOKED_KEYS] = "keys/revoked",
 };
 
-static char paths[SHIRUDO_IMAGE_PATH_COUNT][PATH_MAX];
 static struct shirudo_config effective;
 static bool active;
 static int config_fd = -1;
@@ -51,19 +51,36 @@ int shirudo_image_config_root_fd(void)
 	return config_fd;
 }
 
-const char *shirudo_image_path(enum shirudo_image_path which)
+/*
+ * What the config image holds is opened from its verified root and
+ * never through a path: a path, /proc/<pid>/fd included, is root's to
+ * mount over before the exec.
+ */
+int shirudo_image_open(enum shirudo_image_path which, int flags)
 {
 	if (which >= SHIRUDO_IMAGE_PATH_COUNT || config_fd < 0)
-		return NULL;
-	return paths[which];
+		return -ENOENT;
+	return open_beneath(config_fd, relative[which], flags);
 }
 
-int shirudo_image_path_relative(char *out, __u64 cap, const char *path)
+int shirudo_image_open_relative(const char *path, int flags)
 {
 	if (config_fd < 0 || !path || path[0] == '/' || strstr(path, ".."))
 		return -EINVAL;
-	return strsprintf(out, cap, "/proc/self/fd/%d/%s", config_fd, path) < 0 ?
-	       -ENAMETOOLONG : 0;
+	return open_beneath(config_fd, path, flags);
+}
+
+/* The image's shirudo.conf, read through its root. */
+static int config_load_root(struct shirudo_config *cfg, int root_fd)
+{
+	int fd, rc;
+
+	fd = open_beneath(root_fd, "etc/shirudo/shirudo.conf", O_RDONLY);
+	if (fd < 0)
+		return fd;
+	rc = config_load_fd(cfg, fd, "config image shirudo.conf");
+	close(fd);
+	return rc;
 }
 
 static int validate_tree(int root_fd, dev_t device, __u32 depth,
@@ -193,7 +210,6 @@ int shirudo_image_config_validate(int root_fd)
 {
 	struct shirudo_config candidate;
 	__u32 entries = 0;
-	char path[64];
 	struct stat st;
 	int rc;
 
@@ -204,12 +220,8 @@ int shirudo_image_config_validate(int root_fd)
 	rc = validate_tree(root_fd, st.st_dev, 0, &entries);
 	if (!rc)
 		rc = validate_settings(root_fd);
-	if (!rc && strsprintf(path, sizeof(path),
-			      "/proc/self/fd/%d/etc/shirudo/shirudo.conf",
-			      root_fd) < 0)
-		rc = -ENAMETOOLONG;
 	if (!rc) {
-		rc = config_load_path(&candidate, path);
+		rc = config_load_root(&candidate, root_fd);
 		if (!rc && (!candidate.map_export_valid ||
 			    !candidate.tls_classical_hosts_valid))
 			rc = -EINVAL;
@@ -222,9 +234,7 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 			     int root_fd)
 {
 	struct shirudo_config candidate;
-	char path[PATH_MAX];
 	int fd = -1, rc;
-	__u32 i;
 
 	candidate = *bootstrap;
 	if (root_fd >= 0) {
@@ -234,12 +244,7 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 		fd = fcntl(root_fd, F_DUPFD_CLOEXEC, 3);
 		if (fd < 0)
 			return -errno;
-		if (strsprintf(path, sizeof(path),
-			       "/proc/self/fd/%d/etc/shirudo/shirudo.conf", fd) < 0) {
-			close(fd);
-			return -ENAMETOOLONG;
-		}
-		rc = config_load_path(&candidate, path);
+		rc = config_load_root(&candidate, fd);
 		if (rc || !candidate.map_export_valid ||
 		    !candidate.tls_classical_hosts_valid) {
 			close(fd);
@@ -261,13 +266,6 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 	config_fd = fd;
 	effective = candidate;
 	active = true;
-	for (i = 0; i < SHIRUDO_IMAGE_PATH_COUNT; i++) {
-		if (strsprintf(paths[i], sizeof(paths[i]), "/proc/self/fd/%d/%s",
-			       config_fd, relative[i]) < 0) {
-			shirudo_image_config_clear();
-			return -ENAMETOOLONG;
-		}
-	}
 	return 0;
 }
 
@@ -278,5 +276,4 @@ void shirudo_image_config_clear(void)
 	config_fd = -1;
 	active = false;
 	explicit_bzero(&effective, sizeof(effective));
-	memset(paths, 0, sizeof(paths));
 }

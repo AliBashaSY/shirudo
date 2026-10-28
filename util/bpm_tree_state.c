@@ -70,6 +70,22 @@ static int selector_values_match(const struct shirudo_tree_selector_kv *v,
 	return 0;
 }
 
+bool tree_configured(void)
+{
+	int fd;
+
+	if (!shirudo_image_config_active())
+		return access(SHIRUDO_BPM_TREE_ETC_PATH, R_OK) == 0;
+	fd = shirudo_image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	if (fd < 0)
+		return false;
+	close(fd);
+	return true;
+}
+
+static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
+			      int max);
+
 static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 			    int *n, int max, bool gz)
 {
@@ -119,32 +135,57 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 
 		if (!f)
 			return -errno;
-		while (fgets(line, sizeof(line), f)) {
-			char *start = line, *end, *eq;
-
-			while (*start && isspace((__u8)*start))
-				start++;
-			if (*start == '#' || *start == '\0')
-				continue;
-			end = start + strlen(start);
-			while (end > start && isspace((__u8)end[-1]))
-				*--end = '\0';
-			eq = strchr(start, '=');
-			if (!eq)
-				continue;
-			*eq++ = '\0';
-			end = eq + strlen(eq);
-			while (end > eq && isspace((__u8)end[-1]))
-				*--end = '\0';
-			while (*eq && isspace((__u8)*eq))
-				eq++;
-			rc = kv_add(out, n, max, start, eq);
-			if (rc)
-				break;
-		}
-		fclose(f);
+		return read_config_stream(f, out, n, max);
 	}
+}
+
+/* The stream is consumed and closed. */
+static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
+			      int max)
+{
+	char line[512];
+	int rc = 0;
+
+	*n = 0;
+	while (fgets(line, sizeof(line), f)) {
+		char *start = line, *end, *eq;
+
+		while (*start && isspace((__u8)*start))
+			start++;
+		if (*start == '#' || *start == '\0')
+			continue;
+		end = start + strlen(start);
+		while (end > start && isspace((__u8)end[-1]))
+			*--end = '\0';
+		eq = strchr(start, '=');
+		if (!eq)
+			continue;
+		*eq++ = '\0';
+		end = eq + strlen(eq);
+		while (end > eq && isspace((__u8)end[-1]))
+			*--end = '\0';
+		while (*eq && isspace((__u8)*eq))
+			eq++;
+		rc = kv_add(out, n, max, start, eq);
+		if (rc)
+			break;
+	}
+	fclose(f);
 	return rc;
+}
+
+static int read_config_fd(int fd, struct shirudo_tree_kv *out, int *n,
+			  int max)
+{
+	FILE *f = fdopen(fd, "r");
+
+	if (!f) {
+		int rc = -errno;
+
+		close(fd);
+		return rc;
+	}
+	return read_config_stream(f, out, n, max);
 }
 
 /*
@@ -391,11 +432,20 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 		}
 	}
 	if (s->n_labels) {
-		const char *nodes =
-			shirudo_image_path(SHIRUDO_IMAGE_NODE_LABELS);
+		if (shirudo_image_config_active()) {
+			int fd = shirudo_image_open(SHIRUDO_IMAGE_NODE_LABELS,
+						    O_RDONLY);
 
-		rc = read_config_file(nodes ?: "/etc/shirudo/node.labels",
-				      labels, &nl, ARRAY_SIZE(labels), false);
+			if (fd == -ENOENT)
+				return 0;
+			if (fd < 0)
+				return fd;
+			rc = read_config_fd(fd, labels, &nl, ARRAY_SIZE(labels));
+		} else {
+			rc = read_config_file("/etc/shirudo/node.labels",
+					      labels, &nl, ARRAY_SIZE(labels),
+					      false);
+		}
 		if (rc == -ENOENT)
 			return 0;
 		if (rc)
@@ -618,7 +668,7 @@ void tree_emit_status(struct shirudo_json_emit *e)
 	struct shirudo_tree_state s = {};
 	__u8 live[32], replay[32];
 	char hex[65];
-	bool configured = access(SHIRUDO_BPM_TREE_ETC_PATH, R_OK) == 0;
+	bool configured = tree_configured();
 
 	json_obj_open_key(e, "upatch_tree");
 	json_kv_bool(e, "configured", configured);

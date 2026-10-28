@@ -44,6 +44,7 @@ struct shirudo_cert {
 };
 
 int cert_read_file(const char *path, struct shirudo_cert *cert);
+int cert_read_fd(int fd, struct shirudo_cert *cert);
 void cert_free(struct shirudo_cert *cert);
 int cert_pubkey_digest(const struct shirudo_cert *cert,
 		       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN]);

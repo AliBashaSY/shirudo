@@ -59,14 +59,36 @@ int shirudo_keys_load_split(const char *primary, const char *keys_dir,
 			    const char *revoked_dir, bool with_trusted,
 			    struct shirudo_trusted_set *set);
 
-/* Validate historical vouches before excluding revoked BPF signing keys. */
-int shirudo_keys_load_image(const char *primary, const char *keys_dir,
-			    const char *revoked_dir, bool with_trusted,
-			    struct shirudo_trusted_set *set);
+/*
+ * The set of a config image, read through its root descriptor; historical
+ * vouches are validated before revoked signing keys are excluded.
+ */
+int shirudo_keys_load_image_at(const char *primary, int keys_fd,
+			       bool with_trusted,
+			       struct shirudo_trusted_set *set);
+/* The same from the image root, whose keys directory is opened beneath it. */
+int shirudo_keys_load_image_root(const char *primary, int root_fd,
+				 bool with_trusted,
+				 struct shirudo_trusted_set *set);
+
+struct shirudo_cert;
+
+/*
+ * A member's DER as the loader read it, owned by the store, or its
+ * parsed certificate; -ENOKEY for a member no loader of this process
+ * admitted.
+ */
+int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
+		  size_t *len);
+int keys_cert_read(const struct shirudo_trusted_cert *c,
+		   struct shirudo_cert *cert);
 
 /* A whole file of at most SHIRUDO_KEYS_DER_MAX bytes, xmalloc'd. */
 int keys_read_der(const char *path, __u8 **out,
 		  size_t *out_sz);
+int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz);
+int keys_read_der_at(int dirfd, const char *name, __u8 **out,
+		     size_t *out_sz);
 
 int keys_digest_der(const __u8 *der, size_t der_sz,
 		    __u8 sha256[32], __u8 fingerprint[32]);

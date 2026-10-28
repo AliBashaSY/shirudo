@@ -114,4 +114,7 @@ int tree_event_replay(__u8 out[32]);
 
 void tree_emit_status(struct shirudo_json_emit *e);
 
+/* Whether a tree is configured, in the config image when one is active. */
+bool tree_configured(void);
+
 #endif /* SHIRUDO_BPM_TREE_H */

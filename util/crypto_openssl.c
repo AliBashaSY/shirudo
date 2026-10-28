@@ -31,6 +31,7 @@
 
 #include "crypto.h"
 #include "io.h"
+#include "keys.h"
 #include "log.h"
 #include "malloc.h"
 
@@ -199,6 +200,22 @@ int cert_read_file(const char *path, struct shirudo_cert *cert)
 		return -EINVAL;
 	cert->impl = read_x509(path);
 	return cert->impl ? 0 : -EINVAL;
+}
+
+int cert_read_fd(int fd, struct shirudo_cert *cert)
+{
+	size_t len = 0;
+	__u8 *der;
+	int rc;
+
+	if (fd < 0 || !cert)
+		return -EINVAL;
+	rc = read_fd(fd, "certificate", SHIRUDO_KEYS_DER_MAX, &der, &len);
+	if (rc)
+		return rc;
+	rc = cert_read_der(der, len, cert);
+	xfree(der, len + 1);
+	return rc;
 }
 
 void cert_free(struct shirudo_cert *cert)

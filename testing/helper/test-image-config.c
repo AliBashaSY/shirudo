@@ -34,7 +34,6 @@ static int read_bootstrap(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	struct shirudo_config bootstrap, effective;
-	char resolved[4096];
 	int fd, rc;
 
 	if (argc < 3 || argc > 4)
@@ -62,17 +61,22 @@ int main(int argc, char **argv)
 			       (int)effective.tpm_owner_auth_len,
 			       effective.tpm_owner_auth, effective.tpm_tcti,
 			       effective.eventlog_max_bytes);
-			printf("registries=%s\n",
-			       shirudo_image_path(SHIRUDO_IMAGE_REGISTRIES));
+			rc = shirudo_image_open(SHIRUDO_IMAGE_REGISTRIES,
+						O_RDONLY | O_DIRECTORY);
+			printf("registries=%s\n", rc >= 0 ? "open" : "missing");
+			if (rc >= 0)
+				close(rc);
+			rc = 0;
 		}
 	} else if (!strcmp(argv[1], "relative") && argc == 4) {
 		rc = shirudo_image_config_set(&bootstrap, fd);
 		if (!rc)
-			rc = shirudo_image_path_relative(resolved,
-							 sizeof(resolved),
-							 argv[3]);
-		if (!rc)
-			printf("resolved=%s\n", resolved);
+			rc = shirudo_image_open_relative(argv[3], O_RDONLY);
+		if (rc >= 0) {
+			printf("resolved=open\n");
+			close(rc);
+			rc = 0;
+		}
 	} else {
 		rc = -EINVAL;
 	}

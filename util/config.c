@@ -7,11 +7,13 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
@@ -200,147 +202,144 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 	cfg->tpm_owner_auth_len = l;
 }
 
-int config_load_path(struct shirudo_config *cfg, const char *path)
+/* The stream is consumed and closed; the file is named for the log. */
+static int config_parse(struct shirudo_config *cfg, FILE *f,
+			const char *path)
 {
 	char line[SHIRUDO_MAP_EXPORT_PATH_MAX + 128];
 	int rc = 0;
-	FILE *f;
 
-	if (!cfg || !path)
-		return -EINVAL;
-	config_defaults(cfg);
-
-	f = fopen(path, "r");
-	if (!f) {
-		if (errno != ENOENT)
-			rc = -errno;	/* still apply env override below */
-	} else if (check_trusted(fileno(f), path, false)) {
+	if (check_trusted(fileno(f), path, false)) {
 		fclose(f);
 		return -EPERM;
-	} else {
-		while (fgets(line, sizeof(line), f)) {
-			char *p, *eq, *key, *val;
-			int c;
-
-			/* Never take a line the buffer cut short. */
-			if (!strchr(line, '\n') && !feof(f)) {
-				pr_warn("config: line longer than %zu bytes "
-					"(ignored)", sizeof(line) - 1);
-				while ((c = fgetc(f)) != EOF && c != '\n')
-					continue;
-				continue;
-			}
-			p = trim(line);
-			if (*p == '\0' || *p == '#')
-				continue;
-			eq = strchr(p, '=');
-			if (!eq)
-				continue;
-			*eq = '\0';
-			key = trim(p);
-			val = trim(eq + 1);
-			if (strcmp(key, "eventlog.max_bytes") == 0) {
-				__u64 v;
-
-				if (parse_u64(val, strlen(val), UINT64_MAX, &v))
-					pr_warn("config: eventlog.max_bytes: "
-						"bad value '%s' (ignored)", val);
-				else
-					cfg->eventlog_max_bytes = v;
-			} else if (strcmp(key, "tpm.owner_auth") == 0) {
-				set_owner_auth(cfg, val);
-			} else if (strcmp(key, "tpm.tcti") == 0) {
-				if (strlen(val) >= sizeof(cfg->tpm_tcti))
-					pr_warn("config: tpm.tcti too long "
-						"(ignored)");
-				else
-					strscpy(cfg->tpm_tcti, val,
-						sizeof(cfg->tpm_tcti));
-			} else if (strcmp(key, "tls.classical_hosts") == 0) {
-				if (!set_string(cfg->tls_classical_hosts,
-						sizeof(cfg->tls_classical_hosts), val) ||
-				    !tls_classical_hosts_valid(val)) {
-					cfg->tls_classical_hosts_valid = false;
-					pr_warn("config: tls.classical_hosts: invalid exact "
-						"DNS host list");
-				}
-			} else if (strcmp(key, "map_export.json_path") == 0) {
-				if (!set_string(cfg->map_export_json_path,
-						sizeof(cfg->map_export_json_path), val))
-					map_export_bad(cfg, key, val, "value too long");
-				else if (val[0] && val[0] != '/')
-					map_export_bad(cfg, key, val,
-						       "path must be absolute");
-			} else if (strcmp(key, "map_export.otel_endpoint") == 0) {
-				if (!set_string(cfg->map_export_otel_endpoint,
-						sizeof(cfg->map_export_otel_endpoint), val))
-					map_export_bad(cfg, key, val, "value too long");
-			} else if (strcmp(key, "map_export.tenant_id") == 0) {
-				if (val[0] && !tenant_id_valid(val))
-					map_export_bad(cfg, key, val,
-						       "expected 1..128 characters from "
-						       "A-Z, a-z, 0-9, '.', '_', '-'");
-				else
-					(void)set_string(cfg->map_export_tenant_id,
-							 sizeof(cfg->map_export_tenant_id),
-							 val);
-			} else if (strcmp(key, "map_export.otel_insecure") == 0) {
-				if (!parse_bool(val,
-						&cfg->map_export_otel_insecure))
-					map_export_bad(cfg, key, val,
-						       "expected true or false");
-			} else if (strcmp(key, "map_export.otel_retries") == 0) {
-				__u64 v;
-
-				if (parse_u64(val, strlen(val), 10, &v))
-					map_export_bad(cfg, key, val,
-						       "expected 0..10");
-				else
-					cfg->map_export_otel_retries =
-						(__u32)v;
-			} else if (strcmp(key, "map_export.s3_uri") == 0) {
-				if (!set_string(cfg->map_export_s3_uri,
-						sizeof(cfg->map_export_s3_uri), val))
-					map_export_bad(cfg, key, val, "value too long");
-			} else if (strcmp(key, "map_export.log_record_max_bytes") == 0 ||
-				   strcmp(key, "map_export.otlp_max_bytes") == 0) {
-				__u64 v;
-
-				if (parse_u64(val, strlen(val), SHIRUDO_JSON_MAX_BYTES,
-					      &v) || v == 0)
-					map_export_bad(cfg, key, val, "expected 1..8388608 bytes");
-				else if (strcmp(key, "map_export.log_record_max_bytes") == 0)
-					cfg->map_export_log_record_max_bytes = (__u32)v;
-				else
-					cfg->map_export_otlp_max_bytes = (__u32)v;
-			} else if (!strncmp(key, "config.", 7) ||
-				   !strncmp(key, "runtime.", 8)) {
-				continue;
-			} else {
-				if (strncmp(key, "map_export.", 11) == 0)
-					map_export_bad(cfg, key, val, "unknown key");
-				else if (strncmp(key, "tls.", 4) == 0) {
-					cfg->tls_classical_hosts_valid = false;
-					pr_warn("config: %s: unknown TLS setting", key);
-				} else {
-					pr_warn("config: unknown key '%s' (ignored)",
-						key);
-				}
-			}
-		}
-		if (ferror(f) && !rc)
-			rc = -EIO;
-		/* The TPM owner's authorization is for no other user's eyes. */
-		if (cfg->tpm_owner_auth_len &&
-		    check_trusted(fileno(f), path, true)) {
-			explicit_bzero(cfg->tpm_owner_auth,
-				       sizeof(cfg->tpm_owner_auth));
-			cfg->tpm_owner_auth_len = 0;
-			rc = -EPERM;
-		}
-		if (fclose(f) && !rc)
-			rc = -errno;
 	}
+	while (fgets(line, sizeof(line), f)) {
+		char *p, *eq, *key, *val;
+		int c;
+
+		/* Never take a line the buffer cut short. */
+		if (!strchr(line, '\n') && !feof(f)) {
+			pr_warn("config: line longer than %zu bytes "
+				"(ignored)", sizeof(line) - 1);
+			while ((c = fgetc(f)) != EOF && c != '\n')
+				continue;
+			continue;
+		}
+		p = trim(line);
+		if (*p == '\0' || *p == '#')
+			continue;
+		eq = strchr(p, '=');
+		if (!eq)
+			continue;
+		*eq = '\0';
+		key = trim(p);
+		val = trim(eq + 1);
+		if (strcmp(key, "eventlog.max_bytes") == 0) {
+			__u64 v;
+
+			if (parse_u64(val, strlen(val), UINT64_MAX, &v))
+				pr_warn("config: eventlog.max_bytes: "
+					"bad value '%s' (ignored)", val);
+			else
+				cfg->eventlog_max_bytes = v;
+		} else if (strcmp(key, "tpm.owner_auth") == 0) {
+			set_owner_auth(cfg, val);
+		} else if (strcmp(key, "tpm.tcti") == 0) {
+			if (strlen(val) >= sizeof(cfg->tpm_tcti))
+				pr_warn("config: tpm.tcti too long "
+					"(ignored)");
+			else
+				strscpy(cfg->tpm_tcti, val,
+					sizeof(cfg->tpm_tcti));
+		} else if (strcmp(key, "tls.classical_hosts") == 0) {
+			if (!set_string(cfg->tls_classical_hosts,
+					sizeof(cfg->tls_classical_hosts), val) ||
+			    !tls_classical_hosts_valid(val)) {
+				cfg->tls_classical_hosts_valid = false;
+				pr_warn("config: tls.classical_hosts: invalid exact "
+					"DNS host list");
+			}
+		} else if (strcmp(key, "map_export.json_path") == 0) {
+			if (!set_string(cfg->map_export_json_path,
+					sizeof(cfg->map_export_json_path), val))
+				map_export_bad(cfg, key, val, "value too long");
+			else if (val[0] && val[0] != '/')
+				map_export_bad(cfg, key, val,
+					       "path must be absolute");
+		} else if (strcmp(key, "map_export.otel_endpoint") == 0) {
+			if (!set_string(cfg->map_export_otel_endpoint,
+					sizeof(cfg->map_export_otel_endpoint), val))
+				map_export_bad(cfg, key, val, "value too long");
+		} else if (strcmp(key, "map_export.tenant_id") == 0) {
+			if (val[0] && !tenant_id_valid(val))
+				map_export_bad(cfg, key, val,
+					       "expected 1..128 characters from "
+					       "A-Z, a-z, 0-9, '.', '_', '-'");
+			else
+				(void)set_string(cfg->map_export_tenant_id,
+						 sizeof(cfg->map_export_tenant_id),
+						 val);
+		} else if (strcmp(key, "map_export.otel_insecure") == 0) {
+			if (!parse_bool(val,
+					&cfg->map_export_otel_insecure))
+				map_export_bad(cfg, key, val,
+					       "expected true or false");
+		} else if (strcmp(key, "map_export.otel_retries") == 0) {
+			__u64 v;
+
+			if (parse_u64(val, strlen(val), 10, &v))
+				map_export_bad(cfg, key, val,
+					       "expected 0..10");
+			else
+				cfg->map_export_otel_retries =
+					(__u32)v;
+		} else if (strcmp(key, "map_export.s3_uri") == 0) {
+			if (!set_string(cfg->map_export_s3_uri,
+					sizeof(cfg->map_export_s3_uri), val))
+				map_export_bad(cfg, key, val, "value too long");
+		} else if (strcmp(key, "map_export.log_record_max_bytes") == 0 ||
+			   strcmp(key, "map_export.otlp_max_bytes") == 0) {
+			__u64 v;
+
+			if (parse_u64(val, strlen(val), SHIRUDO_JSON_MAX_BYTES,
+				      &v) || v == 0)
+				map_export_bad(cfg, key, val, "expected 1..8388608 bytes");
+			else if (strcmp(key, "map_export.log_record_max_bytes") == 0)
+				cfg->map_export_log_record_max_bytes = (__u32)v;
+			else
+				cfg->map_export_otlp_max_bytes = (__u32)v;
+		} else if (!strncmp(key, "config.", 7) ||
+			   !strncmp(key, "runtime.", 8)) {
+			continue;
+		} else {
+			if (strncmp(key, "map_export.", 11) == 0) {
+				map_export_bad(cfg, key, val, "unknown key");
+			} else if (strncmp(key, "tls.", 4) == 0) {
+				cfg->tls_classical_hosts_valid = false;
+				pr_warn("config: %s: unknown TLS setting", key);
+			} else {
+				pr_warn("config: unknown key '%s' (ignored)",
+					key);
+			}
+		}
+	}
+	if (ferror(f) && !rc)
+		rc = -EIO;
+	/* The TPM owner's authorization is for no other user's eyes. */
+	if (cfg->tpm_owner_auth_len &&
+	    check_trusted(fileno(f), path, true)) {
+		explicit_bzero(cfg->tpm_owner_auth,
+			       sizeof(cfg->tpm_owner_auth));
+		cfg->tpm_owner_auth_len = 0;
+		rc = -EPERM;
+	}
+	if (fclose(f) && !rc)
+		rc = -errno;
+	return rc;
+}
+
+static int config_finish(struct shirudo_config *cfg, int rc)
+{
 	if (cfg->map_export_s3_uri[0] && !cfg->map_export_otel_endpoint[0])
 		map_export_bad(cfg, "map_export.s3_uri", "",
 			       "requires map_export.otel_endpoint for its reference event");
@@ -348,6 +347,50 @@ int config_load_path(struct shirudo_config *cfg, const char *path)
 		map_export_bad(cfg, "map_export.log_record_max_bytes", "",
 			       "must not exceed otlp_max_bytes");
 	return rc;
+}
+
+int config_load_path(struct shirudo_config *cfg, const char *path)
+{
+	int rc = 0;
+	FILE *f;
+
+	if (!cfg || !path)
+		return -EINVAL;
+	config_defaults(cfg);
+	f = fopen(path, "r");
+	if (!f) {
+		if (errno != ENOENT)
+			rc = -errno;	/* still apply env override below */
+	} else {
+		rc = config_parse(cfg, f, path);
+	}
+	return config_finish(cfg, rc);
+}
+
+/* A copy of the descriptor is read from its start; the caller keeps its own. */
+int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
+{
+	int copy, rc;
+	FILE *f;
+
+	if (!cfg || fd < 0)
+		return -EINVAL;
+	config_defaults(cfg);
+	copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+	if (copy < 0)
+		return -errno;
+	if (lseek(copy, 0, SEEK_SET) < 0) {
+		rc = -errno;
+		close(copy);
+		return rc;
+	}
+	f = fdopen(copy, "r");
+	if (!f) {
+		rc = -errno;
+		close(copy);
+		return rc;
+	}
+	return config_finish(cfg, config_parse(cfg, f, label));
 }
 
 int config_load(struct shirudo_config *cfg)

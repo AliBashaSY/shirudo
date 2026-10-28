@@ -60,10 +60,14 @@ int main(int argc, const char **argv)
 		rc = load_source(argv[3], &source);
 		if (!rc) {
 			char content[64];
-			FILE *file = fopen(source.key_file, "r");
+			int kfd = shirudo_image_open_relative(source.key_file,
+							      O_RDONLY);
+			FILE *file = kfd < 0 ? NULL : fdopen(kfd, "r");
 
 			if (!file) {
-				rc = -errno;
+				rc = kfd < 0 ? kfd : -errno;
+				if (kfd >= 0)
+					close(kfd);
 			} else {
 				if (!fgets(content, sizeof(content), file))
 					rc = -EIO;

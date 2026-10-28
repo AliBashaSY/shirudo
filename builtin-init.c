@@ -76,42 +76,6 @@ static void print_preflight(const struct shirudo_preflight_result *r)
 	       r->n - r->n_failed, r->n, r->n_failed);
 }
 
-static int read_der(const char *path, __u8 **out, size_t *out_sz)
-{
-	struct stat st;
-	__u8 *buf;
-	ssize_t n;
-	int fd;
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) < 0) {
-		int rc = -errno;
-
-		close(fd);
-		return rc;
-	}
-	if (st.st_size <= 0 || st.st_size > 1u * 1024u * 1024u) {
-		close(fd);
-		return -EINVAL;
-	}
-	buf = xmalloc((size_t)st.st_size);
-	if (!buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	n = read(fd, buf, (size_t)st.st_size);
-	close(fd);
-	if (n != st.st_size) {
-		xfree(buf, (size_t)st.st_size);
-		return -EIO;
-	}
-	*out = buf;
-	*out_sz = (size_t)st.st_size;
-	return 0;
-}
-
 static void keyring_count_asymmetric(key_serial_t serial, const char *type,
 				     const char *description, void *ud)
 {
@@ -143,15 +107,14 @@ static int keyring_holds_set(key_serial_t ring,
 	size_t i, held = 0;
 
 	for (i = 0; i < set->n; i++) {
+		const __u8 *der = NULL;
 		size_t der_sz = 0;
-		__u8 *der = NULL;
 		int rc;
 
-		rc = read_der(set->certs[i].path, &der, &der_sz);
+		rc = keys_cert_der(&set->certs[i], &der, &der_sz);
 		if (rc)
 			return rc;
 		rc = keyring_holds_cert(ring, der, der_sz);
-		xfree(der, der_sz);
 		if (rc < 0)
 			return rc;
 		held += rc;
@@ -175,18 +138,17 @@ static int init_bpf_keyring(key_serial_t ring,
 	size_t i;
 
 	for (i = 0; i < set->n; i++) {
+		const __u8 *der = NULL;
 		size_t der_sz = 0;
-		__u8 *der = NULL;
 		key_serial_t key;
 
-		rc = read_der(set->certs[i].path, &der, &der_sz);
+		rc = keys_cert_der(&set->certs[i], &der, &der_sz);
 		if (rc) {
 			pr_err("read %s: %s", set->certs[i].path,
 			       strerror(-rc));
 			return rc;
 		}
 		key = keyring_bpf_add_cert(der, der_sz);
-		xfree(der, der_sz);
 		if (key >= 0) {
 			pr_info("bpf keyring serial=%d: %s enrolled (key "
 				"serial=%d)", (int)ring, set->certs[i].path,

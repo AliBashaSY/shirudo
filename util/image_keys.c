@@ -49,7 +49,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 	while ((entry = readdir(dir)) != NULL) {
 		__u8 *der = NULL;
 		__u8 digest[32], fingerprint[32], expected[32];
-		char canonical[69], path[64], name[65];
+		char canonical[69], name[65];
 		size_t size = 0;
 		int fd;
 
@@ -82,10 +82,8 @@ static int revocations(int root_fd, bool apply, bool boot)
 			    st.st_size <= 0 ||
 			    st.st_size > SHIRUDO_KEYS_DER_MAX))
 			rc = -EINVAL;
-		if (!rc && strsprintf(path, sizeof(path), "/proc/self/fd/%d", fd) < 0)
-			rc = -ENAMETOOLONG;
 		if (!rc)
-			rc = keys_read_der(path, &der, &size);
+			rc = keys_read_der_fd(fd, &der, &size);
 		close(fd);
 		if (!rc)
 			rc = keys_digest_der(der, size, digest,
@@ -108,7 +106,6 @@ static int revocations(int root_fd, bool apply, bool boot)
 int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 				    struct shirudo_trusted_set *set)
 {
-	char keys[64], revoked[80];
 	int rc;
 
 	rc = shirudo_image_config_validate(root_fd);
@@ -116,10 +113,7 @@ int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 		rc = revocations(root_fd, false, false);
 	if (rc)
 		return rc;
-	if (strsprintf(keys, sizeof(keys), "/proc/self/fd/%d/keys", root_fd) < 0 ||
-	    strsprintf(revoked, sizeof(revoked), "%s/revoked", keys) < 0)
-		return -ENAMETOOLONG;
-	rc = shirudo_keys_load_image(primary, keys, revoked, true, set);
+	rc = shirudo_keys_load_image_root(primary, root_fd, true, set);
 	if (!rc && (!set->n || set->n_unvouched))
 		rc = -EKEYREJECTED;
 	return rc;
@@ -135,14 +129,13 @@ int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
 	if (keyring < 0)
 		return keyring;
 	for (i = 0; i < set->n; i++) {
-		__u8 *der = NULL;
+		const __u8 *der = NULL;
 		size_t size = 0;
 
-		rc = keys_read_der(set->certs[i].path, &der, &size);
+		rc = keys_cert_der(&set->certs[i], &der, &size);
 		if (rc)
 			return rc;
 		rc = keyring_holds_cert(keyring, der, size);
-		xfree(der, size);
 		if (rc != 1)
 			return rc < 0 ? rc : -ENOKEY;
 	}

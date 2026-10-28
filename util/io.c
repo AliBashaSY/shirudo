@@ -8,7 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
+
+#include <linux/openat2.h>
 
 #include <shirudo/misc.h>
 
@@ -40,11 +43,68 @@ int write_complete(int fd, const void *buf, size_t len)
 	return 0;
 }
 
-int read_file(const char *path, size_t max, void *out, size_t *len)
+/*
+ * A path under a verified root resolves from its descriptor alone: no
+ * symbolic link, no magic link and no step out of it, so nothing root
+ * mounts or links elsewhere, /proc/<pid>/fd before an exec say, is
+ * followed.
+ */
+int open_beneath(int dirfd, const char *rel, int flags)
+{
+	struct open_how how = {
+		.flags = (__u64)flags | O_CLOEXEC,
+		.resolve = RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS |
+			   RESOLVE_NO_MAGICLINKS,
+	};
+	long fd;
+
+	if (dirfd < 0 || !rel || !*rel || *rel == '/')
+		return -EINVAL;
+	fd = syscall(SYS_openat2, dirfd, rel, &how, sizeof(how));
+	return fd < 0 ? -errno : (int)fd;
+}
+
+/* The whole file behind the descriptor, from its start, xmalloc'd. */
+int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
 {
 	struct stat st;
 	char *buf, *p;
 	size_t left;
+	off_t off;
+	int rc;
+
+	if (fstat(fd, &st) != 0)
+		return -errno;
+	if (!S_ISREG(st.st_mode))
+		return -EINVAL;
+	rc = check_trusted(fd, label, false);
+	if (rc)
+		return rc;
+	if ((uintmax_t)st.st_size > max)
+		return -EFBIG;
+	buf = xmalloc((size_t)st.st_size + 1);
+	if (!buf)
+		return -ENOMEM;
+	for (p = buf, left = (size_t)st.st_size, off = 0; left; ) {
+		ssize_t n = pread(fd, p, left, off);
+
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0) {
+			xfree(buf, (size_t)st.st_size + 1);
+			return n < 0 ? -errno : -EIO;
+		}
+		p += n;
+		off += n;
+		left -= (size_t)n;
+	}
+	*(char **)out = buf;
+	*len = (size_t)st.st_size;
+	return 0;
+}
+
+int read_file(const char *path, size_t max, void *out, size_t *len)
+{
 	int fd, rc;
 
 	if (under(path, SHIRUDO_VAR_LIB)) {
@@ -56,43 +116,20 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 		if (fd < 0)
 			return -errno;
 	}
-	if (fstat(fd, &st) != 0) {
-		rc = -errno;
-		goto out;
-	}
-	if (!S_ISREG(st.st_mode)) {
-		rc = -EINVAL;
-		goto out;
-	}
-	rc = check_trusted(fd, path, false);
-	if (rc)
-		goto out;
-	if ((uintmax_t)st.st_size > max) {
-		rc = -EFBIG;
-		goto out;
-	}
-	buf = xmalloc((size_t)st.st_size + 1);
-	if (!buf) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	for (p = buf, left = (size_t)st.st_size; left; ) {
-		ssize_t n = read(fd, p, left);
+	rc = read_fd(fd, path, max, out, len);
+	close(fd);
+	return rc;
+}
 
-		if (n < 0 && errno == EINTR)
-			continue;
-		if (n <= 0) {
-			rc = n < 0 ? -errno : -EIO;
-			xfree(buf, (size_t)st.st_size + 1);
-			goto out;
-		}
-		p += n;
-		left -= (size_t)n;
-	}
-	*(char **)out = buf;
-	*len = (size_t)st.st_size;
-	rc = 0;
-out:
+int read_file_at(int dirfd, const char *rel, size_t max, void *out,
+		 size_t *len)
+{
+	int fd, rc;
+
+	fd = open_beneath(dirfd, rel, O_RDONLY);
+	if (fd < 0)
+		return fd;
+	rc = read_fd(fd, rel, max, out, len);
 	close(fd);
 	return rc;
 }

@@ -81,7 +81,7 @@ static int enroll(const char *path)
 	size_t len = 0;
 	int rc;
 
-	rc = read_der(path, &der, &len);
+	rc = keys_read_der(path, &der, &len);
 	if (rc)
 		return rc;
 	rc = keyring_bpf_add_cert(der, len);

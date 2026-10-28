@@ -292,6 +292,12 @@ was resolved from the kernel's BPF keyring. The kernel normally records no
 serial for this singleton; a nonzero serial must match the frozen record.
 A certificate in another caller keyring cannot authorize a load.
 
+Image content by descriptor. Everything a command takes from the
+runtime or config image, the bootstrap settings, the configuration,
+the certificate, the key set, the registries, the tree configuration
+and the node labels, is opened from the verified root descriptor with
+``openat2`` under ``RESOLVE_BENEATH``, never through a path string;
+``/proc/self/fd`` names in particular are not used for them.
 bpffs and keyring guards. The identity map contains the bpffs and run-device
 numbers, runtime root hash, BPF keyring kind and serial, enrolled key
 serials, the NV writer's public key and key serials, and the name of the

@@ -281,6 +281,62 @@ static int source_path(const char *name, char *out, size_t out_sz)
 	return 0;
 }
 
+/*
+ * What comes from the config image is authenticated content, and the
+ * host path it is named by in messages is not where it was read from;
+ * only a host file has an owner and mode to check.
+ */
+static int stream_untrusted(FILE *fp, const char *path)
+{
+	if (shirudo_image_config_active())
+		return 0;
+	return check_trusted(fileno(fp), path, false);
+}
+
+/* A source's file, from the config image's root when one is active. */
+static FILE *source_open(const char *path)
+{
+	int fd;
+
+	if (!shirudo_image_config_active())
+		return fopen(path, "r");
+	fd = shirudo_image_open_relative(path + 1, O_RDONLY);
+	if (fd < 0) {
+		errno = -fd;
+		return NULL;
+	}
+	return fdopen(fd, "r");
+}
+
+static DIR *registries_opendir(void)
+{
+	int fd;
+
+	if (!shirudo_image_config_active())
+		return opendir(SHIRUDO_BPM_REGISTRIES_DIR);
+	fd = shirudo_image_open(SHIRUDO_IMAGE_REGISTRIES,
+				O_RDONLY | O_DIRECTORY);
+	if (fd < 0) {
+		errno = -fd;
+		return NULL;
+	}
+	return fdopendir(fd);
+}
+
+static FILE *tree_conf_open(void)
+{
+	int fd;
+
+	if (!shirudo_image_config_active())
+		return fopen(SHIRUDO_BPM_TREE_ETC_PATH, "r");
+	fd = shirudo_image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	if (fd < 0) {
+		errno = -fd;
+		return NULL;
+	}
+	return fdopen(fd, "r");
+}
+
 static int load_source(const char *name, struct bpm_source *s)
 {
 	char path[PATH_MAX], line[PATH_MAX];
@@ -291,10 +347,10 @@ static int load_source(const char *name, struct bpm_source *s)
 	rc = source_path(name, path, sizeof(path));
 	if (rc)
 		return rc;
-	fp = fopen(path, "r");
+	fp = source_open(path);
 	if (!fp)
 		return -errno;
-	if (check_trusted(fileno(fp), path, false)) {
+	if (stream_untrusted(fp, path)) {
 		fclose(fp);
 		return -EPERM;
 	}
@@ -311,19 +367,31 @@ static int load_source(const char *name, struct bpm_source *s)
 	fclose(fp);
 	if (!s->endpoint[0] || !s->key_file[0])
 		return -EINVAL;
+	/* With a config image the key file is the image's, named from its root. */
 	if (shirudo_image_config_active()) {
-		const char *relative = s->key_file;
-		char resolved[BPM_MAX_KEY];
-
-		if (!strncmp(relative, "/etc/shirudo/bpm/keys/", 22))
-			relative++;
-		rc = shirudo_image_path_relative(resolved, sizeof(resolved),
-						 relative);
-		if (rc)
-			return rc;
-		bpm_copy_string(s->key_file, sizeof(s->key_file), resolved);
+		if (!strncmp(s->key_file, "/etc/shirudo/bpm/keys/", 22))
+			memmove(s->key_file, s->key_file + 1,
+				strlen(s->key_file));
+		if (s->key_file[0] == '/' || strstr(s->key_file, ".."))
+			return -EINVAL;
 	}
 	return 0;
+}
+
+static int verify_with_source_key(const struct bpm_source *s,
+				  const __u8 *data, size_t len,
+				  const __u8 *sig, size_t sig_len)
+{
+	int fd, rc;
+
+	if (!shirudo_image_config_active())
+		return bpm_verify_cms(data, len, sig, sig_len, s->key_file);
+	fd = shirudo_image_open_relative(s->key_file, O_RDONLY);
+	if (fd < 0)
+		return fd;
+	rc = bpm_verify_cms_fd(data, len, sig, sig_len, fd);
+	close(fd);
+	return rc;
 }
 
 static int save_source(const struct bpm_source *s)
@@ -1011,7 +1079,8 @@ static int repo_update_one(const char *name)
 		rc = -EINVAL;
 	if (rc)
 		goto out;
-	if (bpm_verify_cms(index.data, index.len, sig.data, sig.len, s.key_file)) {
+	if (verify_with_source_key(&s, index.data, index.len, sig.data,
+				   sig.len)) {
 		rc = -EKEYREJECTED;
 		goto out;
 	}
@@ -1416,7 +1485,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 	if (argc < 3)
 		return 2;
 	if (!strcmp(argv[2], "list")) {
-		DIR *d = opendir(SHIRUDO_BPM_REGISTRIES_DIR);
+		DIR *d = registries_opendir();
 		struct dirent *e;
 
 		if (!d)
@@ -1501,10 +1570,10 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	FILE *fp;
 
 	*cfg = (struct bpm_tree_config){};
-	fp = fopen(SHIRUDO_BPM_TREE_ETC_PATH, "r");
+	fp = tree_conf_open();
 	if (!fp)
 		return -errno;
-	if (check_trusted(fileno(fp), SHIRUDO_BPM_TREE_ETC_PATH, false)) {
+	if (stream_untrusted(fp, SHIRUDO_BPM_TREE_ETC_PATH)) {
 		fclose(fp);
 		return -EPERM;
 	}
@@ -2590,7 +2659,7 @@ int cmd_bpm(int argc, const char **argv)
 		if (lock < 0)
 			return bpm_finish(-1, lock, "lock");
 		if (argc == 3) {
-			DIR *d = opendir(SHIRUDO_BPM_REGISTRIES_DIR);
+			DIR *d = registries_opendir();
 			struct dirent *entry;
 
 			if (!d && errno != ENOENT)
@@ -2631,7 +2700,7 @@ int cmd_bpm(int argc, const char **argv)
 		 * avoid requiring writable state directories) when it is
 		 * not configured.
 		 */
-		if (access(SHIRUDO_BPM_TREE_ETC_PATH, F_OK) != 0 && errno == ENOENT)
+		if (!tree_configured())
 			return 0;
 		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 			return bpm_fail("initialize curl", -EIO);

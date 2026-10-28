@@ -25,5 +25,8 @@ bool shirudo_image_path_valid(const char *path);
 int shirudo_image_bootstrap_read(const char *path,
 				 struct shirudo_image_bootstrap *boot,
 				 bool initial);
+int shirudo_image_bootstrap_read_fd(int fd,
+				    struct shirudo_image_bootstrap *boot,
+				    bool initial);
 
 #endif /* SHIRUDO_IMAGE_BOOTSTRAP_H */

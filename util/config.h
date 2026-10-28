@@ -57,5 +57,7 @@ int config_load(struct shirudo_config *cfg);
 
 /* Testable path-specific loader; unlike config_load(), no env. */
 int config_load_path(struct shirudo_config *cfg, const char *path);
+/* The same from an open descriptor, read from its start. */
+int config_load_fd(struct shirudo_config *cfg, int fd, const char *label);
 
 #endif /* SHIRUDO_CONFIG_H */

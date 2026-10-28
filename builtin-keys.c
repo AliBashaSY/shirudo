@@ -508,9 +508,9 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 			      const __u8 voucher[32])
 {
 	struct shirudo_identity id;
+	const __u8 *der = NULL;
 	key_serial_t ring;
 	size_t der_sz = 0;
-	__u8 *der = NULL;
 	int rc = 0;
 	size_t i;
 
@@ -526,11 +526,10 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 	}
 	if (i == set->n)
 		return -ENOKEY;
-	rc = keys_read_der(set->certs[i].path, &der, &der_sz);
+	rc = keys_cert_der(&set->certs[i], &der, &der_sz);
 	if (rc)
 		return rc;
 	rc = keyring_holds_cert(ring, der, der_sz);
-	xfree(der, der_sz);
 	if (rc < 0)
 		return rc;
 	return rc ? 0 : -ENOKEY;

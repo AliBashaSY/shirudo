@@ -8,9 +8,11 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <shirudo/misc.h>
 
@@ -61,10 +63,14 @@ int main(int argc, char **argv)
 	}
 	if (!strcmp(argv[1], "image")) {
 		char primary[PATH_MAX];
+		int root;
 
 		snprintf(primary, sizeof(primary), "%s/cert.der", argv[2]);
-		rc = shirudo_keys_load_image(primary, argv[2], NULL, true,
-					     &set);
+		root = open(argv[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (root < 0)
+			return 1;
+		rc = shirudo_keys_load_image_at(primary, root, true, &set);
+		close(root);
 	} else {
 		rc = keys_load(argv[2], NULL,
 			       argc < 4 || strcmp(argv[3], "primary"),

@@ -75,8 +75,9 @@ test_expect_success 'special files in config are refused without opening or bloc
 '
 
 test_expect_success 'relative lookup refuses absolute paths and parent traversal' '
+	touch "$WORK/good/etc/shirudo/bpm/upatch-tree.conf" &&
 	"$H" relative "$WORK/good" etc/shirudo/bpm/upatch-tree.conf >"$WORK/relative" &&
-	grep -q "^resolved=/proc/self/fd/" "$WORK/relative" &&
+	grep -qx "resolved=open" "$WORK/relative" &&
 	for path in /etc/shirudo/shirudo.conf ../outside.conf etc/../../outside.conf; do
 		! "$H" relative "$WORK/good" "$path" || exit 1
 	done

@@ -196,7 +196,13 @@ T3  Tampering with shirudo's files and process
     a download, is opened as output, never a labelled inode, never
     created under a labelled directory and never through a symbolic
     link, and a registry download goes into the descriptor shirudo
-    opened rather than a name reopened later.
+    opened rather than a name reopened later. What the verified
+    runtime and config images hold, settings, keys, registries and
+    labels, is read from the descriptor of the verified root, never by
+    a path: ``/proc/<pid>/fd`` is a directory root can mount over
+    before the exec that grants the mark, and a command whose
+    configuration came through such a path took root's settings for the
+    image's on the test target.
     Ptrace and perf allocation checks deny against tasks already marked
     when those hooks run. Concurrent perf attachment and exec remain a
     separate, untested `race investigation <https://github.com/shirudo-dev/shirudo/issues/11>`__.

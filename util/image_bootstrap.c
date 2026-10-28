@@ -5,9 +5,11 @@
 #include <shirudo/string.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config_measure.h"
 #include "hex.h"
@@ -35,17 +37,13 @@ static char *trim(char *text)
 	return text;
 }
 
-int shirudo_image_bootstrap_read(const char *path,
-				 struct shirudo_image_bootstrap *boot,
-				 bool initial)
+/* The stream is consumed and closed. */
+static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
+			   bool initial)
 {
 	char line[PATH_MAX + 128];
-	FILE *file;
 	int rc = 0;
 
-	file = fopen(path, "re");
-	if (!file)
-		return -errno;
 	while (fgets(line, sizeof(line), file)) {
 		char *key, *value;
 
@@ -113,4 +111,40 @@ int shirudo_image_bootstrap_read(const char *path,
 		rc = -EIO;
 	fclose(file);
 	return rc;
+}
+
+int shirudo_image_bootstrap_read(const char *path,
+				 struct shirudo_image_bootstrap *boot,
+				 bool initial)
+{
+	FILE *file = fopen(path, "re");
+
+	if (!file)
+		return -errno;
+	return bootstrap_parse(file, boot, initial);
+}
+
+/* A copy of the descriptor is read from its start; the caller keeps its own. */
+int shirudo_image_bootstrap_read_fd(int fd,
+				    struct shirudo_image_bootstrap *boot,
+				    bool initial)
+{
+	int copy, rc;
+	FILE *file;
+
+	copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+	if (copy < 0)
+		return -errno;
+	if (lseek(copy, 0, SEEK_SET) < 0) {
+		rc = -errno;
+		close(copy);
+		return rc;
+	}
+	file = fdopen(copy, "r");
+	if (!file) {
+		rc = -errno;
+		close(copy);
+		return rc;
+	}
+	return bootstrap_parse(file, boot, initial);
 }

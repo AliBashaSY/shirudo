@@ -41,6 +41,8 @@ int bpm_semver_compare(const char *a, const char *b);
 int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 		   const __u8 *sig, size_t sig_len,
 		   const char *cert_path);
+int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
+		      const __u8 *sig, size_t sig_len, int cert_fd);
 
 int bpm_tar_octal(const char *p, size_t n, __u64 *out);
 bool bpm_archive_rel_ok(const char *name);

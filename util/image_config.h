@@ -27,8 +27,9 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 			     int root_fd);
 int shirudo_image_config_validate(int root_fd);
 void shirudo_image_config_clear(void);
-const char *shirudo_image_path(enum shirudo_image_path which);
-int shirudo_image_path_relative(char *out, __u64 cap, const char *path);
+/* An entry of the config image, opened from its verified root; -errno. */
+int shirudo_image_open(enum shirudo_image_path which, int flags);
+int shirudo_image_open_relative(const char *path, int flags);
 int shirudo_image_config_root_fd(void);
 
 #endif /* SHIRUDO_IMAGE_CONFIG_H */

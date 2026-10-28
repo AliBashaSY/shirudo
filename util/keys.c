@@ -21,6 +21,7 @@
 #include "hex.h"
 #include "io.h"
 #include "keys.h"
+#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "seal.h"
@@ -30,12 +31,39 @@
 
 struct keys_candidate {
 	char		path[PATH_MAX];
+	char		name[256];	/* in dirfd, when that is not -1 */
 	__u8		*der;
 	size_t		der_sz;
 	__u8		sha256[32];
 	__u8		fingerprint[32];
+	int		dirfd;
 	bool		done;
 };
+
+int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz)
+{
+	int rc = read_fd(fd, "certificate", SHIRUDO_KEYS_DER_MAX, out, out_sz);
+
+	if (!rc && !*out_sz) {
+		xfree(*out, 1);
+		*out = NULL;
+		return -EINVAL;
+	}
+	return rc;
+}
+
+int keys_read_der_at(int dirfd, const char *name, __u8 **out,
+		     size_t *out_sz)
+{
+	int fd, rc;
+
+	fd = open_beneath(dirfd, name, O_RDONLY);
+	if (fd < 0)
+		return fd;
+	rc = keys_read_der_fd(fd, out, out_sz);
+	close(fd);
+	return rc;
+}
 
 int keys_read_der(const char *path, __u8 **out,
 		  size_t *out_sz)
@@ -96,6 +124,87 @@ int keys_digest_der(const __u8 *der, size_t der_sz,
 	return rc;
 }
 
+/*
+ * The DER of every certificate a set took, by its digest. Whoever needs
+ * the bytes later, to enrol, to look in the keyring or to check a vouch,
+ * takes them from here: a path reopened then may name other bytes, and
+ * a member read from a config image has no path at all.
+ */
+struct der_entry {
+	__u8	sha256[32];
+	__u8	*der;
+	size_t	len;
+};
+
+static struct der_entry der_store[8 * SHIRUDO_KEYS_MAX];
+static size_t der_stored;
+
+static int der_keep(const __u8 sha256[32], const __u8 *der, size_t len)
+{
+	struct der_entry *e;
+	size_t i;
+
+	for (i = 0; i < der_stored; i++) {
+		if (!memcmp(der_store[i].sha256, sha256, 32))
+			return 0;
+	}
+	if (der_stored >= ARRAY_SIZE(der_store))
+		return -E2BIG;
+	e = &der_store[der_stored];
+	e->der = xmalloc(len);
+	if (!e->der)
+		return -ENOMEM;
+	memcpy(e->der, der, len);
+	memcpy(e->sha256, sha256, 32);
+	e->len = len;
+	der_stored++;
+	return 0;
+}
+
+int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
+		  size_t *len)
+{
+	size_t i;
+
+	for (i = 0; i < der_stored; i++) {
+		if (!memcmp(der_store[i].sha256, c->sha256, 32)) {
+			*der = der_store[i].der;
+			*len = der_store[i].len;
+			return 0;
+		}
+	}
+	return -ENOKEY;
+}
+
+int keys_cert_read(const struct shirudo_trusted_cert *c,
+		   struct shirudo_cert *cert)
+{
+	const __u8 *der;
+	size_t len;
+	int rc;
+
+	rc = keys_cert_der(c, &der, &len);
+	return rc ? rc : cert_read_der(der, len, cert);
+}
+
+/* The certificate at path, its digests, and its bytes kept for the set. */
+static int keys_take_file(const char *path, __u8 sha256[32],
+			  __u8 fingerprint[32])
+{
+	size_t der_sz = 0;
+	__u8 *der = NULL;
+	int rc;
+
+	rc = keys_read_der(path, &der, &der_sz);
+	if (rc)
+		return rc;
+	rc = keys_digest_der(der, der_sz, sha256, fingerprint);
+	if (!rc)
+		rc = der_keep(sha256, der, der_sz);
+	xfree(der, der_sz);
+	return rc;
+}
+
 int keys_digest_file(const char *path, __u8 sha256[32],
 		     __u8 fingerprint[32])
 {
@@ -134,6 +243,17 @@ bool keys_is_revoked(const char *revoked_dir,
 	return access(path, F_OK) == 0;
 }
 
+static bool keys_is_revoked_at(int revoked_fd, const __u8 fingerprint[32])
+{
+	char name[64 + sizeof(".der")];
+
+	if (revoked_fd < 0)
+		return false;
+	hex_encode(fingerprint, 32, name);
+	memcpy(name + 64, ".der", sizeof(".der"));
+	return faccessat(revoked_fd, name, F_OK, 0) == 0;
+}
+
 int keys_vouch_payload(const __u8 *der, size_t der_sz,
 		       __u8 **out, size_t *out_sz)
 {
@@ -166,7 +286,7 @@ int keys_verify_vouch(const struct shirudo_trusted_set *set,
 	for (i = 0; i < set->n && rc; i++) {
 		struct shirudo_cert cert = {};
 
-		if (cert_read_file(set->certs[i].path, &cert))
+		if (keys_cert_read(&set->certs[i], &cert))
 			continue;
 		if (verify_detached(payload, payload_sz, sig, sig_sz,
 				    &cert) == 0) {
@@ -199,12 +319,18 @@ static bool set_holds(const struct shirudo_trusted_set *set,
 
 static int set_add(struct shirudo_trusted_set *set, const char *path,
 		   const __u8 sha256[32], const __u8 fingerprint[32],
-		   const __u8 voucher[32])
+		   const __u8 voucher[32], const __u8 *der, size_t der_sz)
 {
 	struct shirudo_trusted_cert *c;
+	int rc;
 
 	if (set->n >= SHIRUDO_KEYS_MAX)
 		return -E2BIG;
+	if (der) {
+		rc = der_keep(sha256, der, der_sz);
+		if (rc)
+			return rc;
+	}
 	c = &set->certs[set->n];
 	memset(c, 0, sizeof(*c));
 	if (strscpy(c->path, path, sizeof(c->path)) < 0)
@@ -232,6 +358,22 @@ static size_t count_der(const char *dir)
 	int n, i;
 
 	n = scandir(dir, &names, select_der, NULL);
+	if (n < 0)
+		return 0;
+	for (i = 0; i < n; i++)
+		libc_free(names[i]);
+	libc_free(names);
+	return (size_t)n;
+}
+
+static size_t count_der_at(int dirfd)
+{
+	struct dirent **names = NULL;
+	int n, i;
+
+	if (dirfd < 0)
+		return 0;
+	n = scandirat(dirfd, ".", &names, select_der, NULL);
 	if (n < 0)
 		return 0;
 	for (i = 0; i < n; i++)
@@ -275,8 +417,11 @@ static int admit_vouched(struct shirudo_trusted_set *set,
 				c->done = true;
 				continue;
 			}
-			if (vouch_path_for(c->path, vouch, sizeof(vouch)) ||
-			    keys_read_der(vouch, &sig, &sig_sz))
+			if (vouch_path_for(c->dirfd >= 0 ? c->name : c->path,
+					   vouch, sizeof(vouch)) ||
+			    (c->dirfd >= 0 ?
+			     keys_read_der_at(c->dirfd, vouch, &sig, &sig_sz) :
+			     keys_read_der(vouch, &sig, &sig_sz)))
 				continue;
 			rc = keys_verify_vouch(set, c->der, c->der_sz,
 					       sig, sig_sz, voucher);
@@ -284,7 +429,7 @@ static int admit_vouched(struct shirudo_trusted_set *set,
 			if (rc)
 				continue;
 			rc = set_add(set, c->path, c->sha256, c->fingerprint,
-				     voucher);
+				     voucher, c->der, c->der_sz);
 			if (rc)
 				return rc;
 			c->done = true;
@@ -333,6 +478,7 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 			rc = -E2BIG;
 			break;
 		}
+		c->dirfd = -1;
 		if (strsprintf(c->path, sizeof(c->path), "%s/%s", dir,
 			       names[i]->d_name) < 0) {
 			rc = -ENAMETOOLONG;
@@ -361,8 +507,61 @@ static int scan_trusted(const char *keys_dir, const char *revoked_dir,
 	return rc;
 }
 
+/*
+ * The same scan from the descriptor of the keys directory, which the
+ * trusted directory's descriptor outlives into admit_vouched: the
+ * caller closes it after.
+ */
+static int scan_trusted_at(int keys_fd, const char *display,
+			   struct keys_candidate *cand, size_t *n_cand,
+			   int *trusted_fd)
+{
+	struct dirent **names = NULL;
+	int n, i, rc = 0;
+
+	*trusted_fd = open_beneath(keys_fd, "trusted", O_RDONLY | O_DIRECTORY);
+	if (*trusted_fd == -ENOENT)
+		return 0;
+	if (*trusted_fd < 0)
+		return *trusted_fd;
+	n = scandirat(*trusted_fd, ".", &names, select_der, alphasort);
+	if (n < 0)
+		return -errno;
+	for (i = 0; i < n && !rc; i++) {
+		struct keys_candidate *c = &cand[*n_cand];
+
+		if (*n_cand >= KEYS_SCAN_MAX) {
+			rc = -E2BIG;
+			break;
+		}
+		c->dirfd = *trusted_fd;
+		if (strscpy(c->name, names[i]->d_name, sizeof(c->name)) < 0 ||
+		    strsprintf(c->path, sizeof(c->path), "%s/trusted/%s",
+			       display, names[i]->d_name) < 0) {
+			rc = -ENAMETOOLONG;
+			break;
+		}
+		rc = keys_read_der_at(*trusted_fd, c->name, &c->der,
+				      &c->der_sz);
+		if (rc)
+			break;
+		rc = keys_digest_der(c->der, c->der_sz, c->sha256,
+				     c->fingerprint);
+		if (rc) {
+			xfree(c->der, c->der_sz);
+			c->der = NULL;
+			break;
+		}
+		(*n_cand)++;
+	}
+	for (i = 0; i < n; i++)
+		libc_free(names[i]);
+	libc_free(names);
+	return rc;
+}
+
 static int load_set(const char *primary, const char *keys_dir,
-		    const char *revoked_dir, bool with_trusted, bool image,
+		    const char *revoked_dir, bool with_trusted,
 		    struct shirudo_trusted_set *set)
 {
 	struct keys_candidate *cand = NULL;
@@ -378,74 +577,124 @@ static int load_set(const char *primary, const char *keys_dir,
 			return -ENAMETOOLONG;
 		revoked_dir = revoked;
 	}
-	rc = keys_digest_file(primary, sha256, fingerprint);
+	rc = keys_take_file(primary, sha256, fingerprint);
 	if (rc)
 		return rc;
-	if (image || !keys_is_revoked(revoked_dir, fingerprint)) {
-		rc = set_add(set, primary, sha256, fingerprint, NULL);
+	if (!keys_is_revoked(revoked_dir, fingerprint)) {
+		rc = set_add(set, primary, sha256, fingerprint, NULL, NULL, 0);
 		if (rc)
 			return rc;
 	}
 	set->n_revoked = count_der(revoked_dir);
 	if (!with_trusted)
-		goto filter;
+		goto sort;
 
 	cand = xcalloc(KEYS_SCAN_MAX, sizeof(*cand));
 	if (!cand)
 		return -ENOMEM;
-	rc = scan_trusted(keys_dir, image ? NULL : revoked_dir, set, cand,
-			  &n_cand);
+	rc = scan_trusted(keys_dir, revoked_dir, set, cand, &n_cand);
 	if (!rc)
 		rc = admit_vouched(set, cand, n_cand);
 	candidates_free(cand, n_cand);
 	if (rc)
 		return rc;
-filter:
-	if (image) {
-		size_t i, kept = 0;
-
-		for (i = 0; i < set->n; i++)
-			if (!keys_is_revoked(revoked_dir,
-					     set->certs[i].fingerprint))
-				set->certs[kept++] = set->certs[i];
-		set->n = kept;
-	}
+sort:
 	if (set->n > 1)
 		qsort(set->certs, set->n, sizeof(set->certs[0]), cert_cmp);
 	return 0;
+}
+
+/*
+ * A config image's set: the primary and every vouched certificate under
+ * keys/trusted, less what keys/revoked names, all read through the
+ * image's descriptor. Historical vouches count before revocation, so a
+ * revoked certificate's vouch for another still admits it.
+ */
+static int load_set_at(const char *primary, int keys_fd, const char *display,
+		       bool with_trusted, struct shirudo_trusted_set *set)
+{
+	struct keys_candidate *cand = NULL;
+	__u8 sha256[32], fingerprint[32];
+	int revoked_fd, trusted_fd = -1;
+	size_t n_cand = 0, i, kept = 0;
+	int rc;
+
+	memset(set, 0, sizeof(*set));
+	rc = keys_take_file(primary, sha256, fingerprint);
+	if (rc)
+		return rc;
+	rc = set_add(set, primary, sha256, fingerprint, NULL, NULL, 0);
+	if (rc)
+		return rc;
+	revoked_fd = open_beneath(keys_fd, "revoked", O_RDONLY | O_DIRECTORY);
+	set->n_revoked = count_der_at(revoked_fd);
+	if (with_trusted) {
+		cand = xcalloc(KEYS_SCAN_MAX, sizeof(*cand));
+		if (!cand) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		rc = scan_trusted_at(keys_fd, display, cand, &n_cand,
+				     &trusted_fd);
+		if (!rc)
+			rc = admit_vouched(set, cand, n_cand);
+		candidates_free(cand, n_cand);
+		if (rc)
+			goto out;
+	}
+	for (i = 0; i < set->n; i++)
+		if (!keys_is_revoked_at(revoked_fd, set->certs[i].fingerprint))
+			set->certs[kept++] = set->certs[i];
+	set->n = kept;
+	if (set->n > 1)
+		qsort(set->certs, set->n, sizeof(set->certs[0]), cert_cmp);
+out:
+	if (trusted_fd >= 0)
+		close(trusted_fd);
+	if (revoked_fd >= 0)
+		close(revoked_fd);
+	return rc;
 }
 
 int shirudo_keys_load_split(const char *primary, const char *keys_dir,
 			    const char *revoked_dir, bool with_trusted,
 			    struct shirudo_trusted_set *set)
 {
-	return load_set(primary, keys_dir, revoked_dir, with_trusted, false,
-			set);
+	return load_set(primary, keys_dir, revoked_dir, with_trusted, set);
 }
 
-int shirudo_keys_load_image(const char *primary, const char *keys_dir,
-			    const char *revoked_dir, bool with_trusted,
-			    struct shirudo_trusted_set *set)
+int shirudo_keys_load_image_at(const char *primary, int keys_fd,
+			       bool with_trusted,
+			       struct shirudo_trusted_set *set)
 {
-	return load_set(primary, keys_dir, revoked_dir, with_trusted, true,
-			set);
+	return load_set_at(primary, keys_fd, "keys", with_trusted, set);
+}
+
+int shirudo_keys_load_image_root(const char *primary, int root_fd,
+				 bool with_trusted,
+				 struct shirudo_trusted_set *set)
+{
+	int keys_fd, rc;
+
+	keys_fd = open_beneath(root_fd, "keys", O_RDONLY | O_DIRECTORY);
+	if (keys_fd < 0)
+		return keys_fd;
+	rc = shirudo_keys_load_image_at(primary, keys_fd, with_trusted, set);
+	close(keys_fd);
+	return rc;
 }
 
 int keys_load(const char *keys_dir, const char *revoked_dir,
 	      bool with_trusted, struct shirudo_trusted_set *set)
 {
-	char keys[PATH_MAX], primary[PATH_MAX];
-	int rc;
+	char primary[PATH_MAX];
 
 	if (shirudo_image_config_root_fd() >= 0 &&
 	    (!strcmp(keys_dir, SHIRUDO_KEYS_DIR) ||
-	     !strcmp(keys_dir, SHIRUDO_RUNTIME_DIR "/keys"))) {
-		rc = shirudo_image_path_relative(keys, sizeof(keys), "keys");
-		if (rc)
-			return rc;
-		return shirudo_keys_load_image(SHIRUDO_RUNTIME_CERT_PATH, keys,
-			SHIRUDO_KEYS_REVOKED_DIR, with_trusted, set);
-	}
+	     !strcmp(keys_dir, SHIRUDO_RUNTIME_DIR "/keys")))
+		return shirudo_keys_load_image_root(SHIRUDO_RUNTIME_CERT_PATH,
+						    shirudo_image_config_root_fd(),
+						    with_trusted, set);
 	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, SHIRUDO_CERT_FILE) < 0)
 		return -ENAMETOOLONG;
 	return shirudo_keys_load_split(primary, keys_dir, revoked_dir,

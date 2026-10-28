@@ -24,12 +24,8 @@
 #define SHIRUDO_CERT_FILE		"cert.der"
 #define SHIRUDO_CERT_PATH		SHIRUDO_KEYS_DIR "/" SHIRUDO_CERT_FILE
 /* Further certificates enrolled beside cert.der, and the revoked ones. */
-#define SHIRUDO_KEYS_TRUSTED_DIR \
-	(shirudo_image_path(SHIRUDO_IMAGE_TRUSTED_KEYS) ?: \
-	 SHIRUDO_KEYS_DIR "/trusted")
-#define SHIRUDO_KEYS_REVOKED_DIR \
-	(shirudo_image_path(SHIRUDO_IMAGE_REVOKED_KEYS) ?: \
-	 SHIRUDO_KEYS_DIR "/revoked")
+#define SHIRUDO_KEYS_TRUSTED_DIR	SHIRUDO_KEYS_DIR "/trusted"
+#define SHIRUDO_KEYS_REVOKED_DIR	SHIRUDO_KEYS_DIR "/revoked"
 /* The initrd's own copy of the keys, measured with the initrd. */
 #define SHIRUDO_INITRD_KEYS_DIR		"/etc/shirudo/keys"
 #define SHIRUDO_INITRD_CERT_PATH	SHIRUDO_INITRD_KEYS_DIR "/" SHIRUDO_CERT_FILE
@@ -47,22 +43,16 @@
 #define SHIRUDO_BPFFS_DIR		SHIRUDO_RUN_DIR "/bpffs"
 /* The init record written from the initrd, until the root adopts it. */
 #define SHIRUDO_EVENTLOG_PENDING_PATH	SHIRUDO_RUN_DIR "/eventlog.pending"
-#define SHIRUDO_BPM_ETC_DIR \
-	(shirudo_image_path(SHIRUDO_IMAGE_ETC) ?: "/etc/shirudo/bpm")
-#define SHIRUDO_BPM_REGISTRIES_DIR \
-	(shirudo_image_path(SHIRUDO_IMAGE_REGISTRIES) ?: \
-	 "/etc/shirudo/bpm/registries.d")
-#define SHIRUDO_BPM_KEYS_DIR \
-	(shirudo_image_path(SHIRUDO_IMAGE_REPOSITORY_KEYS) ?: \
-	 "/etc/shirudo/bpm/keys")
+/* On a target with a config image these are the image's, opened from its root. */
+#define SHIRUDO_BPM_ETC_DIR		"/etc/shirudo/bpm"
+#define SHIRUDO_BPM_REGISTRIES_DIR	"/etc/shirudo/bpm/registries.d"
+#define SHIRUDO_BPM_KEYS_DIR		"/etc/shirudo/bpm/keys"
 #define SHIRUDO_BPM_VAR_DIR		SHIRUDO_VAR_LIB "/bpm"
 #define SHIRUDO_BPM_REPOS_DIR		SHIRUDO_BPM_VAR_DIR "/repos"
 #define SHIRUDO_BPM_PACKAGES_DIR	SHIRUDO_BPM_VAR_DIR "/packages"
 #define SHIRUDO_BPM_STAGING_DIR	SHIRUDO_BPM_VAR_DIR "/staging"
 #define SHIRUDO_BPM_STATE_PATH	SHIRUDO_BPM_VAR_DIR "/state.json"
-#define SHIRUDO_BPM_TREE_ETC_PATH \
-	(shirudo_image_path(SHIRUDO_IMAGE_TREE_CONF) ?: \
-	 "/etc/shirudo/bpm/upatch-tree.conf")
+#define SHIRUDO_BPM_TREE_ETC_PATH	"/etc/shirudo/bpm/upatch-tree.conf"
 #define SHIRUDO_BPM_TREE_VAR_DIR	SHIRUDO_BPM_VAR_DIR "/upatch-tree"
 #define SHIRUDO_BPM_TREE_STATE_PATH	SHIRUDO_BPM_TREE_VAR_DIR "/state.json"
 #define SHIRUDO_BPM_TREE_EVENTLOG_PATH SHIRUDO_BPM_TREE_VAR_DIR "/tree-eventlog"

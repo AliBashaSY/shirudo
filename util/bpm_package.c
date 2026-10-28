@@ -194,6 +194,18 @@ int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 	return rc;
 }
 
+int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
+		      const __u8 *sig, size_t sig_len, int cert_fd)
+{
+	struct shirudo_cert cert = {};
+	int rc = -EINVAL;
+
+	if (!cert_read_fd(cert_fd, &cert))
+		rc = verify_detached(payload, payload_len, sig, sig_len, &cert);
+	cert_free(&cert);
+	return rc;
+}
+
 int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 {
 	size_t i = 0;

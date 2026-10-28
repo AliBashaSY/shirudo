@@ -188,42 +188,6 @@ static void check_cert(struct shirudo_preflight_result *r)
 		     shirudo_cert_path());
 }
 
-static int read_cert(const char *path, __u8 **out, size_t *out_sz)
-{
-	struct stat st;
-	__u8 *buf;
-	ssize_t n;
-	int fd;
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) < 0) {
-		int rc = -errno;
-
-		close(fd);
-		return rc;
-	}
-	if (st.st_size <= 0 || st.st_size > PREFLIGHT_CERT_MAX) {
-		close(fd);
-		return -EINVAL;
-	}
-	buf = xmalloc((size_t)st.st_size);
-	if (!buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	n = read(fd, buf, (size_t)st.st_size);
-	close(fd);
-	if (n != st.st_size) {
-		xfree(buf, (size_t)st.st_size);
-		return -EIO;
-	}
-	*out = buf;
-	*out_sz = (size_t)st.st_size;
-	return 0;
-}
-
 /*
  * shirudo's trust anchor is ML-DSA-87 only: a classical certificate on
  * disk is refused before any kernel state is touched, so a fleet cannot
@@ -258,7 +222,7 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
 		char name[64];
 		int rc;
 
-		if (cert_read_file(set.certs[i].path, &cert)) {
+		if (keys_cert_read(&set.certs[i], &cert)) {
 			fail(r, c, "%s: cannot parse", set.certs[i].path);
 			return;
 		}
@@ -303,12 +267,12 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
+		const __u8 *der = NULL;
 		size_t der_sz = 0;
-		__u8 *der = NULL;
 		long key;
 		int rc;
 
-		rc = read_cert(set.certs[i].path, &der, &der_sz);
+		rc = keys_cert_der(&set.certs[i], &der, &der_sz);
 		if (rc) {
 			fail(r, c, "%s: %s", set.certs[i].path, strerror(-rc));
 			return;
@@ -316,7 +280,6 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 		key = syscall(__NR_add_key, "asymmetric", "", der, der_sz,
 			      (long)KEY_SPEC_THREAD_KEYRING);
 		rc = key < 0 ? errno : 0;
-		xfree(der, der_sz);
 		syscall(__NR_keyctl, KEYCTL_CLEAR,
 			(long)KEY_SPEC_THREAD_KEYRING, 0L, 0L, 0L);
 		if (!rc)

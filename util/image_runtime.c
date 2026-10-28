@@ -256,7 +256,6 @@ static int open_runtime_file(const char *path, dev_t device)
 static int load_runtime_config(bool trusted_boot)
 {
 	struct stat root;
-	char path[64];
 	int fd, rc;
 
 	if (!trusted_boot) {
@@ -275,12 +274,10 @@ static int load_runtime_config(bool trusted_boot)
 	fd = open_runtime_file(SHIRUDO_RUNTIME_CONF_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
-	if (strsprintf(path, sizeof(path), "/proc/self/fd/%d", fd) < 0)
-		rc = -ENAMETOOLONG;
-	else
-		rc = shirudo_image_bootstrap_read(path, &image.bootstrap, false);
+	rc = shirudo_image_bootstrap_read_fd(fd, &image.bootstrap, false);
 	if (!rc)
-		rc = config_load_path(&image.bootstrap_config, path);
+		rc = config_load_fd(&image.bootstrap_config, fd,
+				    SHIRUDO_RUNTIME_CONF_PATH);
 	close(fd);
 	if (rc)
 		return rc;
@@ -306,11 +303,7 @@ static int load_runtime_config(bool trusted_boot)
 	if (rc)
 		return rc;
 
-	/* Keep the verified config certificate open through key enrollment. */
-	if (strsprintf(image.bootstrap.certificate,
-		       sizeof(image.bootstrap.certificate), "/proc/self/fd/%d",
-		       image.certificate_fd) < 0)
-		return -ENAMETOOLONG;
+	/* The verified config certificate stays open through key enrollment. */
 	return 0;
 }
 
@@ -716,7 +709,8 @@ static int enroll_config_key(void)
 	size_t size = 0;
 	int rc;
 
-	rc = keys_read_der(image.bootstrap.certificate, &der, &size);
+	rc = image.certificate_fd < 0 ? -EBADF :
+	     keys_read_der_fd(image.certificate_fd, &der, &size);
 	if (rc)
 		return boot_keys_error("read config verification certificate", rc);
 	ring = shirudo_keyring_dm_verity_serial();
