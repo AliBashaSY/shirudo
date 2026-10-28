@@ -53,6 +53,9 @@ static int on_index_entry(void *ud)
 	    !s->scratch.package_digest[0] || s->scratch.package_size < 0)
 		return -EINVAL;
 	s->items[s->n++] = s->scratch;
+	/* A field the next entry leaves out is not this entry's. */
+	memset(&s->scratch, 0, sizeof(s->scratch));
+	s->scratch.package_size = -1;
 	return 0;
 }
 

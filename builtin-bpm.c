@@ -919,6 +919,8 @@ static int on_state_entry(void *ud)
 	    strcmp(expected, s->scratch.path))
 		return -EINVAL;
 	s->items[s->n++] = s->scratch;
+	/* A field the next entry leaves out is not this entry's. */
+	memset(&s->scratch, 0, sizeof(s->scratch));
 	return 0;
 }
 
