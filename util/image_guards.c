@@ -53,6 +53,7 @@ shirudo_seal_guards[SHIRUDO_SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_inode_symlink",    SHIRUDO_SEAL_SYMLINK_PIN },
 	{ "shirudo_seal_inode_mknod",      SHIRUDO_SEAL_MKNOD_PIN },
 	{ "shirudo_seal_inode_link",       SHIRUDO_SEAL_LINK_PIN },
+	{ "shirudo_seal_inode_copy_up",    SHIRUDO_SEAL_COPY_UP_PIN },
 	{ "shirudo_seal_ptrace_access_check",
 	  SHIRUDO_SEAL_PTRACE_PIN },
 	{ "shirudo_seal_perf_event_alloc",

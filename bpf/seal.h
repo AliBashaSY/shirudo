@@ -48,7 +48,10 @@ struct {
 	__type(value, struct seal_scratch);
 } seal_scratch_map SEC(".maps");
 
-/* The label of a directory, as the last hook with a handle on it read it. */
+/*
+ * The label of an inode as the last hook with a handle on it read it: a
+ * directory at every open, a file at an open for writing.
+ */
 struct seal_dir_mark {
 	char	label[LABEL_LEN];
 };
@@ -230,6 +233,7 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 	struct task_struct *task;
 	struct seal_scratch *s;
 	struct bpf_dynptr tdp;
+	int tlen;
 
 	if (ret)
 		return ret;
@@ -250,8 +254,32 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 	if (!s)				/* cannot read the label */
 		return seal_caller(SHIRUDO_TAMPER_SEAL_WRITE);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
-	return seal_verdict(bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp),
-			    SHIRUDO_TAMPER_SEAL_WRITE);
+	tlen = bpf_get_file_xattr(file, SHIRUDO_XATTR, &tdp);
+	if (tlen == LABEL_LEN)
+		seal_mark(inode, s->target, tlen);
+	return seal_verdict(tlen, SHIRUDO_TAMPER_SEAL_WRITE);
+}
+
+/*
+ * An overlay copies a lower inode up before the first write reaches it,
+ * label and all, since the copy-up runs as the writer: a write shirudo
+ * made through one mounted over sealed state landed in the upper
+ * directory, root's, and the sealed inode stayed as it was. Sealed
+ * state is never copied up. The hook cannot sleep, so the mark a write
+ * open or a directory open leaves stands in for the label.
+ */
+SEC("lsm/inode_copy_up")
+int BPF_PROG(shirudo_seal_inode_copy_up, struct dentry *src,
+	     struct cred **new, int ret)
+{
+	struct inode *inode = src->d_inode;
+
+	(void)new;
+	if (ret)
+		return ret;
+	if (!inode || !bpf_inode_storage_get(&seal_dir_marks, inode, NULL, 0))
+		return 0;
+	return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_COPY_UP, -EPERM);
 }
 
 /* Refresh a directory's mark from its label after an xattr change. */

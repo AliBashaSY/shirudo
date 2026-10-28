@@ -98,6 +98,7 @@
 #define SHIRUDO_SEAL_RMXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_removexattr_link"
 #define SHIRUDO_SEAL_POST_SETXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_post_setxattr_link"
 #define SHIRUDO_SEAL_POST_RMXATTR_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_post_removexattr_link"
+#define SHIRUDO_SEAL_COPY_UP_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_copy_up_link"
 #define SHIRUDO_SEAL_INIT_SECURITY_PIN	SHIRUDO_BPFFS_DIR "/seal_inode_init_security_link"
 #define SHIRUDO_SEAL_CREATE_PIN		SHIRUDO_BPFFS_DIR "/seal_inode_create_link"
 #define SHIRUDO_SEAL_MKDIR_PIN		SHIRUDO_BPFFS_DIR "/seal_inode_mkdir_link"

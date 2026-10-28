@@ -182,7 +182,13 @@ T3  Tampering with shirudo's files and process
     foreign entry rather than labelling, following, restoring or
     failing on it, and refuses a state root without the label once
     enforcement is live, since root could bind a tree of its own over
-    the path in a mount namespace and have it labelled. Directory
+    the path in a mount namespace and have it labelled. An overlay
+    root mounts over sealed state in a mount namespace of its own
+    copies a lower inode up into root's upper directory before the
+    first write reaches it, as the writer, so the copy carried the
+    label and a write shirudo made through it landed in root's
+    directory: the seal refuses the copy-up of a marked inode
+    (``SealCopyUp``) and such a write fails instead. Directory
     eviction remains subject to residual risk 15; existing writable
     references are not revoked.
     The authority the seal grants shirudo is not root's to aim: a path

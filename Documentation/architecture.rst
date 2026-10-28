@@ -340,8 +340,10 @@ The ``file_open`` (for write), ``inode_unlink``, ``inode_rename``,
 the caller's committed task authority, and so do ``inode_create``,
 ``inode_mkdir``, ``inode_symlink``, ``inode_mknod``, ``inode_link`` and a
 rename into a marked directory: a sealed directory takes new entries from
-shirudo alone. Runtime and config files use dm-verity
-and receive no seal writes.
+shirudo alone. ``inode_copy_up`` refuses the overlay copy-up of a marked
+inode, so a write through an overlay mounted over sealed state fails
+rather than landing, label and all, in the upper directory. Runtime and
+config files use dm-verity and receive no seal writes.
 Only an authorized caller may set the exact seal xattr, including on an
 unlabelled inode. A binary carrying a copied label gains no authority.
 A path the caller names for shirudo to write (``--report``, ``--out``,
