@@ -34,23 +34,22 @@ into the fleet.
   initialise a target, load and unload, publish and install packages
 * [Architecture](Documentation/architecture.rst): why shirudo exists,
   its design properties and how all fits together
-* [Features](Documentation/features.rst): every attachment kind a
-  upatch can have and how each one works
 * [Requirements](Documentation/requirements.rst): kernel requirements,
   operator toolchain, target runtime
-* [Operations](Documentation/operations.rst): watching a target,
-  upgrades, decommissioning, backup, recovery and more
 * [Threat model](Documentation/threat-model.rst): trust boundaries,
-  the threats addressed and the residual risks
+  the threats addressed and residual risks
 * [Telemetry](Documentation/telemetry.rst): the OTLP export and how
   to integrate with collectors
-* [Contributing](Documentation/contributing.rst)
+* [Features](Documentation/features.rst): every supported attachment
+  type a upatch can have
+* [Operations](Documentation/operations.rst): watching a target,
+  upgrades, decommissioning, backup, recovery and more
 
 The full index is in [Documentation/index.rst](Documentation/index.rst).
 
 ## Releases
 
-There is no official shirudo release yet.
+**There is no shirudo release yet.**
 
 [main](https://github.com/shirudo-dev/shirudo/commits/main/) is the
 development branch and no stable branches are maintained at this point.
