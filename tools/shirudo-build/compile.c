@@ -173,9 +173,11 @@ int shirudo_build_compile(const char *source, const char *output,
 			SHIRUDO_CLANG_PATH, strerror(errno));
 		_exit(127);
 	}
-	if (waitpid(pid, &status, 0) < 0) {
-		rc = -errno;
-		goto out;
+	while (waitpid(pid, &status, 0) < 0) {
+		if (errno != EINTR) {
+			rc = -errno;
+			goto out;
+		}
 	}
 	if (WIFEXITED(status)) {
 		int es = WEXITSTATUS(status);

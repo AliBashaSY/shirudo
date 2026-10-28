@@ -112,6 +112,25 @@ static void pack_header(struct shirudo_upatch_header *h,
 	h->reserved1        = 0;
 }
 
+/*
+ * The inputs stay mapped while the output is written, so an output that
+ * is one of them, under whatever name, must be refused before it is
+ * truncated.
+ */
+static bool output_is_input(int fd, const char *original,
+			    const char *modified)
+{
+	struct stat out, in;
+
+	if (fstat(fd, &out))
+		return true;
+	if (!stat(original, &in) && in.st_dev == out.st_dev &&
+	    in.st_ino == out.st_ino)
+		return true;
+	return !stat(modified, &in) && in.st_dev == out.st_dev &&
+	       in.st_ino == out.st_ino;
+}
+
 static int package_resign_symbols(const char *original,
 				  const char *modified, const char *output,
 				  const struct shirudo_data_range *ranges,
@@ -131,6 +150,7 @@ static int package_resign_symbols(const char *original,
 	__u32 digest_len;
 	__u64 total, payload_len;
 	size_t i, j;
+	bool wrote = false;
 	int fd = -1;
 	int rc;
 
@@ -278,12 +298,17 @@ static int package_resign_symbols(const char *original,
 		    sio.data_sz ? data_off : 0, (__u32)sio.data_sz,
 		    mod.hdr.log_buf_sz, mod.hdr.rodata_data_off,
 		    mod.hdr.nr_maps, mod.hdr.nr_progs);
-	fd = open(output, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+	fd = open(output, O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
 	if (fd < 0) {
 		rc = -errno;
 		goto out;
 	}
-	rc = write_complete(fd, &hdr, sizeof(hdr));
+	rc = output_is_input(fd, original, modified) ? -EINVAL : 0;
+	if (!rc && ftruncate(fd, 0))
+		rc = -errno;
+	wrote = !rc;
+	if (!rc)
+		rc = write_complete(fd, &hdr, sizeof(hdr));
 	if (!rc)
 		rc = write_complete(fd, sio.insns, sio.insns_sz);
 	if (!rc)
@@ -297,6 +322,8 @@ static int package_resign_symbols(const char *original,
 out:
 	if (fd >= 0)
 		close(fd);
+	if (rc && wrote)
+		unlink(output);
 	if (sig_buf)
 		xfree(sig_buf, SHIRUDO_MAX_SIG_SIZE);
 	if (payload)
@@ -332,6 +359,7 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 	const char *symbols[1] = { symbol };
 	__u8 digest[SHIRUDO_SHA256_LEN], *payload = NULL, *candidate = NULL;
 	char modified[] = "/tmp/shirudo-rodata-XXXXXX";
+	bool created = false;
 	__u64 payload_len;
 	__u32 digest_len;
 	int fd = -1;
@@ -392,6 +420,7 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 		rc = -errno;
 		goto out;
 	}
+	created = true;
 	rc = write_complete(fd, candidate, src.map_size);
 	if (!rc && fsync(fd))
 		rc = -errno;
@@ -408,7 +437,7 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 out:
 	if (fd >= 0)
 		close(fd);
-	if (modified[0] && access(modified, F_OK) == 0)
+	if (created)
 		unlink(modified);
 	if (candidate)
 		xfree(candidate, src.map_size);

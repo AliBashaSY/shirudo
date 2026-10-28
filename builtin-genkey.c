@@ -24,6 +24,7 @@
 #include <openssl/x509v3.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "builtin.h"
 #include "util/help.h"
@@ -417,16 +418,37 @@ int cmd_genkey(int argc, const char **argv)
 		goto out;
 
 	if (force) {
-		/* Make way for the O_EXCL writes only once a new pair exists. */
-		unlink(pkey_path);
-		unlink(cert_path);
-	}
+		char pkey_new[PATH_MAX], cert_new[PATH_MAX];
 
-	if (write_private_pem(pkey, pkey_path) != 0)
-		goto out;
-	if (write_cert_der(cert, cert_path) != 0) {
-		unlink(pkey_path);
-		goto out;
+		/* The old pair goes only once the new one is on disk. */
+		if (strsprintf(pkey_new, sizeof(pkey_new), "%s.new",
+			       pkey_path) < 0 ||
+		    strsprintf(cert_new, sizeof(cert_new), "%s.new",
+			       cert_path) < 0) {
+			pr_err("genkey: no room for a temporary beside %s",
+			       pkey_path);
+			goto out;
+		}
+		unlink(pkey_new);
+		unlink(cert_new);
+		if (write_private_pem(pkey, pkey_new) != 0)
+			goto out;
+		if (write_cert_der(cert, cert_new) != 0 ||
+		    rename(pkey_new, pkey_path) != 0 ||
+		    rename(cert_new, cert_path) != 0) {
+			pr_err("genkey: cannot put the new pair in place: %s",
+			       strerror(errno));
+			unlink(pkey_new);
+			unlink(cert_new);
+			goto out;
+		}
+	} else {
+		if (write_private_pem(pkey, pkey_path) != 0)
+			goto out;
+		if (write_cert_der(cert, cert_path) != 0) {
+			unlink(pkey_path);
+			goto out;
+		}
 	}
 
 	pr_info("wrote %s (%s, mode 0600)", pkey_path, GENKEY_ALG);

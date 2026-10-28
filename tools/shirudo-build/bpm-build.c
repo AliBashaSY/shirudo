@@ -754,8 +754,10 @@ static int build_run_rodata_command(const struct bpm_build_spec *spec,
 		execvp(argv[0], (char *const *)argv);
 		_exit(127);
 	}
-	if (waitpid(pid, &status, 0) < 0)
-		return -errno;
+	while (waitpid(pid, &status, 0) < 0) {
+		if (errno != EINTR)
+			return -errno;
+	}
 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
 		return 0;
 	return -EIO;
@@ -1439,6 +1441,8 @@ static const char *build_resolve_keys_dir(const char *arg, char *out, size_t cap
 {
 	const char *home = getenv("HOME");
 
+	if (cap)
+		out[0] = '\0';
 	if (!arg || !*arg)
 		arg = keys_dir_resolve(NULL);
 	if (arg[0] == '~' && (!arg[1] || arg[1] == '/')) {
@@ -2047,7 +2051,8 @@ int shirudo_build_bpm_config_update(int argc, char **argv)
 		if (rc)
 			break;
 		if (upatch_is_unload(&parsed) ||
-		    strcmp(parsed.hdr.name, expected_name)) {
+		    strncmp(parsed.hdr.name, expected_name,
+			    sizeof(parsed.hdr.name))) {
 			rc = -EINVAL;
 			upatch_close(&parsed);
 			break;
