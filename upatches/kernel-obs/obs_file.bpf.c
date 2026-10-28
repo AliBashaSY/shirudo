@@ -145,8 +145,11 @@ int BPF_PROG(obs_file_open, struct file *file)
 	obs_ident_checked(&key.ident, now);
 	key.euid = obs_current_euid();
 	key.mode = fmode & (FMODE_READ_BIT | FMODE_WRITE_BIT);
-	if (bpf_d_path(&file->f_path, key.path, sizeof(key.path)) <= 0)
+	if (bpf_d_path(&file->f_path, key.path, sizeof(key.path)) <= 0) {
+		/* A path too long leaves its tail in the key; the name alone is the key. */
+		__builtin_memset(key.path, 0, sizeof(key.path));
 		__builtin_memcpy(key.path, name, OBS_NAME_LEN);
+	}
 
 	e = file_touch(&key, &status);
 	if (!e)
