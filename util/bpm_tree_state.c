@@ -432,9 +432,17 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 						      cfg_found, false))
 				return 0;
 		}
+		/*
+		 * The config is read into the first entry of a key, so a key
+		 * named twice is matched there: left unfound, the operation
+		 * was skipped and the tree moved past it for good.
+		 */
 		for (int i = 0; i < s->n_kconfig; i++) {
-			if (!cfg_found[i] ||
-			    !selector_values_match(&s->kconfig[i], cfg_values[i]))
+			int k = selector_hash_find(s, cfg_slots,
+						   s->kconfig[i].key);
+
+			if (k < 0 || !cfg_found[k] ||
+			    !selector_values_match(&s->kconfig[i], cfg_values[k]))
 				return 0;
 		}
 	}
