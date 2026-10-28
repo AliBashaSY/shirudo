@@ -100,8 +100,8 @@ test_expect_success 'the foreign entry is root'"'"'s to remove' '
 	[ "$(chain)" = "$CHAIN" ]
 '
 
-# A copy of the state less its eventlog, bound over the real one: the
-# register says the restore happened whatever the log says.
+# A copy of the state less its eventlog, bound over the real one: it
+# carries no label, so init refuses it before reading its archive.
 test_expect_success 'a state directory hidden behind a mount without its eventlog restores nothing' '
 	mkdir -p "$STAGE/shadow" && mount -t tmpfs tmpfs "$STAGE/shadow" &&
 	cp -r --preserve=mode,timestamps /var/lib/shirudo/. "$STAGE/shadow/" &&
@@ -111,7 +111,7 @@ test_expect_success 'a state directory hidden behind a mount without its eventlo
 	rc=0; "$SHIRUDO_BIN" init >/dev/null 2>"$STAGE/shadow.err" || rc=$?;
 	umount /var/lib/shirudo &&
 	[ "$rc" != 0 ] &&
-	grep -q "archived but not loaded after the register was bound" \
+	grep -q "carries no label with enforcement live" \
 		"$STAGE/shadow.err" &&
 	[ ! -e "$PIN" ] &&
 	[ "$(chain)" = "$CHAIN" ]
