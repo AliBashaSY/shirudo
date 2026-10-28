@@ -107,8 +107,10 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 		rc = write_complete(fd, "\n", 1);
 	if (close(fd) != 0 && !rc)
 		rc = -errno;
-	if (rc)
+	if (rc) {
 		pr_err("report: write %s: %s", path, strerror(-rc));
+		unlink(path);
+	}
 	xfree(buf, cap);
 	return rc;
 }
