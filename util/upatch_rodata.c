@@ -467,10 +467,10 @@ static int append_type_name(const struct btf *btf, __u32 id, char *buf,
 	if (kind == BTF_KIND_PTR) {
 		if (append_type_name(btf, t->type, buf, cap, off, depth + 1))
 			return -EINVAL;
-		if (*off + 2 > cap)
+		n = strsprintf(buf + *off, cap - *off, " *");
+		if (n < 0)
 			return -ENOSPC;
-		memcpy(buf + *off, " *", 2);
-		*off += 2;
+		*off += (size_t)n;
 		return 0;
 	}
 	if (name && name[0]) {

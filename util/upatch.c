@@ -228,7 +228,8 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 		switch (tag) {
 		case SHIRUDO_UPATCH_SECTION_NAME:
 			bit = 1;
-			if (len != SHIRUDO_UPATCH_NAME_MAX)
+			if (len != SHIRUDO_UPATCH_NAME_MAX ||
+			    !memchr(data + off, '\0', len))
 				goto reject;
 			u->signed_name = (const char *)data + off;
 			break;
