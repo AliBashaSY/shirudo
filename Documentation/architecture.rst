@@ -249,7 +249,10 @@ restricted to tasks authorized by successful exec from the runtime image;
 kernel-context calls from verified loaders remain allowed. This lets Shirudo
 run loaders and serializers while preventing root from invoking a serializer
 to drain its maps. Map creation, update and freeze, object pin, link creation
-and raw tracepoint open also require that task authority.
+and raw tracepoint open also require that task authority, and so does
+``PERF_EVENT_IOC_SET_BPF``, the perf event ioctl that attaches a program
+without a ``bpf()`` command, which ``lsm/file_ioctl`` and
+``lsm/file_ioctl_compat`` deny to every other caller.
 The read-only commands (``*_GET_FD_BY_ID``,
 ``*_GET_NEXT_ID``, ``OBJ_GET_INFO_BY_FD``,
 ``MAP_LOOKUP_ELEM``, ``MAP_LOOKUP_BATCH``, ``MAP_GET_NEXT_KEY``,
@@ -396,7 +399,7 @@ and disk sequence. Runtime records require the authenticated bootstrap root.
 Config records require an authorized task and the expected root it staged
 for that mapping. ``bdev_free_security`` attempts cleanup, but upstream
 can omit the notification.
-The ``file_ioctl`` hook denies untrusted
+The ``file_ioctl`` and ``file_ioctl_compat`` hooks deny untrusted
 callers mutating device-mapper control operations, including through old or
 inherited FDs. This restriction applies to all DM devices on the target.
 Trusted image tasks retain control access. These checks use existing LSM

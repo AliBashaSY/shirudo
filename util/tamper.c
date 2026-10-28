@@ -80,6 +80,8 @@ static const struct {
 		"exec of shirudo by a traced task" },
 	[SHIRUDO_TAMPER_SEAL_ENTRY] = { "SealEntry",
 		"entry created, linked or renamed into a sealed directory" },
+	[SHIRUDO_TAMPER_PERF_ATTACH] = { "PerfAttach",
+		"program attached to a perf event by another executable" },
 };
 
 const char *tamper_name(enum shirudo_tamper_point point)

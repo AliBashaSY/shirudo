@@ -235,9 +235,32 @@ static __always_inline int shirudo_dm_ioctl(struct file *file,
 	}
 }
 
+/*
+ * PERF_EVENT_IOC_SET_BPF binds a program to a perf event without a bpf()
+ * command, and a program's fd is root's for the asking by id: a kprobe
+ * program a signed loader created would run at a probe of root's own.
+ * Keep it to the caller BPF_LINK_CREATE is kept to.
+ */
+static __always_inline int shirudo_ioctl(struct file *file, unsigned int cmd,
+					 int ret)
+{
+	if (ret)
+		return ret;
+	if (cmd == SHIRUDO_PERF_EVENT_IOC_SET_BPF)
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_PERF_ATTACH);
+	return shirudo_dm_ioctl(file, cmd, ret);
+}
+
 SEC("lsm/file_ioctl")
 int BPF_PROG(shirudo_lsm_file_ioctl, struct file *file, unsigned int cmd,
 	     unsigned long arg, int ret)
 {
-	return shirudo_dm_ioctl(file, cmd, ret);
+	return shirudo_ioctl(file, cmd, ret);
+}
+
+SEC("lsm/file_ioctl_compat")
+int BPF_PROG(shirudo_lsm_file_ioctl_compat, struct file *file,
+	     unsigned int cmd, unsigned long arg, int ret)
+{
+	return shirudo_ioctl(file, cmd, ret);
 }

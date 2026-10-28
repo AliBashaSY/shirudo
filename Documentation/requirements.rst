@@ -124,8 +124,9 @@ Image-mode requirements
 
 Image mode supports 64-bit userspace only. Disable 32-bit compatibility
 (``CONFIG_COMPAT=n``); on x86-64, disable ``CONFIG_IA32_EMULATION`` and
-``CONFIG_X86_X32_ABI``. Device-mapper restrictions use the native
-``file_ioctl`` hook and do not cover compat ioctls.
+``CONFIG_X86_X32_ABI``. The device-mapper and perf event restrictions
+hook both ``file_ioctl`` and ``file_ioctl_compat``, but 32-bit callers are
+not otherwise considered.
 
 Every target also requires ``CONFIG_BLK_DEV_DM``,
 ``CONFIG_DM_VERITY``, ``CONFIG_BLK_DEV_LOOP`` and ``CONFIG_EXT4_FS``. Runtime

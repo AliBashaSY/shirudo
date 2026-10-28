@@ -402,7 +402,7 @@ and cleanup are distinct concerns.
 
 Image mode requires a kernel without 32-bit compatibility support, as
 listed in the `kernel requirements <requirements.rst>`__.
-The ``file_ioctl`` hook denies mutating
+The ``file_ioctl`` and ``file_ioctl_compat`` hooks deny mutating
 DM-control commands from untrusted callers, including commands on old or
 inherited FDs. The restriction covers all DM devices in image mode, so
 ordinary untrusted volume-management tools cannot mutate unrelated DM

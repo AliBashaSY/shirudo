@@ -10,6 +10,7 @@
 
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/perf_event.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
@@ -24,6 +25,9 @@
 #include "paths.h"
 #include "shirudo_enforcement.h"
 #include "tamper.h"
+
+_Static_assert(SHIRUDO_PERF_EVENT_IOC_SET_BPF == PERF_EVENT_IOC_SET_BPF,
+	       "the ioctl number the BPF side denies");
 
 const struct shirudo_image_guard
 shirudo_seal_guards[SHIRUDO_SEAL_HOOK_COUNT] = {
@@ -84,6 +88,8 @@ shirudo_observer_guards[SHIRUDO_OBSERVER_HOOK_COUNT] = {
 const struct shirudo_image_guard
 shirudo_image_observer_guards[SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT] = {
 	{ "shirudo_lsm_file_ioctl", SHIRUDO_BPFFS_DIR "/file_ioctl_link" },
+	{ "shirudo_lsm_file_ioctl_compat",
+	  SHIRUDO_BPFFS_DIR "/file_ioctl_compat_link" },
 	{ "shirudo_lsm_bdev_setintegrity",
 	  SHIRUDO_BPFFS_DIR "/bdev_integrity_link" },
 	{ "shirudo_lsm_bdev_free_security",

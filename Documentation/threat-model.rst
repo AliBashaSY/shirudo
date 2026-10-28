@@ -122,7 +122,11 @@ T2  Detaching or replacing enforcement
     ``lsm/bpf`` denies ``LINK_DETACH``, ``LINK_UPDATE``,
     ``PROG_ATTACH``, ``PROG_DETACH`` and ``BTF_LOAD`` from userspace,
     and leaves ``LINK_CREATE``, ``RAW_TRACEPOINT_OPEN`` and ``OBJ_PIN``
-    to a task authorized by successful runtime exec. Root cannot re-attach a vetted program
+    to a task authorized by successful runtime exec. The one attach that
+    never passes through ``bpf()``, ``PERF_EVENT_IOC_SET_BPF`` on a perf
+    event, which would bind a kprobe program reached by id to a probe of
+    the caller's own, is kept to the same task by ``file_ioctl`` and
+    ``file_ioctl_compat``. Root cannot re-attach a vetted program
     at a site its signer never meant it for, nor pin objects of its own.
     The site a load attaches at is partly the caller's to arrange, and
     root runs ``shirudo upatch load``: a cgroup_skb program under a
@@ -323,7 +327,8 @@ T10 An attempt that leaves no trace
     signature was verified against the wrong kind of keyring or the
     wrong keyring, a writable map descriptor, a rename of a pin, an
     unmount of the bpffs, a write to a sealed file, a ptrace of a
-    shirudo task, and so on), in a map ``init`` pins and freezes, so
+    shirudo task, a program bound to a perf event, and so on), in a
+    map ``init`` pins and freezes, so
     that no task, shirudo included, can reset it from userspace while
     the hooks still add to it. ``shirudo status`` lists the counters
     that are not zero with what each means, ``status --json`` carries
@@ -354,8 +359,9 @@ T11 Image-mode config and executable substitution
     image tasks, including through old or inherited FDs; this restriction
     applies to unrelated DM devices too. Config device classification also
     requires the root expected by the trusted task creating that mapping.
-    Image mode requires 32-bit compatibility disabled in the kernel; its
-    device-mapper checks cover native ioctls only.
+    Image mode requires 32-bit compatibility disabled in the kernel; the
+    device-mapper and perf event ioctl checks hook the native and the
+    compat path alike.
     Enforcement uses existing LSM hooks; direct access to the dm-verity
     keyring requires the upstream keyring-ID API. The mount hooks do not
     cover every mount attribute change or
