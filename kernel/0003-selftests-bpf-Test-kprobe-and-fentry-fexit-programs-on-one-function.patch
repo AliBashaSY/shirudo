@@ -1,0 +1,162 @@
+From 96db2356a34702c4c0748df7b312dd7cba3f6356 Mon Sep 17 00:00:00 2001
+From: Daniel Borkmann <daniel@iogearbox.net>
+Date: Fri, 23 Oct 2026 17:39:50 +0000
+Subject: [PATCH] selftests/bpf: Test kprobe and fentry/fexit programs on one
+ function
+
+A kprobe next to a BPF trampoline makes the ftrace site of the function
+call ftrace_regs_caller and from there the list of ftrace callbacks,
+the path that crashed while ftrace_ops_list_func() started at an odd
+address. No test covers a function traced by both. Thus, attach an
+fentry program and a kprobe to bpf_fentry_test1(), then a second fentry
+program, which modifies the trampoline of the shared site, then an fexit
+program, after which ftrace_regs_caller enters the trampoline by a jmp,
+then detach the kprobe, after which the site jumps to it directly. After
+each step, check that every attached program ran once for the call and
+saw its argument, and the fexit program its return value.
+
+Without the previous fix the test crashes the kernel, but only where
+ftrace_ops_list_func() is at an odd address (in my test with gcc +
+CONFIG_CC_OPTIMIZE_FOR_SIZE=y). With the fix it passes:
+
+  # LDLIBS=-static PKG_CONFIG='pkg-config --static' ./vmtest.sh -- ./test_progs -t fentry_kprobe_shared
+  [...]
+  #147     fentry_kprobe_shared:OK
+  Summary: 1/0 PASSED, 0 SKIPPED, 0/0 FAILED
+
+Signed-off-by: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Menglong Dong <dongml2@chinatelecom.cn>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+---
+ .../bpf/prog_tests/fentry_kprobe_shared.c     | 65 +++++++++++++++++++
+ .../bpf/progs/fentry_kprobe_shared.c          | 49 ++++++++++++++
+ 2 files changed, 114 insertions(+)
+ create mode 100644 tools/testing/selftests/bpf/prog_tests/fentry_kprobe_shared.c
+ create mode 100644 tools/testing/selftests/bpf/progs/fentry_kprobe_shared.c
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/fentry_kprobe_shared.c b/tools/testing/selftests/bpf/prog_tests/fentry_kprobe_shared.c
+new file mode 100644
+index 00000000000000..751aa49d61069c
+--- /dev/null
++++ b/tools/testing/selftests/bpf/prog_tests/fentry_kprobe_shared.c
+@@ -0,0 +1,65 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <test_progs.h>
++#include "fentry_kprobe_shared.skel.h"
++
++static void trigger(struct fentry_kprobe_shared *skel)
++{
++	LIBBPF_OPTS(bpf_test_run_opts, topts);
++	int err;
++
++	err = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.fentry1), &topts);
++	ASSERT_OK(err, "test_run");
++}
++
++/*
++ * With a kprobe next to the trampoline, the ftrace site of the function
++ * reaches the trampoline through the list of ftrace callbacks, and so does
++ * the site of a trampoline that is modified to add or remove a program.
++ * With the fexit program, the trampoline is entered by a jmp.
++ */
++void test_fentry_kprobe_shared(void)
++{
++	struct fentry_kprobe_shared *skel;
++
++	skel = fentry_kprobe_shared__open_and_load();
++	if (!ASSERT_OK_PTR(skel, "open_and_load"))
++		return;
++	skel->bss->pid = getpid();
++
++	skel->links.fentry1 = bpf_program__attach(skel->progs.fentry1);
++	if (!ASSERT_OK_PTR(skel->links.fentry1, "attach_fentry1"))
++		goto out;
++	skel->links.kprobe1 = bpf_program__attach(skel->progs.kprobe1);
++	if (!ASSERT_OK_PTR(skel->links.kprobe1, "attach_kprobe1"))
++		goto out;
++	trigger(skel);
++	ASSERT_EQ(skel->bss->fentry1_hits, 1, "fentry1_hits");
++	ASSERT_EQ(skel->bss->kprobe_hits, 1, "kprobe_hits");
++
++	skel->links.fentry2 = bpf_program__attach(skel->progs.fentry2);
++	if (!ASSERT_OK_PTR(skel->links.fentry2, "attach_fentry2"))
++		goto out;
++	trigger(skel);
++	ASSERT_EQ(skel->bss->fentry1_hits, 2, "fentry1_hits");
++	ASSERT_EQ(skel->bss->fentry2_hits, 1, "fentry2_hits");
++	ASSERT_EQ(skel->bss->kprobe_hits, 2, "kprobe_hits");
++
++	skel->links.fexit1 = bpf_program__attach(skel->progs.fexit1);
++	if (!ASSERT_OK_PTR(skel->links.fexit1, "attach_fexit1"))
++		goto out;
++	trigger(skel);
++	ASSERT_EQ(skel->bss->fentry1_hits, 3, "fentry1_hits");
++	ASSERT_EQ(skel->bss->fentry2_hits, 2, "fentry2_hits");
++	ASSERT_EQ(skel->bss->fexit_hits, 1, "fexit_hits");
++	ASSERT_EQ(skel->bss->kprobe_hits, 3, "kprobe_hits");
++
++	bpf_link__destroy(skel->links.kprobe1);
++	skel->links.kprobe1 = NULL;
++	trigger(skel);
++	ASSERT_EQ(skel->bss->fentry1_hits, 4, "fentry1_hits");
++	ASSERT_EQ(skel->bss->fentry2_hits, 3, "fentry2_hits");
++	ASSERT_EQ(skel->bss->fexit_hits, 2, "fexit_hits");
++	ASSERT_EQ(skel->bss->kprobe_hits, 3, "kprobe_hits");
++out:
++	fentry_kprobe_shared__destroy(skel);
++}
+diff --git a/tools/testing/selftests/bpf/progs/fentry_kprobe_shared.c b/tools/testing/selftests/bpf/progs/fentry_kprobe_shared.c
+new file mode 100644
+index 00000000000000..3d16773aada897
+--- /dev/null
++++ b/tools/testing/selftests/bpf/progs/fentry_kprobe_shared.c
+@@ -0,0 +1,49 @@
++// SPDX-License-Identifier: GPL-2.0
++#include "vmlinux.h"
++#include <bpf/bpf_helpers.h>
++#include <bpf/bpf_tracing.h>
++
++char _license[] SEC("license") = "GPL";
++
++int pid;
++int fentry1_hits;
++int fentry2_hits;
++int fexit_hits;
++int kprobe_hits;
++
++static bool from_test(int a)
++{
++	return (bpf_get_current_pid_tgid() >> 32) == pid && a == 1;
++}
++
++SEC("fentry/bpf_fentry_test1")
++int BPF_PROG(fentry1, int a)
++{
++	if (from_test(a))
++		fentry1_hits++;
++	return 0;
++}
++
++SEC("fentry/bpf_fentry_test1")
++int BPF_PROG(fentry2, int a)
++{
++	if (from_test(a))
++		fentry2_hits++;
++	return 0;
++}
++
++SEC("fexit/bpf_fentry_test1")
++int BPF_PROG(fexit1, int a, int ret)
++{
++	if (from_test(a) && ret == 2)
++		fexit_hits++;
++	return 0;
++}
++
++SEC("kprobe/bpf_fentry_test1")
++int BPF_KPROBE(kprobe1, int a)
++{
++	if (from_test(a))
++		kprobe_hits++;
++	return 0;
++}
