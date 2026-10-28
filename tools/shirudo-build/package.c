@@ -1663,7 +1663,10 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	 * attach sites, the unload target: signed with the data, since the
 	 * header is not.
 	 */
-	strscpy(signed_name, upatch_name, sizeof(signed_name));
+	if (strscpy(signed_name, upatch_name, sizeof(signed_name)) < 0) {
+		err = -ENAMETOOLONG;
+		goto out;
+	}
 	sections[nr_sections++] = (struct signed_section){
 		SHIRUDO_UPATCH_SECTION_NAME, signed_name, sizeof(signed_name),
 	};
@@ -1784,6 +1787,21 @@ out:
 	return err;
 }
 
+/*
+ * Every target refuses a name outside the upatch character set, and a
+ * name the header cannot hold would be cut and signed as another one.
+ */
+static int check_upatch_name(const char *name)
+{
+	if (name && upatch_name_valid(name) &&
+	    strlen(name) < SHIRUDO_UPATCH_NAME_MAX)
+		return 0;
+	pr_err("upatch name '%s' is not 1 to %d characters of [A-Za-z0-9._-] "
+	       "not starting with '.'", name ? name : "",
+	       SHIRUDO_UPATCH_NAME_MAX - 1);
+	return -EINVAL;
+}
+
 int shirudo_build_package_load(const char *bpf_o, const char *src_path,
 			       const char *out_path, const char *upatch_name,
 			       const char *pkey_path, const char *cert_path)
@@ -1792,6 +1810,9 @@ int shirudo_build_package_load(const char *bpf_o, const char *src_path,
 	int handler_ids[2] = {-1, -1};
 	int err;
 
+	err = check_upatch_name(upatch_name);
+	if (err)
+		return err;
 	err = register_target_attach_types(handler_ids);
 	if (err) {
 		pr_err("register cgroup_skb section handlers: %d", err);
@@ -1839,6 +1860,9 @@ int shirudo_build_package_unload(const char *upatch_name,
 	struct bpf_map *rodata;
 	int err;
 
+	err = check_upatch_name(upatch_name);
+	if (err)
+		return err;
 	if (!blob || !blob->data || !blob->size) {
 		pr_err("embedded unload template missing");
 		return -ENOENT;
@@ -1858,7 +1882,10 @@ int shirudo_build_package_unload(const char *upatch_name,
 		return -EINVAL;
 	}
 
-	strscpy(params.name, upatch_name, sizeof(params.name));
+	if (strscpy(params.name, upatch_name, sizeof(params.name)) < 0) {
+		bpf_object__close(obj);
+		return -ENAMETOOLONG;
+	}
 	memcpy(params.expected_sha256, payload_sha256,
 	       sizeof(params.expected_sha256));
 	err = bpf_map__set_initial_value(rodata, &params, sizeof(params));
