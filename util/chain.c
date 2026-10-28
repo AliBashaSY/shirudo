@@ -21,6 +21,7 @@
 #include "chain.h"
 #include "config.h"
 #include "crypto.h"
+#include "identity.h"
 #include "initrd.h"
 #include "log.h"
 #include "malloc.h"
@@ -252,6 +253,43 @@ static int register_writer(struct shirudo_tpm *tpm,
 	return rc ? rc : tpm_nv_set_writer(tpm, public);
 }
 
+/*
+ * The device the TCTI opens is root's to replace, and an emulator can
+ * carry an index with the recorded name, policy and reset count, since
+ * the init record is readable; the attestation key's name takes this
+ * TPM's endorsement seed, which no emulator has.
+ */
+int chain_tpm_bound(struct shirudo_tpm *tpm)
+{
+	struct shirudo_identity id = {};
+	struct shirudo_tpm_key ak = {};
+	int rc;
+
+	rc = shirudo_enforcement_active();
+	if (rc <= 0)
+		return rc;
+	rc = identity_read(&id);
+	if (rc) {
+		pr_err("tpm: frozen identity unreadable: %s", strerror(-rc));
+		return rc;
+	}
+	if (id.ak_name_len != SHIRUDO_TPM_NAME_LEN) {
+		pr_err("tpm: no attestation key name on record");
+		return -EPROTO;
+	}
+	rc = tpm_ak_create(tpm, &ak);
+	if (rc)
+		return rc;
+	if (ak.name_len != SHIRUDO_TPM_NAME_LEN ||
+	    !ct_eq(ak.name, id.ak_name, SHIRUDO_TPM_NAME_LEN)) {
+		pr_err("tpm: not the TPM init bound (attestation key name "
+		       "differs)");
+		rc = -EACCES;
+	}
+	tpm_key_flush(tpm, &ak);
+	return rc;
+}
+
 int chain_init(const __u8 event[32],
 	       struct shirudo_chain_init_info *info)
 {
@@ -267,6 +305,9 @@ int chain_init(const __u8 event[32],
 	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
+	rc = chain_tpm_bound(tpm);
+	if (rc)
+		goto out;
 	rc = tpm_reset_count(tpm, &info->reset_count);
 	if (rc)
 		goto out;
@@ -423,6 +464,9 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
+	rc = chain_tpm_bound(tpm);
+	if (rc)
+		goto out;
 	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
 	if (rc)
 		goto out;

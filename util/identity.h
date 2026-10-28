@@ -29,6 +29,8 @@ struct shirudo_identity {
 	__s32	nv_writer_ring;
 	__s32	nv_writer_key;
 	__u8	nv_writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8	ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u32	ak_name_len;
 };
 
 #define SHIRUDO_TASK_TRUSTED	1
@@ -65,7 +67,7 @@ _Static_assert(sizeof(struct shirudo_device_authority) == 48,
 	       "device authority ABI");
 _Static_assert(sizeof(struct shirudo_task_authority) == 8,
 	       "task authority ABI");
-_Static_assert(sizeof(struct shirudo_identity) == 508,
+_Static_assert(sizeof(struct shirudo_identity) == 548,
 	       "frozen identity ABI");
 
 /* The bpffs mount init made, which the unmount guard keeps mounted. */

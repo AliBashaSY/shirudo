@@ -293,8 +293,10 @@ serial for this singleton; a nonzero serial must match the frozen record.
 A certificate in another caller keyring cannot authorize a load.
 
 bpffs and keyring guards. The identity map contains the bpffs and run-device
-numbers, runtime root hash, BPF keyring kind and serial, and enrolled key
-serials. It is written and frozen before the admission gates attach.
+numbers, runtime root hash, BPF keyring kind and serial, enrolled key
+serials, the NV writer's public key and key serials, and the name of the
+TPM's attestation key, which every later TPM handle is compared against.
+It is written and frozen before the admission gates attach.
 The task map is seeded with the authenticated bootstrap task, then frozen
 against userspace writes. Runtime exec and fork hooks maintain its marks.
 Expected config roots remain writable only by trusted tasks preparing a

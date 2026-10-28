@@ -588,6 +588,31 @@ static int freeze_task_maps(struct bpf_object *obj)
 	return rc;
 }
 
+/*
+ * The register is only as good as the TPM that holds it, and the device
+ * the TCTI opens is root's to replace: every register write recreates the
+ * attestation key, whose name no other TPM produces, and compares it with
+ * the one recorded here (util/chain.c).
+ */
+static int record_attestation_key(struct shirudo_identity *id)
+{
+	struct shirudo_tpm_key ak = {};
+	struct shirudo_tpm *tpm;
+	int rc;
+
+	rc = tpm_open(&tpm);
+	if (rc)
+		return rc;
+	rc = tpm_ak_create(tpm, &ak);
+	if (!rc) {
+		memcpy(id->ak_name, ak.name, ak.name_len);
+		id->ak_name_len = (__u32)ak.name_len;
+		tpm_key_flush(tpm, &ak);
+	}
+	tpm_close(tpm);
+	return rc;
+}
+
 static int init_lsm(void)
 {
 	struct bpf_link *image_links[SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT] = {};
@@ -708,6 +733,12 @@ static int init_lsm(void)
 	if (err) {
 		pr_err("init: create RSA-3072 NV writer: %s "
 		       "(requires kernel PKCS#8 private-key and RSA support)",
+		       strerror(-err));
+		goto out;
+	}
+	err = record_attestation_key(&id);
+	if (err) {
+		pr_err("init: record the attestation key name: %s (tpm_error)",
 		       strerror(-err));
 		goto out;
 	}

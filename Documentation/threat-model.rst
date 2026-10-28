@@ -254,7 +254,14 @@ T5  Silent state change
     is not the one ``init`` recorded, which also serialises concurrent
     operators.  ``shirudo status`` replays this boot's records and flags
     a register it cannot explain.  There is no unmeasured mode: a target
-    without a TPM 2.0 does not initialise.  An init run from the initrd
+    without a TPM 2.0 does not initialise.  The TPM behind the device
+    path is root's to replace in a mount namespace of its own, and an
+    emulator there can carry an index of the recorded name, policy and
+    reset count, since the init record is readable; every TPM handle a
+    command takes first recreates the attestation key and compares its
+    name with the one ``init`` froze in the identity map, which takes
+    the endorsement seed no emulator has, and refuses another TPM
+    before the register is read or written.  An init run from the initrd
     leaves its record under ``/run``, labelled, until the root's run
     appends it; a record forged or altered there fails the replay like
     any other.  The init record carries

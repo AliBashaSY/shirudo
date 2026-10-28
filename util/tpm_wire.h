@@ -39,7 +39,8 @@ static inline size_t tpm_put2b(__u8 *p, const __u8 *data, size_t len)
 }
 
 #define SHIRUDO_TPM_DIGEST_LEN		32
-#define SHIRUDO_TPM_NAME_LEN		(2 + SHIRUDO_TPM_DIGEST_LEN)
+_Static_assert(SHIRUDO_TPM_NAME_LEN == 2 + SHIRUDO_TPM_DIGEST_LEN,
+	       "a name is the algorithm and its digest");
 #define SHIRUDO_TPM_ALG_RSA		0x0001u
 #define SHIRUDO_TPM_ALG_AES		0x0006u
 #define SHIRUDO_TPM_ALG_SHA256		0x000Bu

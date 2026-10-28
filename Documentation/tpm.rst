@@ -92,7 +92,8 @@ the mapping locks remain active until process exit.  Bootstrap creates
 the signer in its lasting keyring with owner view/search permissions,
 then restricts and seals the ring.  Bootstrap is trusted: production
 runs in the measured initrd before untrusted workloads. The public key,
-private-key ID and keyring ID are frozen in the identity map before attachment.
+private-key ID and keyring ID are frozen in the identity map before
+attachment, with the name of the attestation key.
 Failed writer creation or enforcement setup removes the writer's links
 from the user and session keyrings.
 There is no additional state key or mutable binding-attempt marker.
@@ -229,8 +230,12 @@ The TCTI is ``SHIRUDO_TPM_TCTI`` in the environment, else ``tpm.tcti``
 in ``shirudo.conf``, else ``device:/dev/tpmrm0``, the kernel resource
 manager.  Initialization requires the trusted local TPM channel
 described above.  Register writes send command-bound signatures, not
-the writer's private key.  A substitute TPM cannot forge evidence signed by the
-operator's pinned attestation key.  The selected transport
+the writer's private key.  The device behind the path is root's to
+replace, so every handle a command takes first recreates the
+attestation key and compares its name with the one ``init`` froze in
+the identity map; a substitute TPM is refused before the register is
+read or written, and cannot forge evidence signed by the operator's
+pinned attestation key either.  The selected transport
 implementation remains part of shirudo's trusted process code.
 
 Migration requires an updated target and initrd, a
