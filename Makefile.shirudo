@@ -621,6 +621,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-otel-map \
                 testing/helper/test-upatch-map-types \
                 testing/helper/test-upatch-prog-metadata \
+                testing/helper/test-upatch-rodata \
                 testing/helper/test-upatch-decode \
                 testing/helper/test-upatch-serializer-pages \
                 testing/helper/test-signed-load \
@@ -806,6 +807,13 @@ testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializ
                                        util/config.o util/image_config.o \
                                        util/malloc.o util/io.o \
                                        util/log.o util/hex.o util/timefmt.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
+
+testing/helper/test-upatch-rodata: testing/helper/test-upatch-rodata.c \
+                               util/upatch.o util/seal.o util/json.o \
+                               util/string.o util/malloc.o util/io.o \
+                               util/log.o util/hex.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
