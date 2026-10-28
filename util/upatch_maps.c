@@ -575,11 +575,34 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 	return NULL;
 }
 
+/*
+ * A lookup of a per-CPU value copies one for every possible CPU, a
+ * figure the kernel keeps to itself: sysconf counts the present ones,
+ * and the sysfs file libbpf would read is root's to replace in a mount
+ * namespace of its own, so either undersizes the buffer the kernel
+ * fills. The shortest mask sched_getaffinity accepts is the kernel's
+ * own cpumask, nr_cpu_ids bits rounded up, and bounds what a lookup
+ * writes.
+ */
 static int nproc_possible(void)
 {
-	long n = sysconf(_SC_NPROCESSORS_CONF);
+	static int cached;
+	__u8 mask[1024];
+	size_t len;
 
-	return n > 0 ? (int)n : 1;
+	if (cached)
+		return cached;
+	for (len = 8; len <= sizeof(mask); len *= 2) {
+		long n = syscall(__NR_sched_getaffinity, 0, len, mask);
+
+		if (n > 0) {
+			cached = (int)(n * 8);
+			return cached;
+		}
+		if (errno != EINVAL)
+			return -errno;
+	}
+	return -E2BIG;
 }
 
 static char *format_value(const void *value, __u32 value_size,
@@ -1236,8 +1259,16 @@ int upatch_maps_read_flags(const char *upatch, const char *map,
 	out->value_size = info.value_size;
 	out->value_stride = map_value_stride(info.type, info.value_size);
 	out->max_entries = info.max_entries;
-	out->n_cpus = upatch_map_is_percpu(info.type) ?
-			(__u32)nproc_possible() : 1;
+	out->n_cpus = 1;
+	if (upatch_map_is_percpu(info.type)) {
+		int n = nproc_possible();
+
+		if (n < 0) {
+			close(fd);
+			return n;
+		}
+		out->n_cpus = (__u32)n;
+	}
 	resolve_map_location(out);
 	if (!upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch) &&
 	    strsprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
@@ -1342,8 +1373,14 @@ static void scan_upatch_maps(const char *upatch,
 		one.type = info.type;
 		one.type_name = map_type_name(info.type);
 		one.max_entries = info.max_entries;
-		one.n_cpus = upatch_map_is_percpu(info.type) ?
-				(__u32)nproc_possible() : 1;
+		one.n_cpus = 1;
+		if (upatch_map_is_percpu(info.type)) {
+			int cpus = nproc_possible();
+
+			if (cpus < 0)
+				continue;
+			one.n_cpus = (__u32)cpus;
+		}
 		summary_append(list, n, cap, &one);
 	}
 	closedir(d);
