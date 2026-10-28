@@ -91,6 +91,10 @@ shirudo_observer_guards[SHIRUDO_OBSERVER_HOOK_COUNT] = {
 	  SHIRUDO_BPFFS_DIR "/inode_symlink_link" },
 	{ "shirudo_lsm_inode_link",
 	  SHIRUDO_BPFFS_DIR "/inode_link_link" },
+	{ "shirudo_lsm_kernel_load_data",
+	  SHIRUDO_BPFFS_DIR "/kernel_load_data_link" },
+	{ "shirudo_lsm_kernel_read_file",
+	  SHIRUDO_BPFFS_DIR "/kernel_read_file_link" },
 };
 
 const struct shirudo_image_guard

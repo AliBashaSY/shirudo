@@ -86,6 +86,8 @@ static const struct {
 		"directory or link made in the private bpffs by another executable" },
 	[SHIRUDO_TAMPER_SEAL_COPY_UP] = { "SealCopyUp",
 		"overlay copy-up of a sealed inode" },
+	[SHIRUDO_TAMPER_KEXEC] = { "Kexec",
+		"kexec image or initramfs load" },
 };
 
 const char *tamper_name(enum shirudo_tamper_point point)

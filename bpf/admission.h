@@ -418,6 +418,35 @@ int BPF_PROG(shirudo_lsm_inode_link, const struct mnt_idmap *idmap,
 				   SHIRUDO_TAMPER_PIN_ENTRY);
 }
 
+/*
+ * A kexec hands the machine to a kernel and an initrd of root's
+ * choosing with the TPM as it is, the PCRs and this boot's register
+ * with it, so the evidence of this boot would vouch for whatever runs
+ * after. No task loads a kexec image or initramfs by either system
+ * call.
+ */
+SEC("lsm/kernel_load_data")
+int BPF_PROG(shirudo_lsm_kernel_load_data, enum kernel_load_data_id id,
+	     bool contents, int ret)
+{
+	if (ret)
+		return ret;
+	if (id != LOADING_KEXEC_IMAGE && id != LOADING_KEXEC_INITRAMFS)
+		return 0;
+	return shirudo_tamper_deny(SHIRUDO_TAMPER_KEXEC, -EPERM);
+}
+
+SEC("lsm/kernel_read_file")
+int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
+	     enum kernel_read_file_id id, bool contents, int ret)
+{
+	if (ret)
+		return ret;
+	if (id != READING_KEXEC_IMAGE && id != READING_KEXEC_INITRAMFS)
+		return 0;
+	return shirudo_tamper_deny(SHIRUDO_TAMPER_KEXEC, -EPERM);
+}
+
 SEC("lsm/inode_rename")
 int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 	     struct dentry *old_dentry, struct inode *new_dir,

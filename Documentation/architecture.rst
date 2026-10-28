@@ -316,6 +316,9 @@ to every task but shirudo, while viewing, listing and the possessed
 search the kernel verifies signatures with stay open.  Sealing stops
 keys from being added; this stops root from taking them away, so that
 signer removal happens through signed config activation.
+``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` refuse a kexec
+image or initramfs to every task, since a kexec would carry this boot's
+TPM state under a kernel of root's choosing.
 ``lsm/sb_umount``, ``lsm/move_mount``,
 ``lsm/sb_mount`` and ``lsm/sb_remount`` deny unconditionally, for every
 caller including shirudo, direct unmount, relocation, mount-over and

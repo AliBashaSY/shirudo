@@ -119,6 +119,11 @@ fixture.
 only relaxes module-signature checks, and BPF signature verification
 accepts the signed-attributes form.
 
+``CONFIG_KEXEC`` and ``CONFIG_KEXEC_FILE`` may stay enabled: the LSM
+refuses every kexec load (``Kexec``, threat T6 of the threat model),
+since a kexec would carry this boot's TPM state under a kernel of
+root's choosing.
+
 Image-mode requirements
 ~~~~~~~~~~~~~~~~~~~~~~~
 

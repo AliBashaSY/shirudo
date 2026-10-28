@@ -302,7 +302,13 @@ T6  The boot window
     from the certificate and the set.  ``shirudo.service`` then finishes
     from the root file system: labels and the eventlog record.  Until
     the initrd run has happened the target is unprotected; see residual
-    risk 7.
+    risk 7.  A kexec would open that window again without closing this
+    boot: it hands the machine to a kernel and an initrd of root's
+    choosing with the TPM as it is, PCRs 9 and 11 at this boot's values
+    and the register with this boot's history, so the evidence of this
+    boot would vouch for whatever ran after.  ``kernel_load_data`` and
+    ``kernel_read_file`` refuse a kexec image or initramfs to every
+    task, by either system call (``Kexec``).
 
 T7  The delivery path
     The registry index is a detached CMS signature by the operator's
