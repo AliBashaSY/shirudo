@@ -79,6 +79,7 @@ for t in \
 	tamperproof/t1161-bpffs-entries.sh \
 	tamperproof/t1162-persist-undo.sh \
 	tamperproof/t1163-foreign-state-root.sh \
+	tamperproof/t1164-overlay-copy-up.sh \
 	tamperproof/t1150-verity-devices.sh \
 	tamperproof/t1151-verity-process.sh \
 	tamperproof/t1153-verity-hidden.sh \
