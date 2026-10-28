@@ -206,20 +206,44 @@ int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
 	return rc;
 }
 
+/*
+ * Digits and nothing but blanks or NULs around them: a field read up to
+ * its first stray byte, or a base-256 size read as zero, put the next
+ * member where no other tar reader would.
+ */
 int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 {
-	size_t i = 0;
+	size_t i = 0, first;
 	__u64 v = 0;
 
 	while (i < n && (p[i] == ' ' || p[i] == '\0'))
 		i++;
-	for (; i < n && p[i] >= '0' && p[i] <= '7'; i++) {
+	for (first = i; i < n && p[i] >= '0' && p[i] <= '7'; i++) {
 		if (v > (UINT64_MAX >> 3))
 			return -EOVERFLOW;
 		v = (v << 3) | (__u32)(p[i] - '0');
 	}
+	if (i == first)
+		return -EINVAL;
+	for (; i < n; i++) {
+		if (p[i] != ' ' && p[i] != '\0')
+			return -EINVAL;
+	}
 	*out = v;
 	return 0;
+}
+
+/* The checksum is the header's byte sum with its own field as blanks. */
+bool bpm_tar_header_ok(const __u8 h[512])
+{
+	__u64 want, sum = 0;
+	size_t i;
+
+	if (bpm_tar_octal((const char *)h + 148, 8, &want))
+		return false;
+	for (i = 0; i < 512; i++)
+		sum += i >= 148 && i < 156 ? ' ' : h[i];
+	return sum == want;
 }
 
 bool bpm_archive_rel_ok(const char *name)
@@ -287,7 +311,8 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			break;
 		memcpy(name, h, 100);
 		name[100] = '\0';
-		if (!memchr(h, '\0', 100) || bpm_tar_octal((char *)h + 124, 12, &size)) {
+		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) ||
+		    bpm_tar_octal((char *)h + 124, 12, &size)) {
 			rc = -EINVAL;
 			break;
 		}
@@ -411,7 +436,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 		}
 		if (zero)
 			break;
-		if (!memchr(h, '\0', 100) || h[345] ||
+		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) || h[345] ||
 		    bpm_tar_octal((char *)h + 124, 12, &size)) {
 			rc = -EINVAL;
 			break;
@@ -590,7 +615,8 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 		}
 		if (zero)
 			break;
-		if (!memchr(h, '\0', 100)) {
+		/* A ustar prefix would make the member another reader's prefix/name. */
+		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) || h[345]) {
 			rc = -EINVAL;
 			break;
 		}

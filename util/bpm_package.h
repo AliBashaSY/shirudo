@@ -45,6 +45,7 @@ int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
 		      const __u8 *sig, size_t sig_len, int cert_fd);
 
 int bpm_tar_octal(const char *p, size_t n, __u64 *out);
+bool bpm_tar_header_ok(const __u8 h[512]);
 bool bpm_archive_rel_ok(const char *name);
 
 typedef int (*bpm_pkg_member_fn)(void *ctx, const char *member, char type);
