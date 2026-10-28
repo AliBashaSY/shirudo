@@ -1185,7 +1185,13 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		__u64 max_bytes;
 		bool full;
 
-		config_load(&cfg);
+		rc = config_load(&cfg);
+		if (rc) {
+			explicit_bzero(&cfg, sizeof(cfg));
+			pr_err("chain: configuration unreadable: %s",
+			       strerror(-rc));
+			return rc;
+		}
 		max_bytes = cfg.eventlog_max_bytes;
 		full = eventlog_would_exceed(max_bytes);
 		explicit_bzero(&cfg, sizeof(cfg));
