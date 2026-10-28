@@ -716,8 +716,8 @@ static int append_key_event(const char *type, const char *fp_hex,
  * fail-closed treatment as a upatch event: no TPM is an error, not an
  * unmeasured success.
  */
-static int measure_revoke(const struct shirudo_trusted_cert *c,
-			  const char *fp_hex)
+static int measure_revoke_locked(const struct shirudo_trusted_cert *c,
+				 const char *fp_hex)
 {
 	__u8 event[32], chain[32];
 	char sha_hex[65], chain_hex[65];
@@ -746,6 +746,22 @@ static int measure_revoke(const struct shirudo_trusted_cert *c,
 	pr_audit("key revoke measured: fingerprint=%s chain=%s", fp_hex,
 		 chain_hex);
 	return 0;
+}
+
+static int measure_revoke(const struct shirudo_trusted_cert *c,
+			  const char *fp_hex)
+{
+	int lock, rc;
+
+	lock = eventlog_lock();
+	if (lock < 0) {
+		pr_err("keys revoke: cannot take the register lock: %s; the "
+		       "revocation is NOT measured", strerror(-lock));
+		return lock;
+	}
+	rc = measure_revoke_locked(c, fp_hex);
+	eventlog_unlock(lock);
+	return rc;
 }
 
 /*

@@ -38,6 +38,10 @@ int eventlog_append_to(const char *path, const char *json_line);
 /* 0 when nothing was pending. */
 int eventlog_adopt_pending(void);
 
+/* Held from a register extend to its append; -errno when not taken. */
+int eventlog_lock(void);
+void eventlog_unlock(int fd);
+
 /*
  * Replay this boot's records, from its last "init" record on, the way
  * the register accumulates them. -ENOENT when this boot has no init

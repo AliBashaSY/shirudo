@@ -8,6 +8,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "chain.h"
 #include "eventlog.h"
@@ -298,9 +300,57 @@ static int adopt_pending(void)
 	return 0;
 }
 
+/*
+ * The register and the eventlog advance together only while one process
+ * at a time extends and appends: two measuring commands under locks of
+ * their own interleaved extend, extend, append, append and left a log
+ * that replays the events in the other order. Every measuring path holds
+ * this from its extend to its append; it lives beside the log it guards.
+ */
+int eventlog_lock(void)
+{
+	char path[PATH_MAX];
+	int fd, rc;
+
+	if (strsprintf(path, sizeof(path), "%s.lock", eventlog_path()) < 0)
+		return -ENAMETOOLONG;
+	fd = seal_open(path, O_RDWR | O_CREAT, 0600);
+	if (fd < 0)
+		return fd;
+	while (flock(fd, LOCK_EX)) {
+		if (errno != EINTR) {
+			rc = -errno;
+			close(fd);
+			return rc;
+		}
+	}
+	return fd;
+}
+
+void eventlog_unlock(int fd)
+{
+	if (fd >= 0)
+		close(fd);
+}
+
+/*
+ * init adopts the initrd's record while a command may append, and both
+ * would find it missing and append it. Without a record there is
+ * nothing to adopt, nor yet a state directory for the lock on a first
+ * boot.
+ */
 int eventlog_adopt_pending(void)
 {
-	return adopt_pending();
+	int lock, rc;
+
+	if (access(eventlog_pending_path(), F_OK) && errno == ENOENT)
+		return 0;
+	lock = eventlog_lock();
+	if (lock < 0)
+		return lock;
+	rc = adopt_pending();
+	eventlog_unlock(lock);
+	return rc;
 }
 
 static int replay_line(const char *line, size_t len, bool is_init, void *ctx)

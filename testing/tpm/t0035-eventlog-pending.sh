@@ -50,4 +50,22 @@ test_expect_success 'a pending record follows the log'"'"'s records of this boot
 	./$H boot-init | grep -qx "records=2"
 '
 
+# init adopts while a command may append under the register lock: both
+# adopters found the record missing and appended it twice.
+test_expect_success 'adopters wait for the register lock and append the record once' '
+	command -v flock >/dev/null 2>&1 || exit 0
+	rm -f "$SHIRUDO_EVENTLOG_PATH" &&
+	cp "$W/saved" "$SHIRUDO_EVENTLOG_PENDING_PATH" &&
+	touch "$SHIRUDO_EVENTLOG_PATH.lock" &&
+	{ flock "$SHIRUDO_EVENTLOG_PATH.lock" sleep 2 & holder=$!; } &&
+	sleep 0.5 &&
+	{ ./$H adopt >"$W/a1" & a1=$!; } &&
+	{ ./$H adopt >"$W/a2" & a2=$!; } &&
+	sleep 0.5 &&
+	[ ! -e "$SHIRUDO_EVENTLOG_PATH" ] &&
+	wait "$holder" && wait "$a1" && wait "$a2" &&
+	[ "$(wc -l < "$SHIRUDO_EVENTLOG_PATH")" = 1 ] &&
+	[ ! -e "$SHIRUDO_EVENTLOG_PENDING_PATH" ]
+'
+
 test_done

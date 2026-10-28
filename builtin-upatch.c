@@ -2222,10 +2222,11 @@ static int append_upatch_event(const char *type, const char *name,
  * unmeasured success: init guarantees the register exists. *measured
  * tells a failure after the register moved from one before it.
  */
-static int upatch_chain_event(const char *tag, const char *type,
-			      const char *op, const char *name,
-			      const __u8 payload[32], const char *reason,
-			      char out_chain[65], bool *measured)
+static int upatch_chain_event_locked(const char *tag, const char *type,
+				     const char *op, const char *name,
+				     const __u8 payload[32],
+				     const char *reason, char out_chain[65],
+				     bool *measured)
 {
 	__u8 event[32], chain[32];
 	char chain_hex[65];
@@ -2275,6 +2276,30 @@ static int upatch_chain_event(const char *tag, const char *type,
 	pr_info("upatch %s: chain extended, value=%s", op, chain_hex);
 	pr_audit("upatch %s measured: name=%s chain=%s", op, name, chain_hex);
 	return 0;
+}
+
+static int upatch_chain_event(const char *tag, const char *type,
+			      const char *op, const char *name,
+			      const __u8 payload[32], const char *reason,
+			      char out_chain[65], bool *measured)
+{
+	int lock, rc;
+
+	if (out_chain)
+		out_chain[0] = '\0';
+	if (measured)
+		*measured = false;
+	lock = eventlog_lock();
+	if (lock < 0) {
+		pr_err("upatch %s: cannot take the register lock: %s "
+		       "(category: tpm_error) -- nothing measured", op,
+		       strerror(-lock));
+		return lock;
+	}
+	rc = upatch_chain_event_locked(tag, type, op, name, payload, reason,
+				       out_chain, measured);
+	eventlog_unlock(lock);
+	return rc;
 }
 
 /*

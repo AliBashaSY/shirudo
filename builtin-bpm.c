@@ -1856,8 +1856,8 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
  * tree's own projection stays a file chain; the register is what an
  * operator attests.
  */
-static int tree_measure_operation(const struct shirudo_tree_operation *op,
-				  const __u8 operation_digest[32])
+static int tree_measure_locked(const struct shirudo_tree_operation *op,
+			       const __u8 operation_digest[32])
 {
 	__u8 event[32], chain[32];
 	struct shirudo_json_emit e;
@@ -1897,6 +1897,19 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
 	if (e.err)
 		return e.err;
 	return eventlog_append(line);
+}
+
+static int tree_measure_operation(const struct shirudo_tree_operation *op,
+				  const __u8 operation_digest[32])
+{
+	int lock, rc;
+
+	lock = eventlog_lock();
+	if (lock < 0)
+		return lock;
+	rc = tree_measure_locked(op, operation_digest);
+	eventlog_unlock(lock);
+	return rc;
 }
 
 /*

@@ -258,7 +258,11 @@ T5  Silent state change
     happens.  Every state-changing command reads the register first and
     refuses ``tampered`` when ``--expect-chain`` disagrees or the index
     is not the one ``init`` recorded, which also serialises concurrent
-    operators.  ``shirudo status`` replays this boot's records and flags
+    operators.  A measuring command holds a lock beside the eventlog from
+    its extend to its append, so the register and the log advance in one
+    order even where the lock on whole commands is not taken: ``init``
+    adopts the initrd's record without it, and two adopters both found
+    the record missing and appended it twice.  ``shirudo status`` replays this boot's records and flags
     a register it cannot explain.  There is no unmeasured mode: a target
     without a TPM 2.0 does not initialise.  The TPM behind the device
     path is root's to replace in a mount namespace of its own, and an
