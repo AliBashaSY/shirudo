@@ -6,6 +6,8 @@
 # of keyring the anchor is in, a keyring other than the one init froze,
 # or none where it froze one, makes the status tampered, and the register
 # conditions tell a TPM that does not answer from one with no register.
+# A pending config activation is reboot-pending, and a config its records
+# cannot vouch for is tampered.
 
 cd "$(dirname "$0")"
 . ./test-lib.sh
@@ -65,6 +67,33 @@ test_expect_success 'a TPM without a register this boot says so' '
 test_expect_success 'a bound register is measured' '
 	./$H 1 bpf 100 100 match |
 		grep -qx "TpmMeasured OK NV index 0x01818E00 readable"
+'
+
+test_expect_success 'an active config is OK' '
+	./$H 1 bpf 100 100 match |
+		grep -qx "ConfigActive OK config 0123456789ab.. is active"
+'
+
+test_expect_success 'a pending activation is reboot-pending' '
+	out=$(SHIRUDO_TEST_CONFIG_STATE=pending ./$H 1 bpf 100 100 match) &&
+	echo "$out" | grep -qx "status=reboot-pending" &&
+	echo "$out" | grep -qx "reason=a config activation is pending until the next reboot" &&
+	echo "$out" | grep -qx "ConfigActive WARN the activation of config 0123456789ab.. is pending until the next reboot"
+'
+
+test_expect_success 'a config its records cannot vouch for is tampered' '
+	for state in untrusted stale
+	do
+		out=$(SHIRUDO_TEST_CONFIG_STATE=$state ./$H 1 bpf 100 100 match) &&
+		echo "$out" | grep -qx "status=tampered" &&
+		echo "$out" | grep -qx "reason=the selected config cannot be verified against its records" &&
+		echo "$out" | grep -q "^ConfigActive ALERT .*(tamper?)$" || return 1
+	done
+'
+
+test_expect_success 'a pending activation does not hide a register mismatch' '
+	SHIRUDO_TEST_CONFIG_STATE=pending ./$H 1 bpf 100 100 mismatch |
+		grep -qx "status=tampered"
 '
 
 test_done

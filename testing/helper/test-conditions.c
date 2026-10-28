@@ -14,7 +14,9 @@
  */
 
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <shirudo/string.h>
@@ -32,8 +34,8 @@ int main(int argc, char **argv)
 	struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
 	struct shirudo_conditions_input in = {};
 	__s64 lsm, serial, pinned;
+	const char *mode, *config;
 	char reason[160];
-	const char *mode;
 	size_t n, i;
 
 	if (argc != 6 || arg_s64(argv[1], &lsm) || arg_s64(argv[3], &serial) ||
@@ -60,6 +62,13 @@ int main(int argc, char **argv)
 	in.cm_seen = in.chain_seen;
 	in.chain_matches = !strcmp(argv[5], "match");
 	in.nv_index = "0x01818E00";
+	config = getenv("SHIRUDO_TEST_CONFIG_STATE");
+	in.config_seen = !config || strcmp(config, "none");
+	in.config_state = !config ? 0 :
+			  !strcmp(config, "pending") ? -EINPROGRESS :
+			  !strcmp(config, "untrusted") ? -EUCLEAN :
+			  !strcmp(config, "stale") ? -ESTALE : 0;
+	in.config_root = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 	status_reason(&in, reason, sizeof(reason));
 	printf("status=%s\n", status_verdict(&in));

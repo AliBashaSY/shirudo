@@ -35,6 +35,9 @@ struct shirudo_conditions_input {
 	int		chain_matches;		/* 0/1 if cm_seen */
 	int		cm_seen;
 	const char	*nv_index;
+	int		config_seen;
+	int		config_state;	/* shirudo_image_config_state() */
+	const char	*config_root;	/* hex, when config_seen */
 };
 
 struct shirudo_condition {
@@ -45,10 +48,10 @@ struct shirudo_condition {
 
 /*
  * Maximum number of conditions returned today (LsmAttached,
- * KeyringSealed, ChainIntact, TpmMeasured); callers can size their
- * stack array off this.
+ * KeyringSealed, ChainIntact, TpmMeasured, ConfigActive); callers can
+ * size their stack array off this.
  */
-#define SHIRUDO_CONDITIONS_MAX	4
+#define SHIRUDO_CONDITIONS_MAX	5
 
 size_t conditions(const struct shirudo_conditions_input *in,
 		  struct shirudo_condition *out, size_t cap);
@@ -58,7 +61,7 @@ void conditions_print(const struct shirudo_condition *c, size_t n);
 /*
  * Single-word aggregate verdict (severity worst -> best):
  *   unreachable -> unparseable -> tampered -> lsm-off ->
- *   init-pending -> degraded -> ok
+ *   init-pending -> reboot-pending -> degraded -> ok
  * Used by the `Status:` line in `shirudo status` and its JSON output.
  */
 const char *status_verdict(const struct shirudo_conditions_input *in);

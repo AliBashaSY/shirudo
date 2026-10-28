@@ -103,7 +103,7 @@ machine-readable one.  The fields that matter day to day:
     means ``initrd``.
 
 Conditions
-    Four, each ``OK``, ``WARN`` or ``ALERT`` with a detail:
+    Five, each ``OK``, ``WARN`` or ``ALERT`` with a detail:
 
     .. list-table::
        :header-rows: 1
@@ -126,6 +126,21 @@ Conditions
        * - ``TpmMeasured``
          - ``WARN`` when no register is bound this boot
            (``degraded``) or no TPM answers; the detail says which.
+       * - ``ConfigActive``
+         - ``WARN`` while a config activation is pending until the next
+           reboot (``reboot-pending``); ``ALERT`` when the config PCR,
+           the activation records and the mounted config disagree, or
+           the records belong to another TPM boot (``tampered``).
+
+``config``
+    The selected or pending config's ``root_hash``, whether its
+    ``activation_pending`` and, when its records cannot vouch for it,
+    the ``error``.  Every other target command refuses in those states;
+    ``status`` runs in them so that the keepalive reports them.  It then
+    uses the pending config's export settings only when that is the
+    config mounted, and otherwise only the runtime image's settings and
+    the environment, so a keepalive needs ``OTEL_EXPORTER_OTLP_ENDPOINT``
+    in ``map-export.env`` to reach a collector in such a state.
 
 ``keyring_serial`` and ``keyring_serial_pinned``
     The live keyring and the one frozen at ``init``; they match on a
@@ -431,7 +446,8 @@ TPM reset and restart counts, event sequence and pending state. Ordinary target 
 hold the config operation lock and use one held config directory for the
 operation; a command waits up to 30 seconds for another one to release
 it. They refuse a pending activation or PCR/history inconsistency;
-attestation follows the same rule.
+attestation follows the same rule. ``status`` alone runs in those states
+and reports them (section 2).
 
 Activate a complete locally staged bundle or pull it by HTTPS prefix::
 
