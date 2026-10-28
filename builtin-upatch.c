@@ -1985,6 +1985,11 @@ static int upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 	if ((__s32)retval < 0) {
+		/*
+		 * The loader closed what it made before it failed; the
+		 * numbers left in the context name nothing of ours now.
+		 */
+		memset(cx + 1, 0, ctx_sz - sizeof(*cx));
 		pr_err("loader returned error: %d", (__s32)retval);
 		fprintf(stderr, "loader runtime log (len=%zu):\n%.4096s\n",
 			strnlen(vlog, SHIRUDO_VERIFIER_LOG_MAX), vlog);
