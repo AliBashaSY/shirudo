@@ -35,6 +35,14 @@ test_expect_success 'discarded object key colliding with schema does not mis-dis
 	echo "$out" | grep -q "type=init"
 '
 
+# A value read as a C string would end at the NUL and pass checks
+# meant for the whole value; a key would be dispatched as its prefix.
+test_expect_success 'an escaped NUL in a value or a key -> EINVAL' '
+	printf "%s" "{\"digest\":\"ab\\u0000cd\"}" | ./$H | grep -qx "rc=-22" &&
+	printf "%s" "{\"digest\\u0000x\":\"ff\"}" | ./$H | grep -qx "rc=-22" &&
+	printf "%s" "{\"digest\":\"ab\\u0041\"}" | ./$H | grep -q "digest=abA"
+'
+
 test_expect_success 'unterminated string -> EINVAL' '
 	printf "%s" "{\"digest\":\"abc" | ./$H | grep -qx "rc=-22"
 '
