@@ -103,7 +103,9 @@ there is no decoder search path and nothing to drop in.
 
 The decoder runs under LuaJIT with the standard library and an
 instruction budget, and is loaded as source text alone: LuaJIT verifies
-no bytecode it loads, so a bytecode chunk is refused.  Its entry point receives one table::
+no bytecode it loads, so a bytecode chunk is refused. The archived
+artifact it is read from is opened as sealed state, so an entry under
+the archive that is not shirudo's own is refused rather than run.  Its entry point receives one table::
 
     input.schema, input.upatch, input.map
     input.startTimeUnixNano, input.timeUnixNano

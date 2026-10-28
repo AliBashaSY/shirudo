@@ -289,35 +289,22 @@ int upatch_open_memory(const void *data, size_t size,
 	return upatch_parse(data, size, out);
 }
 
-int upatch_open(const char *path, struct shirudo_upatch *out)
+int upatch_open_fd(int fd, struct shirudo_upatch *out)
 {
 	struct stat st;
 	void *m;
-	int fd;
 	int rc;
 
 	memset(out, 0, sizeof(*out));
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
+	if (fstat(fd, &st) != 0)
 		return -errno;
-	if (fstat(fd, &st) != 0) {
-		rc = -errno;
-		close(fd);
-		return rc;
-	}
-	if (!S_ISREG(st.st_mode) || st.st_size <= 0) {
-		close(fd);
+	if (!S_ISREG(st.st_mode) || st.st_size <= 0)
 		return -EINVAL;
-	}
 	/* refuse pathologically-large inputs; .upatch is small */
-	if ((uintmax_t)st.st_size > SHIRUDO_UPATCH_FILE_MAX) {
-		close(fd);
+	if ((uintmax_t)st.st_size > SHIRUDO_UPATCH_FILE_MAX)
 		return -EFBIG;
-	}
 
 	m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	close(fd);
 	if (m == MAP_FAILED)
 		return -errno;
 
@@ -328,6 +315,19 @@ int upatch_open(const char *path, struct shirudo_upatch *out)
 	}
 	out->mapped = true;
 	return 0;
+}
+
+int upatch_open(const char *path, struct shirudo_upatch *out)
+{
+	int fd, rc;
+
+	memset(out, 0, sizeof(*out));
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	rc = upatch_open_fd(fd, out);
+	close(fd);
+	return rc;
 }
 
 void upatch_close(struct shirudo_upatch *u)

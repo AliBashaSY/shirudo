@@ -51,6 +51,7 @@ struct upatch_decoder_view {
  * decides whether to emit user-facing diagnostics.
  */
 int  upatch_open(const char *path, struct shirudo_upatch *out);
+int  upatch_open_fd(int fd, struct shirudo_upatch *out);
 int  upatch_open_memory(const void *data, size_t size,
 			struct shirudo_upatch *out);
 void upatch_close(struct shirudo_upatch *u);

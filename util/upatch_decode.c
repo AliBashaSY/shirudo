@@ -73,6 +73,7 @@ int upatch_decode_map_file_otel(const char *path,
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -87,6 +88,7 @@ int upatch_decode_map_file_otel(const char *path,
 #include "macros.h"
 #include "malloc.h"
 #include "paths.h"
+#include "seal.h"
 #include "upatch.h"
 #include "upatch_decode.h"
 #include "upatch_maps.h"
@@ -1291,7 +1293,29 @@ static int decoder_matches(const struct upatch_decoder_view *d,
 	return 1;
 }
 
-static int decode_map_file(const char *path, const struct shirudo_map_view *v,
+/*
+ * The archived artifact the decoders come from, opened as sealed state
+ * when archived: an entry under the archive that is not shirudo's own,
+ * brought in while the directory's mark was gone, is refused rather
+ * than run, signed or not.
+ */
+static int archive_open(const char *path, bool archived,
+			struct shirudo_upatch *u)
+{
+	int fd, rc;
+
+	if (!archived)
+		return upatch_open(path, u);
+	fd = seal_open_read(path);
+	if (fd < 0)
+		return fd;
+	rc = upatch_open_fd(fd, u);
+	close(fd);
+	return rc;
+}
+
+static int decode_map_open(const char *path, bool archived,
+			   const struct shirudo_map_view *v,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
 {
@@ -1305,7 +1329,7 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 	*out_len = 0;
 	if (!upatch_name_valid(v->upatch))
 		return -EINVAL;
-	rc = upatch_open(path, &u);
+	rc = archive_open(path, archived, &u);
 	if (rc)
 		return rc == -ENOENT ? -ENOENT : rc;
 	rc = -ENODATA;
@@ -1323,6 +1347,13 @@ static int decode_map_file(const char *path, const struct shirudo_map_view *v,
 	return rc;
 }
 
+static int decode_map_file(const char *path, const struct shirudo_map_view *v,
+			   bool otel, size_t max_bytes,
+			   char **out, size_t *out_len)
+{
+	return decode_map_open(path, false, v, otel, max_bytes, out, out_len);
+}
+
 int upatch_decode_map_signal(const struct shirudo_map_view *v,
 			     __u32 *signal_out)
 {
@@ -1336,7 +1367,7 @@ int upatch_decode_map_signal(const struct shirudo_map_view *v,
 	if (strsprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
 		       v->upatch) < 0)
 		return -ENAMETOOLONG;
-	rc = upatch_open(path, &u);
+	rc = archive_open(path, true, &u);
 	if (rc)
 		return rc == -ENOENT ? -ENOENT : rc;
 	rc = -ENODATA;
@@ -1364,7 +1395,7 @@ static int decode_map(const struct shirudo_map_view *v, bool otel,
 	if (strsprintf(path, sizeof(path), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
 		       v->upatch) < 0)
 		return -ENAMETOOLONG;
-	return decode_map_file(path, v, otel, max_bytes, out, out_len);
+	return decode_map_open(path, true, v, otel, max_bytes, out, out_len);
 }
 
 int upatch_decode_map_json(const struct shirudo_map_view *v,

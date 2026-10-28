@@ -2906,14 +2906,19 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	char persisted[PATH_MAX];
 	struct shirudo_upatch u;
 	bool loaded;
-	int rc;
+	int fd, rc;
 
 	if (!safe_upatch_name(name))
 		return -EINVAL;
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		       SHIRUDO_UPATCHES_DIR, name) < 0)
 		return -ENAMETOOLONG;
-	rc = upatch_open(persisted, &u);
+	rc = seal_open_read(persisted);
+	if (rc < 0)
+		return rc;
+	fd = rc;
+	rc = upatch_open_fd(fd, &u);
+	close(fd);
 	if (rc)
 		return rc;
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
