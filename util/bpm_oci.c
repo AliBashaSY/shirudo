@@ -656,6 +656,13 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		}
 	}
 	curl_easy_setopt(curl, CURLOPT_URL, url);
+	/*
+	 * The realm is the registry's to name and the credentials go there:
+	 * over no weaker a transport than the registry's own.
+	 */
+	curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR,
+			 strncmp(c->base_url, "https://", 8) ? "http,https" :
+							       "https");
 	curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	bpm_curl_deadlines(curl);
