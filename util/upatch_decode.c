@@ -1224,7 +1224,9 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	lua_install_host_api(L);
 	lua_install_budget(L, &budget);
 
-	if (luaL_loadbuffer(L, d->source, d->source_len, d->source_name) ||
+	/* LuaJIT checks no bytecode it loads; a decoder is source text. */
+	if (luaL_loadbufferx(L, d->source, d->source_len, d->source_name,
+			     "t") ||
 	    lua_pcall(L, 0, 1, 0)) {
 		fprintf(stderr, "upatch map: decoder load failed: %s\n",
 			lua_error_message(L));

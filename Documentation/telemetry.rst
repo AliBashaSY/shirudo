@@ -102,7 +102,8 @@ data it interprets.  A target runs only decoders that arrived this way;
 there is no decoder search path and nothing to drop in.
 
 The decoder runs under LuaJIT with the standard library and an
-instruction budget.  Its entry point receives one table::
+instruction budget, and is loaded as source text alone: LuaJIT verifies
+no bytecode it loads, so a bytecode chunk is refused.  Its entry point receives one table::
 
     input.schema, input.upatch, input.map
     input.startTimeUnixNano, input.timeUnixNano
