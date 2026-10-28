@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 
+import gzip
 import hashlib
 import http.server
 import io
@@ -110,6 +111,45 @@ class InfoTests(unittest.TestCase):
             header.linkname = "/etc/passwd"
             archive.addfile(header)
         result = self.local(body.getvalue())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+
+    def headers(self, mutate):
+        body = io.BytesIO()
+        beefile = b'[package]\nname = "example"\n'
+        with tarfile.open(fileobj=body, mode="w", format=tarfile.USTAR_FORMAT) as archive:
+            for name, content in (("example-1.0/Beefile", beefile),
+                                  ("example-1.0/README.md", README)):
+                header = tarfile.TarInfo(name)
+                header.size = len(content)
+                archive.addfile(header, io.BytesIO(content))
+        tar = bytearray(body.getvalue())
+        # The README's header follows the Beefile's header and one data block.
+        mutate(tar, 1024)
+        return gzip.compress(bytes(tar))
+
+    @staticmethod
+    def checksum(tar, at):
+        tar[at + 148:at + 156] = b" " * 8
+        tar[at + 148:at + 156] = b"%06o\0 " % sum(tar[at:at + 512])
+
+    def test_a_recomputed_checksum_is_accepted(self):
+        result = self.local(self.headers(lambda tar, at: self.checksum(tar, at)))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, README)
+
+    def test_a_header_whose_checksum_fails_is_refused(self):
+        def flip(tar, at):
+            tar[at + 3] ^= 1
+        result = self.local(self.headers(flip))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+
+    def test_a_size_field_with_a_stray_byte_is_refused(self):
+        def stray(tar, at):
+            tar[at + 124:at + 136] = b"%010o" % len(README) + b"x\0"
+            self.checksum(tar, at)
+        result = self.local(self.headers(stray))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, b"")
 
