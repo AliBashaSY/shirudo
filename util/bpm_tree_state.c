@@ -411,32 +411,7 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 
 static int tree_read_file(const char *path, __u8 **body, size_t *len)
 {
-	struct stat st;
-	__u8 *p;
-	ssize_t got;
-	int fd = open(path, O_RDONLY | O_CLOEXEC);
-
-	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st) || st.st_size < 0 || st.st_size > SHIRUDO_JSON_MAX_BYTES) {
-		close(fd);
-		return -E2BIG;
-	}
-	p = xmalloc((size_t)st.st_size + 1);
-	if (!p) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, p, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(p, (size_t)st.st_size + 1);
-		return -EIO;
-	}
-	p[got] = '\0';
-	*body = p;
-	*len = (size_t)got;
-	return 0;
+	return read_file(path, SHIRUDO_JSON_MAX_BYTES, body, len);
 }
 
 /* hex is exactly 64 hex digits: a SHA-256 digest. */

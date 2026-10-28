@@ -545,6 +545,8 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 {
 	gzFile gz = gzopen(archive, "rb");
 	char root[256] = {};
+	__u64 total = 0;
+	__u32 entries = 0;
 	__u8 h[512];
 	int rc = 0;
 
@@ -588,6 +590,12 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 		type = h[156];
 		if (!type)
 			type = '0';
+		if (++entries > BPM_MAX_PACKAGE_ENTRIES ||
+		    size > BPM_MAX_PACKAGE_BYTES - total) {
+			rc = -EFBIG;
+			break;
+		}
+		total += size;
 		if (!root[0]) {
 			slash = strchr(name, '/');
 			if (!slash || slash == name || (size_t)(slash - name) >= sizeof(root)) {
@@ -612,6 +620,21 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 		}
 		if (type == '5') {
 			rc = seal_mkdir_p(path, 0700);
+			if (rc)
+				break;
+			/* Read as the other walkers do, whatever a directory carries. */
+			remain = size;
+			while (remain) {
+				__u8 buf[65536];
+				size_t want = remain > sizeof(buf) ? sizeof(buf) : (size_t)remain;
+
+				n = gzread(gz, buf, (__u32)want);
+				if (n <= 0) {
+					rc = -EIO;
+					break;
+				}
+				remain -= (size_t)n;
+			}
 			if (rc)
 				break;
 		} else if (type == '0') {

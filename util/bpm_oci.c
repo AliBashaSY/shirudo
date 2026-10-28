@@ -405,18 +405,21 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 			const char *auth, struct bpm_http_response *r,
 			struct bpm_file_sink *file, bool follow)
 {
-	CURL *curl;
-	struct curl_slist *headers = NULL;
-	CURLcode cc;
-	long status = 0;
+	struct curl_slist *headers = NULL, *next;
 	char errbuf[CURL_ERROR_SIZE] = {};
+	long status = 0;
+	CURLcode cc;
+	CURL *curl;
 
 	if (accept) {
 		char h[256];
 
 		if (strsprintf(h, sizeof(h), "Accept: %s", accept) < 0)
 			goto too_long;
-		headers = curl_slist_append(headers, h);
+		next = curl_slist_append(headers, h);
+		if (!next)
+			goto no_memory;
+		headers = next;
 	}
 	if (content_type) {
 		char h[256];
@@ -424,14 +427,20 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 		if (strsprintf(h, sizeof(h), "Content-Type: %s",
 			       content_type) < 0)
 			goto too_long;
-		headers = curl_slist_append(headers, h);
+		next = curl_slist_append(headers, h);
+		if (!next)
+			goto no_memory;
+		headers = next;
 	}
 	if (auth) {
 		char h[8192];
 
 		if (strsprintf(h, sizeof(h), "Authorization: %s", auth) < 0)
 			goto too_long;
-		headers = curl_slist_append(headers, h);
+		next = curl_slist_append(headers, h);
+		if (!next)
+			goto no_memory;
+		headers = next;
 	}
 	curl = curl_easy_init();
 	if (!curl) {
@@ -506,6 +515,9 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 too_long:
 	curl_slist_free_all(headers);
 	return -E2BIG;
+no_memory:
+	curl_slist_free_all(headers);
+	return -ENOMEM;
 }
 
 static int curl_once(struct bpm_oci_client *c, const char *method,
@@ -751,6 +763,8 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 
 	if (size < 0 || fd < 0)
 		return -EINVAL;
+	if ((__u64)size > BPM_MAX_PACKAGE_BYTES)
+		return -EFBIG;
 	rc = sink_restart(&sink, fd, (__u64)size);
 	if (rc)
 		return rc;

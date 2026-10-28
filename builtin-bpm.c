@@ -654,8 +654,8 @@ static int key_file_fingerprint(const char *path, char hex[65])
 static int install_key_file(const char *src)
 {
 	char hex[65], dst[PATH_MAX];
+	bool active, made = false;
 	struct stat st;
-	bool active;
 	int rc;
 
 	rc = key_file_fingerprint(src, hex);
@@ -684,15 +684,23 @@ static int install_key_file(const char *src)
 		rc = copy_file_ex(src, dst, 0644, true);
 		if (rc)
 			return rc;
+		made = true;
 	}
 	if (active)
 		return 0;
 	if (symlink(dst, SHIRUDO_CERT_PATH)) {
-		if (errno != EEXIST)
-			return -errno;
-		return cert_matches_active(src) ? -EPERM : 0;
+		if (errno != EEXIST) {
+			rc = -errno;
+			goto undo;
+		}
+		rc = cert_matches_active(src) ? -EPERM : 0;
+		goto undo;
 	}
-	return seal_inherit_path(SHIRUDO_CERT_PATH);
+	rc = seal_inherit_path(SHIRUDO_CERT_PATH);
+undo:
+	if (rc && made)
+		unlink(dst);
+	return rc;
 }
 
 static int extract_package_cert(const char *archive, char *out, size_t out_sz)
@@ -1312,8 +1320,12 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			char saved[PATH_MAX];
 
 			if (strsprintf(saved, sizeof(saved), "%s/%s-%s.bee", dir,
-				       entry->name, entry->version) >= 0)
-				(void)rename(archive, saved);
+				       entry->name, entry->version) < 0 ||
+			    rename(archive, saved)) {
+				pr_warn("bpm: cannot keep %s; dropping it",
+					archive);
+				unlink(archive);
+			}
 		}
 		break;
 	}
