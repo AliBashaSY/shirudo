@@ -18,6 +18,7 @@
 #include <linux/keyctl.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "keyring.h"
 #include "io.h"
@@ -27,6 +28,8 @@
 #ifndef KEYCTL_RESTRICT_KEYRING
 #define KEYCTL_RESTRICT_KEYRING	29
 #endif
+
+#define KEYRING_DESC_MAX	512
 
 static long sys_add_key(const char *type, const char *desc,
 			const void *payload, size_t plen, key_serial_t ring)
@@ -71,13 +74,13 @@ static void split_describe(char *desc, const char **type,
 	*description = p;
 }
 
-int keyring_list(key_serial_t keyring,
-		 shirudo_keyring_cb cb, void *ud)
+/* Every link of <keyring>, whatever its type; freed with xfree(, *size). */
+static int read_links(key_serial_t keyring, key_serial_t **out, size_t *n,
+		      size_t *size)
 {
 	key_serial_t *serials = NULL;
 	size_t cap = 64 * sizeof(*serials);
 	long ret;
-	size_t n, i;
 
 	serials = xmalloc(cap);
 	if (!serials)
@@ -106,17 +109,31 @@ int keyring_list(key_serial_t keyring,
 		/*
 		 * The keyring can grow again between the two reads;
 		 * KEYCTL_READ then returns the full size while filling only
-		 * cap bytes. Clamp to what the buffer actually holds so the
-		 * loop below never reads past the allocation.
+		 * cap bytes. Clamp to what the buffer actually holds so no
+		 * caller reads past the allocation.
 		 */
 		if ((size_t)ret > cap)
 			ret = (long)cap;
 	}
+	*out = serials;
+	*n = (size_t)ret / sizeof(*serials);
+	*size = cap;
+	return 0;
+}
 
-	n = (size_t)ret / sizeof(*serials);
+int keyring_list(key_serial_t keyring,
+		 shirudo_keyring_cb cb, void *ud)
+{
+	key_serial_t *serials = NULL;
+	size_t n = 0, cap = 0, i;
+	int rc;
+
+	rc = read_links(keyring, &serials, &n, &cap);
+	if (rc)
+		return rc;
 	for (i = 0; i < n; i++) {
-		char desc[512];
 		const char *type, *description;
+		char desc[KEYRING_DESC_MAX];
 
 		if (describe_key(serials[i], desc, sizeof(desc)) != 0)
 			continue;
@@ -127,8 +144,29 @@ int keyring_list(key_serial_t keyring,
 	return 0;
 }
 
+/* The description the kernel gives the key it parses from <der>. */
+static int cert_description(const __u8 *der, size_t der_len,
+			    char out[KEYRING_DESC_MAX])
+{
+	const char *type, *description;
+	char desc[KEYRING_DESC_MAX];
+	long probe;
+	int rc;
+
+	probe = sys_add_key("asymmetric", NULL, der, der_len,
+			    KEY_SPEC_THREAD_KEYRING);
+	if (probe < 0)
+		return -errno;
+	rc = describe_key((key_serial_t)probe, desc, sizeof(desc));
+	sys_keyctl(KEYCTL_UNLINK, probe, KEY_SPEC_THREAD_KEYRING, 0, 0);
+	if (rc)
+		return rc;
+	split_describe(desc, &type, &description);
+	return strscpy(out, description, KEYRING_DESC_MAX) < 0 ? -ERANGE : 0;
+}
+
 struct holds_cert_ctx {
-	char		want[512];
+	char		want[KEYRING_DESC_MAX];
 	key_serial_t	serial;
 	bool		found;
 };
@@ -149,25 +187,11 @@ int keyring_holds_cert(key_serial_t keyring,
 		       const __u8 *der, size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
-	const char *type, *description;
-	char desc[512];
-	long probe;
 	int rc;
 
-	probe = sys_add_key("asymmetric", NULL, der, der_len,
-			    KEY_SPEC_THREAD_KEYRING);
-	if (probe < 0)
-		return -errno;
-	rc = describe_key((key_serial_t)probe, desc, sizeof(desc));
-	sys_keyctl(KEYCTL_UNLINK, probe, KEY_SPEC_THREAD_KEYRING, 0, 0);
-	if (rc)
-		return rc;
-	split_describe(desc, &type, &description);
-	if (strlen(description) >= sizeof(ctx.want))
-		return -ERANGE;
-	memcpy(ctx.want, description, strlen(description) + 1);
-
-	rc = keyring_list(keyring, holds_cert_cb, &ctx);
+	rc = cert_description(der, der_len, ctx.want);
+	if (!rc)
+		rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
 		return rc;
 	return ctx.found ? 1 : 0;
@@ -178,27 +202,71 @@ key_serial_t keyring_find_cert(key_serial_t keyring,
 			       size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
-	const char *type, *description;
-	char desc[512];
-	long probe;
 	int rc;
 
-	probe = sys_add_key("asymmetric", NULL, der, der_len,
-			    KEY_SPEC_THREAD_KEYRING);
-	if (probe < 0)
-		return -errno;
-	rc = describe_key((key_serial_t)probe, desc, sizeof(desc));
-	sys_keyctl(KEYCTL_UNLINK, probe, KEY_SPEC_THREAD_KEYRING, 0, 0);
-	if (rc)
-		return rc;
-	split_describe(desc, &type, &description);
-	if (strlen(description) >= sizeof(ctx.want))
-		return -ERANGE;
-	memcpy(ctx.want, description, strlen(description) + 1);
-	rc = keyring_list(keyring, holds_cert_cb, &ctx);
+	rc = cert_description(der, der_len, ctx.want);
+	if (!rc)
+		rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
 		return rc;
 	return ctx.found ? ctx.serial : -ENOKEY;
+}
+
+/*
+ * Every link counts, whatever its type and whether it can be described:
+ * the kernel's signature check searches a nested keyring, which the
+ * seal does not cover, and a key hidden from view still verifies.
+ */
+int keyring_holds_exactly(key_serial_t keyring,
+			  const struct keyring_cert *certs, size_t n)
+{
+	char (*want)[KEYRING_DESC_MAX] = NULL;
+	size_t links = 0, cap = 0, i, j;
+	key_serial_t *serials = NULL;
+	bool *matched = NULL;
+	int rc = -ENOMEM;
+
+	if (n) {
+		want = xcalloc(n, sizeof(*want));
+		matched = xcalloc(n, sizeof(*matched));
+		if (!want || !matched)
+			goto out;
+	}
+	for (i = 0; i < n; i++) {
+		rc = cert_description(certs[i].der, certs[i].len, want[i]);
+		if (rc)
+			goto out;
+	}
+	rc = read_links(keyring, &serials, &links, &cap);
+	if (rc)
+		goto out;
+	if (links != n)
+		goto out;
+	for (i = 0; i < links; i++) {
+		const char *type, *description;
+		char desc[KEYRING_DESC_MAX];
+
+		if (describe_key(serials[i], desc, sizeof(desc)))
+			goto out;
+		split_describe(desc, &type, &description);
+		if (strcmp(type, "asymmetric"))
+			goto out;
+		for (j = 0; j < n; j++)
+			if (!matched[j] && !strcmp(description, want[j]))
+				break;
+		if (j == n)
+			goto out;
+		matched[j] = true;
+	}
+	rc = 1;
+out:
+	if (serials)
+		xfree(serials, cap);
+	if (want)
+		xfree(want, n * sizeof(*want));
+	if (matched)
+		xfree(matched, n * sizeof(*matched));
+	return rc;
 }
 
 int keyring_unlink_key(key_serial_t keyring, key_serial_t key)

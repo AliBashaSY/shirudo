@@ -84,6 +84,7 @@ for t in \
 	tamperproof/t1166-kexec.sh \
 	tamperproof/t1168-proc-substitution.sh \
 	tamperproof/t1169-register-lock.sh \
+	tamperproof/t1170-keyring-seal.sh \
 	tamperproof/t1150-verity-devices.sh \
 	tamperproof/t1151-verity-process.sh \
 	tamperproof/t1153-verity-hidden.sh \

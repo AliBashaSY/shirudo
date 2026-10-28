@@ -702,6 +702,42 @@ static int boot_keys_error(const char *step, int rc)
 	return rc;
 }
 
+/*
+ * The kernel trusts every key in the sealed keyring for config roots, so
+ * whether init sealed it now or earlier this boot, it must hold exactly
+ * the config certificate.
+ */
+static int seal_config_key(key_serial_t ring, const __u8 *der, size_t size)
+{
+	struct keyring_cert cert = { .der = der, .len = size };
+	key_serial_t key;
+	int rc;
+
+	key = shirudo_keyring_dm_verity_add_cert(der, size);
+	if (key < 0 && key != -EPERM && key != -EACCES)
+		return boot_keys_error("add config verification certificate",
+				       (int)key);
+	if (key < 0 && keyring_holds_exactly(ring, NULL, 0) == 1)
+		return boot_keys_error("dm-verity keyring sealed empty at boot; "
+				       "boot with dm_verity.keyring_unsealed=1",
+				       -ENOKEY);
+	if (key >= 0) {
+		rc = shirudo_keyring_dm_verity_seal();
+		if (rc == -EEXIST)
+			return boot_keys_error("seal dm-verity keyring restricted "
+					       "by another task (tampered)",
+					       -EKEYREJECTED);
+		if (rc)
+			return boot_keys_error("seal dm-verity keyring", rc);
+	}
+	rc = keyring_holds_exactly(ring, &cert, 1);
+	if (rc <= 0)
+		return boot_keys_error("check dm-verity keyring holds only the "
+				       "config certificate",
+				       rc ? rc : -EKEYREJECTED);
+	return 0;
+}
+
 static int enroll_config_key(void)
 {
 	__u8 *der = NULL;
@@ -719,22 +755,9 @@ static int enroll_config_key(void)
 		xfree(der, size);
 		return boot_keys_error("lookup dm-verity keyring", rc);
 	}
-	rc = keyring_holds_cert(ring, der, size);
-	if (rc < 0) {
-		xfree(der, size);
-		return boot_keys_error("check config certificate enrollment", rc);
-	}
-	if (!rc)
-		rc = shirudo_keyring_dm_verity_add_cert(der, size);
+	rc = seal_config_key(ring, der, size);
 	xfree(der, size);
-	if (rc < 0)
-		return boot_keys_error("add config verification certificate", rc);
-	rc = shirudo_keyring_dm_verity_seal();
-	if (rc == -EEXIST)
-		return 0;
-	if (rc)
-		return boot_keys_error("seal dm-verity keyring", rc);
-	return 0;
+	return rc;
 }
 
 /* The authenticated initrd validates the boot set before installing guards. */

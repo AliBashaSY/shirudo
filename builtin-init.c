@@ -76,27 +76,6 @@ static void print_preflight(const struct shirudo_preflight_result *r)
 	       r->n - r->n_failed, r->n, r->n_failed);
 }
 
-static void keyring_count_asymmetric(key_serial_t serial, const char *type,
-				     const char *description, void *ud)
-{
-	size_t *n = ud;
-
-	(void)serial;
-	(void)description;
-	if (strcmp(type, "asymmetric") == 0)
-		(*n)++;
-}
-
-static int keyring_asymmetric_count(key_serial_t ring)
-{
-	size_t n = 0;
-	int rc = keyring_list(ring, keyring_count_asymmetric, &n);
-
-	if (rc)
-		return rc;
-	return (int)n;
-}
-
 static struct shirudo_trusted_set enrolled;
 
 static bool initrd_mode;
@@ -104,40 +83,37 @@ static bool initrd_mode;
 static int keyring_holds_set(key_serial_t ring,
 			     const struct shirudo_trusted_set *set)
 {
-	size_t i, held = 0;
+	struct keyring_cert certs[SHIRUDO_KEYS_MAX];
+	size_t i;
+	int rc;
 
 	for (i = 0; i < set->n; i++) {
-		const __u8 *der = NULL;
-		size_t der_sz = 0;
-		int rc;
-
-		rc = keys_cert_der(&set->certs[i], &der, &der_sz);
+		rc = keys_cert_der(&set->certs[i], &certs[i].der,
+				   &certs[i].len);
 		if (rc)
 			return rc;
-		rc = keyring_holds_cert(ring, der, der_sz);
-		if (rc < 0)
-			return rc;
-		held += rc;
 	}
-	return (int)held;
+	return keyring_holds_exactly(ring, certs, set->n);
 }
 
 /*
  * The bpf keyring is the trust anchor a signed loader is verified
  * against once it is sealed. Booted with bpf.keyring_unsealed=1 it
  * takes keys until the first seal, which is init's job from the initrd:
- * enrol every trusted certificate and seal. Found sealed, it either
- * holds exactly that set (-EEXIST: use it) or was sealed empty by the
- * kernel at boot (-ENOKEY: initialization refuses until reboot with the
- * enrollment parameter); sealed around anything else, it is refused.
+ * enrol every trusted certificate and seal. Found sealed, it was sealed
+ * by init earlier this boot (-EEXIST: use it) or empty by the kernel at
+ * boot (-ENOKEY). Either way it must then hold exactly the trusted set;
+ * a key another task linked before the seal, or a restriction init did
+ * not install, is refused.
  */
 static int init_bpf_keyring(key_serial_t ring,
 			    const struct shirudo_trusted_set *set)
 {
-	int count, held, rc;
+	bool sealed = false;
 	size_t i;
+	int rc;
 
-	for (i = 0; i < set->n; i++) {
+	for (i = 0; i < set->n && !sealed; i++) {
 		const __u8 *der = NULL;
 		size_t der_sz = 0;
 		key_serial_t key;
@@ -172,35 +148,43 @@ static int init_bpf_keyring(key_serial_t ring,
 			       (int)ring);
 			return -EKEYREJECTED;
 		}
-		/* Sealed before init: by init earlier this boot, or not. */
-		held = keyring_holds_set(ring, set);
-		if (held < 0) {
-			pr_err("bpf keyring: compare: %s", strerror(-held));
-			return held;
+		sealed = true;
+	}
+	if (!sealed) {
+		rc = keyring_bpf_seal();
+		if (rc == -EEXIST) {
+			pr_err("bpf keyring serial=%d carries a restriction "
+			       "init did not install (tampered)", (int)ring);
+			return -EKEYREJECTED;
 		}
-		count = keyring_asymmetric_count(ring);
-		if (count < 0) {
-			pr_err("bpf keyring: list: %s", strerror(-count));
-			return count;
+		if (rc) {
+			pr_err("bpf keyring: certificates enrolled but the "
+			       "keyring could not be sealed: %s",
+			       strerror(-rc));
+			return rc;
 		}
-		if (count == 0)
-			return -ENOKEY;
-		if ((size_t)held == set->n && (size_t)count == set->n) {
-			pr_info("bpf keyring serial=%d: already holds the %zu "
-				"trusted certificate%s, sealed this boot",
-				(int)ring, set->n, set->n == 1 ? "" : "s");
-			return -EEXIST;
-		}
-		pr_err("bpf keyring serial=%d is sealed around %d key%s, "
-		       "%d of the %zu trusted certificates (tampered)",
-		       (int)ring, count, count == 1 ? "" : "s", held, set->n);
+	}
+	rc = keyring_holds_set(ring, set);
+	if (rc < 0) {
+		pr_err("bpf keyring: compare: %s", strerror(-rc));
+		return rc;
+	}
+	if (!rc && sealed && keyring_holds_exactly(ring, NULL, 0) == 1) {
+		pr_err("bpf keyring serial=%d was sealed empty at boot; boot "
+		       "with bpf.keyring_unsealed=1", (int)ring);
+		return -ENOKEY;
+	}
+	if (!rc) {
+		pr_err("bpf keyring serial=%d is sealed around keys other than "
+		       "the %zu trusted certificate%s (tampered)", (int)ring,
+		       set->n, set->n == 1 ? "" : "s");
 		return -EKEYREJECTED;
 	}
-	rc = keyring_bpf_seal();
-	if (rc) {
-		pr_err("bpf keyring: certificates enrolled but the keyring "
-		       "could not be sealed: %s", strerror(-rc));
-		return rc;
+	if (sealed) {
+		pr_info("bpf keyring serial=%d: already holds the %zu trusted "
+			"certificate%s, sealed this boot", (int)ring, set->n,
+			set->n == 1 ? "" : "s");
+		return -EEXIST;
 	}
 	pr_info("bpf keyring serial=%d: %zu certificate%s enrolled and sealed",
 		(int)ring, set->n, set->n == 1 ? "" : "s");

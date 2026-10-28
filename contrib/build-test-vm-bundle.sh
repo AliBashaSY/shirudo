@@ -334,6 +334,7 @@ testing/helper/test-tpm-wire
 testing/helper/test-nv-cphash
 testing/helper/test-nv-writer
 testing/helper/test-nv-writer-cleanup
+testing/helper/test-keyring-seal
 testing/helper/test-tpm-preopened
 testing/helper/test-config
 testing/helper/test-bpf-load

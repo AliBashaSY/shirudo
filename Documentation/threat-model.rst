@@ -214,7 +214,10 @@ T3  Tampering with shirudo's files and process
     ``KEYCTL_RESTRICT_KEYRING`` so no key can be linked into it for the
     rest of the boot, ``lsm/key_permission`` leaves writing, unlinking,
     revoking, invalidating and re-permissioning it and the keys it
-    holds to tasks with runtime authority. The kernel refuses caller-supplied
+    holds to tasks with runtime authority. Once sealed it must hold exactly
+    the trusted certificates: init refuses a keyring holding any other link,
+    including a nested keyring the kernel's signature search would enter or
+    a key it cannot describe, and one restricted by another task. The kernel refuses caller-supplied
     keyrings for signature verification. The BPF ring serial and enrolled key
     serials are frozen into the pinned identity map and checked by later loads.
 
@@ -389,7 +392,8 @@ T11 Image-mode config and executable substitution
     roots carry a detached ML-DSA signature over their 64 lowercase ASCII
     hex bytes, verified by the kernel's dm-verity trust path, including
     built-in trusted keys. The initrd enrolls its config certificate and
-    seals the dedicated ``.dm-verity`` keyring. A signed config never grants
+    seals the dedicated ``.dm-verity`` keyring, which must then hold exactly
+    that certificate. A signed config never grants
     runtime executable authority. Shirudo validates the standard superblock,
     fixed format and exact backing-file sizes, creates or validates a strict
     read-only mapping and reads every data block before parsing contents or

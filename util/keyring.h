@@ -30,6 +30,20 @@ typedef void (*shirudo_keyring_cb)(key_serial_t serial,
 int keyring_holds_cert(key_serial_t keyring,
 		       const __u8 *der, size_t der_len);
 
+struct keyring_cert {
+	const __u8	*der;
+	size_t		len;
+};
+
+/*
+ * Whether <keyring> holds exactly the <n> certificates and nothing
+ * else: 1 if so, 0 if not, -errno. Two certificates the kernel
+ * describes alike cannot both be held; the later link replaces the
+ * earlier one.
+ */
+int keyring_holds_exactly(key_serial_t keyring,
+			  const struct keyring_cert *certs, size_t n);
+
 /* The serial of <keyring>'s key for the certificate, -ENOKEY, -errno. */
 key_serial_t keyring_find_cert(key_serial_t keyring,
 			       const __u8 *der,
