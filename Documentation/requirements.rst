@@ -383,7 +383,10 @@ an exec clears them and the operator helper applies its own hardening.
 * A TPM 2.0 exposed as ``/dev/tpmrm0`` (discrete, firmware or cloud
   vTPM), or a software TPM reachable through ``tpm.tcti``.  TPM 1.2 is
   refused; there is no opt-out.
-* ``systemd`` for the boot units and the timers, and a systemd-based
+* ``systemd`` 256 or newer for the boot units and the timers:
+  ``shirudo-initrd.service`` orders itself after ``tpm2.target``, which
+  an older systemd does not have, and ``init`` could then run before
+  the TPM is there.  The test suite runs systemd 259.  A systemd-based
   initrd (dracut) for the production configuration, with
   ``systemd-pcrphase-initrd.service``, which measures ``enter-initrd``
   and ``leave-initrd`` into PCR 11: the register's binding closes when
