@@ -29,4 +29,16 @@ struct {
 	__type(value, struct shirudo_sb_id);
 } shirudo_bpffs_sb SEC(".maps");
 
+/* The bpffs mount of init's namespace, as the unmount guard keeps it. */
+struct shirudo_mount_record {
+	__u64	mount;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct shirudo_mount_record);
+} shirudo_mnt_rec SEC(".maps");
+
 #endif /* SHIRUDO_BPF_IDENTITY_H */

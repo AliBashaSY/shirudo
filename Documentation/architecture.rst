@@ -313,9 +313,12 @@ signer removal happens through signed config activation.
 ``lsm/sb_umount``, ``lsm/move_mount``,
 ``lsm/sb_mount`` and ``lsm/sb_remount`` deny unconditionally, for every
 caller including shirudo, direct unmount, relocation, mount-over and
-remount of that superblock. A lazy unmount of a parent mount is not covered;
-see residual risk 3 in the threat model and
-`issue 22 <https://github.com/shirudo-dev/shirudo/issues/22>`__.
+remount of that superblock. ``lsm/sb_umount`` also walks what an unmount
+would take down, the subtree of the mount and what propagation carries to
+its peers and slaves, and refuses one that reaches the bpffs mount init
+recorded when it opened the bpffs root with the guards live; a copy in
+another mount namespace is any process's to drop. See residual risk 3 in
+the threat model.
 The pins are the only thing
 keeping the enforcement programs alive, and one ``umount`` would
 otherwise detach everything. Named refusal points increment counters in

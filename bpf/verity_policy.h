@@ -65,7 +65,8 @@ static __always_inline bool shirudo_private_map(struct bpf_map *map)
 	char name[16] = {};
 
 	bpf_probe_read_kernel_str(name, sizeof(name), map->name);
-	return !__builtin_memcmp(name, "shirudo_devices", sizeof(name));
+	return !__builtin_memcmp(name, "shirudo_devices", sizeof(name)) ||
+	       !__builtin_memcmp(name, "shirudo_mnt_rec", sizeof(name));
 }
 
 /* Device pointers can be reused even when the free hook did not run. */

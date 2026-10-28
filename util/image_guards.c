@@ -73,6 +73,7 @@ shirudo_mount_guards[SHIRUDO_MOUNT_HOOK_COUNT] = {
 	{ "shirudo_lsm_move_mount", SHIRUDO_MOVE_MOUNT_LINK_PIN },
 	{ "shirudo_lsm_sb_mount",   SHIRUDO_SB_MOUNT_LINK_PIN },
 	{ "shirudo_lsm_sb_remount", SHIRUDO_SB_REMOUNT_LINK_PIN },
+	{ "shirudo_lsm_file_open", SHIRUDO_BPFFS_DIR "/bpf2_file_open_link" },
 };
 
 const struct shirudo_image_guard

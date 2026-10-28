@@ -140,9 +140,10 @@ T2  Detaching or replacing enforcement
     ``inode_unlink`` and ``inode_rename`` there require that authority.
     The VFS unlinks a rename's victim without ``inode_unlink``, so both
     hooks are needed. ``sb_umount``, ``move_mount``, ``sb_mount`` and
-    ``sb_remount`` deny direct operations against that superblock.
-    Unmounting a parent mount and legacy mount moves remain gaps,
-    described in residual risk 3. Infrastructure maps are
+    ``sb_remount`` deny direct operations against that superblock, and
+    ``sb_umount`` refuses an unmount that would take the bpffs mount
+    init made with it, by subtree or by propagation. Legacy mount moves
+    remain a gap, described in residual risk 3. Infrastructure maps are
     frozen at creation, so even with the LSM gone userspace could not
     rewrite the identity map. ``lsm/bpf_map`` denies writable map fds
     to every process except shirudo; map updates and freezes have the
@@ -418,16 +419,25 @@ Each of these is known, documented and bounded; none is silent.
     authorization boundary. The authenticated initrd bootstrap binary and
     trusted runtime process memory remain in the TCB.
 
-3.  A lazy unmount of a mount above ``/run/shirudo/bpffs``, such as
-    ``umount -l /run``, can detach the bpffs with it. The kernel calls
-    ``sb_umount`` for the requested parent mount alone, so the direct
-    bpffs check does not stop this. Once its last references disappear,
-    the pins can be released and enforcement can detach. The mount-tree
-    check was reverted because it blocked systemd service startup.
-    `Issue 22 <https://github.com/shirudo-dev/shirudo/issues/22>`__ tracks
-    keeping the pins alive without depending on a visible mount tree.
-    Mounting over ``/run/shirudo`` only hides the pins; it does not release
-    them. Enforcement continues, but state-changing commands refuse
+3.  The pins hold the enforcement links through the bpffs superblock,
+    which goes with its last mount. The kernel calls ``sb_umount`` for
+    the requested mount alone, so a lazy unmount of a mount above
+    ``/run/shirudo/bpffs``, ``umount -l /run`` say, took the bpffs with
+    it, and so did one of a copy of ``/run`` in a mount namespace whose
+    mounts still propagated to init's, since systemd makes the whole
+    tree shared again after the switch to the root file system. The
+    guard now walks what an unmount would take, the subtree and what
+    propagation carries to peers and slaves, from the bpffs mount init
+    recorded in its own namespace, and refuses one that reaches it
+    (``BpffsUmountAbove``); a private copy in a namespace of its own is
+    any process's to drop. The walk runs without the namespace lock and
+    within fixed bounds, and refuses a tree it cannot finish, so an
+    unmount of a very large subtree is refused rather than taken for
+    safe. The pins still depend on the mount tree;
+    `issue 22 <https://github.com/shirudo-dev/shirudo/issues/22>`__
+    tracks keeping them alive without it. Mounting over
+    ``/run/shirudo`` only hides the pins; it does not release them.
+    Enforcement continues, but state-changing commands refuse
     ``lsm_detached`` while their pins are hidden.
 
     Legacy ``mount(MS_MOVE)`` bypasses the source check used by

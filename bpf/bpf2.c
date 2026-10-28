@@ -11,6 +11,163 @@
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
+#define SHIRUDO_MOUNT_WALK_MAX		1024
+#define SHIRUDO_MOUNT_DEPTH_MAX		32
+#define SHIRUDO_MOUNT_MASTERS_MAX	4
+
+static __always_inline struct mount *shirudo_mount_of(struct vfsmount *mnt)
+{
+	return (struct mount *)((__u64)mnt -
+				bpf_core_field_offset(struct mount, mnt));
+}
+
+static __always_inline struct mount *shirudo_mount_child(__u64 entry)
+{
+	return (struct mount *)(entry -
+				bpf_core_field_offset(struct mount, mnt_child));
+}
+
+static __always_inline __u64 shirudo_mount_children(struct mount *m)
+{
+	return (__u64)m + bpf_core_field_offset(struct mount, mnt_mounts);
+}
+
+/* The peer group a mount propagates to, 0 for one that propagates to none. */
+static __always_inline int shirudo_mount_group(struct mount *m)
+{
+	if (!(BPF_CORE_READ(m, mnt_t_flags) & T_SHARED))
+		return 0;
+	return BPF_CORE_READ(m, mnt_group_id);
+}
+
+/*
+ * Whether unmounting m unmounts a: a is m, a peer of m, or a slave of
+ * m's peer group, directly or through masters of its own.
+ */
+static __always_inline bool shirudo_umount_reaches(struct mount *m, int group,
+						   struct mount *a)
+{
+	int i;
+
+	if (a == m)
+		return true;
+	if (!group)
+		return false;
+	bpf_for(i, 0, SHIRUDO_MOUNT_MASTERS_MAX) {
+		if (shirudo_mount_group(a) == group)
+			return true;
+		a = BPF_CORE_READ(a, mnt_master);
+		if (!a)
+			return false;
+	}
+	return true;
+}
+
+/*
+ * Whether unmounting m unmounts the bpffs mount init made or one above
+ * it. The root of the namespace has no parent to be unmounted from.
+ */
+static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
+						       struct mount *bpffs)
+{
+	struct mount *a = bpffs, *parent;
+	int group = shirudo_mount_group(m);
+	int i;
+
+	bpf_for(i, 0, SHIRUDO_MOUNT_DEPTH_MAX) {
+		parent = BPF_CORE_READ(a, mnt_parent);
+		if (!parent || parent == a)
+			return false;
+		if (shirudo_umount_reaches(m, group, a))
+			return true;
+		a = parent;
+	}
+	return true;
+}
+
+/*
+ * The pins hold the enforcement links through the bpffs superblock,
+ * which goes with the last mount of it: a lazy unmount of /run took the
+ * private bpffs with it, and so did one of a copy of /run in another
+ * namespace whose mounts still propagated to init's. Walk what the
+ * unmount of t takes down, its subtree in first-child, next-sibling
+ * order without a stack and through each mount what propagation takes
+ * along, and refuse one that reaches the recorded mount or one above
+ * it. The namespace lock is not held here, so a tree that cannot be
+ * walked within the bounds is refused rather than taken for safe.
+ */
+static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
+{
+	struct shirudo_mount_record *rec;
+	struct mount *t, *m, *bpffs, *parent;
+	__u32 zero = 0;
+	bool sibling;
+	__u64 next;
+	int i, j;
+
+	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
+	if (!rec || !rec->mount)
+		return 0;
+	bpffs = (struct mount *)rec->mount;
+	t = shirudo_mount_of(mnt);
+	m = t;
+	bpf_for(i, 0, SHIRUDO_MOUNT_WALK_MAX) {
+		if (shirudo_umount_takes_bpffs(m, bpffs))
+			goto deny;
+		next = (__u64)BPF_CORE_READ(m, mnt_mounts.next);
+		if (!next)
+			goto deny;
+		if (next != shirudo_mount_children(m)) {
+			m = shirudo_mount_child(next);
+			continue;
+		}
+		sibling = false;
+		bpf_for(j, 0, SHIRUDO_MOUNT_DEPTH_MAX) {
+			if (m == t)
+				return 0;
+			parent = BPF_CORE_READ(m, mnt_parent);
+			next = (__u64)BPF_CORE_READ(m, mnt_child.next);
+			if (!parent || !next)
+				goto deny;
+			if (next != shirudo_mount_children(parent)) {
+				m = shirudo_mount_child(next);
+				sibling = true;
+				break;
+			}
+			m = parent;
+		}
+		if (!sibling)
+			goto deny;
+	}
+deny:
+	return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT_ABOVE, -EPERM);
+}
+
+/*
+ * The bpffs mount of init's namespace, recorded once when the bootstrap
+ * task opens its root with the mount guards live: the one the unmount
+ * guard keeps, where a copy in another namespace is any process's to
+ * drop.
+ */
+SEC("lsm/file_open")
+int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
+{
+	struct shirudo_sb_id *id = shirudo_policy();
+	struct shirudo_mount_record *rec;
+	struct vfsmount *mnt;
+	__u32 zero = 0;
+
+	if (ret || !id || !shirudo_bootstrap_task())
+		return ret;
+	mnt = BPF_CORE_READ(file, f_path.mnt);
+	if (!mnt || BPF_CORE_READ(mnt, mnt_sb, s_dev) != id->sb_dev)
+		return 0;
+	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
+	if (rec && !rec->mount)
+		rec->mount = (__u64)shirudo_mount_of(mnt);
+	return 0;
+}
+
 static __always_inline int shirudo_parent_mount(struct super_block *sb,
 						bool trusted_target)
 {
@@ -59,6 +216,8 @@ int BPF_PROG(shirudo_lsm_sb_umount, struct vfsmount *mnt, int flags,
 		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT,
 					   -EPERM);
 	ret = shirudo_deny_bpffs_mount(dev, SHIRUDO_TAMPER_BPFFS_UMOUNT);
+	if (!ret)
+		ret = shirudo_umount_above(mnt);
 	return ret ? ret : shirudo_image_mount(sb, true);
 }
 

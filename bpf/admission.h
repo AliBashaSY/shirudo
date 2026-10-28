@@ -438,9 +438,10 @@ int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
  * hooks are self-protecting: their own pins live in the bpffs they keep
  * mounted.
  *
- * These checks cover the bpffs itself. A lazy unmount of a parent is not
- * covered: the VFS calls sb_umount for that parent alone. Protecting pins
- * against that case is a separate problem (issue 22).
+ * These checks cover the bpffs itself. The VFS calls sb_umount for the
+ * requested mount alone, so an unmount of a mount above the bpffs, or
+ * of one whose unmount propagates to such a mount, is caught by the walk
+ * in bpf2.c from the mount init recorded.
  */
 static __always_inline __u32 shirudo_bpffs_dev(void)
 {

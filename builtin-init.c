@@ -452,6 +452,32 @@ static int attach_guard_group(struct bpf_object *obj,
 	return 0;
 }
 
+/*
+ * The recorder in the mount guards sees the bootstrap task open the
+ * bpffs root; the record is read back, since a guard with none to keep
+ * would let an unmount above the bpffs through.
+ */
+static int record_bpffs_mount(struct bpf_object *obj)
+{
+	struct shirudo_mount_record rec = {};
+	struct bpf_map *map;
+	__u32 zero = 0;
+	int fd;
+
+	fd = open(SHIRUDO_BPFFS_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	close(fd);
+	map = bpf_object__find_map_by_name(obj, "shirudo_mnt_rec");
+	if (!map)
+		return -ENOENT;
+	if (bpf_map_lookup_elem(bpf_map__fd(map), &zero, &rec))
+		return -errno;
+	if (!rec.mount)
+		return -ENOENT;
+	return bpf_map_freeze(bpf_map__fd(map)) ? -errno : 0;
+}
+
 /* Writable state and runtime processes always get the full seal. */
 static int attach_seal(struct bpf_object *policy, struct bpf_object **obj_out,
 		       struct bpf_link **links, struct bpf_link **image_links)
@@ -780,6 +806,11 @@ static int init_lsm(void)
 				 ARRAY_SIZE(shirudo_mount_guards), mount_links);
 	if (err)
 		goto out;
+	err = record_bpffs_mount(obj);
+	if (err) {
+		pr_err("record the bpffs mount: %s", strerror(-err));
+		goto out;
+	}
 
 	err = attach_seal(obj, &seal_obj, seal_links, image_seal);
 	if (err)

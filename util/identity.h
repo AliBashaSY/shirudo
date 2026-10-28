@@ -68,6 +68,14 @@ _Static_assert(sizeof(struct shirudo_task_authority) == 8,
 _Static_assert(sizeof(struct shirudo_identity) == 508,
 	       "frozen identity ABI");
 
+/* The bpffs mount init made, which the unmount guard keeps mounted. */
+struct shirudo_mount_record {
+	__u64	mount;
+};
+
+_Static_assert(sizeof(struct shirudo_mount_record) == 8,
+	       "mount record ABI");
+
 /*
  * The identity map init populated, froze and pinned this boot. -ENOENT
  * when init has not run, another -errno when the pin cannot be read.

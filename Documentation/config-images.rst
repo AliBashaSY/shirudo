@@ -409,12 +409,10 @@ ordinary untrusted volume-management tools cannot mutate unrelated DM
 mappings either. Read-only control queries remain available, and trusted
 image tasks retain control access. Shirudo creates strict mappings, but the
 upstream metadata hook does not expose every verification option. Existing
-mount hooks reject direct operations on the bpffs. The mount-tree check
-was reverted because it blocked systemd service startup. A lazy unmount of
-a parent can still detach the bpffs and release its pins when the last
-references disappear; `issue 22
-<https://github.com/shirudo-dev/shirudo/issues/22>`__ tracks this gap.
-The image mount hooks also do not cover every mount attribute change or
+mount hooks reject direct operations on the bpffs, and ``sb_umount``
+refuses an unmount that would take the bpffs mount init made with it, by
+subtree or by propagation (residual risk 3 in the threat model).
+The image mount hooks do not cover every mount attribute change or
 unmount of a parent mount above the runtime and config images. Legacy ``mount(MS_MOVE)`` can relocate an image;
 the separate `mount-move investigation <https://github.com/shirudo-dev/shirudo/issues/12>`__ records
 the VM result and the same source-check gap in the baseline bpffs policy.
