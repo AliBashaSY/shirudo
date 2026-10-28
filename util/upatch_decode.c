@@ -1053,6 +1053,20 @@ static void lua_push_u64_string(lua_State *L, __u64 value)
 		lua_pushstring(L, buf);
 }
 
+/*
+ * Lua raises on an allocation it cannot make and never returns here, so
+ * a buffer this walk owned would leak: the hex lives in a userdata the
+ * collector owns until the string is made from it.
+ */
+static void lua_push_hex(lua_State *L, const void *data, size_t len)
+{
+	char *hex = lua_newuserdata(L, len * 2 + 1);
+
+	hex_encode(data, len, hex);
+	lua_pushstring(L, hex);
+	lua_remove(L, -2);
+}
+
 static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 {
 	__u64 now_ns = decoder_realtime_ns();
@@ -1104,32 +1118,19 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	for (i = 0; i < v->n_entries; i++) {
 		const struct shirudo_map_entry *entry = &v->entries[i];
 		size_t value_bytes = (size_t)v->value_stride * v->n_cpus;
-		char *key_hex = hex_alloc(entry->key, v->key_size);
-		char *value_hex = hex_alloc(entry->value, value_bytes);
 
-		if (!key_hex || !value_hex) {
-			xfree(key_hex, (size_t)v->key_size * 2 + 1);
-			xfree(value_hex, value_bytes * 2 + 1);
-			luaL_error(L, "decoder map data is too large");
-		}
 		lua_newtable(L);
-		lua_pushstring(L, key_hex);
+		lua_push_hex(L, entry->key, v->key_size);
 		lua_setfield(L, -2, "key_hex");
-		lua_pushstring(L, value_hex);
+		lua_push_hex(L, entry->value, value_bytes);
 		lua_setfield(L, -2, "value_hex");
 		lua_rawseti(L, -2, (int)i + 1);
-		xfree(key_hex, (size_t)v->key_size * 2 + 1);
-		xfree(value_hex, value_bytes * 2 + 1);
 	}
 	lua_setfield(L, -2, "entries");
 
 	lua_newtable(L);
 	for (p = 0; p < v->n_serial_pages; p++) {
 		const struct shirudo_serial_page *page = &v->serial_pages[p];
-		char *hex = hex_alloc(page->data, page->bytes);
-
-		if (!hex)
-			luaL_error(L, "decoder page data is too large");
 
 		lua_newtable(L);
 		lua_pushnumber(L, page->page_index);
@@ -1146,9 +1147,8 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 		lua_setfield(L, -2, "chunks");
 		lua_pushnumber(L, page->bytes);
 		lua_setfield(L, -2, "bytes");
-		lua_pushstring(L, hex ? hex : "");
+		lua_push_hex(L, page->data, page->bytes);
 		lua_setfield(L, -2, "data_hex");
-		xfree(hex, (size_t)page->bytes * 2 + 1);
 		lua_rawseti(L, -2, (int)p + 1);
 	}
 	lua_setfield(L, -2, "pages");
