@@ -4,9 +4,32 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <lua.h>
+#include <lauxlib.h>
+
 #include "util/malloc.h"
 #include "util/upatch_decode.h"
 #include "util/upatch_maps.h"
+
+static int dump_chunk(lua_State *L, const void *p, size_t sz, void *ud)
+{
+	(void)L;
+	return fwrite(p, 1, sz, ud) == sz ? 0 : 1;
+}
+
+/* The bytecode LuaJIT makes of a source file, for a decoder that is none. */
+static int dump(const char *source)
+{
+	lua_State *L = luaL_newstate();
+	int rc = 1;
+
+	if (!L)
+		return 1;
+	if (!luaL_loadfile(L, source))
+		rc = lua_dump(L, dump_chunk, stdout);
+	lua_close(L);
+	return rc ? 1 : 0;
+}
 
 int main(int argc, char **argv)
 {
@@ -19,14 +42,17 @@ int main(int argc, char **argv)
 	size_t out_len = 0;
 	int rc;
 
+	if (argc == 3 && strcmp(argv[1], "dump") == 0)
+		return dump(argv[2]);
 	if (argc != 3 || (strcmp(argv[1], "json") != 0 &&
 			  strcmp(argv[1], "otel") != 0 &&
 			  strcmp(argv[1], "loop") != 0 &&
 			  strcmp(argv[1], "memory") != 0 &&
 			  strcmp(argv[1], "utf8") != 0)) {
 		fprintf(stderr,
-			"usage: %s <json|otel|loop|memory|utf8> <file.upatch>\n",
-			argv[0]);
+			"usage: %s <json|otel|loop|memory|utf8> <file.upatch>\n"
+			"       %s dump <decoder.lua>\n",
+			argv[0], argv[0]);
 		return 2;
 	}
 	snprintf(view.upatch, sizeof(view.upatch), "%s", "t0005");

@@ -112,6 +112,20 @@ assert dec[\"source_len\"] > 0, dec
 "
 '
 
+# The same decoder as LuaJIT bytecode, which the loader verifies no part
+# of: refused, where the source it came from runs.
+test_expect_success 'a bytecode decoder is refused' '
+	mkdir -p "$WORK/bytecode/decoders" &&
+	./helper/test-upatch-decode dump "$WORK/decoders/t0005.lua" \
+		>"$WORK/bytecode/decoders/t0005.lua" &&
+	[ -s "$WORK/bytecode/decoders/t0005.lua" ] &&
+	cp "$WORK/t.bpf.c" "$WORK/bytecode/t.bpf.c" &&
+	( cd .. && "$B" "$WORK/bytecode/t.bpf.c" -o "$WORK/bytecode/u.upatch" \
+		--vmlinux vendor/linux/vmlinux.h --name t0005 \
+		--key "$WORK/k.pem" --cert "$WORK/c.der" ) >/dev/null 2>&1 &&
+	! ./helper/test-upatch-decode json "$WORK/bytecode/u.upatch" >/dev/null 2>&1
+'
+
 test_expect_success 'signed Lua decoder returns JSON' '
 	./helper/test-upatch-decode json "$WORK/u.upatch" |
 	python3 -c "
