@@ -143,12 +143,18 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
 			      int max)
 {
-	char line[512];
-	int rc = 0;
+	size_t capacity = 0;
+	char *line = NULL;
+	int got, rc = 0;
 
 	*n = 0;
-	while (fgets(line, sizeof(line), f)) {
+	while ((got = read_text_line(f, &line, &capacity, 511)) != 0) {
 		char *start = line, *end, *eq;
+
+		if (got < 0) {
+			rc = got;
+			break;
+		}
 
 		while (*start && isspace((__u8)*start))
 			start++;
@@ -170,6 +176,7 @@ static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
 		if (rc)
 			break;
 	}
+	libc_free(line);
 	fclose(f);
 	return rc;
 }

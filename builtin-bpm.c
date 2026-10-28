@@ -341,9 +341,10 @@ static FILE *tree_conf_open(void)
 
 static int load_source(const char *name, struct bpm_source *s)
 {
-	char path[PATH_MAX], line[PATH_MAX];
+	char path[PATH_MAX], *line = NULL;
+	size_t capacity = 0;
+	int got, rc = 0;
 	FILE *fp;
-	int rc;
 
 	memset(s, 0, sizeof(*s));
 	rc = source_path(name, path, sizeof(path));
@@ -356,17 +357,19 @@ static int load_source(const char *name, struct bpm_source *s)
 		fclose(fp);
 		return -EPERM;
 	}
-	strscpy(s->name, name, sizeof(s->name));
-	while (fgets(line, sizeof(line), fp)) {
-		rc = bpm_parse_source_line(line,
+	if (strscpy(s->name, name, sizeof(s->name)) < 0)
+		rc = -ENAMETOOLONG;
+	while (!rc && (got = read_text_line(fp, &line, &capacity,
+					    PATH_MAX - 1)) != 0) {
+		rc = got < 0 ? got :
+		     bpm_parse_source_line(line,
 					   s->endpoint, sizeof(s->endpoint),
 					   s->key_file, sizeof(s->key_file));
-		if (rc) {
-			fclose(fp);
-			return rc;
-		}
 	}
+	libc_free(line);
 	fclose(fp);
+	if (rc)
+		return rc;
 	if (!s->endpoint[0] || !s->key_file[0])
 		return -EINVAL;
 	/* With a config image the key file is the image's, named from its root. */
@@ -1568,7 +1571,9 @@ struct bpm_tree_config {
 
 static int load_tree_config(struct bpm_tree_config *cfg)
 {
-	char line[PATH_MAX];
+	size_t capacity = 0;
+	char *line = NULL;
+	int got, rc = 0;
 	FILE *fp;
 
 	*cfg = (struct bpm_tree_config){};
@@ -1579,16 +1584,19 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 		fclose(fp);
 		return -EPERM;
 	}
-	while (fgets(line, sizeof(line), fp)) {
-		if (bpm_parse_tree_line(line, cfg->endpoint,
+	while (!rc && (got = read_text_line(fp, &line, &capacity,
+					    PATH_MAX - 1)) != 0) {
+		if (got < 0 ||
+		    bpm_parse_tree_line(line, cfg->endpoint,
 					sizeof(cfg->endpoint),
 					cfg->reference,
-					sizeof(cfg->reference))) {
-			fclose(fp);
-			return -EINVAL;
-		}
+					sizeof(cfg->reference)))
+			rc = -EINVAL;
 	}
+	libc_free(line);
 	fclose(fp);
+	if (rc)
+		return rc;
 	if (!cfg->endpoint[0] || !cfg->reference[0])
 		return -EINVAL;
 	return 0;

@@ -14,6 +14,8 @@
 #include "config_measure.h"
 #include "hex.h"
 #include "image_bootstrap.h"
+#include "io.h"
+#include "malloc.h"
 #include "paths.h"
 
 bool shirudo_image_path_valid(const char *path)
@@ -41,14 +43,16 @@ static char *trim(char *text)
 static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 			   bool initial)
 {
-	char line[PATH_MAX + 128];
-	int rc = 0;
+	size_t capacity = 0;
+	char *line = NULL;
+	int got, rc = 0;
 
-	while (fgets(line, sizeof(line), file)) {
+	while ((got = read_text_line(file, &line, &capacity,
+				     PATH_MAX + 127)) != 0) {
 		char *key, *value;
 
-		if (!strchr(line, '\n') && !feof(file)) {
-			rc = -E2BIG;
+		if (got < 0) {
+			rc = got;
 			break;
 		}
 		key = trim(line);
@@ -109,6 +113,7 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 	}
 	if (ferror(file) && !rc)
 		rc = -EIO;
+	libc_free(line);
 	fclose(file);
 	return rc;
 }

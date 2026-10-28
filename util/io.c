@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -101,6 +102,28 @@ int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
 	*(char **)out = buf;
 	*len = (size_t)st.st_size;
 	return 0;
+}
+
+/*
+ * One line of text, at most max bytes before its newline, in getline's
+ * buffer, which the caller frees with libc_free: 1, 0 at the end, -E2BIG
+ * for a longer line and -EINVAL for one holding a NUL. fgets cut a long
+ * line into two that each parsed, and a NUL ended the string where the
+ * line went on.
+ */
+int read_text_line(FILE *f, char **line, size_t *cap, size_t max)
+{
+	ssize_t n;
+
+	errno = 0;
+	n = getline(line, cap, f);
+	if (n < 0)
+		return errno ? -errno : 0;
+	if (memchr(*line, '\0', (size_t)n))
+		return -EINVAL;
+	if ((*line)[n - 1] == '\n')
+		n--;
+	return (size_t)n > max ? -E2BIG : 1;
 }
 
 int read_file(const char *path, size_t max, void *out, size_t *len)

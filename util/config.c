@@ -21,6 +21,7 @@
 #include "config.h"
 #include "hex.h"
 #include "io.h"
+#include "malloc.h"
 #include "json.h"
 #include "image_config.h"
 #include "log.h"
@@ -206,24 +207,28 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 static int config_parse(struct shirudo_config *cfg, FILE *f,
 			const char *path)
 {
-	char line[SHIRUDO_MAP_EXPORT_PATH_MAX + 128];
-	int rc = 0;
+	const size_t max = SHIRUDO_MAP_EXPORT_PATH_MAX + 127;
+	size_t capacity = 0;
+	char *line = NULL;
+	int got, rc = 0;
 
 	if (check_trusted(fileno(f), path, false)) {
 		fclose(f);
 		return -EPERM;
 	}
-	while (fgets(line, sizeof(line), f)) {
+	while ((got = read_text_line(f, &line, &capacity, max)) != 0) {
 		char *p, *eq, *key, *val;
-		int c;
 
-		/* Never take a line the buffer cut short. */
-		if (!strchr(line, '\n') && !feof(f)) {
-			pr_warn("config: line longer than %zu bytes "
-				"(ignored)", sizeof(line) - 1);
-			while ((c = fgetc(f)) != EOF && c != '\n')
-				continue;
+		if (got == -E2BIG) {
+			pr_warn("config: line longer than %zu bytes (ignored)",
+				max);
 			continue;
+		}
+		if (got < 0) {
+			pr_err("config: %s: unreadable line: %s", path,
+			       strerror(-got));
+			rc = got;
+			break;
 		}
 		p = trim(line);
 		if (*p == '\0' || *p == '#')
@@ -332,6 +337,11 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 			       sizeof(cfg->tpm_owner_auth));
 		cfg->tpm_owner_auth_len = 0;
 		rc = -EPERM;
+	}
+	if (line) {
+		/* The owner's authorization may have been read into it. */
+		explicit_bzero(line, capacity);
+		libc_free(line);
 	}
 	if (fclose(f) && !rc)
 		rc = -errno;

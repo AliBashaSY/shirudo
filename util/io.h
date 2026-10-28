@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 int write_complete(int fd, const void *buf, size_t len);
 
@@ -19,6 +20,7 @@ int read_fd(int fd, const char *label, size_t max, void *out, size_t *len);
 int read_file_at(int dirfd, const char *rel, size_t max, void *out,
 		 size_t *len);
 int open_beneath(int dirfd, const char *rel, int flags);
+int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
 
 /*
  * Whether the file open on fd at path may steer what shirudo trusts.
