@@ -379,6 +379,45 @@ int BPF_PROG(shirudo_lsm_inode_rmdir, struct inode *dir,
 				   SHIRUDO_TAMPER_MAX);
 }
 
+/*
+ * The private bpffs takes no entry shirudo did not make. bpffs lets
+ * root make directories, symbolic links and hard links: a symbolic
+ * link in place of a pin directory would send the pins of the next
+ * load into a bpffs of root's own, where no guard reaches them, and a
+ * hard link to a pin would keep the link alive past its unlink.
+ */
+SEC("lsm/inode_mkdir")
+int BPF_PROG(shirudo_lsm_inode_mkdir, const struct mnt_idmap *idmap,
+	     struct inode *dir, struct dentry *dentry, umode_t mode, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_ENTRY);
+}
+
+SEC("lsm/inode_symlink")
+int BPF_PROG(shirudo_lsm_inode_symlink, const struct mnt_idmap *idmap,
+	     struct inode *dir, struct dentry *dentry, const char *old_name,
+	     int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_ENTRY);
+}
+
+SEC("lsm/inode_link")
+int BPF_PROG(shirudo_lsm_inode_link, const struct mnt_idmap *idmap,
+	     struct dentry *old_dentry, struct inode *dir,
+	     struct dentry *new_dentry, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   SHIRUDO_TAMPER_PIN_ENTRY);
+}
+
 SEC("lsm/inode_rename")
 int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 	     struct dentry *old_dentry, struct inode *new_dir,

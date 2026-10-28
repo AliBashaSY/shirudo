@@ -302,7 +302,10 @@ mapping. Other device records are maintained by the kernel hooks.
 ``lsm/inode_setxattr`` and ``lsm/inode_removexattr`` on shirudo's bpffs
 allow the operation only for a task with runtime authority: root ``rm`` cannot drop a pin, ``mv`` cannot replace
 one (the VFS unlinks a rename's victim without ``inode_unlink``), and
-nobody else can forge the payload xattr.  ``lsm/key_permission`` applies the same test
+nobody else can forge the payload xattr. ``lsm/inode_mkdir``,
+``lsm/inode_symlink`` and ``lsm/inode_link`` there are shirudo's too,
+so that no symbolic link of root's stands where a load would make its
+pin directory and no hard link of root's keeps a pin past its unlink.  ``lsm/key_permission`` applies the same test
 to the trust anchor in the kernel's keyrings: write, setattr and unlink
 on the sealed keyring and on the keys it holds, and the unpossessed
 search ``keyctl invalidate`` uses to reach a key by serial, are denied

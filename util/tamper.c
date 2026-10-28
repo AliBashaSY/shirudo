@@ -82,6 +82,8 @@ static const struct {
 		"entry created, linked or renamed into a sealed directory" },
 	[SHIRUDO_TAMPER_PERF_ATTACH] = { "PerfAttach",
 		"program attached to a perf event by another executable" },
+	[SHIRUDO_TAMPER_PIN_ENTRY] = { "PinEntry",
+		"directory or link made in the private bpffs by another executable" },
 };
 
 const char *tamper_name(enum shirudo_tamper_point point)

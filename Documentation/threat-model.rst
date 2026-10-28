@@ -127,7 +127,12 @@ T2  Detaching or replacing enforcement
     event, which would bind a kprobe program reached by id to a probe of
     the caller's own, is kept to the same task by ``file_ioctl`` and
     ``file_ioctl_compat``. Root cannot re-attach a vetted program
-    at a site its signer never meant it for, nor pin objects of its own.
+    at a site its signer never meant it for, nor pin objects of its own,
+    nor make a directory or a link in the private bpffs, which bpffs
+    would otherwise let it: a symbolic link in place of a pin directory
+    would send the next load's pins into a bpffs of root's own, and a
+    hard link to a pin would keep a link alive past its unlink
+    (``inode_mkdir``, ``inode_symlink``, ``inode_link``).
     The site a load attaches at is partly the caller's to arrange, and
     root runs ``shirudo upatch load``: a cgroup_skb program under a
     cgroup namespace root or a bind mount of a subtree, a netfilter
