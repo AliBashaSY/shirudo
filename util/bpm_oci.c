@@ -165,7 +165,8 @@ static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 		v = line + 17;
 		while (isspace((__u8)*v))
 			v++;
-		bpm_copy_string(r->www_auth, sizeof(r->www_auth), v);
+		if (strscpy(r->www_auth, v, sizeof(r->www_auth)) < 0)
+			r->www_auth[0] = '\0';
 	} else if (!strncasecmp(line, "Content-Type:", 13)) {
 		v = line + 13;
 		while (isspace((__u8)*v))
@@ -223,6 +224,10 @@ static int decode_basic(const char *in, char *user, size_t usz,
 	if (n >= sizeof(out))
 		return -E2BIG;
 	out[n] = '\0';
+	if (memchr(out, '\0', n)) {
+		explicit_bzero(out, sizeof(out));
+		return -EINVAL;
+	}
 	colon = memchr(out, ':', n);
 	if (!colon || (size_t)(colon - (char *)out) >= usz ||
 	    n - (size_t)(colon - (char *)out) - 1 >= psz)
@@ -599,6 +604,11 @@ static int token_from_body(const char *body, char *out, size_t out_sz)
 	end = strchr(token, '"');
 	if (!end || (size_t)(end - token) >= out_sz)
 		return -EINVAL;
+	/* It goes into a header line as it is: no line break, no escape. */
+	for (const char *p = token; p < end; p++) {
+		if ((__u8)*p < 0x21 || *p == '\\' || (__u8)*p == 0x7f)
+			return -EINVAL;
+	}
 	memcpy(out, token, end - token);
 	out[end - token] = '\0';
 	return 0;
