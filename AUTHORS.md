@@ -7,6 +7,7 @@ signed off on commits in the shirudo project:
  * Daniel Borkmann           \<daniel@iogearbox.net\>
  * John Fastabend            \<john.fastabend@gmail.com\>
  * KP Singh                  \<kpsingh@kernel.org\>
+ * Leonard Cohnen            \<leonard.cohnen@gmail.com\>
  * Liz Rice                  \<liz@lizrice.com\>
  * Mahe Tardy                \<mahe.tardy@gmail.com\>
  * Michi Mutsuzaki           \<michi@isovalent.com\>
