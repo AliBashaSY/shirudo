@@ -616,6 +616,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
 		testing/helper/test-kernel-build-id \
                 testing/helper/test-bpf-load \
                 testing/helper/test-bpf-cmd \
+                testing/helper/test-perf-attach \
                 testing/helper/test-kernel-abi \
                 testing/helper/test-otel-map \
                 testing/helper/test-upatch-map-types \
@@ -758,6 +759,10 @@ testing/helper/test-bpf-load: testing/helper/test-bpf-load.c
 testing/helper/test-bpf-cmd: testing/helper/test-bpf-cmd.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-perf-attach: testing/helper/test-perf-attach.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -I$(BPF_UAPI_INCLUDE) -o $@ $^
 
 testing/helper/test-upatch-link-lockdown: testing/helper/test-upatch-link-lockdown.c
 	@printf '  CC      $@\n'
