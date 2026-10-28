@@ -28,6 +28,7 @@
 
 struct image_download {
 	int fd;
+	int err;	/* why the last write was refused */
 	__u64 limit;
 	__u64 written;
 };
@@ -36,13 +37,22 @@ static size_t download_write(char *data, size_t size, size_t count, void *ctx)
 {
 	struct image_download *download = ctx;
 	size_t bytes;
+	int rc;
 
-	if (size && count > SIZE_MAX / size)
+	if (size && count > SIZE_MAX / size) {
+		download->err = -EFBIG;
 		return 0;
+	}
 	bytes = size * count;
-	if (bytes > download->limit - download->written ||
-	    write_complete(download->fd, data, bytes))
+	if (bytes > download->limit - download->written) {
+		download->err = -EFBIG;
 		return 0;
+	}
+	rc = write_complete(download->fd, data, bytes);
+	if (rc) {
+		download->err = rc;
+		return 0;
+	}
 	download->written += bytes;
 	return bytes;
 }
@@ -72,7 +82,7 @@ static int download_https(const char *source, struct image_download *download)
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, download);
 	result = curl_easy_perform(curl);
 	if (result != CURLE_OK)
-		rc = -EIO;
+		rc = download->err ? download->err : -EIO;
 out:
 	curl_easy_cleanup(curl);
 	return rc;
@@ -105,7 +115,7 @@ static int copy_local(const char *source, struct image_download *download)
 			break;
 		}
 		if (download_write(buffer, 1, n, download) != (size_t)n) {
-			rc = -EFBIG;
+			rc = download->err;
 			break;
 		}
 	}
