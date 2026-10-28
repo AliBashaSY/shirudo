@@ -353,6 +353,15 @@ testing/helper/otel-mock.py
 testing/helper/test-oci-registry.py
 EOF
 
+# A second TPM for t1165: the host's emulator and the libraries of its own.
+if swtpm="$(command -v swtpm)"; then
+	install -d "$TMP_DIR/test-helpers/swtpm"
+	install -m 0755 "$swtpm" "$TMP_DIR/test-helpers/swtpm/"
+	while IFS= read -r lib; do
+		install -m 0644 "$lib" "$TMP_DIR/test-helpers/swtpm/"
+	done < <(ldd "$swtpm" | awk '/libtpms|libswtpm/ { print $3 }')
+fi
+
 
 build_fixture()
 {
