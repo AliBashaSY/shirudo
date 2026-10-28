@@ -284,6 +284,20 @@ int seal_inherit_path(const char *path)
 	return 0;
 }
 
+/*
+ * A FIFO planted in the tree before the seal was live would hold the
+ * opener forever; the open does not wait, and what is not a regular
+ * file is refused.
+ */
+static int seal_regular(int fd)
+{
+	struct stat st;
+
+	if (fstat(fd, &st))
+		return -errno;
+	return S_ISREG(st.st_mode) ? 0 : -EINVAL;
+}
+
 /* 1 for a label of any size, 0 for none, -errno when unreadable. */
 static int seal_fsealed(int fd)
 {
@@ -347,12 +361,14 @@ int seal_open(const char *path, int flags, mode_t mode)
 	if (dfd < 0)
 		return dfd;
 	fd = openat(dfd, name, (flags & ~(O_CREAT | O_TRUNC)) | O_NOFOLLOW |
-		    O_CLOEXEC, mode);
+		    O_NONBLOCK | O_CLOEXEC, mode);
 	if (fd >= 0) {
 		if (flags & O_EXCL) {
 			rc = -EEXIST;
 		} else {
-			rc = seal_same(dfd, fd);
+			rc = seal_regular(fd);
+			if (!rc)
+				rc = seal_same(dfd, fd);
 			if (rc == -EPERM)
 				pr_err("%s: carries no label (foreign entry "
 				       "in sealed state); refusing", path);
@@ -386,8 +402,10 @@ int seal_open_read(const char *path)
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
 		return dfd;
-	fd = openat(dfd, name, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-	rc = fd < 0 ? -errno : seal_same(dfd, fd);
+	fd = openat(dfd, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
+	rc = fd < 0 ? -errno : seal_regular(fd);
+	if (!rc)
+		rc = seal_same(dfd, fd);
 	close(dfd);
 	if (rc) {
 		if (fd >= 0)
