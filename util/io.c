@@ -47,12 +47,15 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 	size_t left;
 	int fd, rc;
 
-	if (under(path, SHIRUDO_VAR_LIB))
+	if (under(path, SHIRUDO_VAR_LIB)) {
 		fd = seal_open_read(path);
-	else
+		if (fd < 0)
+			return fd;
+	} else {
 		fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return fd == -1 ? -errno : fd;
+		if (fd < 0)
+			return -errno;
+	}
 	if (fstat(fd, &st) != 0) {
 		rc = -errno;
 		goto out;
