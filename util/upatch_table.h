@@ -11,13 +11,14 @@
 #include <stddef.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/upatch.h>
 
 #include "upatch_resolve.h"
 
 struct shirudo_json_emit;
 
 struct shirudo_upatch_table_row {
-	char		name[64];
+	char		name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char		location[SHIRUDO_UPATCH_LOCATION_MAX];	/* SEC()-style */
 	char		loaded_at[32];	/* ISO-8601 UTC, "" if unknown */
 	char		status[64];	/* success or a tree skip reason */

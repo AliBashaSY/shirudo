@@ -170,7 +170,7 @@ struct ev_proj {
 	char type[24];
 	char digest[65];
 	char set_digest[65];
-	char up_name[128];
+	char up_name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	char up_payload[65];
 };
 
