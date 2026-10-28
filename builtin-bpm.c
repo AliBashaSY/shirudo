@@ -1691,6 +1691,7 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 {
 	char buf[1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	int rc;
 
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
@@ -1700,8 +1701,9 @@ static int tree_write_pending(const struct shirudo_tree_operation *op)
 	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	if (seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700))
-		return -errno;
+	rc = seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
+	if (rc)
+		return rc;
 	return seal_write_file(SHIRUDO_BPM_TREE_PENDING_PATH, buf,
 			       e.len, 0600);
 }
@@ -2228,12 +2230,16 @@ static int package_uninstall(const struct bpm_state_entry *st)
 	unloads = xcalloc(128, PATH_MAX);
 	if (!unloads)
 		return -ENOMEM;
+	/*
+	 * A tree already gone, from an uninstall that died before it
+	 * wrote the state, leaves nothing to unload: the retry converges.
+	 */
 	d = opendir(updir);
-	if (!d) {
+	if (!d && errno != ENOENT) {
 		rc = -errno;
 		goto out;
 	}
-	while ((de = readdir(d))) {
+	while (d && (de = readdir(d))) {
 		size_t len = strlen(de->d_name);
 
 		if (de->d_name[0] == '.' || len <= strlen(".unload.upatch") ||
@@ -2250,7 +2256,8 @@ static int package_uninstall(const struct bpm_state_entry *st)
 		}
 		n++;
 	}
-	closedir(d);
+	if (d)
+		closedir(d);
 	if (rc)
 		goto out;
 	qsort(unloads, (size_t)n, PATH_MAX, path_compare_desc);
@@ -2267,6 +2274,8 @@ static int package_uninstall(const struct bpm_state_entry *st)
 		goto out;
 	}
 	rc = remove_tree(dir);
+	if (rc == -ENOENT)
+		rc = 0;
 out:
 	xfree(unloads, 128 * PATH_MAX);
 	return rc;
@@ -2683,6 +2692,16 @@ int cmd_bpm(int argc, const char **argv)
 			       selected.version) < 0)
 			return bpm_finish(lock, -ENAMETOOLONG, "install");
 		rc = state_write(state, n_state + 1);
+		if (rc) {
+			/* Unlisted, the package could never be removed. */
+			if (package_uninstall(&state[n_state]))
+				pr_err("bpm install: %s stays installed but "
+				       "unlisted", state[n_state].name);
+			else
+				pr_err("bpm install: %s removed again, the "
+				       "state could not be written",
+				       state[n_state].name);
+		}
 		return bpm_finish(lock, rc, "write state");
 	}
 	if (!strcmp(sub, "list")) {
