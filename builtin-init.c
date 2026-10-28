@@ -1201,7 +1201,11 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		pr_err("chain: no certificate enrolled");
 		return -ENOENT;
 	}
-	keys_set_digest(&enrolled, cert_sha);
+	rc = keys_set_digest(&enrolled, cert_sha);
+	if (rc) {
+		pr_err("chain: cannot hash the enrolled set: %s", strerror(-rc));
+		return rc;
+	}
 
 	/*
 	 * init_event = SHA256("shirudo-init\0" || cert_sha256 || set_digest
@@ -1209,9 +1213,13 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	 * predictor shares (util/attest.c).
 	 */
 	tree_root_at_boot(tree_root);
-	chain_init_event(cert_sha, set, n, tree_root, set_digest,
-			 init_digest);
+	rc = chain_init_event(cert_sha, set, n, tree_root, set_digest,
+			      init_digest);
 
+	if (rc) {
+		pr_err("chain: cannot hash the init event: %s", strerror(-rc));
+		return rc;
+	}
 	rc = chain_init(init_digest, &info);
 	if (rc == -ENODEV) {
 		pr_err("tpm: not usable; shirudo requires a TPM 2.0 "

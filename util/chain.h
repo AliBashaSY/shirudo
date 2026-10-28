@@ -34,8 +34,8 @@
 					 (1u << SHIRUDO_CHAIN_PHASE_PCR))
 #define SHIRUDO_CHAIN_ANCHOR_MAX	128
 
-void shirudo_sha256(const void *data, size_t len,
-		    __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
+int shirudo_sha256(const void *data, size_t len,
+		   __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
 
 void sha256_2(const void *a, size_t a_len,
 	      const void *b, size_t b_len,
@@ -53,15 +53,15 @@ struct shirudo_measured_upatch {
  * The event digests every measuring path and the predictor share.
  * The set is sorted by name before hashing.
  */
-void chain_init_event(const __u8 cert_sha[32],
-		      struct shirudo_measured_upatch *set, size_t n,
-		      const __u8 tree_root[32],
-		      __u8 set_digest[32], __u8 event[32]);
+int chain_init_event(const __u8 cert_sha[32],
+		     struct shirudo_measured_upatch *set, size_t n,
+		     const __u8 tree_root[32],
+		     __u8 set_digest[32], __u8 event[32]);
 /* SHA256(tag || NUL || cert_sha256), tag "shirudo-key-revoke". */
 void chain_key_event(const char *tag, const __u8 cert_sha[32],
 		     __u8 event[32]);
-void chain_upatch_event(const char *tag, const char *name,
-			const __u8 payload[32], __u8 event[32]);
+int chain_upatch_event(const char *tag, const char *name,
+		       const __u8 payload[32], __u8 event[32]);
 void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 		      __u8 event[32]);
 int shirudo_chain_fold_checked(__u8 chain[32], const __u8 event[32]);

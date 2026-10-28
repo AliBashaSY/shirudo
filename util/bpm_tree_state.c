@@ -624,7 +624,9 @@ int tree_event_replay(__u8 out[32])
 		}
 		memcpy(next, chain, 32);
 		memcpy(next + 32, d, 32);
-		shirudo_sha256(next, sizeof(next), chain);
+		rc = shirudo_sha256(next, sizeof(next), chain);
+		if (rc)
+			break;
 		if (!ct_eq(chain, recorded, 32)) {
 			rc = -EINVAL;
 			break;

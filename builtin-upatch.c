@@ -1849,23 +1849,34 @@ static int upatch_apply(const char *path, bool verify_only,
 	{
 		__u8 loader_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
 
-		shirudo_sha256(insns, u.hdr.loader_insns_len, loader_digest);
+		if (shirudo_sha256(insns, u.hdr.loader_insns_len,
+				   loader_digest)) {
+			pr_err("__loader.map: cannot hash the loader");
+			rep_fail(rep, "signed_loader_load", "unknown", EIO,
+				 "loader digest failed");
+			rc = 1;
+			goto out;
+		}
 		map_fd = loader_map_create("__loader.map", u.hdr.data_len,
 					   loader_digest, sizeof(loader_digest));
 	}
 	if (map_fd < 0) {
-		pr_err("__loader.map create: %s", strerror(errno));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(errno),
-			 errno, "__loader.map create failed");
+		int err = errno;
+
+		pr_err("__loader.map create: %s", strerror(err));
+		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
+			 err, "__loader.map create failed");
 		rc = 1;
 		goto out;
 	}
 
 	rc = loader_map_update(map_fd, data, u.hdr.data_len);
 	if (rc) {
-		pr_err("__loader.map update: %s", strerror(errno));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(errno),
-			 errno, "__loader.map update failed");
+		int err = errno;
+
+		pr_err("__loader.map update: %s", strerror(err));
+		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
+			 err, "__loader.map update failed");
 		rc = 1;
 		goto out;
 	}
@@ -2208,7 +2219,12 @@ static int upatch_chain_event(const char *tag, const char *type,
 		out_chain[0] = '\0';
 	if (measured)
 		*measured = false;
-	chain_upatch_event(tag, name, payload, event);
+	rc = chain_upatch_event(tag, name, payload, event);
+	if (rc) {
+		pr_err("upatch %s: cannot hash the event (category: tpm_error)",
+		       op);
+		return rc;
+	}
 
 	rc = chain_extend(event, chain);
 	if (rc == -ENODEV) {

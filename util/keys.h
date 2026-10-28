@@ -78,10 +78,10 @@ int keys_digest_file(const char *path, __u8 sha256[32],
  * the SHA-256 over the sorted digests of several. The same function
  * serves the operator predicting a register for a set.
  */
-void keys_anchor_digest(const __u8 sha256[][32], size_t n,
-			__u8 out[32]);
-void keys_set_digest(const struct shirudo_trusted_set *set,
-		     __u8 out[32]);
+int keys_anchor_digest(const __u8 sha256[][32], size_t n,
+		       __u8 out[32]);
+int keys_set_digest(const struct shirudo_trusted_set *set,
+		    __u8 out[32]);
 
 bool keys_is_revoked(const char *revoked_dir,
 		     const __u8 fingerprint[32]);

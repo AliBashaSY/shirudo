@@ -10,10 +10,10 @@
 #include "chain.h"
 #include "crypto.h"
 
-void shirudo_sha256(const void *data, size_t len,
-		    __u8 out[SHIRUDO_CHAIN_DIGEST_LEN])
+int shirudo_sha256(const void *data, size_t len,
+		   __u8 out[SHIRUDO_CHAIN_DIGEST_LEN])
 {
-	sha256_buffer(data, len, out);
+	return sha256_buffer(data, len, out);
 }
 
 int ct_eq(const void *a, const void *b, size_t n)

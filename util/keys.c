@@ -457,35 +457,38 @@ static int digest_cmp(const void *a, const void *b)
 	return memcmp(a, b, 32);
 }
 
-void keys_anchor_digest(const __u8 sha256[][32], size_t n,
-			__u8 out[32])
+int keys_anchor_digest(const __u8 sha256[][32], size_t n,
+		       __u8 out[32])
 {
 	__u8 sorted[SHIRUDO_KEYS_MAX][32];
 	size_t i;
+	int rc;
 
 	if (n == 1) {
 		memcpy(out, sha256[0], 32);
-		return;
+		return 0;
 	}
-	if (n == 0 || n > SHIRUDO_KEYS_MAX) {
-		memset(out, 0, 32);
-		return;
-	}
+	memset(out, 0, 32);
+	if (n == 0 || n > SHIRUDO_KEYS_MAX)
+		return -EINVAL;
 	for (i = 0; i < n; i++)
 		memcpy(sorted[i], sha256[i], 32);
 	qsort(sorted, n, 32, digest_cmp);
-	sha256_buffer(sorted, n * 32, out);
+	rc = sha256_buffer(sorted, n * 32, out);
+	if (rc)
+		memset(out, 0, 32);
+	return rc;
 }
 
-void keys_set_digest(const struct shirudo_trusted_set *set,
-		     __u8 out[32])
+int keys_set_digest(const struct shirudo_trusted_set *set,
+		    __u8 out[32])
 {
 	__u8 sha[SHIRUDO_KEYS_MAX][32];
 	size_t i;
 
 	for (i = 0; i < set->n; i++)
 		memcpy(sha[i], set->certs[i].sha256, 32);
-	keys_anchor_digest(sha, set->n, out);
+	return keys_anchor_digest(sha, set->n, out);
 }
 
 int keys_write_file(const char *path, const void *data, size_t len)

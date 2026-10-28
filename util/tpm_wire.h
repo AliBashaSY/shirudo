@@ -67,9 +67,9 @@ int tpm_writer_auth_hash(const __u8 *nonce, size_t nonce_len,
 int tpm_policy_signed(const __u8 prev[32],
 		      const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
 		      __u8 out[32]);
-void tpm_policy_command_code(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
-			     __u32 command_code,
-			     __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+int tpm_policy_command_code(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+			    __u32 command_code,
+			    __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
 int tpm_register_policy_final(const __u8 branch_written[32],
 			      const __u8 branch_init[32],
 			      const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
@@ -85,16 +85,16 @@ int tpm_register_policy_final(const __u8 branch_written[32],
 #define SHIRUDO_TPM_REGISTER_ATTRS	0x0E060048u
 #define SHIRUDO_TPM_NV_WRITTEN		0x20000000u
 
-void tpm_policy_nv_written(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
-			   bool written,
-			   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-void tpm_policy_pcr(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
-		    __u32 pcr_mask,
-		    const __u8 pcr_digest[SHIRUDO_TPM_DIGEST_LEN],
-		    __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-void tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
-		   const __u8 b[SHIRUDO_TPM_DIGEST_LEN],
+int tpm_policy_nv_written(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+			  bool written,
+			  __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+int tpm_policy_pcr(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+		   __u32 pcr_mask,
+		   const __u8 pcr_digest[SHIRUDO_TPM_DIGEST_LEN],
 		   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+int tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
+		  const __u8 b[SHIRUDO_TPM_DIGEST_LEN],
+		  __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
 
 /*
  * The register's write policy from the values the binding PCRs held

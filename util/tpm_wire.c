@@ -90,17 +90,18 @@ static int get2b_fixed(struct reader *r, __u8 *out, size_t want)
 	return 0;
 }
 
-static void policy_hash(const __u8 prev[32], __u32 cc,
-			const __u8 *a, size_t a_len,
-			const __u8 *b, size_t b_len, __u8 out[32])
+static int policy_hash(const __u8 prev[32], __u32 cc,
+		       const __u8 *a, size_t a_len,
+		       const __u8 *b, size_t b_len, __u8 out[32])
 {
 	struct shirudo_sha256_ctx ctx;
 	__u8 cc_be[4];
 
+	/* prev and out may be one buffer; out changes only once done. */
 	tpm_put32(cc_be, cc);
 	if (sha256_init(&ctx) != 0) {
 		memset(out, 0, 32);
-		return;
+		return -EIO;
 	}
 	if (sha256_update(&ctx, prev, 32) != 0 ||
 	    sha256_update(&ctx, cc_be, sizeof(cc_be)) != 0 ||
@@ -109,15 +110,18 @@ static void policy_hash(const __u8 prev[32], __u32 cc,
 	    sha256_final(&ctx, out) != 0) {
 		memset(out, 0, 32);
 		sha256_free(&ctx);
+		return -EIO;
 	}
+	return 0;
 }
 
-void tpm_policy_nv_written(const __u8 prev[32], bool written,
-			   __u8 out[32])
+int tpm_policy_nv_written(const __u8 prev[32], bool written,
+			  __u8 out[32])
 {
 	__u8 set = written ? 1 : 0;
 
-	policy_hash(prev, TPM_CC_POLICY_NV_WRITTEN, &set, 1, NULL, 0, out);
+	return policy_hash(prev, TPM_CC_POLICY_NV_WRITTEN, &set, 1, NULL, 0,
+			   out);
 }
 
 static void
@@ -132,22 +136,21 @@ shirudo_tpm_pcr_selection(__u32 pcr_mask,
 	out[9] = (__u8)(pcr_mask >> 16);
 }
 
-void tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
-		    const __u8 pcr_digest[32], __u8 out[32])
+int tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
+		   const __u8 pcr_digest[32], __u8 out[32])
 {
 	__u8 sel[SHIRUDO_TPM_PCR_SELECTION_LEN];
 
 	shirudo_tpm_pcr_selection(pcr_mask, sel);
-	policy_hash(prev, TPM_CC_POLICY_PCR, sel, sizeof(sel), pcr_digest, 32,
-		    out);
+	return policy_hash(prev, TPM_CC_POLICY_PCR, sel, sizeof(sel),
+			   pcr_digest, 32, out);
 }
 
-void tpm_policy_or(const __u8 a[32], const __u8 b[32],
-		   __u8 out[32])
+int tpm_policy_or(const __u8 a[32], const __u8 b[32], __u8 out[32])
 {
 	static const __u8 zero[32];
 
-	policy_hash(zero, TPM_CC_POLICY_OR, a, 32, b, 32, out);
+	return policy_hash(zero, TPM_CC_POLICY_OR, a, 32, b, 32, out);
 }
 
 /*
@@ -211,20 +214,24 @@ int tpm_policy_signed(const __u8 prev[32],
 	rc = tpm_object_name(public, sizeof(public), name);
 	if (rc)
 		return rc;
-	policy_hash(prev, TPM_CC_POLICY_SIGNED, name, sizeof(name), NULL, 0, out);
+	rc = policy_hash(prev, TPM_CC_POLICY_SIGNED, name, sizeof(name), NULL,
+			 0, out);
+	if (rc)
+		return rc;
 	memcpy(bytes, out, 32);
 	memcpy(bytes + 32, SHIRUDO_TPM_NV_POLICY_REF,
 	       sizeof(SHIRUDO_TPM_NV_POLICY_REF) - 1);
 	return sha256_buffer(bytes, sizeof(bytes), out);
 }
 
-void tpm_policy_command_code(const __u8 prev[32],
-			     __u32 command_code, __u8 out[32])
+int tpm_policy_command_code(const __u8 prev[32],
+			    __u32 command_code, __u8 out[32])
 {
 	__u8 cc_be[4];
 
 	tpm_put32(cc_be, command_code);
-	policy_hash(prev, TPM_CC_POLICY_COMMAND_CODE, cc_be, sizeof(cc_be), NULL, 0, out);
+	return policy_hash(prev, TPM_CC_POLICY_COMMAND_CODE, cc_be,
+			   sizeof(cc_be), NULL, 0, out);
 }
 
 int tpm_register_policy_final(const __u8 branch_written[32],
@@ -234,12 +241,13 @@ int tpm_register_policy_final(const __u8 branch_written[32],
 {
 	int rc;
 
-	tpm_policy_or(branch_written, branch_init, policy);
-	rc = tpm_policy_signed(policy, writer_public, policy);
-	if (rc)
-		return rc;
-	tpm_policy_command_code(policy, SHIRUDO_TPM_CC_NV_EXTEND, policy);
-	return 0;
+	rc = tpm_policy_or(branch_written, branch_init, policy);
+	if (!rc)
+		rc = tpm_policy_signed(policy, writer_public, policy);
+	if (!rc)
+		rc = tpm_policy_command_code(policy, SHIRUDO_TPM_CC_NV_EXTEND,
+					     policy);
+	return rc;
 }
 
 int tpm_register_policy(__u32 pcr_mask,
@@ -250,12 +258,20 @@ int tpm_register_policy(__u32 pcr_mask,
 {
 	static const __u8 zero[32];
 	__u8 pcr_digest[32], unwritten[32];
+	int rc;
 
-	tpm_policy_nv_written(zero, true, branch_written);
-	tpm_policy_nv_written(zero, false, unwritten);
-	sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
-	tpm_policy_pcr(unwritten, pcr_mask, pcr_digest, branch_init);
-	return tpm_register_policy_final(branch_written, branch_init, writer_public, policy);
+	rc = tpm_policy_nv_written(zero, true, branch_written);
+	if (!rc)
+		rc = tpm_policy_nv_written(zero, false, unwritten);
+	if (!rc)
+		rc = sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
+	if (!rc)
+		rc = tpm_policy_pcr(unwritten, pcr_mask, pcr_digest,
+				    branch_init);
+	if (rc)
+		return rc;
+	return tpm_register_policy_final(branch_written, branch_init,
+					 writer_public, policy);
 }
 
 void tpm_nv_name(__u32 index, __u32 attrs,
@@ -271,7 +287,8 @@ void tpm_nv_name(__u32 index, __u32 attrs,
 	memcpy(pub + 12, policy, 32);
 	tpm_put16(pub + 44, data_size);
 	tpm_put16(name, SHIRUDO_TPM_ALG_SHA256);
-	sha256_buffer(pub, sizeof(pub), name + 2);
+	if (sha256_buffer(pub, sizeof(pub), name + 2))
+		memset(name, 0, SHIRUDO_TPM_NAME_LEN);
 }
 
 int tpm_object_name(const __u8 *public, size_t len,

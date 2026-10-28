@@ -246,8 +246,8 @@ static int cert_digest(const char *path, __u8 out[32])
 	}
 	got = read(fd, buf, (size_t)st.st_size);
 	close(fd);
-	if (got == st.st_size)
-		shirudo_sha256(buf, (size_t)got, out);
+	if (got == st.st_size && shirudo_sha256(buf, (size_t)got, out))
+		got = -1;
 	xfree(buf, (size_t)st.st_size);
 	return got == st.st_size ? 0 : -EIO;
 }
@@ -370,9 +370,12 @@ static int cmd_attest_predict(int argc, const char **argv)
 		pr_err("attest predict: --cert is required");
 		goto out;
 	}
-	keys_anchor_digest(cert_shas, n_certs, cert_sha);
-	chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
-			 init);
+	if (keys_anchor_digest(cert_shas, n_certs, cert_sha) ||
+	    chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
+			     init)) {
+		pr_err("attest predict: cannot hash the init event");
+		goto out;
+	}
 	hex_encode(set_digest, 32, hex);
 	printf("set_digest: %s\n", hex);
 	hex_encode(init, 32, hex);
@@ -415,7 +418,10 @@ static int cmd_attest_predict(int argc, const char **argv)
 			goto out;
 		}
 		printf("anchor: %s\n", anchor);
-		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
+		if (shirudo_sha256(anchor, strlen(anchor), anchor_digest)) {
+			pr_err("attest predict: cannot hash the anchor");
+			goto out;
+		}
 		chain_fold(bind[0], anchor_digest);
 		hex_encode(bind[0], 32, hex);
 		printf("pcr%u_after_anchor: %s\n", SHIRUDO_CHAIN_PCR, hex);
@@ -628,9 +634,12 @@ static int cmd_attest_verify(int argc, const char **argv)
 	x.nonce = nonce;
 	x.nonce_len = nonce_len;
 	if (have_cert) {
-		keys_anchor_digest(cert_shas, n_certs, cert_sha);
-		chain_init_event(cert_sha, m.set, m.n, tree_root,
-				 set_digest, x.init_event);
+		if (keys_anchor_digest(cert_shas, n_certs, cert_sha) ||
+		    chain_init_event(cert_sha, m.set, m.n, tree_root,
+				     set_digest, x.init_event)) {
+			pr_err("attest verify: cannot hash the init event");
+			goto out;
+		}
 		x.have_init = true;
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))

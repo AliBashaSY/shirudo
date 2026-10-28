@@ -29,10 +29,13 @@
 #include "paths.h"
 #include "tpm.h"
 
-void shirudo_sha256(const void *data, size_t len, __u8 out[32])
+int shirudo_sha256(const void *data, size_t len, __u8 out[32])
 {
-	if (sha256_buffer(data, len, out) != 0)
+	int rc = sha256_buffer(data, len, out);
+
+	if (rc)
 		memset(out, 0, 32);
+	return rc;
 }
 
 void sha256_2(const void *a, size_t a_len,
@@ -69,14 +72,15 @@ static int member_cmp(const void *a, const void *b)
 		      ((const struct shirudo_measured_upatch *)b)->name);
 }
 
-void chain_init_event(const __u8 cert_sha[32],
-		      struct shirudo_measured_upatch *set, size_t n,
-		      const __u8 tree_root[32],
-		      __u8 set_digest[32], __u8 event[32])
+int chain_init_event(const __u8 cert_sha[32],
+		     struct shirudo_measured_upatch *set, size_t n,
+		     const __u8 tree_root[32],
+		     __u8 set_digest[32], __u8 event[32])
 {
 	__u8 tag[sizeof("shirudo-init") + 96];
 	size_t taglen = sizeof("shirudo-init"), listing_len = 0, off = 0, i;
 	char *listing;
+	int rc;
 
 	/* set_digest = SHA256(sorted "<payload_hex> <name>\n" listing) */
 	if (n > 1)
@@ -84,36 +88,35 @@ void chain_init_event(const __u8 cert_sha[32],
 	for (i = 0; i < n; i++)
 		listing_len += strlen(set[i].payload_hex) + 1 +
 			       strlen(set[i].name) + 1;
+	memset(set_digest, 0, 32);
+	memset(event, 0, 32);
 	listing = xmalloc(listing_len + 1);
-	if (!listing) {
-		memset(set_digest, 0, 32);
-		memset(event, 0, 32);
-		return;
-	}
+	if (!listing)
+		return -ENOMEM;
 	for (i = 0; i < n; i++) {
 		int w = strsprintf(listing + off, listing_len + 1 - off,
 				   "%s %s\n", set[i].payload_hex, set[i].name);
 
 		if (w < 0) {
 			xfree(listing, listing_len + 1);
-			memset(set_digest, 0, 32);
-			memset(event, 0, 32);
-			return;
+			return w;
 		}
 		off += (size_t)w;
 	}
-	shirudo_sha256(listing, listing_len, set_digest);
+	rc = shirudo_sha256(listing, listing_len, set_digest);
 	xfree(listing, listing_len + 1);
+	if (rc)
+		return rc;
 
 	memcpy(tag, "shirudo-init", taglen);
 	memcpy(tag + taglen, cert_sha, 32);
 	memcpy(tag + taglen + 32, set_digest, 32);
 	memcpy(tag + taglen + 64, tree_root, 32);
-	shirudo_sha256(tag, taglen + 96, event);
+	return shirudo_sha256(tag, taglen + 96, event);
 }
 
-void chain_upatch_event(const char *tag, const char *name,
-			const __u8 payload[32], __u8 event[32])
+int chain_upatch_event(const char *tag, const char *name,
+		       const __u8 payload[32], __u8 event[32])
 {
 	__u8 buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
 	size_t taglen = strlen(tag) + 1, off = 0;
@@ -125,7 +128,7 @@ void chain_upatch_event(const char *tag, const char *name,
 	off += 32;
 	memcpy(buf + off, name, namelen);
 	off += namelen;
-	shirudo_sha256(buf, off, event);
+	return shirudo_sha256(buf, off, event);
 }
 
 void chain_key_event(const char *tag, const __u8 cert_sha[32],
@@ -425,7 +428,10 @@ int chain_init(const __u8 event[32],
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	shirudo_sha256(info->anchor, strlen(info->anchor), info->anchor_digest);
+	rc = shirudo_sha256(info->anchor, strlen(info->anchor),
+			    info->anchor_digest);
+	if (rc)
+		goto out;
 	rc = tpm_pcr_extend(tpm, SHIRUDO_CHAIN_PCR,
 			    info->anchor_digest);
 	if (rc) {
