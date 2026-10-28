@@ -124,6 +124,12 @@ refuses every kexec load (``Kexec``, threat T6 of the threat model),
 since a kexec would carry this boot's TPM state under a kernel of
 root's choosing.
 
+``CONFIG_MODULE_SIG_FORCE``, or ``CONFIG_SECURITY_LOCKDOWN_LSM`` in
+integrity mode, on a kernel with ``CONFIG_MODULES``: an unsigned module
+root loads replaces the kernel under shirudo, and nothing in shirudo
+refuses or measures it.  The test kernel does without, as its own
+modules are unsigned.
+
 Image-mode requirements
 ~~~~~~~~~~~~~~~~~~~~~~~
 

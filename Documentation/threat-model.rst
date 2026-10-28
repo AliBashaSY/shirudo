@@ -599,7 +599,13 @@ bound and close the eviction gap (residual risk 15).
 ---------------
 
 - Compromise of the operator host or the signing key.
-- A malicious or buggy kernel, verifier, TPM or hardware.
+- A malicious or buggy kernel, verifier, TPM or hardware.  A kernel
+  that loads an unsigned module hands root the kernel itself; the
+  kernel's own policy, ``CONFIG_MODULE_SIG_FORCE`` or lockdown in
+  integrity mode, has to refuse it.  shirudo stands in for that policy
+  only where it leaves a hole it cannot close, kexec of a signed
+  kernel with an initrd of root's (T6), and ``status
+  --include-modules`` lists what is loaded for the operator to compare.
 - Denial of service: removing the binary, cutting the network, filling
   the disk.  shirudo fails closed and loud; it does not fail over.
 - Correctness or safety of an upatch an authorised signer built.
