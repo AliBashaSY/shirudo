@@ -1532,8 +1532,11 @@ static int cmd_bpm_config(int argc, const char **argv)
 		char managed[PATH_MAX];
 		struct shirudo_cert cert = {};
 
-		bpm_copy_string(s.name, sizeof(s.name), argv[3]);
-		bpm_copy_string(s.endpoint, sizeof(s.endpoint), argv[4]);
+		if (strscpy(s.name, argv[3], sizeof(s.name)) < 0 ||
+		    strscpy(s.endpoint, argv[4], sizeof(s.endpoint)) < 0) {
+			pr_err("bpm: register add: name or endpoint too long");
+			return 2;
+		}
 		for (int i = 5; i < argc; i++) {
 			if (!strncmp(argv[i], "--key-file=", 11))
 				key = argv[i] + 11;
@@ -2056,10 +2059,15 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	for (int i = 2; i < argc; i++) {
 		if (!strcmp(argv[i], "--dry-run")) {
 			dry_run = true;
-		} else if (!strncmp(argv[i], "--report=", 9)) {
-			bpm_copy_string(report, sizeof(report), argv[i] + 9);
-		} else if (!strcmp(argv[i], "--report") && i + 1 < argc) {
-			bpm_copy_string(report, sizeof(report), argv[++i]);
+		} else if (!strncmp(argv[i], "--report=", 9) ||
+			   (!strcmp(argv[i], "--report") && i + 1 < argc)) {
+			const char *path = argv[i][8] == '=' ? argv[i] + 9 :
+							       argv[++i];
+
+			if (strscpy(report, path, sizeof(report)) < 0) {
+				pr_err("bpm tree sync: report path too long");
+				return 2;
+			}
 		} else if (is_help(argv[i])) {
 			printf("usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
 			rc = 0;
