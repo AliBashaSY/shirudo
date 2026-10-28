@@ -75,20 +75,23 @@ int shirudo_image_bootstrap_read(const char *path,
 			if (!shirudo_image_path_valid(value) ||
 			    boot->runtime[0])
 				rc = -EINVAL;
-			else
-				strscpy(boot->runtime, value, sizeof(boot->runtime));
+			else if (strscpy(boot->runtime, value,
+					 sizeof(boot->runtime)) < 0)
+				rc = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.image")) {
 			if (!shirudo_image_path_valid(value))
 				rc = -EINVAL;
-			else
-				strscpy(boot->config, value, sizeof(boot->config));
+			else if (strscpy(boot->config, value,
+					 sizeof(boot->config)) < 0)
+				rc = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.verification_key")) {
 			if (strncmp(value, SHIRUDO_RUNTIME_DIR "/",
 				    sizeof(SHIRUDO_RUNTIME_DIR)) ||
 			    !shirudo_image_path_valid(value))
 				rc = -EPERM;
-			else
-				strscpy(boot->certificate, value, sizeof(boot->certificate));
+			else if (strscpy(boot->certificate, value,
+					 sizeof(boot->certificate)) < 0)
+				rc = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.pcr")) {
 			__u64 pcr;
 

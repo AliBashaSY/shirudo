@@ -203,7 +203,8 @@ static int device_path(struct shirudo_dm_verity *device, __u64 dev)
 	if (lstat(device->path, &st)) {
 		if (errno != ENOENT)
 			return -errno;
-		if (mknod(device->path, S_IFBLK | 0600, device->device))
+		if (mknod(device->path, S_IFBLK | 0600, device->device) &&
+		    errno != EEXIST)
 			return -errno;
 		if (lstat(device->path, &st))
 			return -errno;

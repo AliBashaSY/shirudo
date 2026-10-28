@@ -376,6 +376,9 @@ static int mount_runtime(bool trusted_boot)
 	if (!rc) {
 		step = "load runtime config";
 		rc = load_runtime_config(trusted_boot);
+		if (rc && umount2(SHIRUDO_RUNTIME_DIR, MNT_DETACH))
+			pr_warn("image: cannot unmount the runtime: %s",
+				strerror(errno));
 	}
 	if (rc)
 		pr_err("image: %s: %s", step, strerror(-rc));
