@@ -400,7 +400,8 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 				if (c->end - c->p < 4)
 					return -EINVAL;
 				cp = hex4(c->p);
-				if (cp < 0)
+				/* A NUL would end the string short of its value. */
+				if (cp <= 0)
 					return -EINVAL;
 				c->p += 4;
 				if (cp >= 0xD800 && cp <= 0xDBFF) {
