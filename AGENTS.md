@@ -68,6 +68,14 @@ The kernel side of the signing design is the kernel's own
 `Documentation/bpf/signing.rst`; `bpf_prog_verify_signature()` runs
 before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
 
+New documentation extends `Documentation/`, an existing document or a new
+one listed above and in `Documentation/index.rst`. Only what concerns the
+project as a whole goes in the top-level directory (`README.md`,
+`CONTRIBUTING.md`, `SECURITY.md` and their kind). No README, plan or notes
+file goes beside the code; the exceptions are `vendor/libbpf/README.md`,
+which belongs to the vendored copy, and a package's `README.md` under
+`upatches/`, which `bpm build` ships in the package for `bpm info`.
+
 ## Coding conventions
 
 - **Plain C.** Userspace and BPF both. No C++.
