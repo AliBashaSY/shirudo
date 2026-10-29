@@ -335,7 +335,6 @@ testing/helper/test-config
 testing/helper/test-bpf-load
 testing/helper/test-bpf-cmd
 testing/helper/test-perf-attach
-testing/helper/test-kernel-abi
 testing/helper/test-otel-map
 testing/helper/test-upatch-map-types
 testing/helper/test-upatch-prog-metadata

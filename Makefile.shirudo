@@ -615,7 +615,6 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-bpf-load \
                 testing/helper/test-bpf-cmd \
                 testing/helper/test-perf-attach \
-                testing/helper/test-kernel-abi \
                 testing/helper/test-otel-map \
                 testing/helper/test-upatch-map-types \
                 testing/helper/test-upatch-prog-metadata \
@@ -756,11 +755,6 @@ testing/helper/test-signed-load: testing/helper/test-signed-load.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -I$(BPF_UAPI_INCLUDE) \
 	    -o $@ $^ -lcrypto
-
-testing/helper/test-kernel-abi: testing/helper/test-kernel-abi.c util/kernel_abi.o \
-                          util/string.o $(LIBBPF_A)
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(LIBELF_LIBS) $(ZLIB_LIBS)
 
 testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o \
                         util/upatch_maps_otel.o util/crypto_openssl.o \

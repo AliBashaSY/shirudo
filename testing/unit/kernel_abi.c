@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <linux/btf.h>
 
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
 #include "kernel_abi.h"
+#include "unit.h"
 
 enum fixture {
 	VALID,
@@ -136,58 +133,140 @@ err:
 	return NULL;
 }
 
-static int check(enum fixture fixture, int want_ok, const char *want_detail)
+static void check(enum fixture fixture, int want_ok, const char *want)
 {
-	char detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX];
+	char detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX] = {};
 	struct btf *btf = make_fixture(fixture);
 	int rc;
 
-	if (!btf) {
-		fprintf(stderr, "cannot construct fixture %d\n", fixture);
-		return 1;
-	}
+	ASSERT_TRUE(btf);
 	rc = kernel_abi_validate_btf(btf, detail, sizeof(detail));
 	btf__free(btf);
-	if ((rc == 0) != want_ok) {
-		fprintf(stderr, "fixture %d: rc=%d detail=%s\n",
-			fixture, rc, detail);
-		return 1;
+	if (want_ok) {
+		EXPECT_EQ(rc, 0);
+		return;
 	}
-	if (want_detail && !strstr(detail, want_detail)) {
-		fprintf(stderr, "fixture %d: expected detail '%s', got '%s'\n",
-			fixture, want_detail, detail);
-		return 1;
-	}
-	return 0;
+	EXPECT_NE(rc, 0);
+	UNIT_CHECK(0, strstr(detail, want), "detail \"%s\" lacks \"%s\"",
+		   detail, want);
 }
 
-int main(void)
+static void accepts_the_required_prefix(void)
 {
-	int failed = 0;
-
-	failed += check(VALID, 1, NULL);
-	failed += check(TRAILING_DRIFT, 1, NULL);
-	failed += check(NO_MAP, 0, "no struct bpf_map");
-	failed += check(NO_SHA, 0, "bpf_map.sha is missing");
-	failed += check(SHA_LENGTH, 0, "u8[32]");
-	failed += check(SHA_WIDTH, 0, "u8[32]");
-	failed += check(SHA_SIGNED, 0, "u8[32]");
-	failed += check(NO_EXCL_PROG_SHA, 0,
-			"bpf_map.excl_prog_sha is missing");
-	failed += check(EXCL_PROG_SHA_TYPE, 0, "must have pointer type");
-	failed += check(EXCL_PROG_SHA_TARGET, 0, "must point to a byte");
-	failed += check(NO_PROG_AUX, 0, "no struct bpf_prog_aux");
-	failed += check(NO_SIG, 0, "bpf_prog_aux.sig is missing");
-	failed += check(SIG_TYPE, 0, "sig must have struct type");
-	failed += check(NO_KEYRING_SERIAL, 0,
-			"keyring_serial must have type s32");
-	failed += check(KEYRING_SERIAL_WIDTH, 0,
-			"keyring_serial must have type s32");
-	failed += check(NO_KEYRING_TYPE, 0,
-			"keyring_type must have type u8");
-	failed += check(KEYRING_TYPE_WIDTH, 0,
-			"keyring_type must have type u8");
-	failed += check(NO_VERDICT, 0, "verdict must have type u8");
-	failed += check(VERDICT_SIGNED, 0, "verdict must have type u8");
-	return failed ? EXIT_FAILURE : EXIT_SUCCESS;
+	check(VALID, 1, NULL);
 }
+
+static void accepts_fields_past_the_prefix(void)
+{
+	check(TRAILING_DRIFT, 1, NULL);
+}
+
+static void needs_struct_bpf_map(void)
+{
+	check(NO_MAP, 0, "no struct bpf_map");
+}
+
+static void needs_map_sha(void)
+{
+	check(NO_SHA, 0, "bpf_map.sha is missing");
+}
+
+static void needs_map_sha_of_32_bytes(void)
+{
+	check(SHA_LENGTH, 0, "u8[32]");
+}
+
+static void needs_map_sha_of_bytes(void)
+{
+	check(SHA_WIDTH, 0, "u8[32]");
+}
+
+static void needs_map_sha_unsigned(void)
+{
+	check(SHA_SIGNED, 0, "u8[32]");
+}
+
+static void needs_excl_prog_sha(void)
+{
+	check(NO_EXCL_PROG_SHA, 0, "bpf_map.excl_prog_sha is missing");
+}
+
+static void needs_excl_prog_sha_pointer(void)
+{
+	check(EXCL_PROG_SHA_TYPE, 0, "must have pointer type");
+}
+
+static void needs_excl_prog_sha_byte_pointer(void)
+{
+	check(EXCL_PROG_SHA_TARGET, 0, "must point to a byte");
+}
+
+static void needs_struct_bpf_prog_aux(void)
+{
+	check(NO_PROG_AUX, 0, "no struct bpf_prog_aux");
+}
+
+static void needs_prog_aux_sig(void)
+{
+	check(NO_SIG, 0, "bpf_prog_aux.sig is missing");
+}
+
+static void needs_sig_struct(void)
+{
+	check(SIG_TYPE, 0, "sig must have struct type");
+}
+
+static void needs_keyring_serial(void)
+{
+	check(NO_KEYRING_SERIAL, 0, "keyring_serial must have type s32");
+}
+
+static void needs_keyring_serial_s32(void)
+{
+	check(KEYRING_SERIAL_WIDTH, 0, "keyring_serial must have type s32");
+}
+
+static void needs_keyring_type(void)
+{
+	check(NO_KEYRING_TYPE, 0, "keyring_type must have type u8");
+}
+
+static void needs_keyring_type_u8(void)
+{
+	check(KEYRING_TYPE_WIDTH, 0, "keyring_type must have type u8");
+}
+
+static void needs_verdict(void)
+{
+	check(NO_VERDICT, 0, "verdict must have type u8");
+}
+
+static void needs_verdict_unsigned(void)
+{
+	check(VERDICT_SIGNED, 0, "verdict must have type u8");
+}
+
+static const struct unit_case cases[] = {
+	UNIT_CASE(accepts_the_required_prefix),
+	UNIT_CASE(accepts_fields_past_the_prefix),
+	UNIT_CASE(needs_struct_bpf_map),
+	UNIT_CASE(needs_map_sha),
+	UNIT_CASE(needs_map_sha_of_32_bytes),
+	UNIT_CASE(needs_map_sha_of_bytes),
+	UNIT_CASE(needs_map_sha_unsigned),
+	UNIT_CASE(needs_excl_prog_sha),
+	UNIT_CASE(needs_excl_prog_sha_pointer),
+	UNIT_CASE(needs_excl_prog_sha_byte_pointer),
+	UNIT_CASE(needs_struct_bpf_prog_aux),
+	UNIT_CASE(needs_prog_aux_sig),
+	UNIT_CASE(needs_sig_struct),
+	UNIT_CASE(needs_keyring_serial),
+	UNIT_CASE(needs_keyring_serial_s32),
+	UNIT_CASE(needs_keyring_type),
+	UNIT_CASE(needs_keyring_type_u8),
+	UNIT_CASE(needs_verdict),
+	UNIT_CASE(needs_verdict_unsigned),
+	{}
+};
+
+UNIT_SUITE(kernel_abi, cases);
