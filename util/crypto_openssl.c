@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <openssl/bio.h>
@@ -279,6 +280,56 @@ int cert_key_algorithm(const struct shirudo_cert *cert,
 	if (strscpy(out, name, out_sz) < 0)
 		return -ENAMETOOLONG;
 	return 0;
+}
+
+int cert_subject(const struct shirudo_cert *cert, char *out, size_t out_sz)
+{
+	char *text;
+	long len;
+	BIO *bio;
+	int rc;
+
+	if (!cert || !cert->impl || !out || !out_sz)
+		return -EINVAL;
+	bio = BIO_new(BIO_s_mem());
+	if (!bio)
+		return -ENOMEM;
+	rc = -EINVAL;
+	if (X509_NAME_print_ex(bio, X509_get_subject_name(cert->impl), 0,
+			       XN_FLAG_ONELINE & ~XN_FLAG_SPC_EQ) < 0)
+		goto out;
+	len = BIO_get_mem_data(bio, &text);
+	rc = -ENAMETOOLONG;
+	if (len < 0 || (size_t)len >= out_sz)
+		goto out;
+	memcpy(out, text, (size_t)len);
+	out[len] = '\0';
+	rc = 0;
+out:
+	BIO_free(bio);
+	return rc;
+}
+
+static int asn1_date(const ASN1_TIME *t, char out[11])
+{
+	struct tm tm;
+
+	if (!t || !ASN1_TIME_to_tm(t, &tm))
+		return -EINVAL;
+	return strftime(out, 11, "%Y-%m-%d", &tm) == 10 ? 0 : -EINVAL;
+}
+
+int cert_validity(const struct shirudo_cert *cert, char not_before[11],
+		  char not_after[11])
+{
+	int rc;
+
+	if (!cert || !cert->impl)
+		return -EINVAL;
+	rc = asn1_date(X509_get0_notBefore(cert->impl), not_before);
+	if (!rc)
+		rc = asn1_date(X509_get0_notAfter(cert->impl), not_after);
+	return rc;
 }
 
 static CMS_ContentInfo *read_cms(const __u8 *signature, size_t len)

@@ -51,6 +51,11 @@ int cert_pubkey_digest(const struct shirudo_cert *cert,
 /* The provider's name for the cert's public key, e.g. "ML-DSA-87". */
 int cert_key_algorithm(const struct shirudo_cert *cert,
 		       char *out, size_t out_sz);
+/* The subject on one line, "O=Example, CN=fleet", control bytes escaped. */
+int cert_subject(const struct shirudo_cert *cert, char *out, size_t out_sz);
+/* The validity window as UTC dates, YYYY-MM-DD. */
+int cert_validity(const struct shirudo_cert *cert, char not_before[11],
+		  char not_after[11]);
 int verify_detached(const __u8 *payload, size_t payload_len,
 		    const __u8 *signature, size_t signature_len,
 		    const struct shirudo_cert *cert);
