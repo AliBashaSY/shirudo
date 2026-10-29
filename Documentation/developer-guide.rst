@@ -224,8 +224,6 @@ software TPM on the host for development without a VM.
 
 Cases no test covers yet, for whoever adds the next tamperproof test:
 
-* creating a BPF map from an executable other than shirudo's, beside the
-  loader's own creation as the positive control;
 * obtaining or passing shirudo's map descriptors through
   ``/proc/<pid>/fd``, ``pidfd_getfd`` or ``SCM_RIGHTS``, and using one to
   change a protected map;
@@ -245,16 +243,3 @@ every resource, scope and metric attribute of the OTLP payload; export
 failure and drain across timer intervals; S3 with ``AWS_CA_BUNDLE``; and
 the bounds of transport timeouts, response buffers and compression.
 ``upatch get`` is checked for the loaded source, not its JSON form.
-
-The kernel-obs DNS parser correlates a UDP response with its request by the
-network namespace, addresses, ports and transaction ID.  It does not yet
-compare the response's question name and class with the request's, check
-its opcode, RCODE and TC bits, keep A and AAAA answers to the family asked
-for, or age out pending requests; it does not reject fragments, check the
-IP and UDP lengths against the packet or walk IPv6 extension headers; it
-lets an embedded NUL through in a label and does not bound every
-compression pointer it skips; and it counts neither a full pending table,
-LRU displacement, stale responses nor answers past its cap of 75.  A live
-packet harness would let the target tests cover malformed packets, which
-``end2end/dns_obs_matrix.py`` today only constructs.  DNS over TCP, TLS or
-HTTPS and ports other than 53 are outside its scope.

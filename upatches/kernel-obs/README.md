@@ -153,6 +153,28 @@ from the exporter.
 ## Limits
 
 DNS over TCP, TLS and HTTPS is not parsed; the resolvers are on the
-watch list instead. IPv6 extension headers are not walked. Forwarded
-traffic does not pass the cgroup hooks and is not counted. shirudo's
-developer guide lists the remaining DNS parser gaps.
+watch list instead, and DNS on ports other than 53 is not looked at.
+IPv6 extension headers are not walked. Forwarded traffic does not pass
+the cgroup hooks and is not counted.
+
+## Open work
+
+The DNS parser correlates a UDP response with its request by network
+namespace, addresses, ports and transaction ID. It does not yet:
+
+- [ ] compare the response's question name, case-insensitively, and its
+      class with the request's;
+- [ ] check the response's opcode, RCODE and TC bits, and decide whether a
+      truncated response yields no record or a partial one;
+- [ ] keep A answers to A queries and AAAA answers to AAAA queries;
+- [ ] age out pending requests, so a late response cannot match a later
+      reuse of the same flow and ID;
+- [ ] reject IP fragments, check the IP and UDP lengths against the packet
+      and hold the 1232-byte parsing budget on the packet itself;
+- [ ] walk IPv6 extension headers, or reject packets that carry one;
+- [ ] reject an embedded NUL in a label and bound every compression
+      pointer it skips, against loops and out-of-packet targets;
+- [ ] count a full pending table, LRU displacement, stale responses and
+      answers past its cap of 75, instead of dropping them silently;
+- [ ] cover malformed packets on the target, which needs a live packet
+      harness; `dns_obs_matrix.py` in shirudo's tests only builds them.
