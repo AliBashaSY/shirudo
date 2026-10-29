@@ -17,7 +17,7 @@ reference for anything not covered.
 
 Participation in the project is governed by the Code of Conduct in
 ``CODE_OF_CONDUCT.md`` at the repository root. Conduct concerns go to
-conduct@shirudo.ai.
+conduct@shirudo.dev.
 
 Commit messages
 ---------------
