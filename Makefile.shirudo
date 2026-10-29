@@ -600,7 +600,6 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-conditions \
                 testing/helper/test-config-image \
                 testing/helper/test-harden \
-                testing/helper/test-chain \
                 testing/helper/test-tpm-wire \
                 testing/helper/test-register \
                 testing/helper/test-register-cli \
@@ -641,8 +640,8 @@ testing/helper/test-harden: testing/helper/test-harden.c util/harden.o util/log.
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(LIBCRYPTO_LIBS)
 
-# chain.o's read/extend paths reference util/tpm (libtss2); the tests
-# only exercise the pure helpers, but the symbols must still resolve.
+# chain.o's read/extend paths reference util/tpm (libtss2), so the
+# symbols must resolve even for a helper that never extends.
 # util/malloc.o brings in x*/libc_free that chain.o/tpm.o use.
 # util/config.o resolves config_load(), called by tpm.o.
 # The register code pulls in the eventlog, which pulls in the seal
@@ -689,10 +688,6 @@ testing/helper/test-seal: testing/helper/test-seal.c util/seal.o util/io.o \
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-eventlog: testing/helper/test-eventlog.c $(REGISTER_OBJS)
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
-
-testing/helper/test-chain: testing/helper/test-chain.c $(REGISTER_OBJS)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
