@@ -2,7 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 /*
- * Drives util/conditions.c for t0050 with the input `shirudo status`
+ * Drives util/conditions.c for t6004 with the input `shirudo status`
  * derives from what it reads off the host.
  *
  *   test-conditions <lsm 0|1> <bpf|none> <serial> <pinned> \

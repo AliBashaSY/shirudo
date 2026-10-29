@@ -2,23 +2,31 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# testing/run-tests.sh -- discover and run every t0xxx operator test in this
-# directory and its named test groups. Target tests are listed by
-# run-target-tests.sh.
-# CI-friendly; sets non-zero exit if any test
-# fails.
+# testing/run-tests.sh -- the unit tests, then every host test (t?0??) of
+# ghchecks/, functional/ and e2e/ in number order. CI-friendly; the exit
+# status counts the suites that failed.
 
 set -eu
 
 cd "$(dirname "$0")"
 
+host_tests()
+{
+	for t in ghchecks/t*.sh functional/*/t*.sh e2e/t*.sh; do
+		case "${t##*/}" in
+		t[0-9]0[0-9][0-9]-*.sh) printf '%s %s\n' "${t##*/}" "$t" ;;
+		esac
+	done | sort | cut -d' ' -f2
+}
+
 fail=0
-found=0
 : "${SHIRUDO_TEST_SUITE_FAILURES_FILE:=}"
-for t in ../build/unit/*; do
-	[ -f "$t" ] && [ -x "$t" ] || continue
-	found=1
-	if "$t"; then
+for t in ../build/unit/* $(host_tests); do
+	case "$t" in
+	*.sh) set -- sh "$t" ;;
+	*) [ -f "$t" ] && [ -x "$t" ] || continue; set -- "$t" ;;
+	esac
+	if "$@"; then
 		:
 	else
 		fail=$((fail + 1))
@@ -27,139 +35,5 @@ for t in ../build/unit/*; do
 		fi
 	fi
 done
-
-for t in t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in ghchecks/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in image/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in tamperproof/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in upatch/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in signing/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in otel/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in bpm/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in tpm/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-for t in upatch/kernel-obs/dns/t0[0-9][0-9][0-9]-*.sh; do
-	[ -e "$t" ] || continue
-	found=1
-	if sh "$t"; then
-		:
-	else
-		fail=$((fail + 1))
-		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
-			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
-		fi
-	fi
-done
-
-if [ "$found" -eq 0 ]; then
-	echo "# no tests yet" >&2
-fi
 
 exit "$fail"

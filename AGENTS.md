@@ -335,7 +335,8 @@ one usually still compiles and passes tests.
   objects, vendored libbpf, test helpers and fuzz targets included;
   fix the warning rather than silence it. `WERROR=0` is for a compiler
   newer than the tree, while its new warnings get fixed.
-- `make -C testing test-op` runs the host-side suite (`testing/t0*`), no root needed;
+- `make -C testing test-op` runs the unit tests and the host-side suite (the
+  `t?0??` tests under `testing/`), no root needed;
   `make -C testing SANITIZE=address,undefined test-op` runs it under ASan and
   UBSan (CI does too); `make -C testing test-tgt` runs the target suite in the
   QEMU/swtpm VM (`make -C testing help` lists the VM target groups).

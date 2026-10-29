@@ -8,11 +8,11 @@
  * loader data map so BPF_MAP_CREATE policy cannot mask the load gate.
  * Prints "loaded" on success or "errno=<n>" on BPF_PROG_LOAD failure.
  *
- * Used by t1112 to show that a loader carrying a perfectly valid
+ * Used by t6104 to show that a loader carrying a perfectly valid
  * signature -- one the kernel verifies (BPF_SIG_VERIFIED) -- is still
  * denied with EACCES by shirudo's lsm/bpf_prog_load admission hook when
  * the verifying keyring is not the sealed "shirudo" keyring. That is a
- * distinct outcome from t1105's ENOKEY (cert absent from the keyring):
+ * distinct outcome from t6102's ENOKEY (cert absent from the keyring):
  * here the signature passes and the hook is what refuses. No libbpf;
  * raw bpf() syscalls only.
  */

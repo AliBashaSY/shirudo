@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
-"""Combined S3 PUT and OTLP log sink used by t0014."""
+"""Combined S3 PUT and OTLP log sink used by t8001."""
 
 import gzip
 import hashlib

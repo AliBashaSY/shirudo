@@ -44,7 +44,7 @@
 
 # Compiled test helpers (sources are tracked)
 /testing/helper/*
-/testing/upatch/kernel-obs/exec/exec-paths
+/testing/e2e/exec-paths
 !/testing/helper/*.c
 !/testing/helper/*.h
 !/testing/helper/otel-mock.py

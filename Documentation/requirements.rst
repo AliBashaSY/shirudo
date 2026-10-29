@@ -456,9 +456,9 @@ suites when validating a deployment.
   docutils' ``rst2html`` (``python3-docutils``).
 * The host-side suite, ``make -C testing test-op``, runs its Python
   helpers on the standard library alone.  With the ``cryptography``
-  module installed, ``testing/tpm/t0033-tpm-wire.sh`` also cross-checks
-  the TPM credential blob it builds against an independent implementation;
-  without it that one check is skipped.
+  module installed, ``testing/functional/tpm/t4001-tpm-wire.sh`` also
+  cross-checks the TPM credential blob it builds against an independent
+  implementation; without it that one check is skipped.
 * ``make -C testing test-tgt-register`` additionally needs libtpms
   development headers on the build host (``libtpms-dev`` on Debian and
   Ubuntu).  The prepared guest installs libtpms and the command TCTI

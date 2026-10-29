@@ -317,7 +317,7 @@ make -C "$REPO_ROOT" -j"$(nproc)" -f Makefile.shirudo \
 
 install -d "$TMP_DIR/test-helpers/testing/helper" \
 	"$TMP_DIR/test-helpers/testing/fixtures" \
-	"$TMP_DIR/test-helpers/testing/upatch/kernel-obs/exec"
+	"$TMP_DIR/test-helpers/testing/e2e"
 while IFS= read -r helper; do
 	install -m 0755 "$REPO_ROOT/$helper" "$TMP_DIR/test-helpers/$helper"
 done <<'EOF'
@@ -343,12 +343,12 @@ testing/helper/test-upatch-serializer-pages
 testing/helper/test-signed-load
 testing/helper/test-upatch-link-lockdown
 testing/helper/test-exec-churn
-testing/upatch/kernel-obs/exec/exec-paths
+testing/e2e/exec-paths
 testing/helper/otel-mock.py
 testing/helper/test-oci-registry.py
 EOF
 
-# A second TPM for t1165: the host's emulator and the libraries of its own.
+# A second TPM for t6125: the host's emulator and the libraries of its own.
 if swtpm="$(command -v swtpm)"; then
 	install -d "$TMP_DIR/test-helpers/swtpm"
 	install -m 0755 "$swtpm" "$TMP_DIR/test-helpers/swtpm/"
@@ -382,7 +382,7 @@ build_tree_test_registry()
 	local payloads="$FIXTURE_WORK/tree-payload"
 	local reference
 
-	# One append-only tree that t1118, t1119 and t1120 walk in order:
+	# One append-only tree that t7101, t7102 and t7103 walk in order:
 	# the tree state a target writes is sealed, so no test can start
 	# over, and each generation extends the one before it.
 	python3 - "$registry_dir" \

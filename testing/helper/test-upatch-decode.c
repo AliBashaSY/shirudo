@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 			argv[0], argv[0]);
 		return 2;
 	}
-	snprintf(view.upatch, sizeof(view.upatch), "%s", "t0005");
+	snprintf(view.upatch, sizeof(view.upatch), "%s", "t3002");
 	snprintf(view.name, sizeof(view.name), "%s", "t0005_map");
 	if (strcmp(argv[1], "memory") == 0)
 		view.serial_bytes_total = 997;

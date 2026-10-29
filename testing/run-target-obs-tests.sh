@@ -9,10 +9,10 @@ cd "$(dirname "$0")"
 fail=0
 : "${SHIRUDO_TEST_SUITE_FAILURES_FILE:=}"
 for test_script in \
-	upatch/kernel-obs/network/t1210-kernel-obs.sh \
-	upatch/kernel-obs/network/kernel-obs-net.sh \
-	upatch/kernel-obs/priv/kernel-obs-priv.sh \
-	upatch/kernel-obs/dns/t1211-kernel-obs-dns-matrix.sh
+	e2e/t9101-kernel-obs.sh \
+	e2e/t9102-kernel-obs-net.sh \
+	e2e/t9103-kernel-obs-priv.sh \
+	e2e/t9104-kernel-obs-dns-matrix.sh
 do
 	if sh "$test_script"; then
 		:

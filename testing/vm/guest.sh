@@ -354,10 +354,10 @@ if [[ "${TEST_VM_SUITE:-all}" == register ]]; then
 		cd testing
 		SHIRUDO_TEST_REGISTER_VM=1 \
 			SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
-			sh tpm/t0034-register.sh
+			sh functional/tpm/t4003-register.sh
 		SHIRUDO_TEST_REGISTER_VM=1 \
 			SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
-			sh t0048-config-attest.sh
+			sh functional/tpm/t4004-config-attest.sh
 	)
 	exit 0
 fi

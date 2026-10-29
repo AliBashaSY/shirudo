@@ -559,7 +559,7 @@ TPMSIM_HELPER := $(if $(TPMSIM_LIBS),testing/helper/tpmsim-cmd,)
 VERITY_TEST_HELPERS := build/verity-tests/shirudo-policy-probe
 
 build/verity-tests/shirudo-policy-probe: \
-		testing/tamperproof/t1140-verity-helper.c util/identity.h
+		testing/helper/policy-probe.c util/identity.h
 	@printf '  CC      $@\n'
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CC) -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) \
@@ -622,7 +622,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-signed-load \
                 testing/helper/test-upatch-link-lockdown \
                 testing/helper/test-exec-churn \
-		testing/upatch/kernel-obs/exec/exec-paths
+		testing/e2e/exec-paths
 TEST_HELPERS += testing/helper/test-nv-writer
 TEST_HELPERS += testing/helper/test-keyring-seal
 TEST_HELPERS += testing/helper/test-tpm-preopened
@@ -792,7 +792,7 @@ testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
-testing/upatch/kernel-obs/exec/exec-paths: testing/upatch/kernel-obs/exec/exec_paths.c
+testing/e2e/exec-paths: testing/e2e/exec_paths.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -pthread -o $@ $^
 

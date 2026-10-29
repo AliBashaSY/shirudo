@@ -684,8 +684,9 @@ context and the deferred mitigations the plan.
 8) Testing
 ----------
 
-``make -C testing test-tgt-register`` runs ``testing/tpm/t0034-register.sh``
-in a dedicated pre-init KVM guest. It creates the TPM-held writer
+``make -C testing test-tgt-register`` runs
+``testing/functional/tpm/t4003-register.sh`` in a dedicated pre-init KVM
+guest. It creates the TPM-held writer
 and freezes its nonsecret input and public modulus in a BPF identity
 map. The libtpms command transport controls PCR phases and TPM resets
 while the guest kernel and writer
@@ -694,18 +695,20 @@ coverage, including index recreation, the closed first-write window,
 reset recovery and late binding.  It is a protocol test before the LSM
 attaches, not evidence of guard enforcement.  The host suite skips it;
 ``test-tgt`` runs it before the normal target suite.
-The same guest runs ``testing/t0048-config-attest.sh`` with a fresh native
-writer to cover config-PCR evidence alongside the signed NV register.
+The same guest runs ``testing/functional/tpm/t4004-config-attest.sh``
+with a fresh native writer to cover config-PCR evidence alongside the
+signed NV register.
 The test-only ``test-register-cli`` invokes the attestation and status
 commands before enforcement, without entering an authenticated runtime.
 The production CLI rejects that synthetic identity map; protected-target
 tests continue to invoke the installed runtime binary.
 
-``testing/t0051-harden.sh`` checks process-wide locking, fail-closed
-startup and the memory-lock limits of every shipped service.
+``testing/functional/tamperproof/t6006-harden.sh`` checks process-wide
+locking, fail-closed startup and the memory-lock limits of every shipped
+service.
 
-``testing/tpm/t0033-tpm-wire.sh`` checks the policy digests, names, wire
-parsers, the key derivations, the endorsement policy and the
+``testing/functional/tpm/t4001-tpm-wire.sh`` checks the policy digests,
+names, wire parsers, the key derivations, the endorsement policy and the
 credential blob against known vectors and an independent
 implementation, without a TPM.
 
@@ -713,13 +716,13 @@ Post-init integration tests run only against a real kernel in the KVM
 guest with swtpm attached through ``/dev/tpmrm0``
 (``make -C testing test-tgt``).  There is no software signing fixture:
 the guest uses the production TPM-held writer and installed
-``shirudo`` binary.  ``testing/tpm/t1108-tpm-chain.sh`` exercises measured
-loads and unloads, initialization reuse, prediction, attestation,
+``shirudo`` binary.  ``testing/functional/tpm/t4102-tpm-chain.sh``
+exercises measured loads and unloads, initialization reuse, prediction, attestation,
 credential activation and rejection of forged writer evidence.
 Prediction uses the offline command fixture rather than overriding the
 production runtime's certificate selection.
-``make -C testing test-tgt`` also exercises the
-production initrd and switch-root path in ``testing/t1122-initrd.sh``.
+``make -C testing test-tgt`` also exercises the production initrd and
+switch-root path in ``testing/functional/tpm/t4101-initrd.sh``.
 
 ``testing/helper/test-nv-cphash`` creates a separate TPM-resident writer
 with the production provisioning function. It tests nonce and command
@@ -731,8 +734,8 @@ extends A and the test checks the exact result and removes the scratch
 index. No software private-key file or production fault-injection hook
 is used.
 
-``testing/tpm/t1127-nv-writer.sh`` compares the writer's public modulus
-with the init record. It checks that untrusted root cannot directly
+``testing/functional/tpm/t4103-nv-writer.sh`` compares the writer's
+public modulus with the init record. It checks that untrusted root cannot directly
 extend Shirudo's register through either TPM device, whether the write
 blocks, is nonblocking, or uses an inherited connection. A short
 ``NV_Extend`` command is also refused. Unrelated TPM signing, another
