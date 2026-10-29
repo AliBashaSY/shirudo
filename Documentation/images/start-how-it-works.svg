@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 380" width="760" height="380" font-family="sans-serif" role="img" aria-labelledby="t">
+  <title id="t">The life of an upatch from the operator host through a registry to a target and its TPM, and the evidence back to the operator</title>
+  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
+    <rect x="10" y="50" width="190" height="250" rx="6" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="240" y="110" width="150" height="100" rx="6" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="430" y="10" width="320" height="320" rx="6" stroke-dasharray="6 4"/>
+    <rect x="445" y="44" width="295" height="104" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="445" y="184" width="160" height="132" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="620" y="184" width="120" height="132" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <line x1="200" y1="160" x2="238" y2="160" marker-end="url(#arrow)"/>
+    <line x1="390" y1="130" x2="443" y2="130" marker-end="url(#arrow)"/>
+    <line x1="527" y1="148" x2="527" y2="182" marker-end="url(#arrow)"/>
+    <line x1="680" y1="148" x2="680" y2="182" marker-end="url(#arrow)"/>
+    <path d="M680,316 L680,362 L105,362 L105,302" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#5d6675" font-size="11">
+    <text x="442" y="32" font-size="12">target</text>
+    <g text-anchor="middle">
+      <text x="105" y="74" font-size="13">Operator host</text>
+      <text x="315" y="134" font-size="13">OCI registry</text>
+      <text x="315" y="158">packages (.bee)</text>
+      <text x="315" y="174">signed index</text>
+      <text x="315" y="190">tree publication</text>
+      <text x="592" y="66" font-size="13">shirudo, one-shot commands</text>
+      <text x="527" y="206" font-size="13">Kernel</text>
+      <text x="680" y="206" font-size="13">TPM</text>
+      <text x="219" y="152">push</text>
+      <text x="416" y="122">pull</text>
+      <text x="390" y="354">evidence for the operator's nonce</text>
+    </g>
+    <text x="22" y="104">1</text>
+    <text x="37" y="104">shirudo build</text>
+    <text x="37" y="120">signed loader artifact</text>
+    <text x="22" y="146">2</text>
+    <text x="37" y="146">shirudo bpm build</text>
+    <text x="37" y="162">bpm push</text>
+    <text x="37" y="178">bpm tree append</text>
+    <text x="22" y="252">7</text>
+    <text x="37" y="252">shirudo attest verify</text>
+    <text x="37" y="268">attest predict</text>
+    <text x="457" y="90">3</text>
+    <text x="472" y="90">bpm repo update, bpm upgrade,</text>
+    <text x="472" y="106">bpm tree sync (timers)</text>
+    <text x="457" y="128">4</text>
+    <text x="472" y="128">upatch load</text>
+    <text x="533" y="170">bpf()</text>
+    <text x="686" y="170">extend</text>
+    <text x="457" y="230">5</text>
+    <text x="472" y="230">signature check</text>
+    <text x="472" y="246">against .bpf keyring</text>
+    <text x="472" y="266">LSM admission</text>
+    <text x="472" y="286">loader runs, links</text>
+    <text x="472" y="302">attached and pinned</text>
+    <g text-anchor="middle">
+      <text x="680" y="232">6</text>
+      <text x="680" y="248">register extended</text>
+      <text x="680" y="276">attestation key</text>
+      <text x="680" y="292">signs evidence</text>
+    </g>
+  </g>
+</svg>

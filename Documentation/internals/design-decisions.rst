@@ -1,0 +1,223 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Explanation
+:audience: Kernel developers, security reviewers
+
+Design decisions
+================
+
+This page collects the decisions that shape shirudo, the reason for each
+and what it costs. Most of them follow from one goal: keep the code a
+target has to trust, the kernel and shirudo, as small as possible, and
+make every security decision where root cannot step around it.
+
+A single binary for operator and target
+---------------------------------------
+
+The same ``shirudo`` executable runs on the operator host and on a
+target, and its role follows from what is present: the signing key on
+the operator, the sealed keyrings and the register on a target.
+
+The reason is that both sides compute the same things. The operator's
+``shirudo attest predict`` calls the functions the target uses to compute
+the ``init`` event and fold the register, and both sides parse
+``.upatch`` files with the same code. A second implementation would be
+a second thing to get right and to keep in step.
+
+The cost is a binary that contains operator commands a target never
+runs. The code that holds the private key does not ship that way: the
+CMS signer and the package builder and publisher are linked only into
+the separate ``shirudo-build`` helper, and the core binary dispatches to
+it.
+
+Agentless targets
+-----------------
+
+A target runs no daemon and opens no listening socket. Every operation
+is a one-shot ``shirudo`` command, started by hand or by a systemd timer.
+
+A long-running process is something root can trace, stop or feed
+input to for as long as it runs, and a socket is an attack surface for
+anyone who can reach it. shirudo needs neither. Pins in the private bpffs
+keep the enforcement and the upatches attached after ``init`` exits, the
+kernel enforces without a helper, and the TPM keeps the record.
+
+The cost is that nothing on the target watches continuously. Package
+updates and telemetry run on timer periods, and a target reports its
+state only when a command runs.
+
+Pull-based delivery
+-------------------
+
+The operator publishes signed packages to an OCI registry, and each
+target pulls, verifies and loads them. shirudo has no push transport, no
+SSH integration and no fleet inventory.
+
+Nothing connects into a target, so a target has no inbound path to
+defend. Registries already exist, scale, and need no shirudo code to
+operate. The registry is not trusted: the signatures carry the trust, and
+a ``.upatch`` that reaches a target any other way loads through the same
+signature check. How an administrator reaches a target stays outside
+shirudo.
+
+The cost is latency: a fix reaches a target at its next update run, not
+when the operator publishes it.
+
+Stateless operator
+------------------
+
+The operator writes only its keypair (``shirudo genkey``) and the
+artifacts and reports the caller names. It keeps no caches, no state
+files, no logs of its own and no record of targets.
+
+An operator host can then be rebuilt from the key alone, and there is no
+operator state to tamper with or to leak. Every expectation a verifier
+needs, such as ``--expect-chain``, either comes from the caller or is
+computed from the artifacts by ``shirudo attest predict``.
+
+Signed loaders instead of a userspace gate
+------------------------------------------
+
+The kernel verifies each upatch's signature on the ``BPF_PROG_LOAD`` that
+loads it, and BPF LSM programs refuse every other way to install or
+remove BPF. :doc:`signed-loader` explains why a service that checks
+signatures before calling ``bpf()`` cannot work: root does not have to
+ask it.
+
+The cost is a dependence on a recent kernel ABI (see below), and a
+detach that still runs in userspace because ``bpf_sys_bpf()`` offers no
+detach.
+
+ML-DSA-87 only
+--------------
+
+shirudo signs with ML-DSA-87 (FIPS 204, the largest parameter set) and
+nothing else. ``shirudo genkey`` has no algorithm option, and the
+signer, ``shirudo keys vouch`` and ``shirudo image verify`` refuse other
+keys.
+
+One algorithm means no negotiation and no downgrade. A key that anchors
+a fleet's trust has to outlive hardware generations, so it gets the
+largest margin of the post-quantum parameter sets, for about 2 KiB more
+per signature than the smallest. The kernel verifies ML-DSA natively, so
+the target needs no code of its own for it.
+
+The costs: OpenSSL 3.5 or later on both sides, ``CONFIG_CRYPTO_MLDSA``
+in the target kernel, and signatures of several kilobytes. TPM evidence
+stays classical, because TPMs sign with ECDSA and RSA. The target checks
+the algorithm of the certificates its pre-flight reads; it does not check
+repository certificates or certificates a signed config adds, which
+:doc:`/security/threat-model` lists.
+
+A per-boot NV register
+----------------------
+
+The measurement lives in an NV extend index that clears at every TPM
+reset, not in a PCR and not in a persistent index.
+
+A stock system has no free static PCR, and PCR 23 is resettable. A
+persistent index would carry history across boots and need an
+authorization secret. A per-boot register starts from zero, so its value
+is a function of the trust set, the restored upatches and the events
+since boot, and the operator can predict it without any history. Its
+write policy allows the first write only while PCRs 9 and 11 hold their
+initrd values, and every write only with a signature from a TPM-held key
+whose extension command the kernel guards. The register follows the
+construction of systemd's NvPCRs and adds the authorized writer.
+:doc:`measurement-register` has the details.
+
+A TPM 2.0 is mandatory. There is no unmeasured mode, because an
+unmeasured target cannot be told from a tampered one.
+
+Enforcement from the initrd
+---------------------------
+
+Enforcement comes up from the authenticated initrd, before the root file
+system's services run, and ``init`` runs again from the root file system
+to check and adopt what the first run did.
+
+Anything that runs before enforcement can do what enforcement refuses,
+and the evidence would not show it; the initrd shortens that window to
+what the measured boot itself runs. The register can be bound only while
+PCR 11 holds the ``enter-initrd`` value, which systemd changes at
+``leave-initrd``, so a binding made in the initrd is one that nothing
+later can repeat. :doc:`boot-flow` follows both runs.
+
+The costs: a dracut module, a measured UKI, an initrd that has to carry
+the binary and its settings, and a second run of ``init``. A failed
+``init`` does not stop the boot.
+
+A single instance per host
+--------------------------
+
+One shirudo instance runs per host. The ``.bpf`` keyring, the private
+bpffs, ``/var/lib/shirudo``, the ``security.bpf.shirudo`` attribute and
+the NV index are single-tenant.
+
+The kernel has one ``.bpf`` keyring and one set of LSM hooks, and the
+guards would have to tell instances apart to allow one and refuse the
+other. A single instance keeps each guard a single comparison.
+
+CO-RE
+-----
+
+The enforcement objects and the upatches read kernel structures through
+CO-RE relocations against the kernel's BTF, so one build runs on kernels
+whose structure layouts differ.
+
+A hard-coded offset signs as well as a relocated one, but on another
+kernel it reads the wrong field; the signature cannot tell. CO-RE turns
+a layout difference into a load failure.
+
+State in BPF arenas
+-------------------
+
+An upatch that accumulates records keeps them in one
+``BPF_MAP_TYPE_ARENA`` map and ships a ``shirudo_serialize__<map>``
+program that walks them. Hash and array maps hold only what cannot live
+in an arena: task, socket and per-CPU scratch state, keys the kernel
+owns, and the serializer output.
+
+An arena gives one consistent snapshot, memory the serializer can reset
+between exports, and an overflow count the exported record carries. An
+element-by-element read of a plain map gives a torn view, and a full
+table drops records without saying so. ``upatches/kernel-obs/obs_table.h``
+is the template. :doc:`/upatches/maps-arenas-serializers` explains it.
+
+No target shell-outs
+--------------------
+
+Target commands use linked libraries and kernel interfaces and never
+start another program. The dm-verity setup, for example, is made of
+loop and device-mapper ioctls, not a call to ``veritysetup``, and the
+target has no userspace hash-tree code: the kernel's dm-verity checks
+every block.
+
+A program the target started would be code outside the runtime image,
+and an exec of a file outside the image clears the caller's runtime
+authority. It would also bring its own environment, search path and
+libraries into the trust decision. The operator's helper may run
+``clang`` and ``veritysetup``; the operator holds no target authority.
+
+No legacy kernel fallbacks
+--------------------------
+
+shirudo requires the signed-loader ABI, the BPF LSM hooks and current
+clang and LLVM. A missing kernel feature fails the build, the pre-flight
+or the load. There is no compatibility mode.
+
+A fallback is a second, weaker path, and an attacker chooses which path
+runs by choosing the conditions. The ABI check reads the kernel's BTF
+rather than its release string, because a development tree can carry the
+ABI before its version number says so. :doc:`kernel-interfaces` lists
+what is required. The cost is a narrow set of kernels: bpf-next or a
+release that contains its signed-loader work, with the patches in
+:doc:`kernel-patches`.
+
+Related
+-------
+
+- :doc:`architecture` for how the parts fit together.
+- :doc:`/security/threat-model` for what the design defends against.

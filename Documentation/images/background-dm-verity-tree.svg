@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 290" width="760" height="290" font-family="sans-serif" role="img" aria-labelledby="t">
+  <title id="t">A dm-verity hash tree over eight data blocks: each hash covers two blocks below it, and the path from data block D5 through H2 and H23 to the root hash is highlighted</title>
+  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
+  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
+    <line x1="52" y1="232" x2="90" y2="192"/>
+    <line x1="128" y1="232" x2="90" y2="192"/>
+    <line x1="204" y1="232" x2="242" y2="192"/>
+    <line x1="280" y1="232" x2="242" y2="192"/>
+    <line x1="356" y1="232" x2="394" y2="192"/>
+    <line x1="508" y1="232" x2="546" y2="192"/>
+    <line x1="584" y1="232" x2="546" y2="192"/>
+    <line x1="90" y1="160" x2="166" y2="120"/>
+    <line x1="242" y1="160" x2="166" y2="120"/>
+    <line x1="546" y1="160" x2="470" y2="120"/>
+    <line x1="166" y1="88" x2="318" y2="48"/>
+  </g>
+  <g fill="none" stroke="#8a93a0" stroke-width="3">
+    <line x1="432" y1="232" x2="394" y2="192"/>
+    <line x1="394" y1="160" x2="470" y2="120"/>
+    <line x1="470" y1="88" x2="318" y2="48"/>
+  </g>
+  <g fill="#8a93a0" fill-opacity="0.06" stroke="#8a93a0" stroke-width="1.5">
+    <rect x="134" y="88" width="64" height="32" rx="4"/>
+    <rect x="58" y="160" width="64" height="32" rx="4"/>
+    <rect x="210" y="160" width="64" height="32" rx="4"/>
+    <rect x="514" y="160" width="64" height="32" rx="4"/>
+    <rect x="26" y="232" width="52" height="32" rx="4"/>
+    <rect x="102" y="232" width="52" height="32" rx="4"/>
+    <rect x="178" y="232" width="52" height="32" rx="4"/>
+    <rect x="254" y="232" width="52" height="32" rx="4"/>
+    <rect x="330" y="232" width="52" height="32" rx="4"/>
+    <rect x="482" y="232" width="52" height="32" rx="4"/>
+    <rect x="558" y="232" width="52" height="32" rx="4"/>
+  </g>
+  <g fill="#8a93a0" fill-opacity="0.3" stroke="#8a93a0" stroke-width="2.5">
+    <rect x="258" y="16" width="120" height="32" rx="4"/>
+    <rect x="438" y="88" width="64" height="32" rx="4"/>
+    <rect x="362" y="160" width="64" height="32" rx="4"/>
+    <rect x="406" y="232" width="52" height="32" rx="4"/>
+  </g>
+  <g fill="#5d6675" font-size="13" text-anchor="middle">
+    <text x="318" y="37">root hash</text>
+    <text x="166" y="109">H01</text>
+    <text x="470" y="109">H23</text>
+    <text x="90" y="181">H0</text>
+    <text x="242" y="181">H1</text>
+    <text x="394" y="181">H2</text>
+    <text x="546" y="181">H3</text>
+    <text x="52" y="253">D0</text>
+    <text x="128" y="253">D1</text>
+    <text x="204" y="253">D2</text>
+    <text x="280" y="253">D3</text>
+    <text x="356" y="253">D4</text>
+    <text x="432" y="253">D5</text>
+    <text x="508" y="253">D6</text>
+    <text x="584" y="253">D7</text>
+  </g>
+  <g fill="#5d6675" font-size="12">
+    <text x="636" y="37">trusted value</text>
+    <text x="636" y="109">hash blocks</text>
+    <text x="636" y="181">hash blocks</text>
+    <text x="636" y="253">data blocks</text>
+  </g>
+</svg>

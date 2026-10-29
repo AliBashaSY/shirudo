@@ -50,7 +50,7 @@ export prefix exec_prefix bindir libexecdir sharedir libdir mandir completionsdi
        systemdunitdir dracutmodulesdir SHIRUDO_TARGET_PKG_CONFIG_PATH \
        SHIRUDO_TARGET_STATIC_LIBDIR
 
-.PHONY: all help target target-deps target-deps-clean shirudo-target target-config shirudo-build bpf-deps install install-target install-operator clean distclean config tests
+.PHONY: all help target target-deps target-deps-clean shirudo-target target-config shirudo-build docs bpf-deps install install-target install-operator clean distclean config tests
 
 all: config
 	+$(Q)$(MAKE) -f Makefile.shirudo PROFILE=operator CONFIG_MK=config.mk all
@@ -90,11 +90,14 @@ help:
 	  '  Install roles: make install-target, make install-operator' \
 	  '  Package: make -C packaging help' \
 	  '  Tests: make tests (all of them), make -C testing help' \
-	  '  Documentation: make -C Documentation html-docs' \
+	  '  Documentation: make docs (render and serve), make -C Documentation help' \
 	  '  Watch lists: make -C upatches/kernel-obs lists'
 
 shirudo-build:
 	+$(Q)$(MAKE) -C tools/shirudo-build
+
+docs:
+	+$(Q)$(MAKE) -C Documentation serve
 
 tests:
 	+$(Q)$(MAKE) -C testing

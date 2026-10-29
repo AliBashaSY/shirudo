@@ -87,7 +87,7 @@ test_expect_success 'shirudo-build refuses to sign with an ML-DSA-65 key' '
 	test_skip_all "build failed (clang/headers?)"
 
 # Slice the signature and the signed bytes out of the artifact using the
-# fixed v1 header offsets (Documentation/upatch-spec.rst).
+# fixed v1 header offsets (Documentation/reference/formats/upatch-format.rst).
 python3 - "$WORK/u.upatch" "$WORK" <<'PY'
 import struct, sys
 path, out = sys.argv[1], sys.argv[2]

@@ -1,0 +1,667 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: How-to
+:audience: Operators, SecOps
+
+Read shirudo status
+===================
+
+``shirudo status`` is the target's own report on its enforcement, its
+``.bpf`` keyring, its measurement register and its signed config. It is
+the first command to run on a target that misbehaves, and the keepalive
+timer sends the same data to your collector. It is the target's account
+of itself: anyone with root on the target can lie to a reader of this
+report, so it proves nothing to a third party. TPM-signed evidence does,
+see :doc:`/operate/attest`.
+
+This page walks through a healthy report section by section, then
+explains every verdict and what to do about it.
+
+Before you begin
+----------------
+
+- You need root on the target.
+- On the target, ``shirudo`` means the binary on the runtime image,
+  ``/run/shirudo/runtime/usr/bin/shirudo``. Any other copy is refused.
+  :ref:`runtime-invocation` shows how to set this up.
+
+Print the report
+----------------
+
+1. Print the human report:
+
+   .. code-block:: console
+
+      target# shirudo status
+
+2. To add this boot's eventlog to the report, print it with
+   ``--include-eventlog``:
+
+   .. code-block:: console
+
+      target# shirudo status --include-eventlog
+
+:doc:`/reference/cli/status` lists the other sections you can add
+(``--include-system``, ``--include-kernellog``, ``--include-modules``,
+``--show-full``).
+
+Read the report
+---------------
+
+This is the report of a healthy production target with one upatch
+loaded, captured from the test VM:
+
+.. code-block:: console
+
+   target# shirudo status
+   Host:              docs
+   Roles:             target
+   Mode:              production
+   Status:            ok
+   Version-ID:        58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0
+
+   Conditions:
+     TYPE             STATUS  DETAIL
+     LsmAttached      OK      lsm/bpf link present and pinned
+     KeyringSealed    OK      serial=420195959 in the BPF keyring, pin matches
+     ChainIntact      OK      live register == eventlog replay
+     TpmMeasured      OK      NV index 0x01818E00 readable
+     ConfigActive     OK      config 12dbf3c75083.. is active
+
+   Tamper attempts (refused this boot):
+     LoadNotLoader            27  program load that is not a signed loader
+     MapCreate                 1  map creation by another executable
+     BpfCommand               12  detach, update, delete or unclassified bpf() command
+     SealPtrace                7  ptrace of a shirudo task
+
+   Keyring (.bpf):
+     Serial:                420195959
+     Frozen serial:         420195959  (matches)
+     Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
+       2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2
+       d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61  (primary)
+
+   upatches loaded (1):
+     NAME                      LOCATION                       MAPS  STATUS                        AGE
+     shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+
+   TPM Measurement:
+     TPM:               reachable (device:/dev/tpmrm0)
+     NV index:          0x01818E00 (anchored in PCR 9)
+     Chain:             c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd
+     Register name:     000be3a552e2219550d2597ab96f3fffdeec0d01ce27cde858e0858ab0cdaba6c045
+     Anchored:          yes (name on record)
+     PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
+     Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+     Bound in:          initrd
+     Chain vs eventlog: matches
+     Eventlog:          /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+
+   Assets (/var/lib/shirudo):
+     keys/cert.der          present
+     keys/signing_key.pem   absent
+     eventlog               present (2324 bytes)
+     upatches/              1 .upatch
+     incoming/              empty
+     bpffs/                 mounted
+
+The sections below explain each part.
+
+Header
+~~~~~~
+
+``Host``
+    The host name.
+
+``Roles``
+    ``target`` when the primary certificate, the ``lsm/bpf`` pin or the
+    keyring is present, ``operator`` when
+    ``/var/lib/shirudo/keys/signing_key.pem`` exists, both as
+    ``target, operator``, or ``none``. A production target shows
+    ``target`` alone. A private signing key on a target breaks the
+    operator and target split: remove it and treat the key as exposed,
+    see :doc:`/operate/keys`.
+
+``Mode``
+    ``production`` when the ``lsm/bpf`` link is pinned in the private
+    bpffs, ``inactive`` otherwise. ``Mode`` does not look at the keyring
+    or the register. Read the conditions for those.
+
+``Status``
+    The verdict, followed by the reason in parentheses when it is not
+    ``ok``. :ref:`status-verdicts` explains each verdict.
+
+``Version-ID``
+    The identifier of the shirudo build that runs. Compare it with the
+    build you deployed, see :doc:`/operate/upgrade`.
+
+Conditions
+~~~~~~~~~~
+
+Five conditions, each ``OK``, ``WARN`` or ``ALERT`` with a detail. The
+verdict is derived from them.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - Condition
+     - What it checks, and the details other than ``OK``
+   * - ``LsmAttached``
+     - The ``lsm/bpf`` link is pinned. ``ALERT`` ``lsm/bpf absent --
+       enforcement OFF`` means enforcement did not come up this boot.
+   * - ``KeyringSealed``
+     - The live ``.bpf`` keyring is the one ``init`` sealed and recorded
+       in the frozen identity map. ``WARN`` ``shirudo keyring absent
+       (not init'd?)`` before ``init``. ``ALERT`` ``pin serial=<pinned>
+       != live serial=<live> (swapped?)`` or ``pin serial=<pinned>, the
+       BPF keyring is gone (removed?)`` after it.
+   * - ``ChainIntact``
+     - The live register is the NV index ``init`` bound this boot, was
+       bound once, and equals this boot's eventlog records replayed.
+       ``ALERT`` ``live register != eventlog replay (tamper?)``. ``WARN``
+       ``no register bound this boot (init incomplete)`` or ``no TPM
+       answered, no register to replay``.
+   * - ``TpmMeasured``
+     - The NV index is defined, written and readable. ``WARN`` ``NV
+       index 0x01818E00 not bound this boot`` or ``no TPM answered``.
+   * - ``ConfigActive``
+     - The config PCR, the activation records and the mounted config
+       image agree. ``WARN`` ``the activation of config <root>.. is
+       pending until the next reboot``. ``ALERT`` with one of three
+       details, see :ref:`status-verdicts`.
+
+Tamper attempts
+~~~~~~~~~~~~~~~
+
+The counters of refused attempts this boot, one per guard point, with the
+counters that are not zero listed by name, count and meaning. ``none``
+means every counter is zero. ``(none recorded: init has not pinned the
+counters this boot)`` means ``init`` did not get that far.
+:ref:`status-tamper-counters` explains how to read them.
+
+Keyring
+~~~~~~~
+
+``Serial``
+    The serial of the kernel's ``.bpf`` keyring.
+
+``Frozen serial``
+    The serial ``init`` recorded when it sealed the keyring, followed by
+    ``(matches)``, ``(MISMATCH -- swapped?)`` or ``(GONE -- removed?)``.
+
+``Certificates``
+    The trusted set: the runtime image's primary certificate and the
+    vouched certificates of the active signed config, less its
+    revocations. ``unvouched`` counts certificates in the config that
+    have no valid vouch and are therefore not members. The last number
+    counts the keys in the ``.bpf`` keyring itself. Each member's public
+    key fingerprint follows, the runtime image's certificate marked
+    ``(primary)``. :doc:`/operate/keys` explains the set.
+
+upatches loaded
+~~~~~~~~~~~~~~~
+
+One row per upatch pinned in the private bpffs: its name, the attach
+location resolved from kernel BTF, its number of maps, ``success`` and
+the time since it was loaded. ``upatches loaded (0):`` with no rows
+means nothing is loaded.
+
+TPM Measurement
+~~~~~~~~~~~~~~~
+
+``TPM``
+    Whether a TPM answered, and the TCTI that reached it.
+
+``NV index``
+    The measurement register, ``0x01818E00``, and the PCR its name is
+    anchored in.
+
+``Chain``
+    The register's value. It moves with every measured load, unload,
+    revocation and tree operation.
+
+``Register name``
+    The TPM name of the NV index, which binds its attributes and policy.
+
+``Anchored``
+    ``yes (name on record)`` when the index is the one ``init`` bound and
+    recorded. ``NO (index is not the one init bound)`` otherwise.
+
+``PCR before init`` and ``Phase at init``
+    The values of PCR 9 and PCR 11 that ``init`` bound the register to.
+    A verifier pins them with ``--expect-bind-pcr``, see
+    :doc:`/operate/attest`. In the capture above both are zero because
+    the test VM boots its kernel and initrd directly, without a measured
+    UKI. On a production target booted from a measured UKI, PCR 11 holds
+    the ``enter-initrd`` phase measurement. ``init`` warns in the journal
+    when it finds PCR 11 unmeasured.
+
+``Bound in``
+    ``initrd`` or ``root file system``. A production target shows
+    ``initrd``. ``root file system`` means the first ``init`` of this
+    boot ran after the initrd.
+
+``Init records``
+    Printed only when the register was bound more than once for this TPM
+    reset: ``<n> for this TPM reset (REBOUND after init; tamper?)``.
+
+``Chain vs eventlog``
+    ``matches``, ``MISMATCH (tamper?)`` or ``n/a`` when there is no
+    register to compare.
+
+``Eventlog``
+    The path of the eventlog, its number of entries over all boots and
+    its size.
+
+Assets
+~~~~~~
+
+``keys/cert.der``
+    Whether the primary certificate is present. On a production target
+    this is the runtime image's ``keys/cert.der``.
+
+``keys/signing_key.pem``
+    ``absent`` on every target. ``present`` means a private signing key
+    is on the target.
+
+``eventlog``
+    Whether ``/var/lib/shirudo/eventlog`` exists, and its size.
+
+``upatches/``
+    The number of archived upatches that ``init`` restores at the next
+    boot.
+
+``incoming/`` and ``bpffs/``
+    The staging directory for loads in progress and whether the private
+    bpffs is mounted.
+
+Eventlog
+~~~~~~~~
+
+With ``--include-eventlog`` the report adds every record of the
+eventlog, of all boots, between the ``TPM Measurement`` and ``Assets``
+sections. This target recorded its boot, then one load and one unload:
+
+.. code-block:: console
+
+   target# shirudo status --include-eventlog
+   ...
+   Eventlog (audit trail):
+     TIME                 TYPE          DIGEST        DETAIL
+     2026-10-29T16:17:38Z init          cb206abf8e51  set_digest=e3b0c44298fc..
+     2026-10-29T16:21:19Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
+     2026-10-29T16:21:20Z upatch_unload 26dae981e9bb  shirudo-test-basic payload=8aee7072a1a1..
+   ...
+
+The ``init`` record comes from the initrd run. Every later record is a
+state change that extended the register. :doc:`/reference/formats/eventlog`
+describes the records.
+
+.. _status-verdicts:
+
+Act on the verdict
+------------------
+
+``status`` derives one verdict from the conditions, in this order of
+precedence: ``tampered``, ``lsm-off``, ``init-pending``,
+``reboot-pending``, ``degraded``, ``ok``. The first that applies wins.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 42 40
+
+   * - Verdict
+     - Meaning
+     - What to do
+   * - ``ok``
+     - Enforcement is up, the keyring is the sealed one, the register
+       replays from the eventlog and the config is active.
+     - Nothing. Verify with the TPM regularly, see
+       :doc:`/operate/attest`.
+   * - ``degraded``
+     - Enforcement is up, but this report has no register to check.
+     - Read the ``Chain`` line. See :ref:`status-degraded`.
+   * - ``reboot-pending``
+     - A config activation is pending until the next reboot. Every
+       command except ``status`` and ``image status`` refuses until
+       then.
+     - Reboot when it suits you. See :ref:`status-reboot-pending`.
+   * - ``init-pending``
+     - The ``lsm/bpf`` link is pinned but no keyring was recorded:
+       ``init`` did not finish.
+     - Read the journal of ``shirudo-initrd.service``, see
+       :doc:`/operate/initialize`.
+   * - ``lsm-off``
+     - The ``lsm/bpf`` link is not pinned. Enforcement is off and the
+       target is unprotected.
+     - See :ref:`status-lsm-off`.
+   * - ``tampered``
+     - The register, the keyring or the config is not what ``init``
+       recorded.
+     - Handle it as an incident. See :ref:`status-tampered`.
+
+.. _status-tampered:
+
+``tampered``
+~~~~~~~~~~~~
+
+A ``tampered`` verdict has one of four reasons. Each shows as an
+``ALERT`` condition. The lines below are what ``status`` prints in each
+state, cut to the verdict and the condition that raised it. ``<pinned>``,
+``<live>`` and ``<root>`` stand for the values of your target.
+
+The register does not replay from the eventlog:
+
+.. code-block:: text
+
+   Status:            tampered  (live register != eventlog replay)
+   ...
+     ChainIntact      ALERT   live register != eventlog replay (tamper?)
+
+Something extended or replaced the register without a matching eventlog
+record, the eventlog of this boot was altered or hidden, or the index is
+not the one ``init`` bound. The ``TPM Measurement`` section shows which
+lines disagree.
+
+The live keyring is not the one ``init`` sealed:
+
+.. code-block:: text
+
+   Status:            tampered  (keyring serial swap detected)
+   ...
+     KeyringSealed    ALERT   pin serial=<pinned> != live serial=<live> (swapped?)
+
+The keyring ``init`` sealed is gone:
+
+.. code-block:: text
+
+   Status:            tampered  (the keyring init froze is gone)
+   ...
+     KeyringSealed    ALERT   pin serial=<pinned>, the BPF keyring is gone (removed?)
+
+The config cannot be verified against its records:
+
+.. code-block:: text
+
+   Status:            tampered  (the selected config cannot be verified against its records)
+   ...
+     ConfigActive     ALERT   the config PCR, activation records and mounted config disagree (tamper?)
+
+The detail of ``ConfigActive`` names the cause:
+
+- ``the config PCR, activation records and mounted config disagree
+  (tamper?)``: the config PCR does not hold the value the activation
+  records predict. Something extended the PCR after this boot's config
+  measurement. Software that measures into the same PCR causes this
+  too, see :doc:`/operate/hardening` for the PCR choice.
+- ``the config activation record does not belong to this TPM boot
+  (tamper?)``: the TPM was reset since the config was measured, for
+  example by a resume from hibernation.
+- ``the mounted config does not match the selected root (tamper?)``: the
+  config image mounted at ``/run/shirudo/config`` is not the one the
+  records select.
+
+In each of the config states every command except ``status`` and
+``image status`` refuses with ``shirudo: image state:`` and the error,
+see :doc:`/operate/troubleshooting`.
+
+For every reason, do not retry anything and do not reboot first: the
+journal and the state of this boot are the evidence. Follow
+:doc:`/operate/incident-tampered`.
+
+.. _status-lsm-off:
+
+``lsm-off``
+~~~~~~~~~~~
+
+.. code-block:: text
+
+   Status:            lsm-off  (LSM not attached -- enforcement OFF)
+   ...
+     LsmAttached      ALERT   lsm/bpf absent -- enforcement OFF
+
+Enforcement is not up. Root can load BPF, and the seal on shirudo's
+state is not enforced. A failure of ``init`` in the initrd does not stop
+the boot, so a target whose ``shirudo-initrd.service`` failed comes up
+in this state. So does a target booted without the shirudo initrd.
+
+1. Read the journal of the initrd run:
+
+   .. code-block:: console
+
+      target# journalctl -b -u shirudo-initrd.service
+
+2. Fix the cause that :doc:`/operate/initialize` lists for the failed
+   step.
+
+3. Reboot.
+
+.. _status-reboot-pending:
+
+``reboot-pending``
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+   Status:            reboot-pending  (a config activation is pending until the next reboot)
+   ...
+     ConfigActive     WARN    the activation of config <root>.. is pending until the next reboot
+
+A config activation was recorded as pending and did not complete. This
+happens when ``shirudo image update`` is interrupted after it saved the
+pending selection, and when ``init`` fails after it recorded this boot's
+config measurement, while restoring the archived upatches or binding the
+register. In the second case ``ChainIntact`` and ``TpmMeasured`` also
+show ``WARN``. Every command except ``status`` and ``image status``
+refuses with ``shirudo: image state: Operation now in progress`` until
+the next boot.
+A re-run of ``init`` refuses too. shirudo never reboots the target on
+its own.
+
+1. Read the journal to learn which step failed:
+
+   .. code-block:: console
+
+      target# journalctl -b -t shirudo
+
+2. Reboot. The next boot verifies the pending config and records a fresh
+   measurement for it.
+
+3. Check the verdict again. A ``reboot-pending`` verdict after the next
+   boot, with ``boot-restore`` errors in the journal, means an archived
+   upatch fails to load at every boot. :doc:`/operate/backup-recovery`
+   describes what works in that case.
+
+.. _status-degraded:
+
+``degraded``
+~~~~~~~~~~~~
+
+.. code-block:: text
+
+   Status:            degraded  (no register bound this boot)
+   ...
+     ChainIntact      WARN    no register bound this boot (init incomplete)
+     TpmMeasured      WARN    NV index 0x01818E00 not bound this boot
+
+Enforcement is up, but the TPM holds no written measurement register, or
+``status`` could not read it. The ``Chain`` line of the ``TPM
+Measurement`` section tells the two apart: ``unavailable (register not
+bound this boot)`` or ``unavailable (TPM error: <error>)``.
+
+A failure of ``init`` while binding the register leaves the config
+activation pending, which shows as ``reboot-pending``. A ``degraded``
+verdict whose ``Chain`` line says ``register not bound this boot``
+therefore means the register was bound and then disappeared. Undefining
+the index takes TPM owner authorization, which root has on a TPM whose
+owner authorization is empty. Collect the evidence as for ``tampered``,
+see :doc:`/operate/incident-tampered`, then reboot.
+
+The reason ``no TPM answered`` means the TPM stopped answering while
+``status`` ran. On a production target every command first checks that
+the TPM is the one ``init`` bound, so a TPM that does not answer at all
+makes ``status`` itself fail with ``shirudo: image state:``.
+
+.. _status-tamper-counters:
+
+Read the tamper counters
+------------------------
+
+Each counter counts the attempts that one guard point refused this boot.
+The refusal worked, so a counter alone does not change any condition or
+the verdict. It tells you that something on the host tried.
+
+These four attempts, made as root without shirudo's runtime authority,
+were each refused:
+
+.. code-block:: console
+
+   # cat /run/shirudo/bpffs/tamper
+   cat: /run/shirudo/bpffs/tamper: Permission denied
+   # rm /run/shirudo/bpffs/identity
+   rm: cannot remove '/run/shirudo/bpffs/identity': Operation not permitted
+   # umount /run/shirudo/bpffs
+   umount: /run/shirudo/bpffs: must be superuser to unmount.
+   # echo x >> /var/lib/shirudo/eventlog
+   sh: 4: cannot create /var/lib/shirudo/eventlog: Permission denied
+
+``umount`` prints ``must be superuser to unmount`` for the ``EPERM`` the
+LSM returns. The report afterwards lists one more count under
+``ObjGet``, ``PinUnlink``, ``BpffsUmount`` and ``SealWrite``:
+
+.. code-block:: console
+
+   target# shirudo status
+   ...
+   Tamper attempts (refused this boot):
+     LoadNotLoader            39  program load that is not a signed loader
+     MapCreate                 1  map creation by another executable
+     BpfCommand               16  detach, update, delete or unclassified bpf() command
+     PinUnlink                 1  unlink of a pin in the private bpffs
+     BpffsUmount               1  unmount of the private bpffs
+     SealWrite                 1  write open of a sealed file
+     SealPtrace               12  ptrace of a shirudo task
+     ObjGet                    1  pin, map or link opened by another executable
+   ...
+
+Read the counters with these rules:
+
+- Learn the baseline of your hosts. Software other than shirudo that
+  uses BPF or inspects processes is refused too. A freshly booted test
+  VM shows counts for ``LoadNotLoader``, ``MapCreate``, ``BpfCommand``
+  and ``SealPtrace`` before any upatch is loaded.
+- Alert on a counter that moves beyond the baseline, and on any count of
+  a counter that stays at zero on your hosts.
+- Find the actor in the journal and on the host. The counter does not
+  record who tried.
+- A zero count does not prove that nothing tried. Some refusals have no
+  counter, among them those of the runtime and config image mounts and
+  of device-mapper control commands.
+
+:doc:`/security/tamper-counters` lists every counter and the guard point
+that raises it.
+
+Monitor with ``status --json``
+------------------------------
+
+``status --json`` prints the same data as one JSON document. The
+keepalive timer sends it to your collector, see
+:doc:`/operate/telemetry`.
+
+.. warning::
+
+   ``shirudo status`` exits 0 whatever the verdict, ``tampered``
+   included. It exits 1 only when it cannot load its configuration, runs
+   out of memory or fails to send a keepalive, and 2 on a usage error or
+   an invalid ``map_export`` setting. Alert on the ``status`` field of
+   the JSON document, never on the exit code.
+
+Read the verdict:
+
+.. code-block:: console
+
+   target# shirudo status --json | jq -r .status
+   ok
+
+The fields that matter for monitoring:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 62
+
+   * - Field
+     - Alert when
+   * - ``status``
+     - It is not ``ok``.
+   * - ``conditions[].status``
+     - Any condition is ``ALERT``.
+   * - ``mode``
+     - It is not ``production``.
+   * - ``tamper_attempts.total``
+     - It rises beyond your baseline. It is ``null`` before ``init``.
+   * - ``config.activation_pending``
+     - It is ``true``.
+   * - ``config.error``
+     - It is not ``null``. It carries the error of an unverifiable
+       config: ``Structure needs cleaning``, ``Stale file handle`` or
+       ``Key was rejected by service``.
+   * - ``keyring_serial_matches``
+     - It is ``false``.
+   * - ``tpm.register_bound`` and ``tpm.register_anchored``
+     - Either is ``false``.
+   * - ``tpm.chain_matches_eventlog``
+     - It is ``false``.
+   * - ``tpm.register_rebound``
+     - It is ``true``.
+   * - ``tpm.bound_in``
+     - It is not ``initrd``.
+   * - ``signing_key_present``
+     - It is ``true`` on a target.
+   * - ``version_id``
+     - It differs from the build you deployed.
+   * - ``upatch_tree.eventlog_matches_state``
+     - It is ``false``.
+
+``upatches_loaded`` lists each loaded upatch with its
+``payload_sha256``, which you can compare with the artifacts you
+shipped. :doc:`/reference/formats/status-json` describes every field.
+
+Alert separately when ``status`` does not run at all. A target that
+refuses every command, ``status`` included, prints ``shirudo: image
+state:`` with an error and exits 1, and a target whose keepalive stops
+arriving may be in that state.
+
+Check a copy outside the runtime image
+--------------------------------------
+
+Only the runtime image's binary has runtime authority. Any other copy of
+the binary is refused before it reads anything:
+
+.. code-block:: console
+
+   target# /usr/local/bin/shirudo status
+   shirudo: image state: Permission denied
+
+It exits 1. The refusal also shows as one more ``ObjGet`` count, because
+the copy tried to open the identity pin. A monitoring agent that reports
+this error is running the wrong binary, see :ref:`runtime-invocation`.
+
+Verify
+------
+
+Confirm that your monitoring reads the verdict from the JSON document:
+on a healthy target, ``shirudo status --json | jq -r .status`` prints
+``ok`` and your alert stays quiet.
+
+Next steps
+----------
+
+- :doc:`/operate/attest` to have the TPM confirm what the report says.
+- :doc:`/operate/incident-tampered` for a ``tampered`` verdict.
+- :doc:`/operate/troubleshooting` for refused commands and failure
+  categories.
+- :doc:`/operate/telemetry` to send the report to a collector.
+- :doc:`/reference/cli/status` for every option.

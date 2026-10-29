@@ -310,12 +310,13 @@ check_spellings() {
 	' "$1"
 }
 
-# checkpatch enforces the kernel's block-comment form everywhere but at the
-# opener, which only the netdev trees have an opinion on, and theirs is
-# the opposite of Documentation/coding-style.rst: a comment that runs on
-# past its first line opens with /* alone on that line. Report an added
-# line that opens a comment with text and does not close it, in the form
-# checkpatch reports in. String literals are blanked first.
+# checkpatch enforces the kernel's block-comment form everywhere but at
+# the opener, which only the netdev trees have an opinion on, and theirs
+# is the opposite of Documentation/contribute/coding-style.rst: a comment
+# that runs on past its first line opens with /* alone on that line.
+# Report an added line that opens a comment with text and does not close
+# it, in the form checkpatch reports in. String literals are blanked
+# first.
 check_block_comments() {
 	awk '
 	/^\+\+\+ / { file = $0; sub(/^\+\+\+ b\//, "", file); next }

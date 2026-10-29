@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 270" width="760" height="270" font-family="sans-serif" role="img" aria-labelledby="t">
+  <title id="t">Telemetry export path from a target to a collector</title>
+  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
+    <rect x="10" y="10" width="535" height="250" rx="6" stroke-dasharray="6 4"/>
+    <rect x="25" y="60" width="110" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="155" y="60" width="110" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="285" y="60" width="110" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="415" y="60" width="115" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="25" y="170" width="370" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="415" y="170" width="115" height="64" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="600" y="105" width="145" height="84" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <line x1="135" y1="92" x2="153" y2="92" marker-end="url(#arrow)"/>
+    <line x1="265" y1="92" x2="283" y2="92" marker-end="url(#arrow)"/>
+    <line x1="395" y1="92" x2="413" y2="92" marker-end="url(#arrow)"/>
+    <line x1="395" y1="202" x2="413" y2="202" marker-end="url(#arrow)"/>
+    <path d="M530,92 L565,92 L565,135 L598,135" marker-end="url(#arrow)"/>
+    <path d="M530,202 L565,202 L565,160 L598,160" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#5d6675" font-size="12">
+    <text x="22" y="32">target: one-shot commands started by systemd timers</text>
+    <text x="22" y="52" font-size="11">shirudo upatch map --all</text>
+    <text x="22" y="162" font-size="11">shirudo status --otel</text>
+    <g text-anchor="middle">
+      <text x="80" y="88" font-size="13">BPF map</text>
+      <text x="80" y="106" font-size="11">arena, hash,</text>
+      <text x="80" y="119" font-size="11">per-CPU</text>
+      <text x="210" y="88" font-size="13">serializer</text>
+      <text x="210" y="106" font-size="11">or direct read</text>
+      <text x="340" y="88" font-size="13">signed decoder</text>
+      <text x="340" y="106" font-size="11">Lua in LuaJIT</text>
+      <text x="472" y="88" font-size="13">OTLP JSON</text>
+      <text x="472" y="106" font-size="11">log record or</text>
+      <text x="472" y="119" font-size="11">metrics</text>
+      <text x="210" y="198" font-size="13">status report</text>
+      <text x="210" y="216" font-size="11">conditions, TPM, tamper counters</text>
+      <text x="472" y="198" font-size="13">OTLP JSON</text>
+      <text x="472" y="216" font-size="11">keepalive log</text>
+      <text x="672" y="135" font-size="13">collector</text>
+      <text x="672" y="153" font-size="11">OTLP receiver</text>
+      <text x="672" y="168" font-size="11">then backends</text>
+      <text x="672" y="212" font-size="11">HTTPS POST to</text>
+      <text x="672" y="226" font-size="11">/v1/logs, /v1/metrics</text>
+    </g>
+  </g>
+</svg>

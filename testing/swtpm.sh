@@ -3,8 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # testing/swtpm.sh -- spin up a software TPM 2.0 (swtpm) on loopback for
-# shirudo dev and CI. Same recipe as Documentation/getting-started.rst
-# "TPM in development", packaged so a single command brings the emulator
+# shirudo dev and CI, packaged so a single command brings the emulator
 # up, prints the SHIRUDO_TPM_TCTI line to export, and tears it down.
 #
 # Usage:

@@ -1,0 +1,400 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: How-to
+:audience: Operators, SecOps
+
+Attest targets
+==============
+
+``shirudo status`` is the target's own account of itself, and a target
+that root controls can say anything. Attestation gives you an account
+the target cannot forge: the TPM signs the measurement register and the
+PCRs for a nonce you chose, and you check the signature and the values
+on the operator host against what you installed.
+
+This page enrolls a target once, then collects and verifies evidence.
+The checks only mean something when you pin the values the target
+reports about itself, so the verification step lists the options you
+must pass.
+
+Before you begin
+----------------
+
+- The operator package on the operator host. ``attest verify``,
+  ``attest predict`` and ``attest challenge`` run there, offline. They
+  need no TPM. A target running shirudo refuses any argument that starts
+  with ``--cert``, so do not run them on a target.
+- A target that completed init: ``shirudo status`` reports ``ok``.
+  :doc:`/operate/read-status` explains the report.
+- On the target, ``shirudo`` is the runtime image's binary, as
+  :ref:`runtime-invocation` sets up.
+- For enrollment: the PEM bundle of your TPM manufacturer's
+  endorsement key issuers, or the endorsement key name from an
+  inventory you trust.
+- Your records of what the target runs: the certificates it enrolled,
+  the upatches it restored at boot, every load and unload since, and the
+  root hash of the config you activated.
+
+What a verifier must pin
+------------------------
+
+``shirudo attest verify`` checks that the evidence is consistent and
+signed by a TPM. Whether it is the right TPM and the right state is up
+to the options you pass. Without them, any TPM that signs a consistent
+document passes, as `A verify that pins nothing`_ shows.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - Option
+     - What it pins
+   * - ``--ak-name=<ak-name>``
+     - The attestation key that signed the quote and the register
+       certification is the one you enrolled. Required: without it, any
+       TPM's key passes.
+   * - ``--expect-bind-pcr=9=<pcr9>`` and ``--expect-bind-pcr=11=<pcr11>``
+     - The PCR values the register was bound to at init. PCR 11 holds the
+       ``enter-initrd`` phase only while the initrd runs, so the PCR 11
+       value proves that init bound the register from the initrd.
+       Required. Without them, verify recomputes the register's name from
+       the values the target recorded about itself.
+   * - ``--require-initrd``
+     - The init record says the binding was made in the initrd. The
+       record is the target's own word, so this option does not replace
+       ``--expect-bind-pcr=11``.
+   * - ``--expect-chain=<register>``, or ``--cert=`` with ``--upatch=``
+     - The register equals the value you predicted for the certificates,
+       the boot set and the events you expect. One of the two is
+       required. Without either, no state is checked.
+   * - ``--expect-config-root=<config-root>`` with
+       ``--expect-config-pcr=<config-pcr>``
+     - The config the target activated is the one you approved, recorded
+       in the PCR the runtime bootstrap file names. Required. The first
+       option needs the second.
+   * - ``--ek-name=<ek-name>``
+     - The endorsement key in the evidence is the enrolled one.
+   * - ``--expect-credential=<credential>``
+     - The attestation key activated the credential you made for it
+       under the endorsement key. Used at enrollment. Needs
+       ``--ak-name``.
+   * - ``--allow-runtime-events``
+     - With ``--cert=``, accepts any number of loads, unloads,
+       revocations and tree operations after boot, as long as each one
+       replays and derives from its own fields. It does not compare them
+       with anything you expect. Pin runtime events with
+       ``--expect-chain`` instead.
+   * - ``--strict-anchor``
+     - Nothing was extended into PCR 9 after the register's anchor.
+       Without it, verify notes further measurements and passes.
+
+Enroll a target
+---------------
+
+Enroll a target once per TPM. You record the name of its attestation
+key and prove that the key sits in the same TPM as an endorsement key
+you trust.
+
+1. Choose a nonce on the operator host:
+
+   .. code-block:: console
+
+      operator$ openssl rand -hex 32
+
+2. Collect evidence on the target, with that nonce:
+
+   .. code-block:: console
+
+      target# shirudo attest --nonce=<nonce> --out=enroll.json
+
+   ``<nonce>`` is the hex string from step 1. The command prints nothing
+   on success and writes the file with mode ``0600``. Copy
+   ``enroll.json`` to the operator host.
+
+3. Read the names of the attestation key and the endorsement key:
+
+   .. code-block:: console
+
+      operator$ jq -r .ak.name enroll.json
+      operator$ jq -r .ek.name enroll.json
+
+4. Make a credential challenge for that attestation key under the
+   endorsement key:
+
+   .. code-block:: console
+
+      operator$ shirudo attest challenge --evidence=enroll.json \
+          --ak-name=<ak-name> --ek-ca=<ek-issuers.pem> --out=challenge.json
+
+   ``<ak-name>`` is the name from step 3. ``<ek-issuers.pem>`` is your
+   manufacturer's issuer bundle. The endorsement certificate in the
+   evidence must chain to it. A TPM without an endorsement certificate,
+   as virtual TPMs usually are, needs ``--ek-name=<ek-name>`` from an
+   inventory you trust instead. ``--trust-presented-ek`` waives the
+   check and proves only that the same TPM answers each time. The
+   command prints its checks, then ``challenge: challenge.json`` and
+   ``credential: <credential>``. Keep the credential on the operator
+   host.
+
+5. Copy ``challenge.json`` to the target and answer it, with a new
+   nonce:
+
+   .. code-block:: console
+
+      target# shirudo attest --nonce=<nonce-2> --challenge=challenge.json \
+          --out=answer.json
+
+   The TPM can recover the credential only when the attestation key and
+   the endorsement key are in it. The command refuses with
+   ``attest: the challenge was refused (tampered?)`` otherwise.
+
+6. Verify the answer on the operator host:
+
+   .. code-block:: console
+
+      operator$ shirudo attest verify --evidence=answer.json --nonce=<nonce-2> \
+          --ak-name=<ak-name> --ek-name=<ek-name> --expect-credential=<credential>
+
+   The report must contain
+   ``ok:   attestation key: activated the credential made for it under the endorsement key``
+   and end with ``verdict: ok``.
+
+7. Record ``<ak-name>`` and ``<ek-name>`` for this target in your
+   inventory. Every later verification pins them.
+
+Predict the register
+--------------------
+
+Compute the register value the target should hold from your own
+records, never from the target's eventlog.
+
+1. Read the payload digest of every upatch you loaded after boot:
+
+   .. code-block:: console
+
+      operator$ shirudo upatch info --json <upatch> | jq -r .payload_sha256
+
+   ``<upatch>`` is the ``.upatch`` file you loaded.
+
+2. Predict the register:
+
+   .. code-block:: console
+
+      operator$ shirudo attest predict --cert=cert.der --cert=own.der \
+          --event=load:basic=46f3d9f5f6568bddb7692cad28e99a86a3104192d8a2251f9ef9ec6d593c2035
+      set_digest: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      init_event: cb206abf8e514bc714fc69f372d464d2c7512f1489431aed2319551c5ed34b9a
+      register_at_boot: d1bdb80f7c0cfc1560f0a5a0b974d282bfd05fc95852b7649d59a054b450aa51
+      register_after_events: ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+
+   Pass one ``--cert=`` for each certificate the target enrolled: the
+   runtime primary and each vouched certificate of the selected config,
+   without the revoked ones. Pass one ``--upatch=`` for each upatch the
+   target restored at boot. Pass one ``--event=`` for each change after
+   boot, in
+   order: ``load:<name>=<payload-sha256>``,
+   ``unload:<name>=<payload-sha256>``,
+   ``revoke:<label>=<cert-sha256>`` or ``tree:<seq>=<digest>``.
+
+   ``set_digest`` covers the boot set, ``init_event`` is the init
+   record's digest and ``register_at_boot`` is the register right after
+   init. ``register_after_events`` is the value to pin with
+   ``--expect-chain``. Without events, pin ``register_at_boot``. The
+   test target in the example enrolled two certificates, ``cert.der`` and
+   ``own.der``, restored no upatch at boot and loaded one after.
+
+Collect evidence
+----------------
+
+1. Choose a fresh nonce on the operator host:
+
+   .. code-block:: console
+
+      operator$ openssl rand -hex 32
+
+2. Collect the evidence on the target:
+
+   .. code-block:: console
+
+      target# shirudo attest --nonce=<nonce> --out=ev.json
+
+   The evidence holds the TPM quote of PCRs 0 to 7, 9 and 11 to 15, the
+   certified register, this boot's eventlog records and the config
+   activation history. ``--pcrs=`` selects other PCRs. The command
+   refuses while a config activation is pending or cannot be verified,
+   and when the register is not bound this boot.
+
+3. Copy ``ev.json`` to the operator host.
+
+Verify evidence
+---------------
+
+1. Get the binding values for the UKI the target booted: the PCR 9 and
+   PCR 11 values at the moment init bound the register. Record them from
+   a boot of the same UKI on a host you trust, where they are the
+   ``tpm.pcr_before`` and ``tpm.phase_before`` fields of
+   ``shirudo status --json``. systemd's
+   ``systemd-measure calculate --phase=enter-initrd`` also computes the
+   PCR 11 value from the UKI's sections.
+
+2. Verify the evidence with every value pinned:
+
+   .. code-block:: console
+
+      operator$ shirudo attest verify --evidence=ev.json --nonce=<nonce> \
+          --ak-name=<ak-name> --ek-name=<ek-name> \
+          --expect-bind-pcr=9=<pcr9> --expect-bind-pcr=11=<pcr11> \
+          --require-initrd --expect-chain=<register> \
+          --expect-config-root=<config-root> --expect-config-pcr=<config-pcr>
+
+   ``<register>`` is the value from `Predict the register`_.
+   ``<config-root>`` is the content of ``<prefix>.roothash`` of the config
+   you activated. ``<config-pcr>`` is ``config.pcr`` of the runtime
+   bootstrap file.
+
+3. Check the exit status: 0 for ``verdict: ok``, 1 for ``verdict: FAIL``
+   and 2 for a usage error or a file that is not an evidence document.
+
+The report prints one line per check, ``ok:`` or ``FAIL:``, and
+``note:`` lines that check nothing. This is a real report from a test
+target, verified with ``--ak-name`` and ``--expect-chain`` only:
+
+.. code-block:: console
+
+   operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE \
+       --ak-name=<ak-name> --expect-chain=<register>
+   ok:   nonce matches the request
+   ok:   attestation key: restricted, fixed to this TPM
+   ok:   attestation key: name matches its public area
+   ok:   attestation key: the pinned key
+   ok:   endorsement key: name matches its public area
+   ok:   endorsement key: TCG default template under the endorsement policy
+   ok:   quote: ECDSA signature by the attestation key
+   ok:   quote: signed by the key as an endorsement primary
+   ok:   quote: carries the nonce
+   ok:   quote: covers the PCRs the document lists
+   ok:   quote: PCR digest matches the listed values
+   ok:   register: ECDSA signature by the attestation key
+   ok:   register: signed by the key as an endorsement primary
+   ok:   register: carries the nonce
+   ok:   register: certification names the listed index
+   ok:   register: certified contents match the listed value
+   ok:   quote and certification are of one TPM reset
+   ok:   config: config root history matches the quoted PCR
+   note: config root has no operator approval; use --expect-config-root with --expect-config-pcr
+   note: config records a selection; direct TPM writer protection is deferred
+   ok:   eventlog: this boot has an init record
+   ok:   register: the document names index 0x01818E00 and PCRs 9 and 11
+   ok:   register: public area is bound to PCRs 9 and 11 as recorded
+   note: binding: made in the initrd
+   ok:   eventlog: one init record for this TPM reset (1 this boot)
+   ok:   register: init record is of the TPM's current reset count
+   ok:   eventlog: 2 records replay to the certified value
+   ok:   anchor: record digest matches the index name
+   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
+   ok:   state: register equals the expected value
+   note: event after boot: upatch_load basic
+   verdict: ok
+
+Read it in groups:
+
+- The nonce, attestation key and endorsement key lines say the TPM you
+  enrolled signed this evidence for your request.
+- The quote and register lines say the PCR values and the register
+  value are what the TPM certified, in one TPM reset.
+- The config lines replay the config activation history to the quoted
+  config PCR. The note says no root was pinned: this run left out
+  ``--expect-config-root``.
+- The eventlog and binding lines replay this boot's records to the
+  certified register and recompute the register's name from the PCR
+  values it was bound to. ``note: binding: made in the initrd`` is the
+  target's own claim. With ``--expect-bind-pcr``, the report adds
+  ``binding: PCR 9 held the expected value`` and the same line for
+  PCR 11, which check the binding against values you know.
+- ``state: register equals the expected value`` is the line that ties
+  the evidence to your records. The ``event after boot`` notes list what
+  changed the register since init.
+
+With ``--expect-config-root``, the config line checks that the last
+activation recorded is your root.
+
+What failure looks like
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A wrong or stale nonce fails the first check, and the verdict follows:
+
+.. code-block:: console
+
+   operator$ shirudo attest verify --evidence=ev.json --nonce=<wrong-nonce> \
+       --ak-name=<ak-name>
+   FAIL: nonce matches the request
+   ok:   attestation key: restricted, fixed to this TPM
+   ...
+   verdict: FAIL
+
+A target whose state differs from your records fails the state lines.
+This report is from a second test target. The verifier expected the boot
+set only, but a load and an unload happened after boot:
+
+.. code-block:: console
+
+   operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE \
+       --ak-name=<ak-name> --cert=cert.der --require-initrd --strict-anchor
+   ...
+   ok:   binding: made while the initrd ran
+   ok:   eventlog: one init record for this TPM reset (1 this boot)
+   ok:   register: init record is of the TPM's current reset count
+   ok:   eventlog: 3 records replay to the certified value
+   ok:   anchor: record digest matches the index name
+   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
+   FAIL: state: init event covers the expected certificate, set and tree root
+   FAIL: state: 2 events after boot change the register
+   note: event after boot: upatch_load shirudo-test-basic
+   note: event after boot: upatch_unload shirudo-test-basic
+   verdict: FAIL
+
+The init event line fails too, because that target enrolled two
+certificates and the verifier passed one. A failed state check does not
+tell you which side is wrong. Compare the notes with your records before
+you conclude anything, and follow :doc:`/operate/incident-tampered` when
+the target ran something you did not install.
+
+A verify that pins nothing
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Evidence from the second test target above, verified with only the
+evidence and the nonce:
+
+.. code-block:: console
+
+   operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE
+   attest verify: no --ak-name; the signer is not pinned
+   ok:   nonce matches the request
+   ok:   attestation key: restricted, fixed to this TPM
+   ok:   attestation key: name matches its public area
+   note: attestation key not pinned: name 000b6e354140b22198138167393ecd1233cfc27e8b16ef0b2b60cce88563c5588dbc
+   ...
+   note: no expected state given; the register value is e57e1428ab398e758b63f8eda52bac87b5d85c1368c2d8d786ed446448e46239
+   note: event after boot: upatch_load shirudo-test-basic
+   note: event after boot: upatch_unload shirudo-test-basic
+   verdict: ok
+
+The verdict is ``ok`` and the exit status 0, but the run proves only
+that some TPM signed a consistent document for this nonce. A consistent
+document from any TPM passes, whatever the target runs. Treat a
+verification without ``--ak-name`` and without an expected state as no
+verification.
+
+Next steps
+----------
+
+- :doc:`/operate/incident-tampered` when a target refuses with
+  ``tampered`` or fails verification.
+- :doc:`/reference/cli/attest`, :doc:`/reference/cli/attest-verify`,
+  :doc:`/reference/cli/attest-predict` and
+  :doc:`/reference/cli/attest-challenge` for every option.
+- :doc:`/concepts/measurement-register` and
+  :doc:`/internals/measurement-register` for what the register records.
+- :doc:`/security/threat-model` for what attestation does not cover.

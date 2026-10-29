@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 430" width="780" height="430" font-family="sans-serif" role="img" aria-labelledby="t">
+  <title id="t">shirudo components on the operator host and on a target</title>
+  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
+    <rect x="10" y="40" width="200" height="150" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="250" y="60" width="130" height="70" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="250" y="250" width="130" height="56" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="420" y="10" width="350" height="410" rx="6" stroke-dasharray="6 4"/>
+    <rect x="435" y="40" width="320" height="120" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="435" y="190" width="320" height="120" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="435" y="340" width="320" height="66" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <line x1="210" y1="95" x2="248" y2="95" marker-end="url(#arrow)"/>
+    <line x1="380" y1="95" x2="433" y2="95" marker-end="url(#arrow)"/>
+    <line x1="595" y1="160" x2="595" y2="188" marker-end="url(#arrow)"/>
+    <line x1="700" y1="160" x2="700" y2="338" marker-end="url(#arrow)"/>
+    <line x1="433" y1="140" x2="382" y2="270" marker-end="url(#arrow)"/>
+    <path d="M435,385 L110,385 L110,192" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#5d6675" font-size="13">
+    <text x="20" y="32" font-weight="bold">Operator host</text>
+    <text x="22" y="64">shirudo, shirudo-build</text>
+    <text x="22" y="86">ML-DSA-87 signing key</text>
+    <text x="22" y="108">build and sign upatches</text>
+    <text x="22" y="130">build and sign images</text>
+    <text x="22" y="152">publish packages, trees</text>
+    <text x="22" y="174">attest verify, predict</text>
+    <text x="260" y="82" font-weight="bold">OCI registry</text>
+    <text x="260" y="104">packages, index,</text>
+    <text x="260" y="122">upatch tree</text>
+    <text x="260" y="272" font-weight="bold">Collector</text>
+    <text x="260" y="294">OTLP over TLS</text>
+    <text x="430" y="32" font-weight="bold">Target</text>
+    <text x="445" y="62" font-weight="bold">Userspace, one-shot commands</text>
+    <text x="445" y="84">shirudo from the runtime image</text>
+    <text x="445" y="104">/run/shirudo/runtime, /run/shirudo/config</text>
+    <text x="445" y="124">/var/lib/shirudo (sealed state)</text>
+    <text x="445" y="144">systemd units and timers</text>
+    <text x="445" y="212" font-weight="bold">Kernel</text>
+    <text x="445" y="234">BPF LSM programs: bpf2, seal</text>
+    <text x="445" y="254">signed upatches</text>
+    <text x="445" y="274">.bpf and .dm-verity keyrings</text>
+    <text x="445" y="294">private bpffs with the pins</text>
+    <text x="445" y="362" font-weight="bold">TPM 2.0</text>
+    <text x="445" y="384">NV register, PCR 9 anchor,</text>
+    <text x="445" y="402">config PCR, attestation key</text>
+    <text x="215" y="86" font-size="12">push</text>
+    <text x="392" y="86" font-size="12">pull</text>
+    <text x="602" y="180" font-size="12">bpf(), mount, keyctl</text>
+    <text x="608" y="330" font-size="12">extend, quote</text>
+    <text x="120" y="378" font-size="12">signed evidence, checked offline</text>
+  </g>
+</svg>

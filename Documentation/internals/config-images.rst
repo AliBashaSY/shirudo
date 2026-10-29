@@ -1,0 +1,308 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Explanation
+:audience: Kernel developers, security reviewers
+
+Config images and dm-verity
+===========================
+
+A target runs shirudo from a read-only runtime image and takes its
+updatable settings from a separate, signed config image. Both are
+dm-verity file systems. This page explains why there are two, which
+settings live where, how a target maps and checks an image, which keys
+verify it, how a config becomes active, what happens when an activation
+is interrupted, and what can change without a reboot.
+
+Problem
+-------
+
+The binary that holds runtime authority has to be the one the operator
+built, and the settings that decide trust, the certificates, the TPM
+settings and the config PCR, have to be the operator's too. On the host
+root file system root can replace both. Some settings must still change
+while a target runs: repositories, the tree subscription, node labels,
+export destinations, revocations.
+
+Why a signed file is not enough
+-------------------------------
+
+A signature on a file is checked when the file is read. Root can change
+the file after the check and before the use, or the target can read it
+twice and get two answers. A userspace verifier also runs before the
+thing it is supposed to establish, so its own integrity is the question.
+
+dm-verity moves the check into the kernel and makes it continuous. The
+kernel checks every block it reads from the data device against a hash
+tree whose root hash is the one trusted value. Whoever knows that the
+root hash is right knows that every read returns the operator's bytes,
+for as long as the mapping exists. :doc:`/concepts/background/dm-verity`
+explains the mechanism.
+
+Two images
+----------
+
+The runtime image carries what may execute and what decides trust. The
+UKI's bootstrap settings name its exact root hash, so no other image can
+take its place, and no signature is involved. It is mounted at
+``/run/shirudo/runtime`` with ``ro,nodev,nosuid``. Every executable on it
+is eligible for runtime authority, which is why a config image, however
+validly signed, can never be one.
+
+The config image carries what may change during a boot. A CMS signature
+over its root hash authorizes it, so the operator can sign a new one at
+any time. It is mounted at ``/run/shirudo/config`` with
+``ro,nodev,nosuid,noexec``, and no exec from it grants authority.
+
+Bootstrap files
+---------------
+
+Two different files carry bootstrap settings, and each takes keys the
+other refuses.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - File
+     - Required keys
+     - Further keys
+   * - ``/etc/shirudo/shirudo.conf`` in the initrd, inside the UKI
+     - ``runtime.image``, the cache prefix of the runtime image, and
+       ``runtime.root_hash``, its 64-character root hash
+     - ``tpm.tcti``, ``tpm.owner_auth``, and the ``config.*`` keys
+   * - ``etc/shirudo/shirudo.conf`` on the runtime image
+     - ``config.image``, the initial config prefix;
+       ``config.verification_key``, a certificate path under
+       ``/run/shirudo/runtime/``; ``config.pcr``, a PCR from 0 to 15
+       other than 9 and 11
+     - ``tpm.tcti``, ``tpm.owner_auth``, ``tls.classical_hosts``. Any
+       ``runtime.*`` key is refused.
+
+The initrd's file must exist before the runtime image is known, and the
+runtime root hash it names is known only once the runtime image is built,
+so the runtime image is built first. Where both files set a key, the
+runtime image's value wins, and the root file system's ``init`` reads only
+the runtime image's file. With a TPM owner password, both files carry
+``tpm.owner_auth``: ``init`` in the initrd creates the NV writer with the
+initrd's file, and later commands use the runtime image's. The initrd's
+file must then not be readable by group or others. The initial BPF
+certificate is not a setting: it is ``keys/cert.der`` on the runtime
+image.
+:doc:`/reference/formats/configuration` lists every key.
+
+Image files
+-----------
+
+An image is four files with a common prefix:
+
+``<prefix>.img``
+    The ext4 data.
+
+``<prefix>.verity``
+    The hash tree with a standard ``veritysetup`` superblock: format
+    version 1, hash type 1, SHA-256, 4096-byte data and hash blocks.
+
+``<prefix>.roothash``
+    The root hash as exactly 64 lowercase hexadecimal characters.
+
+``<prefix>.p7s``
+    For a config image, a detached CMS signature over exactly those 64
+    ASCII bytes, without a newline, at most 16 KiB. The target does not
+    read one for the runtime image.
+
+The target parses the superblock and checks the sizes of both files
+against it; it builds no hash tree of its own. ``shirudo image build``
+and ``shirudo image verify`` on the operator use ``veritysetup``.
+
+Mapping and checking an image
+-----------------------------
+
+``util/dm_verity.c`` maps an image through kernel interfaces only:
+
+#. Attach the data and hash files to loop devices.
+#. Create a device-mapper device. For a config image, stage the root the
+   task expects in ``shirudo_roots``.
+#. Load a read-only ``verity`` table:
+   ``1 <data> <hash> 4096 4096 <blocks> 1 sha256 <root> <salt>``. For a
+   config image the table adds ``2 root_hash_sig_key_desc <desc>``, and
+   the signature travels as a ``user`` key with a random description in
+   the thread keyring, whose permission allows only a possessor's
+   search.
+#. Resume the device and read the table back; it must name the same
+   devices, root and salt.
+#. Read the whole mapping once, with ``O_DIRECT``, so that every block
+   passes the hash check before anything parses the contents, then check
+   that the loop devices still back the same files.
+#. Mount it as ext4 with ``ro,nodev,nosuid``, ``noexec`` for a config,
+   and ``noload``, and check that the mount is that device.
+
+When the table loads, the kernel verifies the config root signature. When
+the device resumes, ``lsm.s/bdev_setintegrity`` sees its root hash and
+records the device: as runtime when the root equals the runtime root
+frozen in the identity map, as config when it equals the root the calling
+task staged, which is then used up. Any other mapping gets no record. The
+records are what make a runtime executable eligible for authority, and
+what the mount guards protect. :doc:`enforcement` lists the hooks.
+
+Which keys verify a config
+--------------------------
+
+The kernel's dm-verity signature check tries the built-in trusted keys
+first, together with the secondary keyring when
+``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING`` is set, then
+the platform keyring when
+``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` is set, and the
+``.dm-verity`` keyring last, once it is sealed and holds a key.
+
+``init`` in the initrd enrolls the certificate that
+``config.verification_key`` names in ``.dm-verity`` and seals the
+keyring, which the kernel leaves open only when booted with
+``dm_verity.keyring_unsealed=1``. The keyring must then hold that
+certificate alone, and ``lsm/key_permission`` keeps root from unlinking
+it. The ``.bpf`` keyring is not involved: a valid config signature never
+authorizes BPF, and a BPF signature never authorizes a config.
+
+Config contents
+---------------
+
+A config image holds:
+
+- ``etc/shirudo/shirudo.conf``, which must exist and may set only
+  ``eventlog.max_bytes`` and ``map_export.*`` keys;
+- ``etc/shirudo/bpm/registries.d/`` and ``etc/shirudo/bpm/keys/``, the
+  repositories and their certificates;
+- ``etc/shirudo/bpm/upatch-tree.conf``, the tree subscription;
+- ``etc/shirudo/node.labels``, the labels tree selectors match;
+- ``keys/trusted/``, further BPF certificates, each with a ``.vouch``
+  signature by a certificate already in the set;
+- ``keys/revoked/``, revoked certificates named
+  ``<fingerprint>.der``.
+
+The target validates the tree before it uses it: regular files and
+directories only, all on the image's device, at most 65536 entries and 32
+levels. It opens everything below the image root through the root
+descriptor, never through a path string.
+
+The BPF trust set of a config is the runtime image's ``keys/cert.der``
+plus every certificate in ``keys/trusted/`` that a member of the set
+vouches for, less the revoked ones.
+
+Activation
+----------
+
+``shirudo image update <prefix>`` copies the four files, from a local
+prefix or an ``https://`` one, into a staging directory under
+``/var/lib/shirudo/images``, maps and checks the image there, and only
+then publishes it in the cache as ``<root hash>.img`` and its siblings.
+It then activates it:
+
+#. Map and check the candidate as above, require the device record,
+   mount it at ``/run/shirudo/config-candidate``, validate it, and check
+   that every certificate of its trust set is in the sealed ``.bpf``
+   keyring.
+#. Record the selection in the journal as pending.
+#. Extend the config PCR with the update event.
+#. Read the PCR and the TPM's reset and restart counts back; the PCR must
+   hold the expected value.
+#. Append the event to the config log.
+#. Apply the revocations: unlink each revoked certificate that is in the
+   ``.bpf`` keyring, extend the register with a ``key_revoke`` event,
+   and purge the archived upatches the certificate signed, unloading
+   those that are loaded.
+#. Mount the candidate at ``/run/shirudo/config``.
+#. Record the selection as complete.
+
+At boot, ``init`` runs the same sequence as a boot event for the selected
+config, but completes it only at the end of ``init``, after the restore
+and the register binding. :doc:`boot-flow` gives the boot order.
+
+The journal lives in ``/var/lib/shirudo/config-update``: ``state`` holds
+the current selection and whether it is pending, ``events`` the config
+log, and ``lock`` the lock every target command holds while it runs,
+waiting up to 30 seconds for another command to finish. The files must
+belong to the user running shirudo, have mode ``0600`` and one link.
+:doc:`measurement-register` gives the event digest and what attestation
+checks.
+
+Interrupted activation
+----------------------
+
+An activation can stop after the pending record is on disk: a crash, a
+power loss, a failed mount or a failed revocation. The record then stays
+pending, and shirudo does not try again within the same TPM boot. Every
+target command except ``shirudo status`` and ``shirudo image status``
+refuses while the selection is pending, and so does ``init``. The node
+keeps running, with the guards and the loaded upatches it had; shirudo
+never reboots it.
+
+The reboot is the recovery. At the next boot, ``init`` selects the
+config the record names, pending or not, maps and checks it again,
+records a fresh boot event in the config PCR and completes. It never
+repeats the previous boot's extension.
+
+Two other states refuse the same way. When the config PCR no longer
+replays from the config log, because something else extended it,
+commands refuse with ``EUCLEAN`` until a reboot. When the TPM's reset or
+restart count differs from the record's, commands refuse with
+``ESTALE`` until ``init`` runs again and records a boot event for the new
+TPM boot.
+
+What can change without a reboot
+--------------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Change
+     - How
+   * - Repositories, tree subscription, node labels, eventlog limit,
+       export settings
+     - A new config image and ``shirudo image update``.
+   * - Revoking an enrolled BPF certificate
+     - A new config image with the certificate in ``keys/revoked/``. It
+       is unlinked, measured and its upatches purged.
+   * - Adding a BPF certificate
+     - Not live. The ``.bpf`` keyring is sealed, so activation refuses a
+       candidate whose trust set holds a certificate the keyring lacks.
+   * - The config verification certificate, the config PCR, the TPM
+       settings, ``tls.classical_hosts``, the initial BPF certificate
+     - Not live. They are on the runtime image, which only a new UKI and
+       a reboot replace.
+   * - The shirudo binary
+     - Not live, for the same reason.
+
+Two boot-time rules bear on the changes that need a reboot. ``init``
+selects the config that the journal names, not ``config.image``, once a
+selection exists. And it enrolls the config verification certificate of
+the runtime image before it maps that config. A reboot therefore does not
+pick up a config that was never activated, and a runtime image with
+another config verification certificate needs a selected config that
+certificate verifies. :doc:`/operate/keys` covers key changes.
+
+Limits
+------
+
+These are properties of the design as implemented.
+:doc:`/security/threat-model` gives their consequences.
+
+- Every key the kernel trusts for dm-verity signatures verifies a config:
+  the built-in trusted keys, and the secondary and platform keyrings when
+  the kernel is built to use them. shirudo does not check the signer of a
+  config in userspace.
+- Nothing prevents rollback. Any config ever signed by an accepted key
+  can be activated again.
+- Any process that can send ``TPM2_PCR_Extend`` can extend the config
+  PCR; the register's writer guard does not cover it.
+- shirudo does not remove cached images.
+
+Related
+-------
+
+- :doc:`/concepts/background/dm-verity` for the mechanism.
+- :doc:`/operate/boot-integration` for building the images and the
+  initrd.
+- :doc:`/reference/cli/image` for the ``shirudo image`` commands.
+- :doc:`/reference/formats/configuration` for the settings.

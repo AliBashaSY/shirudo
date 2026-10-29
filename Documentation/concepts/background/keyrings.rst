@@ -1,0 +1,168 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Explanation
+:audience: All readers
+
+Kernel keyrings
+===============
+
+When the kernel verifies a signature, over a module, a BPF loader or a
+dm-verity root hash, it needs a public key it trusts. The kernel keeps
+such keys in keyrings. Which keyring a check consults, and who may change
+that keyring, decides what the signature is worth. This page explains
+keyrings in general, the ones the kernel uses for signatures, and how
+shirudo sets up and protects its two.
+
+Keys and keyrings
+-----------------
+
+A key is a kernel object with a serial number (a positive 32-bit
+integer), a type, a description, a payload, an owner, a group and a
+permission mask. A keyring is a key of type ``keyring`` whose payload is
+a list of links to other keys, keyrings included. Keys of type
+``asymmetric`` hold public keys; adding an X.509 certificate creates one
+whose description the kernel derives from the certificate.
+
+Userspace manages keys with the ``add_key(2)`` and ``keyctl(2)`` system
+calls. ``/proc/keys`` lists the keys the reading task may view.
+
+Special keyring ids
+-------------------
+
+Besides serial numbers, the system calls accept negative special ids that
+name a keyring relative to the caller, such as
+``KEY_SPEC_THREAD_KEYRING`` (``-1``), ``KEY_SPEC_PROCESS_KEYRING``
+(``-2``) and ``KEY_SPEC_SESSION_KEYRING`` (``-3``).
+``KEY_SPEC_BPF_KEYRING`` (``-9``) names the kernel's ``.bpf`` keyring
+directly, so its serial does not have to be looked up first. Kernels
+that provide ``KEY_SPEC_DM_VERITY_KEYRING`` (``-10``) name ``.dm-verity``
+the same way; shirudo requires it (see
+:doc:`/operate/system-requirements`).
+
+Permissions and possession
+--------------------------
+
+The permission mask has six bits for each of four classes: possessor,
+user (the owner), group and other. The bits are view, read, write,
+search, link and set attribute. Write permission on a keyring allows
+adding and removing links. Set attribute allows changing the
+permissions and applying a restriction.
+
+A task possesses a key when it can reach the key from its own thread,
+process or session keyring, and the possessor bits then apply to it.
+``KEY_SPEC_BPF_KEYRING`` hands out a reference that is not possessed, so
+for the ``.bpf`` keyring only the user, group and other bits count. Both
+``.bpf`` and ``.dm-verity`` are owned by root and grant their owner view,
+read, write, search and set attribute. Any root process can therefore
+add keys to them, remove keys and restrict them.
+
+Restrictions
+------------
+
+``KEYCTL_RESTRICT_KEYRING`` attaches a restriction to a keyring. The
+kernel checks the restriction for every new link: a key type and a
+restriction string can, for example, admit only keys signed by a trusted
+key. Without a type, the keyring rejects every new link with ``-EPERM``.
+
+A keyring takes one restriction for its lifetime: a second attempt fails
+with ``-EEXIST``, and none can be lifted. A restriction bounds what can
+be added, never what can be taken away. A task with write permission can
+still unlink a key from a restricted keyring, clear it or revoke it.
+
+System keyrings
+---------------
+
+The kernel builds several keyrings at boot for its own signature checks:
+
+``.builtin_trusted_keys``
+    Certificates compiled into the kernel image, such as the module
+    signing key.
+
+``.secondary_trusted_keys``
+    Links the builtin keyring and, when configured, ``.machine``. It
+    accepts further keys at run time only if a key it already trusts
+    vouches for them (``CONFIG_SECONDARY_TRUSTED_KEYRING``).
+
+``.machine``
+    Machine Owner Keys (MOK), when the kernel is built with
+    ``CONFIG_INTEGRITY_MACHINE_KEYRING``.
+
+``.platform``
+    Keys the firmware provides, such as the UEFI signature database. The
+    kernel uses them to verify kexec images and, when configured,
+    dm-verity root hashes.
+
+A key in these keyrings is trusted for everything that consults them.
+That breadth is why the kernel adds keyrings scoped to one purpose.
+
+Purpose-specific keyrings
+-------------------------
+
+The ``.bpf`` keyring holds keys for BPF program signatures (see
+:doc:`bpf-signing`). The ``.dm-verity`` keyring holds keys for
+dm-verity root hash signatures (see :doc:`dm-verity`). Both follow the
+same rules:
+
+- The kernel creates them at boot, sealed and empty, unless the boot
+  parameter ``bpf.keyring_unsealed=1`` or ``dm_verity.keyring_unsealed=1``
+  leaves the keyring open so that the initrd can provision it. Both
+  parameters are read-only once the system runs.
+- The kernel consults the keyring only once it is non-empty and
+  restricted. An open keyring is ignored even when it holds keys.
+- Provisioning ends with a restriction. Until then, anything that may
+  write the keyring can add keys to it.
+
+How shirudo enrolls and seals the keyrings
+------------------------------------------
+
+``shirudo init`` provisions both keyrings from the initrd, before the
+root file system's services start (see :doc:`/internals/boot-flow`).
+
+For ``.bpf``, init adds each certificate of the boot trust set: the
+initial certificate from the runtime image and every certificate the
+selected signed configuration vouches for. It then seals the keyring with
+``KEYCTL_RESTRICT_KEYRING`` and no type, and checks that the keyring
+holds exactly that set. Every link counts, whatever its type, because the
+kernel's search also enters a nested keyring. For ``.dm-verity``, init
+adds the configuration verification certificate from the runtime image,
+seals the keyring and checks that it holds that certificate and nothing
+else.
+
+``shirudo init`` refuses a keyring it did not seal itself. For a
+keyring sealed empty because the boot lacked the parameter, it says to
+boot with the parameter. A keyring that another task restricted first,
+or that holds keys beyond the set, is refused as well.
+
+Init then records the serials of both keyrings, of the ``.dm-verity``
+key and of the enrolled ``.bpf`` keys in a frozen map. Later commands
+compare the ``.bpf`` serial with that record and refuse ``tampered`` on
+a mismatch. shirudo's ``lsm/key_permission`` program refuses write, set
+attribute and unlink on the recorded keyrings and keys to every task
+without runtime authority, and refuses a search through an unpossessed
+reference, which is how ``keyctl`` reaches a key by serial. The
+refusals count as ``KeyringWrite``. The kernel's own signature checks
+search through a possessed reference and are unaffected.
+
+A signed configuration activated at run time can revoke an enrolled
+key, which unlinks it. Nothing adds a key to either keyring until the
+next boot, and key changes made locally on the target are refused. See
+:doc:`/operate/keys` and :doc:`/internals/enforcement`.
+
+Limits
+------
+
+Until init seals them, the keyrings accept a key from any root process
+in the initrd. Init detects such a key by its exact-set check and
+refuses, but it cannot remove it. The initrd itself has to be
+authenticated, which production targets do through the boot chain.
+
+A restriction does not stop removal. Between the seal and the attachment
+of ``lsm/key_permission``, which both happen within init, a root process
+could unlink a key and take signed loading out until the next boot.
+
+For dm-verity, ``.dm-verity`` is consulted only after the builtin
+keyring and, when configured, the secondary and platform keyrings. A key
+there can sign a configuration root as well; see :doc:`dm-verity` and
+:doc:`/security/threat-model`.

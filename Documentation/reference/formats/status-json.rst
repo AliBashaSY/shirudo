@@ -1,0 +1,712 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Reference
+:audience: Operators
+
+status JSON
+===========
+
+``shirudo status --json`` prints one JSON object on one line. The same
+object is the body of the status keepalive that ``status --otel``
+sends, see :doc:`otlp`. Options and exit status are in
+:doc:`/reference/cli/status`. How to read a report is in
+:doc:`/operate/read-status`.
+
+.. code-block:: console
+
+   target# shirudo status --json
+
+``status`` exits ``0`` for every verdict, ``tampered`` included. A
+monitor reads ``status`` and the fields in `Fields to alert on`_, never
+the exit status alone.
+
+Top-level fields
+----------------
+
+Fields appear in this order. ``null`` stands for a value that cannot be
+determined, as noted.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 16 58
+
+   * - Field
+     - Type
+     - Value
+   * - ``schema``
+     - integer
+     - ``1``
+   * - ``version_id``
+     - string
+     - The binary's ``SHIRUDO_VERSION_ID``, as
+       ``shirudo version --version-id`` prints it.
+   * - ``is_target``
+     - boolean
+     - ``true`` when the certificate is present, the LSM link is
+       pinned or the ``.bpf`` keyring ``init`` recorded exists.
+   * - ``is_operator``
+     - boolean
+     - ``true`` when ``/var/lib/shirudo/keys/signing_key.pem`` exists.
+   * - ``status``
+     - string
+     - The verdict, see `Verdicts`_.
+   * - ``conditions``
+     - array of object
+     - Five conditions, each with ``type``, ``status`` and ``detail``,
+       see `Conditions`_.
+   * - ``lsm_attached``
+     - boolean
+     - ``true`` when the pin ``/run/shirudo/bpffs/lsm_link`` opens.
+   * - ``mode``
+     - string
+     - ``production`` when ``lsm_attached`` is ``true``, else
+       ``inactive``.
+   * - ``keyring_mode``
+     - string
+     - ``bpf`` when the ``.bpf`` keyring is present, else ``none``.
+   * - ``keyring_present``
+     - boolean
+     - ``true`` when ``init`` recorded a keyring serial and the
+       ``.bpf`` keyring exists.
+   * - ``keyring_serial``
+     - integer or ``null``
+     - Serial of the live ``.bpf`` keyring. ``null`` when it is absent.
+   * - ``keyring_serial_pinned``
+     - integer or ``null``
+     - Serial ``init`` froze in the identity pin. ``null`` before
+       ``init``.
+   * - ``keyring_serial_matches``
+     - boolean or ``null``
+     - ``keyring_serial`` equals ``keyring_serial_pinned``. ``null``
+       unless both are known.
+   * - ``cert_present``
+     - boolean
+     - The primary certificate exists: on an image target
+       ``/run/shirudo/runtime/keys/cert.der``.
+   * - ``certs``
+     - array of object
+     - The trusted certificate set, each with ``sha256`` (of the DER),
+       ``fingerprint`` (SHA-256 of the public key) and ``primary``
+       (boolean). Empty when the set cannot be loaded.
+   * - ``certs_revoked``
+     - integer
+     - Certificates under ``keys/revoked``.
+   * - ``certs_unvouched``
+     - integer
+     - Certificates under ``keys/trusted`` without a valid vouch.
+   * - ``certs_enrolled``
+     - integer or ``null``
+     - Asymmetric keys in the ``.bpf`` keyring. ``null`` when the
+       keyring is absent.
+   * - ``signing_key_present``
+     - boolean
+     - Same value as ``is_operator``.
+   * - ``upatches_loaded``
+     - array of object
+     - One object per upatch pinned under
+       ``/run/shirudo/bpffs/upatches``, see `upatches_loaded`_.
+   * - ``assets``
+     - object
+     - Persistent state, see `assets`_.
+   * - ``tamper_attempts``
+     - object or ``null``
+     - Refusals counted this boot, see `tamper_attempts`_. ``null``
+       until ``init`` has pinned the counters.
+   * - ``config``
+     - object or ``null``
+     - Config image activation, see `config`_. ``null`` on a host
+       without config activation state.
+   * - ``system``
+     - object
+     - Only with ``--include-system``, see `Optional blocks`_.
+   * - ``tpm``
+     - object
+     - The measurement register, see `tpm`_.
+   * - ``upatch_tree``
+     - object
+     - The upatch tree, see `upatch_tree`_.
+   * - ``kernel_log``
+     - array of object
+     - Only with ``--include-kernellog``, see `Optional blocks`_.
+   * - ``boot_at``, ``modules``
+     - string, array of object
+     - Only with ``--include-modules``, see `Optional blocks`_.
+
+Verdicts
+--------
+
+``status`` takes the first verdict in this order whose condition holds.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - ``status``
+     - Condition
+   * - ``tampered``
+     - The live register differs from the eventlog replay, the
+       ``.bpf`` keyring's serial differs from the pinned serial, the
+       keyring ``init`` pinned is gone, or the selected config cannot be
+       verified against its activation records.
+   * - ``lsm-off``
+     - The LSM link is not pinned. Enforcement is off.
+   * - ``init-pending``
+     - No ``.bpf`` keyring is recorded: ``init`` has not completed.
+   * - ``reboot-pending``
+     - A config activation is pending until the next reboot.
+   * - ``degraded``
+     - No register is bound this boot: no TPM answered, or the NV index
+       is not written.
+   * - ``ok``
+     - None of the above.
+
+Conditions
+----------
+
+``conditions`` always holds these five types, in this order. ``status``
+is ``OK``, ``WARN`` or ``ALERT``. ``<serial>`` and ``<root>`` stand for
+a keyring serial and the first 12 hex digits of the config root hash.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 10 72
+
+   * - ``type``
+     - ``status``
+     - ``detail``
+   * - ``LsmAttached``
+     - ``OK``
+     - ``lsm/bpf link present and pinned``
+   * -
+     - ``ALERT``
+     - ``lsm/bpf absent -- enforcement OFF``
+   * - ``KeyringSealed``
+     - ``OK``
+     - ``serial=<serial> in the BPF keyring, pin matches``
+   * -
+     - ``WARN``
+     - ``shirudo keyring absent (not init'd?)``
+   * -
+     - ``ALERT``
+     - ``pin serial=<serial>, the BPF keyring is gone (removed?)``
+   * -
+     - ``ALERT``
+     - ``pin serial=<serial> != live serial=<serial> (swapped?)``
+   * - ``ChainIntact``
+     - ``OK``
+     - ``live register == eventlog replay``
+   * -
+     - ``WARN``
+     - ``no register bound this boot (init incomplete)``
+   * -
+     - ``WARN``
+     - ``no TPM answered, no register to replay``
+   * -
+     - ``ALERT``
+     - ``live register != eventlog replay (tamper?)``
+   * - ``TpmMeasured``
+     - ``OK``
+     - ``NV index 0x01818E00 readable``
+   * -
+     - ``WARN``
+     - ``NV index 0x01818E00 not bound this boot``
+   * -
+     - ``WARN``
+     - ``no TPM answered``
+   * - ``ConfigActive``
+     - ``OK``
+     - ``config <root>.. is active``
+   * -
+     - ``WARN``
+     - ``no config activation state (init not run?)``
+   * -
+     - ``WARN``
+     - ``the activation of config <root>.. is pending until the next
+       reboot``
+   * -
+     - ``ALERT``
+     - ``the config activation record does not belong to this TPM boot
+       (tamper?)``
+   * -
+     - ``ALERT``
+     - ``the mounted config does not match the selected root (tamper?)``
+   * -
+     - ``ALERT``
+     - ``the config PCR, activation records and mounted config disagree
+       (tamper?)``
+
+upatches_loaded
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``name``
+     - string
+     - The upatch name.
+   * - ``location``
+     - string
+     - The attach point, for example ``fentry/do_nanosleep``.
+   * - ``status``
+     - string
+     - ``success``
+   * - ``n_maps``
+     - integer
+     - Maps pinned for the upatch.
+   * - ``loaded_at``
+     - string
+     - Change time of the upatch's pin directory, ISO 8601 UTC.
+   * - ``age_sec``
+     - integer or ``null``
+     - Seconds since ``loaded_at``.
+   * - ``payload_sha256``
+     - string or ``null``
+     - The loaded payload's digest, as in the eventlog.
+
+assets
+------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``root``
+     - string
+     - ``/var/lib/shirudo``
+   * - ``cert``
+     - boolean
+     - Same test as ``cert_present``.
+   * - ``signing_key``
+     - boolean
+     - Same test as ``is_operator``.
+   * - ``eventlog``
+     - boolean
+     - ``/var/lib/shirudo/eventlog`` exists.
+   * - ``eventlog_bytes``
+     - integer
+     - Its size, all boots.
+   * - ``upatches``
+     - integer or ``null``
+     - ``.upatch`` files in ``/var/lib/shirudo/upatches``. ``null``
+       when the directory is absent.
+   * - ``incoming``
+     - integer or ``null``
+     - Entries in ``/var/lib/shirudo/incoming``. ``null`` when the
+       directory is absent.
+   * - ``bpffs_mounted``
+     - boolean
+     - ``/run/shirudo/bpffs`` is a mount point.
+
+tamper_attempts
+---------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``total``
+     - integer
+     - Sum of all counters.
+   * - ``counters``
+     - object
+     - Every counter by name, zero or not, so the keys are the same in
+       every report. :doc:`/security/tamper-counters` lists them.
+
+The counters live in a pinned BPF map under ``/run/shirudo/bpffs`` and
+start at zero at every boot.
+
+config
+------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``root_hash``
+     - string
+     - Root hash of the selected config image, 64 hex digits.
+   * - ``activation_pending``
+     - boolean
+     - ``true`` while an activation waits for the next reboot.
+   * - ``error``
+     - string or ``null``
+     - Why the selected config cannot be verified, as an ``strerror``
+       text. ``null`` when it is active or pending.
+
+tpm
+---
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 18 56
+
+   * - Field
+     - Type
+     - Value
+   * - ``reachable``
+     - boolean
+     - A TPM answered.
+   * - ``nv_index``
+     - string
+     - ``0x01818E00``
+   * - ``chain``
+     - string or ``null``
+     - The live register value. ``null`` when no register is bound.
+   * - ``nv_name``
+     - string or ``null``
+     - The register's TPM name. ``null`` when no register is bound.
+   * - ``register_bound``
+     - boolean
+     - The NV index is defined and written.
+   * - ``register_anchored``
+     - boolean
+     - The register's name equals the name this boot's ``init``
+       record gives, for the TPM's current reset count.
+   * - ``init_records``
+     - integer
+     - ``init`` records this boot.
+   * - ``register_rebound``
+     - boolean
+     - Two ``init`` records this boot name the same TPM reset count.
+   * - ``pcr``
+     - integer
+     - ``9``
+   * - ``phase_pcr``
+     - integer
+     - ``11``
+   * - ``pcr_before``
+     - string or ``null``
+     - PCR 9 before the binding, from the ``init`` record. ``null``
+       without one.
+   * - ``phase_before``
+     - string or ``null``
+     - PCR 11 at the binding, from the ``init`` record. ``null``
+       without one.
+   * - ``bound_in``
+     - string or ``null``
+     - ``initrd`` or ``root``, from the ``init`` record. ``null``
+       without one.
+   * - ``chain_matches_eventlog``
+     - boolean or ``null``
+     - The register is anchored, not rebound, and equals this boot's
+       eventlog replay. ``null`` when no register is bound.
+   * - ``eventlog``
+     - object
+     - ``present`` (boolean), ``entries`` (lines in
+       ``/var/lib/shirudo/eventlog``, all boots), ``bytes``, and
+       ``events`` with ``--include-eventlog``.
+
+:doc:`eventlog` defines the records and the replay.
+
+upatch_tree
+-----------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 18 54
+
+   * - Field
+     - Type
+     - Value
+   * - ``configured``
+     - boolean
+     - A tree configuration exists, in the config image on an image
+       target.
+   * - ``pending``
+     - boolean
+     - ``/var/lib/shirudo/bpm/upatch-tree/pending.json`` exists.
+   * - ``tree_id``, ``generation``, ``last_seq``, ``projection_root``,
+       ``manifest_digest``
+     - string, integer, integer, string, string
+     - The tree state, present when it can be read.
+   * - ``state``
+     - ``null``
+     - Present instead of the five fields above when there is no tree
+       state.
+   * - ``eventlog_projection_root``
+     - string or ``null``
+     - Replay of the tree's projection log. ``null`` when it cannot be
+       replayed.
+   * - ``eventlog_matches_state``
+     - boolean or ``null``
+     - The replay equals ``projection_root``.
+
+:doc:`bpm-formats` defines the tree state.
+
+Optional blocks
+---------------
+
+``--show-full`` turns on every block below.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Option
+     - Adds
+   * - ``--include-system``
+     - ``system``: ``hostname``, ``os`` (``PRETTY_NAME`` from
+       ``/etc/os-release``), ``kernel_release``, ``kernel_version``,
+       ``kernel_build_id`` (from ``/sys/kernel/notes``),
+       ``kernel_config`` (every ``CONFIG_*`` in
+       ``/boot/config-<release>``, ``n`` for one not set, empty without
+       the file), ``architecture``, ``machine_id``, ``boot_id``,
+       ``nproc``, ``mem_total_kb``, ``mem_avail_kb``, ``disk_total_kb``
+       and ``disk_used_kb`` (of ``/``), ``uptime_seconds``. A number
+       that cannot be read is ``-1``.
+   * - ``--include-eventlog``
+     - ``tpm.eventlog.events``: one object per line of
+       ``/var/lib/shirudo/eventlog``, all boots, with ``ts``, ``type``
+       and ``digest``, plus ``set_digest`` for ``init`` and ``upatch``
+       (``name``, ``payload_sha256``) for upatch events. A line that
+       does not parse gives ``{"type": "unparseable"}``.
+   * - ``--include-kernellog[=<n>]``
+     - ``kernel_log``: the last ``<n>`` kernel log records, 1 to 100,
+       default 10, each with ``ts`` (ISO 8601 UTC) and ``msg``.
+   * - ``--include-modules``
+     - ``boot_at`` (boot time, ISO 8601 UTC) and ``modules``: each
+       loaded module with ``name``, ``size``, ``refcount``,
+       ``loaded_at``, ``since_boot_sec`` (or ``null``) and ``deps``.
+
+``status`` sizes its output buffer from the options, the eventlog size
+and the number of loaded upatches, at most 8 MiB. A document that does
+not fit is not printed: ``status`` writes ``status: json encode failed:
+<reason>`` to standard error, nothing to standard output, sends no
+keepalive and exits 1.
+
+Fields to alert on
+------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 22 44
+
+   * - Field
+     - Alert when
+     - Next step
+   * - ``status``
+     - ``tampered``
+     - Handle as an incident: :doc:`/operate/incident-tampered`.
+   * - ``status``
+     - any value but ``ok``
+     - :doc:`/operate/read-status`
+   * - ``conditions[].status``
+     - ``ALERT``
+     - The ``detail`` names the cause.
+   * - ``tamper_attempts.total``
+     - rises
+     - The counter that moved names the refused action,
+       :doc:`/security/tamper-counters`.
+   * - ``tamper_attempts``
+     - ``null`` on a target
+     - ``init`` has not pinned the counters this boot.
+   * - ``lsm_attached``
+     - ``false``
+     - Enforcement is off.
+   * - ``keyring_serial_matches``
+     - ``false``
+     - The ``.bpf`` keyring was replaced.
+   * - ``tpm.chain_matches_eventlog``
+     - ``false``
+     - The register and the eventlog disagree.
+   * - ``tpm.register_rebound``
+     - ``true``
+     - The register was bound twice in one TPM reset period.
+   * - ``tpm.bound_in``
+     - ``root``
+     - The register was bound after the initrd.
+   * - ``config.error``
+     - not ``null``
+     - The selected config cannot be verified.
+   * - ``config.activation_pending``
+     - ``true``
+     - Every command but ``status`` is refused until a reboot.
+   * - ``upatch_tree.eventlog_matches_state``
+     - ``false``
+     - The tree state and its projection log disagree.
+   * - ``version_id``
+     - differs from the expected build
+     - A different shirudo build runs on the target.
+
+A collector that stops receiving the keepalive from a target has lost
+the target or its export, see :doc:`otlp`.
+
+Example
+-------
+
+``shirudo status --json`` on a test target with one upatch loaded,
+indented here:
+
+.. code-block:: json
+
+   {
+     "schema": 1,
+     "version_id": "58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0",
+     "is_target": true,
+     "is_operator": false,
+     "status": "ok",
+     "conditions": [
+       {
+         "type": "LsmAttached",
+         "status": "OK",
+         "detail": "lsm/bpf link present and pinned"
+       },
+       {
+         "type": "KeyringSealed",
+         "status": "OK",
+         "detail": "serial=420195959 in the BPF keyring, pin matches"
+       },
+       {
+         "type": "ChainIntact",
+         "status": "OK",
+         "detail": "live register == eventlog replay"
+       },
+       {
+         "type": "TpmMeasured",
+         "status": "OK",
+         "detail": "NV index 0x01818E00 readable"
+       },
+       {
+         "type": "ConfigActive",
+         "status": "OK",
+         "detail": "config 12dbf3c75083.. is active"
+       }
+     ],
+     "lsm_attached": true,
+     "mode": "production",
+     "keyring_mode": "bpf",
+     "keyring_present": true,
+     "keyring_serial": 420195959,
+     "keyring_serial_pinned": 420195959,
+     "keyring_serial_matches": true,
+     "cert_present": true,
+     "certs": [
+       {
+         "sha256": "3702e8ffe817ade6151eea338194649cc3a5be1e0b940e462a1a75e52f7095d0",
+         "fingerprint": "2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2",
+         "primary": false
+       },
+       {
+         "sha256": "d95db97ff4658b96b8b538afef41a25ca9f7a2c4d0abffdb26cbac7b0ba294b9",
+         "fingerprint": "d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61",
+         "primary": true
+       }
+     ],
+     "certs_revoked": 0,
+     "certs_unvouched": 0,
+     "certs_enrolled": 2,
+     "signing_key_present": false,
+     "upatches_loaded": [
+       {
+         "name": "shirudo-test-basic",
+         "location": "fentry/do_nanosleep",
+         "status": "success",
+         "n_maps": 0,
+         "loaded_at": "2026-10-29T16:21:18Z",
+         "age_sec": 1,
+         "payload_sha256": "8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"
+       }
+     ],
+     "assets": {
+       "root": "/var/lib/shirudo",
+       "cert": true,
+       "signing_key": false,
+       "eventlog": true,
+       "eventlog_bytes": 2324,
+       "upatches": 1,
+       "incoming": 0,
+       "bpffs_mounted": true
+     },
+     "tamper_attempts": {
+       "total": 47,
+       "counters": {
+         "LoadNotLoader": 27, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
+         "LoadKeyring": 0, "MapCreate": 1, "MapWrite": 0, "MapFdWrite": 0,
+         "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 12,
+         "ExeIdentity": 0, "KeyringWrite": 0, "PinUnlink": 0, "PinRename": 0,
+         "PinXattr": 0, "BpffsUmount": 0, "BpffsUmountAbove": 0, "BpffsMount": 0,
+         "SealWrite": 0, "SealUnlink": 0, "SealRename": 0, "SealSetattr": 0,
+         "SealXattr": 0, "SealLabel": 0, "SealPtrace": 7, "SealPerf": 0,
+         "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
+         "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 0
+       }
+     },
+     "config": {
+       "root_hash": "12dbf3c750834908c0f6510481e35fbb0cc76cf6b1896de524304535e63aff0f",
+       "activation_pending": false,
+       "error": null
+     },
+     "tpm": {
+       "reachable": true,
+       "nv_index": "0x01818E00",
+       "chain": "c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd",
+       "nv_name": "000be3a552e2219550d2597ab96f3fffdeec0d01ce27cde858e0858ab0cdaba6c045",
+       "register_bound": true,
+       "register_anchored": true,
+       "init_records": 1,
+       "register_rebound": false,
+       "pcr": 9,
+       "phase_pcr": 11,
+       "pcr_before": "0000000000000000000000000000000000000000000000000000000000000000",
+       "phase_before": "0000000000000000000000000000000000000000000000000000000000000000",
+       "bound_in": "initrd",
+       "chain_matches_eventlog": true,
+       "eventlog": {
+         "present": true,
+         "entries": 2,
+         "bytes": 2324
+       }
+     },
+     "upatch_tree": {
+       "configured": false,
+       "pending": false,
+       "state": null,
+       "eventlog_projection_root": null,
+       "eventlog_matches_state": null
+     }
+   }
+
+After refused tamper attempts as root (reading and removing a pin,
+unmounting the private bpffs, appending to the eventlog), the counters
+of the same target read:
+
+.. code-block:: json
+
+   {
+     "total": 73,
+     "counters": {
+       "LoadNotLoader": 39, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
+       "LoadKeyring": 0, "MapCreate": 1, "MapWrite": 0, "MapFdWrite": 0,
+       "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 16,
+       "ExeIdentity": 0, "KeyringWrite": 0, "PinUnlink": 1, "PinRename": 0,
+       "PinXattr": 0, "BpffsUmount": 1, "BpffsUmountAbove": 0, "BpffsMount": 0,
+       "SealWrite": 1, "SealUnlink": 0, "SealRename": 0, "SealSetattr": 0,
+       "SealXattr": 0, "SealLabel": 0, "SealPtrace": 12, "SealPerf": 0,
+       "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
+       "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 2
+     }
+   }
+
+Related
+-------
+
+- :doc:`/reference/cli/status`
+- :doc:`/operate/read-status`
+- :doc:`/security/tamper-counters`
+- :doc:`eventlog`
+- :doc:`otlp`

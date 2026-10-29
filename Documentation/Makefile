@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# Documentation rendering. Run with make -C Documentation html-docs.
+# Documentation: Sphinx in a container, or on the host with DOCS_CONTAINER=0.
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+DOCS := $(ROOT)/Documentation
 MAKEFLAGS += -rR --no-print-directory
 
 ifeq ($(V),1)
@@ -13,37 +14,103 @@ else
 endif
 export Q V
 
-root-path = $(if $(filter /%,$(1)),$(1),$(ROOT)/$(1))
 .DEFAULT_GOAL := help
-RST2HTML ?= rst2html
-DOCS_HTML_DIR ?= output
-DOCS_RST := $(sort $(wildcard *.rst))
 
-.PHONY: help clean html-docs
+DOCS_OUT ?= $(DOCS)/output
+DOCS_PORT ?= 8000
+DOCS_BIND ?= 127.0.0.1
+DOCS_CONTAINER ?= 1
+CONTAINER ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+SPHINXBUILD ?= sphinx-build
+SPHINXOPTS ?= -W --keep-going -n -q
 
-# Render every document with docutils and fail on anything it reports, so a
-# Sphinx-only role, a duplicate link target or a mis-parsed table breaks the
-# build rather than the rendered page. coding-style.rst is the kernel's text
-# verbatim; its restarted enumerated list is an informational note that is not
-# ours to fix, so that one file halts at warnings instead.
-html-docs:
-	$(Q)command -v $(RST2HTML) >/dev/null 2>&1 || { \
-	    printf 'shirudo: %s not found; install python3-docutils\n' '$(RST2HTML)' >&2; \
-	    exit 1; }
-	$(Q)mkdir -p $(DOCS_HTML_DIR)
-	$(Q)for f in $(DOCS_RST); do \
-	    out=$(DOCS_HTML_DIR)/$$(basename $$f .rst).html; \
-	    case $$f in \
-	    coding-style.rst) halt=--halt=warning ;; \
-	    *) halt=--strict ;; \
-	    esac; \
-	    printf '  HTML    %s\n' "$$out"; \
-	    $(RST2HTML) $$halt --no-generator "$$f" > "$$out" || { \
-	        rm -f "$$out"; exit 1; }; \
-	done
+OUT := $(abspath $(DOCS_OUT))
+IMAGE := shirudo-docs:$(shell cat $(DOCS)/Containerfile $(DOCS)/requirements.txt | \
+	sha256sum | cut -c1-16)
+
+# The build sees the tree read-only and no network; the server sees only
+# the rendered pages, read-only, as nobody, published on DOCS_BIND alone.
+RUN_BUILD = $(CONTAINER) run --rm --network=none --read-only --tmpfs /tmp \
+	--user "$$(id -u):$$(id -g)" -e DOCS_LASTCHANGE=/out/lastchange.txt \
+	-v "$(ROOT):/src:ro" -v "$(OUT):/out" $(IMAGE)
+RUN_SERVE = $(CONTAINER) run --rm --init --read-only --cap-drop=ALL \
+	--security-opt=no-new-privileges --user 65534:65534 \
+	-p "$(DOCS_BIND):$(DOCS_PORT):8000" -v "$(OUT)/html:/srv:ro" $(IMAGE)
+
+.PHONY: help container-check image lastchange html html-docs serve check \
+	linkcheck clean
 
 help:
-	@printf '%s\n' 'make -C Documentation html-docs'
+	@printf '%s\n' \
+	  'make -C Documentation html       render the HTML into $(DOCS_OUT)/html' \
+	  'make -C Documentation serve      render, then serve it on $(DOCS_BIND):$(DOCS_PORT)' \
+	  'make -C Documentation check      render, then check the docs against the code' \
+	  'make -C Documentation linkcheck  check external links (needs the network)' \
+	  'DOCS_CONTAINER=0 renders with the host sphinx-build from requirements.txt.'
+
+container-check:
+	$(Q)[ -n "$(CONTAINER)" ] || { \
+	    printf 'shirudo: no podman or docker; use DOCS_CONTAINER=0 with %s\n' \
+		'the packages in Documentation/requirements.txt' >&2; \
+	    exit 1; }
+
+# Built from a context holding only what the Containerfile copies, and
+# tagged by the hash of both files so a change rebuilds it.
+image: container-check
+	$(Q)$(CONTAINER) image inspect $(IMAGE) >/dev/null 2>&1 || { \
+	    ctx="$(OUT)/.image" && rm -rf "$$ctx" && mkdir -p "$$ctx" && \
+	    cp $(DOCS)/Containerfile $(DOCS)/requirements.txt "$$ctx" && \
+	    printf '  IMAGE   %s\n' '$(IMAGE)' && \
+	    $(CONTAINER) build -q -t $(IMAGE) -f "$$ctx/Containerfile" "$$ctx" \
+		>/dev/null && rm -rf "$$ctx"; }
+
+# The commit that last changed each document and when, in UTC, for the
+# page footers.
+lastchange:
+	$(Q)mkdir -p "$(OUT)"
+	$(Q)if git -C $(ROOT) rev-parse --git-dir >/dev/null 2>&1; then \
+	    TZ=UTC git -C $(ROOT) log --date=format-local:'%Y-%m-%d %H:%M' \
+		--format='@%h%x09%cd' --name-only -- Documentation | \
+	    awk '/^@/ { c = substr($$0, 2); next } \
+		NF && !($$0 in s) { s[$$0] = c; print $$0 "\t" c }' \
+		>"$(OUT)/lastchange.txt"; \
+	else \
+	    : >"$(OUT)/lastchange.txt"; \
+	fi
+
+# The plain-text pages under _text/ are what "View as text", "Copy page"
+# and llms.txt point to, for readers that are agents.
+ifeq ($(DOCS_CONTAINER),1)
+html: image lastchange
+	$(Q)printf '  HTML    %s\n' '$(DOCS_OUT)/html'
+	$(Q)$(RUN_BUILD) sphinx-build $(SPHINXOPTS) -b html -d /out/doctrees \
+		/src/Documentation /out/html
+	$(Q)$(RUN_BUILD) sphinx-build $(SPHINXOPTS) -b text -d /out/doctrees \
+		/src/Documentation /out/html/_text
+else
+html: lastchange
+	$(Q)printf '  HTML    %s\n' '$(DOCS_OUT)/html'
+	$(Q)DOCS_LASTCHANGE="$(OUT)/lastchange.txt" $(SPHINXBUILD) $(SPHINXOPTS) \
+		-b html -d "$(OUT)/doctrees" $(DOCS) "$(OUT)/html"
+	$(Q)$(SPHINXBUILD) $(SPHINXOPTS) -b text -d "$(OUT)/doctrees" $(DOCS) \
+		"$(OUT)/html/_text"
+endif
+
+html-docs: html
+
+serve: html
+	@printf 'shirudo: serving http://%s:%s/ (Ctrl-C stops it)\n' \
+		'$(DOCS_BIND)' '$(DOCS_PORT)'
+	$(Q)$(RUN_SERVE) python3 -m http.server --directory /srv --bind 0.0.0.0 8000
+
+check: html
+	$(Q)$(ROOT)/.github/scripts/check-docs.sh
+
+linkcheck: image
+	$(Q)$(CONTAINER) run --rm --read-only --tmpfs /tmp --user "$$(id -u):$$(id -g)" \
+		-v "$(ROOT):/src:ro" -v "$(OUT):/out" $(IMAGE) \
+		sphinx-build -q -b linkcheck -d /out/doctrees /src/Documentation \
+		/out/linkcheck
 
 clean:
-	$(Q)rm -rf "$(DOCS_HTML_DIR)"
+	$(Q)rm -rf "$(OUT)"

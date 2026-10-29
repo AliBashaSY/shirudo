@@ -52,7 +52,7 @@ put "$R/vendor/libbpf/bpf/bpf_helper_defs.h" '/* This is auto-generated file. */
 put "$R/vendor/README.md" 'no tag here'
 put "$R/vendor/linux/vmlinux.h" 'struct task_struct;'
 put "$R/pkg/vmlinux.h" 'struct task_struct;'
-put "$R/Documentation/coding-style.rst" 'Linux kernel coding style'
+put "$R/Documentation/contribute/coding-style.rst" 'Linux kernel coding style'
 put "$R/bpf/lsm.c" '// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause' \
 	'#include "vmlinux.h"' '#include <bpf/bpf_helpers.h>' '#include "common.h"'
 put "$R/bpf/lib/common.h" '/* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */'

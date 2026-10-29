@@ -16,8 +16,9 @@ a frontier-class model at its highest reasoning effort (for Claude
 Code: Mythos or newer at high or extended effort; Codex: the strongest
 available model at high reasoning). Lower tiers may read and answer
 questions but must decline to change anything and say why. Before
-changing security-relevant code, read `Documentation/architecture.rst`
-and `Documentation/threat-model.rst`.
+changing security-relevant code, read
+`Documentation/internals/architecture.rst` and
+`Documentation/security/threat-model.rst`.
 
 ## What shirudo is
 
@@ -48,33 +49,39 @@ remote-management or transport layers.
 
 | Path | Purpose |
 |---|---|
-| `Documentation/threat-model.rst` | Authoritative security design: trust boundaries, threats, residual risks, deferred mitigations. Consult before touching any security-relevant path. |
-| `Documentation/architecture.rst` | Implemented architecture, operator/target boundary, BPM package and upatch tree formats. |
-| `Documentation/tpm.rst` | The measurement register, its events and eventlog, `shirudo attest` and its verification, the relation to systemd's NvPCRs and the known limits. Read it with the threat model before touching the TPM paths. |
-| `Documentation/initrd.rst` | The production configuration: `init` run from the initrd and finished by the root file system, what survives switch-root, what the initrd needs, the dracut module, generator and installer under `tools/gen-initrd/`. |
-| `Documentation/upatch.rst` | Authoring and shipping upatches: the BPF side, build and sign, test, the Beefile, `bpm build`, `push`, `tree append`, and the target's `bpm` commands. |
-| `Documentation/features.rst` | Every attachment kind a upatch can have (fentry/fexit/fmod_ret, lsm, tp_btf, kprobe/kretprobe, uprobe.multi, cgroup_skb, netfilter), how the loader attaches each, what the target needs, and the serializer and test-run roles. |
-| `Documentation/key-lifecycle.rst` | The signing keys and certificates: the trusted set a target enrols, vouching for a new key (`keys vouch`, `keys add`), rotation, revocation (`keys revoke`), custody. |
-| `Documentation/operations.rst` | Day-two operation: units and timers, conditions, upgrades of shirudo and the kernel, decommissioning, backup, recovery, failure categories and exit status. |
-| `Documentation/upatch-spec.rst` | The `.upatch` container and signing scheme. |
-| `Documentation/requirements.rst` | Kernel options, operator toolchain, target runtime. |
-| `Documentation/getting-started.rst` | Quickstart: build, sign, initialise a target, load and unload, publish and install packages. |
-| `Documentation/telemetry.rst` | OTLP export of map snapshots and status keepalives, the signed Lua decoders, and collector integration (OpenTelemetry Collector, ClickHouse, Splunk, custom). |
-| `Documentation/developer-guide.rst` | Working from a checkout, the operator-only tools, the test tiers (unit, functional, end-to-end), the test numbers, running the tests and the test VM. Read it before adding or moving a test. |
-| `Documentation/coding-style.rst` | The kernel's coding style, applied to all C here. |
-| `Documentation/contributing.rst` | Commit message form, the mandatory `Signed-off-by:` and the kernel's attribution tags. Read it before crafting a commit. |
+| `Documentation/security/threat-model.rst` | Authoritative security design: assumptions, assets, trust boundaries, adversaries, threats with the hooks, counters and tests behind each, residual risks, threats to resolve, deferred mitigations. Consult before touching any security-relevant path. |
+| `Documentation/internals/` | How shirudo works and why: architecture, signed loader path, enforcement in the kernel (every LSM hook), seal labels and task marks, boot from initrd to root, measurement register and attestation, config images, kernel interfaces, carried kernel patches, design decisions. Read the page for a mechanism before changing it. |
+| `Documentation/concepts/` | The concepts and the background mechanisms shirudo builds on (BPF, CO-RE, BPF signing, the BPF LSM, keyrings, xattrs, dm-verity, initrd, boot, TPM, post-quantum cryptography, OCI, OpenTelemetry, LuaJIT) and the glossary. |
+| `Documentation/start/` | Quickstart, installation and short guides. |
+| `Documentation/operate/` | Operator how-tos: system requirements, deployment, boot integration, keys, attestation, reading status, telemetry, upgrades, recovery, troubleshooting, incident response, hardening. |
+| `Documentation/upatches/` | Authoring and shipping upatches: attach kinds, maps and serializers, decoders, the Beefile, publishing, debugging a failed load. |
+| `Documentation/reference/` | Every command (`reference/cli/`), the formats and settings (`reference/formats/`, including the `.upatch` container), failure categories and exit status, files, units, environment variables, the cheat sheet. |
+| `Documentation/contribute/` | Developer guide, test tiers and the test VM (read `testing.rst` before adding or moving a test), test coverage, the kernel coding style, commits and sign-off (read `contributing.rst` before crafting a commit), and the documentation style guide `writing-docs.rst`. |
 
 The kernel side of the signing design is the kernel's own
 `Documentation/bpf/signing.rst`; `bpf_prog_verify_signature()` runs
-before the LSM hooks and `attr.keyring_id` is a key serial, not a name.
+inside the verifier, after the `bpf` LSM hook and before the
+`bpf_prog_load` one, and `attr.keyring_id` is a key serial, not a name.
 
-New documentation extends `Documentation/`, an existing document or a new
-one listed above and in `Documentation/index.rst`. Only what concerns the
-project as a whole goes in the top-level directory (`README.md`,
-`CONTRIBUTING.md`, `SECURITY.md` and their kind). No README, plan or notes
-file goes beside the code; the exceptions are `vendor/libbpf/README.md`,
-which belongs to the vendored copy, and a package's `README.md` under
-`upatches/`, which `bpm build` ships in the package for `bpm info`.
+The documentation is kept in sync with the code. A change to behavior
+updates the pages that describe it in the same commit: a command, an
+option, a message, an exit status, a failure category, a tamper
+counter, an LSM hook, a file, a unit, a format, a threat or a test
+that is added, changed or removed is added, changed or removed in
+`Documentation/` too, and a residual risk or threat to resolve that a
+change closes leaves the threat model. A page that no longer matches
+the code is a bug, whichever of the two is wrong.
+`.github/scripts/check-docs.sh` catches the names it can; the prose is
+the author's to check.
+
+New documentation extends an existing page or adds one to its section's
+toctree, and follows `Documentation/contribute/writing-docs.rst`. Only
+what concerns the project as a whole goes in the top-level directory
+(`README.md`, `CONTRIBUTING.md`, `SECURITY.md` and their kind). No
+README, plan or notes file goes beside the code; the exceptions are
+`vendor/libbpf/README.md`, which belongs to the vendored copy, and a
+package's `README.md` under `upatches/`, which `bpm build` ships in the
+package for `bpm info`.
 
 ## Coding conventions
 
@@ -121,10 +128,11 @@ which belongs to the vendored copy, and a package's `README.md` under
   descending line length; a declaration whose initializer references an
   earlier local must stay after it (correctness wins over the sort).
   Apply this whenever you add or touch a declaration block.
-- **Linux kernel coding style** (`Documentation/coding-style.rst` —
-  the kernel's own coding-style.rst, copied into this tree). Tabs
-  (8-wide), 80-col soft limit and 100-col hard limit (checkpatch),
-  K&R braces, no spaces inside parens.
+- **Linux kernel coding style**
+  (`Documentation/contribute/coding-style.rst` — the kernel's own
+  coding-style.rst, copied into this tree). Tabs (8-wide), 80-col soft
+  limit and 100-col hard limit (checkpatch), K&R braces, no spaces
+  inside parens.
   Apply to userspace too — eases review. **Comments are rare and
   follow §8** (see below): at the function head, not inside the
   body; file headers are SPDX + Copyright + at most one line of
@@ -147,7 +155,7 @@ which belongs to the vendored copy, and a package's `README.md` under
   This applies to every block comment — function-head doc comments,
   TODO blocks, struct-internal explanations, multi-line trailing
   comments inside a function body. The rule mirrors the kernel
-  example in `Documentation/coding-style.rst` §8.
+  example in `Documentation/contribute/coding-style.rst` §8.
 - **`//` is for SPDX only.** Per the kernel convention, .c files
   use `// SPDX-License-Identifier: …` and nothing else `//`-style;
   .h files use `/* SPDX-License-Identifier: … */` and nothing else
@@ -169,16 +177,16 @@ which belongs to the vendored copy, and a package's `README.md` under
 
 ## Commits
 
-`Documentation/contributing.rst` is the kernel's process applied here
-and is the reference for every commit an agent prepares: a subject of
-the form `area: imperative summary`, a body that explains why before
-what, and the `Co-developed-by`, `Fixes`, `Reported-by`, `Suggested-by`,
-`Tested-by`, `Reviewed-by`, `Acked-by` and `Cc` tags used as the kernel
-uses them. Every commit needs a `Signed-off-by:` from a real identity,
-and only a person can give one: an agent never adds a sign-off, on its
-own or anyone else's behalf, and leaves that line to the human who
-reviews and submits the work. One logical change per commit, each one
-building and passing on its own.
+`Documentation/contribute/contributing.rst` is the kernel's process
+applied here and is the reference for every commit an agent prepares: a
+subject of the form `area: imperative summary`, a body that explains why
+before what, and the `Co-developed-by`, `Fixes`, `Reported-by`,
+`Suggested-by`, `Tested-by`, `Reviewed-by`, `Acked-by` and `Cc` tags
+used as the kernel uses them. Every commit needs a `Signed-off-by:` from
+a real identity, and only a person can give one: an agent never adds a
+sign-off, on its own or anyone else's behalf, and leaves that line to
+the human who reviews and submits the work. One logical change per
+commit, each one building and passing on its own.
 
 ## Invariants that are easy to break
 
@@ -281,14 +289,15 @@ one usually still compiles and passes tests.
 - **Kernel + shirudo is the target TCB.** Ask of every change whether it
   grows the TCB; the agentless design exists to keep it minimal.
 - **Bleeding-edge kernel and toolchain only.** The signed-loader ABI
-  described in `Documentation/requirements.rst` and current clang/LLVM are
-  hard prerequisites. Development trees can expose that ABI before the
-  corresponding release number changes; use a verified commit, not just
-  `uname`, to identify the tested kernel. No legacy-kernel fallback paths;
-  a missing kernel feature fails the build or the load. x86-64, arm64 and
-  riscv64 are the supported architectures.
+  described in `Documentation/operate/system-requirements.rst` and
+  current clang/LLVM are hard prerequisites. Development trees can
+  expose that ABI before the corresponding release number changes; use a
+  verified commit, not just `uname`, to identify the tested kernel. No
+  legacy-kernel fallback paths; a missing kernel feature fails the build
+  or the load. x86-64, arm64 and riscv64 are the supported architectures.
 - **BPF is CO-RE.** Hard-coded struct offsets sign fine and fail on the
-  wrong kernel as `btf_mismatch`.
+  wrong kernel, where the verifier rejects the payload
+  (`verifier_rejected`).
 - **Upatch state lives in BPF arenas where possible.** A upatch that
   accumulates records keeps them in its one `BPF_MAP_TYPE_ARENA` map and
   ships a `shirudo_serialize__<map>` program that walks them; hash and
@@ -357,14 +366,20 @@ one usually still compiles and passes tests.
 - `util/<m>.c` is unit tested by `testing/unit/<m>.c`: a change to a util
   function adds or updates its cases there. A shell test is named
   `t<F><K><NN>`, family, operator (0) or target (1), and order, and lives in
-  its family's directory; `Documentation/developer-guide.rst` has the families.
+  its family's directory; `Documentation/contribute/testing.rst` has the
+  families.
 - `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
   `testing/fuzz/` for the parsers of input from outside the host, under
   ASan and UBSan, on their seed corpora; CI runs them too. A parser that
   takes such input gets a target there.
-- `make -C Documentation html-docs` renders `Documentation/*.rst` with docutils in strict
-  mode into `Documentation/output/`; CI runs it on every push, so run it
-  after touching any document (python3-docutils provides `rst2html`).
+- `make docs` renders the documentation with Sphinx in a container and
+  serves it on 127.0.0.1:8000. `make -C Documentation check` renders it
+  with every warning an error and runs `.github/scripts/check-docs.sh`,
+  which checks the options, failure categories, tamper counters, hooks,
+  tests and units the pages name against the tree. CI runs both on every
+  push, so run the check after touching a document or one of those names
+  in the code. It needs podman or docker; `DOCS_CONTAINER=0` uses a host
+  Sphinx installed from `Documentation/requirements.txt`.
 - `.github/scripts/check-spdx.sh` checks the SPDX tag of every tracked
   source against the licensing rules above: the form for the file type,
   the expression, the dual licence for everything a BPF object compiles
@@ -405,5 +420,5 @@ Do not propose features in these areas; the design delegates them:
   dm-verity, measured boot.
 - Kernel hardening and TPM hardware attacks: trusted components.
 
-Deferred work that is in scope is listed under deferred mitigations in
-`Documentation/threat-model.rst`.
+Deferred work that is in scope is listed under deferred mitigations and
+threats to resolve in `Documentation/security/threat-model.rst`.

@@ -1,0 +1,472 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Reference
+:audience: Operators
+
+Interoperability
+================
+
+On a target where shirudo enforces, its LSM programs refuse operations
+that other software on the host may rely on. This page lists them by
+area. Each entry names the mechanism, what the other software sees, the
+tamper counter that moves, and what to do. The refusals start when
+``init`` attaches the guards in the initrd and last until the next boot.
+:doc:`/internals/enforcement` describes every hook, and
+:doc:`/security/tamper-counters` every counter.
+
+``lsm/bpf`` runs before the kernel checks capabilities, so unprivileged
+processes move counters too. Software that probes for BPF support at
+startup, systemd among it, moves several counters on every target, which
+is why
+:doc:`/operate/read-status` asks you to learn the baseline of your hosts.
+
+Other BPF users
+---------------
+
+:Mechanism: After ``init``, a program load from userspace passes
+   ``lsm/bpf`` only as a ``BPF_PROG_TYPE_SYSCALL`` loader with a
+   signature, and ``lsm/bpf_prog_load`` only when the kernel verified
+   that signature against the ``.bpf`` keyring ``init`` froze. Map
+   creation, map writes, test runs, attaching and pinning are reserved to
+   tasks with runtime authority, which only an exec of a file on the
+   runtime image grants. ``lsm/bpf_map`` refuses every map descriptor to
+   other tasks. Every ``bpf()`` command that shirudo has not classified
+   is refused.
+:Still allowed: ``BPF_PROG_GET_FD_BY_ID``, ``BPF_BTF_GET_FD_BY_ID``,
+   ``BPF_OBJ_GET_INFO_BY_FD``, the ``*_GET_NEXT_ID`` commands,
+   ``BPF_PROG_QUERY``, ``BPF_TASK_FD_QUERY``, and lookups through a map
+   descriptor a process already holds. Classic BPF, as seccomp filters
+   and ``SO_ATTACH_FILTER`` in libpcap use it, does not go through
+   ``bpf()`` and is not affected.
+:What to do: Plan a target as a host where only signed upatches run BPF.
+   Keep BPF-based agents, network plugins and tracing tools off
+   enforcing targets, or ship what they do as upatches
+   (:doc:`/upatches/index`). Run one-off investigations with bcc or
+   bpftrace on a host that does not enforce.
+
+Each refused call fails with ``EACCES`` (``Permission denied``). The
+program load rows apply to every task, the others to tasks without
+runtime authority:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 58 42
+
+   * - Call
+     - Counter
+   * - ``BPF_PROG_LOAD`` of any type other than ``BPF_PROG_TYPE_SYSCALL``
+     - ``LoadNotLoader``
+   * - ``BPF_PROG_LOAD`` of a ``BPF_PROG_TYPE_SYSCALL`` program without a
+       signature
+     - ``LoadUnsigned``
+   * - ``BPF_PROG_LOAD`` of a loader whose signature the kernel did not
+       verify against the ``.bpf`` keyring ``init`` froze, for example
+       one signed by a key the target does not trust
+     - ``LoadUnverified``, ``LoadKeyringKind`` or ``LoadKeyring``
+   * - ``BPF_MAP_CREATE``
+     - ``MapCreate``
+   * - ``BPF_MAP_UPDATE_ELEM``, ``BPF_MAP_FREEZE``
+     - ``MapWrite``
+   * - A writable map descriptor
+     - ``MapFdWrite``
+   * - ``BPF_OBJ_GET``, ``BPF_MAP_GET_FD_BY_ID``,
+       ``BPF_LINK_GET_FD_BY_ID``, a read-only map descriptor, opening a
+       pin in shirudo's private bpffs
+     - ``ObjGet``
+   * - ``BPF_LINK_CREATE``, ``BPF_RAW_TRACEPOINT_OPEN``
+     - ``ProgAttach``
+   * - ``BPF_OBJ_PIN``
+     - ``ObjPin``
+   * - ``BPF_PROG_TEST_RUN``
+     - ``ProgRun``
+   * - The ``PERF_EVENT_IOC_SET_BPF`` ioctl
+     - ``PerfAttach``
+   * - Every other command, among them ``BPF_TOKEN_CREATE``,
+       ``BPF_BTF_LOAD``, ``BPF_LINK_DETACH``, ``BPF_LINK_UPDATE``,
+       ``BPF_PROG_ATTACH``, ``BPF_PROG_DETACH``, ``BPF_ITER_CREATE`` and
+       ``BPF_MAP_DELETE_ELEM``
+     - ``BpfCommand``
+
+What common software sees:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Software
+     - Effect
+   * - Loaders built on libbpf
+     - A recent libbpf first tries to create a BPF token from
+       ``/sys/fs/bpf`` (``BpfCommand``), then loads a trivial program to
+       see whether loading works (``LoadNotLoader``). The load fails and
+       libbpf logs ``Couldn't load trivial BPF program``.
+   * - ``bpftool``
+     - ``prog show``, ``prog dump``, ``cgroup`` and ``perf`` work,
+       because programs and queries stay readable. ``map show``,
+       ``link show`` and ``btf show`` stop at the first map or link with
+       ``Error: can't get map by id (<id>): Permission denied`` or the
+       same for a link. ``net show`` prints that error for every link
+       and goes on. Each refused id moves ``ObjGet``. The column of
+       owning processes needs an iterator program, whose refusal
+       ``bpftool`` does not print but the counters record. ``--bpffs``
+       tries every pin in every bpffs mount, and each pin of shirudo's
+       moves ``ObjGet``.
+   * - ``perf``
+     - Counting and sampling without BPF work. Options that load BPF
+       programs, such as ``perf stat --bpf-counters``, ``perf record
+       --off-cpu`` and ``perf lock contention --use-bpf``, fail. Events
+       bound to a shirudo task are refused, see `Debuggers, tracing and
+       /proc`_.
+   * - bcc, bpftrace
+     - Fail at their first map creation or program load. Nothing they
+       compile runs.
+   * - Cilium and other BPF datapaths
+     - The agent cannot create its maps or load its programs, so the
+       datapath does not come up.
+   * - Tetragon, Falco's eBPF drivers
+     - Cannot load their programs. Falco's kernel module driver is a
+       kernel module, which shirudo does not gate, see `Module loading
+       and kernel live patching`_.
+   * - XDP and tc programs from ``ip`` and ``tc``, sched_ext schedulers,
+       HID-BPF
+     - The program load is refused.
+   * - systemd
+     - Starts units without its BPF-based settings, see the next section.
+
+systemd's BPF-based settings
+----------------------------
+
+:Mechanism: systemd probes whether BPF works when a manager starts: the
+   system manager at boot and at every re-execution, including the switch
+   from the initrd to the root file system, and every user manager. The
+   probes load programs, which ``init`` has already closed off. systemd
+   then treats the features as unsupported for the lifetime of that
+   manager and starts units without them. This section describes
+   systemd 262.
+:Symptom: The units start. Their BPF-based restrictions do not hold.
+   Each refused probe moves a counter: ``LoadNotLoader`` for the program
+   loads, ``MapCreate`` for the map ``RestrictFileSystems=`` creates, and
+   ``BpfCommand`` for other commands, such as libbpf's token attempt.
+:What to do: Do not rely on these settings on a target. Enforce address
+   and interface policy with nftables, or with a signed upatch of the
+   ``cgroup_skb`` or ``netfilter`` attach kind
+   (:doc:`/upatches/attach-kinds`). No upatch attach kind covers cgroup
+   device programs.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Setting
+     - On an enforcing target
+   * - ``IPAddressAllow=``, ``IPAddressDeny=``, ``IPAccounting=``,
+       ``IPIngressFilterPath=``, ``IPEgressFilterPath=``
+     - Not applied. For the first unit that uses them, the manager logs
+       ``unit configures an IP firewall, but the local system does not
+       support BPF/cgroup firewalling.``
+   * - ``DeviceAllow=``, ``DevicePolicy=``
+     - Not applied. On cgroup v2 the device controller exists only as a
+       ``BPF_PROG_TYPE_CGROUP_DEVICE`` program.
+   * - ``BPFProgram=``
+     - Not applied.
+   * - ``SocketBindAllow=``, ``SocketBindDeny=``,
+       ``RestrictNetworkInterfaces=``, ``BindNetworkInterface=``
+     - Not applied. The manager logs the failed probe at debug level
+       only.
+   * - ``RestrictFileSystems=``
+     - Not applied. At startup the system manager logs
+       ``bpf-restrict-fs: Failed to create BPF map: Permission denied``.
+
+Seccomp filters and shirudo's own commands
+------------------------------------------
+
+:Mechanism: The seal grants runtime authority at an exec of a file on
+   the runtime image only when the task is not traced and has no seccomp
+   filter, so that neither a debugger nor a filter installed beforehand
+   controls the new process. ``lsm.s/bprm_check_security`` refuses such
+   an exec. A seccomp filter passes to every child and survives exec.
+:Symptom: Running the runtime ``shirudo`` fails with ``EACCES``
+   (``Permission denied``). No counter moves.
+:Affected: systemd unit settings that install a seccomp filter, among
+   them ``SystemCallFilter=``, ``SystemCallArchitectures=``,
+   ``SystemCallLog=``, ``RestrictAddressFamilies=``,
+   ``RestrictNamespaces=``, ``RestrictRealtime=``,
+   ``RestrictSUIDSGID=``, ``LockPersonality=``,
+   ``MemoryDenyWriteExecute=``, ``PrivateDevices=``, ``ProtectClock=``,
+   ``ProtectHostname=yes``, ``ProtectKernelTunables=``,
+   ``ProtectKernelModules=`` and ``ProtectKernelLogs=``, on a unit that
+   runs shirudo or on any unit whose processes start it. A container with
+   a seccomp profile. systemd's ``RestrictFileSystemAccess=``: with it
+   enabled, systemd 262 installs a seccomp filter in PID 1, which every
+   later process on the host inherits, so no runtime command can run at
+   all. This last case is a reading of the systemd 262 source and is not
+   tested.
+:What to do: Add none of these settings to shirudo's units or to their
+   drop-ins (:doc:`/reference/systemd-units`). Do not enable
+   ``RestrictFileSystemAccess=`` on a target. Run shirudo commands from a
+   root shell or a unit without a seccomp filter.
+
+BPF loaded before init
+----------------------
+
+:Mechanism: Before ``init`` attaches ``lsm/bpf`` in the initrd, any
+   process can load and attach BPF, and what it attaches stays (R7 in
+   :doc:`/security/threat-model`). It stays as long as something holds
+   it: a pin, an open descriptor, or an attachment that needs neither,
+   such as ``BPF_PROG_ATTACH`` to a cgroup. In-kernel loaders, such as
+   the ``bpf_preload`` module, pass the gates at any time (R18).
+:Symptom: After ``init``, the owner of such a program can no longer
+   detach it with ``bpf()`` (``BpfCommand``), write or delete map
+   elements (``MapWrite``, ``BpfCommand``), or reopen its maps and links
+   by pin or by id (``ObjGet``). It can still look up elements through a
+   map descriptor it holds, close descriptors, and remove its pins from
+   any bpffs other than shirudo's, which releases the object when nothing
+   else holds it. systemd's manager re-executes at the switch to the root
+   file system and sets up its BPF features again after ``init``, so the
+   previous section applies to them.
+:What to do: Keep the initrd free of BPF loaders you do not trust. The
+   initrd is part of the trusted computing base, and its PCR 9 and
+   PCR 11 measurements are what a verifier pins (:doc:`/operate/attest`).
+
+systemd-keyring-setup
+---------------------
+
+:Mechanism: systemd 263 adds ``systemd-keyring-setup``. It runs in the
+   initrd before ``shirudo-initrd.service`` and again on the root file
+   system, enrolls certificates of its own, and seals ``.bpf``,
+   ``.dm-verity`` and ``.fs-verity`` with a chain restriction, also when
+   it has no certificate to enroll. ``init`` enrolls the config
+   certificate and the BPF signers itself and seals both keyrings against
+   every further key. It refuses a keyring that another task sealed or
+   filled first, and shirudo does not adopt the keyrings that tool set
+   up.
+:Symptom: ``init`` fails in the initrd. It stops at the ``.dm-verity``
+   keyring with one of
+   ``initrd boot keys: add config verification certificate: <error>``,
+   ``initrd boot keys: check dm-verity keyring holds only the config
+   certificate: Key was rejected by service`` or, when the tool enrolled
+   nothing, ``initrd boot keys: dm-verity keyring sealed empty at boot;
+   boot with dm_verity.keyring_unsealed=1: Required key not available``,
+   which names the boot parameter even when it is set. ``init: BPF
+   keyring initialization failed`` follows. The boot then continues
+   without enforcement (U11). If ``init`` ran first, the tool's run on
+   the root file system is refused by ``lsm/key_permission`` and moves
+   ``KeyringWrite``.
+:What to do: Keep ``systemd-keyring-setup`` off targets: do not install
+   it in the initrd or on the root file system, or mask its unit in both.
+
+kexec and kdump
+---------------
+
+:Mechanism: ``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` refuse
+   every kexec image and kexec initramfs to every task, shirudo included,
+   through ``kexec_load(2)`` and ``kexec_file_load(2)`` alike. A crash
+   kernel goes through the same checks. A kexec would boot a kernel of
+   the caller's choosing while the TPM keeps this boot's register and
+   PCRs.
+:Symptom: The load fails with ``EPERM`` (``Operation not permitted``)
+   and moves ``Kexec``. The kdump service cannot load its crash kernel,
+   and ``systemctl kexec`` fails.
+:What to do: Plan targets without kdump. Use crash capture that needs no
+   second kernel, such as pstore, which shirudo does not hook. Reboot
+   through the firmware instead of kexec.
+
+Module loading and kernel live patching
+---------------------------------------
+
+:Mechanism: shirudo does not gate module loading.
+   ``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` let every load
+   other than a kexec image or initramfs through. Whether a module loads
+   is the kernel's decision: module signature enforcement and lockdown
+   (A4 in :doc:`/security/threat-model`). A livepatch module, as kpatch
+   or the kernel's ``klp-build`` produce, is a kernel module like any
+   other.
+:Symptom: None from shirudo.
+:What to do: Enforce module signatures, as :doc:`/operate/hardening`
+   lists, and sign livepatch modules with a key the kernel trusts. A
+   module runs as kernel code outside every shirudo check. Unloading a
+   module that a kprobe upatch targets leaves the upatch loaded and
+   measured but without effect, a reading of the kernel source (R21).
+   shirudo's tests do not cover a livepatch and an upatch on the same
+   function.
+
+Other LSMs
+----------
+
+:Mechanism: The kernel calls the active LSMs in the order of ``lsm=``,
+   or ``CONFIG_LSM`` without it, and stops at the first refusal
+   (:doc:`/concepts/background/bpf-lsm`). shirudo's programs pass an
+   earlier refusal on unchanged. The pre-flight check ``bpf_lsm_active``
+   checks that ``bpf`` is in the list, not where.
+:Order: Either order refuses what any active LSM refuses. The order
+   decides who sees the attempt. With ``bpf`` after SELinux, AppArmor,
+   Smack or Landlock, an operation one of them refuses never reaches
+   shirudo's programs and moves no counter. With ``bpf`` before them,
+   shirudo's refusal ends the walk and the other LSM does not see or log
+   the attempt.
+:Seal labels: The seal reads a file's label through a kfunc that checks
+   the caller's read permission, and every LSM that implements the
+   ``inode_permission`` hook takes part. In the kernel tree, SELinux and
+   Smack implement it; AppArmor, Landlock and Yama do not. A policy that
+   grants write or unlink but refuses read makes a sealed file look
+   unlabeled, and the operation goes through without a counter (U12 in
+   :doc:`/security/threat-model`).
+:Policies: shirudo ships no SELinux, AppArmor or Smack policy. A policy
+   that confines shirudo's processes must allow what they use, among it
+   ``bpf()``, mounts under ``/run/shirudo``, loop and device-mapper
+   devices, the ``.bpf`` and ``.dm-verity`` keyrings, the TPM device and
+   the ``security.bpf.shirudo`` extended attributes.
+:What to do: Run no other LSM whose policy root can change at runtime.
+   Choose the order by which LSM you want to account for refusals.
+
+Hibernation and suspend
+-----------------------
+
+:Mechanism: shirudo does not refuse hibernation. Lockdown in integrity
+   mode disables it (A9 in :doc:`/security/threat-model`), and the
+   behavior of the register across hibernation is not analyzed. Before a
+   suspend, the kernel's TPM driver sends ``TPM2_Shutdown(STATE)`` to a
+   TPM 2.0 unless the TPM stays powered, and the TPM counts that in its
+   restart count (:doc:`/concepts/background/tpm`). The config activation
+   record holds the TPM's reset and restart counts, and shirudo compares
+   them with the TPM's before a command runs.
+:Symptom: After a resume, shirudo commands refuse with ``shirudo: image
+   state: Stale file handle`` and exit 1, and ``shirudo status`` reports
+   ``tampered``.
+   :doc:`/operate/backup-recovery` describes the state. For suspend to
+   RAM this is a reading of the code and of the TPM's counters and is not
+   tested.
+:What to do: Turn hibernation off as :doc:`/operate/hardening` lists, and
+   keep targets from sleeping, for example with ``AllowSuspend=no`` and
+   ``AllowHibernation=no`` in ``/etc/systemd/sleep.conf``. After an
+   unplanned resume, follow :doc:`/operate/backup-recovery`.
+
+Containers and Kubernetes
+-------------------------
+
+:BPF: The gates apply in every namespace. ``BPF_TOKEN_CREATE`` is refused
+   (``BpfCommand``), so a bpffs mounted with ``delegate_cmds=`` and its
+   kin gives a container nothing. A container may mount a bpffs of its
+   own, but nothing can be pinned there (``ObjPin``).
+:Device rules: On cgroup v2, container runtimes and systemd enforce
+   device access with ``BPF_PROG_TYPE_CGROUP_DEVICE`` programs, and their
+   loads are refused (``LoadNotLoader``). How a runtime reacts is up to
+   the runtime: test yours on an enforcing target.
+:Networking: A network plugin built on BPF cannot run. Use one that does
+   not need BPF.
+:Mounts: The ``/run/shirudo`` tmpfs, the private bpffs and the runtime
+   and config image mounts, and their copies in every other mount
+   namespace, cannot be unmounted or remounted one by one, and no task
+   without runtime authority mounts over them. The calls fail with
+   ``EPERM``, which ``umount(8)`` reports as ``must be superuser to
+   unmount``. They move ``BpffsUmount`` or ``BpffsMount`` for the bpffs
+   and no counter for the others. An unmount of a mount above them in
+   another namespace is refused only when it propagates into the bpffs
+   mount of ``init``'s namespace or a mount above it
+   (``BpffsUmountAbove``). Tearing a namespace down is not affected. R3
+   in :doc:`/security/threat-model` lists the mount operations the guards
+   do not see.
+:Pins: Directories of the private bpffs stay listable. Opening a pin is
+   refused (``ObjGet``).
+:What to do: Run shirudo commands on the host, not in a container.
+   Inside a container with a seccomp profile they cannot run at all, see
+   `Seccomp filters and shirudo's own commands`_.
+
+Debuggers, tracing and /proc
+----------------------------
+
+:Mechanism: The seal marks a task at its exec of a runtime file, and a
+   fork inherits the mark. ``lsm/ptrace_access_check`` refuses every
+   ptrace access check against a marked task, both attach and read
+   modes, and ``lsm/perf_event_alloc`` refuses a perf event bound to one.
+   An exec of a runtime file by a traced task is refused. The ptrace
+   check runs after the kernel's own user and capability checks, so only
+   root, or a caller running as the same user, reaches it.
+:Symptom: See the table below.
+:What to do: Debug shirudo where it does not enforce, such as the test
+   VM (:doc:`/contribute/testing`). Expect ``SealPtrace`` in the
+   baseline of a host that runs process monitors as root.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 30 24
+
+   * - Action
+     - Result
+     - Counter
+   * - ``gdb --pid``, ``strace --attach`` on a running shirudo command
+     - ``EACCES``
+     - ``SealPtrace``
+   * - Starting shirudo under ``strace`` or ``gdb``
+     - The exec fails with ``EACCES``
+     - ``ExecTraced``
+   * - Reading ``/proc/<pid>/exe``, ``environ``, ``maps``, ``mem`` or
+       the ``fd`` links of a shirudo command
+     - ``EACCES``
+     - ``SealPtrace``
+   * - Reading ``/proc/<pid>/stat`` of a shirudo command, as ``ps`` and
+       ``top`` do
+     - Succeeds, with the fields that need the check zeroed
+     - ``SealPtrace``
+   * - journald receiving a log line from a shirudo command
+     - journald cannot read ``/proc/<pid>/exe``, so the entry has no
+       ``_EXE=`` field
+     - ``SealPtrace``
+   * - ``perf record --pid``, ``perf stat --pid`` on a shirudo command
+     - ``EACCES``
+     - ``SealPerf``
+   * - System-wide ``perf``, tracefs and kprobe events
+     - Not refused
+     - none
+
+A task-bound perf event that a process opened before the exec that marks
+the task is not refused (D9 in :doc:`/security/threat-model`).
+
+TPM tools
+---------
+
+:Mechanism: ``lsm/tpm_command`` sees every command written to
+   ``/dev/tpm0`` and ``/dev/tpmrm0``. It refuses ``TPM2_NV_Extend`` of
+   shirudo's register, NV index ``0x01818E00``, to every task without
+   runtime authority. shirudo itself reaches the TPM through
+   ``device:/dev/tpmrm0`` by default, the kernel's resource manager, and
+   on a target refuses a TCTI that is not a ``device:`` one, which rules
+   out a userspace resource manager such as ``tpm2-abrmd``.
+:Symptom: ``tpm2_nvextend`` of that index fails: the write to the device
+   returns ``EACCES`` and ``TpmExtend`` moves. Every other command works:
+   reading PCRs and NV indices, quotes, keys, other NV indices.
+:Not refused: Extending PCRs, which a verifier then sees in PCR 9 or the
+   config PCR (R4, R11), and undefining the register with the owner
+   password, after which measuring commands refuse until the next TPM
+   reset (R20).
+:What to do: Keep other software from measuring into PCR 9, PCR 11 and
+   the config PCR, and keep the owner password from tools that do not
+   need it.
+
+Keyrings and keyctl
+-------------------
+
+:Mechanism: ``lsm/key_permission`` guards the ``.bpf`` and
+   ``.dm-verity`` keyrings and the keys in them. It refuses write,
+   set-attribute and unlink to every task without runtime authority, and
+   a search through a reference the caller does not possess, which is
+   how ``keyctl`` reaches a key by its serial. The kernel's own search
+   during signature verification stays open.
+:Symptom: ``keyctl add``, ``link``, ``unlink``, ``clear``, ``revoke``,
+   ``invalidate``, ``setperm``, ``chown`` and ``restrict_keyring`` on
+   these keyrings or their keys fail with ``EACCES`` and move
+   ``KeyringWrite``. shirudo does not refuse reading them, as ``keyctl
+   show``, ``list``, ``describe`` and ``read`` do.
+:What to do: Keep tools that manage these keyrings off targets. They
+   conflict with ``init`` as `systemd-keyring-setup`_ does.
+
+Related
+-------
+
+- :doc:`/security/threat-model`
+- :doc:`/security/tamper-counters`
+- :doc:`/operate/hardening`
+- :doc:`/operate/read-status`
+- :doc:`/operate/troubleshooting`

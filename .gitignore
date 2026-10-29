@@ -86,6 +86,6 @@ util/version_id.c
 /vendor/libbpf/libbpf.a
 /tools/gen-vmlinux-h/gen-vmlinux-h
 
-# rendered documentation from make html-docs
-/Documentation/output/
+# rendered documentation from make docs and make -C Documentation html
+/Documentation/output*/
 __pycache__/

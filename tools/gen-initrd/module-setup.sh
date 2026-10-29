@@ -4,7 +4,7 @@
 #
 # dracut module "shirudo": put shirudo into the initrd so that
 # shirudo-initrd.service brings enforcement up before the switch to the
-# root file system (Documentation/initrd.rst).
+# root file system (Documentation/internals/boot-flow.rst).
 #
 # Everything is taken from the installed system; a dracut.conf(5) file
 # can point elsewhere, which is how the test VM builds an initrd from a

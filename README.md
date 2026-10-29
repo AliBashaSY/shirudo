@@ -30,22 +30,23 @@ into the fleet.
 
 ## Getting Started
 
-* [Getting started](Documentation/getting-started.rst): build, sign,
-  initialise a target, load and unload, publish and install packages
-* [Architecture](Documentation/architecture.rst): why shirudo exists,
-  its design properties and how all fits together
-* [Requirements](Documentation/requirements.rst): kernel requirements,
-  operator toolchain, target runtime
-* [Threat model](Documentation/threat-model.rst): trust boundaries,
-  the threats addressed and residual risks
-* [Telemetry](Documentation/telemetry.rst): the OTLP export and how
-  to integrate with collectors
-* [Features](Documentation/features.rst): every supported attachment
-  type a upatch can have
-* [Operations](Documentation/operations.rst): watching a target,
-  upgrades, decommissioning, backup, recovery and more
+* [Quickstart](Documentation/start/quickstart.rst): build shirudo, boot
+  a protected test target and take one upatch through load, attestation
+  and unload
+* [System requirements](Documentation/operate/system-requirements.rst):
+  the kernel, the operator host and the target runtime
+* [Architecture overview](Documentation/internals/architecture.rst): how
+  the pieces fit together
+* [Threat model](Documentation/security/threat-model.rst): what shirudo
+  protects, against whom, and where each mechanism stops
+* [Operate](Documentation/operate/index.rst): deploying, monitoring,
+  upgrading and troubleshooting targets
+* [upatches](Documentation/upatches/index.rst): writing, testing and
+  publishing upatches
 
-The full index is in [Documentation/index.rst](Documentation/index.rst).
+`make docs` renders the documentation and serves it on
+http://127.0.0.1:8000; the sources start at
+[Documentation/index.rst](Documentation/index.rst).
 
 ## Releases
 
@@ -61,7 +62,7 @@ start, each release tag publishes its packages on
 and the actively maintained releases are listed here.
 
 For upgrades of shirudo and the kernel on a target, consult
-[Operations](Documentation/operations.rst).
+[Upgrade shirudo and the kernel](Documentation/operate/upgrade.rst).
 
 ### Architectures
 

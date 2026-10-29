@@ -2,143 +2,110 @@
    SPDX-License-Identifier: BSD-2-Clause
    Copyright (c) 2026 Authors of shirudo
 
-shirudo manual
-==============
+shirudo documentation
+=====================
 
-shirudo ("shields", Japanese) is a BPF security platform.  It ships
-BPF live patches, called upatches, to Linux targets without a reboot,
-and it makes sure a target runs only the BPF its operator signed.  Once
-``shirudo init`` has run, the kernel accepts BPF from userspace only
-inside a signed loader program whose signature verifies against the
-certificate in a sealed kernel keyring; root without the signing key
-cannot load, replace or detach BPF, and every state change is measured
-into a per-boot TPM register the TPM certifies on request.  The
-userspace side is one agentless
-``shirudo`` binary: no daemon, no listening socket, one-shot commands
-driven by systemd timers that pull signed packages from OCI registries
-and push state to an OTLP collector.
+shirudo is a BPF-based security platform: Linux targets run only the BPF
+their operator signed, every change is measured into the TPM, and the
+functionality ships as signed upatches that targets pull from OCI
+registries.
 
-The kernel's CVE stream runs at dozens of fixes a day and exploitation
-now regularly precedes the patch, while a fleet reboot cycle takes
-weeks.  shirudo exists for the window in between: an agent or an
-engineer derives a BPF shield from the fix, the operator signs it, and
-the fleet pulls it within the hour, measured and revocable.
+Use cases
+---------
 
-This index points at the documents in the tree.  The code is
-authoritative for behaviour; the documents describe it and say why it
-is the way it is.
+shirudo is the platform. It does not need to understand what an upatch
+does; it makes sure that only signed upatches run and that every change is
+on record.
 
-1) Which document
------------------
+.. container:: grid
 
-Checking whether a host can run shirudo
-    `requirements <requirements.rst>`__ lists the kernel options, the
-    operator toolchain and the target runtime, with the reason for
-    each.
+   .. container::
 
-Deploying shirudo
-    `getting-started <getting-started.rst>`__ walks through building,
-    creating a signing key, initialising a target, loading an upatch
-    and publishing packages to a registry.
+      Live patching for kernel and userspace
 
-Using executable and config images
-    `config-images <config-images.rst>`__ describes the required dm-verity
-    layout: separate runtime and config images, operator generation,
-    bootstrap trust, live config and key updates, static-PCR measurements,
-    interrupted activation, manual reboot, enforcement and current limitations.
+      Security mitigations that block vulnerable code paths. They
+      complement traditional kernel live patching with a faster rollout
+      and bridge the deployment cycles of the kernel and of userspace
+      applications.
 
-Writing and shipping upatches
-    `upatch <upatch.rst>`__ is the author's and operator's guide: the
-    BPF side of a upatch, building and signing, testing on a target,
-    the Beefile and ``bpm build``, publishing to a registry and to the
-    signed upatch tree, and what a target does with both.
+   .. container::
 
-    `features <features.rst>`__ lists every attachment kind a upatch
-    can have, what the kernel does at that point, how the loader
-    attaches there and what the target needs for it.
+      System hardening
 
-Keys
-    `key-lifecycle <key-lifecycle.rst>`__ covers the signing keys and
-    their certificates from creation to retirement: the trusted set a
-    target enrols, vouching for a new key, rotation, revocation and
-    custody.
+      Sandboxes for containers, Kubernetes pods and LLM agents, and
+      kernel hardening implemented as upatches.
 
-Running targets
-    `operations <operations.rst>`__ is the day-two guide: the units
-    and timers, what to watch, upgrading shirudo and the kernel,
-    decommissioning, backup, recovery, and every failure category.
+   .. container::
 
-Understanding what shirudo does
-    `architecture <architecture.rst>`__ describes why shirudo exists,
-    its design properties, the signed-loader path, the kernel
-    enforcement programs, the target state, and the delivery and
-    observability paths.
+      Runtime security and observability
 
-Reviewing the security design
-    `threat-model <threat-model.rst>`__ states the trust boundaries,
-    the adversaries, the threats shirudo addresses with the mechanism
-    behind each, and the residual risks.
+      For the kernel and userspace applications, LLM agents included.
+      Data is collected and aggregated in BPF maps and pushed over
+      OpenTelemetry into collectors.
 
-Measuring and attesting a target
-    `initrd <initrd.rst>`__ describes the production configuration:
-    the run of ``init`` inside the initrd, what the root file system's
-    run finishes, what an initrd must contain and how the generator
-    and the installer build one.
+   .. container::
 
-    `tpm <tpm.rst>`__ describes the per-boot measurement register,
-    the events and the eventlog, the TPM-signed evidence and its
-    verification, how they relate to systemd's NvPCRs and what they
-    do not yet do.
+      Minimal overhead
 
-Shipping state to a collector
-    `telemetry <telemetry.rst>`__ explains the OTLP export of map
-    snapshots and status keepalives and how to feed them into the
-    OpenTelemetry Collector, ClickHouse, Splunk or a collector of your
-    own.
+      Agentless, with no daemon and no open port, and built in as part of
+      the trusted computing base. Designed for embedded devices as well as
+      servers.
 
-Reading or writing a ``.upatch``
-    `upatch-spec <upatch-spec.rst>`__ is the byte-level reference for
-    the signed artifact.
+Properties
+----------
 
-Developing shirudo
-    `developer-guide <developer-guide.rst>`__ covers working from a
-    checkout, the operator-only tools, writing and running the tests in
-    their tiers, the test VM, and the coverage and parser gaps still open.
+shirudo is built on a set of properties for a BPF security platform:
 
-Contributing
-    `contributing <contributing.rst>`__ covers commit messages, the
-    mandatory ``Signed-off-by:`` and the kernel's tags.
-    `coding-style <coding-style.rst>`__ is the kernel's coding style,
-    copied verbatim from ``Documentation/process/coding-style.rst``
-    and applied to userspace C and BPF alike.
+- Always on: the platform is part of the trusted computing base and starts
+  from the initrd in early boot.
+- Signed and sealed: BPF is admitted only through loaders signed against
+  the sealed BPF keyring, and the platform guards its own assets against
+  a root user who does not hold the signing key.
+- In-kernel control plane: every load and unload is a signed loader the
+  kernel verifies before it runs.
+- Measured: a TPM-backed register records the history of every operation
+  on upatches, and the TPM signs it for a remote verifier.
+- Platform, not policy: shirudo protects only its own assets. Everything
+  else ships as upatches: signed BPF light skeletons, a loader and its
+  assets.
+- Code, not DSLs: upatches are plain BPF C in small pieces that engineers
+  and agents can read, generate and maintain, and commands take and
+  produce structured data.
+- Pull in, push out: targets pull upatches from OCI registries and push
+  telemetry to collectors; nothing on a target listens for connections.
 
-2) Companion files in the repository root
------------------------------------------
+The :doc:`security/threat-model` states where each of these mechanisms
+stops.
 
-``AGENTS.md``
-    Guidance for coding agents contributing to shirudo; ``CLAUDE.md``
-    imports it for Claude Code.
+Documentation
+-------------
 
-``README.md``
-    A short overview of what shirudo is and where to look.
+- :doc:`start/index`: build shirudo, boot a protected test target and take
+  one upatch through its whole life, then install it.
+- :doc:`concepts/index`: the mechanisms shirudo builds on, from BPF signing
+  and the BPF LSM to dm-verity, TPM 2.0 and post-quantum cryptography, and
+  the vocabulary of the rest of the documentation.
+- :doc:`operate/index`: system requirements, deployment, attestation,
+  monitoring, upgrades, troubleshooting and incident response for targets
+  in production.
+- :doc:`upatches/index`: write, test, package and publish upatches.
+- :doc:`security/index`: the security model, the threat model and the
+  threats still to resolve, cryptography and tamper counters.
+- :doc:`internals/index`: how shirudo works inside the kernel and on the
+  target, and why it is built this way.
+- :doc:`reference/index`: every command, format, setting, event, failure
+  category, file and unit, and a cheat sheet.
+- :doc:`contribute/index`: work on shirudo itself, its tests and its
+  documentation.
 
-``CODE_OF_CONDUCT.md``
-    The community Code of Conduct, based on the CNCF one; conduct
-    concerns go to conduct@shirudo.ai.
+.. toctree::
+   :hidden:
 
-``LICENSE``
-    BSD-2-Clause for userspace.  BPF programs declare ``Dual BSD/GPL``
-    because the kernel's LSM hook framework requires a GPL-compatible
-    licence.  Vendored files keep their upstream SPDX identifiers.
-
-``upatches/``
-    The packages shirudo ships, each with a named ``.bee`` package definition.
-
-``vendor/libbpf/``
-    Vendored libbpf and BPF UAPI headers with shirudo's BSD shims for
-    the kernel's ``tools/include`` internals; refreshed by ``make
-    bpf-deps``, see its ``README.md``.
-
-``testing/``
-    The tests, the test VM that runs the target ones, and ``swtpm.sh``
-    for a software TPM.
+   start/index
+   concepts/index
+   operate/index
+   upatches/index
+   security/index
+   internals/index
+   reference/index
+   contribute/index
