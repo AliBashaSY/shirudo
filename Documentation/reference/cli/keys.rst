@@ -44,8 +44,9 @@ Display
 - the trusted set, when it has more than the primary certificate or
   holds revoked or unvouched entries: each member's SPKI fingerprint, the
   SHA-256 of its certificate and the certificate that vouched for it.
-- the ``.bpf`` keyring ``init`` froze: its serial, the frozen serial and
-  the keys in it.
+- the ``.bpf`` and ``.dm-verity`` keyrings ``init`` froze: each one's
+  serial, the frozen serial and every member, whatever its type, marked
+  ``(frozen)`` when ``init`` recorded it and ``(NOT frozen)`` otherwise.
 
 The keys directory is ``--keys-dir``, else ``$SHIRUDO_KEYS_DIR``, else
 ``/var/lib/shirudo/keys``. On a target with an active config image it is
@@ -189,28 +190,34 @@ Show the key material on a target:
      Subject:               /CN=shirudo
      Issuer:                /CN=shirudo  (self-signed)
      Public-key:            ML-DSA-87
-     Fingerprint:           SHA256:d95db97ff4658b96b8b538afef41a25ca9f7a2c4d0abffdb26cbac7b0ba294b9
-     SPKI fingerprint:      SHA256:d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61
-     Valid from:            2026-10-29T16:16:30Z
-     Valid until:           2036-10-26T16:16:30Z
+     Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
+     SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
+     Valid from:            2026-10-29T21:50:28Z
+     Valid until:           2036-10-26T21:50:28Z
      Expires in:            9y 364d
 
    Signing key (/run/shirudo/runtime/keys/signing_key.pem):
      Present:               no  (target host -- private key lives on the operator)
 
    Trusted set (2 members, 0 revoked, 0 unvouched):
-     2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2
-       sha256 3702e8ffe817ade6151eea338194649cc3a5be1e0b940e462a1a75e52f7095d0
-       vouched by d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61
-     d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61  (primary)
-       sha256 d95db97ff4658b96b8b538afef41a25ca9f7a2c4d0abffdb26cbac7b0ba294b9
+     7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69  (primary)
+       sha256 75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
+     4e4d8da3b0d1a69205a3767baca002c052e90af92bc9815d245f9b25dc1b7d9a
+       sha256 ba3d36544ecfe66b43ea2db498f8f8e50b09fd6f301952636d120c648f76a740
+       vouched by 7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
 
    Keyring (.bpf):
-     Serial:                420195959
-     Frozen serial:         420195959  (matches)
+     Serial:                854623986
+     Frozen serial:         854623986  (matches)
      Members (2):
-       serial=410418068   type=asymmetric  shirudo: d10a391a9f1067ed9f64e4ea9b738cf9258b478a
-       serial=746517937   type=asymmetric  shirudo: 6935ce2048ec5a5ed607db8f5ac1c005c29f32a4
+       serial=209590502   type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
+       serial=646964383   type=asymmetric  shirudo: 8e781f2c1c0e9bccbba9d1d286129128e830e81f  (frozen)
+
+   Keyring (.dm-verity):
+     Serial:                684706098
+     Frozen serial:         684706098  (matches)
+     Members (1):
+       serial=37657992    type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
 
 Vouch for a second operator's certificate:
 

@@ -4,8 +4,9 @@
 #
 # t2101 -- the enrolled certificate set: the bundle's own-keyring
 # certificate was installed as a second trusted certificate before
-# init, so the bpf keyring holds two keys and a upatch signed by either
-# loads.
+# init, so the bpf keyring holds two keys, keys lists them and the
+# dm-verity keyring's config key as init froze them, and a upatch signed
+# by either loads.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -50,6 +51,26 @@ test_expect_success 'the second certificate is a member by the primary vouch' '
 	grep -q "^  $OWN_FP\$" "$W/keys" &&
 	grep -q "vouched by" "$W/keys" &&
 	[ -s "/var/lib/shirudo/keys/trusted/$OWN_FP.vouch" ]
+'
+
+test_expect_success 'keys lists both keyrings, every member frozen' '
+	"$SHIRUDO_BIN" keys 2>/dev/null >"$W/keys" &&
+	python3 - "$W/keys" <<"PY"
+import re, subprocess, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+for label, members in ((".bpf", 2), (".dm-verity", 1)):
+    section = text.split("Keyring (%s):\n" % label, 1)[1].split("\n\n", 1)[0]
+    ring = int(re.search(r"^  Serial: +(\d+)$", section, re.M).group(1))
+    assert re.search(r"^  Frozen serial: +%d  \(matches\)$" % ring, section,
+                     re.M), section
+    assert "  Members (%d):\n" % members in section, section
+    listed = sorted(int(s) for s in re.findall(
+        r"^    serial=(\d+) .*  \(frozen\)$", section, re.M))
+    out = subprocess.run(["keyctl", "rlist", str(ring)], check=True,
+                         capture_output=True, text=True).stdout
+    assert listed == sorted(int(s) for s in out.split()), (label, listed, out)
+    assert "NOT frozen" not in section, section
+PY
 '
 
 test_expect_success 'the init record covers the set' '

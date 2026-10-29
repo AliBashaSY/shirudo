@@ -306,90 +306,93 @@ static int keys_dump_disk_material(const char *cert_path,
 	return rc ? 1 : 0;
 }
 
-struct list_row {
-	key_serial_t	serial;
-	char		*type;
-	char		*description;
+/* A keyring init froze: its serial and the keys it recorded in it. */
+struct keys_anchor {
+	const char	*label;
+	key_serial_t	(*serial)(void);
+	key_serial_t	frozen;		/* 0 when none was recorded */
+	const __s32	*keys;
+	size_t		n_keys;
 };
 
-#define LIST_ROW_CAP	256
-
-struct list_ctx {
-	struct list_row	rows[LIST_ROW_CAP];
-	int		count;
-};
-
-static void collect_key(key_serial_t serial, const char *type,
-			const char *description, void *ud)
+static bool keys_anchor_holds(const struct keys_anchor *a, key_serial_t key)
 {
-	struct list_ctx *c = ud;
+	size_t i;
 
-	if (c->count >= LIST_ROW_CAP)
-		return;
-	c->rows[c->count].serial = serial;
-	c->rows[c->count].type = xstrdup(type);
-	c->rows[c->count].description = xstrdup(description);
-	c->count++;
+	for (i = 0; i < a->n_keys; i++)
+		if (a->keys[i] == key)
+			return true;
+	return false;
 }
 
-static int keys_list_keyring(key_serial_t ring, const char *label,
-			     const struct shirudo_identity *id, int id_rc)
+/* Kernel descriptions carry certificate subjects: keep the terminal safe. */
+static void print_safe(const char *s)
 {
-	struct list_ctx c = {};
-	int rc, i;
+	for (; *s; s++)
+		putchar((__u8)*s < 0x20 || *s == 0x7f ? '?' : *s);
+}
 
-	printf("Keyring (%s):\n", label);
+static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
+			     int id_rc)
+{
+	bool frozen = !id_rc && a->frozen > 0;
+	struct keyring_link *links = NULL;
+	size_t n = 0, i;
+	int rc;
+
+	printf("Keyring (%s):\n", a->label);
 	printf("  %-22s %d\n", "Serial:", (int)ring);
-
-	if (id_rc == 0) {
-		const char *match = id->keyring_serial == ring ?
-				    "matches" : "MISMATCH";
-
-		printf("  %-22s %d  (%s)\n", "Frozen serial:",
-		       (int)id->keyring_serial, match);
-		if (id->keyring_serial != ring)
-			pr_warn("keyring serial %d != frozen %d (swap?)",
-				(int)ring, (int)id->keyring_serial);
-	} else if (id_rc == -ENOENT) {
-		printf("  %-22s %s\n", "Frozen serial:",
-		       "(none this boot)");
+	if (frozen) {
+		printf("  %-22s %d  (%s)\n", "Frozen serial:", (int)a->frozen,
+		       a->frozen == ring ? "matches" : "MISMATCH");
+		if (a->frozen != ring)
+			pr_warn("%s keyring serial %d != frozen %d (swap?)",
+				a->label, (int)ring, (int)a->frozen);
+	} else if (!id_rc || id_rc == -ENOENT) {
+		printf("  %-22s %s\n", "Frozen serial:", "(none this boot)");
 	} else {
 		printf("  %-22s unreadable: %s\n", "Frozen serial:",
 		       strerror(-id_rc));
 	}
 
-	rc = keyring_list(ring, collect_key, &c);
+	rc = keyring_links(ring, &links, &n);
 	if (rc) {
 		pr_err("keyring list: %s", strerror(-rc));
-		goto out;
+		return 1;
 	}
-	printf("  Members (%d):\n", c.count);
-	if (c.count == 0)
+	printf("  Members (%zu):\n", n);
+	if (!n)
 		printf("    (empty)\n");
-	for (i = 0; i < c.count; i++)
-		printf("    serial=%-10d  type=%-10s  %s\n",
-		       (int)c.rows[i].serial,
-		       c.rows[i].type ? c.rows[i].type : "?",
-		       c.rows[i].description ? c.rows[i].description : "?");
-out:
-	for (i = 0; i < c.count; i++) {
-		xstrfree(c.rows[i].type);
-		xstrfree(c.rows[i].description);
+	for (i = 0; i < n; i++) {
+		const struct keyring_link *l = &links[i];
+
+		printf("    serial=%-10d  type=%-10s  ", (int)l->serial,
+		       l->err ? "?" : l->type);
+		if (l->err)
+			printf("(cannot describe: %s)", strerror(-l->err));
+		else
+			print_safe(l->description);
+		if (frozen)
+			printf("  (%s)", keys_anchor_holds(a, l->serial) ?
+			       "frozen" : "NOT frozen");
+		printf("\n");
 	}
-	return rc ? 1 : 0;
+	if (links)
+		xfree(links, n * sizeof(*links));
+	return 0;
 }
 
-static void keyring_absent(const char *label, key_serial_t rc,
-			   const struct shirudo_identity *id, int id_rc)
+static void keyring_absent(const struct keys_anchor *a, key_serial_t rc,
+			   int id_rc)
 {
-	printf("Keyring (%s):\n", label);
+	printf("Keyring (%s):\n", a->label);
 	if (rc != (key_serial_t)-ENOKEY)
 		printf("  %-22s lookup error: %s\n", "Present:",
 		       strerror(-rc));
-	else if (id_rc == 0)
+	else if (!id_rc && a->frozen > 0)
 		printf("  %-22s no  (gone: init froze serial %d this boot)\n",
-		       "Present:", (int)id->keyring_serial);
-	else if (id_rc == -ENOENT)
+		       "Present:", (int)a->frozen);
+	else if (!id_rc || id_rc == -ENOENT)
 		printf("  %-22s %s\n", "Present:",
 		       "no  (operator host, or `shirudo init` not yet run)");
 	else
@@ -912,14 +915,12 @@ int cmd_keys(int argc, const char **argv)
 static int keys_show(int argc, const char **argv)
 {
 	const char *keys_dir_arg = NULL;
+	struct shirudo_identity id = {};
 	struct shirudo_trusted_set set;
-	struct shirudo_identity id;
 	const char *keys_dir;
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
 	bool shown = false;
-	key_serial_t ring;
-	const char *label;
 	int rc = 0, id_rc;
 
 	for (int i = 1; i < argc; i++) {
@@ -988,25 +989,41 @@ static int keys_show(int argc, const char **argv)
 	}
 
 	id_rc = identity_read(&id);
-	label = ".bpf";
-	ring = id_rc ? -ENOKEY : keyring_bpf_serial();
-	if (ring >= 0) {
-		if (shown)
-			printf("\n");
-		if (keys_list_keyring(ring, label, &id, id_rc))
-			rc = 1;
-		shown = true;
-	} else if (ring == -ENOKEY && id_rc) {
-		if (shown) {
-			printf("\n");
-			keyring_absent(label, ring, &id, id_rc);
+	{
+		const struct keys_anchor anchors[] = {
+			{ ".bpf", keyring_bpf_serial, id.keyring_serial,
+			  id.key_serials,
+			  id.n_keys < SHIRUDO_IDENTITY_KEYS_MAX ?
+			  id.n_keys : SHIRUDO_IDENTITY_KEYS_MAX },
+			{ ".dm-verity", shirudo_keyring_dm_verity_serial,
+			  id.dm_verity_ring, &id.dm_verity_key,
+			  id.dm_verity_key > 0 },
+		};
+		size_t i;
+
+		for (i = 0; i < ARRAY_SIZE(anchors); i++) {
+			const struct keys_anchor *a = &anchors[i];
+			key_serial_t ring = id_rc ? -ENOKEY : a->serial();
+
+			if (ring >= 0) {
+				if (shown)
+					printf("\n");
+				if (keys_list_keyring(ring, a, id_rc))
+					rc = 1;
+				shown = true;
+			} else if (ring == -ENOKEY && id_rc) {
+				if (shown) {
+					printf("\n");
+					keyring_absent(a, ring, id_rc);
+				}
+			} else {
+				if (shown)
+					printf("\n");
+				keyring_absent(a, ring, id_rc);
+				shown = true;
+				rc = 1;
+			}
 		}
-	} else {
-		if (shown)
-			printf("\n");
-		keyring_absent(label, ring, &id, id_rc);
-		shown = true;
-		rc = 1;
 	}
 
 	if (!shown) {

@@ -104,7 +104,8 @@ signed config image.
      - Signer identification for a revocation purge, prediction of a
        revoke event
    * - ``t2101-keys``
-     - Two enrolled certificates, a upatch signed by the second loads
+     - Two enrolled certificates, both keyrings as ``keys`` lists them,
+       a upatch signed by the second loads
    * - ``t2102-keys-add``
      - Live ``keys add`` is refused under a signed config
    * - ``t2103-keys-revoke``
