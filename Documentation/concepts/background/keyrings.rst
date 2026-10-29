@@ -28,6 +28,40 @@ whose description the kernel derives from the certificate.
 Userspace manages keys with the ``add_key(2)`` and ``keyctl(2)`` system
 calls. ``/proc/keys`` lists the keys the reading task may view.
 
+Links and nested keyrings
+-------------------------
+
+A keyring does not contain keys; it links to them. The same key can be
+linked from several keyrings at once, and unlinking it from one leaves
+it in the others. The kernel destroys a key only when no link and no
+reference to it remain. A keyring indexes its links by type and
+description, so linking a second key with the same type and description
+replaces the first.
+
+A link can point at a key of any type, and that includes another
+keyring. A link in a keyring is therefore not always a key. The system
+keyrings below are built that way: ``.secondary_trusted_keys`` links
+``.builtin_trusted_keys`` and, when configured, ``.machine``.
+
+Nesting matters for signatures. To verify a signature against a keyring,
+the kernel searches that keyring and, recursively, every keyring linked
+from it. A key reachable through a nested keyring is therefore trusted
+like one linked directly. Reading a keyring with ``keyctl(2)``, however,
+returns only its direct links. A nested keyring shows up as one link
+with its own serial and type, not as the keys behind it. To know what a
+keyring trusts, every link has to be followed, whatever its type;
+counting the asymmetric keys at the top level is not enough.
+
+The description is the only identity the kernel shows for a public key,
+because the key material never leaves the kernel. For a key made from an
+X.509 certificate, the description is ``<subject>: <id>``. The subject
+is the certificate's common name (CN), written as ``<O>: <CN>`` when the
+certificate also names an organization (O) that the CN does not already
+start with, and the O or the email address when there is no CN. The id
+is the hex subject key identifier, or the serial number when the
+certificate has none. To tell which certificate a key holds, one compares that
+description with the one the certificate would get.
+
 Special keyring ids
 -------------------
 
