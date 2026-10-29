@@ -286,10 +286,7 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 			continue;
 		if (rc == ENOENT || rc == ENOPKG)
 			fail(r, c,
-			     "kernel cannot verify the public-key algorithm of "
-			     "%s (ML-DSA certs need CONFIG_CRYPTO_MLDSA=y and "
-			     "CONFIG_CRYPTO_SHA512=y; see "
-			     "Documentation/requirements.rst)",
+			     "kernel cannot verify the public-key algorithm of %s (ML-DSA certs need CONFIG_CRYPTO_MLDSA=y and CONFIG_CRYPTO_SHA512=y)",
 			     set.certs[i].path);
 		else
 			fail(r, c, "kernel rejected %s: %s "

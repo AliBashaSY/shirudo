@@ -135,11 +135,7 @@ static int init_bpf_keyring(key_serial_t ring,
 			pr_err("bpf keyring: add %s: %s", set->certs[i].path,
 			       strerror(-key));
 			if (key == -ENOENT || key == -ENOPKG)
-				pr_err("kernel cannot verify this cert's "
-				       "public-key algorithm (ML-DSA needs "
-				       "CONFIG_CRYPTO_MLDSA=y and "
-				       "CONFIG_CRYPTO_SHA512=y; see "
-				       "Documentation/requirements.rst)");
+				pr_err("kernel cannot verify this cert's public-key algorithm (ML-DSA needs CONFIG_CRYPTO_MLDSA=y and CONFIG_CRYPTO_SHA512=y)");
 			return key;
 		}
 		if (i > 0) {

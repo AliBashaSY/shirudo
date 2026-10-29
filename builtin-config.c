@@ -97,11 +97,10 @@ int cmd_config(int argc, const char **argv)
 	printf("# TCTI override for the TPM library connection. Empty (default)\n"
 	       "# means the kernel resource manager at `device:/dev/tpmrm0`.\n"
 	       "# Set to `swtpm:host=<addr>,port=<port>` for a software TPM\n"
-	       "# emulator (dev/CI without real hardware); see\n"
-	       "# Documentation/getting-started.rst \"TPM in development\"\n"
-	       "# for a worked recipe. Pre-flight skips the /dev/tpmrm0 check\n"
-	       "# when this is set. The SHIRUDO_TPM_TCTI env var overrides\n"
-	       "# this in turn.\n");
+	       "# emulator (dev/CI without real hardware); testing/swtpm.sh\n"
+	       "# in the source tree starts one. Pre-flight skips the\n"
+	       "# /dev/tpmrm0 check when this is set. The SHIRUDO_TPM_TCTI\n"
+	       "# env var overrides this in turn.\n");
 	if (cfg.tpm_tcti[0]) {
 		const char *env = image_mode ? NULL :
 			getenv("SHIRUDO_TPM_TCTI");
