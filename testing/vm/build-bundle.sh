@@ -677,6 +677,29 @@ done
 	-o "$TMP_DIR/fixtures/shirudo-test-basic-mismatch.unload.upatch" \
 	--key "$FIXTURE_WORK/trusted/signing_key.pem" \
 	--cert "$FIXTURE_WORK/trusted/cert.der"
+# Enough loaded upatches to outgrow the fixed part of a status document.
+mkdir -p "$TMP_DIR/fixtures/many"
+for i in $(seq -w 1 80); do
+	name="shirudo-test-many-$i"
+	(
+		cd "$REPO_ROOT"
+		"$REPO_ROOT/tools/shirudo-build/shirudo-build" \
+			"$REPO_ROOT/testing/fixtures/status-many.bpf.c" \
+			-o "$TMP_DIR/fixtures/many/$name.upatch" \
+			--name "$name" --vmlinux "$REPO_ROOT/vendor/linux/vmlinux.h" \
+			--extra-cflags "-I$REPO_ROOT/vendor/libbpf" \
+			--key "$FIXTURE_WORK/trusted/signing_key.pem" \
+			--cert "$FIXTURE_WORK/trusted/cert.der" >/dev/null
+	)
+	payload="$($REPO_ROOT/shirudo upatch info \
+		"$TMP_DIR/fixtures/many/$name.upatch" --json |
+		python3 -c 'import json,sys; print(json.load(sys.stdin)["payload_sha256"])')"
+	"$REPO_ROOT/tools/shirudo-build/shirudo-build" --unload \
+		"$name" --payload-sha256 "$payload" \
+		-o "$TMP_DIR/fixtures/many/$name.unload.upatch" \
+		--key "$FIXTURE_WORK/trusted/signing_key.pem" \
+		--cert "$FIXTURE_WORK/trusted/cert.der" >/dev/null
+done
 "$REPO_ROOT/tools/shirudo-build/shirudo-build" --unload \
 	shirudo-test-marker --payload-sha256 "$marker_payload" \
 	-o "$TMP_DIR/fixtures/shirudo-test-marker.unload.upatch" \

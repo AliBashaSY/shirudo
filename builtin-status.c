@@ -707,10 +707,12 @@ int cmd_status(int argc, const char **argv)
 		/*
 		 * The events[] dump re-emits the log, so size the buffer
 		 * from it with headroom for the fixed fields and the
-		 * optional sections; the clamp below keeps it under
-		 * SHIRUDO_JSON_MAX_BYTES.
+		 * optional sections; every loaded upatch adds a row whose
+		 * strings JSON escaping can grow sixfold. The clamp below
+		 * keeps it under SHIRUDO_JSON_MAX_BYTES.
 		 */
-		json_cap = 16384;
+		json_cap = 16384 + (size_t)n_ups *
+			   (6 * sizeof(struct shirudo_upatch_table_row) + 256);
 		if (include_eventlog && ev_rc == 0)
 			json_cap = 65536 + 3 * (size_t)ev_bytes;
 		if (include_kernel_log)
@@ -1007,6 +1009,7 @@ int cmd_status(int argc, const char **argv)
 		if (e.err) {
 			fprintf(stderr, "status: json encode failed: %s\n",
 				strerror(-e.err));
+			ret = 1;
 		} else {
 			if (otel && otel_endpoint_configured) {
 				__s64 refused = tamper_rc == 0 ?
