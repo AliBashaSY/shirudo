@@ -19,7 +19,7 @@ test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 	. $(ROOT)/testing/vm/arch.sh && printf '%s' "$$$(1)")
 
 .DEFAULT_GOAL := help
-.PHONY: help clean test-helpers test-op fuzz test bundle test-vm-bundle kernel \
+.PHONY: help clean test-helpers test-unit test-op fuzz test bundle test-vm-bundle kernel \
 	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-tgt-obs \
 	test-tgt-register test-vm test-vm-clean
 
@@ -288,6 +288,13 @@ test-helpers:
 	+$(Q)$(MAKE) -C $(ROOT) config
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo test-helpers
 
+test-unit:
+	+$(Q)$(MAKE) -C $(ROOT) config
+	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo unit-tests
+	$(Q)rc=0; for t in $(ROOT)/build/unit/*; do \
+		[ -f "$$t" ] && [ -x "$$t" ] || continue; "$$t" || rc=1; \
+	done; exit $$rc
+
 # The parsers of input from outside the host under libFuzzer, each target
 # for FUZZ_SECONDS on its seed corpus; needs clang with its fuzzer runtime.
 FUZZ_SECONDS ?= 60
@@ -311,6 +318,7 @@ help:
 	  'Testing targets:' \
 	  '  make -C testing test' \
 	  '  make -C testing test-op' \
+	  '  make -C testing test-unit' \
 	  '  make -C testing test-helpers' \
 	  '  make -C testing fuzz [FUZZ_SECONDS=60]' \
 	  '  make -C testing test-tgt (dm-verity, dracut initrd, root required)' \

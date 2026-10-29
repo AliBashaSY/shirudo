@@ -15,6 +15,19 @@ cd "$(dirname "$0")"
 fail=0
 found=0
 : "${SHIRUDO_TEST_SUITE_FAILURES_FILE:=}"
+for t in ../build/unit/*; do
+	[ -f "$t" ] && [ -x "$t" ] || continue
+	found=1
+	if "$t"; then
+		:
+	else
+		fail=$((fail + 1))
+		if [ -n "$SHIRUDO_TEST_SUITE_FAILURES_FILE" ]; then
+			printf '%s\n' "$t" >>"$SHIRUDO_TEST_SUITE_FAILURES_FILE" 2>/dev/null || :
+		fi
+	fi
+done
+
 for t in t0[0-9][0-9][0-9]-*.sh; do
 	[ -e "$t" ] || continue
 	found=1

@@ -36,6 +36,7 @@ obj = $(OBJ_PREFIX)$(1)
 
 CC      ?= cc
 LD      := $(CC)
+AR      ?= ar
 LDFLAGS ?=
 SHIRUDO_BUNDLE_RPATH ?= 0
 CLANG   ?= clang
@@ -295,7 +296,7 @@ DEPS     := $(DEP_OBJS:.o=.d)
 # ----- top-level goals --------------------------------------------
 
 .PHONY: all install install-common install-target install-operator clean distclean check test \
-		test-helpers verity-test-helpers \
+		test-helpers verity-test-helpers unit-tests \
         bpf libbpf
 
 all: shirudo
@@ -597,7 +598,6 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-config-attest \
                 testing/helper/test-image-keys \
                 testing/helper/test-json-parser \
-                testing/helper/test-string \
                 testing/helper/test-conditions \
                 testing/helper/test-config-image \
                 testing/helper/test-harden \
@@ -634,9 +634,6 @@ TEST_HELPERS += testing/helper/test-tpm-preopened
 
 testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o \
                                  util/string.o util/malloc.o
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^
-testing/helper/test-string: testing/helper/test-string.c util/string.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 testing/helper/test-conditions: testing/helper/test-conditions.c util/conditions.o \
@@ -883,6 +880,28 @@ testing/helper/test-mode-objects: testing/helper/test-mode-objects.c \
 
 test-helpers: $(TEST_HELPERS)
 
+# ----- unit tests -------------------------------------------------
+
+# util/<m>.c is tested by testing/unit/<m>.c. Each test links the util
+# objects from an archive, so it pulls in only what its module needs.
+UNIT_SRCS  := $(filter-out testing/unit/unit.c,$(wildcard testing/unit/*.c))
+UNIT_TESTS := $(patsubst testing/unit/%.c,build/unit/%,$(UNIT_SRCS))
+UNIT_LIB   := build/unit/libshirudo.a
+
+$(UNIT_LIB): $(UTIL_OBJS) $(VERSION_OBJ)
+	@printf '  AR      $@\n'
+	$(Q)mkdir -p $(dir $@)
+	$(Q)rm -f $@
+	$(Q)$(AR) rcs $@ $^
+
+build/unit/%: testing/unit/%.c testing/unit/unit.c testing/unit/unit.h \
+		$(UNIT_LIB) $(LIBBPF_A)
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -Itesting/unit -o $@ $< testing/unit/unit.c \
+		$(UNIT_LIB) $(LIBBPF_A) $(DYNAMIC_LIBS)
+
+unit-tests: $(UNIT_TESTS)
+
 # ----- fuzzing ----------------------------------------------------
 
 # libFuzzer targets for the parsers of input from outside the host, built
@@ -998,7 +1017,7 @@ $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 
 fuzz-targets: $(FUZZ_TARGETS)
 
-check test: shirudo $(TEST_HELPERS)
+check test: shirudo $(TEST_HELPERS) $(UNIT_TESTS)
 	@printf '  TEST\n'
 	$(Q)cd testing && ./run-tests.sh
 
@@ -1008,7 +1027,7 @@ clean:
 	$(Q)rm -f shirudo shirudo-target tools/shirudo-build/shirudo-build $(TEST_HELPERS)
 	$(Q)rm -f $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) \
 	          $(BUILD_OBJS) $(VERSION_OBJ) util/version_id.c
-	$(Q)rm -rf build/target
+	$(Q)rm -rf build/target build/unit
 	$(Q)rm -f $(DEPS) testing/helper/*.d
 	$(Q)rm -f $(BPF_OBJS) $(VMLINUX_H) systemd/shirudo.service \
 	    systemd/shirudo-initrd.service \
