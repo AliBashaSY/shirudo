@@ -37,6 +37,9 @@ Kernel baseline
    * - ``3f8c65b06faf``
      - bpf: have bpf_real_data_inode() take a struct file
      - v7.2
+   * - ``9722955b5430``
+     - bpf: Add simple xattr support to bpffs
+     - v7.2
    * - ``264d8fd2794f``
      - bpf, keys: Add a bpf keyring for program signature validation
      - bpf-next

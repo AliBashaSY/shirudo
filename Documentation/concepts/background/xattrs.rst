@@ -96,14 +96,113 @@ File system support
 Whether a file system stores ``security.`` xattrs depends on the file
 system and its configuration. ext4 stores them with
 ``CONFIG_EXT4_FS_SECURITY``. tmpfs stores ``security.``, ``trusted.``
-and ``user.`` names with ``CONFIG_TMPFS_XATTR``. bpffs stores
-``security.`` and ``trusted.`` names. On a file system without support,
-the calls fail with ``EOPNOTSUPP``.
+and ``user.`` names with ``CONFIG_TMPFS_XATTR``. On a file system without
+support, the calls fail with ``EOPNOTSUPP``.
+
+bpffs, the file system that holds BPF pins, supports xattrs since Linux
+7.2. Like tmpfs, it keeps them in memory with the inode, so they last as
+long as the pin or directory they sit on and go away with the mount. It
+serves the ``security.`` and ``trusted.`` namespaces only; a ``user.``
+name fails with ``EOPNOTSUPP``. Because bpffs can be mounted inside a
+user namespace, it caps the ``security.`` xattrs of one inode at 128
+names and 128 KiB of values, while ``trusted.`` names need
+``CAP_SYS_ADMIN`` in the initial user namespace. A new pin or directory
+takes the xattrs that LSMs supply at creation, so
+``bpf_inode_init_xattr()`` works on bpffs too. A BPF LSM program can
+therefore label a pinned map, program or link, or a directory of pins,
+the same way it labels a file.
 
 overlayfs needs care. Before the first write to a file from a lower
 layer, overlayfs copies the file up into the upper layer, and the copy
 takes the lower file's xattrs with it, labels included. The write then
 changes the copy, and the original stays as it was.
+
+Xattrs and BPF inode storage
+----------------------------
+
+BPF has a second place for per-inode data: a map of type
+``BPF_MAP_TYPE_INODE_STORAGE`` (see :doc:`bpf-lsm`). A BPF LSM program
+passes the map and an inode to ``bpf_inode_storage_get()`` and gets a
+pointer to that inode's value, created on first use when the program
+passes ``BPF_LOCAL_STORAGE_GET_F_CREATE``; ``bpf_inode_storage_delete()``
+removes it. The kernel keeps the value in the BPF LSM's part of the
+inode's security blob, ``i_security``. It therefore exists only while the
+inode is in memory, and the ``inode_free_security`` hook frees it with
+the inode. For the same reason the map type needs the BPF LSM active from
+boot; without it, creating such a map fails with ``EOPNOTSUPP``. From
+userspace, the key of the map is a file descriptor of the file: a lookup,
+update or delete with that descriptor reaches the value of its inode, and
+the map cannot be iterated.
+
+The two differ in almost every property a policy cares about:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Property
+     - Extended attribute
+     - Inode storage
+   * - Where it lives
+     - With the inode in the file system, on disk for a disk file system
+     - In kernel memory, with the in-memory inode
+   * - How long it lasts
+     - Across eviction from the inode cache and across reboots, as long
+       as the file system keeps it
+     - Until the inode leaves the inode cache, at the latest until the
+       next boot
+   * - Who reads it
+     - Any task, through ``getxattr(2)`` under the namespace rules
+     - BPF programs that use the map, and tasks that hold the map's
+       descriptor
+   * - Who changes it
+     - Userspace through ``setxattr(2)`` and ``removexattr(2)``,
+       subject to every LSM's hooks, and BPF through the write kfuncs
+     - BPF programs that use the map, and tasks that hold the map's
+       descriptor
+   * - Access from BPF
+     - Kfuncs that may sleep, so sleepable programs only; they take a
+       dentry or a file and check the caller's permission on the inode
+     - Helpers that any BPF LSM program may call, sleepable or not; they
+       take a ``struct inode`` and check no permission
+   * - Size of a value
+     - Up to 64 KiB (``XATTR_SIZE_MAX``); a file system may allow less
+     - Fixed by the map, up to just under 64 KiB
+   * - Copied with the file
+     - By an overlay copy-up, and by copy and backup tools that preserve
+       xattrs
+     - Never; an overlay inode and the inode below it each have their
+       own
+
+Neither replaces the other, and a policy that marks files usually needs
+both. The xattr is the record. It outlives the inode cache and the boot,
+userspace and other tools can see it, and a new inode can receive it in
+the same operation that creates it. Inode storage is the working copy,
+which any hook can consult cheaply, including the hooks that cannot read
+an xattr at all.
+
+Those hooks are more than one might expect. A BPF program may sleep only
+on the hooks the kernel lists as sleepable, and the read kfuncs need a
+dentry or a file. ``inode_init_security``, ``inode_copy_up``,
+``inode_link`` and ``inode_mkdir`` cannot sleep. ``inode_create``,
+``inode_mknod``, ``inode_symlink`` and ``inode_rename`` can, but they
+receive the directory they change only as a ``struct inode``. None of
+them can read the xattr of the directory an operation changes.
+
+The usual pattern follows from that. A sleepable hook that has a dentry
+or a file, ``file_open`` for instance, reads the xattr and stores what
+the policy needs in inode storage, and ``inode_post_setxattr`` and
+``inode_post_removexattr`` refresh or drop the copy when the xattr
+changes. The other hooks consult the copy. The copy is a cache, and its
+weak point follows from the table: when the inode leaves the inode
+cache, the copy goes with it, and until a sleepable hook reads the xattr
+again, the other hooks find nothing. A policy has to decide what a
+missing copy means at each hook. A task that needs the copy to stay can
+hold the directory or file open, which keeps its inode in memory.
+
+Inode storage also suits state that should not outlive the boot or end
+up in the file system at all, such as the result of a check made when
+the file was opened.
 
 How shirudo uses xattrs
 -----------------------
@@ -113,9 +212,8 @@ shirudo's seal marks writable state with the xattr
 same on every target; the seal treats any inode that carries a label
 under that name as protected. ``shirudo init`` labels the state tree
 under ``/var/lib/shirudo`` on its first run, and ``/run/shirudo`` on
-every boot. From then on, the seal's ``lsm/inode_init_security``
-program labels every new inode created in a marked directory, with
-``bpf_inode_init_xattr()``.
+every boot. From then on, every inode created in a labeled directory
+receives the label as it is created, with ``bpf_inode_init_xattr()``.
 
 The seal's sleepable programs read the label with
 ``bpf_get_file_xattr()`` and ``bpf_get_dentry_xattr()``. A labeled inode
@@ -124,8 +222,24 @@ xattrs only by a task with runtime authority. Only such a task may set
 the label itself; anyone else's attempt counts as ``SealLabel``, and
 other xattr changes on a labeled inode as ``SealXattr``. The label marks
 what is protected; it never grants authority to the task that carries
-or copies it. The seal also refuses an overlay copy-up of a marked inode
-(``SealCopyUp``). See :doc:`/internals/seal`.
+or copies it.
+
+The seal pairs the label with inode storage in the pattern above. When
+one of its sleepable programs reads a label, on every open of a
+directory, on an open of a file for writing and after an xattr change,
+it records the label for that inode in the ``seal_dir_marks`` map, or
+drops the record when there is no label. The hooks that cannot read the
+label use the record. ``lsm/inode_init_security`` gives a new inode the
+label of its directory's record and records a new directory in turn, so
+a subtree created in one go needs no reopen. ``lsm/inode_copy_up``
+refuses an overlay copy-up of a recorded inode (``SealCopyUp``). The
+hooks that add an entry to a directory, by creation, link or rename,
+require runtime authority when the directory is recorded
+(``SealEntry``). shirudo's writers create files relative to an open
+descriptor of the parent directory, which keeps its record in memory.
+Like every map of shirudo's, ``seal_dir_marks`` is refused to tasks
+without runtime authority, so userspace can neither read nor change a
+record. See :doc:`/internals/seal`.
 
 The second xattr, ``security.bpf.shirudo.payload``, sits on each upatch
 directory in the private bpffs, ``/run/shirudo/bpffs/upatches/<name>``.
@@ -146,6 +260,9 @@ task read access, the seal sees no label and allows the operation; the
 file system's own permission checks then decide. The threat model lists
 this under threats to resolve: :doc:`/security/threat-model`.
 
-The seal caches the label of directories in inode storage, which is lost
-when a directory leaves the inode cache. A file system without
-``security.`` xattrs cannot carry the label at all.
+The seal's records in inode storage are lost when an inode leaves the
+inode cache. Until a sleepable program reads the label again, a file
+created in that directory gets no label at creation, and creation, links
+and renames into it are not checked. :doc:`/security/threat-model`
+lists this as residual risk R15. A file system without ``security.`` xattrs cannot carry
+the label at all.
