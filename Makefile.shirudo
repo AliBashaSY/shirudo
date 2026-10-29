@@ -610,8 +610,6 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 $(TPMSIM_HELPER) \
 		testing/helper/test-config \
 		testing/helper/test-bpm-source \
-		testing/helper/test-kernel-release \
-		testing/helper/test-kernel-build-id \
                 testing/helper/test-bpf-load \
                 testing/helper/test-bpf-cmd \
                 testing/helper/test-perf-attach \
@@ -721,15 +719,6 @@ testing/helper/test-config: testing/helper/test-config.c util/config.o util/io.o
 
 testing/helper/test-bpm-source: testing/helper/test-bpm-source.c util/bpm_source_config.o \
                                 util/string.o
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^
-
-testing/helper/test-kernel-release: testing/helper/test-kernel-release.c util/kernel_release.o
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^
-
-testing/helper/test-kernel-build-id: testing/helper/test-kernel-build-id.c util/kernel_build_id.o \
-                                     util/hex.o util/malloc.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
