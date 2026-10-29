@@ -89,7 +89,7 @@ static const struct {
 	[SHIRUDO_TAMPER_KEXEC] = { "Kexec",
 		"kexec image or initramfs load" },
 	[SHIRUDO_TAMPER_TPM_EXTEND] = { "TpmExtend",
-		"extension of Shirudo's TPM NV index by another executable" },
+		"extension of shirudo's TPM NV index by another executable" },
 	[SHIRUDO_TAMPER_OBJ_GET] = { "ObjGet",
 		"pin, map or link opened by another executable" },
 };
