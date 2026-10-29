@@ -122,11 +122,10 @@ The command prints:
    # TCTI override for the TPM library connection. Empty (default)
    # means the kernel resource manager at `device:/dev/tpmrm0`.
    # Set to `swtpm:host=<addr>,port=<port>` for a software TPM
-   # emulator (dev/CI without real hardware); see
-   # Documentation/getting-started.rst "TPM in development"
-   # for a worked recipe. Pre-flight skips the /dev/tpmrm0 check
-   # when this is set. The SHIRUDO_TPM_TCTI env var overrides
-   # this in turn.
+   # emulator (dev/CI without real hardware); testing/swtpm.sh
+   # in the source tree starts one. Pre-flight skips the
+   # /dev/tpmrm0 check when this is set. The SHIRUDO_TPM_TCTI
+   # env var overrides this in turn.
    tpm.tcti = device:/dev/tpmrm0  # from runtime image
 
    # Exact DNS hosts that may use classical TLS key exchange.

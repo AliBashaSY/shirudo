@@ -3,9 +3,10 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # Build an initrd that brings shirudo up before the switch to the root
-# file system (Documentation/initrd.rst): drive dracut with the shirudo
-# module, then check that the result holds what shirudo-initrd.service
-# needs and say what the kernel command line must carry.
+# file system (Documentation/internals/boot-flow.rst): drive dracut with
+# the shirudo module, then check that the result holds what
+# shirudo-initrd.service needs and say what the kernel command line must
+# carry.
 
 set -euo pipefail
 
