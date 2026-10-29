@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t6109 -- direct BPF syscalls from a root process with a different
-# executable cannot acquire writable map fds or mutate Shirudo's maps.
+# t6109 -- a root process with a different executable cannot take hold
+# of shirudo's maps: no descriptor by pin or by id, read-only or
+# writable, and no read of a pin as a file. A serializer program it
+# reaches by id cannot be test-run to drain what the map export reads.
 # PR_SET_MM executable spoofing is covered separately by t6110.
 
 cd "$(dirname "$0")/../.."
@@ -42,18 +44,14 @@ import platform
 import subprocess
 import sys
 
-BPF_MAP_UPDATE_ELEM = 2
-BPF_PROG_TEST_RUN = 10
-BPF_MAP_FREEZE = 22
-BPF_MAP_GET_FD_BY_ID = 14
 BPF_OBJ_GET = 7
+BPF_PROG_TEST_RUN = 10
+BPF_PROG_GET_NEXT_ID = 11
+BPF_MAP_GET_NEXT_ID = 12
+BPF_PROG_GET_FD_BY_ID = 13
+BPF_MAP_GET_FD_BY_ID = 14
 BPF_OBJ_GET_INFO_BY_FD = 15
 BPF_F_RDONLY = 1 << 3
-BPF_ANY = 0
-PROT_READ = 1
-PROT_WRITE = 2
-MAP_SHARED = 1
-PAGE_SIZE = os.sysconf("SC_PAGE_SIZE")
 SYSCALLS = {"x86_64": 321, "aarch64": 280, "riscv64": 280}
 
 try:
@@ -64,8 +62,6 @@ except KeyError as exc:
 
 libc = ctypes.CDLL(None, use_errno=True)
 libc.syscall.restype = ctypes.c_long
-libc.mmap.restype = ctypes.c_void_p
-libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
 
 
 class ObjGetAttr(ctypes.Structure):
@@ -74,33 +70,31 @@ class ObjGetAttr(ctypes.Structure):
                 ("file_flags", ctypes.c_uint32)]
 
 
+class IdAttr(ctypes.Structure):
+    _fields_ = [("id", ctypes.c_uint32),
+                ("next_id", ctypes.c_uint32),
+                ("open_flags", ctypes.c_uint32)]
+
+
 class ObjInfoAttr(ctypes.Structure):
     _fields_ = [("bpf_fd", ctypes.c_uint32),
                 ("info_len", ctypes.c_uint32),
                 ("info", ctypes.c_uint64)]
 
 
-class MapInfoPrefix(ctypes.Structure):
+class ProgInfoPrefix(ctypes.Structure):
     _fields_ = [("type", ctypes.c_uint32),
                 ("id", ctypes.c_uint32),
-                ("key_size", ctypes.c_uint32),
-                ("value_size", ctypes.c_uint32),
-                ("max_entries", ctypes.c_uint32),
-                ("map_flags", ctypes.c_uint32)]
-
-
-class MapFdByIdAttr(ctypes.Structure):
-    _fields_ = [("map_id", ctypes.c_uint32),
-                ("next_id", ctypes.c_uint32),
-                ("open_flags", ctypes.c_uint32)]
-
-
-class MapElemAttr(ctypes.Structure):
-    _fields_ = [("map_fd", ctypes.c_uint32),
-                ("pad", ctypes.c_uint32),
-                ("key", ctypes.c_uint64),
-                ("value", ctypes.c_uint64),
-                ("flags", ctypes.c_uint64)]
+                ("tag", ctypes.c_uint8 * 8),
+                ("jited_prog_len", ctypes.c_uint32),
+                ("xlated_prog_len", ctypes.c_uint32),
+                ("jited_prog_insns", ctypes.c_uint64),
+                ("xlated_prog_insns", ctypes.c_uint64),
+                ("load_time", ctypes.c_uint64),
+                ("created_by_uid", ctypes.c_uint32),
+                ("nr_map_ids", ctypes.c_uint32),
+                ("map_ids", ctypes.c_uint64),
+                ("name", ctypes.c_char * 16)]
 
 
 class SerializerCtx(ctypes.Structure):
@@ -139,88 +133,73 @@ def bpf(cmd, attr):
     return result, ctypes.get_errno()
 
 
-def obj_get(path, flags):
-    encoded = os.fsencode(path) + b"\0"
-    name = ctypes.create_string_buffer(encoded)
-    attr = ObjGetAttr(ctypes.addressof(name), 0, flags)
-    return bpf(BPF_OBJ_GET, attr)
-
-
-def map_id_from_fd(fd):
-    info = MapInfoPrefix()
-    attr = ObjInfoAttr(fd, ctypes.sizeof(info), ctypes.addressof(info))
-    result, error = bpf(BPF_OBJ_GET_INFO_BY_FD, attr)
-    if result < 0:
-        raise AssertionError(f"map info: errno={error}")
-    return info.id
-
-
-def map_fd_by_id(map_id, flags):
-    attr = MapFdByIdAttr(map_id, 0, flags)
-    return bpf(BPF_MAP_GET_FD_BY_ID, attr)
-
-
 def assert_denied(result, label):
     fd, error = result
     if fd >= 0:
         os.close(fd)
         raise AssertionError(f"{label}: unexpectedly allowed")
-    if error not in (errno.EACCES, errno.EPERM):
-        raise AssertionError(f"{label}: errno={error}, expected EACCES/EPERM")
+    if error != errno.EACCES:
+        raise AssertionError(f"{label}: errno={error}, expected EACCES")
 
 
-for map_name in ("shirudo_ser",):
-    path = os.path.join(sys.argv[1], map_name)
-    assert_denied(obj_get(path, 0), f"writable fd for {map_name}")
+def obj_get(path, flags):
+    name = ctypes.create_string_buffer(os.fsencode(path) + b"\0")
+    return bpf(BPF_OBJ_GET, ObjGetAttr(ctypes.addressof(name), 0, flags))
 
-    readonly_fd, error = obj_get(path, BPF_F_RDONLY)
-    if readonly_fd < 0:
-        raise AssertionError(f"read-only fd for {map_name}: errno={error}")
+
+def ids(cmd):
+    current = 0
+    while True:
+        attr = IdAttr(current, 0, 0)
+        result, _ = bpf(cmd, attr)
+        if result < 0:
+            return
+        current = attr.next_id
+        yield current
+
+
+def open_file(path):
     try:
-        map_id = map_id_from_fd(readonly_fd)
-        assert_denied(map_fd_by_id(map_id, 0),
-                      f"writable fd by id for {map_name}")
-        readonly_id_fd, error = map_fd_by_id(map_id, BPF_F_RDONLY)
-        if readonly_id_fd < 0:
-            raise AssertionError(
-                f"read-only fd by id for {map_name}: errno={error}")
-        os.close(readonly_id_fd)
+        fd = os.open(path, os.O_RDONLY)
+    except OSError as exc:
+        return -1, exc.errno
+    return fd, 0
 
-        freeze_arg = ctypes.c_uint32(readonly_fd)
-        result, error = bpf(BPF_MAP_FREEZE, freeze_arg)
-        if result == 0 or error != errno.EACCES:
-            raise AssertionError(
-                f"freeze {map_name}: result={result}, errno={error}; "
-                "expected LSM EACCES")
-        if map_name == "shirudo_ser":
-            key = ctypes.c_uint32(3)
-            value = ctypes.create_string_buffer(PAGE_SIZE)
-            attr = MapElemAttr(readonly_fd, 0, ctypes.addressof(key),
-                               ctypes.addressof(value), BPF_ANY)
-            result, error = bpf(BPF_MAP_UPDATE_ELEM, attr)
-            if result == 0 or error != errno.EACCES:
-                raise AssertionError(
-                    f"serializer map update: result={result}, errno={error}; "
-                    "expected LSM EACCES")
-        else:
-            ctypes.set_errno(0)
-            mapped = libc.mmap(None, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                               MAP_SHARED, readonly_fd, 0)
-            error = ctypes.get_errno()
-            if mapped != ctypes.c_void_p(-1).value:
-                libc.munmap(mapped, PAGE_SIZE)
-                raise AssertionError("arena writable mmap unexpectedly allowed")
-            if error not in (errno.EACCES, errno.EPERM):
-                raise AssertionError(
-                    f"arena writable mmap: errno={error}, expected EACCES/EPERM")
-    finally:
-        os.close(readonly_fd)
 
-serializer_path = os.path.join(os.path.dirname(sys.argv[1]),
-                               "serializers/exec")
-serializer_fd, error = obj_get(serializer_path, 0)
+pins = [os.path.join(sys.argv[1], name) for name in os.listdir(sys.argv[1])
+        if not os.path.isdir(os.path.join(sys.argv[1], name))]
+if not pins:
+    raise AssertionError(f"no map pins under {sys.argv[1]}")
+pins.append(os.path.join(os.path.dirname(sys.argv[1]), "serializers/exec"))
+for pin in pins:
+    assert_denied(obj_get(pin, 0), f"writable fd for {pin}")
+    assert_denied(obj_get(pin, BPF_F_RDONLY), f"read-only fd for {pin}")
+    assert_denied(open_file(pin), f"open of {pin}")
+
+maps = 0
+for map_id in ids(BPF_MAP_GET_NEXT_ID):
+    assert_denied(bpf(BPF_MAP_GET_FD_BY_ID, IdAttr(map_id, 0, 0)),
+                  f"writable fd for map {map_id}")
+    assert_denied(bpf(BPF_MAP_GET_FD_BY_ID, IdAttr(map_id, 0, BPF_F_RDONLY)),
+                  f"read-only fd for map {map_id}")
+    maps += 1
+if not maps:
+    raise AssertionError("no map ids to try")
+
+serializer_fd = -1
+for prog_id in ids(BPF_PROG_GET_NEXT_ID):
+    fd, error = bpf(BPF_PROG_GET_FD_BY_ID, IdAttr(prog_id, 0, 0))
+    if fd < 0:
+        continue
+    info = ProgInfoPrefix()
+    attr = ObjInfoAttr(fd, ctypes.sizeof(info), ctypes.addressof(info))
+    result, error = bpf(BPF_OBJ_GET_INFO_BY_FD, attr)
+    if result == 0 and info.name.startswith(b"shirudo_seriali"):
+        serializer_fd = fd
+        break
+    os.close(fd)
 if serializer_fd < 0:
-    raise AssertionError(f"exec serializer fd: errno={error}")
+    raise AssertionError("no serializer program found by id")
 try:
     ctx = SerializerCtx(0x5A4C5253, 3, 0, 1, 4032, 0, 0, 1)
     attr = ProgTestRunAttr(serializer_fd, 0, 0, 0, 0, 0, 1, 0,
@@ -246,10 +225,11 @@ if not any(record.get("path") == python_exe for record in records):
     raise AssertionError(
         f"Python exec record was lost after denied serializer run: {records!r}")
 
-print("root BPF map mutation and serializer test-run denied; export preserved")
+print("root cannot open maps by pin, file or id; test-run denied; "
+      "export preserved")
 PYTHON
 
-test_expect_success 'root map mutation and serializer test-run are denied' '
+test_expect_success 'root cannot open maps or test-run a serializer' '
 	"$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck >/dev/null 2>&1 &&
 	python3 "$WORK/check.py" "$MAPS" "$SHIRUDO_BIN" "$WORK"
 '

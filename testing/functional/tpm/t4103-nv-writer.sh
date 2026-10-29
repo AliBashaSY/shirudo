@@ -15,6 +15,9 @@ target_guard
 	test_skip_all "test-nv-cphash not built"
 [ -n "${SHIRUDO_TEST_FIXTURES_DIR:-}" ] ||
 	test_skip_all "target fixture directory is not set"
+: "${SHIRUDO_TEST_RUNTIME_PROBE:=/run/shirudo/runtime/usr/bin/shirudo-policy-probe}"
+[ -x "$SHIRUDO_TEST_RUNTIME_PROBE" ] ||
+	test_skip_all "runtime policy probe is not installed"
 
 NAME=shirudo-test-lifecycle
 LOAD="$SHIRUDO_TEST_FIXTURES_DIR/$NAME.upatch"
@@ -58,7 +61,9 @@ PY
 }
 
 test_expect_success 'the TPM writer public key matches the init record' '
-	./helper/test-nv-writer public
+	public=$("$SHIRUDO_TEST_RUNTIME_PROBE" identity \
+		/run/shirudo/bpffs/identity nv_writer_public) &&
+	./helper/test-nv-writer public "$public"
 '
 
 test_expect_success 'unrelated TPM signing works on both device nodes' '

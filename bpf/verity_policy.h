@@ -59,16 +59,6 @@ shirudo_protected_filesystem(const struct shirudo_sb_id *id, __u32 dev)
 	return dev == id->sb_dev || (id->run_dev && dev == id->run_dev);
 }
 
-/* Device records expose pointers and belong only to trusted image tasks. */
-static __always_inline bool shirudo_private_map(struct bpf_map *map)
-{
-	char name[16] = {};
-
-	bpf_probe_read_kernel_str(name, sizeof(name), map->name);
-	return !__builtin_memcmp(name, "shirudo_devices", sizeof(name)) ||
-	       !__builtin_memcmp(name, "shirudo_mnt_rec", sizeof(name));
-}
-
 /* Device pointers can be reused even when the free hook did not run. */
 static __always_inline struct shirudo_device *
 shirudo_bdev_device(struct block_device *bdev)

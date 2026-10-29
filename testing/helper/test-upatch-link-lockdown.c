@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Check that an untrusted caller cannot detach or update a pinned upatch link.
+ * Check that an untrusted caller cannot take hold of a pinned upatch link,
+ * by its pin or by its id, to keep it attached or to detach or update it.
  */
 
 #include <errno.h>
@@ -21,32 +22,47 @@ static long sys_bpf(int cmd, union bpf_attr *attr)
 
 int main(int argc, char **argv)
 {
+	int pin_errno = 0, id_errno = 0, links = 0;
 	union bpf_attr attr = {};
-	int link_fd;
-	int detach_errno, update_errno;
+	__u32 id = 0;
+	long fd;
 
 	if (argc != 2) {
-		fprintf(stderr, "usage: %s <pinned-link>\\n", argv[0]);
+		fprintf(stderr, "usage: %s <pinned-link>\n", argv[0]);
 		return 2;
 	}
 	attr.pathname = (__u64)(uintptr_t)argv[1];
-	link_fd = (int)sys_bpf(BPF_OBJ_GET, &attr);
-	if (link_fd < 0) {
-		fprintf(stderr, "BPF_OBJ_GET: %s\\n", strerror(errno));
+	fd = sys_bpf(BPF_OBJ_GET, &attr);
+	if (fd >= 0) {
+		close((int)fd);
+		fprintf(stderr, "BPF_OBJ_GET of %s was allowed\n", argv[1]);
 		return 1;
 	}
-	memset(&attr, 0, sizeof(attr));
-	attr.link_detach.link_fd = link_fd;
-	if (sys_bpf(BPF_LINK_DETACH, &attr) == 0)
-		return 1;
-	detach_errno = errno;
-	memset(&attr, 0, sizeof(attr));
-	attr.link_update.link_fd = link_fd;
-	attr.link_update.new_prog_fd = 0x7fffffff;
-	if (sys_bpf(BPF_LINK_UPDATE, &attr) == 0)
-		return 1;
-	update_errno = errno;
-	close(link_fd);
-	printf("detach_errno=%d update_errno=%d\\n", detach_errno, update_errno);
-	return detach_errno == EACCES && update_errno == EACCES ? 0 : 1;
+	pin_errno = errno;
+	for (;;) {
+		memset(&attr, 0, sizeof(attr));
+		attr.start_id = id;
+		if (sys_bpf(BPF_LINK_GET_NEXT_ID, &attr))
+			break;
+		id = attr.next_id;
+		memset(&attr, 0, sizeof(attr));
+		attr.link_id = id;
+		fd = sys_bpf(BPF_LINK_GET_FD_BY_ID, &attr);
+		if (fd >= 0) {
+			close((int)fd);
+			fprintf(stderr, "BPF_LINK_GET_FD_BY_ID %u was allowed\n",
+				id);
+			return 1;
+		}
+		if (id_errno && errno != id_errno) {
+			fprintf(stderr, "link %u: errno=%d after errno=%d\n",
+				id, errno, id_errno);
+			return 1;
+		}
+		id_errno = errno;
+		links++;
+	}
+	printf("pin_errno=%d id_errno=%d links=%d\n", pin_errno, id_errno,
+	       links);
+	return pin_errno == EACCES && id_errno == EACCES && links ? 0 : 1;
 }

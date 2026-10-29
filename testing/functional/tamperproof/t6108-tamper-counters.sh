@@ -53,7 +53,7 @@ d = json.load(sys.stdin)[\"tamper_attempts\"]
 assert isinstance(d[\"total\"], int)
 assert all(isinstance(v, int) for v in d[\"counters\"].values())
 assert \"PinRename\" in d[\"counters\"] and \"ProgAttach\" in d[\"counters\"]
-assert \"LoadNotLoader\" in d[\"counters\"]
+assert \"LoadNotLoader\" in d[\"counters\"] and \"ObjGet\" in d[\"counters\"]
 "
 '
 
@@ -89,6 +89,15 @@ test_expect_success 'a link creation moves ProgAttach and a pin moves ObjPin' '
 	[ "$(./$C LINK_CREATE)" = "errno=13" ] &&
 	[ "$(./$C OBJ_PIN)" = "errno=13" ] &&
 	grew ProgAttach "$ProgAttach" && grew ObjPin "$pin"
+'
+
+test_expect_success 'opening a pin, by pin or as a file, moves ObjGet' '
+	before=$(counter ObjGet) &&
+	[ "$(./$C OBJ_GET)" = "errno=13" ] &&
+	grew ObjGet "$before" &&
+	before=$(counter ObjGet) &&
+	! cat "$B/tamper" >/dev/null 2>&1 &&
+	grew ObjGet "$before"
 '
 
 test_expect_success 'a denied tear-down command moves BpfCommand' '

@@ -6,7 +6,8 @@
 # loader with one bit flipped and its userspace digest recomputed passes
 # every userspace check and is refused by the kernel's signature check,
 # leaving no pin or archive, and root can neither change the pin's
-# payload binding nor detach or update its link. The mutated loader keeps
+# payload binding nor take hold of its link, by pin or by id, to keep it
+# attached, detach it or update it. The mutated loader keeps
 # its signed name, which is covered by the signature; it is the lifecycle
 # fixture's, which is not loaded.
 
@@ -59,7 +60,7 @@ test_expect_success 'root cannot change the live payload binding xattr' '
 	after=$(python3 -c "import os,sys; print(os.getxattr(sys.argv[1], \"security.bpf.shirudo.payload\").hex())" "$PINDIR") &&
 	[ "$before" = "$after" ]
 '
-test_expect_success 'root cannot detach or update a live upatch link' '
+test_expect_success 'root cannot open a live upatch link by pin or id' '
 	"$HELPER" "$PIN" &&
 	[ -e "$PIN" ]
 '

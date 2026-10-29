@@ -144,10 +144,11 @@ deny:
 }
 
 /*
- * The bpffs mount of init's namespace, recorded once when the bootstrap
- * task opens its root with the mount guards live: the one the unmount
- * guard keeps, where a copy in another namespace is any process's to
- * drop.
+ * A pin opened as a file reads a map's contents through bpffs, so pins
+ * open for shirudo alone; directories stay listable. The bpffs mount of
+ * init's namespace is recorded once when the bootstrap task opens its
+ * root with the mount guards live: the one the unmount guard keeps,
+ * where a copy in another namespace is any process's to drop.
  */
 SEC("lsm/file_open")
 int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
@@ -157,10 +158,14 @@ int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 	struct vfsmount *mnt;
 	__u32 zero = 0;
 
-	if (ret || !id || !shirudo_bootstrap_task())
+	if (ret || !id)
 		return ret;
 	mnt = BPF_CORE_READ(file, f_path.mnt);
 	if (!mnt || BPF_CORE_READ(mnt, mnt_sb, s_dev) != id->sb_dev)
+		return 0;
+	if ((BPF_CORE_READ(file, f_inode, i_mode) & S_IFMT) != S_IFDIR)
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
+	if (!shirudo_bootstrap_task())
 		return 0;
 	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
 	if (rec && !rec->mount)

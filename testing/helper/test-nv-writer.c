@@ -8,34 +8,25 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <bpf/bpf.h>
-
 #include "tpm_internal.h"
 #include "eventlog.h"
-#include "identity.h"
+#include "hex.h"
 #include "paths.h"
 
-static int public_matches_init(void)
+/* The writer modulus as the identity map holds it, from a trusted reader. */
+static int public_matches_init(const char *hex)
 {
-	struct bpf_obj_get_opts opts = {
-		.sz = sizeof(opts),
-		.file_flags = BPF_F_RDONLY,
-	};
+	__u8 expected[SHIRUDO_TPM_NV_RSA_BYTES];
 	struct shirudo_eventlog_init rec;
-	struct shirudo_identity id = {};
-	__u32 zero = 0;
-	int fd, rc;
 
-	fd = bpf_obj_get_opts(SHIRUDO_IDENTITY_PIN, &opts);
-	if (fd < 0) {
-		perror("open read-only identity");
+	if (strlen(hex) != 2 * sizeof(expected) ||
+	    hex_decode(hex, expected, sizeof(expected))) {
+		fprintf(stderr, "writer modulus must be %zu hex digits\n",
+			2 * sizeof(expected));
 		return 1;
 	}
-	rc = bpf_map_lookup_elem(fd, &zero, &id);
-	close(fd);
-	if (rc || eventlog_boot_init(&rec) ||
-	    memcmp(id.nv_writer_public, rec.writer_public,
-		   sizeof(id.nv_writer_public))) {
+	if (eventlog_boot_init(&rec) ||
+	    memcmp(expected, rec.writer_public, sizeof(expected))) {
 		fprintf(stderr, "writer modulus differs between identity and init record\n");
 		return 1;
 	}
@@ -215,8 +206,8 @@ static int raw_extend_check(const char *device, enum extend_probe probe,
 
 int main(int argc, char **argv)
 {
-	if (argc == 2 && !strcmp(argv[1], "public"))
-		return public_matches_init();
+	if (argc == 3 && !strcmp(argv[1], "public"))
+		return public_matches_init(argv[2]);
 	if (argc != 3)
 		return 2;
 	if (!strcmp(argv[1], "sign-allowed"))

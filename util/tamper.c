@@ -90,6 +90,8 @@ static const struct {
 		"kexec image or initramfs load" },
 	[SHIRUDO_TAMPER_TPM_EXTEND] = { "TpmExtend",
 		"extension of Shirudo's TPM NV index by another executable" },
+	[SHIRUDO_TAMPER_OBJ_GET] = { "ObjGet",
+		"pin, map or link opened by another executable" },
 };
 
 const char *tamper_name(enum shirudo_tamper_point point)

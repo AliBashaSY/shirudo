@@ -35,8 +35,10 @@ static int check_mark(const char *pin, int expected)
 	attr.file_flags = BPF_F_RDONLY;
 	fd = syscall(SYS_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 	if (fd < 0) {
+		/* Only a task with authority may open the pin at all. */
+		rc = errno == EACCES && !expected ? 0 : 1;
 		close(pidfd);
-		return 1;
+		return rc;
 	}
 	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
@@ -50,6 +52,46 @@ static int check_mark(const char *pin, int expected)
 	close(pidfd);
 	close(fd);
 	return rc;
+}
+
+static void print_hex(const __u8 *bytes, size_t n)
+{
+	size_t i;
+
+	for (i = 0; i < n; i++)
+		printf("%02x", bytes[i]);
+	printf("\n");
+}
+
+static int print_identity(const char *pin, const char *field)
+{
+	struct shirudo_identity id = {};
+	union bpf_attr attr = {};
+	__u32 zero = 0;
+	int fd, rc;
+
+	attr.pathname = (uintptr_t)pin;
+	attr.file_flags = BPF_F_RDONLY;
+	fd = syscall(SYS_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
+	if (fd < 0)
+		return 1;
+	memset(&attr, 0, sizeof(attr));
+	attr.map_fd = fd;
+	attr.key = (uintptr_t)&zero;
+	attr.value = (uintptr_t)&id;
+	rc = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+	close(fd);
+	if (rc)
+		return 1;
+	if (!strcmp(field, "runtime_root"))
+		print_hex(id.runtime_root, sizeof(id.runtime_root));
+	else if (!strcmp(field, "nv_writer_public"))
+		print_hex(id.nv_writer_public, sizeof(id.nv_writer_public));
+	else if (!strcmp(field, "nv_index"))
+		printf("%u\n", id.nv_index);
+	else
+		return 2;
+	return 0;
 }
 
 static int check_mappings(const char *trusted, const char *outside)
@@ -146,6 +188,8 @@ int main(int argc, char **argv)
 		for (;;)
 			pause();
 	}
+	if (!strcmp(argv[1], "identity") && argc == 4)
+		return print_identity(argv[2], argv[3]);
 	if (!strcmp(argv[1], "mark") && argc == 4)
 		return check_mark(argv[2], atoi(argv[3]));
 	if (!strcmp(argv[1], "failed-exec")) {

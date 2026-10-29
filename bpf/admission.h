@@ -78,16 +78,25 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_PIN);
 
 	/*
-	 * Read-only / observability cmds, so `bpftool prog show`,
-	 * `shirudo status`, and `shirudo upatch get/map` keep working.
-	 * BPF_OBJ_UNPIN does not exist as a bpf() cmd; VFS unlink removes
-	 * pins and shirudo's lsm/inode_unlink hook blocks `rm` on the
-	 * private bpffs.
+	 * A descriptor keeps its object alive: a link held open stays
+	 * attached after shirudo unpins it for an unload, a revocation or
+	 * the undo of a refused load, and no LSM hook sees a link descriptor
+	 * being handed out. A map descriptor reads the state the serializers
+	 * own. Neither is root's to take, by pin or by id.
+	 */
+	case BPF_OBJ_GET:
+	case BPF_MAP_GET_FD_BY_ID:
+	case BPF_LINK_GET_FD_BY_ID:
+		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
+
+	/*
+	 * Read-only / observability cmds. BPF_OBJ_UNPIN does not exist as a
+	 * bpf() cmd; VFS unlink removes pins and shirudo's lsm/inode_unlink
+	 * hook blocks `rm` on the private bpffs.
 	 */
 	case BPF_MAP_LOOKUP_ELEM:
 	case BPF_MAP_GET_NEXT_KEY:
 	case BPF_MAP_LOOKUP_BATCH:
-	case BPF_OBJ_GET:
 	case BPF_OBJ_GET_INFO_BY_FD:
 	case BPF_PROG_QUERY:
 	case BPF_PROG_GET_NEXT_ID:
@@ -95,9 +104,7 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	case BPF_BTF_GET_NEXT_ID:
 	case BPF_LINK_GET_NEXT_ID:
 	case BPF_PROG_GET_FD_BY_ID:
-	case BPF_MAP_GET_FD_BY_ID:
 	case BPF_BTF_GET_FD_BY_ID:
-	case BPF_LINK_GET_FD_BY_ID:
 	case BPF_TASK_FD_QUERY:
 		return 0;
 
@@ -122,25 +129,19 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 
 /*
  * Writable map fds let userspace alter array contents and writable
- * mmap lets it alter arena pages without another bpf() command. Keep
- * both paths exclusive to shirudo while leaving read-only map access
- * available to observers.
+ * mmap lets it alter arena pages without another bpf() command; a
+ * read-only one reads what the serializers own. Every route to a map
+ * descriptor ends here, so every one is shirudo's.
  */
 SEC("lsm/bpf_map")
 int BPF_PROG(shirudo_lsm_bpf_map, struct bpf_map *map, fmode_t fmode,
 	     int ret)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
-
 	if (ret)
 		return ret;
 	if (fmode & FMODE_WRITE)
 		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_FD);
-	if (!shirudo_private_map(map))
-		return 0;
-	if (!id || !shirudo_task_is_self(id))
-		return -EACCES;
-	return 0;
+	return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
 }
 
 /*

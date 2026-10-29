@@ -24,6 +24,12 @@
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif
+#ifndef S_IFMT
+#define S_IFMT		00170000
+#endif
+#ifndef S_IFDIR
+#define S_IFDIR		0040000
+#endif
 #define LSM_UNSAFE_PTRACE	2
 #define PR_SET_MM		35
 #define PR_SET_MM_EXE_FILE	13

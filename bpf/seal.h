@@ -22,12 +22,6 @@
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif
-#ifndef S_IFMT
-#define S_IFMT		00170000
-#endif
-#ifndef S_IFDIR
-#define S_IFDIR		0040000
-#endif
 
 #define SHIRUDO_XATTR	"security.bpf.shirudo"
 /* The label is a SHA-256 hex string (util/seal.h) -- always 64 bytes. */
