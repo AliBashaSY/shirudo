@@ -14,6 +14,8 @@
 
 typedef __s32 key_serial_t;
 
+#define KEYRING_DESC_MAX	512
+
 typedef void (*shirudo_keyring_cb)(key_serial_t serial,
 				   const char *type,
 				   const char *description,
@@ -54,6 +56,28 @@ int keyring_unlink_key(key_serial_t keyring, key_serial_t key);
 
 int keyring_list(key_serial_t keyring,
 		 shirudo_keyring_cb cb, void *ud);
+
+struct keyring_link {
+	key_serial_t	serial;
+	int		err;		/* 0, or why it cannot be described */
+	char		type[64];
+	char		description[KEYRING_DESC_MAX];
+};
+
+/*
+ * Every link of <keyring>, unlike keyring_list() also those it cannot
+ * describe: a key hidden from view still verifies. Freed with
+ * xfree(*links, *n * sizeof(**links)).
+ */
+int keyring_links(key_serial_t keyring, struct keyring_link **links,
+		  size_t *n);
+
+/*
+ * The description the kernel gives the asymmetric key it parses from
+ * <der>, the one identity a key in a keyring shows.
+ */
+int keyring_cert_description(const __u8 *der, size_t der_len,
+			     char out[KEYRING_DESC_MAX]);
 
 /*
  * The kernel's bpf keyring, the trust anchor a signed loader names with

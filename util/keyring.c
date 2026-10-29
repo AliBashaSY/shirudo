@@ -29,8 +29,6 @@
 #define KEYCTL_RESTRICT_KEYRING	29
 #endif
 
-#define KEYRING_DESC_MAX	512
-
 static long sys_add_key(const char *type, const char *desc,
 			const void *payload, size_t plen, key_serial_t ring)
 {
@@ -144,9 +142,46 @@ int keyring_list(key_serial_t keyring,
 	return 0;
 }
 
-/* The description the kernel gives the key it parses from <der>. */
-static int cert_description(const __u8 *der, size_t der_len,
-			    char out[KEYRING_DESC_MAX])
+int keyring_links(key_serial_t keyring, struct keyring_link **links,
+		  size_t *n)
+{
+	struct keyring_link *out = NULL;
+	key_serial_t *serials = NULL;
+	size_t count = 0, cap = 0, i;
+	int rc;
+
+	rc = read_links(keyring, &serials, &count, &cap);
+	if (rc)
+		return rc;
+	if (count) {
+		out = xcalloc(count, sizeof(*out));
+		if (!out) {
+			xfree(serials, cap);
+			return -ENOMEM;
+		}
+	}
+	for (i = 0; i < count; i++) {
+		const char *type, *description;
+		char desc[KEYRING_DESC_MAX];
+
+		out[i].serial = serials[i];
+		out[i].err = describe_key(serials[i], desc, sizeof(desc));
+		if (out[i].err)
+			continue;
+		split_describe(desc, &type, &description);
+		if (strscpy(out[i].type, type, sizeof(out[i].type)) < 0 ||
+		    strscpy(out[i].description, description,
+			    sizeof(out[i].description)) < 0)
+			out[i].err = -ERANGE;
+	}
+	xfree(serials, cap);
+	*links = out;
+	*n = count;
+	return 0;
+}
+
+int keyring_cert_description(const __u8 *der, size_t der_len,
+			     char out[KEYRING_DESC_MAX])
 {
 	const char *type, *description;
 	char desc[KEYRING_DESC_MAX];
@@ -189,7 +224,7 @@ int keyring_holds_cert(key_serial_t keyring,
 	struct holds_cert_ctx ctx = {};
 	int rc;
 
-	rc = cert_description(der, der_len, ctx.want);
+	rc = keyring_cert_description(der, der_len, ctx.want);
 	if (!rc)
 		rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
@@ -204,7 +239,7 @@ key_serial_t keyring_find_cert(key_serial_t keyring,
 	struct holds_cert_ctx ctx = {};
 	int rc;
 
-	rc = cert_description(der, der_len, ctx.want);
+	rc = keyring_cert_description(der, der_len, ctx.want);
 	if (!rc)
 		rc = keyring_list(keyring, holds_cert_cb, &ctx);
 	if (rc)
@@ -233,7 +268,8 @@ int keyring_holds_exactly(key_serial_t keyring,
 			goto out;
 	}
 	for (i = 0; i < n; i++) {
-		rc = cert_description(certs[i].der, certs[i].len, want[i]);
+		rc = keyring_cert_description(certs[i].der, certs[i].len,
+					      want[i]);
 		if (rc)
 			goto out;
 	}
