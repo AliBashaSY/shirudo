@@ -54,8 +54,8 @@ PYTHON
 
 test_expect_success 'DNS observations use real loopback UDP traffic' '
 	"$SHIRUDO_BIN" upatch load "$LOAD" --no-precheck >/dev/null 2>&1 &&
-	python3 e2e/kernel_obs_events.py dns-long &&
-	python3 e2e/kernel_obs_events.py dns-many &&
+	python3 end2end/kernel_obs_events.py dns-long &&
+	python3 end2end/kernel_obs_events.py dns-many &&
 	"$SHIRUDO_BIN" upatch map "$NAME" dns --json="$WORK/dns.ndjson" >/dev/null &&
 	python3 "$WORK/check.py" "$WORK/dns.ndjson" &&
 	"$SHIRUDO_BIN" upatch map "$NAME" dns --json="$WORK/dns-empty.ndjson" >/dev/null &&

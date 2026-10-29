@@ -336,18 +336,19 @@ one usually still compiles and passes tests.
   objects, vendored libbpf, test helpers and fuzz targets included;
   fix the warning rather than silence it. `WERROR=0` is for a compiler
   newer than the tree, while its new warnings get fixed.
-- `make -C testing test-op` runs the unit tests and the host-side suite (the
-  `t?0??` tests under `testing/`), no root needed;
-  `make -C testing SANITIZE=address,undefined test-op` runs it under ASan and
-  UBSan (CI does too); `make -C testing test-tgt` runs the target tests in
-  QEMU/swtpm VMs, one fresh VM per test family (`T=<family>` selects some,
-  `make -C testing help` lists them).
-- `sudo make -C testing test-tgt` always boots the dm-verity runtime and signed
+- `make tests` (or `make -C testing`) runs every test, and is what CI runs;
+  `make -C testing unit`, `ghchecks`, `functional` or `end2end` runs one
+  tier, `unit/<suite>` or `functional/<family>` part of one. The target
+  tests (`t?1??`) run as root in QEMU/swtpm VMs, one fresh VM per family;
+  `VM=0` leaves them out, and `make tests VM=0
+  SANITIZE=address,undefined` runs the rest under ASan and UBSan (CI does
+  too). `make -C testing help` lists the suites and families.
+- The target tests always boot the dm-verity runtime and signed
   config from a dracut initrd. CI runs that same required suite through
-  `.github/scripts/target-tests.sh`; the old root-only installer suite is gone.
+  `.github/scripts/tests.sh`; the old root-only installer suite is gone.
 - `util/<m>.c` is unit tested by `testing/unit/<m>.c`: a change to a util
   function adds or updates its cases there. A shell test is named
-  `t<F><K><NN>`, family, host (0) or target (1), and order, and lives in
+  `t<F><K><NN>`, family, operator (0) or target (1), and order, and lives in
   its family's directory; `Documentation/testing.rst` has the families.
 - `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
   `testing/fuzz/` for the parsers of input from outside the host, under

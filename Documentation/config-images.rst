@@ -453,7 +453,7 @@ kernel build applies the local copy under ``kernel/``.
 Shirudo also requires the signed-BPF kernel interfaces listed in
 `requirements <requirements.rst>`__.
 
-The host tests exercise standard superblocks, exact root encoding,
+The operator tests exercise standard superblocks, exact root encoding,
 ``veritysetup`` formatting and offline verification, signature failures,
 durable pending selections, interrupted activation and fresh-boot history.
 The libtpms cases use actual PCR commands in addition to injected callbacks.
@@ -476,11 +476,12 @@ initiate a reboot. A skipped required fixture fails the run.
 The standard harness builds and signs fixtures on the operator and deploys
 only public artifacts. Run the suite with::
 
-    sudo make -C testing test-tgt
+    sudo make -C testing functional
 
 Each family of target tests boots a VM of its own from the same bundle, so
-no family sees state another left behind; ``T=image`` runs the image family
-alone, and ``make -j`` runs several families side by side.
+no family sees state another left behind; ``make -C testing
+functional/image`` runs the image family alone, and ``make -j`` runs several
+side by side.
 
 The harness requires dracut, initrd boot and all seal hooks. It rejects
 ``TEST_VM_INITRD=0`` and ``TEST_VM_SKIP_SEAL=1``. The only accepted value of

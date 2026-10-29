@@ -27,26 +27,26 @@ def exec_event():
         shutil.copyfile("/bin/true", executable)
         os.chmod(executable, 0o755)
         subprocess.run([executable], check=True)
-        subprocess.run(["./e2e/exec-paths", directory], check=True)
+        subprocess.run(["./end2end/exec-paths", directory], check=True)
         for method in ("execveat-empty", "fexecve"):
             fd_executable = os.path.join(directory, f"true-{method}")
             shutil.copyfile("/bin/true", fd_executable)
             os.chmod(fd_executable, 0o755)
-            subprocess.run(["./e2e/exec-paths", f"--{method}",
+            subprocess.run(["./end2end/exec-paths", f"--{method}",
                             fd_executable], check=True)
         dirfd_executable = os.path.join(directory, "true-execveat-dirfd")
         shutil.copyfile("/bin/true", dirfd_executable)
         os.chmod(dirfd_executable, 0o755)
-        subprocess.run(["./e2e/exec-paths",
+        subprocess.run(["./end2end/exec-paths",
                         "--execveat-dirfd", directory,
                         os.path.basename(dirfd_executable)], check=True)
         dropped_uid_executable = os.path.join(directory, "true-drop-euid")
         shutil.copyfile("/bin/true", dropped_uid_executable)
         os.chmod(dropped_uid_executable, 0o755)
         os.chmod(directory, 0o755)
-        subprocess.run(["./e2e/exec-paths",
+        subprocess.run(["./end2end/exec-paths",
                         "--drop-euid", dropped_uid_executable], check=True)
-        subprocess.run(["./e2e/exec-paths", "--replace", executable],
+        subprocess.run(["./end2end/exec-paths", "--replace", executable],
                        check=True)
 
 

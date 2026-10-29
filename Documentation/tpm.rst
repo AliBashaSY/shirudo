@@ -684,7 +684,7 @@ context and the deferred mitigations the plan.
 8) Testing
 ----------
 
-``make -C testing test-tgt-register`` runs
+``make -C testing functional/tpm`` runs
 ``testing/functional/tpm/t4003-register.sh`` in a dedicated pre-init KVM
 guest. It creates the TPM-held writer
 and freezes its nonsecret input and public modulus in a BPF identity
@@ -693,8 +693,9 @@ while the guest kernel and writer
 survive.  This preserves lifecycle, attestation and credential-activation
 coverage, including index recreation, the closed first-write window,
 reset recovery and late binding.  It is a protocol test before the LSM
-attaches, not evidence of guard enforcement.  The host suite skips it;
-``test-tgt`` runs it in a VM of its own beside the test families.
+attaches, not evidence of guard enforcement.  The operator tests skip it;
+``make -C testing functional/tpm`` runs it in a VM of its own before the
+tpm family's.
 The same guest runs ``testing/functional/tpm/t4004-config-attest.sh``
 with a fresh native writer to cover config-PCR evidence alongside the
 signed NV register.
@@ -714,14 +715,14 @@ implementation, without a TPM.
 
 Post-init integration tests run only against a real kernel in the KVM
 guest with swtpm attached through ``/dev/tpmrm0``
-(``make -C testing test-tgt``).  There is no software signing fixture:
+(``make -C testing functional``).  There is no software signing fixture:
 the guest uses the production TPM-held writer and installed
 ``shirudo`` binary.  ``testing/functional/tpm/t4102-tpm-chain.sh``
 exercises measured loads and unloads, initialization reuse, prediction, attestation,
 credential activation and rejection of forged writer evidence.
 Prediction uses the offline command fixture rather than overriding the
 production runtime's certificate selection.
-``make -C testing test-tgt`` also exercises the production initrd and
+``make -C testing functional`` also exercises the production initrd and
 switch-root path in ``testing/functional/tpm/t4101-initrd.sh``.
 
 ``testing/helper/test-nv-cphash`` creates a separate TPM-resident writer

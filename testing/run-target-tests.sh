@@ -10,7 +10,7 @@ set -eu
 cd "$(dirname "$0")"
 family=${1:?usage: run-target-tests.sh <family>}
 case "$family" in
-e2e) dir=e2e ;;
+end2end) dir=end2end ;;
 *) dir=functional/$family ;;
 esac
 [ -d "$dir" ] || {

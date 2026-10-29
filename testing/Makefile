@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# Host, VM, and kernel test targets. Run with make -C testing <target>.
+# Test, VM and kernel targets. make -C testing runs every test, make -C
+# testing <tier>[/<name>] one tier or part of it; make -C testing help
+# lists the rest.
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 MAKEFLAGS += -rR --no-print-directory
@@ -13,14 +15,20 @@ else
 endif
 export Q V
 
+# make tests at the top exports the install paths, and dracut takes the
+# prefix it finds in the environment for the initrd a test VM boots.
+unexport prefix exec_prefix bindir libexecdir sharedir libdir mandir \
+	completionsdir systemdunitdir dracutmodulesdir
+
 root-path = $(if $(filter /%,$(1)),$(1),$(ROOT)/$(1))
 # $(call test-vm-arch,NAME): the value testing/vm/arch.sh gives NAME.
 test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 	. $(ROOT)/testing/vm/arch.sh && printf '%s' "$$$(1)")
 
-.DEFAULT_GOAL := help
-.PHONY: help clean test-helpers test-unit test-op fuzz test bundle test-vm-bundle kernel \
-	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-vm test-vm-clean
+.DEFAULT_GOAL := all
+.PHONY: all help clean unit ghchecks functional end2end build-operator build-unit \
+	test-helpers \
+	fuzz bundle test-vm-bundle kernel bpf-next vm vm-console vm-ssh vm-stop vm-clean
 
 KERNEL_PATCHES ?= $(if $(wildcard $(ROOT)/kernel/*.patch),$(ROOT)/kernel/,)
 override KERNEL_PATCHES := $(if $(strip $(KERNEL_PATCHES)),$(call root-path,$(KERNEL_PATCHES)),)
@@ -122,7 +130,7 @@ TEST_VM_BUNDLE_SOURCES := $(sort $(wildcard \
 	$(ROOT)/tools/gen-image/shirudo-gen-* $(ROOT)/tools/gen-image/*.sh \
 	$(ROOT)/tools/gen-image/*.in \
 	$(ROOT)/testing/vm/files/* \
-	$(ROOT)/testing/e2e/*.c $(ROOT)/completion/* $(ROOT)/systemd/*.in \
+	$(ROOT)/testing/end2end/*.c $(ROOT)/completion/* $(ROOT)/systemd/*.in \
 	$(ROOT)/systemd/*.timer $(ROOT)/testing/fixtures/*.c $(ROOT)/testing/fixtures/*.lua \
 	$(ROOT)/testing/fixtures/*.conf $(ROOT)/testing/fixtures/*.sh \
 	$(ROOT)/testing/fixtures/*.h \
@@ -150,6 +158,7 @@ $(ROOT)/config.mk: $(ROOT)/Makefile.config
 test-vm-bundle: $(VM_KERNEL_DEP) $(TEST_VM_BUNDLE_STAMP)
 
 $(TEST_VM_BUNDLE_STAMP): $(TEST_VM_BUNDLE_INPUTS)
+	$(Q)mkdir -p $(dir $(BUILD_LOCK))
 	$(Q)TEST_VM_MODE="$(TEST_VM_MODE)" TEST_VM_INITRD="$(TEST_VM_INITRD)" \
 		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
 		TEST_VM_WORK_DIR="$(abspath $(TEST_VM_WORK_DIR))" \
@@ -161,7 +170,7 @@ $(TEST_VM_BUNDLE_STAMP): $(TEST_VM_BUNDLE_INPUTS)
 		TEST_VM_BUNDLE_STAMP="$(abspath $(TEST_VM_BUNDLE_STAMP))" \
 		TEST_VM_BUNDLE_INPUTS="$(abspath $(TEST_VM_BUNDLE_INPUTS))" \
 		BPF_VMLINUX_BTF="$(abspath $(VM_KERNEL_ARTIFACT_DIR)/vmlinux.btf)" \
-		$(ROOT)/testing/vm/build-bundle.sh
+		flock $(BUILD_LOCK) $(ROOT)/testing/vm/build-bundle.sh
 
 kernel: $(KERNEL_BUILD_STAMP)
 
@@ -242,18 +251,55 @@ VM_MODE=test TEST_VM_SUITE="$(1)" VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(2)"
 		$(ROOT)/testing/vm/run.sh
 endef
 
-# Each family of target tests boots a VM of its own from the bundle, so no
-# test finds what another family left behind; register runs the TPM
-# register tests before init, without the production initrd. T= selects
-# families, and make -j runs their VMs side by side.
-TEST_TGT_FAMILIES := register $(shell cd $(ROOT)/testing/functional && \
-	ls */t[0-9]1[0-9][0-9]-*.sh | \
-	awk -F/ '{ print substr($$2, 2, 1), $$1 }' | sort -u | cut -d' ' -f2) e2e
-T ?= $(TEST_TGT_FAMILIES)
+# The tiers: the unit tests, the tests of the scripts CI runs, the families
+# of functional tests in number order, and the end-to-end tests. A test with
+# a target number (t?1??) runs in a VM its family boots from the bundle, so
+# no test finds what another family left behind; tpm boots a second VM
+# before init, without the initrd, for the TPM register tests. VM=0 leaves
+# out every test that boots a VM.
+VM ?= 1
+UNIT_SUITES := $(sort $(basename $(notdir $(filter-out %/unit.c, \
+	$(wildcard $(ROOT)/testing/unit/*.c)))))
+family-list = $(shell cd $(ROOT)/testing/functional && \
+	ls */t[0-9]$(1)[0-9][0-9]-*.sh | \
+	awk -F/ '{ print substr($$2, 2, 1), $$1 }' | sort -u | cut -d' ' -f2)
+FAMILIES := $(call family-list,[0-9])
+VM_SUITES := $(call family-list,1) end2end
+vm-tests = $(if $(filter 0,$(VM)),:,$(MAKE) $(addprefix vm-test-,$(1)))
+.PHONY: $(addprefix unit/,$(UNIT_SUITES)) $(addprefix functional/,$(FAMILIES)) \
+	$(addprefix vm-test-,register $(VM_SUITES))
 
-test-tgt: $(addprefix test-tgt-,$(T))
+all:
+	+$(Q)$(MAKE) unit
+	+$(Q)$(MAKE) ghchecks
+	+$(Q)$(MAKE) functional
+	+$(Q)$(MAKE) end2end
 
-test-tgt-%: $(VM_KERNEL_DEP) test-vm-bundle
+unit: build-unit
+	$(Q)$(ROOT)/testing/run-tests.sh unit
+
+$(addprefix unit/,$(UNIT_SUITES)): unit/%: build-unit
+	$(Q)$(ROOT)/testing/run-tests.sh unit/$*
+
+# The tests of the scripts under .github/scripts, which need no build.
+ghchecks:
+	$(Q)$(ROOT)/testing/run-tests.sh ghchecks
+
+functional: build-operator
+	$(Q)$(ROOT)/testing/run-tests.sh functional
+	+$(Q)$(call vm-tests,$(filter-out end2end,$(VM_SUITES)))
+
+$(addprefix functional/,$(FAMILIES)): functional/%: build-operator
+	$(Q)$(ROOT)/testing/run-tests.sh functional/$*
+	+$(Q)$(call vm-tests,$(filter $*,$(VM_SUITES)))
+
+end2end: build-operator
+	$(Q)$(ROOT)/testing/run-tests.sh end2end
+	+$(Q)$(call vm-tests,end2end)
+
+vm-test-tpm: vm-test-register
+
+$(addprefix vm-test-,register $(VM_SUITES)): vm-test-%: $(VM_KERNEL_DEP) test-vm-bundle
 	$(Q)$(call run-target-vm,$*,$(if $(VM_NAME),$(VM_NAME)-$*),$(if $(filter register,$*),0,1))
 
 vm-stop:
@@ -264,24 +310,22 @@ vm-clean:
 	$(Q)VM_NAME="$(VM_NAME)" \
 		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/testing/vm/run.sh --clean
 
-test-vm-clean: vm-clean
+# The operator build and the bundle build compile in the same tree, one at
+# a time.
+BUILD_LOCK := $(ROOT)/build/.testing-build.lock
 
-test-op:
-	+$(Q)$(MAKE) -C $(ROOT) all
-	+$(Q)$(MAKE) -C $(ROOT) shirudo-build
-	+$(Q)$(MAKE) -C $(ROOT) -f testing/Makefile test-helpers
-	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo check
+build-operator: build-unit
+	+$(Q)flock $(BUILD_LOCK) $(MAKE) -C $(ROOT) shirudo-build
+	+$(Q)flock $(BUILD_LOCK) $(MAKE) -C $(ROOT) -f Makefile.shirudo test-helpers
+
+build-unit:
+	$(Q)mkdir -p $(dir $(BUILD_LOCK))
+	+$(Q)flock $(BUILD_LOCK) $(MAKE) -C $(ROOT) all
+	+$(Q)flock $(BUILD_LOCK) $(MAKE) -C $(ROOT) -f Makefile.shirudo unit-tests
 
 test-helpers:
 	+$(Q)$(MAKE) -C $(ROOT) config
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo test-helpers
-
-test-unit:
-	+$(Q)$(MAKE) -C $(ROOT) config
-	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo unit-tests
-	$(Q)rc=0; for t in $(ROOT)/build/unit/*; do \
-		[ -f "$$t" ] && [ -x "$$t" ] || continue; "$$t" || rc=1; \
-	done; exit $$rc
 
 # The parsers of input from outside the host under libFuzzer, each target
 # for FUZZ_SECONDS on its seed corpus; needs clang with its fuzzer runtime.
@@ -294,27 +338,21 @@ fuzz:
 
 bundle: test-vm-bundle
 
-test-vm: test-tgt
-
-test:
-	+$(Q)$(MAKE) -C $(ROOT) -f testing/Makefile bundle
-	+$(Q)$(MAKE) -C $(ROOT) -f testing/Makefile test-op
-	+$(Q)$(MAKE) -C $(ROOT) -f testing/Makefile test-tgt
-
 help:
 	@printf '%s\n' \
-	  'Testing targets:' \
-	  '  make -C testing test' \
-	  '  make -C testing test-op' \
-	  '  make -C testing test-unit' \
-	  '  make -C testing test-helpers' \
+	  'Testing targets (make tests at the top runs the first):' \
+	  '  make -C testing                         every test' \
+	  '  make -C testing unit[/<suite>]          suites: $(UNIT_SUITES)' \
+	  '  make -C testing ghchecks                the scripts CI runs' \
+	  '  make -C testing functional[/<family>]   families: $(FAMILIES)' \
+	  '  make -C testing end2end' \
+	  '  VM=0 leaves out the tests that boot a VM, which need root;' \
+	  '  make -j boots several at once.' \
 	  '  make -C testing fuzz [FUZZ_SECONDS=60]' \
-	  '  make -C testing test-tgt [T="<family> ..."] (one VM per family, root required)' \
-	  '  make -C testing test-tgt-<family>, families: $(TEST_TGT_FAMILIES)' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=7.4' \
 	  '  make -C testing kernel KERNEL_TAG=v7.4' \
-	  '  make -C testing bpf-next or test-vm-bundle' \
+	  '  make -C testing bpf-next, bundle or test-helpers' \
 	  '  make -C testing clean'
 
 clean:

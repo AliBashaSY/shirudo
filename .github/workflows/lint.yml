@@ -47,7 +47,7 @@ jobs:
 
       # The kernel's checkpatch.pl, in strict mode, over the C sources and
       # the message of every commit the event covers; the script fetches
-      # the pinned copy it runs, and its tests then run against that copy.
+      # the pinned copy it runs.
       - name: Run checkpatch over every commit
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -56,6 +56,3 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           SHA: ${{ github.sha }}
         run: .github/scripts/ci-commit-range.sh .github/scripts/check-style.sh
-
-      - name: Test the checker against the fetched copy
-        run: sh testing/ghchecks/t0003-check-style.sh

@@ -23,7 +23,7 @@ sending a change.
         unit/                   unit tests, util/<m>.c by unit/<m>.c
         ghchecks/               the scripts under .github/scripts
         functional/<family>/    one command or mechanism at a time
-        e2e/                    whole delivery paths on a test VM
+        end2end/                whole delivery paths on a test VM
         fuzz/                   libFuzzer targets and seed corpora
         fixtures/               BPF programs, decoders and configs the
                                 tests build from
@@ -31,7 +31,7 @@ sending a change.
         vm/                     the test VM: kernel, bundle, guest
         test-lib.sh             the TAP harness of the shell tests
         integration-lib.sh      shared setup of the target tests
-        run-tests.sh            the unit and host tests
+        run-tests.sh            the unit and operator tests
         run-target-tests.sh     one family's target tests, in its VM
 
 Each ``functional/`` family may carry a ``test.plan.md`` that maps the cases
@@ -44,9 +44,9 @@ A shell test is named ``t<F><K><NN>-<what>.sh``, the way git numbers its
 test families:
 
 * ``F`` is the family, and with it the directory;
-* ``K`` is ``0`` for a host test, which needs no root, kernel or TPM of its
-  own, and ``1`` for a target test, which runs as root in the test VM
-  against an initialised target;
+* ``K`` is ``0`` for an operator test, which runs on the build host and
+  needs no root, kernel or TPM of its own, and ``1`` for a target test,
+  which runs as root in the test VM against an initialised target;
 * ``NN`` orders the tests of a family, and is the order they run in.
 
 === ============================ ==========================================
@@ -66,7 +66,7 @@ F   Directory                    What it covers
                                  keyrings, bpffs and the TPM path
 7   ``functional/bpm/``          packages, repositories, the upatch tree
 8   ``functional/otel/``         map export, status, TLS policy
-9   ``e2e/``                     the kernel-obs package, delivery paths
+9   ``end2end/``                     the kernel-obs package, delivery paths
 === ============================ ==========================================
 
 A new test takes the next free number of its family and kind; a number is
@@ -76,32 +76,38 @@ test does not take a name of this form.
 3) Running the tests
 --------------------
 
-``make -C testing test-unit``
-    Builds and runs the unit tests.
+``make tests`` or ``make -C testing``
+    Runs every test, tier by tier: ``unit``, ``ghchecks``, ``functional``
+    and ``end2end``.  CI runs the same.
 
-``make -C testing test-op``
-    Builds shirudo, the helpers and the unit tests, then runs the unit
-    tests and every host test in number order.  ``SANITIZE=address,undefined``
-    builds all of it under ASan and UBSan, as CI does.
+``make -C testing <tier>``
+    Runs one tier.  ``unit/<suite>`` runs one unit suite and
+    ``functional/<family>`` one family; ``make -C testing help`` lists
+    them.  The unit tests and the ``ghchecks/`` tests run on the build
+    host.
 
-``make -C testing test-tgt``
-    Runs the target tests, one VM per family, booted from one bundle
-    through the production path: the dm-verity runtime and the signed
-    config from a dracut initrd.  ``register`` runs the TPM register tests
-    before ``init``, without the production initrd.  ``T="<family> ..."``
-    selects families, ``make -C testing test-tgt-<family>`` runs one, and
-    ``make -j`` boots several side by side.  A VM that passed keeps its
-    logs and drops its disks; one that failed is kept under
-    ``build/test-vm/vms/`` for inspection.  Needs root.
+A functional or end-to-end tier runs its operator tests first, in number
+order, then its target tests: each family boots a VM of its own from one
+bundle, through the production path, the dm-verity runtime and the signed
+config from a dracut initrd.  The tpm family also boots a VM before
+``init``, without the production initrd, for the TPM register tests.  The
+VMs need root, and ``make -j`` boots several side by side.  A VM that
+passed keeps its logs and drops its disks; one that failed is kept under
+``build/test-vm/vms/`` for inspection.
+
+``VM=0`` leaves out the tests that boot a VM, for a host without KVM or
+root; ``make tests VM=0 SANITIZE=address,undefined`` builds and runs the
+rest under ASan and UBSan, as CI does.
 
 ``make -C testing fuzz [FUZZ_SECONDS=60]``
     Runs every libFuzzer target on its seed corpus under ASan and UBSan.
 
 ``make -C testing vm``
     Boots an interactive VM with a prepared shirudo, for running a test by
-    hand; ``make -C testing help`` lists the rest.
+    hand.
 
-The ``ghchecks/`` tests run with the host tests and need no build.
+In CI, the tests workflow runs ``make tests`` and the sanitizer workflow
+``make tests VM=0`` under ASan and UBSan with gcc and clang.
 
 4) Unit tests
 -------------
@@ -151,8 +157,8 @@ finds loaded only what its family loaded; ``require_loaded <name>`` loads a
 signed fixture of the bundle that a test needs.  A target test that skips
 as a whole fails its family, since every one of them is required.
 
-The end-to-end tests in ``e2e/`` run a shipped package against real kernel
-activity and follow it out through the export path.
+The end-to-end tests in ``end2end/`` run a shipped package against real
+kernel activity and follow it out through the export path.
 
 6) The test VM
 --------------

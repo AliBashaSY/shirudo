@@ -317,7 +317,7 @@ make -C "$REPO_ROOT" -j"$(nproc)" -f Makefile.shirudo \
 
 install -d "$TMP_DIR/test-helpers/testing/helper" \
 	"$TMP_DIR/test-helpers/testing/fixtures" \
-	"$TMP_DIR/test-helpers/testing/e2e"
+	"$TMP_DIR/test-helpers/testing/end2end"
 while IFS= read -r helper; do
 	install -m 0755 "$REPO_ROOT/$helper" "$TMP_DIR/test-helpers/$helper"
 done <<'EOF'
@@ -343,7 +343,7 @@ testing/helper/test-upatch-serializer-pages
 testing/helper/test-signed-load
 testing/helper/test-upatch-link-lockdown
 testing/helper/test-exec-churn
-testing/e2e/exec-paths
+testing/end2end/exec-paths
 testing/helper/otel-mock.py
 testing/helper/test-oci-registry.py
 EOF

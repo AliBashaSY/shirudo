@@ -295,7 +295,7 @@ DEPS     := $(DEP_OBJS:.o=.d)
 
 # ----- top-level goals --------------------------------------------
 
-.PHONY: all install install-common install-target install-operator clean distclean check test \
+.PHONY: all install install-common install-target install-operator clean distclean \
 		test-helpers verity-test-helpers unit-tests \
         bpf libbpf
 
@@ -622,7 +622,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-signed-load \
                 testing/helper/test-upatch-link-lockdown \
                 testing/helper/test-exec-churn \
-		testing/e2e/exec-paths
+		testing/end2end/exec-paths
 TEST_HELPERS += testing/helper/test-nv-writer
 TEST_HELPERS += testing/helper/test-keyring-seal
 TEST_HELPERS += testing/helper/test-tpm-preopened
@@ -792,7 +792,7 @@ testing/helper/test-exec-churn: testing/helper/test-exec-churn.c util/io.o util/
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
-testing/e2e/exec-paths: testing/e2e/exec_paths.c
+testing/end2end/exec-paths: testing/end2end/exec_paths.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -pthread -o $@ $^
 
@@ -989,10 +989,6 @@ $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 		$(filter-out $(FUZZ_INCLUDED),$(filter %.c,$^)) $(FUZZ_LIBS)
 
 fuzz-targets: $(FUZZ_TARGETS)
-
-check test: shirudo $(TEST_HELPERS) $(UNIT_TESTS)
-	@printf '  TEST\n'
-	$(Q)cd testing && ./run-tests.sh
 
 # ----- clean ------------------------------------------------------
 

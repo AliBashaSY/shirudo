@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 
 [ "${SHIRUDO_TEST_REGISTER_VM:-0}" = 1 ] ||
-	test_skip_all "run with make -C testing test-tgt-register (real kernel signer required)"
+	test_skip_all "run with make -C testing functional/tpm (real kernel signer required)"
 [ "$(id -u)" = 0 ] && [ -x "$R" ] || {
 	echo "register VM requires root and the built register helper" >&2
 	exit 1

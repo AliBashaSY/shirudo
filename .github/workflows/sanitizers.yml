@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  test-op:
+  tests:
     name: ASan+UBSan (${{ matrix.compiler }})
     runs-on: ubuntu-latest
     strategy:
@@ -90,7 +90,7 @@ jobs:
             make -j4 SANITIZE=address,undefined
             make SANITIZE=address,undefined shirudo-build
             make -C testing SANITIZE=address,undefined test-helpers
-            make -C testing SANITIZE=address,undefined test-op
+            make tests VM=0 SANITIZE=address,undefined
 
   libfuzzer:
     name: libFuzzer

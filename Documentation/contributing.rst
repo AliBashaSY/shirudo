@@ -200,11 +200,11 @@ Before sending
 ==============
 
 * Build both profiles and the helper (``make``, ``make shirudo-build``)
-  and run ``make -C testing test-op``; run ``make -C testing test-tgt`` when the change
-  touches target-side behaviour.  CI runs the target suite in both
-  configurations as the ``Target tests`` check.  Run the host-side suite once more
-  with ``make -C testing SANITIZE=address,undefined test-op`` when the change
-  touches memory handling or binary formats; CI runs the same sweep.
+  and run ``make tests``, which CI runs too; ``make -C testing
+  functional/<family>`` runs the families the change touches while you
+  work on it.  Run ``make tests VM=0 SANITIZE=address,undefined`` when the
+  change touches memory handling or binary formats; CI runs the same
+  sweep.
 * Run ``make -C Documentation html-docs`` when the change touches ``Documentation/``;
   every document must render clean under docutils' strict mode.
 * Run ``.github/scripts/check-spdx.sh`` when the change adds a file:

@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# .github/scripts/target-tests.sh -- run the target suite in the test VM as
-# make -C testing test-tgt does on a developer's host. setup makes the
-# runner the VM host: KVM, the VM's packages, a compatible LVH kernel or
-# the Shirudo test kernel cache, and the OpenSSL 3.5 toolchain from
-# vm-toolchain.sh. staging builds the host bundle and runs the target suite
-# from a dracut initrd.
+# .github/scripts/tests.sh -- run every test as make tests does on a
+# developer's host. setup makes the runner the VM host: KVM, the VM's
+# packages, a compatible LVH kernel or the Shirudo test kernel cache, and
+# the OpenSSL 3.5 toolchain from vm-toolchain.sh. run builds and runs the
+# unit, ghchecks, functional and end2end tests, each family of target tests
+# in a VM of its own.
 #
-#   .github/scripts/target-tests.sh setup|staging
+#   .github/scripts/tests.sh setup|run
 #
 # Runs as a user with passwordless sudo, from the checkout.
 
@@ -251,9 +251,9 @@ setup() {
 }
 
 case "${1:-}" in
-setup|staging) ;;
+setup|run) ;;
 *)
-	echo "usage: $0 setup|staging" >&2
+	echo "usage: $0 setup|run" >&2
 	exit 2
 	;;
 esac
@@ -274,7 +274,12 @@ fi
 # emergency mode for instance, would otherwise hold the job for an hour.
 export TEST_VM_TIMEOUT=900
 
+# The kernel restored from the cache is older than this checkout of the
+# script that built it.
+if [ -s "$kernel/bzImage.sha256sum" ]; then
+	touch "$kernel/bzImage.sha256sum"
+fi
+
 sudo prlimit --pid "$$" --memlock=unlimited:unlimited
 
-make -C testing test-vm-bundle
-sudo -E env PATH="$PATH" make -C testing test-tgt TEST_VM_INITRD=1
+sudo -E env PATH="$PATH" make tests

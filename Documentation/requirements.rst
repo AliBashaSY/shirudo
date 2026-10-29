@@ -267,7 +267,7 @@ booting the target kernel rather than on the operator host.  ``make -C testing
 kernel KERNEL_TAG=<tag> KERNEL_CONFIG=<the fleet's .config>`` builds
 such a kernel with its BTF, ``make -C testing vm KERNEL=<version>`` boots a
 release of v7.4 or newer with a software TPM and a prepared shirudo, and
-``make -C testing test-tgt`` runs the target suite in it; any VM of the operator's
+``make tests`` runs the tests in it; any VM of the operator's
 own serves the same purpose.  A mitigation that loads and passes its
 reproducer on a kernel unlike the fleet's proves nothing about the
 fleet.
@@ -454,12 +454,12 @@ suites when validating a deployment.
 
 * ``make -C Documentation html-docs`` renders the documents with
   docutils' ``rst2html`` (``python3-docutils``).
-* The host-side suite, ``make -C testing test-op``, runs its Python
+* The operator tests, ``make tests VM=0``, run their Python
   helpers on the standard library alone.  With the ``cryptography``
   module installed, ``testing/functional/tpm/t4001-tpm-wire.sh`` also
   cross-checks the TPM credential blob it builds against an independent
   implementation; without it that one check is skipped.
-* ``make -C testing test-tgt-register`` additionally needs libtpms
+* ``make -C testing functional/tpm`` additionally needs libtpms
   development headers on the build host (``libtpms-dev`` on Debian and
   Ubuntu).  The prepared guest installs libtpms and the command TCTI
   runtime. The guest uses the TPM-held NV writer and the kernel TPM

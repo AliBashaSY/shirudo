@@ -93,7 +93,7 @@ assert any("caller" in r for r in tables["exec"]), tables["exec"]
 assert any(r["caller_inferred"] and "caller" in r
            for r in tables["exec"]), tables["exec"]
 helper_records = [r for r in tables["exec"]
-                  if r["path"].endswith("/e2e/exec-paths")]
+                  if r["path"].endswith("/end2end/exec-paths")]
 helper = next(r for r in helper_records
               if (r.get("caller", {}).get("dev"),
                   r.get("caller", {}).get("ino")) !=
@@ -243,16 +243,16 @@ test_expect_success 'kernel-obs upatch loads with eight serializers' '
 '
 
 test_expect_success 'exec, net, listen, DNS, privilege and file events produce records' '
-	python3 e2e/kernel_obs_events.py all &&
-	python3 e2e/kernel_obs_events.py dns-long &&
-	python3 e2e/kernel_obs_events.py dns-many &&
+	python3 end2end/kernel_obs_events.py all &&
+	python3 end2end/kernel_obs_events.py dns-long &&
+	python3 end2end/kernel_obs_events.py dns-many &&
 	export_maps "$WORK/events.ndjson" &&
 	python3 "$WORK/check.py" "$WORK/events.ndjson" &&
 	python3 "$WORK/check_events.py" "$WORK/events.ndjson"
 '
 
 test_expect_success 'watched destinations are recorded with the metric' '
-	python3 e2e/kernel_obs_events.py watch &&
+	python3 end2end/kernel_obs_events.py watch &&
 	export_maps "$WORK/watch.ndjson" &&
 	python3 "$WORK/check_watch.py" "$WORK/watch.ndjson"
 '
@@ -263,7 +263,7 @@ test_expect_success 'an export drains the tables' '
 '
 
 test_expect_success 'only the touched tables carry records' '
-	python3 e2e/kernel_obs_events.py exec &&
+	python3 end2end/kernel_obs_events.py exec &&
 	export_maps "$WORK/exec-only.ndjson" &&
 	python3 "$WORK/check_exec_only.py" "$WORK/exec-only.ndjson"
 '

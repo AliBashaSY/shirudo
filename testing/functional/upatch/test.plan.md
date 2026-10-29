@@ -40,6 +40,6 @@ this review.
   coverage.
 - `functional/upatch/t3102-upatch-arena-serializer.sh` loads the arena-tree fixture and checks
   the real target serializer over its full three-page result and error path.
-- `make -C testing test-op` and `make -C testing test-tgt` passed on
+- `make -C testing unit functional` passed on
   2026-10-19, including the parser, decoder, metadata, tamper and target
   arena-serializer assertions listed above.

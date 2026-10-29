@@ -29,9 +29,10 @@ From the checkout::
     make                  # the operator-profile shirudo binary
     make shirudo-build    # the operator-only build and publish helper
     make target           # the target binary, shirudo-target
-    make -C testing test-op          # host-side TAP suite; no root, LSM or TPM
-    make -C testing SANITIZE=address,undefined test-op
-                          # the same suite under ASan and UBSan
+    make tests            # every test, the target ones in VMs (root)
+    make tests VM=0       # without the VMs: no root, LSM or TPM
+    make tests VM=0 SANITIZE=address,undefined
+                          # the same under ASan and UBSan
 
 ``make`` probes the toolchain and libraries and refuses an OpenSSL
 older than 3.5.  ``make target`` first runs ``make target-deps``, which

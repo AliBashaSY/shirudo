@@ -132,6 +132,6 @@ reboots automatically. The operator chooses when to reboot; trusted startup
 re-verifies the selected image, records a fresh BOOT event and finishes init.
 It does not retry the previous boot's PCR extension.
 
-The standard disposable VM run is ``sudo make -C testing test-tgt``. It
+The standard disposable VM run is ``sudo make -C testing functional``. It
 exercises this initrd handoff, signed config and upatch updates, task and
 writable-state protection, TPM checks and interrupted activation.

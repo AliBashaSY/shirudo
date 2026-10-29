@@ -679,7 +679,6 @@ test_expect_success 'VM stop and cleanup use the VM runner paths' '
 	grep -q "testing/vm/run.sh --stop" ../testing/Makefile &&
 	grep -q "^vm-clean:" ../testing/Makefile &&
 	grep -q "testing/vm/run.sh --clean" ../testing/Makefile &&
-	grep -q "^test-vm-clean: vm-clean" ../testing/Makefile &&
 	grep -q "VM_NAME=\"\$(VM_NAME)\"" ../testing/Makefile &&
 	grep -q "stop_pid_file" vm/run.sh &&
 	grep -q "removed VM state and logs" vm/run.sh
@@ -710,7 +709,7 @@ test_expect_success 'unnamed vm-stop stops all VMs and preserves state' '
 	test -e "$root/logs/two/sentinel"
 '
 
-test_expect_success 'named test-vm-clean removes only the selected VM' '
+test_expect_success 'named vm-clean removes only the selected VM' '
 	root="$WORK/named-clean" &&
 	mkdir -p "$root/vms/one" "$root/vms/two" "$root/logs/one" \
 		"$root/logs/two" "$root/cache" &&
@@ -895,28 +894,28 @@ test_expect_success 'test-vm validates BPM OCI repository handoff as a pair' '
 		"$WORK/missing-bpm-oci-repository.out"
 '
 
-test_expect_success 'make -C testing test runs the complete pipeline in order' '
-	grep -q "^test-op:" ../testing/Makefile &&
-	! grep -Eq "^(check:|.*\bcheck\b.*\.PHONY)" ../testing/Makefile &&
-	grep -q "^bundle: test-vm-bundle" ../testing/Makefile &&
-	grep -A5 "^test:$" ../testing/Makefile | grep -q "\$(MAKE) -C \$(ROOT) -f testing/Makefile bundle" &&
-	grep -A5 "^test:$" ../testing/Makefile | grep -q "\$(MAKE) -C \$(ROOT) -f testing/Makefile test-op" &&
-	grep -A5 "^test:$" ../testing/Makefile | grep -q "\$(MAKE) -C \$(ROOT) -f testing/Makefile test-tgt" &&
-	! grep -A5 "^test:$" ../testing/Makefile | grep -q "\$(MAKE) bpf-next"
+test_expect_success 'make -C testing runs every tier in order' '
+	grep -A4 "^all:$" ../testing/Makefile | sed -n "2,5s/.*\$(MAKE) //p" \
+		>"$WORK/tiers" &&
+	[ "$(tr "\n" " " <"$WORK/tiers")" = "unit ghchecks functional end2end " ] &&
+	grep -q "^bundle: test-vm-bundle" ../testing/Makefile
 '
 
-test_expect_success 'host and target runners split the tests by number' '
-	{ sed -n "/^host_tests()/,/^}/p" run-tests.sh; echo host_tests; } |
-		sh >"$WORK/host-tests" &&
-	grep -q "^functional/upatch/t3001-" "$WORK/host-tests" &&
-	! grep -q "/t[0-9]1[0-9][0-9]-" "$WORK/host-tests" &&
+test_expect_success 'the runners split the tests by number' '
+	{ echo "dirs=\"ghchecks functional/* end2end\""
+	  sed -n "/^operator_tests()/,/^}/p" run-tests.sh; echo operator_tests; } |
+		sh >"$WORK/operator-tests" &&
+	grep -q "^functional/upatch/t3001-" "$WORK/operator-tests" &&
+	! grep -q "/t[0-9]1[0-9][0-9]-" "$WORK/operator-tests" &&
 	families=$(make -s -C .. -f testing/Makefile help |
 		sed -n "s/.*families: //p") &&
-	[ "$families" = "register signing upatch tpm image tamperproof bpm otel e2e" ] &&
-	for t in functional/*/t[0-9]1[0-9][0-9]-*.sh; do
-		f=${t#functional/}
-		case " $families " in *" ${f%%/*} "*) ;; *) return 1 ;; esac
-	done
+	[ "$families" = "build signing upatch tpm image tamperproof bpm otel" ] &&
+	for d in functional/*/; do
+		f=${d#functional/}
+		case " $families " in *" ${f%/} "*) ;; *) return 1 ;; esac
+	done &&
+	! sh run-tests.sh nosuch >"$WORK/nosuch.out" 2>&1 &&
+	grep -q "no tests nosuch" "$WORK/nosuch.out"
 '
 
 test_expect_success 'test-vm rejects unknown policy modes before boot' '
@@ -936,7 +935,7 @@ test_expect_success 'image VM requires initrd enrollment and complete guards' '
 test_expect_success 'test VM takes register or a test family' '
 	! TEST_VM_MODE=verity TEST_VM_INITRD=1 TEST_VM_SUITE=all "$RUNNER" \
 		>"$WORK/image-suite.out" 2>&1 &&
-	grep -q "TEST_VM_SUITE must be register, e2e or a directory" \
+	grep -q "TEST_VM_SUITE must be register, end2end or a directory" \
 		"$WORK/image-suite.out" &&
 	! TEST_VM_MODE=verity TEST_VM_INITRD=1 TEST_VM_SUITE= "$RUNNER" \
 		>"$WORK/image-suite.out" 2>&1 &&

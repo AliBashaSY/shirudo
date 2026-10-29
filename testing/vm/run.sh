@@ -15,6 +15,11 @@
 
 set -euo pipefail
 
+# The guest boots with the host's own QEMU, swtpm and dracut; a library path
+# a shirudo build needed for its OpenSSL would load the wrong libraries into
+# them.
+unset LD_LIBRARY_PATH
+
 SECONDS=0
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
@@ -174,11 +179,11 @@ validate_mode()
 		[[ "$VM_MODE" == test && "$VM_INITRD" == 0 && "$SKIP_SEAL" == 0 ]] ||
 			die "register suite requires test mode without a production initrd"
 		;;
-	e2e) ;;
+	end2end) ;;
 	*)
 		[[ "$VM_SUITE" =~ ^[a-z0-9-]+$ &&
 		   -d "$REPO_ROOT/testing/functional/$VM_SUITE" ]] ||
-			die "TEST_VM_SUITE must be register, e2e or a directory of testing/functional: $VM_SUITE"
+			die "TEST_VM_SUITE must be register, end2end or a directory of testing/functional: $VM_SUITE"
 		;;
 	esac
 	case "$SKIP_SEAL" in
@@ -419,7 +424,7 @@ validate_host_bundle()
 		die "host VM bundle has no target-test certificate: $TEST_VM_HOST_BUNDLE"
 	[[ -s "$TEST_VM_HOST_BUNDLE/fixtures/shirudo-test-basic.upatch" ]] ||
 		die "host VM bundle has no target-test fixtures: $TEST_VM_HOST_BUNDLE"
-	if [[ "$VM_SUITE" == e2e ]]; then
+	if [[ "$VM_SUITE" == end2end ]]; then
 		[[ -s "$TEST_VM_HOST_BUNDLE/fixtures/kernel-obs.upatch" ]] ||
 			die "host VM bundle has no kernel-obs fixture: $TEST_VM_HOST_BUNDLE"
 	elif [[ "$VM_SUITE" == bpm ]]; then

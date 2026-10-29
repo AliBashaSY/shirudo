@@ -103,9 +103,9 @@ test_expect_success 'socket map loads with the network serializers' '
 '
 
 test_expect_success 'TCP, UDP and additional socket families are recorded' '
-	python3 e2e/kernel_obs_events.py tcp &&
-	python3 e2e/kernel_obs_events.py udp &&
-	python3 e2e/kernel_obs_events.py sockets \
+	python3 end2end/kernel_obs_events.py tcp &&
+	python3 end2end/kernel_obs_events.py udp &&
+	python3 end2end/kernel_obs_events.py sockets \
 		>"$WORK/expected.json" &&
 	export_net_maps &&
 	python3 "$WORK/check.py" "$WORK/expected.json" "$WORK/events.ndjson"

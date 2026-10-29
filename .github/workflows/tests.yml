@@ -1,25 +1,29 @@
-name: Target tests
+name: Tests
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# A newer manual run supersedes the run in progress.
+# A newer run for the same branch or pull request supersedes this one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-tgt:
-    name: Target suite in the dm-verity VM
+  tests:
+    name: make tests
     runs-on: ubuntu-latest
     timeout-minutes: 150
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # bpf-next moves daily; a week-old kernel still tests the tree, and
       # building one takes most of the run.
@@ -49,10 +53,10 @@ jobs:
           key: test-vm-images-${{ hashFiles('testing/vm/runtime-packages', 'testing/vm/prepare-runtime.sh', 'testing/vm/build-bundle.sh', 'testing/vm/arch.sh') }}
 
       - name: Prepare the runner as the VM host
-        run: .github/scripts/target-tests.sh setup
+        run: .github/scripts/tests.sh setup
 
-      - name: Run the target suite in the dm-verity VM
-        run: .github/scripts/target-tests.sh production
+      - name: Run make tests
+        run: .github/scripts/tests.sh run
 
       # Each part is saved once it is complete, even when a later step
       # fails, so that the next run does not build it again.
@@ -76,3 +80,13 @@ jobs:
         with:
           path: build/test-vm/cache
           key: ${{ steps.images.outputs.cache-primary-key }}
+
+      - name: Upload the guest logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: guest-logs
+          path: |
+            build/test-vm/vms/*/result
+            build/test-vm/vms/*/console.log
+          if-no-files-found: ignore

@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
 
 test_expect_success 'DNS packet-case builders and batch encoding are valid' '
-	python3 e2e/dns_obs_matrix.py --self-test
+	python3 end2end/dns_obs_matrix.py --self-test
 '
 
 test_done

@@ -21,7 +21,7 @@ This plan records coverage for OpenTelemetry export across host-side serializati
 | Target service and timer | Installed map-export service delivers decoder-backed maps; slow collector fixture checks the timer does not overlap an active export. |
 | Serialized metrics | Two serializer pages, repeated peek, drain, subsequent empty interval, reload reset, and service export of decoder-backed cumulative metrics. |
 | Services and packaging | Static service/timer ordering, conditions, environment file, command, cadence, install paths, operator exclusion, and Debian/RPM scriptlets. |
-| TLS policy | `testing/functional/otel/t8005-tls-policy.sh` covers shared TLS policy; OTEL host tests independently check certificate verification and insecure mode where TLS prerequisites are available. |
+| TLS policy | `testing/functional/otel/t8005-tls-policy.sh` covers shared TLS policy; OTEL operator tests independently check certificate verification and insecure mode where TLS prerequisites are available. |
 
 ## Remaining gaps
 
@@ -38,4 +38,4 @@ These are coverage opportunities, not findings that the implementation is incorr
 
 ## Test commands
 
-Host coverage is the `t80NN` tests `testing/run-tests.sh` runs. Target integration scripts `t8101`, `t8102`, and `t8103` require an initialized test VM and fixtures in `SHIRUDO_TEST_FIXTURES_DIR`. The shared TLS test is `testing/functional/otel/t8005-tls-policy.sh`. Run with the repository's documented `make -C testing test-op` and target harness when runtime validation is requested.
+Operator coverage is the `t80NN` tests; `make -C testing functional/otel` runs them and the target ones. Target integration scripts `t8101`, `t8102`, and `t8103` require an initialized test VM and fixtures in `SHIRUDO_TEST_FIXTURES_DIR`. The shared TLS test is `testing/functional/otel/t8005-tls-policy.sh`. Run with the repository's documented `make -C testing test-op` and target harness when runtime validation is requested.

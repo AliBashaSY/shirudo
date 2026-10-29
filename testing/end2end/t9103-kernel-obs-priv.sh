@@ -51,7 +51,7 @@ trap cleanup EXIT HUP INT TERM
 [ -s "$BPF_FILTER_UNLOAD" ] || test_skip_all "missing BPF filter unload fixture"
 mkfifo "$WORK/events.in" "$WORK/events.out"
 SHIRUDO_TEST_WORK_DIR="$WORK/events" \
-	python3 e2e/priv_events.py serve \
+	python3 end2end/priv_events.py serve \
 		"$WORK/events.in" "$WORK/events.out" "$WORK/expected.json" &
 EVENT_PID=$!
 exec 3>"$WORK/events.in"
@@ -105,7 +105,7 @@ test_expect_success 'kernel-obs upatch loads with the priv serializer' '
 test_expect_success 'non-executable mappings do not produce exec protection records' '
 	run_event negative &&
 	export_priv "$WORK/negative.ndjson" &&
-	python3 e2e/priv_events.py check-negative \
+	python3 end2end/priv_events.py check-negative \
 		"$WORK/negative.ndjson" "$WORK/expected.json" &&
 	export_priv "$WORK/negative-drained.ndjson"
 '
@@ -113,7 +113,7 @@ test_expect_success 'non-executable mappings do not produce exec protection reco
 test_expect_success 'mprotect does not duplicate an existing executable mapping' '
 	run_event existing-exec &&
 	export_priv "$WORK/existing-exec.ndjson" &&
-	python3 e2e/priv_events.py check-existing-exec \
+	python3 end2end/priv_events.py check-existing-exec \
 		"$WORK/existing-exec.ndjson" "$WORK/expected.json" &&
 	export_priv "$WORK/existing-exec-drained.ndjson"
 '
@@ -128,9 +128,9 @@ test_expect_success 'privilege events produce attributed priv records' '
 	export_priv "$WORK/priv.ndjson" &&
 	"$SHIRUDO_BIN" upatch map "$NAME" exec \
 		--json="$WORK/exec.ndjson" >/dev/null &&
-	python3 e2e/priv_events.py \
+	python3 end2end/priv_events.py \
 		check-exec-unknown "$WORK/exec.ndjson" &&
-	python3 e2e/priv_events.py check \
+	python3 end2end/priv_events.py check \
 		"$WORK/expected.json" "$WORK/priv.ndjson"
 '
 
@@ -139,10 +139,10 @@ test_expect_success 'credential anomalies are recorded once per task' '
 	"$SHIRUDO_BIN" upatch unload "$UNLOAD" --no-precheck \
 		>/dev/null &&
 	load_observability "$ANOMALY_LOAD" &&
-	python3 e2e/priv_events.py anomaly \
+	python3 end2end/priv_events.py anomaly \
 		"$WORK/anomaly-expected.json" &&
 	export_priv "$WORK/anomaly.ndjson" &&
-	python3 e2e/priv_events.py \
+	python3 end2end/priv_events.py \
 		check-anomaly "$WORK/anomaly-expected.json" "$WORK/anomaly.ndjson"
 '
 
