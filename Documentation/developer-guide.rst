@@ -222,20 +222,6 @@ software TPM on the host for development without a VM.
 8) Open work
 ------------
 
-Cases no test covers yet, for whoever adds the next tamperproof test:
-
-* obtaining or passing shirudo's map descriptors through
-  ``/proc/<pid>/fd``, ``pidfd_getfd`` or ``SCM_RIGHTS``, and using one to
-  change a protected map;
-* repeated and concurrent serializer runs losing or changing records;
-* an inode created under a labelled directory being born labelled;
-* ``PTRACE_ATTACH`` to, or a perf event bound to, a running shirudo task;
-* starting shirudo with ``LD_PRELOAD``, ``LD_AUDIT`` or
-  ``LD_LIBRARY_PATH`` naming foreign code, and exec'ing it from a traced
-  task;
-* a trusted loader mutated with its userspace digest recomputed, which the
-  kernel's signature check must refuse.
-
 The export path has room for more exact assertions: endpoint, CA,
 client-certificate and header precedence across the command line, the
 signal-specific and generic environment, the config and the defaults;

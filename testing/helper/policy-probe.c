@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
+#include <sys/auxv.h>
+
 #include "../../include/shirudo/misc.h"
 
 #include <errno.h>
@@ -112,6 +114,11 @@ int main(int argc, char **argv)
 	pid_t child;
 	int status;
 
+	/* As a script's interpreter the script's path follows the mode. */
+	if (argc >= 2 && !strcmp(argv[1], "secure")) {
+		printf("%lu\n", getauxval(AT_SECURE));
+		return 0;
+	}
 	if (argc < 3)
 		return 2;
 	if (!strcmp(argv[1], "unlink"))
@@ -120,6 +127,8 @@ int main(int argc, char **argv)
 		return mkdir(argv[2], 0700) ? 1 : 0;
 	if (!strcmp(argv[1], "rmdir"))
 		return rmdir(argv[2]) ? 1 : 0;
+	if (!strcmp(argv[1], "symlink") && argc == 4)
+		return symlink(argv[2], argv[3]) ? 1 : 0;
 	if (!strcmp(argv[1], "create")) {
 		int fd = open(argv[2], O_WRONLY | O_CREAT | O_EXCL, 0600);
 

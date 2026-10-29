@@ -29,13 +29,23 @@ target_guard() {
 		test_skip_all "LSM not attached; run \`shirudo init\` first"
 }
 
+# The executable $SHIRUDO_BIN runs: itself, or the one the runtime image's
+# wrapper script hands over to.
+runtime_binary() {
+	if [ "$(head -c 2 "$SHIRUDO_BIN")" = '#!' ]; then
+		sed -n 's/^exec \([^ ]*\).*/\1/p' "$SHIRUDO_BIN"
+	else
+		printf '%s\n' "$SHIRUDO_BIN"
+	fi
+}
+
 # Load the signed fixture $1 unless it is loaded already: a family's tests
 # boot a VM of their own and find loaded only what they load themselves.
 require_loaded() {
-	[ -e "/run/shirudo/bpffs/upatches/$1/link" ] ||
+	[ -d "/run/shirudo/bpffs/upatches/$1" ] ||
 		"$SHIRUDO_BIN" upatch load \
 			"${SHIRUDO_TEST_FIXTURES_DIR:?}/$1.upatch" >/dev/null 2>&1
-	[ -e "/run/shirudo/bpffs/upatches/$1/link" ]
+	[ -d "/run/shirudo/bpffs/upatches/$1" ]
 }
 
 # Extract a top-level JSON field from a --report=- document on stdin.
