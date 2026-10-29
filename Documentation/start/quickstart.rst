@@ -152,15 +152,15 @@ Check enforcement
       Roles:             target
       Mode:              production
       Status:            ok
-      Version-ID:        58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0
+      Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
 
       Conditions:
         TYPE             STATUS  DETAIL
         LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      serial=531121468 in the BPF keyring, pin matches
+        KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
         ChainIntact      OK      live register == eventlog replay
         TpmMeasured      OK      NV index 0x01818E00 readable
-        ConfigActive     OK      config 12dbf3c75083.. is active
+        ConfigActive     OK      config dc90bacc356f.. is active
 
       Tamper attempts (refused this boot):
         LoadNotLoader            15  program load that is not a signed loader
@@ -169,19 +169,31 @@ Check enforcement
         SealPtrace                6  ptrace of a shirudo task
 
       Keyring (.bpf):
-        Serial:                531121468
-        Frozen serial:         531121468  (matches)
+        Serial:                130847582
+        Frozen serial:         130847582  (matches)
         Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
-          2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2
-          d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61  (primary)
+          d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (primary)
+            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            key 199275792  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
+          c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e
+            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            key 106884895  shirudo: c350bd270c426c5760b202062e15e274ea30f45d  (frozen)
+
+      Keyring (.dm-verity):
+        Serial:                962472513
+        Frozen serial:         962472513  (matches)
+        Certificates:          1 trusted, 1 in the dm-verity keyring
+          d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (config)
+            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
       upatches loaded (0):
 
       TPM Measurement:
         TPM:               reachable (device:/dev/tpmrm0)
         NV index:          0x01818E00 (anchored in PCR 9)
-        Chain:             d1bdb80f7c0cfc1560f0a5a0b974d282bfd05fc95852b7649d59a054b450aa51
-        Register name:     000ba2eb9b8bacc4945436016666062d11be813365bf252841e557b34d5fe3ffae1a
+        Chain:             dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
+        Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
         Anchored:          yes (name on record)
         PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
         Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)

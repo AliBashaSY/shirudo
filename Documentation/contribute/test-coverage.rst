@@ -249,7 +249,7 @@ signed config image.
    * - ``t6003-tamper-points``
      - Every tamper counter has a name and a meaning
    * - ``t6004-conditions``
-     - Status conditions: keyring, register, config activation
+     - Status conditions: both keyrings, register, config activation
    * - ``t6005-mode-objects``
      - The embedded admission and seal objects include image
        enforcement
@@ -338,6 +338,8 @@ signed config image.
      - A mutated loader, the payload binding, links by pin or id
    * - ``t6139-serializer-runs``
      - Repeated peeks and concurrent drains
+   * - ``t6140-status-keyrings``
+     - Status reports both keyrings with each certificate's frozen key
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -532,7 +534,7 @@ Coverage by area
        ``t6134``, ``t6135``, ``t6136``, ``t6137``
    * - Keyrings
      - ``t2101``, ``t2102``, ``t2103``, ``t5101``, ``t5104``,
-       ``t6004``, ``t6104``, ``t6112``, ``t6129``
+       ``t6004``, ``t6104``, ``t6112``, ``t6129``, ``t6140``
    * - Signing keys and the trusted set
      - ``t2001``, ``t2002``, ``t2003``, ``t2004``, ``t2005``,
        ``t5003``

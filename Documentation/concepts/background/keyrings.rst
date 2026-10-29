@@ -172,7 +172,10 @@ or that holds keys beyond the set, is refused as well.
 Init then records the serials of both keyrings, of the ``.dm-verity``
 key and of the enrolled ``.bpf`` keys in a frozen map. Later commands
 compare the ``.bpf`` serial with that record and refuse ``tampered`` on
-a mismatch. shirudo's ``lsm/key_permission`` program refuses write, set
+a mismatch. ``shirudo status`` compares both keyrings with it and
+follows every link, whatever its type: a swapped or missing keyring, a
+link ``init`` did not record or a missing config key makes its verdict
+``tampered`` (see :doc:`/operate/read-status`). shirudo's ``lsm/key_permission`` program refuses write, set
 attribute and unlink on the recorded keyrings and keys to every task
 without runtime authority, and refuses a search through an unpossessed
 reference, which is how ``keyctl`` reaches a key by serial. The

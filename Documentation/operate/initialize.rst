@@ -68,21 +68,21 @@ Check that init worked
       Roles:             target
       Mode:              production
       Status:            ok
-      Version-ID:        58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0
+      Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
 
       Conditions:
         TYPE             STATUS  DETAIL
         LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      serial=420195959 in the BPF keyring, pin matches
+        KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
         ChainIntact      OK      live register == eventlog replay
         TpmMeasured      OK      NV index 0x01818E00 readable
-        ConfigActive     OK      config 12dbf3c75083.. is active
+        ConfigActive     OK      config dc90bacc356f.. is active
       ...
       TPM Measurement:
         TPM:               reachable (device:/dev/tpmrm0)
         NV index:          0x01818E00 (anchored in PCR 9)
-        Chain:             e57e1428ab398e758b63f8eda52bac87b5d85c1368c2d8d786ed446448e46239
-        Register name:     000be3a552e2219550d2597ab96f3fffdeec0d01ce27cde858e0858ab0cdaba6c045
+        Chain:             dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
+        Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
         Anchored:          yes (name on record)
         PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
         Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)

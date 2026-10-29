@@ -6,6 +6,7 @@
  */
 
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -29,6 +30,73 @@ static const char *config_untrusted_detail(int state)
 	return "the config PCR, activation records and mounted config disagree (tamper?)";
 }
 
+static bool keyring_tampered(const struct shirudo_conditions_input *in)
+{
+	return (in->ksp_seen && !in->keyring_present) ||
+	       (in->ksm_seen && !in->keyring_serial_matches) ||
+	       (in->dmvp_seen && !in->dmv_present) ||
+	       (in->dmvm_seen && !in->dmv_serial_matches) ||
+	       in->bpf_unfrozen || in->dmv_unfrozen || in->dmv_key_missing;
+}
+
+static void __printf(3, 4)
+set_detail(struct shirudo_condition *c, const char *status,
+	   const char *fmt, ...)
+{
+	va_list ap;
+
+	c->status = status;
+	va_start(ap, fmt);
+	if (vstrsprintf(c->detail, sizeof(c->detail), fmt, ap) < 0)
+		strscpy(c->detail, "?", sizeof(c->detail));
+	va_end(ap);
+}
+
+static void keyring_condition(const struct shirudo_conditions_input *in,
+			      struct shirudo_condition *c)
+{
+	c->type = "KeyringSealed";
+	if (!in->keyring_present && in->ksp_seen)
+		set_detail(c, "ALERT",
+			   "pin serial=%lld, the BPF keyring is gone (removed?)",
+			   (__s64)in->keyring_serial_pinned);
+	else if (!in->keyring_present)
+		set_detail(c, "WARN", "shirudo keyring absent (not init'd?)");
+	else if (in->ksm_seen && !in->keyring_serial_matches)
+		set_detail(c, "ALERT",
+			   "pin serial=%lld != live serial=%lld (swapped?)",
+			   (__s64)in->keyring_serial_pinned,
+			   (__s64)in->keyring_serial);
+	else if (in->bpf_unfrozen)
+		set_detail(c, "ALERT",
+			   "the BPF keyring holds %d link%s init did not freeze",
+			   in->bpf_unfrozen, in->bpf_unfrozen == 1 ? "" : "s");
+	else if (in->dmvp_seen && !in->dmv_present)
+		set_detail(c, "ALERT",
+			   "dm-verity pin serial=%lld, the dm-verity keyring is gone (removed?)",
+			   (__s64)in->dmv_serial_pinned);
+	else if (in->dmvm_seen && !in->dmv_serial_matches)
+		set_detail(c, "ALERT",
+			   "dm-verity pin serial=%lld != live serial=%lld (swapped?)",
+			   (__s64)in->dmv_serial_pinned,
+			   (__s64)in->dmv_serial);
+	else if (in->dmv_unfrozen)
+		set_detail(c, "ALERT",
+			   "the dm-verity keyring holds %d link%s init did not freeze",
+			   in->dmv_unfrozen, in->dmv_unfrozen == 1 ? "" : "s");
+	else if (in->dmv_key_missing)
+		set_detail(c, "ALERT",
+			   "the config key init froze is gone from the dm-verity keyring");
+	else if (in->ksp_seen && in->dmvp_seen)
+		set_detail(c, "OK",
+			   "bpf serial=%lld, dm-verity serial=%lld, pins match",
+			   (__s64)in->keyring_serial, (__s64)in->dmv_serial);
+	else
+		set_detail(c, "OK", "bpf serial=%lld, %s",
+			   (__s64)in->keyring_serial,
+			   in->ksp_seen ? "pin matches" : "no pin recorded");
+}
+
 size_t conditions(const struct shirudo_conditions_input *in,
 		  struct shirudo_condition *c, size_t cap)
 {
@@ -43,39 +111,8 @@ size_t conditions(const struct shirudo_conditions_input *in,
 			sizeof(c[n].detail));
 		n++;
 	}
-	if (n < cap) {
-		c[n].type = "KeyringSealed";
-		if (!in->keyring_present && in->ksp_seen) {
-			c[n].status = "ALERT";
-			if (strsprintf(c[n].detail, sizeof(c[n].detail),
-				       "pin serial=%lld, the BPF keyring is "
-				       "gone (removed?)",
-				       (__s64)in->keyring_serial_pinned) < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
-		} else if (!in->keyring_present) {
-			c[n].status = "WARN";
-			strscpy(c[n].detail,
-				"shirudo keyring absent (not init'd?)",
-				sizeof(c[n].detail));
-		} else if (in->ksm_seen && !in->keyring_serial_matches) {
-			c[n].status = "ALERT";
-			if (strsprintf(c[n].detail, sizeof(c[n].detail),
-				       "pin serial=%lld != live serial=%lld "
-				       "(swapped?)",
-				       (__s64)in->keyring_serial_pinned,
-				       (__s64)in->keyring_serial) < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
-		} else {
-			c[n].status = "OK";
-			if (strsprintf(c[n].detail, sizeof(c[n].detail),
-				       "serial=%lld in the BPF keyring, %s",
-				       (__s64)in->keyring_serial,
-				       in->ksp_seen ? "pin matches" :
-				       "no pin recorded") < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
-		}
-		n++;
-	}
+	if (n < cap)
+		keyring_condition(in, &c[n++]);
 	if (n < cap) {
 		c[n].type = "ChainIntact";
 		if (!in->chain_seen) {
@@ -165,9 +202,8 @@ const char *status_verdict(const struct shirudo_conditions_input *in)
 		return "unreachable";
 	if (!in->parsed)
 		return "unparseable";
-	if ((in->cm_seen && !in->chain_matches) ||
-	    (in->ksm_seen && !in->keyring_serial_matches) ||
-	    (in->ksp_seen && !in->keyring_present) || config_untrusted(in))
+	if ((in->cm_seen && !in->chain_matches) || keyring_tampered(in) ||
+	    config_untrusted(in))
 		return "tampered";
 	if (!in->lsm_attached)
 		return "lsm-off";
@@ -197,10 +233,21 @@ void status_reason(const struct shirudo_conditions_input *in,
 		else if (config_untrusted(in))
 			strscpy(buf, "the selected config cannot be verified against its records",
 				cap);
-		else if (!in->keyring_present)
+		else if (in->ksp_seen && !in->keyring_present)
 			strscpy(buf, "the keyring init froze is gone", cap);
-		else
+		else if (in->ksm_seen && !in->keyring_serial_matches)
 			strscpy(buf, "keyring serial swap detected", cap);
+		else if (in->dmvp_seen && !in->dmv_present)
+			strscpy(buf, "the dm-verity keyring init froze is gone",
+				cap);
+		else if (in->dmvm_seen && !in->dmv_serial_matches)
+			strscpy(buf, "dm-verity keyring serial swap detected",
+				cap);
+		else if (in->bpf_unfrozen || in->dmv_unfrozen)
+			strscpy(buf, "a keyring holds a link init did not freeze",
+				cap);
+		else
+			strscpy(buf, "the config key init froze is gone", cap);
 	} else if (strcmp(v, "lsm-off") == 0) {
 		strscpy(buf, "LSM not attached -- enforcement OFF", cap);
 	} else if (strcmp(v, "init-pending") == 0) {

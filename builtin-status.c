@@ -33,6 +33,7 @@
 #include "util/bpm_tree.h"
 #include "util/conditions.h"
 #include "util/config.h"
+#include "util/crypto.h"
 #include "util/eventlog.h"
 
 #define SHIRUDO_KERNEL_LOG_MAX 100
@@ -41,6 +42,7 @@
 #include "util/json.h"
 #include "util/macros.h"
 #include "util/identity.h"
+#include "util/image_bootstrap.h"
 #include "util/image_runtime.h"
 #include "util/keyring.h"
 #include "util/keys.h"
@@ -492,15 +494,365 @@ static bool status_otel_endpoint_configured(const struct shirudo_config *cfg)
 	return endpoint && endpoint[0];
 }
 
-static void count_asymmetric(key_serial_t serial, const char *type,
-			     const char *description, void *ud)
-{
-	size_t *n = ud;
+#define STATUS_SUBJECT_MAX	256
 
-	(void)serial;
-	(void)description;
-	if (strcmp(type, "asymmetric") == 0)
-		(*n)++;
+/* A certificate a keyring should hold, and the link that holds it. */
+struct status_cert {
+	__u8	sha256[32];
+	__u8	fingerprint[32];
+	bool	primary;
+	int	info_rc;
+	char	subject[STATUS_SUBJECT_MAX];
+	char	algorithm[32];
+	char	not_before[11];
+	char	not_after[11];
+	long	link;			/* into the keyring's links, or -1 */
+};
+
+struct status_link {
+	bool	frozen;
+	bool	cert;			/* holds one of the certificates */
+};
+
+/*
+ * A keyring init froze: its live and frozen serials, every link it holds
+ * and which of those init froze, and the certificates it should hold.
+ */
+struct status_keyring {
+	key_serial_t		serial;		/* live, or -errno */
+	key_serial_t		pinned;		/* frozen, 0 for none, -errno */
+	struct keyring_link	*links;
+	struct status_link	*state;
+	size_t			n_links;
+	int			links_rc;
+	struct status_cert	certs[SHIRUDO_KEYS_MAX];
+	size_t			n_certs;
+	int			certs_rc;
+	size_t			n_unfrozen;
+	size_t			n_asymmetric;
+	bool			key_missing;
+};
+
+static void keyring_view_links(struct status_keyring *k,
+			       const __s32 *frozen, size_t n_frozen)
+{
+	size_t i, j;
+
+	k->links_rc = k->serial >= 0 ?
+		      keyring_links(k->serial, &k->links, &k->n_links) :
+		      k->serial;
+	if (k->links_rc || !k->n_links)
+		return;
+	k->state = xcalloc(k->n_links, sizeof(*k->state));
+	if (!k->state) {
+		xfree(k->links, k->n_links * sizeof(*k->links));
+		k->links = NULL;
+		k->n_links = 0;
+		k->links_rc = -ENOMEM;
+		return;
+	}
+	for (i = 0; i < k->n_links; i++) {
+		for (j = 0; j < n_frozen; j++)
+			if (k->links[i].serial == frozen[j])
+				k->state[i].frozen = true;
+		if (!k->state[i].frozen)
+			k->n_unfrozen++;
+		if (!k->links[i].err &&
+		    !strcmp(k->links[i].type, "asymmetric"))
+			k->n_asymmetric++;
+	}
+}
+
+static void keyring_view_free(struct status_keyring *k)
+{
+	if (k->links)
+		xfree(k->links, k->n_links * sizeof(*k->links));
+	if (k->state)
+		xfree(k->state, k->n_links * sizeof(*k->state));
+}
+
+/* Its subject, key and dates, and the link whose key it is. */
+static void keyring_view_cert(struct status_keyring *k, struct status_cert *c,
+			      const __u8 *der, size_t len)
+{
+	struct shirudo_cert cert = {};
+	char desc[KEYRING_DESC_MAX];
+	size_t i;
+
+	c->link = -1;
+	c->info_rc = cert_read_der(der, len, &cert);
+	if (!c->info_rc) {
+		c->info_rc = cert_subject(&cert, c->subject,
+					  sizeof(c->subject));
+		if (!c->info_rc)
+			c->info_rc = cert_key_algorithm(&cert, c->algorithm,
+							sizeof(c->algorithm));
+		if (!c->info_rc)
+			c->info_rc = cert_validity(&cert, c->not_before,
+						   c->not_after);
+		cert_free(&cert);
+	}
+	if (k->links_rc || keyring_cert_description(der, len, desc))
+		return;
+	for (i = 0; i < k->n_links; i++) {
+		if (k->links[i].err || k->state[i].cert ||
+		    strcmp(k->links[i].type, "asymmetric") ||
+		    strcmp(k->links[i].description, desc))
+			continue;
+		k->state[i].cert = true;
+		c->link = (long)i;
+		break;
+	}
+}
+
+static void keyring_view_bpf(struct status_keyring *k,
+			     const struct shirudo_identity *ident,
+			     const struct shirudo_trusted_set *certs,
+			     int certs_rc)
+{
+	size_t i, n_frozen = 0;
+
+	if (k->pinned >= 1)
+		n_frozen = ident->n_keys < SHIRUDO_IDENTITY_KEYS_MAX ?
+			   ident->n_keys : SHIRUDO_IDENTITY_KEYS_MAX;
+	keyring_view_links(k, ident->key_serials, n_frozen);
+	k->certs_rc = certs_rc;
+	for (i = 0; certs_rc == 0 && i < certs->n; i++) {
+		struct status_cert *c = &k->certs[k->n_certs++];
+		const __u8 *der;
+		size_t len;
+
+		memcpy(c->sha256, certs->certs[i].sha256, 32);
+		memcpy(c->fingerprint, certs->certs[i].fingerprint, 32);
+		c->primary = certs->certs[i].primary;
+		c->link = -1;
+		c->info_rc = keys_cert_der(&certs->certs[i], &der, &len);
+		if (!c->info_rc)
+			keyring_view_cert(k, c, der, len);
+	}
+}
+
+/* The config certificate comes from the runtime image's bootstrap. */
+static void keyring_view_dm_verity(struct status_keyring *k,
+				   const struct shirudo_identity *ident)
+{
+	struct shirudo_image_bootstrap boot = {};
+	struct status_cert *c = &k->certs[0];
+	__u8 *der = NULL;
+	size_t len = 0;
+	size_t i;
+
+	keyring_view_links(k, &ident->dm_verity_key,
+			   k->pinned >= 1 && ident->dm_verity_key > 0);
+	if (!k->links_rc && k->pinned >= 1 && ident->dm_verity_key > 0) {
+		k->key_missing = true;
+		for (i = 0; i < k->n_links; i++)
+			if (k->links[i].serial == ident->dm_verity_key)
+				k->key_missing = false;
+	}
+	k->certs_rc = shirudo_image_bootstrap_read(SHIRUDO_RUNTIME_CONF_PATH,
+						   &boot, false);
+	if (!k->certs_rc && !boot.certificate[0])
+		k->certs_rc = -ENOENT;
+	if (!k->certs_rc)
+		k->certs_rc = keys_read_der(boot.certificate, &der, &len);
+	if (!k->certs_rc)
+		k->certs_rc = keys_digest_der(der, len, c->sha256,
+					      c->fingerprint);
+	if (!k->certs_rc) {
+		c->primary = true;
+		k->n_certs = 1;
+		keyring_view_cert(k, c, der, len);
+	}
+	if (der)
+		xfree(der, len);
+}
+
+static void keyring_cond_input(struct shirudo_conditions_input *in,
+			       const struct status_keyring *bpf,
+			       const struct status_keyring *dmv)
+{
+	in->bpf_unfrozen = (int)bpf->n_unfrozen;
+	in->dmv_present = dmv->serial >= 0;
+	in->dmv_serial = dmv->serial;
+	in->dmvp_seen = dmv->pinned >= 1;
+	in->dmv_serial_pinned = in->dmvp_seen ? dmv->pinned : 0;
+	in->dmvm_seen = in->dmv_present && in->dmvp_seen;
+	in->dmv_serial_matches = in->dmvm_seen && dmv->serial == dmv->pinned;
+	in->dmv_unfrozen = (int)dmv->n_unfrozen;
+	in->dmv_key_missing = dmv->key_missing;
+}
+
+static void keyring_emit_json(struct shirudo_json_emit *e, const char *key,
+			      const struct status_keyring *k,
+			      const char *role)
+{
+	size_t i;
+
+	json_obj_open_key(e, key);
+	json_kv_bool(e, "present", k->serial >= 0);
+	if (k->serial >= 0)
+		json_kv_int(e, "serial", k->serial);
+	else
+		json_kv_null(e, "serial");
+	if (k->pinned >= 1)
+		json_kv_int(e, "serial_pinned", k->pinned);
+	else
+		json_kv_null(e, "serial_pinned");
+	if (k->serial >= 0 && k->pinned >= 1)
+		json_kv_bool(e, "serial_matches", k->serial == k->pinned);
+	else
+		json_kv_null(e, "serial_matches");
+	json_arr_open(e, "certs");
+	for (i = 0; i < k->n_certs; i++) {
+		const struct status_cert *c = &k->certs[i];
+		const struct keyring_link *l = c->link >= 0 ?
+					       &k->links[c->link] : NULL;
+		char sha_hex[65], fp_hex[65];
+
+		hex_encode(c->sha256, 32, sha_hex);
+		hex_encode(c->fingerprint, 32, fp_hex);
+		json_obj_open(e);
+		json_kv_string(e, "sha256", sha_hex);
+		json_kv_string(e, "fingerprint", fp_hex);
+		json_kv_bool(e, role, c->primary);
+		if (c->info_rc) {
+			json_kv_null(e, "subject");
+			json_kv_null(e, "algorithm");
+			json_kv_null(e, "not_before");
+			json_kv_null(e, "not_after");
+		} else {
+			json_kv_string(e, "subject", c->subject);
+			json_kv_string(e, "algorithm", c->algorithm);
+			json_kv_string(e, "not_before", c->not_before);
+			json_kv_string(e, "not_after", c->not_after);
+		}
+		if (l) {
+			json_kv_int(e, "key_serial", l->serial);
+			json_kv_string(e, "key_description", l->description);
+			json_kv_bool(e, "frozen", k->state[c->link].frozen);
+		} else {
+			json_kv_null(e, "key_serial");
+			json_kv_null(e, "key_description");
+			json_kv_null(e, "frozen");
+		}
+		json_obj_close(e);
+	}
+	json_arr_close(e);
+	json_arr_open(e, "other_links");
+	for (i = 0; i < k->n_links; i++) {
+		const struct keyring_link *l = &k->links[i];
+
+		if (k->state[i].cert)
+			continue;
+		json_obj_open(e);
+		json_kv_int(e, "serial", l->serial);
+		if (l->err) {
+			json_kv_null(e, "type");
+			json_kv_null(e, "description");
+		} else {
+			json_kv_string(e, "type", l->type);
+			json_kv_string(e, "description", l->description);
+		}
+		json_kv_bool(e, "frozen", k->state[i].frozen);
+		json_obj_close(e);
+	}
+	json_arr_close(e);
+	json_obj_close(e);
+}
+
+/* Kernel descriptions carry certificate subjects: keep the terminal safe. */
+static void print_safe(const char *s)
+{
+	for (; *s; s++)
+		putchar((__u8)*s < 0x20 || *s == 0x7f ? '?' : *s);
+}
+
+static void print_link(const struct status_keyring *k, size_t i,
+		       const char *indent)
+{
+	const struct keyring_link *l = &k->links[i];
+
+	if (l->err) {
+		printf("%slink %d  (cannot describe: %s)", indent,
+		       (int)l->serial, strerror(-l->err));
+	} else {
+		printf("%s%s %d  ", indent,
+		       strcmp(l->type, "asymmetric") ? l->type : "key",
+		       (int)l->serial);
+		print_safe(l->description);
+	}
+	printf("  (%s)\n", k->state[i].frozen ? "frozen" : "NOT frozen");
+}
+
+static void print_keyring_certs(const struct status_keyring *k,
+				const char *role, const char *unlinked)
+{
+	size_t i;
+
+	for (i = 0; i < k->n_certs; i++) {
+		const struct status_cert *c = &k->certs[i];
+		char fp_hex[65];
+
+		hex_encode(c->fingerprint, 32, fp_hex);
+		printf("    %s%s%s%s\n", fp_hex, c->primary ? "  (" : "",
+		       c->primary ? role : "", c->primary ? ")" : "");
+		if (c->info_rc)
+			printf("      (details unreadable: %s)\n",
+			       strerror(-c->info_rc));
+		else
+			printf("      %s, %s, valid %s to %s\n", c->subject,
+			       c->algorithm, c->not_before, c->not_after);
+		if (c->link >= 0)
+			print_link(k, (size_t)c->link, "      ");
+		else if (!k->links_rc)
+			printf("      not in the keyring  (%s)\n", unlinked);
+	}
+}
+
+static void print_other_links(const struct status_keyring *k)
+{
+	bool header = false;
+	size_t i;
+
+	for (i = 0; i < k->n_links; i++) {
+		if (k->state[i].cert)
+			continue;
+		if (!header)
+			printf("  Other links:\n");
+		header = true;
+		print_link(k, i, "    ");
+	}
+}
+
+static void print_keyring_serials(const struct status_keyring *k)
+{
+	if (k->serial >= 0)
+		printf("  %-22s %lld\n", "Serial:", (__s64)k->serial);
+	else if (k->pinned == -ENOENT)
+		printf("  %-22s %s\n", "Serial:",
+		       "absent  (operator host, or `shirudo init` "
+		       "not yet run)");
+	else if (k->serial == -ENOKEY)
+		printf("  %-22s %s\n", "Serial:", "absent");
+	else
+		printf("  %-22s lookup error: %s\n", "Serial:",
+		       strerror(-k->serial));
+	if (k->pinned == -ENOENT || k->pinned == 0)
+		printf("  %-22s %s\n", "Frozen serial:", "(none this boot)");
+	else if (k->pinned < 0)
+		printf("  %-22s unreadable: %s\n", "Frozen serial:",
+		       strerror(-k->pinned));
+	else
+		printf("  %-22s %lld%s\n", "Frozen serial:",
+		       (__s64)k->pinned, k->serial < 0 ?
+		       "  (GONE -- removed?)" :
+		       k->serial == k->pinned ?
+		       "  (matches)" :
+		       "  (MISMATCH -- swapped?)");
+	if (k->links_rc && k->serial >= 0)
+		printf("  %-22s unreadable: %s\n", "Links:",
+		       strerror(-k->links_rc));
 }
 
 int cmd_status(int argc, const char **argv)
@@ -517,7 +869,8 @@ int cmd_status(int argc, const char **argv)
 	struct shirudo_sysinfo sysi = {};
 	struct shirudo_trusted_set certs = {};
 	int certs_enrolled = -1;
-	struct shirudo_identity ident;
+	struct status_keyring bpf = {}, dmv = {};
+	struct shirudo_identity ident = {};
 	int certs_rc = -ENOENT;
 	struct shirudo_config otel_cfg = {};
 	struct shirudo_otel_opts otel_opts = {};
@@ -639,13 +992,15 @@ int cmd_status(int argc, const char **argv)
 	 */
 	certs_rc = keys_load(SHIRUDO_KEYS_DIR, NULL,
 			     !strcmp(keyring_mode, "bpf"), &certs);
-	if (!strcmp(keyring_mode, "bpf") && keyring_present) {
-		size_t n = 0;
-
-		if (keyring_list(keyring_serial, count_asymmetric,
-				 &n) == 0)
-			certs_enrolled = (int)n;
-	}
+	bpf.serial = keyring_serial;
+	bpf.pinned = keyring_pinned;
+	keyring_view_bpf(&bpf, &ident, &certs, certs_rc);
+	if (!bpf.links_rc)
+		certs_enrolled = (int)bpf.n_asymmetric;
+	dmv.pinned = keyring_pinned < 0 ? keyring_pinned : ident.dm_verity_ring;
+	dmv.serial = dmv.pinned >= 1 ? shirudo_keyring_dm_verity_serial() :
+		     -ENOKEY;
+	keyring_view_dm_verity(&dmv, &ident);
 	mode = lsm_attached ? "production" : "inactive";
 	is_operator = access(SHIRUDO_SIGNING_KEY_PATH, F_OK) == 0;
 	cert_present = access(shirudo_cert_path(), F_OK) == 0;
@@ -705,14 +1060,16 @@ int cmd_status(int argc, const char **argv)
 		struct shirudo_json_emit e;
 
 		/*
-		 * The events[] dump re-emits the log, so size the buffer
-		 * from it with headroom for the fixed fields and the
-		 * optional sections; every loaded upatch adds a row whose
-		 * strings JSON escaping can grow sixfold. The clamp below
-		 * keeps it under SHIRUDO_JSON_MAX_BYTES.
+		 * Every loaded upatch adds a row, every certificate and link
+		 * of the keyrings an entry, whose strings JSON escaping can
+		 * grow sixfold, and the events[] dump re-emits the log. The
+		 * clamp below keeps it under SHIRUDO_JSON_MAX_BYTES.
 		 */
 		json_cap = 16384 + (size_t)n_ups *
 			   (6 * sizeof(struct shirudo_upatch_table_row) + 256);
+		json_cap += (bpf.n_certs + bpf.n_links + dmv.n_certs +
+			     dmv.n_links) *
+			    (6 * (KEYRING_DESC_MAX + STATUS_SUBJECT_MAX) + 512);
 		if (include_eventlog && ev_rc == 0)
 			json_cap += 65536 + 3 * (size_t)ev_bytes;
 		if (include_kernel_log)
@@ -755,6 +1112,7 @@ int cmd_status(int argc, const char **argv)
 			cin.config_seen = config_state != -ENODEV;
 			cin.config_state = config_state;
 			cin.config_root = config_root_hex;
+			keyring_cond_input(&cin, &bpf, &dmv);
 			otel_status = status_verdict(&cin);
 			json_kv_string(&e, "status",
 				       otel_status);
@@ -817,6 +1175,8 @@ int cmd_status(int argc, const char **argv)
 				    certs_enrolled);
 		else
 			json_kv_null(&e, "certs_enrolled");
+		keyring_emit_json(&e, "bpf_keyring", &bpf, "primary");
+		keyring_emit_json(&e, "dm_verity_keyring", &dmv, "config");
 		json_kv_bool(&e, "signing_key_present", is_operator);
 		{
 			struct shirudo_upatch_table_row *rows = NULL;
@@ -1068,6 +1428,7 @@ int cmd_status(int argc, const char **argv)
 		cin.config_seen = config_state != -ENODEV;
 		cin.config_state = config_state;
 		cin.config_root = config_root_hex;
+		keyring_cond_input(&cin, &bpf, &dmv);
 		verdict = status_verdict(&cin);
 		status_reason(&cin, reason, sizeof(reason));
 		nc = conditions(&cin, conds, ARRAY_SIZE(conds));
@@ -1106,31 +1467,7 @@ int cmd_status(int argc, const char **argv)
 		}
 
 		printf("\nKeyring (.bpf):\n");
-		if (keyring_present)
-			printf("  %-22s %lld\n", "Serial:",
-			       (__s64)keyring_serial);
-		else if (keyring_pinned == -ENOENT)
-			printf("  %-22s %s\n", "Serial:",
-			       "absent  (operator host, or `shirudo init` "
-			       "not yet run)");
-		else if (keyring_serial == -ENOKEY)
-			printf("  %-22s %s\n", "Serial:", "absent");
-		else
-			printf("  %-22s lookup error: %s\n", "Serial:",
-			       strerror(-keyring_serial));
-		if (keyring_pinned == -ENOENT)
-			printf("  %-22s %s\n", "Frozen serial:",
-			       "(none this boot)");
-		else if (keyring_pinned < 0)
-			printf("  %-22s unreadable: %s\n", "Frozen serial:",
-			       strerror(-keyring_pinned));
-		else
-			printf("  %-22s %lld%s\n", "Frozen serial:",
-			       (__s64)keyring_pinned, !keyring_present ?
-			       "  (GONE -- removed?)" :
-			       keyring_serial == keyring_pinned ?
-			       "  (matches)" :
-			       "  (MISMATCH -- swapped?)");
+		print_keyring_serials(&bpf);
 		if (certs_rc == 0) {
 			printf("  %-22s %zu trusted, %zu revoked, %zu "
 			       "unvouched", "Certificates:", certs.n,
@@ -1139,16 +1476,26 @@ int cmd_status(int argc, const char **argv)
 				printf(", %d in the bpf keyring",
 				       certs_enrolled);
 			printf("\n");
-			for (i = 0; i < (int)certs.n; i++) {
-				char fp_hex[65];
-
-				hex_encode(certs.certs[i].fingerprint,
-					   32, fp_hex);
-				printf("    %s%s\n", fp_hex,
-				       certs.certs[i].primary ? "  (primary)" :
-				       "");
-			}
+			print_keyring_certs(&bpf, "primary",
+					    "enrolled at the next boot");
 		}
+		print_other_links(&bpf);
+
+		printf("\nKeyring (.dm-verity):\n");
+		print_keyring_serials(&dmv);
+		if (dmv.certs_rc == 0) {
+			printf("  %-22s %zu trusted", "Certificates:",
+			       dmv.n_certs);
+			if (!dmv.links_rc)
+				printf(", %zu in the dm-verity keyring",
+				       dmv.n_asymmetric);
+			printf("\n");
+			print_keyring_certs(&dmv, "config", "MISSING");
+		} else if (dmv.certs_rc != -ENOENT) {
+			printf("  %-22s unreadable: %s\n", "Certificates:",
+			       strerror(-dmv.certs_rc));
+		}
+		print_other_links(&dmv);
 
 		if (include_system) {
 			print_system_human(&sysi);
@@ -1290,6 +1637,8 @@ int cmd_status(int argc, const char **argv)
 	}
 
 out:
+	keyring_view_free(&bpf);
+	keyring_view_free(&dmv);
 	for (i = 0; i < n_ups; i++)
 		libc_free(ups[i]);
 	libc_free(ups);

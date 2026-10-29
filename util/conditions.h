@@ -30,6 +30,14 @@ struct shirudo_conditions_input {
 	__s64		keyring_serial_pinned;
 	int		keyring_serial_matches;	/* 0/1 if ksm_seen */
 	int		ks_seen, ksp_seen, ksm_seen;
+	int		bpf_unfrozen;	/* links init did not freeze */
+	int		dmv_present;	/* the .dm-verity keyring exists */
+	__s64		dmv_serial;
+	__s64		dmv_serial_pinned;
+	int		dmv_serial_matches;	/* 0/1 if dmvm_seen */
+	int		dmvp_seen, dmvm_seen;
+	int		dmv_unfrozen;
+	int		dmv_key_missing;	/* init's config key is gone */
 	int		tpm_reachable;
 	int		chain_seen;
 	int		chain_matches;		/* 0/1 if cm_seen */

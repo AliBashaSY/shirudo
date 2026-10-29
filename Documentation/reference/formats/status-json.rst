@@ -100,6 +100,14 @@ determined, as noted.
      - integer or ``null``
      - Asymmetric keys in the ``.bpf`` keyring. ``null`` when the
        keyring is absent.
+   * - ``bpf_keyring``
+     - object
+     - The ``.bpf`` keyring, its trusted certificates and their keys,
+       see `Keyrings`_.
+   * - ``dm_verity_keyring``
+     - object
+     - The ``.dm-verity`` keyring, the config certificate and its key,
+       see `Keyrings`_.
    * - ``signing_key_present``
      - boolean
      - Same value as ``is_operator``.
@@ -147,8 +155,10 @@ Verdicts
      - Condition
    * - ``tampered``
      - The live register differs from the eventlog replay, the
-       ``.bpf`` keyring's serial differs from the pinned serial, the
-       keyring ``init`` pinned is gone, or the selected config cannot be
+       ``.bpf`` or ``.dm-verity`` keyring's serial differs from the
+       pinned serial, a keyring ``init`` pinned is gone, a keyring holds
+       a link ``init`` did not freeze, the config key ``init`` froze is
+       gone from ``.dm-verity``, or the selected config cannot be
        verified against its activation records.
    * - ``lsm-off``
      - The LSM link is not pinned. Enforcement is off.
@@ -166,8 +176,10 @@ Conditions
 ----------
 
 ``conditions`` always holds these five types, in this order. ``status``
-is ``OK``, ``WARN`` or ``ALERT``. ``<serial>`` and ``<root>`` stand for
-a keyring serial and the first 12 hex digits of the config root hash.
+is ``OK``, ``WARN`` or ``ALERT``. ``<serial>``, ``<n>`` and ``<root>``
+stand for a keyring serial, a number of links and the first 12 hex
+digits of the config root hash. ``KeyringSealed`` reports the first of
+its details that applies, in the order listed.
 
 .. list-table::
    :header-rows: 1
@@ -183,17 +195,34 @@ a keyring serial and the first 12 hex digits of the config root hash.
      - ``ALERT``
      - ``lsm/bpf absent -- enforcement OFF``
    * - ``KeyringSealed``
-     - ``OK``
-     - ``serial=<serial> in the BPF keyring, pin matches``
+     - ``ALERT``
+     - ``pin serial=<serial>, the BPF keyring is gone (removed?)``
    * -
      - ``WARN``
      - ``shirudo keyring absent (not init'd?)``
    * -
      - ``ALERT``
-     - ``pin serial=<serial>, the BPF keyring is gone (removed?)``
+     - ``pin serial=<serial> != live serial=<serial> (swapped?)``
    * -
      - ``ALERT``
-     - ``pin serial=<serial> != live serial=<serial> (swapped?)``
+     - ``the BPF keyring holds <n> link(s) init did not freeze``
+   * -
+     - ``ALERT``
+     - ``dm-verity pin serial=<serial>, the dm-verity keyring is gone
+       (removed?)``
+   * -
+     - ``ALERT``
+     - ``dm-verity pin serial=<serial> != live serial=<serial>
+       (swapped?)``
+   * -
+     - ``ALERT``
+     - ``the dm-verity keyring holds <n> link(s) init did not freeze``
+   * -
+     - ``ALERT``
+     - ``the config key init froze is gone from the dm-verity keyring``
+   * -
+     - ``OK``
+     - ``bpf serial=<serial>, dm-verity serial=<serial>, pins match``
    * - ``ChainIntact``
      - ``OK``
      - ``live register == eventlog replay``
@@ -236,6 +265,96 @@ a keyring serial and the first 12 hex digits of the config root hash.
      - ``ALERT``
      - ``the config PCR, activation records and mounted config disagree
        (tamper?)``
+
+Keyrings
+--------
+
+``bpf_keyring`` and ``dm_verity_keyring`` have the same shape. A link
+is one entry of the keyring: the key of a certificate, or anything else
+the keyring holds, another keyring included (see
+:doc:`/concepts/background/keyrings`). A link is frozen when ``init``
+recorded its serial: every key of ``.bpf`` and the config key of
+``.dm-verity``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``present``
+     - boolean
+     - ``true`` when ``init`` recorded the keyring and it exists.
+   * - ``serial``
+     - integer or ``null``
+     - Serial of the live keyring. ``null`` when it is absent.
+   * - ``serial_pinned``
+     - integer or ``null``
+     - Serial ``init`` froze in the identity pin. ``null`` before
+       ``init``.
+   * - ``serial_matches``
+     - boolean or ``null``
+     - ``serial`` equals ``serial_pinned``. ``null`` unless both are
+       known.
+   * - ``certs``
+     - array of object
+     - The certificates the keyring should hold: the trusted set for
+       ``.bpf``, the config certificate the runtime image names for
+       ``.dm-verity``. Each is described below.
+   * - ``other_links``
+     - array of object
+     - Every link that holds none of ``certs``, each with ``serial``,
+       ``type`` (``asymmetric``, ``keyring`` and so on), ``description``
+       and ``frozen``. ``type`` and ``description`` are ``null`` for a
+       link shirudo cannot describe. Empty on a healthy target.
+
+Each entry of ``certs``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 60
+
+   * - Field
+     - Type
+     - Value
+   * - ``sha256``
+     - string
+     - SHA-256 of the certificate's DER file.
+   * - ``fingerprint``
+     - string
+     - SHA-256 of its public key.
+   * - ``primary``
+     - boolean
+     - In ``bpf_keyring`` only: the runtime image's certificate.
+   * - ``config``
+     - boolean
+     - In ``dm_verity_keyring`` only: always ``true``.
+   * - ``subject``
+     - string or ``null``
+     - The certificate's subject on one line, for example
+       ``CN=shirudo``.
+   * - ``algorithm``
+     - string or ``null``
+     - The public key algorithm, for example ``ML-DSA-87``.
+   * - ``not_before``, ``not_after``
+     - string or ``null``
+     - The validity dates, ``YYYY-MM-DD`` in UTC. The kernel does not
+       compare them with the clock.
+   * - ``key_serial``
+     - integer or ``null``
+     - Serial of the key in the keyring that holds the certificate.
+       ``null`` when the keyring holds none: for ``.bpf`` a certificate
+       added by a config update, enrolled at the next boot.
+   * - ``key_description``
+     - string or ``null``
+     - The kernel's description of that key, ``<subject>: <key id>``.
+   * - ``frozen``
+     - boolean or ``null``
+     - ``init`` froze that key. ``null`` without a key.
+
+``subject``, ``algorithm`` and the dates are ``null`` when the
+certificate cannot be parsed.
 
 upatches_loaded
 ---------------
@@ -521,6 +640,12 @@ Fields to alert on
    * - ``keyring_serial_matches``
      - ``false``
      - The ``.bpf`` keyring was replaced.
+   * - ``bpf_keyring.serial_matches``, ``dm_verity_keyring.serial_matches``
+     - ``false``
+     - The keyring was replaced.
+   * - ``other_links[].frozen`` in either keyring
+     - ``false``
+     - A link ``init`` did not freeze is trusted for signatures.
    * - ``tpm.chain_matches_eventlog``
      - ``false``
      - The register and the eventlog disagree.
@@ -556,7 +681,7 @@ indented here:
 
    {
      "schema": 1,
-     "version_id": "58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0",
+     "version_id": "447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064",
      "is_target": true,
      "is_operator": false,
      "status": "ok",
@@ -569,7 +694,7 @@ indented here:
        {
          "type": "KeyringSealed",
          "status": "OK",
-         "detail": "serial=420195959 in the BPF keyring, pin matches"
+         "detail": "bpf serial=130847582, dm-verity serial=962472513, pins match"
        },
        {
          "type": "ChainIntact",
@@ -584,32 +709,86 @@ indented here:
        {
          "type": "ConfigActive",
          "status": "OK",
-         "detail": "config 12dbf3c75083.. is active"
+         "detail": "config dc90bacc356f.. is active"
        }
      ],
      "lsm_attached": true,
      "mode": "production",
      "keyring_mode": "bpf",
      "keyring_present": true,
-     "keyring_serial": 420195959,
-     "keyring_serial_pinned": 420195959,
+     "keyring_serial": 130847582,
+     "keyring_serial_pinned": 130847582,
      "keyring_serial_matches": true,
      "cert_present": true,
      "certs": [
        {
-         "sha256": "3702e8ffe817ade6151eea338194649cc3a5be1e0b940e462a1a75e52f7095d0",
-         "fingerprint": "2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2",
-         "primary": false
+         "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
+         "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
+         "primary": true
        },
        {
-         "sha256": "d95db97ff4658b96b8b538afef41a25ca9f7a2c4d0abffdb26cbac7b0ba294b9",
-         "fingerprint": "d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61",
-         "primary": true
+         "sha256": "f2b0444aa3873b394afda3d222a20dc6506ebfb33e07ac17a7e2069bdabb3126",
+         "fingerprint": "c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e",
+         "primary": false
        }
      ],
      "certs_revoked": 0,
      "certs_unvouched": 0,
      "certs_enrolled": 2,
+     "bpf_keyring": {
+       "present": true,
+       "serial": 130847582,
+       "serial_pinned": 130847582,
+       "serial_matches": true,
+       "certs": [
+         {
+           "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
+           "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
+           "primary": true,
+           "subject": "CN=shirudo",
+           "algorithm": "ML-DSA-87",
+           "not_before": "2026-10-29",
+           "not_after": "2036-10-26",
+           "key_serial": 199275792,
+           "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
+           "frozen": true
+         },
+         {
+           "sha256": "f2b0444aa3873b394afda3d222a20dc6506ebfb33e07ac17a7e2069bdabb3126",
+           "fingerprint": "c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e",
+           "primary": false,
+           "subject": "CN=shirudo",
+           "algorithm": "ML-DSA-87",
+           "not_before": "2026-10-29",
+           "not_after": "2036-10-26",
+           "key_serial": 106884895,
+           "key_description": "shirudo: c350bd270c426c5760b202062e15e274ea30f45d",
+           "frozen": true
+         }
+       ],
+       "other_links": []
+     },
+     "dm_verity_keyring": {
+       "present": true,
+       "serial": 962472513,
+       "serial_pinned": 962472513,
+       "serial_matches": true,
+       "certs": [
+         {
+           "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
+           "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
+           "config": true,
+           "subject": "CN=shirudo",
+           "algorithm": "ML-DSA-87",
+           "not_before": "2026-10-29",
+           "not_after": "2036-10-26",
+           "key_serial": 200951639,
+           "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
+           "frozen": true
+         }
+       ],
+       "other_links": []
+     },
      "signing_key_present": false,
      "upatches_loaded": [
        {
@@ -617,8 +796,8 @@ indented here:
          "location": "fentry/do_nanosleep",
          "status": "success",
          "n_maps": 0,
-         "loaded_at": "2026-10-29T16:21:18Z",
-         "age_sec": 1,
+         "loaded_at": "2026-10-29T21:29:10Z",
+         "age_sec": 2,
          "payload_sha256": "8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"
        }
      ],
@@ -633,11 +812,11 @@ indented here:
        "bpffs_mounted": true
      },
      "tamper_attempts": {
-       "total": 47,
+       "total": 39,
        "counters": {
-         "LoadNotLoader": 27, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
+         "LoadNotLoader": 21, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
          "LoadKeyring": 0, "MapCreate": 1, "MapWrite": 0, "MapFdWrite": 0,
-         "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 12,
+         "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 10,
          "ExeIdentity": 0, "KeyringWrite": 0, "PinUnlink": 0, "PinRename": 0,
          "PinXattr": 0, "BpffsUmount": 0, "BpffsUmountAbove": 0, "BpffsMount": 0,
          "SealWrite": 0, "SealUnlink": 0, "SealRename": 0, "SealSetattr": 0,
@@ -647,15 +826,15 @@ indented here:
        }
      },
      "config": {
-       "root_hash": "12dbf3c750834908c0f6510481e35fbb0cc76cf6b1896de524304535e63aff0f",
+       "root_hash": "dc90bacc356f04c2e34a2f3c00c13c2a555c7cc5ee7cdc57fd568f2b44910c99",
        "activation_pending": false,
        "error": null
      },
      "tpm": {
        "reachable": true,
        "nv_index": "0x01818E00",
-       "chain": "c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd",
-       "nv_name": "000be3a552e2219550d2597ab96f3fffdeec0d01ce27cde858e0858ab0cdaba6c045",
+       "chain": "0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84",
+       "nv_name": "000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8",
        "register_bound": true,
        "register_anchored": true,
        "init_records": 1,
@@ -688,17 +867,17 @@ of the same target read:
 .. code-block:: json
 
    {
-     "total": 73,
+     "total": 51,
      "counters": {
-       "LoadNotLoader": 39, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
+       "LoadNotLoader": 27, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
        "LoadKeyring": 0, "MapCreate": 1, "MapWrite": 0, "MapFdWrite": 0,
-       "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 16,
+       "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 12,
        "ExeIdentity": 0, "KeyringWrite": 0, "PinUnlink": 1, "PinRename": 0,
        "PinXattr": 0, "BpffsUmount": 1, "BpffsUmountAbove": 0, "BpffsMount": 0,
        "SealWrite": 1, "SealUnlink": 0, "SealRename": 0, "SealSetattr": 0,
-       "SealXattr": 0, "SealLabel": 0, "SealPtrace": 12, "SealPerf": 0,
+       "SealXattr": 0, "SealLabel": 0, "SealPtrace": 7, "SealPerf": 0,
        "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
-       "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 2
+       "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 1
      }
    }
 

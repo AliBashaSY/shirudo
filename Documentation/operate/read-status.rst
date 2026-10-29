@@ -60,38 +60,50 @@ loaded, captured from the test VM:
    Roles:             target
    Mode:              production
    Status:            ok
-   Version-ID:        58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0
+   Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
 
    Conditions:
      TYPE             STATUS  DETAIL
      LsmAttached      OK      lsm/bpf link present and pinned
-     KeyringSealed    OK      serial=420195959 in the BPF keyring, pin matches
+     KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
      ChainIntact      OK      live register == eventlog replay
      TpmMeasured      OK      NV index 0x01818E00 readable
-     ConfigActive     OK      config 12dbf3c75083.. is active
+     ConfigActive     OK      config dc90bacc356f.. is active
 
    Tamper attempts (refused this boot):
-     LoadNotLoader            27  program load that is not a signed loader
+     LoadNotLoader            21  program load that is not a signed loader
      MapCreate                 1  map creation by another executable
-     BpfCommand               12  detach, update, delete or unclassified bpf() command
+     BpfCommand               10  detach, update, delete or unclassified bpf() command
      SealPtrace                7  ptrace of a shirudo task
 
    Keyring (.bpf):
-     Serial:                420195959
-     Frozen serial:         420195959  (matches)
+     Serial:                130847582
+     Frozen serial:         130847582  (matches)
      Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
-       2edb279c05efee6b489a65ae07fd6d402a54b6e495be68f6d364544e9b5a37e2
-       d1dc6624ee6bd0c277864fab0a8a15f8509308aa2338768cb772117c157f8d61  (primary)
+       d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (primary)
+         CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+         key 199275792  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
+       c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e
+         CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+         key 106884895  shirudo: c350bd270c426c5760b202062e15e274ea30f45d  (frozen)
+
+   Keyring (.dm-verity):
+     Serial:                962472513
+     Frozen serial:         962472513  (matches)
+     Certificates:          1 trusted, 1 in the dm-verity keyring
+       d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (config)
+         CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+         key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
    upatches loaded (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
-     shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+     shirudo-test-basic        fentry/do_nanosleep               0  success                       2s
 
    TPM Measurement:
      TPM:               reachable (device:/dev/tpmrm0)
      NV index:          0x01818E00 (anchored in PCR 9)
-     Chain:             c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd
-     Register name:     000be3a552e2219550d2597ab96f3fffdeec0d01ce27cde858e0858ab0cdaba6c045
+     Chain:             0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
+     Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
      Anchored:          yes (name on record)
      PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
      Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
@@ -153,11 +165,13 @@ verdict is derived from them.
      - The ``lsm/bpf`` link is pinned. ``ALERT`` ``lsm/bpf absent --
        enforcement OFF`` means enforcement did not come up this boot.
    * - ``KeyringSealed``
-     - The live ``.bpf`` keyring is the one ``init`` sealed and recorded
-       in the frozen identity map. ``WARN`` ``shirudo keyring absent
-       (not init'd?)`` before ``init``. ``ALERT`` ``pin serial=<pinned>
-       != live serial=<live> (swapped?)`` or ``pin serial=<pinned>, the
-       BPF keyring is gone (removed?)`` after it.
+     - The live ``.bpf`` and ``.dm-verity`` keyrings are the ones
+       ``init`` sealed and recorded in the frozen identity map, they
+       hold no link ``init`` did not freeze, and ``.dm-verity`` still
+       holds the config key. ``WARN`` ``shirudo keyring absent (not
+       init'd?)`` before ``init``. ``ALERT`` after it names the keyring
+       and what changed: a swapped or missing keyring, links ``init``
+       did not freeze, or the missing config key.
    * - ``ChainIntact``
      - The live register is the NV index ``init`` bound this boot, was
        bound once, and equals this boot's eventlog records replayed.
@@ -182,24 +196,48 @@ means every counter is zero. ``(none recorded: init has not pinned the
 counters this boot)`` means ``init`` did not get that far.
 :ref:`status-tamper-counters` explains how to read them.
 
-Keyring
-~~~~~~~
+Keyrings
+~~~~~~~~
+
+Two sections, ``Keyring (.bpf)`` for the keys that verify signed
+loaders and ``Keyring (.dm-verity)`` for the key that verifies config
+roots, read the same way.
 
 ``Serial``
-    The serial of the kernel's ``.bpf`` keyring.
+    The serial of the kernel's keyring.
 
 ``Frozen serial``
     The serial ``init`` recorded when it sealed the keyring, followed by
     ``(matches)``, ``(MISMATCH -- swapped?)`` or ``(GONE -- removed?)``.
 
 ``Certificates``
-    The trusted set: the runtime image's primary certificate and the
-    vouched certificates of the active signed config, less its
-    revocations. ``unvouched`` counts certificates in the config that
-    have no valid vouch and are therefore not members. The last number
-    counts the keys in the ``.bpf`` keyring itself. Each member's public
-    key fingerprint follows, the runtime image's certificate marked
-    ``(primary)``. :doc:`/operate/keys` explains the set.
+    The certificates the keyring should hold, and how many keys it
+    holds. For ``.bpf`` this is the trusted set: the runtime image's
+    primary certificate and the vouched certificates of the active
+    signed config, less its revocations; ``unvouched`` counts
+    certificates in the config without a valid vouch, which are
+    therefore not members. :doc:`/operate/keys` explains the set. For
+    ``.dm-verity`` it is the config certificate the runtime image names,
+    marked ``(config)``.
+
+    Each certificate follows with its public key fingerprint, the
+    runtime image's ``.bpf`` certificate marked ``(primary)``, and two
+    lines below it. The first gives the subject, the key algorithm and
+    the validity dates, which the kernel does not compare with the
+    clock. The second is the key that holds the certificate in the
+    keyring, by serial and the kernel's description, ``(frozen)`` when
+    ``init`` recorded it. ``not in the keyring (enrolled at the next
+    boot)`` marks a ``.bpf`` certificate a config update added after the
+    boot; ``not in the keyring (MISSING)`` under ``.dm-verity`` means the
+    config key is gone.
+
+``Other links``
+    Shown only when the keyring holds a link that is no certificate's
+    key. Each line names the kind of link, ``key`` for a public key or
+    the kernel's type such as ``keyring``, its serial and description,
+    and ``(NOT frozen)`` when ``init`` did not record it. The kernel
+    trusts every key such a link reaches, so ``KeyringSealed`` is
+    ``ALERT`` and the verdict ``tampered``.
 
 upatches loaded
 ~~~~~~~~~~~~~~~
@@ -381,6 +419,22 @@ The keyring ``init`` sealed is gone:
    Status:            tampered  (the keyring init froze is gone)
    ...
      KeyringSealed    ALERT   pin serial=<pinned>, the BPF keyring is gone (removed?)
+
+The same for ``.dm-verity`` reads ``dm-verity keyring serial swap
+detected`` or ``the dm-verity keyring init froze is gone``.
+
+A keyring holds a link ``init`` did not freeze, which the kernel trusts
+for signatures from then on:
+
+.. code-block:: text
+
+   Status:            tampered  (a keyring holds a link init did not freeze)
+   ...
+     KeyringSealed    ALERT   the dm-verity keyring holds 1 link init did not freeze
+
+The keyring section lists that link under ``Other links`` with
+``(NOT frozen)``. If instead the config key is gone from
+``.dm-verity``, the reason is ``the config key init froze is gone``.
 
 The config cannot be verified against its records:
 
@@ -610,6 +664,11 @@ The fields that matter for monitoring:
        ``Key was rejected by service``.
    * - ``keyring_serial_matches``
      - It is ``false``.
+   * - ``bpf_keyring.serial_matches`` and
+       ``dm_verity_keyring.serial_matches``
+     - Either is ``false``.
+   * - ``other_links[].frozen`` in either keyring
+     - Any is ``false``.
    * - ``tpm.register_bound`` and ``tpm.register_anchored``
      - Either is ``false``.
    * - ``tpm.chain_matches_eventlog``
