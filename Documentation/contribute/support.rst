@@ -1,0 +1,33 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Reference
+:audience: All readers
+
+Getting support
+===============
+
+shirudo is an open source community project, developed in the open at
+https://github.com/shirudo-dev/shirudo.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - For
+     - Where
+   * - Questions
+     - A GitHub issue at https://github.com/shirudo-dev/shirudo/issues,
+       or GitHub Discussions.
+   * - Feature requests
+     - A GitHub issue that describes the problem the feature would
+       solve.
+   * - Bug reports
+     - A GitHub issue with what :doc:`/operate/bug-report` asks for.
+   * - Security problems
+     - Never a public issue. Report them privately, as
+       :doc:`/security/reporting` describes.
+   * - Talking with the community
+     - GitHub Discussions at
+       https://github.com/shirudo-dev/shirudo/discussions.

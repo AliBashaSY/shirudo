@@ -15,7 +15,8 @@ target. :doc:`/contribute/test-coverage` shows what the tests cover and
 what they do not. Before you send a change, read
 :doc:`/contribute/contributing` and :doc:`/contribute/coding-style`, and
 read :doc:`/security/threat-model` first when the change touches a
-security-relevant path.
+security-relevant path. :doc:`/contribute/support` lists where to ask
+questions and report problems.
 
 .. toctree::
    :titlesonly:
@@ -27,3 +28,4 @@ security-relevant path.
    coding-style
    contributing
    writing-docs
+   support
