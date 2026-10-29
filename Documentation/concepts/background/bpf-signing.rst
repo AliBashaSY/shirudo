@@ -5,8 +5,8 @@
 :page-type: Explanation
 :audience: All readers
 
-BPF program signing in the kernel
-=================================
+BPF program signing
+===================
 
 The kernel can check a signature over BPF code when it is loaded. The
 check establishes who produced the code and that nobody changed it on the

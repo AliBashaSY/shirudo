@@ -48,6 +48,19 @@ lists the active LSMs of the running kernel.
 Because the first refusal ends the walk, an LSM placed late in the list
 does not see an operation that an earlier one already refused.
 
+For a shirudo target, the most minimal and ideal setting is ``lsm=bpf``,
+which enables the BPF LSM alone; the capability checks still run first,
+and IMA and EVM, when built in, still run last. No other LSM then
+refuses an operation before shirudo's programs see and count it, and
+none can hide a seal label by refusing the read of it, the gap the
+threat model lists as U12 (see :doc:`/security/threat-model`). The
+security code the target runs shrinks to what shirudo uses. One more LSM
+matters: the threat model assumes ``lockdown=integrity``, and lockdown is
+an LSM as well. A kernel built with
+``CONFIG_SECURITY_LOCKDOWN_LSM_EARLY`` starts it before it reads the
+list, so ``lsm=bpf`` keeps it; on any other kernel, use
+``lsm=lockdown,bpf``.
+
 BPF programs on LSM hooks
 -------------------------
 
