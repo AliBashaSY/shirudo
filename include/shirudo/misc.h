@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <shirudo/compiler.h>
+
 /*
  * Defined as asm-generic/int-ll64.h defines them on x86-64, arm64 and
  * riscv64, so a file that also includes <linux/types.h> sees the same

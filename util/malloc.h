@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/compiler.h>
+
 /*
  * NULL on failure, never die(): a one-shot CLI reports -ENOMEM up its
  * normal path. A zero size still returns a freeable pointer, so NULL
@@ -40,7 +42,7 @@ char *xstrdup(const char *s);
 char *xstrndup(const char *s, size_t n);
 
 /* A formatted string, freed with xstrfree(); NULL if formatting fails. */
-char *xasprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+char *xasprintf(const char *fmt, ...) __printf(1, 2);
 
 /*
  * Scrubs, so key material, signatures and TPM auth do not linger in

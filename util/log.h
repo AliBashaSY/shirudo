@@ -10,15 +10,17 @@
 
 #include <stdarg.h>
 
+#include <shirudo/compiler.h>
+
 void log_init(void);
 
 void pr_err(const char *fmt, ...)
-	__attribute__((format(printf, 1, 2)));
+	__printf(1, 2);
 void pr_warn(const char *fmt, ...)
-	__attribute__((format(printf, 1, 2)));
+	__printf(1, 2);
 void pr_info(const char *fmt, ...)
-	__attribute__((format(printf, 1, 2)));
+	__printf(1, 2);
 void pr_audit(const char *fmt, ...)
-	__attribute__((format(printf, 1, 2)));
+	__printf(1, 2);
 
 #endif /* SHIRUDO_LOG_H */

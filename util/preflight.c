@@ -58,7 +58,7 @@ static void pass(struct shirudo_preflight_check *c)
 	c->ok = true;
 }
 
-__attribute__((format(printf, 3, 4)))
+__printf(3, 4)
 static void fail(struct shirudo_preflight_result *r,
 		 struct shirudo_preflight_check *c, const char *fmt, ...)
 {

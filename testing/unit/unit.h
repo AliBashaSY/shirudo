@@ -34,7 +34,7 @@ struct unit_suite {
 extern const struct unit_suite unit_suite;
 
 void unit_fail(const char *file, int line, const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+	__printf(3, 4);
 __attribute__((noreturn)) void unit_abort(void);
 __attribute__((noreturn)) void unit_skip(const char *reason);
 void unit_fail_mem(const char *file, int line, const char *what,

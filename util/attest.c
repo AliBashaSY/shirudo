@@ -625,7 +625,7 @@ struct reporter {
 };
 
 static void say(struct reporter *r, bool ok, const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+	__printf(3, 4);
 
 static void say(struct reporter *r, bool ok, const char *fmt, ...)
 {
@@ -651,7 +651,7 @@ static void say(struct reporter *r, bool ok, const char *fmt, ...)
 }
 
 static void note(struct reporter *r, const char *fmt, ...)
-	__attribute__((format(printf, 2, 3)));
+	__printf(2, 3);
 
 static void note(struct reporter *r, const char *fmt, ...)
 {
