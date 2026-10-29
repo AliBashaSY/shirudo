@@ -4,12 +4,14 @@
 #
 # t3106 -- `shirudo upatch get <name>` dumps the BPF line info (source)
 # of a LOADED upatch read from the kernel (the BTF the signed gen_loader
-# installed). Builds + loads a marker fentry upatch, asserts `get` shows
-# the marker source, then unloads + cleans up on EXIT.
+# installed). Loads the marker fentry upatch, asserts `get` shows the
+# marker source, in text and in its JSON form with the payload the
+# artifact names, then unloads + cleans up on EXIT.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
 target_guard
+command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
 
 FIXTURES=${SHIRUDO_TEST_FIXTURES_DIR:?target fixture directory is not set}
 NAME=shirudo-test-marker
@@ -35,6 +37,40 @@ trap restore EXIT
 
 test_expect_success 'upatch get dumps the loaded source line from the kernel' '
 	"$SHIRUDO_BIN" upatch get "$NAME" 2>/dev/null | grep -q "shirudo_test_marker"
+'
+
+test_expect_success 'its JSON form names the program, payload and source' '
+	"$SHIRUDO_BIN" upatch get "$NAME" >"$WORK/get.txt" &&
+	"$SHIRUDO_BIN" upatch get "$NAME" --json >"$WORK/get.json" &&
+	"$SHIRUDO_BIN" upatch info --json "$LOAD" >"$WORK/info.json" &&
+	python3 - "$WORK/get.json" "$WORK/info.json" "$WORK/get.txt" <<'\''PY'\''
+import json, re, sys
+doc = json.load(open(sys.argv[1]))
+payload = json.load(open(sys.argv[2]))["payload_sha256"]
+text = open(sys.argv[3]).read()
+assert set(doc) == {"schema", "upatch"} and doc["schema"] == 1, doc
+u = doc["upatch"]
+assert set(u) == {"name", "location", "prog_id", "loaded_at", "age",
+                  "payload_sha256", "source", "maps"}, u
+assert u["name"] == "shirudo-test-marker"
+assert u["location"] == "fentry/do_nanosleep"
+assert u["prog_id"] > 0
+assert re.search(r"^Prog id: +%d$" % u["prog_id"], text, re.M)
+assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", u["loaded_at"])
+assert u["age"]
+assert u["payload_sha256"] == payload
+lines = [(f["path"], line["line"], line["src"])
+         for f in u["source"]["files"] for line in f["lines"]]
+assert any(path.endswith("/marker.bpf.c") and n > 0 and
+           "shirudo_test_marker" in src for path, n, src in lines), lines
+assert u["maps"] == []
+PY
+'
+
+test_expect_success 'a name that is not loaded has no JSON form' '
+	! "$SHIRUDO_BIN" upatch get shirudo-test-not-loaded --json \
+		>"$WORK/missing.json" 2>/dev/null &&
+	[ ! -s "$WORK/missing.json" ]
 '
 
 test_done

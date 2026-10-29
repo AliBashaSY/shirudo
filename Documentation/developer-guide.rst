@@ -218,8 +218,3 @@ the dm-verity runtime image and the signed config images, which
 guest with a software TPM and the bundle and, in test mode, has
 ``guest.sh`` run one family's tests in it.  ``testing/swtpm.sh`` runs a
 software TPM on the host for development without a VM.
-
-8) Open work
-------------
-
-``upatch get`` is checked for the loaded source, not its JSON form.

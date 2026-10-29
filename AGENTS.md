@@ -60,7 +60,7 @@ remote-management or transport layers.
 | `Documentation/requirements.rst` | Kernel options, operator toolchain, target runtime. |
 | `Documentation/getting-started.rst` | Quickstart: build, sign, initialise a target, load and unload, publish and install packages. |
 | `Documentation/telemetry.rst` | OTLP export of map snapshots and status keepalives, the signed Lua decoders, and collector integration (OpenTelemetry Collector, ClickHouse, Splunk, custom). |
-| `Documentation/developer-guide.rst` | Working from a checkout, the operator-only tools, the test tiers (unit, functional, end-to-end), the test numbers, running the tests, the test VM and the open coverage gaps. Read it before adding or moving a test. |
+| `Documentation/developer-guide.rst` | Working from a checkout, the operator-only tools, the test tiers (unit, functional, end-to-end), the test numbers, running the tests and the test VM. Read it before adding or moving a test. |
 | `Documentation/coding-style.rst` | The kernel's coding style, applied to all C here. |
 | `Documentation/contributing.rst` | Commit message form, the mandatory `Signed-off-by:` and the kernel's attribution tags. Read it before crafting a commit. |
 
