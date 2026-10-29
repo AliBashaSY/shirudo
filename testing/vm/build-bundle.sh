@@ -321,7 +321,6 @@ install -d "$TMP_DIR/test-helpers/testing/helper" \
 while IFS= read -r helper; do
 	install -m 0755 "$REPO_ROOT/$helper" "$TMP_DIR/test-helpers/$helper"
 done <<'EOF'
-testing/helper/test-json-parser
 testing/helper/test-chain
 testing/helper/test-register
 testing/helper/test-register-cli

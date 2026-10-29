@@ -597,7 +597,6 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-config-update \
                 testing/helper/test-config-attest \
                 testing/helper/test-image-keys \
-                testing/helper/test-json-parser \
                 testing/helper/test-conditions \
                 testing/helper/test-config-image \
                 testing/helper/test-harden \
@@ -632,10 +631,6 @@ TEST_HELPERS += testing/helper/test-nv-writer
 TEST_HELPERS += testing/helper/test-keyring-seal
 TEST_HELPERS += testing/helper/test-tpm-preopened
 
-testing/helper/test-json-parser: testing/helper/test-json-parser.c util/json.o util/hex.o \
-                                 util/string.o util/malloc.o
-	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS) -o $@ $^
 testing/helper/test-conditions: testing/helper/test-conditions.c util/conditions.o \
                                 util/string.o util/malloc.o
 	@printf '  CC      $@\n'
