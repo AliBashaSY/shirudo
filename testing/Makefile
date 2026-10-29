@@ -26,7 +26,7 @@ test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 	. $(ROOT)/testing/vm/arch.sh && printf '%s' "$$$(1)")
 
 .DEFAULT_GOAL := all
-.PHONY: all help clean unit ghchecks functional end2end build-operator build-unit \
+.PHONY: all help clean unit ci-checks functional end2end build-operator build-unit \
 	test-helpers \
 	fuzz bundle test-vm-bundle kernel bpf-next vm vm-console vm-ssh vm-stop vm-clean
 
@@ -271,7 +271,7 @@ vm-tests = $(if $(filter 0,$(VM)),:,$(MAKE) $(addprefix vm-test-,$(1)))
 
 all:
 	+$(Q)$(MAKE) unit
-	+$(Q)$(MAKE) ghchecks
+	+$(Q)$(MAKE) ci-checks
 	+$(Q)$(MAKE) functional
 	+$(Q)$(MAKE) end2end
 
@@ -282,8 +282,8 @@ $(addprefix unit/,$(UNIT_SUITES)): unit/%: build-unit
 	$(Q)$(ROOT)/testing/run-tests.sh unit/$*
 
 # The tests of the scripts under .github/scripts, which need no build.
-ghchecks:
-	$(Q)$(ROOT)/testing/run-tests.sh ghchecks
+ci-checks:
+	$(Q)$(ROOT)/testing/run-tests.sh ci-checks
 
 functional: build-operator
 	$(Q)$(ROOT)/testing/run-tests.sh functional
@@ -343,7 +343,7 @@ help:
 	  'Testing targets (make tests at the top runs the first):' \
 	  '  make -C testing                         every test' \
 	  '  make -C testing unit[/<suite>]          suites: $(UNIT_SUITES)' \
-	  '  make -C testing ghchecks                the scripts CI runs' \
+	  '  make -C testing ci-checks               the scripts CI runs' \
 	  '  make -C testing functional[/<family>]   families: $(FAMILIES)' \
 	  '  make -C testing end2end' \
 	  '  VM=0 leaves out the tests that boot a VM, which need root;' \

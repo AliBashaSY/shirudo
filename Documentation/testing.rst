@@ -21,7 +21,7 @@ sending a change.
 
     testing/
         unit/                   unit tests, util/<m>.c by unit/<m>.c
-        ghchecks/               the scripts under .github/scripts
+        ci-checks/              the scripts under .github/scripts
         functional/<family>/    one command or mechanism at a time
         end2end/                whole delivery paths on a test VM
         fuzz/                   libFuzzer targets and seed corpora
@@ -52,7 +52,7 @@ test families:
 === ============================ ==========================================
 F   Directory                    What it covers
 === ============================ ==========================================
-0   ``ghchecks/``                DCO, SPDX, style, commit range, SBOM
+0   ``ci-checks/``               DCO, SPDX, style, commit range, SBOM
 1   ``functional/build/``        dispatch, static target, packaging,
                                  initrd installer, the test VM scripts
 2   ``functional/signing/``      keys, signatures, the trusted set
@@ -77,13 +77,13 @@ test does not take a name of this form.
 --------------------
 
 ``make tests`` or ``make -C testing``
-    Runs every test, tier by tier: ``unit``, ``ghchecks``, ``functional``
+    Runs every test, tier by tier: ``unit``, ``ci-checks``, ``functional``
     and ``end2end``.  CI runs the same.
 
 ``make -C testing <tier>``
     Runs one tier.  ``unit/<suite>`` runs one unit suite and
     ``functional/<family>`` one family; ``make -C testing help`` lists
-    them.  The unit tests and the ``ghchecks/`` tests run on the build
+    them.  The unit tests and the ``ci-checks/`` tests run on the build
     host.
 
 A functional or end-to-end tier runs its operator tests first, in number

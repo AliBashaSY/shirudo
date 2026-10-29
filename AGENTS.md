@@ -337,7 +337,7 @@ one usually still compiles and passes tests.
   fix the warning rather than silence it. `WERROR=0` is for a compiler
   newer than the tree, while its new warnings get fixed.
 - `make tests` (or `make -C testing`) runs every test, and is what CI runs;
-  `make -C testing unit`, `ghchecks`, `functional` or `end2end` runs one
+  `make -C testing unit`, `ci-checks`, `functional` or `end2end` runs one
   tier, `unit/<suite>` or `functional/<family>` part of one. The target
   tests (`t?1??`) run as root in QEMU/swtpm VMs, one fresh VM per family;
   `VM=0` leaves them out, and `make tests VM=0

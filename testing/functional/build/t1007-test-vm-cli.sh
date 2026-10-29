@@ -897,12 +897,12 @@ test_expect_success 'test-vm validates BPM OCI repository handoff as a pair' '
 test_expect_success 'make -C testing runs every tier in order' '
 	grep -A4 "^all:$" ../testing/Makefile | sed -n "2,5s/.*\$(MAKE) //p" \
 		>"$WORK/tiers" &&
-	[ "$(tr "\n" " " <"$WORK/tiers")" = "unit ghchecks functional end2end " ] &&
+	[ "$(tr "\n" " " <"$WORK/tiers")" = "unit ci-checks functional end2end " ] &&
 	grep -q "^bundle: test-vm-bundle" ../testing/Makefile
 '
 
 test_expect_success 'the runners split the tests by number' '
-	{ echo "dirs=\"ghchecks functional/* end2end\""
+	{ echo "dirs=\"ci-checks functional/* end2end\""
 	  sed -n "/^operator_tests()/,/^}/p" run-tests.sh; echo operator_tests; } |
 		sh >"$WORK/operator-tests" &&
 	grep -q "^functional/upatch/t3001-" "$WORK/operator-tests" &&

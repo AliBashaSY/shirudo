@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# testing/run-tests.sh [unit[/<suite>]|ghchecks|functional[/<family>]|end2end]...
+# testing/run-tests.sh [unit[/<suite>]|ci-checks|functional[/<family>]|end2end]...
 # -- the tests of each tier named, all of them without an argument, that
 # run on the build host: the unit tests and the operator tests (t?0??) in
 # number order. The target tests run in the test VM through
@@ -13,7 +13,7 @@ set -eu
 
 cd "$(dirname "$0")"
 
-[ $# -gt 0 ] || set -- unit ghchecks functional end2end
+[ $# -gt 0 ] || set -- unit ci-checks functional end2end
 units=
 dirs=
 for what; do
