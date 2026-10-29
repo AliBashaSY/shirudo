@@ -282,4 +282,7 @@ fi
 
 sudo prlimit --pid "$$" --memlock=unlimited:unlimited
 
-sudo -E env PATH="$PATH" make tests
+# sudo drops LD_LIBRARY_PATH even with -E and replaces PATH with its
+# secure_path, and the OpenSSL 3.5 build needs both: for the openssl the
+# config probes run and for every shirudo binary the tests run here.
+sudo -E env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" make tests
