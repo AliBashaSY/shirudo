@@ -773,6 +773,12 @@ printf 'vendored-tools\n' >"$TMP_DIR/dependency-mode"
 printf 'shirudo-test-vm-bundle-stamp-v1\n' >"$TMP_DIR/.stamp"
 printf '%s\n' "$RUNTIME_KEY" >"$TMP_DIR/runtime-image-key"
 
+# The end-to-end test publishes a package the target trusts, with the key
+# that signs the fixtures. It stays beside the bundle, out of the guest.
+rm -rf -- "$BUNDLE_DIR.operator"
+mkdir -m 0700 "$BUNDLE_DIR.operator"
+cp -a "$FIXTURE_WORK/trusted" "$BUNDLE_DIR.operator/keys"
+
 rm -rf -- "$BUNDLE_DIR"
 mv -- "$TMP_DIR" "$BUNDLE_DIR"
 touch "$STAMP_FILE"

@@ -158,7 +158,20 @@ signed fixture of the bundle that a test needs.  A target test that skips
 as a whole fails its family, since every one of them is required.
 
 The end-to-end tests in ``end2end/`` run a shipped package against real
-kernel activity and follow it out through the export path.
+kernel activity and follow it out through the export path, and the last of
+them, ``t9105-delivery``, takes the whole delivery path.  Around its VM,
+``end2end/host.sh`` plays the operator: it starts an OCI registry and an
+OpenTelemetry Collector in containers, pinned by digest, behind a
+throwaway CA; builds kernel-obs into a package with ``bpm build``, pushes
+it with ``bpm push`` and appends it to a signed upatch tree with ``bpm
+tree append``, all with the key the bundle's fixtures are signed with.
+The target activates the signed ``config-end2end`` image that points at
+the tree and the collector, and the units it ships pull, verify and load
+the package and export what it observes.  The host then checks the TPM
+evidence the target produced with ``attest verify``, which must find the
+published payload loaded, and the collector's output, which must hold the
+package's records.  The registry and the collector need Docker on the
+host; the guest reaches them through QEMU's address for the host.
 
 6) The test VM
 --------------

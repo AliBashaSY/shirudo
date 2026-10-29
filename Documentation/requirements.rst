@@ -464,6 +464,8 @@ suites when validating a deployment.
   Ubuntu).  The prepared guest installs libtpms and the command TCTI
   runtime. The guest uses the TPM-held NV writer and the kernel TPM
   device, not a software signing replacement.
+* ``make -C testing end2end`` runs an OCI registry and an OpenTelemetry
+  Collector in Docker containers beside the VM, and needs ``curl``.
 * ``make -C testing fuzz`` builds the parsers' libFuzzer targets with
   ``clang`` and needs its fuzzer and sanitizer runtime
   (``libclang-rt-<version>-dev`` on Debian and Ubuntu).

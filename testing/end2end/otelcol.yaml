@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
+# The collector of the end-to-end test: OTLP over HTTPS in, every request
+# written to a file the host then checks.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        tls:
+          cert_file: /certs/server.pem
+          key_file: /certs/server.key
+exporters:
+  file:
+    path: /out/otlp.json
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [file]
+    metrics:
+      receivers: [otlp]
+      exporters: [file]

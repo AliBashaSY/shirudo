@@ -293,9 +293,13 @@ $(addprefix functional/,$(FAMILIES)): functional/%: build-operator
 	$(Q)$(ROOT)/testing/run-tests.sh functional/$*
 	+$(Q)$(call vm-tests,$(filter $*,$(VM_SUITES)))
 
+# The end-to-end VM runs between the operator's publication to a registry
+# and the host's checks of what the target attests and exports.
 end2end: build-operator
 	$(Q)$(ROOT)/testing/run-tests.sh end2end
-	+$(Q)$(call vm-tests,end2end)
+	+$(Q)$(if $(filter 0,$(VM)),:,$(MAKE) test-vm-bundle && \
+		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
+		$(ROOT)/testing/end2end/host.sh $(MAKE) -C $(ROOT)/testing vm-test-end2end)
 
 vm-test-tpm: vm-test-register
 
@@ -361,4 +365,4 @@ clean:
 		mkdir -p "$$(dirname "$$bundle_dir")"; \
 		exec 9>"$$bundle_dir.lock"; \
 		flock 9; \
-		rm -rf "$$bundle_dir"
+		rm -rf "$$bundle_dir" "$$bundle_dir.operator" $(ROOT)/build/test-vm/end2end
