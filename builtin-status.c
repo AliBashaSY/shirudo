@@ -714,7 +714,7 @@ int cmd_status(int argc, const char **argv)
 		json_cap = 16384 + (size_t)n_ups *
 			   (6 * sizeof(struct shirudo_upatch_table_row) + 256);
 		if (include_eventlog && ev_rc == 0)
-			json_cap = 65536 + 3 * (size_t)ev_bytes;
+			json_cap += 65536 + 3 * (size_t)ev_bytes;
 		if (include_kernel_log)
 			json_cap += (size_t)kernel_log_lines * 1024 + 4096;
 		if (include_modules)
