@@ -1413,7 +1413,7 @@ R21 upatches can be neutralized without detaching them
    (A4), by disabling kprobes through debugfs. These are readings of the
    kernel source and are not tested.
 
-R22 Labelled inodes are interchangeable
+R22 Labeled inodes are interchangeable
    The label carries no identity. Any labeled inode passes shirudo's
    checks at any sealed path, and ``lsm/sb_mount`` does not guard the
    file system that holds ``/var/lib/shirudo``. In a mount namespace of

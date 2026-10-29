@@ -114,7 +114,7 @@ that boot restore loads, the eventlog, the package and tree state, the
 image cache and the config activation journal. The first ``init`` labels
 the tree with the ``security.bpf.shirudo`` extended attribute, shirudo
 labels every inode it creates there, and the seal refuses changes to
-labelled inodes by tasks without runtime authority.
+labeled inodes by tasks without runtime authority.
 
 Per-boot state lives under ``/run/shirudo``, a private tmpfs mount that
 systemd carries from the initrd into the root file system. The private

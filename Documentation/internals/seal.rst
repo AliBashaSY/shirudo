@@ -122,7 +122,7 @@ The first ``init`` labels the tree. When ``/var/lib/shirudo`` itself has
 no label and enforcement is not yet attached, ``init`` labels every
 regular file and directory on that file system under it. After that,
 shirudo labels each inode as it creates it, and ``init`` never labels an
-entry again: an unlabelled entry, or an entry of a kind shirudo never
+entry again: an unlabeled entry, or an entry of a kind shirudo never
 makes, is someone else's and is logged and ignored. With enforcement
 attached, ``init`` refuses a state root without a label, because that is
 a tree bound over the path rather than the one it sealed.
@@ -134,7 +134,7 @@ and config images carry no labels; dm-verity protects them.
 What the seal checks
 --------------------
 
-For a labelled inode, these operations need runtime authority:
+For a labeled inode, these operations need runtime authority:
 
 - a write open (``SealWrite``);
 - unlink (``SealUnlink``);
@@ -144,7 +144,7 @@ For a labelled inode, these operations need runtime authority:
 - setting or removing any extended attribute (``SealXattr``).
 
 Setting the attribute ``security.bpf.shirudo`` itself needs runtime
-authority on every inode, labelled or not (``SealLabel``), so root cannot
+authority on every inode, labeled or not (``SealLabel``), so root cannot
 label an inode of its own as shirudo's.
 
 A directory with a cached mark takes new entries only from a task with
@@ -165,13 +165,13 @@ The seal reads the label with the ``bpf_get_file_xattr()`` and
 task may read the inode. If the seal refused every operation whose label
 read failed, it would refuse every write-only open and every unlink of a
 file the caller cannot read, on every file system. So these results count
-as unlabelled and the operation goes ahead: no label (``ENODATA``), no
+as unlabeled and the operation goes ahead: no label (``ENODATA``), no
 security extended attributes on the file system (``EOPNOTSUPP``), and a
 label the caller may not read (``EACCES``, ``EPERM``). A label of any
 length, any other error, and a failure to allocate the scratch buffer
 the kfunc writes into require runtime authority.
 
-Labelling at creation
+Labeling at creation
 ---------------------
 
 A file shirudo creates must carry its label from the moment it exists;
@@ -196,10 +196,10 @@ state tree once more; the walk opens every directory and fills the marks.
 
 shirudo's readers do not trust an entry because it is there. They open
 each path component without following symbolic links and require every
-entry under a labelled directory to carry its parent's label; anything
+entry under a labeled directory to carry its parent's label; anything
 else is reported as a foreign entry and refused. A path a caller names
 for shirudo to write, such as ``--report`` or ``--out``, must be an
-unlabelled regular file outside any labelled directory, so a task with
+unlabeled regular file outside any labeled directory, so a task with
 runtime authority cannot be pointed at sealed state.
 
 Limits
@@ -215,9 +215,9 @@ Directory eviction
     creation, links and renames into the directory are not checked, and
     ``inode_init_security`` adds no label.
 
-Hard links to labelled inodes
+Hard links to labeled inodes
     ``inode_link`` checks the destination directory's mark, not the
-    source inode. Root can hard-link a labelled file into an unsealed
+    source inode. Root can hard-link a labeled file into an unsealed
     directory on the same file system. shirudo replaces state by writing
     a new file and renaming it over the old one, so the old inode stays
     reachable through that link. While a directory's mark is absent, such
@@ -228,13 +228,13 @@ Label reads under another LSM
     The kfuncs' read permission check runs every LSM's
     ``inode_permission`` hook for the calling task. A policy of another
     LSM that lets a task write or unlink a file but not read it makes a
-    labelled inode look unlabelled to the seal, and the same failure on
+    labeled inode look unlabeled to the seal, and the same failure on
     a directory open removes the directory's mark.
 
 Operations without a check
     The seal does not attach ``inode_rmdir``, ``inode_file_setattr`` or
     the ACL hooks ``inode_set_acl`` and ``inode_remove_acl``. Root can
-    remove an empty labelled directory, set the immutable or append-only
+    remove an empty labeled directory, set the immutable or append-only
     flag on sealed files with ``chattr``, and change their POSIX ACLs.
 
 Bind mounts
@@ -245,7 +245,7 @@ Bind mounts
 Existing descriptors
     The seal checks operations when they start. A descriptor opened for
     writing, or a writable mapping, that exists before a file is
-    labelled keeps working; the seal revokes nothing.
+    labeled keeps working; the seal revokes nothing.
 
 Below the file system
     The hooks see VFS operations. Writes to the block device under the

@@ -57,7 +57,7 @@ exists. When a file system creates an inode, it calls the
 ``inode_init_security`` hook. Each LSM may fill reserved slots with the
 xattrs the new inode should carry, and the file system writes them as
 part of the same operation that creates the inode. A file system without
-that support passes no slots, and the inode starts unlabelled.
+that support passes no slots, and the inode starts unlabeled.
 
 Later changes go through ``setxattr(2)`` and ``removexattr(2)``. The
 ``inode_setxattr`` and ``inode_removexattr`` hooks run before the change
@@ -118,11 +118,11 @@ program labels every new inode created in a marked directory, with
 ``bpf_inode_init_xattr()``.
 
 The seal's sleepable programs read the label with
-``bpf_get_file_xattr()`` and ``bpf_get_dentry_xattr()``. A labelled inode
+``bpf_get_file_xattr()`` and ``bpf_get_dentry_xattr()``. A labeled inode
 may be opened for writing, removed, renamed, changed in its attributes or
 xattrs only by a task with runtime authority. Only such a task may set
 the label itself; anyone else's attempt counts as ``SealLabel``, and
-other xattr changes on a labelled inode as ``SealXattr``. The label marks
+other xattr changes on a labeled inode as ``SealXattr``. The label marks
 what is protected; it never grants authority to the task that carries
 or copies it. The seal also refuses an overlay copy-up of a marked inode
 (``SealCopyUp``). See :doc:`/internals/seal`.

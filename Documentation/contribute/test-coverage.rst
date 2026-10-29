@@ -242,7 +242,7 @@ signed config image.
    * - Test
      - Covers
    * - ``t6001-seal-create``
-     - The creation helpers label what they create under a labelled
+     - The creation helpers label what they create under a labeled
        directory
    * - ``t6002-seal-seccomp``
      - The seal builds with either seccomp layout in ``vmlinux.h``
@@ -279,7 +279,7 @@ signed config image.
    * - ``t6110-pr-set-mm-identity``
      - ``PR_SET_MM`` executable changes
    * - ``t6111-seal-scratch``
-     - The seal against root on labelled files
+     - The seal against root on labeled files
    * - ``t6112-key-permission``
      - The ``.bpf`` and ``.dm-verity`` keyrings cannot be changed
    * - ``t6113-verity-authority``
@@ -305,7 +305,7 @@ signed config image.
    * - ``t6122-persist-undo``
      - A load whose archive copy fails is undone
    * - ``t6123-foreign-state-root``
-     - An unlabelled state root bound over the path
+     - An unlabeled state root bound over the path
    * - ``t6124-overlay-copy-up``
      - An overlay over the state root
    * - ``t6125-tpm-identity``
@@ -682,13 +682,13 @@ Most of these attacks are open threats in
 - A repository index or tree publication signed with a classical
   algorithm.
 - Removing an empty sealed directory, ``chattr`` on sealed files, POSIX
-  ACLs on them, and a hard link of a labelled inode into an unsealed
+  ACLs on them, and a hard link of a labeled inode into an unsealed
   directory. ``t6118`` covers hard links into sealed directories only.
 - An eventlog larger than the size the readers accept.
 - A fake TPM transport that replays the attestation key name ``init``
   recorded. ``t6125`` covers a device with another name.
 - Making ``init`` read another boot ID, or miss this boot's init
-  record by other means than the unlabelled state directory ``t6115``
+  record by other means than the unlabeled state directory ``t6115``
   covers, so that it binds the register again.
 - A target without kernel lockdown. The test kernel enables no
   lockdown.

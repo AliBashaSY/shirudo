@@ -385,7 +385,7 @@ Extended attributes
      - 64 lowercase hex characters, the SHA-256 of the attribute name,
        the same on every build. The seal treats any value as the label.
        Only a task with runtime authority may set it (``SealLabel``).
-       A file created in a labelled directory receives the label at
+       A file created in a labeled directory receives the label at
        creation.
    * - ``security.bpf.shirudo.payload``
      - Each ``upatches/<bpffs-name>/`` directory in the private bpffs.

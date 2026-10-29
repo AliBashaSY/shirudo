@@ -173,7 +173,7 @@ Kexec
     every caller.
 
 Writable state
-    ``seal`` refuses changes to labelled inodes under
+    ``seal`` refuses changes to labeled inodes under
     ``/var/lib/shirudo`` to tasks without runtime authority.
     :doc:`seal` explains the labels.
 
@@ -451,7 +451,7 @@ when the record it needs is missing.
      - ``Kexec``
      - Unconditional.
    * - ``lsm.s/file_open`` (``seal``)
-     - A write open of a labelled file to a task without authority. On a
+     - A write open of a labeled file to a task without authority. On a
        directory open, records or clears the directory mark from its
        label.
      - ``EACCES``
@@ -459,19 +459,19 @@ when the record it needs is missing.
      - See the label verdict below.
    * - ``lsm.s/inode_unlink``, ``lsm.s/inode_setattr``,
        ``lsm.s/inode_removexattr`` (``seal``)
-     - The operation on a labelled inode to a task without authority.
+     - The operation on a labeled inode to a task without authority.
        Setattr covers truncate, chmod, chown and timestamps.
      - ``EACCES``
      - ``SealUnlink``, ``SealSetattr``, ``SealXattr``
      - See the label verdict below.
    * - ``lsm.s/inode_setxattr`` (``seal``)
      - Setting ``security.bpf.shirudo`` on any inode, and any other name
-       on a labelled inode, to a task without authority.
+       on a labeled inode, to a task without authority.
      - ``EACCES``
      - ``SealLabel``, ``SealXattr``
      - See the label verdict below.
    * - ``lsm.s/inode_rename`` (``seal``)
-     - A labelled source, a marked destination directory or a labelled
+     - A labeled source, a marked destination directory or a labeled
        inode it would replace, to a task without authority.
      - ``EACCES``
      - ``SealRename``, ``SealEntry``
@@ -505,7 +505,7 @@ when the record it needs is missing.
 The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
 with the caller's permission. No label (``ENODATA``), no security
 extended attributes on the file system (``EOPNOTSUPP``) and a label the
-caller may not read (``EACCES``, ``EPERM``) count as unlabelled, and the
+caller may not read (``EACCES``, ``EPERM``) count as unlabeled, and the
 operation goes ahead. A label of any length, any other read error and a
 failure to allocate the scratch buffer require runtime authority.
 :doc:`seal` explains why and what follows from it.
