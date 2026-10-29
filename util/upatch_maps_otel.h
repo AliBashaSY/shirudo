@@ -25,11 +25,6 @@ enum shirudo_otel_mode {
 	SHIRUDO_OTEL_S3,
 };
 
-enum shirudo_otel_metric_kind {
-	SHIRUDO_OTEL_METRIC_COUNTER,
-	SHIRUDO_OTEL_METRIC_GAUGE,
-};
-
 struct shirudo_otel_opts {
 	const char	*endpoint;
 	const char	*tenant_id;
@@ -38,11 +33,6 @@ struct shirudo_otel_opts {
 	__u32		retries;
 	__u32		log_record_max_bytes;
 	__u32		otlp_max_bytes;
-	enum shirudo_otel_metric_kind metric_kind;
-	bool		metric_kind_set;
-	const char	*metric_name;
-	const char	*metric_unit;
-	const char	*metric_description;
 };
 
 int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
@@ -53,7 +43,6 @@ int shirudo_upatch_maps_otel_build_log_file(const char *path,
 					    char **out, size_t *out_len);
 int shirudo_upatch_maps_otel_build_metric_file(const char *path,
 					       const struct shirudo_map_view *v,
-					       const struct shirudo_otel_opts *opts,
 					       char **out, size_t *out_len);
 int shirudo_upatch_maps_otel_send(const struct shirudo_map_view *v,
 				  enum shirudo_otel_mode mode,

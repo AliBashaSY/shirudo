@@ -826,276 +826,8 @@ int shirudo_upatch_maps_otel_build_log_file(const char *path,
 	return build_log_payload(path, v, 0, out, out_len);
 }
 
-static int read_integer(const void *p, const struct metric_type *mt,
-			__int128 *signed_out, unsigned __int128 *unsigned_out)
-{
-	__u64 u = 0;
-	__s64 s = 0;
-
-	memcpy(&u, p, mt->width);
-	if (mt->is_signed) {
-		switch (mt->width) {
-		case 1:
-			s = (__s8)u;
-			break;
-		case 2:
-			s = (__s16)u;
-			break;
-		case 4:
-			s = (__s32)u;
-			break;
-		case 8:
-			memcpy(&s, p, 8);
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
-		*signed_out = s;
-	} else {
-		*unsigned_out = u;
-	}
-	return 0;
-}
-
-static int entry_metric_value(const struct shirudo_map_view *v,
-			      const struct shirudo_map_entry *en,
-			      const struct metric_type *mt, __s64 *out)
-{
-	__u32 count = upatch_map_is_percpu(v->type) ?
-		v->n_cpus : 1;
-	__int128 signed_sum = 0;
-
-	unsigned __int128 unsigned_sum = 0;
-	__u32 stride = upatch_map_value_stride(v);
-	__u32 i;
-
-	for (i = 0; i < count; i++) {
-		__int128 s = 0;
-
-		unsigned __int128 u = 0;
-		int rc = read_integer((const char *)en->value +
-				      (size_t)i * stride, mt, &s, &u);
-
-		if (rc)
-			return rc;
-		if (mt->is_signed)
-			signed_sum += s;
-		else
-			unsigned_sum += u;
-	}
-	if (mt->is_signed) {
-		if (signed_sum < INT64_MIN || signed_sum > INT64_MAX)
-			return -ERANGE;
-		*out = (__s64)signed_sum;
-	} else {
-		if (unsigned_sum > INT64_MAX)
-			return -ERANGE;
-		*out = (__s64)unsigned_sum;
-	}
-	return 0;
-}
-
-static bool valid_metric_name(const char *name)
-{
-	size_t i, n;
-
-	if (!name || !isalpha((__u8)name[0]))
-		return false;
-	n = strlen(name);
-	if (n == 0 || n > 255)
-		return false;
-	for (i = 1; i < n; i++) {
-		__u8 c = (__u8)name[i];
-
-		if (!isalnum(c) && c != '_' && c != '.' && c != '-' && c != '/')
-			return false;
-	}
-	return true;
-}
-
-static int metric_name(const struct otel_state *st,
-		       const struct shirudo_map_view *v, char out[256])
-{
-	size_t i;
-
-	if (st->opts.metric_name) {
-		if (!valid_metric_name(st->opts.metric_name))
-			return -EINVAL;
-		if (strscpy(out, st->opts.metric_name, 256) < 0)
-			return -ENAMETOOLONG;
-		return 0;
-	}
-	if (strsprintf(out, 256, "shirudo.%s.%s", v->upatch, v->name) < 0)
-		return -ENAMETOOLONG;
-	for (i = 0; out[i]; i++) {
-		__u8 c = (__u8)out[i];
-
-		if (!isalnum(c) && c != '_' && c != '.' && c != '-' && c != '/')
-			out[i] = '_';
-	}
-	return 0;
-}
-
-static int map_start_ns(const struct shirudo_map_view *v, __u64 *out)
-{
-	char path[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
-	struct stat st;
-
-	if (v->lifetime_start_ns) {
-		*out = v->lifetime_start_ns;
-		return 0;
-	}
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), v->upatch))
-		return -ENAMETOOLONG;
-	if (strsprintf(path, sizeof(path), "%s/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
-		return -ENAMETOOLONG;
-	if (stat(path, &st) != 0)
-		return -errno;
-	*out = (__u64)st.st_ctim.tv_sec * 1000000000ULL +
-	       (__u64)st.st_ctim.tv_nsec;
-	return 0;
-}
-
-static int validate_metric_view(const struct otel_state *st,
-				const struct shirudo_map_view *v,
-				struct metric_type *mt)
-{
-	int rc;
-
-	if (v->serialized || v->skipped)
-		return -EOPNOTSUPP;
-	if (v->truncated)
-		return -E2BIG;
-	rc = metric_type_from_view(v, mt);
-	if (rc)
-		return rc;
-	if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER &&
-	    mt->is_signed)
-		return -EDOM;
-	return 0;
-}
-
-static __attribute__((unused)) int build_metric_payload(const struct otel_state *st,
-							const struct shirudo_map_view *v,
-							char **out, size_t *out_len)
-{
-	struct shirudo_json_emit e = {};
-	struct metric_type mt;
-	char name[256], now[32], start[32];
-	__u64 now_ns, start_ns = 0;
-	char *buf;
-	__u32 i;
-	int rc;
-
-	rc = validate_metric_view(st, v, &mt);
-	if (rc)
-		return rc;
-	if (v->n_entries == 0) {
-		*out = NULL;
-		*out_len = 0;
-		return 0;
-	}
-	rc = metric_name(st, v, name);
-	if (rc)
-		return rc;
-	now_ns = realtime_ns();
-	u64_decimal(now_ns, now);
-	if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER) {
-		rc = map_start_ns(v, &start_ns);
-		if (rc)
-			return rc;
-		u64_decimal(start_ns, start);
-	}
-	buf = xmalloc(SHIRUDO_JSON_MAX_BYTES);
-	if (!buf)
-		return -ENOMEM;
-	e.buf = buf;
-	e.cap = SHIRUDO_JSON_MAX_BYTES;
-
-	json_obj_open(&e);
-	json_arr_open(&e, "resourceMetrics");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "resource");
-	emit_resource_attributes(&e);
-	json_obj_close(&e);
-	json_arr_open(&e, "scopeMetrics");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "scope");
-	json_kv_string(&e, "name", "shirudo.upatch.maps");
-	json_kv_string(&e, "version", shirudo_version);
-	json_obj_close(&e);
-	json_arr_open(&e, "metrics");
-	json_obj_open(&e);
-	json_kv_string(&e, "name", name);
-	if (st->opts.metric_description && st->opts.metric_description[0])
-		json_kv_string(&e, "description",
-			       st->opts.metric_description);
-	json_kv_string(&e, "unit",
-		       st->opts.metric_unit ?: "1");
-	json_obj_open_key(&e,
-			  st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER ?
-				  "sum" : "gauge");
-	if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER) {
-		json_kv_int(&e, "aggregationTemporality", 2);
-		json_kv_bool(&e, "isMonotonic", true);
-	}
-	json_arr_open(&e, "dataPoints");
-	for (i = 0; i < v->n_entries; i++) {
-		const struct shirudo_map_entry *en = &v->entries[i];
-		char value[32];
-		char *key;
-		__s64 point;
-
-		rc = entry_metric_value(v, en, &mt, &point);
-		if (rc) {
-			xfree(buf, SHIRUDO_JSON_MAX_BYTES);
-			return rc;
-		}
-		if (strsprintf(value, sizeof(value), "%lld", point) < 0) {
-			xfree(buf, SHIRUDO_JSON_MAX_BYTES);
-			return -E2BIG;
-		}
-		key = upatch_map_format_cell(v, v->key_type_id,
-					     en->key, v->key_size, v->btf_key_type);
-		json_obj_open(&e);
-		if (st->opts.metric_kind == SHIRUDO_OTEL_METRIC_COUNTER)
-			json_kv_string(&e, "startTimeUnixNano", start);
-		json_kv_string(&e, "timeUnixNano", now);
-		json_kv_string(&e, "asInt", value);
-		json_arr_open(&e, "attributes");
-		otlp_kv_string(&e, "shirudo.map.key", key ?: "");
-		otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
-		otlp_kv_string(&e, "shirudo.upatch.location", v->location);
-		otlp_kv_string(&e, "shirudo.map.name", v->name);
-		otlp_kv_string(&e, "shirudo.map.type", v->type_name);
-		json_arr_close(&e);
-		json_obj_close(&e);
-		xstrfree(key);
-	}
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-
-	if (e.err) {
-		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
-		return e.err;
-	}
-	*out = buf;
-	*out_len = e.len;
-	return 0;
-}
-
 static int build_metric_decoded_payload(const char *path,
 					const struct shirudo_map_view *v,
-					const struct shirudo_otel_opts *opts,
 					char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e = {};
@@ -1103,7 +835,6 @@ static int build_metric_decoded_payload(const char *path,
 	size_t decoded_len = 0, decoded_alloc_len;
 	int rc;
 
-	(void)opts;
 	rc = path ? upatch_decode_map_file_json(path, v,
 							&decoded, &decoded_len) :
 		upatch_decode_map_json(v, &decoded, &decoded_len);
@@ -1303,22 +1034,13 @@ out:
 	return rc;
 }
 
-static int
-shirudo_upatch_maps_otel_build_metric(const struct shirudo_map_view *v,
-				      const struct shirudo_otel_opts *opts,
-				      char **out, size_t *out_len)
-{
-	return build_metric_decoded_payload(NULL, v, opts, out, out_len);
-}
-
 int shirudo_upatch_maps_otel_build_metric_file(const char *path,
 					       const struct shirudo_map_view *v,
-					       const struct shirudo_otel_opts *opts,
 					       char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
-	return build_metric_decoded_payload(path, v, opts, out, out_len);
+	return build_metric_decoded_payload(path, v, out, out_len);
 }
 
 static int parse_timeout(const char *value, long *out)
@@ -1850,7 +1572,6 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 		return -ENOMEM;
 	st->signal = signal;
 	st->opts.retries = 3;
-	st->opts.metric_kind = SHIRUDO_OTEL_METRIC_COUNTER;
 	if (opts)
 		st->opts = *opts;
 	/* Callers without the configuration leave the limits at 0. */
@@ -1898,11 +1619,6 @@ static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 		fprintf(stderr, "otel: selected %s for %s map %s: %s\n",
 			signal == SHIRUDO_OTEL_LOG ? "log" : "metric",
 			v->type_name, v->name, reason);
-		if (signal == SHIRUDO_OTEL_LOG && opts &&
-		    (opts->metric_kind_set || opts->metric_name ||
-		     opts->metric_unit || opts->metric_description)) {
-			return -EINVAL;
-		}
 	} else {
 		signal = forced;
 	}
@@ -1922,20 +1638,11 @@ static int otel_emit(void *state, const struct shirudo_map_view *v)
 		rc = build_log_payload(st->decoder_path, v,
 				       st->opts.log_record_max_bytes,
 				       &payload, &len);
-	else if (st->decoder_path)
-		rc = shirudo_upatch_maps_otel_build_metric_file(st->decoder_path, v,
-								&st->opts,
-								&payload, &len);
 	else
-		rc = shirudo_upatch_maps_otel_build_metric(v, &st->opts,
-							   &payload, &len);
+		rc = build_metric_decoded_payload(st->decoder_path, v,
+						  &payload, &len);
 	if (rc)
 		return rc;
-	if (!payload) {
-		fprintf(stderr, "otel: metric map %s has no data points; "
-			"nothing exported\n", v->name);
-		return 0;
-	}
 	rc = otel_post(st, payload, len);
 	xfree(payload, SHIRUDO_JSON_MAX_BYTES);
 	return rc;
@@ -2801,14 +2508,10 @@ static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
 		return -EOPNOTSUPP;
 	if (v->truncated)
 		return -E2BIG;
-	if (opts && (opts->metric_kind_set || opts->metric_name ||
-		     opts->metric_unit || opts->metric_description))
-		return -EINVAL;
 	st = xcalloc(1, sizeof(*st));
 	if (!st)
 		return -ENOMEM;
 	st->opts.retries = 3;
-	st->opts.metric_kind = SHIRUDO_OTEL_METRIC_COUNTER;
 	if (opts)
 		st->opts = *opts;
 	rc = parse_s3_spec(st, spec);

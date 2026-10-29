@@ -234,13 +234,6 @@ static int print_classification(__u32 type, bool is_signed, bool with_btf,
 
 static int print_payload(bool metric, bool counter, bool with_location)
 {
-	struct shirudo_otel_opts opts = {
-		.metric_kind = counter ? SHIRUDO_OTEL_METRIC_COUNTER :
-			SHIRUDO_OTEL_METRIC_GAUGE,
-		.metric_kind_set = true,
-		.metric_name = "shirudo.test.hits",
-		.metric_unit = "1",
-	};
 	struct fixture f;
 	char decoder_path[128] = {};
 	char *buf = NULL;
@@ -255,7 +248,7 @@ static int print_payload(bool metric, bool counter, bool with_location)
 			  sizeof(decoder_path));
 	if (!rc && metric)
 		rc = shirudo_upatch_maps_otel_build_metric_file(decoder_path,
-								&f.view, &opts,
+								&f.view,
 								&buf, &len);
 	else if (!rc)
 		rc = shirudo_upatch_maps_otel_build_log_file(decoder_path,
@@ -393,8 +386,6 @@ static int send_metric(const char *url)
 	struct shirudo_otel_opts opts = {
 		.endpoint = url,
 		.retries = 0,
-		.metric_kind = SHIRUDO_OTEL_METRIC_GAUGE,
-		.metric_kind_set = true,
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
@@ -439,8 +430,6 @@ static int send_metric_env(void)
 {
 	struct shirudo_otel_opts opts = {
 		.retries = 0,
-		.metric_kind = SHIRUDO_OTEL_METRIC_GAUGE,
-		.metric_kind_set = true,
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
