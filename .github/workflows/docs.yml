@@ -21,8 +21,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The runner has both podman and docker; docker runs rootful here,
+      # so the container writes the output as the runner's user.
       - name: Render the documentation
-        run: make -C Documentation html
+        run: make -C Documentation html CONTAINER=docker
 
       - name: Check the documentation against the code
         run: .github/scripts/check-docs.sh

@@ -28,10 +28,15 @@ OUT := $(abspath $(DOCS_OUT))
 IMAGE := shirudo-docs:$(shell cat $(DOCS)/Containerfile $(DOCS)/requirements.txt | \
 	sha256sum | cut -c1-16)
 
+# The build writes the output as the invoking user. Rootless podman maps
+# that user to root in the container and --user to a subordinate uid
+# that cannot write the output, so it keeps the user's id instead.
+RUN_AS_USER = $(if $(filter true,$(if $(findstring podman,$(notdir $(CONTAINER))),$(shell $(CONTAINER) info --format '{{.Host.Security.Rootless}}' 2>/dev/null))),--userns=keep-id,--user "$$(id -u):$$(id -g)")
+
 # The build sees the tree read-only and no network; the server sees only
 # the rendered pages, read-only, as nobody, published on DOCS_BIND alone.
 RUN_BUILD = $(CONTAINER) run --rm --network=none --read-only --tmpfs /tmp \
-	--user "$$(id -u):$$(id -g)" -e DOCS_LASTCHANGE=/out/lastchange.txt \
+	$(RUN_AS_USER) -e DOCS_LASTCHANGE=/out/lastchange.txt \
 	-v "$(ROOT):/src:ro" -v "$(OUT):/out" $(IMAGE)
 RUN_SERVE = $(CONTAINER) run --rm --init --read-only --cap-drop=ALL \
 	--security-opt=no-new-privileges --user 65534:65534 \
@@ -107,7 +112,7 @@ check: html
 	$(Q)$(ROOT)/.github/scripts/check-docs.sh
 
 linkcheck: image
-	$(Q)$(CONTAINER) run --rm --read-only --tmpfs /tmp --user "$$(id -u):$$(id -g)" \
+	$(Q)$(CONTAINER) run --rm --read-only --tmpfs /tmp $(RUN_AS_USER) \
 		-v "$(ROOT):/src:ro" -v "$(OUT):/out" $(IMAGE) \
 		sphinx-build -q -b linkcheck -d /out/doctrees /src/Documentation \
 		/out/linkcheck
