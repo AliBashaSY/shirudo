@@ -20,8 +20,7 @@ test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 
 .DEFAULT_GOAL := help
 .PHONY: help clean test-helpers test-unit test-op fuzz test bundle test-vm-bundle kernel \
-	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-tgt-obs \
-	test-tgt-register test-vm test-vm-clean
+	bpf-next vm vm-console vm-ssh vm-stop vm-clean test-tgt test-vm test-vm-clean
 
 KERNEL_PATCHES ?= $(if $(wildcard $(ROOT)/kernel/*.patch),$(ROOT)/kernel/,)
 override KERNEL_PATCHES := $(if $(strip $(KERNEL_PATCHES)),$(call root-path,$(KERNEL_PATCHES)),)
@@ -243,28 +242,19 @@ VM_MODE=test TEST_VM_SUITE="$(1)" VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(2)"
 		$(ROOT)/testing/vm/run.sh
 endef
 
-test-tgt-register: $(VM_KERNEL_DEP) test-vm-bundle
-	$(Q)$(call run-target-vm,register,$(if $(VM_NAME),$(VM_NAME),shirudo)-register,0)
+# Each family of target tests boots a VM of its own from the bundle, so no
+# test finds what another family left behind; register runs the TPM
+# register tests before init, without the production initrd. T= selects
+# families, and make -j runs their VMs side by side.
+TEST_TGT_FAMILIES := register $(shell cd $(ROOT)/testing/functional && \
+	ls */t[0-9]1[0-9][0-9]-*.sh | \
+	awk -F/ '{ print substr($$2, 2, 1), $$1 }' | sort -u | cut -d' ' -f2) e2e
+T ?= $(TEST_TGT_FAMILIES)
 
-test-tgt: $(VM_KERNEL_DEP) test-vm-bundle test-tgt-register
-	$(Q)$(call run-target-vm,$(TEST_VM_SUITE),$(VM_NAME),$(TEST_VM_INITRD))
+test-tgt: $(addprefix test-tgt-,$(T))
 
-test-tgt-obs: $(VM_KERNEL_DEP) test-vm-bundle
-	$(Q)VM_MODE=test TEST_VM_SUITE=obs VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(VM_NAME)" VM_TENANT="$(VM_TENANT)" \
-		TEST_VM_KERNEL="$(abspath $(VM_KERNEL_IMAGE))" \
-		TEST_VM_KERNEL_ARTIFACT_DIR="$(abspath $(VM_KERNEL_ARTIFACT_DIR))" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" \
-		TEST_VM_RUNTIME_CACHE_DIR="$(TEST_VM_RUNTIME_CACHE_DIR)" \
-		TEST_VM_MAP_EXPORT_ENDPOINT="$(TEST_VM_MAP_EXPORT_ENDPOINT)" \
-		TEST_VM_MAP_EXPORT_TENANT_ID="$(TEST_VM_MAP_EXPORT_TENANT_ID)" \
-		TEST_VM_MAP_EXPORT_INSECURE="$(TEST_VM_MAP_EXPORT_INSECURE)" \
-		TEST_VM_MAP_EXPORT_CA="$(TEST_VM_MAP_EXPORT_CA)" \
-		TEST_VM_OCI_CA="$(TEST_VM_OCI_CA)" \
-		TEST_VM_BPM_OCI_REPOSITORY="$(TEST_VM_BPM_OCI_REPOSITORY)" \
-		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
-		TEST_VM_MODE="$(TEST_VM_MODE)" TEST_VM_INITRD="$(TEST_VM_INITRD)" \
-		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
-		$(ROOT)/testing/vm/run.sh
+test-tgt-%: $(VM_KERNEL_DEP) test-vm-bundle
+	$(Q)$(call run-target-vm,$*,$(if $(VM_NAME),$(VM_NAME)-$*),$(if $(filter register,$*),0,1))
 
 vm-stop:
 	$(Q)VM_NAME="$(VM_NAME)" \
@@ -319,9 +309,8 @@ help:
 	  '  make -C testing test-unit' \
 	  '  make -C testing test-helpers' \
 	  '  make -C testing fuzz [FUZZ_SECONDS=60]' \
-	  '  make -C testing test-tgt (dm-verity, dracut initrd, root required)' \
-	  '  make -C testing test-tgt-register' \
-	  '  make -C testing test-tgt-obs' \
+	  '  make -C testing test-tgt [T="<family> ..."] (one VM per family, root required)' \
+	  '  make -C testing test-tgt-<family>, families: $(TEST_TGT_FAMILIES)' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=7.4' \
 	  '  make -C testing kernel KERNEL_TAG=v7.4' \

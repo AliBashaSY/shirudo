@@ -1,9 +1,22 @@
 #!/bin/sh
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
+#
+# testing/run-target-tests.sh <family> -- the target tests (t?1??) of one
+# family in number order, in the test VM that family booted for itself.
+# A test that skips as a whole fails the family: every one is required.
 
 set -eu
 cd "$(dirname "$0")"
+family=${1:?usage: run-target-tests.sh <family>}
+case "$family" in
+e2e) dir=e2e ;;
+*) dir=functional/$family ;;
+esac
+[ -d "$dir" ] || {
+	printf 'no test family %s\n' "$family" >&2
+	exit 1
+}
 : "${SHIRUDO_BIN:?runtime command is required}"
 : "${SHIRUDO_TEST_FIXTURES_DIR:?signed upatch fixtures are required}"
 : "${SHIRUDO_TEST_KEY_FIXTURES:?signed image fixtures are required}"
@@ -12,7 +25,7 @@ cd "$(dirname "$0")"
 [ "$(id -u)" = 0 ] && [ -x "$SHIRUDO_BIN" ] &&
 	[ -e /run/shirudo/bpffs/task_authority ] &&
 	mountpoint -q /run/shirudo/runtime && mountpoint -q /run/shirudo/config || {
-	printf 'image suite requires an initialized dm-verity target\n' >&2
+	printf 'target tests require an initialized dm-verity target\n' >&2
 	exit 1
 }
 for name in config-boot-keys config-live-new-key config-a config-b config-bad config-revoke \
@@ -34,71 +47,16 @@ export SHIRUDO_TEST_INTERRUPTION_RESULTS="$SHIRUDO_TEST_RESULTS/interruption"
 export SHIRUDO_TEST_CLI_RESULTS="$SHIRUDO_TEST_RESULTS/cli"
 export SHIRUDO_TEST_REVOKE_RESULTS="$SHIRUDO_TEST_RESULTS/revocation"
 fail=0
-# Boot assertions precede updates; the interruption leaves state pending.
-for t in \
-	functional/image/t5101-verity-boot-signers.sh \
-	functional/tamperproof/t6101-mode-objects.sh \
-	functional/upatch/t3101-target-fixtures.sh \
-	functional/tpm/t4101-initrd.sh \
-	functional/signing/t2101-keys.sh \
-	functional/signing/t2102-keys-add.sh \
-	functional/signing/t2103-keys-revoke.sh \
-	functional/tamperproof/t6102-siggate.sh \
-	functional/upatch/t3102-upatch-arena-serializer.sh \
-	functional/upatch/t3103-version-gate.sh \
-	functional/upatch/t3104-payload-mismatch.sh \
-	functional/upatch/t3105-load-unload.sh \
-	functional/tpm/t4102-tpm-chain.sh \
-	functional/upatch/t3106-upatch-get.sh \
-	functional/upatch/t3107-uprobe-multi.sh \
-	functional/bpm/t7101-bpm-tree.sh \
-	functional/bpm/t7102-bpm-tree-sequential.sh \
-	functional/bpm/t7103-bpm-tree-delete.sh \
-	functional/otel/t8101-map-export-all.sh \
-	functional/otel/t8102-otel-backend.sh \
-	functional/otel/t8103-otel-serialized-metric.sh \
-	functional/tpm/t4103-nv-writer.sh \
-	functional/tamperproof/t6103-lsm-deny.sh \
-	functional/tamperproof/t6104-prog-load-keyring-gate.sh \
-	functional/tamperproof/t6105-mount-lockdown.sh \
-	functional/tamperproof/t6106-pin-rename.sh \
-	functional/tamperproof/t6107-bpf-cmd-deny.sh \
-	functional/tamperproof/t6108-tamper-counters.sh \
-	functional/tamperproof/t6109-map-lockdown.sh \
-	functional/tamperproof/t6110-pr-set-mm-identity.sh \
-	functional/tamperproof/t6111-seal-scratch.sh \
-	functional/tamperproof/t6112-key-permission.sh \
-	functional/tamperproof/t6113-verity-authority.sh \
-	functional/tamperproof/t6114-output-paths.sh \
-	functional/tamperproof/t6115-archive-restore.sh \
-	functional/tamperproof/t6116-attach-scope.sh \
-	functional/tamperproof/t6117-signed-metadata.sh \
-	functional/tamperproof/t6118-foreign-entries.sh \
-	functional/tamperproof/t6119-perf-attach.sh \
-	functional/tamperproof/t6120-umount-above.sh \
-	functional/tamperproof/t6121-bpffs-entries.sh \
-	functional/tamperproof/t6122-persist-undo.sh \
-	functional/tamperproof/t6123-foreign-state-root.sh \
-	functional/tamperproof/t6124-overlay-copy-up.sh \
-	functional/tamperproof/t6125-tpm-identity.sh \
-	functional/tamperproof/t6126-kexec.sh \
-	functional/tamperproof/t6127-proc-substitution.sh \
-	functional/tamperproof/t6128-register-lock.sh \
-	functional/tamperproof/t6129-keyring-seal.sh \
-	functional/tamperproof/t6130-verity-devices.sh \
-	functional/tamperproof/t6131-verity-process.sh \
-	functional/tamperproof/t6132-verity-hidden.sh \
-	functional/image/t5102-verity-config.sh \
-	functional/image/t5103-verity-cli.sh \
-	functional/image/t5104-verity-revocation.sh \
-	functional/image/t5105-verity-interruption.sh
-do
+found=0
+for t in "$dir"/t[0-9]1[0-9][0-9]-*.sh; do
+	[ -e "$t" ] || continue
+	found=1
 	log="$SHIRUDO_TEST_RESULTS/$(basename "$t").log"
 	rc=0
 	sh "$t" >"$log" 2>&1 || rc=$?
 	cat "$log"
 	if grep -q '^1\.\.0 # SKIP' "$log"; then
-		printf 'required image suite was skipped: %s\n' "$t" >&2
+		printf 'required target test was skipped: %s\n' "$t" >&2
 		rc=1
 	fi
 	if [ "$rc" -ne 0 ]; then
@@ -108,4 +66,8 @@ do
 		fi
 	fi
 done
+[ "$found" -eq 1 ] || {
+	printf 'family %s has no target tests\n' "$family" >&2
+	exit 1
+}
 [ "$fail" -eq 0 ]

@@ -694,7 +694,7 @@ survive.  This preserves lifecycle, attestation and credential-activation
 coverage, including index recreation, the closed first-write window,
 reset recovery and late binding.  It is a protocol test before the LSM
 attaches, not evidence of guard enforcement.  The host suite skips it;
-``test-tgt`` runs it before the normal target suite.
+``test-tgt`` runs it in a VM of its own beside the test families.
 The same guest runs ``testing/functional/tpm/t4004-config-attest.sh``
 with a fresh native writer to cover config-PCR evidence alongside the
 signed NV register.

@@ -338,8 +338,9 @@ one usually still compiles and passes tests.
 - `make -C testing test-op` runs the unit tests and the host-side suite (the
   `t?0??` tests under `testing/`), no root needed;
   `make -C testing SANITIZE=address,undefined test-op` runs it under ASan and
-  UBSan (CI does too); `make -C testing test-tgt` runs the target suite in the
-  QEMU/swtpm VM (`make -C testing help` lists the VM target groups).
+  UBSan (CI does too); `make -C testing test-tgt` runs the target tests in
+  QEMU/swtpm VMs, one fresh VM per test family (`T=<family>` selects some,
+  `make -C testing help` lists them).
 - `sudo make -C testing test-tgt` always boots the dm-verity runtime and signed
   config from a dracut initrd. CI runs that same required suite through
   `.github/scripts/target-tests.sh`; the old root-only installer suite is gone.

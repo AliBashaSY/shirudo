@@ -7,6 +7,9 @@ cd "$(dirname "$0")/../.."
 
 RUNNER=vm/run.sh
 WORK=$(mktemp -d)
+# A test run boots one family; the checks below stop before it boots.
+TEST_VM_SUITE=upatch
+export TEST_VM_SUITE
 trap 'rm -rf "$WORK"' EXIT
 
 test_expect_success 'test-vm rejects a missing local kernel before boot' '
@@ -462,7 +465,7 @@ test_expect_success 'make -C testing vm and test-vm share named mode support' '
 	grep -q "VM_MODE=interactive" ../testing/Makefile &&
 	grep -q "VM_MODE=test" ../testing/Makefile &&
 	grep -Fq "VMS_DIR=\"\${VM_ROOT}/vms\"" vm/run.sh &&
-	grep -Fq "mktemp -d \"\${VMS_DIR}/\${VM_MODE}-XXXXXX\"" \
+	grep -Fq "mktemp -d \"\${VMS_DIR}/\${VM_MODE}\${VM_SUITE:+-\$VM_SUITE}-XXXXXX\"" \
 		vm/run.sh &&
 	grep -q "VM_TENANT" vm/run.sh &&
 	grep -q "while :; do sleep 3600; done" vm/run.sh
@@ -907,9 +910,12 @@ test_expect_success 'host and target runners split the tests by number' '
 		sh >"$WORK/host-tests" &&
 	grep -q "^functional/upatch/t3001-" "$WORK/host-tests" &&
 	! grep -q "/t[0-9]1[0-9][0-9]-" "$WORK/host-tests" &&
-	for t in functional/*/t[0-9]1[0-9][0-9]-*.sh e2e/t[0-9]1[0-9][0-9]-*.sh; do
-		cat run-target-tests.sh run-target-obs-tests.sh \
-			run-target-tree-tests.sh | grep -qF "$t" || return 1
+	families=$(make -s -C .. -f testing/Makefile help |
+		sed -n "s/.*families: //p") &&
+	[ "$families" = "register signing upatch tpm image tamperproof bpm otel e2e" ] &&
+	for t in functional/*/t[0-9]1[0-9][0-9]-*.sh; do
+		f=${t#functional/}
+		case " $families " in *" ${f%%/*} "*) ;; *) return 1 ;; esac
 	done
 '
 
@@ -927,17 +933,23 @@ test_expect_success 'image VM requires initrd enrollment and complete guards' '
 	grep -q "TEST_VM_SKIP_SEAL=0" "$WORK/image-seal.out"
 '
 
-test_expect_success 'image VM refuses an incompatible partial suite' '
-	! TEST_VM_MODE=verity TEST_VM_INITRD=1 TEST_VM_SUITE=tree "$RUNNER" \
+test_expect_success 'test VM takes register or a test family' '
+	! TEST_VM_MODE=verity TEST_VM_INITRD=1 TEST_VM_SUITE=all "$RUNNER" \
 		>"$WORK/image-suite.out" 2>&1 &&
-	grep -q "dm-verity requires the complete test suite" "$WORK/image-suite.out"
+	grep -q "TEST_VM_SUITE must be register, e2e or a directory" \
+		"$WORK/image-suite.out" &&
+	! TEST_VM_MODE=verity TEST_VM_INITRD=1 TEST_VM_SUITE= "$RUNNER" \
+		>"$WORK/image-suite.out" 2>&1 &&
+	grep -q "test mode requires TEST_VM_SUITE" "$WORK/image-suite.out"
 '
 
 test_expect_success 'image target runner refuses missing fixture configuration' '
 	! SHIRUDO_TEST_MODE=verity SHIRUDO_BIN=/bin/true \
 		SHIRUDO_TEST_FIXTURES_DIR= SHIRUDO_TEST_KEY_FIXTURES= \
-		sh ./run-target-tests.sh >"$WORK/target-fixtures.out" 2>&1 &&
-	grep -q "signed upatch fixtures are required" "$WORK/target-fixtures.out"
+		sh ./run-target-tests.sh upatch >"$WORK/target-fixtures.out" 2>&1 &&
+	grep -q "signed upatch fixtures are required" "$WORK/target-fixtures.out" &&
+	! sh ./run-target-tests.sh nosuch >"$WORK/target-family.out" 2>&1 &&
+	grep -q "no test family nosuch" "$WORK/target-family.out"
 '
 
 test_done

@@ -7,22 +7,17 @@
 # These exercise the LIVE kernel (BPF LSM, kernel keyring, bpffs) and
 # the installed binary, so they run as root against a target where `shirudo
 # init` has already attached the LSM. shirudo is single-tenant with
-# hardcoded paths, so there is no isolation: intended for a dedicated
-# throwaway host (the CI vTPM runner) or a developer who has read what
-# the test does. The t11xx tests here are all NON-destructive -- they
-# assert refusal/denial paths and leave kernel/keyring state untouched.
+# hardcoded paths, so there is no isolation: intended for the test VM each
+# family of target tests (t?1??) boots, or a developer who has read what
+# the test does.
 #
-# Sourced after a leading `cd "$(dirname "$0")"` in each test.
+# Sourced from testing/, where each test changes to first.
 
-INTEGRATION_TESTING_DIR=.
-[ -f "$INTEGRATION_TESTING_DIR/test-lib.sh" ] ||
-	INTEGRATION_TESTING_DIR=..
-. "$INTEGRATION_TESTING_DIR/test-lib.sh"
+. ./test-lib.sh
 
-# Binary under test (the one that init'd the host) and the operator-side
-# builder. Overridable for out-of-tree layouts.
+# Binary under test, the one that init'd the host; overridable for
+# out-of-tree layouts.
 : "${SHIRUDO_BIN:=/usr/local/bin/shirudo}"
-: "${SHIRUDO_BUILD_BIN:=$INTEGRATION_TESTING_DIR/../tools/shirudo-build/shirudo-build}"
 
 # Skip the whole script unless every precondition holds.
 target_guard() {
@@ -34,14 +29,13 @@ target_guard() {
 		test_skip_all "LSM not attached; run \`shirudo init\` first"
 }
 
-# Echo the name of an arbitrary currently-loaded upatch, or "" if none.
-first_loaded_upatch() {
-	for d in /run/shirudo/bpffs/upatches/*/; do
-		[ -e "$d/link" ] || continue
-		basename "$d"
-		return 0
-	done
-	return 0
+# Load the signed fixture $1 unless it is loaded already: a family's tests
+# boot a VM of their own and find loaded only what they load themselves.
+require_loaded() {
+	[ -e "/run/shirudo/bpffs/upatches/$1/link" ] ||
+		"$SHIRUDO_BIN" upatch load \
+			"${SHIRUDO_TEST_FIXTURES_DIR:?}/$1.upatch" >/dev/null 2>&1
+	[ -e "/run/shirudo/bpffs/upatches/$1/link" ]
 }
 
 # Extract a top-level JSON field from a --report=- document on stdin.

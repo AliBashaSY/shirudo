@@ -3,8 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # Boot an Ubuntu guest with a selected Linux kernel and an swtpm vTPM.
-# In test mode it runs the live Shirudo integration suite; in interactive
-# mode it prepares the guest and leaves QEMU and swtpm running.
+# In test mode it runs the target tests of the family TEST_VM_SUITE names,
+# or the TPM register tests for "register"; in interactive mode it prepares
+# the guest and leaves QEMU and swtpm running.
 #
 # VM_MODE=test|interactive selects the mode. VM_NAME optionally selects a
 # stable state directory; if omitted, a unique name is allocated atomically.
@@ -62,7 +63,7 @@ MEMORY="${TEST_VM_MEMORY:-4G}"
 DISK_SIZE="${TEST_VM_DISK_SIZE:-30G}"
 VM_TIMEOUT="${TEST_VM_TIMEOUT:-3600}"
 VM_MODE="${VM_MODE:-test}"
-VM_SUITE="${TEST_VM_SUITE:-all}"
+VM_SUITE="${TEST_VM_SUITE:-}"
 TEST_MODE="${TEST_VM_MODE:-verity}"
 SKIP_SEAL="${TEST_VM_SKIP_SEAL:-0}"
 VM_INITRD="${TEST_VM_INITRD:-1}"
@@ -159,23 +160,26 @@ validate_mode()
 	if [[ "$VM_SUITE" != register ]]; then
 		[[ "$VM_INITRD" == 1 && "$SKIP_SEAL" == 0 ]] ||
 			die "dm-verity requires TEST_VM_INITRD=1 and TEST_VM_SKIP_SEAL=0"
-		[[ "$VM_SUITE" == all || "$VM_SUITE" == obs ]] ||
-			die "dm-verity requires the complete test suite or obs"
 	fi
 	case "$VM_MODE" in
 	interactive|test) ;;
 	*) die "VM_MODE must be 'interactive' or 'test'" ;;
 	esac
 	case "$VM_SUITE" in
-	all|obs) ;;
-	tree)
-		[[ "$VM_MODE" == test ]] || die "tree suite requires VM_MODE=test"
+	'')
+		[[ "$VM_MODE" == interactive ]] ||
+			die "test mode requires TEST_VM_SUITE: register or a test family"
 		;;
 	register)
 		[[ "$VM_MODE" == test && "$VM_INITRD" == 0 && "$SKIP_SEAL" == 0 ]] ||
 			die "register suite requires test mode without a production initrd"
 		;;
-	*) die "TEST_VM_SUITE must be 'all', 'obs', 'tree', or 'register'" ;;
+	e2e) ;;
+	*)
+		[[ "$VM_SUITE" =~ ^[a-z0-9-]+$ &&
+		   -d "$REPO_ROOT/testing/functional/$VM_SUITE" ]] ||
+			die "TEST_VM_SUITE must be register, e2e or a directory of testing/functional: $VM_SUITE"
+		;;
 	esac
 	case "$SKIP_SEAL" in
 	0|1) ;;
@@ -415,10 +419,10 @@ validate_host_bundle()
 		die "host VM bundle has no target-test certificate: $TEST_VM_HOST_BUNDLE"
 	[[ -s "$TEST_VM_HOST_BUNDLE/fixtures/shirudo-test-basic.upatch" ]] ||
 		die "host VM bundle has no target-test fixtures: $TEST_VM_HOST_BUNDLE"
-	if [[ "$VM_SUITE" == obs ]]; then
+	if [[ "$VM_SUITE" == e2e ]]; then
 		[[ -s "$TEST_VM_HOST_BUNDLE/fixtures/kernel-obs.upatch" ]] ||
 			die "host VM bundle has no kernel-obs fixture: $TEST_VM_HOST_BUNDLE"
-	elif [[ "$VM_SUITE" == tree ]]; then
+	elif [[ "$VM_SUITE" == bpm ]]; then
 		[[ -s "$TEST_VM_HOST_BUNDLE/fixtures/tree-oci/shirudo/upatch-tree/manifests/stable" &&
 		   -s "$TEST_VM_HOST_BUNDLE/fixtures/shirudo-test-tree-match.upatch" &&
 		   -s "$TEST_VM_HOST_BUNDLE/fixtures/shirudo-test-tree-skip.upatch" ]] ||
@@ -941,7 +945,14 @@ cleanup()
 	fi
 	if [[ "$VM_MODE" == test && -n "$RUN_DIR" && -d "$RUN_DIR" ]]; then
 		print_test_summary
-		log "warning: the guest overlay contains an ephemeral signing key"
+		if [[ "$FINAL_STATUS" -eq 0 ]]; then
+			# A passed run keeps its logs, not the disks it booted.
+			rm -f -- "$RUN_DIR/rootfs.qcow2" "$RUN_DIR/initrd.img" \
+				"$RUN_DIR/seed.img"
+			rm -rf -- "$RUN_DIR/initrd-seed"
+		else
+			log "warning: the guest overlay contains an ephemeral signing key"
+		fi
 	elif [[ -n "$RUN_DIR" && -d "$RUN_DIR" ]]; then
 		log "preserved VM state: $RUN_DIR"
 		log "warning: the guest overlay contains an ephemeral signing key"
@@ -1200,7 +1211,7 @@ allocate_run_dir()
 		mkdir "$RUN_DIR" || die "could not create VM state directory $RUN_DIR"
 		VM_NAME="$VM_NAME_REQUEST"
 	else
-		RUN_DIR="$(mktemp -d "${VMS_DIR}/${VM_MODE}-XXXXXX")" ||
+		RUN_DIR="$(mktemp -d "${VMS_DIR}/${VM_MODE}${VM_SUITE:+-$VM_SUITE}-XXXXXX")" ||
 			die "could not allocate a unique VM state directory"
 		VM_NAME="$(basename "$RUN_DIR")"
 	fi

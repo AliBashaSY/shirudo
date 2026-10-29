@@ -24,7 +24,7 @@ B=/run/shirudo/bpffs/upatches
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 [ -s "$KP" ] && [ -s "$KP_UNLOAD" ] || test_skip_all "missing scope kprobe fixture"
-[ -e "$BASIC_PIN" ] || test_skip_all "basic fixture is not loaded"
+require_loaded shirudo-test-basic || test_skip_all "cannot load the basic fixture"
 [ ! -e "$B/shirudo-test-scope-kprobe" ] || test_skip_all "scope kprobe fixture is loaded"
 
 # Rewrite the header name, or a string inside one signed section named

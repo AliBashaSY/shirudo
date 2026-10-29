@@ -342,7 +342,7 @@ if [[ "$VM_INITRD" == 1 ]]; then
 	journalctl -b -u shirudo-initrd.service --no-pager | tail -40 || true
 fi
 
-if [[ "${TEST_VM_SUITE:-all}" == register ]]; then
+if [[ "${TEST_VM_SUITE:-}" == register ]]; then
 	[[ "$VM_INITRD" == 0 ]] || {
 		log "register protocol tests must precede production initialization"
 		exit 1
@@ -448,32 +448,17 @@ if [[ "$VM_MODE" == interactive ]]; then
 	exit 0
 fi
 
-log "running target test suite: ${TEST_VM_SUITE:-all}"
+log "running target tests: $TEST_VM_SUITE"
 : >/mnt/shirudo-out/failed-tests
 : >/mnt/shirudo-out/failed-suites
 (
 	cd testing
-	export SHIRUDO_BIN
-	export SHIRUDO_TEST_KEY_FIXTURES="$BUNDLE/verity"
-	export SHIRUDO_TEST_RESULTS=/mnt/shirudo-out/verity
-	if [[ "${TEST_VM_SUITE:-all}" == obs ]]; then
-			SHIRUDO_BIN="$SHIRUDO_BIN" \
-				SHIRUDO_TEST_FIXTURES_DIR="$BUNDLE/fixtures" \
-				SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
-				SHIRUDO_TEST_SUITE_FAILURES_FILE=/mnt/shirudo-out/failed-suites \
-				./run-target-obs-tests.sh
-		elif [[ "${TEST_VM_SUITE:-all}" == tree ]]; then
-			SHIRUDO_BIN="$SHIRUDO_BIN" \
-				SHIRUDO_TEST_FIXTURES_DIR="$BUNDLE/fixtures" \
-				SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
-				SHIRUDO_TEST_SUITE_FAILURES_FILE=/mnt/shirudo-out/failed-suites \
-				./run-target-tree-tests.sh
-		else
-			SHIRUDO_BIN="$SHIRUDO_BIN" \
-				SHIRUDO_TEST_FIXTURES_DIR="$BUNDLE/fixtures" \
-				SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
-				SHIRUDO_TEST_SUITE_FAILURES_FILE=/mnt/shirudo-out/failed-suites \
-				./run-target-tests.sh
-		fi
+	SHIRUDO_BIN="$SHIRUDO_BIN" \
+		SHIRUDO_TEST_KEY_FIXTURES="$BUNDLE/verity" \
+		SHIRUDO_TEST_RESULTS=/mnt/shirudo-out/verity \
+		SHIRUDO_TEST_FIXTURES_DIR="$BUNDLE/fixtures" \
+		SHIRUDO_TEST_FAILURES_FILE=/mnt/shirudo-out/failed-tests \
+		SHIRUDO_TEST_SUITE_FAILURES_FILE=/mnt/shirudo-out/failed-suites \
+		./run-target-tests.sh "$TEST_VM_SUITE"
 )
 log "integration suite passed"

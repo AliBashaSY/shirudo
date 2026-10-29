@@ -478,6 +478,10 @@ only public artifacts. Run the suite with::
 
     sudo make -C testing test-tgt
 
+Each family of target tests boots a VM of its own from the same bundle, so
+no family sees state another left behind; ``T=image`` runs the image family
+alone, and ``make -j`` runs several families side by side.
+
 The harness requires dracut, initrd boot and all seal hooks. It rejects
 ``TEST_VM_INITRD=0`` and ``TEST_VM_SKIP_SEAL=1``. The only accepted value of
 the old ``TEST_VM_MODE`` setting is ``verity``; no selection is needed.
@@ -494,12 +498,13 @@ process observers, hidden bpffs, signed config updates and measured revocation.
 After the final interrupted update it checks that changes and attestation
 refuse while the node continues running.
 
-Required image fixtures and helpers are failures when absent. A whole suite
-that skips in image mode fails the runner. Test ordering matters:
-boot-signer assertions run before config changes. Revocation removes a
-signer for the remainder of the boot; the interruption case runs last
-because it leaves the activation pending. Use a fresh test
-VM and state for another complete run.
+Required image fixtures and helpers are failures when absent. A target
+test that skips as a whole fails its family. Within a family the tests run
+in number order, and for the image family the order matters: the
+boot-signer assertions run before the config changes, revocation removes a
+signer for the remainder of the boot, and the interruption case runs last
+because it leaves the activation pending. Use a fresh test VM and state
+for another run.
 
 For an already provisioned disposable image-mode VM, install the complete
 public fixture set and cache every config bundle under
@@ -509,7 +514,7 @@ public fixture set and cache every config bundle under
     export SHIRUDO_TEST_FIXTURES_DIR=/path/to/public-upatch-fixtures
     export SHIRUDO_TEST_KEY_FIXTURES=/path/to/public-image-fixtures
     export SHIRUDO_TEST_RESULTS=/root/test-results/verity
-    sh testing/run-target-tests.sh
+    sh testing/run-target-tests.sh image
 
 ``testing/vm/image-fixtures.sh --keys-dir <operator-keys>
 --output <new-directory>`` builds the signed config and revocation fixtures;
