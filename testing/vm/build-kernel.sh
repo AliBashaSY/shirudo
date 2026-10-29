@@ -9,9 +9,9 @@ KERNEL_REPOSITORY="${KERNEL_REPOSITORY:-https://git.kernel.org/pub/scm/linux/ker
 KERNEL_PATCHES="${KERNEL_PATCHES:-}"
 KERNEL_CONFIG="${KERNEL_CONFIG:-}"
 KERNEL_BUILD_JOBS="${KERNEL_BUILD_JOBS:-$(nproc)}"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=contrib/test-vm-arch.sh
-. "${REPO_ROOT}/contrib/test-vm-arch.sh"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=testing/vm/arch.sh
+. "${REPO_ROOT}/testing/vm/arch.sh"
 KERNEL_SOURCE_DIR_INPUT="${KERNEL_SOURCE_DIR:-}"
 if [[ "$KERNEL_TAG" =~ ^[0-9]+\.[0-9]+([.][0-9]+)?$ ]]; then
   KERNEL_TAG="v${KERNEL_TAG}"

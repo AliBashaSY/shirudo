@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# contrib/swtpm.sh -- spin up a software TPM 2.0 (swtpm) on loopback for
+# testing/swtpm.sh -- spin up a software TPM 2.0 (swtpm) on loopback for
 # shirudo dev and CI. Same recipe as Documentation/getting-started.rst
 # "TPM in development", packaged so a single command brings the emulator
 # up, prints the SHIRUDO_TPM_TCTI line to export, and tears it down.
 #
 # Usage:
-#   contrib/swtpm.sh start         # bring it up, print SHIRUDO_TPM_TCTI=...
-#   contrib/swtpm.sh stop          # stop the emulator (state kept)
-#   contrib/swtpm.sh status        # is it running? on which port?
-#   contrib/swtpm.sh clean         # stop + wipe the state dir (TPM reset)
-#   contrib/swtpm.sh env           # print the export line for the running one
+#   testing/swtpm.sh start         # bring it up, print SHIRUDO_TPM_TCTI=...
+#   testing/swtpm.sh stop          # stop the emulator (state kept)
+#   testing/swtpm.sh status        # is it running? on which port?
+#   testing/swtpm.sh clean         # stop + wipe the state dir (TPM reset)
+#   testing/swtpm.sh env           # print the export line for the running one
 #
 # Env overrides (all optional):
 #   SHIRUDO_SWTPM_STATE   state dir              (default /tmp/shirudo-swtpm)
@@ -98,8 +98,8 @@ do_start() {
 	say ""
 	say "  export SHIRUDO_TPM_TCTI='$TCTI'"
 	say ""
-	say "Stop with:  contrib/swtpm.sh stop"
-	say "Reset NV:   contrib/swtpm.sh clean"
+	say "Stop with:  testing/swtpm.sh stop"
+	say "Reset NV:   testing/swtpm.sh clean"
 }
 
 do_stop() {
@@ -138,7 +138,7 @@ do_status() {
 }
 
 do_env() {
-	is_running || die "swtpm not running (start it first: contrib/swtpm.sh start)"
+	is_running || die "swtpm not running (start it first: testing/swtpm.sh start)"
 	printf "export SHIRUDO_TPM_TCTI='%s'\n" "$TCTI"
 }
 

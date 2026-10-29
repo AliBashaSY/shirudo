@@ -6,8 +6,8 @@
 
 set -euo pipefail
 
-# shellcheck source=contrib/test-vm-arch.sh
-. "$(dirname "${BASH_SOURCE[0]}")/test-vm-arch.sh"
+# shellcheck source=testing/vm/arch.sh
+. "$(dirname "${BASH_SOURCE[0]}")/arch.sh"
 
 ROOTFS=
 CACHE_DIR=

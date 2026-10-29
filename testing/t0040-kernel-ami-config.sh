@@ -5,7 +5,7 @@
 cd "$(dirname "$0")"
 . ./test-lib.sh
 
-BUILDER=../contrib/build-kernel-package.sh
+BUILDER=vm/build-kernel.sh
 
 check_builtin_options() {
 	for symbol in "$@"; do

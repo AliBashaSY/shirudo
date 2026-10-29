@@ -32,9 +32,9 @@ else
 	COLOR_RESET=""
 fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=contrib/test-vm-arch.sh
-. "${REPO_ROOT}/contrib/test-vm-arch.sh"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=testing/vm/arch.sh
+. "${REPO_ROOT}/testing/vm/arch.sh"
 # TEST_VM_QEMU names another emulator, such as RHEL's /usr/libexec/qemu-kvm.
 QEMU_BIN="${TEST_VM_QEMU:-$TEST_VM_ARCH_QEMU}"
 VM_ROOT_INPUT="${TEST_VM_WORK_DIR:-${REPO_ROOT}/build/test-vm}"
@@ -986,9 +986,9 @@ build_initrd()
 		"$REPO_ROOT/systemd/shirudo-initrd.service.in" >"$unit"
 	seed="$RUN_DIR/initrd-seed"
 	mkdir -p "$seed/usr/lib/systemd/system/initrd.target.wants"
-	cp "$REPO_ROOT/contrib/verity-vm/shirudo-test-seed.service" \
+	cp "$REPO_ROOT/testing/vm/files/shirudo-test-seed.service" \
 		"$seed/usr/lib/systemd/system/shirudo-test-seed.service"
-	cp "$REPO_ROOT/contrib/verity-vm/seed-root.sh" \
+	cp "$REPO_ROOT/testing/vm/files/seed-root.sh" \
 		"$seed/shirudo-test-seed-root.sh"
 	ln -sf ../shirudo-test-seed.service \
 		"$seed/usr/lib/systemd/system/initrd.target.wants/shirudo-test-seed.service"
@@ -1010,9 +1010,9 @@ build_initrd()
 		"$seed/shirudo-test-images/"
 	cp "$TEST_VM_HOST_BUNDLE/verity/bootstrap.conf" \
 		"$seed/shirudo-test-images/bootstrap.conf"
-	cp "$REPO_ROOT/contrib/verity-vm/seed-images.sh" \
+	cp "$REPO_ROOT/testing/vm/files/seed-images.sh" \
 		"$seed/shirudo-test-seed-images.sh"
-	cat "$REPO_ROOT/contrib/verity-vm/shirudo-test-seed-images.conf" \
+	cat "$REPO_ROOT/testing/vm/files/shirudo-test-seed-images.conf" \
 		>>"$seed/usr/lib/systemd/system/shirudo-test-seed.service"
 	cert="$RUN_DIR/cert.der"
 	cp "$TEST_VM_HOST_BUNDLE/fixtures/cert.der" "$cert"
@@ -1449,7 +1449,7 @@ EOF
 cat >>"$USER_DATA" <<'EOF'
       mount -t 9p -o trans=virtio,version=9p2000.L,msize=104857600,ro shirudo-src /mnt/shirudo-src || rc=$?
       if [ "$rc" -eq 0 ]; then
-        bash /mnt/shirudo-src/contrib/test-vm-guest.sh || rc=$?
+        bash /mnt/shirudo-src/testing/vm/guest.sh || rc=$?
       fi
       printf '%s\n' "$rc" >/mnt/shirudo-out/status
       sync

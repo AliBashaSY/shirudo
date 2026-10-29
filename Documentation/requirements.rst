@@ -30,7 +30,7 @@ establish that every optional upatch attach point is available.
 
 The table below is what shirudo itself needs; without any of it,
 ``shirudo init`` does not complete. The test VM kernel uses the slim
-configuration embedded in ``contrib/build-kernel-package.sh``. It also
+configuration embedded in ``testing/vm/build-kernel.sh``. It also
 builds the networking modules used by the VM test setup: veth, bridge,
 802.1Q, and the netfilter flow table. It also enables IPv6 for the kernel-obs
 fixture.
@@ -106,7 +106,7 @@ fixture.
    * - ``CONFIG_TCG_TPM`` plus a TPM driver (``CONFIG_TCG_TIS``,
        ``CONFIG_TCG_CRB``, or the platform's virtual TPM)
      - The measurement register and the attestation key.  A TPM 2.0 is
-       mandatory; there is no unmeasured mode.  ``contrib/swtpm.sh``
+       mandatory; there is no unmeasured mode.  ``testing/swtpm.sh``
        provides a software TPM for machines without one.
    * - ``CONFIG_EXT4_FS_SECURITY`` (when ``/var/lib/shirudo`` is on ext4)
      - Allows ``init`` to store the ``security.bpf.shirudo`` label used by

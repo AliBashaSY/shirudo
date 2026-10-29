@@ -5,8 +5,8 @@
 set -euo pipefail
 umask 077
 
-source_dir=$(cd "$(dirname "$0")/.." && pwd)
-templates="$source_dir/contrib/verity-vm"
+source_dir=$(cd "$(dirname "$0")/../.." && pwd)
+templates="$source_dir/testing/vm/files"
 keys_dir=
 boot_keys_dir=
 output=

@@ -134,6 +134,6 @@ Contributing
     the kernel's ``tools/include`` internals; refreshed by ``make
     bpf-deps``, see its ``README.md``.
 
-``contrib/``
-    ``swtpm.sh`` for a software TPM, the test VM scripts, and the
-    kernel configurations they use.
+``testing/``
+    The tests, the test VM that runs the target ones, and ``swtpm.sh``
+    for a software TPM.

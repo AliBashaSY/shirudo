@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: artifacts/bpf-next-kernel-debs
-          key: test-vm-kernel-${{ steps.week.outputs.week }}-${{ hashFiles('contrib/build-kernel-package.sh', 'contrib/test-vm-arch.sh', 'testing/Makefile', 'kernel/*.patch') }}
+          key: test-vm-kernel-${{ steps.week.outputs.week }}-${{ hashFiles('testing/vm/build-kernel.sh', 'testing/vm/arch.sh', 'testing/Makefile', 'kernel/*.patch') }}
 
       - name: Restore the static target dependencies
         id: target-deps
@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: build/test-vm/cache
-          key: test-vm-images-${{ hashFiles('contrib/test-vm-runtime-packages', 'contrib/prepare-test-vm-runtime.sh', 'contrib/build-test-vm-bundle.sh', 'contrib/test-vm-arch.sh') }}
+          key: test-vm-images-${{ hashFiles('testing/vm/runtime-packages', 'testing/vm/prepare-runtime.sh', 'testing/vm/build-bundle.sh', 'testing/vm/arch.sh') }}
 
       - name: Prepare the runner as the VM host
         run: .github/scripts/target-tests.sh setup

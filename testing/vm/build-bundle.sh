@@ -2,20 +2,20 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# Build the host-side payload imported by contrib/test-vm.sh. The bundle is
+# Build the host-side payload imported by testing/vm/run.sh. The bundle is
 # shared by all VMs, while TPM state and the test workspace remain per-VM.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=contrib/test-vm-arch.sh
-. "${REPO_ROOT}/contrib/test-vm-arch.sh"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=testing/vm/arch.sh
+. "${REPO_ROOT}/testing/vm/arch.sh"
 BUNDLE_DIR="${TEST_VM_HOST_BUNDLE:-${REPO_ROOT}/build/test-vm/host-bundle}"
 WORK_DIR="${TEST_VM_WORK_DIR:-${REPO_ROOT}/build/test-vm}"
 RUNTIME_CACHE_DIR="${TEST_VM_RUNTIME_CACHE_DIR:-${WORK_DIR}/cache/runtime}"
 LIBGUESTFS_KERNEL_CACHE="${WORK_DIR}/cache/libguestfs/ubuntu"
 UBUNTU_CODENAME="${TEST_VM_UBUNTU_CODENAME:-resolute}"
-PACKAGE_FILE="$REPO_ROOT/contrib/test-vm-runtime-packages"
+PACKAGE_FILE="$REPO_ROOT/testing/vm/runtime-packages"
 DEFAULT_ROOTFS_URL="https://cloud-images.ubuntu.com/releases/server/26.04/release/ubuntu-26.04-server-cloudimg-${TEST_VM_ARCH_DEB}.img"
 ROOTFS_URL="${TEST_VM_ROOTFS_URL:-$DEFAULT_ROOTFS_URL}"
 ROOTFS_SHA256="${TEST_VM_ROOTFS_SHA256:-}"
@@ -252,7 +252,7 @@ prepare_runtime_image()
 	RUNTIME_KEY="rootfs-${ROOTFS_DIGEST}-packages-${package_digest}-disk-${disk_size_key}-v${RUNTIME_PREP_VERSION}"
 	RUNTIME_IMAGE="$RUNTIME_CACHE_DIR/$RUNTIME_KEY.qcow2"
 	if [[ ! -s "$RUNTIME_IMAGE" ]]; then
-		"$REPO_ROOT/contrib/prepare-test-vm-runtime.sh" \
+		"$REPO_ROOT/testing/vm/prepare-runtime.sh" \
 			--rootfs "$ROOTFS_CACHE" \
 			--cache-dir "$RUNTIME_CACHE_DIR" \
 			--package-file "$PACKAGE_FILE" \
@@ -767,7 +767,7 @@ fi
 		third.vouch package-cert.der > manifest
 )
 
-"$REPO_ROOT/contrib/verity-vm-bundle.sh" "$TMP_DIR" "$FIXTURE_WORK" \
+"$REPO_ROOT/testing/vm/bundle-images.sh" "$TMP_DIR" "$FIXTURE_WORK" \
 	"$FIXTURE_WORK/trusted" "$FIXTURE_WORK/own"
 printf '%s\n' "$TEST_VM_MODE" >"$TMP_DIR/test-mode"
 

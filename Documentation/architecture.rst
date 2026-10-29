@@ -795,12 +795,12 @@ rejects incompatible kernels; missing features fail the build or pre-flight.
         tools/gen-initrd/       dracut module, initrd generator,
                                 installer
         tools/gen-vmlinux-h/    vmlinux.h generator
+        tools/bpf-deps/         vendored libbpf refresh
         upatches/               shipped packages with their Beefiles
         vendor/libbpf/          vendored libbpf and UAPI headers
         systemd/                target units and timers
         packaging/              tar, deb and rpm packaging
-        contrib/                swtpm, test VM, kernel configs
-        testing/                TAP tests, host and target VM
+        testing/                TAP tests, test VM, swtpm
         Documentation/          this tree
 
 ``shirudo help --list-cmds`` prints the supported command set.

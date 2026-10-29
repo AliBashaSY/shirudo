@@ -5,7 +5,7 @@
 cd "$(dirname "$0")"
 . ./test-lib.sh
 
-RUNNER=../contrib/test-vm.sh
+RUNNER=vm/run.sh
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
@@ -158,7 +158,7 @@ test_expect_success 'an ISO writer stands in for cloud-localds' '
 '
 
 test_expect_success 'the host package manager is detected from os-release' '
-	sed "s|/etc/os-release|$WORK/os-release|g" ../contrib/test-vm-arch.sh \
+	sed "s|/etc/os-release|$WORK/os-release|g" vm/arch.sh \
 		>"$WORK/arch-os.sh" &&
 	host_pkg() {
 		printf "%s\n" "$@" >"$WORK/os-release" &&
@@ -171,7 +171,7 @@ test_expect_success 'the host package manager is detected from os-release' '
 	test "$(host_pkg ID=debian)" = apt &&
 	(
 		TEST_VM_HOST_PKG=dnf &&
-		. ../contrib/test-vm-arch.sh &&
+		. vm/arch.sh &&
 		test "$TEST_VM_HOST_PKG_FORMAT" = rpm &&
 		test "$(test_vm_install_cmd a b)" = "sudo dnf install -y a b"
 	)
@@ -187,14 +187,14 @@ test_expect_success 'the bundle and runtime scripts print hints for the host pac
 	done &&
 	! PATH="$WORK/bundle-bin" TEST_VM_HOST_PKG=dnf \
 		TEST_VM_WORK_DIR="$WORK/bundle-dnf" /bin/bash \
-		../contrib/build-test-vm-bundle.sh >"$WORK/bundle-dnf.out" 2>&1 &&
+		vm/build-bundle.sh >"$WORK/bundle-dnf.out" 2>&1 &&
 	grep -q "virt-customize (install with: sudo dnf install -y guestfs-tools)" \
 		"$WORK/bundle-dnf.out" &&
 	printf rootfs >"$WORK/hint-rootfs" &&
 	! PATH="$WORK/bundle-bin" TEST_VM_HOST_PKG=dnf /bin/bash \
-		../contrib/prepare-test-vm-runtime.sh --rootfs "$WORK/hint-rootfs" \
+		vm/prepare-runtime.sh --rootfs "$WORK/hint-rootfs" \
 		--cache-dir "$WORK/hint-cache" \
-		--package-file ../contrib/test-vm-runtime-packages \
+		--package-file vm/runtime-packages \
 		--runtime-key hint --key-output "$WORK/hint-key" \
 		>"$WORK/runtime-dnf.out" 2>&1 &&
 	grep -q "virt-customize is required; install it with: sudo dnf install -y guestfs-tools" \
@@ -212,7 +212,7 @@ test_expect_success 'the bundle wants a DHCP client for the appliance on a Debia
 	done &&
 	! PATH="$WORK/dhcp-bin" TEST_VM_HOST_PKG=apt \
 		TEST_VM_WORK_DIR="$WORK/bundle-dhcp" /bin/bash \
-		../contrib/build-test-vm-bundle.sh >"$WORK/bundle-dhcp.out" 2>&1 &&
+		vm/build-bundle.sh >"$WORK/bundle-dhcp.out" 2>&1 &&
 	grep -q "missing host command: dhclient (install with: sudo apt-get install -y --no-install-recommends isc-dhcp-client)" \
 		"$WORK/bundle-dhcp.out"
 '
@@ -233,9 +233,9 @@ test_expect_success 'the runtime image is built with the direct libguestfs backe
 		rm -rf "$WORK/gf-cache" &&
 		env "$@" PATH="$WORK/gf-bin:$PATH" GF_OUT="$WORK/gf-out" \
 			TMPDIR="$WORK" LIBGUESTFS_CACHEDIR="$WORK/gf-cache" \
-			../contrib/prepare-test-vm-runtime.sh \
+			vm/prepare-runtime.sh \
 			--rootfs "$WORK/gf-rootfs" --cache-dir "$WORK/gf-cache/img" \
-			--package-file ../contrib/test-vm-runtime-packages \
+			--package-file vm/runtime-packages \
 			--runtime-key gf --key-output "$WORK/gf-cache/key" \
 			>/dev/null 2>&1 &&
 		cat "$WORK/gf-out"
@@ -248,7 +248,7 @@ test_expect_success 'the runtime image is built with the direct libguestfs backe
 	test "$(guestfs_env TEST_VM_QEMU="$WORK/gf-bin/none")" = "direct unset"
 '
 
-# Stand-ins for the tools prepare-test-vm-runtime.sh calls; every command it
+# Stand-ins for the tools vm/prepare-runtime.sh calls; every command it
 # runs is recorded, so the tests below read what it would have done.
 mkdir -p "$WORK/dns-bin" "$WORK/dns-cache"
 printf "%s\n" "#!/bin/sh" \
@@ -266,7 +266,7 @@ printf "%s\n" "search example.com" "nameserver 127.0.0.53" \
 	"nameserver fe80::1%eth0" "nameserver 192.0.2.53" \
 	>"$WORK/dns-resolv.conf"
 
-# Run prepare-test-vm-runtime.sh against stand-ins for the tools it needs:
+# Run vm/prepare-runtime.sh against stand-ins for the tools it needs:
 # run_dns RESOLV_CONF [VAR=value...].
 run_dns() {
 	resolv=$1
@@ -278,9 +278,9 @@ run_dns() {
 		GF_ARGS="$WORK/dns-args" GF_NS="$WORK/dns-ns" \
 		LIBGUESTFS_CACHEDIR="$WORK/dns-cache" \
 		TEST_VM_RESOLV_CONF="$resolv" \
-		../contrib/prepare-test-vm-runtime.sh \
+		vm/prepare-runtime.sh \
 		--rootfs "$WORK/dns-rootfs" --cache-dir "$WORK/dns-cache/img" \
-		--package-file ../contrib/test-vm-runtime-packages \
+		--package-file vm/runtime-packages \
 		--runtime-key dns-test --key-output "$WORK/dns-cache/key" \
 		>"$WORK/dns-run.out" 2>&1
 }
@@ -327,9 +327,9 @@ test_expect_success 'a failed runtime image shows what apt could not fetch' '
 	chmod +x "$WORK/aptfail-bin/virt-customize" &&
 	! env PATH="$WORK/aptfail-bin:$WORK/dns-bin:$PATH" TMPDIR="$WORK" \
 		LIBGUESTFS_CACHEDIR="$WORK/aptfail-cache" \
-		../contrib/prepare-test-vm-runtime.sh \
+		vm/prepare-runtime.sh \
 		--rootfs "$WORK/dns-rootfs" --cache-dir "$WORK/aptfail-cache/img" \
-		--package-file ../contrib/test-vm-runtime-packages \
+		--package-file vm/runtime-packages \
 		--runtime-key aptfail --key-output "$WORK/aptfail-cache/key" \
 		>"$WORK/aptfail.out" 2>&1 &&
 	grep -q "apt could not fetch" "$WORK/aptfail.out" &&
@@ -373,57 +373,57 @@ test_expect_success 'test-vm selects the root partition without an initramfs' '
 '
 
 test_expect_success 'test-vm guest uses prebuilt target fixtures' '
-	grep -q "SHIRUDO_TEST_FIXTURES_DIR" ../contrib/test-vm-guest.sh &&
-	grep -q "run-target-tests.sh" ../contrib/test-vm-guest.sh &&
-	! grep -q "SHIRUDO_BUILD_BIN=" ../contrib/test-vm-guest.sh &&
-	grep -q "prepared Ubuntu runtime image" ../contrib/test-vm-guest.sh &&
-	! grep -q "apt-get install" ../contrib/test-vm-guest.sh &&
+	grep -q "SHIRUDO_TEST_FIXTURES_DIR" vm/guest.sh &&
+	grep -q "run-target-tests.sh" vm/guest.sh &&
+	! grep -q "SHIRUDO_BUILD_BIN=" vm/guest.sh &&
+	grep -q "prepared Ubuntu runtime image" vm/guest.sh &&
+	! grep -q "apt-get install" vm/guest.sh &&
 	test -x run-target-tests.sh &&
 	test -x t1200-target-fixtures.sh &&
-	! grep -q "libluajit-5.1-dev" ../contrib/test-vm-guest.sh
+	! grep -q "libluajit-5.1-dev" vm/guest.sh
 '
 
 test_expect_success 'the Ubuntu image and packages are those of the host architecture' '
 	(
 		TEST_VM_ARCH=x86_64 &&
-		. ../contrib/test-vm-arch.sh &&
+		. vm/arch.sh &&
 		test "$TEST_VM_ARCH_DEB" = amd64 &&
 		test "$TEST_VM_ARCH_MIRROR" = https://archive.ubuntu.com/ubuntu
 	) &&
 	(
 		TEST_VM_ARCH=aarch64 &&
-		. ../contrib/test-vm-arch.sh &&
+		. vm/arch.sh &&
 		test "$TEST_VM_ARCH_DEB" = arm64 &&
 		test "$TEST_VM_ARCH_MIRROR" = https://ports.ubuntu.com/ubuntu-ports
 	) &&
-	! grep -q "amd64" ../contrib/test-vm.sh ../contrib/build-test-vm-bundle.sh &&
-	! grep -q "x86_64\|archive.ubuntu.com" ../contrib/build-test-vm-bundle.sh
+	! grep -q "amd64" vm/run.sh vm/build-bundle.sh &&
+	! grep -q "x86_64\|archive.ubuntu.com" vm/build-bundle.sh
 '
 
 test_expect_success 'test-vm imports the host-built payload' '
 	grep -q "TEST_VM_BUNDLE_DIR" ../testing/Makefile &&
 	grep -q "test-vm-bundle" ../testing/Makefile &&
-	grep -q "build-test-vm-bundle.sh" ../testing/Makefile &&
-	grep -q "prepare-test-vm-runtime.sh" ../testing/Makefile &&
-	grep -q "virt-customize" ../contrib/build-test-vm-bundle.sh &&
-	grep -q "mount_tag=shirudo-bundle" ../contrib/test-vm.sh &&
+	grep -q "vm/build-bundle.sh" ../testing/Makefile &&
+	grep -q "vm/prepare-runtime.sh" ../testing/Makefile &&
+	grep -q "virt-customize" vm/build-bundle.sh &&
+	grep -q "mount_tag=shirudo-bundle" vm/run.sh &&
 	grep -q "importing host-built Shirudo payload" \
-		../contrib/test-vm-guest.sh &&
-	grep -q "mountpoint -q /run/shirudo/runtime" ../contrib/test-vm-guest.sh &&
-	! grep -q "vmlinux.h" ../contrib/test-vm-guest.sh &&
-	! grep -q "shirudo-build" ../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
+	grep -q "mountpoint -q /run/shirudo/runtime" vm/guest.sh &&
+	! grep -q "vmlinux.h" vm/guest.sh &&
+	! grep -q "shirudo-build" vm/guest.sh &&
 	! grep -Fq "make \"\${BPF_MAKE_ARGS[@]}\" check" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -Fq "LIBBPF_VENDOR    := vendor/libbpf" ../Makefile.shirudo &&
 	grep -Fq "\$(LIBBPF_A)" ../Makefile.shirudo &&
 	grep -Fq "VMLINUX_GEN      := tools/gen-vmlinux-h/gen-vmlinux-h" \
 		../Makefile.shirudo &&
-	! grep -q "shirudo-bpf-deps" ../contrib/build-kernel-package.sh
+	! grep -q "shirudo-bpf-deps" vm/build-kernel.sh
 '
 	test_expect_success 'test-vm bundle stamp controls incremental rebuilds' '
 	grep -q "TEST_VM_BUNDLE_STAMP" ../testing/Makefile &&
 	grep -q "TEST_VM_BUNDLE_INPUTS" ../testing/Makefile &&
-	grep -q "bundle_is_current" ../contrib/build-test-vm-bundle.sh &&
+	grep -q "bundle_is_current" vm/build-bundle.sh &&
 	grep -q "flock 9" ../testing/Makefile &&
 	grep -q "bundle_dir.lock" ../testing/Makefile &&
 	! grep -Fq "rm -rf \"\$\$bundle_dir.lock\"" ../testing/Makefile &&
@@ -431,16 +431,16 @@ test_expect_success 'test-vm imports the host-built payload' '
 '
 
 	test_expect_success 'test-vm summary records failed test names' '
-	grep -q "print_test_summary" ../contrib/test-vm.sh &&
-	grep -q "exit \"\$FINAL_STATUS\"" ../contrib/test-vm.sh &&
-	grep -q "failed tests:" ../contrib/test-vm.sh &&
+	grep -q "print_test_summary" vm/run.sh &&
+	grep -q "exit \"\$FINAL_STATUS\"" vm/run.sh &&
+	grep -q "failed tests:" vm/run.sh &&
 	grep -q "VM_VERBOSE" ../testing/Makefile &&
-	grep -q "summary_log" ../contrib/test-vm.sh &&
-	grep -q "print_quiet_progress" ../contrib/test-vm.sh &&
-	grep -q "stream_verbose_console" ../contrib/test-vm.sh &&
-	grep -q "qemu.log\\\" 2>&1 &" ../contrib/test-vm.sh &&
-	grep -q "SHIRUDO_TEST_FAILURES_FILE" ../contrib/test-vm-guest.sh &&
-	grep -q "SHIRUDO_TEST_SUITE_FAILURES_FILE" ../contrib/test-vm-guest.sh &&
+	grep -q "summary_log" vm/run.sh &&
+	grep -q "print_quiet_progress" vm/run.sh &&
+	grep -q "stream_verbose_console" vm/run.sh &&
+	grep -q "qemu.log\\\" 2>&1 &" vm/run.sh &&
+	grep -q "SHIRUDO_TEST_FAILURES_FILE" vm/guest.sh &&
+	grep -q "SHIRUDO_TEST_SUITE_FAILURES_FILE" vm/guest.sh &&
 	grep -q "SHIRUDO_TEST_FAILURES_FILE" ../testing/test-lib.sh &&
 	grep -q "SHIRUDO_TEST_SUITE_FAILURES_FILE" ../testing/run-tests.sh
 '
@@ -461,11 +461,11 @@ test_expect_success 'make -C testing vm and test-vm share named mode support' '
 	grep -q "^[[:space:]]*vm:" ../testing/Makefile &&
 	grep -q "VM_MODE=interactive" ../testing/Makefile &&
 	grep -q "VM_MODE=test" ../testing/Makefile &&
-	grep -Fq "VMS_DIR=\"\${VM_ROOT}/vms\"" ../contrib/test-vm.sh &&
+	grep -Fq "VMS_DIR=\"\${VM_ROOT}/vms\"" vm/run.sh &&
 	grep -Fq "mktemp -d \"\${VMS_DIR}/\${VM_MODE}-XXXXXX\"" \
-		../contrib/test-vm.sh &&
-	grep -q "VM_TENANT" ../contrib/test-vm.sh &&
-	grep -q "while :; do sleep 3600; done" ../contrib/test-vm.sh
+		vm/run.sh &&
+	grep -q "VM_TENANT" vm/run.sh &&
+	grep -q "while :; do sleep 3600; done" vm/run.sh
 '
 test_expect_success 'make -C testing vm boots a release kernel at or above the floor' '
 	grep -q "VM_KERNEL_MIN := 7.4" ../testing/Makefile &&
@@ -502,7 +502,7 @@ test_expect_success 'the VM kernel image is named for the host architecture' '
 '
 
 test_expect_success 'the VM kernel is not built on an unsupported architecture' '
-	! TEST_VM_ARCH=riscv64 ../contrib/build-kernel-package.sh \
+	! TEST_VM_ARCH=riscv64 vm/build-kernel.sh \
 		>"$WORK/riscv64-kernel.out" 2>&1 &&
 	grep -q "x86_64 and aarch64 hosts only, not riscv64" \
 		"$WORK/riscv64-kernel.out"
@@ -510,20 +510,18 @@ test_expect_success 'the VM kernel is not built on an unsupported architecture' 
 
 test_expect_success 'the kernel builder requires the NV writer parser and RSA support' '
 	for symbol in PKCS8_PRIVATE_KEY_PARSER CRYPTO_RSA; do
-		grep -qx "CONFIG_$symbol=y" ../contrib/build-kernel-package.sh &&
-		grep -qx "require_config CONFIG_$symbol y" ../contrib/build-kernel-package.sh ||
+		grep -qx "CONFIG_$symbol=y" vm/build-kernel.sh &&
+		grep -qx "require_config CONFIG_$symbol y" vm/build-kernel.sh ||
 			exit 1
 	done
 '
 
 test_expect_success 'all kernel and VM builds use the slim profile' '
 	! grep -Eq "^(kernel-small|vm-small|test-vm-small-bundle):" ../testing/Makefile &&
-	! grep -q "KERNEL_PROFILE" ../testing/Makefile ../contrib/build-kernel-package.sh &&
-	! test -e ../contrib/kernel-small.config &&
-	! test -e ../contrib/kernel-observability-configs.txt &&
-	grep -q "kernel-slim.config" ../contrib/build-kernel-package.sh &&
-	grep -q "config_profile=slim" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_CC_OPTIMIZE_FOR_SIZE=y" ../contrib/build-kernel-package.sh &&
+	! grep -q "KERNEL_PROFILE" ../testing/Makefile vm/build-kernel.sh &&
+	grep -q "kernel-slim.config" vm/build-kernel.sh &&
+	grep -q "config_profile=slim" vm/build-kernel.sh &&
+	grep -q "CONFIG_CC_OPTIMIZE_FOR_SIZE=y" vm/build-kernel.sh &&
 	grep -q "make -C testing vm KERNEL=7.4" ../testing/Makefile &&
 	make -n -C .. -f testing/Makefile vm VM_NAME=slim-cli-vm \
 		TEST_VM_ARCH=x86_64 TEST_VM_WORK_DIR="$WORK/slim-vm" \
@@ -535,29 +533,29 @@ test_expect_success 'all kernel and VM builds use the slim profile' '
 '
 
 test_expect_success 'VM reports guest and host memory usage' '
-	grep -q "report_boot_memory" ../contrib/test-vm-guest.sh &&
-	grep -q "guest_mem_total_kb" ../contrib/test-vm-guest.sh &&
-	grep -q "guest_mem_available_kb" ../contrib/test-vm-guest.sh &&
-	grep -q "guest_mem_used_percent" ../contrib/test-vm-guest.sh &&
-	grep -q "capture_host_memory_report" ../contrib/test-vm.sh &&
-	grep -q "qemu_vmrss_kb" ../contrib/test-vm.sh &&
-	grep -q "qemu_pss_kb" ../contrib/test-vm.sh &&
-	grep -q "print_memory_summary" ../contrib/test-vm.sh
+	grep -q "report_boot_memory" vm/guest.sh &&
+	grep -q "guest_mem_total_kb" vm/guest.sh &&
+	grep -q "guest_mem_available_kb" vm/guest.sh &&
+	grep -q "guest_mem_used_percent" vm/guest.sh &&
+	grep -q "capture_host_memory_report" vm/run.sh &&
+	grep -q "qemu_vmrss_kb" vm/run.sh &&
+	grep -q "qemu_pss_kb" vm/run.sh &&
+	grep -q "print_memory_summary" vm/run.sh
 '
 
 test_expect_success 'make -C testing kernel builds a tagged third-party Linux source' '
 	grep -q "^kernel: \$(KERNEL_BUILD_STAMP)" ../testing/Makefile &&
 	grep -q "KERNEL_TAG=\"\${KERNEL_TAG:-bpf-next}\"" \
-		../contrib/build-kernel-package.sh &&
+		vm/build-kernel.sh &&
 	grep -q "KERNEL_REPOSITORY=\"\${KERNEL_REPOSITORY:-https://git.kernel.org" \
-		../contrib/build-kernel-package.sh &&
-	grep -q "git clone --depth 1 --branch" ../contrib/build-kernel-package.sh &&
+		vm/build-kernel.sh &&
+	grep -q "git clone --depth 1 --branch" vm/build-kernel.sh &&
 	grep -q "make -C testing kernel KERNEL_TAG=v7.4" ../testing/Makefile &&
-	! KERNEL_TAG=not-a-kernel-tag ../contrib/build-kernel-package.sh \
+	! KERNEL_TAG=not-a-kernel-tag vm/build-kernel.sh \
 		>"$WORK/invalid-kernel-tag.out" 2>&1 &&
 	grep -q "KERNEL_TAG must be bpf-next or a Linux release tag" \
 		"$WORK/invalid-kernel-tag.out" &&
-	! KERNEL_TAG=v6.18 ../contrib/build-kernel-package.sh \
+	! KERNEL_TAG=v6.18 vm/build-kernel.sh \
 		>"$WORK/old-kernel-tag.out" 2>&1 &&
 	grep -q "requires Linux v7.4 or newer" "$WORK/old-kernel-tag.out"
 '
@@ -574,46 +572,46 @@ test_expect_success 'make -C testing vm and kernel select an exact release commi
 	grep -q "KERNEL_COMMIT is supported only for release VM kernels" \
 		"$WORK/commit-bpf-next.out" &&
 	! KERNEL_TAG=v7.4 KERNEL_COMMIT=not-a-sha \
-		../contrib/build-kernel-package.sh >"$WORK/invalid-kernel-commit.out" 2>&1 &&
+		vm/build-kernel.sh >"$WORK/invalid-kernel-commit.out" 2>&1 &&
 	grep -q "KERNEL_COMMIT must contain 7 to 40 hexadecimal characters" \
 		"$WORK/invalid-kernel-commit.out"
 '
 test_expect_success 'kernel VM artifacts provide networking modules' '
-	grep -q "CONFIG_VETH=m" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_BRIDGE=m" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_VLAN_8021Q=m" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_NF_FLOW_TABLE=m" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_NF_FLOW_TABLE_INET=m" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_NF_FLOW_TABLE_PROCFS=y" ../contrib/build-kernel-package.sh &&
-	grep -q "CONFIG_PROC_FS=y" ../contrib/build-kernel-package.sh &&
-	grep -q "require_config CONFIG_VETH m" ../contrib/build-kernel-package.sh &&
-	grep -q "dpkg-deb -x" ../contrib/build-kernel-package.sh &&
-	grep -q "depmod -b" ../contrib/build-kernel-package.sh &&
+	grep -q "CONFIG_VETH=m" vm/build-kernel.sh &&
+	grep -q "CONFIG_BRIDGE=m" vm/build-kernel.sh &&
+	grep -q "CONFIG_VLAN_8021Q=m" vm/build-kernel.sh &&
+	grep -q "CONFIG_NF_FLOW_TABLE=m" vm/build-kernel.sh &&
+	grep -q "CONFIG_NF_FLOW_TABLE_INET=m" vm/build-kernel.sh &&
+	grep -q "CONFIG_NF_FLOW_TABLE_PROCFS=y" vm/build-kernel.sh &&
+	grep -q "CONFIG_PROC_FS=y" vm/build-kernel.sh &&
+	grep -q "require_config CONFIG_VETH m" vm/build-kernel.sh &&
+	grep -q "dpkg-deb -x" vm/build-kernel.sh &&
+	grep -q "depmod -b" vm/build-kernel.sh &&
 	grep -q "TEST_VM_KERNEL_ARTIFACT_DIR" ../testing/Makefile &&
-	grep -q "mount_tag=shirudo-kernel" ../contrib/test-vm.sh &&
-	grep -q "TEST_VM_KERNEL_MODULES" ../contrib/test-vm.sh &&
-	grep -q "install_kernel_modules" ../contrib/test-vm-guest.sh &&
-	grep -q "modprobe \"\$module\"" ../contrib/test-vm-guest.sh &&
-	grep -q "nf_flow_table_procfs" ../contrib/test-vm-guest.sh
+	grep -q "mount_tag=shirudo-kernel" vm/run.sh &&
+	grep -q "TEST_VM_KERNEL_MODULES" vm/run.sh &&
+	grep -q "install_kernel_modules" vm/guest.sh &&
+	grep -q "modprobe \"\$module\"" vm/guest.sh &&
+	grep -q "nf_flow_table_procfs" vm/guest.sh
 '
 test_expect_success 'prepared VM runtime includes ripgrep' '
-	grep -qx "ripgrep" ../contrib/test-vm-runtime-packages &&
-	grep -q "package_digest" ../contrib/build-test-vm-bundle.sh
+	grep -qx "ripgrep" vm/runtime-packages &&
+	grep -q "package_digest" vm/build-bundle.sh
 '
 
 test_expect_success 'named VM console and SSH access helpers are wired up' '
 	grep -q "^vm-console:" ../testing/Makefile &&
 	grep -q "^vm-ssh:" ../testing/Makefile &&
-	grep -q "contrib/test-vm.sh --console" ../testing/Makefile &&
-	grep -q "contrib/test-vm.sh --ssh" ../testing/Makefile &&
-	grep -q "VM_SSH_COMMAND" ../contrib/test-vm.sh &&
-	grep -q "TEST_VM_SSH_PORT" ../contrib/test-vm.sh &&
-	grep -q "hostfwd=tcp:127.0.0.1" ../contrib/test-vm.sh &&
-	grep -q "socket,id=console" ../contrib/test-vm.sh &&
-	grep -q "logfile=.*console.log" ../contrib/test-vm.sh &&
-	grep -q "TEST_VM_SSH_PUBLIC_KEY" ../contrib/test-vm.sh &&
-	grep -q "serial-getty@\${TEST_VM_ARCH_CONSOLE}.service" ../contrib/test-vm-guest.sh &&
-	grep -q "TEST_VM_SSH_PUBLIC_KEY" ../contrib/test-vm-guest.sh
+	grep -q "testing/vm/run.sh --console" ../testing/Makefile &&
+	grep -q "testing/vm/run.sh --ssh" ../testing/Makefile &&
+	grep -q "VM_SSH_COMMAND" vm/run.sh &&
+	grep -q "TEST_VM_SSH_PORT" vm/run.sh &&
+	grep -q "hostfwd=tcp:127.0.0.1" vm/run.sh &&
+	grep -q "socket,id=console" vm/run.sh &&
+	grep -q "logfile=.*console.log" vm/run.sh &&
+	grep -q "TEST_VM_SSH_PUBLIC_KEY" vm/run.sh &&
+	grep -q "serial-getty@\${TEST_VM_ARCH_CONSOLE}.service" vm/guest.sh &&
+	grep -q "TEST_VM_SSH_PUBLIC_KEY" vm/guest.sh
 '
 
 test_expect_success 'VM console requires a named VM and SSH reports empty state' '
@@ -650,38 +648,38 @@ test_expect_success 'explicit VM_NAME overrides unnamed vm-ssh selection' '
 
 test_expect_success 'VM bundle installs target units and interactive mode activates timers' '
 	grep -q "DESTDIR=\"\$TMP_DIR/root\" install-target" \
-		../contrib/build-test-vm-bundle.sh &&
+		vm/build-bundle.sh &&
 	grep -q "systemd/\\*.timer" ../testing/Makefile &&
-	grep -q "shirudo-map-export.timer" ../contrib/test-vm-guest.sh &&
-	grep -q "shirudo-keepalive.timer" ../contrib/test-vm-guest.sh &&
-	grep -q "shirudo-bpm-repo-update.service" ../contrib/test-vm-guest.sh &&
-	grep -q "shirudo-bpm-repo-update.timer" ../contrib/test-vm-guest.sh &&
-	grep -q "shirudo-bpm-tree-sync.service" ../contrib/test-vm-guest.sh &&
-	grep -q "shirudo-bpm-tree-sync.timer" ../contrib/test-vm-guest.sh &&
+	grep -q "shirudo-map-export.timer" vm/guest.sh &&
+	grep -q "shirudo-keepalive.timer" vm/guest.sh &&
+	grep -q "shirudo-bpm-repo-update.service" vm/guest.sh &&
+	grep -q "shirudo-bpm-repo-update.timer" vm/guest.sh &&
+	grep -q "shirudo-bpm-tree-sync.service" vm/guest.sh &&
+	grep -q "shirudo-bpm-tree-sync.timer" vm/guest.sh &&
 	grep -q "OnUnitActiveSec=60s" ../systemd/shirudo-bpm-tree-sync.timer &&
 	grep -q "Persistent=true" ../systemd/shirudo-bpm-tree-sync.timer &&
-	grep -q "systemctl enable shirudo.service" ../contrib/test-vm-guest.sh &&
+	grep -q "systemctl enable shirudo.service" vm/guest.sh &&
 	grep -q "systemctl enable --now shirudo-map-export.timer" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -q "systemctl enable --now shirudo-keepalive.timer" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -q "systemctl enable --now shirudo-bpm-repo-update.timer" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -q "systemctl enable --now shirudo-bpm-tree-sync.timer" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -Fq "if [[ \"\$VM_MODE\" == interactive ]]" \
-		../contrib/test-vm-guest.sh
+		vm/guest.sh
 '
 
 test_expect_success 'VM stop and cleanup use the VM runner paths' '
 	grep -q "^vm-stop:" ../testing/Makefile &&
-	grep -q "contrib/test-vm.sh --stop" ../testing/Makefile &&
+	grep -q "testing/vm/run.sh --stop" ../testing/Makefile &&
 	grep -q "^vm-clean:" ../testing/Makefile &&
-	grep -q "contrib/test-vm.sh --clean" ../testing/Makefile &&
+	grep -q "testing/vm/run.sh --clean" ../testing/Makefile &&
 	grep -q "^test-vm-clean: vm-clean" ../testing/Makefile &&
 	grep -q "VM_NAME=\"\$(VM_NAME)\"" ../testing/Makefile &&
-	grep -q "stop_pid_file" ../contrib/test-vm.sh &&
-	grep -q "removed VM state and logs" ../contrib/test-vm.sh
+	grep -q "stop_pid_file" vm/run.sh &&
+	grep -q "removed VM state and logs" vm/run.sh
 '
 
 test_expect_success 'named vm-stop preserves the selected VM state' '
@@ -734,12 +732,12 @@ test_expect_success 'test-vm supports secure and explicit insecure map-export mo
 	grep -q "export TEST_VM_MAP_EXPORT_ENDPOINT" "$RUNNER" &&
 	grep -q "export TEST_VM_MAP_EXPORT_CA=/mnt/shirudo-otel/ca.pem" "$RUNNER" &&
 	grep -q "mount_tag=shirudo-otel" "$RUNNER" &&
-	grep -q "10.0.2.2 otel.test" ../contrib/test-vm-guest.sh &&
-	grep -q "map_export.otel_endpoint = \$endpoint" ../contrib/test-vm-guest.sh &&
-	grep -q "map_export.otel_insecure = \$insecure" ../contrib/test-vm-guest.sh &&
+	grep -q "10.0.2.2 otel.test" vm/guest.sh &&
+	grep -q "map_export.otel_endpoint = \$endpoint" vm/guest.sh &&
+	grep -q "map_export.otel_insecure = \$insecure" vm/guest.sh &&
 	grep -q "OTEL_EXPORTER_OTLP_CERTIFICATE=/etc/shirudo/otel/ca.pem" \
-		../contrib/test-vm-guest.sh &&
-	grep -q "map_export.tenant_id = \$tenant_id" ../contrib/test-vm-guest.sh
+		vm/guest.sh &&
+	grep -q "map_export.tenant_id = \$tenant_id" vm/guest.sh
 '
 
 test_expect_success 'test-vm rejects incomplete map-export bridge settings' '
@@ -788,8 +786,8 @@ test_expect_success 'test-vm passes an OCI CA into the guest trust store' '
 	grep -q "OCI_CA=\"\${TEST_VM_OCI_CA:-}\"" "$RUNNER" &&
 	grep -q "shirudo-oci" "$RUNNER" &&
 	grep -q "export TEST_VM_OCI_CA=/mnt/shirudo-oci/ca.crt" "$RUNNER" &&
-	grep -q "shirudo-oci-ca.crt" ../contrib/test-vm-guest.sh &&
-	grep -q "update-ca-certificates" ../contrib/test-vm-guest.sh
+	grep -q "shirudo-oci-ca.crt" vm/guest.sh &&
+	grep -q "update-ca-certificates" vm/guest.sh
 '
 
 test_expect_success 'test-vm validates a custom OCI CA file before boot' '
@@ -812,17 +810,17 @@ test_expect_success 'test-vm hands off an interactive BPM tree configuration' '
 	grep -q "export TEST_VM_BPM_TREE_INPUT=/mnt/shirudo-bpm-tree" "$RUNNER" &&
 	grep -q "mount.*shirudo-bpm-tree /mnt/shirudo-bpm-tree" "$RUNNER" &&
 	grep -q "credentials and private signing" "$RUNNER" &&
-	grep -q "configure_bpm_tree" ../contrib/test-vm-guest.sh &&
-	grep -Fq "[[ -z \"\$tree_input\" ]] && return 0" ../contrib/test-vm-guest.sh &&
-	grep -q "local config_file=\"\${tree_input}/upatch-tree.conf\"" ../contrib/test-vm-guest.sh &&
-	grep -q "temporary=\"\${target}.tmp.\$\$\"" ../contrib/test-vm-guest.sh &&
-	grep -q "mv -f \"\$temporary\" \"\$target\"" ../contrib/test-vm-guest.sh &&
-	grep -q "systemctl start shirudo-bpm-tree-sync.service" ../contrib/test-vm-guest.sh &&
-	grep -q "systemctl enable --now shirudo-bpm-tree-sync.timer" ../contrib/test-vm-guest.sh &&
-	test "$(grep -n "SHIRUDO_BIN.* init" ../contrib/test-vm-guest.sh | cut -d: -f1)" -lt \
-		"$(grep -n "systemctl start shirudo-bpm-tree-sync.service" ../contrib/test-vm-guest.sh | cut -d: -f1)" &&
-	test "$(grep -n "systemctl start shirudo-bpm-tree-sync.service" ../contrib/test-vm-guest.sh | cut -d: -f1)" -lt \
-		"$(grep -n "systemctl enable --now shirudo-bpm-tree-sync.timer" ../contrib/test-vm-guest.sh | cut -d: -f1)"
+	grep -q "configure_bpm_tree" vm/guest.sh &&
+	grep -Fq "[[ -z \"\$tree_input\" ]] && return 0" vm/guest.sh &&
+	grep -q "local config_file=\"\${tree_input}/upatch-tree.conf\"" vm/guest.sh &&
+	grep -q "temporary=\"\${target}.tmp.\$\$\"" vm/guest.sh &&
+	grep -q "mv -f \"\$temporary\" \"\$target\"" vm/guest.sh &&
+	grep -q "systemctl start shirudo-bpm-tree-sync.service" vm/guest.sh &&
+	grep -q "systemctl enable --now shirudo-bpm-tree-sync.timer" vm/guest.sh &&
+	test "$(grep -n "SHIRUDO_BIN.* init" vm/guest.sh | cut -d: -f1)" -lt \
+		"$(grep -n "systemctl start shirudo-bpm-tree-sync.service" vm/guest.sh | cut -d: -f1)" &&
+	test "$(grep -n "systemctl start shirudo-bpm-tree-sync.service" vm/guest.sh | cut -d: -f1)" -lt \
+		"$(grep -n "systemctl enable --now shirudo-bpm-tree-sync.timer" vm/guest.sh | cut -d: -f1)"
 '
 
 test_expect_success 'test-vm validates BPM tree configuration mode and contents' '
@@ -871,11 +869,11 @@ test_expect_success 'test-vm bootstraps a BPM OCI repository from the host' '
 	grep -q "keys/\${BPM_OCI_SOURCE}.pem" "$RUNNER" &&
 	grep -q "repository.env" "$RUNNER" &&
 	grep -q "mount_tag=shirudo-bpm-oci" "$RUNNER" &&
-	grep -q "registry\.test" ../contrib/test-vm-guest.sh &&
+	grep -q "registry\.test" vm/guest.sh &&
 	grep -q "install -m 0644.*staged_conf.*conf_file" \
-		../contrib/test-vm-guest.sh &&
+		vm/guest.sh &&
 	grep -q "install -m 0644.*staged_env.*repository_env" \
-		../contrib/test-vm-guest.sh
+		vm/guest.sh
 '
 
 test_expect_success 'test-vm validates BPM OCI repository handoff as a pair' '

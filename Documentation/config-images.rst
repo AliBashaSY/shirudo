@@ -511,7 +511,7 @@ public fixture set and cache every config bundle under
     export SHIRUDO_TEST_RESULTS=/root/test-results/verity
     sh testing/run-target-tests.sh
 
-``contrib/verity-vm-config-fixtures.sh --keys-dir <operator-keys>
+``testing/vm/image-fixtures.sh --keys-dir <operator-keys>
 --output <new-directory>`` builds the signed config and revocation fixtures;
 only its ``public/`` directory belongs on the target. The standard host
 bundle also packages the runtime and static test helpers. The

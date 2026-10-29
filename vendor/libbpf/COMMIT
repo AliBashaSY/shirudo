@@ -1,4 +1,4 @@
-# Written by contrib/bpf-deps.sh; do not edit.
+# Written by tools/bpf-deps/bpf-deps.sh; do not edit.
 source=/home/darkstar/net
 commit=f5bffe9f098fbf1b60e0242c7b96e06d1e4256d5
 describe=v6.11-rc6-188859-gf5bffe9f098f

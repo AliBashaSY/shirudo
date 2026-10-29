@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# contrib/bpf-deps.sh [KERNEL_SRC] -- refresh vendor/libbpf from a
+# tools/bpf-deps/bpf-deps.sh [KERNEL_SRC] -- refresh vendor/libbpf from a
 # kernel tree. Without an argument (or KERNEL_SRC in the environment) a
 # shallow clone of bpf-next is used. Overwrites the copied sources and UAPI
 # headers, regenerates bpf_helper_defs.h, records the commit in COMMIT and
@@ -10,7 +10,7 @@
 
 set -eu
 
-REPO_ROOT=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
+REPO_ROOT=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
 VENDOR="$REPO_ROOT/vendor/libbpf"
 REPOSITORY="${BPF_NEXT_REPOSITORY:-git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git}"
 KERNEL_SRC="${1:-${KERNEL_SRC:-}}"
@@ -72,7 +72,7 @@ python3 "$KERNEL_SRC/scripts/bpf_doc.py" --header \
 commit=$(git -C "$KERNEL_SRC" rev-parse HEAD 2>/dev/null || echo unknown)
 describe=$(git -C "$KERNEL_SRC" describe --always --tags 2>/dev/null || echo unknown)
 {
-	printf '# Written by contrib/bpf-deps.sh; do not edit.\n'
+	printf '# Written by tools/bpf-deps/bpf-deps.sh; do not edit.\n'
 	printf 'source=%s\n' "$source_desc"
 	printf 'commit=%s\n' "$commit"
 	printf 'describe=%s\n' "$describe"

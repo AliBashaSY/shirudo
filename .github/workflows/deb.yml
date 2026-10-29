@@ -201,14 +201,14 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: artifacts/bpf-next-kernel-debs
-          key: test-vm-kernel-${{ steps.target-kernel-week.outputs.week }}-${{ hashFiles('contrib/build-kernel-package.sh', 'contrib/test-vm-arch.sh', 'testing/Makefile', 'kernel/*.patch') }}
+          key: test-vm-kernel-${{ steps.target-kernel-week.outputs.week }}-${{ hashFiles('testing/vm/build-kernel.sh', 'testing/vm/arch.sh', 'testing/Makefile', 'kernel/*.patch') }}
 
       - name: Restore the target VM image
         id: target-vm-image
         uses: actions/cache/restore@v4
         with:
           path: build/test-vm/cache
-          key: test-vm-images-${{ hashFiles('contrib/test-vm-runtime-packages', 'contrib/prepare-test-vm-runtime.sh', 'contrib/build-test-vm-bundle.sh', 'contrib/test-vm-arch.sh') }}
+          key: test-vm-images-${{ hashFiles('testing/vm/runtime-packages', 'testing/vm/prepare-runtime.sh', 'testing/vm/build-bundle.sh', 'testing/vm/arch.sh') }}
 
       - name: Restore the target build dependencies
         id: target-deps

@@ -14,9 +14,9 @@ endif
 export Q V
 
 root-path = $(if $(filter /%,$(1)),$(1),$(ROOT)/$(1))
-# $(call test-vm-arch,NAME): the value contrib/test-vm-arch.sh gives NAME.
+# $(call test-vm-arch,NAME): the value testing/vm/arch.sh gives NAME.
 test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
-	. $(ROOT)/contrib/test-vm-arch.sh && printf '%s' "$$$(1)")
+	. $(ROOT)/testing/vm/arch.sh && printf '%s' "$$$(1)")
 
 .DEFAULT_GOAL := help
 .PHONY: help clean test-helpers test-op fuzz test bundle test-vm-bundle kernel \
@@ -119,10 +119,11 @@ TEST_VM_BUNDLE_SOURCES := $(sort $(wildcard \
 	$(ROOT)/vendor/libbpf/include/uapi/linux/*.h \
 	$(ROOT)/vendor/libbpf/include/asm/*.h \
 	$(ROOT)/testing/helper/*.c $(ROOT)/testing/helper/*.h $(ROOT)/testing/helper/*.py \
-	$(ROOT)/testing/tamperproof/*.c $(ROOT)/contrib/verity-*.sh \
+	$(ROOT)/testing/tamperproof/*.c \
+	$(ROOT)/testing/vm/bundle-images.sh $(ROOT)/testing/vm/image-fixtures.sh \
 	$(ROOT)/tools/gen-image/shirudo-gen-* $(ROOT)/tools/gen-image/*.sh \
 	$(ROOT)/tools/gen-image/*.in \
-	$(ROOT)/contrib/verity-vm/* \
+	$(ROOT)/testing/vm/files/* \
 	$(ROOT)/testing/upatch/kernel-obs/exec/*.c $(ROOT)/completion/* $(ROOT)/systemd/*.in \
 	$(ROOT)/systemd/*.timer $(ROOT)/testing/fixtures/*.c $(ROOT)/testing/fixtures/*.lua \
 	$(ROOT)/testing/fixtures/*.conf $(ROOT)/testing/fixtures/*.sh \
@@ -140,9 +141,9 @@ TEST_VM_BUNDLE_INPUTS := $(sort \
 	$(ROOT)/testing/Makefile $(ROOT)/packaging/Makefile \
 	$(ROOT)/vendor/libbpf/Makefile $(ROOT)/vendor/libbpf/COMMIT \
 	$(ROOT)/Documentation/Makefile $(ROOT)/upatches/kernel-obs/Makefile \
-	$(ROOT)/contrib/build-test-vm-bundle.sh $(ROOT)/contrib/test-vm-guest.sh \
-	$(ROOT)/contrib/test-vm-arch.sh \
-	$(ROOT)/contrib/prepare-test-vm-runtime.sh $(ROOT)/contrib/test-vm-runtime-packages \
+	$(ROOT)/testing/vm/build-bundle.sh $(ROOT)/testing/vm/guest.sh \
+	$(ROOT)/testing/vm/arch.sh \
+	$(ROOT)/testing/vm/prepare-runtime.sh $(ROOT)/testing/vm/runtime-packages \
 	$(TEST_VM_BUNDLE_SOURCES) $(TEST_VM_BUNDLE_ARTIFACTS) \
 	$(if $(strip $(TEST_VM_PACKAGE_CERT)),$(TEST_VM_PACKAGE_CERT)))
 
@@ -163,7 +164,7 @@ $(TEST_VM_BUNDLE_STAMP): $(TEST_VM_BUNDLE_INPUTS)
 		TEST_VM_BUNDLE_STAMP="$(abspath $(TEST_VM_BUNDLE_STAMP))" \
 		TEST_VM_BUNDLE_INPUTS="$(abspath $(TEST_VM_BUNDLE_INPUTS))" \
 		BPF_VMLINUX_BTF="$(abspath $(VM_KERNEL_ARTIFACT_DIR)/vmlinux.btf)" \
-		$(ROOT)/contrib/build-test-vm-bundle.sh
+		$(ROOT)/testing/vm/build-bundle.sh
 
 kernel: $(KERNEL_BUILD_STAMP)
 
@@ -172,9 +173,9 @@ bpf-next:
 		KERNEL_PATCHES='$(KERNEL_PATCHES)' \
 		KERNEL_CONFIG='$(KERNEL_CONFIG)' \
 		KERNEL_BUILD_JOBS='$(KERNEL_BUILD_JOBS)' \
-		$(ROOT)/contrib/build-kernel-package.sh
+		$(ROOT)/testing/vm/build-kernel.sh
 
-$(KERNEL_BUILD_STAMP): $(ROOT)/contrib/build-kernel-package.sh $(KERNEL_PATCH_FILES)
+$(KERNEL_BUILD_STAMP): $(ROOT)/testing/vm/build-kernel.sh $(KERNEL_PATCH_FILES)
 	$(Q)KERNEL_TAG='$(KERNEL_TAG_NORMALIZED)' \
 		KERNEL_COMMIT='$(KERNEL_COMMIT)' \
 		KERNEL_PATCHES='$(KERNEL_PATCHES)' \
@@ -184,7 +185,7 @@ $(KERNEL_BUILD_STAMP): $(ROOT)/contrib/build-kernel-package.sh $(KERNEL_PATCH_FI
 		PACKAGE_FORMAT='$(PACKAGE_FORMAT)' \
 		KERNEL_BUILD_JOBS='$(KERNEL_BUILD_JOBS)' \
 		OUTPUT_DIR="$(abspath $(KERNEL_BUILD_ARTIFACT_DIR))" \
-		$(ROOT)/contrib/build-kernel-package.sh
+		$(ROOT)/testing/vm/build-kernel.sh
 
 # A VM selection owns its kernel artifact independently of the generic
 # KERNEL_TAG selection used by `make -C testing kernel`.
@@ -216,14 +217,14 @@ vm: $(VM_KERNEL_DEP) test-vm-bundle
 		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
 		TEST_VM_MODE="$(TEST_VM_MODE)" TEST_VM_INITRD="$(TEST_VM_INITRD)" \
 		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
-		$(ROOT)/contrib/test-vm.sh
+		$(ROOT)/testing/vm/run.sh
 vm-console:
 	$(Q)VM_NAME="$(VM_NAME)" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/contrib/test-vm.sh --console
+		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/testing/vm/run.sh --console
 
 vm-ssh:
 	$(Q)VM_NAME="$(VM_NAME)" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/contrib/test-vm.sh --ssh
+		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/testing/vm/run.sh --ssh
 
 define run-target-vm
 VM_MODE=test TEST_VM_SUITE="$(1)" VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(2)" VM_TENANT="$(VM_TENANT)" \
@@ -241,7 +242,7 @@ VM_MODE=test TEST_VM_SUITE="$(1)" VM_VERBOSE="$(TEST_VM_VERBOSE)" VM_NAME="$(2)"
 		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
 		TEST_VM_MODE="$(TEST_VM_MODE)" \
 		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
-		$(ROOT)/contrib/test-vm.sh
+		$(ROOT)/testing/vm/run.sh
 endef
 
 test-tgt-register: $(VM_KERNEL_DEP) test-vm-bundle
@@ -265,15 +266,15 @@ test-tgt-obs: $(VM_KERNEL_DEP) test-vm-bundle
 		TEST_VM_BPM_OCI_INDEX_CERT="$(TEST_VM_BPM_OCI_INDEX_CERT)" \
 		TEST_VM_MODE="$(TEST_VM_MODE)" TEST_VM_INITRD="$(TEST_VM_INITRD)" \
 		TEST_VM_HOST_BUNDLE="$(abspath $(TEST_VM_BUNDLE_DIR))" \
-		$(ROOT)/contrib/test-vm.sh
+		$(ROOT)/testing/vm/run.sh
 
 vm-stop:
 	$(Q)VM_NAME="$(VM_NAME)" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/contrib/test-vm.sh --stop
+		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/testing/vm/run.sh --stop
 
 vm-clean:
 	$(Q)VM_NAME="$(VM_NAME)" \
-		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/contrib/test-vm.sh --clean
+		TEST_VM_WORK_DIR="$(TEST_VM_WORK_DIR)" $(ROOT)/testing/vm/run.sh --clean
 
 test-vm-clean: vm-clean
 

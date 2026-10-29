@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# Guest-side half of contrib/test-vm.sh. The host checkout is mounted
+# Guest-side half of testing/vm/run.sh. The host checkout is mounted
 # read-only at /mnt/shirudo-src; all build writes stay in this VM.
 
 set -euo pipefail
@@ -12,8 +12,8 @@ export HOME=/root
 export LOGNAME=root
 export USER=root
 LOWER=/mnt/shirudo-src
-# shellcheck source=contrib/test-vm-arch.sh
-. "$LOWER/contrib/test-vm-arch.sh"
+# shellcheck source=testing/vm/arch.sh
+. "$LOWER/testing/vm/arch.sh"
 BUNDLE=/mnt/shirudo-bundle
 UPPER=/var/tmp/shirudo-upper
 OVERLAY_WORK=/var/tmp/shirudo-overlay-work

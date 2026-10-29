@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # Host architecture and package manager for the test VM tooling. Sourced
-# by the contrib scripts and evaluated by testing/Makefile, so POSIX sh.
+# by the test VM scripts and evaluated by testing/Makefile, so POSIX sh.
 # TEST_VM_ARCH and TEST_VM_HOST_PKG override the detection. An
 # architecture other than x86-64 and arm64 gets the x86-64 names, so that
 # host-side targets still evaluate, and TEST_VM_ARCH_SUPPORTED=0, which

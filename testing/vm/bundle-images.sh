@@ -3,14 +3,14 @@
 # Copyright (c) 2026 Authors of shirudo
 
 set -euo pipefail
-source_dir=$(cd "$(dirname "$0")/.." && pwd)
-templates="$source_dir/contrib/verity-vm"
+source_dir=$(cd "$(dirname "$0")/../.." && pwd)
+templates="$source_dir/testing/vm/files"
 [ "$#" -eq 4 ] || exit 2
 bundle=$1
 work=$2
 keys=$3
 boot_keys=$4
-"$source_dir/contrib/verity-vm-config-fixtures.sh" --keys-dir "$keys" \
+"$source_dir/testing/vm/image-fixtures.sh" --keys-dir "$keys" \
 	--boot-keys-dir "$boot_keys" --output "$work/verity"
 mkdir "$bundle/verity"
 cp -a "$work/verity/public/." "$bundle/verity/"
