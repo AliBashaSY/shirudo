@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t0043 -- .github/scripts/check-style.sh: the kernel style checkpatch.pl
+# t0003 -- .github/scripts/check-style.sh: the kernel style checkpatch.pl
 # enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings

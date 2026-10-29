@@ -28,7 +28,7 @@ for t in t0[0-9][0-9][0-9]-*.sh; do
 	fi
 done
 
-for t in check/t0[0-9][0-9][0-9]-*.sh; do
+for t in ghchecks/t0[0-9][0-9][0-9]-*.sh; do
 	[ -e "$t" ] || continue
 	found=1
 	if sh "$t"; then

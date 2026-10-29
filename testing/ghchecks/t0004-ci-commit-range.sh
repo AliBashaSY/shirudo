@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t0044 -- .github/scripts/ci-commit-range.sh: the rev-list arguments a
+# t0004 -- .github/scripts/ci-commit-range.sh: the rev-list arguments a
 # pull request, a push and a force push hand to a checker, on a throwaway
 # repository.
 

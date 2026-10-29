@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t0041 -- .github/scripts/check-dco.sh: the subject, body and sign-off every
+# t0001 -- .github/scripts/check-dco.sh: the subject, body and sign-off every
 # commit needs, the forms it rejects, the author the sign-off must come
 # from and the merge commits it skips, on a throwaway repository.
 

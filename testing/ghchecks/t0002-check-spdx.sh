@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t0042 -- .github/scripts/check-spdx.sh: the tag every source needs, its form
+# t0002 -- .github/scripts/check-spdx.sh: the tag every source needs, its form
 # by file type, the two expressions, the dual licence of everything a
 # BPF object compiles and a Beefile ships, the licences vendored C may
 # carry, on a throwaway repository, and the tree itself.

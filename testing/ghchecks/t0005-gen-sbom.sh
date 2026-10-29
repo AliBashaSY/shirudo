@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t0046 -- .github/scripts/gen-sbom.sh: the SPDX documents a target and an
+# t0005 -- .github/scripts/gen-sbom.sh: the SPDX documents a target and an
 # operator package get, against a staged dependency tree and stub dpkg
 # tools, and the archives it refuses to leave out.
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 . ./test-lib.sh
 for t in jq pkg-config sha256sum; do
 	command -v $t >/dev/null 2>&1 || test_skip_all "$t not installed"
