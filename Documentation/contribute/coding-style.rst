@@ -3,6 +3,11 @@
 Linux kernel coding style
 =========================
 
+shirudo follows the Linux kernel coding style, in its userspace C as in
+its BPF programs. The rest of this page is a verbatim copy of the
+kernel's own ``Documentation/process/coding-style.rst``, kept here as the
+guideline to follow.
+
 This is a short document describing the preferred coding style for the
 linux kernel.  Coding style is very personal, and I won't **force** my
 views on anybody, but this is what goes for anything that I have to be
