@@ -154,5 +154,5 @@ from the exporter.
 
 DNS over TCP, TLS and HTTPS is not parsed; the resolvers are on the
 watch list instead. IPv6 extension headers are not walked. Forwarded
-traffic does not pass the cgroup hooks and is not counted. The
-`dns.todo` file lists the remaining DNS parser gaps.
+traffic does not pass the cgroup hooks and is not counted. shirudo's
+developer guide lists the remaining DNS parser gaps.

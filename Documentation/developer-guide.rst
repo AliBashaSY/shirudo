@@ -2,20 +2,56 @@
    SPDX-License-Identifier: BSD-2-Clause
    Copyright (c) 2026 Authors of shirudo
 
-Testing shirudo
+Developer guide
 ===============
+
+This guide is for working on shirudo itself: building and running it from a
+checkout, where the operator-only tools live, and writing and running the
+tests.  See `requirements <requirements.rst>`__ for what the build and test
+hosts need, `contributing <contributing.rst>`__ for what to run before
+sending a change and `coding-style <coding-style.rst>`__ for the style.
+
+1) Working from a checkout
+--------------------------
+
+``make`` builds the operator binary ``shirudo``, ``make shirudo-build`` the
+operator-only helper and ``make target`` the fully static target binary.
+The core binary never compiles or signs: ``shirudo build``, ``keys vouch``
+and the operator ``bpm`` commands hand their arguments to
+``tools/shirudo-build/shirudo-build`` with ``execv``, found through
+``SHIRUDO_BUILD``, then ``$(libexecdir)/shirudo/shirudo-build``, then
+``PATH``, and ``shirudo bpm --help`` lists the operator subcommands only
+when the helper resolves.  From a checkout, put ``tools/shirudo-build`` and
+the checkout root first on ``PATH`` or set ``SHIRUDO_BUILD``.
+
+The helper hosts everything that compiles or signs: the ``.bpf.c`` to
+``gen_loader`` to signed ``.upatch`` path, unload directives, ``keys
+vouch``, ``bpm build``, ``bpm config update``, ``bpm push`` and ``bpm tree
+append``, and ``upatch rewrite-rodata``, which re-signs an upatch whose BTF
+watch arrays alone changed and which kernel-obs's ``rewrite_watch_upatch.py``
+calls.  ``bpm build`` compiles with the package directory as its working
+directory, so a package built from a checkout finds ``vmlinux.h`` and the
+BPF headers through ``vendor`` and ``bpf`` links to the checkout's, as
+``testing/end2end/host.sh`` and the publishing test make them.
+
+``tools/gen-image/`` holds the image scripts the helper and ``shirudo image
+build`` run: ``shirudo-gen-image`` makes an ext4 image of a source tree,
+``shirudo-gen-runtime`` collects the trusted binary, its libraries and the
+public assets for the runtime image, ``shirudo-gen-verity`` formats the
+hash tree and has the helper sign the root, and ``common.sh`` holds their
+shared checks.  The ``runtime-service*.conf.in`` templates beside them
+belong to ``shirudo-gen-runtime``.  `config-images <config-images.rst>`__
+describes the images they make.
+
+2) The test layout
+------------------
 
 shirudo is tested in tiers, each under its own directory of ``testing/``:
 unit tests for the functions of ``util/``, functional tests for one command
 or mechanism at a time, end-to-end tests for whole delivery paths, tests of
 the scripts CI runs, and libFuzzer targets for the parsers of input from
 outside the host.  A change comes with a test in the lowest tier that can
-show it works.  See `requirements <requirements.rst>`__ for what the test
-hosts need and `contributing <contributing.rst>`__ for what to run before
-sending a change.
-
-1) The layout
--------------
+show it works.
 
 ::
 
@@ -34,10 +70,7 @@ sending a change.
         run-tests.sh            the unit and operator tests
         run-target-tests.sh     one family's target tests, in its VM
 
-Each ``functional/`` family may carry a ``test.plan.md`` that maps the cases
-it must cover to the tests that do, and says which are not covered yet.
-
-2) Test numbers
+3) Test numbers
 ---------------
 
 A shell test is named ``t<F><K><NN>-<what>.sh``, the way git numbers its
@@ -66,14 +99,14 @@ F   Directory                    What it covers
                                  keyrings, bpffs and the TPM path
 7   ``functional/bpm/``          packages, repositories, the upatch tree
 8   ``functional/otel/``         map export, status, TLS policy
-9   ``end2end/``                     the kernel-obs package, delivery paths
+9   ``end2end/``                 the kernel-obs package, delivery paths
 === ============================ ==========================================
 
 A new test takes the next free number of its family and kind; a number is
 not reused for a different test.  A file under ``testing/`` that is not a
 test does not take a name of this form.
 
-3) Running the tests
+4) Running the tests
 --------------------
 
 ``make tests`` or ``make -C testing``
@@ -109,7 +142,7 @@ rest under ASan and UBSan, as CI does.
 In CI, the tests workflow runs ``make tests`` and the sanitizer workflow
 ``make tests VM=0`` under ASan and UBSan with gcc and clang.
 
-4) Unit tests
+5) Unit tests
 -------------
 
 ``testing/unit/<m>.c`` tests the functions of ``util/<m>.c``.  It calls them
@@ -143,7 +176,7 @@ A change to a function of ``util/`` adds or updates its cases.  What needs
 the command line, root, the TPM simulator, the kernel or an implementation
 written apart from shirudo to compare against is a functional test.
 
-5) Functional and end-to-end tests
+6) Functional and end-to-end tests
 ----------------------------------
 
 A shell test starts in ``testing/``, sources ``test-lib.sh``, and runs its
@@ -167,13 +200,13 @@ it with ``bpm push`` and appends it to a signed upatch tree with ``bpm
 tree append``, all with the key the bundle's fixtures are signed with.
 The target activates the signed ``config-end2end`` image that points at
 the tree and the collector, and the units it ships pull, verify and load
-the package and export what it observes.  The host then checks the TPM
-evidence the target produced with ``attest verify``, which must find the
-published payload loaded, and the collector's output, which must hold the
-package's records.  The registry and the collector need Docker on the
+the package and export what it observes.  The host then verifies the TPM
+evidence the target produced with ``attest verify``, whose replayed records
+must name the published payload and tree operation, and checks that the
+collector holds the package's records.  The registry and the collector need Docker on the
 host; the guest reaches them through QEMU's address for the host.
 
-6) The test VM
+7) The test VM
 --------------
 
 ``testing/vm/`` builds and runs the target side.  ``build-kernel.sh``
@@ -185,3 +218,43 @@ the dm-verity runtime image and the signed config images, which
 guest with a software TPM and the bundle and, in test mode, has
 ``guest.sh`` run one family's tests in it.  ``testing/swtpm.sh`` runs a
 software TPM on the host for development without a VM.
+
+8) Open work
+------------
+
+Cases no test covers yet, for whoever adds the next tamperproof test:
+
+* creating a BPF map from an executable other than shirudo's, beside the
+  loader's own creation as the positive control;
+* obtaining or passing shirudo's map descriptors through
+  ``/proc/<pid>/fd``, ``pidfd_getfd`` or ``SCM_RIGHTS``, and using one to
+  change a protected map;
+* repeated and concurrent serializer runs losing or changing records;
+* an inode created under a labelled directory being born labelled;
+* ``PTRACE_ATTACH`` to, or a perf event bound to, a running shirudo task;
+* starting shirudo with ``LD_PRELOAD``, ``LD_AUDIT`` or
+  ``LD_LIBRARY_PATH`` naming foreign code, and exec'ing it from a traced
+  task;
+* a trusted loader mutated with its userspace digest recomputed, which the
+  kernel's signature check must refuse.
+
+The export path has room for more exact assertions: endpoint, CA,
+client-certificate and header precedence across the command line, the
+signal-specific and generic environment, the config and the defaults;
+every resource, scope and metric attribute of the OTLP payload; export
+failure and drain across timer intervals; S3 with ``AWS_CA_BUNDLE``; and
+the bounds of transport timeouts, response buffers and compression.
+``upatch get`` is checked for the loaded source, not its JSON form.
+
+The kernel-obs DNS parser correlates a UDP response with its request by the
+network namespace, addresses, ports and transaction ID.  It does not yet
+compare the response's question name and class with the request's, check
+its opcode, RCODE and TC bits, keep A and AAAA answers to the family asked
+for, or age out pending requests; it does not reject fragments, check the
+IP and UDP lengths against the packet or walk IPv6 extension headers; it
+lets an embedded NUL through in a label and does not bound every
+compression pointer it skips; and it counts neither a full pending table,
+LRU displacement, stale responses nor answers past its cap of 75.  A live
+packet harness would let the target tests cover malformed packets, which
+``end2end/dns_obs_matrix.py`` today only constructs.  DNS over TCP, TLS or
+HTTPS and ports other than 53 are outside its scope.

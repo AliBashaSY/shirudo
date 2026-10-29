@@ -60,7 +60,7 @@ remote-management or transport layers.
 | `Documentation/requirements.rst` | Kernel options, operator toolchain, target runtime. |
 | `Documentation/getting-started.rst` | Quickstart: build, sign, initialise a target, load and unload, publish and install packages. |
 | `Documentation/telemetry.rst` | OTLP export of map snapshots and status keepalives, the signed Lua decoders, and collector integration (OpenTelemetry Collector, ClickHouse, Splunk, custom). |
-| `Documentation/testing.rst` | The test tiers (unit, functional, end-to-end), the test numbers, running the tests and the test VM. Read it before adding or moving a test. |
+| `Documentation/developer-guide.rst` | Working from a checkout, the operator-only tools, the test tiers (unit, functional, end-to-end), the test numbers, running the tests, the test VM and the open coverage gaps. Read it before adding or moving a test. |
 | `Documentation/coding-style.rst` | The kernel's coding style, applied to all C here. |
 | `Documentation/contributing.rst` | Commit message form, the mandatory `Signed-off-by:` and the kernel's attribution tags. Read it before crafting a commit. |
 
@@ -349,7 +349,7 @@ one usually still compiles and passes tests.
 - `util/<m>.c` is unit tested by `testing/unit/<m>.c`: a change to a util
   function adds or updates its cases there. A shell test is named
   `t<F><K><NN>`, family, operator (0) or target (1), and order, and lives in
-  its family's directory; `Documentation/testing.rst` has the families.
+  its family's directory; `Documentation/developer-guide.rst` has the families.
 - `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
   `testing/fuzz/` for the parsers of input from outside the host, under
   ASan and UBSan, on their seed corpora; CI runs them too. A parser that

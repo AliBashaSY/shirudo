@@ -8,8 +8,7 @@
   "collateral": {
     "beefile": "kernel-cve/kernel-cve.bee",
     "manifest": "kernel-cve/manifest.json",
-    "per_entry_source_dirs": "kernel-cve/sources/",
-    "rebuild_notes": "kernel-cve/REBUILD.md"
+    "per_entry_source_dirs": "kernel-cve/sources/"
   },
   "count": 3,
   "generated_at": "2026-09-18T20:24:50Z",

@@ -100,9 +100,10 @@ Reading or writing a ``.upatch``
     `upatch-spec <upatch-spec.rst>`__ is the byte-level reference for
     the signed artifact.
 
-Testing
-    `testing <testing.rst>`__ describes the test tiers, how tests are
-    numbered and grouped, how to run them, and the test VM.
+Developing shirudo
+    `developer-guide <developer-guide.rst>`__ covers working from a
+    checkout, the operator-only tools, writing and running the tests in
+    their tiers, the test VM, and the coverage and parser gaps still open.
 
 Contributing
     `contributing <contributing.rst>`__ covers commit messages, the
