@@ -42,23 +42,15 @@
     </div>
   </nav>
   <main>
-    <div class="pagebar">
-      <div class="crumbs">
-        {%- if pagename != root_doc %}
-        <a href="{{ pathto(root_doc) }}">Docs</a>
-        {%- for parent in parents %}
-        <a href="{{ parent.link|e }}">{{ parent.title }}</a>
-        {%- endfor %}
-        <span>{{ title|striptags|e }}</span>
-        {%- endif %}
-      </div>
-      {%- if source_file %}
-      <div class="pageactions">
-        <button type="button" class="copy-page" data-src="{{ pathto('_text/' + pagename + '.txt', 1) }}">Copy page</button>
-        <a href="{{ pathto('_text/' + pagename + '.txt', 1) }}">View as text</a>
-      </div>
-      {%- endif %}
+    {%- if pagename != root_doc %}
+    <div class="crumbs">
+      <a href="{{ pathto(root_doc) }}">Docs</a>
+      {%- for parent in parents %}
+      <a href="{{ parent.link|e }}">{{ parent.title }}</a>
+      {%- endfor %}
+      <span>{{ title|striptags|e }}</span>
     </div>
+    {%- endif %}
     <article class="body" role="main">
       {% block body %}{% endblock %}
     </article>
@@ -68,7 +60,7 @@
       {%- if last_change %}
       <span>Last change: <code>{{ last_change }}</code>, {{ last_change_date }} UTC</span>
       {%- endif %}
-      <a href="{{ edit_url }}">Edit this page on GitHub</a>
+      <a href="{{ github_url }}">View on GitHub</a>
     </footer>
     {%- endif %}
   </main>

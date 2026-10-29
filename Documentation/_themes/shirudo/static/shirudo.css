@@ -123,11 +123,7 @@ code.literal { font-size: 0.9em; background: none; padding: 0; }
 
 /* page */
 main { min-width: 0; padding: 28px 0 56px; }
-.pagebar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; max-width: 780px; margin-bottom: 12px; font-size: 13px; }
-.crumbs { color: var(--muted); }
-.pageactions { display: flex; gap: 14px; margin-left: auto; }
-.pageactions a, .pageactions button { color: var(--muted); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-.pageactions a:hover, .pageactions button:hover { color: var(--accent); text-decoration: none; }
+.crumbs { max-width: 780px; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
 .crumbs a { color: var(--muted); }
 .crumbs > * + *::before { content: "/"; margin: 0 6px; color: var(--line); }
 div.body, article.body { max-width: 780px; min-width: 0; padding: 0; background: none; color: var(--fg); }

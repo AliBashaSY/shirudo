@@ -150,33 +150,6 @@
 		targets.forEach(function (t) { observer.observe(t.target); });
 	}
 
-	function copyPage() {
-		var button = document.querySelector(".copy-page");
-
-		if (!button || !navigator.clipboard || !window.fetch)
-			return;
-		button.addEventListener("click", function () {
-			var done = function (label) {
-				button.textContent = label;
-				setTimeout(function () {
-					button.textContent = "Copy page";
-				}, 1400);
-			};
-
-			fetch(button.dataset.src).then(function (response) {
-				if (!response.ok)
-					throw new Error(response.status);
-				return response.text();
-			}).then(function (text) {
-				return navigator.clipboard.writeText(text);
-			}).then(function () {
-				done("Copied");
-			}, function () {
-				done("Not available");
-			});
-		});
-	}
-
 	function search() {
 		var input = document.querySelector(".search input");
 
@@ -198,7 +171,6 @@
 		menu();
 		code();
 		spy();
-		copyPage();
 		search();
 	});
 })();

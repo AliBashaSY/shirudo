@@ -78,8 +78,8 @@ lastchange:
 	    : >"$(OUT)/lastchange.txt"; \
 	fi
 
-# The plain-text pages under _text/ are what "View as text", "Copy page"
-# and llms.txt point to, for readers that are agents.
+# The plain-text pages under _text/ are what llms.txt points to, for
+# readers that are agents.
 ifeq ($(DOCS_CONTAINER),1)
 html: image lastchange
 	$(Q)printf '  HTML    %s\n' '$(DOCS_OUT)/html'

@@ -72,7 +72,7 @@ def page_context(app, pagename, templatename, context, doctree):
     context["source_file"] = source
     context["last_change"], context["last_change_date"] = \
         CHANGES.get(source, (None, None))
-    context["edit_url"] = "%s/blob/%s/%s" % (
+    context["github_url"] = "%s/blob/%s/%s" % (
         context.get("repository"), context.get("branch"), source)
 
 
