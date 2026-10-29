@@ -3,10 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t6137 -- no traced task can exec shirudo, so no tracer carries over
-# into it. The seal's exec check refuses it with EACCES before the
-# admission check, which would refuse it with EPERM and count it as
-# ExecTraced, is reached. The traced exec is of the runtime binary
-# itself, not of the wrapper script that starts it.
+# into it; the seal's exec check refuses it with EACCES and counts it as
+# ExecTraced. The traced exec is of the runtime binary itself, not of the
+# wrapper script that starts it.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -39,16 +38,25 @@ if os.WIFSTOPPED(status):
 EOF
 }
 
+counter() {
+	"$SHIRUDO_BIN" status --json | python3 -c '
+import json, sys
+print(json.load(sys.stdin)["tamper_attempts"]["counters"][sys.argv[1]])
+' "$1"
+}
+
 test_expect_success 'a traced task execs an ordinary program' '
 	[ "$(traced_exec "$ENV" true)" = ran ]
 '
 
-test_expect_success 'a traced task cannot exec shirudo' '
+test_expect_success 'a traced task cannot exec shirudo, and the refusal is counted' '
+	before=$(counter ExecTraced) &&
 	out=$(traced_exec "$BIN" version) &&
 	[ "$out" = 13 ] || {
 		echo "traced exec of $BIN: ${out:-no outcome}"
 		false
-	}
+	} &&
+	[ "$(counter ExecTraced)" = $((before + 1)) ]
 '
 
 test_expect_success 'shirudo still runs untraced' '
