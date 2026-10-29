@@ -100,6 +100,10 @@ Reading or writing a ``.upatch``
     `upatch-spec <upatch-spec.rst>`__ is the byte-level reference for
     the signed artifact.
 
+Testing
+    `testing <testing.rst>`__ describes the test tiers, how tests are
+    numbered and grouped, how to run them, and the test VM.
+
 Contributing
     `contributing <contributing.rst>`__ covers commit messages, the
     mandatory ``Signed-off-by:`` and the kernel's tags.
