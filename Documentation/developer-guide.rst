@@ -222,10 +222,4 @@ software TPM on the host for development without a VM.
 8) Open work
 ------------
 
-The export path has room for more exact assertions: endpoint, CA,
-client-certificate and header precedence across the command line, the
-signal-specific and generic environment, the config and the defaults;
-every resource, scope and metric attribute of the OTLP payload; export
-failure and drain across timer intervals; S3 with ``AWS_CA_BUNDLE``; and
-the bounds of transport timeouts, response buffers and compression.
 ``upatch get`` is checked for the loaded source, not its JSON form.

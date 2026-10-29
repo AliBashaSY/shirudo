@@ -72,9 +72,16 @@ test_expect_success 'keepalive status severities and structured body are determi
 		"$H" send-status "http://127.0.0.1:$port" "$status" &&
 		wait "$server" &&
 		python3 - "$status" "$work/body" <<'\''PY'\'' || return 1
-import json, sys
+import json, socket, sys
 status = sys.argv[1]
-record = json.load(open(sys.argv[2]))["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0]
+rl = json.load(open(sys.argv[2]))["resourceLogs"][0]
+resource = {item["key"]: item["value"] for item in rl["resource"]["attributes"]}
+assert resource == {"service.name": {"stringValue": "shirudo"},
+                    "service.version": {"stringValue": "test-1"},
+                    "host.name": {"stringValue": socket.gethostname()}}, resource
+assert rl["scopeLogs"][0]["scope"] == {"name": "shirudo.keepalive",
+                                       "version": "test-1"}
+record = rl["scopeLogs"][0]["logRecords"][0]
 expected = {"ok": (9, "INFO"), "degraded": (13, "WARN"),
             "init-pending": (13, "WARN"), "reboot-pending": (13, "WARN"),
             "lsm-off": (17, "ERROR"),
@@ -85,8 +92,9 @@ body = {item["key"]: item["value"] for item in record["body"]["kvlistValue"]["va
 assert body["status"]["stringValue"] == status
 assert body["schema"]["intValue"] == "1"
 attrs = {item["key"]: item["value"] for item in record["attributes"]}
-assert attrs["shirudo.status"]["stringValue"] == status
-assert attrs["shirudo.tamper_attempts"]["intValue"] == "2"
+assert attrs == {"shirudo.status": {"stringValue": status},
+                 "shirudo.version_id": {"stringValue": "test-version"},
+                 "shirudo.tamper_attempts": {"intValue": "2"}}, attrs
 PY
 		rm -f "$work/port" "$work/body" "$work/meta" || return 1
 	done

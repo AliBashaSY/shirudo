@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
-"""Combined S3 PUT and OTLP log sink used by t8001."""
+"""Combined S3 PUT and OTLP log sink used by t8001 and t8105.
+
+usage: otel-s3-mock.py <mode> <port-file> <snapshot-file> <log-file>
+                       <meta-file> [<cert.pem> <key.pem>]
+
+With a certificate and key both sinks speak HTTPS.
+"""
 
 import gzip
 import hashlib
@@ -9,11 +15,13 @@ import hmac
 import http.server
 import json
 import pathlib
+import ssl
 import sys
 import time
 
 
 mode, port_file, snapshot_file, log_file, meta_file = sys.argv[1:6]
+tls = sys.argv[6:8]
 requests = []
 put_attempts = 0
 
@@ -146,6 +154,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+if tls:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(tls[0], tls[1])
+    server.socket = context.wrap_socket(server.socket, server_side=True)
 server.timeout = 5
 server.done = False
 pathlib.Path(port_file).write_text(str(server.server_port))

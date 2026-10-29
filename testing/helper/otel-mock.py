@@ -3,8 +3,8 @@
 # Copyright (c) 2026 Authors of shirudo
 """OTLP/HTTP sink for the exporter tests.
 
-usage: otel-mock.py <success|retry|partial> <port-file> <body-file>
-                    <meta-file> [<cert.pem> <key.pem>]
+usage: otel-mock.py <success|retry|partial|...> <port-file> <body-file>
+                    <meta-file> [<cert.pem> <key.pem> [<client-ca.pem>]]
 
 Listens on an ephemeral loopback port (written to <port-file> once
 bound), serves until the exchange the mode describes is complete, then
@@ -14,11 +14,15 @@ exits 0 so a test can `wait` for it:
   retry    the first two requests fail with 503, the third succeeds
   partial  the first request gets 200 with a partialSuccess body, which
            the exporter must treat as a non-retryable failure
+  big-ok   the first request gets 200 with a 65535-byte JSON body
+  big-over the first request gets 200 with a 65536-byte JSON body
 
 The last request body (gzip-decoded when announced) is written as JSON
-to <body-file>; <meta-file> records the attempt count, the request path
-and, when sent, the Authorization and Content-Encoding headers. With a
-certificate and key the sink speaks HTTPS.
+to <body-file>; <meta-file> records the attempt count, the request path,
+every request header and, when sent, the Authorization and
+Content-Encoding headers. With a certificate and key the sink speaks
+HTTPS; with a client CA too it requires a client certificate that CA
+issued and records its common name.
 """
 
 import gzip
@@ -32,7 +36,7 @@ import time
 
 
 mode, port_file, body_file, meta_file = sys.argv[1:5]
-tls = sys.argv[5:7]
+tls = sys.argv[5:8]
 attempts = 0
 meta = {}
 request_times = []
@@ -65,7 +69,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.headers.get("Content-Encoding", "").lower() == "gzip":
             raw = gzip.decompress(raw)
         meta = {"attempts": attempts, "path": self.path,
-                "raw_bytes": len(raw)}
+                "raw_bytes": len(raw),
+                "headers": {k.lower(): v for k, v in self.headers.items()}}
+        if len(tls) == 3:
+            subject = dict(item[0] for item in
+                           self.connection.getpeercert()["subject"])
+            meta["client"] = subject.get("commonName", "")
         if len(request_times) > 1:
             meta["interval_ms"] = round(
                 (request_times[-1] - request_times[-2]) * 1000)
@@ -115,6 +124,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.reply(200, {"partialSuccess": {"rejectedLogRecords": "0"}})
         elif mode == "malformed":
             self.reply(200, b"not-json")
+        elif mode in {"big-ok", "big-over"}:
+            size = 65535 if mode == "big-ok" else 65536
+            pad = size - len(b'{"pad":""}')
+            self.reply(200, b'{"pad":"' + b"x" * pad + b'"}')
         elif mode == "partial":
             self.reply(200, {"partialSuccess": {"rejectedLogRecords": 1,
                                                  "errorMessage": "rejected by mock"}})
@@ -128,6 +141,9 @@ server.done = False
 if tls:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(tls[0], tls[1])
+    if len(tls) == 3:
+        context.verify_mode = ssl.CERT_REQUIRED
+        context.load_verify_locations(tls[2])
     server.socket = context.wrap_socket(server.socket, server_side=True)
 pathlib.Path(port_file).write_text(f"{server.server_address[1]}\n")
 server.timeout = 0.25

@@ -13,33 +13,32 @@ trap 'rm -rf "$W"' EXIT
 cd "$W" || exit 1
 
 test_expect_success 'OTLP CLI options reject invalid combinations early' '
-	! "$S" upatch map --otel-retries=11 >/dev/null 2>&1 &&
-	! "$S" upatch map --otel-insecure >/dev/null 2>&1 &&
-	! "$S" upatch map --otel=log --metric-kind=gauge >/dev/null 2>&1 &&
-	! "$S" upatch map --otel=s3 --metric-kind=gauge >/dev/null 2>&1 &&
-	! "$S" upatch map --otel=s3 >/dev/null 2>&1 &&
-	! "$S" upatch map --otel=log --s3-uri=s3://bucket >/dev/null 2>&1 &&
-	! "$S" upatch map --all unexpected >/dev/null 2>&1 &&
-	! "$S" upatch map --all --otel --metric-name=shared \
-		>/dev/null 2>&1 &&
-	! "$S" upatch map --tenant-id=tenant-uuid-1234 \
-		>/dev/null 2>&1 &&
-	! "$S" upatch map --otel=log --tenant-id="bad tenant" \
-		>/dev/null 2>&1 &&
-	! "$S" upatch map --otel=log --tenant-id=one --tenant-id=two \
-		>/dev/null 2>&1 &&
-	! "$S" upatch map --emit=otel >/dev/null 2>&1
+	for args in "--otel-retries=11" "--otel --otel-retries=" \
+		    "--otel-insecure" "--tenant-id=tenant-uuid-1234" \
+		    "--s3-uri=s3://bucket" "--otel-endpoint=http://127.0.0.1:1" \
+		    "--otel" "--otel --otel" "--otel --otel-endpoint=" \
+		    "--otel --tenant-id=bad/tenant" \
+		    "--otel --tenant-id=one --tenant-id=two" \
+		    "--otel=s3" "--all unexpected"; do
+		rc=0
+		"$S" upatch map $args >/dev/null 2>&1 || rc=$?
+		[ "$rc" = 2 ] || {
+			echo "upatch map $args: exit $rc"
+			return 1
+		}
+	done
 '
 
-test_expect_success 'explicit OTEL modes and JSON combination reach map read' '
-	"$S" upatch map missing values \
-		--json=combined.ndjson --otel=log \
+test_expect_success 'a map that cannot be read fails before any export or JSON line' '
+	rc=0
+	"$S" upatch map missing values --json=combined.ndjson --otel \
 		--tenant-id=tenant-uuid-1234 \
-		--otel-endpoint=http://127.0.0.1:4318 >/dev/null 2>&1;
-	test $? -eq 1 && test ! -e combined.ndjson &&
-	"$S" upatch map missing values --otel=s3 \
-		--s3-uri=s3://test-bucket/prefix >/dev/null 2>&1;
-	test $? -eq 1
+		--otel-endpoint=http://127.0.0.1:1 >/dev/null 2>&1 || rc=$?
+	[ "$rc" = 1 ] && [ ! -e combined.ndjson ] || return 1
+	rc=0
+	"$S" upatch map missing values --otel \
+		--s3-uri=s3://test-bucket/prefix >/dev/null 2>&1 || rc=$?
+	[ "$rc" = 1 ]
 '
 
 test_expect_success 'automatic OTLP signal classification is structural' '
@@ -64,25 +63,35 @@ assert entry["sum"] == "12"
 
 test_expect_success 'structured OTLP log preserves aligned per-CPU values' '
 	"$H" log | python3 -c '\''
-import json,sys
+import json,socket,sys
 d=json.load(sys.stdin)
 assert set(d) == {"resourceLogs"}
 rl=d["resourceLogs"][0]
 assert set(rl) == {"resource", "scopeLogs"}
 resource={x["key"]:x["value"] for x in rl["resource"]["attributes"]}
-assert set(resource) == {"service.name", "service.version", "host.name"}
-assert resource["service.name"]["stringValue"] == "shirudo"
+assert resource == {"service.name": {"stringValue": "shirudo"},
+                    "service.version": {"stringValue": "test-1"},
+                    "host.name": {"stringValue": socket.gethostname()}}, resource
 sl=rl["scopeLogs"][0]
 assert set(sl) == {"scope", "logRecords"}
-assert sl["scope"]["name"] == "shirudo.upatch.maps"
-assert set(sl["scope"]) == {"name", "version"}
+assert sl["scope"] == {"name": "shirudo.upatch.maps", "version": "test-1"}
 r=sl["logRecords"][0]
 assert set(r) == {"timeUnixNano", "observedTimeUnixNano", "severityNumber", "severityText", "eventName", "body", "attributes"}
 assert r["timeUnixNano"].isdigit() and r["observedTimeUnixNano"].isdigit()
 assert r["severityNumber"] == 9 and r["severityText"] == "INFO"
 assert r["eventName"] == "shirudo.bpf.map.snapshot"
 attrs={x["key"]:x["value"] for x in r["attributes"]}
-assert set(attrs) == {"shirudo.upatch.name", "shirudo.upatch.location", "shirudo.map.name", "shirudo.map.type", "shirudo.map.max_entries", "shirudo.map.n_entries", "shirudo.map.n_cpus", "shirudo.map.serialized", "shirudo.map.truncated"}
+assert attrs == {
+    "shirudo.upatch.name": {"stringValue": "test-upatch"},
+    "shirudo.upatch.location": {"stringValue": "fentry/test_hook"},
+    "shirudo.map.name": {"stringValue": "hits_total"},
+    "shirudo.map.type": {"stringValue": "percpu_array"},
+    "shirudo.map.max_entries": {"intValue": "1"},
+    "shirudo.map.n_entries": {"intValue": "1"},
+    "shirudo.map.n_cpus": {"intValue": "2"},
+    "shirudo.map.serialized": {"boolValue": False},
+    "shirudo.map.truncated": {"boolValue": False},
+}, attrs
 vals=r["body"]["kvlistValue"]["values"]
 root={x["key"]:x["value"] for x in vals}
 data={x["key"]:x["value"] for x in root["data"]["kvlistValue"]["values"]}
@@ -90,10 +99,6 @@ entry=data["entries"]["arrayValue"]["values"][0]["kvlistValue"]["values"]
 entry={x["key"]:x["value"] for x in entry}
 assert [x["stringValue"] for x in entry["values_per_cpu"]["arrayValue"]["values"]] == ["5", "7"]
 assert entry["sum"]["stringValue"] == "12"
-attrs={x["key"]:x["value"] for x in r["attributes"]}
-assert attrs["shirudo.upatch.name"]["stringValue"] == "test-upatch"
-assert attrs["shirudo.upatch.location"]["stringValue"] == "fentry/test_hook"
-assert attrs["shirudo.map.name"]["stringValue"] == "hits_total"
 '\''
 '
 
@@ -109,9 +114,21 @@ assert attrs["shirudo.upatch.location"]["stringValue"] == ""
 
 test_expect_success 'OTLP metric emits one aggregated gauge point' '
 	"$H" metric | python3 -c '\''
-import json,sys
+import json,socket,sys
 d=json.load(sys.stdin)
-m=d["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0]
+assert set(d) == {"resourceMetrics"}
+rm=d["resourceMetrics"][0]
+assert set(rm) == {"resource", "scopeMetrics"}
+resource={x["key"]:x["value"] for x in rm["resource"]["attributes"]}
+assert resource == {"service.name": {"stringValue": "shirudo"},
+                    "service.version": {"stringValue": "test-1"},
+                    "host.name": {"stringValue": socket.gethostname()}}, resource
+sm=rm["scopeMetrics"][0]
+assert set(sm) == {"scope", "metrics"}
+assert sm["scope"] == {"name": "shirudo.upatch.maps", "version": "test-1"}
+assert len(sm["metrics"]) == 1
+m=sm["metrics"][0]
+assert m["unit"] == "1"
 assert m["name"] == "shirudo.test.hits"
 p=m["gauge"]["dataPoints"][0]
 assert p["asInt"] == "12"
@@ -401,12 +418,27 @@ record=log["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0]
 assert record["eventName"] == "shirudo.bpf.map.snapshot.reference"
 assert set(record["body"]) == {"stringValue"}
 attrs={x["key"]:x["value"] for x in record["attributes"]}
-assert attrs["shirudo.upatch.name"]["stringValue"] == "test-upatch"
-assert attrs["shirudo.upatch.location"]["stringValue"] == "fentry/test_hook"
-assert attrs["shirudo.map.name"]["stringValue"] == "hits_total"
-uri=attrs["shirudo.map.snapshot.uri"]["stringValue"]
+uri=attrs.pop("shirudo.map.snapshot.uri")["stringValue"]
 assert uri.startswith("s3://test-bucket/prefix/") and uri.endswith(digest+".json.gz")
-assert attrs["shirudo.map.snapshot.sha256"]["stringValue"] == digest
+assert record["body"]["stringValue"] == "BPF map snapshot stored in S3: " + uri
+assert attrs == {
+    "shirudo.upatch.name": {"stringValue": "test-upatch"},
+    "shirudo.upatch.location": {"stringValue": "fentry/test_hook"},
+    "shirudo.map.name": {"stringValue": "hits_total"},
+    "shirudo.map.type": {"stringValue": "percpu_array"},
+    "shirudo.map.max_entries": {"intValue": "1"},
+    "shirudo.map.n_entries": {"intValue": "1"},
+    "shirudo.map.n_cpus": {"intValue": "2"},
+    "shirudo.map.serialized": {"boolValue": False},
+    "shirudo.map.truncated": {"boolValue": False},
+    "shirudo.map.snapshot.format": {"stringValue": "shirudo.map.v1+json"},
+    "shirudo.map.snapshot.content_type": {"stringValue": "application/json"},
+    "shirudo.map.snapshot.content_encoding": {"stringValue": "gzip"},
+    "shirudo.map.snapshot.size_bytes": {"intValue": str(len(raw))},
+    "shirudo.map.snapshot.uncompressed_size_bytes":
+        {"intValue": str(len(gzip.decompress(raw)))},
+    "shirudo.map.snapshot.sha256": {"stringValue": digest},
+}, attrs
 assert len(open("s3.log","rb").read()) < 16384
 '\''
 '
