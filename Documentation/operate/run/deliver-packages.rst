@@ -17,7 +17,8 @@ and how the timers and the upatch tree deliver them without you.
 How a package reaches a target
 ------------------------------
 
-Delivery is a pull in four steps:
+Delivery is a pull in four steps, which Figure 1 shows together with
+the upatch tree:
 
 #. On the operator host, ``shirudo bpm push`` publishes the package and
    a signed entry in the repository index ``shirudo/bpm-index:stable``.
@@ -41,6 +42,15 @@ each run ends. A version you push to a repository index therefore
 reaches every target that follows the repository about a minute later,
 with nobody logged in. Treat every push to an index as a fleet-wide
 rollout.
+
+.. figure:: /images/operate-package-delivery.svg
+   :alt: The operator host builds and pushes a package, a signed index
+         entry and, optionally, a signed tree operation to an OCI
+         registry. On the target, timers update the indexes, upgrade
+         the packages and sync the tree; each load is checked by the
+         kernel and measured by the TPM.
+
+   Figure 1. How a package and a tree operation reach a target.
 
 What is configured where
 ------------------------
@@ -357,7 +367,8 @@ node labels, so one publication serves a mixed fleet.
 boot and every 60 seconds after that. Without a tree configuration the
 command exits 0 and does nothing. Each applied operation is measured.
 
-Keep these rules of the tree in mind:
+Keep these rules of the tree in mind. Figure 2 shows them on one
+publication:
 
 - A sync moves the target's cursor past an operation whose selectors do
   not match. The target never applies that operation later, even when
@@ -369,6 +380,15 @@ Keep these rules of the tree in mind:
   image's primary certificate, ``keys/cert.der``. A vouched key cannot
   sign them, and revoking the primary in the signed config does not stop
   them. :doc:`/operate/maintain/keys` describes the limit.
+
+.. figure:: /images/operate-tree-selectors.svg
+   :alt: A target with kernel 7.4.0 on x86_64 and the label env=prod
+         applies the operations with no selector or a matching
+         kernel release, skips those for aarch64 and for env=canary,
+         and ends with last_seq at the last operation.
+
+   Figure 2. One target going through a tree publication. Skipped
+   operations stay skipped.
 
 Timers and locks
 ----------------

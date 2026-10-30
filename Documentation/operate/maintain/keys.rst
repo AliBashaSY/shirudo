@@ -33,6 +33,21 @@ Before you begin
 Key inventory
 -------------
 
+Figure 1 shows how ``init`` builds the kernel's two keyrings from the
+runtime image and the config image, and which key checks what. The
+table lists every key.
+
+.. figure:: /images/operate-key-trust.svg
+   :alt: The .bpf keyring holds the runtime image's primary certificate
+         and the config image's vouched certificates minus its
+         revocations; the .dm-verity keyring holds the runtime image's
+         config certificate. Tree publications verify against the
+         primary alone, package indexes against their repository
+         certificate.
+
+   Figure 1. The keys a target trusts and the keyrings ``init`` builds
+   from them.
+
 .. list-table::
    :header-rows: 1
    :widths: 22 28 50

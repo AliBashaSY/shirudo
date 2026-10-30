@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" width="760" height="360" font-family="sans-serif" role="img" aria-labelledby="t">
+  <title id="t">The operator host builds and pushes packages, a signed index and tree operations to an OCI registry; the target's timers pull them, verify them and load the upatches, which the kernel checks and the TPM measures</title>
+  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
+    </marker>
+  </defs>
+  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
+    <rect x="10" y="40" width="200" height="270" rx="6" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="250" y="40" width="200" height="270" rx="6" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="265" y="96" width="170" height="54" rx="4"/>
+    <rect x="265" y="164" width="170" height="40" rx="4"/>
+    <rect x="265" y="218" width="170" height="54" rx="4"/>
+    <rect x="490" y="10" width="260" height="340" rx="6" stroke-dasharray="6 4"/>
+    <rect x="505" y="44" width="230" height="208" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <rect x="505" y="268" width="230" height="70" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
+    <line x1="210" y1="175" x2="248" y2="175" marker-end="url(#arrow)"/>
+    <line x1="450" y1="175" x2="503" y2="175" marker-end="url(#arrow)"/>
+    <line x1="620" y1="252" x2="620" y2="266" marker-end="url(#arrow)"/>
+  </g>
+  <g fill="#5d6675" font-size="11">
+    <text x="502" y="32" font-size="12">target</text>
+    <g text-anchor="middle">
+      <text x="110" y="64" font-size="13">Operator host</text>
+      <text x="350" y="64" font-size="13">OCI registry</text>
+      <text x="350" y="82">one endpoint per repository</text>
+      <text x="350" y="119">shirudo/bpm-index:stable</text>
+      <text x="350" y="137">index and its signature</text>
+      <text x="350" y="188">packages (.bee)</text>
+      <text x="350" y="241">upatch tree</text>
+      <text x="350" y="259">publication and artifacts</text>
+      <text x="620" y="66" font-size="13">Timers</text>
+      <text x="620" y="291" font-size="13">Kernel and TPM</text>
+      <text x="620" y="310">signature checked against .bpf</text>
+      <text x="620" y="326">register extended per load</text>
+      <text x="229" y="167">push</text>
+      <text x="476" y="167">pull</text>
+    </g>
+    <text x="22" y="100">1</text>
+    <text x="37" y="100">shirudo bpm build</text>
+    <text x="37" y="116">&lt;name&gt;-&lt;version&gt;.bee</text>
+    <text x="22" y="146">2</text>
+    <text x="37" y="146">shirudo bpm push</text>
+    <text x="37" y="162">package and a signed</text>
+    <text x="37" y="178">index entry</text>
+    <text x="22" y="208">3</text>
+    <text x="37" y="208">shirudo bpm tree append</text>
+    <text x="37" y="224">a signed tree operation,</text>
+    <text x="37" y="240">optional</text>
+    <text x="517" y="92">4</text>
+    <text x="532" y="92">bpm repo update, every minute:</text>
+    <text x="532" y="108">verify each index against its</text>
+    <text x="532" y="124">repository certificate, cache it</text>
+    <text x="517" y="150">5</text>
+    <text x="532" y="150">bpm upgrade: for a newer</text>
+    <text x="532" y="166">version, check the digest and</text>
+    <text x="532" y="182">load each upatch</text>
+    <text x="517" y="208">6</text>
+    <text x="532" y="208">bpm tree sync, every minute:</text>
+    <text x="532" y="224">verify against the primary,</text>
+    <text x="532" y="240">apply matching operations</text>
+  </g>
+</svg>
