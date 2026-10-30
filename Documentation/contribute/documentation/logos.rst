@@ -33,7 +33,7 @@ The symbol and the name, for wherever there is room.
 For light backgrounds:
 :download:`SVG </logos/shirudo-horizontal-for-light-back.svg>`,
 :download:`PNG </logos/shirudo-horizontal-for-light-back.png>`
-(1600 × 348 pixels)
+(1803 × 392 pixels)
 
 .. container:: logo-tile logo-dark
 
@@ -44,7 +44,7 @@ For light backgrounds:
 For dark backgrounds:
 :download:`SVG </logos/shirudo-horizontal-for-dark-back.svg>`,
 :download:`PNG </logos/shirudo-horizontal-for-dark-back.png>`
-(1600 × 348 pixels)
+(1803 × 392 pixels)
 
 Inline
 ~~~~~~
