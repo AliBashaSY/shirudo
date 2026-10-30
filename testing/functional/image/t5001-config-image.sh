@@ -265,10 +265,18 @@ if command -v mkfs.ext4 >/dev/null 2>&1 && command -v debugfs >/dev/null 2>&1; t
 		mkdir -p "$W/config-root/etc/shirudo" &&
 		printf "eventlog.max_bytes = 12345\n" >"$W/config-root/etc/shirudo/shirudo.conf" &&
 		../tools/gen-image/shirudo-gen-image --source "$W/config-root" \
-			--output "$W/generated-config" --keys-dir "$W/keys" --builder "$B" --size 8 &&
+			--output "$W/generated-config" --keys-dir "$W/keys" --builder "$B" &&
+		test "$(stat -c %s "$W/generated-config.img")" -eq 1048576 &&
 		verify "$W/generated-config" "$W/keys/cert.der" &&
 		debugfs -R "cat /etc/shirudo/shirudo.conf" "$W/generated-config.img" 2>/dev/null |
 			grep -qx "eventlog.max_bytes = 12345"
+	'
+	test_expect_success 'an image size below 1 MiB is refused' '
+		! ../tools/gen-image/shirudo-gen-image --source "$W/config-root" \
+			--output "$W/zero" --keys-dir "$W/keys" --builder "$B" --size 0 \
+			2>"$W/zero.err" &&
+		grep -q "between 1 and 1048576 MiB" "$W/zero.err" &&
+		! test -e "$W/zero.img"
 	'
 
 	test_expect_success 'runtime generator includes interpreter, public keys and trusted probe' '

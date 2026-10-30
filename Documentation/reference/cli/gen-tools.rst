@@ -82,8 +82,8 @@ raise --size``. Requires ``mkfs.ext4`` and ``veritysetup``.
      - ``config``
      - ``config`` or ``runtime``.
    * - ``--size``
-     - 64
-     - File system size in MiB, 8 to 1048576.
+     - 1
+     - File system size in MiB, 1 to 1048576.
    * - ``--builder``
      - ``$SHIRUDO_BUILD``, else ``shirudo-build``
      - The helper that signs the root hash.
@@ -149,7 +149,7 @@ trusted binaries. Requires ``readelf``, ``ldd`` and ``llvm-strip``.
      - Operator keys directory that signs the image.
    * - ``--size``
      - 15
-     - File system size in MiB, 8 to 1048576. The default holds the
+     - File system size in MiB, 1 to 1048576. The default holds the
        stripped static target binary and its certificates. A dynamic
        binary with its libraries or an ``--extra-binary`` may need more.
    * - ``--builder``

@@ -130,7 +130,7 @@ for name in config-boot-keys config-live-new-key config-a config-b config-bad co
 		cp "$builtin_cert" "$output/public/builtin.der"
 	else
 		"$source_dir/tools/gen-image/shirudo-gen-image" --source "$root" \
-			--output "$output/public/$name" --keys-dir "$keys_dir" --size 8 \
+			--output "$output/public/$name" --keys-dir "$keys_dir" \
 			--builder "$builder" >"$output/$name-build.log" 2>&1
 	fi
 	SHIRUDO_BUILD="$builder" "$operator" image verify "$output/public/$name" \

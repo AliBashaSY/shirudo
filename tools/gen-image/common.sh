@@ -27,8 +27,8 @@ check_image_options()
 	[ -n "$keys_dir" ] && [ -d "$keys_dir" ] ||
 		die '--keys-dir needs a directory'
 	case "$size" in ''|*[!0-9]*) die '--size must be an integer in MiB' ;; esac
-	[ "${#size}" -le 7 ] && [ "$size" -ge 8 ] && [ "$size" -le 1048576 ] ||
-		die '--size must be between 8 and 1048576 MiB'
+	[ "${#size}" -le 7 ] && [ "$size" -ge 1 ] && [ "$size" -le 1048576 ] ||
+		die '--size must be between 1 and 1048576 MiB'
 	for suffix in .img .verity .roothash .p7s; do
 		require_new_output "$output$suffix"
 	done
