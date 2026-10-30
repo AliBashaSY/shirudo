@@ -166,11 +166,50 @@
 		});
 	}
 
+	/*
+	 * An explicit choice overrides the system preference and is kept per
+	 * browser; storage can be unavailable, in which case it lasts the page.
+	 */
+	function theme() {
+		var button = document.querySelector(".theme-toggle");
+		var root = document.documentElement;
+		var media = window.matchMedia("(prefers-color-scheme: dark)");
+
+		if (!button)
+			return;
+		var current = function () {
+			return root.getAttribute("data-theme") ||
+			       (media.matches ? "dark" : "light");
+		};
+		var label = function () {
+			var next = current() === "dark" ? "light" : "dark";
+
+			button.textContent = next === "dark" ? "Dark" : "Light";
+			button.setAttribute("aria-label", "Switch to the " + next +
+					    " theme");
+		};
+		button.addEventListener("click", function () {
+			var next = current() === "dark" ? "light" : "dark";
+
+			root.setAttribute("data-theme", next);
+			try {
+				localStorage.setItem("shirudo-theme", next);
+			} catch (e) {
+				/* the choice then lasts until the page is left */
+			}
+			label();
+		});
+		media.addEventListener("change", label);
+		label();
+		button.hidden = false;
+	}
+
 	document.addEventListener("DOMContentLoaded", function () {
 		tree();
 		menu();
 		code();
 		spy();
 		search();
+		theme();
 	});
 })();

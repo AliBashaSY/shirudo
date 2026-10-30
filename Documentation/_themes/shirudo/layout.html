@@ -8,6 +8,7 @@
 
 {%- block extrahead %}
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try { var t = localStorage.getItem("shirudo-theme"); if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t); } catch (e) {}</script>
 <script src="{{ pathto('_static/shirudo.js', 1) }}" defer></script>
 {%- endblock %}
 
@@ -27,6 +28,7 @@
         <input type="search" name="q" placeholder="Search docs" aria-label="Search the documentation">
         <kbd>/</kbd>
       </form>
+      <button class="theme-toggle" type="button" hidden></button>
       <a class="gh" href="{{ repository }}">GitHub</a>
     </div>
   </div>

@@ -39,7 +39,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bar: #fff;
     --bar-fg: #5d6675;
     --bar-hi: #171b22;
@@ -62,6 +62,30 @@
     --stop-line: #6f2e28;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bar: #fff;
+  --bar-fg: #5d6675;
+  --bar-hi: #171b22;
+  --bar-dim: #8a93a0;
+  --bar-field: #f4f6f8;
+  --bar-line: #e2e6eb;
+  --logo-light-back: block;
+  --logo-dark-back: none;
+  --bg: #0e1116;
+  --soft: #161b22;
+  --fg: #e4e8ee;
+  --muted: #9ba5b3;
+  --line: #262d37;
+  --accent: #e8899f;
+  --accent-soft: #3a1b25;
+  --code-bg: #080a0d;
+  --warn-bg: #261f10;
+  --warn-line: #6e5520;
+  --stop-bg: #2a1614;
+  --stop-line: #6f2e28;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -90,6 +114,8 @@ code.literal { font-size: 0.9em; background: none; padding: 0; }
 .search kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--bar-dim); }
 .gh { color: var(--bar-fg); font-size: 13.5px; }
 .gh:hover { color: var(--bar-hi); text-decoration: none; }
+.theme-toggle { background: none; border: 0; padding: 0; cursor: pointer; color: var(--bar-fg); font: 400 13.5px var(--sans); }
+.theme-toggle:hover { color: var(--bar-hi); }
 
 /* columns */
 .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr) 220px; gap: 48px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
