@@ -1,0 +1,166 @@
+..
+   SPDX-License-Identifier: BSD-2-Clause
+   Copyright (c) 2026 Authors of shirudo
+
+:page-type: Reference
+:audience: shirudo contributors
+
+Arch support
+============
+
+shirudo targets x86-64, arm64 and riscv64, and its code is written for
+all three. The project is under heavy development, and the three are not
+at the same stage yet: CI builds and tests x86-64, the test VM also runs
+on arm64 but CI does not, and no riscv64 target has booted shirudo so
+far. Some of the gaps are in shirudo, others in the kernel. This page
+lists both for anyone who wants to help close them.
+
+Kernel facts on this page come from the bpf-next tree the test kernel
+builds. A later kernel can differ.
+
+Comparison
+----------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 26 26 26
+
+   * - Area
+     - x86-64
+     - arm64
+     - riscv64
+   * - CI
+     - Every tier on every push
+     - None
+     - None
+   * - Test VM
+     - Boots on x86-64 hosts
+     - Boots on arm64 hosts; ``t1007`` checks its settings without
+       booting
+     - None; ``testing/vm/arch.sh`` refuses the architecture
+   * - Packages
+     - Built in CI
+     - Not built in CI
+     - Not built in CI
+   * - Toolchain hardening beyond the common flags
+     - Stack-clash protection, call-used register zeroing,
+       ``-fcf-protection=full``
+     - Stack-clash protection, call-used register zeroing,
+       ``-mbranch-protection=standard``
+     - None
+   * - Carried kernel patches
+     - ``kernel/0001`` and ``kernel/0002``
+     - ``kernel/0002``
+     - ``kernel/0002``
+   * - BPF trampolines (``lsm``, ``fentry``, ``fexit``, ``fmod_ret``)
+     - 36 programs per function
+     - 37 programs per function
+     - 38 programs per function, and only on a kernel built without
+       ``CONFIG_CFI``
+   * - BPF arenas
+     - Yes
+     - Yes; atomic read-modify-write on arena memory needs the LSE
+       atomics of ARMv8.1
+     - Only on CPUs with the Zacas extension, on a kernel built with
+       ``CONFIG_RISCV_ISA_ZACAS``
+   * - BPF stack per program
+     - 2 KiB
+     - 2 KiB
+     - 512 bytes
+   * - BPF exceptions and private stacks
+     - Yes; exceptions need the ORC unwinder
+     - Yes
+     - No
+   * - ``kprobe`` at a function's entry
+     - Through ftrace
+     - Through a breakpoint
+     - Through a breakpoint
+   * - Example packages
+     - ``kernel-obs`` and ``kernel-cve``
+     - ``kernel-obs`` on CPUs with LSE atomics
+     - ``kernel-obs`` on CPUs with Zacas, untested
+
+x86-64
+------
+
+- Targets need ``kernel/0001``. Without it, a kernel whose functions can
+  start at an odd address, such as one built with gcc 13 and
+  ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``, can crash when a BPF trampoline is
+  installed. :doc:`/internals/kernel-patches` explains the bug.
+- ``kernel-cve`` defines ``__TARGET_ARCH_x86`` for its ``kprobe``
+  programs and loads on x86-64 only.
+
+arm64
+-----
+
+- CI does not run on arm64, so nothing catches a regression there before
+  someone boots the test VM on an arm64 host.
+- The arena tables of ``kernel-obs`` count and link their records with
+  atomic fetch-and-add and compare-and-exchange on arena memory. The arm64
+  JIT translates those only with the LSE atomics of ARMv8.1, so the
+  package does not load on ARMv8.0 cores such as Cortex-A53 and
+  Cortex-A72.
+- A ``kprobe`` on a function's entry goes through a breakpoint exception
+  rather than ftrace, because arm64 has no kprobes on ftrace.
+
+riscv64
+-------
+
+- Nothing has booted a riscv64 target yet: there is no test VM, no CI
+  run and no package. The build has riscv64 settings, but no one runs
+  it.
+- The toolchain hardening flags that x86-64 and arm64 get have no
+  riscv64 counterpart in the build.
+- All of shirudo's enforcement attaches through BPF trampolines. On
+  riscv64 the kernel reaches a trampoline on a function that ftrace
+  manages only through ftrace call ops, and it leaves call ops out of a
+  kernel built with ``CONFIG_CFI``. Such a kernel refuses the attach
+  with ``ENOTSUPP``, so ``init`` cannot bring enforcement up. This is a
+  reading of the kernel source.
+- The riscv64 JIT supports arenas only when the CPU has the Zacas
+  extension and the kernel is built with ``CONFIG_RISCV_ISA_ZACAS``: the
+  arena allocator needs a 128-bit compare-and-exchange, and so does
+  compare-and-exchange on arena memory. ``kernel-obs`` and every other
+  upatch with an arena need it.
+- The riscv64 JIT keeps BPF programs to 512 bytes of stack, where x86-64
+  and arm64 allow 2 KiB, and supports neither BPF exceptions nor private
+  stacks. Whether shirudo's own programs and ``kernel-obs`` stay within
+  512 bytes has not been checked.
+
+Open work
+---------
+
+shirudo
+~~~~~~~
+
+- Run the CI tiers on arm64, with the test VM booting on an arm64
+  runner.
+- Add riscv64 to the test VM in ``testing/vm/arch.sh`` and
+  ``testing/vm/build-kernel.sh``, and boot a first riscv64 target with a
+  TPM.
+- Build the target binary and the packages for arm64 and riscv64 in CI.
+- Check that every library the target links builds and runs on
+  riscv64, LuaJIT included.
+- Check the BPF stack use of shirudo's programs and of ``kernel-obs``
+  against the 512 bytes of riscv64.
+- Let ``kprobe`` upatches build for more than one architecture.
+  ``shirudo build`` passes no ``__TARGET_ARCH_*`` define, so the source
+  picks one, as ``kernel-cve`` picks x86-64.
+
+Linux kernel
+~~~~~~~~~~~~
+
+- Get ``kernel/0001`` and ``kernel/0002`` upstream. Neither is in
+  bpf-next; :doc:`/internals/kernel-patches` describes both.
+- riscv64: BPF trampolines on a kernel built with ``CONFIG_CFI``.
+- riscv64: arenas on CPUs without Zacas.
+- riscv64: large stacks, exceptions and private stacks in the BPF JIT.
+- arm64: arena atomics on ARMv8.0 CPUs without LSE atomics.
+
+Related
+-------
+
+- :doc:`/operate/plan/system-requirements`
+- :doc:`/operate/plan/scalability`
+- :doc:`/contribute/testing/test-coverage`
+- :doc:`/internals/kernel-patches`

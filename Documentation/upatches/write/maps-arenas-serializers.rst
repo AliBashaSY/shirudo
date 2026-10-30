@@ -52,8 +52,9 @@ Userspace cannot iterate an arena through ``bpf()``: the kernel has no
 key walk for it, and ``shirudo upatch map`` reports such a map as one
 whose contents require a serializer. A program uses at most one arena, so
 an upatch keeps all its tables in one. The arena needs a 64-bit kernel
-with an MMU and a BPF JIT that supports arenas, which x86-64, arm64 and
-riscv64 have.
+with an MMU and a BPF JIT that supports arenas: x86-64, arm64, and
+riscv64 on CPUs with the Zacas extension. :doc:`/contribute/arch-support`
+lists the conditions.
 
 obs_table.h template
 --------------------

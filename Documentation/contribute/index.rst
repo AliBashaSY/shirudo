@@ -23,6 +23,8 @@ questions and report problems.
   style, and commits and sign-off
 - :doc:`testing/index`: run and write tests, and test coverage
 - :doc:`documentation/index`: writing docs and the logos
+- :doc:`arch-support`: the state of x86-64, arm64 and riscv64, and the
+  open work on each
 - :doc:`support`: where to ask questions and report problems
 
 .. toctree::
@@ -31,4 +33,5 @@ questions and report problems.
    code/index
    testing/index
    documentation/index
+   arch-support
    support

@@ -33,6 +33,9 @@ Architectures
 
 All three are little-endian, the byte order of the ``.upatch`` container.
 
+:doc:`/contribute/arch-support` compares how far each architecture is
+tested and what the kernel supports on it.
+
 Target kernel
 -------------
 
