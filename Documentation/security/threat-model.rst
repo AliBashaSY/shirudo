@@ -77,7 +77,7 @@ Security goals
      - Goal
      - Threats
    * - G1
-     - After ``init`` has attached the gates, every eBPF program that a
+     - After ``init`` has attached the gates, every BPF program that a
        userspace process loads through ``bpf()`` is a signed loader the
        kernel verified against the sealed ``.bpf`` keyring, or a
        program such a loader loads.

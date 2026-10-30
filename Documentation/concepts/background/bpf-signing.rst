@@ -214,8 +214,8 @@ them before their admission programs attach; production targets
 authenticate them as part of the initrd. See
 :doc:`/internals/boot-flow`.
 
-Signing covers eBPF loaded through ``bpf()``. Classic BPF filters, such
-as seccomp filters and socket filters attached with ``SO_ATTACH_FILTER``,
-do not pass through it. The kernel verifies the instructions and folded
-metadata as one buffer of at most about 16 MiB. The threat model lists
-the residual risks: :doc:`/security/threat-model`.
+Signing covers BPF programs loaded through ``bpf()``. Classic BPF
+filters, such as seccomp filters and socket filters attached with
+``SO_ATTACH_FILTER``, do not pass through it. The kernel verifies the
+instructions and folded metadata as one buffer of at most about 16 MiB.
+The threat model lists the residual risks: :doc:`/security/threat-model`.

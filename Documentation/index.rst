@@ -104,6 +104,11 @@ stops.
 Documentation
 -------------
 
+Note: BPF and eBPF are two names for the same technology (`eBPF on
+Wikipedia <https://en.wikipedia.org/wiki/EBPF#Branding>`__). This
+documentation uses BPF throughout, the term the Linux kernel community
+uses.
+
 - :doc:`start/index`: build shirudo, boot a protected test target and take
   one upatch through its whole life, then install it.
 - :doc:`concepts/index`: the mechanisms shirudo builds on, from BPF signing
