@@ -21,3 +21,4 @@ attesting a target.
    how-it-works
    install
    guides/index
+   faq
