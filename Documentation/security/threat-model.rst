@@ -42,7 +42,7 @@ Every entry has a stable ID that commits, issues and other pages cite:
      - Threats shirudo addresses, each with a fact box.
    * - R1 to R22
      - Residual risks: known and bounded limits of the mechanisms.
-   * - U1 to U17
+   * - U1 to U19
      - Threats to resolve: gaps in the code that are not closed yet.
    * - D1 to D9
      - Deferred mitigations that are in scope.
@@ -854,7 +854,7 @@ tree operations run without it.
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
    ``t6122``, ``t6128``
-:Residual: R4, R12, R20, U6, U8, U9
+:Residual: R4, R12, R20, U6, U8, U9, U18
 
 T6 Boot window
 ~~~~~~~~~~~~~~
@@ -889,7 +889,7 @@ either system call (``Kexec``).
 :Refusal: ``EPERM`` from ``kexec_load(2)`` and ``kexec_file_load(2)``
 :Counters: ``Kexec``
 :Tests: ``t4003``, ``t4101``, ``t6126``
-:Residual: R6, R7, R12, U11, U16
+:Residual: R6, R7, R12, U11, U16, U18
 
 .. _tm-t7:
 
@@ -1152,7 +1152,7 @@ given (R2).
 :Refusal: ``EACCES`` from ``bpf()`` and from opening a pin
 :Counters: ``ObjGet``, ``MapFdWrite``, ``ProgRun``
 :Tests: ``t6107``, ``t6108``, ``t6109``, ``t6110``
-:Residual: R2
+:Residual: R2, U19
 
 T14 Substituting the TPM
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1650,6 +1650,35 @@ U17 A stopped runtime command keeps its descriptors
    :Meanwhile: A stopped shirudo process is visible in the process
       list; compare the loaded links with the measured set when one is
       found.
+
+U18 Restoring many upatches overflows the init record
+   :Affects: ``init`` (T5, T6).
+   :Consequence: ``init`` encodes the init record of a boot in a fixed
+      64 KiB buffer after it has extended the register. The record takes
+      about 1.9 KiB, plus 95 bytes and the name for every restored
+      upatch, so about 550 upatches with 20-character names fit. With
+      more, every boot extends the register, fails to append the record
+      and logs ``eventlog: append failed after extend -- chain/log
+      desync; operator must reconcile``. The register is then ahead of
+      the log, ``shirudo status`` reports a register its replay cannot
+      explain, and attestation fails for want of an init record.
+   :Status: Confirmed in code; the count is computed from the record's
+      fields, not reproduced.
+   :Meanwhile: Keep the archived upatches of a target well below the
+      limit; :doc:`/operate/plan/scalability` gives the sizes.
+
+U19 A decoder cannot name a long upatch
+   :Affects: Lua decoders and map export (T13).
+   :Consequence: A decoder names its upatch in a 64-byte field, and
+      ``shirudo build`` and map export compare it with the whole upatch
+      name, which can have up to 255 characters. An upatch whose name has
+      64 characters or more cannot carry a decoder, and map export sends
+      its maps as raw entries, not as the records a decoder would make of
+      them.
+   :Status: Confirmed in code for the field sizes; how ``shirudo build``
+      handles a longer name is a code-path reading, not reproduced.
+   :Meanwhile: Keep the names of upatches that carry decoders at 63
+      characters or fewer.
 
 Deferred mitigations
 --------------------

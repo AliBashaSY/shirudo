@@ -130,7 +130,8 @@ shirudo limits
      - ``init`` extends the register and then fails to append its
        record, with ``eventlog: append failed after extend -- chain/log
        desync; operator must reconcile``. ``shirudo status`` then
-       reports a register its replay cannot explain.
+       reports a register its replay cannot explain. See U18 in the
+       :doc:`/security/threat-model`.
    * - Eventlog
      - Readers accept at most 8 MiB, across all boots, and the log is never
        rotated. A load or an unload adds about 330 bytes plus the name,
@@ -242,7 +243,7 @@ One upatch
      - 255 characters from ``A-Z``, ``a-z``, ``0-9``, ``.``, ``_`` and
        ``-``, not starting with ``.``. A decoder names its upatch in 64
        bytes, so only upatches with names of at most 63 characters can
-       have one.
+       have one (U19 in the :doc:`/security/threat-model`).
    * - Map export
      - :doc:`/upatches/maps-arenas-serializers` and
        :doc:`/upatches/decoders` give the serializer and decoder limits.
