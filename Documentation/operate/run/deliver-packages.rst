@@ -407,7 +407,7 @@ Next steps
 ----------
 
 - :doc:`/start/guides/publish-package` to publish a package
-- :doc:`/upatches/publishing` for packages, indexes and the tree on the
+- :doc:`/upatches/publish/publishing` for packages, indexes and the tree on the
   operator side
 - :doc:`/operate/run/telemetry` to export what the installed upatches collect
 - :doc:`/reference/cli/bpm` for every ``bpm`` option

@@ -139,7 +139,7 @@ signature, runs it with ``BPF_PROG_TEST_RUN``, attaches the payload
 programs the loader created and pins their links under
 ``/run/shirudo/bpffs/upatches/<name>/``, with the upatch's maps under
 ``maps/`` beside them. See
-:doc:`/internals/signed-loader` and :doc:`/upatches/attach-kinds`.
+:doc:`/internals/signed-loader` and :doc:`/upatches/write/attach-kinds`.
 
 Because the pins are all that hold these links, shirudo's LSM programs
 refuse to remove or rename an entry in the private bpffs for any task
@@ -154,5 +154,5 @@ The verifier bounds what a program can do to the kernel, not what it
 decides. An upatch that passes the verifier can still break a workload by
 denying the wrong operation. shirudo signs and measures upatches so that
 an operator knows which programs run; it does not judge whether they are
-correct. See :doc:`/upatches/testing` for testing an upatch before it
+correct. See :doc:`/upatches/test/testing` for testing an upatch before it
 ships.

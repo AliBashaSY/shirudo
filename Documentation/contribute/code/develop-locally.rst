@@ -33,7 +33,7 @@ last section shows how to rebuild after a change to shirudo itself.
 Before you begin
 ----------------
 
-- A checkout that builds, as :doc:`developer-guide` describes.
+- A checkout that builds, as :doc:`/contribute/code/developer-guide` describes.
 - The test VM's prerequisites and root on the host, as
   :doc:`/start/quickstart` lists them. Run every host command on this
   page as root, in the root of your checkout.
@@ -124,7 +124,7 @@ Boot the target
       operator$ make -C testing vm VM_NAME=dev
 
    The first run builds the kernel, the disk image and the bundle, which
-   takes a while. :doc:`testing` describes the test VM.
+   takes a while. :doc:`/contribute/testing/testing` describes the test VM.
 
 2. Name the bundle's signing key in the operator shell:
 
@@ -260,10 +260,10 @@ way a real upatch's data reaches a collector.
    The program runs at every successful ``execve(2)`` and adds one to the
    entry of the new command's name in the hash map ``execs``. The
    manifest in ``.rodata`` names the Lua decoder for the map and the
-   signal it produces, a log record. :doc:`/upatches/decoders` explains
+   signal it produces, a log record. :doc:`/upatches/write/decoders` explains
    each field. A upatch that keeps records rather than counters keeps
    them in an arena with a serializer, see
-   :doc:`/upatches/maps-arenas-serializers`.
+   :doc:`/upatches/write/maps-arenas-serializers`.
 
 3. Write ``build/dev/exec-count/decoders/execs.lua``:
 
@@ -537,7 +537,8 @@ target runs takes a new bundle and a new VM.
      operator$ make -C testing functional/<family> VM=0
 
   Then run the target tests your change touches by hand in the VM, and
-  the whole family for a verdict, as :doc:`testing` describes.
+  the whole family for a verdict, as :doc:`/contribute/testing/testing`
+  describes.
 
 Clean up
 --------
@@ -557,9 +558,9 @@ Clean up
 Next steps
 ----------
 
-- :doc:`/upatches/decoders` for decoders and metrics
-- :doc:`/upatches/maps-arenas-serializers` for upatches that keep
+- :doc:`/upatches/write/decoders` for decoders and metrics
+- :doc:`/upatches/write/maps-arenas-serializers` for upatches that keep
   records
 - :doc:`/operate/run/deliver-packages` and :doc:`/operate/run/telemetry` for the
   production setup this page reproduces
-- :doc:`testing` to write and run tests
+- :doc:`/contribute/testing/testing` to write and run tests

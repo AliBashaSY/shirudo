@@ -20,9 +20,10 @@ Before you begin
 
 - A shirudo checkout built with ``make`` and ``make shirudo-build``
 - A Linux host with KVM, root, and the host packages the test VM needs,
-  listed in :doc:`/contribute/testing`
+  listed in :doc:`/contribute/testing/testing`
 - An upatch and its unload directive, built as in
-  :doc:`kernel-fix-tutorial`, or one of the signed fixtures below
+  :doc:`/upatches/learn/kernel-fix-tutorial`, or one of the signed fixtures
+  below
 
 Boot the test VM
 ----------------
@@ -95,8 +96,8 @@ Load and observe it
    ``<path>`` is the upatch's path in the checkout. The command exits with 0
    on success, 2 when an attach target is missing or the command line is
    wrong, and 1 on any other failure. The report's ``category`` says why,
-   and :doc:`debugging` goes through each one. To refuse the load unless the
-   measurement register still holds a value you read before, add
+   and :doc:`/upatches/test/debugging` goes through each one. To refuse the load
+   unless the measurement register still holds a value you read before, add
    ``--expect-chain=<chain>``, with ``<chain>`` the ``tpm.chain`` field of
    ``shirudo-runtime status --json``.
 
@@ -204,7 +205,7 @@ category looks like.
 Next steps
 ----------
 
-- :doc:`debugging` when a load fails
-- :doc:`publishing` once the upatch works
-- :doc:`/contribute/testing` for the automated tests that boot the same
+- :doc:`/upatches/test/debugging` when a load fails
+- :doc:`/upatches/publish/publishing` once the upatch works
+- :doc:`/contribute/testing/testing` for the automated tests that boot the same
   VM

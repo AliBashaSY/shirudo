@@ -23,8 +23,9 @@ Before you begin
   describes.
 - The signing key whose certificate your targets trust, in a key
   directory. The same key signs the upatches, the index and the tree.
-- A package directory with a Beefile, as :doc:`beefile` describes, whose
-  upatches you have tested, as :doc:`testing` describes.
+- A package directory with a Beefile, as :doc:`/upatches/publish/beefile`
+  describes, whose
+  upatches you have tested, as :doc:`/upatches/test/testing` describes.
 - Push access to an OCI registry. shirudo reads credentials from
   ``BPM_OCI_USERNAME`` and ``BPM_OCI_PASSWORD``, ``BPM_OCI_BEARER_TOKEN``,
   ``REGISTRY_AUTH_FILE`` or the Docker configuration, and an extra CA

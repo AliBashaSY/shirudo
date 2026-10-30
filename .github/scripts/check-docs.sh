@@ -29,7 +29,7 @@ report() {
 }
 
 find Documentation -name '*.rst' -not -path 'Documentation/output*' \
-	-not -path 'Documentation/contribute/coding-style.rst' | sort >"$work/pages"
+	-not -path 'Documentation/contribute/code/coding-style.rst' | sort >"$work/pages"
 
 # The options of the command lines in console blocks, by page.
 while IFS= read -r page; do

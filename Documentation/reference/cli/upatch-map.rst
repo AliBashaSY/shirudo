@@ -195,6 +195,6 @@ Related
 
 - :doc:`/operate/run/telemetry`
 - :doc:`/reference/formats/otlp`
-- :doc:`/upatches/maps-arenas-serializers`
-- :doc:`/upatches/decoders`
+- :doc:`/upatches/write/maps-arenas-serializers`
+- :doc:`/upatches/write/decoders`
 - :doc:`upatch-get`

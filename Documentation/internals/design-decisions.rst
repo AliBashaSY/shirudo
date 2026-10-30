@@ -184,7 +184,7 @@ An arena gives one consistent snapshot, memory the serializer can reset
 between exports, and an overflow count the exported record carries. An
 element-by-element read of a plain map gives a torn view, and a full
 table drops records without saying so. ``upatches/kernel-obs/obs_table.h``
-is the template. :doc:`/upatches/maps-arenas-serializers` explains it.
+is the template. :doc:`/upatches/write/maps-arenas-serializers` explains it.
 
 No target shell-outs
 --------------------

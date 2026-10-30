@@ -10,14 +10,14 @@ Run and write tests
 
 This page shows how to run shirudo's tests, from one unit suite to the
 full run CI makes, how to use the test VM that plays the target, and
-where a test you add goes. :doc:`test-coverage` lists what the tests
-cover.
+where a test you add goes. :doc:`/contribute/testing/test-coverage` lists what
+the tests cover.
 
 Before you begin
 ----------------
 
-- A tree that builds, see :doc:`developer-guide`. ``make -C testing``
-  builds the binaries, the helper and the test helpers it needs
+- A tree that builds, see :doc:`/contribute/code/developer-guide`. ``make -C
+  testing`` builds the binaries, the helper and the test helpers it needs
   itself.
 - For the unit and operator tests: ``python3``, ``clang``, OpenSSL 3.5
   or newer and the ``openssl`` command. ``veritysetup`` from
@@ -640,7 +640,7 @@ Add a fixture or a helper
 Next steps
 ----------
 
-- :doc:`test-coverage` for what each family covers and what no test
-  covers
-- :doc:`/upatches/testing` to test a upatch on a target
-- :doc:`contributing` before you send the change
+- :doc:`/contribute/testing/test-coverage` for what each family covers and what
+  no test covers
+- :doc:`/upatches/test/testing` to test a upatch on a target
+- :doc:`/contribute/code/contributing` before you send the change

@@ -471,7 +471,7 @@ Programs and maps of an upatch
 - Serializer programs and Lua decoders run at every export, every 5 s.
   The Lua limits above bound a decoder.
 
-:doc:`/upatches/maps-arenas-serializers` explains how an upatch keeps
+:doc:`/upatches/write/maps-arenas-serializers` explains how an upatch keeps
 records in an arena.
 
 kernel-obs example

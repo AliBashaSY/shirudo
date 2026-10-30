@@ -30,7 +30,7 @@ it.
       consistent snapshot and can reset between exports.
       ``upatches/kernel-obs/obs_table.h`` is the template for a
       double-buffered arena table. See
-      :doc:`/upatches/maps-arenas-serializers`.
+      :doc:`/upatches/write/maps-arenas-serializers`.
 
    attach metadata
       The signed ``UPGM`` section of a load artifact that tells shirudo
@@ -56,7 +56,7 @@ it.
       package directory, that names the package and lists its upatch
       sources, read-only data generators, extra files and tree selectors.
       ``shirudo bpm build`` reads ``Beefile`` in the package directory, or
-      the file that ``-f`` names. See :doc:`/upatches/beefile`.
+      the file that ``-f`` names. See :doc:`/upatches/publish/beefile`.
 
    BPF keyring
       The kernel's ``.bpf`` keyring, which the kernel uses for a signed
@@ -113,7 +113,7 @@ it.
       a ``struct shirudo_decoder_manifest`` in ``.rodata``,
       ``shirudo-build`` embeds the source in the signed ``DCDB`` section,
       and ``shirudo upatch map`` runs it under LuaJIT. See
-      :doc:`/upatches/decoders`.
+      :doc:`/upatches/write/decoders`.
 
    endorsement key
       A key that identifies a TPM, derived from its endorsement seed with
@@ -345,7 +345,7 @@ it.
       values and node labels. ``shirudo bpm tree sync`` evaluates it on
       the target and applies only matching operations, and a
       non-matching operation is skipped for good. See
-      :doc:`/upatches/publishing`.
+      :doc:`/upatches/publish/publishing`.
 
    serializer
       A ``SEC("syscall")`` program in an upatch, named
@@ -353,7 +353,8 @@ it.
       upatch's ``shirudo_ser`` output map in chunks of 4096 bytes.
       ``shirudo upatch map`` runs it with ``BPF_PROG_TEST_RUN``, which
       gives one consistent snapshot of an arena and lets the serializer
-      reset what it exported. See :doc:`/upatches/maps-arenas-serializers`.
+      reset what it exported. See
+      :doc:`/upatches/write/maps-arenas-serializers`.
 
    ``shirudo-build``
       The operator-only helper that the core ``shirudo`` binary executes
@@ -439,7 +440,7 @@ it.
       A signed BPF object, one or more programs with their maps and attach
       metadata, that a target loads, pins, archives and measures as one
       unit. It ships as a load artifact and leaves through an unload
-      directive. See :doc:`/upatches/concepts`.
+      directive. See :doc:`/upatches/learn/concepts`.
 
    upatch tree
       A signed, append-only, ordered list of operations, each adding or

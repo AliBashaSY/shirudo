@@ -206,11 +206,11 @@ them in one consistent snapshot.
 Next steps
 ----------
 
-- :doc:`/upatches/kernel-fix-tutorial` takes a real kernel fix to a
+- :doc:`/upatches/learn/kernel-fix-tutorial` takes a real kernel fix to a
   shipped upatch.
-- :doc:`/upatches/attach-kinds` lists the attachment kinds besides
+- :doc:`/upatches/write/attach-kinds` lists the attachment kinds besides
   ``fentry``.
-- :doc:`/upatches/maps-arenas-serializers` explains arenas and
+- :doc:`/upatches/write/maps-arenas-serializers` explains arenas and
   serializers.
 - :doc:`publish-package` ships an upatch through an OCI registry.
 - :doc:`/reference/cli/upatch-map` describes every option of

@@ -48,7 +48,8 @@ kernel-obs
      - nothing, every hook observes
 
 ``kernel-obs`` is the reference for the conventions in
-:doc:`maps-arenas-serializers` and :doc:`decoders`: the double-buffered
+:doc:`/upatches/write/maps-arenas-serializers` and
+:doc:`/upatches/write/decoders`: the double-buffered
 tables, the one-entry maps that name the tables, the arena association,
 the page header and the timestamp conversion in the decoders.
 
@@ -58,7 +59,7 @@ It follows here as it ships. Where it tells a target to add a key with
 repositories from its signed config image and refuses local key changes.
 :doc:`/operate/run/deliver-packages` describes that setup.
 
-.. include:: ../../upatches/kernel-obs/README.md
+.. include:: ../../../upatches/kernel-obs/README.md
    :parser: myst_parser.sphinx_
 
 kernel-cve
@@ -95,13 +96,13 @@ anything. They are ``kprobe`` programs and define
 predicate as ``source_derived_unvalidated``: derived from the fix, not
 checked against an exploit.
 
-:doc:`kernel-fix-tutorial` takes the third detector from its fix to a
-package, as an ``fentry`` program. ``kernel-cve.bee`` itself does not
+:doc:`/upatches/learn/kernel-fix-tutorial` takes the third detector from its fix
+to a package, as an ``fentry`` program. ``kernel-cve.bee`` itself does not
 build, and its tree entries do not match its upatch names.
-:doc:`beefile` lists what is wrong with it.
+:doc:`/upatches/publish/beefile` lists what is wrong with it.
 
 Related
 -------
 
-- :doc:`kernel-fix-tutorial` to write a detector of your own
-- :doc:`beefile` for the keys both Beefiles use
+- :doc:`/upatches/learn/kernel-fix-tutorial` to write a detector of your own
+- :doc:`/upatches/publish/beefile` for the keys both Beefiles use

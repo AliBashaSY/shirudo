@@ -242,4 +242,4 @@ Related
 - :doc:`attest-predict`
 - :doc:`/reference/failure-categories`
 - :doc:`/internals/signed-loader`
-- :doc:`/upatches/debugging`
+- :doc:`/upatches/test/debugging`

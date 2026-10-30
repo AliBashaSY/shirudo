@@ -203,4 +203,4 @@ Related
 - :doc:`/reference/formats/otlp` for the exported documents
 - :doc:`/reference/systemd-units` for the timers and services
 - :doc:`luajit` for the decoder sandbox
-- :doc:`/upatches/decoders` for writing a decoder
+- :doc:`/upatches/write/decoders` for writing a decoder

@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Documentation/contribute/contributing.rst asks for every commit to
+      # Documentation/contribute/code/contributing.rst asks for every commit to
       # build on its own, so that the history bisects; the other workflows
       # build the head of the pull request alone. The BPF objects need the BTF
       # of a signed-BPF capable bpf-next kernel, so the builds run in the

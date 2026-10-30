@@ -9,8 +9,8 @@ Commits and sign-off
 ====================
 
 shirudo follows the Linux kernel's development conventions for commits:
-the coding style in :doc:`coding-style`, a kernel-style commit message,
-a mandatory ``Signed-off-by:`` line, and the same set of attribution
+the coding style in :doc:`/contribute/code/coding-style`, a kernel-style commit
+message, a mandatory ``Signed-off-by:`` line, and the same set of attribution
 tags. This page states the parts of that process that apply here. The
 kernel's ``Documentation/process/submitting-patches.rst`` is the
 reference for anything not covered.
@@ -216,7 +216,7 @@ its author has not seen.
 Before sending
 --------------
 
-:doc:`developer-guide` shows how to run each of these locally.
+:doc:`/contribute/code/developer-guide` shows how to run each of these locally.
 
 - Build the operator binary, the helper and the target binary
   (``make``, ``make shirudo-build``, ``make target``) and run ``make
@@ -224,10 +224,10 @@ Before sending
   runs the families the change touches while you work on it. Run
   ``make tests VM=0 SANITIZE=address,undefined`` from a clean tree when
   the change touches memory handling or binary formats. CI runs the
-  same sweep. See :doc:`testing`.
+  same sweep. See :doc:`/contribute/testing/testing`.
 - Run ``make -C Documentation html`` when the change touches
   ``Documentation/``. The build turns every Sphinx warning into an
-  error. See :doc:`writing-docs`.
+  error. See :doc:`/contribute/documentation/writing-docs`.
 - Run ``.github/scripts/check-spdx.sh`` when the change adds a file.
   Every source carries an SPDX tag in the kernel's form for its type,
   ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for

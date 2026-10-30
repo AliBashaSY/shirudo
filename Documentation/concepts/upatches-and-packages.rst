@@ -75,14 +75,14 @@ entry carries a role, an attach kind and, for kprobes, the symbol and
 offset. Uprobe entries add the target binary's path, its GNU build ID and
 the probe offsets. After attaching, shirudo compares the link the kernel
 reports with the metadata and refuses with ``attach_scope_mismatch`` when
-they differ. :doc:`/upatches/attach-kinds` lists the kinds and the check
+they differ. :doc:`/upatches/write/attach-kinds` lists the kinds and the check
 for each.
 
 The role says what shirudo does with a program. An attach program is
 attached and pinned. A serializer, named ``shirudo_serialize__<map>``, is
 pinned and run by ``shirudo upatch map`` to read one of the upatch's maps.
 A test-run program is run once at load, after the attachments, and a
-negative return fails the load. :doc:`/upatches/maps-arenas-serializers`
+negative return fails the load. :doc:`/upatches/write/maps-arenas-serializers`
 covers serializers.
 
 Unload directives
@@ -118,7 +118,7 @@ Its definition is a Beefile, a file in a subset of TOML in the package
 directory. The Beefile names the package and lists its upatch sources,
 optional generators for read-only data, extra files to ship and, per
 upatch, the selector it gets when published to an upatch tree.
-:doc:`/upatches/beefile` describes every key.
+:doc:`/upatches/publish/beefile` describes every key.
 
 ``shirudo bpm build`` builds and signs every upatch the Beefile lists,
 together with its unload directive, and writes ``<name>-<version>.bee``.
@@ -186,8 +186,8 @@ does not bring it back.
 The target keeps a projection root, a hash chain over the operations it
 applied, and the next boot's init event includes it. The register value
 an operator predicts therefore covers the tree as well as the archived
-upatches. :doc:`/upatches/publishing` shows how to publish to a tree, and
-:doc:`/reference/formats/bpm-formats` gives the document formats.
+upatches. :doc:`/upatches/publish/publishing` shows how to publish to a tree,
+and :doc:`/reference/formats/bpm-formats` gives the document formats.
 
 How the objects relate
 ----------------------
@@ -247,6 +247,6 @@ Related
 -------
 
 - :doc:`/start/how-it-works` for the path of one upatch
-- :doc:`/upatches/concepts` for authoring upatches
+- :doc:`/upatches/learn/concepts` for authoring upatches
 - :doc:`/concepts/measurement-register` for the events
 - :doc:`/internals/signed-loader` for the load in detail

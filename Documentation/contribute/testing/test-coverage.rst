@@ -11,8 +11,8 @@ Test coverage
 This page lists what the tests under ``testing/`` cover, by family, by
 area and by threat, and what no test covers. A test is named by its
 number here, and by its file name without ``.sh`` in the family
-tables. :doc:`testing` explains the families, the numbering and how to
-run them.
+tables. :doc:`/contribute/testing/testing` explains the families, the numbering
+and how to run them.
 
 Families
 --------
@@ -807,6 +807,6 @@ Parsers and units
 Related
 -------
 
-- :doc:`testing` to run the tests and write one
+- :doc:`/contribute/testing/testing` to run the tests and write one
 - :doc:`/security/threat-model` for the threats and residual risks
 - :doc:`/security/tamper-counters` for what each counter means

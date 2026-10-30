@@ -242,7 +242,7 @@ Two roles are recognized by the program's name, and both must be in
     ``serializers/<map>`` under the upatch's pin directory, and
     ``shirudo upatch map`` runs it with ``BPF_PROG_TEST_RUN``. The upatch
     must also define the ``shirudo_ser`` output map. One serializer per
-    map. :doc:`maps-arenas-serializers` describes the interface.
+    map. :doc:`/upatches/write/maps-arenas-serializers` describes the interface.
 ``shirudo_test__<id>``
     Pinned as ``test`` and run once with ``BPF_PROG_TEST_RUN`` and a
     zeroed 16-byte context, after all attachments. A negative return fails
@@ -350,6 +350,6 @@ away from targets that lack its site.
 Related
 -------
 
-- :doc:`concepts` for the roles, pins and names
-- :doc:`debugging` for every failure category of a load
+- :doc:`/upatches/learn/concepts` for the roles, pins and names
+- :doc:`/upatches/test/debugging` for every failure category of a load
 - :doc:`/internals/kernel-interfaces` for the system calls in detail

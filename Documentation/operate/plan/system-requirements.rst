@@ -237,7 +237,7 @@ point is missing fails to load.
    * - ``CONFIG_NETFILTER``, ``CONFIG_NETFILTER_BPF_LINK``
      - ``netfilter`` upatches.
 
-:doc:`/upatches/attach-kinds` describes each attach kind.
+:doc:`/upatches/write/attach-kinds` describes each attach kind.
 
 TPM
 ---

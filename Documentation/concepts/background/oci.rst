@@ -235,7 +235,7 @@ Related
 -------
 
 - :doc:`/operate/run/deliver-packages`
-- :doc:`/upatches/publishing`
+- :doc:`/upatches/publish/publishing`
 - :doc:`/reference/formats/bpm-formats`
 - :doc:`/reference/cli/bpm`
 - :doc:`/reference/environment`

@@ -4,7 +4,7 @@
 #
 # .github/scripts/build-commits.sh -- build every commit in a range on its
 # own, oldest first, so that the history bisects as
-# Documentation/contribute/contributing.rst asks: the binary, the
+# Documentation/contribute/code/contributing.rst asks: the binary, the
 # shirudo-build helper and the test helpers. The first commit that does
 # not build is named and the ones after it are not tried.
 #

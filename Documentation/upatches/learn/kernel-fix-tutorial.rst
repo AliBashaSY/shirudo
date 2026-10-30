@@ -20,7 +20,8 @@ Before you begin
 
 - A shirudo checkout built with ``make`` and ``make shirudo-build``, and
   clang installed as ``/usr/bin/clang``, the path the build helper runs.
-- A test VM running from that checkout, as :doc:`testing` describes. The
+- A test VM running from that checkout, as :doc:`/upatches/test/testing`
+  describes. The
   steps below use the default ``bpf-next`` VM and the signing key its
   bundle enrolled.
 - A Linux kernel git tree, to read the fix.
@@ -84,7 +85,7 @@ shipped detector, ``cve-2026-63984-rpl-detector.bpf.c``, attaches a
 reasons: the program receives the arguments with their BTF types instead
 of raw registers, the verifier checks the program's prototype against the
 kernel's, and the test VM's kernel is built without kprobes.
-:doc:`attach-kinds` compares the kinds.
+:doc:`/upatches/write/attach-kinds` compares the kinds.
 
 Write the program
 -----------------
@@ -269,8 +270,8 @@ output. The report has ``"result":"ok"``, phase ``done`` and category
 ``ok``, and its ``tpm.chain_after`` is the measurement register after the
 load. ``attached + pinned prog 0 (raw_tracepoint)`` means that shirudo
 attached the fentry program through ``BPF_RAW_TRACEPOINT_OPEN`` at the
-function the verifier bound, and pinned the link. :doc:`debugging`
-explains the report when a load fails.
+function the verifier bound, and pinned the link.
+:doc:`/upatches/test/debugging` explains the report when a load fails.
 
 Check where the kernel attached it and read the counters:
 
@@ -376,7 +377,7 @@ tree ``id`` must equal it. The selector limits the tree entry to kernels
 built with IPv6. A target evaluates it against ``/proc/config.gz`` or
 ``/boot/config-<release>``. A target that has neither does not match, and
 a target that does not match an entry passes over it for good.
-:doc:`beefile` lists every key.
+:doc:`/upatches/publish/beefile` lists every key.
 
 Build the package:
 
@@ -428,8 +429,9 @@ Sign what a fleet runs with your own key.
 Next steps
 ----------
 
-- :doc:`publishing` for the index, the tree and withdrawing an entry
+- :doc:`/upatches/publish/publishing` for the index, the tree and withdrawing an
+  entry
 - :doc:`/operate/run/deliver-packages` for what a target does with them
-- :doc:`maps-arenas-serializers` and :doc:`decoders` to export what the
-  upatch records
-- :doc:`attach-kinds` for the other places an upatch can attach
+- :doc:`/upatches/write/maps-arenas-serializers` and
+  :doc:`/upatches/write/decoders` to export what the upatch records
+- :doc:`/upatches/write/attach-kinds` for the other places an upatch can attach

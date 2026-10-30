@@ -39,7 +39,7 @@ report() {
 # generated from BTF.
 excluded() {
 	case "$1" in
-	Documentation/contribute/coding-style.rst|vmlinux.h|*/vmlinux.h)
+	Documentation/contribute/code/coding-style.rst|vmlinux.h|*/vmlinux.h)
 		return 0 ;;
 	esac
 	return 1

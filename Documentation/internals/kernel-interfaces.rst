@@ -456,7 +456,7 @@ Kconfig
 ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` widen the keys
 that verify a config; see :doc:`config-images`. ``CONFIG_SECCOMP=n``
 is handled: the seal then sees no seccomp state. The attach kinds of
-upatches can need further options; see :doc:`/upatches/attach-kinds`.
+upatches can need further options; see :doc:`/upatches/write/attach-kinds`.
 
 ``testing/vm/build-kernel.sh`` enforces its own list with
 ``require_config``, which also covers what the test fixtures and the test

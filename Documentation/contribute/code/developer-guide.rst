@@ -11,8 +11,8 @@ Work from a checkout
 This page takes you from a clone of the repository to the operator
 binary, the operator-only helper and the static target binary, shows
 where the parts of the tree live and how to run the checks CI runs
-before you send a change. :doc:`testing` covers the tests and the test
-VM.
+before you send a change. :doc:`/contribute/testing/testing` covers the tests
+and the test VM.
 
 Before you begin
 ----------------
@@ -140,8 +140,8 @@ The build takes the first of these sources:
 ``vendor/linux/.vmlinux-btf-source`` records the source used. When you
 select another one, the next build regenerates the header.
 
-1. Build the test kernel, which also writes its BTF. :doc:`testing`
-   describes the kernel build:
+1. Build the test kernel, which also writes its BTF.
+   :doc:`/contribute/testing/testing` describes the kernel build:
 
    .. code-block:: console
 
@@ -195,7 +195,7 @@ variables change it:
      - Leaves out ``-g``.
    * - ``SANITIZE=address,undefined``
      - Instruments the host binaries and the test helpers with ASan and
-       UBSan. See :doc:`testing`.
+       UBSan. See :doc:`/contribute/testing/testing`.
 
 Build the shirudo-build helper
 ------------------------------
@@ -315,7 +315,8 @@ Other make targets
        :doc:`/start/install`.
    * - ``make docs``
      - Renders the documentation and serves it on
-       ``http://127.0.0.1:8000``. See :doc:`writing-docs`.
+       ``http://127.0.0.1:8000``. See
+       :doc:`/contribute/documentation/writing-docs`.
    * - ``make clean``, ``make distclean``
      - Remove the build products, and with ``distclean`` also
        ``config.mk``, the target dependencies and the vendored libbpf
@@ -385,7 +386,7 @@ Project layout
      - The tar, deb and rpm packaging.
    * - ``testing/``
      - Unit, functional, end-to-end and fuzz tests, the test VM and
-       their helpers. See :doc:`testing`.
+       their helpers. See :doc:`/contribute/testing/testing`.
    * - ``Documentation/``
      - This documentation.
    * - ``.github/``
@@ -415,7 +416,7 @@ the commit at ``HEAD`` alone without them.
      - Checks
    * - ``check-dco.sh <range>``
      - A one-line subject, a body beyond the tags and the author's
-       ``Signed-off-by:``. See :doc:`contributing`.
+       ``Signed-off-by:``. See :doc:`/contribute/code/contributing`.
    * - ``check-style.sh <range>``
      - The kernel's ``checkpatch.pl`` in strict mode over the C each
        commit touches and over its message, plus the project rules.
@@ -456,7 +457,7 @@ Before you send a change:
       $ .github/scripts/build-commits.sh origin/main..HEAD
 
 2. Run the tests the change touches, and ``make tests`` before you
-   send. See :doc:`testing`.
+   send. See :doc:`/contribute/testing/testing`.
 
 3. Render the documentation if you changed it:
 
@@ -470,9 +471,9 @@ Before you send a change:
 Next steps
 ----------
 
-- :doc:`develop-locally` to run both roles on one machine and change
-  shirudo end to end
-- :doc:`testing` to run and write tests
-- :doc:`contributing` for the commit message and the sign-off
-- :doc:`coding-style` for the C code
+- :doc:`/contribute/code/develop-locally` to run both roles on one machine and
+  change shirudo end to end
+- :doc:`/contribute/testing/testing` to run and write tests
+- :doc:`/contribute/code/contributing` for the commit message and the sign-off
+- :doc:`/contribute/code/coding-style` for the C code
 - :doc:`/reference/cli/index` for the commands

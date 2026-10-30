@@ -237,5 +237,5 @@ Related
 - :doc:`upatch-info`
 - :doc:`upatch-load`
 - :doc:`upatch-unload`
-- :doc:`/upatches/kernel-fix-tutorial`
+- :doc:`/upatches/learn/kernel-fix-tutorial`
 - :doc:`/reference/formats/upatch-format`

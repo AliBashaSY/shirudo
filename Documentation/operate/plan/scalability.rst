@@ -245,8 +245,8 @@ One upatch
        bytes, so only upatches with names of at most 63 characters can
        have one (U19 in the :doc:`/security/threat-model`).
    * - Map export
-     - :doc:`/upatches/maps-arenas-serializers` and
-       :doc:`/upatches/decoders` give the serializer and decoder limits.
+     - :doc:`/upatches/write/maps-arenas-serializers` and
+       :doc:`/upatches/write/decoders` give the serializer and decoder limits.
    * - Package
      - 128 upatches, 4096 archive entries and 256 MiB
 
@@ -255,5 +255,5 @@ Related
 
 - :doc:`/operate/plan/overhead`
 - :doc:`/operate/run/deliver-packages`
-- :doc:`/upatches/attach-kinds`
+- :doc:`/upatches/write/attach-kinds`
 - :doc:`/security/threat-model`

@@ -406,7 +406,7 @@ Developing shirudo
 ------------------
 
 Build the operator binary, the helper and the static target binary
-(:doc:`/contribute/developer-guide`):
+(:doc:`/contribute/code/developer-guide`):
 
 .. code-block:: console
 
@@ -420,7 +420,7 @@ Run ``shirudo`` from the checkout with the checkout's helper:
 
    $ export SHIRUDO_BUILD=$PWD/tools/shirudo-build/shirudo-build
 
-Run every test (:doc:`/contribute/testing`):
+Run every test (:doc:`/contribute/testing/testing`):
 
 .. code-block:: console
 
@@ -460,14 +460,14 @@ Run the fuzz targets for a minute each:
    $ make -C testing fuzz FUZZ_SECONDS=60
 
 Render and serve the documentation, and check it against the code
-(:doc:`/contribute/writing-docs`):
+(:doc:`/contribute/documentation/writing-docs`):
 
 .. code-block:: console
 
    $ make docs
    $ make -C Documentation check
 
-Check the commits of a branch as CI does (:doc:`/contribute/contributing`):
+Check the commits of a branch as CI does (:doc:`/contribute/code/contributing`):
 
 .. code-block:: console
 

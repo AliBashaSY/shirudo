@@ -214,7 +214,7 @@ Read the verifier log
           with ``bpf_core_field_exists()`` and skip the access.
       * - ``<function>() is not modifiable``
         - ``fmod_ret`` on a function the kernel does not admit. Attach
-          elsewhere. :doc:`attach-kinds` lists the rules.
+          elsewhere. :doc:`/upatches/write/attach-kinds` lists the rules.
       * - ``<function> is not sleepable``
         - A ``.s`` section on a function or hook that cannot sleep. Use
           the section without ``.s``.
@@ -254,4 +254,4 @@ Next steps
 
 - :doc:`/reference/cli/upatch-load` for the report's fields
 - :doc:`/concepts/background/co-re-btf` for how relocations resolve
-- :doc:`testing` for the test VM
+- :doc:`/upatches/test/testing` for the test VM

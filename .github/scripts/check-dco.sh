@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # .github/scripts/check-dco.sh -- verify that every commit in a range has
-# the message Documentation/contribute/contributing.rst asks for: a
+# the message Documentation/contribute/code/contributing.rst asks for: a
 # one-line subject, a body that says more than its tags, and the
 # Signed-off-by of its author, the Developer's Certificate of Origin, from
 # an identity a person answers at: a noreply address or a bot is no

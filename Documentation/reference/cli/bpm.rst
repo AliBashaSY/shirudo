@@ -269,7 +269,7 @@ build
 -----
 
 ``build`` builds and signs a package from a Beefile
-(:doc:`/upatches/beefile`):
+(:doc:`/upatches/publish/beefile`):
 
 - The Beefile is ``-f``, else ``<context>/Beefile``, with ``<context>``
   defaulting to the current directory.
@@ -404,7 +404,7 @@ Related
 -------
 
 - :doc:`/operate/run/deliver-packages`
-- :doc:`/upatches/publishing`
-- :doc:`/upatches/beefile`
+- :doc:`/upatches/publish/publishing`
+- :doc:`/upatches/publish/beefile`
 - :doc:`/reference/formats/bpm-formats`
 - :doc:`/reference/systemd-units`

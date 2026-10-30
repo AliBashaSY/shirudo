@@ -239,5 +239,5 @@ tests and units a page names exist in the tree.
 Related
 -------
 
-- :doc:`contributing` for commit messages and the sign-off
-- :doc:`coding-style` for the C code
+- :doc:`/contribute/code/contributing` for commit messages and the sign-off
+- :doc:`/contribute/code/coding-style` for the C code

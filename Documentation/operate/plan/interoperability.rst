@@ -152,7 +152,7 @@ systemd's BPF-based settings
 :What to do: Do not rely on these settings on a target. Enforce address
    and interface policy with nftables, or with a signed upatch of the
    ``cgroup_skb`` or ``netfilter`` attach kind
-   (:doc:`/upatches/attach-kinds`). No upatch attach kind covers cgroup
+   (:doc:`/upatches/write/attach-kinds`). No upatch attach kind covers cgroup
    device programs.
 
 .. list-table::
@@ -386,7 +386,7 @@ Debuggers, tracing and /proc
    root, or a caller running as the same user, reaches it.
 :Symptom: See the table below.
 :What to do: Debug shirudo where it does not enforce, such as the test
-   VM (:doc:`/contribute/testing`). Expect ``SealPtrace`` in the
+   VM (:doc:`/contribute/testing/testing`). Expect ``SealPtrace`` in the
    baseline of a host that runs process monitors as root.
 
 .. list-table::

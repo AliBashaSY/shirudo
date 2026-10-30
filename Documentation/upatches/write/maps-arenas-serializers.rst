@@ -185,7 +185,7 @@ stack trace maps, program arrays and arenas are not read directly. The
 with a dot in the name or the ``obs_i_`` prefix, are not visible at all.
 
 The pages or entries then go to the map's decoder, which turns them into a
-log record or a metric. :doc:`decoders` describes that step, and
+log record or a metric. :doc:`/upatches/write/decoders` describes that step, and
 :doc:`/operate/run/telemetry` the export to a collector.
 
 Only tasks with shirudo's runtime authority can do any of this. The LSM
@@ -208,7 +208,7 @@ Limits
 Related
 -------
 
-- :doc:`attach-kinds` for the serializer and test-run roles
-- :doc:`examples` for ``kernel-obs``, which uses this template for all
-  its tables
+- :doc:`/upatches/write/attach-kinds` for the serializer and test-run roles
+- :doc:`/upatches/learn/examples` for ``kernel-obs``, which uses this template
+  for all its tables
 - :doc:`/reference/cli/upatch-map` for the command's options

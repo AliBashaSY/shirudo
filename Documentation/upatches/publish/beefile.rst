@@ -343,7 +343,7 @@ Example
 ``upatches/kernel-obs/Beefile`` declares one upatch with generated
 ``.rodata`` and ships its generators:
 
-.. literalinclude:: ../../upatches/kernel-obs/Beefile
+.. literalinclude:: ../../../upatches/kernel-obs/Beefile
    :language: toml
 
 ``upatches/kernel-cve/kernel-cve.bee`` breaks these rules and is not a
@@ -356,7 +356,8 @@ directories while its upatch names are the detectors' base names, so
 Related
 -------
 
-- :doc:`publishing` for building, pushing and appending a package
+- :doc:`/upatches/publish/publishing` for building, pushing and appending a
+  package
 - :doc:`/reference/cli/bpm` for ``bpm build`` and ``bpm config update``
 - :doc:`/reference/formats/bpm-formats` for the archive, the index and the
   tree

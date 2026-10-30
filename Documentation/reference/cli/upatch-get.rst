@@ -109,4 +109,4 @@ Related
 - :doc:`upatch-list`
 - :doc:`upatch-map`
 - :doc:`upatch-info`
-- :doc:`/upatches/debugging`
+- :doc:`/upatches/test/debugging`

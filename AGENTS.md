@@ -75,7 +75,7 @@ the code is a bug, whichever of the two is wrong.
 the author's to check.
 
 New documentation extends an existing page or adds one to its section's
-toctree, and follows `Documentation/contribute/writing-docs.rst`. Only
+toctree, and follows `Documentation/contribute/documentation/writing-docs.rst`. Only
 what concerns the project as a whole goes in the top-level directory
 (`README.md`, `CONTRIBUTING.md`, `SECURITY.md` and their kind). No
 README, plan or notes file goes beside the code; the exceptions are
@@ -129,7 +129,7 @@ package for `bpm info`.
   earlier local must stay after it (correctness wins over the sort).
   Apply this whenever you add or touch a declaration block.
 - **Linux kernel coding style**
-  (`Documentation/contribute/coding-style.rst` — the kernel's own
+  (`Documentation/contribute/code/coding-style.rst` — the kernel's own
   coding-style.rst, copied into this tree). Tabs (8-wide), 80-col soft
   limit and 100-col hard limit (checkpatch), K&R braces, no spaces
   inside parens.
@@ -155,7 +155,7 @@ package for `bpm info`.
   This applies to every block comment — function-head doc comments,
   TODO blocks, struct-internal explanations, multi-line trailing
   comments inside a function body. The rule mirrors the kernel
-  example in `Documentation/contribute/coding-style.rst` §8.
+  example in `Documentation/contribute/code/coding-style.rst` §8.
 - **`//` is for SPDX only.** Per the kernel convention, .c files
   use `// SPDX-License-Identifier: …` and nothing else `//`-style;
   .h files use `/* SPDX-License-Identifier: … */` and nothing else
@@ -177,7 +177,7 @@ package for `bpm info`.
 
 ## Commits
 
-`Documentation/contribute/contributing.rst` is the kernel's process
+`Documentation/contribute/code/contributing.rst` is the kernel's process
 applied here and is the reference for every commit an agent prepares: a
 subject of the form `area: imperative summary`, a body that explains why
 before what, and the `Co-developed-by`, `Fixes`, `Reported-by`,
@@ -366,7 +366,7 @@ one usually still compiles and passes tests.
 - `util/<m>.c` is unit tested by `testing/unit/<m>.c`: a change to a util
   function adds or updates its cases there. A shell test is named
   `t<F><K><NN>`, family, operator (0) or target (1), and order, and lives in
-  its family's directory; `Documentation/contribute/testing.rst` has the
+  its family's directory; `Documentation/contribute/testing/testing.rst` has the
   families.
 - `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
   `testing/fuzz/` for the parsers of input from outside the host, under

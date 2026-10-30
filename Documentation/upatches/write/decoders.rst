@@ -19,9 +19,9 @@ Before you begin
 
 - An upatch source with the map to export, and the layout of that map:
   the records its serializer writes, or its key and value types.
-  :doc:`maps-arenas-serializers` covers serializers.
+  :doc:`/upatches/write/maps-arenas-serializers` covers serializers.
 - The test VM or another target to run the decoder on, as
-  :doc:`testing` describes.
+  :doc:`/upatches/test/testing` describes.
 - Familiarity with Lua 5.1, the language LuaJIT runs.
   :doc:`/concepts/background/luajit` covers what shirudo uses it for.
 
@@ -162,7 +162,7 @@ Write the function
    The ``watch_stat`` decoder adds up both counters over all CPUs and
    returns one monotonic sum with a data point for each:
 
-   .. literalinclude:: ../../upatches/kernel-obs/decoders/watch_stat.lua
+   .. literalinclude:: ../../../upatches/kernel-obs/decoders/watch_stat.lua
       :language: lua
 
 4. Return the record. A log decoder returns a table. With ``--otel`` it
@@ -233,7 +233,8 @@ Run it on a target
 
       target# shirudo-runtime upatch map <upatch> <map> --json --peek
 
-   ``shirudo-runtime`` is the command in the test VM, as :doc:`testing`
+   ``shirudo-runtime`` is the command in the test VM, as
+   :doc:`/upatches/test/testing`
    explains. ``<upatch>`` and ``<map>`` are the names in the manifest. The
    command prints what the decoder returned as one JSON document. A failure
    prints one of ``upatch map: decoder load failed: <message>``, ``upatch

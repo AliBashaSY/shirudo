@@ -31,7 +31,7 @@ one ``POST`` from a one-shot command:
 The timers ``shirudo-keepalive.timer`` and ``shirudo-map-export.timer``
 run these commands, see :doc:`/reference/systemd-units`. Setting up an
 export is in :doc:`/operate/run/telemetry`. Decoders are in
-:doc:`/upatches/decoders`.
+:doc:`/upatches/write/decoders`.
 
 Transport
 ---------
@@ -491,6 +491,6 @@ Related
 - :doc:`/operate/run/telemetry`
 - :doc:`/reference/cli/status`
 - :doc:`/reference/cli/upatch-map`
-- :doc:`/upatches/decoders`
+- :doc:`/upatches/write/decoders`
 - :doc:`status-json`
 - :doc:`configuration`

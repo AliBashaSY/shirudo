@@ -129,7 +129,7 @@ uid and gid 0 and mtime 0.
 
 ``Beefile``, ``README.md``, ``cert.der`` and ``build-environment.json`` are
 reserved and cannot be ``[[files]]`` or upatch targets.
-:doc:`/upatches/beefile` describes the Beefile.
+:doc:`/upatches/publish/beefile` describes the Beefile.
 
 On install the target loads every regular file in ``upatches/`` whose name
 contains ``.upatch`` and not ``.unload.upatch``, in name order. Uninstall
@@ -559,7 +559,7 @@ Limits
 Related
 -------
 
-- :doc:`/upatches/publishing`
+- :doc:`/upatches/publish/publishing`
 - :doc:`/operate/run/deliver-packages`
 - :doc:`/reference/cli/bpm`
 - :doc:`configuration` for repository and tree settings

@@ -346,7 +346,7 @@ One kind of map without a decoder fails: a per-CPU map whose value is an
 unsigned BTF integer. The target classifies it as a metric, finds no
 decoder to build the metric and prints ``upatch map: OTLP export
 <upatch>/<map>: No data available``. Give such a map a decoder.
-:doc:`/upatches/decoders` shows how.
+:doc:`/upatches/write/decoders` shows how.
 
 What to alert on
 ----------------
@@ -414,7 +414,7 @@ Next steps
 
 - :doc:`/operate/run/read-status` to read what the keepalive carries
 - :doc:`/reference/formats/otlp` for the records on the wire
-- :doc:`/upatches/decoders` to give a map a decoder
+- :doc:`/upatches/write/decoders` to give a map a decoder
 - :doc:`/reference/cli/upatch-map` and :doc:`/reference/cli/status` for
   every option
 - :doc:`/operate/run/attest` for evidence that the target cannot forge

@@ -38,7 +38,7 @@ shirudo complements live patching. An upatch cannot replace a function
 body. It can refuse a call before the function runs, at an LSM hook, a
 ``security_*`` function, a system call entry or a function marked for
 error injection, and it can observe or filter
-(:doc:`/upatches/attach-kinds`). In exchange, the BPF verifier checks
+(:doc:`/upatches/write/attach-kinds`). In exchange, the BPF verifier checks
 every program, CO-RE lets one artifact load on more than one kernel
 build, and each load and unload is measured. A target can run both:
 shirudo does not gate module loading (:doc:`/operate/plan/interoperability`).

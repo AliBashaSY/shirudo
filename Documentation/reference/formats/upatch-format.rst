@@ -417,7 +417,7 @@ Each program entry is 160 bytes:
      - uprobe.multi entry probe
      - ``uprobe.multi/<absolute-path>:<function-glob>``
 
-:doc:`/upatches/attach-kinds` describes how the target attaches each kind.
+:doc:`/upatches/write/attach-kinds` describes how the target attaches each kind.
 
 When any entry has kind 7, one ``UPUT`` block follows the program entries
 and ends the section. Without a kind 7 entry the section ends after the
@@ -573,7 +573,7 @@ the BPF program declares in ``.rodata`` (``bpf/lib/shirudo_decoder.h``,
 ``.rodata`` at 4-byte steps, accepts one decoder per upatch and map, and
 reads each source file, at most 16 MiB. A decoder whose ``language``,
 ``api_version``, ``input_format`` or ``export_signal`` differs from the
-values above fails the build. :doc:`/upatches/decoders` covers the decoder
+values above fails the build. :doc:`/upatches/write/decoders` covers the decoder
 API.
 
 Header fields outside the signature
@@ -765,5 +765,5 @@ Related
 
 - :doc:`/reference/cli/build` and :doc:`/reference/cli/upatch-info`
 - :doc:`/internals/signed-loader`
-- :doc:`/upatches/attach-kinds`
+- :doc:`/upatches/write/attach-kinds`
 - :doc:`bpm-formats` for the packages that carry ``.upatch`` files

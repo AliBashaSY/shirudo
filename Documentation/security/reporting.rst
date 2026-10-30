@@ -61,5 +61,5 @@ Next steps
 ----------
 
 - :doc:`threat-model` for what shirudo protects and the known gaps
-- :doc:`/contribute/contributing` if you send the fix yourself, after
+- :doc:`/contribute/code/contributing` if you send the fix yourself, after
   the advisory is agreed

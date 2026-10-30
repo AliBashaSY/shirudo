@@ -51,8 +51,8 @@ hard-coded offset signs as well as a CO-RE access and fails on the wrong
 kernel in the same way. :doc:`/concepts/background/co-re-btf` explains the
 mechanism.
 
-The section name is the attach point. :doc:`attach-kinds` lists the
-sections the builder accepts and how the target attaches each one.
+The section name is the attach point. :doc:`/upatches/write/attach-kinds` lists
+the sections the builder accepts and how the target attaches each one.
 
 Why the build wraps the program in a loader
 -------------------------------------------
@@ -192,9 +192,10 @@ file, the eventlog record and the target of its unload directive.
        ``--name`` sets another.
    * - name in a package
      - The base name of the ``source`` in the Beefile, the same rule
-       without an override. :doc:`beefile` has the details.
+       without an override. :doc:`/upatches/publish/beefile` has the details.
    * - tree id
-     - Equal to the upatch name. :doc:`publishing` explains why.
+     - Equal to the upatch name. :doc:`/upatches/publish/publishing` explains
+       why.
    * - upatch with decoders
      - At most 63 characters, because the decoder manifest holds the
        upatch name in a 64-byte field.
@@ -223,10 +224,11 @@ how an upatch initializes state such as an arena before its first export.
 A negative return from the test-run program fails the load.
 
 An upatch that accumulates records keeps them in one BPF arena and ships a
-serializer that walks them. :doc:`maps-arenas-serializers` explains why.
+serializer that walks them. :doc:`/upatches/write/maps-arenas-serializers`
+explains why.
 A map becomes a log record or a metric through a decoder, a Lua function
 that the source declares in ``.rodata`` and the build signs into the
-upatch. :doc:`decoders` shows how to write one.
+upatch. :doc:`/upatches/write/decoders` shows how to write one.
 
 What an upatch cannot do
 ------------------------
@@ -251,8 +253,8 @@ with ``attach_scope_mismatch``. For fentry, fexit, ``fmod_ret``, LSM and
 
 It cannot use a program type that has no pinnable link. The builder
 refuses socket filters, ``sk_skb``, ``xdp`` and every other section
-outside the list in :doc:`attach-kinds`, because only a pinned link keeps
-a program attached after the command exits and lets the unload path
+outside the list in :doc:`/upatches/write/attach-kinds`, because only a pinned
+link keeps a program attached after the command exits and lets the unload path
 detach it.
 
 It cannot stay loaded unmeasured. A load whose archive copy or register
@@ -270,8 +272,8 @@ what remains.
 Related
 -------
 
-- :doc:`kernel-fix-tutorial` takes one upatch from a kernel fix to a
-  published package.
+- :doc:`/upatches/learn/kernel-fix-tutorial` takes one upatch from a kernel fix
+  to a published package.
 - :doc:`/reference/cli/build` for every ``shirudo build`` option.
 - :doc:`/concepts/upatches-and-packages` for how upatches, packages and
   the tree relate.

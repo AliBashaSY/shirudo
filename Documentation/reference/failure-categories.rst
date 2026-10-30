@@ -166,7 +166,7 @@ Categories
        relocation against this kernel's BTF. ``verifier_log`` holds the
        kernel's log.
      - Read ``verifier_log`` and rebuild against the target kernel. See
-       :doc:`/upatches/debugging`.
+       :doc:`/upatches/test/debugging`.
    * - ``attach_scope_mismatch``
      - ``link_create``
      - ``EXDEV``

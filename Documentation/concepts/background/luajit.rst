@@ -128,7 +128,7 @@ A metric decoder returns a list of OpenTelemetry metric objects. shirudo
 serializes the result itself, refuses nesting deeper than 32 levels and
 output larger than its size limits, and drops the snapshot with a
 diagnostic on any error rather than export a partial record.
-:doc:`/upatches/decoders` describes the input table, the helpers and the
+:doc:`/upatches/write/decoders` describes the input table, the helpers and the
 return contract in full.
 
 How shirudo uses it
@@ -175,8 +175,8 @@ lists the residual risks in :doc:`/security/threat-model`.
 Related
 -------
 
-- :doc:`/upatches/decoders` for writing a decoder
-- :doc:`/upatches/maps-arenas-serializers` for the records a decoder
+- :doc:`/upatches/write/decoders` for writing a decoder
+- :doc:`/upatches/write/maps-arenas-serializers` for the records a decoder
   reads
 - :doc:`opentelemetry` for the records a decoder produces
 - :doc:`/security/threat-model` for the residual risks

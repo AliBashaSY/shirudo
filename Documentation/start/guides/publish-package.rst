@@ -201,8 +201,8 @@ Remove it
 Next steps
 ----------
 
-- :doc:`/upatches/beefile` describes every key of a ``Beefile``.
-- :doc:`/upatches/publishing` publishes to a registry and to the signed
+- :doc:`/upatches/publish/beefile` describes every key of a ``Beefile``.
+- :doc:`/upatches/publish/publishing` publishes to a registry and to the signed
   upatch tree.
 - :doc:`/operate/run/deliver-packages` registers repositories in the signed
   config and lets the timers keep targets up to date.
