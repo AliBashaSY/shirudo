@@ -200,6 +200,8 @@ Related
 -------
 
 - :doc:`/operate/run/telemetry` to set up export on a target
+- :doc:`siem-export` for how the records reach a SIEM and what to
+  detect with them
 - :doc:`/reference/formats/otlp` for the exported documents
 - :doc:`/reference/systemd-units` for the timers and services
 - :doc:`luajit` for the decoder sandbox

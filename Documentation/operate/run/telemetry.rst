@@ -47,7 +47,9 @@ The keepalive record has the event name ``shirudo.keepalive``. Its body
 is the ``shirudo status --json`` document with the system section, and
 its attributes are ``shirudo.status`` (the verdict),
 ``shirudo.version_id`` and ``shirudo.tamper_attempts`` (the refusals the
-guards counted this boot). Its severity follows the verdict:
+guards counted this boot). The system section includes the kernel
+configuration, so a keepalive from a distribution kernel is a few hundred
+kilobytes. Its severity follows the verdict:
 
 .. list-table::
    :header-rows: 1
@@ -266,9 +268,35 @@ reboot.
 
    The ``debug`` exporter prints what arrives. Replace it with the
    exporters for your storage once records arrive;
-   :doc:`/operate/integrations/index` sets up ClickHouse, Splunk and
-   Grafana. A collector built
-   with Go 1.24 or later offers ``X25519MLKEM768`` by default.
+   :doc:`/operate/integrations/index` sets up ClickHouse, Elasticsearch,
+   Grafana and Splunk. A collector built with Go 1.24 or later offers
+   ``X25519MLKEM768`` by default.
+
+#. Optionally, drop the kernel configuration from the keepalives before
+   the collector exports them. It makes up most of a keepalive, and
+   every keepalive repeats it:
+
+   .. code-block:: yaml
+
+      processors:
+        transform/drop-kernel-config:
+          log_statements:
+            - context: log
+              conditions:
+                - log.event_name == "shirudo.keepalive"
+              statements:
+                - delete_key(log.body["system"], "kernel_config")
+
+      service:
+        pipelines:
+          logs:
+            receivers: [otlp]
+            processors: [transform/drop-kernel-config]
+            exporters: [debug]
+
+   The ``transform`` processor is part of the contrib distribution,
+   ``otelcol-contrib``. ``kernel_release`` and ``kernel_build_id`` stay
+   in the system section and still name the kernel.
 
 #. Restart the collector.
 

@@ -13,6 +13,10 @@ through the OpenTelemetry Collector's ClickHouse exporter. The exporter
 writes OTLP logs to one table and each kind of metric to a table of its
 own.
 
+This is a do-it-yourself example to get started from, not an
+integration that shirudo ships or maintains. Adapt retention, access
+control and sizing to your deployment.
+
 Before you begin
 ----------------
 
@@ -24,7 +28,7 @@ Before you begin
   ClickHouse exporter; Go 1.24 offers the hybrid key exchange the
   targets require.
 - A ClickHouse server the collector can reach, and a user for the
-  collector that may create tables in its database and insert into
+  collector that may create its database and tables and insert into
   them.
 
 The exporter's log support is beta and its metric support alpha.
@@ -38,7 +42,7 @@ Set up the exporter
 
       CREATE DATABASE shirudo;
       CREATE USER otel IDENTIFIED BY '<password>';
-      GRANT CREATE TABLE, INSERT, SELECT ON shirudo.* TO otel;
+      GRANT CREATE DATABASE, CREATE TABLE, INSERT, SELECT ON shirudo.* TO otel;
 
 #. Add the exporter and the pipelines to the collector's configuration,
    next to the ``otlp`` receiver:
@@ -69,7 +73,10 @@ Set up the exporter
 
    ``create_schema`` lets the exporter create its tables, ``otel_logs``
    for logs and ``otel_metrics_gauge``, ``otel_metrics_sum`` and their
-   siblings for metrics. Set it to ``false`` to create them yourself.
+   siblings for metrics. It also runs ``CREATE DATABASE IF NOT EXISTS``
+   at every start, which needs the ``CREATE DATABASE`` grant even though
+   the database exists. Set it to ``false`` to create the tables
+   yourself.
    ``ttl`` drops rows older than 30 days. ``CLICKHOUSE_PASSWORD`` comes
    from the collector's environment.
 
@@ -124,6 +131,63 @@ Check the data
    when the upatch ships no decoder. A decoder that emits metrics writes
    to the metric tables instead.
 
+Alert on the data
+-----------------
+
+Each query below returns one row for every target that needs a look,
+so an alert fires when a query returns rows. Run them on a schedule,
+from Grafana with its ClickHouse data source or from any tool that can
+run SQL. :doc:`/operate/run/telemetry` explains each signal under what
+to alert on.
+
+#. Find targets that stopped sending keepalives. Two minutes covers
+   several keepalive intervals and the 30 seconds a keepalive may wait
+   for the config operation lock:
+
+   .. code-block:: sql
+
+      SELECT ResourceAttributes['host.name'] AS host,
+             max(Timestamp) AS last_seen
+      FROM shirudo.otel_logs
+      WHERE ServiceName = 'shirudo' AND EventName = 'shirudo.keepalive'
+      GROUP BY host
+      HAVING last_seen < now() - INTERVAL 2 MINUTE;
+
+#. Find targets that reported a verdict other than ``ok`` in the last
+   five minutes:
+
+   .. code-block:: sql
+
+      SELECT ResourceAttributes['host.name'] AS host,
+             LogAttributes['shirudo.status'] AS status,
+             max(Timestamp) AS last_seen
+      FROM shirudo.otel_logs
+      WHERE ServiceName = 'shirudo' AND EventName = 'shirudo.keepalive'
+        AND Timestamp > now() - INTERVAL 5 MINUTE
+        AND LogAttributes['shirudo.status'] != 'ok'
+      GROUP BY host, status;
+
+#. Find targets whose guards refused operations in the last ten
+   minutes:
+
+   .. code-block:: sql
+
+      SELECT ResourceAttributes['host.name'] AS host,
+             argMax(toInt64OrZero(LogAttributes['shirudo.tamper_attempts']), Timestamp)
+             - argMin(toInt64OrZero(LogAttributes['shirudo.tamper_attempts']), Timestamp)
+               AS new_attempts
+      FROM shirudo.otel_logs
+      WHERE ServiceName = 'shirudo' AND EventName = 'shirudo.keepalive'
+        AND Timestamp > now() - INTERVAL 10 MINUTE
+      GROUP BY host
+      HAVING new_attempts > 0;
+
+   The query subtracts the earliest count in the window from the latest.
+   The counters start at zero each boot, so a target that rebooted in
+   the window yields a negative difference and no row, where the
+   difference between the largest and smallest count would report every
+   reboot.
+
 Next steps
 ----------
 
@@ -131,3 +195,5 @@ Next steps
 - :doc:`/upatches/write/decoders` to turn a map into log records or
   metrics
 - :doc:`grafana` to chart the same data
+- :doc:`/concepts/background/siem-export` for how the records reach a
+  backend and what to build on them

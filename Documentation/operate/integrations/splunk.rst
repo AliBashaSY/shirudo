@@ -12,6 +12,10 @@ Index the keepalives and map snapshots of your targets in Splunk,
 through the OpenTelemetry Collector's Splunk HEC exporter, which sends to
 Splunk's HTTP Event Collector.
 
+This is a do-it-yourself example to get started from, not an
+integration that shirudo ships or maintains. Adapt retention, access
+control and sizing to your deployment.
+
 Before you begin
 ----------------
 
@@ -64,7 +68,10 @@ Set up the exporter
    ``ca_file`` names the CA that signed the HEC endpoint's certificate.
    The exporter takes each event's host from the ``host.name`` resource
    attribute, so every event carries the name of the target that sent
-   it.
+   it. The record's body becomes the event, and its attributes become
+   indexed fields under their own names, ``shirudo.status`` and
+   ``shirudo.tamper_attempts`` among them, next to ``otel.log.name``
+   for the event name.
 
 #. Restart the collector.
 
@@ -89,8 +96,54 @@ Check the data
       | sort last_seen
 
    A target at the top whose ``last_seen`` falls behind has stopped
-   sending. :doc:`/operate/run/telemetry` describes what else to alert
-   on.
+   sending.
+
+Alert on the data
+-----------------
+
+Each search below returns one row for every target that needs a look.
+Save each one as an alert that runs every few minutes and triggers when
+the number of results is greater than zero.
+:doc:`/operate/run/telemetry` explains each signal under what to alert
+on.
+
+#. Find targets that stopped sending. Two minutes covers several
+   keepalive intervals and the 30 seconds a keepalive may wait for the
+   config operation lock:
+
+   .. code-block:: text
+
+      | tstats latest(_time) AS last_seen
+          WHERE index=shirudo sourcetype=shirudo earliest=-1d BY host
+      | where last_seen < relative_time(now(), "-2m")
+
+   A target silent for longer than a day drops out of the search.
+
+#. Find targets that reported a verdict other than ``ok`` in the last
+   five minutes:
+
+   .. code-block:: text
+
+      index=shirudo sourcetype=shirudo shirudo.status!=ok earliest=-5m
+      | stats count AS reports BY host, shirudo.status
+
+   ``!=`` matches only events that carry the field, so map snapshots
+   do not match.
+
+#. Find targets whose guards refused operations in the last ten
+   minutes:
+
+   .. code-block:: text
+
+      index=shirudo sourcetype=shirudo shirudo.tamper_attempts=* earliest=-10m
+      | stats earliest(shirudo.tamper_attempts) AS first_count,
+              latest(shirudo.tamper_attempts) AS last_count BY host
+      | eval new_attempts = last_count - first_count
+      | where new_attempts > 0
+
+   The search subtracts the earliest count in the window from the
+   latest. The counters start at zero each boot, so a reboot in the
+   window gives a negative difference and no row.
 
 Next steps
 ----------
@@ -98,3 +151,5 @@ Next steps
 - :doc:`/reference/formats/otlp` for every field a target sends
 - :doc:`/upatches/write/decoders` to turn a map into log records or
   metrics
+- :doc:`/concepts/background/siem-export` for how the records reach a
+  backend and what to build on them

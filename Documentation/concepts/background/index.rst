@@ -27,4 +27,5 @@ its page.
    pqc
    oci
    opentelemetry
+   siem-export
    luajit

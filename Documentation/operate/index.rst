@@ -24,8 +24,8 @@ refusal or verdict is an incident: follow
   initialized target
 - :doc:`run/index`: deliver packages, read status, export telemetry and
   attest targets
-- :doc:`integrations/index`: send telemetry to ClickHouse, Splunk and
-  Grafana
+- :doc:`integrations/index`: send telemetry to ClickHouse,
+  Elasticsearch, Grafana and Splunk
 - :doc:`maintain/index`: signing keys, upgrades, backup, recovery and
   decommissioning
 - :doc:`troubleshoot/index`: failures by symptom, tampered targets and bug
