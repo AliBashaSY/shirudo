@@ -30,23 +30,8 @@ into the fleet.
 
 ## Getting Started
 
-* [Quickstart](Documentation/start/quickstart.rst): build shirudo, boot
-  a protected test target and take one upatch through load, attestation
-  and unload
-* [System requirements](Documentation/operate/system-requirements.rst):
-  the kernel, the operator host and the target runtime
-* [Architecture overview](Documentation/internals/architecture.rst): how
-  the pieces fit together
-* [Threat model](Documentation/security/threat-model.rst): what shirudo
-  protects, against whom, and where each mechanism stops
-* [Operate](Documentation/operate/index.rst): deploying, monitoring,
-  upgrading and troubleshooting targets
-* [upatches](Documentation/upatches/index.rst): writing, testing and
-  publishing upatches
-
-`make docs` renders the documentation and serves it on
-http://127.0.0.1:8000; the sources start at
-[Documentation/index.rst](Documentation/index.rst).
+Run `make docs` to render the documentation and access it through:
+http://127.0.0.1:8000
 
 ## Releases
 
