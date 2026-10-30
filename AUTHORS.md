@@ -10,5 +10,6 @@ signed off on commits in the shirudo project:
  * Leonard Cohnen            \<leonard.cohnen@gmail.com\>
  * Liz Rice                  \<liz@lizrice.com\>
  * Mahe Tardy                \<mahe.tardy@gmail.com\>
+ * Martynas Pumputis         \<martynas@pumputis.org\>
  * Michi Mutsuzaki           \<michi@isovalent.com\>
  * Puranjay Mohan            \<puranjay@kernel.org\>
