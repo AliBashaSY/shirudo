@@ -97,8 +97,11 @@ Describe a loaded upatch:
 
    Source (kernel BTF line_info):
 
-     /home/darkstar/shirudo/testing/fixtures/basic.bpf.c:
+     <checkout>/testing/fixtures/basic.bpf.c:
            9: int BPF_PROG(shirudo_test_basic)
+
+``<checkout>`` is the path of the checkout on the operator host, where the
+compiler saw the source.
 
 Related
 -------
