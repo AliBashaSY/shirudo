@@ -69,8 +69,23 @@ fi
 
 TMP_IMAGE="$CACHE_DIR/.${RUNTIME_KEY}.tmp.$$"
 MARKER="${TMP_IMAGE}.marker"
-cleanup() { rm -f -- "$TMP_IMAGE" "$MARKER" "${TMP_IMAGE}.nameservers"; }
+NO_PASST="${TMP_IMAGE}.no-passt"
+cleanup() {
+	rm -f -- "$TMP_IMAGE" "$MARKER" "${TMP_IMAGE}.nameservers"
+	rm -rf -- "$NO_PASST"
+}
 trap cleanup EXIT
+
+# Started as root, passt changes to nobody before it writes its PID file
+# into the directory libguestfs keeps for root, and the appliance never
+# starts. libguestfs takes passt to be missing when "passt --help" exits
+# with neither 0 nor 1, and then networks the appliance through qemu.
+if [[ "$EUID" == 0 ]]; then
+	mkdir -p -- "$NO_PASST"
+	printf '%s\n' '#!/bin/sh' 'exit 127' >"$NO_PASST/passt"
+	chmod +x -- "$NO_PASST/passt"
+	PATH="$NO_PASST:$PATH"
+fi
 
 # The cloud image is intentionally small.  Enlarge the backing overlay and
 # grow its existing root partition before installing the runtime packages.
@@ -151,4 +166,5 @@ mv -- "$TMP_IMAGE" "$IMAGE"
 printf '%s\n' "$RUNTIME_KEY" >"$KEY_OUTPUT"
 trap - EXIT
 rm -f -- "$MARKER"
+rm -rf -- "$NO_PASST"
 printf '[test-vm-runtime] ready: %s\n' "$IMAGE" >&2

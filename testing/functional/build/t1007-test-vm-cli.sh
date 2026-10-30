@@ -339,6 +339,28 @@ test_expect_success 'a failed runtime image shows what apt could not fetch' '
 	grep -q "Temporary failure resolving archive.ubuntu.com" "$WORK/aptfail.out"
 '
 
+test_expect_success 'as root the runtime image is built without passt' '
+	mkdir -p "$WORK/passt-bin" &&
+	printf "%s\n" "#!/bin/sh" "exit 0" >"$WORK/passt-bin/passt" &&
+	printf "%s\n" "#!/bin/sh" \
+		"passt --help >/dev/null 2>&1; echo \$? >\"\$GF_OUT\"" \
+		>"$WORK/passt-bin/virt-customize" &&
+	chmod +x "$WORK/passt-bin/passt" "$WORK/passt-bin/virt-customize" &&
+	env PATH="$WORK/passt-bin:$WORK/dns-bin:$PATH" GF_OUT="$WORK/passt-out" \
+		TMPDIR="$WORK" LIBGUESTFS_CACHEDIR="$WORK/passt-cache" \
+		vm/prepare-runtime.sh \
+		--rootfs "$WORK/dns-rootfs" --cache-dir "$WORK/passt-cache/img" \
+		--package-file vm/runtime-packages \
+		--runtime-key passt --key-output "$WORK/passt-cache/key" \
+		>/dev/null 2>&1 &&
+	if [ "$(id -u)" = 0 ]; then
+		test "$(cat "$WORK/passt-out")" = 127
+	else
+		test "$(cat "$WORK/passt-out")" = 0
+	fi &&
+	! ls -a "$WORK/passt-cache/img" | grep -q no-passt
+'
+
 test_expect_success 'the kernel package format follows the host package manager' '
 	printf "print:\n\t@echo \$(PACKAGE_FORMAT)\n" >"$WORK/print.mk" &&
 	format() {
