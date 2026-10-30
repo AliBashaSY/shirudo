@@ -65,9 +65,18 @@ check_source()
 
 build_filesystem()
 {
+	local files rc=0
+
 	truncate -s "${size}M" "$work/filesystem.img"
 	mkfs.ext4 -q -F -b 4096 -O '^has_journal' -E root_owner=0:0 \
-		-d "$source_dir" "$work/filesystem.img"
+		-d "$source_dir" "$work/filesystem.img" 2>"$work/mkfs.err" || rc=$?
+	cat "$work/mkfs.err" >&2
+	[ "$rc" -eq 0 ] && return
+	if grep -q 'Could not allocate' "$work/mkfs.err"; then
+		files=$(du -s -k --apparent-size "$source_dir" | cut -f1)
+		die "$files KiB of files do not fit an image of $size MiB; raise --size"
+	fi
+	die 'mkfs.ext4 failed'
 }
 
 build_signed_image()

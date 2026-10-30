@@ -20,6 +20,18 @@ test_expect_success 'target is static PIE without an interpreter or shared depen
 	"$TARGET" version >"$WORK/version"
 '
 
+if command -v veritysetup >/dev/null 2>&1 && command -v mkfs.ext4 >/dev/null 2>&1 &&
+   command -v debugfs >/dev/null 2>&1 && command -v llvm-strip >/dev/null 2>&1 &&
+   [ -x ../tools/shirudo-build/shirudo-build ]; then
+	test_expect_success 'the default runtime image holds the target binary' '
+		sh ../.github/scripts/check-runtime-image.sh "$TARGET"
+	'
+else
+	TAP_COUNT=$((TAP_COUNT + 1))
+	printf 'ok %d - the default runtime image holds the target binary # SKIP no image tools\n' \
+		"$TAP_COUNT"
+fi
+
 test_expect_success 'the static ELF checker rejects the dynamic operator' '
 	! sh ../.github/scripts/check-static-target.sh "$OPERATOR"
 '

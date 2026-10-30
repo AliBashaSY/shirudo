@@ -310,6 +310,32 @@ if command -v mkfs.ext4 >/dev/null 2>&1 && command -v debugfs >/dev/null 2>&1; t
 		LC_ALL=C readelf -S "$W/static-probe" | grep -q "\.symtab" &&
 		! LC_ALL=C readelf -S "$W/extracted-static" | grep -q "\.symtab"
 	'
+	test_expect_success 'files that do not fit the image size are refused with their size' '
+		mkdir -p "$W/big-root" &&
+		head -c 9437184 /dev/urandom >"$W/big-root/big" &&
+		! ../tools/gen-image/shirudo-gen-image --source "$W/big-root" \
+			--output "$W/big" --keys-dir "$W/keys" --builder "$B" --size 8 \
+			2>"$W/big.err" &&
+		grep -Eq "[0-9]+ KiB of files do not fit an image of 8 MiB; raise --size" \
+			"$W/big.err" &&
+		! test -e "$W/big.img"
+	'
+	test_expect_success 'check-runtime-image.sh reports the space left in the default image' '
+		SHIRUDO="$S" SHIRUDO_BUILD="$B" sh ../.github/scripts/check-runtime-image.sh \
+			"$W/static-probe" >"$W/check.out" &&
+		grep -Eq "^shirudo: the default runtime image of [0-9]+ MiB holds .* with [0-9]+ KiB free$" \
+			"$W/check.out"
+	'
+	test_expect_success 'check-runtime-image.sh fails once a binary outgrows the default' '
+		head -c 16777216 /dev/urandom >"$W/blob" &&
+		printf ".section .rodata\n.incbin \"%s\"\n.section .note.GNU-stack,\"\",%%progbits\n" \
+			"$W/blob" >"$W/blob.s" &&
+		printf "int main(void) { return 0; }\n" >"$W/big-probe.c" &&
+		${CC:-cc} -static -o "$W/big-probe" "$W/big-probe.c" "$W/blob.s" &&
+		! SHIRUDO="$S" SHIRUDO_BUILD="$B" sh ../.github/scripts/check-runtime-image.sh \
+			"$W/big-probe" 2>"$W/check.err" &&
+		grep -q "raise size= in tools/gen-image/shirudo-gen-runtime" "$W/check.err"
+	'
 
 fi
 

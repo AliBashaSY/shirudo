@@ -430,6 +430,11 @@ the commit at ``HEAD`` alone without them.
        commit in the working tree.
    * - ``check-static-target.sh <binary>``
      - That a target binary is a static PIE.
+   * - ``check-runtime-image.sh <binary>``
+     - That a runtime image of the default size of
+       ``shirudo-gen-runtime`` holds the target binary, and how much
+       space it leaves. When it fails, raise ``size=`` in
+       ``tools/gen-image/shirudo-gen-runtime``.
    * - ``tests.sh setup|run``
      - Prepares a CI runner as the VM host and runs ``make tests``.
        Meant for CI runners, which are discarded afterwards.

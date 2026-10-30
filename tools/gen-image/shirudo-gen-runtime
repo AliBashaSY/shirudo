@@ -178,7 +178,9 @@ cert=
 config_cert=
 output=
 keys_dir=
-size=128
+# The stripped static target with its certificates, plus about 1 MiB.
+# .github/scripts/check-runtime-image.sh fails CI once it no longer fits.
+size=15
 builder=${SHIRUDO_BUILD:-shirudo-build}
 unit_output=
 library_path=

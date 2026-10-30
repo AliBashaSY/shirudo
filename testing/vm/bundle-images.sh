@@ -21,6 +21,7 @@ sed 's/@config_image@/config-boot-keys/g' "$templates/runtime.conf.in" \
 	--bootstrap-conf "$work/runtime.conf" --cert "$keys/cert.der" \
 	--config-cert "$keys/cert.der" --output "$bundle/verity/runtime" \
 	--keys-dir "$keys" --builder "$source_dir/tools/shirudo-build/shirudo-build" \
+	--size 64 \
 	--extra-binary "$source_dir/build/verity-tests/shirudo-policy-probe" \
 	--extra-binary "$source_dir/build/verity-tests/shirudo-image-fault" \
 	--unit-output "$bundle/verity/runtime-service.conf" \

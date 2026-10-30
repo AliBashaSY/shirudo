@@ -58,8 +58,9 @@ root, no journal, 4096-byte blocks) and signs it with
 
 It refuses a source that contains a file named ``signing_key.pem``, a
 special file, a source that contains the keys directory, and for
-``--kind config`` any symbolic link. Requires ``mkfs.ext4`` and
-``veritysetup``.
+``--kind config`` any symbolic link. Files that do not fit ``--size``
+make it fail with ``<n> KiB of files do not fit an image of <size> MiB;
+raise --size``. Requires ``mkfs.ext4`` and ``veritysetup``.
 
 .. list-table::
    :header-rows: 1
@@ -147,8 +148,10 @@ trusted binaries. Requires ``readelf``, ``ldd`` and ``llvm-strip``.
      - required
      - Operator keys directory that signs the image.
    * - ``--size``
-     - 128
-     - File system size in MiB, 8 to 1048576.
+     - 15
+     - File system size in MiB, 8 to 1048576. The default holds the
+       stripped static target binary and its certificates. A dynamic
+       binary with its libraries or an ``--extra-binary`` may need more.
    * - ``--builder``
      - ``$SHIRUDO_BUILD``, else ``shirudo-build``
      - The signing helper.

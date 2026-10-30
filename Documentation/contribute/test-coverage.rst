@@ -65,8 +65,9 @@ signed config image.
      - Removed fleet-management commands are absent and rejected
    * - ``t1003-static-target``
      - The target binary is a static PIE with OpenSSL 3.5 or newer and
-       no shared TLS closure, and the operator binary is dynamic. Runs
-       only where ``make target`` has built ``shirudo-target``
+       no shared TLS closure, fits the default runtime image, and the
+       operator binary is dynamic. Runs only where ``make target`` has
+       built ``shirudo-target``
    * - ``t1004-target-system-libdir``
      - Where ``make target-deps`` finds the system static archives
    * - ``t1005-binrpm-pkg``
