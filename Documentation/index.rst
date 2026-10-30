@@ -112,8 +112,7 @@ By role
   :doc:`/upatches/learn/kernel-fix-tutorial`
 - Security reviewers: :doc:`/security/security-model`, then
   :doc:`/security/threat-model`
-- Contributors: :doc:`/contribute/code/developer-guide`, then
-  :doc:`/contribute/arch-support`
+- Contributors: :doc:`/contribute/code/develop-locally`
 
 Documentation
 -------------
