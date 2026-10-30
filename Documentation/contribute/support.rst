@@ -17,9 +17,9 @@ https://github.com/shirudo-dev/shirudo.
 
    * - For
      - Where
-   * - Questions
-     - A GitHub issue at https://github.com/shirudo-dev/shirudo/issues,
-       or GitHub Discussions.
+   * - Questions and talking with the community
+     - GitHub Discussions at
+       https://github.com/shirudo-dev/shirudo/discussions.
    * - Feature requests
      - A GitHub issue that describes the problem the feature would
        solve.
@@ -29,6 +29,3 @@ https://github.com/shirudo-dev/shirudo.
    * - Security problems
      - Never a public issue. Report them privately, as
        :doc:`/security/reporting` describes.
-   * - Talking with the community
-     - GitHub Discussions at
-       https://github.com/shirudo-dev/shirudo/discussions.
