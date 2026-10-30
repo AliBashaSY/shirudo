@@ -133,6 +133,7 @@ div.body, article.body { max-width: 780px; min-width: 0; padding: 0; background:
 .body h4 { font-size: .95rem; font-weight: 600; margin: 1.3em 0 .3em; }
 .body p { margin: 0 0 1em; }
 .body p.meta { font-size: 13px; color: var(--muted); margin: 0 0 22px; }
+.body p.etymology { margin-top: 1.65em; }
 .body ul, .body ol { padding-left: 1.3em; margin: 0 0 1em; }
 .body li { margin: .2em 0; }
 .body li > p { margin: 0 0 .4em; }

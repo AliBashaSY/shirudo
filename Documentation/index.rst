@@ -5,6 +5,10 @@
 shirudo documentation
 =====================
 
+.. rst-class:: etymology
+
+shirudo (Japanese シールド, pronounced "shee-roo-doh") means "shield"
+
 shirudo is a BPF-based security platform: Linux targets run only the BPF
 their operator signed, every change is measured into the TPM, and the
 functionality ships as signed upatches that targets pull from OCI

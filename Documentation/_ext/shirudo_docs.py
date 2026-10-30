@@ -78,7 +78,7 @@ def page_context(app, pagename, templatename, context, doctree):
 
 def first_paragraph(doctree, limit=300):
     for para in doctree.findall(nodes.paragraph):
-        if "meta" in para.get("classes", []):
+        if {"meta", "etymology"} & set(para.get("classes", [])):
             continue
         text = " ".join(para.astext().split())
         if len(text) > limit:
