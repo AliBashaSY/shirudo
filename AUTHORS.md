@@ -13,3 +13,4 @@ signed off on commits in the shirudo project:
  * Martynas Pumputis         \<martynas@pumputis.org\>
  * Michi Mutsuzaki           \<michi@isovalent.com\>
  * Puranjay Mohan            \<puranjay@kernel.org\>
+ * Vadim Shchekoldin         \<inbox@vadim.sh\>
