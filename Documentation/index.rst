@@ -101,6 +101,20 @@ shirudo is built on a set of properties for a BPF security platform:
 The :doc:`security/threat-model` states where each of these mechanisms
 stops.
 
+By role
+-------
+
+- New to shirudo: :doc:`/start/quickstart`, then :doc:`/start/faq`
+- Operators, who deploy and run targets:
+  :doc:`/operate/deploy/deployment-checklist`, then
+  :doc:`/operate/run/read-status`
+- upatch authors: :doc:`/start/guides/first-upatch`, then
+  :doc:`/upatches/learn/kernel-fix-tutorial`
+- Security reviewers: :doc:`/security/security-model`, then
+  :doc:`/security/threat-model`
+- Contributors: :doc:`/contribute/code/developer-guide`, then
+  :doc:`/contribute/arch-support`
+
 Documentation
 -------------
 
