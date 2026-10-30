@@ -298,7 +298,8 @@ A non-zero counter does not mean:
 A counter does not change the verdict of ``shirudo status``. It is the
 target's own account, like the rest of the status, and it travels
 unauthenticated to the collector. Only ``shirudo attest verify`` is
-evidence. To act on a counter, see :doc:`/operate/incident-tampered`.
+evidence. To act on a counter, see
+:doc:`/operate/troubleshoot/incident-tampered`.
 
 Related
 -------

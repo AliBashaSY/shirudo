@@ -12,7 +12,7 @@ shirudo keeps root from loading BPF, changing its state and extending
 its register. It relies on the kernel and the boot chain for the rest:
 root with a way to write kernel memory, replace the kernel or talk to the
 TPM directly goes around every check shirudo makes. This checklist lists
-what a production target needs beyond :doc:`/operate/system-requirements`,
+what a production target needs beyond :doc:`/operate/plan/system-requirements`,
 and says for each item whether shirudo checks it.
 
 The ``Checked`` column reads:
@@ -200,7 +200,7 @@ TPM
    * - Protection of the TPM device node
      - shirudo opens the TPM by its device path and does not
        authenticate the answers to its own commands. Evidence that
-       :doc:`/operate/attest` verifies is signed by the TPM's attestation
+       :doc:`/operate/run/attest` verifies is signed by the TPM's attestation
        key and does not depend on that path.
      - no
 
@@ -237,9 +237,9 @@ Host files
 Related
 -------
 
-- :doc:`/operate/system-requirements` for what shirudo needs to run
-- :doc:`/operate/boot-integration` for the UKI, the command line and the
+- :doc:`/operate/plan/system-requirements` for what shirudo needs to run
+- :doc:`/operate/deploy/boot-integration` for the UKI, the command line and the
   config PCR
-- :doc:`/operate/attest` for the checks that catch a target booted
+- :doc:`/operate/run/attest` for the checks that catch a target booted
   without these items
 - :doc:`/security/threat-model` for the threats and residual risks

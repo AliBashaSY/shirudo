@@ -137,7 +137,7 @@ What a target does with them
 
 A target learns its repositories, their index certificates and the tree
 it follows from its signed config image.
-:doc:`/operate/deliver-packages` shows the setup.
+:doc:`/operate/run/deliver-packages` shows the setup.
 
 For a package by name, ``shirudo bpm repo update`` fetches the index and
 verifies its signature. ``shirudo bpm install <source>/<name>`` checks the
@@ -165,5 +165,5 @@ Next steps
 
 - :doc:`/reference/formats/bpm-formats` for the index and the tree
   documents
-- :doc:`/operate/deliver-packages` to configure targets
-- :doc:`/operate/attest` to verify what targets loaded
+- :doc:`/operate/run/deliver-packages` to configure targets
+- :doc:`/operate/run/attest` to verify what targets loaded

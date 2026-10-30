@@ -14,7 +14,7 @@ the first command to run on a target that misbehaves, and the keepalive
 timer sends the same data to your collector. It is the target's account
 of itself: anyone with root on the target can lie to a reader of this
 report, so it proves nothing to a third party. TPM-signed evidence does,
-see :doc:`/operate/attest`.
+see :doc:`/operate/run/attest`.
 
 This page walks through a healthy report section by section, then
 explains every verdict and what to do about it.
@@ -134,7 +134,7 @@ Header
     ``target, operator``, or ``none``. A production target shows
     ``target`` alone. A private signing key on a target breaks the
     operator and target split: remove it and treat the key as exposed,
-    see :doc:`/operate/keys`.
+    see :doc:`/operate/maintain/keys`.
 
 ``Mode``
     ``production`` when the ``lsm/bpf`` link is pinned in the private
@@ -147,7 +147,7 @@ Header
 
 ``Version-ID``
     The identifier of the shirudo build that runs. Compare it with the
-    build you deployed, see :doc:`/operate/upgrade`.
+    build you deployed, see :doc:`/operate/maintain/upgrade`.
 
 Conditions
 ~~~~~~~~~~
@@ -216,7 +216,7 @@ roots, read the same way.
     primary certificate and the vouched certificates of the active
     signed config, less its revocations; ``unvouched`` counts
     certificates in the config without a valid vouch, which are
-    therefore not members. :doc:`/operate/keys` explains the set. For
+    therefore not members. :doc:`/operate/maintain/keys` explains the set. For
     ``.dm-verity`` it is the config certificate the runtime image names,
     marked ``(config)``.
 
@@ -271,7 +271,7 @@ TPM Measurement
 ``PCR before init`` and ``Phase at init``
     The values of PCR 9 and PCR 11 that ``init`` bound the register to.
     A verifier pins them with ``--expect-bind-pcr``, see
-    :doc:`/operate/attest`. In the capture above both are zero because
+    :doc:`/operate/run/attest`. In the capture above both are zero because
     the test VM boots its kernel and initrd directly, without a measured
     UKI. On a production target booted from a measured UKI, PCR 11 holds
     the ``enter-initrd`` phase measurement. ``init`` warns in the journal
@@ -358,7 +358,7 @@ precedence: ``tampered``, ``lsm-off``, ``init-pending``,
      - Enforcement is up, the keyring is the sealed one, the register
        replays from the eventlog and the config is active.
      - Nothing. Verify with the TPM regularly, see
-       :doc:`/operate/attest`.
+       :doc:`/operate/run/attest`.
    * - ``degraded``
      - Enforcement is up, but this report has no register to check.
      - Read the ``Chain`` line. See :ref:`status-degraded`.
@@ -371,7 +371,7 @@ precedence: ``tampered``, ``lsm-off``, ``init-pending``,
      - The ``lsm/bpf`` link is pinned but no keyring was recorded:
        ``init`` did not finish.
      - Read the journal of ``shirudo-initrd.service``, see
-       :doc:`/operate/initialize`.
+       :doc:`/operate/deploy/initialize`.
    * - ``lsm-off``
      - The ``lsm/bpf`` link is not pinned. Enforcement is off and the
        target is unprotected.
@@ -450,7 +450,7 @@ The detail of ``ConfigActive`` names the cause:
   (tamper?)``: the config PCR does not hold the value the activation
   records predict. Something extended the PCR after this boot's config
   measurement. Software that measures into the same PCR causes this
-  too, see :doc:`/operate/hardening` for the PCR choice.
+  too, see :doc:`/operate/plan/hardening` for the PCR choice.
 - ``the config activation record does not belong to this TPM boot
   (tamper?)``: the TPM was reset since the config was measured, for
   example by a resume from hibernation.
@@ -460,11 +460,11 @@ The detail of ``ConfigActive`` names the cause:
 
 In each of the config states every command except ``status`` and
 ``image status`` refuses with ``shirudo: image state:`` and the error,
-see :doc:`/operate/troubleshooting`.
+see :doc:`/operate/troubleshoot/troubleshooting`.
 
 For every reason, do not retry anything and do not reboot first: the
 journal and the state of this boot are the evidence. Follow
-:doc:`/operate/incident-tampered`.
+:doc:`/operate/troubleshoot/incident-tampered`.
 
 .. _status-lsm-off:
 
@@ -488,7 +488,7 @@ in this state. So does a target booted without the shirudo initrd.
 
       target# journalctl -b -u shirudo-initrd.service
 
-2. Fix the cause that :doc:`/operate/initialize` lists for the failed
+2. Fix the cause that :doc:`/operate/deploy/initialize` lists for the failed
    step.
 
 3. Reboot.
@@ -526,7 +526,7 @@ its own.
 
 3. Check the verdict again. A ``reboot-pending`` verdict after the next
    boot, with ``boot-restore`` errors in the journal, means an archived
-   upatch fails to load at every boot. :doc:`/operate/backup-recovery`
+   upatch fails to load at every boot. :doc:`/operate/maintain/backup-recovery`
    describes what works in that case.
 
 .. _status-degraded:
@@ -552,7 +552,7 @@ verdict whose ``Chain`` line says ``register not bound this boot``
 therefore means the register was bound and then disappeared. Undefining
 the index takes TPM owner authorization, which root has on a TPM whose
 owner authorization is empty. Collect the evidence as for ``tampered``,
-see :doc:`/operate/incident-tampered`, then reboot.
+see :doc:`/operate/troubleshoot/incident-tampered`, then reboot.
 
 The reason ``no TPM answered`` means the TPM stopped answering while
 ``status`` ran. On a production target every command first checks that
@@ -623,7 +623,7 @@ Monitor with ``status --json``
 
 ``status --json`` prints the same data as one JSON document. The
 keepalive timer sends it to your collector, see
-:doc:`/operate/telemetry`.
+:doc:`/operate/run/telemetry`.
 
 .. warning::
 
@@ -718,9 +718,9 @@ on a healthy target, ``shirudo status --json | jq -r .status`` prints
 Next steps
 ----------
 
-- :doc:`/operate/attest` to have the TPM confirm what the report says
-- :doc:`/operate/incident-tampered` for a ``tampered`` verdict
-- :doc:`/operate/troubleshooting` for refused commands and failure
+- :doc:`/operate/run/attest` to have the TPM confirm what the report says
+- :doc:`/operate/troubleshoot/incident-tampered` for a ``tampered`` verdict
+- :doc:`/operate/troubleshoot/troubleshooting` for refused commands and failure
   categories
-- :doc:`/operate/telemetry` to send the report to a collector
+- :doc:`/operate/run/telemetry` to send the report to a collector
 - :doc:`/reference/cli/status` for every option

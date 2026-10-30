@@ -250,7 +250,7 @@ A remote verifier ties all of this together. ``shirudo attest`` quotes
 PCRs 0 to 7, 9 and 11 to 15 by default, and the operator pins the PCR 9
 and PCR 11 values the register was bound under with
 ``--expect-bind-pcr``, computing the PCR 11 value from the UKI. See
-:doc:`/operate/attest`.
+:doc:`/operate/run/attest`.
 
 Limits
 ------
@@ -278,7 +278,7 @@ Related
 - :doc:`tpm` for PCRs, NV indices and the register binding
 - :doc:`initrd-dracut` for the initrd shirudo runs from
 - :doc:`/internals/boot-flow` for the initrd and root runs of ``init``
-- :doc:`/operate/boot-integration` to set up the boot of a target
+- :doc:`/operate/deploy/boot-integration` to set up the boot of a target
 - `TPM2 PCR Measurements Made by systemd
   <https://systemd.io/TPM2_PCR_MEASUREMENTS/>`__
 - `UAPI.7 Linux TPM PCR Registry

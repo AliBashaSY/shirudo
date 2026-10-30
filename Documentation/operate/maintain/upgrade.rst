@@ -37,13 +37,13 @@ no reboot:
      - Packages, published to a registry
      - Within a minute, through the timers
 
-:doc:`/operate/deliver-packages` covers packages, and
+:doc:`/operate/run/deliver-packages` covers packages, and
 :doc:`/reference/cli/image` covers ``image update``.
 
 Before you begin
 ----------------
 
-- A target set up as described in :doc:`/operate/boot-integration`, and
+- A target set up as described in :doc:`/operate/deploy/boot-integration`, and
   the files you built for it: ``runtime.conf``, the BPF signing
   certificate and the config signing key.
 - A root shell on the target. On the target, ``shirudo`` means the
@@ -188,14 +188,14 @@ Verify the upgrade
 
    The ID must be the one you recorded on the operator host.
 
-2. Check init as described in :doc:`/operate/initialize`:
+2. Check init as described in :doc:`/operate/deploy/initialize`:
    ``shirudo status`` reports ``ok`` and ``Bound in: initrd``, and
    ``shirudo image status`` reports ``"pending":false`` and
    ``"consistent":true``.
 
 3. Update your verifiers. The new initrd and UKI change the PCR values
    that init records when it binds the register, which a verifier pins
-   with ``--expect-bind-pcr``. :doc:`/operate/attest` describes how to
+   with ``--expect-bind-pcr``. :doc:`/operate/run/attest` describes how to
    record them.
 
 When the new build fails to initialize, boot the previous UKI and read the
@@ -210,10 +210,10 @@ the risk: init restores every one of them at boot, and a upatch that
 does not load on the new kernel stops the restore. Check them on a
 canary target before you upgrade the fleet.
 
-1. Confirm that the new kernel meets :doc:`/operate/system-requirements`.
+1. Confirm that the new kernel meets :doc:`/operate/plan/system-requirements`.
 
 2. Boot the new kernel on a canary target with steps 4 to 8, and check
-   it as described in :doc:`/operate/initialize`.
+   it as described in :doc:`/operate/deploy/initialize`.
 
 3. On every target, remove the upatches that do not load on the new
    kernel before you reboot into it. Uninstall such a package:
@@ -223,7 +223,7 @@ canary target before you upgrade the fleet.
       target# shirudo bpm uninstall <package>
 
    Retract a upatch that the upatch tree manages with a delete operation,
-   as :doc:`/operate/deliver-packages` describes. Unload a upatch that
+   as :doc:`/operate/run/deliver-packages` describes. Unload a upatch that
    you loaded by hand with its unload directive.
 
 4. Install the new kernel package.
@@ -252,7 +252,7 @@ canary target before you upgrade the fleet.
 
       target# systemctl reboot
 
-8. Check init as described in :doc:`/operate/initialize`, and update the
+8. Check init as described in :doc:`/operate/deploy/initialize`, and update the
    PCR values your verifiers pin.
 
 .. _boot-restore-lockout:
@@ -283,7 +283,7 @@ What works is the previous kernel, on which the upatch still loads:
 2. Boot the previous kernel's UKI from the boot menu. Its runtime image
    must still be where its UKI bootstrap file names it.
 
-3. Check that init completed, as described in :doc:`/operate/initialize`.
+3. Check that init completed, as described in :doc:`/operate/deploy/initialize`.
 
 4. Uninstall the package that holds the upatch, retract it from the
    upatch tree, or unload it with its unload directive. For a package:
@@ -300,6 +300,6 @@ upatch.
 Next steps
 ----------
 
-- :doc:`/operate/initialize` for the checks after every boot
-- :doc:`/operate/attest` to update what verifiers expect
-- :doc:`/operate/backup-recovery` for the state to keep across upgrades
+- :doc:`/operate/deploy/initialize` for the checks after every boot
+- :doc:`/operate/run/attest` to update what verifiers expect
+- :doc:`/operate/maintain/backup-recovery` for the state to keep across upgrades

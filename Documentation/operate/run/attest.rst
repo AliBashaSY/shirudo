@@ -27,7 +27,7 @@ Before you begin
   need no TPM. A target running shirudo refuses any argument that starts
   with ``--cert``, so do not run them on a target.
 - A target that completed init: ``shirudo status`` reports ``ok``.
-  :doc:`/operate/read-status` explains the report.
+  :doc:`/operate/run/read-status` explains the report.
 - On the target, ``shirudo`` is the runtime image's binary, as
   :ref:`runtime-invocation` sets up.
 - For enrollment: the PEM bundle of your TPM manufacturer's
@@ -358,8 +358,8 @@ set only, but a load and an unload happened after boot:
 The init event line fails too, because that target enrolled two
 certificates and the verifier passed one. A failed state check does not
 tell you which side is wrong. Compare the notes with your records before
-you conclude anything, and follow :doc:`/operate/incident-tampered` when
-the target ran something you did not install.
+you conclude anything, and follow :doc:`/operate/troubleshoot/incident-tampered`
+when the target ran something you did not install.
 
 A verify that pins nothing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -390,7 +390,7 @@ verification.
 Next steps
 ----------
 
-- :doc:`/operate/incident-tampered` when a target refuses with
+- :doc:`/operate/troubleshoot/incident-tampered` when a target refuses with
   ``tampered`` or fails verification
 - :doc:`/reference/cli/attest`, :doc:`/reference/cli/attest-verify`,
   :doc:`/reference/cli/attest-predict` and

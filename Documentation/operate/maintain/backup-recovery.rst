@@ -53,10 +53,10 @@ What to back up
    * - ``/etc/systemd/system/shirudo*.d/``
      - The runtime drop-ins of the shirudo units.
    * - On the operator host
-     - The signing keys (:doc:`keys`), the image source directories and
-       bootstrap files, the UKI build inputs, and each target's
+     - The signing keys (:doc:`/operate/maintain/keys`), the image source
+       directories and bootstrap files, the UKI build inputs, and each target's
        attestation key name, endorsement key pin and expected values
-       (:doc:`attest`).
+       (:doc:`/operate/run/attest`).
 
 Back up a target
 ~~~~~~~~~~~~~~~~
@@ -89,8 +89,10 @@ shirudo has no restore command, and while enforcement is up the seal
 refuses root's writes into ``/var/lib/shirudo``. You cannot restore files
 into a running target. Rebuild a lost target instead:
 
-#. Provision it again (:doc:`boot-integration`, :doc:`initialize`).
-#. Install its packages from the registry (:doc:`deliver-packages`).
+#. Provision it again (:doc:`/operate/deploy/boot-integration`,
+   :doc:`/operate/deploy/initialize`).
+#. Install its packages from the registry
+   (:doc:`/operate/run/deliver-packages`).
 #. Keep the old eventlog, journal and activation journal with your
    records as the history of the old installation.
 
@@ -127,8 +129,8 @@ that takes a few thousand boots with no other events, and fewer with
 loads and tree operations.
 
 Watch ``assets.eventlog_bytes`` in ``shirudo status --json`` or the
-keepalive (:doc:`telemetry`), and decommission and reprovision a target
-well before it reaches the limit.
+keepalive (:doc:`/operate/run/telemetry`), and decommission and reprovision a
+target well before it reaches the limit.
 
 Nothing removes old bundles from ``/var/lib/shirudo/images`` either.
 Each config you activate stays there under its root hash, so size config
@@ -204,8 +206,8 @@ A second ``init`` in the same boot does not help. It stops with:
       target# journalctl -b -u shirudo-initrd.service -u shirudo.service
 
 #. Fix the cause. A cause in the boot inputs needs new boot inputs
-   (:doc:`boot-integration`). An archived upatch that fails to load
-   needs the next procedure.
+   (:doc:`/operate/deploy/boot-integration`). An archived upatch that fails to
+   load needs the next procedure.
 
 #. Reboot.
 
@@ -244,7 +246,7 @@ What works is to remove the upatch from a boot on which it loads:
 If no kernel loads the upatch, shirudo offers no recovery in place.
 Decommission the target and provision it again. To avoid the state,
 make sure every archived upatch loads on a new kernel before you reboot
-into it (:doc:`upgrade`).
+into it (:doc:`/operate/maintain/upgrade`).
 
 TPM reset or restarted without a reboot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -266,8 +268,9 @@ If you know the TPM was reset, reboot. Do not run ``init`` again: after a
 TPM reset it binds the register from the root file system, which a
 verifier that pins PCR 11 rejects, and after a restart alone it refuses
 to bind and leaves a config activation pending. If you do not know why
-the counts changed, handle the target as in :doc:`incident-tampered`
-before you reboot. :doc:`hardening` covers turning hibernation off.
+the counts changed, handle the target as in
+:doc:`/operate/troubleshoot/incident-tampered` before you reboot.
+:doc:`/operate/plan/hardening` covers turning hibernation off.
 
 Decommission a target
 ---------------------
@@ -358,7 +361,9 @@ tpm2-tools.
 Next steps
 ----------
 
-- :doc:`troubleshooting` for messages by symptom
-- :doc:`incident-tampered` when ``status`` reports ``tampered``
-- :doc:`upgrade` to change the kernel without stranding an upatch
+- :doc:`/operate/troubleshoot/troubleshooting` for messages by symptom
+- :doc:`/operate/troubleshoot/incident-tampered` when ``status`` reports
+  ``tampered``
+- :doc:`/operate/maintain/upgrade` to change the kernel without stranding an
+  upatch
 - :doc:`/reference/files` for every file shirudo keeps

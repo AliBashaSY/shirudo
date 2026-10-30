@@ -140,7 +140,7 @@ over OTLP or as JSON, which is what the map export timer does with
 running a serializer require runtime authority, so the decoder runs
 inside a process that holds it. ``--all`` decodes the maps one after the
 other in that one process. :doc:`opentelemetry` explains what happens to
-the records afterwards, and :doc:`/operate/telemetry` sets up the export.
+the records afterwards, and :doc:`/operate/run/telemetry` sets up the export.
 
 Limits
 ------

@@ -15,7 +15,7 @@ the boot PCRs, so that an :term:`operator` can cryptographically verify the
 target's state.
 This page explains how shirudo uses the TPM. The event formats and the
 :term:`eventlog` are in :doc:`/internals/measurement-register`, the
-verification procedure in :doc:`/operate/attest`.
+verification procedure in :doc:`/operate/run/attest`.
 
 Every target needs a TPM 2.0 with an active SHA-256 PCR bank. There is
 no unmeasured mode. The :term:`operator host` does not use a TPM.
@@ -412,7 +412,7 @@ of the document is the :term:`target`'s own account, which ``attest verify``
 checks against the signed values. In particular, it recomputes the
 register's Name from the PCR values and the writer key that the
 :term:`init record` names. A register bound under other PCR values or with
-another writer key has another Name and fails. :doc:`/operate/attest` lists
+another writer key has another Name and fails. :doc:`/operate/run/attest` lists
 the checks and the options that pin each value.
 
 Credential activation
@@ -526,7 +526,7 @@ Related
 
 - :doc:`boot` for measured boot, PCR 11 phases and NvPCRs
 - :doc:`/internals/measurement-register` for events and the :term:`eventlog`
-- :doc:`/operate/attest` to attest a :term:`target`
+- :doc:`/operate/run/attest` to attest a :term:`target`
 - :doc:`/security/threat-model` for the residual risks
 - `TPM 2.0 Library specification
   <https://trustedcomputinggroup.org/resource/tpm-library-specification/>`__

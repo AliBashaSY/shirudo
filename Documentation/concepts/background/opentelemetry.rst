@@ -193,13 +193,13 @@ nothing.
 Telemetry is the target's own account of itself. The evidence of what a
 target runs is the TPM-signed record that ``shirudo attest`` produces and
 ``shirudo attest verify`` checks on the operator host, described in
-:doc:`/operate/attest`. The threat model covers exported telemetry in
+:doc:`/operate/run/attest`. The threat model covers exported telemetry in
 :doc:`/security/threat-model`.
 
 Related
 -------
 
-- :doc:`/operate/telemetry` to set up export on a target
+- :doc:`/operate/run/telemetry` to set up export on a target
 - :doc:`/reference/formats/otlp` for the exported documents
 - :doc:`/reference/systemd-units` for the timers and services
 - :doc:`luajit` for the decoder sandbox

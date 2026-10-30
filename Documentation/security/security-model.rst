@@ -118,15 +118,15 @@ The deployer and the verifier each have a part that no code does for
 them. The :ref:`duties <tm-duties>` section lists it in full. The
 essentials:
 
-- Build and boot the kernel as :doc:`/operate/hardening` describes.
+- Build and boot the kernel as :doc:`/operate/plan/hardening` describes.
 - Start every shirudo unit from the runtime image, and keep the units'
   environment files empty.
 - Verify each target with ``shirudo attest verify`` and always pass
   ``--ak-name``, the binding PCRs, an expected state and the expected
-  config root, as :doc:`/operate/attest` describes.
+  config root, as :doc:`/operate/run/attest` describes.
 - Treat ``shirudo status``, keepalives and tamper counters as the
   target's own account, and a ``tampered`` status as an incident
-  (:doc:`/operate/incident-tampered`).
+  (:doc:`/operate/troubleshoot/incident-tampered`).
 
 Related
 -------

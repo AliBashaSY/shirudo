@@ -438,5 +438,5 @@ Related
 - :doc:`/concepts/background/tpm` for TPM PCRs, NV indices and
   sessions
 - :doc:`/concepts/measurement-register` for the concept
-- :doc:`/operate/attest` for attesting a target
+- :doc:`/operate/run/attest` for attesting a target
 - :doc:`/reference/formats/eventlog` for the eventlog format

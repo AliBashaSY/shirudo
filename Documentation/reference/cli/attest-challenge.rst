@@ -121,4 +121,4 @@ Related
 
 - :doc:`attest`
 - :doc:`attest-verify`
-- :doc:`/operate/attest`
+- :doc:`/operate/run/attest`

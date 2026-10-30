@@ -288,7 +288,7 @@ threat model lists this behavior among the threats to resolve.
 Next steps
 ----------
 
-- :doc:`/operate/attest` attests production targets, with the binding
+- :doc:`/operate/run/attest` attests production targets, with the binding
   PCRs and the approved config image.
 - :doc:`/concepts/measurement-register` explains the register, its events
   and its binding.

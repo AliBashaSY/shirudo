@@ -82,14 +82,14 @@ Categories
      - ``--expect-version-id`` differs from the target's
        ``SHIRUDO_VERSION_ID``.
      - Compare ``shirudo version --version-id`` on both hosts and
-       deploy matching builds. See :doc:`/operate/upgrade`.
+       deploy matching builds. See :doc:`/operate/maintain/upgrade`.
    * - ``kernel_abi_unsupported``
      - ``pre_flight``, ``link_create``
      - ``EOPNOTSUPP``
      - In ``pre_flight``, the kernel lacks the signed-loader ABI; the
        message names the missing part. In ``link_create``, the kernel
        does not support the attach type.
-     - Run a kernel that meets :doc:`/operate/system-requirements`.
+     - Run a kernel that meets :doc:`/operate/plan/system-requirements`.
    * - ``keyring_missing``
      - ``pre_flight``, ``signed_loader_load``
      - errno of the read, ``ENOKEY``
@@ -98,7 +98,7 @@ Categories
        signer's certificate is not in the ``.bpf`` keyring.
      - Check ``shirudo status`` and the journal of ``init``. Compare the
        signer with ``shirudo keys``; enroll a signer through the signed
-       config, see :doc:`/operate/keys`.
+       config, see :doc:`/operate/maintain/keys`.
    * - ``tampered``
      - ``pre_flight``, ``tpm_extend``
      - none, ``EPERM``, ``EACCES``
@@ -107,7 +107,7 @@ Categories
        ``--expect-chain`` or cannot be read (``EPERM``), or the register
        is not the one ``init`` bound (``EACCES``, the load is undone).
      - Do not retry. Keep the eventlog and the journal and handle the
-       target as an incident: :doc:`/operate/incident-tampered`.
+       target as an incident: :doc:`/operate/troubleshoot/incident-tampered`.
    * - ``eventlog_full``
      - ``pre_flight``
      - ``ENOSPC``
@@ -150,7 +150,7 @@ Categories
      - ``ENOPKG``
      - The kernel cannot verify ML-DSA signatures.
      - Build the kernel with ``CONFIG_CRYPTO_MLDSA``, see
-       :doc:`/operate/system-requirements`.
+       :doc:`/operate/plan/system-requirements`.
    * - ``lsm_denied``
      - ``target_verify``, ``signed_loader_load``, ``link_create``
      - ``EACCES``, ``EPERM``
@@ -572,6 +572,6 @@ Related
 -------
 
 - :doc:`/reference/cli/upatch-load` and :doc:`/reference/cli/upatch-unload`
-- :doc:`/operate/troubleshooting`
-- :doc:`/operate/incident-tampered`
+- :doc:`/operate/troubleshoot/troubleshooting`
+- :doc:`/operate/troubleshoot/incident-tampered`
 - :doc:`/security/tamper-counters`

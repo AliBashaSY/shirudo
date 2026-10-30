@@ -20,7 +20,7 @@ Before you begin
 - Decide which hosts are operators and which are targets.
   :doc:`/concepts/operator-and-target` explains the split.
 - A checkout of shirudo on a build host that meets the build requirements
-  in :doc:`/operate/system-requirements`.
+  in :doc:`/operate/plan/system-requirements`.
 - ``dpkg-deb`` (package ``dpkg-dev``) to build ``.deb`` packages, or
   ``rpmbuild`` (package ``rpm`` on Debian and Ubuntu, ``rpm-build`` on
   Fedora) to build ``.rpm`` packages.
@@ -201,7 +201,7 @@ packages, with the binaries under ``/usr/local`` unless you set
 
    This builds OpenSSL, libcurl and tpm2-tss from source first and links
    the static target binary against them and the static archives that
-   :doc:`/operate/system-requirements` lists. It enables no unit.
+   :doc:`/operate/plan/system-requirements` lists. It enables no unit.
 
 3. Check the installation on either host:
 
@@ -219,7 +219,7 @@ Installing ``shirudo-target`` protects nothing by itself. A target
 enforces once it boots through the shirudo initrd with everything that
 ``init`` verifies there:
 
-- A kernel that meets :doc:`/operate/system-requirements`, booted with
+- A kernel that meets :doc:`/operate/plan/system-requirements`, booted with
   the BPF LSM active and with ``bpf.keyring_unsealed=1
   dm_verity.keyring_unsealed=1``, so that ``init`` can enroll the trusted
   certificates and then seal the ``.bpf`` and ``.dm-verity`` keyrings.
@@ -237,14 +237,14 @@ enforces once it boots through the shirudo initrd with everything that
   so the timer services need the same change to work. The generator does
   not write drop-ins for them.
 
-:doc:`/operate/boot-integration` sets these up. After the reboot,
+:doc:`/operate/deploy/boot-integration` sets these up. After the reboot,
 ``shirudo status`` on the target shows ``Status: ok``, ``Mode:
 production`` and ``Bound in: initrd``.
 
 Next steps
 ----------
 
-- :doc:`/operate/boot-integration` brings an installed target up.
-- :doc:`/operate/deployment-checklist` lists every step of a rollout.
-- :doc:`/operate/keys` creates the signing key on the operator host.
+- :doc:`/operate/deploy/boot-integration` brings an installed target up.
+- :doc:`/operate/deploy/deployment-checklist` lists every step of a rollout.
+- :doc:`/operate/maintain/keys` creates the signing key on the operator host.
 - :doc:`quickstart` tries everything in a test VM first.

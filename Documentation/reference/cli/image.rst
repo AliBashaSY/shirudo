@@ -216,4 +216,4 @@ Related
 - :doc:`/concepts/background/dm-verity`
 - :doc:`gen-tools`
 - :doc:`/reference/formats/configuration`
-- :doc:`/operate/keys`
+- :doc:`/operate/maintain/keys`

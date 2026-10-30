@@ -176,7 +176,8 @@ Exit status and failure categories
 ``attach_target_missing``, ``binary_mismatch``,
 ``attach_scope_mismatch``, ``tpm_error`` and ``unknown``.
 :doc:`/reference/failure-categories` gives the cause and the action for
-each. Handle ``tampered`` as an incident (:doc:`/operate/incident-tampered`).
+each. Handle ``tampered`` as an incident
+(:doc:`/operate/troubleshoot/incident-tampered`).
 
 Files and environment
 ---------------------
@@ -219,7 +220,7 @@ differs, ``load`` refuses before it touches the kernel:
 
 The message suggests repeating the command with the live value. Do not.
 A register that differs from your prediction is an incident
-(:doc:`/operate/incident-tampered`).
+(:doc:`/operate/troubleshoot/incident-tampered`).
 
 A refusal for an artifact signed by a key the target does not trust:
 

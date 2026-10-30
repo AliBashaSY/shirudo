@@ -127,7 +127,7 @@ the images (``dm_mod``, ``dm_verity``, ``loop``, ``ext4``). Its
 ``shirudo-gen-initrd`` runs dracut with this module, checks the result
 with ``lsinitrd`` and prints the kernel parameters the initrd needs,
 ``bpf.keyring_unsealed=1 dm_verity.keyring_unsealed=1``. See
-:doc:`/operate/boot-integration` for the procedure.
+:doc:`/operate/deploy/boot-integration` for the procedure.
 
 ``shirudo-initrd.service`` runs ``shirudo init`` after
 ``initrd-root-fs.target`` and ``systemd-pcrphase-initrd.service``, and

@@ -230,5 +230,5 @@ Related
 - :doc:`attest`
 - :doc:`attest-predict`
 - :doc:`attest-challenge`
-- :doc:`/operate/attest`
+- :doc:`/operate/run/attest`
 - :doc:`/security/threat-model`

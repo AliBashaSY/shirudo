@@ -289,7 +289,7 @@ one usually still compiles and passes tests.
 - **Kernel + shirudo is the target TCB.** Ask of every change whether it
   grows the TCB; the agentless design exists to keep it minimal.
 - **Bleeding-edge kernel and toolchain only.** The signed-loader ABI
-  described in `Documentation/operate/system-requirements.rst` and
+  described in `Documentation/operate/plan/system-requirements.rst` and
   current clang/LLVM are hard prerequisites. Development trees can
   expose that ABI before the corresponding release number changes; use a
   verified commit, not just `uname`, to identify the tested kernel. No

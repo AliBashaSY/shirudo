@@ -158,7 +158,7 @@ choose versions from that copy, and check the manifest and package digests
 they download against it before unpacking. ``upgrade`` removes the
 installed version's upatches through their directives, loads the new
 version's upatches, and restores the old set when a load fails.
-:doc:`/operate/deliver-packages` shows the commands.
+:doc:`/operate/run/deliver-packages` shows the commands.
 
 upatch tree
 -----------

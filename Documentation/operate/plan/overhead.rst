@@ -396,7 +396,7 @@ nothing.
        signature.
 
 Each request opens a new connection with its own TLS 1.3 handshake.
-:doc:`/operate/telemetry` and :doc:`/operate/deliver-packages` describe
+:doc:`/operate/run/telemetry` and :doc:`/operate/run/deliver-packages` describe
 the settings.
 
 Disk writes
@@ -526,8 +526,8 @@ a program of its own on each hook they pass, ``task_alloc``,
 Related
 -------
 
-- :doc:`/operate/system-requirements`
-- :doc:`/operate/scalability`
+- :doc:`/operate/plan/system-requirements`
+- :doc:`/operate/plan/scalability`
 - :doc:`/reference/systemd-units`
 - :doc:`/reference/files`
 - :doc:`/reference/formats/eventlog`

@@ -280,7 +280,7 @@ selection exists. And it enrolls the config verification certificate of
 the runtime image before it maps that config. A reboot therefore does not
 pick up a config that was never activated, and a runtime image with
 another config verification certificate needs a selected config that
-certificate verifies. :doc:`/operate/keys` covers key changes.
+certificate verifies. :doc:`/operate/maintain/keys` covers key changes.
 
 Limits
 ------
@@ -302,7 +302,7 @@ Related
 -------
 
 - :doc:`/concepts/background/dm-verity` for the mechanism
-- :doc:`/operate/boot-integration` for building the images and the
+- :doc:`/operate/deploy/boot-integration` for building the images and the
   initrd
 - :doc:`/reference/cli/image` for the ``shirudo image`` commands
 - :doc:`/reference/formats/configuration` for the settings

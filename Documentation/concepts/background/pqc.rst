@@ -232,5 +232,5 @@ Related
 - :doc:`dm-verity`
 - :doc:`tpm`
 - :doc:`oci`
-- :doc:`/operate/keys`
+- :doc:`/operate/maintain/keys`
 - :doc:`/reference/formats/configuration`

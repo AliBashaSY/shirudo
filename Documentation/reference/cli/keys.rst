@@ -63,7 +63,7 @@ directory, so that ``init`` enrolls it at the next boot:
    production target has, with ``target: add vouched BPF signers to the
    signed config selected for boot and reboot to enroll them``. On such a
    target, add vouched signers to the signed config image instead (see
-   :doc:`/operate/keys`).
+   :doc:`/operate/maintain/keys`).
 #. It requires an ML-DSA-87 certificate and a trusted set under the keys
    directory, and refuses a certificate listed under ``<dir>/revoked``.
 #. The vouch must verify under a certificate already in the set. With the
@@ -104,7 +104,7 @@ A revocation is the revoked certificate, placed in a signed config image as
 lowercase hexadecimal SHA-256 of its public key (SPKI). When :doc:`image` ``update`` activates that image, the target
 removes the certificate from the ``.bpf`` keyring, measures a
 ``key_revoke`` event in the register and unloads every archived upatch the
-certificate signed (see :doc:`/operate/keys`).
+certificate signed (see :doc:`/operate/maintain/keys`).
 
 Options
 -------
@@ -228,7 +228,7 @@ Vouch for a second operator's certificate:
 Related
 -------
 
-- :doc:`/operate/keys`
+- :doc:`/operate/maintain/keys`
 - :doc:`genkey`
 - :doc:`image`
 - :doc:`/security/cryptography`

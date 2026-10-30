@@ -178,7 +178,7 @@ The dm-verity root-hash check also accepts a config signed by a key in
 the kernel's built-in trusted keyring, and in the secondary or platform
 keyring when ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING`` or
 ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` is set.
-:doc:`/operate/hardening` lists what that means for who can sign a
+:doc:`/operate/plan/hardening` lists what that means for who can sign a
 config, and the options the trust model assumes beyond this table:
 lockdown, module signature enforcement, ``CONFIG_COMPAT`` and others.
 
@@ -207,7 +207,7 @@ Kernel command line
 
 ``shirudo-gen-initrd --print-cmdline`` prints the two keyring parameters.
 In production the command line is part of the signed unified kernel
-image. See :doc:`/operate/boot-integration`.
+image. See :doc:`/operate/deploy/boot-integration`.
 
 Attach points for upatches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -478,8 +478,8 @@ distribution it is installed on.
 Related
 -------
 
-- :doc:`/operate/deployment-checklist`
-- :doc:`/operate/hardening`
-- :doc:`/operate/boot-integration`
+- :doc:`/operate/deploy/deployment-checklist`
+- :doc:`/operate/plan/hardening`
+- :doc:`/operate/deploy/boot-integration`
 - :doc:`/internals/kernel-interfaces`
 - :doc:`/start/install`

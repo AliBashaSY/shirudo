@@ -56,7 +56,7 @@ Its ``README.md`` is what ``shirudo bpm info`` prints for the package.
 It follows here as it ships. Where it tells a target to add a key with
 ``bpm key add``, note that a production target takes its keys and
 repositories from its signed config image and refuses local key changes.
-:doc:`/operate/deliver-packages` describes that setup.
+:doc:`/operate/run/deliver-packages` describes that setup.
 
 .. include:: ../../upatches/kernel-obs/README.md
    :parser: myst_parser.sphinx_

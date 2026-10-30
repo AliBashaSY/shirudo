@@ -71,7 +71,7 @@ The human report follows the verdict with the tamper counters that moved
 this boot, the ``.bpf`` and ``.dm-verity`` keyrings with the
 certificates each should hold and the key that holds each one, the
 loaded upatches, the TPM measurement state and the assets under
-``/var/lib/shirudo``. :doc:`/operate/read-status` explains each field and
+``/var/lib/shirudo``. :doc:`/operate/run/read-status` explains each field and
 :doc:`/reference/formats/status-json` the JSON document.
 
 With ``--otel``, ``status`` builds the JSON report and sends it as one
@@ -258,8 +258,8 @@ The eventlog section of that report:
 Related
 -------
 
-- :doc:`/operate/read-status`
+- :doc:`/operate/run/read-status`
 - :doc:`/reference/formats/status-json`
 - :doc:`/security/tamper-counters`
-- :doc:`/operate/incident-tampered`
-- :doc:`/operate/telemetry`
+- :doc:`/operate/troubleshoot/incident-tampered`
+- :doc:`/operate/run/telemetry`

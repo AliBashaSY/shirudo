@@ -101,8 +101,8 @@ with it.
 Before you begin
 ----------------
 
-- An initialized target (:doc:`initialize`) whose services run the
-  runtime binary (:ref:`unit-drop-ins`).
+- An initialized target (:doc:`/operate/deploy/initialize`) whose services run
+  the runtime binary (:ref:`unit-drop-ins`).
 - On the target, ``shirudo`` stands for the runtime image's binary,
   ``/run/shirudo/runtime/usr/bin/shirudo`` (:ref:`runtime-invocation`).
 - A package published to a repository (:doc:`/start/guides/publish-package`).
@@ -213,7 +213,7 @@ while it runs.
    update, ``root_hash`` is the root that ``image verify`` printed and
    ``sequence`` is higher. ``pending`` must be ``false`` and
    ``consistent`` must be ``true``. The command exits 1 otherwise. If an
-   activation stays pending, follow :doc:`backup-recovery`.
+   activation stays pending, follow :doc:`/operate/maintain/backup-recovery`.
 
 Install a package
 -----------------
@@ -368,7 +368,7 @@ Keep these rules of the tree in mind:
 - The target verifies tree publications only against the runtime
   image's primary certificate, ``keys/cert.der``. A vouched key cannot
   sign them, and revoking the primary in the signed config does not stop
-  them. :doc:`keys` describes the limit.
+  them. :doc:`/operate/maintain/keys` describes the limit.
 
 Timers and locks
 ----------------
@@ -397,11 +397,11 @@ without a time limit. Every ``shirudo`` command on a target also holds
 the config operation lock for its whole run, and a command that waits
 longer than 30 seconds for it fails. A long download therefore delays
 the status keepalive and the map export, and a keepalive can fail while
-it runs. :doc:`troubleshooting` has the message.
+it runs. :doc:`/operate/troubleshoot/troubleshooting` has the message.
 
 Every command except ``status`` is refused while a config activation is
-pending, ``bpm uninstall`` included. :doc:`backup-recovery` describes
-that state.
+pending, ``bpm uninstall`` included. :doc:`/operate/maintain/backup-recovery`
+describes that state.
 
 Next steps
 ----------
@@ -409,7 +409,7 @@ Next steps
 - :doc:`/start/guides/publish-package` to publish a package
 - :doc:`/upatches/publishing` for packages, indexes and the tree on the
   operator side
-- :doc:`telemetry` to export what the installed upatches collect
+- :doc:`/operate/run/telemetry` to export what the installed upatches collect
 - :doc:`/reference/cli/bpm` for every ``bpm`` option
 - :doc:`/reference/formats/bpm-formats` for the index, package and tree
   formats

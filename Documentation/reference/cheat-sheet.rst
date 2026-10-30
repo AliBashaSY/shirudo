@@ -38,7 +38,7 @@ Vouch for a second operator's certificate with :doc:`keys vouch
    operator$ shirudo keys vouch other-cert.der -o other-cert.der.vouch --keys-dir ~/shirudo-keys
 
 Prepare a new key pair beside the old one and vouch for it with the old
-key, before any target relies on it (:doc:`/operate/keys`):
+key, before any target relies on it (:doc:`/operate/maintain/keys`):
 
 .. code-block:: console
 

@@ -14,7 +14,7 @@ entry says what the symptom means, what causes it and what to do. The
 output shown was captured from the test VM.
 
 :doc:`/reference/failure-categories` lists every category and exit
-status. :doc:`/operate/read-status` explains the status report.
+status. :doc:`/operate/run/read-status` explains the status report.
 
 Before you begin
 ----------------
@@ -69,7 +69,7 @@ Action
      :ref:`runtime-invocation`.
    - Install the drop-ins for every unit, see :ref:`unit-drop-ins`.
    - A different TPM is an incident, see
-     :doc:`/operate/incident-tampered`.
+     :doc:`/operate/troubleshoot/incident-tampered`.
 
 ``shirudo: image state: Operation not permitted``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -137,9 +137,9 @@ Causes
 
 Action
    Do not retry. Handle the target as an incident, see
-   :doc:`/operate/incident-tampered`, and reboot once you have the
+   :doc:`/operate/troubleshoot/incident-tampered`, and reboot once you have the
    evidence. If other software extends the PCR, choose another config
-   PCR, see :doc:`/operate/hardening`.
+   PCR, see :doc:`/operate/plan/hardening`.
 
 ``image: waiting for another shirudo command to release the config operation lock``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,7 +217,7 @@ Causes
 Action
    Do not repeat the command with the value the message prints. Keep the
    journal and the eventlog, and follow
-   :doc:`/operate/incident-tampered`. TPM-signed evidence, checked
+   :doc:`/operate/troubleshoot/incident-tampered`. TPM-signed evidence, checked
    against the events you expect, decides whether the change was yours.
 
 ``version_mismatch``
@@ -238,7 +238,7 @@ Causes
    - The target was not upgraded, or was upgraded to another build.
    - The id you expect comes from a binary built on another host. The
      identifier covers the build configuration, so two builds of one
-     commit on different hosts differ, see :doc:`/operate/upgrade`.
+     commit on different hosts differ, see :doc:`/operate/maintain/upgrade`.
 
 Action
    1. Read the identifier of the target:
@@ -295,7 +295,7 @@ Action
 
    3. Compare the ``SPKI fingerprint`` of the operator's certificate
       with the members of the target's ``Trusted set``. Sign with a
-      trusted key, or see :doc:`/operate/keys` for how a key becomes
+      trusted key, or see :doc:`/operate/maintain/keys` for how a key becomes
       trusted.
 
 ``<keys-dir>`` is the directory that holds the signing key the artifact
@@ -411,7 +411,7 @@ Causes
    The target booted a kernel without the required ABI.
 
 Action
-   Boot a kernel that meets :doc:`/operate/system-requirements`.
+   Boot a kernel that meets :doc:`/operate/plan/system-requirements`.
 
 ``eventlog_full``
 ~~~~~~~~~~~~~~~~~
@@ -430,7 +430,7 @@ Action
    Raise ``eventlog.max_bytes`` in a signed config and activate it, see
    :doc:`/reference/formats/configuration`. Keep the cap below 8 MiB:
    every reader of the eventlog fails on a larger log.
-   :doc:`/operate/backup-recovery` covers the eventlog's lifetime.
+   :doc:`/operate/maintain/backup-recovery` covers the eventlog's lifetime.
 
 Boot and init
 -------------
@@ -468,8 +468,8 @@ Causes
    loader or the TPM.
 
 Action
-   Fix the requirement, see :doc:`/operate/system-requirements`, and
-   reboot. :doc:`/operate/initialize` describes the init runs.
+   Fix the requirement, see :doc:`/operate/plan/system-requirements`, and
+   reboot. :doc:`/operate/deploy/initialize` describes the init runs.
 
 ``init: boot-restore failed; further changes and attestation remain blocked``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -489,7 +489,7 @@ Causes
 
 Action
    A reboot restores the same archive and fails the same way.
-   :doc:`/operate/backup-recovery` describes what works and what does
+   :doc:`/operate/maintain/backup-recovery` describes what works and what does
    not.
 
 Status verdicts
@@ -498,8 +498,8 @@ Status verdicts
 :ref:`status-verdicts` explains every verdict in full. The short form:
 
 ``tampered``
-   Handle as an incident, see :doc:`/operate/incident-tampered`. Do not
-   retry and do not reboot before you have the evidence.
+   Handle as an incident, see :doc:`/operate/troubleshoot/incident-tampered`. Do
+   not retry and do not reboot before you have the evidence.
 
 ``reboot-pending``
    A config activation is pending. Reboot.
@@ -518,6 +518,6 @@ Next steps
 
 - :doc:`/reference/failure-categories` for every category and exit
   status
-- :doc:`/operate/incident-tampered` for a ``tampered`` refusal or
+- :doc:`/operate/troubleshoot/incident-tampered` for a ``tampered`` refusal or
   verdict
-- :doc:`/operate/read-status` for the status report
+- :doc:`/operate/run/read-status` for the status report

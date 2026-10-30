@@ -13,7 +13,7 @@ where shirudo and the kernel limit what one target and one upatch can
 hold. shirudo's limits come from its code. Kernel limits come from the
 kernel source and can differ between kernel versions and architectures;
 each one names its constant so that you can look it up in your kernel.
-:doc:`/operate/overhead` describes what one target uses.
+:doc:`/operate/plan/overhead` describes what one target uses.
 
 Fleet
 -----
@@ -95,7 +95,7 @@ Staged rollouts
   512 of them. ``bpm tree append`` refuses the 513th, and targets refuse a
   publication that does not start at the first operation.
 
-:doc:`/operate/deliver-packages` sets up repositories and the tree.
+:doc:`/operate/run/deliver-packages` sets up repositories and the tree.
 
 Collectors
 ~~~~~~~~~~
@@ -105,7 +105,7 @@ request per map of every loaded upatch every 5 seconds after the previous
 run ends, about 12 a minute each. A collector serves N targets with M
 exported maps each about 12 × N × (M + 1) requests a minute. A request
 waits 10 seconds by default and is retried 3 times. See
-:doc:`/operate/telemetry`.
+:doc:`/operate/run/telemetry`.
 
 One target
 ----------
@@ -252,7 +252,7 @@ One upatch
 Related
 -------
 
-- :doc:`/operate/overhead`
-- :doc:`/operate/deliver-packages`
+- :doc:`/operate/plan/overhead`
+- :doc:`/operate/run/deliver-packages`
 - :doc:`/upatches/attach-kinds`
 - :doc:`/security/threat-model`

@@ -739,7 +739,7 @@ Commands and procedures
 - The ``kernel-cve`` package. Its Beefile is a seed of the ``beefile``
   fuzz target only.
 - The recovery, upgrade and decommissioning procedures of
-  :doc:`/operate/backup-recovery` and :doc:`/operate/upgrade`.
+  :doc:`/operate/maintain/backup-recovery` and :doc:`/operate/maintain/upgrade`.
 - Exit statuses. ``t8001``, ``t4003`` and ``t4102`` check a few, but no
   test checks the exit status of every command. No test names the
   failure categories ``already_unloaded``, ``attach_target_missing``,

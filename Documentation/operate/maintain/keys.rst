@@ -26,7 +26,7 @@ Before you begin
   (mode ``0600``, the signing helper refuses any other mode) and
   ``cert.der``.
 - The source tree of the config image the target runs, as built in
-  :doc:`/operate/boot-integration`.
+  :doc:`/operate/deploy/boot-integration`.
 - Root on the target. On the target, ``shirudo`` is the runtime image's
   binary, as :ref:`runtime-invocation` sets up.
 
@@ -67,7 +67,7 @@ Key inventory
      - Config images as well. The kernel checks these keyrings before
        ``.dm-verity``, so their keys, including the kernel build's module
        signing key, can sign a config the target activates.
-       :doc:`/operate/hardening` lists the kernel options.
+       :doc:`/operate/plan/hardening` lists the kernel options.
    * - Repository index certificates
      - ``etc/shirudo/bpm/keys/`` in the config image, named by
        ``key_file`` in ``etc/shirudo/bpm/registries.d/``
@@ -78,7 +78,7 @@ Key inventory
        fixed templates, so one TPM always yields the same keys.
      - The AK signs the evidence. The EK proves at enrollment that the AK
        sits in the same TPM. You record both names when you enroll the
-       target, as :doc:`/operate/attest` describes.
+       target, as :doc:`/operate/run/attest` describes.
    * - NV writer key
      - The TPM. Init creates an RSA-3072 key from a random seed at every
        boot and freezes its public key in the kernel.
@@ -257,7 +257,7 @@ explains. Do this before the target's first boot with enforcement.
    verifies.
 
 4. Build, sign and place the initial config as
-   :doc:`/operate/boot-integration` describes.
+   :doc:`/operate/deploy/boot-integration` describes.
 
 5. After the first boot, check that ``shirudo keys`` on the target lists
    the standby signer in the trusted set and the ``.bpf`` keyring.
@@ -351,7 +351,7 @@ needs it until the config is active, and unlinks it again when the
 config revokes it. It removes the archived upatches the revoked keys
 signed before it restores the archive. The init event covers the set
 after revocation, so ``shirudo attest predict`` takes the remaining
-certificates only. :doc:`/operate/attest` shows how to predict the
+certificates only. :doc:`/operate/run/attest` shows how to predict the
 register, and ``--event=revoke:<label>=<cert-sha256>`` adds a revocation
 made after boot.
 
@@ -390,8 +390,8 @@ discusses the residual risks.
 Next steps
 ----------
 
-- :doc:`/operate/attest` to enroll a target and verify evidence
-- :doc:`/operate/deliver-packages` for repositories and their keys
+- :doc:`/operate/run/attest` to enroll a target and verify evidence
+- :doc:`/operate/run/deliver-packages` for repositories and their keys
 - :doc:`/reference/cli/keys` and :doc:`/reference/cli/image` for the
   command options
 - :doc:`/security/cryptography` for the algorithms

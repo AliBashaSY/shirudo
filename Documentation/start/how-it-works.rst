@@ -155,7 +155,7 @@ Attest
    the shipped certificates and artifacts must produce, and ``shirudo
    attest verify`` checks the signatures and the nonce, replays the records
    to the certified value and compares it with that expectation. Neither
-   command opens a TPM. :doc:`/operate/attest` shows the procedure, and
+   command opens a TPM. :doc:`/operate/run/attest` shows the procedure, and
    :doc:`/concepts/background/tpm` explains the TPM operations.
 
 Export
@@ -171,7 +171,7 @@ OTLP log record when an endpoint is configured. Both run five seconds after
 the previous run ends.
 
 Telemetry carries no proof of origin. It is the target's own account, and
-the TPM-signed evidence of step 7 is the check. :doc:`/operate/telemetry`
+the TPM-signed evidence of step 7 is the check. :doc:`/operate/run/telemetry`
 covers the export settings.
 
 Unload

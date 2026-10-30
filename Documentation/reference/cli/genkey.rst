@@ -59,7 +59,7 @@ an explicit ``--keys-dir`` or ``--index-key`` and ``--index-cert``.
    old certificate refuses everything the new key signs, and nothing can
    sign for the old certificate any more. Generate the new pair in
    another directory and vouch for it with the old key first, as
-   :doc:`/operate/keys` describes.
+   :doc:`/operate/maintain/keys` describes.
 
 Options
 -------
@@ -119,5 +119,5 @@ Related
 -------
 
 - :doc:`keys`
-- :doc:`/operate/keys`
+- :doc:`/operate/maintain/keys`
 - :doc:`/security/cryptography`

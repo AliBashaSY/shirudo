@@ -193,7 +193,7 @@ Send one map to a collector:
 Related
 -------
 
-- :doc:`/operate/telemetry`
+- :doc:`/operate/run/telemetry`
 - :doc:`/reference/formats/otlp`
 - :doc:`/upatches/maps-arenas-serializers`
 - :doc:`/upatches/decoders`

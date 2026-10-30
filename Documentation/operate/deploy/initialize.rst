@@ -17,7 +17,7 @@ worked, and what to do when it did not.
 Before you begin
 ----------------
 
-- A target set up as described in :doc:`/operate/boot-integration`.
+- A target set up as described in :doc:`/operate/deploy/boot-integration`.
 - A root shell on the target. On the target, ``shirudo`` means the
   runtime image's binary, ``/run/shirudo/runtime/usr/bin/shirudo``. See
   :ref:`runtime-invocation`.
@@ -100,7 +100,7 @@ Check that init worked
    found them. The output comes from the test VM, which boots the kernel
    and initrd without a UKI, so both are zero. A target that boots a
    measured UKI shows its own values, and a verifier pins them as
-   :doc:`/operate/attest` describes.
+   :doc:`/operate/run/attest` describes.
 
 2. Check the fields a script reads:
 
@@ -206,7 +206,8 @@ not run at all and nothing reports an error.
        ``status`` reports a config condition that does not belong to
        this boot.
      - Keep the journal, fix the cause and reboot. When the journal does
-       not explain the state, follow :doc:`/operate/incident-tampered`.
+       not explain the state, follow
+       :doc:`/operate/troubleshoot/incident-tampered`.
    * - After the config BOOT event: restoring upatches, binding the
        register or completing the boot.
      - Enforcement is on and the config activation stays pending.
@@ -261,7 +262,7 @@ not advanced`` after one of these lines:
      - The TPM refused the authorization, usually because the owner
        hierarchy has a password that shirudo does not have. Set
        ``tpm.owner_auth`` in both bootstrap files as
-       :doc:`/operate/boot-integration` describes. The environment
+       :doc:`/operate/deploy/boot-integration` describes. The environment
        variable that the message names is refused on a target.
    * - ``tpm: register extend failed -- chain NOT advanced while LSM
        active (tpm_error); operator must reconcile``
@@ -271,7 +272,7 @@ not advanced`` after one of these lines:
        refusing to bind another before the next TPM reset (tampered)``
      - Something removed or replaced the register after init bound it
        this boot. Handle it as an incident:
-       :doc:`/operate/incident-tampered`.
+       :doc:`/operate/troubleshoot/incident-tampered`.
 
 The threat model lists the boot paths that leave a target unprotected and
 what detects them: :doc:`/security/threat-model`.
@@ -279,7 +280,7 @@ what detects them: :doc:`/security/threat-model`.
 Next steps
 ----------
 
-- :doc:`/operate/read-status` for every section and verdict of the
+- :doc:`/operate/run/read-status` for every section and verdict of the
   status report
-- :doc:`/operate/troubleshooting` for refusals after init
-- :doc:`/operate/attest` to prove the boot to a remote verifier
+- :doc:`/operate/troubleshoot/troubleshooting` for refusals after init
+- :doc:`/operate/run/attest` to prove the boot to a remote verifier

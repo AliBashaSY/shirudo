@@ -204,6 +204,6 @@ Next steps
 - :doc:`/upatches/beefile` describes every key of a ``Beefile``.
 - :doc:`/upatches/publishing` publishes to a registry and to the signed
   upatch tree.
-- :doc:`/operate/deliver-packages` registers repositories in the signed
+- :doc:`/operate/run/deliver-packages` registers repositories in the signed
   config and lets the timers keep targets up to date.
 - :doc:`/reference/cli/bpm` describes every ``shirudo bpm`` command.

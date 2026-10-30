@@ -190,7 +190,7 @@ TPM:
 - with the certificates and artifacts, that the ``init`` event covers
   them, and with an expected value, that the register equals it.
 
-:doc:`/operate/attest` shows the procedure.
+:doc:`/operate/run/attest` shows the procedure.
 
 What attestation proves
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -241,7 +241,7 @@ Related
 
 - :doc:`/internals/measurement-register` for the policy, the binding and
   the evidence format
-- :doc:`/operate/attest` for enrolling and verifying targets
+- :doc:`/operate/run/attest` for enrolling and verifying targets
 - :doc:`/security/threat-model` for the residual risks of the
   measurement
 - :doc:`/concepts/background/boot` for PCRs 9 and 11 in a measured boot

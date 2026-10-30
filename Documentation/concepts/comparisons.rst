@@ -41,7 +41,7 @@ error injection, and it can observe or filter
 (:doc:`/upatches/attach-kinds`). In exchange, the BPF verifier checks
 every program, CO-RE lets one artifact load on more than one kernel
 build, and each load and unload is measured. A target can run both:
-shirudo does not gate module loading (:doc:`/operate/interoperability`).
+shirudo does not gate module loading (:doc:`/operate/plan/interoperability`).
 Used together, an upatch blocks a vulnerable path until a live patch or a
 fixed kernel is in place, and a signed unload directive removes it then.
 
@@ -208,7 +208,7 @@ Related
 
 - :doc:`/concepts/operator-and-target`
 - :doc:`/concepts/upatches-and-packages`
-- :doc:`/operate/interoperability`
+- :doc:`/operate/plan/interoperability`
 - :doc:`/security/threat-model`
 - `Livepatch <https://docs.kernel.org/livepatch/livepatch.html>`__ and
   `Integrity Policy Enforcement

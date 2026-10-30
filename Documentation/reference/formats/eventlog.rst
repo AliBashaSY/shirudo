@@ -255,7 +255,7 @@ name differs from the recorded ``nv_name``, when the recorded PCR values
 and writer key do not give that name, and when two ``init`` records
 name the same TPM reset count. ``shirudo attest`` puts the selected
 records, verbatim, in the evidence's ``eventlog`` array, see
-:doc:`/operate/attest`.
+:doc:`/operate/run/attest`.
 
 Pending record
 --------------
@@ -360,6 +360,6 @@ Related
 -------
 
 - :doc:`/internals/measurement-register`
-- :doc:`/operate/attest`
+- :doc:`/operate/run/attest`
 - :doc:`status-json`
 - :doc:`/reference/cli/status`

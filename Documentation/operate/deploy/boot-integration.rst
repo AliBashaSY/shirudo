@@ -23,8 +23,8 @@ signed UKI that carries the initrd and the kernel command line.
 Before you begin
 ----------------
 
-- A target that meets :doc:`/operate/system-requirements`, with the
-  kernel options and command line from :doc:`/operate/hardening`
+- A target that meets :doc:`/operate/plan/system-requirements`, with the
+  kernel options and command line from :doc:`/operate/plan/hardening`
   planned.
 - The target package installed on the target. It installs the static
   ``shirudo`` binary, the systemd units, ``shirudo-gen-initrd`` and the
@@ -39,7 +39,7 @@ Before you begin
   target package. Use the same build on the target and in the runtime
   image.
 - The BPF signing certificate and the config signing key, created as
-  described in :doc:`/operate/keys`. They may be the same key.
+  described in :doc:`/operate/maintain/keys`. They may be the same key.
 - Tooling to build and sign a UKI for Secure Boot, for example systemd's
   ``ukify``.
 
@@ -109,9 +109,10 @@ and accepts only ``eventlog.max_bytes`` and ``map_export.*`` keys.
    shirudo refuses a config image whose file holds any other key, a line
    longer than 1023 bytes, or a line that is not a comment and has no
    ``=``. Repository definitions, the upatch tree subscription, node
-   labels and further trusted keys go in the same tree. :doc:`/operate/deliver-packages` and
-   :doc:`/operate/keys` describe them. The tree holds only regular files
-   and directories, at most 65536 entries and 32 levels deep.
+   labels and further trusted keys go in the same tree.
+   :doc:`/operate/run/deliver-packages` and :doc:`/operate/maintain/keys`
+   describe them. The tree holds only regular files and directories, at
+   most 65536 entries and 32 levels deep.
 
 3. Build and sign the image:
 
@@ -155,8 +156,8 @@ Build the runtime image
    shown. ``config.pcr`` is the TPM PCR that records config activations:
    0 to 15, except 9 and 11. Choose a PCR that nothing extends after the
    initrd has run, because a later extension makes every command but
-   ``status`` refuse until the next reboot. :doc:`/operate/hardening` discusses
-   the choice. The test VM uses 14. A target needs a ``device:`` TCTI.
+   ``status`` refuse until the next reboot. :doc:`/operate/plan/hardening`
+   discusses the choice. The test VM uses 14. A target needs a ``device:`` TCTI.
 
 2. Build the runtime image and the drop-in for ``shirudo.service``:
 
@@ -369,7 +370,7 @@ Build and sign the UKI
    Without the parameters the kernel seals both keyrings empty at boot,
    and init fails. The command line also needs ``bpf`` in the ``lsm=``
    list, unless ``CONFIG_LSM`` has it already, and the settings from
-   :doc:`/operate/hardening`.
+   :doc:`/operate/plan/hardening`.
 
 3. Install the UKI on the target's EFI system partition and make it the
    default boot entry.
@@ -452,7 +453,7 @@ Boot and verify
 
    Check for ``Mode: production``, ``Status: ok``, five ``OK``
    conditions and ``Bound in: initrd``. ``ConfigActive`` names the first
-   12 hex digits of the active config root. :doc:`/operate/read-status`
+   12 hex digits of the active config root. :doc:`/operate/run/read-status`
    explains every section.
 
 3. Check the config activation:
@@ -477,14 +478,14 @@ Boot and verify
    PCR 9 anchored, <n> upatches in set)`` and
    ``init: complete (LSM active, writable state sealed)``. The root run
    logs ``tpm: register already bound this boot; chain unchanged`` and
-   completes. :doc:`/operate/initialize` describes both runs and what to
+   completes. :doc:`/operate/deploy/initialize` describes both runs and what to
    do when one fails.
 
 Next steps
 ----------
 
-- :doc:`/operate/initialize` to check init after every boot and handle
+- :doc:`/operate/deploy/initialize` to check init after every boot and handle
   its failures
-- :doc:`/operate/attest` to enroll the target's attestation key
-- :doc:`/operate/deliver-packages` to deliver upatches from a registry
-- :doc:`/operate/upgrade` to replace the runtime image or the kernel
+- :doc:`/operate/run/attest` to enroll the target's attestation key
+- :doc:`/operate/run/deliver-packages` to deliver upatches from a registry
+- :doc:`/operate/maintain/upgrade` to replace the runtime image or the kernel

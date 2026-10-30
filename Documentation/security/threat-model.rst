@@ -995,7 +995,7 @@ owner's policy.
 The evidence boundary of :ref:`tm-trust-boundaries` applies: what is
 not signed by the TPM is the target's account. Without ``--ak-name`` a
 document can carry a software key's signatures (U1).
-:doc:`/operate/attest` is the procedure.
+:doc:`/operate/run/attest` is the procedure.
 
 .. rst-class:: facts
 
@@ -1443,7 +1443,7 @@ U1 Verification passes without a pinned key or an expected state
    :Meanwhile: Always pass ``--ak-name``, an expected state,
       ``--expect-bind-pcr=9=<value>`` and ``--expect-bind-pcr=11=<value>``,
       and ``--expect-config-root`` with ``--expect-config-pcr``. See
-      :doc:`/operate/attest`.
+      :doc:`/operate/run/attest`.
 
 U2 Any key the kernel trusts for dm-verity signs a config
    :Affects: Config images (A7).
@@ -1569,7 +1569,7 @@ U10 Kernel prerequisites are not checked
       give.
    :Status: Confirmed in code: the pre-flight checks none of them.
    :Meanwhile: Boot with ``lockdown=integrity`` on an authenticated
-      command line and build the kernel as :doc:`/operate/hardening`
+      command line and build the kernel as :doc:`/operate/plan/hardening`
       describes.
 
 U11 The boot continues when init fails
@@ -1637,7 +1637,8 @@ U16 Boot restore is not all or nothing
       unmeasured.
    :Status: Confirmed in code.
    :Meanwhile: Treat a failed ``init`` as an incident; attestation fails
-      for want of an init record. See :doc:`/operate/incident-tampered`.
+      for want of an init record. See
+      :doc:`/operate/troubleshoot/incident-tampered`.
 
 U17 A stopped runtime command keeps its descriptors
    :Affects: The descriptor checks of T2.
@@ -1721,7 +1722,7 @@ Duties
 ------
 
 The mechanisms above hold only when the deployer and the verifier do
-their part. :doc:`/operate/hardening` and :doc:`/operate/attest` are
+their part. :doc:`/operate/plan/hardening` and :doc:`/operate/run/attest` are
 the procedures.
 
 The deployer:
@@ -1747,7 +1748,7 @@ The deployer:
   it installs (U15)
 - Watches the size of the eventlog (U6) and the keepalives, and treats a
   ``tampered`` status as an incident to understand, not a condition to
-  retry (:doc:`/operate/incident-tampered`)
+  retry (:doc:`/operate/troubleshoot/incident-tampered`)
 
 The verifier:
 

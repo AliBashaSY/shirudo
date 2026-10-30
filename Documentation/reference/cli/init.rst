@@ -70,7 +70,7 @@ register, leaves the config activation pending. The help text of
 ``init`` calls it idempotent, but in that state a second run fails and the
 image gate refuses every command except ``status`` until the next reboot.
 The next boot restores the same archive. See
-:doc:`/operate/troubleshooting`.
+:doc:`/operate/troubleshoot/troubleshooting`.
 
 Pre-flight checks
 ~~~~~~~~~~~~~~~~~
@@ -181,7 +181,7 @@ Run the pre-flight checks on a target:
 Related
 -------
 
-- :doc:`/operate/initialize`
+- :doc:`/operate/deploy/initialize`
 - :doc:`/internals/boot-flow`
-- :doc:`/operate/boot-integration`
+- :doc:`/operate/deploy/boot-integration`
 - :doc:`status`

@@ -46,7 +46,7 @@ Before you begin
 - The operator host with the operator package, and a place off the
   target for the evidence.
 - The target's enrolled attestation key name, and the values
-  :doc:`/operate/attest` pins: the endorsement key name, the PCR 9 and
+  :doc:`/operate/run/attest` pins: the endorsement key name, the PCR 9 and
   PCR 11 binding values of its UKI, and the approved config root and PCR.
 - Your records of what the target should run: the certificates it
   enrolled, the upatches it restored at boot, and every load and unload
@@ -126,7 +126,7 @@ Verify with the TPM
 -------------------
 
 1. Predict the register from your records, as
-   :doc:`/operate/attest` describes. Never take the certificates or the
+   :doc:`/operate/run/attest` describes. Never take the certificates or the
    events from the target's eventlog: that would check the target
    against itself.
 
@@ -150,7 +150,7 @@ Verify with the TPM
           --require-initrd --expect-chain=<register> \
           --expect-config-root=<config-root> --expect-config-pcr=<config-pcr>
 
-   :doc:`/operate/attest` explains each option and the report.
+   :doc:`/operate/run/attest` explains each option and the report.
 
 Read the result
 ---------------
@@ -206,15 +206,15 @@ After the investigation
 
 3. Remove what you did not authorize: unload an upatch with a signed
    unload directive, or revoke its signer through a signed config as
-   :doc:`/operate/keys` describes.
+   :doc:`/operate/maintain/keys` describes.
 
 The timers you stopped start again at boot when they are enabled.
 
 Related
 -------
 
-- :doc:`/operate/attest` for enrollment and the verification options
-- :doc:`/operate/read-status` for the verdicts and conditions
-- :doc:`/operate/troubleshooting` for the other failure messages
+- :doc:`/operate/run/attest` for enrollment and the verification options
+- :doc:`/operate/run/read-status` for the verdicts and conditions
+- :doc:`/operate/troubleshoot/troubleshooting` for the other failure messages
 - :doc:`/reference/failure-categories` for every category
 - :doc:`/security/threat-model` for what the measurement does not cover

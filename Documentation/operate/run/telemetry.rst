@@ -17,7 +17,7 @@ and decide what to alert on.
 
 Telemetry is the target's own account of itself. It carries no proof of
 origin, so it tells you where to look, not what is true. Evidence that a
-target cannot forge comes from the TPM, through :doc:`attest`.
+target cannot forge comes from the TPM, through :doc:`/operate/run/attest`.
 
 What a target sends
 -------------------
@@ -352,8 +352,8 @@ What to alert on
 ----------------
 
 The keepalive body is the ``shirudo status --json`` document.
-:doc:`read-status` explains each field and :doc:`/reference/formats/status-json`
-lists them.
+:doc:`/operate/run/read-status` explains each field and
+:doc:`/reference/formats/status-json` lists them.
 
 .. list-table::
    :header-rows: 1
@@ -368,7 +368,7 @@ lists them.
        more than 30 seconds, during a long package download for
        example.
    * - ``shirudo.status`` other than ``ok``
-     - Read :doc:`read-status` for each verdict.
+     - Read :doc:`/operate/run/read-status` for each verdict.
    * - A condition with ``status`` ``ALERT``
      - ``LsmAttached``, ``KeyringSealed``, ``ChainIntact`` or
        ``ConfigActive`` found tampering or lost enforcement.
@@ -381,7 +381,7 @@ lists them.
        ``status`` is refused until then.
    * - ``tpm.chain_matches_eventlog`` is ``false``
      - The register holds a value the eventlog does not explain. Handle
-       it as in :doc:`incident-tampered`.
+       it as in :doc:`/operate/troubleshoot/incident-tampered`.
    * - ``tpm.register_rebound`` is ``true``
      - The register was bound twice in one TPM reset.
    * - ``tpm.bound_in`` is not ``initrd``
@@ -389,7 +389,7 @@ lists them.
        the initrd.
    * - ``assets.eventlog_bytes`` nears 8388608
      - The eventlog approaches the size that readers refuse. See
-       :doc:`backup-recovery`.
+       :doc:`/operate/maintain/backup-recovery`.
    * - ``version_id`` is not the build you deployed
      - The target runs another shirudo build.
 
@@ -398,7 +398,7 @@ Limits
 
 - Telemetry has no proof of origin. Root on a target, or anyone who can
   reach the collector with valid credentials, can send records in a
-  target's name. Use :doc:`attest` for evidence.
+  target's name. Use :doc:`/operate/run/attest` for evidence.
 - While the config cannot be verified, ``status`` uses only the runtime
   image's settings and the environment. While an activation is pending,
   it uses the pending config's settings only when that config is the one
@@ -412,9 +412,9 @@ Limits
 Next steps
 ----------
 
-- :doc:`read-status` to read what the keepalive carries
+- :doc:`/operate/run/read-status` to read what the keepalive carries
 - :doc:`/reference/formats/otlp` for the records on the wire
 - :doc:`/upatches/decoders` to give a map a decoder
 - :doc:`/reference/cli/upatch-map` and :doc:`/reference/cli/status` for
   every option
-- :doc:`attest` for evidence that the target cannot forge
+- :doc:`/operate/run/attest` for evidence that the target cannot forge

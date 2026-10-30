@@ -45,7 +45,7 @@ config image roots and vouches for further keys, all with ML-DSA-87.
 The operator also verifies. ``shirudo attest verify``, ``shirudo attest
 predict`` and ``shirudo attest challenge`` work offline on the operator
 host, from files. The operator never opens a TPM and never touches a
-kernel keyring. :doc:`/operate/keys` covers the custody of the key.
+kernel keyring. :doc:`/operate/maintain/keys` covers the custody of the key.
 
 shirudo-build helper
 ~~~~~~~~~~~~~~~~~~~~
@@ -212,7 +212,7 @@ signature verifies against its trusted set, including an old one.
 
 Signers are added only at boot. A live config activation can revoke a
 key, but a new signer enters the ``.bpf`` keyring only when ``init``
-enrolls the trusted set. :doc:`/operate/keys` describes what can change
+enrolls the trusted set. :doc:`/operate/maintain/keys` describes what can change
 when.
 
 Related

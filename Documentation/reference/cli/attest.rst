@@ -53,7 +53,7 @@ lives in the same TPM as the endorsement key (:doc:`attest-challenge`).
 Without ``--nonce``, ``attest`` warns that the evidence proves no
 freshness.
 
-:doc:`/operate/attest` describes the procedure from enrollment to
+:doc:`/operate/run/attest` describes the procedure from enrollment to
 verification.
 
 Options
@@ -147,5 +147,5 @@ Related
 - :doc:`attest-verify`
 - :doc:`attest-challenge`
 - :doc:`attest-predict`
-- :doc:`/operate/attest`
+- :doc:`/operate/run/attest`
 - :doc:`/internals/measurement-register`

@@ -560,6 +560,6 @@ Related
 -------
 
 - :doc:`/upatches/publishing`
-- :doc:`/operate/deliver-packages`
+- :doc:`/operate/run/deliver-packages`
 - :doc:`/reference/cli/bpm`
 - :doc:`configuration` for repository and tree settings

@@ -76,7 +76,7 @@ the link against the metadata and pins it.
      - the base requirements
 
 The base requirements are the kernel options shirudo itself needs, listed
-in :doc:`/operate/system-requirements`. They include BPF trampolines, BTF
+in :doc:`/operate/plan/system-requirements`. They include BPF trampolines, BTF
 and the BPF LSM, which is why the BTF-based kinds need nothing more.
 
 Every attached program becomes one link pinned at

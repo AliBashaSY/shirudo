@@ -73,7 +73,7 @@ name a keyring relative to the caller, such as
 directly, so its serial does not have to be looked up first. Kernels
 that provide ``KEY_SPEC_DM_VERITY_KEYRING`` (``-10``) name ``.dm-verity``
 the same way; shirudo requires it (see
-:doc:`/operate/system-requirements`).
+:doc:`/operate/plan/system-requirements`).
 
 Permissions and possession
 --------------------------
@@ -175,7 +175,8 @@ compare the ``.bpf`` serial with that record and refuse ``tampered`` on
 a mismatch. ``shirudo status`` compares both keyrings with it and
 follows every link, whatever its type: a swapped or missing keyring, a
 link ``init`` did not record or a missing config key makes its verdict
-``tampered`` (see :doc:`/operate/read-status`). shirudo's ``lsm/key_permission`` program refuses write, set
+``tampered`` (see :doc:`/operate/run/read-status`). shirudo's
+``lsm/key_permission`` program refuses write, set
 attribute and unlink on the recorded keyrings and keys to every task
 without runtime authority, and refuses a search through an unpossessed
 reference, which is how ``keyctl`` reaches a key by serial. The
@@ -185,7 +186,7 @@ search through a possessed reference and are unaffected.
 A signed configuration activated at run time can revoke an enrolled
 key, which unlinks it. Nothing adds a key to either keyring until the
 next boot, and key changes made locally on the target are refused. See
-:doc:`/operate/keys` and :doc:`/internals/enforcement`.
+:doc:`/operate/maintain/keys` and :doc:`/internals/enforcement`.
 
 Limits
 ------

@@ -323,7 +323,7 @@ Related
 -------
 
 - :doc:`image`
-- :doc:`/operate/boot-integration`
+- :doc:`/operate/deploy/boot-integration`
 - :doc:`/internals/boot-flow`
 - :doc:`/internals/config-images`
 - :doc:`/reference/formats/configuration`

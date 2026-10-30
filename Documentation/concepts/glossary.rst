@@ -94,7 +94,7 @@ it.
       attest --challenge=<path>`` only when both keys are in that TPM, and
       ``shirudo attest verify --expect-credential`` checks the recovered
       value. It shows that the attestation key sits in the TPM the
-      endorsement key identifies. See :doc:`/operate/attest`.
+      endorsement key identifies. See :doc:`/operate/run/attest`.
 
    config image
       A dm-verity image, mounted read-only and ``noexec`` at
@@ -149,7 +149,7 @@ it.
       register, both signed by the attestation key over the nonce,
       together with the attestation and endorsement keys, this boot's
       eventlog records and the boot measurement logs. ``shirudo attest
-      verify`` checks it on the operator host. See :doc:`/operate/attest`.
+      verify`` checks it on the operator host. See :doc:`/operate/run/attest`.
 
    failure category
       A name for why an operation failed, such as ``tampered``,
@@ -185,7 +185,7 @@ it.
       --otel --include-system`` about every five seconds, which sends one
       when an OTLP endpoint is configured. A missing keepalive tells a
       collector that a target stopped reporting; a present one is still
-      the target's own account. See :doc:`/operate/telemetry`.
+      the target's own account. See :doc:`/operate/run/telemetry`.
 
    load artifact
       A ``.upatch`` file that installs an upatch: a header with the name
@@ -201,7 +201,7 @@ it.
       every five seconds, which reads the maps of every loaded upatch,
       runs their serializers and decoders, and sends the records to the
       destinations that the config image's ``map_export`` settings name.
-      See :doc:`/operate/telemetry`.
+      See :doc:`/operate/run/telemetry`.
 
    measurement register
       The TPM NV extend index, ``0x01818E00`` by default, that records
@@ -295,7 +295,7 @@ it.
       signs its index. On a target, repositories come from the config
       image's ``etc/shirudo/bpm/registries.d/``, and ``shirudo bpm install
       <repository>/<package>`` installs from one. See
-      :doc:`/operate/deliver-packages`.
+      :doc:`/operate/run/deliver-packages`.
 
    revocation
       Withdrawing trust from a signing key through a signed config image
@@ -303,7 +303,8 @@ it.
       ``shirudo image update`` activates such a config, shirudo unlinks the
       key from the ``.bpf`` keyring, measures a key revocation event, and
       unloads and purges every upatch the key signed. ``shirudo keys
-      revoke`` refuses and points to this path. See :doc:`/operate/keys`.
+      revoke`` refuses and points to this path. See
+      :doc:`/operate/maintain/keys`.
 
    runtime authority
       The right that a task mark grants: to run the ``bpf()`` commands,
@@ -424,7 +425,7 @@ it.
       the config image's ``keys/trusted/`` whose vouch verifies under a
       member, less those the config revokes. It holds at most 16
       certificates, and the ``init`` event covers its digest. See
-      :doc:`/operate/keys`.
+      :doc:`/operate/maintain/keys`.
 
    unload directive
       A signed ``.upatch`` with the unload flag set that removes one
@@ -452,7 +453,7 @@ it.
       overall status of ``ok``, ``degraded``, ``reboot-pending``,
       ``init-pending``, ``lsm-off`` or ``tampered``, and ``OK``, ``WARN``
       or ``ALERT`` for each condition. ``shirudo attest verify`` ends with
-      ``verdict: ok`` or ``verdict: FAIL``. See :doc:`/operate/read-status`.
+      ``verdict: ok`` or ``verdict: FAIL``. See :doc:`/operate/run/read-status`.
 
    vouch
       A detached CMS signature by a trusted key over the prefix
@@ -461,4 +462,4 @@ it.
       beside that certificate under ``keys/trusted/``, which admits the
       certificate to the trusted set at the next boot. A vouch carries no
       date, so it stays valid after its signer is revoked. See
-      :doc:`/operate/keys`.
+      :doc:`/operate/maintain/keys`.

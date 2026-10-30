@@ -488,7 +488,7 @@ snapshot to ``$TMPDIR/shirudo-map-snapshot.XXXXXX`` (``/tmp`` when
 Related
 -------
 
-- :doc:`/operate/backup-recovery`
+- :doc:`/operate/maintain/backup-recovery`
 - :doc:`/internals/seal`
 - :doc:`/security/tamper-counters`
 - :doc:`/reference/environment`

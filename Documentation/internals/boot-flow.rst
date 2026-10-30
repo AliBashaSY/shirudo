@@ -216,7 +216,7 @@ Related
 
 - :doc:`/concepts/background/initrd-dracut` and
   :doc:`/concepts/background/boot` for the boot chain
-- :doc:`/operate/boot-integration` for setting up the initrd and the
+- :doc:`/operate/deploy/boot-integration` for setting up the initrd and the
   UKI
 - :doc:`config-images` for the images and the activation journal
 - :doc:`/security/threat-model` for what a failed or skipped ``init``

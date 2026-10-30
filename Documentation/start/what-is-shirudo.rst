@@ -99,7 +99,7 @@ A target needs a bpf-next development kernel with the signed BPF loader
 interface and the BPF LSM, the kernel patches listed in
 :doc:`/internals/kernel-patches`, and a TPM 2.0. The operator host needs
 current clang. Both run on x86-64, arm64 and riscv64.
-:doc:`/operate/system-requirements` lists the details.
+:doc:`/operate/plan/system-requirements` lists the details.
 
 Next steps
 ----------

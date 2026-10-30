@@ -116,7 +116,7 @@ Where it appears and what checks it:
 
 The ID keeps an operator and a target of different builds apart when the
 operator asks for it. It authenticates nothing (R5 in
-:doc:`/security/threat-model`). :doc:`/operate/upgrade` says where to
+:doc:`/security/threat-model`). :doc:`/operate/maintain/upgrade` says where to
 take the expected ID from.
 
 Format and schema numbers
@@ -223,7 +223,7 @@ the ``tpm_command`` LSM hook that it carries as a kernel patch. A
 release number does not identify such a kernel. The pre-flight check
 ``signed_loader_kernel_abi`` reads the running kernel's BTF, and a load
 on a kernel without the ABI fails with ``kernel_abi_unsupported``.
-:doc:`/operate/system-requirements` lists the kernel requirements and how
+:doc:`/operate/plan/system-requirements` lists the kernel requirements and how
 to identify a kernel, :doc:`/internals/kernel-interfaces` every interface
 shirudo uses, and :doc:`/internals/kernel-patches` the carried patches.
 
@@ -241,7 +241,7 @@ target on builds of the same commit.
    * - Combination
      - Behavior
    * - Initrd binary and runtime image binary
-     - Must be the same build (:doc:`/operate/boot-integration`).
+     - Must be the same build (:doc:`/operate/deploy/boot-integration`).
        Nothing compares their IDs. The runtime binary reads the identity
        map and the tamper counters that the initrd's ``init`` pinned and
        refuses maps whose layout differs from its own: a different
@@ -264,7 +264,7 @@ target on builds of the same commit.
 Related
 -------
 
-- :doc:`/operate/upgrade`
+- :doc:`/operate/maintain/upgrade`
 - :doc:`/reference/cli/version`
 - :doc:`/reference/formats/index`
-- :doc:`/operate/system-requirements`
+- :doc:`/operate/plan/system-requirements`

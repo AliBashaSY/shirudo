@@ -347,7 +347,7 @@ links, devices, FIFOs and sockets are refused with ``EPERM``.
      - A revoked certificate. ``<fingerprint>`` is the lowercase hex
        SHA-256 of its DER ``SubjectPublicKeyInfo``.
 
-See :doc:`/operate/keys` for the trusted and revoked sets and
+See :doc:`/operate/maintain/keys` for the trusted and revoked sets and
 :doc:`/internals/config-images` for activation.
 
 Runtime image
@@ -500,7 +500,7 @@ Related
 - :doc:`/reference/environment` for the variables that override or
   complement these settings
 - :doc:`/reference/files` for every path shirudo reads and writes
-- :doc:`/operate/boot-integration` for building the bootstrap files and
+- :doc:`/operate/deploy/boot-integration` for building the bootstrap files and
   images
-- :doc:`/operate/telemetry` for the export destinations
-- :doc:`/operate/deliver-packages` for repositories and the upatch tree
+- :doc:`/operate/run/telemetry` for the export destinations
+- :doc:`/operate/run/deliver-packages` for repositories and the upatch tree

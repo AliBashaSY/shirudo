@@ -163,7 +163,7 @@ keepalive, map-export, repository-update and tree-sync services run
 the runtime image is refused with ``shirudo: image state: Permission
 denied`` and exit status 1, so each of these services needs its own
 drop-in whose ``ExecStart=`` runs the runtime image's binary. See
-:doc:`/operate/boot-integration`.
+:doc:`/operate/deploy/boot-integration`.
 
 shirudo-keepalive.service
 -------------------------
@@ -244,7 +244,7 @@ shirudo-bpm-repo-update.service
 installed from a repository, the highest version in its cached index
 when that version is newer than the installed one. A package pulled
 directly is left alone. See
-:doc:`/operate/deliver-packages`.
+:doc:`/operate/run/deliver-packages`.
 
 shirudo-bpm-tree-sync.service
 -----------------------------
@@ -335,5 +335,5 @@ Related
 - :doc:`/reference/cli/init`, :doc:`/reference/cli/status`,
   :doc:`/reference/cli/upatch-map` and :doc:`/reference/cli/bpm` for the
   commands the services run
-- :doc:`/operate/boot-integration` for installing the units with the
+- :doc:`/operate/deploy/boot-integration` for installing the units with the
   runtime image

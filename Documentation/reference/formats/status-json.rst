@@ -12,7 +12,7 @@ status JSON
 object is the body of the status keepalive that ``status --otel``
 sends, see :doc:`otlp`. Options and exit status are in
 :doc:`/reference/cli/status`. How to read a report is in
-:doc:`/operate/read-status`.
+:doc:`/operate/run/read-status`.
 
 .. code-block:: console
 
@@ -620,10 +620,10 @@ Fields to alert on
      - Next step
    * - ``status``
      - ``tampered``
-     - Handle as an incident: :doc:`/operate/incident-tampered`.
+     - Handle as an incident: :doc:`/operate/troubleshoot/incident-tampered`.
    * - ``status``
      - any value but ``ok``
-     - :doc:`/operate/read-status`
+     - :doc:`/operate/run/read-status`
    * - ``conditions[].status``
      - ``ALERT``
      - The ``detail`` names the cause.
@@ -885,7 +885,7 @@ Related
 -------
 
 - :doc:`/reference/cli/status`
-- :doc:`/operate/read-status`
+- :doc:`/operate/run/read-status`
 - :doc:`/security/tamper-counters`
 - :doc:`eventlog`
 - :doc:`otlp`

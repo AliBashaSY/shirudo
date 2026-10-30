@@ -403,7 +403,7 @@ Print the fingerprint of the certificate a package carries:
 Related
 -------
 
-- :doc:`/operate/deliver-packages`
+- :doc:`/operate/run/deliver-packages`
 - :doc:`/upatches/publishing`
 - :doc:`/upatches/beefile`
 - :doc:`/reference/formats/bpm-formats`

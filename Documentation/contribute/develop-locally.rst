@@ -112,7 +112,7 @@ Start the registry and the collector
 
    Both containers speak plain HTTP, which is safe only on your own
    host. A production target speaks HTTPS with TLS 1.3 and a hybrid
-   ML-KEM key exchange, see :doc:`/operate/telemetry`.
+   ML-KEM key exchange, see :doc:`/operate/run/telemetry`.
 
 Boot the target
 ---------------
@@ -156,7 +156,7 @@ Connect the target to the registry and the collector
 
 A target reads its repositories and its export destination from the
 signed config image, not from files on its root file system (see
-:doc:`/operate/deliver-packages`). Build a config that adds both, starting
+:doc:`/operate/run/deliver-packages`). Build a config that adds both, starting
 from the config the target runs, and activate it.
 
 1. On the target, copy the running config into the VM's result share:
@@ -560,6 +560,6 @@ Next steps
 - :doc:`/upatches/decoders` for decoders and metrics
 - :doc:`/upatches/maps-arenas-serializers` for upatches that keep
   records
-- :doc:`/operate/deliver-packages` and :doc:`/operate/telemetry` for the
+- :doc:`/operate/run/deliver-packages` and :doc:`/operate/run/telemetry` for the
   production setup this page reproduces
 - :doc:`testing` to write and run tests

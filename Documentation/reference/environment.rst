@@ -256,7 +256,7 @@ The units read these files with ``EnvironmentFile=-<file>``. A missing
 file is not an error. They are host files on the root file system,
 outside the sealed state under ``/var/lib/shirudo`` and outside the
 signed config. Root can change them, and the next run of the unit uses
-what they hold. See :doc:`/operate/hardening`.
+what they hold. See :doc:`/operate/plan/hardening`.
 
 .. list-table::
    :header-rows: 1
@@ -287,5 +287,5 @@ Related
   environment files
 - :doc:`/reference/formats/configuration` for the settings these
   variables complement
-- :doc:`/operate/telemetry` and :doc:`/operate/deliver-packages` for
+- :doc:`/operate/run/telemetry` and :doc:`/operate/run/deliver-packages` for
   setting up export and registry access

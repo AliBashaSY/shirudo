@@ -73,7 +73,7 @@ Find the cause
         - ``kernel_abi_unsupported``
         - The kernel's BTF lacks the signed-loader fields shirudo needs.
           ``message`` names the field. Boot a kernel that meets
-          :doc:`/operate/system-requirements`.
+          :doc:`/operate/plan/system-requirements`.
       * - ``pre_flight``
         - ``keyring_missing``
         - ``shirudo init`` has not frozen a trust anchor this boot. The
@@ -83,7 +83,7 @@ Find the cause
         - The ``.bpf`` keyring is not the one ``init`` froze, shirudo's
           LSM link is not pinned, or the register is not the
           ``--expect-chain`` value. Do not retry. Follow
-          :doc:`/operate/incident-tampered`.
+          :doc:`/operate/troubleshoot/incident-tampered`.
       * - ``pre_flight``
         - ``eventlog_full``
         - The eventlog would grow past ``eventlog.max_bytes``. Nothing was

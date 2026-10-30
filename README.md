@@ -47,7 +47,7 @@ start, each release tag publishes its packages on
 and the actively maintained releases are listed here.
 
 For upgrades of shirudo and the kernel on a target, consult
-[Upgrade shirudo and the kernel](Documentation/operate/upgrade.rst).
+[Upgrade shirudo and the kernel](Documentation/operate/maintain/upgrade.rst).
 
 ### Architectures
 

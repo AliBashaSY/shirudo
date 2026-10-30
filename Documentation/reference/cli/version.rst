@@ -83,4 +83,4 @@ Related
 -------
 
 - :doc:`upatch-load`
-- :doc:`/operate/upgrade`
+- :doc:`/operate/maintain/upgrade`

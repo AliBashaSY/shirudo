@@ -262,7 +262,7 @@ message, so give such a map a metric decoder.
 Next steps
 ----------
 
-- :doc:`/operate/telemetry` to export every map on a schedule
+- :doc:`/operate/run/telemetry` to export every map on a schedule
 - :doc:`/reference/formats/otlp` for the documents on the wire
 - The decoders under ``upatches/kernel-obs/decoders/`` for complete log
   decoders over arena tables, timestamps included

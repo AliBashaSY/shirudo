@@ -23,12 +23,12 @@ Before you begin
   open a public issue.
 - If a command refused with ``tampered`` or ``shirudo status`` reports
   ``tampered``, preserve the evidence first, as
-  :doc:`/operate/incident-tampered` describes, and do not reboot the
-  target before it is safe.
+  :doc:`/operate/troubleshoot/incident-tampered` describes, and do not reboot
+  the target before it is safe.
 - Reproduce the problem on the ``main`` branch. shirudo has no releases
   yet (:doc:`/reference/versions`).
 - Root on the target. On a target, ``shirudo`` is the binary on the
-  runtime image (:doc:`/operate/boot-integration`).
+  runtime image (:doc:`/operate/deploy/boot-integration`).
 - A directory on the target for the files, here ``bug/``, outside
   ``/var/lib/shirudo``. shirudo refuses to write a report into sealed
   state.
@@ -115,7 +115,7 @@ Collect on the target
 
 9. Add the kernel tree, the commit and the patches applied to it. A
    release number does not identify a bpf-next kernel, see
-   :doc:`/operate/system-requirements`.
+   :doc:`/operate/plan/system-requirements`.
 
 Collect on the operator host
 ----------------------------
@@ -229,8 +229,9 @@ cleaned copy.
 Next steps
 ----------
 
-- :doc:`/operate/troubleshooting` for known symptoms and their causes
+- :doc:`/operate/troubleshoot/troubleshooting` for known symptoms and their
+  causes
 - :doc:`/reference/failure-categories` for the category and phase in a
   report
-- :doc:`/operate/interoperability` when the problem involves other
+- :doc:`/operate/plan/interoperability` when the problem involves other
   software on the target

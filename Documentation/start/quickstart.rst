@@ -42,7 +42,7 @@ Before you begin
   dependencies.
 - ``jq`` and the ``openssl`` command, for the attestation step.
 
-:doc:`/operate/system-requirements` lists the requirements in full.
+:doc:`/operate/plan/system-requirements` lists the requirements in full.
 
 Build shirudo
 -------------
@@ -473,7 +473,7 @@ nothing but the evidence, your certificates and your artifacts.
    that this value is the one you predicted. The command exits with 0 on
    ``verdict: ok`` and with 1 on ``verdict: FAIL``. The notes name checks
    this page leaves out, such as the approved config image.
-   :doc:`/operate/attest` covers them.
+   :doc:`/operate/run/attest` covers them.
 
    Here you took the attestation key's name from the evidence itself,
    which proves nothing about which TPM signed it. :doc:`guides/attest-target`
@@ -548,4 +548,4 @@ Next steps
   evidence.
 - :doc:`how-it-works` explains each step of this page.
 - :doc:`install` installs shirudo on real hosts, and
-  :doc:`/operate/boot-integration` brings a target up.
+  :doc:`/operate/deploy/boot-integration` brings a target up.

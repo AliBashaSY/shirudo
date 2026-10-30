@@ -20,7 +20,7 @@ tamper counter that moves, and what to do. The refusals start when
 processes move counters too. Software that probes for BPF support at
 startup, systemd among it, moves several counters on every target, which
 is why
-:doc:`/operate/read-status` asks you to learn the baseline of your hosts.
+:doc:`/operate/run/read-status` asks you to learn the baseline of your hosts.
 
 Other BPF users
 ---------------
@@ -228,7 +228,7 @@ BPF loaded before init
    previous section applies to them.
 :What to do: Keep the initrd free of BPF loaders you do not trust. The
    initrd is part of the trusted computing base, and its PCR 9 and
-   PCR 11 measurements are what a verifier pins (:doc:`/operate/attest`).
+   PCR 11 measurements are what a verifier pins (:doc:`/operate/run/attest`).
 
 systemd-keyring-setup
 ---------------------
@@ -284,7 +284,7 @@ Module loading and kernel live patching
    or the kernel's ``klp-build`` produce, is a kernel module like any
    other.
 :Symptom: None from shirudo.
-:What to do: Enforce module signatures, as :doc:`/operate/hardening`
+:What to do: Enforce module signatures, as :doc:`/operate/plan/hardening`
    lists, and sign livepatch modules with a key the kernel trusts. A
    module runs as kernel code outside every shirudo check. Unloading a
    module that a kprobe upatch targets leaves the upatch loaded and
@@ -335,13 +335,13 @@ Hibernation and suspend
 :Symptom: After a resume, shirudo commands refuse with ``shirudo: image
    state: Stale file handle`` and exit 1, and ``shirudo status`` reports
    ``tampered``.
-   :doc:`/operate/backup-recovery` describes the state. For suspend to
+   :doc:`/operate/maintain/backup-recovery` describes the state. For suspend to
    RAM this is a reading of the code and of the TPM's counters and is not
    tested.
-:What to do: Turn hibernation off as :doc:`/operate/hardening` lists, and
+:What to do: Turn hibernation off as :doc:`/operate/plan/hardening` lists, and
    keep targets from sleeping, for example with ``AllowSuspend=no`` and
    ``AllowHibernation=no`` in ``/etc/systemd/sleep.conf``. After an
-   unplanned resume, follow :doc:`/operate/backup-recovery`.
+   unplanned resume, follow :doc:`/operate/maintain/backup-recovery`.
 
 Containers and Kubernetes
 -------------------------
@@ -467,6 +467,6 @@ Related
 
 - :doc:`/security/threat-model`
 - :doc:`/security/tamper-counters`
-- :doc:`/operate/hardening`
-- :doc:`/operate/read-status`
-- :doc:`/operate/troubleshooting`
+- :doc:`/operate/plan/hardening`
+- :doc:`/operate/run/read-status`
+- :doc:`/operate/troubleshoot/troubleshooting`

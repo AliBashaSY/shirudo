@@ -234,7 +234,7 @@ or a package file you built.
 Related
 -------
 
-- :doc:`/operate/deliver-packages`
+- :doc:`/operate/run/deliver-packages`
 - :doc:`/upatches/publishing`
 - :doc:`/reference/formats/bpm-formats`
 - :doc:`/reference/cli/bpm`
