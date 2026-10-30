@@ -265,7 +265,9 @@ reboot.
             exporters: [debug]
 
    The ``debug`` exporter prints what arrives. Replace it with the
-   exporters for your storage once records arrive. A collector built
+   exporters for your storage once records arrive;
+   :doc:`/operate/integrations/index` sets up ClickHouse, Splunk and
+   Grafana. A collector built
    with Go 1.24 or later offers ``X25519MLKEM768`` by default.
 
 #. Restart the collector.
