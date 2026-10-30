@@ -527,6 +527,7 @@ Related
 -------
 
 - :doc:`/operate/system-requirements`
+- :doc:`/operate/scalability`
 - :doc:`/reference/systemd-units`
 - :doc:`/reference/files`
 - :doc:`/reference/formats/eventlog`
