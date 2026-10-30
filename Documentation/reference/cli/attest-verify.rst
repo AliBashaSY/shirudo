@@ -40,24 +40,24 @@ Description
 ``verify`` prints one line per check, ``ok:``, ``FAIL:`` or ``note:``,
 followed by ``verdict: ok`` or ``verdict: FAIL``. It checks:
 
-- the nonce, in the document, the quote and the register certification.
+- the nonce, in the document, the quote and the register certification
 - the attestation key: restricted, fixed to its TPM, its name matching its
-  public area and, with ``--ak-name``, the pinned name.
+  public area and, with ``--ak-name``, the pinned name
 - the endorsement key: its name and the TCG default template, and with
   ``--ek-name`` the pinned name. With ``--expect-credential``, the
-  credential the target recovered.
+  credential the target recovered
 - the quote and the register certification: signed by the attestation key
   as an endorsement primary, covering the listed PCRs and index, of one
-  TPM reset.
+  TPM reset
 - the config root history against the quoted config PCR, and with
-  ``--expect-config-root`` the approved root.
+  ``--expect-config-root`` the approved root
 - the register's public area against the recorded PCR 9 and 11 binding,
   the init record of this TPM reset, the eventlog replay to the certified
-  value and the anchor in PCR 9.
+  value and the anchor in PCR 9
 - the expected state: with ``--cert`` (and ``--upatch``, ``--expect``,
   ``--tree-root``) the init event, and the events after boot, which fail
   unless ``--allow-runtime-events``. With ``--expect-chain``, the register
-  value.
+  value
 
 Without ``--ak-name``, ``verify`` warns that the signer is not pinned, and
 a document from any TPM passes the key checks. Without ``--cert`` or

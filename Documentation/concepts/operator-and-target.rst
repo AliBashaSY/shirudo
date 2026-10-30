@@ -218,7 +218,7 @@ when.
 Related
 -------
 
-- :doc:`/start/how-it-works` for the path of one upatch between the roles.
-- :doc:`/internals/architecture` for the components and their code.
-- :doc:`/security/security-model` for the trust boundaries.
-- :doc:`/reference/cli/index` for the commands of each role.
+- :doc:`/start/how-it-works` for the path of one upatch between the roles
+- :doc:`/internals/architecture` for the components and their code
+- :doc:`/security/security-model` for the trust boundaries
+- :doc:`/reference/cli/index` for the commands of each role

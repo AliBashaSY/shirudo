@@ -177,9 +177,9 @@ Files and environment
 
 - ``build``: the four output files and a temporary directory beside
   them. ``SHIRUDO_KEYS_DIR`` and ``SHIRUDO_BUILD`` set the defaults of
-  ``shirudo-gen-verity``.
+  ``shirudo-gen-verity``
 - ``update``: ``/var/lib/shirudo/images``, ``/var/lib/shirudo/config-update``,
-  ``/run/shirudo/config``, the config PCR and the register.
+  ``/run/shirudo/config``, the config PCR and the register
 
 Examples
 --------

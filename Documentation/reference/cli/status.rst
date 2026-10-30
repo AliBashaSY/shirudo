@@ -33,8 +33,8 @@ report. The roles come from what is present:
 
 - target: the certificate (:doc:`init` lists its path), the pinned LSM
   link ``/run/shirudo/bpffs/lsm_link`` or the ``.bpf`` keyring that
-  ``init`` froze.
-- operator: ``/var/lib/shirudo/keys/signing_key.pem``.
+  ``init`` froze
+- operator: ``/var/lib/shirudo/keys/signing_key.pem``
 
 ``Mode`` is ``production`` when the LSM link is pinned and ``inactive``
 otherwise. It says nothing about the keyring. The ``KeyringSealed``
@@ -155,11 +155,11 @@ Files and environment
   ``.bpf`` and ``.dm-verity`` keyrings, the TPM register,
   ``/var/lib/shirudo/eventlog``, ``/var/lib/shirudo/keys``, the config
   certificate the runtime image's bootstrap names and the config
-  activation records.
+  activation records
 - With ``--otel``: ``map_export.*`` and the ``OTEL_EXPORTER_OTLP_*``
   variables (see :doc:`/reference/environment`).
   ``shirudo-keepalive.service`` reads them from
-  ``/etc/shirudo/map-export.env``.
+  ``/etc/shirudo/map-export.env``
 
 Examples
 --------

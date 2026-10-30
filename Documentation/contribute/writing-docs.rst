@@ -149,6 +149,10 @@ Words
   belong in commit messages, not in the documentation.
 - Prefer short sentences with one idea each. Do not chain clauses with
   semicolons in procedures and reference pages.
+- End a list item with a period only when it is a sentence. Link lists,
+  noun phrases and short "Label: value" items end without one. If any
+  item of a list is a sentence, or a label followed by a paragraph, end
+  every item of that list with a period.
 - Leave out filler words such as "simply", "just", "easily", "obviously"
   and "please", and Latin abbreviations such as "e.g.", "i.e." and "etc.".
 - Do not use italics or bold for emphasis. Write the sentence so the
@@ -235,5 +239,5 @@ tests and units a page names exist in the tree.
 Related
 -------
 
-- :doc:`contributing` for commit messages and the sign-off.
-- :doc:`coding-style` for the C code.
+- :doc:`contributing` for commit messages and the sign-off
+- :doc:`coding-style` for the C code

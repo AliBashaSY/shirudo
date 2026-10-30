@@ -32,14 +32,14 @@ loads the artifact. For a loaded upatch as the kernel holds it, use
 The human output has these parts:
 
 - the file, name, type (``LOAD`` or ``UNLOAD-directive``), payload type,
-  format version, payload digest and size.
+  format version, payload digest and size
 - the loader: offset and length of its instructions, the log buffer
-  size, its metadata and its data.
-- the signature: offset and length.
+  size, its metadata and its data
+- the signature: offset and length
 - the signed sections: the name, the length of the attach metadata and,
-  for a directive, the expected payload digest.
+  for a directive, the expected payload digest
 - the decoders: target upatch and map, language and API version, input
-  format, export signal (``log`` or ``metric``) and source.
+  format, export signal (``log`` or ``metric``) and source
 
 :doc:`/reference/formats/upatch-format` describes each field.
 

@@ -246,7 +246,7 @@ removes any upatch.
 Related
 -------
 
-- :doc:`/start/how-it-works` for the path of one upatch.
-- :doc:`/upatches/concepts` for authoring upatches.
-- :doc:`/concepts/measurement-register` for the events.
-- :doc:`/internals/signed-loader` for the load in detail.
+- :doc:`/start/how-it-works` for the path of one upatch
+- :doc:`/upatches/concepts` for authoring upatches
+- :doc:`/concepts/measurement-register` for the events
+- :doc:`/internals/signed-loader` for the load in detail

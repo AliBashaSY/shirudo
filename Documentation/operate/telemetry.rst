@@ -197,14 +197,14 @@ configuration. systemd reads them for both services from
 The target also reads these variables:
 
 - ``OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`` and
-  ``OTEL_EXPORTER_OTLP_CLIENT_KEY`` for mutual TLS, both or neither.
-- ``OTEL_EXPORTER_OTLP_COMPRESSION``: ``none`` or ``gzip``.
+  ``OTEL_EXPORTER_OTLP_CLIENT_KEY`` for mutual TLS, both or neither
+- ``OTEL_EXPORTER_OTLP_COMPRESSION``: ``none`` or ``gzip``
 - ``OTEL_EXPORTER_OTLP_TIMEOUT``: milliseconds per attempt, 1 to 120000,
-  default 10000.
-- ``OTEL_EXPORTER_OTLP_PROTOCOL``: only ``http/json`` is accepted.
+  default 10000
+- ``OTEL_EXPORTER_OTLP_PROTOCOL``: only ``http/json`` is accepted
 - ``AWS_REGION`` or ``AWS_DEFAULT_REGION``, ``AWS_ACCESS_KEY_ID``,
   ``AWS_SECRET_ACCESS_KEY``, ``AWS_SESSION_TOKEN``,
-  ``AWS_ENDPOINT_URL_S3`` and ``AWS_CA_BUNDLE`` for ``map_export.s3_uri``.
+  ``AWS_ENDPOINT_URL_S3`` and ``AWS_CA_BUNDLE`` for ``map_export.s3_uri``
 
 Each ``OTEL_EXPORTER_OTLP_*`` variable also has a ``_LOGS_`` and a
 ``_METRICS_`` form, which wins over the generic one for its signal.
@@ -412,9 +412,9 @@ Limits
 Next steps
 ----------
 
-- :doc:`read-status` to read what the keepalive carries.
-- :doc:`/reference/formats/otlp` for the records on the wire.
-- :doc:`/upatches/decoders` to give a map a decoder.
+- :doc:`read-status` to read what the keepalive carries
+- :doc:`/reference/formats/otlp` for the records on the wire
+- :doc:`/upatches/decoders` to give a map a decoder
 - :doc:`/reference/cli/upatch-map` and :doc:`/reference/cli/status` for
-  every option.
-- :doc:`attest` for evidence that the target cannot forge.
+  every option
+- :doc:`attest` for evidence that the target cannot forge

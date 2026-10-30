@@ -16,10 +16,10 @@ Before you begin
 ----------------
 
 - The test VM from the :doc:`/start/quickstart`, running as
-  ``quickstart``.
+  ``quickstart``
 - The operator shell from the quickstart: in the root of your checkout,
   with ``shirudo`` and ``shirudo-build`` on ``PATH`` and ``KEYS`` naming
-  the test VM's key directory.
+  the test VM's key directory
 - A root shell on the target (``make -C testing vm-ssh
   VM_NAME=quickstart``) in which ``shirudo`` runs the runtime binary:
 

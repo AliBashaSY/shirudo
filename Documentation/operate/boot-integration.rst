@@ -484,7 +484,7 @@ Next steps
 ----------
 
 - :doc:`/operate/initialize` to check init after every boot and handle
-  its failures.
-- :doc:`/operate/attest` to enroll the target's attestation key.
-- :doc:`/operate/deliver-packages` to deliver upatches from a registry.
-- :doc:`/operate/upgrade` to replace the runtime image or the kernel.
+  its failures
+- :doc:`/operate/attest` to enroll the target's attestation key
+- :doc:`/operate/deliver-packages` to deliver upatches from a registry
+- :doc:`/operate/upgrade` to replace the runtime image or the kernel

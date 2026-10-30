@@ -40,13 +40,13 @@ Display
 
 - the certificate ``cert.der`` and the signing key ``signing_key.pem`` in
   the keys directory: subject, issuer, algorithm, both fingerprints and
-  validity.
+  validity
 - the trusted set, when it has more than the primary certificate or
   holds revoked or unvouched entries: each member's SPKI fingerprint, the
-  SHA-256 of its certificate and the certificate that vouched for it.
+  SHA-256 of its certificate and the certificate that vouched for it
 - the ``.bpf`` and ``.dm-verity`` keyrings ``init`` froze: each one's
   serial, the frozen serial and every member, whatever its type, marked
-  ``(frozen)`` when ``init`` recorded it and ``(NOT frozen)`` otherwise.
+  ``(frozen)`` when ``init`` recorded it and ``(NOT frozen)`` otherwise
 
 The keys directory is ``--keys-dir``, else ``$SHIRUDO_KEYS_DIR``, else
 ``/var/lib/shirudo/keys``. On a target with an active config image it is
@@ -173,10 +173,10 @@ Files and environment
 ---------------------
 
 - ``<dir>/cert.der``, ``<dir>/signing_key.pem``, ``<dir>/trusted/``,
-  ``<dir>/revoked/``.
-- ``/run/shirudo/runtime/keys`` on a target with a config image.
+  ``<dir>/revoked/``
+- ``/run/shirudo/runtime/keys`` on a target with a config image
 - ``SHIRUDO_KEYS_DIR``: the default keys directory, refused by the image
-  gate.
+  gate
 
 Examples
 --------

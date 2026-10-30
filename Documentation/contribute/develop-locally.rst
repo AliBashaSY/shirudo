@@ -557,9 +557,9 @@ Clean up
 Next steps
 ----------
 
-- :doc:`/upatches/decoders` for decoders and metrics.
+- :doc:`/upatches/decoders` for decoders and metrics
 - :doc:`/upatches/maps-arenas-serializers` for upatches that keep
-  records.
+  records
 - :doc:`/operate/deliver-packages` and :doc:`/operate/telemetry` for the
-  production setup this page reproduces.
-- :doc:`testing` to write and run tests.
+  production setup this page reproduces
+- :doc:`testing` to write and run tests

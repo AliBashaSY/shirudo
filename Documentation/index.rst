@@ -110,22 +110,22 @@ documentation uses BPF throughout, the term the Linux kernel community
 uses.
 
 - :doc:`start/index`: build shirudo, boot a protected test target and take
-  one upatch through its whole life, then install it.
+  one upatch through its whole life, then install it
 - :doc:`concepts/index`: the mechanisms shirudo builds on, from BPF signing
   and the BPF LSM to dm-verity, TPM 2.0 and post-quantum cryptography, and
-  a glossary.
+  a glossary
 - :doc:`operate/index`: system requirements, deployment, attestation,
   monitoring, upgrades, troubleshooting and incident response for targets
-  in production.
-- :doc:`upatches/index`: write, test, package and publish upatches.
+  in production
+- :doc:`upatches/index`: write, test, package and publish upatches
 - :doc:`security/index`: the security model, the threat model and the
-  threats still to resolve, cryptography and tamper counters.
+  threats still to resolve, cryptography and tamper counters
 - :doc:`internals/index`: how shirudo works inside the kernel and on the
-  target, and why it is built this way.
+  target, and why it is built this way
 - :doc:`reference/index`: every command, format, setting, event, failure
-  category, file and unit, and a cheat sheet.
+  category, file and unit, and a cheat sheet
 - :doc:`contribute/index`: work on shirudo itself, its tests and its
-  documentation.
+  documentation
 
 .. toctree::
    :hidden:

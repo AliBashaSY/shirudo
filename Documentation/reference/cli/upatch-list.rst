@@ -31,9 +31,9 @@ Description
 
 - one row per archived artifact, with ``loaded`` ``yes`` or ``no``, its
   type (``load`` or ``unload``), its payload kind, the first 16
-  hexadecimal characters of its payload digest and its name.
+  hexadecimal characters of its payload digest and its name
 - one row per pinned upatch without an archive copy, marked
-  ``(orphan: no persisted .upatch, will not survive reboot)``.
+  ``(orphan: no persisted .upatch, will not survive reboot)``
 
 An archived artifact that cannot be read is listed as ``(unreadable)``.
 

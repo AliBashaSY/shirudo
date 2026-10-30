@@ -358,15 +358,15 @@ Files and environment
 
 - ``/etc/shirudo/bpm/registries.d/``, ``/etc/shirudo/bpm/keys/``,
   ``/etc/shirudo/bpm/upatch-tree.conf``, ``/etc/shirudo/node.labels``, or
-  the same paths in the config image.
+  the same paths in the config image
 - ``/var/lib/shirudo/bpm/``: ``repos/``, ``packages/``, ``staging/``,
   ``state.json`` and ``upatch-tree/``, and
-  ``/var/lib/shirudo/locks/bpm.lock``.
+  ``/var/lib/shirudo/locks/bpm.lock``
 - Registry access: ``BPM_OCI_USERNAME`` and ``BPM_OCI_PASSWORD``,
   ``BPM_OCI_BEARER_TOKEN``, ``REGISTRY_AUTH_FILE``, ``DOCKER_CONFIG`` and
   ``~/.docker/config.json``, ``BPM_OCI_SCHEME`` (``https`` or ``http``),
   ``BPM_OCI_CA_FILE``. The timer services read them from
-  ``/etc/shirudo/bpm/environment``. See :doc:`/reference/environment`.
+  ``/etc/shirudo/bpm/environment``. See :doc:`/reference/environment`
 
 Examples
 --------

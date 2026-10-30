@@ -17,11 +17,11 @@ and says for each item whether shirudo checks it.
 
 The ``Checked`` column reads:
 
-- ``init fails``: init refuses to bring enforcement up without it.
-- ``warns``: init logs a warning and continues.
-- ``enforced``: shirudo's LSM programs enforce it themselves.
+- ``init fails``: init refuses to bring enforcement up without it
+- ``warns``: init logs a warning and continues
+- ``enforced``: shirudo's LSM programs enforce it themselves
 - ``no``: nothing in shirudo checks it. Only your build, your boot chain
-  or attestation catch a target without it.
+  or attestation catch a target without it
 
 :doc:`/security/threat-model` explains the threats behind each item.
 
@@ -237,9 +237,9 @@ Host files
 Related
 -------
 
-- :doc:`/operate/system-requirements` for what shirudo needs to run.
+- :doc:`/operate/system-requirements` for what shirudo needs to run
 - :doc:`/operate/boot-integration` for the UKI, the command line and the
-  config PCR.
+  config PCR
 - :doc:`/operate/attest` for the checks that catch a target booted
-  without these items.
-- :doc:`/security/threat-model` for the threats and residual risks.
+  without these items
+- :doc:`/security/threat-model` for the threats and residual risks

@@ -350,6 +350,6 @@ away from targets that lack its site.
 Related
 -------
 
-- :doc:`concepts` for the roles, pins and names.
-- :doc:`debugging` for every failure category of a load.
-- :doc:`/internals/kernel-interfaces` for the system calls in detail.
+- :doc:`concepts` for the roles, pins and names
+- :doc:`debugging` for every failure category of a load
+- :doc:`/internals/kernel-interfaces` for the system calls in detail

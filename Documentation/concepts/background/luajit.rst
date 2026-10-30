@@ -175,8 +175,8 @@ lists the residual risks in :doc:`/security/threat-model`.
 Related
 -------
 
-- :doc:`/upatches/decoders` for writing a decoder.
+- :doc:`/upatches/decoders` for writing a decoder
 - :doc:`/upatches/maps-arenas-serializers` for the records a decoder
-  reads.
-- :doc:`opentelemetry` for the records a decoder produces.
-- :doc:`/security/threat-model` for the residual risks.
+  reads
+- :doc:`opentelemetry` for the records a decoder produces
+- :doc:`/security/threat-model` for the residual risks

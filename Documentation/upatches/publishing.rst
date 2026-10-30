@@ -164,6 +164,6 @@ Next steps
 ----------
 
 - :doc:`/reference/formats/bpm-formats` for the index and the tree
-  documents.
-- :doc:`/operate/deliver-packages` to configure targets.
-- :doc:`/operate/attest` to verify what targets loaded.
+  documents
+- :doc:`/operate/deliver-packages` to configure targets
+- :doc:`/operate/attest` to verify what targets loaded

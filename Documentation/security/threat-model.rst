@@ -50,15 +50,15 @@ Every entry has a stable ID that commits, issues and other pages cite:
 Each threat is explained in prose and then summarized in a fact box.
 The fields of the box are:
 
-- Adversary: who mounts the threat.
+- Adversary: who mounts the threat
 - Enforced at: the BPF LSM programs that refuse it, by their section
-  name in ``bpf/``.
-- Refusal: what the caller sees.
+  name in ``bpf/``
+- Refusal: what the caller sees
 - Counters: the tamper counters the refusal moves, described in
-  :doc:`tamper-counters`.
+  :doc:`tamper-counters`
 - Tests: the target tests under ``testing/functional/`` that exercise
-  the refusal.
-- Residual: the residual risks and threats to resolve that bound it.
+  the refusal
+- Residual: the residual risks and threats to resolve that bound it
 
 A claim on this page is one of three kinds, and the text says which. A
 hook in the kernel enforces it, shirudo checks it in userspace, or an
@@ -1731,52 +1731,52 @@ The deployer:
   ``CONFIG_SECURITY_LOCKDOWN_LSM`` (A4), ``CONFIG_COMPAT=n`` (A5), both
   dm-verity keyring options off and no foreign built-in certificate
   (A7), the TPM driver without ``i2c-dev`` or ``spidev`` on its bus
-  (A8), and ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10).
+  (A8), and ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10)
 - Boots a signed, measured UKI under Secure Boot whose command line
   carries ``lsm=`` with ``bpf``, ``lockdown=integrity``,
   ``bpf.keyring_unsealed=1`` and ``dm_verity.keyring_unsealed=1`` (A6,
-  A11).
-- Keeps generic tools off the runtime image (A14).
+  A11)
+- Keeps generic tools off the runtime image (A14)
 - Keeps the environment files of the units absent or empty (U3) and
-  starts every shirudo unit from the runtime image (U7).
+  starts every shirudo unit from the runtime image (U7)
 - Uses only ML-DSA-87 certificates from ``shirudo genkey``, repository
-  certificates included (U4).
-- Treats the TPM owner password as known to root (R20).
+  certificates included (U4)
+- Treats the TPM owner password as known to root (R20)
 - Never runs ``shirudo bpm config update --base-package oci://...``
   without ``-f`` (U14), and checks the fingerprint of every certificate
-  it installs (U15).
+  it installs (U15)
 - Watches the size of the eventlog (U6) and the keepalives, and treats a
   ``tampered`` status as an incident to understand, not a condition to
-  retry (:doc:`/operate/incident-tampered`).
+  retry (:doc:`/operate/incident-tampered`)
 
 The verifier:
 
-- Uses a fresh, unique ``--nonce`` for each verification.
+- Uses a fresh, unique ``--nonce`` for each verification
 - Records the attestation key name at enrollment after a challenge whose
   endorsement key chains through ``--ek-ca`` or matches ``--ek-name``,
-  and passes ``--ak-name`` on every verification (U1, R10).
+  and passes ``--ak-name`` on every verification (U1, R10)
 - Pins the binding with ``--expect-bind-pcr=9=<value>`` and
-  ``--expect-bind-pcr=11=<value>`` (U9, R7, R12).
+  ``--expect-bind-pcr=11=<value>`` (U9, R7, R12)
 - Gives an expected state: ``--cert`` with ``--upatch`` or ``--expect``
-  and ``--tree-root``, or ``--expect-chain`` (U1).
+  and ``--tree-root``, or ``--expect-chain`` (U1)
 - Gives ``--expect-config-root`` with ``--expect-config-pcr`` (U2,
-  R14).
+  R14)
 - Gives ``--strict-anchor`` where nothing else measures into PCR 9
   after ``init`` (R11), and ``--expect-pcr`` for the firmware, kernel and
-  initrd values its policy accepts.
+  initrd values its policy accepts
 - Treats ``bound_in``, the eventlog's content beyond the replay,
   ``shirudo status``, the keepalives and the tamper counters as the
-  target's own account (R17).
+  target's own account (R17)
 
 Related
 -------
 
-- :doc:`security-model` for the short version.
-- :doc:`tamper-counters` for every counter and its hooks.
-- :doc:`cryptography` for every algorithm and where it is used.
+- :doc:`security-model` for the short version
+- :doc:`tamper-counters` for every counter and its hooks
+- :doc:`cryptography` for every algorithm and where it is used
 - :doc:`/internals/enforcement`, :doc:`/internals/seal`,
   :doc:`/internals/signed-loader` and
-  :doc:`/internals/measurement-register` for the mechanisms.
+  :doc:`/internals/measurement-register` for the mechanisms
 - :doc:`/concepts/background/bpf-lsm`,
   :doc:`/concepts/background/keyrings`, :doc:`/concepts/background/tpm`
-  and :doc:`/concepts/background/dm-verity` for the platform background.
+  and :doc:`/concepts/background/dm-verity` for the platform background

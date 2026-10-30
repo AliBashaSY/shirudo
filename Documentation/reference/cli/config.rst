@@ -87,10 +87,10 @@ Files and environment
 ---------------------
 
 - ``/etc/shirudo/shirudo.conf``
-- ``/run/shirudo/config``: the active config image.
+- ``/run/shirudo/config``: the active config image
 - ``SHIRUDO_TPM_OWNER_AUTH``, ``SHIRUDO_TPM_TCTI``: honored only
   without an active config image. The image gate refuses both on an
-  enforcing target.
+  enforcing target
 
 Examples
 --------

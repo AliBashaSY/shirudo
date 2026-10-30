@@ -275,10 +275,10 @@ Limits
 Related
 -------
 
-- :doc:`tpm` for PCRs, NV indices and the register binding.
-- :doc:`initrd-dracut` for the initrd shirudo runs from.
-- :doc:`/internals/boot-flow` for the initrd and root runs of ``init``.
-- :doc:`/operate/boot-integration` to set up the boot of a target.
+- :doc:`tpm` for PCRs, NV indices and the register binding
+- :doc:`initrd-dracut` for the initrd shirudo runs from
+- :doc:`/internals/boot-flow` for the initrd and root runs of ``init``
+- :doc:`/operate/boot-integration` to set up the boot of a target
 - `TPM2 PCR Measurements Made by systemd
   <https://systemd.io/TPM2_PCR_MEASUREMENTS/>`__
 - `UAPI.7 Linux TPM PCR Registry

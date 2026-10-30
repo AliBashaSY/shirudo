@@ -356,7 +356,7 @@ directories while its upatch names are the detectors' base names, so
 Related
 -------
 
-- :doc:`publishing` for building, pushing and appending a package.
-- :doc:`/reference/cli/bpm` for ``bpm build`` and ``bpm config update``.
+- :doc:`publishing` for building, pushing and appending a package
+- :doc:`/reference/cli/bpm` for ``bpm build`` and ``bpm config update``
 - :doc:`/reference/formats/bpm-formats` for the archive, the index and the
-  tree.
+  tree

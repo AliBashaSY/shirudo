@@ -257,6 +257,6 @@ Related
 -------
 
 - :doc:`/concepts/background/xattrs` for extended attributes and the
-  ``security.bpf.`` namespace.
-- :doc:`enforcement` for every hook and its counter.
-- :doc:`/security/tamper-counters` for the ``Seal*`` counters.
+  ``security.bpf.`` namespace
+- :doc:`enforcement` for every hook and its counter
+- :doc:`/security/tamper-counters` for the ``Seal*`` counters

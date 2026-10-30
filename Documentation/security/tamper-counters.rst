@@ -303,5 +303,5 @@ evidence. To act on a counter, see :doc:`/operate/incident-tampered`.
 Related
 -------
 
-- :doc:`threat-model`, threat T10, for the purpose and the limits.
-- :doc:`/internals/enforcement` for the hooks.
+- :doc:`threat-model`, threat T10, for the purpose and the limits
+- :doc:`/internals/enforcement` for the hooks

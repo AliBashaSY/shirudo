@@ -56,15 +56,15 @@ Signatures
 All five use one format, produced by one function on the operator:
 
 - Algorithm: ML-DSA-87 (FIPS 204). The signing code refuses any other
-  key, the smaller ML-DSA parameter sets included.
+  key, the smaller ML-DSA parameter sets included
 - Container: a detached CMS ``SignedData`` with no certificates; the
-  signer is named by its subject key identifier.
+  signer is named by its subject key identifier
 - With OpenSSL 3.x: signed attributes with a SHA-512 message digest and
   no signing time, because OpenSSL 3.x cannot sign ML-DSA without
   signed attributes and the kernel accepts only SHA-512 for ML-DSA in
-  that form.
+  that form
 - With OpenSSL 4: no signed attributes; ML-DSA signs the content
-  directly.
+  directly
 
 ``shirudo genkey`` creates the ML-DSA-87 key and a self-signed X.509
 certificate. ``shirudo keys vouch``, ``shirudo keys add`` and the image
@@ -269,6 +269,6 @@ Key custody
 Related
 -------
 
-- :doc:`threat-model`, threats T5, T8 and T9 and residual risk R9.
+- :doc:`threat-model`, threats T5, T8 and T9 and residual risk R9
 - :doc:`/concepts/background/bpf-signing` and
-  :doc:`/concepts/background/tpm` for the background.
+  :doc:`/concepts/background/tpm` for the background

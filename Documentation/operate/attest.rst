@@ -391,10 +391,10 @@ Next steps
 ----------
 
 - :doc:`/operate/incident-tampered` when a target refuses with
-  ``tampered`` or fails verification.
+  ``tampered`` or fails verification
 - :doc:`/reference/cli/attest`, :doc:`/reference/cli/attest-verify`,
   :doc:`/reference/cli/attest-predict` and
-  :doc:`/reference/cli/attest-challenge` for every option.
+  :doc:`/reference/cli/attest-challenge` for every option
 - :doc:`/concepts/measurement-register` and
-  :doc:`/internals/measurement-register` for what the register records.
-- :doc:`/security/threat-model` for what attestation does not cover.
+  :doc:`/internals/measurement-register` for what the register records
+- :doc:`/security/threat-model` for what attestation does not cover

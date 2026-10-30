@@ -60,6 +60,6 @@ The repository's `security policy
 Next steps
 ----------
 
-- :doc:`threat-model` for what shirudo protects and the known gaps.
+- :doc:`threat-model` for what shirudo protects and the known gaps
 - :doc:`/contribute/contributing` if you send the fix yourself, after
-  the advisory is agreed.
+  the advisory is agreed

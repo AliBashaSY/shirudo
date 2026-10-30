@@ -300,6 +300,6 @@ upatch.
 Next steps
 ----------
 
-- :doc:`/operate/initialize` for the checks after every boot.
-- :doc:`/operate/attest` to update what verifiers expect.
-- :doc:`/operate/backup-recovery` for the state to keep across upgrades.
+- :doc:`/operate/initialize` for the checks after every boot
+- :doc:`/operate/attest` to update what verifiers expect
+- :doc:`/operate/backup-recovery` for the state to keep across upgrades

@@ -229,8 +229,8 @@ cleaned copy.
 Next steps
 ----------
 
-- :doc:`/operate/troubleshooting` for known symptoms and their causes.
+- :doc:`/operate/troubleshooting` for known symptoms and their causes
 - :doc:`/reference/failure-categories` for the category and phase in a
-  report.
+  report
 - :doc:`/operate/interoperability` when the problem involves other
-  software on the target.
+  software on the target

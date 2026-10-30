@@ -18,11 +18,11 @@ are the same elsewhere.
 Before you begin
 ----------------
 
-- A shirudo checkout built with ``make`` and ``make shirudo-build``.
+- A shirudo checkout built with ``make`` and ``make shirudo-build``
 - A Linux host with KVM, root, and the host packages the test VM needs,
-  listed in :doc:`/contribute/testing`.
+  listed in :doc:`/contribute/testing`
 - An upatch and its unload directive, built as in
-  :doc:`kernel-fix-tutorial`, or one of the signed fixtures below.
+  :doc:`kernel-fix-tutorial`, or one of the signed fixtures below
 
 Boot the test VM
 ----------------
@@ -204,7 +204,7 @@ category looks like.
 Next steps
 ----------
 
-- :doc:`debugging` when a load fails.
-- :doc:`publishing` once the upatch works.
+- :doc:`debugging` when a load fails
+- :doc:`publishing` once the upatch works
 - :doc:`/contribute/testing` for the automated tests that boot the same
-  VM.
+  VM

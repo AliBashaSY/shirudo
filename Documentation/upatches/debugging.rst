@@ -16,9 +16,9 @@ what to change for each failure.
 Before you begin
 ----------------
 
-- Root on the target where the load failed, and the ``.upatch`` file.
+- Root on the target where the load failed, and the ``.upatch`` file
 - The source and the ``vmlinux.h`` the upatch was built from, on the
-  operator host.
+  operator host
 
 Get the report
 --------------
@@ -252,6 +252,6 @@ Fix and load again
 Next steps
 ----------
 
-- :doc:`/reference/cli/upatch-load` for the report's fields.
-- :doc:`/concepts/background/co-re-btf` for how relocations resolve.
-- :doc:`testing` for the test VM.
+- :doc:`/reference/cli/upatch-load` for the report's fields
+- :doc:`/concepts/background/co-re-btf` for how relocations resolve
+- :doc:`testing` for the test VM

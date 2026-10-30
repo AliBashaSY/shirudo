@@ -110,8 +110,8 @@ Files and environment
 ---------------------
 
 - Reads the TPM, ``/var/lib/shirudo/eventlog``, the config activation
-  records and the firmware and systemd event logs.
-- Writes ``--out``.
+  records and the firmware and systemd event logs
+- Writes ``--out``
 
 Examples
 --------

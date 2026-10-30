@@ -208,7 +208,7 @@ Limits
 Related
 -------
 
-- :doc:`attach-kinds` for the serializer and test-run roles.
+- :doc:`attach-kinds` for the serializer and test-run roles
 - :doc:`examples` for ``kernel-obs``, which uses this template for all
-  its tables.
-- :doc:`/reference/cli/upatch-map` for the command's options.
+  its tables
+- :doc:`/reference/cli/upatch-map` for the command's options

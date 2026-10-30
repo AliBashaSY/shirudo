@@ -250,7 +250,7 @@ Related
 -------
 
 - :doc:`/concepts/background/bpf-signing` for the kernel's signed BPF
-  support.
-- :doc:`enforcement` for every hook and counter.
-- :doc:`kernel-interfaces` for the exact ``bpf()`` attributes.
-- :doc:`/reference/formats/upatch-format` for the container.
+  support
+- :doc:`enforcement` for every hook and counter
+- :doc:`kernel-interfaces` for the exact ``bpf()`` attributes
+- :doc:`/reference/formats/upatch-format` for the container

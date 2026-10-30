@@ -471,8 +471,8 @@ Next steps
 ----------
 
 - :doc:`develop-locally` to run both roles on one machine and change
-  shirudo end to end.
-- :doc:`testing` to run and write tests.
-- :doc:`contributing` for the commit message and the sign-off.
-- :doc:`coding-style` for the C code.
-- :doc:`/reference/cli/index` for the commands.
+  shirudo end to end
+- :doc:`testing` to run and write tests
+- :doc:`contributing` for the commit message and the sign-off
+- :doc:`coding-style` for the C code
+- :doc:`/reference/cli/index` for the commands

@@ -103,5 +103,5 @@ build, and its tree entries do not match its upatch names.
 Related
 -------
 
-- :doc:`kernel-fix-tutorial` to write a detector of your own.
-- :doc:`beefile` for the keys both Beefiles use.
+- :doc:`kernel-fix-tutorial` to write a detector of your own
+- :doc:`beefile` for the keys both Beefiles use

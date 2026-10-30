@@ -517,7 +517,7 @@ Next steps
 ----------
 
 - :doc:`/reference/failure-categories` for every category and exit
-  status.
+  status
 - :doc:`/operate/incident-tampered` for a ``tampered`` refusal or
-  verdict.
-- :doc:`/operate/read-status` for the status report.
+  verdict
+- :doc:`/operate/read-status` for the status report

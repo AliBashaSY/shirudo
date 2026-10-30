@@ -35,9 +35,9 @@ Description
    ``cert.der`` exists in the directory.
 #. It generates an ML-DSA-87 key and writes:
 
-   - ``<dir>/signing_key.pem``: the private key, PEM, mode 0600.
+   - ``<dir>/signing_key.pem``: the private key, PEM, mode 0600
    - ``<dir>/cert.der``: a self-signed X.509 certificate, DER, mode 0600,
-     subject and issuer ``CN=shirudo``, valid for 3650 days.
+     subject and issuer ``CN=shirudo``, valid for 3650 days
 
 #. It logs ``genkey: created shirudo ML-DSA-87 signing material at
    <dir>`` at audit priority.
@@ -103,8 +103,8 @@ Files and environment
 
 - ``<dir>/signing_key.pem``, ``<dir>/cert.der``, and during ``--force``
   ``<dir>/signing_key.pem.new``, ``<dir>/cert.der.new`` and
-  ``<dir>/signing_key.pem.old``.
-- ``SHIRUDO_KEYS_DIR``: the default directory.
+  ``<dir>/signing_key.pem.old``
+- ``SHIRUDO_KEYS_DIR``: the default directory
 
 Examples
 --------

@@ -199,8 +199,8 @@ target runs is the TPM-signed record that ``shirudo attest`` produces and
 Related
 -------
 
-- :doc:`/operate/telemetry` to set up export on a target.
-- :doc:`/reference/formats/otlp` for the exported documents.
-- :doc:`/reference/systemd-units` for the timers and services.
-- :doc:`luajit` for the decoder sandbox.
-- :doc:`/upatches/decoders` for writing a decoder.
+- :doc:`/operate/telemetry` to set up export on a target
+- :doc:`/reference/formats/otlp` for the exported documents
+- :doc:`/reference/systemd-units` for the timers and services
+- :doc:`luajit` for the decoder sandbox
+- :doc:`/upatches/decoders` for writing a decoder

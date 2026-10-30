@@ -807,6 +807,6 @@ Parsers and units
 Related
 -------
 
-- :doc:`testing` to run the tests and write one.
-- :doc:`/security/threat-model` for the threats and residual risks.
-- :doc:`/security/tamper-counters` for what each counter means.
+- :doc:`testing` to run the tests and write one
+- :doc:`/security/threat-model` for the threats and residual risks
+- :doc:`/security/tamper-counters` for what each counter means

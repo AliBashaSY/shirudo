@@ -406,10 +406,10 @@ that state.
 Next steps
 ----------
 
-- :doc:`/start/guides/publish-package` to publish a package.
+- :doc:`/start/guides/publish-package` to publish a package
 - :doc:`/upatches/publishing` for packages, indexes and the tree on the
-  operator side.
-- :doc:`telemetry` to export what the installed upatches collect.
-- :doc:`/reference/cli/bpm` for every ``bpm`` option.
+  operator side
+- :doc:`telemetry` to export what the installed upatches collect
+- :doc:`/reference/cli/bpm` for every ``bpm`` option
 - :doc:`/reference/formats/bpm-formats` for the index, package and tree
-  formats.
+  formats

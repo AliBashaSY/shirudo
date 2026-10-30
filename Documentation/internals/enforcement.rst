@@ -542,6 +542,6 @@ The hooks decide only what reaches them. These paths do not:
 Related
 -------
 
-- :doc:`/concepts/background/bpf-lsm` for how BPF LSM programs work.
-- :doc:`signed-loader` for the load path these hooks guard.
-- :doc:`/security/tamper-counters` for the counters.
+- :doc:`/concepts/background/bpf-lsm` for how BPF LSM programs work
+- :doc:`signed-loader` for the load path these hooks guard
+- :doc:`/security/tamper-counters` for the counters

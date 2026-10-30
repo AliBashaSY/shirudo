@@ -205,10 +205,10 @@ Files and environment
 ---------------------
 
 - Reads the key and certificate, ``vmlinux.h``, and for ``--unload``
-  without a digest ``/var/lib/shirudo/upatches/<name>.upatch``.
-- Writes the output, and ``/tmp/shirudo-build-*.bpf.o`` while it compiles.
-- ``SHIRUDO_KEYS_DIR``: the default keys directory.
-- ``SHIRUDO_BUILD``: the helper ``shirudo`` executes.
+  without a digest ``/var/lib/shirudo/upatches/<name>.upatch``
+- Writes the output, and ``/tmp/shirudo-build-*.bpf.o`` while it compiles
+- ``SHIRUDO_KEYS_DIR``: the default keys directory
+- ``SHIRUDO_BUILD``: the helper ``shirudo`` executes
 
 Examples
 --------

@@ -194,8 +194,8 @@ upatches through their directives in the same way.
 Related
 -------
 
-- :doc:`what-is-shirudo` for the problem shirudo addresses and its scope.
-- :doc:`/concepts/operator-and-target` for what each side holds.
-- :doc:`/internals/architecture` for the components and their code.
+- :doc:`what-is-shirudo` for the problem shirudo addresses and its scope
+- :doc:`/concepts/operator-and-target` for what each side holds
+- :doc:`/internals/architecture` for the components and their code
 - :doc:`/security/security-model` for what each step protects against
-  and where it stops.
+  and where it stops

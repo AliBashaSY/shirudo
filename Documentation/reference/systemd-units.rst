@@ -329,11 +329,11 @@ Related
 -------
 
 - :doc:`/reference/environment` for the variables the
-  ``EnvironmentFile=`` files set.
+  ``EnvironmentFile=`` files set
 - :doc:`/reference/formats/configuration` for the settings the services
-  read.
+  read
 - :doc:`/reference/cli/init`, :doc:`/reference/cli/status`,
   :doc:`/reference/cli/upatch-map` and :doc:`/reference/cli/bpm` for the
-  commands the services run.
+  commands the services run
 - :doc:`/operate/boot-integration` for installing the units with the
-  runtime image.
+  runtime image

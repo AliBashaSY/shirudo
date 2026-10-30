@@ -524,10 +524,10 @@ these.
 Related
 -------
 
-- :doc:`boot` for measured boot, PCR 11 phases and NvPCRs.
-- :doc:`/internals/measurement-register` for events and the :term:`eventlog`.
-- :doc:`/operate/attest` to attest a :term:`target`.
-- :doc:`/security/threat-model` for the residual risks.
+- :doc:`boot` for measured boot, PCR 11 phases and NvPCRs
+- :doc:`/internals/measurement-register` for events and the :term:`eventlog`
+- :doc:`/operate/attest` to attest a :term:`target`
+- :doc:`/security/threat-model` for the residual risks
 - `TPM 2.0 Library specification
   <https://trustedcomputinggroup.org/resource/tpm-library-specification/>`__
 - `TCG EK Credential Profile

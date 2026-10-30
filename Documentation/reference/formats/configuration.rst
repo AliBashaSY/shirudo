@@ -498,9 +498,9 @@ Related
 -------
 
 - :doc:`/reference/environment` for the variables that override or
-  complement these settings.
-- :doc:`/reference/files` for every path shirudo reads and writes.
+  complement these settings
+- :doc:`/reference/files` for every path shirudo reads and writes
 - :doc:`/operate/boot-integration` for building the bootstrap files and
-  images.
-- :doc:`/operate/telemetry` for the export destinations.
-- :doc:`/operate/deliver-packages` for repositories and the upatch tree.
+  images
+- :doc:`/operate/telemetry` for the export destinations
+- :doc:`/operate/deliver-packages` for repositories and the upatch tree

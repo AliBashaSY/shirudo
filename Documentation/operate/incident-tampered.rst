@@ -213,8 +213,8 @@ The timers you stopped start again at boot when they are enabled.
 Related
 -------
 
-- :doc:`/operate/attest` for enrollment and the verification options.
-- :doc:`/operate/read-status` for the verdicts and conditions.
-- :doc:`/operate/troubleshooting` for the other failure messages.
-- :doc:`/reference/failure-categories` for every category.
-- :doc:`/security/threat-model` for what the measurement does not cover.
+- :doc:`/operate/attest` for enrollment and the verification options
+- :doc:`/operate/read-status` for the verdicts and conditions
+- :doc:`/operate/troubleshooting` for the other failure messages
+- :doc:`/reference/failure-categories` for every category
+- :doc:`/security/threat-model` for what the measurement does not cover

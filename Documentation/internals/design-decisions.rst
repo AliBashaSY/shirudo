@@ -219,5 +219,5 @@ release that contains its signed-loader work, with the patches in
 Related
 -------
 
-- :doc:`architecture` for how the parts fit together.
-- :doc:`/security/threat-model` for what the design defends against.
+- :doc:`architecture` for how the parts fit together
+- :doc:`/security/threat-model` for what the design defends against

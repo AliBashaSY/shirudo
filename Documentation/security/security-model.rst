@@ -94,17 +94,17 @@ The properties above hold only on a deployment that provides the
 :ref:`assumptions <tm-assumptions>`. In brief:
 
 - A trusted kernel with the BPF LSM, the signed-loader ABI and the
-  ``tpm_command`` patch.
+  ``tpm_command`` patch
 - Module signature enforcement and lockdown in integrity mode, no
   32-bit compatibility, no hibernation and no writes under mounted
-  file systems.
+  file systems
 - Secure Boot with a signed, measured UKI and an authenticated kernel
-  command line.
+  command line
 - A kernel whose dm-verity trust path consults only keys trusted to
-  sign shirudo configs.
-- A TPM 2.0 reachable only through the kernel driver.
-- A runtime image without generic tools.
-- An operator host that keeps the signing key safe.
+  sign shirudo configs
+- A TPM 2.0 reachable only through the kernel driver
+- A runtime image without generic tools
+- An operator host that keeps the signing key safe
 
 shirudo checks only some of these. The pre-flight of ``shirudo init``
 checks that the BPF LSM is active and that the kernel has the
@@ -131,6 +131,6 @@ essentials:
 Related
 -------
 
-- :doc:`threat-model` for every mechanism, limit and open gap.
-- :doc:`tamper-counters` for what the counters record.
-- :doc:`cryptography` for the algorithms.
+- :doc:`threat-model` for every mechanism, limit and open gap
+- :doc:`tamper-counters` for what the counters record
+- :doc:`cryptography` for the algorithms

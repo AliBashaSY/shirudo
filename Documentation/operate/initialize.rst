@@ -280,6 +280,6 @@ Next steps
 ----------
 
 - :doc:`/operate/read-status` for every section and verdict of the
-  status report.
-- :doc:`/operate/troubleshooting` for refusals after init.
-- :doc:`/operate/attest` to prove the boot to a remote verifier.
+  status report
+- :doc:`/operate/troubleshooting` for refusals after init
+- :doc:`/operate/attest` to prove the boot to a remote verifier

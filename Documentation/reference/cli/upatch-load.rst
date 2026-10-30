@@ -182,10 +182,10 @@ Files and environment
 ---------------------
 
 - Reads the artifact, ``/var/lib/shirudo/eventlog`` and
-  ``eventlog.max_bytes``.
+  ``eventlog.max_bytes``
 - Writes ``/run/shirudo/bpffs/upatches/<name>/``,
   ``/var/lib/shirudo/upatches/<name>.upatch``, the eventlog and the
-  register.
+  register
 
 Examples
 --------

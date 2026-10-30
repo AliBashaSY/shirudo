@@ -215,9 +215,9 @@ Related
 -------
 
 - :doc:`/concepts/background/initrd-dracut` and
-  :doc:`/concepts/background/boot` for the boot chain.
+  :doc:`/concepts/background/boot` for the boot chain
 - :doc:`/operate/boot-integration` for setting up the initrd and the
-  UKI.
-- :doc:`config-images` for the images and the activation journal.
+  UKI
+- :doc:`config-images` for the images and the activation journal
 - :doc:`/security/threat-model` for what a failed or skipped ``init``
-  means for the trust model.
+  means for the trust model

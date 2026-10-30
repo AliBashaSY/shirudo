@@ -50,17 +50,17 @@ build may change), holding one SHA-256 digest. Its attributes are
 ``0x0E060048``:
 
 - ``TPM2_NT_EXTEND``: a write of ``d`` sets the index to
-  ``SHA256(old || d)``, as a PCR extend does.
+  ``SHA256(old || d)``, as a PCR extend does
 - ``TPMA_NV_CLEAR_STCLEAR``: contents and ``TPMA_NV_WRITTEN`` clear at
   every TPM reset and restart, so the register starts from 32 zero bytes
-  and holds the history of one TPM boot.
+  and holds the history of one TPM boot
 - ``TPMA_NV_POLICYWRITE``: the only way to write is a policy session
-  that satisfies the write policy.
+  that satisfies the write policy
 - ``TPMA_NV_OWNERREAD`` and ``TPMA_NV_AUTHREAD``: anyone can read and
-  certify it with an empty password.
+  certify it with an empty password
 - ``TPMA_NV_NO_DA`` and ``TPMA_NV_ORDERLY``: failed authorizations do
   not count toward dictionary-attack lockout, and the TPM writes the
-  index back to NV memory only at an orderly shutdown.
+  index back to NV memory only at an orderly shutdown
 
 The index's TPM name is ``000b`` followed by the SHA-256 of its public
 area: handle, name algorithm, attributes, policy digest and size.
@@ -436,7 +436,7 @@ Related
 -------
 
 - :doc:`/concepts/background/tpm` for TPM PCRs, NV indices and
-  sessions.
-- :doc:`/concepts/measurement-register` for the concept.
-- :doc:`/operate/attest` for attesting a target.
-- :doc:`/reference/formats/eventlog` for the eventlog format.
+  sessions
+- :doc:`/concepts/measurement-register` for the concept
+- :doc:`/operate/attest` for attesting a target
+- :doc:`/reference/formats/eventlog` for the eventlog format

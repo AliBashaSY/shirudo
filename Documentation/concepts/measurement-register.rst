@@ -240,8 +240,8 @@ Related
 -------
 
 - :doc:`/internals/measurement-register` for the policy, the binding and
-  the evidence format.
-- :doc:`/operate/attest` for enrolling and verifying targets.
+  the evidence format
+- :doc:`/operate/attest` for enrolling and verifying targets
 - :doc:`/security/threat-model` for the residual risks of the
-  measurement.
-- :doc:`/concepts/background/boot` for PCRs 9 and 11 in a measured boot.
+  measurement
+- :doc:`/concepts/background/boot` for PCRs 9 and 11 in a measured boot

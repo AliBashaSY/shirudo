@@ -641,6 +641,6 @@ Next steps
 ----------
 
 - :doc:`test-coverage` for what each family covers and what no test
-  covers.
-- :doc:`/upatches/testing` to test a upatch on a target.
-- :doc:`contributing` before you send the change.
+  covers
+- :doc:`/upatches/testing` to test a upatch on a target
+- :doc:`contributing` before you send the change

@@ -222,11 +222,11 @@ what it already loaded.
 ``init`` restores the same archive at every boot, so a reboot fails the
 same way. These do not work:
 
-- A second ``init``: it refuses the pending activation.
+- A second ``init``: it refuses the pending activation
 - ``shirudo bpm uninstall`` and ``shirudo upatch unload``: every command
-  that reads target state is refused, except ``status`` and ``image``.
+  that reads target state is refused, except ``status`` and ``image``
 - Deleting the file from ``/var/lib/shirudo/upatches``: the seal refuses
-  it.
+  it
 
 What works is to remove the upatch from a boot on which it loads:
 
@@ -358,7 +358,7 @@ tpm2-tools.
 Next steps
 ----------
 
-- :doc:`troubleshooting` for messages by symptom.
-- :doc:`incident-tampered` when ``status`` reports ``tampered``.
-- :doc:`upgrade` to change the kernel without stranding an upatch.
-- :doc:`/reference/files` for every file shirudo keeps.
+- :doc:`troubleshooting` for messages by symptom
+- :doc:`incident-tampered` when ``status`` reports ``tampered``
+- :doc:`upgrade` to change the kernel without stranding an upatch
+- :doc:`/reference/files` for every file shirudo keeps

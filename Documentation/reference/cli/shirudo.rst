@@ -231,9 +231,9 @@ from its output, not from the exit status. The failure categories that
 Files and environment
 ---------------------
 
-- ``SHIRUDO_BUILD``: the helper to execute.
-- ``PATH``: searched for ``shirudo-build`` last.
-- ``/run/shirudo/bpffs/identity``: the identity pin the image gate reads.
+- ``SHIRUDO_BUILD``: the helper to execute
+- ``PATH``: searched for ``shirudo-build`` last
+- ``/run/shirudo/bpffs/identity``: the identity pin the image gate reads
 
 :doc:`/reference/environment` and :doc:`/reference/files` list every
 variable and path.

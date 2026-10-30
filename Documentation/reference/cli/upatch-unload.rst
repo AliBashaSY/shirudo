@@ -125,10 +125,10 @@ Files and environment
 
 - Reads the directive, the pin directory's
   ``security.bpf.shirudo.payload`` attribute and
-  ``/var/lib/shirudo/eventlog``.
+  ``/var/lib/shirudo/eventlog``
 - Removes ``/run/shirudo/bpffs/upatches/<name>/`` and
   ``/var/lib/shirudo/upatches/<name>.upatch``. Extends the register and
-  appends to the eventlog.
+  appends to the eventlog
 
 Examples
 --------

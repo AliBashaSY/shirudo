@@ -718,9 +718,9 @@ on a healthy target, ``shirudo status --json | jq -r .status`` prints
 Next steps
 ----------
 
-- :doc:`/operate/attest` to have the TPM confirm what the report says.
-- :doc:`/operate/incident-tampered` for a ``tampered`` verdict.
+- :doc:`/operate/attest` to have the TPM confirm what the report says
+- :doc:`/operate/incident-tampered` for a ``tampered`` verdict
 - :doc:`/operate/troubleshooting` for refused commands and failure
-  categories.
-- :doc:`/operate/telemetry` to send the report to a collector.
-- :doc:`/reference/cli/status` for every option.
+  categories
+- :doc:`/operate/telemetry` to send the report to a collector
+- :doc:`/reference/cli/status` for every option

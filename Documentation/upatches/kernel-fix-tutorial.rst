@@ -428,8 +428,8 @@ Sign what a fleet runs with your own key.
 Next steps
 ----------
 
-- :doc:`publishing` for the index, the tree and withdrawing an entry.
-- :doc:`/operate/deliver-packages` for what a target does with them.
+- :doc:`publishing` for the index, the tree and withdrawing an entry
+- :doc:`/operate/deliver-packages` for what a target does with them
 - :doc:`maps-arenas-serializers` and :doc:`decoders` to export what the
-  upatch records.
-- :doc:`attach-kinds` for the other places an upatch can attach.
+  upatch records
+- :doc:`attach-kinds` for the other places an upatch can attach

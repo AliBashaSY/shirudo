@@ -390,8 +390,8 @@ discusses the residual risks.
 Next steps
 ----------
 
-- :doc:`/operate/attest` to enroll a target and verify evidence.
-- :doc:`/operate/deliver-packages` for repositories and their keys.
+- :doc:`/operate/attest` to enroll a target and verify evidence
+- :doc:`/operate/deliver-packages` for repositories and their keys
 - :doc:`/reference/cli/keys` and :doc:`/reference/cli/image` for the
-  command options.
-- :doc:`/security/cryptography` for the algorithms.
+  command options
+- :doc:`/security/cryptography` for the algorithms

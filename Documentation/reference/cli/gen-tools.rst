@@ -103,14 +103,14 @@ Builds the runtime image, the image whose root hash the bootstrap
 settings pin. It holds:
 
 - ``usr/bin/shirudo``: ``--binary``, the target binary without its
-  symbols and debug sections, as ``llvm-strip`` writes it.
-- ``etc/shirudo/shirudo.conf``: ``--bootstrap-conf``.
-- ``keys/cert.der``: ``--cert``, the initial BPF signing certificate.
+  symbols and debug sections, as ``llvm-strip`` writes it
+- ``etc/shirudo/shirudo.conf``: ``--bootstrap-conf``
+- ``keys/cert.der``: ``--cert``, the initial BPF signing certificate
 - ``etc/shirudo/config-cert.der``: ``--config-cert``, the certificate
-  that verifies config images.
+  that verifies config images
 - for a dynamically linked binary, its ELF interpreter and libraries
-  under their own paths, found with ``ldd``.
-- each ``--extra-binary`` under ``usr/bin/`` with its libraries.
+  under their own paths, found with ``ldd``
+- each ``--extra-binary`` under ``usr/bin/`` with its libraries
 
 It prints the runtime invocation on standard error, for example
 ``/run/shirudo/runtime/usr/bin/shirudo init`` for a static binary. With

@@ -161,11 +161,11 @@ Exit status
 Files and environment
 ---------------------
 
-- Reads the pinned maps under ``/run/shirudo/bpffs/upatches/``.
-- Appends to the ``--json`` or ``map_export.json_path`` file.
+- Reads the pinned maps under ``/run/shirudo/bpffs/upatches/``
+- Appends to the ``--json`` or ``map_export.json_path`` file
 - OTLP and S3: the ``OTEL_EXPORTER_OTLP_*`` and ``AWS_*`` variables (see
   :doc:`/reference/environment`). ``shirudo-map-export.service`` reads
-  them from ``/etc/shirudo/map-export.env``.
+  them from ``/etc/shirudo/map-export.env``
 
 Examples
 --------

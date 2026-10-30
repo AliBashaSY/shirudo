@@ -301,8 +301,8 @@ These are properties of the design as implemented.
 Related
 -------
 
-- :doc:`/concepts/background/dm-verity` for the mechanism.
+- :doc:`/concepts/background/dm-verity` for the mechanism
 - :doc:`/operate/boot-integration` for building the images and the
-  initrd.
-- :doc:`/reference/cli/image` for the ``shirudo image`` commands.
-- :doc:`/reference/formats/configuration` for the settings.
+  initrd
+- :doc:`/reference/cli/image` for the ``shirudo image`` commands
+- :doc:`/reference/formats/configuration` for the settings

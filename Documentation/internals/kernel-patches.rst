@@ -135,5 +135,5 @@ Without it
 Related
 -------
 
-- :doc:`kernel-interfaces` for the other kernel requirements.
-- :doc:`/contribute/testing` for building and booting the test kernel.
+- :doc:`kernel-interfaces` for the other kernel requirements
+- :doc:`/contribute/testing` for building and booting the test kernel
