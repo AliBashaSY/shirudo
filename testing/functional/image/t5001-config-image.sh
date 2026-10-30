@@ -301,9 +301,14 @@ if command -v mkfs.ext4 >/dev/null 2>&1 && command -v debugfs >/dev/null 2>&1; t
 			"$W/static-runtime.service" &&
 		debugfs -R "dump /usr/bin/shirudo $W/extracted-static" \
 			"$W/static-runtime.img" >/dev/null 2>&1 &&
-		cmp "$W/static-probe" "$W/extracted-static" &&
+		llvm-strip -o "$W/static-probe.stripped" "$W/static-probe" &&
+		cmp "$W/static-probe.stripped" "$W/extracted-static" &&
 		debugfs -R "ls /" "$W/static-runtime.img" >"$W/static-root" 2>/dev/null &&
 		! grep -Eq "(lib|lib64)" "$W/static-root"
+	'
+	test_expect_success 'the runtime image holds the binary without its symbols' '
+		LC_ALL=C readelf -S "$W/static-probe" | grep -q "\.symtab" &&
+		! LC_ALL=C readelf -S "$W/extracted-static" | grep -q "\.symtab"
 	'
 
 fi

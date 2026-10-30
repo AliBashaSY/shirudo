@@ -419,6 +419,9 @@ keyrings. Any Linux kernel on which the tools below run serves.
    * - ``veritysetup`` (``cryptsetup-bin`` or ``cryptsetup``),
        ``mkfs.ext4`` (``e2fsprogs``), Bash and GNU coreutils
      - Building runtime and config images, and ``shirudo image verify``.
+   * - ``llvm-strip`` (LLVM), ``readelf`` (binutils) and ``ldd``
+     - ``shirudo-gen-runtime`` strips the target binary it puts on the
+       runtime image and resolves the libraries of a dynamic one.
    * - ``CAP_IPC_LOCK`` or an ``RLIMIT_MEMLOCK`` large enough for the
        process
      - ``shirudo`` and ``shirudo-build`` lock all their memory before

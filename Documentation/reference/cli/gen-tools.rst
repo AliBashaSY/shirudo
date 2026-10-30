@@ -101,7 +101,8 @@ shirudo-gen-runtime
 Builds the runtime image, the image whose root hash the bootstrap
 settings pin. It holds:
 
-- ``usr/bin/shirudo``: ``--binary``, the target binary.
+- ``usr/bin/shirudo``: ``--binary``, the target binary without its
+  symbols and debug sections, as ``llvm-strip`` writes it.
 - ``etc/shirudo/shirudo.conf``: ``--bootstrap-conf``.
 - ``keys/cert.der``: ``--cert``, the initial BPF signing certificate.
 - ``etc/shirudo/config-cert.der``: ``--config-cert``, the certificate
@@ -117,7 +118,7 @@ that clears ``EnvironmentFile=`` and ``ExecStart=`` and runs the runtime
 binary with ``init``. No drop-in is written for the other units.
 
 ``ldd`` runs the inputs' dynamic loader on the operator host: pass only
-trusted binaries. Requires ``readelf`` and ``ldd``.
+trusted binaries. Requires ``readelf``, ``ldd`` and ``llvm-strip``.
 
 .. list-table::
    :header-rows: 1

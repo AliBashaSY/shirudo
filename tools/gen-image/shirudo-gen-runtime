@@ -15,8 +15,9 @@ usage: shirudo-gen-runtime --binary <shirudo-target> --bootstrap-conf <file>
        [--size <MiB>] [--builder <shirudo-build>] [--unit-output <file>]
        [--extra-binary <trusted-ELF>]
 
-Package the trusted executable, bootstrap settings and public certificates.
-Static targets run directly. Dynamic executables bring their loader and libraries.
+Package the trusted executable without its symbols, bootstrap settings and
+public certificates. Static targets run directly. Dynamic executables bring
+their loader and libraries.
 Use trusted inputs: ldd invokes dynamic loaders on the operator.
 EOF
 }
@@ -58,6 +59,7 @@ check_inputs()
 	check_image_options "$output" "$keys_dir" "$size"
 	require_command readelf 'install binutils (readelf)'
 	require_command ldd 'ldd is required on the operator'
+	require_command llvm-strip 'install LLVM (llvm-strip)'
 	LC_ALL=C readelf -h "$binary" >/dev/null || die 'target binary is not ELF'
 	interpreter=$(elf_interpreter "$binary")
 	if [ -n "$interpreter" ]; then
@@ -69,7 +71,9 @@ check_inputs()
 stage_files()
 {
 	mkdir -p "$work/root/usr/bin" "$work/root/etc/shirudo" "$work/root/keys"
-	install -m 0755 "$binary" "$work/root/usr/bin/shirudo"
+	# llvm-strip, unlike binutils strip, handles a target of another architecture.
+	llvm-strip -o "$work/root/usr/bin/shirudo" "$binary"
+	chmod 0755 "$work/root/usr/bin/shirudo"
 	install -m 0644 "$conf" "$work/root/etc/shirudo/shirudo.conf"
 	install -m 0644 "$cert" "$work/root/keys/cert.der"
 	install -m 0644 "$config_cert" "$work/root/etc/shirudo/config-cert.der"
