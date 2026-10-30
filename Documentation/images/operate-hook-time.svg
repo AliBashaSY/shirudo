@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 256" width="720" height="256" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">BPF time per operation, guards and kernel-obs</title>
+  <desc id="d">Guards and kernel-obs per operation: fork and exec 3.2 and 4.1 µs; create, write, rename and unlink 0.65 and 0.14 µs; open, read and close 0.15 and 0.14 µs; ioctl 0.28 µs and none; mprotect 0.15 and 0.12 µs; mmap 0.04 and 0.08 µs.</desc>
+
+  <style>
+    .ink { fill: #171b22; }
+    .muted { fill: #5d6675; }
+    .grid { stroke: #e2e6eb; }
+    .axis { stroke: #c3c9d1; }
+    .s1 { fill: #2a78d6; }
+    .s2 { fill: #eb6834; }
+    .s3 { fill: #1baf7a; }
+    .s4 { fill: #eda100; }
+    .free { fill: #dde2e8; }
+    .on-fill { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #e4e8ee; }
+      .muted { fill: #9ba5b3; }
+      .grid { stroke: #262d37; }
+      .axis { stroke: #39414c; }
+      .s1 { fill: #3987e5; }
+      .s2 { fill: #d95926; }
+      .s3 { fill: #199e70; }
+      .s4 { fill: #c98500; }
+      .free { fill: #2f3640; }
+    }
+  </style>
+  <rect class="s1" x="0.0" y="5.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="16.0" y="14.0" font-size="12">kernel with shirudo base platform</text>
+  <rect class="s2" x="257.8" y="5.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="273.8" y="14.0" font-size="12">kernel-obs, one upatch</text>
+  <line class="grid" x1="210.0" y1="30" x2="210.0" y2="232" stroke-width="1"/>
+  <text class="muted" x="210.0" y="248.0" font-size="11" text-anchor="middle">0</text>
+  <line class="grid" x1="310.0" y1="30" x2="310.0" y2="232" stroke-width="1"/>
+  <text class="muted" x="310.0" y="248.0" font-size="11" text-anchor="middle">2 µs</text>
+  <line class="grid" x1="410.0" y1="30" x2="410.0" y2="232" stroke-width="1"/>
+  <text class="muted" x="410.0" y="248.0" font-size="11" text-anchor="middle">4 µs</text>
+  <line class="grid" x1="510.0" y1="30" x2="510.0" y2="232" stroke-width="1"/>
+  <text class="muted" x="510.0" y="248.0" font-size="11" text-anchor="middle">6 µs</text>
+  <line class="grid" x1="610.0" y1="30" x2="610.0" y2="232" stroke-width="1"/>
+  <text class="muted" x="610.0" y="248.0" font-size="11" text-anchor="middle">8 µs</text>
+  <text class="ink" x="198.0" y="56.0" font-size="12" text-anchor="end">fork() and execve()</text>
+  <rect class="s1" x="210.0" y="44.0" width="160.0" height="16"/>
+  <path class="s2" d="M372.0,44.0 H573.0 A4.0,4.0 0 0 1 577.0,48.0 V56.0 A4.0,4.0 0 0 1 573.0,60.0 H372.0 Z"/>
+  <text class="muted" x="585.0" y="56.0" font-size="12">3.2 + 4.1 µs</text>
+  <text class="ink" x="198.0" y="88.0" font-size="12" text-anchor="end">Create, write, rename, unlink</text>
+  <rect class="s1" x="210.0" y="76.0" width="32.5" height="16"/>
+  <path class="s2" d="M244.5,76.0 H247.5 A4.0,4.0 0 0 1 251.5,80.0 V88.0 A4.0,4.0 0 0 1 247.5,92.0 H244.5 Z"/>
+  <text class="muted" x="259.5" y="88.0" font-size="12">0.65 + 0.14 µs</text>
+  <text class="ink" x="198.0" y="120.0" font-size="12" text-anchor="end">Open, read, close</text>
+  <rect class="s1" x="210.0" y="108.0" width="7.5" height="16"/>
+  <path class="s2" d="M219.5,108.0 H222.5 A4.0,4.0 0 0 1 226.5,112.0 V120.0 A4.0,4.0 0 0 1 222.5,124.0 H219.5 Z"/>
+  <text class="muted" x="234.5" y="120.0" font-size="12">0.15 + 0.14 µs</text>
+  <text class="ink" x="198.0" y="152.0" font-size="12" text-anchor="end">ioctl()</text>
+  <path class="s1" d="M210.0,140.0 H220.0 A4.0,4.0 0 0 1 224.0,144.0 V152.0 A4.0,4.0 0 0 1 220.0,156.0 H210.0 Z"/>
+  <text class="muted" x="232.0" y="152.0" font-size="12">0.28 µs</text>
+  <text class="ink" x="198.0" y="184.0" font-size="12" text-anchor="end">mprotect()</text>
+  <rect class="s1" x="210.0" y="172.0" width="7.5" height="16"/>
+  <path class="s2" d="M219.5,172.0 H221.5 A4.0,4.0 0 0 1 225.5,176.0 V184.0 A4.0,4.0 0 0 1 221.5,188.0 H219.5 Z"/>
+  <text class="muted" x="233.5" y="184.0" font-size="12">0.15 + 0.12 µs</text>
+  <text class="ink" x="198.0" y="216.0" font-size="12" text-anchor="end">mmap()</text>
+  <rect class="s1" x="210.0" y="204.0" width="1.8" height="16"/>
+  <path class="s2" d="M213.8,204.0 H214.0 A4.0,4.0 0 0 1 218.0,208.0 V216.0 A4.0,4.0 0 0 1 214.0,220.0 H213.8 Z"/>
+  <text class="muted" x="226.0" y="216.0" font-size="12">0.04 + 0.08 µs</text>
+  <line class="axis" x1="210" y1="30" x2="210" y2="232" stroke-width="1"/>
+</svg>

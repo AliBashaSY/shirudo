@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 76" width="720" height="76" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">CPU time of the timers per minute</title>
+  <desc id="d">Per minute, the keepalive timer uses 212 ms of CPU time, map export 172 ms, package update and upgrade 32 ms and tree sync 10 ms, 0.43 s in all.</desc>
+
+  <style>
+    .ink { fill: #171b22; }
+    .muted { fill: #5d6675; }
+    .grid { stroke: #e2e6eb; }
+    .axis { stroke: #c3c9d1; }
+    .s1 { fill: #2a78d6; }
+    .s2 { fill: #eb6834; }
+    .s3 { fill: #1baf7a; }
+    .s4 { fill: #eda100; }
+    .free { fill: #dde2e8; }
+    .on-fill { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #e4e8ee; }
+      .muted { fill: #9ba5b3; }
+      .grid { stroke: #262d37; }
+      .axis { stroke: #39414c; }
+      .s1 { fill: #3987e5; }
+      .s2 { fill: #d95926; }
+      .s3 { fill: #199e70; }
+      .s4 { fill: #c98500; }
+      .free { fill: #2f3640; }
+    }
+  </style>
+  <rect class="s1" x="0.0" y="8.0" width="275.7" height="28.0" rx="4.0"/>
+  <text class="on-fill" x="8.0" y="26.0" font-size="12" font-weight="600">212 ms</text>
+  <rect class="s2" x="277.7" y="8.0" width="223.7" height="28.0" rx="4.0"/>
+  <text class="on-fill" x="285.7" y="26.0" font-size="12" font-weight="600">172 ms</text>
+  <rect class="s3" x="503.4" y="8.0" width="41.6" height="28.0" rx="4.0"/>
+  <rect class="s4" x="547.0" y="8.0" width="13.0" height="28.0" rx="4.0"/>
+  <text class="muted" x="570.0" y="26.0" font-size="12">0.43 s per minute</text>
+  <rect class="s1" x="0.0" y="57.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="16.0" y="66.0" font-size="12">Keepalive</text>
+  <rect class="s2" x="99.4" y="57.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="115.4" y="66.0" font-size="12">Map export</text>
+  <rect class="s3" x="205.4" y="57.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="221.4" y="66.0" font-size="12">Package update and upgrade</text>
+  <rect class="s4" x="417.0" y="57.0" width="10.0" height="10.0" rx="2.0"/>
+  <text class="muted" x="433.0" y="66.0" font-size="12">Tree sync</text>
+</svg>

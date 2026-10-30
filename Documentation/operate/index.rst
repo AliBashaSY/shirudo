@@ -21,6 +21,7 @@ verdict is an incident: follow :doc:`/operate/incident-tampered`.
    :titlesonly:
 
    system-requirements
+   overhead
    deployment-checklist
    boot-integration
    initialize
