@@ -15,6 +15,9 @@ include Makefile.version
 PROFILE ?= operator
 CONFIG_MK ?= config.mk
 -include $(CONFIG_MK)
+# Nothing here writes the config: the top-level Makefile has written it
+# before it gets here, except in a dry run, which only prints that step.
+CONFIG_MK_DEP := $(wildcard $(CONFIG_MK))
 
 # Both profiles run on OpenSSL: libcrypto for SHA-256, certificates and
 # CMS, libssl behind libcurl for TLS. The operator links the system
@@ -351,7 +354,7 @@ FORCE_VMLINUX_BTF:
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
-build/target/%.o: %.c Makefile.shirudo $(CONFIG_MK)
+build/target/%.o: %.c Makefile.shirudo $(CONFIG_MK_DEP)
 	@printf '  CC      $@\n'
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
@@ -407,7 +410,7 @@ shirudo: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A)
 	    $(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 shirudo-target: $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) $(LIBBPF_A) \
-                Makefile.shirudo $(CONFIG_MK) .github/scripts/check-static-target.sh
+                Makefile.shirudo $(CONFIG_MK_DEP) .github/scripts/check-static-target.sh
 	@printf '  LD      $@ (static PIE)\n'
 	$(Q)$(LD) $(CFLAGS) $(TARGET_TLS_CFLAGS) \
 	    $(HARDEN_STATIC_PIE_LDFLAGS) $(LDFLAGS) \
