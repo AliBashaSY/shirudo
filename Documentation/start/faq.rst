@@ -115,3 +115,11 @@ How much does shirudo cost on a target, and how far does it scale?
 network traffic of one target, and :doc:`/operate/plan/scalability` how
 the registry load grows with a fleet and where a target and an upatch
 reach their limits.
+
+Is there a talk that introduces shirudo?
+----------------------------------------
+
+Yes, it was first presented at the Linux Plumbers Conference 2026 in
+Prague in the talk `shirudo: BPF live-patching infra for the agentic
+era <https://lpc.events/event/20/contributions/2437/>`__. Its page
+links the slides and the video.
