@@ -23,9 +23,12 @@ git -C "$R" commit -q --allow-empty -m second
 second=$(git -C "$R" rev-parse HEAD)
 
 # The checker under the script is printf, so its arguments come back one
-# per line, the checker's own first.
+# per line, the checker's own first. The job that runs this test is a
+# GitHub Actions job itself, so the script's annotations are off unless
+# a case sets GITHUB_ACTIONS.
 run() {
-	(cd "$R" && env "$@" sh "$S" printf '%s\n' own) >"$W/out" 2>"$W/err"
+	(cd "$R" && env -u GITHUB_ACTIONS "$@" sh "$S" printf '%s\n' own) \
+		>"$W/out" 2>"$W/err"
 }
 
 test_expect_success 'a pull request covers base..head after the command arguments' '
@@ -43,6 +46,14 @@ test_expect_success 'a push from an unknown tip covers the new tip alone' '
 	run EVENT_NAME=push BEFORE_SHA=0000000000000000000000000000000000000000 SHA=$second &&
 	[ "$(sed -n 2p "$W/out")" = -1 ] &&
 	[ "$(sed -n 3p "$W/out")" = "$second" ]
+'
+
+test_expect_success 'under GitHub Actions an unknown tip is announced first' '
+	run GITHUB_ACTIONS=true EVENT_NAME=push BEFORE_SHA=0000000000000000000000000000000000000000 SHA=$second &&
+	[ "$(sed -n 1p "$W/out")" = "::notice::previous tip 0000000000000000000000000000000000000000 is unknown; checking the pushed tip alone" ] &&
+	[ "$(sed -n 2p "$W/out")" = own ] &&
+	[ "$(sed -n 3p "$W/out")" = -1 ] &&
+	[ "$(sed -n 4p "$W/out")" = "$second" ]
 '
 
 test_expect_success 'a pull request without its shas fails' '
