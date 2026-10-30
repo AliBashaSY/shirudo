@@ -5,9 +5,11 @@
 Documentation
 =============
 
-How this documentation is written, built and checked.
+How this documentation is written, built and checked, and the project's
+logos and how to use them.
 
 .. toctree::
    :titlesonly:
 
    writing-docs
+   logos

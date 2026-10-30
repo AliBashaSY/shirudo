@@ -5,8 +5,8 @@
 :page-type: Reference
 :audience: shirudo contributors
 
-Writing documentation
-=====================
+Writing docs
+============
 
 These rules keep the documentation accurate, consistent and easy to
 read. They apply to every page under ``Documentation/``. When the code

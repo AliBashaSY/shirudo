@@ -22,7 +22,7 @@ questions and report problems.
 - :doc:`code/index`: work from a checkout, develop locally, the coding
   style, and commits and sign-off
 - :doc:`testing/index`: run and write tests, and test coverage
-- :doc:`documentation/index`: writing documentation
+- :doc:`documentation/index`: writing docs and the logos
 - :doc:`support`: where to ask questions and report problems
 
 .. toctree::
