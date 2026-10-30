@@ -17,9 +17,9 @@ registries.
 Use cases
 ---------
 
-shirudo is the platform. It does not need to understand what an upatch
-does; it makes sure that only signed upatches run and that every change is
-on record.
+shirudo is a platform. It does not understand what an upatch does; it
+makes sure that only signed upatches run and that every change is on
+record. The functionality ships as upatches on top of shirudo.
 
 .. container:: grid
 
@@ -54,6 +54,27 @@ on record.
       Agentless, with no daemon and no open port, and built in as part of
       the trusted computing base. Designed for embedded devices as well as
       servers.
+
+Defense in depth
+----------------
+
+shirudo is one layer of a target's defense, not all of it. It decides
+which BPF runs and records every change, and it trusts the kernel it
+runs in for everything else. A kernel bug that gives an attacker code
+execution or arbitrary writes in the kernel goes around every check made
+in that kernel, shirudo's included: nothing that runs inside the kernel
+can police it once the attacker controls it, and detecting the damage
+afterwards comes too late.
+
+Hardening a target therefore starts in the kernel, from first
+principles: reduce the attack surface to what the workload needs, and
+build the kernel so that the bugs that remain are hard or impossible to
+exploit. Both take effect before an attack succeeds, not after. upatches
+can take part in the first: they can remove attack surface and block a
+known vulnerable code path until a fixed kernel is deployed. They do
+not replace the mitigations built into the kernel that make memory
+corruption hard to exploit. The :doc:`operate/hardening` names the
+kernel and boot settings shirudo relies on.
 
 Properties
 ----------
