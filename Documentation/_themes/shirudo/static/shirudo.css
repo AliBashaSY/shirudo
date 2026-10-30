@@ -217,6 +217,17 @@ dl.field-list.facts p { margin: 0; }
 figure { margin: 20px 0; }
 figure img, figure svg { max-width: 100%; height: auto; }
 figcaption { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+/*
+ * Diagrams are images that follow the system's color scheme, not the
+ * page's: when the reader picks the other theme, show them on a card
+ * of the scheme they were drawn for.
+ */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="light"] .body figure img[src$=".svg"] { background: #0e1116; border-radius: 8px; padding: 12px; }
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="dark"] .body figure img[src$=".svg"] { background: #fff; border-radius: 8px; padding: 12px; }
+}
 .body .logo-tile { padding: 20px 24px; border-radius: 8px; margin: 0 0 8px; }
 .body .logo-tile.logo-light { background: #fff; border: 1px solid var(--line); }
 .body .logo-tile.logo-dark { background: #000; }
