@@ -625,6 +625,72 @@ static int u64_decimal(__u64 value, char out[32])
 	return strsprintf(out, 32, "%llu", value);
 }
 
+/* An OTLP document down to its scope; otlp_close() ends it. */
+static void otlp_open(struct shirudo_json_emit *e, const char *resource_key,
+		      const char *scope_key, const char *scope_name)
+{
+	json_obj_open(e);
+	json_arr_open(e, resource_key);
+	json_obj_open(e);
+	json_obj_open_key(e, "resource");
+	emit_resource_attributes(e);
+	json_obj_close(e);
+	json_arr_open(e, scope_key);
+	json_obj_open(e);
+	json_obj_open_key(e, "scope");
+	json_kv_string(e, "name", scope_name);
+	json_kv_string(e, "version", shirudo_version);
+	json_obj_close(e);
+}
+
+static void otlp_close(struct shirudo_json_emit *e)
+{
+	json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
+	json_arr_close(e);
+	json_obj_close(e);
+}
+
+/* A logs document with its one record open; log_close() ends both. */
+static void log_open(struct shirudo_json_emit *e, const char *scope_name,
+		     int severity_number, const char *severity_text,
+		     const char *event_name)
+{
+	char now[32];
+
+	u64_decimal(realtime_ns(), now);
+	otlp_open(e, "resourceLogs", "scopeLogs", scope_name);
+	json_arr_open(e, "logRecords");
+	json_obj_open(e);
+	json_kv_string(e, "timeUnixNano", now);
+	json_kv_string(e, "observedTimeUnixNano", now);
+	json_kv_int(e, "severityNumber", severity_number);
+	json_kv_string(e, "severityText", severity_text);
+	json_kv_string(e, "eventName", event_name);
+}
+
+static void log_close(struct shirudo_json_emit *e)
+{
+	json_obj_close(e);
+	json_arr_close(e);
+	otlp_close(e);
+}
+
+static void emit_map_attributes(struct shirudo_json_emit *e,
+				const struct shirudo_map_view *v)
+{
+	otlp_kv_string(e, "shirudo.upatch.name", v->upatch);
+	otlp_kv_string(e, "shirudo.upatch.location", v->location);
+	otlp_kv_string(e, "shirudo.map.name", v->name);
+	otlp_kv_string(e, "shirudo.map.type", v->type_name);
+	otlp_kv_int(e, "shirudo.map.max_entries", v->max_entries);
+	otlp_kv_int(e, "shirudo.map.n_entries", v->n_entries);
+	otlp_kv_int(e, "shirudo.map.n_cpus", v->n_cpus);
+	otlp_kv_bool(e, "shirudo.map.serialized", v->serialized);
+	otlp_kv_bool(e, "shirudo.map.truncated", v->truncated);
+}
+
 static void emit_log_map_data(struct shirudo_json_emit *e,
 			      const struct shirudo_map_view *v)
 {
@@ -737,7 +803,6 @@ static int build_log_payload(const char *path,
 	struct shirudo_json_emit e = {};
 	char *decoded = NULL;
 	size_t decoded_len = 0;
-	char now[32];
 	char *buf;
 	int decode_rc;
 
@@ -746,27 +811,9 @@ static int build_log_payload(const char *path,
 		return -ENOMEM;
 	e.buf = buf;
 	e.cap = SHIRUDO_JSON_MAX_BYTES;
-	u64_decimal(realtime_ns(), now);
 
-	json_obj_open(&e);
-	json_arr_open(&e, "resourceLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "resource");
-	emit_resource_attributes(&e);
-	json_obj_close(&e);
-	json_arr_open(&e, "scopeLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "scope");
-	json_kv_string(&e, "name", "shirudo.upatch.maps");
-	json_kv_string(&e, "version", shirudo_version);
-	json_obj_close(&e);
-	json_arr_open(&e, "logRecords");
-	json_obj_open(&e);
-	json_kv_string(&e, "timeUnixNano", now);
-	json_kv_string(&e, "observedTimeUnixNano", now);
-	json_kv_int(&e, "severityNumber", 9);
-	json_kv_string(&e, "severityText", "INFO");
-	json_kv_string(&e, "eventName", "shirudo.bpf.map.snapshot");
+	log_open(&e, "shirudo.upatch.maps", 9, "INFO",
+		 "shirudo.bpf.map.snapshot");
 	decode_rc = path ? upatch_decode_map_file_otel(path, v,
 							      &decoded, &decoded_len) :
 			upatch_decode_map_otel(v, &decoded, &decoded_len);
@@ -790,23 +837,9 @@ static int build_log_payload(const char *path,
 	}
 	xfree(decoded, decoded_len + 1);
 	json_arr_open(&e, "attributes");
-	otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
-	otlp_kv_string(&e, "shirudo.upatch.location", v->location);
-	otlp_kv_string(&e, "shirudo.map.name", v->name);
-	otlp_kv_string(&e, "shirudo.map.type", v->type_name);
-	otlp_kv_int(&e, "shirudo.map.max_entries", v->max_entries);
-	otlp_kv_int(&e, "shirudo.map.n_entries", v->n_entries);
-	otlp_kv_int(&e, "shirudo.map.n_cpus", v->n_cpus);
-	otlp_kv_bool(&e, "shirudo.map.serialized", v->serialized);
-	otlp_kv_bool(&e, "shirudo.map.truncated", v->truncated);
+	emit_map_attributes(&e, v);
 	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
+	log_close(&e);
 
 	if (e.err) {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
@@ -857,24 +890,9 @@ static int build_metric_decoded_payload(const char *path,
 	}
 	e.buf = buf;
 	e.cap = SHIRUDO_JSON_MAX_BYTES;
-	json_obj_open(&e);
-	json_arr_open(&e, "resourceMetrics");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "resource");
-	emit_resource_attributes(&e);
-	json_obj_close(&e);
-	json_arr_open(&e, "scopeMetrics");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "scope");
-	json_kv_string(&e, "name", "shirudo.upatch.maps");
-	json_kv_string(&e, "version", shirudo_version);
-	json_obj_close(&e);
+	otlp_open(&e, "resourceMetrics", "scopeMetrics", "shirudo.upatch.maps");
 	json_kv_raw(&e, "metrics", decoded, decoded_len);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
+	otlp_close(&e);
 	if (e.err) {
 		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
 		xfree(decoded_buf, decoded_alloc_len + 1);
@@ -1678,7 +1696,6 @@ static int build_generic_log_payload(const char *scope_name,
 				     size_t *alloc_len)
 {
 	struct shirudo_json_emit e = {};
-	char now[32];
 	char *buf;
 	int rc;
 	size_t cap;
@@ -1694,27 +1711,8 @@ static int build_generic_log_payload(const char *scope_name,
 		return -ENOMEM;
 	e.buf = buf;
 	e.cap = cap;
-	u64_decimal(realtime_ns(), now);
 
-	json_obj_open(&e);
-	json_arr_open(&e, "resourceLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "resource");
-	emit_resource_attributes(&e);
-	json_obj_close(&e);
-	json_arr_open(&e, "scopeLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "scope");
-	json_kv_string(&e, "name", scope_name);
-	json_kv_string(&e, "version", shirudo_version);
-	json_obj_close(&e);
-	json_arr_open(&e, "logRecords");
-	json_obj_open(&e);
-	json_kv_string(&e, "timeUnixNano", now);
-	json_kv_string(&e, "observedTimeUnixNano", now);
-	json_kv_int(&e, "severityNumber", severity_number);
-	json_kv_string(&e, "severityText", severity_text);
-	json_kv_string(&e, "eventName", event_name);
+	log_open(&e, scope_name, severity_number, severity_text, event_name);
 	json_obj_open_key(&e, "body");
 	rc = json_anyvalue_from_document(&e, body_json, body_len, false);
 	json_obj_close(&e);
@@ -1730,13 +1728,7 @@ static int build_generic_log_payload(const char *scope_name,
 	if (tamper_attempts >= 0)
 		otlp_kv_int(&e, "shirudo.tamper_attempts", tamper_attempts);
 	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
+	log_close(&e);
 	if (e.err) {
 		xfree(buf, cap);
 		return e.err;
@@ -2404,7 +2396,7 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 			      const char *uri, char **out, size_t *out_len)
 {
 	struct shirudo_json_emit e = {};
-	char now[32], description[S3_URL_MAX + 64];
+	char description[S3_URL_MAX + 64];
 	char *buf;
 
 	if (strsprintf(description, sizeof(description),
@@ -2415,40 +2407,13 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 		return -ENOMEM;
 	e.buf = buf;
 	e.cap = S3_REFERENCE_MAX;
-	u64_decimal(realtime_ns(), now);
-	json_obj_open(&e);
-	json_arr_open(&e, "resourceLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "resource");
-	emit_resource_attributes(&e);
-	json_obj_close(&e);
-	json_arr_open(&e, "scopeLogs");
-	json_obj_open(&e);
-	json_obj_open_key(&e, "scope");
-	json_kv_string(&e, "name", "shirudo.upatch.maps");
-	json_kv_string(&e, "version", shirudo_version);
-	json_obj_close(&e);
-	json_arr_open(&e, "logRecords");
-	json_obj_open(&e);
-	json_kv_string(&e, "timeUnixNano", now);
-	json_kv_string(&e, "observedTimeUnixNano", now);
-	json_kv_int(&e, "severityNumber", 9);
-	json_kv_string(&e, "severityText", "INFO");
-	json_kv_string(&e, "eventName",
-		       "shirudo.bpf.map.snapshot.reference");
+	log_open(&e, "shirudo.upatch.maps", 9, "INFO",
+		 "shirudo.bpf.map.snapshot.reference");
 	json_obj_open_key(&e, "body");
 	json_kv_string(&e, "stringValue", description);
 	json_obj_close(&e);
 	json_arr_open(&e, "attributes");
-	otlp_kv_string(&e, "shirudo.upatch.name", v->upatch);
-	otlp_kv_string(&e, "shirudo.upatch.location", v->location);
-	otlp_kv_string(&e, "shirudo.map.name", v->name);
-	otlp_kv_string(&e, "shirudo.map.type", v->type_name);
-	otlp_kv_int(&e, "shirudo.map.max_entries", v->max_entries);
-	otlp_kv_int(&e, "shirudo.map.n_entries", v->n_entries);
-	otlp_kv_int(&e, "shirudo.map.n_cpus", v->n_cpus);
-	otlp_kv_bool(&e, "shirudo.map.serialized", v->serialized);
-	otlp_kv_bool(&e, "shirudo.map.truncated", v->truncated);
+	emit_map_attributes(&e, v);
 	otlp_kv_string(&e, "shirudo.map.snapshot.uri", uri);
 	otlp_kv_string(&e, "shirudo.map.snapshot.format",
 		       "shirudo.map.v1+json");
@@ -2462,13 +2427,7 @@ static int build_s3_reference(const struct shirudo_map_view *v,
 	otlp_kv_string(&e, "shirudo.map.snapshot.sha256",
 		       snapshot->sha256_hex);
 	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	json_arr_close(&e);
-	json_obj_close(&e);
+	log_close(&e);
 	if (e.err || e.depth) {
 		if (!e.err)
 			e.err = -EBADMSG;
