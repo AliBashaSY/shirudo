@@ -19,7 +19,7 @@
  * the kernel reconstructs at BPF_PROG_LOAD; data may be empty.
  * signature_sz comes back as the actual size.
  */
-struct shirudo_sign_io {
+struct sign_io {
 	const void	*insns;
 	size_t		insns_sz;
 
@@ -36,7 +36,7 @@ struct shirudo_sign_io {
  * -ENOSPC when the signature buffer is too small, -EINVAL on a parse
  * failure, -EIO on an OpenSSL failure.
  */
-int cms_sign(struct shirudo_sign_io *io,
+int cms_sign(struct sign_io *io,
 	     const char *pkey_path, const char *cert_path);
 
 /*

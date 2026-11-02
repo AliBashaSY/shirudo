@@ -142,7 +142,7 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 	if (!c) {
-		struct shirudo_suggestion sugg[4];
+		struct suggestion sugg[4];
 		size_t n;
 		int max_dist, len;
 

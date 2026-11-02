@@ -29,8 +29,8 @@
 const char shirudo_version[] = "test-1";
 
 struct fixture {
-	struct shirudo_map_view view;
-	struct shirudo_map_entry entry;
+	struct map_view view;
+	struct map_entry entry;
 	struct btf *btf;
 	__u32 key;
 	__u8 values[16];
@@ -68,22 +68,22 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	const char *source = snapshot ? snapshot_source : metric ?
 		(counter ? counter_source : gauge_source) : log_source;
 	size_t source_len = strlen(source);
-	size_t entries_end = sizeof(struct shirudo_upatch_decoder_blob) +
-		sizeof(struct shirudo_upatch_decoder_entry);
+	size_t entries_end = sizeof(struct upatch_decoder_blob) +
+		sizeof(struct upatch_decoder_entry);
 	size_t decoder_len = entries_end + source_len;
 	size_t dir_off = (decoder_len + 7) & ~(size_t)7;
 	size_t data_len = dir_off +
-		sizeof(struct shirudo_upatch_signed_section) +
-		sizeof(struct shirudo_upatch_signed_trailer);
-	size_t loader_off = sizeof(struct shirudo_upatch_header);
+		sizeof(struct upatch_signed_section) +
+		sizeof(struct upatch_signed_trailer);
+	size_t loader_off = sizeof(struct upatch_header);
 	size_t sig_off = loader_off + sizeof(struct bpf_insn);
 	size_t data_off = sig_off + 1;
 	size_t file_len = data_off + data_len;
-	struct shirudo_upatch_signed_section section = {};
-	struct shirudo_upatch_signed_trailer trailer = {};
-	struct shirudo_upatch_decoder_entry entry = {};
-	struct shirudo_upatch_decoder_blob blob = {};
-	struct shirudo_upatch_header header = {};
+	struct upatch_signed_section section = {};
+	struct upatch_signed_trailer trailer = {};
+	struct upatch_decoder_entry entry = {};
+	struct upatch_decoder_blob blob = {};
+	struct upatch_header header = {};
 	__u8 *file;
 	char template[] = "/tmp/test-otel-map-decoder-XXXXXX";
 	int fd, ret;
@@ -215,7 +215,7 @@ static int print_classification(__u32 type, bool is_signed, bool with_btf,
 				bool serialized)
 {
 	struct fixture f;
-	enum shirudo_otel_signal signal;
+	enum otel_signal signal;
 	char reason[160];
 	int ret = fixture_init(&f, type, is_signed, with_btf);
 
@@ -266,7 +266,7 @@ static int print_payload(bool metric, bool counter, bool with_location)
 static int print_local_json(void)
 {
 	struct fixture f;
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char buf[4096];
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
@@ -285,7 +285,7 @@ static int print_local_json(void)
 static int send_log_limits(const char *url, __u32 retries, __u32 record_max,
 			   __u32 request_max, bool use_environment)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = use_environment ? NULL : url,
 		.retries = retries,
 		.log_record_max_bytes = record_max,
@@ -311,7 +311,7 @@ static int send_log_limits(const char *url, __u32 retries, __u32 record_max,
 
 static int send_log(const char *url, __u32 retries, bool insecure)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = url,
 		.allow_insecure = insecure,
 		.retries = retries,
@@ -362,7 +362,7 @@ static int print_record_size(void)
 
 static int send_auto(const char *base, bool is_signed)
 {
-	struct shirudo_otel_opts opts = { .endpoint = base, .retries = 0 };
+	struct otel_opts opts = { .endpoint = base, .retries = 0 };
 	struct fixture f;
 	char decoder_path[128] = {};
 	int ret;
@@ -382,7 +382,7 @@ static int send_auto(const char *base, bool is_signed)
 
 static int send_metric(const char *url)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = url,
 		.retries = 0,
 	};
@@ -405,7 +405,7 @@ static int send_metric(const char *url)
 
 static int send_status(const char *url, const char *status)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = url,
 		.retries = 0,
 	};
@@ -427,7 +427,7 @@ static int send_status(const char *url, const char *status)
 
 static int send_metric_env(void)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.retries = 0,
 	};
 	struct fixture f;
@@ -461,7 +461,7 @@ static bool large_serialized_fixture(struct fixture *f)
 	if (!f->view.serial_pages)
 		return false;
 	for (__u32 i = 0; i < pages; i++) {
-		struct shirudo_serial_page *page = &f->view.serial_pages[i];
+		struct serial_page *page = &f->view.serial_pages[i];
 
 		page->page_index = i;
 		page->cursor = i;
@@ -492,7 +492,7 @@ static void large_serialized_destroy(struct fixture *f)
 
 static int send_s3(const char *endpoint, __u32 retries, bool large)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.s3_uri = getenv("SHIRUDO_TEST_S3_URI") ?
 			  getenv("SHIRUDO_TEST_S3_URI") : "s3://test-bucket/prefix",
 		.tenant_id = large ? NULL : "tenant-uuid-1234",
@@ -529,7 +529,7 @@ static int send_s3(const char *endpoint, __u32 retries, bool large)
 
 static int tenant_validation(void)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = "http://127.0.0.1:1",
 		.retries = 0,
 	};
@@ -566,7 +566,7 @@ static int tenant_validation(void)
 
 static int s3_validation(void)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.s3_uri = "s3://test-bucket/prefix",
 		.retries = 0,
 	};
@@ -637,7 +637,7 @@ fail:
 
 static int security_check(void)
 {
-	struct shirudo_otel_opts opts = {
+	struct otel_opts opts = {
 		.endpoint = "http://collector.example",
 		.retries = 0,
 	};

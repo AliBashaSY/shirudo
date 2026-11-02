@@ -18,7 +18,7 @@
 #define IDENTITY_KEYS_MAX	16
 
 /* The frozen ABI shared with bpf/lib/identity.h. */
-struct shirudo_identity {
+struct identity {
 	__u32	sb_dev;
 	__u32	run_dev;
 	__s32	keyring_serial;
@@ -41,7 +41,7 @@ struct shirudo_identity {
 #define DEVICE_RUNTIME	1
 #define DEVICE_CONFIG	2
 
-struct shirudo_device_authority {
+struct device_authority {
 	__u32	dev;
 	__u32	kind;
 	__u8		root[32];
@@ -49,14 +49,14 @@ struct shirudo_device_authority {
 };
 
 /* Task storage for one config mapping preparation. */
-struct shirudo_expected_root {
+struct expected_root {
 	__u8	root[32];
 	__u32 valid;
 };
 
-BUILD_BUG_ON(sizeof(struct shirudo_expected_root) != 36);
+BUILD_BUG_ON(sizeof(struct expected_root) != 36);
 
-struct shirudo_task_authority {
+struct task_authority {
 	__u8	trusted;
 	__u8	candidate_valid;
 	__u8	candidate_trusted;
@@ -64,16 +64,16 @@ struct shirudo_task_authority {
 	__u32	pad2;
 };
 
-BUILD_BUG_ON(sizeof(struct shirudo_device_authority) != 48);
-BUILD_BUG_ON(sizeof(struct shirudo_task_authority) != 8);
-BUILD_BUG_ON(sizeof(struct shirudo_identity) != 584);
+BUILD_BUG_ON(sizeof(struct device_authority) != 48);
+BUILD_BUG_ON(sizeof(struct task_authority) != 8);
+BUILD_BUG_ON(sizeof(struct identity) != 584);
 
 /* The bpffs mount init made, which the unmount guard keeps mounted. */
-struct shirudo_mount_record {
+struct mount_record {
 	__u64	mount;
 };
 
-BUILD_BUG_ON(sizeof(struct shirudo_mount_record) != 8);
+BUILD_BUG_ON(sizeof(struct mount_record) != 8);
 
 /*
  * The identity map init populated, froze and pinned this boot. -ENOENT
@@ -81,6 +81,6 @@ BUILD_BUG_ON(sizeof(struct shirudo_mount_record) != 8);
  */
 /* 1 when enforcement is active, 0 before init, otherwise -errno. */
 int enforcement_active(void);
-int identity_read(struct shirudo_identity *out);
+int identity_read(struct identity *out);
 
 #endif /* SHIRUDO_UTIL_IDENTITY_H */

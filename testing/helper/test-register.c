@@ -34,7 +34,7 @@
 static int writer_create(void)
 {
 	struct bpf_map_create_opts opts = { .sz = sizeof(opts) };
-	struct shirudo_identity id = {};
+	struct identity id = {};
 	int fd, ret;
 	__u32 zero = 0;
 
@@ -79,11 +79,11 @@ static void puthex(const __u8 *b, size_t n)
 
 /* Record an init the way shirudo init does, minus the set details. */
 static int append_init(const __u8 event[32],
-		       const struct shirudo_chain_init_info *info)
+		       const struct chain_init_info *info)
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16];
 	char hex[2 * TPM_NV_RSA_BYTES + 1];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
@@ -125,7 +125,7 @@ static int append_event(const char *type, const char *name,
 			const __u8 chain[32])
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
@@ -157,7 +157,7 @@ static int append_tree(__s64 seq, const char *op, const char *id,
 		       const __u8 chain[32])
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 	}
 
 	if (strcmp(argv[1], "init") == 0 && argc == 3) {
-		struct shirudo_chain_init_info info;
+		struct chain_init_info info;
 
 		if (hex_decode(argv[2], event, 32))
 			return 2;
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 	}
 	/* A measurement into a PCR, as systemd's boot phases make them. */
 	if (strcmp(argv[1], "pcr-extend") == 0 && argc == 4) {
-		struct shirudo_tpm *tpm = NULL;
+		struct tpm *tpm = NULL;
 		__u8 d[32];
 
 		if (hex_decode(argv[3], d, 32) || tpm_open(&tpm))
@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 		return ret ? 1 : 0;
 	}
 	if (strcmp(argv[1], "pcr") == 0 && argc == 3) {
-		struct shirudo_tpm *tpm = NULL;
+		struct tpm *tpm = NULL;
 		__u8 v[32];
 
 		if (tpm_open(&tpm))
@@ -330,8 +330,8 @@ int main(int argc, char **argv)
 	 * presents it.
 	 */
 	if (strcmp(argv[1], "ek-public") == 0 && argc == 3) {
-		struct shirudo_tpm_key ek = { .handle = 0 };
-		struct shirudo_tpm *tpm = NULL;
+		struct tpm_key ek = { .handle = 0 };
+		struct tpm *tpm = NULL;
 
 		if (tpm_open(&tpm))
 			return 1;
@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 	/* The attack: recreate the index with the same public area. */
 	if (strcmp(argv[1], "recreate") == 0) {
 		struct tpm_nv_info nv;
-		struct shirudo_tpm *tpm = NULL;
+		struct tpm *tpm = NULL;
 
 		if (tpm_open(&tpm))
 			return 1;
@@ -375,8 +375,8 @@ int main(int argc, char **argv)
 	/* The attack: try the init branch again after the anchor. */
 	if (strcmp(argv[1], "first-write") == 0 && argc == 3) {
 		__u8 branch_written[32], branch_init[32], policy[32];
-		struct shirudo_eventlog_init rec;
-		struct shirudo_tpm *tpm = NULL;
+		struct eventlog_init rec;
+		struct tpm *tpm = NULL;
 		__u8 writer_public[TPM_NV_RSA_BYTES];
 		__u8 writer_seed[32], values[64];
 
@@ -413,20 +413,20 @@ int main(int argc, char **argv)
 	 * real register's place.
 	 */
 	if (strcmp(argv[1], "forge") == 0 && argc == 7) {
-		struct shirudo_tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
+		struct tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
 		char hex[2 * TPM_ATTEST_MAX + 1], buf[32 * 1024];
-		struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
-		struct shirudo_tpm_attestation quote = {}, certify = {};
+		struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+		struct tpm_attestation quote = {}, certify = {};
 		__u8 values[24][32] = {}, before[64], anchor_digest[32];
 		__u8 branch_written[32], branch_init[32], policy[32];
 		__u32 index, pcr, phase, mask, quoted, reset = 0, i;
-		struct shirudo_tpm_key ak_copy = {}, ek_copy = {};
+		struct tpm_key ak_copy = {}, ek_copy = {};
 		__u8 writer_public[TPM_NV_RSA_BYTES];
 		char ts[32], boot_id[64], nv_index[16];
 		__u8 writer_seed[TPM_DIGEST_LEN];
 		size_t nonce_len = strlen(argv[6]) / 2;
 		char anchor[CHAIN_ANCHOR_MAX];
-		struct shirudo_tpm *tpm = NULL;
+		struct tpm *tpm = NULL;
 		__u8 value[32], nonce[64];
 		struct tpm_nv_info nv;
 
@@ -593,7 +593,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "evidence") == 0 && (argc == 3 || argc == 4)) {
-		struct shirudo_attest_challenge challenge = {};
+		struct attest_challenge challenge = {};
 		__u8 nonce[64];
 		size_t nonce_len = strlen(argv[2]) / 2, len, cap;
 		char *doc;

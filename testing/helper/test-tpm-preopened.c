@@ -13,7 +13,7 @@
 
 static int read_register(__u8 out[TPM_DIGEST_LEN])
 {
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	int ret;
 
 	if (tpm_open(&tpm))

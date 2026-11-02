@@ -15,7 +15,7 @@
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	struct cert_pubkey pub;
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	size_t der_len, sig_len, n;
 	const __u8 *der, *sig;
 	__u8 sha[32], fp[32];

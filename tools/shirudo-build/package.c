@@ -49,12 +49,12 @@
 
 static struct bpf_map *find_rodata(struct bpf_object *obj);
 
-struct shirudo_data_range {
+struct data_range {
 	__u32 offset;
 	__u32 length;
 };
 
-struct shirudo_unload_params {
+struct unload_params {
 	char	name[UPATCH_NAME_MAX];
 	__u8	expected_sha256[UPATCH_PAYLOAD_HASH_LEN];
 };
@@ -82,7 +82,7 @@ struct decoder_set {
 	__u32			nr_items;
 };
 
-static void pack_header(struct shirudo_upatch_header *h,
+static void pack_header(struct upatch_header *h,
 			const char *name, __u32 type, __u32 flags,
 			const __u8 *payload_sha256,
 			__u32 loader_off, __u32 loader_len,
@@ -138,7 +138,7 @@ static bool output_is_input(int fd, const char *original,
  * The CMS covers the loader and the data but not the header, whose
  * payload digest the target measures, so the digest is compared as well.
  */
-static int verify_payload(const struct shirudo_upatch *u,
+static int verify_payload(const struct upatch *u,
 			  const char *cert_path)
 {
 	__u8 digest[SHA256_LEN], *payload;
@@ -169,15 +169,15 @@ static int verify_payload(const struct shirudo_upatch *u,
 
 static int package_resign_symbols(const char *original,
 				  const char *modified, const char *output,
-				  const struct shirudo_data_range *ranges,
+				  const struct data_range *ranges,
 				  size_t nr_ranges, const char *const *symbols,
 				  size_t nr_symbols, const char *pkey_path,
 				  const char *cert_path)
 {
-	struct shirudo_upatch_header hdr;
-	struct shirudo_sign_io sio = {};
-	struct shirudo_upatch src = {}, mod = {};
-	struct shirudo_rodata_range expected[16] = {};
+	struct upatch_header hdr;
+	struct sign_io sio = {};
+	struct upatch src = {}, mod = {};
+	struct rodata_range expected[16] = {};
 	const __u8 *src_data, *mod_data;
 	bool range_found[16] = {};
 	char name[UPATCH_NAME_MAX + 1];
@@ -347,7 +347,7 @@ out:
 static int build_package_resign(const char *original,
 				const char *modified,
 				const char *output,
-				const struct shirudo_data_range *ranges,
+				const struct data_range *ranges,
 				size_t nr_ranges, const char *pkey_path,
 				const char *cert_path)
 {
@@ -365,9 +365,9 @@ int build_package_patch_rodata(const char *input, const char *output,
 				      size_t value_len, const char *pkey_path,
 				      const char *cert_path)
 {
-	struct shirudo_upatch src = {};
-	struct shirudo_rodata_range range = {};
-	struct shirudo_data_range allowed = {};
+	struct upatch src = {};
+	struct rodata_range range = {};
+	struct data_range allowed = {};
 	const char *symbols[1] = { symbol };
 	char modified[] = "/tmp/shirudo-rodata-XXXXXX";
 	__u8 *candidate = NULL;
@@ -435,7 +435,7 @@ out:
 
 int build_package_verify(const char *input, const char *cert_path)
 {
-	struct shirudo_upatch upatch = {};
+	struct upatch upatch = {};
 	int ret;
 
 	ret = upatch_open(input, &upatch);
@@ -453,7 +453,7 @@ int build_upatch_cli(int argc, char **argv)
 	const char *output = NULL;
 	const char *pkey = SIGNING_KEY_PATH;
 	const char *cert = CERT_PATH;
-	struct shirudo_data_range ranges[16] = {};
+	struct data_range ranges[16] = {};
 	char pkey_buf[PATH_MAX], cert_buf[PATH_MAX];
 	int pkey_explicit = 0, cert_explicit = 0;
 	size_t nr_ranges = 0;
@@ -836,7 +836,7 @@ static int make_decoder_path(const char *src_path, const char *rel,
 static bool parse_decoder_manifest(const __u8 *p, size_t n,
 				   struct decoder_manifest_view *out)
 {
-	const struct shirudo_decoder_manifest *m = (const void *)p;
+	const struct decoder_manifest *m = (const void *)p;
 
 	if (n < sizeof(*m))
 		return false;
@@ -936,10 +936,10 @@ static int collect_decoder_manifests(struct bpf_object *obj,
 	if (!rodata)
 		return 0;
 	data = bpf_map__initial_value(rodata, &data_sz);
-	if (!data || data_sz < sizeof(struct shirudo_decoder_manifest))
+	if (!data || data_sz < sizeof(struct decoder_manifest))
 		return 0;
 
-	for (off = 0; off + sizeof(struct shirudo_decoder_manifest) <= data_sz;
+	for (off = 0; off + sizeof(struct decoder_manifest) <= data_sz;
 	     off += 4) {
 		struct decoder_manifest_view manifest;
 
@@ -993,7 +993,7 @@ err_free:
 static int build_decoder_blob(const struct decoder_set *set,
 			      void **out, __u32 *out_len)
 {
-	struct shirudo_upatch_decoder_blob *blob;
+	struct upatch_decoder_blob *blob;
 	__u64 entries_end, total;
 	__u32 off;
 	size_t i;
@@ -1004,7 +1004,7 @@ static int build_decoder_blob(const struct decoder_set *set,
 		return 0;
 	entries_end = sizeof(*blob) +
 		      (__u64)set->nr_items *
-		      sizeof(struct shirudo_upatch_decoder_entry);
+		      sizeof(struct upatch_decoder_entry);
 	total = entries_end;
 	for (i = 0; i < set->nr_items; i++)
 		total += set->items[i].source_len;
@@ -1022,7 +1022,7 @@ static int build_decoder_blob(const struct decoder_set *set,
 	off = (__u32)entries_end;
 	for (i = 0; i < set->nr_items; i++) {
 		const struct decoder_file *file = &set->items[i];
-		struct shirudo_upatch_decoder_entry *d = &blob->decoders[i];
+		struct upatch_decoder_entry *d = &blob->decoders[i];
 
 		d->language = cpu_to_le32(file->manifest.language);
 		d->api_version = cpu_to_le32(file->manifest.api_version);
@@ -1060,7 +1060,7 @@ static int compose_signed_data(const void *data, __u32 data_len,
 			       const struct signed_section *sections,
 			       __u32 nr_sections, void **out, __u32 *out_len)
 {
-	struct shirudo_upatch_signed_trailer trailer = {};
+	struct upatch_signed_trailer trailer = {};
 	__u64 total = data_len, dir_off;
 	__u8 *buf;
 	__u32 i;
@@ -1077,7 +1077,7 @@ static int compose_signed_data(const void *data, __u32 data_len,
 	dir_off = (total + 7) & ~7ULL;
 	total = dir_off +
 		(__u64)nr_sections *
-		sizeof(struct shirudo_upatch_signed_section) +
+		sizeof(struct upatch_signed_section) +
 		sizeof(trailer);
 	if (total > UINT32_MAX)
 		return -EOVERFLOW;
@@ -1088,7 +1088,7 @@ static int compose_signed_data(const void *data, __u32 data_len,
 		memcpy(buf, data, data_len);
 	total = data_len;
 	for (i = 0; i < nr_sections; i++) {
-		struct shirudo_upatch_signed_section s = {};
+		struct upatch_signed_section s = {};
 
 		total = (total + 7) & ~7ULL;
 		memcpy(buf + total, sections[i].data, sections[i].len);
@@ -1103,7 +1103,7 @@ static int compose_signed_data(const void *data, __u32 data_len,
 	trailer.dir_off = cpu_to_le32((__u32)dir_off);
 	trailer.nr_sections = cpu_to_le32(nr_sections);
 	total = dir_off +
-		(__u64)nr_sections * sizeof(struct shirudo_upatch_signed_section);
+		(__u64)nr_sections * sizeof(struct upatch_signed_section);
 	memcpy(buf + total, &trailer, sizeof(trailer));
 
 	*out = buf;
@@ -1131,8 +1131,8 @@ static int validate_serializer_output_map(struct bpf_object *obj)
 			return -EINVAL;
 		}
 		if (bpf_map__value_size(m) !=
-		    sizeof(struct shirudo_serial_chunk)) {
-			pr_err("%s value must be struct shirudo_serial_chunk",
+		    sizeof(struct serial_chunk)) {
+			pr_err("%s value must be struct serial_chunk",
 			       SERIAL_MAP_NAME);
 			return -EINVAL;
 		}
@@ -1157,9 +1157,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		__u32 prog_idx;
 		char *path;
 		__u32 path_len;
-		struct shirudo_elf_target elf;
+		struct elf_target elf;
 	};
-	struct shirudo_upatch_prog_metadata *md;
+	struct upatch_prog_metadata *md;
 	struct build_uprobe_target *uprobe_targets = NULL;
 	char (*seen_maps)[UPATCH_PROG_MAP_MAX] = NULL;
 	struct bpf_program *p;
@@ -1379,7 +1379,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	}
 
 	if (nr_uprobe_targets) {
-		struct shirudo_upatch_uprobe_targets targets = {};
+		struct upatch_uprobe_targets targets = {};
 		__u8 *cursor;
 		__u32 j;
 
@@ -1390,7 +1390,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		len += sizeof(targets);
 		for (j = 0; j < nr_uprobe_targets; j++) {
 			const struct build_uprobe_target *ut = &uprobe_targets[j];
-			size_t record_len = sizeof(struct shirudo_upatch_uprobe_target) +
+			size_t record_len = sizeof(struct upatch_uprobe_target) +
 				ut->path_len + ut->elf.build_id_len +
 				(size_t)ut->elf.nr_offsets * sizeof(__u64);
 
@@ -1418,7 +1418,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		cursor += sizeof(targets);
 		for (j = 0; j < nr_uprobe_targets; j++) {
 			const struct build_uprobe_target *ut = &uprobe_targets[j];
-			struct shirudo_upatch_uprobe_target record = {};
+			struct upatch_uprobe_target record = {};
 			__u32 k;
 
 			record.prog_idx = cpu_to_le32(ut->prog_idx);
@@ -1538,10 +1538,10 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	char signed_name[UPATCH_NAME_MAX] = {};
 	__u32 nr_maps = 0, nr_progs = 0;
 	__u32 rodata_data_off = 0;
-	struct shirudo_upatch_header hdr;
-	struct shirudo_upatch rodata_upatch = {};
+	struct upatch_header hdr;
+	struct upatch rodata_upatch = {};
 	struct decoder_set decoders = {};
-	struct shirudo_sign_io sio = {};
+	struct sign_io sio = {};
 	void *signed_data = NULL;
 	size_t loader_data_len;
 	void *loader_data_buf = NULL;
@@ -1802,8 +1802,8 @@ int build_package_unload(const char *upatch_name,
 			 const char *pkey_path,
 			 const char *cert_path)
 {
-	const struct shirudo_embedded_bpf *blob = unload_blob();
-	struct shirudo_unload_params params = {};
+	const struct embedded_bpf *blob = unload_blob();
+	struct unload_params params = {};
 	struct bpf_object *obj;
 	struct bpf_map *rodata;
 	int err;

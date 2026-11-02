@@ -41,11 +41,11 @@
 
 #define PREFLIGHT_CERT_MAX	(1u * 1024u * 1024u)
 
-static struct shirudo_preflight_check *
-next_slot(struct shirudo_preflight_result *r, enum shirudo_preflight_id id,
+static struct preflight_check *
+next_slot(struct preflight_result *r, enum preflight_id id,
 	  const char *name)
 {
-	struct shirudo_preflight_check *c = &r->checks[r->n++];
+	struct preflight_check *c = &r->checks[r->n++];
 
 	c->id = id;
 	c->name = name;
@@ -53,14 +53,14 @@ next_slot(struct shirudo_preflight_result *r, enum shirudo_preflight_id id,
 	return c;
 }
 
-static void pass(struct shirudo_preflight_check *c)
+static void pass(struct preflight_check *c)
 {
 	c->ok = true;
 }
 
 __printf(3, 4)
-static void fail(struct shirudo_preflight_result *r,
-		 struct shirudo_preflight_check *c, const char *fmt, ...)
+static void fail(struct preflight_result *r,
+		 struct preflight_check *c, const char *fmt, ...)
 {
 	va_list ap;
 
@@ -72,9 +72,9 @@ static void fail(struct shirudo_preflight_result *r,
 	r->n_failed++;
 }
 
-static void check_root(struct shirudo_preflight_result *r)
+static void check_root(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_ROOT, "root");
 
 	if (geteuid() == 0)
@@ -106,9 +106,9 @@ static bool lsm_lists_bpf(void)
 	return false;
 }
 
-static void check_bpf_lsm(struct shirudo_preflight_result *r)
+static void check_bpf_lsm(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_BPF_LSM, "bpf_lsm_active");
 
 	if (lsm_lists_bpf())
@@ -146,9 +146,9 @@ static bool bpffs_in_proc_filesystems(void)
 	return found;
 }
 
-static void check_bpffs(struct shirudo_preflight_result *r)
+static void check_bpffs(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_BPFFS, "bpffs_supported");
 
 	if (bpffs_in_proc_filesystems())
@@ -159,9 +159,9 @@ static void check_bpffs(struct shirudo_preflight_result *r)
 		     "(needs CONFIG_BPF_FS=y)");
 }
 
-static void check_signed_loader_abi(struct shirudo_preflight_result *r)
+static void check_signed_loader_abi(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_SIGNED_LOADER_ABI,
 			  "signed_loader_kernel_abi");
 
@@ -173,9 +173,9 @@ static void check_signed_loader_abi(struct shirudo_preflight_result *r)
 	}
 }
 
-static void check_cert(struct shirudo_preflight_result *r)
+static void check_cert(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_CERT_ON_DISK, "cert_on_disk");
 	struct stat st;
 
@@ -198,17 +198,17 @@ static void check_cert(struct shirudo_preflight_result *r)
  * beside it. A set that cannot be read is reported by cert_on_disk;
  * the checks below skip rather than fail twice.
  */
-static int preflight_keys(struct shirudo_trusted_set *set)
+static int preflight_keys(struct trusted_set *set)
 {
 	return keys_load(get_keys_dir(), KEYS_REVOKED_DIR,
 			 true, set);
 }
 
-static void check_cert_algorithm(struct shirudo_preflight_result *r)
+static void check_cert_algorithm(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_CERT_ALGORITHM, "cert_algorithm");
-	struct shirudo_trusted_set set;
+	struct trusted_set set;
 	size_t i;
 
 	if (preflight_keys(&set)) {
@@ -218,7 +218,7 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
-		struct shirudo_cert cert = {};
+		struct cert cert = {};
 		char name[64];
 		int ret;
 
@@ -253,11 +253,11 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
  * private to this thread and discarded with it, so no durable kernel
  * state is touched; it is cleared right away regardless.
  */
-static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
+static void check_cert_kernel_algo(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_CERT_KERNEL_ALGO, "cert_kernel_support");
-	struct shirudo_trusted_set set;
+	struct trusted_set set;
 	size_t i;
 
 	if (preflight_keys(&set)) {
@@ -297,9 +297,9 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 	pass(c);
 }
 
-static void check_keyring(struct shirudo_preflight_result *r)
+static void check_keyring(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_KEYRING, "kernel_keyring");
 	long ret;
 
@@ -321,12 +321,12 @@ static void check_keyring(struct shirudo_preflight_result *r)
 		     "no bpf keyring)", strerror(errno));
 }
 
-static void check_embedded_loader(struct shirudo_preflight_result *r)
+static void check_embedded_loader(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_EMBEDDED_LOADER, "embedded_loader");
-	const struct shirudo_embedded_bpf *bpf2 = bpf2_blob();
-	const struct shirudo_embedded_bpf *seal = seal_blob();
+	const struct embedded_bpf *bpf2 = bpf2_blob();
+	const struct embedded_bpf *seal = seal_blob();
 
 	if (bpf2 && bpf2->size && seal && seal->size)
 		pass(c);
@@ -334,9 +334,9 @@ static void check_embedded_loader(struct shirudo_preflight_result *r)
 		fail(r, c, "embedded BPF objects missing");
 }
 
-static void check_tpm(struct shirudo_preflight_result *r)
+static void check_tpm(struct preflight_result *r)
 {
-	struct shirudo_preflight_check *c =
+	struct preflight_check *c =
 		next_slot(r, SHIRUDO_PRE_TPM, "tpm2_reachable");
 
 	/*
@@ -346,7 +346,7 @@ static void check_tpm(struct shirudo_preflight_result *r)
 	 * produces, so this is a convenience, not a relaxation.
 	 */
 	{
-		struct shirudo_config cfg = {};
+		struct config cfg = {};
 		bool override = config_load(&cfg) == 0 && cfg.tpm_tcti[0];
 
 		if (override) {
@@ -370,7 +370,7 @@ static void check_tpm(struct shirudo_preflight_result *r)
 		     strerror(errno));
 }
 
-void preflight_run(struct shirudo_preflight_result *out)
+void preflight_run(struct preflight_result *out)
 {
 	memset(out, 0, sizeof(*out));
 	check_root(out);

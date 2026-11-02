@@ -102,7 +102,7 @@ static int emit_line(const char *line, size_t len, void *ctx)
 	return 0;
 }
 
-static void emit_hex(struct shirudo_json_emit *e, const char *key,
+static void emit_hex(struct json_emit *e, const char *key,
 		     const __u8 *data, size_t len)
 {
 	char hex[2 * TPM_ATTEST_MAX + 1];
@@ -116,11 +116,11 @@ static void emit_hex(struct shirudo_json_emit *e, const char *key,
 }
 
 /* A quote is accepted only when it covers the PCR values read beside it. */
-static bool quote_covers(const struct shirudo_tpm_attestation *quote,
+static bool quote_covers(const struct tpm_attestation *quote,
 			 __u32 mask, __u8 values[24][32])
 {
-	struct shirudo_tpm_attest a;
-	struct shirudo_sha256_ctx ctx;
+	struct tpm_attest a;
+	struct sha256_ctx ctx;
 	__u8 digest[32];
 	__u32 i;
 
@@ -143,19 +143,19 @@ static bool quote_covers(const struct shirudo_tpm_attestation *quote,
 
 int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 			   __u32 pcr_mask,
-			   const struct shirudo_attest_challenge *c,
-			   struct shirudo_config_update *update,
+			   const struct attest_challenge *c,
+			   struct config_update *update,
 			   char **out, size_t *len, size_t *cap)
 {
-	const struct shirudo_attest_challenge *challenge = c;
-	struct shirudo_tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
-	struct shirudo_tpm_key ak_copy = {}, ek_copy = {};
-	struct shirudo_tpm_attestation quote = {}, certify = {};
-	struct shirudo_config_evidence config = {};
-	struct shirudo_tpm_attest quoted;
+	const struct attest_challenge *challenge = c;
+	struct tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
+	struct tpm_key ak_copy = {}, ek_copy = {};
+	struct tpm_attestation quote = {}, certify = {};
+	struct config_evidence config = {};
+	struct tpm_attest quoted;
 	struct tpm_nv_info nv;
-	struct shirudo_tpm *tpm = NULL;
-	struct shirudo_json_emit e;
+	struct tpm *tpm = NULL;
+	struct json_emit e;
 	__u8 values[24][32] = {};
 	__u8 reg[32], cred[TPM_CREDENTIAL_LEN], *ek_cert = NULL;
 	size_t ek_cert_len = 0, ek_b64_cap = 0, fw_cap = 0, sd_cap = 0, need;
@@ -310,7 +310,7 @@ int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	}
 	hex_encode(nonce, nonce_len, nonce_hex);
 
-	e = (struct shirudo_json_emit){ .buf = *out, .cap = need };
+	e = (struct json_emit){ .buf = *out, .cap = need };
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "kind", "shirudo-attestation");
@@ -676,11 +676,11 @@ static int hex_bytes(const char *hex, __u8 *out, size_t cap, size_t *len)
 
 static int check_signed(struct reporter *rep, const char *what,
 			const char *attest_hex, const char *sig_hex,
-			const struct shirudo_tpm_ecc_public *ak,
+			const struct tpm_ecc_public *ak,
 			const __u8 ak_name[TPM_NAME_LEN],
 			const __u8 *nonce, size_t nonce_len,
 			__u8 *attest, size_t attest_cap, size_t *attest_len,
-			struct shirudo_tpm_attest *parsed)
+			struct tpm_attest *parsed)
 {
 	__u8 sig[TPM_SIGNATURE_MAX], r[32], s[32], digest[32];
 	__u8 qn[TPM_NAME_LEN];
@@ -712,13 +712,13 @@ static int check_signed(struct reporter *rep, const char *what,
 }
 
 int attest_verify(const char *evidence, size_t len,
-		  const struct shirudo_attest_expect *expect,
+		  const struct attest_expect *expect,
 		  char *report, size_t report_cap)
 {
 	struct reporter rep = { .buf = report, .cap = report_cap };
-	struct shirudo_config_evidence config = {};
-	struct shirudo_tpm_attest quote = {}, certify = {};
-	struct shirudo_tpm_ecc_public ak_pub;
+	struct config_evidence config = {};
+	struct tpm_attest quote = {}, certify = {};
+	struct tpm_ecc_public ak_pub;
 	__u8 ak_public[TPM_PUBLIC_MAX];
 	__u8 ak_name[TPM_NAME_LEN];
 	__u8 reg_name[TPM_NAME_LEN], reg_value[32];
@@ -750,27 +750,27 @@ int attest_verify(const char *evidence, size_t len,
 	p->rec_reset = -1;
 
 	{
-		struct shirudo_json_array pcr_sink = { on_pcr, p };
-		struct shirudo_json_array rec_sink = { on_record, p };
-		struct shirudo_json_field pcr_sub[] = {
+		struct json_array pcr_sink = { on_pcr, p };
+		struct json_array rec_sink = { on_record, p };
+		struct json_field pcr_sub[] = {
 			{ "index", SHIRUDO_JSON_T_INT, &p->pcr_index, 0, 0,
 			  NULL, 0 },
 			{ "value", SHIRUDO_JSON_T_STRING, p->pcr_value_hex,
 			  sizeof(p->pcr_value_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field ak_sub[] = {
+		struct json_field ak_sub[] = {
 			{ "public", SHIRUDO_JSON_T_STRING, p->ak_public_hex,
 			  sizeof(p->ak_public_hex), 0, NULL, 0 },
 			{ "name", SHIRUDO_JSON_T_STRING, p->ak_name_hex,
 			  sizeof(p->ak_name_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field quote_sub[] = {
+		struct json_field quote_sub[] = {
 			{ "attest", SHIRUDO_JSON_T_STRING, p->quote_attest_hex,
 			  sizeof(p->quote_attest_hex), 0, NULL, 0 },
 			{ "signature", SHIRUDO_JSON_T_STRING, p->quote_sig_hex,
 			  sizeof(p->quote_sig_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field ek_sub[] = {
+		struct json_field ek_sub[] = {
 			{ "type", SHIRUDO_JSON_T_STRING, p->ek_type,
 			  sizeof(p->ek_type), 0, NULL, 0 },
 			{ "public", SHIRUDO_JSON_T_STRING, p->ek_public_hex,
@@ -778,11 +778,11 @@ int attest_verify(const char *evidence, size_t len,
 			{ "name", SHIRUDO_JSON_T_STRING, p->ek_name_hex,
 			  sizeof(p->ek_name_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field cred_sub[] = {
+		struct json_field cred_sub[] = {
 			{ "value", SHIRUDO_JSON_T_STRING, p->cred_hex,
 			  sizeof(p->cred_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field reg_sub[] = {
+		struct json_field reg_sub[] = {
 			{ "nv_index", SHIRUDO_JSON_T_STRING, p->reg_index,
 			  sizeof(p->reg_index), 0, NULL, 0 },
 			{ "pcr", SHIRUDO_JSON_T_INT, &p->reg_pcr, 0, 0, NULL,
@@ -796,21 +796,21 @@ int attest_verify(const char *evidence, size_t len,
 			{ "signature", SHIRUDO_JSON_T_STRING, p->reg_sig_hex,
 			  sizeof(p->reg_sig_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field upatch_sub[] = {
+		struct json_field upatch_sub[] = {
 			{ "name", SHIRUDO_JSON_T_STRING, p->upatch_name,
 			  sizeof(p->upatch_name), 0, NULL, 0 },
 			{ "payload_sha256", SHIRUDO_JSON_T_STRING,
 			  p->upatch_payload_hex, sizeof(p->upatch_payload_hex),
 			  0, NULL, 0 },
 		};
-		struct shirudo_json_field key_sub[] = {
+		struct json_field key_sub[] = {
 			{ "fingerprint", SHIRUDO_JSON_T_STRING,
 			  p->key_fingerprint, sizeof(p->key_fingerprint), 0,
 			  NULL, 0 },
 			{ "cert_sha256", SHIRUDO_JSON_T_STRING, p->key_sha_hex,
 			  sizeof(p->key_sha_hex), 0, NULL, 0 },
 		};
-		struct shirudo_json_field tree_sub[] = {
+		struct json_field tree_sub[] = {
 			{ "seq", SHIRUDO_JSON_T_INT, &p->tree_seq, 0, 0, NULL,
 			  0 },
 			{ "op", SHIRUDO_JSON_T_STRING, p->tree_op,
@@ -821,7 +821,7 @@ int attest_verify(const char *evidence, size_t len,
 			  p->tree_digest_hex, sizeof(p->tree_digest_hex), 0,
 			  NULL, 0 },
 		};
-		struct shirudo_json_field rec_sub[] = {
+		struct json_field rec_sub[] = {
 			{ "type", SHIRUDO_JSON_T_STRING, p->type,
 			  sizeof(p->type), 0, NULL, 0 },
 			{ "digest", SHIRUDO_JSON_T_STRING, p->digest_hex,
@@ -859,7 +859,7 @@ int attest_verify(const char *evidence, size_t len,
 			{ "key", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, key_sub,
 			  ARRAY_SIZE(key_sub) },
 		};
-		struct shirudo_json_field top[] = {
+		struct json_field top[] = {
 			{ "nonce", SHIRUDO_JSON_T_STRING, p->nonce_hex,
 			  sizeof(p->nonce_hex), 0, NULL, 0 },
 			{ "pcr_mask", SHIRUDO_JSON_T_INT, &p->pcr_mask, 0, 0,
@@ -940,7 +940,7 @@ int attest_verify(const char *evidence, size_t len,
 	if (have_ek) {
 		__u8 ek_public[TPM_PUBLIC_MAX];
 		__u8 ek_name[TPM_NAME_LEN], computed[TPM_NAME_LEN];
-		struct shirudo_tpm_public ek_pub;
+		struct tpm_public ek_pub;
 		size_t ek_public_len, ek_name_len;
 		bool parsed;
 
@@ -996,7 +996,7 @@ int attest_verify(const char *evidence, size_t len,
 		goto out;
 	qrc = ret;
 	if (ret == 0) {
-		struct shirudo_sha256_ctx ctx;
+		struct sha256_ctx ctx;
 		__u8 digest[32] = {};
 		bool complete =
 			quote.type == TPM_ST_ATTEST_QUOTE &&
@@ -1243,15 +1243,15 @@ out:
 }
 
 int attest_challenge_read(const char *path,
-			  struct shirudo_attest_challenge *out)
+			  struct attest_challenge *out)
 {
 	char blob_hex[2 * TPM_ID_OBJECT_LEN + 1], secret_hex[2 * 256 + 1];
 	char ak_hex[2 * TPM_NAME_LEN + 1], kind[32], type[8];
-	struct shirudo_json_field ek_sub[] = {
+	struct json_field ek_sub[] = {
 		{ "type", SHIRUDO_JSON_T_STRING, type, sizeof(type), 0, NULL,
 		  0 },
 	};
-	struct shirudo_json_field top[] = {
+	struct json_field top[] = {
 		{ "kind", SHIRUDO_JSON_T_STRING, kind, sizeof(kind), 0, NULL,
 		  0 },
 		{ "ek", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, ek_sub,
@@ -1297,7 +1297,7 @@ int attest_challenge_read(const char *path,
 
 /* The certificate's key must be the endorsement key of the evidence. */
 static bool cert_describes(const struct cert_pubkey *key,
-			   const struct shirudo_tpm_public *pub)
+			   const struct tpm_public *pub)
 {
 	bool rsa = pub->type == TPM_ALG_RSA;
 
@@ -1312,7 +1312,7 @@ static bool cert_describes(const struct cert_pubkey *key,
 }
 
 int attest_challenge_make(const char *evidence, size_t len,
-			  const struct shirudo_attest_challenge_policy *pol,
+			  const struct attest_challenge_policy *pol,
 			  __u8 credential[TPM_CREDENTIAL_LEN],
 			  char **out, size_t *out_len, size_t *cap,
 			  char *report, size_t report_cap)
@@ -1328,14 +1328,14 @@ int attest_challenge_make(const char *evidence, size_t len,
 	__u8 seed[32], z[32], eph_x[32], eph_y[32], secret[256];
 	__u8 blob[TPM_ID_OBJECT_LEN], *der = NULL;
 	struct cert_pubkey cert_key;
-	struct shirudo_tpm_public pub;
-	struct shirudo_cert cert = {};
-	struct shirudo_json_emit e;
-	struct shirudo_json_field ak_sub[] = {
+	struct tpm_public pub;
+	struct cert cert = {};
+	struct json_emit e;
+	struct json_field ak_sub[] = {
 		{ "name", SHIRUDO_JSON_T_STRING, ak_hex, sizeof(ak_hex), 0,
 		  NULL, 0 },
 	};
-	struct shirudo_json_field ek_sub[] = {
+	struct json_field ek_sub[] = {
 		{ "type", SHIRUDO_JSON_T_STRING, ek_type, sizeof(ek_type), 0,
 		  NULL, 0 },
 		{ "public", SHIRUDO_JSON_T_STRING, ek_public_hex,
@@ -1344,7 +1344,7 @@ int attest_challenge_make(const char *evidence, size_t len,
 		  sizeof(ek_name_hex), 0, NULL, 0 },
 	};
 	char *cert_b64 = xmalloc(EK_CERT_B64_MAX);
-	struct shirudo_json_field top[] = {
+	struct json_field top[] = {
 		{ "ak", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, ak_sub,
 		  ARRAY_SIZE(ak_sub) },
 		{ "ek", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, ek_sub,
@@ -1495,7 +1495,7 @@ int attest_challenge_make(const char *evidence, size_t len,
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct shirudo_json_emit){ .buf = *out, .cap = *cap };
+	e = (struct json_emit){ .buf = *out, .cap = *cap };
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "kind", "shirudo-credential");

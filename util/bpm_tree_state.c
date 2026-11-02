@@ -35,7 +35,7 @@
 #include "paths.h"
 #include "seal.h"
 
-static int kv_add(struct shirudo_tree_kv *dst, int *n, int max,
+static int kv_add(struct tree_kv *dst, int *n, int max,
 		  const char *key, const char *value)
 {
 	if (*n >= max)
@@ -47,7 +47,7 @@ static int kv_add(struct shirudo_tree_kv *dst, int *n, int max,
 	return 0;
 }
 
-static const char *kv_value(const struct shirudo_tree_kv *v, int n,
+static const char *kv_value(const struct tree_kv *v, int n,
 			    const char *key)
 {
 	for (int i = 0; i < n; i++) {
@@ -57,7 +57,7 @@ static const char *kv_value(const struct shirudo_tree_kv *v, int n,
 	return NULL;
 }
 
-static int selector_values_match(const struct shirudo_tree_selector_kv *v,
+static int selector_values_match(const struct tree_selector_kv *v,
 				 const char *want)
 {
 	if (!v || !want)
@@ -82,10 +82,10 @@ bool tree_configured(void)
 	return true;
 }
 
-static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
+static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
 			      int max);
 
-static int read_config_file(const char *path, struct shirudo_tree_kv *out,
+static int read_config_file(const char *path, struct tree_kv *out,
 			    int *n, int max, bool gz)
 {
 	char line[512];
@@ -139,7 +139,7 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 }
 
 /* The stream is consumed and closed. */
-static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
+static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
 			      int max)
 {
 	size_t capacity = 0;
@@ -180,7 +180,7 @@ static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
 	return ret;
 }
 
-static int read_config_fd(int fd, struct shirudo_tree_kv *out, int *n,
+static int read_config_fd(int fd, struct tree_kv *out, int *n,
 			  int max)
 {
 	FILE *f = fdopen(fd, "r");
@@ -211,7 +211,7 @@ static __u32 selector_hash(const char *key)
 	return hash;
 }
 
-static void selector_hash_build(const struct shirudo_tree_selector *s,
+static void selector_hash_build(const struct tree_selector *s,
 				int slots[TREE_SELECTOR_HASH_SIZE])
 {
 	memset(slots, 0xff, sizeof(int) * TREE_SELECTOR_HASH_SIZE);
@@ -227,7 +227,7 @@ static void selector_hash_build(const struct shirudo_tree_selector *s,
 	}
 }
 
-static int selector_hash_find(const struct shirudo_tree_selector *s,
+static int selector_hash_find(const struct tree_selector *s,
 			      const int slots[TREE_SELECTOR_HASH_SIZE],
 			      const char *key)
 {
@@ -246,7 +246,7 @@ static int selector_hash_find(const struct shirudo_tree_selector *s,
 }
 
 static int selector_config_line(const char *line,
-				const struct shirudo_tree_selector *s,
+				const struct tree_selector *s,
 				const int slots[TREE_SELECTOR_HASH_SIZE],
 				char values[][TREE_STRING_MAX],
 				bool found[])
@@ -305,7 +305,7 @@ static int selector_config_line(const char *line,
 }
 
 static int read_selector_config_file(const char *path,
-				     const struct shirudo_tree_selector *s,
+				     const struct tree_selector *s,
 				     const int slots[TREE_SELECTOR_HASH_SIZE],
 				     char values[][TREE_STRING_MAX],
 				     bool found[], bool gz)
@@ -347,10 +347,10 @@ static int read_selector_config_file(const char *path,
 	return ret;
 }
 
-int tree_selector_matches(const struct shirudo_tree_selector *s)
+int tree_selector_matches(const struct tree_selector *s)
 {
 	struct utsname u;
-	struct shirudo_tree_kv labels[TREE_MAX_LABELS];
+	struct tree_kv labels[TREE_MAX_LABELS];
 	char cfg_values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
 	int cfg_slots[TREE_SELECTOR_HASH_SIZE];
 	bool cfg_found[TREE_MAX_KCONFIG] = {};
@@ -486,12 +486,12 @@ static bool hex32_valid(const char *hex)
 	return !hex_decode(hex, raw, sizeof(raw));
 }
 
-int tree_state_read(struct shirudo_tree_state *out)
+int tree_state_read(struct tree_state *out)
 {
 	__u8 *body;
 	size_t len;
 	__s64 schema = 0;
-	struct shirudo_json_field f[] = {
+	struct json_field f[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "tree_id", SHIRUDO_JSON_T_STRING, out->tree_id,
 		  sizeof(out->tree_id), 0, NULL, 0 },
@@ -506,7 +506,7 @@ int tree_state_read(struct shirudo_tree_state *out)
 	};
 	int ret;
 
-	*out = (struct shirudo_tree_state){};
+	*out = (struct tree_state){};
 	ret = tree_read_file(BPM_TREE_STATE_PATH, &body, &len);
 	if (ret)
 		return ret;
@@ -552,10 +552,10 @@ static int tree_atomic_write(const char *path, const void *data, size_t len)
 	return seal_write_file(path, data, len, 0600);
 }
 
-int tree_state_write(const struct shirudo_tree_state *s)
+int tree_state_write(const struct tree_state *s)
 {
 	char buf[4096];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
@@ -575,7 +575,7 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 		      const __u8 projection_root[32])
 {
 	char buf[1024], root[65];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	struct stat st;
 	int fd, ret;
 
@@ -644,7 +644,7 @@ int tree_event_replay(__u8 out[32])
 		char digest[128] = {};
 		char projection[65] = {};
 		__s64 seq = 0;
-		struct shirudo_json_field f[] = {
+		struct json_field f[] = {
 			{ "seq", SHIRUDO_JSON_T_INT, &seq, 0, 0, NULL, 0 },
 			{ "digest", SHIRUDO_JSON_T_STRING, digest, sizeof(digest),
 			  0, NULL, 0 },
@@ -682,9 +682,9 @@ int tree_event_replay(__u8 out[32])
 	return ret;
 }
 
-void tree_emit_status(struct shirudo_json_emit *e)
+void tree_emit_status(struct json_emit *e)
 {
-	struct shirudo_tree_state s = {};
+	struct tree_state s = {};
 	__u8 live[32], replay[32];
 	char hex[65];
 	bool configured = tree_configured();

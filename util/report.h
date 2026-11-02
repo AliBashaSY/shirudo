@@ -24,7 +24,7 @@
  *   payload_mismatch, already_unloaded, detach_failed, tpm_error,
  *   unknown.
  */
-struct shirudo_op_report {
+struct op_report {
 	bool		ok;
 	const char	*op;		/* "upatch_load" / "upatch_unload" */
 	const char	*phase;
@@ -40,9 +40,9 @@ struct shirudo_op_report {
 	char		chain_after[65];
 };
 
-int report_emit(const char *path, const struct shirudo_op_report *r);
+int report_emit(const char *path, const struct op_report *r);
 
-void report_set_log(struct shirudo_op_report *r, const char *log);
-void report_free(struct shirudo_op_report *r);
+void report_set_log(struct op_report *r, const char *log);
+void report_free(struct op_report *r);
 
 #endif /* SHIRUDO_REPORT_H */

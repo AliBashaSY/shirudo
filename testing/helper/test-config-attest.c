@@ -22,7 +22,7 @@
 
 static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 {
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	int ret;
 
 	(void)ctx;
@@ -35,7 +35,7 @@ static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 
 static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
 {
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	int ret;
 
 	(void)ctx;
@@ -55,7 +55,7 @@ static int no_extend(void *ctx, __u32 pcr, const __u8 event[32])
 }
 
 static int no_activate(void *ctx,
-		       const struct shirudo_config_update_target *target)
+		       const struct config_update_target *target)
 {
 	(void)ctx;
 	(void)target;
@@ -69,7 +69,7 @@ static int no_seal(void *ctx, int fd)
 	return 0;
 }
 
-static const struct shirudo_config_update_ops ops = {
+static const struct config_update_ops ops = {
 	.boot_identity = boot_identity,
 	.pcr_read = pcr_read,
 	.pcr_extend = no_extend,
@@ -80,7 +80,7 @@ static const struct shirudo_config_update_ops ops = {
 
 static int render(const char *directory, const char *nonce)
 {
-	struct shirudo_config_update update = { .dir_fd = -1, .lock_fd = -1 };
+	struct config_update update = { .dir_fd = -1, .lock_fd = -1 };
 	__u8 bytes[ATTEST_NONCE_MAX];
 	char *document = NULL;
 	size_t length = 0, capacity = 0, nonce_length;
@@ -136,7 +136,7 @@ static int read_document(const char *path, char **out, size_t *length)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_config_evidence config = {};
+	struct config_evidence config = {};
 	__u8 pcrs[24][32] = {}, root[32];
 	const char *reason = NULL;
 	const __u8 *expected;

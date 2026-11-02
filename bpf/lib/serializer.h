@@ -24,7 +24,7 @@
 
 /*
  * Keep the syscall test-run context within the older five-u64 argument
- * limit. Page result metadata lives in struct shirudo_serial_chunk.
+ * limit. Page result metadata lives in struct serial_chunk.
  */
 #define SERIAL_CTX_MAX_BYTES	40u
 
@@ -34,7 +34,7 @@
  */
 #define SERIAL_CHUNK_PAYLOAD	4032u
 
-struct shirudo_serialize_ctx {
+struct serialize_ctx {
 	__u32		magic;
 	__u32		version;
 	__u32		flags;
@@ -45,7 +45,7 @@ struct shirudo_serialize_ctx {
 	__u64		invocation_id;
 };
 
-struct shirudo_serial_chunk {
+struct serial_chunk {
 	__u32		magic;
 	__u32		version;
 	__u32		flags;
@@ -62,8 +62,8 @@ struct shirudo_serial_chunk {
 	__u8		data[SERIAL_CHUNK_PAYLOAD];
 };
 
-BUILD_BUG_ON(sizeof(struct shirudo_serialize_ctx) !=
+BUILD_BUG_ON(sizeof(struct serialize_ctx) !=
 	     SERIAL_CTX_MAX_BYTES);
-BUILD_BUG_ON(sizeof(struct shirudo_serial_chunk) != 4096);
+BUILD_BUG_ON(sizeof(struct serial_chunk) != 4096);
 
 #endif /* SHIRUDO_SERIALIZER_H */

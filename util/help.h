@@ -10,21 +10,21 @@
 
 #include <stddef.h>
 
-struct shirudo_help_item {
+struct help_item {
 	const char	*name;
 	const char	*summary;
 };
 
-struct shirudo_help_section {
+struct help_section {
 	const char			*header;
-	const struct shirudo_help_item	*items;
+	const struct help_item	*items;
 	size_t				n_items;
 };
 
-struct shirudo_help {
+struct help {
 	const char				*usage;
 	const char				*summary;
-	const struct shirudo_help_section	*sections;
+	const struct help_section	*sections;
 	size_t					n_sections;
 	const char				*footer;
 };
@@ -33,10 +33,10 @@ int is_help(const char *arg);
 
 int is_list_cmds(const char *arg);
 
-void print_help(const struct shirudo_help *h);
+void print_help(const struct help *h);
 
 /* What bash completion reads through --list-cmds. */
-void print_subcmd_list(const struct shirudo_help_item *items,
+void print_subcmd_list(const struct help_item *items,
 		       size_t n_items);
 
 /*
@@ -45,7 +45,7 @@ void print_subcmd_list(const struct shirudo_help_item *items,
  */
 const char *resolve_subcommand(const char *cmd_label,
 			       const char *input,
-			       const struct shirudo_help_item *subcmds,
+			       const struct help_item *subcmds,
 			       size_t n_subcmds);
 
 #endif /* SHIRUDO_HELP_H */

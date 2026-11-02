@@ -8,9 +8,9 @@
 
 #include <stdbool.h>
 
-struct shirudo_config;
+struct config;
 
-enum shirudo_image_path {
+enum image_path {
 	SHIRUDO_IMAGE_ETC,
 	SHIRUDO_IMAGE_REGISTRIES,
 	SHIRUDO_IMAGE_REPOSITORY_KEYS,
@@ -22,13 +22,13 @@ enum shirudo_image_path {
 };
 
 bool image_config_active(void);
-int image_config_get(struct shirudo_config *out);
-int image_config_set(const struct shirudo_config *bootstrap,
+int image_config_get(struct config *out);
+int image_config_set(const struct config *bootstrap,
 		     int root_fd);
 int image_config_validate(int root_fd);
 void image_config_clear(void);
 /* An entry of the config image, opened from its verified root; -errno. */
-int image_open(enum shirudo_image_path which, int flags);
+int image_open(enum image_path which, int flags);
 int image_open_relative(const char *path, int flags);
 int image_config_root_fd(void);
 

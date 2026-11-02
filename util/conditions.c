@@ -15,7 +15,7 @@
 
 #include "conditions.h"
 
-static bool config_untrusted(const struct shirudo_conditions_input *in)
+static bool config_untrusted(const struct conditions_input *in)
 {
 	return in->config_seen && in->config_state &&
 	       in->config_state != -EINPROGRESS;
@@ -30,7 +30,7 @@ static const char *config_untrusted_detail(int state)
 	return "the config PCR, activation records and mounted config disagree (tamper?)";
 }
 
-static bool keyring_tampered(const struct shirudo_conditions_input *in)
+static bool keyring_tampered(const struct conditions_input *in)
 {
 	return (in->ksp_seen && !in->keyring_present) ||
 	       (in->ksm_seen && !in->keyring_serial_matches) ||
@@ -40,7 +40,7 @@ static bool keyring_tampered(const struct shirudo_conditions_input *in)
 }
 
 static void __printf(3, 4)
-set_detail(struct shirudo_condition *c, const char *status,
+set_detail(struct condition *c, const char *status,
 	   const char *fmt, ...)
 {
 	va_list ap;
@@ -52,8 +52,8 @@ set_detail(struct shirudo_condition *c, const char *status,
 	va_end(ap);
 }
 
-static void keyring_condition(const struct shirudo_conditions_input *in,
-			      struct shirudo_condition *c)
+static void keyring_condition(const struct conditions_input *in,
+			      struct condition *c)
 {
 	c->type = "KeyringSealed";
 	if (!in->keyring_present && in->ksp_seen)
@@ -97,8 +97,8 @@ static void keyring_condition(const struct shirudo_conditions_input *in,
 			   in->ksp_seen ? "pin matches" : "no pin recorded");
 }
 
-size_t conditions(const struct shirudo_conditions_input *in,
-		  struct shirudo_condition *c, size_t cap)
+size_t conditions(const struct conditions_input *in,
+		  struct condition *c, size_t cap)
 {
 	size_t n = 0;
 
@@ -185,7 +185,7 @@ size_t conditions(const struct shirudo_conditions_input *in,
 	return n;
 }
 
-void conditions_print(const struct shirudo_condition *c, size_t n)
+void conditions_print(const struct condition *c, size_t n)
 {
 	size_t i;
 
@@ -196,7 +196,7 @@ void conditions_print(const struct shirudo_condition *c, size_t n)
 		       c[i].detail);
 }
 
-const char *status_verdict(const struct shirudo_conditions_input *in)
+const char *status_verdict(const struct conditions_input *in)
 {
 	if (!in->reachable)
 		return "unreachable";
@@ -216,7 +216,7 @@ const char *status_verdict(const struct shirudo_conditions_input *in)
 	return "ok";
 }
 
-void status_reason(const struct shirudo_conditions_input *in,
+void status_reason(const struct conditions_input *in,
 		   char *buf, size_t cap)
 {
 	const char *v = status_verdict(in);

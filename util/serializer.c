@@ -96,7 +96,7 @@ int serializer_new_invocation_id(__u64 *out)
 	return 0;
 }
 
-int serial_chunk_validate(const struct shirudo_serial_chunk *c,
+int serial_chunk_validate(const struct serial_chunk *c,
 			  __u32 want_index,
 			  __u32 total_chunks,
 			  __u32 page_index,

@@ -10,7 +10,7 @@
 #ifndef SHIRUDO_TAMPER_H
 #define SHIRUDO_TAMPER_H
 
-enum shirudo_tamper_point {
+enum tamper_point {
 	SHIRUDO_TAMPER_LOAD_NOT_LOADER,
 	SHIRUDO_TAMPER_LOAD_UNSIGNED,
 	SHIRUDO_TAMPER_LOAD_UNVERIFIED,
@@ -58,7 +58,7 @@ struct {
 	__type(value, __u64);
 } shirudo_tamper SEC(".maps");
 
-static __always_inline int shirudo_tamper_deny(enum shirudo_tamper_point point,
+static __always_inline int shirudo_tamper_deny(enum tamper_point point,
 					       int err)
 {
 	__u32 key = point;

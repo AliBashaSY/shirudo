@@ -25,7 +25,7 @@
 
 #define RECORD_MAX (2 * CONFIG_UPDATE_PREFIX_MAX + 1024)
 
-static int target_valid(const struct shirudo_config_update_target *target)
+static int target_valid(const struct config_update_target *target)
 {
 	size_t len, i;
 
@@ -41,10 +41,10 @@ static int target_valid(const struct shirudo_config_update_target *target)
 	return 0;
 }
 
-static int record_encode(const struct shirudo_config_update_record *record,
+static int record_encode(const struct config_update_record *record,
 			 bool state, char *out, size_t cap, size_t *length)
 {
-	struct shirudo_json_emit emit = { .buf = out, .cap = cap - 1 };
+	struct json_emit emit = { .buf = out, .cap = cap - 1 };
 	char root[65], initial[65];
 
 	hex_encode(record->target.root_hash, 32, root);
@@ -71,7 +71,7 @@ static int record_encode(const struct shirudo_config_update_record *record,
 }
 
 static int record_decode(const char *data, size_t length, bool state,
-			 struct shirudo_config_update_record *record)
+			 struct config_update_record *record)
 {
 	__s64 schema = 0, sequence = 0, reset = 0, restart = 0;
 	char root[65] = {}, initial[65] = {};
@@ -79,7 +79,7 @@ static int record_decode(const char *data, size_t length, bool state,
 	int pending = 0;
 	size_t i;
 	int ret;
-	struct shirudo_json_field fields[] = {
+	struct json_field fields[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "sequence", SHIRUDO_JSON_T_INT, &sequence, 0, 0, NULL, 0 },
 		{ "reset_count", SHIRUDO_JSON_T_INT, &reset, 0, 0, NULL, 0 },
@@ -133,8 +133,8 @@ static int regular_file(int fd)
 	return 0;
 }
 
-static int checkpoint(struct shirudo_config_update *update,
-		      enum shirudo_config_update_checkpoint point)
+static int checkpoint(struct config_update *update,
+		      enum config_update_checkpoint point)
 {
 	return update->ops->checkpoint ?
 		       update->ops->checkpoint(update->ctx, point) :
@@ -169,8 +169,8 @@ static int lock_wait(int fd, __u32 wait_ms)
 }
 
 int config_update_open(const char *directory,
-		       const struct shirudo_config_update_ops *ops,
-		       void *ctx, struct shirudo_config_update *out)
+		       const struct config_update_ops *ops,
+		       void *ctx, struct config_update *out)
 {
 	struct stat st;
 	int ret;
@@ -232,7 +232,7 @@ fail:
 	return ret;
 }
 
-void config_update_close(struct shirudo_config_update *update)
+void config_update_close(struct config_update *update)
 {
 	if (!update)
 		return;
@@ -244,8 +244,8 @@ void config_update_close(struct shirudo_config_update *update)
 	update->lock_fd = -1;
 }
 
-int config_update_read(struct shirudo_config_update *update,
-		       struct shirudo_config_update_record *out)
+int config_update_read(struct config_update *update,
+		       struct config_update_record *out)
 {
 	char wire[RECORD_MAX];
 	struct stat st;
@@ -282,8 +282,8 @@ int config_update_read(struct shirudo_config_update *update,
 	return ret;
 }
 
-static int state_save(struct shirudo_config_update *update,
-		      const struct shirudo_config_update_record *record,
+static int state_save(struct config_update *update,
+		      const struct config_update_record *record,
 		      bool inject)
 {
 	char wire[RECORD_MAX];
@@ -320,15 +320,15 @@ static int state_save(struct shirudo_config_update *update,
 	return ret;
 }
 
-static bool same_boot(const struct shirudo_config_update_record *a,
-		      const struct shirudo_config_update_record *b)
+static bool same_boot(const struct config_update_record *a,
+		      const struct config_update_record *b)
 {
 	return a->reset_count == b->reset_count &&
 	       a->restart_count == b->restart_count;
 }
 
-static bool same_event(const struct shirudo_config_update_record *a,
-		       const struct shirudo_config_update_record *b)
+static bool same_event(const struct config_update_record *a,
+		       const struct config_update_record *b)
 {
 	return same_boot(a, b) && a->sequence == b->sequence &&
 	       a->pcr == b->pcr && a->kind == b->kind &&
@@ -336,8 +336,8 @@ static bool same_event(const struct shirudo_config_update_record *a,
 	       !memcmp(a->target.root_hash, b->target.root_hash, 32);
 }
 
-static int event_follows(const struct shirudo_config_update_record *previous,
-			 const struct shirudo_config_update_record *record)
+static int event_follows(const struct config_update_record *previous,
+			 const struct config_update_record *record)
 {
 	if (record->sequence != previous->sequence + 1)
 		return -EUCLEAN;
@@ -369,12 +369,12 @@ static int read_line(FILE *file, char *line, size_t cap, size_t *length)
 	return *length ? -ENODATA : 0;
 }
 
-static int events_scan(struct shirudo_config_update *update,
-		       struct shirudo_config_update_record *last,
+static int events_scan(struct config_update *update,
+		       struct config_update_record *last,
 		       __u8 value[32], off_t *end, bool partial,
 		       shirudo_config_cb consume, void *ctx)
 {
-	struct shirudo_config_update_record previous = {}, record;
+	struct config_update_record previous = {}, record;
 	const __u8 *root = record.target.root_hash;
 	__u8 running[32] = {}, digest[32];
 	char wire[RECORD_MAX];
@@ -435,20 +435,20 @@ static int events_scan(struct shirudo_config_update *update,
 	return ret;
 }
 
-int config_update_events(struct shirudo_config_update *update,
+int config_update_events(struct config_update *update,
 			 shirudo_config_cb consume, void *ctx)
 {
-	struct shirudo_config_update_record last;
+	struct config_update_record last;
 
 	if (!update || update->dir_fd < 0 || !consume)
 		return -EINVAL;
 	return events_scan(update, &last, NULL, NULL, false, consume, ctx);
 }
 
-static int event_append(struct shirudo_config_update *update,
-			const struct shirudo_config_update_record *record)
+static int event_append(struct config_update *update,
+			const struct config_update_record *record)
 {
-	struct shirudo_config_update_record last;
+	struct config_update_record last;
 	char wire[RECORD_MAX];
 	size_t length;
 	int fd, ret;
@@ -485,7 +485,7 @@ static int event_append(struct shirudo_config_update *update,
 	return ret;
 }
 
-static int live_read(struct shirudo_config_update *update, __u32 pcr,
+static int live_read(struct config_update *update, __u32 pcr,
 		     __u32 *reset, __u32 *restart, __u8 value[32])
 {
 	__u32 reset_after, restart_after;
@@ -502,10 +502,10 @@ static int live_read(struct shirudo_config_update *update, __u32 pcr,
 	return ret;
 }
 
-static int check_record(struct shirudo_config_update *update,
-			const struct shirudo_config_update_record *record)
+static int check_record(struct config_update *update,
+			const struct config_update_record *record)
 {
-	struct shirudo_config_update_record last;
+	struct config_update_record last;
 	__u8 expected[32], value[32];
 	__u32 reset, restart;
 	int ret;
@@ -523,10 +523,10 @@ static int check_record(struct shirudo_config_update *update,
 	return ret;
 }
 
-int config_update_check(struct shirudo_config_update *update,
-			struct shirudo_config_update_record *out)
+int config_update_check(struct config_update *update,
+			struct config_update_record *out)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	int ret;
 
 	ret = config_update_read(update, &record);
@@ -539,9 +539,9 @@ int config_update_check(struct shirudo_config_update *update,
 	return ret;
 }
 
-static int complete(struct shirudo_config_update *update)
+static int complete(struct config_update *update)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	int ret, restore;
 
 	ret = config_update_read(update, &record);
@@ -563,12 +563,12 @@ static int complete(struct shirudo_config_update *update)
 	return ret;
 }
 
-static int begin_event(struct shirudo_config_update *update,
-		       const struct shirudo_config_update_target *target,
-		       const struct shirudo_config_update_record *previous,
-		       __u32 pcr, enum shirudo_config_event_kind kind)
+static int begin_event(struct config_update *update,
+		       const struct config_update_target *target,
+		       const struct config_update_record *previous,
+		       __u32 pcr, enum config_event_kind kind)
 {
-	struct shirudo_config_update_record record = {};
+	struct config_update_record record = {};
 	__u8 before[32], expected[32], value[32], event[32];
 	__u32 reset, restart;
 	int ret;
@@ -628,11 +628,11 @@ static int begin_event(struct shirudo_config_update *update,
 	return complete(update);
 }
 
-int config_update_begin(struct shirudo_config_update *update,
-			const struct shirudo_config_update_target *t,
+int config_update_begin(struct config_update *update,
+			const struct config_update_target *t,
 			__u32 pcr)
 {
-	struct shirudo_config_update_record previous;
+	struct config_update_record previous;
 	int ret;
 
 	if (!update || update->dir_fd < 0 || target_valid(t) ||
@@ -649,11 +649,11 @@ int config_update_begin(struct shirudo_config_update *update,
 			   SHIRUDO_CONFIG_EVENT_UPDATE);
 }
 
-int config_update_boot(struct shirudo_config_update *update,
-		       const struct shirudo_config_update_target *t,
+int config_update_boot(struct config_update *update,
+		       const struct config_update_target *t,
 		       __u32 pcr)
 {
-	struct shirudo_config_update_record previous = {}, last;
+	struct config_update_record previous = {}, last;
 	__u32 reset, restart;
 	int ret;
 
@@ -694,7 +694,7 @@ int config_update_boot(struct shirudo_config_update *update,
 			   SHIRUDO_CONFIG_EVENT_BOOT);
 }
 
-int config_update_complete_boot(struct shirudo_config_update *update)
+int config_update_complete_boot(struct config_update *update)
 {
 	int ret;
 

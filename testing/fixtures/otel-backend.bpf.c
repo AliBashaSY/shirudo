@@ -20,7 +20,7 @@ struct {
 	__type(value, __u64);
 } backend_metric SEC(".maps");
 
-const struct shirudo_decoder_manifest log_decoder SEC(".rodata") = {
+const struct decoder_manifest log_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,
@@ -33,7 +33,7 @@ const struct shirudo_decoder_manifest log_decoder SEC(".rodata") = {
 	.entrypoint = "decode",
 };
 
-const struct shirudo_decoder_manifest metric_decoder SEC(".rodata") = {
+const struct decoder_manifest metric_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,

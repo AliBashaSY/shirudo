@@ -356,18 +356,18 @@ static int replace_pair(const char *pkey_new, const char *pkey_path,
 	return 0;
 }
 
-static const struct shirudo_help_item genkey_options[] = {
+static const struct help_item genkey_options[] = {
 	{ "--force, -f",      "overwrite an existing key/cert (refused otherwise)" },
 	{ "--keys-dir <dir>", "write signing_key.pem + cert.der under <dir> "
 			      "instead of the default" },
 };
 
-static const struct shirudo_help_section genkey_help_sections[] = {
+static const struct help_section genkey_help_sections[] = {
 	{ "options:", genkey_options,
 	  ARRAY_SIZE(genkey_options) },
 };
 
-static const struct shirudo_help genkey_help = {
+static const struct help genkey_help = {
 	.usage   = "shirudo genkey [--force] [--keys-dir <dir>]",
 	.summary = "Generate a self-signed X.509 cert + ML-DSA-87 (FIPS 204) "
 		   "private key\nfor signing .upatch loader bytes. "

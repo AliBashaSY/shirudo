@@ -98,7 +98,7 @@ static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
  */
 static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 {
-	struct shirudo_mount_record *rec;
+	struct mount_record *rec;
 	struct mount *t, *m, *bpffs, *parent;
 	__u32 zero = 0;
 	bool sibling;
@@ -153,8 +153,8 @@ deny:
 SEC("lsm/file_open")
 int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
-	struct shirudo_mount_record *rec;
+	struct sb_id *id = shirudo_policy();
+	struct mount_record *rec;
 	struct vfsmount *mnt;
 	__u32 zero = 0;
 
@@ -176,7 +176,7 @@ int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 static __always_inline int shirudo_parent_mount(struct super_block *sb,
 						bool trusted_target)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
+	struct sb_id *id = shirudo_policy();
 
 	if (!sb || !id || !id->run_dev ||
 	    BPF_CORE_READ(sb, s_dev) != id->run_dev)
@@ -187,8 +187,8 @@ static __always_inline int shirudo_parent_mount(struct super_block *sb,
 static __always_inline int shirudo_image_mount(struct super_block *sb,
 					       bool replace)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
-	struct shirudo_device *device;
+	struct sb_id *id = shirudo_policy();
+	struct verity_device *device;
 	struct block_device *bdev;
 
 	if (!sb || !id)
@@ -297,9 +297,9 @@ int BPF_PROG(shirudo_lsm_bdev_setintegrity, struct block_device *bdev,
 	     size_t size, int ret)
 {
 	const struct dm_verity_digest___shirudo *digest = value;
-	struct shirudo_sb_id *id = shirudo_policy();
-	struct shirudo_expected_root *expected;
-	struct shirudo_device device = {};
+	struct sb_id *id = shirudo_policy();
+	struct expected_root *expected;
+	struct verity_device device = {};
 	__u64 cookie = (__u64)bdev;
 	const unsigned char *root;
 	const char *algorithm;
@@ -373,7 +373,7 @@ void BPF_PROG(shirudo_lsm_bdev_free_security, struct block_device *bdev)
 static __always_inline int shirudo_dm_ioctl(struct file *file,
 					    unsigned int cmd, int ret)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
+	struct sb_id *id = shirudo_policy();
 	struct inode *inode;
 
 	if (ret || !id || shirudo_task_is_self(id))

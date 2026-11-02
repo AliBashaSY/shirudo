@@ -15,7 +15,7 @@
 #define CONFIG_IMAGE_SIG_MAX 16384u
 #define CONFIG_IMAGE_MAX_BYTES (1ull << 40)
 
-struct shirudo_config_image {
+struct config_image {
 	__u64 data_blocks;
 	__u64 hash_blocks;
 	bool signed_root;
@@ -24,7 +24,7 @@ struct shirudo_config_image {
 };
 
 struct config_image_open {
-	struct shirudo_config_image image;
+	struct config_image image;
 	int data_fd;
 	int hash_fd;
 	int signature_fd;
@@ -32,9 +32,9 @@ struct config_image_open {
 
 /* Read the standard veritysetup superblock; no trust decision is made. */
 int config_image_read_header(int hash_fd,
-			     struct shirudo_config_image *out);
+			     struct config_image *out);
 int config_image_check_files(int data_fd, int hash_fd,
-			     const struct shirudo_config_image *image);
+			     const struct config_image *image);
 /* Hold config inputs for kernel root-signature and mapped-data verification. */
 int config_image_open(const char *prefix,
 		      struct config_image_open *out);

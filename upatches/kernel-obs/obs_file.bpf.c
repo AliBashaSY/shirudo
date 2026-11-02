@@ -54,7 +54,7 @@ struct file_val {
 #define OBS_T_EMIT	file_emit_record
 #include "obs_table.h"
 
-static int file_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int file_emit_record(struct serial_chunk *chunk, __u32 off,
 			    const struct file_entry __arena *e)
 {
 	*(__u32 *)&chunk->data[off + 8] = e->key.ident.exe.dev;

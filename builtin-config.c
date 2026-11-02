@@ -20,7 +20,7 @@
 #include "util/log.h"
 #include "util/paths.h"
 
-static const struct shirudo_help config_help = {
+static const struct help config_help = {
 	.usage   = "shirudo config",
 	.summary = "Print the effective shirudo configuration in shirudo.conf "
 		   "syntax.\nWhen " CONF_PATH " is absent, prints "
@@ -37,7 +37,7 @@ static void usage(void)
 int cmd_config(int argc, const char **argv)
 {
 	bool image_mode = image_config_active();
-	struct shirudo_config cfg;
+	struct config cfg;
 	bool file_present;
 	int ret;
 	int i;

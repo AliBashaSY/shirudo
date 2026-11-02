@@ -20,7 +20,7 @@ struct {
 	__type(value, __u64);
 } second SEC(".maps");
 
-const struct shirudo_decoder_manifest first_decoder SEC(".rodata") = {
+const struct decoder_manifest first_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,
@@ -33,7 +33,7 @@ const struct shirudo_decoder_manifest first_decoder SEC(".rodata") = {
 	.entrypoint = "decode",
 };
 
-const struct shirudo_decoder_manifest second_decoder SEC(".rodata") = {
+const struct decoder_manifest second_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,

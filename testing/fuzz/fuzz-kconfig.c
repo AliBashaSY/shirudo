@@ -9,7 +9,7 @@
 #include "fuzz.h"
 #include "bpm_tree_state.c"
 
-static struct shirudo_tree_selector sel;
+static struct tree_selector sel;
 static int slots[TREE_SELECTOR_HASH_SIZE];
 
 int LLVMFuzzerInitialize(int *argc, char ***argv)
@@ -29,7 +29,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	static char values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
-	static struct shirudo_tree_kv labels[TREE_MAX_LABELS];
+	static struct tree_kv labels[TREE_MAX_LABELS];
 	bool found[TREE_MAX_KCONFIG] = {};
 	char path[64];
 	int fd, n;

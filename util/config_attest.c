@@ -15,10 +15,10 @@
 #include "json.h"
 #include "malloc.h"
 
-static int append_event(struct shirudo_config_evidence *view,
-			const struct shirudo_config_evidence_event *event)
+static int append_event(struct config_evidence *view,
+			const struct config_evidence_event *event)
 {
-	struct shirudo_config_evidence_event *events;
+	struct config_evidence_event *events;
 	size_t capacity;
 
 	if (view->n_events >= CONFIG_EVIDENCE_EVENTS_MAX)
@@ -36,7 +36,7 @@ static int append_event(struct shirudo_config_evidence *view,
 	return 0;
 }
 
-static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
+static int replay(const struct config_evidence *view, __u8 out[32])
 {
 	__u8 digest[32];
 	__u64 sequence = 0;
@@ -48,7 +48,7 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 		return -EINVAL;
 	memcpy(out, view->initial_pcr, 32);
 	for (i = 0; i < view->n_events; i++) {
-		const struct shirudo_config_evidence_event *event =
+		const struct config_evidence_event *event =
 			&view->events[i];
 
 		if (!event->sequence || event->sequence > INT64_MAX ||
@@ -67,11 +67,11 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 	return 0;
 }
 
-static int collect_event(const struct shirudo_config_update_record *record,
+static int collect_event(const struct config_update_record *record,
 			 void *opaque)
 {
-	struct shirudo_config_evidence_event event = {};
-	struct shirudo_config_evidence *view = opaque;
+	struct config_evidence_event event = {};
+	struct config_evidence *view = opaque;
 
 	if (record->reset_count != view->reset_count ||
 	    record->restart_count != view->restart_count)
@@ -85,11 +85,11 @@ static int collect_event(const struct shirudo_config_update_record *record,
 	return append_event(view, &event);
 }
 
-int config_evidence_collect(struct shirudo_config_update *update,
-			    struct shirudo_config_evidence *out)
+int config_evidence_collect(struct config_update *update,
+			    struct config_evidence *out)
 {
-	struct shirudo_config_update_record active;
-	const struct shirudo_config_evidence_event *last;
+	struct config_update_record active;
+	const struct config_evidence_event *last;
 	int ret;
 
 	memset(out, 0, sizeof(*out));
@@ -119,7 +119,7 @@ int config_evidence_collect(struct shirudo_config_update *update,
 	return 0;
 }
 
-void config_evidence_clear(struct shirudo_config_evidence *view)
+void config_evidence_clear(struct config_evidence *view)
 {
 	if (!view)
 		return;
@@ -127,7 +127,7 @@ void config_evidence_clear(struct shirudo_config_evidence *view)
 	memset(view, 0, sizeof(*view));
 }
 
-static void emit_hash(struct shirudo_json_emit *emit, const char *key,
+static void emit_hash(struct json_emit *emit, const char *key,
 		      const __u8 bytes[32])
 {
 	char hex[65];
@@ -136,8 +136,8 @@ static void emit_hash(struct shirudo_json_emit *emit, const char *key,
 	json_kv_string(emit, key, hex);
 }
 
-int config_evidence_emit(struct shirudo_json_emit *emit,
-			 const struct shirudo_config_evidence *view)
+int config_evidence_emit(struct json_emit *emit,
+			 const struct config_evidence *view)
 {
 	size_t i;
 
@@ -151,7 +151,7 @@ int config_evidence_emit(struct shirudo_json_emit *emit,
 	emit_hash(emit, "initial_pcr", view->initial_pcr);
 	json_arr_open(emit, "events");
 	for (i = 0; i < view->n_events; i++) {
-		const struct shirudo_config_evidence_event *event =
+		const struct config_evidence_event *event =
 			&view->events[i];
 
 		if (event->sequence > INT64_MAX)
@@ -168,8 +168,8 @@ int config_evidence_emit(struct shirudo_json_emit *emit,
 }
 
 struct config_parser {
-	struct shirudo_config_evidence *view;
-	struct shirudo_json_field *event_fields;
+	struct config_evidence *view;
+	struct json_field *event_fields;
 	size_t n_fields;
 	__s64 sequence, kind;
 	char root_hash[65];
@@ -177,7 +177,7 @@ struct config_parser {
 
 static int on_event(void *opaque)
 {
-	struct shirudo_config_evidence_event event = {};
+	struct config_evidence_event event = {};
 	struct config_parser *parser = opaque;
 	size_t i;
 
@@ -196,22 +196,22 @@ static int on_event(void *opaque)
 }
 
 int config_evidence_parse(const char *evidence, size_t length,
-			  struct shirudo_config_evidence *out)
+			  struct config_evidence *out)
 {
 	struct config_parser parser = { .view = out };
-	struct shirudo_json_array sink = { on_event, &parser };
+	struct json_array sink = { on_event, &parser };
 	__s64 schema = 0, reset = 0, restart = 0, pcr = 0;
 	char initial[65] = {};
 	size_t i;
 	int ret;
-	struct shirudo_json_field event_fields[] = {
+	struct json_field event_fields[] = {
 		{ "sequence", SHIRUDO_JSON_T_INT, &parser.sequence, 0, 0, NULL,
 		  0 },
 		{ "kind", SHIRUDO_JSON_T_INT, &parser.kind, 0, 0, NULL, 0 },
 		{ "root_hash", SHIRUDO_JSON_T_STRING, parser.root_hash,
 		  sizeof(parser.root_hash), 0, NULL, 0 },
 	};
-	struct shirudo_json_field config_fields[] = {
+	struct json_field config_fields[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "pcr", SHIRUDO_JSON_T_INT, &pcr, 0, 0, NULL, 0 },
 		{ "reset_count", SHIRUDO_JSON_T_INT, &reset, 0, 0, NULL, 0 },
@@ -222,7 +222,7 @@ int config_evidence_parse(const char *evidence, size_t length,
 		{ "events", SHIRUDO_JSON_T_ARRAY, &sink, 0, 0, event_fields,
 		  ARRAY_SIZE(event_fields) },
 	};
-	struct shirudo_json_field top[] = {
+	struct json_field top[] = {
 		{ "config", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, config_fields,
 		  ARRAY_SIZE(config_fields) },
 	};
@@ -260,7 +260,7 @@ fail:
 	return ret;
 }
 
-int config_evidence_verify(const struct shirudo_config_evidence *view,
+int config_evidence_verify(const struct config_evidence *view,
 			   __u32 quote_mask, __u32 reset,
 			   __u32 restart, const __u8 pcrs[24][32],
 			   const __u8 *expected_root,

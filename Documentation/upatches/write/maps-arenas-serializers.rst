@@ -107,7 +107,7 @@ Serializer interface
 
 A serializer is a ``SEC("syscall")`` program named
 ``shirudo_serialize__<map>``. It writes into ``shirudo_ser``, an array map
-with a ``__u32`` key and ``struct shirudo_serial_chunk`` values that the
+with a ``__u32`` key and ``struct serial_chunk`` values that the
 upatch defines with 1 to 256 entries. ``bpf/lib/serializer.h``
 holds the definitions. The builder refuses a serializer that is not in
 ``SEC("syscall")``, targets a map that does not exist or is

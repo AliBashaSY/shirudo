@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct shirudo_image_bootstrap {
+struct image_bootstrap {
 	char runtime[PATH_MAX];
 	char config[PATH_MAX];
 	char certificate[PATH_MAX];
@@ -23,10 +23,10 @@ struct shirudo_image_bootstrap {
 bool image_path_valid(const char *path);
 /* Only the authenticated initrd may supply runtime.image and root_hash. */
 int image_bootstrap_read(const char *path,
-			 struct shirudo_image_bootstrap *boot,
+			 struct image_bootstrap *boot,
 			 bool initial);
 int image_bootstrap_read_fd(int fd,
-			    struct shirudo_image_bootstrap *boot,
+			    struct image_bootstrap *boot,
 			    bool initial);
 
 #endif /* SHIRUDO_IMAGE_BOOTSTRAP_H */

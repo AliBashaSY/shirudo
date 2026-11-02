@@ -44,7 +44,7 @@ void sha256_2(const void *a, size_t a_len,
 /* Constant time; 1 when equal. */
 int ct_eq(const void *a, const void *b, size_t n);
 
-struct shirudo_measured_upatch {
+struct measured_upatch {
 	char	name[UPATCH_NAME_MAX + 1];
 	char	payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
 };
@@ -54,7 +54,7 @@ struct shirudo_measured_upatch {
  * The set is sorted by name before hashing.
  */
 int chain_init_event(const __u8 cert_sha[32],
-		     struct shirudo_measured_upatch *set, size_t n,
+		     struct measured_upatch *set, size_t n,
 		     const __u8 tree_root[32],
 		     __u8 set_digest[32], __u8 event[32]);
 /* SHA256(tag || NUL || cert_sha256), tag "shirudo-key-revoke". */
@@ -71,7 +71,7 @@ void chain_fold(__u8 chain[32], const __u8 event[32]);
 int chain_anchor(const __u8 name[TPM_NAME_LEN],
 		 char *out, size_t cap);
 
-struct shirudo_chain_init_info {
+struct chain_init_info {
 	__u8		writer_public[TPM_NV_RSA_BYTES];
 	bool		reused;		/* written and on record */
 	bool		initrd;		/* bound while the initrd ran */
@@ -94,7 +94,7 @@ struct shirudo_chain_init_info {
  * the computed one.
  */
 int chain_init(const __u8 event[CHAIN_DIGEST_LEN],
-	       struct shirudo_chain_init_info *info);
+	       struct chain_init_info *info);
 
 /*
  * Extend this boot's register by one event through the written
@@ -108,14 +108,14 @@ int chain_extend(const __u8 event[CHAIN_DIGEST_LEN],
 /* The live value; -ENODEV when no register is written this boot. */
 int chain_read(__u8 out[CHAIN_DIGEST_LEN]);
 
-struct shirudo_tpm;
+struct tpm;
 
 /*
  * Whether the TPM behind an open handle is the one init recorded, by
  * the name of its attestation key: 0 when it is or enforcement is not
  * live, -EACCES for another TPM, -EPROTO without a record.
  */
-int chain_tpm_bound(struct shirudo_tpm *tpm);
+int chain_tpm_bound(struct tpm *tpm);
 
 /* For a probe: a TPM that does not answer is not logged. */
 bool chain_bound(void);
@@ -130,7 +130,7 @@ struct chain_status {
 	__u8		value[CHAIN_DIGEST_LEN];
 	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
-	struct shirudo_eventlog_init init;
+	struct eventlog_init init;
 };
 
 int chain_status(struct chain_status *st);

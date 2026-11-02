@@ -14,7 +14,7 @@
 
 #define KMOD_NAME_LEN	64
 
-struct shirudo_kmod {
+struct kmod {
 	char		name[KMOD_NAME_LEN];
 	__u64		size;		/* bytes */
 	__u32		refcount;	/* /proc/modules column 3 */
@@ -30,25 +30,25 @@ struct shirudo_kmod {
 	__s32		loaded_at_nsec;
 };
 
-struct shirudo_kmod_set {
-	struct shirudo_kmod	*mods;	/* sorted by name, ascending */
+struct kmod_set {
+	struct kmod	*mods;	/* sorted by name, ascending */
 	size_t			n;
 	__u16			*deps;	/* flat: mods[i].deps_off..+n_deps */
 	size_t			n_deps;
 };
 
-int  kmodules_read(struct shirudo_kmod_set *set);
+int  kmodules_read(struct kmod_set *set);
 /* The text of /proc/modules, modified in place, into set. */
-int  kmodules_parse(char *buf, struct shirudo_kmod_set *set);
-void kmodules_free(struct shirudo_kmod_set *set);
+int  kmodules_parse(char *buf, struct kmod_set *set);
+void kmodules_free(struct kmod_set *set);
 
-void kmodules_print_tree(const struct shirudo_kmod_set *set);
+void kmodules_print_tree(const struct kmod_set *set);
 
 /*
  * boot_sec is the wallclock instant of boot: the since-boot column is
  * elapsed from boot, not time ago.
  */
-void kmodules_print_recent(const struct shirudo_kmod_set *set,
+void kmodules_print_recent(const struct kmod_set *set,
 			   size_t last_n, __s64 boot_sec);
 
 #endif /* SHIRUDO_UTIL_KMODULES_H */

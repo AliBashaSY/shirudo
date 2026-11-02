@@ -14,7 +14,7 @@
 
 static int read_bootstrap(int argc, char **argv)
 {
-	struct shirudo_image_bootstrap boot = {};
+	struct image_bootstrap boot = {};
 	char root[65];
 	int ret;
 
@@ -33,7 +33,7 @@ static int read_bootstrap(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_config bootstrap, effective;
+	struct config bootstrap, effective;
 	int fd, ret;
 
 	if (argc < 3 || argc > 4)

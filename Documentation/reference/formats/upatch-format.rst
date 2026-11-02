@@ -39,7 +39,7 @@ region through the header only.
      - Content
    * - header
      - offset 0, 360 bytes
-     - ``struct shirudo_upatch_header``.
+     - ``struct upatch_header``.
    * - ``loader_insns``
      - ``loader_insns_off``, ``loader_insns_len``
      - The ``BPF_PROG_TYPE_SYSCALL`` loader program that libbpf's
@@ -60,7 +60,7 @@ region through the header only.
 Header
 ------
 
-``struct shirudo_upatch_header``, 360 bytes, no padding.
+``struct upatch_header``, 360 bytes, no padding.
 
 .. list-table::
    :header-rows: 1
@@ -565,7 +565,7 @@ Each decoder entry:
      - ``source_len``
      - Length of the source, non-zero.
 
-The writer takes each entry from a ``struct shirudo_decoder_manifest`` that
+The writer takes each entry from a ``struct decoder_manifest`` that
 the BPF program declares in ``.rodata`` (``bpf/lib/decoder.h``,
 192 bytes, magic ``0x44434544``, the bytes ``DECD``, ``u16`` fields
 ``version``, ``language``, ``api_version``, ``input_format``,

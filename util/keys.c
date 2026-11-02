@@ -110,7 +110,7 @@ int keys_read_der(const char *path, __u8 **out,
 int keys_digest_der(const __u8 *der, size_t der_sz,
 		    __u8 sha256[32], __u8 fingerprint[32])
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	int ret;
 
 	ret = sha256_buffer(der, der_sz, sha256);
@@ -161,7 +161,7 @@ static int der_keep(const __u8 sha256[32], const __u8 *der, size_t len)
 	return 0;
 }
 
-int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
+int keys_cert_der(const struct trusted_cert *c, const __u8 **der,
 		  size_t *len)
 {
 	size_t i;
@@ -176,8 +176,8 @@ int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
 	return -ENOKEY;
 }
 
-int keys_cert_read(const struct shirudo_trusted_cert *c,
-		   struct shirudo_cert *cert)
+int keys_cert_read(const struct trusted_cert *c,
+		   struct cert *cert)
 {
 	const __u8 *der;
 	size_t len;
@@ -271,7 +271,7 @@ int keys_vouch_payload(const __u8 *der, size_t der_sz,
 	return 0;
 }
 
-int keys_verify_vouch(const struct shirudo_trusted_set *set,
+int keys_verify_vouch(const struct trusted_set *set,
 		      const __u8 *der, size_t der_sz,
 		      const __u8 *sig, size_t sig_sz,
 		      __u8 voucher[32])
@@ -285,7 +285,7 @@ int keys_verify_vouch(const struct shirudo_trusted_set *set,
 		return ret;
 	ret = -EKEYREJECTED;
 	for (i = 0; i < set->n && ret; i++) {
-		struct shirudo_cert cert = {};
+		struct cert cert = {};
 
 		if (keys_cert_read(&set->certs[i], &cert))
 			continue;
@@ -302,11 +302,11 @@ int keys_verify_vouch(const struct shirudo_trusted_set *set,
 
 static int cert_cmp(const void *a, const void *b)
 {
-	return memcmp(((const struct shirudo_trusted_cert *)a)->sha256,
-		      ((const struct shirudo_trusted_cert *)b)->sha256, 32);
+	return memcmp(((const struct trusted_cert *)a)->sha256,
+		      ((const struct trusted_cert *)b)->sha256, 32);
 }
 
-static bool set_holds(const struct shirudo_trusted_set *set,
+static bool set_holds(const struct trusted_set *set,
 		      const __u8 fingerprint[32])
 {
 	size_t i;
@@ -318,11 +318,11 @@ static bool set_holds(const struct shirudo_trusted_set *set,
 	return false;
 }
 
-static int set_add(struct shirudo_trusted_set *set, const char *path,
+static int set_add(struct trusted_set *set, const char *path,
 		   const __u8 sha256[32], const __u8 fingerprint[32],
 		   const __u8 voucher[32], const __u8 *der, size_t der_sz)
 {
-	struct shirudo_trusted_cert *c;
+	struct trusted_cert *c;
 	int ret;
 
 	if (set->n >= KEYS_MAX)
@@ -396,7 +396,7 @@ static int vouch_path_for(const char *der_path, char *out, size_t cap)
  * Admit the candidates whose vouch verifies under a member, in rounds,
  * so a certificate vouched for by one admitted later still joins.
  */
-static int admit_vouched(struct shirudo_trusted_set *set,
+static int admit_vouched(struct trusted_set *set,
 			 struct keys_candidate *cand, size_t n_cand)
 {
 	bool progress = true;
@@ -460,7 +460,7 @@ static void candidates_free(struct keys_candidate *cand, size_t n)
  * candidates for admission, which needs the whole list first.
  */
 static int scan_trusted(const char *keys_dir, const char *revoked_dir,
-			struct shirudo_trusted_set *set,
+			struct trusted_set *set,
 			struct keys_candidate *cand, size_t *n_cand)
 {
 	struct dirent **names = NULL;
@@ -563,7 +563,7 @@ static int scan_trusted_at(int keys_fd, const char *display,
 
 static int load_set(const char *primary, const char *keys_dir,
 		    const char *revoked_dir, bool with_trusted,
-		    struct shirudo_trusted_set *set)
+		    struct trusted_set *set)
 {
 	struct keys_candidate *cand = NULL;
 	__u8 sha256[32], fingerprint[32];
@@ -612,7 +612,7 @@ sort:
  * revoked certificate's vouch for another still admits it.
  */
 static int load_set_at(const char *primary, int keys_fd, const char *display,
-		       bool with_trusted, struct shirudo_trusted_set *set)
+		       bool with_trusted, struct trusted_set *set)
 {
 	struct keys_candidate *cand = NULL;
 	__u8 sha256[32], fingerprint[32];
@@ -661,14 +661,14 @@ out:
 
 int keys_load_image_at(const char *primary, int keys_fd,
 		       bool with_trusted,
-		       struct shirudo_trusted_set *set)
+		       struct trusted_set *set)
 {
 	return load_set_at(primary, keys_fd, "keys", with_trusted, set);
 }
 
 int keys_load_image_root(const char *primary, int root_fd,
 			 bool with_trusted,
-			 struct shirudo_trusted_set *set)
+			 struct trusted_set *set)
 {
 	int keys_fd, ret;
 
@@ -685,7 +685,7 @@ int keys_load_image_root(const char *primary, int root_fd,
 }
 
 int keys_load(const char *keys_dir, const char *revoked_dir,
-	      bool with_trusted, struct shirudo_trusted_set *set)
+	      bool with_trusted, struct trusted_set *set)
 {
 	char primary[PATH_MAX];
 
@@ -728,7 +728,7 @@ int keys_anchor_digest(const __u8 sha256[][32], size_t n,
 	return ret;
 }
 
-int keys_set_digest(const struct shirudo_trusted_set *set,
+int keys_set_digest(const struct trusted_set *set,
 		    __u8 out[32])
 {
 	__u8 sha[KEYS_MAX][32];

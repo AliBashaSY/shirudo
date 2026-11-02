@@ -266,10 +266,10 @@ static int build_parse_string_array(const char *value,
 }
 
 static int build_parse_selector_kv(const char *key, const char *value,
-				   struct shirudo_tree_selector_kv *kvs,
+				   struct tree_selector_kv *kvs,
 				   int max, int *n)
 {
-	struct shirudo_tree_selector_kv *kv;
+	struct tree_selector_kv *kv;
 	size_t key_len = strlen(key);
 
 	if (key_len >= 2 && (key[0] == '"' || key[0] == '\'') &&
@@ -361,7 +361,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 {
 	struct bpm_build_upatch *upatch = NULL, *tree_owner = NULL;
 	struct bpm_build_rodata *rodata = NULL;
-	struct shirudo_tree_selector *sel = NULL;
+	struct tree_selector *sel = NULL;
 	struct bpm_build_file *file = NULL;
 	bool tree_section = false;
 	char *save = NULL, *line;
@@ -1166,7 +1166,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		struct bpm_build_upatch *u = &spec->upatches[i];
 		const char *bpf_o = source, *src_path = NULL;
 		__u8 payload[CRYPTO_SHA256_LEN];
-		struct shirudo_upatch parsed = {};
+		struct upatch parsed = {};
 		int ret;
 
 		if (build_resolve_source(spec, u->source, source, sizeof(source),
@@ -1241,7 +1241,7 @@ static int build_environment(const struct bpm_build_spec *spec,
 			     __u8 **out, size_t *out_len)
 {
 	char *body = xmalloc(BPM_BUILD_MAX_JSON);
-	struct shirudo_json_emit e = { .buf = body, .cap = BPM_BUILD_MAX_JSON };
+	struct json_emit e = { .buf = body, .cap = BPM_BUILD_MAX_JSON };
 	struct utsname un = {};
 	char self[PATH_MAX] = "shirudo";
 	char timestamp[32] = {};
@@ -1514,7 +1514,7 @@ static int build_bpm_build(int argc, char **argv)
 	char keys_abs[PATH_MAX], pkey[PATH_MAX], cert_path[PATH_MAX];
 	char fingerprint[CRYPTO_SHA256_LEN * 2 + 1];
 	__u8 digest[CRYPTO_SHA256_LEN];
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	struct bpm_build_spec *spec;
 	int positional = 0, ret;
 	char out_dir[PATH_MAX];
@@ -1810,7 +1810,7 @@ static int build_bpm_config_update(int argc, char **argv)
 	char out_dir[PATH_MAX], pkey[PATH_MAX], cert_path[PATH_MAX];
 	char fingerprint[CRYPTO_SHA256_LEN * 2 + 1];
 	__u8 digest[CRYPTO_SHA256_LEN], *body = NULL;
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	struct bpm_package_info base_info = {};
 	struct bpm_build_spec *spec;
 	size_t body_len = 0;
@@ -2022,7 +2022,7 @@ static int build_bpm_config_update(int argc, char **argv)
 		struct bpm_build_upatch *upatch = &spec->upatches[i];
 		char load[PATH_MAX], unload[PATH_MAX];
 		char expected_name[UPATCH_NAME_MAX];
-		struct shirudo_upatch parsed = {};
+		struct upatch parsed = {};
 		__u8 payload[CRYPTO_SHA256_LEN];
 
 		if (strsprintf(load, sizeof(load), "%s/update-%zu.upatch",

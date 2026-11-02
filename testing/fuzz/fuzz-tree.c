@@ -12,7 +12,7 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_tree_publication pub;
+	struct tree_publication pub;
 	char digest[72], *out;
 	size_t len;
 

@@ -27,7 +27,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 1);
 	__type(key, __u32);
-	__type(value, struct shirudo_serial_chunk);
+	__type(value, struct serial_chunk);
 } shirudo_ser SEC(".maps");
 
 struct {
@@ -37,7 +37,7 @@ struct {
 	__type(value, __u32);
 } counter_state SEC(".maps");
 
-const struct shirudo_decoder_manifest counters_decoder SEC(".rodata") = {
+const struct decoder_manifest counters_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,
@@ -51,9 +51,9 @@ const struct shirudo_decoder_manifest counters_decoder SEC(".rodata") = {
 };
 
 SEC("syscall")
-int shirudo_serialize__counters(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__counters(struct serialize_ctx *ctx)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	struct counter_record record = {};
 	struct counter_value *value;
 	__u32 *initialized;

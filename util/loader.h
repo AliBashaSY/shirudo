@@ -15,14 +15,14 @@ extern const char shirudo_bpf2_o[], shirudo_bpf2_o_end[];
 extern const char shirudo_seal_o[], shirudo_seal_o_end[];
 extern const char shirudo_unload_bpf_o[], shirudo_unload_bpf_o_end[];
 
-struct shirudo_embedded_bpf {
+struct embedded_bpf {
 	const char	*name;
 	const void	*data;
 	size_t		size;
 };
 
-const struct shirudo_embedded_bpf *bpf2_blob(void);
-const struct shirudo_embedded_bpf *seal_blob(void);
-const struct shirudo_embedded_bpf *unload_blob(void);
+const struct embedded_bpf *bpf2_blob(void);
+const struct embedded_bpf *seal_blob(void);
+const struct embedded_bpf *unload_blob(void);
 
 #endif /* SHIRUDO_LOADER_H */

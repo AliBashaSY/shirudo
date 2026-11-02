@@ -160,7 +160,7 @@ static bool pkey_is_mldsa87(const EVP_PKEY *pkey)
 	return EVP_PKEY_is_a(pkey, "ML-DSA-87");
 }
 
-int cms_sign(struct shirudo_sign_io *io,
+int cms_sign(struct sign_io *io,
 	     const char *pkey_path, const char *cert_path)
 {
 	unsigned int signer_flags = CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |

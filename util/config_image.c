@@ -104,9 +104,9 @@ static int validate_superblock(const struct verity_superblock *header)
 }
 
 int config_image_read_header(int hash_fd,
-			     struct shirudo_config_image *out)
+			     struct config_image *out)
 {
-	struct shirudo_config_image image = {};
+	struct config_image image = {};
 	struct verity_superblock header;
 	int ret;
 
@@ -127,7 +127,7 @@ int config_image_read_header(int hash_fd,
 }
 
 int config_image_check_files(int data_fd, int hash_fd,
-			     const struct shirudo_config_image *image)
+			     const struct config_image *image)
 {
 	__u64 data_size, hash_size, blocks;
 	int ret;

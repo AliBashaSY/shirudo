@@ -32,7 +32,7 @@ static int has(const char *haystack, const char *needle)
 static int check_abi_and_nonce(void)
 {
 	__u64 generated = 0;
-	struct shirudo_serial_chunk chunk = {
+	struct serial_chunk chunk = {
 		.magic = SERIAL_MAGIC,
 		.version = SERIAL_VERSION,
 		.chunk_index = 1,
@@ -46,8 +46,8 @@ static int check_abi_and_nonce(void)
 	};
 
 	if (SERIAL_VERSION != 1 ||
-	    sizeof(struct shirudo_serialize_ctx) != 40 ||
-	    sizeof(struct shirudo_serial_chunk) != 4096 ||
+	    sizeof(struct serialize_ctx) != 40 ||
+	    sizeof(struct serial_chunk) != 4096 ||
 	    SERIAL_CHUNK_PAYLOAD != 4032)
 		return fail("serializer v1 ABI layout mismatch");
 	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x12345678) != 0)
@@ -111,7 +111,7 @@ int main(void)
 {
 	__u8 page0_data[] = { 0xaa, 0xbb };
 	__u8 page1_data[] = { 0xcc };
-	struct shirudo_serial_page pages[2] = {
+	struct serial_page pages[2] = {
 		{
 			.page_index = 0,
 			.cursor = 0,
@@ -133,7 +133,7 @@ int main(void)
 			.data = page1_data,
 		},
 	};
-	struct shirudo_map_view v = {
+	struct map_view v = {
 		.name = "tree_arena",
 		.type_name = "arena",
 		.max_entries = 32,
@@ -142,7 +142,7 @@ int main(void)
 		.serial_bytes_total = sizeof(page0_data) + sizeof(page1_data),
 		.serial_pages = pages,
 	};
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char buf[2048];
 	char doc[4096];
 
@@ -179,7 +179,7 @@ int main(void)
 	if (has(buf, "\"serialized_chunks\""))
 		return fail("old chunk field still emitted");
 
-	e = (struct shirudo_json_emit){ .buf = doc, .cap = sizeof(doc) };
+	e = (struct json_emit){ .buf = doc, .cap = sizeof(doc) };
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "upatch", "exec-uid-arena");

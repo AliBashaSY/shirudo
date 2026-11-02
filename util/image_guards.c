@@ -25,7 +25,7 @@
 #include "paths.h"
 #include "tamper.h"
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_bprm_check_security",
 	  SEAL_BPRM_CHECK_PIN },
@@ -56,7 +56,7 @@ shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	  SEAL_PERF_PIN },
 };
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_image_seal_guards[IMAGE_SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_mmap_file",
 	  BPFFS_DIR "/seal_mmap_link" },
@@ -64,7 +64,7 @@ shirudo_image_seal_guards[IMAGE_SEAL_HOOK_COUNT] = {
 	  BPFFS_DIR "/seal_mprotect_link" },
 };
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_mount_guards[MOUNT_HOOK_COUNT] = {
 	{ "shirudo_lsm_sb_umount",  SB_UMOUNT_LINK_PIN },
 	{ "shirudo_lsm_move_mount", MOVE_MOUNT_LINK_PIN },
@@ -73,7 +73,7 @@ shirudo_mount_guards[MOUNT_HOOK_COUNT] = {
 	{ "shirudo_lsm_file_open", BPFFS_DIR "/bpf2_file_open_link" },
 };
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_observer_guards[OBSERVER_HOOK_COUNT] = {
 	{ "shirudo_lsm_task_prctl", TASK_PRCTL_LINK_PIN },
 	{ "shirudo_lsm_bprm_check_security", BPRM_CHECK_LINK_PIN },
@@ -93,7 +93,7 @@ shirudo_observer_guards[OBSERVER_HOOK_COUNT] = {
 	  BPFFS_DIR "/kernel_read_file_link" },
 };
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT] = {
 	{ "shirudo_lsm_file_ioctl", BPFFS_DIR "/file_ioctl_link" },
 	{ "shirudo_lsm_file_ioctl_compat",
@@ -104,7 +104,7 @@ shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT] = {
 	  BPFFS_DIR "/bdev_free_link" },
 };
 
-const struct shirudo_image_guard
+const struct image_guard
 shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT] = {
 	[SHIRUDO_GUARD_UNLINK] = {
 		"shirudo_lsm_inode_unlink", INODE_UNLINK_LINK_PIN,
@@ -132,26 +132,26 @@ shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT] = {
 	},
 };
 
-const struct shirudo_guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
+const struct guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
 	[SHIRUDO_GUARD_IDENTITY] = {
 		"shirudo_bpffs_sb", IDENTITY_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
-		sizeof(struct shirudo_identity), 1, 0,
+		sizeof(struct identity), 1, 0,
 	},
 	[SHIRUDO_GUARD_TASKS] = {
 		"shirudo_tasks", BPFFS_DIR "/task_authority",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
-		sizeof(struct shirudo_task_authority), 0, BPF_F_NO_PREALLOC,
+		sizeof(struct task_authority), 0, BPF_F_NO_PREALLOC,
 	},
 	[SHIRUDO_GUARD_DEVICES] = {
 		"shirudo_devices", BPFFS_DIR "/devices",
 		BPF_MAP_TYPE_HASH, sizeof(__u64),
-		sizeof(struct shirudo_device_authority), 128, 0,
+		sizeof(struct device_authority), 128, 0,
 	},
 	[SHIRUDO_GUARD_ROOTS] = {
 		"shirudo_roots", BPFFS_DIR "/config_roots",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
-		sizeof(struct shirudo_expected_root), 0, BPF_F_NO_PREALLOC,
+		sizeof(struct expected_root), 0, BPF_F_NO_PREALLOC,
 	},
 	[SHIRUDO_GUARD_TAMPER] = {
 		"shirudo_tamper", TAMPER_PIN,
@@ -162,14 +162,14 @@ const struct shirudo_guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
 
 /* Initial authenticated boot creates mappings before these guards exist. */
 int config_root_begin(const __u8 root[32],
-		      struct shirudo_config_root_guard *guard)
+		      struct config_root_guard *guard)
 {
-	struct shirudo_expected_root previous = {}, expected = { .valid = 1 };
-	const struct shirudo_guard_map *map =
+	struct expected_root previous = {}, expected = { .valid = 1 };
+	const struct guard_map *map =
 		&shirudo_guard_maps[SHIRUDO_GUARD_ROOTS];
 	int mode, ret;
 
-	*guard = (struct shirudo_config_root_guard) {
+	*guard = (struct config_root_guard) {
 		.map_fd = -1,
 		.task_fd = -1,
 	};
@@ -212,9 +212,9 @@ fail:
 }
 
 /* Clear through retained FDs on every exit; report failure to clear. */
-int config_root_end(struct shirudo_config_root_guard *guard)
+int config_root_end(struct config_root_guard *guard)
 {
-	struct shirudo_expected_root empty = {};
+	struct expected_root empty = {};
 	int ret = 0;
 
 	if (guard->map_fd < 0)
@@ -237,7 +237,7 @@ static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
 	int fd, ret;
 
 	for (i = 0; i < SHIRUDO_GUARD_MAP_COUNT; i++) {
-		const struct shirudo_guard_map *expected =
+		const struct guard_map *expected =
 			&shirudo_guard_maps[i];
 
 		fd = bpf_obj_get(expected->pin);
@@ -331,7 +331,7 @@ static int guard_kernel_btf(__u32 id, struct btf **result)
 	return 0;
 }
 
-static int guard_link(const struct shirudo_image_guard *guard,
+static int guard_link(const struct image_guard *guard,
 		      const __u32 maps[SHIRUDO_GUARD_MAP_COUNT],
 		      struct btf **kernel, __u32 *kernel_id)
 {
@@ -398,7 +398,7 @@ static int guard_link(const struct shirudo_image_guard *guard,
 int image_guards_ready(void)
 {
 	const struct {
-		const struct shirudo_image_guard *guards;
+		const struct image_guard *guards;
 		size_t count;
 	} groups[] = {
 		{
@@ -437,7 +437,7 @@ int image_guards_ready(void)
 		return ret;
 	for (i = 0; i < ARRAY_SIZE(groups); i++) {
 		for (j = 0; j < groups[i].count; j++) {
-			const struct shirudo_image_guard *guard =
+			const struct image_guard *guard =
 				&groups[i].guards[j];
 
 			ret = guard_link(guard, map_ids, &kernel, &kernel_id);

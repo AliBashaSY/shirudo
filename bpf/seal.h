@@ -69,9 +69,9 @@ int bpf_inode_init_xattr(struct xattr *xattrs, int *xattr_count__ctx_out,
  * Labels identify protected writable targets. Caller authority comes from
  * successful runtime exec, never from a label on the caller's binary.
  */
-static __always_inline int seal_caller(enum shirudo_tamper_point point)
+static __always_inline int seal_caller(enum tamper_point point)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -91,7 +91,7 @@ static __always_inline int seal_caller(enum shirudo_tamper_point point)
  * caller to be shirudo. 0 = allow, -EACCES = deny.
  */
 static __always_inline int seal_verdict(int tlen,
-					enum shirudo_tamper_point point)
+					enum tamper_point point)
 {
 	switch (tlen) {
 	case -ENODATA:
@@ -150,7 +150,7 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	      const struct linux_binprm *bprm)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_authority *authority;
+	struct task_authority *authority;
 
 	(void)bprm;
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL, 0);
@@ -167,8 +167,8 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	     __u64 clone_flags, int ret)
 {
 	struct task_struct *parent = bpf_get_current_task_btf();
-	struct shirudo_task_authority *parent_authority;
-	struct shirudo_task_authority *authority;
+	struct task_authority *parent_authority;
+	struct task_authority *authority;
 
 	(void)clone_flags;
 	if (ret)
@@ -344,7 +344,7 @@ int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
 }
 
 static __always_inline int seal_dentry(struct dentry *dentry,
-				       enum shirudo_tamper_point point)
+				       enum tamper_point point)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct seal_scratch *s = seal_scratch_get(task);

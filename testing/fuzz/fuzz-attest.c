@@ -17,15 +17,15 @@ static const __u8 nonce[16] = {
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_attest_challenge_policy pol = {
+	struct attest_challenge_policy pol = {
 		.trust_presented = true,
 	};
-	struct shirudo_attest_expect expect = {
+	struct attest_expect expect = {
 		.nonce = nonce,
 		.nonce_len = sizeof(nonce),
 		.allow_runtime_events = true,
 	};
-	struct shirudo_attest_challenge challenge;
+	struct attest_challenge challenge;
 	__u8 credential[TPM_CREDENTIAL_LEN];
 	size_t out_len, cap;
 	char report[4096];

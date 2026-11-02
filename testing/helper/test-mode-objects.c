@@ -10,7 +10,7 @@
 #include "util/loader.h"
 
 static int symbols(const char *selection,
-		   const struct shirudo_embedded_bpf *blob)
+		   const struct embedded_bpf *blob)
 {
 	Elf_Scn *section = NULL;
 	Elf *elf;
@@ -60,7 +60,7 @@ static int symbols(const char *selection,
 }
 
 static int inspect(const char *selection,
-		   const struct shirudo_embedded_bpf *blob)
+		   const struct embedded_bpf *blob)
 {
 	struct bpf_program *program;
 	struct bpf_object *obj;

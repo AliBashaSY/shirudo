@@ -74,7 +74,7 @@ static bool safe_upatch_name(const char *name);
 #define NF_IP6_PRI_RAW_BEFORE_DEFRAG	(-450)
 #endif
 
-static void rep_fail(struct shirudo_op_report *rep, const char *phase,
+static void rep_fail(struct op_report *rep, const char *phase,
 		     const char *cat, int err, const char *msg)
 {
 	if (!rep)
@@ -108,7 +108,7 @@ static const char *cat_from_load_errno(int e)
 	}
 }
 
-static const char *flag_str(const struct shirudo_upatch *u)
+static const char *flag_str(const struct upatch *u)
 {
 	return upatch_is_unload(u) ? "UNLOAD-directive" : "LOAD";
 }
@@ -139,7 +139,7 @@ static int print_sha256_hex(const __u8 hash[32])
 	return fputs(hex, stdout) < 0 ? -1 : 0;
 }
 
-static const struct shirudo_help upatch_info_help = {
+static const struct help upatch_info_help = {
 	.usage   = "shirudo upatch info [--json] <file.upatch>",
 	.summary = "Describe a .upatch file: header, signature, payload "
 		   "digest,\nattach metadata and signed decoders. Offline -- "
@@ -152,7 +152,7 @@ static const struct shirudo_help upatch_info_help = {
 "  shirudo upatch info --json /var/lib/shirudo/upatches/foo.upatch",
 };
 
-static const struct shirudo_help upatch_list_help = {
+static const struct help upatch_list_help = {
 	.usage   = "shirudo upatch list [--json]",
 	.summary = "List upatches on this host. Shows the persisted set\n"
 		   "(under /var/lib/shirudo/upatches/, survives reboot) "
@@ -165,7 +165,7 @@ static const struct shirudo_help upatch_list_help = {
 "  shirudo upatch list --json | jq",
 };
 
-static const struct shirudo_help upatch_load_help = {
+static const struct help upatch_load_help = {
 	.usage   = "shirudo upatch load [--expect-chain=<hex>] "
 		   "[--expect-version-id=<hex>]\n"
 		   "                       [--no-precheck] [--no-version-check] "
@@ -182,7 +182,7 @@ static const struct shirudo_help upatch_load_help = {
 "  shirudo upatch load --report=- foo.upatch | jq",
 };
 
-static const struct shirudo_help upatch_unload_help = {
+static const struct help upatch_unload_help = {
 	.usage   = "shirudo upatch unload [--expect-chain=<hex>] "
 		   "[--expect-version-id=<hex>]\n"
 		   "                       [--no-precheck] [--no-version-check] "
@@ -198,7 +198,7 @@ static const struct shirudo_help upatch_unload_help = {
 "  shirudo upatch unload --report=- foo.unload.upatch | jq",
 };
 
-static const struct shirudo_help_item upatch_map_options[] = {
+static const struct help_item upatch_map_options[] = {
 	{ "--all", "export every map from every loaded upatch" },
 	{ "--json[=<path>]", "print JSON or append it to path" },
 	{ "--show-full",  "lift the per-map 256-entry truncation cap" },
@@ -211,11 +211,11 @@ static const struct shirudo_help_item upatch_map_options[] = {
 	{ "--s3-uri=<uri>", "S3 overflow destination for OTLP payloads" },
 };
 
-static const struct shirudo_help_section upatch_map_sections[] = {
+static const struct help_section upatch_map_sections[] = {
 	{ "options:", upatch_map_options, ARRAY_SIZE(upatch_map_options) },
 };
 
-static const struct shirudo_help upatch_map_help = {
+static const struct help upatch_map_help = {
 	.usage      = "shirudo upatch map [--all] [<upatch>] [<map>] "
 		      "[--json[=<path>]] [--show-full] [--peek]\n"
 		      "                          [--otel] "
@@ -249,16 +249,16 @@ static const struct shirudo_help upatch_map_help = {
 "  shirudo upatch map cve-2026-31431-counter big_hash --show-full",
 };
 
-static const struct shirudo_help_item upatch_get_options[] = {
+static const struct help_item upatch_get_options[] = {
 	{ "--json",       "machine-readable JSON output" },
 	{ "--show-full",  "lift the per-map 256-entry truncation cap" },
 };
 
-static const struct shirudo_help_section upatch_get_sections[] = {
+static const struct help_section upatch_get_sections[] = {
 	{ "options:", upatch_get_options, ARRAY_SIZE(upatch_get_options) },
 };
 
-static const struct shirudo_help upatch_get_help = {
+static const struct help upatch_get_help = {
 	.usage   = "shirudo upatch get <name> [--json] [--show-full]",
 	.summary = "Describe a loaded upatch from the target kernel:\n"
 		   "  - the SEC()-style attach hook (e.g. fexit/tcp_v4_connect),\n"
@@ -279,7 +279,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 {
 	char name[UPATCH_NAME_MAX + 1];	/* not NUL-term on disk */
 	const __u8 *unload_payload;
-	struct shirudo_upatch u;
+	struct upatch u;
 	const char *path = NULL;
 	bool json = false;
 	int i, err, ret = 1;
@@ -321,7 +321,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 
 	if (json) {
 		size_t cap = 8192 + (size_t)u.nr_decoders * 768;
-		struct shirudo_json_emit e = {};
+		struct json_emit e = {};
 		char payload_hex[2 * 32 + 1];
 		char *buf = xmalloc(cap);
 
@@ -505,7 +505,7 @@ test_pin:
 static int cmd_upatch_list(int argc, const char **argv)
 {
 	struct dirent **persisted = NULL, **active = NULL;
-	struct shirudo_json_emit e = { .buf = NULL };
+	struct json_emit e = { .buf = NULL };
 	int np, na, i, j, ret = 0;
 	bool json = false;
 	char *jbuf = NULL;
@@ -554,7 +554,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 	for (i = 0; i < np; i++) {
 		char path[1024], name[UPATCH_NAME_MAX + 1];
 		char payload_hex[2 * 32 + 1];
-		struct shirudo_upatch u;
+		struct upatch u;
 		const char *type, *payload_type;
 		bool loaded;
 
@@ -657,7 +657,7 @@ out:
  * signature or keyring, so the attr is built by hand.
  */
 
-struct shirudo_loader_ctx {
+struct loader_ctx {
 	__u32		sz;
 	__u32		flags;
 	__u32		log_level;
@@ -665,13 +665,13 @@ struct shirudo_loader_ctx {
 	__u64		log_buf;
 };
 
-struct shirudo_map_desc {
+struct map_desc {
 	int		map_fd;
 	__u32		max_entries;
 	__u64		initial_value;
 };
 
-struct shirudo_prog_desc {
+struct prog_desc {
 	int		prog_fd;
 };
 
@@ -1046,13 +1046,13 @@ static const char *attach_kind_name(__u32 kind)
 	}
 }
 
-static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
+static int prepare_uprobe_targets(struct prog_spec *specs,
 				  __u32 nr_progs)
 {
 	__u32 i;
 
 	for (i = 0; i < nr_progs; i++) {
-		struct shirudo_prog_spec *spec = &specs[i];
+		struct prog_spec *spec = &specs[i];
 		__u8 build_id[UPATCH_BUILD_ID_MAX];
 		__u32 build_id_len = 0;
 		char proc_path[64];
@@ -1114,7 +1114,7 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 }
 
 static int prog_attach_uprobe_multi(int prog_fd,
-				    const struct shirudo_prog_spec *spec)
+				    const struct prog_spec *spec)
 {
 	union bpf_attr attr = {};
 	long fd;
@@ -1134,7 +1134,7 @@ static int prog_attach_uprobe_multi(int prog_fd,
 }
 
 static int prog_attach_for_spec(int prog_fd,
-				const struct shirudo_prog_spec *spec)
+				const struct prog_spec *spec)
 {
 	int perf_fd, link_fd;
 
@@ -1205,7 +1205,7 @@ static int netns_initial(void)
  * link is pinned; -EXDEV when they differ.
  */
 static int link_matches_spec(int link_fd,
-			     const struct shirudo_prog_spec *spec)
+			     const struct prog_spec *spec)
 {
 	char func[UPATCH_ATTACH_TARGET_MAX] = {};
 	struct bpf_link_info info = {};
@@ -1283,7 +1283,7 @@ static int mkdir_if_absent(const char *path, mode_t mode, bool *made)
 	return errno == EEXIST ? 0 : -errno;
 }
 
-static void count_attach_progs(const struct shirudo_prog_spec *specs,
+static void count_attach_progs(const struct prog_spec *specs,
 			       __u32 nr_progs, __u32 *out)
 {
 	__u32 i, n = 0;
@@ -1297,7 +1297,7 @@ static void count_attach_progs(const struct shirudo_prog_spec *specs,
 
 static int prog_pin_path(char *pin, size_t sz, const char *dir,
 			 const char *serializers_dir,
-			 const struct shirudo_prog_spec *spec,
+			 const struct prog_spec *spec,
 			 __u32 attach_count, __u32 attach_idx)
 {
 	int n;
@@ -1318,10 +1318,10 @@ static int prog_pin_path(char *pin, size_t sz, const char *dir,
  * A failure unpins what this call pinned: the upatch is then neither
  * archived nor measured, so none of its programs may stay attached.
  */
-static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
+static int attach_and_pin_progs(const struct loader_ctx *cx,
 				size_t prog_desc_off, __u32 nr_progs,
 				const char *name,
-				const struct shirudo_prog_spec *specs)
+				const struct prog_spec *specs)
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
 	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
@@ -1362,11 +1362,11 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	count_attach_progs(specs, nr_progs, &attach_count);
 
 	for (i = 0; i < nr_progs; i++) {
-		const struct shirudo_prog_desc *pd =
+		const struct prog_desc *pd =
 			(const void *)((const char *)cx + prog_desc_off +
 				       (size_t)i * sizeof(*pd));
 		int inner_fd = pd->prog_fd;
-		const struct shirudo_prog_spec *spec = &specs[i];
+		const struct prog_spec *spec = &specs[i];
 		int link_fd;
 
 		if (inner_fd <= 0) {
@@ -1509,7 +1509,7 @@ out:
  * logged and left unobservable until the next load. bpffs reserves dots
  * in path components, so libbpf's .bss, .data and .rodata are skipped.
  */
-static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
+static int pin_upatch_maps(const struct loader_ctx *cx,
 			   __u32 nr_maps, const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
@@ -1534,9 +1534,9 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 		return 0;
 	}
 	for (i = 0; i < nr_maps; i++) {
-		const struct shirudo_map_desc *md =
+		const struct map_desc *md =
 			(const void *)((const char *)cx +
-				       sizeof(struct shirudo_loader_ctx) +
+				       sizeof(struct loader_ctx) +
 				       (size_t)i * sizeof(*md));
 		struct bpf_map_info info = {};
 		__u32 info_len = sizeof(info);
@@ -1616,9 +1616,9 @@ static int get_pin_payload(const char *name, __u8 out[32])
 
 /* Resolve the kernel BPF keyring and compare it with the frozen record. */
 static int trust_anchor_keyring(key_serial_t *keyring, key_serial_t *serial,
-				struct shirudo_op_report *rep)
+				struct op_report *rep)
 {
-	struct shirudo_identity id;
+	struct identity id;
 	key_serial_t ring;
 	int ret;
 
@@ -1648,11 +1648,11 @@ static int trust_anchor_keyring(key_serial_t *keyring, key_serial_t *serial,
  * whose pins keep them once attached; boot restore applies every archived
  * upatch in one process.
  */
-static void close_loader_fds(const struct shirudo_loader_ctx *cx,
+static void close_loader_fds(const struct loader_ctx *cx,
 			     __u32 nr_maps, __u32 nr_progs)
 {
-	const struct shirudo_map_desc *md = (const void *)(cx + 1);
-	const struct shirudo_prog_desc *pd = (const void *)(md + nr_maps);
+	const struct map_desc *md = (const void *)(cx + 1);
+	const struct prog_desc *pd = (const void *)(md + nr_maps);
 	__u32 i;
 
 	for (i = 0; i < nr_maps; i++) {
@@ -1667,10 +1667,10 @@ static void close_loader_fds(const struct shirudo_loader_ctx *cx,
 
 /* Shared by `upatch load` and boot restore: one signature-verified path. */
 static int __upatch_apply(const char *path, bool verify_only,
-			  struct shirudo_op_report *rep)
+			  struct op_report *rep)
 {
-	struct shirudo_upatch u;
-	struct shirudo_prog_spec *prog_specs = NULL;
+	struct upatch u;
+	struct prog_spec *prog_specs = NULL;
 	const struct bpf_insn *insns;
 	const void *sig, *data;
 	key_serial_t keyring, serial;
@@ -1679,7 +1679,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	char *vlog;			/* shared PROG_LOAD / TEST_RUN log_buf */
 	size_t insn_cnt, ctx_sz = 0, prog_desc_off;
 	int prog_fd = -1, map_fd = -1, ret;
-	struct shirudo_loader_ctx *cx = NULL;
+	struct loader_ctx *cx = NULL;
 	__u32 retval = 0;
 
 	vlog = xmalloc(VERIFIER_LOG_MAX);
@@ -1942,14 +1942,14 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 * bpf_sys_bpf() cannot BPF_OBJ_PIN. Its descriptors trail the context,
 	 * sized from the header's counts.
 	 */
-	prog_desc_off = sizeof(struct shirudo_loader_ctx) +
-			(size_t)u.hdr.nr_maps * sizeof(struct shirudo_map_desc);
+	prog_desc_off = sizeof(struct loader_ctx) +
+			(size_t)u.hdr.nr_maps * sizeof(struct map_desc);
 	/*
 	 * The loader's max_ctx_offset can exceed the descriptor tail, and
 	 * TEST_RUN rejects a smaller ctx_size_in, so pad generously.
 	 */
 	ctx_sz = prog_desc_off +
-		 (size_t)u.hdr.nr_progs * sizeof(struct shirudo_prog_desc) +
+		 (size_t)u.hdr.nr_progs * sizeof(struct prog_desc) +
 		 1024;
 	cx = xmalloc(ctx_sz);
 	if (!cx) {
@@ -2067,7 +2067,7 @@ int upatch_apply(const char *path)
  * here, without touching kernel state.
  */
 static int upatch_preflight(const char *expect_chain,
-			    struct shirudo_op_report *rep)
+			    struct op_report *rep)
 {
 	__u8 want[CHAIN_DIGEST_LEN], have[CHAIN_DIGEST_LEN];
 	char have_hex[2 * CHAIN_DIGEST_LEN + 1];
@@ -2130,9 +2130,9 @@ static int upatch_preflight(const char *expect_chain,
  * The register and the log advance together, so an extend that could
  * not be logged must not happen: refuse before any state changes.
  */
-static int eventlog_room(struct shirudo_op_report *rep, const char *op)
+static int eventlog_room(struct op_report *rep, const char *op)
 {
-	struct shirudo_config cfg;
+	struct config cfg;
 
 	config_load(&cfg);
 	if (eventlog_would_exceed(cfg.eventlog_max_bytes)) {
@@ -2151,7 +2151,7 @@ static int eventlog_room(struct shirudo_op_report *rep, const char *op)
  * comparison meaningless, so the version check runs first.
  */
 static int version_gate(const char *expect_version_id, bool no_version_check,
-			struct shirudo_op_report *rep, const char *op)
+			struct op_report *rep, const char *op)
 {
 	if (no_version_check || !expect_version_id)
 		return 0;
@@ -2173,7 +2173,7 @@ static int format_upatch_event(const char *type, const char *name,
 			       const __u8 event[32], const char *reason,
 			       char *buf, size_t size)
 {
-	struct shirudo_json_emit e = { .buf = buf, .cap = size };
+	struct json_emit e = { .buf = buf, .cap = size };
 	char payload_hex[65];
 
 	hex_encode(payload, 32, payload_hex);
@@ -2459,7 +2459,7 @@ static int persist_upatch(const char *src, const char *name)
 }
 
 static int parse_op_args(int argc, const char **argv, const char *verb,
-			 const struct shirudo_help *help,
+			 const struct help *help,
 			 const char **file, const char **expect_chain,
 			 const char **expect_version_id, bool *no_precheck,
 			 bool *no_version_check, const char **report)
@@ -2641,8 +2641,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 	char name[UPATCH_NAME_MAX + 1] = {};
 	char staged[PATH_MAX] = {};
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
-	struct shirudo_upatch u;
-	struct shirudo_op_report rep = { .op = "upatch_load", .phase = "done" };
+	struct upatch u;
+	struct op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false, measured;
 	int err, ret = 1;
 
@@ -2767,8 +2767,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	char staged[PATH_MAX] = {};
 	char persisted[PATH_MAX];
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
-	struct shirudo_upatch u;
-	struct shirudo_op_report rep = { .op = "upatch_unload", .phase = "done" };
+	struct upatch u;
+	struct op_report rep = { .op = "upatch_unload", .phase = "done" };
 	bool no_precheck, no_version_check;
 	int err, ret = 1;
 
@@ -2968,7 +2968,7 @@ int upatch_purge(const char *name, const char *reason)
 {
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
-	struct shirudo_upatch u;
+	struct upatch u;
 	bool loaded;
 	int fd, ret;
 
@@ -3114,7 +3114,7 @@ static void dump_line_info_text(struct li_entry *ents, __u32 k)
 	}
 }
 
-static void emit_line_info_json(struct shirudo_json_emit *e,
+static void emit_line_info_json(struct json_emit *e,
 				struct li_entry *ents, __u32 k)
 {
 	__u32 i = 0;
@@ -3141,7 +3141,7 @@ static void emit_line_info_json(struct shirudo_json_emit *e,
 }
 
 static int append_one_map_json(const char *path,
-			       const struct shirudo_map_view *v)
+			       const struct map_view *v)
 {
 	char *decoded = NULL;
 	size_t decoded_len = 0;
@@ -3161,10 +3161,10 @@ static int append_one_map_json(const char *path,
 
 static int export_one_map(const char *upatch, const char *map,
 			  bool json_output, const char *json_path, bool otel,
-			  const struct shirudo_otel_opts *otel_opts,
+			  const struct otel_opts *otel_opts,
 			  bool show_full, bool peek, bool print_detail)
 {
-	struct shirudo_map_view v = {};
+	struct map_view v = {};
 	__u32 cap = (show_full || json_output || otel) ? 0 :
 		MAP_ENTRIES_DEFAULT;
 	int err, ret = 0;
@@ -3216,9 +3216,9 @@ static int export_one_map(const char *upatch, const char *map,
 
 static int cmd_upatch_map(int argc, const char **argv)
 {
-	struct shirudo_map_summary *list = NULL;
-	struct shirudo_config export_cfg = {};
-	struct shirudo_otel_opts otel_opts = {
+	struct map_summary *list = NULL;
+	struct config export_cfg = {};
+	struct otel_opts otel_opts = {
 		.retries = 3,
 	};
 	const char *upatch = NULL, *map = NULL, *json_path = NULL;
@@ -3418,7 +3418,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 	}
 
 	if (json_output) {
-		struct shirudo_json_emit e = {};
+		struct json_emit e = {};
 		size_t cap = 8192 + 256 * n;
 		char *buf;
 		size_t k;
@@ -3596,7 +3596,7 @@ static void age_from_ts(const char *ts, char *out, size_t cap)
 static void render_one_map_text(const char *upatch, const char *map,
 				__u32 cap)
 {
-	struct shirudo_map_view v = {};
+	struct map_view v = {};
 	int ret = upatch_maps_read(upatch, map, cap, MAP_READ_PEEK,
 				   &v);
 
@@ -3611,7 +3611,7 @@ static void render_one_map_text(const char *upatch, const char *map,
 }
 
 static void render_get_text(const struct upatch_get_ctx *c,
-			    const struct shirudo_map_summary *maps, size_t nm,
+			    const struct map_summary *maps, size_t nm,
 			    __u32 map_cap)
 {
 	char age[16] = "";
@@ -3646,10 +3646,10 @@ static void render_get_text(const struct upatch_get_ctx *c,
 }
 
 static int render_get_json(const struct upatch_get_ctx *c,
-			   const struct shirudo_map_summary *maps, size_t nm,
+			   const struct map_summary *maps, size_t nm,
 			   __u32 map_cap)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	size_t cap = 64 * 1024 + 1024 * nm;
 	char age[16] = "";
 	char *buf;
@@ -3683,7 +3683,7 @@ static int render_get_json(const struct upatch_get_ctx *c,
 	json_obj_close(&e);
 	json_arr_open(&e, "maps");
 	for (k = 0; k < nm; k++) {
-		struct shirudo_map_view v = {};
+		struct map_view v = {};
 		int err;
 
 		err = upatch_maps_read(c->upatch, maps[k].name, map_cap,
@@ -3718,7 +3718,7 @@ static int render_get_json(const struct upatch_get_ctx *c,
 
 static int cmd_upatch_get(int argc, const char **argv)
 {
-	struct shirudo_map_summary *maps = NULL;
+	struct map_summary *maps = NULL;
 	struct upatch_get_ctx ctx = {};
 	const char *want = NULL;
 	bool json = false, show_full = false;
@@ -3776,7 +3776,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 	return ret;
 }
 
-static const struct shirudo_help_item upatch_subcmds[] = {
+static const struct help_item upatch_subcmds[] = {
 	{ "load",   "load a signed .upatch into the target kernel (target-only)" },
 	{ "unload", "apply a signed UNLOAD directive (forward chain extension)" },
 	{ "list",   "list persisted + bpffs-pinned upatches on this host" },
@@ -3785,12 +3785,12 @@ static const struct shirudo_help_item upatch_subcmds[] = {
 	{ "map",    "read pinned map contents (target-only; BTF type-aware)" },
 };
 
-static const struct shirudo_help_section upatch_help_sections[] = {
+static const struct help_section upatch_help_sections[] = {
 	{ "subcommands:", upatch_subcmds,
 	  ARRAY_SIZE(upatch_subcmds) },
 };
 
-static const struct shirudo_help upatch_help = {
+static const struct help upatch_help = {
 	.usage      = "shirudo upatch <subcommand> [<args>...]",
 	.summary    = "Manage signed BPF programs (.upatch). load/unload are "
 		      "target-only;\nlist/info/get are read-only and run on "

@@ -11,12 +11,12 @@
 
 #define CONFIG_UPDATE_PREFIX_MAX 4096u
 
-enum shirudo_config_event_kind {
+enum config_event_kind {
 	SHIRUDO_CONFIG_EVENT_BOOT = 1,
 	SHIRUDO_CONFIG_EVENT_UPDATE = 2,
 };
 
-enum shirudo_config_update_checkpoint {
+enum config_update_checkpoint {
 	SHIRUDO_CONFIG_CHECK_PENDING_SYNC = 1,
 	SHIRUDO_CONFIG_CHECK_EXTEND,
 	SHIRUDO_CONFIG_CHECK_EVENT_SYNC,
@@ -27,43 +27,43 @@ enum shirudo_config_update_checkpoint {
 	SHIRUDO_CONFIG_CHECK_EVENT_WRITE,
 };
 
-struct shirudo_config_update_target {
+struct config_update_target {
 	char prefix[CONFIG_UPDATE_PREFIX_MAX];
 	__u8 root_hash[32];
 };
 
-struct shirudo_config_update_record {
-	struct shirudo_config_update_target target;
+struct config_update_record {
+	struct config_update_target target;
 	__u8 initial_pcr[32];
 	__u64 sequence;
 	__u32 reset_count;
 	__u32 restart_count;
 	__u32 pcr;
-	enum shirudo_config_event_kind kind;
+	enum config_event_kind kind;
 	bool pending;
 };
 
 /* prepare verifies the signed mapping and contents before saving intent. */
-struct shirudo_config_update_ops {
+struct config_update_ops {
 	int (*boot_identity)(void *ctx, __u32 *reset, __u32 *restart);
 	int (*pcr_read)(void *ctx, __u32 pcr, __u8 out[32]);
 	int (*pcr_extend)(void *ctx, __u32 pcr, const __u8 event[32]);
 	int (*prepare)(void *ctx,
-		       const struct shirudo_config_update_target *target);
+		       const struct config_update_target *target);
 	int (*activate)(void *ctx,
-			const struct shirudo_config_update_target *target);
+			const struct config_update_target *target);
 	int (*seal)(void *ctx, int fd);
 	int (*checkpoint)(void *ctx,
-			  enum shirudo_config_update_checkpoint checkpoint);
+			  enum config_update_checkpoint checkpoint);
 	/* How long to wait for another command's operation lock; 0 fails at once. */
 	__u32 lock_wait_ms;
 };
 
-typedef int (*shirudo_config_cb)(const struct shirudo_config_update_record *r,
+typedef int (*shirudo_config_cb)(const struct config_update_record *r,
 				void *ctx);
 
-struct shirudo_config_update {
-	const struct shirudo_config_update_ops *ops;
+struct config_update {
+	const struct config_update_ops *ops;
 	void *ctx;
 	int dir_fd;
 	int lock_fd;
@@ -72,24 +72,24 @@ struct shirudo_config_update {
 
 /* Holds the update lock until close. The directory must already exist. */
 int config_update_open(const char *directory,
-		       const struct shirudo_config_update_ops *ops,
-		       void *ctx, struct shirudo_config_update *out);
-void config_update_close(struct shirudo_config_update *update);
-int config_update_read(struct shirudo_config_update *update,
-		       struct shirudo_config_update_record *out);
-int config_update_begin(struct shirudo_config_update *update,
-			const struct shirudo_config_update_target *t,
+		       const struct config_update_ops *ops,
+		       void *ctx, struct config_update *out);
+void config_update_close(struct config_update *update);
+int config_update_read(struct config_update *update,
+		       struct config_update_record *out);
+int config_update_begin(struct config_update *update,
+			const struct config_update_target *t,
 			__u32 pcr);
 /* Boot leaves intent pending until upatch restoration and NV init succeed. */
-int config_update_boot(struct shirudo_config_update *update,
-		       const struct shirudo_config_update_target *t,
+int config_update_boot(struct config_update *update,
+		       const struct config_update_target *t,
 		       __u32 pcr);
-int config_update_complete_boot(struct shirudo_config_update *update);
+int config_update_complete_boot(struct config_update *update);
 /* Refuses pending updates and PCR drift; callers also validate live mounts. */
-int config_update_check(struct shirudo_config_update *update,
-			struct shirudo_config_update_record *out);
+int config_update_check(struct config_update *update,
+			struct config_update_record *out);
 /* Events describe selections, not a proof that activation completed. */
-int config_update_events(struct shirudo_config_update *update,
+int config_update_events(struct config_update *update,
 			 shirudo_config_cb consume, void *ctx);
 
 #endif /* SHIRUDO_CONFIG_UPDATE_H */

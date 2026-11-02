@@ -13,7 +13,7 @@
 int nv_writer_create(__u8 seed[TPM_DIGEST_LEN],
 		     __u8 public[TPM_NV_RSA_BYTES])
 {
-	struct shirudo_tpm *t = NULL;
+	struct tpm *t = NULL;
 	size_t off = 0;
 	ssize_t got;
 	int err;
@@ -44,7 +44,7 @@ fail:
 int nv_writer_read(__u8 seed[TPM_DIGEST_LEN],
 		   __u8 public[TPM_NV_RSA_BYTES])
 {
-	struct shirudo_identity id = {};
+	struct identity id = {};
 	int err;
 
 	err = identity_read(&id);

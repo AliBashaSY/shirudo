@@ -149,7 +149,7 @@ static int fetch_file(const char *source, const char *destination, __u64 max)
 static int verify_incoming(const struct config_image_open *opened,
 			   const char *staging)
 {
-	struct shirudo_dm_verity device = {
+	struct dm_verity device = {
 		.data_loop_fd = -1,
 		.hash_loop_fd = -1,
 	};
@@ -171,7 +171,7 @@ static int verify_incoming(const struct config_image_open *opened,
 }
 
 int image_cache_fetch(const char *source,
-		      struct shirudo_config_update_target *target)
+		      struct config_update_target *target)
 {
 	static const struct {
 		const char *suffix;

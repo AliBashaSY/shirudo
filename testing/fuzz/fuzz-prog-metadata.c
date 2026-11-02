@@ -14,8 +14,8 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_upatch_prog_metadata md;
-	struct shirudo_prog_spec *specs;
+	struct upatch_prog_metadata md;
+	struct prog_spec *specs;
 	__u32 nr_progs = 0;
 
 	if (size > UINT32_MAX)

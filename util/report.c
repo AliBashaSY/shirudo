@@ -23,9 +23,9 @@
 #include "report.h"
 #include "seal.h"
 
-int report_emit(const char *path, const struct shirudo_op_report *r)
+int report_emit(const char *path, const struct op_report *r)
 {
-	struct shirudo_json_emit e;
+	struct json_emit e;
 	struct utsname uts;
 	char nv_index[16];
 	const char *errname;
@@ -41,7 +41,7 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 	buf = xmalloc(cap);
 	if (!buf)
 		return -ENOMEM;
-	e = (struct shirudo_json_emit){ .buf = buf, .cap = cap };
+	e = (struct json_emit){ .buf = buf, .cap = cap };
 
 	errname = r->err ? strerrorname_np(r->err) : NULL;
 
@@ -115,7 +115,7 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 	return ret;
 }
 
-void report_set_log(struct shirudo_op_report *r, const char *log)
+void report_set_log(struct op_report *r, const char *log)
 {
 	if (!r)
 		return;
@@ -130,7 +130,7 @@ void report_set_log(struct shirudo_op_report *r, const char *log)
 	r->verifier_log = xstrndup(log, VERIFIER_LOG_MAX);
 }
 
-void report_free(struct shirudo_op_report *r)
+void report_free(struct op_report *r)
 {
 	xstrfree(r->verifier_log);
 	r->verifier_log = NULL;

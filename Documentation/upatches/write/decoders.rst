@@ -41,7 +41,7 @@ Declare the decoder
 
       #include "decoder.h"
 
-      const struct shirudo_decoder_manifest watch_stat_decoder SEC(".rodata") = {
+      const struct decoder_manifest watch_stat_decoder SEC(".rodata") = {
               .magic = DECODER_MANIFEST_MAGIC,
               .version = UPATCH_DECODER_VERSION,
               .language = UPATCH_DECODER_LANG_LUA,

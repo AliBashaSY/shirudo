@@ -73,11 +73,11 @@ static int slurp(char **buf_out, size_t *len_out)
 
 static int kmod_cmp(const void *a, const void *b)
 {
-	return strcmp(((const struct shirudo_kmod *)a)->name,
-		      ((const struct shirudo_kmod *)b)->name);
+	return strcmp(((const struct kmod *)a)->name,
+		      ((const struct kmod *)b)->name);
 }
 
-static int kmod_find(const struct shirudo_kmod_set *set, const char *name)
+static int kmod_find(const struct kmod_set *set, const char *name)
 {
 	size_t lo = 0, hi = set->n;
 
@@ -110,7 +110,7 @@ static __u64 next_column(char **p, __u64 max)
 	return parse_u64(s, n, max, &v) ? 0 : v;
 }
 
-int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
+int kmodules_parse(char *buf, struct kmod_set *set)
 {
 	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
 	struct edge { __u16 user, dep; } *edges = NULL;
@@ -138,7 +138,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 	 * used-by column into indices.
 	 */
 	for (line = buf; line < end; line += strlen(line) + 1) {
-		struct shirudo_kmod *m;
+		struct kmod *m;
 		char *p = line, *e;
 		size_t name_len;
 
@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-int kmodules_read(struct shirudo_kmod_set *set)
+int kmodules_read(struct kmod_set *set)
 {
 	size_t buf_cap = 0, i;
 	char *buf = NULL;
@@ -298,7 +298,7 @@ int kmodules_read(struct shirudo_kmod_set *set)
 	 * and this stat) is non-fatal; leave loaded_at zero.
 	 */
 	for (i = 0; i < set->n; i++) {
-		struct shirudo_kmod *m = &set->mods[i];
+		struct kmod *m = &set->mods[i];
 		char path[64 + sizeof("/sys/module/")];
 		struct stat st;
 
@@ -311,17 +311,17 @@ int kmodules_read(struct shirudo_kmod_set *set)
 	return 0;
 }
 
-void kmodules_free(struct shirudo_kmod_set *set)
+void kmodules_free(struct kmod_set *set)
 {
 	xfree(set->mods, set->n * sizeof(*set->mods));
 	xfree(set->deps, set->n_deps * sizeof(*set->deps));
 	memset(set, 0, sizeof(*set));
 }
 
-static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
+static void print_subtree(const struct kmod_set *set, size_t i,
 			  const char *prefix, int is_last, __u8 *seen)
 {
-	const struct shirudo_kmod *m = &set->mods[i];
+	const struct kmod *m = &set->mods[i];
 	const char *branch = is_last ? "└── " : "├── ";
 	int already = (seen[i >> 3] >> (i & 7)) & 1;
 	const char *child = prefix;
@@ -351,7 +351,7 @@ static void print_subtree(const struct shirudo_kmod_set *set, size_t i,
 	}
 }
 
-void kmodules_print_tree(const struct shirudo_kmod_set *set)
+void kmodules_print_tree(const struct kmod_set *set)
 {
 	__u8 *used_by;
 	__u8 *seen;
@@ -381,7 +381,7 @@ void kmodules_print_tree(const struct shirudo_kmod_set *set)
 	 * The remainder are entry-point modules nothing else uses.
 	 */
 	for (size_t i = 0; i < set->n; i++) {
-		const struct shirudo_kmod *m = &set->mods[i];
+		const struct kmod *m = &set->mods[i];
 
 		for (__u16 k = 0; k < m->n_deps; k++) {
 			size_t d = set->deps[m->deps_off + k];
@@ -411,15 +411,15 @@ void kmodules_print_tree(const struct shirudo_kmod_set *set)
  * failure) sort to the bottom so they don't crowd out real entries.
  */
 struct recent_idx {
-	const struct shirudo_kmod_set	*set;
+	const struct kmod_set	*set;
 	size_t				idx;
 };
 
 static int recent_cmp(const void *a, const void *b)
 {
 	const struct recent_idx *x = a, *y = b;
-	const struct shirudo_kmod *mx = &x->set->mods[x->idx];
-	const struct shirudo_kmod *my = &y->set->mods[y->idx];
+	const struct kmod *mx = &x->set->mods[x->idx];
+	const struct kmod *my = &y->set->mods[y->idx];
 
 	if (mx->loaded_at_sec == 0 && my->loaded_at_sec != 0)
 		return 1;
@@ -432,7 +432,7 @@ static int recent_cmp(const void *a, const void *b)
 	return strcmp(mx->name, my->name);
 }
 
-void kmodules_print_recent(const struct shirudo_kmod_set *set,
+void kmodules_print_recent(const struct kmod_set *set,
 			   size_t last_n, __s64 boot_sec)
 {
 	struct recent_idx *all;
@@ -455,7 +455,7 @@ void kmodules_print_recent(const struct shirudo_kmod_set *set,
 	qsort(all, set->n, sizeof(*all), recent_cmp);
 	take = min(set->n, last_n);
 	for (i = 0; i < take; i++) {
-		const struct shirudo_kmod *m = &set->mods[all[i].idx];
+		const struct kmod *m = &set->mods[all[i].idx];
 		char ts[32], size_s[16], age[24];
 
 		if (m->loaded_at_sec <= 0 ||

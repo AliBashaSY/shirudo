@@ -14,7 +14,7 @@ int config_measure_pcr_valid(__u32 pcr)
 	return pcr < 16 && pcr != 9 && pcr != 11 ? 0 : -EINVAL;
 }
 
-int config_measure_event(enum shirudo_config_event_kind kind,
+int config_measure_event(enum config_event_kind kind,
 			 const __u8 root_hash[32], __u8 out[32])
 {
 	static const char domain[] = "shirudo-config-root-v1";

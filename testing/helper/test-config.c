@@ -33,7 +33,7 @@ static int write_config(const char *path, const char *contents)
 
 static int check_defaults(const char *path)
 {
-	struct shirudo_config cfg;
+	struct config cfg;
 
 	unlink(path);
 	if (config_load_path(&cfg, path) != 0)
@@ -59,7 +59,7 @@ static int check_valid(const char *path)
 		"map_export.log_record_max_bytes = 1024\n"
 		"map_export.otlp_max_bytes = 2048\n"
 		"map_export.s3_uri = s3://bucket/prefix\n";
-	struct shirudo_config cfg;
+	struct config cfg;
 
 	if (write_config(path, input) != 0 ||
 	    config_load_path(&cfg, path) != 0)
@@ -79,7 +79,7 @@ static int check_valid(const char *path)
 
 static int check_invalid(const char *path, const char *input)
 {
-	struct shirudo_config cfg;
+	struct config cfg;
 
 	return write_config(path, input) != 0 ||
 	       config_load_path(&cfg, path) != 0 ||
@@ -90,7 +90,7 @@ static int check_invalid(const char *path, const char *input)
 static int check_max_bytes(const char *path, const char *value,
 			   __u64 expected)
 {
-	struct shirudo_config cfg;
+	struct config cfg;
 	char input[128];
 
 	snprintf(input, sizeof(input), "eventlog.max_bytes = %s\n", value);

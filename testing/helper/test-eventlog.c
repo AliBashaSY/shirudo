@@ -29,7 +29,7 @@ static int append_init(const char *path, const char *bound_in,
 	char writer_hex[2 * TPM_NV_RSA_BYTES + 1];
 	__u8 modulus[TPM_NV_RSA_BYTES] = { [0] = 0x80, [383] = 1 };
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char name_hex[2 * TPM_NAME_LEN + 1];
 	__u8 zero[TPM_NAME_LEN] = {};
 
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 		return ret ? 1 : 0;
 	}
 	if (strcmp(argv[1], "boot-init") == 0) {
-		struct shirudo_eventlog_init rec;
+		struct eventlog_init rec;
 		int ret = eventlog_boot_init(&rec);
 
 		printf("rc=%d\n", ret);

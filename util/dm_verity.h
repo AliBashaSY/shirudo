@@ -10,8 +10,8 @@
 
 #include "config_image.h"
 
-struct shirudo_dm_verity {
-	struct shirudo_config_image image;
+struct dm_verity {
+	struct config_image image;
 	char name[128];
 	char path[PATH_MAX];
 	dev_t device;
@@ -25,17 +25,17 @@ typedef int (*shirudo_dm_verity_cb)(const char *name, dev_t device, void *ctx);
 
 int dm_verity_list(shirudo_dm_verity_cb callback, void *ctx);
 int dm_verity_create(const struct config_image_open *image,
-		     const char *name, struct shirudo_dm_verity *out);
+		     const char *name, struct dm_verity *out);
 /* Require the active readonly table to match the image parameters exactly. */
 int dm_verity_inspect(const char *name,
-		      const struct shirudo_config_image *image,
-		      struct shirudo_dm_verity *out);
+		      const struct config_image *image,
+		      struct dm_verity *out);
 /* Read every data block through the mapping bound to these retained files. */
-int dm_verity_verify(const struct shirudo_dm_verity *device,
+int dm_verity_verify(const struct dm_verity *device,
 		     const struct config_image_open *image);
-int dm_verity_mount(const struct shirudo_dm_verity *device,
+int dm_verity_mount(const struct dm_verity *device,
 		    const char *mountpoint, bool executable);
-int dm_verity_remove(struct shirudo_dm_verity *device, bool deferred);
-void dm_verity_close(struct shirudo_dm_verity *device);
+int dm_verity_remove(struct dm_verity *device, bool deferred);
+void dm_verity_close(struct dm_verity *device);
 
 #endif /* SHIRUDO_DM_VERITY_H */

@@ -33,7 +33,7 @@ static int dump(const char *source)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_map_view view = {
+	struct map_view view = {
 		.serialized = true,
 		.max_entries = 1,
 		.type_name = "array",

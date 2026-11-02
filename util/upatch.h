@@ -18,8 +18,8 @@
 /* The largest container the parser accepts. */
 #define UPATCH_FILE_MAX		(16u * 1024u * 1024u)
 
-/* struct shirudo_upatch_header as parse_header() reads it, in host order. */
-struct shirudo_upatch_host_header {
+/* struct upatch_header as parse_header() reads it, in host order. */
+struct upatch_host_header {
 	__u64		magic;
 	__u32		version;
 	__u32		flags;
@@ -41,13 +41,13 @@ struct shirudo_upatch_host_header {
 	__u32		reserved1;
 };
 
-struct shirudo_upatch {
-	struct shirudo_upatch_host_header	hdr;
+struct upatch {
+	struct upatch_host_header	hdr;
 	const __u8			*map;
 	size_t				map_size;
 	bool				mapped;
 	bool				rodata_offset_valid;
-	const struct shirudo_upatch_decoder_blob *decoder_blob;
+	const struct upatch_decoder_blob *decoder_blob;
 	__u32				decoder_blob_len;
 	__u32				nr_decoders;
 	const char			*signed_name;	/* UPATCH_NAME_MAX */
@@ -73,26 +73,26 @@ struct upatch_decoder_view {
  * Returns 0 on success, -errno on failure. Logs nothing -- caller
  * decides whether to emit user-facing diagnostics.
  */
-int  upatch_open(const char *path, struct shirudo_upatch *out);
-int  upatch_open_fd(int fd, struct shirudo_upatch *out);
+int  upatch_open(const char *path, struct upatch *out);
+int  upatch_open_fd(int fd, struct upatch *out);
 int  upatch_open_memory(const void *data, size_t size,
-			struct shirudo_upatch *out);
-void upatch_close(struct shirudo_upatch *u);
+			struct upatch *out);
+void upatch_close(struct upatch *u);
 
 /*
  * Section accessors. Pointers reference the mmap; valid only until
  * upatch_close().
  */
-const void *upatch_loader(const struct shirudo_upatch *u);
-const void *upatch_signature(const struct shirudo_upatch *u);
-const void *upatch_metadata(const struct shirudo_upatch *u);
-const void *upatch_data(const struct shirudo_upatch *u);
+const void *upatch_loader(const struct upatch *u);
+const void *upatch_signature(const struct upatch *u);
+const void *upatch_metadata(const struct upatch *u);
+const void *upatch_data(const struct upatch *u);
 
-bool upatch_is_unload(const struct shirudo_upatch *u);
-const char *upatch_type_str(const struct shirudo_upatch *u);
+bool upatch_is_unload(const struct upatch *u);
+const char *upatch_type_str(const struct upatch *u);
 
-bool upatch_has_decoders(const struct shirudo_upatch *u);
-int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
+bool upatch_has_decoders(const struct upatch *u);
+int upatch_decoder_view(const struct upatch *u, __u32 idx,
 			struct upatch_decoder_view *out);
 
 /*
@@ -102,10 +102,10 @@ int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
  * A load or unload refuses what it needs and does not find; inspection
  * shows what there is.
  */
-const char *upatch_signed_name(const struct shirudo_upatch *u);
-const void *upatch_signed_attach(const struct shirudo_upatch *u,
+const char *upatch_signed_name(const struct upatch *u);
+const void *upatch_signed_attach(const struct upatch *u,
 				 __u32 *len);
-const __u8 *upatch_signed_unload_payload(const struct shirudo_upatch *u);
+const __u8 *upatch_signed_unload_payload(const struct upatch *u);
 
 /*
  * Validate an externally-provided upatch name: non-empty, doesn't
@@ -117,7 +117,7 @@ bool upatch_name_valid(const char *name);
 /* A scandir() filter for the archived .upatch files. */
 int upatch_select(const struct dirent *e);
 
-struct shirudo_prog_spec {
+struct prog_spec {
 	__u32 role;
 	__u32 kind;
 	__u64 offset;
@@ -138,8 +138,8 @@ struct shirudo_prog_spec {
  * per program, target_fd -1. 0 or -errno; free with prog_specs_free().
  */
 int prog_specs_parse(const void *metadata, __u32 metadata_len,
-		     __u32 nr_progs, struct shirudo_prog_spec **out);
-void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
+		     __u32 nr_progs, struct prog_spec **out);
+void prog_specs_free(struct prog_spec *specs, __u32 nr_progs);
 
 /*
  * The target's upatch lifecycle, which builtin-upatch.c implements for

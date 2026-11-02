@@ -8,14 +8,14 @@
 
 #include <stdint.h>
 
-struct shirudo_config_update;
-struct shirudo_trusted_set;
+struct config_update;
+struct trusted_set;
 
-struct shirudo_config_update *image_update_context(void);
+struct config_update *image_update_context(void);
 int image_bootstrap_load(void);
 const __u8 *image_runtime_root(void);
 int image_runtime_mount(void);
-int image_boot_keys(struct shirudo_trusted_set *set);
+int image_boot_keys(struct trusted_set *set);
 int image_boot_keys_close(void);
 int image_boot(void);
 int image_boot_complete(void);

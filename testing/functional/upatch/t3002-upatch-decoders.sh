@@ -66,7 +66,7 @@ struct {
 	__type(value, __u64);
 } t0005_map SEC(".maps");
 
-const struct shirudo_decoder_manifest t0005_decoder SEC(".rodata") = {
+const struct decoder_manifest t0005_decoder SEC(".rodata") = {
 	.magic = DECODER_MANIFEST_MAGIC,
 	.version = UPATCH_DECODER_VERSION,
 	.language = UPATCH_DECODER_LANG_LUA,

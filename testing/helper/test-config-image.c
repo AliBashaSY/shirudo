@@ -12,7 +12,7 @@
 #include "config_image.h"
 #include "hex.h"
 
-static int header_read(const char *path, struct shirudo_config_image *image)
+static int header_read(const char *path, struct config_image *image)
 {
 	int fd, ret;
 
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 		.hash_fd = -1,
 		.signature_fd = -1,
 	};
-	struct shirudo_config_image image;
+	struct config_image image;
 	__u8 root[32];
 	int ret = -EINVAL;
 

@@ -13,7 +13,7 @@
 #define KMSG_TS_LEN	24	/* "2026-05-28T14:32:01Z" + slack */
 #define KMSG_MSG_LEN	480	/* one printk record, joined */
 
-struct shirudo_kmsg_record {
+struct kmsg_record {
 	char	ts[KMSG_TS_LEN];	/* ISO-8601 UTC, NUL-term */
 	char	msg[KMSG_MSG_LEN];	/* control bytes stripped */
 };
@@ -22,6 +22,6 @@ struct shirudo_kmsg_record {
  * Records the ring buffer has dropped are skipped: EPIPE restarts the
  * read.
  */
-int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap);
+int kmsg_tail(struct kmsg_record *out, size_t cap);
 
 #endif /* SHIRUDO_UTIL_KMSG_H */

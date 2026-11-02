@@ -68,7 +68,7 @@ static int sign_detached(const void *payload, size_t len,
 			 const char *key, const char *cert,
 			 __u8 **sig, size_t *sig_len)
 {
-	struct shirudo_sign_io io = {
+	struct sign_io io = {
 		.insns = payload, .insns_sz = len, .signature_sz = BPM_SIGN_MAX,
 	};
 	int ret;
@@ -164,7 +164,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	struct bpm_descriptor config, payload_layer, sig_layer;
 	struct bpm_index_entry *entries, *entry = NULL;
 	char *body = NULL, *manifest = NULL;
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char timestamp[32], digest[72];
 	char empty_config[] = "{}";
 	size_t cap, sig_len = 0;
@@ -219,7 +219,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct shirudo_json_emit){ .buf = body, .cap = cap };
+	e = (struct json_emit){ .buf = body, .cap = cap };
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "generated_at", timestamp);
@@ -262,7 +262,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
+	e = (struct json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
 	json_obj_open(&e);
 	json_kv_int(&e, "schemaVersion", 2);
 	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
@@ -297,7 +297,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	struct bpm_oci_client c = {};
 	struct bpm_package_info info = {};
 	struct bpm_descriptor config, layer, key_config, key_layer, subject;
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	__u8 *archive = NULL, *manifest = NULL;
 	const char *base;
 	char repository[BPM_MAX_ENDPOINT], package_digest[72], key_digest[72];
@@ -411,7 +411,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct shirudo_json_emit){ .buf = key_manifest_body, .cap = BPM_MANIFEST_CAP };
+	e = (struct json_emit){ .buf = key_manifest_body, .cap = BPM_MANIFEST_CAP };
 	json_obj_open(&e);
 	json_kv_int(&e, "schemaVersion", 2);
 	json_kv_string(&e, "mediaType", "application/vnd.oci.image.manifest.v1+json");
@@ -478,7 +478,7 @@ static int tree_string_compare(const void *left, const void *right)
 }
 
 /* Selector lists are sets: sort them so equal Beefiles digest equally. */
-static void tree_selector_canonicalize(struct shirudo_tree_selector *s)
+static void tree_selector_canonicalize(struct tree_selector *s)
 {
 	qsort(s->kernel_release_prefix, (size_t)s->n_kernel_release_prefix,
 	      TREE_STRING_MAX, tree_string_compare);
@@ -504,14 +504,14 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 			      const char *raw_repository,
 			      const __u8 *body, size_t len,
 			      const char *id, bool unload,
-			      struct shirudo_tree_artifact *out)
+			      struct tree_artifact *out)
 {
 	char name[UPATCH_NAME_MAX + 1], title[UPATCH_NAME_MAX + 16];
 	char temporary[] = "/tmp/shirudo-bpm-tree-XXXXXX";
 	struct bpm_descriptor layer, config;
 	char empty_config[] = "{}";
-	struct shirudo_json_emit e;
-	struct shirudo_upatch u;
+	struct json_emit e;
+	struct upatch u;
 	char hex[65], tag[160];
 	char *manifest;
 	int fd, ret;
@@ -556,7 +556,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest)
 		return -ENOMEM;
-	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
+	e = (struct json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
 	json_obj_open(&e);
 	json_kv_int(&e, "schemaVersion", 2);
 	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
@@ -595,15 +595,15 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	const char *reference = "stable", *operation = "add";
 	char key_path[PATH_MAX], cert_path[PATH_MAX];
 	char parent[BPM_MAX_DIGEST] = {}, digest[72];
-	struct shirudo_tree_publication pub = {};
-	struct shirudo_tree_operation *op = NULL;
+	struct tree_publication pub = {};
+	struct tree_operation *op = NULL;
 	size_t len, payload_len = 0, sig_len = 0;
 	char *payload = NULL, *manifest = NULL;
 	struct bpm_build_spec *spec = NULL;
 	__u8 *beefile = NULL, *sig = NULL;
 	struct bpm_package_info info = {};
 	struct bpm_oci_client c = {};
-	struct shirudo_json_emit e;
+	struct json_emit e;
 	char empty_config[] = "{}";
 	char package_dir[101];
 	int appended = 0, ret;
@@ -710,7 +710,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	ret = bpm_tree_fetch_publication(&c, repository, reference, cert, &pub,
 					 parent, sizeof(parent));
 	if (ret == -ENOENT) {
-		pub = (struct shirudo_tree_publication){ .schema = 1,
+		pub = (struct tree_publication){ .schema = 1,
 							 .generation = 1 };
 		parent[0] = '\0';
 		if (tree_id)
@@ -754,7 +754,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			pr_err("bpm tree append: package entry %s not found", member);
 			goto out;
 		}
-		*op = (struct shirudo_tree_operation){ .seq = pub.head_seq + 1 };
+		*op = (struct tree_operation){ .seq = pub.head_seq + 1 };
 		bpm_copy_string(op->op, sizeof(op->op), operation);
 		bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
 		if (u->tree.selector)
@@ -802,7 +802,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
+	e = (struct json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
 	json_obj_open(&e);
 	json_kv_int(&e, "schemaVersion", 2);
 	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);

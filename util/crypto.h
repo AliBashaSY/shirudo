@@ -19,16 +19,16 @@
 
 #define CRYPTO_SHA256_LEN 32
 
-struct shirudo_sha256_ctx {
+struct sha256_ctx {
 	void *impl;
 };
 
-int sha256_init(struct shirudo_sha256_ctx *ctx);
-int sha256_update(struct shirudo_sha256_ctx *ctx,
+int sha256_init(struct sha256_ctx *ctx);
+int sha256_update(struct sha256_ctx *ctx,
 		  const void *data, size_t len);
-int sha256_final(struct shirudo_sha256_ctx *ctx,
+int sha256_final(struct sha256_ctx *ctx,
 		 __u8 out[CRYPTO_SHA256_LEN]);
-void sha256_free(struct shirudo_sha256_ctx *ctx);
+void sha256_free(struct sha256_ctx *ctx);
 int sha256_buffer(const void *data, size_t len,
 		  __u8 out[CRYPTO_SHA256_LEN]);
 int base64_encode(const __u8 *data, size_t len,
@@ -39,40 +39,40 @@ int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
 		      const __u8 digest[CRYPTO_SHA256_LEN],
 		      const __u8 r[32], const __u8 s[32]);
 
-struct shirudo_cert {
+struct cert {
 	void *impl;
 };
 
-int cert_read_file(const char *path, struct shirudo_cert *cert);
-int cert_read_fd(int fd, struct shirudo_cert *cert);
-void cert_free(struct shirudo_cert *cert);
-int cert_pubkey_digest(const struct shirudo_cert *cert,
+int cert_read_file(const char *path, struct cert *cert);
+int cert_read_fd(int fd, struct cert *cert);
+void cert_free(struct cert *cert);
+int cert_pubkey_digest(const struct cert *cert,
 		       __u8 out[CRYPTO_SHA256_LEN]);
 /* The provider's name for the cert's public key, e.g. "ML-DSA-87". */
-int cert_key_algorithm(const struct shirudo_cert *cert,
+int cert_key_algorithm(const struct cert *cert,
 		       char *out, size_t out_sz);
 /* The subject on one line, "O=Example, CN=fleet", control bytes escaped. */
-int cert_subject(const struct shirudo_cert *cert, char *out, size_t out_sz);
+int cert_subject(const struct cert *cert, char *out, size_t out_sz);
 /* The validity window as UTC dates, YYYY-MM-DD. */
-int cert_validity(const struct shirudo_cert *cert, char not_before[11],
+int cert_validity(const struct cert *cert, char not_before[11],
 		  char not_after[11]);
 int verify_detached(const __u8 *payload, size_t payload_len,
 		    const __u8 *signature, size_t signature_len,
-		    const struct shirudo_cert *cert);
+		    const struct cert *cert);
 /*
  * Whether a signer of the CMS blob names this certificate, by key id
  * or by issuer and serial: 1 when one does, 0 when none, -EINVAL when
  * the blob does not parse. Says nothing about the signature's validity.
  */
 int cms_signed_by(const __u8 *signature, size_t signature_len,
-		  const struct shirudo_cert *cert);
+		  const struct cert *cert);
 
-struct shirudo_tls_ca {
+struct tls_ca {
 	const char *path;
 	void *impl;
 };
 
-void tls_ca_cleanup(struct shirudo_tls_ca *ca);
+void tls_ca_cleanup(struct tls_ca *ca);
 
 /*
  * shirudo's TLS policy for every libcurl handle it opens: TLS 1.3 only
@@ -84,7 +84,7 @@ void tls_ca_cleanup(struct shirudo_tls_ca *ca);
  * is the extra trust anchor fed to the SSL_CTX callback. Returns 0 or a
  * negative errno; callers must not connect when it fails.
  */
-int tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca);
+int tls_curl_policy(CURL *curl, struct tls_ca *ca);
 
 int hmac_sha256(const __u8 *key, size_t key_len,
 		const void *data, size_t len,
@@ -115,7 +115,7 @@ int base64_decode(const char *in, size_t in_len, __u8 *out,
 		  size_t cap, size_t *out_len);
 
 int cert_read_der(const __u8 *der, size_t len,
-		  struct shirudo_cert *cert);
+		  struct cert *cert);
 
 struct cert_pubkey {
 	bool		rsa;
@@ -126,7 +126,7 @@ struct cert_pubkey {
 	__u8		y[32];
 };
 
-int cert_pubkey(const struct shirudo_cert *cert,
+int cert_pubkey(const struct cert *cert,
 		struct cert_pubkey *out);
 
 /*
@@ -134,7 +134,7 @@ int cert_pubkey(const struct shirudo_cert *cert,
  * -EKEYREJECTED when it does not chain, with *reason set to libcrypto's
  * static explanation; -EINVAL when the bundle cannot be loaded.
  */
-int cert_verify_chain(const struct shirudo_cert *cert,
+int cert_verify_chain(const struct cert *cert,
 		      const char *bundle_path, const char **reason);
 
 /* Log libcrypto's last error under where. */

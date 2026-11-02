@@ -20,11 +20,11 @@ static int fail(const char *msg)
 	return 1;
 }
 
-static int expect_attach(const struct shirudo_upatch *u, __u32 kind,
+static int expect_attach(const struct upatch *u, __u32 kind,
 			 const char *target, __u64 offset)
 {
-	struct shirudo_upatch_prog_metadata md;
-	struct shirudo_upatch_prog_entry prog;
+	struct upatch_prog_metadata md;
+	struct upatch_prog_entry prog;
 	const __u8 *raw;
 	__u32 len;
 
@@ -61,10 +61,10 @@ static int expect_attach(const struct shirudo_upatch *u, __u32 kind,
 	return 0;
 }
 
-static int expect_serializer(const struct shirudo_upatch *u)
+static int expect_serializer(const struct upatch *u)
 {
-	struct shirudo_upatch_prog_entry progs[2];
-	struct shirudo_upatch_prog_metadata md;
+	struct upatch_prog_entry progs[2];
+	struct upatch_prog_metadata md;
 	bool arena = false, error = false;
 	const __u8 *raw;
 	size_t i;
@@ -97,14 +97,14 @@ static int expect_serializer(const struct shirudo_upatch *u)
 	return arena && error ? 0 : fail("serializer map mismatch");
 }
 
-static int expect_uprobe_multi(const struct shirudo_upatch *u,
+static int expect_uprobe_multi(const struct upatch *u,
 			       const char *path, const char *pattern,
 			       __u32 expected_offsets)
 {
-	struct shirudo_upatch_uprobe_targets targets;
-	struct shirudo_upatch_uprobe_target record;
-	struct shirudo_upatch_prog_metadata md;
-	struct shirudo_upatch_prog_entry prog;
+	struct upatch_uprobe_targets targets;
+	struct upatch_uprobe_target record;
+	struct upatch_prog_metadata md;
+	struct upatch_prog_entry prog;
 	const __u8 *raw, *cursor, *end;
 	__u32 path_len, build_id_len, nr_offsets, len, i;
 	__u64 previous = 0;
@@ -162,7 +162,7 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 
 int main(int argc, char **argv)
 {
-	struct shirudo_upatch u;
+	struct upatch u;
 	const char *mode = "serializer";
 	int ret;
 

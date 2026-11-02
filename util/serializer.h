@@ -12,7 +12,7 @@ int serializer_lock_acquire(__u32 map_id);
 int serializer_lock_acquire_at(const char *dir, __u32 map_id);
 int serializer_new_invocation_id(__u64 *out);
 
-int serial_chunk_validate(const struct shirudo_serial_chunk *chunk,
+int serial_chunk_validate(const struct serial_chunk *chunk,
 			  __u32 want_index,
 			  __u32 total_chunks,
 			  __u32 page_index,

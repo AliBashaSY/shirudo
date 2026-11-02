@@ -17,7 +17,7 @@
 
 #include "crypto.h"
 
-struct shirudo_json_emit;
+struct json_emit;
 
 #define BPM_MAX_NAME 128
 #define BPM_MAX_ENDPOINT 512
@@ -76,7 +76,7 @@ struct bpm_oci_client {
 	char password[BPM_OCI_PASSWORD_SIZE];
 	char token[BPM_OCI_TOKEN_SIZE];
 	char ca_file[PATH_MAX];
-	struct shirudo_tls_ca tls_ca;
+	struct tls_ca tls_ca;
 };
 
 struct bpm_descriptor {
@@ -148,7 +148,7 @@ int bpm_oci_get_signed(struct bpm_oci_client *c, const char *repository,
 		       const struct bpm_descriptor *layers, int n_layers,
 		       const char *payload_media, const char *sig_media,
 		       struct bpm_buffer *payload, struct bpm_buffer *sig);
-void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
+void bpm_oci_emit_descriptor(struct json_emit *e, const char *key,
 			     const struct bpm_descriptor *d, const char *title);
 
 #endif /* SHIRUDO_BPM_OCI_H */

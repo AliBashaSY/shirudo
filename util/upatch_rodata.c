@@ -153,7 +153,7 @@ static bool map_name_rodata(const char *name)
 	       !strcmp(name + name_len - suffix_len, suffix);
 }
 
-static int find_rodata_data(const struct shirudo_upatch *u,
+static int find_rodata_data(const struct upatch *u,
 			    const struct btf *btf, __u32 datasec_id,
 			    struct rodata_view *view)
 {
@@ -231,7 +231,7 @@ static int find_rodata_data(const struct shirudo_upatch *u,
 	return ret;
 }
 
-static int btf_rodata_btf(const struct shirudo_upatch *u,
+static int btf_rodata_btf(const struct upatch *u,
 			  struct rodata_view *view)
 {
 	const __u8 *data = upatch_data(u);
@@ -314,7 +314,7 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 	return find_rodata_data(u, found, found_id, view);
 }
 
-int upatch_rodata_data_offset(const struct shirudo_upatch *u, __u32 *offset)
+int upatch_rodata_data_offset(const struct upatch *u, __u32 *offset)
 {
 	struct rodata_view view = {};
 	int ret;
@@ -328,9 +328,9 @@ int upatch_rodata_data_offset(const struct shirudo_upatch *u, __u32 *offset)
 	return ret;
 }
 
-int upatch_rodata_symbol_range(const struct shirudo_upatch *u,
+int upatch_rodata_symbol_range(const struct upatch *u,
 			       const char *symbol,
-			       struct shirudo_rodata_range *range)
+			       struct rodata_range *range)
 {
 	struct rodata_view view = {};
 	const struct btf_type *sec;
@@ -495,7 +495,7 @@ static int append_type_name(const struct btf *btf, __u32 id, char *buf,
 	return 0;
 }
 
-static int json_number(struct shirudo_json_emit *e, __u64 value,
+static int json_number(struct json_emit *e, __u64 value,
 		       bool is_signed)
 {
 	char number[32];
@@ -541,7 +541,7 @@ static int btf_integer(const struct btf_type *t, const void *bytes,
 	return 0;
 }
 
-static void json_hex(struct shirudo_json_emit *e, const void *bytes,
+static void json_hex(struct json_emit *e, const void *bytes,
 		     size_t size)
 {
 	static const char hex[] = "0123456789abcdef";
@@ -570,7 +570,7 @@ static void json_hex(struct shirudo_json_emit *e, const void *bytes,
 	xfree(text, cap);
 }
 
-static int json_btf_value(struct shirudo_json_emit *e, const struct btf *btf,
+static int json_btf_value(struct json_emit *e, const struct btf *btf,
 			  __u32 type_id, const __u8 *bytes, size_t size,
 			  __u32 depth)
 {
@@ -776,7 +776,7 @@ static void print_text(void *ctx, const char *fmt, va_list args)
 	vfprintf(fp, fmt, args);
 }
 
-static int print_rodata_text(const struct shirudo_upatch *u,
+static int print_rodata_text(const struct upatch *u,
 			     const char *path, const struct rodata_view *view)
 {
 	struct btf_dump_type_data_opts opts = {
@@ -841,7 +841,7 @@ out:
 	return ret;
 }
 
-static int print_rodata_json(const struct shirudo_upatch *u,
+static int print_rodata_json(const struct upatch *u,
 			     const char *path, const struct rodata_view *view)
 {
 	const struct btf_type *sec = btf__type_by_id(view->btf,
@@ -850,7 +850,7 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 		(const struct btf_var_secinfo *)(sec + 1);
 	char name[UPATCH_NAME_MAX + 1];
 	char *buf = xmalloc(JSON_MAX_BYTES);
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
 	int ret = 0;
 
@@ -920,7 +920,7 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 	return ret;
 }
 
-int upatch_rodata_print(const struct shirudo_upatch *u, const char *path,
+int upatch_rodata_print(const struct upatch *u, const char *path,
 			bool json)
 {
 	struct rodata_view view = {};

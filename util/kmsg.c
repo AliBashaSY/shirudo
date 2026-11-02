@@ -128,7 +128,7 @@ static void monotonic_to_iso(__u64 mono_us,
 		strscpy(out, "?", out_cap);
 }
 
-int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
+int kmsg_tail(struct kmsg_record *out, size_t cap)
 {
 	struct timespec rt_at_open, mt_at_open;
 	char buf[KMSG_READ_BUF];
@@ -189,7 +189,7 @@ int kmsg_tail(struct shirudo_kmsg_record *out, size_t cap)
 		size_t bytes = cap * sizeof(*out);
 		size_t start = head % cap;
 		size_t i;
-		struct shirudo_kmsg_record *tmp = xmalloc(bytes);
+		struct kmsg_record *tmp = xmalloc(bytes);
 
 		if (!tmp)
 			return -ENOMEM;

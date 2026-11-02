@@ -17,7 +17,7 @@
  */
 #define SIMILAR_MAX_LEN	64
 
-struct shirudo_suggestion {
+struct suggestion {
 	const char	*name;
 	int		dist;
 };
@@ -25,7 +25,7 @@ struct shirudo_suggestion {
 size_t suggest(const char *name,
 	       const char *const *commands, size_t n_commands,
 	       int max_dist,
-	       struct shirudo_suggestion *out, size_t cap);
+	       struct suggestion *out, size_t cap);
 
 /*
  * Three tiers, the first that hits wins: exact, input a prefix of a

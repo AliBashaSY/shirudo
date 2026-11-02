@@ -129,7 +129,7 @@ extern const __u8 shirudo_tpm_ek_policy[TPM_DIGEST_LEN];
  * P-256 or RSA-2048 key, its symmetric protector absent or
  * AES-128-CFB, its scheme absent or ECDSA with SHA-256.
  */
-struct shirudo_tpm_public {
+struct tpm_public {
 	__u16		type;
 	__u32		attrs;
 	size_t		policy_len;	/* 0 or 32 */
@@ -149,11 +149,11 @@ struct shirudo_tpm_public {
 };
 
 int tpm_public_parse(const __u8 *buf, size_t len,
-		     struct shirudo_tpm_public *out);
-int tpm_public_marshal(const struct shirudo_tpm_public *pub,
+		     struct tpm_public *out);
+int tpm_public_marshal(const struct tpm_public *pub,
 		       __u8 *out, size_t cap, size_t *len);
 
-struct shirudo_tpm_ecc_public {
+struct tpm_ecc_public {
 	__u32		attrs;
 	__u16		scheme;
 	__u16		hash;
@@ -163,7 +163,7 @@ struct shirudo_tpm_ecc_public {
 };
 
 int tpm_ecc_public_parse(const __u8 *buf, size_t len,
-			 struct shirudo_tpm_ecc_public *out);
+			 struct tpm_ecc_public *out);
 
 /*
  * The key derivations of TPM 2.0 Part 1 with SHA-256: KDFa (SP800-108
@@ -195,7 +195,7 @@ int tpm_credential_protect(const __u8 seed[32],
 int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
 			      __u8 r[32], __u8 s[32]);
 
-struct shirudo_tpm_attest {
+struct tpm_attest {
 	__u16		type;
 	__u8		signer[TPM_NAME_LEN];
 	size_t		signer_len;
@@ -223,6 +223,6 @@ struct shirudo_tpm_attest {
  * input stay valid as long as buf does.
  */
 int tpm_attest_parse(const __u8 *buf, size_t len,
-		     struct shirudo_tpm_attest *out);
+		     struct tpm_attest *out);
 
 #endif /* SHIRUDO_TPM_WIRE_H */

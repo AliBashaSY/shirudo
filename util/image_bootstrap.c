@@ -40,7 +40,7 @@ static char *trim(char *text)
 }
 
 /* The stream is consumed and closed. */
-static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
+static int bootstrap_parse(FILE *file, struct image_bootstrap *boot,
 			   bool initial)
 {
 	size_t capacity = 0;
@@ -119,7 +119,7 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 }
 
 int image_bootstrap_read(const char *path,
-			 struct shirudo_image_bootstrap *boot,
+			 struct image_bootstrap *boot,
 			 bool initial)
 {
 	FILE *file = fopen(path, "re");
@@ -131,7 +131,7 @@ int image_bootstrap_read(const char *path,
 
 /* A copy of the descriptor is read from its start; the caller keeps its own. */
 int image_bootstrap_read_fd(int fd,
-			    struct shirudo_image_bootstrap *boot,
+			    struct image_bootstrap *boot,
 			    bool initial)
 {
 	int copy, ret;

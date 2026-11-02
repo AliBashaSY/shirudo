@@ -9,11 +9,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-struct shirudo_trusted_set;
+struct trusted_set;
 
 int keys_validate_image_set(const char *primary, int root_fd,
-			    struct shirudo_trusted_set *set);
-int keys_check_image_set(const struct shirudo_trusted_set *set);
+			    struct trusted_set *set);
+int keys_check_image_set(const struct trusted_set *set);
 int keys_validate_image(int root_fd);
 
 int keys_apply_image(int root_fd, bool boot);

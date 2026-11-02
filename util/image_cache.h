@@ -4,10 +4,10 @@
 #ifndef SHIRUDO_IMAGE_CACHE_H
 #define SHIRUDO_IMAGE_CACHE_H
 
-struct shirudo_config_update_target;
+struct config_update_target;
 
 /* The caller holds the update lock and owns the sealed cache directory. */
 int image_cache_fetch(const char *source,
-		      struct shirudo_config_update_target *target);
+		      struct config_update_target *target);
 
 #endif /* SHIRUDO_IMAGE_CACHE_H */

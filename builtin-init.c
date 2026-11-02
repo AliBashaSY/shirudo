@@ -57,13 +57,13 @@
 #include "util/upatch.h"
 #include "util/upatch_resolve.h"
 
-static void print_preflight(const struct shirudo_preflight_result *r)
+static void print_preflight(const struct preflight_result *r)
 {
 	int i;
 
 	printf("pre-flight checks:\n");
 	for (i = 0; i < r->n; i++) {
-		const struct shirudo_preflight_check *c = &r->checks[i];
+		const struct preflight_check *c = &r->checks[i];
 
 		printf("  %-22s %s%s%s\n",
 		       c->name,
@@ -75,12 +75,12 @@ static void print_preflight(const struct shirudo_preflight_result *r)
 	       r->n - r->n_failed, r->n, r->n_failed);
 }
 
-static struct shirudo_trusted_set enrolled;
+static struct trusted_set enrolled;
 
 static bool initrd_mode;
 
 static int keyring_holds_set(key_serial_t ring,
-			     const struct shirudo_trusted_set *set)
+			     const struct trusted_set *set)
 {
 	struct keyring_cert certs[KEYS_MAX];
 	size_t i;
@@ -106,7 +106,7 @@ static int keyring_holds_set(key_serial_t ring,
  * not install, is refused.
  */
 static int init_bpf_keyring(key_serial_t ring,
-			    const struct shirudo_trusted_set *set)
+			    const struct trusted_set *set)
 {
 	bool sealed = false;
 	size_t i;
@@ -188,8 +188,8 @@ static int init_bpf_keyring(key_serial_t ring,
 
 static int init_keyring(void)
 {
-	struct shirudo_trusted_set set;
-	struct shirudo_identity id;
+	struct trusted_set set;
+	struct identity id;
 	key_serial_t ring;
 	int ret;
 
@@ -334,15 +334,15 @@ static int attach_pin(struct bpf_program *p, const char *pin,
 }
 
 static struct bpf_program *guard_program(struct bpf_object *object,
-					 enum shirudo_gate_guard guard)
+					 enum gate_guard guard)
 {
-	const struct shirudo_image_guard *entry = &shirudo_gate_guards[guard];
+	const struct image_guard *entry = &shirudo_gate_guards[guard];
 
 	return bpf_object__find_program_by_name(object, entry->prog);
 }
 
 static int attach_guard(struct bpf_program *program,
-			enum shirudo_gate_guard guard, struct bpf_link **link)
+			enum gate_guard guard, struct bpf_link **link)
 {
 	return attach_pin(program, shirudo_gate_guards[guard].pin, link);
 }
@@ -371,7 +371,7 @@ static int share_policy_maps(struct bpf_object *source,
 
 /* Attach in order. The caller owns each pinned link, including on failure. */
 static int attach_guard_group(struct bpf_object *obj,
-			      const struct shirudo_image_guard *guards,
+			      const struct image_guard *guards,
 			      size_t count, struct bpf_link **links)
 {
 	struct bpf_program *program;
@@ -400,7 +400,7 @@ static int attach_guard_group(struct bpf_object *obj,
  */
 static int record_bpffs_mount(struct bpf_object *obj)
 {
-	struct shirudo_mount_record rec = {};
+	struct mount_record rec = {};
 	struct bpf_map *map;
 	__u32 zero = 0;
 	int fd;
@@ -423,7 +423,7 @@ static int record_bpffs_mount(struct bpf_object *obj)
 static int attach_seal(struct bpf_object *policy, struct bpf_object **obj_out,
 		       struct bpf_link **links, struct bpf_link **image_links)
 {
-	const struct shirudo_embedded_bpf *blob = seal_blob();
+	const struct embedded_bpf *blob = seal_blob();
 	struct bpf_object *obj;
 	int err;
 
@@ -491,7 +491,7 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 }
 
 /* Boot keys left the sealed keyring holding the config certificate alone. */
-static int dm_verity_anchor(struct shirudo_identity *id)
+static int dm_verity_anchor(struct identity *id)
 {
 	struct anchor_keys keys = {};
 	key_serial_t ring;
@@ -523,7 +523,7 @@ static int dm_verity_anchor(struct shirudo_identity *id)
 /* Seed bootstrap and freeze shared state except the expected config root. */
 static int freeze_task_maps(struct bpf_object *obj)
 {
-	struct shirudo_task_authority authority = {
+	struct task_authority authority = {
 		.trusted = TASK_BOOTSTRAP,
 	};
 	struct bpf_map *map;
@@ -534,7 +534,7 @@ static int freeze_task_maps(struct bpf_object *obj)
 	if (pidfd < 0)
 		return -errno;
 	for (i = SHIRUDO_GUARD_TASKS; i < SHIRUDO_GUARD_MAP_COUNT; i++) {
-		const struct shirudo_guard_map *expected =
+		const struct guard_map *expected =
 			&shirudo_guard_maps[i];
 
 		map = bpf_object__find_map_by_name(obj, expected->name);
@@ -565,10 +565,10 @@ static int freeze_task_maps(struct bpf_object *obj)
  * attestation key, whose name no other TPM produces, and compares it with
  * the one recorded here (util/chain.c).
  */
-static int record_attestation_key(struct shirudo_identity *id)
+static int record_attestation_key(struct identity *id)
 {
-	struct shirudo_tpm_key ak = {};
-	struct shirudo_tpm *tpm;
+	struct tpm_key ak = {};
+	struct tpm *tpm;
 	int ret;
 
 	ret = tpm_open(&tpm);
@@ -592,13 +592,13 @@ static int init_lsm(void)
 	struct bpf_link *identity_links[ARRAY_SIZE(shirudo_observer_guards)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(shirudo_mount_guards)] = {};
 	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
-	const struct shirudo_embedded_bpf *blob = bpf2_blob();
+	const struct embedded_bpf *blob = bpf2_blob();
 	struct bpf_link *seal_links[SEAL_HOOK_COUNT] = {};
 	struct bpf_link *link_bpf = NULL, *link_bpf_map = NULL;
 	struct bpf_object *obj = NULL, *seal_obj = NULL;
 	struct bpf_link *link_keyperm = NULL, *link_tpm = NULL;
 	struct bpf_link *link_unlink = NULL;
-	struct shirudo_identity id = {};
+	struct identity id = {};
 	struct anchor_keys keys = {};
 	struct bpf_program *p_pload;
 	struct bpf_program *p_key, *p_tpm;
@@ -915,9 +915,9 @@ out:
  * for the operator to resolve.
  */
 static int boot_restore(bool recorded,
-			struct shirudo_measured_upatch **out_set, size_t *out_n)
+			struct measured_upatch **out_set, size_t *out_n)
 {
-	struct shirudo_measured_upatch *set = NULL;
+	struct measured_upatch *set = NULL;
 	struct dirent **names = NULL;
 	int n, i, ret = 0;
 	size_t cnt = 0;
@@ -953,7 +953,7 @@ static int boot_restore(bool recorded,
 	for (i = 0; i < n; i++) {
 		char pinned_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
 		char path[PATH_MAX];
-		struct shirudo_upatch u;
+		struct upatch u;
 		int fd;
 
 		if (ret)
@@ -1031,17 +1031,17 @@ next:
 }
 
 /* The binding a verifier needs to recompute the register's public area. */
-static int append_init_event(const struct shirudo_measured_upatch *set,
+static int append_init_event(const struct measured_upatch *set,
 			     size_t n,
 			     const __u8 cert_sha[32],
 			     const __u8 set_digest[32],
 			     const __u8 tree_root[32],
 			     const __u8 init_digest[32],
-			     const struct shirudo_chain_init_info *info)
+			     const struct chain_init_info *info)
 {
 	char writer_hex[HEXLEN(TPM_NV_RSA_BYTES)];
 	char buf[64 * 1024];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char pcr_hex[HEXLEN(32)], anchor_hex[HEXLEN(32)], chain_hex[HEXLEN(32)];
 	char name_hex[HEXLEN(TPM_NAME_LEN)], tree_hex[HEXLEN(32)];
 	char cert_hex[HEXLEN(32)], set_hex[HEXLEN(32)];
@@ -1120,7 +1120,7 @@ static bool phase_unmeasured(const __u8 pcr[32])
 
 static void tree_root_at_boot(__u8 out[32])
 {
-	struct shirudo_tree_state s = {};
+	struct tree_state s = {};
 
 	memset(out, 0, 32);
 	if (tree_state_read(&s) == 0 &&
@@ -1138,14 +1138,14 @@ static void tree_root_at_boot(__u8 out[32])
  * (category tpm_error), never an unmeasured init, because an
  * unmeasured target is indistinguishable from a tampered one.
  */
-static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
+static int chain_extend_init(struct measured_upatch *set, size_t n)
 {
 	__u8 cert_sha[32], set_digest[32], tree_root[32], init_digest[32];
-	struct shirudo_chain_init_info info;
+	struct chain_init_info info;
 	int ret;
 
 	{
-		struct shirudo_config cfg;
+		struct config cfg;
 		__u64 max_bytes;
 		bool full;
 
@@ -1245,16 +1245,16 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	return 0;
 }
 
-static const struct shirudo_help_item init_options[] = {
+static const struct help_item init_options[] = {
 	{ "--check-only", "run the pre-flight only; never touch kernel state" },
 };
 
-static const struct shirudo_help_section init_help_sections[] = {
+static const struct help_section init_help_sections[] = {
 	{ "options:", init_options,
 	  ARRAY_SIZE(init_options) },
 };
 
-static const struct shirudo_help init_help = {
+static const struct help init_help = {
 	.usage      = "shirudo init [--check-only]",
 	.summary    = "Bootstrap enforcement on this target. Idempotent; safe "
 		      "to re-run.\nThe pinned link survives the process exit.",
@@ -1349,8 +1349,8 @@ static int init_phase_error(int ret, const char *phase)
 
 static int run_init(void)
 {
-	struct shirudo_measured_upatch *set = NULL;
-	struct shirudo_eventlog_init rec;
+	struct measured_upatch *set = NULL;
+	struct eventlog_init rec;
 	bool recorded, bootstrap;
 	size_t n = 0;
 	int ret;
@@ -1435,7 +1435,7 @@ static int run_init(void)
 
 int cmd_init(int argc, const char **argv)
 {
-	struct shirudo_preflight_result res;
+	struct preflight_result res;
 	bool check_only = false;
 	int i, ret;
 

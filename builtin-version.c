@@ -14,16 +14,16 @@
 #include "util/help.h"
 #include "util/version.h"
 
-static const struct shirudo_help_item version_options[] = {
+static const struct help_item version_options[] = {
 	{ "--version-id", "print only the raw SHIRUDO_VERSION_ID, one line" },
 };
 
-static const struct shirudo_help_section version_help_sections[] = {
+static const struct help_section version_help_sections[] = {
 	{ "options:", version_options,
 	  ARRAY_SIZE(version_options) },
 };
 
-static const struct shirudo_help version_help = {
+static const struct help version_help = {
 	.usage      = "shirudo version [--version-id]",
 	.summary    = "Print the release tag plus the architecture-stripped "
 		      "SHIRUDO_VERSION_ID\nthat targets compare against the "

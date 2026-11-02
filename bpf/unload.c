@@ -12,12 +12,12 @@
 #define UPATCH_NAME_MAX	256
 #define SHA256_LEN	32
 
-struct shirudo_unload_params {
+struct unload_params {
 	char	name[UPATCH_NAME_MAX];
 	__u8	expected_sha256[SHA256_LEN];
 };
 
-volatile const struct shirudo_unload_params shirudo_unload_params = {
+volatile const struct unload_params shirudo_unload_params = {
 	.name		 = "<unpatched>",
 	.expected_sha256 = {},
 };

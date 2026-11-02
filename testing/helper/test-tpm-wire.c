@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "ecc-public") == 0 && argc == 3) {
-		struct shirudo_tpm_ecc_public pub;
+		struct tpm_ecc_public pub;
 		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "public") == 0 && argc == 3) {
-		struct shirudo_tpm_public pub;
+		struct tpm_public pub;
 		__u8 again[512];
 		size_t again_len = 0;
 		int ret;
@@ -256,7 +256,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "attest") == 0 && argc == 3) {
-		struct shirudo_tpm_attest at;
+		struct tpm_attest at;
 		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))

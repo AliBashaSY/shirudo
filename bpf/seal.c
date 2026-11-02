@@ -30,7 +30,7 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 	     struct linux_binprm *bprm, int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_authority *authority;
+	struct task_authority *authority;
 	struct inode *real_inode;
 	bool trusted;
 
@@ -64,7 +64,7 @@ int BPF_PROG(shirudo_seal_mmap_file, struct file *file,
 	     unsigned long reqprot, unsigned long prot,
 	     unsigned long flags, int ret)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
+	struct sb_id *id = shirudo_policy();
 
 	if (ret)
 		return ret;
@@ -81,7 +81,7 @@ SEC("lsm/file_mprotect")
 int BPF_PROG(shirudo_seal_file_mprotect, struct vm_area_struct *vma,
 	     unsigned long reqprot, unsigned long prot, int ret)
 {
-	struct shirudo_sb_id *id = shirudo_policy();
+	struct sb_id *id = shirudo_policy();
 	unsigned long old_flags;
 
 	if (ret)

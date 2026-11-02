@@ -31,7 +31,7 @@ static void puthex(const __u8 *b, size_t n)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_trusted_set set;
+	struct trusted_set set;
 	__u8 digest[32];
 	size_t i;
 	int ret;
@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 		return 2;
 	}
 	if (strcmp(argv[1], "signer") == 0) {
-		struct shirudo_cert cert = {};
-		struct shirudo_upatch u;
+		struct cert cert = {};
+		struct upatch u;
 
 		if (argc < 4 || upatch_open(argv[2], &u)) {
 			fprintf(stderr, "usage: signer <upatch> <cert.der>\n");

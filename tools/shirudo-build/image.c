@@ -115,7 +115,7 @@ static int verify_verity(int data_fd, int hash_fd, const char *root)
 static int verify_root_signature(const char root[65], const __u8 *signature,
 				 size_t size, const char *path)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	char algorithm[32];
 	int ret;
 
@@ -181,7 +181,7 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 		     const char *cert)
 {
 	__u8 signature[CONFIG_IMAGE_SIG_MAX];
-	struct shirudo_sign_io sign = {};
+	struct sign_io sign = {};
 	char root[65] = {};
 	size_t done = 0;
 	struct stat st;

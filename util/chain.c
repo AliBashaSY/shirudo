@@ -41,7 +41,7 @@ int sha256_calc(const void *data, size_t len, __u8 out[32])
 void sha256_2(const void *a, size_t a_len,
 	      const void *b, size_t b_len, __u8 out[32])
 {
-	struct shirudo_sha256_ctx ctx;
+	struct sha256_ctx ctx;
 
 	if (sha256_init(&ctx) != 0) {
 		memset(out, 0, 32);
@@ -68,12 +68,12 @@ int ct_eq(const void *a, const void *b, size_t n)
 
 static int member_cmp(const void *a, const void *b)
 {
-	return strcmp(((const struct shirudo_measured_upatch *)a)->name,
-		      ((const struct shirudo_measured_upatch *)b)->name);
+	return strcmp(((const struct measured_upatch *)a)->name,
+		      ((const struct measured_upatch *)b)->name);
 }
 
 int chain_init_event(const __u8 cert_sha[32],
-		     struct shirudo_measured_upatch *set, size_t n,
+		     struct measured_upatch *set, size_t n,
 		     const __u8 tree_root[32],
 		     __u8 set_digest[32], __u8 event[32])
 {
@@ -226,10 +226,10 @@ static bool name_equals(const struct tpm_nv_info *info,
 	       ct_eq(info->name, name, TPM_NAME_LEN);
 }
 
-static int register_define(struct shirudo_tpm *tpm, bool defined,
+static int register_define(struct tpm *tpm, bool defined,
 			   const __u8 policy[32])
 {
-	struct shirudo_config cfg = {};
+	struct config cfg = {};
 	int ret;
 
 	config_load(&cfg);
@@ -247,7 +247,7 @@ out:
 	return ret;
 }
 
-static int register_writer(struct shirudo_tpm *tpm,
+static int register_writer(struct tpm *tpm,
 			   __u8 public[TPM_NV_RSA_BYTES])
 {
 	__u8 seed[32];
@@ -262,10 +262,10 @@ static int register_writer(struct shirudo_tpm *tpm,
  * public and a substitute transport can replay it. Remote evidence
  * still needs a valid signature from the pinned key.
  */
-int chain_tpm_bound(struct shirudo_tpm *tpm)
+int chain_tpm_bound(struct tpm *tpm)
 {
-	struct shirudo_identity id = {};
-	struct shirudo_tpm_key ak = {};
+	struct identity id = {};
+	struct tpm_key ak = {};
 	int ret;
 
 	ret = enforcement_active();
@@ -294,13 +294,13 @@ int chain_tpm_bound(struct shirudo_tpm *tpm)
 }
 
 int chain_init(const __u8 event[32],
-	       struct shirudo_chain_init_info *info)
+	       struct chain_init_info *info)
 {
 	__u8 unwritten[TPM_NAME_LEN], written[TPM_NAME_LEN];
 	__u8 branch_written[32], branch_init[32], policy[32];
-	struct shirudo_eventlog_init rec;
+	struct eventlog_init rec;
 	struct tpm_nv_info nv;
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	bool recorded;
 	int ret;
 
@@ -450,9 +450,9 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 {
 	__u8 writer_public[TPM_NV_RSA_BYTES];
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
-	struct shirudo_eventlog_init rec;
+	struct eventlog_init rec;
 	struct tpm_nv_info nv;
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	__u32 reset;
 	int ret;
 
@@ -523,7 +523,7 @@ out:
 
 int chain_read(__u8 out[32])
 {
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	int ret;
 
 	ret = tpm_open(&tpm);
@@ -536,7 +536,7 @@ int chain_read(__u8 out[32])
 
 bool chain_bound(void)
 {
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	struct tpm_nv_info nv;
 	bool bound;
 
@@ -552,7 +552,7 @@ int chain_status(struct chain_status *st)
 {
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
 	__u8 expected[TPM_NAME_LEN];
-	struct shirudo_tpm *tpm = NULL;
+	struct tpm *tpm = NULL;
 	struct tpm_nv_info nv;
 	__u32 reset_count = 0;
 	int ret;

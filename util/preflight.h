@@ -12,7 +12,7 @@
 
 #define PREFLIGHT_DETAIL_MAX	256
 
-enum shirudo_preflight_id {
+enum preflight_id {
 	SHIRUDO_PRE_ROOT,
 	SHIRUDO_PRE_BPF_LSM,
 	SHIRUDO_PRE_BPFFS,
@@ -26,15 +26,15 @@ enum shirudo_preflight_id {
 	SHIRUDO_PRE__MAX,
 };
 
-struct shirudo_preflight_check {
-	enum shirudo_preflight_id	id;
+struct preflight_check {
+	enum preflight_id	id;
 	const char			*name;
 	bool				ok;
 	char				detail[PREFLIGHT_DETAIL_MAX];
 };
 
-struct shirudo_preflight_result {
-	struct shirudo_preflight_check	checks[SHIRUDO_PRE__MAX];
+struct preflight_result {
+	struct preflight_check	checks[SHIRUDO_PRE__MAX];
 	int				n;
 	int				n_failed;
 };
@@ -44,6 +44,6 @@ struct shirudo_preflight_result {
  * or a classical certificate. Nothing is printed; the caller presents
  * the outcome.
  */
-void preflight_run(struct shirudo_preflight_result *out);
+void preflight_run(struct preflight_result *out);
 
 #endif /* SHIRUDO_PREFLIGHT_H */

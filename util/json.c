@@ -17,7 +17,7 @@
 #include "hex.h"
 #include "json.h"
 
-static void put(struct shirudo_json_emit *e, char c)
+static void put(struct json_emit *e, char c)
 {
 	if (e->err)
 		return;
@@ -29,7 +29,7 @@ static void put(struct shirudo_json_emit *e, char c)
 	e->buf[e->len] = '\0';
 }
 
-static void put_raw(struct shirudo_json_emit *e, const char *s)
+static void put_raw(struct json_emit *e, const char *s)
 {
 	while (*s && !e->err)
 		put(e, *s++);
@@ -39,7 +39,7 @@ static void put_raw(struct shirudo_json_emit *e, const char *s)
  * Malformed UTF-8 is -EILSEQ, so a stray byte can never produce
  * invalid JSON.
  */
-static void put_string(struct shirudo_json_emit *e, const char *s)
+static void put_string(struct json_emit *e, const char *s)
 {
 	const __u8 *p = (const __u8 *)s;
 
@@ -99,7 +99,7 @@ static void put_string(struct shirudo_json_emit *e, const char *s)
 	put(e, '"');
 }
 
-static void sep(struct shirudo_json_emit *e)
+static void sep(struct json_emit *e)
 {
 	if (e->err)
 		return;
@@ -109,7 +109,7 @@ static void sep(struct shirudo_json_emit *e)
 		e->nonempty |= (1u << e->depth);
 }
 
-static void enter(struct shirudo_json_emit *e)
+static void enter(struct json_emit *e)
 {
 	if (e->err)
 		return;
@@ -121,13 +121,13 @@ static void enter(struct shirudo_json_emit *e)
 	e->nonempty &= ~(1u << e->depth);
 }
 
-static void leave(struct shirudo_json_emit *e)
+static void leave(struct json_emit *e)
 {
 	if (e->depth)
 		e->depth--;
 }
 
-static void json_value_begin(struct shirudo_json_emit *e)
+static void json_value_begin(struct json_emit *e)
 {
 	if (e->value_pending)
 		e->value_pending = false;
@@ -135,14 +135,14 @@ static void json_value_begin(struct shirudo_json_emit *e)
 		sep(e);
 }
 
-void json_obj_open(struct shirudo_json_emit *e)
+void json_obj_open(struct json_emit *e)
 {
 	sep(e);
 	put(e, '{');
 	enter(e);
 }
 
-void json_obj_open_key(struct shirudo_json_emit *e, const char *key)
+void json_obj_open_key(struct json_emit *e, const char *key)
 {
 	sep(e);
 	put_string(e, key);
@@ -151,20 +151,20 @@ void json_obj_open_key(struct shirudo_json_emit *e, const char *key)
 	enter(e);
 }
 
-void json_obj_value_open(struct shirudo_json_emit *e)
+void json_obj_value_open(struct json_emit *e)
 {
 	json_value_begin(e);
 	put(e, '{');
 	enter(e);
 }
 
-void json_obj_close(struct shirudo_json_emit *e)
+void json_obj_close(struct json_emit *e)
 {
 	put(e, '}');
 	leave(e);
 }
 
-void json_arr_open(struct shirudo_json_emit *e, const char *key)
+void json_arr_open(struct json_emit *e, const char *key)
 {
 	sep(e);
 	put_string(e, key);
@@ -173,14 +173,14 @@ void json_arr_open(struct shirudo_json_emit *e, const char *key)
 	enter(e);
 }
 
-void json_arr_open_value(struct shirudo_json_emit *e)
+void json_arr_open_value(struct json_emit *e)
 {
 	json_value_begin(e);
 	put(e, '[');
 	enter(e);
 }
 
-void json_key(struct shirudo_json_emit *e, const char *key)
+void json_key(struct json_emit *e, const char *key)
 {
 	sep(e);
 	put_string(e, key);
@@ -188,13 +188,13 @@ void json_key(struct shirudo_json_emit *e, const char *key)
 	e->value_pending = true;
 }
 
-void json_arr_close(struct shirudo_json_emit *e)
+void json_arr_close(struct json_emit *e)
 {
 	put(e, ']');
 	leave(e);
 }
 
-void json_kv_string(struct shirudo_json_emit *e,
+void json_kv_string(struct json_emit *e,
 		    const char *key, const char *val)
 {
 	sep(e);
@@ -203,7 +203,7 @@ void json_kv_string(struct shirudo_json_emit *e,
 	put_string(e, val);
 }
 
-void json_kv_int(struct shirudo_json_emit *e,
+void json_kv_int(struct json_emit *e,
 		 const char *key, __s64 val)
 {
 	char num[24];
@@ -218,7 +218,7 @@ void json_kv_int(struct shirudo_json_emit *e,
 	put_raw(e, num);
 }
 
-void json_kv_bool(struct shirudo_json_emit *e, const char *key, int val)
+void json_kv_bool(struct json_emit *e, const char *key, int val)
 {
 	sep(e);
 	put_string(e, key);
@@ -226,7 +226,7 @@ void json_kv_bool(struct shirudo_json_emit *e, const char *key, int val)
 	put_raw(e, val ? "true" : "false");
 }
 
-void json_kv_null(struct shirudo_json_emit *e, const char *key)
+void json_kv_null(struct json_emit *e, const char *key)
 {
 	sep(e);
 	put_string(e, key);
@@ -234,7 +234,7 @@ void json_kv_null(struct shirudo_json_emit *e, const char *key)
 	put_raw(e, "null");
 }
 
-void json_kv_raw(struct shirudo_json_emit *e, const char *key,
+void json_kv_raw(struct json_emit *e, const char *key,
 		 const char *value, size_t value_len)
 {
 	size_t i;
@@ -246,19 +246,19 @@ void json_kv_raw(struct shirudo_json_emit *e, const char *key,
 		put(e, value[i]);
 }
 
-void json_str(struct shirudo_json_emit *e, const char *val)
+void json_str(struct json_emit *e, const char *val)
 {
 	sep(e);
 	put_string(e, val);
 }
 
-void json_str_value(struct shirudo_json_emit *e, const char *val)
+void json_str_value(struct json_emit *e, const char *val)
 {
 	json_value_begin(e);
 	put_string(e, val);
 }
 
-void json_raw_value(struct shirudo_json_emit *e, const char *value,
+void json_raw_value(struct json_emit *e, const char *value,
 		    size_t value_len)
 {
 	size_t i;
@@ -268,7 +268,7 @@ void json_raw_value(struct shirudo_json_emit *e, const char *value,
 		put(e, value[i]);
 }
 
-void json_raw(struct shirudo_json_emit *e, const char *value,
+void json_raw(struct json_emit *e, const char *value,
 	      size_t value_len)
 {
 	size_t i;
@@ -282,7 +282,7 @@ struct pctx {
 	const char			*p;
 	const char			*end;
 	__u32				depth;
-	struct shirudo_json_field	*fields;
+	struct json_field	*fields;
 	size_t				n_fields;
 };
 
@@ -454,7 +454,7 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 	return 0;
 }
 
-static int parse_value(struct pctx *c, struct shirudo_json_field *f);
+static int parse_value(struct pctx *c, struct json_field *f);
 
 static int parse_object(struct pctx *c)
 {
@@ -471,7 +471,7 @@ static int parse_object(struct pctx *c)
 		return 0;
 	}
 	for (;;) {
-		struct shirudo_json_field *f = NULL;
+		struct json_field *f = NULL;
 		size_t i;
 
 		skip_ws(c);
@@ -542,9 +542,9 @@ static int parse_array(struct pctx *c)
 	return 0;
 }
 
-static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
+static int parse_array_into(struct pctx *c, struct json_field *f)
 {
-	struct shirudo_json_array *sink = f->dst;
+	struct json_array *sink = f->dst;
 	int ret;
 
 	if (++c->depth > JSON_MAX_DEPTH)
@@ -566,7 +566,7 @@ static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 		if (c->p >= c->end)
 			return -EINVAL;
 		if (*c->p == '{') {
-			struct shirudo_json_field *save_f = c->fields;
+			struct json_field *save_f = c->fields;
 			size_t save_n = c->n_fields;
 
 			c->fields = f->sub;
@@ -624,7 +624,7 @@ static int skip_digits(struct pctx *c)
  * A number as JSON spells one: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)?
  * An integer field takes the integer part alone, and only within __s64.
  */
-static int parse_number(struct pctx *c, struct shirudo_json_field *f)
+static int parse_number(struct pctx *c, struct json_field *f)
 {
 	const char *start = c->p;
 	const char *int_end;
@@ -659,14 +659,14 @@ static int parse_number(struct pctx *c, struct shirudo_json_field *f)
 	return 0;
 }
 
-static int parse_value(struct pctx *c, struct shirudo_json_field *f)
+static int parse_value(struct pctx *c, struct json_field *f)
 {
 	skip_ws(c);
 	if (c->p >= c->end)
 		return -EINVAL;
 	switch (*c->p) {
 	case '{': {
-		struct shirudo_json_field *save_f = c->fields;
+		struct json_field *save_f = c->fields;
 		size_t save_n = c->n_fields;
 		int ret;
 
@@ -743,7 +743,7 @@ static int parse_value(struct pctx *c, struct shirudo_json_field *f)
 }
 
 int json_parse(const char *data, size_t len,
-	       struct shirudo_json_field *fields, size_t n_fields)
+	       struct json_field *fields, size_t n_fields)
 {
 	struct pctx c = {
 		.p = data, .end = data + len,

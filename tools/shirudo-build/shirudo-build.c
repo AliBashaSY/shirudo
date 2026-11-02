@@ -313,7 +313,7 @@ int main(int argc, char **argv)
 			 * safe escape hatch).
 			 */
 			char archive[PATH_MAX];
-			struct shirudo_upatch u;
+			struct upatch u;
 
 			if (strsprintf(archive, sizeof(archive), "%s/%s.upatch",
 				       UPATCHES_DIR, unload_name) < 0) {

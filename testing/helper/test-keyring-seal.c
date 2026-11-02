@@ -108,7 +108,7 @@ static int exact_case(const struct keyring_cert *a,
 
 /* <set> is the trusted set init enrols; <other> a certificate outside it. */
 static int seal_case(const char *mode,
-		     const struct shirudo_trusted_set *set,
+		     const struct trusted_set *set,
 		     const struct keyring_cert *own,
 		     const struct keyring_cert *other)
 {
@@ -160,7 +160,7 @@ static int seal_case(const char *mode,
 int main(int argc, char **argv)
 {
 	struct keyring_cert own = {}, other = {};
-	struct shirudo_trusted_set set = {};
+	struct trusted_set set = {};
 	char keys[PATH_MAX];
 	int ret;
 

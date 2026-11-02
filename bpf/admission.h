@@ -10,9 +10,9 @@
  * BPF mutations require a task marked by successful exec from the runtime
  * image. Verified signed loaders perform their own calls in kernel context.
  */
-static __always_inline int shirudo_self_or_deny(enum shirudo_tamper_point point)
+static __always_inline int shirudo_self_or_deny(enum tamper_point point)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -25,7 +25,7 @@ SEC("lsm/bpf")
 int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	     unsigned int size, bool kernel, int ret)
 {
-	enum shirudo_tamper_point point;
+	enum tamper_point point;
 
 	if (ret)
 		return ret;
@@ -161,7 +161,7 @@ int BPF_PROG(shirudo_lsm_bpf_prog_load, struct bpf_prog *prog,
 	     union bpf_attr *attr, struct bpf_token *token,
 	     bool kernel, int ret)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0, verdict, ktype;
 	__s32 serial;
 
@@ -207,7 +207,7 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	     unsigned long arg3, unsigned long arg4, unsigned long arg5,
 	     int ret)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	(void)arg3;
@@ -237,7 +237,7 @@ SEC("lsm/bprm_check_security")
 int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
 	     int ret)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	if (ret)
@@ -256,9 +256,9 @@ int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
  * runtime task may change their inodes. Count bpffs refusals at `point`.
  */
 static __always_inline int shirudo_bpffs_guard(__u32 target_dev,
-					       enum shirudo_tamper_point point)
+					       enum tamper_point point)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -288,7 +288,7 @@ SEC("lsm/key_permission")
 int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	     const struct cred *cred, enum key_need_perm need, int ret)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0, i;
 	struct key *key;
 	bool possessed;
@@ -335,7 +335,7 @@ SEC("lsm/tpm_command")
 int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
 	     const __u8 *command, size_t command_len, int ret)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 code, index;
 
 	(void)file;
@@ -519,7 +519,7 @@ int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
  */
 static __always_inline __u32 shirudo_bpffs_dev(void)
 {
-	struct shirudo_sb_id *id;
+	struct sb_id *id;
 	__u32 zero = 0;
 
 	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
@@ -528,7 +528,7 @@ static __always_inline __u32 shirudo_bpffs_dev(void)
 
 /* -EPERM, counted at `point`, when sb_dev is the bpffs; else 0. */
 static __always_inline int
-shirudo_deny_bpffs_mount(__u32 sb_dev, enum shirudo_tamper_point point)
+shirudo_deny_bpffs_mount(__u32 sb_dev, enum tamper_point point)
 {
 	__u32 bpffs = shirudo_bpffs_dev();
 

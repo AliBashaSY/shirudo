@@ -56,7 +56,7 @@ struct {
 	__type(value, __u32);
 } target SEC(".maps");
 SEC("syscall")
-int shirudo_serialize__target(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__target(struct serialize_ctx *ctx)
 {
 	return 0;
 }
@@ -70,10 +70,10 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
 	__type(key, __u32);
-	__type(value, struct shirudo_serial_chunk);
+	__type(value, struct serial_chunk);
 } shirudo_ser SEC(".maps");
 SEC("syscall")
-int shirudo_serialize__absent(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__absent(struct serialize_ctx *ctx)
 {
 	return 0;
 }
@@ -87,10 +87,10 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
 	__type(key, __u32);
-	__type(value, struct shirudo_serial_chunk);
+	__type(value, struct serial_chunk);
 } shirudo_ser SEC(".maps");
 SEC("syscall")
-int shirudo_serialize__shirudo_ser(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__shirudo_ser(struct serialize_ctx *ctx)
 {
 	return 0;
 }

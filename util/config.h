@@ -24,7 +24,7 @@
 #define MAP_EXPORT_LOG_RECORD_MAX_DEFAULT	(1u * 1024u * 1024u)
 #define MAP_EXPORT_OTLP_MAX_DEFAULT		(4u * 1024u * 1024u)
 
-struct shirudo_config {
+struct config {
 	__u64		eventlog_max_bytes;	/* 0 = unlimited */
 	/*
 	 * Owner-hierarchy auth used to define the NV index on TPMs whose
@@ -53,11 +53,11 @@ struct shirudo_config {
 };
 
 /* A missing file is not an error. */
-int config_load(struct shirudo_config *cfg);
+int config_load(struct config *cfg);
 
 /* Testable path-specific loader; unlike config_load(), no env. */
-int config_load_path(struct shirudo_config *cfg, const char *path);
+int config_load_path(struct config *cfg, const char *path);
 /* The same from an open descriptor, read from its start. */
-int config_load_fd(struct shirudo_config *cfg, int fd, const char *label);
+int config_load_fd(struct config *cfg, int fd, const char *label);
 
 #endif /* SHIRUDO_CONFIG_H */

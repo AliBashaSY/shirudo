@@ -69,8 +69,8 @@ struct otel_response {
 };
 
 struct otel_state {
-	enum shirudo_otel_signal signal;
-	struct shirudo_otel_opts opts;
+	enum otel_signal signal;
+	struct otel_opts opts;
 	const char *decoder_path;
 	char endpoint[OTEL_ENDPOINT_MAX];
 	char host[256];
@@ -95,7 +95,7 @@ struct s3_snapshot {
 
 struct otel_s3_state {
 	struct otel_state *otel;
-	struct shirudo_otel_opts opts;
+	struct otel_opts opts;
 	char	bucket[S3_BUCKET_MAX + 1];
 	char	prefix[S3_PREFIX_MAX + 1];
 	char	region[S3_REGION_MAX];
@@ -131,7 +131,7 @@ static const struct btf_type *unwrap_btf_type(const struct btf *btf,
 	return NULL;
 }
 
-static int metric_type_from_view(const struct shirudo_map_view *v,
+static int metric_type_from_view(const struct map_view *v,
 				 struct metric_type *out)
 {
 	const struct btf_type *t;
@@ -148,8 +148,8 @@ static int metric_type_from_view(const struct shirudo_map_view *v,
 	return 0;
 }
 
-int upatch_maps_otel_classify(const struct shirudo_map_view *v,
-			      enum shirudo_otel_signal *signal,
+int upatch_maps_otel_classify(const struct map_view *v,
+			      enum otel_signal *signal,
 			      char *reason, size_t reason_sz)
 {
 	struct metric_type mt;
@@ -187,7 +187,7 @@ int upatch_maps_otel_classify(const struct shirudo_map_view *v,
 	return 0;
 }
 
-static void otlp_kv_string(struct shirudo_json_emit *e, const char *key,
+static void otlp_kv_string(struct json_emit *e, const char *key,
 			   const char *value)
 {
 	json_obj_open(e);
@@ -198,7 +198,7 @@ static void otlp_kv_string(struct shirudo_json_emit *e, const char *key,
 	json_obj_close(e);
 }
 
-static void otlp_kv_int(struct shirudo_json_emit *e, const char *key,
+static void otlp_kv_int(struct json_emit *e, const char *key,
 			__s64 value)
 {
 	char num[32];
@@ -215,7 +215,7 @@ static void otlp_kv_int(struct shirudo_json_emit *e, const char *key,
 	json_obj_close(e);
 }
 
-static void otlp_kv_bool(struct shirudo_json_emit *e, const char *key,
+static void otlp_kv_bool(struct json_emit *e, const char *key,
 			 bool value)
 {
 	json_obj_open(e);
@@ -226,7 +226,7 @@ static void otlp_kv_bool(struct shirudo_json_emit *e, const char *key,
 	json_obj_close(e);
 }
 
-static void otlp_kvlist_begin(struct shirudo_json_emit *e, const char *key)
+static void otlp_kvlist_begin(struct json_emit *e, const char *key)
 {
 	json_obj_open(e);
 	json_kv_string(e, "key", key);
@@ -235,7 +235,7 @@ static void otlp_kvlist_begin(struct shirudo_json_emit *e, const char *key)
 	json_arr_open(e, "values");
 }
 
-static void otlp_kvlist_end(struct shirudo_json_emit *e)
+static void otlp_kvlist_end(struct json_emit *e)
 {
 	json_arr_close(e);
 	json_obj_close(e);
@@ -243,7 +243,7 @@ static void otlp_kvlist_end(struct shirudo_json_emit *e)
 	json_obj_close(e);
 }
 
-static void otlp_array_begin(struct shirudo_json_emit *e, const char *key)
+static void otlp_array_begin(struct json_emit *e, const char *key)
 {
 	json_obj_open(e);
 	json_kv_string(e, "key", key);
@@ -252,7 +252,7 @@ static void otlp_array_begin(struct shirudo_json_emit *e, const char *key)
 	json_arr_open(e, "values");
 }
 
-static void otlp_array_end(struct shirudo_json_emit *e)
+static void otlp_array_end(struct json_emit *e)
 {
 	json_arr_close(e);
 	json_obj_close(e);
@@ -260,21 +260,21 @@ static void otlp_array_end(struct shirudo_json_emit *e)
 	json_obj_close(e);
 }
 
-static void otlp_array_string(struct shirudo_json_emit *e, const char *value)
+static void otlp_array_string(struct json_emit *e, const char *value)
 {
 	json_obj_open(e);
 	json_kv_string(e, "stringValue", value ? value : "");
 	json_obj_close(e);
 }
 
-static void otlp_array_kvlist_begin(struct shirudo_json_emit *e)
+static void otlp_array_kvlist_begin(struct json_emit *e)
 {
 	json_obj_open(e);
 	json_obj_open_key(e, "kvlistValue");
 	json_arr_open(e, "values");
 }
 
-static void otlp_array_kvlist_end(struct shirudo_json_emit *e)
+static void otlp_array_kvlist_end(struct json_emit *e)
 {
 	json_arr_close(e);
 	json_obj_close(e);
@@ -354,7 +354,7 @@ static int json_anyvalue_literal(struct json_anyvalue_ctx *c,
 }
 
 static int json_anyvalue_number(struct json_anyvalue_ctx *c,
-				struct shirudo_json_emit *e)
+				struct json_emit *e)
 {
 	const char *start = c->p;
 	bool fraction = false;
@@ -402,13 +402,13 @@ static int json_anyvalue_number(struct json_anyvalue_ctx *c,
 }
 
 static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
-				       struct shirudo_json_emit *e);
+				       struct json_emit *e);
 
 static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
-			      struct shirudo_json_emit *e);
+			      struct json_emit *e);
 
 static int json_anyvalue_object(struct json_anyvalue_ctx *c,
-				struct shirudo_json_emit *e, bool wrap)
+				struct json_emit *e, bool wrap)
 {
 	int ret;
 
@@ -477,7 +477,7 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 }
 
 static int json_anyvalue_array(struct json_anyvalue_ctx *c,
-			       struct shirudo_json_emit *e, bool wrap)
+			       struct json_emit *e, bool wrap)
 {
 	int ret = 0;
 
@@ -523,7 +523,7 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 }
 
 static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
-				       struct shirudo_json_emit *e)
+				       struct json_emit *e)
 {
 	const char *start;
 	size_t len;
@@ -567,7 +567,7 @@ static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
 }
 
 static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
-			      struct shirudo_json_emit *e)
+			      struct json_emit *e)
 {
 	int ret;
 
@@ -577,7 +577,7 @@ static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
 	return ret;
 }
 
-static int json_anyvalue_from_document(struct shirudo_json_emit *e,
+static int json_anyvalue_from_document(struct json_emit *e,
 				       const char *json, size_t len, bool wrap)
 {
 	struct json_anyvalue_ctx c = {
@@ -596,7 +596,7 @@ static int json_anyvalue_from_document(struct shirudo_json_emit *e,
 	return c.p == c.end ? 0 : -EINVAL;
 }
 
-static void emit_resource_attributes(struct shirudo_json_emit *e)
+static void emit_resource_attributes(struct json_emit *e)
 {
 	char hostname[256] = "unknown";
 
@@ -625,7 +625,7 @@ static int u64_decimal(__u64 value, char out[32])
 }
 
 /* An OTLP document down to its scope; otlp_close() ends it. */
-static void otlp_open(struct shirudo_json_emit *e, const char *resource_key,
+static void otlp_open(struct json_emit *e, const char *resource_key,
 		      const char *scope_key, const char *scope_name)
 {
 	json_obj_open(e);
@@ -642,7 +642,7 @@ static void otlp_open(struct shirudo_json_emit *e, const char *resource_key,
 	json_obj_close(e);
 }
 
-static void otlp_close(struct shirudo_json_emit *e)
+static void otlp_close(struct json_emit *e)
 {
 	json_obj_close(e);
 	json_arr_close(e);
@@ -652,7 +652,7 @@ static void otlp_close(struct shirudo_json_emit *e)
 }
 
 /* A logs document with its one record open; log_close() ends both. */
-static void log_open(struct shirudo_json_emit *e, const char *scope_name,
+static void log_open(struct json_emit *e, const char *scope_name,
 		     int severity_number, const char *severity_text,
 		     const char *event_name)
 {
@@ -669,15 +669,15 @@ static void log_open(struct shirudo_json_emit *e, const char *scope_name,
 	json_kv_string(e, "eventName", event_name);
 }
 
-static void log_close(struct shirudo_json_emit *e)
+static void log_close(struct json_emit *e)
 {
 	json_obj_close(e);
 	json_arr_close(e);
 	otlp_close(e);
 }
 
-static void emit_map_attributes(struct shirudo_json_emit *e,
-				const struct shirudo_map_view *v)
+static void emit_map_attributes(struct json_emit *e,
+				const struct map_view *v)
 {
 	otlp_kv_string(e, "shirudo.upatch.name", v->upatch);
 	otlp_kv_string(e, "shirudo.upatch.location", v->location);
@@ -690,8 +690,8 @@ static void emit_map_attributes(struct shirudo_json_emit *e,
 	otlp_kv_bool(e, "shirudo.map.truncated", v->truncated);
 }
 
-static void emit_log_map_data(struct shirudo_json_emit *e,
-			      const struct shirudo_map_view *v)
+static void emit_log_map_data(struct json_emit *e,
+			      const struct map_view *v)
 {
 	__u32 i, j;
 
@@ -710,7 +710,7 @@ static void emit_log_map_data(struct shirudo_json_emit *e,
 			    (__s64)v->serial_bytes_total);
 		otlp_array_begin(e, "pages");
 		for (p = 0; p < v->n_serial_pages; p++) {
-			const struct shirudo_serial_page *page = &v->serial_pages[p];
+			const struct serial_page *page = &v->serial_pages[p];
 			char *hex = hex_alloc(page->data,
 						      page->bytes);
 
@@ -750,7 +750,7 @@ static void emit_log_map_data(struct shirudo_json_emit *e,
 	}
 	otlp_array_begin(e, "entries");
 	for (i = 0; i < v->n_entries; i++) {
-		const struct shirudo_map_entry *en = &v->entries[i];
+		const struct map_entry *en = &v->entries[i];
 		char *key;
 
 		key = upatch_map_format_cell(v, v->key_type_id,
@@ -795,11 +795,11 @@ static void emit_log_map_data(struct shirudo_json_emit *e,
 
 /* record_max bounds the decoded body, 0 for none. */
 static int build_log_payload(const char *path,
-			     const struct shirudo_map_view *v,
+			     const struct map_view *v,
 			     size_t record_max,
 			     char **out, size_t *out_len)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char *decoded = NULL;
 	size_t decoded_len = 0;
 	char *buf;
@@ -850,7 +850,7 @@ static int build_log_payload(const char *path,
 }
 
 int upatch_maps_otel_build_log_file(const char *path,
-				    const struct shirudo_map_view *v,
+				    const struct map_view *v,
 				    char **out, size_t *out_len)
 {
 	if (!path)
@@ -859,10 +859,10 @@ int upatch_maps_otel_build_log_file(const char *path,
 }
 
 static int build_metric_decoded_payload(const char *path,
-					const struct shirudo_map_view *v,
+					const struct map_view *v,
 					char **out, size_t *out_len)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char *decoded = NULL, *decoded_buf, *buf;
 	size_t decoded_len = 0, decoded_alloc_len;
 	int ret;
@@ -903,17 +903,17 @@ static int build_metric_decoded_payload(const char *path,
 	return 0;
 }
 
-static const char *signal_name(enum shirudo_otel_signal signal)
+static const char *signal_name(enum otel_signal signal)
 {
 	return signal == SHIRUDO_OTEL_LOG ? "LOGS" : "METRICS";
 }
 
-static const char *signal_path(enum shirudo_otel_signal signal)
+static const char *signal_path(enum otel_signal signal)
 {
 	return signal == SHIRUDO_OTEL_LOG ? "v1/logs" : "v1/metrics";
 }
 
-static const char *otel_signal_env(enum shirudo_otel_signal signal,
+static const char *otel_signal_env(enum otel_signal signal,
 				   const char *suffix)
 {
 	char name[128];
@@ -926,7 +926,7 @@ static const char *otel_signal_env(enum shirudo_otel_signal signal,
 	return value && value[0] ? value : NULL;
 }
 
-static const char *otel_env(enum shirudo_otel_signal signal,
+static const char *otel_env(enum otel_signal signal,
 			    const char *suffix)
 {
 	const char *value = otel_signal_env(signal, suffix);
@@ -941,7 +941,7 @@ static const char *otel_env(enum shirudo_otel_signal signal,
 	return value && value[0] ? value : NULL;
 }
 
-static int append_signal_path(const char *base, enum shirudo_otel_signal signal,
+static int append_signal_path(const char *base, enum otel_signal signal,
 			      char *out, size_t out_sz)
 {
 	size_t prefix_len;
@@ -1052,7 +1052,7 @@ out:
 }
 
 int upatch_maps_otel_build_metric_file(const char *path,
-				       const struct shirudo_map_view *v,
+				       const struct map_view *v,
 				       char **out, size_t *out_len)
 {
 	if (!path)
@@ -1411,18 +1411,18 @@ int otel_retry_after(const char *value, time_t now, __u64 *seconds)
  * string or a number, and the message is advisory: one that does not
  * fit is left out rather than failing an export the collector took.
  */
-static int check_partial_success(enum shirudo_otel_signal signal,
+static int check_partial_success(enum otel_signal signal,
 				 const char *body, size_t len)
 {
 	const char *count = signal == SHIRUDO_OTEL_LOG ?
 			    "rejectedLogRecords" : "rejectedDataPoints";
 	char rejected_text[32] = {};
 	char error[256] = {};
-	struct shirudo_json_field partial[] = {
+	struct json_field partial[] = {
 		{ count, SHIRUDO_JSON_T_STRING, rejected_text,
 		  sizeof(rejected_text), 0, NULL, 0 },
 	};
-	struct shirudo_json_field root[] = {
+	struct json_field root[] = {
 		{ "partialSuccess", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0,
 		  partial, ARRAY_SIZE(partial) },
 	};
@@ -1433,7 +1433,7 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 		return 0;
 	ret = json_parse(body, len, root, ARRAY_SIZE(root));
 	if (ret) {
-		partial[0] = (struct shirudo_json_field){
+		partial[0] = (struct json_field){
 			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			return -EBADMSG;
@@ -1445,7 +1445,7 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 	if (rejected < 0)
 		return -EBADMSG;
 	if (rejected > 0) {
-		partial[0] = (struct shirudo_json_field){
+		partial[0] = (struct json_field){
 			"errorMessage", SHIRUDO_JSON_T_STRING, error,
 			sizeof(error), 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
@@ -1574,9 +1574,9 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 	return ret;
 }
 
-static int otel_open_transport(enum shirudo_otel_signal signal,
+static int otel_open_transport(enum otel_signal signal,
 			       const char *spec,
-			       const struct shirudo_otel_opts *opts,
+			       const struct otel_opts *opts,
 			       const char *decoder_path, void **state)
 {
 	struct otel_state *st;
@@ -1617,12 +1617,12 @@ err:
 	return ret;
 }
 
-static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
-			    const struct shirudo_otel_opts *opts,
-			    bool automatic, enum shirudo_otel_signal forced,
+static int otel_open_common(const char *spec, const struct map_view *v,
+			    const struct otel_opts *opts,
+			    bool automatic, enum otel_signal forced,
 			    const char *decoder_path, void **state)
 {
-	enum shirudo_otel_signal signal;
+	enum otel_signal signal;
 	char reason[160];
 	int ret;
 
@@ -1642,7 +1642,7 @@ static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 	return otel_open_transport(signal, spec, opts, decoder_path, state);
 }
 
-static int otel_emit(void *state, const struct shirudo_map_view *v)
+static int otel_emit(void *state, const struct map_view *v)
 {
 	struct otel_state *st = state;
 	char *payload = NULL;
@@ -1694,7 +1694,7 @@ static int build_generic_log_payload(const char *scope_name,
 				     char **out, size_t *out_len,
 				     size_t *alloc_len)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char *buf;
 	int ret;
 	size_t cap;
@@ -1738,7 +1738,7 @@ static int build_generic_log_payload(const char *scope_name,
 	return 0;
 }
 
-int otel_send_log_json(const struct shirudo_otel_opts *opts,
+int otel_send_log_json(const struct otel_opts *opts,
 		       const char *scope_name,
 		       const char *event_name,
 		       int severity_number,
@@ -1775,7 +1775,7 @@ struct snapshot_writer {
 	FILE		*file;
 	z_stream	z;
 	gz_header	header;
-	struct shirudo_sha256_ctx md;
+	struct sha256_ctx md;
 	__u64		json_bytes;
 	__u64		object_bytes;
 	bool		deflate_ready;
@@ -1934,7 +1934,7 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 }
 
 static int build_s3_snapshot(const char *decoder_path,
-			     const struct shirudo_map_view *v,
+			     const struct map_view *v,
 			     struct s3_snapshot *snapshot)
 {
 	struct snapshot_writer writer;
@@ -2191,7 +2191,7 @@ static int escape_s3_path(const char *path, char *out, size_t out_sz)
 }
 
 static int build_s3_urls(const struct otel_s3_state *st,
-			 const struct shirudo_map_view *v,
+			 const struct map_view *v,
 			 const struct s3_snapshot *snapshot,
 			 char *url, size_t url_sz, char *uri, size_t uri_sz)
 {
@@ -2236,7 +2236,7 @@ static int s3_header(struct curl_slist **headers, const char *line)
 }
 
 static int s3_headers(const struct otel_s3_state *st,
-		      const struct shirudo_map_view *v,
+		      const struct map_view *v,
 		      const struct s3_snapshot *snapshot,
 		      struct curl_slist **out)
 {
@@ -2294,7 +2294,7 @@ static bool retryable_s3_http(long status)
 }
 
 static int s3_put(struct otel_s3_state *st,
-		  const struct shirudo_map_view *v,
+		  const struct map_view *v,
 		  struct s3_snapshot *snapshot, const char *url,
 		  bool *already_present)
 {
@@ -2390,11 +2390,11 @@ out:
 	return ret;
 }
 
-static int build_s3_reference(const struct shirudo_map_view *v,
+static int build_s3_reference(const struct map_view *v,
 			      const struct s3_snapshot *snapshot,
 			      const char *uri, char **out, size_t *out_len)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	char description[S3_URL_MAX + 64];
 	char *buf;
 
@@ -2451,8 +2451,8 @@ static void otel_s3_state_free(struct otel_s3_state *st)
 	xfree(st, sizeof(*st));
 }
 
-static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
-			const struct shirudo_otel_opts *opts,
+static int otel_s3_open(const char *spec, const struct map_view *v,
+			const struct otel_opts *opts,
 			const char *decoder_path,
 			void **state)
 {
@@ -2491,7 +2491,7 @@ err:
 	return ret;
 }
 
-static int otel_s3_emit(void *state, const struct shirudo_map_view *v)
+static int otel_s3_emit(void *state, const struct map_view *v)
 {
 	struct otel_s3_state *st = state;
 	struct s3_snapshot snapshot = {};
@@ -2536,13 +2536,13 @@ static int otel_s3_close(void *state)
 }
 
 int upatch_maps_otel_send_file(const char *decoder_path,
-			       const struct shirudo_map_view *v,
-			       enum shirudo_otel_mode mode,
-			       const struct shirudo_otel_opts *opts)
+			       const struct map_view *v,
+			       enum otel_mode mode,
+			       const struct otel_opts *opts)
 {
 	const char *endpoint = opts ? opts->endpoint : NULL;
 	bool automatic = mode == SHIRUDO_OTEL_AUTO;
-	enum shirudo_otel_signal signal;
+	enum otel_signal signal;
 	void *state = NULL;
 	int ret, close_rc;
 
@@ -2573,16 +2573,16 @@ int upatch_maps_otel_send_file(const char *decoder_path,
 	return ret ? ret : close_rc;
 }
 
-int upatch_maps_otel_send(const struct shirudo_map_view *v,
-			  enum shirudo_otel_mode mode,
-			  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send(const struct map_view *v,
+			  enum otel_mode mode,
+			  const struct otel_opts *opts)
 {
 	return upatch_maps_otel_send_file(NULL, v, mode, opts);
 }
 
-int upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
-				  enum shirudo_otel_signal signal,
-				  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send_decoded(const struct map_view *v,
+				  enum otel_signal signal,
+				  const struct otel_opts *opts)
 {
 	int ret;
 

@@ -181,7 +181,7 @@ static __always_inline void dns_debug_inc(__u32 key)
 }
 
 __attribute__((noinline)) void
-obs_dns_emit_name(struct shirudo_serial_chunk *chunk, __u32 base,
+obs_dns_emit_name(struct serial_chunk *chunk, __u32 base,
 		  const struct dns_name __arena *stat)
 {
 	int i;
@@ -197,7 +197,7 @@ obs_dns_emit_name(struct shirudo_serial_chunk *chunk, __u32 base,
 		chunk->data[base + 16 + i] = stat->name[i];
 }
 
-static int dns_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int dns_emit_record(struct serial_chunk *chunk, __u32 off,
 			   const struct dns_entry __arena *e)
 {
 	int i;

@@ -10,8 +10,8 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_prog_spec *specs;
-	struct shirudo_upatch u;
+	struct prog_spec *specs;
+	struct upatch u;
 	const void *attach;
 	__u32 attach_len;
 	char path[64];

@@ -72,7 +72,7 @@ static int read_x509(const char *path, X509 **out)
 	return 0;
 }
 
-int sha256_init(struct shirudo_sha256_ctx *ctx)
+int sha256_init(struct sha256_ctx *ctx)
 {
 	EVP_MD_CTX *md;
 
@@ -88,7 +88,7 @@ int sha256_init(struct shirudo_sha256_ctx *ctx)
 	return 0;
 }
 
-int sha256_update(struct shirudo_sha256_ctx *ctx,
+int sha256_update(struct sha256_ctx *ctx,
 		  const void *data, size_t len)
 {
 	if (!ctx || !ctx->impl || (len && !data))
@@ -96,7 +96,7 @@ int sha256_update(struct shirudo_sha256_ctx *ctx,
 	return EVP_DigestUpdate(ctx->impl, data, len) == 1 ? 0 : -EIO;
 }
 
-int sha256_final(struct shirudo_sha256_ctx *ctx,
+int sha256_final(struct sha256_ctx *ctx,
 		 __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u32 len = 0;
@@ -110,7 +110,7 @@ int sha256_final(struct shirudo_sha256_ctx *ctx,
 	return ret;
 }
 
-void sha256_free(struct shirudo_sha256_ctx *ctx)
+void sha256_free(struct sha256_ctx *ctx)
 {
 	if (!ctx)
 		return;
@@ -121,7 +121,7 @@ void sha256_free(struct shirudo_sha256_ctx *ctx)
 int sha256_buffer(const void *data, size_t len,
 		  __u8 out[CRYPTO_SHA256_LEN])
 {
-	struct shirudo_sha256_ctx ctx;
+	struct sha256_ctx ctx;
 	int ret;
 
 	ret = sha256_init(&ctx);
@@ -215,7 +215,7 @@ out:
 	return ret;
 }
 
-int cert_read_file(const char *path, struct shirudo_cert *cert)
+int cert_read_file(const char *path, struct cert *cert)
 {
 	X509 *x509;
 	int ret;
@@ -227,7 +227,7 @@ int cert_read_file(const char *path, struct shirudo_cert *cert)
 	return ret;
 }
 
-int cert_read_fd(int fd, struct shirudo_cert *cert)
+int cert_read_fd(int fd, struct cert *cert)
 {
 	size_t len = 0;
 	__u8 *der;
@@ -243,7 +243,7 @@ int cert_read_fd(int fd, struct shirudo_cert *cert)
 	return ret;
 }
 
-void cert_free(struct shirudo_cert *cert)
+void cert_free(struct cert *cert)
 {
 	if (!cert)
 		return;
@@ -259,7 +259,7 @@ void cert_free(struct shirudo_cert *cert)
  * X.509 parser accepts, including ML-DSA keys libcrypto cannot otherwise
  * marshal as a bare EVP_PKEY on older releases.
  */
-int cert_pubkey_digest(const struct shirudo_cert *cert,
+int cert_pubkey_digest(const struct cert *cert,
 		       __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u8 *der = NULL, *p;
@@ -291,7 +291,7 @@ out:
 	return ret;
 }
 
-int cert_key_algorithm(const struct shirudo_cert *cert,
+int cert_key_algorithm(const struct cert *cert,
 		       char *out, size_t out_sz)
 {
 	const char *name;
@@ -308,7 +308,7 @@ int cert_key_algorithm(const struct shirudo_cert *cert,
 	return 0;
 }
 
-int cert_subject(const struct shirudo_cert *cert, char *out, size_t out_sz)
+int cert_subject(const struct cert *cert, char *out, size_t out_sz)
 {
 	char *text;
 	long len;
@@ -345,7 +345,7 @@ static int asn1_date(const ASN1_TIME *t, char out[11])
 	return strftime(out, 11, "%Y-%m-%d", &tm) == 10 ? 0 : -EINVAL;
 }
 
-int cert_validity(const struct shirudo_cert *cert, char not_before[11],
+int cert_validity(const struct cert *cert, char not_before[11],
 		  char not_after[11])
 {
 	int ret;
@@ -380,7 +380,7 @@ static CMS_ContentInfo *read_cms(const __u8 *signature, size_t len)
  */
 int verify_detached(const __u8 *payload, size_t payload_len,
 		    const __u8 *signature, size_t signature_len,
-		    const struct shirudo_cert *cert)
+		    const struct cert *cert)
 {
 	STACK_OF(X509) *signers = NULL;
 	BIO *data = NULL, *out = NULL;
@@ -417,7 +417,7 @@ done:
 }
 
 int cms_signed_by(const __u8 *signature, size_t signature_len,
-		  const struct shirudo_cert *cert)
+		  const struct cert *cert)
 {
 	STACK_OF(CMS_SignerInfo) *sis;
 	CMS_ContentInfo *cms = NULL;
@@ -603,7 +603,7 @@ out:
 }
 
 int cert_read_der(const __u8 *der, size_t len,
-		  struct shirudo_cert *cert)
+		  struct cert *cert)
 {
 	const __u8 *p = der;
 
@@ -613,7 +613,7 @@ int cert_read_der(const __u8 *der, size_t len,
 	return cert->impl ? 0 : -EINVAL;
 }
 
-int cert_pubkey(const struct shirudo_cert *cert,
+int cert_pubkey(const struct cert *cert,
 		struct cert_pubkey *out)
 {
 	BIGNUM *a = NULL, *b = NULL;
@@ -654,7 +654,7 @@ out:
 	return ret;
 }
 
-int cert_verify_chain(const struct shirudo_cert *cert,
+int cert_verify_chain(const struct cert *cert,
 		      const char *bundle_path, const char **reason)
 {
 	X509_STORE_CTX *ctx = NULL;

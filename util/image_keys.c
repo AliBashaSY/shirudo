@@ -105,7 +105,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 }
 
 int keys_validate_image_set(const char *primary, int root_fd,
-			    struct shirudo_trusted_set *set)
+			    struct trusted_set *set)
 {
 	int ret;
 
@@ -135,7 +135,7 @@ int keys_validate_image_set(const char *primary, int root_fd,
 	return 0;
 }
 
-int keys_check_image_set(const struct shirudo_trusted_set *set)
+int keys_check_image_set(const struct trusted_set *set)
 {
 	key_serial_t keyring;
 	size_t i;
@@ -160,7 +160,7 @@ int keys_check_image_set(const struct shirudo_trusted_set *set)
 
 int keys_validate_image(int root_fd)
 {
-	struct shirudo_trusted_set set;
+	struct trusted_set set;
 	int ret;
 
 	ret = keys_validate_image_set(RUNTIME_CERT_PATH,

@@ -8,14 +8,14 @@ int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 				      const char *repository,
 				      const char *reference,
 				      const char *certificate,
-				      struct shirudo_tree_publication *pub,
+				      struct tree_publication *pub,
 				      char *digest, size_t capacity);
 
 int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 				      const char *repository,
 				      const char *reference,
 				      const char *certificate,
-				      struct shirudo_tree_publication *pub,
+				      struct tree_publication *pub,
 				      char *digest, size_t capacity)
 {
 	(void)client;
@@ -30,7 +30,7 @@ int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 
 int main(int argc, const char **argv)
 {
-	struct shirudo_config bootstrap;
+	struct config bootstrap;
 	int fd, ret;
 
 	if (argc < 3)
@@ -77,7 +77,7 @@ int main(int argc, const char **argv)
 			}
 		}
 	} else if (!strcmp(argv[2], "tree")) {
-		struct shirudo_tree_publication publication = {};
+		struct tree_publication publication = {};
 		struct bpm_tree_config config = {};
 		char digest[BPM_MAX_DIGEST];
 

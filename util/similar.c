@@ -69,7 +69,7 @@ static int edit_distance(const char *s, const char *t, int max)
 size_t suggest(const char *name,
 	       const char *const *commands, size_t n_commands,
 	       int max_dist,
-	       struct shirudo_suggestion *out, size_t cap)
+	       struct suggestion *out, size_t cap)
 {
 	size_t n_out = 0;
 	size_t i;

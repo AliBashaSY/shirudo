@@ -40,7 +40,7 @@ static char *trim(char *s)
 	return s;
 }
 
-static void map_export_bad(struct shirudo_config *cfg, const char *key,
+static void map_export_bad(struct config *cfg, const char *key,
 			   const char *val, const char *reason)
 {
 	cfg->map_export_valid = false;
@@ -91,9 +91,9 @@ static bool tls_classical_hosts_valid(const char *value)
 	return true;
 }
 
-static void config_defaults(struct shirudo_config *cfg)
+static void config_defaults(struct config *cfg)
 {
-	*cfg = (struct shirudo_config){};
+	*cfg = (struct config){};
 	cfg->map_export_valid = true;
 	cfg->tls_classical_hosts_valid = true;
 	cfg->map_export_otel_retries = 3;
@@ -105,7 +105,7 @@ static void config_defaults(struct shirudo_config *cfg)
  * Owner auth is a literal passphrase, or "hex:<even hex>" for a binary
  * auth value (what provisioning tools that randomise owner auth emit).
  */
-static void set_owner_auth(struct shirudo_config *cfg, const char *val)
+static void set_owner_auth(struct config *cfg, const char *val)
 {
 	size_t l;
 
@@ -148,7 +148,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 }
 
 /* The stream is consumed and closed; the file is named for the log. */
-static int config_parse(struct shirudo_config *cfg, FILE *f,
+static int config_parse(struct config *cfg, FILE *f,
 			const char *path)
 {
 	const size_t max = MAP_EXPORT_PATH_MAX + 127;
@@ -292,7 +292,7 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 	return ret;
 }
 
-static int config_finish(struct shirudo_config *cfg, int ret)
+static int config_finish(struct config *cfg, int ret)
 {
 	if (cfg->map_export_s3_uri[0] && !cfg->map_export_otel_endpoint[0])
 		map_export_bad(cfg, "map_export.s3_uri", "",
@@ -303,7 +303,7 @@ static int config_finish(struct shirudo_config *cfg, int ret)
 	return ret;
 }
 
-int config_load_path(struct shirudo_config *cfg, const char *path)
+int config_load_path(struct config *cfg, const char *path)
 {
 	int ret = 0;
 	FILE *f;
@@ -322,7 +322,7 @@ int config_load_path(struct shirudo_config *cfg, const char *path)
 }
 
 /* A copy of the descriptor is read from its start; the caller keeps its own. */
-int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
+int config_load_fd(struct config *cfg, int fd, const char *label)
 {
 	int copy, ret;
 	FILE *f;
@@ -347,7 +347,7 @@ int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
 	return config_finish(cfg, config_parse(cfg, f, label));
 }
 
-int config_load(struct shirudo_config *cfg)
+int config_load(struct config *cfg)
 {
 	const char *env;
 	int ret;

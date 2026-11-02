@@ -43,19 +43,19 @@ static int event_on_elem(void *ctx)
 
 static int parse_len(const char *text, size_t len, struct doc *d)
 {
-	struct shirudo_json_array event_sink = { event_on_elem, d };
-	struct shirudo_json_array name_sink = { name_on_elem, d };
-	struct shirudo_json_field name_sub[] = {
+	struct json_array event_sink = { event_on_elem, d };
+	struct json_array name_sink = { name_on_elem, d };
+	struct json_field name_sub[] = {
 		{ "", SHIRUDO_JSON_T_STRING, d->name, sizeof(d->name),
 		  0, NULL, 0 },
 	};
-	struct shirudo_json_field event_sub[] = {
+	struct json_field event_sub[] = {
 		{ "type", SHIRUDO_JSON_T_STRING, d->ev_type,
 		  sizeof(d->ev_type), 0, NULL, 0 },
 		{ "digest", SHIRUDO_JSON_T_STRING, d->ev_digest,
 		  sizeof(d->ev_digest), 0, NULL, 0 },
 	};
-	struct shirudo_json_field f[] = {
+	struct json_field f[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &d->schema, 0, 0, NULL, 0 },
 		{ "type", SHIRUDO_JSON_T_STRING, d->type, sizeof(d->type),
 		  0, NULL, 0 },

@@ -21,34 +21,34 @@ bool upatch_map_is_percpu(__u32 type)
 	return false;
 }
 
-int upatch_decode_map_json(const struct shirudo_map_view *v,
+int upatch_decode_map_json(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+int upatch_decode_map_json_limit(const struct map_view *v,
 				 size_t max_bytes,
 				 char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
-int upatch_decode_map_otel(const struct shirudo_map_view *v,
+int upatch_decode_map_otel(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
 int upatch_decode_map_file_json(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
 }
 
 int upatch_decode_map_file_json_limit(const char *path,
-				      const struct shirudo_map_view *v,
+				      const struct map_view *v,
 				      size_t max_bytes, char **out,
 				      size_t *out_len)
 {
@@ -56,7 +56,7 @@ int upatch_decode_map_file_json_limit(const char *path,
 }
 
 int upatch_decode_map_file_otel(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	return -EOPNOTSUPP;
@@ -64,7 +64,7 @@ int upatch_decode_map_file_otel(const char *path,
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_json_emit e = {};
+	struct json_emit e = {};
 	struct otel_response r = {};
 	struct otel_state st = {};
 	size_t off, n, cap;

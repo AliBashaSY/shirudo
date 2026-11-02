@@ -34,7 +34,7 @@ static __u32 begin_calls, end_calls;
 static int consumed_valid = -1;
 
 int __wrap_config_root_begin(const __u8 root[32],
-			     struct shirudo_config_root_guard *guard)
+			     struct config_root_guard *guard)
 {
 	__u8 wrong[32];
 
@@ -52,9 +52,9 @@ int __wrap_config_root_begin(const __u8 root[32],
 	return __real_config_root_begin(wrong, guard);
 }
 
-int __wrap_config_root_end(struct shirudo_config_root_guard *guard)
+int __wrap_config_root_end(struct config_root_guard *guard)
 {
-	struct shirudo_expected_root expected = {};
+	struct expected_root expected = {};
 	int ret = 0, cleanup;
 
 	if (root_mode != ROOT_NORMAL) {
@@ -71,7 +71,7 @@ int __wrap_config_root_end(struct shirudo_config_root_guard *guard)
 
 static int check_root_cleared(void)
 {
-	struct shirudo_expected_root expected = {}, empty = {};
+	struct expected_root expected = {}, empty = {};
 	int map, task, ret;
 
 	map = bpf_obj_get(BPFFS_DIR "/config_roots");
@@ -93,10 +93,10 @@ out:
 	return ret;
 }
 
-static int check_classification(const struct shirudo_dm_verity *device)
+static int check_classification(const struct dm_verity *device)
 {
 	__u32 dev = (major(device->device) << 20) | minor(device->device);
-	struct shirudo_device_authority entry;
+	struct device_authority entry;
 	__u64 key, next, diskseq;
 	__u32 matches = 0;
 	int map, block, ret = 0;
@@ -151,7 +151,7 @@ out_block:
 static int config_root_test(const char *mode, const char *prefix)
 {
 	struct config_image_open opened;
-	struct shirudo_dm_verity device;
+	struct dm_verity device;
 	bool created = false;
 	int ret, cleanup;
 	char name[128];

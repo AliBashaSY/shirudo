@@ -29,7 +29,7 @@ static const char *const relative[SHIRUDO_IMAGE_PATH_COUNT] = {
 	[SHIRUDO_IMAGE_REVOKED_KEYS] = "keys/revoked",
 };
 
-static struct shirudo_config effective;
+static struct config effective;
 static bool active;
 static int config_fd = -1;
 
@@ -38,7 +38,7 @@ bool image_config_active(void)
 	return active;
 }
 
-int image_config_get(struct shirudo_config *out)
+int image_config_get(struct config *out)
 {
 	if (!active)
 		return 0;
@@ -56,7 +56,7 @@ int image_config_root_fd(void)
  * never through a path: a path, /proc/<pid>/fd included, is root's to
  * mount over before the exec.
  */
-int image_open(enum shirudo_image_path which, int flags)
+int image_open(enum image_path which, int flags)
 {
 	if (which >= SHIRUDO_IMAGE_PATH_COUNT || config_fd < 0)
 		return -ENOENT;
@@ -71,7 +71,7 @@ int image_open_relative(const char *path, int flags)
 }
 
 /* The image's shirudo.conf, read through its root. */
-static int config_load_root(struct shirudo_config *cfg, int root_fd)
+static int config_load_root(struct config *cfg, int root_fd)
 {
 	int fd, ret;
 
@@ -208,7 +208,7 @@ static int validate_settings(int root_fd)
 
 int image_config_validate(int root_fd)
 {
-	struct shirudo_config candidate;
+	struct config candidate;
 	__u32 entries = 0;
 	struct stat st;
 	int ret;
@@ -230,10 +230,10 @@ int image_config_validate(int root_fd)
 	return ret;
 }
 
-int image_config_set(const struct shirudo_config *bootstrap,
+int image_config_set(const struct config *bootstrap,
 		     int root_fd)
 {
-	struct shirudo_config candidate;
+	struct config candidate;
 	int fd = -1, ret;
 
 	candidate = *bootstrap;

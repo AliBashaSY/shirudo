@@ -17,7 +17,7 @@
 static int public_matches_init(const char *hex)
 {
 	__u8 expected[TPM_NV_RSA_BYTES];
-	struct shirudo_eventlog_init rec;
+	struct eventlog_init rec;
 
 	if (strlen(hex) != 2 * sizeof(expected) ||
 	    hex_decode(hex, expected, sizeof(expected))) {

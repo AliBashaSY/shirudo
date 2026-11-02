@@ -155,7 +155,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
 	__type(key, __u32);
-	__type(value, struct shirudo_serial_chunk);
+	__type(value, struct serial_chunk);
 } shirudo_ser SEC(".maps");
 
 void __arena *bpf_arena_alloc_pages(void *map, void __arena *addr,
@@ -360,10 +360,10 @@ BUILD_BUG_ON(sizeof(struct obs_serial_header) != 64);
 #define OBS_SERIAL_VERSION	1
 #define OBS_SERIAL_PAGE_CHUNKS	4
 
-static __always_inline void obs_serial_error(struct shirudo_serialize_ctx *ctx,
+static __always_inline void obs_serial_error(struct serialize_ctx *ctx,
 					     int status)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 key = 0;
 
 	chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
@@ -385,7 +385,7 @@ static __always_inline void obs_serial_error(struct shirudo_serialize_ctx *ctx,
 }
 
 /* Copy arena words into a serializer chunk at a verifier-known offset. */
-static __always_inline void obs_emit_bytes(struct shirudo_serial_chunk *chunk,
+static __always_inline void obs_emit_bytes(struct serial_chunk *chunk,
 					   __u32 off, const void __arena *src,
 					   __u32 words)
 {
@@ -398,7 +398,7 @@ static __always_inline void obs_emit_bytes(struct shirudo_serial_chunk *chunk,
 }
 
 static __always_inline bool
-obs_serial_ctx_valid(const struct shirudo_serialize_ctx *ctx)
+obs_serial_ctx_valid(const struct serialize_ctx *ctx)
 {
 	return ctx && ctx->magic == SERIAL_MAGIC &&
 	       ctx->version == SERIAL_VERSION &&

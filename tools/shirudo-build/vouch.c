@@ -43,7 +43,7 @@ static void usage(FILE *fp)
 static int cert_algorithm_ok(const __u8 *der, size_t der_sz,
 			     const char *what)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	char name[64] = {};
 	int ret;
 
@@ -83,7 +83,7 @@ int build_keys_vouch(int argc, char **argv)
 	const char *keys_dir_arg = NULL, *input = NULL, *output = NULL;
 	__u8 *der = NULL, *own = NULL, *payload = NULL;
 	size_t der_sz = 0, own_sz = 0, payload_sz = 0;
-	struct shirudo_sign_io io = {};
+	struct sign_io io = {};
 	__u8 sha[32], fp[32], own_fp[32];
 	int pkey_explicit = 0, cert_explicit = 0;
 	char fp_hex[65], own_hex[65];

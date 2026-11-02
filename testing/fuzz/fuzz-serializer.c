@@ -20,7 +20,7 @@ static size_t chunks_len;
 int fuzz_lookup(int fd, const void *key, void *value)
 {
 	size_t off = (size_t)*(const __u32 *)key *
-		     sizeof(struct shirudo_serial_chunk);
+		     sizeof(struct serial_chunk);
 	size_t n;
 
 	if (off >= chunks_len) {
@@ -28,9 +28,9 @@ int fuzz_lookup(int fd, const void *key, void *value)
 		return -1;
 	}
 	n = chunks_len - off;
-	if (n > sizeof(struct shirudo_serial_chunk))
-		n = sizeof(struct shirudo_serial_chunk);
-	memset(value, 0, sizeof(struct shirudo_serial_chunk));
+	if (n > sizeof(struct serial_chunk))
+		n = sizeof(struct serial_chunk);
+	memset(value, 0, sizeof(struct serial_chunk));
 	memcpy(value, chunks + off, n);
 	return 0;
 }
@@ -38,8 +38,8 @@ int fuzz_lookup(int fd, const void *key, void *value)
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	struct bpf_map_info info = { .max_entries = 64 };
-	struct shirudo_serial_chunk first = {};
-	struct shirudo_serial_page page;
+	struct serial_chunk first = {};
+	struct serial_page page;
 
 	chunks = data;
 	chunks_len = size;

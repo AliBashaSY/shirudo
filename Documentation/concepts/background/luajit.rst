@@ -65,7 +65,7 @@ How a decoder reaches the target
 --------------------------------
 
 The BPF source declares each decoder in ``.rodata`` with a
-``struct shirudo_decoder_manifest`` from
+``struct decoder_manifest`` from
 ``bpf/lib/decoder.h``. The manifest starts with the magic
 ``DECD`` and names the language (``1``, Lua), the host API version, the
 input format (``1``), the signal to export (``1`` for a log, ``2`` for a

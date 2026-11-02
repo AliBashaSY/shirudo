@@ -26,7 +26,7 @@ __s64 upatch_age_sec(const char *ts)
 	return (__s64)(time(NULL) - timegm(&tm));
 }
 
-void upatch_table_print(const struct shirudo_upatch_table_row *rows,
+void upatch_table_print(const struct upatch_table_row *rows,
 			size_t n)
 {
 	size_t i;
@@ -37,7 +37,7 @@ void upatch_table_print(const struct shirudo_upatch_table_row *rows,
 	printf("  %-24s  %-28s  %5s  %-28s  %s\n",
 	       "NAME", "LOCATION", "MAPS", "STATUS", "AGE");
 	for (i = 0; i < n; i++) {
-		const struct shirudo_upatch_table_row *r = &rows[i];
+		const struct upatch_table_row *r = &rows[i];
 		char age[16] = "?";
 
 		if (r->age_sec >= 0)
@@ -49,15 +49,15 @@ void upatch_table_print(const struct shirudo_upatch_table_row *rows,
 	}
 }
 
-void upatch_table_emit_json(struct shirudo_json_emit *e,
-			    const struct shirudo_upatch_table_row *rows,
+void upatch_table_emit_json(struct json_emit *e,
+			    const struct upatch_table_row *rows,
 			    size_t n)
 {
 	size_t i;
 
 	json_arr_open(e, "upatches_loaded");
 	for (i = 0; i < n; i++) {
-		const struct shirudo_upatch_table_row *r = &rows[i];
+		const struct upatch_table_row *r = &rows[i];
 
 		json_obj_open(e);
 		json_kv_string(e, "name", r->name);

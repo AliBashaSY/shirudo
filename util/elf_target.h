@@ -9,7 +9,7 @@
 #include <shirudo/misc.h>
 #include <shirudo/upatch.h>
 
-struct shirudo_elf_target {
+struct elf_target {
 	__u8		build_id[UPATCH_BUILD_ID_MAX];
 	__u32		build_id_len;
 	__u64		*offsets;
@@ -17,12 +17,12 @@ struct shirudo_elf_target {
 };
 
 int elf_target_resolve(const char *path, const char *pattern,
-		       struct shirudo_elf_target *out);
+		       struct elf_target *out);
 
 int elf_build_id_fd(int fd,
 		    __u8 build_id[UPATCH_BUILD_ID_MAX],
 		    __u32 *build_id_len);
 
-void elf_target_free(struct shirudo_elf_target *target);
+void elf_target_free(struct elf_target *target);
 
 #endif /* SHIRUDO_ELF_TARGET_H */

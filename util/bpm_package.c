@@ -62,48 +62,48 @@ int bpm_index_parse(const __u8 *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries)
 {
 	struct index_sink sink = { .items = entries };
-	struct shirudo_json_array arr = { on_index_entry, &sink };
-	struct shirudo_json_field sub[7], root[2];
+	struct json_array arr = { on_index_entry, &sink };
+	struct json_field sub[7], root[2];
 	__s64 schema = 0;
 
 	memset(sub, 0, sizeof(sub));
-	sub[0] = (struct shirudo_json_field){
+	sub[0] = (struct json_field){
 		.key = "name", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
 	};
-	sub[1] = (struct shirudo_json_field){
+	sub[1] = (struct json_field){
 		.key = "version", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.version,
 		.dst_cap = sizeof(sink.scratch.version),
 	};
-	sub[2] = (struct shirudo_json_field){
+	sub[2] = (struct json_field){
 		.key = "repository", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.repository,
 		.dst_cap = sizeof(sink.scratch.repository),
 	};
-	sub[3] = (struct shirudo_json_field){
+	sub[3] = (struct json_field){
 		.key = "manifest_digest", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.manifest_digest,
 		.dst_cap = sizeof(sink.scratch.manifest_digest),
 	};
-	sub[4] = (struct shirudo_json_field){
+	sub[4] = (struct json_field){
 		.key = "package_digest", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.package_digest,
 		.dst_cap = sizeof(sink.scratch.package_digest),
 	};
-	sub[5] = (struct shirudo_json_field){
+	sub[5] = (struct json_field){
 		.key = "signer_fingerprint", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.signer,
 		.dst_cap = sizeof(sink.scratch.signer),
 	};
-	sub[6] = (struct shirudo_json_field){
+	sub[6] = (struct json_field){
 		.key = "package_size", .type = SHIRUDO_JSON_T_INT,
 		.dst = &sink.scratch.package_size,
 	};
-	root[0] = (struct shirudo_json_field){
+	root[0] = (struct json_field){
 		.key = "schema", .type = SHIRUDO_JSON_T_INT, .dst = &schema,
 	};
-	root[1] = (struct shirudo_json_field){
+	root[1] = (struct json_field){
 		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
@@ -187,7 +187,7 @@ int bpm_semver_compare(const char *a, const char *b)
 int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 		   const __u8 *sig, size_t sig_len, const char *cert_path)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	int ret = -EINVAL;
 
 	if (!cert_read_file(cert_path, &cert))
@@ -199,7 +199,7 @@ int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
 		      const __u8 *sig, size_t sig_len, int cert_fd)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	int ret = -EINVAL;
 
 	if (!cert_read_fd(cert_fd, &cert))
@@ -710,8 +710,8 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		char version[BPM_MAX_NAME];
 		char signer[BPM_MAX_DIGEST];
 	} parsed = {};
-	struct shirudo_json_field package_fields[2], shirudo_fields[1], root[2];
-	struct shirudo_cert signer = {};
+	struct json_field package_fields[2], shirudo_fields[1], root[2];
+	struct cert signer = {};
 	__u8 digest[32];
 	X509 *cert = NULL;
 	char hex[EVP_MAX_MD_SIZE * 2 + 1];
@@ -719,23 +719,23 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 	int ret;
 
 	memset(package_fields, 0, sizeof(package_fields));
-	package_fields[0] = (struct shirudo_json_field){
+	package_fields[0] = (struct json_field){
 		.key = "name", .type = SHIRUDO_JSON_T_STRING,
 		.dst = parsed.name, .dst_cap = sizeof(parsed.name),
 	};
-	package_fields[1] = (struct shirudo_json_field){
+	package_fields[1] = (struct json_field){
 		.key = "version", .type = SHIRUDO_JSON_T_STRING,
 		.dst = parsed.version, .dst_cap = sizeof(parsed.version),
 	};
-	shirudo_fields[0] = (struct shirudo_json_field){
+	shirudo_fields[0] = (struct json_field){
 		.key = "spki_sha256_fingerprint", .type = SHIRUDO_JSON_T_STRING,
 		.dst = parsed.signer, .dst_cap = sizeof(parsed.signer),
 	};
-	root[0] = (struct shirudo_json_field){
+	root[0] = (struct json_field){
 		.key = "package", .type = SHIRUDO_JSON_T_OBJECT,
 		.sub = package_fields, .n_sub = ARRAY_SIZE(package_fields),
 	};
-	root[1] = (struct shirudo_json_field){
+	root[1] = (struct json_field){
 		.key = "shirudo", .type = SHIRUDO_JSON_T_OBJECT,
 		.sub = shirudo_fields, .n_sub = ARRAY_SIZE(shirudo_fields),
 	};
@@ -789,7 +789,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			       const char *repository,
 			       const char *reference,
 			       const char *cert_path,
-			       struct shirudo_tree_publication *pub,
+			       struct tree_publication *pub,
 			       char *manifest_digest, size_t digest_sz)
 {
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};

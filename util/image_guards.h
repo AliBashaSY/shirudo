@@ -14,12 +14,12 @@
 #define OBSERVER_HOOK_COUNT 9
 #define IMAGE_OBSERVER_HOOK_COUNT 4
 
-struct shirudo_image_guard {
+struct image_guard {
 	const char *prog;
 	const char *pin;
 };
 
-enum shirudo_gate_guard {
+enum gate_guard {
 	SHIRUDO_GUARD_UNLINK,
 	SHIRUDO_GUARD_SETXATTR,
 	SHIRUDO_GUARD_REMOVEXATTR,
@@ -31,7 +31,7 @@ enum shirudo_gate_guard {
 	SHIRUDO_GATE_HOOK_COUNT,
 };
 
-enum shirudo_guard_map_index {
+enum guard_map_index {
 	SHIRUDO_GUARD_IDENTITY,
 	SHIRUDO_GUARD_TASKS,
 	SHIRUDO_GUARD_DEVICES,
@@ -40,7 +40,7 @@ enum shirudo_guard_map_index {
 	SHIRUDO_GUARD_MAP_COUNT,
 };
 
-struct shirudo_guard_map {
+struct guard_map {
 	const char *name;
 	const char *pin;
 	__u32 type;
@@ -50,29 +50,29 @@ struct shirudo_guard_map {
 	__u32 flags;
 };
 
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_seal_guards[SEAL_HOOK_COUNT];
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_image_seal_guards[IMAGE_SEAL_HOOK_COUNT];
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT];
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_mount_guards[MOUNT_HOOK_COUNT];
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_observer_guards[OBSERVER_HOOK_COUNT];
-extern const struct shirudo_image_guard
+extern const struct image_guard
 	shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT];
-extern const struct shirudo_guard_map
+extern const struct guard_map
 	shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT];
 
-struct shirudo_config_root_guard {
+struct config_root_guard {
 	int map_fd;
 	int task_fd;
 };
 
 int config_root_begin(const __u8 root[32],
-		      struct shirudo_config_root_guard *guard);
-int config_root_end(struct shirudo_config_root_guard *guard);
+		      struct config_root_guard *guard);
+int config_root_end(struct config_root_guard *guard);
 int image_guards_ready(void);
 
 #endif /* SHIRUDO_IMAGE_GUARDS_H */

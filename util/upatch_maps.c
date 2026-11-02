@@ -44,7 +44,7 @@
  */
 #define BTF_MAX_DEPTH		6
 
-static void resolve_map_location(struct shirudo_map_view *v)
+static void resolve_map_location(struct map_view *v)
 {
 	struct btf *vbtf;
 
@@ -78,7 +78,7 @@ static __u32 map_value_stride(__u32 type, __u32 value_size)
 	return (value_size + 7U) & ~7U;
 }
 
-__u32 upatch_map_value_stride(const struct shirudo_map_view *v)
+__u32 upatch_map_value_stride(const struct map_view *v)
 {
 	return v->value_stride ? v->value_stride : v->value_size;
 }
@@ -681,7 +681,7 @@ static char *format_value(const void *value, __u32 value_size,
 	}
 }
 
-char *upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
+char *upatch_map_format_percpu_sum(const struct map_view *v,
 				   const void *values_per_cpu,
 				   const char *btf_type)
 {
@@ -794,7 +794,7 @@ static int validate_serial_map(const struct bpf_map_info *info)
 		return -EINVAL;
 	if (info->key_size != sizeof(__u32))
 		return -EINVAL;
-	if (info->value_size != sizeof(struct shirudo_serial_chunk))
+	if (info->value_size != sizeof(struct serial_chunk))
 		return -EINVAL;
 	if (info->max_entries == 0 ||
 	    info->max_entries > SERIAL_MAX_CHUNKS)
@@ -822,8 +822,8 @@ static int clear_serial_map(int fd, const struct bpf_map_info *info)
 	return 0;
 }
 
-static int append_serial_page(struct shirudo_map_view *out,
-			      struct shirudo_serial_page *page)
+static int append_serial_page(struct map_view *out,
+			      struct serial_page *page)
 {
 	void *p;
 
@@ -841,9 +841,9 @@ static int read_serial_page(int serial_fd,
 			    const struct bpf_map_info *serial_info,
 			    __u32 want_page_index, __u64 want_cursor,
 			    __u64 invocation_id,
-			    struct shirudo_serial_page *page)
+			    struct serial_page *page)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 key, total_chunks, bytes_total, copied = 0;
 	__u32 page_index, flags;
 	__u64 cursor, next_cursor;
@@ -941,7 +941,7 @@ out_chunk:
 }
 
 static int try_read_serialized(const char *upatch, const char *map,
-			       __u32 flags, struct shirudo_map_view *out)
+			       __u32 flags, struct map_view *out)
 {
 	struct bpf_map_info serial_info = {};
 	__u64 cursor = 0, bytes_total = 0, invocation_id;
@@ -980,8 +980,8 @@ static int try_read_serialized(const char *upatch, const char *map,
 
 	for (page_index = 0; page_index < SERIAL_MAX_PAGES;
 	     page_index++) {
-		struct shirudo_serialize_ctx ctx = {};
-		struct shirudo_serial_page page = {};
+		struct serialize_ctx ctx = {};
+		struct serial_page page = {};
 		__u32 retval = 0;
 
 		ret = clear_serial_map(serial_fd, &serial_info);
@@ -1074,7 +1074,7 @@ out:
 	return ret;
 }
 
-static int read_entries(int fd, struct shirudo_map_view *v,
+static int read_entries(int fd, struct map_view *v,
 			__u32 cap)
 {
 	size_t value_count = upatch_map_is_percpu(v->type) ?
@@ -1191,7 +1191,7 @@ static int read_entries(int fd, struct shirudo_map_view *v,
 	return -EOPNOTSUPP;
 }
 
-void map_view_free(struct shirudo_map_view *v)
+void map_view_free(struct map_view *v)
 {
 	size_t value_alloc;
 	__u32 i;
@@ -1228,7 +1228,7 @@ void map_view_free(struct shirudo_map_view *v)
 
 int upatch_maps_read(const char *upatch, const char *map,
 		     __u32 max_entries_cap, __u32 flags,
-		     struct shirudo_map_view *out)
+		     struct map_view *out)
 {
 	struct bpf_map_info info = {};
 	char upatch_dir[PATH_MAX];
@@ -1315,8 +1315,8 @@ int upatch_maps_read(const char *upatch, const char *map,
 	return ret;
 }
 
-static void summary_append(struct shirudo_map_summary **list, size_t *n,
-			   size_t *cap, const struct shirudo_map_summary *one)
+static void summary_append(struct map_summary **list, size_t *n,
+			   size_t *cap, const struct map_summary *one)
 {
 	if (*n == *cap) {
 		size_t nc = *cap ? *cap * 2 : 8;
@@ -1331,7 +1331,7 @@ static void summary_append(struct shirudo_map_summary **list, size_t *n,
 }
 
 static void scan_upatch_maps(const char *upatch,
-			     struct shirudo_map_summary **list, size_t *n,
+			     struct map_summary **list, size_t *n,
 			     size_t *cap)
 {
 	char dir[PATH_MAX];
@@ -1349,7 +1349,7 @@ static void scan_upatch_maps(const char *upatch,
 		return;
 	while ((e = readdir(d))) {
 		struct bpf_map_info info = {};
-		struct shirudo_map_summary one = {};
+		struct map_summary one = {};
 		int fd, ret;
 
 		if (e->d_name[0] == '.')
@@ -1379,10 +1379,10 @@ static void scan_upatch_maps(const char *upatch,
 }
 
 int upatch_maps_list_one(const char *upatch,
-			 struct shirudo_map_summary **out,
+			 struct map_summary **out,
 			 size_t *n_out)
 {
-	struct shirudo_map_summary *list = NULL;
+	struct map_summary *list = NULL;
 	size_t n = 0, cap = 0;
 
 	scan_upatch_maps(upatch, &list, &n, &cap);
@@ -1391,10 +1391,10 @@ int upatch_maps_list_one(const char *upatch,
 	return 0;
 }
 
-int upatch_maps_list_all(struct shirudo_map_summary **out,
+int upatch_maps_list_all(struct map_summary **out,
 			 size_t *n_out)
 {
-	struct shirudo_map_summary *list = NULL;
+	struct map_summary *list = NULL;
 	size_t n = 0, cap = 0;
 	struct dirent *e;
 	DIR *d;
@@ -1421,13 +1421,13 @@ int upatch_maps_list_all(struct shirudo_map_summary **out,
 	return 0;
 }
 
-void map_summary_free(struct shirudo_map_summary *list, size_t n)
+void map_summary_free(struct map_summary *list, size_t n)
 {
 	if (list)
 		xfree(list, n * sizeof(*list));
 }
 
-void upatch_maps_print_summary(const struct shirudo_map_summary *list,
+void upatch_maps_print_summary(const struct map_summary *list,
 			       size_t n)
 {
 	size_t i;
@@ -1439,7 +1439,7 @@ void upatch_maps_print_summary(const struct shirudo_map_summary *list,
 	printf("  %-22s %-16s %-18s %s\n", "UPATCH", "MAP", "TYPE",
 	       "ENTRIES");
 	for (i = 0; i < n; i++) {
-		const struct shirudo_map_summary *m = &list[i];
+		const struct map_summary *m = &list[i];
 
 		printf("  %-22s %-16s %-18s max=%u%s\n",
 		       m->upatch, m->name, m->type_name, m->max_entries,
@@ -1447,7 +1447,7 @@ void upatch_maps_print_summary(const struct shirudo_map_summary *list,
 	}
 }
 
-char *upatch_map_format_cell(const struct shirudo_map_view *v,
+char *upatch_map_format_cell(const struct map_view *v,
 			     __u32 type_id, const void *bytes,
 			     __u32 bytes_size,
 			     const char *btf_name)
@@ -1495,7 +1495,7 @@ static void print_serialized_hex(const __u8 *data, __u32 len)
 	}
 }
 
-void upatch_maps_print_detail(const struct shirudo_map_view *v)
+void upatch_maps_print_detail(const struct map_view *v)
 {
 	__u32 i;
 
@@ -1520,7 +1520,7 @@ void upatch_maps_print_detail(const struct shirudo_map_view *v)
 		printf("Serialized bytes:    %llu\n",
 		       v->serial_bytes_total);
 		for (p = 0; p < v->n_serial_pages; p++) {
-			const struct shirudo_serial_page *page =
+			const struct serial_page *page =
 				&v->serial_pages[p];
 
 			printf("\nPage %u:\n", page->page_index);
@@ -1562,7 +1562,7 @@ void upatch_maps_print_detail(const struct shirudo_map_view *v)
 		return;
 	printf("\nContents:\n");
 	for (i = 0; i < v->n_entries; i++) {
-		const struct shirudo_map_entry *en = &v->entries[i];
+		const struct map_entry *en = &v->entries[i];
 		char *key_s;
 
 		key_s = upatch_map_format_cell(v, v->key_type_id,
@@ -1608,8 +1608,8 @@ void upatch_maps_print_detail(const struct shirudo_map_view *v)
 	}
 }
 
-void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
-				  const struct shirudo_map_view *v)
+void upatch_maps_emit_json_fields(struct json_emit *e,
+				  const struct map_view *v)
 {
 	__u32 i, j;
 
@@ -1631,7 +1631,7 @@ void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 			    v->serial_bytes_total);
 		json_arr_open(e, "pages");
 		for (p = 0; p < v->n_serial_pages; p++) {
-			const struct shirudo_serial_page *page =
+			const struct serial_page *page =
 				&v->serial_pages[p];
 			char *hex = hex_alloc(page->data,
 					      page->bytes);
@@ -1682,7 +1682,7 @@ void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 	}
 	json_arr_open(e, "entries");
 	for (i = 0; i < v->n_entries; i++) {
-		const struct shirudo_map_entry *en = &v->entries[i];
+		const struct map_entry *en = &v->entries[i];
 		char *key_s;
 
 		key_s = upatch_map_format_cell(v, v->key_type_id,
@@ -1727,8 +1727,8 @@ void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
 	json_arr_close(e);
 }
 
-void upatch_maps_emit_json_object(struct shirudo_json_emit *e,
-				  const struct shirudo_map_view *v)
+void upatch_maps_emit_json_object(struct json_emit *e,
+				  const struct map_view *v)
 {
 	if (!v)
 		return;

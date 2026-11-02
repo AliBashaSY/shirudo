@@ -24,7 +24,7 @@
 #define KEYS_VOUCH_PREFIX	"shirudo-key-vouch"
 
 /* voucher is the admitting member's fingerprint, zero for the primary. */
-struct shirudo_trusted_cert {
+struct trusted_cert {
 	char		path[PATH_MAX];
 	__u8		sha256[32];		/* of the DER file */
 	__u8		fingerprint[32];	/* of the public key */
@@ -40,8 +40,8 @@ struct shirudo_trusted_cert {
  * one whose fingerprint the revoked directory names. n_revoked counts
  * that directory's certificates.
  */
-struct shirudo_trusted_set {
-	struct shirudo_trusted_cert	certs[KEYS_MAX];
+struct trusted_set {
+	struct trusted_cert	certs[KEYS_MAX];
 	size_t				n;
 	size_t				n_revoked;
 	size_t				n_unvouched;
@@ -53,7 +53,7 @@ struct shirudo_trusted_set {
  * means revoked/ beside them. -ENOENT when there is no cert.der.
  */
 int keys_load(const char *keys_dir, const char *revoked_dir,
-	      bool with_trusted, struct shirudo_trusted_set *set);
+	      bool with_trusted, struct trusted_set *set);
 
 /*
  * The set of a config image, read through its root descriptor; historical
@@ -61,23 +61,23 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
  */
 int keys_load_image_at(const char *primary, int keys_fd,
 		       bool with_trusted,
-		       struct shirudo_trusted_set *set);
+		       struct trusted_set *set);
 /* The same from the image root, whose keys directory is opened beneath it. */
 int keys_load_image_root(const char *primary, int root_fd,
 			 bool with_trusted,
-			 struct shirudo_trusted_set *set);
+			 struct trusted_set *set);
 
-struct shirudo_cert;
+struct cert;
 
 /*
  * A member's DER as the loader read it, owned by the store, or its
  * parsed certificate; -ENOKEY for a member no loader of this process
  * admitted.
  */
-int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
+int keys_cert_der(const struct trusted_cert *c, const __u8 **der,
 		  size_t *len);
-int keys_cert_read(const struct shirudo_trusted_cert *c,
-		   struct shirudo_cert *cert);
+int keys_cert_read(const struct trusted_cert *c,
+		   struct cert *cert);
 
 /* A whole file of at most KEYS_DER_MAX bytes, xmalloc'd. */
 int keys_read_der(const char *path, __u8 **out,
@@ -96,7 +96,7 @@ int keys_digest_file(const char *path, __u8 sha256[32],
  */
 int keys_anchor_digest(const __u8 sha256[][32], size_t n,
 		       __u8 out[32]);
-int keys_set_digest(const struct shirudo_trusted_set *set,
+int keys_set_digest(const struct trusted_set *set,
 		    __u8 out[32]);
 
 bool keys_is_revoked(const char *revoked_dir,
@@ -111,7 +111,7 @@ int keys_vouch_payload(const __u8 *der, size_t der_sz,
  * 0 with the member's fingerprint in voucher, -EKEYREJECTED when none
  * did.
  */
-int keys_verify_vouch(const struct shirudo_trusted_set *set,
+int keys_verify_vouch(const struct trusted_set *set,
 		      const __u8 *der, size_t der_sz,
 		      const __u8 *sig, size_t sig_sz,
 		      __u8 voucher[32]);

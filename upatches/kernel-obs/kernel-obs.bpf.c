@@ -41,7 +41,7 @@ OBS_VIEW(priv);
 OBS_VIEW(file);
 
 #define OBS_DECODER(sym, map_name, src, signal)				\
-	const struct shirudo_decoder_manifest sym SEC(".rodata") = {	\
+	const struct decoder_manifest sym SEC(".rodata") = {	\
 		.magic = DECODER_MANIFEST_MAGIC,		\
 		.version = UPATCH_DECODER_VERSION,		\
 		.language = UPATCH_DECODER_LANG_LUA,		\

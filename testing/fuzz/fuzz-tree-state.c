@@ -20,7 +20,7 @@ static char fuzz_path[64];
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_tree_state state;
+	struct tree_state state;
 	__u8 root[32];
 	int fd;
 

@@ -48,14 +48,14 @@
 #include "tpm.h"
 
 struct image_context {
-	struct shirudo_config_update_target boot_target;
-	struct shirudo_dm_verity boot_runtime;
-	struct shirudo_config_update update;
+	struct config_update_target boot_target;
+	struct dm_verity boot_runtime;
+	struct config_update update;
 	struct config_image_open candidate;
-	struct shirudo_dm_verity candidate_device;
-	struct shirudo_config bootstrap_config;
-	struct shirudo_image_bootstrap bootstrap;
-	struct shirudo_tpm *tpm;
+	struct dm_verity candidate_device;
+	struct config bootstrap_config;
+	struct image_bootstrap bootstrap;
+	struct tpm *tpm;
 	int candidate_fd;
 	int certificate_fd;
 	int config_state;	/* what current_config() refused status with */
@@ -75,7 +75,7 @@ static struct image_context image = {
 static int load_runtime_config(bool trusted_boot);
 static int current_config(void);
 
-struct shirudo_config_update *image_update_context(void)
+struct config_update *image_update_context(void)
 {
 	return image.update.lock_fd >= 0 ? &image.update : NULL;
 }
@@ -105,7 +105,7 @@ static int reject_overrides(void)
 
 int image_bootstrap_load(void)
 {
-	struct shirudo_identity identity;
+	struct identity identity;
 	int mode, ret;
 
 	if (image.loaded)
@@ -173,7 +173,7 @@ static int mapping_name(const __u8 root[32], char out[128])
 
 static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 {
-	struct shirudo_device_authority entry;
+	struct device_authority entry;
 	__u32 dev = (major(device) << 20) | minor(device);
 	__u64 key, next, diskseq;
 	struct stat st;
@@ -316,7 +316,7 @@ static int mount_runtime(bool trusted_boot)
 		.hash_fd = -1,
 		.signature_fd = -1,
 	};
-	struct shirudo_dm_verity device = {
+	struct dm_verity device = {
 		.data_loop_fd = -1,
 		.hash_loop_fd = -1,
 	};
@@ -415,7 +415,7 @@ static int pcr_extend(void *ctx, __u32 pcr, const __u8 event[32])
 
 static int collect_mapping(const char *name, dev_t device, void *ctx)
 {
-	struct shirudo_dm_verity retired = {
+	struct dm_verity retired = {
 		.data_loop_fd = -1,
 		.hash_loop_fd = -1,
 	};
@@ -466,7 +466,7 @@ static void close_candidate(void)
 	config_image_close(&image.candidate);
 }
 
-static int remove_candidate(struct shirudo_dm_verity *device)
+static int remove_candidate(struct dm_verity *device)
 {
 	__u32 attempt;
 	int ret;
@@ -494,7 +494,7 @@ static int candidate_keys(int fd)
 
 static int mount_candidate(struct image_context *current)
 {
-	struct shirudo_dm_verity *device = &current->candidate_device;
+	struct dm_verity *device = &current->candidate_device;
 	const char *mountpoint = CONFIG_CANDIDATE_DIR;
 	struct stat st;
 	int ret;
@@ -519,10 +519,10 @@ static int mount_candidate(struct image_context *current)
 }
 
 static int prepare_config(struct image_context *current,
-			  const struct shirudo_config_update_target *target,
+			  const struct config_update_target *target,
 			  bool trusted_boot)
 {
-	struct shirudo_dm_verity *device = &current->candidate_device;
+	struct dm_verity *device = &current->candidate_device;
 	bool created = false;
 	int ret, cleanup;
 	char name[128];
@@ -614,26 +614,26 @@ static int activate_config(struct image_context *current, bool boot)
 }
 
 static int prepare_update(void *ctx,
-			  const struct shirudo_config_update_target *target)
+			  const struct config_update_target *target)
 {
 	return prepare_config(ctx, target, false);
 }
 
 static int activate_update(void *ctx,
-			   const struct shirudo_config_update_target *target)
+			   const struct config_update_target *target)
 {
 	(void)target;
 	return activate_config(ctx, false);
 }
 
 static int activate_boot(void *ctx,
-			 const struct shirudo_config_update_target *target)
+			 const struct config_update_target *target)
 {
 	(void)target;
 	return activate_config(ctx, true);
 }
 
-static const struct shirudo_config_update_ops update_ops = {
+static const struct config_update_ops update_ops = {
 	.boot_identity = boot_identity,
 	.pcr_read = pcr_read,
 	.pcr_extend = pcr_extend,
@@ -643,7 +643,7 @@ static const struct shirudo_config_update_ops update_ops = {
 	.lock_wait_ms = 30 * 1000,
 };
 
-static const struct shirudo_config_update_ops boot_ops = {
+static const struct config_update_ops boot_ops = {
 	.boot_identity = boot_identity,
 	.pcr_read = pcr_read,
 	.pcr_extend = pcr_extend,
@@ -670,9 +670,9 @@ static int open_update(void)
 	return ret;
 }
 
-static int boot_target(struct shirudo_config_update_target *target)
+static int boot_target(struct config_update_target *target)
 {
-	struct shirudo_config_update_record previous;
+	struct config_update_record previous;
 	struct config_image_open opened;
 	const char *prefix;
 	bool selected;
@@ -762,9 +762,9 @@ static int enroll_config_key(void)
 }
 
 /* The authenticated initrd validates the boot set before installing guards. */
-int image_boot_keys(struct shirudo_trusted_set *set)
+int image_boot_keys(struct trusted_set *set)
 {
-	struct shirudo_trusted_cert primary = { .primary = true };
+	struct trusted_cert primary = { .primary = true };
 	size_t i;
 	int ret;
 
@@ -844,7 +844,7 @@ int image_boot_keys_close(void)
 
 int image_boot(void)
 {
-	struct shirudo_config_update_target target = {};
+	struct config_update_target target = {};
 	int ret;
 
 	ret = open_update();
@@ -867,10 +867,10 @@ int image_boot(void)
 	return ret;
 }
 
-static int config_mount_check(const struct shirudo_config_update_record *record)
+static int config_mount_check(const struct config_update_record *record)
 {
 	struct config_image_open opened;
-	struct shirudo_dm_verity device;
+	struct dm_verity device;
 	struct stat st;
 	char name[128];
 	int fd, ret;
@@ -911,7 +911,7 @@ out:
 
 int image_boot_complete(void)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	int ret;
 
 	ret = config_update_read(&image.update, &record);
@@ -924,7 +924,7 @@ int image_boot_complete(void)
 
 static int current_config(void)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	int ret;
 
 	ret = open_update();
@@ -941,7 +941,7 @@ static int current_config(void)
  */
 static int status_config(int state)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 
 	image.config_state = state;
 	if (state == -EINPROGRESS &&
@@ -952,7 +952,7 @@ static int status_config(int state)
 
 int image_enter(const char *command, int argc, const char **argv)
 {
-	struct shirudo_identity identity;
+	struct identity identity;
 	int mode, ret;
 
 	if (!strcmp(command, "image") && argc > 1 &&
@@ -998,7 +998,7 @@ int image_enter(const char *command, int argc, const char **argv)
 
 int image_config_state(__u8 root[32])
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 
 	if (image.update.lock_fd < 0)
 		return -ENODEV;
@@ -1011,9 +1011,9 @@ int image_config_state(__u8 root[32])
 
 int image_status(void)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	char buffer[512], root[65];
-	struct shirudo_json_emit emit = {
+	struct json_emit emit = {
 		.buf = buffer,
 		.cap = sizeof(buffer),
 	};
@@ -1059,7 +1059,7 @@ void image_leave(void)
 
 int image_update(const char *prefix)
 {
-	struct shirudo_config_update_target target = {};
+	struct config_update_target target = {};
 	int ret;
 
 	if (image.update.lock_fd < 0)

@@ -16,7 +16,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	char endpoint[BPM_MAX_ENDPOINT], reference[BPM_MAX_DIGEST];
 	char line[PATH_MAX], copy[PATH_MAX], key_file[BPM_MAX_KEY];
-	struct shirudo_config cfg;
+	struct config cfg;
 	char path[64];
 	FILE *fp;
 	int fd;

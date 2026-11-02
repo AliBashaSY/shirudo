@@ -31,7 +31,7 @@ int enforcement_active(void)
 	return errno == EINVAL || errno == ENOSYS ? 0 : -errno;
 }
 
-int identity_read(struct shirudo_identity *out)
+int identity_read(struct identity *out)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);

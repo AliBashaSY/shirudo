@@ -23,9 +23,9 @@
 #define MAP_NAME_MAX		16	/* BPF_OBJ_NAME_LEN */
 #define MAP_TYPENAME_MAX	64
 
-struct shirudo_json_emit;
+struct json_emit;
 
-struct shirudo_map_entry {
+struct map_entry {
 	void		*key;		/* key_size bytes */
 	void		*value;		/* value_stride * (per-CPU ? n_cpus : 1) */
 };
@@ -40,7 +40,7 @@ struct shirudo_map_entry {
 
 struct btf;
 
-struct shirudo_serial_page {
+struct serial_page {
 	__u32		page_index;
 	__u64		cursor;
 	__u64		next_cursor;
@@ -51,7 +51,7 @@ struct shirudo_serial_page {
 	void		*data;
 };
 
-struct shirudo_map_view {
+struct map_view {
 	char		upatch[UPATCH_NAME_MAX + 1];
 	char		name[MAP_NAME_MAX + 1];
 	char		location[UPATCH_LOCATION_MAX];
@@ -69,7 +69,7 @@ struct shirudo_map_view {
 	bool		serialized;
 	__u32		n_serial_pages;
 	__u64		serial_bytes_total;
-	struct shirudo_serial_page *serial_pages;
+	struct serial_page *serial_pages;
 	bool		skipped;
 	const char	*skipped_reason;
 	char		btf_key_type[MAP_TYPENAME_MAX];
@@ -79,13 +79,13 @@ struct shirudo_map_view {
 	__u32		key_type_id;
 	__u32		value_type_id;
 	struct btf	*btf;		/* heap; owned by the view */
-	struct shirudo_map_entry	*entries;	/* n_entries long */
+	struct map_entry	*entries;	/* n_entries long */
 };
 
-void map_view_free(struct shirudo_map_view *v);
+void map_view_free(struct map_view *v);
 
 /* Name, type and max_entries alone, without reading entries. */
-struct shirudo_map_summary {
+struct map_summary {
 	char		upatch[UPATCH_NAME_MAX + 1];
 	char		name[MAP_NAME_MAX + 1];
 	__u32		type;
@@ -94,12 +94,12 @@ struct shirudo_map_summary {
 	__u32		n_cpus;
 };
 
-int  upatch_maps_list_all(struct shirudo_map_summary **out,
+int  upatch_maps_list_all(struct map_summary **out,
 			  size_t *n_out);
 int  upatch_maps_list_one(const char *upatch,
-			  struct shirudo_map_summary **out,
+			  struct map_summary **out,
 			  size_t *n_out);
-void map_summary_free(struct shirudo_map_summary *list, size_t n);
+void map_summary_free(struct map_summary *list, size_t n);
 
 /*
  * Read one map's contents. <max_entries_cap> bounds the number of
@@ -114,25 +114,25 @@ void map_summary_free(struct shirudo_map_summary *list, size_t n);
 
 int  upatch_maps_read(const char *upatch, const char *map,
 		      __u32 max_entries_cap, __u32 flags,
-		      struct shirudo_map_view *out);
+		      struct map_view *out);
 
-void upatch_maps_print_summary(const struct shirudo_map_summary *list,
+void upatch_maps_print_summary(const struct map_summary *list,
 			       size_t n);
-void upatch_maps_print_detail(const struct shirudo_map_view *v);
+void upatch_maps_print_detail(const struct map_view *v);
 
 /* NULL v emits nothing. The shape is part of the status report. */
-void upatch_maps_emit_json_fields(struct shirudo_json_emit *e,
-				  const struct shirudo_map_view *v);
-void upatch_maps_emit_json_object(struct shirudo_json_emit *e,
-				  const struct shirudo_map_view *v);
+void upatch_maps_emit_json_fields(struct json_emit *e,
+				  const struct map_view *v);
+void upatch_maps_emit_json_object(struct json_emit *e,
+				  const struct map_view *v);
 
 bool upatch_map_is_percpu(__u32 type);
-__u32 upatch_map_value_stride(const struct shirudo_map_view *v);
-char *upatch_map_format_cell(const struct shirudo_map_view *v,
+__u32 upatch_map_value_stride(const struct map_view *v);
+char *upatch_map_format_cell(const struct map_view *v,
 			     __u32 type_id, const void *value,
 			     __u32 value_size,
 			     const char *btf_type);
-char *upatch_map_format_percpu_sum(const struct shirudo_map_view *v,
+char *upatch_map_format_percpu_sum(const struct map_view *v,
 				   const void *values_per_cpu,
 				   const char *btf_type);
 

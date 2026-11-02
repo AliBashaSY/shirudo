@@ -43,7 +43,7 @@
 #define TASK_TRUSTED	1
 #define TASK_BOOTSTRAP	2
 
-struct shirudo_task_authority {
+struct task_authority {
 	__u8	trusted;
 	__u8	candidate_valid;
 	__u8	candidate_trusted;
@@ -55,10 +55,10 @@ struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC);
 	__type(key, int);
-	__type(value, struct shirudo_task_authority);
+	__type(value, struct task_authority);
 } shirudo_tasks SEC(".maps");
 
-static __always_inline struct shirudo_sb_id *shirudo_policy(void)
+static __always_inline struct sb_id *shirudo_policy(void)
 {
 	__u32 zero = 0;
 
@@ -67,7 +67,7 @@ static __always_inline struct shirudo_sb_id *shirudo_policy(void)
 
 static __always_inline bool shirudo_marked(struct task_struct *task)
 {
-	struct shirudo_task_authority *authority;
+	struct task_authority *authority;
 
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL, 0);
 	return authority && authority->trusted;

@@ -42,7 +42,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
 	__type(key, __u32);
-	__type(value, struct shirudo_serial_chunk);
+	__type(value, struct serial_chunk);
 } shirudo_ser SEC(".maps");
 
 struct {
@@ -90,10 +90,10 @@ void __arena *bpf_arena_alloc_pages(void *map, void __arena *addr,
 
 static struct tree_node __arena *root;
 
-static __always_inline void set_error(struct shirudo_serialize_ctx *ctx,
+static __always_inline void set_error(struct serialize_ctx *ctx,
 				      int status)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 key = 0;
 	__u32 page_index = ctx ? ctx->page_index : 0;
 	__u64 cursor = ctx ? ctx->cursor : 0;
@@ -131,7 +131,7 @@ static __always_inline int init_page_chunks(__u32 records, __u32 flags,
 		total_chunks = 1;
 
 	for (i = 0; i < total_chunks; i++) {
-		struct shirudo_serial_chunk *chunk;
+		struct serial_chunk *chunk;
 		__u32 key = i;
 		__u32 used = page_bytes -
 			     i * SERIAL_CHUNK_PAYLOAD;
@@ -188,7 +188,7 @@ static __always_inline int build_tree(void)
 static __always_inline int emit_record(struct tree_node __arena *node,
 				       __u32 absolute, __u32 page_slot)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	struct tree_record rec = {};
 	__u32 chunk_key = page_slot / TREE_RECORDS_PER_CHUNK;
 	__u32 slot = page_slot % TREE_RECORDS_PER_CHUNK;
@@ -211,7 +211,7 @@ static __always_inline int emit_record(struct tree_node __arena *node,
 }
 
 SEC("syscall")
-int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__tree_arena(struct serialize_ctx *ctx)
 {
 	__u32 start, records, emitted, flags = 0;
 	__u64 next_cursor;
@@ -278,7 +278,7 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 }
 
 SEC("syscall")
-int shirudo_serialize__tree_error(struct shirudo_serialize_ctx *ctx)
+int shirudo_serialize__tree_error(struct serialize_ctx *ctx)
 {
 	if (!ctx || !ctx->invocation_id)
 		return -EINVAL;

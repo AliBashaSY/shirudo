@@ -89,7 +89,7 @@ out:
 	return ret;
 }
 
-static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
+static int authorize(struct tpm *t, ESYS_TR writer, ESYS_TR nv,
 		     const __u8 event[32], const __u8 policy[32],
 		     ESYS_TR *session, __u8 saved[TPM_NV_RSA_BYTES],
 		     enum signature_fault fault)
@@ -150,7 +150,7 @@ int main(void)
 	TPM2B_MAX_NV_BUFFER seed = { .size = 32 };
 	ESYS_TR session = ESYS_TR_NONE;
 	ESYS_TR writer = ESYS_TR_NONE;
-	struct shirudo_tpm *t = NULL;
+	struct tpm *t = NULL;
 	ESYS_CONTEXT *esys = NULL;
 	ESYS_TR nv = ESYS_TR_NONE;
 	__u8 writer_seed[32];

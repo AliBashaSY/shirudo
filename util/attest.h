@@ -29,7 +29,7 @@
  * attestation key of the given name under the endorsement key of the
  * given type.
  */
-struct shirudo_attest_challenge {
+struct attest_challenge {
 	bool		ek_rsa;
 	__u8		ak_name[TPM_NAME_LEN];
 	__u8		blob[TPM_ID_OBJECT_LEN];
@@ -41,9 +41,9 @@ struct shirudo_attest_challenge {
 #define ATTEST_CHALLENGE_MAX	(16 * 1024)
 
 int attest_challenge_read(const char *path,
-			  struct shirudo_attest_challenge *out);
+			  struct attest_challenge *out);
 
-struct shirudo_config_update;
+struct config_update;
 
 /*
  * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
@@ -52,8 +52,8 @@ struct shirudo_config_update;
  */
 int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 			   __u32 pcr_mask,
-			   const struct shirudo_attest_challenge *c,
-			   struct shirudo_config_update *update,
+			   const struct attest_challenge *c,
+			   struct config_update *update,
 			   char **out, size_t *len, size_t *cap);
 
 /*
@@ -61,7 +61,7 @@ int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
  * to the caller and kept nowhere else; ek_ca is a PEM bundle or NULL.
  * -EKEYREJECTED when a check failed and no challenge was made.
  */
-struct shirudo_attest_challenge_policy {
+struct attest_challenge_policy {
 	const char	*ek_ca;		/* issuer bundle, or NULL */
 	const __u8	*ak_name;	/* pinned attestation key, or NULL */
 	const __u8	*ek_name;	/* pinned endorsement key, or NULL */
@@ -69,12 +69,12 @@ struct shirudo_attest_challenge_policy {
 };
 
 int attest_challenge_make(const char *evidence, size_t len,
-			  const struct shirudo_attest_challenge_policy *pol,
+			  const struct attest_challenge_policy *pol,
 			  __u8 credential[TPM_CREDENTIAL_LEN],
 			  char **out, size_t *out_len, size_t *cap,
 			  char *report, size_t report_cap);
 
-struct shirudo_attest_expect {
+struct attest_expect {
 	const __u8	*nonce;
 	size_t		nonce_len;
 	bool		have_ak_name;
@@ -105,7 +105,7 @@ struct shirudo_attest_expect {
  * failed, -EINVAL when the document is malformed.
  */
 int attest_verify(const char *evidence, size_t len,
-		  const struct shirudo_attest_expect *expect,
+		  const struct attest_expect *expect,
 		  char *report, size_t report_cap);
 
 #endif /* SHIRUDO_ATTEST_H */

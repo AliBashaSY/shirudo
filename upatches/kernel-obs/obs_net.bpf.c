@@ -124,7 +124,7 @@ struct {
 	__type(value, struct obs_watch_counter);
 } watch_stat SEC(".maps");
 
-static __always_inline void net_emit_key(struct shirudo_serial_chunk *chunk,
+static __always_inline void net_emit_key(struct serial_chunk *chunk,
 					 __u32 off,
 					 const struct net_key __arena *key)
 {
@@ -156,7 +156,7 @@ static __always_inline void net_emit_key(struct shirudo_serial_chunk *chunk,
 #define OBS_T_EMIT	net_emit_record
 #include "obs_table.h"
 
-static int net_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int net_emit_record(struct serial_chunk *chunk, __u32 off,
 			   const struct net_entry __arena *e)
 {
 	net_emit_key(chunk, off, &e->key);
@@ -184,7 +184,7 @@ static int net_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
 #define OBS_T_EMIT	listen_emit_record
 #include "obs_table.h"
 
-static int listen_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int listen_emit_record(struct serial_chunk *chunk, __u32 off,
 			      const struct listen_entry __arena *e)
 {
 	net_emit_key(chunk, off, &e->key);
@@ -208,7 +208,7 @@ static int listen_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
 #define OBS_T_EMIT	watch_emit_record
 #include "obs_table.h"
 
-static int watch_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int watch_emit_record(struct serial_chunk *chunk, __u32 off,
 			     const struct watch_entry __arena *e)
 {
 	net_emit_key(chunk, off, &e->key);
@@ -234,7 +234,7 @@ static int watch_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
 #define OBS_T_EMIT	socket_emit_record
 #include "obs_table.h"
 
-static int socket_emit_record(struct shirudo_serial_chunk *chunk, __u32 off,
+static int socket_emit_record(struct serial_chunk *chunk, __u32 off,
 			      const struct socket_entry __arena *e)
 {
 	const struct socket_key __arena *key = &e->key;

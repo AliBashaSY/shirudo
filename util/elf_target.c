@@ -144,7 +144,7 @@ int elf_build_id_fd(int fd,
 }
 
 int elf_target_resolve(const char *path, const char *pattern,
-		       struct shirudo_elf_target *out)
+		       struct elf_target *out)
 {
 	Elf *elf = NULL;
 	unsigned long *resolved_offsets = NULL;
@@ -216,7 +216,7 @@ out:
 	return err;
 }
 
-void elf_target_free(struct shirudo_elf_target *target)
+void elf_target_free(struct elf_target *target)
 {
 	if (!target)
 		return;

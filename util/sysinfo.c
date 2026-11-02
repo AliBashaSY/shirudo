@@ -267,7 +267,7 @@ static void emit_kernel_config_entry(void *ctx, const char *key,
 	json_kv_string(ctx, key, value);
 }
 
-static void emit_kernel_config(struct shirudo_json_emit *e,
+static void emit_kernel_config(struct json_emit *e,
 			       const char *kernel_release)
 {
 	json_obj_open_key(e, "kernel_config");
@@ -277,11 +277,11 @@ static void emit_kernel_config(struct shirudo_json_emit *e,
 	json_obj_close(e);
 }
 
-void sysinfo_gather(struct shirudo_sysinfo *si)
+void sysinfo_gather(struct sysinfo *si)
 {
 	struct utsname u;
 
-	*si = (struct shirudo_sysinfo){};
+	*si = (struct sysinfo){};
 	si->nproc = -1;
 	si->mem_total_kb = -1;
 	si->mem_avail_kb = -1;
@@ -317,8 +317,8 @@ void sysinfo_gather(struct shirudo_sysinfo *si)
 	si->uptime_sec = read_uptime_sec();
 }
 
-void sysinfo_emit_json(struct shirudo_json_emit *e,
-		       const struct shirudo_sysinfo *si)
+void sysinfo_emit_json(struct json_emit *e,
+		       const struct sysinfo *si)
 {
 	json_obj_open_key(e, "system");
 	json_kv_string(e, "hostname", si->hostname);

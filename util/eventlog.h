@@ -54,7 +54,7 @@ int eventlog_replay(__u8 out[TPM_DIGEST_LEN]);
  * how many init records the boot holds: more than one for the TPM reset
  * the last one names means the register was bound again.
  */
-struct shirudo_eventlog_init {
+struct eventlog_init {
 	__u8		writer_public[TPM_NV_RSA_BYTES];
 	__u32		pcr;
 	bool		initrd;		/* bound while the initrd ran */
@@ -69,7 +69,7 @@ struct shirudo_eventlog_init {
 	__u32		records_epoch;	/* for this reset count */
 };
 
-int eventlog_boot_init(struct shirudo_eventlog_init *out);
+int eventlog_boot_init(struct eventlog_init *out);
 
 int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 				  void *ctx), void *ctx);
@@ -85,14 +85,14 @@ int eventlog_would_exceed(__u64 max_bytes);
 void eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
 void eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */
 
-struct shirudo_json_emit;
+struct json_emit;
 
 /*
  * Open a record and write the fields every record starts with, through
  * boot_id; the caller adds its own and closes the object. A failure
  * lands in e->err like any other.
  */
-void eventlog_record_open(struct shirudo_json_emit *e, const char *type,
+void eventlog_record_open(struct json_emit *e, const char *type,
 			  const __u8 digest[32]);
 
 #endif /* SHIRUDO_EVENTLOG_H */

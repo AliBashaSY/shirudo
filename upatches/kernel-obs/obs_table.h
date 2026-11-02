@@ -56,7 +56,7 @@ static struct OBS_FN(table_state) __arena *OBS_FN(active);
 static struct OBS_FN(table_state) __arena *OBS_FN(drain);
 static __u32 OBS_FN(lost);
 
-static int OBS_T_EMIT(struct shirudo_serial_chunk *chunk, __u32 off,
+static int OBS_T_EMIT(struct serial_chunk *chunk, __u32 off,
 		      const struct OBS_FN(entry) __arena *e);
 
 /*
@@ -172,10 +172,10 @@ static __always_inline void OBS_FN(flip)(__u64 now)
 	OBS_FN(drain) = cur;
 }
 
-static __always_inline struct shirudo_serial_chunk *
+static __always_inline struct serial_chunk *
 OBS_FN(slot)(__u32 page_slot, __u32 *off_out)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 key, slot, off;
 
 	barrier_var(page_slot);
@@ -201,10 +201,10 @@ OBS_FN(slot)(__u32 page_slot, __u32 *off_out)
 static __always_inline int OBS_FN(chunk_meta)(__u32 key, __u32 flags,
 					      __u32 total_chunks,
 					      __u32 page_bytes,
-					      const struct shirudo_serialize_ctx *ctx,
+					      const struct serialize_ctx *ctx,
 					      __u64 next_cursor)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 used;
 
 	if (key >= total_chunks)
@@ -235,7 +235,7 @@ static __always_inline int
 OBS_FN(emit_header)(const struct OBS_FN(table_state) __arena *state,
 		    __u32 hdr_flags, __u64 now)
 {
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 off, used;
 
 	chunk = OBS_FN(slot)(0, &off);
@@ -276,7 +276,7 @@ static int OBS_FN(emit_cb)(__u32 scanned, void *data)
 {
 	struct OBS_FN(emit_ctx) *emit = data;
 	struct OBS_FN(entry) __arena *e;
-	struct shirudo_serial_chunk *chunk;
+	struct serial_chunk *chunk;
 	__u32 idx, off;
 	int ret;
 
@@ -312,7 +312,7 @@ static int OBS_FN(emit_cb)(__u32 scanned, void *data)
 }
 
 SEC("syscall")
-int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
+int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct serialize_ctx *ctx)
 {
 	struct OBS_FN(emit_ctx) emit = {};
 	struct OBS_FN(table_state) __arena *state;

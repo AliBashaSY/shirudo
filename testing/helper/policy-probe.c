@@ -24,7 +24,7 @@ static __u64 probe_word = 0x5348495255444fUL;
 
 static int check_mark(const char *pin, int expected)
 {
-	struct shirudo_task_authority authority = {};
+	struct task_authority authority = {};
 	union bpf_attr attr = {};
 	int fd, pidfd, ret;
 
@@ -65,7 +65,7 @@ static void print_hex(const __u8 *bytes, size_t n)
 
 static int print_identity(const char *pin, const char *field)
 {
-	struct shirudo_identity id = {};
+	struct identity id = {};
 	union bpf_attr attr = {};
 	__u32 zero = 0;
 	int fd, ret;

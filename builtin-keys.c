@@ -399,23 +399,23 @@ static void keyring_absent(const struct keys_anchor *a, key_serial_t ret,
 		       "Present:", strerror(-id_rc));
 }
 
-static const struct shirudo_help_item keys_subcmds[] = {
+static const struct help_item keys_subcmds[] = {
 	{ "add", "trust a certificate an enrolled key vouched for (target)" },
 	{ "revoke", "stop trusting a certificate now and for good (target)" },
 	{ "vouch", "sign a vouch for a certificate (operator)" },
 };
 
-static const struct shirudo_help_item keys_options[] = {
+static const struct help_item keys_options[] = {
 	{ "--keys-dir <dir>", "read signing_key.pem + cert.der from <dir>" },
 };
 
-static const struct shirudo_help_section keys_help_sections[] = {
+static const struct help_section keys_help_sections[] = {
 	{ "subcommands:", keys_subcmds, ARRAY_SIZE(keys_subcmds) },
 	{ "options:", keys_options,
 	  ARRAY_SIZE(keys_options) },
 };
 
-static const struct shirudo_help keys_help = {
+static const struct help keys_help = {
 	.usage   = "shirudo keys [--keys-dir <dir>]\n"
 		   "       shirudo keys add <cert.der> --vouch <file>\n"
 		   "       shirudo keys revoke <fingerprint> [--promote <fp>]\n"
@@ -438,16 +438,16 @@ static void usage(void)
 	fprintf(stderr, "usage: %s\n", keys_help.usage);
 }
 
-static const struct shirudo_help_item keys_add_options[] = {
+static const struct help_item keys_add_options[] = {
 	{ "--vouch <file>", "the vouch an enrolled key signed for the certificate" },
 	{ "--keys-dir <dir>", "the keys directory (default " KEYS_DIR ")" },
 };
 
-static const struct shirudo_help_section keys_add_sections[] = {
+static const struct help_section keys_add_sections[] = {
 	{ "options:", keys_add_options, ARRAY_SIZE(keys_add_options) },
 };
 
-static const struct shirudo_help keys_add_help = {
+static const struct help keys_add_help = {
 	.usage   = "shirudo keys add <cert.der> --vouch <file> [--keys-dir <dir>]",
 	.summary = "Add a certificate to the trusted set this target enrols at "
 		   "its next boot.\nThe vouch must verify under a certificate "
@@ -457,18 +457,18 @@ static const struct shirudo_help keys_add_help = {
 	.n_sections = ARRAY_SIZE(keys_add_sections),
 };
 
-static const struct shirudo_help_item keys_vouch_options[] = {
+static const struct help_item keys_vouch_options[] = {
 	{ "-o <file>", "where to write the vouch (default <cert.der>.vouch)" },
 	{ "--keys-dir <dir>", "read signing_key.pem + cert.der from <dir>" },
 	{ "--key <pem>", "the signing key (overrides --keys-dir)" },
 	{ "--cert <der>", "the signing certificate (overrides --keys-dir)" },
 };
 
-static const struct shirudo_help_section keys_vouch_sections[] = {
+static const struct help_section keys_vouch_sections[] = {
 	{ "options:", keys_vouch_options, ARRAY_SIZE(keys_vouch_options) },
 };
 
-static const struct shirudo_help keys_vouch_help = {
+static const struct help keys_vouch_help = {
 	.usage   = "shirudo keys vouch <cert.der> [-o <file>] [--keys-dir <dir>]",
 	.summary = "Sign a vouch for another operator's certificate with this "
 		   "operator's key,\nfor `shirudo keys add --vouch` on the "
@@ -482,7 +482,7 @@ static const struct shirudo_help keys_vouch_help = {
 static int check_cert_algorithm(const __u8 *der, size_t der_sz,
 				const char *what)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	char name[64] = {};
 	int ret;
 
@@ -506,10 +506,10 @@ static int check_cert_algorithm(const __u8 *der, size_t der_sz,
  * right now, not only one on disk, when the live target's set is the
  * one being extended.
  */
-static int check_voucher_live(const struct shirudo_trusted_set *set,
+static int check_voucher_live(const struct trusted_set *set,
 			      const __u8 voucher[32])
 {
-	struct shirudo_identity id;
+	struct identity id;
 	const __u8 *der = NULL;
 	key_serial_t ring;
 	size_t der_sz = 0;
@@ -542,7 +542,7 @@ static int keys_add(int argc, const char **argv)
 	const char *keys_dir_arg = NULL, *vouch_path = NULL, *cert = NULL;
 	__u8 *der = NULL, *sig = NULL;
 	__u8 sha256[32], fp[32], by[32];
-	struct shirudo_trusted_set set;
+	struct trusted_set set;
 	char fp_hex[65], by_hex[65];
 	size_t der_sz = 0, sig_sz = 0;
 	char revoked[PATH_MAX];
@@ -671,7 +671,7 @@ out:
 	return ret ? 1 : 0;
 }
 
-static const struct shirudo_help keys_revoke_help = {
+static const struct help keys_revoke_help = {
 	.usage = "shirudo keys revoke",
 	.summary = "Local revocation is disabled. Publish revocation records "
 		   "in a signed config image and activate it with image update.",
@@ -681,7 +681,7 @@ static int append_key_event(const char *type, const char *fp_hex,
 			    const char *sha_hex, const __u8 event[32])
 {
 	char buf[1024];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	eventlog_record_open(&e, type, event);
 	json_obj_open_key(&e, "key");
@@ -703,7 +703,7 @@ static int append_key_event(const char *type, const char *fp_hex,
  * fail-closed treatment as a upatch event: no TPM is an error, not an
  * unmeasured success.
  */
-static int measure_revoke_locked(const struct shirudo_trusted_cert *c,
+static int measure_revoke_locked(const struct trusted_cert *c,
 				 const char *fp_hex)
 {
 	__u8 event[32], chain[32];
@@ -735,7 +735,7 @@ static int measure_revoke_locked(const struct shirudo_trusted_cert *c,
 	return 0;
 }
 
-static int measure_revoke(const struct shirudo_trusted_cert *c,
+static int measure_revoke(const struct trusted_cert *c,
 			  const char *fp_hex)
 {
 	int lock, ret;
@@ -760,7 +760,7 @@ static int measure_revoke(const struct shirudo_trusted_cert *c,
 static int purge_signed_by(const __u8 *der, size_t der_sz,
 			   size_t *unloaded)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	struct dirent **names = NULL;
 	int n, i, ret = 0, purged = 0;
 
@@ -775,7 +775,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 	}
 	for (i = 0; i < n; i++) {
 		char name[UPATCH_NAME_MAX + 1];
-		struct shirudo_upatch u;
+		struct upatch u;
 		char path[PATH_MAX];
 		int signed_by, prc;
 
@@ -812,7 +812,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 
 int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 {
-	struct shirudo_trusted_cert cert = {};
+	struct trusted_cert cert = {};
 	key_serial_t ring, key;
 	char fingerprint[65];
 	size_t unloaded;
@@ -899,8 +899,8 @@ int cmd_keys(int argc, const char **argv)
 static int keys_show(int argc, const char **argv)
 {
 	const char *keys_dir_arg = NULL;
-	struct shirudo_identity id = {};
-	struct shirudo_trusted_set set;
+	struct identity id = {};
+	struct trusted_set set;
 	const char *keys_dir;
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];

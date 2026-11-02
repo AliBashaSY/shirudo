@@ -110,7 +110,7 @@ it.
    decoder
       A Lua function shipped inside an upatch that turns a snapshot of one
       map into OTLP log records or metrics. The program declares it with
-      a ``struct shirudo_decoder_manifest`` in ``.rodata``,
+      a ``struct decoder_manifest`` in ``.rodata``,
       ``shirudo-build`` embeds the source in the signed ``DCDB`` section,
       and ``shirudo upatch map`` runs it under LuaJIT. See
       :doc:`/upatches/write/decoders`.

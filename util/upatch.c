@@ -20,7 +20,7 @@
 #include "upatch.h"
 
 static int parse_header(const __u8 *m, size_t n,
-			struct shirudo_upatch_host_header *out)
+			struct upatch_host_header *out)
 {
 	const __u8 *p = m;
 
@@ -92,7 +92,7 @@ static int section_inside(__u32 off, __u32 len, size_t n)
 	return 1;
 }
 
-static int validate_bounds(const struct shirudo_upatch_host_header *h,
+static int validate_bounds(const struct upatch_host_header *h,
 			   size_t n)
 {
 	if (h->type != SHIRUDO_UPATCH_TYPE_BPF)
@@ -120,14 +120,14 @@ static bool has_nul(const char *s, size_t n)
 }
 
 /* The DECODERS section: entries and sources within the blob. */
-static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
+static bool parse_decoders(struct upatch *u, const __u8 *bp,
 			   __u32 decoder_len)
 {
 	__u32 nr_decoders;
 	__u64 entries_end;
 	size_t i;
 
-	if (decoder_len < sizeof(struct shirudo_upatch_decoder_blob))
+	if (decoder_len < sizeof(struct upatch_decoder_blob))
 		return false;
 	if (get_le32(bp) != UPATCH_DECODER_MAGIC ||
 	    get_le32(bp + 4) != UPATCH_DECODER_VERSION)
@@ -136,18 +136,18 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 	nr_decoders = get_le32(bp + 8);
 	if (nr_decoders == 0)
 		return false;
-	entries_end = sizeof(struct shirudo_upatch_decoder_blob) +
+	entries_end = sizeof(struct upatch_decoder_blob) +
 		      (__u64)nr_decoders *
-		      sizeof(struct shirudo_upatch_decoder_entry);
+		      sizeof(struct upatch_decoder_entry);
 	if (entries_end > decoder_len)
 		return false;
 
 	/* The blob sits behind the signature, so entries are unaligned. */
 	for (i = 0; i < nr_decoders; i++) {
-		struct shirudo_upatch_decoder_entry d;
+		struct upatch_decoder_entry d;
 		__u32 source_off, source_len;
 
-		memcpy(&d, bp + sizeof(struct shirudo_upatch_decoder_blob) +
+		memcpy(&d, bp + sizeof(struct upatch_decoder_blob) +
 		       i * sizeof(d), sizeof(d));
 		if (!has_nul(d.upatch, sizeof(d.upatch)) ||
 		    !has_nul(d.map, sizeof(d.map)) ||
@@ -174,7 +174,7 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 	return true;
 }
 
-static void forget_signed_sections(struct shirudo_upatch *u)
+static void forget_signed_sections(struct upatch *u)
 {
 	u->decoder_blob = NULL;
 	u->decoder_blob_len = 0;
@@ -191,9 +191,9 @@ static void forget_signed_sections(struct shirudo_upatch *u)
  * once; a directory that breaks any of that is taken for none, so a
  * load or unload refuses for what it then lacks.
  */
-static void parse_signed_sections(struct shirudo_upatch *u)
+static void parse_signed_sections(struct upatch *u)
 {
-	struct shirudo_upatch_signed_trailer tr;
+	struct upatch_signed_trailer tr;
 	__u32 i, nr, dir_off, seen = 0;
 	const __u8 *data, *dir;
 	__u64 end;
@@ -210,12 +210,12 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 	end = u->hdr.data_len - sizeof(tr);
 	if (nr == 0 || nr > UPATCH_SIGNED_SECTIONS_MAX ||
 	    dir_off > end ||
-	    (__u64)nr * sizeof(struct shirudo_upatch_signed_section) >
+	    (__u64)nr * sizeof(struct upatch_signed_section) >
 	    end - dir_off)
 		return;
 	dir = data + dir_off;
 	for (i = 0; i < nr; i++) {
-		struct shirudo_upatch_signed_section s;
+		struct upatch_signed_section s;
 		__u32 tag, off, len, bit;
 
 		memcpy(&s, dir + i * sizeof(s), sizeof(s));
@@ -264,7 +264,7 @@ reject:
 }
 
 static int upatch_parse(const void *data, size_t size,
-			struct shirudo_upatch *out)
+			struct upatch *out)
 {
 	int ret;
 
@@ -288,12 +288,12 @@ err:
 }
 
 int upatch_open_memory(const void *data, size_t size,
-		       struct shirudo_upatch *out)
+		       struct upatch *out)
 {
 	return upatch_parse(data, size, out);
 }
 
-int upatch_open_fd(int fd, struct shirudo_upatch *out)
+int upatch_open_fd(int fd, struct upatch *out)
 {
 	struct stat st;
 	void *m;
@@ -321,7 +321,7 @@ int upatch_open_fd(int fd, struct shirudo_upatch *out)
 	return 0;
 }
 
-int upatch_open(const char *path, struct shirudo_upatch *out)
+int upatch_open(const char *path, struct upatch *out)
 {
 	int fd, ret;
 
@@ -334,7 +334,7 @@ int upatch_open(const char *path, struct shirudo_upatch *out)
 	return ret;
 }
 
-void upatch_close(struct shirudo_upatch *u)
+void upatch_close(struct upatch *u)
 {
 	if (u->map && u->mapped)
 		munmap((void *)u->map, u->map_size);
@@ -346,69 +346,69 @@ void upatch_close(struct shirudo_upatch *u)
 	}
 }
 
-const char *upatch_signed_name(const struct shirudo_upatch *u)
+const char *upatch_signed_name(const struct upatch *u)
 {
 	return u->map ? u->signed_name : NULL;
 }
 
-const void *upatch_signed_attach(const struct shirudo_upatch *u, __u32 *len)
+const void *upatch_signed_attach(const struct upatch *u, __u32 *len)
 {
 	*len = u->map ? u->signed_attach_len : 0;
 	return u->map ? u->signed_attach : NULL;
 }
 
-const __u8 *upatch_signed_unload_payload(const struct shirudo_upatch *u)
+const __u8 *upatch_signed_unload_payload(const struct upatch *u)
 {
 	return u->map ? u->signed_unload_payload : NULL;
 }
 
-const void *upatch_loader(const struct shirudo_upatch *u)
+const void *upatch_loader(const struct upatch *u)
 {
 	if (!u->map)
 		return NULL;
 	return u->map + u->hdr.loader_insns_off;
 }
 
-const void *upatch_signature(const struct shirudo_upatch *u)
+const void *upatch_signature(const struct upatch *u)
 {
 	if (!u->map)
 		return NULL;
 	return u->map + u->hdr.signature_off;
 }
 
-const void *upatch_metadata(const struct shirudo_upatch *u)
+const void *upatch_metadata(const struct upatch *u)
 {
 	if (!u->map || u->hdr.metadata_len == 0)
 		return NULL;
 	return u->map + u->hdr.metadata_off;
 }
 
-const void *upatch_data(const struct shirudo_upatch *u)
+const void *upatch_data(const struct upatch *u)
 {
 	if (!u->map || u->hdr.data_len == 0)
 		return NULL;
 	return u->map + u->hdr.data_off;
 }
 
-bool upatch_is_unload(const struct shirudo_upatch *u)
+bool upatch_is_unload(const struct upatch *u)
 {
 	return (u->hdr.flags & DIRECTIVE_UNLOAD) != 0;
 }
 
-const char *upatch_type_str(const struct shirudo_upatch *u)
+const char *upatch_type_str(const struct upatch *u)
 {
 	return "bpf";
 }
 
-bool upatch_has_decoders(const struct shirudo_upatch *u)
+bool upatch_has_decoders(const struct upatch *u)
 {
 	return u->map && u->decoder_blob && u->nr_decoders > 0;
 }
 
-int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
+int upatch_decoder_view(const struct upatch *u, __u32 idx,
 			struct upatch_decoder_view *out)
 {
-	struct shirudo_upatch_decoder_entry d;
+	struct upatch_decoder_entry d;
 	const __u8 *bp;
 
 	if (!out)
@@ -418,7 +418,7 @@ int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 		return -ENOENT;
 
 	bp = (const __u8 *)u->decoder_blob;
-	memcpy(&d, bp + sizeof(struct shirudo_upatch_decoder_blob) +
+	memcpy(&d, bp + sizeof(struct upatch_decoder_blob) +
 	       (size_t)idx * sizeof(d), sizeof(d));
 	out->language = le32_to_cpu(d.language);
 	out->api_version = le32_to_cpu(d.api_version);
@@ -457,7 +457,7 @@ int upatch_select(const struct dirent *e)
 	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
 }
 
-void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs)
+void prog_specs_free(struct prog_spec *specs, __u32 nr_progs)
 {
 	__u32 i;
 
@@ -475,10 +475,10 @@ void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs)
 }
 
 int prog_specs_parse(const void *metadata, __u32 metadata_len,
-		     __u32 nr_progs, struct shirudo_prog_spec **out)
+		     __u32 nr_progs, struct prog_spec **out)
 {
-	struct shirudo_upatch_prog_metadata md;
-	struct shirudo_prog_spec *specs = NULL;
+	struct upatch_prog_metadata md;
+	struct prog_spec *specs = NULL;
 	const __u8 *cursor, *end;
 	size_t base_len;
 	__u32 magic, version, count, i, nr_uprobes = 0;
@@ -500,10 +500,10 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	if (count != nr_progs || le32_to_cpu(md.reserved) != 0)
 		return -EINVAL;
 	if (count > (UINT32_MAX - sizeof(md)) /
-	    sizeof(struct shirudo_upatch_prog_entry))
+	    sizeof(struct upatch_prog_entry))
 		return -EOVERFLOW;
 	base_len = sizeof(md) + (size_t)count *
-		   sizeof(struct shirudo_upatch_prog_entry);
+		   sizeof(struct upatch_prog_entry);
 	if (metadata_len < base_len)
 		return -EINVAL;
 	specs = xcalloc(nr_progs, sizeof(*specs));
@@ -513,8 +513,8 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		specs[i].target_fd = -1;
 
 	for (i = 0; i < nr_progs; i++) {
-		struct shirudo_upatch_prog_entry prog;
-		struct shirudo_prog_spec *spec = &specs[i];
+		struct upatch_prog_entry prog;
+		struct prog_spec *spec = &specs[i];
 		__u32 role, kind;
 
 		memcpy(&prog, (const __u8 *)metadata + sizeof(md) +
@@ -599,10 +599,10 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	cursor = (const __u8 *)metadata + base_len;
 	end = (const __u8 *)metadata + metadata_len;
 	if ((size_t)(end - cursor) <
-	    sizeof(struct shirudo_upatch_uprobe_targets))
+	    sizeof(struct upatch_uprobe_targets))
 		goto out;
 	{
-		struct shirudo_upatch_uprobe_targets targets;
+		struct upatch_uprobe_targets targets;
 		__u32 nr_targets;
 
 		memcpy(&targets, cursor, sizeof(targets));
@@ -616,8 +616,8 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			goto out;
 
 		for (i = 0; i < nr_targets; i++) {
-			struct shirudo_upatch_uprobe_target record;
-			struct shirudo_prog_spec *spec;
+			struct upatch_uprobe_target record;
+			struct prog_spec *spec;
 			__u32 prog_idx, path_len, build_id_len, nr_offsets, j;
 			size_t payload_len;
 

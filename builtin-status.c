@@ -178,13 +178,13 @@ struct ev_proj {
 
 static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 {
-	struct shirudo_json_field up[] = {
+	struct json_field up[] = {
 		{ "name", SHIRUDO_JSON_T_STRING, ev->up_name,
 		  sizeof(ev->up_name), 0, NULL, 0 },
 		{ "payload_sha256", SHIRUDO_JSON_T_STRING, ev->up_payload,
 		  sizeof(ev->up_payload), 0, NULL, 0 },
 	};
-	struct shirudo_json_field f[] = {
+	struct json_field f[] = {
 		{ "ts", SHIRUDO_JSON_T_STRING, ev->ts, sizeof(ev->ts),
 		  0, NULL, 0 },
 		{ "type", SHIRUDO_JSON_T_STRING, ev->type, sizeof(ev->type),
@@ -200,7 +200,7 @@ static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 	return json_parse(line, len, f, ARRAY_SIZE(f));
 }
 
-static void emit_eventlog_events(struct shirudo_json_emit *e)
+static void emit_eventlog_events(struct json_emit *e)
 {
 	char *save, *line, *buf;
 	size_t len;
@@ -279,7 +279,7 @@ static void print_eventlog_table(void)
 	xfree(buf, len + 1);
 }
 
-static void print_system_human(const struct shirudo_sysinfo *si)
+static void print_system_human(const struct sysinfo *si)
 {
 	printf("\nSystem Info:\n");
 	printf("  %-16s %s\n", "OS:", si->os_pretty);
@@ -336,7 +336,7 @@ static void print_kernel_config_entry(void *ctx, const char *key,
 	printf("    %s=%s\n", key, value);
 }
 
-static void print_kernel_config_human(const struct shirudo_sysinfo *si)
+static void print_kernel_config_human(const struct sysinfo *si)
 {
 	printf("  Kernel Config:\n");
 	if (sysinfo_kernel_config_foreach(si->kernel_release,
@@ -345,7 +345,7 @@ static void print_kernel_config_human(const struct shirudo_sysinfo *si)
 		printf("    (unavailable)\n");
 }
 
-static const struct shirudo_help_item status_options[] = {
+static const struct help_item status_options[] = {
 	{ "--json",                 "machine-readable JSON output" },
 	{ "--otel",                 "export the status report as an OTLP log" },
 	{ "--include-system",       "add a `system` block (hostname, kernel, arch, cpus, ...)" },
@@ -358,12 +358,12 @@ static const struct shirudo_help_item status_options[] = {
 				    "expands the loaded-modules dependency tree" },
 };
 
-static const struct shirudo_help_section status_help_sections[] = {
+static const struct help_section status_help_sections[] = {
 	{ "options:", status_options,
 	  ARRAY_SIZE(status_options) },
 };
 
-static const struct shirudo_help status_help = {
+static const struct help status_help = {
 	.usage      = "shirudo status [--json] [--otel] "
 		      "[--include-system] [--include-eventlog]\n"
 		      "                       [--include-kernellog[=N]] "
@@ -381,9 +381,9 @@ static void usage(void)
 }
 
 static size_t build_upatches_table(struct dirent **ups, int n_ups,
-				   struct shirudo_upatch_table_row **out)
+				   struct upatch_table_row **out)
 {
-	struct shirudo_upatch_table_row *rows;
+	struct upatch_table_row *rows;
 	struct btf *vbtf;
 	int i;
 
@@ -402,8 +402,8 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 	 */
 	vbtf = btf__load_vmlinux_btf();
 	for (i = 0; i < n_ups; i++) {
-		struct shirudo_upatch_table_row *r = &rows[i];
-		struct shirudo_map_summary *list = NULL;
+		struct upatch_table_row *r = &rows[i];
+		struct map_summary *list = NULL;
 		char raw_name[UPATCH_NAME_MAX + 1];
 		size_t nm = 0;
 		const char *name = ups[i]->d_name;
@@ -433,7 +433,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 }
 
 /* Status runs on the host, so reachable and parsed are trivially true. */
-static void local_cond_input(struct shirudo_conditions_input *in,
+static void local_cond_input(struct conditions_input *in,
 			     int lsm_attached, int keyring_present,
 			     const char *keyring_mode,
 			     __s64 keyring_serial,
@@ -443,7 +443,7 @@ static void local_cond_input(struct shirudo_conditions_input *in,
 			     int chain_seen, int chain_matches, int cm_seen,
 			     const char *nv_index)
 {
-	*in = (struct shirudo_conditions_input){
+	*in = (struct conditions_input){
 		.reachable		= true,
 		.parsed			= true,
 		.lsm_attached		= lsm_attached,
@@ -480,7 +480,7 @@ static const char *roles_str(int is_target, int is_operator)
  * the exporter fallback unchanged for map commands, but make status export
  * conditional on an explicitly configured endpoint.
  */
-static bool status_otel_endpoint_configured(const struct shirudo_config *cfg)
+static bool status_otel_endpoint_configured(const struct config *cfg)
 {
 	const char *endpoint;
 
@@ -574,7 +574,7 @@ static void keyring_view_free(struct status_keyring *k)
 static void keyring_view_cert(struct status_keyring *k, struct status_cert *c,
 			      const __u8 *der, size_t len)
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	char desc[KEYRING_DESC_MAX];
 	size_t i;
 
@@ -605,8 +605,8 @@ static void keyring_view_cert(struct status_keyring *k, struct status_cert *c,
 }
 
 static void keyring_view_bpf(struct status_keyring *k,
-			     const struct shirudo_identity *ident,
-			     const struct shirudo_trusted_set *certs,
+			     const struct identity *ident,
+			     const struct trusted_set *certs,
 			     int certs_rc)
 {
 	size_t i, n_frozen = 0;
@@ -633,9 +633,9 @@ static void keyring_view_bpf(struct status_keyring *k,
 
 /* The config certificate comes from the runtime image's bootstrap. */
 static void keyring_view_dm_verity(struct status_keyring *k,
-				   const struct shirudo_identity *ident)
+				   const struct identity *ident)
 {
-	struct shirudo_image_bootstrap boot = {};
+	struct image_bootstrap boot = {};
 	struct status_cert *c = &k->certs[0];
 	__u8 *der = NULL;
 	size_t len = 0;
@@ -667,7 +667,7 @@ static void keyring_view_dm_verity(struct status_keyring *k,
 		xfree(der, len);
 }
 
-static void keyring_cond_input(struct shirudo_conditions_input *in,
+static void keyring_cond_input(struct conditions_input *in,
 			       const struct status_keyring *bpf,
 			       const struct status_keyring *dmv)
 {
@@ -682,7 +682,7 @@ static void keyring_cond_input(struct shirudo_conditions_input *in,
 	in->dmv_key_missing = dmv->key_missing;
 }
 
-static void keyring_emit_json(struct shirudo_json_emit *e, const char *key,
+static void keyring_emit_json(struct json_emit *e, const char *key,
 			      const struct status_keyring *k,
 			      const char *role)
 {
@@ -865,17 +865,17 @@ int cmd_status(int argc, const char **argv)
 	bool lsm_attached, keyring_present, is_operator, cert_present, is_target;
 	key_serial_t keyring_serial, keyring_pinned;
 	const char *keyring_mode, *mode;
-	struct shirudo_sysinfo sysi = {};
-	struct shirudo_trusted_set certs = {};
+	struct sysinfo sysi = {};
+	struct trusted_set certs = {};
 	int certs_enrolled = -1;
 	struct status_keyring bpf = {}, dmv = {};
-	struct shirudo_identity ident = {};
+	struct identity ident = {};
 	int certs_rc = -ENOENT;
-	struct shirudo_config otel_cfg = {};
-	struct shirudo_otel_opts otel_opts = {};
+	struct config otel_cfg = {};
+	struct otel_opts otel_opts = {};
 	struct asset_view assets;
-	struct shirudo_tamper_counts tamper = {};
-	struct shirudo_conditions_input cin;
+	struct tamper_counts tamper = {};
+	struct conditions_input cin;
 	int tamper_rc = -ENOENT;
 	struct dirent **ups = NULL;
 	char pcr_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
@@ -1071,7 +1071,7 @@ int cmd_status(int argc, const char **argv)
 	keyring_cond_input(&cin, &bpf, &dmv);
 
 	if (json) {
-		struct shirudo_json_emit e;
+		struct json_emit e;
 
 		/*
 		 * Every loaded upatch adds a row, every certificate and link
@@ -1080,7 +1080,7 @@ int cmd_status(int argc, const char **argv)
 		 * clamp below keeps it under JSON_MAX_BYTES.
 		 */
 		json_cap = 16384 + (size_t)n_ups *
-			   (6 * sizeof(struct shirudo_upatch_table_row) + 256);
+			   (6 * sizeof(struct upatch_table_row) + 256);
 		json_cap += (bpf.n_certs + bpf.n_links + dmv.n_certs +
 			     dmv.n_links) *
 			    (6 * (KEYRING_DESC_MAX + STATUS_SUBJECT_MAX) + 512);
@@ -1100,7 +1100,7 @@ int cmd_status(int argc, const char **argv)
 			ret = 1;
 			goto out;
 		}
-		e = (struct shirudo_json_emit){ .buf = json_buf, .cap = json_cap };
+		e = (struct json_emit){ .buf = json_buf, .cap = json_cap };
 
 		json_obj_open(&e);
 		json_kv_int(&e, "schema", 1);
@@ -1108,7 +1108,7 @@ int cmd_status(int argc, const char **argv)
 		json_kv_bool(&e, "is_target", is_target);
 		json_kv_bool(&e, "is_operator", is_operator);
 		{
-			struct shirudo_condition conds[CONDITIONS_MAX];
+			struct condition conds[CONDITIONS_MAX];
 			size_t nc, ci;
 
 			otel_status = status_verdict(&cin);
@@ -1177,7 +1177,7 @@ int cmd_status(int argc, const char **argv)
 		keyring_emit_json(&e, "dm_verity_keyring", &dmv, "config");
 		json_kv_bool(&e, "signing_key_present", is_operator);
 		{
-			struct shirudo_upatch_table_row *rows = NULL;
+			struct upatch_table_row *rows = NULL;
 			size_t n_rows = build_upatches_table(ups, n_ups, &rows);
 
 			upatch_table_emit_json(&e, rows, n_rows);
@@ -1287,8 +1287,8 @@ int cmd_status(int argc, const char **argv)
 		}
 		if (include_kernel_log) {
 			size_t bytes = (size_t)kernel_log_lines *
-				       sizeof(struct shirudo_kmsg_record);
-			struct shirudo_kmsg_record *recs = xmalloc(bytes);
+				       sizeof(struct kmsg_record);
+			struct kmsg_record *recs = xmalloc(bytes);
 			int nr = recs ? kmsg_tail(recs, kernel_log_lines)
 				      : -ENOMEM;
 			int j;
@@ -1304,7 +1304,7 @@ int cmd_status(int argc, const char **argv)
 			xfree(recs, bytes);
 		}
 		if (include_modules) {
-			struct shirudo_kmod_set ks = {};
+			struct kmod_set ks = {};
 			int mrc = kmodules_read(&ks);
 			struct timespec rt = {}, bt = {};
 			__s64 boot_sec = 0;
@@ -1322,7 +1322,7 @@ int cmd_status(int argc, const char **argv)
 			json_arr_open(&e, "modules");
 			if (mrc == 0) {
 				for (mi = 0; mi < ks.n; mi++) {
-					const struct shirudo_kmod *m =
+					const struct kmod *m =
 						&ks.mods[mi];
 					time_t at = m->loaded_at_sec;
 					char iso[32] = "";
@@ -1403,8 +1403,8 @@ int cmd_status(int argc, const char **argv)
 				printf("%s\n", json_buf);
 		}
 	} else {
-		struct shirudo_condition conds[CONDITIONS_MAX];
-		struct shirudo_upatch_table_row *rows = NULL;
+		struct condition conds[CONDITIONS_MAX];
+		struct upatch_table_row *rows = NULL;
 		size_t n_rows = 0;
 		size_t nc;
 		char hostname[256] = "?";
@@ -1567,8 +1567,8 @@ int cmd_status(int argc, const char **argv)
 
 		if (include_kernel_log) {
 			size_t bytes = (size_t)kernel_log_lines *
-				       sizeof(struct shirudo_kmsg_record);
-			struct shirudo_kmsg_record *recs = xmalloc(bytes);
+				       sizeof(struct kmsg_record);
+			struct kmsg_record *recs = xmalloc(bytes);
 			int nr = recs ? kmsg_tail(recs, kernel_log_lines)
 				      : -ENOMEM;
 			int j;
@@ -1585,7 +1585,7 @@ int cmd_status(int argc, const char **argv)
 			xfree(recs, bytes);
 		}
 		if (include_modules) {
-			struct shirudo_kmod_set ks = {};
+			struct kmod_set ks = {};
 			int mrc = kmodules_read(&ks);
 			struct timespec rt = {}, bt = {};
 			__s64 boot_sec = 0;

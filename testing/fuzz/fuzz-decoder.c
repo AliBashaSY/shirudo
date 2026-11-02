@@ -57,10 +57,10 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_map_entry entries[32];
+	struct map_entry entries[32];
 	struct upatch_decoder_view *d;
-	struct shirudo_serial_page page = {};
-	struct shirudo_map_view v = {
+	struct serial_page page = {};
+	struct map_view v = {
 		.type_name = "array",
 		.key_size = 4,
 		.value_size = 8,

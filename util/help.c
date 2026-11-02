@@ -70,7 +70,7 @@ int is_list_cmds(const char *arg)
 	return arg && strcmp(arg, "--list-cmds") == 0;
 }
 
-void print_subcmd_list(const struct shirudo_help_item *items,
+void print_subcmd_list(const struct help_item *items,
 		       size_t n_items)
 {
 	size_t i;
@@ -79,7 +79,7 @@ void print_subcmd_list(const struct shirudo_help_item *items,
 		printf("%s\n", items[i].name);
 }
 
-void print_help(const struct shirudo_help *h)
+void print_help(const struct help *h)
 {
 	size_t i, j;
 
@@ -89,7 +89,7 @@ void print_help(const struct shirudo_help *h)
 		fprintf(stderr, "\n%s\n", h->summary);
 
 	for (i = 0; i < h->n_sections; i++) {
-		const struct shirudo_help_section *s = &h->sections[i];
+		const struct help_section *s = &h->sections[i];
 		size_t w = 0;
 
 		if (s->n_items == 0)
@@ -121,10 +121,10 @@ void print_help(const struct shirudo_help *h)
 
 static void
 help_unknown_subcommand(const char *cmd_label, const char *bad,
-			const struct shirudo_help_item *subcmds,
+			const struct help_item *subcmds,
 			size_t n_subcmds)
 {
-	struct shirudo_suggestion sugg[4];
+	struct suggestion sugg[4];
 	const char *names[SUBCMD_MAX];
 	size_t i, n_names = 0, n;
 	int max_dist, len;
@@ -154,7 +154,7 @@ help_unknown_subcommand(const char *cmd_label, const char *bad,
 
 const char *resolve_subcommand(const char *cmd_label,
 			       const char *input,
-			       const struct shirudo_help_item *subcmds,
+			       const struct help_item *subcmds,
 			       size_t n_subcmds)
 {
 	const char *names[SUBCMD_MAX];

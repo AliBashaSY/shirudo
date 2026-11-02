@@ -17,7 +17,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	char build_id[KERNEL_BUILD_ID_STRING_MAX];
 	const struct timespec mt = { 86400, 1 };
 	char ts[KMSG_TS_LEN];
-	struct shirudo_kmod_set set;
+	struct kmod_set set;
 	char msg[1024], *text;
 	const char *m;
 	__u64 us;

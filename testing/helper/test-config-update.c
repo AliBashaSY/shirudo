@@ -33,9 +33,9 @@ struct simulated_tpm {
 };
 
 struct test_context {
-	struct shirudo_config_update *update;
+	struct config_update *update;
 	struct simulated_tpm sim;
-	struct shirudo_tpm *tpm;
+	struct tpm *tpm;
 	const char *directory;
 };
 
@@ -142,7 +142,7 @@ static int test_pcr_extend(void *opaque, __u32 pcr,
 }
 
 static int test_prepare(void *opaque,
-			const struct shirudo_config_update_target *target)
+			const struct config_update_target *target)
 {
 	struct test_context *ctx = opaque;
 	size_t i;
@@ -166,9 +166,9 @@ static int test_prepare(void *opaque,
 }
 
 static int test_activate(void *opaque,
-			 const struct shirudo_config_update_target *target)
+			 const struct config_update_target *target)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	struct test_context *ctx = opaque;
 	__u8 live[32];
 	int ret;
@@ -201,7 +201,7 @@ static int test_seal(void *opaque, int fd)
 }
 
 static int test_checkpoint(void *opaque,
-			   enum shirudo_config_update_checkpoint checkpoint)
+			   enum config_update_checkpoint checkpoint)
 {
 	const char *crash = getenv("SHIRUDO_TEST_CONFIG_CRASH");
 	const char *fail = getenv("SHIRUDO_TEST_CONFIG_FAIL");
@@ -214,7 +214,7 @@ static int test_checkpoint(void *opaque,
 	return 0;
 }
 
-static const struct shirudo_config_update_ops test_ops = {
+static const struct config_update_ops test_ops = {
 	.boot_identity = test_boot_identity,
 	.pcr_read = test_pcr_read,
 	.pcr_extend = test_pcr_extend,
@@ -224,7 +224,7 @@ static const struct shirudo_config_update_ops test_ops = {
 	.checkpoint = test_checkpoint,
 };
 
-static int make_target(char id, struct shirudo_config_update_target *target)
+static int make_target(char id, struct config_update_target *target)
 {
 	memset(target, 0, sizeof(*target));
 	snprintf(target->prefix, sizeof(target->prefix), "/verified/config-%c",
@@ -233,7 +233,7 @@ static int make_target(char id, struct shirudo_config_update_target *target)
 	return 0;
 }
 
-static int show_event(const struct shirudo_config_update_record *record,
+static int show_event(const struct config_update_record *record,
 		      void *opaque)
 {
 	__u32 *count = opaque;
@@ -248,7 +248,7 @@ static int show_event(const struct shirudo_config_update_record *record,
 
 static void inspect(struct test_context *ctx)
 {
-	struct shirudo_config_update_record record;
+	struct config_update_record record;
 	__u8 value[32];
 	__u32 count = 0;
 	char hex[65];
@@ -280,11 +280,11 @@ static void inspect(struct test_context *ctx)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_config_update second = { .dir_fd = -1, .lock_fd = -1 };
-	struct shirudo_config_update update = { .dir_fd = -1, .lock_fd = -1 };
+	struct config_update second = { .dir_fd = -1, .lock_fd = -1 };
+	struct config_update update = { .dir_fd = -1, .lock_fd = -1 };
 	struct test_context ctx = { .update = &update };
-	struct shirudo_config_update_ops ops;
-	struct shirudo_config_update_target target;
+	struct config_update_ops ops;
+	struct config_update_target target;
 	char hex[65];
 	__u32 pcr = 15;
 	__u8 event[32];

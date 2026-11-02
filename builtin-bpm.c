@@ -449,7 +449,7 @@ static int cache_path(const char *source, char *out, size_t sz)
 
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
 {
-	struct shirudo_sha256_ctx ctx;
+	struct sha256_ctx ctx;
 	__u8 digest[CRYPTO_SHA256_LEN];
 	__u8 buf[65536];
 	ssize_t nr;
@@ -631,7 +631,7 @@ static int print_package_upatch_data(const char *source, const char *member,
 	__u8 *beefile = NULL, *bytes = NULL;
 	const char *archive = source;
 	char package_dir[101];
-	struct shirudo_upatch u = {};
+	struct upatch u = {};
 	int ret;
 
 	if (!bpm_archive_rel_ok(member) || strncmp(member, "upatches/", 9) ||
@@ -692,7 +692,7 @@ out:
 
 static int cert_matches_active(const char *path)
 {
-	struct shirudo_cert a = {}, b = {};
+	struct cert a = {}, b = {};
 	__u8 da[CRYPTO_SHA256_LEN], db[CRYPTO_SHA256_LEN];
 	int ret = -EINVAL;
 
@@ -709,7 +709,7 @@ static int cert_matches_active(const char *path)
 
 static int key_file_fingerprint(const char *path, char hex[65])
 {
-	struct shirudo_cert cert = {};
+	struct cert cert = {};
 	__u8 digest[CRYPTO_SHA256_LEN];
 	int ret;
 
@@ -929,8 +929,8 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	size_t len;
 	int ret;
 	struct state_sink sink = { .items = st };
-	struct shirudo_json_array arr = { on_state_entry, &sink };
-	struct shirudo_json_field sub[4], root[1];
+	struct json_array arr = { on_state_entry, &sink };
+	struct json_field sub[4], root[1];
 	__s64 unused = 0;
 
 	ret = read_file(BPM_STATE_PATH, 8u * 1024u * 1024u,
@@ -941,25 +941,25 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	}
 	if (ret)
 		return ret;
-	sub[0] = (struct shirudo_json_field){
+	sub[0] = (struct json_field){
 		.key = "name", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
 	};
-	sub[1] = (struct shirudo_json_field){
+	sub[1] = (struct json_field){
 		.key = "version", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.version,
 		.dst_cap = sizeof(sink.scratch.version),
 	};
-	sub[2] = (struct shirudo_json_field){
+	sub[2] = (struct json_field){
 		.key = "source", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.source,
 		.dst_cap = sizeof(sink.scratch.source),
 	};
-	sub[3] = (struct shirudo_json_field){
+	sub[3] = (struct json_field){
 		.key = "path", .type = SHIRUDO_JSON_T_STRING,
 		.dst = sink.scratch.path, .dst_cap = sizeof(sink.scratch.path),
 	};
-	root[0] = (struct shirudo_json_field){
+	root[0] = (struct json_field){
 		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
@@ -975,7 +975,7 @@ static int state_read(struct bpm_state_entry *st, int *n)
 static int state_write(const struct bpm_state_entry *st, int n)
 {
 	char buf[1024 * 1024];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	int ret;
 
 	json_obj_open(&e);
@@ -1494,7 +1494,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 		struct bpm_source s = {};
 		const char *key = NULL;
 		char managed[PATH_MAX];
-		struct shirudo_cert cert = {};
+		struct cert cert = {};
 
 		if (strscpy(s.name, argv[3], sizeof(s.name)) < 0 ||
 		    strscpy(s.endpoint, argv[4], sizeof(s.endpoint)) < 0) {
@@ -1584,7 +1584,7 @@ static bool tree_digest_valid(const char *digest)
 }
 
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
-				  struct shirudo_tree_publication *pub,
+				  struct tree_publication *pub,
 				  char *manifest_digest, size_t digest_sz)
 {
 	struct bpm_oci_client c = {};
@@ -1602,7 +1602,7 @@ static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 static int tree_verify_upatch(const char *path, const char *expected,
 			      const char *id, bool unload)
 {
-	struct shirudo_upatch u;
+	struct upatch u;
 	char name[UPATCH_NAME_MAX + 1];
 	char actual[65];
 	int ret = upatch_open(path, &u);
@@ -1620,7 +1620,7 @@ static int tree_verify_upatch(const char *path, const char *expected,
 	return ret;
 }
 
-static int tree_pull_artifact(const struct shirudo_tree_operation *op,
+static int tree_pull_artifact(const struct tree_operation *op,
 			      char *path, size_t path_sz)
 {
 	struct bpm_oci_client c = {};
@@ -1702,13 +1702,13 @@ out:
 	return ret;
 }
 
-static int tree_write_report(const char *path, const struct shirudo_tree_state *s,
+static int tree_write_report(const char *path, const struct tree_state *s,
 			     int selected, int skipped, int applied,
 			     int module_skipped, int dry_run,
 			     int tpm_available)
 {
 	char buf[4096];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
@@ -1745,10 +1745,10 @@ static int tree_write_report(const char *path, const struct shirudo_tree_state *
 	return 0;
 }
 
-static int tree_write_pending(const struct shirudo_tree_operation *op)
+static int tree_write_pending(const struct tree_operation *op)
 {
 	char buf[1024];
-	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	int ret;
 
 	json_obj_open(&e);
@@ -1804,7 +1804,7 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 	__u8 *body;
 	size_t len;
 	__s64 schema = 0;
-	struct shirudo_json_field fields[] = {
+	struct json_field fields[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "seq", SHIRUDO_JSON_T_INT, &pending->seq, 0, 0, NULL, 0 },
 		{ "id", SHIRUDO_JSON_T_STRING, pending->id,
@@ -1831,11 +1831,11 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
  * tree's own projection stays a file chain; the register is what an
  * operator attests.
  */
-static int tree_measure_locked(const struct shirudo_tree_operation *op,
+static int tree_measure_locked(const struct tree_operation *op,
 			       const __u8 operation_digest[32])
 {
 	__u8 event[32], chain[32];
-	struct shirudo_json_emit e;
+	struct json_emit e;
 	char line[4096], chain_hex[65];
 	int ret;
 
@@ -1845,7 +1845,7 @@ static int tree_measure_locked(const struct shirudo_tree_operation *op,
 		return ret;
 
 	hex_encode(chain, 32, chain_hex);
-	e = (struct shirudo_json_emit){ .buf = line, .cap = sizeof(line) };
+	e = (struct json_emit){ .buf = line, .cap = sizeof(line) };
 	eventlog_record_open(&e, "tree_op", event);
 	json_obj_open_key(&e, "tree");
 	json_kv_int(&e, "seq", op->seq);
@@ -1860,7 +1860,7 @@ static int tree_measure_locked(const struct shirudo_tree_operation *op,
 	return eventlog_append(line);
 }
 
-static int tree_measure_operation(const struct shirudo_tree_operation *op,
+static int tree_measure_operation(const struct tree_operation *op,
 				  const __u8 operation_digest[32])
 {
 	int lock, ret;
@@ -1877,11 +1877,11 @@ static int tree_measure_operation(const struct shirudo_tree_operation *op,
  * Complete the only non-idempotent window: the process may have
  * appended the event before the sealed cursor was committed.
  */
-static int tree_recover_pending(const struct shirudo_tree_publication *pub,
-				struct shirudo_tree_state *state)
+static int tree_recover_pending(const struct tree_publication *pub,
+				struct tree_state *state)
 {
 	struct bpm_tree_pending pending = {};
-	const struct shirudo_tree_operation *op = NULL;
+	const struct tree_operation *op = NULL;
 	__u8 digest[32], previous[32], next[32], replay[32];
 	bool applied = false, event_present = false;
 	int ret;
@@ -1940,7 +1940,7 @@ static int tree_recover_pending(const struct shirudo_tree_publication *pub,
 	return 0;
 }
 
-static int tree_validate_operation(const struct shirudo_tree_operation *op)
+static int tree_validate_operation(const struct tree_operation *op)
 {
 	__u8 digest[32];
 	char expected_digest[72];
@@ -1964,7 +1964,7 @@ static int tree_validate_operation(const struct shirudo_tree_operation *op)
 }
 
 static void tree_sync_report_error(const char *phase,
-				   const struct shirudo_tree_operation *op, int ret)
+				   const struct tree_operation *op, int ret)
 {
 	int err;
 
@@ -1992,8 +1992,8 @@ static void tree_sync_report_error(const char *phase,
 static int cmd_bpm_tree_sync(int argc, const char **argv)
 {
 	struct bpm_tree_config cfg;
-	struct shirudo_tree_publication pub = {};
-	struct shirudo_tree_state state = {};
+	struct tree_publication pub = {};
+	struct tree_state state = {};
 	char manifest_digest[BPM_MAX_DIGEST];
 	char report[PATH_MAX] = {};
 	bool dry_run = false, have_state = false;
@@ -2121,7 +2121,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	}
 	tpm_available = chain_bound();
 	for (int i = 0; i < pub.n_operations; i++) {
-		struct shirudo_tree_operation *op = &pub.operations[i];
+		struct tree_operation *op = &pub.operations[i];
 		__u8 digest[32], previous[32], next[32];
 		char artifact[PATH_MAX];
 		bool skipped_module = false;
@@ -2343,7 +2343,7 @@ out:
 	return ret;
 }
 
-static const struct shirudo_help_item bpm_subcmds[] = {
+static const struct help_item bpm_subcmds[] = {
 	{ "config", "manage package inputs and OCI repositories" },
 	{ "repo", "refresh signed repository indexes" },
 	{ "tree", "synchronize or publish the signed upatch tree" },
@@ -2358,7 +2358,7 @@ static const struct shirudo_help_item bpm_subcmds[] = {
 	{ "uninstall", "unload and remove an installed package" },
 };
 
-static const struct shirudo_help_item bpm_target_subcmds[] = {
+static const struct help_item bpm_target_subcmds[] = {
 	{ "config", "register and manage OCI repositories" },
 	{ "repo", "refresh signed repository indexes" },
 	{ "tree", "synchronize the optional signed upatch tree" },
@@ -2397,19 +2397,19 @@ static int bpm_exec_operator(const char *sub, int argc, const char **argv)
 	return ret;
 }
 
-static const struct shirudo_help bpm_target_help = {
+static const struct help bpm_target_help = {
 	.usage = "shirudo bpm <config|repo|tree|key|pull|info|install|upgrade|list|uninstall>",
 	.summary = "Manage signed target-local BPM packages backed by OCI repositories.",
-	.sections = (const struct shirudo_help_section[]) {
+	.sections = (const struct help_section[]) {
 		{ "subcommands:", bpm_target_subcmds, ARRAY_SIZE(bpm_target_subcmds) },
 	},
 	.n_sections = 1,
 };
 
-static const struct shirudo_help bpm_operator_help = {
+static const struct help bpm_operator_help = {
 	.usage = "shirudo bpm <config|repo|tree|key|pull|info|push|build|install|upgrade|list|uninstall>",
 	.summary = "Manage signed OCI packages and publish packages from the operator.",
-	.sections = (const struct shirudo_help_section[]) {
+	.sections = (const struct help_section[]) {
 		{ "subcommands:", bpm_subcmds, ARRAY_SIZE(bpm_subcmds) },
 	},
 	.n_sections = 1,
@@ -2451,16 +2451,16 @@ static int bpm_finish(int lock, int ret, const char *action)
 	return ret ? bpm_fail(action, ret) : 0;
 }
 
-static const struct shirudo_help_item bpm_key_subcmds[] = {
+static const struct help_item bpm_key_subcmds[] = {
 	{ "add", "install a trusted package certificate and print its fingerprint" },
 	{ "fingerprint", "print the SHA-256 fingerprint of a certificate's SPKI" },
 	{ "list", "list installed certificate fingerprints" },
 };
 
-static const struct shirudo_help bpm_key_help = {
+static const struct help bpm_key_help = {
 	.usage = "shirudo bpm key <add|fingerprint|list>",
 	.summary = "Manage package signing certificates.",
-	.sections = (const struct shirudo_help_section[]) {
+	.sections = (const struct help_section[]) {
 		{ "subcommands:", bpm_key_subcmds, ARRAY_SIZE(bpm_key_subcmds) },
 	},
 	.n_sections = 1,
@@ -2530,9 +2530,9 @@ static int cmd_bpm_key(int argc, const char **argv)
 
 int cmd_bpm(int argc, const char **argv)
 {
-	const struct shirudo_help *help = build_available() ?
+	const struct help *help = build_available() ?
 		&bpm_operator_help : &bpm_target_help;
-	const struct shirudo_help_item *subcmds = build_available() ?
+	const struct help_item *subcmds = build_available() ?
 		bpm_subcmds : bpm_target_subcmds;
 	size_t n_subcmds = build_available() ? ARRAY_SIZE(bpm_subcmds) :
 		ARRAY_SIZE(bpm_target_subcmds);

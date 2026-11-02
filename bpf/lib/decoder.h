@@ -15,7 +15,7 @@
 #define UPATCH_DECODER_EXPORT_LOG 1u
 #define UPATCH_DECODER_EXPORT_METRIC 2u
 
-struct shirudo_decoder_manifest {
+struct decoder_manifest {
 	__u32	magic;		/* DECODER_MANIFEST_MAGIC */
 	__u16	version;		/* UPATCH_DECODER_VERSION */
 	__u16	language;	/* SHIRUDO_UPATCH_DECODER_LANG_* */

@@ -39,20 +39,20 @@
 #define EVIDENCE_MAX		JSON_MAX_BYTES
 #define EVENTS_MAX		256
 
-static const struct shirudo_help_item attest_subcmds[] = {
+static const struct help_item attest_subcmds[] = {
 	{ "verify",    "check an evidence document against the expected state" },
 	{ "predict",   "compute the register value a set of upatches yields" },
 	{ "challenge", "make a credential challenge for a target's attestation key" },
 };
 
-static const struct shirudo_help_item attest_options[] = {
+static const struct help_item attest_options[] = {
 	{ "--nonce=<hex>",      "freshness value from the verifier (up to 64 bytes)" },
 	{ "--pcrs=<list>",      "PCRs to quote, comma separated (default 0-7,9,11-15)" },
 	{ "--challenge=<path>", "a challenge from the verifier to activate while attesting" },
 	{ "--out=<path>",       "write the evidence there (0600) instead of stdout" },
 };
 
-static const struct shirudo_help_item verify_options[] = {
+static const struct help_item verify_options[] = {
 	{ "--evidence=<path>",     "the document a target produced" },
 	{ "--nonce=<hex>",         "the nonce that document was requested with" },
 	{ "--ak-name=<hex>",       "the attestation key name pinned at enrollment" },
@@ -72,7 +72,7 @@ static const struct shirudo_help_item verify_options[] = {
 	{ "--require-initrd",      "fail unless init bound the register from the initrd" },
 };
 
-static const struct shirudo_help_item challenge_options[] = {
+static const struct help_item challenge_options[] = {
 	{ "--evidence=<path>",  "a document the target produced, carrying its keys" },
 	{ "--ak-name=<hex>",    "the attestation key name the challenge is for" },
 	{ "--ek-ca=<bundle>",   "PEM issuers the endorsement certificate must chain to" },
@@ -81,7 +81,7 @@ static const struct shirudo_help_item challenge_options[] = {
 	{ "--out=<path>",       "write the challenge there (0600)" },
 };
 
-static const struct shirudo_help_item predict_options[] = {
+static const struct help_item predict_options[] = {
 	{ "--cert=<cert.der>",     "a certificate the target enrols (repeatable)" },
 	{ "--upatch=<file>",       "an installed artifact (repeatable)" },
 	{ "--expect=<name>=<hex>", "an installed upatch by name and payload digest" },
@@ -92,7 +92,7 @@ static const struct shirudo_help_item predict_options[] = {
 	{ "--writer-public=<hex>", "init record's 384-byte RSA modulus (with --bind-pcr)" },
 };
 
-static const struct shirudo_help_section attest_help_sections[] = {
+static const struct help_section attest_help_sections[] = {
 	{ "subcommands:", attest_subcmds, ARRAY_SIZE(attest_subcmds) },
 	{ "evidence options (target):", attest_options,
 	  ARRAY_SIZE(attest_options) },
@@ -104,7 +104,7 @@ static const struct shirudo_help_section attest_help_sections[] = {
 	  ARRAY_SIZE(challenge_options) },
 };
 
-static const struct shirudo_help attest_help = {
+static const struct help attest_help = {
 	.usage      = "shirudo attest [--nonce=<hex>] [--pcrs=<list>] "
 		      "[--challenge=<path>] [--out=<path>]\n"
 		      "       shirudo attest verify --evidence=<path> --nonce=<hex> "
@@ -176,14 +176,14 @@ static int parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
 }
 
 struct members {
-	struct shirudo_measured_upatch	*set;
+	struct measured_upatch	*set;
 	size_t				n;
 };
 
 static int member_add_file(struct members *m, const char *path)
 {
-	struct shirudo_measured_upatch *e;
-	struct shirudo_upatch u;
+	struct measured_upatch *e;
+	struct upatch u;
 	int ret;
 
 	if (m->n >= ATTEST_MEMBERS_MAX)
@@ -204,7 +204,7 @@ static int member_add_file(struct members *m, const char *path)
 
 static int member_add_spec(struct members *m, const char *spec)
 {
-	struct shirudo_measured_upatch *e;
+	struct measured_upatch *e;
 	const char *eq = strchr(spec, '=');
 	__u8 payload[32];
 
@@ -476,7 +476,7 @@ static int read_evidence(const char *path, char **out, size_t *len)
 
 static int cmd_attest_verify(int argc, const char **argv)
 {
-	struct shirudo_attest_expect x = {};
+	struct attest_expect x = {};
 	__u8 nonce[ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
 	__u8 cert_shas[KEYS_MAX][32];
 	size_t n_certs = 0;
@@ -670,7 +670,7 @@ out:
 
 static int cmd_attest_challenge(int argc, const char **argv)
 {
-	struct shirudo_attest_challenge_policy pol = {};
+	struct attest_challenge_policy pol = {};
 	__u8 credential[TPM_CREDENTIAL_LEN];
 	__u8 ak_name[TPM_NAME_LEN], ek_name[TPM_NAME_LEN];
 	const char *evidence_path = NULL, *out_path = NULL;
@@ -772,8 +772,8 @@ out:
 
 static int cmd_attest_evidence(int argc, const char **argv)
 {
-	const struct shirudo_attest_challenge *request;
-	struct shirudo_attest_challenge challenge = {};
+	const struct attest_challenge *request;
+	struct attest_challenge challenge = {};
 	__u8 nonce[ATTEST_NONCE_MAX];
 	__u32 mask = ATTEST_PCR_DEFAULT;
 	const char *out_path = NULL, *challenge_path = NULL;

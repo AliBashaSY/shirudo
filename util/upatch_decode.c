@@ -12,7 +12,7 @@
 
 #ifndef HAVE_LUAJIT
 
-int upatch_decode_map_json(const struct shirudo_map_view *v,
+int upatch_decode_map_json(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	if (!v || !out || !out_len)
@@ -22,7 +22,7 @@ int upatch_decode_map_json(const struct shirudo_map_view *v,
 	return -EOPNOTSUPP;
 }
 
-int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+int upatch_decode_map_json_limit(const struct map_view *v,
 				 size_t max_bytes,
 				 char **out, size_t *out_len)
 {
@@ -30,14 +30,14 @@ int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
 	return upatch_decode_map_json(v, out, out_len);
 }
 
-int upatch_decode_map_otel(const struct shirudo_map_view *v,
+int upatch_decode_map_otel(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	return upatch_decode_map_json(v, out, out_len);
 }
 
 int upatch_decode_map_file_json(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	(void)path;
@@ -45,7 +45,7 @@ int upatch_decode_map_file_json(const char *path,
 }
 
 int upatch_decode_map_file_json_limit(const char *path,
-				      const struct shirudo_map_view *v,
+				      const struct map_view *v,
 				      size_t max_bytes, char **out,
 				      size_t *out_len)
 {
@@ -55,7 +55,7 @@ int upatch_decode_map_file_json_limit(const char *path,
 }
 
 int upatch_decode_map_file_otel(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	(void)path;
@@ -1066,7 +1066,7 @@ static void lua_push_hex(lua_State *L, const void *data, size_t len)
 	lua_remove(L, -2);
 }
 
-static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
+static void lua_push_map_input(lua_State *L, const struct map_view *v)
 {
 	__u64 now_ns = decoder_realtime_ns();
 	__u64 start_ns = v->lifetime_start_ns ?: now_ns;
@@ -1115,7 +1115,7 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 	/* Raw bytes are always available, including when BTF rendering is not. */
 	lua_newtable(L);
 	for (i = 0; i < v->n_entries; i++) {
-		const struct shirudo_map_entry *entry = &v->entries[i];
+		const struct map_entry *entry = &v->entries[i];
 		size_t value_bytes = (size_t)v->value_stride * v->n_cpus;
 
 		lua_newtable(L);
@@ -1129,7 +1129,7 @@ static void lua_push_map_input(lua_State *L, const struct shirudo_map_view *v)
 
 	lua_newtable(L);
 	for (p = 0; p < v->n_serial_pages; p++) {
-		const struct shirudo_serial_page *page = &v->serial_pages[p];
+		const struct serial_page *page = &v->serial_pages[p];
 
 		lua_newtable(L);
 		lua_pushnumber(L, page->page_index);
@@ -1172,7 +1172,7 @@ static int lua_get_decoder_entrypoint(lua_State *L, const char *entrypoint)
 }
 
 struct lua_decoder_call {
-	const struct shirudo_map_view *view;
+	const struct map_view *view;
 };
 
 static int lua_call_decoder(lua_State *L)
@@ -1194,7 +1194,7 @@ static const char *lua_error_message(lua_State *L)
 }
 
 static int run_lua_decoder(const struct upatch_decoder_view *d,
-			   const struct shirudo_map_view *v,
+			   const struct map_view *v,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
 {
@@ -1277,7 +1277,7 @@ out_close:
 }
 
 static int decoder_matches(const struct upatch_decoder_view *d,
-			   const struct shirudo_map_view *v)
+			   const struct map_view *v)
 {
 	if (d->language != UPATCH_DECODER_LANG_LUA ||
 	    d->api_version != 1 ||
@@ -1299,7 +1299,7 @@ static int decoder_matches(const struct upatch_decoder_view *d,
  * than run, signed or not.
  */
 static int archive_open(const char *path, bool archived,
-			struct shirudo_upatch *u)
+			struct upatch *u)
 {
 	int fd, ret;
 
@@ -1314,11 +1314,11 @@ static int archive_open(const char *path, bool archived,
 }
 
 static int decode_map_open(const char *path, bool archived,
-			   const struct shirudo_map_view *v,
+			   const struct map_view *v,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
 {
-	struct shirudo_upatch u;
+	struct upatch u;
 	__u32 i;
 	int ret;
 
@@ -1346,17 +1346,17 @@ static int decode_map_open(const char *path, bool archived,
 	return ret;
 }
 
-static int decode_map_file(const char *path, const struct shirudo_map_view *v,
+static int decode_map_file(const char *path, const struct map_view *v,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
 {
 	return decode_map_open(path, false, v, otel, max_bytes, out, out_len);
 }
 
-int upatch_decode_map_signal(const struct shirudo_map_view *v,
+int upatch_decode_map_signal(const struct map_view *v,
 			     __u32 *signal_out)
 {
-	struct shirudo_upatch u;
+	struct upatch u;
 	char path[PATH_MAX];
 	__u32 i;
 	int ret;
@@ -1384,7 +1384,7 @@ int upatch_decode_map_signal(const struct shirudo_map_view *v,
 	return ret;
 }
 
-static int decode_map(const struct shirudo_map_view *v, bool otel,
+static int decode_map(const struct map_view *v, bool otel,
 		      size_t max_bytes, char **out, size_t *out_len)
 {
 	char path[PATH_MAX];
@@ -1397,7 +1397,7 @@ static int decode_map(const struct shirudo_map_view *v, bool otel,
 	return decode_map_open(path, true, v, otel, max_bytes, out, out_len);
 }
 
-int upatch_decode_map_json(const struct shirudo_map_view *v,
+int upatch_decode_map_json(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	return upatch_decode_map_json_limit(v,
@@ -1405,7 +1405,7 @@ int upatch_decode_map_json(const struct shirudo_map_view *v,
 					    out, out_len);
 }
 
-int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
+int upatch_decode_map_json_limit(const struct map_view *v,
 				 size_t max_bytes,
 				 char **out, size_t *out_len)
 {
@@ -1414,14 +1414,14 @@ int upatch_decode_map_json_limit(const struct shirudo_map_view *v,
 	return decode_map(v, false, max_bytes, out, out_len);
 }
 
-int upatch_decode_map_otel(const struct shirudo_map_view *v,
+int upatch_decode_map_otel(const struct map_view *v,
 			   char **out, size_t *out_len)
 {
 	return decode_map(v, true, JSON_MAX_BYTES, out, out_len);
 }
 
 int upatch_decode_map_file_json(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	return upatch_decode_map_file_json_limit(path, v,
@@ -1430,7 +1430,7 @@ int upatch_decode_map_file_json(const char *path,
 }
 
 int upatch_decode_map_file_json_limit(const char *path,
-				      const struct shirudo_map_view *v,
+				      const struct map_view *v,
 				      size_t max_bytes, char **out,
 				      size_t *out_len)
 {
@@ -1440,7 +1440,7 @@ int upatch_decode_map_file_json_limit(const char *path,
 }
 
 int upatch_decode_map_file_otel(const char *path,
-				const struct shirudo_map_view *v,
+				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	return decode_map_file(path, v, true, JSON_MAX_BYTES,

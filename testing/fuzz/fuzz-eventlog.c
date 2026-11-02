@@ -34,7 +34,7 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct shirudo_eventlog_init init;
+	struct eventlog_init init;
 	size_t seen = 0;
 	char path[64];
 	__u8 root[32];

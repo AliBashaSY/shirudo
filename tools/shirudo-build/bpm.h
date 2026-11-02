@@ -52,7 +52,7 @@ struct bpm_build_tree {
 	char id[UPATCH_NAME_MAX];
 	char load_artifact[PATH_MAX];
 	char unload_artifact[PATH_MAX];
-	struct shirudo_tree_selector *selector;
+	struct tree_selector *selector;
 };
 
 struct bpm_build_upatch {

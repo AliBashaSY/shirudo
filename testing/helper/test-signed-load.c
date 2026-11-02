@@ -39,7 +39,7 @@ static long sys_bpf(int cmd, union bpf_attr *a)
 
 int main(int argc, char **argv)
 {
-	const struct shirudo_upatch_header *h;
+	const struct upatch_header *h;
 	__u8 *m, cert[16384];		/* an ML-DSA-87 cert is ~7.5 KiB */
 	const void *insns, *sig;
 	int ufd, cfd, cn, prog_fd;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "mmap: %s\n", strerror(errno));
 		return 2;
 	}
-	h = (const struct shirudo_upatch_header *)m;
+	h = (const struct upatch_header *)m;
 	insns = m + get_le32(&h->loader_insns_off);
 	sig   = m + get_le32(&h->signature_off);
 

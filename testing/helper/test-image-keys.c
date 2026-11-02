@@ -22,7 +22,7 @@ static char **held;
 static int held_count;
 
 struct test_context {
-	struct shirudo_trusted_set *set;
+	struct trusted_set *set;
 	__u8 pcr[32];
 	__u32 extends;
 	__u32 activations;
@@ -93,7 +93,7 @@ static int pcr_extend(void *opaque, __u32 pcr, const __u8 event[32])
 }
 
 static int prepare(void *opaque,
-		   const struct shirudo_config_update_target *target)
+		   const struct config_update_target *target)
 {
 	struct test_context *ctx = opaque;
 
@@ -102,7 +102,7 @@ static int prepare(void *opaque,
 }
 
 static int activate(void *opaque,
-		    const struct shirudo_config_update_target *target)
+		    const struct config_update_target *target)
 {
 	struct test_context *ctx = opaque;
 
@@ -122,7 +122,7 @@ static int seal(void *opaque, int fd)
 	return 0;
 }
 
-static const struct shirudo_config_update_ops ops = {
+static const struct config_update_ops ops = {
 	.boot_identity = boot_count,
 	.pcr_read = pcr_read,
 	.pcr_extend = pcr_extend,
@@ -131,10 +131,10 @@ static const struct shirudo_config_update_ops ops = {
 	.seal = seal,
 };
 
-static int live_update(const char *directory, struct shirudo_trusted_set *set)
+static int live_update(const char *directory, struct trusted_set *set)
 {
-	struct shirudo_config_update_target target = {};
-	struct shirudo_config_update update;
+	struct config_update_target target = {};
+	struct config_update update;
 	struct test_context ctx = { .set = set };
 	int ret;
 
@@ -162,7 +162,7 @@ static int live_update(const char *directory, struct shirudo_trusted_set *set)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_trusted_set set = {};
+	struct trusted_set set = {};
 	int fd, ret;
 
 	if (argc != 3 && argc < 5)

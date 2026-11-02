@@ -94,21 +94,21 @@ static const struct {
 		"pin, map or link opened by another executable" },
 };
 
-const char *tamper_name(enum shirudo_tamper_point point)
+const char *tamper_name(enum tamper_point point)
 {
 	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].name)
 		return "?";
 	return tamper_points[point].name;
 }
 
-const char *tamper_meaning(enum shirudo_tamper_point point)
+const char *tamper_meaning(enum tamper_point point)
 {
 	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].meaning)
 		return "?";
 	return tamper_points[point].meaning;
 }
 
-int tamper_read(struct shirudo_tamper_counts *out)
+int tamper_read(struct tamper_counts *out)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);

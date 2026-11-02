@@ -79,7 +79,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info);
 int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			       const char *repository, const char *reference,
 			       const char *cert_path,
-			       struct shirudo_tree_publication *pub,
+			       struct tree_publication *pub,
 			       char *manifest_digest, size_t digest_sz);
 
 #endif /* SHIRUDO_BPM_PACKAGE_H */

@@ -93,7 +93,7 @@ static int policy_hash(const __u8 prev[32], __u32 cc,
 		       const __u8 *a, size_t a_len,
 		       const __u8 *b, size_t b_len, __u8 out[32])
 {
-	struct shirudo_sha256_ctx ctx;
+	struct sha256_ctx ctx;
 	__u8 cc_be[4];
 
 	/* prev and out may be one buffer; out changes only once done. */
@@ -323,7 +323,7 @@ const __u8 shirudo_tpm_ek_policy[32] = {
 };
 
 int tpm_public_parse(const __u8 *buf, size_t len,
-		     struct shirudo_tpm_public *out)
+		     struct tpm_public *out)
 {
 	struct reader r = { buf, len };
 	const __u8 *policy, *n;
@@ -374,7 +374,7 @@ int tpm_public_parse(const __u8 *buf, size_t len,
 	return 0;
 }
 
-int tpm_public_marshal(const struct shirudo_tpm_public *pub,
+int tpm_public_marshal(const struct tpm_public *pub,
 		       __u8 *out, size_t cap, size_t *len)
 {
 	size_t need = 2 + 2 + 4 + 2 + pub->policy_len + 2 + 2, off = 0;
@@ -430,9 +430,9 @@ int tpm_public_marshal(const struct shirudo_tpm_public *pub,
 }
 
 int tpm_ecc_public_parse(const __u8 *buf, size_t len,
-			 struct shirudo_tpm_ecc_public *out)
+			 struct tpm_ecc_public *out)
 {
-	struct shirudo_tpm_public pub;
+	struct tpm_public pub;
 	int ret;
 
 	memset(out, 0, sizeof(*out));
@@ -577,7 +577,7 @@ static int get_name(struct reader *r, __u8 *name, size_t *name_len)
 }
 
 int tpm_attest_parse(const __u8 *buf, size_t len,
-		     struct shirudo_tpm_attest *out)
+		     struct tpm_attest *out)
 {
 	struct reader r = { buf, len };
 	__u32 magic;

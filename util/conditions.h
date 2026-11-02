@@ -18,7 +18,7 @@
  * The *_seen flags say whether the JSON carried a non-null value,
  * since the parser leaves a null untouched.
  */
-struct shirudo_conditions_input {
+struct conditions_input {
 	bool		reachable;
 	bool		parsed;
 	const char	*unreach;	/* optional reason on !reachable */
@@ -48,7 +48,7 @@ struct shirudo_conditions_input {
 	const char	*config_root;	/* hex, when config_seen */
 };
 
-struct shirudo_condition {
+struct condition {
 	const char	*type;		/* "LsmAttached" / "KeyringSealed" / ... */
 	const char	*status;	/* "OK" / "WARN" / "ALERT" */
 	char		detail[192];
@@ -61,10 +61,10 @@ struct shirudo_condition {
  */
 #define CONDITIONS_MAX	5
 
-size_t conditions(const struct shirudo_conditions_input *in,
-		  struct shirudo_condition *out, size_t cap);
+size_t conditions(const struct conditions_input *in,
+		  struct condition *out, size_t cap);
 
-void conditions_print(const struct shirudo_condition *c, size_t n);
+void conditions_print(const struct condition *c, size_t n);
 
 /*
  * Single-word aggregate verdict (severity worst -> best):
@@ -72,9 +72,9 @@ void conditions_print(const struct shirudo_condition *c, size_t n);
  *   init-pending -> reboot-pending -> degraded -> ok
  * Used by the `Status:` line in `shirudo status` and its JSON output.
  */
-const char *status_verdict(const struct shirudo_conditions_input *in);
+const char *status_verdict(const struct conditions_input *in);
 
-void status_reason(const struct shirudo_conditions_input *in,
+void status_reason(const struct conditions_input *in,
 		   char *buf, size_t cap);
 
 #endif /* SHIRUDO_CONDITIONS_H */

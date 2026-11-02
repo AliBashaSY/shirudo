@@ -223,7 +223,7 @@ static int tp_string_array(struct tree_parser *p,
 }
 
 static int tp_selector_string_map(struct tree_parser *p,
-				  struct shirudo_tree_selector_kv *dst,
+				  struct tree_selector_kv *dst,
 				  int *n, int max)
 {
 	char key[TREE_STRING_MAX];
@@ -249,7 +249,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 	}
 }
 
-static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
+static int tp_selector(struct tree_parser *p, struct tree_selector *s)
 {
 	char key[TREE_STRING_MAX];
 	bool first = true;
@@ -294,7 +294,7 @@ static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 	}
 }
 
-static int tp_artifact(struct tree_parser *p, struct shirudo_tree_artifact *a)
+static int tp_artifact(struct tree_parser *p, struct tree_artifact *a)
 {
 	char key[TREE_STRING_MAX];
 	bool first = true;
@@ -329,7 +329,7 @@ static int tp_artifact(struct tree_parser *p, struct shirudo_tree_artifact *a)
 	}
 }
 
-static int tp_operation(struct tree_parser *p, struct shirudo_tree_operation *o)
+static int tp_operation(struct tree_parser *p, struct tree_operation *o)
 {
 	char key[TREE_STRING_MAX];
 	bool first = true;
@@ -379,19 +379,19 @@ static int tp_operation(struct tree_parser *p, struct shirudo_tree_operation *o)
 	}
 }
 
-void tree_publication_free(struct shirudo_tree_publication *pub)
+void tree_publication_free(struct tree_publication *pub)
 {
 	if (!pub)
 		return;
 	if (pub->operations)
 		xfree(pub->operations,
 		      (size_t)pub->operations_capacity * sizeof(*pub->operations));
-	*pub = (struct shirudo_tree_publication){};
+	*pub = (struct tree_publication){};
 }
 
-static int tree_operations_reserve(struct shirudo_tree_publication *pub)
+static int tree_operations_reserve(struct tree_publication *pub)
 {
-	struct shirudo_tree_operation *operations;
+	struct tree_operation *operations;
 	int old_capacity = pub->operations_capacity;
 	int new_capacity = old_capacity ? old_capacity * 2 : 16;
 
@@ -410,8 +410,8 @@ static int tree_operations_reserve(struct shirudo_tree_publication *pub)
 	return 0;
 }
 
-int tree_publication_append(struct shirudo_tree_publication *pub,
-			    const struct shirudo_tree_operation *op)
+int tree_publication_append(struct tree_publication *pub,
+			    const struct tree_operation *op)
 {
 	int ret;
 
@@ -451,7 +451,7 @@ static int tp_seq_object(struct tree_parser *p, char *key, size_t cap,
 }
 
 int tree_parse(const char *body, size_t len,
-	       struct shirudo_tree_publication *out)
+	       struct tree_publication *out)
 {
 	struct tree_parser p;
 	char key[TREE_STRING_MAX];
@@ -465,7 +465,7 @@ int tree_parse(const char *body, size_t len,
 	if (!body || !out || len > JSON_MAX_BYTES)
 		return -EINVAL;
 	p = (struct tree_parser){ .p = body, .end = body + len };
-	*out = (struct shirudo_tree_publication){};
+	*out = (struct tree_publication){};
 	if (tp_char(&p, '{')) {
 		ret = -EINVAL;
 		goto fail;
@@ -589,10 +589,10 @@ fail:
 
 static int tree_selector_kv_compare(const void *left, const void *right)
 {
-	const struct shirudo_tree_selector_kv *a =
-		*(const struct shirudo_tree_selector_kv * const *)left;
-	const struct shirudo_tree_selector_kv *b =
-		*(const struct shirudo_tree_selector_kv * const *)right;
+	const struct tree_selector_kv *a =
+		*(const struct tree_selector_kv * const *)left;
+	const struct tree_selector_kv *b =
+		*(const struct tree_selector_kv * const *)right;
 	return strcmp(a->key, b->key);
 }
 
@@ -601,11 +601,11 @@ static int tree_selector_kv_compare(const void *left, const void *right)
  * the publisher's order. Targets recompute operation digests from this
  * form, so publisher and consumer share one emitter.
  */
-static int tree_emit_selector(struct shirudo_json_emit *e,
-			      const struct shirudo_tree_selector *s)
+static int tree_emit_selector(struct json_emit *e,
+			      const struct tree_selector *s)
 {
-	const struct shirudo_tree_selector_kv *kconfig[TREE_MAX_KCONFIG];
-	const struct shirudo_tree_selector_kv *labels[TREE_MAX_LABELS];
+	const struct tree_selector_kv *kconfig[TREE_MAX_KCONFIG];
+	const struct tree_selector_kv *labels[TREE_MAX_LABELS];
 
 	if (s->n_kconfig > (int)ARRAY_SIZE(kconfig) ||
 	    s->n_labels > (int)ARRAY_SIZE(labels))
@@ -662,8 +662,8 @@ static int tree_emit_selector(struct shirudo_json_emit *e,
 	return 0;
 }
 
-static void tree_emit_artifact(struct shirudo_json_emit *e,
-			       const struct shirudo_tree_artifact *a)
+static void tree_emit_artifact(struct json_emit *e,
+			       const struct tree_artifact *a)
 {
 	json_obj_open_key(e, "artifact");
 	json_kv_string(e, "repository", a->repository);
@@ -673,8 +673,8 @@ static void tree_emit_artifact(struct shirudo_json_emit *e,
 	json_obj_close(e);
 }
 
-static int tree_emit_operation(struct shirudo_json_emit *e,
-			       const struct shirudo_tree_operation *op,
+static int tree_emit_operation(struct json_emit *e,
+			       const struct tree_operation *op,
 			       bool with_digest)
 {
 	int ret;
@@ -697,11 +697,11 @@ static int tree_emit_operation(struct shirudo_json_emit *e,
  * The operation digest covers the canonical operation without the digest
  * field itself: seq, op, id, selector and artifact.
  */
-int tree_operation_digest(const struct shirudo_tree_operation *op,
+int tree_operation_digest(const struct tree_operation *op,
 			  char out[72])
 {
 	size_t body_cap = 1024u * 1024u;
-	struct shirudo_json_emit e;
+	struct json_emit e;
 	char *body, hex[65];
 	__u8 digest[32];
 	int ret;
@@ -709,7 +709,7 @@ int tree_operation_digest(const struct shirudo_tree_operation *op,
 	body = xmalloc(body_cap);
 	if (!body)
 		return -ENOMEM;
-	e = (struct shirudo_json_emit){ .buf = body, .cap = body_cap };
+	e = (struct json_emit){ .buf = body, .cap = body_cap };
 	ret = tree_emit_operation(&e, op, false);
 	if (!ret && sha256_buffer(body, e.len, digest))
 		ret = -EIO;
@@ -727,7 +727,7 @@ static size_t tree_json_bound(const char *s)
 	return 2 * strlen(s) + 4;
 }
 
-static size_t tree_selector_kv_bound(const struct shirudo_tree_selector_kv *kv)
+static size_t tree_selector_kv_bound(const struct tree_selector_kv *kv)
 {
 	size_t n = 8 + tree_json_bound(kv->key);
 
@@ -736,9 +736,9 @@ static size_t tree_selector_kv_bound(const struct shirudo_tree_selector_kv *kv)
 	return n;
 }
 
-static size_t tree_operation_bound(const struct shirudo_tree_operation *op)
+static size_t tree_operation_bound(const struct tree_operation *op)
 {
-	const struct shirudo_tree_selector *s = &op->selector;
+	const struct tree_selector *s = &op->selector;
 	size_t n = 512;
 
 	n += tree_json_bound(op->op) + tree_json_bound(op->id) +
@@ -765,10 +765,10 @@ static size_t tree_operation_bound(const struct shirudo_tree_operation *op)
  * schema, tree_id, generation, parent_manifest_digest (when any), base,
  * operations, head.
  */
-int tree_emit_publication(const struct shirudo_tree_publication *pub,
+int tree_emit_publication(const struct tree_publication *pub,
 			  char **out, size_t *out_len)
 {
-	struct shirudo_json_emit e;
+	struct json_emit e;
 	size_t cap = 4096;
 	char *body;
 	int ret = 0;
@@ -778,7 +778,7 @@ int tree_emit_publication(const struct shirudo_tree_publication *pub,
 	body = xmalloc(cap);
 	if (!body)
 		return -ENOMEM;
-	e = (struct shirudo_json_emit){ .buf = body, .cap = cap };
+	e = (struct json_emit){ .buf = body, .cap = cap };
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", pub->schema);
 	json_kv_string(&e, "tree_id", pub->tree_id);

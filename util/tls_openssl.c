@@ -40,7 +40,7 @@
  */
 static bool tls_classical_host_allowed(CURL *curl)
 {
-	struct shirudo_config cfg = {};
+	struct config cfg = {};
 	const char *allowlist, *effective_url;
 	CURLU *url = NULL;
 	char *scheme = NULL, *host = NULL;
@@ -117,7 +117,7 @@ static void tls_info_callback(const SSL *ssl, int where, int ret)
 		host ? host : "unknown host", group ? group : "unknown group");
 }
 
-void tls_ca_cleanup(struct shirudo_tls_ca *ca)
+void tls_ca_cleanup(struct tls_ca *ca)
 {
 	if (ca)
 		ca->impl = NULL;
@@ -125,7 +125,7 @@ void tls_ca_cleanup(struct shirudo_tls_ca *ca)
 
 static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 {
-	const struct shirudo_tls_ca *ca = userptr;
+	const struct tls_ca *ca = userptr;
 	const char *path = ca ? ca->path : NULL;
 	SSL_CTX *ctx = sslctx;
 	X509 *cert;
@@ -171,7 +171,7 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	return CURLE_OK;
 }
 
-int tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca)
+int tls_curl_policy(CURL *curl, struct tls_ca *ca)
 {
 	if (!curl)
 		return -EINVAL;
