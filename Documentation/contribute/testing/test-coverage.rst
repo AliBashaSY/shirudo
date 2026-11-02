@@ -52,6 +52,11 @@ signed config image.
      - ``check-coccinelle.sh``: a match that fails the check with its
        file, line and rule, the vendored sources left out, a rule named
        alone, the rewrite of ``-D patch``, and the tree itself
+   * - ``t0007-check-operator-linkage``
+     - ``check-operator-linkage.sh``: the libraries an operator binary
+       may link and its own interpreter, another loader, a library
+       outside the list or named like one on it, and the operator
+       binaries when built
 
 ``build`` (1)
 ~~~~~~~~~~~~~
@@ -582,10 +587,10 @@ Coverage by area
        ``t3108``, ``t5004``, ``t5103``, ``t6007``, ``t6114``,
        ``t7001``, ``t8001``
    * - Build and packaging
-     - ``t0005``, ``t1003``, ``t1004``, ``t1005``, ``t1008``,
-       ``t7004``, ``t8003``
+     - ``t0005``, ``t0007``, ``t1003``, ``t1004``, ``t1005``,
+       ``t1008``, ``t7004``, ``t8003``
    * - CI scripts
-     - ``t0001`` to ``t0006``
+     - ``t0001`` to ``t0007``
    * - Parsers
      - ``t3001``, ``t3011``, ``t5002``, ``t5006``, ``t5008``. Unit:
        ``hex``, ``json``, ``string``. Every fuzz target

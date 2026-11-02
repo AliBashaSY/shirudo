@@ -111,6 +111,9 @@ jobs:
             apt-get update
             apt-get install -y /host/shirudo-operator_*.deb
 
+            sh .github/scripts/check-operator-linkage.sh /usr/bin/shirudo \
+              /usr/libexec/shirudo/shirudo-build
+
             /usr/bin/shirudo genkey
 
             # The default runtime image size must hold the static target.
@@ -311,6 +314,8 @@ jobs:
           dnf -q install -y ./shirudo-operator-*.rpm
           rpm -q shirudo-operator clang
           rpm -qV shirudo-operator
+          sh .github/scripts/check-operator-linkage.sh /usr/bin/shirudo \
+            /usr/libexec/shirudo/shirudo-build
           shirudo genkey
           rm -rf /tmp/shirudo-smoke && mkdir -p /tmp/shirudo-smoke
           cp testing/fixtures/basic.bpf.c /tmp/shirudo-smoke/
