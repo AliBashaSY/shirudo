@@ -46,6 +46,9 @@ test_expect_success 'the static ELF checker rejects non-PIE and search paths' '
 	! sh ../.github/scripts/check-static-target.sh "$WORK/rpath"
 '
 
+# ASan refuses to start behind a preloaded library, so an operator built
+# with SANITIZE=address cannot show the constructor run.
+if ! ldd "$OPERATOR" 2>/dev/null | grep -q libasan; then
 test_expect_success 'preload constructors run in the operator but not the target' '
 	${CC:-cc} -shared -fPIC helper/test-preload.c -o "$WORK/preload.so" &&
 	env LD_PRELOAD="$WORK/preload.so" SHIRUDO_PRELOAD_MARKER="$WORK/operator" \
@@ -55,6 +58,7 @@ test_expect_success 'preload constructors run in the operator but not the target
 		"$TARGET" version >"$WORK/target-version" &&
 	test ! -e "$WORK/target"
 '
+fi
 
 test_expect_success 'target binary has no shared TLS closure' '
 	test -x "$TARGET" &&
