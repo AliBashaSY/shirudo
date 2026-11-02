@@ -442,8 +442,11 @@ the commit at ``HEAD`` alone without them.
        ``shirudo-gen-runtime`` holds the target binary, and how much
        space it leaves. When it fails, raise ``size=`` in
        ``tools/gen-image/shirudo-gen-runtime``.
-   * - ``tests.sh setup|run``
-     - Prepares a CI runner as the VM host and runs ``make tests``.
+   * - ``tests.sh setup|run [unit|functional|end2end]``
+     - Prepares a CI runner as the VM host and runs ``make tests``, or
+       one part of it: ``unit`` runs the unit and ``ci-checks`` tests,
+       ``functional`` and ``end2end`` the tier of that name. The ``CI
+       suite`` workflow runs the three parts as checks of their own.
        Meant for CI runners, which are discarded afterwards.
 
 ``check-style.sh`` fetches the kernel's ``checkpatch.pl`` at a pinned

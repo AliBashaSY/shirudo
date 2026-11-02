@@ -7,9 +7,10 @@
 # packages, a compatible LVH kernel or the Shirudo test kernel cache, and
 # the OpenSSL 3.5 toolchain from vm-toolchain.sh. run builds and runs the
 # unit, ci-checks, functional and end2end tests, each family of target tests
-# in a VM of its own.
+# in a VM of its own, or one part of them: unit runs the unit and
+# ci-checks tests, functional and end2end the tier of that name.
 #
-#   .github/scripts/tests.sh setup|run
+#   .github/scripts/tests.sh setup|run [unit|functional|end2end]
 #
 # Runs as a user with passwordless sudo, from the checkout.
 
@@ -253,7 +254,17 @@ setup() {
 case "${1:-}" in
 setup|run) ;;
 *)
-	echo "usage: $0 setup|run" >&2
+	echo "usage: $0 setup|run [unit|functional|end2end]" >&2
+	exit 2
+	;;
+esac
+
+case "${2:-}" in
+'') goals=tests ;;
+unit) goals='-C testing unit ci-checks' ;;
+functional|end2end) goals="-C testing $2" ;;
+*)
+	echo "usage: $0 setup|run [unit|functional|end2end]" >&2
 	exit 2
 	;;
 esac
@@ -285,4 +296,5 @@ sudo prlimit --pid "$$" --memlock=unlimited:unlimited
 # sudo drops LD_LIBRARY_PATH even with -E and replaces PATH with its
 # secure_path, and the OpenSSL 3.5 build needs both: for the openssl the
 # config probes run and for every shirudo binary the tests run here.
-sudo -E env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" make tests
+# shellcheck disable=SC2086
+sudo -E env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" make $goals

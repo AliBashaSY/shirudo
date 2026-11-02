@@ -17,9 +17,25 @@ concurrency:
 
 jobs:
   tests:
-    name: make tests
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
+
+    # One check per tier, so that a failure names its tier. They run one
+    # after the other: on a cache miss the first builds the kernel and
+    # the images and saves them for the next, and every tier runs even
+    # when one before it failed.
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - suite: unit
+            name: unit tests
+          - suite: functional
+            name: functional tests
+          - suite: end2end
+            name: end-to-end tests
 
     steps:
       - name: Check out repository
@@ -55,8 +71,8 @@ jobs:
       - name: Prepare the runner as the VM host
         run: .github/scripts/tests.sh setup
 
-      - name: Run make tests
-        run: .github/scripts/tests.sh run
+      - name: Run the ${{ matrix.name }}
+        run: .github/scripts/tests.sh run ${{ matrix.suite }}
 
       # Each part is saved once it is complete, even when a later step
       # fails, so that the next run does not build it again.
@@ -88,7 +104,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: guest-logs
+          name: guest-logs-${{ matrix.suite }}
           path: |
             build/test-vm/vms/*/result
             build/test-vm/vms/*/console.log
