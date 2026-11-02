@@ -137,9 +137,12 @@ int sha256_buffer(const void *data, size_t len,
 int base64_encode(const __u8 *data, size_t len,
 		  char *out, size_t out_sz)
 {
-	size_t need = 4 * ((len + 2) / 3) + 1;
+	size_t need;
 
-	if (!data || !out || out_sz < need || len > INT_MAX)
+	if (!data || !out || len > INT_MAX)
+		return -EINVAL;
+	need = 4 * ((len + 2) / 3) + 1;
+	if (out_sz < need)
 		return -EINVAL;
 	if (EVP_EncodeBlock((__u8 *)out, data, (int)len) < 0)
 		return -EIO;

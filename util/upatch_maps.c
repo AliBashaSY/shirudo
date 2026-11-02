@@ -544,11 +544,12 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 	if (kind == BTF_KIND_ARRAY) {
 		const struct btf_array *a = (const struct btf_array *)(t + 1);
 		__s64 esz = btf__resolve_size(btf, a->type);
-		size_t cap = 64, off = 0;
+		size_t cap = 64, off = 0, total;
 		__u32 i, n = a->nelems;
 		char *out;
 
-		if (esz <= 0 || (__u64)esz * n > bytes_size)
+		if (esz <= 0 || check_mul_overflow(esz, n, &total) ||
+		    total > bytes_size)
 			return NULL;
 		out = xmalloc(cap);
 		if (!out)

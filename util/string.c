@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/overflow.h>
+
 /* Implements the wrappers; opt out of the poison in <shirudo/string.h>. */
 #define STRING_INTERNAL
 #include <shirudo/string.h>
@@ -53,9 +55,9 @@ static int parse_base(const char *s, size_t len, __u32 base, __u64 max,
 	for (i = 0; i < len; i++) {
 		__u64 d = (__u64)digit_value(s[i], base);
 
-		if (d > max || v > (max - d) / base)
+		if (check_mul_overflow(v, base, &v) ||
+		    check_add_overflow(v, d, &v) || v > max)
 			return -ERANGE;
-		v = v * base + d;
 	}
 	*out = v;
 	return 0;

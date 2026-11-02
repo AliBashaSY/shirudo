@@ -84,9 +84,9 @@ static int parse_header(const __u8 *m, size_t n,
 
 static int section_inside(__u32 off, __u32 len, size_t n)
 {
-	if (off > n || len > n)
-		return 0;
-	if ((__u64)off + (__u64)len > (__u64)n)
+	size_t end;
+
+	if (check_add_overflow(off, len, &end) || end > n)
 		return 0;
 	if (len != 0 && off < UPATCH_HEADER_SIZE)
 		return 0;

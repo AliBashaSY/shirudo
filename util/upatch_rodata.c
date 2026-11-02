@@ -269,16 +269,14 @@ static int btf_rodata_btf(const struct upatch *u,
 			hdr.layout_off = 0;
 			hdr.layout_len = 0;
 		}
-		type_end = hdr.type_off + hdr.type_len;
-		str_end = hdr.str_off + hdr.str_len;
-		layout_end = hdr.layout_off + hdr.layout_len;
-		if (type_end < hdr.type_off || str_end < hdr.str_off ||
-		    layout_end < hdr.layout_off)
-			continue;
-		end = hdr.hdr_len + max(type_end, str_end);
-		if (layout_end > end - hdr.hdr_len)
-			end = hdr.hdr_len + layout_end;
-		if (end < hdr.hdr_len || end > u->hdr.data_len - i)
+		if (check_add_overflow(hdr.type_off, hdr.type_len, &type_end) ||
+		    check_add_overflow(hdr.str_off, hdr.str_len, &str_end) ||
+		    check_add_overflow(hdr.layout_off, hdr.layout_len,
+				       &layout_end) ||
+		    check_add_overflow(hdr.hdr_len,
+				       max(max(type_end, str_end), layout_end),
+				       &end) ||
+		    end > u->hdr.data_len - i)
 			continue;
 		btf = btf__new(data + i, end);
 		if (libbpf_get_error(btf))
@@ -360,7 +358,7 @@ int upatch_rodata_symbol_range(const struct upatch *u,
 	for (i = 0; i < BTF_INFO_VLEN(sec->info); i++) {
 		const struct btf_type *var;
 		const char *name;
-		__u32 offset, size;
+		__u32 offset, size, end;
 
 		var = btf__type_by_id(view.btf, vars[i].type);
 		if (!var || BTF_INFO_KIND(var->info) != BTF_KIND_VAR)
@@ -376,10 +374,9 @@ int upatch_rodata_symbol_range(const struct upatch *u,
 		}
 		offset = vars[i].offset;
 		size = vars[i].size;
-		if (offset > view.size || size > view.size - offset ||
-		    view.data_offset > u->hdr.data_len ||
-		    offset > u->hdr.data_len - view.data_offset ||
-		    size > u->hdr.data_len - view.data_offset - offset) {
+		if (check_add_overflow(offset, size, &end) || end > view.size ||
+		    check_add_overflow(view.data_offset, end, &end) ||
+		    end > u->hdr.data_len) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -554,11 +551,11 @@ static void json_hex(struct json_emit *e, const void *bytes,
 	const __u8 *p = bytes;
 	size_t i, cap;
 
-	if (size > (JSON_MAX_BYTES - 3) / 2) {
+	cap = size_add(size_mul(size, 2), 3);
+	if (cap > JSON_MAX_BYTES) {
 		e->err = -E2BIG;
 		return;
 	}
-	cap = size * 2 + 3;
 	text = xmalloc(cap);
 	if (!text) {
 		e->err = -ENOMEM;
@@ -716,11 +713,12 @@ static int json_btf_value(struct json_emit *e, const struct btf *btf,
 	if (kind == BTF_KIND_ARRAY) {
 		const struct btf_array *a = (const struct btf_array *)(t + 1);
 		__s64 elem_size = btf__resolve_size(btf, a->type);
+		size_t total;
 		__u32 i;
 
-		if (elem_size < 0)
-			return -EINVAL;
-		if (elem_size && (__u64)elem_size * a->nelems > size)
+		if (elem_size < 0 ||
+		    check_mul_overflow(elem_size, a->nelems, &total) ||
+		    total > size)
 			return -EINVAL;
 		json_arr_open_value(e);
 		for (i = 0; i < a->nelems && !e->err; i++) {

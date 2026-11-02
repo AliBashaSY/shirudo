@@ -22,6 +22,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "bpm_oci.h"
@@ -221,9 +222,9 @@ static int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 	while (i < n && (p[i] == ' ' || p[i] == '\0'))
 		i++;
 	for (first = i; i < n && p[i] >= '0' && p[i] <= '7'; i++) {
-		if (v > (UINT64_MAX >> 3))
+		if (check_mul_overflow(v, 8, &v))
 			return -EOVERFLOW;
-		v = (v << 3) | (__u32)(p[i] - '0');
+		v |= (__u32)(p[i] - '0');
 	}
 	if (i == first)
 		return -EINVAL;
@@ -296,6 +297,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		__u64 size, remain, pad;
 		char name[101];
 		bool zero = true;
+		size_t alloc;
 
 		if (n == 0)
 			break;
@@ -331,11 +333,11 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 				ret = -EINVAL;
 				break;
 			}
-			if (size > max || size > SIZE_MAX - 1) {
+			if (size > max || check_add_overflow(size, 1, &alloc)) {
 				ret = -E2BIG;
 				break;
 			}
-			body = xmalloc((size_t)size + 1);
+			body = xmalloc(alloc);
 			if (!body) {
 				ret = -ENOMEM;
 				break;
@@ -345,7 +347,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 
 				n = gzread(gz, body + size - remain, (__u32)want);
 				if (n <= 0) {
-					xfree(body, (size_t)size + 1);
+					xfree(body, alloc);
 					ret = -EINVAL;
 					goto done;
 				}

@@ -134,6 +134,7 @@ static void *lua_limited_alloc(void *ud, void *ptr, size_t old_size,
 	struct lua_memory *memory = ud;
 	size_t base = ptr && memory->used >= old_size ?
 		memory->used - old_size : memory->used;
+	size_t total;
 	void *next;
 
 	if (new_size == 0) {
@@ -143,7 +144,8 @@ static void *lua_limited_alloc(void *ud, void *ptr, size_t old_size,
 		}
 		return NULL;
 	}
-	if (base > memory->limit || new_size > memory->limit - base)
+	if (check_add_overflow(base, new_size, &total) ||
+	    total > memory->limit)
 		return NULL;
 	next = xmalloc(new_size);
 	if (!next)
@@ -152,7 +154,7 @@ static void *lua_limited_alloc(void *ud, void *ptr, size_t old_size,
 		memcpy(next, ptr, min(old_size, new_size));
 		xfree(ptr, old_size);
 	}
-	memory->used = base + new_size;
+	memory->used = total;
 	return next;
 }
 

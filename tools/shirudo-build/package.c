@@ -143,28 +143,28 @@ static int verify_payload(const struct upatch *u,
 			  const char *cert_path)
 {
 	__u8 digest[SHA256_LEN], *payload;
-	__u64 payload_len;
+	size_t payload_len;
 	__u32 digest_len;
 	int ret;
 
-	payload_len = (__u64)u->hdr.loader_insns_len + u->hdr.data_len;
-	if (payload_len > SIZE_MAX)
+	if (check_add_overflow(u->hdr.loader_insns_len, u->hdr.data_len,
+			       &payload_len))
 		return -EOVERFLOW;
-	payload = xmalloc((size_t)payload_len);
+	payload = xmalloc(payload_len);
 	if (!payload)
 		return -ENOMEM;
 	memcpy(payload, upatch_loader(u), u->hdr.loader_insns_len);
 	memcpy(payload + u->hdr.loader_insns_len, upatch_data(u),
 	       u->hdr.data_len);
-	ret = bpm_verify_cms(payload, (size_t)payload_len,
+	ret = bpm_verify_cms(payload, payload_len,
 			     upatch_signature(u), u->hdr.signature_len,
 			     cert_path);
-	if (!ret && (EVP_Digest(payload, (size_t)payload_len, digest,
+	if (!ret && (EVP_Digest(payload, payload_len, digest,
 				&digest_len, EVP_sha256(), NULL) != 1 ||
 		     digest_len != sizeof(digest) ||
 		     memcmp(digest, u->hdr.payload_sha256, sizeof(digest))))
 		ret = -EBADMSG;
-	xfree(payload, (size_t)payload_len);
+	xfree(payload, payload_len);
 	return ret;
 }
 
@@ -282,21 +282,12 @@ static int package_resign_symbols(const char *original,
 	if (ret)
 		goto out;
 	loader_off = sizeof(hdr);
-	if ((__u64)loader_off + sio.insns_sz > UINT32_MAX) {
+	if (check_add_overflow(loader_off, sio.insns_sz, &sig_off) ||
+	    check_add_overflow(sig_off, sio.signature_sz, &data_off) ||
+	    check_add_overflow(data_off, sio.data_sz, &meta_off)) {
 		ret = -EOVERFLOW;
 		goto out;
 	}
-	sig_off = loader_off + (__u32)sio.insns_sz;
-	if ((__u64)sig_off + sio.signature_sz > UINT32_MAX) {
-		ret = -EOVERFLOW;
-		goto out;
-	}
-	data_off = sig_off + (__u32)sio.signature_sz;
-	if ((__u64)data_off + sio.data_sz > UINT32_MAX) {
-		ret = -EOVERFLOW;
-		goto out;
-	}
-	meta_off = data_off + (__u32)sio.data_sz;
 	total = (__u64)meta_off + mod.hdr.metadata_len;
 	if (total > UPATCH_FILE_MAX) {
 		ret = -E2BIG;
@@ -1605,10 +1596,6 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		pr_err("bpf_object__load: %d", err);
 		goto out;
 	}
-	if (opts.insns_sz > UINT32_MAX || opts.data_sz > UINT32_MAX) {
-		err = -EOVERFLOW;
-		goto out;
-	}
 	/*
 	 * The name the pin, the archive and the register event carry, the
 	 * attach sites, the unload target: signed with the data, since the
@@ -1641,8 +1628,8 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 				  nr_sections, &signed_data, &signed_data_len);
 	if (err)
 		goto out;
-	if (__builtin_add_overflow(opts.insns_sz, (size_t)signed_data_len,
-				   &loader_data_len)) {
+	if (check_add_overflow(opts.insns_sz, signed_data_len,
+			       &loader_data_len)) {
 		err = -EOVERFLOW;
 		goto out;
 	}
@@ -1683,9 +1670,13 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	}
 
 	loader_off = (__u32)sizeof(hdr);
-	sig_off    = loader_off + opts.insns_sz;
-	data_off   = sig_off + (__u32)sio.signature_sz;
-	data_len   = signed_data_len;
+	data_len = signed_data_len;
+	if (check_add_overflow(loader_off, opts.insns_sz, &sig_off) ||
+	    check_add_overflow(sig_off, sio.signature_sz, &data_off) ||
+	    data_off > UPATCH_FILE_MAX || data_len > UPATCH_FILE_MAX - data_off) {
+		err = -E2BIG;
+		goto out;
+	}
 
 	pack_header(&hdr, upatch_name, UPATCH_TYPE_BPF, flags,
 		    sio.payload_sha256,

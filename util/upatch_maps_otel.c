@@ -1243,9 +1243,10 @@ static int configure_state(struct otel_state *st, const char *spec,
 static size_t response_write(char *ptr, size_t size, size_t nmemb, void *ctx)
 {
 	struct otel_response *r = ctx;
-	size_t n = size * nmemb;
+	size_t n;
 
-	if (n > sizeof(r->buf) - 1 - r->len)
+	if (check_mul_overflow(size, nmemb, &n) ||
+	    n > sizeof(r->buf) - 1 - r->len)
 		return 0;
 	memcpy(r->buf + r->len, ptr, n);
 	r->len += n;
@@ -1255,10 +1256,12 @@ static size_t response_write(char *ptr, size_t size, size_t nmemb, void *ctx)
 
 static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 {
-	struct otel_response *r = ctx;
-	size_t n = size * nmemb;
 	static const char prefix[] = "Retry-After:";
+	struct otel_response *r = ctx;
+	size_t n;
 
+	if (check_mul_overflow(size, nmemb, &n))
+		return 0;
 	if (n > sizeof(prefix) - 1 &&
 	    strncasecmp(ptr, prefix, sizeof(prefix) - 1) == 0) {
 		char value[128];
@@ -1686,9 +1689,9 @@ static int otel_close(void *state)
 
 static size_t generic_log_capacity(size_t body_len)
 {
-	if (body_len > (SIZE_MAX - 65536) / 4)
-		return 0;
-	return body_len * 4 + 65536;
+	size_t cap = size_add(size_mul(body_len, 4), 65536);
+
+	return cap == SIZE_MAX ? 0 : cap;
 }
 
 static int build_generic_log_payload(const char *scope_name,

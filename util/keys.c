@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "crypto.h"
@@ -258,7 +259,7 @@ static bool keys_is_revoked_at(int revoked_fd, const __u8 fingerprint[32])
 int keys_vouch_payload(const __u8 *der, size_t der_sz,
 		       __u8 **out, size_t *out_sz)
 {
-	size_t n = sizeof(KEYS_VOUCH_PREFIX) + der_sz;
+	size_t n = size_add(sizeof(KEYS_VOUCH_PREFIX), der_sz);
 	__u8 *buf = xmalloc(n);
 
 	if (!buf)

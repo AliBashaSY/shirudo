@@ -25,6 +25,7 @@
 #include <zlib.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "bpm.h"
@@ -1012,8 +1013,7 @@ static int build_entry_name(char *out, size_t cap, const char *top,
 	size_t top_len = strlen(top);
 	size_t entry_len = strlen(entry);
 
-	if (top_len >= cap || cap - top_len < 2 ||
-	    entry_len > cap - top_len - 2)
+	if (size_add(size_add(top_len, entry_len), 2) > cap)
 		return -ENAMETOOLONG;
 	memcpy(out, top, top_len);
 	out[top_len] = '/';
