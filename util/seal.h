@@ -18,7 +18,7 @@
  * as marking a protected inode. A runtime task mark authorizes the caller;
  * copying this public label never grants authority.
  */
-#define SHIRUDO_SEAL_LABEL \
+#define SEAL_LABEL \
 	"94442b45cfcdc59aabc2a91364ed2ae129418e05a5c1985231b9c032e673f469"
 
 /* A symlink's own inode, not its target's. Idempotent. */

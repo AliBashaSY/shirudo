@@ -574,7 +574,7 @@ EOF
 		--key "$keys_dir/signing_key.pem" \
 		--cert "$keys_dir/cert.der"
 	)
-	sed 's/^#define BPF_NO_KFUNC_PROTOTYPES/#define SHIRUDO_TEST_CRED_ANOMALY\
+	sed 's/^#define BPF_NO_KFUNC_PROTOTYPES/#define TEST_CRED_ANOMALY\
 #define BPF_NO_KFUNC_PROTOTYPES/' \
 		"$source_dir/kernel-obs.bpf.c" \
 		>"$source_dir/kernel-obs-cred-anomaly.bpf.c"

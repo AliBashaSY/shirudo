@@ -91,7 +91,7 @@ int sha256_update(struct shirudo_sha256_ctx *ctx,
 }
 
 int sha256_final(struct shirudo_sha256_ctx *ctx,
-		 __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+		 __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u32 len = 0;
 	int rc;
@@ -113,7 +113,7 @@ void sha256_free(struct shirudo_sha256_ctx *ctx)
 }
 
 int sha256_buffer(const void *data, size_t len,
-		  __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+		  __u8 out[CRYPTO_SHA256_LEN])
 {
 	struct shirudo_sha256_ctx ctx;
 	int rc;
@@ -225,7 +225,7 @@ int cert_read_fd(int fd, struct shirudo_cert *cert)
 
 	if (fd < 0 || !cert)
 		return -EINVAL;
-	rc = read_fd(fd, "certificate", SHIRUDO_KEYS_DER_MAX, &der, &len);
+	rc = read_fd(fd, "certificate", KEYS_DER_MAX, &der, &len);
 	if (rc)
 		return rc;
 	rc = cert_read_der(der, len, cert);
@@ -250,7 +250,7 @@ void cert_free(struct shirudo_cert *cert)
  * marshal as a bare EVP_PKEY on older releases.
  */
 int cert_pubkey_digest(const struct shirudo_cert *cert,
-		       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN])
+		       __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u8 *der = NULL, *p;
 	int der_len, encoded_len, rc = -EINVAL;
@@ -273,7 +273,7 @@ int cert_pubkey_digest(const struct shirudo_cert *cert,
 	if (encoded_len != der_len)
 		goto out;
 	if (!EVP_Digest(der, (size_t)der_len, out, &len,
-			EVP_sha256(), NULL) || len != SHIRUDO_CRYPTO_SHA256_LEN)
+			EVP_sha256(), NULL) || len != CRYPTO_SHA256_LEN)
 		goto out;
 	rc = 0;
 out:

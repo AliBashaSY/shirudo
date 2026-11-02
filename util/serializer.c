@@ -66,7 +66,7 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 
 int serializer_lock_acquire(__u32 map_id)
 {
-	return serializer_lock_acquire_at(SHIRUDO_LOCKS_DIR, map_id);
+	return serializer_lock_acquire_at(LOCKS_DIR, map_id);
 }
 
 int serializer_new_invocation_id(__u64 *out)

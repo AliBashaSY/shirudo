@@ -25,17 +25,17 @@ static int parse_header(const __u8 *m, size_t n,
 {
 	const __u8 *p = m;
 
-	if (n < SHIRUDO_UPATCH_HEADER_SIZE)
+	if (n < UPATCH_HEADER_SIZE)
 		return -EINVAL;
 
 	out->magic = rd_le64(p);
 	p += 8;
-	if (out->magic != SHIRUDO_UPATCH_MAGIC)
+	if (out->magic != UPATCH_MAGIC)
 		return -EINVAL;
 
 	out->version = rd_le32(p);
 	p += 4;
-	if (out->version != SHIRUDO_UPATCH_VERSION)
+	if (out->version != UPATCH_VERSION)
 		return -EINVAL;
 
 	out->flags = rd_le32(p);
@@ -88,7 +88,7 @@ static int section_inside(__u32 off, __u32 len, size_t n)
 		return 0;
 	if ((__u64)off + (__u64)len > (__u64)n)
 		return 0;
-	if (len != 0 && off < SHIRUDO_UPATCH_HEADER_SIZE)
+	if (len != 0 && off < UPATCH_HEADER_SIZE)
 		return 0;
 	return 1;
 }
@@ -97,7 +97,7 @@ static int validate_bounds(const struct shirudo_upatch_header *h, size_t n)
 {
 	if (h->type != SHIRUDO_UPATCH_TYPE_BPF)
 		return -EINVAL;
-	if (h->loader_insns_off < SHIRUDO_UPATCH_HEADER_SIZE ||
+	if (h->loader_insns_off < UPATCH_HEADER_SIZE ||
 	    h->loader_insns_off % 8 || h->loader_insns_len % 8 ||
 	    !section_inside(h->loader_insns_off, h->loader_insns_len, n))
 		return -EINVAL;
@@ -129,7 +129,7 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 
 	if (decoder_len < sizeof(struct shirudo_upatch_decoder_blob))
 		return false;
-	if (rd_le32(bp) != SHIRUDO_UPATCH_DECODER_MAGIC ||
+	if (rd_le32(bp) != UPATCH_DECODER_MAGIC ||
 	    rd_le32(bp + 4) != SHIRUDO_UPATCH_DECODER_VERSION)
 		return false;
 
@@ -202,13 +202,13 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 		return;
 	data = u->map + u->hdr.data_off;
 	memcpy(&tr, data + u->hdr.data_len - sizeof(tr), sizeof(tr));
-	if (le32toh(tr.magic) != SHIRUDO_UPATCH_SIGNED_TRAILER_MAGIC ||
-	    le32toh(tr.version) != SHIRUDO_UPATCH_SIGNED_VERSION)
+	if (le32toh(tr.magic) != UPATCH_SIGNED_TRAILER_MAGIC ||
+	    le32toh(tr.version) != UPATCH_SIGNED_VERSION)
 		return;
 	nr = le32toh(tr.nr_sections);
 	dir_off = le32toh(tr.dir_off);
 	end = u->hdr.data_len - sizeof(tr);
-	if (nr == 0 || nr > SHIRUDO_UPATCH_SIGNED_SECTIONS_MAX ||
+	if (nr == 0 || nr > UPATCH_SIGNED_SECTIONS_MAX ||
 	    dir_off > end ||
 	    (__u64)nr * sizeof(struct shirudo_upatch_signed_section) >
 	    end - dir_off)
@@ -228,7 +228,7 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 		switch (tag) {
 		case SHIRUDO_UPATCH_SECTION_NAME:
 			bit = 1;
-			if (len != SHIRUDO_UPATCH_NAME_MAX ||
+			if (len != UPATCH_NAME_MAX ||
 			    !memchr(data + off, '\0', len))
 				goto reject;
 			u->signed_name = (const char *)data + off;
@@ -242,7 +242,7 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 			break;
 		case SHIRUDO_UPATCH_SECTION_UNLOAD:
 			bit = 4;
-			if (len != SHIRUDO_UPATCH_PAYLOAD_HASH_LEN)
+			if (len != UPATCH_PAYLOAD_HASH_LEN)
 				goto reject;
 			u->signed_unload_payload = data + off;
 			break;
@@ -269,7 +269,7 @@ static int upatch_parse(const void *data, size_t size,
 	int rc;
 
 	memset(out, 0, sizeof(*out));
-	if (!data || !size || size > SHIRUDO_UPATCH_FILE_MAX)
+	if (!data || !size || size > UPATCH_FILE_MAX)
 		return -EINVAL;
 	out->map = data;
 	out->map_size = size;
@@ -305,7 +305,7 @@ int upatch_open_fd(int fd, struct shirudo_upatch *out)
 	if (!S_ISREG(st.st_mode) || st.st_size <= 0)
 		return -EINVAL;
 	/* refuse pathologically-large inputs; .upatch is small */
-	if ((uintmax_t)st.st_size > SHIRUDO_UPATCH_FILE_MAX)
+	if ((uintmax_t)st.st_size > UPATCH_FILE_MAX)
 		return -EFBIG;
 
 	m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -392,7 +392,7 @@ const void *upatch_data(const struct shirudo_upatch *u)
 
 bool upatch_is_unload(const struct shirudo_upatch *u)
 {
-	return (u->hdr.flags & SHIRUDO_DIRECTIVE_UNLOAD) != 0;
+	return (u->hdr.flags & DIRECTIVE_UNLOAD) != 0;
 }
 
 const char *upatch_type_str(const struct shirudo_upatch *u)
@@ -489,14 +489,14 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		return -EINVAL;
 	memcpy(&magic, metadata, sizeof(magic));
 	magic = le32toh(magic);
-	if (magic != SHIRUDO_UPATCH_PROG_MAGIC)
+	if (magic != UPATCH_PROG_MAGIC)
 		return -EINVAL;
 	if (metadata_len < sizeof(md))
 		return -EINVAL;
 	memcpy(&md, metadata, sizeof(md));
 	version = le32toh(md.version);
 	count = le32toh(md.nr_progs);
-	if (version != SHIRUDO_UPATCH_PROG_VERSION)
+	if (version != UPATCH_PROG_VERSION)
 		return -EOPNOTSUPP;
 	if (count != nr_progs || le32toh(md.reserved) != 0)
 		return -EINVAL;
@@ -610,9 +610,9 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		cursor += sizeof(targets);
 		nr_targets = le32toh(targets.nr_targets);
 		if (le32toh(targets.magic) !=
-		    SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC ||
+		    UPATCH_UPROBE_TARGET_MAGIC ||
 		    le32toh(targets.version) !=
-		    SHIRUDO_UPATCH_UPROBE_TARGET_VERSION ||
+		    UPATCH_UPROBE_TARGET_VERSION ||
 		    le32toh(targets.reserved) != 0 || nr_targets != nr_uprobes)
 			goto out;
 
@@ -634,11 +634,11 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			    specs[prog_idx].kind !=
 			    SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI ||
 			    specs[prog_idx].uprobe_path || path_len == 0 ||
-			    path_len >= SHIRUDO_UPATCH_UPROBE_PATH_MAX ||
+			    path_len >= UPATCH_UPROBE_PATH_MAX ||
 			    build_id_len == 0 ||
-			    build_id_len > SHIRUDO_UPATCH_BUILD_ID_MAX ||
+			    build_id_len > UPATCH_BUILD_ID_MAX ||
 			    nr_offsets == 0 ||
-			    nr_offsets > SHIRUDO_UPATCH_UPROBE_OFFSETS_MAX)
+			    nr_offsets > UPATCH_UPROBE_OFFSETS_MAX)
 				goto out;
 			payload_len = (size_t)path_len + build_id_len +
 				      (size_t)nr_offsets * sizeof(__u64);

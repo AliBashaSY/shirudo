@@ -45,9 +45,9 @@ runtime authority.
 Register
 --------
 
-The register is NV index ``0x01818E00`` (``SHIRUDO_NV_INDEX``, which a
-build may change), holding one SHA-256 digest. Its attributes are
-``0x0E060048``:
+The register is NV index ``0x01818E00`` (``NV_INDEX`` in
+``util/paths.h``, which a build may change), holding one SHA-256
+digest. Its attributes are ``0x0E060048``:
 
 - ``TPM2_NT_EXTEND``: a write of ``d`` sets the index to
   ``SHA256(old || d)``, as a PCR extend does

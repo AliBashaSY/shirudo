@@ -413,7 +413,7 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 {
 	int rc;
 
-	if (c->depth++ >= SHIRUDO_JSON_MAX_DEPTH) {
+	if (c->depth++ >= JSON_MAX_DEPTH) {
 		c->depth--;
 		return -E2BIG;
 	}
@@ -482,7 +482,7 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 {
 	int rc = 0;
 
-	if (c->depth++ >= SHIRUDO_JSON_MAX_DEPTH) {
+	if (c->depth++ >= JSON_MAX_DEPTH) {
 		c->depth--;
 		return -E2BIG;
 	}
@@ -806,11 +806,11 @@ static int build_log_payload(const char *path,
 	char *buf;
 	int decode_rc;
 
-	buf = xmalloc(SHIRUDO_JSON_MAX_BYTES);
+	buf = xmalloc(JSON_MAX_BYTES);
 	if (!buf)
 		return -ENOMEM;
 	e.buf = buf;
-	e.cap = SHIRUDO_JSON_MAX_BYTES;
+	e.cap = JSON_MAX_BYTES;
 
 	log_open(&e, "shirudo.upatch.maps", 9, "INFO",
 		 "shirudo.bpf.map.snapshot");
@@ -832,7 +832,7 @@ static int build_log_payload(const char *path,
 		json_obj_close(&e);
 		json_obj_close(&e);
 	} else {
-		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+		xfree(buf, JSON_MAX_BYTES);
 		return decode_rc;
 	}
 	xfree(decoded, decoded_len + 1);
@@ -842,7 +842,7 @@ static int build_log_payload(const char *path,
 	log_close(&e);
 
 	if (e.err) {
-		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+		xfree(buf, JSON_MAX_BYTES);
 		return e.err;
 	}
 	*out = buf;
@@ -883,18 +883,18 @@ static int build_metric_decoded_payload(const char *path,
 		xfree(decoded_buf, decoded_alloc_len + 1);
 		return -EINVAL;
 	}
-	buf = xmalloc(SHIRUDO_JSON_MAX_BYTES);
+	buf = xmalloc(JSON_MAX_BYTES);
 	if (!buf) {
 		xfree(decoded_buf, decoded_alloc_len + 1);
 		return -ENOMEM;
 	}
 	e.buf = buf;
-	e.cap = SHIRUDO_JSON_MAX_BYTES;
+	e.cap = JSON_MAX_BYTES;
 	otlp_open(&e, "resourceMetrics", "scopeMetrics", "shirudo.upatch.maps");
 	json_kv_raw(&e, "metrics", decoded, decoded_len);
 	otlp_close(&e);
 	if (e.err) {
-		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+		xfree(buf, JSON_MAX_BYTES);
 		xfree(decoded_buf, decoded_alloc_len + 1);
 		return e.err;
 	}
@@ -1231,7 +1231,7 @@ static int configure_state(struct otel_state *st, const char *spec,
 	if (!tenant_id_valid(st->opts.tenant_id))
 		return -EINVAL;
 	{
-		char line[sizeof("X-Tenant-ID: ") + SHIRUDO_TENANT_ID_MAX];
+		char line[sizeof("X-Tenant-ID: ") + TENANT_ID_MAX];
 
 		if (strsprintf(line, sizeof(line), "X-Tenant-ID: %s",
 			       st->opts.tenant_id) < 0)
@@ -1594,10 +1594,10 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 		st->opts = *opts;
 	/* Callers without the configuration leave the limits at 0. */
 	if (!st->opts.otlp_max_bytes)
-		st->opts.otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
+		st->opts.otlp_max_bytes = MAP_EXPORT_OTLP_MAX_DEFAULT;
 	if (!st->opts.log_record_max_bytes)
 		st->opts.log_record_max_bytes =
-			SHIRUDO_MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
+			MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
 	st->decoder_path = decoder_path;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
 		rc = -EIO;
@@ -1662,7 +1662,7 @@ static int otel_emit(void *state, const struct shirudo_map_view *v)
 	if (rc)
 		return rc;
 	rc = otel_post(st, payload, len);
-	xfree(payload, SHIRUDO_JSON_MAX_BYTES);
+	xfree(payload, JSON_MAX_BYTES);
 	return rc;
 }
 

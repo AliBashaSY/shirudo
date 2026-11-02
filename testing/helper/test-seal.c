@@ -36,7 +36,7 @@ static void show_label(const char *path)
 	char label[128];
 	ssize_t n;
 
-	n = lgetxattr(path, SHIRUDO_XATTR_NAME, label, sizeof(label) - 1);
+	n = lgetxattr(path, XATTR_NAME, label, sizeof(label) - 1);
 	if (n < 0) {
 		printf("label=none\n");
 		return;

@@ -8,11 +8,11 @@
 
 #include <stdint.h>
 
-#define SHIRUDO_SEAL_HOOK_COUNT 20
-#define SHIRUDO_IMAGE_SEAL_HOOK_COUNT 2
-#define SHIRUDO_MOUNT_HOOK_COUNT 5
-#define SHIRUDO_OBSERVER_HOOK_COUNT 9
-#define SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT 4
+#define SEAL_HOOK_COUNT 20
+#define IMAGE_SEAL_HOOK_COUNT 2
+#define MOUNT_HOOK_COUNT 5
+#define OBSERVER_HOOK_COUNT 9
+#define IMAGE_OBSERVER_HOOK_COUNT 4
 
 struct shirudo_image_guard {
 	const char *prog;
@@ -51,15 +51,15 @@ struct shirudo_guard_map {
 };
 
 extern const struct shirudo_image_guard
-	shirudo_seal_guards[SHIRUDO_SEAL_HOOK_COUNT];
+	shirudo_seal_guards[SEAL_HOOK_COUNT];
 extern const struct shirudo_image_guard
-	shirudo_image_seal_guards[SHIRUDO_IMAGE_SEAL_HOOK_COUNT];
+	shirudo_image_seal_guards[IMAGE_SEAL_HOOK_COUNT];
 extern const struct shirudo_image_guard
-	shirudo_image_observer_guards[SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT];
+	shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT];
 extern const struct shirudo_image_guard
-	shirudo_mount_guards[SHIRUDO_MOUNT_HOOK_COUNT];
+	shirudo_mount_guards[MOUNT_HOOK_COUNT];
 extern const struct shirudo_image_guard
-	shirudo_observer_guards[SHIRUDO_OBSERVER_HOOK_COUNT];
+	shirudo_observer_guards[OBSERVER_HOOK_COUNT];
 extern const struct shirudo_image_guard
 	shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT];
 extern const struct shirudo_guard_map

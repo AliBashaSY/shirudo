@@ -130,7 +130,7 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 {
 	int fd, rc;
 
-	if (under(path, SHIRUDO_VAR_LIB)) {
+	if (under(path, VAR_LIB)) {
 		fd = seal_open_read(path);
 		if (fd < 0)
 			return fd;
@@ -161,7 +161,7 @@ int check_trusted(int fd, const char *path, bool secret)
 	char real[PATH_MAX], *slash;
 	struct stat st;
 
-	if (!under(path, SHIRUDO_ETC_DIR) && !under(path, SHIRUDO_VAR_LIB))
+	if (!under(path, ETC_DIR) && !under(path, VAR_LIB))
 		return 0;
 	if (fstat(fd, &st))
 		return -errno;

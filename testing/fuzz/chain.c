@@ -11,7 +11,7 @@
 #include "crypto.h"
 
 int shirudo_sha256(const void *data, size_t len,
-		   __u8 out[SHIRUDO_CHAIN_DIGEST_LEN])
+		   __u8 out[CHAIN_DIGEST_LEN])
 {
 	return sha256_buffer(data, len, out);
 }

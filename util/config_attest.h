@@ -12,7 +12,7 @@
 
 #include "config_update.h"
 
-#define SHIRUDO_CONFIG_EVIDENCE_EVENTS_MAX 4096u
+#define CONFIG_EVIDENCE_EVENTS_MAX 4096u
 
 struct shirudo_json_emit;
 

@@ -103,8 +103,8 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 		return rc;
 	}
 
-	header.magic = htole64(SHIRUDO_UPATCH_MAGIC);
-	header.version = htole32(SHIRUDO_UPATCH_VERSION);
+	header.magic = htole64(UPATCH_MAGIC);
+	header.version = htole32(UPATCH_VERSION);
 	header.type = htole32(SHIRUDO_UPATCH_TYPE_BPF);
 	strncpy(header.name, "test-upatch", sizeof(header.name) - 1);
 	header.loader_insns_off = htole32(loader_off);
@@ -117,7 +117,7 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	file[data_off - 1] = 0;
 
 	/* The sections start at odd offsets: build them aligned, then copy. */
-	blob.magic = htole32(SHIRUDO_UPATCH_DECODER_MAGIC);
+	blob.magic = htole32(UPATCH_DECODER_MAGIC);
 	blob.version = htole32(SHIRUDO_UPATCH_DECODER_VERSION);
 	blob.nr_decoders = htole32(1);
 	memcpy(file + data_off, &blob, sizeof(blob));
@@ -139,8 +139,8 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	section.off = htole32(0);
 	section.len = htole32(decoder_len);
 	memcpy(file + data_off + dir_off, &section, sizeof(section));
-	trailer.magic = htole32(SHIRUDO_UPATCH_SIGNED_TRAILER_MAGIC);
-	trailer.version = htole32(SHIRUDO_UPATCH_SIGNED_VERSION);
+	trailer.magic = htole32(UPATCH_SIGNED_TRAILER_MAGIC);
+	trailer.version = htole32(UPATCH_SIGNED_VERSION);
 	trailer.dir_off = htole32(dir_off);
 	trailer.nr_sections = htole32(1);
 	memcpy(file + data_off + dir_off + sizeof(section), &trailer,
@@ -257,7 +257,7 @@ static int print_payload(bool metric, bool counter, bool with_location)
 	if (!rc && buf)
 		fwrite(buf, 1, len, stdout);
 	if (buf)
-		xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+		xfree(buf, JSON_MAX_BYTES);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);

@@ -16,7 +16,7 @@
 /* The writer modulus as the identity map holds it, from a trusted reader. */
 static int public_matches_init(const char *hex)
 {
-	__u8 expected[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 expected[TPM_NV_RSA_BYTES];
 	struct shirudo_eventlog_init rec;
 
 	if (strlen(hex) != 2 * sizeof(expected) ||
@@ -140,7 +140,7 @@ enum extend_probe {
 static int write_extend(int fd, const char *device, enum extend_probe probe)
 {
 	__u8 command[18] = { 0x80, 0x01 };
-	__u32 index = SHIRUDO_NV_INDEX;
+	__u32 index = NV_INDEX;
 	size_t size = sizeof(command);
 	ssize_t written;
 	int saved_errno;
@@ -150,7 +150,7 @@ static int write_extend(int fd, const char *device, enum extend_probe probe)
 	if (probe == EXTEND_SHORT)
 		size = 10;
 	tpm_put32(command + 2, (__u32)size);
-	tpm_put32(command + 6, SHIRUDO_TPM_CC_NV_EXTEND);
+	tpm_put32(command + 6, TPM_CC_NV_EXTEND);
 	tpm_put32(command + 10, index);
 	tpm_put32(command + 14, index);
 	errno = 0;

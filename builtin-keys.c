@@ -428,9 +428,9 @@ static const struct shirudo_help keys_help = {
 	.sections   = keys_help_sections,
 	.n_sections = ARRAY_SIZE(keys_help_sections),
 	.footer  = "Default paths:\n"
-		   "  " SHIRUDO_CERT_PATH "\n"
-		   "  " SHIRUDO_SIGNING_KEY_PATH "\n\n"
-		   "Or set the " SHIRUDO_KEYS_DIR_ENV
+		   "  " CERT_PATH "\n"
+		   "  " SIGNING_KEY_PATH "\n\n"
+		   "Or set the " KEYS_DIR_ENV
 		   " environment variable.",
 };
 
@@ -441,7 +441,7 @@ static void usage(void)
 
 static const struct shirudo_help_item keys_add_options[] = {
 	{ "--vouch <file>", "the vouch an enrolled key signed for the certificate" },
-	{ "--keys-dir <dir>", "the keys directory (default " SHIRUDO_KEYS_DIR ")" },
+	{ "--keys-dir <dir>", "the keys directory (default " KEYS_DIR ")" },
 };
 
 static const struct shirudo_help_section keys_add_sections[] = {
@@ -518,7 +518,7 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 	size_t i;
 
 	if (identity_read(&id) ||
-	    id.keyring_type != SHIRUDO_SIG_KEYRING_BPF)
+	    id.keyring_type != SIG_KEYRING_BPF)
 		return 0;
 	ring = keyring_bpf_serial();
 	if (ring <= 0)
@@ -628,7 +628,7 @@ static int keys_add(int argc, const char **argv)
 		goto out;
 	}
 	hex_encode(by, 32, by_hex);
-	if (!strcmp(keys_dir, SHIRUDO_KEYS_DIR)) {
+	if (!strcmp(keys_dir, KEYS_DIR)) {
 		rc = check_voucher_live(&set, by);
 		if (rc) {
 			pr_err("keys add: the vouching certificate %s is not "
@@ -647,9 +647,9 @@ static int keys_add(int argc, const char **argv)
 		goto out;
 	}
 	/* A set past the limit would fail to load at all, init included. */
-	if (set.n >= SHIRUDO_KEYS_MAX) {
+	if (set.n >= KEYS_MAX) {
 		pr_err("keys add: the trusted set holds %d certificates, the "
-		       "most a target enrols", SHIRUDO_KEYS_MAX);
+		       "most a target enrols", KEYS_MAX);
 		rc = -E2BIG;
 		goto out;
 	}
@@ -768,27 +768,27 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 	*unloaded = 0;
 	if (cert_read_der(der, der_sz, &cert))
 		return -EINVAL;
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, upatch_select,
+	n = scandir(UPATCHES_DIR, &names, upatch_select,
 		    alphasort);
 	if (n < 0) {
 		cert_free(&cert);
 		return errno == ENOENT ? 0 : -errno;
 	}
 	for (i = 0; i < n; i++) {
-		char name[SHIRUDO_UPATCH_NAME_MAX + 1];
+		char name[UPATCH_NAME_MAX + 1];
 		struct shirudo_upatch u;
 		char path[PATH_MAX];
 		int signed_by, prc;
 
-		if (strsprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
+		if (strsprintf(path, sizeof(path), "%s/%s", UPATCHES_DIR,
 			       names[i]->d_name) < 0)
 			continue;
 		if (upatch_open(path, &u))
 			continue;
 		signed_by = cms_signed_by(upatch_signature(&u),
 					  u.hdr.signature_len, &cert);
-		memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-		name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+		memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
+		name[UPATCH_NAME_MAX] = '\0';
 		upatch_close(&u);
 		if (signed_by != 1)
 			continue;
@@ -928,7 +928,7 @@ static int keys_show(int argc, const char **argv)
 		}
 	}
 
-	keys_dir = shirudo_image_config_active() ? SHIRUDO_RUNTIME_DIR "/keys" :
+	keys_dir = shirudo_image_config_active() ? RUNTIME_DIR "/keys" :
 		keys_dir_resolve(keys_dir_arg);
 
 	rc = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
@@ -978,8 +978,8 @@ static int keys_show(int argc, const char **argv)
 		const struct keys_anchor anchors[] = {
 			{ ".bpf", keyring_bpf_serial, id.keyring_serial,
 			  id.key_serials,
-			  id.n_keys < SHIRUDO_IDENTITY_KEYS_MAX ?
-			  id.n_keys : SHIRUDO_IDENTITY_KEYS_MAX },
+			  id.n_keys < IDENTITY_KEYS_MAX ?
+			  id.n_keys : IDENTITY_KEYS_MAX },
 			{ ".dm-verity", shirudo_keyring_dm_verity_serial,
 			  id.dm_verity_ring, &id.dm_verity_key,
 			  id.dm_verity_key > 0 },

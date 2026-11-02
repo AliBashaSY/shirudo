@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SHIRUDO_CONFIG_UPDATE_PREFIX_MAX 4096u
+#define CONFIG_UPDATE_PREFIX_MAX 4096u
 
 enum shirudo_config_event_kind {
 	SHIRUDO_CONFIG_EVENT_BOOT = 1,
@@ -28,7 +28,7 @@ enum shirudo_config_update_checkpoint {
 };
 
 struct shirudo_config_update_target {
-	char prefix[SHIRUDO_CONFIG_UPDATE_PREFIX_MAX];
+	char prefix[CONFIG_UPDATE_PREFIX_MAX];
 	__u8 root_hash[32];
 };
 

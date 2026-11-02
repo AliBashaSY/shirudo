@@ -24,10 +24,10 @@
 static const struct shirudo_help config_help = {
 	.usage   = "shirudo config",
 	.summary = "Print the effective shirudo configuration in shirudo.conf "
-		   "syntax.\nWhen " SHIRUDO_CONF_PATH " is absent, prints "
+		   "syntax.\nWhen " CONF_PATH " is absent, prints "
 		   "the defaults.\nLocal-only.",
 	.footer  = "Starting point for a new config file:\n"
-		   "  shirudo config > " SHIRUDO_CONF_PATH,
+		   "  shirudo config > " CONF_PATH,
 };
 
 static void usage(void)
@@ -53,11 +53,11 @@ int cmd_config(int argc, const char **argv)
 		return 2;
 	}
 
-	file_present = access(SHIRUDO_CONF_PATH, F_OK) == 0;
+	file_present = access(CONF_PATH, F_OK) == 0;
 	rc = config_load(&cfg);
 	if (rc && rc != -ENOENT) {
 		pr_err("config: load %s: %s",
-		       SHIRUDO_CONF_PATH, strerror(-rc));
+		       CONF_PATH, strerror(-rc));
 		return 1;
 	}
 
@@ -66,10 +66,10 @@ int cmd_config(int argc, const char **argv)
 		       "TPM settings from runtime image)\n\n");
 	else if (file_present)
 		printf("# shirudo config (effective, loaded from %s)\n\n",
-		       SHIRUDO_CONF_PATH);
+		       CONF_PATH);
 	else
 		printf("# shirudo config (no %s present; defaults shown)\n\n",
-		       SHIRUDO_CONF_PATH);
+		       CONF_PATH);
 
 	printf("# Eventlog cap; 0 = unlimited. When the log would exceed this,\n"
 	       "# the state-changing op refuses with category: eventlog_full.\n");
@@ -89,7 +89,7 @@ int cmd_config(int argc, const char **argv)
 		       cfg.tpm_owner_auth_len,
 		       image_mode ? "; from runtime image" :
 		       env ? "; from $SHIRUDO_TPM_OWNER_AUTH" :
-		       "; from " SHIRUDO_CONF_PATH);
+		       "; from " CONF_PATH);
 	} else {
 		printf("# tpm.owner_auth = (unset)\n\n");
 	}
@@ -107,7 +107,7 @@ int cmd_config(int argc, const char **argv)
 
 		printf("tpm.tcti = %s  # from %s\n\n", cfg.tpm_tcti,
 		       image_mode ? "runtime image" :
-		       env && *env ? "$SHIRUDO_TPM_TCTI" : SHIRUDO_CONF_PATH);
+		       env && *env ? "$SHIRUDO_TPM_TCTI" : CONF_PATH);
 	} else {
 		printf("# tpm.tcti = (unset -- using device:/dev/tpmrm0)\n\n");
 	}

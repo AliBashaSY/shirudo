@@ -9,7 +9,7 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_TENANT_ID_MAX	128
+#define TENANT_ID_MAX	128
 
 static inline bool tenant_id_valid(const char *id)
 {
@@ -20,7 +20,7 @@ static inline bool tenant_id_valid(const char *id)
 	for (i = 0; id[i]; i++) {
 		__u8 c = (__u8)id[i];
 
-		if (i >= SHIRUDO_TENANT_ID_MAX ||
+		if (i >= TENANT_ID_MAX ||
 		    !((c >= 'a' && c <= 'z') ||
 		      (c >= 'A' && c <= 'Z') ||
 		      (c >= '0' && c <= '9') ||

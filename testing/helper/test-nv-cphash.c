@@ -58,7 +58,7 @@ out:
 
 static int sign_digest(ESYS_CONTEXT *esys, ESYS_TR writer,
 		       const __u8 digest[32],
-		       __u8 signature[SHIRUDO_TPM_NV_RSA_BYTES])
+		       __u8 signature[TPM_NV_RSA_BYTES])
 {
 	TPMT_TK_HASHCHECK validation = {
 		.tag = TPM2_ST_HASHCHECK,
@@ -77,12 +77,12 @@ static int sign_digest(ESYS_CONTEXT *esys, ESYS_TR writer,
 		goto out;
 	if (!signed_digest || signed_digest->sigAlg != TPM2_ALG_RSASSA ||
 	    signed_digest->signature.rsassa.hash != TPM2_ALG_SHA256 ||
-	    signed_digest->signature.rsassa.sig.size != SHIRUDO_TPM_NV_RSA_BYTES) {
+	    signed_digest->signature.rsassa.sig.size != TPM_NV_RSA_BYTES) {
 		fprintf(stderr, "Sign returned an unexpected signature\n");
 		goto out;
 	}
 	memcpy(signature, signed_digest->signature.rsassa.sig.buffer,
-	       SHIRUDO_TPM_NV_RSA_BYTES);
+	       TPM_NV_RSA_BYTES);
 	rc = 0;
 out:
 	Esys_Free(signed_digest);
@@ -91,11 +91,11 @@ out:
 
 static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
 		     const __u8 event[32], const __u8 policy[32],
-		     ESYS_TR *session, __u8 saved[SHIRUDO_TPM_NV_RSA_BYTES],
+		     ESYS_TR *session, __u8 saved[TPM_NV_RSA_BYTES],
 		     enum signature_fault fault)
 {
 	struct tpm_writer_authorization authorization = {};
-	__u8 signature[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 signature[TPM_NV_RSA_BYTES];
 	TPM2B_NAME *name = NULL;
 	TSS2_RC trc;
 	int rc = 1;
@@ -107,7 +107,7 @@ static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
 		       "TRSess_SetAttributes") ||
 	    tpm_failed(Esys_TR_GetName(t->esys, nv, &name), "TR_GetName"))
 		goto out;
-	if (!name || name->size != SHIRUDO_TPM_NAME_LEN) {
+	if (!name || name->size != TPM_NAME_LEN) {
 		fprintf(stderr, "NV index has an invalid Name\n");
 		goto out;
 	}
@@ -144,8 +144,8 @@ int main(void)
 {
 	TPM2B_MAX_NV_BUFFER event_a = { .size = 32, .buffer = {1} };
 	TPM2B_MAX_NV_BUFFER event_b = { .size = 32, .buffer = {2} };
-	__u8 signature[SHIRUDO_TPM_NV_RSA_BYTES] = {};
-	__u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 signature[TPM_NV_RSA_BYTES] = {};
+	__u8 writer_public[TPM_NV_RSA_BYTES];
 	__u8 before[32], after[32], expected[32], fold[64];
 	TPM2B_MAX_NV_BUFFER seed = { .size = 32 };
 	ESYS_TR session = ESYS_TR_NONE;
@@ -179,7 +179,7 @@ int main(void)
 		fprintf(stderr, "cannot construct the scratch NV writer policy\n");
 		goto out;
 	}
-	tpm_policy_command_code(policy, SHIRUDO_TPM_CC_NV_EXTEND, policy);
+	tpm_policy_command_code(policy, TPM_CC_NV_EXTEND, policy);
 	if (tpm_writer_load(t, writer_seed, writer_public, &writer) ||
 	    tpm_nv_define(t, TEST_NV_INDEX, policy, NULL, 0))
 		goto out;

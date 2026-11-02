@@ -180,7 +180,7 @@ static int loop_attach(int file_fd, __u64 bytes, int *out)
 	if (loop < 0)
 		return -errno;
 	config.fd = file_fd;
-	config.block_size = SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE;
+	config.block_size = CONFIG_IMAGE_BLOCK_SIZE;
 	config.info.lo_sizelimit = bytes;
 	config.info.lo_flags = LO_FLAGS_READ_ONLY | LO_FLAGS_AUTOCLEAR;
 	if (ioctl(loop, LOOP_CONFIGURE, &config)) {
@@ -260,7 +260,7 @@ static int check_table(union dm_buffer *buf,
 	target = (void *)(buf->bytes + offset);
 	if (target->sector_start ||
 	    target->length != image->data_blocks *
-				      (SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE / 512) ||
+				      (CONFIG_IMAGE_BLOCK_SIZE / 512) ||
 	    strncmp(target->target_type, "verity", sizeof(target->target_type)))
 		return -EKEYREJECTED;
 	params = (char *)(target + 1);
@@ -288,7 +288,7 @@ static int check_table(union dm_buffer *buf,
 			return -EINVAL;
 		if ((i == 0 && value != 1) ||
 		    ((i == 3 || i == 4) &&
-		     value != SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE) ||
+		     value != CONFIG_IMAGE_BLOCK_SIZE) ||
 		    (i == 5 && value != image->data_blocks) ||
 		    (i == 6 && value != 1))
 			return -EKEYREJECTED;
@@ -370,7 +370,7 @@ int shirudo_dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
 /* request_key() can find this immutable signature in the caller's thread. */
 static key_serial_t signature_key(int fd, char description[64])
 {
-	__u8 signature[SHIRUDO_CONFIG_IMAGE_SIG_MAX], random[16];
+	__u8 signature[CONFIG_IMAGE_SIG_MAX], random[16];
 	char suffix[33];
 	struct stat st;
 	size_t done = 0;
@@ -450,12 +450,12 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	strscpy(device.name, name, sizeof(device.name));
 	rc = loop_attach(image->data_fd,
 			 image->image.data_blocks *
-				 SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE,
+				 CONFIG_IMAGE_BLOCK_SIZE,
 			 &device.data_loop_fd);
 	if (!rc)
 		rc = loop_attach(image->hash_fd,
 				 image->image.hash_blocks *
-					 SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE,
+					 CONFIG_IMAGE_BLOCK_SIZE,
 				 &device.hash_loop_fd);
 	if (rc)
 		goto out;
@@ -507,7 +507,7 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	buf.io.target_count = 1;
 	target = (void *)(buf.bytes + buf.io.data_start);
 	target->length = image->image.data_blocks *
-			 (SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE / 512);
+			 (CONFIG_IMAGE_BLOCK_SIZE / 512);
 	strscpy(target->target_type, "verity", sizeof(target->target_type));
 	memcpy(target + 1, params, n + 1);
 	target->next = (sizeof(*target) + n + 1 + 7) & ~7u;
@@ -611,7 +611,7 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 					      &image->image);
 	if (rc)
 		return rc;
-	bytes = image->image.data_blocks * SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE;
+	bytes = image->image.data_blocks * CONFIG_IMAGE_BLOCK_SIZE;
 	rc = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
 	if (rc)
 		return rc;
@@ -631,7 +631,7 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 	if (!rc)
 		rc = loop_check(hashes, image->hash_fd,
 				image->image.hash_blocks *
-					SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE);
+					CONFIG_IMAGE_BLOCK_SIZE);
 	if (rc)
 		goto out;
 	fd = open(device->path,
@@ -677,7 +677,7 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 	if (!rc)
 		rc = loop_check(hashes, image->hash_fd,
 				image->image.hash_blocks *
-					SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE);
+					CONFIG_IMAGE_BLOCK_SIZE);
 out:
 	if (fd >= 0)
 		close(fd);

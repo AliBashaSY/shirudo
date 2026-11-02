@@ -15,7 +15,7 @@ struct shirudo_sysinfo {
 	char	os_pretty[256];		/* /etc/os-release PRETTY_NAME */
 	char	kernel_release[96];	/* uname -r */
 	char	kernel_version[256];	/* uname -v */
-	char	kernel_build_id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
+	char	kernel_build_id[KERNEL_BUILD_ID_STRING_MAX];
 	char	machine[96];		/* uname -m */
 	char	machine_id[64];		/* /etc/machine-id */
 	char	boot_id[64];		/* /proc boot_id */

@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 
 /* The largest container the parser accepts. */
-#define SHIRUDO_UPATCH_FILE_MAX		(16u * 1024u * 1024u)
+#define UPATCH_FILE_MAX		(16u * 1024u * 1024u)
 
 struct shirudo_upatch {
 	struct shirudo_upatch_header	hdr;	/* host byte order */
@@ -27,7 +27,7 @@ struct shirudo_upatch {
 	const struct shirudo_upatch_decoder_blob *decoder_blob;
 	__u32				decoder_blob_len;
 	__u32				nr_decoders;
-	const char			*signed_name;	/* SHIRUDO_UPATCH_NAME_MAX */
+	const char			*signed_name;	/* UPATCH_NAME_MAX */
 	const __u8			*signed_attach;
 	__u32				signed_attach_len;
 	const __u8			*signed_unload_payload;	/* 32 bytes */
@@ -74,7 +74,7 @@ int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 
 /*
  * The signed sections, NULL where the data carries none: the name,
- * NUL-padded to SHIRUDO_UPATCH_NAME_MAX like the header's; the attach
+ * NUL-padded to UPATCH_NAME_MAX like the header's; the attach
  * metadata of a load; the payload digest an unload directive expects.
  * A load or unload refuses what it needs and does not find; inspection
  * shows what there is.
@@ -98,11 +98,11 @@ struct shirudo_prog_spec {
 	__u32 role;
 	__u32 kind;
 	__u64 offset;
-	char target[SHIRUDO_UPATCH_ATTACH_TARGET_MAX];
-	char map[SHIRUDO_UPATCH_PROG_MAP_MAX];
+	char target[UPATCH_ATTACH_TARGET_MAX];
+	char map[UPATCH_PROG_MAP_MAX];
 	char *uprobe_path;
 	__u32 uprobe_path_len;
-	__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u8 build_id[UPATCH_BUILD_ID_MAX];
 	__u32 build_id_len;
 	__u64 *uprobe_offsets;
 	__u32 nr_uprobe_offsets;

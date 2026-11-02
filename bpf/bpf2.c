@@ -11,9 +11,9 @@
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
-#define SHIRUDO_MOUNT_WALK_MAX		1024
-#define SHIRUDO_MOUNT_DEPTH_MAX		32
-#define SHIRUDO_MOUNT_MASTERS_MAX	4
+#define MOUNT_WALK_MAX		1024
+#define MOUNT_DEPTH_MAX		32
+#define MOUNT_MASTERS_MAX	4
 
 static __always_inline struct mount *shirudo_mount_of(struct vfsmount *mnt)
 {
@@ -53,7 +53,7 @@ static __always_inline bool shirudo_umount_reaches(struct mount *m, int group,
 		return true;
 	if (!group)
 		return false;
-	bpf_for(i, 0, SHIRUDO_MOUNT_MASTERS_MAX) {
+	bpf_for(i, 0, MOUNT_MASTERS_MAX) {
 		if (shirudo_mount_group(a) == group)
 			return true;
 		a = BPF_CORE_READ(a, mnt_master);
@@ -74,7 +74,7 @@ static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
 	int group = shirudo_mount_group(m);
 	int i;
 
-	bpf_for(i, 0, SHIRUDO_MOUNT_DEPTH_MAX) {
+	bpf_for(i, 0, MOUNT_DEPTH_MAX) {
 		parent = BPF_CORE_READ(a, mnt_parent);
 		if (!parent || parent == a)
 			return false;
@@ -111,7 +111,7 @@ static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 	bpffs = (struct mount *)rec->mount;
 	t = shirudo_mount_of(mnt);
 	m = t;
-	bpf_for(i, 0, SHIRUDO_MOUNT_WALK_MAX) {
+	bpf_for(i, 0, MOUNT_WALK_MAX) {
 		if (shirudo_umount_takes_bpffs(m, bpffs))
 			goto deny;
 		next = (__u64)BPF_CORE_READ(m, mnt_mounts.next);
@@ -122,7 +122,7 @@ static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 			continue;
 		}
 		sibling = false;
-		bpf_for(j, 0, SHIRUDO_MOUNT_DEPTH_MAX) {
+		bpf_for(j, 0, MOUNT_DEPTH_MAX) {
 			if (m == t)
 				return 0;
 			parent = BPF_CORE_READ(m, mnt_parent);
@@ -199,7 +199,7 @@ static __always_inline int shirudo_image_mount(struct super_block *sb,
 	device = shirudo_bdev_device(bdev);
 	if (!device)
 		return 0;
-	if (replace && device->kind == SHIRUDO_DEVICE_CONFIG &&
+	if (replace && device->kind == DEVICE_CONFIG &&
 	    shirudo_task_is_self(id))
 		return 0;
 	return -EPERM;
@@ -331,7 +331,7 @@ int BPF_PROG(shirudo_lsm_bdev_setintegrity, struct block_device *bdev,
 	for (i = 0; i < sizeof(device.root); i++)
 		diff |= device.root[i] ^ id->runtime_root[i];
 	if (!diff) {
-		device.kind = SHIRUDO_DEVICE_RUNTIME;
+		device.kind = DEVICE_RUNTIME;
 	} else {
 		if (!shirudo_task_is_self(id))
 			return 0;
@@ -346,7 +346,7 @@ int BPF_PROG(shirudo_lsm_bdev_setintegrity, struct block_device *bdev,
 		if (diff)
 			return 0;
 		expected->valid = 0;
-		device.kind = SHIRUDO_DEVICE_CONFIG;
+		device.kind = DEVICE_CONFIG;
 	}
 	device.dev = BPF_CORE_READ(bdev, bd_dev);
 	device.diskseq = BPF_CORE_READ(bdev, bd_disk, diskseq);
@@ -366,8 +366,8 @@ void BPF_PROG(shirudo_lsm_bdev_free_security, struct block_device *bdev)
 	bpf_map_delete_elem(&shirudo_devices, &cookie);
 }
 
-#define SHIRUDO_DM_CONTROL_DEV	((10U << 20) | 236U)
-#define SHIRUDO_DM_IOCTL_TYPE	0xfdU
+#define DM_CONTROL_DEV	((10U << 20) | 236U)
+#define DM_IOCTL_TYPE	0xfdU
 
 /* Match the kernel's type/number dispatch. */
 static __always_inline int shirudo_dm_ioctl(struct file *file,
@@ -380,9 +380,9 @@ static __always_inline int shirudo_dm_ioctl(struct file *file,
 		return ret;
 	inode = BPF_CORE_READ(file, f_inode);
 	if ((BPF_CORE_READ(inode, i_mode) & 0170000) != 0020000 ||
-	    BPF_CORE_READ(inode, i_rdev) != SHIRUDO_DM_CONTROL_DEV)
+	    BPF_CORE_READ(inode, i_rdev) != DM_CONTROL_DEV)
 		return 0;
-	if (((cmd >> 8) & 0xff) != SHIRUDO_DM_IOCTL_TYPE)
+	if (((cmd >> 8) & 0xff) != DM_IOCTL_TYPE)
 		return -EPERM;
 	switch (cmd & 0xff) {
 	case 0:  /* DM_VERSION */

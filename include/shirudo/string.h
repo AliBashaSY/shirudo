@@ -62,9 +62,9 @@ bool dns_name_valid(const char *name);
 /*
  * What the functions above replace, refused once the headers included
  * above have declared it, so that a later include of those still works;
- * util/string.c opts out with SHIRUDO_STRING_INTERNAL.
+ * util/string.c opts out with STRING_INTERNAL.
  */
-#ifndef SHIRUDO_STRING_INTERNAL
+#ifndef STRING_INTERNAL
 # pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
 # pragma GCC poison strtod strtof strtold atoi atol atoll atof
 # pragma GCC poison strcpy strncpy strcat strncat strlcpy

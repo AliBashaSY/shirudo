@@ -12,7 +12,7 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_SHA256_LEN	32
+#define SHA256_LEN	32
 
 /*
  * The signature and payload_sha256 both span insns || data, the bytes
@@ -29,7 +29,7 @@ struct shirudo_sign_io {
 	void		*signature;
 	size_t		signature_sz;
 
-	__u8		payload_sha256[SHIRUDO_SHA256_LEN];
+	__u8		payload_sha256[SHA256_LEN];
 };
 
 /*

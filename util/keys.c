@@ -43,7 +43,7 @@ struct keys_candidate {
 
 int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz)
 {
-	int rc = read_fd(fd, "certificate", SHIRUDO_KEYS_DER_MAX, out, out_sz);
+	int rc = read_fd(fd, "certificate", KEYS_DER_MAX, out, out_sz);
 
 	if (!rc && !*out_sz) {
 		xfree(*out, 1);
@@ -84,7 +84,7 @@ int keys_read_der(const char *path, __u8 **out,
 		return rc;
 	}
 	if (!S_ISREG(st.st_mode) || st.st_size <= 0 ||
-	    st.st_size > SHIRUDO_KEYS_DER_MAX) {
+	    st.st_size > KEYS_DER_MAX) {
 		close(fd);
 		return -EINVAL;
 	}
@@ -137,7 +137,7 @@ struct der_entry {
 	size_t	len;
 };
 
-static struct der_entry der_store[8 * SHIRUDO_KEYS_MAX];
+static struct der_entry der_store[8 * KEYS_MAX];
 static size_t der_stored;
 
 static int der_keep(const __u8 sha256[32], const __u8 *der, size_t len)
@@ -259,14 +259,14 @@ static bool keys_is_revoked_at(int revoked_fd, const __u8 fingerprint[32])
 int keys_vouch_payload(const __u8 *der, size_t der_sz,
 		       __u8 **out, size_t *out_sz)
 {
-	size_t n = sizeof(SHIRUDO_KEYS_VOUCH_PREFIX) + der_sz;
+	size_t n = sizeof(KEYS_VOUCH_PREFIX) + der_sz;
 	__u8 *buf = xmalloc(n);
 
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, SHIRUDO_KEYS_VOUCH_PREFIX,
-	       sizeof(SHIRUDO_KEYS_VOUCH_PREFIX));
-	memcpy(buf + sizeof(SHIRUDO_KEYS_VOUCH_PREFIX), der, der_sz);
+	memcpy(buf, KEYS_VOUCH_PREFIX,
+	       sizeof(KEYS_VOUCH_PREFIX));
+	memcpy(buf + sizeof(KEYS_VOUCH_PREFIX), der, der_sz);
 	*out = buf;
 	*out_sz = n;
 	return 0;
@@ -326,7 +326,7 @@ static int set_add(struct shirudo_trusted_set *set, const char *path,
 	struct shirudo_trusted_cert *c;
 	int rc;
 
-	if (set->n >= SHIRUDO_KEYS_MAX)
+	if (set->n >= KEYS_MAX)
 		return -E2BIG;
 	if (der) {
 		rc = der_keep(sha256, der, der_sz);
@@ -691,12 +691,12 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
 	char primary[PATH_MAX];
 
 	if (shirudo_image_config_root_fd() >= 0 &&
-	    (!strcmp(keys_dir, SHIRUDO_KEYS_DIR) ||
-	     !strcmp(keys_dir, SHIRUDO_RUNTIME_DIR "/keys")))
-		return shirudo_keys_load_image_root(SHIRUDO_RUNTIME_CERT_PATH,
+	    (!strcmp(keys_dir, KEYS_DIR) ||
+	     !strcmp(keys_dir, RUNTIME_DIR "/keys")))
+		return shirudo_keys_load_image_root(RUNTIME_CERT_PATH,
 						    shirudo_image_config_root_fd(),
 						    with_trusted, set);
-	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, SHIRUDO_CERT_FILE) < 0)
+	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, CERT_FILE) < 0)
 		return -ENAMETOOLONG;
 	return load_set(primary, keys_dir, revoked_dir, with_trusted, set);
 }
@@ -709,7 +709,7 @@ static int digest_cmp(const void *a, const void *b)
 int keys_anchor_digest(const __u8 sha256[][32], size_t n,
 		       __u8 out[32])
 {
-	__u8 sorted[SHIRUDO_KEYS_MAX][32];
+	__u8 sorted[KEYS_MAX][32];
 	size_t i;
 	int rc;
 
@@ -718,7 +718,7 @@ int keys_anchor_digest(const __u8 sha256[][32], size_t n,
 		return 0;
 	}
 	memset(out, 0, 32);
-	if (n == 0 || n > SHIRUDO_KEYS_MAX)
+	if (n == 0 || n > KEYS_MAX)
 		return -EINVAL;
 	for (i = 0; i < n; i++)
 		memcpy(sorted[i], sha256[i], 32);
@@ -732,7 +732,7 @@ int keys_anchor_digest(const __u8 sha256[][32], size_t n,
 int keys_set_digest(const struct shirudo_trusted_set *set,
 		    __u8 out[32])
 {
-	__u8 sha[SHIRUDO_KEYS_MAX][32];
+	__u8 sha[KEYS_MAX][32];
 	size_t i;
 
 	for (i = 0; i < set->n; i++)

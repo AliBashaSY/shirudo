@@ -215,11 +215,11 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	(void)arg5;
 	if (ret && ret != -ENOSYS)
 		return ret;
-	if (option == SHIRUDO_PR_GET_ENFORCEMENT) {
+	if (option == PR_GET_ENFORCEMENT) {
 		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
 		if (!id)
 			return -EACCES;
-		return -SHIRUDO_PR_ENFORCING_ERR;
+		return -PR_ENFORCING_ERR;
 	}
 	if (option != PR_SET_MM ||
 	    (arg2 != PR_SET_MM_EXE_FILE && arg2 != PR_SET_MM_MAP))
@@ -315,10 +315,10 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	possessed = (unsigned long)key_ref & 1;
 	if (serial != id->keyring_serial && serial != id->dm_verity_ring &&
 	    serial != id->dm_verity_key) {
-		for (i = 0; i < SHIRUDO_IDENTITY_KEYS_MAX; i++)
+		for (i = 0; i < IDENTITY_KEYS_MAX; i++)
 			if (i < id->n_keys && id->key_serials[i] == serial)
 				break;
-		if (i == SHIRUDO_IDENTITY_KEYS_MAX)
+		if (i == IDENTITY_KEYS_MAX)
 			return 0;	/* not the anchor -- not ours */
 	}
 	if (need == KEY_NEED_SEARCH && possessed)
@@ -345,7 +345,7 @@ int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
 	    bpf_probe_read_kernel(&code, sizeof(code), command + 6))
 		return shirudo_tamper_deny(SHIRUDO_TAMPER_TPM_EXTEND,
 					   -EACCES);
-	if (bpf_ntohl(code) != SHIRUDO_TPM_CC_NV_EXTEND)
+	if (bpf_ntohl(code) != TPM_CC_NV_EXTEND)
 		return 0;
 	if (command_len < 18 ||
 	    bpf_probe_read_kernel(&index, sizeof(index), command + 14))

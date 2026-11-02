@@ -25,8 +25,8 @@
 
 #include "kernel_abi.h"
 
-#define SHIRUDO_MAP_SHA_SIZE	32U
-#define SHIRUDO_BTF_MAX_UNWRAP	32
+#define MAP_SHA_SIZE	32U
+#define BTF_MAX_UNWRAP	32
 
 static int abi_fail(char *detail, size_t detail_sz, const char *fmt, ...)
 {
@@ -46,7 +46,7 @@ static const struct btf_type *unwrap_type(const struct btf *btf, __u32 id)
 	const struct btf_type *t;
 	int i;
 
-	for (i = 0; i < SHIRUDO_BTF_MAX_UNWRAP; i++) {
+	for (i = 0; i < BTF_MAX_UNWRAP; i++) {
 		t = btf__type_by_id(btf, id);
 		if (!t)
 			return NULL;
@@ -136,7 +136,7 @@ int kernel_abi_validate_btf(const struct btf *btf,
 				"struct bpf_map.sha must have type u8[32]");
 	array = btf_array(sha_type);
 	elem_type = unwrap_type(btf, array->type);
-	if (array->nelems != SHIRUDO_MAP_SHA_SIZE ||
+	if (array->nelems != MAP_SHA_SIZE ||
 	    !is_unsigned_int(elem_type, 1))
 		return abi_fail(detail, detail_sz,
 				"struct bpf_map.sha must have type u8[32]");

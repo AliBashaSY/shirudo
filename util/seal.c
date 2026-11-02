@@ -24,12 +24,12 @@
 #include "paths.h"
 #include "seal.h"
 
-#define SEAL_LABEL_LEN	(sizeof(SHIRUDO_SEAL_LABEL) - 1)
+#define SEAL_LABEL_LEN	(sizeof(SEAL_LABEL) - 1)
 
 int seal_label(const char *path)
 {
-	if (lsetxattr(path, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
-		      sizeof(SHIRUDO_SEAL_LABEL) - 1, 0) != 0)
+	if (lsetxattr(path, XATTR_NAME, SEAL_LABEL,
+		      sizeof(SEAL_LABEL) - 1, 0) != 0)
 		return -errno;
 	return 0;
 }
@@ -99,17 +99,17 @@ int seal_label_tree(bool allow_first)
 	char label[SEAL_LABEL_LEN];
 	struct stat st;
 
-	if (stat(SHIRUDO_VAR_LIB, &st) != 0)
+	if (stat(VAR_LIB, &st) != 0)
 		return -errno;
 	seal_root_dev = st.st_dev;
 	seal_walk_error = 0;
-	seal_first_init = seal_lget(SHIRUDO_VAR_LIB, label) <= 0;
+	seal_first_init = seal_lget(VAR_LIB, label) <= 0;
 	if (seal_first_init && !allow_first) {
 		pr_err("seal: %s carries no label with enforcement live "
-		       "(foreign state tree); refusing", SHIRUDO_VAR_LIB);
+		       "(foreign state tree); refusing", VAR_LIB);
 		return -EPERM;
 	}
-	if (nftw(SHIRUDO_VAR_LIB, seal_label_cb, 16, FTW_PHYS | FTW_MOUNT) != 0)
+	if (nftw(VAR_LIB, seal_label_cb, 16, FTW_PHYS | FTW_MOUNT) != 0)
 		return seal_walk_error ? seal_walk_error : -errno;
 	return 0;
 }
@@ -129,13 +129,13 @@ static ssize_t seal_label_len(ssize_t n)
 
 static ssize_t seal_fget(int fd, char label[SEAL_LABEL_LEN])
 {
-	return seal_label_len(fgetxattr(fd, SHIRUDO_XATTR_NAME, label,
+	return seal_label_len(fgetxattr(fd, XATTR_NAME, label,
 					SEAL_LABEL_LEN));
 }
 
 static ssize_t seal_lget(const char *path, char label[SEAL_LABEL_LEN])
 {
-	return seal_label_len(lgetxattr(path, SHIRUDO_XATTR_NAME, label,
+	return seal_label_len(lgetxattr(path, XATTR_NAME, label,
 					SEAL_LABEL_LEN));
 }
 
@@ -255,7 +255,7 @@ int seal_inherit(int dfd, int fd)
 		return (int)olen;
 	if (olen == plen && !memcmp(parent, own, (size_t)plen))
 		return 0;
-	if (fsetxattr(fd, SHIRUDO_XATTR_NAME, parent, (size_t)plen, 0))
+	if (fsetxattr(fd, XATTR_NAME, parent, (size_t)plen, 0))
 		return -errno;
 	return 0;
 }
@@ -279,7 +279,7 @@ int seal_inherit_path(const char *path)
 		return (int)olen;
 	if (olen == plen && !memcmp(parent, own, (size_t)plen))
 		return 0;
-	if (lsetxattr(path, SHIRUDO_XATTR_NAME, parent, (size_t)plen, 0))
+	if (lsetxattr(path, XATTR_NAME, parent, (size_t)plen, 0))
 		return -errno;
 	return 0;
 }
@@ -301,7 +301,7 @@ static int seal_regular(int fd)
 /* 1 for a label of any size, 0 for none, -errno when unreadable. */
 static int seal_fsealed(int fd)
 {
-	if (fgetxattr(fd, SHIRUDO_XATTR_NAME, NULL, 0) >= 0)
+	if (fgetxattr(fd, XATTR_NAME, NULL, 0) >= 0)
 		return 1;
 	return errno == ENODATA || errno == ENOTSUP ? 0 : -errno;
 }

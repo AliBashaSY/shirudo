@@ -38,8 +38,8 @@ static int expect_attach(const struct shirudo_upatch *u, __u32 kind,
 		return fail("unexpected metadata length");
 	memcpy(&md, raw, sizeof(md));
 	memcpy(&prog, raw + sizeof(md), sizeof(prog));
-	if (le32toh(md.magic) != SHIRUDO_UPATCH_PROG_MAGIC ||
-	    le32toh(md.version) != SHIRUDO_UPATCH_PROG_VERSION)
+	if (le32toh(md.magic) != UPATCH_PROG_MAGIC ||
+	    le32toh(md.version) != UPATCH_PROG_VERSION)
 		return fail("unexpected metadata magic/version");
 	if (le32toh(md.nr_progs) != 1)
 		return fail("unexpected metadata prog count");
@@ -80,8 +80,8 @@ static int expect_serializer(const struct shirudo_upatch *u)
 		return fail("unexpected metadata length");
 	memcpy(&md, raw, sizeof(md));
 	memcpy(progs, raw + sizeof(md), sizeof(progs));
-	if (le32toh(md.magic) != SHIRUDO_UPATCH_PROG_MAGIC ||
-	    le32toh(md.version) != SHIRUDO_UPATCH_PROG_VERSION ||
+	if (le32toh(md.magic) != UPATCH_PROG_MAGIC ||
+	    le32toh(md.version) != UPATCH_PROG_VERSION ||
 	    le32toh(md.nr_progs) != 2)
 		return fail("unexpected metadata header");
 	for (i = 0; i < 2; i++) {
@@ -118,8 +118,8 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 		return fail("missing uprobe metadata");
 	memcpy(&md, raw, sizeof(md));
 	memcpy(&prog, raw + sizeof(md), sizeof(prog));
-	if (le32toh(md.magic) != SHIRUDO_UPATCH_PROG_MAGIC ||
-	    le32toh(md.version) != SHIRUDO_UPATCH_PROG_VERSION ||
+	if (le32toh(md.magic) != UPATCH_PROG_MAGIC ||
+	    le32toh(md.version) != UPATCH_PROG_VERSION ||
 	    le32toh(md.nr_progs) != 1)
 		return fail("unexpected metadata header");
 	if (le32toh(prog.role) != SHIRUDO_UPATCH_PROG_ROLE_ATTACH ||
@@ -131,8 +131,8 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 	cursor = raw + sizeof(md) + sizeof(prog);
 	end = raw + len;
 	memcpy(&targets, cursor, sizeof(targets));
-	if (le32toh(targets.magic) != SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC ||
-	    le32toh(targets.version) != SHIRUDO_UPATCH_UPROBE_TARGET_VERSION ||
+	if (le32toh(targets.magic) != UPATCH_UPROBE_TARGET_MAGIC ||
+	    le32toh(targets.version) != UPATCH_UPROBE_TARGET_VERSION ||
 	    le32toh(targets.nr_targets) != 1 || targets.reserved)
 		return fail("uprobe target header mismatch");
 	cursor += sizeof(targets);
@@ -142,7 +142,7 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 	build_id_len = le32toh(record.build_id_len);
 	nr_offsets = le32toh(record.nr_offsets);
 	if (le32toh(record.prog_idx) != 0 || path_len != strlen(path) ||
-	    !build_id_len || build_id_len > SHIRUDO_UPATCH_BUILD_ID_MAX ||
+	    !build_id_len || build_id_len > UPATCH_BUILD_ID_MAX ||
 	    nr_offsets != expected_offsets)
 		return fail("uprobe target record mismatch");
 	if ((size_t)(end - cursor) != (size_t)path_len + build_id_len +

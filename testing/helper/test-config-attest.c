@@ -81,7 +81,7 @@ static const struct shirudo_config_update_ops ops = {
 static int render(const char *directory, const char *nonce)
 {
 	struct shirudo_config_update update = { .dir_fd = -1, .lock_fd = -1 };
-	__u8 bytes[SHIRUDO_ATTEST_NONCE_MAX];
+	__u8 bytes[ATTEST_NONCE_MAX];
 	char *document = NULL;
 	size_t length = 0, capacity = 0, nonce_length;
 	int rc;
@@ -93,7 +93,7 @@ static int render(const char *directory, const char *nonce)
 	rc = shirudo_config_update_open(directory, &ops, NULL, &update);
 	if (!rc)
 		rc = shirudo_attest_evidence_config(bytes, nonce_length,
-						    SHIRUDO_CHAIN_PCR_MASK,
+						    CHAIN_PCR_MASK,
 						    NULL, &update, &document,
 						    &length, &capacity);
 	if (!rc)
@@ -113,7 +113,7 @@ static int read_document(const char *path, char **out, size_t *length)
 	if (fd < 0)
 		return -errno;
 	if (fstat(fd, &st) || st.st_size <= 0 ||
-	    st.st_size > SHIRUDO_JSON_MAX_BYTES) {
+	    st.st_size > JSON_MAX_BYTES) {
 		close(fd);
 		return -EINVAL;
 	}

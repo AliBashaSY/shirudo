@@ -118,9 +118,9 @@ int chain_init_event(const __u8 cert_sha[32],
 int chain_upatch_event(const char *tag, const char *name,
 		       const __u8 payload[32], __u8 event[32])
 {
-	__u8 buf[sizeof("shirudo-unload") + 32 + SHIRUDO_UPATCH_NAME_MAX];
+	__u8 buf[sizeof("shirudo-unload") + 32 + UPATCH_NAME_MAX];
 	size_t taglen = strlen(tag) + 1, off = 0;
-	size_t namelen = strnlen(name, SHIRUDO_UPATCH_NAME_MAX);
+	size_t namelen = strnlen(name, UPATCH_NAME_MAX);
 
 	memcpy(buf + off, tag, taglen);		/* tag + its NUL */
 	off += taglen;
@@ -166,14 +166,14 @@ void chain_fold(__u8 chain[32], const __u8 event[32])
 		memset(chain, 0, 32);
 }
 
-int chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+int chain_anchor(const __u8 name[TPM_NAME_LEN],
 		 char *out, size_t cap)
 {
-	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
+	char hex[2 * TPM_NAME_LEN + 1];
 
-	hex_encode(name, SHIRUDO_TPM_NAME_LEN, hex);
+	hex_encode(name, TPM_NAME_LEN, hex);
 	return strsprintf(out, cap, "nvpcr-init:%s:0x%x:%s",
-			  SHIRUDO_CHAIN_NAME, SHIRUDO_NV_INDEX, hex) < 0 ?
+			  CHAIN_NAME, NV_INDEX, hex) < 0 ?
 	       -E2BIG : 0;
 }
 
@@ -194,36 +194,36 @@ static void bind_values(const __u8 pcr_before[32],
  */
 static int register_expectation(const __u8 pcr_before[32],
 				const __u8 phase_before[32],
-				const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
+				const __u8 writer_public[TPM_NV_RSA_BYTES],
 				__u8 branch_written[32],
 				__u8 branch_init[32],
 				__u8 policy[32],
-				__u8 name_unwritten[SHIRUDO_TPM_NAME_LEN],
-				__u8 name_written[SHIRUDO_TPM_NAME_LEN])
+				__u8 name_unwritten[TPM_NAME_LEN],
+				__u8 name_written[TPM_NAME_LEN])
 {
 	__u8 values[64];
 	int rc;
 
 	bind_values(pcr_before, phase_before, values);
-	rc = tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2, writer_public,
+	rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2, writer_public,
 				 branch_written, branch_init, policy);
 	if (rc) {
 		pr_err("tpm: compute signed register policy: %s", strerror(-rc));
 		return rc;
 	}
-	tpm_nv_name(SHIRUDO_NV_INDEX, SHIRUDO_TPM_REGISTER_ATTRS,
-		    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_unwritten);
-	tpm_nv_name(SHIRUDO_NV_INDEX,
-		    SHIRUDO_TPM_REGISTER_ATTRS | SHIRUDO_TPM_NV_WRITTEN,
-		    policy, SHIRUDO_TPM_NV_DIGEST_LEN, name_written);
+	tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS,
+		    policy, TPM_NV_DIGEST_LEN, name_unwritten);
+	tpm_nv_name(NV_INDEX,
+		    TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+		    policy, TPM_NV_DIGEST_LEN, name_written);
 	return 0;
 }
 
 static bool name_equals(const struct tpm_nv_info *info,
-			const __u8 name[SHIRUDO_TPM_NAME_LEN])
+			const __u8 name[TPM_NAME_LEN])
 {
-	return info->name_len == SHIRUDO_TPM_NAME_LEN &&
-	       ct_eq(info->name, name, SHIRUDO_TPM_NAME_LEN);
+	return info->name_len == TPM_NAME_LEN &&
+	       ct_eq(info->name, name, TPM_NAME_LEN);
 }
 
 static int register_define(struct shirudo_tpm *tpm, bool defined,
@@ -234,13 +234,13 @@ static int register_define(struct shirudo_tpm *tpm, bool defined,
 
 	config_load(&cfg);
 	if (defined) {
-		rc = tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
+		rc = tpm_nv_undefine(tpm, NV_INDEX,
 				     cfg.tpm_owner_auth,
 				     cfg.tpm_owner_auth_len);
 		if (rc)
 			goto out;
 	}
-	rc = tpm_nv_define(tpm, SHIRUDO_NV_INDEX, policy,
+	rc = tpm_nv_define(tpm, NV_INDEX, policy,
 			   cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
 out:
 	explicit_bzero(&cfg, sizeof(cfg));
@@ -248,7 +248,7 @@ out:
 }
 
 static int register_writer(struct shirudo_tpm *tpm,
-			   __u8 public[SHIRUDO_TPM_NV_RSA_BYTES])
+			   __u8 public[TPM_NV_RSA_BYTES])
 {
 	__u8 seed[32];
 	int rc;
@@ -276,15 +276,15 @@ int chain_tpm_bound(struct shirudo_tpm *tpm)
 		pr_err("tpm: frozen identity unreadable: %s", strerror(-rc));
 		return rc;
 	}
-	if (id.ak_name_len != SHIRUDO_TPM_NAME_LEN) {
+	if (id.ak_name_len != TPM_NAME_LEN) {
 		pr_err("tpm: no attestation key name on record");
 		return -EPROTO;
 	}
 	rc = tpm_ak_create(tpm, &ak);
 	if (rc)
 		return rc;
-	if (ak.name_len != SHIRUDO_TPM_NAME_LEN ||
-	    !ct_eq(ak.name, id.ak_name, SHIRUDO_TPM_NAME_LEN)) {
+	if (ak.name_len != TPM_NAME_LEN ||
+	    !ct_eq(ak.name, id.ak_name, TPM_NAME_LEN)) {
 		pr_err("tpm: not the TPM init bound (attestation key name "
 		       "differs)");
 		rc = -EACCES;
@@ -296,7 +296,7 @@ int chain_tpm_bound(struct shirudo_tpm *tpm)
 int chain_init(const __u8 event[32],
 	       struct shirudo_chain_init_info *info)
 {
-	__u8 unwritten[SHIRUDO_TPM_NAME_LEN], written[SHIRUDO_TPM_NAME_LEN];
+	__u8 unwritten[TPM_NAME_LEN], written[TPM_NAME_LEN];
 	__u8 branch_written[32], branch_init[32], policy[32];
 	struct shirudo_eventlog_init rec;
 	struct tpm_nv_info nv;
@@ -314,7 +314,7 @@ int chain_init(const __u8 event[32],
 	rc = tpm_reset_count(tpm, &info->reset_count);
 	if (rc)
 		goto out;
-	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 	if (rc)
 		goto out;
 
@@ -333,7 +333,7 @@ int chain_init(const __u8 event[32],
 	if (rc && rc != -ENOENT) {
 		pr_err("tpm: eventlog %s unreadable: %s; not binding register "
 		       "0x%08x", eventlog_path(), strerror(-rc),
-		       SHIRUDO_NV_INDEX);
+		       NV_INDEX);
 		goto out;
 	}
 	recorded = !rc && (!rec.have_reset_count ||
@@ -360,7 +360,7 @@ int chain_init(const __u8 event[32],
 			goto out;
 		}
 		if (nv.defined && nv.written && name_equals(&nv, rec.name)) {
-			rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX,
+			rc = tpm_nv_read(tpm, NV_INDEX,
 					 info->value);
 			if (rc)
 				goto out;
@@ -379,18 +379,18 @@ int chain_init(const __u8 event[32],
 		}
 		pr_err("tpm: register 0x%08x bound this boot is %s; not "
 		       "binding another before the next TPM reset",
-		       SHIRUDO_NV_INDEX, !nv.defined ? "gone" :
+		       NV_INDEX, !nv.defined ? "gone" :
 		       !nv.written ? "unwritten" : "not the recorded index");
 		rc = -EEXIST;
 		goto out;
 	}
 	if (nv.defined && nv.written)
 		pr_warn("tpm: register 0x%08x written this boot without a "
-			"record; rebinding it", SHIRUDO_NV_INDEX);
+			"record; rebinding it", NV_INDEX);
 
-	rc = tpm_pcr_read(tpm, SHIRUDO_CHAIN_PCR, info->pcr_before);
+	rc = tpm_pcr_read(tpm, CHAIN_PCR, info->pcr_before);
 	if (!rc)
-		rc = tpm_pcr_read(tpm, SHIRUDO_CHAIN_PHASE_PCR,
+		rc = tpm_pcr_read(tpm, CHAIN_PHASE_PCR,
 				  info->phase_before);
 	if (rc)
 		goto out;
@@ -410,19 +410,19 @@ int chain_init(const __u8 event[32],
 		rc = register_define(tpm, nv.defined, policy);
 		if (rc)
 			goto out;
-		rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+		rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 		if (rc)
 			goto out;
 		if (!nv.defined || !name_equals(&nv, unwritten)) {
 			pr_err("tpm: register 0x%08x name does not match the "
-			       "computed public area", SHIRUDO_NV_INDEX);
+			       "computed public area", NV_INDEX);
 			rc = -EPROTO;
 			goto out;
 		}
 	}
 
-	rc = tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
-				 SHIRUDO_CHAIN_PCR_MASK, branch_written,
+	rc = tpm_nv_extend_first(tpm, NV_INDEX,
+				 CHAIN_PCR_MASK, branch_written,
 				 branch_init, event);
 	if (rc)
 		goto out;
@@ -432,15 +432,15 @@ int chain_init(const __u8 event[32],
 			    info->anchor_digest);
 	if (rc)
 		goto out;
-	rc = tpm_pcr_extend(tpm, SHIRUDO_CHAIN_PCR,
+	rc = tpm_pcr_extend(tpm, CHAIN_PCR,
 			    info->anchor_digest);
 	if (rc) {
 		pr_err("tpm: register written but PCR %u not anchored; "
 		       "the init branch stays open until reboot",
-		       SHIRUDO_CHAIN_PCR);
+		       CHAIN_PCR);
 		goto out;
 	}
-	rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, info->value);
+	rc = tpm_nv_read(tpm, NV_INDEX, info->value);
 out:
 	tpm_close(tpm);
 	return rc;
@@ -448,7 +448,7 @@ out:
 
 int chain_extend(const __u8 event[32], __u8 out_chain[32])
 {
-	__u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 writer_public[TPM_NV_RSA_BYTES];
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
 	struct shirudo_eventlog_init rec;
 	struct tpm_nv_info nv;
@@ -460,7 +460,7 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	if (rc)
 		return -ENODEV;		/* no register this boot */
 	bind_values(rec.pcr_before, rec.phase_before, values);
-	rc = tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2, rec.writer_public,
+	rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2, rec.writer_public,
 				 branch_written, branch_init, policy);
 	if (rc) {
 		pr_err("tpm: compute signed register policy: %s", strerror(-rc));
@@ -473,7 +473,7 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	rc = chain_tpm_bound(tpm);
 	if (rc)
 		goto out;
-	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	if (!nv.defined || !nv.written) {
@@ -482,7 +482,7 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	}
 	if (!name_equals(&nv, rec.name)) {
 		pr_err("tpm: register 0x%08x is not the index init recorded "
-		       "(recreated?)", SHIRUDO_NV_INDEX);
+		       "(recreated?)", NV_INDEX);
 		rc = -EACCES;
 		goto out;
 	}
@@ -507,14 +507,14 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-	rc = tpm_nv_extend(tpm, SHIRUDO_NV_INDEX, branch_written,
+	rc = tpm_nv_extend(tpm, NV_INDEX, branch_written,
 			   branch_init, event);
 	if (rc) {
 		rc = -EIO;
 		goto out;
 	}
 	if (out_chain)
-		rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out_chain) ?
+		rc = tpm_nv_read(tpm, NV_INDEX, out_chain) ?
 		     -EIO : 0;
 out:
 	tpm_close(tpm);
@@ -529,7 +529,7 @@ int chain_read(__u8 out[32])
 	rc = tpm_open(&tpm);
 	if (rc)
 		return -ENODEV;
-	rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, out);
+	rc = tpm_nv_read(tpm, NV_INDEX, out);
 	tpm_close(tpm);
 	return rc ? -ENODEV : 0;
 }
@@ -542,7 +542,7 @@ bool chain_bound(void)
 
 	if (tpm_open_quiet(&tpm))
 		return false;
-	bound = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv) == 0 &&
+	bound = tpm_nv_info(tpm, NV_INDEX, &nv) == 0 &&
 		nv.defined && nv.written;
 	tpm_close(tpm);
 	return bound;
@@ -551,7 +551,7 @@ bool chain_bound(void)
 int chain_status(struct chain_status *st)
 {
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
-	__u8 expected[SHIRUDO_TPM_NAME_LEN];
+	__u8 expected[TPM_NAME_LEN];
 	struct shirudo_tpm *tpm = NULL;
 	struct tpm_nv_info nv;
 	__u32 reset_count = 0;
@@ -567,7 +567,7 @@ int chain_status(struct chain_status *st)
 	rc = tpm_reset_count(tpm, &reset_count);
 	if (rc)
 		goto out;
-	rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 	if (rc)
 		goto out;
 	st->defined = nv.defined;
@@ -575,14 +575,14 @@ int chain_status(struct chain_status *st)
 	memcpy(st->name, nv.name, nv.name_len);
 	st->name_len = nv.name_len;
 	if (nv.defined && nv.written)
-		rc = tpm_nv_read(tpm, SHIRUDO_NV_INDEX, st->value);
+		rc = tpm_nv_read(tpm, NV_INDEX, st->value);
 	st->anchored = nv.defined && nv.written && st->logged &&
 		       name_equals(&nv, st->init.name) &&
 		       (!st->init.have_reset_count ||
 			st->init.reset_count == reset_count);
 	if (st->anchored) {
 		bind_values(st->init.pcr_before, st->init.phase_before, values);
-		rc = tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
+		rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
 					 st->init.writer_public, branch_written,
 					 branch_init, policy);
 		if (rc) {
@@ -590,9 +590,9 @@ int chain_status(struct chain_status *st)
 			st->anchored = false;
 			goto out;
 		}
-		tpm_nv_name(SHIRUDO_NV_INDEX,
-			    SHIRUDO_TPM_REGISTER_ATTRS |
-			    SHIRUDO_TPM_NV_WRITTEN, policy, 32, expected);
+		tpm_nv_name(NV_INDEX,
+			    TPM_REGISTER_ATTRS |
+			    TPM_NV_WRITTEN, policy, 32, expected);
 		st->anchored = name_equals(&nv, expected);
 	}
 out:

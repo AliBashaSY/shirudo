@@ -97,8 +97,8 @@ static void config_defaults(struct shirudo_config *cfg)
 	cfg->map_export_valid = true;
 	cfg->tls_classical_hosts_valid = true;
 	cfg->map_export_otel_retries = 3;
-	cfg->map_export_log_record_max_bytes = SHIRUDO_MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
-	cfg->map_export_otlp_max_bytes = SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
+	cfg->map_export_log_record_max_bytes = MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
+	cfg->map_export_otlp_max_bytes = MAP_EXPORT_OTLP_MAX_DEFAULT;
 }
 
 /*
@@ -151,7 +151,7 @@ static void set_owner_auth(struct shirudo_config *cfg, const char *val)
 static int config_parse(struct shirudo_config *cfg, FILE *f,
 			const char *path)
 {
-	const size_t max = SHIRUDO_MAP_EXPORT_PATH_MAX + 127;
+	const size_t max = MAP_EXPORT_PATH_MAX + 127;
 	size_t capacity = 0;
 	char *line = NULL;
 	int got, rc = 0;
@@ -250,7 +250,7 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 			   strcmp(key, "map_export.otlp_max_bytes") == 0) {
 			__u64 v;
 
-			if (parse_u64(val, strlen(val), SHIRUDO_JSON_MAX_BYTES,
+			if (parse_u64(val, strlen(val), JSON_MAX_BYTES,
 				      &v) || v == 0)
 				map_export_bad(cfg, key, val, "expected 1..8388608 bytes");
 			else if (strcmp(key, "map_export.log_record_max_bytes") == 0)
@@ -354,7 +354,7 @@ int config_load(struct shirudo_config *cfg)
 
 	if (shirudo_image_config_get(cfg))
 		return 0;
-	rc = config_load_path(cfg, SHIRUDO_CONF_PATH);
+	rc = config_load_path(cfg, CONF_PATH);
 	if (rc && rc != -ENOENT)
 		return rc;
 

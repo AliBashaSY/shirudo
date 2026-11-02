@@ -36,7 +36,7 @@
 #include "util/crypto.h"
 #include "util/eventlog.h"
 
-#define SHIRUDO_KERNEL_LOG_MAX 100
+#define KERNEL_LOG_MAX 100
 #include "util/help.h"
 #include "util/io.h"
 #include "util/json.h"
@@ -138,8 +138,8 @@ static bool bpffs_is_mounted(void)
 	while (fgets(line, sizeof(line), f)) {
 		char *mp = strchr(line, ' ');	/* field 2 = mountpoint */
 
-		if (mp && strncmp(mp + 1, SHIRUDO_BPFFS_DIR " ",
-				  strlen(SHIRUDO_BPFFS_DIR) + 1) == 0) {
+		if (mp && strncmp(mp + 1, BPFFS_DIR " ",
+				  strlen(BPFFS_DIR) + 1) == 0) {
 			found = true;
 			break;
 		}
@@ -154,13 +154,13 @@ static void gather_assets(struct asset_view *a)
 
 	*a = (struct asset_view){};
 	a->cert = access(shirudo_cert_path(), F_OK) == 0;
-	a->signing_key = access(SHIRUDO_SIGNING_KEY_PATH, F_OK) == 0;
+	a->signing_key = access(SIGNING_KEY_PATH, F_OK) == 0;
 	if (stat(eventlog_path(), &st) == 0) {
 		a->eventlog = true;
 		a->eventlog_bytes = (long)st.st_size;
 	}
-	a->n_upatches = count_dir(SHIRUDO_UPATCHES_DIR, true);
-	a->n_incoming = count_dir(SHIRUDO_INCOMING_DIR, false);
+	a->n_upatches = count_dir(UPATCHES_DIR, true);
+	a->n_incoming = count_dir(INCOMING_DIR, false);
 	a->bpffs_mounted = bpffs_is_mounted();
 }
 
@@ -173,7 +173,7 @@ struct ev_proj {
 	char type[24];
 	char digest[65];
 	char set_digest[65];
-	char up_name[SHIRUDO_UPATCH_NAME_MAX + 1];
+	char up_name[UPATCH_NAME_MAX + 1];
 	char up_payload[65];
 };
 
@@ -207,7 +207,7 @@ static void emit_eventlog_events(struct shirudo_json_emit *e)
 	size_t len;
 
 	json_arr_open(e, "events");
-	if (read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+	if (read_file(eventlog_path(), JSON_MAX_BYTES,
 		      &buf, &len) != 0) {
 		json_arr_close(e);
 		return;
@@ -257,7 +257,7 @@ static void print_eventlog_table(void)
 	char *save, *line, *buf;
 	size_t len;
 
-	if (read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+	if (read_file(eventlog_path(), JSON_MAX_BYTES,
 		      &buf, &len) != 0)
 		return;
 	printf("\nEventlog (audit trail):\n");
@@ -405,7 +405,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 	for (i = 0; i < n_ups; i++) {
 		struct shirudo_upatch_table_row *r = &rows[i];
 		struct shirudo_map_summary *list = NULL;
-		char raw_name[SHIRUDO_UPATCH_NAME_MAX + 1];
+		char raw_name[UPATCH_NAME_MAX + 1];
 		size_t nm = 0;
 		const char *name = ups[i]->d_name;
 
@@ -525,7 +525,7 @@ struct status_keyring {
 	struct status_link	*state;
 	size_t			n_links;
 	int			links_rc;
-	struct status_cert	certs[SHIRUDO_KEYS_MAX];
+	struct status_cert	certs[KEYS_MAX];
 	size_t			n_certs;
 	int			certs_rc;
 	size_t			n_unfrozen;
@@ -613,8 +613,8 @@ static void keyring_view_bpf(struct status_keyring *k,
 	size_t i, n_frozen = 0;
 
 	if (k->pinned >= 1)
-		n_frozen = ident->n_keys < SHIRUDO_IDENTITY_KEYS_MAX ?
-			   ident->n_keys : SHIRUDO_IDENTITY_KEYS_MAX;
+		n_frozen = ident->n_keys < IDENTITY_KEYS_MAX ?
+			   ident->n_keys : IDENTITY_KEYS_MAX;
 	keyring_view_links(k, ident->key_serials, n_frozen);
 	k->certs_rc = certs_rc;
 	for (i = 0; certs_rc == 0 && i < certs->n; i++) {
@@ -650,7 +650,7 @@ static void keyring_view_dm_verity(struct status_keyring *k,
 			if (k->links[i].serial == ident->dm_verity_key)
 				k->key_missing = false;
 	}
-	k->certs_rc = shirudo_image_bootstrap_read(SHIRUDO_RUNTIME_CONF_PATH,
+	k->certs_rc = shirudo_image_bootstrap_read(RUNTIME_CONF_PATH,
 						   &boot, false);
 	if (!k->certs_rc && !boot.certificate[0])
 		k->certs_rc = -ENOENT;
@@ -879,12 +879,12 @@ int cmd_status(int argc, const char **argv)
 	struct shirudo_conditions_input cin;
 	int tamper_rc = -ENOENT;
 	struct dirent **ups = NULL;
-	char pcr_before_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
-	char phase_before_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
-	char chain_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
-	char name_hex[2 * SHIRUDO_TPM_NAME_LEN + 1] = "";
+	char pcr_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
+	char phase_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
+	char chain_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
+	char name_hex[2 * TPM_NAME_LEN + 1] = "";
 	struct chain_status cst = {};
-	char tcti[SHIRUDO_TPM_TCTI_MAX];
+	char tcti[TPM_TCTI_MAX];
 	char nv_index[16];
 	char *json_buf = NULL;
 	size_t json_cap = 0;
@@ -913,11 +913,11 @@ int cmd_status(int argc, const char **argv)
 			const char *n = argv[i] + 20;
 			__u64 v;
 
-			if (parse_u64(n, strlen(n), SHIRUDO_KERNEL_LOG_MAX, &v) ||
+			if (parse_u64(n, strlen(n), KERNEL_LOG_MAX, &v) ||
 			    v < 1) {
 				fprintf(stderr, "status: --include-kernellog=N "
 					"must be 1..%d\n",
-					SHIRUDO_KERNEL_LOG_MAX);
+					KERNEL_LOG_MAX);
 				return 2;
 			}
 			include_kernel_log = true;
@@ -972,7 +972,7 @@ int cmd_status(int argc, const char **argv)
 	if (include_system)
 		sysinfo_gather(&sysi);
 
-	fd = bpf_obj_get(SHIRUDO_LSM_LINK_PIN);
+	fd = bpf_obj_get(LSM_LINK_PIN);
 	lsm_attached = fd >= 0;
 	if (fd >= 0)
 		close(fd);
@@ -991,7 +991,7 @@ int cmd_status(int argc, const char **argv)
 	 * and how many keys the bpf keyring holds right now: the two part
 	 * when a certificate was added or revoked since the boot.
 	 */
-	certs_rc = keys_load(SHIRUDO_KEYS_DIR, NULL,
+	certs_rc = keys_load(KEYS_DIR, NULL,
 			     !strcmp(keyring_mode, "bpf"), &certs);
 	bpf.serial = keyring_serial;
 	bpf.pinned = keyring_pinned;
@@ -1003,11 +1003,11 @@ int cmd_status(int argc, const char **argv)
 		     -ENOKEY;
 	keyring_view_dm_verity(&dmv, &ident);
 	mode = lsm_attached ? "production" : "inactive";
-	is_operator = access(SHIRUDO_SIGNING_KEY_PATH, F_OK) == 0;
+	is_operator = access(SIGNING_KEY_PATH, F_OK) == 0;
 	cert_present = access(shirudo_cert_path(), F_OK) == 0;
 	is_target = cert_present || lsm_attached || keyring_present;
 
-	n_ups = scandir(SHIRUDO_BPFFS_UPATCHES_DIR, &ups, notdot, alphasort);
+	n_ups = scandir(BPFFS_UPATCHES_DIR, &ups, notdot, alphasort);
 	if (n_ups < 0)
 		n_ups = 0;
 
@@ -1019,7 +1019,7 @@ int cmd_status(int argc, const char **argv)
 
 	{
 		if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-			       SHIRUDO_NV_INDEX) < 0)
+			       NV_INDEX) < 0)
 			strscpy(nv_index, "?", sizeof(nv_index));
 		if (tpm_tcti(tcti, sizeof(tcti)))
 			strscpy(tcti, "?", sizeof(tcti));
@@ -1048,7 +1048,7 @@ int cmd_status(int argc, const char **argv)
 		 * no init record while a register exists) is a mismatch.
 		 */
 		if (chain_rc == 0) {
-			__u8 replay[SHIRUDO_CHAIN_DIGEST_LEN];
+			__u8 replay[CHAIN_DIGEST_LEN];
 
 			match = cst.anchored && !cst.rebound &&
 				eventlog_replay(replay) == 0 &&
@@ -1078,7 +1078,7 @@ int cmd_status(int argc, const char **argv)
 		 * Every loaded upatch adds a row, every certificate and link
 		 * of the keyrings an entry, whose strings JSON escaping can
 		 * grow sixfold, and the events[] dump re-emits the log. The
-		 * clamp below keeps it under SHIRUDO_JSON_MAX_BYTES.
+		 * clamp below keeps it under JSON_MAX_BYTES.
 		 */
 		json_cap = 16384 + (size_t)n_ups *
 			   (6 * sizeof(struct shirudo_upatch_table_row) + 256);
@@ -1093,8 +1093,8 @@ int cmd_status(int argc, const char **argv)
 			json_cap += 64 * 1024;
 		if (include_system)
 			json_cap += 1024 * 1024;
-		if (json_cap > SHIRUDO_JSON_MAX_BYTES)
-			json_cap = SHIRUDO_JSON_MAX_BYTES;
+		if (json_cap > JSON_MAX_BYTES)
+			json_cap = JSON_MAX_BYTES;
 		json_buf = xmalloc(json_cap);
 		if (!json_buf) {
 			fprintf(stderr, "status: out of memory\n");
@@ -1109,7 +1109,7 @@ int cmd_status(int argc, const char **argv)
 		json_kv_bool(&e, "is_target", is_target);
 		json_kv_bool(&e, "is_operator", is_operator);
 		{
-			struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
+			struct shirudo_condition conds[CONDITIONS_MAX];
 			size_t nc, ci;
 
 			otel_status = status_verdict(&cin);
@@ -1185,7 +1185,7 @@ int cmd_status(int argc, const char **argv)
 			xfree(rows, n_rows * sizeof(*rows));
 		}
 		json_obj_open_key(&e, "assets");
-		json_kv_string(&e, "root", SHIRUDO_VAR_LIB);
+		json_kv_string(&e, "root", VAR_LIB);
 		json_kv_bool(&e, "cert", assets.cert);
 		json_kv_bool(&e, "signing_key", assets.signing_key);
 		json_kv_bool(&e, "eventlog", assets.eventlog);
@@ -1254,9 +1254,9 @@ int cmd_status(int argc, const char **argv)
 				    0);
 			json_kv_bool(&e, "register_rebound",
 				     cst.rebound);
-			json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+			json_kv_int(&e, "pcr", CHAIN_PCR);
 			json_kv_int(&e, "phase_pcr",
-				    SHIRUDO_CHAIN_PHASE_PCR);
+				    CHAIN_PHASE_PCR);
 			if (cst.logged) {
 				json_kv_string(&e, "pcr_before",
 					       pcr_before_hex);
@@ -1404,7 +1404,7 @@ int cmd_status(int argc, const char **argv)
 				printf("%s\n", json_buf);
 		}
 	} else {
-		struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
+		struct shirudo_condition conds[CONDITIONS_MAX];
 		struct shirudo_upatch_table_row *rows = NULL;
 		size_t n_rows = 0;
 		size_t nc;
@@ -1494,7 +1494,7 @@ int cmd_status(int argc, const char **argv)
 			printf("  %-18s %s (%s)\n", "TPM:",
 			       cst.tpm ? "reachable" : "NOT reachable", tcti);
 			printf("  %-18s %s (anchored in PCR %u)\n", "NV index:",
-			       nv_index, SHIRUDO_CHAIN_PCR);
+			       nv_index, CHAIN_PCR);
 			if (chain_rc == 0) {
 				printf("  %-18s %s\n", "Chain:", chain_hex);
 				printf("  %-18s %s\n", "Register name:",
@@ -1517,7 +1517,7 @@ int cmd_status(int argc, const char **argv)
 				printf("  %-18s %s\n", "PCR before init:",
 				       pcr_before_hex);
 				printf("  %-18s %s (PCR %u)\n", "Phase at init:",
-				       phase_before_hex, SHIRUDO_CHAIN_PHASE_PCR);
+				       phase_before_hex, CHAIN_PHASE_PCR);
 				printf("  %-18s %s\n", "Bound in:",
 				       cst.init.initrd ? "initrd" :
 				       "root file system");
@@ -1541,7 +1541,7 @@ int cmd_status(int argc, const char **argv)
 		if (include_eventlog)
 			print_eventlog_table();
 
-		printf("\nAssets (%s):\n", SHIRUDO_VAR_LIB);
+		printf("\nAssets (%s):\n", VAR_LIB);
 		printf("  %-22s %s\n", "keys/cert.der",
 		       assets.cert ? "present" : "absent");
 		printf("  %-22s %s\n", "keys/signing_key.pem",

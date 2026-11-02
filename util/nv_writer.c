@@ -10,16 +10,16 @@
 #include "nv_writer.h"
 #include "tpm.h"
 
-int nv_writer_create(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		     __u8 public[SHIRUDO_TPM_NV_RSA_BYTES])
+int nv_writer_create(__u8 seed[TPM_DIGEST_LEN],
+		     __u8 public[TPM_NV_RSA_BYTES])
 {
 	struct shirudo_tpm *t = NULL;
 	size_t off = 0;
 	ssize_t got;
 	int err;
 
-	while (off < SHIRUDO_TPM_DIGEST_LEN) {
-		got = getrandom(seed + off, SHIRUDO_TPM_DIGEST_LEN - off, 0);
+	while (off < TPM_DIGEST_LEN) {
+		got = getrandom(seed + off, TPM_DIGEST_LEN - off, 0);
 		if (got < 0 && errno == EINTR)
 			continue;
 		if (got <= 0) {
@@ -36,13 +36,13 @@ int nv_writer_create(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
 		return 0;
 fail:
 	pr_err("nv writer: TPM key creation failed: %s", strerror(-err));
-	explicit_bzero(seed, SHIRUDO_TPM_DIGEST_LEN);
-	memset(public, 0, SHIRUDO_TPM_NV_RSA_BYTES);
+	explicit_bzero(seed, TPM_DIGEST_LEN);
+	memset(public, 0, TPM_NV_RSA_BYTES);
 	return err;
 }
 
-int nv_writer_read(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		   __u8 public[SHIRUDO_TPM_NV_RSA_BYTES])
+int nv_writer_read(__u8 seed[TPM_DIGEST_LEN],
+		   __u8 public[TPM_NV_RSA_BYTES])
 {
 	struct shirudo_identity id = {};
 	int err;
@@ -54,8 +54,8 @@ int nv_writer_read(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
 		err = -EKEYREJECTED;
 		goto fail;
 	}
-	memcpy(seed, id.nv_writer_seed, SHIRUDO_TPM_DIGEST_LEN);
-	memcpy(public, id.nv_writer_public, SHIRUDO_TPM_NV_RSA_BYTES);
+	memcpy(seed, id.nv_writer_seed, TPM_DIGEST_LEN);
+	memcpy(public, id.nv_writer_public, TPM_NV_RSA_BYTES);
 	return 0;
 fail:
 	pr_err("nv writer: public key lookup failed: %s", strerror(-err));

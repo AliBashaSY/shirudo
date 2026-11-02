@@ -12,10 +12,10 @@
 #include "macros.h"
 #include "similar.h"
 
-#define SHIRUDO_SUBCMD_MAX	32
+#define SUBCMD_MAX	32
 
 /* Wrap target for help-item summaries; covers a 100-col terminal with slack. */
-#define SHIRUDO_HELP_WIDTH	90
+#define HELP_WIDTH	90
 
 static void wrap_print(const char *text, size_t indent, size_t avail)
 {
@@ -107,8 +107,8 @@ void print_help(const struct shirudo_help *h)
 		fprintf(stderr, "\n%s\n", s->header);
 		for (j = 0; j < s->n_items; j++) {
 			size_t indent = 2 + w;
-			size_t avail = indent < SHIRUDO_HELP_WIDTH ?
-				       SHIRUDO_HELP_WIDTH - indent : 1;
+			size_t avail = indent < HELP_WIDTH ?
+				       HELP_WIDTH - indent : 1;
 
 			fprintf(stderr, "  %-*s", (int)w, s->items[j].name);
 			wrap_print(s->items[j].summary, indent, avail);
@@ -124,7 +124,7 @@ shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
 				size_t n_subcmds)
 {
 	struct shirudo_suggestion sugg[4];
-	const char *names[SHIRUDO_SUBCMD_MAX];
+	const char *names[SUBCMD_MAX];
 	size_t i, n_names = 0, n;
 	int max_dist, len;
 
@@ -140,7 +140,7 @@ shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
 	if (max_dist > 3)
 		max_dist = 3;
 
-	for (i = 0; i < n_subcmds && n_names < SHIRUDO_SUBCMD_MAX; i++)
+	for (i = 0; i < n_subcmds && n_names < SUBCMD_MAX; i++)
 		names[n_names++] = subcmds[i].name;
 	n = suggest(bad, names, n_names, max_dist, sugg,
 		    ARRAY_SIZE(sugg));
@@ -156,8 +156,8 @@ const char *resolve_subcommand(const char *cmd_label,
 			       const struct shirudo_help_item *subcmds,
 			       size_t n_subcmds)
 {
-	const char *names[SHIRUDO_SUBCMD_MAX];
-	size_t matches[SHIRUDO_SUBCMD_MAX];
+	const char *names[SUBCMD_MAX];
+	size_t matches[SUBCMD_MAX];
 	size_t i, n_names = 0, n;
 
 	if (!subcmds || !n_subcmds) {

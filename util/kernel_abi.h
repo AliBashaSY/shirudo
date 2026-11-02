@@ -12,7 +12,7 @@
 
 struct btf;
 
-#define SHIRUDO_KERNEL_ABI_DETAIL_MAX 256
+#define KERNEL_ABI_DETAIL_MAX 256
 
 /*
  * Validate an already-parsed vmlinux BTF object.  Exposed separately so the

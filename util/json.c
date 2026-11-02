@@ -113,7 +113,7 @@ static void enter(struct shirudo_json_emit *e)
 {
 	if (e->err)
 		return;
-	if (e->depth + 1 >= SHIRUDO_JSON_MAX_DEPTH) {
+	if (e->depth + 1 >= JSON_MAX_DEPTH) {
 		e->err = -E2BIG;
 		return;
 	}
@@ -316,7 +316,7 @@ static int emit_byte(char *dst, size_t cap, size_t *len, __u8 b)
 {
 	size_t n = *len;
 
-	if (n >= SHIRUDO_JSON_MAX_STRING_BYTES)
+	if (n >= JSON_MAX_STRING_BYTES)
 		return -E2BIG;
 	if (dst) {
 		if (n + 1 >= cap)	/* leave room for NUL */
@@ -461,7 +461,7 @@ static int parse_object(struct pctx *c)
 	char key[256];
 	int rc;
 
-	if (++c->depth > SHIRUDO_JSON_MAX_DEPTH)
+	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
 	c->p++;				/* consume '{' */
 	skip_ws(c);
@@ -512,7 +512,7 @@ static int parse_array(struct pctx *c)
 {
 	int rc;
 
-	if (++c->depth > SHIRUDO_JSON_MAX_DEPTH)
+	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
 	c->p++;				/* consume '[' */
 	skip_ws(c);
@@ -547,7 +547,7 @@ static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 	struct shirudo_json_array *sink = f->dst;
 	int rc;
 
-	if (++c->depth > SHIRUDO_JSON_MAX_DEPTH)
+	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
 	c->p++;				/* consume '[' */
 	skip_ws(c);
@@ -752,7 +752,7 @@ int json_parse(const char *data, size_t len,
 	size_t i;
 	int rc;
 
-	if (len > SHIRUDO_JSON_MAX_BYTES)
+	if (len > JSON_MAX_BYTES)
 		return -E2BIG;
 	for (i = 0; i < n_fields; i++)
 		fields[i].seen = 0;

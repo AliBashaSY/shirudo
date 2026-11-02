@@ -7,7 +7,7 @@
 #include <shirudo/tpm.h>
 
 /* Frozen ABI shared with struct shirudo_identity in util/identity.h. */
-#define SHIRUDO_IDENTITY_KEYS_MAX	16
+#define IDENTITY_KEYS_MAX	16
 
 struct shirudo_sb_id {
 	__u32	sb_dev;
@@ -15,11 +15,11 @@ struct shirudo_sb_id {
 	__s32	keyring_serial;
 	__u32	keyring_type;
 	__u32	n_keys;
-	__s32	key_serials[SHIRUDO_IDENTITY_KEYS_MAX];
+	__s32	key_serials[IDENTITY_KEYS_MAX];
 	__u8	runtime_root[32];
 	__u8	nv_writer_seed[32];
-	__u8	nv_writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
-	__u8	ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u8	nv_writer_public[TPM_NV_RSA_BYTES];
+	__u8	ak_name[TPM_NAME_LEN];
 	__u32	ak_name_len;
 	__s32	dm_verity_ring;
 	__s32	dm_verity_key;

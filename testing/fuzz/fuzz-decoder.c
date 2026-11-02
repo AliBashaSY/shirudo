@@ -101,10 +101,10 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	}
 	v.entries = entries;
 
-	if (!run_lua_decoder(d, &v, false, SHIRUDO_JSON_MAX_BYTES, &out,
+	if (!run_lua_decoder(d, &v, false, JSON_MAX_BYTES, &out,
 			     &out_len))
 		xfree(out, out_len + 1);
-	if (!run_lua_decoder(d, &v, true, SHIRUDO_JSON_MAX_BYTES, &out,
+	if (!run_lua_decoder(d, &v, true, JSON_MAX_BYTES, &out,
 			     &out_len))
 		xfree(out, out_len + 1);
 	xfree(page.data, size + 1);

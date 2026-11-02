@@ -150,7 +150,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 		while (*e && *e != ' ' && *e != '\t')
 			e++;
 		name_len = (size_t)(e - p);
-		if (name_len == 0 || name_len >= SHIRUDO_KMOD_NAME_LEN)
+		if (name_len == 0 || name_len >= KMOD_NAME_LEN)
 			continue;
 		if (set->n == mod_cap) {
 			void *np = xreallocarray(set->mods, mod_cap,
@@ -177,7 +177,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 	 * entry there is an edge from that user down to the module.
 	 */
 	for (line = buf; line < end; line += strlen(line) + 1) {
-		char name[SHIRUDO_KMOD_NAME_LEN];
+		char name[KMOD_NAME_LEN];
 		char *p = line, *e;
 		size_t name_len;
 		int dep, col;

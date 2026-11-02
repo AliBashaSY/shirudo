@@ -46,7 +46,7 @@ static __s64 env_s64(const char *name, __s64 def)
 
 int main(int argc, char **argv)
 {
-	struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
+	struct shirudo_condition conds[CONDITIONS_MAX];
 	struct shirudo_conditions_input in = {};
 	__s64 lsm, serial, pinned;
 	const char *mode, *config;

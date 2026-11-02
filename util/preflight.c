@@ -200,7 +200,7 @@ static void check_cert(struct shirudo_preflight_result *r)
  */
 static int preflight_keys(struct shirudo_trusted_set *set)
 {
-	return keys_load(shirudo_keys_dir(), SHIRUDO_KEYS_REVOKED_DIR,
+	return keys_load(shirudo_keys_dir(), KEYS_REVOKED_DIR,
 			 true, set);
 }
 

@@ -26,7 +26,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		.allow_runtime_events = true,
 	};
 	struct shirudo_attest_challenge challenge;
-	__u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN];
+	__u8 credential[TPM_CREDENTIAL_LEN];
 	size_t out_len, cap;
 	char report[4096];
 	char path[64];

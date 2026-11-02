@@ -17,7 +17,7 @@
 #include "config_image.h"
 #include "hex.h"
 
-#define VERITY_DIGESTS_PER_BLOCK (SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE / 32)
+#define VERITY_DIGESTS_PER_BLOCK (CONFIG_IMAGE_BLOCK_SIZE / 32)
 
 /* The standard veritysetup superblock occupies the first 512 bytes. */
 struct verity_superblock {
@@ -42,8 +42,8 @@ static int verity_hash_blocks(__u64 data_blocks, __u64 *out)
 {
 	__u64 total = 1;
 
-	if (!data_blocks || data_blocks > SHIRUDO_CONFIG_IMAGE_MAX_BYTES /
-					SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE)
+	if (!data_blocks || data_blocks > CONFIG_IMAGE_MAX_BYTES /
+					CONFIG_IMAGE_BLOCK_SIZE)
 		return -EFBIG;
 	while (data_blocks > 1) {
 		data_blocks = (data_blocks + VERITY_DIGESTS_PER_BLOCK - 1) /
@@ -96,10 +96,10 @@ static int validate_superblock(const struct verity_superblock *header)
 	    le32toh(header->hash_type_le) != 1 ||
 	    memcmp(header->algorithm, algorithm, sizeof(algorithm)) ||
 	    le32toh(header->data_block_size_le) !=
-		SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE ||
+		CONFIG_IMAGE_BLOCK_SIZE ||
 	    le32toh(header->hash_block_size_le) !=
-		SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE ||
-	    le16toh(header->salt_size_le) != SHIRUDO_CONFIG_IMAGE_SALT_SIZE)
+		CONFIG_IMAGE_BLOCK_SIZE ||
+	    le16toh(header->salt_size_le) != CONFIG_IMAGE_SALT_SIZE)
 		return -EINVAL;
 	return 0;
 }
@@ -145,8 +145,8 @@ int shirudo_config_image_check_files(int data_fd, int hash_fd,
 		rc = regular_file_size(hash_fd, &hash_size);
 	if (rc)
 		return rc;
-	if (data_size != image->data_blocks * SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE ||
-	    hash_size != image->hash_blocks * SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE)
+	if (data_size != image->data_blocks * CONFIG_IMAGE_BLOCK_SIZE ||
+	    hash_size != image->hash_blocks * CONFIG_IMAGE_BLOCK_SIZE)
 		return -EINVAL;
 	return 0;
 }
@@ -240,7 +240,7 @@ static int open_image(const char *prefix, const __u8 *expected_root,
 		image.signature_fd = open_part(prefix, ".p7s");
 		rc = image.signature_fd < 0 ? image.signature_fd :
 			regular_file_size(image.signature_fd, &size);
-		if (!rc && (!size || size > SHIRUDO_CONFIG_IMAGE_SIG_MAX))
+		if (!rc && (!size || size > CONFIG_IMAGE_SIG_MAX))
 			rc = -EINVAL;
 	}
 out:

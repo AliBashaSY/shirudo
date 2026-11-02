@@ -15,10 +15,10 @@
 
 #include "tpm_wire.h"
 
-#define SHIRUDO_TPM_NV_DIGEST_LEN	SHIRUDO_TPM_DIGEST_LEN
-#define SHIRUDO_TPM_PUBLIC_MAX		512
-#define SHIRUDO_TPM_ATTEST_MAX		1024
-#define SHIRUDO_TPM_SIGNATURE_MAX	160
+#define TPM_NV_DIGEST_LEN	TPM_DIGEST_LEN
+#define TPM_PUBLIC_MAX		512
+#define TPM_ATTEST_MAX		1024
+#define TPM_SIGNATURE_MAX	160
 
 struct shirudo_tpm;
 
@@ -28,16 +28,16 @@ int tpm_open_quiet(struct shirudo_tpm **out);
 void tpm_close(struct shirudo_tpm *t);
 
 int tpm_writer_create(struct shirudo_tpm *t,
-		      const __u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		      __u8 public[SHIRUDO_TPM_NV_RSA_BYTES]);
+		      const __u8 seed[TPM_DIGEST_LEN],
+		      __u8 public[TPM_NV_RSA_BYTES]);
 int tpm_nv_set_writer(struct shirudo_tpm *t,
-		      const __u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		      const __u8 public[SHIRUDO_TPM_NV_RSA_BYTES]);
+		      const __u8 seed[TPM_DIGEST_LEN],
+		      const __u8 public[TPM_NV_RSA_BYTES]);
 
 int tpm_pcr_read(struct shirudo_tpm *t, __u32 pcr,
-		 __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+		 __u8 out[TPM_DIGEST_LEN]);
 int tpm_pcr_extend(struct shirudo_tpm *t, __u32 pcr,
-		   const __u8 digest[SHIRUDO_TPM_DIGEST_LEN]);
+		   const __u8 digest[TPM_DIGEST_LEN]);
 
 /*
  * The TPM's reset count, a new value at every TPM reset: the identity
@@ -52,8 +52,8 @@ struct tpm_nv_info {
 	bool		written;
 	__u32		attrs;
 	__u16		data_size;
-	__u8		policy[SHIRUDO_TPM_DIGEST_LEN];
-	__u8		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		policy[TPM_DIGEST_LEN];
+	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
 };
 
@@ -72,13 +72,13 @@ struct tpm_nv_info {
 int tpm_nv_info(struct shirudo_tpm *t, __u32 index,
 		struct tpm_nv_info *info);
 int tpm_nv_define(struct shirudo_tpm *t, __u32 index,
-		  const __u8 policy[SHIRUDO_TPM_DIGEST_LEN],
+		  const __u8 policy[TPM_DIGEST_LEN],
 		  const void *owner_auth, size_t owner_auth_len);
 int tpm_nv_undefine(struct shirudo_tpm *t, __u32 index,
 		    const void *owner_auth, size_t owner_auth_len);
 /* -ENOENT: not defined; -ENODATA: defined but not written this boot. */
 int tpm_nv_read(struct shirudo_tpm *t, __u32 index,
-		__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+		__u8 out[TPM_DIGEST_LEN]);
 int tpm_nv_extend_first(struct shirudo_tpm *t, __u32 index,
 			__u32 pcr_mask,
 			const __u8 branch_written[32],
@@ -96,16 +96,16 @@ int tpm_nv_extend(struct shirudo_tpm *t, __u32 index,
  */
 struct shirudo_tpm_key {
 	__u32		handle;
-	__u8		public[SHIRUDO_TPM_PUBLIC_MAX];
+	__u8		public[TPM_PUBLIC_MAX];
 	size_t		public_len;
-	__u8		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
 };
 
 struct shirudo_tpm_attestation {
-	__u8		attest[SHIRUDO_TPM_ATTEST_MAX];
+	__u8		attest[TPM_ATTEST_MAX];
 	size_t		attest_len;
-	__u8		signature[SHIRUDO_TPM_SIGNATURE_MAX];
+	__u8		signature[TPM_SIGNATURE_MAX];
 	size_t		signature_len;
 };
 

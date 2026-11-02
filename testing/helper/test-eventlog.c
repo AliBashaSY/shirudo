@@ -26,18 +26,18 @@
 static int append_init(const char *path, const char *bound_in,
 		       __u32 reset_count)
 {
-	char writer_hex[2 * SHIRUDO_TPM_NV_RSA_BYTES + 1];
-	__u8 modulus[SHIRUDO_TPM_NV_RSA_BYTES] = { [0] = 0x80, [383] = 1 };
+	char writer_hex[2 * TPM_NV_RSA_BYTES + 1];
+	__u8 modulus[TPM_NV_RSA_BYTES] = { [0] = 0x80, [383] = 1 };
 	char buf[4096], ts[32], boot_id[64], nv_index[16], hex[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	char name_hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
-	__u8 zero[SHIRUDO_TPM_NAME_LEN] = {};
+	char name_hex[2 * TPM_NAME_LEN + 1];
+	__u8 zero[TPM_NAME_LEN] = {};
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	snprintf(nv_index, sizeof(nv_index), "0x%08X", NV_INDEX);
 	hex_encode(zero, 32, hex);
-	hex_encode(zero, SHIRUDO_TPM_NAME_LEN, name_hex);
+	hex_encode(zero, TPM_NAME_LEN, name_hex);
 	hex_encode(modulus, sizeof(modulus), writer_hex);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
@@ -48,9 +48,9 @@ static int append_init(const char *path, const char *bound_in,
 	json_kv_string(&e, "type", "init");
 	json_kv_string(&e, "boot_id", boot_id);
 	json_kv_int(&e, "tpm_reset_count", reset_count);
-	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_kv_int(&e, "pcr", CHAIN_PCR);
 	json_kv_string(&e, "pcr_before", hex);
-	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	json_kv_int(&e, "phase_pcr", CHAIN_PHASE_PCR);
 	json_kv_string(&e, "phase_before", hex);
 	json_kv_string(&e, "bound_in", bound_in);
 	json_kv_string(&e, "nv_name", name_hex);

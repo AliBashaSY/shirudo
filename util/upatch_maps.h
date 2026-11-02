@@ -18,10 +18,10 @@
 #include "upatch_resolve.h"
 
 /* Default truncation cap; --show-full lifts it. */
-#define SHIRUDO_MAP_ENTRIES_DEFAULT	256
+#define MAP_ENTRIES_DEFAULT	256
 
-#define SHIRUDO_MAP_NAME_MAX		16	/* BPF_OBJ_NAME_LEN */
-#define SHIRUDO_MAP_TYPENAME_MAX	64
+#define MAP_NAME_MAX		16	/* BPF_OBJ_NAME_LEN */
+#define MAP_TYPENAME_MAX	64
 
 struct shirudo_json_emit;
 
@@ -31,12 +31,12 @@ struct shirudo_map_entry {
 };
 
 /*
- * SHIRUDO_MAP_TYPEDEF_MAX bounds the multi-line struct/array
+ * MAP_TYPEDEF_MAX bounds the multi-line struct/array
  * "definition" string captured at read time (struct foo { __u32 a; ... }).
  * Big enough for the common shirudo case (~10 fields); structs larger
  * than this are truncated with "; ..." and the renderer still works.
  */
-#define SHIRUDO_MAP_TYPEDEF_MAX		1024
+#define MAP_TYPEDEF_MAX		1024
 
 struct btf;
 
@@ -52,9 +52,9 @@ struct shirudo_serial_page {
 };
 
 struct shirudo_map_view {
-	char		upatch[SHIRUDO_UPATCH_NAME_MAX + 1];
-	char		name[SHIRUDO_MAP_NAME_MAX + 1];
-	char		location[SHIRUDO_UPATCH_LOCATION_MAX];
+	char		upatch[UPATCH_NAME_MAX + 1];
+	char		name[MAP_NAME_MAX + 1];
+	char		location[UPATCH_LOCATION_MAX];
 	__u32		type;		/* BPF_MAP_TYPE_* */
 	const char	*type_name;	/* "percpu_array" / "hash" / ... */
 	__u32		key_size;
@@ -72,10 +72,10 @@ struct shirudo_map_view {
 	struct shirudo_serial_page *serial_pages;
 	bool		skipped;
 	const char	*skipped_reason;
-	char		btf_key_type[SHIRUDO_MAP_TYPENAME_MAX];
-	char		btf_value_type[SHIRUDO_MAP_TYPENAME_MAX];
-	char		key_type_def[SHIRUDO_MAP_TYPEDEF_MAX];
-	char		value_type_def[SHIRUDO_MAP_TYPEDEF_MAX];
+	char		btf_key_type[MAP_TYPENAME_MAX];
+	char		btf_value_type[MAP_TYPENAME_MAX];
+	char		key_type_def[MAP_TYPEDEF_MAX];
+	char		value_type_def[MAP_TYPEDEF_MAX];
 	__u32		key_type_id;
 	__u32		value_type_id;
 	struct btf	*btf;		/* heap; owned by the view */
@@ -86,8 +86,8 @@ void map_view_free(struct shirudo_map_view *v);
 
 /* Name, type and max_entries alone, without reading entries. */
 struct shirudo_map_summary {
-	char		upatch[SHIRUDO_UPATCH_NAME_MAX + 1];
-	char		name[SHIRUDO_MAP_NAME_MAX + 1];
+	char		upatch[UPATCH_NAME_MAX + 1];
+	char		name[MAP_NAME_MAX + 1];
 	__u32		type;
 	const char	*type_name;
 	__u32		max_entries;
@@ -103,14 +103,14 @@ void map_summary_free(struct shirudo_map_summary *list, size_t n);
 
 /*
  * Read one map's contents. <max_entries_cap> bounds the number of
- * (key, value) pairs returned; SHIRUDO_MAP_ENTRIES_DEFAULT for the
+ * (key, value) pairs returned; MAP_ENTRIES_DEFAULT for the
  * default, 0 for unlimited (--show-full). Returns 0/-errno.
  *
  * Serializer-backed maps are drained by a read, as the map-export timer
- * expects. SHIRUDO_MAP_READ_PEEK asks the serializer for the interval
+ * expects. MAP_READ_PEEK asks the serializer for the interval
  * being collected without taking it from the exporter.
  */
-#define SHIRUDO_MAP_READ_PEEK	(1u << 0)
+#define MAP_READ_PEEK	(1u << 0)
 
 int  upatch_maps_read(const char *upatch, const char *map,
 		      __u32 max_entries_cap, __u32 flags,

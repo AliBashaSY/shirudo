@@ -40,8 +40,8 @@
 #include "lib/shirudo_identity.h"
 #include "shirudo_tamper.h"
 
-#define SHIRUDO_TASK_TRUSTED	1
-#define SHIRUDO_TASK_BOOTSTRAP	2
+#define TASK_TRUSTED	1
+#define TASK_BOOTSTRAP	2
 
 struct shirudo_task_authority {
 	__u8	trusted;

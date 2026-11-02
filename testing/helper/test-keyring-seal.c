@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 	if (strsprintf(keys, sizeof(keys), "%s/%s", argv[2],
-		       SHIRUDO_CERT_FILE) < 0)
+		       CERT_FILE) < 0)
 		return 2;
 	rc = read_cert(keys, &own);
 	if (!rc)

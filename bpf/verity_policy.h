@@ -6,8 +6,8 @@
 
 #include "lsm.h"
 
-#define SHIRUDO_DEVICE_RUNTIME		1
-#define SHIRUDO_DEVICE_CONFIG		2
+#define DEVICE_RUNTIME		1
+#define DEVICE_CONFIG		2
 
 struct shirudo_device {
 	__u32	dev;
@@ -44,7 +44,7 @@ static __always_inline bool shirudo_bootstrap_task(void)
 	struct shirudo_task_authority *authority;
 
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL, 0);
-	return authority && authority->trusted == SHIRUDO_TASK_BOOTSTRAP;
+	return authority && authority->trusted == TASK_BOOTSTRAP;
 }
 
 /* The mark changes only when exec commits, so failed exec keeps authority. */
@@ -100,7 +100,7 @@ static __always_inline bool shirudo_file_runtime(struct file *file)
 	if (!file)
 		return false;
 	device = shirudo_inode_device(BPF_CORE_READ(file, f_inode));
-	return device && device->kind == SHIRUDO_DEVICE_RUNTIME;
+	return device && device->kind == DEVICE_RUNTIME;
 }
 
 #endif /* SHIRUDO_BPF_VERITY_POLICY_H */

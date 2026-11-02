@@ -18,10 +18,10 @@
 #include "tpm_wire.h"
 
 /* PCRs quoted by default: firmware and boot loader, kernel, initrd, systemd. */
-#define SHIRUDO_ATTEST_PCR_DEFAULT	0x0000FAFFu
-#define SHIRUDO_ATTEST_NONCE_MAX	64
-#define SHIRUDO_ATTEST_MEMBERS_MAX	256
-#define SHIRUDO_ATTEST_REPORT_MAX	8192
+#define ATTEST_PCR_DEFAULT	0x0000FAFFu
+#define ATTEST_NONCE_MAX	64
+#define ATTEST_MEMBERS_MAX	256
+#define ATTEST_REPORT_MAX	8192
 
 /*
  * A challenge an operator made with `shirudo attest challenge`: the
@@ -31,14 +31,14 @@
  */
 struct shirudo_attest_challenge {
 	bool		ek_rsa;
-	__u8		ak_name[SHIRUDO_TPM_NAME_LEN];
-	__u8		blob[SHIRUDO_TPM_ID_OBJECT_LEN];
+	__u8		ak_name[TPM_NAME_LEN];
+	__u8		blob[TPM_ID_OBJECT_LEN];
 	size_t		blob_len;
 	__u8		secret[256];
 	size_t		secret_len;
 };
 
-#define SHIRUDO_ATTEST_CHALLENGE_MAX	(16 * 1024)
+#define ATTEST_CHALLENGE_MAX	(16 * 1024)
 
 int attest_challenge_read(const char *path,
 			  struct shirudo_attest_challenge *out);
@@ -70,7 +70,7 @@ struct shirudo_attest_challenge_policy {
 
 int attest_challenge_make(const char *evidence, size_t len,
 			  const struct shirudo_attest_challenge_policy *pol,
-			  __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
+			  __u8 credential[TPM_CREDENTIAL_LEN],
 			  char **out, size_t *out_len, size_t *cap,
 			  char *report, size_t report_cap);
 
@@ -78,7 +78,7 @@ struct shirudo_attest_expect {
 	const __u8	*nonce;
 	size_t		nonce_len;
 	bool		have_ak_name;
-	__u8		ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		ak_name[TPM_NAME_LEN];
 	bool		have_chain;
 	__u8		chain[32];
 	bool		have_init;	/* cert, set, tree root known */
@@ -88,9 +88,9 @@ struct shirudo_attest_expect {
 	__u32		pcr_expect_mask;
 	__u8		pcrs[24][32];
 	bool		have_credential;
-	__u8		credential[SHIRUDO_TPM_CREDENTIAL_LEN];
+	__u8		credential[TPM_CREDENTIAL_LEN];
 	bool		have_ek_name;
-	__u8		ek_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		ek_name[TPM_NAME_LEN];
 	bool		require_initrd;	/* the binding must be the initrd's */
 	__u32	bind_expect_mask; /* PCR values at binding time */
 	__u8		bind_values[24][32];

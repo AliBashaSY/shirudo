@@ -42,7 +42,7 @@ static int u64_cmp(const void *a, const void *b)
 }
 
 static int note_build_id(Elf_Data *data,
-			 __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			 __u8 build_id[UPATCH_BUILD_ID_MAX],
 			 __u32 *build_id_len)
 {
 	size_t off = 0;
@@ -60,7 +60,7 @@ static int note_build_id(Elf_Data *data,
 		    desc_off <= data->d_size && nhdr.n_descsz <= data->d_size - desc_off &&
 		    memcmp(p + name_off, "GNU", 4) == 0) {
 			if (!nhdr.n_descsz ||
-			    nhdr.n_descsz > SHIRUDO_UPATCH_BUILD_ID_MAX)
+			    nhdr.n_descsz > UPATCH_BUILD_ID_MAX)
 				return -E2BIG;
 			memcpy(build_id, p + desc_off, nhdr.n_descsz);
 			*build_id_len = nhdr.n_descsz;
@@ -74,7 +74,7 @@ static int note_build_id(Elf_Data *data,
 }
 
 static int elf_build_id(Elf *elf,
-			__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+			__u8 build_id[UPATCH_BUILD_ID_MAX],
 			__u32 *build_id_len)
 {
 	Elf_Scn *scn = NULL;
@@ -121,7 +121,7 @@ static int elf_build_id(Elf *elf,
 }
 
 int elf_build_id_fd(int fd,
-		    __u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX],
+		    __u8 build_id[UPATCH_BUILD_ID_MAX],
 		    __u32 *build_id_len)
 {
 	Elf *elf;
@@ -182,7 +182,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 		err = -ENOENT;
 		goto out;
 	}
-	if (nr_resolved > SHIRUDO_UPATCH_UPROBE_OFFSETS_MAX ||
+	if (nr_resolved > UPATCH_UPROBE_OFFSETS_MAX ||
 	    nr_resolved > UINT32_MAX) {
 		err = -E2BIG;
 		goto out;

@@ -139,7 +139,7 @@ static int verify_image(const char *prefix, const char *cert)
 	struct shirudo_config_image_open image = {
 		.data_fd = -1, .hash_fd = -1, .signature_fd = -1,
 	};
-	__u8 signature[SHIRUDO_CONFIG_IMAGE_SIG_MAX + 1];
+	__u8 signature[CONFIG_IMAGE_SIG_MAX + 1];
 	size_t size = 0;
 	char root[65];
 	ssize_t n;
@@ -161,7 +161,7 @@ static int verify_image(const char *prefix, const char *cert)
 			break;
 		size += n;
 	}
-	if (!size || size > SHIRUDO_CONFIG_IMAGE_SIG_MAX) {
+	if (!size || size > CONFIG_IMAGE_SIG_MAX) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -180,7 +180,7 @@ out:
 static int sign_root(const char *input, const char *output, const char *pkey,
 		     const char *cert)
 {
-	__u8 signature[SHIRUDO_CONFIG_IMAGE_SIG_MAX];
+	__u8 signature[CONFIG_IMAGE_SIG_MAX];
 	struct shirudo_sign_io sign = {};
 	char root[65] = {};
 	size_t done = 0;
@@ -240,9 +240,9 @@ int shirudo_build_image(int argc, char **argv)
 {
 	bool explicit_key = false, explicit_cert = false;
 	char pkey_path[PATH_MAX], cert_path[PATH_MAX];
-	const char *pkey = SHIRUDO_SIGNING_KEY_PATH;
+	const char *pkey = SIGNING_KEY_PATH;
 	const char *input = NULL, *prefix = NULL;
-	const char *cert = SHIRUDO_CERT_PATH;
+	const char *cert = CERT_PATH;
 	const char *keys_dir = NULL;
 	int i, rc;
 

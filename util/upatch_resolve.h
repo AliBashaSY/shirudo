@@ -12,7 +12,7 @@
 
 struct btf;
 
-#define SHIRUDO_UPATCH_LOCATION_MAX	160
+#define UPATCH_LOCATION_MAX	160
 
 /*
  * Open the first pinned link for an upatch. Single-program upatches use

@@ -22,11 +22,11 @@
 
 int shirudo_enforcement_active(void)
 {
-	int rc = prctl(SHIRUDO_PR_GET_ENFORCEMENT, 0, 0, 0, 0);
+	int rc = prctl(PR_GET_ENFORCEMENT, 0, 0, 0, 0);
 
 	if (rc >= 0)
 		return -EPROTO;
-	if (errno == SHIRUDO_PR_ENFORCING_ERR)
+	if (errno == PR_ENFORCING_ERR)
 		return 1;
 	return errno == EINVAL || errno == ENOSYS ? 0 : -errno;
 }
@@ -39,7 +39,7 @@ int identity_read(struct shirudo_identity *out)
 	int fd, rc;
 
 	memset(out, 0, sizeof(*out));
-	fd = bpf_obj_get(SHIRUDO_IDENTITY_PIN);
+	fd = bpf_obj_get(IDENTITY_PIN);
 	if (fd < 0)
 		return -errno;
 	rc = bpf_map_get_info_by_fd(fd, &info, &len);

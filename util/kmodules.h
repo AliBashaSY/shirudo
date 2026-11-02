@@ -12,10 +12,10 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_KMOD_NAME_LEN	64
+#define KMOD_NAME_LEN	64
 
 struct shirudo_kmod {
-	char		name[SHIRUDO_KMOD_NAME_LEN];
+	char		name[KMOD_NAME_LEN];
 	__u64		size;		/* bytes */
 	__u32		refcount;	/* /proc/modules column 3 */
 	__u16		n_deps;

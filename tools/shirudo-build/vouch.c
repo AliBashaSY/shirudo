@@ -79,7 +79,7 @@ static int write_file(const char *path, const void *data, size_t len)
 
 int shirudo_build_keys_vouch(int argc, char **argv)
 {
-	const char *pkey = SHIRUDO_SIGNING_KEY_PATH, *cert = SHIRUDO_CERT_PATH;
+	const char *pkey = SIGNING_KEY_PATH, *cert = CERT_PATH;
 	const char *keys_dir_arg = NULL, *input = NULL, *output = NULL;
 	__u8 *der = NULL, *own = NULL, *payload = NULL;
 	size_t der_sz = 0, own_sz = 0, payload_sz = 0;
@@ -131,7 +131,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		if (!pkey_explicit) {
 			if (shirudo_key_path(pkey_path, sizeof(pkey_path),
 					     keys_dir,
-					     SHIRUDO_SIGNING_KEY_FILE)) {
+					     SIGNING_KEY_FILE)) {
 				pr_err("invalid keys dir %s", keys_dir);
 				return 2;
 			}
@@ -139,7 +139,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 		}
 		if (!cert_explicit) {
 			if (shirudo_key_path(cert_path, sizeof(cert_path),
-					     keys_dir, SHIRUDO_CERT_FILE)) {
+					     keys_dir, CERT_FILE)) {
 				pr_err("invalid keys dir %s", keys_dir);
 				return 2;
 			}

@@ -135,7 +135,7 @@ err:
 
 static void check(enum fixture fixture, int want_ok, const char *want)
 {
-	char detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX] = {};
+	char detail[KERNEL_ABI_DETAIL_MAX] = {};
 	struct btf *btf = make_fixture(fixture);
 	int rc;
 

@@ -25,8 +25,8 @@
 struct bpm_build_rodata {
 	char symbol[128];
 	char input[PATH_MAX];
-	char generator[BPM_BUILD_MAX_COMMAND_ARGS][SHIRUDO_TREE_STRING_MAX];
-	char update[BPM_BUILD_MAX_COMMAND_ARGS][SHIRUDO_TREE_STRING_MAX];
+	char generator[BPM_BUILD_MAX_COMMAND_ARGS][TREE_STRING_MAX];
+	char update[BPM_BUILD_MAX_COMMAND_ARGS][TREE_STRING_MAX];
 	int n_generator;
 	int n_update;
 };
@@ -49,7 +49,7 @@ struct bpm_build_file {
  */
 struct bpm_build_tree {
 	bool present;
-	char id[SHIRUDO_UPATCH_NAME_MAX];
+	char id[UPATCH_NAME_MAX];
 	char load_artifact[PATH_MAX];
 	char unload_artifact[PATH_MAX];
 	struct shirudo_tree_selector *selector;
@@ -62,8 +62,8 @@ struct bpm_build_upatch {
 	char unload_target[PATH_MAX];
 	char load_path[PATH_MAX];
 	char unload_path[PATH_MAX];
-	char name[SHIRUDO_UPATCH_NAME_MAX];
-	char payload_sha256[SHIRUDO_CRYPTO_SHA256_LEN * 2 + 1];
+	char name[UPATCH_NAME_MAX];
+	char payload_sha256[CRYPTO_SHA256_LEN * 2 + 1];
 	struct bpm_build_tree tree;
 	struct bpm_build_rodata *rodata;
 	size_t n_rodata;

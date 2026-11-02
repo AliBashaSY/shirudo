@@ -13,7 +13,7 @@
 #include <string.h>
 
 /* Implements the wrappers; opt out of the poison in <shirudo/string.h>. */
-#define SHIRUDO_STRING_INTERNAL
+#define STRING_INTERNAL
 #include <shirudo/string.h>
 
 size_t digits(const char *s, size_t len)

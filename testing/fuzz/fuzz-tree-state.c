@@ -11,10 +11,10 @@
 
 static char fuzz_path[64];
 
-#undef SHIRUDO_BPM_TREE_STATE_PATH
-#define SHIRUDO_BPM_TREE_STATE_PATH fuzz_path
-#undef SHIRUDO_BPM_TREE_EVENTLOG_PATH
-#define SHIRUDO_BPM_TREE_EVENTLOG_PATH fuzz_path
+#undef BPM_TREE_STATE_PATH
+#define BPM_TREE_STATE_PATH fuzz_path
+#undef BPM_TREE_EVENTLOG_PATH
+#define BPM_TREE_EVENTLOG_PATH fuzz_path
 
 #include "bpm_tree_state.c"
 

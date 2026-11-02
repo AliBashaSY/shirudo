@@ -12,10 +12,10 @@
 #include <shirudo/tpm.h>
 
 /* The keyring kinds the kernel names in a verdict (enum bpf_sig_keyring). */
-#define SHIRUDO_SIG_KEYRING_BPF		5
+#define SIG_KEYRING_BPF		5
 
 /* The most keys the anchor keyring holds; util/keys.h bounds the set. */
-#define SHIRUDO_IDENTITY_KEYS_MAX	16
+#define IDENTITY_KEYS_MAX	16
 
 /* The frozen ABI shared with bpf/lib/shirudo_identity.h. */
 struct shirudo_identity {
@@ -24,22 +24,22 @@ struct shirudo_identity {
 	__s32	keyring_serial;
 	__u32	keyring_type;
 	__u32	n_keys;
-	__s32	key_serials[SHIRUDO_IDENTITY_KEYS_MAX];
+	__s32	key_serials[IDENTITY_KEYS_MAX];
 	__u8	runtime_root[32];
 	__u8	nv_writer_seed[32];
-	__u8	nv_writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
-	__u8	ak_name[SHIRUDO_TPM_NAME_LEN];
+	__u8	nv_writer_public[TPM_NV_RSA_BYTES];
+	__u8	ak_name[TPM_NAME_LEN];
 	__u32	ak_name_len;
 	__s32	dm_verity_ring;
 	__s32	dm_verity_key;
 	__u32	nv_index;
 };
 
-#define SHIRUDO_TASK_TRUSTED	1
-#define SHIRUDO_TASK_BOOTSTRAP	2
+#define TASK_TRUSTED	1
+#define TASK_BOOTSTRAP	2
 
-#define SHIRUDO_DEVICE_RUNTIME	1
-#define SHIRUDO_DEVICE_CONFIG	2
+#define DEVICE_RUNTIME	1
+#define DEVICE_CONFIG	2
 
 struct shirudo_device_authority {
 	__u32	dev;

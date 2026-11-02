@@ -29,8 +29,8 @@
 #include "upatch.h"
 #include "vmlinux.h"
 
-#ifndef SHIRUDO_VMLINUX_PATH
-#define SHIRUDO_VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
+#ifndef VMLINUX_PATH
+#define VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
 static void usage(FILE *fp)
@@ -76,9 +76,9 @@ static void usage(FILE *fp)
 		"                  path on stdout. A debugging aid.\n"
 		"bpm: the operator-only package commands (`shirudo bpm build`,\n"
 		"     `push`, `tree append`); see `shirudo-build bpm --help`.\n",
-		SHIRUDO_KEYS_DIR_ENV, SHIRUDO_KEYS_DIR_ENV,
-		SHIRUDO_SIGNING_KEY_PATH, SHIRUDO_KEYS_DIR_ENV,
-		SHIRUDO_CERT_PATH, SHIRUDO_VMLINUX_PATH);
+		KEYS_DIR_ENV, KEYS_DIR_ENV,
+		SIGNING_KEY_PATH, KEYS_DIR_ENV,
+		CERT_PATH, VMLINUX_PATH);
 }
 
 static const char *derive_name(const char *input, char *buf, size_t buf_sz)
@@ -179,9 +179,9 @@ int shirudo_build_check_keys(const char *pkey, const char *cert)
 
 int main(int argc, char **argv)
 {
-	const char *pkey = SHIRUDO_SIGNING_KEY_PATH;
+	const char *pkey = SIGNING_KEY_PATH;
 	const char *payload_sha256_hex = NULL;
-	const char *cert = SHIRUDO_CERT_PATH;
+	const char *cert = CERT_PATH;
 	const char *keys_dir_arg = NULL;
 	const char *keys_dir;
 	const char *vmlinux_override = NULL;
@@ -269,7 +269,7 @@ int main(int argc, char **argv)
 		if (!pkey_explicit) {
 			rc = shirudo_key_path(pkey_path, sizeof(pkey_path),
 					      keys_dir,
-					      SHIRUDO_SIGNING_KEY_FILE);
+					      SIGNING_KEY_FILE);
 			if (rc) {
 				pr_err("invalid keys dir %s: %s",
 				       keys_dir, strerror(-rc));
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 		}
 		if (!cert_explicit) {
 			rc = shirudo_key_path(cert_path, sizeof(cert_path),
-					      keys_dir, SHIRUDO_CERT_FILE);
+					      keys_dir, CERT_FILE);
 			if (rc) {
 				pr_err("invalid keys dir %s: %s",
 				       keys_dir, strerror(-rc));
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
 			struct shirudo_upatch u;
 
 			if (strsprintf(archive, sizeof(archive), "%s/%s.upatch",
-				       SHIRUDO_UPATCHES_DIR, unload_name) < 0) {
+				       UPATCHES_DIR, unload_name) < 0) {
 				pr_err("archive path too long for '%s'",
 				       unload_name);
 				return 1;
@@ -386,7 +386,7 @@ int main(int argc, char **argv)
 			pr_err("vmlinux.h not found (tried %s, ./vmlinux.h, "
 			       "./vendor/linux/vmlinux.h, %s)",
 			       vmlinux_override ? vmlinux_override
-						 : "(none)", SHIRUDO_VMLINUX_PATH);
+						 : "(none)", VMLINUX_PATH);
 			return 1;
 		}
 		if (emit_artifacts) {

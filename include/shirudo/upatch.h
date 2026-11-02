@@ -13,38 +13,38 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_UPATCH_MAGIC		0x53485244554e4150ULL	/* "SHRDUNAP" */
+#define UPATCH_MAGIC		0x53485244554e4150ULL	/* "SHRDUNAP" */
 /*
  * The PKCS#7 signature covers insns || data (the gen_loader metadata
  * blob), verified by the kernel at load time; payload_sha256 is SHA-256
  * of that same concatenation. See the kernel's Documentation/bpf/signing.rst
  * and Documentation/reference/formats/upatch-format.rst in this tree.
  */
-#define SHIRUDO_UPATCH_VERSION		1u
-#define SHIRUDO_UPATCH_HEADER_SIZE	360u
+#define UPATCH_VERSION		1u
+#define UPATCH_HEADER_SIZE	360u
 
-#define SHIRUDO_DIRECTIVE_UNLOAD	(1u << 0)
+#define DIRECTIVE_UNLOAD	(1u << 0)
 
 enum shirudo_upatch_type {
 	SHIRUDO_UPATCH_TYPE_BPF = 1,
 };
 
-#define SHIRUDO_UPATCH_NAME_MAX		256
-#define SHIRUDO_UPATCH_BPFFS_NAME_MAX	(2 * SHIRUDO_UPATCH_NAME_MAX)
-#define SHIRUDO_UPATCH_PAYLOAD_HASH_LEN	32	/* SHA-256 */
+#define UPATCH_NAME_MAX		256
+#define UPATCH_BPFFS_NAME_MAX	(2 * UPATCH_NAME_MAX)
+#define UPATCH_PAYLOAD_HASH_LEN	32	/* SHA-256 */
 
 struct shirudo_upatch_header {
-	__u64		magic;			/* SHIRUDO_UPATCH_MAGIC */
-	__u32		version;		/* SHIRUDO_UPATCH_VERSION */
+	__u64		magic;			/* UPATCH_MAGIC */
+	__u32		version;		/* UPATCH_VERSION */
 	__u32		flags;			/* SHIRUDO_DIRECTIVE_* */
-	char		name[SHIRUDO_UPATCH_NAME_MAX];
+	char		name[UPATCH_NAME_MAX];
 	/*
 	 * SHA-256 of the signed content, insns || data. Distinct from the
 	 * loader's excl_prog_hash (SHA-256 of insns alone), which the target
 	 * recomputes at load. This is the value recorded as the pin xattr,
 	 * the TPM register event, and the unload match target.
 	 */
-	__u8		payload_sha256[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+	__u8		payload_sha256[UPATCH_PAYLOAD_HASH_LEN];
 	__u32		loader_insns_off;	/* file offset */
 	__u32		loader_insns_len;
 	__u32		signature_off;
@@ -62,7 +62,7 @@ struct shirudo_upatch_header {
 };
 
 _Static_assert(sizeof(struct shirudo_upatch_header) ==
-	       SHIRUDO_UPATCH_HEADER_SIZE, "unexpected upatch header padding");
+	       UPATCH_HEADER_SIZE, "unexpected upatch header padding");
 
 /*
  * The signed sections: what the target needs beyond the loader and its
@@ -73,9 +73,9 @@ _Static_assert(sizeof(struct shirudo_upatch_header) ==
  * the name of its target and the payload digest it expects, and a LOAD
  * carries decoders when its programs declare any.
  */
-#define SHIRUDO_UPATCH_SIGNED_TRAILER_MAGIC	0x52544753u	/* "SGTR" le */
-#define SHIRUDO_UPATCH_SIGNED_VERSION		1u
-#define SHIRUDO_UPATCH_SIGNED_SECTIONS_MAX	8u
+#define UPATCH_SIGNED_TRAILER_MAGIC	0x52544753u	/* "SGTR" le */
+#define UPATCH_SIGNED_VERSION		1u
+#define UPATCH_SIGNED_SECTIONS_MAX	8u
 
 enum shirudo_upatch_section_tag {
 	SHIRUDO_UPATCH_SECTION_NAME	= 0x454d414eu,	/* "NAME" le */
@@ -92,8 +92,8 @@ struct shirudo_upatch_signed_section {
 };
 
 struct shirudo_upatch_signed_trailer {
-	__u32		magic;		/* SHIRUDO_UPATCH_SIGNED_TRAILER_MAGIC */
-	__u32		version;	/* SHIRUDO_UPATCH_SIGNED_VERSION */
+	__u32		magic;		/* UPATCH_SIGNED_TRAILER_MAGIC */
+	__u32		version;	/* UPATCH_SIGNED_VERSION */
 	__u32		dir_off;	/* the section directory, from the start of data */
 	__u32		nr_sections;
 };
@@ -104,7 +104,7 @@ struct shirudo_upatch_signed_trailer {
  * resolves and embeds the decoder source before signing.
  */
 #define SHIRUDO_DECODER_MANIFEST_MAGIC	0x44434544u	/* "DECD" le */
-#define SHIRUDO_UPATCH_DECODER_MAGIC	0x42444344u	/* "DCDB" le */
+#define UPATCH_DECODER_MAGIC	0x42444344u	/* "DCDB" le */
 #define SHIRUDO_UPATCH_DECODER_VERSION	1u
 #define SHIRUDO_UPATCH_DECODER_LANG_LUA	1u
 #define SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1	1u
@@ -157,15 +157,15 @@ struct shirudo_upatch_decoder_blob {
  * by the signed loader; the site a kprobe, uprobe, cgroup or netfilter
  * program attaches at comes from here, which is why it is signed.
  */
-#define SHIRUDO_UPATCH_ATTACH_TARGET_MAX	128u
-#define SHIRUDO_UPATCH_PROG_MAGIC	0x4d475055u	/* "UPGM" le */
-#define SHIRUDO_UPATCH_PROG_VERSION	1u
-#define SHIRUDO_UPATCH_PROG_MAP_MAX	16u		/* BPF_OBJ_NAME_LEN */
-#define SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC	0x54555055u /* "UPUT" le */
-#define SHIRUDO_UPATCH_UPROBE_TARGET_VERSION	1u
-#define SHIRUDO_UPATCH_UPROBE_PATH_MAX	4096u
-#define SHIRUDO_UPATCH_BUILD_ID_MAX	64u
-#define SHIRUDO_UPATCH_UPROBE_OFFSETS_MAX	(1u << 20)
+#define UPATCH_ATTACH_TARGET_MAX	128u
+#define UPATCH_PROG_MAGIC	0x4d475055u	/* "UPGM" le */
+#define UPATCH_PROG_VERSION	1u
+#define UPATCH_PROG_MAP_MAX	16u		/* BPF_OBJ_NAME_LEN */
+#define UPATCH_UPROBE_TARGET_MAGIC	0x54555055u /* "UPUT" le */
+#define UPATCH_UPROBE_TARGET_VERSION	1u
+#define UPATCH_UPROBE_PATH_MAX	4096u
+#define UPATCH_BUILD_ID_MAX	64u
+#define UPATCH_UPROBE_OFFSETS_MAX	(1u << 20)
 
 enum shirudo_upatch_attach_kind {
 	SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT = 0,
@@ -188,13 +188,13 @@ struct shirudo_upatch_prog_entry {
 	__u32		role;		/* enum shirudo_upatch_prog_role */
 	__u32		kind;		/* enum shirudo_upatch_attach_kind */
 	__u64		offset;		/* kprobe offset; zero for kretprobe */
-	char		target[SHIRUDO_UPATCH_ATTACH_TARGET_MAX]; /* kprobe symbol */
-	char		map[SHIRUDO_UPATCH_PROG_MAP_MAX];
+	char		target[UPATCH_ATTACH_TARGET_MAX]; /* kprobe symbol */
+	char		map[UPATCH_PROG_MAP_MAX];
 };
 
 struct shirudo_upatch_prog_metadata {
-	__u32		magic;		/* SHIRUDO_UPATCH_PROG_MAGIC */
-	__u32		version;		/* SHIRUDO_UPATCH_PROG_VERSION */
+	__u32		magic;		/* UPATCH_PROG_MAGIC */
+	__u32		version;		/* UPATCH_PROG_VERSION */
 	__u32		nr_progs;
 	__u32		reserved;
 	/*
@@ -212,8 +212,8 @@ struct shirudo_upatch_prog_metadata {
  * nr_offsets little-endian __u64 file offsets. Records have no padding.
  */
 struct shirudo_upatch_uprobe_targets {
-	__u32		magic;		/* SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC */
-	__u32		version;	/* SHIRUDO_UPATCH_UPROBE_TARGET_VERSION */
+	__u32		magic;		/* UPATCH_UPROBE_TARGET_MAGIC */
+	__u32		version;	/* UPATCH_UPROBE_TARGET_VERSION */
 	__u32		nr_targets;
 	__u32		reserved;
 };

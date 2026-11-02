@@ -1153,7 +1153,7 @@ int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 int bpm_sha256_hex(const void *data, size_t len,
 		   char *hex, size_t hex_sz)
 {
-	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	__u8 digest[CRYPTO_SHA256_LEN];
 
 	if (hex_sz < 65 || sha256_buffer(data, len, digest) != 0)
 		return -EINVAL;

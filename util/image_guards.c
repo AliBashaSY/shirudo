@@ -30,135 +30,135 @@ _Static_assert(SHIRUDO_PERF_EVENT_IOC_SET_BPF == PERF_EVENT_IOC_SET_BPF,
 	       "the ioctl number the BPF side denies");
 
 const struct shirudo_image_guard
-shirudo_seal_guards[SHIRUDO_SEAL_HOOK_COUNT] = {
+shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_bprm_check_security",
-	  SHIRUDO_SEAL_BPRM_CHECK_PIN },
+	  SEAL_BPRM_CHECK_PIN },
 	{ "shirudo_seal_bprm_committed_creds",
-	  SHIRUDO_SEAL_BPRM_COMMITTED_PIN },
-	{ "shirudo_seal_task_alloc", SHIRUDO_SEAL_TASK_ALLOC_PIN },
-	{ "shirudo_seal_file_open",        SHIRUDO_SEAL_FILE_OPEN_PIN },
-	{ "shirudo_seal_inode_unlink",     SHIRUDO_SEAL_UNLINK_PIN },
-	{ "shirudo_seal_inode_rename",     SHIRUDO_SEAL_RENAME_PIN },
-	{ "shirudo_seal_inode_setattr",    SHIRUDO_SEAL_SETATTR_PIN },
-	{ "shirudo_seal_inode_setxattr",   SHIRUDO_SEAL_SETXATTR_PIN },
-	{ "shirudo_seal_inode_removexattr", SHIRUDO_SEAL_RMXATTR_PIN },
+	  SEAL_BPRM_COMMITTED_PIN },
+	{ "shirudo_seal_task_alloc", SEAL_TASK_ALLOC_PIN },
+	{ "shirudo_seal_file_open",        SEAL_FILE_OPEN_PIN },
+	{ "shirudo_seal_inode_unlink",     SEAL_UNLINK_PIN },
+	{ "shirudo_seal_inode_rename",     SEAL_RENAME_PIN },
+	{ "shirudo_seal_inode_setattr",    SEAL_SETATTR_PIN },
+	{ "shirudo_seal_inode_setxattr",   SEAL_SETXATTR_PIN },
+	{ "shirudo_seal_inode_removexattr", SEAL_RMXATTR_PIN },
 	{ "shirudo_seal_inode_post_setxattr",
-	  SHIRUDO_SEAL_POST_SETXATTR_PIN },
+	  SEAL_POST_SETXATTR_PIN },
 	{ "shirudo_seal_inode_post_removexattr",
-	  SHIRUDO_SEAL_POST_RMXATTR_PIN },
+	  SEAL_POST_RMXATTR_PIN },
 	{ "shirudo_seal_inode_init_security",
-	  SHIRUDO_SEAL_INIT_SECURITY_PIN },
-	{ "shirudo_seal_inode_create",     SHIRUDO_SEAL_CREATE_PIN },
-	{ "shirudo_seal_inode_mkdir",      SHIRUDO_SEAL_MKDIR_PIN },
-	{ "shirudo_seal_inode_symlink",    SHIRUDO_SEAL_SYMLINK_PIN },
-	{ "shirudo_seal_inode_mknod",      SHIRUDO_SEAL_MKNOD_PIN },
-	{ "shirudo_seal_inode_link",       SHIRUDO_SEAL_LINK_PIN },
-	{ "shirudo_seal_inode_copy_up",    SHIRUDO_SEAL_COPY_UP_PIN },
+	  SEAL_INIT_SECURITY_PIN },
+	{ "shirudo_seal_inode_create",     SEAL_CREATE_PIN },
+	{ "shirudo_seal_inode_mkdir",      SEAL_MKDIR_PIN },
+	{ "shirudo_seal_inode_symlink",    SEAL_SYMLINK_PIN },
+	{ "shirudo_seal_inode_mknod",      SEAL_MKNOD_PIN },
+	{ "shirudo_seal_inode_link",       SEAL_LINK_PIN },
+	{ "shirudo_seal_inode_copy_up",    SEAL_COPY_UP_PIN },
 	{ "shirudo_seal_ptrace_access_check",
-	  SHIRUDO_SEAL_PTRACE_PIN },
+	  SEAL_PTRACE_PIN },
 	{ "shirudo_seal_perf_event_alloc",
-	  SHIRUDO_SEAL_PERF_PIN },
+	  SEAL_PERF_PIN },
 };
 
 const struct shirudo_image_guard
-shirudo_image_seal_guards[SHIRUDO_IMAGE_SEAL_HOOK_COUNT] = {
+shirudo_image_seal_guards[IMAGE_SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_mmap_file",
-	  SHIRUDO_BPFFS_DIR "/seal_mmap_link" },
+	  BPFFS_DIR "/seal_mmap_link" },
 	{ "shirudo_seal_file_mprotect",
-	  SHIRUDO_BPFFS_DIR "/seal_mprotect_link" },
+	  BPFFS_DIR "/seal_mprotect_link" },
 };
 
 const struct shirudo_image_guard
-shirudo_mount_guards[SHIRUDO_MOUNT_HOOK_COUNT] = {
-	{ "shirudo_lsm_sb_umount",  SHIRUDO_SB_UMOUNT_LINK_PIN },
-	{ "shirudo_lsm_move_mount", SHIRUDO_MOVE_MOUNT_LINK_PIN },
-	{ "shirudo_lsm_sb_mount",   SHIRUDO_SB_MOUNT_LINK_PIN },
-	{ "shirudo_lsm_sb_remount", SHIRUDO_SB_REMOUNT_LINK_PIN },
-	{ "shirudo_lsm_file_open", SHIRUDO_BPFFS_DIR "/bpf2_file_open_link" },
+shirudo_mount_guards[MOUNT_HOOK_COUNT] = {
+	{ "shirudo_lsm_sb_umount",  SB_UMOUNT_LINK_PIN },
+	{ "shirudo_lsm_move_mount", MOVE_MOUNT_LINK_PIN },
+	{ "shirudo_lsm_sb_mount",   SB_MOUNT_LINK_PIN },
+	{ "shirudo_lsm_sb_remount", SB_REMOUNT_LINK_PIN },
+	{ "shirudo_lsm_file_open", BPFFS_DIR "/bpf2_file_open_link" },
 };
 
 const struct shirudo_image_guard
-shirudo_observer_guards[SHIRUDO_OBSERVER_HOOK_COUNT] = {
-	{ "shirudo_lsm_task_prctl", SHIRUDO_TASK_PRCTL_LINK_PIN },
-	{ "shirudo_lsm_bprm_check_security", SHIRUDO_BPRM_CHECK_LINK_PIN },
+shirudo_observer_guards[OBSERVER_HOOK_COUNT] = {
+	{ "shirudo_lsm_task_prctl", TASK_PRCTL_LINK_PIN },
+	{ "shirudo_lsm_bprm_check_security", BPRM_CHECK_LINK_PIN },
 	{ "shirudo_lsm_inode_rmdir",
-	  SHIRUDO_BPFFS_DIR "/inode_rmdir_link" },
+	  BPFFS_DIR "/inode_rmdir_link" },
 	{ "shirudo_lsm_inode_rename",
-	  SHIRUDO_INODE_RENAME_LINK_PIN },
+	  INODE_RENAME_LINK_PIN },
 	{ "shirudo_lsm_inode_mkdir",
-	  SHIRUDO_BPFFS_DIR "/inode_mkdir_link" },
+	  BPFFS_DIR "/inode_mkdir_link" },
 	{ "shirudo_lsm_inode_symlink",
-	  SHIRUDO_BPFFS_DIR "/inode_symlink_link" },
+	  BPFFS_DIR "/inode_symlink_link" },
 	{ "shirudo_lsm_inode_link",
-	  SHIRUDO_BPFFS_DIR "/inode_link_link" },
+	  BPFFS_DIR "/inode_link_link" },
 	{ "shirudo_lsm_kernel_load_data",
-	  SHIRUDO_BPFFS_DIR "/kernel_load_data_link" },
+	  BPFFS_DIR "/kernel_load_data_link" },
 	{ "shirudo_lsm_kernel_read_file",
-	  SHIRUDO_BPFFS_DIR "/kernel_read_file_link" },
+	  BPFFS_DIR "/kernel_read_file_link" },
 };
 
 const struct shirudo_image_guard
-shirudo_image_observer_guards[SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT] = {
-	{ "shirudo_lsm_file_ioctl", SHIRUDO_BPFFS_DIR "/file_ioctl_link" },
+shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT] = {
+	{ "shirudo_lsm_file_ioctl", BPFFS_DIR "/file_ioctl_link" },
 	{ "shirudo_lsm_file_ioctl_compat",
-	  SHIRUDO_BPFFS_DIR "/file_ioctl_compat_link" },
+	  BPFFS_DIR "/file_ioctl_compat_link" },
 	{ "shirudo_lsm_bdev_setintegrity",
-	  SHIRUDO_BPFFS_DIR "/bdev_integrity_link" },
+	  BPFFS_DIR "/bdev_integrity_link" },
 	{ "shirudo_lsm_bdev_free_security",
-	  SHIRUDO_BPFFS_DIR "/bdev_free_link" },
+	  BPFFS_DIR "/bdev_free_link" },
 };
 
 const struct shirudo_image_guard
 shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT] = {
 	[SHIRUDO_GUARD_UNLINK] = {
-		"shirudo_lsm_inode_unlink", SHIRUDO_INODE_UNLINK_LINK_PIN,
+		"shirudo_lsm_inode_unlink", INODE_UNLINK_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_SETXATTR] = {
-		"shirudo_lsm_inode_setxattr", SHIRUDO_INODE_SETXATTR_LINK_PIN,
+		"shirudo_lsm_inode_setxattr", INODE_SETXATTR_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_REMOVEXATTR] = {
-		"shirudo_lsm_inode_removexattr", SHIRUDO_INODE_RMXATTR_LINK_PIN,
+		"shirudo_lsm_inode_removexattr", INODE_RMXATTR_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_KEY_PERMISSION] = {
-		"shirudo_lsm_key_permission", SHIRUDO_KEY_PERMISSION_LINK_PIN,
+		"shirudo_lsm_key_permission", KEY_PERMISSION_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_TPM_COMMAND] = {
-		"shirudo_lsm_tpm_command", SHIRUDO_TPM_COMMAND_LINK_PIN,
+		"shirudo_lsm_tpm_command", TPM_COMMAND_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_BPF_MAP] = {
-		"shirudo_lsm_bpf_map", SHIRUDO_LSM_BPF_MAP_LINK_PIN,
+		"shirudo_lsm_bpf_map", LSM_BPF_MAP_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_PROG_LOAD] = {
-		"shirudo_lsm_bpf_prog_load", SHIRUDO_LSM_PROG_LOAD_LINK_PIN,
+		"shirudo_lsm_bpf_prog_load", LSM_PROG_LOAD_LINK_PIN,
 	},
 	[SHIRUDO_GUARD_BPF] = {
-		"shirudo_lsm_bpf", SHIRUDO_LSM_LINK_PIN,
+		"shirudo_lsm_bpf", LSM_LINK_PIN,
 	},
 };
 
 const struct shirudo_guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
 	[SHIRUDO_GUARD_IDENTITY] = {
-		"shirudo_bpffs_sb", SHIRUDO_IDENTITY_PIN,
+		"shirudo_bpffs_sb", IDENTITY_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
 		sizeof(struct shirudo_identity), 1, 0,
 	},
 	[SHIRUDO_GUARD_TASKS] = {
-		"shirudo_tasks", SHIRUDO_BPFFS_DIR "/task_authority",
+		"shirudo_tasks", BPFFS_DIR "/task_authority",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
 		sizeof(struct shirudo_task_authority), 0, BPF_F_NO_PREALLOC,
 	},
 	[SHIRUDO_GUARD_DEVICES] = {
-		"shirudo_devices", SHIRUDO_BPFFS_DIR "/devices",
+		"shirudo_devices", BPFFS_DIR "/devices",
 		BPF_MAP_TYPE_HASH, sizeof(__u64),
 		sizeof(struct shirudo_device_authority), 128, 0,
 	},
 	[SHIRUDO_GUARD_ROOTS] = {
-		"shirudo_roots", SHIRUDO_BPFFS_DIR "/config_roots",
+		"shirudo_roots", BPFFS_DIR "/config_roots",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
 		sizeof(struct shirudo_expected_root), 0, BPF_F_NO_PREALLOC,
 	},
 	[SHIRUDO_GUARD_TAMPER] = {
-		"shirudo_tamper", SHIRUDO_TAMPER_PIN,
+		"shirudo_tamper", TAMPER_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
 		sizeof(__u64), SHIRUDO_TAMPER_MAX, 0,
 	},

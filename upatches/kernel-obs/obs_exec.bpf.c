@@ -166,7 +166,7 @@ int BPF_PROG(obs_task_alloc, struct task_struct *child, __u64 clone_flags)
 	return 0;
 }
 
-#ifdef SHIRUDO_TEST_CRED_ANOMALY
+#ifdef TEST_CRED_ANOMALY
 SEC("lsm/bprm_committed_creds")
 int BPF_PROG(obs_test_cred_anomaly, const struct linux_binprm *bprm)
 {

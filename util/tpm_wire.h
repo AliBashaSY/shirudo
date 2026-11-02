@@ -38,41 +38,41 @@ static inline size_t tpm_put2b(__u8 *p, const __u8 *data, size_t len)
 	return 2 + len;
 }
 
-#define SHIRUDO_TPM_DIGEST_LEN		32
-_Static_assert(SHIRUDO_TPM_NAME_LEN == 2 + SHIRUDO_TPM_DIGEST_LEN,
+#define TPM_DIGEST_LEN		32
+_Static_assert(TPM_NAME_LEN == 2 + TPM_DIGEST_LEN,
 	       "a name is the algorithm and its digest");
-#define SHIRUDO_TPM_ALG_RSA		0x0001u
-#define SHIRUDO_TPM_ALG_AES		0x0006u
-#define SHIRUDO_TPM_ALG_SHA256		0x000Bu
-#define SHIRUDO_TPM_ALG_ECC		0x0023u
-#define SHIRUDO_TPM_ALG_ECDSA		0x0018u
-#define SHIRUDO_TPM_ALG_RSASSA		0x0014u
-#define SHIRUDO_TPM_ALG_NULL		0x0010u
-#define SHIRUDO_TPM_ALG_CFB		0x0043u
-#define SHIRUDO_TPM_ECC_NIST_P256	0x0003u
-#define SHIRUDO_TPM_ST_ATTEST_NV	0x8014u
-#define SHIRUDO_TPM_ST_ATTEST_QUOTE	0x8018u
-#define SHIRUDO_TPM_GENERATED		0xFF544347u
-#define SHIRUDO_TPM_PCR_SELECT_LEN	3
-#define SHIRUDO_TPM_PCR_SELECTION_LEN	(7 + SHIRUDO_TPM_PCR_SELECT_LEN)
-#define SHIRUDO_TPM_NV_POLICY_REF		"shirudo-nv-writer-v1"
-#define SHIRUDO_TPM_WRITER_ATTRS		0x00040072u
+#define TPM_ALG_RSA		0x0001u
+#define TPM_ALG_AES		0x0006u
+#define TPM_ALG_SHA256		0x000Bu
+#define TPM_ALG_ECC		0x0023u
+#define TPM_ALG_ECDSA		0x0018u
+#define TPM_ALG_RSASSA		0x0014u
+#define TPM_ALG_NULL		0x0010u
+#define TPM_ALG_CFB		0x0043u
+#define TPM_ECC_NIST_P256	0x0003u
+#define TPM_ST_ATTEST_NV	0x8014u
+#define TPM_ST_ATTEST_QUOTE	0x8018u
+#define TPM_GENERATED		0xFF544347u
+#define TPM_PCR_SELECT_LEN	3
+#define TPM_PCR_SELECTION_LEN	(7 + TPM_PCR_SELECT_LEN)
+#define TPM_NV_POLICY_REF		"shirudo-nv-writer-v1"
+#define TPM_WRITER_ATTRS		0x00040072u
 
-void tpm_writer_public(const __u8 modulus[SHIRUDO_TPM_NV_RSA_BYTES],
-		       __u8 out[SHIRUDO_TPM_NV_RSA_PUBLIC_AREA_LEN]);
-int tpm_nv_extend_cphash(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+void tpm_writer_public(const __u8 modulus[TPM_NV_RSA_BYTES],
+		       __u8 out[TPM_NV_RSA_PUBLIC_AREA_LEN]);
+int tpm_nv_extend_cphash(const __u8 name[TPM_NAME_LEN],
 			 const __u8 event[32], __u8 out[32]);
 int tpm_writer_auth_hash(const __u8 *nonce, size_t nonce_len,
 			 const __u8 cphash[32], __u8 out[32]);
 int tpm_policy_signed(const __u8 prev[32],
-		      const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
+		      const __u8 writer_public[TPM_NV_RSA_BYTES],
 		      __u8 out[32]);
-int tpm_policy_command_code(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+int tpm_policy_command_code(const __u8 prev[TPM_DIGEST_LEN],
 			    __u32 command_code,
-			    __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+			    __u8 out[TPM_DIGEST_LEN]);
 int tpm_register_policy_final(const __u8 branch_written[32],
 			      const __u8 branch_init[32],
-			      const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
+			      const __u8 writer_public[TPM_NV_RSA_BYTES],
 			      __u8 policy[32]);
 
 /*
@@ -82,19 +82,19 @@ int tpm_register_policy_final(const __u8 branch_written[32],
  * shutdown (TPMA_NV_CLEAR_STCLEAR | ORDERLY | POLICYWRITE | OWNERREAD |
  * AUTHREAD | NO_DA | TPM2_NT_EXTEND).
  */
-#define SHIRUDO_TPM_REGISTER_ATTRS	0x0E060048u
-#define SHIRUDO_TPM_NV_WRITTEN		0x20000000u
+#define TPM_REGISTER_ATTRS	0x0E060048u
+#define TPM_NV_WRITTEN		0x20000000u
 
-int tpm_policy_nv_written(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+int tpm_policy_nv_written(const __u8 prev[TPM_DIGEST_LEN],
 			  bool written,
-			  __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-int tpm_policy_pcr(const __u8 prev[SHIRUDO_TPM_DIGEST_LEN],
+			  __u8 out[TPM_DIGEST_LEN]);
+int tpm_policy_pcr(const __u8 prev[TPM_DIGEST_LEN],
 		   __u32 pcr_mask,
-		   const __u8 pcr_digest[SHIRUDO_TPM_DIGEST_LEN],
-		   __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
-int tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
-		  const __u8 b[SHIRUDO_TPM_DIGEST_LEN],
-		  __u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+		   const __u8 pcr_digest[TPM_DIGEST_LEN],
+		   __u8 out[TPM_DIGEST_LEN]);
+int tpm_policy_or(const __u8 a[TPM_DIGEST_LEN],
+		  const __u8 b[TPM_DIGEST_LEN],
+		  __u8 out[TPM_DIGEST_LEN]);
 
 /*
  * The register's write policy from the values the binding PCRs held
@@ -105,28 +105,28 @@ int tpm_policy_or(const __u8 a[SHIRUDO_TPM_DIGEST_LEN],
  */
 int tpm_register_policy(__u32 pcr_mask,
 			const __u8 *pcr_values, size_t n_values,
-			const __u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES],
+			const __u8 writer_public[TPM_NV_RSA_BYTES],
 			__u8 branch_written[32],
 			__u8 branch_init[32],
 			__u8 policy[32]);
 
 /* Name of an NV index: nameAlg || SHA-256(TPMS_NV_PUBLIC). */
 void tpm_nv_name(__u32 index, __u32 attrs,
-		 const __u8 policy[SHIRUDO_TPM_DIGEST_LEN],
+		 const __u8 policy[TPM_DIGEST_LEN],
 		 __u16 data_size,
-		 __u8 name[SHIRUDO_TPM_NAME_LEN]);
+		 __u8 name[TPM_NAME_LEN]);
 
 int tpm_object_name(const __u8 *public, size_t len,
-		    __u8 name[SHIRUDO_TPM_NAME_LEN]);
+		    __u8 name[TPM_NAME_LEN]);
 
 /*
  * Qualified name of a primary object: nameAlg || SHA-256(hierarchy
  * handle || name). Attestations carry the signer's qualified name.
  */
-#define SHIRUDO_TPM_RH_ENDORSEMENT	0x4000000Bu
+#define TPM_RH_ENDORSEMENT	0x4000000Bu
 void tpm_qualified_name(__u32 hierarchy,
-			const __u8 name[SHIRUDO_TPM_NAME_LEN],
-			__u8 out[SHIRUDO_TPM_NAME_LEN]);
+			const __u8 name[TPM_NAME_LEN],
+			__u8 out[TPM_NAME_LEN]);
 
 /*
  * The TCG default endorsement key templates: a restricted decryption
@@ -134,8 +134,8 @@ void tpm_qualified_name(__u32 hierarchy,
  * AES-128-CFB (fixedTPM | fixedParent | sensitiveDataOrigin |
  * adminWithPolicy | restricted | decrypt).
  */
-#define SHIRUDO_TPM_EK_ATTRS		0x000300B2u
-extern const __u8 shirudo_tpm_ek_policy[SHIRUDO_TPM_DIGEST_LEN];
+#define TPM_EK_ATTRS		0x000300B2u
+extern const __u8 shirudo_tpm_ek_policy[TPM_DIGEST_LEN];
 
 /*
  * A TPMT_PUBLIC of the shapes shirudo makes or checks: a SHA-256-named
@@ -146,7 +146,7 @@ struct shirudo_tpm_public {
 	__u16		type;
 	__u32		attrs;
 	size_t		policy_len;	/* 0 or 32 */
-	__u8		policy[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		policy[TPM_DIGEST_LEN];
 	__u16		sym_alg;
 	__u16		sym_bits;
 	__u16		sym_mode;
@@ -198,19 +198,19 @@ void tpm_kdfe(const __u8 z[32], const char *label,
  * the integrity HMAC and the credential encrypted under keys both
  * derived from the seed and the name.
  */
-#define SHIRUDO_TPM_CREDENTIAL_LEN	32
-#define SHIRUDO_TPM_ID_OBJECT_LEN	(2 + 32 + 2 + SHIRUDO_TPM_CREDENTIAL_LEN)
+#define TPM_CREDENTIAL_LEN	32
+#define TPM_ID_OBJECT_LEN	(2 + 32 + 2 + TPM_CREDENTIAL_LEN)
 int tpm_credential_protect(const __u8 seed[32],
-			   const __u8 name[SHIRUDO_TPM_NAME_LEN],
-			   const __u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN],
-			   __u8 out[SHIRUDO_TPM_ID_OBJECT_LEN]);
+			   const __u8 name[TPM_NAME_LEN],
+			   const __u8 credential[TPM_CREDENTIAL_LEN],
+			   __u8 out[TPM_ID_OBJECT_LEN]);
 
 int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
 			      __u8 r[32], __u8 s[32]);
 
 struct shirudo_tpm_attest {
 	__u16		type;
-	__u8		signer[SHIRUDO_TPM_NAME_LEN];
+	__u8		signer[TPM_NAME_LEN];
 	size_t		signer_len;
 	const __u8	*extra;
 	size_t		extra_len;
@@ -221,9 +221,9 @@ struct shirudo_tpm_attest {
 	__u64		firmware_version;
 	/* TPM_ST_ATTEST_QUOTE */
 	__u32		pcr_mask;
-	__u8		pcr_digest[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		pcr_digest[TPM_DIGEST_LEN];
 	/* TPM_ST_ATTEST_NV */
-	__u8		index_name[SHIRUDO_TPM_NAME_LEN];
+	__u8		index_name[TPM_NAME_LEN];
 	size_t		index_name_len;
 	__u16		offset;
 	const __u8	*nv_data;

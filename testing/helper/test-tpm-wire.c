@@ -37,16 +37,16 @@ static int gethex(const char *hex, __u8 *out, size_t cap, size_t *len)
 
 int main(int argc, char **argv)
 {
-	__u8 public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 public[TPM_NV_RSA_BYTES];
 	__u8 a[32], b[32], out[32], buf[2048];
 	size_t len;
 
 	if (argc < 2)
 		return 2;
 	if (strcmp(argv[1], "writer-public") == 0 && argc == 3) {
-		__u8 area[SHIRUDO_TPM_NV_RSA_PUBLIC_AREA_LEN];
+		__u8 area[TPM_NV_RSA_PUBLIC_AREA_LEN];
 
-		if (hex_decode(argv[2], buf, SHIRUDO_TPM_NV_RSA_BYTES))
+		if (hex_decode(argv[2], buf, TPM_NV_RSA_BYTES))
 			return 2;
 		tpm_writer_public(buf, area);
 		puthex(area, sizeof(area));
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "extend-cphash") == 0 && argc == 4) {
-		if (hex_decode(argv[2], buf, SHIRUDO_TPM_NAME_LEN) ||
+		if (hex_decode(argv[2], buf, TPM_NAME_LEN) ||
 		    hex_decode(argv[3], a, 32))
 			return 2;
 		if (tpm_nv_extend_cphash(buf, a, out))
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "nv-name") == 0 && argc == 5) {
-		__u8 name[SHIRUDO_TPM_NAME_LEN];
+		__u8 name[TPM_NAME_LEN];
 
 		if (hex_decode(argv[4], a, 32))
 			return 2;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "object-name") == 0 && argc == 3) {
-		__u8 name[SHIRUDO_TPM_NAME_LEN];
+		__u8 name[TPM_NAME_LEN];
 
 		if (gethex(argv[2], buf, sizeof(buf), &len) ||
 		    tpm_object_name(buf, len, name))
@@ -227,13 +227,13 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "credential") == 0 && argc == 5) {
-		__u8 seed[32], name[SHIRUDO_TPM_NAME_LEN], cred[32];
-		__u8 blob[SHIRUDO_TPM_ID_OBJECT_LEN];
+		__u8 seed[32], name[TPM_NAME_LEN], cred[32];
+		__u8 blob[TPM_ID_OBJECT_LEN];
 		size_t n;
 
 		if (gethex(argv[2], seed, sizeof(seed), &n) || n != 32 ||
 		    gethex(argv[3], name, sizeof(name), &n) ||
-		    n != SHIRUDO_TPM_NAME_LEN ||
+		    n != TPM_NAME_LEN ||
 		    gethex(argv[4], cred, sizeof(cred), &n) || n != 32)
 			return 2;
 		if (tpm_credential_protect(seed, name, cred, blob))
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
 		puthex(at.signer, at.signer_len);
 		printf("extra=");
 		puthex(at.extra, at.extra_len);
-		if (at.type == SHIRUDO_TPM_ST_ATTEST_QUOTE) {
+		if (at.type == TPM_ST_ATTEST_QUOTE) {
 			printf("mask=0x%06x\n", at.pcr_mask);
 			printf("pcr_digest=");
 			puthex(at.pcr_digest, 32);

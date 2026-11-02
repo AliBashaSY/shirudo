@@ -36,7 +36,7 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 	char *buf;
 
 	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0)
+		       NV_INDEX) < 0)
 		return -E2BIG;
 	buf = xmalloc(cap);
 	if (!buf)
@@ -127,7 +127,7 @@ void report_set_log(struct shirudo_op_report *r, const char *log)
 	 * The verifier log is kernel-provided diagnostic output -- bound
 	 * the read, copy with xstrndup, and scrub on free via xstrfree.
 	 */
-	r->verifier_log = xstrndup(log, SHIRUDO_VERIFIER_LOG_MAX);
+	r->verifier_log = xstrndup(log, VERIFIER_LOG_MAX);
 }
 
 void report_free(struct shirudo_op_report *r)

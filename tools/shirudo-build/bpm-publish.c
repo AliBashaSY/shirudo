@@ -49,7 +49,7 @@ static void tree_append_usage(void)
 		"Publishes the [upatches.tree] entries of a built package as the next\n"
 		"operations of the signed tree at <repository>:<ref> (default stable).\n"
 		"The key defaults to --keys-dir, SHIRUDO_KEYS_DIR or %s.\n",
-		SHIRUDO_KEYS_DIR);
+		KEYS_DIR);
 }
 
 static int publish_fail(const char *action, int rc)
@@ -482,17 +482,17 @@ static int tree_string_compare(const void *left, const void *right)
 static void tree_selector_canonicalize(struct shirudo_tree_selector *s)
 {
 	qsort(s->kernel_release_prefix, (size_t)s->n_kernel_release_prefix,
-	      SHIRUDO_TREE_STRING_MAX, tree_string_compare);
+	      TREE_STRING_MAX, tree_string_compare);
 	qsort(s->kernel_build_id, (size_t)s->n_kernel_build_id,
-	      SHIRUDO_TREE_STRING_MAX, tree_string_compare);
+	      TREE_STRING_MAX, tree_string_compare);
 	qsort(s->architecture, (size_t)s->n_architecture,
-	      SHIRUDO_TREE_STRING_MAX, tree_string_compare);
+	      TREE_STRING_MAX, tree_string_compare);
 	for (int i = 0; i < s->n_kconfig; i++)
 		qsort(s->kconfig[i].values, (size_t)s->kconfig[i].n_values,
-		      SHIRUDO_TREE_STRING_MAX, tree_string_compare);
+		      TREE_STRING_MAX, tree_string_compare);
 	for (int i = 0; i < s->n_labels; i++)
 		qsort(s->labels[i].values, (size_t)s->labels[i].n_values,
-		      SHIRUDO_TREE_STRING_MAX, tree_string_compare);
+		      TREE_STRING_MAX, tree_string_compare);
 }
 
 /*
@@ -507,7 +507,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 			      const char *id, bool unload,
 			      struct shirudo_tree_artifact *out)
 {
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1], title[SHIRUDO_UPATCH_NAME_MAX + 16];
+	char name[UPATCH_NAME_MAX + 1], title[UPATCH_NAME_MAX + 16];
 	char temporary[] = "/tmp/shirudo-bpm-tree-XXXXXX";
 	struct bpm_descriptor layer, config;
 	char empty_config[] = "{}";
@@ -529,8 +529,8 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 		pr_err("bpm tree append: %s is not a valid upatch", id);
 		return rc;
 	}
-	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	hex_encode(u.hdr.payload_sha256, 32, hex);
 	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
 		rc = -EKEYREJECTED;
@@ -664,13 +664,13 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 
 		if (!key) {
 			if (shirudo_key_path(key_path, sizeof(key_path), keys_dir,
-					     SHIRUDO_SIGNING_KEY_FILE))
+					     SIGNING_KEY_FILE))
 				return -EINVAL;
 			key = key_path;
 		}
 		if (!cert) {
 			if (shirudo_key_path(cert_path, sizeof(cert_path), keys_dir,
-					     SHIRUDO_CERT_FILE))
+					     CERT_FILE))
 				return -EINVAL;
 			cert = cert_path;
 		}
@@ -897,10 +897,10 @@ int shirudo_build_bpm_push(int argc, char **argv)
 	if (keys_dir_arg) {
 		if ((!index_cert &&
 		     shirudo_key_path(cert_path, sizeof(cert_path),
-				      keys_dir_arg, SHIRUDO_CERT_FILE)) ||
+				      keys_dir_arg, CERT_FILE)) ||
 		    (!index_key &&
 		     shirudo_key_path(key_path, sizeof(key_path),
-				      keys_dir_arg, SHIRUDO_SIGNING_KEY_FILE)))
+				      keys_dir_arg, SIGNING_KEY_FILE)))
 			return publish_fail("push", -EINVAL);
 		if (!index_cert)
 			index_cert = cert_path;

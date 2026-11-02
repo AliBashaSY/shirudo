@@ -107,9 +107,9 @@ HARDEN_STATIC_PIE_LDFLAGS := $(filter-out -pie,$(HARDEN_LDFLAGS))
 
 CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(HARDEN_CFLAGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
-               -DSHIRUDO_LIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
-               -DSHIRUDO_BPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
-               -DSHIRUDO_VMLINUX_PATH='"$(SHIRUDO_VMLINUX_PATH)"'
+               -DLIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
+               -DBPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
+               -DVMLINUX_PATH='"$(SHIRUDO_VMLINUX_PATH)"'
 
 # make SANITIZE=address,undefined instruments the host-side binaries and
 # the test helpers; BPF objects come from clang -target bpf and are never
@@ -145,7 +145,7 @@ DYNAMIC_LIBS := \
     $(LIBSSL_LIBS) $(LIBCRYPTO_LIBS) $(TSS2_LIBS) \
     $(LIBELF_LIBS) $(ZLIB_LIBS) $(LIBCURL_LIBS)
 
-CFLAGS += $(LUAJIT_CFLAGS) -DSHIRUDO_HAVE_LUAJIT
+CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
 DYNAMIC_LIBS += $(LUAJIT_LIBS)
 
 ifeq ($(PROFILE),target)
@@ -950,7 +950,7 @@ testing/fuzz/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
 testing/fuzz/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
                            util/upatch_decode.c util/upatch.c util/io.c \
                            $(FUZZ_SEAL)
-testing/fuzz/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DSHIRUDO_HAVE_LUAJIT
+testing/fuzz/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
 testing/fuzz/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/crypto_openssl.c \

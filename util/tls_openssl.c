@@ -30,8 +30,8 @@
 #include "log.h"
 
 /* Hybrid-first exception list; default policy below remains hybrid-only. */
-#define SHIRUDO_TLS_GROUPS	"*X25519MLKEM768:SecP256r1MLKEM768"
-#define SHIRUDO_TLS_CLASSICAL_GROUPS \
+#define TLS_GROUPS	"*X25519MLKEM768:SecP256r1MLKEM768"
+#define TLS_CLASSICAL_GROUPS \
 	"*X25519MLKEM768:SecP256r1MLKEM768:X25519:secp256r1"
 
 /*
@@ -130,7 +130,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	SSL_CTX *ctx = sslctx;
 	X509 *cert;
 	BIO *bio;
-	const char *groups = SHIRUDO_TLS_GROUPS;
+	const char *groups = TLS_GROUPS;
 	int fd;
 
 	if (tls_classical_host_allowed(curl)) {
@@ -139,7 +139,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 		    curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L) !=
 			    CURLE_OK)
 			return CURLE_SSL_CONNECT_ERROR;
-		groups = SHIRUDO_TLS_CLASSICAL_GROUPS;
+		groups = TLS_CLASSICAL_GROUPS;
 		SSL_CTX_set_info_callback(ctx, shirudo_tls_info_callback);
 	}
 	if (SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) != 1 ||

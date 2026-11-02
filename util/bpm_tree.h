@@ -10,35 +10,35 @@
 
 #include "chain.h"
 
-#define SHIRUDO_TREE_MAX_OPS 512
-#define SHIRUDO_TREE_MAX_KCONFIG 64
-#define SHIRUDO_TREE_MAX_LABELS 64
-#define SHIRUDO_TREE_MAX_SELECTOR_VALUES 16
-#define SHIRUDO_TREE_STRING_MAX 256
+#define TREE_MAX_OPS 512
+#define TREE_MAX_KCONFIG 64
+#define TREE_MAX_LABELS 64
+#define TREE_MAX_SELECTOR_VALUES 16
+#define TREE_STRING_MAX 256
 
 struct shirudo_json_emit;
 
 struct shirudo_tree_kv {
-	char key[SHIRUDO_TREE_STRING_MAX];
-	char value[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
+	char value[TREE_STRING_MAX];
 };
 
 struct shirudo_tree_selector_kv {
-	char key[SHIRUDO_TREE_STRING_MAX];
-	char values[SHIRUDO_TREE_MAX_SELECTOR_VALUES][SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
+	char values[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
 	int n_values;
 };
 
 struct shirudo_tree_selector {
-	char kernel_release_prefix[SHIRUDO_TREE_MAX_SELECTOR_VALUES][SHIRUDO_TREE_STRING_MAX];
+	char kernel_release_prefix[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
 	int n_kernel_release_prefix;
-	char kernel_build_id[SHIRUDO_TREE_MAX_SELECTOR_VALUES][SHIRUDO_TREE_STRING_MAX];
+	char kernel_build_id[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
 	int n_kernel_build_id;
-	char architecture[SHIRUDO_TREE_MAX_SELECTOR_VALUES][SHIRUDO_TREE_STRING_MAX];
+	char architecture[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
 	int n_architecture;
-	struct shirudo_tree_selector_kv kconfig[SHIRUDO_TREE_MAX_KCONFIG];
+	struct shirudo_tree_selector_kv kconfig[TREE_MAX_KCONFIG];
 	int n_kconfig;
-	struct shirudo_tree_selector_kv labels[SHIRUDO_TREE_MAX_LABELS];
+	struct shirudo_tree_selector_kv labels[TREE_MAX_LABELS];
 	int n_labels;
 };
 
@@ -52,7 +52,7 @@ struct shirudo_tree_artifact {
 struct shirudo_tree_operation {
 	__s64 seq;
 	char op[16];
-	char id[SHIRUDO_TREE_STRING_MAX];
+	char id[TREE_STRING_MAX];
 	struct shirudo_tree_selector selector;
 	struct shirudo_tree_artifact artifact;
 	char expected_payload_sha256[128];
@@ -61,7 +61,7 @@ struct shirudo_tree_operation {
 
 struct shirudo_tree_publication {
 	int schema;
-	char tree_id[SHIRUDO_TREE_STRING_MAX];
+	char tree_id[TREE_STRING_MAX];
 	__s64 generation;
 	char parent_manifest_digest[128];
 	__s64 base_seq;
@@ -73,7 +73,7 @@ struct shirudo_tree_publication {
 
 struct shirudo_tree_state {
 	int schema;
-	char tree_id[SHIRUDO_TREE_STRING_MAX];
+	char tree_id[TREE_STRING_MAX];
 	__s64 generation;
 	__s64 last_seq;
 	/* Software projection is only a crash-recovery cursor when TPM is absent. */

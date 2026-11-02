@@ -124,14 +124,14 @@ int shirudo_image_bootstrap_load(void)
 		image.bootstrap.have_root = true;
 		rc = load_runtime_config(false);
 	} else {
-		rc = shirudo_image_bootstrap_read(SHIRUDO_CONF_PATH,
+		rc = shirudo_image_bootstrap_read(CONF_PATH,
 						  &image.bootstrap, true);
 		if (!rc &&
 		    (!image.bootstrap.runtime[0] || !image.bootstrap.have_root))
 			rc = -EINVAL;
 		if (!rc)
 			rc = config_load_path(&image.bootstrap_config,
-					      SHIRUDO_CONF_PATH);
+					      CONF_PATH);
 	}
 	if (rc)
 		return rc;
@@ -192,7 +192,7 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 		close(block);
 		return rc;
 	}
-	fd = bpf_obj_get(SHIRUDO_BPFFS_DIR "/devices");
+	fd = bpf_obj_get(BPFFS_DIR "/devices");
 	if (fd < 0) {
 		rc = -errno;
 		goto out_block;
@@ -221,7 +221,7 @@ out_block:
 static int runtime_observed(dev_t device)
 {
 	return device_observed(device, image.bootstrap.runtime_root,
-			       SHIRUDO_DEVICE_RUNTIME);
+			       DEVICE_RUNTIME);
 }
 
 static int mount_flags(int fd, bool executable)
@@ -264,7 +264,7 @@ static int load_runtime_config(bool trusted_boot)
 		if (rc)
 			return rc;
 	}
-	if (stat(SHIRUDO_RUNTIME_DIR, &root))
+	if (stat(RUNTIME_DIR, &root))
 		return -errno;
 	if (!trusted_boot) {
 		rc = runtime_observed(root.st_dev);
@@ -272,13 +272,13 @@ static int load_runtime_config(bool trusted_boot)
 			return rc;
 	}
 
-	fd = open_runtime_file(SHIRUDO_RUNTIME_CONF_PATH, root.st_dev);
+	fd = open_runtime_file(RUNTIME_CONF_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
 	rc = shirudo_image_bootstrap_read_fd(fd, &image.bootstrap, false);
 	if (!rc)
 		rc = config_load_fd(&image.bootstrap_config, fd,
-				    SHIRUDO_RUNTIME_CONF_PATH);
+				    RUNTIME_CONF_PATH);
 	close(fd);
 	if (rc)
 		return rc;
@@ -296,7 +296,7 @@ static int load_runtime_config(bool trusted_boot)
 		close(image.certificate_fd);
 	image.certificate_fd = fd;
 
-	fd = open_runtime_file(SHIRUDO_RUNTIME_CERT_PATH, root.st_dev);
+	fd = open_runtime_file(RUNTIME_CERT_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
 	rc = mount_flags(fd, true);
@@ -327,7 +327,7 @@ static int mount_runtime(bool trusted_boot)
 
 	if (!image.loaded)
 		return -EINVAL;
-	if (!trusted_boot && !stat(SHIRUDO_RUNTIME_DIR, &st) &&
+	if (!trusted_boot && !stat(RUNTIME_DIR, &st) &&
 	    !runtime_observed(st.st_dev))
 		return load_runtime_config(trusted_boot);
 	rc = shirudo_config_image_open_root(image.bootstrap.runtime,
@@ -335,7 +335,7 @@ static int mount_runtime(bool trusted_boot)
 					    &opened);
 	if (!rc) {
 		step = "prepare runtime mountpoint";
-		rc = mkdir_owned(SHIRUDO_RUNTIME_DIR);
+		rc = mkdir_owned(RUNTIME_DIR);
 	}
 	if (!rc) {
 		step = "create runtime dm-verity mapping";
@@ -354,7 +354,7 @@ static int mount_runtime(bool trusted_boot)
 	}
 	if (!rc) {
 		step = "mount runtime image";
-		rc = shirudo_dm_verity_mount(&device, SHIRUDO_RUNTIME_DIR,
+		rc = shirudo_dm_verity_mount(&device, RUNTIME_DIR,
 					     true);
 	}
 	if (rc && created) {
@@ -370,7 +370,7 @@ static int mount_runtime(bool trusted_boot)
 	if (!rc) {
 		step = "load runtime config";
 		rc = load_runtime_config(trusted_boot);
-		if (rc && umount2(SHIRUDO_RUNTIME_DIR, MNT_DETACH))
+		if (rc && umount2(RUNTIME_DIR, MNT_DETACH))
 			pr_warn("image: cannot unmount the runtime: %s",
 				strerror(errno));
 	}
@@ -387,8 +387,8 @@ int shirudo_image_runtime_mount(void)
 static int seal_fd(void *ctx, int fd)
 {
 	(void)ctx;
-	return fsetxattr(fd, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
-			 strlen(SHIRUDO_SEAL_LABEL), 0) ?
+	return fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
+			 strlen(SEAL_LABEL), 0) ?
 		       -errno :
 		       0;
 }
@@ -424,7 +424,7 @@ static int collect_mapping(const char *name, dev_t device, void *ctx)
 	int rc;
 
 	if (device == *active ||
-	    device_observed(device, NULL, SHIRUDO_DEVICE_CONFIG))
+	    device_observed(device, NULL, DEVICE_CONFIG))
 		return 0;
 	if (strlen(name) >= sizeof(retired.name))
 		return -ENAMETOOLONG;
@@ -445,7 +445,7 @@ static void collect_mappings(void)
 
 	if (image.update.lock_fd < 0)
 		return;
-	if (!stat(SHIRUDO_CONFIG_IMAGE_DIR, &st))
+	if (!stat(CONFIG_IMAGE_DIR, &st))
 		active = st.st_dev;
 	rc = shirudo_dm_verity_list(collect_mapping, &active);
 	if (rc)
@@ -459,7 +459,7 @@ static void close_candidate(void)
 		close(image.candidate_fd);
 	image.candidate_fd = -1;
 	if (image.update.lock_fd >= 0 &&
-	    umount2(SHIRUDO_CONFIG_CANDIDATE_DIR, MNT_DETACH) &&
+	    umount2(CONFIG_CANDIDATE_DIR, MNT_DETACH) &&
 	    errno != EINVAL && errno != ENOENT)
 		pr_warn("image: cannot release candidate mount: %s",
 			strerror(errno));
@@ -496,13 +496,13 @@ static int candidate_keys(int fd)
 static int mount_candidate(struct image_context *current)
 {
 	struct shirudo_dm_verity *device = &current->candidate_device;
-	const char *mountpoint = SHIRUDO_CONFIG_CANDIDATE_DIR;
+	const char *mountpoint = CONFIG_CANDIDATE_DIR;
 	struct stat st;
 	int rc;
 
-	if (!stat(SHIRUDO_CONFIG_IMAGE_DIR, &st) &&
+	if (!stat(CONFIG_IMAGE_DIR, &st) &&
 	    st.st_dev == current->candidate_device.device) {
-		current->candidate_fd = open(SHIRUDO_CONFIG_IMAGE_DIR,
+		current->candidate_fd = open(CONFIG_IMAGE_DIR,
 					     O_PATH | O_DIRECTORY | O_CLOEXEC);
 	} else {
 		if (umount2(mountpoint, MNT_DETACH) &&
@@ -531,8 +531,8 @@ static int prepare_config(struct image_context *current,
 	close_candidate();
 	if (!trusted_boot)
 		collect_mappings();
-	if (strncmp(target->prefix, SHIRUDO_IMAGE_CACHE_DIR "/",
-		    sizeof(SHIRUDO_IMAGE_CACHE_DIR)) ||
+	if (strncmp(target->prefix, IMAGE_CACHE_DIR "/",
+		    sizeof(IMAGE_CACHE_DIR)) ||
 	    !shirudo_image_path_valid(target->prefix))
 		return -EPERM;
 	rc = shirudo_config_image_open(target->prefix, &current->candidate);
@@ -555,7 +555,7 @@ static int prepare_config(struct image_context *current,
 	if (!rc && !trusted_boot)
 		rc = device_observed(current->candidate_device.device,
 				     current->candidate.image.root_hash,
-				     SHIRUDO_DEVICE_CONFIG);
+				     DEVICE_CONFIG);
 	if (rc)
 		goto out;
 	rc = mount_candidate(current);
@@ -585,21 +585,21 @@ static int activate_config(struct image_context *current, bool boot)
 	rc = shirudo_keys_apply_image(current->candidate_fd, boot);
 	if (rc)
 		return rc;
-	rc = mkdir_owned(SHIRUDO_CONFIG_IMAGE_DIR);
+	rc = mkdir_owned(CONFIG_IMAGE_DIR);
 	if (rc)
 		return rc;
-	if (stat(SHIRUDO_CONFIG_IMAGE_DIR, &st))
+	if (stat(CONFIG_IMAGE_DIR, &st))
 		return -errno;
 	if (st.st_dev != current->candidate_device.device) {
-		if (umount2(SHIRUDO_CONFIG_IMAGE_DIR, MNT_DETACH) &&
+		if (umount2(CONFIG_IMAGE_DIR, MNT_DETACH) &&
 		    errno != EINVAL)
 			return -errno;
 		rc = shirudo_dm_verity_mount(&current->candidate_device,
-					     SHIRUDO_CONFIG_IMAGE_DIR, false);
+					     CONFIG_IMAGE_DIR, false);
 		if (rc)
 			return rc;
 	}
-	fd = open(SHIRUDO_CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
 	if (fstat(fd, &st))
@@ -659,13 +659,13 @@ static int open_update(void)
 
 	if (image.update.lock_fd >= 0)
 		return 0;
-	rc = mkdir_owned(SHIRUDO_CONFIG_UPDATE_DIR);
+	rc = mkdir_owned(CONFIG_UPDATE_DIR);
 	if (!rc)
 		rc = tpm_open(&image.tpm);
 	if (!rc)
 		rc = chain_tpm_bound(image.tpm);
 	if (!rc)
-		rc = shirudo_config_update_open(SHIRUDO_CONFIG_UPDATE_DIR,
+		rc = shirudo_config_update_open(CONFIG_UPDATE_DIR,
 						&update_ops, &image,
 						&image.update);
 	return rc;
@@ -786,12 +786,12 @@ int shirudo_image_boot_keys(struct shirudo_trusted_set *set)
 	rc = prepare_config(&image, &image.boot_target, true);
 	if (rc)
 		return boot_keys_error("prepare boot config", rc);
-	rc = shirudo_keys_validate_image_set(SHIRUDO_RUNTIME_CERT_PATH,
+	rc = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
 					     image.candidate_fd, set);
 	if (rc)
 		return boot_keys_error("validate BPF trust set", rc);
 	/* Guard loaders need the initial signer until activation. */
-	strscpy(primary.path, SHIRUDO_RUNTIME_CERT_PATH, sizeof(primary.path));
+	strscpy(primary.path, RUNTIME_CERT_PATH, sizeof(primary.path));
 	rc = keys_digest_file(primary.path, primary.sha256,
 			      primary.fingerprint);
 	if (rc)
@@ -800,7 +800,7 @@ int shirudo_image_boot_keys(struct shirudo_trusted_set *set)
 		if (!memcmp(set->certs[i].sha256, primary.sha256, 32))
 			break;
 	if (i == set->n) {
-		if (set->n == SHIRUDO_KEYS_MAX)
+		if (set->n == KEYS_MAX)
 			return boot_keys_error("add runtime certificate to "
 					       "trusted set", -E2BIG);
 		set->certs[set->n++] = primary;
@@ -822,7 +822,7 @@ int shirudo_image_boot_keys_close(void)
 	if (image.certificate_fd >= 0)
 		close(image.certificate_fd);
 	image.certificate_fd = -1;
-	if (umount(SHIRUDO_CONFIG_CANDIDATE_DIR) && errno != EINVAL &&
+	if (umount(CONFIG_CANDIDATE_DIR) && errno != EINVAL &&
 	    errno != ENOENT)
 		rc = -errno;
 	if (image.candidate_device.name[0]) {
@@ -831,7 +831,7 @@ int shirudo_image_boot_keys_close(void)
 			rc = err;
 	}
 	shirudo_config_image_close(&image.candidate);
-	if (umount(SHIRUDO_RUNTIME_DIR) && errno != EINVAL && errno != ENOENT &&
+	if (umount(RUNTIME_DIR) && errno != EINVAL && errno != ENOENT &&
 	    !rc)
 		rc = -errno;
 	if (image.boot_runtime.name[0]) {
@@ -888,15 +888,15 @@ static int config_mount_check(const struct shirudo_config_update_record *record)
 	shirudo_config_image_close(&opened);
 	if (rc)
 		return rc;
-	if (stat(SHIRUDO_CONFIG_IMAGE_DIR, &st) || st.st_dev != device.device) {
+	if (stat(CONFIG_IMAGE_DIR, &st) || st.st_dev != device.device) {
 		rc = -EUCLEAN;
 		goto out;
 	}
 	rc = device_observed(device.device, record->target.root_hash,
-			     SHIRUDO_DEVICE_CONFIG);
+			     DEVICE_CONFIG);
 	if (rc)
 		goto out;
-	fd = open(SHIRUDO_CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0) {
 		rc = -errno;
 		goto out;
@@ -1067,7 +1067,7 @@ int shirudo_image_update(const char *prefix)
 		return -ENODEV;
 	rc = current_config();
 	if (!rc)
-		rc = mkdir_owned(SHIRUDO_IMAGE_CACHE_DIR);
+		rc = mkdir_owned(IMAGE_CACHE_DIR);
 	if (!rc)
 		rc = shirudo_image_cache_fetch(prefix, &target);
 	if (!rc)

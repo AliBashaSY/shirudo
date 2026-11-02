@@ -14,7 +14,7 @@ static const __u8 notes[] = {
 
 static void gnu_note_gives_the_build_id(void)
 {
-	char id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
+	char id[KERNEL_BUILD_ID_STRING_MAX];
 
 	ASSERT_EQ(kernel_build_id_from_notes(notes, sizeof(notes), id), 0);
 	EXPECT_STREQ(id, "01234567");
@@ -22,14 +22,14 @@ static void gnu_note_gives_the_build_id(void)
 
 static void empty_notes_have_no_build_id(void)
 {
-	char id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
+	char id[KERNEL_BUILD_ID_STRING_MAX];
 
 	EXPECT_EQ(kernel_build_id_from_notes(notes, 0, id), -ENOENT);
 }
 
 static void oversized_name_is_malformed(void)
 {
-	char id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
+	char id[KERNEL_BUILD_ID_STRING_MAX];
 	__u8 bad[sizeof(notes)];
 	__u32 namesz = ~0U;
 

@@ -24,7 +24,7 @@
 #include "log.h"
 #include "macros.h"
 
-#define RECORD_MAX (2 * SHIRUDO_CONFIG_UPDATE_PREFIX_MAX + 1024)
+#define RECORD_MAX (2 * CONFIG_UPDATE_PREFIX_MAX + 1024)
 
 static int target_valid(const struct shirudo_config_update_target *target)
 {

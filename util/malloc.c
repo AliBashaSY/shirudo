@@ -12,7 +12,7 @@
 #include <string.h>
 
 /* Implements the wrappers; opt out of the poison pragma in malloc.h. */
-#define SHIRUDO_MALLOC_INTERNAL
+#define MALLOC_INTERNAL
 #include "malloc.h"
 
 void *xmalloc(size_t size)
@@ -110,10 +110,10 @@ char *xasprintf(const char *fmt, ...)
 }
 
 #if defined(__SANITIZE_ADDRESS__)
-#define SHIRUDO_ASAN	1
+#define ASAN	1
 #elif defined(__has_feature)
 #if __has_feature(address_sanitizer)
-#define SHIRUDO_ASAN	1
+#define ASAN	1
 #endif
 #endif
 
@@ -125,7 +125,7 @@ char *xasprintf(const char *fmt, ...)
  */
 static void scrub(void *ptr, size_t size)
 {
-#ifdef SHIRUDO_ASAN
+#ifdef ASAN
 	static void *(*volatile checked)(void *, int, size_t) = memset;
 
 	checked(ptr, 0, size);

@@ -14,14 +14,14 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_KEYS_MAX	16
-#define SHIRUDO_KEYS_DER_MAX	(1024 * 1024)
+#define KEYS_MAX	16
+#define KEYS_DER_MAX	(1024 * 1024)
 
 /*
  * A vouch is a detached CMS signature by a member's key over this
  * prefix, NUL included, followed by the vouched certificate's DER.
  */
-#define SHIRUDO_KEYS_VOUCH_PREFIX	"shirudo-key-vouch"
+#define KEYS_VOUCH_PREFIX	"shirudo-key-vouch"
 
 /* voucher is the admitting member's fingerprint, zero for the primary. */
 struct shirudo_trusted_cert {
@@ -41,7 +41,7 @@ struct shirudo_trusted_cert {
  * that directory's certificates.
  */
 struct shirudo_trusted_set {
-	struct shirudo_trusted_cert	certs[SHIRUDO_KEYS_MAX];
+	struct shirudo_trusted_cert	certs[KEYS_MAX];
 	size_t				n;
 	size_t				n_revoked;
 	size_t				n_unvouched;
@@ -79,7 +79,7 @@ int keys_cert_der(const struct shirudo_trusted_cert *c, const __u8 **der,
 int keys_cert_read(const struct shirudo_trusted_cert *c,
 		   struct shirudo_cert *cert);
 
-/* A whole file of at most SHIRUDO_KEYS_DER_MAX bytes, xmalloc'd. */
+/* A whole file of at most KEYS_DER_MAX bytes, xmalloc'd. */
 int keys_read_der(const char *path, __u8 **out,
 		  size_t *out_sz);
 int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz);

@@ -59,7 +59,7 @@ struct shirudo_condition {
  * KeyringSealed, ChainIntact, TpmMeasured, ConfigActive); callers can
  * size their stack array off this.
  */
-#define SHIRUDO_CONDITIONS_MAX	5
+#define CONDITIONS_MAX	5
 
 size_t conditions(const struct shirudo_conditions_input *in,
 		  struct shirudo_condition *out, size_t cap);

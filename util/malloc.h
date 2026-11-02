@@ -65,9 +65,9 @@ void libc_free(void *p);
 /*
  * Refused once the headers included above have declared them, so that a
  * later include of those still works; util/malloc.c opts out with
- * SHIRUDO_MALLOC_INTERNAL.
+ * MALLOC_INTERNAL.
  */
-#ifndef SHIRUDO_MALLOC_INTERNAL
+#ifndef MALLOC_INTERNAL
 /* Fortified glibc makes these macros for clang; poison the names alone. */
 # undef asprintf
 # undef vasprintf

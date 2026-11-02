@@ -22,19 +22,19 @@
 #include "log.h"
 #include "malloc.h"
 
-#ifndef SHIRUDO_CLANG_PATH
-#define SHIRUDO_CLANG_PATH	"/usr/bin/clang"
+#ifndef CLANG_PATH
+#define CLANG_PATH	"/usr/bin/clang"
 #endif
 
-#ifndef SHIRUDO_BPF_INCDIR
-#define SHIRUDO_BPF_INCDIR	"/usr/share/shirudo/bpf/include"
+#ifndef BPF_INCDIR
+#define BPF_INCDIR	"/usr/share/shirudo/bpf/include"
 #endif
 
-#define SHIRUDO_BUILD_MAX_ARGS	64
+#define BUILD_MAX_ARGS	64
 
 static int push(const char **argv, int *n, const char *arg)
 {
-	if (*n >= SHIRUDO_BUILD_MAX_ARGS - 1)
+	if (*n >= BUILD_MAX_ARGS - 1)
 		return -E2BIG;
 	argv[(*n)++] = arg;
 	return 0;
@@ -42,13 +42,13 @@ static int push(const char **argv, int *n, const char *arg)
 
 static const char *locate_bpf_headers(void)
 {
-	static const char installed[] = "-I" SHIRUDO_BPF_INCDIR;
+	static const char installed[] = "-I" BPF_INCDIR;
 	static const char in_tree[] = "-I./vendor/libbpf";
 	struct stat st;
 
 	if (stat("./vendor/libbpf/bpf/bpf_helpers.h", &st) == 0)
 		return in_tree;
-	if (stat(SHIRUDO_BPF_INCDIR "/bpf/bpf_helpers.h", &st) == 0)
+	if (stat(BPF_INCDIR "/bpf/bpf_helpers.h", &st) == 0)
 		return installed;
 	return NULL;
 }
@@ -56,12 +56,12 @@ static const char *locate_bpf_headers(void)
 static const char *locate_shirudo_bpf_headers(void)
 {
 	static const char in_tree[] = "-I./bpf/lib";
-	static const char installed[] = "-I" SHIRUDO_BPF_INCDIR;
+	static const char installed[] = "-I" BPF_INCDIR;
 	struct stat st;
 
 	if (stat("./bpf/lib/shirudo_serializer.h", &st) == 0)
 		return in_tree;
-	if (stat(SHIRUDO_BPF_INCDIR "/shirudo_serializer.h", &st) == 0)
+	if (stat(BPF_INCDIR "/shirudo_serializer.h", &st) == 0)
 		return installed;
 	return NULL;
 }
@@ -70,7 +70,7 @@ int shirudo_build_compile(const char *source, const char *output,
 			  const char *vmlinux_h, const char *extra_cflags,
 			  const char *shirudo_bpf_incdir)
 {
-	const char *argv[SHIRUDO_BUILD_MAX_ARGS] = {};
+	const char *argv[BUILD_MAX_ARGS] = {};
 	char inc_vmlinux[1024 + 8];
 	char inc_shirudo_bpf_buf[PATH_MAX + 8];
 	char vmlinux_dir[1024];
@@ -80,9 +80,9 @@ int shirudo_build_compile(const char *source, const char *output,
 	int n = 0;
 	pid_t pid;
 
-	if (access(SHIRUDO_CLANG_PATH, X_OK) != 0) {
+	if (access(CLANG_PATH, X_OK) != 0) {
 		pr_err("clang not at hardcoded path %s: %s",
-		       SHIRUDO_CLANG_PATH, strerror(errno));
+		       CLANG_PATH, strerror(errno));
 		return -ENOENT;
 	}
 
@@ -102,7 +102,7 @@ int shirudo_build_compile(const char *source, const char *output,
 		       vmlinux_dir) < 0)
 		return -ENAMETOOLONG;
 
-	push(argv, &n, SHIRUDO_CLANG_PATH);
+	push(argv, &n, CLANG_PATH);
 	push(argv, &n, "-target");
 	push(argv, &n, "bpf");
 	push(argv, &n, "-O2");
@@ -168,9 +168,9 @@ int shirudo_build_compile(const char *source, const char *output,
 		goto out;
 	}
 	if (pid == 0) {
-		execv(SHIRUDO_CLANG_PATH, (char *const *)argv);
+		execv(CLANG_PATH, (char *const *)argv);
 		fprintf(stderr, "exec %s: %s\n",
-			SHIRUDO_CLANG_PATH, strerror(errno));
+			CLANG_PATH, strerror(errno));
 		_exit(127);
 	}
 	while (waitpid(pid, &status, 0) < 0) {

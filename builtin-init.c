@@ -83,7 +83,7 @@ static bool initrd_mode;
 static int keyring_holds_set(key_serial_t ring,
 			     const struct shirudo_trusted_set *set)
 {
-	struct keyring_cert certs[SHIRUDO_KEYS_MAX];
+	struct keyring_cert certs[KEYS_MAX];
 	size_t i;
 	int rc;
 
@@ -201,7 +201,7 @@ static int init_keyring(void)
 		return rc;
 	}
 	if (!identity_read(&id)) {
-		if (id.keyring_type != SHIRUDO_SIG_KEYRING_BPF ||
+		if (id.keyring_type != SIG_KEYRING_BPF ||
 		    id.keyring_serial != ring ||
 		    memcmp(id.runtime_root, shirudo_image_runtime_root(), 32))
 			return -EKEYREJECTED;
@@ -245,66 +245,66 @@ static int init_bpffs(void)
 	struct stat parent, run;
 	int rc;
 
-	rc = seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
+	rc = seal_mkdir_p(VAR_LIB, 0700);
 	if (rc) {
-		pr_err("mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
+		pr_err("mkdir %s: %s", VAR_LIB, strerror(-rc));
 		return rc;
 	}
-	rc = seal_mkdir_p(SHIRUDO_RUN_DIR, 0700);
+	rc = seal_mkdir_p(RUN_DIR, 0700);
 	if (rc) {
-		pr_err("mkdir %s: %s", SHIRUDO_RUN_DIR, strerror(-rc));
+		pr_err("mkdir %s: %s", RUN_DIR, strerror(-rc));
 		return rc;
 	}
-	rc = is_bpffs_mounted(SHIRUDO_BPFFS_DIR);
+	rc = is_bpffs_mounted(BPFFS_DIR);
 	if (rc < 0)
 		return rc;
 	if (rc)
 		return 0;
-	if (stat(SHIRUDO_RUN_DIR, &parent) || stat("/run", &run))
+	if (stat(RUN_DIR, &parent) || stat("/run", &run))
 		return -errno;
 	if (parent.st_dev == run.st_dev) {
-		rc = seal_label(SHIRUDO_RUN_DIR);
+		rc = seal_label(RUN_DIR);
 		if (rc)
 			return rc;
-		if (mount("tmpfs", SHIRUDO_RUN_DIR, "tmpfs",
+		if (mount("tmpfs", RUN_DIR, "tmpfs",
 			  MS_NOSUID | MS_NODEV | MS_NOEXEC,
 			  "mode=0700,size=16M"))
 			return -errno;
 	}
-	if (mount(NULL, SHIRUDO_RUN_DIR, NULL,
+	if (mount(NULL, RUN_DIR, NULL,
 		  MS_PRIVATE | MS_REC, NULL))
 		return -errno;
 
 	/* So that the init record left here is sealed from its creation. */
-	rc = seal_label(SHIRUDO_RUN_DIR);
+	rc = seal_label(RUN_DIR);
 	if (rc)
 		return rc;
-	rc = seal_mkdir_p(SHIRUDO_BPFFS_DIR, 0700);
+	rc = seal_mkdir_p(BPFFS_DIR, 0700);
 	if (rc) {
 		pr_err("mkdir %s: %s",
-		       SHIRUDO_BPFFS_DIR, strerror(-rc));
+		       BPFFS_DIR, strerror(-rc));
 		return rc;
 	}
 
-	rc = is_bpffs_mounted(SHIRUDO_BPFFS_DIR);
+	rc = is_bpffs_mounted(BPFFS_DIR);
 	if (rc < 0) {
 		pr_err("read /proc/self/mounts: %s", strerror(-rc));
 		return rc;
 	}
 	if (rc) {
-		pr_info("bpffs already mounted at %s", SHIRUDO_BPFFS_DIR);
+		pr_info("bpffs already mounted at %s", BPFFS_DIR);
 		return 0;
 	}
 
-	if (mount("bpf", SHIRUDO_BPFFS_DIR, "bpf",
+	if (mount("bpf", BPFFS_DIR, "bpf",
 		  MS_NOSUID | MS_NODEV | MS_NOEXEC, "mode=0700") != 0) {
 		pr_err("mount bpffs at %s: %s",
-		       SHIRUDO_BPFFS_DIR, strerror(errno));
+		       BPFFS_DIR, strerror(errno));
 		return -errno;
 	}
 
 	pr_info("mounted private bpffs at %s "
-		"(mode=0700,nosuid,nodev,noexec)", SHIRUDO_BPFFS_DIR);
+		"(mode=0700,nosuid,nodev,noexec)", BPFFS_DIR);
 	return 0;
 }
 
@@ -406,7 +406,7 @@ static int record_bpffs_mount(struct bpf_object *obj)
 	__u32 zero = 0;
 	int fd;
 
-	fd = open(SHIRUDO_BPFFS_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	fd = open(BPFFS_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
 	close(fd);
@@ -467,11 +467,11 @@ static int attach_seal(struct bpf_object *policy, struct bpf_object **obj_out,
 	return 0;
 }
 
-_Static_assert(SHIRUDO_IDENTITY_KEYS_MAX == SHIRUDO_KEYS_MAX,
+_Static_assert(IDENTITY_KEYS_MAX == KEYS_MAX,
 	       "the identity map holds one serial per trusted certificate");
 
 struct anchor_keys {
-	__s32	serials[SHIRUDO_IDENTITY_KEYS_MAX];
+	__s32	serials[IDENTITY_KEYS_MAX];
 	size_t	n;
 	bool	overflow;
 };
@@ -525,7 +525,7 @@ static int dm_verity_anchor(struct shirudo_identity *id)
 static int freeze_task_maps(struct bpf_object *obj)
 {
 	struct shirudo_task_authority authority = {
-		.trusted = SHIRUDO_TASK_BOOTSTRAP,
+		.trusted = TASK_BOOTSTRAP,
 	};
 	struct bpf_map *map;
 	int fd, pidfd, rc = 0;
@@ -587,14 +587,14 @@ static int record_attestation_key(struct shirudo_identity *id)
 
 static int init_lsm(void)
 {
-	struct bpf_link *image_links[SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT] = {};
-	struct bpf_link *image_seal[SHIRUDO_IMAGE_SEAL_HOOK_COUNT] = {};
+	struct bpf_link *image_links[IMAGE_OBSERVER_HOOK_COUNT] = {};
+	struct bpf_link *image_seal[IMAGE_SEAL_HOOK_COUNT] = {};
 	struct bpf_link *link_setx = NULL, *link_rmx = NULL, *link_pload = NULL;
 	struct bpf_link *identity_links[ARRAY_SIZE(shirudo_observer_guards)] = {};
 	struct bpf_link *mount_links[ARRAY_SIZE(shirudo_mount_guards)] = {};
 	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
 	const struct shirudo_embedded_bpf *blob = bpf2_blob();
-	struct bpf_link *seal_links[SHIRUDO_SEAL_HOOK_COUNT] = {};
+	struct bpf_link *seal_links[SEAL_HOOK_COUNT] = {};
 	struct bpf_link *link_bpf = NULL, *link_bpf_map = NULL;
 	struct bpf_object *obj = NULL, *seal_obj = NULL;
 	struct bpf_link *link_keyperm = NULL, *link_tpm = NULL;
@@ -612,8 +612,8 @@ static int init_lsm(void)
 	if (access(shirudo_gate_guards[SHIRUDO_GUARD_BPF].pin, F_OK) == 0) {
 		err = identity_read(&id);
 		if (err || !(id.nv_writer_public[0] & 0x80) ||
-		    id.nv_index != SHIRUDO_NV_INDEX ||
-		    access(SHIRUDO_TPM_COMMAND_LINK_PIN, F_OK)) {
+		    id.nv_index != NV_INDEX ||
+		    access(TPM_COMMAND_LINK_PIN, F_OK)) {
 			pr_err("init: TPM NV index guard missing or changed; reboot "
 			       "with the updated initrd");
 			return err ? err : -EACCES;
@@ -623,13 +623,13 @@ static int init_lsm(void)
 		return 0;
 	}
 	/* A pin without the links behind it is what a failed attempt leaves. */
-	if (unlink(SHIRUDO_IDENTITY_PIN) != 0 && errno != ENOENT) {
-		pr_err("unlink stale %s: %s", SHIRUDO_IDENTITY_PIN,
+	if (unlink(IDENTITY_PIN) != 0 && errno != ENOENT) {
+		pr_err("unlink stale %s: %s", IDENTITY_PIN,
 		       strerror(errno));
 		return -errno;
 	}
-	if (unlink(SHIRUDO_TAMPER_PIN) != 0 && errno != ENOENT) {
-		pr_err("unlink stale %s: %s", SHIRUDO_TAMPER_PIN,
+	if (unlink(TAMPER_PIN) != 0 && errno != ENOENT) {
+		pr_err("unlink stale %s: %s", TAMPER_PIN,
 		       strerror(errno));
 		return -errno;
 	}
@@ -652,13 +652,13 @@ static int init_lsm(void)
 		goto out;
 	}
 
-	if (stat(SHIRUDO_BPFFS_DIR, &st) != 0) {
+	if (stat(BPFFS_DIR, &st) != 0) {
 		err = -errno;
-		pr_err("stat %s: %s", SHIRUDO_BPFFS_DIR, strerror(errno));
+		pr_err("stat %s: %s", BPFFS_DIR, strerror(errno));
 		goto out;
 	}
 	id.sb_dev = kernel_dev_t(st.st_dev);
-	if (stat(SHIRUDO_RUN_DIR, &st)) {
+	if (stat(RUN_DIR, &st)) {
 		err = -errno;
 		goto out;
 	}
@@ -674,7 +674,7 @@ static int init_lsm(void)
 	 * serial the kernel records for a load that names it as keyring_id.
 	 */
 	keyring = keyring_bpf_serial();
-	id.keyring_type = SHIRUDO_SIG_KEYRING_BPF;
+	id.keyring_type = SIG_KEYRING_BPF;
 	if (keyring <= 0) {
 		err = keyring ? keyring : -ENOKEY;
 		pr_err("resolve the bpf keyring serial: %s", strerror(-err));
@@ -700,7 +700,7 @@ static int init_lsm(void)
 		goto out;
 	}
 	id.n_keys = (__u32)keys.n;
-	id.nv_index = SHIRUDO_NV_INDEX;
+	id.nv_index = NV_INDEX;
 	memcpy(id.key_serials, keys.serials, keys.n * sizeof(keys.serials[0]));
 	err = dm_verity_anchor(&id);
 	if (err)
@@ -742,9 +742,9 @@ static int init_lsm(void)
 	 * from the kernel rather than from a file: the serial a load names
 	 * and status reports is the one lsm/bpf_prog_load enforces.
 	 */
-	if (bpf_obj_pin(map_fd, SHIRUDO_IDENTITY_PIN) != 0) {
+	if (bpf_obj_pin(map_fd, IDENTITY_PIN) != 0) {
 		err = -errno;
-		pr_err("pin identity map at %s: %s", SHIRUDO_IDENTITY_PIN,
+		pr_err("pin identity map at %s: %s", IDENTITY_PIN,
 		       strerror(errno));
 		goto out;
 	}
@@ -755,7 +755,7 @@ static int init_lsm(void)
 				 identity_links);
 	if (!err)
 		err = attach_guard_group(obj, shirudo_image_observer_guards,
-					 SHIRUDO_IMAGE_OBSERVER_HOOK_COUNT,
+					 IMAGE_OBSERVER_HOOK_COUNT,
 					 image_links);
 	if (err)
 		goto out;
@@ -883,11 +883,11 @@ out:
 		for (i = 0; i < (int)ARRAY_SIZE(links); i++)
 			if (links[i])
 				bpf_link__unpin(links[i]);
-		(void)unlink(SHIRUDO_IDENTITY_PIN);
-		(void)unlink(SHIRUDO_TAMPER_PIN);
-		(void)unlink(SHIRUDO_BPFFS_DIR "/task_authority");
-		(void)unlink(SHIRUDO_BPFFS_DIR "/devices");
-		(void)unlink(SHIRUDO_BPFFS_DIR "/config_roots");
+		(void)unlink(IDENTITY_PIN);
+		(void)unlink(TAMPER_PIN);
+		(void)unlink(BPFFS_DIR "/task_authority");
+		(void)unlink(BPFFS_DIR "/devices");
+		(void)unlink(BPFFS_DIR "/config_roots");
 	}
 	bpf_object__close(seal_obj);
 	bpf_link__destroy(link_bpf);
@@ -926,13 +926,13 @@ static int boot_restore(bool recorded,
 	*out_set = NULL;
 	*out_n = 0;
 
-	n = scandir(SHIRUDO_UPATCHES_DIR, &names, upatch_select,
+	n = scandir(UPATCHES_DIR, &names, upatch_select,
 		    alphasort);
 	if (n < 0) {
 		if (errno == ENOENT)
 			return 0;
 		pr_err("boot-restore: scandir %s: %s",
-		       SHIRUDO_UPATCHES_DIR, strerror(errno));
+		       UPATCHES_DIR, strerror(errno));
 		return -errno;
 	}
 	if (n == 0) {
@@ -949,17 +949,17 @@ static int boot_restore(bool recorded,
 	}
 
 	pr_info("boot-restore: re-applying %d upatch%s from %s",
-		n, n == 1 ? "" : "es", SHIRUDO_UPATCHES_DIR);
+		n, n == 1 ? "" : "es", UPATCHES_DIR);
 
 	for (i = 0; i < n; i++) {
-		char pinned_hex[2 * SHIRUDO_UPATCH_PAYLOAD_HASH_LEN + 1];
+		char pinned_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
 		char path[PATH_MAX];
 		struct shirudo_upatch u;
 		int fd;
 
 		if (rc)
 			goto next;
-		if (strsprintf(path, sizeof(path), "%s/%s", SHIRUDO_UPATCHES_DIR,
+		if (strsprintf(path, sizeof(path), "%s/%s", UPATCHES_DIR,
 			       names[i]->d_name) < 0) {
 			pr_err("boot-restore: path too long: %s",
 			       names[i]->d_name);
@@ -977,9 +977,9 @@ static int boot_restore(bool recorded,
 				names[i]->d_name);
 			goto next;
 		}
-		memcpy(set[cnt].name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-		set[cnt].name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
-		hex_encode(u.hdr.payload_sha256, SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
+		memcpy(set[cnt].name, u.hdr.name, UPATCH_NAME_MAX);
+		set[cnt].name[UPATCH_NAME_MAX] = '\0';
+		hex_encode(u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
 			   set[cnt].payload_hex);
 		upatch_close(&u);
 		fd = upatch_open_first_link(set[cnt].name);
@@ -1040,11 +1040,11 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 			     const __u8 init_digest[32],
 			     const struct shirudo_chain_init_info *info)
 {
-	char writer_hex[HEXLEN(SHIRUDO_TPM_NV_RSA_BYTES)];
+	char writer_hex[HEXLEN(TPM_NV_RSA_BYTES)];
 	char buf[64 * 1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char pcr_hex[HEXLEN(32)], anchor_hex[HEXLEN(32)], chain_hex[HEXLEN(32)];
-	char name_hex[HEXLEN(SHIRUDO_TPM_NAME_LEN)], tree_hex[HEXLEN(32)];
+	char name_hex[HEXLEN(TPM_NAME_LEN)], tree_hex[HEXLEN(32)];
 	char cert_hex[HEXLEN(32)], set_hex[HEXLEN(32)];
 	char phase_hex[HEXLEN(32)];
 	size_t i;
@@ -1054,7 +1054,7 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	hex_encode(tree_root, 32, tree_hex);
 	hex_encode(info->pcr_before, 32, pcr_hex);
 	hex_encode(info->phase_before, 32, phase_hex);
-	hex_encode(info->name, SHIRUDO_TPM_NAME_LEN, name_hex);
+	hex_encode(info->name, TPM_NAME_LEN, name_hex);
 	hex_encode(info->anchor_digest, 32, anchor_hex);
 	hex_encode(info->value, 32, chain_hex);
 	hex_encode(info->writer_public, sizeof(info->writer_public), writer_hex);
@@ -1081,9 +1081,9 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 		json_obj_close(&e);
 	}
 	json_arr_close(&e);
-	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_kv_int(&e, "pcr", CHAIN_PCR);
 	json_kv_string(&e, "pcr_before", pcr_hex);
-	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	json_kv_int(&e, "phase_pcr", CHAIN_PHASE_PCR);
 	json_kv_string(&e, "phase_before", phase_hex);
 	json_kv_string(&e, "bound_in",
 		       info->initrd ? "initrd" : "root");
@@ -1207,7 +1207,7 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		pr_err("tpm: register 0x%08X cannot be bound (tpm_error); on "
 		       "a TPM with owner auth set, supply it via "
 		       "tpm.owner_auth in /etc/shirudo/shirudo.conf or "
-		       "SHIRUDO_TPM_OWNER_AUTH", SHIRUDO_NV_INDEX);
+		       "SHIRUDO_TPM_OWNER_AUTH", NV_INDEX);
 		return rc;
 	}
 	if (rc) {
@@ -1218,7 +1218,7 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	}
 	if (info.reused) {
 		pr_info("tpm: register already bound this boot; chain "
-			"unchanged (index 0x%08X)", SHIRUDO_NV_INDEX);
+			"unchanged (index 0x%08X)", NV_INDEX);
 		return 0;
 	}
 
@@ -1232,17 +1232,17 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 
 	pr_info("tpm: register bound in the %s and extended (index 0x%08X, "
 		"PCR %u anchored, %zu upatch%s in set)",
-		info.initrd ? "initrd" : "root file system", SHIRUDO_NV_INDEX,
-		SHIRUDO_CHAIN_PCR, n, n == 1 ? "" : "es");
+		info.initrd ? "initrd" : "root file system", NV_INDEX,
+		CHAIN_PCR, n, n == 1 ? "" : "es");
 	if (!info.initrd)
 		pr_warn("tpm: init ran after the initrd; the register's binding "
 			"can be told from an initrd one by PCR %u",
-			SHIRUDO_CHAIN_PHASE_PCR);
+			CHAIN_PHASE_PCR);
 	else if (phase_unmeasured(info.phase_before))
 		pr_warn("tpm: PCR %u holds no phase measurement; systemd "
 			"measures enter-initrd only for a measured UKI boot, so "
 			"a verifier cannot pin this binding to the initrd by it",
-			SHIRUDO_CHAIN_PHASE_PCR);
+			CHAIN_PHASE_PCR);
 	return 0;
 }
 
@@ -1297,7 +1297,7 @@ static int initrd_enter(void)
 		return -ENOTBLK;
 	}
 	if (strsprintf(src, sizeof(src), "%s%s", sysroot(),
-		       SHIRUDO_VAR_LIB) < 0)
+		       VAR_LIB) < 0)
 		return -ENAMETOOLONG;
 	if (stat(src, &st) != 0 || !S_ISDIR(st.st_mode)) {
 		pr_err("initrd: %s is not a directory; the root file system "
@@ -1305,17 +1305,17 @@ static int initrd_enter(void)
 		       "there (x-initrd.mount)", src, sysroot());
 		return -ENOENT;
 	}
-	rc = seal_mkdir_p(SHIRUDO_VAR_LIB, 0700);
+	rc = seal_mkdir_p(VAR_LIB, 0700);
 	if (rc) {
-		pr_err("initrd: mkdir %s: %s", SHIRUDO_VAR_LIB, strerror(-rc));
+		pr_err("initrd: mkdir %s: %s", VAR_LIB, strerror(-rc));
 		return rc;
 	}
-	if (mount(src, SHIRUDO_VAR_LIB, NULL, MS_BIND | MS_REC, NULL) != 0) {
-		pr_err("initrd: bind %s at %s: %s", src, SHIRUDO_VAR_LIB,
+	if (mount(src, VAR_LIB, NULL, MS_BIND | MS_REC, NULL) != 0) {
+		pr_err("initrd: bind %s at %s: %s", src, VAR_LIB,
 		       strerror(errno));
 		return -errno;
 	}
-	if (statvfs(SHIRUDO_VAR_LIB, &state)) {
+	if (statvfs(VAR_LIB, &state)) {
 		rc = -errno;
 		pr_err("initrd: statvfs %s: %s", src, strerror(-rc));
 	} else if (state.f_flag & ST_RDONLY) {
@@ -1325,19 +1325,19 @@ static int initrd_enter(void)
 		rc = 0;
 	}
 	if (rc) {
-		umount2(SHIRUDO_VAR_LIB, MNT_DETACH);
+		umount2(VAR_LIB, MNT_DETACH);
 		return rc;
 	}
 	pr_info("initrd: %s bound writable at %s for config recovery",
-		src, SHIRUDO_VAR_LIB);
+		src, VAR_LIB);
 	return 0;
 
 }
 
 static void initrd_leave(void)
 {
-	if (umount2(SHIRUDO_VAR_LIB, MNT_DETACH) != 0)
-		pr_warn("initrd: detach %s: %s", SHIRUDO_VAR_LIB,
+	if (umount2(VAR_LIB, MNT_DETACH) != 0)
+		pr_warn("initrd: detach %s: %s", VAR_LIB,
 			strerror(errno));
 }
 
@@ -1393,8 +1393,8 @@ static int run_init(void)
 	rc = shirudo_image_boot();
 	if (rc)
 		return init_phase_error(rc, "loading authenticated boot settings");
-	rc = keys_load(SHIRUDO_RUNTIME_DIR "/keys",
-		       SHIRUDO_KEYS_REVOKED_DIR, true, &enrolled);
+	rc = keys_load(RUNTIME_DIR "/keys",
+		       KEYS_REVOKED_DIR, true, &enrolled);
 	if (rc)
 		return init_phase_error(rc, "loading trusted keys");
 

@@ -42,9 +42,9 @@ static int check_defaults(const char *path)
 	       cfg.map_export_tenant_id[0] ||
 	       cfg.map_export_otel_retries != 3 ||
 	       cfg.map_export_log_record_max_bytes !=
-			SHIRUDO_MAP_EXPORT_LOG_RECORD_MAX_DEFAULT ||
+			MAP_EXPORT_LOG_RECORD_MAX_DEFAULT ||
 	       cfg.map_export_otlp_max_bytes !=
-			SHIRUDO_MAP_EXPORT_OTLP_MAX_DEFAULT;
+			MAP_EXPORT_OTLP_MAX_DEFAULT;
 }
 
 static int check_valid(const char *path)

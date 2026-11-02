@@ -45,8 +45,8 @@
 #include "version.h"
 #include "vmlinux.h"
 
-#ifndef SHIRUDO_VMLINUX_PATH
-#define SHIRUDO_VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
+#ifndef VMLINUX_PATH
+#define VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
 #define BPM_BUILD_MAX_FILE (256u * 1024u * 1024u)
@@ -208,7 +208,7 @@ static int build_parse_value(const char *value, char *out, size_t cap,
  * non-empty set.
  */
 static int build_parse_string_array(const char *value,
-				    char out[][SHIRUDO_TREE_STRING_MAX],
+				    char out[][TREE_STRING_MAX],
 				    int max, int *n)
 {
 	char item[BPM_BUILD_MAX_VALUE];
@@ -245,7 +245,7 @@ static int build_parse_string_array(const char *value,
 		item[end - start] = '\0';
 		if (count >= max)
 			return -E2BIG;
-		if (build_parse_string(item, out[count], SHIRUDO_TREE_STRING_MAX))
+		if (build_parse_string(item, out[count], TREE_STRING_MAX))
 			return -EINVAL;
 		count++;
 		while (isspace((__u8)*p))
@@ -278,7 +278,7 @@ static int build_parse_selector_kv(const char *key, const char *value,
 		key++;
 		key_len -= 2;
 	}
-	if (!key_len || key_len >= SHIRUDO_TREE_STRING_MAX)
+	if (!key_len || key_len >= TREE_STRING_MAX)
 		return -EINVAL;
 	for (int i = 0; i < *n; i++) {
 		if (strlen(kvs[i].key) == key_len &&
@@ -291,7 +291,7 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	memcpy(kv->key, key, key_len);
 	kv->key[key_len] = '\0';
 	if (build_parse_string_array(value, kv->values,
-				     SHIRUDO_TREE_MAX_SELECTOR_VALUES,
+				     TREE_MAX_SELECTOR_VALUES,
 				     &kv->n_values))
 		return -EINVAL;
 	(*n)++;
@@ -543,7 +543,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			if (build_parse_string(value, dst, cap))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree.selector")) {
-			char (*dst)[SHIRUDO_TREE_STRING_MAX];
+			char (*dst)[TREE_STRING_MAX];
 			int *n;
 
 			if (!strcmp(key, "kernel_release_prefix")) {
@@ -559,16 +559,16 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 				return -EINVAL;
 			}
 			if (*n || build_parse_string_array(value, dst,
-							   SHIRUDO_TREE_MAX_SELECTOR_VALUES, n))
+							   TREE_MAX_SELECTOR_VALUES, n))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree.selector.kconfig")) {
 			if (build_parse_selector_kv(key, value, sel->kconfig,
-						    SHIRUDO_TREE_MAX_KCONFIG,
+						    TREE_MAX_KCONFIG,
 						    &sel->n_kconfig))
 				return -EINVAL;
 		} else if (tree_section) {
 			if (build_parse_selector_kv(key, value, sel->labels,
-						    SHIRUDO_TREE_MAX_LABELS,
+						    TREE_MAX_LABELS,
 						    &sel->n_labels))
 				return -EINVAL;
 		}
@@ -765,7 +765,7 @@ static int build_run_rodata_command(const struct bpm_build_spec *spec,
 				    const char *output)
 {
 	const char *argv[BPM_BUILD_MAX_COMMAND_ARGS + 7] = {};
-	const char (*command)[SHIRUDO_TREE_STRING_MAX] = update ?
+	const char (*command)[TREE_STRING_MAX] = update ?
 		rodata->update : rodata->generator;
 	int n_command = update ? rodata->n_update : rodata->n_generator;
 	int status;
@@ -838,7 +838,7 @@ static int build_rodata_apply(const struct bpm_build_spec *spec,
 			goto out;
 		}
 		rc = build_read_file(generated, &value, &value_len,
-				     SHIRUDO_UPATCH_FILE_MAX);
+				     UPATCH_FILE_MAX);
 		if (rc)
 			goto out;
 		rc = shirudo_build_package_patch_rodata(load, patched,
@@ -921,7 +921,7 @@ static int build_add_target(char seen[][PATH_MAX], size_t *n, const char *target
 static const char *
 build_rodata_command_source(const struct bpm_build_rodata *rodata, bool update)
 {
-	const char (*command)[SHIRUDO_TREE_STRING_MAX] = update ?
+	const char (*command)[TREE_STRING_MAX] = update ?
 		rodata->update : rodata->generator;
 	int n = update ? rodata->n_update : rodata->n_generator;
 
@@ -1163,10 +1163,10 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		char source[PATH_MAX], load[PATH_MAX], unload[PATH_MAX];
-		char object[PATH_MAX], name[SHIRUDO_UPATCH_NAME_MAX];
+		char object[PATH_MAX], name[UPATCH_NAME_MAX];
 		struct bpm_build_upatch *u = &spec->upatches[i];
 		const char *bpf_o = source, *src_path = NULL;
-		__u8 payload[SHIRUDO_CRYPTO_SHA256_LEN];
+		__u8 payload[CRYPTO_SHA256_LEN];
 		struct shirudo_upatch parsed = {};
 		int rc;
 
@@ -1186,7 +1186,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 				if (!vmlinux_h) {
 					pr_err("bpm build: vmlinux.h not found (tried "
 					       "./vmlinux.h, ./vendor/linux/vmlinux.h, %s)",
-					       SHIRUDO_VMLINUX_PATH);
+					       VMLINUX_PATH);
 					return -ENOENT;
 				}
 			}
@@ -1224,7 +1224,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		}
 		strscpy(u->name, parsed.hdr.name, sizeof(u->name));
 		hex_encode(parsed.hdr.payload_sha256,
-			   SHIRUDO_CRYPTO_SHA256_LEN,
+			   CRYPTO_SHA256_LEN,
 			   u->payload_sha256);
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
 		strscpy(u->type, upatch_type_str(&parsed), sizeof(u->type));
@@ -1513,8 +1513,8 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 	char keys_dir[PATH_MAX], vmlinux_abs[PATH_MAX];
 	char shirudo_bpf_incdir_buf[PATH_MAX];
 	char keys_abs[PATH_MAX], pkey[PATH_MAX], cert_path[PATH_MAX];
-	char fingerprint[SHIRUDO_CRYPTO_SHA256_LEN * 2 + 1];
-	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN];
+	char fingerprint[CRYPTO_SHA256_LEN * 2 + 1];
+	__u8 digest[CRYPTO_SHA256_LEN];
 	struct shirudo_cert cert = {};
 	struct bpm_build_spec *spec;
 	int positional = 0, rc;
@@ -1809,8 +1809,8 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 		"/tmp/shirudo-bpm-base-XXXXXX";
 	char keys_dir[PATH_MAX], keys_abs[PATH_MAX];
 	char out_dir[PATH_MAX], pkey[PATH_MAX], cert_path[PATH_MAX];
-	char fingerprint[SHIRUDO_CRYPTO_SHA256_LEN * 2 + 1];
-	__u8 digest[SHIRUDO_CRYPTO_SHA256_LEN], *body = NULL;
+	char fingerprint[CRYPTO_SHA256_LEN * 2 + 1];
+	__u8 digest[CRYPTO_SHA256_LEN], *body = NULL;
 	struct shirudo_cert cert = {};
 	struct bpm_package_info base_info = {};
 	struct bpm_build_spec *spec;
@@ -2022,9 +2022,9 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 	for (size_t i = 0; i < spec->n_upatches && !rc; i++) {
 		struct bpm_build_upatch *upatch = &spec->upatches[i];
 		char load[PATH_MAX], unload[PATH_MAX];
-		char expected_name[SHIRUDO_UPATCH_NAME_MAX];
+		char expected_name[UPATCH_NAME_MAX];
 		struct shirudo_upatch parsed = {};
-		__u8 payload[SHIRUDO_CRYPTO_SHA256_LEN];
+		__u8 payload[CRYPTO_SHA256_LEN];
 
 		if (strsprintf(load, sizeof(load), "%s/update-%zu.upatch",
 			       spec->stage, i) < 0 ||

@@ -74,7 +74,7 @@ static int check_root_cleared(void)
 	struct shirudo_expected_root expected = {}, empty = {};
 	int map, task, rc;
 
-	map = bpf_obj_get(SHIRUDO_BPFFS_DIR "/config_roots");
+	map = bpf_obj_get(BPFFS_DIR "/config_roots");
 	if (map < 0)
 		return -errno;
 	task = syscall(SYS_pidfd_open, getpid(), 0);
@@ -109,7 +109,7 @@ static int check_classification(const struct shirudo_dm_verity *device)
 		rc = -errno;
 		goto out_block;
 	}
-	map = bpf_obj_get(SHIRUDO_BPFFS_DIR "/devices");
+	map = bpf_obj_get(BPFFS_DIR "/devices");
 	if (map < 0) {
 		rc = -errno;
 		goto out_block;
@@ -128,7 +128,7 @@ static int check_classification(const struct shirudo_dm_verity *device)
 				       sizeof(entry.root)));
 		if (entry.dev == dev && entry.diskseq == diskseq) {
 			matches++;
-			if (entry.kind != SHIRUDO_DEVICE_CONFIG ||
+			if (entry.kind != DEVICE_CONFIG ||
 			    memcmp(entry.root, device->image.root_hash, 32)) {
 				rc = -EUCLEAN;
 				break;

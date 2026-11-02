@@ -17,7 +17,7 @@
 
 #include <shirudo/misc.h>
 
-#define SHIRUDO_CRYPTO_SHA256_LEN 32
+#define CRYPTO_SHA256_LEN 32
 
 struct shirudo_sha256_ctx {
 	void *impl;
@@ -27,16 +27,16 @@ int sha256_init(struct shirudo_sha256_ctx *ctx);
 int sha256_update(struct shirudo_sha256_ctx *ctx,
 		  const void *data, size_t len);
 int sha256_final(struct shirudo_sha256_ctx *ctx,
-		 __u8 out[SHIRUDO_CRYPTO_SHA256_LEN]);
+		 __u8 out[CRYPTO_SHA256_LEN]);
 void sha256_free(struct shirudo_sha256_ctx *ctx);
 int sha256_buffer(const void *data, size_t len,
-		  __u8 out[SHIRUDO_CRYPTO_SHA256_LEN]);
+		  __u8 out[CRYPTO_SHA256_LEN]);
 int base64_encode(const __u8 *data, size_t len,
 		  char *out, size_t out_sz);
 
 /* 0 when valid, -EKEYREJECTED when not. */
 int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
-		      const __u8 digest[SHIRUDO_CRYPTO_SHA256_LEN],
+		      const __u8 digest[CRYPTO_SHA256_LEN],
 		      const __u8 r[32], const __u8 s[32]);
 
 struct shirudo_cert {
@@ -47,7 +47,7 @@ int cert_read_file(const char *path, struct shirudo_cert *cert);
 int cert_read_fd(int fd, struct shirudo_cert *cert);
 void cert_free(struct shirudo_cert *cert);
 int cert_pubkey_digest(const struct shirudo_cert *cert,
-		       __u8 out[SHIRUDO_CRYPTO_SHA256_LEN]);
+		       __u8 out[CRYPTO_SHA256_LEN]);
 /* The provider's name for the cert's public key, e.g. "ML-DSA-87". */
 int cert_key_algorithm(const struct shirudo_cert *cert,
 		       char *out, size_t out_sz);
@@ -88,7 +88,7 @@ int tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca);
 
 int hmac_sha256(const __u8 *key, size_t key_len,
 		const void *data, size_t len,
-		__u8 out[SHIRUDO_CRYPTO_SHA256_LEN]);
+		__u8 out[CRYPTO_SHA256_LEN]);
 
 /* AES-128 in CFB mode with a zero IV and no padding. */
 int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,

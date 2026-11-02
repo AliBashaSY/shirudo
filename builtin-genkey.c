@@ -376,9 +376,9 @@ static const struct shirudo_help genkey_help = {
 	.sections   = genkey_help_sections,
 	.n_sections = ARRAY_SIZE(genkey_help_sections),
 	.footer  = "Default output paths:\n"
-		   "  " SHIRUDO_SIGNING_KEY_PATH "\n"
-		   "  " SHIRUDO_CERT_PATH "\n"
-		   "If unset on the command line, the " SHIRUDO_KEYS_DIR_ENV
+		   "  " SIGNING_KEY_PATH "\n"
+		   "  " CERT_PATH "\n"
+		   "If unset on the command line, the " KEYS_DIR_ENV
 		   " environment variable\noverrides the default directory.",
 };
 
@@ -429,11 +429,11 @@ int cmd_genkey(int argc, const char **argv)
 
 	if (ensure_keys_dir(keys_dir) != 0)
 		return 1;
-	if (geteuid() != 0 && strcmp(keys_dir, SHIRUDO_KEYS_DIR) == 0) {
+	if (geteuid() != 0 && strcmp(keys_dir, KEYS_DIR) == 0) {
 		rc = check_user_keys_dir(keys_dir);
 		if (rc) {
 			pr_err("genkey: default keys dir %s is not safe for user key "
-			       "generation: %s", SHIRUDO_KEYS_DIR,
+			       "generation: %s", KEYS_DIR,
 			       strerror(-rc));
 			pr_err("it must be owned by the current user and not writable "
 			       "by group or others");

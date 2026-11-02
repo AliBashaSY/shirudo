@@ -11,13 +11,13 @@
 
 static int edit_distance(const char *s, const char *t, int max)
 {
-	int prev[SHIRUDO_SIMILAR_MAX_LEN + 1];
-	int curr[SHIRUDO_SIMILAR_MAX_LEN + 1];
+	int prev[SIMILAR_MAX_LEN + 1];
+	int curr[SIMILAR_MAX_LEN + 1];
 	size_t m = strlen(s), n = strlen(t);
 	int diff;
 	size_t i, j;
 
-	if (m > SHIRUDO_SIMILAR_MAX_LEN || n > SHIRUDO_SIMILAR_MAX_LEN)
+	if (m > SIMILAR_MAX_LEN || n > SIMILAR_MAX_LEN)
 		return max + 1;
 	if (m == 0)
 		return (int)n;

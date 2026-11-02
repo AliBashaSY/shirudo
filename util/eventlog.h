@@ -19,7 +19,7 @@
  * Conservative upper bound on one appended JSON line (the emit buffers
  * are this size); used by would_exceed to honour "would exceed".
  */
-#define SHIRUDO_EVENTLOG_LINE_MAX	4096
+#define EVENTLOG_LINE_MAX	4096
 
 /* The on-disk path; SHIRUDO_EVENTLOG_PATH in the environment overrides it. */
 const char *eventlog_path(void);
@@ -47,7 +47,7 @@ void eventlog_unlock(int fd);
  * the register accumulates them. -ENOENT when this boot has no init
  * record, -EINVAL on a malformed line.
  */
-int eventlog_replay(__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
+int eventlog_replay(__u8 out[TPM_DIGEST_LEN]);
 
 /*
  * What the last init record of this boot says about the register, and
@@ -55,14 +55,14 @@ int eventlog_replay(__u8 out[SHIRUDO_TPM_DIGEST_LEN]);
  * the last one names means the register was bound again.
  */
 struct shirudo_eventlog_init {
-	__u8		writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8		writer_public[TPM_NV_RSA_BYTES];
 	__u32		pcr;
 	bool		initrd;		/* bound while the initrd ran */
-	__u8		pcr_before[SHIRUDO_TPM_DIGEST_LEN];
-	__u8		phase_before[SHIRUDO_TPM_DIGEST_LEN];
-	__u8		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		pcr_before[TPM_DIGEST_LEN];
+	__u8		phase_before[TPM_DIGEST_LEN];
+	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
-	__u8		anchor_digest[SHIRUDO_TPM_DIGEST_LEN];
+	__u8		anchor_digest[TPM_DIGEST_LEN];
 	bool		have_reset_count;
 	__u32		reset_count;
 	__u32		records;	/* init records this boot */

@@ -48,7 +48,7 @@ static int writer_create(void)
 		goto out;
 	}
 	if (bpf_map_update_elem(fd, &zero, &id, BPF_ANY) ||
-	    bpf_map_freeze(fd) || bpf_obj_pin(fd, SHIRUDO_IDENTITY_PIN))
+	    bpf_map_freeze(fd) || bpf_obj_pin(fd, IDENTITY_PIN))
 		rc = -errno;
 	close(fd);
 	if (!rc)
@@ -60,7 +60,7 @@ out:
 
 static int writer_remove(void)
 {
-	if (unlink(SHIRUDO_IDENTITY_PIN)) {
+	if (unlink(IDENTITY_PIN)) {
 		perror("unlink protocol-test identity");
 		return 1;
 	}
@@ -82,12 +82,12 @@ static int append_init(const __u8 event[32],
 		       const struct shirudo_chain_init_info *info)
 {
 	char buf[4096], ts[32], boot_id[64], nv_index[16];
-	char hex[2 * SHIRUDO_TPM_NV_RSA_BYTES + 1];
+	char hex[2 * TPM_NV_RSA_BYTES + 1];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	snprintf(nv_index, sizeof(nv_index), "0x%08X", NV_INDEX);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
@@ -98,10 +98,10 @@ static int append_init(const __u8 event[32],
 	json_kv_string(&e, "type", "init");
 	json_kv_string(&e, "boot_id", boot_id);
 	json_kv_int(&e, "tpm_reset_count", info->reset_count);
-	json_kv_int(&e, "pcr", SHIRUDO_CHAIN_PCR);
+	json_kv_int(&e, "pcr", CHAIN_PCR);
 	hex_encode(info->pcr_before, 32, hex);
 	json_kv_string(&e, "pcr_before", hex);
-	json_kv_int(&e, "phase_pcr", SHIRUDO_CHAIN_PHASE_PCR);
+	json_kv_int(&e, "phase_pcr", CHAIN_PHASE_PCR);
 	hex_encode(info->phase_before, 32, hex);
 	json_kv_string(&e, "phase_before", hex);
 	json_kv_string(&e, "bound_in", info->initrd ? "initrd" : "root");
@@ -129,7 +129,7 @@ static int append_event(const char *type, const char *name,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	snprintf(nv_index, sizeof(nv_index), "0x%08X", NV_INDEX);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
@@ -161,7 +161,7 @@ static int append_tree(__s64 seq, const char *op, const char *id,
 
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
+	snprintf(nv_index, sizeof(nv_index), "0x%08X", NV_INDEX);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 	if (!strcmp(argv[1], "writer-remove") && argc == 2)
 		return writer_remove();
 	if (!strcmp(argv[1], "writer-public") && argc == 2) {
-		__u8 public[SHIRUDO_TPM_NV_RSA_BYTES];
+		__u8 public[TPM_NV_RSA_BYTES];
 		__u8 seed[32];
 
 		if (nv_writer_read(seed, public))
@@ -355,15 +355,15 @@ int main(int argc, char **argv)
 
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+		rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 		if (!rc && nv.defined)
-			rc = tpm_nv_undefine(tpm, SHIRUDO_NV_INDEX,
+			rc = tpm_nv_undefine(tpm, NV_INDEX,
 					     NULL, 0);
 		if (!rc)
-			rc = tpm_nv_define(tpm, SHIRUDO_NV_INDEX,
+			rc = tpm_nv_define(tpm, NV_INDEX,
 					   nv.policy, NULL, 0);
 		if (!rc)
-			rc = tpm_nv_info(tpm, SHIRUDO_NV_INDEX, &nv);
+			rc = tpm_nv_info(tpm, NV_INDEX, &nv);
 		tpm_close(tpm);
 		printf("rc=%d\n", rc);
 		if (rc)
@@ -377,7 +377,7 @@ int main(int argc, char **argv)
 		__u8 branch_written[32], branch_init[32], policy[32];
 		struct shirudo_eventlog_init rec;
 		struct shirudo_tpm *tpm = NULL;
-		__u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+		__u8 writer_public[TPM_NV_RSA_BYTES];
 		__u8 writer_seed[32], values[64];
 
 		if (hex_decode(argv[2], event, 32) ||
@@ -387,7 +387,7 @@ int main(int argc, char **argv)
 			return 2;
 		memcpy(values, rec.pcr_before, 32);
 		memcpy(values + 32, rec.phase_before, 32);
-		rc = tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, values, 2,
+		rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
 					 rec.writer_public, branch_written, branch_init, policy);
 		if (rc) {
 			fprintf(stderr, "register policy: %s\n", strerror(-rc));
@@ -397,8 +397,8 @@ int main(int argc, char **argv)
 			return 1;
 		rc = tpm_nv_set_writer(tpm, writer_seed, writer_public);
 		if (!rc)
-			rc = tpm_nv_extend_first(tpm, SHIRUDO_NV_INDEX,
-						 SHIRUDO_CHAIN_PCR_MASK,
+			rc = tpm_nv_extend_first(tpm, NV_INDEX,
+						 CHAIN_PCR_MASK,
 						 branch_written, branch_init,
 						 event);
 		tpm_close(tpm);
@@ -414,18 +414,18 @@ int main(int argc, char **argv)
 	 */
 	if (strcmp(argv[1], "forge") == 0 && argc == 7) {
 		struct shirudo_tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
-		char hex[2 * SHIRUDO_TPM_ATTEST_MAX + 1], buf[32 * 1024];
+		char hex[2 * TPM_ATTEST_MAX + 1], buf[32 * 1024];
 		struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 		struct shirudo_tpm_attestation quote = {}, certify = {};
 		__u8 values[24][32] = {}, before[64], anchor_digest[32];
 		__u8 branch_written[32], branch_init[32], policy[32];
 		__u32 index, pcr, phase, mask, quoted, reset = 0, i;
 		struct shirudo_tpm_key ak_copy = {}, ek_copy = {};
-		__u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+		__u8 writer_public[TPM_NV_RSA_BYTES];
 		char ts[32], boot_id[64], nv_index[16];
-		__u8 writer_seed[SHIRUDO_TPM_DIGEST_LEN];
+		__u8 writer_seed[TPM_DIGEST_LEN];
 		size_t nonce_len = strlen(argv[6]) / 2;
-		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
+		char anchor[CHAIN_ANCHOR_MAX];
 		struct shirudo_tpm *tpm = NULL;
 		__u8 value[32], nonce[64];
 		struct tpm_nv_info nv;
@@ -434,7 +434,7 @@ int main(int argc, char **argv)
 		pcr = (__u32)atoi(argv[3]);
 		phase = (__u32)atoi(argv[4]);
 		mask = (1u << pcr) | (1u << phase);
-		quoted = SHIRUDO_ATTEST_PCR_DEFAULT | mask;
+		quoted = ATTEST_PCR_DEFAULT | mask;
 		if (pcr > 23 || phase > 23 || pcr == phase ||
 		    hex_decode(argv[5], event, 32) ||
 		    nonce_len == 0 || nonce_len > sizeof(nonce) ||
@@ -607,7 +607,7 @@ int main(int argc, char **argv)
 			return 2;
 		}
 		rc = shirudo_attest_evidence_config(nonce, nonce_len,
-						    SHIRUDO_ATTEST_PCR_DEFAULT,
+						    ATTEST_PCR_DEFAULT,
 						    argc == 4 ? &challenge : NULL,
 						    NULL, &doc, &len, &cap);
 		if (rc) {

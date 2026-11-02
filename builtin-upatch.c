@@ -278,7 +278,7 @@ static const struct shirudo_help upatch_get_help = {
 
 static int cmd_upatch_info(int argc, const char **argv)
 {
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1];	/* not NUL-term on disk */
+	char name[UPATCH_NAME_MAX + 1];	/* not NUL-term on disk */
 	const __u8 *unload_payload;
 	struct shirudo_upatch u;
 	const char *path = NULL;
@@ -316,7 +316,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	}
 
 	memcpy(name, u.hdr.name, sizeof(u.hdr.name));
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	name[UPATCH_NAME_MAX] = '\0';
 	upatch_signed_attach(&u, &attach_len);
 	unload_payload = upatch_signed_unload_payload(&u);
 
@@ -479,7 +479,7 @@ static int is_upatch_file(const struct dirent *e)
 static bool upatch_is_loaded(const char *name)
 {
 	char pin[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 	int fd;
 
@@ -493,7 +493,7 @@ test_pin:
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return false;
 	if (strsprintf(pin, sizeof(pin), "%s/%s/test",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return false;
 	return stat(pin, &st) == 0;
 }
@@ -524,11 +524,11 @@ static int cmd_upatch_list(int argc, const char **argv)
 		}
 	}
 
-	np = scandir(SHIRUDO_UPATCHES_DIR, &persisted, is_upatch_file,
+	np = scandir(UPATCHES_DIR, &persisted, is_upatch_file,
 		     alphasort);
 	if (np < 0)
 		np = 0;
-	na = scandir(SHIRUDO_BPFFS_UPATCHES_DIR, &active, NULL, alphasort);
+	na = scandir(BPFFS_UPATCHES_DIR, &active, NULL, alphasort);
 	if (na < 0)
 		na = 0;
 
@@ -544,7 +544,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 		json_kv_int(&e, "schema", 1);
 		json_arr_open(&e, "upatches");
 	} else {
-		printf("upatches (%s):\n", SHIRUDO_UPATCHES_DIR);
+		printf("upatches (%s):\n", UPATCHES_DIR);
 		if (np == 0)
 			printf("  (none persisted)\n");
 		else
@@ -553,14 +553,14 @@ static int cmd_upatch_list(int argc, const char **argv)
 	}
 
 	for (i = 0; i < np; i++) {
-		char path[1024], name[SHIRUDO_UPATCH_NAME_MAX + 1];
+		char path[1024], name[UPATCH_NAME_MAX + 1];
 		char payload_hex[2 * 32 + 1];
 		struct shirudo_upatch u;
 		const char *type, *payload_type;
 		bool loaded;
 
 		if (strsprintf(path, sizeof(path), "%s/%s",
-			       SHIRUDO_UPATCHES_DIR,
+			       UPATCHES_DIR,
 			       persisted[i]->d_name) < 0)
 			continue;
 		if (upatch_open(path, &u) != 0) {
@@ -570,7 +570,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 			continue;
 		}
 		memcpy(name, u.hdr.name, sizeof(u.hdr.name));
-		name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+		name[UPATCH_NAME_MAX] = '\0';
 		hex_encode(u.hdr.payload_sha256, 32, payload_hex);
 		type = upatch_is_unload(&u) ? "unload" : "load";
 		payload_type = upatch_type_str(&u);
@@ -598,7 +598,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 
 	for (i = 0; i < na; i++) {
 		char persist[1024];
-		char raw_name[SHIRUDO_UPATCH_NAME_MAX + 1];
+		char raw_name[UPATCH_NAME_MAX + 1];
 		const char *nm = active[i]->d_name;
 		struct stat st;
 
@@ -607,7 +607,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 		if (upatch_name_from_bpffs(raw_name, sizeof(raw_name), nm))
 			continue;
 		if (strsprintf(persist, sizeof(persist), "%s/%s.upatch",
-			       SHIRUDO_UPATCHES_DIR, raw_name) < 0)
+			       UPATCHES_DIR, raw_name) < 0)
 			continue;
 		if (stat(persist, &st) == 0)
 			continue;
@@ -1054,7 +1054,7 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 
 	for (i = 0; i < nr_progs; i++) {
 		struct shirudo_prog_spec *spec = &specs[i];
-		__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+		__u8 build_id[UPATCH_BUILD_ID_MAX];
 		__u32 build_id_len = 0;
 		char proc_path[64];
 		struct stat opened_stat;
@@ -1169,9 +1169,9 @@ static int prog_attach_for_spec(int prog_fd,
 }
 
 /* The initial network namespace's cookie, NET_NS_INIT_ID in linux/nsfs.h. */
-#define SHIRUDO_NET_NS_INIT_COOKIE	7ULL
+#define NET_NS_INIT_COOKIE	7ULL
 /* The root of the unified cgroup hierarchy. */
-#define SHIRUDO_ROOT_CGROUP_ID		1ULL
+#define ROOT_CGROUP_ID		1ULL
 #ifndef SO_NETNS_COOKIE
 #define SO_NETNS_COOKIE			71
 #endif
@@ -1191,7 +1191,7 @@ static int netns_initial(void)
 	close(fd);
 	if (rc)
 		return rc;
-	return cookie == SHIRUDO_NET_NS_INIT_COOKIE ? 0 : -EXDEV;
+	return cookie == NET_NS_INIT_COOKIE ? 0 : -EXDEV;
 }
 
 /*
@@ -1208,7 +1208,7 @@ static int netns_initial(void)
 static int link_matches_spec(int link_fd,
 			     const struct shirudo_prog_spec *spec)
 {
-	char func[SHIRUDO_UPATCH_ATTACH_TARGET_MAX] = {};
+	char func[UPATCH_ATTACH_TARGET_MAX] = {};
 	struct bpf_link_info info = {};
 	__u32 len = sizeof(info);
 	bool ret;
@@ -1221,7 +1221,7 @@ static int link_matches_spec(int link_fd,
 	if (bpf_link_get_info_by_fd(link_fd, &info, &len))
 		return -errno;
 	if (info.type == BPF_LINK_TYPE_CGROUP)
-		return info.cgroup.cgroup_id == SHIRUDO_ROOT_CGROUP_ID ?
+		return info.cgroup.cgroup_id == ROOT_CGROUP_ID ?
 		       0 : -EXDEV;
 	switch (spec->kind) {
 	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
@@ -1325,7 +1325,7 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				const struct shirudo_prog_spec *specs)
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	__u32 i, attach_count = 0, attach_seen = 0;
 	bool made_dir = false, made_serializers = false;
 	char pin[PATH_MAX + 32];
@@ -1340,14 +1340,14 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 
-	rc = mkdir_if_absent(SHIRUDO_BPFFS_UPATCHES_DIR, 0700, NULL);
+	rc = mkdir_if_absent(BPFFS_UPATCHES_DIR, 0700, NULL);
 	if (rc) {
-		pr_err("mkdir %s: %s", SHIRUDO_BPFFS_UPATCHES_DIR,
+		pr_err("mkdir %s: %s", BPFFS_UPATCHES_DIR,
 		       strerror(-rc));
 		return rc;
 	}
 	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	if (strsprintf(serializers_dir, sizeof(serializers_dir),
 		       "%s/serializers", dir) < 0)
@@ -1514,7 +1514,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 			   __u32 nr_maps, const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	char pin[PATH_MAX + 32];
 	__u32 i;
 	int rc;
@@ -1524,7 +1524,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return 0;
 	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
@@ -1583,14 +1583,14 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 static void set_pin_payload(const char *name, const __u8 payload[32])
 {
 	char dir[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
 		       bpffs_name) < 0)
 		return;
-	if (setxattr(dir, SHIRUDO_XATTR_PAYLOAD, payload, 32, 0) != 0)
+	if (setxattr(dir, XATTR_PAYLOAD, payload, 32, 0) != 0)
 		pr_err("upatch: cannot record payload xattr on %s: %s "
 		       "(unload of this upatch will refuse)",
 		       dir, strerror(errno));
@@ -1599,15 +1599,15 @@ static void set_pin_payload(const char *name, const __u8 payload[32])
 static int get_pin_payload(const char *name, __u8 out[32])
 {
 	char dir[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	ssize_t n;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
 		       bpffs_name) < 0)
 		return -ENAMETOOLONG;
-	n = getxattr(dir, SHIRUDO_XATTR_PAYLOAD, out, 32);
+	n = getxattr(dir, XATTR_PAYLOAD, out, 32);
 	if (n < 0)
 		return -errno;
 	if (n != 32)
@@ -1632,7 +1632,7 @@ static int trust_anchor_keyring(key_serial_t *keyring, key_serial_t *serial,
 		return -1;
 	}
 	ring = keyring_bpf_serial();
-	if (id.keyring_type != SHIRUDO_SIG_KEYRING_BPF ||
+	if (id.keyring_type != SIG_KEYRING_BPF ||
 	    ring <= 0 || ring != id.keyring_serial) {
 		pr_err("the kernel BPF keyring differs from the frozen anchor");
 		rep_fail(rep, "pre_flight", "tampered", 0,
@@ -1676,14 +1676,14 @@ static int upatch_apply(const char *path, bool verify_only,
 	const void *sig, *data;
 	key_serial_t keyring, serial;
 	char prog_name[BPF_OBJ_NAME_LEN];
-	char upatch_name[SHIRUDO_UPATCH_NAME_MAX + 1];
+	char upatch_name[UPATCH_NAME_MAX + 1];
 	char *vlog;			/* shared PROG_LOAD / TEST_RUN log_buf */
 	size_t insn_cnt, ctx_sz = 0, prog_desc_off;
 	int prog_fd = -1, map_fd = -1, rc;
 	struct shirudo_loader_ctx *cx = NULL;
 	__u32 retval = 0;
 
-	vlog = xmalloc(SHIRUDO_VERIFIER_LOG_MAX);
+	vlog = xmalloc(VERIFIER_LOG_MAX);
 	if (!vlog) {
 		rep_fail(rep, "parse", "unknown", ENOMEM, "out of memory");
 		return 1;
@@ -1695,7 +1695,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		pr_err("open %s: %s", path, strerror(-rc));
 		rep_fail(rep, "parse", "parser_rejected", -rc,
 			 "cannot open .upatch");
-		xfree(vlog, SHIRUDO_VERIFIER_LOG_MAX);
+		xfree(vlog, VERIFIER_LOG_MAX);
 		return 1;
 	}
 	/*
@@ -1753,8 +1753,8 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * restore reaches here without the command-level check, so validate it
 	 * again.
 	 */
-	memcpy(upatch_name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	upatch_name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(upatch_name, u.hdr.name, UPATCH_NAME_MAX);
+	upatch_name[UPATCH_NAME_MAX] = '\0';
 	if (!safe_upatch_name(upatch_name)) {
 		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
@@ -1765,7 +1765,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	/* The header's copy of the name is what everything else reads. */
 	if (!upatch_signed_name(&u) ||
 	    memcmp(upatch_signed_name(&u), u.hdr.name,
-		   SHIRUDO_UPATCH_NAME_MAX)) {
+		   UPATCH_NAME_MAX)) {
 		pr_err("upatch: the name of '%s' is not signature-covered or "
 		       "differs from the signed one; rebuild the artifact",
 		       upatch_name);
@@ -1781,7 +1781,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * value that is not SHA-256(insns || data) is refused even when signed.
 	 */
 	{
-		__u8 content_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
 
 		sha256_2(insns, u.hdr.loader_insns_len,
 			 data, u.hdr.data_len, content_digest);
@@ -1859,7 +1859,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * covers insns || data.
 	 */
 	{
-		__u8 loader_digest[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
 
 		if (shirudo_sha256(insns, u.hdr.loader_insns_len,
 				   loader_digest)) {
@@ -1913,7 +1913,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
 				   sig, u.hdr.signature_len,
 				   (__s32)keyring, map_fd,
-				   vlog, SHIRUDO_VERIFIER_LOG_MAX);
+				   vlog, VERIFIER_LOG_MAX);
 	if (prog_fd < 0) {
 		int e = errno;
 
@@ -1968,7 +1968,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * loads fail with -ENOSPC when the log buffer fills.
 	 */
 	cx->log_level = 1;
-	cx->log_size = SHIRUDO_VERIFIER_LOG_MAX;
+	cx->log_size = VERIFIER_LOG_MAX;
 	cx->log_buf = ptr_to_u64(vlog);
 
 	rc = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
@@ -1992,7 +1992,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		memset(cx + 1, 0, ctx_sz - sizeof(*cx));
 		pr_err("loader returned error: %d", (__s32)retval);
 		fprintf(stderr, "loader runtime log (len=%zu):\n%.4096s\n",
-			strnlen(vlog, SHIRUDO_VERIFIER_LOG_MAX), vlog);
+			strnlen(vlog, VERIFIER_LOG_MAX), vlog);
 		rep_fail(rep, "payload_load", "verifier_rejected",
 			 -(__s32)retval, "inner loader returned error");
 		if (rep)
@@ -2045,7 +2045,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	rc = 0;
 out:
 	prog_specs_free(prog_specs, u.hdr.nr_progs);
-	xfree(vlog, SHIRUDO_VERIFIER_LOG_MAX);
+	xfree(vlog, VERIFIER_LOG_MAX);
 	if (cx)
 		close_loader_fds(cx, u.hdr.nr_maps, u.hdr.nr_progs);
 	xfree(cx, ctx_sz);
@@ -2070,9 +2070,9 @@ int shirudo_upatch_apply(const char *path)
 static int upatch_preflight(const char *expect_chain,
 			    struct shirudo_op_report *rep)
 {
-	__u8 want[SHIRUDO_CHAIN_DIGEST_LEN], have[SHIRUDO_CHAIN_DIGEST_LEN];
-	char have_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1];
-	char abi_detail[SHIRUDO_KERNEL_ABI_DETAIL_MAX];
+	__u8 want[CHAIN_DIGEST_LEN], have[CHAIN_DIGEST_LEN];
+	char have_hex[2 * CHAIN_DIGEST_LEN + 1];
+	char abi_detail[KERNEL_ABI_DETAIL_MAX];
 	key_serial_t keyring, serial;
 	int fd, rc;
 
@@ -2088,11 +2088,11 @@ static int upatch_preflight(const char *expect_chain,
 	if (trust_anchor_keyring(&keyring, &serial, rep))
 		return -1;
 
-	fd = bpf_obj_get(SHIRUDO_LSM_LINK_PIN);
+	fd = bpf_obj_get(LSM_LINK_PIN);
 	if (fd < 0) {
 		pr_err("upatch load: pre-flight refused (category: tampered, "
 		       "message: lsm_detached) -- %s not pinned",
-		       SHIRUDO_LSM_LINK_PIN);
+		       LSM_LINK_PIN);
 		return -1;
 	}
 	close(fd);
@@ -2102,7 +2102,7 @@ static int upatch_preflight(const char *expect_chain,
 
 	if (hex_decode(expect_chain, want, sizeof(want))) {
 		pr_err("upatch load: --expect-chain must be %d hex chars",
-		       2 * SHIRUDO_CHAIN_DIGEST_LEN);
+		       2 * CHAIN_DIGEST_LEN);
 		return -1;
 	}
 	rc = chain_read(have);
@@ -2429,7 +2429,7 @@ static int copy_file_atomic(const char *src, const char *dst)
 		return rc;
 	}
 	/* Persist the rename so a crash can't lose a "loaded" upatch. */
-	dir = open(SHIRUDO_UPATCHES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	dir = open(UPATCHES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (dir >= 0) {
 		fsync(dir);
 		close(dir);
@@ -2443,12 +2443,12 @@ static int persist_upatch(const char *src, const char *name)
 	struct stat ss, ds;
 	int rc;
 
-	rc = seal_mkdir_p(SHIRUDO_UPATCHES_DIR, 0700);
+	rc = seal_mkdir_p(UPATCHES_DIR, 0700);
 	if (rc) {
-		pr_err("mkdir %s: %s", SHIRUDO_UPATCHES_DIR, strerror(-rc));
+		pr_err("mkdir %s: %s", UPATCHES_DIR, strerror(-rc));
 		return rc;
 	}
-	if (strsprintf(dst, sizeof(dst), "%s/%s.upatch", SHIRUDO_UPATCHES_DIR,
+	if (strsprintf(dst, sizeof(dst), "%s/%s.upatch", UPATCHES_DIR,
 		       name) < 0)
 		return -ENAMETOOLONG;
 
@@ -2503,11 +2503,11 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 		return 2;
 	}
 	if (*expect_chain) {
-		__u8 want[SHIRUDO_CHAIN_DIGEST_LEN];
+		__u8 want[CHAIN_DIGEST_LEN];
 
 		if (hex_decode(*expect_chain, want, sizeof(want))) {
 			fprintf(stderr, "upatch %s: --expect-chain must be %d hexadecimal characters\n",
-				verb, 2 * SHIRUDO_CHAIN_DIGEST_LEN);
+				verb, 2 * CHAIN_DIGEST_LEN);
 			return 2;
 		}
 	}
@@ -2544,12 +2544,12 @@ static int wipe_dir_flat(const char *dir)
 static bool upatch_is_pinned(const char *name)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return false;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
 		       bpffs_name) < 0)
 		return false;
 	return stat(dir, &st) == 0;
@@ -2560,13 +2560,13 @@ static int remove_pin_dir(const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
 	char serializers_dir[PATH_MAX + 16];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 	int rc;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", SHIRUDO_BPFFS_UPATCHES_DIR,
+	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
 		       bpffs_name) < 0)
 		return -ENAMETOOLONG;
 	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
@@ -2601,12 +2601,12 @@ static int stage_upatch(const char *src, char *staged, size_t sz)
 	size_t len = 0;
 	int rc;
 
-	rc = read_file(src, SHIRUDO_UPATCH_FILE_MAX, &buf, &len);
+	rc = read_file(src, UPATCH_FILE_MAX, &buf, &len);
 	if (rc)
 		return rc;
-	rc = seal_mkdir_p(SHIRUDO_INCOMING_DIR, 0700);
+	rc = seal_mkdir_p(INCOMING_DIR, 0700);
 	if (!rc && strsprintf(staged, sz, "%s/load-%d.upatch",
-			      SHIRUDO_INCOMING_DIR, (int)getpid()) < 0)
+			      INCOMING_DIR, (int)getpid()) < 0)
 		rc = -ENAMETOOLONG;
 	if (!rc)
 		rc = seal_write_file(staged, buf, len, 0600);
@@ -2624,7 +2624,7 @@ static void unload_unmeasured(const char *name)
 
 	rc = remove_pin_dir(name);
 	if (!rc && strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-			      SHIRUDO_UPATCHES_DIR, name) >= 0 &&
+			      UPATCHES_DIR, name) >= 0 &&
 	    unlink(persisted) != 0 && errno != ENOENT)
 		rc = -errno;
 	if (rc)
@@ -2639,9 +2639,9 @@ static void unload_unmeasured(const char *name)
 static int cmd_upatch_load(int argc, const char **argv)
 {
 	const char *file, *expect_chain, *expect_version_id, *report;
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1] = {};
+	char name[UPATCH_NAME_MAX + 1] = {};
 	char staged[PATH_MAX] = {};
-	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false, measured;
@@ -2679,8 +2679,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 			 "cannot open .upatch");
 		goto done;
 	}
-	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	hex_encode(payload, sizeof(payload), rep.payload_hex);
 	rep.name = name;
@@ -2726,7 +2726,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	rc = persist_upatch(file, name);
 	if (rc) {
 		pr_err("upatch load: loaded but failed to persist to %s: %s "
-		       "-- not measured", SHIRUDO_UPATCHES_DIR, strerror(-rc));
+		       "-- not measured", UPATCHES_DIR, strerror(-rc));
 		unload_unmeasured(name);
 		rep_fail(&rep, "persist", "unknown", -rc,
 			 "persist failed; the load was undone");
@@ -2752,7 +2752,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 done:
 	if (ret == 1 && rep.category &&
 	    !strcmp(rep.category, "attach_target_missing"))
-		ret = SHIRUDO_UPATCH_INSTALL_TARGET_MISSING;
+		ret = UPATCH_INSTALL_TARGET_MISSING;
 	if (staged[0])
 		unlink(staged);
 	if (report)
@@ -2764,10 +2764,10 @@ done:
 static int cmd_upatch_unload(int argc, const char **argv)
 {
 	const char *file, *expect_chain, *expect_version_id, *report;
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1] = {};
+	char name[UPATCH_NAME_MAX + 1] = {};
 	char staged[PATH_MAX] = {};
 	char persisted[PATH_MAX];
-	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_unload", .phase = "done" };
 	bool no_precheck, no_version_check;
@@ -2825,7 +2825,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 */
 	if (!upatch_signed_name(&u) || !upatch_signed_unload_payload(&u) ||
 	    memcmp(upatch_signed_name(&u), u.hdr.name,
-		   SHIRUDO_UPATCH_NAME_MAX)) {
+		   UPATCH_NAME_MAX)) {
 		pr_err("upatch unload: the target of %s is not "
 		       "signature-covered or differs from the header; rebuild "
 		       "the directive", rep.path);
@@ -2834,8 +2834,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		upatch_close(&u);
 		goto done;
 	}
-	memcpy(name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	memcpy(payload, upatch_signed_unload_payload(&u), sizeof(payload));
 	upatch_close(&u);
 	rep.name = name;
@@ -2848,7 +2848,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		goto done;
 	}
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-		       SHIRUDO_UPATCHES_DIR, name) < 0)
+		       UPATCHES_DIR, name) < 0)
 		goto done;
 
 	if (no_precheck) {
@@ -2877,7 +2877,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * no pin at all is the already-unloaded case below.
 	 */
 	{
-		__u8 live[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+		__u8 live[UPATCH_PAYLOAD_HASH_LEN];
 		int xrc;
 
 		xrc = get_pin_payload(name, live);
@@ -2967,7 +2967,7 @@ done:
 
 int shirudo_upatch_purge(const char *name, const char *reason)
 {
-	__u8 payload[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN] = {};
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
 	struct shirudo_upatch u;
 	bool loaded;
@@ -2976,7 +2976,7 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	if (!safe_upatch_name(name))
 		return -EINVAL;
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-		       SHIRUDO_UPATCHES_DIR, name) < 0)
+		       UPATCHES_DIR, name) < 0)
 		return -ENAMETOOLONG;
 	rc = seal_open_read(persisted);
 	if (rc < 0)
@@ -3167,11 +3167,11 @@ static int export_one_map(const char *upatch, const char *map,
 {
 	struct shirudo_map_view v = {};
 	__u32 cap = (show_full || json_output || otel) ? 0 :
-		SHIRUDO_MAP_ENTRIES_DEFAULT;
+		MAP_ENTRIES_DEFAULT;
 	int rc, ret = 0;
 
 	rc = upatch_maps_read(upatch, map, cap,
-			      peek ? SHIRUDO_MAP_READ_PEEK : 0, &v);
+			      peek ? MAP_READ_PEEK : 0, &v);
 	if (rc) {
 		pr_err("upatch map: read %s/%s: %s", upatch, map,
 		       strerror(-rc));
@@ -3598,7 +3598,7 @@ static void render_one_map_text(const char *upatch, const char *map,
 				__u32 cap)
 {
 	struct shirudo_map_view v = {};
-	int rc = upatch_maps_read(upatch, map, cap, SHIRUDO_MAP_READ_PEEK,
+	int rc = upatch_maps_read(upatch, map, cap, MAP_READ_PEEK,
 				  &v);
 
 	printf("\n== Map: %s ==\n", map);
@@ -3657,8 +3657,8 @@ static int render_get_json(const struct upatch_get_ctx *c,
 	size_t k;
 	int ret = 0;
 
-	if (cap > SHIRUDO_JSON_MAX_BYTES)
-		cap = SHIRUDO_JSON_MAX_BYTES;
+	if (cap > JSON_MAX_BYTES)
+		cap = JSON_MAX_BYTES;
 	buf = xmalloc(cap);
 	if (!buf)
 		return 1;
@@ -3688,7 +3688,7 @@ static int render_get_json(const struct upatch_get_ctx *c,
 		int rc;
 
 		rc = upatch_maps_read(c->upatch, maps[k].name, map_cap,
-				      SHIRUDO_MAP_READ_PEEK, &v);
+				      MAP_READ_PEEK, &v);
 		if (rc != 0) {
 			json_obj_open(&e);
 			json_kv_string(&e, "name", maps[k].name);
@@ -3765,7 +3765,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 		return 1;
 	}
 	upatch_maps_list_one(want, &maps, &nm);
-	map_cap = show_full ? 0 : SHIRUDO_MAP_ENTRIES_DEFAULT;
+	map_cap = show_full ? 0 : MAP_ENTRIES_DEFAULT;
 
 	if (json)
 		rc = render_get_json(&ctx, maps, nm, map_cap);

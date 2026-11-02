@@ -54,9 +54,9 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 	return 0;
 }
 
-#define SHIRUDO_PROT_WRITE	2
-#define SHIRUDO_PROT_EXEC	4
-#define SHIRUDO_VM_EXEC		4
+#define PROT_WRITE	2
+#define PROT_EXEC	4
+#define VM_EXEC		4
 
 /* Executable mappings in a trusted process must come from its runtime image. */
 SEC("lsm/mmap_file")
@@ -69,9 +69,9 @@ int BPF_PROG(shirudo_seal_mmap_file, struct file *file,
 	if (ret)
 		return ret;
 	if (!id || !shirudo_task_is_self(id) ||
-	    shirudo_bootstrap_task() || !(prot & SHIRUDO_PROT_EXEC))
+	    shirudo_bootstrap_task() || !(prot & PROT_EXEC))
 		return 0;
-	if ((prot & SHIRUDO_PROT_WRITE) || !shirudo_file_runtime(file))
+	if ((prot & PROT_WRITE) || !shirudo_file_runtime(file))
 		return -EACCES;
 	return 0;
 }
@@ -90,11 +90,11 @@ int BPF_PROG(shirudo_seal_file_mprotect, struct vm_area_struct *vma,
 	if (!id || !shirudo_task_is_self(id) ||
 	    shirudo_bootstrap_task())
 		return 0;
-	if ((old_flags & SHIRUDO_VM_EXEC) && (prot & SHIRUDO_PROT_WRITE))
+	if ((old_flags & VM_EXEC) && (prot & PROT_WRITE))
 		return -EACCES;
-	if (!(prot & SHIRUDO_PROT_EXEC))
+	if (!(prot & PROT_EXEC))
 		return 0;
-	if (!(old_flags & SHIRUDO_VM_EXEC) ||
+	if (!(old_flags & VM_EXEC) ||
 	    !shirudo_file_runtime(BPF_CORE_READ(vma, vm_file)))
 		return -EACCES;
 	return 0;

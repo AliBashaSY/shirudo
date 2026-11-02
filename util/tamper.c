@@ -116,7 +116,7 @@ int tamper_read(struct shirudo_tamper_counts *out)
 	__u32 key;
 
 	memset(out, 0, sizeof(*out));
-	fd = bpf_obj_get(SHIRUDO_TAMPER_PIN);
+	fd = bpf_obj_get(TAMPER_PIN);
 	if (fd < 0)
 		return -errno;
 	rc = bpf_map_get_info_by_fd(fd, &info, &len);

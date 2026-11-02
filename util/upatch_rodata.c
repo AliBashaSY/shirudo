@@ -551,7 +551,7 @@ static void json_hex(struct shirudo_json_emit *e, const void *bytes,
 	const __u8 *p = bytes;
 	size_t i, cap;
 
-	if (size > (SHIRUDO_JSON_MAX_BYTES - 3) / 2) {
+	if (size > (JSON_MAX_BYTES - 3) / 2) {
 		e->err = -E2BIG;
 		return;
 	}
@@ -793,11 +793,11 @@ static int print_rodata_text(const struct shirudo_upatch *u,
 	const struct btf_var_secinfo *vars =
 		(const struct btf_var_secinfo *)(sec + 1);
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
+	char name[UPATCH_NAME_MAX + 1];
 	int rc = 0;
 
-	memcpy(name, u->hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
 	       name, path, view->size, view->data_offset,
 	       u->hdr.data_off + view->data_offset);
@@ -850,8 +850,8 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 							    view->type_id);
 	const struct btf_var_secinfo *vars =
 		(const struct btf_var_secinfo *)(sec + 1);
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
-	char *buf = xmalloc(SHIRUDO_JSON_MAX_BYTES);
+	char name[UPATCH_NAME_MAX + 1];
+	char *buf = xmalloc(JSON_MAX_BYTES);
 	struct shirudo_json_emit e = {};
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
 	int rc = 0;
@@ -859,9 +859,9 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 	if (!buf)
 		return -ENOMEM;
 	e.buf = buf;
-	e.cap = SHIRUDO_JSON_MAX_BYTES;
-	memcpy(name, u->hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	e.cap = JSON_MAX_BYTES;
+	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "upatch", name);
@@ -917,8 +917,8 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 	if (!rc)
 		rc = write_complete(STDOUT_FILENO, "\n", 1);
 	if (rc == -ENOSPC)
-		pr_err("BTF JSON output exceeds %u bytes", SHIRUDO_JSON_MAX_BYTES);
-	xfree(buf, SHIRUDO_JSON_MAX_BYTES);
+		pr_err("BTF JSON output exceeds %u bytes", JSON_MAX_BYTES);
+	xfree(buf, JSON_MAX_BYTES);
 	return rc;
 }
 

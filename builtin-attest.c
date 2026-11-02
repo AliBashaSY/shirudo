@@ -37,7 +37,7 @@
 #include "util/seal.h"
 #include "util/upatch.h"
 
-#define EVIDENCE_MAX		SHIRUDO_JSON_MAX_BYTES
+#define EVIDENCE_MAX		JSON_MAX_BYTES
 #define EVENTS_MAX		256
 
 static const struct shirudo_help_item attest_subcmds[] = {
@@ -187,7 +187,7 @@ static int member_add_file(struct members *m, const char *path)
 	struct shirudo_upatch u;
 	int rc;
 
-	if (m->n >= SHIRUDO_ATTEST_MEMBERS_MAX)
+	if (m->n >= ATTEST_MEMBERS_MAX)
 		return -E2BIG;
 	rc = upatch_open(path, &u);
 	if (rc) {
@@ -195,10 +195,10 @@ static int member_add_file(struct members *m, const char *path)
 		return rc;
 	}
 	e = &m->set[m->n++];
-	memcpy(e->name, u.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	e->name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(e->name, u.hdr.name, UPATCH_NAME_MAX);
+	e->name[UPATCH_NAME_MAX] = '\0';
 	hex_encode(u.hdr.payload_sha256,
-		   SHIRUDO_UPATCH_PAYLOAD_HASH_LEN, e->payload_hex);
+		   UPATCH_PAYLOAD_HASH_LEN, e->payload_hex);
 	upatch_close(&u);
 	return 0;
 }
@@ -210,10 +210,10 @@ static int member_add_spec(struct members *m, const char *spec)
 	__u8 payload[32];
 
 	if (!eq || eq == spec ||
-	    (size_t)(eq - spec) > SHIRUDO_UPATCH_NAME_MAX ||
+	    (size_t)(eq - spec) > UPATCH_NAME_MAX ||
 	    parse_hex32("--expect payload digest", eq + 1, payload))
 		return -EINVAL;
-	if (m->n >= SHIRUDO_ATTEST_MEMBERS_MAX)
+	if (m->n >= ATTEST_MEMBERS_MAX)
 		return -E2BIG;
 	e = &m->set[m->n++];
 	memcpy(e->name, spec, (size_t)(eq - spec));
@@ -256,7 +256,7 @@ static int cert_digest(const char *path, __u8 out[32])
 
 static int apply_event(const char *spec, __u8 chain[32])
 {
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
+	char name[UPATCH_NAME_MAX + 1];
 	const char *colon = strchr(spec, ':'), *eq;
 	__u8 digest[32], event[32];
 	size_t kind_len, name_len;
@@ -267,7 +267,7 @@ static int apply_event(const char *spec, __u8 chain[32])
 		return -EINVAL;
 	kind_len = (size_t)(colon - spec);
 	name_len = (size_t)(eq - colon - 1);
-	if (name_len > SHIRUDO_UPATCH_NAME_MAX)
+	if (name_len > UPATCH_NAME_MAX)
 		return -EINVAL;
 	memcpy(name, colon + 1, name_len);
 	name[name_len] = '\0';
@@ -294,28 +294,28 @@ static int apply_event(const char *spec, __u8 chain[32])
 
 static int cmd_attest_predict(int argc, const char **argv)
 {
-	__u8 writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8 writer_public[TPM_NV_RSA_BYTES];
 	__u8 cert_sha[32], tree_root[32] = {}, set_digest[32], init[32];
-	__u8 cert_shas[SHIRUDO_KEYS_MAX][32];
+	__u8 cert_shas[KEYS_MAX][32];
 	size_t n_certs = 0;
 	__u8 bind[2][32], chain[32] = {};
 	const char *events[EVENTS_MAX];
 	struct members m = {};
-	char hex[2 * SHIRUDO_TPM_NAME_LEN + 1];
+	char hex[2 * TPM_NAME_LEN + 1];
 	bool have_cert = false, have_writer = false, have_bind[2] = {};
 	size_t n_events = 0, i;
 	int ret = 2;
 
-	m.set = xcalloc(SHIRUDO_ATTEST_MEMBERS_MAX, sizeof(*m.set));
+	m.set = xcalloc(ATTEST_MEMBERS_MAX, sizeof(*m.set));
 	if (!m.set)
 		return 1;
 	for (i = 2; i < (size_t)argc; i++) {
 		const char *a = argv[i];
 
 		if (!strncmp(a, "--cert=", 7)) {
-			if (n_certs >= SHIRUDO_KEYS_MAX) {
+			if (n_certs >= KEYS_MAX) {
 				pr_err("attest predict: at most %d --cert",
-				       SHIRUDO_KEYS_MAX);
+				       KEYS_MAX);
 				goto out;
 			}
 			if (cert_digest(a + 7, cert_shas[n_certs]))
@@ -349,13 +349,13 @@ static int cmd_attest_predict(int argc, const char **argv)
 			__u64 n;
 
 			if (!parse_pcr_value(a + 11, &n, &value))
-				slot = n == SHIRUDO_CHAIN_PCR ? 0 :
-				       n == SHIRUDO_CHAIN_PHASE_PCR ? 1 : -1;
+				slot = n == CHAIN_PCR ? 0 :
+				       n == CHAIN_PHASE_PCR ? 1 : -1;
 			if (slot < 0 ||
 			    parse_hex32("--bind-pcr value", value, bind[slot])) {
 				pr_err("attest predict: --bind-pcr takes "
-				       "%u=<hex> or %u=<hex>", SHIRUDO_CHAIN_PCR,
-				       SHIRUDO_CHAIN_PHASE_PCR);
+				       "%u=<hex> or %u=<hex>", CHAIN_PCR,
+				       CHAIN_PHASE_PCR);
 				goto out;
 			}
 			have_bind[slot] = true;
@@ -397,22 +397,22 @@ static int cmd_attest_predict(int argc, const char **argv)
 	}
 	if (have_bind[0] && have_bind[1]) {
 		__u8 branch_written[32], branch_init[32], policy[32];
-		__u8 name[SHIRUDO_TPM_NAME_LEN], anchor_digest[32];
-		char anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
+		__u8 name[TPM_NAME_LEN], anchor_digest[32];
+		char anchor[CHAIN_ANCHOR_MAX];
 
 		if (!have_writer) {
 			pr_err("attest predict: --bind-pcr requires --writer-public");
 			goto out;
 		}
-		if (tpm_register_policy(SHIRUDO_CHAIN_PCR_MASK, bind[0], 2,
+		if (tpm_register_policy(CHAIN_PCR_MASK, bind[0], 2,
 					writer_public, branch_written, branch_init, policy)) {
 			pr_err("attest predict: cannot compute the signed write policy");
 			ret = 1;
 			goto out;
 		}
-		tpm_nv_name(SHIRUDO_NV_INDEX,
-			    SHIRUDO_TPM_REGISTER_ATTRS |
-			    SHIRUDO_TPM_NV_WRITTEN, policy, 32, name);
+		tpm_nv_name(NV_INDEX,
+			    TPM_REGISTER_ATTRS |
+			    TPM_NV_WRITTEN, policy, 32, name);
 		hex_encode(name, sizeof(name), hex);
 		printf("register_name: %s\n", hex);
 		if (chain_anchor(name, anchor, sizeof(anchor))) {
@@ -426,15 +426,15 @@ static int cmd_attest_predict(int argc, const char **argv)
 		}
 		chain_fold(bind[0], anchor_digest);
 		hex_encode(bind[0], 32, hex);
-		printf("pcr%u_after_anchor: %s\n", SHIRUDO_CHAIN_PCR, hex);
+		printf("pcr%u_after_anchor: %s\n", CHAIN_PCR, hex);
 	} else if (have_bind[0] || have_bind[1] || have_writer) {
 		pr_err("attest predict: --bind-pcr needs both %u and %u",
-		       SHIRUDO_CHAIN_PCR, SHIRUDO_CHAIN_PHASE_PCR);
+		       CHAIN_PCR, CHAIN_PHASE_PCR);
 		goto out;
 	}
 	ret = 0;
 out:
-	xfree(m.set, SHIRUDO_ATTEST_MEMBERS_MAX * sizeof(*m.set));
+	xfree(m.set, ATTEST_MEMBERS_MAX * sizeof(*m.set));
 	return ret;
 }
 
@@ -478,8 +478,8 @@ static int read_evidence(const char *path, char **out, size_t *len)
 static int cmd_attest_verify(int argc, const char **argv)
 {
 	struct shirudo_attest_expect x = {};
-	__u8 nonce[SHIRUDO_ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
-	__u8 cert_shas[SHIRUDO_KEYS_MAX][32];
+	__u8 nonce[ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
+	__u8 cert_shas[KEYS_MAX][32];
 	size_t n_certs = 0;
 	__u8 tree_root[32] = {};
 	const char *evidence_path = NULL;
@@ -489,8 +489,8 @@ static int cmd_attest_verify(int argc, const char **argv)
 	bool have_cert = false, have_nonce = false, have_tree_root = false;
 	int rc, ret = 2;
 
-	m.set = xcalloc(SHIRUDO_ATTEST_MEMBERS_MAX, sizeof(*m.set));
-	report = xmalloc(SHIRUDO_ATTEST_REPORT_MAX);
+	m.set = xcalloc(ATTEST_MEMBERS_MAX, sizeof(*m.set));
+	report = xmalloc(ATTEST_REPORT_MAX);
 	if (!m.set || !report)
 		goto out;
 	for (i = 2; i < (size_t)argc; i++) {
@@ -503,7 +503,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 				      &nonce_len)) {
 				pr_err("attest verify: --nonce must be hex of "
 				       "up to %d bytes",
-				       SHIRUDO_ATTEST_NONCE_MAX);
+				       ATTEST_NONCE_MAX);
 				goto out;
 			}
 			have_nonce = true;
@@ -511,17 +511,17 @@ static int cmd_attest_verify(int argc, const char **argv)
 			size_t n;
 
 			if (parse_hex(a + 10, x.ak_name, sizeof(x.ak_name),
-				      &n) || n != SHIRUDO_TPM_NAME_LEN) {
+				      &n) || n != TPM_NAME_LEN) {
 				pr_err("attest verify: --ak-name must be %d "
 				       "hex characters",
-				       2 * SHIRUDO_TPM_NAME_LEN);
+				       2 * TPM_NAME_LEN);
 				goto out;
 			}
 			x.have_ak_name = true;
 		} else if (!strncmp(a, "--cert=", 7)) {
-			if (n_certs >= SHIRUDO_KEYS_MAX) {
+			if (n_certs >= KEYS_MAX) {
 				pr_err("attest verify: at most %d --cert",
-				       SHIRUDO_KEYS_MAX);
+				       KEYS_MAX);
 				goto out;
 			}
 			if (cert_digest(a + 7, cert_shas[n_certs]))
@@ -581,10 +581,10 @@ static int cmd_attest_verify(int argc, const char **argv)
 			size_t n;
 
 			if (parse_hex(a + 10, x.ek_name, sizeof(x.ek_name),
-				      &n) || n != SHIRUDO_TPM_NAME_LEN) {
+				      &n) || n != TPM_NAME_LEN) {
 				pr_err("attest verify: --ek-name must be %d "
 				       "hex characters",
-				       2 * SHIRUDO_TPM_NAME_LEN);
+				       2 * TPM_NAME_LEN);
 				goto out;
 			}
 			x.have_ek_name = true;
@@ -649,7 +649,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
 		goto out;
 	rc = attest_verify(evidence, evidence_len, &x, report,
-			   SHIRUDO_ATTEST_REPORT_MAX);
+			   ATTEST_REPORT_MAX);
 	fputs(report, stdout);
 	if (rc == -EINVAL) {
 		pr_err("attest verify: %s is not a shirudo evidence document",
@@ -664,23 +664,23 @@ static int cmd_attest_verify(int argc, const char **argv)
 	}
 out:
 	xfree(evidence, evidence ? evidence_len + 1 : 0);
-	xfree(report, report ? SHIRUDO_ATTEST_REPORT_MAX : 0);
-	xfree(m.set, m.set ? SHIRUDO_ATTEST_MEMBERS_MAX * sizeof(*m.set) : 0);
+	xfree(report, report ? ATTEST_REPORT_MAX : 0);
+	xfree(m.set, m.set ? ATTEST_MEMBERS_MAX * sizeof(*m.set) : 0);
 	return ret;
 }
 
 static int cmd_attest_challenge(int argc, const char **argv)
 {
 	struct shirudo_attest_challenge_policy pol = {};
-	__u8 credential[SHIRUDO_TPM_CREDENTIAL_LEN];
-	__u8 ak_name[SHIRUDO_TPM_NAME_LEN], ek_name[SHIRUDO_TPM_NAME_LEN];
+	__u8 credential[TPM_CREDENTIAL_LEN];
+	__u8 ak_name[TPM_NAME_LEN], ek_name[TPM_NAME_LEN];
 	const char *evidence_path = NULL, *out_path = NULL;
 	char *evidence = NULL, *doc = NULL, *report;
-	char hex[2 * SHIRUDO_TPM_CREDENTIAL_LEN + 1];
+	char hex[2 * TPM_CREDENTIAL_LEN + 1];
 	size_t evidence_len = 0, len = 0, cap = 0, i, n;
 	int rc, ret = 2;
 
-	report = xmalloc(SHIRUDO_ATTEST_REPORT_MAX);
+	report = xmalloc(ATTEST_REPORT_MAX);
 	if (!report)
 		return 1;
 	for (i = 2; i < (size_t)argc; i++) {
@@ -692,17 +692,17 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			pol.ek_ca = a + 8;
 		} else if (!strncmp(a, "--ak-name=", 10)) {
 			if (parse_hex(a + 10, ak_name, sizeof(ak_name), &n) ||
-			    n != SHIRUDO_TPM_NAME_LEN) {
+			    n != TPM_NAME_LEN) {
 				pr_err("attest challenge: --ak-name must be %d "
-				       "hex characters", 2 * SHIRUDO_TPM_NAME_LEN);
+				       "hex characters", 2 * TPM_NAME_LEN);
 				goto out;
 			}
 			pol.ak_name = ak_name;
 		} else if (!strncmp(a, "--ek-name=", 10)) {
 			if (parse_hex(a + 10, ek_name, sizeof(ek_name), &n) ||
-			    n != SHIRUDO_TPM_NAME_LEN) {
+			    n != TPM_NAME_LEN) {
 				pr_err("attest challenge: --ek-name must be %d "
-				       "hex characters", 2 * SHIRUDO_TPM_NAME_LEN);
+				       "hex characters", 2 * TPM_NAME_LEN);
 				goto out;
 			}
 			pol.ek_name = ek_name;
@@ -727,7 +727,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		goto out;
 	rc = attest_challenge_make(evidence, evidence_len, &pol,
 				   credential, &doc, &len, &cap, report,
-				   SHIRUDO_ATTEST_REPORT_MAX);
+				   ATTEST_REPORT_MAX);
 	fputs(report, stdout);
 	if (rc == -EINVAL) {
 		pr_err("attest challenge: %s carries no endorsement key",
@@ -767,7 +767,7 @@ out:
 	explicit_bzero(credential, sizeof(credential));
 	xfree(doc, cap);
 	xfree(evidence, evidence ? evidence_len + 1 : 0);
-	xfree(report, SHIRUDO_ATTEST_REPORT_MAX);
+	xfree(report, ATTEST_REPORT_MAX);
 	return ret;
 }
 
@@ -775,8 +775,8 @@ static int cmd_attest_evidence(int argc, const char **argv)
 {
 	const struct shirudo_attest_challenge *request;
 	struct shirudo_attest_challenge challenge = {};
-	__u8 nonce[SHIRUDO_ATTEST_NONCE_MAX];
-	__u32 mask = SHIRUDO_ATTEST_PCR_DEFAULT;
+	__u8 nonce[ATTEST_NONCE_MAX];
+	__u32 mask = ATTEST_PCR_DEFAULT;
 	const char *out_path = NULL, *challenge_path = NULL;
 	char *doc = NULL;
 	size_t nonce_len = 0, len = 0, cap = 0, i;
@@ -791,7 +791,7 @@ static int cmd_attest_evidence(int argc, const char **argv)
 			if (parse_hex(a + 8, nonce, sizeof(nonce),
 				      &nonce_len)) {
 				pr_err("attest: --nonce must be hex of up to "
-				       "%d bytes", SHIRUDO_ATTEST_NONCE_MAX);
+				       "%d bytes", ATTEST_NONCE_MAX);
 				return 2;
 			}
 		} else if (!strncmp(a, "--pcrs=", 7)) {
@@ -830,7 +830,7 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	if (rc == -ENODEV) {
 		pr_err("attest: register 0x%08X is not bound this boot "
 		       "(tpm_error); run shirudo init first",
-		       SHIRUDO_NV_INDEX);
+		       NV_INDEX);
 		return 1;
 	}
 	if (rc == -EKEYREJECTED) {

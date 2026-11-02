@@ -42,7 +42,7 @@
  * either be an attacker-crafted BTF or a layout we should not be
  * pretty-printing in a "shirudo upatch get" view.
  */
-#define SHIRUDO_BTF_MAX_DEPTH		6
+#define BTF_MAX_DEPTH		6
 
 static void resolve_map_location(struct shirudo_map_view *v)
 {
@@ -59,10 +59,10 @@ static void resolve_map_location(struct shirudo_map_view *v)
 		btf__free(vbtf);
 }
 
-#define SHIRUDO_SERIAL_MAX_BYTES \
+#define SERIAL_MAX_BYTES \
 	(SHIRUDO_SERIAL_MAX_CHUNKS * SHIRUDO_SERIAL_CHUNK_PAYLOAD)
-#define SHIRUDO_SERIAL_MAX_TOTAL_BYTES \
-	((__u64)SHIRUDO_SERIAL_MAX_PAGES * SHIRUDO_SERIAL_MAX_BYTES)
+#define SERIAL_MAX_TOTAL_BYTES \
+	((__u64)SHIRUDO_SERIAL_MAX_PAGES * SERIAL_MAX_BYTES)
 
 bool upatch_map_is_percpu(__u32 type)
 {
@@ -143,7 +143,7 @@ static __u32 btf_unwrap(const struct btf *btf, __u32 id)
 	const struct btf_type *t;
 	int hops;
 
-	for (hops = 0; hops < SHIRUDO_BTF_MAX_DEPTH; hops++) {
+	for (hops = 0; hops < BTF_MAX_DEPTH; hops++) {
 		t = btf__type_by_id(btf, id);
 		if (!t)
 			return id;
@@ -222,7 +222,7 @@ static void btf_type_signature_into(const struct btf *btf, __u32 id,
 	int i, vlen;
 	__u16 kind;
 
-	if (depth >= SHIRUDO_BTF_MAX_DEPTH || !btf || !id || *off >= cap)
+	if (depth >= BTF_MAX_DEPTH || !btf || !id || *off >= cap)
 		return;
 	id = btf_unwrap(btf, id);
 	t = btf__type_by_id(btf, id);
@@ -407,7 +407,7 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 	const struct btf_type *t;
 	__u16 kind;
 
-	if (depth >= SHIRUDO_BTF_MAX_DEPTH || !btf || !type_id || !bytes ||
+	if (depth >= BTF_MAX_DEPTH || !btf || !type_id || !bytes ||
 	    !bytes_size)
 		return NULL;
 	type_id = btf_unwrap(btf, type_id);
@@ -725,14 +725,14 @@ static int open_map_pin(const char *upatch, const char *map_name,
 			int *fd_out, struct bpf_map_info *info_out)
 {
 	char path[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	__u32 info_len = sizeof(*info_out);
 	int fd;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return -ENAMETOOLONG;
 	if (strsprintf(path, sizeof(path), "%s/%s/maps/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -758,13 +758,13 @@ static struct btf *try_load_btf(__u32 btf_id)
 static int open_serializer_pin(const char *upatch, const char *map_name)
 {
 	char path[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	int fd;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return -ENAMETOOLONG;
 	if (strsprintf(path, sizeof(path), "%s/%s/serializers/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -876,7 +876,7 @@ static int read_serial_page(int serial_fd,
 	flags = chunk->flags;
 	if (total_chunks == 0 || total_chunks > serial_info->max_entries ||
 	    total_chunks > SHIRUDO_SERIAL_MAX_CHUNKS ||
-	    bytes_total > SHIRUDO_SERIAL_MAX_BYTES ||
+	    bytes_total > SERIAL_MAX_BYTES ||
 	    bytes_total > total_chunks * SHIRUDO_SERIAL_CHUNK_PAYLOAD) {
 		rc = -EBADMSG;
 		goto out_chunk;
@@ -990,7 +990,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 
 		ctx.magic = SHIRUDO_SERIAL_MAGIC;
 		ctx.version = SHIRUDO_SERIAL_VERSION;
-		ctx.flags = (flags & SHIRUDO_MAP_READ_PEEK) ?
+		ctx.flags = (flags & MAP_READ_PEEK) ?
 			    SHIRUDO_SERIAL_CTX_F_PEEK : 0;
 		ctx.max_chunks = serial_info.max_entries;
 		ctx.chunk_payload_size = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
@@ -1018,7 +1018,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 				      cursor, invocation_id, &page);
 		if (rc)
 			goto out;
-		if (bytes_total + page.bytes > SHIRUDO_SERIAL_MAX_TOTAL_BYTES) {
+		if (bytes_total + page.bytes > SERIAL_MAX_TOTAL_BYTES) {
 			xfree(page.data, page.bytes);
 			rc = -E2BIG;
 			goto out;
@@ -1232,7 +1232,7 @@ int upatch_maps_read(const char *upatch, const char *map,
 {
 	struct bpf_map_info info = {};
 	char upatch_dir[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat upatch_st;
 	int fd = -1;
 	int rc;
@@ -1264,7 +1264,7 @@ int upatch_maps_read(const char *upatch, const char *map,
 	resolve_map_location(out);
 	if (!upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch) &&
 	    strsprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) >= 0 &&
+		       BPFFS_UPATCHES_DIR, bpffs_name) >= 0 &&
 	    stat(upatch_dir, &upatch_st) == 0)
 		out->lifetime_start_ns =
 			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
@@ -1335,14 +1335,14 @@ static void scan_upatch_maps(const char *upatch,
 			     size_t *cap)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[SHIRUDO_UPATCH_BPFFS_NAME_MAX + 1];
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct dirent *e;
 	DIR *d;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
 		return;
 	if (strsprintf(dir, sizeof(dir), "%s/%s/maps",
-		       SHIRUDO_BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
 		return;
 	d = opendir(dir);
 	if (!d)
@@ -1399,14 +1399,14 @@ int upatch_maps_list_all(struct shirudo_map_summary **out,
 	struct dirent *e;
 	DIR *d;
 
-	d = opendir(SHIRUDO_BPFFS_UPATCHES_DIR);
+	d = opendir(BPFFS_UPATCHES_DIR);
 	if (!d) {
 		*out = NULL;
 		*n_out = 0;
 		return 0;
 	}
 	while ((e = readdir(d))) {
-		char raw_name[SHIRUDO_UPATCH_NAME_MAX + 1];
+		char raw_name[UPATCH_NAME_MAX + 1];
 
 		if (e->d_name[0] == '.')
 			continue;

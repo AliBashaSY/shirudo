@@ -9,12 +9,12 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
-#define SHIRUDO_UPATCH_NAME_MAX	256
-#define SHIRUDO_SHA256_LEN	32
+#define UPATCH_NAME_MAX	256
+#define SHA256_LEN	32
 
 struct shirudo_unload_params {
-	char	name[SHIRUDO_UPATCH_NAME_MAX];
-	__u8	expected_sha256[SHIRUDO_SHA256_LEN];
+	char	name[UPATCH_NAME_MAX];
+	__u8	expected_sha256[SHA256_LEN];
 };
 
 volatile const struct shirudo_unload_params shirudo_unload_params = {

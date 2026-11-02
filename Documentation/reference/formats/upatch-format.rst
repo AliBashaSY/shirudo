@@ -22,7 +22,7 @@ Conventions
 - Header offsets count from the start of the file. Offsets inside
   ``data`` count from the start of ``data``.
 - Fixed-size string fields are NUL-padded and must contain a NUL.
-- A file is at most 16 MiB (``SHIRUDO_UPATCH_FILE_MAX``).
+- A file is at most 16 MiB (``UPATCH_FILE_MAX``).
 
 Layout
 ------
@@ -82,7 +82,7 @@ Header
    * - 12
      - 4
      - ``flags``
-     - Bit 0, ``SHIRUDO_DIRECTIVE_UNLOAD``: 0 for a load artifact, 1 for an
+     - Bit 0, ``DIRECTIVE_UNLOAD``: 0 for a load artifact, 1 for an
        unload directive. Writers set bits 1 to 31 to 0. The reader does not
        check them.
    * - 16

@@ -22,7 +22,7 @@ static int append_event(struct shirudo_config_evidence *view,
 	struct shirudo_config_evidence_event *events;
 	size_t capacity;
 
-	if (view->n_events >= SHIRUDO_CONFIG_EVIDENCE_EVENTS_MAX)
+	if (view->n_events >= CONFIG_EVIDENCE_EVENTS_MAX)
 		return -E2BIG;
 	if (view->n_events == view->capacity) {
 		capacity = view->capacity ? view->capacity * 2 : 16;
@@ -45,7 +45,7 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 	int rc;
 
 	if (!view->events || !view->n_events ||
-	    view->n_events > SHIRUDO_CONFIG_EVIDENCE_EVENTS_MAX)
+	    view->n_events > CONFIG_EVIDENCE_EVENTS_MAX)
 		return -EINVAL;
 	memcpy(out, view->initial_pcr, 32);
 	for (i = 0; i < view->n_events; i++) {

@@ -15,7 +15,7 @@
  * longer than this short-circuit to "no match" rather than allocating.
  * Comfortably larger than every shirudo subcommand and option name.
  */
-#define SHIRUDO_SIMILAR_MAX_LEN	64
+#define SIMILAR_MAX_LEN	64
 
 struct shirudo_suggestion {
 	const char	*name;

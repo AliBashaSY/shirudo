@@ -45,9 +45,9 @@
  * signature plus SignerInfo); the kernel caps attr.signature_size at
  * 64 KiB (BPF_PROG_MAX_SIGNATURE_SIZE).
  */
-#define SHIRUDO_MAX_SIG_SIZE	16384
-#define SHIRUDO_SERIALIZER_PREFIX	"shirudo_serialize__"
-#define SHIRUDO_TEST_RUN_PREFIX	"shirudo_test__"
+#define MAX_SIG_SIZE	16384
+#define SERIALIZER_PREFIX	"shirudo_serialize__"
+#define TEST_RUN_PREFIX	"shirudo_test__"
 
 static struct bpf_map *find_rodata(struct bpf_object *obj);
 
@@ -57,8 +57,8 @@ struct shirudo_data_range {
 };
 
 struct shirudo_unload_params {
-	char	name[SHIRUDO_UPATCH_NAME_MAX];
-	__u8	expected_sha256[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
+	char	name[UPATCH_NAME_MAX];
+	__u8	expected_sha256[UPATCH_PAYLOAD_HASH_LEN];
 };
 
 struct decoder_manifest_view {
@@ -95,12 +95,12 @@ static void pack_header(struct shirudo_upatch_header *h,
 			__u32 rodata_data_off, __u32 nr_maps, __u32 nr_progs)
 {
 	memset(h, 0, sizeof(*h));
-	h->magic   = htole64(SHIRUDO_UPATCH_MAGIC);
-	h->version = htole32(SHIRUDO_UPATCH_VERSION);
+	h->magic   = htole64(UPATCH_MAGIC);
+	h->version = htole32(UPATCH_VERSION);
 	h->flags   = htole32(flags);
 	strscpy(h->name, name, sizeof(h->name));
 	memcpy(h->payload_sha256, payload_sha256,
-	       SHIRUDO_UPATCH_PAYLOAD_HASH_LEN);
+	       UPATCH_PAYLOAD_HASH_LEN);
 	h->loader_insns_off = htole32(loader_off);
 	h->loader_insns_len = htole32(loader_len);
 	h->signature_off    = htole32(sig_off);
@@ -143,7 +143,7 @@ static bool output_is_input(int fd, const char *original,
 static int verify_payload(const struct shirudo_upatch *u,
 			  const char *cert_path)
 {
-	__u8 digest[SHIRUDO_SHA256_LEN], *payload;
+	__u8 digest[SHA256_LEN], *payload;
 	__u64 payload_len;
 	__u32 digest_len;
 	int rc;
@@ -182,7 +182,7 @@ static int package_resign_symbols(const char *original,
 	struct shirudo_rodata_range expected[16] = {};
 	const __u8 *src_data, *mod_data;
 	bool range_found[16] = {};
-	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
+	char name[UPATCH_NAME_MAX + 1];
 	__u32 loader_off, sig_off, data_off, meta_off;
 	__u8 *sig_buf = NULL;
 	size_t i, j;
@@ -205,7 +205,7 @@ static int package_resign_symbols(const char *original,
 	src_data = upatch_data(&src);
 	mod_data = upatch_data(&mod);
 	if (upatch_is_unload(&src) || upatch_is_unload(&mod) ||
-	    memcmp(src.map, mod.map, SHIRUDO_UPATCH_HEADER_SIZE) ||
+	    memcmp(src.map, mod.map, UPATCH_HEADER_SIZE) ||
 	    src.hdr.loader_insns_len != mod.hdr.loader_insns_len ||
 	    src.hdr.signature_len != mod.hdr.signature_len ||
 	    src.hdr.data_len != mod.hdr.data_len ||
@@ -268,7 +268,7 @@ static int package_resign_symbols(const char *original,
 			goto out;
 		}
 	}
-	sig_buf = xmalloc(SHIRUDO_MAX_SIG_SIZE);
+	sig_buf = xmalloc(MAX_SIG_SIZE);
 	if (!sig_buf) {
 		rc = -ENOMEM;
 		goto out;
@@ -278,7 +278,7 @@ static int package_resign_symbols(const char *original,
 	sio.data = upatch_data(&mod);
 	sio.data_sz = mod.hdr.data_len;
 	sio.signature = sig_buf;
-	sio.signature_sz = SHIRUDO_MAX_SIG_SIZE;
+	sio.signature_sz = MAX_SIG_SIZE;
 	rc = cms_sign(&sio, pkey_path, cert_path);
 	if (rc)
 		goto out;
@@ -299,12 +299,12 @@ static int package_resign_symbols(const char *original,
 	}
 	meta_off = data_off + (__u32)sio.data_sz;
 	total = (__u64)meta_off + mod.hdr.metadata_len;
-	if (total > SHIRUDO_UPATCH_FILE_MAX) {
+	if (total > UPATCH_FILE_MAX) {
 		rc = -E2BIG;
 		goto out;
 	}
-	memcpy(name, mod.hdr.name, SHIRUDO_UPATCH_NAME_MAX);
-	name[SHIRUDO_UPATCH_NAME_MAX] = '\0';
+	memcpy(name, mod.hdr.name, UPATCH_NAME_MAX);
+	name[UPATCH_NAME_MAX] = '\0';
 	pack_header(&hdr, name, mod.hdr.type, mod.hdr.flags,
 		    sio.payload_sha256,
 		    loader_off, (__u32)sio.insns_sz,
@@ -340,7 +340,7 @@ out:
 	if (rc && wrote)
 		unlink(output);
 	if (sig_buf)
-		xfree(sig_buf, SHIRUDO_MAX_SIG_SIZE);
+		xfree(sig_buf, MAX_SIG_SIZE);
 	upatch_close(&mod);
 	upatch_close(&src);
 	return rc;
@@ -453,8 +453,8 @@ int shirudo_build_upatch_cli(int argc, char **argv)
 {
 	const char *keys_dir = NULL, *original = NULL, *modified = NULL;
 	const char *output = NULL;
-	const char *pkey = SHIRUDO_SIGNING_KEY_PATH;
-	const char *cert = SHIRUDO_CERT_PATH;
+	const char *pkey = SIGNING_KEY_PATH;
+	const char *cert = CERT_PATH;
 	struct shirudo_data_range ranges[16] = {};
 	char pkey_buf[PATH_MAX], cert_buf[PATH_MAX];
 	int pkey_explicit = 0, cert_explicit = 0;
@@ -522,14 +522,14 @@ int shirudo_build_upatch_cli(int argc, char **argv)
 	if (keys_dir) {
 		if (!pkey_explicit) {
 			rc = shirudo_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
-					      SHIRUDO_SIGNING_KEY_FILE);
+					      SIGNING_KEY_FILE);
 			if (rc)
 				return 2;
 			pkey = pkey_buf;
 		}
 		if (!cert_explicit) {
 			rc = shirudo_key_path(cert_buf, sizeof(cert_buf), keys_dir,
-					      SHIRUDO_CERT_FILE);
+					      CERT_FILE);
 			if (rc)
 				return 2;
 			cert = cert_buf;
@@ -689,7 +689,7 @@ static int split_uprobe_target(const char *src, char **path,
 		return -EINVAL;
 	plen = (size_t)(colon - src);
 	pat_len = strlen(colon + 1);
-	if (plen >= SHIRUDO_UPATCH_UPROBE_PATH_MAX ||
+	if (plen >= UPATCH_UPROBE_PATH_MAX ||
 	    pat_len == 0 || pat_len >= pattern_sz)
 		return -ENAMETOOLONG;
 	if (strchr(colon + 1, ',') || strchr(colon + 1, '|'))
@@ -749,9 +749,9 @@ static bool is_syscall_section(const char *sec)
 static const char *serializer_map_name(const struct bpf_program *p)
 {
 	const char *name = bpf_program__name(p);
-	size_t prefix_len = strlen(SHIRUDO_SERIALIZER_PREFIX);
+	size_t prefix_len = strlen(SERIALIZER_PREFIX);
 
-	if (!name || strncmp(name, SHIRUDO_SERIALIZER_PREFIX, prefix_len) != 0)
+	if (!name || strncmp(name, SERIALIZER_PREFIX, prefix_len) != 0)
 		return NULL;
 	return name + prefix_len;
 }
@@ -1023,7 +1023,7 @@ static int build_decoder_blob(const struct decoder_set *set,
 	blob = xmalloc((size_t)total);
 	if (!blob)
 		return -ENOMEM;
-	blob->magic = htole32(SHIRUDO_UPATCH_DECODER_MAGIC);
+	blob->magic = htole32(UPATCH_DECODER_MAGIC);
 	blob->version = htole32(SHIRUDO_UPATCH_DECODER_VERSION);
 	blob->nr_decoders = htole32(set->nr_items);
 	blob->reserved = 0;
@@ -1077,7 +1077,7 @@ static int compose_signed_data(const void *data, __u32 data_len,
 	*out = NULL;
 	*out_len = 0;
 	if (nr_sections == 0 ||
-	    nr_sections > SHIRUDO_UPATCH_SIGNED_SECTIONS_MAX)
+	    nr_sections > UPATCH_SIGNED_SECTIONS_MAX)
 		return -EINVAL;
 	for (i = 0; i < nr_sections; i++) {
 		total = (total + 7) & ~7ULL;
@@ -1107,8 +1107,8 @@ static int compose_signed_data(const void *data, __u32 data_len,
 		memcpy(buf + dir_off + i * sizeof(s), &s, sizeof(s));
 		total += sections[i].len;
 	}
-	trailer.magic = htole32(SHIRUDO_UPATCH_SIGNED_TRAILER_MAGIC);
-	trailer.version = htole32(SHIRUDO_UPATCH_SIGNED_VERSION);
+	trailer.magic = htole32(UPATCH_SIGNED_TRAILER_MAGIC);
+	trailer.version = htole32(UPATCH_SIGNED_VERSION);
 	trailer.dir_off = htole32((__u32)dir_off);
 	trailer.nr_sections = htole32(nr_sections);
 	total = dir_off +
@@ -1170,7 +1170,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	};
 	struct shirudo_upatch_prog_metadata *md;
 	struct build_uprobe_target *uprobe_targets = NULL;
-	char (*seen_maps)[SHIRUDO_UPATCH_PROG_MAP_MAX] = NULL;
+	char (*seen_maps)[UPATCH_PROG_MAP_MAX] = NULL;
 	struct bpf_program *p;
 	size_t len, base_len, md_alloc_len;
 	__u32 i = 0, n_seen = 0, nr_uprobe_targets = 0;
@@ -1200,8 +1200,8 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	if (!md)
 		return -ENOMEM;
 	memset(md, 0, len);
-	md->magic = htole32(SHIRUDO_UPATCH_PROG_MAGIC);
-	md->version = htole32(SHIRUDO_UPATCH_PROG_VERSION);
+	md->magic = htole32(UPATCH_PROG_MAGIC);
+	md->version = htole32(UPATCH_PROG_VERSION);
 	md->nr_progs = htole32(nr_progs);
 	seen_maps = xcalloc(nr_progs, sizeof(*seen_maps));
 	if (!seen_maps) {
@@ -1231,7 +1231,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 				goto err_free;
 			}
 			if (ser_len == 0 ||
-			    ser_len >= SHIRUDO_UPATCH_PROG_MAP_MAX) {
+			    ser_len >= UPATCH_PROG_MAP_MAX) {
 				pr_err("serializer '%s' has invalid target map '%s'",
 				       bpf_program__name(p), ser_map);
 				err = -EINVAL;
@@ -1267,19 +1267,19 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		}
 		if (is_syscall_section(sec)) {
 			const char *prog_name = bpf_program__name(p);
-			size_t prefix_len = strlen(SHIRUDO_TEST_RUN_PREFIX);
+			size_t prefix_len = strlen(TEST_RUN_PREFIX);
 
-			if (!prog_name || strncmp(prog_name, SHIRUDO_TEST_RUN_PREFIX,
+			if (!prog_name || strncmp(prog_name, TEST_RUN_PREFIX,
 						  prefix_len) != 0 ||
 			    prog_name[prefix_len] == '\0') {
 				pr_err("SEC(\"syscall\") program '%s' must be named %s<id>",
-				       prog_name ?: "?", SHIRUDO_TEST_RUN_PREFIX);
+				       prog_name ?: "?", TEST_RUN_PREFIX);
 				err = -EINVAL;
 				goto err_free;
 			}
 			if (has_test_run) {
 				pr_err("only one %s test-run program is supported",
-				       SHIRUDO_TEST_RUN_PREFIX);
+				       TEST_RUN_PREFIX);
 				err = -EINVAL;
 				goto err_free;
 			}
@@ -1419,8 +1419,8 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			md = grown;
 			md_alloc_len = len;
 		}
-		targets.magic = htole32(SHIRUDO_UPATCH_UPROBE_TARGET_MAGIC);
-		targets.version = htole32(SHIRUDO_UPATCH_UPROBE_TARGET_VERSION);
+		targets.magic = htole32(UPATCH_UPROBE_TARGET_MAGIC);
+		targets.version = htole32(UPATCH_UPROBE_TARGET_VERSION);
 		targets.nr_targets = htole32(nr_uprobe_targets);
 		cursor = (__u8 *)md + base_len;
 		memcpy(cursor, &targets, sizeof(targets));
@@ -1541,10 +1541,10 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 			   const char *pkey_path, const char *cert_path)
 {
 	LIBBPF_OPTS(gen_loader_opts, opts);
-	struct signed_section sections[SHIRUDO_UPATCH_SIGNED_SECTIONS_MAX];
+	struct signed_section sections[UPATCH_SIGNED_SECTIONS_MAX];
 	__u32 loader_off, sig_off, data_off, data_len, attach_meta_len = 0;
 	__u32 decoder_blob_len = 0, signed_data_len = 0, nr_sections = 0;
-	char signed_name[SHIRUDO_UPATCH_NAME_MAX] = {};
+	char signed_name[UPATCH_NAME_MAX] = {};
 	__u32 nr_maps = 0, nr_progs = 0;
 	__u32 rodata_data_off = 0;
 	struct shirudo_upatch_header hdr;
@@ -1578,7 +1578,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	bpf_object__for_each_program(p, obj)
 		nr_progs++;
 
-	if (!(flags & SHIRUDO_DIRECTIVE_UNLOAD)) {
+	if (!(flags & DIRECTIVE_UNLOAD)) {
 		err = set_target_attach_types(obj);
 		if (err)
 			goto out;
@@ -1627,10 +1627,10 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	sections[nr_sections++] = (struct signed_section){
 		SHIRUDO_UPATCH_SECTION_NAME, signed_name, sizeof(signed_name),
 	};
-	if (flags & SHIRUDO_DIRECTIVE_UNLOAD) {
+	if (flags & DIRECTIVE_UNLOAD) {
 		sections[nr_sections++] = (struct signed_section){
 			SHIRUDO_UPATCH_SECTION_UNLOAD, unload_payload,
-			SHIRUDO_UPATCH_PAYLOAD_HASH_LEN,
+			UPATCH_PAYLOAD_HASH_LEN,
 		};
 	} else {
 		sections[nr_sections++] = (struct signed_section){
@@ -1671,7 +1671,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	if (err)
 		goto out;
 
-	sig_buf = xmalloc(SHIRUDO_MAX_SIG_SIZE);
+	sig_buf = xmalloc(MAX_SIG_SIZE);
 	if (!sig_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -1681,7 +1681,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	sio.data         = signed_data;
 	sio.data_sz      = signed_data_len;
 	sio.signature    = sig_buf;
-	sio.signature_sz = SHIRUDO_MAX_SIG_SIZE;
+	sio.signature_sz = MAX_SIG_SIZE;
 	err = cms_sign(&sio, pkey_path, cert_path);
 	if (err) {
 		pr_err("cms_sign: %d", err);
@@ -1729,7 +1729,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		out_path, opts.insns_sz, sio.signature_sz, data_len,
 		nr_sections, nr_maps, nr_progs, nr_decoders,
 		upatch_name,
-		(flags & SHIRUDO_DIRECTIVE_UNLOAD) ? " UNLOAD" : "");
+		(flags & DIRECTIVE_UNLOAD) ? " UNLOAD" : "");
 out:
 	if (fd >= 0)
 		close(fd);
@@ -1738,7 +1738,7 @@ out:
 	free_decoder_set(&decoders);
 	xfree(signed_data, signed_data_len);
 	xfree(decoder_blob, decoder_blob_len);
-	xfree(sig_buf, SHIRUDO_MAX_SIG_SIZE);
+	xfree(sig_buf, MAX_SIG_SIZE);
 	bpf_object__close(obj);
 	xfree(attach_meta, attach_meta_len);
 	return err;
@@ -1751,11 +1751,11 @@ out:
 static int check_upatch_name(const char *name)
 {
 	if (name && upatch_name_valid(name) &&
-	    strlen(name) < SHIRUDO_UPATCH_NAME_MAX)
+	    strlen(name) < UPATCH_NAME_MAX)
 		return 0;
 	pr_err("upatch name '%s' is not 1 to %d characters of [A-Za-z0-9._-] "
 	       "not starting with '.'", name ? name : "",
-	       SHIRUDO_UPATCH_NAME_MAX - 1);
+	       UPATCH_NAME_MAX - 1);
 	return -EINVAL;
 }
 
@@ -1858,6 +1858,6 @@ int shirudo_build_package_unload(const char *upatch_name,
 	 * portable way to locate in the data blob.
 	 */
 	return finalize_object(obj, out_upatch, upatch_name,
-			       SHIRUDO_DIRECTIVE_UNLOAD, payload_sha256,
+			       DIRECTIVE_UNLOAD, payload_sha256,
 			       NULL, pkey_path, cert_path);
 }

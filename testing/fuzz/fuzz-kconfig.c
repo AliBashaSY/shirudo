@@ -10,7 +10,7 @@
 #include "bpm_tree_state.c"
 
 static struct shirudo_tree_selector sel;
-static int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE];
+static int slots[TREE_SELECTOR_HASH_SIZE];
 
 int LLVMFuzzerInitialize(int *argc, char ***argv)
 {
@@ -28,9 +28,9 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	static char values[SHIRUDO_TREE_MAX_KCONFIG][SHIRUDO_TREE_STRING_MAX];
-	static struct shirudo_tree_kv labels[SHIRUDO_TREE_MAX_LABELS];
-	bool found[SHIRUDO_TREE_MAX_KCONFIG] = {};
+	static char values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
+	static struct shirudo_tree_kv labels[TREE_MAX_LABELS];
+	bool found[TREE_MAX_KCONFIG] = {};
 	char path[64];
 	int fd, n;
 

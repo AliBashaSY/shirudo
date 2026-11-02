@@ -19,8 +19,8 @@
 #include "tpm_wire.h"
 #include "upatch.h"
 
-#define SHIRUDO_CHAIN_DIGEST_LEN	32
-#define SHIRUDO_CHAIN_NAME		"shirudo"
+#define CHAIN_DIGEST_LEN	32
+#define CHAIN_NAME		"shirudo"
 /*
  * The register binds to PCR 9, which holds the initrd and nothing
  * measured after it, and to PCR 11, which systemd extends with the
@@ -28,25 +28,25 @@
  * "leave-initrd" and no later process can bind. PCR 9 also takes the
  * anchor, so it stays exact afterwards.
  */
-#define SHIRUDO_CHAIN_PCR		9u
-#define SHIRUDO_CHAIN_PHASE_PCR		11u
-#define SHIRUDO_CHAIN_PCR_MASK		((1u << SHIRUDO_CHAIN_PCR) | \
-					 (1u << SHIRUDO_CHAIN_PHASE_PCR))
-#define SHIRUDO_CHAIN_ANCHOR_MAX	128
+#define CHAIN_PCR		9u
+#define CHAIN_PHASE_PCR		11u
+#define CHAIN_PCR_MASK		((1u << CHAIN_PCR) | \
+					 (1u << CHAIN_PHASE_PCR))
+#define CHAIN_ANCHOR_MAX	128
 
 int shirudo_sha256(const void *data, size_t len,
-		   __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
+		   __u8 out[CHAIN_DIGEST_LEN]);
 
 void sha256_2(const void *a, size_t a_len,
 	      const void *b, size_t b_len,
-	      __u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
+	      __u8 out[CHAIN_DIGEST_LEN]);
 
 /* Constant time; 1 when equal. */
 int ct_eq(const void *a, const void *b, size_t n);
 
 struct shirudo_measured_upatch {
-	char	name[SHIRUDO_UPATCH_NAME_MAX + 1];
-	char	payload_hex[2 * SHIRUDO_UPATCH_PAYLOAD_HASH_LEN + 1];
+	char	name[UPATCH_NAME_MAX + 1];
+	char	payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
 };
 
 /*
@@ -68,21 +68,21 @@ int shirudo_chain_fold_checked(__u8 chain[32], const __u8 event[32]);
 void chain_fold(__u8 chain[32], const __u8 event[32]);
 
 /* The PCR record anchoring a register name: nvpcr-init:shirudo:0x..:<name>. */
-int chain_anchor(const __u8 name[SHIRUDO_TPM_NAME_LEN],
+int chain_anchor(const __u8 name[TPM_NAME_LEN],
 		 char *out, size_t cap);
 
 struct shirudo_chain_init_info {
-	__u8		writer_public[SHIRUDO_TPM_NV_RSA_BYTES];
+	__u8		writer_public[TPM_NV_RSA_BYTES];
 	bool		reused;		/* written and on record */
 	bool		initrd;		/* bound while the initrd ran */
 	__u32		reset_count;	/* the TPM's, for the record */
-	__u8		value[SHIRUDO_CHAIN_DIGEST_LEN];
-	__u8		pcr_before[SHIRUDO_CHAIN_DIGEST_LEN];
-	__u8		phase_before[SHIRUDO_CHAIN_DIGEST_LEN];
-	__u8		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		value[CHAIN_DIGEST_LEN];
+	__u8		pcr_before[CHAIN_DIGEST_LEN];
+	__u8		phase_before[CHAIN_DIGEST_LEN];
+	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
-	char		anchor[SHIRUDO_CHAIN_ANCHOR_MAX];
-	__u8		anchor_digest[SHIRUDO_CHAIN_DIGEST_LEN];
+	char		anchor[CHAIN_ANCHOR_MAX];
+	__u8		anchor_digest[CHAIN_DIGEST_LEN];
 };
 
 /*
@@ -93,7 +93,7 @@ struct shirudo_chain_init_info {
  * when the owner hierarchy refuses, -EPROTO when the TPM's name is not
  * the computed one.
  */
-int chain_init(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
+int chain_init(const __u8 event[CHAIN_DIGEST_LEN],
 	       struct shirudo_chain_init_info *info);
 
 /*
@@ -102,11 +102,11 @@ int chain_init(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
  * init record, index unwritten), -EACCES when the index on the TPM is
  * not the one init recorded (recreated), -EIO on a TPM failure.
  */
-int chain_extend(const __u8 event[SHIRUDO_CHAIN_DIGEST_LEN],
-		 __u8 out_chain[SHIRUDO_CHAIN_DIGEST_LEN]);
+int chain_extend(const __u8 event[CHAIN_DIGEST_LEN],
+		 __u8 out_chain[CHAIN_DIGEST_LEN]);
 
 /* The live value; -ENODEV when no register is written this boot. */
-int chain_read(__u8 out[SHIRUDO_CHAIN_DIGEST_LEN]);
+int chain_read(__u8 out[CHAIN_DIGEST_LEN]);
 
 struct shirudo_tpm;
 
@@ -127,8 +127,8 @@ struct chain_status {
 	bool		logged;		/* init record this boot */
 	bool		anchored;	/* recorded name, same reset */
 	bool		rebound;	/* two records for one reset */
-	__u8		value[SHIRUDO_CHAIN_DIGEST_LEN];
-	__u8		name[SHIRUDO_TPM_NAME_LEN];
+	__u8		value[CHAIN_DIGEST_LEN];
+	__u8		name[TPM_NAME_LEN];
 	size_t		name_len;
 	struct shirudo_eventlog_init init;
 };

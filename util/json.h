@@ -13,14 +13,14 @@
 
 #include <shirudo/misc.h>
 
-#ifndef SHIRUDO_JSON_MAX_BYTES
-#define SHIRUDO_JSON_MAX_BYTES		(8u * 1024u * 1024u)
+#ifndef JSON_MAX_BYTES
+#define JSON_MAX_BYTES		(8u * 1024u * 1024u)
 #endif
-#ifndef SHIRUDO_JSON_MAX_DEPTH
-#define SHIRUDO_JSON_MAX_DEPTH		32u
+#ifndef JSON_MAX_DEPTH
+#define JSON_MAX_DEPTH		32u
 #endif
-#ifndef SHIRUDO_JSON_MAX_STRING_BYTES
-#define SHIRUDO_JSON_MAX_STRING_BYTES	(16u * 1024u * 1024u)
+#ifndef JSON_MAX_STRING_BYTES
+#define JSON_MAX_STRING_BYTES	(16u * 1024u * 1024u)
 #endif
 
 struct shirudo_json_emit {

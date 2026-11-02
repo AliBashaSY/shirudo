@@ -168,7 +168,7 @@ int cms_sign(struct shirudo_sign_io *io,
 				    CMS_NO_SIGNING_TIME |
 #endif
 				    CMS_USE_KEYID | CMS_NOATTR;
-	unsigned int hash_len = SHIRUDO_SHA256_LEN;
+	unsigned int hash_len = SHA256_LEN;
 	const EVP_MD *cms_digest = EVP_sha256();
 	BIO *bd_in = NULL, *bd_out = NULL;
 	EVP_PKEY *private_key = NULL;

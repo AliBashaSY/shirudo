@@ -10,16 +10,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define SHIRUDO_CONFIG_IMAGE_BLOCK_SIZE 4096u
-#define SHIRUDO_CONFIG_IMAGE_SALT_SIZE 32u
-#define SHIRUDO_CONFIG_IMAGE_SIG_MAX 16384u
-#define SHIRUDO_CONFIG_IMAGE_MAX_BYTES (1ull << 40)
+#define CONFIG_IMAGE_BLOCK_SIZE 4096u
+#define CONFIG_IMAGE_SALT_SIZE 32u
+#define CONFIG_IMAGE_SIG_MAX 16384u
+#define CONFIG_IMAGE_MAX_BYTES (1ull << 40)
 
 struct shirudo_config_image {
 	__u64 data_blocks;
 	__u64 hash_blocks;
 	bool signed_root;
-	__u8 salt[SHIRUDO_CONFIG_IMAGE_SALT_SIZE];
+	__u8 salt[CONFIG_IMAGE_SALT_SIZE];
 	__u8 root_hash[32];
 };
 

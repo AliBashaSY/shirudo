@@ -36,7 +36,7 @@ const char *eventlog_path(void)
 	const char *env = shirudo_image_config_active() ? NULL :
 		getenv("SHIRUDO_EVENTLOG_PATH");
 
-	return env && *env ? env : SHIRUDO_EVENTLOG_PATH;
+	return env && *env ? env : EVENTLOG_PATH;
 }
 
 const char *eventlog_pending_path(void)
@@ -44,7 +44,7 @@ const char *eventlog_pending_path(void)
 	const char *env = shirudo_image_config_active() ? NULL :
 		getenv("SHIRUDO_EVENTLOG_PENDING_PATH");
 
-	return env && *env ? env : SHIRUDO_EVENTLOG_PENDING_PATH;
+	return env && *env ? env : EVENTLOG_PENDING_PATH;
 }
 
 static int adopt_pending(void);
@@ -118,7 +118,7 @@ int eventlog_would_exceed(__u64 max_bytes)
 		return 0;	/* unlimited */
 	if (stat(eventlog_path(), &st) == 0)
 		cur = (__u64)st.st_size;
-	return cur + SHIRUDO_EVENTLOG_LINE_MAX > max_bytes;
+	return cur + EVENTLOG_LINE_MAX > max_bytes;
 }
 
 static int read_log(char **out, size_t *out_len)
@@ -127,12 +127,12 @@ static int read_log(char **out, size_t *out_len)
 	char *base = NULL, *pending = NULL, *buf;
 	int rc, rc_pending;
 
-	rc = read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+	rc = read_file(eventlog_path(), JSON_MAX_BYTES,
 		       &base, &base_len);
 	if (rc && rc != -ENOENT)
 		return rc;
 	rc_pending = read_file(eventlog_pending_path(),
-			       SHIRUDO_JSON_MAX_BYTES, &pending,
+			       JSON_MAX_BYTES, &pending,
 			       &pending_len);
 	if (rc_pending && rc_pending != -ENOENT) {
 		xfree(base, base_len + 1);
@@ -150,7 +150,7 @@ static int read_log(char **out, size_t *out_len)
 		*out_len = pending_len;
 		return 0;
 	}
-	if (base_len + pending_len > SHIRUDO_JSON_MAX_BYTES) {
+	if (base_len + pending_len > JSON_MAX_BYTES) {
 		rc = -EFBIG;
 		goto out;
 	}
@@ -255,7 +255,7 @@ static int log_holds(const char *line, size_t len)
 	size_t blen = 0;
 	int rc;
 
-	rc = read_file(eventlog_path(), SHIRUDO_JSON_MAX_BYTES,
+	rc = read_file(eventlog_path(), JSON_MAX_BYTES,
 		       &buf, &blen);
 	if (rc == -ENOENT)
 		return 0;
@@ -275,7 +275,7 @@ static int adopt_pending(void)
 	size_t len = 0;
 	int rc;
 
-	rc = read_file(pending, SHIRUDO_JSON_MAX_BYTES, &buf, &len);
+	rc = read_file(pending, JSON_MAX_BYTES, &buf, &len);
 	if (rc == -ENOENT)
 		return 0;
 	if (rc)
@@ -388,8 +388,8 @@ int eventlog_replay(__u8 out[32])
 
 static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 {
-	char writer_public[2 * SHIRUDO_TPM_NV_RSA_BYTES + 1];
-	char pcr_before[2 * 32 + 1], name[2 * SHIRUDO_TPM_NAME_LEN + 1];
+	char writer_public[2 * TPM_NV_RSA_BYTES + 1];
+	char pcr_before[2 * 32 + 1], name[2 * TPM_NAME_LEN + 1];
 	char phase_before[2 * 32 + 1], anchor[2 * 32 + 1], bound_in[8];
 	struct shirudo_eventlog_init *out = ctx;
 	__s64 pcr = -1, reset_count = -1;
@@ -418,10 +418,10 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	if (json_parse(line, len, f, 8) || !f[0].seen || !f[1].seen ||
 	    !f[2].seen || !f[3].seen || !f[5].seen || pcr < 0 || pcr >= 24 ||
 	    (f[4].seen && (reset_count < 0 || reset_count > UINT32_MAX)) ||
-	    strlen(name) != 2 * SHIRUDO_TPM_NAME_LEN ||
+	    strlen(name) != 2 * TPM_NAME_LEN ||
 	    hex_decode(pcr_before, out->pcr_before, 32) ||
 	    hex_decode(phase_before, out->phase_before, 32) ||
-	    hex_decode(name, out->name, SHIRUDO_TPM_NAME_LEN) ||
+	    hex_decode(name, out->name, TPM_NAME_LEN) ||
 	    hex_decode(anchor, out->anchor_digest, 32) || !f[7].seen ||
 	    hex_decode(writer_public, out->writer_public,
 		       sizeof(out->writer_public)))
@@ -442,7 +442,7 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 		out->records_epoch++;
 	out->have_reset_count = have_reset_count;
 	out->reset_count = (__u32)reset_count;
-	out->name_len = SHIRUDO_TPM_NAME_LEN;
+	out->name_len = TPM_NAME_LEN;
 	out->pcr = (__u32)pcr;
 	return 0;
 }
@@ -506,7 +506,7 @@ void eventlog_record_open(struct shirudo_json_emit *e, const char *type,
 	eventlog_timestamp(ts, sizeof(ts));
 	eventlog_boot_id(boot_id, sizeof(boot_id));
 	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0 && !e->err)
+		       NV_INDEX) < 0 && !e->err)
 		e->err = -E2BIG;
 	hex_encode(digest, 32, digest_hex);
 

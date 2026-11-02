@@ -87,8 +87,8 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 					 sizeof(boot->config)) < 0)
 				rc = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.verification_key")) {
-			if (strncmp(value, SHIRUDO_RUNTIME_DIR "/",
-				    sizeof(SHIRUDO_RUNTIME_DIR)) ||
+			if (strncmp(value, RUNTIME_DIR "/",
+				    sizeof(RUNTIME_DIR)) ||
 			    !shirudo_image_path_valid(value))
 				rc = -EPERM;
 			else if (strscpy(boot->certificate, value,

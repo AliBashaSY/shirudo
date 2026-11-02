@@ -31,15 +31,15 @@ const char *sysroot(void)
 const char *shirudo_keys_dir(void)
 {
 	if (shirudo_image_config_root_fd() >= 0)
-		return SHIRUDO_RUNTIME_DIR "/keys";
-	return in_initrd() ? SHIRUDO_INITRD_KEYS_DIR :
-				     SHIRUDO_KEYS_DIR;
+		return RUNTIME_DIR "/keys";
+	return in_initrd() ? INITRD_KEYS_DIR :
+				     KEYS_DIR;
 }
 
 const char *shirudo_cert_path(void)
 {
 	if (shirudo_image_config_root_fd() >= 0)
-		return SHIRUDO_RUNTIME_CERT_PATH;
-	return in_initrd() ? SHIRUDO_INITRD_CERT_PATH :
-				     SHIRUDO_CERT_PATH;
+		return RUNTIME_CERT_PATH;
+	return in_initrd() ? INITRD_CERT_PATH :
+				     CERT_PATH;
 }

@@ -134,8 +134,8 @@ static int fetch_file(const char *source, const char *destination, __u64 max)
 	if (fd < 0)
 		return -errno;
 	download.fd = fd;
-	rc = fsetxattr(fd, SHIRUDO_XATTR_NAME, SHIRUDO_SEAL_LABEL,
-		       strlen(SHIRUDO_SEAL_LABEL), 0) ? -errno : 0;
+	rc = fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
+		       strlen(SEAL_LABEL), 0) ? -errno : 0;
 	if (!rc)
 		rc = !strncmp(source, "https://", 8) ?
 			download_https(source, &download) :
@@ -179,12 +179,12 @@ int shirudo_image_cache_fetch(const char *source,
 		__u64 max_bytes;
 	} files[] = {
 		{ ".roothash", 65 },
-		{ ".p7s", SHIRUDO_CONFIG_IMAGE_SIG_MAX },
-		{ ".img", SHIRUDO_CONFIG_IMAGE_MAX_BYTES },
-		{ ".verity", SHIRUDO_CONFIG_IMAGE_MAX_BYTES },
+		{ ".p7s", CONFIG_IMAGE_SIG_MAX },
+		{ ".img", CONFIG_IMAGE_MAX_BYTES },
+		{ ".verity", CONFIG_IMAGE_MAX_BYTES },
 	};
 	struct shirudo_config_image_open opened;
-	char staging[] = SHIRUDO_IMAGE_CACHE_DIR "/incoming-XXXXXX";
+	char staging[] = IMAGE_CACHE_DIR "/incoming-XXXXXX";
 	char incoming[PATH_MAX], from[PATH_MAX], to[PATH_MAX];
 	char hex[65];
 	int dir = -1, rc;
@@ -217,7 +217,7 @@ int shirudo_image_cache_fetch(const char *source,
 		memcpy(target->root_hash, opened.image.root_hash, 32);
 		hex_encode(target->root_hash, 32, hex);
 		if (strsprintf(target->prefix, sizeof(target->prefix), "%s/%s",
-			       SHIRUDO_IMAGE_CACHE_DIR, hex) < 0)
+			       IMAGE_CACHE_DIR, hex) < 0)
 			rc = -ENAMETOOLONG;
 	}
 	shirudo_config_image_close(&opened);
@@ -234,7 +234,7 @@ int shirudo_image_cache_fetch(const char *source,
 			goto out;
 		}
 	}
-	dir = open(SHIRUDO_IMAGE_CACHE_DIR,
+	dir = open(IMAGE_CACHE_DIR,
 		   O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (dir < 0 || fsync(dir)) {
 		rc = -errno;

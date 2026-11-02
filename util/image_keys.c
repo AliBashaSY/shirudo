@@ -81,7 +81,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 		rc = fstat(fd, &st) ? -errno : 0;
 		if (!rc && (!S_ISREG(st.st_mode) || st.st_dev != root.st_dev ||
 			    st.st_size <= 0 ||
-			    st.st_size > SHIRUDO_KEYS_DER_MAX))
+			    st.st_size > KEYS_DER_MAX))
 			rc = -EINVAL;
 		if (!rc)
 			rc = keys_read_der_fd(fd, &der, &size);
@@ -163,7 +163,7 @@ int shirudo_keys_validate_image(int root_fd)
 	struct shirudo_trusted_set set;
 	int rc;
 
-	rc = shirudo_keys_validate_image_set(SHIRUDO_RUNTIME_CERT_PATH,
+	rc = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
 					     root_fd, &set);
 	return rc ? rc : shirudo_keys_check_image_set(&set);
 }

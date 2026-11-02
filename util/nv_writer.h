@@ -5,9 +5,9 @@
 
 #include "tpm_wire.h"
 
-int nv_writer_create(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		     __u8 public[SHIRUDO_TPM_NV_RSA_BYTES]);
-int nv_writer_read(__u8 seed[SHIRUDO_TPM_DIGEST_LEN],
-		   __u8 public[SHIRUDO_TPM_NV_RSA_BYTES]);
+int nv_writer_create(__u8 seed[TPM_DIGEST_LEN],
+		     __u8 public[TPM_NV_RSA_BYTES]);
+int nv_writer_read(__u8 seed[TPM_DIGEST_LEN],
+		   __u8 public[TPM_NV_RSA_BYTES]);
 
 #endif /* SHIRUDO_NV_WRITER_H */

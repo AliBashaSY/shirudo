@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 
-#define SHIRUDO_PREFLIGHT_DETAIL_MAX	256
+#define PREFLIGHT_DETAIL_MAX	256
 
 enum shirudo_preflight_id {
 	SHIRUDO_PRE_ROOT,
@@ -30,7 +30,7 @@ struct shirudo_preflight_check {
 	enum shirudo_preflight_id	id;
 	const char			*name;
 	bool				ok;
-	char				detail[SHIRUDO_PREFLIGHT_DETAIL_MAX];
+	char				detail[PREFLIGHT_DETAIL_MAX];
 };
 
 struct shirudo_preflight_result {

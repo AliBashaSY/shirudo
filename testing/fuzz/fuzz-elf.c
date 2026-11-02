@@ -11,7 +11,7 @@
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	__u8 build_id[SHIRUDO_UPATCH_BUILD_ID_MAX];
+	__u8 build_id[UPATCH_BUILD_ID_MAX];
 	char path[64];
 	__u32 len;
 	int fd;

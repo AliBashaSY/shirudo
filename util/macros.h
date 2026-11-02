@@ -12,7 +12,7 @@
  * Compile-time assertion: 0 if `e` is false, else a 1-bit signed
  * bitfield of width -1 -> compiler error.
  */
-#define SHIRUDO_BUILD_BUG_ON_ZERO(e)	((int)(sizeof(struct { int:(-!!(e)); })))
+#define BUILD_BUG_ON_ZERO(e)	((int)(sizeof(struct { int:(-!!(e)); })))
 
 /*
  * ARRAY_SIZE() refuses a pointer: __builtin_types_compatible_p tells
@@ -20,7 +20,7 @@
  */
 #define ARRAY_SIZE(arr)							\
 	(sizeof(arr) / sizeof((arr)[0]) +				\
-	 SHIRUDO_BUILD_BUG_ON_ZERO(					\
+	 BUILD_BUG_ON_ZERO(					\
 		 __builtin_types_compatible_p(typeof(arr),		\
 					      typeof(&(arr)[0]))))
 

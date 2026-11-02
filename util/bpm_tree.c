@@ -98,7 +98,7 @@ static int tp_string(struct tree_parser *p, char *out, size_t cap)
 
 static int tp_skip(struct tree_parser *p)
 {
-	char scratch[SHIRUDO_TREE_STRING_MAX];
+	char scratch[TREE_STRING_MAX];
 
 	tp_ws(p);
 	if (p->p >= p->end)
@@ -192,7 +192,7 @@ static int tp_key(struct tree_parser *p, char *key, size_t cap, bool *first)
 }
 
 static int tp_string_array(struct tree_parser *p,
-			   char values[][SHIRUDO_TREE_STRING_MAX], int *n, int max)
+			   char values[][TREE_STRING_MAX], int *n, int max)
 {
 	int count = 0;
 
@@ -208,7 +208,7 @@ static int tp_string_array(struct tree_parser *p,
 			return 0;
 		}
 		if (count >= max || tp_string(p, values[count],
-					      SHIRUDO_TREE_STRING_MAX))
+					      TREE_STRING_MAX))
 			return count >= max ? -E2BIG : -EINVAL;
 		count++;
 		tp_ws(p);
@@ -227,7 +227,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 				  struct shirudo_tree_selector_kv *dst,
 				  int *n, int max)
 {
-	char key[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
 	bool first = true;
 
 	if (tp_char(p, '{'))
@@ -242,7 +242,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 		}
 		if (tp_key(p, key, sizeof(key), &first) || *n >= max ||
 		    tp_string_array(p, dst[*n].values, &values,
-				    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
+				    TREE_MAX_SELECTOR_VALUES))
 			return -EINVAL;
 		strscpy(dst[*n].key, key, sizeof(dst[*n].key));
 		dst[*n].n_values = values;
@@ -252,7 +252,7 @@ static int tp_selector_string_map(struct tree_parser *p,
 
 static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 {
-	char key[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
 	bool first = true;
 
 	if (tp_char(p, '{'))
@@ -268,26 +268,26 @@ static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 		if (!strcmp(key, "kernel_release_prefix")) {
 			if (tp_string_array(p, s->kernel_release_prefix,
 					    &s->n_kernel_release_prefix,
-					    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
+					    TREE_MAX_SELECTOR_VALUES))
 				return -EINVAL;
 		} else if (!strcmp(key, "kernel_build_id")) {
 			if (tp_string_array(p, s->kernel_build_id,
 					    &s->n_kernel_build_id,
-					    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
+					    TREE_MAX_SELECTOR_VALUES))
 				return -EINVAL;
 		} else if (!strcmp(key, "architecture")) {
 			if (tp_string_array(p, s->architecture,
 					    &s->n_architecture,
-					    SHIRUDO_TREE_MAX_SELECTOR_VALUES))
+					    TREE_MAX_SELECTOR_VALUES))
 				return -EINVAL;
 		} else if (!strcmp(key, "kconfig") ||
 			   !strcmp(key, "kernel_config")) {
 			if (tp_selector_string_map(p, s->kconfig, &s->n_kconfig,
-						   SHIRUDO_TREE_MAX_KCONFIG))
+						   TREE_MAX_KCONFIG))
 				return -EINVAL;
 		} else if (!strcmp(key, "labels")) {
 			if (tp_selector_string_map(p, s->labels, &s->n_labels,
-						   SHIRUDO_TREE_MAX_LABELS))
+						   TREE_MAX_LABELS))
 				return -EINVAL;
 		} else if (tp_skip(p)) {
 			return -EINVAL;
@@ -297,7 +297,7 @@ static int tp_selector(struct tree_parser *p, struct shirudo_tree_selector *s)
 
 static int tp_artifact(struct tree_parser *p, struct shirudo_tree_artifact *a)
 {
-	char key[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
 	bool first = true;
 
 	if (tp_char(p, '{'))
@@ -332,7 +332,7 @@ static int tp_artifact(struct tree_parser *p, struct shirudo_tree_artifact *a)
 
 static int tp_operation(struct tree_parser *p, struct shirudo_tree_operation *o)
 {
-	char key[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
 	bool first = true;
 
 	if (tp_char(p, '{'))
@@ -396,12 +396,12 @@ static int tree_operations_reserve(struct shirudo_tree_publication *pub)
 	int old_capacity = pub->operations_capacity;
 	int new_capacity = old_capacity ? old_capacity * 2 : 16;
 
-	if (pub->n_operations >= SHIRUDO_TREE_MAX_OPS)
+	if (pub->n_operations >= TREE_MAX_OPS)
 		return -E2BIG;
 	if (pub->n_operations < old_capacity)
 		return 0;
-	if (new_capacity > SHIRUDO_TREE_MAX_OPS)
-		new_capacity = SHIRUDO_TREE_MAX_OPS;
+	if (new_capacity > TREE_MAX_OPS)
+		new_capacity = TREE_MAX_OPS;
 	operations = xreallocarray(pub->operations, (size_t)old_capacity,
 				   (size_t)new_capacity, sizeof(*operations));
 	if (!operations)
@@ -455,7 +455,7 @@ int tree_parse(const char *body, size_t len,
 	       struct shirudo_tree_publication *out)
 {
 	struct tree_parser p;
-	char key[SHIRUDO_TREE_STRING_MAX];
+	char key[TREE_STRING_MAX];
 	bool first = true;
 	bool seen_schema = false, seen_generation = false;
 	bool seen_base = false, seen_base_seq = false;
@@ -463,7 +463,7 @@ int tree_parse(const char *body, size_t len,
 	__s64 schema = 0;
 	int rc;
 
-	if (!body || !out || len > SHIRUDO_JSON_MAX_BYTES)
+	if (!body || !out || len > JSON_MAX_BYTES)
 		return -EINVAL;
 	p = (struct tree_parser){ .p = body, .end = body + len };
 	*out = (struct shirudo_tree_publication){};
@@ -605,8 +605,8 @@ static int tree_selector_kv_compare(const void *left, const void *right)
 static int tree_emit_selector(struct shirudo_json_emit *e,
 			      const struct shirudo_tree_selector *s)
 {
-	const struct shirudo_tree_selector_kv *kconfig[SHIRUDO_TREE_MAX_KCONFIG];
-	const struct shirudo_tree_selector_kv *labels[SHIRUDO_TREE_MAX_LABELS];
+	const struct shirudo_tree_selector_kv *kconfig[TREE_MAX_KCONFIG];
+	const struct shirudo_tree_selector_kv *labels[TREE_MAX_LABELS];
 
 	if (s->n_kconfig > (int)ARRAY_SIZE(kconfig) ||
 	    s->n_labels > (int)ARRAY_SIZE(labels))

@@ -75,7 +75,7 @@ bool tree_configured(void)
 	int fd;
 
 	if (!shirudo_image_config_active())
-		return access(SHIRUDO_BPM_TREE_ETC_PATH, R_OK) == 0;
+		return access(BPM_TREE_ETC_PATH, R_OK) == 0;
 	fd = shirudo_image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0)
 		return false;
@@ -201,7 +201,7 @@ static int read_config_fd(int fd, struct shirudo_tree_kv *out, int *n,
  * values.  This avoids both an arbitrary config-entry cap and an O(N*M)
  * lookup for N config entries and M selector keys.
  */
-#define SHIRUDO_TREE_SELECTOR_HASH_SIZE 128
+#define TREE_SELECTOR_HASH_SIZE 128
 
 static __u32 selector_hash(const char *key)
 {
@@ -213,31 +213,31 @@ static __u32 selector_hash(const char *key)
 }
 
 static void selector_hash_build(const struct shirudo_tree_selector *s,
-				int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE])
+				int slots[TREE_SELECTOR_HASH_SIZE])
 {
-	memset(slots, 0xff, sizeof(int) * SHIRUDO_TREE_SELECTOR_HASH_SIZE);
+	memset(slots, 0xff, sizeof(int) * TREE_SELECTOR_HASH_SIZE);
 	for (int i = 0; i < s->n_kconfig; i++) {
 		__u32 slot = selector_hash(s->kconfig[i].key) &
-			(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
+			(TREE_SELECTOR_HASH_SIZE - 1);
 
 		while (slots[slot] >= 0 &&
 		       strcmp(s->kconfig[slots[slot]].key, s->kconfig[i].key))
-			slot = (slot + 1) & (SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
+			slot = (slot + 1) & (TREE_SELECTOR_HASH_SIZE - 1);
 		if (slots[slot] < 0)
 			slots[slot] = i;
 	}
 }
 
 static int selector_hash_find(const struct shirudo_tree_selector *s,
-			      const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
+			      const int slots[TREE_SELECTOR_HASH_SIZE],
 			      const char *key)
 {
 	__u32 slot = selector_hash(key) &
-		(SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1);
+		(TREE_SELECTOR_HASH_SIZE - 1);
 
-	for (int probes = 0; probes < SHIRUDO_TREE_SELECTOR_HASH_SIZE;
+	for (int probes = 0; probes < TREE_SELECTOR_HASH_SIZE;
 	     probes++, slot = (slot + 1) &
-	     (SHIRUDO_TREE_SELECTOR_HASH_SIZE - 1)) {
+	     (TREE_SELECTOR_HASH_SIZE - 1)) {
 		if (slots[slot] < 0)
 			return -1;
 		if (!strcmp(s->kconfig[slots[slot]].key, key))
@@ -248,8 +248,8 @@ static int selector_hash_find(const struct shirudo_tree_selector *s,
 
 static int selector_config_line(const char *line,
 				const struct shirudo_tree_selector *s,
-				const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
-				char values[][SHIRUDO_TREE_STRING_MAX],
+				const int slots[TREE_SELECTOR_HASH_SIZE],
+				char values[][TREE_STRING_MAX],
 				bool found[])
 {
 	char copy[1024], *start, *eq, *end, *value;
@@ -299,7 +299,7 @@ static int selector_config_line(const char *line,
 	index = selector_hash_find(s, slots, start);
 	if (index < 0)
 		return 0;
-	if (strscpy(values[index], value, SHIRUDO_TREE_STRING_MAX) < 0)
+	if (strscpy(values[index], value, TREE_STRING_MAX) < 0)
 		return -ENOSPC;
 	found[index] = true;
 	return 0;
@@ -307,8 +307,8 @@ static int selector_config_line(const char *line,
 
 static int read_selector_config_file(const char *path,
 				     const struct shirudo_tree_selector *s,
-				     const int slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE],
-				     char values[][SHIRUDO_TREE_STRING_MAX],
+				     const int slots[TREE_SELECTOR_HASH_SIZE],
+				     char values[][TREE_STRING_MAX],
 				     bool found[], bool gz)
 {
 	char line[1024];
@@ -351,10 +351,10 @@ static int read_selector_config_file(const char *path,
 int tree_selector_matches(const struct shirudo_tree_selector *s)
 {
 	struct utsname u;
-	struct shirudo_tree_kv labels[SHIRUDO_TREE_MAX_LABELS];
-	char cfg_values[SHIRUDO_TREE_MAX_KCONFIG][SHIRUDO_TREE_STRING_MAX];
-	int cfg_slots[SHIRUDO_TREE_SELECTOR_HASH_SIZE];
-	bool cfg_found[SHIRUDO_TREE_MAX_KCONFIG] = {};
+	struct shirudo_tree_kv labels[TREE_MAX_LABELS];
+	char cfg_values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
+	int cfg_slots[TREE_SELECTOR_HASH_SIZE];
+	bool cfg_found[TREE_MAX_KCONFIG] = {};
 	int nl = 0, config_rc, rc;
 	const char *v;
 	char path[PATH_MAX];
@@ -385,7 +385,7 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 			return 0;
 	}
 	if (s->n_kernel_build_id) {
-		char build_id[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX];
+		char build_id[KERNEL_BUILD_ID_STRING_MAX];
 
 		/*
 		 * A selector carrying a build ID is deliberately fail-closed
@@ -476,7 +476,7 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 
 static int tree_read_file(const char *path, __u8 **body, size_t *len)
 {
-	return read_file(path, SHIRUDO_JSON_MAX_BYTES, body, len);
+	return read_file(path, JSON_MAX_BYTES, body, len);
 }
 
 /* hex is exactly 64 hex digits: a SHA-256 digest. */
@@ -508,7 +508,7 @@ int tree_state_read(struct shirudo_tree_state *out)
 	int rc;
 
 	*out = (struct shirudo_tree_state){};
-	rc = tree_read_file(SHIRUDO_BPM_TREE_STATE_PATH, &body, &len);
+	rc = tree_read_file(BPM_TREE_STATE_PATH, &body, &len);
 	if (rc)
 		return rc;
 	rc = json_parse((const char *)body, len, f, ARRAY_SIZE(f));
@@ -569,7 +569,7 @@ int tree_state_write(const struct shirudo_tree_state *s)
 	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	return tree_atomic_write(SHIRUDO_BPM_TREE_STATE_PATH, buf, e.len);
+	return tree_atomic_write(BPM_TREE_STATE_PATH, buf, e.len);
 }
 
 int tree_event_append(__s64 seq, const char *operation_digest,
@@ -592,10 +592,10 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	rc = seal_mkdir_p(SHIRUDO_BPM_TREE_VAR_DIR, 0700);
+	rc = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
 	if (rc)
 		return rc;
-	fd = seal_open(SHIRUDO_BPM_TREE_EVENTLOG_PATH,
+	fd = seal_open(BPM_TREE_EVENTLOG_PATH,
 		       O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
@@ -617,7 +617,7 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 		rc = -errno;
 	if (rc && ftruncate(fd, st.st_size))
 		pr_warn("tree: could not roll back a partial append to %s: %s",
-			SHIRUDO_BPM_TREE_EVENTLOG_PATH, strerror(errno));
+			BPM_TREE_EVENTLOG_PATH, strerror(errno));
 out:
 	if (close(fd) && !rc)
 		rc = -errno;
@@ -631,7 +631,7 @@ int tree_event_replay(__u8 out[32])
 	char *save, *line;
 	__u8 chain[32] = {};
 	__s64 previous_seq = 0;
-	int rc = tree_read_file(SHIRUDO_BPM_TREE_EVENTLOG_PATH, &body, &len);
+	int rc = tree_read_file(BPM_TREE_EVENTLOG_PATH, &body, &len);
 
 	if (rc)
 		return rc;
@@ -692,7 +692,7 @@ void tree_emit_status(struct shirudo_json_emit *e)
 
 	json_obj_open_key(e, "upatch_tree");
 	json_kv_bool(e, "configured", configured);
-	json_kv_bool(e, "pending", access(SHIRUDO_BPM_TREE_PENDING_PATH,
+	json_kv_bool(e, "pending", access(BPM_TREE_PENDING_PATH,
 					  R_OK) == 0);
 	if (tree_state_read(&s) == 0) {
 		json_kv_string(e, "tree_id", s.tree_id);

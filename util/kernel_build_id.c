@@ -29,7 +29,7 @@ static int read_u32(const __u8 *p, size_t remaining, __u32 *out)
 }
 
 int kernel_build_id_from_notes(const void *notes, size_t notes_len,
-			       char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+			       char out[KERNEL_BUILD_ID_STRING_MAX])
 {
 	const __u8 *p = notes;
 
@@ -54,7 +54,7 @@ int kernel_build_id_from_notes(const void *notes, size_t notes_len,
 			return -EINVAL;
 		next = desc_off + align4(descsz);
 		if (type == 3 && namesz >= 3 && !memcmp(p + name_off, "GNU", 3)) {
-			if (!descsz || descsz > SHIRUDO_KERNEL_BUILD_ID_MAX)
+			if (!descsz || descsz > KERNEL_BUILD_ID_MAX)
 				return -E2BIG;
 			hex_encode(p + desc_off, descsz, out);
 			return 0;
@@ -65,7 +65,7 @@ int kernel_build_id_from_notes(const void *notes, size_t notes_len,
 	return -ENOENT;
 }
 
-int kernel_build_id_read(char out[SHIRUDO_KERNEL_BUILD_ID_STRING_MAX])
+int kernel_build_id_read(char out[KERNEL_BUILD_ID_STRING_MAX])
 {
 	__u8 notes[KERNEL_NOTES_MAX];
 	size_t len = 0;

@@ -19,8 +19,8 @@
 #include "util/help.h"
 #include "util/log.h"
 
-#ifndef SHIRUDO_LIBEXEC_DIR
-#define SHIRUDO_LIBEXEC_DIR	"/usr/local/libexec/shirudo"
+#ifndef LIBEXEC_DIR
+#define LIBEXEC_DIR	"/usr/local/libexec/shirudo"
 #endif
 
 static const struct shirudo_help build_help = {
@@ -30,7 +30,7 @@ static const struct shirudo_help build_help = {
 		   "Operator-only: "
 		   "dispatches to the separate\nshirudo-build binary. The "
 		   "helper is resolved in this order:\n"
-		   "SHIRUDO_BUILD, " SHIRUDO_LIBEXEC_DIR "/shirudo-build, "
+		   "SHIRUDO_BUILD, " LIBEXEC_DIR "/shirudo-build, "
 		   "then shirudo-build on PATH.\n"
 		   "Run the selected helper with --help for the full option list.",
 };
@@ -42,7 +42,7 @@ static const struct shirudo_help build_help = {
 static const char *resolve_helper(bool *use_path)
 {
 	const char *override = getenv("SHIRUDO_BUILD");
-	const char *installed = SHIRUDO_LIBEXEC_DIR "/shirudo-build";
+	const char *installed = LIBEXEC_DIR "/shirudo-build";
 
 	*use_path = false;
 	if (override)
