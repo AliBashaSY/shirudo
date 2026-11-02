@@ -78,7 +78,7 @@ SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
 # finish the build while its new warnings get fixed.
 WERROR ?= 1
 WERROR_CFLAGS := $(if $(filter 1,$(WERROR)),-Werror)
-WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes \
+WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
             -Wmissing-prototypes -Wpointer-arith -Wshadow \
             -Wdeclaration-after-statement -Wformat-security \
             $(WERROR_CFLAGS)
@@ -162,7 +162,7 @@ endif
 # -Wmissing-declarations; the BPF_PROG() / BPF_KPROBE() macros
 # generate auto-named params that often go unused. Neither is
 # fixable upstream of us, so silence both for BPF compilation.
-CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra \
+CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra -Wvla \
              -Wno-missing-declarations -Wno-unused-parameter \
              -Wdeclaration-after-statement $(WERROR_CFLAGS)
 
