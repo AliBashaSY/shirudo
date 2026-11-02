@@ -38,7 +38,7 @@ static int get16(struct reader *r, __u16 *v)
 {
 	if (r->left < 2)
 		return -EINVAL;
-	*v = (__u16)(((__u16)r->p[0] << 8) | r->p[1]);
+	*v = get_be16(r->p);
 	r->p += 2;
 	r->left -= 2;
 	return 0;
@@ -48,8 +48,7 @@ static int get32(struct reader *r, __u32 *v)
 {
 	if (r->left < 4)
 		return -EINVAL;
-	*v = ((__u32)r->p[0] << 24) | ((__u32)r->p[1] << 16) |
-	     ((__u32)r->p[2] << 8) | r->p[3];
+	*v = get_be32(r->p);
 	r->p += 4;
 	r->left -= 4;
 	return 0;
@@ -98,7 +97,7 @@ static int policy_hash(const __u8 prev[32], __u32 cc,
 	__u8 cc_be[4];
 
 	/* prev and out may be one buffer; out changes only once done. */
-	tpm_put32(cc_be, cc);
+	put_be32(cc_be, cc);
 	if (sha256_init(&ctx) != 0) {
 		memset(out, 0, 32);
 		return -EIO;
@@ -128,8 +127,8 @@ static void
 shirudo_tpm_pcr_selection(__u32 pcr_mask,
 			  __u8 out[TPM_PCR_SELECTION_LEN])
 {
-	tpm_put32(out, 1);
-	tpm_put16(out + 4, TPM_ALG_SHA256);
+	put_be32(out, 1);
+	put_be16(out + 4, TPM_ALG_SHA256);
 	out[6] = TPM_PCR_SELECT_LEN;
 	out[7] = (__u8)pcr_mask;
 	out[8] = (__u8)(pcr_mask >> 8);
@@ -160,15 +159,15 @@ int tpm_policy_or(const __u8 a[32], const __u8 b[32], __u8 out[32])
 void tpm_writer_public(const __u8 modulus[TPM_NV_RSA_BYTES],
 		       __u8 out[TPM_NV_RSA_PUBLIC_AREA_LEN])
 {
-	tpm_put16(out, TPM_ALG_RSA);	/* type */
-	tpm_put16(out + 2, TPM_ALG_SHA256);	/* nameAlg */
-	tpm_put32(out + 4, TPM_WRITER_ATTRS);
-	tpm_put16(out + 8, 0);		/* Empty authPolicy: size only. */
-	tpm_put16(out + 10, TPM_ALG_NULL);	/* symmetric.algorithm */
-	tpm_put16(out + 12, TPM_ALG_RSASSA);	/* scheme.scheme */
-	tpm_put16(out + 14, TPM_ALG_SHA256);	/* scheme hash */
-	tpm_put16(out + 16, 3072);		/* RSA keyBits */
-	tpm_put32(out + 18, 65537);	/* RSA exponent F4: 2^16 + 1. */
+	put_be16(out, TPM_ALG_RSA);	/* type */
+	put_be16(out + 2, TPM_ALG_SHA256);	/* nameAlg */
+	put_be32(out + 4, TPM_WRITER_ATTRS);
+	put_be16(out + 8, 0);		/* Empty authPolicy: size only. */
+	put_be16(out + 10, TPM_ALG_NULL);	/* symmetric.algorithm */
+	put_be16(out + 12, TPM_ALG_RSASSA);	/* scheme.scheme */
+	put_be16(out + 14, TPM_ALG_SHA256);	/* scheme hash */
+	put_be16(out + 16, 3072);		/* RSA keyBits */
+	put_be32(out + 18, 65537);	/* RSA exponent F4: 2^16 + 1. */
 	/* unique.rsa: two-byte size at offset 22, public-key bytes at offset 24. */
 	tpm_put2b(out + 22, modulus, TPM_NV_RSA_BYTES);
 }
@@ -178,7 +177,7 @@ int tpm_nv_extend_cphash(const __u8 name[TPM_NAME_LEN],
 {
 	__u8 command[4 + 2 * TPM_NAME_LEN + 2 + 32];
 
-	tpm_put32(command, TPM_CC_NV_EXTEND);
+	put_be32(command, TPM_CC_NV_EXTEND);
 	memcpy(command + 4, name, TPM_NAME_LEN);
 	memcpy(command + 4 + TPM_NAME_LEN, name, TPM_NAME_LEN);
 	tpm_put2b(command + 4 + 2 * TPM_NAME_LEN, event, 32);
@@ -193,7 +192,7 @@ int tpm_writer_auth_hash(const __u8 *nonce, size_t nonce_len,
 	if (!nonce_len || nonce_len > 64)
 		return -EINVAL;
 	memcpy(bytes, nonce, nonce_len);
-	tpm_put32(bytes + nonce_len, 0);
+	put_be32(bytes + nonce_len, 0);
 	memcpy(bytes + nonce_len + 4, cphash, 32);
 	memcpy(bytes + nonce_len + 4 + 32, TPM_NV_POLICY_REF,
 	       sizeof(TPM_NV_POLICY_REF) - 1);
@@ -229,7 +228,7 @@ int tpm_policy_command_code(const __u8 prev[32],
 {
 	__u8 cc_be[4];
 
-	tpm_put32(cc_be, command_code);
+	put_be32(cc_be, command_code);
 	return policy_hash(prev, TPM_CC_POLICY_COMMAND_CODE, cc_be,
 			   sizeof(cc_be), NULL, 0, out);
 }
@@ -280,13 +279,13 @@ void tpm_nv_name(__u32 index, __u32 attrs,
 {
 	__u8 pub[4 + 2 + 4 + 2 + 32 + 2];
 
-	tpm_put32(pub, index);
-	tpm_put16(pub + 4, TPM_ALG_SHA256);
-	tpm_put32(pub + 6, attrs);
-	tpm_put16(pub + 10, 32);
+	put_be32(pub, index);
+	put_be16(pub + 4, TPM_ALG_SHA256);
+	put_be32(pub + 6, attrs);
+	put_be16(pub + 10, 32);
 	memcpy(pub + 12, policy, 32);
-	tpm_put16(pub + 44, data_size);
-	tpm_put16(name, TPM_ALG_SHA256);
+	put_be16(pub + 44, data_size);
+	put_be16(name, TPM_ALG_SHA256);
 	if (sha256_buffer(pub, sizeof(pub), name + 2))
 		memset(name, 0, TPM_NAME_LEN);
 }
@@ -300,7 +299,7 @@ int tpm_object_name(const __u8 *public, size_t len,
 	if (get16(&r, &type) || get16(&r, &alg) ||
 	    alg != TPM_ALG_SHA256)
 		return -EINVAL;
-	tpm_put16(name, TPM_ALG_SHA256);
+	put_be16(name, TPM_ALG_SHA256);
 	sha256_buffer(public, len, name + 2);
 	return 0;
 }
@@ -311,9 +310,9 @@ void tpm_qualified_name(__u32 hierarchy,
 {
 	__u8 buf[4 + TPM_NAME_LEN];
 
-	tpm_put32(buf, hierarchy);
+	put_be32(buf, hierarchy);
 	memcpy(buf + 4, name, TPM_NAME_LEN);
-	tpm_put16(out, TPM_ALG_SHA256);
+	put_be16(out, TPM_ALG_SHA256);
 	sha256_buffer(buf, sizeof(buf), out + 2);
 }
 
@@ -394,35 +393,35 @@ int tpm_public_marshal(const struct shirudo_tpm_public *pub,
 		return -EINVAL;
 	if (cap < need)
 		return -E2BIG;
-	tpm_put16(out + off, pub->type);
+	put_be16(out + off, pub->type);
 	off += 2;
-	tpm_put16(out + off, TPM_ALG_SHA256);
+	put_be16(out + off, TPM_ALG_SHA256);
 	off += 2;
-	tpm_put32(out + off, pub->attrs);
+	put_be32(out + off, pub->attrs);
 	off += 4;
 	off += tpm_put2b(out + off, pub->policy, pub->policy_len);
-	tpm_put16(out + off, pub->sym_alg);
+	put_be16(out + off, pub->sym_alg);
 	off += 2;
 	if (pub->sym_alg != TPM_ALG_NULL) {
-		tpm_put16(out + off, pub->sym_bits);
-		tpm_put16(out + off + 2, pub->sym_mode);
+		put_be16(out + off, pub->sym_bits);
+		put_be16(out + off + 2, pub->sym_mode);
 		off += 4;
 	}
-	tpm_put16(out + off, pub->scheme);
+	put_be16(out + off, pub->scheme);
 	off += 2;
 	if (pub->scheme != TPM_ALG_NULL) {
-		tpm_put16(out + off, pub->scheme_hash);
+		put_be16(out + off, pub->scheme_hash);
 		off += 2;
 	}
 	if (pub->type == TPM_ALG_ECC) {
-		tpm_put16(out + off, pub->curve);
-		tpm_put16(out + off + 2, TPM_ALG_NULL);
+		put_be16(out + off, pub->curve);
+		put_be16(out + off + 2, TPM_ALG_NULL);
 		off += 4;
 		off += tpm_put2b(out + off, pub->x, 32);
 		off += tpm_put2b(out + off, pub->y, 32);
 	} else {
-		tpm_put16(out + off, pub->rsa_bits);
-		tpm_put32(out + off + 2, pub->rsa_exponent);
+		put_be16(out + off, pub->rsa_bits);
+		put_be32(out + off + 2, pub->rsa_exponent);
 		off += 6;
 		off += tpm_put2b(out + off, pub->n, pub->n_len);
 	}
@@ -466,7 +465,7 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 	    v_len > TPM_NAME_LEN || out_len > 4096)
 		return -EINVAL;
 	for (i = 1; done < out_len; i++) {
-		tpm_put32(buf, i);
+		put_be32(buf, i);
 		off = 4;
 		memcpy(buf + off, label, label_len);
 		off += label_len;
@@ -477,7 +476,7 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 		if (v_len)
 			memcpy(buf + off, ctx_v, v_len);
 		off += v_len;
-		tpm_put32(buf + off, (__u32)(out_len * 8));
+		put_be32(buf + off, (__u32)(out_len * 8));
 		off += 4;
 		if (hmac_sha256(key, key_len, buf, off, block))
 			return -EIO;
@@ -500,7 +499,7 @@ void tpm_kdfe(const __u8 z[32], const char *label,
 		memset(out, 0, 32);
 		return;
 	}
-	tpm_put32(buf, 1);
+	put_be32(buf, 1);
 	memcpy(buf + off, z, 32);
 	off += 32;
 	memcpy(buf + off, label, label_len);
@@ -529,7 +528,7 @@ int tpm_credential_protect(const __u8 seed[32],
 	if (tpm_kdfa(seed, 32, "STORAGE", name, TPM_NAME_LEN,
 		     NULL, 0, sym_key, sizeof(sym_key)))
 		goto out;
-	tpm_put16(plain, TPM_CREDENTIAL_LEN);
+	put_be16(plain, TPM_CREDENTIAL_LEN);
 	memcpy(plain + 2, credential, TPM_CREDENTIAL_LEN);
 	if (aes128_cfb_encrypt(sym_key, plain, sizeof(plain), enc) ||
 	    tpm_kdfa(seed, 32, "INTEGRITY", NULL, 0, NULL, 0, hmac_key,
@@ -540,7 +539,7 @@ int tpm_credential_protect(const __u8 seed[32],
 	if (hmac_sha256(hmac_key, sizeof(hmac_key), mac_in,
 			sizeof(mac_in), mac))
 		goto out;
-	tpm_put16(out, 32);
+	put_be16(out, 32);
 	memcpy(out + 2, mac, 32);
 	memcpy(out + 34, enc, sizeof(enc));
 	rc = 0;

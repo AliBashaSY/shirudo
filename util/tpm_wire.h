@@ -13,27 +13,14 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <shirudo/byteorder.h>
 #include <shirudo/misc.h>
 #include <shirudo/tpm.h>
-
-static inline void tpm_put16(__u8 *p, __u16 v)
-{
-	p[0] = (__u8)(v >> 8);
-	p[1] = (__u8)v;
-}
-
-static inline void tpm_put32(__u8 *p, __u32 v)
-{
-	p[0] = (__u8)(v >> 24);
-	p[1] = (__u8)(v >> 16);
-	p[2] = (__u8)(v >> 8);
-	p[3] = (__u8)v;
-}
 
 /* A TPM2B: the size, then the bytes. */
 static inline size_t tpm_put2b(__u8 *p, const __u8 *data, size_t len)
 {
-	tpm_put16(p, (__u16)len);
+	put_be16(p, (__u16)len);
 	memcpy(p + 2, data, len);
 	return 2 + len;
 }

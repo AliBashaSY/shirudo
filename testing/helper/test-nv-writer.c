@@ -149,10 +149,10 @@ static int write_extend(int fd, const char *device, enum extend_probe probe)
 		index++;
 	if (probe == EXTEND_SHORT)
 		size = 10;
-	tpm_put32(command + 2, (__u32)size);
-	tpm_put32(command + 6, TPM_CC_NV_EXTEND);
-	tpm_put32(command + 10, index);
-	tpm_put32(command + 14, index);
+	put_be32(command + 2, (__u32)size);
+	put_be32(command + 6, TPM_CC_NV_EXTEND);
+	put_be32(command + 10, index);
+	put_be32(command + 14, index);
 	errno = 0;
 	written = write(fd, command, size);
 	saved_errno = errno;

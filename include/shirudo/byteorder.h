@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Little-endian conversions under the kernel's names, for userspace.
+ * Byte-order conversions under the kernel's names, for userspace.
  */
 
 #ifndef SHIRUDO_BYTEORDER_H
@@ -15,8 +15,8 @@
 #include <shirudo/types.h>
 
 /*
- * Between host order and the restricted __le types; the __force casts
- * are the one place sparse lets a value change between the two.
+ * Between host order and the restricted __le and __be types; the __force
+ * casts are the one place sparse lets a value change between the two.
  */
 static inline __le16 cpu_to_le16(__u16 v)
 {
@@ -48,8 +48,29 @@ static inline __u64 le64_to_cpu(__le64 v)
 	return le64toh((__force __u64)v);
 }
 
+static inline __be16 cpu_to_be16(__u16 v)
+{
+	return (__force __be16)htobe16(v);
+}
+
+static inline __be32 cpu_to_be32(__u32 v)
+{
+	return (__force __be32)htobe32(v);
+}
+
+static inline __u16 be16_to_cpu(__be16 v)
+{
+	return be16toh((__force __u16)v);
+}
+
+static inline __u32 be32_to_cpu(__be32 v)
+{
+	return be32toh((__force __u32)v);
+}
+
 /*
- * From bytes as they lie in a file, at any alignment: the copy is right
+ * From and into bytes as they lie in a file or on the TPM's wire, at any
+ * alignment: the copy is right
  * on every architecture, and the compiler makes it one load where the
  * target allows a misaligned one.
  */
@@ -75,6 +96,36 @@ static inline __u64 get_le64(const void *p)
 
 	memcpy(&v, p, sizeof(v));
 	return le64_to_cpu(v);
+}
+
+static inline __u16 get_be16(const void *p)
+{
+	__be16 v;
+
+	memcpy(&v, p, sizeof(v));
+	return be16_to_cpu(v);
+}
+
+static inline __u32 get_be32(const void *p)
+{
+	__be32 v;
+
+	memcpy(&v, p, sizeof(v));
+	return be32_to_cpu(v);
+}
+
+static inline void put_be16(void *p, __u16 v)
+{
+	__be16 b = cpu_to_be16(v);
+
+	memcpy(p, &b, sizeof(b));
+}
+
+static inline void put_be32(void *p, __u32 v)
+{
+	__be32 b = cpu_to_be32(v);
+
+	memcpy(p, &b, sizeof(b));
 }
 
 #endif /* SHIRUDO_BYTEORDER_H */

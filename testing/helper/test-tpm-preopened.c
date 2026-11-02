@@ -29,10 +29,10 @@ static int write_extend(int fd)
 	ssize_t written;
 	int saved_errno;
 
-	tpm_put32(command + 2, (__u32)sizeof(command));
-	tpm_put32(command + 6, TPM_CC_NV_EXTEND);
-	tpm_put32(command + 10, NV_INDEX);
-	tpm_put32(command + 14, NV_INDEX);
+	put_be32(command + 2, (__u32)sizeof(command));
+	put_be32(command + 6, TPM_CC_NV_EXTEND);
+	put_be32(command + 10, NV_INDEX);
+	put_be32(command + 14, NV_INDEX);
 	errno = 0;
 	written = write(fd, command, sizeof(command));
 	saved_errno = errno;

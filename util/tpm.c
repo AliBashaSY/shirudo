@@ -909,9 +909,9 @@ static int marshal_signature(const TPMT_SIGNATURE *sig, __u8 *out,
 	if (sig->sigAlg != TPM2_ALG_ECDSA || e->signatureR.size > 64 ||
 	    e->signatureS.size > 64 || cap < 8u + 128u)
 		return -EINVAL;
-	tpm_put16(out + off, sig->sigAlg);
+	put_be16(out + off, sig->sigAlg);
 	off += 2;
-	tpm_put16(out + off, e->hash);
+	put_be16(out + off, e->hash);
 	off += 2;
 	off += tpm_put2b(out + off, e->signatureR.buffer, e->signatureR.size);
 	off += tpm_put2b(out + off, e->signatureS.buffer, e->signatureS.size);
