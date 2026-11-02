@@ -17,6 +17,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -176,7 +177,7 @@ int cms_sign(struct sign_io *io,
 	long actual_sig_len = 0;
 	void *content = NULL;
 	X509 *x509 = NULL;
-	size_t content_sz;
+	size_t content_sz = 0;
 	int err = 0;
 
 	/*
@@ -184,6 +185,10 @@ int cms_sign(struct sign_io *io,
 	 * the concatenation the kernel folds and verifies at load. Build
 	 * that once and feed it to both CMS_final and the digest.
 	 */
+	if (io->insns_sz > INT_MAX || io->data_sz > INT_MAX - io->insns_sz) {
+		err = -E2BIG;
+		goto cleanup;
+	}
 	content_sz = io->insns_sz + io->data_sz;
 	content = xmalloc(content_sz);
 	if (!content) {
@@ -194,7 +199,7 @@ int cms_sign(struct sign_io *io,
 	if (io->data_sz)
 		memcpy((char *)content + io->insns_sz, io->data, io->data_sz);
 
-	bd_in = BIO_new_mem_buf(content, content_sz);
+	bd_in = BIO_new_mem_buf(content, (int)content_sz);
 	if (!bd_in) {
 		err = -ENOMEM;
 		goto cleanup;
