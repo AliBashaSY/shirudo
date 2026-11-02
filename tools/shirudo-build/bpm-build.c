@@ -1733,7 +1733,7 @@ out:
 
 static int build_download_package(const char *reference, char *path)
 {
-	struct bpm_oci_client client = {};
+	struct bpm_oci_client client __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8] = {};
 	struct bpm_buffer manifest = {};
 	char repository[BPM_MAX_ENDPOINT], tag[BPM_MAX_NAME];

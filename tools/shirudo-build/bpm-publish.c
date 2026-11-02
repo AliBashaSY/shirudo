@@ -294,7 +294,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 			const char *index_key, const char *index_cert,
 			const char **reference_out)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_package_info info = {};
 	struct bpm_descriptor config, layer, key_config, key_layer, subject;
 	struct json_emit e = {};
@@ -602,7 +602,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	struct bpm_build_spec *spec = NULL;
 	__u8 *beefile = NULL, *sig = NULL;
 	struct bpm_package_info info = {};
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct json_emit e;
 	char empty_config[] = "{}";
 	char package_dir[101];

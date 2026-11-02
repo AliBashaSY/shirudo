@@ -11,6 +11,7 @@
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 #define __must_check	__attribute__((warn_unused_result))
 #define __noreturn	__attribute__((noreturn))
+#define __cleanup(func)	__attribute__((cleanup(func)))
 
 /*
  * An empty asm that may read memory through ptr, so that a store to that

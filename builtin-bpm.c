@@ -71,7 +71,7 @@ static int remove_tree(const char *path);
 static int prepare_direct_install(const char *raw, struct bpm_source *source,
 				  struct bpm_index_entry *entry)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8];
 	struct bpm_buffer manifest = {};
 	char repository[BPM_MAX_ENDPOINT], tag[BPM_MAX_NAME];
@@ -135,7 +135,7 @@ out:
  */
 static int download_package(const char *raw, const char *destination, int fd)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8];
 	struct bpm_buffer manifest = {};
 	char repository[BPM_MAX_ENDPOINT], tag[BPM_MAX_NAME];
@@ -1020,7 +1020,7 @@ static int load_cached_index(const char *source, struct bpm_index_entry *entries
 static int repo_update_one(const char *name)
 {
 	struct bpm_source s;
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8];
 	int nl = 0;
 	struct bpm_buffer manifest = {}, index = {}, sig = {};
@@ -1130,7 +1130,7 @@ static void sort_old_pairs(char (*unloads)[PATH_MAX], char (*loads)[PATH_MAX],
 static int package_install(const struct bpm_source *s, const struct bpm_index_entry *entry,
 			   const char *old_path, const char *old_version)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8];
 	int nl = 0;
 	struct bpm_buffer manifest = {};
@@ -1489,6 +1489,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 		return 0;
 	}
 	if (!strcmp(argv[2], "add") && argc >= 5) {
+		struct bpm_oci_client probe __cleanup(bpm_oci_client_clear) = {};
 		struct bpm_source s = {};
 		const char *key = NULL;
 		char managed[PATH_MAX];
@@ -1507,7 +1508,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 		}
 		if (!key || cert_read_file(key, &cert) ||
 		    !bpm_name_ok(s.name) ||
-		    bpm_oci_parse_endpoint(s.endpoint, &(struct bpm_oci_client){})) {
+		    bpm_oci_parse_endpoint(s.endpoint, &probe)) {
 			cert_free(&cert);
 			pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate");
 			return 2;
@@ -1585,7 +1586,7 @@ static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 				  struct tree_publication *pub,
 				  char *manifest_digest, size_t digest_sz)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	char repository[BPM_MAX_ENDPOINT];
 	int ret = bpm_oci_parse_tree_repo(cfg->endpoint, &c,
 					  repository, sizeof(repository));
@@ -1621,7 +1622,7 @@ static int tree_verify_upatch(const char *path, const char *expected,
 static int tree_pull_artifact(const struct tree_operation *op,
 			      char *path, size_t path_sz)
 {
-	struct bpm_oci_client c = {};
+	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[BPM_MAX_ENTRIES];
 	struct bpm_buffer manifest = {}, blob = {};
 	char repository[BPM_MAX_ENDPOINT], url[PATH_MAX], cache[PATH_MAX];

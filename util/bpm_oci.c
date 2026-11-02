@@ -101,6 +101,11 @@ static int bpm_buffer_append(struct bpm_buffer *b, const void *data, size_t len)
 	return 0;
 }
 
+void bpm_oci_client_clear(struct bpm_oci_client *c)
+{
+	memzero_explicit(c, sizeof(*c));
+}
+
 void bpm_buffer_free(struct bpm_buffer *b)
 {
 	if (b->data)
@@ -201,9 +206,9 @@ static int decode_basic(const char *in, char *user, size_t usz,
 			char *pass, size_t psz)
 {
 	__u8 out[BPM_OCI_BASIC_RAW_SIZE];
+	int bits = -8, ret = -EINVAL, x;
 	size_t n = 0;
 	__u32 val = 0;
-	int bits = -8, x;
 	char *colon;
 
 	for (; *in && *in != '"' && n < sizeof(out); in++) {
@@ -211,7 +216,7 @@ static int decode_basic(const char *in, char *user, size_t usz,
 			continue;
 		x = base64_value((__u8)*in);
 		if (x < 0)
-			return -EINVAL;
+			goto out;
 		/* No more than 12 bits are ever pending. */
 		val = ((val << 6) | (__u32)x) & 0xfff;
 		bits += 6;
@@ -220,22 +225,25 @@ static int decode_basic(const char *in, char *user, size_t usz,
 			bits -= 8;
 		}
 	}
-	if (n >= sizeof(out))
-		return -E2BIG;
-	out[n] = '\0';
-	if (memchr(out, '\0', n)) {
-		memzero_explicit(out, sizeof(out));
-		return -EINVAL;
+	if (n >= sizeof(out)) {
+		ret = -E2BIG;
+		goto out;
 	}
+	out[n] = '\0';
+	if (memchr(out, '\0', n))
+		goto out;
 	colon = memchr(out, ':', n);
 	if (!colon || (size_t)(colon - (char *)out) >= usz ||
 	    n - (size_t)(colon - (char *)out) - 1 >= psz)
-		return -EINVAL;
+		goto out;
 	memcpy(user, out, (size_t)(colon - (char *)out));
 	user[colon - (char *)out] = '\0';
 	memcpy(pass, colon + 1, n - (size_t)(colon - (char *)out) - 1);
 	pass[n - (size_t)(colon - (char *)out) - 1] = '\0';
-	return 0;
+	ret = 0;
+out:
+	memzero_explicit(out, sizeof(out));
+	return ret;
 }
 
 static int encode_basic(const char *user, const char *pass,
@@ -245,13 +253,18 @@ static int encode_basic(const char *user, const char *pass,
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	char raw[BPM_OCI_BASIC_RAW_SIZE];
 	size_t len, need, i, o = 0;
+	int ret = 0;
 
-	if (strsprintf(raw, sizeof(raw), "%s:%s", user, pass) < 0)
-		return -E2BIG;
+	if (strsprintf(raw, sizeof(raw), "%s:%s", user, pass) < 0) {
+		ret = -E2BIG;
+		goto out;
+	}
 	len = strlen(raw);
 	need = 4 * ((len + 2) / 3) + 1;
-	if (need > out_sz)
-		return -ENOSPC;
+	if (need > out_sz) {
+		ret = -ENOSPC;
+		goto out;
+	}
 	for (i = 0; i < len; i += 3) {
 		__u32 v = (__u8)raw[i] << 16;
 
@@ -265,7 +278,9 @@ static int encode_basic(const char *user, const char *pass,
 		out[o++] = i + 2 < len ? alphabet[v & 63] : '=';
 	}
 	out[o] = '\0';
-	return 0;
+out:
+	memzero_explicit(raw, sizeof(raw));
+	return ret;
 }
 
 static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
@@ -437,10 +452,13 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	}
 	if (auth) {
 		char h[8192];
+		int n;
 
-		if (strsprintf(h, sizeof(h), "Authorization: %s", auth) < 0)
+		n = strsprintf(h, sizeof(h), "Authorization: %s", auth);
+		next = n < 0 ? NULL : curl_slist_append(headers, h);
+		memzero_explicit(h, sizeof(h));
+		if (n < 0)
 			goto too_long;
-		next = curl_slist_append(headers, h);
 		if (!next)
 			goto no_memory;
 		headers = next;
@@ -697,6 +715,8 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		goto out;
 	ret = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
 out:
+	memzero_explicit(basic, sizeof(basic));
+	memzero_explicit(auth_header, sizeof(auth_header));
 	curl_free(esc_service);
 	curl_free(esc_scope);
 	curl_slist_free_all(headers);
@@ -719,31 +739,29 @@ static int get_memory(struct bpm_oci_client *c, const char *url,
 	if (r.status == 401 && r.www_auth[0]) {
 		if (!strncasecmp(r.www_auth, "Bearer", 6)) {
 			ret = get_bearer_token(c, r.www_auth);
-			if (ret)
-				goto out;
-			if (strsprintf(auth, sizeof(auth), "Bearer %s",
-				       c->token) < 0) {
+			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
+					       c->token) < 0)
 				ret = -E2BIG;
-				goto out;
-			}
 		} else if (!strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 			ret = encode_basic(c->username, c->password, encoded, sizeof(encoded));
-			if (ret)
-				goto out;
-			if (strsprintf(auth, sizeof(auth), "Basic %s",
-				       encoded) < 0) {
+			if (!ret && strsprintf(auth, sizeof(auth), "Basic %s",
+					       encoded) < 0)
 				ret = -E2BIG;
-				goto out;
-			}
+			memzero_explicit(encoded, sizeof(encoded));
 		} else {
 			ret = -EACCES;
-			goto out;
 		}
-		bpm_buffer_free(&r.body);
-		r = (struct bpm_http_response){};
-		ret = curl_once(c, "GET", url, accept, auth, &r, NULL, follow);
+		if (!ret) {
+			bpm_buffer_free(&r.body);
+			r = (struct bpm_http_response){};
+			ret = curl_once(c, "GET", url, accept, auth, &r, NULL,
+					follow);
+		}
+		memzero_explicit(auth, sizeof(auth));
+		if (ret)
+			goto out;
 	}
 	if (!ret && (r.status < 200 || r.status >= 300))
 		ret = r.status == 404 ? -ENOENT : -EACCES;
@@ -807,12 +825,14 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		if (!ret && strsprintf(auth, sizeof(auth), "Basic %s",
 				       encoded) < 0)
 			ret = -E2BIG;
+		memzero_explicit(encoded, sizeof(encoded));
 		if (!ret) {
 			bpm_buffer_free(&r.body);
 			r = (struct bpm_http_response){};
 			ret = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	}
+	memzero_explicit(auth, sizeof(auth));
 	/* A failed write ends the transfer too; it, not the transfer, is the cause. */
 	if (sink.overflow)
 		ret = -EFBIG;
@@ -845,28 +865,29 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 	if (r->status == 401 && r->www_auth[0]) {
 		if (!strncasecmp(r->www_auth, "Bearer", 6)) {
 			ret = get_bearer_token(c, r->www_auth);
-			if (ret)
-				return ret;
-			if (strsprintf(auth, sizeof(auth), "Bearer %s",
-				       c->token) < 0)
-				return -E2BIG;
+			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
+					       c->token) < 0)
+				ret = -E2BIG;
 		} else if (!strncasecmp(r->www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 			ret = encode_basic(c->username, c->password, encoded,
 					   sizeof(encoded));
-			if (ret)
-				return ret;
-			if (strsprintf(auth, sizeof(auth), "Basic %s",
-				       encoded) < 0)
-				return -E2BIG;
+			if (!ret && strsprintf(auth, sizeof(auth), "Basic %s",
+					       encoded) < 0)
+				ret = -E2BIG;
+			memzero_explicit(encoded, sizeof(encoded));
 		} else {
-			return -EACCES;
+			ret = -EACCES;
 		}
-		bpm_buffer_free(&r->body);
-		*r = (struct bpm_http_response){};
-		ret = curl_once_ex(c, method, url, accept, content_type, body,
-				   body_len, auth, r, NULL, false);
+		if (!ret) {
+			bpm_buffer_free(&r->body);
+			*r = (struct bpm_http_response){};
+			ret = curl_once_ex(c, method, url, accept, content_type,
+					   body, body_len, auth, r, NULL,
+					   false);
+		}
+		memzero_explicit(auth, sizeof(auth));
 		if (ret)
 			return ret;
 	}

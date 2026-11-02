@@ -98,6 +98,12 @@ bool bpm_digest_matches(const char *want, const char *hex);
 void bpm_buffer_free(struct bpm_buffer *b);
 
 /*
+ * Scrub the credentials and token a client holds; declare a client on
+ * the stack with __cleanup(bpm_oci_client_clear).
+ */
+void bpm_oci_client_clear(struct bpm_oci_client *c);
+
+/*
  * Registry access. Endpoints are oci://host[:port]; BPM_OCI_SCHEME,
  * BPM_OCI_CA_FILE, BPM_OCI_USERNAME/PASSWORD, REGISTRY_AUTH_FILE and
  * DOCKER_CONFIG are honoured. Every request enforces the TLS policy.
