@@ -466,7 +466,8 @@ the commit at ``HEAD`` alone without them.
        ``libtss2-tctildr``, ``libelf``, ``libz``, ``libluajit-5.1`` and
        its own dynamic loader, in any version. CI runs it on the binaries
        the deb and rpm operator packages install. A ``SANITIZE`` build
-       fails it, because it also links the sanitizer runtimes.
+       fails it, because it also links the sanitizer runtimes or, with
+       clang, the libraries they need.
    * - ``check-runtime-image.sh <binary>``
      - That a runtime image of the default size of
        ``shirudo-gen-runtime`` holds the target binary, and how much

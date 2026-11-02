@@ -90,13 +90,15 @@ test_expect_success 'no binary is a usage error' '
 	test "$rc" -eq 2
 '
 
-# A sanitized build also links its sanitizer runtimes.
+# A sanitized build also links the sanitizer runtimes, which gcc links
+# as libraries of their own and clang into the binary, with the
+# libraries they need; the runtime's symbols are there either way.
 OPERATOR=$ROOT/shirudo
 HELPER=$ROOT/tools/shirudo-build/shirudo-build
 if [ -x "$OPERATOR" ] && [ -x "$HELPER" ] &&
-   ! readelf -dW "$OPERATOR" | grep -q 'Shared library: \[lib[a-z]*san'; then
+   ! readelf -sW "$OPERATOR" | grep -qE ' __(asan|ubsan)_'; then
 	test_expect_success 'the operator binaries pass' '
-		check "$OPERATOR" "$HELPER"
+		sh "$S" "$OPERATOR" "$HELPER"
 	'
 else
 	TAP_COUNT=$((TAP_COUNT + 1))
