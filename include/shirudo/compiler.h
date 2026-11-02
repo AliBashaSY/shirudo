@@ -20,6 +20,13 @@
  */
 #define barrier_data(ptr)	__asm__ __volatile__("" : : "r"(ptr) : "memory")
 
+/*
+ * var passes through an empty asm and comes back changed as far as the
+ * compiler knows, so that it cannot reason from how var was computed,
+ * such as by leaving a loop once var can no longer change.
+ */
+#define OPTIMIZER_HIDE_VAR(var)	__asm__ ("" : "+r"(var))
+
 /* sparse's cast between a restricted type and its base; nothing otherwise. */
 #ifdef __CHECKER__
 #define __force		__attribute__((force))

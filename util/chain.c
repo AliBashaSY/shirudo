@@ -55,17 +55,6 @@ void sha256_2(const void *a, size_t a_len,
 	}
 }
 
-int ct_eq(const void *a, const void *b, size_t n)
-{
-	const __u8 *pa = a, *pb = b;
-	__u8 diff = 0;
-	size_t i;
-
-	for (i = 0; i < n; i++)
-		diff |= pa[i] ^ pb[i];
-	return diff == 0;
-}
-
 static int member_cmp(const void *a, const void *b)
 {
 	return strcmp(((const struct measured_upatch *)a)->name,
@@ -223,7 +212,7 @@ static bool name_equals(const struct tpm_nv_info *info,
 			const __u8 name[TPM_NAME_LEN])
 {
 	return info->name_len == TPM_NAME_LEN &&
-	       ct_eq(info->name, name, TPM_NAME_LEN);
+	       !memneq_explicit(info->name, name, TPM_NAME_LEN);
 }
 
 static int register_define(struct tpm *tpm, bool defined,
@@ -284,7 +273,7 @@ int chain_tpm_bound(struct tpm *tpm)
 	if (ret)
 		return ret;
 	if (ak.name_len != TPM_NAME_LEN ||
-	    !ct_eq(ak.name, id.ak_name, TPM_NAME_LEN)) {
+	    memneq_explicit(ak.name, id.ak_name, TPM_NAME_LEN)) {
 		pr_err("tpm: not the TPM init bound (attestation key name "
 		       "differs)");
 		ret = -EACCES;
@@ -353,8 +342,8 @@ int chain_init(const __u8 event[32],
 			ret = -EEXIST;
 			goto out;
 		}
-		if (!ct_eq(info->writer_public, rec.writer_public,
-			   sizeof(info->writer_public))) {
+		if (memneq_explicit(info->writer_public, rec.writer_public,
+				    sizeof(info->writer_public))) {
 			pr_err("tpm: recorded NV writer differs from the guarded key");
 			ret = -EKEYREJECTED;
 			goto out;
@@ -486,7 +475,7 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 		ret = -EACCES;
 		goto out;
 	}
-	if (!ct_eq(nv.policy, policy, sizeof(policy))) {
+	if (memneq_explicit(nv.policy, policy, sizeof(policy))) {
 		pr_err("tpm: register write policy is obsolete or substituted");
 		ret = -EACCES;
 		goto out;
@@ -502,7 +491,8 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	ret = register_writer(tpm, writer_public);
 	if (ret)
 		goto out;
-	if (!ct_eq(writer_public, rec.writer_public, sizeof(writer_public))) {
+	if (memneq_explicit(writer_public, rec.writer_public,
+			    sizeof(writer_public))) {
 		pr_err("tpm: recorded NV writer differs from the guarded key");
 		ret = -EKEYREJECTED;
 		goto out;

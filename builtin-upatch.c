@@ -1784,8 +1784,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 
 		sha256_2(insns, u.hdr.loader_insns_len,
 			 data, u.hdr.data_len, content_digest);
-		if (!ct_eq(content_digest, u.hdr.payload_sha256,
-			   sizeof(content_digest))) {
+		if (memneq_explicit(content_digest, u.hdr.payload_sha256,
+				    sizeof(content_digest))) {
 			pr_err("upatch: payload_sha256 does not match signed "
 			       "content (insns || data); refusing");
 			rep_fail(rep, "parse", "parser_rejected", 0,
@@ -2115,7 +2115,7 @@ static int upatch_preflight(const char *expect_chain,
 		pr_err("upatch load: chain read failed: %s", strerror(-ret));
 		return -1;
 	}
-	if (!ct_eq(want, have, sizeof(want))) {
+	if (memneq_explicit(want, have, sizeof(want))) {
 		hex_encode(have, sizeof(have), have_hex);
 		pr_err("upatch load: pre-flight refused (category: tampered, "
 		       "message: chain_drift) -- live chain %s != expected; "
@@ -2881,7 +2881,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 
 		xrc = get_pin_payload(name, live);
 		if (xrc == 0) {
-			if (!ct_eq(live, payload, sizeof(payload))) {
+			if (memneq_explicit(live, payload, sizeof(payload))) {
 				pr_err("upatch unload: payload_mismatch -- the "
 				       "upatch loaded under '%s' is not what the "
 				       "directive expects; refusing", name);

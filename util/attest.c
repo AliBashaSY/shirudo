@@ -138,7 +138,7 @@ static bool quote_covers(const struct tpm_attestation *quote,
 	}
 	if (sha256_final(&ctx, digest) != 0)
 		return false;
-	return ct_eq(digest, a.pcr_digest, 32);
+	return !memneq_explicit(digest, a.pcr_digest, 32);
 }
 
 int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
@@ -564,7 +564,7 @@ static int on_record(void *ctx)
 			chain_upatch_event(load ? "shirudo-upatch" :
 					   "shirudo-unload", p->upatch_name,
 					   payload, event);
-			r->derived = ct_eq(event, r->digest, 32);
+			r->derived = !memneq_explicit(event, r->digest, 32);
 		}
 	} else if (!strcmp(p->type, "tree_op")) {
 		__u8 operation[32], event[32];
@@ -576,7 +576,7 @@ static int on_record(void *ctx)
 		    !strncmp(p->tree_digest_hex, "sha256:", 7) &&
 		    !hex_decode(p->tree_digest_hex + 7, operation, 32)) {
 			chain_tree_event(p->tree_seq, operation, event);
-			r->derived = ct_eq(event, r->digest, 32);
+			r->derived = !memneq_explicit(event, r->digest, 32);
 		}
 	} else if (!strcmp(p->type, "key_revoke")) {
 		__u8 sha[32], event[32];
@@ -584,7 +584,7 @@ static int on_record(void *ctx)
 		strscpy(r->label, p->key_fingerprint, sizeof(r->label));
 		if (!hex_decode(p->key_sha_hex, sha, 32)) {
 			chain_key_event("shirudo-key-revoke", sha, event);
-			r->derived = ct_eq(event, r->digest, 32);
+			r->derived = !memneq_explicit(event, r->digest, 32);
 		}
 	}
 	p->n_recs++;
@@ -703,10 +703,11 @@ static int check_signed(struct reporter *rep, const char *what,
 	say(rep, ret == 0, "%s: ECDSA signature by the attestation key", what);
 	tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qn);
 	say(rep, parsed->signer_len == TPM_NAME_LEN &&
-	    ct_eq(parsed->signer, qn, TPM_NAME_LEN),
+	    !memneq_explicit(parsed->signer, qn, TPM_NAME_LEN),
 	    "%s: signed by the key as an endorsement primary", what);
 	say(rep, parsed->extra_len == nonce_len &&
-	    (nonce_len == 0 || ct_eq(parsed->extra, nonce, nonce_len)),
+	    (nonce_len == 0 ||
+	     !memneq_explicit(parsed->extra, nonce, nonce_len)),
 	    "%s: carries the nonce", what);
 	return 0;
 }
@@ -904,7 +905,7 @@ int attest_verify(const char *evidence, size_t len,
 	}
 	say(&rep, expect->nonce_len == nonce_len &&
 	    (nonce_len == 0 ||
-	     ct_eq(nonce, expect->nonce, nonce_len)),
+	     !memneq_explicit(nonce, expect->nonce, nonce_len)),
 	    "nonce matches the request");
 
 	if (hex_bytes(p->ak_public_hex, ak_public, sizeof(ak_public),
@@ -926,12 +927,12 @@ int attest_verify(const char *evidence, size_t len,
 		__u8 computed[TPM_NAME_LEN];
 
 		tpm_object_name(ak_public, ak_public_len, computed);
-		say(&rep, ct_eq(computed, ak_name, sizeof(computed)),
+		say(&rep, !memneq_explicit(computed, ak_name, sizeof(computed)),
 		    "attestation key: name matches its public area");
 	}
 	if (expect->have_ak_name)
-		say(&rep, ct_eq(ak_name, expect->ak_name,
-				TPM_NAME_LEN),
+		say(&rep,
+		    !memneq_explicit(ak_name, expect->ak_name, TPM_NAME_LEN),
 		    "attestation key: the pinned key");
 	else
 		note(&rep, "attestation key not pinned: name %s",
@@ -954,12 +955,12 @@ int attest_verify(const char *evidence, size_t len,
 		parsed = tpm_public_parse(ek_public, ek_public_len,
 					  &ek_pub) == 0;
 		tpm_object_name(ek_public, ek_public_len, computed);
-		say(&rep, parsed && ct_eq(computed, ek_name,
-					  TPM_NAME_LEN),
+		say(&rep,
+		    parsed && !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
 		    "endorsement key: name matches its public area");
 		say(&rep, parsed && ek_pub.attrs == TPM_EK_ATTRS &&
 		    ek_pub.policy_len == 32 &&
-		    ct_eq(ek_pub.policy, shirudo_tpm_ek_policy, 32),
+		    !memneq_explicit(ek_pub.policy, shirudo_tpm_ek_policy, 32),
 		    "endorsement key: TCG default template under the "
 		    "endorsement policy");
 	} else {
@@ -972,7 +973,7 @@ int attest_verify(const char *evidence, size_t len,
 		say(&rep, have_ek &&
 		    !hex_bytes(p->ek_name_hex, ek_name, sizeof(ek_name), &n) &&
 		    n == TPM_NAME_LEN &&
-		    ct_eq(ek_name, expect->ek_name, TPM_NAME_LEN),
+		    !memneq_explicit(ek_name, expect->ek_name, TPM_NAME_LEN),
 		    "endorsement key: the pinned key");
 	}
 	if (have_cred && hex_bytes(p->cred_hex, cred, sizeof(cred), &cred_len)) {
@@ -981,8 +982,8 @@ int attest_verify(const char *evidence, size_t len,
 	}
 	if (expect->have_credential)
 		say(&rep, have_cred && cred_len == TPM_CREDENTIAL_LEN &&
-		    ct_eq(cred, expect->credential,
-			  TPM_CREDENTIAL_LEN),
+		    !memneq_explicit(cred, expect->credential,
+				     TPM_CREDENTIAL_LEN),
 		    "attestation key: activated the credential made for it "
 		    "under the endorsement key");
 	else if (have_cred)
@@ -1015,7 +1016,7 @@ int attest_verify(const char *evidence, size_t len,
 			sha256_final(&ctx, digest);
 		}
 		vouched = complete &&
-			  ct_eq(digest, quote.pcr_digest, 32);
+			  !memneq_explicit(digest, quote.pcr_digest, 32);
 		say(&rep, vouched,
 		    "quote: PCR digest matches the listed values");
 		if (!vouched)
@@ -1045,12 +1046,12 @@ int attest_verify(const char *evidence, size_t len,
 	if (ret == 0) {
 		say(&rep, certify.type == TPM_ST_ATTEST_NV &&
 		    certify.index_name_len == TPM_NAME_LEN &&
-		    ct_eq(certify.index_name, reg_name,
-			  TPM_NAME_LEN),
+		    !memneq_explicit(certify.index_name, reg_name,
+				     TPM_NAME_LEN),
 		    "register: certification names the listed index");
 		say(&rep, certify.type == TPM_ST_ATTEST_NV &&
 		    certify.offset == 0 && certify.nv_len == 32 &&
-		    ct_eq(certify.nv_data, reg_value, 32),
+		    !memneq_explicit(certify.nv_data, reg_value, 32),
 		    "register: certified contents match the listed value");
 	}
 	if (qrc == 0 && crc == 0)
@@ -1115,8 +1116,8 @@ int attest_verify(const char *evidence, size_t len,
 	tpm_nv_name(NV_INDEX,
 		    TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
 		    policy, 32, expected_name);
-	say(&rep, ct_eq(expected_name, reg_name, TPM_NAME_LEN) &&
-	    ct_eq(expected_name, p->init.name, TPM_NAME_LEN),
+	say(&rep, !memneq_explicit(expected_name, reg_name, TPM_NAME_LEN) &&
+	    !memneq_explicit(expected_name, p->init.name, TPM_NAME_LEN),
 	    "register: public area is bound to PCRs %u and %u as recorded",
 	    CHAIN_PCR, CHAIN_PHASE_PCR);
 	for (bit = 0; bit < 24; bit++) {
@@ -1127,8 +1128,8 @@ int attest_verify(const char *evidence, size_t len,
 		held = bit == CHAIN_PCR ? p->init.pcr_before :
 		       bit == CHAIN_PHASE_PCR ? p->init.phase_before :
 		       NULL;
-		say(&rep, held && ct_eq(held, expect->bind_values[bit],
-					32),
+		say(&rep, held &&
+		    !memneq_explicit(held, expect->bind_values[bit], 32),
 		    "binding: PCR %u held the expected value", bit);
 	}
 	if (expect->require_initrd)
@@ -1156,7 +1157,7 @@ int attest_verify(const char *evidence, size_t len,
 		if (i)
 			runtime++;
 	}
-	say(&rep, ct_eq(chain, reg_value, 32),
+	say(&rep, !memneq_explicit(chain, reg_value, 32),
 	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
 	    p->n_recs == 1 ? "" : "s");
 	/*
@@ -1177,14 +1178,14 @@ int attest_verify(const char *evidence, size_t len,
 					   sizeof(anchor));
 
 		sha256_calc(anchor, strlen(anchor), anchor_digest);
-		say(&rep, named && ct_eq(anchor_digest, p->init.anchor_digest,
-					 32),
+		say(&rep, named &&
+		    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),
 		    "anchor: record digest matches the index name");
 		memcpy(pcr_expected, p->init.pcr_before, 32);
 		chain_fold(pcr_expected, anchor_digest);
 		if (p->pcr_have & (1u << CHAIN_PCR)) {
-			bool exact = ct_eq(pcr_expected,
-					   p->pcrs[CHAIN_PCR], 32);
+			bool exact = !memneq_explicit(pcr_expected,
+						      p->pcrs[CHAIN_PCR], 32);
 
 			if (exact || expect->strict_anchor)
 				say(&rep, exact, "anchor: PCR %u equals the "
@@ -1202,18 +1203,19 @@ int attest_verify(const char *evidence, size_t len,
 	}
 
 	if (expect->have_init)
-		say(&rep, ct_eq(p->init.digest, expect->init_event, 32),
+		say(&rep,
+		    !memneq_explicit(p->init.digest, expect->init_event, 32),
 		    "state: init event covers the expected certificate, set "
 		    "and tree root");
 	if (expect->have_chain) {
-		say(&rep, ct_eq(reg_value, expect->chain, 32),
+		say(&rep, !memneq_explicit(reg_value, expect->chain, 32),
 		    "state: register equals the expected value");
 	} else if (expect->have_init) {
 		__u8 predicted[32] = {};
 
 		chain_fold(predicted, expect->init_event);
 		if (runtime == 0)
-			say(&rep, ct_eq(reg_value, predicted, 32),
+			say(&rep, !memneq_explicit(reg_value, predicted, 32),
 			    "state: register equals the value predicted for "
 			    "the set at boot");
 		else
@@ -1231,7 +1233,7 @@ int attest_verify(const char *evidence, size_t len,
 		if (!(expect->pcr_expect_mask & (1u << bit)))
 			continue;
 		say(&rep, (p->pcr_have & (1u << bit)) &&
-		    ct_eq(p->pcrs[bit], expect->pcrs[bit], 32),
+		    !memneq_explicit(p->pcrs[bit], expect->pcrs[bit], 32),
 		    "PCR %u matches the expected value", bit);
 	}
 	ret = rep.failed ? -EKEYREJECTED : 0;
@@ -1305,10 +1307,10 @@ static bool cert_describes(const struct cert_pubkey *key,
 		return false;
 	if (key->rsa)
 		return key->n_len == pub->n_len &&
-		       ct_eq(key->n, pub->n, pub->n_len) &&
+		       !memneq_explicit(key->n, pub->n, pub->n_len) &&
 		       key->e == (pub->rsa_exponent ? pub->rsa_exponent : 65537);
-	return ct_eq(key->x, pub->x, 32) &&
-	       ct_eq(key->y, pub->y, 32);
+	return !memneq_explicit(key->x, pub->x, 32) &&
+	       !memneq_explicit(key->y, pub->y, 32);
 }
 
 int attest_challenge_make(const char *evidence, size_t len,
@@ -1394,20 +1396,18 @@ int attest_challenge_make(const char *evidence, size_t len,
 	 * operator enrolled, not for whatever the document names.
 	 */
 	if (pol->ak_name)
-		say(&rep, ct_eq(ak_name, pol->ak_name,
-				TPM_NAME_LEN),
+		say(&rep, !memneq_explicit(ak_name, pol->ak_name, TPM_NAME_LEN),
 		    "attestation key: the pinned key");
 	if (pol->ek_name)
-		say(&rep, ct_eq(ek_name, pol->ek_name,
-				TPM_NAME_LEN),
+		say(&rep, !memneq_explicit(ek_name, pol->ek_name, TPM_NAME_LEN),
 		    "endorsement key: the pinned key");
 
 	/* The key must be an endorsement key, not any decryption key. */
 	tpm_object_name(ek_public, ek_public_len, computed);
-	say(&rep, ct_eq(computed, ek_name, TPM_NAME_LEN),
+	say(&rep, !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
 	    "endorsement key: name matches its public area");
 	say(&rep, pub.attrs == TPM_EK_ATTRS && pub.policy_len == 32 &&
-	    ct_eq(pub.policy, shirudo_tpm_ek_policy, 32),
+	    !memneq_explicit(pub.policy, shirudo_tpm_ek_policy, 32),
 	    "endorsement key: TCG default template under the endorsement "
 	    "policy");
 	if (top[2].seen) {

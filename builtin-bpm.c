@@ -1913,10 +1913,10 @@ static int tree_recover_pending(const struct tree_publication *pub,
 
 	ret = tree_event_replay(replay);
 	if (!ret) {
-		if (ct_eq(replay, next, sizeof(replay))) {
+		if (!memneq_explicit(replay, next, sizeof(replay))) {
 			applied = true;
 			event_present = true;
-		} else if (!ct_eq(replay, previous, sizeof(replay))) {
+		} else if (memneq_explicit(replay, previous, sizeof(replay))) {
 			return -EKEYREJECTED;
 		}
 	} else if (ret != -ENOENT) {

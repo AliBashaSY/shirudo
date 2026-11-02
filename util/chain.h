@@ -41,9 +41,6 @@ void sha256_2(const void *a, size_t a_len,
 	      const void *b, size_t b_len,
 	      __u8 out[CHAIN_DIGEST_LEN]);
 
-/* Constant time; 1 when equal. */
-int ct_eq(const void *a, const void *b, size_t n);
-
 struct measured_upatch {
 	char	name[UPATCH_NAME_MAX + 1];
 	char	payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];

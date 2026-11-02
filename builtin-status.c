@@ -1051,8 +1051,8 @@ int cmd_status(int argc, const char **argv)
 
 			match = cst.anchored && !cst.rebound &&
 				eventlog_replay(replay) == 0 &&
-				ct_eq(cst.value, replay,
-				      sizeof(replay));
+				!memneq_explicit(cst.value, replay,
+						 sizeof(replay));
 		}
 	}
 

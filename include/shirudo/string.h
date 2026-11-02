@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * Bounded number parsing, string copies and formatting, DNS names, from
- * util/string.c, and the scrub for secrets.
+ * util/string.c, and the scrub and compare for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -68,6 +68,24 @@ static inline void memzero_explicit(void *s, size_t count)
 {
 	memset(s, 0, count);
 	barrier_data(s);
+}
+
+/*
+ * 0 when the size bytes at a and b are equal and 1 when they differ, in
+ * a time that depends on size alone, for comparing a secret or a value
+ * derived from one, where memcmp() returns at the first difference.
+ */
+static inline int memneq_explicit(const void *a, const void *b, size_t size)
+{
+	const __u8 *pa = a, *pb = b;
+	__u8 neq = 0;
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		neq |= pa[i] ^ pb[i];
+		OPTIMIZER_HIDE_VAR(neq);
+	}
+	return neq != 0;
 }
 
 /*

@@ -332,7 +332,9 @@ one usually still compiles and passes tests.
   `<shirudo/string.h>` on every path out of its scope, the error paths
   included. A `memset()` of memory nothing reads afterwards is a dead
   store the compiler drops; `explicit_bzero()` is poisoned in favor of
-  the kernel's name.
+  the kernel's name. Compare such a value with `memneq_explicit()`
+  from the same header, which reads every byte whatever the bytes
+  before it held; `memcmp()` returns at the first difference.
 - `util/json.{c,h}` is the only JSON code. Extend its schema
   definitions for new fields or documents; never open-code JSON bytes
   elsewhere.

@@ -292,6 +292,27 @@ static void memzero_explicit_clears_its_span_only(void)
 	EXPECT_MEMEQ(buf, want, sizeof(buf));
 }
 
+static void memneq_explicit_tells_every_bit_apart(void)
+{
+	__u8 a[33], b[33];
+	size_t i;
+	int bit;
+
+	for (i = 0; i < sizeof(a); i++)
+		a[i] = (__u8)(i * 37 + 1);
+	memcpy(b, a, sizeof(b));
+	EXPECT_EQ(memneq_explicit(a, b, sizeof(a)), 0);
+	EXPECT_EQ(memneq_explicit(a, NULL, 0), 0);
+	for (i = 0; i < sizeof(a); i++) {
+		for (bit = 0; bit < 8; bit++) {
+			b[i] ^= 1u << bit;
+			EXPECT_EQ(memneq_explicit(a, b, sizeof(a)), 1);
+			EXPECT_EQ(memneq_explicit(a, b, i), 0);
+			b[i] ^= 1u << bit;
+		}
+	}
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -309,6 +330,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(xasprintf_allocates_the_size_needed),
 	UNIT_CASE(dns_name_is_ldh_labels_and_no_address),
 	UNIT_CASE(memzero_explicit_clears_its_span_only),
+	UNIT_CASE(memneq_explicit_tells_every_bit_apart),
 	{}
 };
 

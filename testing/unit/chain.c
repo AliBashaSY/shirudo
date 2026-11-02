@@ -17,18 +17,8 @@ static void sha256_matches_fips_180_vector(void)
 	EXPECT_STREQ(hex, want);
 }
 
-static void ct_eq_tells_one_bit_apart(void)
-{
-	static const __u8 a[] = { 0x00, 0xff }, b[] = { 0x00, 0xff };
-	static const __u8 c[] = { 0x01, 0xff };
-
-	EXPECT_EQ(ct_eq(a, b, sizeof(a)), 1);
-	EXPECT_EQ(ct_eq(a, c, sizeof(a)), 0);
-}
-
 static const struct unit_case cases[] = {
 	UNIT_CASE(sha256_matches_fips_180_vector),
-	UNIT_CASE(ct_eq_tells_one_bit_apart),
 	{}
 };
 

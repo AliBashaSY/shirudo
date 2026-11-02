@@ -671,7 +671,7 @@ int tree_event_replay(__u8 out[32])
 		ret = sha256_calc(next, sizeof(next), chain);
 		if (ret)
 			break;
-		if (!ct_eq(chain, recorded, 32)) {
+		if (memneq_explicit(chain, recorded, 32)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -708,7 +708,7 @@ void tree_emit_status(struct json_emit *e)
 		json_kv_bool(e, "eventlog_matches_state",
 			     hex_decode(s.projection_root, live,
 					32) == 0 &&
-			     ct_eq(live, replay, 32));
+			     !memneq_explicit(live, replay, 32));
 	} else {
 		json_kv_null(e, "eventlog_projection_root");
 		json_kv_null(e, "eventlog_matches_state");
