@@ -7,7 +7,538 @@
  * runtime/config mounts alongside the shared bpffs and BPF admission checks.
  */
 #include "verity_policy.h"
-#include "admission.h"
+#include <bpf/bpf_endian.h>
+
+/*
+ * BPF mutations require a task marked by successful exec from the runtime
+ * image. Verified signed loaders perform their own calls in kernel context.
+ */
+static __always_inline int shirudo_self_or_deny(enum tamper_point point)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || !shirudo_task_is_self(id))
+		return shirudo_tamper_deny(point, -EACCES);
+	return 0;
+}
+
+SEC("lsm/bpf")
+int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
+	     unsigned int size, bool kernel, int ret)
+{
+	enum tamper_point point;
+
+	if (ret)
+		return ret;
+	if (kernel)
+		return 0;
+
+	switch (cmd) {
+	case BPF_PROG_LOAD:
+		/*
+		 * Signed-loader entry. Require SYSCALL prog_type AND a
+		 * non-zero signature; the kernel verifies the CMS blob
+		 * against attr->keyring_id immediately after this hook.
+		 */
+		if (BPF_CORE_READ(attr, prog_type) != BPF_PROG_TYPE_SYSCALL)
+			point = TAMPER_LOAD_NOT_LOADER;
+		else if (BPF_CORE_READ(attr, signature_size) == 0)
+			point = TAMPER_LOAD_UNSIGNED;
+		else
+			return 0;
+		return shirudo_tamper_deny(point, -EACCES);
+
+	/*
+	 * Vetted mutating cmds the signed-loader data-map + attach/pin
+	 * pattern needs from userspace, each left to a caller authorized by
+	 * successful runtime exec. Signed-loader mutations run in kernel context.
+	 * A prog_fd is only obtainable via the signature-gated
+	 * BPF_PROG_LOAD above or GET_FD_BY_ID of an already-vetted prog.
+	 * gen_loader emits no link-create and bpf_sys_bpf() cannot
+	 * BPF_OBJ_PIN, so shirudo's one-shot CLI must create + pin the
+	 * link itself, and nobody else has a reason to: a vetted kprobe
+	 * program re-attached by root at a site of its choosing would run
+	 * signed code where its signer never meant it to, and a pin of
+	 * root's into the private bpffs is an entry shirudo did not make.
+	 */
+	case BPF_MAP_CREATE:
+		return shirudo_self_or_deny(TAMPER_MAP_CREATE);
+
+	case BPF_MAP_UPDATE_ELEM:
+	case BPF_MAP_FREEZE:
+		return shirudo_self_or_deny(TAMPER_MAP_WRITE);
+
+	case BPF_PROG_TEST_RUN:
+		return shirudo_self_or_deny(TAMPER_PROG_RUN);
+
+	case BPF_LINK_CREATE:
+	case BPF_RAW_TRACEPOINT_OPEN:
+		return shirudo_self_or_deny(TAMPER_ATTACH);
+
+	case BPF_OBJ_PIN:
+		return shirudo_self_or_deny(TAMPER_OBJ_PIN);
+
+	/*
+	 * A descriptor keeps its object alive: a link held open stays
+	 * attached after shirudo unpins it for an unload, a revocation or
+	 * the undo of a refused load, and no LSM hook sees a link descriptor
+	 * being handed out. A map descriptor reads the state the serializers
+	 * own. Neither is root's to take, by pin or by id.
+	 */
+	case BPF_OBJ_GET:
+	case BPF_MAP_GET_FD_BY_ID:
+	case BPF_LINK_GET_FD_BY_ID:
+		return shirudo_self_or_deny(TAMPER_OBJ_GET);
+
+	/*
+	 * Read-only / observability cmds. BPF_OBJ_UNPIN does not exist as a
+	 * bpf() cmd; VFS unlink removes pins and shirudo's lsm/inode_unlink
+	 * hook blocks `rm` on the private bpffs.
+	 */
+	case BPF_MAP_LOOKUP_ELEM:
+	case BPF_MAP_GET_NEXT_KEY:
+	case BPF_MAP_LOOKUP_BATCH:
+	case BPF_OBJ_GET_INFO_BY_FD:
+	case BPF_PROG_QUERY:
+	case BPF_PROG_GET_NEXT_ID:
+	case BPF_MAP_GET_NEXT_ID:
+	case BPF_BTF_GET_NEXT_ID:
+	case BPF_LINK_GET_NEXT_ID:
+	case BPF_PROG_GET_FD_BY_ID:
+	case BPF_BTF_GET_FD_BY_ID:
+	case BPF_TASK_FD_QUERY:
+		return 0;
+
+	/*
+	 * Default-DENY, fail closed. This covers the tear-down / replace /
+	 * corruption cmds an attacker would use to detach or swap out
+	 * shirudo's own LSM/upatch links or drain map state
+	 * (BPF_LINK_DETACH, BPF_LINK_UPDATE, BPF_PROG_ATTACH/DETACH,
+	 * BPF_BTF_LOAD, BPF_MAP_DELETE_ELEM and the *_BATCH /
+	 * LOOKUP_AND_DELETE variants) and -- critically -- every cmd
+	 * shirudo has not explicitly vetted above, including ones a newer
+	 * kernel may add (BPF_TOKEN_CREATE, BPF_PROG_BIND_MAP,
+	 * BPF_ITER_CREATE, BPF_PROG_ASSOC_STRUCT_OPS, ...). A future
+	 * mutating cmd therefore cannot silently bypass policy: it stays
+	 * denied until explicitly classified. -EACCES matches the LSM
+	 * denial errno used throughout (threat-model.rst T1/T2).
+	 */
+	default:
+		return shirudo_tamper_deny(TAMPER_BPF_CMD, -EACCES);
+	}
+}
+
+/*
+ * Writable map fds let userspace alter array contents and writable
+ * mmap lets it alter arena pages without another bpf() command; a
+ * read-only one reads what the serializers own. Every route to a map
+ * descriptor ends here, so every one is shirudo's.
+ */
+SEC("lsm/bpf_map")
+int BPF_PROG(shirudo_lsm_bpf_map, struct bpf_map *map, fmode_t fmode,
+	     int ret)
+{
+	if (ret)
+		return ret;
+	if (fmode & FMODE_WRITE)
+		return shirudo_self_or_deny(TAMPER_MAP_FD);
+	return shirudo_self_or_deny(TAMPER_OBJ_GET);
+}
+
+/*
+ * Admission gate. Fires from a single call site inside the verifier
+ * (bpf_check), after the kernel has verified any PKCS#7 signature and
+ * recorded the verdict on prog->aux->sig -- so the fields read here are
+ * final. A userspace load is admitted only if the kernel verified it
+ * against exactly shirudo's own sealed keyring; every other program is
+ * denied, fail-closed.
+ *
+ * kernel == true means the load originates from inside an already-vetted
+ * signed loader running in kernel context; those are always allowed
+ * (the loader itself passed this gate when it was loaded from userspace).
+ */
+SEC("lsm/bpf_prog_load")
+int BPF_PROG(shirudo_lsm_bpf_prog_load, struct bpf_prog *prog,
+	     union bpf_attr *attr, struct bpf_token *token,
+	     bool kernel, int ret)
+{
+	struct sb_id *id;
+	__u32 zero = 0, verdict, ktype;
+	__s32 serial;
+
+	if (ret)
+		return ret;
+	if (kernel)
+		return 0;
+
+	/*
+	 * Fail closed if the identity record is missing or carries no
+	 * keyring serial: without the trust anchor there is no way to tell
+	 * a shirudo-signed load from an attacker's, so admit nothing.
+	 */
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || id->keyring_serial == 0)
+		return -EACCES;
+
+	verdict = BPF_CORE_READ(prog, aux, sig.verdict);
+	ktype   = BPF_CORE_READ(prog, aux, sig.keyring_type);
+	serial  = BPF_CORE_READ(prog, aux, sig.keyring_serial);
+
+	/*
+	 * Three ways to fail, each counted apart: no verified signature
+	 * on the program, a signature verified against a keyring of the
+	 * wrong kind, or against a keyring of the right kind that is not
+	 * the one init froze.
+	 */
+	if (verdict != BPF_SIG_VERIFIED)
+		return shirudo_tamper_deny(TAMPER_LOAD_UNVERIFIED,
+					   -EACCES);
+	if (ktype != BPF_SIG_KEYRING_BPF)
+		return shirudo_tamper_deny(TAMPER_LOAD_KEYRING_KIND,
+					   -EACCES);
+	/* The kernel singleton is recorded without a serial on some loads. */
+	if (serial && serial != id->keyring_serial)
+		return shirudo_tamper_deny(TAMPER_LOAD_KEYRING, -EACCES);
+
+	return 0;
+}
+
+SEC("lsm/task_prctl")
+int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
+	     unsigned long arg3, unsigned long arg4, unsigned long arg5,
+	     int ret)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	(void)arg3;
+	(void)arg4;
+	(void)arg5;
+	if (ret && ret != -ENOSYS)
+		return ret;
+	if (option == PR_GET_ENFORCEMENT) {
+		id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+		if (!id)
+			return -EACCES;
+		return -PR_ENFORCING_ERR;
+	}
+	if (option != PR_SET_MM ||
+	    (arg2 != PR_SET_MM_EXE_FILE && arg2 != PR_SET_MM_MAP))
+		return ret ? ret : -ENOSYS;
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id)
+		return -EACCES;
+	if (!shirudo_task_is_self(id))
+		return shirudo_tamper_deny(TAMPER_EXE_IDENTITY, -EPERM);
+	return -ENOSYS;
+}
+
+/* Runtime executables always get secure-exec and refuse tracing at exec. */
+SEC("lsm/bprm_check_security")
+int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
+	     int ret)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	if (ret)
+		return ret;
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || !shirudo_file_runtime(bprm->file))
+		return 0;
+	if (BPF_CORE_READ(bprm, unsafe) & LSM_UNSAFE_PTRACE)
+		return shirudo_tamper_deny(TAMPER_EXEC_TRACED, -EPERM);
+	bpf_bprm_opts_set(bprm, BPF_F_BPRM_SECUREEXEC);
+	return 0;
+}
+
+/*
+ * Protect bpffs and the filesystem holding image mountpoints. Only a trusted
+ * runtime task may change their inodes. Count bpffs refusals at `point`.
+ */
+static __always_inline int shirudo_bpffs_guard(__u32 target_dev,
+					       enum tamper_point point)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id || id->sb_dev == 0)
+		return 0;
+	if (!shirudo_protected_filesystem(id, target_dev))
+		return 0;
+	if (shirudo_task_is_self(id))
+		return 0;
+	if (target_dev == id->sb_dev && point != TAMPER_MAX)
+		return shirudo_tamper_deny(point, -EPERM);
+	return -EPERM;
+}
+
+/*
+ * The trust anchors in the kernel's keyrings: the bpf and dm-verity
+ * keyrings init froze and the keys they hold. Root owns both with write
+ * and setattr permission, so without this hook a single keyctl could
+ * unlink, clear, revoke or invalidate the certificates every load and
+ * every config root is verified against. Deny those needs to every
+ * task but shirudo. A search is denied only through an unpossessed
+ * reference, which is how keyctl reaches a key by serial to invalidate
+ * it; the kernel verifies a signature by searching the keyring it
+ * possesses, and that stays open to every loader.
+ */
+SEC("lsm/key_permission")
+int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
+	     const struct cred *cred, enum key_need_perm need, int ret)
+{
+	struct sb_id *id;
+	__u32 zero = 0, i;
+	struct key *key;
+	bool possessed;
+	__s32 serial;
+
+	if (ret)
+		return ret;
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (!id)
+		return 0;
+	key = (struct key *)((unsigned long)key_ref & ~1UL);
+	serial = BPF_CORE_READ(key, serial);
+	switch (need) {
+	case KEY_NEED_WRITE:
+	case KEY_NEED_SEARCH:
+	case KEY_NEED_SETATTR:
+	case KEY_NEED_UNLINK:
+		break;
+	default:
+		return 0;
+	}
+	if (id->keyring_serial == 0)
+		return 0;
+	possessed = (unsigned long)key_ref & 1;
+	if (serial != id->keyring_serial && serial != id->dm_verity_ring &&
+	    serial != id->dm_verity_key) {
+		for (i = 0; i < IDENTITY_KEYS_MAX; i++)
+			if (i < id->n_keys && id->key_serials[i] == serial)
+				break;
+		if (i == IDENTITY_KEYS_MAX)
+			return 0;	/* not the anchor -- not ours */
+	}
+	if (need == KEY_NEED_SEARCH && possessed)
+		return 0;
+	return shirudo_task_is_self(id) ? 0 :
+	       shirudo_tamper_deny(TAMPER_KEYRING, -EACCES);
+}
+
+/*
+ * A TPM signature alone cannot change Shirudo's NV register. Restrict
+ * extension of its frozen index while leaving unrelated TPM signing alone.
+ */
+SEC("lsm/tpm_command")
+int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
+	     const __u8 *command, size_t command_len, int ret)
+{
+	struct sb_id *id;
+	__u32 code, index;
+
+	(void)file;
+	if (ret)
+		return ret;
+	if (command_len < 10 ||
+	    bpf_probe_read_kernel(&code, sizeof(code), command + 6))
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
+					   -EACCES);
+	if (bpf_ntohl(code) != TPM_CC_NV_EXTEND)
+		return 0;
+	if (command_len < 18 ||
+	    bpf_probe_read_kernel(&index, sizeof(index), command + 14))
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
+					   -EACCES);
+	id = shirudo_policy();
+	if (!id || (bpf_ntohl(index) == id->nv_index &&
+		    !shirudo_task_is_self(id)))
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
+					   -EACCES);
+	return 0;
+}
+
+/*
+ * Inside shirudo's bpffs: only an authorized caller may unlink
+ * (the `upatch unload` path). Every other caller -- including root
+ * `rm` -- is denied, so the LSM link cannot be detached by removing
+ * its pin.
+ */
+SEC("lsm/inode_unlink")
+int BPF_PROG(shirudo_lsm_inode_unlink, struct inode *dir,
+	     struct dentry *dentry, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   TAMPER_PIN_UNLINK);
+}
+
+SEC("lsm/inode_rmdir")
+int BPF_PROG(shirudo_lsm_inode_rmdir, struct inode *dir,
+	     struct dentry *dentry, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   TAMPER_MAX);
+}
+
+/*
+ * The private bpffs takes no entry shirudo did not make. bpffs lets
+ * root make directories, symbolic links and hard links: a symbolic
+ * link in place of a pin directory would send the pins of the next
+ * load into a bpffs of root's own, where no guard reaches them, and a
+ * hard link to a pin would keep the link alive past its unlink.
+ */
+SEC("lsm/inode_mkdir")
+int BPF_PROG(shirudo_lsm_inode_mkdir, const struct mnt_idmap *idmap,
+	     struct inode *dir, struct dentry *dentry, umode_t mode, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   TAMPER_PIN_ENTRY);
+}
+
+SEC("lsm/inode_symlink")
+int BPF_PROG(shirudo_lsm_inode_symlink, const struct mnt_idmap *idmap,
+	     struct inode *dir, struct dentry *dentry, const char *old_name,
+	     int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   TAMPER_PIN_ENTRY);
+}
+
+SEC("lsm/inode_link")
+int BPF_PROG(shirudo_lsm_inode_link, const struct mnt_idmap *idmap,
+	     struct dentry *old_dentry, struct inode *dir,
+	     struct dentry *new_dentry, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				   TAMPER_PIN_ENTRY);
+}
+
+/*
+ * A kexec hands the machine to a kernel and an initrd of root's
+ * choosing with the TPM as it is, the PCRs and this boot's register
+ * with it, so the evidence of this boot would vouch for whatever runs
+ * after. No task loads a kexec image or initramfs by either system
+ * call.
+ */
+SEC("lsm/kernel_load_data")
+int BPF_PROG(shirudo_lsm_kernel_load_data, enum kernel_load_data_id id,
+	     bool contents, int ret)
+{
+	if (ret)
+		return ret;
+	if (id != LOADING_KEXEC_IMAGE && id != LOADING_KEXEC_INITRAMFS)
+		return 0;
+	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
+}
+
+SEC("lsm/kernel_read_file")
+int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
+	     enum kernel_read_file_id id, bool contents, int ret)
+{
+	if (ret)
+		return ret;
+	if (id != READING_KEXEC_IMAGE && id != READING_KEXEC_INITRAMFS)
+		return 0;
+	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
+}
+
+SEC("lsm/inode_rename")
+int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
+	     struct dentry *old_dentry, struct inode *new_dir,
+	     struct dentry *new_dentry, int ret)
+{
+	if (ret)
+		return ret;
+	ret = shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev),
+				  TAMPER_PIN_RENAME);
+	return ret ? ret :
+	       shirudo_bpffs_guard(BPF_CORE_READ(new_dir, i_sb, s_dev),
+				   TAMPER_PIN_RENAME);
+}
+
+/*
+ * Only shirudo may set xattrs on its own bpffs, so the
+ * security.bpf.shirudo.payload value recorded on each pin directory
+ * cannot be forged by a root attacker. The unload check trusts this value.
+ */
+SEC("lsm/inode_setxattr")
+int BPF_PROG(shirudo_lsm_inode_setxattr, struct mnt_idmap *idmap,
+	     struct dentry *dentry, const char *name, const void *value,
+	     __u64 size, int flags, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
+				   TAMPER_PIN_XATTR);
+}
+
+/* Symmetric to setxattr: deny removing a pin's xattrs from non-shirudo. */
+SEC("lsm/inode_removexattr")
+int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
+	     struct dentry *dentry, const char *name, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
+				   TAMPER_PIN_XATTR);
+}
+
+/*
+ * Mount-lifecycle lockdown of shirudo's private bpffs superblock.
+ *
+ * The pinned LSM links live only in this bpffs, and shirudo is agentless
+ * -- once `shirudo init` exits no process holds an fd to them, so the
+ * pins are their only reference. Tearing the superblock down therefore
+ * detaches every hook at once: a plain `umount /run/shirudo/bpffs`
+ * drops the pinned inodes, releases the links, and silently disables all
+ * enforcement (no signature, keyring, or TPM involved). The inode guards
+ * above stop `rm` of a pin but a mount is not an inode op, so it slips
+ * past them. Gate the whole mount lifecycle of this one superblock:
+ * unmount, relocate (move_mount), mounting over the pin tree (sb_mount),
+ * and remount. shirudo never performs any of these on its own bpffs
+ * after init, so the deny is unconditional -- the mount is immutable for
+ * the boot's lifetime, for every caller including shirudo itself. The
+ * hooks are self-protecting: their own pins live in the bpffs they keep
+ * mounted.
+ *
+ * These checks cover the bpffs itself. The VFS calls sb_umount for the
+ * requested mount alone, so an unmount of a mount above the bpffs, or
+ * of one whose unmount propagates to such a mount, is caught by the walk
+ * in bpf2.c from the mount init recorded.
+ */
+static __always_inline __u32 shirudo_bpffs_dev(void)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	return id ? id->sb_dev : 0;
+}
+
+/* -EPERM, counted at `point`, when sb_dev is the bpffs; else 0. */
+static __always_inline int
+shirudo_deny_bpffs_mount(__u32 sb_dev, enum tamper_point point)
+{
+	__u32 bpffs = shirudo_bpffs_dev();
+
+	if (!bpffs || sb_dev != bpffs)
+		return 0;
+	return shirudo_tamper_deny(point, -EPERM);
+}
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 

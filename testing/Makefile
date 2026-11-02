@@ -119,7 +119,7 @@ TEST_VM_BUNDLE_STAMP := $(TEST_VM_BUNDLE_DIR)/.stamp
 TEST_VM_BUNDLE_SOURCES := $(sort $(wildcard \
 	$(ROOT)/*.c $(ROOT)/*.h $(ROOT)/include/shirudo/*.h \
 	$(ROOT)/util/*.c $(ROOT)/util/*.h \
-	$(ROOT)/bpf/*.c $(ROOT)/bpf/*.h $(ROOT)/bpf/lib/*.h \
+	$(ROOT)/bpf/*.c $(ROOT)/bpf/lib/*.h \
 	$(ROOT)/tools/shirudo-build/*.c $(ROOT)/tools/shirudo-build/*.h \
 	$(ROOT)/vendor/libbpf/bpf/*.c $(ROOT)/vendor/libbpf/bpf/*.h \
 	$(ROOT)/vendor/libbpf/include/linux/*.h \

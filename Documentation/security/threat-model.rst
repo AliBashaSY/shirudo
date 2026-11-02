@@ -631,9 +631,9 @@ neither permissions nor ownership stop root. A changed archive would be
 restored at the next boot, a truncated eventlog would make the register
 unexplainable, and a planted file would be taken for shirudo's own.
 
-The seal (``bpf/seal.c`` and ``bpf/seal.h``) marks shirudo's inodes
-with the extended attribute ``security.bpf.shirudo`` and checks every
-operation on a marked inode against the caller's authority. ``init``
+The seal (``bpf/seal.c``) marks shirudo's inodes with the extended
+attribute ``security.bpf.shirudo`` and checks every operation on a
+marked inode against the caller's authority. ``init``
 labels the existing tree on the run that brings enforcement up, before
 the seal attaches. On every later run a state root without the label is
 refused, since it is a tree bound over the path rather than the one

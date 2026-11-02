@@ -344,11 +344,13 @@ Project layout
        linked into ``shirudo-build`` only.
    * - ``bpf/``
      - The embedded BPF programs: ``bpf2.c`` (admission, mount, image
-       and device guards), ``seal.c`` (the seal), ``unload.c`` (the
-       signed unload directive) and their headers.
+       and device guards), ``seal.c`` (the seal) and ``unload.c`` (the
+       signed unload directive).
    * - ``bpf/lib/``
-     - Headers shared with upatches: decoders, identity, serializers,
-       tamper counters and common helpers.
+     - The headers more than one BPF program includes: the LSM helpers
+       and verity device records of ``bpf2.c`` and ``seal.c``, and,
+       shared with upatches and userspace, decoders, identity,
+       serializers, tamper counters and common helpers.
    * - ``include/shirudo/``
      - Integer types, string and number helpers, the ``.upatch``
        container layout, TPM types and the enforcement definitions

@@ -72,7 +72,7 @@ while IFS= read -r counter; do
 done <"$work/counters"
 
 # The hooks, counters and tests a threat fact box names exist.
-grep -ohE 'SEC\("lsm(\.s)?/[a-z_]+"\)' bpf/*.c bpf/*.h |
+grep -ohE 'SEC\("lsm(\.s)?/[a-z_]+"\)' bpf/*.c bpf/lib/*.h |
 	sed -E 's/SEC\("lsm(\.s)?\/([a-z_]+)"\)/\2/' | sort -u >"$work/hooks"
 while IFS= read -r page; do
 	grep -E '^:(Enforced at|Counters|Tests):' "$page" >"$work/facts" || continue

@@ -34,10 +34,11 @@ and returns an error that the kernel hands back to the caller.
 Two objects
 -----------
 
-The binary embeds two BPF objects. ``bpf2`` (``bpf/bpf2.c`` with
-``bpf/admission.h``) holds BPF admission and the guards of shirudo's own
-kernel state. ``seal`` (``bpf/seal.c`` with ``bpf/seal.h``) holds the
-task marks, the process protection and the checks on writable state.
+The binary embeds two BPF objects. ``bpf2`` (``bpf/bpf2.c``) holds BPF
+admission and the guards of shirudo's own kernel state. ``seal``
+(``bpf/seal.c``) holds the task marks, the process protection and the
+checks on writable state. Both share the LSM helpers and the verity
+device records of ``bpf/lib/``.
 ``init`` loads both without a signature, from the binary the
 authenticated initrd carries.
 

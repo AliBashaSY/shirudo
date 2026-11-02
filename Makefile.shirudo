@@ -365,7 +365,7 @@ build/target/%.o: %.c Makefile.shirudo $(CONFIG_MK_DEP)
 # and UAPI kernel headers from vendor/libbpf, and shirudo's own BPF
 # library headers from bpf/lib.
 bpf/%.bpf.o: bpf/%.c $(VMLINUX_H) $(BPF_LIBBPF_HEADERS) \
-              $(wildcard bpf/*.h bpf/lib/*.h) include/shirudo/tpm.h \
+              $(wildcard bpf/lib/*.h) include/shirudo/tpm.h \
               include/shirudo/enforcement.h
 	@printf '  CLANG   $@\n'
 	$(Q)$(CLANG_BPF) -Iinclude -Ibpf/lib -I$(dir $(VMLINUX_H)) -I$(LIBBPF_VENDOR) \
