@@ -162,7 +162,7 @@ endif
 # -Wmissing-declarations; the BPF_PROG() / BPF_KPROBE() macros
 # generate auto-named params that often go unused. Neither is
 # fixable upstream of us, so silence both for BPF compilation.
-CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra -Wvla \
+CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra -Wvla -Wshadow \
              -Wno-missing-declarations -Wno-unused-parameter \
              -Wdeclaration-after-statement $(WERROR_CFLAGS)
 

@@ -119,12 +119,12 @@ static __always_inline void priv_set_detail(struct priv_entry __arena *e,
 }
 
 static __always_inline void priv_set_mapping_name(struct priv_entry __arena *e,
-						  struct file *file)
+						  struct file *filp)
 {
 	char name[OBS_NAME_LEN] = {};
 
-	if (file)
-		obs_name_from_file(file, name);
+	if (filp)
+		obs_name_from_file(filp, name);
 	else
 		__builtin_memcpy(name, "anonymous", sizeof("anonymous"));
 	priv_set_name(e, name);
@@ -268,7 +268,7 @@ int BPF_PROG(obs_mount, const char *dev_name, const struct path *path,
 }
 
 SEC("lsm.s/kernel_read_file")
-int BPF_PROG(obs_kernel_read_file, struct file *file,
+int BPF_PROG(obs_kernel_read_file, struct file *filp,
 	     enum kernel_read_file_id id, bool contents)
 {
 	struct priv_entry __arena *e;
@@ -284,9 +284,9 @@ int BPF_PROG(obs_kernel_read_file, struct file *file,
 			&status);
 	if (!e || status != OBS_TOUCH_CREATED)
 		return 0;
-	obs_name_from_file(file, name);
+	obs_name_from_file(filp, name);
 	priv_set_name(e, name);
-	if (file && bpf_d_path(&file->f_path, detail, sizeof(detail)) > 0)
+	if (filp && bpf_d_path(&filp->f_path, detail, sizeof(detail)) > 0)
 		priv_set_detail(e, detail);
 	return 0;
 }
@@ -325,7 +325,7 @@ int BPF_PROG(obs_module_request, char *kmod_name)
 }
 
 SEC("lsm/mmap_file")
-int BPF_PROG(obs_mmap_file, struct file *file, unsigned long reqprot,
+int BPF_PROG(obs_mmap_file, struct file *filp, unsigned long reqprot,
 	     unsigned long prot, unsigned long flags)
 {
 	struct priv_entry __arena *e;
@@ -343,7 +343,7 @@ int BPF_PROG(obs_mmap_file, struct file *file, unsigned long reqprot,
 	if (!e)
 		return 0;
 	if (status == OBS_TOUCH_CREATED)
-		priv_set_mapping_name(e, file);
+		priv_set_mapping_name(e, filp);
 	e->val.aux = flags;
 	return 0;
 }
@@ -356,7 +356,7 @@ int BPF_PROG(obs_file_mprotect, struct vm_area_struct *vma,
 	struct obs_ident ident = {};
 	unsigned long vm_flags;
 	__u64 now = obs_now();
-	struct file *file;
+	struct file *filp;
 	__u32 euid;
 	int status;
 
@@ -365,7 +365,7 @@ int BPF_PROG(obs_file_mprotect, struct vm_area_struct *vma,
 	vm_flags = BPF_CORE_READ(vma, vm_flags);
 	if (vm_flags & OBS_VM_EXEC)
 		return 0;
-	file = BPF_CORE_READ(vma, vm_file);
+	filp = BPF_CORE_READ(vma, vm_file);
 	obs_ident_checked(&ident, now);
 	euid = obs_current_euid();
 	e = priv_record(&ident, OBS_PRIV_MPROTECT_EXEC, (__u32)prot, euid,
@@ -373,7 +373,7 @@ int BPF_PROG(obs_file_mprotect, struct vm_area_struct *vma,
 	if (!e)
 		return 0;
 	if (status == OBS_TOUCH_CREATED)
-		priv_set_mapping_name(e, file);
+		priv_set_mapping_name(e, filp);
 	e->val.aux = BPF_CORE_READ(vma, vm_end) -
 		    BPF_CORE_READ(vma, vm_start);
 	return 0;

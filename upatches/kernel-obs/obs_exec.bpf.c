@@ -83,7 +83,7 @@ int BPF_PROG(obs_exec, struct linux_binprm *bprm)
 	struct exec_key key = {};
 	char path[OBS_PATH_LEN] = {};
 	char name[OBS_NAME_LEN] = {};
-	struct file *file;
+	struct file *filp;
 	__u64 now = obs_now();
 	__u32 euid, uid;
 	__u64 caps;
@@ -91,8 +91,8 @@ int BPF_PROG(obs_exec, struct linux_binprm *bprm)
 	int status;
 	long len;
 
-	file = bprm->file;
-	if (!file || obs_exe_from_file(file, &key.ident.exe))
+	filp = bprm->file;
+	if (!filp || obs_exe_from_file(filp, &key.ident.exe))
 		return 0;
 	key.ident.cgroup = bpf_get_current_cgroup_id();
 	interp = bprm->interp != bprm->filename;
@@ -116,9 +116,9 @@ int BPF_PROG(obs_exec, struct linux_binprm *bprm)
 	e = exec_touch(&key, &status);
 	if (e) {
 		if (status == OBS_TOUCH_CREATED) {
-			obs_name_from_file(file, name);
+			obs_name_from_file(filp, name);
 			obs_copy_in(e->val.name, name, OBS_NAME_LEN / 8);
-			len = bpf_d_path(&file->f_path, path, sizeof(path));
+			len = bpf_d_path(&filp->f_path, path, sizeof(path));
 			if (len > 0)
 				obs_copy_in(e->val.path, path, OBS_PATH_LEN / 8);
 			else

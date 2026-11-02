@@ -107,7 +107,7 @@ static __always_inline int obs_file_match(const char *name,
 }
 
 SEC("lsm.s/file_open")
-int BPF_PROG(obs_file_open, struct file *file)
+int BPF_PROG(obs_file_open, struct file *filp)
 {
 	struct file_entry __arena *e;
 	struct file_key key = {};
@@ -121,9 +121,9 @@ int BPF_PROG(obs_file_open, struct file *file)
 	int status;
 	int rule;
 
-	if (!file)
+	if (!filp)
 		return 0;
-	dentry = file->f_path.dentry;
+	dentry = filp->f_path.dentry;
 	if (!dentry)
 		return 0;
 	src = BPF_CORE_READ(dentry, d_name.name);
@@ -135,7 +135,7 @@ int BPF_PROG(obs_file_open, struct file *file)
 		if (src)
 			bpf_probe_read_kernel_str(parent, sizeof(parent), src);
 	}
-	fmode = BPF_CORE_READ(file, f_mode);
+	fmode = BPF_CORE_READ(filp, f_mode);
 	write = (fmode & FMODE_WRITE_BIT) != 0;
 	rule = obs_file_match(name, parent, write);
 	if (rule < 0)
@@ -145,7 +145,7 @@ int BPF_PROG(obs_file_open, struct file *file)
 	obs_ident_checked(&key.ident, now);
 	key.euid = obs_current_euid();
 	key.mode = fmode & (FMODE_READ_BIT | FMODE_WRITE_BIT);
-	if (bpf_d_path(&file->f_path, key.path, sizeof(key.path)) <= 0) {
+	if (bpf_d_path(&filp->f_path, key.path, sizeof(key.path)) <= 0) {
 		/* A path too long leaves its tail in the key; the name alone is the key. */
 		__builtin_memset(key.path, 0, sizeof(key.path));
 		__builtin_memcpy(key.path, name, OBS_NAME_LEN);
@@ -157,7 +157,7 @@ int BPF_PROG(obs_file_open, struct file *file)
 	if (status == OBS_TOUCH_CREATED) {
 		e->val.first_ns = now;
 		e->val.rule = (__u32)rule;
-		e->val.magic = BPF_CORE_READ(file, f_inode, i_sb, s_magic);
+		e->val.magic = BPF_CORE_READ(filp, f_inode, i_sb, s_magic);
 	}
 	__sync_fetch_and_add(&e->val.count, 1);
 	e->val.last_ns = now;

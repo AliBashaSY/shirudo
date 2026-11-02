@@ -613,6 +613,35 @@ static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
 }
 
 /*
+ * From m, the last mount of a subtree walked, the next one in
+ * first-child, next-sibling order: the next sibling of m or of its
+ * nearest ancestor below t that has one. 1 with *m set to it, 0 when the
+ * walk is back at t, -1 when the tree cannot be walked within the bounds.
+ */
+static __always_inline int shirudo_mount_next_sibling(struct mount *t,
+						      struct mount **m)
+{
+	struct mount *parent, *cur = *m;
+	__u64 next;
+	int j;
+
+	bpf_for(j, 0, MOUNT_DEPTH_MAX) {
+		if (cur == t)
+			return 0;
+		parent = BPF_CORE_READ(cur, mnt_parent);
+		next = (__u64)BPF_CORE_READ(cur, mnt_child.next);
+		if (!parent || !next)
+			return -1;
+		if (next != shirudo_mount_children(parent)) {
+			*m = shirudo_mount_child(next);
+			return 1;
+		}
+		cur = parent;
+	}
+	return -1;
+}
+
+/*
  * The pins hold the enforcement links through the bpffs superblock,
  * which goes with the last mount of it: a lazy unmount of /run took the
  * private bpffs with it, and so did one of a copy of /run in another
@@ -625,12 +654,11 @@ static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
  */
 static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 {
+	struct mount *t, *m, *bpffs;
 	struct mount_record *rec;
-	struct mount *t, *m, *bpffs, *parent;
 	__u32 zero = 0;
-	bool sibling;
 	__u64 next;
-	int i, j;
+	int i, ret;
 
 	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
 	if (!rec || !rec->mount)
@@ -648,22 +676,10 @@ static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 			m = shirudo_mount_child(next);
 			continue;
 		}
-		sibling = false;
-		bpf_for(j, 0, MOUNT_DEPTH_MAX) {
-			if (m == t)
-				return 0;
-			parent = BPF_CORE_READ(m, mnt_parent);
-			next = (__u64)BPF_CORE_READ(m, mnt_child.next);
-			if (!parent || !next)
-				goto deny;
-			if (next != shirudo_mount_children(parent)) {
-				m = shirudo_mount_child(next);
-				sibling = true;
-				break;
-			}
-			m = parent;
-		}
-		if (!sibling)
+		ret = shirudo_mount_next_sibling(t, &m);
+		if (!ret)
+			return 0;
+		if (ret < 0)
 			goto deny;
 	}
 deny:
