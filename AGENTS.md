@@ -333,6 +333,15 @@ one usually still compiles and passes tests.
 
 ## Memory, JSON and logging
 
+- Keep tables off the stack: a frame past 128 KiB fails the build
+  (`-Wframe-larger-than`). Allocate a table with `xcalloc()`, and mark
+  a helper with a large buffer `noinline_for_stack` where inlining
+  would add its frame to its caller's.
+- Take the smaller or larger of two values with `min()` and `max()`,
+  which refuse operands that compare differently as signed and
+  unsigned; a constant compared with an unsigned value takes a `U`
+  suffix. `min_t()` and `max_t()` cast, which can cut a value short, so
+  they are for only what `min()` and `max()` refuse.
 - Use the zeroing allocator in `util/malloc.{c,h}`: `xmalloc`/`xcalloc`
   return NULL on failure (never die), `xfree(ptr, size)` and
   `xstrfree` scrub before freeing. The libc allocators are poisoned
