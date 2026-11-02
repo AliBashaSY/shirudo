@@ -663,7 +663,7 @@ static char *format_value(const void *value, __u32 value_size,
 	/* Hex fallback (cap at 32 bytes shown for readability). */
 	{
 		const __u8 *p = value;
-		__u32 cap = value_size < 32 ? value_size : 32;
+		__u32 cap = min(value_size, 32U);
 		size_t buf_sz = (size_t)cap * 2 + 8;
 		char *out = xmalloc(buf_sz);
 		size_t off = 0;
@@ -1115,8 +1115,7 @@ static int read_entries(int fd, struct map_view *v,
 				xfree(value, value_alloc);
 				return -ENOMEM;
 			}
-			memcpy(key, &i, sizeof(i) <= v->key_size ?
-			       sizeof(i) : v->key_size);
+			memcpy(key, &i, min(v->key_size, sizeof(i)));
 			if (v->key_size > sizeof(i))
 				memset((char *)key + sizeof(i), 0,
 				       v->key_size - sizeof(i));

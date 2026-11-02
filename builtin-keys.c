@@ -846,7 +846,7 @@ int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 		}
 	}
 	ret = purge_signed_by(der, size, &unloaded);
-	return ret < 0 ? ret : 0;
+	return min(ret, 0);
 }
 
 static int keys_revoke(int argc, const char **argv)
@@ -983,8 +983,7 @@ static int keys_show(int argc, const char **argv)
 		const struct keys_anchor anchors[] = {
 			{ ".bpf", keyring_bpf_serial, id.keyring_serial,
 			  id.key_serials,
-			  id.n_keys < IDENTITY_KEYS_MAX ?
-			  id.n_keys : IDENTITY_KEYS_MAX },
+			  min(id.n_keys, IDENTITY_KEYS_MAX) },
 			{ ".dm-verity", keyring_dm_verity_serial,
 			  id.dm_verity_ring, &id.dm_verity_key,
 			  id.dm_verity_key > 0 },

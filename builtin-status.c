@@ -370,8 +370,7 @@ static const struct help status_help = {
 	.summary    = "Local readiness + state report. Auto-detects target "
 		      "vs operator role.\nSafe to run before `shirudo init`.",
 	.sections   = status_help_sections,
-	.n_sections = sizeof(status_help_sections) /
-		      sizeof(status_help_sections[0]),
+	.n_sections = ARRAY_SIZE(status_help_sections),
 };
 
 static void usage(void)
@@ -608,8 +607,7 @@ static void keyring_view_bpf(struct status_keyring *k,
 	size_t i, n_frozen = 0;
 
 	if (k->pinned >= 1)
-		n_frozen = ident->n_keys < IDENTITY_KEYS_MAX ?
-			   ident->n_keys : IDENTITY_KEYS_MAX;
+		n_frozen = min(ident->n_keys, IDENTITY_KEYS_MAX);
 	keyring_view_links(k, ident->key_serials, n_frozen);
 	k->certs_rc = certs_rc;
 	for (i = 0; certs_rc == 0 && i < certs->n; i++) {

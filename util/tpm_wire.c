@@ -483,7 +483,7 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 			ret = -EIO;
 			break;
 		}
-		n = out_len - done < 32 ? out_len - done : 32;
+		n = min(out_len - done, 32U);
 		memcpy(out + done, block, n);
 		done += n;
 	}

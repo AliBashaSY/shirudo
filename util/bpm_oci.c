@@ -893,7 +893,7 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 	if (r->status < 200 || r->status >= 300) {
 		if (r->status != 404) {
 			if (r->body.data && r->body.len) {
-				size_t n = r->body.len > 512 ? 512 : r->body.len;
+				size_t n = min(r->body.len, 512U);
 
 				pr_err("bpm OCI request %s: HTTP %ld: %.*s", url,
 				       r->status, (int)n, r->body.data);

@@ -7,7 +7,7 @@
 #include <shirudo/tpm.h>
 
 /* Frozen ABI shared with struct identity in util/identity.h. */
-#define IDENTITY_KEYS_MAX	16
+#define IDENTITY_KEYS_MAX	16u
 
 struct sb_id {
 	__u32	sb_dev;

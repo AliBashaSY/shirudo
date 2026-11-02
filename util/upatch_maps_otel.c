@@ -1383,7 +1383,7 @@ int otel_retry_after(const char *value, time_t now, __u64 *seconds)
 			delay = delay * 10 + (__u64)(*p - '0');
 	}
 	if (!*p) {
-		*seconds = delay > 30 ? 30 : delay;
+		*seconds = min(delay, 30U);
 		return 0;
 	}
 	parsed = 0;
@@ -1412,7 +1412,7 @@ int otel_retry_after(const char *value, time_t now, __u64 *seconds)
 		return 0;
 	}
 	delay = (__u64)(retry_time - now);
-	*seconds = delay > 30 ? 30 : delay;
+	*seconds = min(delay, 30U);
 	return 0;
 }
 
@@ -1483,7 +1483,7 @@ static void retry_wait(__u32 retry, __u64 retry_after,
 		       bool retry_after_valid)
 {
 	struct timespec ts;
-	__u32 cap_ms = 250U << (retry > 4 ? 4 : retry);
+	__u32 cap_ms = 250U << min(retry, 4U);
 	__u32 delay_ms;
 
 	if (cap_ms > 5000)

@@ -1256,8 +1256,7 @@ static const struct help init_help = {
 	.summary    = "Bootstrap enforcement on this target. Idempotent; safe "
 		      "to re-run.\nThe pinned link survives the process exit.",
 	.sections   = init_help_sections,
-	.n_sections = sizeof(init_help_sections) /
-		      sizeof(init_help_sections[0]),
+	.n_sections = ARRAY_SIZE(init_help_sections),
 };
 
 static void usage(void)

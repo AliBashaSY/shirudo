@@ -15,7 +15,7 @@
 #define SIG_KEYRING_BPF		5
 
 /* The most keys the anchor keyring holds; util/keys.h bounds the set. */
-#define IDENTITY_KEYS_MAX	16
+#define IDENTITY_KEYS_MAX	16u
 
 /* The frozen ABI shared with bpf/lib/identity.h. */
 struct identity {
