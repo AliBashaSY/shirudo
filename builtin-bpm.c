@@ -46,7 +46,6 @@
 #include "util/json.h"
 #include "util/log.h"
 #include "util/malloc.h"
-#include "util/macros.h"
 #include "util/paths.h"
 #include "util/seal.h"
 #include "util/upatch.h"

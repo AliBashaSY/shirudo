@@ -37,7 +37,6 @@
 #include "json.h"
 #include "log.h"
 #include "config.h"
-#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "tenant_id.h"

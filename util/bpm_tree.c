@@ -15,7 +15,6 @@
 #include "crypto.h"
 #include "hex.h"
 #include "json.h"
-#include "macros.h"
 #include "malloc.h"
 
 /*

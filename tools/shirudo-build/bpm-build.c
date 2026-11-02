@@ -37,7 +37,6 @@
 #include "log.h"
 #include "hex.h"
 #include "malloc.h"
-#include "macros.h"
 #include "timefmt.h"
 #include "package.h"
 #include "paths.h"

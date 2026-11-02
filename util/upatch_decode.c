@@ -85,7 +85,6 @@ int upatch_decode_map_file_otel(const char *path,
 
 #include "json.h"
 #include "hex.h"
-#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "seal.h"

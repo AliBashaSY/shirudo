@@ -29,7 +29,6 @@
 #include "builtin.h"
 #include "util/help.h"
 #include "util/log.h"
-#include "util/macros.h"
 #include "util/crypto.h"
 #include "util/paths.h"
 #include "util/seal.h"

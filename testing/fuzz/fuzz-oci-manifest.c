@@ -8,7 +8,6 @@
 
 #include "bpm_oci.h"
 #include "fuzz.h"
-#include "macros.h"
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {

@@ -29,7 +29,6 @@
 #include "io.h"
 #include "json.h"
 #include "log.h"
-#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "sign.h"

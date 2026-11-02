@@ -41,7 +41,6 @@
 #include "util/keyring.h"
 #include "util/keys.h"
 #include "util/log.h"
-#include "util/macros.h"
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/seal.h"

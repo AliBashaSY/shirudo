@@ -18,7 +18,6 @@
 #include "util/config.h"
 #include "util/help.h"
 #include "util/log.h"
-#include "util/macros.h"
 #include "util/paths.h"
 
 static const struct shirudo_help config_help = {

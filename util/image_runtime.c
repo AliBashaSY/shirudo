@@ -43,7 +43,6 @@
 #include "keyring.h"
 #include "malloc.h"
 #include "log.h"
-#include "macros.h"
 #include "paths.h"
 #include "seal.h"
 #include "tpm.h"

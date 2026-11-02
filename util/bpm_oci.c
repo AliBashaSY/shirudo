@@ -30,7 +30,6 @@
 #include "seal.h"
 #include "json.h"
 #include "log.h"
-#include "macros.h"
 #include "malloc.h"
 
 void bpm_copy_string(char *dst, size_t dst_sz, const char *src)

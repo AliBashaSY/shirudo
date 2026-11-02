@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * The kernel's fixed-width integer types, ptr_to_u64() and shirudo_trunc(),
- * for userspace.
+ * The kernel's fixed-width integer types, ARRAY_SIZE(), ptr_to_u64() and
+ * shirudo_trunc(), for userspace.
  */
 
 #ifndef SHIRUDO_MISC_H
@@ -27,6 +27,12 @@ typedef signed int		__s32;
 typedef unsigned int		__u32;
 typedef signed long long	__s64;
 typedef unsigned long long	__u64;
+
+/* 0, or no build when a is a pointer rather than an array. */
+#define __must_be_array(a)						\
+	BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a),	\
+						       typeof(&(a)[0])))
+#define ARRAY_SIZE(a)	(sizeof(a) / sizeof((a)[0]) + __must_be_array(a))
 
 /* A pointer as the __u64 the bpf() ABI carries it in. */
 static inline __u64 ptr_to_u64(const void *ptr)

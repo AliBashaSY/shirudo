@@ -40,7 +40,6 @@
 #include "util/help.h"
 #include "util/io.h"
 #include "util/json.h"
-#include "util/macros.h"
 #include "util/identity.h"
 #include "util/image_bootstrap.h"
 #include "util/image_runtime.h"

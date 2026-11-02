@@ -8,8 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "help.h"
-#include "macros.h"
 #include "similar.h"
 
 #define SUBCMD_MAX	32

@@ -39,7 +39,6 @@
 #include "util/eventlog.h"
 #include "util/help.h"
 #include "util/json.h"
-#include "util/macros.h"
 #include "util/identity.h"
 #include "util/initrd.h"
 #include "util/image_config.h"

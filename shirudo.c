@@ -16,7 +16,6 @@
 #include "util/image_runtime.h"
 #include "util/help.h"
 #include "util/log.h"
-#include "util/macros.h"
 #include "util/similar.h"
 
 enum cmd_group {

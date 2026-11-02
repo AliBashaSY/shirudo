@@ -128,7 +128,7 @@ static int save_state(const char *dir)
 	size_t i;
 	int rc = 0;
 
-	for (i = 0; i < sizeof(blobs) / sizeof(blobs[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(blobs); i++) {
 		__u32 blob_len = 0;
 		__u8 *blob = NULL;
 

@@ -13,7 +13,6 @@
 #include "config_measure.h"
 #include "hex.h"
 #include "json.h"
-#include "macros.h"
 #include "malloc.h"
 
 static int append_event(struct shirudo_config_evidence *view,

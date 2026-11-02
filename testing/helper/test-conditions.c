@@ -27,7 +27,6 @@
 #include <shirudo/string.h>
 
 #include "util/conditions.h"
-#include "util/macros.h"
 
 static int arg_s64(const char *s, __s64 *out)
 {

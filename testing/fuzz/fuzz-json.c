@@ -7,7 +7,6 @@
 
 #include "fuzz.h"
 #include "json.h"
-#include "macros.h"
 
 static int on_elem(void *ctx)
 {

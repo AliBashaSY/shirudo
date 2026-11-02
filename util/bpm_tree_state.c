@@ -31,7 +31,6 @@
 #include "kernel_build_id.h"
 #include "kernel_release.h"
 #include "log.h"
-#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "seal.h"

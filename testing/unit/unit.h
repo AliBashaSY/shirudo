@@ -9,7 +9,6 @@
 
 #include <shirudo/misc.h>
 
-#include "macros.h"
 
 struct unit_case {
 	const char *name;

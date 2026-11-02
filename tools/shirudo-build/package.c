@@ -32,7 +32,6 @@
 #include "io.h"
 #include "loader.h"
 #include "log.h"
-#include "macros.h"
 #include "malloc.h"
 #include "package.h"
 #include "paths.h"

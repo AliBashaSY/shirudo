@@ -8,9 +8,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "builtin.h"
 #include "util/help.h"
-#include "util/macros.h"
 #include "util/version.h"
 
 static const struct shirudo_help_item version_options[] = {

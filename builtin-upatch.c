@@ -45,7 +45,6 @@
 #include "util/io.h"
 #include "util/json.h"
 #include "util/kernel_abi.h"
-#include "util/macros.h"
 #include "util/identity.h"
 #include "util/keyring.h"
 #include "util/tpm.h"

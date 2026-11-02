@@ -22,7 +22,6 @@
 #include "image_cache.h"
 #include "io.h"
 #include "log.h"
-#include "macros.h"
 #include "paths.h"
 #include "seal.h"
 

@@ -22,7 +22,6 @@
 #include "io.h"
 #include "json.h"
 #include "log.h"
-#include "macros.h"
 
 #define RECORD_MAX (2 * CONFIG_UPDATE_PREFIX_MAX + 1024)
 

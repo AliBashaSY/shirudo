@@ -22,7 +22,6 @@
 #include "io.h"
 #include "log.h"
 #include "keys.h"
-#include "macros.h"
 #include "malloc.h"
 #include "paths.h"
 #include "seal.h"

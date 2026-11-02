@@ -22,7 +22,6 @@
 #include "identity.h"
 #include "image_guards.h"
 #include "log.h"
-#include "macros.h"
 #include "paths.h"
 #include "tamper.h"
 
