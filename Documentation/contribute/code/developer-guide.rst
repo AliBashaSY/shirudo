@@ -566,6 +566,9 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``va_end``
      - A ``va_start()`` or ``va_copy()`` without a ``va_end()`` on a
        path out.
+   * - ``fd_leak``
+     - A descriptor left open on a path out once its open succeeded,
+       where it is not returned, stored or handed to what closes it.
    * - ``cloexec``
      - A descriptor or stream opened without close-on-exec.
    * - ``banned``
