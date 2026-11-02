@@ -198,8 +198,8 @@ TPM
        nonce, up to 64 bytes. ``init`` records its name in the identity
        map.
    * - Endorsement key
-     - The TCG default template, RSA-2048 or ECC P-256, with AES-128 in
-       CFB mode as its symmetric algorithm
+     - The TCG default template, RSA-2048 with the exponent 65537 or ECC
+       P-256, with AES-128 in CFB mode as its symmetric algorithm
      - Credential activation for ``shirudo attest challenge``
    * - Credential
      - RSA-OAEP with SHA-256 and the label ``IDENTITY`` for an RSA

@@ -368,7 +368,8 @@ int tpm_public_parse(const __u8 *buf, size_t len,
 	    (out->type == TPM_ALG_ECC &&
 	     out->curve != TPM_ECC_NIST_P256) ||
 	    (out->type == TPM_ALG_RSA &&
-	     (out->rsa_bits != 2048 || out->n_len != 256)))
+	     (out->rsa_bits != 2048 || out->n_len != 256 ||
+	      (out->rsa_exponent && out->rsa_exponent != 65537))))
 		return -EPROTONOSUPPORT;
 	return 0;
 }
