@@ -23,8 +23,7 @@
 #define SHIRUDO_KEYS_DIR_ENV		"SHIRUDO_KEYS_DIR"
 #define SHIRUDO_CERT_FILE		"cert.der"
 #define SHIRUDO_CERT_PATH		SHIRUDO_KEYS_DIR "/" SHIRUDO_CERT_FILE
-/* Further certificates enrolled beside cert.der, and the revoked ones. */
-#define SHIRUDO_KEYS_TRUSTED_DIR	SHIRUDO_KEYS_DIR "/trusted"
+/* The revoked certificates. */
 #define SHIRUDO_KEYS_REVOKED_DIR	SHIRUDO_KEYS_DIR "/revoked"
 /* The initrd's own copy of the keys, measured with the initrd. */
 #define SHIRUDO_INITRD_KEYS_DIR		"/etc/shirudo/keys"
@@ -45,8 +44,8 @@
 #define SHIRUDO_EVENTLOG_PENDING_PATH	SHIRUDO_RUN_DIR "/eventlog.pending"
 /* On a target with a config image these are the image's, opened from its root. */
 #define SHIRUDO_BPM_ETC_DIR		"/etc/shirudo/bpm"
-#define SHIRUDO_BPM_REGISTRIES_DIR	"/etc/shirudo/bpm/registries.d"
-#define SHIRUDO_BPM_KEYS_DIR		"/etc/shirudo/bpm/keys"
+#define SHIRUDO_BPM_REGISTRIES_DIR	SHIRUDO_BPM_ETC_DIR "/registries.d"
+#define SHIRUDO_BPM_KEYS_DIR		SHIRUDO_BPM_ETC_DIR "/keys"
 #define SHIRUDO_BPM_VAR_DIR		SHIRUDO_VAR_LIB "/bpm"
 #define SHIRUDO_BPM_REPOS_DIR		SHIRUDO_BPM_VAR_DIR "/repos"
 #define SHIRUDO_BPM_PACKAGES_DIR	SHIRUDO_BPM_VAR_DIR "/packages"

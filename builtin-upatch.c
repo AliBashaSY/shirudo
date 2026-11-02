@@ -3184,9 +3184,8 @@ static int export_one_map(const char *upatch, const char *map,
 		SHIRUDO_MAP_ENTRIES_DEFAULT;
 	int rc, ret = 0;
 
-	rc = upatch_maps_read_flags(upatch, map, cap,
-				    peek ? SHIRUDO_MAP_READ_PEEK : 0,
-				    &v);
+	rc = upatch_maps_read(upatch, map, cap,
+			      peek ? SHIRUDO_MAP_READ_PEEK : 0, &v);
 	if (rc) {
 		pr_err("upatch map: read %s/%s: %s", upatch, map,
 		       strerror(-rc));
@@ -3613,8 +3612,8 @@ static void render_one_map_text(const char *upatch, const char *map,
 				__u32 cap)
 {
 	struct shirudo_map_view v = {};
-	int rc = upatch_maps_read_flags(upatch, map, cap,
-					SHIRUDO_MAP_READ_PEEK, &v);
+	int rc = upatch_maps_read(upatch, map, cap, SHIRUDO_MAP_READ_PEEK,
+				  &v);
 
 	printf("\n== Map: %s ==\n", map);
 	if (rc != 0) {
@@ -3702,9 +3701,8 @@ static int render_get_json(const struct upatch_get_ctx *c,
 		struct shirudo_map_view v = {};
 		int rc;
 
-		rc = upatch_maps_read_flags(c->upatch, maps[k].name,
-					    map_cap,
-					    SHIRUDO_MAP_READ_PEEK, &v);
+		rc = upatch_maps_read(c->upatch, maps[k].name, map_cap,
+				      SHIRUDO_MAP_READ_PEEK, &v);
 		if (rc != 0) {
 			json_obj_open(&e);
 			json_kv_string(&e, "name", maps[k].name);

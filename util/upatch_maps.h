@@ -105,21 +105,16 @@ void map_summary_free(struct shirudo_map_summary *list, size_t n);
  * Read one map's contents. <max_entries_cap> bounds the number of
  * (key, value) pairs returned; SHIRUDO_MAP_ENTRIES_DEFAULT for the
  * default, 0 for unlimited (--show-full). Returns 0/-errno.
- */
-int  upatch_maps_read(const char *upatch, const char *map,
-		      __u32 max_entries_cap,
-		      struct shirudo_map_view *out);
-
-/*
+ *
  * Serializer-backed maps are drained by a read, as the map-export timer
  * expects. SHIRUDO_MAP_READ_PEEK asks the serializer for the interval
  * being collected without taking it from the exporter.
  */
 #define SHIRUDO_MAP_READ_PEEK	(1u << 0)
 
-int  upatch_maps_read_flags(const char *upatch, const char *map,
-			    __u32 max_entries_cap, __u32 flags,
-			    struct shirudo_map_view *out);
+int  upatch_maps_read(const char *upatch, const char *map,
+		      __u32 max_entries_cap, __u32 flags,
+		      struct shirudo_map_view *out);
 
 void upatch_maps_print_summary(const struct shirudo_map_summary *list,
 			       size_t n);

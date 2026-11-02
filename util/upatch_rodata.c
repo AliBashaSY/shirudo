@@ -390,19 +390,6 @@ out:
 	return rc;
 }
 
-int upatch_rodata_watch_ranges(const struct shirudo_upatch *u,
-			       struct shirudo_rodata_range ranges[2])
-{
-	int rc;
-
-	if (!ranges)
-		return -EINVAL;
-	rc = upatch_rodata_symbol_range(u, "obs_watch_v4", &ranges[0]);
-	if (rc)
-		return rc;
-	return upatch_rodata_symbol_range(u, "obs_watch_v6", &ranges[1]);
-}
-
 static __u32 btf_unwrap(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t;

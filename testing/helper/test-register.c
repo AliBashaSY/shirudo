@@ -606,10 +606,10 @@ int main(int argc, char **argv)
 			fprintf(stderr, "evidence: bad challenge\n");
 			return 2;
 		}
-		rc = attest_evidence(nonce, nonce_len,
-				     SHIRUDO_ATTEST_PCR_DEFAULT,
-				     argc == 4 ? &challenge : NULL,
-				     &doc, &len, &cap);
+		rc = shirudo_attest_evidence_config(nonce, nonce_len,
+						    SHIRUDO_ATTEST_PCR_DEFAULT,
+						    argc == 4 ? &challenge : NULL,
+						    NULL, &doc, &len, &cap);
 		if (rc) {
 			fprintf(stderr, "evidence: %s\n", strerror(-rc));
 			return 1;

@@ -144,19 +144,6 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 	return rc;
 }
 
-int read_file_at(int dirfd, const char *rel, size_t max, void *out,
-		 size_t *len)
-{
-	int fd, rc;
-
-	fd = open_beneath(dirfd, rel, O_RDONLY);
-	if (fd < 0)
-		return fd;
-	rc = read_fd(fd, rel, max, out, len);
-	close(fd);
-	return rc;
-}
-
 static bool under(const char *path, const char *dir)
 {
 	size_t n = strlen(dir);

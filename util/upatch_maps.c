@@ -1227,16 +1227,8 @@ void map_view_free(struct shirudo_map_view *v)
 }
 
 int upatch_maps_read(const char *upatch, const char *map,
-		     __u32 max_entries_cap,
+		     __u32 max_entries_cap, __u32 flags,
 		     struct shirudo_map_view *out)
-{
-	return upatch_maps_read_flags(upatch, map, max_entries_cap, 0,
-				      out);
-}
-
-int upatch_maps_read_flags(const char *upatch, const char *map,
-			   __u32 max_entries_cap, __u32 flags,
-			   struct shirudo_map_view *out)
 {
 	struct bpf_map_info info = {};
 	char upatch_dir[PATH_MAX];

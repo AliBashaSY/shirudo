@@ -411,15 +411,6 @@ out:
 	return rc;
 }
 
-int attest_evidence(const __u8 *nonce, size_t nonce_len,
-		    __u32 pcr_mask,
-			    const struct shirudo_attest_challenge *challenge,
-			    char **out, size_t *len, size_t *cap)
-{
-	return shirudo_attest_evidence_config(nonce, nonce_len, pcr_mask,
-					      challenge, NULL, out, len, cap);
-}
-
 /* ---- verification ---------------------------------------------------- */
 
 struct record {
