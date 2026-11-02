@@ -15,6 +15,7 @@
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/enforcement.h>
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
 
@@ -23,7 +24,6 @@
 #include "log.h"
 #include "macros.h"
 #include "paths.h"
-#include "shirudo_enforcement.h"
 #include "tamper.h"
 
 _Static_assert(SHIRUDO_PERF_EVENT_IOC_SET_BPF == PERF_EVENT_IOC_SET_BPF,

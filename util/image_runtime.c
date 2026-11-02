@@ -20,6 +20,7 @@
 
 #include <bpf/bpf.h>
 
+#include <shirudo/enforcement.h>
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
 
@@ -45,7 +46,6 @@
 #include "macros.h"
 #include "paths.h"
 #include "seal.h"
-#include "shirudo_enforcement.h"
 #include "tpm.h"
 
 struct image_context {

@@ -35,8 +35,9 @@
 #define PR_SET_MM_EXE_FILE	13
 #define PR_SET_MM_MAP		14
 
+#include <shirudo/enforcement.h>
+
 #include "lib/shirudo_identity.h"
-#include "../include/shirudo_enforcement.h"
 #include "shirudo_tamper.h"
 
 #define SHIRUDO_TASK_TRUSTED	1

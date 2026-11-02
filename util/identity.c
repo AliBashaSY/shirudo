@@ -14,10 +14,10 @@
 
 #include <bpf/bpf.h>
 
+#include <shirudo/enforcement.h>
 #include <shirudo/misc.h>
 
 #include "identity.h"
-#include "shirudo_enforcement.h"
 #include "paths.h"
 
 int shirudo_enforcement_active(void)

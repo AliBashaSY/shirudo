@@ -349,7 +349,7 @@ Project layout
    * - ``bpf/lib/``
      - Headers shared with upatches: decoders, identity, serializers,
        tamper counters and common helpers.
-   * - ``include/shirudo/``, ``include/shirudo_enforcement.h``
+   * - ``include/shirudo/``
      - Integer types, string and number helpers, the ``.upatch``
        container layout, TPM types and the enforcement definitions
        shared between userspace and BPF.
