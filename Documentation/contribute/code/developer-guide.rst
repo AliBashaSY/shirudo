@@ -424,6 +424,12 @@ the commit at ``HEAD`` alone without them.
        files.
    * - ``check-spdx.sh``
      - The SPDX tag of every tracked source. Takes no range.
+   * - ``check-sparse.sh``
+     - ``make sparse``: sparse over the userspace sources the binaries
+       are built from, failing on any warning. It finds a value moved
+       between host order and ``__le32`` or ``__be32`` without
+       ``cpu_to_le32()``, ``le32_to_cpu()`` or their kin from
+       ``<shirudo/byteorder.h>``. Takes no range.
    * - ``build-commits.sh <range>``
      - Builds every commit on its own: ``make``, ``make
        shirudo-build`` and ``make -C testing test-helpers``. It
@@ -454,6 +460,7 @@ Before you send a change:
       $ .github/scripts/check-dco.sh origin/main..HEAD
       $ .github/scripts/check-style.sh origin/main..HEAD
       $ .github/scripts/check-spdx.sh
+      $ .github/scripts/check-sparse.sh
       $ .github/scripts/build-commits.sh origin/main..HEAD
 
 2. Run the tests the change touches, and ``make tests`` before you

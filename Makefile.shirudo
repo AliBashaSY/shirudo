@@ -879,6 +879,29 @@ build/unit/%: testing/unit/%.c testing/unit/unit.c testing/unit/unit.h \
 
 unit-tests: $(UNIT_TESTS)
 
+# ----- sparse -----------------------------------------------------
+
+# make sparse runs sparse over the sources the binaries are built from,
+# the vendored ones aside, and fails on any warning it gives. The
+# vendored linux/types.h defines __bitwise as nothing, so sparse reads
+# the system's copy, which makes __le32 and its kin restricted types
+# under __CHECKER__, in its place. _FORTIFY_SOURCE=3 and libcurl's
+# typecheck-gcc.h are left out: sparse does not know the builtin the
+# first needs and reports the sizeof the second applies to a function,
+# and the compiler runs both checks.
+SPARSE_TYPES_H ?= /usr/include/linux/types.h
+SPARSE_SRCS    := shirudo.c $(BUILTIN_SRCS) $(UTIL_SRCS) $(BUILD_SRCS)
+
+.PHONY: sparse
+sparse:
+	$(Q)for f in $(SPARSE_SRCS); do \
+		printf '  SPARSE  %s\n' "$$f"; \
+		cgcc -no-compile -Wsparse-error $(CFLAGS) -U_FORTIFY_SOURCE \
+		     -DCURL_DISABLE_TYPECHECK \
+		     -include $(SPARSE_TYPES_H) -D_UAPI_LINUX_TYPES_H \
+		     "$$f" || exit 1; \
+	done
+
 # ----- fuzzing ----------------------------------------------------
 
 # libFuzzer targets for the parsers of input from outside the host, built

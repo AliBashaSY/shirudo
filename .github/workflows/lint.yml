@@ -35,6 +35,35 @@ jobs:
       - name: Check the SPDX tag of every tracked source
         run: .github/scripts/check-spdx.sh
 
+  sparse:
+    name: Sparse
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # sparse reads the sources against OpenSSL 3.5 and the other build
+      # dependencies, which the toolchain of the LVH guest the other
+      # builds use provides.
+      - name: Run sparse over the userspace sources in LVH VM
+        uses: cilium/little-vm-helper@f86d344aca812dda5aef167867a9a0a90ca6cca5 # v0.0.31
+        with:
+          test-name: shirudo-sparse
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cpu: 4
+          mem: 8G
+          cmd: |
+            cd /host
+            .github/scripts/vm-toolchain.sh sparse
+            . build/vm-toolchain.env
+            .github/scripts/check-sparse.sh
+
   checkpatch:
     name: Checkpatch
     runs-on: ubuntu-latest

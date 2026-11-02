@@ -248,6 +248,12 @@ Before sending
   characters. ``--diff`` checks the uncommitted changes, ``--files``
   whole files and ``--types`` lists what stays enabled. CI runs it as
   the ``Checkpatch`` job of the ``Lint`` workflow.
+- Run ``make sparse`` when the change reads or writes a binary format.
+  It runs sparse over the userspace sources and fails on any warning,
+  such as a little-endian field read or written without
+  ``le32_to_cpu()``, ``cpu_to_le32()`` or their kin from
+  ``<shirudo/byteorder.h>``. CI runs it as the ``Sparse`` job of the
+  ``Lint`` workflow.
 - Keep each commit to one logical change that builds and passes on its
   own, so the history bisects. CI builds every commit of a pull request
   on its own in the ``Build every commit`` workflow.

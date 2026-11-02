@@ -390,10 +390,13 @@ one usually still compiles and passes tests.
   `.github/scripts/check-style.sh <range>` runs the kernel's
   checkpatch.pl in strict mode over the C each commit touches and over
   its message, with the userspace exceptions listed in the script, and
-  rejects the netdev block-comment opener. CI runs all three on every
-  pull request, and `.github/scripts/build-commits.sh <range>` builds
-  every commit of a pull request on its own; run them before handing
-  work over.
+  rejects the netdev block-comment opener.
+  `.github/scripts/check-sparse.sh` runs `make sparse`, sparse over the
+  userspace sources, which fails on a little-endian or big-endian field
+  read or written without `le32_to_cpu()`, `cpu_to_le32()` or their kin
+  from `<shirudo/byteorder.h>`. CI runs all four on every pull request,
+  and `.github/scripts/build-commits.sh <range>` builds every commit of
+  a pull request on its own; run them before handing work over.
 - Shell that a workflow runs lives in `.github/scripts/`, not inline in
   the workflow file.
 - `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the
