@@ -325,7 +325,11 @@ one usually still compiles and passes tests.
 - **BPF targets instruction set v4.** Every `clang -target bpf` in the
   tree passes `-mcpu=v4`: the upatch build, the embedded objects, the
   configure probe and the tests. Not `-mcpu=probe`, which describes the
-  build host's kernel, not the targets'.
+  build host's kernel, not the targets'. Upatches are therefore compiled
+  with the full BPF instruction set: load-acquire and store-release,
+  sign-extending loads and moves, and signed division and modulo are all
+  there, so write the code that needs them directly and do not work
+  around their absence.
 - **Upatch state lives in BPF arenas where possible.** A upatch that
   accumulates records keeps them in its one `BPF_MAP_TYPE_ARENA` map and
   ships a `shirudo_serialize__<map>` program that walks them; hash and
