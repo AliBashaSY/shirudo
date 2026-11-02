@@ -774,7 +774,8 @@ static int btf_var_type(const struct btf *btf,
 	return 0;
 }
 
-static void print_text(void *ctx, const char *fmt, va_list args)
+static __printf(2, 0) void print_text(void *ctx, const char *fmt,
+				       va_list args)
 {
 	FILE *fp = ctx;
 

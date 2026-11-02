@@ -25,6 +25,8 @@
 #include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
 
+#include <shirudo/compiler.h>
+
 #define KFUNC_DECL_TAG		"bpf_kfunc"
 #define FASTCALL_DECL_TAG	"bpf_fastcall"
 
@@ -61,7 +63,7 @@ static int cmp_kfuncs(const void *pa, const void *pb, void *ctx)
 		      btf__str_by_offset(btf, b->name_off));
 }
 
-static void emit(void *ctx, const char *fmt, va_list args)
+static __printf(2, 0) void emit(void *ctx, const char *fmt, va_list args)
 {
 	vprintf(fmt, args);
 }
