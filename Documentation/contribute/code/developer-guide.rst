@@ -451,6 +451,13 @@ the commit at ``HEAD`` alone without them.
        shirudo-build`` and ``make -C testing test-helpers``. It
        refuses to start with uncommitted changes and checks out each
        commit in the working tree.
+   * - ``build-debian.sh <btf>``
+     - Installs Debian testing's compiler and libraries, builds the
+       binary and the helper with the BTF given, and runs the unit tests
+       and ``check-operator-linkage.sh``. The ``Build`` workflow runs it
+       in a ``debian:testing`` container on arm64 and riscv64. It
+       installs packages as root, so run it only in a throwaway
+       container.
    * - ``check-static-target.sh <binary>``
      - That a target binary is a static PIE.
    * - ``check-operator-linkage.sh <binary>...``

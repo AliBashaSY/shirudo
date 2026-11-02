@@ -51,3 +51,81 @@ jobs:
             make -C testing CC=clang unit
             sh .github/scripts/check-operator-linkage.sh shirudo \
               tools/shirudo-build/shirudo-build
+
+  btf:
+    name: bpf-next BTF
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # The BTF of the bpf-next kernel the other builds run on, for the
+      # builds that cannot boot it themselves.
+      - name: Copy the kernel BTF out of the LVH VM
+        uses: cilium/little-vm-helper@f86d344aca812dda5aef167867a9a0a90ca6cca5 # v0.0.31
+        with:
+          test-name: shirudo-btf
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cpu: 2
+          mem: 4G
+          cmd: |
+            grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
+              echo 'kernel BTF lacks bpf_attr.signature_size; needs a signed-BPF capable bpf-next kernel' >&2
+              exit 1
+            }
+            mkdir -p /host/build
+            cp /sys/kernel/btf/vmlinux /host/build/vmlinux.btf
+
+      - name: Upload the kernel BTF
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bpf-next-btf
+          path: build/vmlinux.btf
+          if-no-files-found: error
+          retention-days: 1
+
+  arch:
+    name: ${{ matrix.arch }}
+    needs: btf
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+
+    # Every other job builds and tests on x86-64. arm64 builds natively on
+    # an arm64 runner; riscv64, which has none, under QEMU user emulation.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - arch: riscv64
+            runner: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download the kernel BTF
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: bpf-next-btf
+          path: build
+
+      - name: Set up QEMU user emulation
+        if: matrix.arch == 'riscv64'
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          image: tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+          platforms: riscv64
+
+      - name: Build and run the unit tests on Debian testing
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: >-
+          docker run --rm --platform "linux/$ARCH"
+          -v "$PWD:/src" -w /src debian:testing
+          sh .github/scripts/build-debian.sh build/vmlinux.btf
