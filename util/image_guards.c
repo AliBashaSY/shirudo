@@ -25,9 +25,6 @@
 #include "paths.h"
 #include "tamper.h"
 
-BUILD_BUG_ON_MSG(SHIRUDO_PERF_EVENT_IOC_SET_BPF != PERF_EVENT_IOC_SET_BPF,
-		 "the ioctl number the BPF side denies");
-
 const struct shirudo_image_guard
 shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_bprm_check_security",

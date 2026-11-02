@@ -410,7 +410,7 @@ static __always_inline int shirudo_ioctl(struct file *file, unsigned int cmd,
 {
 	if (ret)
 		return ret;
-	if (cmd == SHIRUDO_PERF_EVENT_IOC_SET_BPF)
+	if (cmd == PERF_EVENT_IOC_SET_BPF)
 		return shirudo_self_or_deny(SHIRUDO_TAMPER_PERF_ATTACH);
 	return shirudo_dm_ioctl(file, cmd, ret);
 }
