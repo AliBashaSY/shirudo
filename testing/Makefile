@@ -332,7 +332,8 @@ test-helpers:
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo test-helpers
 
 # The parsers of input from outside the host under libFuzzer, each target
-# for FUZZ_SECONDS on its seed corpus; needs clang with its fuzzer runtime.
+# for FUZZ_SECONDS on its seed corpus and, with FUZZ_CORPUS=<dir>, on what
+# earlier runs kept there; needs clang with its fuzzer runtime.
 FUZZ_SECONDS ?= 60
 
 fuzz:
@@ -352,7 +353,7 @@ help:
 	  '  make -C testing end2end' \
 	  '  VM=0 leaves out the tests that boot a VM, which need root;' \
 	  '  make -j boots several at once.' \
-	  '  make -C testing fuzz [FUZZ_SECONDS=60]' \
+	  '  make -C testing fuzz [FUZZ_SECONDS=60] [FUZZ_CORPUS=<dir>]' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=7.4' \
 	  '  make -C testing kernel KERNEL_TAG=v7.4' \

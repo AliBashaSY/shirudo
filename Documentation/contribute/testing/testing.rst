@@ -253,6 +253,21 @@ runner.
 default. A crash fails the run and leaves its input in
 ``testing/fuzz/crash-<target>-*``.
 
+What a target finds is discarded after the run unless
+``FUZZ_CORPUS=<dir>`` names a directory to keep it in. Each target then
+starts from ``<dir>/<target>`` as well as its seed corpus and adds what
+it finds there, and after a run without a crash the directory is merged
+down to the inputs that add coverage, so that it does not grow with
+every run. A relative ``<dir>`` is taken from the directory the command
+runs in, which ``make -C testing`` changes to ``testing/``:
+
+.. code-block:: console
+
+   $ make -C testing fuzz FUZZ_SECONDS=600 FUZZ_CORPUS=$PWD/build/fuzz-corpus
+
+An input in the kept corpus that crashes a later build fails that run
+like any new crash.
+
 Use the test VM
 ---------------
 
