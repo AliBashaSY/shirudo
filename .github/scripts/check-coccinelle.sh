@@ -45,9 +45,16 @@ for rule in "$@"; do
 	*) rule=testing/coccinelle/$rule.cocci ;;
 	esac
 	name=$(basename "$rule" .cocci)
+	# Without the headers a file includes the run is fast, but the types
+	# they declare are unknown. A rule that needs them names the include
+	# options on a #spatch line, which --no-includes would override.
+	includes=--no-includes
+	if grep -q '^#spatch' "$rule"; then
+		includes=
+	fi
 	# Each file on its own, so that one Coccinelle cannot parse costs only
 	# that file, and in parallel.
-	xargs -P "$jobs" -n 16 spatch -D report --very-quiet --no-includes \
+	xargs -P "$jobs" -n 16 spatch -D report --very-quiet $includes \
 		--include-headers --sp-file "$rule" <"$work/files" \
 		>"$work/$name.out" 2>"$work/$name.err" || {
 		cat "$work/$name.err" >&2

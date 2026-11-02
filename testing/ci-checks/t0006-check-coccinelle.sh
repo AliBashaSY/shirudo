@@ -4,8 +4,9 @@
 #
 # t0006 -- .github/scripts/check-coccinelle.sh: a rule that matches fails the
 # check with file, line, rule and message, one that does not passes it,
-# a rule that can rewrite does with -D patch, on a throwaway repository,
-# and the tree itself.
+# a rule that can rewrite does with -D patch, a rule reads the headers
+# its #spatch line asks for, on a throwaway repository, and the tree
+# itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -43,6 +44,16 @@ test_expect_success 'a rule is named alone or by path' '
 	check banned &&
 	grep -q "1 rules, no match" "$W/out" &&
 	! check testing/coccinelle/zero_init.cocci
+'
+
+test_expect_success 'a rule reads the headers its #spatch line asks for' '
+	cp "$ROOT/testing/coccinelle/sizeof_ptr.cocci" "$R/testing/coccinelle/" &&
+	mkdir -p "$R/include" &&
+	printf "struct foo {\n\tchar *name;\n};\n" >"$R/include/foo.h" &&
+	printf "#include \"foo.h\"\n\nvoid f(struct foo *x)\n{\n\tmemset(x->name, 0, sizeof(x->name));\n}\n" >"$R/member.c" &&
+	! check sizeof_ptr &&
+	grep -q "^sizeof_ptr: member.c:5:" "$W/err" &&
+	rm -r "$R/testing/coccinelle/sizeof_ptr.cocci" "$R/include" "$R/member.c"
 '
 
 test_expect_success 'a rule rewrites what it finds with -D patch' '

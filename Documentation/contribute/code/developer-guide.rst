@@ -543,7 +543,9 @@ can rewrite what it finds does so with ``-D patch``:
      - A NULL passed to a memory or string function, and a
        ``memcpy()`` of overlapping buffers.
    * - ``sizeof_ptr``
-     - The size of a pointer where the object it points to is meant.
+     - The size of a pointer where the object it points to is meant,
+       wherever it is taken, unless the pointer's own address goes to
+       the same call.
    * - ``literal_len``
      - A length that does not match the string literal it compares or
        copies.
@@ -587,6 +589,10 @@ can rewrite what it finds does so with ``-D patch``:
 A new pattern worth refusing gets a rule: write it from scratch under
 the BSD-2-Clause, with a header that says why the pattern is refused,
 fix the tree in the commits before it, and add it to the table.
+``check-coccinelle.sh`` runs a rule without the headers a file
+includes, which keeps it fast but leaves the types they declare
+unknown. A rule that needs them, as ``sizeof_ptr`` needs the type of a
+struct member, names its include options on a ``#spatch`` line.
 
 Next steps
 ----------

@@ -2,24 +2,40 @@
 // Copyright (c) 2026 Authors of shirudo
 //
 // sizeof a pointer where the object it points to was meant: what is
-// copied, cleared, compared, scrubbed or allocated is 8 bytes.
+// copied, cleared, compared, scrubbed, allocated or counted is the 8
+// bytes of the pointer. The pointer is the object only where its own
+// address goes to the same call, as in memcpy(&p, src, sizeof(p)). The
+// type of a struct member comes from the header that declares it, so
+// this rule reads the headers a file includes.
+
+#spatch --include-headers-for-types --all-includes -I include -I util -I .
 
 virtual report
 
-@r@
+@own@
 type T;
-idexpression T *P;
-identifier f = {memcpy, memmove, memset, memcmp, memzero_explicit,
-		memneq_explicit, xfree, xmalloc, read, write, pread, pwrite,
-		strscpy, strsprintf};
+T *P;
+identifier f;
 position p;
 @@
 (
-  f(..., sizeof@p(P), ...)
+  f(..., &P, ..., sizeof@p(P), ...)
 |
-  f(..., sizeof@p(P) * ..., ...)
+  f(..., sizeof@p(P), ..., &P, ...)
+)
+
+@r@
+type T;
+T *P;
+expression E, I;
+position p != own.p;
+@@
+(
+  sizeof(*E)
 |
-  xcalloc(..., sizeof@p(P))
+  sizeof(E[I])
+|
+  sizeof@p(P)
 |
   sizeof@p(sizeof(...))
 )
