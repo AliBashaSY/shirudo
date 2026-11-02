@@ -55,7 +55,7 @@ static void escape(char *dst, size_t cap, const char *src)
  * may change errno on the way (no /dev/log in an early initrd), so it
  * is kept for them.
  */
-static void emit(int priority, const char *fmt, va_list ap)
+static __printf(2, 0) void emit(int priority, const char *fmt, va_list ap)
 {
 	char msg[LOG_MSG_MAX], out[4 * LOG_MSG_MAX + 1];
 	int saved_errno = errno;

@@ -488,6 +488,8 @@ static int append_type_name(const struct btf *btf, __u32 id, char *buf,
 		case BTF_KIND_FWD:
 			fallback = "forward declaration";
 			break;
+		default:
+			break;
 		}
 		n = strsprintf(buf + *off, cap - *off, "%s", fallback);
 	}

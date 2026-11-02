@@ -28,7 +28,8 @@
 #define MAP_SHA_SIZE	32U
 #define BTF_MAX_UNWRAP	32
 
-static int abi_fail(char *detail, size_t detail_sz, const char *fmt, ...)
+static __printf(3, 4) int abi_fail(char *detail, size_t detail_sz,
+				    const char *fmt, ...)
 {
 	va_list ap;
 

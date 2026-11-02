@@ -84,6 +84,21 @@ WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
             -Wwrite-strings -Wundef \
             $(WERROR_CFLAGS)
 
+# The warnings that not every compiler shirudo builds with has, each
+# kept where the compiler takes it: a __DATE__ that would make the build
+# unreproducible, a switch without a default, an include directory that
+# does not exist, and gcc's test of a logical operator on equal
+# operands. gcc's
+# -Wmaybe-uninitialized is off, as in the kernel: what it reports
+# changes with the gcc version and the optimization level, so it fails a
+# build on one host and not on the next, and the uninit Coccinelle rule
+# and -ftrivial-auto-var-init=zero cover what it would.
+cc-option = $(foreach f,$(2),$(shell $(1) -Werror $(f) -E -x c /dev/null \
+		-o /dev/null >/dev/null 2>&1 && echo $(f)))
+PROBED_WARNINGS := -Wdate-time -Wswitch-default -Wmissing-include-dirs \
+                   -Wlogical-op -Wno-maybe-uninitialized
+CC_WARNINGS := $(call cc-option,$(CC),$(PROBED_WARNINGS))
+
 SHIRUDO_DEBUG ?= 1
 DEBUG_CFLAGS := $(if $(filter 1 yes y true,$(SHIRUDO_DEBUG)),-g,)
 
@@ -114,8 +129,8 @@ HARDEN_STATIC_PIE_LDFLAGS := $(filter-out -pie,$(HARDEN_LDFLAGS))
 LANG_CFLAGS := -fno-strict-overflow -fno-delete-null-pointer-checks \
                -fno-strict-aliasing -funsigned-char
 
-CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(HARDEN_CFLAGS) \
-               $(LANG_CFLAGS) \
+CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(CC_WARNINGS) \
+               $(HARDEN_CFLAGS) $(LANG_CFLAGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
                -DLIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
                -DBPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
@@ -923,9 +938,10 @@ sparse:
 # with clang from the util sources under ASan and UBSan; make -C testing
 # fuzz builds and runs them.
 FUZZ_CC ?= clang
+FUZZ_WARNINGS := $(call cc-option,$(FUZZ_CC),$(PROBED_WARNINGS))
 FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer $(LANG_CFLAGS) \
                -fsanitize=fuzzer,address,undefined \
-               -fno-sanitize-recover=all $(WARNINGS) \
+               -fno-sanitize-recover=all $(WARNINGS) $(FUZZ_WARNINGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
                $(LIBCRYPTO_CFLAGS) $(LIBCURL_CFLAGS) $(ZLIB_CFLAGS)
 FUZZ_LIBS := $(LIBCRYPTO_LIBS) $(LIBSSL_LIBS) $(LIBCURL_LIBS) $(ZLIB_LIBS)

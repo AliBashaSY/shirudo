@@ -57,7 +57,7 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 	}
 	/* The open fd owns the lock; callers release it with close(). */
 	if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-		ret = (errno == EWOULDBLOCK || errno == EAGAIN) ? -EBUSY : -errno;
+		ret = errno == EWOULDBLOCK ? -EBUSY : -errno;
 		close(fd);
 		return ret;
 	}
