@@ -141,17 +141,12 @@ int base64_encode(const __u8 *data, size_t len,
 	return 0;
 }
 
-int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
-		      const __u8 digest[32],
-		      const __u8 r[32], const __u8 s[32])
+static EVP_PKEY *p256_public_key(const __u8 x[32], const __u8 y[32])
 {
-	__u8 point[65], *der = NULL;
-	EVP_PKEY_CTX *kctx = NULL, *vctx = NULL;
-	OSSL_PARAM params[3];
-	BIGNUM *br = NULL, *bs = NULL;
-	ECDSA_SIG *sig = NULL;
+	EVP_PKEY_CTX *kctx;
 	EVP_PKEY *pkey = NULL;
-	int der_len, rc = -EIO;
+	OSSL_PARAM params[3];
+	__u8 point[65];
 
 	point[0] = 0x04;
 	memcpy(point + 1, x, 32);
@@ -164,6 +159,26 @@ int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
 	kctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (!kctx || EVP_PKEY_fromdata_init(kctx) <= 0 ||
 	    EVP_PKEY_fromdata(kctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+		EVP_PKEY_free(pkey);
+		pkey = NULL;
+	}
+	EVP_PKEY_CTX_free(kctx);
+	return pkey;
+}
+
+int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
+		      const __u8 digest[32],
+		      const __u8 r[32], const __u8 s[32])
+{
+	BIGNUM *br = NULL, *bs = NULL;
+	EVP_PKEY_CTX *vctx = NULL;
+	ECDSA_SIG *sig = NULL;
+	EVP_PKEY *pkey = NULL;
+	int der_len, rc = -EIO;
+	__u8 *der = NULL;
+
+	pkey = p256_public_key(x, y);
+	if (!pkey) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -189,7 +204,6 @@ out:
 	BN_free(br);
 	BN_free(bs);
 	EVP_PKEY_CTX_free(vctx);
-	EVP_PKEY_CTX_free(kctx);
 	EVP_PKEY_free(pkey);
 	ERR_clear_error();
 	return rc;
@@ -526,25 +540,14 @@ int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
 			__u8 eph_x[32], __u8 eph_y[32],
 			__u8 z[32])
 {
-	EVP_PKEY_CTX *kctx = NULL, *dctx = NULL;
 	EVP_PKEY *eph = NULL, *peer = NULL;
 	BIGNUM *bx = NULL, *by = NULL;
-	__u8 point[65];
-	OSSL_PARAM params[3];
+	EVP_PKEY_CTX *dctx = NULL;
 	size_t zlen = 32;
 	int rc = -EIO;
 
-	point[0] = 0x04;
-	memcpy(point + 1, x, 32);
-	memcpy(point + 33, y, 32);
-	params[0] = OSSL_PARAM_construct_utf8_string("group", (char *)"P-256",
-						     0);
-	params[1] = OSSL_PARAM_construct_octet_string("pub", point,
-						      sizeof(point));
-	params[2] = OSSL_PARAM_construct_end();
-	kctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
-	if (!kctx || EVP_PKEY_fromdata_init(kctx) <= 0 ||
-	    EVP_PKEY_fromdata(kctx, &peer, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+	peer = p256_public_key(x, y);
+	if (!peer) {
 		rc = -EINVAL;
 		goto out;
 	}
@@ -564,7 +567,6 @@ out:
 	BN_free(bx);
 	BN_free(by);
 	EVP_PKEY_CTX_free(dctx);
-	EVP_PKEY_CTX_free(kctx);
 	EVP_PKEY_free(eph);
 	EVP_PKEY_free(peer);
 	return rc;
