@@ -285,6 +285,8 @@ out:
 static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 {
 	const char *authfile = getenv("REGISTRY_AUTH_FILE");
+	const char *username = getenv("BPM_OCI_USERNAME");
+	const char *password = getenv("BPM_OCI_PASSWORD");
 	const char *docker = getenv("DOCKER_CONFIG");
 	char path[PATH_MAX];
 	char needle[BPM_MAX_ENDPOINT + 8];
@@ -293,11 +295,9 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	char *p, *end, *auth;
 	int ret;
 
-	if (getenv("BPM_OCI_USERNAME") && getenv("BPM_OCI_PASSWORD")) {
-		if (strscpy(c->username, getenv("BPM_OCI_USERNAME"),
-			    sizeof(c->username)) < 0 ||
-		    strscpy(c->password, getenv("BPM_OCI_PASSWORD"),
-			    sizeof(c->password)) < 0)
+	if (username && password) {
+		if (strscpy(c->username, username, sizeof(c->username)) < 0 ||
+		    strscpy(c->password, password, sizeof(c->password)) < 0)
 			return -E2BIG;
 		return 0;
 	}
