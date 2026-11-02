@@ -1289,7 +1289,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_maps,
 			goto err_free;
 		}
 		if (unsupported_socket_filter_section(sec)) {
-			pr_err("unsupported socket filter section '%s'; Shirudo upatches require a pinnable bpf_link lifecycle",
+			pr_err("unsupported socket filter section '%s'; shirudo upatches require a pinnable bpf_link lifecycle",
 			       sec);
 			err = -EOPNOTSUPP;
 			goto err_free;
@@ -1555,7 +1555,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	 * after BPF_PROG_TEST_RUN -- it has only the .upatch, not the
 	 * object. Iteration order here matches gen_loader's. Build
 	 * attach metadata before loader generation so unsupported section
-	 * names fail with Shirudo's own diagnostics instead of depending
+	 * names fail with shirudo's own diagnostics instead of depending
 	 * on host kernel load behavior.
 	 */
 	bpf_object__for_each_map(m, obj)

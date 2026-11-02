@@ -432,7 +432,7 @@ test_expect_success 'test-vm imports the host-built payload' '
 	grep -q "vm/prepare-runtime.sh" ../testing/Makefile &&
 	grep -q "virt-customize" vm/build-bundle.sh &&
 	grep -q "mount_tag=shirudo-bundle" vm/run.sh &&
-	grep -q "importing host-built Shirudo payload" \
+	grep -q "importing host-built shirudo payload" \
 		vm/guest.sh &&
 	grep -q "mountpoint -q /run/shirudo/runtime" vm/guest.sh &&
 	! grep -q "vmlinux.h" vm/guest.sh &&

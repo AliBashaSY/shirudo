@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-/* Shirudo retains the writable-state label seal and trusts runtime execs. */
+/* shirudo retains the writable-state label seal and trusts runtime execs. */
 #include "verity_policy.h"
 #include "xattr.h"
 
@@ -455,7 +455,7 @@ static __always_inline bool shirudo_task_has_seccomp(struct task_struct *task)
 }
 
 /*
- * Shirudo grants authority only to a direct file on the verified runtime.
+ * shirudo grants authority only to a direct file on the verified runtime.
  * Overlay copies cannot qualify. Ptrace or seccomp supplied before exec must
  * not control the new trusted process. A failed exec retains the old mark.
  */

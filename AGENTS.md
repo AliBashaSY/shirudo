@@ -236,7 +236,7 @@ one usually still compiles and passes tests.
   Every signed load and unload directive goes through the same load path.
   The embedded LSM bootstrap loads during `init`, before its admission
   gates attach. Production deployments authenticate it through the initrd.
-  Authorized Shirudo tasks may attach, pin and run the signed-loader data-map
+  Authorized shirudo tasks may attach, pin and run the signed-loader data-map
   pattern, because none of those can introduce unsigned code; detach,
   update and corruption of BPF objects from userspace are denied by the
   LSM. In the `lsm/bpf` hook the `bool kernel` argument is the
@@ -256,7 +256,7 @@ one usually still compiles and passes tests.
   and the artifacts or reports the caller names. No hidden caches,
   state files, logs or staging directories; `--expect-chain` comes
   from the caller or from `shirudo attest predict`.
-- **Upatch state changes extend the TPM measurement register**
+- **upatch state changes extend the TPM measurement register**
   with a domain-separated tag, in deterministic order. Commands refuse
   on drift (`tampered`) rather than retrying. Boot restore is exactly one
   register event and a re-run of `init` adds none. The register follows
@@ -270,7 +270,7 @@ one usually still compiles and passes tests.
   into the same register. A TPM 2.0 is mandatory; there is no
   unmeasured mode. Image config activation extends the separate PCR
   selected in authenticated bootstrap settings. A durable pending selection
-  requires manual reboot after any interruption; Shirudo never reboots the
+  requires manual reboot after any interruption; shirudo never reboots the
   node automatically. There is no same-boot recovery or
   ambiguous-extension retry. Trusted startup verifies that selection and
   records a fresh BOOT event before completing initialization.
@@ -325,12 +325,12 @@ one usually still compiles and passes tests.
 - **BPF targets instruction set v4.** Every `clang -target bpf` in the
   tree passes `-mcpu=v4`: the upatch build, the embedded objects, the
   configure probe and the tests. Not `-mcpu=probe`, which describes the
-  build host's kernel, not the targets'. Upatches are therefore compiled
+  build host's kernel, not the targets'. upatches are therefore compiled
   with the full BPF instruction set: load-acquire and store-release,
   sign-extending loads and moves, and signed division and modulo are all
   there, so write the code that needs them directly and do not work
   around their absence.
-- **Upatch state lives in BPF arenas where possible.** A upatch that
+- **upatch state lives in BPF arenas where possible.** A upatch that
   accumulates records keeps them in its one `BPF_MAP_TYPE_ARENA` map and
   ships a `shirudo_serialize__<map>` program that walks them; hash and
   array maps are for what cannot live in an arena: task, socket and

@@ -275,7 +275,7 @@ it generates a loader.
      - ``unsupported sk_skb section '<section>'; supported network packet
        sections are cgroup_skb/ingress, cgroup_skb/egress, and netfilter``
    * - ``socket``, ``socket_filter`` and their ``/`` forms
-     - ``unsupported socket filter section '<section>'; Shirudo upatches
+     - ``unsupported socket filter section '<section>'; shirudo upatches
        require a pinnable bpf_link lifecycle``
    * - ``cgroup_skb``, ``cgroup/skb``, other ``cgroup_skb/*``
      - ``unsupported cgroup_skb section '<section>'; use cgroup_skb/ingress

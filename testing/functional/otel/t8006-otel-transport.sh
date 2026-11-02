@@ -120,7 +120,7 @@ test_expect_success 'signal headers replace the generic ones, trimmed and decode
 	[ "$(meta headers.authorization)" = "Bearer specific" ] &&
 	[ -z "$(meta headers.x-generic)" ] &&
 	[ "$(meta headers.content-type)" = application/json ] &&
-	[ "$(meta headers.user-agent)" = "Shirudo OTel-OTLP-Exporter-C/1" ]
+	[ "$(meta headers.user-agent)" = "shirudo OTel-OTLP-Exporter-C/1" ]
 '
 
 test_expect_success 'malformed, reserved and oversized headers are refused before any request' '

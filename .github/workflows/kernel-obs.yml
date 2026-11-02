@@ -92,7 +92,7 @@ jobs:
           path: source-code
           persist-credentials: false
 
-      - name: Download Shirudo operator package
+      - name: Download shirudo operator package
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: shirudo-deb

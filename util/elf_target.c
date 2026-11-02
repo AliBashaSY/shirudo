@@ -26,7 +26,7 @@
  * libbpf uses this resolver for its uprobe.multi attach path. It is not yet
  * part of libbpf's installed public headers, so keep the narrow declaration
  * local instead of including libbpf_internal.h (which requires kernel-only
- * headers that are not part of Shirudo's userspace build).
+ * headers that are not part of shirudo's userspace build).
  */
 extern int elf_resolve_pattern_offsets(const char *binary_path,
 				       const char *pattern,
@@ -172,7 +172,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 	/*
 	 * libbpf owns the ELF symbol matching and virtual-address-to-file-offset
 	 * conversion used by uprobe.multi. Keep only the build-ID extraction above
-	 * in this Shirudo-specific adapter.
+	 * in this shirudo-specific adapter.
 	 */
 	err = elf_resolve_pattern_offsets(path, pattern,
 					  &resolved_offsets, &nr_resolved);

@@ -1,8 +1,8 @@
 [package]
 name = "kernel-cve-upatches"
-description = "Exported Shirudo kernel CVE upatch sources"
+description = "Exported shirudo kernel CVE upatch sources"
 license = "GPL-2.0 OR BSD-2-Clause"
-authors = ["Shirudo Campaign Export"]
+authors = ["shirudo Campaign Export"]
 
 [[upatches]]
 source = "sources/cve-2025-71093-e1000-oob-e1000-tbi-should-accept/observability/cve-2025-71093-e1000-tbi-detector.bpf.c"

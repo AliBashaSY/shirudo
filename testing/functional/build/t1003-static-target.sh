@@ -76,7 +76,7 @@ test_expect_success 'target has no libssh dependency' '
 	! readelf -d "$TARGET" | grep -Eq "libssh\\.so"
 '
 
-test_expect_success 'target Shirudo runtime libraries are static' '
+test_expect_success 'target shirudo runtime libraries are static' '
 	! readelf -d "$TARGET" | grep -Eq "lib(z|tss2-esys|tss2-tctildr|elf|luajit-5\\.1)\\.so"
 '
 

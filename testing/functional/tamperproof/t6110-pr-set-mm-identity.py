@@ -61,7 +61,7 @@ def assert_frozen_runtime():
     if fd >= 0:
         os.close(fd)
     assert fd < 0 and error == errno.EACCES, \
-        ("identity map opened by a non-Shirudo caller", fd, error)
+        ("identity map opened by a non-shirudo caller", fd, error)
     assert probe_identity("runtime_root").strip("0"), "runtime hash missing"
     assert int(probe_identity("nv_index")), "NV index missing"
     executable = os.path.realpath(SHIRUDO)
@@ -161,11 +161,11 @@ def mm_map_result(path):
 assert_frozen_runtime()
 
 assert child_succeeds(lambda: exe_file_result(SHIRUDO)), \
-    "PR_SET_MM_EXE_FILE was allowed for a non-Shirudo caller"
+    "PR_SET_MM_EXE_FILE was allowed for a non-shirudo caller"
 assert child_succeeds(lambda: exe_file_result(OTHER)), \
     "PR_SET_MM_EXE_FILE accepted an unrelated executable"
 assert child_succeeds(lambda: mm_map_result(SHIRUDO)), \
-    "PR_SET_MM_MAP was allowed for a non-Shirudo caller"
+    "PR_SET_MM_MAP was allowed for a non-shirudo caller"
 assert child_succeeds(lambda: mm_map_result(OTHER)), \
     "PR_SET_MM_MAP accepted an unrelated executable"
 
@@ -178,5 +178,5 @@ def invalid_fd_then_exec():
 
 
 assert child_succeeds(invalid_fd_then_exec), \
-    "failed PR_SET_MM left state that blocked ordinary Shirudo execution"
+    "failed PR_SET_MM left state that blocked ordinary shirudo execution"
 print("PR_SET_MM identity guard passed")

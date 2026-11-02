@@ -4,7 +4,7 @@
 #
 # .github/scripts/tests.sh -- run every test as make tests does on a
 # developer's host. setup makes the runner the VM host: KVM, the VM's
-# packages, a compatible LVH kernel or the Shirudo test kernel cache, and
+# packages, a compatible LVH kernel or the shirudo test kernel cache, and
 # the OpenSSL 3.5 toolchain from vm-toolchain.sh. run builds and runs the
 # unit, ci-checks, functional and end2end tests, each family of target tests
 # in a VM of its own, or one part of them: unit runs the unit and

@@ -1537,7 +1537,7 @@ static noinline_for_stack int otel_post(struct otel_state *st,
 				 (curl_off_t)body_len);
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, st->headers);
 		curl_easy_setopt(curl, CURLOPT_USERAGENT,
-				 "Shirudo OTel-OTLP-Exporter-C/1");
+				 "shirudo OTel-OTLP-Exporter-C/1");
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, response_write);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, response_header);
@@ -2356,7 +2356,7 @@ static noinline_for_stack int s3_put(struct otel_s3_state *st,
 		curl_easy_setopt(curl, CURLOPT_AWS_SIGV4, sigv4);
 		curl_easy_setopt(curl, CURLOPT_USERPWD, st->credentials);
 		curl_easy_setopt(curl, CURLOPT_USERAGENT,
-				 "Shirudo-S3-Exporter-C/1");
+				 "shirudo-S3-Exporter-C/1");
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, response_write);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, response_header);

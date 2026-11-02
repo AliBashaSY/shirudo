@@ -136,9 +136,11 @@ Words
 -----
 
 - Write American English: initialize, behavior, license.
-- shirudo and upatch are always lowercase, also at the start of a
-  sentence or in a heading. Rephrase a sentence rather than capitalize
-  them.
+- shirudo, upatch and upatches are always lowercase: at the start of a
+  sentence, in a heading, in a navigation label and in a compound such
+  as "shirudo-patched". Rephrase a sentence rather than capitalize them.
+  The rule holds for the text the programs print, which pages quote, and
+  for code comments and commit messages too.
 - Use one term for one concept and define it in the
   :doc:`/concepts/glossary`. Link the term with ``:term:`` where a reader
   may not know it.

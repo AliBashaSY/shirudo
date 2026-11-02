@@ -754,7 +754,7 @@ fi
 cp "$TEST_VM_ARCH_KIMAGE_SRC" "$VMLINUX_PATH"
 cp .config "${OUTPUT_DIR}/kernel.config"
 
-# Keep the exact detached BTF used by this kernel build.  It lets Shirudo
+# Keep the exact detached BTF used by this kernel build.  It lets shirudo
 # generate vendor/linux/vmlinux.h against the artifact kernel before that kernel is
 # booted, rather than accidentally using the build host's /sys BTF.
 if [[ ! -s vmlinux ]]; then

@@ -404,7 +404,7 @@ Meaning
    pre-flight prints ``upatch: pre-flight refused (category:
    kernel_abi_unsupported, message: <detail>)``, where the detail names
    the missing piece, for example ``struct bpf_map.excl_prog_sha is
-   missing; boot a Shirudo-patched kernel``. The same category ends a
+   missing; boot a shirudo-patched kernel``. The same category ends a
    load whose attach kind the kernel does not support.
 
 Causes

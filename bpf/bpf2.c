@@ -2,7 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 /*
- * Shirudo authorizes tasks marked after exec from the authenticated runtime.
+ * shirudo authorizes tasks marked after exec from the authenticated runtime.
  * These hooks track verity devices, restrict DM controls, and protect the
  * runtime/config mounts alongside the shared bpffs and BPF admission checks.
  */
@@ -328,7 +328,7 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 }
 
 /*
- * A TPM signature alone cannot change Shirudo's NV register. Restrict
+ * A TPM signature alone cannot change shirudo's NV register. Restrict
  * extension of its frozen index while leaving unrelated TPM signing alone.
  */
 SEC("lsm/tpm_command")

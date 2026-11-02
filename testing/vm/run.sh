@@ -893,7 +893,7 @@ print_test_summary()
 		fi
 	fi
 	if [[ "$bpffs_warning" -eq 1 ]]; then
-		summary_log "cleanup: ${COLOR_YELLOW}bpffs unmount denied by Shirudo lockdown (expected)${COLOR_RESET}"
+		summary_log "cleanup: ${COLOR_YELLOW}bpffs unmount denied by shirudo lockdown (expected)${COLOR_RESET}"
 	fi
 	if [[ "$result_share_warning" -eq 1 ]]; then
 		summary_log "cleanup: ${COLOR_YELLOW}9p result share was busy during shutdown (non-fatal)${COLOR_RESET}"

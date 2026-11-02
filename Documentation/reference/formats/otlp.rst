@@ -51,7 +51,7 @@ Transport
    * - Headers
      - ``Content-Type: application/json``,
        ``Content-Encoding: gzip`` when compression is on,
-       ``User-Agent: Shirudo OTel-OTLP-Exporter-C/1``, the configured
+       ``User-Agent: shirudo OTel-OTLP-Exporter-C/1``, the configured
        headers and ``X-Tenant-ID``.
    * - Compression
      - ``none`` (default) or ``gzip``.

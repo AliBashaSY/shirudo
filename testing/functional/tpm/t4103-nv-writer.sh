@@ -72,7 +72,7 @@ test_expect_success 'unrelated TPM signing works on both device nodes' '
 	./helper/test-nv-writer sign-allowed-inherited device:/dev/tpmrm0
 '
 
-test_expect_success 'untrusted root cannot extend the Shirudo register' '
+test_expect_success 'untrusted root cannot extend the shirudo register' '
 	./helper/test-nv-writer raw-extend /dev/tpmrm0 &&
 	./helper/test-nv-writer raw-extend /dev/tpm0
 '

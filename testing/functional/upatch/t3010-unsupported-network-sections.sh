@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# t3010 -- unsupported network attach kinds are rejected with Shirudo-specific
+# t3010 -- unsupported network attach kinds are rejected with shirudo-specific
 # diagnostics.
 
 cd "$(dirname "$0")/../.."

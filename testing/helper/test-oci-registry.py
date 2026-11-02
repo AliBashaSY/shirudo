@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 """Small OCI Registry HTTP fixture for shirudo tests.
 
-The fixture implements the OCI distribution GET surface needed by Shirudo
+The fixture implements the OCI distribution GET surface needed by shirudo
 tree synchronization and, with --writable, the push surface used by
 `shirudo bpm push` and `shirudo bpm tree append` (monolithic blob uploads
 and manifest puts).  Files are laid out as:

@@ -299,7 +299,7 @@ if bundle_is_current; then
 	exit 0
 fi
 
-log "building host Shirudo payload and test helpers"
+log "building host shirudo payload and test helpers"
 make -C "$REPO_ROOT" all shirudo-build
 make -C "$REPO_ROOT/testing" test-helpers
 

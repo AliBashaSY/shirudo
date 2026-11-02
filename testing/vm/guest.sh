@@ -293,7 +293,7 @@ log "installing networking modules from the booted kernel artifact"
 install_kernel_modules
 install_kernel_config
 
-log "importing host-built Shirudo payload"
+log "importing host-built shirudo payload"
 log "host bundle dependency mode: $(<"$BUNDLE/dependency-mode")"
 install -d /usr/local/bin
 # Booted from the shirudo initrd the binary is already in place and its
@@ -338,7 +338,7 @@ if ! grep -F 'keyring .bpf' /proc/keys; then
 fi
 
 if [[ "$VM_INITRD" == 1 ]]; then
-	log "initrd Shirudo journal"
+	log "initrd shirudo journal"
 	journalctl -b -u shirudo-initrd.service --no-pager | tail -40 || true
 fi
 

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Live-kernel capability checks required by Shirudo's signed BPF loader.
+ * Live-kernel capability checks required by shirudo's signed BPF loader.
  */
 
 #ifndef SHIRUDO_KERNEL_ABI_H
