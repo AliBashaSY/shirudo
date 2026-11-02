@@ -944,11 +944,14 @@ static int prog_attach_netfilter_ipv6_pre_routing(int prog_fd)
 	return bpf_link_create(prog_fd, 0, BPF_NETFILTER, &opts);
 }
 
-static int read_int_file(const char *path, const char *fmt)
+/* The number after prefix in the file at path, up to INT_MAX. */
+static int read_int_file(const char *path, const char *prefix)
 {
+	size_t skip = strlen(prefix);
 	char buf[64];
+	__u64 value;
 	ssize_t n;
-	int fd, value;
+	int fd;
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
@@ -964,21 +967,22 @@ static int read_int_file(const char *path, const char *fmt)
 	if (n == 0)
 		return -EINVAL;
 	buf[n] = '\0';
-	if (sscanf(buf, fmt, &value) != 1 || value < 0)
+	if ((size_t)n < skip || memcmp(buf, prefix, skip) ||
+	    parse_u64(buf + skip, digits(buf + skip, (size_t)n - skip),
+		      INT_MAX, &value))
 		return -EINVAL;
-	return value;
+	return (int)value;
 }
 
 static int determine_kprobe_perf_type(void)
 {
-	return read_int_file("/sys/bus/event_source/devices/kprobe/type",
-			     "%d\n");
+	return read_int_file("/sys/bus/event_source/devices/kprobe/type", "");
 }
 
 static int determine_kprobe_retprobe_bit(void)
 {
 	return read_int_file("/sys/bus/event_source/devices/kprobe/format/retprobe",
-			     "config:%d\n");
+			     "config:");
 }
 
 static int perf_event_open_kprobe(const char *target, __u64 offset,
