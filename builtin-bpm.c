@@ -301,7 +301,7 @@ static FILE *source_open(const char *path)
 	int fd;
 
 	if (!image_config_active())
-		return fopen(path, "r");
+		return fopen(path, "re");
 	fd = image_open_relative(path + 1, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;
@@ -330,7 +330,7 @@ static FILE *tree_conf_open(void)
 	int fd;
 
 	if (!image_config_active())
-		return fopen(BPM_TREE_ETC_PATH, "r");
+		return fopen(BPM_TREE_ETC_PATH, "re");
 	fd = image_open(IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;

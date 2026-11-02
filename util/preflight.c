@@ -121,7 +121,7 @@ static void check_bpf_lsm(struct preflight_result *r)
 
 static bool bpffs_in_proc_filesystems(void)
 {
-	FILE *f = fopen("/proc/filesystems", "r");
+	FILE *f = fopen("/proc/filesystems", "re");
 	char line[128];
 	bool found = false;
 

@@ -218,7 +218,7 @@ static int init_keyring(void)
 
 static int is_bpffs_mounted(const char *path)
 {
-	FILE *f = fopen("/proc/self/mounts", "r");
+	FILE *f = fopen("/proc/self/mounts", "re");
 	char line[4096];
 	int found = 0;
 

@@ -240,7 +240,7 @@ static int write_private_pem(EVP_PKEY *pkey, const char *path)
 	int fd, ret = -1;
 	BIO *b = NULL;
 
-	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
 	if (fd < 0) {
 		pr_err("open %s: %s", path, strerror(errno));
 		return -1;
@@ -277,7 +277,7 @@ static int write_cert_der(X509 *c, const char *path)
 	int fd, ret = -1;
 	BIO *bio = NULL;
 
-	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
 	if (fd < 0) {
 		pr_err("open %s: %s", path, strerror(errno));
 		return -1;

@@ -320,7 +320,7 @@ int config_load_path(struct config *cfg, const char *path)
 	if (!cfg || !path)
 		return -EINVAL;
 	config_defaults(cfg);
-	f = fopen(path, "r");
+	f = fopen(path, "re");
 	if (!f) {
 		if (errno != ENOENT)
 			ret = -errno;	/* still apply env override below */

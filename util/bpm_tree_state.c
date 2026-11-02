@@ -130,7 +130,7 @@ static int read_config_file(const char *path, struct tree_kv *out,
 		return ret;
 	}
 	{
-		FILE *f = fopen(path, "r");
+		FILE *f = fopen(path, "re");
 
 		if (!f)
 			return -errno;
@@ -331,7 +331,7 @@ static int read_selector_config_file(const char *path,
 	}
 
 	{
-		FILE *f = fopen(path, "r");
+		FILE *f = fopen(path, "re");
 
 		if (!f)
 			return -errno;

@@ -1686,7 +1686,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		    1u * 1024u * 1024u,
 		    rodata_data_off, nr_maps, nr_progs);
 
-	fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	fd = open(out_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	if (fd < 0) {
 		err = -errno;
 		pr_err("open %s: %s", out_path, strerror(errno));

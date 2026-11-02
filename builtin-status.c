@@ -131,7 +131,7 @@ static bool bpffs_is_mounted(void)
 	bool found = false;
 	FILE *f;
 
-	f = fopen("/proc/self/mounts", "r");
+	f = fopen("/proc/self/mounts", "re");
 	if (!f)
 		return false;
 	while (fgets(line, sizeof(line), f)) {

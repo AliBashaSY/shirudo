@@ -819,6 +819,7 @@ static int build_log_payload(const char *path,
 			upatch_decode_map_otel(v, &decoded, &decoded_len);
 	if (!decode_rc && record_max && decoded_len > record_max) {
 		xfree(decoded, decoded_len + 1);
+		decoded = NULL;
 		decode_rc = -E2BIG;
 	}
 	if (decode_rc == 0) {
