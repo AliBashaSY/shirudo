@@ -137,7 +137,8 @@ void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	for (i = 0; i < 8; i++)
 		buf[taglen + i] = (__u8)(s >> (56 - 8 * i));
 	memcpy(buf + taglen + 8, operation_digest, 32);
-	sha256_calc(buf, taglen + 40, event);
+	if (sha256_calc(buf, taglen + 40, event))
+		memset(event, 0, 32);
 }
 
 int chain_fold_checked(__u8 chain[32], const __u8 event[32])
@@ -200,12 +201,13 @@ static int register_expectation(const __u8 pcr_before[32],
 		pr_err("tpm: compute signed register policy: %s", strerror(-ret));
 		return ret;
 	}
-	tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS,
-		    policy, TPM_NV_DIGEST_LEN, name_unwritten);
-	tpm_nv_name(NV_INDEX,
-		    TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
-		    policy, TPM_NV_DIGEST_LEN, name_written);
-	return 0;
+	ret = tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS,
+			  policy, TPM_NV_DIGEST_LEN, name_unwritten);
+	if (!ret)
+		ret = tpm_nv_name(NV_INDEX,
+				  TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+				  policy, TPM_NV_DIGEST_LEN, name_written);
+	return ret;
 }
 
 static bool name_equals(const struct tpm_nv_info *info,
@@ -580,10 +582,10 @@ int chain_status(struct chain_status *st)
 			st->anchored = false;
 			goto out;
 		}
-		tpm_nv_name(NV_INDEX,
-			    TPM_REGISTER_ATTRS |
-			    TPM_NV_WRITTEN, policy, 32, expected);
-		st->anchored = name_equals(&nv, expected);
+		st->anchored = !tpm_nv_name(NV_INDEX,
+					    TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+					    policy, 32, expected) &&
+			       name_equals(&nv, expected);
 	}
 out:
 	tpm_close(tpm);

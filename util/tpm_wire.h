@@ -48,19 +48,19 @@ BUILD_BUG_ON_MSG(TPM_NAME_LEN != 2 + TPM_DIGEST_LEN,
 void tpm_writer_public(const __u8 modulus[TPM_NV_RSA_BYTES],
 		       __u8 out[TPM_NV_RSA_PUBLIC_AREA_LEN]);
 int tpm_nv_extend_cphash(const __u8 name[TPM_NAME_LEN],
-			 const __u8 event[32], __u8 out[32]);
+			 const __u8 event[32], __u8 out[32]) __must_check;
 int tpm_writer_auth_hash(const __u8 *nonce, size_t nonce_len,
-			 const __u8 cphash[32], __u8 out[32]);
+			 const __u8 cphash[32], __u8 out[32]) __must_check;
 int tpm_policy_signed(const __u8 prev[32],
 		      const __u8 writer_public[TPM_NV_RSA_BYTES],
-		      __u8 out[32]);
+		      __u8 out[32]) __must_check;
 int tpm_policy_command_code(const __u8 prev[TPM_DIGEST_LEN],
 			    __u32 command_code,
-			    __u8 out[TPM_DIGEST_LEN]);
+			    __u8 out[TPM_DIGEST_LEN]) __must_check;
 int tpm_register_policy_final(const __u8 branch_written[32],
 			      const __u8 branch_init[32],
 			      const __u8 writer_public[TPM_NV_RSA_BYTES],
-			      __u8 policy[32]);
+			      __u8 policy[32]) __must_check;
 
 /*
  * Attributes of the measurement register: an extend-only NV index
@@ -74,14 +74,14 @@ int tpm_register_policy_final(const __u8 branch_written[32],
 
 int tpm_policy_nv_written(const __u8 prev[TPM_DIGEST_LEN],
 			  bool written,
-			  __u8 out[TPM_DIGEST_LEN]);
+			  __u8 out[TPM_DIGEST_LEN]) __must_check;
 int tpm_policy_pcr(const __u8 prev[TPM_DIGEST_LEN],
 		   __u32 pcr_mask,
 		   const __u8 pcr_digest[TPM_DIGEST_LEN],
-		   __u8 out[TPM_DIGEST_LEN]);
+		   __u8 out[TPM_DIGEST_LEN]) __must_check;
 int tpm_policy_or(const __u8 a[TPM_DIGEST_LEN],
 		  const __u8 b[TPM_DIGEST_LEN],
-		  __u8 out[TPM_DIGEST_LEN]);
+		  __u8 out[TPM_DIGEST_LEN]) __must_check;
 
 /*
  * The register's write policy from the values the binding PCRs held
@@ -95,25 +95,25 @@ int tpm_register_policy(__u32 pcr_mask,
 			const __u8 writer_public[TPM_NV_RSA_BYTES],
 			__u8 branch_written[32],
 			__u8 branch_init[32],
-			__u8 policy[32]);
+			__u8 policy[32]) __must_check;
 
 /* Name of an NV index: nameAlg || SHA-256(TPMS_NV_PUBLIC). */
-void tpm_nv_name(__u32 index, __u32 attrs,
-		 const __u8 policy[TPM_DIGEST_LEN],
-		 __u16 data_size,
-		 __u8 name[TPM_NAME_LEN]);
+int tpm_nv_name(__u32 index, __u32 attrs,
+		const __u8 policy[TPM_DIGEST_LEN],
+		__u16 data_size,
+		__u8 name[TPM_NAME_LEN]) __must_check;
 
 int tpm_object_name(const __u8 *public, size_t len,
-		    __u8 name[TPM_NAME_LEN]);
+		    __u8 name[TPM_NAME_LEN]) __must_check;
 
 /*
  * Qualified name of a primary object: nameAlg || SHA-256(hierarchy
  * handle || name). Attestations carry the signer's qualified name.
  */
 #define TPM_RH_ENDORSEMENT	0x4000000Bu
-void tpm_qualified_name(__u32 hierarchy,
-			const __u8 name[TPM_NAME_LEN],
-			__u8 out[TPM_NAME_LEN]);
+int tpm_qualified_name(__u32 hierarchy,
+		       const __u8 name[TPM_NAME_LEN],
+		       __u8 out[TPM_NAME_LEN]) __must_check;
 
 /*
  * The TCG default endorsement key templates: a restricted decryption
@@ -149,9 +149,9 @@ struct tpm_public {
 };
 
 int tpm_public_parse(const __u8 *buf, size_t len,
-		     struct tpm_public *out);
+		     struct tpm_public *out) __must_check;
 int tpm_public_marshal(const struct tpm_public *pub,
-		       __u8 *out, size_t cap, size_t *len);
+		       __u8 *out, size_t cap, size_t *len) __must_check;
 
 struct tpm_ecc_public {
 	__u32		attrs;
@@ -163,7 +163,7 @@ struct tpm_ecc_public {
 };
 
 int tpm_ecc_public_parse(const __u8 *buf, size_t len,
-			 struct tpm_ecc_public *out);
+			 struct tpm_ecc_public *out) __must_check;
 
 /*
  * The key derivations of TPM 2.0 Part 1 with SHA-256: KDFa (SP800-108
@@ -173,10 +173,10 @@ int tpm_ecc_public_parse(const __u8 *buf, size_t len,
 int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 	     const __u8 *ctx_u, size_t u_len,
 	     const __u8 *ctx_v, size_t v_len,
-	     __u8 *out, size_t out_len);
-void tpm_kdfe(const __u8 z[32], const char *label,
-	      const __u8 *party_u, size_t u_len,
-	      const __u8 *party_v, size_t v_len, __u8 out[32]);
+	     __u8 *out, size_t out_len) __must_check;
+int tpm_kdfe(const __u8 z[32], const char *label,
+	     const __u8 *party_u, size_t u_len,
+	     const __u8 *party_v, size_t v_len, __u8 out[32]) __must_check;
 
 /*
  * Credential protection (Part 1, 24.4): from a seed shared with the
@@ -190,10 +190,10 @@ void tpm_kdfe(const __u8 z[32], const char *label,
 int tpm_credential_protect(const __u8 seed[32],
 			   const __u8 name[TPM_NAME_LEN],
 			   const __u8 credential[TPM_CREDENTIAL_LEN],
-			   __u8 out[TPM_ID_OBJECT_LEN]);
+			   __u8 out[TPM_ID_OBJECT_LEN]) __must_check;
 
 int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,
-			      __u8 r[32], __u8 s[32]);
+			      __u8 r[32], __u8 s[32]) __must_check;
 
 struct tpm_attest {
 	__u16		type;
@@ -223,6 +223,6 @@ struct tpm_attest {
  * input stay valid as long as buf does.
  */
 int tpm_attest_parse(const __u8 *buf, size_t len,
-		     struct tpm_attest *out);
+		     struct tpm_attest *out) __must_check;
 
 #endif /* SHIRUDO_TPM_WIRE_H */

@@ -175,11 +175,11 @@ int main(void)
 		fprintf(stderr, "create TPM NV writer: %s\n", strerror(-err));
 		goto out;
 	}
-	if (tpm_policy_signed(zero, writer_public, policy)) {
+	if (tpm_policy_signed(zero, writer_public, policy) ||
+	    tpm_policy_command_code(policy, TPM_CC_NV_EXTEND, policy)) {
 		fprintf(stderr, "cannot construct the scratch NV writer policy\n");
 		goto out;
 	}
-	tpm_policy_command_code(policy, TPM_CC_NV_EXTEND, policy);
 	if (tpm_writer_load(t, writer_seed, writer_public, &writer) ||
 	    tpm_nv_define(t, TEST_NV_INDEX, policy, NULL, 0))
 		goto out;

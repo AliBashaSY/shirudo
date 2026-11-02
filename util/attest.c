@@ -560,12 +560,11 @@ static int on_record(void *ctx)
 		__u8 payload[32], event[32];
 
 		strscpy(r->label, p->upatch_name, sizeof(r->label));
-		if (!hex_decode(p->upatch_payload_hex, payload, 32)) {
-			chain_upatch_event(load ? "shirudo-upatch" :
-					   "shirudo-unload", p->upatch_name,
-					   payload, event);
+		if (!hex_decode(p->upatch_payload_hex, payload, 32) &&
+		    !chain_upatch_event(load ? "shirudo-upatch" :
+					"shirudo-unload", p->upatch_name,
+					payload, event))
 			r->derived = !memneq_explicit(event, r->digest, 32);
-		}
 	} else if (!strcmp(p->type, "tree_op")) {
 		__u8 operation[32], event[32];
 
@@ -698,11 +697,12 @@ static int check_signed(struct reporter *rep, const char *what,
 		say(rep, false, "%s: signature structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	sha256_calc(attest, *attest_len, digest);
-	ret = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
+	ret = sha256_calc(attest, *attest_len, digest);
+	if (!ret)
+		ret = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
 	say(rep, ret == 0, "%s: ECDSA signature by the attestation key", what);
-	tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qn);
-	say(rep, parsed->signer_len == TPM_NAME_LEN &&
+	say(rep, !tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qn) &&
+	    parsed->signer_len == TPM_NAME_LEN &&
 	    !memneq_explicit(parsed->signer, qn, TPM_NAME_LEN),
 	    "%s: signed by the key as an endorsement primary", what);
 	say(rep, parsed->extra_len == nonce_len &&
@@ -727,7 +727,7 @@ int attest_verify(const char *evidence, size_t len,
 	__u8 nonce[ATTEST_NONCE_MAX], chain[32] = {};
 	__u8 branch_written[32], branch_init[32], policy[32], bind[64];
 	__u8 expected_name[TPM_NAME_LEN], pcr_expected[32];
-	__u8 anchor_digest[32], cred[TPM_CREDENTIAL_LEN];
+	__u8 anchor_digest[32] = {}, cred[TPM_CREDENTIAL_LEN];
 	struct parse *p;
 	size_t ak_public_len, ak_name_len, nonce_len, attest_len;
 	size_t reg_name_len, reg_value_len, cred_len = 0, i, runtime = 0;
@@ -926,8 +926,9 @@ int attest_verify(const char *evidence, size_t len,
 	{
 		__u8 computed[TPM_NAME_LEN];
 
-		tpm_object_name(ak_public, ak_public_len, computed);
-		say(&rep, !memneq_explicit(computed, ak_name, sizeof(computed)),
+		say(&rep,
+		    !tpm_object_name(ak_public, ak_public_len, computed) &&
+		    !memneq_explicit(computed, ak_name, sizeof(computed)),
 		    "attestation key: name matches its public area");
 	}
 	if (expect->have_ak_name)
@@ -954,9 +955,9 @@ int attest_verify(const char *evidence, size_t len,
 		}
 		parsed = tpm_public_parse(ek_public, ek_public_len,
 					  &ek_pub) == 0;
-		tpm_object_name(ek_public, ek_public_len, computed);
-		say(&rep,
-		    parsed && !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
+		say(&rep, parsed &&
+		    !tpm_object_name(ek_public, ek_public_len, computed) &&
+		    !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
 		    "endorsement key: name matches its public area");
 		say(&rep, parsed && ek_pub.attrs == TPM_EK_ATTRS &&
 		    ek_pub.policy_len == 32 &&
@@ -1003,19 +1004,25 @@ int attest_verify(const char *evidence, size_t len,
 			quote.type == TPM_ST_ATTEST_QUOTE &&
 			quote.pcr_mask == (__u32)p->pcr_mask &&
 			p->pcr_have == quote.pcr_mask;
+		bool hashed = false;
 		bool vouched;
 
 		say(&rep, complete,
 		    "quote: covers the PCRs the document lists");
 		if (complete && sha256_init(&ctx) == 0) {
-			for (bit = 0; bit < 24; bit++) {
+			int err = 0;
+
+			for (bit = 0; bit < 24 && !err; bit++) {
 				if (quote.pcr_mask & (1u << bit))
-					sha256_update(&ctx,
-						      p->pcrs[bit], 32);
+					err = sha256_update(&ctx,
+							    p->pcrs[bit], 32);
 			}
-			sha256_final(&ctx, digest);
+			if (err)
+				sha256_free(&ctx);
+			else
+				hashed = !sha256_final(&ctx, digest);
 		}
-		vouched = complete &&
+		vouched = hashed &&
 			  !memneq_explicit(digest, quote.pcr_digest, 32);
 		say(&rep, vouched,
 		    "quote: PCR digest matches the listed values");
@@ -1113,9 +1120,12 @@ int attest_verify(const char *evidence, size_t len,
 			ret = -EKEYREJECTED;
 		goto out;
 	}
-	tpm_nv_name(NV_INDEX,
-		    TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
-		    policy, 32, expected_name);
+	ret = tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+			  policy, 32, expected_name);
+	if (ret) {
+		say(&rep, false, "register: cannot compute the index name");
+		goto out;
+	}
 	say(&rep, !memneq_explicit(expected_name, reg_name, TPM_NAME_LEN) &&
 	    !memneq_explicit(expected_name, p->init.name, TPM_NAME_LEN),
 	    "register: public area is bound to PCRs %u and %u as recorded",
@@ -1175,9 +1185,10 @@ int attest_verify(const char *evidence, size_t len,
 	{
 		char anchor[CHAIN_ANCHOR_MAX];
 		bool named = !chain_anchor(p->init.name, anchor,
-					   sizeof(anchor));
+					   sizeof(anchor)) &&
+			     !sha256_calc(anchor, strlen(anchor),
+					  anchor_digest);
 
-		sha256_calc(anchor, strlen(anchor), anchor_digest);
 		say(&rep, named &&
 		    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),
 		    "anchor: record digest matches the index name");
@@ -1403,8 +1414,8 @@ int attest_challenge_make(const char *evidence, size_t len,
 		    "endorsement key: the pinned key");
 
 	/* The key must be an endorsement key, not any decryption key. */
-	tpm_object_name(ek_public, ek_public_len, computed);
-	say(&rep, !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
+	say(&rep, !tpm_object_name(ek_public, ek_public_len, computed) &&
+	    !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
 	    "endorsement key: name matches its public area");
 	say(&rep, pub.attrs == TPM_EK_ATTRS && pub.policy_len == 32 &&
 	    !memneq_explicit(pub.policy, shirudo_tpm_ek_policy, 32),
@@ -1475,9 +1486,9 @@ int attest_challenge_make(const char *evidence, size_t len,
 				     sizeof(secret), &secret_len))
 			goto out;
 	} else {
-		if (ecdh_p256_ephemeral(pub.x, pub.y, eph_x, eph_y, z))
+		if (ecdh_p256_ephemeral(pub.x, pub.y, eph_x, eph_y, z) ||
+		    tpm_kdfe(z, "IDENTITY", eph_x, 32, pub.x, 32, seed))
 			goto out;
-		tpm_kdfe(z, "IDENTITY", eph_x, 32, pub.x, 32, seed);
 		secret[0] = 0;
 		secret[1] = 32;
 		memcpy(secret + 2, eph_x, 32);

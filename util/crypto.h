@@ -23,49 +23,50 @@ struct sha256_ctx {
 	void *impl;
 };
 
-int sha256_init(struct sha256_ctx *ctx);
+int sha256_init(struct sha256_ctx *ctx) __must_check;
 int sha256_update(struct sha256_ctx *ctx,
-		  const void *data, size_t len);
+		  const void *data, size_t len) __must_check;
 int sha256_final(struct sha256_ctx *ctx,
-		 __u8 out[CRYPTO_SHA256_LEN]);
+		 __u8 out[CRYPTO_SHA256_LEN]) __must_check;
 void sha256_free(struct sha256_ctx *ctx);
 int sha256_buffer(const void *data, size_t len,
-		  __u8 out[CRYPTO_SHA256_LEN]);
+		  __u8 out[CRYPTO_SHA256_LEN]) __must_check;
 int base64_encode(const __u8 *data, size_t len,
-		  char *out, size_t out_sz);
+		  char *out, size_t out_sz) __must_check;
 
 /* 0 when valid, -EKEYREJECTED when not. */
 int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
 		      const __u8 digest[CRYPTO_SHA256_LEN],
-		      const __u8 r[32], const __u8 s[32]);
+		      const __u8 r[32], const __u8 s[32]) __must_check;
 
 struct cert {
 	void *impl;
 };
 
-int cert_read_file(const char *path, struct cert *cert);
-int cert_read_fd(int fd, struct cert *cert);
+int cert_read_file(const char *path, struct cert *cert) __must_check;
+int cert_read_fd(int fd, struct cert *cert) __must_check;
 void cert_free(struct cert *cert);
 int cert_pubkey_digest(const struct cert *cert,
-		       __u8 out[CRYPTO_SHA256_LEN]);
+		       __u8 out[CRYPTO_SHA256_LEN]) __must_check;
 /* The provider's name for the cert's public key, e.g. "ML-DSA-87". */
 int cert_key_algorithm(const struct cert *cert,
-		       char *out, size_t out_sz);
+		       char *out, size_t out_sz) __must_check;
 /* The subject on one line, "O=Example, CN=fleet", control bytes escaped. */
-int cert_subject(const struct cert *cert, char *out, size_t out_sz);
+int cert_subject(const struct cert *cert, char *out, size_t out_sz)
+	__must_check;
 /* The validity window as UTC dates, YYYY-MM-DD. */
 int cert_validity(const struct cert *cert, char not_before[11],
-		  char not_after[11]);
+		  char not_after[11]) __must_check;
 int verify_detached(const __u8 *payload, size_t payload_len,
 		    const __u8 *signature, size_t signature_len,
-		    const struct cert *cert);
+		    const struct cert *cert) __must_check;
 /*
  * Whether a signer of the CMS blob names this certificate, by key id
  * or by issuer and serial: 1 when one does, 0 when none, -EINVAL when
  * the blob does not parse. Says nothing about the signature's validity.
  */
 int cms_signed_by(const __u8 *signature, size_t signature_len,
-		  const struct cert *cert);
+		  const struct cert *cert) __must_check;
 
 struct tls_ca {
 	const char *path;
@@ -84,15 +85,15 @@ void tls_ca_cleanup(struct tls_ca *ca);
  * is the extra trust anchor fed to the SSL_CTX callback. Returns 0 or a
  * negative errno; callers must not connect when it fails.
  */
-int tls_curl_policy(CURL *curl, struct tls_ca *ca);
+int tls_curl_policy(CURL *curl, struct tls_ca *ca) __must_check;
 
 int hmac_sha256(const __u8 *key, size_t key_len,
 		const void *data, size_t len,
-		__u8 out[CRYPTO_SHA256_LEN]);
+		__u8 out[CRYPTO_SHA256_LEN]) __must_check;
 
 /* AES-128 in CFB mode with a zero IV and no padding. */
 int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
-		       size_t len, __u8 *out);
+		       size_t len, __u8 *out) __must_check;
 
 /*
  * RSA-OAEP with SHA-256, MGF1-SHA-256 and the given label to the
@@ -101,7 +102,7 @@ int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
 int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
 		     const void *label, size_t label_len,
 		     const __u8 *in, size_t in_len,
-		     __u8 *out, size_t cap, size_t *out_len);
+		     __u8 *out, size_t cap, size_t *out_len) __must_check;
 
 /*
  * One ephemeral P-256 ECDH against the point (x, y): the ephemeral
@@ -109,13 +110,13 @@ int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
  */
 int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
 			__u8 eph_x[32], __u8 eph_y[32],
-			__u8 z[32]);
+			__u8 z[32]) __must_check;
 
 int base64_decode(const char *in, size_t in_len, __u8 *out,
-		  size_t cap, size_t *out_len);
+		  size_t cap, size_t *out_len) __must_check;
 
 int cert_read_der(const __u8 *der, size_t len,
-		  struct cert *cert);
+		  struct cert *cert) __must_check;
 
 struct cert_pubkey {
 	bool		rsa;
@@ -127,7 +128,7 @@ struct cert_pubkey {
 };
 
 int cert_pubkey(const struct cert *cert,
-		struct cert_pubkey *out);
+		struct cert_pubkey *out) __must_check;
 
 /*
  * Chain the certificate to the PEM bundle of trusted issuers at path.
@@ -135,7 +136,8 @@ int cert_pubkey(const struct cert *cert,
  * static explanation; -EINVAL when the bundle cannot be loaded.
  */
 int cert_verify_chain(const struct cert *cert,
-		      const char *bundle_path, const char **reason);
+		      const char *bundle_path, const char **reason)
+	__must_check;
 
 /* Log libcrypto's last error under where. */
 void openssl_complain(const char *where);

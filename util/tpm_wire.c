@@ -274,9 +274,9 @@ int tpm_register_policy(__u32 pcr_mask,
 					 writer_public, policy);
 }
 
-void tpm_nv_name(__u32 index, __u32 attrs,
-		 const __u8 policy[32], __u16 data_size,
-		 __u8 name[TPM_NAME_LEN])
+int tpm_nv_name(__u32 index, __u32 attrs,
+		const __u8 policy[32], __u16 data_size,
+		__u8 name[TPM_NAME_LEN])
 {
 	__u8 pub[4 + 2 + 4 + 2 + 32 + 2];
 
@@ -287,8 +287,7 @@ void tpm_nv_name(__u32 index, __u32 attrs,
 	memcpy(pub + 12, policy, 32);
 	put_be16(pub + 44, data_size);
 	put_be16(name, TPM_ALG_SHA256);
-	if (sha256_buffer(pub, sizeof(pub), name + 2))
-		memset(name, 0, TPM_NAME_LEN);
+	return sha256_buffer(pub, sizeof(pub), name + 2);
 }
 
 int tpm_object_name(const __u8 *public, size_t len,
@@ -301,20 +300,19 @@ int tpm_object_name(const __u8 *public, size_t len,
 	    alg != TPM_ALG_SHA256)
 		return -EINVAL;
 	put_be16(name, TPM_ALG_SHA256);
-	sha256_buffer(public, len, name + 2);
-	return 0;
+	return sha256_buffer(public, len, name + 2);
 }
 
-void tpm_qualified_name(__u32 hierarchy,
-			const __u8 name[TPM_NAME_LEN],
-			__u8 out[TPM_NAME_LEN])
+int tpm_qualified_name(__u32 hierarchy,
+		       const __u8 name[TPM_NAME_LEN],
+		       __u8 out[TPM_NAME_LEN])
 {
 	__u8 buf[4 + TPM_NAME_LEN];
 
 	put_be32(buf, hierarchy);
 	memcpy(buf + 4, name, TPM_NAME_LEN);
 	put_be16(out, TPM_ALG_SHA256);
-	sha256_buffer(buf, sizeof(buf), out + 2);
+	return sha256_buffer(buf, sizeof(buf), out + 2);
 }
 
 const __u8 shirudo_tpm_ek_policy[32] = {
@@ -460,6 +458,7 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 {
 	__u8 buf[4 + 64 + 1 + 2 * TPM_NAME_LEN + 4], block[32];
 	size_t label_len = strlen(label), done = 0, off, n;
+	int ret = 0;
 	__u32 i;
 
 	if (label_len > 64 || u_len > TPM_NAME_LEN ||
@@ -479,27 +478,28 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 		off += v_len;
 		put_be32(buf + off, (__u32)(out_len * 8));
 		off += 4;
-		if (hmac_sha256(key, key_len, buf, off, block))
-			return -EIO;
+		if (hmac_sha256(key, key_len, buf, off, block)) {
+			ret = -EIO;
+			break;
+		}
 		n = out_len - done < 32 ? out_len - done : 32;
 		memcpy(out + done, block, n);
 		done += n;
 	}
 	memzero_explicit(block, sizeof(block));
-	return 0;
+	return ret;
 }
 
-void tpm_kdfe(const __u8 z[32], const char *label,
-	      const __u8 *party_u, size_t u_len,
-	      const __u8 *party_v, size_t v_len, __u8 out[32])
+int tpm_kdfe(const __u8 z[32], const char *label,
+	     const __u8 *party_u, size_t u_len,
+	     const __u8 *party_v, size_t v_len, __u8 out[32])
 {
 	__u8 buf[4 + 32 + 64 + 1 + 2 * 64];
 	size_t label_len = strlen(label), off = 4;
+	int ret;
 
-	if (label_len > 64 || u_len > 64 || v_len > 64) {
-		memset(out, 0, 32);
-		return;
-	}
+	if (label_len > 64 || u_len > 64 || v_len > 64)
+		return -EINVAL;
 	put_be32(buf, 1);
 	memcpy(buf + off, z, 32);
 	off += 32;
@@ -512,8 +512,9 @@ void tpm_kdfe(const __u8 z[32], const char *label,
 	if (v_len)
 		memcpy(buf + off, party_v, v_len);
 	off += v_len;
-	sha256_buffer(buf, off, out);
+	ret = sha256_buffer(buf, off, out);
 	memzero_explicit(buf, sizeof(buf));
+	return ret;
 }
 
 int tpm_credential_protect(const __u8 seed[32],

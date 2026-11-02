@@ -83,7 +83,8 @@ int main(int argc, char **argv)
 
 		if (hex_decode(argv[2], a, 32))
 			return 2;
-		tpm_policy_command_code(a, command_code, out);
+		if (tpm_policy_command_code(a, command_code, out))
+			return 1;
 		puthex(out, 32);
 		return 0;
 	}
@@ -100,7 +101,8 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "nv-written") == 0 && argc == 4) {
 		if (hex_decode(argv[2], a, 32))
 			return 2;
-		tpm_policy_nv_written(a, atoi(argv[3]) != 0, out);
+		if (tpm_policy_nv_written(a, atoi(argv[3]) != 0, out))
+			return 1;
 		puthex(out, 32);
 		return 0;
 	}
@@ -108,8 +110,9 @@ int main(int argc, char **argv)
 		if (hex_decode(argv[2], a, 32) ||
 		    hex_decode(argv[4], b, 32))
 			return 2;
-		tpm_policy_pcr(a, (__u32)strtoul(argv[3], NULL, 0),
-			       b, out);
+		if (tpm_policy_pcr(a, (__u32)strtoul(argv[3], NULL, 0),
+				   b, out))
+			return 1;
 		puthex(out, 32);
 		return 0;
 	}
@@ -117,7 +120,8 @@ int main(int argc, char **argv)
 		if (hex_decode(argv[2], a, 32) ||
 		    hex_decode(argv[3], b, 32))
 			return 2;
-		tpm_policy_or(a, b, out);
+		if (tpm_policy_or(a, b, out))
+			return 1;
 		puthex(out, 32);
 		return 0;
 	}
@@ -141,9 +145,10 @@ int main(int argc, char **argv)
 
 		if (hex_decode(argv[4], a, 32))
 			return 2;
-		tpm_nv_name((__u32)strtoul(argv[2], NULL, 0),
-			    (__u32)strtoul(argv[3], NULL, 0), a, 32,
-			    name);
+		if (tpm_nv_name((__u32)strtoul(argv[2], NULL, 0),
+				(__u32)strtoul(argv[3], NULL, 0), a, 32,
+				name))
+			return 1;
 		puthex(name, sizeof(name));
 		return 0;
 	}
@@ -218,7 +223,8 @@ int main(int argc, char **argv)
 		    gethex(argv[4], u, sizeof(u), &u_len) ||
 		    gethex(argv[5], v, sizeof(v), &v_len))
 			return 2;
-		tpm_kdfe(z, argv[3], u, u_len, v, v_len, res);
+		if (tpm_kdfe(z, argv[3], u, u_len, v, v_len, res))
+			return 1;
 		puthex(res, 32);
 		return 0;
 	}

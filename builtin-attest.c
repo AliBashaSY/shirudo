@@ -271,11 +271,11 @@ static int apply_event(const char *spec, __u8 chain[32])
 	memcpy(name, colon + 1, name_len);
 	name[name_len] = '\0';
 	if (kind_len == 4 && !strncmp(spec, "load", 4)) {
-		chain_upatch_event("shirudo-upatch", name, digest,
-				   event);
+		if (chain_upatch_event("shirudo-upatch", name, digest, event))
+			return -EIO;
 	} else if (kind_len == 6 && !strncmp(spec, "unload", 6)) {
-		chain_upatch_event("shirudo-unload", name, digest,
-				   event);
+		if (chain_upatch_event("shirudo-unload", name, digest, event))
+			return -EIO;
 	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
 		__s64 seq;
 
@@ -409,9 +409,12 @@ static int cmd_attest_predict(int argc, const char **argv)
 			ret = 1;
 			goto out;
 		}
-		tpm_nv_name(NV_INDEX,
-			    TPM_REGISTER_ATTRS |
-			    TPM_NV_WRITTEN, policy, 32, name);
+		if (tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+				policy, 32, name)) {
+			pr_err("attest predict: cannot compute the register name");
+			ret = 1;
+			goto out;
+		}
 		hex_encode(name, sizeof(name), hex);
 		printf("register_name: %s\n", hex);
 		if (chain_anchor(name, anchor, sizeof(anchor))) {

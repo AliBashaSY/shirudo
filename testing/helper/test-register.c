@@ -237,8 +237,9 @@ int main(int argc, char **argv)
 
 		if (hex_decode(argv[3], payload, 32))
 			return 2;
-		chain_upatch_event("shirudo-upatch", argv[2], payload,
-				   event);
+		if (chain_upatch_event("shirudo-upatch", argv[2], payload,
+				       event))
+			return 1;
 		ret = chain_extend(event, chain);
 		printf("rc=%d\n", ret);
 		if (ret)
@@ -464,10 +465,11 @@ int main(int argc, char **argv)
 			ret = tpm_nv_info(tpm, index, &nv);
 		if (!ret)
 			ret = chain_anchor(nv.name, anchor, sizeof(anchor));
-		if (!ret) {
-			sha256_calc(anchor, strlen(anchor), anchor_digest);
+		if (!ret)
+			ret = sha256_calc(anchor, strlen(anchor),
+					  anchor_digest);
+		if (!ret)
 			ret = tpm_pcr_extend(tpm, pcr, anchor_digest);
-		}
 		if (!ret)
 			ret = tpm_nv_read(tpm, index, value);
 		if (!ret)

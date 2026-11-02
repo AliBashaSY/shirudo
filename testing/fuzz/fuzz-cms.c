@@ -7,6 +7,8 @@
  * DER certificate of that length and a signature over the certificate.
  */
 
+#include <stdlib.h>
+
 #include "crypto.h"
 #include "fuzz.h"
 #include "keys.h"
@@ -32,16 +34,23 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 
 	keys_digest_der(der, der_len, sha, fp);
 	if (!cert_read_der(der, der_len, &cert)) {
-		cert_pubkey(&cert, &pub);
-		verify_detached(der, der_len, sig, sig_len, &cert);
-		cms_signed_by(sig, sig_len, &cert);
+		int signed_by = cms_signed_by(sig, sig_len, &cert);
+
+		/* A signature that verifies is one that parses. */
+		if (!verify_detached(der, der_len, sig, sig_len, &cert) &&
+		    signed_by < 0)
+			abort();
+		if (!cert_pubkey(&cert, &pub) && pub.n_len > sizeof(pub.n))
+			abort();
 		cert_free(&cert);
 	}
 
 	raw = xmalloc(sig_len + 1);
 	if (raw) {
-		base64_decode((const char *)sig, sig_len, raw,
-			      sig_len + 1, &n);
+		/* Base64 never decodes to more bytes than it spans. */
+		if (!base64_decode((const char *)sig, sig_len, raw,
+				   sig_len + 1, &n) && n > sig_len)
+			abort();
 		xfree(raw, sig_len + 1);
 	}
 	return 0;

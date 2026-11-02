@@ -371,8 +371,7 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 		memset(chain, 0, 32);
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, digest, 32);
-	sha256_calc(cat, sizeof(cat), chain);
-	return 0;
+	return sha256_calc(cat, sizeof(cat), chain);
 }
 
 int eventlog_replay(__u8 out[32])
