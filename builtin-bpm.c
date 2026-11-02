@@ -1874,8 +1874,7 @@ static int tree_measure_locked(const struct shirudo_tree_operation *op,
 {
 	__u8 event[32], chain[32];
 	struct shirudo_json_emit e;
-	char line[4096], ts[32], boot_id[64], nv_index[16];
-	char digest_hex[65], chain_hex[65];
+	char line[4096], chain_hex[65];
 	int rc;
 
 	chain_tree_event(op->seq, operation_digest, event);
@@ -1883,22 +1882,9 @@ static int tree_measure_locked(const struct shirudo_tree_operation *op,
 	if (rc)
 		return rc;
 
-	eventlog_timestamp(ts, sizeof(ts));
-	eventlog_boot_id(boot_id, sizeof(boot_id));
-	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0)
-		return -E2BIG;
-	hex_encode(event, 32, digest_hex);
 	hex_encode(chain, 32, chain_hex);
 	e = (struct shirudo_json_emit){ .buf = line, .cap = sizeof(line) };
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_kv_string(&e, "ts", ts);
-	json_kv_string(&e, "nv_index", nv_index);
-	json_kv_string(&e, "alg", "sha256");
-	json_kv_string(&e, "digest", digest_hex);
-	json_kv_string(&e, "type", "tree_op");
-	json_kv_string(&e, "boot_id", boot_id);
+	eventlog_record_open(&e, "tree_op", event);
 	json_obj_open_key(&e, "tree");
 	json_kv_int(&e, "seq", op->seq);
 	json_kv_string(&e, "op", op->op);

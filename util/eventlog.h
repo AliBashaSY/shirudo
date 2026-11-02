@@ -85,4 +85,14 @@ int eventlog_would_exceed(__u64 max_bytes);
 void eventlog_timestamp(char *out, size_t cap);	/* ISO-8601 UTC */
 void eventlog_boot_id(char *out, size_t cap);	/* /proc boot_id */
 
+struct shirudo_json_emit;
+
+/*
+ * Open a record and write the fields every record starts with, through
+ * boot_id; the caller adds its own and closes the object. A failure
+ * lands in e->err like any other.
+ */
+void eventlog_record_open(struct shirudo_json_emit *e, const char *type,
+			  const __u8 digest[32]);
+
 #endif /* SHIRUDO_EVENTLOG_H */

@@ -2175,24 +2175,10 @@ static int format_upatch_event(const char *type, const char *name,
 			       char *buf, size_t size)
 {
 	struct shirudo_json_emit e = { .buf = buf, .cap = size };
-	char ts[32], boot_id[64], nv_index[16], payload_hex[65], digest_hex[65];
+	char payload_hex[65];
 
-	eventlog_timestamp(ts, sizeof(ts));
-	eventlog_boot_id(boot_id, sizeof(boot_id));
-	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0)
-		return -E2BIG;
 	hex_encode(payload, 32, payload_hex);
-	hex_encode(event, 32, digest_hex);
-
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_kv_string(&e, "ts", ts);
-	json_kv_string(&e, "nv_index", nv_index);
-	json_kv_string(&e, "alg", "sha256");
-	json_kv_string(&e, "digest", digest_hex);
-	json_kv_string(&e, "type", type);
-	json_kv_string(&e, "boot_id", boot_id);
+	eventlog_record_open(&e, type, event);
 	json_obj_open_key(&e, "upatch");
 	json_kv_string(&e, "name", name);
 	json_kv_string(&e, "payload_sha256", payload_hex);

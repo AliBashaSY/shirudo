@@ -22,6 +22,7 @@
 
 #include "chain.h"
 #include "eventlog.h"
+#include "hex.h"
 #include "timefmt.h"
 #include "io.h"
 #include "json.h"
@@ -495,4 +496,26 @@ void eventlog_boot_id(char *out, size_t cap)
 	out[n] = '\0';
 	while (n > 0 && (out[n - 1] == '\n' || out[n - 1] == '\r'))
 		out[--n] = '\0';
+}
+
+void eventlog_record_open(struct shirudo_json_emit *e, const char *type,
+			  const __u8 digest[32])
+{
+	char ts[32], boot_id[64], nv_index[16], digest_hex[65];
+
+	eventlog_timestamp(ts, sizeof(ts));
+	eventlog_boot_id(boot_id, sizeof(boot_id));
+	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
+		       SHIRUDO_NV_INDEX) < 0 && !e->err)
+		e->err = -E2BIG;
+	hex_encode(digest, 32, digest_hex);
+
+	json_obj_open(e);
+	json_kv_int(e, "schema", 1);
+	json_kv_string(e, "ts", ts);
+	json_kv_string(e, "nv_index", nv_index);
+	json_kv_string(e, "alg", "sha256");
+	json_kv_string(e, "digest", digest_hex);
+	json_kv_string(e, "type", type);
+	json_kv_string(e, "boot_id", boot_id);
 }

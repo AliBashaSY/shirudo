@@ -683,23 +683,8 @@ static int append_key_event(const char *type, const char *fp_hex,
 {
 	char buf[1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	char ts[32], boot_id[64], nv_index[16], digest_hex[65];
 
-	eventlog_timestamp(ts, sizeof(ts));
-	eventlog_boot_id(boot_id, sizeof(boot_id));
-	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0)
-		return -E2BIG;
-	hex_encode(event, 32, digest_hex);
-
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_kv_string(&e, "ts", ts);
-	json_kv_string(&e, "nv_index", nv_index);
-	json_kv_string(&e, "alg", "sha256");
-	json_kv_string(&e, "digest", digest_hex);
-	json_kv_string(&e, "type", type);
-	json_kv_string(&e, "boot_id", boot_id);
+	eventlog_record_open(&e, type, event);
 	json_obj_open_key(&e, "key");
 	json_kv_string(&e, "fingerprint", fp_hex);
 	json_kv_string(&e, "cert_sha256", sha_hex);

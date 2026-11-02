@@ -1043,22 +1043,15 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	char writer_hex[HEXLEN(SHIRUDO_TPM_NV_RSA_BYTES)];
 	char buf[64 * 1024];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	char cert_hex[HEXLEN(32)], set_hex[HEXLEN(32)], digest_hex[HEXLEN(32)];
 	char pcr_hex[HEXLEN(32)], anchor_hex[HEXLEN(32)], chain_hex[HEXLEN(32)];
-	char phase_hex[HEXLEN(32)];
 	char name_hex[HEXLEN(SHIRUDO_TPM_NAME_LEN)], tree_hex[HEXLEN(32)];
-	char ts[32], boot_id[64], nv_index[16];
+	char cert_hex[HEXLEN(32)], set_hex[HEXLEN(32)];
+	char phase_hex[HEXLEN(32)];
 	size_t i;
 
-	eventlog_timestamp(ts, sizeof(ts));
-	eventlog_boot_id(boot_id, sizeof(boot_id));
-	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-		       SHIRUDO_NV_INDEX) < 0)
-		return -E2BIG;
 	hex_encode(cert_sha, 32, cert_hex);
 	hex_encode(set_digest, 32, set_hex);
 	hex_encode(tree_root, 32, tree_hex);
-	hex_encode(init_digest, 32, digest_hex);
 	hex_encode(info->pcr_before, 32, pcr_hex);
 	hex_encode(info->phase_before, 32, phase_hex);
 	hex_encode(info->name, SHIRUDO_TPM_NAME_LEN, name_hex);
@@ -1066,14 +1059,7 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	hex_encode(info->value, 32, chain_hex);
 	hex_encode(info->writer_public, sizeof(info->writer_public), writer_hex);
 
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_kv_string(&e, "ts", ts);
-	json_kv_string(&e, "nv_index", nv_index);
-	json_kv_string(&e, "alg", "sha256");
-	json_kv_string(&e, "digest", digest_hex);
-	json_kv_string(&e, "type", "init");
-	json_kv_string(&e, "boot_id", boot_id);
+	eventlog_record_open(&e, "init", init_digest);
 	json_kv_int(&e, "tpm_reset_count", info->reset_count);
 	json_kv_string(&e, "cert_sha256", cert_hex);
 	json_arr_open(&e, "certs");
