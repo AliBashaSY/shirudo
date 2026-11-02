@@ -59,9 +59,9 @@ static const char *locate_shirudo_bpf_headers(void)
 	static const char installed[] = "-I" BPF_INCDIR;
 	struct stat st;
 
-	if (stat("./bpf/lib/shirudo_serializer.h", &st) == 0)
+	if (stat("./bpf/lib/serializer.h", &st) == 0)
 		return in_tree;
-	if (stat(BPF_INCDIR "/shirudo_serializer.h", &st) == 0)
+	if (stat(BPF_INCDIR "/serializer.h", &st) == 0)
 		return installed;
 	return NULL;
 }

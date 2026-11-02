@@ -130,7 +130,7 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 	if (decoder_len < sizeof(struct shirudo_upatch_decoder_blob))
 		return false;
 	if (rd_le32(bp) != UPATCH_DECODER_MAGIC ||
-	    rd_le32(bp + 4) != SHIRUDO_UPATCH_DECODER_VERSION)
+	    rd_le32(bp + 4) != UPATCH_DECODER_VERSION)
 		return false;
 
 	nr_decoders = rd_le32(bp + 8);

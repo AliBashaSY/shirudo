@@ -16,7 +16,7 @@
 #include "json.h"
 #include "serializer.h"
 #include "upatch_maps.h"
-#include "bpf/lib/shirudo_serializer.h"
+#include "bpf/lib/serializer.h"
 
 static int fail(const char *msg)
 {
@@ -33,8 +33,8 @@ static int check_abi_and_nonce(void)
 {
 	__u64 generated = 0;
 	struct shirudo_serial_chunk chunk = {
-		.magic = SHIRUDO_SERIAL_MAGIC,
-		.version = SHIRUDO_SERIAL_VERSION,
+		.magic = SERIAL_MAGIC,
+		.version = SERIAL_VERSION,
 		.chunk_index = 1,
 		.total_chunks = 2,
 		.bytes_total = 1,
@@ -45,10 +45,10 @@ static int check_abi_and_nonce(void)
 		.invocation_id = 0x12345678,
 	};
 
-	if (SHIRUDO_SERIAL_VERSION != 1 ||
+	if (SERIAL_VERSION != 1 ||
 	    sizeof(struct shirudo_serialize_ctx) != 40 ||
 	    sizeof(struct shirudo_serial_chunk) != 4096 ||
-	    SHIRUDO_SERIAL_CHUNK_PAYLOAD != 4032)
+	    SERIAL_CHUNK_PAYLOAD != 4032)
 		return fail("serializer v1 ABI layout mismatch");
 	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x12345678) != 0)
 		return fail("valid serializer nonce rejected");
@@ -126,7 +126,7 @@ int main(void)
 			.page_index = 1,
 			.cursor = 128,
 			.next_cursor = 129,
-			.flags = SHIRUDO_SERIAL_F_DONE,
+			.flags = SERIAL_F_DONE,
 			.chunks = 1,
 			.bytes = sizeof(page1_data),
 			.done = true,

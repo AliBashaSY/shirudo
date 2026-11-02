@@ -106,12 +106,12 @@ int serial_chunk_validate(const struct shirudo_serial_chunk *c,
 {
 	if (!c || invocation_id == 0)
 		return -EINVAL;
-	if (c->magic != SHIRUDO_SERIAL_MAGIC ||
-	    c->version != SHIRUDO_SERIAL_VERSION)
+	if (c->magic != SERIAL_MAGIC ||
+	    c->version != SERIAL_VERSION)
 		return -EBADMSG;
 	if (c->chunk_index != want_index || c->total_chunks != total_chunks)
 		return -EBADMSG;
-	if (c->bytes_in_chunk > SHIRUDO_SERIAL_CHUNK_PAYLOAD)
+	if (c->bytes_in_chunk > SERIAL_CHUNK_PAYLOAD)
 		return -EBADMSG;
 	if (c->page_index != page_index || c->cursor != cursor ||
 	    c->next_cursor != next_cursor ||

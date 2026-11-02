@@ -1091,7 +1091,7 @@ static const char *build_shirudo_bpf_include(char *out)
 
 	if (!realpath("bpf/lib", out))
 		return NULL;
-	if (strsprintf(header, sizeof(header), "%s/shirudo_serializer.h",
+	if (strsprintf(header, sizeof(header), "%s/serializer.h",
 		       out) < 0 || access(header, R_OK))
 		return NULL;
 	return out;

@@ -88,7 +88,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		return 0;
 	memcpy(page.data, data, size);
 	page.bytes = (__u32)size;
-	page.chunks = size ? (__u32)((size - 1) / SHIRUDO_SERIAL_CHUNK_PAYLOAD + 1) : 1;
+	page.chunks = size ? (__u32)((size - 1) / SERIAL_CHUNK_PAYLOAD + 1) : 1;
 	page.done = true;
 	v.serial_pages = &page;
 	v.serial_bytes_total = size;

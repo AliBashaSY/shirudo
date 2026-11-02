@@ -9,7 +9,7 @@
 
 #include <shirudo/misc.h>
 
-#include "bpf/lib/shirudo_tamper.h"
+#include "bpf/lib/tamper.h"
 
 struct shirudo_tamper_counts {
 	__u64		count[SHIRUDO_TAMPER_MAX];

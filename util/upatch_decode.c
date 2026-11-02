@@ -92,7 +92,7 @@ int upatch_decode_map_file_otel(const char *path,
 #include "upatch.h"
 #include "upatch_decode.h"
 #include "upatch_maps.h"
-#include "bpf/lib/shirudo_serializer.h"
+#include "bpf/lib/serializer.h"
 
 #define LUA_INSN_LIMIT		1000000
 #define LUA_HOOK_COUNT		10000
@@ -775,10 +775,10 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 				 __u64 cursor, __u64 chunks,
 				 size_t slot_size)
 {
-	size_t slots_per_chunk = SHIRUDO_SERIAL_CHUNK_PAYLOAD / slot_size;
+	size_t slots_per_chunk = SERIAL_CHUNK_PAYLOAD / slot_size;
 
 	if (chunks > 1 && slots_per_chunk > 0 &&
-	    SHIRUDO_SERIAL_CHUNK_PAYLOAD % slot_size != 0) {
+	    SERIAL_CHUNK_PAYLOAD % slot_size != 0) {
 		size_t off = 0;
 		__u64 chunk;
 
@@ -786,8 +786,8 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 			size_t chunk_bytes = len - off;
 			size_t local_slots, i;
 
-			if (chunk_bytes > SHIRUDO_SERIAL_CHUNK_PAYLOAD)
-				chunk_bytes = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+			if (chunk_bytes > SERIAL_CHUNK_PAYLOAD)
+				chunk_bytes = SERIAL_CHUNK_PAYLOAD;
 			local_slots = chunk_bytes / slot_size;
 			if (local_slots > slots_per_chunk)
 				local_slots = slots_per_chunk;
@@ -822,7 +822,7 @@ static int lua_shirudo_page_slots(lua_State *L)
 
 	luaL_checktype(L, 1, LUA_TTABLE);
 	slot_size = lua_check_c_int(L, 2);
-	if (slot_size <= 0 || slot_size > (int)SHIRUDO_SERIAL_CHUNK_PAYLOAD)
+	if (slot_size <= 0 || slot_size > (int)SERIAL_CHUNK_PAYLOAD)
 		return luaL_error(L, "invalid slot size");
 	chunks = lua_page_u64(L, 1, "chunks");
 	lua_getfield(L, 1, "data_hex");
@@ -835,13 +835,13 @@ static int lua_shirudo_page_slots(lua_State *L)
 	rc = hex_decode_push(L, hex, hex_len, &data, &data_len);
 	if (rc)
 		return luaL_error(L, "invalid page data_hex");
-	per_chunk = SHIRUDO_SERIAL_CHUNK_PAYLOAD / (size_t)slot_size;
+	per_chunk = SERIAL_CHUNK_PAYLOAD / (size_t)slot_size;
 	lua_newtable(L);
 	while (off < data_len) {
 		size_t chunk_bytes = data_len - off, local_slots, i;
 
-		if (chunks > 1 && chunk_bytes > SHIRUDO_SERIAL_CHUNK_PAYLOAD)
-			chunk_bytes = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+		if (chunks > 1 && chunk_bytes > SERIAL_CHUNK_PAYLOAD)
+			chunk_bytes = SERIAL_CHUNK_PAYLOAD;
 		local_slots = chunk_bytes / (size_t)slot_size;
 		if (chunks > 1 && local_slots > per_chunk)
 			local_slots = per_chunk;
@@ -1280,11 +1280,11 @@ out_close:
 static int decoder_matches(const struct upatch_decoder_view *d,
 			   const struct shirudo_map_view *v)
 {
-	if (d->language != SHIRUDO_UPATCH_DECODER_LANG_LUA ||
+	if (d->language != UPATCH_DECODER_LANG_LUA ||
 	    d->api_version != 1 ||
-	    d->input_format != SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 ||
-	    (d->export_signal != SHIRUDO_UPATCH_DECODER_EXPORT_LOG &&
-	     d->export_signal != SHIRUDO_UPATCH_DECODER_EXPORT_METRIC))
+	    d->input_format != UPATCH_DECODER_INPUT_MAP_V1 ||
+	    (d->export_signal != UPATCH_DECODER_EXPORT_LOG &&
+	     d->export_signal != UPATCH_DECODER_EXPORT_METRIC))
 		return 0;
 	if (strcmp(d->upatch, v->upatch) != 0)
 		return 0;

@@ -37,8 +37,8 @@
 
 #include <shirudo/enforcement.h>
 
-#include "lib/shirudo_identity.h"
-#include "shirudo_tamper.h"
+#include "lib/identity.h"
+#include "tamper.h"
 
 #define TASK_TRUSTED	1
 #define TASK_BOOTSTRAP	2

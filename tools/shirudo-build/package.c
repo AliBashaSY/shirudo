@@ -26,7 +26,7 @@
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
-#include "bpf/lib/shirudo_serializer.h"
+#include "bpf/lib/serializer.h"
 #include "bpm_package.h"
 #include "elf_target.h"
 #include "io.h"
@@ -843,10 +843,10 @@ static bool parse_decoder_manifest(const __u8 *p, size_t n,
 	if (n < sizeof(*m))
 		return false;
 	if (rd_le32(p + offsetof(struct shirudo_decoder_manifest, magic)) !=
-	    SHIRUDO_DECODER_MANIFEST_MAGIC)
+	    DECODER_MANIFEST_MAGIC)
 		return false;
 	if (rd_le16(p + offsetof(struct shirudo_decoder_manifest, version)) !=
-	    SHIRUDO_UPATCH_DECODER_VERSION)
+	    UPATCH_DECODER_VERSION)
 		return false;
 	if (!fixed_cstr_nonempty(m->upatch, sizeof(m->upatch)) ||
 	    !fixed_cstr_nonempty(m->map, sizeof(m->map)) ||
@@ -955,11 +955,11 @@ static int collect_decoder_manifests(struct bpf_object *obj,
 		if (!parse_decoder_manifest(data + off, data_sz - off,
 					    &manifest))
 			continue;
-		if (manifest.language != SHIRUDO_UPATCH_DECODER_LANG_LUA ||
+		if (manifest.language != UPATCH_DECODER_LANG_LUA ||
 		    manifest.api_version != 1 ||
-		    manifest.input_format != SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 ||
-		    (manifest.export_signal != SHIRUDO_UPATCH_DECODER_EXPORT_LOG &&
-		     manifest.export_signal != SHIRUDO_UPATCH_DECODER_EXPORT_METRIC)) {
+		    manifest.input_format != UPATCH_DECODER_INPUT_MAP_V1 ||
+		    (manifest.export_signal != UPATCH_DECODER_EXPORT_LOG &&
+		     manifest.export_signal != UPATCH_DECODER_EXPORT_METRIC)) {
 			pr_err("unsupported decoder ABI for '%s/%s'",
 			       manifest.upatch, manifest.map);
 			err = -EOPNOTSUPP;
@@ -1024,7 +1024,7 @@ static int build_decoder_blob(const struct decoder_set *set,
 	if (!blob)
 		return -ENOMEM;
 	blob->magic = htole32(UPATCH_DECODER_MAGIC);
-	blob->version = htole32(SHIRUDO_UPATCH_DECODER_VERSION);
+	blob->version = htole32(UPATCH_DECODER_VERSION);
 	blob->nr_decoders = htole32(set->nr_items);
 	blob->reserved = 0;
 
@@ -1127,35 +1127,35 @@ static int validate_serializer_output_map(struct bpf_object *obj)
 	bpf_object__for_each_map(m, obj) {
 		const char *name = bpf_map__name(m);
 
-		if (!name || strcmp(name, SHIRUDO_SERIAL_MAP_NAME) != 0)
+		if (!name || strcmp(name, SERIAL_MAP_NAME) != 0)
 			continue;
 		if (bpf_map__type(m) != BPF_MAP_TYPE_ARRAY) {
 			pr_err("%s must be BPF_MAP_TYPE_ARRAY",
-			       SHIRUDO_SERIAL_MAP_NAME);
+			       SERIAL_MAP_NAME);
 			return -EINVAL;
 		}
 		if (bpf_map__key_size(m) != sizeof(__u32)) {
 			pr_err("%s must use a u32 key",
-			       SHIRUDO_SERIAL_MAP_NAME);
+			       SERIAL_MAP_NAME);
 			return -EINVAL;
 		}
 		if (bpf_map__value_size(m) !=
 		    sizeof(struct shirudo_serial_chunk)) {
 			pr_err("%s value must be struct shirudo_serial_chunk",
-			       SHIRUDO_SERIAL_MAP_NAME);
+			       SERIAL_MAP_NAME);
 			return -EINVAL;
 		}
 		if (bpf_map__max_entries(m) == 0 ||
-		    bpf_map__max_entries(m) > SHIRUDO_SERIAL_MAX_CHUNKS) {
+		    bpf_map__max_entries(m) > SERIAL_MAX_CHUNKS) {
 			pr_err("%s max_entries must be 1..%u",
-			       SHIRUDO_SERIAL_MAP_NAME,
-			       SHIRUDO_SERIAL_MAX_CHUNKS);
+			       SERIAL_MAP_NAME,
+			       SERIAL_MAX_CHUNKS);
 			return -EINVAL;
 		}
 		return 0;
 	}
 	pr_err("serializer upatch requires %s output map",
-	       SHIRUDO_SERIAL_MAP_NAME);
+	       SERIAL_MAP_NAME);
 	return -EINVAL;
 }
 
@@ -1237,9 +1237,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 				err = -EINVAL;
 				goto err_free;
 			}
-			if (strcmp(ser_map, SHIRUDO_SERIAL_MAP_NAME) == 0) {
+			if (strcmp(ser_map, SERIAL_MAP_NAME) == 0) {
 				pr_err("serializer cannot target reserved map %s",
-				       SHIRUDO_SERIAL_MAP_NAME);
+				       SERIAL_MAP_NAME);
 				err = -EINVAL;
 				goto err_free;
 			}

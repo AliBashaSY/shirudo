@@ -55,7 +55,7 @@ cat > "$WORK/t.bpf.c" <<'EOF'
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "shirudo_decoder.h"
+#include "decoder.h"
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
@@ -67,12 +67,12 @@ struct {
 } t0005_map SEC(".maps");
 
 const struct shirudo_decoder_manifest t0005_decoder SEC(".rodata") = {
-	.magic = SHIRUDO_DECODER_MANIFEST_MAGIC,
-	.version = SHIRUDO_UPATCH_DECODER_VERSION,
-	.language = SHIRUDO_UPATCH_DECODER_LANG_LUA,
+	.magic = DECODER_MANIFEST_MAGIC,
+	.version = UPATCH_DECODER_VERSION,
+	.language = UPATCH_DECODER_LANG_LUA,
 	.api_version = 1,
-	.input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,
-	.export_signal = SHIRUDO_UPATCH_DECODER_EXPORT_LOG,
+	.input_format = UPATCH_DECODER_INPUT_MAP_V1,
+	.export_signal = UPATCH_DECODER_EXPORT_LOG,
 	.upatch = "t3002",
 	.map = "t0005_map",
 	.source = "decoders/t3002.lua",

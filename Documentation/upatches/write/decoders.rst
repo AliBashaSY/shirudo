@@ -32,22 +32,22 @@ Declare the decoder
    body of one log record per snapshot. A metric decoder returns OTLP
    metrics with names, units and data points of its choosing.
 
-2. Include ``shirudo_decoder.h`` after ``vmlinux.h`` and declare a
+2. Include ``decoder.h`` after ``vmlinux.h`` and declare a
    manifest in ``.rodata``. ``kernel-obs`` declares this one, through a
    macro, for ``watch_stat``, a per-CPU array whose one value holds two
    ``__u64`` counters, ``checked`` and ``matched``:
 
    .. code-block:: c
 
-      #include "shirudo_decoder.h"
+      #include "decoder.h"
 
       const struct shirudo_decoder_manifest watch_stat_decoder SEC(".rodata") = {
-              .magic = SHIRUDO_DECODER_MANIFEST_MAGIC,
-              .version = SHIRUDO_UPATCH_DECODER_VERSION,
-              .language = SHIRUDO_UPATCH_DECODER_LANG_LUA,
+              .magic = DECODER_MANIFEST_MAGIC,
+              .version = UPATCH_DECODER_VERSION,
+              .language = UPATCH_DECODER_LANG_LUA,
               .api_version = 1,
-              .input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,
-              .export_signal = SHIRUDO_UPATCH_DECODER_EXPORT_METRIC,
+              .input_format = UPATCH_DECODER_INPUT_MAP_V1,
+              .export_signal = UPATCH_DECODER_EXPORT_METRIC,
               .upatch = "kernel-obs",
               .map = "watch_stat",
               .source = "decoders/watch_stat.lua",
@@ -73,8 +73,8 @@ Declare the decoder
         - The constants shown. Any other value fails the build with
           ``unsupported decoder ABI for '<upatch>/<map>'``.
       * - ``export_signal``
-        - ``SHIRUDO_UPATCH_DECODER_EXPORT_LOG`` or
-          ``SHIRUDO_UPATCH_DECODER_EXPORT_METRIC``.
+        - ``UPATCH_DECODER_EXPORT_LOG`` or
+          ``UPATCH_DECODER_EXPORT_METRIC``.
       * - ``upatch``
         - The upatch name, at most 63 characters. In a package that is the
           source's base name.

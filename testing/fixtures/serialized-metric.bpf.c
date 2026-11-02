@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include "shirudo_decoder.h"
-#include "shirudo_serializer.h"
+#include "decoder.h"
+#include "serializer.h"
 
 #define EINVAL 22
 
@@ -38,12 +38,12 @@ struct {
 } counter_state SEC(".maps");
 
 const struct shirudo_decoder_manifest counters_decoder SEC(".rodata") = {
-	.magic = SHIRUDO_DECODER_MANIFEST_MAGIC,
-	.version = SHIRUDO_UPATCH_DECODER_VERSION,
-	.language = SHIRUDO_UPATCH_DECODER_LANG_LUA,
+	.magic = DECODER_MANIFEST_MAGIC,
+	.version = UPATCH_DECODER_VERSION,
+	.language = UPATCH_DECODER_LANG_LUA,
 	.api_version = 1,
-	.input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,
-	.export_signal = SHIRUDO_UPATCH_DECODER_EXPORT_METRIC,
+	.input_format = UPATCH_DECODER_INPUT_MAP_V1,
+	.export_signal = UPATCH_DECODER_EXPORT_METRIC,
 	.upatch = "shirudo-test-serialized-metric",
 	.map = "counters",
 	.source = "decoders/counters.lua",
@@ -60,9 +60,9 @@ int shirudo_serialize__counters(struct shirudo_serialize_ctx *ctx)
 	__u32 state_key = 0;
 	__u32 key;
 
-	if (!ctx || ctx->magic != SHIRUDO_SERIAL_MAGIC ||
-	    ctx->version != SHIRUDO_SERIAL_VERSION || ctx->max_chunks < 1 ||
-	    ctx->chunk_payload_size != SHIRUDO_SERIAL_CHUNK_PAYLOAD ||
+	if (!ctx || ctx->magic != SERIAL_MAGIC ||
+	    ctx->version != SERIAL_VERSION || ctx->max_chunks < 1 ||
+	    ctx->chunk_payload_size != SERIAL_CHUNK_PAYLOAD ||
 	    ctx->page_index > 1 || ctx->cursor != ctx->page_index ||
 	    ctx->invocation_id == 0)
 		return -EINVAL;
@@ -93,13 +93,13 @@ int shirudo_serialize__counters(struct shirudo_serialize_ctx *ctx)
 	record.packets = value->packets;
 	record.bytes = value->bytes;
 	__builtin_memcpy(&chunk->data[0], &record, sizeof(record));
-	if (!(ctx->flags & SHIRUDO_SERIAL_CTX_F_PEEK)) {
+	if (!(ctx->flags & SERIAL_CTX_F_PEEK)) {
 		value->packets = 0;
 		value->bytes = 0;
 	}
-	chunk->magic = SHIRUDO_SERIAL_MAGIC;
-	chunk->version = SHIRUDO_SERIAL_VERSION;
-	chunk->flags = ctx->page_index == 1 ? SHIRUDO_SERIAL_F_DONE : 0;
+	chunk->magic = SERIAL_MAGIC;
+	chunk->version = SERIAL_VERSION;
+	chunk->flags = ctx->page_index == 1 ? SERIAL_F_DONE : 0;
 	chunk->status = 0;
 	chunk->chunk_index = 0;
 	chunk->total_chunks = 1;

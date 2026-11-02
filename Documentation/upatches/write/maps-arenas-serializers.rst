@@ -108,7 +108,7 @@ Serializer interface
 A serializer is a ``SEC("syscall")`` program named
 ``shirudo_serialize__<map>``. It writes into ``shirudo_ser``, an array map
 with a ``__u32`` key and ``struct shirudo_serial_chunk`` values that the
-upatch defines with 1 to 256 entries. ``bpf/lib/shirudo_serializer.h``
+upatch defines with 1 to 256 entries. ``bpf/lib/serializer.h``
 holds the definitions. The builder refuses a serializer that is not in
 ``SEC("syscall")``, targets a map that does not exist or is
 ``shirudo_ser`` itself, or duplicates another one, and refuses an upatch
@@ -124,9 +124,9 @@ once per page:
    * - Context field
      - Meaning
    * - ``magic``, ``version``
-     - ``SHIRUDO_SERIAL_MAGIC`` and ``SHIRUDO_SERIAL_VERSION``, 1
+     - ``SERIAL_MAGIC`` and ``SERIAL_VERSION``, 1
    * - ``flags``
-     - ``SHIRUDO_SERIAL_CTX_F_PEEK`` when the reader asks for a peek
+     - ``SERIAL_CTX_F_PEEK`` when the reader asks for a peek
    * - ``max_chunks``
      - the number of entries of ``shirudo_ser``
    * - ``chunk_payload_size``
@@ -143,7 +143,7 @@ chunks 0 to ``total_chunks - 1``, each a 64-byte header and 4032 bytes of
 payload. Every chunk carries its own ``chunk_index`` and repeats the
 page's ``total_chunks``, ``page_index``, ``cursor``, ``next_cursor``,
 ``invocation_id`` and ``bytes_total``. On the last page, chunk 0 has
-``SHIRUDO_SERIAL_F_DONE`` in ``flags``. A negative return or a non-zero
+``SERIAL_F_DONE`` in ``flags``. A negative return or a non-zero
 ``status`` in a chunk fails the read. shirudo checks the
 magic, the version, the invocation id, the page index and cursor, the
 chunk count and the byte counts, concatenates the chunks' payloads into a
@@ -160,7 +160,7 @@ Draining and peeking
 --------------------
 
 Whether a read consumes the data is the serializer's decision. shirudo
-passes one flag, ``SHIRUDO_SERIAL_CTX_F_PEEK``, and nothing else. The
+passes one flag, ``SERIAL_CTX_F_PEEK``, and nothing else. The
 convention every shipped serializer follows: without the flag, the read
 drains. It hands over the interval collected since the previous export
 and resets it, as ``obs_table.h`` does with its swap and clear. With the

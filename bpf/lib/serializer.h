@@ -9,30 +9,30 @@
 #ifndef SHIRUDO_SERIALIZER_H
 #define SHIRUDO_SERIALIZER_H
 
-#include "shirudo_misc.h"
+#include "misc.h"
 
-#define SHIRUDO_SERIAL_MAP_NAME		"shirudo_ser"
-#define SHIRUDO_SERIAL_MAGIC		0x5a4c5253u	/* "SRLZ" le */
-#define SHIRUDO_SERIAL_VERSION		1u
-#define SHIRUDO_SERIAL_MAP_NAME_MAX	16u
-#define SHIRUDO_SERIAL_MAX_CHUNKS	256u
-#define SHIRUDO_SERIAL_MAX_PAGES	256u
-#define SHIRUDO_SERIAL_F_DONE		(1u << 0)
+#define SERIAL_MAP_NAME		"shirudo_ser"
+#define SERIAL_MAGIC		0x5a4c5253u	/* "SRLZ" le */
+#define SERIAL_VERSION		1u
+#define SERIAL_MAP_NAME_MAX	16u
+#define SERIAL_MAX_CHUNKS	256u
+#define SERIAL_MAX_PAGES	256u
+#define SERIAL_F_DONE		(1u << 0)
 
 /* ctx->flags: read the live state without draining it. */
-#define SHIRUDO_SERIAL_CTX_F_PEEK	(1u << 0)
+#define SERIAL_CTX_F_PEEK	(1u << 0)
 
 /*
  * Keep the syscall test-run context within the older five-u64 argument
  * limit. Page result metadata lives in struct shirudo_serial_chunk.
  */
-#define SHIRUDO_SERIAL_CTX_MAX_BYTES	40u
+#define SERIAL_CTX_MAX_BYTES	40u
 
 /*
  * Keep the chunk value at exactly 4096 bytes: a 64-byte header plus
  * payload. This is friendly to map value allocation and easy to inspect.
  */
-#define SHIRUDO_SERIAL_CHUNK_PAYLOAD	4032u
+#define SERIAL_CHUNK_PAYLOAD	4032u
 
 struct shirudo_serialize_ctx {
 	__u32		magic;
@@ -59,11 +59,11 @@ struct shirudo_serial_chunk {
 	__u64		cursor;
 	__u64		next_cursor;
 	__u64		invocation_id;
-	__u8		data[SHIRUDO_SERIAL_CHUNK_PAYLOAD];
+	__u8		data[SERIAL_CHUNK_PAYLOAD];
 };
 
 BUILD_BUG_ON(sizeof(struct shirudo_serialize_ctx) !=
-	     SHIRUDO_SERIAL_CTX_MAX_BYTES);
+	     SERIAL_CTX_MAX_BYTES);
 BUILD_BUG_ON(sizeof(struct shirudo_serial_chunk) != 4096);
 
 #endif /* SHIRUDO_SERIALIZER_H */

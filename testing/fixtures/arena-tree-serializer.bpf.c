@@ -11,7 +11,7 @@
 #define BPF_NO_KFUNC_PROTOTYPES
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include "shirudo_serializer.h"
+#include "serializer.h"
 
 #define E2BIG		7
 #define EINVAL		22
@@ -74,12 +74,12 @@ enum {
 	TREE_RECORD_SIZE = sizeof(struct tree_record),
 	TREE_SERIAL_BYTES = TREE_NODES * TREE_RECORD_SIZE,
 	TREE_RECORDS_PER_CHUNK =
-		SHIRUDO_SERIAL_CHUNK_PAYLOAD / TREE_RECORD_SIZE,
+		SERIAL_CHUNK_PAYLOAD / TREE_RECORD_SIZE,
 	TREE_RECORDS_PER_PAGE = 64,
 	TREE_PAGE_BYTES = TREE_RECORDS_PER_PAGE * TREE_RECORD_SIZE,
 	TREE_PAGE_CHUNKS =
-		(TREE_PAGE_BYTES + SHIRUDO_SERIAL_CHUNK_PAYLOAD - 1) /
-		SHIRUDO_SERIAL_CHUNK_PAYLOAD,
+		(TREE_PAGE_BYTES + SERIAL_CHUNK_PAYLOAD - 1) /
+		SERIAL_CHUNK_PAYLOAD,
 	TREE_ARENA_PAGES =
 		(sizeof(struct arena_tree_state) + 4095) / 4096,
 };
@@ -101,9 +101,9 @@ static __always_inline void set_error(struct shirudo_serialize_ctx *ctx,
 	chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
 	if (!chunk)
 		return;
-	chunk->magic = SHIRUDO_SERIAL_MAGIC;
-	chunk->version = SHIRUDO_SERIAL_VERSION;
-	chunk->flags = SHIRUDO_SERIAL_F_DONE;
+	chunk->magic = SERIAL_MAGIC;
+	chunk->version = SERIAL_VERSION;
+	chunk->flags = SERIAL_F_DONE;
 	chunk->status = status;
 	chunk->chunk_index = 0;
 	chunk->total_chunks = 1;
@@ -125,8 +125,8 @@ static __always_inline int init_page_chunks(__u32 records, __u32 flags,
 	__u32 total_chunks;
 	__u32 i;
 
-	total_chunks = (page_bytes + SHIRUDO_SERIAL_CHUNK_PAYLOAD - 1) /
-		       SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+	total_chunks = (page_bytes + SERIAL_CHUNK_PAYLOAD - 1) /
+		       SERIAL_CHUNK_PAYLOAD;
 	if (total_chunks == 0)
 		total_chunks = 1;
 
@@ -134,15 +134,15 @@ static __always_inline int init_page_chunks(__u32 records, __u32 flags,
 		struct shirudo_serial_chunk *chunk;
 		__u32 key = i;
 		__u32 used = page_bytes -
-			     i * SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+			     i * SERIAL_CHUNK_PAYLOAD;
 
 		chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
 		if (!chunk)
 			return -ENOSPC;
-		if (used > SHIRUDO_SERIAL_CHUNK_PAYLOAD)
-			used = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
-		chunk->magic = SHIRUDO_SERIAL_MAGIC;
-		chunk->version = SHIRUDO_SERIAL_VERSION;
+		if (used > SERIAL_CHUNK_PAYLOAD)
+			used = SERIAL_CHUNK_PAYLOAD;
+		chunk->magic = SERIAL_MAGIC;
+		chunk->version = SERIAL_VERSION;
 		chunk->flags = flags;
 		chunk->status = 0;
 		chunk->chunk_index = i;
@@ -217,9 +217,9 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 	__u64 next_cursor;
 	int rc;
 
-	if (!ctx || ctx->magic != SHIRUDO_SERIAL_MAGIC ||
-	    ctx->version != SHIRUDO_SERIAL_VERSION ||
-	    ctx->chunk_payload_size != SHIRUDO_SERIAL_CHUNK_PAYLOAD ||
+	if (!ctx || ctx->magic != SERIAL_MAGIC ||
+	    ctx->version != SERIAL_VERSION ||
+	    ctx->chunk_payload_size != SERIAL_CHUNK_PAYLOAD ||
 	    ctx->invocation_id == 0)
 		return -EINVAL;
 	if (ctx->max_chunks < TREE_PAGE_CHUNKS) {
@@ -244,7 +244,7 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 
 	next_cursor = start + records;
 	if (next_cursor >= TREE_NODES)
-		flags = SHIRUDO_SERIAL_F_DONE;
+		flags = SERIAL_F_DONE;
 
 	rc = init_page_chunks(records, flags, ctx->page_index, ctx->cursor,
 			      next_cursor, ctx->invocation_id);

@@ -6,7 +6,7 @@
 
 #include <shirudo/misc.h>
 
-#include "bpf/lib/shirudo_serializer.h"
+#include "bpf/lib/serializer.h"
 
 int serializer_lock_acquire(__u32 map_id);
 int serializer_lock_acquire_at(const char *dir, __u32 map_id);

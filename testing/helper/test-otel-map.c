@@ -118,15 +118,15 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 
 	/* The sections start at odd offsets: build them aligned, then copy. */
 	blob.magic = htole32(UPATCH_DECODER_MAGIC);
-	blob.version = htole32(SHIRUDO_UPATCH_DECODER_VERSION);
+	blob.version = htole32(UPATCH_DECODER_VERSION);
 	blob.nr_decoders = htole32(1);
 	memcpy(file + data_off, &blob, sizeof(blob));
-	entry.language = htole32(SHIRUDO_UPATCH_DECODER_LANG_LUA);
+	entry.language = htole32(UPATCH_DECODER_LANG_LUA);
 	entry.api_version = htole32(1);
-	entry.input_format = htole32(SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1);
+	entry.input_format = htole32(UPATCH_DECODER_INPUT_MAP_V1);
 	entry.export_signal = htole32(metric ?
-				      SHIRUDO_UPATCH_DECODER_EXPORT_METRIC :
-				      SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+				      UPATCH_DECODER_EXPORT_METRIC :
+				      UPATCH_DECODER_EXPORT_LOG);
 	strncpy(entry.upatch, "test-upatch", sizeof(entry.upatch) - 1);
 	strncpy(entry.map, "hits_total", sizeof(entry.map) - 1);
 	strncpy(entry.source, "test.lua", sizeof(entry.source) - 1);

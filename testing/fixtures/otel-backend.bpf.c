@@ -2,7 +2,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "shirudo_decoder.h"
+#include "decoder.h"
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
@@ -21,12 +21,12 @@ struct {
 } backend_metric SEC(".maps");
 
 const struct shirudo_decoder_manifest log_decoder SEC(".rodata") = {
-	.magic = SHIRUDO_DECODER_MANIFEST_MAGIC,
-	.version = SHIRUDO_UPATCH_DECODER_VERSION,
-	.language = SHIRUDO_UPATCH_DECODER_LANG_LUA,
+	.magic = DECODER_MANIFEST_MAGIC,
+	.version = UPATCH_DECODER_VERSION,
+	.language = UPATCH_DECODER_LANG_LUA,
 	.api_version = 1,
-	.input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,
-	.export_signal = SHIRUDO_UPATCH_DECODER_EXPORT_LOG,
+	.input_format = UPATCH_DECODER_INPUT_MAP_V1,
+	.export_signal = UPATCH_DECODER_EXPORT_LOG,
 	.upatch = "shirudo-test-otel-backend",
 	.map = "backend_log",
 	.source = "decoders/log.lua",
@@ -34,12 +34,12 @@ const struct shirudo_decoder_manifest log_decoder SEC(".rodata") = {
 };
 
 const struct shirudo_decoder_manifest metric_decoder SEC(".rodata") = {
-	.magic = SHIRUDO_DECODER_MANIFEST_MAGIC,
-	.version = SHIRUDO_UPATCH_DECODER_VERSION,
-	.language = SHIRUDO_UPATCH_DECODER_LANG_LUA,
+	.magic = DECODER_MANIFEST_MAGIC,
+	.version = UPATCH_DECODER_VERSION,
+	.language = UPATCH_DECODER_LANG_LUA,
 	.api_version = 1,
-	.input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,
-	.export_signal = SHIRUDO_UPATCH_DECODER_EXPORT_METRIC,
+	.input_format = UPATCH_DECODER_INPUT_MAP_V1,
+	.export_signal = UPATCH_DECODER_EXPORT_METRIC,
 	.upatch = "shirudo-test-otel-backend",
 	.map = "backend_metric",
 	.source = "decoders/metric.lua",

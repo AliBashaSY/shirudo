@@ -116,19 +116,19 @@ static const char *flag_str(const struct shirudo_upatch *u)
 
 static const char *decoder_language_str(__u32 language)
 {
-	return language == SHIRUDO_UPATCH_DECODER_LANG_LUA ? "lua" : "unknown";
+	return language == UPATCH_DECODER_LANG_LUA ? "lua" : "unknown";
 }
 
 static const char *decoder_input_str(__u32 input_format)
 {
-	return input_format == SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 ?
+	return input_format == UPATCH_DECODER_INPUT_MAP_V1 ?
 		"shirudo.map.v1" : "unknown";
 }
 
 static const char *decoder_signal_str(__u32 signal)
 {
-	return signal == SHIRUDO_UPATCH_DECODER_EXPORT_LOG ? "log" :
-		signal == SHIRUDO_UPATCH_DECODER_EXPORT_METRIC ? "metric" :
+	return signal == UPATCH_DECODER_EXPORT_LOG ? "log" :
+		signal == UPATCH_DECODER_EXPORT_METRIC ? "metric" :
 		"unknown";
 }
 

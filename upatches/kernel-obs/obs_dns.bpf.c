@@ -187,7 +187,7 @@ obs_dns_emit_name(struct shirudo_serial_chunk *chunk, __u32 base,
 	int i;
 
 	if (!chunk || !stat ||
-	    base > SHIRUDO_SERIAL_CHUNK_PAYLOAD - sizeof(struct dns_name))
+	    base > SERIAL_CHUNK_PAYLOAD - sizeof(struct dns_name))
 		return;
 	barrier_var(base);
 	*(__u64 *)&chunk->data[base] = stat->seen;

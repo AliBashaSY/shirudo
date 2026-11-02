@@ -249,7 +249,7 @@ way a real upatch's data reaches a collector.
 
    ``shirudo-build`` compiles in the package directory. It takes the
    libbpf headers and ``vmlinux.h`` from ``vendor/`` and
-   ``shirudo_decoder.h`` from ``bpf/lib/``. An installed operator
+   ``decoder.h`` from ``bpf/lib/``. An installed operator
    package brings its own copies and needs no links.
 
 2. Write ``build/dev/exec-count/exec-count.bpf.c``:

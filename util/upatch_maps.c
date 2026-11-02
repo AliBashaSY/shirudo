@@ -34,7 +34,7 @@
 #include "upatch_map_types.h"
 #include "upatch_maps.h"
 #include "upatch_resolve.h"
-#include "bpf/lib/shirudo_serializer.h"
+#include "bpf/lib/serializer.h"
 
 /*
  * Per-call recursion bound for the BTF value renderer. Real-world map
@@ -60,9 +60,9 @@ static void resolve_map_location(struct shirudo_map_view *v)
 }
 
 #define SERIAL_MAX_BYTES \
-	(SHIRUDO_SERIAL_MAX_CHUNKS * SHIRUDO_SERIAL_CHUNK_PAYLOAD)
+	(SERIAL_MAX_CHUNKS * SERIAL_CHUNK_PAYLOAD)
 #define SERIAL_MAX_TOTAL_BYTES \
-	((__u64)SHIRUDO_SERIAL_MAX_PAGES * SERIAL_MAX_BYTES)
+	((__u64)SERIAL_MAX_PAGES * SERIAL_MAX_BYTES)
 
 bool upatch_map_is_percpu(__u32 type)
 {
@@ -797,7 +797,7 @@ static int validate_serial_map(const struct bpf_map_info *info)
 	if (info->value_size != sizeof(struct shirudo_serial_chunk))
 		return -EINVAL;
 	if (info->max_entries == 0 ||
-	    info->max_entries > SHIRUDO_SERIAL_MAX_CHUNKS)
+	    info->max_entries > SERIAL_MAX_CHUNKS)
 		return -E2BIG;
 	return 0;
 }
@@ -858,8 +858,8 @@ static int read_serial_page(int serial_fd,
 		rc = -errno;
 		goto out_chunk;
 	}
-	if (chunk->magic != SHIRUDO_SERIAL_MAGIC ||
-	    chunk->version != SHIRUDO_SERIAL_VERSION ||
+	if (chunk->magic != SERIAL_MAGIC ||
+	    chunk->version != SERIAL_VERSION ||
 	    chunk->invocation_id != invocation_id) {
 		rc = -EBADMSG;
 		goto out_chunk;
@@ -875,9 +875,9 @@ static int read_serial_page(int serial_fd,
 	next_cursor = chunk->next_cursor;
 	flags = chunk->flags;
 	if (total_chunks == 0 || total_chunks > serial_info->max_entries ||
-	    total_chunks > SHIRUDO_SERIAL_MAX_CHUNKS ||
+	    total_chunks > SERIAL_MAX_CHUNKS ||
 	    bytes_total > SERIAL_MAX_BYTES ||
-	    bytes_total > total_chunks * SHIRUDO_SERIAL_CHUNK_PAYLOAD) {
+	    bytes_total > total_chunks * SERIAL_CHUNK_PAYLOAD) {
 		rc = -EBADMSG;
 		goto out_chunk;
 	}
@@ -928,7 +928,7 @@ static int read_serial_page(int serial_fd,
 	page->flags = flags;
 	page->chunks = total_chunks;
 	page->bytes = bytes_total;
-	page->done = (page->flags & SHIRUDO_SERIAL_F_DONE) != 0;
+	page->done = (page->flags & SERIAL_F_DONE) != 0;
 	page->data = data;
 	xfree(chunk, sizeof(*chunk));
 	return 0;
@@ -948,7 +948,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 	__u32 page_index;
 	int prog_fd = -1, serial_fd = -1, lock_fd = -1, rc;
 
-	if (strcmp(map, SHIRUDO_SERIAL_MAP_NAME) == 0)
+	if (strcmp(map, SERIAL_MAP_NAME) == 0)
 		return 0;
 	prog_fd = open_serializer_pin(upatch, map);
 	if (prog_fd < 0) {
@@ -956,7 +956,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 			return 0;
 		return prog_fd;
 	}
-	rc = open_map_pin(upatch, SHIRUDO_SERIAL_MAP_NAME,
+	rc = open_map_pin(upatch, SERIAL_MAP_NAME,
 			  &serial_fd, &serial_info);
 	if (rc)
 		goto out;
@@ -978,7 +978,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 	if (rc)
 		goto out;
 
-	for (page_index = 0; page_index < SHIRUDO_SERIAL_MAX_PAGES;
+	for (page_index = 0; page_index < SERIAL_MAX_PAGES;
 	     page_index++) {
 		struct shirudo_serialize_ctx ctx = {};
 		struct shirudo_serial_page page = {};
@@ -988,12 +988,12 @@ static int try_read_serialized(const char *upatch, const char *map,
 		if (rc)
 			goto out;
 
-		ctx.magic = SHIRUDO_SERIAL_MAGIC;
-		ctx.version = SHIRUDO_SERIAL_VERSION;
+		ctx.magic = SERIAL_MAGIC;
+		ctx.version = SERIAL_VERSION;
 		ctx.flags = (flags & MAP_READ_PEEK) ?
-			    SHIRUDO_SERIAL_CTX_F_PEEK : 0;
+			    SERIAL_CTX_F_PEEK : 0;
 		ctx.max_chunks = serial_info.max_entries;
-		ctx.chunk_payload_size = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+		ctx.chunk_payload_size = SERIAL_CHUNK_PAYLOAD;
 		ctx.page_index = page_index;
 		ctx.cursor = cursor;
 		ctx.invocation_id = invocation_id;
@@ -1005,8 +1005,8 @@ static int try_read_serialized(const char *upatch, const char *map,
 			rc = (__s32)retval;
 			goto out;
 		}
-		if (ctx.magic != SHIRUDO_SERIAL_MAGIC ||
-		    ctx.version != SHIRUDO_SERIAL_VERSION ||
+		if (ctx.magic != SERIAL_MAGIC ||
+		    ctx.version != SERIAL_VERSION ||
 		    ctx.page_index != page_index ||
 		    ctx.cursor != cursor ||
 		    ctx.invocation_id != invocation_id) {
@@ -1354,7 +1354,7 @@ static void scan_upatch_maps(const char *upatch,
 
 		if (e->d_name[0] == '.')
 			continue;
-		if (strcmp(e->d_name, SHIRUDO_SERIAL_MAP_NAME) == 0)
+		if (strcmp(e->d_name, SERIAL_MAP_NAME) == 0)
 			continue;
 		rc = open_map_pin(upatch, e->d_name, &fd, &info);
 		if (rc)

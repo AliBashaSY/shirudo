@@ -20,7 +20,7 @@
 
 #define OBS_T_KEY_WORDS		(sizeof(OBS_T_KEY) / 8)
 #define OBS_T_VAL_WORDS		(sizeof(OBS_T_VAL) / 8)
-#define OBS_T_PER_CHUNK		(SHIRUDO_SERIAL_CHUNK_PAYLOAD / OBS_T_RECORD)
+#define OBS_T_PER_CHUNK		(SERIAL_CHUNK_PAYLOAD / OBS_T_RECORD)
 #define OBS_T_PER_PAGE		(OBS_T_PER_CHUNK * OBS_SERIAL_PAGE_CHUNKS)
 
 BUILD_BUG_ON(sizeof(OBS_T_KEY) % 8);
@@ -188,7 +188,7 @@ OBS_FN(slot)(__u32 page_slot, __u32 *off_out)
 		return 0;
 	off = slot * OBS_T_RECORD;
 	barrier_var(off);
-	if (off > SHIRUDO_SERIAL_CHUNK_PAYLOAD - OBS_T_RECORD)
+	if (off > SERIAL_CHUNK_PAYLOAD - OBS_T_RECORD)
 		return 0;
 	chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
 	if (!chunk)
@@ -208,14 +208,14 @@ static __always_inline int OBS_FN(chunk_meta)(__u32 key, __u32 flags,
 
 	if (key >= total_chunks)
 		return 0;
-	used = page_bytes - key * SHIRUDO_SERIAL_CHUNK_PAYLOAD;
-	if (used > SHIRUDO_SERIAL_CHUNK_PAYLOAD)
-		used = SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+	used = page_bytes - key * SERIAL_CHUNK_PAYLOAD;
+	if (used > SERIAL_CHUNK_PAYLOAD)
+		used = SERIAL_CHUNK_PAYLOAD;
 	chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
 	if (!chunk)
 		return -ENOSPC;
-	chunk->magic = SHIRUDO_SERIAL_MAGIC;
-	chunk->version = SHIRUDO_SERIAL_VERSION;
+	chunk->magic = SERIAL_MAGIC;
+	chunk->version = SERIAL_VERSION;
 	chunk->flags = flags;
 	chunk->status = 0;
 	chunk->chunk_index = key;
@@ -349,7 +349,7 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 	for (i = 0; i < OBS_SERIAL_PAGE_CHUNKS; i++) {
 		rc = OBS_FN(chunk_meta)(i, 0, OBS_SERIAL_PAGE_CHUNKS,
 					OBS_SERIAL_PAGE_CHUNKS *
-					SHIRUDO_SERIAL_CHUNK_PAYLOAD,
+					SERIAL_CHUNK_PAYLOAD,
 					ctx, ctx->cursor);
 		if (rc) {
 			obs_serial_error(ctx, rc);
@@ -385,7 +385,7 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 	}
 
 	if (emit.next >= emit.used) {
-		flags = SHIRUDO_SERIAL_F_DONE;
+		flags = SERIAL_F_DONE;
 		if (!peek) {
 			OBS_FN(clear)(state);
 			OBS_FN(lost) = 0;
@@ -395,7 +395,7 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 		       OBS_T_PER_CHUNK;
 	if (total_chunks == 0)
 		total_chunks = 1;
-	page_bytes = (total_chunks - 1) * SHIRUDO_SERIAL_CHUNK_PAYLOAD +
+	page_bytes = (total_chunks - 1) * SERIAL_CHUNK_PAYLOAD +
 		     (emit.output_slots - (total_chunks - 1) *
 		      OBS_T_PER_CHUNK) * OBS_T_RECORD;
 #pragma clang loop unroll(full)

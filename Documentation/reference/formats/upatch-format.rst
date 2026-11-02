@@ -566,7 +566,7 @@ Each decoder entry:
      - Length of the source, non-zero.
 
 The writer takes each entry from a ``struct shirudo_decoder_manifest`` that
-the BPF program declares in ``.rodata`` (``bpf/lib/shirudo_decoder.h``,
+the BPF program declares in ``.rodata`` (``bpf/lib/decoder.h``,
 192 bytes, magic ``0x44434544``, the bytes ``DECD``, ``u16`` fields
 ``version``, ``language``, ``api_version``, ``input_format``,
 ``export_signal`` and ``reserved``, then the same four strings). It scans

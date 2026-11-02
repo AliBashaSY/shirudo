@@ -103,15 +103,15 @@ struct shirudo_upatch_signed_trailer {
  * programs declare a shirudo_decoder_manifest in .rodata; shirudo-build
  * resolves and embeds the decoder source before signing.
  */
-#define SHIRUDO_DECODER_MANIFEST_MAGIC	0x44434544u	/* "DECD" le */
+#define DECODER_MANIFEST_MAGIC	0x44434544u	/* "DECD" le */
 #define UPATCH_DECODER_MAGIC	0x42444344u	/* "DCDB" le */
-#define SHIRUDO_UPATCH_DECODER_VERSION	1u
-#define SHIRUDO_UPATCH_DECODER_LANG_LUA	1u
-#define SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1	1u
+#define UPATCH_DECODER_VERSION	1u
+#define UPATCH_DECODER_LANG_LUA	1u
+#define UPATCH_DECODER_INPUT_MAP_V1	1u
 
 enum shirudo_upatch_decoder_export_signal {
-	SHIRUDO_UPATCH_DECODER_EXPORT_LOG = 1,
-	SHIRUDO_UPATCH_DECODER_EXPORT_METRIC = 2,
+	UPATCH_DECODER_EXPORT_LOG = 1,
+	UPATCH_DECODER_EXPORT_METRIC = 2,
 };
 
 struct shirudo_decoder_manifest {
@@ -119,7 +119,7 @@ struct shirudo_decoder_manifest {
 	__u16		version;
 	__u16		language;
 	__u16		api_version;
-	__u16		input_format; /* SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1 */
+	__u16		input_format; /* UPATCH_DECODER_INPUT_MAP_V1 */
 	__u16		export_signal;
 	__u16		reserved;
 	char	upatch[64];

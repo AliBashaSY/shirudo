@@ -17,7 +17,7 @@
 /* The most keys the anchor keyring holds; util/keys.h bounds the set. */
 #define IDENTITY_KEYS_MAX	16
 
-/* The frozen ABI shared with bpf/lib/shirudo_identity.h. */
+/* The frozen ABI shared with bpf/lib/identity.h. */
 struct shirudo_identity {
 	__u32	sb_dev;
 	__u32	run_dev;

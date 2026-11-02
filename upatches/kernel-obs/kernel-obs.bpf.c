@@ -12,8 +12,8 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "shirudo_decoder.h"
-#include "shirudo_serializer.h"
+#include "decoder.h"
+#include "serializer.h"
 #include "obs_common.h"
 
 char _license[] SEC("license") = "Dual BSD/GPL";
@@ -42,11 +42,11 @@ OBS_VIEW(file);
 
 #define OBS_DECODER(sym, map_name, src, signal)				\
 	const struct shirudo_decoder_manifest sym SEC(".rodata") = {	\
-		.magic = SHIRUDO_DECODER_MANIFEST_MAGIC,		\
-		.version = SHIRUDO_UPATCH_DECODER_VERSION,		\
-		.language = SHIRUDO_UPATCH_DECODER_LANG_LUA,		\
+		.magic = DECODER_MANIFEST_MAGIC,		\
+		.version = UPATCH_DECODER_VERSION,		\
+		.language = UPATCH_DECODER_LANG_LUA,		\
 		.api_version = 1,					\
-		.input_format = SHIRUDO_UPATCH_DECODER_INPUT_MAP_V1,	\
+		.input_format = UPATCH_DECODER_INPUT_MAP_V1,	\
 		.export_signal = signal,				\
 		.upatch = "kernel-obs",					\
 		.map = map_name,					\
@@ -55,23 +55,23 @@ OBS_VIEW(file);
 	}
 
 OBS_DECODER(exec_decoder, "exec", "decoders/exec.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(net_decoder, "net", "decoders/net.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(socket_decoder, "socket", "decoders/socket.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(listen_decoder, "listen", "decoders/listen.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(watch_decoder, "watch", "decoders/watch.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(dns_decoder, "dns", "decoders/dns.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(priv_decoder, "priv", "decoders/priv.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(file_decoder, "file", "decoders/file.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_LOG);
+	    UPATCH_DECODER_EXPORT_LOG);
 OBS_DECODER(watch_stat_decoder, "watch_stat", "decoders/watch_stat.lua",
-	    SHIRUDO_UPATCH_DECODER_EXPORT_METRIC);
+	    UPATCH_DECODER_EXPORT_METRIC);
 
 #include "obs_priv.bpf.c"
 #include "obs_exec.bpf.c"

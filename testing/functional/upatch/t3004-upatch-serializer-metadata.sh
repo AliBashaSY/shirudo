@@ -47,7 +47,7 @@ test_expect_success 'arena serializer upatch carries UPGM serializer metadata' '
 cat >"$WORK/no-output.bpf.c" <<'EOF'
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include "shirudo_serializer.h"
+#include "serializer.h"
 char _license[] SEC("license") = "Dual BSD/GPL";
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -64,7 +64,7 @@ EOF
 cat >"$WORK/missing-target.bpf.c" <<'EOF'
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include "shirudo_serializer.h"
+#include "serializer.h"
 char _license[] SEC("license") = "Dual BSD/GPL";
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -81,7 +81,7 @@ EOF
 cat >"$WORK/reserved-target.bpf.c" <<'EOF'
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
-#include "shirudo_serializer.h"
+#include "serializer.h"
 char _license[] SEC("license") = "Dual BSD/GPL";
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);

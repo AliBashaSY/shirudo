@@ -254,9 +254,9 @@ BPF_VENDOR_HEADERS := bpf_helpers bpf_helper_defs bpf_tracing \
                       bpf_core_read bpf_endian
 BPF_LIBBPF_HEADERS := $(addprefix $(LIBBPF_DIR)/,\
                                   $(addsuffix .h,$(BPF_VENDOR_HEADERS)))
-BPF_LIB_HEADERS    := bpf/lib/shirudo_misc.h \
-                      bpf/lib/shirudo_serializer.h \
-                      bpf/lib/shirudo_decoder.h
+BPF_LIB_HEADERS    := bpf/lib/misc.h \
+                      bpf/lib/serializer.h \
+                      bpf/lib/decoder.h
 
 # bpf/*.bpf.c sources compiled with clang -target bpf and embedded via
 # .incbin into util/loader.o. bpf/lib/ is include-only.

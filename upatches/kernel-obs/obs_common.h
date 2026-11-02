@@ -5,7 +5,7 @@
 
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_endian.h>
-#include "shirudo_misc.h"
+#include "misc.h"
 
 #if !defined(__BPF_FEATURE_ADDR_SPACE_CAST)
 #error "BPF arena access requires clang address-space cast support"
@@ -40,7 +40,7 @@
 #define OBS_REC_F_PRESENT	(1u << 0)
 
 /* ctx->flags bit the exporter sets to read without draining. */
-#define OBS_CTX_F_PEEK		SHIRUDO_SERIAL_CTX_F_PEEK
+#define OBS_CTX_F_PEEK		SERIAL_CTX_F_PEEK
 
 enum obs_touch_status {
 	OBS_TOUCH_HIT = 0,
@@ -369,9 +369,9 @@ static __always_inline void obs_serial_error(struct shirudo_serialize_ctx *ctx,
 	chunk = bpf_map_lookup_elem(&shirudo_ser, &key);
 	if (!chunk)
 		return;
-	chunk->magic = SHIRUDO_SERIAL_MAGIC;
-	chunk->version = SHIRUDO_SERIAL_VERSION;
-	chunk->flags = SHIRUDO_SERIAL_F_DONE;
+	chunk->magic = SERIAL_MAGIC;
+	chunk->version = SERIAL_VERSION;
+	chunk->flags = SERIAL_F_DONE;
 	chunk->status = status;
 	chunk->chunk_index = 0;
 	chunk->total_chunks = 1;
@@ -400,9 +400,9 @@ static __always_inline void obs_emit_bytes(struct shirudo_serial_chunk *chunk,
 static __always_inline bool
 obs_serial_ctx_valid(const struct shirudo_serialize_ctx *ctx)
 {
-	return ctx && ctx->magic == SHIRUDO_SERIAL_MAGIC &&
-	       ctx->version == SHIRUDO_SERIAL_VERSION &&
-	       ctx->chunk_payload_size == SHIRUDO_SERIAL_CHUNK_PAYLOAD;
+	return ctx && ctx->magic == SERIAL_MAGIC &&
+	       ctx->version == SERIAL_VERSION &&
+	       ctx->chunk_payload_size == SERIAL_CHUNK_PAYLOAD;
 }
 
 #endif /* KERNEL_OBS_COMMON_H */
