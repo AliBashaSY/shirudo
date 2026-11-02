@@ -195,7 +195,7 @@ struct upatch_prog_metadata {
 	__le32		magic;		/* UPATCH_PROG_MAGIC */
 	__le32		version;		/* UPATCH_PROG_VERSION */
 	__le32		nr_progs;
-	__le32		reserved;
+	__le32		nr_maps;
 	/*
 	 * Then: nr_progs struct upatch_prog_entry entries in
 	 * libbpf/gen_loader program iteration order.

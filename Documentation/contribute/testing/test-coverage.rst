@@ -299,7 +299,7 @@ signed config image.
      - ``attach_scope_mismatch`` in a foreign network or cgroup
        namespace, and through a substituted PMU
    * - ``t6117-signed-metadata``
-     - Edited attach metadata, name and unload target
+     - Edited attach metadata, name, map count and unload target
    * - ``t6118-foreign-entries``
      - Entries root brings into sealed directories
    * - ``t6119-perf-attach``
@@ -436,12 +436,12 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover seven of the modules in
+The unit suites in :src:`testing/unit/` cover eight of the modules in
 :src:`util/`: ``chain``, ``hex``, ``json``, ``kernel_abi``,
-``kernel_build_id``, ``kernel_release`` and ``string``, and ``overflow``
-the arithmetic of :src:`include/shirudo/overflow.h`. The other modules
-are reached through the test helpers, the fuzz targets and the binaries
-the functional tests run.
+``kernel_build_id``, ``kernel_release``, ``string`` and ``upatch``, and
+``overflow`` the arithmetic of :src:`include/shirudo/overflow.h`. The
+other modules are reached through the test helpers, the fuzz targets and
+the binaries the functional tests run.
 
 .. list-table::
    :header-rows: 1

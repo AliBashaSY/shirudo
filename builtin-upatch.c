@@ -1822,8 +1822,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 			ret = 1;
 			goto out;
 		}
-		ret = prog_specs_parse(attach, attach_len, u.hdr.nr_progs,
-				       &prog_specs);
+		ret = prog_specs_parse(attach, attach_len, u.hdr.nr_maps,
+				       u.hdr.nr_progs, &prog_specs);
 		if (ret) {
 			pr_err("upatch program metadata rejected: %s",
 			       strerror(-ret));

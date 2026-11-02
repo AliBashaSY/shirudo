@@ -81,7 +81,7 @@ static int expect_serializer(const struct upatch *u)
 	memcpy(progs, raw + sizeof(md), sizeof(progs));
 	if (le32_to_cpu(md.magic) != UPATCH_PROG_MAGIC ||
 	    le32_to_cpu(md.version) != UPATCH_PROG_VERSION ||
-	    le32_to_cpu(md.nr_progs) != 2)
+	    le32_to_cpu(md.nr_progs) != 2 || le32_to_cpu(md.nr_maps) != 4)
 		return fail("unexpected metadata header");
 	for (i = 0; i < 2; i++) {
 		if (le32_to_cpu(progs[i].role) != UPATCH_PROG_ROLE_SERIALIZER ||

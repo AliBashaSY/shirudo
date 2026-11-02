@@ -762,7 +762,9 @@ SHA-256 of the loader's instructions. The name, the attach metadata, and
 for an unload directive the target name and the expected payload digest
 ride in signed sections of that data. A load takes its attach sites
 from nowhere else, and refuses an artifact whose attach metadata the
-signature does not cover (``parser_rejected``).
+signature does not cover or whose header program and map counts, which
+place each program's descriptor in the loader context, differ from the
+signed ones (``parser_rejected``).
 
 An unload directive is a signed loader of its own and goes through the
 same ``BPF_PROG_LOAD``. Before it removes anything, shirudo compares the

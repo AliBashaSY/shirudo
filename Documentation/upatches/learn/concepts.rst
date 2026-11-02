@@ -106,9 +106,11 @@ where the loader never reads them but the signature covers them:
     The upatch name. The target refuses a file whose header name differs
     from the signed one.
 ``UPGM``
-    The attach metadata of a load: for each program its role, its attach
-    kind and, where the kind needs one, the target symbol, offset or
-    uprobe binary. The builder derives it from the section names.
+    The attach metadata of a load: the number of programs and maps and,
+    for each program, its role, its attach kind and, where the kind needs
+    one, the target symbol, offset or uprobe binary. The builder derives
+    it from the section names. The target refuses a file whose header
+    counts differ from the signed ones.
 ``UNLD``
     The payload digest an unload directive expects to find on the upatch
     it removes.

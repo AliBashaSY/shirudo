@@ -27,9 +27,9 @@ trap 'rm -rf "$WORK"' EXIT
 require_loaded shirudo-test-basic || test_skip_all "cannot load the basic fixture"
 [ ! -e "$B/shirudo-test-scope-kprobe" ] || test_skip_all "scope kprobe fixture is loaded"
 
-# Rewrite the header name, or a string inside one signed section named
-# by its tag, keeping payload_sha256 consistent so only the signature or
-# the signed name can refuse the result.
+# Rewrite the header name or map count, or a string inside one signed
+# section named by its tag, keeping payload_sha256 consistent so only the
+# signature or the signed sections can refuse the result.
 mutate() {
 	python3 - "$@" <<'PY'
 import hashlib, pathlib, struct, sys
@@ -40,6 +40,8 @@ data_off, data_len = struct.unpack_from("<II", data, 328)
 if what == "header-name":
     name = sys.argv[4].encode()
     data[16:272] = name + bytes(256 - len(name))
+elif what == "header-maps":
+    struct.pack_into("<I", data, 340, struct.unpack_from("<I", data, 340)[0] + 1)
 elif what == "section":
     tag, (old, new) = sys.argv[4].encode(), sys.argv[5].split("=")
     magic, version, dir_off, nr = struct.unpack_from(
@@ -76,6 +78,12 @@ test_expect_success 'a load whose header name differs from the signed name is re
 	mutate "$KP" "$WORK/renamed.upatch" header-name shirudo-test-renamed &&
 	[ "$(category upatch load "$WORK/renamed.upatch")" = parser_rejected ] &&
 	[ ! -e "$B/shirudo-test-renamed" ] &&
+	[ ! -e "$B/shirudo-test-scope-kprobe" ]
+'
+
+test_expect_success 'a load whose header map count differs from the signed count is refused' '
+	mutate "$KP" "$WORK/remapped.upatch" header-maps &&
+	[ "$(category upatch load "$WORK/remapped.upatch")" = parser_rejected ] &&
 	[ ! -e "$B/shirudo-test-scope-kprobe" ]
 '
 

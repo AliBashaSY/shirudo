@@ -1140,8 +1140,8 @@ static int validate_serializer_output_map(struct bpf_object *obj)
 	return -EINVAL;
 }
 
-static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
-			       void **out, __u32 *out_len)
+static int build_prog_metadata(struct bpf_object *obj, __u32 nr_maps,
+			       __u32 nr_progs, void **out, __u32 *out_len)
 {
 	struct build_uprobe_target {
 		__u32 prog_idx;
@@ -1183,6 +1183,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	md->magic = cpu_to_le32(UPATCH_PROG_MAGIC);
 	md->version = cpu_to_le32(UPATCH_PROG_VERSION);
 	md->nr_progs = cpu_to_le32(nr_progs);
+	md->nr_maps = cpu_to_le32(nr_maps);
 	seen_maps = xcalloc(nr_progs, sizeof(*seen_maps));
 	if (!seen_maps) {
 		err = -ENOMEM;
@@ -1567,7 +1568,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		if (err)
 			goto out;
 
-		err = build_prog_metadata(obj, nr_progs,
+		err = build_prog_metadata(obj, nr_maps, nr_progs,
 					  &attach_meta, &attach_meta_len);
 		if (err)
 			goto out;

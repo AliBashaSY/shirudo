@@ -476,7 +476,7 @@ void prog_specs_free(struct prog_spec *specs, __u32 nr_progs)
 }
 
 int prog_specs_parse(const void *metadata, __u32 metadata_len,
-		     __u32 nr_progs, struct prog_spec **out)
+		     __u32 nr_maps, __u32 nr_progs, struct prog_spec **out)
 {
 	struct upatch_prog_metadata md;
 	struct prog_spec *specs = NULL;
@@ -498,7 +498,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	count = le32_to_cpu(md.nr_progs);
 	if (version != UPATCH_PROG_VERSION)
 		return -EOPNOTSUPP;
-	if (count != nr_progs || le32_to_cpu(md.reserved) != 0)
+	if (count != nr_progs || le32_to_cpu(md.nr_maps) != nr_maps)
 		return -EINVAL;
 	base_len = struct_size(&md, progs, count);
 	if (base_len > UINT32_MAX)

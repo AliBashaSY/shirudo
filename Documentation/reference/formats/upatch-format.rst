@@ -328,8 +328,8 @@ descriptors.
      - Number of program entries. Equal to the header ``nr_progs``.
    * - +12
      - 4
-     - ``reserved``
-     - 0.
+     - ``nr_maps``
+     - Number of maps in the BPF object. Equal to the header ``nr_maps``.
 
 Each program entry is 160 bytes:
 
@@ -603,9 +603,10 @@ signed bytes and trusts others as they are.
    * - ``nr_progs``
      - Must equal the ``nr_progs`` of the signed ``UPGM`` section.
    * - ``nr_maps``
-     - Not checked against signed content. The target uses it to find the
-       program descriptors behind the map descriptors in the loader
-       context, and to pin and close the map descriptors.
+     - Must equal the ``nr_maps`` of the signed ``UPGM`` section. The
+       target uses it to find the program descriptors behind the map
+       descriptors in the loader context, and to pin and close the map
+       descriptors.
    * - ``rodata_data_off``
      - Bounds-checked only: the ``.rodata`` size from the signed BTF must
        fit between it and the end of ``data``. ``bpm info data`` reads
@@ -675,7 +676,7 @@ of checks 1 to 6 is reported as ``parser_rejected``, see
 #. A ``NAME`` section is present and equals the header ``name``.
 #. ``payload_sha256`` equals SHA-256 of ``loader_insns || data``.
 #. A ``UPGM`` section is present and parses: version 1 (any other version
-   is ``EOPNOTSUPP``), ``reserved`` 0, ``nr_progs`` equal to the header's,
+   is ``EOPNOTSUPP``), ``nr_maps`` and ``nr_progs`` equal to the header's,
    every entry valid for its role and kind, and a ``UPUT`` block that is
    present exactly when a kind 7 entry exists and ends the section.
 #. Each ``uprobe.multi`` target file is a regular file whose GNU build ID
@@ -725,7 +726,7 @@ A section tag the reader does not know makes it treat the directory as
 absent. A new section therefore needs readers that know its tag before
 writers emit it. Reserved fields are 0 in every file a writer emits. The
 reader checks ``reserved1``, the directory entries' ``reserved`` and the
-``UPGM`` and ``UPUT`` ``reserved`` fields. It does not check ``flags``
+``UPUT`` ``reserved`` field. It does not check ``flags``
 bits 1 to 31 or the ``DCDB`` ``reserved`` field.
 
 Limits

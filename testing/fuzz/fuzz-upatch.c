@@ -23,8 +23,8 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (!upatch_open(path, &u)) {
 		attach = upatch_signed_attach(&u, &attach_len);
 		if (attach &&
-		    !prog_specs_parse(attach, attach_len, u.hdr.nr_progs,
-				      &specs))
+		    !prog_specs_parse(attach, attach_len, u.hdr.nr_maps,
+				      u.hdr.nr_progs, &specs))
 			prog_specs_free(specs, u.hdr.nr_progs);
 		upatch_signed_name(&u);
 		upatch_signed_unload_payload(&u);

@@ -138,7 +138,7 @@ struct prog_spec {
  * per program, target_fd -1. 0 or -errno; free with prog_specs_free().
  */
 int prog_specs_parse(const void *metadata, __u32 metadata_len,
-		     __u32 nr_progs, struct prog_spec **out);
+		     __u32 nr_maps, __u32 nr_progs, struct prog_spec **out);
 void prog_specs_free(struct prog_spec *specs, __u32 nr_progs);
 
 /*
