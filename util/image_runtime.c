@@ -904,7 +904,12 @@ static int config_mount_check(const struct config_update_record *record)
 		ret = -errno;
 		goto out;
 	}
-	ret = mount_flags(fd, false);
+	if (fstat(fd, &st))
+		ret = -errno;
+	else if (st.st_dev != device.device)
+		ret = -EUCLEAN;
+	else
+		ret = mount_flags(fd, false);
 	if (!ret)
 		ret = image_config_set(&image.bootstrap_config, fd);
 	close(fd);
