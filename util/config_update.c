@@ -80,20 +80,20 @@ static int record_decode(const char *data, size_t length, bool state,
 	size_t i;
 	int ret;
 	struct json_field fields[] = {
-		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
-		{ "sequence", SHIRUDO_JSON_T_INT, &sequence, 0, 0, NULL, 0 },
-		{ "reset_count", SHIRUDO_JSON_T_INT, &reset, 0, 0, NULL, 0 },
-		{ "restart_count", SHIRUDO_JSON_T_INT, &restart, 0, 0,
+		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+		{ "sequence", JSON_T_INT, &sequence, 0, 0, NULL, 0 },
+		{ "reset_count", JSON_T_INT, &reset, 0, 0, NULL, 0 },
+		{ "restart_count", JSON_T_INT, &restart, 0, 0,
 		  NULL, 0 },
-		{ "pcr", SHIRUDO_JSON_T_INT, &pcr, 0, 0, NULL, 0 },
-		{ "kind", SHIRUDO_JSON_T_INT, &kind, 0, 0, NULL, 0 },
-		{ "root_hash", SHIRUDO_JSON_T_STRING, root, sizeof(root), 0,
+		{ "pcr", JSON_T_INT, &pcr, 0, 0, NULL, 0 },
+		{ "kind", JSON_T_INT, &kind, 0, 0, NULL, 0 },
+		{ "root_hash", JSON_T_STRING, root, sizeof(root), 0,
 		  NULL, 0 },
-		{ "initial_pcr", SHIRUDO_JSON_T_STRING, initial,
+		{ "initial_pcr", JSON_T_STRING, initial,
 		  sizeof(initial), 0, NULL, 0 },
-		{ "prefix", SHIRUDO_JSON_T_STRING, record->target.prefix,
+		{ "prefix", JSON_T_STRING, record->target.prefix,
 		  sizeof(record->target.prefix), 0, NULL, 0 },
-		{ "pending", SHIRUDO_JSON_T_BOOL, &pending, 0, 0, NULL, 0 },
+		{ "pending", JSON_T_BOOL, &pending, 0, 0, NULL, 0 },
 	};
 
 	memset(record, 0, sizeof(*record));
@@ -106,8 +106,8 @@ static int record_decode(const char *data, size_t length, bool state,
 	if (schema != 1 || sequence <= 0 || reset < 0 ||
 	    reset > UINT32_MAX || restart < 0 || restart > UINT32_MAX ||
 	    pcr < 0 || pcr > 15 || config_measure_pcr_valid(pcr) ||
-	    (kind != SHIRUDO_CONFIG_EVENT_BOOT &&
-	     kind != SHIRUDO_CONFIG_EVENT_UPDATE) ||
+	    (kind != CONFIG_EVENT_BOOT &&
+	     kind != CONFIG_EVENT_UPDATE) ||
 	    hex_decode(root, record->target.root_hash, 32) ||
 	    hex_decode(initial, record->initial_pcr, 32) ||
 	    (state && target_valid(&record->target)))
@@ -303,7 +303,7 @@ static int state_save(struct config_update *update,
 	if (!ret)
 		ret = write_complete(fd, wire, length);
 	if (!ret && inject)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_WRITE);
+		ret = checkpoint(update, CONFIG_CHECK_STATE_WRITE);
 	if (!ret && fsync(fd))
 		ret = -errno;
 	if (close(fd) && !ret)
@@ -312,7 +312,7 @@ static int state_save(struct config_update *update,
 	    renameat(update->dir_fd, ".state.tmp", update->dir_fd, "state"))
 		ret = -errno;
 	if (!ret && inject)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_RENAME);
+		ret = checkpoint(update, CONFIG_CHECK_STATE_RENAME);
 	if (!ret && fsync(update->dir_fd))
 		ret = -errno;
 	if (ret)
@@ -342,9 +342,9 @@ static int event_follows(const struct config_update_record *previous,
 	if (record->sequence != previous->sequence + 1)
 		return -EUCLEAN;
 	if (!previous->sequence || !same_boot(previous, record))
-		return record->kind == SHIRUDO_CONFIG_EVENT_BOOT ? 0 :
+		return record->kind == CONFIG_EVENT_BOOT ? 0 :
 								 -EUCLEAN;
-	if (record->kind != SHIRUDO_CONFIG_EVENT_UPDATE ||
+	if (record->kind != CONFIG_EVENT_UPDATE ||
 	    previous->pcr != record->pcr ||
 	    memcmp(previous->initial_pcr, record->initial_pcr, 32))
 		return -EUCLEAN;
@@ -404,7 +404,7 @@ static int events_scan(struct config_update *update,
 		ret = record_decode(wire, length, false, &record);
 		if (!ret)
 			ret = event_follows(&previous, &record);
-		if (!ret && record.kind == SHIRUDO_CONFIG_EVENT_BOOT)
+		if (!ret && record.kind == CONFIG_EVENT_BOOT)
 			memcpy(running, record.initial_pcr, 32);
 		if (!ret)
 			ret = config_measure_event(record.kind,
@@ -455,7 +455,7 @@ static int event_append(struct config_update *update,
 	off_t end;
 
 	ret = events_scan(update, &last, NULL, &end,
-			  record->kind == SHIRUDO_CONFIG_EVENT_BOOT, NULL, NULL);
+			  record->kind == CONFIG_EVENT_BOOT, NULL, NULL);
 	if (!ret)
 		ret = event_follows(&last, record);
 	if (!ret)
@@ -475,7 +475,7 @@ static int event_append(struct config_update *update,
 	if (!ret)
 		ret = write_complete(fd, wire, length);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_WRITE);
+		ret = checkpoint(update, CONFIG_CHECK_EVENT_WRITE);
 	if (!ret && fsync(fd))
 		ret = -errno;
 	if (close(fd) && !ret)
@@ -552,7 +552,7 @@ static int complete(struct config_update *update)
 	record.pending = false;
 	ret = state_save(update, &record, true);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_COMPLETE_SYNC);
+		ret = checkpoint(update, CONFIG_CHECK_COMPLETE_SYNC);
 	if (ret) {
 		record.pending = true;
 		restore = state_save(update, &record, false);
@@ -587,7 +587,7 @@ static int begin_event(struct config_update *update,
 			before);
 	if (ret)
 		return ret;
-	memcpy(record.initial_pcr, kind == SHIRUDO_CONFIG_EVENT_BOOT ?
+	memcpy(record.initial_pcr, kind == CONFIG_EVENT_BOOT ?
 	       before : previous->initial_pcr, 32);
 	if (!ret)
 		ret = event_follows(previous, &record);
@@ -600,11 +600,11 @@ static int begin_event(struct config_update *update,
 	if (!ret)
 		ret = state_save(update, &record, true);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_PENDING_SYNC);
+		ret = checkpoint(update, CONFIG_CHECK_PENDING_SYNC);
 	if (!ret)
 		ret = update->ops->pcr_extend(update->ctx, pcr, event);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EXTEND);
+		ret = checkpoint(update, CONFIG_CHECK_EXTEND);
 	if (!ret)
 		ret = live_read(update, pcr, &reset, &restart, value);
 	if (!ret && (reset != record.reset_count ||
@@ -614,14 +614,14 @@ static int begin_event(struct config_update *update,
 	if (!ret)
 		ret = event_append(update, &record);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_SYNC);
+		ret = checkpoint(update, CONFIG_CHECK_EVENT_SYNC);
 	if (!ret)
 		ret = update->ops->activate(update->ctx, target);
 	if (!ret)
-		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_ACTIVATE);
+		ret = checkpoint(update, CONFIG_CHECK_ACTIVATE);
 	if (ret)
 		return ret;
-	if (kind == SHIRUDO_CONFIG_EVENT_BOOT) {
+	if (kind == CONFIG_EVENT_BOOT) {
 		update->boot_pending = true;
 		return 0;
 	}
@@ -646,7 +646,7 @@ int config_update_begin(struct config_update *update,
 	if (!memcmp(t->root_hash, previous.target.root_hash, 32))
 		return 0;
 	return begin_event(update, t, &previous, pcr,
-			   SHIRUDO_CONFIG_EVENT_UPDATE);
+			   CONFIG_EVENT_UPDATE);
 }
 
 int config_update_boot(struct config_update *update,
@@ -691,7 +691,7 @@ int config_update_boot(struct config_update *update,
 	      (previous.pending && !event_follows(&last, &previous))))
 		return -EUCLEAN;
 	return begin_event(update, t, &last, pcr,
-			   SHIRUDO_CONFIG_EVENT_BOOT);
+			   CONFIG_EVENT_BOOT);
 }
 
 int config_update_complete_boot(struct config_update *update)

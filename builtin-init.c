@@ -533,7 +533,7 @@ static int freeze_task_maps(struct bpf_object *obj)
 	pidfd = syscall(SYS_pidfd_open, getpid(), 0);
 	if (pidfd < 0)
 		return -errno;
-	for (i = SHIRUDO_GUARD_TASKS; i < SHIRUDO_GUARD_MAP_COUNT; i++) {
+	for (i = GUARD_TASKS; i < GUARD_MAP_COUNT; i++) {
 		const struct guard_map *expected =
 			&shirudo_guard_maps[i];
 
@@ -543,13 +543,13 @@ static int freeze_task_maps(struct bpf_object *obj)
 			break;
 		}
 		fd = bpf_map__fd(map);
-		if (i == SHIRUDO_GUARD_TASKS &&
+		if (i == GUARD_TASKS &&
 		    bpf_map_update_elem(fd, &pidfd, &authority, BPF_ANY)) {
 			ret = -errno;
 			break;
 		}
 		/* Expected roots change for each mapping. */
-		if ((i != SHIRUDO_GUARD_ROOTS && bpf_map_freeze(fd)) ||
+		if ((i != GUARD_ROOTS && bpf_map_freeze(fd)) ||
 		    bpf_obj_pin(fd, expected->pin)) {
 			ret = -errno;
 			break;
@@ -608,7 +608,7 @@ static int init_lsm(void)
 	__u32 zero = 0;
 	struct stat st;
 
-	if (access(shirudo_gate_guards[SHIRUDO_GUARD_BPF].pin, F_OK) == 0) {
+	if (access(shirudo_gate_guards[GUARD_BPF].pin, F_OK) == 0) {
 		err = identity_read(&id);
 		if (err || !(id.nv_writer_public[0] & 0x80) ||
 		    id.nv_index != NV_INDEX ||
@@ -618,7 +618,7 @@ static int init_lsm(void)
 			return err ? err : -EACCES;
 		}
 		pr_info("bpf2 already attached (%s exists)",
-			shirudo_gate_guards[SHIRUDO_GUARD_BPF].pin);
+			shirudo_gate_guards[GUARD_BPF].pin);
 		return 0;
 	}
 	/* A pin without the links behind it is what a failed attempt leaves. */
@@ -759,14 +759,14 @@ static int init_lsm(void)
 	if (err)
 		goto out;
 
-	p_unlink = guard_program(obj, SHIRUDO_GUARD_UNLINK);
-	p_setx = guard_program(obj, SHIRUDO_GUARD_SETXATTR);
-	p_rmx = guard_program(obj, SHIRUDO_GUARD_REMOVEXATTR);
-	p_pload = guard_program(obj, SHIRUDO_GUARD_PROG_LOAD);
-	p_bpf_map = guard_program(obj, SHIRUDO_GUARD_BPF_MAP);
-	p_key = guard_program(obj, SHIRUDO_GUARD_KEY_PERMISSION);
-	p_tpm = guard_program(obj, SHIRUDO_GUARD_TPM_COMMAND);
-	p_bpf = guard_program(obj, SHIRUDO_GUARD_BPF);
+	p_unlink = guard_program(obj, GUARD_UNLINK);
+	p_setx = guard_program(obj, GUARD_SETXATTR);
+	p_rmx = guard_program(obj, GUARD_REMOVEXATTR);
+	p_pload = guard_program(obj, GUARD_PROG_LOAD);
+	p_bpf_map = guard_program(obj, GUARD_BPF_MAP);
+	p_key = guard_program(obj, GUARD_KEY_PERMISSION);
+	p_tpm = guard_program(obj, GUARD_TPM_COMMAND);
+	p_bpf = guard_program(obj, GUARD_BPF);
 	if (!p_unlink || !p_setx || !p_rmx || !p_pload || !p_bpf_map ||
 	    !p_bpf ||
 	    !p_key || !p_tpm) {
@@ -783,27 +783,27 @@ static int init_lsm(void)
 	 * Pinning a link creates a bpffs inode, gated by neither guard set;
 	 * seal's unsigned load and the identity-map freeze precede the gates.
 	 */
-	err = attach_guard(p_unlink, SHIRUDO_GUARD_UNLINK, &link_unlink);
+	err = attach_guard(p_unlink, GUARD_UNLINK, &link_unlink);
 	if (err) {
 		pr_err("attach lsm/inode_unlink: %s", strerror(-err));
 		goto out;
 	}
-	err = attach_guard(p_setx, SHIRUDO_GUARD_SETXATTR, &link_setx);
+	err = attach_guard(p_setx, GUARD_SETXATTR, &link_setx);
 	if (err) {
 		pr_err("attach lsm/inode_setxattr: %s", strerror(-err));
 		goto out;
 	}
-	err = attach_guard(p_rmx, SHIRUDO_GUARD_REMOVEXATTR, &link_rmx);
+	err = attach_guard(p_rmx, GUARD_REMOVEXATTR, &link_rmx);
 	if (err) {
 		pr_err("attach lsm/inode_removexattr: %s", strerror(-err));
 		goto out;
 	}
-	err = attach_guard(p_key, SHIRUDO_GUARD_KEY_PERMISSION, &link_keyperm);
+	err = attach_guard(p_key, GUARD_KEY_PERMISSION, &link_keyperm);
 	if (err) {
 		pr_err("attach lsm/key_permission: %s", strerror(-err));
 		goto out;
 	}
-	err = attach_guard(p_tpm, SHIRUDO_GUARD_TPM_COMMAND, &link_tpm);
+	err = attach_guard(p_tpm, GUARD_TPM_COMMAND, &link_tpm);
 	if (err) {
 		pr_err("attach lsm/tpm_command: %s", strerror(-err));
 		goto out;
@@ -826,19 +826,19 @@ static int init_lsm(void)
 	if (err)
 		goto out;
 
-	err = attach_guard(p_bpf_map, SHIRUDO_GUARD_BPF_MAP, &link_bpf_map);
+	err = attach_guard(p_bpf_map, GUARD_BPF_MAP, &link_bpf_map);
 	if (err) {
 		pr_err("attach lsm/bpf_map: %s", strerror(-err));
 		goto out;
 	}
 
-	err = attach_guard(p_pload, SHIRUDO_GUARD_PROG_LOAD, &link_pload);
+	err = attach_guard(p_pload, GUARD_PROG_LOAD, &link_pload);
 	if (err) {
 		pr_err("attach lsm/bpf_prog_load: %s", strerror(-err));
 		goto out;
 	}
 
-	err = attach_guard(p_bpf, SHIRUDO_GUARD_BPF, &link_bpf);
+	err = attach_guard(p_bpf, GUARD_BPF, &link_bpf);
 	if (err) {
 		pr_err("attach lsm/bpf: %s", strerror(-err));
 		goto out;

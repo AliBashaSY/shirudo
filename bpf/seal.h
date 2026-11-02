@@ -200,7 +200,7 @@ int BPF_PROG(shirudo_seal_perf_event_alloc,
 		return 0; /* CPU-wide events have no task target to inspect. */
 
 	if (shirudo_marked(target))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_PERF, -EACCES);
+		return shirudo_tamper_deny(TAMPER_SEAL_PERF, -EACCES);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ int BPF_PROG(shirudo_seal_ptrace_access_check,
 		return ret;
 
 	if (shirudo_marked(child))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_PTRACE, -EACCES);
+		return shirudo_tamper_deny(TAMPER_SEAL_PTRACE, -EACCES);
 
 	return 0;
 }
@@ -246,12 +246,12 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 		return 0;
 	s = seal_scratch_get(task);
 	if (!s)				/* cannot read the label */
-		return seal_caller(SHIRUDO_TAMPER_SEAL_WRITE);
+		return seal_caller(TAMPER_SEAL_WRITE);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 	tlen = bpf_get_file_xattr(file, XATTR, &tdp);
 	if (tlen == LABEL_LEN)
 		seal_mark(inode, s->target, tlen);
-	return seal_verdict(tlen, SHIRUDO_TAMPER_SEAL_WRITE);
+	return seal_verdict(tlen, TAMPER_SEAL_WRITE);
 }
 
 /*
@@ -273,7 +273,7 @@ int BPF_PROG(shirudo_seal_inode_copy_up, struct dentry *src,
 		return ret;
 	if (!inode || !bpf_inode_storage_get(&seal_dir_marks, inode, NULL, 0))
 		return 0;
-	return shirudo_tamper_deny(SHIRUDO_TAMPER_SEAL_COPY_UP, -EPERM);
+	return shirudo_tamper_deny(TAMPER_SEAL_COPY_UP, -EPERM);
 }
 
 /* Refresh a directory's mark from its label after an xattr change. */
@@ -361,7 +361,7 @@ SEC("lsm.s/inode_unlink")
 int BPF_PROG(shirudo_seal_inode_unlink, struct inode *dir,
 	     struct dentry *dentry, int ret)
 {
-	return ret ? ret : seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_UNLINK);
+	return ret ? ret : seal_dentry(dentry, TAMPER_SEAL_UNLINK);
 }
 
 /*
@@ -375,7 +375,7 @@ static __always_inline int seal_dir_entry(struct inode *dir)
 {
 	if (!bpf_inode_storage_get(&seal_dir_marks, dir, NULL, 0))
 		return 0;
-	return seal_caller(SHIRUDO_TAMPER_SEAL_ENTRY);
+	return seal_caller(TAMPER_SEAL_ENTRY);
 }
 
 SEC("lsm/inode_create")
@@ -427,7 +427,7 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 
 	if (ret)
 		return ret;
-	err = seal_dentry(old_dentry, SHIRUDO_TAMPER_SEAL_RENAME);
+	err = seal_dentry(old_dentry, TAMPER_SEAL_RENAME);
 	if (err)
 		return err;
 	err = seal_dir_entry(new_dir);
@@ -435,7 +435,7 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 		return err;
 	if (!target)
 		return 0;
-	return seal_dentry(new_dentry, SHIRUDO_TAMPER_SEAL_RENAME);
+	return seal_dentry(new_dentry, TAMPER_SEAL_RENAME);
 }
 
 /* Truncate, chmod, chown and utimes all come through here. */
@@ -443,7 +443,7 @@ SEC("lsm.s/inode_setattr")
 int BPF_PROG(shirudo_seal_inode_setattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, struct iattr *attr, int ret)
 {
-	return ret ? ret : seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_SETATTR);
+	return ret ? ret : seal_dentry(dentry, TAMPER_SEAL_SETATTR);
 }
 
 SEC("lsm.s/inode_setxattr")
@@ -454,15 +454,15 @@ int BPF_PROG(shirudo_seal_inode_setxattr, struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	if (seal_is_label(name))
-		return seal_caller(SHIRUDO_TAMPER_SEAL_LABEL);
-	return seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_XATTR);
+		return seal_caller(TAMPER_SEAL_LABEL);
+	return seal_dentry(dentry, TAMPER_SEAL_XATTR);
 }
 
 SEC("lsm.s/inode_removexattr")
 int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, const char *name, int ret)
 {
-	return ret ? ret : seal_dentry(dentry, SHIRUDO_TAMPER_SEAL_XATTR);
+	return ret ? ret : seal_dentry(dentry, TAMPER_SEAL_XATTR);
 }
 
 #endif /* SHIRUDO_BPF_SEAL_H */

@@ -75,7 +75,7 @@ bool tree_configured(void)
 
 	if (!image_config_active())
 		return access(BPM_TREE_ETC_PATH, R_OK) == 0;
-	fd = image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	fd = image_open(IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0)
 		return false;
 	close(fd);
@@ -447,7 +447,7 @@ int tree_selector_matches(const struct tree_selector *s)
 	}
 	if (s->n_labels) {
 		if (image_config_active()) {
-			int fd = image_open(SHIRUDO_IMAGE_NODE_LABELS,
+			int fd = image_open(IMAGE_NODE_LABELS,
 					    O_RDONLY);
 
 			if (fd == -ENOENT)
@@ -492,16 +492,16 @@ int tree_state_read(struct tree_state *out)
 	size_t len;
 	__s64 schema = 0;
 	struct json_field f[] = {
-		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
-		{ "tree_id", SHIRUDO_JSON_T_STRING, out->tree_id,
+		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+		{ "tree_id", JSON_T_STRING, out->tree_id,
 		  sizeof(out->tree_id), 0, NULL, 0 },
-		{ "generation", SHIRUDO_JSON_T_INT, &out->generation, 0, 0, NULL, 0 },
-		{ "last_seq", SHIRUDO_JSON_T_INT, &out->last_seq, 0, 0, NULL, 0 },
-		{ "projection_root", SHIRUDO_JSON_T_STRING, out->projection_root,
+		{ "generation", JSON_T_INT, &out->generation, 0, 0, NULL, 0 },
+		{ "last_seq", JSON_T_INT, &out->last_seq, 0, 0, NULL, 0 },
+		{ "projection_root", JSON_T_STRING, out->projection_root,
 		  sizeof(out->projection_root), 0, NULL, 0 },
-		{ "projection_root_tpm", SHIRUDO_JSON_T_STRING,
+		{ "projection_root_tpm", JSON_T_STRING,
 		  out->projection_root_tpm, sizeof(out->projection_root_tpm), 0, NULL, 0 },
-		{ "manifest_digest", SHIRUDO_JSON_T_STRING, out->manifest_digest,
+		{ "manifest_digest", JSON_T_STRING, out->manifest_digest,
 		  sizeof(out->manifest_digest), 0, NULL, 0 },
 	};
 	int ret;
@@ -645,10 +645,10 @@ int tree_event_replay(__u8 out[32])
 		char projection[65] = {};
 		__s64 seq = 0;
 		struct json_field f[] = {
-			{ "seq", SHIRUDO_JSON_T_INT, &seq, 0, 0, NULL, 0 },
-			{ "digest", SHIRUDO_JSON_T_STRING, digest, sizeof(digest),
+			{ "seq", JSON_T_INT, &seq, 0, 0, NULL, 0 },
+			{ "digest", JSON_T_STRING, digest, sizeof(digest),
 			  0, NULL, 0 },
-			{ "projection_root", SHIRUDO_JSON_T_STRING, projection,
+			{ "projection_root", JSON_T_STRING, projection,
 			  sizeof(projection), 0, NULL, 0 },
 		};
 		__u8 d[32], next[64], recorded[32];

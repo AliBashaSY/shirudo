@@ -21,19 +21,19 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	int b = 0, elems = 0;
 	struct json_array arr = { on_elem, &elems };
 	struct json_field obj[] = {
-		{ "k", SHIRUDO_JSON_T_STRING, k, sizeof(k), 0, NULL, 0 },
-		{ "n", SHIRUDO_JSON_T_INT, &n, 0, 0, NULL, 0 },
+		{ "k", JSON_T_STRING, k, sizeof(k), 0, NULL, 0 },
+		{ "n", JSON_T_INT, &n, 0, 0, NULL, 0 },
 	};
 	struct json_field elem[] = {
-		{ "v", SHIRUDO_JSON_T_STRING, v, sizeof(v), 0, NULL, 0 },
-		{ "o", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, obj, ARRAY_SIZE(obj) },
+		{ "v", JSON_T_STRING, v, sizeof(v), 0, NULL, 0 },
+		{ "o", JSON_T_OBJECT, NULL, 0, 0, obj, ARRAY_SIZE(obj) },
 	};
 	struct json_field root[] = {
-		{ "s", SHIRUDO_JSON_T_STRING, s, sizeof(s), 0, NULL, 0 },
-		{ "i", SHIRUDO_JSON_T_INT, &i, 0, 0, NULL, 0 },
-		{ "b", SHIRUDO_JSON_T_BOOL, &b, 0, 0, NULL, 0 },
-		{ "o", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, obj, ARRAY_SIZE(obj) },
-		{ "a", SHIRUDO_JSON_T_ARRAY, &arr, 0, 0, elem, ARRAY_SIZE(elem) },
+		{ "s", JSON_T_STRING, s, sizeof(s), 0, NULL, 0 },
+		{ "i", JSON_T_INT, &i, 0, 0, NULL, 0 },
+		{ "b", JSON_T_BOOL, &b, 0, 0, NULL, 0 },
+		{ "o", JSON_T_OBJECT, NULL, 0, 0, obj, ARRAY_SIZE(obj) },
+		{ "a", JSON_T_ARRAY, &arr, 0, 0, elem, ARRAY_SIZE(elem) },
 	};
 
 	json_parse((const char *)data, size, root, ARRAY_SIZE(root));

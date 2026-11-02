@@ -20,24 +20,24 @@ struct image_guard {
 };
 
 enum gate_guard {
-	SHIRUDO_GUARD_UNLINK,
-	SHIRUDO_GUARD_SETXATTR,
-	SHIRUDO_GUARD_REMOVEXATTR,
-	SHIRUDO_GUARD_KEY_PERMISSION,
-	SHIRUDO_GUARD_TPM_COMMAND,
-	SHIRUDO_GUARD_BPF_MAP,
-	SHIRUDO_GUARD_PROG_LOAD,
-	SHIRUDO_GUARD_BPF,
-	SHIRUDO_GATE_HOOK_COUNT,
+	GUARD_UNLINK,
+	GUARD_SETXATTR,
+	GUARD_REMOVEXATTR,
+	GUARD_KEY_PERMISSION,
+	GUARD_TPM_COMMAND,
+	GUARD_BPF_MAP,
+	GUARD_PROG_LOAD,
+	GUARD_BPF,
+	GATE_HOOK_COUNT,
 };
 
 enum guard_map_index {
-	SHIRUDO_GUARD_IDENTITY,
-	SHIRUDO_GUARD_TASKS,
-	SHIRUDO_GUARD_DEVICES,
-	SHIRUDO_GUARD_ROOTS,
-	SHIRUDO_GUARD_TAMPER,
-	SHIRUDO_GUARD_MAP_COUNT,
+	GUARD_IDENTITY,
+	GUARD_TASKS,
+	GUARD_DEVICES,
+	GUARD_ROOTS,
+	GUARD_TAMPER,
+	GUARD_MAP_COUNT,
 };
 
 struct guard_map {
@@ -61,9 +61,9 @@ extern const struct image_guard
 extern const struct image_guard
 	shirudo_observer_guards[OBSERVER_HOOK_COUNT];
 extern const struct image_guard
-	shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT];
+	shirudo_gate_guards[GATE_HOOK_COUNT];
 extern const struct guard_map
-	shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT];
+	shirudo_guard_maps[GUARD_MAP_COUNT];
 
 struct config_root_guard {
 	int map_fd;

@@ -12,7 +12,7 @@
 #include "bpf/lib/tamper.h"
 
 struct tamper_counts {
-	__u64		count[SHIRUDO_TAMPER_MAX];
+	__u64		count[TAMPER_MAX];
 	__u64		total;
 };
 

@@ -19,91 +19,91 @@
 static const struct {
 	const char	*name;
 	const char	*meaning;
-} tamper_points[SHIRUDO_TAMPER_MAX] = {
-	[SHIRUDO_TAMPER_LOAD_NOT_LOADER] = { "LoadNotLoader",
+} tamper_points[TAMPER_MAX] = {
+	[TAMPER_LOAD_NOT_LOADER] = { "LoadNotLoader",
 		"program load that is not a signed loader" },
-	[SHIRUDO_TAMPER_LOAD_UNSIGNED] = { "LoadUnsigned",
+	[TAMPER_LOAD_UNSIGNED] = { "LoadUnsigned",
 		"loader-type program load without a signature" },
-	[SHIRUDO_TAMPER_LOAD_UNVERIFIED] = { "LoadUnverified",
+	[TAMPER_LOAD_UNVERIFIED] = { "LoadUnverified",
 		"program load whose signature the kernel did not verify" },
-	[SHIRUDO_TAMPER_LOAD_KEYRING_KIND] = { "LoadKeyringKind",
+	[TAMPER_LOAD_KEYRING_KIND] = { "LoadKeyringKind",
 		"program signed against a keyring of the wrong kind" },
-	[SHIRUDO_TAMPER_LOAD_KEYRING] = { "LoadKeyring",
+	[TAMPER_LOAD_KEYRING] = { "LoadKeyring",
 		"program signed against a keyring that is not the anchor" },
-	[SHIRUDO_TAMPER_MAP_CREATE] = { "MapCreate",
+	[TAMPER_MAP_CREATE] = { "MapCreate",
 		"map creation by another executable" },
-	[SHIRUDO_TAMPER_MAP_WRITE] = { "MapWrite",
+	[TAMPER_MAP_WRITE] = { "MapWrite",
 		"map update or freeze by another executable" },
-	[SHIRUDO_TAMPER_MAP_FD] = { "MapFdWrite",
+	[TAMPER_MAP_FD] = { "MapFdWrite",
 		"writable map descriptor for another executable" },
-	[SHIRUDO_TAMPER_PROG_RUN] = { "ProgRun",
+	[TAMPER_PROG_RUN] = { "ProgRun",
 		"test run of a program by another executable" },
-	[SHIRUDO_TAMPER_ATTACH] = { "ProgAttach",
+	[TAMPER_ATTACH] = { "ProgAttach",
 		"link or raw tracepoint attach by another executable" },
-	[SHIRUDO_TAMPER_OBJ_PIN] = { "ObjPin",
+	[TAMPER_OBJ_PIN] = { "ObjPin",
 		"pin of a BPF object by another executable" },
-	[SHIRUDO_TAMPER_BPF_CMD] = { "BpfCommand",
+	[TAMPER_BPF_CMD] = { "BpfCommand",
 		"detach, update, delete or unclassified bpf() command" },
-	[SHIRUDO_TAMPER_EXE_IDENTITY] = { "ExeIdentity",
+	[TAMPER_EXE_IDENTITY] = { "ExeIdentity",
 		"executable change through PR_SET_MM" },
-	[SHIRUDO_TAMPER_KEYRING] = { "KeyringWrite",
+	[TAMPER_KEYRING] = { "KeyringWrite",
 		"write, unlink, revoke or invalidate on the anchor keyring" },
-	[SHIRUDO_TAMPER_PIN_UNLINK] = { "PinUnlink",
+	[TAMPER_PIN_UNLINK] = { "PinUnlink",
 		"unlink of a pin in the private bpffs" },
-	[SHIRUDO_TAMPER_PIN_RENAME] = { "PinRename",
+	[TAMPER_PIN_RENAME] = { "PinRename",
 		"rename of a pin in the private bpffs" },
-	[SHIRUDO_TAMPER_PIN_XATTR] = { "PinXattr",
+	[TAMPER_PIN_XATTR] = { "PinXattr",
 		"xattr change on a pin in the private bpffs" },
-	[SHIRUDO_TAMPER_BPFFS_UMOUNT] = { "BpffsUmount",
+	[TAMPER_BPFFS_UMOUNT] = { "BpffsUmount",
 		"unmount of the private bpffs" },
-	[SHIRUDO_TAMPER_BPFFS_UMOUNT_ABOVE] = { "BpffsUmountAbove",
+	[TAMPER_BPFFS_UMOUNT_ABOVE] = { "BpffsUmountAbove",
 		"unmount of a mount above the private bpffs" },
-	[SHIRUDO_TAMPER_BPFFS_MOUNT] = { "BpffsMount",
+	[TAMPER_BPFFS_MOUNT] = { "BpffsMount",
 		"move, mount over or remount of the private bpffs" },
-	[SHIRUDO_TAMPER_SEAL_WRITE] = { "SealWrite",
+	[TAMPER_SEAL_WRITE] = { "SealWrite",
 		"write open of a sealed file" },
-	[SHIRUDO_TAMPER_SEAL_UNLINK] = { "SealUnlink",
+	[TAMPER_SEAL_UNLINK] = { "SealUnlink",
 		"unlink of a sealed file" },
-	[SHIRUDO_TAMPER_SEAL_RENAME] = { "SealRename",
+	[TAMPER_SEAL_RENAME] = { "SealRename",
 		"rename of or over a sealed file" },
-	[SHIRUDO_TAMPER_SEAL_SETATTR] = { "SealSetattr",
+	[TAMPER_SEAL_SETATTR] = { "SealSetattr",
 		"truncate, chmod, chown or utimes of a sealed file" },
-	[SHIRUDO_TAMPER_SEAL_XATTR] = { "SealXattr",
+	[TAMPER_SEAL_XATTR] = { "SealXattr",
 		"xattr change on a sealed file" },
-	[SHIRUDO_TAMPER_SEAL_LABEL] = { "SealLabel",
+	[TAMPER_SEAL_LABEL] = { "SealLabel",
 		"seal label set by another executable" },
-	[SHIRUDO_TAMPER_SEAL_PTRACE] = { "SealPtrace",
+	[TAMPER_SEAL_PTRACE] = { "SealPtrace",
 		"ptrace of a shirudo task" },
-	[SHIRUDO_TAMPER_SEAL_PERF] = { "SealPerf",
+	[TAMPER_SEAL_PERF] = { "SealPerf",
 		"perf event bound to a shirudo task" },
-	[SHIRUDO_TAMPER_EXEC_TRACED] = { "ExecTraced",
+	[TAMPER_EXEC_TRACED] = { "ExecTraced",
 		"exec of shirudo by a traced task" },
-	[SHIRUDO_TAMPER_SEAL_ENTRY] = { "SealEntry",
+	[TAMPER_SEAL_ENTRY] = { "SealEntry",
 		"entry created, linked or renamed into a sealed directory" },
-	[SHIRUDO_TAMPER_PERF_ATTACH] = { "PerfAttach",
+	[TAMPER_PERF_ATTACH] = { "PerfAttach",
 		"program attached to a perf event by another executable" },
-	[SHIRUDO_TAMPER_PIN_ENTRY] = { "PinEntry",
+	[TAMPER_PIN_ENTRY] = { "PinEntry",
 		"directory or link made in the private bpffs by another executable" },
-	[SHIRUDO_TAMPER_SEAL_COPY_UP] = { "SealCopyUp",
+	[TAMPER_SEAL_COPY_UP] = { "SealCopyUp",
 		"overlay copy-up of a sealed inode" },
-	[SHIRUDO_TAMPER_KEXEC] = { "Kexec",
+	[TAMPER_KEXEC] = { "Kexec",
 		"kexec image or initramfs load" },
-	[SHIRUDO_TAMPER_TPM_EXTEND] = { "TpmExtend",
+	[TAMPER_TPM_EXTEND] = { "TpmExtend",
 		"extension of shirudo's TPM NV index by another executable" },
-	[SHIRUDO_TAMPER_OBJ_GET] = { "ObjGet",
+	[TAMPER_OBJ_GET] = { "ObjGet",
 		"pin, map or link opened by another executable" },
 };
 
 const char *tamper_name(enum tamper_point point)
 {
-	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].name)
+	if (point >= TAMPER_MAX || !tamper_points[point].name)
 		return "?";
 	return tamper_points[point].name;
 }
 
 const char *tamper_meaning(enum tamper_point point)
 {
-	if (point >= SHIRUDO_TAMPER_MAX || !tamper_points[point].meaning)
+	if (point >= TAMPER_MAX || !tamper_points[point].meaning)
 		return "?";
 	return tamper_points[point].meaning;
 }
@@ -122,11 +122,11 @@ int tamper_read(struct tamper_counts *out)
 	ret = bpf_map_get_info_by_fd(fd, &info, &len);
 	if (ret) {
 		ret = -errno;
-	} else if (info.max_entries != SHIRUDO_TAMPER_MAX ||
+	} else if (info.max_entries != TAMPER_MAX ||
 		   info.value_size != sizeof(out->count[0])) {
 		ret = -EPROTO;
 	} else {
-		for (key = 0; key < SHIRUDO_TAMPER_MAX; key++) {
+		for (key = 0; key < TAMPER_MAX; key++) {
 			ret = bpf_map_lookup_elem(fd, &key, &out->count[key]);
 			if (ret) {
 				ret = -errno;

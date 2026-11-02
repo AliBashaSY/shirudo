@@ -140,7 +140,7 @@ static __always_inline int shirudo_umount_above(struct vfsmount *mnt)
 			goto deny;
 	}
 deny:
-	return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT_ABOVE, -EPERM);
+	return shirudo_tamper_deny(TAMPER_BPFFS_UMOUNT_ABOVE, -EPERM);
 }
 
 /*
@@ -164,7 +164,7 @@ int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 	if (!mnt || BPF_CORE_READ(mnt, mnt_sb, s_dev) != id->sb_dev)
 		return 0;
 	if ((BPF_CORE_READ(file, f_inode, i_mode) & S_IFMT) != S_IFDIR)
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
+		return shirudo_self_or_deny(TAMPER_OBJ_GET);
 	if (!shirudo_bootstrap_task())
 		return 0;
 	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
@@ -218,9 +218,9 @@ int BPF_PROG(shirudo_lsm_sb_umount, struct vfsmount *mnt, int flags,
 	if (ret)
 		return ret;
 	if (BPF_CORE_READ_INTO(&dev, sb, s_dev))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPFFS_UMOUNT,
+		return shirudo_tamper_deny(TAMPER_BPFFS_UMOUNT,
 					   -EPERM);
-	ret = shirudo_deny_bpffs_mount(dev, SHIRUDO_TAMPER_BPFFS_UMOUNT);
+	ret = shirudo_deny_bpffs_mount(dev, TAMPER_BPFFS_UMOUNT);
 	if (!ret)
 		ret = shirudo_umount_above(mnt);
 	return ret ? ret : shirudo_image_mount(sb, true);
@@ -239,9 +239,9 @@ int BPF_PROG(shirudo_lsm_move_mount, const struct path *from_path,
 	    shirudo_parent_mount(to, true))
 		return -EPERM;
 	if (shirudo_deny_bpffs_mount(BPF_CORE_READ(from, s_dev),
-				     SHIRUDO_TAMPER_BPFFS_MOUNT) ||
+				     TAMPER_BPFFS_MOUNT) ||
 	    shirudo_deny_bpffs_mount(BPF_CORE_READ(to, s_dev),
-				     SHIRUDO_TAMPER_BPFFS_MOUNT))
+				     TAMPER_BPFFS_MOUNT))
 		return -EPERM;
 	ret = shirudo_image_mount(from, true);
 	return ret ? ret : shirudo_image_mount(to, true);
@@ -263,7 +263,7 @@ int BPF_PROG(shirudo_lsm_sb_mount, const char *dev_name,
 	if (ret)
 		return ret;
 	ret = shirudo_deny_bpffs_mount(BPF_CORE_READ(sb, s_dev),
-				       SHIRUDO_TAMPER_BPFFS_MOUNT);
+				       TAMPER_BPFFS_MOUNT);
 	return ret ? ret : shirudo_image_mount(sb, true);
 }
 
@@ -277,7 +277,7 @@ int BPF_PROG(shirudo_lsm_sb_remount, struct super_block *sb,
 	if (ret)
 		return ret;
 	ret = shirudo_deny_bpffs_mount(BPF_CORE_READ(sb, s_dev),
-				       SHIRUDO_TAMPER_BPFFS_MOUNT);
+				       TAMPER_BPFFS_MOUNT);
 	return ret ? ret : shirudo_image_mount(sb, false);
 }
 
@@ -411,7 +411,7 @@ static __always_inline int shirudo_ioctl(struct file *file, unsigned int cmd,
 	if (ret)
 		return ret;
 	if (cmd == PERF_EVENT_IOC_SET_BPF)
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_PERF_ATTACH);
+		return shirudo_self_or_deny(TAMPER_PERF_ATTACH);
 	return shirudo_dm_ioctl(file, cmd, ret);
 }
 

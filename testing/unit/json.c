@@ -46,24 +46,24 @@ static int parse_len(const char *text, size_t len, struct doc *d)
 	struct json_array event_sink = { event_on_elem, d };
 	struct json_array name_sink = { name_on_elem, d };
 	struct json_field name_sub[] = {
-		{ "", SHIRUDO_JSON_T_STRING, d->name, sizeof(d->name),
+		{ "", JSON_T_STRING, d->name, sizeof(d->name),
 		  0, NULL, 0 },
 	};
 	struct json_field event_sub[] = {
-		{ "type", SHIRUDO_JSON_T_STRING, d->ev_type,
+		{ "type", JSON_T_STRING, d->ev_type,
 		  sizeof(d->ev_type), 0, NULL, 0 },
-		{ "digest", SHIRUDO_JSON_T_STRING, d->ev_digest,
+		{ "digest", JSON_T_STRING, d->ev_digest,
 		  sizeof(d->ev_digest), 0, NULL, 0 },
 	};
 	struct json_field f[] = {
-		{ "schema", SHIRUDO_JSON_T_INT, &d->schema, 0, 0, NULL, 0 },
-		{ "type", SHIRUDO_JSON_T_STRING, d->type, sizeof(d->type),
+		{ "schema", JSON_T_INT, &d->schema, 0, 0, NULL, 0 },
+		{ "type", JSON_T_STRING, d->type, sizeof(d->type),
 		  0, NULL, 0 },
-		{ "digest", SHIRUDO_JSON_T_STRING, d->digest,
+		{ "digest", JSON_T_STRING, d->digest,
 		  sizeof(d->digest), 0, NULL, 0 },
-		{ "names", SHIRUDO_JSON_T_ARRAY, &name_sink, 0, 0,
+		{ "names", JSON_T_ARRAY, &name_sink, 0, 0,
 		  name_sub, ARRAY_SIZE(name_sub) },
-		{ "events", SHIRUDO_JSON_T_ARRAY, &event_sink, 0, 0,
+		{ "events", JSON_T_ARRAY, &event_sink, 0, 0,
 		  event_sub, ARRAY_SIZE(event_sub) },
 		/* An empty schema slot must be ignored, not dereferenced. */
 		{ NULL, 0, NULL, 0, 0, NULL, 0 },

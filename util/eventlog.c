@@ -190,9 +190,9 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 	for (line = strtok_r(buf, "\n", &save); line && !ret;
 	     line = strtok_r(NULL, "\n", &save)) {
 		struct json_field f[] = {
-			{ "boot_id", SHIRUDO_JSON_T_STRING, line_boot,
+			{ "boot_id", JSON_T_STRING, line_boot,
 			  sizeof(line_boot), 0, NULL, 0 },
-			{ "type", SHIRUDO_JSON_T_STRING, type, sizeof(type),
+			{ "type", JSON_T_STRING, type, sizeof(type),
 			  0, NULL, 0 },
 		};
 		bool is_init;
@@ -358,7 +358,7 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 {
 	char digest_hex[2 * 32 + 1];
 	struct json_field f[] = {
-		{ "digest", SHIRUDO_JSON_T_STRING, digest_hex,
+		{ "digest", JSON_T_STRING, digest_hex,
 		  sizeof(digest_hex), 0, NULL, 0 },
 	};
 	__u8 digest[32], cat[64];
@@ -394,20 +394,20 @@ static int init_line(const char *line, size_t len, bool is_init, void *ctx)
 	struct eventlog_init *out = ctx;
 	__s64 pcr = -1, reset_count = -1;
 	struct json_field f[] = {
-		{ "pcr_before", SHIRUDO_JSON_T_STRING, pcr_before,
+		{ "pcr_before", JSON_T_STRING, pcr_before,
 		  sizeof(pcr_before), 0, NULL, 0 },
-		{ "nv_name", SHIRUDO_JSON_T_STRING, name, sizeof(name), 0,
+		{ "nv_name", JSON_T_STRING, name, sizeof(name), 0,
 		  NULL, 0 },
-		{ "anchor_digest", SHIRUDO_JSON_T_STRING, anchor,
+		{ "anchor_digest", JSON_T_STRING, anchor,
 		  sizeof(anchor), 0, NULL, 0 },
-		{ "pcr", SHIRUDO_JSON_T_INT, &pcr, 0, 0, NULL, 0 },
-		{ "tpm_reset_count", SHIRUDO_JSON_T_INT, &reset_count, 0, 0,
+		{ "pcr", JSON_T_INT, &pcr, 0, 0, NULL, 0 },
+		{ "tpm_reset_count", JSON_T_INT, &reset_count, 0, 0,
 		  NULL, 0 },
-		{ "phase_before", SHIRUDO_JSON_T_STRING, phase_before,
+		{ "phase_before", JSON_T_STRING, phase_before,
 		  sizeof(phase_before), 0, NULL, 0 },
-		{ "bound_in", SHIRUDO_JSON_T_STRING, bound_in, sizeof(bound_in),
+		{ "bound_in", JSON_T_STRING, bound_in, sizeof(bound_in),
 		  0, NULL, 0 },
-		{ "nv_writer_public", SHIRUDO_JSON_T_STRING, writer_public,
+		{ "nv_writer_public", JSON_T_STRING, writer_public,
 		  sizeof(writer_public), 0, NULL, 0 },
 	};
 	bool have_reset_count;

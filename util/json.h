@@ -70,11 +70,11 @@ void json_raw(struct json_emit *e, const char *value,
  * exhaust the stack or a buffer.
  */
 enum json_vtype {
-	SHIRUDO_JSON_T_STRING,	/* dst: char[dst_cap] (NUL-terminated)   */
-	SHIRUDO_JSON_T_INT,	/* dst: __s64 *                          */
-	SHIRUDO_JSON_T_BOOL,	/* dst: int *  (0/1)                     */
-	SHIRUDO_JSON_T_OBJECT,	/* nested object -> sub[] sub-schema     */
-	SHIRUDO_JSON_T_ARRAY,	/* sub[] schema; dst = shirudo_json_array * */
+	JSON_T_STRING,	/* dst: char[dst_cap] (NUL-terminated)   */
+	JSON_T_INT,	/* dst: __s64 *                          */
+	JSON_T_BOOL,	/* dst: int *  (0/1)                     */
+	JSON_T_OBJECT,	/* nested object -> sub[] sub-schema     */
+	JSON_T_ARRAY,	/* sub[] schema; dst = shirudo_json_array * */
 };
 
 /*

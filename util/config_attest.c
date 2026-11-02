@@ -53,8 +53,8 @@ static int replay(const struct config_evidence *view, __u8 out[32])
 
 		if (!event->sequence || event->sequence > INT64_MAX ||
 		    (i && event->sequence != sequence + 1) ||
-		    event->kind != (i ? SHIRUDO_CONFIG_EVENT_UPDATE :
-					SHIRUDO_CONFIG_EVENT_BOOT))
+		    event->kind != (i ? CONFIG_EVENT_UPDATE :
+					CONFIG_EVENT_BOOT))
 			return -EKEYREJECTED;
 		ret = config_measure_event(event->kind, event->root_hash,
 					   digest);
@@ -185,8 +185,8 @@ static int on_event(void *opaque)
 		if (!parser->event_fields[i].seen)
 			return -EINVAL;
 	if (parser->sequence <= 0 ||
-	    (parser->kind != SHIRUDO_CONFIG_EVENT_BOOT &&
-	     parser->kind != SHIRUDO_CONFIG_EVENT_UPDATE) ||
+	    (parser->kind != CONFIG_EVENT_BOOT &&
+	     parser->kind != CONFIG_EVENT_UPDATE) ||
 	    strlen(parser->root_hash) != 64 ||
 	    hex_decode(parser->root_hash, event.root_hash, 32))
 		return -EINVAL;
@@ -205,25 +205,25 @@ int config_evidence_parse(const char *evidence, size_t length,
 	size_t i;
 	int ret;
 	struct json_field event_fields[] = {
-		{ "sequence", SHIRUDO_JSON_T_INT, &parser.sequence, 0, 0, NULL,
+		{ "sequence", JSON_T_INT, &parser.sequence, 0, 0, NULL,
 		  0 },
-		{ "kind", SHIRUDO_JSON_T_INT, &parser.kind, 0, 0, NULL, 0 },
-		{ "root_hash", SHIRUDO_JSON_T_STRING, parser.root_hash,
+		{ "kind", JSON_T_INT, &parser.kind, 0, 0, NULL, 0 },
+		{ "root_hash", JSON_T_STRING, parser.root_hash,
 		  sizeof(parser.root_hash), 0, NULL, 0 },
 	};
 	struct json_field config_fields[] = {
-		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
-		{ "pcr", SHIRUDO_JSON_T_INT, &pcr, 0, 0, NULL, 0 },
-		{ "reset_count", SHIRUDO_JSON_T_INT, &reset, 0, 0, NULL, 0 },
-		{ "restart_count", SHIRUDO_JSON_T_INT, &restart, 0, 0, NULL,
+		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+		{ "pcr", JSON_T_INT, &pcr, 0, 0, NULL, 0 },
+		{ "reset_count", JSON_T_INT, &reset, 0, 0, NULL, 0 },
+		{ "restart_count", JSON_T_INT, &restart, 0, 0, NULL,
 		  0 },
-		{ "initial_pcr", SHIRUDO_JSON_T_STRING, initial,
+		{ "initial_pcr", JSON_T_STRING, initial,
 		  sizeof(initial), 0, NULL, 0 },
-		{ "events", SHIRUDO_JSON_T_ARRAY, &sink, 0, 0, event_fields,
+		{ "events", JSON_T_ARRAY, &sink, 0, 0, event_fields,
 		  ARRAY_SIZE(event_fields) },
 	};
 	struct json_field top[] = {
-		{ "config", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, config_fields,
+		{ "config", JSON_T_OBJECT, NULL, 0, 0, config_fields,
 		  ARRAY_SIZE(config_fields) },
 	};
 

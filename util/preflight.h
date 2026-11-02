@@ -13,17 +13,17 @@
 #define PREFLIGHT_DETAIL_MAX	256
 
 enum preflight_id {
-	SHIRUDO_PRE_ROOT,
-	SHIRUDO_PRE_BPF_LSM,
-	SHIRUDO_PRE_BPFFS,
-	SHIRUDO_PRE_SIGNED_LOADER_ABI,
-	SHIRUDO_PRE_CERT_ON_DISK,
-	SHIRUDO_PRE_CERT_ALGORITHM,
-	SHIRUDO_PRE_CERT_KERNEL_ALGO,
-	SHIRUDO_PRE_KEYRING,
-	SHIRUDO_PRE_EMBEDDED_LOADER,
-	SHIRUDO_PRE_TPM,
-	SHIRUDO_PRE__MAX,
+	PRE_ROOT,
+	PRE_BPF_LSM,
+	PRE_BPFFS,
+	PRE_SIGNED_LOADER_ABI,
+	PRE_CERT_ON_DISK,
+	PRE_CERT_ALGORITHM,
+	PRE_CERT_KERNEL_ALGO,
+	PRE_KEYRING,
+	PRE_EMBEDDED_LOADER,
+	PRE_TPM,
+	PRE__MAX,
 };
 
 struct preflight_check {
@@ -34,7 +34,7 @@ struct preflight_check {
 };
 
 struct preflight_result {
-	struct preflight_check	checks[SHIRUDO_PRE__MAX];
+	struct preflight_check	checks[PRE__MAX];
 	int				n;
 	int				n_failed;
 };

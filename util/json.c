@@ -650,7 +650,7 @@ static int parse_number(struct pctx *c, struct json_field *f)
 	}
 	if (!f)
 		return 0;
-	if (f->type != SHIRUDO_JSON_T_INT || c->p != int_end)
+	if (f->type != JSON_T_INT || c->p != int_end)
 		return -EINVAL;
 	if (parse_s64(start, (size_t)(int_end - start), INT64_MIN, INT64_MAX,
 		      f->dst))
@@ -671,7 +671,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 		int ret;
 
 		if (f) {
-			if (f->type != SHIRUDO_JSON_T_OBJECT)
+			if (f->type != JSON_T_OBJECT)
 				return -EINVAL;
 			c->fields = f->sub;
 			c->n_fields = f->n_sub;
@@ -695,7 +695,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 	}
 	case '[':
 		if (f) {
-			if (f->type != SHIRUDO_JSON_T_ARRAY)
+			if (f->type != JSON_T_ARRAY)
 				return -EINVAL;	/* declared scalar, got array */
 			return parse_array_into(c, f);
 		}
@@ -704,7 +704,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 		if (f) {
 			int ret;
 
-			if (f->type != SHIRUDO_JSON_T_STRING)
+			if (f->type != JSON_T_STRING)
 				return -EINVAL;
 			ret = parse_string(c, f->dst, f->dst_cap);
 			if (ret)
@@ -717,7 +717,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 		if (lit(c, "true"))
 			return -EINVAL;
 		if (f) {
-			if (f->type != SHIRUDO_JSON_T_BOOL)
+			if (f->type != JSON_T_BOOL)
 				return -EINVAL;
 			*(int *)f->dst = 1;
 			f->seen = 1;
@@ -727,7 +727,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 		if (lit(c, "false"))
 			return -EINVAL;
 		if (f) {
-			if (f->type != SHIRUDO_JSON_T_BOOL)
+			if (f->type != JSON_T_BOOL)
 				return -EINVAL;
 			*(int *)f->dst = 0;
 			f->seen = 1;

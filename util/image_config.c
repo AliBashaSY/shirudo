@@ -19,14 +19,14 @@
 #include "io.h"
 #include "malloc.h"
 
-static const char *const relative[SHIRUDO_IMAGE_PATH_COUNT] = {
-	[SHIRUDO_IMAGE_ETC] = "etc/shirudo/bpm",
-	[SHIRUDO_IMAGE_REGISTRIES] = "etc/shirudo/bpm/registries.d",
-	[SHIRUDO_IMAGE_REPOSITORY_KEYS] = "etc/shirudo/bpm/keys",
-	[SHIRUDO_IMAGE_TREE_CONF] = "etc/shirudo/bpm/upatch-tree.conf",
-	[SHIRUDO_IMAGE_NODE_LABELS] = "etc/shirudo/node.labels",
-	[SHIRUDO_IMAGE_TRUSTED_KEYS] = "keys/trusted",
-	[SHIRUDO_IMAGE_REVOKED_KEYS] = "keys/revoked",
+static const char *const relative[IMAGE_PATH_COUNT] = {
+	[IMAGE_ETC] = "etc/shirudo/bpm",
+	[IMAGE_REGISTRIES] = "etc/shirudo/bpm/registries.d",
+	[IMAGE_REPOSITORY_KEYS] = "etc/shirudo/bpm/keys",
+	[IMAGE_TREE_CONF] = "etc/shirudo/bpm/upatch-tree.conf",
+	[IMAGE_NODE_LABELS] = "etc/shirudo/node.labels",
+	[IMAGE_TRUSTED_KEYS] = "keys/trusted",
+	[IMAGE_REVOKED_KEYS] = "keys/revoked",
 };
 
 static struct config effective;
@@ -58,7 +58,7 @@ int image_config_root_fd(void)
  */
 int image_open(enum image_path which, int flags)
 {
-	if (which >= SHIRUDO_IMAGE_PATH_COUNT || config_fd < 0)
+	if (which >= IMAGE_PATH_COUNT || config_fd < 0)
 		return -ENOENT;
 	return open_beneath(config_fd, relative[which], flags);
 }

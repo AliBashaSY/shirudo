@@ -42,7 +42,7 @@ static int expect_attach(const struct upatch *u, __u32 kind,
 		return fail("unexpected metadata magic/version");
 	if (le32_to_cpu(md.nr_progs) != 1)
 		return fail("unexpected metadata prog count");
-	if (le32_to_cpu(prog.role) != SHIRUDO_UPATCH_PROG_ROLE_ATTACH)
+	if (le32_to_cpu(prog.role) != UPATCH_PROG_ROLE_ATTACH)
 		return fail("program is not an attach program");
 	if (le32_to_cpu(prog.kind) != kind)
 		return fail("attach kind mismatch");
@@ -84,7 +84,7 @@ static int expect_serializer(const struct upatch *u)
 	    le32_to_cpu(md.nr_progs) != 2)
 		return fail("unexpected metadata header");
 	for (i = 0; i < 2; i++) {
-		if (le32_to_cpu(progs[i].role) != SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER ||
+		if (le32_to_cpu(progs[i].role) != UPATCH_PROG_ROLE_SERIALIZER ||
 		    !memchr(progs[i].map, '\0', sizeof(progs[i].map)))
 			return fail("program is not a named serializer");
 		if (strcmp(progs[i].map, "tree_arena") == 0)
@@ -121,8 +121,8 @@ static int expect_uprobe_multi(const struct upatch *u,
 	    le32_to_cpu(md.version) != UPATCH_PROG_VERSION ||
 	    le32_to_cpu(md.nr_progs) != 1)
 		return fail("unexpected metadata header");
-	if (le32_to_cpu(prog.role) != SHIRUDO_UPATCH_PROG_ROLE_ATTACH ||
-	    le32_to_cpu(prog.kind) != SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI ||
+	if (le32_to_cpu(prog.role) != UPATCH_PROG_ROLE_ATTACH ||
+	    le32_to_cpu(prog.kind) != UPATCH_ATTACH_UPROBE_MULTI ||
 	    le64_to_cpu(prog.offset) != 0 ||
 	    !memchr(prog.target, '\0', sizeof(prog.target)) ||
 	    strcmp(prog.target, pattern) != 0)
@@ -179,21 +179,21 @@ int main(int argc, char **argv)
 		ret = expect_serializer(&u);
 	} else if (strcmp(mode, "cgroup-ingress") == 0) {
 		ret = expect_attach(&u,
-				    SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS,
+				    UPATCH_ATTACH_CGROUP_SKB_INGRESS,
 				    NULL, 0);
 	} else if (strcmp(mode, "cgroup-egress") == 0) {
 		ret = expect_attach(&u,
-				    SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS,
+				    UPATCH_ATTACH_CGROUP_SKB_EGRESS,
 				    NULL, 0);
 	} else if (strcmp(mode, "kprobe-override") == 0) {
-		ret = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_KPROBE,
+		ret = expect_attach(&u, UPATCH_ATTACH_KPROBE,
 				    "bpf_modify_return_test", 0);
 	} else if (strcmp(mode, "fmod-ret") == 0) {
-		ret = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_FMOD_RET,
+		ret = expect_attach(&u, UPATCH_ATTACH_FMOD_RET,
 				    NULL, 0);
 	} else if (strcmp(mode, "netfilter-ipv6-pre-routing") == 0) {
 		ret = expect_attach(&u,
-				    SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
+				    UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
 				    NULL, 0);
 	} else if (strcmp(mode, "uprobe-multi") == 0 && argc == 6) {
 		char *end = NULL;

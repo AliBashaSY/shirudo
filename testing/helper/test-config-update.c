@@ -305,7 +305,7 @@ int main(int argc, char **argv)
 		hex_encode(target.root_hash, sizeof(target.root_hash),
 			   hex);
 		printf("root_hash=%s\n", hex);
-		ret = config_measure_event(SHIRUDO_CONFIG_EVENT_BOOT,
+		ret = config_measure_event(CONFIG_EVENT_BOOT,
 					   target.root_hash, event);
 		if (!ret) {
 			hex_encode(event, sizeof(event), hex);

@@ -955,26 +955,26 @@ int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 	__s64 schema = 0;
 
 	memset(sub, 0, sizeof(sub));
-	sub[0] = (struct json_field){ .key = "mediaType", .type = SHIRUDO_JSON_T_STRING,
+	sub[0] = (struct json_field){ .key = "mediaType", .type = JSON_T_STRING,
 		.dst = sink.scratch.media, .dst_cap = sizeof(sink.scratch.media) };
-	sub[1] = (struct json_field){ .key = "digest", .type = SHIRUDO_JSON_T_STRING,
+	sub[1] = (struct json_field){ .key = "digest", .type = JSON_T_STRING,
 		.dst = sink.scratch.digest, .dst_cap = sizeof(sink.scratch.digest) };
-	sub[2] = (struct json_field){ .key = "size", .type = SHIRUDO_JSON_T_INT,
+	sub[2] = (struct json_field){ .key = "size", .type = JSON_T_INT,
 		.dst = &sink.scratch.size };
 	layer_annotations[0] = (struct json_field){
-		.key = "org.opencontainers.image.title", .type = SHIRUDO_JSON_T_STRING,
+		.key = "org.opencontainers.image.title", .type = JSON_T_STRING,
 		.dst = sink.scratch.title, .dst_cap = sizeof(sink.scratch.title) };
-	sub[3] = (struct json_field){ .key = "annotations", .type = SHIRUDO_JSON_T_OBJECT,
+	sub[3] = (struct json_field){ .key = "annotations", .type = JSON_T_OBJECT,
 		.sub = layer_annotations, .n_sub = ARRAY_SIZE(layer_annotations) };
 	manifest_annotations[0] = (struct json_field){
-		.key = "dev.shirudo.bpm.package.name", .type = SHIRUDO_JSON_T_STRING,
+		.key = "dev.shirudo.bpm.package.name", .type = JSON_T_STRING,
 		.dst = sink.package_name, .dst_cap = sizeof(sink.package_name) };
 	memset(root, 0, sizeof(root));
-	root[0] = (struct json_field){ .key = "schemaVersion", .type = SHIRUDO_JSON_T_INT,
+	root[0] = (struct json_field){ .key = "schemaVersion", .type = JSON_T_INT,
 		.dst = &schema };
-	root[1] = (struct json_field){ .key = "layers", .type = SHIRUDO_JSON_T_ARRAY,
+	root[1] = (struct json_field){ .key = "layers", .type = JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub) };
-	root[2] = (struct json_field){ .key = "annotations", .type = SHIRUDO_JSON_T_OBJECT,
+	root[2] = (struct json_field){ .key = "annotations", .type = JSON_T_OBJECT,
 		.sub = manifest_annotations, .n_sub = ARRAY_SIZE(manifest_annotations) };
 	if (json_parse((const char *)body, len, root, ARRAY_SIZE(root)) ||
 	    !root[0].seen || schema != 2 || !root[1].seen)

@@ -42,7 +42,7 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 	trusted = real_inode == BPF_CORE_READ(bprm, file, f_inode) &&
 		  shirudo_file_runtime(bprm->file);
 	if (trusted && BPF_CORE_READ(task, ptrace))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_EXEC_TRACED, -EACCES);
+		return shirudo_tamper_deny(TAMPER_EXEC_TRACED, -EACCES);
 	if (trusted && shirudo_task_has_seccomp(task))
 		return -EACCES;
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL,

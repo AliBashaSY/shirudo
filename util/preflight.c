@@ -75,7 +75,7 @@ static void fail(struct preflight_result *r,
 static void check_root(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_ROOT, "root");
+		next_slot(r, PRE_ROOT, "root");
 
 	if (geteuid() == 0)
 		pass(c);
@@ -109,7 +109,7 @@ static bool lsm_lists_bpf(void)
 static void check_bpf_lsm(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_BPF_LSM, "bpf_lsm_active");
+		next_slot(r, PRE_BPF_LSM, "bpf_lsm_active");
 
 	if (lsm_lists_bpf())
 		pass(c);
@@ -149,7 +149,7 @@ static bool bpffs_in_proc_filesystems(void)
 static void check_bpffs(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_BPFFS, "bpffs_supported");
+		next_slot(r, PRE_BPFFS, "bpffs_supported");
 
 	if (bpffs_in_proc_filesystems())
 		pass(c);
@@ -162,7 +162,7 @@ static void check_bpffs(struct preflight_result *r)
 static void check_signed_loader_abi(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_SIGNED_LOADER_ABI,
+		next_slot(r, PRE_SIGNED_LOADER_ABI,
 			  "signed_loader_kernel_abi");
 
 	if (kernel_abi_check(c->detail, sizeof(c->detail)) == 0) {
@@ -176,7 +176,7 @@ static void check_signed_loader_abi(struct preflight_result *r)
 static void check_cert(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_CERT_ON_DISK, "cert_on_disk");
+		next_slot(r, PRE_CERT_ON_DISK, "cert_on_disk");
 	struct stat st;
 
 	if (stat(get_cert_path(), &st) == 0 &&
@@ -207,7 +207,7 @@ static int preflight_keys(struct trusted_set *set)
 static void check_cert_algorithm(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_CERT_ALGORITHM, "cert_algorithm");
+		next_slot(r, PRE_CERT_ALGORITHM, "cert_algorithm");
 	struct trusted_set set;
 	size_t i;
 
@@ -256,7 +256,7 @@ static void check_cert_algorithm(struct preflight_result *r)
 static void check_cert_kernel_algo(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_CERT_KERNEL_ALGO, "cert_kernel_support");
+		next_slot(r, PRE_CERT_KERNEL_ALGO, "cert_kernel_support");
 	struct trusted_set set;
 	size_t i;
 
@@ -300,7 +300,7 @@ static void check_cert_kernel_algo(struct preflight_result *r)
 static void check_keyring(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_KEYRING, "kernel_keyring");
+		next_slot(r, PRE_KEYRING, "kernel_keyring");
 	long ret;
 
 	ret = syscall(__NR_keyctl, KEYCTL_GET_KEYRING_ID,
@@ -324,7 +324,7 @@ static void check_keyring(struct preflight_result *r)
 static void check_embedded_loader(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_EMBEDDED_LOADER, "embedded_loader");
+		next_slot(r, PRE_EMBEDDED_LOADER, "embedded_loader");
 	const struct embedded_bpf *bpf2 = bpf2_blob();
 	const struct embedded_bpf *seal = seal_blob();
 
@@ -337,7 +337,7 @@ static void check_embedded_loader(struct preflight_result *r)
 static void check_tpm(struct preflight_result *r)
 {
 	struct preflight_check *c =
-		next_slot(r, SHIRUDO_PRE_TPM, "tpm2_reachable");
+		next_slot(r, PRE_TPM, "tpm2_reachable");
 
 	/*
 	 * A TCTI override points at a software TPM, where the kernel resource

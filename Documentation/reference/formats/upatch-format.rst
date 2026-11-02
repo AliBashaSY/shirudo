@@ -150,7 +150,7 @@ Header
    * - 352
      - 4
      - ``type``
-     - ``1`` (``SHIRUDO_UPATCH_TYPE_BPF``).
+     - ``1`` (``UPATCH_TYPE_BPF``).
    * - 356
      - 4
      - ``reserved1``

@@ -17,9 +17,9 @@ W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
 
 test_expect_success 'every point has a name and a meaning' '
-	sed -n "s/^\tSHIRUDO_TAMPER_\([A-Z_]*\),$/\1/p" \
+	sed -n "s/^\tTAMPER_\([A-Z_]*\),$/\1/p" \
 		../bpf/lib/tamper.h >"$W/points" &&
-	sed -n "s/^\t\[SHIRUDO_TAMPER_\([A-Z_]*\)\] = { \"[A-Za-z]*\",$/\1/p" \
+	sed -n "s/^\t\[TAMPER_\([A-Z_]*\)\] = { \"[A-Za-z]*\",$/\1/p" \
 		../util/tamper.c >"$W/table" &&
 	[ -s "$W/points" ] &&
 	cmp "$W/points" "$W/table"

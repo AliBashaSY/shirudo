@@ -95,7 +95,7 @@ static int section_inside(__u32 off, __u32 len, size_t n)
 static int validate_bounds(const struct upatch_host_header *h,
 			   size_t n)
 {
-	if (h->type != SHIRUDO_UPATCH_TYPE_BPF)
+	if (h->type != UPATCH_TYPE_BPF)
 		return -EINVAL;
 	if (h->loader_insns_off < UPATCH_HEADER_SIZE ||
 	    h->loader_insns_off % 8 || h->loader_insns_len % 8 ||
@@ -226,27 +226,27 @@ static void parse_signed_sections(struct upatch *u)
 		    len > dir_off - off)
 			goto reject;
 		switch (tag) {
-		case SHIRUDO_UPATCH_SECTION_NAME:
+		case UPATCH_SECTION_NAME:
 			bit = 1;
 			if (len != UPATCH_NAME_MAX ||
 			    !memchr(data + off, '\0', len))
 				goto reject;
 			u->signed_name = (const char *)data + off;
 			break;
-		case SHIRUDO_UPATCH_SECTION_ATTACH:
+		case UPATCH_SECTION_ATTACH:
 			bit = 2;
 			if (len == 0)
 				goto reject;
 			u->signed_attach = data + off;
 			u->signed_attach_len = len;
 			break;
-		case SHIRUDO_UPATCH_SECTION_UNLOAD:
+		case UPATCH_SECTION_UNLOAD:
 			bit = 4;
 			if (len != UPATCH_PAYLOAD_HASH_LEN)
 				goto reject;
 			u->signed_unload_payload = data + off;
 			break;
-		case SHIRUDO_UPATCH_SECTION_DECODERS:
+		case UPATCH_SECTION_DECODERS:
 			bit = 8;
 			if (!parse_decoders(u, data + off, len))
 				goto reject;
@@ -521,9 +521,9 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		       (size_t)i * sizeof(prog), sizeof(prog));
 		role = le32_to_cpu(prog.role);
 		switch (role) {
-		case SHIRUDO_UPATCH_PROG_ROLE_ATTACH:
+		case UPATCH_PROG_ROLE_ATTACH:
 			break;
-		case SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER:
+		case UPATCH_PROG_ROLE_SERIALIZER:
 			if (prog.kind || prog.offset || prog.target[0])
 				goto out;
 			if (!memchr(prog.map, '\0', sizeof(prog.map)) ||
@@ -533,7 +533,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			memcpy(spec->map, prog.map, sizeof(spec->map));
 			spec->map[sizeof(spec->map) - 1] = '\0';
 			continue;
-		case SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN:
+		case UPATCH_PROG_ROLE_TEST_RUN:
 			if (prog.kind || prog.offset || prog.target[0] || prog.map[0])
 				goto out;
 			spec->role = role;
@@ -547,27 +547,27 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 
 		kind = le32_to_cpu(prog.kind);
 		switch (kind) {
-		case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
+		case UPATCH_ATTACH_RAW_TRACEPOINT:
 			spec->kind = kind;
 			if (prog.target[0] || prog.offset)
 				goto out;
 			continue;
-		case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
-		case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
-		case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
+		case UPATCH_ATTACH_CGROUP_SKB_INGRESS:
+		case UPATCH_ATTACH_CGROUP_SKB_EGRESS:
+		case UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
 			spec->kind = kind;
 			if (prog.target[0] || prog.offset)
 				goto out;
 			continue;
-		case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
+		case UPATCH_ATTACH_FMOD_RET:
 			spec->kind = kind;
 			if (prog.target[0] || prog.offset)
 				goto out;
 			continue;
-		case SHIRUDO_UPATCH_ATTACH_KPROBE:
-		case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
+		case UPATCH_ATTACH_KPROBE:
+		case UPATCH_ATTACH_KRETPROBE:
 			break;
-		case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
+		case UPATCH_ATTACH_UPROBE_MULTI:
 			if (prog.offset)
 				goto out;
 			nr_uprobes++;
@@ -582,9 +582,9 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		spec->offset = le64_to_cpu(prog.offset);
 		memcpy(spec->target, prog.target, sizeof(spec->target));
 		spec->target[sizeof(spec->target) - 1] = '\0';
-		if (kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE && spec->offset)
+		if (kind == UPATCH_ATTACH_KRETPROBE && spec->offset)
 			goto out;
-		if (kind == SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI &&
+		if (kind == UPATCH_ATTACH_UPROBE_MULTI &&
 		    (strchr(spec->target, ',') || strchr(spec->target, '|')))
 			goto out;
 	}
@@ -631,7 +631,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			nr_offsets = le32_to_cpu(record.nr_offsets);
 			if (prog_idx >= nr_progs ||
 			    specs[prog_idx].kind !=
-			    SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI ||
+			    UPATCH_ATTACH_UPROBE_MULTI ||
 			    specs[prog_idx].uprobe_path || path_len == 0 ||
 			    path_len >= UPATCH_UPROBE_PATH_MAX ||
 			    build_id_len == 0 ||
@@ -675,7 +675,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	if (cursor != end)
 		goto out;
 	for (i = 0; i < nr_progs; i++) {
-		if (specs[i].kind == SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI &&
+		if (specs[i].kind == UPATCH_ATTACH_UPROBE_MULTI &&
 		    !specs[i].uprobe_path)
 			goto out;
 	}

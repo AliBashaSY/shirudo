@@ -179,21 +179,21 @@ struct ev_proj {
 static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 {
 	struct json_field up[] = {
-		{ "name", SHIRUDO_JSON_T_STRING, ev->up_name,
+		{ "name", JSON_T_STRING, ev->up_name,
 		  sizeof(ev->up_name), 0, NULL, 0 },
-		{ "payload_sha256", SHIRUDO_JSON_T_STRING, ev->up_payload,
+		{ "payload_sha256", JSON_T_STRING, ev->up_payload,
 		  sizeof(ev->up_payload), 0, NULL, 0 },
 	};
 	struct json_field f[] = {
-		{ "ts", SHIRUDO_JSON_T_STRING, ev->ts, sizeof(ev->ts),
+		{ "ts", JSON_T_STRING, ev->ts, sizeof(ev->ts),
 		  0, NULL, 0 },
-		{ "type", SHIRUDO_JSON_T_STRING, ev->type, sizeof(ev->type),
+		{ "type", JSON_T_STRING, ev->type, sizeof(ev->type),
 		  0, NULL, 0 },
-		{ "digest", SHIRUDO_JSON_T_STRING, ev->digest,
+		{ "digest", JSON_T_STRING, ev->digest,
 		  sizeof(ev->digest), 0, NULL, 0 },
-		{ "set_digest", SHIRUDO_JSON_T_STRING, ev->set_digest,
+		{ "set_digest", JSON_T_STRING, ev->set_digest,
 		  sizeof(ev->set_digest), 0, NULL, 0 },
-		{ "upatch", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0, up, 2 },
+		{ "upatch", JSON_T_OBJECT, NULL, 0, 0, up, 2 },
 	};
 
 	*ev = (struct ev_proj){};
@@ -1208,7 +1208,7 @@ int cmd_status(int argc, const char **argv)
 			json_obj_open_key(&e, "tamper_attempts");
 			json_kv_int(&e, "total", (__s64)tamper.total);
 			json_obj_open_key(&e, "counters");
-			for (i = 0; i < SHIRUDO_TAMPER_MAX; i++)
+			for (i = 0; i < TAMPER_MAX; i++)
 				json_kv_int(&e, tamper_name(i),
 					    (__s64)tamper.count[i]);
 			json_obj_close(&e);
@@ -1440,7 +1440,7 @@ int cmd_status(int argc, const char **argv)
 			printf("  (unavailable: %s)\n", strerror(-tamper_rc));
 		else if (tamper.total == 0)
 			printf("  none\n");
-		for (i = 0; tamper_rc == 0 && i < SHIRUDO_TAMPER_MAX; i++) {
+		for (i = 0; tamper_rc == 0 && i < TAMPER_MAX; i++) {
 			if (tamper.count[i])
 				printf("  %-20s %6llu  %s\n",
 				       tamper_name(i),

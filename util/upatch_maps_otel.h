@@ -14,15 +14,15 @@
 
 enum otel_signal {
 	/* Keep these values aligned with SHIRUDO_UPATCH_DECODER_EXPORT_*. */
-	SHIRUDO_OTEL_LOG = 1,
-	SHIRUDO_OTEL_METRIC = 2,
+	OTEL_LOG = 1,
+	OTEL_METRIC = 2,
 };
 
 enum otel_mode {
-	SHIRUDO_OTEL_AUTO,
-	SHIRUDO_OTEL_FORCE_LOG,
-	SHIRUDO_OTEL_FORCE_METRIC,
-	SHIRUDO_OTEL_S3,
+	OTEL_AUTO,
+	OTEL_FORCE_LOG,
+	OTEL_FORCE_METRIC,
+	OTEL_S3,
 };
 
 struct otel_opts {

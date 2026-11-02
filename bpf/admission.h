@@ -40,9 +40,9 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 		 * against attr->keyring_id immediately after this hook.
 		 */
 		if (BPF_CORE_READ(attr, prog_type) != BPF_PROG_TYPE_SYSCALL)
-			point = SHIRUDO_TAMPER_LOAD_NOT_LOADER;
+			point = TAMPER_LOAD_NOT_LOADER;
 		else if (BPF_CORE_READ(attr, signature_size) == 0)
-			point = SHIRUDO_TAMPER_LOAD_UNSIGNED;
+			point = TAMPER_LOAD_UNSIGNED;
 		else
 			return 0;
 		return shirudo_tamper_deny(point, -EACCES);
@@ -61,21 +61,21 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	 * root's into the private bpffs is an entry shirudo did not make.
 	 */
 	case BPF_MAP_CREATE:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_CREATE);
+		return shirudo_self_or_deny(TAMPER_MAP_CREATE);
 
 	case BPF_MAP_UPDATE_ELEM:
 	case BPF_MAP_FREEZE:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_WRITE);
+		return shirudo_self_or_deny(TAMPER_MAP_WRITE);
 
 	case BPF_PROG_TEST_RUN:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_PROG_RUN);
+		return shirudo_self_or_deny(TAMPER_PROG_RUN);
 
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_ATTACH);
+		return shirudo_self_or_deny(TAMPER_ATTACH);
 
 	case BPF_OBJ_PIN:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_PIN);
+		return shirudo_self_or_deny(TAMPER_OBJ_PIN);
 
 	/*
 	 * A descriptor keeps its object alive: a link held open stays
@@ -87,7 +87,7 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	case BPF_OBJ_GET:
 	case BPF_MAP_GET_FD_BY_ID:
 	case BPF_LINK_GET_FD_BY_ID:
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
+		return shirudo_self_or_deny(TAMPER_OBJ_GET);
 
 	/*
 	 * Read-only / observability cmds. BPF_OBJ_UNPIN does not exist as a
@@ -123,7 +123,7 @@ int BPF_PROG(shirudo_lsm_bpf, int cmd, union bpf_attr *attr,
 	 * denial errno used throughout (threat-model.rst T1/T2).
 	 */
 	default:
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_BPF_CMD, -EACCES);
+		return shirudo_tamper_deny(TAMPER_BPF_CMD, -EACCES);
 	}
 }
 
@@ -140,8 +140,8 @@ int BPF_PROG(shirudo_lsm_bpf_map, struct bpf_map *map, fmode_t fmode,
 	if (ret)
 		return ret;
 	if (fmode & FMODE_WRITE)
-		return shirudo_self_or_deny(SHIRUDO_TAMPER_MAP_FD);
-	return shirudo_self_or_deny(SHIRUDO_TAMPER_OBJ_GET);
+		return shirudo_self_or_deny(TAMPER_MAP_FD);
+	return shirudo_self_or_deny(TAMPER_OBJ_GET);
 }
 
 /*
@@ -190,14 +190,14 @@ int BPF_PROG(shirudo_lsm_bpf_prog_load, struct bpf_prog *prog,
 	 * the one init froze.
 	 */
 	if (verdict != BPF_SIG_VERIFIED)
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_UNVERIFIED,
+		return shirudo_tamper_deny(TAMPER_LOAD_UNVERIFIED,
 					   -EACCES);
 	if (ktype != BPF_SIG_KEYRING_BPF)
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_KEYRING_KIND,
+		return shirudo_tamper_deny(TAMPER_LOAD_KEYRING_KIND,
 					   -EACCES);
 	/* The kernel singleton is recorded without a serial on some loads. */
 	if (serial && serial != id->keyring_serial)
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_LOAD_KEYRING, -EACCES);
+		return shirudo_tamper_deny(TAMPER_LOAD_KEYRING, -EACCES);
 
 	return 0;
 }
@@ -228,7 +228,7 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	if (!id)
 		return -EACCES;
 	if (!shirudo_task_is_self(id))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_EXE_IDENTITY, -EPERM);
+		return shirudo_tamper_deny(TAMPER_EXE_IDENTITY, -EPERM);
 	return -ENOSYS;
 }
 
@@ -246,7 +246,7 @@ int BPF_PROG(shirudo_lsm_bprm_check_security, struct linux_binprm *bprm,
 	if (!id || !shirudo_file_runtime(bprm->file))
 		return 0;
 	if (BPF_CORE_READ(bprm, unsafe) & LSM_UNSAFE_PTRACE)
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_EXEC_TRACED, -EPERM);
+		return shirudo_tamper_deny(TAMPER_EXEC_TRACED, -EPERM);
 	bpf_bprm_opts_set(bprm, BPF_F_BPRM_SECUREEXEC);
 	return 0;
 }
@@ -268,7 +268,7 @@ static __always_inline int shirudo_bpffs_guard(__u32 target_dev,
 		return 0;
 	if (shirudo_task_is_self(id))
 		return 0;
-	if (target_dev == id->sb_dev && point != SHIRUDO_TAMPER_MAX)
+	if (target_dev == id->sb_dev && point != TAMPER_MAX)
 		return shirudo_tamper_deny(point, -EPERM);
 	return -EPERM;
 }
@@ -324,7 +324,7 @@ int BPF_PROG(shirudo_lsm_key_permission, key_ref_t key_ref,
 	if (need == KEY_NEED_SEARCH && possessed)
 		return 0;
 	return shirudo_task_is_self(id) ? 0 :
-	       shirudo_tamper_deny(SHIRUDO_TAMPER_KEYRING, -EACCES);
+	       shirudo_tamper_deny(TAMPER_KEYRING, -EACCES);
 }
 
 /*
@@ -343,18 +343,18 @@ int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
 		return ret;
 	if (command_len < 10 ||
 	    bpf_probe_read_kernel(&code, sizeof(code), command + 6))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_TPM_EXTEND,
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
 					   -EACCES);
 	if (bpf_ntohl(code) != TPM_CC_NV_EXTEND)
 		return 0;
 	if (command_len < 18 ||
 	    bpf_probe_read_kernel(&index, sizeof(index), command + 14))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_TPM_EXTEND,
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
 					   -EACCES);
 	id = shirudo_policy();
 	if (!id || (bpf_ntohl(index) == id->nv_index &&
 		    !shirudo_task_is_self(id)))
-		return shirudo_tamper_deny(SHIRUDO_TAMPER_TPM_EXTEND,
+		return shirudo_tamper_deny(TAMPER_TPM_EXTEND,
 					   -EACCES);
 	return 0;
 }
@@ -372,7 +372,7 @@ int BPF_PROG(shirudo_lsm_inode_unlink, struct inode *dir,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_UNLINK);
+				   TAMPER_PIN_UNLINK);
 }
 
 SEC("lsm/inode_rmdir")
@@ -382,7 +382,7 @@ int BPF_PROG(shirudo_lsm_inode_rmdir, struct inode *dir,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_MAX);
+				   TAMPER_MAX);
 }
 
 /*
@@ -399,7 +399,7 @@ int BPF_PROG(shirudo_lsm_inode_mkdir, const struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_ENTRY);
+				   TAMPER_PIN_ENTRY);
 }
 
 SEC("lsm/inode_symlink")
@@ -410,7 +410,7 @@ int BPF_PROG(shirudo_lsm_inode_symlink, const struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_ENTRY);
+				   TAMPER_PIN_ENTRY);
 }
 
 SEC("lsm/inode_link")
@@ -421,7 +421,7 @@ int BPF_PROG(shirudo_lsm_inode_link, const struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_ENTRY);
+				   TAMPER_PIN_ENTRY);
 }
 
 /*
@@ -439,7 +439,7 @@ int BPF_PROG(shirudo_lsm_kernel_load_data, enum kernel_load_data_id id,
 		return ret;
 	if (id != LOADING_KEXEC_IMAGE && id != LOADING_KEXEC_INITRAMFS)
 		return 0;
-	return shirudo_tamper_deny(SHIRUDO_TAMPER_KEXEC, -EPERM);
+	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
 }
 
 SEC("lsm/kernel_read_file")
@@ -450,7 +450,7 @@ int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
 		return ret;
 	if (id != READING_KEXEC_IMAGE && id != READING_KEXEC_INITRAMFS)
 		return 0;
-	return shirudo_tamper_deny(SHIRUDO_TAMPER_KEXEC, -EPERM);
+	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
 }
 
 SEC("lsm/inode_rename")
@@ -461,10 +461,10 @@ int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 	if (ret)
 		return ret;
 	ret = shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev),
-				  SHIRUDO_TAMPER_PIN_RENAME);
+				  TAMPER_PIN_RENAME);
 	return ret ? ret :
 	       shirudo_bpffs_guard(BPF_CORE_READ(new_dir, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_RENAME);
+				   TAMPER_PIN_RENAME);
 }
 
 /*
@@ -480,7 +480,7 @@ int BPF_PROG(shirudo_lsm_inode_setxattr, struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_XATTR);
+				   TAMPER_PIN_XATTR);
 }
 
 /* Symmetric to setxattr: deny removing a pin's xattrs from non-shirudo. */
@@ -491,7 +491,7 @@ int BPF_PROG(shirudo_lsm_inode_removexattr, struct mnt_idmap *idmap,
 	if (ret)
 		return ret;
 	return shirudo_bpffs_guard(BPF_CORE_READ(dentry, d_inode, i_sb, s_dev),
-				   SHIRUDO_TAMPER_PIN_XATTR);
+				   TAMPER_PIN_XATTR);
 }
 
 /*

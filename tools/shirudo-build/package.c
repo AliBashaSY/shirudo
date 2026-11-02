@@ -643,32 +643,32 @@ static __u32 attach_kind_from_section(const char *sec,
 {
 	*target = NULL;
 	if (!sec)
-		return SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT;
+		return UPATCH_ATTACH_RAW_TRACEPOINT;
 	if (sec[0] == '?')
 		sec++;
 	if (strncmp(sec, "kprobe/", 7) == 0 && sec[7]) {
 		*target = sec + 7;
-		return SHIRUDO_UPATCH_ATTACH_KPROBE;
+		return UPATCH_ATTACH_KPROBE;
 	}
 	if (strncmp(sec, "kretprobe/", 10) == 0 && sec[10]) {
 		*target = sec + 10;
-		return SHIRUDO_UPATCH_ATTACH_KRETPROBE;
+		return UPATCH_ATTACH_KRETPROBE;
 	}
 	if (strncmp(sec, "uprobe.multi/", 13) == 0 && sec[13]) {
 		*target = sec + 13;
-		return SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI;
+		return UPATCH_ATTACH_UPROBE_MULTI;
 	}
 	if (strcmp(sec, "cgroup_skb/ingress") == 0)
-		return SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS;
+		return UPATCH_ATTACH_CGROUP_SKB_INGRESS;
 	if (strcmp(sec, "cgroup_skb/egress") == 0)
-		return SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS;
+		return UPATCH_ATTACH_CGROUP_SKB_EGRESS;
 	if (strncmp(sec, "fmod_ret/", 9) == 0 && sec[9])
-		return SHIRUDO_UPATCH_ATTACH_FMOD_RET;
+		return UPATCH_ATTACH_FMOD_RET;
 	if (strncmp(sec, "fmod_ret.s/", 11) == 0 && sec[11])
-		return SHIRUDO_UPATCH_ATTACH_FMOD_RET;
+		return UPATCH_ATTACH_FMOD_RET;
 	if (strcmp(sec, "netfilter") == 0)
-		return SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING;
-	return SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT;
+		return UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING;
+	return UPATCH_ATTACH_RAW_TRACEPOINT;
 }
 
 static int split_uprobe_target(const char *src, char **path,
@@ -1250,7 +1250,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			}
 			strscpy(seen_maps[n_seen++], ser_map, sizeof(seen_maps[0]));
 			md->progs[i].role =
-				cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER);
+				cpu_to_le32(UPATCH_PROG_ROLE_SERIALIZER);
 			strscpy(md->progs[i].map, ser_map,
 				sizeof(md->progs[i].map));
 			i++;
@@ -1276,7 +1276,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			}
 			has_test_run = true;
 			md->progs[i].role =
-				cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN);
+				cpu_to_le32(UPATCH_PROG_ROLE_TEST_RUN);
 			i++;
 			continue;
 		}
@@ -1317,7 +1317,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			goto err_free;
 		}
 		kind = attach_kind_from_section(sec, &target);
-		if (kind == SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT &&
+		if (kind == UPATCH_ATTACH_RAW_TRACEPOINT &&
 		    !default_attach_section(sec)) {
 			pr_err("unsupported section '%s'; supported are fentry, fexit, fmod_ret, lsm, tp_btf, kprobe, kretprobe, uprobe.multi, cgroup_skb and netfilter",
 			       sec);
@@ -1325,9 +1325,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			goto err_free;
 		}
 		md->progs[i].role =
-			cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_ATTACH);
+			cpu_to_le32(UPATCH_PROG_ROLE_ATTACH);
 		md->progs[i].kind = cpu_to_le32(kind);
-		if (kind == SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI) {
+		if (kind == UPATCH_ATTACH_UPROBE_MULTI) {
 			struct build_uprobe_target *ut =
 				&uprobe_targets[nr_uprobe_targets];
 
@@ -1367,7 +1367,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 				       sec);
 				goto err_free;
 			}
-			if (kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE && offset) {
+			if (kind == UPATCH_ATTACH_KRETPROBE && offset) {
 				pr_err("kretprobe offsets are unsupported in section '%s'",
 				       sec);
 				err = -EINVAL;
@@ -1616,21 +1616,21 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		goto out;
 	}
 	sections[nr_sections++] = (struct signed_section){
-		SHIRUDO_UPATCH_SECTION_NAME, signed_name, sizeof(signed_name),
+		UPATCH_SECTION_NAME, signed_name, sizeof(signed_name),
 	};
 	if (flags & DIRECTIVE_UNLOAD) {
 		sections[nr_sections++] = (struct signed_section){
-			SHIRUDO_UPATCH_SECTION_UNLOAD, unload_payload,
+			UPATCH_SECTION_UNLOAD, unload_payload,
 			UPATCH_PAYLOAD_HASH_LEN,
 		};
 	} else {
 		sections[nr_sections++] = (struct signed_section){
-			SHIRUDO_UPATCH_SECTION_ATTACH, attach_meta,
+			UPATCH_SECTION_ATTACH, attach_meta,
 			attach_meta_len,
 		};
 		if (decoder_blob_len)
 			sections[nr_sections++] = (struct signed_section){
-				SHIRUDO_UPATCH_SECTION_DECODERS, decoder_blob,
+				UPATCH_SECTION_DECODERS, decoder_blob,
 				decoder_blob_len,
 			};
 	}
@@ -1684,7 +1684,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	data_off   = sig_off + (__u32)sio.signature_sz;
 	data_len   = signed_data_len;
 
-	pack_header(&hdr, upatch_name, SHIRUDO_UPATCH_TYPE_BPF, flags,
+	pack_header(&hdr, upatch_name, UPATCH_TYPE_BPF, flags,
 		    sio.payload_sha256,
 		    loader_off, opts.insns_sz,
 		    sig_off, (__u32)sio.signature_sz,

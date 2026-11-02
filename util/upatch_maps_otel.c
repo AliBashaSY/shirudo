@@ -157,7 +157,7 @@ int upatch_maps_otel_classify(const struct map_view *v,
 
 	if (!v || !signal)
 		return -EINVAL;
-	*signal = SHIRUDO_OTEL_LOG;
+	*signal = OTEL_LOG;
 	if (v->serialized) {
 		strscpy(reason, "map uses a serializer", reason_sz);
 		return 0;
@@ -180,7 +180,7 @@ int upatch_maps_otel_classify(const struct map_view *v,
 		strscpy(reason, "value is signed", reason_sz);
 		return 0;
 	}
-	*signal = SHIRUDO_OTEL_METRIC;
+	*signal = OTEL_METRIC;
 	if (strsprintf(reason, reason_sz, "unsigned per-CPU %u-bit scalar",
 		       mt.width * 8) < 0)
 		return -E2BIG;
@@ -905,12 +905,12 @@ static int build_metric_decoded_payload(const char *path,
 
 static const char *signal_name(enum otel_signal signal)
 {
-	return signal == SHIRUDO_OTEL_LOG ? "LOGS" : "METRICS";
+	return signal == OTEL_LOG ? "LOGS" : "METRICS";
 }
 
 static const char *signal_path(enum otel_signal signal)
 {
-	return signal == SHIRUDO_OTEL_LOG ? "v1/logs" : "v1/metrics";
+	return signal == OTEL_LOG ? "v1/logs" : "v1/metrics";
 }
 
 static const char *otel_signal_env(enum otel_signal signal,
@@ -1414,16 +1414,16 @@ int otel_retry_after(const char *value, time_t now, __u64 *seconds)
 static int check_partial_success(enum otel_signal signal,
 				 const char *body, size_t len)
 {
-	const char *count = signal == SHIRUDO_OTEL_LOG ?
+	const char *count = signal == OTEL_LOG ?
 			    "rejectedLogRecords" : "rejectedDataPoints";
 	char rejected_text[32] = {};
 	char error[256] = {};
 	struct json_field partial[] = {
-		{ count, SHIRUDO_JSON_T_STRING, rejected_text,
+		{ count, JSON_T_STRING, rejected_text,
 		  sizeof(rejected_text), 0, NULL, 0 },
 	};
 	struct json_field root[] = {
-		{ "partialSuccess", SHIRUDO_JSON_T_OBJECT, NULL, 0, 0,
+		{ "partialSuccess", JSON_T_OBJECT, NULL, 0, 0,
 		  partial, ARRAY_SIZE(partial) },
 	};
 	__s64 rejected = 0;
@@ -1434,7 +1434,7 @@ static int check_partial_success(enum otel_signal signal,
 	ret = json_parse(body, len, root, ARRAY_SIZE(root));
 	if (ret) {
 		partial[0] = (struct json_field){
-			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
+			count, JSON_T_INT, &rejected, 0, 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			return -EBADMSG;
 	} else if (partial[0].seen) {
@@ -1446,12 +1446,12 @@ static int check_partial_success(enum otel_signal signal,
 		return -EBADMSG;
 	if (rejected > 0) {
 		partial[0] = (struct json_field){
-			"errorMessage", SHIRUDO_JSON_T_STRING, error,
+			"errorMessage", JSON_T_STRING, error,
 			sizeof(error), 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
 			error[0] = '\0';
 		pr_err("otel: Collector partially rejected %lld %s%s%s",
-		       rejected, signal == SHIRUDO_OTEL_LOG ? "log record(s)" :
+		       rejected, signal == OTEL_LOG ? "log record(s)" :
 		       "data point(s)", error[0] ? ": " : "", error);
 		return -EREMOTEIO;
 	}
@@ -1634,7 +1634,7 @@ static int otel_open_common(const char *spec, const struct map_view *v,
 		if (ret)
 			return ret;
 		fprintf(stderr, "otel: selected %s for %s map %s: %s\n",
-			signal == SHIRUDO_OTEL_LOG ? "log" : "metric",
+			signal == OTEL_LOG ? "log" : "metric",
 			v->type_name, v->name, reason);
 	} else {
 		signal = forced;
@@ -1651,7 +1651,7 @@ static int otel_emit(void *state, const struct map_view *v)
 
 	if (!st || !v)
 		return -EINVAL;
-	if (st->signal == SHIRUDO_OTEL_LOG)
+	if (st->signal == OTEL_LOG)
 		ret = build_log_payload(st->decoder_path, v,
 					st->opts.log_record_max_bytes,
 					&payload, &len);
@@ -1753,7 +1753,7 @@ int otel_send_log_json(const struct otel_opts *opts,
 	size_t payload_len = 0, alloc_len = 0;
 	int ret;
 
-	ret = otel_open_transport(SHIRUDO_OTEL_LOG,
+	ret = otel_open_transport(OTEL_LOG,
 				  opts ? opts->endpoint : NULL, opts, NULL, &state);
 	if (ret)
 		return ret;
@@ -2479,7 +2479,7 @@ static int otel_s3_open(const char *spec, const struct map_view *v,
 	if (ret)
 		goto err;
 	ret = otel_open_common(st->opts.endpoint, v, &st->opts, false,
-			       SHIRUDO_OTEL_LOG, decoder_path, &otel);
+			       OTEL_LOG, decoder_path, &otel);
 	if (ret)
 		goto err;
 	st->otel = otel;
@@ -2541,12 +2541,12 @@ int upatch_maps_otel_send_file(const char *decoder_path,
 			       const struct otel_opts *opts)
 {
 	const char *endpoint = opts ? opts->endpoint : NULL;
-	bool automatic = mode == SHIRUDO_OTEL_AUTO;
+	bool automatic = mode == OTEL_AUTO;
 	enum otel_signal signal;
 	void *state = NULL;
 	int ret, close_rc;
 
-	if (mode == SHIRUDO_OTEL_S3) {
+	if (mode == OTEL_S3) {
 		if (!opts || !opts->s3_uri)
 			return -EINVAL;
 		ret = otel_s3_open(opts->s3_uri, v, opts, decoder_path, &state);
@@ -2556,12 +2556,12 @@ int upatch_maps_otel_send_file(const char *decoder_path,
 		close_rc = otel_s3_close(state);
 		return ret ? ret : close_rc;
 	}
-	if (mode == SHIRUDO_OTEL_FORCE_LOG)
-		signal = SHIRUDO_OTEL_LOG;
-	else if (mode == SHIRUDO_OTEL_FORCE_METRIC)
-		signal = SHIRUDO_OTEL_METRIC;
-	else if (mode == SHIRUDO_OTEL_AUTO)
-		signal = SHIRUDO_OTEL_LOG;
+	if (mode == OTEL_FORCE_LOG)
+		signal = OTEL_LOG;
+	else if (mode == OTEL_FORCE_METRIC)
+		signal = OTEL_METRIC;
+	else if (mode == OTEL_AUTO)
+		signal = OTEL_LOG;
 	else
 		return -EINVAL;
 	ret = otel_open_common(endpoint, v, opts, automatic, signal,
@@ -2586,15 +2586,15 @@ int upatch_maps_otel_send_decoded(const struct map_view *v,
 {
 	int ret;
 
-	if (signal == SHIRUDO_OTEL_LOG)
-		ret = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
+	if (signal == OTEL_LOG)
+		ret = upatch_maps_otel_send(v, OTEL_FORCE_LOG,
 					    opts);
-	else if (signal == SHIRUDO_OTEL_METRIC)
-		ret = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
+	else if (signal == OTEL_METRIC)
+		ret = upatch_maps_otel_send(v, OTEL_FORCE_METRIC,
 					    opts);
 	else
 		return -EINVAL;
 	if (ret == -E2BIG && opts && opts->s3_uri)
-		return upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
+		return upatch_maps_otel_send(v, OTEL_S3, opts);
 	return ret;
 }

@@ -1025,21 +1025,21 @@ static int prog_attach_perf_event(int prog_fd, int perf_fd)
 static const char *attach_kind_name(__u32 kind)
 {
 	switch (kind) {
-	case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
+	case UPATCH_ATTACH_RAW_TRACEPOINT:
 		return "raw_tracepoint";
-	case SHIRUDO_UPATCH_ATTACH_KPROBE:
+	case UPATCH_ATTACH_KPROBE:
 		return "kprobe";
-	case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
+	case UPATCH_ATTACH_KRETPROBE:
 		return "kretprobe";
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_INGRESS:
 		return "cgroup_skb/ingress";
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_EGRESS:
 		return "cgroup_skb/egress";
-	case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
+	case UPATCH_ATTACH_FMOD_RET:
 		return "fmod_ret";
-	case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
+	case UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
 		return "netfilter/ipv6-pre-routing";
-	case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
+	case UPATCH_ATTACH_UPROBE_MULTI:
 		return "uprobe.multi";
 	default:
 		return "unknown";
@@ -1059,7 +1059,7 @@ static int prepare_uprobe_targets(struct prog_spec *specs,
 		struct stat opened_stat;
 		int path_fd, fd, ret;
 
-		if (spec->kind != SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI)
+		if (spec->kind != UPATCH_ATTACH_UPROBE_MULTI)
 			continue;
 		path_fd = open(spec->uprobe_path, O_PATH | O_CLOEXEC);
 		if (path_fd < 0)
@@ -1139,24 +1139,24 @@ static int prog_attach_for_spec(int prog_fd,
 	int perf_fd, link_fd;
 
 	switch (spec->kind) {
-	case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
+	case UPATCH_ATTACH_RAW_TRACEPOINT:
 		return prog_attach_default(prog_fd);
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_INGRESS:
 		return prog_attach_cgroup_skb(prog_fd,
 					      BPF_CGROUP_INET_INGRESS);
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_EGRESS:
 		return prog_attach_cgroup_skb(prog_fd,
 					      BPF_CGROUP_INET_EGRESS);
-	case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
+	case UPATCH_ATTACH_FMOD_RET:
 		return prog_attach_btf_link(prog_fd, BPF_MODIFY_RETURN);
-	case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
+	case UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
 		return prog_attach_netfilter_ipv6_pre_routing(prog_fd);
-	case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
+	case UPATCH_ATTACH_UPROBE_MULTI:
 		return prog_attach_uprobe_multi(prog_fd, spec);
-	case SHIRUDO_UPATCH_ATTACH_KPROBE:
-	case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
+	case UPATCH_ATTACH_KPROBE:
+	case UPATCH_ATTACH_KRETPROBE:
 		perf_fd = perf_event_open_kprobe(spec->target, spec->offset,
-						 spec->kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE);
+						 spec->kind == UPATCH_ATTACH_KRETPROBE);
 		if (perf_fd < 0)
 			return perf_fd;
 		link_fd = prog_attach_perf_event(prog_fd, perf_fd);
@@ -1212,8 +1212,8 @@ static int link_matches_spec(int link_fd,
 	__u32 len = sizeof(info);
 	bool ret;
 
-	if (spec->kind == SHIRUDO_UPATCH_ATTACH_KPROBE ||
-	    spec->kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE) {
+	if (spec->kind == UPATCH_ATTACH_KPROBE ||
+	    spec->kind == UPATCH_ATTACH_KRETPROBE) {
 		info.perf_event.kprobe.func_name = ptr_to_u64(func);
 		info.perf_event.kprobe.name_len = sizeof(func);
 	}
@@ -1223,19 +1223,19 @@ static int link_matches_spec(int link_fd,
 		return info.cgroup.cgroup_id == ROOT_CGROUP_ID ?
 		       0 : -EXDEV;
 	switch (spec->kind) {
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS:
-	case SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_INGRESS:
+	case UPATCH_ATTACH_CGROUP_SKB_EGRESS:
 		return -EXDEV;
-	case SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
+	case UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING:
 		if (info.type != BPF_LINK_TYPE_NETFILTER ||
 		    info.netfilter.pf != NFPROTO_IPV6 ||
 		    info.netfilter.hooknum != NF_INET_PRE_ROUTING ||
 		    info.netfilter.priority != NF_IP6_PRI_RAW_BEFORE_DEFRAG)
 			return -EXDEV;
 		return netns_initial();
-	case SHIRUDO_UPATCH_ATTACH_KPROBE:
-	case SHIRUDO_UPATCH_ATTACH_KRETPROBE:
-		ret = spec->kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE;
+	case UPATCH_ATTACH_KPROBE:
+	case UPATCH_ATTACH_KRETPROBE:
+		ret = spec->kind == UPATCH_ATTACH_KRETPROBE;
 		if (info.type != BPF_LINK_TYPE_PERF_EVENT ||
 		    info.perf_event.type != (ret ? BPF_PERF_EVENT_KRETPROBE :
 						   BPF_PERF_EVENT_KPROBE) ||
@@ -1244,12 +1244,12 @@ static int link_matches_spec(int link_fd,
 		    strcmp(func, spec->target))
 			return -EXDEV;
 		return 0;
-	case SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI:
+	case UPATCH_ATTACH_UPROBE_MULTI:
 		if (info.type != BPF_LINK_TYPE_UPROBE_MULTI ||
 		    info.uprobe_multi.count != spec->nr_uprobe_offsets)
 			return -EXDEV;
 		return 0;
-	case SHIRUDO_UPATCH_ATTACH_FMOD_RET:
+	case UPATCH_ATTACH_FMOD_RET:
 		if (info.type != BPF_LINK_TYPE_TRACING ||
 		    info.tracing.attach_type != BPF_MODIFY_RETURN)
 			return -EXDEV;
@@ -1289,7 +1289,7 @@ static void count_attach_progs(const struct prog_spec *specs,
 	__u32 i, n = 0;
 
 	for (i = 0; i < nr_progs; i++) {
-		if (specs[i].role == SHIRUDO_UPATCH_PROG_ROLE_ATTACH)
+		if (specs[i].role == UPATCH_PROG_ROLE_ATTACH)
 			n++;
 	}
 	*out = n;
@@ -1302,9 +1302,9 @@ static int prog_pin_path(char *pin, size_t sz, const char *dir,
 {
 	int n;
 
-	if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER)
+	if (spec->role == UPATCH_PROG_ROLE_SERIALIZER)
 		n = strsprintf(pin, sz, "%s/%s", serializers_dir, spec->map);
-	else if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN)
+	else if (spec->role == UPATCH_PROG_ROLE_TEST_RUN)
 		n = strsprintf(pin, sz, "%s/test", dir);
 	else if (attach_count == 1)
 		n = strsprintf(pin, sz, "%s/link", dir);
@@ -1378,7 +1378,7 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 				    spec, attach_count, attach_seen);
 		if (ret)
 			goto out;
-		if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER) {
+		if (spec->role == UPATCH_PROG_ROLE_SERIALIZER) {
 			struct stat st;
 
 			ret = mkdir_if_absent(serializers_dir, 0700,
@@ -1408,7 +1408,7 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 			pr_info("pinned serializer prog %u -> %s", i, pin);
 			continue;
 		}
-		if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN) {
+		if (spec->role == UPATCH_PROG_ROLE_TEST_RUN) {
 			struct stat st;
 
 			test_fd = inner_fd;
@@ -1432,7 +1432,7 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 
 		link_fd = prog_attach_for_spec(inner_fd, spec);
 		if (link_fd < 0) {
-			if (spec->kind == SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI)
+			if (spec->kind == UPATCH_ATTACH_UPROBE_MULTI)
 				pr_err("attach prog %u (%s %s:%s): %s", i,
 				       attach_kind_name(spec->kind),
 				       spec->uprobe_path, spec->target,
@@ -1492,7 +1492,7 @@ out:
 					   serializers_dir, &specs[i],
 					   attach_count, attach_seen))
 				unlink(pin);
-			if (specs[i].role == SHIRUDO_UPATCH_PROG_ROLE_ATTACH)
+			if (specs[i].role == UPATCH_PROG_ROLE_ATTACH)
 				attach_seen++;
 		}
 		if (made_serializers)
@@ -3194,7 +3194,7 @@ static int export_one_map(const char *upatch, const char *map,
 
 		err = upatch_decode_map_signal(&v, &decoder_signal);
 		if (err == -ENODATA)
-			err = upatch_maps_otel_send(&v, SHIRUDO_OTEL_AUTO,
+			err = upatch_maps_otel_send(&v, OTEL_AUTO,
 						    otel_opts);
 		else if (!err)
 			err = upatch_maps_otel_send_decoded(&v, decoder_signal,

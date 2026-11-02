@@ -105,58 +105,58 @@ shirudo_image_observer_guards[IMAGE_OBSERVER_HOOK_COUNT] = {
 };
 
 const struct image_guard
-shirudo_gate_guards[SHIRUDO_GATE_HOOK_COUNT] = {
-	[SHIRUDO_GUARD_UNLINK] = {
+shirudo_gate_guards[GATE_HOOK_COUNT] = {
+	[GUARD_UNLINK] = {
 		"shirudo_lsm_inode_unlink", INODE_UNLINK_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_SETXATTR] = {
+	[GUARD_SETXATTR] = {
 		"shirudo_lsm_inode_setxattr", INODE_SETXATTR_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_REMOVEXATTR] = {
+	[GUARD_REMOVEXATTR] = {
 		"shirudo_lsm_inode_removexattr", INODE_RMXATTR_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_KEY_PERMISSION] = {
+	[GUARD_KEY_PERMISSION] = {
 		"shirudo_lsm_key_permission", KEY_PERMISSION_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_TPM_COMMAND] = {
+	[GUARD_TPM_COMMAND] = {
 		"shirudo_lsm_tpm_command", TPM_COMMAND_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_BPF_MAP] = {
+	[GUARD_BPF_MAP] = {
 		"shirudo_lsm_bpf_map", LSM_BPF_MAP_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_PROG_LOAD] = {
+	[GUARD_PROG_LOAD] = {
 		"shirudo_lsm_bpf_prog_load", LSM_PROG_LOAD_LINK_PIN,
 	},
-	[SHIRUDO_GUARD_BPF] = {
+	[GUARD_BPF] = {
 		"shirudo_lsm_bpf", LSM_LINK_PIN,
 	},
 };
 
-const struct guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
-	[SHIRUDO_GUARD_IDENTITY] = {
+const struct guard_map shirudo_guard_maps[GUARD_MAP_COUNT] = {
+	[GUARD_IDENTITY] = {
 		"shirudo_bpffs_sb", IDENTITY_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
 		sizeof(struct identity), 1, 0,
 	},
-	[SHIRUDO_GUARD_TASKS] = {
+	[GUARD_TASKS] = {
 		"shirudo_tasks", BPFFS_DIR "/task_authority",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
 		sizeof(struct task_authority), 0, BPF_F_NO_PREALLOC,
 	},
-	[SHIRUDO_GUARD_DEVICES] = {
+	[GUARD_DEVICES] = {
 		"shirudo_devices", BPFFS_DIR "/devices",
 		BPF_MAP_TYPE_HASH, sizeof(__u64),
 		sizeof(struct device_authority), 128, 0,
 	},
-	[SHIRUDO_GUARD_ROOTS] = {
+	[GUARD_ROOTS] = {
 		"shirudo_roots", BPFFS_DIR "/config_roots",
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
 		sizeof(struct expected_root), 0, BPF_F_NO_PREALLOC,
 	},
-	[SHIRUDO_GUARD_TAMPER] = {
+	[GUARD_TAMPER] = {
 		"shirudo_tamper", TAMPER_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
-		sizeof(__u64), SHIRUDO_TAMPER_MAX, 0,
+		sizeof(__u64), TAMPER_MAX, 0,
 	},
 };
 
@@ -166,7 +166,7 @@ int config_root_begin(const __u8 root[32],
 {
 	struct expected_root previous = {}, expected = { .valid = 1 };
 	const struct guard_map *map =
-		&shirudo_guard_maps[SHIRUDO_GUARD_ROOTS];
+		&shirudo_guard_maps[GUARD_ROOTS];
 	int mode, ret;
 
 	*guard = (struct config_root_guard) {
@@ -229,14 +229,14 @@ int config_root_end(struct config_root_guard *guard)
 	return ret;
 }
 
-static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
+static int guard_map_ids(__u32 ids[GUARD_MAP_COUNT])
 {
 	struct bpf_map_info info;
 	__u32 length;
 	__u32 i;
 	int fd, ret;
 
-	for (i = 0; i < SHIRUDO_GUARD_MAP_COUNT; i++) {
+	for (i = 0; i < GUARD_MAP_COUNT; i++) {
 		const struct guard_map *expected =
 			&shirudo_guard_maps[i];
 
@@ -270,7 +270,7 @@ static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
 
 static int guard_program_maps(const struct bpf_prog_info *program,
 			      const __u32 *map_ids,
-			      const __u32 expected[SHIRUDO_GUARD_MAP_COUNT])
+			      const __u32 expected[GUARD_MAP_COUNT])
 {
 	struct bpf_map_info info;
 	__u32 i, j;
@@ -289,7 +289,7 @@ static int guard_program_maps(const struct bpf_prog_info *program,
 		close(fd);
 		if (ret)
 			return ret;
-		for (j = 0; j < SHIRUDO_GUARD_MAP_COUNT; j++) {
+		for (j = 0; j < GUARD_MAP_COUNT; j++) {
 			if (strncmp(info.name, shirudo_guard_maps[j].name,
 				    sizeof(info.name) - 1))
 				continue;
@@ -332,7 +332,7 @@ static int guard_kernel_btf(__u32 id, struct btf **result)
 }
 
 static int guard_link(const struct image_guard *guard,
-		      const __u32 maps[SHIRUDO_GUARD_MAP_COUNT],
+		      const __u32 maps[GUARD_MAP_COUNT],
 		      struct btf **kernel, __u32 *kernel_id)
 {
 	struct bpf_link_info link = {};
@@ -426,7 +426,7 @@ int image_guards_ready(void)
 			.count = ARRAY_SIZE(shirudo_image_observer_guards),
 		},
 	};
-	__u32 map_ids[SHIRUDO_GUARD_MAP_COUNT] = {};
+	__u32 map_ids[GUARD_MAP_COUNT] = {};
 	struct btf *kernel = NULL;
 	__u32 kernel_id = 0;
 	__u32 i, j;

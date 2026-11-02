@@ -315,7 +315,7 @@ static DIR *registries_opendir(void)
 
 	if (!image_config_active())
 		return opendir(BPM_REGISTRIES_DIR);
-	fd = image_open(SHIRUDO_IMAGE_REGISTRIES,
+	fd = image_open(IMAGE_REGISTRIES,
 			O_RDONLY | O_DIRECTORY);
 	if (fd < 0) {
 		errno = -fd;
@@ -330,7 +330,7 @@ static FILE *tree_conf_open(void)
 
 	if (!image_config_active())
 		return fopen(BPM_TREE_ETC_PATH, "r");
-	fd = image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	fd = image_open(IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;
 		return NULL;
@@ -942,25 +942,25 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	if (ret)
 		return ret;
 	sub[0] = (struct json_field){
-		.key = "name", .type = SHIRUDO_JSON_T_STRING,
+		.key = "name", .type = JSON_T_STRING,
 		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
 	};
 	sub[1] = (struct json_field){
-		.key = "version", .type = SHIRUDO_JSON_T_STRING,
+		.key = "version", .type = JSON_T_STRING,
 		.dst = sink.scratch.version,
 		.dst_cap = sizeof(sink.scratch.version),
 	};
 	sub[2] = (struct json_field){
-		.key = "source", .type = SHIRUDO_JSON_T_STRING,
+		.key = "source", .type = JSON_T_STRING,
 		.dst = sink.scratch.source,
 		.dst_cap = sizeof(sink.scratch.source),
 	};
 	sub[3] = (struct json_field){
-		.key = "path", .type = SHIRUDO_JSON_T_STRING,
+		.key = "path", .type = JSON_T_STRING,
 		.dst = sink.scratch.path, .dst_cap = sizeof(sink.scratch.path),
 	};
 	root[0] = (struct json_field){
-		.key = "packages", .type = SHIRUDO_JSON_T_ARRAY,
+		.key = "packages", .type = JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
 	(void)unused;
@@ -1805,11 +1805,11 @@ static int tree_read_pending(struct bpm_tree_pending *pending)
 	size_t len;
 	__s64 schema = 0;
 	struct json_field fields[] = {
-		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
-		{ "seq", SHIRUDO_JSON_T_INT, &pending->seq, 0, 0, NULL, 0 },
-		{ "id", SHIRUDO_JSON_T_STRING, pending->id,
+		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+		{ "seq", JSON_T_INT, &pending->seq, 0, 0, NULL, 0 },
+		{ "id", JSON_T_STRING, pending->id,
 		  sizeof(pending->id), 0, NULL, 0 },
-		{ "operation_digest", SHIRUDO_JSON_T_STRING,
+		{ "operation_digest", JSON_T_STRING,
 		  pending->operation_digest, sizeof(pending->operation_digest),
 		  0, NULL, 0 },
 	};

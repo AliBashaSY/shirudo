@@ -21,8 +21,8 @@ int config_measure_event(enum config_event_kind kind,
 	__u8 data[sizeof(domain) + 4 + 32];
 
 	if (!root_hash || !out ||
-	    (kind != SHIRUDO_CONFIG_EVENT_BOOT &&
-	     kind != SHIRUDO_CONFIG_EVENT_UPDATE))
+	    (kind != CONFIG_EVENT_BOOT &&
+	     kind != CONFIG_EVENT_UPDATE))
 		return -EINVAL;
 	memcpy(data, domain, sizeof(domain));
 	data[sizeof(domain)] = 0;

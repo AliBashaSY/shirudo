@@ -91,8 +91,8 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		return 0;
 	memcpy(body, data, size);
 	body[size] = '\0';
-	check_partial_success(SHIRUDO_OTEL_LOG, body, size);
-	check_partial_success(SHIRUDO_OTEL_METRIC, body, size);
+	check_partial_success(OTEL_LOG, body, size);
+	check_partial_success(OTEL_METRIC, body, size);
 
 	cap = generic_log_capacity(size);
 	e.buf = xmalloc(cap);

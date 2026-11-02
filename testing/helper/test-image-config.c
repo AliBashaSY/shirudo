@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 			       (int)effective.tpm_owner_auth_len,
 			       effective.tpm_owner_auth, effective.tpm_tcti,
 			       effective.eventlog_max_bytes);
-			ret = image_open(SHIRUDO_IMAGE_REGISTRIES,
+			ret = image_open(IMAGE_REGISTRIES,
 					 O_RDONLY | O_DIRECTORY);
 			printf("registries=%s\n", ret >= 0 ? "open" : "missing");
 			if (ret >= 0)
