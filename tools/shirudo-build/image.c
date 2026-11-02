@@ -97,7 +97,7 @@ static int verify_verity(int data_fd, int hash_fd, const char *root)
 		if (fcntl(data_fd, F_SETFD, 0) || fcntl(hash_fd, F_SETFD, 0))
 			_exit(126);
 		execlp("veritysetup", "veritysetup", "verify", "--hash-offset=0",
-		       data_path, hash_path, root, NULL);
+		       data_path, hash_path, root, (char *)NULL);
 		pr_err("veritysetup: %s; install the operator veritysetup tool",
 		       strerror(errno));
 		_exit(127);
