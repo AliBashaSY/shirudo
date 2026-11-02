@@ -98,7 +98,7 @@ static EVP_PKEY *read_priv_pem(const char *path)
 	return k;
 }
 
-static void name_to_str(X509_NAME *name, char *out, size_t out_sz)
+static void name_to_str(const X509_NAME *name, char *out, size_t out_sz)
 {
 	if (!X509_NAME_oneline(name, out, (int)out_sz)) {
 		strscpy(out, "(parse error)", out_sz);
@@ -202,8 +202,8 @@ static int format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 static int dump_operator_cert(X509 *cert, const char *cert_path,
 			      const __u8 cert_spki_fpr[SHA256_DIGEST_LENGTH])
 {
-	X509_NAME *subj = X509_get_subject_name(cert);
-	X509_NAME *iss  = X509_get_issuer_name(cert);
+	const X509_NAME *subj = X509_get_subject_name(cert);
+	const X509_NAME *iss  = X509_get_issuer_name(cert);
 	const ASN1_TIME *nb = X509_get0_notBefore(cert);
 	const ASN1_TIME *na = X509_get0_notAfter(cert);
 	EVP_PKEY *pub = X509_get0_pubkey(cert);

@@ -267,8 +267,8 @@ int cert_pubkey_digest(const struct cert *cert,
 {
 	__u8 *der = NULL, *p;
 	int der_len, encoded_len, ret = -EINVAL;
+	const X509_PUBKEY *spki;
 	__u32 len = 0;
-	X509_PUBKEY *spki;
 
 	if (!cert || !cert->impl || !out)
 		return -EINVAL;

@@ -138,21 +138,31 @@ static EVP_PKEY *gen_keypair(void)
 	return k;
 }
 
+/*
+ * OpenSSL 4.0 returns the certificate's own names const, so build the
+ * name apart and set it as both, which copies it.
+ */
 static int set_subject_and_issuer(X509 *c)
 {
-	X509_NAME *name = X509_get_subject_name(c);
+	X509_NAME *name = X509_NAME_new();
+	int ret = -1;
 
+	if (!name) {
+		openssl_complain("X509_NAME_new");
+		return -1;
+	}
 	if (X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_UTF8,
 				       (const __u8 *)CERT_CN,
-				       -1, -1, 0) != 1) {
+				       -1, -1, 0) != 1)
 		openssl_complain("X509_NAME_add_entry_by_txt");
-		return -1;
-	}
-	if (X509_set_issuer_name(c, name) != 1) {
+	else if (X509_set_subject_name(c, name) != 1)
+		openssl_complain("X509_set_subject_name");
+	else if (X509_set_issuer_name(c, name) != 1)
 		openssl_complain("X509_set_issuer_name");
-		return -1;
-	}
-	return 0;
+	else
+		ret = 0;
+	X509_NAME_free(name);
+	return ret;
 }
 
 static int add_ext(X509 *c, int nid, const char *value)
