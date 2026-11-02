@@ -63,8 +63,8 @@ int main(int argc, char **argv)
 		return 2;
 	}
 	h = (const struct shirudo_upatch_header *)m;
-	insns = m + rd_le32(&h->loader_insns_off);
-	sig   = m + rd_le32(&h->signature_off);
+	insns = m + get_le32(&h->loader_insns_off);
+	sig   = m + get_le32(&h->signature_off);
 
 	cfd = open(argv[2], O_RDONLY);
 	if (cfd < 0) {
@@ -93,12 +93,12 @@ int main(int argc, char **argv)
 
 	memset(&a, 0, sizeof(a));
 	a.prog_type = BPF_PROG_TYPE_SYSCALL;
-	a.insn_cnt = rd_le32(&h->loader_insns_len) / sizeof(struct bpf_insn);
+	a.insn_cnt = get_le32(&h->loader_insns_len) / sizeof(struct bpf_insn);
 	a.insns = ptr_to_u64(insns);
 	a.license = ptr_to_u64("Dual BSD/GPL");
 	a.prog_flags = BPF_F_SLEEPABLE;
 	a.signature = ptr_to_u64(sig);
-	a.signature_size = rd_le32(&h->signature_len);
+	a.signature_size = get_le32(&h->signature_len);
 	a.keyring_id = (__s32)serial;
 	memcpy(a.prog_name, "sigtest", 7);
 	prog_fd = sys_bpf(BPF_PROG_LOAD, &a);

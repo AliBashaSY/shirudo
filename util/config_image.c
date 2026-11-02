@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
+#include <shirudo/byteorder.h>
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
 
-#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -91,14 +91,14 @@ static int validate_superblock(const struct verity_superblock *header)
 	static const char algorithm[32] = "sha256";
 
 	if (memcmp(header->magic, magic, sizeof(magic)) ||
-	    le32toh(header->version_le) != 1 ||
-	    le32toh(header->hash_type_le) != 1 ||
+	    le32_to_cpu(header->version_le) != 1 ||
+	    le32_to_cpu(header->hash_type_le) != 1 ||
 	    memcmp(header->algorithm, algorithm, sizeof(algorithm)) ||
-	    le32toh(header->data_block_size_le) !=
+	    le32_to_cpu(header->data_block_size_le) !=
 		CONFIG_IMAGE_BLOCK_SIZE ||
-	    le32toh(header->hash_block_size_le) !=
+	    le32_to_cpu(header->hash_block_size_le) !=
 		CONFIG_IMAGE_BLOCK_SIZE ||
-	    le16toh(header->salt_size_le) != CONFIG_IMAGE_SALT_SIZE)
+	    le16_to_cpu(header->salt_size_le) != CONFIG_IMAGE_SALT_SIZE)
 		return -EINVAL;
 	return 0;
 }
@@ -117,7 +117,7 @@ int shirudo_config_image_read_header(int hash_fd,
 		rc = validate_superblock(&header);
 	if (rc)
 		return rc;
-	image.data_blocks = le64toh(header.data_blocks_le);
+	image.data_blocks = le64_to_cpu(header.data_blocks_le);
 	rc = verity_hash_blocks(image.data_blocks, &image.hash_blocks);
 	if (rc)
 		return rc;

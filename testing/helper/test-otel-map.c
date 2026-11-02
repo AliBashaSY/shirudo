@@ -2,7 +2,6 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
-#include <endian.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -103,46 +102,46 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 		return rc;
 	}
 
-	header.magic = htole64(UPATCH_MAGIC);
-	header.version = htole32(UPATCH_VERSION);
-	header.type = htole32(SHIRUDO_UPATCH_TYPE_BPF);
+	header.magic = cpu_to_le64(UPATCH_MAGIC);
+	header.version = cpu_to_le32(UPATCH_VERSION);
+	header.type = cpu_to_le32(SHIRUDO_UPATCH_TYPE_BPF);
 	strncpy(header.name, "test-upatch", sizeof(header.name) - 1);
-	header.loader_insns_off = htole32(loader_off);
-	header.loader_insns_len = htole32(sizeof(struct bpf_insn));
-	header.signature_off = htole32(sig_off);
-	header.signature_len = htole32(1);
-	header.data_off = htole32(data_off);
-	header.data_len = htole32(data_len);
+	header.loader_insns_off = cpu_to_le32(loader_off);
+	header.loader_insns_len = cpu_to_le32(sizeof(struct bpf_insn));
+	header.signature_off = cpu_to_le32(sig_off);
+	header.signature_len = cpu_to_le32(1);
+	header.data_off = cpu_to_le32(data_off);
+	header.data_len = cpu_to_le32(data_len);
 	memcpy(file, &header, sizeof(header));
 	file[data_off - 1] = 0;
 
 	/* The sections start at odd offsets: build them aligned, then copy. */
-	blob.magic = htole32(UPATCH_DECODER_MAGIC);
-	blob.version = htole32(UPATCH_DECODER_VERSION);
-	blob.nr_decoders = htole32(1);
+	blob.magic = cpu_to_le32(UPATCH_DECODER_MAGIC);
+	blob.version = cpu_to_le32(UPATCH_DECODER_VERSION);
+	blob.nr_decoders = cpu_to_le32(1);
 	memcpy(file + data_off, &blob, sizeof(blob));
-	entry.language = htole32(UPATCH_DECODER_LANG_LUA);
-	entry.api_version = htole32(1);
-	entry.input_format = htole32(UPATCH_DECODER_INPUT_MAP_V1);
-	entry.export_signal = htole32(metric ?
+	entry.language = cpu_to_le32(UPATCH_DECODER_LANG_LUA);
+	entry.api_version = cpu_to_le32(1);
+	entry.input_format = cpu_to_le32(UPATCH_DECODER_INPUT_MAP_V1);
+	entry.export_signal = cpu_to_le32(metric ?
 				      UPATCH_DECODER_EXPORT_METRIC :
 				      UPATCH_DECODER_EXPORT_LOG);
 	strncpy(entry.upatch, "test-upatch", sizeof(entry.upatch) - 1);
 	strncpy(entry.map, "hits_total", sizeof(entry.map) - 1);
 	strncpy(entry.source, "test.lua", sizeof(entry.source) - 1);
 	strncpy(entry.entrypoint, "decode", sizeof(entry.entrypoint) - 1);
-	entry.source_off = htole32(entries_end);
-	entry.source_len = htole32(source_len);
+	entry.source_off = cpu_to_le32(entries_end);
+	entry.source_len = cpu_to_le32(source_len);
 	memcpy(file + data_off + sizeof(blob), &entry, sizeof(entry));
 	memcpy(file + data_off + entries_end, source, source_len);
-	section.tag = htole32(SHIRUDO_UPATCH_SECTION_DECODERS);
-	section.off = htole32(0);
-	section.len = htole32(decoder_len);
+	section.tag = cpu_to_le32(SHIRUDO_UPATCH_SECTION_DECODERS);
+	section.off = cpu_to_le32(0);
+	section.len = cpu_to_le32(decoder_len);
 	memcpy(file + data_off + dir_off, &section, sizeof(section));
-	trailer.magic = htole32(UPATCH_SIGNED_TRAILER_MAGIC);
-	trailer.version = htole32(UPATCH_SIGNED_VERSION);
-	trailer.dir_off = htole32(dir_off);
-	trailer.nr_sections = htole32(1);
+	trailer.magic = cpu_to_le32(UPATCH_SIGNED_TRAILER_MAGIC);
+	trailer.version = cpu_to_le32(UPATCH_SIGNED_VERSION);
+	trailer.dir_off = cpu_to_le32(dir_off);
+	trailer.nr_sections = cpu_to_le32(1);
 	memcpy(file + data_off + dir_off + sizeof(section), &trailer,
 	       sizeof(trailer));
 

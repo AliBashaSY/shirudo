@@ -5,7 +5,6 @@
  * gen_loader + CMS sign + .upatch container writer.
  */
 
-#include <endian.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <fcntl.h>
@@ -94,25 +93,25 @@ static void pack_header(struct shirudo_upatch_header *h,
 			__u32 rodata_data_off, __u32 nr_maps, __u32 nr_progs)
 {
 	memset(h, 0, sizeof(*h));
-	h->magic   = htole64(UPATCH_MAGIC);
-	h->version = htole32(UPATCH_VERSION);
-	h->flags   = htole32(flags);
+	h->magic   = cpu_to_le64(UPATCH_MAGIC);
+	h->version = cpu_to_le32(UPATCH_VERSION);
+	h->flags   = cpu_to_le32(flags);
 	strscpy(h->name, name, sizeof(h->name));
 	memcpy(h->payload_sha256, payload_sha256,
 	       UPATCH_PAYLOAD_HASH_LEN);
-	h->loader_insns_off = htole32(loader_off);
-	h->loader_insns_len = htole32(loader_len);
-	h->signature_off    = htole32(sig_off);
-	h->signature_len    = htole32(sig_len);
-	h->metadata_off     = htole32(meta_off);
-	h->metadata_len     = htole32(meta_len);
-	h->data_off         = htole32(data_off);
-	h->data_len         = htole32(data_len);
-	h->log_buf_sz       = htole32(log_buf_sz);
-	h->nr_maps          = htole32(nr_maps);
-	h->nr_progs         = htole32(nr_progs);
-	h->rodata_data_off  = htole32(rodata_data_off);
-	h->type             = htole32(type);
+	h->loader_insns_off = cpu_to_le32(loader_off);
+	h->loader_insns_len = cpu_to_le32(loader_len);
+	h->signature_off    = cpu_to_le32(sig_off);
+	h->signature_len    = cpu_to_le32(sig_len);
+	h->metadata_off     = cpu_to_le32(meta_off);
+	h->metadata_len     = cpu_to_le32(meta_len);
+	h->data_off         = cpu_to_le32(data_off);
+	h->data_len         = cpu_to_le32(data_len);
+	h->log_buf_sz       = cpu_to_le32(log_buf_sz);
+	h->nr_maps          = cpu_to_le32(nr_maps);
+	h->nr_progs         = cpu_to_le32(nr_progs);
+	h->rodata_data_off  = cpu_to_le32(rodata_data_off);
+	h->type             = cpu_to_le32(type);
 	h->reserved1        = 0;
 }
 
@@ -841,11 +840,8 @@ static bool parse_decoder_manifest(const __u8 *p, size_t n,
 
 	if (n < sizeof(*m))
 		return false;
-	if (rd_le32(p + offsetof(struct shirudo_decoder_manifest, magic)) !=
-	    DECODER_MANIFEST_MAGIC)
-		return false;
-	if (rd_le16(p + offsetof(struct shirudo_decoder_manifest, version)) !=
-	    UPATCH_DECODER_VERSION)
+	if (get_le32(&m->magic) != DECODER_MANIFEST_MAGIC ||
+	    get_le16(&m->version) != UPATCH_DECODER_VERSION)
 		return false;
 	if (!fixed_cstr_nonempty(m->upatch, sizeof(m->upatch)) ||
 	    !fixed_cstr_nonempty(m->map, sizeof(m->map)) ||
@@ -854,17 +850,13 @@ static bool parse_decoder_manifest(const __u8 *p, size_t n,
 		return false;
 
 	memset(out, 0, sizeof(*out));
-	out->language = rd_le16(p + offsetof(struct shirudo_decoder_manifest,
-					     language));
-	out->api_version = rd_le16(p + offsetof(struct shirudo_decoder_manifest,
-						api_version));
-	out->input_format = rd_le16(p + offsetof(struct shirudo_decoder_manifest,
-						 input_format));
-	out->export_signal = rd_le16(p + offsetof(struct shirudo_decoder_manifest,
-						  export_signal));
+	out->language = get_le16(&m->language);
+	out->api_version = get_le16(&m->api_version);
+	out->input_format = get_le16(&m->input_format);
+	out->export_signal = get_le16(&m->export_signal);
 	if (out->language == 0 || out->api_version == 0 ||
 	    out->input_format == 0 || out->export_signal == 0 ||
-	    rd_le16(p + offsetof(struct shirudo_decoder_manifest, reserved)) != 0)
+	    get_le16(&m->reserved) != 0)
 		return false;
 	copy_fixed_cstr(out->upatch, sizeof(out->upatch),
 			m->upatch, sizeof(m->upatch));
@@ -1022,9 +1014,9 @@ static int build_decoder_blob(const struct decoder_set *set,
 	blob = xmalloc((size_t)total);
 	if (!blob)
 		return -ENOMEM;
-	blob->magic = htole32(UPATCH_DECODER_MAGIC);
-	blob->version = htole32(UPATCH_DECODER_VERSION);
-	blob->nr_decoders = htole32(set->nr_items);
+	blob->magic = cpu_to_le32(UPATCH_DECODER_MAGIC);
+	blob->version = cpu_to_le32(UPATCH_DECODER_VERSION);
+	blob->nr_decoders = cpu_to_le32(set->nr_items);
 	blob->reserved = 0;
 
 	off = (__u32)entries_end;
@@ -1032,17 +1024,17 @@ static int build_decoder_blob(const struct decoder_set *set,
 		const struct decoder_file *file = &set->items[i];
 		struct shirudo_upatch_decoder_entry *d = &blob->decoders[i];
 
-		d->language = htole32(file->manifest.language);
-		d->api_version = htole32(file->manifest.api_version);
-		d->input_format = htole32(file->manifest.input_format);
-		d->export_signal = htole32(file->manifest.export_signal);
+		d->language = cpu_to_le32(file->manifest.language);
+		d->api_version = cpu_to_le32(file->manifest.api_version);
+		d->input_format = cpu_to_le32(file->manifest.input_format);
+		d->export_signal = cpu_to_le32(file->manifest.export_signal);
 		strscpy(d->upatch, file->manifest.upatch, sizeof(d->upatch));
 		strscpy(d->map, file->manifest.map, sizeof(d->map));
 		strscpy(d->source, file->manifest.source, sizeof(d->source));
 		strscpy(d->entrypoint, file->manifest.entrypoint,
 			sizeof(d->entrypoint));
-		d->source_off = htole32(off);
-		d->source_len = htole32(file->source_len);
+		d->source_off = cpu_to_le32(off);
+		d->source_len = cpu_to_le32(file->source_len);
 		memcpy((__u8 *)blob + off, file->source,
 		       file->source_len);
 		off += file->source_len;
@@ -1100,16 +1092,16 @@ static int compose_signed_data(const void *data, __u32 data_len,
 
 		total = (total + 7) & ~7ULL;
 		memcpy(buf + total, sections[i].data, sections[i].len);
-		s.tag = htole32(sections[i].tag);
-		s.off = htole32((__u32)total);
-		s.len = htole32(sections[i].len);
+		s.tag = cpu_to_le32(sections[i].tag);
+		s.off = cpu_to_le32((__u32)total);
+		s.len = cpu_to_le32(sections[i].len);
 		memcpy(buf + dir_off + i * sizeof(s), &s, sizeof(s));
 		total += sections[i].len;
 	}
-	trailer.magic = htole32(UPATCH_SIGNED_TRAILER_MAGIC);
-	trailer.version = htole32(UPATCH_SIGNED_VERSION);
-	trailer.dir_off = htole32((__u32)dir_off);
-	trailer.nr_sections = htole32(nr_sections);
+	trailer.magic = cpu_to_le32(UPATCH_SIGNED_TRAILER_MAGIC);
+	trailer.version = cpu_to_le32(UPATCH_SIGNED_VERSION);
+	trailer.dir_off = cpu_to_le32((__u32)dir_off);
+	trailer.nr_sections = cpu_to_le32(nr_sections);
 	total = dir_off +
 		(__u64)nr_sections * sizeof(struct shirudo_upatch_signed_section);
 	memcpy(buf + total, &trailer, sizeof(trailer));
@@ -1199,9 +1191,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 	if (!md)
 		return -ENOMEM;
 	memset(md, 0, len);
-	md->magic = htole32(UPATCH_PROG_MAGIC);
-	md->version = htole32(UPATCH_PROG_VERSION);
-	md->nr_progs = htole32(nr_progs);
+	md->magic = cpu_to_le32(UPATCH_PROG_MAGIC);
+	md->version = cpu_to_le32(UPATCH_PROG_VERSION);
+	md->nr_progs = cpu_to_le32(nr_progs);
 	seen_maps = xcalloc(nr_progs, sizeof(*seen_maps));
 	if (!seen_maps) {
 		err = -ENOMEM;
@@ -1258,7 +1250,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			}
 			strscpy(seen_maps[n_seen++], ser_map, sizeof(seen_maps[0]));
 			md->progs[i].role =
-				htole32(SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER);
+				cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER);
 			strscpy(md->progs[i].map, ser_map,
 				sizeof(md->progs[i].map));
 			i++;
@@ -1284,7 +1276,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			}
 			has_test_run = true;
 			md->progs[i].role =
-				htole32(SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN);
+				cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_TEST_RUN);
 			i++;
 			continue;
 		}
@@ -1333,8 +1325,8 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			goto err_free;
 		}
 		md->progs[i].role =
-			htole32(SHIRUDO_UPATCH_PROG_ROLE_ATTACH);
-		md->progs[i].kind = htole32(kind);
+			cpu_to_le32(SHIRUDO_UPATCH_PROG_ROLE_ATTACH);
+		md->progs[i].kind = cpu_to_le32(kind);
 		if (kind == SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI) {
 			struct build_uprobe_target *ut =
 				&uprobe_targets[nr_uprobe_targets];
@@ -1382,7 +1374,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 				goto err_free;
 			}
 		}
-		md->progs[i].offset = htole64(offset);
+		md->progs[i].offset = cpu_to_le64(offset);
 		i++;
 	}
 
@@ -1418,9 +1410,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			md = grown;
 			md_alloc_len = len;
 		}
-		targets.magic = htole32(UPATCH_UPROBE_TARGET_MAGIC);
-		targets.version = htole32(UPATCH_UPROBE_TARGET_VERSION);
-		targets.nr_targets = htole32(nr_uprobe_targets);
+		targets.magic = cpu_to_le32(UPATCH_UPROBE_TARGET_MAGIC);
+		targets.version = cpu_to_le32(UPATCH_UPROBE_TARGET_VERSION);
+		targets.nr_targets = cpu_to_le32(nr_uprobe_targets);
 		cursor = (__u8 *)md + base_len;
 		memcpy(cursor, &targets, sizeof(targets));
 		cursor += sizeof(targets);
@@ -1429,10 +1421,10 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			struct shirudo_upatch_uprobe_target record = {};
 			__u32 k;
 
-			record.prog_idx = htole32(ut->prog_idx);
-			record.path_len = htole32(ut->path_len);
-			record.build_id_len = htole32(ut->elf.build_id_len);
-			record.nr_offsets = htole32(ut->elf.nr_offsets);
+			record.prog_idx = cpu_to_le32(ut->prog_idx);
+			record.path_len = cpu_to_le32(ut->path_len);
+			record.build_id_len = cpu_to_le32(ut->elf.build_id_len);
+			record.nr_offsets = cpu_to_le32(ut->elf.nr_offsets);
 			memcpy(cursor, &record, sizeof(record));
 			cursor += sizeof(record);
 			memcpy(cursor, ut->path, ut->path_len);
@@ -1440,7 +1432,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			memcpy(cursor, ut->elf.build_id, ut->elf.build_id_len);
 			cursor += ut->elf.build_id_len;
 			for (k = 0; k < ut->elf.nr_offsets; k++) {
-				__u64 offset = htole64(ut->elf.offsets[k]);
+				__u64 offset = cpu_to_le64(ut->elf.offsets[k]);
 
 				memcpy(cursor, &offset, sizeof(offset));
 				cursor += sizeof(offset);

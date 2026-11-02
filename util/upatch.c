@@ -5,7 +5,6 @@
  * .upatch container parser.
  */
 
-#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -28,17 +27,17 @@ static int parse_header(const __u8 *m, size_t n,
 	if (n < UPATCH_HEADER_SIZE)
 		return -EINVAL;
 
-	out->magic = rd_le64(p);
+	out->magic = get_le64(p);
 	p += 8;
 	if (out->magic != UPATCH_MAGIC)
 		return -EINVAL;
 
-	out->version = rd_le32(p);
+	out->version = get_le32(p);
 	p += 4;
 	if (out->version != UPATCH_VERSION)
 		return -EINVAL;
 
-	out->flags = rd_le32(p);
+	out->flags = get_le32(p);
 	p += 4;
 
 	memcpy(out->name, p, sizeof(out->name));
@@ -49,33 +48,33 @@ static int parse_header(const __u8 *m, size_t n,
 	memcpy(out->payload_sha256, p, sizeof(out->payload_sha256));
 	p += sizeof(out->payload_sha256);
 
-	out->loader_insns_off	= rd_le32(p);
+	out->loader_insns_off	= get_le32(p);
 	p += 4;
-	out->loader_insns_len	= rd_le32(p);
+	out->loader_insns_len	= get_le32(p);
 	p += 4;
-	out->signature_off	= rd_le32(p);
+	out->signature_off	= get_le32(p);
 	p += 4;
-	out->signature_len	= rd_le32(p);
+	out->signature_len	= get_le32(p);
 	p += 4;
-	out->metadata_off	= rd_le32(p);
+	out->metadata_off	= get_le32(p);
 	p += 4;
-	out->metadata_len	= rd_le32(p);
+	out->metadata_len	= get_le32(p);
 	p += 4;
-	out->data_off		= rd_le32(p);
+	out->data_off		= get_le32(p);
 	p += 4;
-	out->data_len		= rd_le32(p);
+	out->data_len		= get_le32(p);
 	p += 4;
-	out->log_buf_sz		= rd_le32(p);
+	out->log_buf_sz		= get_le32(p);
 	p += 4;
-	out->nr_maps		= rd_le32(p);
+	out->nr_maps		= get_le32(p);
 	p += 4;
-	out->nr_progs		= rd_le32(p);
+	out->nr_progs		= get_le32(p);
 	p += 4;
-	out->rodata_data_off	= rd_le32(p);
+	out->rodata_data_off	= get_le32(p);
 	p += 4;
-	out->type		= rd_le32(p);
+	out->type		= get_le32(p);
 	p += 4;
-	out->reserved1		= rd_le32(p);
+	out->reserved1		= get_le32(p);
 	p += 4;
 	if (out->reserved1 != 0)
 		return -EINVAL;
@@ -129,11 +128,11 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 
 	if (decoder_len < sizeof(struct shirudo_upatch_decoder_blob))
 		return false;
-	if (rd_le32(bp) != UPATCH_DECODER_MAGIC ||
-	    rd_le32(bp + 4) != UPATCH_DECODER_VERSION)
+	if (get_le32(bp) != UPATCH_DECODER_MAGIC ||
+	    get_le32(bp + 4) != UPATCH_DECODER_VERSION)
 		return false;
 
-	nr_decoders = rd_le32(bp + 8);
+	nr_decoders = get_le32(bp + 8);
 	if (nr_decoders == 0)
 		return false;
 	entries_end = sizeof(struct shirudo_upatch_decoder_blob) +
@@ -154,14 +153,14 @@ static bool parse_decoders(struct shirudo_upatch *u, const __u8 *bp,
 		    !has_nul(d.source, sizeof(d.source)) ||
 		    !has_nul(d.entrypoint, sizeof(d.entrypoint)))
 			return false;
-		if (le32toh(d.language) == 0 ||
-		    le32toh(d.api_version) == 0 ||
-		    le32toh(d.input_format) == 0 ||
-		    le32toh(d.export_signal) == 0)
+		if (le32_to_cpu(d.language) == 0 ||
+		    le32_to_cpu(d.api_version) == 0 ||
+		    le32_to_cpu(d.input_format) == 0 ||
+		    le32_to_cpu(d.export_signal) == 0)
 			return false;
 
-		source_off = le32toh(d.source_off);
-		source_len = le32toh(d.source_len);
+		source_off = le32_to_cpu(d.source_off);
+		source_len = le32_to_cpu(d.source_len);
 		if (source_len == 0 || source_off < entries_end ||
 		    source_off > decoder_len ||
 		    source_len > decoder_len - source_off)
@@ -202,11 +201,11 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 		return;
 	data = u->map + u->hdr.data_off;
 	memcpy(&tr, data + u->hdr.data_len - sizeof(tr), sizeof(tr));
-	if (le32toh(tr.magic) != UPATCH_SIGNED_TRAILER_MAGIC ||
-	    le32toh(tr.version) != UPATCH_SIGNED_VERSION)
+	if (le32_to_cpu(tr.magic) != UPATCH_SIGNED_TRAILER_MAGIC ||
+	    le32_to_cpu(tr.version) != UPATCH_SIGNED_VERSION)
 		return;
-	nr = le32toh(tr.nr_sections);
-	dir_off = le32toh(tr.dir_off);
+	nr = le32_to_cpu(tr.nr_sections);
+	dir_off = le32_to_cpu(tr.dir_off);
 	end = u->hdr.data_len - sizeof(tr);
 	if (nr == 0 || nr > UPATCH_SIGNED_SECTIONS_MAX ||
 	    dir_off > end ||
@@ -219,10 +218,10 @@ static void parse_signed_sections(struct shirudo_upatch *u)
 		__u32 tag, off, len, bit;
 
 		memcpy(&s, dir + i * sizeof(s), sizeof(s));
-		tag = le32toh(s.tag);
-		off = le32toh(s.off);
-		len = le32toh(s.len);
-		if (le32toh(s.reserved) || off > dir_off ||
+		tag = le32_to_cpu(s.tag);
+		off = le32_to_cpu(s.off);
+		len = le32_to_cpu(s.len);
+		if (le32_to_cpu(s.reserved) || off > dir_off ||
 		    len > dir_off - off)
 			goto reject;
 		switch (tag) {
@@ -420,16 +419,16 @@ int upatch_decoder_view(const struct shirudo_upatch *u, __u32 idx,
 	bp = (const __u8 *)u->decoder_blob;
 	memcpy(&d, bp + sizeof(struct shirudo_upatch_decoder_blob) +
 	       (size_t)idx * sizeof(d), sizeof(d));
-	out->language = le32toh(d.language);
-	out->api_version = le32toh(d.api_version);
-	out->input_format = le32toh(d.input_format);
-	out->export_signal = le32toh(d.export_signal);
+	out->language = le32_to_cpu(d.language);
+	out->api_version = le32_to_cpu(d.api_version);
+	out->input_format = le32_to_cpu(d.input_format);
+	out->export_signal = le32_to_cpu(d.export_signal);
 	memcpy(out->upatch, d.upatch, sizeof(out->upatch));
 	memcpy(out->map, d.map, sizeof(out->map));
 	memcpy(out->source_name, d.source, sizeof(out->source_name));
 	memcpy(out->entrypoint, d.entrypoint, sizeof(out->entrypoint));
-	out->source = (const char *)(bp + le32toh(d.source_off));
-	out->source_len = le32toh(d.source_len);
+	out->source = (const char *)(bp + le32_to_cpu(d.source_off));
+	out->source_len = le32_to_cpu(d.source_len);
 	return 0;
 }
 
@@ -488,17 +487,17 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	if (!metadata || metadata_len < sizeof(__u32))
 		return -EINVAL;
 	memcpy(&magic, metadata, sizeof(magic));
-	magic = le32toh(magic);
+	magic = le32_to_cpu(magic);
 	if (magic != UPATCH_PROG_MAGIC)
 		return -EINVAL;
 	if (metadata_len < sizeof(md))
 		return -EINVAL;
 	memcpy(&md, metadata, sizeof(md));
-	version = le32toh(md.version);
-	count = le32toh(md.nr_progs);
+	version = le32_to_cpu(md.version);
+	count = le32_to_cpu(md.nr_progs);
 	if (version != UPATCH_PROG_VERSION)
 		return -EOPNOTSUPP;
-	if (count != nr_progs || le32toh(md.reserved) != 0)
+	if (count != nr_progs || le32_to_cpu(md.reserved) != 0)
 		return -EINVAL;
 	if (count > (UINT32_MAX - sizeof(md)) /
 	    sizeof(struct shirudo_upatch_prog_entry))
@@ -520,7 +519,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 
 		memcpy(&prog, (const __u8 *)metadata + sizeof(md) +
 		       (size_t)i * sizeof(prog), sizeof(prog));
-		role = le32toh(prog.role);
+		role = le32_to_cpu(prog.role);
 		switch (role) {
 		case SHIRUDO_UPATCH_PROG_ROLE_ATTACH:
 			break;
@@ -546,7 +545,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			goto out;
 		spec->role = role;
 
-		kind = le32toh(prog.kind);
+		kind = le32_to_cpu(prog.kind);
 		switch (kind) {
 		case SHIRUDO_UPATCH_ATTACH_RAW_TRACEPOINT:
 			spec->kind = kind;
@@ -580,7 +579,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		    prog.target[0] == '\0')
 			goto out;
 		spec->kind = kind;
-		spec->offset = le64toh(prog.offset);
+		spec->offset = le64_to_cpu(prog.offset);
 		memcpy(spec->target, prog.target, sizeof(spec->target));
 		spec->target[sizeof(spec->target) - 1] = '\0';
 		if (kind == SHIRUDO_UPATCH_ATTACH_KRETPROBE && spec->offset)
@@ -608,12 +607,12 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 
 		memcpy(&targets, cursor, sizeof(targets));
 		cursor += sizeof(targets);
-		nr_targets = le32toh(targets.nr_targets);
-		if (le32toh(targets.magic) !=
+		nr_targets = le32_to_cpu(targets.nr_targets);
+		if (le32_to_cpu(targets.magic) !=
 		    UPATCH_UPROBE_TARGET_MAGIC ||
-		    le32toh(targets.version) !=
+		    le32_to_cpu(targets.version) !=
 		    UPATCH_UPROBE_TARGET_VERSION ||
-		    le32toh(targets.reserved) != 0 || nr_targets != nr_uprobes)
+		    le32_to_cpu(targets.reserved) != 0 || nr_targets != nr_uprobes)
 			goto out;
 
 		for (i = 0; i < nr_targets; i++) {
@@ -626,10 +625,10 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 				goto out;
 			memcpy(&record, cursor, sizeof(record));
 			cursor += sizeof(record);
-			prog_idx = le32toh(record.prog_idx);
-			path_len = le32toh(record.path_len);
-			build_id_len = le32toh(record.build_id_len);
-			nr_offsets = le32toh(record.nr_offsets);
+			prog_idx = le32_to_cpu(record.prog_idx);
+			path_len = le32_to_cpu(record.path_len);
+			build_id_len = le32_to_cpu(record.build_id_len);
+			nr_offsets = le32_to_cpu(record.nr_offsets);
 			if (prog_idx >= nr_progs ||
 			    specs[prog_idx].kind !=
 			    SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI ||
@@ -669,7 +668,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 
 				memcpy(&offset, cursor, sizeof(offset));
 				cursor += sizeof(offset);
-				spec->uprobe_offsets[j] = le64toh(offset);
+				spec->uprobe_offsets[j] = le64_to_cpu(offset);
 				if (j && spec->uprobe_offsets[j] <=
 				    spec->uprobe_offsets[j - 1])
 					goto out;

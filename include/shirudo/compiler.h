@@ -12,6 +12,13 @@
 #define __must_check	__attribute__((warn_unused_result))
 #define __noreturn	__attribute__((noreturn))
 
+/* sparse's cast between a restricted type and its base; nothing otherwise. */
+#ifdef __CHECKER__
+#define __force		__attribute__((force))
+#else
+#define __force
+#endif
+
 /*
  * Declarations, so they stand at file scope as well as in a block.
  * Token for token as in bpf/lib/misc.h, which userspace also reaches

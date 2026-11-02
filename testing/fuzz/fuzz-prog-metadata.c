@@ -6,7 +6,6 @@
  * the loader signature does not cover.
  */
 
-#include <endian.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -24,7 +23,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	/* The header claims the count the container's header must match. */
 	if (size >= sizeof(md)) {
 		memcpy(&md, data, sizeof(md));
-		nr_progs = le32toh(md.nr_progs);
+		nr_progs = le32_to_cpu(md.nr_progs);
 	}
 	if (!prog_specs_parse(data, (__u32)size, nr_progs, &specs))
 		prog_specs_free(specs, nr_progs);

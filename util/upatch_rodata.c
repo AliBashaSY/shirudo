@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <endian.h>
 #include <errno.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
@@ -251,13 +250,13 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 		    data[i + 1] != (BTF_MAGIC >> 8))
 			continue;
 		memcpy(&hdr, data + i, sizeof(hdr));
-		hdr.hdr_len = le32toh(hdr.hdr_len);
-		hdr.type_off = le32toh(hdr.type_off);
-		hdr.type_len = le32toh(hdr.type_len);
-		hdr.str_off = le32toh(hdr.str_off);
-		hdr.str_len = le32toh(hdr.str_len);
-		hdr.layout_off = le32toh(hdr.layout_off);
-		hdr.layout_len = le32toh(hdr.layout_len);
+		hdr.hdr_len = le32_to_cpu(hdr.hdr_len);
+		hdr.type_off = le32_to_cpu(hdr.type_off);
+		hdr.type_len = le32_to_cpu(hdr.type_len);
+		hdr.str_off = le32_to_cpu(hdr.str_off);
+		hdr.str_len = le32_to_cpu(hdr.str_len);
+		hdr.layout_off = le32_to_cpu(hdr.layout_off);
+		hdr.layout_len = le32_to_cpu(hdr.layout_len);
 		if (hdr.hdr_len < offsetof(struct btf_header, layout_off) ||
 		    hdr.hdr_len > u->hdr.data_len - i)
 			continue;
