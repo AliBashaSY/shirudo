@@ -110,7 +110,6 @@ int shirudo_test__kernel_obs(void *ctx)
 	__u64 now = obs_now();
 	int ret;
 
-	(void)ctx;
 	ret = priv_init(now);
 	if (!ret)
 		ret = exec_init(now);

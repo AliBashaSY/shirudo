@@ -309,7 +309,7 @@ void sysinfo_gather(struct sysinfo *si)
 			sizeof(si->machine_id));
 	read_first_line("/proc/sys/kernel/random/boot_id", si->boot_id,
 			sizeof(si->boot_id));
-	(void)kernel_build_id_read(si->kernel_build_id);
+	kernel_build_id_read(si->kernel_build_id);
 
 	si->nproc = sysconf(_SC_NPROCESSORS_ONLN);
 	read_mem(&si->mem_total_kb, &si->mem_avail_kb);

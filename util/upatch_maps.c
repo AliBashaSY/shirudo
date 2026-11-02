@@ -54,8 +54,8 @@ static void resolve_map_location(struct map_view *v)
 	vbtf = btf__load_vmlinux_btf();
 	if (libbpf_get_error(vbtf))
 		vbtf = NULL;
-	(void)upatch_resolve_location(vbtf, v->upatch,
-				      v->location, sizeof(v->location));
+	upatch_resolve_location(vbtf, v->upatch,
+				v->location, sizeof(v->location));
 	if (vbtf)
 		btf__free(vbtf);
 }
@@ -719,7 +719,6 @@ char *upatch_map_format_percpu_sum(const struct map_view *v,
 		return is_signed ? xasprintf("%lld", (__s64)sum) :
 				   xasprintf("%llu", sum);
 	}
-	(void)btf_type;
 	return xstrdup("(unsupported width)");
 }
 
@@ -1096,7 +1095,6 @@ static int read_entries(int fd, struct map_view *v,
 
 	if (is_array_type(v->type)) {
 		__u32 take = v->max_entries;
-		size_t bytes;
 
 		if (cap && take > cap) {
 			take = cap;
@@ -1104,11 +1102,9 @@ static int read_entries(int fd, struct map_view *v,
 		}
 		if (take == 0)
 			return 0;
-		bytes = (size_t)take * sizeof(*v->entries);
 		v->entries = xcalloc(take, sizeof(*v->entries));
 		if (!v->entries)
 			return -ENOMEM;
-		(void)bytes;
 		for (i = 0; i < take; i++) {
 			void *key = xmalloc(v->key_size);
 			void *value = xmalloc(value_alloc);

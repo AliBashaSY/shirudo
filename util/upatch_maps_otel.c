@@ -1015,8 +1015,8 @@ static int validate_endpoint_security(struct otel_state *st)
 		ret = -EINVAL;
 		goto out;
 	}
-	(void)curl_url_get(url, CURLUPART_USER, &user, 0);
-	(void)curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
+	curl_url_get(url, CURLUPART_USER, &user, 0);
+	curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
 	if ((user && user[0]) || (password && password[0])) {
 		ret = -EINVAL;
 		goto out;
@@ -2120,8 +2120,8 @@ static int validate_s3_endpoint(struct otel_s3_state *st)
 		ret = -EINVAL;
 		goto out;
 	}
-	(void)curl_url_get(url, CURLUPART_USER, &user, 0);
-	(void)curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
+	curl_url_get(url, CURLUPART_USER, &user, 0);
+	curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
 	if ((user && user[0]) || (password && password[0]) ||
 	    strchr(st->endpoint, '?') || strchr(st->endpoint, '#')) {
 		ret = -EINVAL;

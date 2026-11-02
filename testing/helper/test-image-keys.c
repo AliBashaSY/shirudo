@@ -40,7 +40,6 @@ int keyring_holds_cert(key_serial_t ring, const __u8 *der,
 {
 	int i;
 
-	(void)ring;
 	for (i = 0; i < held_count; i++) {
 		__u8 *candidate = NULL;
 		size_t length = 0;
@@ -59,16 +58,12 @@ int keyring_holds_cert(key_serial_t ring, const __u8 *der,
 
 int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 {
-	(void)der;
-	(void)size;
-	(void)boot;
 	mutations++;
 	return -EPERM;
 }
 
 static int boot_count(void *opaque, __u32 *reset, __u32 *restart)
 {
-	(void)opaque;
 	*reset = 1;
 	*restart = 1;
 	return 0;
@@ -78,7 +73,6 @@ static int pcr_read(void *opaque, __u32 pcr, __u8 out[32])
 {
 	struct test_context *ctx = opaque;
 
-	(void)pcr;
 	memcpy(out, ctx->pcr, 32);
 	return 0;
 }
@@ -87,7 +81,6 @@ static int pcr_extend(void *opaque, __u32 pcr, const __u8 event[32])
 {
 	struct test_context *ctx = opaque;
 
-	(void)pcr;
 	ctx->extends++;
 	return chain_fold_checked(ctx->pcr, event);
 }
@@ -97,7 +90,6 @@ static int prepare(void *opaque,
 {
 	struct test_context *ctx = opaque;
 
-	(void)target;
 	return ctx->live ? keys_check_image_set(ctx->set) : 0;
 }
 
@@ -106,7 +98,6 @@ static int activate(void *opaque,
 {
 	struct test_context *ctx = opaque;
 
-	(void)target;
 	ctx->activations++;
 	if (ctx->live && ctx->interrupt) {
 		ctx->interrupt = false;
@@ -117,8 +108,6 @@ static int activate(void *opaque,
 
 static int seal(void *opaque, int fd)
 {
-	(void)opaque;
-	(void)fd;
 	return 0;
 }
 

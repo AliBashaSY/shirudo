@@ -57,8 +57,6 @@ static int seal_label_cb(const char *path, const struct stat *sb,
 	char label[SEAL_LABEL_LEN];
 	int ret;
 
-	(void)typeflag;
-	(void)ftwbuf;
 	/*
 	 * Belt-and-suspenders with FTW_MOUNT: never label an inode on a
 	 * different filesystem (the bpffs mount), which is bpf2's domain

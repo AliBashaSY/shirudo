@@ -131,6 +131,12 @@ package for `bpm info`.
   `testing/`.
 - **Name a return code `ret`**, as the kernel does, and an errno from a
   callee that a function keeps beside the value it returns `err`.
+- **No `(void)` casts.** A function whose result a caller must not
+  drop is `__must_check`, and every call checks it; a fuzz target holds
+  what it parses to an invariant and `abort()`s when it breaks. A result
+  that callers may ignore belongs to a function that is not
+  `__must_check`. Unused parameters need nothing, as every build passes
+  `-Wno-unused-parameter`, and an unused variable is removed.
 - **Do not prefix internal names with `shirudo_` or `SHIRUDO_`.** A
   function or macro of shirudo's own code is named after what it is,
   `upatch_open()` and `NV_INDEX`, as in the kernel. The prefix stays

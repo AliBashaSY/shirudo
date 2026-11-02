@@ -195,8 +195,6 @@ static int test_activate(void *opaque,
 
 static int test_seal(void *opaque, int fd)
 {
-	(void)opaque;
-	(void)fd;
 	return getenv("SHIRUDO_TEST_CONFIG_SEAL_FAIL") ? -EPERM : 0;
 }
 
@@ -206,7 +204,6 @@ static int test_checkpoint(void *opaque,
 	const char *crash = getenv("SHIRUDO_TEST_CONFIG_CRASH");
 	const char *fail = getenv("SHIRUDO_TEST_CONFIG_FAIL");
 
-	(void)opaque;
 	if (crash && strtoul(crash, NULL, 10) == checkpoint)
 		_exit(99);
 	if (fail && strtoul(fail, NULL, 10) == checkpoint)

@@ -169,7 +169,7 @@ void __arena *bpf_arena_alloc_pages(void *map, void __arena *addr,
  */
 static __always_inline void obs_arena_associate(void)
 {
-	(void)bpf_arena_alloc_pages(&obs_i_arena, 0, 0, NUMA_NO_NODE, 0);
+	bpf_arena_alloc_pages(&obs_i_arena, 0, 0, NUMA_NO_NODE, 0);
 }
 
 static __always_inline __u64 obs_now(void)

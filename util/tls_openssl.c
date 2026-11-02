@@ -103,7 +103,6 @@ static void tls_info_callback(const SSL *ssl, int where, int ret)
 	const char *group, *host;
 	int group_id;
 
-	(void)ret;
 	if (!(where & SSL_CB_HANDSHAKE_DONE))
 		return;
 	group_id = SSL_get_negotiated_group((SSL *)ssl);

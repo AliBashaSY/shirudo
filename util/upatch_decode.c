@@ -26,7 +26,6 @@ int upatch_decode_map_json_limit(const struct map_view *v,
 				 size_t max_bytes,
 				 char **out, size_t *out_len)
 {
-	(void)max_bytes;
 	return upatch_decode_map_json(v, out, out_len);
 }
 
@@ -40,7 +39,6 @@ int upatch_decode_map_file_json(const char *path,
 				const struct map_view *v,
 				char **out, size_t *out_len)
 {
-	(void)path;
 	return upatch_decode_map_json(v, out, out_len);
 }
 
@@ -49,8 +47,6 @@ int upatch_decode_map_file_json_limit(const char *path,
 				      size_t max_bytes, char **out,
 				      size_t *out_len)
 {
-	(void)path;
-	(void)max_bytes;
 	return upatch_decode_map_json(v, out, out_len);
 }
 
@@ -58,7 +54,6 @@ int upatch_decode_map_file_otel(const char *path,
 				const struct map_view *v,
 				char **out, size_t *out_len)
 {
-	(void)path;
 	return upatch_decode_map_json(v, out, out_len);
 }
 
@@ -1021,7 +1016,6 @@ static void lua_budget_hook(lua_State *L, lua_Debug *ar)
 {
 	struct lua_budget *budget;
 
-	(void)ar;
 	budget = current_lua_budget;
 	if (!budget || --budget->remaining > 0)
 		return;

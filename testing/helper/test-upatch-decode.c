@@ -13,7 +13,6 @@
 
 static int dump_chunk(lua_State *L, const void *p, size_t sz, void *ud)
 {
-	(void)L;
 	return fwrite(p, 1, sz, ud) == sz ? 0 : 1;
 }
 

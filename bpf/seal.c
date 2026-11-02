@@ -152,7 +152,6 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct task_authority *authority;
 
-	(void)bprm;
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL, 0);
 	if (!authority)
 		return;
@@ -170,7 +169,6 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	struct task_authority *parent_authority;
 	struct task_authority *authority;
 
-	(void)clone_flags;
 	if (ret)
 		return ret;
 	parent_authority = bpf_task_storage_get(&shirudo_tasks, parent,
@@ -210,7 +208,6 @@ SEC("lsm/ptrace_access_check")
 int BPF_PROG(shirudo_seal_ptrace_access_check,
 	     struct task_struct *child, unsigned int mode, int ret)
 {
-	(void)mode;
 	if (ret)
 		return ret;
 
@@ -268,7 +265,6 @@ int BPF_PROG(shirudo_seal_inode_copy_up, struct dentry *src,
 {
 	struct inode *inode = src->d_inode;
 
-	(void)new;
 	if (ret)
 		return ret;
 	if (!inode || !bpf_inode_storage_get(&seal_dir_marks, inode, NULL, 0))

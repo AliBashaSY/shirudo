@@ -68,8 +68,6 @@ static int count_lines(const char *line, size_t len, void *ctx)
 {
 	__u32 *n = ctx;
 
-	(void)line;
-	(void)len;
 	(*n)++;
 	return 0;
 }

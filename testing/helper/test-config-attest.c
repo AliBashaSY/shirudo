@@ -25,7 +25,6 @@ static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 	struct tpm *tpm = NULL;
 	int ret;
 
-	(void)ctx;
 	ret = tpm_open(&tpm);
 	if (!ret)
 		ret = tpm_boot_identity(tpm, reset, restart);
@@ -38,7 +37,6 @@ static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
 	struct tpm *tpm = NULL;
 	int ret;
 
-	(void)ctx;
 	ret = tpm_open(&tpm);
 	if (!ret)
 		ret = tpm_pcr_read(tpm, pcr, out);
@@ -48,24 +46,17 @@ static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
 
 static int no_extend(void *ctx, __u32 pcr, const __u8 event[32])
 {
-	(void)ctx;
-	(void)pcr;
-	(void)event;
 	return -EPERM;
 }
 
 static int no_activate(void *ctx,
 		       const struct config_update_target *target)
 {
-	(void)ctx;
-	(void)target;
 	return -EPERM;
 }
 
 static int no_seal(void *ctx, int fd)
 {
-	(void)ctx;
-	(void)fd;
 	return 0;
 }
 

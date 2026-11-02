@@ -2366,7 +2366,7 @@ static int append_json_record(const char *path, const char *json, size_t len)
 		pr_warn("upatch map: could not roll back partial JSON append to %s: %s",
 			path, strerror(errno));
 out_unlock:
-	(void)flock(fd, LOCK_UN);
+	flock(fd, LOCK_UN);
 out:
 	if (close(fd) != 0 && !ret)
 		ret = -errno;

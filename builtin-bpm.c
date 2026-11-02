@@ -932,7 +932,6 @@ static int state_read(struct bpm_state_entry *st, int *n)
 	struct state_sink sink = { .items = st };
 	struct json_array arr = { on_state_entry, &sink };
 	struct json_field sub[4], root[1];
-	__s64 unused = 0;
 
 	ret = read_file(BPM_STATE_PATH, 8u * 1024u * 1024u,
 			&body, &len);
@@ -964,7 +963,6 @@ static int state_read(struct bpm_state_entry *st, int *n)
 		.key = "packages", .type = JSON_T_ARRAY,
 		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
 	};
-	(void)unused;
 	ret = json_parse((const char *)body, len, root, ARRAY_SIZE(root));
 	xfree(body, len + 1);
 	if (ret || !root[0].seen)
@@ -1146,7 +1144,6 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 	char old_loads[128][PATH_MAX];
 	char old_unloads[128][PATH_MAX];
 	int nloaded = 0, nactive = 0, nold = 0, nold_removed = 0;
-	(void)old_version;
 	ret = bpm_oci_parse_endpoint(s->endpoint, &c);
 	if (ret)
 		return ret;
@@ -1342,7 +1339,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 					ret = -EIO;
 					for (int restore_i = nold_removed - 1;
 					     restore_i >= 0; restore_i--)
-						(void)upatch_install(old_loads[restore_i]);
+						upatch_install(old_loads[restore_i]);
 					goto out;
 				}
 				nold_removed++;
@@ -1393,17 +1390,17 @@ rollback:
 			memcpy(unload + dir_len + 1 + name_len - strlen(".upatch"),
 			       ".unload.upatch", strlen(".unload.upatch") + 1);
 		}
-		(void)upatch_remove(unload);
+		upatch_remove(unload);
 	}
 	for (int restore_i = nold - 1; restore_i >= 0; restore_i--)
-		(void)upatch_install(old_loads[restore_i]);
+		upatch_install(old_loads[restore_i]);
 out:
 	bpm_buffer_free(&manifest);
 	if (ret && archive[0])
 		unlink(archive);
 	/* What failed to install must not block the next attempt. */
 	if (ret && extracted)
-		(void)remove_tree(package_dir);
+		remove_tree(package_dir);
 	return ret;
 }
 
@@ -1791,7 +1788,7 @@ static void tree_status_clear(const char *id)
 	    strsprintf(path, sizeof(path), "%s/%s",
 		       BPM_TREE_STATUS_DIR, id) < 0)
 		return;
-	(void)unlink(path);
+	unlink(path);
 }
 
 struct bpm_tree_pending {
@@ -1904,7 +1901,7 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	if (!op)
 		return -ERANGE;
 	if (pending.seq <= state->last_seq) {
-		(void)unlink(BPM_TREE_PENDING_PATH);
+		unlink(BPM_TREE_PENDING_PATH);
 		return 0;
 	}
 	if (tree_digest_hex(pending.operation_digest, digest) ||
@@ -1937,7 +1934,7 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	ret = tree_state_write(state);
 	if (ret)
 		return ret;
-	(void)unlink(BPM_TREE_PENDING_PATH);
+	unlink(BPM_TREE_PENDING_PATH);
 	return 0;
 }
 
@@ -2218,7 +2215,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("tree_status_write", op, ret);
 			goto out;
 		}
-		(void)unlink(BPM_TREE_PENDING_PATH);
+		unlink(BPM_TREE_PENDING_PATH);
 	}
 	if (!dry_run) {
 		state.generation = pub.generation;
@@ -2255,8 +2252,6 @@ static void bpm_tree_usage(void)
 static int remove_tree_entry(const char *path, const struct stat *st,
 			     int type, struct FTW *ftw)
 {
-	(void)st;
-	(void)ftw;
 	if (type == FTW_DP || type == FTW_D)
 		return rmdir(path) ? -1 : 0;
 	return unlink(path) ? -1 : 0;

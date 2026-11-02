@@ -416,7 +416,7 @@ static key_serial_t signature_key(int fd, char description[64])
 	if (syscall(__NR_keyctl, KEYCTL_SETPERM, key, 0x08000000, 0, 0) < 0) {
 		int ret = -errno;
 
-		(void)keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
+		keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
 		return ret;
 	}
 	return key;
@@ -537,11 +537,11 @@ out:
 	if (!ret)
 		ret = cleanup;
 	if (key >= 0)
-		(void)keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
+		keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
 	if (ret) {
 		if (created) {
 			dm_init(&buf, name);
-			(void)dm_command(control, DM_DEV_REMOVE, &buf);
+			dm_command(control, DM_DEV_REMOVE, &buf);
 		}
 		dm_verity_close(&device);
 	} else {
@@ -714,6 +714,6 @@ int dm_verity_mount(const struct dm_verity *device,
 		ret = dm_verity_inspect(device->name, &device->image,
 					&checked);
 	if (ret)
-		(void)umount2(mountpoint, 0);
+		umount2(mountpoint, 0);
 	return ret;
 }

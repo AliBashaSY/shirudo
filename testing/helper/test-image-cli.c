@@ -18,12 +18,6 @@ int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 				      struct tree_publication *pub,
 				      char *digest, size_t capacity)
 {
-	(void)client;
-	(void)repository;
-	(void)reference;
-	(void)pub;
-	(void)digest;
-	(void)capacity;
 	puts(certificate);
 	return 0;
 }

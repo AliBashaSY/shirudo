@@ -625,7 +625,6 @@ int BPF_PROG(obs_sock_graft, struct sock *sk, struct socket *parent)
 	struct net_key key = {};
 	__u64 now = obs_now();
 
-	(void)parent;
 	if (!sk)
 		return 0;
 	meta = obs_sock_meta_set(sk, OBS_ROLE_ACCEPTOR, now);
@@ -799,7 +798,6 @@ int BPF_PROG(obs_socket_accept, struct socket *sock, struct socket *newsock)
 	__u64 now = obs_now();
 	struct sock *sk;
 
-	(void)newsock;
 	if (!sock)
 		return 0;
 	sk = sock->sk;
@@ -818,8 +816,6 @@ int BPF_PROG(obs_socket_recvmsg, struct socket *sock, struct msghdr *msg,
 	__u64 now = obs_now();
 	struct sock *sk;
 
-	(void)msg;
-	(void)flags;
 	if (!sock)
 		return 0;
 	sk = sock->sk;
@@ -855,7 +851,6 @@ int BPF_PROG(obs_socket_shutdown, struct socket *sock, int how)
 	__u64 now = obs_now();
 	struct sock *sk;
 
-	(void)how;
 	if (!sock)
 		return 0;
 	sk = sock->sk;
@@ -874,7 +869,6 @@ int BPF_PROG(obs_socket_socketpair, struct socket *socka,
 	__u64 now = obs_now();
 	struct sock *sk;
 
-	(void)sockb;
 	if (!socka)
 		return 0;
 	sk = socka->sk;

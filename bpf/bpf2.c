@@ -213,9 +213,6 @@ int BPF_PROG(shirudo_lsm_task_prctl, int option, unsigned long arg2,
 	struct sb_id *id;
 	__u32 zero = 0;
 
-	(void)arg3;
-	(void)arg4;
-	(void)arg5;
 	if (ret && ret != -ENOSYS)
 		return ret;
 	if (option == PR_GET_ENFORCEMENT) {
@@ -341,7 +338,6 @@ int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
 	struct sb_id *id;
 	__u32 code, index;
 
-	(void)file;
 	if (ret)
 		return ret;
 	if (command_len < 10 ||

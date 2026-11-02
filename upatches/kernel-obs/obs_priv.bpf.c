@@ -249,8 +249,6 @@ int BPF_PROG(obs_mount, const char *dev_name, const struct path *path,
 	__u64 now = obs_now();
 	int status;
 
-	(void)dev_name;
-	(void)data;
 	obs_ident_checked(&ident, now);
 	e = priv_record(&ident, OBS_PRIV_MOUNT, (__u32)flags,
 			obs_current_euid(), now,
@@ -280,7 +278,6 @@ int BPF_PROG(obs_kernel_read_file, struct file *file,
 	__u64 now = obs_now();
 	int status;
 
-	(void)contents;
 	obs_ident_checked(&ident, now);
 	e = priv_record(&ident, OBS_PRIV_KERNEL_READ_FILE, (__u32)id,
 			obs_current_euid(), now,
@@ -301,7 +298,6 @@ int BPF_PROG(obs_kernel_load_data, enum kernel_load_data_id id, bool contents)
 	__u64 now = obs_now();
 	int status;
 
-	(void)contents;
 	obs_ident_checked(&ident, now);
 	priv_record(&ident, OBS_PRIV_KERNEL_LOAD_DATA, (__u32)id,
 		    obs_current_euid(), now, &status);
@@ -338,7 +334,6 @@ int BPF_PROG(obs_mmap_file, struct file *file, unsigned long reqprot,
 	__u32 euid;
 	int status;
 
-	(void)reqprot;
 	if (!(prot & OBS_PROT_EXEC))
 		return 0;
 	obs_ident_checked(&ident, now);
@@ -365,7 +360,6 @@ int BPF_PROG(obs_file_mprotect, struct vm_area_struct *vma,
 	__u32 euid;
 	int status;
 
-	(void)reqprot;
 	if (!(prot & OBS_PROT_EXEC))
 		return 0;
 	vm_flags = BPF_CORE_READ(vma, vm_flags);
@@ -437,8 +431,6 @@ int BPF_PROG(obs_bpf, int cmd, union bpf_attr *attr, unsigned int size,
 	__u64 now = obs_now();
 	int status;
 
-	(void)attr;
-	(void)size;
 	if (kernel || obs_bpf_cmd_readonly(cmd))
 		return 0;
 	obs_ident_checked(&ident, now);

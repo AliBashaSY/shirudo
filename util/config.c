@@ -225,9 +225,9 @@ static int config_parse(struct config *cfg, FILE *f,
 					       "expected 1..128 characters from "
 					       "A-Z, a-z, 0-9, '.', '_', '-'");
 			else
-				(void)set_string(cfg->map_export_tenant_id,
-						 sizeof(cfg->map_export_tenant_id),
-						 val);
+				set_string(cfg->map_export_tenant_id,
+					   sizeof(cfg->map_export_tenant_id),
+					   val);
 		} else if (strcmp(key, "map_export.otel_insecure") == 0) {
 			if (!parse_bool(val,
 					&cfg->map_export_otel_insecure))

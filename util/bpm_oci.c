@@ -201,7 +201,7 @@ static int decode_basic(const char *in, char *user, size_t usz,
 			char *pass, size_t psz)
 {
 	__u8 out[BPM_OCI_BASIC_RAW_SIZE];
-	size_t n = 0, i = 0;
+	size_t n = 0;
 	__u32 val = 0;
 	int bits = -8, x;
 	char *colon;
@@ -235,7 +235,6 @@ static int decode_basic(const char *in, char *user, size_t usz,
 	user[colon - (char *)out] = '\0';
 	memcpy(pass, colon + 1, n - (size_t)(colon - (char *)out) - 1);
 	pass[n - (size_t)(colon - (char *)out) - 1] = '\0';
-	(void)i;
 	return 0;
 }
 

@@ -480,7 +480,6 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 {
 	struct anchor_keys *k = ud;
 
-	(void)description;
 	if (strcmp(type, "asymmetric"))
 		return;
 	if (k->n >= ARRAY_SIZE(k->serials)) {
@@ -882,11 +881,11 @@ out:
 		for (i = 0; i < (int)ARRAY_SIZE(links); i++)
 			if (links[i])
 				bpf_link__unpin(links[i]);
-		(void)unlink(IDENTITY_PIN);
-		(void)unlink(TAMPER_PIN);
-		(void)unlink(BPFFS_DIR "/task_authority");
-		(void)unlink(BPFFS_DIR "/devices");
-		(void)unlink(BPFFS_DIR "/config_roots");
+		unlink(IDENTITY_PIN);
+		unlink(TAMPER_PIN);
+		unlink(BPFFS_DIR "/task_authority");
+		unlink(BPFFS_DIR "/devices");
+		unlink(BPFFS_DIR "/config_roots");
 	}
 	bpf_object__close(seal_obj);
 	bpf_link__destroy(link_bpf);
@@ -1330,7 +1329,6 @@ static int initrd_enter(void)
 	pr_info("initrd: %s bound writable at %s for config recovery",
 		src, VAR_LIB);
 	return 0;
-
 }
 
 static void initrd_leave(void)

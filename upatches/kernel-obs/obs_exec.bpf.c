@@ -152,7 +152,6 @@ int BPF_PROG(obs_task_alloc, struct task_struct *child, __u64 clone_flags)
 	struct task_struct *parent = bpf_get_current_task_btf();
 	struct obs_task_meta *meta, *inherited;
 
-	(void)clone_flags;
 	inherited = obs_task_meta(parent);
 	if (!inherited)
 		return 0;

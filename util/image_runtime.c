@@ -385,7 +385,6 @@ int image_runtime_mount(void)
 
 static int seal_fd(void *ctx, int fd)
 {
-	(void)ctx;
 	return fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
 			 strlen(SEAL_LABEL), 0) ?
 		       -errno :
@@ -622,14 +621,12 @@ static int prepare_update(void *ctx,
 static int activate_update(void *ctx,
 			   const struct config_update_target *target)
 {
-	(void)target;
 	return activate_config(ctx, false);
 }
 
 static int activate_boot(void *ctx,
 			 const struct config_update_target *target)
 {
-	(void)target;
 	return activate_config(ctx, true);
 }
 
@@ -946,7 +943,7 @@ static int status_config(int state)
 	image.config_state = state;
 	if (state == -EINPROGRESS &&
 	    !config_update_read(&image.update, &record))
-		(void)config_mount_check(&record);
+		config_mount_check(&record);
 	return 0;
 }
 
@@ -1043,7 +1040,7 @@ int image_status(void)
 
 void image_leave(void)
 {
-	(void)image_boot_keys_close();
+	image_boot_keys_close();
 	image_config_clear();
 	close_candidate();
 	collect_mappings();

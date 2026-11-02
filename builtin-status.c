@@ -332,7 +332,6 @@ static void print_system_human(const struct sysinfo *si)
 static void print_kernel_config_entry(void *ctx, const char *key,
 				      const char *value)
 {
-	(void)ctx;
 	printf("    %s=%s\n", key, value);
 }
 
@@ -1415,7 +1414,8 @@ int cmd_status(int argc, const char **argv)
 		status_reason(&cin, reason, sizeof(reason));
 		nc = conditions(&cin, conds, ARRAY_SIZE(conds));
 		n_rows = build_upatches_table(ups, n_ups, &rows);
-		(void)gethostname(hostname, sizeof(hostname));
+		if (gethostname(hostname, sizeof(hostname)))
+			strscpy(hostname, "?", sizeof(hostname));
 		hostname[sizeof(hostname) - 1] = '\0';
 
 		printf("Host:              %s\n", hostname);

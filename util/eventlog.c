@@ -242,7 +242,6 @@ static int adopt_seen(const char *line, size_t len, bool is_init, void *ctx)
 {
 	struct adopt_ctx *a = ctx;
 
-	(void)is_init;
 	if (len == a->len && memcmp(line, a->line, len) == 0)
 		a->found = true;
 	return 0;

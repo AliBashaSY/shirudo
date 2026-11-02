@@ -36,6 +36,5 @@ int shirudo_unload(void *ctx)
 	 * gaining those ops; until then the detach and
 	 * payload compare run in userspace.
 	 */
-	(void)ctx;
 	return 0;
 }
