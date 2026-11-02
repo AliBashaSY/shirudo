@@ -136,6 +136,39 @@ static bool output_is_input(int fd, const char *original,
 	       in.st_ino == out.st_ino;
 }
 
+/*
+ * The CMS covers the loader and the data but not the header, whose
+ * payload digest the target measures, so the digest is compared as well.
+ */
+static int verify_payload(const struct shirudo_upatch *u,
+			  const char *cert_path)
+{
+	__u8 digest[SHIRUDO_SHA256_LEN], *payload;
+	__u64 payload_len;
+	__u32 digest_len;
+	int rc;
+
+	payload_len = (__u64)u->hdr.loader_insns_len + u->hdr.data_len;
+	if (payload_len > SIZE_MAX)
+		return -EOVERFLOW;
+	payload = xmalloc((size_t)payload_len);
+	if (!payload)
+		return -ENOMEM;
+	memcpy(payload, upatch_loader(u), u->hdr.loader_insns_len);
+	memcpy(payload + u->hdr.loader_insns_len, upatch_data(u),
+	       u->hdr.data_len);
+	rc = bpm_verify_cms(payload, (size_t)payload_len,
+			    upatch_signature(u), u->hdr.signature_len,
+			    cert_path);
+	if (!rc && (EVP_Digest(payload, (size_t)payload_len, digest,
+			       &digest_len, EVP_sha256(), NULL) != 1 ||
+		    digest_len != sizeof(digest) ||
+		    memcmp(digest, u->hdr.payload_sha256, sizeof(digest))))
+		rc = -EBADMSG;
+	xfree(payload, (size_t)payload_len);
+	return rc;
+}
+
 static int package_resign_symbols(const char *original,
 				  const char *modified, const char *output,
 				  const struct shirudo_data_range *ranges,
@@ -149,12 +182,11 @@ static int package_resign_symbols(const char *original,
 	struct shirudo_rodata_range expected[16] = {};
 	const __u8 *src_data, *mod_data;
 	bool range_found[16] = {};
-	__u8 digest[SHIRUDO_SHA256_LEN], *payload = NULL, *sig_buf = NULL;
 	char name[SHIRUDO_UPATCH_NAME_MAX + 1];
 	__u32 loader_off, sig_off, data_off, meta_off;
-	__u32 digest_len;
-	__u64 total, payload_len;
+	__u8 *sig_buf = NULL;
 	size_t i, j;
+	__u64 total;
 	bool wrote = false;
 	int fd = -1;
 	int rc;
@@ -215,31 +247,9 @@ static int package_resign_symbols(const char *original,
 		rc = -EINVAL;
 		goto out;
 	}
-	if ((__u64)src.hdr.loader_insns_len + src.hdr.data_len > SIZE_MAX) {
-		rc = -EOVERFLOW;
-		goto out;
-	}
-	payload_len = (__u64)src.hdr.loader_insns_len + src.hdr.data_len;
-	payload = xmalloc((size_t)payload_len);
-	if (!payload) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	memcpy(payload, upatch_loader(&src), src.hdr.loader_insns_len);
-	memcpy(payload + src.hdr.loader_insns_len, upatch_data(&src),
-	       src.hdr.data_len);
-	rc = bpm_verify_cms(payload, (size_t)payload_len,
-			    upatch_signature(&src), src.hdr.signature_len,
-			    cert_path);
+	rc = verify_payload(&src, cert_path);
 	if (rc)
 		goto out;
-	if (EVP_Digest(payload, (size_t)payload_len, digest, &digest_len,
-		       EVP_sha256(), NULL) != 1 ||
-	    digest_len != sizeof(digest) ||
-	    memcmp(digest, src.hdr.payload_sha256, sizeof(digest))) {
-		rc = -EBADMSG;
-		goto out;
-	}
 	for (i = 0; i < nr_symbols; i++) {
 		rc = upatch_rodata_symbol_range(&src, symbols[i], &expected[i]);
 		if (rc)
@@ -331,8 +341,6 @@ out:
 		unlink(output);
 	if (sig_buf)
 		xfree(sig_buf, SHIRUDO_MAX_SIG_SIZE);
-	if (payload)
-		xfree(payload, (size_t)payload_len);
 	upatch_close(&mod);
 	upatch_close(&src);
 	return rc;
@@ -363,11 +371,9 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 	struct shirudo_rodata_range range = {};
 	struct shirudo_data_range allowed = {};
 	const char *symbols[1] = { symbol };
-	__u8 digest[SHIRUDO_SHA256_LEN], *payload = NULL, *candidate = NULL;
 	char modified[] = "/tmp/shirudo-rodata-XXXXXX";
+	__u8 *candidate = NULL;
 	bool created = false;
-	__u64 payload_len;
-	__u32 digest_len;
 	int fd = -1;
 	int rc;
 
@@ -381,31 +387,9 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 		rc = -EINVAL;
 		goto out;
 	}
-	payload_len = (__u64)src.hdr.loader_insns_len + src.hdr.data_len;
-	if (payload_len > SIZE_MAX) {
-		rc = -EOVERFLOW;
-		goto out;
-	}
-	payload = xmalloc((size_t)payload_len);
-	if (!payload) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	memcpy(payload, upatch_loader(&src), src.hdr.loader_insns_len);
-	memcpy(payload + src.hdr.loader_insns_len, upatch_data(&src),
-	       src.hdr.data_len);
-	rc = bpm_verify_cms(payload, (size_t)payload_len,
-			    upatch_signature(&src), src.hdr.signature_len,
-			    cert_path);
+	rc = verify_payload(&src, cert_path);
 	if (rc)
 		goto out;
-	if (EVP_Digest(payload, (size_t)payload_len, digest, &digest_len,
-		       EVP_sha256(), NULL) != 1 ||
-	    digest_len != sizeof(digest) ||
-	    memcmp(digest, src.hdr.payload_sha256, sizeof(digest))) {
-		rc = -EBADMSG;
-		goto out;
-	}
 	rc = upatch_rodata_symbol_range(&src, symbol, &range);
 	if (rc)
 		goto out;
@@ -447,8 +431,6 @@ out:
 		unlink(modified);
 	if (candidate)
 		xfree(candidate, src.map_size);
-	if (payload)
-		xfree(payload, (size_t)payload_len);
 	upatch_close(&src);
 	return rc;
 }
@@ -456,44 +438,13 @@ out:
 int shirudo_build_package_verify(const char *input, const char *cert_path)
 {
 	struct shirudo_upatch upatch = {};
-	__u8 digest[SHIRUDO_SHA256_LEN], *payload = NULL;
-	__u64 payload_len;
-	__u32 digest_len;
 	int rc;
 
 	rc = upatch_open(input, &upatch);
 	if (rc)
 		return rc;
-	if (upatch_is_unload(&upatch)) {
-		rc = -EINVAL;
-		goto out;
-	}
-	payload_len = (__u64)upatch.hdr.loader_insns_len + upatch.hdr.data_len;
-	if (payload_len > SIZE_MAX) {
-		rc = -EOVERFLOW;
-		goto out;
-	}
-	payload = xmalloc((size_t)payload_len);
-	if (!payload) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	memcpy(payload, upatch_loader(&upatch), upatch.hdr.loader_insns_len);
-	memcpy(payload + upatch.hdr.loader_insns_len, upatch_data(&upatch),
-	       upatch.hdr.data_len);
-	rc = bpm_verify_cms(payload, (size_t)payload_len,
-			    upatch_signature(&upatch), upatch.hdr.signature_len,
-			    cert_path);
-	if (rc)
-		goto out;
-	if (EVP_Digest(payload, (size_t)payload_len, digest, &digest_len,
-		       EVP_sha256(), NULL) != 1 ||
-	    digest_len != sizeof(digest) ||
-	    memcmp(digest, upatch.hdr.payload_sha256, sizeof(digest)))
-		rc = -EBADMSG;
-out:
-	if (payload)
-		xfree(payload, (size_t)payload_len);
+	rc = upatch_is_unload(&upatch) ? -EINVAL :
+	     verify_payload(&upatch, cert_path);
 	upatch_close(&upatch);
 	return rc;
 }
