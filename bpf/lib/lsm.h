@@ -9,18 +9,8 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 
-#ifndef EPERM
-#define EPERM	1
-#endif
-#ifndef EACCES
-#define EACCES	13
-#endif
-#ifndef ENOMEM
-#define ENOMEM	12
-#endif
-#ifndef ENOSYS
-#define ENOSYS	38
-#endif
+#include "errno.h"
+
 #ifndef FMODE_WRITE
 #define FMODE_WRITE	0x2
 #endif

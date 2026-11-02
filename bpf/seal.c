@@ -3,29 +3,7 @@
 
 /* Shirudo retains the writable-state label seal and trusts runtime execs. */
 #include "verity_policy.h"
-
-#ifndef ENOMEM
-#define ENOMEM		12
-#endif
-#ifndef EPERM
-#define EPERM		1
-#endif
-#ifndef EACCES
-#define EACCES		13
-#endif
-#ifndef ENODATA
-#define ENODATA		61
-#endif
-#ifndef EOPNOTSUPP
-#define EOPNOTSUPP	95
-#endif
-#ifndef FMODE_WRITE
-#define FMODE_WRITE	0x2
-#endif
-
-#define XATTR	"security.bpf.shirudo"
-/* The label is a SHA-256 hex string (util/seal.h) -- always 64 bytes. */
-#define LABEL_LEN	64
+#include "xattr.h"
 
 /*
  * Xattr kfuncs may sleep and need dynptr-backed map memory. Task storage keeps
