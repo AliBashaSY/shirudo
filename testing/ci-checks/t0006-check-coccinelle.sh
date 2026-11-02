@@ -5,8 +5,8 @@
 # t0006 -- .github/scripts/check-coccinelle.sh: a rule that matches fails the
 # check with file, line, rule and message, one that does not passes it,
 # a rule that can rewrite does with -D patch, a rule reads the headers
-# its #spatch line asks for, on a throwaway repository, and the tree
-# itself.
+# its #spatch line asks for, on a throwaway repository, each rule taken
+# from CERT C reports a sample of what it refuses, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -61,6 +61,88 @@ test_expect_success 'a rule rewrites what it finds with -D patch' '
 		--sp-file testing/coccinelle/zero_init.cocci bad.c) &&
 	grep -q "= {};" "$R/bad.c" &&
 	check
+'
+
+# One case of what each rule taken from CERT C and ISO/IEC TS 17961
+# refuses. A rule the tree gives no match proves nothing until it matches
+# here.
+CERT_RULES="errno_clobber positive_errno double_close wrong_test scaled_arith fclose_unchecked"
+write_samples() {
+	cat >"$1" <<'EOF'
+int clobber_stored(const char *path, int other)
+{
+	int fd = open(path, O_RDONLY);
+
+	close(other);
+	if (fd < 0)
+		return -errno;
+	return fd;
+}
+
+int clobber_tested(int fd)
+{
+	if (fsync(fd)) {
+		close(fd);
+		return -errno;
+	}
+	return 0;
+}
+
+int positive(int x)
+{
+	if (x)
+		return EINVAL;
+	return 0;
+}
+
+int reuse(int fd)
+{
+	close(fd);
+	return fsync(fd);
+}
+
+int untested(const char *path, int other)
+{
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (other < 0)
+		return -1;
+	return fd;
+}
+
+unsigned int scaled(unsigned int *words)
+{
+	return *(words + sizeof(struct hdr));
+}
+
+int unflushed(const char *path)
+{
+	FILE *f = fopen(path, "w");
+
+	if (!f)
+		return -1;
+	fputs("x", f);
+	fclose(f);
+	return 0;
+}
+EOF
+}
+
+test_expect_success 'each rule taken from CERT C reports its sample' '
+	R2=$W/samples &&
+	mkdir -p "$R2/testing/coccinelle" &&
+	git init -q "$R2" &&
+	for r in $CERT_RULES; do
+		cp "$ROOT/testing/coccinelle/$r.cocci" "$R2/testing/coccinelle/" ||
+			exit 1
+	done &&
+	write_samples "$R2/samples.c" &&
+	! (cd "$R2" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	for r in $CERT_RULES; do
+		grep -q "^$r: samples.c:" "$W/err" || exit 1
+	done &&
+	grep -q "6 of 6 rules matched" "$W/err"
 '
 
 test_expect_success 'the tree passes' '

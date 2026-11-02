@@ -622,10 +622,31 @@ can rewrite what it finds does so with ``-D patch``:
      - A ``char`` array too short for the NUL of the literal it holds, a
        ``char`` that keeps what ``getc()`` returns, and ``getenv()``
        passed on unchecked, after the CERT C rules.
+   * - ``errno_clobber``
+     - A cleanup call, such as ``close()``, between a failure and the
+       read of its ``errno``, after CERT C ERR30-C.
+   * - ``positive_errno``
+     - A bare error number or ``errno`` returned or put in ``ret``,
+       where a negative error number belongs.
+   * - ``double_close``
+     - A descriptor passed to a call after it was closed, after CERT C
+       FIO46-C.
+   * - ``wrong_test``
+     - A test for a negative value or ``NULL``, right after an
+       assignment, of another variable than the one assigned.
+   * - ``scaled_arith``
+     - A ``sizeof`` added to a pointer to anything wider than a byte,
+       after CERT C ARR39-C.
+   * - ``fclose_unchecked``
+     - ``fclose()`` of a stream opened for writing with its result
+       ignored, after CERT C ERR33-C.
 
 A new pattern worth refusing gets a rule: write it from scratch under
 the BSD-2-Clause, with a header that says why the pattern is refused,
-fix the tree in the commits before it, and add it to the table.
+fix the tree in the commits before it, and add it to the table. A rule
+exists only to run in CI. Where the tree gives it no match, add a case
+of what it refuses to ``t0006-check-coccinelle``, which shows that it
+matches.
 ``check-coccinelle.sh`` runs a rule without the headers a file
 includes, which keeps it fast but leaves the types they declare
 unknown. A rule that needs them, as ``sizeof_ptr`` needs the type of a
