@@ -2,13 +2,15 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * ARRAY_SIZE(), min() and max(), ptr_to_u64() and shirudo_trunc() for
- * userspace, with the kernel's types from <shirudo/types.h>.
+ * ARRAY_SIZE(), offsetofend(), min() and max(), ptr_to_u64() and
+ * shirudo_trunc() for userspace, with the kernel's types from
+ * <shirudo/types.h>.
  */
 
 #ifndef SHIRUDO_MISC_H
 #define SHIRUDO_MISC_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -20,6 +22,14 @@
 	BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a),	\
 						       typeof(&(a)[0])))
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof((a)[0]) + __must_be_array(a))
+
+/*
+ * The size of a member, and the offset just past it, without an object;
+ * the member may be a path such as a.b, as offsetof() takes it.
+ */
+#define sizeof_field(type, ...)	sizeof(((type *)0)->__VA_ARGS__)
+#define offsetofend(type, ...)						\
+	(offsetof(type, __VA_ARGS__) + sizeof_field(type, __VA_ARGS__))
 
 /*
  * Each argument is evaluated once, and arguments of two types refuse to

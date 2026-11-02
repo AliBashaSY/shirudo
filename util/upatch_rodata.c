@@ -181,8 +181,7 @@ static int find_rodata_data(const struct shirudo_upatch *u,
 			char name[BPF_OBJ_NAME_LEN + 1];
 
 			if (attr_size > sizeof(attr) ||
-			    attr_size < offsetof(union bpf_attr, map_name) +
-					 BPF_OBJ_NAME_LEN ||
+			    attr_size < offsetofend(union bpf_attr, map_name) ||
 			    attr_off > u->hdr.data_len ||
 			    attr_size > u->hdr.data_len - attr_off)
 				return -EINVAL;
