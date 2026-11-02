@@ -92,7 +92,7 @@
       "upatch_name": "cve-2026-63984-candidate-bpf-obs"
     }
   ],
-  "schema": 3,
+  "schema": 1,
   "selection": {
     "deduplicate_cve": true,
     "include_all": false,

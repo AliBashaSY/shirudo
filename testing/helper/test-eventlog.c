@@ -40,7 +40,7 @@ static int append_init(const char *path, const char *bound_in,
 	hex_encode(zero, SHIRUDO_TPM_NAME_LEN, name_hex);
 	hex_encode(modulus, sizeof(modulus), writer_hex);
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");

@@ -69,7 +69,7 @@ Every record carries these fields:
      - Value
    * - ``schema``
      - integer
-     - ``2``
+     - ``1``
    * - ``ts``
      - string
      - Time of the append, ISO 8601 UTC, for example
@@ -314,7 +314,7 @@ The ``upatch_load`` record of that eventlog, one line:
 
 .. code-block:: json
 
-   {"schema":2,"ts":"2026-10-29T16:21:19Z","nv_index":"0x01818E00","alg":"sha256","digest":"d979b373d4e5c59775c06c3bee5fd868d9d033db5403b290b61b512d4a293597","type":"upatch_load","boot_id":"743acb26-a7ee-405d-b45a-600484470644","upatch":{"name":"shirudo-test-basic","payload_sha256":"8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"}}
+   {"schema":1,"ts":"2026-10-29T16:21:19Z","nv_index":"0x01818E00","alg":"sha256","digest":"d979b373d4e5c59775c06c3bee5fd868d9d033db5403b290b61b512d4a293597","type":"upatch_load","boot_id":"743acb26-a7ee-405d-b45a-600484470644","upatch":{"name":"shirudo-test-basic","payload_sha256":"8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"}}
 
 Its ``init`` record, indented here, with the 768 hex digits of
 ``nv_writer_public`` shortened:
@@ -322,7 +322,7 @@ Its ``init`` record, indented here, with the 768 hex digits of
 .. code-block:: json
 
    {
-     "schema": 2,
+     "schema": 1,
      "ts": "2026-10-29T16:17:38Z",
      "nv_index": "0x01818E00",
      "alg": "sha256",

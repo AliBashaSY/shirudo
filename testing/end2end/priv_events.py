@@ -373,7 +373,7 @@ def records_from(path):
     with open(path, encoding="utf-8") as stream:
         documents = [json.loads(line) for line in stream]
     document = next(doc for doc in documents if doc.get("map") == "priv")
-    assert document["schema"] == 2, document
+    assert document["schema"] == 1, document
     assert document["upatch"] == "kernel-obs", document
     assert document["interval"]["overflow"] == 0, document
     assert document["interval"]["lost"] == 0, document

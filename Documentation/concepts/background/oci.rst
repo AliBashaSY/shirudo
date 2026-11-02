@@ -133,9 +133,9 @@ manifest with shirudo's own media types:
        ``application/vnd.shirudo.bpm.index.signature.v1``.
    * - Tree publication
      - ``<repository>:<reference>``, ``stable`` by default
-     - ``application/vnd.shirudo.upatch.tree.v2+json`` and its detached
+     - ``application/vnd.shirudo.upatch.tree.v1+json`` and its detached
        CMS signature,
-       ``application/vnd.shirudo.upatch.tree.signature.v2``.
+       ``application/vnd.shirudo.upatch.tree.signature.v1``.
    * - Tree artifact
      - ``<repository>:upatch-<id>-<hex>``
      - One ``application/vnd.shirudo.upatch.v1`` layer, a signed

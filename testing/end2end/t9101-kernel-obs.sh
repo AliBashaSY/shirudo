@@ -63,7 +63,7 @@ assert {record["map"] for record in records} == expected, documents
 assert len(metrics) == 1, documents
 assert metrics[0][0]["name"] == "kernel_obs.watch_attempts", metrics
 for record in records:
-    assert record["schema"] == 2, record
+    assert record["schema"] == 1, record
     assert record["upatch"] == "kernel-obs", record
     assert isinstance(record["records"], list), record
     interval = record["interval"]

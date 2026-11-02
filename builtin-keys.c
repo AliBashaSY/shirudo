@@ -693,7 +693,7 @@ static int append_key_event(const char *type, const char *fp_hex,
 	hex_encode(event, 32, digest_hex);
 
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");

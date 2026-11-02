@@ -1892,7 +1892,7 @@ static int tree_measure_locked(const struct shirudo_tree_operation *op,
 	hex_encode(chain, 32, chain_hex);
 	e = (struct shirudo_json_emit){ .buf = line, .cap = sizeof(line) };
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");

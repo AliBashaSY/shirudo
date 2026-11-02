@@ -1067,7 +1067,7 @@ static int append_init_event(const struct shirudo_measured_upatch *set,
 	hex_encode(info->writer_public, sizeof(info->writer_public), writer_hex);
 
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");

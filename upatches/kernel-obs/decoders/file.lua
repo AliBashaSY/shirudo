@@ -66,7 +66,7 @@ function decode(input)
 		end
 	end
 	return {
-		schema = 2,
+		schema = 1,
 		upatch = input.upatch,
 		map = input.map,
 		interval = summary,

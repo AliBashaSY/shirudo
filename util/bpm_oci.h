@@ -49,9 +49,9 @@ struct shirudo_json_emit;
 #define BPM_EMPTY_CONFIG_MEDIA "application/vnd.oci.empty.v1+json"
 #define BPM_PUBLIC_KEY_ARTIFACT "application/vnd.shirudo.bpm.public-key.v1+der"
 #define BPM_PUBLIC_KEY_MEDIA "application/pkix-cert"
-#define BPM_TREE_MEDIA "application/vnd.shirudo.upatch.tree.v2+json"
-#define BPM_TREE_SIG_MEDIA "application/vnd.shirudo.upatch.tree.signature.v2"
-#define BPM_TREE_ARTIFACT "application/vnd.shirudo.upatch.tree.v2"
+#define BPM_TREE_MEDIA "application/vnd.shirudo.upatch.tree.v1+json"
+#define BPM_TREE_SIG_MEDIA "application/vnd.shirudo.upatch.tree.signature.v1"
+#define BPM_TREE_ARTIFACT "application/vnd.shirudo.upatch.tree.v1"
 #define BPM_MANIFEST_MEDIA "application/vnd.oci.image.manifest.v1+json"
 #define BPM_UPATCH_MEDIA "application/vnd.shirudo.upatch.v1"
 

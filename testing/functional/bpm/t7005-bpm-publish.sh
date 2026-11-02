@@ -129,7 +129,7 @@ for layer in manifest["layers"]:
     blob = (repo / "blobs" / layer["digest"]).read_bytes()
     assert len(blob) == layer["size"], layer
     kind = "sig" if layer["mediaType"].endswith(".signature.v1") or \
-        layer["mediaType"].endswith(".signature.v2") else "payload"
+        layer["mediaType"].endswith(".signature.v1") else "payload"
     pathlib.Path(f"{out}.{kind}").write_bytes(blob)
 pathlib.Path(f"{out}.artifact_type").write_text(manifest["artifactType"])
 PY
@@ -215,7 +215,7 @@ test_expect_success 'bpm tree append creates a signed first-generation publicati
 	grep -q "^oci://$REGISTRY/ns/tree:stable sha256:" "$WORK/append1.out" &&
 	cp "$REG/ns/tree/manifests/stable" "$WORK/tree1.manifest" &&
 	split_layers "$WORK/tree1.manifest" "$REG/ns/tree" "$WORK/tree1" &&
-	grep -qx "application/vnd.shirudo.upatch.tree.v2" "$WORK/tree1.artifact_type" &&
+	grep -qx "application/vnd.shirudo.upatch.tree.v1" "$WORK/tree1.artifact_type" &&
 	cms_verify "$WORK/tree1.sig" "$WORK/tree1.payload"
 '
 
@@ -231,7 +231,7 @@ import hashlib, json, pathlib, sys
 pub = json.loads(pathlib.Path(sys.argv[1]).read_bytes())
 repo, registry = pathlib.Path(sys.argv[2]), sys.argv[3]
 load = json.load(open(sys.argv[4]))
-assert pub["schema"] == 2 and pub["tree_id"] == "t7005", pub
+assert pub["schema"] == 1 and pub["tree_id"] == "t7005", pub
 assert pub["generation"] == 1 and "parent_manifest_digest" not in pub, pub
 assert pub["base"] == {"seq": 0} and pub["head"] == {"seq": 1}, pub
 assert len(pub["operations"]) == 1, pub

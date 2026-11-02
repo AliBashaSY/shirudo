@@ -477,7 +477,7 @@ references = ("stable", "updated", "deleted", "restored")
 for generation, reference in enumerate(references, start=1):
     head = generation + 1
     publication = {
-        "schema": 2,
+        "schema": 1,
         "tree_id": "shirudo-test-tree",
         "generation": generation,
         "base": {"seq": 0},
@@ -529,9 +529,9 @@ for reference in ("stable", "updated", "deleted", "restored"):
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.manifest.v1+json",
         "layers": [
-            {"mediaType": "application/vnd.shirudo.upatch.tree.v2+json",
+            {"mediaType": "application/vnd.shirudo.upatch.tree.v1+json",
              "digest": payload_digest, "size": len(payload)},
-            {"mediaType": "application/vnd.shirudo.upatch.tree.signature.v2",
+            {"mediaType": "application/vnd.shirudo.upatch.tree.signature.v1",
              "digest": signature_digest, "size": len(signature)},
         ],
     }

@@ -143,7 +143,7 @@ target reads:
      - 1
      - The target refuses the index (``EINVAL``).
    * - Tree publication ``schema``
-     - 2
+     - 1
      - The target refuses the publication (``EINVAL``).
    * - ``build-environment.json`` ``format_version``
      - 1
@@ -162,7 +162,7 @@ Documents the target writes for operators, collectors and scripts:
      - Number
      - Reader on another value
    * - Eventlog record ``schema``
-     - 2
+     - 1
      - Not checked by ``status``, ``init``, ``attest`` or ``attest
        verify``. See :doc:`/reference/formats/eventlog`.
    * - Evidence document ``schema``, with ``kind``

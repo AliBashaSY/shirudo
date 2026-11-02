@@ -568,7 +568,7 @@ int tree_parse(const char *body, size_t len,
 	tp_ws(&p);
 	if (p.p != p.end || !seen_schema || !seen_generation || !seen_base ||
 	    !seen_base_seq || !seen_operations || !seen_head || !seen_head_seq ||
-	    schema != 2 || !out->tree_id[0] ||
+	    schema != 1 || !out->tree_id[0] ||
 	    out->generation < 0 || out->generation == INT64_MAX ||
 	    out->base_seq < 0 || out->head_seq < out->base_seq ||
 	    out->head_seq == INT64_MAX) {

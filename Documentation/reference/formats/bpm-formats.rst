@@ -310,14 +310,14 @@ Tree objects in the registry
      - At ``<repository>:<reference>``, ``stable`` unless
        ``--reference`` names another tag. OCI image manifest,
        ``schemaVersion`` 2, ``artifactType``
-       ``application/vnd.shirudo.upatch.tree.v2``, the empty config, and
+       ``application/vnd.shirudo.upatch.tree.v1``, the empty config, and
        exactly one document layer and one signature layer.
    * - Document layer
      - The publication document, media type
-       ``application/vnd.shirudo.upatch.tree.v2+json``.
+       ``application/vnd.shirudo.upatch.tree.v1+json``.
    * - Signature layer
      - Detached CMS signature over the document layer's bytes, media type
-       ``application/vnd.shirudo.upatch.tree.signature.v2``.
+       ``application/vnd.shirudo.upatch.tree.signature.v1``.
    * - Artifact manifest
      - One per operation, tagged ``upatch-<id>-<payload16>``, where
        ``<payload16>`` is the first 16 hex digits of the artifact's
@@ -332,7 +332,7 @@ Publication document
 
 .. code-block:: text
 
-   {"schema": 2,
+   {"schema": 1,
     "tree_id": "<tree-id>",
     "generation": <n>,
     "parent_manifest_digest": "sha256:<hex>",
@@ -347,7 +347,7 @@ Publication document
    * - Key
      - Value
    * - ``schema``
-     - ``2``. Required.
+     - ``1``. Required.
    * - ``tree_id``
      - Non-empty. Required.
    * - ``generation``

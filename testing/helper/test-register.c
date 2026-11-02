@@ -89,7 +89,7 @@ static int append_init(const __u8 event[32],
 	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");
@@ -131,7 +131,7 @@ static int append_event(const char *type, const char *name,
 	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");
@@ -163,7 +163,7 @@ static int append_tree(__s64 seq, const char *op, const char *id,
 	eventlog_boot_id(boot_id, sizeof(boot_id));
 	snprintf(nv_index, sizeof(nv_index), "0x%08X", SHIRUDO_NV_INDEX);
 	json_obj_open(&e);
-	json_kv_int(&e, "schema", 2);
+	json_kv_int(&e, "schema", 1);
 	json_kv_string(&e, "ts", ts);
 	json_kv_string(&e, "nv_index", nv_index);
 	json_kv_string(&e, "alg", "sha256");
@@ -552,7 +552,7 @@ int main(int argc, char **argv)
 		json_obj_close(&e);
 		json_arr_open(&e, "eventlog");
 		json_obj_open(&e);
-		json_kv_int(&e, "schema", 2);
+		json_kv_int(&e, "schema", 1);
 		json_kv_string(&e, "ts", ts);
 		json_kv_string(&e, "nv_index", nv_index);
 		json_kv_string(&e, "alg", "sha256");

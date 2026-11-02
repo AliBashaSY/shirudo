@@ -124,7 +124,7 @@ once per page:
    * - Context field
      - Meaning
    * - ``magic``, ``version``
-     - ``SHIRUDO_SERIAL_MAGIC`` and ``SHIRUDO_SERIAL_VERSION``, 3
+     - ``SHIRUDO_SERIAL_MAGIC`` and ``SHIRUDO_SERIAL_VERSION``, 1
    * - ``flags``
      - ``SHIRUDO_SERIAL_CTX_F_PEEK`` when the reader asks for a peek
    * - ``max_chunks``

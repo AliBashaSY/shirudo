@@ -737,7 +737,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	rc = bpm_tree_fetch_publication(&c, repository, reference, cert, &pub,
 					parent, sizeof(parent));
 	if (rc == -ENOENT) {
-		pub = (struct shirudo_tree_publication){ .schema = 2,
+		pub = (struct shirudo_tree_publication){ .schema = 1,
 							 .generation = 1 };
 		parent[0] = '\0';
 		if (tree_id)
@@ -755,7 +755,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		}
 		pub.generation++;
 	}
-	pub.schema = 2;
+	pub.schema = 1;
 	if (!pub.tree_id[0])
 		bpm_copy_string(pub.tree_id, sizeof(pub.tree_id), info.name);
 	bpm_copy_string(pub.parent_manifest_digest,

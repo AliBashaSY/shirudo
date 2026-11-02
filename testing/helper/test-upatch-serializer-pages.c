@@ -45,11 +45,11 @@ static int check_abi_and_nonce(void)
 		.invocation_id = 0x12345678,
 	};
 
-	if (SHIRUDO_SERIAL_VERSION != 3 ||
+	if (SHIRUDO_SERIAL_VERSION != 1 ||
 	    sizeof(struct shirudo_serialize_ctx) != 40 ||
 	    sizeof(struct shirudo_serial_chunk) != 4096 ||
 	    SHIRUDO_SERIAL_CHUNK_PAYLOAD != 4032)
-		return fail("serializer v3 ABI layout mismatch");
+		return fail("serializer v1 ABI layout mismatch");
 	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x12345678) != 0)
 		return fail("valid serializer nonce rejected");
 	if (serial_chunk_validate(&chunk, 1, 2, 3, 10, 11, 0x87654321) != -EBADMSG)
