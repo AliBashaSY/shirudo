@@ -193,9 +193,9 @@ variables change it:
        libbpf included. Fix the warning instead of keeping this set.
    * - ``CC=clang``
      - Compiles the userspace objects with clang rather than ``cc``. CI
-       builds with both compilers at the same flags: the packages and
-       every commit of a pull request with gcc, and the ``clang`` job of
-       the ``Build`` workflow with clang, which also runs the unit tests.
+       builds with both compilers at the same flags and runs the unit
+       tests against each, in the ``gcc`` and ``clang`` jobs of the
+       ``Build`` workflow.
    * - ``SHIRUDO_DEBUG=0``
      - Leaves out ``-g``.
    * - ``SANITIZE=address,undefined``

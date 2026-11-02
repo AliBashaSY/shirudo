@@ -15,24 +15,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  clang:
-    name: clang
+  compiler:
+    name: ${{ matrix.cc }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        cc:
+          - gcc
+          - clang
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The packages and every commit build with gcc; clang otherwise
-      # compiles only the sanitized build, which leaves out
-      # _FORTIFY_SOURCE=3 and the frame size limit. The BPF objects need
-      # the BTF of a signed-BPF capable bpf-next kernel, so the build runs
-      # in the same LVH VM as the package build.
-      - name: Build with clang and run the unit tests in LVH VM
+      # Each compiler at the default flags, then the unit tests. The
+      # sanitized builds leave out _FORTIFY_SOURCE=3 and the frame size
+      # limit, and the package and per-commit builds run no unit tests.
+      # The BPF objects need the BTF of a signed-BPF capable bpf-next
+      # kernel, so the build runs in the same LVH VM as the package build.
+      - name: Build with ${{ matrix.cc }} and run the unit tests in LVH VM
         uses: cilium/little-vm-helper@f86d344aca812dda5aef167867a9a0a90ca6cca5 # v0.0.31
         with:
-          test-name: shirudo-build-clang
+          test-name: shirudo-build-${{ matrix.cc }}
           image: kind
           image-version: bpf-next-20260603.072225
           kernel-version: bpf-next-main
@@ -45,10 +52,10 @@ jobs:
             cd /host
             .github/scripts/vm-toolchain.sh
             . build/vm-toolchain.env
-            make -j4 CC=clang
-            make CC=clang shirudo-build
-            make -C testing CC=clang test-helpers
-            make -C testing CC=clang unit
+            make -j4 CC=${{ matrix.cc }}
+            make CC=${{ matrix.cc }} shirudo-build
+            make -C testing CC=${{ matrix.cc }} test-helpers
+            make -C testing CC=${{ matrix.cc }} unit
             sh .github/scripts/check-operator-linkage.sh shirudo \
               tools/shirudo-build/shirudo-build
 
