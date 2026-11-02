@@ -3,10 +3,10 @@
 The following people, in alphabetical order, are the core maintainers
 of the shirudo project:
 
- * [Daniel Borkmann] (Isovalent)
- * [John Fastabend] (Isovalent)
+ * [Daniel Borkmann] (Isovalent at Cisco)
+ * [John Fastabend] (Isovalent at Cisco)
  * [KP Singh]
- * [Michi Mutsuzaki] (Isovalent)
+ * [Michi Mutsuzaki] (Isovalent at Cisco)
  * [Puranjay Mohan] (Meta)
 
 [John Fastabend]: https://github.com/jrfastab
