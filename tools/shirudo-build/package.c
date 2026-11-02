@@ -699,12 +699,13 @@ static int split_uprobe_target(const char *src, char **path,
 static int split_probe_target(const char *src, char *target,
 			      size_t target_sz, __u64 *offset)
 {
-	const char *plus = strrchr(src, '+');
+	const char *plus;
 	size_t len;
 
 	*offset = 0;
 	if (!src || !src[0])
 		return -EINVAL;
+	plus = strrchr(src, '+');
 	if (plus) {
 		const char *num = plus + 1;
 		size_t n = strlen(num);
