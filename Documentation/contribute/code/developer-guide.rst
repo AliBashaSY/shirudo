@@ -191,6 +191,11 @@ variables change it:
      - Lets a compiler newer than the tree finish the build. A warning
        fails every build by default, the BPF objects and the vendored
        libbpf included. Fix the warning instead of keeping this set.
+   * - ``CC=clang``
+     - Compiles the userspace objects with clang rather than ``cc``. CI
+       builds with both compilers at the same flags: the packages and
+       every commit of a pull request with gcc, and the ``clang`` job of
+       the ``Build`` workflow with clang, which also runs the unit tests.
    * - ``SHIRUDO_DEBUG=0``
      - Leaves out ``-g``.
    * - ``SANITIZE=address,undefined``
