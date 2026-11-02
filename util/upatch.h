@@ -141,4 +141,26 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		     __u32 nr_progs, struct shirudo_prog_spec **out);
 void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
 
+/*
+ * The target's upatch lifecycle, which builtin-upatch.c implements for
+ * init, bpm and keys: load, install, unload.
+ */
+int shirudo_upatch_apply(const char *path);
+int shirudo_upatch_install(const char *path);
+int shirudo_upatch_remove(const char *path);
+
+/*
+ * shirudo_upatch_install() when the signed payload is valid but its
+ * kprobe target is not there, because the module that has it is not
+ * loaded.
+ */
+#define UPATCH_INSTALL_TARGET_MISSING	2
+
+/*
+ * Detach, unpin and unarchive without a directive, because the key
+ * that signed the upatch was revoked: 1 when the unload was measured,
+ * 0 when only the archive went, -errno otherwise.
+ */
+int shirudo_upatch_purge(const char *name, const char *reason);
+
 #endif /* SHIRUDO_UTIL_UPATCH_H */
