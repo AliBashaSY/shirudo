@@ -240,6 +240,47 @@ static void xasprintf_allocates_the_size_needed(void)
 	xstrfree(s);
 }
 
+static void dns_name_is_ldh_labels_and_no_address(void)
+{
+	char label[65], name[300];
+
+	EXPECT_TRUE(dns_name_valid("registry.example.com"));
+	EXPECT_TRUE(dns_name_valid("Reg-1.Example"));
+	EXPECT_TRUE(dns_name_valid("localhost"));
+	EXPECT_TRUE(dns_name_valid("1.2.3.example"));
+	EXPECT_TRUE(dns_name_valid("0x.1"));
+	EXPECT_FALSE(dns_name_valid(""));
+	EXPECT_FALSE(dns_name_valid("."));
+	EXPECT_FALSE(dns_name_valid("example..com"));
+	EXPECT_FALSE(dns_name_valid("example.com."));
+	EXPECT_FALSE(dns_name_valid("-example.com"));
+	EXPECT_FALSE(dns_name_valid("example-.com"));
+	EXPECT_FALSE(dns_name_valid("exa_mple.com"));
+	EXPECT_FALSE(dns_name_valid("example.com:443"));
+	EXPECT_FALSE(dns_name_valid("10.0.2.2"));
+	EXPECT_FALSE(dns_name_valid("127.1"));
+	EXPECT_FALSE(dns_name_valid("0x7f.1"));
+	EXPECT_FALSE(dns_name_valid("2130706433"));
+
+	memset(label, 'a', 63);
+	label[63] = '\0';
+	ASSERT_TRUE(strsprintf(name, sizeof(name), "%s.example", label) > 0);
+	EXPECT_TRUE(dns_name_valid(name));
+	memset(label, 'a', 64);
+	label[64] = '\0';
+	ASSERT_TRUE(strsprintf(name, sizeof(name), "%s.example", label) > 0);
+	EXPECT_FALSE(dns_name_valid(name));
+
+	memset(label, 'a', 63);
+	label[63] = '\0';
+	ASSERT_TRUE(strsprintf(name, sizeof(name), "%s.%s.%s.%.61s", label,
+			       label, label, label) == 253);
+	EXPECT_TRUE(dns_name_valid(name));
+	ASSERT_TRUE(strsprintf(name, sizeof(name), "%s.%s.%s.%.62s", label,
+			       label, label, label) == 254);
+	EXPECT_FALSE(dns_name_valid(name));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -255,6 +296,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(strsprintf_writes_what_fits_whole),
 	UNIT_CASE(strsprintf_leaves_nothing_when_cut),
 	UNIT_CASE(xasprintf_allocates_the_size_needed),
+	UNIT_CASE(dns_name_is_ldh_labels_and_no_address),
 	{}
 };
 

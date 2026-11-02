@@ -21,6 +21,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "config.h"
 #include "crypto.h"
@@ -32,62 +33,6 @@
 #define SHIRUDO_TLS_GROUPS	"*X25519MLKEM768:SecP256r1MLKEM768"
 #define SHIRUDO_TLS_CLASSICAL_GROUPS \
 	"*X25519MLKEM768:SecP256r1MLKEM768:X25519:secp256r1"
-
-static bool numeric_dns_label(const char *label, size_t len)
-{
-	size_t i = 0;
-	bool hex = len > 2 && label[0] == '0' &&
-		   (label[1] == 'x' || label[1] == 'X');
-
-	if (!len)
-		return false;
-	if (hex)
-		i = 2;
-	for (; i < len; i++) {
-		__u8 c = label[i];
-
-		if (c >= '0' && c <= '9')
-			continue;
-		if (hex && ((c >= 'a' && c <= 'f') ||
-			    (c >= 'A' && c <= 'F')))
-			continue;
-		return false;
-	}
-	return !hex || i > 2;
-}
-
-static bool valid_dns_name(const char *name)
-{
-	size_t len = strlen(name), label_len = 0, label_start = 0;
-	bool numeric_address = true;
-	size_t i;
-
-	if (!len || len > 253)
-		return false;
-	for (i = 0; i < len; i++) {
-		__u8 c = name[i];
-
-		if (c == '.') {
-			if (!label_len || label_len > 63 || name[i - 1] == '-')
-				return false;
-			if (!numeric_dns_label(name + label_start, label_len))
-				numeric_address = false;
-			label_start = i + 1;
-			label_len = 0;
-			continue;
-		}
-		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		      (c >= '0' && c <= '9') || c == '-') ||
-		    (!label_len && c == '-'))
-			return false;
-		label_len++;
-	}
-	if (!label_len || label_len > 63 || name[len - 1] == '-')
-		return false;
-	if (!numeric_dns_label(name + label_start, label_len))
-		numeric_address = false;
-	return !numeric_address;
-}
 
 /*
  * Exceptions are exact DNS names from the active HTTPS URL. This also
@@ -122,7 +67,7 @@ static bool tls_classical_host_allowed(CURL *curl)
 	host_len = strlen(host);
 	if (host_len && host[host_len - 1] == '.')
 		host[--host_len] = '\0';
-	if (!valid_dns_name(host))
+	if (!dns_name_valid(host))
 		goto out;
 
 	while (*allowlist) {
@@ -133,7 +78,7 @@ static bool tls_classical_host_allowed(CURL *curl)
 		if (len < sizeof(entry)) {
 			memcpy(entry, allowlist, len);
 			entry[len] = '\0';
-			if (valid_dns_name(entry) && !strncasecmp(host, entry, len) &&
+			if (dns_name_valid(entry) && !strncasecmp(host, entry, len) &&
 			    host_len == len) {
 				allowed = true;
 				break;

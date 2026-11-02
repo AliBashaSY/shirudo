@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting, from util/string.c.
+ * Bounded number parsing, string copies and formatting, DNS names, from
+ * util/string.c.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -10,6 +11,7 @@
 
 #include <inttypes.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +51,13 @@ int strsprintf(char *buf, size_t size, const char *fmt, ...)
 	__printf(3, 4) __attribute__((warn_unused_result));
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 	__printf(3, 0) __attribute__((warn_unused_result));
+
+/*
+ * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63
+ * bytes each and 253 in all. A name whose labels are all decimal or 0x
+ * numbers is refused, as an IPv4 parser would read it as an address.
+ */
+bool dns_name_valid(const char *name);
 
 /*
  * What the functions above replace, refused once the headers included

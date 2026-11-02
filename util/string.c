@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting.
+ * Bounded number parsing, string copies and formatting, DNS names.
  */
 
 #include <errno.h>
@@ -108,6 +108,62 @@ ssize_t strscpy(char *dst, const char *src, size_t size)
 	}
 	memcpy(dst, src, len + 1);
 	return (ssize_t)len;
+}
+
+static bool numeric_dns_label(const char *label, size_t len)
+{
+	size_t i = 0;
+	bool hex = len > 2 && label[0] == '0' &&
+		   (label[1] == 'x' || label[1] == 'X');
+
+	if (!len)
+		return false;
+	if (hex)
+		i = 2;
+	for (; i < len; i++) {
+		__u8 c = label[i];
+
+		if (c >= '0' && c <= '9')
+			continue;
+		if (hex && ((c >= 'a' && c <= 'f') ||
+			    (c >= 'A' && c <= 'F')))
+			continue;
+		return false;
+	}
+	return !hex || i > 2;
+}
+
+bool dns_name_valid(const char *name)
+{
+	size_t len = strlen(name), label_len = 0, label_start = 0;
+	bool numeric_address = true;
+	size_t i;
+
+	if (!len || len > 253)
+		return false;
+	for (i = 0; i < len; i++) {
+		__u8 c = name[i];
+
+		if (c == '.') {
+			if (!label_len || label_len > 63 || name[i - 1] == '-')
+				return false;
+			if (!numeric_dns_label(name + label_start, label_len))
+				numeric_address = false;
+			label_start = i + 1;
+			label_len = 0;
+			continue;
+		}
+		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		      (c >= '0' && c <= '9') || c == '-') ||
+		    (!label_len && c == '-'))
+			return false;
+		label_len++;
+	}
+	if (!label_len || label_len > 63 || name[len - 1] == '-')
+		return false;
+	if (!numeric_dns_label(name + label_start, label_len))
+		numeric_address = false;
+	return !numeric_address;
 }
 
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)

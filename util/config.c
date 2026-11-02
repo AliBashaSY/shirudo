@@ -65,62 +65,6 @@ static bool set_string(char *dst, size_t cap, const char *val)
 	return strscpy(dst, val, cap) >= 0;
 }
 
-static bool numeric_dns_label(const char *label, size_t len)
-{
-	size_t i = 0;
-	bool hex = len > 2 && label[0] == '0' &&
-		   (label[1] == 'x' || label[1] == 'X');
-
-	if (!len)
-		return false;
-	if (hex)
-		i = 2;
-	for (; i < len; i++) {
-		__u8 c = label[i];
-
-		if (c >= '0' && c <= '9')
-			continue;
-		if (hex && ((c >= 'a' && c <= 'f') ||
-			    (c >= 'A' && c <= 'F')))
-			continue;
-		return false;
-	}
-	return !hex || i > 2;
-}
-
-static bool tls_dns_name_valid(const char *name)
-{
-	size_t len = strlen(name), label_len = 0, label_start = 0;
-	bool numeric_address = true;
-	size_t i;
-
-	if (!len || len > 253)
-		return false;
-	for (i = 0; i < len; i++) {
-		__u8 c = name[i];
-
-		if (c == '.') {
-			if (!label_len || label_len > 63 || name[i - 1] == '-')
-				return false;
-			if (!numeric_dns_label(name + label_start, label_len))
-				numeric_address = false;
-			label_start = i + 1;
-			label_len = 0;
-			continue;
-		}
-		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		      (c >= '0' && c <= '9') || c == '-') ||
-		    (!label_len && c == '-'))
-			return false;
-		label_len++;
-	}
-	if (!label_len || label_len > 63 || name[len - 1] == '-')
-		return false;
-	if (!numeric_dns_label(name + label_start, label_len))
-		numeric_address = false;
-	return !numeric_address;
-}
-
 static bool tls_classical_hosts_valid(const char *value)
 {
 	const char *host = value;
@@ -136,7 +80,7 @@ static bool tls_classical_hosts_valid(const char *value)
 			return false;
 		memcpy(name, host, len);
 		name[len] = '\0';
-		if (!tls_dns_name_valid(name))
+		if (!dns_name_valid(name))
 			return false;
 		if (!end)
 			break;
