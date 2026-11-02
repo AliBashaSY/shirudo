@@ -190,7 +190,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 	if (!f)
 		return -1;
 	while (fgets(line, sizeof(line), f)) {
-		char *key, *value, *eq, *not_set;
+		char *key, *value, *eq, *not_set, unset[] = "n";
 
 		line[strcspn(line, "\r\n")] = '\0';
 		key = trim_config_text(line);
@@ -203,7 +203,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 			if (!not_set || trim_config_text(not_set + 11)[0] != '\0')
 				continue;
 			*not_set = '\0';
-			value = "n";
+			value = unset;
 		} else {
 			eq = strchr(key, '=');
 			if (!eq)

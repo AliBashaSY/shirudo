@@ -2385,7 +2385,7 @@ static int bpm_exec_operator(const char *sub, int argc, const char **argv)
 	helper_argv[2] = sub;
 	for (int i = 3; i < argc + 1; i++)
 		helper_argv[i] = argv[i - 1];
-	ret = build_exec(label, (char **)helper_argv);
+	ret = build_exec(label, helper_argv);
 	xfree(helper_argv, ((size_t)argc + 2) * sizeof(*helper_argv));
 	return ret;
 }

@@ -19,7 +19,7 @@ void log_init(void)
  * not to the journal. Formatting still runs, so a message that reads
  * past what it prints is caught.
  */
-static void drop(const char *fmt, va_list ap)
+static __printf(1, 0) void drop(const char *fmt, va_list ap)
 {
 	char msg[8192];
 

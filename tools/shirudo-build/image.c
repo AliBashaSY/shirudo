@@ -43,7 +43,7 @@ static void image_usage(FILE *fp)
 static int __build_image(int argc, char **argv)
 {
 	char executable[PATH_MAX], script[PATH_MAX], directory[PATH_MAX];
-	char **command;
+	const char **command;
 	ssize_t size;
 	char *slash;
 	int i;
@@ -72,7 +72,7 @@ static int __build_image(int argc, char **argv)
 	command[2] = executable;
 	for (i = 2; i < argc; i++)
 		command[i + 1] = argv[i];
-	execv(script, command);
+	execv(script, (char *const *)command);
 	pr_err("image build: cannot run %s: %s", script, strerror(errno));
 	xfree(command, ((size_t)argc + 2) * sizeof(*command));
 	return 1;

@@ -80,7 +80,8 @@ WERROR ?= 1
 WERROR_CFLAGS := $(if $(filter 1,$(WERROR)),-Werror)
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
             -Wmissing-prototypes -Wpointer-arith -Wshadow \
-            -Wdeclaration-after-statement -Wformat-security \
+            -Wdeclaration-after-statement -Wformat-security -Wformat=2 \
+            -Wwrite-strings -Wundef \
             $(WERROR_CFLAGS)
 
 SHIRUDO_DEBUG ?= 1
@@ -891,7 +892,8 @@ unit-tests: $(UNIT_TESTS)
 # and the compiler runs both checks. sparse has no __has_include either,
 # which glibc 2.43 asks to find <linux/openat2.h> before declaring a
 # struct open_how of its own; __glibc_has_open_how gives the answer the
-# compiler would.
+# compiler would. sparse predefines no __FLT_EVAL_METHOD__, which
+# glibc's <math.h> tests, so -Wundef is the compiler's to check.
 SPARSE_TYPES_H ?= /usr/include/linux/types.h
 SPARSE_SRCS    := shirudo.c $(BUILTIN_SRCS) $(UTIL_SRCS) $(BUILD_SRCS)
 
@@ -899,7 +901,8 @@ SPARSE_SRCS    := shirudo.c $(BUILTIN_SRCS) $(UTIL_SRCS) $(BUILD_SRCS)
 sparse:
 	$(Q)for f in $(SPARSE_SRCS); do \
 		printf '  SPARSE  %s\n' "$$f"; \
-		cgcc -no-compile -Wsparse-error $(CFLAGS) -U_FORTIFY_SOURCE \
+		cgcc -no-compile -Wsparse-error $(CFLAGS) -Wno-undef \
+		     -U_FORTIFY_SOURCE \
 		     -DCURL_DISABLE_TYPECHECK -D__glibc_has_open_how=1 \
 		     -include $(SPARSE_TYPES_H) -D_UAPI_LINUX_TYPES_H \
 		     "$$f" || exit 1; \

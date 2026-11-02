@@ -1138,6 +1138,7 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 	     pair = strtok_r(NULL, ",", &save)) {
 		char *eq = strchr(pair, '=');
 		char *name, *value, *line;
+		const char *header;
 		bool tenant;
 		size_t n;
 
@@ -1170,15 +1171,15 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 				break;
 			}
 			tenant_seen = true;
-			name = "X-Tenant-ID";
 		}
-		n = strlen(name) + strlen(value) + 3;
+		header = tenant ? "X-Tenant-ID" : name;
+		n = strlen(header) + strlen(value) + 3;
 		line = xmalloc(n);
 		if (!line) {
 			ret = -ENOMEM;
 			break;
 		}
-		ret = strsprintf(line, n, "%s: %s", name, value) < 0 ? -E2BIG :
+		ret = strsprintf(line, n, "%s: %s", header, value) < 0 ? -E2BIG :
 		     append_header(st, line);
 		memzero_explicit(line, n);
 		xfree(line, n);

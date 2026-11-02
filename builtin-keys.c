@@ -878,7 +878,7 @@ static int keys_vouch(int argc, const char **argv)
 	helper_argv[2] = "vouch";
 	for (int i = 1; i < argc; i++)
 		helper_argv[i + 2] = argv[i];
-	ret = build_exec("keys vouch", (char **)helper_argv);
+	ret = build_exec("keys vouch", helper_argv);
 	xfree(helper_argv, sz);
 	return ret;
 }

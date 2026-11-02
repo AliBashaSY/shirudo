@@ -88,7 +88,7 @@ bool build_available(void)
 	return use_path ? on_path(helper) : access(helper, X_OK) == 0;
 }
 
-int build_exec(const char *label, char **argv)
+int build_exec(const char *label, const char **argv)
 {
 	bool use_path;
 	const char *path = resolve_helper(&use_path);
@@ -104,11 +104,11 @@ int build_exec(const char *label, char **argv)
 		       "PATH.", label, path);
 		return 127;
 	}
-	argv[0] = (char *)path;
+	argv[0] = path;
 	if (use_path)
-		execvp(path, argv);
+		execvp(path, (char *const *)argv);
 	else
-		execv(path, argv);
+		execv(path, (char *const *)argv);
 	pr_err("exec %s: %s", path, strerror(errno));
 	return 127;
 }
@@ -119,5 +119,5 @@ int cmd_build(int argc, const char **argv)
 		print_help(&build_help);
 		return 0;
 	}
-	return build_exec("build", (char **)argv);
+	return build_exec("build", argv);
 }

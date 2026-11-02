@@ -1214,7 +1214,8 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 {
 	struct bpm_http_response r = {};
 	char hex[65], digest[72], url[PATH_MAX], upload[PATH_MAX];
-	char location[PATH_MAX], *sep;
+	char location[PATH_MAX];
+	const char *sep;
 	int ret;
 
 	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)))

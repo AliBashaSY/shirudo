@@ -33,7 +33,7 @@ int cmd_image(int argc, const char **argv)
 		return argc < 2 ? 2 : 0;
 	}
 	if (!strcmp(argv[1], "build") || !strcmp(argv[1], "verify")) {
-		char **helper;
+		const char **helper;
 		size_t bytes;
 		int i;
 
@@ -43,7 +43,7 @@ int cmd_image(int argc, const char **argv)
 			return 1;
 		helper[1] = "image";
 		for (i = 1; i < argc; i++)
-			helper[i + 1] = (char *)argv[i];
+			helper[i + 1] = argv[i];
 		ret = build_exec(!strcmp(argv[1], "build") ?
 				 "image build" : "image verify", helper);
 		xfree(helper, bytes);

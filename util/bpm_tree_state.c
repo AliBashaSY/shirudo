@@ -251,7 +251,7 @@ static int selector_config_line(const char *line,
 				char values[][TREE_STRING_MAX],
 				bool found[])
 {
-	char copy[1024], *start, *eq, *end, *value;
+	char copy[1024], not_set[] = "n", *start, *eq, *end, *value;
 	int index;
 
 	if (strscpy(copy, line, sizeof(copy)) < 0)
@@ -268,7 +268,7 @@ static int selector_config_line(const char *line,
 		if (!eq)
 			return 0;
 		*eq = '\0';
-		value = "n";
+		value = not_set;
 	} else {
 		if (*start == '#')
 			return 0;

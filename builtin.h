@@ -19,7 +19,7 @@ int cmd_build(int argc, const char **argv);
  * site, which returns only on failure.
  */
 bool build_available(void);
-int build_exec(const char *label, char **argv);
+int build_exec(const char *label, const char **argv);
 
 /* Target-side. */
 int cmd_init(int argc, const char **argv);
