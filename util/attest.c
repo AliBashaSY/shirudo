@@ -484,7 +484,6 @@ struct parse {
 	__u32		inits;		/* init records this boot */
 	__u32		inits_epoch;	/* for the last reset count */
 	struct init_record init;
-	int		err;
 };
 
 static int on_pcr(void *ctx)

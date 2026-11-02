@@ -589,8 +589,7 @@ static int begin_event(struct config_update *update,
 		return ret;
 	memcpy(record.initial_pcr, kind == CONFIG_EVENT_BOOT ?
 	       before : previous->initial_pcr, 32);
-	if (!ret)
-		ret = event_follows(previous, &record);
+	ret = event_follows(previous, &record);
 	if (!ret)
 		ret = config_measure_event(kind, target->root_hash,
 					   event);
