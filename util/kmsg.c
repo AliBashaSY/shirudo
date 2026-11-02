@@ -147,8 +147,10 @@ int kmsg_tail(struct kmsg_record *out, size_t cap)
 	 */
 	if (clock_gettime(CLOCK_REALTIME, &rt_at_open) != 0 ||
 	    clock_gettime(CLOCK_MONOTONIC, &mt_at_open) != 0) {
+		int err = errno;
+
 		close(fd);
-		return -errno;
+		return -err;
 	}
 
 	for (;;) {

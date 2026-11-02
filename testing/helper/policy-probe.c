@@ -98,7 +98,7 @@ static int check_mappings(const char *trusted, const char *outside)
 {
 	long length = sysconf(_SC_PAGESIZE);
 	void *mapping;
-	int fd;
+	int fd, err;
 
 	errno = 0;
 	mapping = mmap(NULL, length, PROT_READ | PROT_EXEC,
@@ -119,8 +119,9 @@ static int check_mappings(const char *trusted, const char *outside)
 		return 1;
 	errno = 0;
 	mapping = mmap(NULL, length, PROT_READ | PROT_EXEC, MAP_PRIVATE, fd, 0);
+	err = errno;
 	close(fd);
-	if (mapping != MAP_FAILED || errno != EACCES)
+	if (mapping != MAP_FAILED || err != EACCES)
 		return 1;
 	fd = open(trusted, O_RDONLY);
 	if (fd < 0)

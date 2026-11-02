@@ -108,7 +108,7 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	ret = bpf_link_get_info_by_fd(link_fd, &linfo, &len);
 	if (ret != 0 || linfo.prog_id == 0) {
 		close(link_fd);
-		return ret ? -errno : -EINVAL;
+		return ret ? ret : -EINVAL;
 	}
 	if (linfo.type == BPF_LINK_TYPE_UPROBE_MULTI) {
 		struct bpf_link_info detail = {};
@@ -131,7 +131,6 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 		ret = bpf_link_get_info_by_fd(link_fd, &detail, &len);
 		close(link_fd);
 		if (ret != 0) {
-			ret = -errno;
 			xfree(path, path_size);
 			return ret;
 		}
@@ -162,7 +161,7 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	ret = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
 	close(prog_fd);
 	if (ret != 0)
-		return -errno;
+		return ret;
 
 	if (vbtf && info.attach_btf_id &&
 	    info.attach_btf_id < btf__type_cnt(vbtf)) {

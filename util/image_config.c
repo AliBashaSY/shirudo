@@ -102,8 +102,14 @@ static int validate_tree(int root_fd, dev_t device, __u32 depth,
 		close(fd);
 		return ret;
 	}
-	errno = 0;
-	while ((entry = readdir(dir)) != NULL) {
+	for (;;) {
+		errno = 0;
+		entry = readdir(dir);
+		if (!entry) {
+			if (errno)
+				ret = -errno;
+			break;
+		}
 		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
 			continue;
 		if (++*entries > 65536) {
@@ -133,10 +139,7 @@ static int validate_tree(int root_fd, dev_t device, __u32 depth,
 			if (ret)
 				break;
 		}
-		errno = 0;
 	}
-	if (!entry && errno && !ret)
-		ret = -errno;
 	closedir(dir);
 	return ret;
 }

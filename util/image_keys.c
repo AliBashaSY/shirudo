@@ -26,7 +26,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 {
 	struct dirent *entry;
 	struct stat root, st;
-	int keys_fd, dir_fd, ret = 0;
+	int keys_fd, dir_fd, err, ret = 0;
 	DIR *dir;
 
 	if (fstat(root_fd, &root))
@@ -37,9 +37,10 @@ static int revocations(int root_fd, bool apply, bool boot)
 		return errno == ENOENT ? 0 : -errno;
 	dir_fd = openat(keys_fd, "revoked",
 			O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	err = dir_fd < 0 ? errno : 0;
 	close(keys_fd);
 	if (dir_fd < 0)
-		return errno == ENOENT ? 0 : -errno;
+		return err == ENOENT ? 0 : -err;
 	dir = fdopendir(dir_fd);
 	if (!dir) {
 		ret = -errno;

@@ -186,9 +186,15 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 	block = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (block < 0)
 		return -errno;
-	if (fstat(block, &st) || !S_ISBLK(st.st_mode) || st.st_rdev != device ||
-	    ioctl(block, BLKGETDISKSEQ, &diskseq)) {
-		ret = errno ? -errno : -EPERM;
+	if (fstat(block, &st))
+		ret = -errno;
+	else if (!S_ISBLK(st.st_mode) || st.st_rdev != device)
+		ret = -EPERM;
+	else if (ioctl(block, BLKGETDISKSEQ, &diskseq))
+		ret = -errno;
+	else
+		ret = 0;
+	if (ret) {
 		close(block);
 		return ret;
 	}

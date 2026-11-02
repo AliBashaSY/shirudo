@@ -681,10 +681,14 @@ static int build_resolve_source(const struct bpm_build_spec *spec,
 	if (!source[0] || source[0] == '/' || strstr(source, "../") ||
 	    !strcmp(source, ".."))
 		return -EINVAL;
-	if (strsprintf(path, sizeof(path), "%s/%s", spec->scope, source) < 0 ||
-	    stat(path, st) || !S_ISREG(st->st_mode) || !build_within(spec->scope, path) ||
-	    !realpath(path, out))
-		return errno ? -errno : -EINVAL;
+	if (strsprintf(path, sizeof(path), "%s/%s", spec->scope, source) < 0)
+		return -ENAMETOOLONG;
+	if (stat(path, st))
+		return -errno;
+	if (!S_ISREG(st->st_mode) || !build_within(spec->scope, path))
+		return -EINVAL;
+	if (!realpath(path, out))
+		return -errno;
 	if (strlen(out) >= cap)
 		return -ENAMETOOLONG;
 	return 0;
