@@ -174,7 +174,7 @@ locate_checkpatch() {
 }
 
 # Fixed-width integers are spelled the kernel's way, __u32 and its kin from
-# <shirudo/misc.h> in userspace and from vmlinux.h in BPF, not the C
+# <shirudo/types.h> in userspace and from vmlinux.h in BPF, not the C
 # library's uint32_t. checkpatch's PREFER_KERNEL_TYPES suggests the
 # kernel-internal u32 and leaves tools/ out, so it stays off and this
 # reports an added line that names uint8_t through int64_t outside a
@@ -182,7 +182,6 @@ locate_checkpatch() {
 # form checkpatch reports in, and in userspace one that names unsigned
 # char, short, int or long. Those stay where an interface fixes them: BPF
 # programs spell hook arguments as the kernel's prototypes do,
-# include/shirudo/misc.h defines the kernel types from them,
 # util/elf_target.c hands libbpf the unsigned long ** it takes, and
 # util/sign.c is vendored. A call to strtoul() and its kin or atoi() is
 # reported too, outside the tests: a number is parsed with parse_u64() and
@@ -198,7 +197,6 @@ check_spellings() {
 	awk '
 	function c_names_kept(f) {
 		return f ~ /^(bpf|upatches)\// || f ~ /\.bpf\.c$/ ||
-		       f == "include/shirudo/misc.h" ||
 		       f == "util/elf_target.c" || f == "util/sign.c"
 	}
 	function parsers_kept(f) {

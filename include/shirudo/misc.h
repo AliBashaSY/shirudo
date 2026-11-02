@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * The kernel's fixed-width integer types, ARRAY_SIZE(), min() and max(),
- * ptr_to_u64() and shirudo_trunc(), for userspace.
+ * ARRAY_SIZE(), min() and max(), ptr_to_u64() and shirudo_trunc() for
+ * userspace, with the kernel's types from <shirudo/types.h>.
  */
 
 #ifndef SHIRUDO_MISC_H
@@ -13,20 +13,7 @@
 #include <stdlib.h>
 
 #include <shirudo/compiler.h>
-
-/*
- * Defined as asm-generic/int-ll64.h defines them on x86-64, arm64 and
- * riscv64, so a file that also includes <linux/types.h> sees the same
- * types twice, which C11 allows.
- */
-typedef signed char		__s8;
-typedef unsigned char		__u8;
-typedef signed short		__s16;
-typedef unsigned short		__u16;
-typedef signed int		__s32;
-typedef unsigned int		__u32;
-typedef signed long long	__s64;
-typedef unsigned long long	__u64;
+#include <shirudo/types.h>
 
 /* 0, or no build when a is a pointer rather than an array. */
 #define __must_be_array(a)						\

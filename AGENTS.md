@@ -91,18 +91,18 @@ package for `bpm info`.
   accepts). Use it for every struct/array/union zero-init. When adding
   new code, write `= {}`.
 - **Spell fixed-width integers the kernel's way**: `__u8`, `__u16`,
-  `__u32`, `__u64` and `__s8` to `__s64`, from `<shirudo/misc.h>` in
-  userspace and `vmlinux.h` in BPF, not `uint32_t` and its kin nor
-  `unsigned int`, `unsigned long` and the like. `__u64` is `unsigned long
-  long`, so it prints with `%llu`, and `ptr_to_u64()` turns a pointer
-  into the `__u64` the bpf() ABI carries. A library interface that takes
-  another type keeps it, and BPF programs spell hook arguments as the
-  kernel's prototypes do. `<shirudo/misc.h>` poisons `uint8_t` to
-  `int64_t`, so a system header that uses them, `<netinet/in.h>`,
-  `<elf.h>` or one of OpenSSL's or tpm2-tss's, goes above the first
-  shirudo header. `check-style.sh` rejects `uint32_t` and its kin
-  everywhere and `unsigned char`, `short`, `int` and `long` in userspace,
-  less the files it names.
+  `__u32`, `__u64` and `__s8` to `__s64`, from `<shirudo/types.h>`,
+  which `<shirudo/misc.h>` includes, in userspace and `vmlinux.h` in
+  BPF, not `uint32_t` and its kin nor `unsigned int`, `unsigned long`
+  and the like. `__u64` is `unsigned long long`, so it prints with
+  `%llu`, and `ptr_to_u64()` turns a pointer into the `__u64` the bpf()
+  ABI carries. A library interface that takes another type keeps it,
+  and BPF programs spell hook arguments as the kernel's prototypes do.
+  `<shirudo/misc.h>` poisons `uint8_t` to `int64_t`, so a system header
+  that uses them, `<netinet/in.h>`, `<elf.h>` or one of OpenSSL's or
+  tpm2-tss's, goes above the first shirudo header. `check-style.sh`
+  rejects `uint32_t` and its kin everywhere and `unsigned char`,
+  `short`, `int` and `long` in userspace, less the files it names.
 - **Parse numbers with `parse_u64()`, `parse_s64()` and `parse_x64()`**
   from `<shirudo/string.h>`, and find where one ends with `digits()`:
   they take a length, read nothing past it and refuse a sign, blank or
