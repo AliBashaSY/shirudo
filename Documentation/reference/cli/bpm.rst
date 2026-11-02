@@ -245,9 +245,13 @@ compare the result with a fingerprint you obtained out of band.
 pull and info
 -------------
 
-``pull`` downloads the package layer of an ``oci://`` reference into the
-current directory, named after the layer title or
-``<name>-<tag>.bee``, and checks its digest against the manifest.
+``pull`` downloads the package layer of an ``oci://`` reference into a
+new file in the current directory and checks its digest against the
+manifest. The registry chooses the layer title without a signature, so
+the file takes that title only when it is a package name ending in
+``.bee``, and is named ``<name>-<tag>.bee`` otherwise. ``pull`` never
+replaces a file: when one of that name exists, it fails with ``bpm
+pull: File exists``, so remove or rename the old one first.
 
 ``info`` prints the ``README.md`` of a package. ``info upatches`` lists
 its ``upatches/*.upatch`` members, with ``--all`` also the

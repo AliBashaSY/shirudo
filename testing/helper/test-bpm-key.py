@@ -126,6 +126,9 @@ def main():
                         layer["size"] += 1
                     elif tag == "missing-layer":
                         layer["mediaType"] = "application/octet-stream"
+                    elif tag == "escape-title":
+                        layer["annotations"]["org.opencontainers.image.title"] = \
+                            "\x1b[2Jdownload.bee"
                     body = json.dumps(dict(schemaVersion=2, layers=[layer])).encode()
                     content_type = "application/vnd.oci.image.manifest.v1+json"
                 elif "/blobs/" in self.path:
@@ -156,11 +159,26 @@ def main():
                 if isolated:
                     run("add", reference + tag, ok=False)
                     assert (keys / "cert.der").read_bytes() == der.read_bytes()
+            def pull(tag):
+                return subprocess.run([binary, "bpm", "pull", reference + tag],
+                                      cwd=root, env=env, capture_output=True,
+                                      text=True)
+
             assert not (root / "download.bee").exists()
-            result = subprocess.run([binary, "bpm", "pull", reference + "valid"],
-                                    cwd=root, env=env, capture_output=True, text=True)
+            result = pull("valid")
             assert result.returncode == 0, result
             assert (root / "download.bee").read_bytes() == payload
+            # The registry names the file, so a pull never replaces one, nor
+            # removes it when the download then fails its digest.
+            for tag in ("valid", "bad-digest"):
+                result = pull(tag)
+                assert result.returncode != 0, result
+                assert "exists" in result.stderr, result
+                assert (root / "download.bee").read_bytes() == payload
+            result = pull("escape-title")
+            assert result.returncode == 0, result
+            assert (root / "package-escape-title.bee").read_bytes() == payload
+            assert not any("\x1b" in p.name for p in root.iterdir())
             print("OCI keys, descriptor rejection, private downloads, and pull: passed")
         finally:
             server.shutdown()

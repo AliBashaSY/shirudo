@@ -128,10 +128,24 @@ out:
 }
 
 /*
- * Into the file open on fd at destination, or, without one, a file in
- * the working directory named after the package. The name comes from
- * the registry, so it is one component ending in .bee, opened as output
- * root may ask for: never a sealed file nor one reached through a link.
+ * The registry names the layer without a signature, so its title names
+ * the file only when it is a package name ending in .bee: never a path,
+ * a hidden file, an option or a terminal control sequence.
+ */
+static bool bee_title_ok(const char *title)
+{
+	size_t n = strlen(title);
+
+	return n > strlen(".bee") && bpm_package_name_ok(title) &&
+	       !strcmp(title + n - strlen(".bee"), ".bee");
+}
+
+/*
+ * Into the file open on fd at destination, or, without one, a new file
+ * in the working directory named after the package. The registry picks
+ * that name, so it is created, never an existing file replaced, and
+ * opened as output root may ask for: never a sealed file nor one
+ * reached through a link.
  */
 static int download_package(const char *raw, const char *destination, int fd)
 {
@@ -173,9 +187,7 @@ static int download_package(const char *raw, const char *destination, int fd)
 			title[0] = '\0';
 		if (destination) {
 			bpm_copy_string(filename, sizeof(filename), destination);
-		} else if (title[0] && !strchr(title, '/') &&
-			   strlen(title) >= strlen(".bee") &&
-			   !strcmp(title + strlen(title) - strlen(".bee"), ".bee")) {
+		} else if (bee_title_ok(title)) {
 			bpm_copy_string(filename, sizeof(filename), title);
 		} else {
 			const char *base = strrchr(repository, '/');
@@ -195,7 +207,7 @@ static int download_package(const char *raw, const char *destination, int fd)
 		}
 		if (!destination) {
 			out = seal_output_open(filename,
-					       O_WRONLY | O_CREAT | O_TRUNC,
+					       O_WRONLY | O_CREAT | O_EXCL,
 					       0644);
 			if (out < 0) {
 				ret = out;

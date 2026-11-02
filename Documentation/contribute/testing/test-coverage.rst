@@ -367,7 +367,9 @@ signed config image.
    * - ``t7002-bpm-info``
      - READMEs of local and OCI packages, archive integrity
    * - ``t7003-bpm-key``
-     - ``bpm key`` from files and OCI references, ``bpm pull``
+     - ``bpm key`` from files and OCI references, ``bpm pull``, which
+       replaces no file, not even after a failed digest, and names none
+       after a layer title that is not a package name
    * - ``t7004-bpm-repo-update``
      - The repository update unit and timer and their package
        scriptlets, as text
