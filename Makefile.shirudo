@@ -81,7 +81,7 @@ WERROR_CFLAGS := $(if $(filter 1,$(WERROR)),-Werror)
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
             -Wmissing-prototypes -Wpointer-arith -Wshadow \
             -Wdeclaration-after-statement -Wformat-security -Wformat=2 \
-            -Wwrite-strings -Wundef -Wtype-limits \
+            -Wwrite-strings -Wundef -Wtype-limits -Wimplicit-fallthrough \
             $(WERROR_CFLAGS)
 
 # The warnings that not every compiler shirudo builds with has, each
@@ -193,6 +193,7 @@ endif
 # generate auto-named params that often go unused. Neither is
 # fixable upstream of us, so silence both for BPF compilation.
 CLANG_BPF := $(CLANG) -target bpf -O2 -g -Wall -Wextra -Wvla -Wshadow -Wtype-limits \
+             -Wimplicit-fallthrough \
              -Wno-missing-declarations -Wno-unused-parameter \
              -Wdeclaration-after-statement $(WERROR_CFLAGS)
 

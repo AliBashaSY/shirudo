@@ -15,6 +15,11 @@
 #define noinline	__attribute__((noinline))
 /* A function with a large frame that inlining would add to its caller's. */
 #define noinline_for_stack	noinline
+/*
+ * clang's -Wimplicit-fallthrough takes the attribute and never a comment.
+ * Token for token as in bpf/lib/misc.h.
+ */
+#define fallthrough	__attribute__((__fallthrough__))
 
 /*
  * An empty asm that may read memory through ptr, so that a store to that

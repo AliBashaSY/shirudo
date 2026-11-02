@@ -12,6 +12,7 @@
 #define BUILD_BUG_ON_MSG(cond, msg)	_Static_assert(!(cond), msg)
 #define BUILD_BUG_ON(cond)						\
 	BUILD_BUG_ON_MSG(cond, "BUILD_BUG_ON failed: " #cond)
+#define fallthrough	__attribute__((__fallthrough__))
 
 /*
  * One access to x that the compiler neither tears nor repeats nor merges
