@@ -241,7 +241,7 @@ with the same policy cannot be initialized since the policy requires
 the old PCR 9 value which shirudo extended with the anchor.
 
 shirudo's register is the index ``0x01818E00``, which a build can
-change with ``NV_INDEX`` in ``util/paths.h``. It holds one SHA-256
+change with ``NV_INDEX`` in :src:`util/paths.h`. It holds one SHA-256
 digest and has the attributes ``0x0E060048``: ``TPM2_NT_EXTEND``,
 ``TPMA_NV_POLICYWRITE``, ``TPMA_NV_OWNERREAD``, ``TPMA_NV_AUTHREAD``,
 ``TPMA_NV_NO_DA``, ``TPMA_NV_ORDERLY`` and ``TPMA_NV_CLEAR_STCLEAR``.
@@ -359,7 +359,7 @@ The signature alone does not keep other processes out. The bytes the
 writer key derives from are not a secret, so any process that recreates
 the key could ask the TPM to sign. An LSM hook in the kernel keeps
 them out. The companion kernel patch
-``kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`` adds an
+:src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch` adds an
 LSM hook, ``tpm_command``, that sees every command written to
 ``/dev/tpm0`` or ``/dev/tpmrm0`` before the driver sends or queues it.
 shirudo's ``lsm/tpm_command``

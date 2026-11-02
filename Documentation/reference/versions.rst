@@ -38,7 +38,7 @@ Version string
      - Source
    * - ``<describe>``
      - ``git describe --tags --always --dirty`` of the build tree, or
-       the content of the ``VERSION`` file, ``0.0.0-dev``, outside a git
+       the content of the :src:`VERSION` file, ``0.0.0-dev``, outside a git
        checkout. Without tags, describe prints the abbreviated commit,
        with ``-dirty`` for uncommitted changes.
    * - ``<extraversion>``
@@ -46,7 +46,7 @@ Version string
    * - ``<release-name>``
      - ``NAME`` in the top-level ``Makefile``.
 
-The package versions in ``packaging/Makefile`` derive from the same
+The package versions in :src:`packaging/Makefile` derive from the same
 describe string. ``<describe>`` alone, without ``<extraversion>``,
 appears as ``service.version`` and the scope version in OTLP documents
 (:doc:`/reference/formats/otlp`) and as ``bpm_version`` and
@@ -56,7 +56,7 @@ Version ID
 ----------
 
 ``SHIRUDO_VERSION_ID`` is the SHA-256 that the build writes into the
-generated ``util/version_id.c`` (``Makefile.shirudo``). Its input:
+generated ``util/version_id.c`` (:src:`Makefile.shirudo`). Its input:
 
 .. list-table::
    :header-rows: 1
@@ -65,28 +65,28 @@ generated ``util/version_id.c`` (``Makefile.shirudo``). Its input:
    * - Input
      - Value
    * - Revision
-     - ``git rev-parse HEAD``, or the content of ``VERSION`` outside a
+     - ``git rev-parse HEAD``, or the content of :src:`VERSION` outside a
        git checkout.
    * - Dirty mark
      - ``-dirty`` when ``git diff-index HEAD`` reports a change to a
        tracked file. Untracked files do not count.
    * - Build configuration
      - The first 16 hexadecimal digits of a SHA-256 over the checksums of
-       ``config.mk`` and ``Makefile.shirudo``.
+       ``config.mk`` and :src:`Makefile.shirudo`.
 
 ``config.mk`` is the operator profile's configuration, which the
-feature probes in ``Makefile.config`` write. It records the compiler and
+feature probes in :src:`Makefile.config` write. It records the compiler and
 linker flags of the libraries on the build host, with their paths. The
 target profile writes its configuration to ``config-target.mk``, which
 the ID does not cover: a target binary's ID takes the ``config.mk`` of
-the tree it was built in, or ``Makefile.shirudo`` alone in a tree
+the tree it was built in, or :src:`Makefile.shirudo` alone in a tree
 without one, as after ``make clean`` and ``make target``.
 
 Two builds of one commit therefore get different IDs when their trees
 hold different ``config.mk`` files, for example an operator package
 built on its distribution and a target package built on another host.
 ``make`` and ``make target`` in one tree give both binaries the same ID.
-Outside a git checkout, every build of the same ``VERSION`` with the
+Outside a git checkout, every build of the same :src:`VERSION` with the
 same ``config.mk`` gets the same ID.
 
 The ID does not cover the compiler and its version, the contents of the

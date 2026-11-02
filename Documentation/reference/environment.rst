@@ -233,17 +233,17 @@ Generator and installer scripts
      - Key directory when ``--keys-dir`` is not given. Default
        ``/var/lib/shirudo/keys``.
    * - ``SHIRUDO_REPO``
-     - ``tools/gen-initrd/install.sh``
+     - :src:`tools/gen-initrd/install.sh`
      - GitHub repository releases are fetched from. Default
        ``shirudo-dev/shirudo``.
    * - ``SHIRUDO_CERT``
-     - ``tools/gen-initrd/install.sh``
+     - :src:`tools/gen-initrd/install.sh`
      - Same as ``--cert``.
    * - ``SHIRUDO_VERSION``
-     - ``tools/gen-initrd/install.sh``
+     - :src:`tools/gen-initrd/install.sh`
      - Same as ``--version``.
    * - ``SHIRUDO_PACKAGE``
-     - ``tools/gen-initrd/install.sh``
+     - :src:`tools/gen-initrd/install.sh`
      - Same as ``--package``.
    * - ``DESTDIR``
      - ``install.sh`` of the target tarball

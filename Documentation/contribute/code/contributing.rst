@@ -16,7 +16,7 @@ kernel's ``Documentation/process/submitting-patches.rst`` is the
 reference for anything not covered.
 
 Participation in the project is governed by the Code of Conduct in
-``CODE_OF_CONDUCT.md`` at the repository root. Conduct concerns go to
+:src:`CODE_OF_CONDUCT.md` at the repository root. Conduct concerns go to
 conduct@shirudo.dev.
 
 Commit messages
@@ -138,7 +138,7 @@ chain of ``Signed-off-by:`` lines records the real route the change
 took. The first sign-off is the author's. The last is the person who
 submits the commit.
 
-``.github/scripts/check-dco.sh`` checks every commit in a range except
+:src:`.github/scripts/check-dco.sh` checks every commit in a range except
 merge commits:
 
 - The subject is one line, followed by a blank line.
@@ -228,7 +228,7 @@ Before sending
 - Run ``make -C Documentation html`` when the change touches
   ``Documentation/``. The build turns every Sphinx warning into an
   error. See :doc:`/contribute/documentation/writing-docs`.
-- Run ``.github/scripts/check-spdx.sh`` when the change adds a file.
+- Run :src:`.github/scripts/check-spdx.sh` when the change adds a file.
   Every source carries an SPDX tag in the kernel's form for its type,
   ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for
   everything compiled into a BPF object, the headers it includes and

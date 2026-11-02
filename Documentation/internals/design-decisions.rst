@@ -183,7 +183,7 @@ owns, and the serializer output.
 An arena gives one consistent snapshot, memory the serializer can reset
 between exports, and an overflow count the exported record carries. An
 element-by-element read of a plain map gives a torn view, and a full
-table drops records without saying so. ``upatches/kernel-obs/obs_table.h``
+table drops records without saying so. :src:`upatches/kernel-obs/obs_table.h`
 is the template. :doc:`/upatches/write/maps-arenas-serializers` explains it.
 
 No target shell-outs

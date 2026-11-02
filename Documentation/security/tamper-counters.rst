@@ -19,7 +19,7 @@ Counters
 --------
 
 The name and the meaning are what ``shirudo status`` prints. The hooks
-are the section names of the BPF programs in ``bpf/`` that move the
+are the section names of the BPF programs in :src:`bpf/` that move the
 counter.
 
 .. list-table::

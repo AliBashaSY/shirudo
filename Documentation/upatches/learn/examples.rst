@@ -8,7 +8,7 @@
 Example packages
 ================
 
-The tree ships two packages under ``upatches/``: ``kernel-obs``, a
+The tree ships two packages under :src:`upatches/`: ``kernel-obs``, a
 complete observability package with arena tables, serializers, decoders
 and generated ``.rodata``, and ``kernel-cve``, a set of small CVE
 detectors exported from a mitigation campaign.
@@ -23,7 +23,7 @@ kernel-obs
    * - Item
      - Content
    * - Package
-     - ``kernel-obs``, from ``upatches/kernel-obs/Beefile``
+     - ``kernel-obs``, from :src:`upatches/kernel-obs/Beefile`
    * - upatch
      - ``kernel-obs``, built from ``kernel-obs.bpf.c``, which includes
        ``obs_exec.bpf.c``, ``obs_net.bpf.c``, ``obs_dns.bpf.c``,
@@ -65,7 +65,7 @@ repositories from its signed config image and refuses local key changes.
 kernel-cve
 ----------
 
-``upatches/kernel-cve/`` holds three detectors, each in
+:src:`upatches/kernel-cve/` holds three detectors, each in
 ``sources/<slug>/observability/``, a ``vmlinux.h``, ``manifest.json``
 with one record per detector, and the Beefile ``kernel-cve.bee``. The
 manifest names the kernel the detectors were loaded on,

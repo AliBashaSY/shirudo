@@ -89,7 +89,7 @@ Build and sign it
       wrote build/tutorial/sleep-count.upatch (insns=1184 sig=4853 data=3024 sections=2 maps=1 progs=1 decoders=0 name=sleep-count)
 
    Run from the checkout root, the helper finds the libbpf headers in
-   ``vendor/libbpf`` and the kernel types in ``vendor/linux/vmlinux.h``.
+   :src:`vendor/libbpf` and the kernel types in ``vendor/linux/vmlinux.h``.
    The upatch takes its name, ``sleep-count``, from the file name, and it
    carries one map and one program. The sizes and digests on this page
    depend on your toolchain and paths.

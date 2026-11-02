@@ -63,7 +63,7 @@ Build the package
       operator$ ln -s "$PWD/vendor" ~/hello/vendor
 
    The helper compiles in the package directory and looks for the libbpf
-   headers and ``vmlinux.h`` under ``vendor/`` there. An installed operator
+   headers and ``vmlinux.h`` under :src:`vendor/` there. An installed operator
    package uses its own copies under ``/usr/share/shirudo`` and needs no
    link.
 

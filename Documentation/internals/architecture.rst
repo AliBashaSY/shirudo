@@ -41,8 +41,8 @@ Operator commands that compile, sign or package, ``shirudo build``,
 ``shirudo bpm build``, ``shirudo bpm push``, ``shirudo bpm tree append``,
 ``shirudo image build``, ``shirudo image verify`` and ``shirudo keys
 vouch``, execute the separate ``shirudo-build`` helper. Only that helper
-links the CMS signer (``util/sign.c``) and the package builder and
-publisher (``tools/shirudo-build/``). It runs ``clang`` to compile BPF,
+links the CMS signer (:src:`util/sign.c`) and the package builder and
+publisher (:src:`tools/shirudo-build/`). It runs ``clang`` to compile BPF,
 libbpf's gen_loader to produce the signed loader, and ``veritysetup`` to
 format and check images. The core binary finds it through
 ``SHIRUDO_BUILD``, the compiled-in libexec directory or ``PATH``.
@@ -70,8 +70,8 @@ Figure 1 shows the components and the paths between them.
    Figure 1. Components on the operator host and on a target. Nothing
    connects into the target; it pulls packages and pushes telemetry.
 
-The binary embeds three BPF objects, compiled from ``bpf/`` and included
-with ``.incbin`` in ``util/loader.c``:
+The binary embeds three BPF objects, compiled from :src:`bpf/` and included
+with ``.incbin`` in :src:`util/loader.c`:
 
 ``bpf2``
     BPF admission (``lsm/bpf``, ``lsm/bpf_map``, ``lsm/bpf_prog_load``),

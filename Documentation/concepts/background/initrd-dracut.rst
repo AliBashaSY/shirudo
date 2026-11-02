@@ -106,7 +106,7 @@ How shirudo uses the initrd
 ---------------------------
 
 shirudo ships a dracut module, ``90shirudo``, from
-``tools/gen-initrd/module-setup.sh``. Its ``check()`` looks for the
+:src:`tools/gen-initrd/module-setup.sh`. Its ``check()`` looks for the
 ``shirudo`` binary and the primary certificate. It depends on the
 ``systemd`` and ``systemd-initrd`` modules, and on
 ``systemd-pcrextend`` (``systemd-pcrphase`` in older dracut releases)

@@ -227,7 +227,7 @@ Limits
 
 The unload directive authorizes the detach, but it does not perform it.
 The detach runs in userspace because ``bpf_sys_bpf()`` offers no detach
-or unpin command; ``bpf/unload.c`` is a placeholder for the in-kernel
+or unpin command; :src:`bpf/unload.c` is a placeholder for the in-kernel
 version. An unload directive is bound to the upatch name and payload
 digest, not to the key that signed the load.
 

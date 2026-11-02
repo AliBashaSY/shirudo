@@ -477,7 +477,7 @@ records in an arena.
 kernel-obs example
 ~~~~~~~~~~~~~~~~~~
 
-The observability package in ``upatches/kernel-obs`` is one example,
+The observability package in :src:`upatches/kernel-obs` is one example,
 measured in the same test VM:
 
 .. list-table::

@@ -48,7 +48,7 @@ Policy
 
 The repository's `security policy
 <https://github.com/shirudo-dev/shirudo/blob/main/SECURITY.md>`__,
-``SECURITY.md``, is the policy of record. It says:
+:src:`SECURITY.md`, is the policy of record. It says:
 
 - Do not report a vulnerability in a public issue or discussion. Use
   GitHub's Report a vulnerability feature instead.

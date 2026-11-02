@@ -12,8 +12,8 @@ A ``.upatch`` file is the signed container that :doc:`/reference/cli/build`
 writes and that :doc:`/reference/cli/upatch-load` and
 :doc:`/reference/cli/upatch-unload` consume. One layout serves both a load
 artifact and an unload directive. The structures are defined in
-``include/shirudo/upatch.h``. The writer is ``tools/shirudo-build/package.c``
-and the reader is ``util/upatch.c``.
+:src:`include/shirudo/upatch.h`. The writer is :src:`tools/shirudo-build/package.c`
+and the reader is :src:`util/upatch.c`.
 
 Conventions
 -----------
@@ -566,7 +566,7 @@ Each decoder entry:
      - Length of the source, non-zero.
 
 The writer takes each entry from a ``struct decoder_manifest`` that
-the BPF program declares in ``.rodata`` (``bpf/lib/decoder.h``,
+the BPF program declares in ``.rodata`` (:src:`bpf/lib/decoder.h`,
 192 bytes, magic ``0x44434544``, the bytes ``DECD``, ``u16`` fields
 ``version``, ``language``, ``api_version``, ``input_format``,
 ``export_signal`` and ``reserved``, then the same four strings). It scans
@@ -623,7 +623,7 @@ signed bytes and trusts others as they are.
 Reader validation
 -----------------
 
-``util/upatch.c`` applies these checks in order. Any failure rejects the
+:src:`util/upatch.c` applies these checks in order. Any failure rejects the
 file.
 
 #. The file is a regular file, not empty and at most 16 MiB.

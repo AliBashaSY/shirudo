@@ -119,7 +119,7 @@ and ``shirudo image verify`` on the operator use ``veritysetup``.
 Mapping and checking an image
 -----------------------------
 
-``util/dm_verity.c`` maps an image through kernel interfaces only:
+:src:`util/dm_verity.c` maps an image through kernel interfaces only:
 
 #. Attach the data and hash files to loop devices.
 #. Create a device-mapper device. For a config image, stage the root the

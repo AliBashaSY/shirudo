@@ -308,7 +308,7 @@ Assets
 ``eventlog``
     Whether ``/var/lib/shirudo/eventlog`` exists, and its size.
 
-``upatches/``
+:src:`upatches/`
     The number of archived upatches that ``init`` restores at the next
     boot.
 

@@ -28,7 +28,7 @@ it.
       BPF programs allocate records directly. An upatch that accumulates
       records keeps them in one arena, which its serializer reads as one
       consistent snapshot and can reset between exports.
-      ``upatches/kernel-obs/obs_table.h`` is the template for a
+      :src:`upatches/kernel-obs/obs_table.h` is the template for a
       double-buffered arena table. See
       :doc:`/upatches/write/maps-arenas-serializers`.
 
@@ -126,8 +126,8 @@ it.
 
    enforcement programs
       The BPF LSM programs embedded in the ``shirudo`` binary, built from
-      ``bpf/bpf2.c`` (``bpf()`` admission, keyrings, the private bpffs,
-      mounts, devices and the TPM) and ``bpf/seal.c`` (the seal and the
+      :src:`bpf/bpf2.c` (``bpf()`` admission, keyrings, the private bpffs,
+      mounts, devices and the TPM) and :src:`bpf/seal.c` (the seal and the
       task marks). ``init`` loads them before their admission gates
       attach, so they are the one BPF code that does not pass the signed
       loader path; in production the authenticated initrd vouches for
@@ -323,7 +323,7 @@ it.
       authority when it runs. See :doc:`/internals/config-images`.
 
    seal
-      The BPF LSM programs from ``bpf/seal.c`` that protect shirudo's
+      The BPF LSM programs from :src:`bpf/seal.c` that protect shirudo's
       writable state and processes. They refuse writes, unlinks, renames,
       attribute changes and new entries on labeled inodes under
       ``/var/lib/shirudo`` to tasks without runtime authority, and keep

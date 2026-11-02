@@ -265,5 +265,5 @@ Next steps
 
 - :doc:`/operate/run/telemetry` to export every map on a schedule
 - :doc:`/reference/formats/otlp` for the documents on the wire
-- The decoders under ``upatches/kernel-obs/decoders/`` for complete log
+- The decoders under :src:`upatches/kernel-obs/decoders/` for complete log
   decoders over arena tables, timestamps included

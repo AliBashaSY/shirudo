@@ -13,8 +13,8 @@ that root on the target cannot rewrite or append to, and the TPM signs
 that register on request. This page explains the register, its write
 policy and binding, the events and the eventlog, the evidence, what the
 operator's verifier computes, the separate config PCR, and the limits.
-``util/chain.c``, ``util/tpm.c``, ``util/tpm_wire.c``,
-``util/eventlog.c`` and ``util/attest.c`` are the reference.
+:src:`util/chain.c`, :src:`util/tpm.c`, :src:`util/tpm_wire.c`,
+:src:`util/eventlog.c` and :src:`util/attest.c` are the reference.
 
 Problem
 -------
@@ -46,7 +46,7 @@ Register
 --------
 
 The register is NV index ``0x01818E00`` (``NV_INDEX`` in
-``util/paths.h``, which a build may change), holding one SHA-256
+:src:`util/paths.h`, which a build may change), holding one SHA-256
 digest. Its attributes are ``0x0E060048``:
 
 - ``TPM2_NT_EXTEND``: a write of ``d`` sets the index to

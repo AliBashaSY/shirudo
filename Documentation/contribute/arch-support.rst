@@ -37,7 +37,7 @@ Comparison
      - Boots on x86-64 hosts
      - Boots on arm64 hosts; ``t1007`` checks its settings without
        booting
-     - None; ``testing/vm/arch.sh`` refuses the architecture
+     - None; :src:`testing/vm/arch.sh` refuses the architecture
    * - Packages
      - Built in CI
      - Not built in CI
@@ -135,8 +135,8 @@ shirudo
 
 - Run the CI tiers on arm64, with the test VM booting on an arm64
   runner.
-- Add riscv64 to the test VM in ``testing/vm/arch.sh`` and
-  ``testing/vm/build-kernel.sh``, and boot a first riscv64 target with a
+- Add riscv64 to the test VM in :src:`testing/vm/arch.sh` and
+  :src:`testing/vm/build-kernel.sh`, and boot a first riscv64 target with a
   TPM.
 - Build the target binary and the packages for arm64 and riscv64 in CI.
 - Check that every library the target links builds and runs on

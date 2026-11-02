@@ -137,8 +137,8 @@ from the artifact's payload digest, so a package always ships both.
      - The member path of the unload directive. Default:
        ``upatches/<base>.unload.upatch``.
 
-Keep both targets directly under ``upatches/``. On a target, ``bpm
-install`` loads every file in the package's ``upatches/`` directory whose
+Keep both targets directly under :src:`upatches/`. On a target, ``bpm
+install`` loads every file in the package's :src:`upatches/` directory whose
 name contains ``.upatch`` but not ``.unload.upatch``, in name order, and
 ``bpm uninstall`` applies every ``upatches/*.unload.upatch`` in reverse
 name order. ``bpm upgrade`` applies the old version's unload directives
@@ -340,13 +340,13 @@ fails the build with ``bpm build: File name too long``.
 Example
 -------
 
-``upatches/kernel-obs/Beefile`` declares one upatch with generated
+:src:`upatches/kernel-obs/Beefile` declares one upatch with generated
 ``.rodata`` and ships its generators:
 
 .. literalinclude:: ../../../upatches/kernel-obs/Beefile
    :language: toml
 
-``upatches/kernel-cve/kernel-cve.bee`` breaks these rules and is not a
+:src:`upatches/kernel-cve/kernel-cve.bee` breaks these rules and is not a
 model. Two of its load targets make member paths longer than 99 bytes
 with any version, so ``bpm build`` fails. Its tree ids name the CVE
 directories while its upatch names are the detectors' base names, so

@@ -44,7 +44,7 @@ the switch to the root file system. It needs
 ``shirudo init`` with ``KeyringMode=inherit``.
 
 ``init`` then runs these steps. ``cmd_init()`` and ``run_init()`` in
-``builtin-init.c`` are the reference.
+:src:`builtin-init.c` are the reference.
 
 #. Read the bootstrap settings from the initrd's
    ``/etc/shirudo/shirudo.conf``. ``runtime.image`` and

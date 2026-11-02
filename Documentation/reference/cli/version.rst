@@ -29,10 +29,10 @@ Without an option, ``version`` prints two lines::
    shirudo (<describe><extraversion>, "<release-name>")
    version-id: <version-id>
 
-``<describe>`` is ``git describe`` of the build tree, or the ``VERSION``
+``<describe>`` is ``git describe`` of the build tree, or the :src:`VERSION`
 file outside a git checkout. ``<version-id>`` is a SHA-256 over the git
 commit, a dirty-tree flag and a digest of the build configuration
-(``config.mk`` and ``Makefile.shirudo``). Two builds of one commit with
+(``config.mk`` and :src:`Makefile.shirudo`). Two builds of one commit with
 different build configurations therefore have different ids, for
 example an operator package and a target package built on different
 hosts.

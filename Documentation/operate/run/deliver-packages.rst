@@ -187,7 +187,7 @@ while it runs.
    existing file. ``<config-keys-dir>`` holds the key whose certificate
    the runtime image names in ``config.verification_key``. The path is
    the operator package's. From a checkout, run
-   ``tools/gen-image/shirudo-gen-image`` and add ``--builder`` with the
+   :src:`tools/gen-image/shirudo-gen-image` and add ``--builder`` with the
    path of ``shirudo-build``.
 
 #. Verify the bundle offline:

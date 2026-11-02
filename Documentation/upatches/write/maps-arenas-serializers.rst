@@ -59,7 +59,7 @@ lists the conditions.
 obs_table.h template
 --------------------
 
-``upatches/kernel-obs/obs_table.h`` is the template for such a table. A
+:src:`upatches/kernel-obs/obs_table.h` is the template for such a table. A
 source defines the table's name, key and value types, capacity, bucket
 count, record size and record encoder, and includes the file once per
 table. Each inclusion produces a hash table in the arena and a serializer
@@ -108,7 +108,7 @@ Serializer interface
 A serializer is a ``SEC("syscall")`` program named
 ``shirudo_serialize__<map>``. It writes into ``shirudo_ser``, an array map
 with a ``__u32`` key and ``struct serial_chunk`` values that the
-upatch defines with 1 to 256 entries. ``bpf/lib/serializer.h``
+upatch defines with 1 to 256 entries. :src:`bpf/lib/serializer.h`
 holds the definitions. The builder refuses a serializer that is not in
 ``SEC("syscall")``, targets a map that does not exist or is
 ``shirudo_ser`` itself, or duplicates another one, and refuses an upatch

@@ -3,7 +3,8 @@
 #
 # Sphinx extension for the shirudo documentation: the page type and
 # reader line under each title, the source and last change in the page
-# footer, and console blocks whose prompts name the role a command runs in.
+# footer, console blocks whose prompts name the role a command runs in,
+# and :src: links to the files of the repository.
 
 import os
 
@@ -119,7 +120,30 @@ def write_llms(app, exception):
         stream.write("\n".join(lines))
 
 
+# :src:`path` shows a path of the repository as code and links it on
+# GitHub. A path the checkout does not have is reported, so that a file
+# moved or removed cannot leave a dead link behind.
+def src_role(name, rawtext, text, lineno, inliner, options=None,
+             content=None):
+    env = inliner.document.settings.env
+    context = env.config.html_context
+    path = text.strip()
+    local = os.path.join(os.path.dirname(os.path.abspath(env.srcdir)),
+                         path.rstrip("/"))
+    messages = []
+    if not os.path.exists(local):
+        messages.append(inliner.reporter.warning(
+            "src: %s is not in the repository" % path, line=lineno))
+    kind = "tree" if os.path.isdir(local) else "blob"
+    url = "%s/%s/%s/%s" % (context["repository"], kind, context["branch"],
+                           path)
+    node = nodes.reference(rawtext, "", refuri=url)
+    node += nodes.literal(path, path)
+    return [node], messages
+
+
 def setup(app):
+    app.add_role("src", src_role)
     app.add_lexer("console", ConsoleLexer)
     app.add_lexer("shell-session", ConsoleLexer)
     CHANGES.update(last_changes())

@@ -66,14 +66,14 @@ Kernel source
        enrolls and seals the config certificate in the ``.dm-verity``
        keyring through ``KEY_SPEC_DM_VERITY_KEYRING``. Apply it to a
        bpf-next tree that predates it.
-   * - ``kernel/0001-x86-ftrace-Mark-jmp-mode-by-clearing-bit-63-of-the-trampoline-address.patch``
+   * - :src:`kernel/0001-x86-ftrace-Mark-jmp-mode-by-clearing-bit-63-of-the-trampoline-address.patch`
      - x86-64 only. Without it, detaching one BPF program from a hook
        that others share can crash tasks that run the hook during the
        update, on kernels where an ftrace callback starts at an odd
        address (seen with gcc 13 and ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``).
        Unloading an upatch detaches its programs from hooks that other
        programs share.
-   * - ``kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch``
+   * - :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`
      - Adds the ``tpm_command`` LSM hook. ``shirudo init`` attaches
        ``lsm/tpm_command`` to refuse an untrusted ``TPM2_NV_Extend`` of
        its register and fails without the hook.
@@ -94,13 +94,13 @@ Identify the kernel
   without it fails with ``kernel_abi_unsupported``.
 - The test harness builds bpf-next by default. It also builds release
   tags and refuses any tag older than v7.4. It applies the patches in
-  ``kernel/`` to either. A release kernel still needs ``kernel/0002``.
+  :src:`kernel/` to either. A release kernel still needs ``kernel/0002``.
 
 Kernel configuration
 ~~~~~~~~~~~~~~~~~~~~
 
 shirudo needs every option below. The test kernel's configuration is the
-slim configuration in ``testing/vm/build-kernel.sh``, which also enables
+slim configuration in :src:`testing/vm/build-kernel.sh`, which also enables
 options that only the tests use.
 
 .. list-table::

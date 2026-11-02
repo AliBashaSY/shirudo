@@ -30,7 +30,7 @@ Before you begin
   ``.github/scripts/tests.sh setup`` installs ``cloud-image-utils``,
   ``dracut-core``, ``file``, ``isc-dhcp-client``, ``libguestfs-tools``,
   ``qemu-system-x86``, ``qemu-utils``, ``swtpm``, ``swtpm-tools`` and
-  ``tpm2-tools`` among others. ``testing/vm/run.sh`` names the packages
+  ``tpm2-tools`` among others. :src:`testing/vm/run.sh` names the packages
   it misses with an install command for ``apt-get`` or ``dnf``.
 - For the end-to-end tests: Docker on the host.
 
@@ -46,11 +46,11 @@ Test tiers
      - Runs
      - Command
    * - Unit
-     - ``testing/unit/``
+     - :src:`testing/unit/`
      - On the build host
      - ``make -C testing unit``
    * - CI checks
-     - ``testing/ci-checks/``
+     - :src:`testing/ci-checks/`
      - On the build host
      - ``make -C testing ci-checks``
    * - Functional
@@ -59,12 +59,12 @@ Test tiers
        family
      - ``make -C testing functional``
    * - End-to-end
-     - ``testing/end2end/``
+     - :src:`testing/end2end/`
      - Around one VM, with a registry and a collector in containers on
        the host
      - ``make -C testing end2end``
    * - Fuzz
-     - ``testing/fuzz/``
+     - :src:`testing/fuzz/`
      - On the build host, under libFuzzer, ASan and UBSan
      - ``make -C testing fuzz``
 
@@ -132,7 +132,7 @@ A shell test is named ``t<F><K><NN>-<what>.sh``:
        whole delivery path
 
 A test you add takes the next free number of its family and kind. A
-number is never reused for another test. A file under ``testing/`` that
+number is never reused for another test. A file under :src:`testing/` that
 is not a test does not take a name of this form. A target test can have
 a Python companion with the same stem, such as
 ``t5101-verity-boot-signers.py``, which only its shell test runs.
@@ -159,8 +159,8 @@ one tier, one unit suite or one family:
    $ make -C testing unit/<suite>
    # make -C testing functional/<family>
 
-``<suite>`` is a file name under ``testing/unit/`` without ``.c``, such
-as ``json``. ``<family>`` is a directory under ``testing/functional/``,
+``<suite>`` is a file name under :src:`testing/unit/` without ``.c``, such
+as ``json``. ``<family>`` is a directory under :src:`testing/functional/`,
 such as ``upatch``. A family runs its operator tests in number order,
 then boots its VM and runs its target tests there. ``make -j`` boots the
 VMs of several families side by side.
@@ -178,7 +178,7 @@ Run the cases of a unit suite whose names contain ``<substring>``:
 
    $ build/unit/<suite> <substring>
 
-Run one operator test directly. It changes to ``testing/`` itself and
+Run one operator test directly. It changes to :src:`testing/` itself and
 uses the binaries in the checkout root, so build them first:
 
 .. code-block:: console
@@ -194,7 +194,7 @@ Read the results
 
 Every test prints TAP: ``ok <n> - <title>``, ``not ok <n> - <title>``
 and a closing ``1..<n>``. A failing case's standard error follows as
-lines that start with ``#``. ``testing/run-tests.sh`` exits with the
+lines that start with ``#``. :src:`testing/run-tests.sh` exits with the
 number of test scripts that failed.
 
 A test that cannot run prints ``1..0 # SKIP <reason>``. On the build
@@ -262,7 +262,7 @@ Build the test kernel
 ~~~~~~~~~~~~~~~~~~~~~
 
 ``make -C testing kernel`` builds bpf-next with the slim configuration
-in ``testing/vm/build-kernel.sh`` and the patches under ``kernel/``. It
+in :src:`testing/vm/build-kernel.sh` and the patches under :src:`kernel/`. It
 writes the kernel image, ``vmlinux.btf``, ``kernel.config``, packages
 and a record of the commit it built to
 ``artifacts/bpf-next-kernel-debs/``. Every target that boots a VM
@@ -282,10 +282,10 @@ builds the kernel first when it is missing.
 
 The stamp is ``artifacts/bpf-next-kernel-debs/bzImage.sha256sum``
 (``Image.sha256sum`` on arm64). Make rebuilds the kernel when
-``testing/vm/build-kernel.sh`` or a patch under ``kernel/`` is newer
+:src:`testing/vm/build-kernel.sh` or a patch under :src:`kernel/` is newer
 than the stamp, so a checkout or rebase that touches either rebuilds
 it on the next VM run. When you know the kernel is current, touch the
-stamp, as ``.github/scripts/tests.sh`` does. The build removes the
+stamp, as :src:`.github/scripts/tests.sh` does. The build removes the
 artifact directory first, so do not run it while a VM run or a build
 reads ``vmlinux.btf``.
 
@@ -305,7 +305,7 @@ reads ``vmlinux.btf``.
    * - ``KERNEL_CONFIG=<file>``
      - Starts from a full configuration instead of the slim fragment.
    * - ``KERNEL_PATCHES=<dir>``
-     - Applies these patches instead of ``kernel/``.
+     - Applies these patches instead of :src:`kernel/`.
    * - ``KERNEL_BUILD_JOBS=<n>``
      - Parallel jobs, ``nproc`` by default.
    * - ``WORK_DIR=<dir>``
@@ -322,7 +322,7 @@ Build the bundle
 The bundle is the operator's side of a VM run: shirudo built for the
 target, the test helpers, the upatch fixtures signed with keys
 generated for the bundle, the dm-verity runtime image and the signed
-config images. ``testing/vm/build-bundle.sh`` builds the bpf-next
+config images. :src:`testing/vm/build-bundle.sh` builds the bpf-next
 bundle into ``build/test-vm/host-bundle-bpf-next-verity/`` and keeps
 the signing key in
 ``build/test-vm/host-bundle-bpf-next-verity.operator/keys/``.
@@ -488,7 +488,7 @@ Run the end-to-end tests
 ------------------------
 
 ``make -C testing end2end`` runs ``t9001`` on the host, then
-``testing/end2end/host.sh`` plays the operator around one VM. It starts
+:src:`testing/end2end/host.sh` plays the operator around one VM. It starts
 an OCI registry and an OpenTelemetry Collector in Docker containers,
 pinned by digest and behind a throwaway CA. It builds ``kernel-obs``
 into a package with ``bpm build``, pushes it with ``bpm push`` and
@@ -522,11 +522,11 @@ Put a test in the lowest tier that can show the change works:
      - The family that owns it, as an operator test if it needs no root,
        kernel or TPM, otherwise as a target test
    * - A whole delivery path
-     - ``testing/end2end/``
+     - :src:`testing/end2end/`
    * - A parser of input from outside the host
-     - A fuzz target in ``testing/fuzz/``, besides the functional test
-   * - A script in ``.github/scripts/``
-     - ``testing/ci-checks/``
+     - A fuzz target in :src:`testing/fuzz/`, besides the functional test
+   * - A script in :src:`.github/scripts/`
+     - :src:`testing/ci-checks/`
 
 Write a unit test
 ~~~~~~~~~~~~~~~~~
@@ -564,7 +564,7 @@ Write a shell test
 1. Create ``testing/functional/<family>/t<F><K><NN>-<what>.sh`` with the
    next free number.
 
-2. Start it from ``testing/`` and source the harness. An operator test
+2. Start it from :src:`testing/` and source the harness. An operator test
    sources ``test-lib.sh``:
 
    .. code-block:: sh
@@ -625,17 +625,17 @@ Add a fixture or a helper
 - A target test loads BPF only from signed fixtures. Put the source in
   ``testing/fixtures/<name>.bpf.c`` and add a line
   ``build_fixture <name>.bpf.c <fixture> "$FIXTURE_WORK/trusted"`` to
-  ``testing/vm/build-bundle.sh``. The bundle signs it on the build host
+  :src:`testing/vm/build-bundle.sh`. The bundle signs it on the build host
   and the guest finds it as
   ``$SHIRUDO_TEST_FIXTURES_DIR/<fixture>.upatch``.
 - A compiled helper goes in ``testing/helper/<name>.c`` with a build
-  rule in ``Makefile.shirudo`` and an entry in ``TEST_HELPERS``. A
+  rule in :src:`Makefile.shirudo` and an entry in ``TEST_HELPERS``. A
   helper that a target test runs also goes in the list of helpers that
-  ``testing/vm/build-bundle.sh`` copies into the bundle. A Python
+  :src:`testing/vm/build-bundle.sh` copies into the bundle. A Python
   helper needs none of this.
 - A fuzz target goes in ``testing/fuzz/fuzz-<name>.c`` with a seed
   corpus in ``testing/fuzz/corpus/<name>/`` and a rule in
-  ``Makefile.shirudo`` that names the sources it links.
+  :src:`Makefile.shirudo` that names the sources it links.
 
 Next steps
 ----------

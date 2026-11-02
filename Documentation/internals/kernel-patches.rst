@@ -8,7 +8,7 @@
 Carried kernel patches
 ======================
 
-The kernel patches in ``kernel/`` of the shirudo tree. The test kernel
+The kernel patches in :src:`kernel/` of the shirudo tree. The test kernel
 build applies them; a production kernel needs the same changes.
 
 Summary
@@ -40,8 +40,8 @@ How the test kernel applies them
 --------------------------------
 
 ``make -C testing kernel`` passes ``KERNEL_PATCHES``, which defaults to
-``kernel/`` when that directory holds patches.
-``testing/vm/build-kernel.sh`` applies each patch in name order with
+:src:`kernel/` when that directory holds patches.
+:src:`testing/vm/build-kernel.sh` applies each patch in name order with
 ``git apply --index`` and commits it, and skips a patch whose reverse
 already applies. A patch that applies neither way fails the build.
 

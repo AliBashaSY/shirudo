@@ -54,7 +54,7 @@ Kernel baseline
      - 7.4 cycle
 
 bpf-next contains the signed-loader ABI at merge ``0867b7bfa9de``.
-``testing/vm/build-kernel.sh`` accepts bpf-next or a release of v7.4 or
+:src:`testing/vm/build-kernel.sh` accepts bpf-next or a release of v7.4 or
 later. shirudo defines ``KEY_SPEC_DM_VERITY_KEYRING`` (-10) itself when
 the UAPI headers lack it. The ``tpm_command`` LSM hook is not
 in bpf-next; :doc:`kernel-patches` lists the patches the test kernel
@@ -64,7 +64,7 @@ string.
 Signing ABI check
 -----------------
 
-``kernel_abi_check()`` (``util/kernel_abi.c``) reads the running kernel's
+``kernel_abi_check()`` (:src:`util/kernel_abi.c`) reads the running kernel's
 BTF and requires:
 
 .. list-table::
@@ -458,7 +458,7 @@ that verify a config; see :doc:`config-images`. ``CONFIG_SECCOMP=n``
 is handled: the seal then sees no seccomp state. The attach kinds of
 upatches can need further options; see :doc:`/upatches/write/attach-kinds`.
 
-``testing/vm/build-kernel.sh`` enforces its own list with
+:src:`testing/vm/build-kernel.sh` enforces its own list with
 ``require_config``, which also covers what the test fixtures and the test
 VM need.
 

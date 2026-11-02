@@ -8,7 +8,7 @@
 Test coverage
 =============
 
-This page lists what the tests under ``testing/`` cover, by family, by
+This page lists what the tests under :src:`testing/` cover, by family, by
 area and by threat, and what no test covers. A test is named by its
 number here, and by its file name without ``.sh`` in the family
 tables. :doc:`/contribute/testing/testing` explains the families, the numbering
@@ -432,8 +432,8 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in ``testing/unit/`` cover seven of the modules in
-``util/``: ``chain``, ``hex``, ``json``, ``kernel_abi``,
+The unit suites in :src:`testing/unit/` cover seven of the modules in
+:src:`util/`: ``chain``, ``hex``, ``json``, ``kernel_abi``,
 ``kernel_build_id``, ``kernel_release`` and ``string``. The other
 modules are reached through the test helpers, the fuzz targets and the
 binaries the functional tests run.
@@ -669,7 +669,7 @@ tests assert that a refusal moves its counter:
 Not covered
 -----------
 
-These are verified absences: no test under ``testing/`` exercises them.
+These are verified absences: no test under :src:`testing/` exercises them.
 
 Attacks
 ~~~~~~~
@@ -745,7 +745,7 @@ Commands and procedures
   failure categories ``already_unloaded``, ``attach_target_missing``,
   ``detach_failed``, ``eventlog_full``, ``kernel_abi_unsupported``,
   ``lsm_denied``, ``signature_unsupported`` or ``verifier_rejected``.
-- Completion against the parsers. ``completion/shirudo.bash`` keeps its
+- Completion against the parsers. :src:`completion/shirudo.bash` keeps its
   option lists by hand, and no test compares them with the options the
   commands accept.
 
@@ -800,9 +800,9 @@ Platforms
 Parsers and units
 ~~~~~~~~~~~~~~~~~
 
-- The dm-verity superblock check in ``util/config_image.c`` has no
+- The dm-verity superblock check in :src:`util/config_image.c` has no
   fuzz target. ``t5001`` covers truncation and unsupported fields.
-- 56 of the 63 modules in ``util/`` have no unit suite of their own.
+- 56 of the 63 modules in :src:`util/` have no unit suite of their own.
 
 Related
 -------

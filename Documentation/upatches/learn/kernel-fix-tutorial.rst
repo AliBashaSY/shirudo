@@ -11,7 +11,7 @@ From a kernel fix to an upatch
 This tutorial takes one kernel fix to a signed upatch, loads it on a test
 target, unloads it again, and packages it for a registry. The example is
 CVE-2026-63984, an overflow in the IPv6 RPL routing header code, whose
-detector ships in ``upatches/kernel-cve/sources/``. You read the fix,
+detector ships in :src:`upatches/kernel-cve/sources/`. You read the fix,
 decide where the upatch attaches, write the program, then build, inspect,
 test, unload, package and publish it.
 

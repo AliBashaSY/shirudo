@@ -248,8 +248,8 @@ way a real upatch's data reaches a collector.
       operator$ ln -s "$PWD/bpf" "$DEV/exec-count/bpf"
 
    ``shirudo-build`` compiles in the package directory. It takes the
-   libbpf headers and ``vmlinux.h`` from ``vendor/`` and
-   ``decoder.h`` from ``bpf/lib/``. An installed operator
+   libbpf headers and ``vmlinux.h`` from :src:`vendor/` and
+   ``decoder.h`` from :src:`bpf/lib/`. An installed operator
    package brings its own copies and needs no links.
 
 2. Write ``build/dev/exec-count/exec-count.bpf.c``:
@@ -509,7 +509,7 @@ target runs takes a new bundle and a new VM.
      operator$ make && make shirudo-build
 
 - After a change to the target side, such as a ``builtin-*.c`` command
-  the target runs, ``util/``, the BPF programs under ``bpf/`` or the boot
+  the target runs, :src:`util/`, the BPF programs under :src:`bpf/` or the boot
   integration, replace the VM:
 
   .. code-block:: console

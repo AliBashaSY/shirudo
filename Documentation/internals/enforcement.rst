@@ -34,11 +34,11 @@ and returns an error that the kernel hands back to the caller.
 Two objects
 -----------
 
-The binary embeds two BPF objects. ``bpf2`` (``bpf/bpf2.c``) holds BPF
+The binary embeds two BPF objects. ``bpf2`` (:src:`bpf/bpf2.c`) holds BPF
 admission and the guards of shirudo's own kernel state. ``seal``
-(``bpf/seal.c``) holds the task marks, the process protection and the
+(:src:`bpf/seal.c`) holds the task marks, the process protection and the
 checks on writable state. Both share the LSM helpers and the verity
-device records of ``bpf/lib/``.
+device records of :src:`bpf/lib/`.
 ``init`` loads both without a signature, from the binary the
 authenticated initrd carries.
 
@@ -181,7 +181,7 @@ Writable state
 Attach order
 ------------
 
-``init_lsm()`` in ``builtin-init.c`` brings the enforcement up in this
+``init_lsm()`` in :src:`builtin-init.c` brings the enforcement up in this
 order:
 
 #. Load ``bpf2``.

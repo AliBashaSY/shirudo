@@ -66,8 +66,8 @@ it after the release:
 
 The build computes the ID as a SHA-256 over the source revision, a
 ``-dirty`` mark when the tree has uncommitted changes, and a digest of
-``config.mk`` and ``Makefile.shirudo``. The revision comes from git, or
-from the ``VERSION`` file outside a git checkout. ``config.mk`` records
+``config.mk`` and :src:`Makefile.shirudo`. The revision comes from git, or
+from the :src:`VERSION` file outside a git checkout. ``config.mk`` records
 the library flags of the build host, so two builds of one commit on
 different hosts get different IDs, and an operator package built on
 another host than the target package carries another ID. The ID does not

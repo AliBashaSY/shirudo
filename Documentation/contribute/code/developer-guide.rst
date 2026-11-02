@@ -23,7 +23,7 @@ Before you begin
   ``clang`` and ``llvm`` with the BPF target. CI installs clang 20 on
   its Ubuntu runners because clang 18 lacks the BPF address-space casts
   that arena upatches need.
-- The development files that ``Makefile.config`` probes for with
+- The development files that :src:`Makefile.config` probes for with
   ``pkg-config``:
 
   .. list-table::
@@ -61,7 +61,7 @@ Install OpenSSL 3.5
 The build probe's hint names Ubuntu 26.04 and Fedora 43 as the first
 releases that ship OpenSSL 3.5. Ubuntu 24.04 ships 3.0. On an older
 distribution, build OpenSSL into a prefix of its own the way
-``.github/scripts/vm-toolchain.sh`` does for CI:
+:src:`.github/scripts/vm-toolchain.sh` does for CI:
 
 1. Download and unpack the release:
 
@@ -96,7 +96,7 @@ distribution, build OpenSSL into a prefix of its own the way
       $ openssl list -public-key-algorithms | grep -i ml-dsa
 
 ``sudo`` drops ``LD_LIBRARY_PATH`` and replaces ``PATH``. When you run
-a make target as root, pass both on, as ``.github/scripts/tests.sh``
+a make target as root, pass both on, as :src:`.github/scripts/tests.sh`
 does:
 
 .. code-block:: console
@@ -111,7 +111,7 @@ Select the kernel BTF
 The BPF objects that shirudo embeds compile against
 ``vendor/linux/vmlinux.h``. ``shirudo build`` run in the checkout root
 uses the same header unless ``--vmlinux`` names another. The build
-generates that header from BTF with ``tools/gen-vmlinux-h`` and never
+generates that header from BTF with :src:`tools/gen-vmlinux-h` and never
 commits it. The embedded
 admission program reads the signature verdict the kernel records in
 ``prog->aux->sig``, so the header must come from a kernel with the
@@ -175,7 +175,7 @@ Build the operator binary
       $ ./shirudo version
 
 The build compiles the vendored libbpf, generates ``vmlinux.h``,
-compiles the userspace objects and the BPF objects under ``bpf/``,
+compiles the userspace objects and the BPF objects under :src:`bpf/`,
 embeds the BPF objects into ``util/loader.o`` and links. These make
 variables change it:
 
@@ -235,7 +235,7 @@ path, which takes precedence over ``PATH``.
 ``bpm build`` compiles with the package directory as its working
 directory. To build a package with a checkout's ``vmlinux.h`` and BPF
 headers, give the package directory ``vendor`` and ``bpf`` symbolic
-links to the checkout's, as ``t7005`` and ``testing/end2end/host.sh``
+links to the checkout's, as ``t7005`` and :src:`testing/end2end/host.sh`
 do.
 
 Build the target binary
@@ -275,7 +275,7 @@ removes ``build/target-deps``.
 Refresh the vendored libbpf
 ---------------------------
 
-``vendor/libbpf`` holds libbpf, its BPF-side headers and the BPF UAPI
+:src:`vendor/libbpf` holds libbpf, its BPF-side headers and the BPF UAPI
 headers. No kernel tree is needed to build. Refresh the copy only when
 a change needs a newer libbpf or UAPI:
 
@@ -284,7 +284,7 @@ a change needs a newer libbpf or UAPI:
    $ make bpf-deps KERNEL_SRC=<kernel-tree>
 
 ``<kernel-tree>`` is a kernel checkout. Without ``KERNEL_SRC``,
-``tools/bpf-deps/bpf-deps.sh`` makes a shallow clone of bpf-next.
+:src:`tools/bpf-deps/bpf-deps.sh` makes a shallow clone of bpf-next.
 
 Other make targets
 ------------------
@@ -333,68 +333,68 @@ Project layout
 
    * - Path
      - Contents
-   * - ``shirudo.c``
+   * - :src:`shirudo.c`
      - The command dispatch table.
-   * - ``builtin-*.c``, ``builtin.h``
+   * - ``builtin-*.c``, :src:`builtin.h`
      - One file per top-level command: ``attest``, ``bpm``, ``build``,
        ``config``, ``genkey``, ``image``, ``init``, ``keys``,
        ``status``, ``upatch`` and ``version``.
-   * - ``util/``
-     - The userspace library both binaries link. ``util/sign.c`` is
+   * - :src:`util/`
+     - The userspace library both binaries link. :src:`util/sign.c` is
        linked into ``shirudo-build`` only.
-   * - ``bpf/``
+   * - :src:`bpf/`
      - The embedded BPF programs: ``bpf2.c`` (admission, mount, image
        and device guards), ``seal.c`` (the seal) and ``unload.c`` (the
        signed unload directive).
-   * - ``bpf/lib/``
+   * - :src:`bpf/lib/`
      - The headers more than one BPF program includes: the LSM helpers
        and verity device records of ``bpf2.c`` and ``seal.c``, and,
        shared with upatches and userspace, decoders, identity,
        serializers, tamper counters and common helpers.
-   * - ``include/shirudo/``
+   * - :src:`include/shirudo/`
      - Integer types, string and number helpers, the ``.upatch``
        container layout, TPM types and the enforcement definitions
        shared between userspace and BPF.
-   * - ``tools/shirudo-build/``
+   * - :src:`tools/shirudo-build/`
      - The operator-only helper: compile, sign, unload directives,
        image signing, ``keys vouch``, ``bpm build``, ``push``,
        ``tree append`` and ``config update``.
-   * - ``tools/gen-image/``
+   * - :src:`tools/gen-image/`
      - ``shirudo-gen-image``, ``shirudo-gen-runtime`` and
        ``shirudo-gen-verity``, which make the runtime and config images,
        their shared ``common.sh`` and the runtime unit templates.
-   * - ``tools/gen-initrd/``
+   * - :src:`tools/gen-initrd/`
      - The dracut module, the initrd generator and the installer.
-   * - ``tools/gen-vmlinux-h/``
+   * - :src:`tools/gen-vmlinux-h/`
      - The ``vmlinux.h`` generator.
-   * - ``tools/bpf-deps/``
-     - The script that refreshes ``vendor/libbpf``.
-   * - ``vendor/libbpf/``
+   * - :src:`tools/bpf-deps/`
+     - The script that refreshes :src:`vendor/libbpf`.
+   * - :src:`vendor/libbpf/`
      - Vendored libbpf and BPF UAPI headers.
    * - ``vendor/linux/``
      - The generated ``vmlinux.h``. Not tracked.
-   * - ``kernel/``
+   * - :src:`kernel/`
      - Kernel patches the test kernel build applies. See
        :doc:`/internals/kernel-patches`.
-   * - ``upatches/``
+   * - :src:`upatches/`
      - The shipped packages, ``kernel-obs`` and ``kernel-cve``, each
        with its Beefile.
-   * - ``systemd/``
+   * - :src:`systemd/`
      - Unit and timer templates for the target.
-   * - ``completion/``
+   * - :src:`completion/`
      - The bash completion. Command names come from
        ``shirudo --list-cmds``. Option lists are maintained by hand.
-   * - ``packaging/``
+   * - :src:`packaging/`
      - The tar, deb and rpm packaging.
-   * - ``testing/``
+   * - :src:`testing/`
      - Unit, functional, end-to-end and fuzz tests, the test VM and
        their helpers. See :doc:`/contribute/testing/testing`.
    * - ``Documentation/``
      - This documentation.
-   * - ``.github/``
+   * - :src:`.github/`
      - The CI workflows and the scripts they run.
-   * - ``Makefile``, ``Makefile.shirudo``, ``Makefile.config``,
-       ``Makefile.target-deps``, ``Makefile.version``
+   * - ``Makefile``, :src:`Makefile.shirudo`, :src:`Makefile.config`,
+       :src:`Makefile.target-deps`, :src:`Makefile.version`
      - The entry points, the build graph, the prerequisite probes, the
        target dependency build and version discovery.
    * - ``build/``, ``artifacts/``
@@ -406,7 +406,7 @@ Project layout
 Run the CI checks locally
 -------------------------
 
-CI runs these scripts from ``.github/scripts/``. Each takes the
+CI runs these scripts from :src:`.github/scripts/`. Each takes the
 arguments of ``git rev-list``, such as ``origin/main..HEAD``, and checks
 the commit at ``HEAD`` alone without them.
 
@@ -443,7 +443,7 @@ the commit at ``HEAD`` alone without them.
      - That a runtime image of the default size of
        ``shirudo-gen-runtime`` holds the target binary, and how much
        space it leaves. When it fails, raise ``size=`` in
-       ``tools/gen-image/shirudo-gen-runtime``.
+       :src:`tools/gen-image/shirudo-gen-runtime`.
    * - ``tests.sh setup|run [unit|functional|end2end]``
      - Prepares a CI runner as the VM host and runs ``make tests``, or
        one part of it: ``unit`` runs the unit and ``ci-checks`` tests,

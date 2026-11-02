@@ -89,7 +89,7 @@ Boot a test target
       [test-vm] ssh: make -C testing vm-ssh
 
    The first run takes a while. It builds a bpf-next kernel with the
-   patches under ``kernel/``, an Ubuntu disk image and a bundle: the static
+   patches under :src:`kernel/`, an Ubuntu disk image and a bundle: the static
    target binary, a dm-verity runtime image, signed config images and a
    throwaway signing key. Later runs reuse them.
 
@@ -249,7 +249,7 @@ VM enrolled its certificate. You sign with that key on the host.
       operator$ KEYS=$PWD/build/test-vm/host-bundle-bpf-next-verity.operator/keys
 
 2. Look at the upatch you are going to sign,
-   ``testing/fixtures/basic.bpf.c``:
+   :src:`testing/fixtures/basic.bpf.c`:
 
    .. code-block:: c
 

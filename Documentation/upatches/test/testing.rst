@@ -168,7 +168,7 @@ Use the signed fixtures
 
 The bundle carries upatches signed with the same key, in the VM at
 ``/mnt/shirudo-bundle/fixtures/``, those below with an ``.unload.upatch``
-beside them. Their sources are in ``testing/fixtures/``. They are handy for
+beside them. Their sources are in :src:`testing/fixtures/`. They are handy for
 trying the commands above or for comparing your upatch with a known good
 one.
 

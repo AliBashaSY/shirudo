@@ -33,7 +33,7 @@ Before you begin
   host. The operator package installs the image generators in
   ``/usr/libexec/shirudo/gen-image/`` and the helper in
   ``/usr/libexec/shirudo/shirudo-build``. In a checkout they are
-  ``tools/gen-image/`` and ``tools/shirudo-build/shirudo-build``.
+  :src:`tools/gen-image/` and ``tools/shirudo-build/shirudo-build``.
 - The static target binary of the build you deploy: ``shirudo-target``
   from ``make target`` in a checkout, or ``/usr/bin/shirudo`` from the
   target package. Use the same build on the target and in the runtime

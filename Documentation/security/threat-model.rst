@@ -52,11 +52,11 @@ The fields of the box are:
 
 - Adversary: who mounts the threat
 - Enforced at: the BPF LSM programs that refuse it, by their section
-  name in ``bpf/``
+  name in :src:`bpf/`
 - Refusal: what the caller sees
 - Counters: the tamper counters the refusal moves, described in
   :doc:`tamper-counters`
-- Tests: the target tests under ``testing/functional/`` that exercise
+- Tests: the target tests under :src:`testing/functional/` that exercise
   the refusal
 - Residual: the residual risks and threats to resolve that bound it
 
@@ -149,7 +149,7 @@ without the protection.
      - The kernel has the signed-loader ABI of the bpf-next tree shirudo
        targets and the ``tpm_command`` LSM hook. Upstream has no such
        hook, and shirudo carries it as
-       ``kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch``.
+       :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`.
      - T1 needs the ABI, T5 the hook.
      - Yes. The pre-flight check ``signed_loader_kernel_abi`` tests the
        ABI. Without the hook the ``bpf2`` object does not load and
@@ -631,7 +631,7 @@ neither permissions nor ownership stop root. A changed archive would be
 restored at the next boot, a truncated eventlog would make the register
 unexplainable, and a planted file would be taken for shirudo's own.
 
-The seal (``bpf/seal.c``) marks shirudo's inodes with the extended
+The seal (:src:`bpf/seal.c`) marks shirudo's inodes with the extended
 attribute ``security.bpf.shirudo`` and checks every operation on a
 marked inode against the caller's authority. ``init``
 labels the existing tree on the run that brings enforcement up, before
@@ -1528,7 +1528,7 @@ U7 The shipped timer units run the host binary
       reading, not reproduced.
    :Meanwhile: Install a drop-in for each of these services that
       starts its commands from the runtime image, as the test VM does
-      in ``testing/vm/guest.sh``.
+      in :src:`testing/vm/guest.sh`.
 
 U8 The TPM transport is not authenticated
    :Affects: The register (T5) and the device check (T14).
@@ -1705,7 +1705,7 @@ D4 Signed PCR policies
 
 D5 In-kernel detach
    Detach and unpin from the signed unload directive in kernel context,
-   which ``bpf/unload.c`` holds a placeholder for, once ``bpf_sys_bpf()``
+   which :src:`bpf/unload.c` holds a placeholder for, once ``bpf_sys_bpf()``
    supports it (R1).
 
 D6 A sleepable hook at dentry instantiation
