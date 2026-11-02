@@ -296,12 +296,9 @@ int keyring_holds_exactly(key_serial_t keyring,
 	}
 	ret = 1;
 out:
-	if (serials)
-		xfree(serials, cap);
-	if (want)
-		xfree(want, n * sizeof(*want));
-	if (matched)
-		xfree(matched, n * sizeof(*matched));
+	xfree(serials, cap);
+	xfree(want, n * sizeof(*want));
+	xfree(matched, n * sizeof(*matched));
 	return ret;
 }
 

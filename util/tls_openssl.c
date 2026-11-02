@@ -89,12 +89,9 @@ static bool tls_classical_host_allowed(CURL *curl)
 		allowlist = end + 1;
 	}
 out:
-	if (host)
-		curl_free(host);
-	if (scheme)
-		curl_free(scheme);
-	if (url)
-		curl_url_cleanup(url);
+	curl_free(host);
+	curl_free(scheme);
+	curl_url_cleanup(url);
 	return allowed;
 }
 

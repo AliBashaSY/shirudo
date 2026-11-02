@@ -937,7 +937,6 @@ int upatch_rodata_print(const struct upatch *u, const char *path,
 	ret = json ? print_rodata_json(u, path, &view) :
 		    print_rodata_text(u, path, &view);
 out:
-	if (view.btf)
-		btf__free(view.btf);
+	btf__free(view.btf);
 	return ret;
 }

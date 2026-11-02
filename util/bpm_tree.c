@@ -383,9 +383,8 @@ void tree_publication_free(struct tree_publication *pub)
 {
 	if (!pub)
 		return;
-	if (pub->operations)
-		xfree(pub->operations,
-		      (size_t)pub->operations_capacity * sizeof(*pub->operations));
+	xfree(pub->operations,
+	      (size_t)pub->operations_capacity * sizeof(*pub->operations));
 	*pub = (struct tree_publication){};
 }
 

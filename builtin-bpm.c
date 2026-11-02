@@ -614,10 +614,8 @@ static int print_package_upatches(const char *source, bool all)
 	if (ret == -ENOENT)
 		pr_err("bpm info upatches: package %s does not include Beefile",
 		       source);
-	if (beefile)
-		xfree(beefile, beefile_len + 1);
-	if (ctx.list)
-		xfree(ctx.list, ctx.cap);
+	xfree(beefile, beefile_len + 1);
+	xfree(ctx.list, ctx.cap);
 	if (archive == temporary)
 		unlink(temporary);
 	return ret;
@@ -682,10 +680,8 @@ static int print_package_upatch_data(const char *source, const char *member,
 		pr_err("bpm info data: cannot decode .rodata in %s", member);
 out:
 	upatch_close(&u);
-	if (beefile)
-		xfree(beefile, beefile_len + 1);
-	if (bytes)
-		xfree(bytes, upatch_len + 1);
+	xfree(beefile, beefile_len + 1);
+	xfree(bytes, upatch_len + 1);
 	if (archive == temporary)
 		unlink(temporary);
 	return ret;

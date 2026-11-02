@@ -1579,8 +1579,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 		retry_wait(attempt, response.retry_after,
 			   response.retry_after_valid);
 	}
-	if (compressed)
-		xfree(compressed, compressed_cap);
+	xfree(compressed, compressed_cap);
 	return ret;
 }
 
@@ -1775,8 +1774,7 @@ int otel_send_log_json(const struct otel_opts *opts,
 					&payload, &payload_len, &alloc_len);
 	if (!ret)
 		ret = otel_post(state, payload, payload_len);
-	if (payload)
-		xfree(payload, alloc_len);
+	xfree(payload, alloc_len);
 	otel_close(state);
 	return ret;
 }
@@ -2536,8 +2534,7 @@ static int otel_s3_emit(void *state, const struct map_view *v)
 		goto out;
 	ret = otel_post(st->otel, payload, payload_len);
 out:
-	if (payload)
-		xfree(payload, S3_REFERENCE_MAX);
+	xfree(payload, S3_REFERENCE_MAX);
 	if (snapshot.file)
 		fclose(snapshot.file);
 	return ret;

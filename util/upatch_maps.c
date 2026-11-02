@@ -56,8 +56,7 @@ static void resolve_map_location(struct map_view *v)
 		vbtf = NULL;
 	upatch_resolve_location(vbtf, v->upatch,
 				v->location, sizeof(v->location));
-	if (vbtf)
-		btf__free(vbtf);
+	btf__free(vbtf);
 }
 
 #define SERIAL_MAX_BYTES \
@@ -1423,8 +1422,7 @@ int upatch_maps_list_all(struct map_summary **out,
 
 void map_summary_free(struct map_summary *list, size_t n)
 {
-	if (list)
-		xfree(list, n * sizeof(*list));
+	xfree(list, n * sizeof(*list));
 }
 
 void upatch_maps_print_summary(const struct map_summary *list,

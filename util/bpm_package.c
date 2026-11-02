@@ -836,8 +836,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 	}
 	ret = tree_parse((const char *)payload.data, payload.len, pub);
 out:
-	if (layers)
-		xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
+	xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&payload);
 	bpm_buffer_free(&sig);

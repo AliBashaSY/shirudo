@@ -425,8 +425,7 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 		map_summary_free(list, nm);
 		r->age_sec = upatch_age_sec(r->loaded_at);
 	}
-	if (vbtf)
-		btf__free(vbtf);
+	btf__free(vbtf);
 	*out = rows;
 	return (size_t)n_ups;
 }
@@ -563,10 +562,8 @@ static void keyring_view_links(struct status_keyring *k,
 
 static void keyring_view_free(struct status_keyring *k)
 {
-	if (k->links)
-		xfree(k->links, k->n_links * sizeof(*k->links));
-	if (k->state)
-		xfree(k->state, k->n_links * sizeof(*k->state));
+	xfree(k->links, k->n_links * sizeof(*k->links));
+	xfree(k->state, k->n_links * sizeof(*k->state));
 }
 
 /* Its subject, key and dates, and the link whose key it is. */
@@ -662,8 +659,7 @@ static void keyring_view_dm_verity(struct status_keyring *k,
 		k->n_certs = 1;
 		keyring_view_cert(k, c, der, len);
 	}
-	if (der)
-		xfree(der, len);
+	xfree(der, len);
 }
 
 static void keyring_cond_input(struct conditions_input *in,
@@ -1624,7 +1620,6 @@ out:
 	for (i = 0; i < n_ups; i++)
 		libc_free(ups[i]);
 	libc_free(ups);
-	if (json_buf)
-		xfree(json_buf, json_cap);
+	xfree(json_buf, json_cap);
 	return ret;
 }

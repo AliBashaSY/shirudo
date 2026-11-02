@@ -450,8 +450,7 @@ static void candidates_free(struct keys_candidate *cand, size_t n)
 	size_t i;
 
 	for (i = 0; i < n; i++) {
-		if (cand[i].der)
-			xfree(cand[i].der, cand[i].der_sz);
+		xfree(cand[i].der, cand[i].der_sz);
 	}
 	xfree(cand, KEYS_SCAN_MAX * sizeof(*cand));
 }

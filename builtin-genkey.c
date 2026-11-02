@@ -301,8 +301,7 @@ static int write_cert_der(X509 *c, const char *path)
 	}
 	ret = 0;
 out:
-	if (bio)
-		BIO_free(bio);
+	BIO_free(bio);
 	if (fd >= 0)
 		close(fd);
 	if (ret != 0)
@@ -504,9 +503,7 @@ int cmd_genkey(int argc, const char **argv)
 		 GENKEY_ALG, keys_dir);
 	ret = 0;
 out:
-	if (cert)
-		X509_free(cert);
-	if (pkey)
-		EVP_PKEY_free(pkey);
+	X509_free(cert);
+	EVP_PKEY_free(pkey);
 	return ret;
 }

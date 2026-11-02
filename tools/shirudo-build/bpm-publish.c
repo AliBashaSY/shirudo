@@ -89,8 +89,7 @@ static int sign_detached(const void *payload, size_t len,
 
 static void sig_free(__u8 *sig)
 {
-	if (sig)
-		xfree(sig, BPM_SIGN_MAX);
+	xfree(sig, BPM_SIGN_MAX);
 }
 
 static int index_entry_compare(const void *left, const void *right)
@@ -142,8 +141,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 	}
 	ret = bpm_index_parse(payload.data, payload.len, entries, n);
 out:
-	if (layers)
-		xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
+	xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&payload);
 	bpm_buffer_free(&sig);
@@ -168,7 +166,7 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	struct json_emit e = {};
 	char timestamp[32], digest[72];
 	char empty_config[] = "{}";
-	size_t cap, sig_len = 0;
+	size_t cap = 0, sig_len = 0;
 	time_t now = time(NULL);
 	__u8 *sig = NULL;
 	int n = 0, ret;
@@ -282,11 +280,9 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 				   (const __u8 *)manifest, e.len, digest,
 				   sizeof(digest));
 out:
-	if (manifest)
-		xfree(manifest, BPM_MANIFEST_CAP);
+	xfree(manifest, BPM_MANIFEST_CAP);
 	sig_free(sig);
-	if (body)
-		xfree(body, cap);
+	xfree(body, cap);
 	xfree(entries, BPM_MAX_ENTRIES * sizeof(*entries));
 	return ret;
 }
@@ -463,12 +459,9 @@ static int push_package(const char *package_path, const char *raw_repository,
 	*reference_out = xstrdup(reference);
 	ret = *reference_out ? 0 : -ENOMEM;
 out:
-	if (key_manifest_body)
-		xfree(key_manifest_body, BPM_MANIFEST_CAP);
-	if (manifest)
-		xfree(manifest, BPM_MANIFEST_CAP);
-	if (info.cert)
-		xfree(info.cert, info.cert_len + 1);
+	xfree(key_manifest_body, BPM_MANIFEST_CAP);
+	xfree(manifest, BPM_MANIFEST_CAP);
+	xfree(info.cert, info.cert_len + 1);
 	xfree(archive, archive_len + 1);
 	return ret;
 }
@@ -835,19 +828,14 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
 		       digest);
 out:
-	if (manifest)
-		xfree(manifest, BPM_MANIFEST_CAP);
+	xfree(manifest, BPM_MANIFEST_CAP);
 	sig_free(sig);
-	if (payload)
-		xfree(payload, payload_len);
-	if (op)
-		xfree(op, sizeof(*op));
+	xfree(payload, payload_len);
+	xfree(op, sizeof(*op));
 	tree_publication_free(&pub);
 	bpm_build_spec_free(spec);
-	if (beefile)
-		xfree(beefile, len + 1);
-	if (info.cert)
-		xfree(info.cert, info.cert_len + 1);
+	xfree(beefile, len + 1);
+	xfree(info.cert, info.cert_len + 1);
 	return ret;
 }
 

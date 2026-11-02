@@ -384,8 +384,7 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 			       "frozen" : "NOT frozen");
 		printf("\n");
 	}
-	if (links)
-		xfree(links, n * sizeof(*links));
+	xfree(links, n * sizeof(*links));
 	return 0;
 }
 
@@ -673,8 +672,7 @@ static int keys_add(int argc, const char **argv)
 		"the initrd (shirudo-gen-initrd)", fp_hex);
 	printf("%s\n", fp_hex);
 out:
-	if (sig)
-		xfree(sig, sig_sz);
+	xfree(sig, sig_sz);
 	xfree(der, der_sz);
 	return ret ? 1 : 0;
 }

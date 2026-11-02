@@ -108,8 +108,7 @@ void bpm_oci_client_clear(struct bpm_oci_client *c)
 
 void bpm_buffer_free(struct bpm_buffer *b)
 {
-	if (b->data)
-		xfree(b->data, b->cap);
+	xfree(b->data, b->cap);
 	*b = (struct bpm_buffer){};
 }
 

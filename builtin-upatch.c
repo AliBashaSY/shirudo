@@ -646,8 +646,7 @@ out:
 	for (j = 0; j < na; j++)
 		libc_free(active[j]);
 	libc_free(active);
-	if (jbuf)
-		xfree(jbuf, 65536);
+	xfree(jbuf, 65536);
 	return ret;
 }
 
@@ -3499,10 +3498,8 @@ struct upatch_get_ctx {
 
 static void upatch_get_ctx_free(struct upatch_get_ctx *c)
 {
-	if (c->ents)
-		xfree(c->ents, (size_t)c->n_recs * sizeof(*c->ents));
-	if (c->btf)
-		btf__free(c->btf);
+	xfree(c->ents, (size_t)c->n_recs * sizeof(*c->ents));
+	btf__free(c->btf);
 	c->ents = NULL;
 	c->btf = NULL;
 }
@@ -3547,8 +3544,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	vbtf = btf__load_vmlinux_btf();
 	upatch_resolve_location(vbtf, want, c->location,
 				sizeof(c->location));
-	if (vbtf)
-		btf__free(vbtf);
+	btf__free(vbtf);
 
 	prog_fd = bpf_prog_get_fd_by_id(linfo.prog_id);
 	if (prog_fd < 0)

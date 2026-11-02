@@ -1266,8 +1266,7 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	jo.cap = 0;
 
 out_close:
-	if (jo.buf)
-		xfree(jo.buf, jo.cap);
+	xfree(jo.buf, jo.cap);
 	lua_sethook(L, NULL, 0, 0);
 	current_lua_budget = NULL;
 	lua_close(L);

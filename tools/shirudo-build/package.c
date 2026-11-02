@@ -329,8 +329,7 @@ out:
 		close(fd);
 	if (ret && wrote)
 		unlink(output);
-	if (sig_buf)
-		xfree(sig_buf, MAX_SIG_SIZE);
+	xfree(sig_buf, MAX_SIG_SIZE);
 	upatch_close(&mod);
 	upatch_close(&src);
 	return ret;
@@ -419,8 +418,7 @@ out:
 		close(fd);
 	if (created)
 		unlink(modified);
-	if (candidate)
-		xfree(candidate, src.map_size);
+	xfree(candidate, src.map_size);
 	upatch_close(&src);
 	return ret;
 }
@@ -1719,8 +1717,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 out:
 	if (fd >= 0)
 		close(fd);
-	if (loader_data_buf)
-		xfree(loader_data_buf, loader_data_len);
+	xfree(loader_data_buf, loader_data_len);
 	free_decoder_set(&decoders);
 	xfree(signed_data, signed_data_len);
 	xfree(decoder_blob, decoder_blob_len);

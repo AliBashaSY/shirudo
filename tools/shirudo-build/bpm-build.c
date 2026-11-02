@@ -631,10 +631,8 @@ int bpm_build_parse_beefile(const __u8 *body, size_t len,
 	spec->build_file = xmalloc(len + 1);
 	scratch = xmalloc(len + 1);
 	if (!spec->build_file || !scratch) {
-		if (scratch)
-			xfree(scratch, len + 1);
-		if (spec->build_file)
-			xfree(spec->build_file, len + 1);
+		xfree(scratch, len + 1);
+		xfree(spec->build_file, len + 1);
 		spec->build_file = NULL;
 		return -ENOMEM;
 	}
@@ -653,16 +651,13 @@ void bpm_build_spec_free(struct bpm_build_spec *spec)
 	if (!spec)
 		return;
 	for (size_t i = 0; i < spec->n_upatches; i++) {
-		if (spec->upatches[i].tree.selector)
-			xfree(spec->upatches[i].tree.selector,
-			      sizeof(*spec->upatches[i].tree.selector));
-		if (spec->upatches[i].rodata)
-			xfree(spec->upatches[i].rodata,
-			      BPM_BUILD_MAX_RODATA *
-			      sizeof(*spec->upatches[i].rodata));
+		xfree(spec->upatches[i].tree.selector,
+		      sizeof(*spec->upatches[i].tree.selector));
+		xfree(spec->upatches[i].rodata,
+		      BPM_BUILD_MAX_RODATA *
+		      sizeof(*spec->upatches[i].rodata));
 	}
-	if (spec->build_file)
-		xfree(spec->build_file, spec->build_file_len + 1);
+	xfree(spec->build_file, spec->build_file_len + 1);
 	xfree(spec, sizeof(*spec));
 }
 
@@ -847,8 +842,7 @@ static int build_rodata_apply(const struct bpm_build_spec *spec,
 		if (!ret && rename(patched, load))
 			ret = -errno;
 out:
-		if (value)
-			xfree(value, value_len + 1);
+		xfree(value, value_len + 1);
 		unlink(generated);
 		if (ret) {
 			unlink(patched);
@@ -1250,8 +1244,7 @@ static int build_environment(const struct bpm_build_spec *spec,
 
 	if (!body || uname(&un) ||
 	    iso8601(now, timestamp, sizeof(timestamp))) {
-		if (body)
-			xfree(body, BPM_BUILD_MAX_JSON);
+		xfree(body, BPM_BUILD_MAX_JSON);
 		return -EIO;
 	}
 	self_len = readlink("/proc/self/exe", self, sizeof(self) - 1);
@@ -1659,8 +1652,7 @@ static int build_bpm_build(int argc, char **argv)
 out_cert:
 	cert_free(&cert);
 out:
-	if (body)
-		xfree(body, body_len + 1);
+	xfree(body, body_len + 1);
 	bpm_build_spec_free(spec);
 	return ret;
 usage:
@@ -1728,8 +1720,7 @@ static int build_copy_package_member(const char *package, const char *member,
 out:
 	if (fd >= 0)
 		close(fd);
-	if (body)
-		xfree(body, len + 1);
+	xfree(body, len + 1);
 	return ret;
 }
 
@@ -1793,8 +1784,7 @@ out:
 		close(fd);
 	if (ret)
 		unlink(path);
-	if (body)
-		xfree(body, body_len + 1);
+	xfree(body, body_len + 1);
 	bpm_buffer_free(&manifest);
 	return ret;
 }
@@ -2087,8 +2077,7 @@ out:
 			ret = -errno;
 		build_stage_close(spec);
 	}
-	if (body)
-		xfree(body, body_len + 1);
+	xfree(body, body_len + 1);
 	bpm_build_spec_free(spec);
 	goto out_base;
 key_error:
@@ -2097,8 +2086,7 @@ key_error:
 alloc_error:
 	ret = -ENOMEM;
 out_base:
-	if (base_info.cert)
-		xfree(base_info.cert, base_info.cert_len + 1);
+	xfree(base_info.cert, base_info.cert_len + 1);
 	if (downloaded_package)
 		unlink(base_package);
 	return ret;

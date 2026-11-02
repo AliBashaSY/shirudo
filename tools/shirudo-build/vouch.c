@@ -212,12 +212,9 @@ int build_keys_vouch(int argc, char **argv)
 		own_hex, output);
 	printf("%s\n", fp_hex);
 out:
-	if (io.signature)
-		xfree(io.signature, VOUCH_SIG_MAX);
-	if (payload)
-		xfree(payload, payload_sz);
-	if (own)
-		xfree(own, own_sz);
+	xfree(io.signature, VOUCH_SIG_MAX);
+	xfree(payload, payload_sz);
+	xfree(own, own_sz);
 	xfree(der, der_sz);
 	return ret ? 1 : 0;
 }

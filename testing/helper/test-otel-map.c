@@ -255,8 +255,7 @@ static int print_payload(bool metric, bool counter, bool with_location)
 						      &len);
 	if (!ret && buf)
 		fwrite(buf, 1, len, stdout);
-	if (buf)
-		xfree(buf, JSON_MAX_BYTES);
+	xfree(buf, JSON_MAX_BYTES);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
@@ -352,8 +351,7 @@ static int print_record_size(void)
 						  &decoded, &decoded_len);
 	if (!ret)
 		printf("%zu\n", decoded_len);
-	if (decoded)
-		xfree(decoded, decoded_len + 1);
+	xfree(decoded, decoded_len + 1);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
