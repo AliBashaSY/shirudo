@@ -76,17 +76,25 @@ static X509 *read_cert_der(const char *path)
 static EVP_PKEY *read_priv_pem(const char *path)
 {
 	EVP_PKEY *k;
-	FILE *fp;
+	BIO *b;
+	int fd;
 
-	fp = fopen(path, "r");
-	if (!fp) {
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0) {
 		pr_err("open %s: %s", path, strerror(errno));
 		return NULL;
 	}
-	k = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
-	fclose(fp);
+	/* Unbuffered, where a FILE would keep the key in memory freed unscrubbed. */
+	b = BIO_new_fd(fd, BIO_CLOSE);
+	if (!b) {
+		close(fd);
+		openssl_complain("BIO_new_fd");
+		return NULL;
+	}
+	k = PEM_read_bio_PrivateKey(b, NULL, NULL, NULL);
+	BIO_free(b);
 	if (!k)
-		openssl_complain("PEM_read_PrivateKey");
+		openssl_complain("PEM_read_bio_PrivateKey");
 	return k;
 }
 

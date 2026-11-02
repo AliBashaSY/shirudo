@@ -238,7 +238,7 @@ static int build_cert(X509 *c, EVP_PKEY *pkey)
 static int write_private_pem(EVP_PKEY *pkey, const char *path)
 {
 	int fd, ret = -1;
-	FILE *fp = NULL;
+	BIO *b = NULL;
 
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
@@ -249,26 +249,24 @@ static int write_private_pem(EVP_PKEY *pkey, const char *path)
 		pr_err("fchmod %s: %s", path, strerror(errno));
 		goto out;
 	}
-	fp = fdopen(fd, "w");
-	if (!fp) {
-		pr_err("fdopen %s: %s", path, strerror(errno));
+	/* Unbuffered, where a FILE would keep the key in memory freed unscrubbed. */
+	b = BIO_new_fd(fd, BIO_NOCLOSE);
+	if (!b) {
+		openssl_complain("BIO_new_fd");
 		goto out;
 	}
-	fd = -1;	/* now owned by fp */
-	if (PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL) != 1) {
-		openssl_complain("PEM_write_PrivateKey");
+	if (PEM_write_bio_PrivateKey(b, pkey, NULL, NULL, 0, NULL, NULL) != 1) {
+		openssl_complain("PEM_write_bio_PrivateKey");
 		goto out;
 	}
-	if (fflush(fp) != 0 || fsync(fileno(fp)) != 0) {
+	if (fsync(fd) != 0) {
 		pr_err("flush %s: %s", path, strerror(errno));
 		goto out;
 	}
 	ret = 0;
 out:
-	if (fp)
-		fclose(fp);
-	else if (fd >= 0)
-		close(fd);
+	BIO_free(b);
+	close(fd);
 	if (ret != 0)
 		unlink(path);
 	return ret;
