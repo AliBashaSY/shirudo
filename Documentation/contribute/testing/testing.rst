@@ -24,6 +24,9 @@ Before you begin
   ``cryptsetup-bin`` and ``mkfs.ext4`` from ``e2fsprogs`` for the image
   tests, ``libtpms-dev`` for the TPM simulator helper and ``rpmbuild``
   for the rpm packaging test.
+- For the ``ci-checks`` tests: ``git``, ``jq``, ``pkg-config``,
+  ``readelf`` and ``spatch`` from Coccinelle. A test whose tool is
+  missing skips. The runner of the ``CI suite`` workflow has them all.
 - For the tests that boot a VM: root, a readable and writable
   ``/dev/kvm``, an x86-64 or arm64 host and what ``make target`` needs,
   since the bundle a VM boots holds the static target binary. On Ubuntu,

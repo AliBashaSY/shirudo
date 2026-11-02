@@ -224,7 +224,7 @@ setup() {
 		autoconf autoconf-archive automake clang-20 cloud-image-utils \
 		dracut-core file isc-dhcp-client libguestfs-tools libltdl-dev \
 		libtool libzstd-dev cryptsetup-bin e2fsprogs qemu-system-x86 qemu-utils swtpm \
-		swtpm-tools tpm2-tools
+		swtpm-tools tpm2-tools coccinelle
 
 	# Ubuntu 24.04's clang 18 lacks the BPF address-space casts the
 	# arena upatches need, and shirudo-build runs /usr/bin/clang.
