@@ -1296,9 +1296,11 @@ static int gzip_data(const char *in, size_t in_len,
 	int zr;
 
 	/* zlib counts in uInt; a longer input would be cut short silently. */
-	if (in_len > UINT_MAX / 2)
+	if (in_len > UINT_MAX)
 		return -EFBIG;
 	cap = size_add(compressBound(in_len), 32);
+	if (cap > UINT_MAX)
+		return -EFBIG;
 	buf = xmalloc(cap);
 	if (!buf)
 		return -ENOMEM;
