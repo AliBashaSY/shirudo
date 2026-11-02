@@ -188,6 +188,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 		goto out;
 	}
 	out->offsets = xcalloc(nr_resolved, sizeof(*out->offsets));
+	out->offsets_cap = (__u32)nr_resolved;
 	if (!out->offsets) {
 		err = -ENOMEM;
 		goto out;
@@ -221,6 +222,6 @@ void elf_target_free(struct elf_target *target)
 	if (!target)
 		return;
 	xfree(target->offsets,
-	      (size_t)target->nr_offsets * sizeof(*target->offsets));
+	      (size_t)target->offsets_cap * sizeof(*target->offsets));
 	memset(target, 0, sizeof(*target));
 }

@@ -1104,6 +1104,7 @@ static int read_entries(int fd, struct map_view *v,
 		if (take == 0)
 			return 0;
 		v->entries = xcalloc(take, sizeof(*v->entries));
+		v->entries_cap = take;
 		if (!v->entries)
 			return -ENOMEM;
 		for (i = 0; i < take; i++) {
@@ -1135,9 +1136,8 @@ static int read_entries(int fd, struct map_view *v,
 	if (is_hash_type(v->type)) {
 		void *prev_key = NULL;
 		void *next_key;
-		size_t entries_cap = 32;
-
-		v->entries = xcalloc(entries_cap, sizeof(*v->entries));
+		v->entries_cap = 32;
+		v->entries = xcalloc(v->entries_cap, sizeof(*v->entries));
 		if (!v->entries)
 			return -ENOMEM;
 		next_key = xmalloc(v->key_size);
@@ -1159,9 +1159,10 @@ static int read_entries(int fd, struct map_view *v,
 				prev_key = next_key;
 				continue;
 			}
-			if (v->n_entries == entries_cap) {
+			if (v->n_entries == v->entries_cap) {
 				void *p = xreallocarray(v->entries,
-							entries_cap, entries_cap * 2,
+							v->entries_cap,
+							v->entries_cap * 2,
 							sizeof(*v->entries));
 				if (!p) {
 					xfree(key, v->key_size);
@@ -1170,9 +1171,9 @@ static int read_entries(int fd, struct map_view *v,
 				}
 				v->entries = p;
 				memset((char *)v->entries +
-				       entries_cap * sizeof(*v->entries),
-				       0, entries_cap * sizeof(*v->entries));
-				entries_cap *= 2;
+				       v->entries_cap * sizeof(*v->entries),
+				       0, v->entries_cap * sizeof(*v->entries));
+				v->entries_cap *= 2;
 			}
 			v->entries[v->n_entries].key = key;
 			v->entries[v->n_entries].value = value;
@@ -1204,8 +1205,9 @@ void map_view_free(struct map_view *v)
 			xfree(v->entries[i].key, v->key_size);
 			xfree(v->entries[i].value, value_alloc);
 		}
-		xfree(v->entries, v->n_entries * sizeof(*v->entries));
+		xfree(v->entries, v->entries_cap * sizeof(*v->entries));
 		v->entries = NULL;
+		v->entries_cap = 0;
 		v->n_entries = 0;
 	}
 	if (v->btf) {

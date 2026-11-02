@@ -3157,16 +3157,17 @@ static int append_one_map_json(const char *path,
 			       const struct map_view *v)
 {
 	char *decoded = NULL;
-	size_t decoded_len = 0;
+	size_t decoded_len = 0, decoded_alloc;
 	int ret;
 
 	ret = upatch_decode_map_json(v, &decoded, &decoded_len);
 	if (ret == 0) {
+		decoded_alloc = decoded_len + 1;
 		while (decoded_len && (decoded[decoded_len - 1] == '\n' ||
 				       decoded[decoded_len - 1] == '\r'))
 			decoded_len--;
 		ret = emit_json_record(path, decoded, decoded_len);
-		xfree(decoded, decoded_len + 1);
+		xfree(decoded, decoded_alloc);
 		return ret;
 	}
 	return ret;

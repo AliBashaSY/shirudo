@@ -14,6 +14,7 @@ struct elf_target {
 	__u32		build_id_len;
 	__u64		*offsets;
 	__u32		nr_offsets;
+	__u32		offsets_cap;
 };
 
 int elf_target_resolve(const char *path, const char *pattern,

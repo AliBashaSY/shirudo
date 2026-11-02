@@ -35,6 +35,8 @@ struct kmod_set {
 	size_t			n;
 	__u16			*deps;	/* flat: mods[i].deps_off..+n_deps */
 	size_t			n_deps;
+	size_t			mods_cap;
+	size_t			deps_cap;
 };
 
 int  kmodules_read(struct kmod_set *set);

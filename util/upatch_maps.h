@@ -80,6 +80,7 @@ struct map_view {
 	__u32		value_type_id;
 	struct btf	*btf;		/* heap; owned by the view */
 	struct map_entry	*entries;	/* n_entries long */
+	size_t		entries_cap;
 };
 
 void map_view_free(struct map_view *v);

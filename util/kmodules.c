@@ -112,7 +112,7 @@ static __u64 next_column(char **p, __u64 max)
 
 int kmodules_parse(char *buf, struct kmod_set *set)
 {
-	size_t mod_cap = 64, deps_cap = 256, edge_cap = 256, n_edges = 0;
+	size_t edge_cap = 256, n_edges = 0;
 	struct edge { __u16 user, dep; } *edges = NULL;
 	char *line, *end;
 	size_t i, j;
@@ -125,8 +125,10 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 			*line = '\0';
 	}
 
-	set->mods = xmalloc(mod_cap * sizeof(*set->mods));
-	set->deps = xmalloc(deps_cap * sizeof(*set->deps));
+	set->mods_cap = 64;
+	set->deps_cap = 256;
+	set->mods = xmalloc(set->mods_cap * sizeof(*set->mods));
+	set->deps = xmalloc(set->deps_cap * sizeof(*set->deps));
 	edges = xmalloc(edge_cap * sizeof(*edges));
 	if (!set->mods || !set->deps || !edges) {
 		ret = -ENOMEM;
@@ -152,9 +154,9 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 		name_len = (size_t)(e - p);
 		if (name_len == 0 || name_len >= KMOD_NAME_LEN)
 			continue;
-		if (set->n == mod_cap) {
-			void *np = xreallocarray(set->mods, mod_cap,
-						 mod_cap * 2,
+		if (set->n == set->mods_cap) {
+			void *np = xreallocarray(set->mods, set->mods_cap,
+						 set->mods_cap * 2,
 						 sizeof(*set->mods));
 
 			if (!np) {
@@ -162,7 +164,7 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 				goto out;
 			}
 			set->mods = np;
-			mod_cap *= 2;
+			set->mods_cap *= 2;
 		}
 		m = &set->mods[set->n++];
 		memcpy(m->name, p, name_len);
@@ -257,9 +259,9 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 				ret = -E2BIG;
 				goto out;
 			}
-			if (set->n_deps == deps_cap) {
-				void *np = xreallocarray(set->deps, deps_cap,
-							 deps_cap * 2,
+			if (set->n_deps == set->deps_cap) {
+				void *np = xreallocarray(set->deps, set->deps_cap,
+							 set->deps_cap * 2,
 							 sizeof(*set->deps));
 
 				if (!np) {
@@ -267,7 +269,7 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 					goto out;
 				}
 				set->deps = np;
-				deps_cap *= 2;
+				set->deps_cap *= 2;
 			}
 			set->deps[set->n_deps++] = edges[j].dep;
 			set->mods[i].n_deps++;
@@ -278,8 +280,8 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 out:
 	xfree(edges, edge_cap * sizeof(*edges));
 	if (ret) {
-		xfree(set->mods, mod_cap * sizeof(*set->mods));
-		xfree(set->deps, deps_cap * sizeof(*set->deps));
+		xfree(set->mods, set->mods_cap * sizeof(*set->mods));
+		xfree(set->deps, set->deps_cap * sizeof(*set->deps));
 		memset(set, 0, sizeof(*set));
 	}
 	return ret;
@@ -323,8 +325,8 @@ int kmodules_read(struct kmod_set *set)
 
 void kmodules_free(struct kmod_set *set)
 {
-	xfree(set->mods, set->n * sizeof(*set->mods));
-	xfree(set->deps, set->n_deps * sizeof(*set->deps));
+	xfree(set->mods, set->mods_cap * sizeof(*set->mods));
+	xfree(set->deps, set->deps_cap * sizeof(*set->deps));
 	memset(set, 0, sizeof(*set));
 }
 
