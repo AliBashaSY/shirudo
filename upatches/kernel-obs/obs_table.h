@@ -82,7 +82,7 @@ static __always_inline int OBS_FN(init)(__u64 now)
 	struct OBS_FN(table_state) __arena *state;
 	int i;
 
-	if (OBS_FN(active))
+	if (READ_ONCE(OBS_FN(active)))
 		return 0;
 	for (i = 0; i < 2; i++) {
 		state = bpf_arena_alloc_pages(&obs_i_arena, 0,
@@ -95,14 +95,14 @@ static __always_inline int OBS_FN(init)(__u64 now)
 		OBS_FN(states)[i] = state;
 	}
 	OBS_FN(drain) = OBS_FN(states)[1];
-	OBS_FN(active) = OBS_FN(states)[0];
+	WRITE_ONCE(OBS_FN(active), OBS_FN(states)[0]);
 	return 0;
 }
 
 static __always_inline struct OBS_FN(entry) __arena *
 OBS_FN(touch)(const OBS_T_KEY *key, int *status)
 {
-	struct OBS_FN(table_state) __arena *state = OBS_FN(active);
+	struct OBS_FN(table_state) __arena *state = READ_ONCE(OBS_FN(active));
 	struct OBS_FN(entry) __arena *e;
 	__u32 b, idx, head, i;
 
@@ -112,17 +112,18 @@ OBS_FN(touch)(const OBS_T_KEY *key, int *status)
 		return 0;
 	}
 	b = obs_hash_words(key, OBS_T_KEY_WORDS) & (OBS_T_BUCKETS - 1);
-	idx = state->heads[b];
+	idx = READ_ONCE(state->heads[b]);
 #pragma clang loop unroll(disable)
 	for (i = 0; i < OBS_T_STEPS; i++) {
 		if (idx == 0 || idx > OBS_T_CAPACITY)
 			break;
 		e = &state->entries[idx];
-		if (e->used && obs_words_equal(&e->key, key, OBS_T_KEY_WORDS)) {
+		if (READ_ONCE(e->used) &&
+		    obs_words_equal(&e->key, key, OBS_T_KEY_WORDS)) {
 			*status = OBS_TOUCH_HIT;
 			return e;
 		}
-		idx = e->next;
+		idx = READ_ONCE(e->next);
 	}
 
 	idx = __sync_fetch_and_add(&state->next_slot, 1);
@@ -137,11 +138,11 @@ OBS_FN(touch)(const OBS_T_KEY *key, int *status)
 	obs_zero(&e->val, OBS_T_VAL_WORDS);
 #pragma clang loop unroll(disable)
 	for (i = 0; i < 4; i++) {
-		head = state->heads[b];
+		head = READ_ONCE(state->heads[b]);
 		e->next = head;
 		if (__sync_val_compare_and_swap(&state->heads[b], head, idx) ==
 		    head) {
-			e->used = 1;
+			WRITE_ONCE(e->used, 1);
 			*status = OBS_TOUCH_CREATED;
 			return e;
 		}
@@ -153,7 +154,7 @@ OBS_FN(touch)(const OBS_T_KEY *key, int *status)
 
 static __always_inline void OBS_FN(flip)(__u64 now)
 {
-	struct OBS_FN(table_state) __arena *cur = OBS_FN(active);
+	struct OBS_FN(table_state) __arena *cur = READ_ONCE(OBS_FN(active));
 	struct OBS_FN(table_state) __arena *spare = OBS_FN(drain);
 	__u32 n;
 
@@ -167,7 +168,7 @@ static __always_inline void OBS_FN(flip)(__u64 now)
 		OBS_FN(clear)(spare);
 	}
 	spare->since_ns = now;
-	OBS_FN(active) = spare;
+	WRITE_ONCE(OBS_FN(active), spare);
 	OBS_FN(drain) = cur;
 }
 
@@ -333,7 +334,7 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 	peek = (ctx->flags & OBS_CTX_F_PEEK) != 0;
 	if (peek) {
 		hdr_flags |= OBS_HDR_F_PEEK;
-		state = OBS_FN(active);
+		state = READ_ONCE(OBS_FN(active));
 	} else {
 		if (ctx->cursor == 0)
 			OBS_FN(flip)(now);
