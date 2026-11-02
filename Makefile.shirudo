@@ -888,7 +888,10 @@ unit-tests: $(UNIT_TESTS)
 # under __CHECKER__, in its place. _FORTIFY_SOURCE=3 and libcurl's
 # typecheck-gcc.h are left out: sparse does not know the builtin the
 # first needs and reports the sizeof the second applies to a function,
-# and the compiler runs both checks.
+# and the compiler runs both checks. sparse has no __has_include either,
+# which glibc 2.43 asks to find <linux/openat2.h> before declaring a
+# struct open_how of its own; __glibc_has_open_how gives the answer the
+# compiler would.
 SPARSE_TYPES_H ?= /usr/include/linux/types.h
 SPARSE_SRCS    := shirudo.c $(BUILTIN_SRCS) $(UTIL_SRCS) $(BUILD_SRCS)
 
@@ -897,7 +900,7 @@ sparse:
 	$(Q)for f in $(SPARSE_SRCS); do \
 		printf '  SPARSE  %s\n' "$$f"; \
 		cgcc -no-compile -Wsparse-error $(CFLAGS) -U_FORTIFY_SOURCE \
-		     -DCURL_DISABLE_TYPECHECK \
+		     -DCURL_DISABLE_TYPECHECK -D__glibc_has_open_how=1 \
 		     -include $(SPARSE_TYPES_H) -D_UAPI_LINUX_TYPES_H \
 		     "$$f" || exit 1; \
 	done
