@@ -49,21 +49,21 @@ jobs:
 
       - name: Restore the bpf-next kernel
         id: kernel
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: artifacts/bpf-next-kernel-debs
           key: test-vm-kernel-${{ steps.week.outputs.week }}-${{ hashFiles('testing/vm/build-kernel.sh', 'testing/vm/arch.sh', 'testing/Makefile', 'kernel/*.patch') }}
 
       - name: Restore the static target dependencies
         id: target-deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: build/target-deps
           key: target-deps-${{ hashFiles('Makefile.target-deps') }}
 
       - name: Restore the VM images
         id: images
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: build/test-vm/cache
           key: test-vm-images-${{ hashFiles('testing/vm/runtime-packages', 'testing/vm/prepare-runtime.sh', 'testing/vm/build-bundle.sh', 'testing/vm/arch.sh') }}
@@ -78,14 +78,14 @@ jobs:
       # fails, so that the next run does not build it again.
       - name: Save the bpf-next kernel
         if: always() && steps.kernel.outputs.cache-hit != 'true' && hashFiles('artifacts/bpf-next-kernel-debs/bzImage.sha256sum') != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: artifacts/bpf-next-kernel-debs
           key: ${{ steps.kernel.outputs.cache-primary-key }}
 
       - name: Save the static target dependencies
         if: always() && steps.target-deps.outputs.cache-hit != 'true' && hashFiles('build/target-deps/lib/libcrypto.a') != '' && hashFiles('build/target-deps/curl/lib/libcurl.a') != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: build/target-deps
           key: ${{ steps.target-deps.outputs.cache-primary-key }}
@@ -95,7 +95,7 @@ jobs:
       # written once the image is complete.
       - name: Save the VM images
         if: always() && steps.images.outputs.cache-hit != 'true' && hashFiles('build/test-vm/cache/runtime/.*.key') != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: build/test-vm/cache
           key: ${{ steps.images.outputs.cache-primary-key }}
