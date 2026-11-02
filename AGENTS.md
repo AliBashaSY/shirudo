@@ -325,7 +325,10 @@ one usually still compiles and passes tests.
 - **BPF targets instruction set v4.** Every `clang -target bpf` in the
   tree passes `-mcpu=v4`: the upatch build, the embedded objects, the
   configure probe and the tests. Not `-mcpu=probe`, which describes the
-  build host's kernel, not the targets'. upatches are therefore compiled
+  build host's kernel, not the targets'. Each compile also passes
+  `-fno-jump-tables`: clang 23 otherwise turns a dense `switch` into a
+  table in `.rodata` read at an offset the verifier cannot bound, and
+  the program is refused. upatches are therefore compiled
   with the full BPF instruction set: load-acquire and store-release,
   sign-extending loads and moves, and signed division and modulo are all
   there, so write the code that needs them directly and do not work

@@ -94,7 +94,8 @@ signed config image.
      - The slim kernel configuration for NitroTPM CRB, EC2, EFI and SSM
    * - ``t1009-upatch-isa``
      - The upatch build compiles for BPF instruction set v4, and a
-       ``-mcpu`` in ``--extra-cflags`` replaces it
+       ``-mcpu`` in ``--extra-cflags`` replaces it; a dense ``switch``
+       compiles to branches, not a table in ``.rodata``
 
 ``signing`` (2)
 ~~~~~~~~~~~~~~~

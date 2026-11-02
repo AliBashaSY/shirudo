@@ -111,6 +111,11 @@ int build_compile(const char *source, const char *output,
 	 * targets, not for the kernel it runs on.
 	 */
 	push(argv, &n, "-mcpu=v4");
+	/*
+	 * A switch stays in branches: clang 23 otherwise reads its results
+	 * from a table in .rodata at an offset the verifier cannot bound.
+	 */
+	push(argv, &n, "-fno-jump-tables");
 	push(argv, &n, "-O2");
 	push(argv, &n, "-g");
 	push(argv, &n, "-Wall");

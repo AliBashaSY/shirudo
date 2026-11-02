@@ -109,7 +109,8 @@ How shirudo uses CO-RE
 ----------------------
 
 ``shirudo build`` compiles a ``.bpf.c`` file with
-``clang -target bpf -mcpu=v4 -O2 -g`` against a ``vmlinux.h`` and hands the object
+``clang -target bpf -mcpu=v4 -fno-jump-tables -O2 -g`` against a ``vmlinux.h`` and
+hands the object
 to gen_loader. Unless
 the operator names a header, the build uses ``./vmlinux.h``, then
 ``./vendor/linux/vmlinux.h``, then the copy installed with shirudo

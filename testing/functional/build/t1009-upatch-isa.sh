@@ -5,7 +5,9 @@
 # t1009 -- the upatch build compiles for BPF instruction set v4, which
 # load-acquire and store-release need, unless --extra-cflags names another
 # -mcpu. A sign-extending load is one instruction, BPF_MEMSX, only in v4,
-# and every clang that builds shirudo emits it there.
+# and every clang that builds shirudo emits it there. A dense switch
+# stays in branches, where clang 23 would read its results from a table
+# in .rodata at an offset the verifier cannot bound.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -39,11 +41,38 @@ int BPF_PROG(shirudo_test_isa)
 }
 EOF
 
-# Builds $W/<name>.upatch and keeps the object as $W/<name>.o.
+cat >"$W/switch.bpf.c" <<'EOF'
+#include "vmlinux.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+
+char _license[] SEC("license") = "Dual BSD/GPL";
+
+SEC("lsm/file_ioctl")
+int BPF_PROG(shirudo_test_switch, struct file *file, unsigned int cmd,
+	     unsigned long arg)
+{
+	switch (cmd & 0xff) {
+	case 0: return 0;
+	case 1: return -1;
+	case 2: return -13;
+	case 3: return 0;
+	case 4: return -1;
+	case 5: return -22;
+	case 6: return 0;
+	case 7: return -95;
+	default: return 0;
+	}
+}
+EOF
+
+# Builds $W/<name>.upatch from $W/<source> and keeps the object as
+# $W/<name>.o.
 build() {
 	name=$1
-	shift
-	(cd .. && tools/shirudo-build/shirudo-build "$W/isa.bpf.c" \
+	source=$2
+	shift 2
+	(cd .. && tools/shirudo-build/shirudo-build "$W/$source" \
 		-o "$W/$name.upatch" --name "t1009-$name" \
 		--vmlinux vendor/linux/vmlinux.h --keys-dir "$W/keys" \
 		--emit-artifacts "$@") >"$W/$name.log" 2>&1
@@ -71,16 +100,41 @@ sys.exit(1)
 EOF
 }
 
+# Whether the BPF object has a .rodata section.
+rodata() {
+	python3 - "$1" <<'EOF'
+import struct
+import sys
+
+data = open(sys.argv[1], "rb").read()
+shoff, = struct.unpack_from("<Q", data, 0x28)
+shentsize, shnum, shstrndx = struct.unpack_from("<HHH", data, 0x3a)
+names, = struct.unpack_from("<Q", data, shoff + shstrndx * shentsize + 0x18)
+for i in range(shnum):
+    name, = struct.unpack_from("<I", data, shoff + i * shentsize)
+    end = data.index(b"\0", names + name)
+    if data[names + name:end].startswith(b".rodata"):
+        sys.exit(0)
+sys.exit(1)
+EOF
+}
+
 test_expect_success 'the upatch build compiles for BPF instruction set v4' '
-	build default &&
+	build default isa.bpf.c &&
 	[ -s "$W/default.upatch" ] &&
 	memsx "$W/default.o"
 '
 
 test_expect_success '--extra-cflags overrides the instruction set' '
-	build v3 --extra-cflags -mcpu=v3 &&
+	build v3 isa.bpf.c --extra-cflags -mcpu=v3 &&
 	[ -s "$W/v3.upatch" ] &&
 	! memsx "$W/v3.o"
+'
+
+test_expect_success 'a switch compiles to branches, not a table in .rodata' '
+	build switch switch.bpf.c &&
+	[ -s "$W/switch.upatch" ] &&
+	! rodata "$W/switch.o"
 '
 
 test_done

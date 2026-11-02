@@ -205,7 +205,11 @@ endif
 # -Wmissing-declarations; the BPF_PROG() / BPF_KPROBE() macros
 # generate auto-named params that often go unused. Neither is
 # fixable upstream of us, so silence both for BPF compilation.
-CLANG_BPF := $(CLANG) -target bpf -mcpu=v4 -O2 -g -Wall -Wextra -Wvla -Wshadow \
+# -fno-jump-tables keeps a switch in branches: clang 23 otherwise reads
+# its results from a table in .rodata at an offset the verifier cannot
+# bound, and refuses the program.
+CLANG_BPF := $(CLANG) -target bpf -mcpu=v4 -fno-jump-tables -O2 -g -Wall -Wextra \
+             -Wvla -Wshadow \
              -Wtype-limits -Wimplicit-fallthrough \
              -Wno-missing-declarations -Wno-unused-parameter \
              -Wdeclaration-after-statement $(WERROR_CFLAGS)

@@ -20,8 +20,8 @@ with tempfile.TemporaryDirectory(prefix="shirudo-seal-seccomp-") as directory:
     work = Path(directory)
     (work / "vmlinux.h").write_text(header)
     command = shlex.split(os.environ.get("CLANG", "clang"))
-    command += ["-target", "bpf", "-mcpu=v4", "-O2", "-g", "-Wall", "-Wextra",
-                "-Werror",
+    command += ["-target", "bpf", "-mcpu=v4", "-fno-jump-tables", "-O2", "-g",
+                "-Wall", "-Wextra", "-Werror",
                 "-Wno-missing-declarations", "-Wno-unused-parameter",
                 "-Wdeclaration-after-statement", "-I" + str(work),
                 "-I" + str(root / "include"),
