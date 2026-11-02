@@ -15,8 +15,8 @@ published package. :doc:`/upatches/write/attach-kinds` and
 
 - :doc:`learn/index`: concepts, the kernel-fix tutorial and the example
   packages
-- :doc:`write/index`: attach kinds, maps, arenas and serializers, and Lua
-  decoders
+- :doc:`write/index`: attach kinds, maps, arenas and serializers, Lua
+  decoders, and memory consistency
 - :doc:`test/index`: test an upatch on a target and debug a failed load
 - :doc:`publish/index`: the Beefile and publishing a package
 

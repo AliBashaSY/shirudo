@@ -330,6 +330,15 @@ one usually still compiles and passes tests.
   where an element-by-element read of a plain map gives a torn view and
   a table that silently fills up. `upatches/kernel-obs/obs_table.h` is
   the template to instantiate.
+- **Test the locking of complex upatch BPF code with blitmus.** Where
+  programs on several CPUs share state through atomics, acquire and
+  release, or a lock or lock-free structure built from them, write the
+  pattern as a litmus test and run it with blitmus
+  (https://github.com/puranjaymohan/blitmus) on x86-64, arm64 and
+  riscv64: a pass on x86-64 says little about the other two. It covers
+  `READ_ONCE()`, `WRITE_ONCE()`, acquire, release and the BPF atomics,
+  not `bpf_spin_lock()` or RCU.
+  `Documentation/upatches/write/memory-consistency/blitmus.rst` shows how.
 
 ## Memory, JSON and logging
 
