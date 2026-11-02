@@ -1432,7 +1432,7 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 			memcpy(cursor, ut->elf.build_id, ut->elf.build_id_len);
 			cursor += ut->elf.build_id_len;
 			for (k = 0; k < ut->elf.nr_offsets; k++) {
-				__u64 offset = cpu_to_le64(ut->elf.offsets[k]);
+				__le64 offset = cpu_to_le64(ut->elf.offsets[k]);
 
 				memcpy(cursor, &offset, sizeof(offset));
 				cursor += sizeof(offset);

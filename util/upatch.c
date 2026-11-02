@@ -20,7 +20,7 @@
 #include "upatch.h"
 
 static int parse_header(const __u8 *m, size_t n,
-			struct shirudo_upatch_header *out)
+			struct shirudo_upatch_host_header *out)
 {
 	const __u8 *p = m;
 
@@ -92,7 +92,8 @@ static int section_inside(__u32 off, __u32 len, size_t n)
 	return 1;
 }
 
-static int validate_bounds(const struct shirudo_upatch_header *h, size_t n)
+static int validate_bounds(const struct shirudo_upatch_host_header *h,
+			   size_t n)
 {
 	if (h->type != SHIRUDO_UPATCH_TYPE_BPF)
 		return -EINVAL;
@@ -486,8 +487,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	*out = NULL;
 	if (!metadata || metadata_len < sizeof(__u32))
 		return -EINVAL;
-	memcpy(&magic, metadata, sizeof(magic));
-	magic = le32_to_cpu(magic);
+	magic = get_le32(metadata);
 	if (magic != UPATCH_PROG_MAGIC)
 		return -EINVAL;
 	if (metadata_len < sizeof(md))
@@ -664,11 +664,8 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			}
 			spec->nr_uprobe_offsets = nr_offsets;
 			for (j = 0; j < nr_offsets; j++) {
-				__u64 offset;
-
-				memcpy(&offset, cursor, sizeof(offset));
-				cursor += sizeof(offset);
-				spec->uprobe_offsets[j] = le64_to_cpu(offset);
+				spec->uprobe_offsets[j] = get_le64(cursor);
+				cursor += sizeof(__le64);
 				if (j && spec->uprobe_offsets[j] <=
 				    spec->uprobe_offsets[j - 1])
 					goto out;

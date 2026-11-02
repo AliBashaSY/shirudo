@@ -241,6 +241,7 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 	size_t i;
 
 	for (i = 0; i + sizeof(struct btf_header) <= u->hdr.data_len; i++) {
+		const struct btf_header *raw = (const void *)(data + i);
 		struct btf_header hdr;
 		__u32 end, type_end, str_end, layout_end;
 		struct btf *btf;
@@ -250,13 +251,13 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 		    data[i + 1] != (BTF_MAGIC >> 8))
 			continue;
 		memcpy(&hdr, data + i, sizeof(hdr));
-		hdr.hdr_len = le32_to_cpu(hdr.hdr_len);
-		hdr.type_off = le32_to_cpu(hdr.type_off);
-		hdr.type_len = le32_to_cpu(hdr.type_len);
-		hdr.str_off = le32_to_cpu(hdr.str_off);
-		hdr.str_len = le32_to_cpu(hdr.str_len);
-		hdr.layout_off = le32_to_cpu(hdr.layout_off);
-		hdr.layout_len = le32_to_cpu(hdr.layout_len);
+		hdr.hdr_len = get_le32(&raw->hdr_len);
+		hdr.type_off = get_le32(&raw->type_off);
+		hdr.type_len = get_le32(&raw->type_len);
+		hdr.str_off = get_le32(&raw->str_off);
+		hdr.str_len = get_le32(&raw->str_len);
+		hdr.layout_off = get_le32(&raw->layout_off);
+		hdr.layout_len = get_le32(&raw->layout_len);
 		if (hdr.hdr_len < offsetof(struct btf_header, layout_off) ||
 		    hdr.hdr_len > u->hdr.data_len - i)
 			continue;

@@ -150,11 +150,9 @@ static int expect_uprobe_multi(const struct shirudo_upatch *u,
 		return fail("uprobe path or metadata length mismatch");
 	cursor += path_len + build_id_len;
 	for (i = 0; i < nr_offsets; i++) {
-		__u64 offset;
+		__u64 offset = get_le64(cursor);
 
-		memcpy(&offset, cursor, sizeof(offset));
-		cursor += sizeof(offset);
-		offset = le64_to_cpu(offset);
+		cursor += sizeof(__le64);
 		if (i && offset <= previous)
 			return fail("uprobe offsets are not sorted and unique");
 		previous = offset;

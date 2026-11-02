@@ -18,8 +18,31 @@
 /* The largest container the parser accepts. */
 #define UPATCH_FILE_MAX		(16u * 1024u * 1024u)
 
+/* struct shirudo_upatch_header as parse_header() reads it, in host order. */
+struct shirudo_upatch_host_header {
+	__u64		magic;
+	__u32		version;
+	__u32		flags;
+	char		name[UPATCH_NAME_MAX];
+	__u8		payload_sha256[UPATCH_PAYLOAD_HASH_LEN];
+	__u32		loader_insns_off;
+	__u32		loader_insns_len;
+	__u32		signature_off;
+	__u32		signature_len;
+	__u32		metadata_off;
+	__u32		metadata_len;
+	__u32		data_off;
+	__u32		data_len;
+	__u32		log_buf_sz;
+	__u32		nr_maps;
+	__u32		nr_progs;
+	__u32		rodata_data_off;
+	__u32		type;
+	__u32		reserved1;
+};
+
 struct shirudo_upatch {
-	struct shirudo_upatch_header	hdr;	/* host byte order */
+	struct shirudo_upatch_host_header	hdr;
 	const __u8			*map;
 	size_t				map_size;
 	bool				mapped;

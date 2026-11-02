@@ -34,9 +34,9 @@ enum shirudo_upatch_type {
 #define UPATCH_PAYLOAD_HASH_LEN	32	/* SHA-256 */
 
 struct shirudo_upatch_header {
-	__u64		magic;			/* UPATCH_MAGIC */
-	__u32		version;		/* UPATCH_VERSION */
-	__u32		flags;			/* SHIRUDO_DIRECTIVE_* */
+	__le64		magic;			/* UPATCH_MAGIC */
+	__le32		version;		/* UPATCH_VERSION */
+	__le32		flags;			/* DIRECTIVE_* */
 	char		name[UPATCH_NAME_MAX];
 	/*
 	 * SHA-256 of the signed content, insns || data. Distinct from the
@@ -45,20 +45,20 @@ struct shirudo_upatch_header {
 	 * the TPM register event, and the unload match target.
 	 */
 	__u8		payload_sha256[UPATCH_PAYLOAD_HASH_LEN];
-	__u32		loader_insns_off;	/* file offset */
-	__u32		loader_insns_len;
-	__u32		signature_off;
-	__u32		signature_len;
-	__u32		metadata_off;
-	__u32		metadata_len;
-	__u32		data_off;		/* gen_loader_opts.data */
-	__u32		data_len;
-	__u32		log_buf_sz;		/* verifier-log buf size */
-	__u32		nr_maps;		/* loader ctx bpf_map_desc count */
-	__u32		nr_progs;		/* loader ctx bpf_prog_desc count */
-	__u32		rodata_data_off;	/* offset in gen_loader_opts.data */
-	__u32		type;			/* enum shirudo_upatch_type */
-	__u32		reserved1;		/* zero; keeps the header 8-byte aligned */
+	__le32		loader_insns_off;	/* file offset */
+	__le32		loader_insns_len;
+	__le32		signature_off;
+	__le32		signature_len;
+	__le32		metadata_off;
+	__le32		metadata_len;
+	__le32		data_off;		/* gen_loader_opts.data */
+	__le32		data_len;
+	__le32		log_buf_sz;		/* verifier-log buf size */
+	__le32		nr_maps;		/* loader ctx bpf_map_desc count */
+	__le32		nr_progs;		/* loader ctx bpf_prog_desc count */
+	__le32		rodata_data_off;	/* offset in gen_loader_opts.data */
+	__le32		type;			/* enum shirudo_upatch_type */
+	__le32		reserved1;		/* zero; keeps the header 8-byte aligned */
 };
 
 BUILD_BUG_ON(sizeof(struct shirudo_upatch_header) != UPATCH_HEADER_SIZE);
@@ -84,17 +84,17 @@ enum shirudo_upatch_section_tag {
 };
 
 struct shirudo_upatch_signed_section {
-	__u32		tag;		/* enum shirudo_upatch_section_tag */
-	__u32		reserved;	/* zero */
-	__u32		off;		/* from the start of data */
-	__u32		len;
+	__le32		tag;		/* enum shirudo_upatch_section_tag */
+	__le32		reserved;	/* zero */
+	__le32		off;		/* from the start of data */
+	__le32		len;
 };
 
 struct shirudo_upatch_signed_trailer {
-	__u32		magic;		/* UPATCH_SIGNED_TRAILER_MAGIC */
-	__u32		version;	/* UPATCH_SIGNED_VERSION */
-	__u32		dir_off;	/* the section directory, from the start of data */
-	__u32		nr_sections;
+	__le32		magic;		/* UPATCH_SIGNED_TRAILER_MAGIC */
+	__le32		version;	/* UPATCH_SIGNED_VERSION */
+	__le32		dir_off;	/* the section directory, from the start of data */
+	__le32		nr_sections;
 };
 
 /*
@@ -114,13 +114,13 @@ enum shirudo_upatch_decoder_export_signal {
 };
 
 struct shirudo_decoder_manifest {
-	__u32		magic;
-	__u16		version;
-	__u16		language;
-	__u16		api_version;
-	__u16		input_format; /* UPATCH_DECODER_INPUT_MAP_V1 */
-	__u16		export_signal;
-	__u16		reserved;
+	__le32		magic;
+	__le16		version;
+	__le16		language;
+	__le16		api_version;
+	__le16		input_format; /* UPATCH_DECODER_INPUT_MAP_V1 */
+	__le16		export_signal;
+	__le16		reserved;
 	char	upatch[64];
 	char	map[16];
 	char	source[64];
@@ -128,23 +128,23 @@ struct shirudo_decoder_manifest {
 };
 
 struct shirudo_upatch_decoder_entry {
-	__u32		language;
-	__u32		api_version;
-	__u32		input_format;
-	__u32		export_signal;
+	__le32		language;
+	__le32		api_version;
+	__le32		input_format;
+	__le32		export_signal;
 	char	upatch[64];
 	char	map[16];
 	char	source[64];
 	char	entrypoint[32];
-	__u32		source_off;
-	__u32		source_len;
+	__le32		source_off;
+	__le32		source_len;
 };
 
 struct shirudo_upatch_decoder_blob {
-	__u32		magic;
-	__u32		version;
-	__u32		nr_decoders;
-	__u32		reserved;
+	__le32		magic;
+	__le32		version;
+	__le32		nr_decoders;
+	__le32		reserved;
 	struct shirudo_upatch_decoder_entry decoders[];
 };
 
@@ -184,18 +184,18 @@ enum shirudo_upatch_prog_role {
 };
 
 struct shirudo_upatch_prog_entry {
-	__u32		role;		/* enum shirudo_upatch_prog_role */
-	__u32		kind;		/* enum shirudo_upatch_attach_kind */
-	__u64		offset;		/* kprobe offset; zero for kretprobe */
+	__le32		role;		/* enum shirudo_upatch_prog_role */
+	__le32		kind;		/* enum shirudo_upatch_attach_kind */
+	__le64		offset;		/* kprobe offset; zero for kretprobe */
 	char		target[UPATCH_ATTACH_TARGET_MAX]; /* kprobe symbol */
 	char		map[UPATCH_PROG_MAP_MAX];
 };
 
 struct shirudo_upatch_prog_metadata {
-	__u32		magic;		/* UPATCH_PROG_MAGIC */
-	__u32		version;		/* UPATCH_PROG_VERSION */
-	__u32		nr_progs;
-	__u32		reserved;
+	__le32		magic;		/* UPATCH_PROG_MAGIC */
+	__le32		version;		/* UPATCH_PROG_VERSION */
+	__le32		nr_progs;
+	__le32		reserved;
 	/*
 	 * Then: nr_progs struct shirudo_upatch_prog_entry entries in
 	 * libbpf/gen_loader program iteration order.
@@ -211,17 +211,17 @@ struct shirudo_upatch_prog_metadata {
  * nr_offsets little-endian __u64 file offsets. Records have no padding.
  */
 struct shirudo_upatch_uprobe_targets {
-	__u32		magic;		/* UPATCH_UPROBE_TARGET_MAGIC */
-	__u32		version;	/* UPATCH_UPROBE_TARGET_VERSION */
-	__u32		nr_targets;
-	__u32		reserved;
+	__le32		magic;		/* UPATCH_UPROBE_TARGET_MAGIC */
+	__le32		version;	/* UPATCH_UPROBE_TARGET_VERSION */
+	__le32		nr_targets;
+	__le32		reserved;
 };
 
 struct shirudo_upatch_uprobe_target {
-	__u32		prog_idx;
-	__u32		path_len;
-	__u32		build_id_len;
-	__u32		nr_offsets;
+	__le32		prog_idx;
+	__le32		path_len;
+	__le32		build_id_len;
+	__le32		nr_offsets;
 };
 
 

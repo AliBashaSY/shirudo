@@ -22,14 +22,14 @@
 /* The standard veritysetup superblock occupies the first 512 bytes. */
 struct verity_superblock {
 	__u8 magic[8];
-	__u32 version_le;
-	__u32 hash_type_le;
+	__le32 version;
+	__le32 hash_type;
 	__u8 uuid[16];
 	char algorithm[32];
-	__u32 data_block_size_le;
-	__u32 hash_block_size_le;
-	__u64 data_blocks_le;
-	__u16 salt_size_le;
+	__le32 data_block_size;
+	__le32 hash_block_size;
+	__le64 data_blocks;
+	__le16 salt_size;
 	__u8 reserved[6];
 	__u8 salt[256];
 	__u8 padding[168];
@@ -91,14 +91,14 @@ static int validate_superblock(const struct verity_superblock *header)
 	static const char algorithm[32] = "sha256";
 
 	if (memcmp(header->magic, magic, sizeof(magic)) ||
-	    le32_to_cpu(header->version_le) != 1 ||
-	    le32_to_cpu(header->hash_type_le) != 1 ||
+	    le32_to_cpu(header->version) != 1 ||
+	    le32_to_cpu(header->hash_type) != 1 ||
 	    memcmp(header->algorithm, algorithm, sizeof(algorithm)) ||
-	    le32_to_cpu(header->data_block_size_le) !=
+	    le32_to_cpu(header->data_block_size) !=
 		CONFIG_IMAGE_BLOCK_SIZE ||
-	    le32_to_cpu(header->hash_block_size_le) !=
+	    le32_to_cpu(header->hash_block_size) !=
 		CONFIG_IMAGE_BLOCK_SIZE ||
-	    le16_to_cpu(header->salt_size_le) != CONFIG_IMAGE_SALT_SIZE)
+	    le16_to_cpu(header->salt_size) != CONFIG_IMAGE_SALT_SIZE)
 		return -EINVAL;
 	return 0;
 }
@@ -117,7 +117,7 @@ int shirudo_config_image_read_header(int hash_fd,
 		rc = validate_superblock(&header);
 	if (rc)
 		return rc;
-	image.data_blocks = le64_to_cpu(header.data_blocks_le);
+	image.data_blocks = le64_to_cpu(header.data_blocks);
 	rc = verity_hash_blocks(image.data_blocks, &image.hash_blocks);
 	if (rc)
 		return rc;
