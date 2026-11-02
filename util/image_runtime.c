@@ -16,6 +16,7 @@
 #include <sys/statvfs.h>
 #include <sys/sysmacros.h>
 #include <sys/xattr.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <bpf/bpf.h>
@@ -475,7 +476,7 @@ static int remove_candidate(struct dm_verity *device)
 		if (ret != -EBUSY)
 			return ret;
 		if (attempt < 99)
-			usleep(10000);
+			nanosleep(&(struct timespec){ .tv_nsec = 10000000 }, NULL);
 	}
 	return ret;
 }

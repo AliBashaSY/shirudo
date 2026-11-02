@@ -145,13 +145,13 @@ int build_compile(const char *source, const char *output,
 	push(argv, &n, output);
 
 	if (extra_cflags && extra_cflags[0]) {
-		char *tok;
+		char *tok, *save;
 
 		cf_copy = xstrdup(extra_cflags);
 		if (!cf_copy)
 			return -ENOMEM;
-		for (tok = strtok(cf_copy, " \t\n"); tok;
-		     tok = strtok(NULL, " \t\n")) {
+		for (tok = strtok_r(cf_copy, " \t\n", &save); tok;
+		     tok = strtok_r(NULL, " \t\n", &save)) {
 			ret = push(argv, &n, tok);
 			if (ret) {
 				xstrfree(cf_copy);

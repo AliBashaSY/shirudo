@@ -86,7 +86,7 @@ static void check_root(struct preflight_result *r)
 
 static bool lsm_lists_bpf(void)
 {
-	char buf[1024];
+	char buf[1024], *save;
 	ssize_t n;
 	int fd;
 
@@ -99,7 +99,8 @@ static bool lsm_lists_bpf(void)
 		return false;
 	buf[n] = '\0';
 
-	for (char *p = strtok(buf, ",\n"); p; p = strtok(NULL, ",\n")) {
+	for (char *p = strtok_r(buf, ",\n", &save); p;
+	     p = strtok_r(NULL, ",\n", &save)) {
 		if (strcmp(p, "bpf") == 0)
 			return true;
 	}
