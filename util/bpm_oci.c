@@ -1143,6 +1143,8 @@ int bpm_trim(const char *in, char *out, size_t out_sz)
 	const char *start = in, *end;
 	int ret = 0;
 
+	if (!out_sz)
+		return -E2BIG;
 	while (*start && isspace((__u8)*start))
 		start++;
 	end = start + strlen(start);

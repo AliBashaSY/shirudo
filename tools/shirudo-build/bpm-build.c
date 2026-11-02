@@ -1309,6 +1309,8 @@ static int tar_write(struct bpm_tar *tar, const void *data, size_t len)
 {
 	if (!len)
 		return 0;
+	if (len > INT_MAX)
+		return -EFBIG;
 	return gzwrite(tar->gz, data, (__u32)len) == (int)len ? 0 : -EIO;
 }
 

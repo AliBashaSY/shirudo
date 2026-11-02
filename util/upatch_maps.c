@@ -1645,7 +1645,7 @@ void upatch_maps_emit_json_fields(struct json_emit *e,
 			json_kv_int(e, "bytes", page->bytes);
 			json_kv_string(e, "data_hex",
 				       hex ? hex : "");
-			xfree(hex, (size_t)page->bytes * 2 + 1);
+			xfree(hex, size_add(size_mul(page->bytes, 2), 1));
 			json_obj_close(e);
 		}
 		json_arr_close(e);

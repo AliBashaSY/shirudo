@@ -18,6 +18,7 @@
 #include <curl/curl.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "bpm.h"
@@ -726,7 +727,12 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			ret = -EINVAL;
 			goto out;
 		}
-		pub.generation++;
+		if (check_add_overflow(pub.generation, 1, &pub.generation) ||
+		    pub.generation == INT64_MAX) {
+			pr_err("bpm tree append: the tree's generation is exhausted");
+			ret = -EOVERFLOW;
+			goto out;
+		}
 	}
 	pub.schema = 1;
 	if (!pub.tree_id[0])
@@ -744,9 +750,16 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		const char *member;
 		__u8 *body = NULL;
 		size_t body_len;
+		__s64 seq;
 
 		if (!u->tree.present)
 			continue;
+		if (check_add_overflow(pub.head_seq, 1, &seq) ||
+		    seq == INT64_MAX) {
+			pr_err("bpm tree append: the tree's sequence is exhausted");
+			ret = -EOVERFLOW;
+			goto out;
+		}
 		member = unload ? u->tree.unload_artifact : u->tree.load_artifact;
 		ret = bpm_pkg_read_member_in(package, member, package_dir, NULL, 0,
 					     &body, &body_len, BPM_MAX_HTTP_BODY);
@@ -754,7 +767,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			pr_err("bpm tree append: package entry %s not found", member);
 			goto out;
 		}
-		*op = (struct tree_operation){ .seq = pub.head_seq + 1 };
+		*op = (struct tree_operation){ .seq = seq };
 		bpm_copy_string(op->op, sizeof(op->op), operation);
 		bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
 		if (u->tree.selector)

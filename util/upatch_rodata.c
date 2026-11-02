@@ -14,6 +14,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "io.h"
@@ -125,8 +126,12 @@ static bool map_update_value(const struct bpf_insn *insns, size_t count,
 			     size_t call, __u32 attr, __u32 *value_off)
 {
 	size_t start = call > 24 ? call - 24 : 0;
+	__u32 value_field;
 	size_t i;
-	__u32 value_field = attr + offsetof(union bpf_attr, value);
+
+	if (check_add_overflow(attr, offsetof(union bpf_attr, value),
+			       &value_field))
+		return false;
 
 	for (i = start; i + 4 < call; i++) {
 		__u32 source_off, dest_off;

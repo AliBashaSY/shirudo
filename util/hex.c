@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 
 #include "hex.h"
 #include "malloc.h"
@@ -23,7 +24,7 @@ void hex_encode(const __u8 *in, size_t n, char *out)
 
 char *hex_alloc(const void *in, size_t n)
 {
-	char *out = xmalloc(2 * n + 1);
+	char *out = xmalloc(size_add(size_mul(n, 2), 1));
 
 	if (out)
 		hex_encode(in, n, out);
@@ -45,7 +46,7 @@ int hex_decode(const char *hex, __u8 *out, size_t n)
 {
 	size_t i;
 
-	if (strlen(hex) != 2 * n)
+	if (strlen(hex) != size_mul(n, 2))
 		return -EINVAL;
 	for (i = 0; i < n; i++) {
 		int hi = hex_nibble(hex[2 * i]);

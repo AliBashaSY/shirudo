@@ -33,6 +33,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "builtin.h"
@@ -1942,15 +1943,27 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 * bpf_sys_bpf() cannot BPF_OBJ_PIN. Its descriptors trail the context,
 	 * sized from the header's counts.
 	 */
-	prog_desc_off = sizeof(struct loader_ctx) +
-			(size_t)u.hdr.nr_maps * sizeof(struct map_desc);
+	prog_desc_off = size_add(sizeof(struct loader_ctx),
+				 size_mul(u.hdr.nr_maps,
+					  sizeof(struct map_desc)));
 	/*
 	 * The loader's max_ctx_offset can exceed the descriptor tail, and
 	 * TEST_RUN rejects a smaller ctx_size_in, so pad generously.
 	 */
-	ctx_sz = prog_desc_off +
-		 (size_t)u.hdr.nr_progs * sizeof(struct prog_desc) +
-		 1024;
+	ctx_sz = size_add(size_add(prog_desc_off,
+				   size_mul(u.hdr.nr_progs,
+					    sizeof(struct prog_desc))),
+			  1024);
+	/* TEST_RUN takes no larger a context for a syscall program. */
+	if (ctx_sz > UINT16_MAX) {
+		pr_err("upatch: %u maps and %u programs do not fit the loader context",
+		       u.hdr.nr_maps, u.hdr.nr_progs);
+		rep_fail(rep, "payload_load", "unknown", E2BIG,
+			 "loader context too large");
+		ctx_sz = 0;
+		ret = 1;
+		goto out;
+	}
 	cx = xmalloc(ctx_sz);
 	if (!cx) {
 		pr_err("ctx alloc");

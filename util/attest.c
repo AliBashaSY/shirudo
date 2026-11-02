@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "attest.h"
@@ -291,7 +292,7 @@ int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	need = 64 * 1024 + fw_cap + sd_cap + ek_b64_cap +
 	       config.n_events * 160;
 	if (stat(eventlog_path(), &st) == 0 && st.st_size > 0)
-		need += 2 * (size_t)st.st_size;
+		need = size_add(need, size_mul(2, st.st_size));
 	if (need > JSON_MAX_BYTES)
 		need = JSON_MAX_BYTES;
 	*out = xmalloc(need);

@@ -172,6 +172,12 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 	}
 	qsort(set->mods, set->n, sizeof(*set->mods), kmod_cmp);
 
+	/* A module index and a dependency offset are __u16. */
+	if (set->n > UINT16_MAX) {
+		ret = -E2BIG;
+		goto out;
+	}
+
 	/*
 	 * The fourth column of a line names who uses the module, so each
 	 * entry there is an edge from that user down to the module.
@@ -247,6 +253,10 @@ int kmodules_parse(char *buf, struct kmod_set *set)
 		for (j = 0; j < n_edges; j++) {
 			if (edges[j].user != i)
 				continue;
+			if (set->n_deps >= UINT16_MAX) {
+				ret = -E2BIG;
+				goto out;
+			}
 			if (set->n_deps == deps_cap) {
 				void *np = xreallocarray(set->deps, deps_cap,
 							 deps_cap * 2,

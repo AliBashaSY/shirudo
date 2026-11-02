@@ -725,7 +725,7 @@ static void emit_log_map_data(struct json_emit *e,
 			otlp_kv_int(e, "chunks", page->chunks);
 			otlp_kv_int(e, "bytes", page->bytes);
 			otlp_kv_string(e, "data_hex", hex ? hex : "");
-			xfree(hex, (size_t)page->bytes * 2 + 1);
+			xfree(hex, size_add(size_mul(page->bytes, 2), 1));
 			otlp_array_kvlist_end(e);
 		}
 		otlp_array_end(e);
@@ -1288,10 +1288,14 @@ static int gzip_data(const char *in, size_t in_len,
 		     __u8 **out, size_t *out_len)
 {
 	z_stream z = {};
-	size_t cap = compressBound(in_len) + 32;
 	__u8 *buf;
+	size_t cap;
 	int zr;
 
+	/* zlib counts in uInt; a longer input would be cut short silently. */
+	if (in_len > UINT_MAX / 2)
+		return -EFBIG;
+	cap = size_add(compressBound(in_len), 32);
 	buf = xmalloc(cap);
 	if (!buf)
 		return -ENOMEM;
@@ -1492,9 +1496,11 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 	__u8 *compressed = NULL;
 	const void *body = json;
 	size_t body_len = json_len, compressed_cap = 0;
-	__u32 attempt, max_attempts = st->opts.retries + 1;
+	__u32 attempt, max_attempts;
 	int ret = -EIO;
 
+	if (check_add_overflow(st->opts.retries, 1, &max_attempts))
+		return -EINVAL;
 	if (!st->s3_reference && st->opts.otlp_max_bytes &&
 	    json_len > st->opts.otlp_max_bytes)
 		return -E2BIG;
@@ -2303,10 +2309,12 @@ static int s3_put(struct otel_s3_state *st,
 {
 	struct curl_slist *headers = NULL;
 	char sigv4[128];
-	__u32 max_attempts = st->opts.retries + 1;
+	__u32 max_attempts;
 	int ret;
 
 	*already_present = false;
+	if (check_add_overflow(st->opts.retries, 1, &max_attempts))
+		return -EINVAL;
 	ret = s3_headers(st, v, snapshot, &headers);
 	if (ret) {
 		curl_slist_free_all(headers);
