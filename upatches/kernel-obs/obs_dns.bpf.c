@@ -342,6 +342,11 @@ static __always_inline void dns_table_touch(const struct dns_request *req,
 	dns_names_touch(e, req, now);
 }
 
+/*
+ * Inlined, off comes from a caller's int that clang knows to be positive,
+ * and clang 23 then tests it as signed 32-bit and sign-extends it, which
+ * the verifier cannot bound. The barrier keeps it the __u32 it is.
+ */
 static __always_inline bool dns_read_u16(struct __sk_buff *skb, __u32 off,
 					 __u16 *value)
 {
@@ -349,6 +354,7 @@ static __always_inline bool dns_read_u16(struct __sk_buff *skb, __u32 off,
 	const __u8 *data_end = (const __u8 *)(long)skb->data_end;
 	const __u8 *src;
 
+	barrier_var(off);
 	if (!value || off > DNS_MAX_PACKET_BYTES - sizeof(*value))
 		return false;
 	src = data + off;
@@ -366,6 +372,7 @@ static __always_inline bool dns_read_u32_raw(struct __sk_buff *skb,
 	const __u8 *src;
 	__u8 *dst = (__u8 *)value;
 
+	barrier_var(off);
 	if (!value || off > DNS_MAX_PACKET_BYTES - sizeof(*value))
 		return false;
 	src = data + off;
