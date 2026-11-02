@@ -224,7 +224,7 @@ static int decode_basic(const char *in, char *user, size_t usz,
 		return -E2BIG;
 	out[n] = '\0';
 	if (memchr(out, '\0', n)) {
-		explicit_bzero(out, sizeof(out));
+		memzero_explicit(out, sizeof(out));
 		return -EINVAL;
 	}
 	colon = memchr(out, ':', n);

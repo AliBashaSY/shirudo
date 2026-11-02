@@ -1178,12 +1178,12 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		}
 		ret = strsprintf(line, n, "%s: %s", name, value) < 0 ? -E2BIG :
 		     append_header(st, line);
-		explicit_bzero(line, n);
+		memzero_explicit(line, n);
 		xfree(line, n);
 		if (ret)
 			break;
 	}
-	explicit_bzero(copy, total);
+	memzero_explicit(copy, total);
 	xfree(copy, total + 1);
 	return ret;
 }
@@ -2445,7 +2445,7 @@ static void otel_s3_state_free(struct otel_s3_state *st)
 	if (st->otel)
 		otel_close(st->otel);
 	if (st->credentials) {
-		explicit_bzero(st->credentials, st->credentials_len);
+		memzero_explicit(st->credentials, st->credentials_len);
 		xfree(st->credentials, st->credentials_len);
 	}
 	xfree(st, sizeof(*st));

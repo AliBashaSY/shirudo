@@ -1054,7 +1054,7 @@ void image_leave(void)
 	if (image.certificate_fd >= 0)
 		close(image.certificate_fd);
 	image.certificate_fd = -1;
-	explicit_bzero(&image.bootstrap_config, sizeof(image.bootstrap_config));
+	memzero_explicit(&image.bootstrap_config, sizeof(image.bootstrap_config));
 }
 
 int image_update(const char *prefix)

@@ -45,11 +45,11 @@ int tpm_tcti(char *buf, size_t size)
 	if (!tcti || !*tcti)
 		tcti = "device:/dev/tpmrm0";
 	if (image_config_active() && strncmp(tcti, "device:", 7)) {
-		explicit_bzero(&cfg, sizeof(cfg));
+		memzero_explicit(&cfg, sizeof(cfg));
 		return -EACCES;
 	}
 	n = strscpy(buf, tcti, size);
-	explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
+	memzero_explicit(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 	return n < 0 ? (int)n : 0;
 }
 
@@ -311,7 +311,7 @@ static int owner_auth_set(struct tpm *t, const void *auth, size_t len)
 		owner.size = (__u16)len;
 	}
 	ret = Esys_TR_SetAuth(t->esys, ESYS_TR_RH_OWNER, &owner);
-	explicit_bzero(owner.buffer, sizeof(owner.buffer));
+	memzero_explicit(owner.buffer, sizeof(owner.buffer));
 	if (ret != TSS2_RC_SUCCESS) {
 		pr_err("tpm: TR_SetAuth(owner): rc=0x%08x", (__u32)ret);
 		return -EIO;
@@ -517,7 +517,7 @@ static int tpm_writer_primary(struct tpm *t,
 	err = config_load(&cfg);
 	if (!err)
 		err = owner_auth_set(t, cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
-	explicit_bzero(&cfg, sizeof(cfg));
+	memzero_explicit(&cfg, sizeof(cfg));
 	if (err)
 		return err;
 	ret = Esys_CreatePrimary(t->esys, ESYS_TR_RH_OWNER,
@@ -689,7 +689,7 @@ static int policy_writer_signed(struct tpm *t, ESYS_TR session,
 	}
 out:
 	session_flush(t, key);
-	explicit_bzero(signature, sizeof(signature));
+	memzero_explicit(signature, sizeof(signature));
 	return err;
 }
 
@@ -1038,7 +1038,7 @@ void tpm_key_flush(struct tpm *t, struct tpm_key *key)
 {
 	if (key->handle != ESYS_TR_NONE && key->handle != 0)
 		Esys_FlushContext(t->esys, key->handle);
-	explicit_bzero(key, sizeof(*key));
+	memzero_explicit(key, sizeof(*key));
 	key->handle = ESYS_TR_NONE;
 }
 

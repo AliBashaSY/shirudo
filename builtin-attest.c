@@ -763,7 +763,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	printf("challenge: %s\ncredential: %s\n", out_path, hex);
 	ret = 0;
 out:
-	explicit_bzero(credential, sizeof(credential));
+	memzero_explicit(credential, sizeof(credential));
 	xfree(doc, cap);
 	xfree(evidence, evidence ? evidence_len + 1 : 0);
 	xfree(report, ATTEST_REPORT_MAX);

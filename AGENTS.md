@@ -327,6 +327,12 @@ one usually still compiles and passes tests.
   `xstrdup` is strlen-based, so never apply it to user, file or network
   input; use `xstrndup(s, bound)`. `xasprintf` formats into memory of
   the size needed, freed with `xstrfree`.
+- Scrub a secret, a key, an auth value, a seed, a KDF output, a
+  credential or a buffer that held one, with `memzero_explicit()` from
+  `<shirudo/string.h>` on every path out of its scope, the error paths
+  included. A `memset()` of memory nothing reads afterwards is a dead
+  store the compiler drops; `explicit_bzero()` is poisoned in favor of
+  the kernel's name.
 - `util/json.{c,h}` is the only JSON code. Extend its schema
   definitions for new fields or documents; never open-code JSON bytes
   elsewhere.

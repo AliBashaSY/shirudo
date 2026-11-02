@@ -225,7 +225,7 @@ int image_config_validate(int root_fd)
 		if (!ret && (!candidate.map_export_valid ||
 			     !candidate.tls_classical_hosts_valid))
 			ret = -EINVAL;
-		explicit_bzero(&candidate, sizeof(candidate));
+		memzero_explicit(&candidate, sizeof(candidate));
 	}
 	return ret;
 }
@@ -275,5 +275,5 @@ void image_config_clear(void)
 		close(config_fd);
 	config_fd = -1;
 	active = false;
-	explicit_bzero(&effective, sizeof(effective));
+	memzero_explicit(&effective, sizeof(effective));
 }

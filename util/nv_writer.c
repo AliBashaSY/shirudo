@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/random.h>
 
+#include <shirudo/string.h>
+
 #include "identity.h"
 #include "log.h"
 #include "nv_writer.h"
@@ -36,7 +38,7 @@ int nv_writer_create(__u8 seed[TPM_DIGEST_LEN],
 		return 0;
 fail:
 	pr_err("nv writer: TPM key creation failed: %s", strerror(-err));
-	explicit_bzero(seed, TPM_DIGEST_LEN);
+	memzero_explicit(seed, TPM_DIGEST_LEN);
 	memset(public, 0, TPM_NV_RSA_BYTES);
 	return err;
 }

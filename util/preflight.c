@@ -356,7 +356,7 @@ static void check_tpm(struct preflight_result *r)
 				strscpy(c->detail, "TCTI override",
 					sizeof(c->detail));
 		}
-		explicit_bzero(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
+		memzero_explicit(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 		if (override)
 			return;
 	}

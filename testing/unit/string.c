@@ -281,6 +281,17 @@ static void dns_name_is_ldh_labels_and_no_address(void)
 	EXPECT_FALSE(dns_name_valid(name));
 }
 
+static void memzero_explicit_clears_its_span_only(void)
+{
+	__u8 want[16], buf[16];
+
+	memset(buf, 0xa5, sizeof(buf));
+	memset(want, 0xa5, sizeof(want));
+	memset(want + 4, 0, 8);
+	memzero_explicit(buf + 4, 8);
+	EXPECT_MEMEQ(buf, want, sizeof(buf));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -297,6 +308,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(strsprintf_leaves_nothing_when_cut),
 	UNIT_CASE(xasprintf_allocates_the_size_needed),
 	UNIT_CASE(dns_name_is_ldh_labels_and_no_address),
+	UNIT_CASE(memzero_explicit_clears_its_span_only),
 	{}
 };
 

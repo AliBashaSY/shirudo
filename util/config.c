@@ -127,14 +127,14 @@ static void set_owner_auth(struct config *cfg, const char *val)
 			if (hi < 0 || lo < 0) {
 				pr_warn("config: tpm.owner_auth: bad hex "
 					"(ignored)");
-				explicit_bzero(auth, sizeof(auth));
+				memzero_explicit(auth, sizeof(auth));
 				return;
 			}
 			auth[i] = (char)((hi << 4) | lo);
 		}
 		memcpy(cfg->tpm_owner_auth, auth, hl / 2);
 		cfg->tpm_owner_auth_len = hl / 2;
-		explicit_bzero(auth, sizeof(auth));
+		memzero_explicit(auth, sizeof(auth));
 		return;
 	}
 
@@ -277,14 +277,14 @@ static int config_parse(struct config *cfg, FILE *f,
 	/* The TPM owner's authorization is for no other user's eyes. */
 	if (cfg->tpm_owner_auth_len &&
 	    check_trusted(fileno(f), path, true)) {
-		explicit_bzero(cfg->tpm_owner_auth,
-			       sizeof(cfg->tpm_owner_auth));
+		memzero_explicit(cfg->tpm_owner_auth,
+				 sizeof(cfg->tpm_owner_auth));
 		cfg->tpm_owner_auth_len = 0;
 		ret = -EPERM;
 	}
 	if (line) {
 		/* The owner's authorization may have been read into it. */
-		explicit_bzero(line, capacity);
+		memzero_explicit(line, capacity);
 		libc_free(line);
 	}
 	if (fclose(f) && !ret)

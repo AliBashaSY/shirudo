@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * Bounded number parsing, string copies and formatting, DNS names, from
- * util/string.c.
+ * util/string.c, and the scrub for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -60,9 +60,21 @@ int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 bool dns_name_valid(const char *name);
 
 /*
+ * Zero the count bytes at s even when nothing reads them afterwards, as
+ * when a secret is scrubbed before it goes out of scope or is freed,
+ * where the compiler may drop a plain memset() as a dead store.
+ */
+static inline void memzero_explicit(void *s, size_t count)
+{
+	memset(s, 0, count);
+	barrier_data(s);
+}
+
+/*
  * What the functions above replace, refused once the headers included
  * above have declared it, so that a later include of those still works;
- * util/string.c opts out with STRING_INTERNAL.
+ * util/string.c and the xasprintf() of util/malloc.c opt out with
+ * STRING_INTERNAL.
  */
 #ifndef STRING_INTERNAL
 # pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
@@ -72,6 +84,7 @@ bool dns_name_valid(const char *name);
 # undef sprintf
 # undef snprintf
 # pragma GCC poison sprintf vsprintf snprintf vsnprintf
+# pragma GCC poison explicit_bzero
 #endif
 
 #endif /* SHIRUDO_STRING_H */

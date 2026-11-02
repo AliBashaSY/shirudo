@@ -12,6 +12,14 @@
 #define __must_check	__attribute__((warn_unused_result))
 #define __noreturn	__attribute__((noreturn))
 
+/*
+ * An empty asm that may read memory through ptr, so that a store to that
+ * memory before it is not dead. The pointer has to be an operand: the
+ * memory clobber alone does not reach an object whose address never
+ * escaped, and clang drops a store to a local then.
+ */
+#define barrier_data(ptr)	__asm__ __volatile__("" : : "r"(ptr) : "memory")
+
 /* sparse's cast between a restricted type and its base; nothing otherwise. */
 #ifdef __CHECKER__
 #define __force		__attribute__((force))

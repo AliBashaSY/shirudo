@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "crypto.h"
 #include "tpm_wire.h"
@@ -484,7 +485,7 @@ int tpm_kdfa(const __u8 *key, size_t key_len, const char *label,
 		memcpy(out + done, block, n);
 		done += n;
 	}
-	explicit_bzero(block, sizeof(block));
+	memzero_explicit(block, sizeof(block));
 	return 0;
 }
 
@@ -512,7 +513,7 @@ void tpm_kdfe(const __u8 z[32], const char *label,
 		memcpy(buf + off, party_v, v_len);
 	off += v_len;
 	sha256_buffer(buf, off, out);
-	explicit_bzero(buf, sizeof(buf));
+	memzero_explicit(buf, sizeof(buf));
 }
 
 int tpm_credential_protect(const __u8 seed[32],
@@ -544,9 +545,9 @@ int tpm_credential_protect(const __u8 seed[32],
 	memcpy(out + 34, enc, sizeof(enc));
 	ret = 0;
 out:
-	explicit_bzero(plain, sizeof(plain));
-	explicit_bzero(sym_key, sizeof(sym_key));
-	explicit_bzero(hmac_key, sizeof(hmac_key));
+	memzero_explicit(plain, sizeof(plain));
+	memzero_explicit(sym_key, sizeof(sym_key));
+	memzero_explicit(hmac_key, sizeof(hmac_key));
 	return ret;
 }
 

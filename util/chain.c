@@ -243,7 +243,7 @@ static int register_define(struct tpm *tpm, bool defined,
 	ret = tpm_nv_define(tpm, NV_INDEX, policy,
 			    cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
 out:
-	explicit_bzero(&cfg, sizeof(cfg));
+	memzero_explicit(&cfg, sizeof(cfg));
 	return ret;
 }
 

@@ -397,11 +397,11 @@ out:
 	xfree(ek_b64, ek_b64_cap);
 	xfree(fw, fw_cap);
 	xfree(sd, sd_cap);
-	explicit_bzero(cred, sizeof(cred));
-	explicit_bzero(&ak, sizeof(ak));
-	explicit_bzero(&ek, sizeof(ek));
-	explicit_bzero(&ak_copy, sizeof(ak_copy));
-	explicit_bzero(&ek_copy, sizeof(ek_copy));
+	memzero_explicit(cred, sizeof(cred));
+	memzero_explicit(&ak, sizeof(ak));
+	memzero_explicit(&ek, sizeof(ek));
+	memzero_explicit(&ak_copy, sizeof(ak_copy));
+	memzero_explicit(&ek_copy, sizeof(ek_copy));
 	if (ret && *out) {
 		xfree(*out, *cap);
 		*out = NULL;
@@ -1517,13 +1517,13 @@ int attest_challenge_make(const char *evidence, size_t len,
 	*out_len = e.len;
 	ret = 0;
 out:
-	explicit_bzero(seed, sizeof(seed));
-	explicit_bzero(z, sizeof(z));
+	memzero_explicit(seed, sizeof(seed));
+	memzero_explicit(z, sizeof(z));
 	cert_free(&cert);
 	xfree(der, der ? EK_CERT_MAX : 0);
 	xfree(cert_b64, EK_CERT_B64_MAX);
 	if (ret) {
-		explicit_bzero(credential, TPM_CREDENTIAL_LEN);
+		memzero_explicit(credential, TPM_CREDENTIAL_LEN);
 		if (*out) {
 			xfree(*out, *cap);
 			*out = NULL;

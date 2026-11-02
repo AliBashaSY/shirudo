@@ -1151,14 +1151,14 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 
 		ret = config_load(&cfg);
 		if (ret) {
-			explicit_bzero(&cfg, sizeof(cfg));
+			memzero_explicit(&cfg, sizeof(cfg));
 			pr_err("chain: configuration unreadable: %s",
 			       strerror(-ret));
 			return ret;
 		}
 		max_bytes = cfg.eventlog_max_bytes;
 		full = eventlog_would_exceed(max_bytes);
-		explicit_bzero(&cfg, sizeof(cfg));
+		memzero_explicit(&cfg, sizeof(cfg));
 		if (full) {
 			pr_err("eventlog %s would exceed eventlog.max_bytes=%llu; "
 			       "refusing chain extend (eventlog_full)",
