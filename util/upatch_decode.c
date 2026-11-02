@@ -153,7 +153,7 @@ static void *lua_limited_alloc(void *ud, void *ptr, size_t old_size,
 	if (!next)
 		return NULL;
 	if (ptr) {
-		memcpy(next, ptr, old_size < new_size ? old_size : new_size);
+		memcpy(next, ptr, min(old_size, new_size));
 		xfree(ptr, old_size);
 	}
 	memory->used = base + new_size;

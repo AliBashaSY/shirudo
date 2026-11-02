@@ -271,7 +271,7 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 		if (type_end < hdr.type_off || str_end < hdr.str_off ||
 		    layout_end < hdr.layout_off)
 			continue;
-		end = hdr.hdr_len + (type_end > str_end ? type_end : str_end);
+		end = hdr.hdr_len + max(type_end, str_end);
 		if (layout_end > end - hdr.hdr_len)
 			end = hdr.hdr_len + layout_end;
 		if (end < hdr.hdr_len || end > u->hdr.data_len - i)

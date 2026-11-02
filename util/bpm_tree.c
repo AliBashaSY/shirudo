@@ -55,7 +55,7 @@ static int tp_string(struct tree_parser *p, char *out, size_t cap)
 
 		if (c == '"') {
 			if (cap)
-				out[n < cap ? n : cap - 1] = '\0';
+				out[min(n, cap - 1)] = '\0';
 			return n < cap ? 0 : -ENOSPC;
 		}
 		if (c == '\\') {

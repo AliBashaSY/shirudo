@@ -7,6 +7,8 @@
 
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 #include "similar.h"
 
 static int edit_distance(const char *s, const char *t, int max)
@@ -86,7 +88,7 @@ size_t suggest(const char *name,
 		 * right; discard the one that falls off the end so `out`
 		 * always holds the cap-best matches.
 		 */
-		pos = n_out < cap ? n_out : cap;
+		pos = min(n_out, cap);
 		while (pos > 0 && out[pos - 1].dist > d) {
 			if (pos < cap)
 				out[pos] = out[pos - 1];

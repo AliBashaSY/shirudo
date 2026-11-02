@@ -453,7 +453,7 @@ void kmodules_print_recent(const struct shirudo_kmod_set *set,
 		all[i].idx = i;
 	}
 	qsort(all, set->n, sizeof(*all), recent_cmp);
-	take = set->n < last_n ? set->n : last_n;
+	take = min(set->n, last_n);
 	for (i = 0; i < take; i++) {
 		const struct shirudo_kmod *m = &set->mods[all[i].idx];
 		char ts[32], size_s[16], age[24];

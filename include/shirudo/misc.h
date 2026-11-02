@@ -2,8 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * The kernel's fixed-width integer types, ARRAY_SIZE(), ptr_to_u64() and
- * shirudo_trunc(), for userspace.
+ * The kernel's fixed-width integer types, ARRAY_SIZE(), min() and max(),
+ * ptr_to_u64() and shirudo_trunc(), for userspace.
  */
 
 #ifndef SHIRUDO_MISC_H
@@ -33,6 +33,25 @@ typedef unsigned long long	__u64;
 	BUILD_BUG_ON_ZERO(__builtin_types_compatible_p(typeof(a),	\
 						       typeof(&(a)[0])))
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof((a)[0]) + __must_be_array(a))
+
+/*
+ * Each argument is evaluated once, and arguments of two types refuse to
+ * compile rather than compare after a silent conversion: min_t() and
+ * max_t() convert both to the type they name. The temporaries take a
+ * __COUNTER__ suffix so that a nested call shadows nothing.
+ */
+#define __minmax_op_min		<
+#define __minmax_op_max		>
+#define __minmax_n(op, x, y, n) ({					\
+	__auto_type __x##n = (x);					\
+	__auto_type __y##n = (y);					\
+	(void)(&__x##n == &__y##n);					\
+	__x##n __minmax_op_##op __y##n ? __x##n : __y##n; })
+#define __minmax(op, x, y, n)	__minmax_n(op, x, y, n)
+#define min(x, y)		__minmax(min, x, y, __COUNTER__)
+#define max(x, y)		__minmax(max, x, y, __COUNTER__)
+#define min_t(type, x, y)	min((type)(x), (type)(y))
+#define max_t(type, x, y)	max((type)(x), (type)(y))
 
 /* A pointer as the __u64 the bpf() ABI carries it in. */
 static inline __u64 ptr_to_u64(const void *ptr)

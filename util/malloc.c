@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <shirudo/misc.h>
+
 /* Implements the wrappers; opt out of the poison pragma in malloc.h. */
 #define MALLOC_INTERNAL
 #include "malloc.h"
@@ -52,7 +54,7 @@ void *xreallocarray(void *ptr, size_t old_nmemb, size_t new_nmemb,
 	if (!out)
 		return NULL;		/* failure -- leave ptr untouched */
 	if (ptr) {
-		copy = old_size < new_size ? old_size : new_size;
+		copy = min(old_size, new_size);
 		memcpy(out, ptr, copy);
 		xfree(ptr, old_size);	/* scrub old block before release */
 	}

@@ -1590,7 +1590,7 @@ int cmd_status(int argc, const char **argv)
 			struct timespec rt = {}, bt = {};
 			__s64 boot_sec = 0;
 			size_t last = 10;
-			size_t shown = ks.n < last ? ks.n : last;
+			size_t shown = min(ks.n, last);
 
 			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
 			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0)

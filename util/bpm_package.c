@@ -139,7 +139,7 @@ static int prerelease_compare(const char *a, const char *b)
 		} else if (na != nb) {
 			c = na ? -1 : 1;
 		} else {
-			c = strncmp(a, b, la < lb ? la : lb);
+			c = strncmp(a, b, min(la, lb));
 			if (!c && la != lb)
 				c = la > lb ? 1 : -1;
 		}

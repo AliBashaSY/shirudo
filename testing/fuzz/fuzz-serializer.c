@@ -44,7 +44,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	chunks = data;
 	chunks_len = size;
 	/* The page the reader asks for is the one a consistent serializer wrote. */
-	memcpy(&first, data, size < sizeof(first) ? size : sizeof(first));
+	memcpy(&first, data, min(size, sizeof(first)));
 	if (!read_serial_page(0, &info, first.page_index, first.cursor,
 			      first.invocation_id, &page))
 		xfree(page.data, page.bytes);
