@@ -106,7 +106,16 @@ endif
 HARDEN_LDFLAGS := -pie -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack
 HARDEN_STATIC_PIE_LDFLAGS := $(filter-out -pie,$(HARDEN_LDFLAGS))
 
+# The language the kernel builds in: signed overflow wraps rather than
+# license the compiler to drop a test for it, a NULL test after a
+# dereference stays, a pointer cast between types is not miscompiled,
+# and char is unsigned on every architecture, as it is on arm64 and
+# riscv64 already.
+LANG_CFLAGS := -fno-strict-overflow -fno-delete-null-pointer-checks \
+               -fno-strict-aliasing -funsigned-char
+
 CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(HARDEN_CFLAGS) \
+               $(LANG_CFLAGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
                -DLIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
                -DBPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
@@ -914,7 +923,7 @@ sparse:
 # with clang from the util sources under ASan and UBSan; make -C testing
 # fuzz builds and runs them.
 FUZZ_CC ?= clang
-FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer \
+FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer $(LANG_CFLAGS) \
                -fsanitize=fuzzer,address,undefined \
                -fno-sanitize-recover=all $(WARNINGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
