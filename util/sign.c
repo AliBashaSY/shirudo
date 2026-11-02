@@ -32,6 +32,8 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#include <shirudo/overflow.h>
+
 #include "log.h"
 #include "malloc.h"
 #include "sign.h"
@@ -185,11 +187,11 @@ int cms_sign(struct sign_io *io,
 	 * the concatenation the kernel folds and verifies at load. Build
 	 * that once and feed it to both CMS_final and the digest.
 	 */
-	if (io->insns_sz > INT_MAX || io->data_sz > INT_MAX - io->insns_sz) {
+	if (check_add_overflow(io->insns_sz, io->data_sz, &content_sz) ||
+	    content_sz > INT_MAX) {
 		err = -E2BIG;
 		goto cleanup;
 	}
-	content_sz = io->insns_sz + io->data_sz;
 	content = xmalloc(content_sz);
 	if (!content) {
 		err = -ENOMEM;

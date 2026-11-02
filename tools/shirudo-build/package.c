@@ -22,6 +22,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
@@ -818,10 +819,9 @@ static int make_decoder_path(const char *src_path, const char *rel,
 		if (slash)
 			dir_len = (size_t)(slash - src_path) + 1;
 	}
-	if (dir_len > UINT32_MAX || rel_len > UINT32_MAX - 1 ||
-	    dir_len > UINT32_MAX - rel_len - 1)
+	if (check_add_overflow(dir_len, rel_len, &len) ||
+	    check_add_overflow(len, 1, &len) || len > UINT32_MAX)
 		return -EOVERFLOW;
-	len = dir_len + rel_len + 1;
 	path = xmalloc(len);
 	if (!path)
 		return -ENOMEM;
@@ -1181,10 +1181,9 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		if (err)
 			return err;
 	}
-	if (nr_progs >
-	    (UINT32_MAX - sizeof(*md)) / sizeof(md->progs[0]))
+	base_len = struct_size(md, progs, nr_progs);
+	if (base_len > UINT32_MAX)
 		return -EOVERFLOW;
-	base_len = sizeof(*md) + (size_t)nr_progs * sizeof(md->progs[0]);
 	len = base_len;
 	md_alloc_len = base_len;
 	md = xmalloc(len);
@@ -1383,22 +1382,26 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_progs,
 		__u8 *cursor;
 		__u32 j;
 
-		if (len > UINT32_MAX - sizeof(targets)) {
+		if (check_add_overflow(len, sizeof(targets), &len) ||
+		    len > UINT32_MAX) {
 			err = -EOVERFLOW;
 			goto err_free;
 		}
-		len += sizeof(targets);
 		for (j = 0; j < nr_uprobe_targets; j++) {
 			const struct build_uprobe_target *ut = &uprobe_targets[j];
-			size_t record_len = sizeof(struct upatch_uprobe_target) +
-				ut->path_len + ut->elf.build_id_len +
-				(size_t)ut->elf.nr_offsets * sizeof(__u64);
+			size_t record_len;
 
-			if (record_len > UINT32_MAX || len > UINT32_MAX - record_len) {
+			record_len = size_add(sizeof(struct upatch_uprobe_target),
+					      size_add(ut->path_len,
+						       ut->elf.build_id_len));
+			record_len = size_add(record_len,
+					      size_mul(ut->elf.nr_offsets,
+						       sizeof(__u64)));
+			if (check_add_overflow(len, record_len, &len) ||
+			    len > UINT32_MAX) {
 				err = -EOVERFLOW;
 				goto err_free;
 			}
-			len += record_len;
 		}
 		{
 			void *grown = xreallocarray(md, base_len, len, 1);

@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 
 /* xasprintf() formats with vsnprintf(), which <shirudo/string.h> poisons. */
 #define STRING_INTERNAL
@@ -32,14 +33,16 @@ void *xmalloc(size_t size)
 
 void *xcalloc(size_t nmemb, size_t size)
 {
+	size_t bytes;
+
 	/*
 	 * Reject a multiply that would wrap before it reaches the
 	 * allocator -- a caller computing nmemb * size itself would miss
 	 * it. xmalloc() zero-initialises and handles the zero case.
 	 */
-	if (nmemb && size && nmemb > SIZE_MAX / size)
+	if (check_mul_overflow(nmemb, size, &bytes))
 		return NULL;
-	return xmalloc(nmemb * size);
+	return xmalloc(bytes);
 }
 
 void *xreallocarray(void *ptr, size_t old_nmemb, size_t new_nmemb,
@@ -48,11 +51,9 @@ void *xreallocarray(void *ptr, size_t old_nmemb, size_t new_nmemb,
 	size_t old_size, new_size, copy;
 	void *out;
 
-	if (size && (new_nmemb > SIZE_MAX / size ||
-		     old_nmemb > SIZE_MAX / size))
+	if (check_mul_overflow(old_nmemb, size, &old_size) ||
+	    check_mul_overflow(new_nmemb, size, &new_size))
 		return NULL;		/* overflow -- leave ptr untouched */
-	old_size = old_nmemb * size;
-	new_size = new_nmemb * size;
 
 	out = xmalloc(new_size);	/* zeroed; the grown tail starts at 0 */
 	if (!out)

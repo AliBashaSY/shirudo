@@ -108,6 +108,13 @@ package for `bpm info`.
   they take a length, read nothing past it and refuse a sign, blank or
   base prefix. `<shirudo/string.h>` poisons `strtoul()` and its kin and
   `atoi()`, and `check-style.sh` rejects them outside `testing/`.
+- **Check size and length arithmetic with the helpers of
+  `<shirudo/overflow.h>`**: `check_add_overflow()`,
+  `check_sub_overflow()` and `check_mul_overflow()` say whether the
+  result fits the destination, and `size_add()`, `size_sub()`,
+  `size_mul()` and `struct_size()` stick at `SIZE_MAX`, so the
+  allocation they size fails. Not `a > SIZE_MAX - b` or
+  `n > SIZE_MAX / size` by hand.
 - **Copy strings with `strscpy()` and format into a fixed buffer with
   `strsprintf()`**, or `vstrsprintf()` from a `va_list`, all from
   `<shirudo/string.h>`: `strscpy()` always terminates and returns

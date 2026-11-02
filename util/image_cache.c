@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include <errno.h>
@@ -38,11 +39,10 @@ static size_t download_write(char *data, size_t size, size_t count, void *ctx)
 	size_t bytes;
 	int ret;
 
-	if (size && count > SIZE_MAX / size) {
+	if (check_mul_overflow(size, count, &bytes)) {
 		download->err = -EFBIG;
 		return 0;
 	}
-	bytes = size * count;
 	if (bytes > download->limit - download->written) {
 		download->err = -EFBIG;
 		return 0;

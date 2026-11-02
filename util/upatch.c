@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 
 #include "malloc.h"
 #include "upatch.h"
@@ -499,11 +500,9 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 		return -EOPNOTSUPP;
 	if (count != nr_progs || le32_to_cpu(md.reserved) != 0)
 		return -EINVAL;
-	if (count > (UINT32_MAX - sizeof(md)) /
-	    sizeof(struct upatch_prog_entry))
+	base_len = struct_size(&md, progs, count);
+	if (base_len > UINT32_MAX)
 		return -EOVERFLOW;
-	base_len = sizeof(md) + (size_t)count *
-		   sizeof(struct upatch_prog_entry);
 	if (metadata_len < base_len)
 		return -EINVAL;
 	specs = xcalloc(nr_progs, sizeof(*specs));

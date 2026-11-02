@@ -23,6 +23,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
@@ -1083,10 +1084,9 @@ static int read_entries(int fd, struct map_view *v,
 	__u32 i;
 	int err;
 
-	if (upatch_map_value_stride(v) != 0 &&
-	    value_count > SIZE_MAX / upatch_map_value_stride(v))
+	if (check_mul_overflow(upatch_map_value_stride(v), value_count,
+			       &value_alloc))
 		return -EOVERFLOW;
-	value_alloc = (size_t)upatch_map_value_stride(v) * value_count;
 
 	v->entries = NULL;
 	v->n_entries = 0;

@@ -81,6 +81,7 @@ int upatch_decode_map_file_otel(const char *path,
 #include <luajit.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "json.h"
@@ -872,11 +873,12 @@ static int lua_check_u64_string(lua_State *L, int arg, __u64 *out)
 /* Exact 64-bit arithmetic on decimal strings; Lua numbers lose nanoseconds. */
 static int lua_shirudo_u64_add(lua_State *L)
 {
-	__u64 a, b;
+	__u64 a, b, sum;
 
 	lua_check_u64_string(L, 1, &a);
 	lua_check_u64_string(L, 2, &b);
-	lua_push_u64_string(L, a > UINT64_MAX - b ? UINT64_MAX : a + b);
+	lua_push_u64_string(L, check_add_overflow(a, b, &sum) ?
+			    UINT64_MAX : sum);
 	return 1;
 }
 

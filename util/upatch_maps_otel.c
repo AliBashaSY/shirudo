@@ -29,6 +29,7 @@
 #include <zlib.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
@@ -1823,13 +1824,15 @@ static int snapshot_temp_file(FILE **out)
 static int snapshot_write_compressed(struct snapshot_writer *w,
 				     const __u8 *data, size_t len)
 {
-	if (UINT64_MAX - w->object_bytes < len)
+	__u64 total;
+
+	if (check_add_overflow(w->object_bytes, len, &total))
 		return -EOVERFLOW;
 	if (len && fwrite(data, 1, len, w->file) != len)
 		return -EIO;
 	if (len && sha256_update(&w->md, data, len) != 0)
 		return -EIO;
-	w->object_bytes += len;
+	w->object_bytes = total;
 	return 0;
 }
 
@@ -1867,9 +1870,8 @@ static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 	struct snapshot_writer *w = ctx;
 	__u8 out[S3_GZIP_BUFFER_SIZE];
 
-	if (UINT64_MAX - w->json_bytes < len)
+	if (check_add_overflow(w->json_bytes, len, &w->json_bytes))
 		return -EOVERFLOW;
-	w->json_bytes += len;
 	while (len) {
 		uInt chunk = len > UINT_MAX ? UINT_MAX : (uInt)len;
 
@@ -2074,9 +2076,10 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 	if (!access || !access[0] || !secret || !secret[0] ||
 	    strpbrk(access, "\r\n:") || strpbrk(secret, "\r\n"))
 		return -EACCES;
-	if (strlen(access) > SIZE_MAX - strlen(secret) - 2)
+	if (check_add_overflow(strlen(access), strlen(secret),
+			       &credentials_len) ||
+	    check_add_overflow(credentials_len, 2, &credentials_len))
 		return -EOVERFLOW;
-	credentials_len = strlen(access) + strlen(secret) + 2;
 	st->credentials = xmalloc(credentials_len);
 	if (!st->credentials)
 		return -ENOMEM;

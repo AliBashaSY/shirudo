@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 
 #include "io.h"
 
@@ -98,10 +99,10 @@ int main(int argc, char **argv)
 	if (!duration_sec || !workers || workers > 1024)
 		return 2;
 	start = monotonic_ns();
-	if (!start || duration_sec > UINT64_MAX / 1000000000ULL ||
-	    start > UINT64_MAX - duration_sec * 1000000000ULL)
+	if (!start ||
+	    check_mul_overflow(duration_sec, 1000000000ULL, &deadline) ||
+	    check_add_overflow(deadline, start, &deadline))
 		return 1;
-	deadline = start + duration_sec * 1000000000ULL;
 	if (pipe(result_fd) != 0)
 		return 1;
 	children = calloc(workers, sizeof(*children));

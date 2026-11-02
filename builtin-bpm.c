@@ -29,6 +29,7 @@
 #include <openssl/x509.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "builtin.h"
@@ -545,9 +546,9 @@ static int print_upatch_member(void *ctx, const char *member, char type)
 		return 0;
 	if (len <= sizeof(prefix) - 1 || strchr(member + sizeof(prefix) - 1, '/'))
 		return 0;
-	if (len > SIZE_MAX - opts->len - 1)
+	if (check_add_overflow(opts->len, len, &need) ||
+	    check_add_overflow(need, 1, &need))
 		return -EOVERFLOW;
-	need = opts->len + len + 1;
 	if (need > opts->cap) {
 		cap = opts->cap ? opts->cap : 4096;
 		while (cap < need) {
