@@ -432,6 +432,11 @@ the commit at ``HEAD`` alone without them.
        between host order and ``__le32`` or ``__be32`` without
        ``cpu_to_le32()``, ``le32_to_cpu()`` or their kin from
        ``<shirudo/byteorder.h>``. Takes no range.
+   * - ``check-coccinelle.sh [<rule>...]``
+     - Every semantic patch in :src:`testing/coccinelle/`, or the rules
+       named, over the C the project writes, failing on any match with
+       its file, line, rule and message. Takes no range; see
+       `Coccinelle rules`_.
    * - ``build-commits.sh <range>``
      - Builds every commit on its own: ``make``, ``make
        shirudo-build`` and ``make -C testing test-helpers``. It
@@ -466,6 +471,7 @@ Before you send a change:
       $ .github/scripts/check-style.sh origin/main..HEAD
       $ .github/scripts/check-spdx.sh
       $ .github/scripts/check-sparse.sh
+      $ .github/scripts/check-coccinelle.sh
       $ .github/scripts/build-commits.sh origin/main..HEAD
 
 2. Run the tests the change touches, and ``make tests`` before you
@@ -479,6 +485,108 @@ Before you send a change:
 
 4. Verify that every script printed its summary line and exited 0, for
    example ``DCO: 3 commits checked`` and ``style: 3 commits checked``.
+
+Coccinelle rules
+----------------
+
+Each semantic patch in :src:`testing/coccinelle/` describes a pattern
+the tree is kept free of, and ``check-coccinelle.sh`` fails on any
+match, in the ``Coccinelle`` job of the ``Lint`` workflow. The rules
+cover the C the project writes, as ``check-style.sh`` takes it: not the
+vendored libbpf, the BTF dumps or the generated headers. A rule that
+can rewrite what it finds does so with ``-D patch``:
+
+.. code-block:: console
+
+   $ spatch -D patch --sp-file testing/coccinelle/zero_init.cocci \
+         --in-place --include-headers util/json.c
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Rule
+     - Refuses
+   * - ``array_size``
+     - An element count divided out by hand rather than
+       ``ARRAY_SIZE()``. Rewrites.
+   * - ``zero_init``
+     - ``= {0}`` rather than ``= {}``. Rewrites.
+   * - ``minmax``
+     - A ternary that picks the smaller or larger of two values rather
+       than ``min()`` or ``max()``. Rewrites.
+   * - ``minmax_t``, ``minmax_cast``
+     - ``min_t()`` or ``max_t()`` where ``min()`` or ``max()`` takes
+       the values as they are, and a cast inside ``min()`` or
+       ``max()``.
+   * - ``ifnullfree``
+     - A NULL test before a free function that takes NULL. Rewrites.
+   * - ``void_cast``
+     - A ``(void)`` cast, of a result or a variable. Rewrites.
+   * - ``scrub``
+     - A ``memset()`` of a local that nothing reads afterwards, which
+       the compiler may drop, rather than ``memzero_explicit()``.
+       Rewrites.
+   * - ``secret_cmp``
+     - ``memcmp()`` of a secret or what derives from one rather than
+       ``memneq_explicit()``.
+   * - ``openssl_ret``
+     - A test of the truth of an OpenSSL function that returns 0 or a
+       negative value on failure.
+   * - ``overflow``
+     - A sum or product tested for overflow by hand rather than with
+       the helpers of ``<shirudo/overflow.h>``.
+   * - ``ctype``
+     - A ``char`` passed to a ``<ctype.h>`` function without a cast to
+       ``__u8``. Rewrites.
+   * - ``memnull``
+     - A NULL passed to a memory or string function, and a
+       ``memcpy()`` of overlapping buffers.
+   * - ``sizeof_ptr``
+     - The size of a pointer where the object it points to is meant.
+   * - ``literal_len``
+     - A length that does not match the string literal it compares or
+       copies.
+   * - ``test_after_use``
+     - A pointer tested for NULL after its use.
+   * - ``alloc_unchecked``
+     - An allocation used before it is checked.
+   * - ``use_after_free``
+     - Memory used or freed again after it was freed.
+   * - ``uninit``
+     - A local read after a ``goto`` jumped over its assignment.
+   * - ``alloc_size``
+     - An allocation sized for another type than its pointer, and a
+       free of memory no allocator returned.
+   * - ``double_test``, ``double_init``
+     - A term tested twice, an ``if`` whose branches are alike, and a
+       member initialized twice.
+   * - ``va_end``
+     - A ``va_start()`` or ``va_copy()`` without a ``va_end()`` on a
+       path out.
+   * - ``cloexec``
+     - A descriptor or stream opened without close-on-exec.
+   * - ``banned``
+     - ``rand()``, ``strtok()``, ``usleep()``, ``signal()``,
+       ``alloca()``, ``setjmp()``, the time and user database functions
+       without ``_r`` and their kin, and ``abort()`` and ``assert()``
+       outside :src:`testing/`.
+   * - ``no_exec``
+     - A function that runs a program, outside the operator helper, the
+       command that hands work to it and the tests.
+   * - ``anssi_misc``
+     - A bitwise operator on a ``bool``, a comma that sequences
+       statements, a backward ``goto``, a floating-point loop counter
+       and a bare ``NULL`` passed to a variadic function, after the
+       ANSSI rules for secure C.
+   * - ``cert_misc``
+     - A ``char`` array too short for the NUL of the literal it holds, a
+       ``char`` that keeps what ``getc()`` returns, and ``getenv()``
+       passed on unchecked, after the CERT C rules.
+
+A new pattern worth refusing gets a rule: write it from scratch under
+the BSD-2-Clause, with a header that says why the pattern is refused,
+fix the tree in the commits before it, and add it to the table.
 
 Next steps
 ----------

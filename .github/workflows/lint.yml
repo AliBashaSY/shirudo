@@ -64,6 +64,22 @@ jobs:
             . build/vm-toolchain.env
             .github/scripts/check-sparse.sh
 
+  coccinelle:
+    name: Coccinelle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Coccinelle
+        run: sudo apt-get update && sudo apt-get install -y coccinelle
+
+      # Every semantic patch in testing/coccinelle over the C the project
+      # writes; a match fails the job and annotates its line.
+      - name: Check the tree against the Coccinelle rules
+        run: .github/scripts/check-coccinelle.sh
+
   checkpatch:
     name: Checkpatch
     runs-on: ubuntu-latest

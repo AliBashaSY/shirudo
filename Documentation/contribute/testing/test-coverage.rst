@@ -48,6 +48,10 @@ signed config image.
    * - ``t0005-gen-sbom``
      - ``gen-sbom.sh``: the SPDX documents of a target and an operator
        package, and the archives it refuses to leave out
+   * - ``t0006-check-coccinelle``
+     - ``check-coccinelle.sh``: a match that fails the check with its
+       file, line and rule, the vendored sources left out, a rule named
+       alone, the rewrite of ``-D patch``, and the tree itself
 
 ``build`` (1)
 ~~~~~~~~~~~~~
@@ -581,7 +585,7 @@ Coverage by area
      - ``t0005``, ``t1003``, ``t1004``, ``t1005``, ``t1008``,
        ``t7004``, ``t8003``
    * - CI scripts
-     - ``t0001`` to ``t0005``
+     - ``t0001`` to ``t0006``
    * - Parsers
      - ``t3001``, ``t3011``, ``t5002``, ``t5006``, ``t5008``. Unit:
        ``hex``, ``json``, ``string``. Every fuzz target

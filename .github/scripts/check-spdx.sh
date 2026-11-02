@@ -80,7 +80,7 @@ check_vendor() {
 # when it starts with a shebang.
 kind_of() {
 	case "$1" in
-	*.c) echo c ;;
+	*.c|*.cocci) echo c ;;
 	*.h) echo h ;;
 	*.lua) echo lua ;;
 	*.rst) echo rst ;;

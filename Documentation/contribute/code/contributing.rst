@@ -254,6 +254,11 @@ Before sending
   ``le32_to_cpu()``, ``cpu_to_le32()`` or their kin from
   ``<shirudo/byteorder.h>``. CI runs it as the ``Sparse`` job of the
   ``Lint`` workflow.
+- Run ``.github/scripts/check-coccinelle.sh``. It runs every semantic
+  patch in :src:`testing/coccinelle/` over the tree and fails on any
+  match, such as a secret compared with ``memcmp()``, a descriptor
+  opened without close-on-exec or a pointer tested for NULL after its
+  use. CI runs it as the ``Coccinelle`` job of the ``Lint`` workflow.
 - Keep each commit to one logical change that builds and passes on its
   own, so the history bisects. CI builds every commit of a pull request
   on its own in the ``Build every commit`` workflow.

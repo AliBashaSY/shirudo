@@ -424,7 +424,11 @@ one usually still compiles and passes tests.
   `.github/scripts/check-sparse.sh` runs `make sparse`, sparse over the
   userspace sources, which fails on a little-endian or big-endian field
   read or written without `le32_to_cpu()`, `cpu_to_le32()` or their kin
-  from `<shirudo/byteorder.h>`. CI runs all four on every pull request,
+  from `<shirudo/byteorder.h>`. `.github/scripts/check-coccinelle.sh`
+  runs the semantic patches in `testing/coccinelle/`, each a pattern the
+  tree is kept free of, and fails on any match; a pattern worth refusing
+  for good gets a rule there, written from scratch, with the tree fixed
+  first. CI runs all five on every pull request,
   and `.github/scripts/build-commits.sh <range>` builds every commit of
   a pull request on its own; run them before handing work over.
 - Shell that a workflow runs lives in `.github/scripts/`, not inline in
