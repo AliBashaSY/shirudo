@@ -148,9 +148,9 @@ static int metric_type_from_view(const struct shirudo_map_view *v,
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
-				      enum shirudo_otel_signal *signal,
-				      char *reason, size_t reason_sz)
+int upatch_maps_otel_classify(const struct shirudo_map_view *v,
+			      enum shirudo_otel_signal *signal,
+			      char *reason, size_t reason_sz)
 {
 	struct metric_type mt;
 	int ret;
@@ -849,9 +849,9 @@ static int build_log_payload(const char *path,
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_build_log_file(const char *path,
-					    const struct shirudo_map_view *v,
-					    char **out, size_t *out_len)
+int upatch_maps_otel_build_log_file(const char *path,
+				    const struct shirudo_map_view *v,
+				    char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
@@ -1051,9 +1051,9 @@ out:
 	return ret;
 }
 
-int shirudo_upatch_maps_otel_build_metric_file(const char *path,
-					       const struct shirudo_map_view *v,
-					       char **out, size_t *out_len)
+int upatch_maps_otel_build_metric_file(const char *path,
+				       const struct shirudo_map_view *v,
+				       char **out, size_t *out_len)
 {
 	if (!path)
 		return -EINVAL;
@@ -1274,7 +1274,7 @@ static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 		if (len < sizeof(value)) {
 			memcpy(value, p, len);
 			value[len] = '\0';
-			if (!shirudo_otel_retry_after(value, time(NULL), &seconds)) {
+			if (!otel_retry_after(value, time(NULL), &seconds)) {
 				r->retry_after = seconds;
 				r->retry_after_valid = true;
 			}
@@ -1339,7 +1339,7 @@ static bool retryable_http(long code)
 	return code == 429 || code == 502 || code == 503 || code == 504;
 }
 
-int shirudo_status_otel_severity(const char *status, const char **text)
+int status_otel_severity(const char *status, const char **text)
 {
 	if (strcmp(status, "ok") == 0) {
 		*text = "INFO";
@@ -1355,7 +1355,7 @@ int shirudo_status_otel_severity(const char *status, const char **text)
 	return 17;
 }
 
-int shirudo_otel_retry_after(const char *value, time_t now, __u64 *seconds)
+int otel_retry_after(const char *value, time_t now, __u64 *seconds)
 {
 	struct tm date = {};
 	time_t retry_time;
@@ -1629,8 +1629,8 @@ static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 	if (!v || !state)
 		return -EINVAL;
 	if (automatic) {
-		ret = shirudo_upatch_maps_otel_classify(v, &signal,
-							reason, sizeof(reason));
+		ret = upatch_maps_otel_classify(v, &signal,
+						reason, sizeof(reason));
 		if (ret)
 			return ret;
 		fprintf(stderr, "otel: selected %s for %s map %s: %s\n",
@@ -1738,15 +1738,15 @@ static int build_generic_log_payload(const char *scope_name,
 	return 0;
 }
 
-int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
-			       const char *scope_name,
-			       const char *event_name,
-			       int severity_number,
-			       const char *severity_text,
-			       const char *status,
-			       const char *version_id,
-			       __s64 tamper_attempts,
-			       const char *body_json, size_t body_len)
+int otel_send_log_json(const struct shirudo_otel_opts *opts,
+		       const char *scope_name,
+		       const char *event_name,
+		       int severity_number,
+		       const char *severity_text,
+		       const char *status,
+		       const char *version_id,
+		       __s64 tamper_attempts,
+		       const char *body_json, size_t body_len)
 {
 	char *payload = NULL;
 	void *state = NULL;
@@ -2535,10 +2535,10 @@ static int otel_s3_close(void *state)
 	return 0;
 }
 
-int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
-				       const struct shirudo_map_view *v,
-				       enum shirudo_otel_mode mode,
-				       const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send_file(const char *decoder_path,
+			       const struct shirudo_map_view *v,
+			       enum shirudo_otel_mode mode,
+			       const struct shirudo_otel_opts *opts)
 {
 	const char *endpoint = opts ? opts->endpoint : NULL;
 	bool automatic = mode == SHIRUDO_OTEL_AUTO;
@@ -2573,28 +2573,28 @@ int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
 	return ret ? ret : close_rc;
 }
 
-int shirudo_upatch_maps_otel_send(const struct shirudo_map_view *v,
-				  enum shirudo_otel_mode mode,
-				  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send(const struct shirudo_map_view *v,
+			  enum shirudo_otel_mode mode,
+			  const struct shirudo_otel_opts *opts)
 {
-	return shirudo_upatch_maps_otel_send_file(NULL, v, mode, opts);
+	return upatch_maps_otel_send_file(NULL, v, mode, opts);
 }
 
-int shirudo_upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
-					  enum shirudo_otel_signal signal,
-					  const struct shirudo_otel_opts *opts)
+int upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
+				  enum shirudo_otel_signal signal,
+				  const struct shirudo_otel_opts *opts)
 {
 	int ret;
 
 	if (signal == SHIRUDO_OTEL_LOG)
-		ret = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
-						    opts);
+		ret = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
+					    opts);
 	else if (signal == SHIRUDO_OTEL_METRIC)
-		ret = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
-						    opts);
+		ret = upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
+					    opts);
 	else
 		return -EINVAL;
 	if (ret == -E2BIG && opts && opts->s3_uri)
-		return shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
+		return upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
 	return ret;
 }

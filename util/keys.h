@@ -59,13 +59,13 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
  * The set of a config image, read through its root descriptor; historical
  * vouches are validated before revoked signing keys are excluded.
  */
-int shirudo_keys_load_image_at(const char *primary, int keys_fd,
-			       bool with_trusted,
-			       struct shirudo_trusted_set *set);
+int keys_load_image_at(const char *primary, int keys_fd,
+		       bool with_trusted,
+		       struct shirudo_trusted_set *set);
 /* The same from the image root, whose keys directory is opened beneath it. */
-int shirudo_keys_load_image_root(const char *primary, int root_fd,
-				 bool with_trusted,
-				 struct shirudo_trusted_set *set);
+int keys_load_image_root(const char *primary, int root_fd,
+			 bool with_trusted,
+			 struct shirudo_trusted_set *set);
 
 struct shirudo_cert;
 

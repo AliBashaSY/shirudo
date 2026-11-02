@@ -57,7 +57,7 @@ int keyring_holds_cert(key_serial_t ring, const __u8 *der,
 	return 0;
 }
 
-int shirudo_keys_revoke_image(const __u8 *der, size_t size, bool boot)
+int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 {
 	(void)der;
 	(void)size;
@@ -89,7 +89,7 @@ static int pcr_extend(void *opaque, __u32 pcr, const __u8 event[32])
 
 	(void)pcr;
 	ctx->extends++;
-	return shirudo_chain_fold_checked(ctx->pcr, event);
+	return chain_fold_checked(ctx->pcr, event);
 }
 
 static int prepare(void *opaque,
@@ -98,7 +98,7 @@ static int prepare(void *opaque,
 	struct test_context *ctx = opaque;
 
 	(void)target;
-	return ctx->live ? shirudo_keys_check_image_set(ctx->set) : 0;
+	return ctx->live ? keys_check_image_set(ctx->set) : 0;
 }
 
 static int activate(void *opaque,
@@ -138,14 +138,14 @@ static int live_update(const char *directory, struct shirudo_trusted_set *set)
 	struct test_context ctx = { .set = set };
 	int ret;
 
-	ret = shirudo_config_update_open(directory, &ops, &ctx, &update);
+	ret = config_update_open(directory, &ops, &ctx, &update);
 	if (ret)
 		return ret;
 	strcpy(target.prefix, "/verified/boot");
 	memset(target.root_hash, 1, 32);
-	ret = shirudo_config_update_boot(&update, &target, 15);
+	ret = config_update_boot(&update, &target, 15);
 	if (!ret)
-		ret = shirudo_config_update_complete_boot(&update);
+		ret = config_update_complete_boot(&update);
 	ctx.live = true;
 	ctx.interrupt = !!getenv("SHIRUDO_TEST_IMAGE_INTERRUPT");
 	ctx.extends = 0;
@@ -153,10 +153,10 @@ static int live_update(const char *directory, struct shirudo_trusted_set *set)
 	strcpy(target.prefix, "/verified/live");
 	memset(target.root_hash, 2, 32);
 	if (!ret)
-		ret = shirudo_config_update_begin(&update, &target, 15);
+		ret = config_update_begin(&update, &target, 15);
 
 	printf("extends=%u activations=%u\n", ctx.extends, ctx.activations);
-	shirudo_config_update_close(&update);
+	config_update_close(&update);
 	return ret;
 }
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 	fd = open(argv[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return 2;
-	ret = shirudo_keys_validate_image_set(argv[1], fd, &set);
+	ret = keys_validate_image_set(argv[1], fd, &set);
 	if (!ret && argc >= 5) {
 		held = argv + 4;
 		held_count = argc - 4;

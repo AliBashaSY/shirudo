@@ -19,14 +19,14 @@ static int header_read(const char *path, struct shirudo_config_image *image)
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	ret = shirudo_config_image_read_header(fd, image);
+	ret = config_image_read_header(fd, image);
 	close(fd);
 	return ret;
 }
 
 int main(int argc, char **argv)
 {
-	struct shirudo_config_image_open op = {
+	struct config_image_open op = {
 		.data_fd = -1,
 		.hash_fd = -1,
 		.signature_fd = -1,
@@ -38,9 +38,9 @@ int main(int argc, char **argv)
 	if (argc == 4 && !strcmp(argv[1], "root")) {
 		ret = hex_decode(argv[3], root, sizeof(root));
 		if (!ret)
-			ret = shirudo_config_image_open_root(argv[2], root,
-							     &op);
-		shirudo_config_image_close(&op);
+			ret = config_image_open_root(argv[2], root,
+						     &op);
+		config_image_close(&op);
 	} else if (argc == 3 && !strcmp(argv[1], "decode")) {
 		ret = header_read(argv[2], &image);
 		if (!ret) {

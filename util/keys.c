@@ -659,16 +659,16 @@ out:
 	return ret;
 }
 
-int shirudo_keys_load_image_at(const char *primary, int keys_fd,
-			       bool with_trusted,
-			       struct shirudo_trusted_set *set)
+int keys_load_image_at(const char *primary, int keys_fd,
+		       bool with_trusted,
+		       struct shirudo_trusted_set *set)
 {
 	return load_set_at(primary, keys_fd, "keys", with_trusted, set);
 }
 
-int shirudo_keys_load_image_root(const char *primary, int root_fd,
-				 bool with_trusted,
-				 struct shirudo_trusted_set *set)
+int keys_load_image_root(const char *primary, int root_fd,
+			 bool with_trusted,
+			 struct shirudo_trusted_set *set)
 {
 	int keys_fd, ret;
 
@@ -678,7 +678,7 @@ int shirudo_keys_load_image_root(const char *primary, int root_fd,
 		       strerror(-keys_fd));
 		return keys_fd;
 	}
-	ret = shirudo_keys_load_image_at(primary, keys_fd, with_trusted, set);
+	ret = keys_load_image_at(primary, keys_fd, with_trusted, set);
 	if (keys_fd >= 0)
 		close(keys_fd);
 	return ret;
@@ -689,12 +689,12 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
 {
 	char primary[PATH_MAX];
 
-	if (shirudo_image_config_root_fd() >= 0 &&
+	if (image_config_root_fd() >= 0 &&
 	    (!strcmp(keys_dir, KEYS_DIR) ||
 	     !strcmp(keys_dir, RUNTIME_DIR "/keys")))
-		return shirudo_keys_load_image_root(RUNTIME_CERT_PATH,
-						    shirudo_image_config_root_fd(),
-						    with_trusted, set);
+		return keys_load_image_root(RUNTIME_CERT_PATH,
+					    image_config_root_fd(),
+					    with_trusted, set);
 	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, CERT_FILE) < 0)
 		return -ENAMETOOLONG;
 	return load_set(primary, keys_dir, revoked_dir, with_trusted, set);

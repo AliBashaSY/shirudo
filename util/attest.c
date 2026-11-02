@@ -141,11 +141,11 @@ static bool quote_covers(const struct shirudo_tpm_attestation *quote,
 	return ct_eq(digest, a.pcr_digest, 32);
 }
 
-int shirudo_attest_evidence_config(const __u8 *nonce, size_t nonce_len,
-				   __u32 pcr_mask,
-				   const struct shirudo_attest_challenge *c,
-				   struct shirudo_config_update *update,
-				   char **out, size_t *len, size_t *cap)
+int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
+			   __u32 pcr_mask,
+			   const struct shirudo_attest_challenge *c,
+			   struct shirudo_config_update *update,
+			   char **out, size_t *len, size_t *cap)
 {
 	const struct shirudo_attest_challenge *challenge = c;
 	struct shirudo_tpm_key ak = { .handle = 0 }, ek = { .handle = 0 };
@@ -174,7 +174,7 @@ int shirudo_attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	    (pcr_mask & ~0x00FFFFFFu))
 		return -EINVAL;
 
-	ret = shirudo_config_evidence_collect(update, &config);
+	ret = config_evidence_collect(update, &config);
 	if (ret)
 		return ret;
 	if (config.present)
@@ -354,7 +354,7 @@ int shirudo_attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	json_arr_open(&e, "eventlog");
 	eventlog_boot_lines(emit_line, &e);
 	json_arr_close(&e);
-	ret = shirudo_config_evidence_emit(&e, &config);
+	ret = config_evidence_emit(&e, &config);
 	if (ret)
 		goto out;
 	if (cred_len) {
@@ -392,7 +392,7 @@ out:
 		tpm_key_flush(tpm, &ak);
 		tpm_close(tpm);
 	}
-	shirudo_config_evidence_clear(&config);
+	config_evidence_clear(&config);
 	xfree(ek_cert, ek_cert ? EK_CERT_MAX : 0);
 	xfree(ek_b64, ek_b64_cap);
 	xfree(fw, fw_cap);
@@ -891,7 +891,7 @@ int attest_verify(const char *evidence, size_t len,
 		have_cred = cred_sub[0].seen;
 	}
 
-	ret = shirudo_config_evidence_parse(evidence, len, &config);
+	ret = config_evidence_parse(evidence, len, &config);
 	if (ret == -EKEYREJECTED)
 		say(&rep, false, "config: the events are one boot event followed by updates in sequence");
 	if (ret)
@@ -1066,11 +1066,11 @@ int attest_verify(const char *evidence, size_t len,
 		int pcr;
 
 		pcr = expect->have_config_pcr ? (int)expect->config_pcr : -1;
-		ret = shirudo_config_evidence_verify(&config, quote.pcr_mask,
-						     quote.reset_count,
-						     quote.restart_count,
-						     p->pcrs, root, pcr,
-						     &reason);
+		ret = config_evidence_verify(&config, quote.pcr_mask,
+					     quote.reset_count,
+					     quote.restart_count,
+					     p->pcrs, root, pcr,
+					     &reason);
 		say(&rep, !ret, "config: %s", reason);
 		if (config.present && !expect->have_config_root)
 			note(&rep, "config root has no operator approval; use "
@@ -1236,7 +1236,7 @@ int attest_verify(const char *evidence, size_t len,
 	}
 	ret = rep.failed ? -EKEYREJECTED : 0;
 out:
-	shirudo_config_evidence_clear(&config);
+	config_evidence_clear(&config);
 	xfree(p->recs, RECORDS_MAX * sizeof(*p->recs));
 	xfree(p, sizeof(*p));
 	return ret;

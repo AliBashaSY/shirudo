@@ -9,13 +9,13 @@
 #include "config_measure.h"
 #include "crypto.h"
 
-int shirudo_config_measure_pcr_valid(__u32 pcr)
+int config_measure_pcr_valid(__u32 pcr)
 {
 	return pcr < 16 && pcr != 9 && pcr != 11 ? 0 : -EINVAL;
 }
 
-int shirudo_config_measure_event(enum shirudo_config_event_kind kind,
-				 const __u8 root_hash[32], __u8 out[32])
+int config_measure_event(enum shirudo_config_event_kind kind,
+			 const __u8 root_hash[32], __u8 out[32])
 {
 	static const char domain[] = "shirudo-config-root-v1";
 	__u8 data[sizeof(domain) + 4 + 32];

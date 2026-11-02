@@ -14,7 +14,7 @@
 #define VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
-const char *shirudo_build_locate_vmlinux(const char *override)
+const char *build_locate_vmlinux(const char *override)
 {
 	if (override)
 		return access(override, R_OK) == 0 ? override : NULL;

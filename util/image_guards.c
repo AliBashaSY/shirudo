@@ -161,8 +161,8 @@ const struct shirudo_guard_map shirudo_guard_maps[SHIRUDO_GUARD_MAP_COUNT] = {
 };
 
 /* Initial authenticated boot creates mappings before these guards exist. */
-int shirudo_config_root_begin(const __u8 root[32],
-			      struct shirudo_config_root_guard *guard)
+int config_root_begin(const __u8 root[32],
+		      struct shirudo_config_root_guard *guard)
 {
 	struct shirudo_expected_root previous = {}, expected = { .valid = 1 };
 	const struct shirudo_guard_map *map =
@@ -173,7 +173,7 @@ int shirudo_config_root_begin(const __u8 root[32],
 		.map_fd = -1,
 		.task_fd = -1,
 	};
-	mode = shirudo_enforcement_active();
+	mode = enforcement_active();
 	if (!mode)
 		return 0;
 	if (mode < 0)
@@ -212,7 +212,7 @@ fail:
 }
 
 /* Clear through retained FDs on every exit; report failure to clear. */
-int shirudo_config_root_end(struct shirudo_config_root_guard *guard)
+int config_root_end(struct shirudo_config_root_guard *guard)
 {
 	struct shirudo_expected_root empty = {};
 	int ret = 0;
@@ -395,7 +395,7 @@ static int guard_link(const struct shirudo_image_guard *guard,
 }
 
 /* Authenticated initrd bootstrap precedes every hostile task. */
-int shirudo_image_guards_ready(void)
+int image_guards_ready(void)
 {
 	const struct {
 		const struct shirudo_image_guard *guards;

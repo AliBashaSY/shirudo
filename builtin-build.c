@@ -78,7 +78,7 @@ static bool on_path(const char *name)
 	return false;
 }
 
-bool shirudo_build_available(void)
+bool build_available(void)
 {
 	bool use_path;
 	const char *helper = resolve_helper(&use_path);
@@ -88,7 +88,7 @@ bool shirudo_build_available(void)
 	return use_path ? on_path(helper) : access(helper, X_OK) == 0;
 }
 
-int shirudo_build_exec(const char *label, char **argv)
+int build_exec(const char *label, char **argv)
 {
 	bool use_path;
 	const char *path = resolve_helper(&use_path);
@@ -119,5 +119,5 @@ int cmd_build(int argc, const char **argv)
 		print_help(&build_help);
 		return 0;
 	}
-	return shirudo_build_exec("build", (char **)argv);
+	return build_exec("build", (char **)argv);
 }

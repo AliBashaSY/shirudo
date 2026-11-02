@@ -151,7 +151,7 @@ void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	shirudo_sha256(buf, taglen + 40, event);
 }
 
-int shirudo_chain_fold_checked(__u8 chain[32], const __u8 event[32])
+int chain_fold_checked(__u8 chain[32], const __u8 event[32])
 {
 	__u8 cat[64];
 
@@ -162,7 +162,7 @@ int shirudo_chain_fold_checked(__u8 chain[32], const __u8 event[32])
 
 void chain_fold(__u8 chain[32], const __u8 event[32])
 {
-	if (shirudo_chain_fold_checked(chain, event))
+	if (chain_fold_checked(chain, event))
 		memset(chain, 0, 32);
 }
 
@@ -268,7 +268,7 @@ int chain_tpm_bound(struct shirudo_tpm *tpm)
 	struct shirudo_tpm_key ak = {};
 	int ret;
 
-	ret = shirudo_enforcement_active();
+	ret = enforcement_active();
 	if (ret <= 0)
 		return ret;
 	ret = identity_read(&id);

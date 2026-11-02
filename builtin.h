@@ -18,8 +18,8 @@ int cmd_build(int argc, const char **argv);
  * The operator package's helper: whether it is there, and the one exec
  * site, which returns only on failure.
  */
-bool shirudo_build_available(void);
-int shirudo_build_exec(const char *label, char **argv);
+bool build_available(void);
+int build_exec(const char *label, char **argv);
 
 /* Target-side. */
 int cmd_init(int argc, const char **argv);

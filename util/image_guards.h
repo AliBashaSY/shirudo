@@ -70,9 +70,9 @@ struct shirudo_config_root_guard {
 	int task_fd;
 };
 
-int shirudo_config_root_begin(const __u8 root[32],
-			      struct shirudo_config_root_guard *guard);
-int shirudo_config_root_end(struct shirudo_config_root_guard *guard);
-int shirudo_image_guards_ready(void);
+int config_root_begin(const __u8 root[32],
+		      struct shirudo_config_root_guard *guard);
+int config_root_end(struct shirudo_config_root_guard *guard);
+int image_guards_ready(void);
 
 #endif /* SHIRUDO_IMAGE_GUARDS_H */

@@ -124,8 +124,8 @@ int tpm_policy_nv_written(const __u8 prev[32], bool written,
 }
 
 static void
-shirudo_tpm_pcr_selection(__u32 pcr_mask,
-			  __u8 out[TPM_PCR_SELECTION_LEN])
+tpm_pcr_selection(__u32 pcr_mask,
+		  __u8 out[TPM_PCR_SELECTION_LEN])
 {
 	put_be32(out, 1);
 	put_be16(out + 4, TPM_ALG_SHA256);
@@ -140,7 +140,7 @@ int tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,
 {
 	__u8 sel[TPM_PCR_SELECTION_LEN];
 
-	shirudo_tpm_pcr_selection(pcr_mask, sel);
+	tpm_pcr_selection(pcr_mask, sel);
 	return policy_hash(prev, TPM_CC_POLICY_PCR, sel, sizeof(sel),
 			   pcr_digest, 32, out);
 }

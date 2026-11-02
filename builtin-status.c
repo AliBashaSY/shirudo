@@ -649,8 +649,8 @@ static void keyring_view_dm_verity(struct status_keyring *k,
 			if (k->links[i].serial == ident->dm_verity_key)
 				k->key_missing = false;
 	}
-	k->certs_rc = shirudo_image_bootstrap_read(RUNTIME_CONF_PATH,
-						   &boot, false);
+	k->certs_rc = image_bootstrap_read(RUNTIME_CONF_PATH,
+					   &boot, false);
 	if (!k->certs_rc && !boot.certificate[0])
 		k->certs_rc = -ENOENT;
 	if (!k->certs_rc)
@@ -998,7 +998,7 @@ int cmd_status(int argc, const char **argv)
 	if (!bpf.links_rc)
 		certs_enrolled = (int)bpf.n_asymmetric;
 	dmv.pinned = keyring_pinned < 0 ? keyring_pinned : ident.dm_verity_ring;
-	dmv.serial = dmv.pinned >= 1 ? shirudo_keyring_dm_verity_serial() :
+	dmv.serial = dmv.pinned >= 1 ? keyring_dm_verity_serial() :
 		     -ENOKEY;
 	keyring_view_dm_verity(&dmv, &ident);
 	mode = lsm_attached ? "production" : "inactive";
@@ -1012,7 +1012,7 @@ int cmd_status(int argc, const char **argv)
 
 	gather_assets(&assets);
 	tamper_rc = tamper_read(&tamper);
-	config_state = shirudo_image_config_state(config_root);
+	config_state = image_config_state(config_root);
 	if (config_state != -ENODEV)
 		hex_encode(config_root, sizeof(config_root), config_root_hex);
 
@@ -1377,15 +1377,15 @@ int cmd_status(int argc, const char **argv)
 				int err;
 
 				severity_number =
-					shirudo_status_otel_severity(otel_status,
-								     &severity_text);
-				err = shirudo_otel_send_log_json(&otel_opts,
-								 "shirudo.keepalive",
-								 "shirudo.keepalive",
-								 severity_number,
-								 severity_text,
-								 otel_status,
-								 shirudo_version_id,
+					status_otel_severity(otel_status,
+							     &severity_text);
+				err = otel_send_log_json(&otel_opts,
+							 "shirudo.keepalive",
+							 "shirudo.keepalive",
+							 severity_number,
+							 severity_text,
+							 otel_status,
+							 shirudo_version_id,
 							refused, json_buf,
 							strlen(json_buf));
 				if (err) {

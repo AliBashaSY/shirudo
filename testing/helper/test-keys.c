@@ -69,7 +69,7 @@ int main(int argc, char **argv)
 		root = open(argv[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		if (root < 0)
 			return 1;
-		ret = shirudo_keys_load_image_at(primary, root, true, &set);
+		ret = keys_load_image_at(primary, root, true, &set);
 		close(root);
 	} else {
 		ret = keys_load(argv[2], NULL,

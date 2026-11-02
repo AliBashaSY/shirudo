@@ -18,9 +18,9 @@ static int read_bootstrap(int argc, char **argv)
 	char root[65];
 	int ret;
 
-	ret = shirudo_image_bootstrap_read(argv[2], &boot, true);
+	ret = image_bootstrap_read(argv[2], &boot, true);
 	if (!ret && argc == 4)
-		ret = shirudo_image_bootstrap_read(argv[3], &boot, false);
+		ret = image_bootstrap_read(argv[3], &boot, false);
 	if (!ret) {
 		hex_encode(boot.runtime_root, 32, root);
 		printf("runtime=%s\nroot=%s\nconfig=%s\ncertificate=%s\npcr=%u\n",
@@ -51,27 +51,27 @@ int main(int argc, char **argv)
 	snprintf(bootstrap.tpm_tcti, sizeof(bootstrap.tpm_tcti),
 		 "bootstrap-tcti");
 	if (!strcmp(argv[1], "validate")) {
-		ret = shirudo_image_config_validate(fd);
+		ret = image_config_validate(fd);
 	} else if (!strcmp(argv[1], "effective")) {
-		ret = shirudo_image_config_set(&bootstrap, fd);
-		if (!ret && !shirudo_image_config_get(&effective))
+		ret = image_config_set(&bootstrap, fd);
+		if (!ret && !image_config_get(&effective))
 			ret = -EIO;
 		if (!ret) {
 			printf("owner=%.*s\ntcti=%s\nlimit=%llu\n",
 			       (int)effective.tpm_owner_auth_len,
 			       effective.tpm_owner_auth, effective.tpm_tcti,
 			       effective.eventlog_max_bytes);
-			ret = shirudo_image_open(SHIRUDO_IMAGE_REGISTRIES,
-						 O_RDONLY | O_DIRECTORY);
+			ret = image_open(SHIRUDO_IMAGE_REGISTRIES,
+					 O_RDONLY | O_DIRECTORY);
 			printf("registries=%s\n", ret >= 0 ? "open" : "missing");
 			if (ret >= 0)
 				close(ret);
 			ret = 0;
 		}
 	} else if (!strcmp(argv[1], "relative") && argc == 4) {
-		ret = shirudo_image_config_set(&bootstrap, fd);
+		ret = image_config_set(&bootstrap, fd);
 		if (!ret)
-			ret = shirudo_image_open_relative(argv[3], O_RDONLY);
+			ret = image_open_relative(argv[3], O_RDONLY);
 		if (ret >= 0) {
 			printf("resolved=open\n");
 			close(ret);
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 		ret = -EINVAL;
 	}
 out:
-	shirudo_image_config_clear();
+	image_config_clear();
 	close(fd);
 	printf("rc=%d\n", ret);
 	return ret ? 1 : 0;

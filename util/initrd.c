@@ -14,7 +14,7 @@
 
 bool in_initrd(void)
 {
-	const char *env = shirudo_image_config_active() ? NULL :
+	const char *env = image_config_active() ? NULL :
 		getenv("SHIRUDO_INITRD_RELEASE");
 
 	return access(env && *env ? env : "/etc/initrd-release", F_OK) == 0;
@@ -22,7 +22,7 @@ bool in_initrd(void)
 
 const char *sysroot(void)
 {
-	const char *env = shirudo_image_config_active() ? NULL :
+	const char *env = image_config_active() ? NULL :
 		getenv("SHIRUDO_SYSROOT");
 
 	return env && *env ? env : "/sysroot";
@@ -30,7 +30,7 @@ const char *sysroot(void)
 
 const char *shirudo_keys_dir(void)
 {
-	if (shirudo_image_config_root_fd() >= 0)
+	if (image_config_root_fd() >= 0)
 		return RUNTIME_DIR "/keys";
 	return in_initrd() ? INITRD_KEYS_DIR :
 				     KEYS_DIR;
@@ -38,7 +38,7 @@ const char *shirudo_keys_dir(void)
 
 const char *shirudo_cert_path(void)
 {
-	if (shirudo_image_config_root_fd() >= 0)
+	if (image_config_root_fd() >= 0)
 		return RUNTIME_CERT_PATH;
 	return in_initrd() ? INITRD_CERT_PATH :
 				     CERT_PATH;

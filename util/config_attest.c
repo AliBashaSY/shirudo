@@ -56,10 +56,10 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 		    event->kind != (i ? SHIRUDO_CONFIG_EVENT_UPDATE :
 					SHIRUDO_CONFIG_EVENT_BOOT))
 			return -EKEYREJECTED;
-		ret = shirudo_config_measure_event(event->kind, event->root_hash,
-						   digest);
+		ret = config_measure_event(event->kind, event->root_hash,
+					   digest);
 		if (!ret)
-			ret = shirudo_chain_fold_checked(out, digest);
+			ret = chain_fold_checked(out, digest);
 		if (ret)
 			return ret;
 		sequence = event->sequence;
@@ -85,8 +85,8 @@ static int collect_event(const struct shirudo_config_update_record *record,
 	return append_event(view, &event);
 }
 
-int shirudo_config_evidence_collect(struct shirudo_config_update *update,
-				    struct shirudo_config_evidence *out)
+int config_evidence_collect(struct shirudo_config_update *update,
+			    struct shirudo_config_evidence *out)
 {
 	struct shirudo_config_update_record active;
 	const struct shirudo_config_evidence_event *last;
@@ -95,14 +95,14 @@ int shirudo_config_evidence_collect(struct shirudo_config_update *update,
 	memset(out, 0, sizeof(*out));
 	if (!update)
 		return 0;
-	ret = shirudo_config_update_check(update, &active);
+	ret = config_update_check(update, &active);
 	if (ret)
 		return ret;
 	out->pcr = active.pcr;
 	out->reset_count = active.reset_count;
 	out->restart_count = active.restart_count;
 	memcpy(out->initial_pcr, active.initial_pcr, 32);
-	ret = shirudo_config_update_events(update, collect_event, out);
+	ret = config_update_events(update, collect_event, out);
 	if (!ret)
 		ret = replay(out, out->value);
 	if (!ret) {
@@ -112,14 +112,14 @@ int shirudo_config_evidence_collect(struct shirudo_config_update *update,
 			ret = -EUCLEAN;
 	}
 	if (ret) {
-		shirudo_config_evidence_clear(out);
+		config_evidence_clear(out);
 		return ret;
 	}
 	out->present = true;
 	return 0;
 }
 
-void shirudo_config_evidence_clear(struct shirudo_config_evidence *view)
+void config_evidence_clear(struct shirudo_config_evidence *view)
 {
 	if (!view)
 		return;
@@ -136,8 +136,8 @@ static void emit_hash(struct shirudo_json_emit *emit, const char *key,
 	json_kv_string(emit, key, hex);
 }
 
-int shirudo_config_evidence_emit(struct shirudo_json_emit *emit,
-				 const struct shirudo_config_evidence *view)
+int config_evidence_emit(struct shirudo_json_emit *emit,
+			 const struct shirudo_config_evidence *view)
 {
 	size_t i;
 
@@ -195,8 +195,8 @@ static int on_event(void *opaque)
 	return append_event(parser->view, &event);
 }
 
-int shirudo_config_evidence_parse(const char *evidence, size_t length,
-				  struct shirudo_config_evidence *out)
+int config_evidence_parse(const char *evidence, size_t length,
+			  struct shirudo_config_evidence *out)
 {
 	struct config_parser parser = { .view = out };
 	struct shirudo_json_array sink = { on_event, &parser };
@@ -242,7 +242,7 @@ int shirudo_config_evidence_parse(const char *evidence, size_t length,
 		}
 	if (schema != 1 || reset < 0 || reset > UINT32_MAX || restart < 0 ||
 	    restart > UINT32_MAX || pcr < 0 || pcr > 15 ||
-	    shirudo_config_measure_pcr_valid(pcr) || strlen(initial) != 64 ||
+	    config_measure_pcr_valid(pcr) || strlen(initial) != 64 ||
 	    hex_decode(initial, out->initial_pcr, 32)) {
 		ret = -EINVAL;
 		goto fail;
@@ -256,15 +256,15 @@ int shirudo_config_evidence_parse(const char *evidence, size_t length,
 	out->present = true;
 	return 0;
 fail:
-	shirudo_config_evidence_clear(out);
+	config_evidence_clear(out);
 	return ret;
 }
 
-int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
-				   __u32 quote_mask, __u32 reset,
-				   __u32 restart, const __u8 pcrs[24][32],
-				   const __u8 *expected_root,
-				   int expected_pcr, const char **reason)
+int config_evidence_verify(const struct shirudo_config_evidence *view,
+			   __u32 quote_mask, __u32 reset,
+			   __u32 restart, const __u8 pcrs[24][32],
+			   const __u8 *expected_root,
+			   int expected_pcr, const char **reason)
 {
 	__u8 value[32];
 	int ret;
@@ -274,7 +274,7 @@ int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
 		*reason = "configuration evidence is missing";
 		return expected_root || expected_pcr >= 0 ? -EKEYREJECTED : 0;
 	}
-	if (shirudo_config_measure_pcr_valid(view->pcr) ||
+	if (config_measure_pcr_valid(view->pcr) ||
 	    !(quote_mask & (1u << view->pcr)) ||
 	    (expected_pcr >= 0 && view->pcr != (__u32)expected_pcr)) {
 		*reason = "config PCR is unquoted or unexpected";

@@ -80,7 +80,7 @@ BUILD_BUG_ON(sizeof(struct shirudo_mount_record) != 8);
  * when init has not run, another -errno when the pin cannot be read.
  */
 /* 1 when enforcement is active, 0 before init, otherwise -errno. */
-int shirudo_enforcement_active(void);
+int enforcement_active(void);
 int identity_read(struct shirudo_identity *out);
 
 #endif /* SHIRUDO_UTIL_IDENTITY_H */

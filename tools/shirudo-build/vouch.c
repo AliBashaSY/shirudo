@@ -77,7 +77,7 @@ static int write_file(const char *path, const void *data, size_t len)
 	return ret;
 }
 
-int shirudo_build_keys_vouch(int argc, char **argv)
+int build_keys_vouch(int argc, char **argv)
 {
 	const char *pkey = SIGNING_KEY_PATH, *cert = CERT_PATH;
 	const char *keys_dir_arg = NULL, *input = NULL, *output = NULL;
@@ -146,7 +146,7 @@ int shirudo_build_keys_vouch(int argc, char **argv)
 			cert = cert_path;
 		}
 	}
-	if (shirudo_build_check_keys(pkey, cert))
+	if (build_check_keys(pkey, cert))
 		return 1;
 	if (!output) {
 		if (strsprintf(out_path, sizeof(out_path), "%s.vouch", input) < 0) {

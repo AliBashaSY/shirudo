@@ -103,8 +103,8 @@ static int validate_superblock(const struct verity_superblock *header)
 	return 0;
 }
 
-int shirudo_config_image_read_header(int hash_fd,
-				     struct shirudo_config_image *out)
+int config_image_read_header(int hash_fd,
+			     struct shirudo_config_image *out)
 {
 	struct shirudo_config_image image = {};
 	struct verity_superblock header;
@@ -126,8 +126,8 @@ int shirudo_config_image_read_header(int hash_fd,
 	return 0;
 }
 
-int shirudo_config_image_check_files(int data_fd, int hash_fd,
-				     const struct shirudo_config_image *image)
+int config_image_check_files(int data_fd, int hash_fd,
+			     const struct shirudo_config_image *image)
 {
 	__u64 data_size, hash_size, blocks;
 	int ret;
@@ -186,7 +186,7 @@ static int read_root(const char *prefix, __u8 root[32])
 	return hex_decode(text, root, 32);
 }
 
-void shirudo_config_image_close(struct shirudo_config_image_open *image)
+void config_image_close(struct config_image_open *image)
 {
 	if (!image)
 		return;
@@ -202,9 +202,9 @@ void shirudo_config_image_close(struct shirudo_config_image_open *image)
 }
 
 static int open_image(const char *prefix, const __u8 *expected_root,
-		      struct shirudo_config_image_open *out)
+		      struct config_image_open *out)
 {
-	struct shirudo_config_image_open image = {
+	struct config_image_open image = {
 		.data_fd = -1, .hash_fd = -1, .signature_fd = -1,
 	};
 	__u64 size;
@@ -221,14 +221,14 @@ static int open_image(const char *prefix, const __u8 *expected_root,
 		ret = image.hash_fd;
 		goto out;
 	}
-	ret = shirudo_config_image_read_header(image.hash_fd,
-					       &image.image);
+	ret = config_image_read_header(image.hash_fd,
+				       &image.image);
 	if (!ret)
 		ret = read_root(prefix, image.image.root_hash);
 	if (!ret)
-		ret = shirudo_config_image_check_files(image.data_fd,
-						       image.hash_fd,
-						       &image.image);
+		ret = config_image_check_files(image.data_fd,
+					       image.hash_fd,
+					       &image.image);
 	if (ret)
 		goto out;
 	if (expected_root) {
@@ -244,21 +244,21 @@ static int open_image(const char *prefix, const __u8 *expected_root,
 	}
 out:
 	if (ret)
-		shirudo_config_image_close(&image);
+		config_image_close(&image);
 	else
 		*out = image;
 	return ret;
 }
 
-int shirudo_config_image_open(const char *prefix,
-			      struct shirudo_config_image_open *out)
+int config_image_open(const char *prefix,
+		      struct config_image_open *out)
 {
 	return open_image(prefix, NULL, out);
 }
 
-int shirudo_config_image_open_root(const char *prefix,
-				   const __u8 expected_root[32],
-				   struct shirudo_config_image_open *out)
+int config_image_open_root(const char *prefix,
+			   const __u8 expected_root[32],
+			   struct config_image_open *out)
 {
 	return expected_root ? open_image(prefix, expected_root, out) : -EINVAL;
 }

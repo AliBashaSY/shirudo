@@ -21,15 +21,15 @@ enum shirudo_image_path {
 	SHIRUDO_IMAGE_PATH_COUNT,
 };
 
-bool shirudo_image_config_active(void);
-int shirudo_image_config_get(struct shirudo_config *out);
-int shirudo_image_config_set(const struct shirudo_config *bootstrap,
-			     int root_fd);
-int shirudo_image_config_validate(int root_fd);
-void shirudo_image_config_clear(void);
+bool image_config_active(void);
+int image_config_get(struct shirudo_config *out);
+int image_config_set(const struct shirudo_config *bootstrap,
+		     int root_fd);
+int image_config_validate(int root_fd);
+void image_config_clear(void);
 /* An entry of the config image, opened from its verified root; -errno. */
-int shirudo_image_open(enum shirudo_image_path which, int flags);
-int shirudo_image_open_relative(const char *path, int flags);
-int shirudo_image_config_root_fd(void);
+int image_open(enum shirudo_image_path which, int flags);
+int image_open_relative(const char *path, int flags);
+int image_config_root_fd(void);
 
 #endif /* SHIRUDO_IMAGE_CONFIG_H */

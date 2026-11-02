@@ -92,7 +92,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 		if (!ret && memcmp(expected, fingerprint, 32))
 			ret = -EKEYREJECTED;
 		if (!ret && apply)
-			ret = shirudo_keys_revoke_image(der, size, boot);
+			ret = keys_revoke_image(der, size, boot);
 		xfree(der, size);
 		if (ret)
 			break;
@@ -104,12 +104,12 @@ static int revocations(int root_fd, bool apply, bool boot)
 	return ret;
 }
 
-int shirudo_keys_validate_image_set(const char *primary, int root_fd,
-				    struct shirudo_trusted_set *set)
+int keys_validate_image_set(const char *primary, int root_fd,
+			    struct shirudo_trusted_set *set)
 {
 	int ret;
 
-	ret = shirudo_image_config_validate(root_fd);
+	ret = image_config_validate(root_fd);
 	if (ret) {
 		pr_err("image trust set: validate config image: %s",
 		       strerror(-ret));
@@ -121,7 +121,7 @@ int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 		       strerror(-ret));
 		return ret;
 	}
-	ret = shirudo_keys_load_image_root(primary, root_fd, true, set);
+	ret = keys_load_image_root(primary, root_fd, true, set);
 	if (ret) {
 		pr_err("image trust set: load certificates: %s",
 		       strerror(-ret));
@@ -135,7 +135,7 @@ int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 	return 0;
 }
 
-int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
+int keys_check_image_set(const struct shirudo_trusted_set *set)
 {
 	key_serial_t keyring;
 	size_t i;
@@ -158,20 +158,20 @@ int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
 	return 0;
 }
 
-int shirudo_keys_validate_image(int root_fd)
+int keys_validate_image(int root_fd)
 {
 	struct shirudo_trusted_set set;
 	int ret;
 
-	ret = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
-					      root_fd, &set);
-	return ret ? ret : shirudo_keys_check_image_set(&set);
+	ret = keys_validate_image_set(RUNTIME_CERT_PATH,
+				      root_fd, &set);
+	return ret ? ret : keys_check_image_set(&set);
 }
 
-int shirudo_keys_apply_image(int root_fd, bool boot)
+int keys_apply_image(int root_fd, bool boot)
 {
 	int ret;
 
-	ret = shirudo_keys_validate_image(root_fd);
+	ret = keys_validate_image(root_fd);
 	return ret ? ret : revocations(root_fd, true, boot);
 }

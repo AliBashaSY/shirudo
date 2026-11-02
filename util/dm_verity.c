@@ -92,7 +92,7 @@ static int dm_control_open(void)
 	return fd;
 }
 
-int shirudo_dm_verity_list(shirudo_dm_verity_cb callback, void *ctx)
+int dm_verity_list(shirudo_dm_verity_cb callback, void *ctx)
 {
 	const size_t header = offsetof(struct dm_name_list, name);
 	const size_t capacity = 64 * 1024;
@@ -304,9 +304,9 @@ static int check_table(union dm_buffer *buf,
 	return 0;
 }
 
-int shirudo_dm_verity_inspect(const char *name,
-			      const struct shirudo_config_image *image,
-			      struct shirudo_dm_verity *out)
+int dm_verity_inspect(const char *name,
+		      const struct shirudo_config_image *image,
+		      struct shirudo_dm_verity *out)
 {
 	struct shirudo_dm_verity device = {.data_loop_fd = -1,
 					   .hash_loop_fd = -1};
@@ -335,7 +335,7 @@ int shirudo_dm_verity_inspect(const char *name,
 	return ret;
 }
 
-void shirudo_dm_verity_close(struct shirudo_dm_verity *device)
+void dm_verity_close(struct shirudo_dm_verity *device)
 {
 	if (!device)
 		return;
@@ -347,7 +347,7 @@ void shirudo_dm_verity_close(struct shirudo_dm_verity *device)
 	device->hash_loop_fd = -1;
 }
 
-int shirudo_dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
+int dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
 {
 	union dm_buffer buf;
 	int control, ret;
@@ -363,7 +363,7 @@ int shirudo_dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
 	ret = dm_command(control, DM_DEV_REMOVE, &buf);
 	close(control);
 	if (!ret)
-		shirudo_dm_verity_close(device);
+		dm_verity_close(device);
 	return ret;
 }
 
@@ -422,8 +422,8 @@ static key_serial_t signature_key(int fd, char description[64])
 	return key;
 }
 
-int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
-			     const char *name, struct shirudo_dm_verity *out)
+int dm_verity_create(const struct config_image_open *image,
+		     const char *name, struct shirudo_dm_verity *out)
 {
 	struct shirudo_dm_verity device = {.data_loop_fd = -1,
 					   .hash_loop_fd = -1};
@@ -442,8 +442,8 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	if (!image || !out || !dm_name_ok(name))
 		return -EINVAL;
 	*out = device;
-	ret = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
-					       &image->image);
+	ret = config_image_check_files(image->data_fd, image->hash_fd,
+				       &image->image);
 	if (ret)
 		return ret;
 	device.image = image->image;
@@ -513,7 +513,7 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	target->next = (sizeof(*target) + n + 1 + 7) & ~7u;
 	buf.io.data_size = buf.io.data_start + target->next;
 	if (image->image.signed_root) {
-		ret = shirudo_config_root_begin(image->image.root_hash, &guard);
+		ret = config_root_begin(image->image.root_hash, &guard);
 		if (ret)
 			goto out;
 	}
@@ -533,7 +533,7 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	if (!ret)
 		ret = device_path(&device, buf.io.dev);
 out:
-	cleanup = shirudo_config_root_end(&guard);
+	cleanup = config_root_end(&guard);
 	if (!ret)
 		ret = cleanup;
 	if (key >= 0)
@@ -543,7 +543,7 @@ out:
 			dm_init(&buf, name);
 			(void)dm_command(control, DM_DEV_REMOVE, &buf);
 		}
-		shirudo_dm_verity_close(&device);
+		dm_verity_close(&device);
 	} else {
 		*out = device;
 	}
@@ -593,8 +593,8 @@ static int loop_check(int loop_fd, int file_fd, __u64 bytes)
 }
 
 /* Direct reads verify all logical data, including blocks outside live files. */
-int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
-			     const struct shirudo_config_image_open *image)
+int dm_verity_verify(const struct shirudo_dm_verity *device,
+		     const struct config_image_open *image)
 {
 	_Alignas(4096) __u8 buffer[65536];
 	int data = -1, hashes = -1, fd = -1;
@@ -607,12 +607,12 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 
 	if (!device || !image)
 		return -EINVAL;
-	ret = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
-					       &image->image);
+	ret = config_image_check_files(image->data_fd, image->hash_fd,
+				       &image->image);
 	if (ret)
 		return ret;
 	bytes = image->image.data_blocks * CONFIG_IMAGE_BLOCK_SIZE;
-	ret = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
+	ret = dm_verity_inspect(device->name, &image->image, &checked);
 	if (ret)
 		return ret;
 	if (checked.device != device->device ||
@@ -667,7 +667,7 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 		}
 		offset += n;
 	}
-	ret = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
+	ret = dm_verity_inspect(device->name, &image->image, &checked);
 	if (!ret && (checked.device != device->device ||
 		     checked.data_device != device->data_device ||
 		     checked.hash_device != device->hash_device))
@@ -687,8 +687,8 @@ out:
 	return ret;
 }
 
-int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
-			    const char *mountpoint, bool executable)
+int dm_verity_mount(const struct shirudo_dm_verity *device,
+		    const char *mountpoint, bool executable)
 {
 	__u64 flags = MS_RDONLY | MS_NODEV | MS_NOSUID;
 	struct shirudo_dm_verity checked;
@@ -697,7 +697,7 @@ int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
 
 	if (!device || !mountpoint || mountpoint[0] != '/')
 		return -EINVAL;
-	ret = shirudo_dm_verity_inspect(device->name, &device->image, &checked);
+	ret = dm_verity_inspect(device->name, &device->image, &checked);
 	if (ret)
 		return ret;
 	if (checked.device != device->device)
@@ -711,8 +711,8 @@ int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
 	else if (st.st_dev != device->device)
 		ret = -ESTALE;
 	else
-		ret = shirudo_dm_verity_inspect(device->name, &device->image,
-						&checked);
+		ret = dm_verity_inspect(device->name, &device->image,
+					&checked);
 	if (ret)
 		(void)umount2(mountpoint, 0);
 	return ret;

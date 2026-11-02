@@ -289,7 +289,7 @@ static int source_path(const char *name, char *out, size_t out_sz)
  */
 static int stream_untrusted(FILE *fp, const char *path)
 {
-	if (shirudo_image_config_active())
+	if (image_config_active())
 		return 0;
 	return check_trusted(fileno(fp), path, false);
 }
@@ -299,9 +299,9 @@ static FILE *source_open(const char *path)
 {
 	int fd;
 
-	if (!shirudo_image_config_active())
+	if (!image_config_active())
 		return fopen(path, "r");
-	fd = shirudo_image_open_relative(path + 1, O_RDONLY);
+	fd = image_open_relative(path + 1, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;
 		return NULL;
@@ -313,10 +313,10 @@ static DIR *registries_opendir(void)
 {
 	int fd;
 
-	if (!shirudo_image_config_active())
+	if (!image_config_active())
 		return opendir(BPM_REGISTRIES_DIR);
-	fd = shirudo_image_open(SHIRUDO_IMAGE_REGISTRIES,
-				O_RDONLY | O_DIRECTORY);
+	fd = image_open(SHIRUDO_IMAGE_REGISTRIES,
+			O_RDONLY | O_DIRECTORY);
 	if (fd < 0) {
 		errno = -fd;
 		return NULL;
@@ -328,9 +328,9 @@ static FILE *tree_conf_open(void)
 {
 	int fd;
 
-	if (!shirudo_image_config_active())
+	if (!image_config_active())
 		return fopen(BPM_TREE_ETC_PATH, "r");
-	fd = shirudo_image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	fd = image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;
 		return NULL;
@@ -372,7 +372,7 @@ static int load_source(const char *name, struct bpm_source *s)
 	if (!s->endpoint[0] || !s->key_file[0])
 		return -EINVAL;
 	/* With a config image the key file is the image's, named from its root. */
-	if (shirudo_image_config_active()) {
+	if (image_config_active()) {
 		if (!strncmp(s->key_file, "/etc/shirudo/bpm/keys/", 22))
 			memmove(s->key_file, s->key_file + 1,
 				strlen(s->key_file));
@@ -388,9 +388,9 @@ static int verify_with_source_key(const struct bpm_source *s,
 {
 	int fd, ret;
 
-	if (!shirudo_image_config_active())
+	if (!image_config_active())
 		return bpm_verify_cms(data, len, sig, sig_len, s->key_file);
-	fd = shirudo_image_open_relative(s->key_file, O_RDONLY);
+	fd = image_open_relative(s->key_file, O_RDONLY);
 	if (fd < 0)
 		return fd;
 	ret = bpm_verify_cms_fd(data, len, sig, sig_len, fd);
@@ -1337,18 +1337,18 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			}
 			sort_old_pairs(old_unloads, old_loads, nold);
 			for (int old_i = 0; old_i < nold; old_i++) {
-				if (shirudo_upatch_remove(old_unloads[old_i])) {
+				if (upatch_remove(old_unloads[old_i])) {
 					ret = -EIO;
 					for (int restore_i = nold_removed - 1;
 					     restore_i >= 0; restore_i--)
-						(void)shirudo_upatch_install(old_loads[restore_i]);
+						(void)upatch_install(old_loads[restore_i]);
 					goto out;
 				}
 				nold_removed++;
 			}
 		}
 		for (int loaded_i = 0; loaded_i < nloaded; loaded_i++) {
-			if (shirudo_upatch_install(loaded[loaded_i])) {
+			if (upatch_install(loaded[loaded_i])) {
 				ret = -EIO;
 				goto rollback;
 			}
@@ -1392,10 +1392,10 @@ rollback:
 			memcpy(unload + dir_len + 1 + name_len - strlen(".upatch"),
 			       ".unload.upatch", strlen(".unload.upatch") + 1);
 		}
-		(void)shirudo_upatch_remove(unload);
+		(void)upatch_remove(unload);
 	}
 	for (int restore_i = nold - 1; restore_i >= 0; restore_i--)
-		(void)shirudo_upatch_install(old_loads[restore_i]);
+		(void)upatch_install(old_loads[restore_i]);
 out:
 	bpm_buffer_free(&manifest);
 	if (ret && archive[0])
@@ -1468,7 +1468,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 		closedir(d);
 		return 0;
 	}
-	if (shirudo_image_config_active() &&
+	if (image_config_active() &&
 	    (!strcmp(argv[2], "add") || !strcmp(argv[2], "remove") ||
 	     !strcmp(argv[2], "rm"))) {
 		pr_err("image mode: change repository definitions and keys in "
@@ -2166,9 +2166,9 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			goto out;
 		}
 		if (!strcmp(op->op, "add")) {
-			ret = shirudo_upatch_install(artifact);
+			ret = upatch_install(artifact);
 		} else if (!strcmp(op->op, "delete")) {
-			ret = shirudo_upatch_remove(artifact);
+			ret = upatch_remove(artifact);
 		} else {
 			ret = -EINVAL;
 			goto out;
@@ -2324,7 +2324,7 @@ static int package_uninstall(const struct bpm_state_entry *st)
 		goto out;
 	qsort(unloads, (size_t)n, PATH_MAX, path_compare_desc);
 	for (int i = 0; i < n; i++) {
-		if (shirudo_upatch_remove(unloads[i])) {
+		if (upatch_remove(unloads[i])) {
 			pr_err("bpm uninstall: unload %s failed", unloads[i]);
 			ret = -EIO;
 			goto out;
@@ -2392,7 +2392,7 @@ static int bpm_exec_operator(const char *sub, int argc, const char **argv)
 	helper_argv[2] = sub;
 	for (int i = 3; i < argc + 1; i++)
 		helper_argv[i] = argv[i - 1];
-	ret = shirudo_build_exec(label, (char **)helper_argv);
+	ret = build_exec(label, (char **)helper_argv);
 	xfree(helper_argv, ((size_t)argc + 2) * sizeof(*helper_argv));
 	return ret;
 }
@@ -2500,7 +2500,7 @@ static int cmd_bpm_key(int argc, const char **argv)
 		print_help(&bpm_key_help);
 		return 2;
 	}
-	if (!strcmp(sub, "add") && shirudo_image_config_active()) {
+	if (!strcmp(sub, "add") && image_config_active()) {
 		pr_err("image mode: add vouched BPF signers to the signed "
 		       "config selected for boot and reboot to enroll them");
 		return 1;
@@ -2530,11 +2530,11 @@ static int cmd_bpm_key(int argc, const char **argv)
 
 int cmd_bpm(int argc, const char **argv)
 {
-	const struct shirudo_help *help = shirudo_build_available() ?
+	const struct shirudo_help *help = build_available() ?
 		&bpm_operator_help : &bpm_target_help;
-	const struct shirudo_help_item *subcmds = shirudo_build_available() ?
+	const struct shirudo_help_item *subcmds = build_available() ?
 		bpm_subcmds : bpm_target_subcmds;
-	size_t n_subcmds = shirudo_build_available() ? ARRAY_SIZE(bpm_subcmds) :
+	size_t n_subcmds = build_available() ? ARRAY_SIZE(bpm_subcmds) :
 		ARRAY_SIZE(bpm_target_subcmds);
 	const char *sub;
 

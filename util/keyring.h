@@ -104,9 +104,9 @@ int keyring_bpf_seal(void);
 #endif
 
 /* Resolve the special ID; never fall back to a same-named user keyring. */
-key_serial_t shirudo_keyring_dm_verity_serial(void);
-key_serial_t shirudo_keyring_dm_verity_add_cert(const __u8 *cert,
-						size_t cert_len);
-int shirudo_keyring_dm_verity_seal(void);
+key_serial_t keyring_dm_verity_serial(void);
+key_serial_t keyring_dm_verity_add_cert(const __u8 *cert,
+					size_t cert_len);
+int keyring_dm_verity_seal(void);
 
 #endif /* SHIRUDO_KEYRING_H */

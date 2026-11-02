@@ -551,7 +551,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 
 			if (parse_u64(a + 20, strlen(a + 20), 15, &pcr) ||
 			    x.have_config_pcr ||
-			    shirudo_config_measure_pcr_valid(pcr))
+			    config_measure_pcr_valid(pcr))
 				goto out;
 			x.config_pcr = pcr;
 			x.have_config_pcr = true;
@@ -819,9 +819,9 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	}
 
 	request = challenge_path ? &challenge : NULL;
-	ret = shirudo_attest_evidence_config(nonce, nonce_len, mask, request,
-					     shirudo_image_update_context(),
-					     &doc, &len, &cap);
+	ret = attest_evidence_config(nonce, nonce_len, mask, request,
+				     image_update_context(),
+				     &doc, &len, &cap);
 	if (ret == -ENXIO) {
 		pr_err("attest: no TPM answered (tpm_error)");
 		return 1;

@@ -50,11 +50,11 @@ struct shirudo_config_update;
  * -ENXIO when no TPM answers, -ENODEV when no register is bound this
  * boot, -EKEYREJECTED when the TPM refuses the challenge.
  */
-int shirudo_attest_evidence_config(const __u8 *nonce, size_t nonce_len,
-				   __u32 pcr_mask,
-				   const struct shirudo_attest_challenge *c,
-				   struct shirudo_config_update *update,
-				   char **out, size_t *len, size_t *cap);
+int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
+			   __u32 pcr_mask,
+			   const struct shirudo_attest_challenge *c,
+			   struct shirudo_config_update *update,
+			   char **out, size_t *len, size_t *cap);
 
 /*
  * Operator side. The credential the target has to recover is handed

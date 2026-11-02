@@ -43,7 +43,7 @@ int main(int argc, const char **argv)
 		memcpy(bootstrap.tpm_owner_auth, "bootstrap-owner", 15);
 		bootstrap.tpm_owner_auth_len = 15;
 		strscpy(bootstrap.tpm_tcti, "bootstrap-tcti", sizeof(bootstrap.tpm_tcti));
-		ret = shirudo_image_config_set(&bootstrap, fd);
+		ret = image_config_set(&bootstrap, fd);
 	}
 	close(fd);
 	if (ret)
@@ -60,8 +60,8 @@ int main(int argc, const char **argv)
 		ret = load_source(argv[3], &source);
 		if (!ret) {
 			char content[64];
-			int kfd = shirudo_image_open_relative(source.key_file,
-							      O_RDONLY);
+			int kfd = image_open_relative(source.key_file,
+						      O_RDONLY);
 			FILE *file = kfd < 0 ? NULL : fdopen(kfd, "r");
 
 			if (!file) {
@@ -88,6 +88,6 @@ int main(int argc, const char **argv)
 	} else {
 		ret = 2;
 	}
-	shirudo_image_config_clear();
+	image_config_clear();
 	return ret ? 1 : 0;
 }

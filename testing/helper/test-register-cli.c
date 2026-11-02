@@ -18,7 +18,7 @@ int main(int argc, const char **argv)
 		return 1;
 	if (argc > 2 && !strcmp(argv[1], "attest") && !strcmp(argv[2], "predict"))
 		return cmd_attest(argc - 1, argv + 1);
-	if (shirudo_enforcement_active() != 0) {
+	if (enforcement_active() != 0) {
 		fputs("register CLI fixture requires an uninitialized target\n", stderr);
 		return 1;
 	}

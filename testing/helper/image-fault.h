@@ -10,12 +10,12 @@
 
 #include "util/image_guards.h"
 
-int __real_shirudo_config_root_begin(const __u8 root[32],
-				     struct shirudo_config_root_guard *guard);
-int __wrap_shirudo_config_root_begin(const __u8 root[32],
-				     struct shirudo_config_root_guard *guard);
-int __real_shirudo_config_root_end(struct shirudo_config_root_guard *guard);
-int __wrap_shirudo_config_root_end(struct shirudo_config_root_guard *guard);
+int __real_config_root_begin(const __u8 root[32],
+			     struct shirudo_config_root_guard *guard);
+int __wrap_config_root_begin(const __u8 root[32],
+			     struct shirudo_config_root_guard *guard);
+int __real_config_root_end(struct shirudo_config_root_guard *guard);
+int __wrap_config_root_end(struct shirudo_config_root_guard *guard);
 
 int __real_main(int argc, const char **argv);
 int __wrap_main(int argc, const char **argv);

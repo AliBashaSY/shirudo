@@ -20,7 +20,7 @@
 #include "identity.h"
 #include "paths.h"
 
-int shirudo_enforcement_active(void)
+int enforcement_active(void)
 {
 	int ret = prctl(PR_GET_ENFORCEMENT, 0, 0, 0, 0);
 

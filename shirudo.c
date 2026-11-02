@@ -169,14 +169,14 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
-	ret = shirudo_image_enter(c->name, argc - 1, argv + 1);
+	ret = image_enter(c->name, argc - 1, argv + 1);
 
 	if (ret) {
 		fprintf(stderr, "shirudo: image state: %s\n", strerror(-ret));
-		shirudo_image_leave();
+		image_leave();
 		return 1;
 	}
 	ret = c->fn(argc - 1, argv + 1);
-	shirudo_image_leave();
+	image_leave();
 	return ret;
 }

@@ -674,7 +674,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			cert = cert_path;
 		}
 	}
-	if (shirudo_build_check_keys(key, cert))
+	if (build_check_keys(key, cert))
 		return -EACCES;
 	if (bpm_trim(raw_repository, repo_ref, sizeof(repo_ref))) {
 		pr_err("bpm tree append: repository is longer than %zu bytes",
@@ -854,14 +854,14 @@ static void bpm_push_usage(void)
 		"      --keys-dir /var/lib/shirudo/keys\n");
 }
 
-int shirudo_build_bpm_push(int argc, char **argv)
+int build_bpm_push(int argc, char **argv)
 {
 	const char *package = NULL, *repository = NULL, *reference = NULL;
 	const char *keys_dir_arg = NULL, *index_cert = NULL, *index_key = NULL;
 	char cert_path[PATH_MAX], key_path[PATH_MAX];
 	int ret;
 
-	if (argc == 2 && shirudo_build_is_help(argv[1])) {
+	if (argc == 2 && build_is_help(argv[1])) {
 		bpm_push_usage();
 		return 0;
 	}
@@ -910,7 +910,7 @@ int shirudo_build_bpm_push(int argc, char **argv)
 		pr_err("bpm push: --index-cert and --index-key must be supplied together");
 		return 2;
 	}
-	if (index_key && shirudo_build_check_keys(index_key, index_cert))
+	if (index_key && build_check_keys(index_key, index_cert))
 		return 1;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return publish_fail("initialize curl", -EIO);
@@ -923,15 +923,15 @@ int shirudo_build_bpm_push(int argc, char **argv)
 	return 0;
 }
 
-int shirudo_build_bpm_tree(int argc, char **argv)
+int build_bpm_tree(int argc, char **argv)
 {
 	int ret;
 
 	if (argc < 2 || strcmp(argv[1], "append")) {
 		tree_append_usage();
-		return argc >= 2 && shirudo_build_is_help(argv[1]) ? 0 : 2;
+		return argc >= 2 && build_is_help(argv[1]) ? 0 : 2;
 	}
-	if (argc == 3 && shirudo_build_is_help(argv[2])) {
+	if (argc == 3 && build_is_help(argv[2])) {
 		tree_append_usage();
 		return 0;
 	}

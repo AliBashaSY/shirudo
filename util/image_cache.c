@@ -146,7 +146,7 @@ static int fetch_file(const char *source, const char *destination, __u64 max)
 }
 
 /* Verify downloads before publishing their root-hash-named cache files. */
-static int verify_incoming(const struct shirudo_config_image_open *opened,
+static int verify_incoming(const struct config_image_open *opened,
 			   const char *staging)
 {
 	struct shirudo_dm_verity device = {
@@ -158,20 +158,20 @@ static int verify_incoming(const struct shirudo_config_image_open *opened,
 
 	if (strsprintf(name, sizeof(name), "shirudo-verify-%s", strrchr(staging, '/') + 1) < 0)
 		return -ENAMETOOLONG;
-	ret = shirudo_dm_verity_create(opened, name, &device);
+	ret = dm_verity_create(opened, name, &device);
 	if (ret)
 		return ret;
-	ret = shirudo_dm_verity_verify(&device, opened);
-	cleanup = shirudo_dm_verity_remove(&device, true);
+	ret = dm_verity_verify(&device, opened);
+	cleanup = dm_verity_remove(&device, true);
 	if (cleanup)
 		pr_warn("image: cannot remove incoming mapping: %s",
 			strerror(-cleanup));
-	shirudo_dm_verity_close(&device);
+	dm_verity_close(&device);
 	return ret ? ret : cleanup;
 }
 
-int shirudo_image_cache_fetch(const char *source,
-			      struct shirudo_config_update_target *target)
+int image_cache_fetch(const char *source,
+		      struct shirudo_config_update_target *target)
 {
 	static const struct {
 		const char *suffix;
@@ -182,7 +182,7 @@ int shirudo_image_cache_fetch(const char *source,
 		{ ".img", CONFIG_IMAGE_MAX_BYTES },
 		{ ".verity", CONFIG_IMAGE_MAX_BYTES },
 	};
-	struct shirudo_config_image_open opened;
+	struct config_image_open opened;
 	char staging[] = IMAGE_CACHE_DIR "/incoming-XXXXXX";
 	char incoming[PATH_MAX], from[PATH_MAX], to[PATH_MAX];
 	char hex[65];
@@ -208,7 +208,7 @@ int shirudo_image_cache_fetch(const char *source,
 		if (ret)
 			goto out;
 	}
-	ret = shirudo_config_image_open(incoming, &opened);
+	ret = config_image_open(incoming, &opened);
 	if (ret)
 		goto out;
 	ret = verify_incoming(&opened, staging);
@@ -219,7 +219,7 @@ int shirudo_image_cache_fetch(const char *source,
 			       IMAGE_CACHE_DIR, hex) < 0)
 			ret = -ENAMETOOLONG;
 	}
-	shirudo_config_image_close(&opened);
+	config_image_close(&opened);
 	if (ret)
 		goto out;
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
@@ -239,11 +239,11 @@ int shirudo_image_cache_fetch(const char *source,
 		ret = -errno;
 		goto out;
 	}
-	ret = shirudo_config_image_open(target->prefix, &opened);
+	ret = config_image_open(target->prefix, &opened);
 	if (!ret) {
 		if (memcmp(opened.image.root_hash, target->root_hash, 32))
 			ret = -EKEYREJECTED;
-		shirudo_config_image_close(&opened);
+		config_image_close(&opened);
 	}
 out:
 	if (dir >= 0)

@@ -28,7 +28,7 @@ static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 	(void)ctx;
 	ret = tpm_open(&tpm);
 	if (!ret)
-		ret = shirudo_tpm_boot_identity(tpm, reset, restart);
+		ret = tpm_boot_identity(tpm, reset, restart);
 	tpm_close(tpm);
 	return ret;
 }
@@ -90,16 +90,16 @@ static int render(const char *directory, const char *nonce)
 	if (strlen(nonce) % 2 || nonce_length > sizeof(bytes) ||
 	    hex_decode(nonce, bytes, nonce_length))
 		return -EINVAL;
-	ret = shirudo_config_update_open(directory, &ops, NULL, &update);
+	ret = config_update_open(directory, &ops, NULL, &update);
 	if (!ret)
-		ret = shirudo_attest_evidence_config(bytes, nonce_length,
-						     CHAIN_PCR_MASK,
-						     NULL, &update, &document,
-						     &length, &capacity);
+		ret = attest_evidence_config(bytes, nonce_length,
+					     CHAIN_PCR_MASK,
+					     NULL, &update, &document,
+					     &length, &capacity);
 	if (!ret)
 		ret = write_complete(STDOUT_FILENO, document, length);
 	xfree(document, capacity);
-	shirudo_config_update_close(&update);
+	config_update_close(&update);
 	return ret;
 }
 
@@ -155,7 +155,7 @@ int main(int argc, char **argv)
 		return 2;
 	ret = read_document(argv[2], &document, &length);
 	if (!ret)
-		ret = shirudo_config_evidence_parse(document, length, &config);
+		ret = config_evidence_parse(document, length, &config);
 	if (ret)
 		goto out;
 	if (argc == 8 && !strcmp(argv[1], "replay")) {
@@ -172,9 +172,9 @@ int main(int argc, char **argv)
 		reset = strtoul(argv[5], NULL, 10);
 		restart = strtoul(argv[6], NULL, 10);
 		expected = !strcmp(argv[3], "-") ? NULL : root;
-		ret = shirudo_config_evidence_verify(&config, mask, reset,
-						     restart, pcrs, expected,
-						     pcr, &reason);
+		ret = config_evidence_verify(&config, mask, reset,
+					     restart, pcrs, expected,
+					     pcr, &reason);
 	} else if (strcmp(argv[1], "parse")) {
 		ret = -EINVAL;
 	}
@@ -182,7 +182,7 @@ out:
 	if (reason)
 		printf("reason=%s\n", reason);
 	printf("rc=%d\n", ret);
-	shirudo_config_evidence_clear(&config);
+	config_evidence_clear(&config);
 	xfree(document, document ? length + 1 : 0);
 	return ret ? 1 : 0;
 }

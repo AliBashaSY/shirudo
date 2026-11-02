@@ -339,7 +339,7 @@ int keyring_bpf_seal(void)
 }
 
 /* Resolve the kernel-owned ring directly, without a name-based search. */
-key_serial_t shirudo_keyring_dm_verity_serial(void)
+key_serial_t keyring_dm_verity_serial(void)
 {
 	long ret = sys_keyctl(KEYCTL_GET_KEYRING_ID,
 			      KEY_SPEC_DM_VERITY_KEYRING, 0, 0, 0);
@@ -347,8 +347,8 @@ key_serial_t shirudo_keyring_dm_verity_serial(void)
 	return ret < 0 ? -errno : (key_serial_t)ret;
 }
 
-key_serial_t shirudo_keyring_dm_verity_add_cert(const __u8 *cert,
-						size_t cert_len)
+key_serial_t keyring_dm_verity_add_cert(const __u8 *cert,
+					size_t cert_len)
 {
 	long ret = sys_add_key("asymmetric", NULL, cert, cert_len,
 			       KEY_SPEC_DM_VERITY_KEYRING);
@@ -356,7 +356,7 @@ key_serial_t shirudo_keyring_dm_verity_add_cert(const __u8 *cert,
 	return ret < 0 ? -errno : (key_serial_t)ret;
 }
 
-int shirudo_keyring_dm_verity_seal(void)
+int keyring_dm_verity_seal(void)
 {
 	/* No restriction type: reject every subsequent addition. */
 	if (sys_keyctl(KEYCTL_RESTRICT_KEYRING, KEY_SPEC_DM_VERITY_KEYRING,

@@ -44,7 +44,7 @@ struct shirudo_conditions_input {
 	int		cm_seen;
 	const char	*nv_index;
 	int		config_seen;
-	int		config_state;	/* shirudo_image_config_state() */
+	int		config_state;	/* image_config_state() */
 	const char	*config_root;	/* hex, when config_seen */
 };
 

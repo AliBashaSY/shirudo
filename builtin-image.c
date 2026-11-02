@@ -44,15 +44,15 @@ int cmd_image(int argc, const char **argv)
 		helper[1] = "image";
 		for (i = 1; i < argc; i++)
 			helper[i + 1] = (char *)argv[i];
-		ret = shirudo_build_exec(!strcmp(argv[1], "build") ?
-					 "image build" : "image verify", helper);
+		ret = build_exec(!strcmp(argv[1], "build") ?
+				 "image build" : "image verify", helper);
 		xfree(helper, bytes);
 		return ret;
 	}
 	if (!strcmp(argv[1], "update") && argc == 3) {
-		ret = shirudo_image_update(argv[2]);
+		ret = image_update(argv[2]);
 	} else if (!strcmp(argv[1], "status") && argc == 2) {
-		ret = shirudo_image_status();
+		ret = image_status();
 	} else {
 		image_help();
 		return 2;

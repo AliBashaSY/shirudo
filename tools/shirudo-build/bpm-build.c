@@ -840,9 +840,9 @@ static int build_rodata_apply(const struct bpm_build_spec *spec,
 				      UPATCH_FILE_MAX);
 		if (ret)
 			goto out;
-		ret = shirudo_build_package_patch_rodata(load, patched,
-							 rodata->symbol, value,
-							 value_len, pkey, cert);
+		ret = build_package_patch_rodata(load, patched,
+						 rodata->symbol, value,
+						 value_len, pkey, cert);
 		if (!ret && rename(patched, load))
 			ret = -errno;
 out:
@@ -1181,7 +1181,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		strscpy(u->unload_path, unload, sizeof(u->unload_path));
 		if (build_ends_with(source, ".bpf.c")) {
 			if (!vmlinux_h) {
-				vmlinux_h = shirudo_build_locate_vmlinux(NULL);
+				vmlinux_h = build_locate_vmlinux(NULL);
 				if (!vmlinux_h) {
 					pr_err("bpm build: vmlinux.h not found (tried "
 					       "./vmlinux.h, ./vendor/linux/vmlinux.h, %s)",
@@ -1191,8 +1191,8 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			}
 			if (strsprintf(object, sizeof(object), "%s.bpf.o", load) < 0)
 				return -ENAMETOOLONG;
-			ret = shirudo_build_compile(source, object, vmlinux_h, NULL,
-						    shirudo_bpf_incdir);
+			ret = build_compile(source, object, vmlinux_h, NULL,
+					    shirudo_bpf_incdir);
 			if (ret) {
 				pr_err("bpm build: compile %s failed", u->source);
 				return ret < 0 ? ret : -EIO;
@@ -1205,8 +1205,8 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			return -EINVAL;
 		}
 		build_upatch_name(source, name, sizeof(name));
-		ret = shirudo_build_package_load(bpf_o, src_path, load, name, pkey,
-						 cert);
+		ret = build_package_load(bpf_o, src_path, load, name, pkey,
+					 cert);
 		if (bpf_o == object)
 			unlink(object);
 		if (ret)
@@ -1228,8 +1228,8 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
 		strscpy(u->type, upatch_type_str(&parsed), sizeof(u->type));
 		upatch_close(&parsed);
-		ret = shirudo_build_package_unload(u->name, payload, unload, pkey,
-						   cert);
+		ret = build_package_unload(u->name, payload, unload, pkey,
+					   cert);
 		if (ret)
 			return ret < 0 ? ret : -EIO;
 	}
@@ -1500,7 +1500,7 @@ static void build_usage(void)
 		"is available only in shirudo-operator and requires signing keys.\n");
 }
 
-static int shirudo_build_bpm_build(int argc, char **argv)
+static int build_bpm_build(int argc, char **argv)
 {
 	const char *context = ".", *file_arg = NULL, *version = NULL;
 	const char *keys_arg = NULL, *vmlinux_arg = NULL;
@@ -1522,7 +1522,7 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 	__u8 *body = NULL;
 
 	for (int i = 1; i < argc; i++) {
-		if (shirudo_build_is_help(argv[i])) {
+		if (build_is_help(argv[i])) {
 			build_usage();
 			return 0;
 		} else if (!strcmp(argv[i], "-f") || !strcmp(argv[i], "--file")) {
@@ -1580,7 +1580,7 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 			sizeof(cert_path));
 	if (ret)
 		return ret;
-	if (shirudo_build_check_keys(pkey, cert_path))
+	if (build_check_keys(pkey, cert_path))
 		return -EACCES;
 	if (vmlinux_arg && !realpath(vmlinux_arg, vmlinux_abs)) {
 		pr_err("bpm build: cannot resolve vmlinux.h %s: %s",
@@ -1797,7 +1797,7 @@ out:
 	return ret;
 }
 
-static int shirudo_build_bpm_config_update(int argc, char **argv)
+static int build_bpm_config_update(int argc, char **argv)
 {
 	const char *file_arg = NULL, *base_arg = NULL;
 	const char *version = NULL, *keys_arg = NULL;
@@ -1819,7 +1819,7 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 	bool downloaded_package = false;
 
 	for (int i = 1; i < argc; i++) {
-		if (shirudo_build_is_help(argv[i])) {
+		if (build_is_help(argv[i])) {
 			fprintf(stdout,
 				"usage: shirudo bpm config update "
 				"--base-package <package.bee|oci://host/repo:tag> "
@@ -1894,7 +1894,7 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 			sizeof(cert_path));
 	if (ret)
 		goto out_base;
-	if (shirudo_build_check_keys(pkey, cert_path))
+	if (build_check_keys(pkey, cert_path))
 		goto key_error;
 	package_source = !file_arg;
 	spec = xmalloc(sizeof(*spec));
@@ -2036,7 +2036,7 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 						load);
 		if (ret)
 			break;
-		ret = shirudo_build_package_verify(load, cert_path);
+		ret = build_package_verify(load, cert_path);
 		if (ret)
 			break;
 		build_upatch_name(upatch->source, expected_name,
@@ -2072,8 +2072,8 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 		upatch_close(&parsed);
 		strscpy(upatch->load_path, load, sizeof(upatch->load_path));
 		strscpy(upatch->unload_path, unload, sizeof(upatch->unload_path));
-		ret = shirudo_build_package_unload(upatch->name, payload, unload,
-						   pkey, cert_path);
+		ret = build_package_unload(upatch->name, payload, unload,
+					   pkey, cert_path);
 	}
 	if (!ret)
 		ret = build_archive(spec, version, cert_path, fingerprint, out_dir);
@@ -2125,37 +2125,37 @@ static void bpm_usage(FILE *fp)
 		"through `shirudo bpm`. Each accepts --help.\n");
 }
 
-bool shirudo_build_is_help(const char *arg)
+bool build_is_help(const char *arg)
 {
 	return arg && (!strcmp(arg, "--help") || !strcmp(arg, "-h") ||
 		       !strcmp(arg, "help"));
 }
 
-int shirudo_build_bpm(int argc, char **argv)
+int build_bpm(int argc, char **argv)
 {
 	int ret;
 
-	if (argc < 2 || shirudo_build_is_help(argv[1])) {
+	if (argc < 2 || build_is_help(argv[1])) {
 		bpm_usage(argc < 2 ? stderr : stdout);
 		return argc < 2 ? 2 : 0;
 	}
 	if (!strcmp(argv[1], "build")) {
-		ret = shirudo_build_bpm_build(argc - 1, argv + 1);
+		ret = build_bpm_build(argc - 1, argv + 1);
 		if (ret < 0 && ret != -EINVAL)
 			pr_err("bpm build: %s", strerror(-ret));
 		return ret ? 1 : 0;
 	}
 	if (!strcmp(argv[1], "config") && argc >= 3 &&
 	    !strcmp(argv[2], "update")) {
-		ret = shirudo_build_bpm_config_update(argc - 2, argv + 2);
+		ret = build_bpm_config_update(argc - 2, argv + 2);
 		if (ret < 0 && ret != -EINVAL)
 			pr_err("bpm config update: %s", strerror(-ret));
 		return ret ? 1 : 0;
 	}
 	if (!strcmp(argv[1], "push"))
-		return shirudo_build_bpm_push(argc - 1, argv + 1);
+		return build_bpm_push(argc - 1, argv + 1);
 	if (!strcmp(argv[1], "tree"))
-		return shirudo_build_bpm_tree(argc - 1, argv + 1);
+		return build_bpm_tree(argc - 1, argv + 1);
 	pr_err("shirudo-build bpm: '%s' is not an operator bpm command", argv[1]);
 	bpm_usage(stderr);
 	return 2;

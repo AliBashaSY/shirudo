@@ -577,7 +577,7 @@ static int keys_add(int argc, const char **argv)
 		print_help(&keys_add_help);
 		return 2;
 	}
-	if (shirudo_image_config_active()) {
+	if (image_config_active()) {
 		pr_err("target: add vouched BPF signers to the signed "
 		       "config selected for boot and reboot to enroll them");
 		return 1;
@@ -791,7 +791,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 		upatch_close(&u);
 		if (signed_by != 1)
 			continue;
-		prc = shirudo_upatch_purge(name, "key_revoke");
+		prc = upatch_purge(name, "key_revoke");
 		if (prc < 0) {
 			pr_err("keys revoke: purge %s: %s", name,
 			       strerror(-prc));
@@ -810,7 +810,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 	return ret ? ret : purged;
 }
 
-int shirudo_keys_revoke_image(const __u8 *der, size_t size, bool boot)
+int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 {
 	struct shirudo_trusted_cert cert = {};
 	key_serial_t ring, key;
@@ -872,7 +872,7 @@ static int keys_vouch(int argc, const char **argv)
 	helper_argv[2] = "vouch";
 	for (int i = 1; i < argc; i++)
 		helper_argv[i + 2] = argv[i];
-	ret = shirudo_build_exec("keys vouch", (char **)helper_argv);
+	ret = build_exec("keys vouch", (char **)helper_argv);
 	xfree(helper_argv, sz);
 	return ret;
 }
@@ -927,7 +927,7 @@ static int keys_show(int argc, const char **argv)
 		}
 	}
 
-	keys_dir = shirudo_image_config_active() ? RUNTIME_DIR "/keys" :
+	keys_dir = image_config_active() ? RUNTIME_DIR "/keys" :
 		keys_dir_resolve(keys_dir_arg);
 
 	ret = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
@@ -979,7 +979,7 @@ static int keys_show(int argc, const char **argv)
 			  id.key_serials,
 			  id.n_keys < IDENTITY_KEYS_MAX ?
 			  id.n_keys : IDENTITY_KEYS_MAX },
-			{ ".dm-verity", shirudo_keyring_dm_verity_serial,
+			{ ".dm-verity", keyring_dm_verity_serial,
 			  id.dm_verity_ring, &id.dm_verity_key,
 			  id.dm_verity_key > 0 },
 		};

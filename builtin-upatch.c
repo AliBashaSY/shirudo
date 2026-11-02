@@ -2964,7 +2964,7 @@ done:
 	return ret;
 }
 
-int shirudo_upatch_purge(const char *name, const char *reason)
+int upatch_purge(const char *name, const char *reason)
 {
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
@@ -3014,14 +3014,14 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 }
 
 /* Package installs take the same path as the upatch commands. */
-int shirudo_upatch_install(const char *path)
+int upatch_install(const char *path)
 {
 	const char *argv[] = { "load", "--no-precheck", path };
 
 	return cmd_upatch_load(3, argv);
 }
 
-int shirudo_upatch_remove(const char *path)
+int upatch_remove(const char *path)
 {
 	const char *argv[] = { "unload", "--no-precheck", path };
 
@@ -3194,11 +3194,11 @@ static int export_one_map(const char *upatch, const char *map,
 
 		err = upatch_decode_map_signal(&v, &decoder_signal);
 		if (err == -ENODATA)
-			err = shirudo_upatch_maps_otel_send(&v, SHIRUDO_OTEL_AUTO,
-							    otel_opts);
+			err = upatch_maps_otel_send(&v, SHIRUDO_OTEL_AUTO,
+						    otel_opts);
 		else if (!err)
-			err = shirudo_upatch_maps_otel_send_decoded(&v, decoder_signal,
-								    otel_opts);
+			err = upatch_maps_otel_send_decoded(&v, decoder_signal,
+							    otel_opts);
 		if (err) {
 			pr_err("upatch map: OTLP export %s/%s: %s", upatch, map,
 			       strerror(-err));

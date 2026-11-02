@@ -90,13 +90,13 @@ int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec);
 void bpm_build_spec_free(struct bpm_build_spec *spec);
 
-int shirudo_build_bpm(int argc, char **argv);
-int shirudo_build_bpm_push(int argc, char **argv);
-int shirudo_build_bpm_tree(int argc, char **argv);
-bool shirudo_build_is_help(const char *arg);
+int build_bpm(int argc, char **argv);
+int build_bpm_push(int argc, char **argv);
+int build_bpm_tree(int argc, char **argv);
+bool build_is_help(const char *arg);
 
-int shirudo_build_check_keys(const char *pkey, const char *cert);
+int build_check_keys(const char *pkey, const char *cert);
 
-int shirudo_build_keys_vouch(int argc, char **argv);
+int build_keys_vouch(int argc, char **argv);
 
 #endif /* SHIRUDO_BUILD_BPM_H */

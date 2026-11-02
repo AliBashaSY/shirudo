@@ -16,57 +16,57 @@
 #include "tools/shirudo-build/vmlinux.h"
 
 /* What bpm build does with a parsed Beefile is out of reach from here. */
-int shirudo_build_bpm_push(int argc, char **argv)
+int build_bpm_push(int argc, char **argv)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_bpm_tree(int argc, char **argv)
+int build_bpm_tree(int argc, char **argv)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_check_keys(const char *pkey, const char *cert)
+int build_check_keys(const char *pkey, const char *cert)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_compile(const char *source, const char *output,
-			  const char *vmlinux_h, const char *extra_cflags,
-			  const char *shirudo_bpf_incdir)
+int build_compile(const char *source, const char *output,
+		  const char *vmlinux_h, const char *extra_cflags,
+		  const char *shirudo_bpf_incdir)
 {
 	return -ENOSYS;
 }
 
-const char *shirudo_build_locate_vmlinux(const char *override)
+const char *build_locate_vmlinux(const char *override)
 {
 	return NULL;
 }
 
-int shirudo_build_package_load(const char *bpf_o, const char *src_path,
-			       const char *out_upatch, const char *upatch_name,
-			       const char *pkey_path, const char *cert_path)
+int build_package_load(const char *bpf_o, const char *src_path,
+		       const char *out_upatch, const char *upatch_name,
+		       const char *pkey_path, const char *cert_path)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_package_unload(const char *name,
-				 const __u8 payload_sha256[32],
-				 const char *out_upatch,
-				 const char *pkey_path, const char *cert_path)
+int build_package_unload(const char *name,
+			 const __u8 payload_sha256[32],
+			 const char *out_upatch,
+			 const char *pkey_path, const char *cert_path)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_package_patch_rodata(const char *input, const char *output,
-				       const char *symbol, const __u8 *value,
-				       size_t value_len, const char *pkey_path,
-				       const char *cert_path)
+int build_package_patch_rodata(const char *input, const char *output,
+			       const char *symbol, const __u8 *value,
+			       size_t value_len, const char *pkey_path,
+			       const char *cert_path)
 {
 	return -ENOSYS;
 }
 
-int shirudo_build_package_verify(const char *input, const char *cert_path)
+int build_package_verify(const char *input, const char *cert_path)
 {
 	return -ENOSYS;
 }

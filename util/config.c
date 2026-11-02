@@ -352,7 +352,7 @@ int config_load(struct shirudo_config *cfg)
 	const char *env;
 	int ret;
 
-	if (shirudo_image_config_get(cfg))
+	if (image_config_get(cfg))
 		return 0;
 	ret = config_load_path(cfg, CONF_PATH);
 	if (ret && ret != -ENOENT)

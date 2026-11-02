@@ -145,7 +145,7 @@ static int compile_to_temp(const char *source, const char *vmlinux_h,
 		return -errno;
 	close(fd);
 
-	ret = shirudo_build_compile(source, tmpl, vmlinux_h, extra_cflags, NULL);
+	ret = build_compile(source, tmpl, vmlinux_h, extra_cflags, NULL);
 	if (ret) {
 		unlink(tmpl);
 		return ret;
@@ -158,7 +158,7 @@ static int compile_to_temp(const char *source, const char *vmlinux_h,
 	return 0;
 }
 
-int shirudo_build_check_keys(const char *pkey, const char *cert)
+int build_check_keys(const char *pkey, const char *cert)
 {
 	int fd = open_signing_key(pkey);
 
@@ -214,12 +214,12 @@ int main(int argc, char **argv)
 	if (argc >= 2 && strcmp(argv[1], "image") == 0)
 		return shirudo_build_image(argc - 1, argv + 1);
 	if (argc >= 2 && strcmp(argv[1], "upatch") == 0)
-		return shirudo_build_upatch_cli(argc - 1, argv + 1);
+		return build_upatch_cli(argc - 1, argv + 1);
 	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
-		return shirudo_build_bpm(argc - 1, argv + 1);
+		return build_bpm(argc - 1, argv + 1);
 	if (argc >= 3 && strcmp(argv[1], "keys") == 0 &&
 	    strcmp(argv[2], "vouch") == 0)
-		return shirudo_build_keys_vouch(argc - 2, argv + 2);
+		return build_keys_vouch(argc - 2, argv + 2);
 
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (shirudo_build_check_keys(pkey, cert))
+	if (build_check_keys(pkey, cert))
 		return 1;
 
 	if (unload_name) {
@@ -347,8 +347,8 @@ int main(int argc, char **argv)
 			pr_info("writing %s (no -o given)", output);
 		}
 
-		ret = shirudo_build_package_unload(unload_name, payload_sha256,
-						   output, pkey, cert);
+		ret = build_package_unload(unload_name, payload_sha256,
+					   output, pkey, cert);
 		if (ret == 0 && emit_artifacts) {
 			printf("emitted:\n");
 			printf("  upatch: %s\n", output);
@@ -381,7 +381,7 @@ int main(int argc, char **argv)
 
 	if (ends_with(input, ".bpf.c")) {
 		const char *vmlinux_h =
-			shirudo_build_locate_vmlinux(vmlinux_override);
+			build_locate_vmlinux(vmlinux_override);
 		if (!vmlinux_h) {
 			pr_err("vmlinux.h not found (tried %s, ./vmlinux.h, "
 			       "./vendor/linux/vmlinux.h, %s)",
@@ -397,8 +397,8 @@ int main(int argc, char **argv)
 				       output, strerror(-ret));
 				return 1;
 			}
-			ret = shirudo_build_compile(input, artifact_buf,
-						    vmlinux_h, extra_cflags, NULL);
+			ret = build_compile(input, artifact_buf,
+					    vmlinux_h, extra_cflags, NULL);
 			if (ret) {
 				pr_err("compile %s: %d", input, ret);
 				return 1;
@@ -425,8 +425,8 @@ int main(int argc, char **argv)
 	if (!name)
 		name = derive_name(input, name_buf, sizeof(name_buf));
 
-	ret = shirudo_build_package_load(bpf_o, src_path, output, name,
-					 pkey, cert);
+	ret = build_package_load(bpf_o, src_path, output, name,
+				 pkey, cert);
 
 	if (temp_bpf_o) {
 		unlink(temp_bpf_o);

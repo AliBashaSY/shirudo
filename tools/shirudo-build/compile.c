@@ -66,9 +66,9 @@ static const char *locate_shirudo_bpf_headers(void)
 	return NULL;
 }
 
-int shirudo_build_compile(const char *source, const char *output,
-			  const char *vmlinux_h, const char *extra_cflags,
-			  const char *shirudo_bpf_incdir)
+int build_compile(const char *source, const char *output,
+		  const char *vmlinux_h, const char *extra_cflags,
+		  const char *shirudo_bpf_incdir)
 {
 	const char *argv[BUILD_MAX_ARGS] = {};
 	char inc_vmlinux[1024 + 8];

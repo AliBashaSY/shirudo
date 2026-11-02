@@ -73,9 +73,9 @@ bool tree_configured(void)
 {
 	int fd;
 
-	if (!shirudo_image_config_active())
+	if (!image_config_active())
 		return access(BPM_TREE_ETC_PATH, R_OK) == 0;
-	fd = shirudo_image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
+	fd = image_open(SHIRUDO_IMAGE_TREE_CONF, O_RDONLY);
 	if (fd < 0)
 		return false;
 	close(fd);
@@ -446,9 +446,9 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 		}
 	}
 	if (s->n_labels) {
-		if (shirudo_image_config_active()) {
-			int fd = shirudo_image_open(SHIRUDO_IMAGE_NODE_LABELS,
-						    O_RDONLY);
+		if (image_config_active()) {
+			int fd = image_open(SHIRUDO_IMAGE_NODE_LABELS,
+					    O_RDONLY);
 
 			if (fd == -ENOENT)
 				return 0;

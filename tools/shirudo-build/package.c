@@ -344,12 +344,12 @@ out:
 	return ret;
 }
 
-static int shirudo_build_package_resign(const char *original,
-					const char *modified,
-					const char *output,
-					const struct shirudo_data_range *ranges,
-					size_t nr_ranges, const char *pkey_path,
-					const char *cert_path)
+static int build_package_resign(const char *original,
+				const char *modified,
+				const char *output,
+				const struct shirudo_data_range *ranges,
+				size_t nr_ranges, const char *pkey_path,
+				const char *cert_path)
 {
 	static const char *const symbols[] = {
 		"obs_watch_v4", "obs_watch_v6",
@@ -360,8 +360,8 @@ static int shirudo_build_package_resign(const char *original,
 				      pkey_path, cert_path);
 }
 
-int shirudo_build_package_patch_rodata(const char *input, const char *output,
-				       const char *symbol, const __u8 *value,
+int build_package_patch_rodata(const char *input, const char *output,
+			       const char *symbol, const __u8 *value,
 				      size_t value_len, const char *pkey_path,
 				      const char *cert_path)
 {
@@ -433,7 +433,7 @@ out:
 	return ret;
 }
 
-int shirudo_build_package_verify(const char *input, const char *cert_path)
+int build_package_verify(const char *input, const char *cert_path)
 {
 	struct shirudo_upatch upatch = {};
 	int ret;
@@ -447,7 +447,7 @@ int shirudo_build_package_verify(const char *input, const char *cert_path)
 	return ret;
 }
 
-int shirudo_build_upatch_cli(int argc, char **argv)
+int build_upatch_cli(int argc, char **argv)
 {
 	const char *keys_dir = NULL, *original = NULL, *modified = NULL;
 	const char *output = NULL;
@@ -533,8 +533,8 @@ int shirudo_build_upatch_cli(int argc, char **argv)
 			cert = cert_buf;
 		}
 	}
-	ret = shirudo_build_package_resign(original, modified, output,
-					   ranges, nr_ranges, pkey, cert);
+	ret = build_package_resign(original, modified, output,
+				   ranges, nr_ranges, pkey, cert);
 	if (ret)
 		pr_err("upatch rewrite-rodata: %s", strerror(-ret));
 	return ret ? 1 : 0;
@@ -1750,9 +1750,9 @@ static int check_upatch_name(const char *name)
 	return -EINVAL;
 }
 
-int shirudo_build_package_load(const char *bpf_o, const char *src_path,
-			       const char *out_path, const char *upatch_name,
-			       const char *pkey_path, const char *cert_path)
+int build_package_load(const char *bpf_o, const char *src_path,
+		       const char *out_path, const char *upatch_name,
+		       const char *pkey_path, const char *cert_path)
 {
 	struct bpf_object *obj;
 	int handler_ids[2] = {-1, -1};
@@ -1796,11 +1796,11 @@ static struct bpf_map *find_rodata(struct bpf_object *obj)
 	return NULL;
 }
 
-int shirudo_build_package_unload(const char *upatch_name,
-				 const __u8 payload_sha256[32],
-				 const char *out_upatch,
-				 const char *pkey_path,
-				 const char *cert_path)
+int build_package_unload(const char *upatch_name,
+			 const __u8 payload_sha256[32],
+			 const char *out_upatch,
+			 const char *pkey_path,
+			 const char *cert_path)
 {
 	const struct shirudo_embedded_bpf *blob = unload_blob();
 	struct shirudo_unload_params params = {};

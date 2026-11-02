@@ -136,7 +136,7 @@ static int verify_root_signature(const char root[65], const __u8 *signature,
 
 static int verify_image(const char *prefix, const char *cert)
 {
-	struct shirudo_config_image_open image = {
+	struct config_image_open image = {
 		.data_fd = -1, .hash_fd = -1, .signature_fd = -1,
 	};
 	__u8 signature[CONFIG_IMAGE_SIG_MAX + 1];
@@ -145,7 +145,7 @@ static int verify_image(const char *prefix, const char *cert)
 	ssize_t n;
 	int ret;
 
-	ret = shirudo_config_image_open(prefix, &image);
+	ret = config_image_open(prefix, &image);
 	if (ret)
 		return ret;
 	while (size < sizeof(signature)) {
@@ -173,7 +173,7 @@ static int verify_image(const char *prefix, const char *cert)
 	if (!ret)
 		puts(root);
 out:
-	shirudo_config_image_close(&image);
+	config_image_close(&image);
 	return ret;
 }
 
@@ -188,7 +188,7 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 	ssize_t size;
 	int fd, ret;
 
-	if (shirudo_build_check_keys(pkey, cert))
+	if (build_check_keys(pkey, cert))
 		return -EKEYREJECTED;
 	fd = open(input, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0)

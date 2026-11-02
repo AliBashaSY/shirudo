@@ -202,11 +202,11 @@ static int init_keyring(void)
 	if (!identity_read(&id)) {
 		if (id.keyring_type != SIG_KEYRING_BPF ||
 		    id.keyring_serial != ring ||
-		    memcmp(id.runtime_root, shirudo_image_runtime_root(), 32))
+		    memcmp(id.runtime_root, image_runtime_root(), 32))
 			return -EKEYREJECTED;
 		return 0;
 	}
-	ret = shirudo_image_boot_keys(&set);
+	ret = image_boot_keys(&set);
 	if (ret)
 		return ret;
 	ret = init_bpf_keyring(ring, &set);
@@ -497,7 +497,7 @@ static int dm_verity_anchor(struct shirudo_identity *id)
 	key_serial_t ring;
 	int err;
 
-	ring = shirudo_keyring_dm_verity_serial();
+	ring = keyring_dm_verity_serial();
 	if (ring <= 0) {
 		err = ring ? ring : -ENOKEY;
 		pr_err("resolve the dm-verity keyring serial: %s",
@@ -663,7 +663,7 @@ static int init_lsm(void)
 	}
 	id.run_dev = kernel_dev_t(st.st_dev);
 
-	memcpy(id.runtime_root, shirudo_image_runtime_root(), 32);
+	memcpy(id.runtime_root, image_runtime_root(), 32);
 
 	/*
 	 * The trust anchor lsm/bpf_prog_load enforces: only a load the
@@ -1356,7 +1356,7 @@ static int run_init(void)
 	int ret;
 
 	/* Only the run that brings enforcement up may label an unlabelled tree. */
-	ret = shirudo_enforcement_active();
+	ret = enforcement_active();
 	if (ret < 0)
 		return init_phase_error(ret, "reading the enforcement state");
 	bootstrap = ret == 0;
@@ -1367,7 +1367,7 @@ static int run_init(void)
 	ret = init_keyring();
 	if (ret)
 		return init_phase_error(ret, "BPF keyring initialization");
-	ret = shirudo_image_boot_keys_close();
+	ret = image_boot_keys_close();
 	if (ret)
 		return init_phase_error(ret, "closing the boot key image");
 
@@ -1386,10 +1386,10 @@ static int run_init(void)
 	ret = seal_label_tree(bootstrap);
 	if (ret)
 		return init_phase_error(ret, "sealing initialized state");
-	ret = shirudo_image_runtime_mount();
+	ret = image_runtime_mount();
 	if (ret)
 		return init_phase_error(ret, "mounting the authenticated runtime");
-	ret = shirudo_image_boot();
+	ret = image_boot();
 	if (ret)
 		return init_phase_error(ret, "loading authenticated boot settings");
 	ret = keys_load(RUNTIME_DIR "/keys",
@@ -1425,7 +1425,7 @@ static int run_init(void)
 		return init_phase_error(ret, "binding the TPM register");
 	}
 
-	ret = shirudo_image_boot_complete();
+	ret = image_boot_complete();
 	if (ret)
 		return init_phase_error(ret, "completing authenticated boot");
 
@@ -1456,7 +1456,7 @@ int cmd_init(int argc, const char **argv)
 	}
 
 	initrd_mode = in_initrd();
-	ret = shirudo_image_bootstrap_load();
+	ret = image_bootstrap_load();
 	if (ret < 0) {
 		pr_err("init: authenticated image settings: %s", strerror(-ret));
 		return 1;
@@ -1476,7 +1476,7 @@ int cmd_init(int argc, const char **argv)
 	if (initrd_mode && initrd_enter())
 		return 1;
 	ret = run_init();
-	shirudo_image_leave();
+	image_leave();
 	if (initrd_mode)
 		initrd_leave();
 	return ret ? 1 : 0;

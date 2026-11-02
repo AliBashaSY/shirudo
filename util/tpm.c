@@ -37,14 +37,14 @@ int tpm_tcti(char *buf, size_t size)
 	const char *tcti;
 	ssize_t n;
 
-	tcti = shirudo_image_config_active() ? NULL :
+	tcti = image_config_active() ? NULL :
 		getenv("SHIRUDO_TPM_TCTI");
 	if ((!tcti || !*tcti) && config_load(&cfg) == 0 &&
 	    cfg.tpm_tcti[0])
 		tcti = cfg.tpm_tcti;
 	if (!tcti || !*tcti)
 		tcti = "device:/dev/tpmrm0";
-	if (shirudo_image_config_active() && strncmp(tcti, "device:", 7)) {
+	if (image_config_active() && strncmp(tcti, "device:", 7)) {
 		explicit_bzero(&cfg, sizeof(cfg));
 		return -EACCES;
 	}
@@ -209,8 +209,8 @@ int tpm_pcr_extend(struct shirudo_tpm *t, __u32 pcr,
 	return 0;
 }
 
-int shirudo_tpm_boot_identity(struct shirudo_tpm *t, __u32 *reset,
-			      __u32 *restart)
+int tpm_boot_identity(struct shirudo_tpm *t, __u32 *reset,
+		      __u32 *restart)
 {
 	TPMS_TIME_INFO *info = NULL;
 	TSS2_RC ret;

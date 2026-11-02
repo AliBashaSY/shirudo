@@ -33,12 +33,12 @@ static struct shirudo_config effective;
 static bool active;
 static int config_fd = -1;
 
-bool shirudo_image_config_active(void)
+bool image_config_active(void)
 {
 	return active;
 }
 
-int shirudo_image_config_get(struct shirudo_config *out)
+int image_config_get(struct shirudo_config *out)
 {
 	if (!active)
 		return 0;
@@ -46,7 +46,7 @@ int shirudo_image_config_get(struct shirudo_config *out)
 	return 1;
 }
 
-int shirudo_image_config_root_fd(void)
+int image_config_root_fd(void)
 {
 	return config_fd;
 }
@@ -56,14 +56,14 @@ int shirudo_image_config_root_fd(void)
  * never through a path: a path, /proc/<pid>/fd included, is root's to
  * mount over before the exec.
  */
-int shirudo_image_open(enum shirudo_image_path which, int flags)
+int image_open(enum shirudo_image_path which, int flags)
 {
 	if (which >= SHIRUDO_IMAGE_PATH_COUNT || config_fd < 0)
 		return -ENOENT;
 	return open_beneath(config_fd, relative[which], flags);
 }
 
-int shirudo_image_open_relative(const char *path, int flags)
+int image_open_relative(const char *path, int flags)
 {
 	if (config_fd < 0 || !path || path[0] == '/' || strstr(path, ".."))
 		return -EINVAL;
@@ -206,7 +206,7 @@ static int validate_settings(int root_fd)
 	return ret;
 }
 
-int shirudo_image_config_validate(int root_fd)
+int image_config_validate(int root_fd)
 {
 	struct shirudo_config candidate;
 	__u32 entries = 0;
@@ -230,15 +230,15 @@ int shirudo_image_config_validate(int root_fd)
 	return ret;
 }
 
-int shirudo_image_config_set(const struct shirudo_config *bootstrap,
-			     int root_fd)
+int image_config_set(const struct shirudo_config *bootstrap,
+		     int root_fd)
 {
 	struct shirudo_config candidate;
 	int fd = -1, ret;
 
 	candidate = *bootstrap;
 	if (root_fd >= 0) {
-		ret = shirudo_image_config_validate(root_fd);
+		ret = image_config_validate(root_fd);
 		if (ret)
 			return ret;
 		fd = fcntl(root_fd, F_DUPFD_CLOEXEC, 3);
@@ -269,7 +269,7 @@ int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 	return 0;
 }
 
-void shirudo_image_config_clear(void)
+void image_config_clear(void)
 {
 	if (config_fd >= 0)
 		close(config_fd);

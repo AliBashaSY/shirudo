@@ -47,7 +47,7 @@ static bool tls_classical_host_allowed(CURL *curl)
 	size_t host_len;
 	bool allowed = false;
 
-	if (!shirudo_image_config_get(&cfg) && config_load(&cfg))
+	if (!image_config_get(&cfg) && config_load(&cfg))
 		return false;
 	if (!cfg.tls_classical_hosts_valid ||
 	    !cfg.tls_classical_hosts[0])
@@ -98,7 +98,7 @@ out:
 	return allowed;
 }
 
-static void shirudo_tls_info_callback(const SSL *ssl, int where, int ret)
+static void tls_info_callback(const SSL *ssl, int where, int ret)
 {
 	const char *group, *host;
 	int group_id;
@@ -123,7 +123,7 @@ void tls_ca_cleanup(struct shirudo_tls_ca *ca)
 		ca->impl = NULL;
 }
 
-static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
+static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 {
 	const struct shirudo_tls_ca *ca = userptr;
 	const char *path = ca ? ca->path : NULL;
@@ -140,7 +140,7 @@ static CURLcode shirudo_sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 			    CURLE_OK)
 			return CURLE_SSL_CONNECT_ERROR;
 		groups = TLS_CLASSICAL_GROUPS;
-		SSL_CTX_set_info_callback(ctx, shirudo_tls_info_callback);
+		SSL_CTX_set_info_callback(ctx, tls_info_callback);
 	}
 	if (SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION) != 1 ||
 	    SSL_CTX_set1_groups_list(ctx, groups) != 1) {
@@ -178,7 +178,7 @@ int tls_curl_policy(CURL *curl, struct shirudo_tls_ca *ca)
 	if (curl_easy_setopt(curl, CURLOPT_SSLVERSION,
 			     (long)CURL_SSLVERSION_TLSv1_3) != CURLE_OK ||
 	    curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION,
-			     shirudo_sslctx_callback) != CURLE_OK ||
+			     sslctx_callback) != CURLE_OK ||
 	    curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, ca) != CURLE_OK)
 		return -EINVAL;
 	return 0;

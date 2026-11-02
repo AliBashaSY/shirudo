@@ -23,7 +23,7 @@ struct shirudo_config_image {
 	__u8 root_hash[32];
 };
 
-struct shirudo_config_image_open {
+struct config_image_open {
 	struct shirudo_config_image image;
 	int data_fd;
 	int hash_fd;
@@ -31,16 +31,16 @@ struct shirudo_config_image_open {
 };
 
 /* Read the standard veritysetup superblock; no trust decision is made. */
-int shirudo_config_image_read_header(int hash_fd,
-				     struct shirudo_config_image *out);
-int shirudo_config_image_check_files(int data_fd, int hash_fd,
-				     const struct shirudo_config_image *image);
+int config_image_read_header(int hash_fd,
+			     struct shirudo_config_image *out);
+int config_image_check_files(int data_fd, int hash_fd,
+			     const struct shirudo_config_image *image);
 /* Hold config inputs for kernel root-signature and mapped-data verification. */
-int shirudo_config_image_open(const char *prefix,
-			      struct shirudo_config_image_open *out);
-int shirudo_config_image_open_root(const char *prefix,
-				   const __u8 expected_root[32],
-				   struct shirudo_config_image_open *out);
-void shirudo_config_image_close(struct shirudo_config_image_open *image);
+int config_image_open(const char *prefix,
+		      struct config_image_open *out);
+int config_image_open_root(const char *prefix,
+			   const __u8 expected_root[32],
+			   struct config_image_open *out);
+void config_image_close(struct config_image_open *image);
 
 #endif /* SHIRUDO_CONFIG_IMAGE_H */

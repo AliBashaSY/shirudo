@@ -11,8 +11,8 @@ static __u32 busy_calls, remove_calls, sleep_calls;
 static int remove_result;
 static bool invalid_call;
 
-int __wrap_shirudo_dm_verity_remove(struct shirudo_dm_verity *device,
-				    bool deferred)
+int __wrap_dm_verity_remove(struct shirudo_dm_verity *device,
+			    bool deferred)
 {
 	if (device != &candidate || deferred || remove_calls != sleep_calls)
 		invalid_call = true;

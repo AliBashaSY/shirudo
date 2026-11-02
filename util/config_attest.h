@@ -34,17 +34,17 @@ struct shirudo_config_evidence {
 	bool present;
 };
 
-int shirudo_config_evidence_collect(struct shirudo_config_update *update,
-				    struct shirudo_config_evidence *out);
-void shirudo_config_evidence_clear(struct shirudo_config_evidence *view);
-int shirudo_config_evidence_emit(struct shirudo_json_emit *emit,
-				 const struct shirudo_config_evidence *view);
-int shirudo_config_evidence_parse(const char *evidence, size_t length,
-				  struct shirudo_config_evidence *out);
-int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
-				   __u32 quote_mask, __u32 reset,
-				   __u32 restart, const __u8 pcrs[24][32],
-				   const __u8 *expected_root,
-				   int expected_pcr, const char **reason);
+int config_evidence_collect(struct shirudo_config_update *update,
+			    struct shirudo_config_evidence *out);
+void config_evidence_clear(struct shirudo_config_evidence *view);
+int config_evidence_emit(struct shirudo_json_emit *emit,
+			 const struct shirudo_config_evidence *view);
+int config_evidence_parse(const char *evidence, size_t length,
+			  struct shirudo_config_evidence *out);
+int config_evidence_verify(const struct shirudo_config_evidence *view,
+			   __u32 quote_mask, __u32 reset,
+			   __u32 restart, const __u8 pcrs[24][32],
+			   const __u8 *expected_root,
+			   int expected_pcr, const char **reason);
 
 #endif /* SHIRUDO_CONFIG_ATTEST_H */

@@ -120,9 +120,9 @@ void print_help(const struct shirudo_help *h)
 }
 
 static void
-shirudo_help_unknown_subcommand(const char *cmd_label, const char *bad,
-				const struct shirudo_help_item *subcmds,
-				size_t n_subcmds)
+help_unknown_subcommand(const char *cmd_label, const char *bad,
+			const struct shirudo_help_item *subcmds,
+			size_t n_subcmds)
 {
 	struct shirudo_suggestion sugg[4];
 	const char *names[SUBCMD_MAX];
@@ -162,8 +162,8 @@ const char *resolve_subcommand(const char *cmd_label,
 	size_t i, n_names = 0, n;
 
 	if (!subcmds || !n_subcmds) {
-		shirudo_help_unknown_subcommand(cmd_label, input,
-						subcmds, n_subcmds);
+		help_unknown_subcommand(cmd_label, input,
+					subcmds, n_subcmds);
 		return NULL;
 	}
 	for (i = 0; i < n_subcmds && n_names < ARRAY_SIZE(names); i++)
@@ -174,8 +174,8 @@ const char *resolve_subcommand(const char *cmd_label,
 	if (n == 1)
 		return names[matches[0]];
 	if (n == 0) {
-		shirudo_help_unknown_subcommand(cmd_label, input,
-						subcmds, n_subcmds);
+		help_unknown_subcommand(cmd_label, input,
+					subcmds, n_subcmds);
 		return NULL;
 	}
 	fprintf(stderr, "%s: '%s' is ambiguous; matches:\n", cmd_label, input);

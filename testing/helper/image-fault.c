@@ -33,13 +33,13 @@ static enum root_test_mode root_mode;
 static __u32 begin_calls, end_calls;
 static int consumed_valid = -1;
 
-int __wrap_shirudo_config_root_begin(const __u8 root[32],
-				     struct shirudo_config_root_guard *guard)
+int __wrap_config_root_begin(const __u8 root[32],
+			     struct shirudo_config_root_guard *guard)
 {
 	__u8 wrong[32];
 
 	if (root_mode == ROOT_NORMAL)
-		return __real_shirudo_config_root_begin(root, guard);
+		return __real_config_root_begin(root, guard);
 	begin_calls++;
 	if (root_mode == ROOT_MISSING) {
 		guard->map_fd = -1;
@@ -49,10 +49,10 @@ int __wrap_shirudo_config_root_begin(const __u8 root[32],
 	memcpy(wrong, root, sizeof(wrong));
 	if (root_mode == ROOT_WRONG)
 		wrong[0] ^= 1;
-	return __real_shirudo_config_root_begin(wrong, guard);
+	return __real_config_root_begin(wrong, guard);
 }
 
-int __wrap_shirudo_config_root_end(struct shirudo_config_root_guard *guard)
+int __wrap_config_root_end(struct shirudo_config_root_guard *guard)
 {
 	struct shirudo_expected_root expected = {};
 	int ret = 0, cleanup;
@@ -65,7 +65,7 @@ int __wrap_shirudo_config_root_end(struct shirudo_config_root_guard *guard)
 			ret = -errno;
 		consumed_valid = expected.valid;
 	}
-	cleanup = __real_shirudo_config_root_end(guard);
+	cleanup = __real_config_root_end(guard);
 	return ret ? ret : cleanup;
 }
 
@@ -150,7 +150,7 @@ out_block:
 
 static int config_root_test(const char *mode, const char *prefix)
 {
-	struct shirudo_config_image_open opened;
+	struct config_image_open opened;
 	struct shirudo_dm_verity device;
 	bool created = false;
 	int ret, cleanup;
@@ -164,12 +164,12 @@ static int config_root_test(const char *mode, const char *prefix)
 		root_mode = ROOT_MATCH;
 	else
 		return 2;
-	ret = shirudo_config_image_open(prefix, &opened);
+	ret = config_image_open(prefix, &opened);
 	if (ret)
 		goto done;
 	snprintf(name, sizeof(name), "shirudo-verify-root-test-%ld",
 		 (long)getpid());
-	ret = shirudo_dm_verity_create(&opened, name, &device);
+	ret = dm_verity_create(&opened, name, &device);
 	created = !ret;
 	if (!ret && (begin_calls != 1 || end_calls != 1 ||
 		     consumed_valid != (root_mode == ROOT_WRONG ? 1 : 0)))
@@ -177,16 +177,16 @@ static int config_root_test(const char *mode, const char *prefix)
 	if (!ret)
 		ret = check_root_cleared();
 	if (!ret)
-		ret = shirudo_dm_verity_verify(&device, &opened);
+		ret = dm_verity_verify(&device, &opened);
 	if (!ret)
 		ret = check_classification(&device);
 	if (created) {
-		cleanup = shirudo_dm_verity_remove(&device, true);
-		shirudo_dm_verity_close(&device);
+		cleanup = dm_verity_remove(&device, true);
+		dm_verity_close(&device);
 		if (!ret)
 			ret = cleanup;
 	}
-	shirudo_config_image_close(&opened);
+	config_image_close(&opened);
 done:
 	if (ret)
 		fprintf(stderr, "config root test: %s\n", strerror(-ret));

@@ -18,7 +18,7 @@
 #include "malloc.h"
 #include "paths.h"
 
-bool shirudo_image_path_valid(const char *path)
+bool image_path_valid(const char *path)
 {
 	return path && path[0] == '/' && !strstr(path, "/../") &&
 	       !strstr(path, "/./") && !strstr(path, "//") &&
@@ -74,14 +74,14 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 			}
 			boot->have_root = true;
 		} else if (!strcmp(key, "runtime.image") && initial) {
-			if (!shirudo_image_path_valid(value) ||
+			if (!image_path_valid(value) ||
 			    boot->runtime[0])
 				ret = -EINVAL;
 			else if (strscpy(boot->runtime, value,
 					 sizeof(boot->runtime)) < 0)
 				ret = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.image")) {
-			if (!shirudo_image_path_valid(value))
+			if (!image_path_valid(value))
 				ret = -EINVAL;
 			else if (strscpy(boot->config, value,
 					 sizeof(boot->config)) < 0)
@@ -89,7 +89,7 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 		} else if (!strcmp(key, "config.verification_key")) {
 			if (strncmp(value, RUNTIME_DIR "/",
 				    sizeof(RUNTIME_DIR)) ||
-			    !shirudo_image_path_valid(value))
+			    !image_path_valid(value))
 				ret = -EPERM;
 			else if (strscpy(boot->certificate, value,
 					 sizeof(boot->certificate)) < 0)
@@ -98,7 +98,7 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 			__u64 pcr;
 
 			if (parse_u64(value, strlen(value), 23, &pcr) ||
-			    shirudo_config_measure_pcr_valid(pcr)) {
+			    config_measure_pcr_valid(pcr)) {
 				ret = -EINVAL;
 			} else {
 				boot->pcr = pcr;
@@ -118,9 +118,9 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 	return ret;
 }
 
-int shirudo_image_bootstrap_read(const char *path,
-				 struct shirudo_image_bootstrap *boot,
-				 bool initial)
+int image_bootstrap_read(const char *path,
+			 struct shirudo_image_bootstrap *boot,
+			 bool initial)
 {
 	FILE *file = fopen(path, "re");
 
@@ -130,9 +130,9 @@ int shirudo_image_bootstrap_read(const char *path,
 }
 
 /* A copy of the descriptor is read from its start; the caller keeps its own. */
-int shirudo_image_bootstrap_read_fd(int fd,
-				    struct shirudo_image_bootstrap *boot,
-				    bool initial)
+int image_bootstrap_read_fd(int fd,
+			    struct shirudo_image_bootstrap *boot,
+			    bool initial)
 {
 	int copy, ret;
 	FILE *file;

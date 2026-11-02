@@ -36,7 +36,7 @@ static void usage(void)
 
 int cmd_config(int argc, const char **argv)
 {
-	bool image_mode = shirudo_image_config_active();
+	bool image_mode = image_config_active();
 	struct shirudo_config cfg;
 	bool file_present;
 	int ret;
