@@ -161,8 +161,6 @@ struct {
 void __arena *bpf_arena_alloc_pages(void *map, void __arena *addr,
 				    __u32 page_cnt, int node_id,
 				    __u64 flags) __ksym __weak;
-void bpf_arena_free_pages(void *map, void __arena *ptr,
-			  __u32 page_cnt) __ksym __weak;
 
 /*
  * The verifier binds a program to the arena only through a direct
@@ -276,17 +274,6 @@ obs_task_meta(struct task_struct *task)
 	meta->euid = obs_task_euid(task);
 	meta->flags = OBS_TASK_INFERRED;
 	return meta;
-}
-
-static __always_inline bool obs_task_exe(struct task_struct *task,
-					 struct obs_exe *exe)
-{
-	struct obs_task_meta *meta = obs_task_meta(task);
-
-	if (!meta)
-		return false;
-	*exe = meta->exe;
-	return true;
 }
 
 /*
