@@ -876,6 +876,7 @@ int cmd_status(int argc, const char **argv)
 	struct shirudo_otel_opts otel_opts = {};
 	struct asset_view assets;
 	struct shirudo_tamper_counts tamper = {};
+	struct shirudo_conditions_input cin;
 	int tamper_rc = -ENOENT;
 	struct dirent **ups = NULL;
 	char pcr_before_hex[2 * SHIRUDO_CHAIN_DIGEST_LEN + 1] = "";
@@ -1056,6 +1057,20 @@ int cmd_status(int argc, const char **argv)
 		}
 	}
 
+	local_cond_input(&cin, lsm_attached, keyring_present, keyring_mode,
+			 keyring_serial,
+			 keyring_pinned >= 1 ? keyring_pinned : 0,
+			 keyring_present, keyring_pinned >= 1,
+			 keyring_present && keyring_pinned >= 1,
+			 keyring_present && keyring_pinned >= 1 &&
+			 keyring_serial == keyring_pinned,
+			 cst.tpm, chain_rc == 0, match == 1, match >= 0,
+			 nv_index);
+	cin.config_seen = config_state != -ENODEV;
+	cin.config_state = config_state;
+	cin.config_root = config_root_hex;
+	keyring_cond_input(&cin, &bpf, &dmv);
+
 	if (json) {
 		struct shirudo_json_emit e;
 
@@ -1094,25 +1109,9 @@ int cmd_status(int argc, const char **argv)
 		json_kv_bool(&e, "is_target", is_target);
 		json_kv_bool(&e, "is_operator", is_operator);
 		{
-			struct shirudo_conditions_input cin;
 			struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
 			size_t nc, ci;
 
-			local_cond_input(&cin, lsm_attached, keyring_present,
-					 keyring_mode,
-					 keyring_serial,
-					 keyring_pinned >= 1 ? keyring_pinned : 0,
-					 keyring_present, keyring_pinned >= 1,
-					 keyring_present && keyring_pinned >= 1,
-					 keyring_present && keyring_pinned >= 1 &&
-					 keyring_serial == keyring_pinned,
-					 cst.tpm, chain_rc == 0,
-					 match == 1, match >= 0,
-					 nv_index);
-			cin.config_seen = config_state != -ENODEV;
-			cin.config_state = config_state;
-			cin.config_root = config_root_hex;
-			keyring_cond_input(&cin, &bpf, &dmv);
 			otel_status = status_verdict(&cin);
 			json_kv_string(&e, "status",
 				       otel_status);
@@ -1405,7 +1404,6 @@ int cmd_status(int argc, const char **argv)
 				printf("%s\n", json_buf);
 		}
 	} else {
-		struct shirudo_conditions_input cin;
 		struct shirudo_condition conds[SHIRUDO_CONDITIONS_MAX];
 		struct shirudo_upatch_table_row *rows = NULL;
 		size_t n_rows = 0;
@@ -1414,21 +1412,6 @@ int cmd_status(int argc, const char **argv)
 		char reason[160];
 		const char *verdict;
 
-		local_cond_input(&cin, lsm_attached, keyring_present,
-				 keyring_mode,
-				 keyring_serial,
-				 keyring_pinned >= 1 ? keyring_pinned : 0,
-				 keyring_present, keyring_pinned >= 1,
-				 keyring_present && keyring_pinned >= 1,
-				 keyring_present && keyring_pinned >= 1 &&
-				 keyring_serial == keyring_pinned,
-				 cst.tpm, chain_rc == 0,
-				 match == 1, match >= 0,
-				 nv_index);
-		cin.config_seen = config_state != -ENODEV;
-		cin.config_state = config_state;
-		cin.config_root = config_root_hex;
-		keyring_cond_input(&cin, &bpf, &dmv);
 		verdict = status_verdict(&cin);
 		status_reason(&cin, reason, sizeof(reason));
 		nc = conditions(&cin, conds, ARRAY_SIZE(conds));
