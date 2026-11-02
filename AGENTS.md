@@ -124,6 +124,13 @@ package for `bpm info`.
   `testing/`.
 - **Name a return code `ret`**, as the kernel does, and an errno from a
   callee that a function keeps beside the value it returns `err`.
+- **Do not prefix internal names with `shirudo_` or `SHIRUDO_`.** A
+  function or macro of shirudo's own code is named after what it is,
+  `upatch_open()` and `NV_INDEX`, as in the kernel. The prefix stays
+  where the name leaves the code: include guards, the BPF map, program
+  and pin names a loader or a pin path finds, the environment variables,
+  and a name that would otherwise collide, such as `shirudo_trunc()`
+  beside libm's `trunc()`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by
