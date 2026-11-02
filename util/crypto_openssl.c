@@ -328,7 +328,8 @@ int cert_subject(const struct cert *cert, char *out, size_t out_sz)
 	ret = -ENAMETOOLONG;
 	if (len < 0 || (size_t)len >= out_sz)
 		goto out;
-	memcpy(out, text, (size_t)len);
+	if (len)
+		memcpy(out, text, (size_t)len);
 	out[len] = '\0';
 	ret = 0;
 out:
