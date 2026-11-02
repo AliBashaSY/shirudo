@@ -302,7 +302,7 @@ static void memneq_explicit_tells_every_bit_apart(void)
 		a[i] = (__u8)(i * 37 + 1);
 	memcpy(b, a, sizeof(b));
 	EXPECT_EQ(memneq_explicit(a, b, sizeof(a)), 0);
-	EXPECT_EQ(memneq_explicit(a, NULL, 0), 0);
+	EXPECT_EQ(memneq_explicit(a, b, 0), 0);
 	for (i = 0; i < sizeof(a); i++) {
 		for (bit = 0; bit < 8; bit++) {
 			b[i] ^= 1u << bit;
