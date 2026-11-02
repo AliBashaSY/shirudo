@@ -61,8 +61,7 @@ struct shirudo_upatch_header {
 	__u32		reserved1;		/* zero; keeps the header 8-byte aligned */
 };
 
-_Static_assert(sizeof(struct shirudo_upatch_header) ==
-	       UPATCH_HEADER_SIZE, "unexpected upatch header padding");
+BUILD_BUG_ON(sizeof(struct shirudo_upatch_header) != UPATCH_HEADER_SIZE);
 
 /*
  * The signed sections: what the target needs beyond the loader and its

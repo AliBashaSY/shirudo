@@ -54,8 +54,7 @@ struct shirudo_expected_root {
 	__u32 valid;
 };
 
-_Static_assert(sizeof(struct shirudo_expected_root) == 36,
-	       "expected config root ABI");
+BUILD_BUG_ON(sizeof(struct shirudo_expected_root) != 36);
 
 struct shirudo_task_authority {
 	__u8	trusted;
@@ -65,20 +64,16 @@ struct shirudo_task_authority {
 	__u32	pad2;
 };
 
-_Static_assert(sizeof(struct shirudo_device_authority) == 48,
-	       "device authority ABI");
-_Static_assert(sizeof(struct shirudo_task_authority) == 8,
-	       "task authority ABI");
-_Static_assert(sizeof(struct shirudo_identity) == 584,
-	       "frozen identity ABI");
+BUILD_BUG_ON(sizeof(struct shirudo_device_authority) != 48);
+BUILD_BUG_ON(sizeof(struct shirudo_task_authority) != 8);
+BUILD_BUG_ON(sizeof(struct shirudo_identity) != 584);
 
 /* The bpffs mount init made, which the unmount guard keeps mounted. */
 struct shirudo_mount_record {
 	__u64	mount;
 };
 
-_Static_assert(sizeof(struct shirudo_mount_record) == 8,
-	       "mount record ABI");
+BUILD_BUG_ON(sizeof(struct shirudo_mount_record) != 8);
 
 /*
  * The identity map init populated, froze and pinned this boot. -ENOENT

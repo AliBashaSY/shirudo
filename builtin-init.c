@@ -467,8 +467,8 @@ static int attach_seal(struct bpf_object *policy, struct bpf_object **obj_out,
 	return 0;
 }
 
-_Static_assert(IDENTITY_KEYS_MAX == KEYS_MAX,
-	       "the identity map holds one serial per trusted certificate");
+BUILD_BUG_ON_MSG(IDENTITY_KEYS_MAX != KEYS_MAX,
+		 "the identity map holds one serial per trusted certificate");
 
 struct anchor_keys {
 	__s32	serials[IDENTITY_KEYS_MAX];

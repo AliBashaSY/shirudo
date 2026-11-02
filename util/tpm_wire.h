@@ -39,8 +39,8 @@ static inline size_t tpm_put2b(__u8 *p, const __u8 *data, size_t len)
 }
 
 #define TPM_DIGEST_LEN		32
-_Static_assert(TPM_NAME_LEN == 2 + TPM_DIGEST_LEN,
-	       "a name is the algorithm and its digest");
+BUILD_BUG_ON_MSG(TPM_NAME_LEN != 2 + TPM_DIGEST_LEN,
+		 "a name is the algorithm and its digest");
 #define TPM_ALG_RSA		0x0001u
 #define TPM_ALG_AES		0x0006u
 #define TPM_ALG_SHA256		0x000Bu

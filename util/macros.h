@@ -8,11 +8,7 @@
 #ifndef SHIRUDO_MACROS_H
 #define SHIRUDO_MACROS_H
 
-/*
- * Compile-time assertion: 0 if `e` is false, else a 1-bit signed
- * bitfield of width -1 -> compiler error.
- */
-#define BUILD_BUG_ON_ZERO(e)	((int)(sizeof(struct { int:(-!!(e)); })))
+#include <shirudo/compiler.h>
 
 /*
  * ARRAY_SIZE() refuses a pointer: __builtin_types_compatible_p tells

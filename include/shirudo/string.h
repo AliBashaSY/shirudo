@@ -48,9 +48,9 @@ ssize_t strscpy(char *dst, const char *src, size_t size);
  * the arguments as a va_list.
  */
 int strsprintf(char *buf, size_t size, const char *fmt, ...)
-	__printf(3, 4) __attribute__((warn_unused_result));
+	__printf(3, 4) __must_check;
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
-	__printf(3, 0) __attribute__((warn_unused_result));
+	__printf(3, 0) __must_check;
 
 /*
  * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63

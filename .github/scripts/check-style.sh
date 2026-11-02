@@ -94,14 +94,15 @@ ignored_types() {
 	PREFER_KERNEL_TYPES
 	# check_spellings below asks for the strscpy() of <shirudo/string.h>
 	# in tools/ too, which these leave out, and fallthrough;, __packed
-	# and the other compiler.h macros do not exist in userspace; BPF has
-	# what bpf_helpers.h defines.
+	# and most other compiler.h macros do not exist in userspace, which
+	# has those of <shirudo/compiler.h>; BPF has what bpf_helpers.h
+	# defines.
 	STRCPY
 	STRNCPY
 	PREFER_FALLTHROUGH
 	PREFER_DEFINED_ATTRIBUTE_MACRO
-	# SHIRUDO_BUILD_BUG_ON is a compile-time assertion; there is no
-	# kernel to crash.
+	# BUILD_BUG_ON() is a compile-time assertion; there is no kernel to
+	# crash.
 	AVOID_BUG
 	# The task_prctl LSM hook returns -ENOSYS for "not handled" by
 	# contract.

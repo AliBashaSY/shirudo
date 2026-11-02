@@ -35,8 +35,7 @@ struct verity_superblock {
 	__u8 padding[168];
 };
 
-_Static_assert(sizeof(struct verity_superblock) == 512,
-	       "verity superblock layout must match the disk format");
+BUILD_BUG_ON(sizeof(struct verity_superblock) != 512);
 
 static int verity_hash_blocks(__u64 data_blocks, __u64 *out)
 {
