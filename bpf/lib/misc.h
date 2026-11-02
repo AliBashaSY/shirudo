@@ -13,4 +13,11 @@
 #define BUILD_BUG_ON(cond)						\
 	BUILD_BUG_ON_MSG(cond, "BUILD_BUG_ON failed: " #cond)
 
+/*
+ * One access to x that the compiler neither tears nor repeats nor merges
+ * with another, for memory that programs on other CPUs change meanwhile.
+ */
+#define READ_ONCE(x)		(*(const volatile typeof(x) *)&(x))
+#define WRITE_ONCE(x, val)	(*(volatile typeof(x) *)&(x) = (val))
+
 #endif /* SHIRUDO_BPF_MISC_H */
