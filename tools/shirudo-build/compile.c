@@ -110,6 +110,7 @@ int build_compile(const char *source, const char *output,
 	push(argv, &n, "-Wall");
 	push(argv, &n, "-Wextra");
 	push(argv, &n, "-Wshadow");
+	push(argv, &n, "-Wtype-limits");
 	/*
 	 * vmlinux.h dumps anonymous struct forward declarations that
 	 * trip -Wmissing-declarations -- unfixable upstream of us;
