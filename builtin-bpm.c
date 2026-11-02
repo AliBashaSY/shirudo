@@ -1038,52 +1038,15 @@ static int repo_update_one(const char *name)
 	rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG, url, sizeof(url));
 	if (rc)
 		return rc;
-	rc = bpm_oci_get_memory(&c, url, "application/vnd.oci.image.manifest.v1+json", &manifest);
+	rc = bpm_oci_get_memory(&c, url, BPM_MANIFEST_MEDIA, &manifest);
 	if (rc)
 		goto out;
 	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				    ARRAY_SIZE(layers), &nl, NULL, 0);
 	if (rc)
 		goto out;
-	if (nl < 2) {
-		rc = -EINVAL;
-		goto out;
-	}
-	for (int i = 0; i < nl; i++) {
-		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA)) {
-			char layer_hex[65];
-
-			rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs",
-					 layers[i].digest, url, sizeof(url));
-			if (rc)
-				goto out;
-			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_MEDIA, &index);
-			if (!rc && (bpm_sha256_hex(index.data, index.len, layer_hex,
-						   sizeof(layer_hex)) ||
-				    !bpm_digest_matches(layers[i].digest, layer_hex)))
-				rc = -EKEYREJECTED;
-			break;
-		}
-	}
-	if (rc)
-		goto out;
-	for (int i = 0; i < nl; i++) {
-		if (!strcmp(layers[i].media, BPM_INDEX_SIG_MEDIA)) {
-			char sig_hex[65];
-
-			rc = bpm_oci_url(&c, BPM_INDEX_REPOSITORY, "blobs",
-					 layers[i].digest, url, sizeof(url));
-			if (rc)
-				goto out;
-			rc = bpm_oci_get_blob(&c, url, BPM_INDEX_SIG_MEDIA, &sig);
-			if (!rc && (bpm_sha256_hex(sig.data, sig.len, sig_hex, sizeof(sig_hex)) ||
-				    !bpm_digest_matches(layers[i].digest, sig_hex)))
-				rc = -EKEYREJECTED;
-			break;
-		}
-	}
-	if (!rc && !sig.data)
-		rc = -EINVAL;
+	rc = bpm_oci_get_signed(&c, BPM_INDEX_REPOSITORY, layers, nl,
+				BPM_INDEX_MEDIA, BPM_INDEX_SIG_MEDIA, &index, &sig);
 	if (rc)
 		goto out;
 	if (verify_with_source_key(&s, index.data, index.len, sig.data,

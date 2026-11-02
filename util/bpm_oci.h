@@ -138,6 +138,16 @@ int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 			   struct bpm_descriptor *layers, int max_layers,
 			   int *n_layers, char *package_name,
 			   size_t package_name_sz);
+/*
+ * The one layer of payload_media and the one of sig_media among a
+ * manifest's layers, each matching its descriptor's digest and declared
+ * size: -EINVAL unless there is exactly one of each, -EKEYREJECTED on a
+ * mismatch. The caller frees both buffers, also on failure.
+ */
+int bpm_oci_get_signed(struct bpm_oci_client *c, const char *repository,
+		       const struct bpm_descriptor *layers, int n_layers,
+		       const char *payload_media, const char *sig_media,
+		       struct bpm_buffer *payload, struct bpm_buffer *sig);
 void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
 			     const struct bpm_descriptor *d, const char *title);
 

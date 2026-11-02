@@ -107,7 +107,7 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 {
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;
-	char url[PATH_MAX], hex[65];
+	char url[PATH_MAX];
 	int nl = 0, rc;
 
 	*n = 0;
@@ -129,37 +129,11 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 				    BPM_MAX_ENTRIES, &nl, NULL, 0);
 	if (rc)
 		goto out;
-	for (int i = 0; i < nl; i++) {
-		struct bpm_buffer *dst;
-
-		if (!strcmp(layers[i].media, BPM_INDEX_MEDIA))
-			dst = &payload;
-		else if (!strcmp(layers[i].media, BPM_INDEX_SIG_MEDIA))
-			dst = &sig;
-		else
-			continue;
-		if (dst->data) {
-			rc = -EINVAL;
-			goto out;
-		}
-		rc = bpm_oci_url(c, BPM_INDEX_REPOSITORY, "blobs", layers[i].digest,
-				 url, sizeof(url));
-		if (rc)
-			goto out;
-		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
-		if (rc)
-			goto out;
-		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
-		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
-		    !bpm_digest_matches(layers[i].digest, hex)) {
-			rc = -EKEYREJECTED;
-			goto out;
-		}
-	}
-	if (!payload.data || !sig.data) {
-		rc = -EINVAL;
+	rc = bpm_oci_get_signed(c, BPM_INDEX_REPOSITORY, layers, nl,
+				BPM_INDEX_MEDIA, BPM_INDEX_SIG_MEDIA, &payload,
+				&sig);
+	if (rc)
 		goto out;
-	}
 	if (bpm_verify_cms(payload.data, payload.len, sig.data, sig.len, cert)) {
 		pr_err("bpm push: the published repository index is not signed by %s",
 		       cert);

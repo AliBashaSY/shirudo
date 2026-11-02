@@ -796,8 +796,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;
 	char url[PATH_MAX], hex[65];
-	int nl = 0, payload_layers = 0, sig_layers = 0;
-	int rc;
+	int nl = 0, rc;
 
 	if (!reference[0] || strchr(reference, '/') || strchr(reference, '?') ||
 	    strchr(reference, '#') || strstr(reference, ".."))
@@ -826,40 +825,10 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 				    BPM_MAX_ENTRIES, &nl, NULL, 0);
 	if (rc)
 		goto out;
-	for (int i = 0; i < nl; i++) {
-		struct bpm_buffer *dst;
-
-		if (!strcmp(layers[i].media, BPM_TREE_MEDIA)) {
-			dst = &payload;
-			payload_layers++;
-		} else if (!strcmp(layers[i].media, BPM_TREE_SIG_MEDIA)) {
-			dst = &sig;
-			sig_layers++;
-		} else {
-			continue;
-		}
-		if (dst->data) {
-			rc = -EINVAL;
-			goto out;
-		}
-		rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
-				 url, sizeof(url));
-		if (rc)
-			goto out;
-		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
-		if (rc)
-			goto out;
-		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
-		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
-		    !bpm_digest_matches(layers[i].digest, hex)) {
-			rc = -EKEYREJECTED;
-			goto out;
-		}
-	}
-	if (payload_layers != 1 || sig_layers != 1 || !payload.data || !sig.data) {
-		rc = -EINVAL;
+	rc = bpm_oci_get_signed(c, repository, layers, nl, BPM_TREE_MEDIA,
+				BPM_TREE_SIG_MEDIA, &payload, &sig);
+	if (rc)
 		goto out;
-	}
 	if (bpm_verify_cms(payload.data, payload.len, sig.data, sig.len, cert_path)) {
 		rc = -EKEYREJECTED;
 		goto out;

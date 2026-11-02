@@ -231,8 +231,8 @@ One index per registry, at ``<registry>/shirudo/bpm-index:stable``.
      - Content
    * - Index manifest
      - OCI image manifest, ``schemaVersion`` 2, ``artifactType``
-       ``application/vnd.shirudo.bpm.index.v1``, the empty config, and two
-       layers.
+       ``application/vnd.shirudo.bpm.index.v1``, the empty config, and
+       exactly one document layer and one signature layer.
    * - Document layer
      - The index document, media type
        ``application/vnd.shirudo.bpm.index.v1+json``.

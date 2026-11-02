@@ -906,6 +906,44 @@ static int on_descriptor(void *ud)
 	return 0;
 }
 
+int bpm_oci_get_signed(struct bpm_oci_client *c, const char *repository,
+		       const struct bpm_descriptor *layers, int n_layers,
+		       const char *payload_media, const char *sig_media,
+		       struct bpm_buffer *payload, struct bpm_buffer *sig)
+{
+	int n_payload = 0, n_sig = 0, i, rc;
+	char url[PATH_MAX], hex[65];
+
+	for (i = 0; i < n_layers; i++) {
+		struct bpm_buffer *dst;
+		int *seen;
+
+		if (!strcmp(layers[i].media, payload_media)) {
+			dst = payload;
+			seen = &n_payload;
+		} else if (!strcmp(layers[i].media, sig_media)) {
+			dst = sig;
+			seen = &n_sig;
+		} else {
+			continue;
+		}
+		if ((*seen)++)
+			return -EINVAL;
+		rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
+				 url, sizeof(url));
+		if (rc)
+			return rc;
+		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
+		if (rc)
+			return rc;
+		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
+		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
+		    !bpm_digest_matches(layers[i].digest, hex))
+			return -EKEYREJECTED;
+	}
+	return payload->data && sig->data ? 0 : -EINVAL;
+}
+
 int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 			   struct bpm_descriptor *layers, int max_layers,
 			   int *n_layers, char *package_name,
