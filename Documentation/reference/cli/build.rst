@@ -60,11 +60,13 @@ Building a upatch
    ``./vmlinux.h``, else ``./vendor/linux/vmlinux.h``, else the installed
    ``vmlinux.h`` (``/usr/share/shirudo/vmlinux.h`` in the operator
    package, ``/usr/local/share/shirudo/vmlinux.h`` after ``make
-   install``). It then runs ``/usr/bin/clang -target bpf -O2 -g -Wall
-   -Wextra -Wshadow -Wtype-limits`` with the ``vmlinux.h`` directory,
-   the libbpf headers and the shirudo BPF headers on the include path,
-   plus ``--extra-cflags``. The clang path is fixed when the helper is built,
-   and ``PATH`` is not searched. The object goes to a temporary file in
+   install``). It then runs ``/usr/bin/clang -target bpf -mcpu=v4 -O2
+   -g -Wall -Wextra -Wshadow -Wtype-limits`` with the ``vmlinux.h``
+   directory, the libbpf headers and the shirudo BPF headers on the
+   include path, plus ``--extra-cflags``. ``-mcpu=v4`` selects BPF
+   instruction set v4, the newest clang knows and one every target kernel
+   runs. The clang path is fixed when the helper is built, and ``PATH`` is
+   not searched. The object goes to a temporary file in
    ``/tmp``, or with ``--emit-artifacts`` beside the output.
 #. A ``.bpf.o`` or ``.o`` input is packaged as it is. Any other input is
    refused.
@@ -160,7 +162,8 @@ Options
    * - ``--extra-cflags``
      - ``<flags>``, one argument
      - none
-     - Further clang flags.
+     - Further clang flags. They come after the built-in ones, so a
+       ``-mcpu`` among them replaces ``-mcpu=v4``.
    * - ``--emit-artifacts``
      - none
      - off

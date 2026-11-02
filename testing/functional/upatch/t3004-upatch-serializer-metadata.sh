@@ -116,7 +116,7 @@ test_expect_success 'builder rejects serializer targeting reserved output map' '
 test_expect_success 'builder rejects duplicate serializer targets' '
 	if ! command -v llvm-objcopy >/dev/null 2>&1; then exit 0; fi
 	(cd .. &&
-		clang -target bpf -O2 -g -I vendor/linux -I vendor/libbpf \
+		clang -target bpf -mcpu=v4 -O2 -g -I vendor/linux -I vendor/libbpf \
 			-I bpf/lib -c testing/fixtures/arena-tree-serializer.bpf.c \
 			-o "$WORK/arena-tree-serializer.o" &&
 		llvm-objcopy --redefine-sym \

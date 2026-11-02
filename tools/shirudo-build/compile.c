@@ -105,6 +105,12 @@ int build_compile(const char *source, const char *output,
 	push(argv, &n, CLANG_PATH);
 	push(argv, &n, "-target");
 	push(argv, &n, "bpf");
+	/*
+	 * The newest instruction set, which every kernel with signed BPF
+	 * loaders runs, and not -mcpu=probe: the operator builds for its
+	 * targets, not for the kernel it runs on.
+	 */
+	push(argv, &n, "-mcpu=v4");
 	push(argv, &n, "-O2");
 	push(argv, &n, "-g");
 	push(argv, &n, "-Wall");

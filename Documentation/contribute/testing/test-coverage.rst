@@ -89,6 +89,9 @@ signed config image.
        boot settings, the bundle stamp
    * - ``t1008-kernel-ami-config``
      - The slim kernel configuration for NitroTPM CRB, EC2, EFI and SSM
+   * - ``t1009-upatch-isa``
+     - The upatch build compiles for BPF instruction set v4, and a
+       ``-mcpu`` in ``--extra-cflags`` replaces it
 
 ``signing`` (2)
 ~~~~~~~~~~~~~~~

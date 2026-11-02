@@ -72,9 +72,9 @@ Write the test
 
    clang emits ``atomic_fetch_add`` for ``__sync_fetch_and_add()`` even
    when the result is unused, so that call is fully ordered either way.
-   ``load_acquire`` and ``store_release`` need clang's ``-mcpu=v4``, which
-   ``shirudo build --extra-cflags=-mcpu=v4`` passes. ``bpm build``
-   compiles a package's sources without it.
+   ``load_acquire`` and ``store_release`` need instruction set v4, which
+   the upatch build selects with ``-mcpu=v4``, and a current clang, such
+   as clang 23, to lower them.
 
    blitmus has no ``smp_rmb()`` or ``smp_wmb()``, as BPF has no
    instruction for a read or a write barrier alone, and no RCU or lock
