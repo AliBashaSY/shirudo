@@ -725,6 +725,40 @@ static const char *build_rodata_input(const struct bpm_build_rodata *rodata,
 	return rodata->input;
 }
 
+/*
+ * One --rodata-input <name>=<path> into overrides[*n]: 1 when it is a
+ * usage error, -errno when the path is no regular file.
+ */
+static int parse_rodata_input(const char *value,
+			      struct bpm_build_input_override *overrides,
+			      size_t *n, size_t max)
+{
+	struct bpm_build_input_override *o = &overrides[*n];
+	const char *eq = strchr(value, '=');
+	char path[PATH_MAX];
+	struct stat st;
+	size_t name_len;
+
+	if (*n == max || !eq || eq == value || !eq[1])
+		return 1;
+	name_len = (size_t)(eq - value);
+	if (name_len >= sizeof(o->name))
+		return 1;
+	memcpy(o->name, value, name_len);
+	o->name[name_len] = '\0';
+	for (size_t j = 0; j < *n; j++)
+		if (!strcmp(overrides[j].name, o->name))
+			return 1;
+	if (!realpath(eq + 1, path))
+		return -errno;
+	if (stat(path, &st) || !S_ISREG(st.st_mode))
+		return -EINVAL;
+	if (strscpy(o->path, path, sizeof(o->path)) < 0)
+		return -ENAMETOOLONG;
+	(*n)++;
+	return 0;
+}
+
 static int build_run_rodata_command(const struct bpm_build_spec *spec,
 				    const struct bpm_build_rodata *rodata,
 				    bool update, const char *input,
@@ -1517,35 +1551,15 @@ static int shirudo_build_bpm_build(int argc, char **argv)
 		} else if (!strncmp(argv[i], "--vmlinux=", 10)) {
 			vmlinux_arg = argv[i] + 10;
 		} else if (!strcmp(argv[i], "--rodata-input")) {
-			const char *value;
-			const char *eq;
-			char path[PATH_MAX];
-			struct stat st;
-			size_t name_len;
-
-			if (++i >= argc || n_overrides == ARRAY_SIZE(overrides))
+			if (++i >= argc)
 				goto usage;
-			value = argv[i];
-			eq = strchr(value, '=');
-			if (!eq || eq == value || !eq[1])
+			rc = parse_rodata_input(argv[i], overrides,
+						&n_overrides,
+						ARRAY_SIZE(overrides));
+			if (rc > 0)
 				goto usage;
-			name_len = (size_t)(eq - value);
-			if (name_len >= sizeof(overrides[0].name))
-				goto usage;
-			memcpy(overrides[n_overrides].name, value, name_len);
-			overrides[n_overrides].name[name_len] = '\0';
-			for (size_t j = 0; j < n_overrides; j++)
-				if (!strcmp(overrides[j].name,
-					    overrides[n_overrides].name))
-					goto usage;
-			if (!realpath(eq + 1, path))
-				return -errno;
-			if (stat(path, &st) || !S_ISREG(st.st_mode))
-				return -EINVAL;
-			if (strscpy(overrides[n_overrides].path, path,
-				    sizeof(overrides[n_overrides].path)) < 0)
-				return -ENAMETOOLONG;
-			n_overrides++;
+			if (rc)
+				return rc;
 		} else if (argv[i][0] == '-') {
 			goto usage;
 		} else if (++positional == 1) {
@@ -1833,34 +1847,15 @@ static int shirudo_build_bpm_config_update(int argc, char **argv)
 				goto usage;
 			keys_arg = argv[i];
 		} else if (!strcmp(argv[i], "--rodata-input")) {
-			const char *value, *eq;
-			char path[PATH_MAX];
-			struct stat st;
-			size_t name_len;
-
-			if (++i >= argc || n_overrides == ARRAY_SIZE(overrides))
+			if (++i >= argc)
 				goto usage;
-			value = argv[i];
-			eq = strchr(value, '=');
-			if (!eq || eq == value || !eq[1])
+			rc = parse_rodata_input(argv[i], overrides,
+						&n_overrides,
+						ARRAY_SIZE(overrides));
+			if (rc > 0)
 				goto usage;
-			name_len = (size_t)(eq - value);
-			if (name_len >= sizeof(overrides[0].name))
-				goto usage;
-			memcpy(overrides[n_overrides].name, value, name_len);
-			overrides[n_overrides].name[name_len] = '\0';
-			for (size_t j = 0; j < n_overrides; j++)
-				if (!strcmp(overrides[j].name,
-					    overrides[n_overrides].name))
-					goto usage;
-			if (!realpath(eq + 1, path))
-				return -errno;
-			if (stat(path, &st) || !S_ISREG(st.st_mode))
-				return -EINVAL;
-			if (strscpy(overrides[n_overrides].path, path,
-				    sizeof(overrides[n_overrides].path)) < 0)
-				return -ENAMETOOLONG;
-			n_overrides++;
+			if (rc)
+				return rc;
 		} else {
 			goto usage;
 		}
