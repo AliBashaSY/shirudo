@@ -55,6 +55,12 @@ struct config {
 /* A missing file is not an error. */
 int config_load(struct config *cfg);
 
+/*
+ * Scrub a config, which holds the TPM owner's authorization; declare one
+ * on the stack with __cleanup(config_clear).
+ */
+void config_clear(struct config *cfg);
+
 /* Testable path-specific loader; unlike config_load(), no env. */
 int config_load_path(struct config *cfg, const char *path);
 /* The same from an open descriptor, read from its start. */

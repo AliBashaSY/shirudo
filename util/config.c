@@ -152,6 +152,7 @@ static int config_parse(struct config *cfg, FILE *f,
 			const char *path)
 {
 	const size_t max = MAP_EXPORT_PATH_MAX + 127;
+	char buffer[BUFSIZ];
 	size_t capacity = 0;
 	char *line = NULL;
 	int got, ret = 0;
@@ -160,6 +161,8 @@ static int config_parse(struct config *cfg, FILE *f,
 		fclose(f);
 		return -EPERM;
 	}
+	/* stdio's own buffer would keep the owner's authorization after fclose(). */
+	setvbuf(f, buffer, _IOFBF, sizeof(buffer));
 	while ((got = read_text_line(f, &line, &capacity, max)) != 0) {
 		char *p, *eq, *key, *val;
 
@@ -289,7 +292,13 @@ static int config_parse(struct config *cfg, FILE *f,
 	}
 	if (fclose(f) && !ret)
 		ret = -errno;
+	memzero_explicit(buffer, sizeof(buffer));
 	return ret;
+}
+
+void config_clear(struct config *cfg)
+{
+	memzero_explicit(cfg, sizeof(*cfg));
 }
 
 static int config_finish(struct config *cfg, int ret)

@@ -36,8 +36,8 @@ static void usage(void)
 
 int cmd_config(int argc, const char **argv)
 {
+	struct config cfg __cleanup(config_clear);
 	bool image_mode = image_config_active();
-	struct config cfg;
 	bool file_present;
 	int ret;
 	int i;

@@ -870,7 +870,7 @@ int cmd_status(int argc, const char **argv)
 	struct status_keyring bpf = {}, dmv = {};
 	struct identity ident = {};
 	int certs_rc = -ENOENT;
-	struct config otel_cfg = {};
+	struct config otel_cfg __cleanup(config_clear) = {};
 	struct otel_opts otel_opts = {};
 	struct asset_view assets;
 	struct tamper_counts tamper = {};

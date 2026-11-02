@@ -220,7 +220,7 @@ static bool name_equals(const struct tpm_nv_info *info,
 static int register_define(struct tpm *tpm, bool defined,
 			   const __u8 policy[32])
 {
-	struct config cfg = {};
+	struct config cfg __cleanup(config_clear) = {};
 	int ret;
 
 	config_load(&cfg);
@@ -234,7 +234,6 @@ static int register_define(struct tpm *tpm, bool defined,
 	ret = tpm_nv_define(tpm, NV_INDEX, policy,
 			    cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
 out:
-	memzero_explicit(&cfg, sizeof(cfg));
 	return ret;
 }
 

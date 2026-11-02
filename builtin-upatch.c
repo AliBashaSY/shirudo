@@ -2132,7 +2132,7 @@ static int upatch_preflight(const char *expect_chain,
  */
 static int eventlog_room(struct op_report *rep, const char *op)
 {
-	struct config cfg;
+	struct config cfg __cleanup(config_clear);
 
 	config_load(&cfg);
 	if (eventlog_would_exceed(cfg.eventlog_max_bytes)) {
@@ -3216,8 +3216,8 @@ static int export_one_map(const char *upatch, const char *map,
 
 static int cmd_upatch_map(int argc, const char **argv)
 {
+	struct config export_cfg __cleanup(config_clear) = {};
 	struct map_summary *list = NULL;
-	struct config export_cfg = {};
 	struct otel_opts otel_opts = {
 		.retries = 3,
 	};

@@ -33,7 +33,7 @@
  */
 int tpm_tcti(char *buf, size_t size)
 {
-	struct config cfg = {};
+	struct config cfg __cleanup(config_clear) = {};
 	const char *tcti;
 	ssize_t n;
 
@@ -44,12 +44,9 @@ int tpm_tcti(char *buf, size_t size)
 		tcti = cfg.tpm_tcti;
 	if (!tcti || !*tcti)
 		tcti = "device:/dev/tpmrm0";
-	if (image_config_active() && strncmp(tcti, "device:", 7)) {
-		memzero_explicit(&cfg, sizeof(cfg));
+	if (image_config_active() && strncmp(tcti, "device:", 7))
 		return -EACCES;
-	}
 	n = strscpy(buf, tcti, size);
-	memzero_explicit(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 	return n < 0 ? (int)n : 0;
 }
 
@@ -493,7 +490,7 @@ static int tpm_writer_primary(struct tpm *t,
 	TPML_PCR_SELECTION creation_pcr = {};
 	TPM2B_SENSITIVE_CREATE sensitive = {};
 	TPM2B_PUBLIC *out_pub = NULL;
-	struct config cfg = {};
+	struct config cfg __cleanup(config_clear) = {};
 	TPM2B_PUBLIC in_pub = {};
 	TPM2B_NAME *name = NULL;
 	TPM2B_DATA outside = {};

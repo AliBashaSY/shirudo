@@ -40,7 +40,7 @@
  */
 static bool tls_classical_host_allowed(CURL *curl)
 {
-	struct config cfg = {};
+	struct config cfg __cleanup(config_clear) = {};
 	const char *allowlist, *effective_url;
 	CURLU *url = NULL;
 	char *scheme = NULL, *host = NULL;

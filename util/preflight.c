@@ -346,7 +346,7 @@ static void check_tpm(struct preflight_result *r)
 	 * produces, so this is a convenience, not a relaxation.
 	 */
 	{
-		struct config cfg = {};
+		struct config cfg __cleanup(config_clear) = {};
 		bool override = config_load(&cfg) == 0 && cfg.tpm_tcti[0];
 
 		if (override) {
@@ -356,7 +356,6 @@ static void check_tpm(struct preflight_result *r)
 				strscpy(c->detail, "TCTI override",
 					sizeof(c->detail));
 		}
-		memzero_explicit(&cfg, sizeof(cfg));	/* scrub tpm_owner_auth */
 		if (override)
 			return;
 	}

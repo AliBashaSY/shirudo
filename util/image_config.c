@@ -208,7 +208,7 @@ static int validate_settings(int root_fd)
 
 int image_config_validate(int root_fd)
 {
-	struct config candidate;
+	struct config candidate __cleanup(config_clear);
 	__u32 entries = 0;
 	struct stat st;
 	int ret;
@@ -225,7 +225,6 @@ int image_config_validate(int root_fd)
 		if (!ret && (!candidate.map_export_valid ||
 			     !candidate.tls_classical_hosts_valid))
 			ret = -EINVAL;
-		memzero_explicit(&candidate, sizeof(candidate));
 	}
 	return ret;
 }
@@ -233,7 +232,7 @@ int image_config_validate(int root_fd)
 int image_config_set(const struct config *bootstrap,
 		     int root_fd)
 {
-	struct config candidate;
+	struct config candidate __cleanup(config_clear);
 	int fd = -1, ret;
 
 	candidate = *bootstrap;
