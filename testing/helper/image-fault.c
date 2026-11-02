@@ -55,42 +55,42 @@ int __wrap_shirudo_config_root_begin(const __u8 root[32],
 int __wrap_shirudo_config_root_end(struct shirudo_config_root_guard *guard)
 {
 	struct shirudo_expected_root expected = {};
-	int rc = 0, cleanup;
+	int ret = 0, cleanup;
 
 	if (root_mode != ROOT_NORMAL) {
 		end_calls++;
 		if (guard->map_fd >= 0 &&
 		    bpf_map_lookup_elem(guard->map_fd, &guard->task_fd,
 					&expected))
-			rc = -errno;
+			ret = -errno;
 		consumed_valid = expected.valid;
 	}
 	cleanup = __real_shirudo_config_root_end(guard);
-	return rc ? rc : cleanup;
+	return ret ? ret : cleanup;
 }
 
 static int check_root_cleared(void)
 {
 	struct shirudo_expected_root expected = {}, empty = {};
-	int map, task, rc;
+	int map, task, ret;
 
 	map = bpf_obj_get(BPFFS_DIR "/config_roots");
 	if (map < 0)
 		return -errno;
 	task = syscall(SYS_pidfd_open, getpid(), 0);
 	if (task < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
-	rc = bpf_map_lookup_elem(map, &task, &expected) ? -errno : 0;
-	if (root_mode == ROOT_MISSING && rc == -ENOENT)
-		rc = 0;
-	if (!rc && memcmp(&expected, &empty, sizeof(empty)))
-		rc = -EUCLEAN;
+	ret = bpf_map_lookup_elem(map, &task, &expected) ? -errno : 0;
+	if (root_mode == ROOT_MISSING && ret == -ENOENT)
+		ret = 0;
+	if (!ret && memcmp(&expected, &empty, sizeof(empty)))
+		ret = -EUCLEAN;
 	close(task);
 out:
 	close(map);
-	return rc;
+	return ret;
 }
 
 static int check_classification(const struct shirudo_dm_verity *device)
@@ -99,24 +99,24 @@ static int check_classification(const struct shirudo_dm_verity *device)
 	struct shirudo_device_authority entry;
 	__u64 key, next, diskseq;
 	__u32 matches = 0;
-	int map, block, rc = 0;
+	int map, block, ret = 0;
 	void *cursor = NULL;
 
 	block = open(device->path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (block < 0)
 		return -errno;
 	if (ioctl(block, BLKGETDISKSEQ, &diskseq)) {
-		rc = -errno;
+		ret = -errno;
 		goto out_block;
 	}
 	map = bpf_obj_get(BPFFS_DIR "/devices");
 	if (map < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_block;
 	}
 	while (!bpf_map_get_next_key(map, cursor, &next)) {
 		if (bpf_map_lookup_elem(map, &next, &entry)) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		if (entry.dev == dev)
@@ -130,22 +130,22 @@ static int check_classification(const struct shirudo_dm_verity *device)
 			matches++;
 			if (entry.kind != DEVICE_CONFIG ||
 			    memcmp(entry.root, device->image.root_hash, 32)) {
-				rc = -EUCLEAN;
+				ret = -EUCLEAN;
 				break;
 			}
 		}
 		key = next;
 		cursor = &key;
 	}
-	if (!rc && errno != ENOENT)
-		rc = -errno;
-	if (!rc && matches != (root_mode == ROOT_MATCH ? 1u : 0u))
-		rc = -EACCES;
+	if (!ret && errno != ENOENT)
+		ret = -errno;
+	if (!ret && matches != (root_mode == ROOT_MATCH ? 1u : 0u))
+		ret = -EACCES;
 	printf("classified=%u consumed_valid=%d\n", matches, consumed_valid);
 	close(map);
 out_block:
 	close(block);
-	return rc;
+	return ret;
 }
 
 static int config_root_test(const char *mode, const char *prefix)
@@ -153,7 +153,7 @@ static int config_root_test(const char *mode, const char *prefix)
 	struct shirudo_config_image_open opened;
 	struct shirudo_dm_verity device;
 	bool created = false;
-	int rc, cleanup;
+	int ret, cleanup;
 	char name[128];
 
 	if (!strcmp(mode, "missing"))
@@ -164,33 +164,33 @@ static int config_root_test(const char *mode, const char *prefix)
 		root_mode = ROOT_MATCH;
 	else
 		return 2;
-	rc = shirudo_config_image_open(prefix, &opened);
-	if (rc)
+	ret = shirudo_config_image_open(prefix, &opened);
+	if (ret)
 		goto done;
 	snprintf(name, sizeof(name), "shirudo-verify-root-test-%ld",
 		 (long)getpid());
-	rc = shirudo_dm_verity_create(&opened, name, &device);
-	created = !rc;
-	if (!rc && (begin_calls != 1 || end_calls != 1 ||
-		    consumed_valid != (root_mode == ROOT_WRONG ? 1 : 0)))
-		rc = -EUCLEAN;
-	if (!rc)
-		rc = check_root_cleared();
-	if (!rc)
-		rc = shirudo_dm_verity_verify(&device, &opened);
-	if (!rc)
-		rc = check_classification(&device);
+	ret = shirudo_dm_verity_create(&opened, name, &device);
+	created = !ret;
+	if (!ret && (begin_calls != 1 || end_calls != 1 ||
+		     consumed_valid != (root_mode == ROOT_WRONG ? 1 : 0)))
+		ret = -EUCLEAN;
+	if (!ret)
+		ret = check_root_cleared();
+	if (!ret)
+		ret = shirudo_dm_verity_verify(&device, &opened);
+	if (!ret)
+		ret = check_classification(&device);
 	if (created) {
 		cleanup = shirudo_dm_verity_remove(&device, true);
 		shirudo_dm_verity_close(&device);
-		if (!rc)
-			rc = cleanup;
+		if (!ret)
+			ret = cleanup;
 	}
 	shirudo_config_image_close(&opened);
 done:
-	if (rc)
-		fprintf(stderr, "config root test: %s\n", strerror(-rc));
-	return rc ? 1 : 0;
+	if (ret)
+		fprintf(stderr, "config root test: %s\n", strerror(-ret));
+	return ret ? 1 : 0;
 }
 
 int __wrap_main(int argc, const char **argv)
@@ -210,11 +210,11 @@ TSS2_RC __wrap_Esys_PCR_Extend(ESYS_CONTEXT *context, ESYS_TR pcr,
 			       ESYS_TR first, ESYS_TR second, ESYS_TR third,
 			       const TPML_DIGEST_VALUES *digests)
 {
-	TSS2_RC rc;
+	TSS2_RC ret;
 
-	rc = __real_Esys_PCR_Extend(context, pcr, first, second, third,
-				    digests);
-	if (!rc)
+	ret = __real_Esys_PCR_Extend(context, pcr, first, second, third,
+				     digests);
+	if (!ret)
 		_exit(99);
-	return rc;
+	return ret;
 }

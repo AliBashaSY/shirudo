@@ -76,12 +76,12 @@ int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out)
 	bool neg = len && s[0] == '-';
 	__u64 v;
 	__s64 r;
-	int rc;
+	int ret;
 
-	rc = parse_base(s + neg, len - neg, 10,
-			neg ? (__u64)INT64_MAX + 1 : (__u64)INT64_MAX, &v);
-	if (rc)
-		return rc;
+	ret = parse_base(s + neg, len - neg, 10,
+			 neg ? (__u64)INT64_MAX + 1 : (__u64)INT64_MAX, &v);
+	if (ret)
+		return ret;
 	if (!neg)
 		r = (__s64)v;
 	else if (v == (__u64)INT64_MAX + 1)

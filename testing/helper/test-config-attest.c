@@ -23,27 +23,27 @@
 static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 {
 	struct shirudo_tpm *tpm = NULL;
-	int rc;
+	int ret;
 
 	(void)ctx;
-	rc = tpm_open(&tpm);
-	if (!rc)
-		rc = shirudo_tpm_boot_identity(tpm, reset, restart);
+	ret = tpm_open(&tpm);
+	if (!ret)
+		ret = shirudo_tpm_boot_identity(tpm, reset, restart);
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }
 
 static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
 {
 	struct shirudo_tpm *tpm = NULL;
-	int rc;
+	int ret;
 
 	(void)ctx;
-	rc = tpm_open(&tpm);
-	if (!rc)
-		rc = tpm_pcr_read(tpm, pcr, out);
+	ret = tpm_open(&tpm);
+	if (!ret)
+		ret = tpm_pcr_read(tpm, pcr, out);
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }
 
 static int no_extend(void *ctx, __u32 pcr, const __u8 event[32])
@@ -84,23 +84,23 @@ static int render(const char *directory, const char *nonce)
 	__u8 bytes[ATTEST_NONCE_MAX];
 	char *document = NULL;
 	size_t length = 0, capacity = 0, nonce_length;
-	int rc;
+	int ret;
 
 	nonce_length = strlen(nonce) / 2;
 	if (strlen(nonce) % 2 || nonce_length > sizeof(bytes) ||
 	    hex_decode(nonce, bytes, nonce_length))
 		return -EINVAL;
-	rc = shirudo_config_update_open(directory, &ops, NULL, &update);
-	if (!rc)
-		rc = shirudo_attest_evidence_config(bytes, nonce_length,
-						    CHAIN_PCR_MASK,
-						    NULL, &update, &document,
-						    &length, &capacity);
-	if (!rc)
-		rc = write_complete(STDOUT_FILENO, document, length);
+	ret = shirudo_config_update_open(directory, &ops, NULL, &update);
+	if (!ret)
+		ret = shirudo_attest_evidence_config(bytes, nonce_length,
+						     CHAIN_PCR_MASK,
+						     NULL, &update, &document,
+						     &length, &capacity);
+	if (!ret)
+		ret = write_complete(STDOUT_FILENO, document, length);
 	xfree(document, capacity);
 	shirudo_config_update_close(&update);
-	return rc;
+	return ret;
 }
 
 static int read_document(const char *path, char **out, size_t *length)
@@ -143,20 +143,20 @@ int main(int argc, char **argv)
 	__u32 mask, reset, restart;
 	char *document = NULL;
 	size_t length = 0;
-	int pcr, rc;
+	int pcr, ret;
 
 	if (argc == 4 && !strcmp(argv[1], "render")) {
-		rc = render(argv[2], argv[3]);
-		if (rc)
-			fprintf(stderr, "render failed: %d\n", rc);
-		return rc ? 1 : 0;
+		ret = render(argv[2], argv[3]);
+		if (ret)
+			fprintf(stderr, "render failed: %d\n", ret);
+		return ret ? 1 : 0;
 	}
 	if (argc != 3 && argc != 8)
 		return 2;
-	rc = read_document(argv[2], &document, &length);
-	if (!rc)
-		rc = shirudo_config_evidence_parse(document, length, &config);
-	if (rc)
+	ret = read_document(argv[2], &document, &length);
+	if (!ret)
+		ret = shirudo_config_evidence_parse(document, length, &config);
+	if (ret)
 		goto out;
 	if (argc == 8 && !strcmp(argv[1], "replay")) {
 		pcr = !strcmp(argv[4], "-") ? -1 : atoi(argv[4]);
@@ -165,24 +165,24 @@ int main(int argc, char **argv)
 			     0 :
 			     hex_decode(argv[3], root, 32)) ||
 		    hex_decode(argv[7], pcrs[config.pcr], 32)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
 		mask = 1u << (pcr < 0 ? config.pcr : (__u32)pcr);
 		reset = strtoul(argv[5], NULL, 10);
 		restart = strtoul(argv[6], NULL, 10);
 		expected = !strcmp(argv[3], "-") ? NULL : root;
-		rc = shirudo_config_evidence_verify(&config, mask, reset,
-						    restart, pcrs, expected,
-						    pcr, &reason);
+		ret = shirudo_config_evidence_verify(&config, mask, reset,
+						     restart, pcrs, expected,
+						     pcr, &reason);
 	} else if (strcmp(argv[1], "parse")) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 	}
 out:
 	if (reason)
 		printf("reason=%s\n", reason);
-	printf("rc=%d\n", rc);
+	printf("rc=%d\n", ret);
 	shirudo_config_evidence_clear(&config);
 	xfree(document, document ? length + 1 : 0);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }

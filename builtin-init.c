@@ -84,13 +84,13 @@ static int keyring_holds_set(key_serial_t ring,
 {
 	struct keyring_cert certs[KEYS_MAX];
 	size_t i;
-	int rc;
+	int ret;
 
 	for (i = 0; i < set->n; i++) {
-		rc = keys_cert_der(&set->certs[i], &certs[i].der,
-				   &certs[i].len);
-		if (rc)
-			return rc;
+		ret = keys_cert_der(&set->certs[i], &certs[i].der,
+				    &certs[i].len);
+		if (ret)
+			return ret;
 	}
 	return keyring_holds_exactly(ring, certs, set->n);
 }
@@ -110,18 +110,18 @@ static int init_bpf_keyring(key_serial_t ring,
 {
 	bool sealed = false;
 	size_t i;
-	int rc;
+	int ret;
 
 	for (i = 0; i < set->n && !sealed; i++) {
 		const __u8 *der = NULL;
 		size_t der_sz = 0;
 		key_serial_t key;
 
-		rc = keys_cert_der(&set->certs[i], &der, &der_sz);
-		if (rc) {
+		ret = keys_cert_der(&set->certs[i], &der, &der_sz);
+		if (ret) {
 			pr_err("read %s: %s", set->certs[i].path,
-			       strerror(-rc));
-			return rc;
+			       strerror(-ret));
+			return ret;
 		}
 		key = keyring_bpf_add_cert(der, der_sz);
 		if (key >= 0) {
@@ -146,30 +146,30 @@ static int init_bpf_keyring(key_serial_t ring,
 		sealed = true;
 	}
 	if (!sealed) {
-		rc = keyring_bpf_seal();
-		if (rc == -EEXIST) {
+		ret = keyring_bpf_seal();
+		if (ret == -EEXIST) {
 			pr_err("bpf keyring serial=%d carries a restriction "
 			       "init did not install (tampered)", (int)ring);
 			return -EKEYREJECTED;
 		}
-		if (rc) {
+		if (ret) {
 			pr_err("bpf keyring: certificates enrolled but the "
 			       "keyring could not be sealed: %s",
-			       strerror(-rc));
-			return rc;
+			       strerror(-ret));
+			return ret;
 		}
 	}
-	rc = keyring_holds_set(ring, set);
-	if (rc < 0) {
-		pr_err("bpf keyring: compare: %s", strerror(-rc));
-		return rc;
+	ret = keyring_holds_set(ring, set);
+	if (ret < 0) {
+		pr_err("bpf keyring: compare: %s", strerror(-ret));
+		return ret;
 	}
-	if (!rc && sealed && keyring_holds_exactly(ring, NULL, 0) == 1) {
+	if (!ret && sealed && keyring_holds_exactly(ring, NULL, 0) == 1) {
 		pr_err("bpf keyring serial=%d was sealed empty at boot; boot "
 		       "with bpf.keyring_unsealed=1", (int)ring);
 		return -ENOKEY;
 	}
-	if (!rc) {
+	if (!ret) {
 		pr_err("bpf keyring serial=%d is sealed around keys other than "
 		       "the %zu trusted certificate%s (tampered)", (int)ring,
 		       set->n, set->n == 1 ? "" : "s");
@@ -191,13 +191,13 @@ static int init_keyring(void)
 	struct shirudo_trusted_set set;
 	struct shirudo_identity id;
 	key_serial_t ring;
-	int rc;
+	int ret;
 
 	ring = keyring_bpf_serial();
 	if (ring <= 0) {
-		rc = ring ? ring : -ENOKEY;
-		pr_err("bpf keyring lookup: %s", strerror(-rc));
-		return rc;
+		ret = ring ? ring : -ENOKEY;
+		pr_err("bpf keyring lookup: %s", strerror(-ret));
+		return ret;
 	}
 	if (!identity_read(&id)) {
 		if (id.keyring_type != SIG_KEYRING_BPF ||
@@ -206,12 +206,12 @@ static int init_keyring(void)
 			return -EKEYREJECTED;
 		return 0;
 	}
-	rc = shirudo_image_boot_keys(&set);
-	if (rc)
-		return rc;
-	rc = init_bpf_keyring(ring, &set);
-	if (rc && rc != -EEXIST)
-		return rc;
+	ret = shirudo_image_boot_keys(&set);
+	if (ret)
+		return ret;
+	ret = init_bpf_keyring(ring, &set);
+	if (ret && ret != -EEXIST)
+		return ret;
 	enrolled = set;
 	return 0;
 }
@@ -242,29 +242,29 @@ static int is_bpffs_mounted(const char *path)
 static int init_bpffs(void)
 {
 	struct stat parent, run;
-	int rc;
+	int ret;
 
-	rc = seal_mkdir_p(VAR_LIB, 0700);
-	if (rc) {
-		pr_err("mkdir %s: %s", VAR_LIB, strerror(-rc));
-		return rc;
+	ret = seal_mkdir_p(VAR_LIB, 0700);
+	if (ret) {
+		pr_err("mkdir %s: %s", VAR_LIB, strerror(-ret));
+		return ret;
 	}
-	rc = seal_mkdir_p(RUN_DIR, 0700);
-	if (rc) {
-		pr_err("mkdir %s: %s", RUN_DIR, strerror(-rc));
-		return rc;
+	ret = seal_mkdir_p(RUN_DIR, 0700);
+	if (ret) {
+		pr_err("mkdir %s: %s", RUN_DIR, strerror(-ret));
+		return ret;
 	}
-	rc = is_bpffs_mounted(BPFFS_DIR);
-	if (rc < 0)
-		return rc;
-	if (rc)
+	ret = is_bpffs_mounted(BPFFS_DIR);
+	if (ret < 0)
+		return ret;
+	if (ret)
 		return 0;
 	if (stat(RUN_DIR, &parent) || stat("/run", &run))
 		return -errno;
 	if (parent.st_dev == run.st_dev) {
-		rc = seal_label(RUN_DIR);
-		if (rc)
-			return rc;
+		ret = seal_label(RUN_DIR);
+		if (ret)
+			return ret;
 		if (mount("tmpfs", RUN_DIR, "tmpfs",
 			  MS_NOSUID | MS_NODEV | MS_NOEXEC,
 			  "mode=0700,size=16M"))
@@ -275,22 +275,22 @@ static int init_bpffs(void)
 		return -errno;
 
 	/* So that the init record left here is sealed from its creation. */
-	rc = seal_label(RUN_DIR);
-	if (rc)
-		return rc;
-	rc = seal_mkdir_p(BPFFS_DIR, 0700);
-	if (rc) {
+	ret = seal_label(RUN_DIR);
+	if (ret)
+		return ret;
+	ret = seal_mkdir_p(BPFFS_DIR, 0700);
+	if (ret) {
 		pr_err("mkdir %s: %s",
-		       BPFFS_DIR, strerror(-rc));
-		return rc;
+		       BPFFS_DIR, strerror(-ret));
+		return ret;
 	}
 
-	rc = is_bpffs_mounted(BPFFS_DIR);
-	if (rc < 0) {
-		pr_err("read /proc/self/mounts: %s", strerror(-rc));
-		return rc;
+	ret = is_bpffs_mounted(BPFFS_DIR);
+	if (ret < 0) {
+		pr_err("read /proc/self/mounts: %s", strerror(-ret));
+		return ret;
 	}
-	if (rc) {
+	if (ret) {
 		pr_info("bpffs already mounted at %s", BPFFS_DIR);
 		return 0;
 	}
@@ -353,7 +353,7 @@ static int share_policy_maps(struct bpf_object *source,
 {
 	struct bpf_map *from, *to;
 	size_t i;
-	int rc;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(shirudo_guard_maps); i++) {
 		from = bpf_object__find_map_by_name(source,
@@ -362,9 +362,9 @@ static int share_policy_maps(struct bpf_object *source,
 						  shirudo_guard_maps[i].name);
 		if (!from || !to)
 			return -ENOENT;
-		rc = bpf_map__reuse_fd(to, bpf_map__fd(from));
-		if (rc)
-			return rc;
+		ret = bpf_map__reuse_fd(to, bpf_map__fd(from));
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -376,7 +376,7 @@ static int attach_guard_group(struct bpf_object *obj,
 {
 	struct bpf_program *program;
 	size_t i;
-	int rc;
+	int ret;
 
 	for (i = 0; i < count; i++) {
 		program = bpf_object__find_program_by_name(obj, guards[i].prog);
@@ -384,10 +384,10 @@ static int attach_guard_group(struct bpf_object *obj,
 			pr_err("program %s missing", guards[i].prog);
 			return -ENOENT;
 		}
-		rc = attach_pin(program, guards[i].pin, &links[i]);
-		if (rc) {
-			pr_err("attach %s: %s", guards[i].prog, strerror(-rc));
-			return rc;
+		ret = attach_pin(program, guards[i].pin, &links[i]);
+		if (ret) {
+			pr_err("attach %s: %s", guards[i].prog, strerror(-ret));
+			return ret;
 		}
 	}
 	return 0;
@@ -527,7 +527,7 @@ static int freeze_task_maps(struct bpf_object *obj)
 		.trusted = TASK_BOOTSTRAP,
 	};
 	struct bpf_map *map;
-	int fd, pidfd, rc = 0;
+	int fd, pidfd, ret = 0;
 	__u32 i;
 
 	pidfd = syscall(SYS_pidfd_open, getpid(), 0);
@@ -539,24 +539,24 @@ static int freeze_task_maps(struct bpf_object *obj)
 
 		map = bpf_object__find_map_by_name(obj, expected->name);
 		if (!map) {
-			rc = -ENOENT;
+			ret = -ENOENT;
 			break;
 		}
 		fd = bpf_map__fd(map);
 		if (i == SHIRUDO_GUARD_TASKS &&
 		    bpf_map_update_elem(fd, &pidfd, &authority, BPF_ANY)) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		/* Expected roots change for each mapping. */
 		if ((i != SHIRUDO_GUARD_ROOTS && bpf_map_freeze(fd)) ||
 		    bpf_obj_pin(fd, expected->pin)) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 	}
 	close(pidfd);
-	return rc;
+	return ret;
 }
 
 /*
@@ -569,19 +569,19 @@ static int record_attestation_key(struct shirudo_identity *id)
 {
 	struct shirudo_tpm_key ak = {};
 	struct shirudo_tpm *tpm;
-	int rc;
+	int ret;
 
-	rc = tpm_open(&tpm);
-	if (rc)
-		return rc;
-	rc = tpm_ak_create(tpm, &ak);
-	if (!rc) {
+	ret = tpm_open(&tpm);
+	if (ret)
+		return ret;
+	ret = tpm_ak_create(tpm, &ak);
+	if (!ret) {
 		memcpy(id->ak_name, ak.name, ak.name_len);
 		id->ak_name_len = (__u32)ak.name_len;
 		tpm_key_flush(tpm, &ak);
 	}
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }
 
 static int init_lsm(void)
@@ -919,7 +919,7 @@ static int boot_restore(bool recorded,
 {
 	struct shirudo_measured_upatch *set = NULL;
 	struct dirent **names = NULL;
-	int n, i, rc = 0;
+	int n, i, ret = 0;
 	size_t cnt = 0;
 
 	*out_set = NULL;
@@ -956,13 +956,13 @@ static int boot_restore(bool recorded,
 		struct shirudo_upatch u;
 		int fd;
 
-		if (rc)
+		if (ret)
 			goto next;
 		if (strsprintf(path, sizeof(path), "%s/%s", UPATCHES_DIR,
 			       names[i]->d_name) < 0) {
 			pr_err("boot-restore: path too long: %s",
 			       names[i]->d_name);
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 			goto next;
 		}
 		if (!seal_owns(path)) {
@@ -990,7 +990,7 @@ static int boot_restore(bool recorded,
 				pr_err("boot-restore: %s is loaded with a "
 				       "payload other than the archived one "
 				       "(tampered)", set[cnt].name);
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto next;
 			}
 			pr_info("boot-restore: %s already loaded",
@@ -1003,13 +1003,13 @@ static int boot_restore(bool recorded,
 			       "after the register was bound this boot "
 			       "(tampered); unload it or reboot",
 			       names[i]->d_name);
-			rc = -EPERM;
+			ret = -EPERM;
 			goto next;
 		}
 		if (shirudo_upatch_apply(path) != 0) {
 			pr_err("boot-restore: failed to apply %s",
 			       names[i]->d_name);
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto next;
 		}
 		cnt++;
@@ -1018,9 +1018,9 @@ next:
 	}
 	libc_free(names);
 
-	if (rc) {
+	if (ret) {
 		xfree(set, (size_t)n * sizeof(*set));
-		return rc;
+		return ret;
 	}
 
 	*out_set = set;
@@ -1142,19 +1142,19 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 {
 	__u8 cert_sha[32], set_digest[32], tree_root[32], init_digest[32];
 	struct shirudo_chain_init_info info;
-	int rc;
+	int ret;
 
 	{
 		struct shirudo_config cfg;
 		__u64 max_bytes;
 		bool full;
 
-		rc = config_load(&cfg);
-		if (rc) {
+		ret = config_load(&cfg);
+		if (ret) {
 			explicit_bzero(&cfg, sizeof(cfg));
 			pr_err("chain: configuration unreadable: %s",
-			       strerror(-rc));
-			return rc;
+			       strerror(-ret));
+			return ret;
 		}
 		max_bytes = cfg.eventlog_max_bytes;
 		full = eventlog_would_exceed(max_bytes);
@@ -1171,10 +1171,10 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		pr_err("chain: no certificate enrolled");
 		return -ENOENT;
 	}
-	rc = keys_set_digest(&enrolled, cert_sha);
-	if (rc) {
-		pr_err("chain: cannot hash the enrolled set: %s", strerror(-rc));
-		return rc;
+	ret = keys_set_digest(&enrolled, cert_sha);
+	if (ret) {
+		pr_err("chain: cannot hash the enrolled set: %s", strerror(-ret));
+		return ret;
 	}
 
 	/*
@@ -1183,37 +1183,37 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 	 * predictor shares (util/attest.c).
 	 */
 	tree_root_at_boot(tree_root);
-	rc = chain_init_event(cert_sha, set, n, tree_root, set_digest,
-			      init_digest);
+	ret = chain_init_event(cert_sha, set, n, tree_root, set_digest,
+			       init_digest);
 
-	if (rc) {
-		pr_err("chain: cannot hash the init event: %s", strerror(-rc));
-		return rc;
+	if (ret) {
+		pr_err("chain: cannot hash the init event: %s", strerror(-ret));
+		return ret;
 	}
-	rc = chain_init(init_digest, &info);
-	if (rc == -ENODEV) {
+	ret = chain_init(init_digest, &info);
+	if (ret == -ENODEV) {
 		pr_err("tpm: not usable; shirudo requires a TPM 2.0 "
 		       "(tpm_error)");
-		return rc;
+		return ret;
 	}
-	if (rc == -EEXIST) {
+	if (ret == -EEXIST) {
 		pr_err("tpm: the register this boot recorded is gone or "
 		       "replaced; refusing to bind another before the next "
 		       "TPM reset (tampered)");
-		return rc;
+		return ret;
 	}
-	if (rc == -EACCES) {
+	if (ret == -EACCES) {
 		pr_err("tpm: register 0x%08X cannot be bound (tpm_error); on "
 		       "a TPM with owner auth set, supply it via "
 		       "tpm.owner_auth in /etc/shirudo/shirudo.conf or "
 		       "SHIRUDO_TPM_OWNER_AUTH", NV_INDEX);
-		return rc;
+		return ret;
 	}
-	if (rc) {
+	if (ret) {
 		pr_err("tpm: register extend failed -- chain NOT advanced "
 		       "while LSM active (tpm_error); operator must "
 		       "reconcile");
-		return rc;
+		return ret;
 	}
 	if (info.reused) {
 		pr_info("tpm: register already bound this boot; chain "
@@ -1221,12 +1221,12 @@ static int chain_extend_init(struct shirudo_measured_upatch *set, size_t n)
 		return 0;
 	}
 
-	rc = append_init_event(set, n, cert_sha, set_digest, tree_root,
-			       init_digest, &info);
-	if (rc) {
+	ret = append_init_event(set, n, cert_sha, set_digest, tree_root,
+				init_digest, &info);
+	if (ret) {
 		pr_err("eventlog: append failed after extend -- chain/log "
 		       "desync; operator must reconcile");
-		return rc;
+		return ret;
 	}
 
 	pr_info("tpm: register bound in the %s and extended (index 0x%08X, "
@@ -1282,7 +1282,7 @@ static int initrd_enter(void)
 	struct statfs root;
 	char src[PATH_MAX];
 	struct stat st;
-	int rc;
+	int ret;
 
 	/*
 	 * /etc/initrd-release is root's to create on the root file system;
@@ -1304,10 +1304,10 @@ static int initrd_enter(void)
 		       "there (x-initrd.mount)", src, sysroot());
 		return -ENOENT;
 	}
-	rc = seal_mkdir_p(VAR_LIB, 0700);
-	if (rc) {
-		pr_err("initrd: mkdir %s: %s", VAR_LIB, strerror(-rc));
-		return rc;
+	ret = seal_mkdir_p(VAR_LIB, 0700);
+	if (ret) {
+		pr_err("initrd: mkdir %s: %s", VAR_LIB, strerror(-ret));
+		return ret;
 	}
 	if (mount(src, VAR_LIB, NULL, MS_BIND | MS_REC, NULL) != 0) {
 		pr_err("initrd: bind %s at %s: %s", src, VAR_LIB,
@@ -1315,17 +1315,17 @@ static int initrd_enter(void)
 		return -errno;
 	}
 	if (statvfs(VAR_LIB, &state)) {
-		rc = -errno;
-		pr_err("initrd: statvfs %s: %s", src, strerror(-rc));
+		ret = -errno;
+		pr_err("initrd: statvfs %s: %s", src, strerror(-ret));
 	} else if (state.f_flag & ST_RDONLY) {
-		rc = -EROFS;
+		ret = -EROFS;
 		pr_err("initrd: %s is read-only", src);
 	} else {
-		rc = 0;
+		ret = 0;
 	}
-	if (rc) {
+	if (ret) {
 		umount2(VAR_LIB, MNT_DETACH);
-		return rc;
+		return ret;
 	}
 	pr_info("initrd: %s bound writable at %s for config recovery",
 		src, VAR_LIB);
@@ -1340,11 +1340,11 @@ static void initrd_leave(void)
 			strerror(errno));
 }
 
-static int init_phase_error(int rc, const char *phase)
+static int init_phase_error(int ret, const char *phase)
 {
-	if (rc)
-		pr_err("init: %s failed: %s", phase, strerror(-rc));
-	return rc;
+	if (ret)
+		pr_err("init: %s failed: %s", phase, strerror(-ret));
+	return ret;
 }
 
 static int run_init(void)
@@ -1353,81 +1353,81 @@ static int run_init(void)
 	struct shirudo_eventlog_init rec;
 	bool recorded, bootstrap;
 	size_t n = 0;
-	int rc;
+	int ret;
 
 	/* Only the run that brings enforcement up may label an unlabelled tree. */
-	rc = shirudo_enforcement_active();
-	if (rc < 0)
-		return init_phase_error(rc, "reading the enforcement state");
-	bootstrap = rc == 0;
-	rc = init_bpffs();
-	if (rc)
-		return init_phase_error(rc, "private bpffs setup");
+	ret = shirudo_enforcement_active();
+	if (ret < 0)
+		return init_phase_error(ret, "reading the enforcement state");
+	bootstrap = ret == 0;
+	ret = init_bpffs();
+	if (ret)
+		return init_phase_error(ret, "private bpffs setup");
 
-	rc = init_keyring();
-	if (rc)
-		return init_phase_error(rc, "BPF keyring initialization");
-	rc = shirudo_image_boot_keys_close();
-	if (rc)
-		return init_phase_error(rc, "closing the boot key image");
+	ret = init_keyring();
+	if (ret)
+		return init_phase_error(ret, "BPF keyring initialization");
+	ret = shirudo_image_boot_keys_close();
+	if (ret)
+		return init_phase_error(ret, "closing the boot key image");
 
 	/* Seal writable state before the hooks attach, then adopt the initrd log. */
-	rc = seal_label_tree(bootstrap);
-	if (rc)
-		return init_phase_error(rc, "sealing persistent state");
-	rc = eventlog_adopt_pending();
-	if (rc)
-		return init_phase_error(rc, "adopting the pending eventlog");
+	ret = seal_label_tree(bootstrap);
+	if (ret)
+		return init_phase_error(ret, "sealing persistent state");
+	ret = eventlog_adopt_pending();
+	if (ret)
+		return init_phase_error(ret, "adopting the pending eventlog");
 
-	rc = init_lsm();
-	if (rc)
-		return init_phase_error(rc, "loading enforcement");
+	ret = init_lsm();
+	if (ret)
+		return init_phase_error(ret, "loading enforcement");
 
-	rc = seal_label_tree(bootstrap);
-	if (rc)
-		return init_phase_error(rc, "sealing initialized state");
-	rc = shirudo_image_runtime_mount();
-	if (rc)
-		return init_phase_error(rc, "mounting the authenticated runtime");
-	rc = shirudo_image_boot();
-	if (rc)
-		return init_phase_error(rc, "loading authenticated boot settings");
-	rc = keys_load(RUNTIME_DIR "/keys",
-		       KEYS_REVOKED_DIR, true, &enrolled);
-	if (rc)
-		return init_phase_error(rc, "loading trusted keys");
+	ret = seal_label_tree(bootstrap);
+	if (ret)
+		return init_phase_error(ret, "sealing initialized state");
+	ret = shirudo_image_runtime_mount();
+	if (ret)
+		return init_phase_error(ret, "mounting the authenticated runtime");
+	ret = shirudo_image_boot();
+	if (ret)
+		return init_phase_error(ret, "loading authenticated boot settings");
+	ret = keys_load(RUNTIME_DIR "/keys",
+			KEYS_REVOKED_DIR, true, &enrolled);
+	if (ret)
+		return init_phase_error(ret, "loading trusted keys");
 
 	/*
 	 * The record is the eventlog's, which root can hide behind a mount;
 	 * the register is the TPM's, written once this boot by whoever bound
 	 * it. Either says the restore has happened.
 	 */
-	rc = eventlog_boot_init(&rec);
-	if (rc && rc != -ENOENT) {
+	ret = eventlog_boot_init(&rec);
+	if (ret && ret != -ENOENT) {
 		pr_err("init: eventlog %s unreadable: %s", eventlog_path(),
-		       strerror(-rc));
-		return rc;
+		       strerror(-ret));
+		return ret;
 	}
-	recorded = rc == 0 || chain_bound();
-	rc = boot_restore(recorded, &set, &n);
-	if (rc) {
+	recorded = ret == 0 || chain_bound();
+	ret = boot_restore(recorded, &set, &n);
+	if (ret) {
 		pr_err("init: boot-restore failed; further changes "
 		       "and attestation remain blocked");
 		xfree(set, n * sizeof(*set));
-		return init_phase_error(rc, "restoring boot upatches");
+		return init_phase_error(ret, "restoring boot upatches");
 	}
 
-	rc = chain_extend_init(set, n);
+	ret = chain_extend_init(set, n);
 	xfree(set, n * sizeof(*set));
-	if (rc) {
+	if (ret) {
 		pr_err("init: incomplete -- LSM active and upatches "
 		       "loaded, but TPM register not advanced");
-		return init_phase_error(rc, "binding the TPM register");
+		return init_phase_error(ret, "binding the TPM register");
 	}
 
-	rc = shirudo_image_boot_complete();
-	if (rc)
-		return init_phase_error(rc, "completing authenticated boot");
+	ret = shirudo_image_boot_complete();
+	if (ret)
+		return init_phase_error(ret, "completing authenticated boot");
 
 	pr_info("init: complete (LSM active, writable state sealed)");
 	return 0;
@@ -1437,7 +1437,7 @@ int cmd_init(int argc, const char **argv)
 {
 	struct shirudo_preflight_result res;
 	bool check_only = false;
-	int i, rc;
+	int i, ret;
 
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
@@ -1456,9 +1456,9 @@ int cmd_init(int argc, const char **argv)
 	}
 
 	initrd_mode = in_initrd();
-	rc = shirudo_image_bootstrap_load();
-	if (rc < 0) {
-		pr_err("init: authenticated image settings: %s", strerror(-rc));
+	ret = shirudo_image_bootstrap_load();
+	if (ret < 0) {
+		pr_err("init: authenticated image settings: %s", strerror(-ret));
 		return 1;
 	}
 	preflight_run(&res);
@@ -1475,9 +1475,9 @@ int cmd_init(int argc, const char **argv)
 
 	if (initrd_mode && initrd_enter())
 		return 1;
-	rc = run_init();
+	ret = run_init();
 	shirudo_image_leave();
 	if (initrd_mode)
 		initrd_leave();
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }

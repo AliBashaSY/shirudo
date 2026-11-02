@@ -108,19 +108,19 @@ int shirudo_config_image_read_header(int hash_fd,
 {
 	struct shirudo_config_image image = {};
 	struct verity_superblock header;
-	int rc;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
-	rc = read_exact_at_start(hash_fd, &header, sizeof(header));
-	if (!rc)
-		rc = validate_superblock(&header);
-	if (rc)
-		return rc;
+	ret = read_exact_at_start(hash_fd, &header, sizeof(header));
+	if (!ret)
+		ret = validate_superblock(&header);
+	if (ret)
+		return ret;
 	image.data_blocks = le64_to_cpu(header.data_blocks);
-	rc = verity_hash_blocks(image.data_blocks, &image.hash_blocks);
-	if (rc)
-		return rc;
+	ret = verity_hash_blocks(image.data_blocks, &image.hash_blocks);
+	if (ret)
+		return ret;
 	memcpy(image.salt, header.salt, sizeof(image.salt));
 	*out = image;
 	return 0;
@@ -130,20 +130,20 @@ int shirudo_config_image_check_files(int data_fd, int hash_fd,
 				     const struct shirudo_config_image *image)
 {
 	__u64 data_size, hash_size, blocks;
-	int rc;
+	int ret;
 
 	if (!image)
 		return -EINVAL;
-	rc = verity_hash_blocks(image->data_blocks, &blocks);
-	if (rc)
-		return rc;
+	ret = verity_hash_blocks(image->data_blocks, &blocks);
+	if (ret)
+		return ret;
 	if (blocks != image->hash_blocks)
 		return -EINVAL;
-	rc = regular_file_size(data_fd, &data_size);
-	if (!rc)
-		rc = regular_file_size(hash_fd, &hash_size);
-	if (rc)
-		return rc;
+	ret = regular_file_size(data_fd, &data_size);
+	if (!ret)
+		ret = regular_file_size(hash_fd, &hash_size);
+	if (ret)
+		return ret;
 	if (data_size != image->data_blocks * CONFIG_IMAGE_BLOCK_SIZE ||
 	    hash_size != image->hash_blocks * CONFIG_IMAGE_BLOCK_SIZE)
 		return -EINVAL;
@@ -166,19 +166,19 @@ static int read_root(const char *prefix, __u8 root[32])
 	char text[65] = {};
 	__u64 size;
 	__u32 i;
-	int fd, rc;
+	int fd, ret;
 
 	fd = open_part(prefix, ".roothash");
 	if (fd < 0)
 		return fd;
-	rc = regular_file_size(fd, &size);
-	if (!rc && size != 64)
-		rc = -EINVAL;
-	if (!rc)
-		rc = read_exact_at_start(fd, text, 64);
+	ret = regular_file_size(fd, &size);
+	if (!ret && size != 64)
+		ret = -EINVAL;
+	if (!ret)
+		ret = read_exact_at_start(fd, text, 64);
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	for (i = 0; i < 64; i++)
 		if (!((text[i] >= '0' && text[i] <= '9') ||
 		      (text[i] >= 'a' && text[i] <= 'f')))
@@ -208,7 +208,7 @@ static int open_image(const char *prefix, const __u8 *expected_root,
 		.data_fd = -1, .hash_fd = -1, .signature_fd = -1,
 	};
 	__u64 size;
-	int rc;
+	int ret;
 
 	if (!prefix || !*prefix || !out)
 		return -EINVAL;
@@ -218,36 +218,36 @@ static int open_image(const char *prefix, const __u8 *expected_root,
 		return image.data_fd;
 	image.hash_fd = open_part(prefix, ".verity");
 	if (image.hash_fd < 0) {
-		rc = image.hash_fd;
+		ret = image.hash_fd;
 		goto out;
 	}
-	rc = shirudo_config_image_read_header(image.hash_fd,
-					      &image.image);
-	if (!rc)
-		rc = read_root(prefix, image.image.root_hash);
-	if (!rc)
-		rc = shirudo_config_image_check_files(image.data_fd,
-						      image.hash_fd,
-						      &image.image);
-	if (rc)
+	ret = shirudo_config_image_read_header(image.hash_fd,
+					       &image.image);
+	if (!ret)
+		ret = read_root(prefix, image.image.root_hash);
+	if (!ret)
+		ret = shirudo_config_image_check_files(image.data_fd,
+						       image.hash_fd,
+						       &image.image);
+	if (ret)
 		goto out;
 	if (expected_root) {
 		if (memcmp(expected_root, image.image.root_hash, 32))
-			rc = -EKEYREJECTED;
+			ret = -EKEYREJECTED;
 	} else {
 		image.image.signed_root = true;
 		image.signature_fd = open_part(prefix, ".p7s");
-		rc = image.signature_fd < 0 ? image.signature_fd :
+		ret = image.signature_fd < 0 ? image.signature_fd :
 			regular_file_size(image.signature_fd, &size);
-		if (!rc && (!size || size > CONFIG_IMAGE_SIG_MAX))
-			rc = -EINVAL;
+		if (!ret && (!size || size > CONFIG_IMAGE_SIG_MAX))
+			ret = -EINVAL;
 	}
 out:
-	if (rc)
+	if (ret)
 		shirudo_config_image_close(&image);
 	else
 		*out = image;
-	return rc;
+	return ret;
 }
 
 int shirudo_config_image_open(const char *prefix,

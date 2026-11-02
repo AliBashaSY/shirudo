@@ -124,11 +124,11 @@ int keyring_list(key_serial_t keyring,
 {
 	key_serial_t *serials = NULL;
 	size_t n = 0, cap = 0, i;
-	int rc;
+	int ret;
 
-	rc = read_links(keyring, &serials, &n, &cap);
-	if (rc)
-		return rc;
+	ret = read_links(keyring, &serials, &n, &cap);
+	if (ret)
+		return ret;
 	for (i = 0; i < n; i++) {
 		const char *type, *description;
 		char desc[KEYRING_DESC_MAX];
@@ -148,11 +148,11 @@ int keyring_links(key_serial_t keyring, struct keyring_link **links,
 	struct keyring_link *out = NULL;
 	key_serial_t *serials = NULL;
 	size_t count = 0, cap = 0, i;
-	int rc;
+	int ret;
 
-	rc = read_links(keyring, &serials, &count, &cap);
-	if (rc)
-		return rc;
+	ret = read_links(keyring, &serials, &count, &cap);
+	if (ret)
+		return ret;
 	if (count) {
 		out = xcalloc(count, sizeof(*out));
 		if (!out) {
@@ -186,16 +186,16 @@ int keyring_cert_description(const __u8 *der, size_t der_len,
 	const char *type, *description;
 	char desc[KEYRING_DESC_MAX];
 	long probe;
-	int rc;
+	int ret;
 
 	probe = sys_add_key("asymmetric", NULL, der, der_len,
 			    KEY_SPEC_THREAD_KEYRING);
 	if (probe < 0)
 		return -errno;
-	rc = describe_key((key_serial_t)probe, desc, sizeof(desc));
+	ret = describe_key((key_serial_t)probe, desc, sizeof(desc));
 	sys_keyctl(KEYCTL_UNLINK, probe, KEY_SPEC_THREAD_KEYRING, 0, 0);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	split_describe(desc, &type, &description);
 	return strscpy(out, description, KEYRING_DESC_MAX) < 0 ? -ERANGE : 0;
 }
@@ -222,13 +222,13 @@ int keyring_holds_cert(key_serial_t keyring,
 		       const __u8 *der, size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
-	int rc;
+	int ret;
 
-	rc = keyring_cert_description(der, der_len, ctx.want);
-	if (!rc)
-		rc = keyring_list(keyring, holds_cert_cb, &ctx);
-	if (rc)
-		return rc;
+	ret = keyring_cert_description(der, der_len, ctx.want);
+	if (!ret)
+		ret = keyring_list(keyring, holds_cert_cb, &ctx);
+	if (ret)
+		return ret;
 	return ctx.found ? 1 : 0;
 }
 
@@ -237,13 +237,13 @@ key_serial_t keyring_find_cert(key_serial_t keyring,
 			       size_t der_len)
 {
 	struct holds_cert_ctx ctx = {};
-	int rc;
+	int ret;
 
-	rc = keyring_cert_description(der, der_len, ctx.want);
-	if (!rc)
-		rc = keyring_list(keyring, holds_cert_cb, &ctx);
-	if (rc)
-		return rc;
+	ret = keyring_cert_description(der, der_len, ctx.want);
+	if (!ret)
+		ret = keyring_list(keyring, holds_cert_cb, &ctx);
+	if (ret)
+		return ret;
 	return ctx.found ? ctx.serial : -ENOKEY;
 }
 
@@ -259,7 +259,7 @@ int keyring_holds_exactly(key_serial_t keyring,
 	size_t links = 0, cap = 0, i, j;
 	key_serial_t *serials = NULL;
 	bool *matched = NULL;
-	int rc = -ENOMEM;
+	int ret = -ENOMEM;
 
 	if (n) {
 		want = xcalloc(n, sizeof(*want));
@@ -268,13 +268,13 @@ int keyring_holds_exactly(key_serial_t keyring,
 			goto out;
 	}
 	for (i = 0; i < n; i++) {
-		rc = keyring_cert_description(certs[i].der, certs[i].len,
-					      want[i]);
-		if (rc)
+		ret = keyring_cert_description(certs[i].der, certs[i].len,
+					       want[i]);
+		if (ret)
 			goto out;
 	}
-	rc = read_links(keyring, &serials, &links, &cap);
-	if (rc)
+	ret = read_links(keyring, &serials, &links, &cap);
+	if (ret)
 		goto out;
 	if (links != n)
 		goto out;
@@ -294,7 +294,7 @@ int keyring_holds_exactly(key_serial_t keyring,
 			goto out;
 		matched[j] = true;
 	}
-	rc = 1;
+	ret = 1;
 out:
 	if (serials)
 		xfree(serials, cap);
@@ -302,7 +302,7 @@ out:
 		xfree(want, n * sizeof(*want));
 	if (matched)
 		xfree(matched, n * sizeof(*matched));
-	return rc;
+	return ret;
 }
 
 int keyring_unlink_key(key_serial_t keyring, key_serial_t key)

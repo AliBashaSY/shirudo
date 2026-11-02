@@ -92,18 +92,18 @@ static int store_blob(const char *path, const __u8 *buf,
 		      __u32 len)
 {
 	char tmp[4096 + 8];
-	int fd, rc;
+	int fd, ret;
 
 	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
 	fd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
 	if (fd < 0)
 		return -1;
-	rc = write_full(fd, buf, len);
+	ret = write_full(fd, buf, len);
 	if (close(fd) != 0)
-		rc = -1;
-	if (rc == 0)
-		rc = rename(tmp, path);
-	return rc;
+		ret = -1;
+	if (ret == 0)
+		ret = rename(tmp, path);
+	return ret;
 }
 
 static int process(__u8 **resp, __u32 *resp_size,
@@ -126,7 +126,7 @@ static int save_state(const char *dir)
 	};
 	char path[4096];
 	size_t i;
-	int rc = 0;
+	int ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(blobs); i++) {
 		__u32 blob_len = 0;
@@ -134,15 +134,15 @@ static int save_state(const char *dir)
 
 		if (TPMLIB_GetState(blobs[i].type, &blob, &blob_len) !=
 		    TPM_SUCCESS || !blob) {
-			rc = -1;
+			ret = -1;
 			continue;
 		}
 		snprintf(path, sizeof(path), "%s/%s", dir, blobs[i].name);
 		if (store_blob(path, blob, blob_len) != 0)
-			rc = -1;
+			ret = -1;
 		free(blob);
 	}
-	return rc;
+	return ret;
 }
 
 int main(int argc, char **argv)
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	__u8 *resp = NULL, *permanent = NULL, *vol = NULL;
 	__u32 resp_size = 0, resp_cap = 0, permanent_len, vol_len;
 	char path[4096];
-	int rc = 0;
+	int ret = 0;
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: tpmsim-cmd <state-dir>\n");
@@ -202,22 +202,22 @@ int main(int argc, char **argv)
 		if (len < 10 || len > sizeof(cmd) ||
 		    (len > 10 && read_full(STDIN_FILENO, cmd + 10,
 					   len - 10) != 0)) {
-			rc = 1;
+			ret = 1;
 			break;
 		}
 		if (process(&resp, &resp_size, &resp_cap, cmd, len) != 0 ||
 		    write_full(STDOUT_FILENO, resp, resp_size) != 0) {
-			rc = 1;
+			ret = 1;
 			break;
 		}
 	}
 	if (save_state(".") != 0) {
 		fprintf(stderr, "tpmsim-cmd: saving TPM state failed\n");
-		rc = 1;
+		ret = 1;
 	}
 	TPMLIB_Terminate();
 	free(resp);
 	free(permanent);
 	free(vol);
-	return rc;
+	return ret;
 }

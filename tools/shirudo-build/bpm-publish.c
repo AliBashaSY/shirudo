@@ -51,10 +51,10 @@ static void tree_append_usage(void)
 		KEYS_DIR);
 }
 
-static int publish_fail(const char *action, int rc)
+static int publish_fail(const char *action, int ret)
 {
-	if (rc < 0)
-		pr_err("bpm %s: %s", action, strerror(-rc));
+	if (ret < 0)
+		pr_err("bpm %s: %s", action, strerror(-ret));
 	else
 		pr_err("bpm %s failed", action);
 	return 1;
@@ -71,15 +71,15 @@ static int sign_detached(const void *payload, size_t len,
 	struct shirudo_sign_io io = {
 		.insns = payload, .insns_sz = len, .signature_sz = BPM_SIGN_MAX,
 	};
-	int rc;
+	int ret;
 
 	io.signature = xmalloc(io.signature_sz);
 	if (!io.signature)
 		return -ENOMEM;
-	rc = cms_sign(&io, key, cert);
-	if (rc) {
+	ret = cms_sign(&io, key, cert);
+	if (ret) {
 		xfree(io.signature, BPM_SIGN_MAX);
-		return rc;
+		return ret;
 	}
 	*sig = io.signature;
 	*sig_len = io.signature_sz;
@@ -95,9 +95,9 @@ static void sig_free(__u8 *sig)
 static int index_entry_compare(const void *left, const void *right)
 {
 	const struct bpm_index_entry *a = left, *b = right;
-	int rc = strcmp(a->name, b->name);
+	int ret = strcmp(a->name, b->name);
 
-	return rc ? rc : strcmp(a->version, b->version);
+	return ret ? ret : strcmp(a->version, b->version);
 }
 
 /* A registry without an index yields an empty one. */
@@ -107,46 +107,46 @@ static int fetch_index(struct bpm_oci_client *c, const char *cert,
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;
 	char url[PATH_MAX];
-	int nl = 0, rc;
+	int nl = 0, ret;
 
 	*n = 0;
-	rc = bpm_oci_url(c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG,
-			 url, sizeof(url));
-	if (rc)
-		return rc;
-	rc = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
-	if (rc == -ENOENT)
+	ret = bpm_oci_url(c, BPM_INDEX_REPOSITORY, "manifests", BPM_INDEX_TAG,
+			  url, sizeof(url));
+	if (ret)
+		return ret;
+	ret = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
+	if (ret == -ENOENT)
 		return 0;
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	layers = xcalloc(BPM_MAX_ENTRIES, sizeof(*layers));
 	if (!layers) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
-	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
-				    BPM_MAX_ENTRIES, &nl, NULL, 0);
-	if (rc)
+	ret = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				     BPM_MAX_ENTRIES, &nl, NULL, 0);
+	if (ret)
 		goto out;
-	rc = bpm_oci_get_signed(c, BPM_INDEX_REPOSITORY, layers, nl,
-				BPM_INDEX_MEDIA, BPM_INDEX_SIG_MEDIA, &payload,
-				&sig);
-	if (rc)
+	ret = bpm_oci_get_signed(c, BPM_INDEX_REPOSITORY, layers, nl,
+				 BPM_INDEX_MEDIA, BPM_INDEX_SIG_MEDIA, &payload,
+				 &sig);
+	if (ret)
 		goto out;
 	if (bpm_verify_cms(payload.data, payload.len, sig.data, sig.len, cert)) {
 		pr_err("bpm push: the published repository index is not signed by %s",
 		       cert);
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 		goto out;
 	}
-	rc = bpm_index_parse(payload.data, payload.len, entries, n);
+	ret = bpm_index_parse(payload.data, payload.len, entries, n);
 out:
 	if (layers)
 		xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&payload);
 	bpm_buffer_free(&sig);
-	return rc;
+	return ret;
 }
 
 /*
@@ -170,13 +170,13 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	size_t cap, sig_len = 0;
 	time_t now = time(NULL);
 	__u8 *sig = NULL;
-	int n = 0, rc;
+	int n = 0, ret;
 
 	entries = xcalloc(BPM_MAX_ENTRIES, sizeof(*entries));
 	if (!entries)
 		return -ENOMEM;
-	rc = fetch_index(c, cert, entries, &n);
-	if (rc)
+	ret = fetch_index(c, cert, entries, &n);
+	if (ret)
 		goto out;
 	for (int i = 0; i < n; i++) {
 		if (strcmp(entries[i].name, info->name) ||
@@ -186,14 +186,14 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 		    strcmp(entries[i].package_digest, layer->digest)) {
 			pr_err("bpm push: the repository index already lists %s %s "
 			       "with different content", info->name, info->version);
-			rc = -EEXIST;
+			ret = -EEXIST;
 			goto out;
 		}
 		entry = &entries[i];
 	}
 	if (!entry) {
 		if (n >= BPM_MAX_ENTRIES) {
-			rc = -E2BIG;
+			ret = -E2BIG;
 			goto out;
 		}
 		entry = &entries[n++];
@@ -210,13 +210,13 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	qsort(entries, (size_t)n, sizeof(*entries), index_entry_compare);
 
 	if (iso8601(now, timestamp, sizeof(timestamp))) {
-		rc = -EIO;
+		ret = -EIO;
 		goto out;
 	}
 	cap = 4096 + (size_t)n * 4096;
 	body = xmalloc(cap);
 	if (!body) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = body, .cap = cap };
@@ -238,28 +238,28 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	json_arr_close(&e);
 	json_obj_close(&e);
 	if (e.err) {
-		rc = e.err;
+		ret = e.err;
 		goto out;
 	}
-	rc = sign_detached(body, e.len, key, cert, &sig, &sig_len);
-	if (rc)
+	ret = sign_detached(body, e.len, key, cert, &sig, &sig_len);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, empty_config,
-			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-			       &config);
-	if (rc)
+	ret = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, empty_config,
+				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+				&config);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, body, e.len,
-			       BPM_INDEX_MEDIA, &payload_layer);
-	if (rc)
+	ret = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, body, e.len,
+				BPM_INDEX_MEDIA, &payload_layer);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, sig, sig_len,
-			       BPM_INDEX_SIG_MEDIA, &sig_layer);
-	if (rc)
+	ret = bpm_oci_push_blob(c, BPM_INDEX_REPOSITORY, sig, sig_len,
+				BPM_INDEX_SIG_MEDIA, &sig_layer);
+	if (ret)
 		goto out;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
@@ -274,12 +274,12 @@ static int push_index(struct bpm_oci_client *c, const char *repository,
 	json_arr_close(&e);
 	json_obj_close(&e);
 	if (e.err) {
-		rc = e.err;
+		ret = e.err;
 		goto out;
 	}
-	rc = bpm_oci_put_manifest(c, BPM_INDEX_REPOSITORY, BPM_INDEX_TAG,
-				  (const __u8 *)manifest, e.len, digest,
-				  sizeof(digest));
+	ret = bpm_oci_put_manifest(c, BPM_INDEX_REPOSITORY, BPM_INDEX_TAG,
+				   (const __u8 *)manifest, e.len, digest,
+				   sizeof(digest));
 out:
 	if (manifest)
 		xfree(manifest, BPM_MANIFEST_CAP);
@@ -287,7 +287,7 @@ out:
 	if (body)
 		xfree(body, cap);
 	xfree(entries, BPM_MAX_ENTRIES * sizeof(*entries));
-	return rc;
+	return ret;
 }
 
 static int push_package(const char *package_path, const char *raw_repository,
@@ -310,7 +310,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	char *key_manifest_body = NULL;
 	struct stat st;
 	size_t archive_len, manifest_len, key_manifest_len;
-	int rc;
+	int ret;
 
 	if (!package_path || !*package_path)
 		return -EINVAL;
@@ -318,37 +318,37 @@ static int push_package(const char *package_path, const char *raw_repository,
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	rc = read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
-		       &archive_len);
-	if (rc)
-		return rc;
-	rc = bpm_pkg_load_info(package_path, &info);
-	if (rc)
+	ret = read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
+			&archive_len);
+	if (ret)
+		return ret;
+	ret = bpm_pkg_load_info(package_path, &info);
+	if (ret)
 		goto out;
-	rc = bpm_oci_parse_push_repo(raw_repository, &c, repository,
-				     sizeof(repository));
-	if (rc)
+	ret = bpm_oci_parse_push_repo(raw_repository, &c, repository,
+				      sizeof(repository));
+	if (ret)
 		goto out;
 	base = strrchr(package_path, '/');
 	base = base ? base + 1 : package_path;
 	if (!*base || strlen(base) >= sizeof(package_title)) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	bpm_copy_string(package_title, sizeof(package_title), base);
 
-	rc = bpm_oci_push_blob(&c, repository, config_body, strlen(config_body),
-			       BPM_CONFIG_MEDIA, &config);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, config_body, strlen(config_body),
+				BPM_CONFIG_MEDIA, &config);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(&c, repository, archive, archive_len,
-			       BPM_PACKAGE_MEDIA, &layer);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, archive, archive_len,
+				BPM_PACKAGE_MEDIA, &layer);
+	if (ret)
 		goto out;
 
 	manifest_body = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest_body) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	e.buf = manifest_body;
@@ -369,37 +369,37 @@ static int push_package(const char *package_path, const char *raw_repository,
 	json_obj_close(&e);
 	if (e.err) {
 		xfree(manifest_body, BPM_MANIFEST_CAP);
-		rc = e.err;
+		ret = e.err;
 		goto out;
 	}
 	manifest_len = e.len;
 	manifest = (__u8 *)manifest_body;
 	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
 	    strsprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) < 0) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	/*
 	 * By digest until the index takes the version, so a refused re-push
 	 * leaves the tag on the package already published.
 	 */
-	rc = bpm_oci_put_manifest(&c, repository, package_digest, manifest,
-				  manifest_len, key_digest, sizeof(key_digest));
-	if (rc)
+	ret = bpm_oci_put_manifest(&c, repository, package_digest, manifest,
+				   manifest_len, key_digest, sizeof(key_digest));
+	if (ret)
 		goto out;
 
 	/*
 	 * Publish the package certificate as an OCI referrer so `bpm key add`
 	 * can fetch it without downloading the package.
 	 */
-	rc = bpm_oci_push_blob(&c, repository, empty_config,
-			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-			       &key_config);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, empty_config,
+				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+				&key_config);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(&c, repository, info.cert, info.cert_len,
-			       BPM_PUBLIC_KEY_MEDIA, &key_layer);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, info.cert, info.cert_len,
+				BPM_PUBLIC_KEY_MEDIA, &key_layer);
+	if (ret)
 		goto out;
 	subject = (struct bpm_descriptor){
 		.media = "application/vnd.oci.image.manifest.v1+json",
@@ -408,7 +408,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 	subject.size = (__s64)manifest_len;
 	key_manifest_body = xmalloc(BPM_MANIFEST_CAP);
 	if (!key_manifest_body) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = key_manifest_body, .cap = BPM_MANIFEST_CAP };
@@ -427,40 +427,40 @@ static int push_package(const char *package_path, const char *raw_repository,
 	json_obj_close(&e);
 	json_obj_close(&e);
 	if (e.err) {
-		rc = e.err;
+		ret = e.err;
 		goto out;
 	}
 	key_manifest_len = e.len;
 	if (bpm_sha256_hex(key_manifest_body, key_manifest_len, hex,
 			   sizeof(hex)) ||
 	    strsprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) < 0) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
-	rc = bpm_oci_put_manifest(&c, repository, key_digest,
-				  (const __u8 *)key_manifest_body,
-				  key_manifest_len, key_digest,
-				  sizeof(key_digest));
-	if (rc)
+	ret = bpm_oci_put_manifest(&c, repository, key_digest,
+				   (const __u8 *)key_manifest_body,
+				   key_manifest_len, key_digest,
+				   sizeof(key_digest));
+	if (ret)
 		goto out;
 	if (index_key && index_cert) {
-		rc = push_index(&c, repository, &info, package_digest, &layer,
-				index_key, index_cert);
-		if (rc)
+		ret = push_index(&c, repository, &info, package_digest, &layer,
+				 index_key, index_cert);
+		if (ret)
 			goto out;
 	}
-	rc = bpm_oci_put_manifest(&c, repository, info.version, manifest,
-				  manifest_len, package_digest,
-				  sizeof(package_digest));
-	if (rc)
+	ret = bpm_oci_put_manifest(&c, repository, info.version, manifest,
+				   manifest_len, package_digest,
+				   sizeof(package_digest));
+	if (ret)
 		goto out;
 	if (strsprintf(reference, sizeof(reference), "oci://%s/%s:%s",
 		       c.registry, repository, info.version) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	*reference_out = xstrdup(reference);
-	rc = *reference_out ? 0 : -ENOMEM;
+	ret = *reference_out ? 0 : -ENOMEM;
 out:
 	if (key_manifest_body)
 		xfree(key_manifest_body, BPM_MANIFEST_CAP);
@@ -469,7 +469,7 @@ out:
 	if (info.cert)
 		xfree(info.cert, info.cert_len + 1);
 	xfree(archive, archive_len + 1);
-	return rc;
+	return ret;
 }
 
 static int tree_string_compare(const void *left, const void *right)
@@ -514,45 +514,45 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	struct shirudo_upatch u;
 	char hex[65], tag[160];
 	char *manifest;
-	int fd, rc;
+	int fd, ret;
 
 	fd = mkstemp(temporary);
 	if (fd < 0)
 		return -errno;
-	rc = write_complete(fd, body, len);
+	ret = write_complete(fd, body, len);
 	close(fd);
-	if (!rc)
-		rc = upatch_open(temporary, &u);
+	if (!ret)
+		ret = upatch_open(temporary, &u);
 	unlink(temporary);
-	if (rc) {
+	if (ret) {
 		pr_err("bpm tree append: %s is not a valid upatch", id);
-		return rc;
+		return ret;
 	}
 	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
 	name[UPATCH_NAME_MAX] = '\0';
 	hex_encode(u.hdr.payload_sha256, 32, hex);
 	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 	upatch_close(&u);
-	if (rc) {
+	if (ret) {
 		pr_err("bpm tree append: the %s artifact for %s is a %s directive named %s",
 		       unload ? "unload" : "load", id,
 		       unload ? "load" : "unload", name);
-		return rc;
+		return ret;
 	}
 	if (strsprintf(tag, sizeof(tag), "upatch-%s-%.16s", id, hex) < 0 || strlen(tag) > 128)
 		return -ENAMETOOLONG;
 	if (strsprintf(title, sizeof(title), "%s.upatch", id) < 0)
 		return -ENAMETOOLONG;
-	rc = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
-			       &layer);
-	if (rc)
-		return rc;
-	rc = bpm_oci_push_blob(c, repository, empty_config,
-			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-			       &config);
-	if (rc)
-		return rc;
+	ret = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
+				&layer);
+	if (ret)
+		return ret;
+	ret = bpm_oci_push_blob(c, repository, empty_config,
+				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+				&config);
+	if (ret)
+		return ret;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest)
 		return -ENOMEM;
@@ -569,15 +569,15 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	json_kv_string(&e, "org.opencontainers.image.title", title);
 	json_obj_close(&e);
 	json_obj_close(&e);
-	rc = e.err;
-	if (!rc)
-		rc = bpm_oci_put_manifest(c, repository, tag,
-					  (const __u8 *)manifest, e.len,
-					  out->manifest_digest,
-					  sizeof(out->manifest_digest));
+	ret = e.err;
+	if (!ret)
+		ret = bpm_oci_put_manifest(c, repository, tag,
+					   (const __u8 *)manifest, e.len,
+					   out->manifest_digest,
+					   sizeof(out->manifest_digest));
 	xfree(manifest, BPM_MANIFEST_CAP);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	bpm_copy_string(out->repository, sizeof(out->repository), raw_repository);
 	bpm_copy_string(out->layer_digest, sizeof(out->layer_digest), layer.digest);
 	if (strsprintf(out->payload_sha256, sizeof(out->payload_sha256),
@@ -606,7 +606,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	struct shirudo_json_emit e;
 	char empty_config[] = "{}";
 	char package_dir[101];
-	int appended = 0, rc;
+	int appended = 0, ret;
 	bool unload;
 
 	for (int i = 2; i < argc; i++) {
@@ -682,40 +682,40 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		return -ENAMETOOLONG;
 	}
 
-	rc = bpm_pkg_load_info(package, &info);
-	if (rc)
-		return rc;
-	rc = bpm_pkg_read_member_in(package, "Beefile", NULL, package_dir,
-				    sizeof(package_dir), &beefile, &len,
-				    4u * 1024u * 1024u);
-	if (rc) {
+	ret = bpm_pkg_load_info(package, &info);
+	if (ret)
+		return ret;
+	ret = bpm_pkg_read_member_in(package, "Beefile", NULL, package_dir,
+				     sizeof(package_dir), &beefile, &len,
+				     4u * 1024u * 1024u);
+	if (ret) {
 		pr_err("bpm tree append: package %s does not include Beefile", package);
 		goto out;
 	}
 	spec = xmalloc(sizeof(*spec));
 	if (!spec) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
-	rc = bpm_build_parse_beefile(beefile, len, spec);
-	if (rc) {
+	ret = bpm_build_parse_beefile(beefile, len, spec);
+	if (ret) {
 		pr_err("bpm tree append: cannot parse the Beefile of %s", package);
 		goto out;
 	}
-	rc = bpm_oci_parse_push_repo(repo_ref, &c, repository, sizeof(repository));
-	if (rc) {
+	ret = bpm_oci_parse_push_repo(repo_ref, &c, repository, sizeof(repository));
+	if (ret) {
 		pr_err("bpm tree append: the repository must be oci://registry/repository");
 		goto out;
 	}
-	rc = bpm_tree_fetch_publication(&c, repository, reference, cert, &pub,
-					parent, sizeof(parent));
-	if (rc == -ENOENT) {
+	ret = bpm_tree_fetch_publication(&c, repository, reference, cert, &pub,
+					 parent, sizeof(parent));
+	if (ret == -ENOENT) {
 		pub = (struct shirudo_tree_publication){ .schema = 1,
 							 .generation = 1 };
 		parent[0] = '\0';
 		if (tree_id)
 			bpm_copy_string(pub.tree_id, sizeof(pub.tree_id), tree_id);
-	} else if (rc) {
+	} else if (ret) {
 		pr_err("bpm tree append: cannot read the publication at %s:%s",
 		       repo_ref, reference);
 		goto out;
@@ -723,7 +723,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		if (tree_id && strcmp(pub.tree_id, tree_id)) {
 			pr_err("bpm tree append: tree id mismatch: existing %s, requested %s",
 			       pub.tree_id, tree_id);
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
 		pub.generation++;
@@ -736,7 +736,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 
 	op = xmalloc(sizeof(*op));
 	if (!op) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	for (size_t i = 0; i < spec->n_upatches; i++) {
@@ -748,9 +748,9 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		if (!u->tree.present)
 			continue;
 		member = unload ? u->tree.unload_artifact : u->tree.load_artifact;
-		rc = bpm_pkg_read_member_in(package, member, package_dir, NULL, 0,
-					    &body, &body_len, BPM_MAX_HTTP_BODY);
-		if (rc) {
+		ret = bpm_pkg_read_member_in(package, member, package_dir, NULL, 0,
+					     &body, &body_len, BPM_MAX_HTTP_BODY);
+		if (ret) {
 			pr_err("bpm tree append: package entry %s not found", member);
 			goto out;
 		}
@@ -760,46 +760,46 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		if (u->tree.selector)
 			op->selector = *u->tree.selector;
 		tree_selector_canonicalize(&op->selector);
-		rc = tree_push_artifact(&c, repository, repo_ref, body, body_len,
-					u->tree.id, unload, &op->artifact);
+		ret = tree_push_artifact(&c, repository, repo_ref, body, body_len,
+					 u->tree.id, unload, &op->artifact);
 		xfree(body, body_len + 1);
-		if (rc)
+		if (ret)
 			goto out;
-		rc = tree_operation_digest(op, op->operation_digest);
-		if (!rc)
-			rc = tree_publication_append(&pub, op);
-		if (rc)
+		ret = tree_operation_digest(op, op->operation_digest);
+		if (!ret)
+			ret = tree_publication_append(&pub, op);
+		if (ret)
 			goto out;
 		pub.head_seq = op->seq;
 		appended++;
 	}
 	if (!appended) {
 		pr_err("bpm tree append: %s has no [upatches.tree] entries", package);
-		rc = -ENOENT;
+		ret = -ENOENT;
 		goto out;
 	}
-	rc = tree_emit_publication(&pub, &payload, &payload_len);
-	if (rc)
+	ret = tree_emit_publication(&pub, &payload, &payload_len);
+	if (ret)
 		goto out;
-	rc = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
-	if (rc)
+	ret = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(&c, repository, empty_config,
-			       strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-			       &config);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, empty_config,
+				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
+				&config);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(&c, repository, payload, payload_len,
-			       BPM_TREE_MEDIA, &payload_layer);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, payload, payload_len,
+				BPM_TREE_MEDIA, &payload_layer);
+	if (ret)
 		goto out;
-	rc = bpm_oci_push_blob(&c, repository, sig, sig_len, BPM_TREE_SIG_MEDIA,
-			       &sig_layer);
-	if (rc)
+	ret = bpm_oci_push_blob(&c, repository, sig, sig_len, BPM_TREE_SIG_MEDIA,
+				&sig_layer);
+	if (ret)
 		goto out;
 	manifest = xmalloc(BPM_MANIFEST_CAP);
 	if (!manifest) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	e = (struct shirudo_json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
@@ -813,12 +813,12 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	bpm_oci_emit_descriptor(&e, NULL, &sig_layer, NULL);
 	json_arr_close(&e);
 	json_obj_close(&e);
-	rc = e.err;
-	if (!rc)
-		rc = bpm_oci_put_manifest(&c, repository, reference,
-					  (const __u8 *)manifest, e.len,
-					  digest, sizeof(digest));
-	if (!rc)
+	ret = e.err;
+	if (!ret)
+		ret = bpm_oci_put_manifest(&c, repository, reference,
+					   (const __u8 *)manifest, e.len,
+					   digest, sizeof(digest));
+	if (!ret)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
 		       digest);
 out:
@@ -835,7 +835,7 @@ out:
 		xfree(beefile, len + 1);
 	if (info.cert)
 		xfree(info.cert, info.cert_len + 1);
-	return rc;
+	return ret;
 }
 
 static void bpm_push_usage(void)
@@ -859,7 +859,7 @@ int shirudo_build_bpm_push(int argc, char **argv)
 	const char *package = NULL, *repository = NULL, *reference = NULL;
 	const char *keys_dir_arg = NULL, *index_cert = NULL, *index_key = NULL;
 	char cert_path[PATH_MAX], key_path[PATH_MAX];
-	int rc;
+	int ret;
 
 	if (argc == 2 && shirudo_build_is_help(argv[1])) {
 		bpm_push_usage();
@@ -914,10 +914,10 @@ int shirudo_build_bpm_push(int argc, char **argv)
 		return 1;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return publish_fail("initialize curl", -EIO);
-	rc = push_package(package, repository, index_key, index_cert, &reference);
+	ret = push_package(package, repository, index_key, index_cert, &reference);
 	curl_global_cleanup();
-	if (rc)
-		return publish_fail("push", rc);
+	if (ret)
+		return publish_fail("push", ret);
 	printf("%s\n", reference);
 	xstrfree((char *)reference);
 	return 0;
@@ -925,7 +925,7 @@ int shirudo_build_bpm_push(int argc, char **argv)
 
 int shirudo_build_bpm_tree(int argc, char **argv)
 {
-	int rc;
+	int ret;
 
 	if (argc < 2 || strcmp(argv[1], "append")) {
 		tree_append_usage();
@@ -937,7 +937,7 @@ int shirudo_build_bpm_tree(int argc, char **argv)
 	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return publish_fail("initialize curl", -EIO);
-	rc = cmd_bpm_tree_append(argc, argv);
+	ret = cmd_bpm_tree_append(argc, argv);
 	curl_global_cleanup();
-	return rc ? publish_fail("tree append", rc) : 0;
+	return ret ? publish_fail("tree append", ret) : 0;
 }

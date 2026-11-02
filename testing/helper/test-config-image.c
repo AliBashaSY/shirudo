@@ -14,14 +14,14 @@
 
 static int header_read(const char *path, struct shirudo_config_image *image)
 {
-	int fd, rc;
+	int fd, ret;
 
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	rc = shirudo_config_image_read_header(fd, image);
+	ret = shirudo_config_image_read_header(fd, image);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 int main(int argc, char **argv)
@@ -33,23 +33,23 @@ int main(int argc, char **argv)
 	};
 	struct shirudo_config_image image;
 	__u8 root[32];
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	if (argc == 4 && !strcmp(argv[1], "root")) {
-		rc = hex_decode(argv[3], root, sizeof(root));
-		if (!rc)
-			rc = shirudo_config_image_open_root(argv[2], root,
-							    &op);
+		ret = hex_decode(argv[3], root, sizeof(root));
+		if (!ret)
+			ret = shirudo_config_image_open_root(argv[2], root,
+							     &op);
 		shirudo_config_image_close(&op);
 	} else if (argc == 3 && !strcmp(argv[1], "decode")) {
-		rc = header_read(argv[2], &image);
-		if (!rc) {
+		ret = header_read(argv[2], &image);
+		if (!ret) {
 			printf("%llu %llu\n",
 			       (__u64)image.data_blocks,
 			       (__u64)image.hash_blocks);
 		}
 	}
-	if (rc)
-		fprintf(stderr, "config image: %s (%d)\n", strerror(-rc), rc);
-	return rc ? 1 : 0;
+	if (ret)
+		fprintf(stderr, "config image: %s (%d)\n", strerror(-ret), ret);
+	return ret ? 1 : 0;
 }

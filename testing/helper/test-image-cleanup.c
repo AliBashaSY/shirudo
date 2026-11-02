@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 {
 	__u32 expected_calls = 1;
 	int expected_result = 0;
-	int rc;
+	int ret;
 
 	if (argc != 2)
 		return 2;
@@ -54,9 +54,9 @@ int main(int argc, char **argv)
 	} else {
 		return 2;
 	}
-	rc = remove_candidate(&candidate);
-	printf("rc=%d removes=%u sleeps=%u invalid=%d\n", rc,
+	ret = remove_candidate(&candidate);
+	printf("rc=%d removes=%u sleeps=%u invalid=%d\n", ret,
 	       remove_calls, sleep_calls, invalid_call);
-	return rc != expected_result || remove_calls != expected_calls ||
+	return ret != expected_result || remove_calls != expected_calls ||
 	       sleep_calls != expected_calls - 1 || invalid_call;
 }

@@ -31,11 +31,11 @@
 
 int shirudo_sha256(const void *data, size_t len, __u8 out[32])
 {
-	int rc = sha256_buffer(data, len, out);
+	int ret = sha256_buffer(data, len, out);
 
-	if (rc)
+	if (ret)
 		memset(out, 0, 32);
-	return rc;
+	return ret;
 }
 
 void sha256_2(const void *a, size_t a_len,
@@ -80,7 +80,7 @@ int chain_init_event(const __u8 cert_sha[32],
 	__u8 tag[sizeof("shirudo-init") + 96];
 	size_t taglen = sizeof("shirudo-init"), listing_len = 0, off = 0, i;
 	char *listing;
-	int rc;
+	int ret;
 
 	/* set_digest = SHA256(sorted "<payload_hex> <name>\n" listing) */
 	if (n > 1)
@@ -103,10 +103,10 @@ int chain_init_event(const __u8 cert_sha[32],
 		}
 		off += (size_t)w;
 	}
-	rc = shirudo_sha256(listing, listing_len, set_digest);
+	ret = shirudo_sha256(listing, listing_len, set_digest);
 	xfree(listing, listing_len + 1);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 
 	memcpy(tag, "shirudo-init", taglen);
 	memcpy(tag + taglen, cert_sha, 32);
@@ -202,14 +202,14 @@ static int register_expectation(const __u8 pcr_before[32],
 				__u8 name_written[TPM_NAME_LEN])
 {
 	__u8 values[64];
-	int rc;
+	int ret;
 
 	bind_values(pcr_before, phase_before, values);
-	rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2, writer_public,
-				 branch_written, branch_init, policy);
-	if (rc) {
-		pr_err("tpm: compute signed register policy: %s", strerror(-rc));
-		return rc;
+	ret = tpm_register_policy(CHAIN_PCR_MASK, values, 2, writer_public,
+				  branch_written, branch_init, policy);
+	if (ret) {
+		pr_err("tpm: compute signed register policy: %s", strerror(-ret));
+		return ret;
 	}
 	tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS,
 		    policy, TPM_NV_DIGEST_LEN, name_unwritten);
@@ -230,31 +230,31 @@ static int register_define(struct shirudo_tpm *tpm, bool defined,
 			   const __u8 policy[32])
 {
 	struct shirudo_config cfg = {};
-	int rc;
+	int ret;
 
 	config_load(&cfg);
 	if (defined) {
-		rc = tpm_nv_undefine(tpm, NV_INDEX,
-				     cfg.tpm_owner_auth,
-				     cfg.tpm_owner_auth_len);
-		if (rc)
+		ret = tpm_nv_undefine(tpm, NV_INDEX,
+				      cfg.tpm_owner_auth,
+				      cfg.tpm_owner_auth_len);
+		if (ret)
 			goto out;
 	}
-	rc = tpm_nv_define(tpm, NV_INDEX, policy,
-			   cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
+	ret = tpm_nv_define(tpm, NV_INDEX, policy,
+			    cfg.tpm_owner_auth, cfg.tpm_owner_auth_len);
 out:
 	explicit_bzero(&cfg, sizeof(cfg));
-	return rc;
+	return ret;
 }
 
 static int register_writer(struct shirudo_tpm *tpm,
 			   __u8 public[TPM_NV_RSA_BYTES])
 {
 	__u8 seed[32];
-	int rc;
+	int ret;
 
-	rc = nv_writer_read(seed, public);
-	return rc ? rc : tpm_nv_set_writer(tpm, seed, public);
+	ret = nv_writer_read(seed, public);
+	return ret ? ret : tpm_nv_set_writer(tpm, seed, public);
 }
 
 /*
@@ -266,31 +266,31 @@ int chain_tpm_bound(struct shirudo_tpm *tpm)
 {
 	struct shirudo_identity id = {};
 	struct shirudo_tpm_key ak = {};
-	int rc;
+	int ret;
 
-	rc = shirudo_enforcement_active();
-	if (rc <= 0)
-		return rc;
-	rc = identity_read(&id);
-	if (rc) {
-		pr_err("tpm: frozen identity unreadable: %s", strerror(-rc));
-		return rc;
+	ret = shirudo_enforcement_active();
+	if (ret <= 0)
+		return ret;
+	ret = identity_read(&id);
+	if (ret) {
+		pr_err("tpm: frozen identity unreadable: %s", strerror(-ret));
+		return ret;
 	}
 	if (id.ak_name_len != TPM_NAME_LEN) {
 		pr_err("tpm: no attestation key name on record");
 		return -EPROTO;
 	}
-	rc = tpm_ak_create(tpm, &ak);
-	if (rc)
-		return rc;
+	ret = tpm_ak_create(tpm, &ak);
+	if (ret)
+		return ret;
 	if (ak.name_len != TPM_NAME_LEN ||
 	    !ct_eq(ak.name, id.ak_name, TPM_NAME_LEN)) {
 		pr_err("tpm: not the TPM init bound (attestation key name "
 		       "differs)");
-		rc = -EACCES;
+		ret = -EACCES;
 	}
 	tpm_key_flush(tpm, &ak);
-	return rc;
+	return ret;
 }
 
 int chain_init(const __u8 event[32],
@@ -302,20 +302,20 @@ int chain_init(const __u8 event[32],
 	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	bool recorded;
-	int rc;
+	int ret;
 
 	memset(info, 0, sizeof(*info));
-	rc = tpm_open(&tpm);
-	if (rc)
+	ret = tpm_open(&tpm);
+	if (ret)
 		return -ENODEV;
-	rc = chain_tpm_bound(tpm);
-	if (rc)
+	ret = chain_tpm_bound(tpm);
+	if (ret)
 		goto out;
-	rc = tpm_reset_count(tpm, &info->reset_count);
-	if (rc)
+	ret = tpm_reset_count(tpm, &info->reset_count);
+	if (ret)
 		goto out;
-	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
-	if (rc)
+	ret = tpm_nv_info(tpm, NV_INDEX, &nv);
+	if (ret)
 		goto out;
 
 	/*
@@ -329,49 +329,49 @@ int chain_init(const __u8 event[32],
 	 * PCR keeps the record of both bindings. A log that cannot be
 	 * read may hold the record, so it is refused as well.
 	 */
-	rc = eventlog_boot_init(&rec);
-	if (rc && rc != -ENOENT) {
+	ret = eventlog_boot_init(&rec);
+	if (ret && ret != -ENOENT) {
 		pr_err("tpm: eventlog %s unreadable: %s; not binding register "
-		       "0x%08x", eventlog_path(), strerror(-rc),
+		       "0x%08x", eventlog_path(), strerror(-ret),
 		       NV_INDEX);
 		goto out;
 	}
-	recorded = !rc && (!rec.have_reset_count ||
-			   rec.reset_count == info->reset_count);
+	recorded = !ret && (!rec.have_reset_count ||
+			    rec.reset_count == info->reset_count);
 	if (recorded) {
-		rc = register_writer(tpm, info->writer_public);
-		if (rc)
+		ret = register_writer(tpm, info->writer_public);
+		if (ret)
 			goto out;
-		rc = register_expectation(rec.pcr_before, rec.phase_before,
-					  info->writer_public, branch_written,
-					  branch_init, policy, unwritten, written);
-		if (rc)
+		ret = register_expectation(rec.pcr_before, rec.phase_before,
+					   info->writer_public, branch_written,
+					   branch_init, policy, unwritten, written);
+		if (ret)
 			goto out;
 		if (!name_equals(&nv, written)) {
 			pr_err("tpm: recorded register has an obsolete policy; "
 			       "trusted reboot required");
-			rc = -EEXIST;
+			ret = -EEXIST;
 			goto out;
 		}
 		if (!ct_eq(info->writer_public, rec.writer_public,
 			   sizeof(info->writer_public))) {
 			pr_err("tpm: recorded NV writer differs from the guarded key");
-			rc = -EKEYREJECTED;
+			ret = -EKEYREJECTED;
 			goto out;
 		}
 		if (nv.defined && nv.written && name_equals(&nv, rec.name)) {
-			rc = tpm_nv_read(tpm, NV_INDEX,
-					 info->value);
-			if (rc)
+			ret = tpm_nv_read(tpm, NV_INDEX,
+					  info->value);
+			if (ret)
 				goto out;
 			memcpy(info->name, nv.name, nv.name_len);
 			info->name_len = nv.name_len;
 			memcpy(info->pcr_before, rec.pcr_before, 32);
 			memcpy(info->phase_before, rec.phase_before, 32);
 			memcpy(info->anchor_digest, rec.anchor_digest, 32);
-			rc = chain_anchor(info->name, info->anchor,
-					  sizeof(info->anchor));
-			if (rc)
+			ret = chain_anchor(info->name, info->anchor,
+					   sizeof(info->anchor));
+			if (ret)
 				goto out;
 			info->initrd = rec.initrd;
 			info->reused = true;
@@ -381,69 +381,69 @@ int chain_init(const __u8 event[32],
 		       "binding another before the next TPM reset",
 		       NV_INDEX, !nv.defined ? "gone" :
 		       !nv.written ? "unwritten" : "not the recorded index");
-		rc = -EEXIST;
+		ret = -EEXIST;
 		goto out;
 	}
 	if (nv.defined && nv.written)
 		pr_warn("tpm: register 0x%08x written this boot without a "
 			"record; rebinding it", NV_INDEX);
 
-	rc = tpm_pcr_read(tpm, CHAIN_PCR, info->pcr_before);
-	if (!rc)
-		rc = tpm_pcr_read(tpm, CHAIN_PHASE_PCR,
-				  info->phase_before);
-	if (rc)
+	ret = tpm_pcr_read(tpm, CHAIN_PCR, info->pcr_before);
+	if (!ret)
+		ret = tpm_pcr_read(tpm, CHAIN_PHASE_PCR,
+				   info->phase_before);
+	if (ret)
 		goto out;
 	info->initrd = in_initrd();
-	rc = register_writer(tpm, info->writer_public);
-	if (rc)
+	ret = register_writer(tpm, info->writer_public);
+	if (ret)
 		goto out;
-	rc = register_expectation(info->pcr_before, info->phase_before,
-				  info->writer_public, branch_written,
-				  branch_init, policy, unwritten, written);
-	if (!rc)
-		rc = chain_anchor(written, info->anchor, sizeof(info->anchor));
-	if (rc)
+	ret = register_expectation(info->pcr_before, info->phase_before,
+				   info->writer_public, branch_written,
+				   branch_init, policy, unwritten, written);
+	if (!ret)
+		ret = chain_anchor(written, info->anchor, sizeof(info->anchor));
+	if (ret)
 		goto out;
 
 	if (!nv.defined || nv.written || !name_equals(&nv, unwritten)) {
-		rc = register_define(tpm, nv.defined, policy);
-		if (rc)
+		ret = register_define(tpm, nv.defined, policy);
+		if (ret)
 			goto out;
-		rc = tpm_nv_info(tpm, NV_INDEX, &nv);
-		if (rc)
+		ret = tpm_nv_info(tpm, NV_INDEX, &nv);
+		if (ret)
 			goto out;
 		if (!nv.defined || !name_equals(&nv, unwritten)) {
 			pr_err("tpm: register 0x%08x name does not match the "
 			       "computed public area", NV_INDEX);
-			rc = -EPROTO;
+			ret = -EPROTO;
 			goto out;
 		}
 	}
 
-	rc = tpm_nv_extend_first(tpm, NV_INDEX,
-				 CHAIN_PCR_MASK, branch_written,
-				 branch_init, event);
-	if (rc)
+	ret = tpm_nv_extend_first(tpm, NV_INDEX,
+				  CHAIN_PCR_MASK, branch_written,
+				  branch_init, event);
+	if (ret)
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	rc = shirudo_sha256(info->anchor, strlen(info->anchor),
-			    info->anchor_digest);
-	if (rc)
+	ret = shirudo_sha256(info->anchor, strlen(info->anchor),
+			     info->anchor_digest);
+	if (ret)
 		goto out;
-	rc = tpm_pcr_extend(tpm, CHAIN_PCR,
-			    info->anchor_digest);
-	if (rc) {
+	ret = tpm_pcr_extend(tpm, CHAIN_PCR,
+			     info->anchor_digest);
+	if (ret) {
 		pr_err("tpm: register written but PCR %u not anchored; "
 		       "the init branch stays open until reboot",
 		       CHAIN_PCR);
 		goto out;
 	}
-	rc = tpm_nv_read(tpm, NV_INDEX, info->value);
+	ret = tpm_nv_read(tpm, NV_INDEX, info->value);
 out:
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }
 
 int chain_extend(const __u8 event[32], __u8 out_chain[32])
@@ -454,84 +454,84 @@ int chain_extend(const __u8 event[32], __u8 out_chain[32])
 	struct tpm_nv_info nv;
 	struct shirudo_tpm *tpm = NULL;
 	__u32 reset;
-	int rc;
+	int ret;
 
-	rc = eventlog_boot_init(&rec);
-	if (rc)
+	ret = eventlog_boot_init(&rec);
+	if (ret)
 		return -ENODEV;		/* no register this boot */
 	bind_values(rec.pcr_before, rec.phase_before, values);
-	rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2, rec.writer_public,
-				 branch_written, branch_init, policy);
-	if (rc) {
-		pr_err("tpm: compute signed register policy: %s", strerror(-rc));
-		return rc;
+	ret = tpm_register_policy(CHAIN_PCR_MASK, values, 2, rec.writer_public,
+				  branch_written, branch_init, policy);
+	if (ret) {
+		pr_err("tpm: compute signed register policy: %s", strerror(-ret));
+		return ret;
 	}
 
-	rc = tpm_open(&tpm);
-	if (rc)
+	ret = tpm_open(&tpm);
+	if (ret)
 		return -ENODEV;
-	rc = chain_tpm_bound(tpm);
-	if (rc)
+	ret = chain_tpm_bound(tpm);
+	if (ret)
 		goto out;
-	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
-	if (rc)
+	ret = tpm_nv_info(tpm, NV_INDEX, &nv);
+	if (ret)
 		goto out;
 	if (!nv.defined || !nv.written) {
-		rc = -ENODEV;
+		ret = -ENODEV;
 		goto out;
 	}
 	if (!name_equals(&nv, rec.name)) {
 		pr_err("tpm: register 0x%08x is not the index init recorded "
 		       "(recreated?)", NV_INDEX);
-		rc = -EACCES;
+		ret = -EACCES;
 		goto out;
 	}
 	if (!ct_eq(nv.policy, policy, sizeof(policy))) {
 		pr_err("tpm: register write policy is obsolete or substituted");
-		rc = -EACCES;
+		ret = -EACCES;
 		goto out;
 	}
-	rc = tpm_reset_count(tpm, &reset);
-	if (rc)
+	ret = tpm_reset_count(tpm, &reset);
+	if (ret)
 		goto out;
 	if (!rec.have_reset_count || reset != rec.reset_count) {
 		pr_err("tpm: register reset differs from the init record");
-		rc = -EACCES;
+		ret = -EACCES;
 		goto out;
 	}
-	rc = register_writer(tpm, writer_public);
-	if (rc)
+	ret = register_writer(tpm, writer_public);
+	if (ret)
 		goto out;
 	if (!ct_eq(writer_public, rec.writer_public, sizeof(writer_public))) {
 		pr_err("tpm: recorded NV writer differs from the guarded key");
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 		goto out;
 	}
-	rc = tpm_nv_extend(tpm, NV_INDEX, branch_written,
-			   branch_init, event);
-	if (rc) {
-		rc = -EIO;
+	ret = tpm_nv_extend(tpm, NV_INDEX, branch_written,
+			    branch_init, event);
+	if (ret) {
+		ret = -EIO;
 		goto out;
 	}
 	if (out_chain)
-		rc = tpm_nv_read(tpm, NV_INDEX, out_chain) ?
+		ret = tpm_nv_read(tpm, NV_INDEX, out_chain) ?
 		     -EIO : 0;
 out:
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }
 
 int chain_read(__u8 out[32])
 {
 	struct shirudo_tpm *tpm = NULL;
-	int rc;
+	int ret;
 
-	rc = tpm_open(&tpm);
-	if (rc)
+	ret = tpm_open(&tpm);
+	if (ret)
 		return -ENODEV;
-	rc = tpm_nv_read(tpm, NV_INDEX, out);
+	ret = tpm_nv_read(tpm, NV_INDEX, out);
 	tpm_close(tpm);
-	return rc ? -ENODEV : 0;
+	return ret ? -ENODEV : 0;
 }
 
 bool chain_bound(void)
@@ -555,38 +555,38 @@ int chain_status(struct chain_status *st)
 	struct shirudo_tpm *tpm = NULL;
 	struct tpm_nv_info nv;
 	__u32 reset_count = 0;
-	int rc;
+	int ret;
 
 	memset(st, 0, sizeof(*st));
 	st->logged = eventlog_boot_init(&st->init) == 0;
 	st->rebound = st->logged && st->init.records_epoch > 1;
-	rc = tpm_open_quiet(&tpm);
-	if (rc)
+	ret = tpm_open_quiet(&tpm);
+	if (ret)
 		return -ENODEV;
 	st->tpm = true;
-	rc = tpm_reset_count(tpm, &reset_count);
-	if (rc)
+	ret = tpm_reset_count(tpm, &reset_count);
+	if (ret)
 		goto out;
-	rc = tpm_nv_info(tpm, NV_INDEX, &nv);
-	if (rc)
+	ret = tpm_nv_info(tpm, NV_INDEX, &nv);
+	if (ret)
 		goto out;
 	st->defined = nv.defined;
 	st->written = nv.written;
 	memcpy(st->name, nv.name, nv.name_len);
 	st->name_len = nv.name_len;
 	if (nv.defined && nv.written)
-		rc = tpm_nv_read(tpm, NV_INDEX, st->value);
+		ret = tpm_nv_read(tpm, NV_INDEX, st->value);
 	st->anchored = nv.defined && nv.written && st->logged &&
 		       name_equals(&nv, st->init.name) &&
 		       (!st->init.have_reset_count ||
 			st->init.reset_count == reset_count);
 	if (st->anchored) {
 		bind_values(st->init.pcr_before, st->init.phase_before, values);
-		rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
-					 st->init.writer_public, branch_written,
-					 branch_init, policy);
-		if (rc) {
-			pr_err("tpm: compute signed register policy: %s", strerror(-rc));
+		ret = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
+					  st->init.writer_public, branch_written,
+					  branch_init, policy);
+		if (ret) {
+			pr_err("tpm: compute signed register policy: %s", strerror(-ret));
 			st->anchored = false;
 			goto out;
 		}
@@ -597,5 +597,5 @@ int chain_status(struct chain_status *st)
 	}
 out:
 	tpm_close(tpm);
-	return rc;
+	return ret;
 }

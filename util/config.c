@@ -154,7 +154,7 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 	const size_t max = MAP_EXPORT_PATH_MAX + 127;
 	size_t capacity = 0;
 	char *line = NULL;
-	int got, rc = 0;
+	int got, ret = 0;
 
 	if (check_trusted(fileno(f), path, false)) {
 		fclose(f);
@@ -171,7 +171,7 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 		if (got < 0) {
 			pr_err("config: %s: unreadable line: %s", path,
 			       strerror(-got));
-			rc = got;
+			ret = got;
 			break;
 		}
 		p = trim(line);
@@ -272,27 +272,27 @@ static int config_parse(struct shirudo_config *cfg, FILE *f,
 			}
 		}
 	}
-	if (ferror(f) && !rc)
-		rc = -EIO;
+	if (ferror(f) && !ret)
+		ret = -EIO;
 	/* The TPM owner's authorization is for no other user's eyes. */
 	if (cfg->tpm_owner_auth_len &&
 	    check_trusted(fileno(f), path, true)) {
 		explicit_bzero(cfg->tpm_owner_auth,
 			       sizeof(cfg->tpm_owner_auth));
 		cfg->tpm_owner_auth_len = 0;
-		rc = -EPERM;
+		ret = -EPERM;
 	}
 	if (line) {
 		/* The owner's authorization may have been read into it. */
 		explicit_bzero(line, capacity);
 		libc_free(line);
 	}
-	if (fclose(f) && !rc)
-		rc = -errno;
-	return rc;
+	if (fclose(f) && !ret)
+		ret = -errno;
+	return ret;
 }
 
-static int config_finish(struct shirudo_config *cfg, int rc)
+static int config_finish(struct shirudo_config *cfg, int ret)
 {
 	if (cfg->map_export_s3_uri[0] && !cfg->map_export_otel_endpoint[0])
 		map_export_bad(cfg, "map_export.s3_uri", "",
@@ -300,12 +300,12 @@ static int config_finish(struct shirudo_config *cfg, int rc)
 	if (cfg->map_export_log_record_max_bytes > cfg->map_export_otlp_max_bytes)
 		map_export_bad(cfg, "map_export.log_record_max_bytes", "",
 			       "must not exceed otlp_max_bytes");
-	return rc;
+	return ret;
 }
 
 int config_load_path(struct shirudo_config *cfg, const char *path)
 {
-	int rc = 0;
+	int ret = 0;
 	FILE *f;
 
 	if (!cfg || !path)
@@ -314,17 +314,17 @@ int config_load_path(struct shirudo_config *cfg, const char *path)
 	f = fopen(path, "r");
 	if (!f) {
 		if (errno != ENOENT)
-			rc = -errno;	/* still apply env override below */
+			ret = -errno;	/* still apply env override below */
 	} else {
-		rc = config_parse(cfg, f, path);
+		ret = config_parse(cfg, f, path);
 	}
-	return config_finish(cfg, rc);
+	return config_finish(cfg, ret);
 }
 
 /* A copy of the descriptor is read from its start; the caller keeps its own. */
 int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
 {
-	int copy, rc;
+	int copy, ret;
 	FILE *f;
 
 	if (!cfg || fd < 0)
@@ -334,15 +334,15 @@ int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
 	if (copy < 0)
 		return -errno;
 	if (lseek(copy, 0, SEEK_SET) < 0) {
-		rc = -errno;
+		ret = -errno;
 		close(copy);
-		return rc;
+		return ret;
 	}
 	f = fdopen(copy, "r");
 	if (!f) {
-		rc = -errno;
+		ret = -errno;
 		close(copy);
-		return rc;
+		return ret;
 	}
 	return config_finish(cfg, config_parse(cfg, f, label));
 }
@@ -350,13 +350,13 @@ int config_load_fd(struct shirudo_config *cfg, int fd, const char *label)
 int config_load(struct shirudo_config *cfg)
 {
 	const char *env;
-	int rc;
+	int ret;
 
 	if (shirudo_image_config_get(cfg))
 		return 0;
-	rc = config_load_path(cfg, CONF_PATH);
-	if (rc && rc != -ENOENT)
-		return rc;
+	ret = config_load_path(cfg, CONF_PATH);
+	if (ret && ret != -ENOENT)
+		return ret;
 
 	/* Env override (handy for tests / not persisting a secret to disk). */
 	env = getenv("SHIRUDO_TPM_OWNER_AUTH");
@@ -375,5 +375,5 @@ int config_load(struct shirudo_config *cfg)
 			pr_warn("SHIRUDO_TPM_TCTI too long (ignored)");
 	}
 
-	return rc == -ENOENT ? 0 : rc;
+	return ret == -ENOENT ? 0 : ret;
 }

@@ -77,17 +77,17 @@ static int dm_command(int fd, __u64 command, union dm_buffer *buf)
 static int dm_control_open(void)
 {
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
 	fd = open("/dev/mapper/control", O_RDWR | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return -errno;
-	rc = fstat(fd, &st) ? -errno : 0;
-	if (!rc && (!S_ISCHR(st.st_mode) || st.st_rdev != makedev(10, 236)))
-		rc = -ENODEV;
-	if (rc) {
+	ret = fstat(fd, &st) ? -errno : 0;
+	if (!ret && (!S_ISCHR(st.st_mode) || st.st_rdev != makedev(10, 236)))
+		ret = -ENODEV;
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return fd;
 }
@@ -99,7 +99,7 @@ int shirudo_dm_verity_list(shirudo_dm_verity_cb callback, void *ctx)
 	struct dm_name_list *entry;
 	struct dm_ioctl *io;
 	size_t offset, avail;
-	int control, rc;
+	int control, ret;
 	void *buffer;
 
 	if (!callback)
@@ -116,29 +116,29 @@ int shirudo_dm_verity_list(shirudo_dm_verity_cb callback, void *ctx)
 	io->version[0] = DM_VERSION_MAJOR;
 	io->data_size = capacity;
 	io->data_start = sizeof(*io);
-	rc = ioctl(control, DM_LIST_DEVICES, io) ? -errno : 0;
-	if (!rc && io->flags & DM_BUFFER_FULL_FLAG)
-		rc = -EOVERFLOW;
-	if (!rc && (io->data_size > capacity || io->data_start < sizeof(*io) ||
-		    io->data_start > io->data_size || io->data_start % 8))
-		rc = -EINVAL;
+	ret = ioctl(control, DM_LIST_DEVICES, io) ? -errno : 0;
+	if (!ret && io->flags & DM_BUFFER_FULL_FLAG)
+		ret = -EOVERFLOW;
+	if (!ret && (io->data_size > capacity || io->data_start < sizeof(*io) ||
+		     io->data_start > io->data_size || io->data_start % 8))
+		ret = -EINVAL;
 	offset = io->data_start;
-	while (!rc && offset < io->data_size) {
+	while (!ret && offset < io->data_size) {
 		avail = io->data_size - offset;
 		if (avail < header + 1) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		entry = (void *)((__u8 *)buffer + offset);
 		if (!entry->dev) {
 			if (entry->next || entry->name[0])
-				rc = -EINVAL;
+				ret = -EINVAL;
 			break;
 		}
 		if (entry->next) {
 			if (entry->next > avail || entry->next % 8 ||
 			    entry->next < header + 1) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			avail = entry->next;
@@ -147,33 +147,33 @@ int shirudo_dm_verity_list(shirudo_dm_verity_cb callback, void *ctx)
 		if (avail > DM_NAME_LEN)
 			avail = DM_NAME_LEN;
 		if (!memchr(entry->name, 0, avail) || !entry->name[0]) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
-		rc = callback(entry->name, (dev_t)entry->dev, ctx);
+		ret = callback(entry->name, (dev_t)entry->dev, ctx);
 		if (!entry->next)
 			break;
 		offset += entry->next;
 	}
 	xfree(buffer, capacity);
 	close(control);
-	return rc;
+	return ret;
 }
 
 static int loop_attach(int file_fd, __u64 bytes, int *out)
 {
 	struct loop_config config = {};
 	char path[64];
-	int control, loop, n, rc;
+	int control, loop, n, ret;
 
 	control = open("/dev/loop-control", O_RDWR | O_CLOEXEC);
 	if (control < 0)
 		return -errno;
 	n = ioctl(control, LOOP_CTL_GET_FREE);
-	rc = n < 0 ? -errno : 0;
+	ret = n < 0 ? -errno : 0;
 	close(control);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (strsprintf(path, sizeof(path), "/dev/loop%d", n) < 0)
 		return -ENAMETOOLONG;
 	loop = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
@@ -184,9 +184,9 @@ static int loop_attach(int file_fd, __u64 bytes, int *out)
 	config.info.lo_sizelimit = bytes;
 	config.info.lo_flags = LO_FLAGS_READ_ONLY | LO_FLAGS_AUTOCLEAR;
 	if (ioctl(loop, LOOP_CONFIGURE, &config)) {
-		rc = -errno;
+		ret = -errno;
 		close(loop);
-		return rc;
+		return ret;
 	}
 	*out = loop;
 	return 0;
@@ -311,7 +311,7 @@ int shirudo_dm_verity_inspect(const char *name,
 	struct shirudo_dm_verity device = {.data_loop_fd = -1,
 					   .hash_loop_fd = -1};
 	union dm_buffer buf;
-	int control, rc;
+	int control, ret;
 
 	if (!out || !image || !dm_name_ok(name))
 		return -EINVAL;
@@ -321,18 +321,18 @@ int shirudo_dm_verity_inspect(const char *name,
 		return control;
 	dm_init(&buf, name);
 	buf.io.flags = DM_STATUS_TABLE_FLAG;
-	rc = dm_command(control, DM_TABLE_STATUS, &buf);
-	if (!rc)
-		rc = check_table(&buf, image, &device);
-	if (!rc)
-		rc = device_path(&device, buf.io.dev);
+	ret = dm_command(control, DM_TABLE_STATUS, &buf);
+	if (!ret)
+		ret = check_table(&buf, image, &device);
+	if (!ret)
+		ret = device_path(&device, buf.io.dev);
 	close(control);
-	if (!rc) {
+	if (!ret) {
 		strscpy(device.name, name, sizeof(device.name));
 		device.image = *image;
 		*out = device;
 	}
-	return rc;
+	return ret;
 }
 
 void shirudo_dm_verity_close(struct shirudo_dm_verity *device)
@@ -350,7 +350,7 @@ void shirudo_dm_verity_close(struct shirudo_dm_verity *device)
 int shirudo_dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
 {
 	union dm_buffer buf;
-	int control, rc;
+	int control, ret;
 
 	if (!device || !dm_name_ok(device->name))
 		return -EINVAL;
@@ -360,11 +360,11 @@ int shirudo_dm_verity_remove(struct shirudo_dm_verity *device, bool deferred)
 	dm_init(&buf, device->name);
 	if (deferred)
 		buf.io.flags = DM_DEFERRED_REMOVE;
-	rc = dm_command(control, DM_DEV_REMOVE, &buf);
+	ret = dm_command(control, DM_DEV_REMOVE, &buf);
 	close(control);
-	if (!rc)
+	if (!ret)
 		shirudo_dm_verity_close(device);
-	return rc;
+	return ret;
 }
 
 /* request_key() can find this immutable signature in the caller's thread. */
@@ -414,10 +414,10 @@ static key_serial_t signature_key(int fd, char description[64])
 		return -errno;
 	/* Keep possessor search, but prevent payload and permission changes. */
 	if (syscall(__NR_keyctl, KEYCTL_SETPERM, key, 0x08000000, 0, 0) < 0) {
-		int rc = -errno;
+		int ret = -errno;
 
 		(void)keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
-		return rc;
+		return ret;
 	}
 	return key;
 }
@@ -437,31 +437,31 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	union dm_buffer buf;
 	bool created = false;
 	key_serial_t key = -1;
-	int control = -1, rc, cleanup, n;
+	int control = -1, ret, cleanup, n;
 
 	if (!image || !out || !dm_name_ok(name))
 		return -EINVAL;
 	*out = device;
-	rc = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
-					      &image->image);
-	if (rc)
-		return rc;
+	ret = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
+					       &image->image);
+	if (ret)
+		return ret;
 	device.image = image->image;
 	strscpy(device.name, name, sizeof(device.name));
-	rc = loop_attach(image->data_fd,
-			 image->image.data_blocks *
+	ret = loop_attach(image->data_fd,
+			  image->image.data_blocks *
 				 CONFIG_IMAGE_BLOCK_SIZE,
-			 &device.data_loop_fd);
-	if (!rc)
-		rc = loop_attach(image->hash_fd,
-				 image->image.hash_blocks *
+			  &device.data_loop_fd);
+	if (!ret)
+		ret = loop_attach(image->hash_fd,
+				  image->image.hash_blocks *
 					 CONFIG_IMAGE_BLOCK_SIZE,
-				 &device.hash_loop_fd);
-	if (rc)
+				  &device.hash_loop_fd);
+	if (ret)
 		goto out;
 	if (fstat(device.data_loop_fd, &data_st) ||
 	    fstat(device.hash_loop_fd, &hash_st)) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	hex_encode(image->image.root_hash, 32, root);
@@ -472,7 +472,7 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 		       major(hash_st.st_rdev), minor(hash_st.st_rdev),
 		       (__u64)image->image.data_blocks, root, salt);
 	if (n < 0) {
-		rc = -EOVERFLOW;
+		ret = -EOVERFLOW;
 		goto out;
 	}
 	if (image->image.signed_root) {
@@ -481,25 +481,25 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 
 		key = signature_key(image->signature_fd, signature);
 		if (key < 0) {
-			rc = key;
+			ret = key;
 			goto out;
 		}
 		written = strsprintf(params + n, remaining,
 				     " 2 root_hash_sig_key_desc %s", signature);
 		if (written < 0) {
-			rc = -EOVERFLOW;
+			ret = -EOVERFLOW;
 			goto out;
 		}
 		n += written;
 	}
 	control = dm_control_open();
 	if (control < 0) {
-		rc = control;
+		ret = control;
 		goto out;
 	}
 	dm_init(&buf, name);
-	rc = dm_command(control, DM_DEV_CREATE, &buf);
-	if (rc)
+	ret = dm_command(control, DM_DEV_CREATE, &buf);
+	if (ret)
 		goto out;
 	created = true;
 	dm_init(&buf, name);
@@ -513,32 +513,32 @@ int shirudo_dm_verity_create(const struct shirudo_config_image_open *image,
 	target->next = (sizeof(*target) + n + 1 + 7) & ~7u;
 	buf.io.data_size = buf.io.data_start + target->next;
 	if (image->image.signed_root) {
-		rc = shirudo_config_root_begin(image->image.root_hash, &guard);
-		if (rc)
+		ret = shirudo_config_root_begin(image->image.root_hash, &guard);
+		if (ret)
 			goto out;
 	}
-	rc = dm_command(control, DM_TABLE_LOAD, &buf);
-	if (rc)
+	ret = dm_command(control, DM_TABLE_LOAD, &buf);
+	if (ret)
 		goto out;
 	dm_init(&buf, name);
 	buf.io.flags = DM_READONLY_FLAG;
-	rc = dm_command(control, DM_DEV_SUSPEND, &buf);
-	if (rc)
+	ret = dm_command(control, DM_DEV_SUSPEND, &buf);
+	if (ret)
 		goto out;
 	dm_init(&buf, name);
 	buf.io.flags = DM_STATUS_TABLE_FLAG;
-	rc = dm_command(control, DM_TABLE_STATUS, &buf);
-	if (!rc)
-		rc = check_table(&buf, &image->image, &device);
-	if (!rc)
-		rc = device_path(&device, buf.io.dev);
+	ret = dm_command(control, DM_TABLE_STATUS, &buf);
+	if (!ret)
+		ret = check_table(&buf, &image->image, &device);
+	if (!ret)
+		ret = device_path(&device, buf.io.dev);
 out:
 	cleanup = shirudo_config_root_end(&guard);
-	if (!rc)
-		rc = cleanup;
+	if (!ret)
+		ret = cleanup;
 	if (key >= 0)
 		(void)keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
-	if (rc) {
+	if (ret) {
 		if (created) {
 			dm_init(&buf, name);
 			(void)dm_command(control, DM_DEV_REMOVE, &buf);
@@ -549,14 +549,14 @@ out:
 	}
 	if (control >= 0)
 		close(control);
-	return rc;
+	return ret;
 }
 
 static int loop_open(dev_t device)
 {
 	struct stat st;
 	char path[64];
-	int fd, rc;
+	int fd, ret;
 
 	if (major(device) != 7)
 		return -ENODEV;
@@ -565,12 +565,12 @@ static int loop_open(dev_t device)
 	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;
-	rc = fstat(fd, &st) ? -errno : 0;
-	if (!rc && (!S_ISBLK(st.st_mode) || st.st_rdev != device))
-		rc = -ESTALE;
-	if (rc) {
+	ret = fstat(fd, &st) ? -errno : 0;
+	if (!ret && (!S_ISBLK(st.st_mode) || st.st_rdev != device))
+		ret = -ESTALE;
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return fd;
 }
@@ -600,21 +600,21 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 	int data = -1, hashes = -1, fd = -1;
 	struct shirudo_dm_verity checked;
 	__u64 bytes, size, offset = 0;
-	int rc, readonly;
+	int ret, readonly;
 	struct stat st;
 	size_t count;
 	ssize_t n;
 
 	if (!device || !image)
 		return -EINVAL;
-	rc = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
-					      &image->image);
-	if (rc)
-		return rc;
+	ret = shirudo_config_image_check_files(image->data_fd, image->hash_fd,
+					       &image->image);
+	if (ret)
+		return ret;
 	bytes = image->image.data_blocks * CONFIG_IMAGE_BLOCK_SIZE;
-	rc = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
-	if (rc)
-		return rc;
+	ret = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
+	if (ret)
+		return ret;
 	if (checked.device != device->device ||
 	    checked.data_device != device->data_device ||
 	    checked.hash_device != device->hash_device)
@@ -624,30 +624,30 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 		return data;
 	hashes = loop_open(device->hash_device);
 	if (hashes < 0) {
-		rc = hashes;
+		ret = hashes;
 		goto out;
 	}
-	rc = loop_check(data, image->data_fd, bytes);
-	if (!rc)
-		rc = loop_check(hashes, image->hash_fd,
-				image->image.hash_blocks *
+	ret = loop_check(data, image->data_fd, bytes);
+	if (!ret)
+		ret = loop_check(hashes, image->hash_fd,
+				 image->image.hash_blocks *
 					CONFIG_IMAGE_BLOCK_SIZE);
-	if (rc)
+	if (ret)
 		goto out;
 	fd = open(device->path,
 		  O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK | O_DIRECT);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	if (fstat(fd, &st) || ioctl(fd, BLKGETSIZE64, &size) ||
 	    ioctl(fd, BLKROGET, &readonly)) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	if (!S_ISBLK(st.st_mode) || st.st_rdev != device->device ||
 	    size != bytes || !readonly) {
-		rc = -ESTALE;
+		ret = -ESTALE;
 		goto out;
 	}
 	while (offset < bytes) {
@@ -658,25 +658,25 @@ int shirudo_dm_verity_verify(const struct shirudo_dm_verity *device,
 		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 		if (!n) {
-			rc = -EIO;
+			ret = -EIO;
 			goto out;
 		}
 		offset += n;
 	}
-	rc = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
-	if (!rc && (checked.device != device->device ||
-		    checked.data_device != device->data_device ||
-		    checked.hash_device != device->hash_device))
-		rc = -ESTALE;
-	if (!rc)
-		rc = loop_check(data, image->data_fd, bytes);
-	if (!rc)
-		rc = loop_check(hashes, image->hash_fd,
-				image->image.hash_blocks *
+	ret = shirudo_dm_verity_inspect(device->name, &image->image, &checked);
+	if (!ret && (checked.device != device->device ||
+		     checked.data_device != device->data_device ||
+		     checked.hash_device != device->hash_device))
+		ret = -ESTALE;
+	if (!ret)
+		ret = loop_check(data, image->data_fd, bytes);
+	if (!ret)
+		ret = loop_check(hashes, image->hash_fd,
+				 image->image.hash_blocks *
 					CONFIG_IMAGE_BLOCK_SIZE);
 out:
 	if (fd >= 0)
@@ -684,7 +684,7 @@ out:
 	if (hashes >= 0)
 		close(hashes);
 	close(data);
-	return rc;
+	return ret;
 }
 
 int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
@@ -693,13 +693,13 @@ int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
 	__u64 flags = MS_RDONLY | MS_NODEV | MS_NOSUID;
 	struct shirudo_dm_verity checked;
 	struct stat st;
-	int rc;
+	int ret;
 
 	if (!device || !mountpoint || mountpoint[0] != '/')
 		return -EINVAL;
-	rc = shirudo_dm_verity_inspect(device->name, &device->image, &checked);
-	if (rc)
-		return rc;
+	ret = shirudo_dm_verity_inspect(device->name, &device->image, &checked);
+	if (ret)
+		return ret;
 	if (checked.device != device->device)
 		return -ESTALE;
 	if (!executable)
@@ -707,13 +707,13 @@ int shirudo_dm_verity_mount(const struct shirudo_dm_verity *device,
 	if (mount(device->path, mountpoint, "ext4", flags, "noload"))
 		return -errno;
 	if (stat(mountpoint, &st))
-		rc = -errno;
+		ret = -errno;
 	else if (st.st_dev != device->device)
-		rc = -ESTALE;
+		ret = -ESTALE;
 	else
-		rc = shirudo_dm_verity_inspect(device->name, &device->image,
-					       &checked);
-	if (rc)
+		ret = shirudo_dm_verity_inspect(device->name, &device->image,
+						&checked);
+	if (ret)
 		(void)umount2(mountpoint, 0);
-	return rc;
+	return ret;
 }

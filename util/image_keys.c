@@ -26,7 +26,7 @@ static int revocations(int root_fd, bool apply, bool boot)
 {
 	struct dirent *entry;
 	struct stat root, st;
-	int keys_fd, dir_fd, rc = 0;
+	int keys_fd, dir_fd, ret = 0;
 	DIR *dir;
 
 	if (fstat(root_fd, &root))
@@ -42,9 +42,9 @@ static int revocations(int root_fd, bool apply, bool boot)
 		return errno == ENOENT ? 0 : -errno;
 	dir = fdopendir(dir_fd);
 	if (!dir) {
-		rc = -errno;
+		ret = -errno;
 		close(dir_fd);
-		return rc;
+		return ret;
 	}
 	errno = 0;
 	while ((entry = readdir(dir)) != NULL) {
@@ -58,74 +58,74 @@ static int revocations(int root_fd, bool apply, bool boot)
 			continue;
 		if (strlen(entry->d_name) != 68 ||
 		    strcmp(entry->d_name + 64, ".der")) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		memcpy(name, entry->d_name, 64);
 		name[64] = 0;
-		rc = hex_decode(name, expected, 32);
-		if (rc)
+		ret = hex_decode(name, expected, 32);
+		if (ret)
 			break;
 		hex_encode(expected, 32, canonical);
 		memcpy(canonical + 64, ".der", 5);
 		if (strcmp(canonical, entry->d_name)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		fd = openat(dir_fd, entry->d_name,
 			    O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 		if (fd < 0) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
-		rc = fstat(fd, &st) ? -errno : 0;
-		if (!rc && (!S_ISREG(st.st_mode) || st.st_dev != root.st_dev ||
-			    st.st_size <= 0 ||
-			    st.st_size > KEYS_DER_MAX))
-			rc = -EINVAL;
-		if (!rc)
-			rc = keys_read_der_fd(fd, &der, &size);
+		ret = fstat(fd, &st) ? -errno : 0;
+		if (!ret && (!S_ISREG(st.st_mode) || st.st_dev != root.st_dev ||
+			     st.st_size <= 0 ||
+			     st.st_size > KEYS_DER_MAX))
+			ret = -EINVAL;
+		if (!ret)
+			ret = keys_read_der_fd(fd, &der, &size);
 		close(fd);
-		if (!rc)
-			rc = keys_digest_der(der, size, digest,
-					     fingerprint);
-		if (!rc && memcmp(expected, fingerprint, 32))
-			rc = -EKEYREJECTED;
-		if (!rc && apply)
-			rc = shirudo_keys_revoke_image(der, size, boot);
+		if (!ret)
+			ret = keys_digest_der(der, size, digest,
+					      fingerprint);
+		if (!ret && memcmp(expected, fingerprint, 32))
+			ret = -EKEYREJECTED;
+		if (!ret && apply)
+			ret = shirudo_keys_revoke_image(der, size, boot);
 		xfree(der, size);
-		if (rc)
+		if (ret)
 			break;
 		errno = 0;
 	}
-	if (!entry && errno && !rc)
-		rc = -errno;
+	if (!entry && errno && !ret)
+		ret = -errno;
 	closedir(dir);
-	return rc;
+	return ret;
 }
 
 int shirudo_keys_validate_image_set(const char *primary, int root_fd,
 				    struct shirudo_trusted_set *set)
 {
-	int rc;
+	int ret;
 
-	rc = shirudo_image_config_validate(root_fd);
-	if (rc) {
+	ret = shirudo_image_config_validate(root_fd);
+	if (ret) {
 		pr_err("image trust set: validate config image: %s",
-		       strerror(-rc));
-		return rc;
+		       strerror(-ret));
+		return ret;
 	}
-	rc = revocations(root_fd, false, false);
-	if (rc) {
+	ret = revocations(root_fd, false, false);
+	if (ret) {
 		pr_err("image trust set: validate revocations: %s",
-		       strerror(-rc));
-		return rc;
+		       strerror(-ret));
+		return ret;
 	}
-	rc = shirudo_keys_load_image_root(primary, root_fd, true, set);
-	if (rc) {
+	ret = shirudo_keys_load_image_root(primary, root_fd, true, set);
+	if (ret) {
 		pr_err("image trust set: load certificates: %s",
-		       strerror(-rc));
-		return rc;
+		       strerror(-ret));
+		return ret;
 	}
 	if (!set->n || set->n_unvouched) {
 		pr_err("image trust set: reject set with %zu certificates and %zu unvouched",
@@ -139,7 +139,7 @@ int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
 {
 	key_serial_t keyring;
 	size_t i;
-	int rc;
+	int ret;
 
 	keyring = keyring_bpf_serial();
 	if (keyring < 0)
@@ -148,12 +148,12 @@ int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
 		const __u8 *der = NULL;
 		size_t size = 0;
 
-		rc = keys_cert_der(&set->certs[i], &der, &size);
-		if (rc)
-			return rc;
-		rc = keyring_holds_cert(keyring, der, size);
-		if (rc != 1)
-			return rc < 0 ? rc : -ENOKEY;
+		ret = keys_cert_der(&set->certs[i], &der, &size);
+		if (ret)
+			return ret;
+		ret = keyring_holds_cert(keyring, der, size);
+		if (ret != 1)
+			return ret < 0 ? ret : -ENOKEY;
 	}
 	return 0;
 }
@@ -161,17 +161,17 @@ int shirudo_keys_check_image_set(const struct shirudo_trusted_set *set)
 int shirudo_keys_validate_image(int root_fd)
 {
 	struct shirudo_trusted_set set;
-	int rc;
+	int ret;
 
-	rc = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
-					     root_fd, &set);
-	return rc ? rc : shirudo_keys_check_image_set(&set);
+	ret = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
+					      root_fd, &set);
+	return ret ? ret : shirudo_keys_check_image_set(&set);
 }
 
 int shirudo_keys_apply_image(int root_fd, bool boot)
 {
-	int rc;
+	int ret;
 
-	rc = shirudo_keys_validate_image(root_fd);
-	return rc ? rc : revocations(root_fd, true, boot);
+	ret = shirudo_keys_validate_image(root_fd);
+	return ret ? ret : revocations(root_fd, true, boot);
 }

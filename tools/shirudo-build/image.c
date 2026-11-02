@@ -117,21 +117,21 @@ static int verify_root_signature(const char root[65], const __u8 *signature,
 {
 	struct shirudo_cert cert = {};
 	char algorithm[32];
-	int rc;
+	int ret;
 
-	rc = cert_read_file(path, &cert);
-	if (!rc)
-		rc = cert_key_algorithm(&cert, algorithm,
-					sizeof(algorithm));
-	if (!rc && strcmp(algorithm, "ML-DSA-87"))
-		rc = -EKEYREJECTED;
-	if (!rc && cms_signed_by(signature, size, &cert) != 1)
-		rc = -EKEYREJECTED;
-	if (!rc)
-		rc = verify_detached((const __u8 *)root, 64,
-				     signature, size, &cert);
+	ret = cert_read_file(path, &cert);
+	if (!ret)
+		ret = cert_key_algorithm(&cert, algorithm,
+					 sizeof(algorithm));
+	if (!ret && strcmp(algorithm, "ML-DSA-87"))
+		ret = -EKEYREJECTED;
+	if (!ret && cms_signed_by(signature, size, &cert) != 1)
+		ret = -EKEYREJECTED;
+	if (!ret)
+		ret = verify_detached((const __u8 *)root, 64,
+				      signature, size, &cert);
 	cert_free(&cert);
-	return rc;
+	return ret;
 }
 
 static int verify_image(const char *prefix, const char *cert)
@@ -143,18 +143,18 @@ static int verify_image(const char *prefix, const char *cert)
 	size_t size = 0;
 	char root[65];
 	ssize_t n;
-	int rc;
+	int ret;
 
-	rc = shirudo_config_image_open(prefix, &image);
-	if (rc)
-		return rc;
+	ret = shirudo_config_image_open(prefix, &image);
+	if (ret)
+		return ret;
 	while (size < sizeof(signature)) {
 		n = pread(image.signature_fd, signature + size,
 			  sizeof(signature) - size, size);
 		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 		if (!n)
@@ -162,19 +162,19 @@ static int verify_image(const char *prefix, const char *cert)
 		size += n;
 	}
 	if (!size || size > CONFIG_IMAGE_SIG_MAX) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	hex_encode(image.image.root_hash, sizeof(image.image.root_hash),
 		   root);
-	rc = verify_root_signature(root, signature, size, cert);
-	if (!rc)
-		rc = verify_verity(image.data_fd, image.hash_fd, root);
-	if (!rc)
+	ret = verify_root_signature(root, signature, size, cert);
+	if (!ret)
+		ret = verify_verity(image.data_fd, image.hash_fd, root);
+	if (!ret)
 		puts(root);
 out:
 	shirudo_config_image_close(&image);
-	return rc;
+	return ret;
 }
 
 static int sign_root(const char *input, const char *output, const char *pkey,
@@ -186,30 +186,30 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 	size_t done = 0;
 	struct stat st;
 	ssize_t size;
-	int fd, rc;
+	int fd, ret;
 
 	if (shirudo_build_check_keys(pkey, cert))
 		return -EKEYREJECTED;
 	fd = open(input, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;
-	rc = fstat(fd, &st) ? -errno : 0;
-	if (!rc && (!S_ISREG(st.st_mode) || st.st_size != 64))
-		rc = -EINVAL;
-	while (!rc && done < 64) {
+	ret = fstat(fd, &st) ? -errno : 0;
+	if (!ret && (!S_ISREG(st.st_mode) || st.st_size != 64))
+		ret = -EINVAL;
+	while (!ret && done < 64) {
 		size = read(fd, root + done, 64 - done);
 		if (size < 0) {
 			if (errno != EINTR)
-				rc = -errno;
+				ret = -errno;
 		} else if (!size) {
-			rc = -EIO;
+			ret = -EIO;
 		} else {
 			done += size;
 		}
 	}
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	for (done = 0; done < 64; done++)
 		if (!((root[done] >= '0' && root[done] <= '9') ||
 		      (root[done] >= 'a' && root[done] <= 'f')))
@@ -218,22 +218,22 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 	sign.insns_sz = 64;
 	sign.signature = signature;
 	sign.signature_sz = sizeof(signature);
-	rc = cms_sign(&sign, pkey, cert);
-	if (!rc)
-		rc = verify_root_signature(root, signature, sign.signature_sz,
-					   cert);
-	if (rc)
-		return rc;
+	ret = cms_sign(&sign, pkey, cert);
+	if (!ret)
+		ret = verify_root_signature(root, signature, sign.signature_sz,
+					    cert);
+	if (ret)
+		return ret;
 	fd = open(output, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0644);
 	if (fd < 0)
 		return -errno;
-	rc = write_complete(fd, signature, sign.signature_sz);
-	if (!rc && fsync(fd))
-		rc = -errno;
+	ret = write_complete(fd, signature, sign.signature_sz);
+	if (!ret && fsync(fd))
+		ret = -errno;
 	close(fd);
-	if (rc)
+	if (ret)
 		unlink(output);
-	return rc;
+	return ret;
 }
 
 int shirudo_build_image(int argc, char **argv)
@@ -244,7 +244,7 @@ int shirudo_build_image(int argc, char **argv)
 	const char *input = NULL, *prefix = NULL;
 	const char *cert = CERT_PATH;
 	const char *keys_dir = NULL;
-	int i, rc;
+	int i, ret;
 
 	if (argc >= 2 && !strcmp(argv[1], "build"))
 		return build_image(argc, argv);
@@ -254,10 +254,10 @@ int shirudo_build_image(int argc, char **argv)
 	}
 	if (argc == 5 && !strcmp(argv[1], "verify") &&
 	    !strcmp(argv[3], "--cert")) {
-		rc = verify_image(argv[2], argv[4]);
-		if (rc)
-			pr_err("image verify: %s", strerror(-rc));
-		return rc ? 1 : 0;
+		ret = verify_image(argv[2], argv[4]);
+		if (ret)
+			pr_err("image verify: %s", strerror(-ret));
+		return ret ? 1 : 0;
 	}
 	if (argc < 2 || strcmp(argv[1], "sign-root")) {
 		image_usage(stderr);
@@ -291,17 +291,17 @@ int shirudo_build_image(int argc, char **argv)
 		return 2;
 	keys_dir = keys_dir_resolve(keys_dir);
 	if (keys_dir) {
-		rc = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
-			       cert_path, sizeof(cert_path));
-		if (rc)
+		ret = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
+				cert_path, sizeof(cert_path));
+		if (ret)
 			return 2;
 		if (!explicit_key)
 			pkey = pkey_path;
 		if (!explicit_cert)
 			cert = cert_path;
 	}
-	rc = sign_root(input, prefix, pkey, cert);
-	if (rc)
-		pr_err("image sign-root: %s", strerror(-rc));
-	return rc ? 1 : 0;
+	ret = sign_root(input, prefix, pkey, cert);
+	if (ret)
+		pr_err("image sign-root: %s", strerror(-ret));
+	return ret ? 1 : 0;
 }

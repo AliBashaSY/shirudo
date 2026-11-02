@@ -207,16 +207,16 @@ int tpm_policy_signed(const __u8 prev[32],
 	__u8 public[TPM_NV_RSA_PUBLIC_AREA_LEN];
 	__u8 bytes[32 + sizeof(TPM_NV_POLICY_REF) - 1];
 	__u8 name[TPM_NAME_LEN];
-	int rc;
+	int ret;
 
 	tpm_writer_public(writer_public, public);
-	rc = tpm_object_name(public, sizeof(public), name);
-	if (rc)
-		return rc;
-	rc = policy_hash(prev, TPM_CC_POLICY_SIGNED, name, sizeof(name), NULL,
-			 0, out);
-	if (rc)
-		return rc;
+	ret = tpm_object_name(public, sizeof(public), name);
+	if (ret)
+		return ret;
+	ret = policy_hash(prev, TPM_CC_POLICY_SIGNED, name, sizeof(name), NULL,
+			  0, out);
+	if (ret)
+		return ret;
 	memcpy(bytes, out, 32);
 	memcpy(bytes + 32, TPM_NV_POLICY_REF,
 	       sizeof(TPM_NV_POLICY_REF) - 1);
@@ -238,15 +238,15 @@ int tpm_register_policy_final(const __u8 branch_written[32],
 			      const __u8 writer_public[TPM_NV_RSA_BYTES],
 			      __u8 policy[32])
 {
-	int rc;
+	int ret;
 
-	rc = tpm_policy_or(branch_written, branch_init, policy);
-	if (!rc)
-		rc = tpm_policy_signed(policy, writer_public, policy);
-	if (!rc)
-		rc = tpm_policy_command_code(policy, TPM_CC_NV_EXTEND,
-					     policy);
-	return rc;
+	ret = tpm_policy_or(branch_written, branch_init, policy);
+	if (!ret)
+		ret = tpm_policy_signed(policy, writer_public, policy);
+	if (!ret)
+		ret = tpm_policy_command_code(policy, TPM_CC_NV_EXTEND,
+					      policy);
+	return ret;
 }
 
 int tpm_register_policy(__u32 pcr_mask,
@@ -257,18 +257,18 @@ int tpm_register_policy(__u32 pcr_mask,
 {
 	static const __u8 zero[32];
 	__u8 pcr_digest[32], unwritten[32];
-	int rc;
+	int ret;
 
-	rc = tpm_policy_nv_written(zero, true, branch_written);
-	if (!rc)
-		rc = tpm_policy_nv_written(zero, false, unwritten);
-	if (!rc)
-		rc = sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
-	if (!rc)
-		rc = tpm_policy_pcr(unwritten, pcr_mask, pcr_digest,
-				    branch_init);
-	if (rc)
-		return rc;
+	ret = tpm_policy_nv_written(zero, true, branch_written);
+	if (!ret)
+		ret = tpm_policy_nv_written(zero, false, unwritten);
+	if (!ret)
+		ret = sha256_buffer(pcr_values, 32 * n_values, pcr_digest);
+	if (!ret)
+		ret = tpm_policy_pcr(unwritten, pcr_mask, pcr_digest,
+				     branch_init);
+	if (ret)
+		return ret;
 	return tpm_register_policy_final(branch_written, branch_init,
 					 writer_public, policy);
 }
@@ -433,12 +433,12 @@ int tpm_ecc_public_parse(const __u8 *buf, size_t len,
 			 struct shirudo_tpm_ecc_public *out)
 {
 	struct shirudo_tpm_public pub;
-	int rc;
+	int ret;
 
 	memset(out, 0, sizeof(*out));
-	rc = tpm_public_parse(buf, len, &pub);
-	if (rc)
-		return rc;
+	ret = tpm_public_parse(buf, len, &pub);
+	if (ret)
+		return ret;
 	if (pub.type != TPM_ALG_ECC ||
 	    pub.sym_alg != TPM_ALG_NULL ||
 	    pub.scheme != TPM_ALG_ECDSA)
@@ -523,7 +523,7 @@ int tpm_credential_protect(const __u8 seed[32],
 	__u8 plain[2 + TPM_CREDENTIAL_LEN], enc[sizeof(plain)];
 	__u8 mac_in[sizeof(enc) + TPM_NAME_LEN], mac[32];
 	__u8 sym_key[16], hmac_key[32];
-	int rc = -EIO;
+	int ret = -EIO;
 
 	if (tpm_kdfa(seed, 32, "STORAGE", name, TPM_NAME_LEN,
 		     NULL, 0, sym_key, sizeof(sym_key)))
@@ -542,12 +542,12 @@ int tpm_credential_protect(const __u8 seed[32],
 	put_be16(out, 32);
 	memcpy(out + 2, mac, 32);
 	memcpy(out + 34, enc, sizeof(enc));
-	rc = 0;
+	ret = 0;
 out:
 	explicit_bzero(plain, sizeof(plain));
 	explicit_bzero(sym_key, sizeof(sym_key));
 	explicit_bzero(hmac_key, sizeof(hmac_key));
-	return rc;
+	return ret;
 }
 
 int tpm_ecdsa_signature_parse(const __u8 *buf, size_t len,

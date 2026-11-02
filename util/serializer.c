@@ -20,13 +20,13 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 {
 	char name[64];
 	struct stat st;
-	int dir_fd, fd, rc;
+	int dir_fd, fd, ret;
 
 	if (!dir || !dir[0] || map_id == 0)
 		return -EINVAL;
-	rc = seal_mkdir_p(dir, 0700);
-	if (rc)
-		return rc;
+	ret = seal_mkdir_p(dir, 0700);
+	if (ret)
+		return ret;
 	dir_fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (dir_fd < 0)
 		return -errno;
@@ -36,20 +36,20 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 	}
 	fd = openat(dir_fd, name, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		close(dir_fd);
-		return rc;
+		return ret;
 	}
-	rc = seal_inherit(dir_fd, fd);
+	ret = seal_inherit(dir_fd, fd);
 	close(dir_fd);
-	if (rc) {
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	if (fstat(fd, &st) != 0) {
-		rc = -errno;
+		ret = -errno;
 		close(fd);
-		return rc;
+		return ret;
 	}
 	if (!S_ISREG(st.st_mode)) {
 		close(fd);
@@ -57,9 +57,9 @@ int serializer_lock_acquire_at(const char *dir, __u32 map_id)
 	}
 	/* The open fd owns the lock; callers release it with close(). */
 	if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-		rc = (errno == EWOULDBLOCK || errno == EAGAIN) ? -EBUSY : -errno;
+		ret = (errno == EWOULDBLOCK || errno == EAGAIN) ? -EBUSY : -errno;
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return fd;
 }

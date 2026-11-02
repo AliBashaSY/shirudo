@@ -86,7 +86,7 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	struct shirudo_upatch_header header = {};
 	__u8 *file;
 	char template[] = "/tmp/test-otel-map-decoder-XXXXXX";
-	int fd, rc;
+	int fd, ret;
 
 	if (file_len > UINT32_MAX || decoder_len > UINT32_MAX ||
 	    source_len > UINT32_MAX || snprintf(path, path_sz, "%s", template) >=
@@ -97,9 +97,9 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 		return -ENOMEM;
 	fd = mkstemp(path);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		xfree(file, file_len);
-		return rc;
+		return ret;
 	}
 
 	header.magic = cpu_to_le64(UPATCH_MAGIC);
@@ -145,13 +145,13 @@ static int make_decoder(bool metric, bool counter, bool snapshot,
 	memcpy(file + data_off + dir_off + sizeof(section), &trailer,
 	       sizeof(trailer));
 
-	rc = write_complete(fd, file, file_len);
-	if (close(fd) != 0 && rc == 0)
-		rc = -errno;
+	ret = write_complete(fd, file, file_len);
+	if (close(fd) != 0 && ret == 0)
+		ret = -errno;
 	xfree(file, file_len);
-	if (rc) {
+	if (ret) {
 		unlink(path);
-		return rc;
+		return ret;
 	}
 	return 0;
 }
@@ -217,18 +217,18 @@ static int print_classification(__u32 type, bool is_signed, bool with_btf,
 	struct fixture f;
 	enum shirudo_otel_signal signal;
 	char reason[160];
-	int rc = fixture_init(&f, type, is_signed, with_btf);
+	int ret = fixture_init(&f, type, is_signed, with_btf);
 
-	if (rc)
+	if (ret)
 		return 1;
 	f.view.serialized = serialized;
-	rc = shirudo_upatch_maps_otel_classify(&f.view, &signal, reason,
-					       sizeof(reason));
-	if (!rc)
+	ret = shirudo_upatch_maps_otel_classify(&f.view, &signal, reason,
+						sizeof(reason));
+	if (!ret)
 		printf("%s:%s\n", signal == SHIRUDO_OTEL_METRIC ?
 		       "metric" : "log", reason);
 	fixture_destroy(&f);
-	return rc != 0;
+	return ret != 0;
 }
 
 static int print_payload(bool metric, bool counter, bool with_location)
@@ -237,30 +237,30 @@ static int print_payload(bool metric, bool counter, bool with_location)
 	char decoder_path[128] = {};
 	char *buf = NULL;
 	size_t len = 0;
-	int rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	int ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
 
-	if (rc)
+	if (ret)
 		return 1;
 	if (!with_location)
 		f.view.location[0] = '\0';
-	rc = make_decoder(metric, counter, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc && metric)
-		rc = shirudo_upatch_maps_otel_build_metric_file(decoder_path,
-								&f.view,
-								&buf, &len);
-	else if (!rc)
-		rc = shirudo_upatch_maps_otel_build_log_file(decoder_path,
-							     &f.view, &buf,
-							     &len);
-	if (!rc && buf)
+	ret = make_decoder(metric, counter, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret && metric)
+		ret = shirudo_upatch_maps_otel_build_metric_file(decoder_path,
+								 &f.view,
+								 &buf, &len);
+	else if (!ret)
+		ret = shirudo_upatch_maps_otel_build_log_file(decoder_path,
+							      &f.view, &buf,
+							      &len);
+	if (!ret && buf)
 		fwrite(buf, 1, len, stdout);
 	if (buf)
 		xfree(buf, JSON_MAX_BYTES);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc != 0;
+	return ret != 0;
 }
 
 static int print_local_json(void)
@@ -293,20 +293,20 @@ static int send_log_limits(const char *url, __u32 retries, __u32 record_max,
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
-	rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
-	if (rc)
+	ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	if (ret)
 		return 1;
-	rc = make_decoder(false, false, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_LOG, &opts);
+	ret = make_decoder(false, false, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_FORCE_LOG, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static int send_log(const char *url, __u32 retries, bool insecure)
@@ -318,20 +318,20 @@ static int send_log(const char *url, __u32 retries, bool insecure)
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
-	rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
-	if (rc)
+	ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	if (ret)
 		return 1;
-	rc = make_decoder(false, false, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_LOG, &opts);
+	ret = make_decoder(false, false, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_FORCE_LOG, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static int print_record_size(void)
@@ -340,24 +340,24 @@ static int print_record_size(void)
 	char decoder_path[128] = {};
 	char *decoded = NULL;
 	size_t decoded_len = 0;
-	int rc;
+	int ret;
 
-	rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
-	if (rc)
+	ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	if (ret)
 		return 1;
-	rc = make_decoder(false, false, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = upatch_decode_map_file_otel(decoder_path, &f.view,
-						 &decoded, &decoded_len);
-	if (!rc)
+	ret = make_decoder(false, false, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = upatch_decode_map_file_otel(decoder_path, &f.view,
+						  &decoded, &decoded_len);
+	if (!ret)
 		printf("%zu\n", decoded_len);
 	if (decoded)
 		xfree(decoded, decoded_len + 1);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc != 0;
+	return ret != 0;
 }
 
 static int send_auto(const char *base, bool is_signed)
@@ -365,19 +365,19 @@ static int send_auto(const char *base, bool is_signed)
 	struct shirudo_otel_opts opts = { .endpoint = base, .retries = 0 };
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, is_signed, true))
 		return 1;
-	rc = make_decoder(!is_signed, !is_signed, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_AUTO, &opts);
+	ret = make_decoder(!is_signed, !is_signed, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_AUTO, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static int send_metric(const char *url)
@@ -388,19 +388,19 @@ static int send_metric(const char *url)
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
-	rc = make_decoder(true, false, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_METRIC, &opts);
+	ret = make_decoder(true, false, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_FORCE_METRIC, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static int send_status(const char *url, const char *status)
@@ -432,20 +432,20 @@ static int send_metric_env(void)
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
-	rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
-	if (rc)
+	ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	if (ret)
 		return 1;
-	rc = make_decoder(true, false, false, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_FORCE_METRIC, &opts);
+	ret = make_decoder(true, false, false, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_FORCE_METRIC, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	fixture_destroy(&f);
-	return rc != 0;
+	return ret != 0;
 }
 
 static bool large_serialized_fixture(struct fixture *f)
@@ -501,12 +501,12 @@ static int send_s3(const char *endpoint, __u32 retries, bool large)
 	};
 	struct fixture f;
 	char decoder_path[128] = {};
-	int rc;
+	int ret;
 
 	if (setenv("AWS_ENDPOINT_URL_S3", endpoint, 1) != 0)
 		return 1;
-	rc = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
-	if (rc)
+	ret = fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true);
+	if (ret)
 		return 1;
 	if (large) {
 		if (!large_serialized_fixture(&f)) {
@@ -515,16 +515,16 @@ static int send_s3(const char *endpoint, __u32 retries, bool large)
 			return 1;
 		}
 	}
-	rc = make_decoder(false, false, true, decoder_path,
-			  sizeof(decoder_path));
-	if (!rc)
-		rc = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
-							SHIRUDO_OTEL_S3, &opts);
+	ret = make_decoder(false, false, true, decoder_path,
+			   sizeof(decoder_path));
+	if (!ret)
+		ret = shirudo_upatch_maps_otel_send_file(decoder_path, &f.view,
+							 SHIRUDO_OTEL_S3, &opts);
 	if (decoder_path[0])
 		unlink(decoder_path);
 	large_serialized_destroy(&f);
 	fixture_destroy(&f);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static int tenant_validation(void)
@@ -534,31 +534,31 @@ static int tenant_validation(void)
 		.retries = 0,
 	};
 	struct fixture f;
-	int rc, failed = 0;
+	int ret, failed = 0;
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
 	opts.tenant_id = "bad tenant";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
-	failed += rc != -EINVAL;
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+					    &opts);
+	failed += ret != -EINVAL;
 	opts.tenant_id = NULL;
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=bad%20tenant", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
-	failed += rc != -EINVAL;
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+					    &opts);
+	failed += ret != -EINVAL;
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=one,x-tenant-id=two", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
-	failed += rc != -EINVAL;
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+					    &opts);
+	failed += ret != -EINVAL;
 	opts.tenant_id = "tenant-cli-1234";
 	setenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS",
 	       "X-Tenant-ID=ignored%20invalid", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
-	failed += rc == -EINVAL;
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+					    &opts);
+	failed += ret == -EINVAL;
 	unsetenv("OTEL_EXPORTER_OTLP_LOGS_HEADERS");
 	fixture_destroy(&f);
 	return failed ? 1 : 0;
@@ -571,7 +571,7 @@ static int s3_validation(void)
 		.retries = 0,
 	};
 	struct fixture f;
-	int rc;
+	int ret;
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
@@ -582,51 +582,51 @@ static int s3_validation(void)
 	unsetenv("AWS_SECRET_ACCESS_KEY");
 	unsetenv("AWS_SESSION_TOKEN");
 	unsetenv("AWS_CA_BUNDLE");
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EACCES)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EACCES)
 		goto fail;
 	setenv("AWS_ACCESS_KEY_ID", "test", 1);
 	setenv("AWS_SECRET_ACCESS_KEY", "bad\nsecret", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EACCES)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EACCES)
 		goto fail;
 	setenv("AWS_SECRET_ACCESS_KEY", "secret", 1);
 	setenv("AWS_ACCESS_KEY_ID", "bad:key", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EACCES)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EACCES)
 		goto fail;
 	setenv("AWS_ACCESS_KEY_ID", "test", 1);
 	setenv("AWS_REGION", "not_a_region", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EINVAL)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EINVAL)
 		goto fail;
 	unsetenv("AWS_REGION");
 	opts.s3_uri = "s3://test-bucket/../escape";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EINVAL)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EINVAL)
 		goto fail;
 	opts.s3_uri = "s3://test-bucket/prefix?query";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EINVAL)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EINVAL)
 		goto fail;
 	opts.s3_uri = "s3://BAD_BUCKET/prefix";
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EINVAL)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EINVAL)
 		goto fail;
 	opts.s3_uri = "s3://test-bucket/prefix";
 	f.view.truncated = true;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	f.view.truncated = false;
-	if (rc != -E2BIG)
+	if (ret != -E2BIG)
 		goto fail;
 	f.view.skipped = true;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
 	f.view.skipped = false;
-	if (rc != -EOPNOTSUPP)
+	if (ret != -EOPNOTSUPP)
 		goto fail;
 	setenv("AWS_ENDPOINT_URL_S3", "http://storage.example", 1);
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
-	if (rc != -EPERM)
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_S3, &opts);
+	if (ret != -EPERM)
 		goto fail;
 	fixture_destroy(&f);
 	return 0;
@@ -642,14 +642,14 @@ static int security_check(void)
 		.retries = 0,
 	};
 	struct fixture f;
-	int rc;
+	int ret;
 
 	if (fixture_init(&f, BPF_MAP_TYPE_PERCPU_ARRAY, false, true))
 		return 1;
-	rc = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
-					   &opts);
+	ret = shirudo_upatch_maps_otel_send(&f.view, SHIRUDO_OTEL_FORCE_LOG,
+					    &opts);
 	fixture_destroy(&f);
-	return rc != -EPERM;
+	return ret != -EPERM;
 }
 
 int main(int argc, char **argv)
@@ -670,11 +670,11 @@ int main(int argc, char **argv)
 	if (argc == 4 && strcmp(argv[1], "retry-after") == 0) {
 		__u64 seconds;
 		time_t now = (time_t)strtoll(argv[3], NULL, 10);
-		int rc = shirudo_otel_retry_after(argv[2], now, &seconds);
+		int ret = shirudo_otel_retry_after(argv[2], now, &seconds);
 
-		if (!rc)
+		if (!ret)
 			printf("%llu\n", seconds);
-		return rc != 0;
+		return ret != 0;
 	}
 	if (argc < 2)
 		return 2;

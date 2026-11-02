@@ -86,21 +86,21 @@ int main(int argc, char **argv)
 				   eventlog_pending_path() :
 				   eventlog_path();
 		__u32 reset = 1;
-		int rc;
+		int ret;
 
 		if (argc == 5)
 			reset = (__u32)strtoul(argv[4], NULL, 10);
-		rc = append_init(path, argv[3], reset);
+		ret = append_init(path, argv[3], reset);
 
-		printf("rc=%d\n", rc);
-		return rc ? 1 : 0;
+		printf("rc=%d\n", ret);
+		return ret ? 1 : 0;
 	}
 	if (strcmp(argv[1], "boot-init") == 0) {
 		struct shirudo_eventlog_init rec;
-		int rc = eventlog_boot_init(&rec);
+		int ret = eventlog_boot_init(&rec);
 
-		printf("rc=%d\n", rc);
-		if (rc)
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("bound_in=%s\nrecords=%u\nreset_count=%u\n",
 		       rec.initrd ? "initrd" : "root", rec.records,
@@ -109,18 +109,18 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "lines") == 0) {
 		__u32 n = 0;
-		int rc = eventlog_boot_lines(count_lines, &n);
+		int ret = eventlog_boot_lines(count_lines, &n);
 
-		printf("rc=%d\nlines=%u\n", rc, n);
-		return rc ? 1 : 0;
+		printf("rc=%d\nlines=%u\n", ret, n);
+		return ret ? 1 : 0;
 	}
 	if (strcmp(argv[1], "adopt") == 0) {
-		int rc = eventlog_adopt_pending();
+		int ret = eventlog_adopt_pending();
 
-		printf("rc=%d\npending=%s\n", rc,
+		printf("rc=%d\npending=%s\n", ret,
 		       access(eventlog_pending_path(), F_OK) == 0 ?
 		       "present" : "absent");
-		return rc ? 1 : 0;
+		return ret ? 1 : 0;
 	}
 	fprintf(stderr, "unknown subcommand\n");
 	return 2;

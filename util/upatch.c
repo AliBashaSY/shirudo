@@ -266,25 +266,25 @@ reject:
 static int upatch_parse(const void *data, size_t size,
 			struct shirudo_upatch *out)
 {
-	int rc;
+	int ret;
 
 	memset(out, 0, sizeof(*out));
 	if (!data || !size || size > UPATCH_FILE_MAX)
 		return -EINVAL;
 	out->map = data;
 	out->map_size = size;
-	rc = parse_header(out->map, out->map_size, &out->hdr);
-	if (rc)
+	ret = parse_header(out->map, out->map_size, &out->hdr);
+	if (ret)
 		goto err;
 	out->rodata_offset_valid = true;
-	rc = validate_bounds(&out->hdr, out->map_size);
-	if (rc)
+	ret = validate_bounds(&out->hdr, out->map_size);
+	if (ret)
 		goto err;
 	parse_signed_sections(out);
 	return 0;
 err:
 	memset(out, 0, sizeof(*out));
-	return rc;
+	return ret;
 }
 
 int upatch_open_memory(const void *data, size_t size,
@@ -297,7 +297,7 @@ int upatch_open_fd(int fd, struct shirudo_upatch *out)
 {
 	struct stat st;
 	void *m;
-	int rc;
+	int ret;
 
 	memset(out, 0, sizeof(*out));
 	if (fstat(fd, &st) != 0)
@@ -312,10 +312,10 @@ int upatch_open_fd(int fd, struct shirudo_upatch *out)
 	if (m == MAP_FAILED)
 		return -errno;
 
-	rc = upatch_parse(m, (size_t)st.st_size, out);
-	if (rc) {
+	ret = upatch_parse(m, (size_t)st.st_size, out);
+	if (ret) {
 		munmap(m, (size_t)st.st_size);
-		return rc;
+		return ret;
 	}
 	out->mapped = true;
 	return 0;
@@ -323,15 +323,15 @@ int upatch_open_fd(int fd, struct shirudo_upatch *out)
 
 int upatch_open(const char *path, struct shirudo_upatch *out)
 {
-	int fd, rc;
+	int fd, ret;
 
 	memset(out, 0, sizeof(*out));
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	rc = upatch_open_fd(fd, out);
+	ret = upatch_open_fd(fd, out);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 void upatch_close(struct shirudo_upatch *u)
@@ -482,7 +482,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	const __u8 *cursor, *end;
 	size_t base_len;
 	__u32 magic, version, count, i, nr_uprobes = 0;
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	*out = NULL;
 	if (!metadata || metadata_len < sizeof(__u32))
@@ -648,7 +648,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			spec->uprobe_path = xstrndup((const char *)cursor,
 						     path_len);
 			if (!spec->uprobe_path) {
-				rc = -ENOMEM;
+				ret = -ENOMEM;
 				goto out;
 			}
 			spec->uprobe_path_len = path_len;
@@ -659,7 +659,7 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 			spec->uprobe_offsets =
 				xcalloc(nr_offsets, sizeof(*spec->uprobe_offsets));
 			if (!spec->uprobe_offsets) {
-				rc = -ENOMEM;
+				ret = -ENOMEM;
 				goto out;
 			}
 			spec->nr_uprobe_offsets = nr_offsets;
@@ -683,5 +683,5 @@ int prog_specs_parse(const void *metadata, __u32 metadata_len,
 	return 0;
 out:
 	prog_specs_free(specs, nr_progs);
-	return rc;
+	return ret;
 }

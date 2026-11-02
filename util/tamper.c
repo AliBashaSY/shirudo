@@ -112,29 +112,29 @@ int tamper_read(struct shirudo_tamper_counts *out)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
-	int fd, rc;
+	int fd, ret;
 	__u32 key;
 
 	memset(out, 0, sizeof(*out));
 	fd = bpf_obj_get(TAMPER_PIN);
 	if (fd < 0)
 		return -errno;
-	rc = bpf_map_get_info_by_fd(fd, &info, &len);
-	if (rc) {
-		rc = -errno;
+	ret = bpf_map_get_info_by_fd(fd, &info, &len);
+	if (ret) {
+		ret = -errno;
 	} else if (info.max_entries != SHIRUDO_TAMPER_MAX ||
 		   info.value_size != sizeof(out->count[0])) {
-		rc = -EPROTO;
+		ret = -EPROTO;
 	} else {
 		for (key = 0; key < SHIRUDO_TAMPER_MAX; key++) {
-			rc = bpf_map_lookup_elem(fd, &key, &out->count[key]);
-			if (rc) {
-				rc = -errno;
+			ret = bpf_map_lookup_elem(fd, &key, &out->count[key]);
+			if (ret) {
+				ret = -errno;
 				break;
 			}
 			out->total += out->count[key];
 		}
 	}
 	close(fd);
-	return rc;
+	return ret;
 }

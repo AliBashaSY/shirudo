@@ -282,7 +282,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	struct shirudo_upatch u;
 	const char *path = NULL;
 	bool json = false;
-	int i, rc, ret = 1;
+	int i, err, ret = 1;
 	__u32 attach_len;
 
 	for (i = 1; i < argc; i++) {
@@ -308,9 +308,9 @@ static int cmd_upatch_info(int argc, const char **argv)
 		return 2;
 	}
 
-	rc = upatch_open(path, &u);
-	if (rc != 0) {
-		pr_err("upatch info: %s: %s", path, strerror(-rc));
+	err = upatch_open(path, &u);
+	if (err != 0) {
+		pr_err("upatch info: %s: %s", path, strerror(-err));
 		return 1;
 	}
 
@@ -506,7 +506,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 {
 	struct dirent **persisted = NULL, **active = NULL;
 	struct shirudo_json_emit e = { .buf = NULL };
-	int np, na, i, j, rc = 0;
+	int np, na, i, j, ret = 0;
 	bool json = false;
 	char *jbuf = NULL;
 
@@ -534,7 +534,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 	if (json) {
 		jbuf = xmalloc(65536);
 		if (!jbuf) {
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
 		e.buf = jbuf;
@@ -632,7 +632,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 		if (e.err) {
 			fprintf(stderr, "upatch list: json encode failed: %s\n",
 				strerror(-e.err));
-			rc = 1;
+			ret = 1;
 		} else {
 			printf("%s\n", jbuf);
 		}
@@ -647,7 +647,7 @@ out:
 	libc_free(active);
 	if (jbuf)
 		xfree(jbuf, 65536);
-	return rc;
+	return ret;
 }
 
 /*
@@ -793,7 +793,7 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 	void *recs;
 	size_t recs_sz;
 	__u32 len;
-	int rc = 0;
+	int ret = 0;
 
 	if (!out || cap == 0)
 		return -EINVAL;
@@ -813,29 +813,29 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 	info.func_info = ptr_to_u64(recs);
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_free;
 	}
 	memcpy(&fi, recs, sizeof(fi));
 	btf = btf__load_from_kernel_by_id(base->btf_id);
 	if (!btf) {
-		rc = -errno;
+		ret = -errno;
 		goto out_free;
 	}
 	t = btf__type_by_id(btf, fi.type_id);
 	name = t ? btf__name_by_offset(btf, t->name_off) : NULL;
 	if (!name || !name[0]) {
-		rc = -ENOENT;
+		ret = -ENOENT;
 	} else if (strlen(name) >= cap) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 	} else {
 		strscpy(out, name, cap);
-		rc = 0;
+		ret = 0;
 	}
 	btf__free(btf);
 out_free:
 	xfree(recs, recs_sz);
-	return rc;
+	return ret;
 }
 
 static int cgroup_skb_attach_type_from_name(const char *name,
@@ -861,35 +861,35 @@ static int prog_attach_cgroup_skb_fallback(int prog_fd,
 {
 	enum bpf_attach_type attach_type;
 	char func[128];
-	int rc;
+	int ret;
 
 	strscpy(func, info->name, sizeof(func));
-	rc = prog_func_name(prog_fd, info, func, sizeof(func));
-	if (rc && !func[0]) {
+	ret = prog_func_name(prog_fd, info, func, sizeof(func));
+	if (ret && !func[0]) {
 		pr_err("program metadata says raw_tracepoint, but loaded "
 		       "program type is cgroup_skb and function name is "
 		       "unavailable; rebuild the upatch with cgroup_skb "
 		       "metadata");
-		return rc;
+		return ret;
 	}
-	rc = cgroup_skb_attach_type_from_name(func, &attach_type);
-	if (rc) {
+	ret = cgroup_skb_attach_type_from_name(func, &attach_type);
+	if (ret) {
 		pr_err("program metadata says raw_tracepoint, but loaded "
 		       "program type is cgroup_skb and function '%s' does "
 		       "not identify ingress or egress; rebuild the upatch "
 		       "with cgroup_skb metadata", func);
-		return rc;
+		return ret;
 	}
 	pr_warn("program metadata says raw_tracepoint, but loaded program "
 		"type is cgroup_skb; inferring %s from function '%s'",
 		attach_type == BPF_CGROUP_INET_EGRESS ? "egress" : "ingress",
 		func);
-	rc = prog_attach_cgroup_skb(prog_fd, attach_type);
-	if (rc >= 0)
+	ret = prog_attach_cgroup_skb(prog_fd, attach_type);
+	if (ret >= 0)
 		pr_info("attached cgroup_skb fallback as %s",
 			attach_type == BPF_CGROUP_INET_EGRESS ?
 			"egress" : "ingress");
-	return rc;
+	return ret;
 }
 
 static int prog_attach_default(int prog_fd)
@@ -917,7 +917,7 @@ static int prog_attach_default(int prog_fd)
 static int prog_attach_cgroup_skb(int prog_fd, enum bpf_attach_type attach_type)
 {
 	union bpf_attr attr = {};
-	int cgroup_fd, rc;
+	int cgroup_fd, ret;
 	long fd;
 
 	cgroup_fd = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -928,9 +928,9 @@ static int prog_attach_cgroup_skb(int prog_fd, enum bpf_attach_type attach_type)
 	attr.link_create.target_fd = (__u32)cgroup_fd;
 	attr.link_create.attach_type = attach_type;
 	fd = syscall(__NR_bpf, BPF_LINK_CREATE, &attr, sizeof(attr));
-	rc = fd >= 0 ? (int)fd : -errno;
+	ret = fd >= 0 ? (int)fd : -errno;
 	close(cgroup_fd);
-	return rc;
+	return ret;
 }
 
 static int prog_attach_netfilter_ipv6_pre_routing(int prog_fd)
@@ -1057,7 +1057,7 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 		__u32 build_id_len = 0;
 		char proc_path[64];
 		struct stat opened_stat;
-		int path_fd, fd, rc;
+		int path_fd, fd, ret;
 
 		if (spec->kind != SHIRUDO_UPATCH_ATTACH_UPROBE_MULTI)
 			continue;
@@ -1065,9 +1065,9 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 		if (path_fd < 0)
 			return -errno;
 		if (fstat(path_fd, &spec->target_stat) != 0) {
-			rc = -errno;
+			ret = -errno;
 			close(path_fd);
-			return rc;
+			return ret;
 		}
 		if (!S_ISREG(spec->target_stat.st_mode)) {
 			close(path_fd);
@@ -1083,9 +1083,9 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 		if (fd < 0)
 			return -errno;
 		if (fstat(fd, &opened_stat) != 0) {
-			rc = -errno;
+			ret = -errno;
 			close(fd);
-			return rc;
+			return ret;
 		}
 		if (opened_stat.st_dev != spec->target_stat.st_dev ||
 		    opened_stat.st_ino != spec->target_stat.st_ino) {
@@ -1098,10 +1098,10 @@ static int prepare_uprobe_targets(struct shirudo_prog_spec *specs,
 				return -ERANGE;
 			}
 		}
-		rc = elf_build_id_fd(fd, build_id, &build_id_len);
-		if (rc) {
+		ret = elf_build_id_fd(fd, build_id, &build_id_len);
+		if (ret) {
 			close(fd);
-			return rc == -EACCES || rc == -EPERM ? rc : -ESTALE;
+			return ret == -EACCES || ret == -EPERM ? ret : -ESTALE;
 		}
 		if (build_id_len != spec->build_id_len ||
 		    memcmp(build_id, spec->build_id, build_id_len) != 0) {
@@ -1180,16 +1180,16 @@ static int netns_initial(void)
 {
 	socklen_t len = sizeof(__u64);
 	__u64 cookie = 0;
-	int fd, rc;
+	int fd, ret;
 
 	fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (fd < 0)
 		return -errno;
-	rc = getsockopt(fd, SOL_SOCKET, SO_NETNS_COOKIE, &cookie, &len) ?
+	ret = getsockopt(fd, SOL_SOCKET, SO_NETNS_COOKIE, &cookie, &len) ?
 	     -errno : 0;
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	return cookie == NET_NS_INIT_COOKIE ? 0 : -EXDEV;
 }
 
@@ -1330,7 +1330,7 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	char pin[PATH_MAX + 32];
 	bool *made = NULL;
 	int test_fd = -1;
-	int rc;
+	int ret;
 
 	if (nr_progs == 0) {
 		pr_warn("upatch carries no programs to attach");
@@ -1339,11 +1339,11 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
 
-	rc = mkdir_if_absent(BPFFS_UPATCHES_DIR, 0700, NULL);
-	if (rc) {
+	ret = mkdir_if_absent(BPFFS_UPATCHES_DIR, 0700, NULL);
+	if (ret) {
 		pr_err("mkdir %s: %s", BPFFS_UPATCHES_DIR,
-		       strerror(-rc));
-		return rc;
+		       strerror(-ret));
+		return ret;
 	}
 	if (strsprintf(dir, sizeof(dir), "%s/%s",
 		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
@@ -1354,9 +1354,9 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 	made = xcalloc(nr_progs, sizeof(*made));
 	if (!made)
 		return -ENOMEM;
-	rc = mkdir_if_absent(dir, 0700, &made_dir);
-	if (rc) {
-		pr_err("mkdir %s: %s", dir, strerror(-rc));
+	ret = mkdir_if_absent(dir, 0700, &made_dir);
+	if (ret) {
+		pr_err("mkdir %s: %s", dir, strerror(-ret));
 		goto out;
 	}
 	count_attach_progs(specs, nr_progs, &attach_count);
@@ -1371,21 +1371,21 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 
 		if (inner_fd <= 0) {
 			pr_err("loader produced no fd for prog %u", i);
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
-		rc = prog_pin_path(pin, sizeof(pin), dir, serializers_dir,
-				   spec, attach_count, attach_seen);
-		if (rc)
+		ret = prog_pin_path(pin, sizeof(pin), dir, serializers_dir,
+				    spec, attach_count, attach_seen);
+		if (ret)
 			goto out;
 		if (spec->role == SHIRUDO_UPATCH_PROG_ROLE_SERIALIZER) {
 			struct stat st;
 
-			rc = mkdir_if_absent(serializers_dir, 0700,
-					     &made_serializers);
-			if (rc) {
+			ret = mkdir_if_absent(serializers_dir, 0700,
+					      &made_serializers);
+			if (ret) {
 				pr_err("mkdir %s: %s", serializers_dir,
-				       strerror(-rc));
+				       strerror(-ret));
 				goto out;
 			}
 			/*
@@ -1393,15 +1393,15 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 			 * bound to maps nothing reaches any more: replace it.
 			 */
 			if (stat(pin, &st) == 0 && unlink(pin)) {
-				rc = -errno;
+				ret = -errno;
 				pr_err("unlink stale serializer pin %s: %s", pin,
-				       strerror(-rc));
+				       strerror(-ret));
 				goto out;
 			}
-			rc = obj_pin(inner_fd, pin);
-			if (rc) {
+			ret = obj_pin(inner_fd, pin);
+			if (ret) {
 				pr_err("pin serializer %s: %s", pin,
-				       strerror(-rc));
+				       strerror(-ret));
 				goto out;
 			}
 			made[i] = true;
@@ -1413,15 +1413,15 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 
 			test_fd = inner_fd;
 			if (stat(pin, &st) == 0 && unlink(pin)) {
-				rc = -errno;
+				ret = -errno;
 				pr_err("unlink stale test-run pin %s: %s", pin,
-				       strerror(-rc));
+				       strerror(-ret));
 				goto out;
 			}
-			rc = obj_pin(inner_fd, pin);
-			if (rc) {
+			ret = obj_pin(inner_fd, pin);
+			if (ret) {
 				pr_err("pin test-run program %s: %s", pin,
-				       strerror(-rc));
+				       strerror(-ret));
 				goto out;
 			}
 			made[i] = true;
@@ -1445,23 +1445,23 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 				pr_err("attach prog %u (%s): %s",
 				       i, attach_kind_name(spec->kind),
 				       strerror(-link_fd));
-			rc = link_fd;
+			ret = link_fd;
 			goto out;
 		}
 		/* Unpinned, a closed link detaches. */
-		rc = link_matches_spec(link_fd, spec);
-		if (rc) {
+		ret = link_matches_spec(link_fd, spec);
+		if (ret) {
 			pr_err("attach prog %u (%s %s): the link is not at "
 			       "the site the metadata names: %s", i,
 			       attach_kind_name(spec->kind), spec->target,
-			       strerror(-rc));
+			       strerror(-ret));
 			close(link_fd);
 			goto out;
 		}
-		rc = obj_pin(link_fd, pin);
+		ret = obj_pin(link_fd, pin);
 		close(link_fd);
-		if (rc) {
-			pr_err("pin %s: %s", pin, strerror(-rc));
+		if (ret) {
+			pr_err("pin %s: %s", pin, strerror(-ret));
 			goto out;
 		}
 		made[i] = true;
@@ -1473,18 +1473,18 @@ static int attach_and_pin_progs(const struct shirudo_loader_ctx *cx,
 		__u32 retval = 0;
 
 		/* A zero context is the load-time arena initialization call. */
-		rc = prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
-				   &retval);
-		if (rc || (__s32)retval < 0) {
+		ret = prog_test_run(test_fd, init_ctx, sizeof(init_ctx),
+				    &retval);
+		if (ret || (__s32)retval < 0) {
 			pr_err("initialize test-run arena: %s",
-			       rc ? strerror(-rc) : strerror(-(__s32)retval));
-			if (!rc)
-				rc = (__s32)retval;
+			       ret ? strerror(-ret) : strerror(-(__s32)retval));
+			if (!ret)
+				ret = (__s32)retval;
 			goto out;
 		}
 	}
 out:
-	if (rc) {
+	if (ret) {
 		attach_seen = 0;
 		for (i = 0; i < nr_progs; i++) {
 			if (made[i] &&
@@ -1501,7 +1501,7 @@ out:
 			rmdir(dir);
 	}
 	xfree(made, nr_progs * sizeof(*made));
-	return rc;
+	return ret;
 }
 
 /*
@@ -1516,7 +1516,7 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	char pin[PATH_MAX + 32];
 	__u32 i;
-	int rc;
+	int ret;
 
 	if (nr_maps == 0)
 		return 0;
@@ -1527,10 +1527,10 @@ static int pin_upatch_maps(const struct shirudo_loader_ctx *cx,
 		return -ENAMETOOLONG;
 	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
-	rc = mkdir_if_absent(maps_dir, 0700, NULL);
-	if (rc) {
+	ret = mkdir_if_absent(maps_dir, 0700, NULL);
+	if (ret) {
 		pr_warn("upatch maps: mkdir %s: %s (continuing without "
-			"map pins)", maps_dir, strerror(-rc));
+			"map pins)", maps_dir, strerror(-ret));
 		return 0;
 	}
 	for (i = 0; i < nr_maps; i++) {
@@ -1620,13 +1620,13 @@ static int trust_anchor_keyring(key_serial_t *keyring, key_serial_t *serial,
 {
 	struct shirudo_identity id;
 	key_serial_t ring;
-	int rc;
+	int ret;
 
-	rc = identity_read(&id);
-	if (rc) {
+	ret = identity_read(&id);
+	if (ret) {
 		pr_err("no trust anchor frozen this boot: %s (run `shirudo "
-		       "init`)", strerror(-rc));
-		rep_fail(rep, "pre_flight", "keyring_missing", -rc,
+		       "init`)", strerror(-ret));
+		rep_fail(rep, "pre_flight", "keyring_missing", -ret,
 			 "no trust anchor frozen this boot");
 		return -1;
 	}
@@ -1678,7 +1678,7 @@ static int upatch_apply(const char *path, bool verify_only,
 	char upatch_name[UPATCH_NAME_MAX + 1];
 	char *vlog;			/* shared PROG_LOAD / TEST_RUN log_buf */
 	size_t insn_cnt, ctx_sz = 0, prog_desc_off;
-	int prog_fd = -1, map_fd = -1, rc;
+	int prog_fd = -1, map_fd = -1, ret;
 	struct shirudo_loader_ctx *cx = NULL;
 	__u32 retval = 0;
 
@@ -1689,10 +1689,10 @@ static int upatch_apply(const char *path, bool verify_only,
 	}
 	vlog[0] = '\0';
 
-	rc = upatch_open(path, &u);
-	if (rc) {
-		pr_err("open %s: %s", path, strerror(-rc));
-		rep_fail(rep, "parse", "parser_rejected", -rc,
+	ret = upatch_open(path, &u);
+	if (ret) {
+		pr_err("open %s: %s", path, strerror(-ret));
+		rep_fail(rep, "parse", "parser_rejected", -ret,
 			 "cannot open .upatch");
 		xfree(vlog, VERIFIER_LOG_MAX);
 		return 1;
@@ -1708,7 +1708,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		       "use `shirudo upatch unload`", path);
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "is an UNLOAD directive");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 	if (u.hdr.loader_insns_len % sizeof(struct bpf_insn)) {
@@ -1716,12 +1716,12 @@ static int upatch_apply(const char *path, bool verify_only,
 		       u.hdr.loader_insns_len, sizeof(struct bpf_insn));
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "loader_insns_len misaligned");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
 	if (trust_anchor_keyring(&keyring, &serial, rep)) {
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -1758,7 +1758,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 	/* The header's copy of the name is what everything else reads. */
@@ -1770,7 +1770,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		       upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "name not signed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -1790,7 +1790,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			       "content (insns || data); refusing");
 			rep_fail(rep, "parse", "parser_rejected", 0,
 				 "payload_sha256 mismatch");
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
 	}
@@ -1815,22 +1815,22 @@ static int upatch_apply(const char *path, bool verify_only,
 			       upatch_name);
 			rep_fail(rep, "parse", "parser_rejected", 0,
 				 "attach metadata not signed");
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
-		rc = prog_specs_parse(attach, attach_len, u.hdr.nr_progs,
-				      &prog_specs);
-		if (rc) {
+		ret = prog_specs_parse(attach, attach_len, u.hdr.nr_progs,
+				       &prog_specs);
+		if (ret) {
 			pr_err("upatch program metadata rejected: %s",
-			       strerror(-rc));
-			rep_fail(rep, "parse", "parser_rejected", -rc,
+			       strerror(-ret));
+			rep_fail(rep, "parse", "parser_rejected", -ret,
 				 "invalid program attach metadata");
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
-		rc = prepare_uprobe_targets(prog_specs, u.hdr.nr_progs);
-		if (rc) {
-			int e = -rc;
+		ret = prepare_uprobe_targets(prog_specs, u.hdr.nr_progs);
+		if (ret) {
+			int e = -ret;
 			const char *cat;
 
 			if (e == ENOENT || e == ENOTDIR)
@@ -1847,7 +1847,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			       cat, strerror(e));
 			rep_fail(rep, "target_verify", cat, e,
 				 "uprobe target verification failed");
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
 	}
@@ -1865,7 +1865,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			pr_err("__loader.map: cannot hash the loader");
 			rep_fail(rep, "signed_loader_load", "unknown", EIO,
 				 "loader digest failed");
-			rc = 1;
+			ret = 1;
 			goto out;
 		}
 		map_fd = loader_map_create("__loader.map", u.hdr.data_len,
@@ -1877,30 +1877,30 @@ static int upatch_apply(const char *path, bool verify_only,
 		pr_err("__loader.map create: %s", strerror(err));
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
 			 err, "__loader.map create failed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
-	rc = loader_map_update(map_fd, data, u.hdr.data_len);
-	if (rc) {
+	ret = loader_map_update(map_fd, data, u.hdr.data_len);
+	if (ret) {
 		int err = errno;
 
 		pr_err("__loader.map update: %s", strerror(err));
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
 			 err, "__loader.map update failed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
 	/* The kernel refuses a signed load whose bound map is not frozen. */
-	rc = loader_map_freeze(map_fd);
-	if (rc) {
+	ret = loader_map_freeze(map_fd);
+	if (ret) {
 		int err = errno;
 
 		pr_err("__loader.map freeze: %s", strerror(err));
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
 			 err, "__loader.map freeze failed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -1922,7 +1922,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(e), e,
 			 "BPF_PROG_LOAD of signed loader failed");
 		report_set_log(rep, vlog);
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -1932,7 +1932,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		u.hdr.data_len);
 
 	if (verify_only) {
-		rc = 0;
+		ret = 0;
 		goto out;
 	}
 
@@ -1956,7 +1956,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		pr_err("ctx alloc");
 		rep_fail(rep, "payload_load", "unknown", ENOMEM,
 			 "ctx alloc failed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 	vlog[0] = '\0';
@@ -1970,8 +1970,8 @@ static int upatch_apply(const char *path, bool verify_only,
 	cx->log_size = VERIFIER_LOG_MAX;
 	cx->log_buf = ptr_to_u64(vlog);
 
-	rc = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
-	if (rc) {
+	ret = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
+	if (ret) {
 		int err = errno;
 
 		pr_err("BPF_PROG_TEST_RUN: %s", strerror(err));
@@ -1980,7 +1980,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		rep_fail(rep, "payload_load", "verifier_rejected", err,
 			 "BPF_PROG_TEST_RUN failed");
 		report_set_log(rep, vlog);
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 	if ((__s32)retval < 0) {
@@ -1997,7 +1997,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		if (rep)
 			rep->loader_return = (__s32)retval;
 		report_set_log(rep, vlog);
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -2008,10 +2008,10 @@ static int upatch_apply(const char *path, bool verify_only,
 	 * Without a pinned link a program detaches when this one-shot CLI
 	 * exits.
 	 */
-	rc = attach_and_pin_progs(cx, prog_desc_off, u.hdr.nr_progs,
-				  upatch_name, prog_specs);
-	if (rc) {
-		int e = -rc;
+	ret = attach_and_pin_progs(cx, prog_desc_off, u.hdr.nr_progs,
+				   upatch_name, prog_specs);
+	if (ret) {
+		int e = -ret;
 		const char *cat;
 
 		if (e == ENOENT || e == ENOTDIR)
@@ -2028,7 +2028,7 @@ static int upatch_apply(const char *path, bool verify_only,
 			cat = "unknown";
 
 		rep_fail(rep, "link_create", cat, e, "attach or pin failed");
-		rc = 1;
+		ret = 1;
 		goto out;
 	}
 
@@ -2041,7 +2041,7 @@ static int upatch_apply(const char *path, bool verify_only,
 		 (int)serial, u.hdr.nr_progs);
 	if (rep)
 		rep->loader_return = (__s32)retval;
-	rc = 0;
+	ret = 0;
 out:
 	prog_specs_free(prog_specs, u.hdr.nr_progs);
 	xfree(vlog, VERIFIER_LOG_MAX);
@@ -2053,7 +2053,7 @@ out:
 	if (map_fd >= 0)
 		close(map_fd);
 	upatch_close(&u);
-	return rc;
+	return ret;
 }
 
 int shirudo_upatch_apply(const char *path)
@@ -2073,15 +2073,15 @@ static int upatch_preflight(const char *expect_chain,
 	char have_hex[2 * CHAIN_DIGEST_LEN + 1];
 	char abi_detail[KERNEL_ABI_DETAIL_MAX];
 	key_serial_t keyring, serial;
-	int fd, rc;
+	int fd, ret;
 
-	rc = kernel_abi_check(abi_detail, sizeof(abi_detail));
-	if (rc) {
+	ret = kernel_abi_check(abi_detail, sizeof(abi_detail));
+	if (ret) {
 		pr_err("upatch: pre-flight refused (category: "
 		       "kernel_abi_unsupported, message: %s)", abi_detail);
 		rep_fail(rep, "pre_flight", "kernel_abi_unsupported",
 			 EOPNOTSUPP, abi_detail);
-		return rc;
+		return ret;
 	}
 
 	if (trust_anchor_keyring(&keyring, &serial, rep))
@@ -2104,15 +2104,15 @@ static int upatch_preflight(const char *expect_chain,
 		       2 * CHAIN_DIGEST_LEN);
 		return -1;
 	}
-	rc = chain_read(have);
-	if (rc == -ENODEV) {
+	ret = chain_read(have);
+	if (ret == -ENODEV) {
 		pr_err("upatch load: pre-flight refused (category: tampered, "
 		       "message: chain_drift) -- register unreadable, cannot "
 		       "confirm --expect-chain");
 		return -1;
 	}
-	if (rc) {
-		pr_err("upatch load: chain read failed: %s", strerror(-rc));
+	if (ret) {
+		pr_err("upatch load: chain read failed: %s", strerror(-ret));
 		return -1;
 	}
 	if (!ct_eq(want, have, sizeof(want))) {
@@ -2199,11 +2199,11 @@ static int append_upatch_event(const char *type, const char *name,
 			       const __u8 event[32], const char *reason)
 {
 	char buf[4096];
-	int rc;
+	int ret;
 
-	rc = format_upatch_event(type, name, payload, event, reason,
-				 buf, sizeof(buf));
-	return rc ? rc : eventlog_append(buf);
+	ret = format_upatch_event(type, name, payload, event, reason,
+				  buf, sizeof(buf));
+	return ret ? ret : eventlog_append(buf);
 }
 
 /*
@@ -2220,45 +2220,45 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 {
 	__u8 event[32], chain[32];
 	char chain_hex[65];
-	int rc;
+	int ret;
 
 	if (out_chain)
 		out_chain[0] = '\0';
 	if (measured)
 		*measured = false;
-	rc = chain_upatch_event(tag, name, payload, event);
-	if (rc) {
+	ret = chain_upatch_event(tag, name, payload, event);
+	if (ret) {
 		pr_err("upatch %s: cannot hash the event (category: tpm_error)",
 		       op);
-		return rc;
+		return ret;
 	}
 
-	rc = chain_extend(event, chain);
-	if (rc == -ENODEV) {
+	ret = chain_extend(event, chain);
+	if (ret == -ENODEV) {
 		pr_err("upatch %s: TPM/register unavailable (category: "
 		       "tpm_error) -- op done but NOT measured; shirudo "
 		       "requires the register init bound this boot", op);
-		return rc;
+		return ret;
 	}
-	if (rc == -EACCES) {
+	if (ret == -EACCES) {
 		pr_err("upatch %s: register is not the one init bound "
 		       "(category: tampered) -- op done but NOT measured; "
 		       "operator must reconcile", op);
-		return rc;
+		return ret;
 	}
-	if (rc) {
+	if (ret) {
 		pr_err("upatch %s: chain extend failed (category: tpm_error) "
 		       "-- op done but chain NOT advanced; operator must "
 		       "reconcile", op);
-		return rc;
+		return ret;
 	}
 	if (measured)
 		*measured = true;
-	rc = append_upatch_event(type, name, payload, event, reason);
-	if (rc) {
+	ret = append_upatch_event(type, name, payload, event, reason);
+	if (ret) {
 		pr_err("upatch %s: eventlog append failed after extend -- "
 		       "chain/log desync; operator must reconcile", op);
-		return rc;
+		return ret;
 	}
 	hex_encode(chain, 32, chain_hex);
 	if (out_chain)
@@ -2269,9 +2269,9 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 }
 
 /* A register other than the one init set up is a verdict, not a TPM fault. */
-static const char *chain_event_category(int rc, bool measured)
+static const char *chain_event_category(int ret, bool measured)
 {
-	return !measured && rc == -EACCES ? "tampered" : "tpm_error";
+	return !measured && ret == -EACCES ? "tampered" : "tpm_error";
 }
 
 static int upatch_chain_event(const char *tag, const char *type,
@@ -2279,7 +2279,7 @@ static int upatch_chain_event(const char *tag, const char *type,
 			      const __u8 payload[32], const char *reason,
 			      char out_chain[65], bool *measured)
 {
-	int lock, rc;
+	int lock, ret;
 
 	if (out_chain)
 		out_chain[0] = '\0';
@@ -2292,10 +2292,10 @@ static int upatch_chain_event(const char *tag, const char *type,
 		       strerror(-lock));
 		return lock;
 	}
-	rc = upatch_chain_event_locked(tag, type, op, name, payload, reason,
-				       out_chain, measured);
+	ret = upatch_chain_event_locked(tag, type, op, name, payload, reason,
+					out_chain, measured);
 	eventlog_unlock(lock);
-	return rc;
+	return ret;
 }
 
 /*
@@ -2324,7 +2324,7 @@ static int append_json_record(const char *path, const char *json, size_t len)
 	struct stat st;
 	char last;
 	off_t original_size;
-	int fd, rc = 0;
+	int fd, ret = 0;
 
 	if (!path || !path[0] || !json)
 		return -EINVAL;
@@ -2333,16 +2333,16 @@ static int append_json_record(const char *path, const char *json, size_t len)
 		return fd;
 	while (flock(fd, LOCK_EX) != 0) {
 		if (errno != EINTR) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 	}
 	if (fstat(fd, &st) != 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_unlock;
 	}
 	if (!S_ISREG(st.st_mode)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out_unlock;
 	}
 	original_size = st.st_size;
@@ -2350,37 +2350,37 @@ static int append_json_record(const char *path, const char *json, size_t len)
 		ssize_t n = pread(fd, &last, 1, original_size - 1);
 
 		if (n != 1) {
-			rc = n < 0 ? -errno : -EIO;
+			ret = n < 0 ? -errno : -EIO;
 			goto out_unlock;
 		}
 		if (last != '\n')
-			rc = write_complete(fd, "\n", 1);
+			ret = write_complete(fd, "\n", 1);
 	}
-	if (!rc)
-		rc = write_complete(fd, json, len);
-	if (!rc)
-		rc = write_complete(fd, "\n", 1);
-	if (!rc && fsync(fd) != 0)
-		rc = -errno;
-	if (rc && ftruncate(fd, original_size) != 0)
+	if (!ret)
+		ret = write_complete(fd, json, len);
+	if (!ret)
+		ret = write_complete(fd, "\n", 1);
+	if (!ret && fsync(fd) != 0)
+		ret = -errno;
+	if (ret && ftruncate(fd, original_size) != 0)
 		pr_warn("upatch map: could not roll back partial JSON append to %s: %s",
 			path, strerror(errno));
 out_unlock:
 	(void)flock(fd, LOCK_UN);
 out:
-	if (close(fd) != 0 && !rc)
-		rc = -errno;
-	return rc;
+	if (close(fd) != 0 && !ret)
+		ret = -errno;
+	return ret;
 }
 
 static int print_json_record(const char *json, size_t len)
 {
-	int rc;
+	int ret;
 
-	rc = write_complete(STDOUT_FILENO, json, len);
-	if (!rc)
-		rc = write_complete(STDOUT_FILENO, "\n", 1);
-	return rc;
+	ret = write_complete(STDOUT_FILENO, json, len);
+	if (!ret)
+		ret = write_complete(STDOUT_FILENO, "\n", 1);
+	return ret;
 }
 
 static int emit_json_record(const char *path, const char *json, size_t len)
@@ -2392,7 +2392,7 @@ static int emit_json_record(const char *path, const char *json, size_t len)
 static int copy_file_atomic(const char *src, const char *dst)
 {
 	char tmp[PATH_MAX + 8], buf[65536];
-	int in, out, dir, rc = 0;
+	int in, out, dir, ret = 0;
 	ssize_t r;
 
 	if (strsprintf(tmp, sizeof(tmp), "%s.new", dst) < 0)
@@ -2407,25 +2407,25 @@ static int copy_file_atomic(const char *src, const char *dst)
 		return out;
 	}
 	while ((r = read(in, buf, sizeof(buf))) > 0) {
-		rc = write_complete(out, buf, (size_t)r);
-		if (rc)
+		ret = write_complete(out, buf, (size_t)r);
+		if (ret)
 			break;
 	}
-	if (r < 0 && !rc)
-		rc = -errno;
-	if (!rc && fsync(out) != 0)
-		rc = -errno;
+	if (r < 0 && !ret)
+		ret = -errno;
+	if (!ret && fsync(out) != 0)
+		ret = -errno;
 	close(in);
-	if (close(out) != 0 && !rc)
-		rc = -errno;
-	if (rc) {
+	if (close(out) != 0 && !ret)
+		ret = -errno;
+	if (ret) {
 		unlink(tmp);
-		return rc;
+		return ret;
 	}
 	if (rename(tmp, dst) != 0) {
-		rc = -errno;
+		ret = -errno;
 		unlink(tmp);
-		return rc;
+		return ret;
 	}
 	/* Persist the rename so a crash can't lose a "loaded" upatch. */
 	dir = open(UPATCHES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -2440,12 +2440,12 @@ static int persist_upatch(const char *src, const char *name)
 {
 	char dst[PATH_MAX];
 	struct stat ss, ds;
-	int rc;
+	int ret;
 
-	rc = seal_mkdir_p(UPATCHES_DIR, 0700);
-	if (rc) {
-		pr_err("mkdir %s: %s", UPATCHES_DIR, strerror(-rc));
-		return rc;
+	ret = seal_mkdir_p(UPATCHES_DIR, 0700);
+	if (ret) {
+		pr_err("mkdir %s: %s", UPATCHES_DIR, strerror(-ret));
+		return ret;
 	}
 	if (strsprintf(dst, sizeof(dst), "%s/%s.upatch", UPATCHES_DIR,
 		       name) < 0)
@@ -2516,7 +2516,7 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 static int wipe_dir_flat(const char *dir)
 {
 	struct dirent *e;
-	int dfd, rc = 0;
+	int dfd, ret = 0;
 	DIR *d;
 
 	d = opendir(dir);
@@ -2527,13 +2527,13 @@ static int wipe_dir_flat(const char *dir)
 		if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, ".."))
 			continue;
 		if (unlinkat(dfd, e->d_name, 0) != 0 && errno != ENOENT) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 	}
 	closedir(d);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (rmdir(dir) != 0 && errno != ENOENT)
 		return -errno;
 	return 0;
@@ -2561,7 +2561,7 @@ static int remove_pin_dir(const char *name)
 	char serializers_dir[PATH_MAX + 16];
 	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
-	int rc;
+	int ret;
 
 	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
 		return -ENAMETOOLONG;
@@ -2576,14 +2576,14 @@ static int remove_pin_dir(const char *name)
 	if (stat(dir, &st) != 0)
 		return -errno;
 	if (stat(maps_dir, &st) == 0) {
-		rc = wipe_dir_flat(maps_dir);
-		if (rc)
-			return rc;
+		ret = wipe_dir_flat(maps_dir);
+		if (ret)
+			return ret;
 	}
 	if (stat(serializers_dir, &st) == 0) {
-		rc = wipe_dir_flat(serializers_dir);
-		if (rc)
-			return rc;
+		ret = wipe_dir_flat(serializers_dir);
+		if (ret)
+			return ret;
 	}
 	return wipe_dir_flat(dir);
 }
@@ -2598,38 +2598,38 @@ static int stage_upatch(const char *src, char *staged, size_t sz)
 {
 	__u8 *buf = NULL;
 	size_t len = 0;
-	int rc;
+	int ret;
 
-	rc = read_file(src, UPATCH_FILE_MAX, &buf, &len);
-	if (rc)
-		return rc;
-	rc = seal_mkdir_p(INCOMING_DIR, 0700);
-	if (!rc && strsprintf(staged, sz, "%s/load-%d.upatch",
-			      INCOMING_DIR, (int)getpid()) < 0)
-		rc = -ENAMETOOLONG;
-	if (!rc)
-		rc = seal_write_file(staged, buf, len, 0600);
+	ret = read_file(src, UPATCH_FILE_MAX, &buf, &len);
+	if (ret)
+		return ret;
+	ret = seal_mkdir_p(INCOMING_DIR, 0700);
+	if (!ret && strsprintf(staged, sz, "%s/load-%d.upatch",
+			       INCOMING_DIR, (int)getpid()) < 0)
+		ret = -ENAMETOOLONG;
+	if (!ret)
+		ret = seal_write_file(staged, buf, len, 0600);
 	xfree(buf, len + 1);
-	if (rc)
+	if (ret)
 		staged[0] = '\0';
-	return rc;
+	return ret;
 }
 
 /* Take a load the register did not record back out: pins, then archive. */
 static void unload_unmeasured(const char *name)
 {
 	char persisted[PATH_MAX];
-	int rc;
+	int ret;
 
-	rc = remove_pin_dir(name);
-	if (!rc && strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
-			      UPATCHES_DIR, name) >= 0 &&
+	ret = remove_pin_dir(name);
+	if (!ret && strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
+			       UPATCHES_DIR, name) >= 0 &&
 	    unlink(persisted) != 0 && errno != ENOENT)
-		rc = -errno;
-	if (rc)
+		ret = -errno;
+	if (ret)
 		pr_err("upatch load: %s is loaded but not measured and could "
 		       "not be undone: %s; operator must reconcile", name,
-		       strerror(-rc));
+		       strerror(-ret));
 	else
 		pr_err("upatch load: %s was not measured; the load was undone",
 		       name);
@@ -2644,7 +2644,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false, measured;
-	int rc, ret = 1;
+	int err, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (is_help(argv[i])) {
@@ -2652,29 +2652,29 @@ static int cmd_upatch_load(int argc, const char **argv)
 			return 0;
 		}
 	}
-	rc = parse_op_args(argc, argv, "load", &upatch_load_help,
-			   &file, &expect_chain, &expect_version_id,
-			   &no_precheck, &no_version_check, &report);
-	if (rc)
-		return rc;
+	err = parse_op_args(argc, argv, "load", &upatch_load_help,
+			    &file, &expect_chain, &expect_version_id,
+			    &no_precheck, &no_version_check, &report);
+	if (err)
+		return err;
 	rep.path = file;
 
 	if (version_gate(expect_version_id, no_version_check, &rep, "load") != 0)
 		goto done;
 
-	rc = stage_upatch(file, staged, sizeof(staged));
-	if (rc) {
-		pr_err("upatch load: read %s: %s", file, strerror(-rc));
-		rep_fail(&rep, "parse", "parser_rejected", -rc,
+	err = stage_upatch(file, staged, sizeof(staged));
+	if (err) {
+		pr_err("upatch load: read %s: %s", file, strerror(-err));
+		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot read .upatch");
 		goto done;
 	}
 	file = staged;
 
-	rc = upatch_open(file, &u);
-	if (rc) {
-		pr_err("open %s: %s", file, strerror(-rc));
-		rep_fail(&rep, "parse", "parser_rejected", -rc,
+	err = upatch_open(file, &u);
+	if (err) {
+		pr_err("open %s: %s", file, strerror(-err));
+		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot open .upatch");
 		goto done;
 	}
@@ -2722,24 +2722,24 @@ static int cmd_upatch_load(int argc, const char **argv)
 	 * caller who stops this process first gets the same at the next
 	 * init, which refuses to restore what the register does not cover.
 	 */
-	rc = persist_upatch(file, name);
-	if (rc) {
+	err = persist_upatch(file, name);
+	if (err) {
 		pr_err("upatch load: loaded but failed to persist to %s: %s "
-		       "-- not measured", UPATCHES_DIR, strerror(-rc));
+		       "-- not measured", UPATCHES_DIR, strerror(-err));
 		unload_unmeasured(name);
-		rep_fail(&rep, "persist", "unknown", -rc,
+		rep_fail(&rep, "persist", "unknown", -err,
 			 "persist failed; the load was undone");
 		goto done;
 	}
 
-	rc = upatch_chain_event("shirudo-upatch", "upatch_load", "load",
-				name, payload, NULL, rep.chain_after,
-				&measured);
-	if (rc) {
+	err = upatch_chain_event("shirudo-upatch", "upatch_load", "load",
+				 name, payload, NULL, rep.chain_after,
+				 &measured);
+	if (err) {
 		if (!measured)
 			unload_unmeasured(name);
-		rep_fail(&rep, "tpm_extend", chain_event_category(rc, measured),
-			 rc, measured ?
+		rep_fail(&rep, "tpm_extend", chain_event_category(err, measured),
+			 err, measured ?
 			 "eventlog append failed after the extend" :
 			 "chain extend failed; the load was undone");
 		goto done;
@@ -2770,7 +2770,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	struct shirudo_upatch u;
 	struct shirudo_op_report rep = { .op = "upatch_unload", .phase = "done" };
 	bool no_precheck, no_version_check;
-	int rc, ret = 1;
+	int err, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (is_help(argv[i])) {
@@ -2778,11 +2778,11 @@ static int cmd_upatch_unload(int argc, const char **argv)
 			return 0;
 		}
 	}
-	rc = parse_op_args(argc, argv, "unload", &upatch_unload_help,
-			   &file, &expect_chain, &expect_version_id,
-			   &no_precheck, &no_version_check, &report);
-	if (rc)
-		return rc;
+	err = parse_op_args(argc, argv, "unload", &upatch_unload_help,
+			    &file, &expect_chain, &expect_version_id,
+			    &no_precheck, &no_version_check, &report);
+	if (err)
+		return err;
 	rep.path = file;
 
 	if (version_gate(expect_version_id, no_version_check, &rep, "unload") != 0)
@@ -2793,19 +2793,19 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * signature check covers must be the bytes read back after it, and
 	 * a file of root's is root's to rewrite between the two.
 	 */
-	rc = stage_upatch(file, staged, sizeof(staged));
-	if (rc) {
-		pr_err("upatch unload: read %s: %s", file, strerror(-rc));
-		rep_fail(&rep, "parse", "parser_rejected", -rc,
+	err = stage_upatch(file, staged, sizeof(staged));
+	if (err) {
+		pr_err("upatch unload: read %s: %s", file, strerror(-err));
+		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot read .upatch");
 		goto done;
 	}
 	file = staged;
 
-	rc = upatch_open(file, &u);
-	if (rc) {
-		pr_err("open %s: %s", file, strerror(-rc));
-		rep_fail(&rep, "parse", "parser_rejected", -rc,
+	err = upatch_open(file, &u);
+	if (err) {
+		pr_err("open %s: %s", file, strerror(-err));
+		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot open .upatch");
 		goto done;
 	}
@@ -2921,19 +2921,19 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * fails after the event leaves a shield the register says is gone,
 	 * which the next status reports and the operator can repeat.
 	 */
-	rc = upatch_chain_event("shirudo-unload", "upatch_unload", "unload",
-				name, payload, NULL, rep.chain_after, NULL);
-	if (rc) {
-		rep_fail(&rep, "tpm_extend", chain_event_category(rc, false),
-			 rc, "chain extend failed; nothing detached");
+	err = upatch_chain_event("shirudo-unload", "upatch_unload", "unload",
+				 name, payload, NULL, rep.chain_after, NULL);
+	if (err) {
+		rep_fail(&rep, "tpm_extend", chain_event_category(err, false),
+			 err, "chain extend failed; nothing detached");
 		goto done;
 	}
 
-	rc = remove_pin_dir(name);
-	if (rc) {
+	err = remove_pin_dir(name);
+	if (err) {
 		pr_err("upatch unload: measured, but failed to remove the pin "
-		       "for %s: %s; repeat the unload", name, strerror(-rc));
-		rep_fail(&rep, "pin", "detach_failed", -rc,
+		       "for %s: %s; repeat the unload", name, strerror(-err));
+		rep_fail(&rep, "pin", "detach_failed", -err,
 			 "pin removal failed after the event was measured");
 		goto done;
 	}
@@ -2970,37 +2970,37 @@ int shirudo_upatch_purge(const char *name, const char *reason)
 	char persisted[PATH_MAX];
 	struct shirudo_upatch u;
 	bool loaded;
-	int fd, rc;
+	int fd, ret;
 
 	if (!safe_upatch_name(name))
 		return -EINVAL;
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		       UPATCHES_DIR, name) < 0)
 		return -ENAMETOOLONG;
-	rc = seal_open_read(persisted);
-	if (rc < 0)
-		return rc;
-	fd = rc;
-	rc = upatch_open_fd(fd, &u);
+	ret = seal_open_read(persisted);
+	if (ret < 0)
+		return ret;
+	fd = ret;
+	ret = upatch_open_fd(fd, &u);
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	upatch_close(&u);
 
 	/* As for unload: the event first, then the detach it describes. */
 	loaded = upatch_is_pinned(name);
 	if (loaded) {
-		rc = upatch_chain_event("shirudo-unload", "upatch_unload",
-					"purge", name, payload, reason, NULL,
-					NULL);
-		if (rc)
-			return rc;
-		rc = remove_pin_dir(name);
-		if (rc) {
+		ret = upatch_chain_event("shirudo-unload", "upatch_unload",
+					 "purge", name, payload, reason, NULL,
+					 NULL);
+		if (ret)
+			return ret;
+		ret = remove_pin_dir(name);
+		if (ret) {
 			pr_err("upatch purge: measured, but failed to remove "
-			       "the pin for %s: %s", name, strerror(-rc));
-			return rc;
+			       "the pin for %s: %s", name, strerror(-ret));
+			return ret;
 		}
 	}
 	if (unlink(persisted) != 0 && errno != ENOENT) {
@@ -3145,18 +3145,18 @@ static int append_one_map_json(const char *path,
 {
 	char *decoded = NULL;
 	size_t decoded_len = 0;
-	int rc;
+	int ret;
 
-	rc = upatch_decode_map_json(v, &decoded, &decoded_len);
-	if (rc == 0) {
+	ret = upatch_decode_map_json(v, &decoded, &decoded_len);
+	if (ret == 0) {
 		while (decoded_len && (decoded[decoded_len - 1] == '\n' ||
 				       decoded[decoded_len - 1] == '\r'))
 			decoded_len--;
-		rc = emit_json_record(path, decoded, decoded_len);
+		ret = emit_json_record(path, decoded, decoded_len);
 		xfree(decoded, decoded_len + 1);
-		return rc;
+		return ret;
 	}
-	return rc;
+	return ret;
 }
 
 static int export_one_map(const char *upatch, const char *map,
@@ -3167,41 +3167,41 @@ static int export_one_map(const char *upatch, const char *map,
 	struct shirudo_map_view v = {};
 	__u32 cap = (show_full || json_output || otel) ? 0 :
 		MAP_ENTRIES_DEFAULT;
-	int rc, ret = 0;
+	int err, ret = 0;
 
-	rc = upatch_maps_read(upatch, map, cap,
-			      peek ? MAP_READ_PEEK : 0, &v);
-	if (rc) {
+	err = upatch_maps_read(upatch, map, cap,
+			       peek ? MAP_READ_PEEK : 0, &v);
+	if (err) {
 		pr_err("upatch map: read %s/%s: %s", upatch, map,
-		       strerror(-rc));
+		       strerror(-err));
 		map_view_free(&v);
 		return 1;
 	}
 	if (json_output) {
-		rc = append_one_map_json(json_path, &v);
-		if (rc) {
+		err = append_one_map_json(json_path, &v);
+		if (err) {
 			if (json_path)
 				pr_err("upatch map: append JSON to %s: %s",
-				       json_path, strerror(-rc));
+				       json_path, strerror(-err));
 			else
 				pr_err("upatch map: print JSON: %s",
-				       strerror(-rc));
+				       strerror(-err));
 			ret = 1;
 		}
 	}
 	if (otel) {
 		__u32 decoder_signal;
 
-		rc = upatch_decode_map_signal(&v, &decoder_signal);
-		if (rc == -ENODATA)
-			rc = shirudo_upatch_maps_otel_send(&v, SHIRUDO_OTEL_AUTO,
-							   otel_opts);
-		else if (!rc)
-			rc = shirudo_upatch_maps_otel_send_decoded(&v, decoder_signal,
-								   otel_opts);
-		if (rc) {
+		err = upatch_decode_map_signal(&v, &decoder_signal);
+		if (err == -ENODATA)
+			err = shirudo_upatch_maps_otel_send(&v, SHIRUDO_OTEL_AUTO,
+							    otel_opts);
+		else if (!err)
+			err = shirudo_upatch_maps_otel_send_decoded(&v, decoder_signal,
+								    otel_opts);
+		if (err) {
 			pr_err("upatch map: OTLP export %s/%s: %s", upatch, map,
-			       strerror(-rc));
+			       strerror(-err));
 			ret = 1;
 		}
 	}
@@ -3324,11 +3324,11 @@ static int cmd_upatch_map(int argc, const char **argv)
 		}
 	}
 	if (all) {
-		int rc = config_load(&export_cfg);
+		int err = config_load(&export_cfg);
 
-		if (rc) {
+		if (err) {
 			pr_err("upatch map: load export configuration: %s",
-			       strerror(-rc));
+			       strerror(-err));
 			return 1;
 		}
 		if (!export_cfg.map_export_valid) {
@@ -3451,15 +3451,15 @@ static int cmd_upatch_map(int argc, const char **argv)
 		if (e.err) {
 			ret = 1;
 		} else {
-			int rc = emit_json_record(json_path, buf, e.len);
+			int err = emit_json_record(json_path, buf, e.len);
 
-			if (rc) {
+			if (err) {
 				if (json_path)
 					pr_err("upatch map: append JSON to %s: %s",
-					       json_path, strerror(-rc));
+					       json_path, strerror(-err));
 				else
 					pr_err("upatch map: print JSON: %s",
-					       strerror(-rc));
+					       strerror(-err));
 				ret = 1;
 			}
 		}
@@ -3502,7 +3502,7 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	void *recs = NULL;
 	size_t recs_sz = 0;
 	__u32 len, nr, rec_size, btf_id;
-	int link_fd = -1, prog_fd = -1, rc = 0;
+	int link_fd = -1, prog_fd = -1, ret = 0;
 
 	c->upatch = want;
 	c->ents = NULL;
@@ -3519,9 +3519,9 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 		return link_fd;
 	len = sizeof(linfo);
 	if (bpf_link_get_info_by_fd(link_fd, &linfo, &len) != 0) {
-		rc = -errno;
+		ret = -errno;
 		close(link_fd);
-		return rc;
+		return ret;
 	}
 	close(link_fd);
 	if (linfo.prog_id == 0)
@@ -3541,9 +3541,9 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 		return -errno;
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
-		rc = -errno;
+		ret = -errno;
 		close(prog_fd);
-		return rc;
+		return ret;
 	}
 	nr = info.nr_line_info;
 	rec_size = info.line_info_rec_size;
@@ -3564,10 +3564,10 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	info.line_info = ptr_to_u64(recs);
 	len = sizeof(info);
 	if (bpf_prog_get_info_by_fd(prog_fd, &info, &len) != 0) {
-		rc = -errno;
+		ret = -errno;
 		xfree(recs, recs_sz);
 		close(prog_fd);
-		return rc;
+		return ret;
 	}
 	close(prog_fd);
 	c->btf = btf__load_from_kernel_by_id(btf_id);
@@ -3597,12 +3597,12 @@ static void render_one_map_text(const char *upatch, const char *map,
 				__u32 cap)
 {
 	struct shirudo_map_view v = {};
-	int rc = upatch_maps_read(upatch, map, cap, MAP_READ_PEEK,
-				  &v);
+	int ret = upatch_maps_read(upatch, map, cap, MAP_READ_PEEK,
+				   &v);
 
 	printf("\n== Map: %s ==\n", map);
-	if (rc != 0) {
-		printf("  (read failed: %s)\n", strerror(-rc));
+	if (ret != 0) {
+		printf("  (read failed: %s)\n", strerror(-ret));
 		map_view_free(&v);
 		return;
 	}
@@ -3684,18 +3684,18 @@ static int render_get_json(const struct upatch_get_ctx *c,
 	json_arr_open(&e, "maps");
 	for (k = 0; k < nm; k++) {
 		struct shirudo_map_view v = {};
-		int rc;
+		int err;
 
-		rc = upatch_maps_read(c->upatch, maps[k].name, map_cap,
-				      MAP_READ_PEEK, &v);
-		if (rc != 0) {
+		err = upatch_maps_read(c->upatch, maps[k].name, map_cap,
+				       MAP_READ_PEEK, &v);
+		if (err != 0) {
 			json_obj_open(&e);
 			json_kv_string(&e, "name", maps[k].name);
 			json_kv_string(&e, "type",
 				       maps[k].type_name);
 			json_kv_int(&e, "max_entries",
 				    maps[k].max_entries);
-			json_kv_string(&e, "error", strerror(-rc));
+			json_kv_string(&e, "error", strerror(-err));
 			json_obj_close(&e);
 		} else {
 			upatch_maps_emit_json_object(&e, &v);
@@ -3724,7 +3724,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 	bool json = false, show_full = false;
 	size_t nm = 0;
 	__u32 map_cap;
-	int rc, i;
+	int ret, i;
 
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
@@ -3757,9 +3757,9 @@ static int cmd_upatch_get(int argc, const char **argv)
 		return 2;
 	}
 
-	rc = upatch_get_collect(want, &ctx);
-	if (rc != 0) {
-		pr_err("upatch get: '%s': %s", want, strerror(-rc));
+	ret = upatch_get_collect(want, &ctx);
+	if (ret != 0) {
+		pr_err("upatch get: '%s': %s", want, strerror(-ret));
 		upatch_get_ctx_free(&ctx);
 		return 1;
 	}
@@ -3767,13 +3767,13 @@ static int cmd_upatch_get(int argc, const char **argv)
 	map_cap = show_full ? 0 : MAP_ENTRIES_DEFAULT;
 
 	if (json)
-		rc = render_get_json(&ctx, maps, nm, map_cap);
+		ret = render_get_json(&ctx, maps, nm, map_cap);
 	else
-		render_get_text(&ctx, maps, nm, map_cap), rc = 0;
+		render_get_text(&ctx, maps, nm, map_cap), ret = 0;
 
 	map_summary_free(maps, nm);
 	upatch_get_ctx_free(&ctx);
-	return rc;
+	return ret;
 }
 
 static const struct shirudo_help_item upatch_subcmds[] = {

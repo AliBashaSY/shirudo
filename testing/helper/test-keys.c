@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	struct shirudo_trusted_set set;
 	__u8 digest[32];
 	size_t i;
-	int rc;
+	int ret;
 
 	if (argc < 3) {
 		fprintf(stderr, "usage: %s load|digest|reject <keys-dir>"
@@ -54,12 +54,12 @@ int main(int argc, char **argv)
 			upatch_close(&u);
 			return 2;
 		}
-		rc = cms_signed_by(upatch_signature(&u),
-				   u.hdr.signature_len, &cert);
+		ret = cms_signed_by(upatch_signature(&u),
+				    u.hdr.signature_len, &cert);
 		cert_free(&cert);
 		upatch_close(&u);
-		printf("%s\n", rc == 1 ? "yes" : rc == 0 ? "no" : "error");
-		return rc < 0 ? 1 : 0;
+		printf("%s\n", ret == 1 ? "yes" : ret == 0 ? "no" : "error");
+		return ret < 0 ? 1 : 0;
 	}
 	if (!strcmp(argv[1], "image")) {
 		char primary[PATH_MAX];
@@ -69,17 +69,17 @@ int main(int argc, char **argv)
 		root = open(argv[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		if (root < 0)
 			return 1;
-		rc = shirudo_keys_load_image_at(primary, root, true, &set);
+		ret = shirudo_keys_load_image_at(primary, root, true, &set);
 		close(root);
 	} else {
-		rc = keys_load(argv[2], NULL,
-			       argc < 4 || strcmp(argv[3], "primary"),
+		ret = keys_load(argv[2], NULL,
+				argc < 4 || strcmp(argv[3], "primary"),
 				       &set);
 	}
 	if (!strcmp(argv[1], "reject"))
-		return rc == -EINVAL ? 0 : 1;
-	if (rc) {
-		printf("rc=%d\n", rc);
+		return ret == -EINVAL ? 0 : 1;
+	if (ret) {
+		printf("rc=%d\n", ret);
 		return 1;
 	}
 	if (!strcmp(argv[1], "load") || !strcmp(argv[1], "image")) {

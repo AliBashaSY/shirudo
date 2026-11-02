@@ -138,17 +138,17 @@ static int compile_to_temp(const char *source, const char *vmlinux_h,
 {
 	char tmpl[] = "/tmp/shirudo-build-XXXXXX.bpf.o";
 	int fd;
-	int rc;
+	int ret;
 
 	fd = mkstemps(tmpl, strlen(".bpf.o"));
 	if (fd < 0)
 		return -errno;
 	close(fd);
 
-	rc = shirudo_build_compile(source, tmpl, vmlinux_h, extra_cflags, NULL);
-	if (rc) {
+	ret = shirudo_build_compile(source, tmpl, vmlinux_h, extra_cflags, NULL);
+	if (ret) {
 		unlink(tmpl);
-		return rc;
+		return ret;
 	}
 	*out_path = xstrdup(tmpl);
 	if (!*out_path) {
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 	int emit_artifacts = 0;
 	int pkey_explicit = 0;
 	int cert_explicit = 0;
-	int rc;
+	int ret;
 	int i;
 
 	harden_stdio();
@@ -267,22 +267,22 @@ int main(int argc, char **argv)
 
 	if (keys_dir) {
 		if (!pkey_explicit) {
-			rc = shirudo_key_path(pkey_path, sizeof(pkey_path),
-					      keys_dir,
-					      SIGNING_KEY_FILE);
-			if (rc) {
+			ret = shirudo_key_path(pkey_path, sizeof(pkey_path),
+					       keys_dir,
+					       SIGNING_KEY_FILE);
+			if (ret) {
 				pr_err("invalid keys dir %s: %s",
-				       keys_dir, strerror(-rc));
+				       keys_dir, strerror(-ret));
 				return 2;
 			}
 			pkey = pkey_path;
 		}
 		if (!cert_explicit) {
-			rc = shirudo_key_path(cert_path, sizeof(cert_path),
-					      keys_dir, CERT_FILE);
-			if (rc) {
+			ret = shirudo_key_path(cert_path, sizeof(cert_path),
+					       keys_dir, CERT_FILE);
+			if (ret) {
 				pr_err("invalid keys dir %s: %s",
-				       keys_dir, strerror(-rc));
+				       keys_dir, strerror(-ret));
 				return 2;
 			}
 			cert = cert_path;
@@ -347,15 +347,15 @@ int main(int argc, char **argv)
 			pr_info("writing %s (no -o given)", output);
 		}
 
-		rc = shirudo_build_package_unload(unload_name, payload_sha256,
-						  output, pkey, cert);
-		if (rc == 0 && emit_artifacts) {
+		ret = shirudo_build_package_unload(unload_name, payload_sha256,
+						   output, pkey, cert);
+		if (ret == 0 && emit_artifacts) {
 			printf("emitted:\n");
 			printf("  upatch: %s\n", output);
 			printf("  bpf.o:  (none; --unload embeds the prebuilt "
 			       "unload program)\n");
 		}
-		return rc ? 1 : 0;
+		return ret ? 1 : 0;
 	}
 
 	if (!input) {
@@ -369,10 +369,10 @@ int main(int argc, char **argv)
 	 * same directory as the .upatch.
 	 */
 	if (!output) {
-		rc = derive_output(input, output_buf, sizeof(output_buf));
-		if (rc) {
+		ret = derive_output(input, output_buf, sizeof(output_buf));
+		if (ret) {
 			pr_err("cannot derive output path from %s: %s",
-			       input, strerror(-rc));
+			       input, strerror(-ret));
 			return 1;
 		}
 		output = output_buf;
@@ -390,26 +390,26 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		if (emit_artifacts) {
-			rc = derive_artifact_o(output, artifact_buf,
-					       sizeof(artifact_buf));
-			if (rc) {
+			ret = derive_artifact_o(output, artifact_buf,
+						sizeof(artifact_buf));
+			if (ret) {
 				pr_err("cannot derive .bpf.o path from %s: %s",
-				       output, strerror(-rc));
+				       output, strerror(-ret));
 				return 1;
 			}
-			rc = shirudo_build_compile(input, artifact_buf,
-						   vmlinux_h, extra_cflags, NULL);
-			if (rc) {
-				pr_err("compile %s: %d", input, rc);
+			ret = shirudo_build_compile(input, artifact_buf,
+						    vmlinux_h, extra_cflags, NULL);
+			if (ret) {
+				pr_err("compile %s: %d", input, ret);
 				return 1;
 			}
 			bpf_o = artifact_buf;
 			emitted_o = artifact_buf;
 		} else {
-			rc = compile_to_temp(input, vmlinux_h, extra_cflags,
-					     &temp_bpf_o);
-			if (rc) {
-				pr_err("compile %s: %d", input, rc);
+			ret = compile_to_temp(input, vmlinux_h, extra_cflags,
+					      &temp_bpf_o);
+			if (ret) {
+				pr_err("compile %s: %d", input, ret);
 				return 1;
 			}
 			bpf_o = temp_bpf_o;
@@ -425,15 +425,15 @@ int main(int argc, char **argv)
 	if (!name)
 		name = derive_name(input, name_buf, sizeof(name_buf));
 
-	rc = shirudo_build_package_load(bpf_o, src_path, output, name,
-					pkey, cert);
+	ret = shirudo_build_package_load(bpf_o, src_path, output, name,
+					 pkey, cert);
 
 	if (temp_bpf_o) {
 		unlink(temp_bpf_o);
 		xstrfree(temp_bpf_o);
 	}
 
-	if (rc == 0 && emit_artifacts) {
+	if (ret == 0 && emit_artifacts) {
 		printf("emitted:\n");
 		printf("  upatch: %s\n", output);
 		if (emitted_o)
@@ -442,5 +442,5 @@ int main(int argc, char **argv)
 			printf("  bpf.o:  (none; input was a pre-compiled "
 			       "object, not recompiled)\n");
 	}
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }

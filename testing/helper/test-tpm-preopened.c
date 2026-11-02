@@ -14,13 +14,13 @@
 static int read_register(__u8 out[TPM_DIGEST_LEN])
 {
 	struct shirudo_tpm *tpm = NULL;
-	int rc;
+	int ret;
 
 	if (tpm_open(&tpm))
 		return 1;
-	rc = tpm_nv_read(tpm, NV_INDEX, out);
+	ret = tpm_nv_read(tpm, NV_INDEX, out);
 	tpm_close(tpm);
-	return rc != 0;
+	return ret != 0;
 }
 
 static int write_extend(int fd)
@@ -64,10 +64,10 @@ int main(void)
 		return 1;
 	}
 	if (!pid) {
-		int rc = write_extend(fd);
+		int ret = write_extend(fd);
 
 		close(fd);
-		_exit(rc);
+		_exit(ret);
 	}
 	close(fd);
 	if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status) ||

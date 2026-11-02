@@ -18,15 +18,15 @@
 
 static int write_config(const char *path, const char *contents)
 {
-	int fd, rc;
+	int fd, ret;
 
 	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
 	if (fd < 0)
 		return -errno;
-	rc = write_complete(fd, contents, strlen(contents));
-	if (rc) {
+	ret = write_complete(fd, contents, strlen(contents));
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return close(fd) == 0 ? 0 : -errno;
 }

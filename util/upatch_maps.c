@@ -848,24 +848,24 @@ static int read_serial_page(int serial_fd,
 	__u32 page_index, flags;
 	__u64 cursor, next_cursor;
 	__u8 *data = NULL;
-	int rc;
+	int ret;
 
 	chunk = xmalloc(sizeof(*chunk));
 	if (!chunk)
 		return -ENOMEM;
 	key = 0;
 	if (bpf_map_lookup_elem(serial_fd, &key, chunk) != 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_chunk;
 	}
 	if (chunk->magic != SERIAL_MAGIC ||
 	    chunk->version != SERIAL_VERSION ||
 	    chunk->invocation_id != invocation_id) {
-		rc = -EBADMSG;
+		ret = -EBADMSG;
 		goto out_chunk;
 	}
 	if (chunk->status != 0) {
-		rc = chunk->status < 0 ? chunk->status : -EIO;
+		ret = chunk->status < 0 ? chunk->status : -EIO;
 		goto out_chunk;
 	}
 	total_chunks = chunk->total_chunks;
@@ -878,37 +878,37 @@ static int read_serial_page(int serial_fd,
 	    total_chunks > SERIAL_MAX_CHUNKS ||
 	    bytes_total > SERIAL_MAX_BYTES ||
 	    bytes_total > total_chunks * SERIAL_CHUNK_PAYLOAD) {
-		rc = -EBADMSG;
+		ret = -EBADMSG;
 		goto out_chunk;
 	}
 	if (page_index != want_page_index || cursor != want_cursor ||
 	    next_cursor < cursor) {
-		rc = -EBADMSG;
+		ret = -EBADMSG;
 		goto out_chunk;
 	}
 	data = bytes_total ? xmalloc(bytes_total) : NULL;
 	if (bytes_total && !data) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out_chunk;
 	}
 	for (key = 0; key < total_chunks; key++) {
 		if (key != 0 &&
 		    bpf_map_lookup_elem(serial_fd, &key, chunk) != 0) {
-			rc = -errno;
+			ret = -errno;
 			goto out_data;
 		}
-		rc = serial_chunk_validate(chunk, key, total_chunks,
-					   page_index, cursor,
-					   next_cursor, invocation_id);
-		if (rc)
+		ret = serial_chunk_validate(chunk, key, total_chunks,
+					    page_index, cursor,
+					    next_cursor, invocation_id);
+		if (ret)
 			goto out_data;
 		if (chunk->status != 0) {
-			rc = chunk->status < 0 ? chunk->status : -EIO;
+			ret = chunk->status < 0 ? chunk->status : -EIO;
 			goto out_data;
 		}
 		if (chunk->bytes_total != bytes_total ||
 		    copied + chunk->bytes_in_chunk > bytes_total) {
-			rc = -EBADMSG;
+			ret = -EBADMSG;
 			goto out_data;
 		}
 		if (chunk->bytes_in_chunk)
@@ -917,7 +917,7 @@ static int read_serial_page(int serial_fd,
 		copied += chunk->bytes_in_chunk;
 	}
 	if (copied != bytes_total) {
-		rc = -EBADMSG;
+		ret = -EBADMSG;
 		goto out_data;
 	}
 
@@ -937,7 +937,7 @@ out_data:
 	xfree(data, bytes_total);
 out_chunk:
 	xfree(chunk, sizeof(*chunk));
-	return rc;
+	return ret;
 }
 
 static int try_read_serialized(const char *upatch, const char *map,
@@ -946,7 +946,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 	struct bpf_map_info serial_info = {};
 	__u64 cursor = 0, bytes_total = 0, invocation_id;
 	__u32 page_index;
-	int prog_fd = -1, serial_fd = -1, lock_fd = -1, rc;
+	int prog_fd = -1, serial_fd = -1, lock_fd = -1, ret;
 
 	if (strcmp(map, SERIAL_MAP_NAME) == 0)
 		return 0;
@@ -956,12 +956,12 @@ static int try_read_serialized(const char *upatch, const char *map,
 			return 0;
 		return prog_fd;
 	}
-	rc = open_map_pin(upatch, SERIAL_MAP_NAME,
-			  &serial_fd, &serial_info);
-	if (rc)
+	ret = open_map_pin(upatch, SERIAL_MAP_NAME,
+			   &serial_fd, &serial_info);
+	if (ret)
 		goto out;
-	rc = validate_serial_map(&serial_info);
-	if (rc)
+	ret = validate_serial_map(&serial_info);
+	if (ret)
 		goto out;
 	/*
 	 * Clearing, running and reading are one transaction. Key the lock by
@@ -970,12 +970,12 @@ static int try_read_serialized(const char *upatch, const char *map,
 	 */
 	lock_fd = serializer_lock_acquire(serial_info.id);
 	if (lock_fd < 0) {
-		rc = lock_fd;
+		ret = lock_fd;
 		lock_fd = -1;
 		goto out;
 	}
-	rc = serializer_new_invocation_id(&invocation_id);
-	if (rc)
+	ret = serializer_new_invocation_id(&invocation_id);
+	if (ret)
 		goto out;
 
 	for (page_index = 0; page_index < SERIAL_MAX_PAGES;
@@ -984,8 +984,8 @@ static int try_read_serialized(const char *upatch, const char *map,
 		struct shirudo_serial_page page = {};
 		__u32 retval = 0;
 
-		rc = clear_serial_map(serial_fd, &serial_info);
-		if (rc)
+		ret = clear_serial_map(serial_fd, &serial_info);
+		if (ret)
 			goto out;
 
 		ctx.magic = SERIAL_MAGIC;
@@ -998,11 +998,11 @@ static int try_read_serialized(const char *upatch, const char *map,
 		ctx.cursor = cursor;
 		ctx.invocation_id = invocation_id;
 
-		rc = prog_test_run(prog_fd, &ctx, sizeof(ctx), &retval);
-		if (rc)
+		ret = prog_test_run(prog_fd, &ctx, sizeof(ctx), &retval);
+		if (ret)
 			goto out;
 		if ((__s32)retval < 0) {
-			rc = (__s32)retval;
+			ret = (__s32)retval;
 			goto out;
 		}
 		if (ctx.magic != SERIAL_MAGIC ||
@@ -1010,22 +1010,22 @@ static int try_read_serialized(const char *upatch, const char *map,
 		    ctx.page_index != page_index ||
 		    ctx.cursor != cursor ||
 		    ctx.invocation_id != invocation_id) {
-			rc = -EBADMSG;
+			ret = -EBADMSG;
 			goto out;
 		}
 
-		rc = read_serial_page(serial_fd, &serial_info, page_index,
-				      cursor, invocation_id, &page);
-		if (rc)
+		ret = read_serial_page(serial_fd, &serial_info, page_index,
+				       cursor, invocation_id, &page);
+		if (ret)
 			goto out;
 		if (bytes_total + page.bytes > SERIAL_MAX_TOTAL_BYTES) {
 			xfree(page.data, page.bytes);
-			rc = -E2BIG;
+			ret = -E2BIG;
 			goto out;
 		}
 		bytes_total += page.bytes;
-		rc = append_serial_page(out, &page);
-		if (rc) {
+		ret = append_serial_page(out, &page);
+		if (ret) {
 			xfree(page.data, page.bytes);
 			goto out;
 		}
@@ -1034,14 +1034,14 @@ static int try_read_serialized(const char *upatch, const char *map,
 		if (page.done)
 			break;
 		if (page.next_cursor == cursor) {
-			rc = -EBADMSG;
+			ret = -EBADMSG;
 			goto out;
 		}
 		cursor = page.next_cursor;
 	}
 	if (out->n_serial_pages == 0 ||
 	    !out->serial_pages[out->n_serial_pages - 1].done) {
-		rc = -E2BIG;
+		ret = -E2BIG;
 		goto out;
 	}
 
@@ -1053,7 +1053,7 @@ static int try_read_serialized(const char *upatch, const char *map,
 	return 1;
 
 out:
-	if (rc < 0 && out->serial_pages) {
+	if (ret < 0 && out->serial_pages) {
 		__u32 i;
 
 		for (i = 0; i < out->n_serial_pages; i++)
@@ -1071,7 +1071,7 @@ out:
 		close(lock_fd);
 	if (prog_fd >= 0)
 		close(prog_fd);
-	return rc;
+	return ret;
 }
 
 static int read_entries(int fd, struct shirudo_map_view *v,
@@ -1235,16 +1235,16 @@ int upatch_maps_read(const char *upatch, const char *map,
 	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat upatch_st;
 	int fd = -1;
-	int rc;
+	int ret;
 
 	memset(out, 0, sizeof(*out));
 	if (strscpy(out->upatch, upatch, sizeof(out->upatch)) < 0 ||
 	    strscpy(out->name, map, sizeof(out->name)) < 0)
 		return -ENAMETOOLONG;
 
-	rc = open_map_pin(upatch, map, &fd, &info);
-	if (rc)
-		return rc;
+	ret = open_map_pin(upatch, map, &fd, &info);
+	if (ret)
+		return ret;
 	out->type = info.type;
 	out->type_name = map_type_name(info.type);
 	out->key_size = info.key_size;
@@ -1270,12 +1270,12 @@ int upatch_maps_read(const char *upatch, const char *map,
 			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
 			(__u64)upatch_st.st_ctim.tv_nsec;
 
-	rc = try_read_serialized(upatch, map, flags, out);
-	if (rc < 0) {
+	ret = try_read_serialized(upatch, map, flags, out);
+	if (ret < 0) {
 		close(fd);
-		return rc;
+		return ret;
 	}
-	if (rc > 0) {
+	if (ret > 0) {
 		close(fd);
 		return 0;
 	}
@@ -1309,10 +1309,10 @@ int upatch_maps_read(const char *upatch, const char *map,
 					sizeof(out->value_type_def), &off, 0);
 	}
 
-	rc = read_entries(fd, out, max_entries_cap);
+	ret = read_entries(fd, out, max_entries_cap);
 
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static void summary_append(struct shirudo_map_summary **list, size_t *n,
@@ -1350,14 +1350,14 @@ static void scan_upatch_maps(const char *upatch,
 	while ((e = readdir(d))) {
 		struct bpf_map_info info = {};
 		struct shirudo_map_summary one = {};
-		int fd, rc;
+		int fd, ret;
 
 		if (e->d_name[0] == '.')
 			continue;
 		if (strcmp(e->d_name, SERIAL_MAP_NAME) == 0)
 			continue;
-		rc = open_map_pin(upatch, e->d_name, &fd, &info);
-		if (rc)
+		ret = open_map_pin(upatch, e->d_name, &fd, &info);
+		if (ret)
 			continue;
 		close(fd);
 		strscpy(one.upatch, upatch, sizeof(one.upatch));

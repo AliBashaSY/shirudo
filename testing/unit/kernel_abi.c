@@ -37,7 +37,7 @@ static struct btf *make_fixture(enum fixture fixture)
 	int raw_u8, raw_u32, u8, u16, u32, s8, s32, index;
 	int sha32, sha31, sha_u16, sha_s8, byte_ptr, u32_ptr;
 	int sig_struct = -1;
-	int rc;
+	int ret;
 
 	btf = btf__new_empty();
 	if (libbpf_get_error(btf))
@@ -62,8 +62,8 @@ static struct btf *make_fixture(enum fixture fixture)
 		goto err;
 
 	if (fixture != NO_MAP) {
-		rc = btf__add_struct(btf, "bpf_map", 64);
-		if (rc < 0)
+		ret = btf__add_struct(btf, "bpf_map", 64);
+		if (ret < 0)
 			goto err;
 		if (fixture != NO_SHA) {
 			int sha_type = sha32;
@@ -115,8 +115,8 @@ static struct btf *make_fixture(enum fixture fixture)
 				   40, 0) < 0)
 			goto err;
 	}
-	rc = btf__add_struct(btf, "bpf_prog_aux", 32);
-	if (rc < 0)
+	ret = btf__add_struct(btf, "bpf_prog_aux", 32);
+	if (ret < 0)
 		goto err;
 	if (fixture != NO_SIG &&
 	    btf__add_field(btf, "sig",
@@ -137,16 +137,16 @@ static void check(enum fixture fixture, int want_ok, const char *want)
 {
 	char detail[KERNEL_ABI_DETAIL_MAX] = {};
 	struct btf *btf = make_fixture(fixture);
-	int rc;
+	int ret;
 
 	ASSERT_TRUE(btf);
-	rc = kernel_abi_validate_btf(btf, detail, sizeof(detail));
+	ret = kernel_abi_validate_btf(btf, detail, sizeof(detail));
 	btf__free(btf);
 	if (want_ok) {
-		EXPECT_EQ(rc, 0);
+		EXPECT_EQ(ret, 0);
 		return;
 	}
-	EXPECT_NE(rc, 0);
+	EXPECT_NE(ret, 0);
 	UNIT_CHECK(0, strstr(detail, want), "detail \"%s\" lacks \"%s\"",
 		   detail, want);
 }

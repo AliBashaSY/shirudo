@@ -42,18 +42,18 @@ static int sign_once(ESYS_CONTEXT *esys, ESYS_TR key)
 	TPMT_SIG_SCHEME scheme = { .scheme = TPM2_ALG_ECDSA };
 	TPMT_SIGNATURE *signature = NULL;
 	TPM2B_DIGEST digest = { .size = 32 };
-	TSS2_RC rc;
+	TSS2_RC ret;
 
 	scheme.details.ecdsa.hashAlg = TPM2_ALG_SHA256;
 	memset(digest.buffer, 0x5a, digest.size);
-	rc = Esys_Sign(esys, key, ESYS_TR_PASSWORD, ESYS_TR_NONE,
-		       ESYS_TR_NONE, &digest, &scheme, &validation, &signature);
-	if (rc == TSS2_RC_SUCCESS && signature) {
+	ret = Esys_Sign(esys, key, ESYS_TR_PASSWORD, ESYS_TR_NONE,
+			ESYS_TR_NONE, &digest, &scheme, &validation, &signature);
+	if (ret == TSS2_RC_SUCCESS && signature) {
 		Esys_Free(signature);
 		return 0;
 	}
 	Esys_Free(signature);
-	fprintf(stderr, "unrelated TPM2_Sign failed: rc=0x%08x\n", (__u32)rc);
+	fprintf(stderr, "unrelated TPM2_Sign failed: rc=0x%08x\n", (__u32)ret);
 	return 1;
 }
 
@@ -68,7 +68,7 @@ static int sign_check(const char *device, bool inherited)
 	ESYS_CONTEXT *esys = NULL;
 	ESYS_TR key = ESYS_TR_NONE;
 	TSS2_RC trc;
-	int status, rc = 1;
+	int status, ret = 1;
 	pid_t pid;
 
 	trc = Tss2_TctiLdr_Initialize(device, &tcti);
@@ -98,7 +98,7 @@ static int sign_check(const char *device, bool inherited)
 	if (trc)
 		goto tpm_error;
 	if (!inherited) {
-		rc = sign_once(esys, key);
+		ret = sign_once(esys, key);
 		goto out;
 	}
 	pid = fork();
@@ -107,9 +107,9 @@ static int sign_check(const char *device, bool inherited)
 		goto out;
 	}
 	if (!pid) {
-		rc = sign_once(esys, key);
+		ret = sign_once(esys, key);
 		fflush(stderr);
-		_exit(rc);
+		_exit(ret);
 	}
 	if (waitpid(pid, &status, 0) != pid) {
 		perror("waitpid");
@@ -117,7 +117,7 @@ static int sign_check(const char *device, bool inherited)
 	}
 	if (!WIFEXITED(status) || WEXITSTATUS(status))
 		goto out;
-	rc = 0;
+	ret = 0;
 	goto out;
 tpm_error:
 	fprintf(stderr, "prepare TPM signing request on %s: rc=0x%08x\n",
@@ -128,7 +128,7 @@ out:
 		Esys_FlushContext(esys, key);
 	Esys_Finalize(&esys);
 	Tss2_TctiLdr_Finalize(&tcti);
-	return rc;
+	return ret;
 }
 
 enum extend_probe {
@@ -170,7 +170,7 @@ static int raw_extend_check(const char *device, enum extend_probe probe,
 			    bool nonblock, bool inherited)
 {
 	int flags = O_RDWR | O_CLOEXEC;
-	int status, rc;
+	int status, ret;
 	pid_t pid;
 	int fd;
 
@@ -184,9 +184,9 @@ static int raw_extend_check(const char *device, enum extend_probe probe,
 		return 1;
 	}
 	if (!inherited) {
-		rc = write_extend(fd, device, probe);
+		ret = write_extend(fd, device, probe);
 		close(fd);
-		return rc;
+		return ret;
 	}
 	pid = fork();
 	if (pid < 0) {
@@ -195,13 +195,13 @@ static int raw_extend_check(const char *device, enum extend_probe probe,
 		return 1;
 	}
 	if (!pid) {
-		rc = write_extend(fd, device, probe);
-		_exit(rc);
+		ret = write_extend(fd, device, probe);
+		_exit(ret);
 	}
-	rc = waitpid(pid, &status, 0) == pid &&
+	ret = waitpid(pid, &status, 0) == pid &&
 	     WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : 1;
 	close(fd);
-	return rc;
+	return ret;
 }
 
 int main(int argc, char **argv)

@@ -188,24 +188,24 @@ int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 		   const __u8 *sig, size_t sig_len, const char *cert_path)
 {
 	struct shirudo_cert cert = {};
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	if (!cert_read_file(cert_path, &cert))
-		rc = verify_detached(payload, payload_len, sig, sig_len, &cert);
+		ret = verify_detached(payload, payload_len, sig, sig_len, &cert);
 	cert_free(&cert);
-	return rc;
+	return ret;
 }
 
 int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
 		      const __u8 *sig, size_t sig_len, int cert_fd)
 {
 	struct shirudo_cert cert = {};
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	if (!cert_read_fd(cert_fd, &cert))
-		rc = verify_detached(payload, payload_len, sig, sig_len, &cert);
+		ret = verify_detached(payload, payload_len, sig, sig_len, &cert);
 	cert_free(&cert);
-	return rc;
+	return ret;
 }
 
 /*
@@ -282,7 +282,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   size_t *out_len, size_t max)
 {
 	gzFile gz = gzopen(archive, "rb");
-	int rc = -ENOENT;
+	int ret = -ENOENT;
 	__u8 h[512];
 
 	if (!gz)
@@ -300,7 +300,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		if (n == 0)
 			break;
 		if (n != (int)sizeof(h)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		for (size_t i = 0; i < sizeof(h); i++) {
@@ -315,7 +315,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 		name[100] = '\0';
 		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) ||
 		    bpm_tar_octal((char *)h + 124, 12, &size)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		remain = size;
@@ -328,16 +328,16 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 
 			if ((h[156] && h[156] != '0') || h[345] ||
 			    (found_dir && dir_len >= found_dir_sz)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			if (size > max || size > SIZE_MAX - 1) {
-				rc = -E2BIG;
+				ret = -E2BIG;
 				break;
 			}
 			body = xmalloc((size_t)size + 1);
 			if (!body) {
-				rc = -ENOMEM;
+				ret = -ENOMEM;
 				break;
 			}
 			while (remain) {
@@ -346,7 +346,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 				n = gzread(gz, body + size - remain, (__u32)want);
 				if (n <= 0) {
 					xfree(body, (size_t)size + 1);
-					rc = -EINVAL;
+					ret = -EINVAL;
 					goto done;
 				}
 				remain -= (size_t)n;
@@ -358,7 +358,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 				memcpy(found_dir, name, dir_len);
 				found_dir[dir_len] = '\0';
 			}
-			rc = 0;
+			ret = 0;
 			break;
 		}
 		while (remain) {
@@ -367,7 +367,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 
 			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			remain -= (size_t)n;
@@ -379,20 +379,20 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 
 			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			pad -= (size_t)n;
 		}
 	}
 done:
-	if (gzclose(gz) != Z_OK && rc == 0) {
+	if (gzclose(gz) != Z_OK && ret == 0) {
 		xfree(*out, *out_len + 1);
 		*out = NULL;
 		*out_len = 0;
-		rc = -EINVAL;
+		ret = -EINVAL;
 	}
-	return rc;
+	return ret;
 }
 
 int bpm_pkg_read_member(const char *archive, const char *member,
@@ -408,7 +408,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 	gzFile gz = gzopen(archive, "rb");
 	char root[256] = {};
 	__u8 h[512];
-	int rc = 0;
+	int ret = 0;
 
 	if (!gz)
 		return -errno;
@@ -427,7 +427,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 		if (n == 0)
 			break;
 		if (n != (int)sizeof(h)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		for (size_t i = 0; i < sizeof(h); i++) {
@@ -440,7 +440,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 			break;
 		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) || h[345] ||
 		    bpm_tar_octal((char *)h + 124, 12, &size)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		strscpy(name, (char *)h, sizeof(name));
@@ -449,7 +449,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 		if (type == '5' && name_len && name[name_len - 1] == '/')
 			name[--name_len] = '\0';
 		if (!bpm_archive_rel_ok(name)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (!root[0]) {
@@ -457,7 +457,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 			if ((!slash && type != '5') || (slash && slash == name) ||
 			    (slash ? (size_t)(slash - name) : name_len) >=
 				    sizeof(root)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			root_len = slash ? (size_t)(slash - name) : name_len;
@@ -467,30 +467,30 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 		root_len = strlen(root);
 		if (strncmp(name, root, root_len) ||
 		    (name[root_len] && name[root_len] != '/')) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (package_dir && strcmp(root, package_dir)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (type != '0' && type != '5') {
-			rc = -EPERM;
+			ret = -EPERM;
 			break;
 		}
 		strscpy(rel, name + root_len + (name[root_len] == '/'),
 			sizeof(rel));
 		if (!*rel) {
 			if (type != '5') {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 		} else if (!bpm_archive_rel_ok(rel)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		} else if (visit) {
-			rc = visit(ctx, rel, (char)type);
-			if (rc)
+			ret = visit(ctx, rel, (char)type);
+			if (ret)
 				break;
 		}
 		remain = size;
@@ -501,7 +501,7 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 
 			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			remain -= (size_t)n;
@@ -514,18 +514,18 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 
 			n = gzread(gz, discard, (__u32)want);
 			if (n <= 0) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto done;
 			}
 			pad -= (size_t)n;
 		}
 	}
 	if (!root[0])
-		rc = -EINVAL;
+		ret = -EINVAL;
 done:
-	if (gzclose(gz) != Z_OK && !rc)
-		rc = -EINVAL;
-	return rc;
+	if (gzclose(gz) != Z_OK && !ret)
+		ret = -EINVAL;
+	return ret;
 }
 
 static X509 *read_x509_memory(const __u8 *body, size_t len)
@@ -552,14 +552,14 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 	__u64 total = 0;
 	__u32 entries = 0;
 	__u8 h[512];
-	int rc = 0;
+	int ret = 0;
 
 	if (!gz)
 		return -EINVAL;
-	rc = seal_mkdir_p(dest, 0700);
-	if (rc) {
+	ret = seal_mkdir_p(dest, 0700);
+	if (ret) {
 		gzclose(gz);
-		return rc;
+		return ret;
 	}
 	for (;;) {
 		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
@@ -571,7 +571,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 		if (n == 0)
 			break;
 		if (n != (int)sizeof(h)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		for (size_t i = 0; i < sizeof(h); i++) {
@@ -584,12 +584,12 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			break;
 		/* A ustar prefix would make the member another reader's prefix/name. */
 		if (!bpm_tar_header_ok(h) || !memchr(h, '\0', 100) || h[345]) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		strscpy(name, (char *)h, sizeof(name));
 		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		type = h[156];
@@ -597,35 +597,35 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			type = '0';
 		if (++entries > BPM_MAX_PACKAGE_ENTRIES ||
 		    size > BPM_MAX_PACKAGE_BYTES - total) {
-			rc = -EFBIG;
+			ret = -EFBIG;
 			break;
 		}
 		total += size;
 		if (!root[0]) {
 			slash = strchr(name, '/');
 			if (!slash || slash == name || (size_t)(slash - name) >= sizeof(root)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			memcpy(root, name, slash - name);
 			root[slash - name] = 0;
 		}
 		if (strncmp(name, root, strlen(root)) || name[strlen(root)] != '/') {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		strscpy(rel, name + strlen(root) + 1, sizeof(rel));
 		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (strsprintf(path, sizeof(path), "%s/%s", dest, rel) < 0) {
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 			break;
 		}
 		if (type == '5') {
-			rc = seal_mkdir_p(path, 0700);
-			if (rc)
+			ret = seal_mkdir_p(path, 0700);
+			if (ret)
 				break;
 			/* Read as the other walkers do, whatever a directory carries. */
 			remain = size;
@@ -635,12 +635,12 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 
 				n = gzread(gz, buf, (__u32)want);
 				if (n <= 0) {
-					rc = -EIO;
+					ret = -EIO;
 					break;
 				}
 				remain -= (size_t)n;
 			}
-			if (rc)
+			if (ret)
 				break;
 		} else if (type == '0') {
 			char parent[PATH_MAX];
@@ -650,13 +650,13 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			slash = strrchr(parent, '/');
 			if (slash) {
 				*slash = 0;
-				rc = seal_mkdir_p(parent, 0700);
-				if (rc)
+				ret = seal_mkdir_p(parent, 0700);
+				if (ret)
 					break;
 			}
 			fd = seal_open(path, O_WRONLY | O_CREAT | O_EXCL, 0644);
 			if (fd < 0) {
-				rc = fd;
+				ret = fd;
 				break;
 			}
 			remain = size;
@@ -666,18 +666,18 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 
 				n = gzread(gz, buf, (__u32)want);
 				if (n <= 0 || write_complete(fd, buf, (size_t)n)) {
-					rc = -EIO;
+					ret = -EIO;
 					break;
 				}
 				remain -= (size_t)n;
 			}
-			if (!rc && fchmod(fd, 0644))
-				rc = -errno;
+			if (!ret && fchmod(fd, 0644))
+				ret = -errno;
 			close(fd);
-			if (rc)
+			if (ret)
 				break;
 		} else {
-			rc = -EPERM;
+			ret = -EPERM;
 			break;
 		}
 		pad = (512 - (size % 512)) % 512;
@@ -687,18 +687,18 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 
 			n = gzread(gz, buf, (__u32)want);
 			if (n <= 0) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			pad -= (size_t)n;
 		}
-		if (rc)
+		if (ret)
 			break;
 	}
-	if (gzclose(gz) != Z_OK && !rc)
-		rc = -EINVAL;
-	if (rc)
-		return rc;
+	if (gzclose(gz) != Z_OK && !ret)
+		ret = -EINVAL;
+	if (ret)
+		return ret;
 	return root[0] ? 0 : -EINVAL;
 }
 
@@ -716,7 +716,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 	X509 *cert = NULL;
 	char hex[EVP_MAX_MD_SIZE * 2 + 1];
 	size_t environment_len;
-	int rc;
+	int ret;
 
 	memset(package_fields, 0, sizeof(package_fields));
 	package_fields[0] = (struct shirudo_json_field){
@@ -740,26 +740,26 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		.sub = shirudo_fields, .n_sub = ARRAY_SIZE(shirudo_fields),
 	};
 
-	rc = bpm_pkg_read_member(archive, "build-environment.json", &environment,
-				 &environment_len, 4u * 1024u * 1024u);
-	if (rc)
-		return rc;
+	ret = bpm_pkg_read_member(archive, "build-environment.json", &environment,
+				  &environment_len, 4u * 1024u * 1024u);
+	if (ret)
+		return ret;
 	if (json_parse((const char *)environment, environment_len,
 		       root, ARRAY_SIZE(root)) ||
 	    !root[0].seen || !parsed.name[0] || !parsed.version[0] ||
 	    !bpm_package_name_ok(parsed.name) || !bpm_version_ok(parsed.version)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 
-	rc = bpm_pkg_read_member(archive, "cert.der", &info->cert, &info->cert_len,
-				 4u * 1024u * 1024u);
-	if (rc)
+	ret = bpm_pkg_read_member(archive, "cert.der", &info->cert, &info->cert_len,
+				  4u * 1024u * 1024u);
+	if (ret)
 		goto out;
 	cert = read_x509_memory(info->cert, info->cert_len);
 	signer.impl = cert;
 	if (!cert || cert_pubkey_digest(&signer, digest)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	hex_encode(digest, sizeof(digest), hex);
@@ -767,22 +767,22 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		pr_err("bpm: package signer fingerprint mismatch: "
 		       "certificate=%s build-environment.json=%s",
 		       hex, parsed.signer);
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 		goto out;
 	}
 	bpm_copy_string(info->name, sizeof(info->name), parsed.name);
 	bpm_copy_string(info->version, sizeof(info->version), parsed.version);
 	bpm_copy_string(info->signer, sizeof(info->signer), hex);
-	rc = 0;
+	ret = 0;
 out:
 	X509_free(cert);
 	xfree(environment, environment_len + 1);
-	if (rc) {
+	if (ret) {
 		xfree(info->cert, info->cert_len + 1);
 		info->cert = NULL;
 		info->cert_len = 0;
 	}
-	return rc;
+	return ret;
 }
 
 int bpm_tree_fetch_publication(struct bpm_oci_client *c,
@@ -795,49 +795,49 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 	struct bpm_buffer manifest = {}, payload = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;
 	char url[PATH_MAX], hex[65];
-	int nl = 0, rc;
+	int nl = 0, ret;
 
 	if (!reference[0] || strchr(reference, '/') || strchr(reference, '?') ||
 	    strchr(reference, '#') || strstr(reference, ".."))
 		return -EINVAL;
-	rc = bpm_oci_url(c, repository, "manifests", reference, url,
-			 sizeof(url));
-	if (rc)
-		return rc;
-	rc = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
-	if (rc)
+	ret = bpm_oci_url(c, repository, "manifests", reference, url,
+			  sizeof(url));
+	if (ret)
+		return ret;
+	ret = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
+	if (ret)
 		goto out;
 	if (bpm_sha256_hex(manifest.data, manifest.len, hex, sizeof(hex))) {
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 		goto out;
 	}
 	if (strsprintf(manifest_digest, digest_sz, "sha256:%s", hex) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	layers = xcalloc(BPM_MAX_ENTRIES, sizeof(*layers));
 	if (!layers) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
-	rc = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
-				    BPM_MAX_ENTRIES, &nl, NULL, 0);
-	if (rc)
+	ret = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
+				     BPM_MAX_ENTRIES, &nl, NULL, 0);
+	if (ret)
 		goto out;
-	rc = bpm_oci_get_signed(c, repository, layers, nl, BPM_TREE_MEDIA,
-				BPM_TREE_SIG_MEDIA, &payload, &sig);
-	if (rc)
+	ret = bpm_oci_get_signed(c, repository, layers, nl, BPM_TREE_MEDIA,
+				 BPM_TREE_SIG_MEDIA, &payload, &sig);
+	if (ret)
 		goto out;
 	if (bpm_verify_cms(payload.data, payload.len, sig.data, sig.len, cert_path)) {
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 		goto out;
 	}
-	rc = tree_parse((const char *)payload.data, payload.len, pub);
+	ret = tree_parse((const char *)payload.data, payload.len, pub);
 out:
 	if (layers)
 		xfree(layers, BPM_MAX_ENTRIES * sizeof(*layers));
 	bpm_buffer_free(&manifest);
 	bpm_buffer_free(&payload);
 	bpm_buffer_free(&sig);
-	return rc;
+	return ret;
 }

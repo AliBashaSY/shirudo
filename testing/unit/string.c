@@ -25,36 +25,36 @@ static char *span(const char *text, size_t len)
 static int u64_of(const char *text, size_t len, __u64 max, __u64 *v)
 {
 	char *buf = span(text, len);
-	int rc;
+	int ret;
 
 	*v = 0;
-	rc = parse_u64(buf, len, max, v);
+	ret = parse_u64(buf, len, max, v);
 	xfree(buf, len ? len : 1);
-	return rc;
+	return ret;
 }
 
 static int x64_of(const char *text, __u64 max, __u64 *v)
 {
 	size_t len = strlen(text);
 	char *buf = span(text, len);
-	int rc;
+	int ret;
 
 	*v = 0;
-	rc = parse_x64(buf, len, max, v);
+	ret = parse_x64(buf, len, max, v);
 	xfree(buf, len ? len : 1);
-	return rc;
+	return ret;
 }
 
 static int s64_of(const char *text, __s64 min, __s64 max, __s64 *v)
 {
 	size_t len = strlen(text);
 	char *buf = span(text, len);
-	int rc;
+	int ret;
 
 	*v = 0;
-	rc = parse_s64(buf, len, min, max, v);
+	ret = parse_s64(buf, len, min, max, v);
 	xfree(buf, len ? len : 1);
-	return rc;
+	return ret;
 }
 
 static int u64_str(const char *text, __u64 max, __u64 *v)
@@ -62,11 +62,11 @@ static int u64_str(const char *text, __u64 max, __u64 *v)
 	return u64_of(text, strlen(text), max, v);
 }
 
-#define EXPECT_U64(text, max, rc, value)				\
+#define EXPECT_U64(text, max, ret, value)				\
 	do {								\
 		__u64 v_;						\
 									\
-		EXPECT_EQ(u64_str(text, max, &v_), rc);			\
+		EXPECT_EQ(u64_str(text, max, &v_), ret);			\
 		EXPECT_UEQ(v_, value);					\
 	} while (0)
 

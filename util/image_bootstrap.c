@@ -45,14 +45,14 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 {
 	size_t capacity = 0;
 	char *line = NULL;
-	int got, rc = 0;
+	int got, ret = 0;
 
 	while ((got = read_text_line(file, &line, &capacity,
 				     PATH_MAX + 127)) != 0) {
 		char *key, *value;
 
 		if (got < 0) {
-			rc = got;
+			ret = got;
 			break;
 		}
 		key = trim(line);
@@ -60,7 +60,7 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 			continue;
 		value = strchr(key, '=');
 		if (!value) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		*value++ = 0;
@@ -69,53 +69,53 @@ static int bootstrap_parse(FILE *file, struct shirudo_image_bootstrap *boot,
 		if (!strcmp(key, "runtime.root_hash")) {
 			if (!initial || boot->have_root ||
 			    hex_decode(value, boot->runtime_root, 32)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			boot->have_root = true;
 		} else if (!strcmp(key, "runtime.image") && initial) {
 			if (!shirudo_image_path_valid(value) ||
 			    boot->runtime[0])
-				rc = -EINVAL;
+				ret = -EINVAL;
 			else if (strscpy(boot->runtime, value,
 					 sizeof(boot->runtime)) < 0)
-				rc = -ENAMETOOLONG;
+				ret = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.image")) {
 			if (!shirudo_image_path_valid(value))
-				rc = -EINVAL;
+				ret = -EINVAL;
 			else if (strscpy(boot->config, value,
 					 sizeof(boot->config)) < 0)
-				rc = -ENAMETOOLONG;
+				ret = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.verification_key")) {
 			if (strncmp(value, RUNTIME_DIR "/",
 				    sizeof(RUNTIME_DIR)) ||
 			    !shirudo_image_path_valid(value))
-				rc = -EPERM;
+				ret = -EPERM;
 			else if (strscpy(boot->certificate, value,
 					 sizeof(boot->certificate)) < 0)
-				rc = -ENAMETOOLONG;
+				ret = -ENAMETOOLONG;
 		} else if (!strcmp(key, "config.pcr")) {
 			__u64 pcr;
 
 			if (parse_u64(value, strlen(value), 23, &pcr) ||
 			    shirudo_config_measure_pcr_valid(pcr)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 			} else {
 				boot->pcr = pcr;
 				boot->have_pcr = true;
 			}
 		} else if (!strncmp(key, "config.", 7) ||
 			   !strncmp(key, "runtime.", 8)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 		}
-		if (rc)
+		if (ret)
 			break;
 	}
-	if (ferror(file) && !rc)
-		rc = -EIO;
+	if (ferror(file) && !ret)
+		ret = -EIO;
 	libc_free(line);
 	fclose(file);
-	return rc;
+	return ret;
 }
 
 int shirudo_image_bootstrap_read(const char *path,
@@ -134,22 +134,22 @@ int shirudo_image_bootstrap_read_fd(int fd,
 				    struct shirudo_image_bootstrap *boot,
 				    bool initial)
 {
-	int copy, rc;
+	int copy, ret;
 	FILE *file;
 
 	copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 	if (copy < 0)
 		return -errno;
 	if (lseek(copy, 0, SEEK_SET) < 0) {
-		rc = -errno;
+		ret = -errno;
 		close(copy);
-		return rc;
+		return ret;
 	}
 	file = fdopen(copy, "r");
 	if (!file) {
-		rc = -errno;
+		ret = -errno;
 		close(copy);
-		return rc;
+		return ret;
 	}
 	return bootstrap_parse(file, boot, initial);
 }

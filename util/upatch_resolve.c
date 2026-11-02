@@ -95,7 +95,7 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	struct bpf_link_info linfo = {};
 	struct bpf_prog_info info = {};
 	const char *attach_name = NULL;
-	int link_fd, prog_fd, rc;
+	int link_fd, prog_fd, ret;
 	__u32 attach_type = 0;
 	const char *prefix;
 	__u32 len;
@@ -105,10 +105,10 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	if (link_fd < 0)
 		return link_fd;
 	len = sizeof(linfo);
-	rc = bpf_link_get_info_by_fd(link_fd, &linfo, &len);
-	if (rc != 0 || linfo.prog_id == 0) {
+	ret = bpf_link_get_info_by_fd(link_fd, &linfo, &len);
+	if (ret != 0 || linfo.prog_id == 0) {
 		close(link_fd);
-		return rc ? -errno : -EINVAL;
+		return ret ? -errno : -EINVAL;
 	}
 	if (linfo.type == BPF_LINK_TYPE_UPROBE_MULTI) {
 		struct bpf_link_info detail = {};
@@ -128,21 +128,21 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 		detail.uprobe_multi.path = ptr_to_u64(path);
 		detail.uprobe_multi.path_size = path_size;
 		len = sizeof(detail);
-		rc = bpf_link_get_info_by_fd(link_fd, &detail, &len);
+		ret = bpf_link_get_info_by_fd(link_fd, &detail, &len);
 		close(link_fd);
-		if (rc != 0) {
-			rc = -errno;
+		if (ret != 0) {
+			ret = -errno;
 			xfree(path, path_size);
-			return rc;
+			return ret;
 		}
 		if (!memchr(path, '\0', path_size)) {
 			xfree(path, path_size);
 			return -EINVAL;
 		}
-		rc = strsprintf(out, cap, "uprobe.multi/%s (%u funcs)", path,
-				count) < 0 ? -E2BIG : 0;
+		ret = strsprintf(out, cap, "uprobe.multi/%s (%u funcs)", path,
+				 count) < 0 ? -E2BIG : 0;
 		xfree(path, path_size);
-		return rc;
+		return ret;
 	}
 	close(link_fd);
 	if (linfo.type == BPF_LINK_TYPE_TRACING)
@@ -159,9 +159,9 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 	if (prog_fd < 0)
 		return -errno;
 	len = sizeof(info);
-	rc = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &info, &len);
 	close(prog_fd);
-	if (rc != 0)
+	if (ret != 0)
 		return -errno;
 
 	if (vbtf && info.attach_btf_id &&

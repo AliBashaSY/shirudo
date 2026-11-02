@@ -14,7 +14,7 @@ static int name_into(size_t len, int ptrs, size_t cap)
 	char name[512], buf[512];
 	struct btf *btf;
 	size_t off = 0;
-	int id, rc;
+	int id, ret;
 
 	if (len >= sizeof(name) || cap > sizeof(buf))
 		return 2;
@@ -33,13 +33,13 @@ static int name_into(size_t len, int ptrs, size_t cap)
 		btf__free(btf);
 		return 2;
 	}
-	rc = append_type_name(btf, (__u32)id, buf, cap, &off, 0);
+	ret = append_type_name(btf, (__u32)id, buf, cap, &off, 0);
 	btf__free(btf);
-	printf("rc=%d off=%zu terminated=%d\n", rc, off,
+	printf("rc=%d off=%zu terminated=%d\n", ret, off,
 	       !!memchr(buf, '\0', cap));
 	if (!memchr(buf, '\0', cap))
 		return 1;
-	return rc ? 3 : 0;
+	return ret ? 3 : 0;
 }
 
 int main(int argc, char **argv)

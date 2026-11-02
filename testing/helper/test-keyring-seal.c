@@ -38,11 +38,11 @@ static int read_cert(const char *path, struct keyring_cert *cert)
 {
 	__u8 *der = NULL;
 	size_t len = 0;
-	int rc;
+	int ret;
 
-	rc = keys_read_der(path, &der, &len);
-	if (rc)
-		return rc;
+	ret = keys_read_der(path, &der, &len);
+	if (ret)
+		return ret;
 	cert->der = der;
 	cert->len = len;
 	return 0;
@@ -112,7 +112,7 @@ static int seal_case(const char *mode,
 		     const struct keyring_cert *own,
 		     const struct keyring_cert *other)
 {
-	int rc, fails = 0;
+	int ret, fails = 0;
 
 	test_ring = add("keyring", "shirudo-test-seal", NULL, 0,
 			KEY_SPEC_THREAD_KEYRING);
@@ -142,9 +142,9 @@ static int seal_case(const char *mode,
 		    syscall(__NR_keyctl, KEYCTL_RESTRICT_KEYRING, test_ring,
 			    "asymmetric", "key_or_keyring:0:chain", 0) < 0)
 			return -EIO;
-		rc = init_bpf_keyring(test_ring, set);
+		ret = init_bpf_keyring(test_ring, set);
 		fails += expect("restriction init did not install",
-				rc == 0 || rc == -EEXIST, 0);
+				ret == 0 || ret == -EEXIST, 0);
 	} else if (!strcmp(mode, "empty")) {
 		if (__wrap_keyring_bpf_seal())
 			return -EIO;
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 	struct keyring_cert own = {}, other = {};
 	struct shirudo_trusted_set set = {};
 	char keys[PATH_MAX];
-	int rc;
+	int ret;
 
 	if (argc != 5) {
 		fprintf(stderr, "usage: %s exact|fresh|foreign|nested|"
@@ -173,21 +173,21 @@ int main(int argc, char **argv)
 	if (strsprintf(keys, sizeof(keys), "%s/%s", argv[2],
 		       CERT_FILE) < 0)
 		return 2;
-	rc = read_cert(keys, &own);
-	if (!rc)
-		rc = read_cert(argv[4], &other);
-	if (!rc && strcmp(argv[1], "exact"))
-		rc = keys_load(argv[2], argv[3], false, &set);
-	if (!rc)
-		rc = strcmp(argv[1], "exact") ?
+	ret = read_cert(keys, &own);
+	if (!ret)
+		ret = read_cert(argv[4], &other);
+	if (!ret && strcmp(argv[1], "exact"))
+		ret = keys_load(argv[2], argv[3], false, &set);
+	if (!ret)
+		ret = strcmp(argv[1], "exact") ?
 		     seal_case(argv[1], &set, &own, &other) :
 		     exact_case(&own, &other);
-	if (rc)
+	if (ret)
 		fprintf(stderr, "keyring seal test %s: %s\n", argv[1],
-			strerror(-rc));
+			strerror(-ret));
 	if (own.der)
 		xfree((void *)own.der, own.len);
 	if (other.der)
 		xfree((void *)other.der, other.len);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }

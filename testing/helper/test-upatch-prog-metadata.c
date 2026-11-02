@@ -164,53 +164,53 @@ int main(int argc, char **argv)
 {
 	struct shirudo_upatch u;
 	const char *mode = "serializer";
-	int rc;
+	int ret;
 
 	if (argc != 2 && argc != 3 && argc != 6)
 		return fail("usage: test-upatch-prog-metadata <file.upatch> [mode [path pattern count]]");
 	if (argc >= 3)
 		mode = argv[2];
 
-	rc = upatch_open(argv[1], &u);
-	if (rc)
+	ret = upatch_open(argv[1], &u);
+	if (ret)
 		return fail("open upatch failed");
 
 	if (strcmp(mode, "serializer") == 0) {
-		rc = expect_serializer(&u);
+		ret = expect_serializer(&u);
 	} else if (strcmp(mode, "cgroup-ingress") == 0) {
-		rc = expect_attach(&u,
-				   SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS,
-				   NULL, 0);
+		ret = expect_attach(&u,
+				    SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_INGRESS,
+				    NULL, 0);
 	} else if (strcmp(mode, "cgroup-egress") == 0) {
-		rc = expect_attach(&u,
-				   SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS,
-				   NULL, 0);
+		ret = expect_attach(&u,
+				    SHIRUDO_UPATCH_ATTACH_CGROUP_SKB_EGRESS,
+				    NULL, 0);
 	} else if (strcmp(mode, "kprobe-override") == 0) {
-		rc = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_KPROBE,
-				   "bpf_modify_return_test", 0);
+		ret = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_KPROBE,
+				    "bpf_modify_return_test", 0);
 	} else if (strcmp(mode, "fmod-ret") == 0) {
-		rc = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_FMOD_RET,
-				   NULL, 0);
+		ret = expect_attach(&u, SHIRUDO_UPATCH_ATTACH_FMOD_RET,
+				    NULL, 0);
 	} else if (strcmp(mode, "netfilter-ipv6-pre-routing") == 0) {
-		rc = expect_attach(&u,
-				   SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
-				   NULL, 0);
+		ret = expect_attach(&u,
+				    SHIRUDO_UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING,
+				    NULL, 0);
 	} else if (strcmp(mode, "uprobe-multi") == 0 && argc == 6) {
 		char *end = NULL;
 		__u64 count = strtoul(argv[5], &end, 10);
 
 		if (!end || *end || count > UINT32_MAX)
-			rc = fail("invalid expected uprobe offset count");
+			ret = fail("invalid expected uprobe offset count");
 		else
-			rc = expect_uprobe_multi(&u, argv[3], argv[4],
-						 (__u32)count);
+			ret = expect_uprobe_multi(&u, argv[3], argv[4],
+						  (__u32)count);
 	} else {
-		rc = fail("unknown metadata check mode");
+		ret = fail("unknown metadata check mode");
 	}
 
 	upatch_close(&u);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	puts("ok");
 	return 0;
 }

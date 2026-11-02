@@ -329,28 +329,28 @@ static int emit_byte(char *dst, size_t cap, size_t *len, __u8 b)
 
 static int utf8_emit(char *dst, size_t cap, size_t *len, __u32 cp)
 {
-	int rc;
+	int ret;
 
 	if (cp < 0x80) {
 		return emit_byte(dst, cap, len, cp);
 	} else if (cp < 0x800) {
-		rc = emit_byte(dst, cap, len, 0xC0 | (cp >> 6));
-		if (!rc)
-			rc = emit_byte(dst, cap, len, 0x80 | (cp & 0x3F));
-		return rc;
+		ret = emit_byte(dst, cap, len, 0xC0 | (cp >> 6));
+		if (!ret)
+			ret = emit_byte(dst, cap, len, 0x80 | (cp & 0x3F));
+		return ret;
 	}
-	rc = emit_byte(dst, cap, len, 0xE0 | (cp >> 12));
-	if (!rc)
-		rc = emit_byte(dst, cap, len, 0x80 | ((cp >> 6) & 0x3F));
-	if (!rc)
-		rc = emit_byte(dst, cap, len, 0x80 | (cp & 0x3F));
-	return rc;
+	ret = emit_byte(dst, cap, len, 0xE0 | (cp >> 12));
+	if (!ret)
+		ret = emit_byte(dst, cap, len, 0x80 | ((cp >> 6) & 0x3F));
+	if (!ret)
+		ret = emit_byte(dst, cap, len, 0x80 | (cp & 0x3F));
+	return ret;
 }
 
 static int parse_string(struct pctx *c, char *dst, size_t cap)
 {
 	size_t len = 0;
-	int rc;
+	int ret;
 
 	if (c->p >= c->end || *c->p != '"')
 		return -EINVAL;
@@ -371,28 +371,28 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 			e = *c->p++;
 			switch (e) {
 			case '"':
-				rc = emit_byte(dst, cap, &len, '"');
+				ret = emit_byte(dst, cap, &len, '"');
 				break;
 			case '\\':
-				rc = emit_byte(dst, cap, &len, '\\');
+				ret = emit_byte(dst, cap, &len, '\\');
 				break;
 			case '/':
-				rc = emit_byte(dst, cap, &len, '/');
+				ret = emit_byte(dst, cap, &len, '/');
 				break;
 			case 'b':
-				rc = emit_byte(dst, cap, &len, '\b');
+				ret = emit_byte(dst, cap, &len, '\b');
 				break;
 			case 'f':
-				rc = emit_byte(dst, cap, &len, '\f');
+				ret = emit_byte(dst, cap, &len, '\f');
 				break;
 			case 'n':
-				rc = emit_byte(dst, cap, &len, '\n');
+				ret = emit_byte(dst, cap, &len, '\n');
 				break;
 			case 'r':
-				rc = emit_byte(dst, cap, &len, '\r');
+				ret = emit_byte(dst, cap, &len, '\r');
 				break;
 			case 't':
-				rc = emit_byte(dst, cap, &len, '\t');
+				ret = emit_byte(dst, cap, &len, '\t');
 				break;
 			case 'u': {
 				int cp, lo;
@@ -420,33 +420,33 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 					return -EINVAL;	/* lone low surrogate */
 				}
 				if (cp < 0x10000) {
-					rc = utf8_emit(dst, cap, &len, cp);
+					ret = utf8_emit(dst, cap, &len, cp);
 				} else {
-					rc = emit_byte(dst, cap, &len,
-						       0xF0 | (cp >> 18));
-					if (!rc)
-						rc = emit_byte(dst, cap, &len,
-							       0x80 | ((cp >> 12) & 0x3F));
-					if (!rc)
-						rc = emit_byte(dst, cap, &len,
-							       0x80 | ((cp >> 6) & 0x3F));
-					if (!rc)
-						rc = emit_byte(dst, cap, &len,
-							       0x80 | (cp & 0x3F));
+					ret = emit_byte(dst, cap, &len,
+							0xF0 | (cp >> 18));
+					if (!ret)
+						ret = emit_byte(dst, cap, &len,
+								0x80 | ((cp >> 12) & 0x3F));
+					if (!ret)
+						ret = emit_byte(dst, cap, &len,
+								0x80 | ((cp >> 6) & 0x3F));
+					if (!ret)
+						ret = emit_byte(dst, cap, &len,
+								0x80 | (cp & 0x3F));
 				}
 				break;
 			}
 			default:
 				return -EINVAL;
 			}
-			if (rc)
-				return rc;
+			if (ret)
+				return ret;
 		} else if (ch < 0x20) {
 			return -EINVAL;		/* unescaped control char */
 		} else {
-			rc = emit_byte(dst, cap, &len, ch);
-			if (rc)
-				return rc;
+			ret = emit_byte(dst, cap, &len, ch);
+			if (ret)
+				return ret;
 		}
 	}
 	if (dst)
@@ -459,7 +459,7 @@ static int parse_value(struct pctx *c, struct shirudo_json_field *f);
 static int parse_object(struct pctx *c)
 {
 	char key[256];
-	int rc;
+	int ret;
 
 	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
@@ -475,9 +475,9 @@ static int parse_object(struct pctx *c)
 		size_t i;
 
 		skip_ws(c);
-		rc = parse_string(c, key, sizeof(key));
-		if (rc)
-			return rc;
+		ret = parse_string(c, key, sizeof(key));
+		if (ret)
+			return ret;
 		skip_ws(c);
 		if (c->p >= c->end || *c->p != ':')
 			return -EINVAL;
@@ -488,9 +488,9 @@ static int parse_object(struct pctx *c)
 				break;
 			}
 		}
-		rc = parse_value(c, f);
-		if (rc)
-			return rc;
+		ret = parse_value(c, f);
+		if (ret)
+			return ret;
 		skip_ws(c);
 		if (c->p >= c->end)
 			return -EINVAL;
@@ -510,7 +510,7 @@ static int parse_object(struct pctx *c)
 
 static int parse_array(struct pctx *c)
 {
-	int rc;
+	int ret;
 
 	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
@@ -522,9 +522,9 @@ static int parse_array(struct pctx *c)
 		return 0;
 	}
 	for (;;) {
-		rc = parse_value(c, NULL);	/* elements never dispatched */
-		if (rc)
-			return rc;
+		ret = parse_value(c, NULL);	/* elements never dispatched */
+		if (ret)
+			return ret;
 		skip_ws(c);
 		if (c->p >= c->end)
 			return -EINVAL;
@@ -545,7 +545,7 @@ static int parse_array(struct pctx *c)
 static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 {
 	struct shirudo_json_array *sink = f->dst;
-	int rc;
+	int ret;
 
 	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
@@ -571,18 +571,18 @@ static int parse_array_into(struct pctx *c, struct shirudo_json_field *f)
 
 			c->fields = f->sub;
 			c->n_fields = f->n_sub;
-			rc = parse_object(c);
+			ret = parse_object(c);
 			c->fields = save_f;
 			c->n_fields = save_n;
 		} else {
-			rc = parse_value(c, f->n_sub ? &f->sub[0] : NULL);
+			ret = parse_value(c, f->n_sub ? &f->sub[0] : NULL);
 		}
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 		if (sink && sink->on_elem) {
-			rc = sink->on_elem(sink->ctx);
-			if (rc)
-				return rc;
+			ret = sink->on_elem(sink->ctx);
+			if (ret)
+				return ret;
 		}
 		skip_ws(c);
 		if (c->p >= c->end)
@@ -668,7 +668,7 @@ static int parse_value(struct pctx *c, struct shirudo_json_field *f)
 	case '{': {
 		struct shirudo_json_field *save_f = c->fields;
 		size_t save_n = c->n_fields;
-		int rc;
+		int ret;
 
 		if (f) {
 			if (f->type != SHIRUDO_JSON_T_OBJECT)
@@ -684,11 +684,11 @@ static int parse_value(struct pctx *c, struct shirudo_json_field *f)
 			c->fields = NULL;
 			c->n_fields = 0;
 		}
-		rc = parse_object(c);
+		ret = parse_object(c);
 		c->fields = save_f;
 		c->n_fields = save_n;
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 		if (f)
 			f->seen = 1;
 		return 0;
@@ -702,13 +702,13 @@ static int parse_value(struct pctx *c, struct shirudo_json_field *f)
 		return parse_array(c);
 	case '"':
 		if (f) {
-			int rc;
+			int ret;
 
 			if (f->type != SHIRUDO_JSON_T_STRING)
 				return -EINVAL;
-			rc = parse_string(c, f->dst, f->dst_cap);
-			if (rc)
-				return rc;
+			ret = parse_string(c, f->dst, f->dst_cap);
+			if (ret)
+				return ret;
 			f->seen = 1;
 			return 0;
 		}
@@ -750,7 +750,7 @@ int json_parse(const char *data, size_t len,
 		.fields = fields, .n_fields = n_fields,
 	};
 	size_t i;
-	int rc;
+	int ret;
 
 	if (len > JSON_MAX_BYTES)
 		return -E2BIG;
@@ -760,9 +760,9 @@ int json_parse(const char *data, size_t len,
 	skip_ws(&c);
 	if (c.p >= c.end || *c.p != '{')
 		return -EINVAL;
-	rc = parse_object(&c);
-	if (rc)
-		return rc;
+	ret = parse_object(&c);
+	if (ret)
+		return ret;
 	skip_ws(&c);
 	if (c.p != c.end)
 		return -EINVAL;		/* trailing garbage */

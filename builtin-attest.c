@@ -184,14 +184,14 @@ static int member_add_file(struct members *m, const char *path)
 {
 	struct shirudo_measured_upatch *e;
 	struct shirudo_upatch u;
-	int rc;
+	int ret;
 
 	if (m->n >= ATTEST_MEMBERS_MAX)
 		return -E2BIG;
-	rc = upatch_open(path, &u);
-	if (rc) {
-		pr_err("attest: open %s: %s", path, strerror(-rc));
-		return rc;
+	ret = upatch_open(path, &u);
+	if (ret) {
+		pr_err("attest: open %s: %s", path, strerror(-ret));
+		return ret;
 	}
 	e = &m->set[m->n++];
 	memcpy(e->name, u.hdr.name, UPATCH_NAME_MAX);
@@ -486,7 +486,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 	char *evidence = NULL, *report;
 	size_t evidence_len = 0, nonce_len = 0, i;
 	bool have_cert = false, have_nonce = false, have_tree_root = false;
-	int rc, ret = 2;
+	int err, ret = 2;
 
 	m.set = xcalloc(ATTEST_MEMBERS_MAX, sizeof(*m.set));
 	report = xmalloc(ATTEST_REPORT_MAX);
@@ -647,14 +647,14 @@ static int cmd_attest_verify(int argc, const char **argv)
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
 		goto out;
-	rc = attest_verify(evidence, evidence_len, &x, report,
-			   ATTEST_REPORT_MAX);
+	err = attest_verify(evidence, evidence_len, &x, report,
+			    ATTEST_REPORT_MAX);
 	fputs(report, stdout);
-	if (rc == -EINVAL) {
+	if (err == -EINVAL) {
 		pr_err("attest verify: %s is not a shirudo evidence document",
 		       evidence_path);
 		ret = 2;
-	} else if (rc) {
+	} else if (err) {
 		printf("verdict: FAIL\n");
 		ret = 1;
 	} else {
@@ -677,7 +677,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	char *evidence = NULL, *doc = NULL, *report;
 	char hex[2 * TPM_CREDENTIAL_LEN + 1];
 	size_t evidence_len = 0, len = 0, cap = 0, i, n;
-	int rc, ret = 2;
+	int err, ret = 2;
 
 	report = xmalloc(ATTEST_REPORT_MAX);
 	if (!report)
@@ -724,16 +724,16 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
 		goto out;
-	rc = attest_challenge_make(evidence, evidence_len, &pol,
-				   credential, &doc, &len, &cap, report,
-				   ATTEST_REPORT_MAX);
+	err = attest_challenge_make(evidence, evidence_len, &pol,
+				    credential, &doc, &len, &cap, report,
+				    ATTEST_REPORT_MAX);
 	fputs(report, stdout);
-	if (rc == -EINVAL) {
+	if (err == -EINVAL) {
 		pr_err("attest challenge: %s carries no endorsement key",
 		       evidence_path);
 		goto out;
 	}
-	if (rc) {
+	if (err) {
 		printf("verdict: FAIL\n");
 		ret = 1;
 		goto out;
@@ -748,11 +748,11 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			ret = 1;
 			goto out;
 		}
-		rc = write_complete(fd, doc, len) ||
+		err = write_complete(fd, doc, len) ||
 		     write_complete(fd, "\n", 1) ? -EIO : 0;
-		if (close(fd) && !rc)
-			rc = -EIO;
-		if (rc) {
+		if (close(fd) && !err)
+			err = -EIO;
+		if (err) {
 			pr_err("attest challenge: write %s: %s", out_path,
 			       strerror(errno));
 			ret = 1;
@@ -779,7 +779,7 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	const char *out_path = NULL, *challenge_path = NULL;
 	char *doc = NULL;
 	size_t nonce_len = 0, len = 0, cap = 0, i;
-	int rc;
+	int ret;
 
 	for (i = 1; i < (size_t)argc; i++) {
 		const char *a = argv[i];
@@ -819,25 +819,25 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	}
 
 	request = challenge_path ? &challenge : NULL;
-	rc = shirudo_attest_evidence_config(nonce, nonce_len, mask, request,
-					    shirudo_image_update_context(),
-					    &doc, &len, &cap);
-	if (rc == -ENXIO) {
+	ret = shirudo_attest_evidence_config(nonce, nonce_len, mask, request,
+					     shirudo_image_update_context(),
+					     &doc, &len, &cap);
+	if (ret == -ENXIO) {
 		pr_err("attest: no TPM answered (tpm_error)");
 		return 1;
 	}
-	if (rc == -ENODEV) {
+	if (ret == -ENODEV) {
 		pr_err("attest: register 0x%08X is not bound this boot "
 		       "(tpm_error); run shirudo init first",
 		       NV_INDEX);
 		return 1;
 	}
-	if (rc == -EKEYREJECTED) {
+	if (ret == -EKEYREJECTED) {
 		pr_err("attest: the challenge was refused (tampered?)");
 		return 1;
 	}
-	if (rc) {
-		pr_err("attest: evidence failed: %s", strerror(-rc));
+	if (ret) {
+		pr_err("attest: evidence failed: %s", strerror(-ret));
 		return 1;
 	}
 	if (out_path) {
@@ -846,23 +846,23 @@ static int cmd_attest_evidence(int argc, const char **argv)
 
 		if (fd < 0) {
 			pr_err("attest: open %s: %s", out_path, strerror(-fd));
-			rc = fd;
+			ret = fd;
 		} else {
 			if (write_complete(fd, doc, len) ||
 			    write_complete(fd, "\n", 1))
-				rc = -EIO;
-			if (close(fd) && !rc)
-				rc = -EIO;
-			if (rc)
+				ret = -EIO;
+			if (close(fd) && !ret)
+				ret = -EIO;
+			if (ret)
 				pr_err("attest: write %s: %s", out_path,
 				       strerror(errno));
 		}
 	} else if (fwrite(doc, 1, len, stdout) != len ||
 		   fputc('\n', stdout) == EOF) {
-		rc = -EIO;
+		ret = -EIO;
 	}
 	xfree(doc, cap);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 int cmd_attest(int argc, const char **argv)

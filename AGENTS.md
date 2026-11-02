@@ -122,6 +122,8 @@ package for `bpm info`.
   `va_list` forms, which only `util/string.c` and the `xasprintf()` of
   `util/malloc.c` call, and `check-style.sh` rejects them outside
   `testing/`.
+- **Name a return code `ret`**, as the kernel does, and an errno from a
+  callee that a function keeps beside the value it returns `err`.
 - **Declare locals in reverse-Christmas-tree order** (the netdev
   convention): longest declaration line first, shortest last. Group
   declarations that have no initializer dependency and sort them by

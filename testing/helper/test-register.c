@@ -35,26 +35,26 @@ static int writer_create(void)
 {
 	struct bpf_map_create_opts opts = { .sz = sizeof(opts) };
 	struct shirudo_identity id = {};
-	int fd, rc;
+	int fd, ret;
 	__u32 zero = 0;
 
-	rc = nv_writer_create(id.nv_writer_seed, id.nv_writer_public);
-	if (rc)
+	ret = nv_writer_create(id.nv_writer_seed, id.nv_writer_public);
+	if (ret)
 		goto out;
 	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "shirudo_test_id", sizeof(zero),
 			    sizeof(id), 1, &opts);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	if (bpf_map_update_elem(fd, &zero, &id, BPF_ANY) ||
 	    bpf_map_freeze(fd) || bpf_obj_pin(fd, IDENTITY_PIN))
-		rc = -errno;
+		ret = -errno;
 	close(fd);
-	if (!rc)
+	if (!ret)
 		return 0;
 out:
-	fprintf(stderr, "TPM writer setup: %s\n", strerror(-rc));
+	fprintf(stderr, "TPM writer setup: %s\n", strerror(-ret));
 	return 1;
 }
 
@@ -188,7 +188,7 @@ static int append_tree(__s64 seq, const char *op, const char *id,
 int main(int argc, char **argv)
 {
 	__u8 event[32], chain[32];
-	int rc;
+	int ret;
 
 	if (argc < 2)
 		return 2;
@@ -212,9 +212,9 @@ int main(int argc, char **argv)
 
 		if (hex_decode(argv[2], event, 32))
 			return 2;
-		rc = chain_init(event, &info);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = chain_init(event, &info);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("reused=%d\n", info.reused);
 		printf("reset_count=%u\n", info.reset_count);
@@ -239,9 +239,9 @@ int main(int argc, char **argv)
 			return 2;
 		chain_upatch_event("shirudo-upatch", argv[2], payload,
 				   event);
-		rc = chain_extend(event, chain);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = chain_extend(event, chain);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("value=");
 		puthex(chain, 32);
@@ -257,9 +257,9 @@ int main(int argc, char **argv)
 		    hex_decode(argv[5] + 7, operation, 32))
 			return 2;
 		chain_tree_event(seq, operation, event);
-		rc = chain_extend(event, chain);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = chain_extend(event, chain);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("value=");
 		puthex(chain, 32);
@@ -269,18 +269,18 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "extend-raw") == 0 && argc == 3) {
 		if (hex_decode(argv[2], event, 32))
 			return 2;
-		rc = chain_extend(event, chain);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = chain_extend(event, chain);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("value=");
 		puthex(chain, 32);
 		return 0;
 	}
 	if (strcmp(argv[1], "read") == 0) {
-		rc = chain_read(chain);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = chain_read(chain);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("value=");
 		puthex(chain, 32);
@@ -289,8 +289,8 @@ int main(int argc, char **argv)
 	if (strcmp(argv[1], "status") == 0) {
 		struct chain_status st;
 
-		rc = chain_status(&st);
-		printf("rc=%d\n", rc);
+		ret = chain_status(&st);
+		printf("rc=%d\n", ret);
 		printf("tpm=%d defined=%d written=%d logged=%d anchored=%d\n",
 		       st.tpm, st.defined, st.written, st.logged, st.anchored);
 		printf("rebound=%d\n", st.rebound);
@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 			printf("value=");
 			puthex(st.value, 32);
 		}
-		return rc ? 1 : 0;
+		return ret ? 1 : 0;
 	}
 	/* A measurement into a PCR, as systemd's boot phases make them. */
 	if (strcmp(argv[1], "pcr-extend") == 0 && argc == 4) {
@@ -307,10 +307,10 @@ int main(int argc, char **argv)
 
 		if (hex_decode(argv[3], d, 32) || tpm_open(&tpm))
 			return 2;
-		rc = tpm_pcr_extend(tpm, (__u32)atoi(argv[2]), d);
+		ret = tpm_pcr_extend(tpm, (__u32)atoi(argv[2]), d);
 		tpm_close(tpm);
-		printf("rc=%d\n", rc);
-		return rc ? 1 : 0;
+		printf("rc=%d\n", ret);
+		return ret ? 1 : 0;
 	}
 	if (strcmp(argv[1], "pcr") == 0 && argc == 3) {
 		struct shirudo_tpm *tpm = NULL;
@@ -318,9 +318,9 @@ int main(int argc, char **argv)
 
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_pcr_read(tpm, (__u32)atoi(argv[2]), v);
+		ret = tpm_pcr_read(tpm, (__u32)atoi(argv[2]), v);
 		tpm_close(tpm);
-		if (rc)
+		if (ret)
 			return 1;
 		puthex(v, 32);
 		return 0;
@@ -335,9 +335,9 @@ int main(int argc, char **argv)
 
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_ek_create(tpm, strcmp(argv[2], "rsa") == 0,
-				   &ek);
-		if (!rc) {
+		ret = tpm_ek_create(tpm, strcmp(argv[2], "rsa") == 0,
+				    &ek);
+		if (!ret) {
 			printf("public=");
 			puthex(ek.public, ek.public_len);
 			printf("name=");
@@ -345,8 +345,8 @@ int main(int argc, char **argv)
 			tpm_key_flush(tpm, &ek);
 		}
 		tpm_close(tpm);
-		printf("rc=%d\n", rc);
-		return rc ? 1 : 0;
+		printf("rc=%d\n", ret);
+		return ret ? 1 : 0;
 	}
 	/* The attack: recreate the index with the same public area. */
 	if (strcmp(argv[1], "recreate") == 0) {
@@ -355,18 +355,18 @@ int main(int argc, char **argv)
 
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_nv_info(tpm, NV_INDEX, &nv);
-		if (!rc && nv.defined)
-			rc = tpm_nv_undefine(tpm, NV_INDEX,
-					     NULL, 0);
-		if (!rc)
-			rc = tpm_nv_define(tpm, NV_INDEX,
-					   nv.policy, NULL, 0);
-		if (!rc)
-			rc = tpm_nv_info(tpm, NV_INDEX, &nv);
+		ret = tpm_nv_info(tpm, NV_INDEX, &nv);
+		if (!ret && nv.defined)
+			ret = tpm_nv_undefine(tpm, NV_INDEX,
+					      NULL, 0);
+		if (!ret)
+			ret = tpm_nv_define(tpm, NV_INDEX,
+					    nv.policy, NULL, 0);
+		if (!ret)
+			ret = tpm_nv_info(tpm, NV_INDEX, &nv);
 		tpm_close(tpm);
-		printf("rc=%d\n", rc);
-		if (rc)
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 1;
 		printf("written=%d\nname=", nv.written);
 		puthex(nv.name, nv.name_len);
@@ -387,23 +387,23 @@ int main(int argc, char **argv)
 			return 2;
 		memcpy(values, rec.pcr_before, 32);
 		memcpy(values + 32, rec.phase_before, 32);
-		rc = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
-					 rec.writer_public, branch_written, branch_init, policy);
-		if (rc) {
-			fprintf(stderr, "register policy: %s\n", strerror(-rc));
+		ret = tpm_register_policy(CHAIN_PCR_MASK, values, 2,
+					  rec.writer_public, branch_written, branch_init, policy);
+		if (ret) {
+			fprintf(stderr, "register policy: %s\n", strerror(-ret));
 			return 1;
 		}
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_nv_set_writer(tpm, writer_seed, writer_public);
-		if (!rc)
-			rc = tpm_nv_extend_first(tpm, NV_INDEX,
-						 CHAIN_PCR_MASK,
-						 branch_written, branch_init,
-						 event);
+		ret = tpm_nv_set_writer(tpm, writer_seed, writer_public);
+		if (!ret)
+			ret = tpm_nv_extend_first(tpm, NV_INDEX,
+						  CHAIN_PCR_MASK,
+						  branch_written, branch_init,
+						  event);
 		tpm_close(tpm);
-		printf("rc=%d\n", rc);
-		return rc ? 1 : 0;
+		printf("rc=%d\n", ret);
+		return ret ? 1 : 0;
 	}
 	/*
 	 * The attack: a register of the target's own at another handle,
@@ -444,54 +444,54 @@ int main(int argc, char **argv)
 			return 1;
 		if (tpm_open(&tpm))
 			return 1;
-		rc = tpm_nv_set_writer(tpm, writer_seed, writer_public);
-		if (!rc)
-			rc = tpm_reset_count(tpm, &reset);
-		if (!rc)
-			rc = tpm_pcr_read(tpm, pcr, before);
-		if (!rc)
-			rc = tpm_pcr_read(tpm, phase, before + 32);
-		if (!rc)
-			rc = tpm_register_policy(mask, before, 2, writer_public,
-						 branch_written, branch_init, policy);
-		if (!rc)
-			rc = tpm_nv_define(tpm, index, policy, NULL, 0);
-		if (!rc)
-			rc = tpm_nv_extend_first(tpm, index, mask,
-						 branch_written, branch_init,
-						 event);
-		if (!rc)
-			rc = tpm_nv_info(tpm, index, &nv);
-		if (!rc)
-			rc = chain_anchor(nv.name, anchor, sizeof(anchor));
-		if (!rc) {
+		ret = tpm_nv_set_writer(tpm, writer_seed, writer_public);
+		if (!ret)
+			ret = tpm_reset_count(tpm, &reset);
+		if (!ret)
+			ret = tpm_pcr_read(tpm, pcr, before);
+		if (!ret)
+			ret = tpm_pcr_read(tpm, phase, before + 32);
+		if (!ret)
+			ret = tpm_register_policy(mask, before, 2, writer_public,
+						  branch_written, branch_init, policy);
+		if (!ret)
+			ret = tpm_nv_define(tpm, index, policy, NULL, 0);
+		if (!ret)
+			ret = tpm_nv_extend_first(tpm, index, mask,
+						  branch_written, branch_init,
+						  event);
+		if (!ret)
+			ret = tpm_nv_info(tpm, index, &nv);
+		if (!ret)
+			ret = chain_anchor(nv.name, anchor, sizeof(anchor));
+		if (!ret) {
 			shirudo_sha256(anchor, strlen(anchor), anchor_digest);
-			rc = tpm_pcr_extend(tpm, pcr, anchor_digest);
+			ret = tpm_pcr_extend(tpm, pcr, anchor_digest);
 		}
-		if (!rc)
-			rc = tpm_nv_read(tpm, index, value);
-		if (!rc)
-			rc = tpm_ak_create(tpm, &ak);
-		if (!rc)
-			rc = tpm_ek_create(tpm, false, &ek);
-		for (i = 0; !rc && i < 24; i++) {
+		if (!ret)
+			ret = tpm_nv_read(tpm, index, value);
+		if (!ret)
+			ret = tpm_ak_create(tpm, &ak);
+		if (!ret)
+			ret = tpm_ek_create(tpm, false, &ek);
+		for (i = 0; !ret && i < 24; i++) {
 			if (quoted & (1u << i))
-				rc = tpm_pcr_read(tpm, i, values[i]);
+				ret = tpm_pcr_read(tpm, i, values[i]);
 		}
-		if (!rc)
-			rc = tpm_quote(tpm, &ak, nonce, nonce_len, quoted,
-				       &quote);
-		if (!rc)
-			rc = tpm_nv_certify(tpm, &ak, index, nonce, nonce_len,
-					    &certify);
+		if (!ret)
+			ret = tpm_quote(tpm, &ak, nonce, nonce_len, quoted,
+					&quote);
+		if (!ret)
+			ret = tpm_nv_certify(tpm, &ak, index, nonce, nonce_len,
+					     &certify);
 		/* Flushing scrubs the key; keep the public parts. */
 		memcpy(&ak_copy, &ak, sizeof(ak_copy));
 		memcpy(&ek_copy, &ek, sizeof(ek_copy));
 		tpm_key_flush(tpm, &ek);
 		tpm_key_flush(tpm, &ak);
 		tpm_close(tpm);
-		if (rc) {
-			printf("rc=%d\n", rc);
+		if (ret) {
+			printf("rc=%d\n", ret);
 			return 1;
 		}
 
@@ -606,12 +606,12 @@ int main(int argc, char **argv)
 			fprintf(stderr, "evidence: bad challenge\n");
 			return 2;
 		}
-		rc = shirudo_attest_evidence_config(nonce, nonce_len,
-						    ATTEST_PCR_DEFAULT,
-						    argc == 4 ? &challenge : NULL,
-						    NULL, &doc, &len, &cap);
-		if (rc) {
-			fprintf(stderr, "evidence: %s\n", strerror(-rc));
+		ret = shirudo_attest_evidence_config(nonce, nonce_len,
+						     ATTEST_PCR_DEFAULT,
+						     argc == 4 ? &challenge : NULL,
+						     NULL, &doc, &len, &cap);
+		if (ret) {
+			fprintf(stderr, "evidence: %s\n", strerror(-ret));
 			return 1;
 		}
 		fwrite(doc, 1, len, stdout);

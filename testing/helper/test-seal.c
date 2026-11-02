@@ -19,15 +19,15 @@
 
 static int append(const char *path, const char *text)
 {
-	int fd, rc;
+	int fd, ret;
 
 	fd = seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
-	rc = write_complete(fd, text, strlen(text));
-	if (close(fd) && !rc)
-		rc = -errno;
-	return rc;
+	ret = write_complete(fd, text, strlen(text));
+	if (close(fd) && !ret)
+		ret = -errno;
+	return ret;
 }
 
 /* The label an inode carries, or none, without following a link. */
@@ -47,7 +47,7 @@ static void show_label(const char *path)
 
 int main(int argc, char **argv)
 {
-	int rc;
+	int ret;
 
 	if (argc < 3) {
 		fprintf(stderr, "usage: %s label|mkdir|open|write|inherit|get "
@@ -59,20 +59,20 @@ int main(int argc, char **argv)
 		return 0;
 	}
 	if (strcmp(argv[1], "label") == 0) {
-		rc = seal_label(argv[2]);
+		ret = seal_label(argv[2]);
 	} else if (strcmp(argv[1], "mkdir") == 0) {
-		rc = seal_mkdir_p(argv[2], 0700);
+		ret = seal_mkdir_p(argv[2], 0700);
 	} else if (strcmp(argv[1], "open") == 0 && argc == 4) {
-		rc = append(argv[2], argv[3]);
+		ret = append(argv[2], argv[3]);
 	} else if (strcmp(argv[1], "write") == 0 && argc == 4) {
-		rc = seal_write_file(argv[2], argv[3], strlen(argv[3]),
-				     0600);
+		ret = seal_write_file(argv[2], argv[3], strlen(argv[3]),
+				      0600);
 	} else if (strcmp(argv[1], "inherit") == 0) {
-		rc = seal_inherit_path(argv[2]);
+		ret = seal_inherit_path(argv[2]);
 	} else {
 		fprintf(stderr, "unknown subcommand\n");
 		return 2;
 	}
-	printf("rc=%d\n", rc);
-	return rc ? 1 : 0;
+	printf("rc=%d\n", ret);
+	return ret ? 1 : 0;
 }

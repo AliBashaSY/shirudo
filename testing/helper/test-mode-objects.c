@@ -14,7 +14,7 @@ static int symbols(const char *selection,
 {
 	Elf_Scn *section = NULL;
 	Elf *elf;
-	int rc = 0;
+	int ret = 0;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return 1;
@@ -27,14 +27,14 @@ static int symbols(const char *selection,
 		size_t i;
 
 		if (!gelf_getshdr(section, &header)) {
-			rc = 1;
+			ret = 1;
 			break;
 		}
 		if (header.sh_type != SHT_SYMTAB)
 			continue;
 		data = elf_getdata(section, NULL);
 		if (!data || !header.sh_entsize) {
-			rc = 1;
+			ret = 1;
 			break;
 		}
 		for (i = 1; i < header.sh_size / header.sh_entsize; i++) {
@@ -42,21 +42,21 @@ static int symbols(const char *selection,
 			const char *name;
 
 			if (!gelf_getsym(data, i, &symbol)) {
-				rc = 1;
+				ret = 1;
 				break;
 			}
 			if (symbol.st_shndx != SHN_UNDEF)
 				continue;
 			name = elf_strptr(elf, header.sh_link, symbol.st_name);
 			if (!name) {
-				rc = 1;
+				ret = 1;
 				break;
 			}
 			printf("extern %s %s\n", selection, name);
 		}
 	}
 	elf_end(elf);
-	return rc;
+	return ret;
 }
 
 static int inspect(const char *selection,

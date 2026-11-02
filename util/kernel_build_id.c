@@ -69,7 +69,7 @@ int kernel_build_id_read(char out[KERNEL_BUILD_ID_STRING_MAX])
 {
 	__u8 notes[KERNEL_NOTES_MAX];
 	size_t len = 0;
-	int fd, rc;
+	int fd, ret;
 
 	if (!out)
 		return -EINVAL;
@@ -80,16 +80,16 @@ int kernel_build_id_read(char out[KERNEL_BUILD_ID_STRING_MAX])
 		ssize_t n = read(fd, notes + len, sizeof(notes) - len);
 
 		if (n < 0) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 		if (!n)
 			break;
 		len += (size_t)n;
 	}
-	rc = len == sizeof(notes) ? -E2BIG :
+	ret = len == sizeof(notes) ? -E2BIG :
 		kernel_build_id_from_notes(notes, len, out);
 out:
 	close(fd);
-	return rc;
+	return ret;
 }

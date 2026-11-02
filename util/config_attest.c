@@ -41,7 +41,7 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 	__u8 digest[32];
 	__u64 sequence = 0;
 	size_t i;
-	int rc;
+	int ret;
 
 	if (!view->events || !view->n_events ||
 	    view->n_events > CONFIG_EVIDENCE_EVENTS_MAX)
@@ -56,12 +56,12 @@ static int replay(const struct shirudo_config_evidence *view, __u8 out[32])
 		    event->kind != (i ? SHIRUDO_CONFIG_EVENT_UPDATE :
 					SHIRUDO_CONFIG_EVENT_BOOT))
 			return -EKEYREJECTED;
-		rc = shirudo_config_measure_event(event->kind, event->root_hash,
-						  digest);
-		if (!rc)
-			rc = shirudo_chain_fold_checked(out, digest);
-		if (rc)
-			return rc;
+		ret = shirudo_config_measure_event(event->kind, event->root_hash,
+						   digest);
+		if (!ret)
+			ret = shirudo_chain_fold_checked(out, digest);
+		if (ret)
+			return ret;
 		sequence = event->sequence;
 	}
 	return 0;
@@ -90,30 +90,30 @@ int shirudo_config_evidence_collect(struct shirudo_config_update *update,
 {
 	struct shirudo_config_update_record active;
 	const struct shirudo_config_evidence_event *last;
-	int rc;
+	int ret;
 
 	memset(out, 0, sizeof(*out));
 	if (!update)
 		return 0;
-	rc = shirudo_config_update_check(update, &active);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_check(update, &active);
+	if (ret)
+		return ret;
 	out->pcr = active.pcr;
 	out->reset_count = active.reset_count;
 	out->restart_count = active.restart_count;
 	memcpy(out->initial_pcr, active.initial_pcr, 32);
-	rc = shirudo_config_update_events(update, collect_event, out);
-	if (!rc)
-		rc = replay(out, out->value);
-	if (!rc) {
+	ret = shirudo_config_update_events(update, collect_event, out);
+	if (!ret)
+		ret = replay(out, out->value);
+	if (!ret) {
 		last = &out->events[out->n_events - 1];
 		if (last->sequence != active.sequence ||
 		    memcmp(last->root_hash, active.target.root_hash, 32))
-			rc = -EUCLEAN;
+			ret = -EUCLEAN;
 	}
-	if (rc) {
+	if (ret) {
 		shirudo_config_evidence_clear(out);
-		return rc;
+		return ret;
 	}
 	out->present = true;
 	return 0;
@@ -203,7 +203,7 @@ int shirudo_config_evidence_parse(const char *evidence, size_t length,
 	__s64 schema = 0, reset = 0, restart = 0, pcr = 0;
 	char initial[65] = {};
 	size_t i;
-	int rc;
+	int ret;
 	struct shirudo_json_field event_fields[] = {
 		{ "sequence", SHIRUDO_JSON_T_INT, &parser.sequence, 0, 0, NULL,
 		  0 },
@@ -230,34 +230,34 @@ int shirudo_config_evidence_parse(const char *evidence, size_t length,
 	memset(out, 0, sizeof(*out));
 	parser.event_fields = event_fields;
 	parser.n_fields = ARRAY_SIZE(event_fields);
-	rc = json_parse(evidence, length, top, ARRAY_SIZE(top));
-	if (rc)
+	ret = json_parse(evidence, length, top, ARRAY_SIZE(top));
+	if (ret)
 		goto fail;
 	if (!top[0].seen)
 		return 0;
 	for (i = 0; i < ARRAY_SIZE(config_fields); i++)
 		if (!config_fields[i].seen) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto fail;
 		}
 	if (schema != 1 || reset < 0 || reset > UINT32_MAX || restart < 0 ||
 	    restart > UINT32_MAX || pcr < 0 || pcr > 15 ||
 	    shirudo_config_measure_pcr_valid(pcr) || strlen(initial) != 64 ||
 	    hex_decode(initial, out->initial_pcr, 32)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto fail;
 	}
 	out->pcr = pcr;
 	out->reset_count = reset;
 	out->restart_count = restart;
-	rc = replay(out, out->value);
-	if (rc)
+	ret = replay(out, out->value);
+	if (ret)
 		goto fail;
 	out->present = true;
 	return 0;
 fail:
 	shirudo_config_evidence_clear(out);
-	return rc;
+	return ret;
 }
 
 int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
@@ -267,7 +267,7 @@ int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
 				   int expected_pcr, const char **reason)
 {
 	__u8 value[32];
-	int rc;
+	int ret;
 
 	*reason = "config root history matches the quoted PCR";
 	if (!view->present) {
@@ -288,10 +288,10 @@ int shirudo_config_evidence_verify(const struct shirudo_config_evidence *view,
 		*reason = "expected config root needs an expected PCR";
 		return -EKEYREJECTED;
 	}
-	rc = replay(view, value);
-	if (rc || memcmp(value, pcrs[view->pcr], 32)) {
+	ret = replay(view, value);
+	if (ret || memcmp(value, pcrs[view->pcr], 32)) {
 		*reason = "config history does not match the quoted PCR";
-		return rc ? rc : -EKEYREJECTED;
+		return ret ? ret : -EKEYREJECTED;
 	}
 	if (expected_root && memcmp(view->events[view->n_events - 1].root_hash,
 				    expected_root, 32)) {

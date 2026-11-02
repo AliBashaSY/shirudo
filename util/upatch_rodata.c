@@ -163,7 +163,7 @@ static int find_rodata_data(const struct shirudo_upatch *u,
 	struct rodata_map maps[RODATA_MAPS_MAX] = {};
 	size_t count = u->hdr.loader_insns_len / sizeof(*insns), i;
 	__u32 sec_size;
-	int rc = -ENODATA;
+	int ret = -ENODATA;
 
 	if (!sec || BTF_INFO_KIND(sec->info) != BTF_KIND_DATASEC ||
 	    u->hdr.loader_insns_len % sizeof(*insns))
@@ -228,7 +228,7 @@ static int find_rodata_data(const struct shirudo_upatch *u,
 			return 0;
 		}
 	}
-	return rc;
+	return ret;
 }
 
 static int btf_rodata_btf(const struct shirudo_upatch *u,
@@ -317,15 +317,15 @@ static int btf_rodata_btf(const struct shirudo_upatch *u,
 int upatch_rodata_data_offset(const struct shirudo_upatch *u, __u32 *offset)
 {
 	struct rodata_view view = {};
-	int rc;
+	int ret;
 
 	if (!u || !offset)
 		return -EINVAL;
-	rc = btf_rodata_btf(u, &view);
-	if (!rc)
+	ret = btf_rodata_btf(u, &view);
+	if (!ret)
 		*offset = view.data_offset;
 	btf__free(view.btf);
-	return rc;
+	return ret;
 }
 
 int upatch_rodata_symbol_range(const struct shirudo_upatch *u,
@@ -337,18 +337,18 @@ int upatch_rodata_symbol_range(const struct shirudo_upatch *u,
 	const struct btf_var_secinfo *vars;
 	bool found = false;
 	__u32 i;
-	int rc;
+	int ret;
 
 	if (!u || !symbol || !symbol[0] || !range)
 		return -EINVAL;
-	rc = btf_rodata_btf(u, &view);
-	if (rc) {
+	ret = btf_rodata_btf(u, &view);
+	if (ret) {
 		btf__free(view.btf);
-		return rc;
+		return ret;
 	}
 	sec = btf__type_by_id(view.btf, view.type_id);
 	if (!sec || BTF_INFO_KIND(sec->info) != BTF_KIND_DATASEC) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	vars = (const struct btf_var_secinfo *)(sec + 1);
@@ -366,7 +366,7 @@ int upatch_rodata_symbol_range(const struct shirudo_upatch *u,
 		if (strcmp(name, symbol))
 			continue;
 		if (found) {
-			rc = -EEXIST;
+			ret = -EEXIST;
 			goto out;
 		}
 		offset = vars[i].offset;
@@ -375,17 +375,17 @@ int upatch_rodata_symbol_range(const struct shirudo_upatch *u,
 		    view.data_offset > u->hdr.data_len ||
 		    offset > u->hdr.data_len - view.data_offset ||
 		    size > u->hdr.data_len - view.data_offset - offset) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
 		range->offset = view.data_offset + offset;
 		range->size = size;
 		found = true;
 	}
-	rc = found ? 0 : -ENOENT;
+	ret = found ? 0 : -ENOENT;
 out:
 	btf__free(view.btf);
-	return rc;
+	return ret;
 }
 
 static __u32 btf_unwrap(const struct btf *btf, __u32 id)
@@ -576,7 +576,7 @@ static int json_btf_value(struct shirudo_json_emit *e, const struct btf *btf,
 {
 	const struct btf_type *t;
 	__u16 kind;
-	int rc;
+	int ret;
 
 	if (depth >= RODATA_JSON_MAX_DEPTH || !type_id || !bytes)
 		return -EINVAL;
@@ -589,9 +589,9 @@ static int json_btf_value(struct shirudo_json_emit *e, const struct btf *btf,
 		__u64 value;
 		bool sign, boolean;
 
-		rc = btf_integer(t, bytes, size, &value, &sign, &boolean);
-		if (rc)
-			return rc;
+		ret = btf_integer(t, bytes, size, &value, &sign, &boolean);
+		if (ret)
+			return ret;
 		if (boolean)
 			json_raw_value(e, value ? "true" : "false", value ? 4 : 5);
 		else
@@ -697,12 +697,12 @@ static int json_btf_value(struct shirudo_json_emit *e, const struct btf *btf,
 				if (member_size < 0 || byte_off > size ||
 				    (size_t)member_size > size - byte_off)
 					return -EINVAL;
-				rc = json_btf_value(e, btf, m[i].type,
-						    bytes + byte_off,
-						    (size_t)member_size,
-						    depth + 1);
-				if (rc)
-					return rc;
+				ret = json_btf_value(e, btf, m[i].type,
+						     bytes + byte_off,
+						     (size_t)member_size,
+						     depth + 1);
+				if (ret)
+					return ret;
 			}
 		}
 		json_obj_close(e);
@@ -721,11 +721,11 @@ static int json_btf_value(struct shirudo_json_emit *e, const struct btf *btf,
 		for (i = 0; i < a->nelems && !e->err; i++) {
 			if (!elem_size)
 				return -EINVAL;
-			rc = json_btf_value(e, btf, a->type,
-					    bytes + (size_t)i * elem_size,
-					    (size_t)elem_size, depth + 1);
-			if (rc)
-				return rc;
+			ret = json_btf_value(e, btf, a->type,
+					     bytes + (size_t)i * elem_size,
+					     (size_t)elem_size, depth + 1);
+			if (ret)
+				return ret;
 		}
 		json_arr_close(e);
 		return e->err;
@@ -792,7 +792,7 @@ static int print_rodata_text(const struct shirudo_upatch *u,
 		(const struct btf_var_secinfo *)(sec + 1);
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
 	char name[UPATCH_NAME_MAX + 1];
-	int rc = 0;
+	int ret = 0;
 
 	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
 	name[UPATCH_NAME_MAX] = '\0';
@@ -810,26 +810,26 @@ static int print_rodata_text(const struct shirudo_upatch *u,
 
 		if (!var_name || !var_name[0] ||
 		    btf_var_type(view->btf, &vars[i], &type_id)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
-		rc = append_type_name(view->btf, type_id, type,
-				      sizeof(type), &type_off, 0);
-		if (rc)
+		ret = append_type_name(view->btf, type_id, type,
+				       sizeof(type), &type_off, 0);
+		if (ret)
 			goto out;
 		if (vars[i].offset > view->size ||
 		    vars[i].size > view->size - vars[i].offset) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
 		printf("\n%s: %s, size=%u, rodata+%u, data+%u, file+%u = ",
 		       var_name, type, vars[i].size, vars[i].offset,
 		       view->data_offset + vars[i].offset,
 		       u->hdr.data_off + view->data_offset + vars[i].offset);
-		rc = btf_dump__dump_type_data(dump, type_id,
-					      view->bytes + vars[i].offset,
-					      vars[i].size, &opts);
-		if (rc < 0)
+		ret = btf_dump__dump_type_data(dump, type_id,
+					       view->bytes + vars[i].offset,
+					       vars[i].size, &opts);
+		if (ret < 0)
 			goto out;
 		putchar('\n');
 	}
@@ -838,7 +838,7 @@ static int print_rodata_text(const struct shirudo_upatch *u,
 	return 0;
 out:
 	btf_dump__free(dump);
-	return rc;
+	return ret;
 }
 
 static int print_rodata_json(const struct shirudo_upatch *u,
@@ -852,7 +852,7 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 	char *buf = xmalloc(JSON_MAX_BYTES);
 	struct shirudo_json_emit e = {};
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
-	int rc = 0;
+	int ret = 0;
 
 	if (!buf)
 		return -ENOMEM;
@@ -877,16 +877,16 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 
 		if (!var_name || !var_name[0] ||
 		    btf_var_type(view->btf, &vars[i], &type_id)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
-		rc = append_type_name(view->btf, type_id, type,
-				      sizeof(type), &type_off, 0);
-		if (rc)
+		ret = append_type_name(view->btf, type_id, type,
+				       sizeof(type), &type_off, 0);
+		if (ret)
 			break;
 		if (vars[i].offset > view->size ||
 		    vars[i].size > view->size - vars[i].offset) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		json_obj_open(&e);
@@ -899,42 +899,42 @@ static int print_rodata_json(const struct shirudo_upatch *u,
 		json_kv_int(&e, "file_offset",
 			    u->hdr.data_off + view->data_offset + vars[i].offset);
 		json_key(&e, "value");
-		rc = json_btf_value(&e, view->btf, type_id,
-				    view->bytes + vars[i].offset,
-				    vars[i].size, 0);
+		ret = json_btf_value(&e, view->btf, type_id,
+				     view->bytes + vars[i].offset,
+				     vars[i].size, 0);
 		json_obj_close(&e);
-		if (rc)
+		if (ret)
 			break;
 	}
 	json_arr_close(&e);
 	json_obj_close(&e);
-	if (!rc && e.err)
-		rc = e.err;
-	if (!rc)
-		rc = write_complete(STDOUT_FILENO, buf, e.len);
-	if (!rc)
-		rc = write_complete(STDOUT_FILENO, "\n", 1);
-	if (rc == -ENOSPC)
+	if (!ret && e.err)
+		ret = e.err;
+	if (!ret)
+		ret = write_complete(STDOUT_FILENO, buf, e.len);
+	if (!ret)
+		ret = write_complete(STDOUT_FILENO, "\n", 1);
+	if (ret == -ENOSPC)
 		pr_err("BTF JSON output exceeds %u bytes", JSON_MAX_BYTES);
 	xfree(buf, JSON_MAX_BYTES);
-	return rc;
+	return ret;
 }
 
 int upatch_rodata_print(const struct shirudo_upatch *u, const char *path,
 			bool json)
 {
 	struct rodata_view view = {};
-	int rc;
+	int ret;
 
 	if (upatch_is_unload(u))
 		return -EINVAL;
-	rc = btf_rodata_btf(u, &view);
-	if (rc)
+	ret = btf_rodata_btf(u, &view);
+	if (ret)
 		goto out;
-	rc = json ? print_rodata_json(u, path, &view) :
+	ret = json ? print_rodata_json(u, path, &view) :
 		    print_rodata_text(u, path, &view);
 out:
 	if (view.btf)
 		btf__free(view.btf);
-	return rc;
+	return ret;
 }

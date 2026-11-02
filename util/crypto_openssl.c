@@ -41,15 +41,15 @@ static int read_x509(const char *path, X509 **out)
 	int fd = open(path, O_RDONLY | O_CLOEXEC);
 	X509 *cert;
 	BIO *bio;
-	int rc;
+	int ret;
 
 	*out = NULL;
 	if (fd < 0)
 		return -errno;
-	rc = check_trusted(fd, path, false);
-	if (rc) {
+	ret = check_trusted(fd, path, false);
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	bio = BIO_new_fd(fd, BIO_CLOSE);
 	if (!bio) {
@@ -100,14 +100,14 @@ int sha256_final(struct shirudo_sha256_ctx *ctx,
 		 __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u32 len = 0;
-	int rc;
+	int ret;
 
 	if (!ctx || !ctx->impl || !out)
 		return -EINVAL;
-	rc = EVP_DigestFinal_ex(ctx->impl, out, &len) == 1 && len == 32 ? 0 : -EIO;
+	ret = EVP_DigestFinal_ex(ctx->impl, out, &len) == 1 && len == 32 ? 0 : -EIO;
 	EVP_MD_CTX_free(ctx->impl);
 	ctx->impl = NULL;
-	return rc;
+	return ret;
 }
 
 void sha256_free(struct shirudo_sha256_ctx *ctx)
@@ -122,16 +122,16 @@ int sha256_buffer(const void *data, size_t len,
 		  __u8 out[CRYPTO_SHA256_LEN])
 {
 	struct shirudo_sha256_ctx ctx;
-	int rc;
+	int ret;
 
-	rc = sha256_init(&ctx);
-	if (!rc)
-		rc = sha256_update(&ctx, data, len);
-	if (!rc)
-		rc = sha256_final(&ctx, out);
+	ret = sha256_init(&ctx);
+	if (!ret)
+		ret = sha256_update(&ctx, data, len);
+	if (!ret)
+		ret = sha256_final(&ctx, out);
 	else
 		sha256_free(&ctx);
-	return rc;
+	return ret;
 }
 
 int base64_encode(const __u8 *data, size_t len,
@@ -180,12 +180,12 @@ int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
 	EVP_PKEY_CTX *vctx = NULL;
 	ECDSA_SIG *sig = NULL;
 	EVP_PKEY *pkey = NULL;
-	int der_len, rc = -EIO;
+	int der_len, ret = -EIO;
 	__u8 *der = NULL;
 
 	pkey = p256_public_key(x, y);
 	if (!pkey) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	br = BN_bin2bn(r, 32, NULL);
@@ -202,7 +202,7 @@ int ecdsa_p256_verify(const __u8 x[32], const __u8 y[32],
 	if (!vctx || EVP_PKEY_verify_init(vctx) <= 0 ||
 	    EVP_PKEY_CTX_set_signature_md(vctx, EVP_sha256()) <= 0)
 		goto out;
-	rc = EVP_PKEY_verify(vctx, der, (size_t)der_len, digest, 32) == 1 ?
+	ret = EVP_PKEY_verify(vctx, der, (size_t)der_len, digest, 32) == 1 ?
 	     0 : -EKEYREJECTED;
 out:
 	OPENSSL_free(der);
@@ -212,35 +212,35 @@ out:
 	EVP_PKEY_CTX_free(vctx);
 	EVP_PKEY_free(pkey);
 	ERR_clear_error();
-	return rc;
+	return ret;
 }
 
 int cert_read_file(const char *path, struct shirudo_cert *cert)
 {
 	X509 *x509;
-	int rc;
+	int ret;
 
 	if (!path || !cert)
 		return -EINVAL;
-	rc = read_x509(path, &x509);
+	ret = read_x509(path, &x509);
 	cert->impl = x509;
-	return rc;
+	return ret;
 }
 
 int cert_read_fd(int fd, struct shirudo_cert *cert)
 {
 	size_t len = 0;
 	__u8 *der;
-	int rc;
+	int ret;
 
 	if (fd < 0 || !cert)
 		return -EINVAL;
-	rc = read_fd(fd, "certificate", KEYS_DER_MAX, &der, &len);
-	if (rc)
-		return rc;
-	rc = cert_read_der(der, len, cert);
+	ret = read_fd(fd, "certificate", KEYS_DER_MAX, &der, &len);
+	if (ret)
+		return ret;
+	ret = cert_read_der(der, len, cert);
 	xfree(der, len + 1);
-	return rc;
+	return ret;
 }
 
 void cert_free(struct shirudo_cert *cert)
@@ -263,7 +263,7 @@ int cert_pubkey_digest(const struct shirudo_cert *cert,
 		       __u8 out[CRYPTO_SHA256_LEN])
 {
 	__u8 *der = NULL, *p;
-	int der_len, encoded_len, rc = -EINVAL;
+	int der_len, encoded_len, ret = -EINVAL;
 	__u32 len = 0;
 	X509_PUBKEY *spki;
 
@@ -285,10 +285,10 @@ int cert_pubkey_digest(const struct shirudo_cert *cert,
 	if (!EVP_Digest(der, (size_t)der_len, out, &len,
 			EVP_sha256(), NULL) || len != CRYPTO_SHA256_LEN)
 		goto out;
-	rc = 0;
+	ret = 0;
 out:
 	xfree(der, (size_t)der_len);
-	return rc;
+	return ret;
 }
 
 int cert_key_algorithm(const struct shirudo_cert *cert,
@@ -313,27 +313,27 @@ int cert_subject(const struct shirudo_cert *cert, char *out, size_t out_sz)
 	char *text;
 	long len;
 	BIO *bio;
-	int rc;
+	int ret;
 
 	if (!cert || !cert->impl || !out || !out_sz)
 		return -EINVAL;
 	bio = BIO_new(BIO_s_mem());
 	if (!bio)
 		return -ENOMEM;
-	rc = -EINVAL;
+	ret = -EINVAL;
 	if (X509_NAME_print_ex(bio, X509_get_subject_name(cert->impl), 0,
 			       XN_FLAG_ONELINE & ~XN_FLAG_SPC_EQ) < 0)
 		goto out;
 	len = BIO_get_mem_data(bio, &text);
-	rc = -ENAMETOOLONG;
+	ret = -ENAMETOOLONG;
 	if (len < 0 || (size_t)len >= out_sz)
 		goto out;
 	memcpy(out, text, (size_t)len);
 	out[len] = '\0';
-	rc = 0;
+	ret = 0;
 out:
 	BIO_free(bio);
-	return rc;
+	return ret;
 }
 
 static int asn1_date(const ASN1_TIME *t, char out[11])
@@ -348,14 +348,14 @@ static int asn1_date(const ASN1_TIME *t, char out[11])
 int cert_validity(const struct shirudo_cert *cert, char not_before[11],
 		  char not_after[11])
 {
-	int rc;
+	int ret;
 
 	if (!cert || !cert->impl)
 		return -EINVAL;
-	rc = asn1_date(X509_get0_notBefore(cert->impl), not_before);
-	if (!rc)
-		rc = asn1_date(X509_get0_notAfter(cert->impl), not_after);
-	return rc;
+	ret = asn1_date(X509_get0_notBefore(cert->impl), not_before);
+	if (!ret)
+		ret = asn1_date(X509_get0_notAfter(cert->impl), not_after);
+	return ret;
 }
 
 static CMS_ContentInfo *read_cms(const __u8 *signature, size_t len)
@@ -386,7 +386,7 @@ int verify_detached(const __u8 *payload, size_t payload_len,
 	BIO *data = NULL, *out = NULL;
 	CMS_ContentInfo *cms = NULL;
 	X509_STORE *store = NULL;
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	if (!payload || !signature || !cert || !cert->impl ||
 	    payload_len > INT_MAX || signature_len > INT_MAX)
@@ -404,16 +404,16 @@ int verify_detached(const __u8 *payload, size_t payload_len,
 	cms = read_cms(signature, signature_len);
 	if (cms && CMS_verify(cms, signers, store, data, out,
 			      CMS_BINARY | CMS_DETACHED) == 1)
-		rc = 0;
+		ret = 0;
 done:
-	if (rc)
+	if (ret)
 		ERR_clear_error();
 	CMS_ContentInfo_free(cms);
 	sk_X509_free(signers);
 	X509_STORE_free(store);
 	BIO_free(out);
 	BIO_free(data);
-	return rc;
+	return ret;
 }
 
 int cms_signed_by(const __u8 *signature, size_t signature_len,
@@ -421,7 +421,7 @@ int cms_signed_by(const __u8 *signature, size_t signature_len,
 {
 	STACK_OF(CMS_SignerInfo) *sis;
 	CMS_ContentInfo *cms = NULL;
-	int i, rc = -EINVAL;
+	int i, ret = -EINVAL;
 
 	if (!signature || !cert || !cert->impl || signature_len > INT_MAX)
 		return -EINVAL;
@@ -431,17 +431,17 @@ int cms_signed_by(const __u8 *signature, size_t signature_len,
 	sis = CMS_get0_SignerInfos(cms);
 	if (!sis)
 		goto done;
-	rc = 0;
-	for (i = 0; i < sk_CMS_SignerInfo_num(sis) && !rc; i++) {
+	ret = 0;
+	for (i = 0; i < sk_CMS_SignerInfo_num(sis) && !ret; i++) {
 		if (CMS_SignerInfo_cert_cmp(sk_CMS_SignerInfo_value(sis, i),
 					    cert->impl) == 0)
-			rc = 1;
+			ret = 1;
 	}
 done:
-	if (rc < 0)
+	if (ret < 0)
 		ERR_clear_error();
 	CMS_ContentInfo_free(cms);
-	return rc;
+	return ret;
 }
 
 int hmac_sha256(const __u8 *key, size_t key_len,
@@ -450,7 +450,7 @@ int hmac_sha256(const __u8 *key, size_t key_len,
 	EVP_MAC_CTX *ctx = NULL;
 	OSSL_PARAM params[2];
 	size_t outl = 0;
-	int rc = -EIO;
+	int ret = -EIO;
 	EVP_MAC *mac;
 
 	mac = EVP_MAC_fetch(NULL, "HMAC", NULL);
@@ -463,17 +463,17 @@ int hmac_sha256(const __u8 *key, size_t key_len,
 	if (ctx && EVP_MAC_init(ctx, key, key_len, params) == 1 &&
 	    EVP_MAC_update(ctx, data, len) == 1 &&
 	    EVP_MAC_final(ctx, out, &outl, 32) == 1 && outl == 32)
-		rc = 0;
+		ret = 0;
 	EVP_MAC_CTX_free(ctx);
 	EVP_MAC_free(mac);
-	return rc;
+	return ret;
 }
 
 int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
 		       size_t len, __u8 *out)
 {
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-	int n = 0, fin = 0, rc = -EIO;
+	int n = 0, fin = 0, ret = -EIO;
 	__u8 iv[16] = {};
 
 	if (!ctx || len > INT_MAX)
@@ -483,10 +483,10 @@ int aes128_cfb_encrypt(const __u8 key[16], const __u8 *in,
 	    EVP_EncryptUpdate(ctx, out, &n, in, (int)len) == 1 &&
 	    EVP_EncryptFinal_ex(ctx, out + n, &fin) == 1 &&
 	    (size_t)n + (size_t)fin == len)
-		rc = 0;
+		ret = 0;
 out:
 	EVP_CIPHER_CTX_free(ctx);
-	return rc;
+	return ret;
 }
 
 int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
@@ -500,7 +500,7 @@ int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
 	OSSL_PARAM *params = NULL;
 	__u8 *lbl = NULL;
 	EVP_PKEY *pkey = NULL;
-	int rc = -EIO;
+	int ret = -EIO;
 
 	if (n_len > INT_MAX || label_len > INT_MAX)
 		return -EINVAL;
@@ -515,7 +515,7 @@ int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
 	kctx = EVP_PKEY_CTX_new_from_name(NULL, "RSA", NULL);
 	if (!params || !kctx || EVP_PKEY_fromdata_init(kctx) <= 0 ||
 	    EVP_PKEY_fromdata(kctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	lbl = OPENSSL_malloc(label_len ? label_len : 1);
@@ -533,7 +533,7 @@ int rsa_oaep_encrypt(const __u8 *n, size_t n_len, __u32 e,
 	*out_len = cap;
 	if (EVP_PKEY_encrypt(ectx, out, out_len, in, in_len) <= 0)
 		goto out;
-	rc = 0;
+	ret = 0;
 out:
 	OPENSSL_free(lbl);
 	EVP_PKEY_CTX_free(ectx);
@@ -543,7 +543,7 @@ out:
 	OSSL_PARAM_BLD_free(bld);
 	BN_free(bn);
 	BN_free(be);
-	return rc;
+	return ret;
 }
 
 int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
@@ -554,11 +554,11 @@ int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
 	BIGNUM *bx = NULL, *by = NULL;
 	EVP_PKEY_CTX *dctx = NULL;
 	size_t zlen = 32;
-	int rc = -EIO;
+	int ret = -EIO;
 
 	peer = p256_public_key(x, y);
 	if (!peer) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	eph = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
@@ -572,21 +572,21 @@ int ecdh_p256_ephemeral(const __u8 x[32], const __u8 y[32],
 	    EVP_PKEY_derive_set_peer(dctx, peer) <= 0 ||
 	    EVP_PKEY_derive(dctx, z, &zlen) <= 0 || zlen != 32)
 		goto out;
-	rc = 0;
+	ret = 0;
 out:
 	BN_free(bx);
 	BN_free(by);
 	EVP_PKEY_CTX_free(dctx);
 	EVP_PKEY_free(eph);
 	EVP_PKEY_free(peer);
-	return rc;
+	return ret;
 }
 
 int base64_decode(const char *in, size_t in_len, __u8 *out,
 		  size_t cap, size_t *out_len)
 {
 	EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
-	int n = 0, fin = 0, rc = -EINVAL;
+	int n = 0, fin = 0, ret = -EINVAL;
 
 	if (!ctx || in_len > INT_MAX || cap < 3 * ((in_len + 3) / 4))
 		goto out;
@@ -596,10 +596,10 @@ int base64_decode(const char *in, size_t in_len, __u8 *out,
 	    EVP_DecodeFinal(ctx, out + n, &fin) < 0)
 		goto out;
 	*out_len = (size_t)n + (size_t)fin;
-	rc = 0;
+	ret = 0;
 out:
 	EVP_ENCODE_CTX_free(ctx);
-	return rc;
+	return ret;
 }
 
 int cert_read_der(const __u8 *der, size_t len,
@@ -618,7 +618,7 @@ int cert_pubkey(const struct shirudo_cert *cert,
 {
 	BIGNUM *a = NULL, *b = NULL;
 	char group[32] = "";
-	int id, rc = -EINVAL;
+	int id, ret = -EINVAL;
 	EVP_PKEY *pk;
 
 	memset(out, 0, sizeof(*out));
@@ -634,7 +634,7 @@ int cert_pubkey(const struct shirudo_cert *cert,
 		out->rsa = true;
 		out->n_len = (size_t)BN_bn2bin(a, out->n);
 		out->e = (__u32)BN_get_word(b);
-		rc = 0;
+		ret = 0;
 	} else if (id == EVP_PKEY_EC) {
 		if (!EVP_PKEY_get_utf8_string_param(pk, OSSL_PKEY_PARAM_GROUP_NAME,
 						    group, sizeof(group), NULL) ||
@@ -644,14 +644,14 @@ int cert_pubkey(const struct shirudo_cert *cert,
 		    BN_bn2binpad(a, out->x, 32) != 32 ||
 		    BN_bn2binpad(b, out->y, 32) != 32)
 			goto out;
-		rc = 0;
+		ret = 0;
 	} else {
-		rc = -EPROTONOSUPPORT;
+		ret = -EPROTONOSUPPORT;
 	}
 out:
 	BN_free(a);
 	BN_free(b);
-	return rc;
+	return ret;
 }
 
 int cert_verify_chain(const struct shirudo_cert *cert,
@@ -659,7 +659,7 @@ int cert_verify_chain(const struct shirudo_cert *cert,
 {
 	X509_STORE_CTX *ctx = NULL;
 	X509_STORE *store;
-	int rc = -EIO;
+	int ret = -EIO;
 
 	*reason = "";
 	if (!cert || !cert->impl || !bundle_path)
@@ -668,7 +668,7 @@ int cert_verify_chain(const struct shirudo_cert *cert,
 	if (!store)
 		return -ENOMEM;
 	if (X509_STORE_load_file(store, bundle_path) != 1) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	/* An intermediate in the bundle is a trust anchor too. */
@@ -677,15 +677,15 @@ int cert_verify_chain(const struct shirudo_cert *cert,
 	if (!ctx || X509_STORE_CTX_init(ctx, store, cert->impl, NULL) != 1)
 		goto out;
 	if (X509_verify_cert(ctx) == 1) {
-		rc = 0;
+		ret = 0;
 	} else {
 		*reason = X509_verify_cert_error_string(X509_STORE_CTX_get_error(ctx));
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 	}
 out:
 	X509_STORE_CTX_free(ctx);
 	X509_STORE_free(store);
-	return rc;
+	return ret;
 }
 
 void openssl_complain(const char *where)

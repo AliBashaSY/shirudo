@@ -55,7 +55,7 @@ static int seal_label_cb(const char *path, const struct stat *sb,
 			 int typeflag, struct FTW *ftwbuf)
 {
 	char label[SEAL_LABEL_LEN];
-	int rc;
+	int ret;
 
 	(void)typeflag;
 	(void)ftwbuf;
@@ -78,10 +78,10 @@ static int seal_label_cb(const char *path, const struct stat *sb,
 				"ignored", path);
 		return 0;
 	}
-	rc = seal_label(path);
-	if (rc) {
-		pr_err("seal: label %s: %s", path, strerror(-rc));
-		seal_walk_error = rc;
+	ret = seal_label(path);
+	if (ret) {
+		pr_err("seal: label %s: %s", path, strerror(-ret));
+		seal_walk_error = ret;
 		return 1;
 	}
 	return 0;
@@ -170,7 +170,7 @@ static int seal_same(int dfd, int fd)
 static int seal_open_dir(const char *path, bool create, mode_t mode)
 {
 	char buf[PATH_MAX], *comp, *save;
-	int dfd, nfd, rc = 0;
+	int dfd, nfd, ret = 0;
 	bool created;
 
 	if (strscpy(buf, path, sizeof(buf)) < 0)
@@ -183,31 +183,31 @@ static int seal_open_dir(const char *path, bool create, mode_t mode)
 	     comp = strtok_r(NULL, "/", &save)) {
 		created = create && mkdirat(dfd, comp, mode) == 0;
 		if (create && !created && errno != EEXIST) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		nfd = openat(dfd, comp, O_RDONLY | O_DIRECTORY | O_NOFOLLOW |
 			     O_CLOEXEC);
 		if (nfd < 0) {
-			rc = -errno;
-			if (rc == -ELOOP || rc == -ENOTDIR)
+			ret = -errno;
+			if (ret == -ELOOP || ret == -ENOTDIR)
 				pr_err("%s: %s is not a directory of shirudo's "
 				       "(foreign entry in sealed state)", path,
 				       comp);
 			break;
 		}
-		rc = created ? seal_inherit(dfd, nfd) : seal_same(dfd, nfd);
-		if (rc == -EPERM)
+		ret = created ? seal_inherit(dfd, nfd) : seal_same(dfd, nfd);
+		if (ret == -EPERM)
 			pr_err("%s: %s carries no label (foreign entry in "
 			       "sealed state); refusing", path, comp);
 		close(dfd);
 		dfd = nfd;
-		if (rc)
+		if (ret)
 			break;
 	}
-	if (rc) {
+	if (ret) {
 		close(dfd);
-		return rc;
+		return ret;
 	}
 	return dfd;
 }
@@ -310,33 +310,33 @@ int seal_output_open(const char *path, int flags, mode_t mode)
 {
 	const char *name;
 	struct stat st;
-	int dfd, fd, rc;
+	int dfd, fd, ret;
 
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
 		return dfd;
-	rc = seal_fsealed(dfd);
-	if (rc)
+	ret = seal_fsealed(dfd);
+	if (ret)
 		goto out_dir;
 	fd = openat(dfd, name, (flags & ~O_TRUNC) | O_NOFOLLOW | O_CLOEXEC,
 		    mode);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_dir;
 	}
 	if (fstat(fd, &st)) {
-		rc = -errno;
+		ret = -errno;
 		goto out_fd;
 	}
 	if (!S_ISREG(st.st_mode)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out_fd;
 	}
-	rc = seal_fsealed(fd);
-	if (rc)
+	ret = seal_fsealed(fd);
+	if (ret)
 		goto out_fd;
 	if ((flags & O_TRUNC) && ftruncate(fd, 0)) {
-		rc = -errno;
+		ret = -errno;
 		goto out_fd;
 	}
 	close(dfd);
@@ -345,17 +345,17 @@ out_fd:
 	close(fd);
 out_dir:
 	close(dfd);
-	if (rc > 0) {
+	if (ret > 0) {
 		pr_err("%s: refusing to write sealed state", path);
-		rc = -EPERM;
+		ret = -EPERM;
 	}
-	return rc;
+	return ret;
 }
 
 int seal_open(const char *path, int flags, mode_t mode)
 {
 	const char *name;
-	int dfd, fd, rc;
+	int dfd, fd, ret;
 
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
@@ -364,32 +364,32 @@ int seal_open(const char *path, int flags, mode_t mode)
 		    O_NONBLOCK | O_CLOEXEC, mode);
 	if (fd >= 0) {
 		if (flags & O_EXCL) {
-			rc = -EEXIST;
+			ret = -EEXIST;
 		} else {
-			rc = seal_regular(fd);
-			if (!rc)
-				rc = seal_same(dfd, fd);
-			if (rc == -EPERM)
+			ret = seal_regular(fd);
+			if (!ret)
+				ret = seal_same(dfd, fd);
+			if (ret == -EPERM)
 				pr_err("%s: carries no label (foreign entry "
 				       "in sealed state); refusing", path);
-			if (!rc && (flags & O_TRUNC) && ftruncate(fd, 0))
-				rc = -errno;
+			if (!ret && (flags & O_TRUNC) && ftruncate(fd, 0))
+				ret = -errno;
 		}
 	} else if (errno == ENOENT && (flags & O_CREAT)) {
 		fd = openat(dfd, name, flags | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
 			    mode);
-		rc = fd < 0 ? -errno : seal_inherit(dfd, fd);
+		ret = fd < 0 ? -errno : seal_inherit(dfd, fd);
 	} else {
-		rc = -errno;
-		if (rc == -ELOOP)
+		ret = -errno;
+		if (ret == -ELOOP)
 			pr_err("%s: is a symbolic link (foreign entry in "
 			       "sealed state); refusing", path);
 	}
 	close(dfd);
-	if (rc) {
+	if (ret) {
 		if (fd >= 0)
 			close(fd);
-		return rc;
+		return ret;
 	}
 	return fd;
 }
@@ -397,23 +397,23 @@ int seal_open(const char *path, int flags, mode_t mode)
 int seal_open_read(const char *path)
 {
 	const char *name;
-	int dfd, fd, rc;
+	int dfd, fd, ret;
 
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
 		return dfd;
 	fd = openat(dfd, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
-	rc = fd < 0 ? -errno : seal_regular(fd);
-	if (!rc)
-		rc = seal_same(dfd, fd);
+	ret = fd < 0 ? -errno : seal_regular(fd);
+	if (!ret)
+		ret = seal_same(dfd, fd);
 	close(dfd);
-	if (rc) {
+	if (ret) {
 		if (fd >= 0)
 			close(fd);
-		if (rc == -EPERM || rc == -ELOOP)
+		if (ret == -EPERM || ret == -ELOOP)
 			pr_err("%s: not shirudo's own (foreign entry in sealed "
 			       "state); refusing to read it", path);
-		return rc;
+		return ret;
 	}
 	return fd;
 }
@@ -443,7 +443,7 @@ int seal_write_file(const char *path, const void *data, size_t len,
 {
 	char tmp[NAME_MAX + 1];
 	const char *name;
-	int dfd, fd, rc;
+	int dfd, fd, ret;
 
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
@@ -455,23 +455,23 @@ int seal_write_file(const char *path, const void *data, size_t len,
 	fd = openat(dfd, tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC |
 		    O_NOFOLLOW, mode);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		close(dfd);
-		return rc;
+		return ret;
 	}
-	rc = seal_inherit(dfd, fd);
-	if (!rc)
-		rc = write_complete(fd, data, len);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
-	if (!rc && renameat(dfd, tmp, dfd, name))
-		rc = -errno;
-	if (!rc && fsync(dfd))
-		rc = -errno;
-	if (rc)
+	ret = seal_inherit(dfd, fd);
+	if (!ret)
+		ret = write_complete(fd, data, len);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
+	if (!ret && renameat(dfd, tmp, dfd, name))
+		ret = -errno;
+	if (!ret && fsync(dfd))
+		ret = -errno;
+	if (ret)
 		unlinkat(dfd, tmp, 0);
 	close(dfd);
-	return rc;
+	return ret;
 }

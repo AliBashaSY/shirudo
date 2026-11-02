@@ -215,7 +215,7 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 {
 	__u32 start, records, emitted, flags = 0;
 	__u64 next_cursor;
-	int rc;
+	int ret;
 
 	if (!ctx || ctx->magic != SERIAL_MAGIC ||
 	    ctx->version != SERIAL_VERSION ||
@@ -231,10 +231,10 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 		return -EINVAL;
 	}
 
-	rc = build_tree();
-	if (rc) {
-		set_error(ctx, rc);
-		return rc;
+	ret = build_tree();
+	if (ret) {
+		set_error(ctx, ret);
+		return ret;
 	}
 
 	start = (__u32)ctx->cursor;
@@ -246,11 +246,11 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 	if (next_cursor >= TREE_NODES)
 		flags = SERIAL_F_DONE;
 
-	rc = init_page_chunks(records, flags, ctx->page_index, ctx->cursor,
-			      next_cursor, ctx->invocation_id);
-	if (rc) {
-		set_error(ctx, rc);
-		return rc;
+	ret = init_page_chunks(records, flags, ctx->page_index, ctx->cursor,
+			       next_cursor, ctx->invocation_id);
+	if (ret) {
+		set_error(ctx, ret);
+		return ret;
 	}
 
 	for (emitted = 0; emitted < TREE_RECORDS_PER_PAGE; emitted++) {
@@ -268,10 +268,10 @@ int shirudo_serialize__tree_arena(struct shirudo_serialize_ctx *ctx)
 			set_error(ctx, -EINVAL);
 			return -EINVAL;
 		}
-		rc = emit_record(cur, absolute, emitted);
-		if (rc) {
-			set_error(ctx, rc);
-			return rc;
+		ret = emit_record(cur, absolute, emitted);
+		if (ret) {
+			set_error(ctx, ret);
+			return ret;
 		}
 	}
 	return 0;

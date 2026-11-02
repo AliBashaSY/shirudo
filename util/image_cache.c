@@ -36,7 +36,7 @@ static size_t download_write(char *data, size_t size, size_t count, void *ctx)
 {
 	struct image_download *download = ctx;
 	size_t bytes;
-	int rc;
+	int ret;
 
 	if (size && count > SIZE_MAX / size) {
 		download->err = -EFBIG;
@@ -47,9 +47,9 @@ static size_t download_write(char *data, size_t size, size_t count, void *ctx)
 		download->err = -EFBIG;
 		return 0;
 	}
-	rc = write_complete(download->fd, data, bytes);
-	if (rc) {
-		download->err = rc;
+	ret = write_complete(download->fd, data, bytes);
+	if (ret) {
+		download->err = ret;
 		return 0;
 	}
 	download->written += bytes;
@@ -60,13 +60,13 @@ static int download_https(const char *source, struct image_download *download)
 {
 	CURLcode result;
 	CURL *curl;
-	int rc;
+	int ret;
 
 	curl = curl_easy_init();
 	if (!curl)
 		return -ENOMEM;
-	rc = tls_curl_policy(curl, NULL);
-	if (rc)
+	ret = tls_curl_policy(curl, NULL);
+	if (ret)
 		goto out;
 	curl_easy_setopt(curl, CURLOPT_URL, source);
 	curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "https");
@@ -81,10 +81,10 @@ static int download_https(const char *source, struct image_download *download)
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, download);
 	result = curl_easy_perform(curl);
 	if (result != CURLE_OK)
-		rc = download->err ? download->err : -EIO;
+		ret = download->err ? download->err : -EIO;
 out:
 	curl_easy_cleanup(curl);
-	return rc;
+	return ret;
 }
 
 static int copy_local(const char *source, struct image_download *download)
@@ -92,57 +92,57 @@ static int copy_local(const char *source, struct image_download *download)
 	char buffer[65536];
 	struct stat st;
 	ssize_t n;
-	int fd, rc = 0;
+	int fd, ret = 0;
 
 	fd = open(source, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;
 	if (fstat(fd, &st)) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	if (!S_ISREG(st.st_mode) || st.st_size < 0 ||
 	    (__u64)st.st_size > download->limit) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	while ((n = read(fd, buffer, sizeof(buffer))) != 0) {
 		if (n < 0) {
 			if (errno == EINTR)
 				continue;
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		if (download_write(buffer, 1, n, download) != (size_t)n) {
-			rc = download->err;
+			ret = download->err;
 			break;
 		}
 	}
 out:
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static int fetch_file(const char *source, const char *destination, __u64 max)
 {
 	struct image_download download = { .limit = max };
-	int fd, rc;
+	int fd, ret;
 
 	fd = open(destination,
 		  O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
 	if (fd < 0)
 		return -errno;
 	download.fd = fd;
-	rc = fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
-		       strlen(SEAL_LABEL), 0) ? -errno : 0;
-	if (!rc)
-		rc = !strncmp(source, "https://", 8) ?
+	ret = fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
+			strlen(SEAL_LABEL), 0) ? -errno : 0;
+	if (!ret)
+		ret = !strncmp(source, "https://", 8) ?
 			download_https(source, &download) :
 			copy_local(source, &download);
-	if (!rc && fsync(fd))
-		rc = -errno;
+	if (!ret && fsync(fd))
+		ret = -errno;
 	close(fd);
-	return rc;
+	return ret;
 }
 
 /* Verify downloads before publishing their root-hash-named cache files. */
@@ -153,21 +153,21 @@ static int verify_incoming(const struct shirudo_config_image_open *opened,
 		.data_loop_fd = -1,
 		.hash_loop_fd = -1,
 	};
-	int rc, cleanup;
+	int ret, cleanup;
 	char name[128];
 
 	if (strsprintf(name, sizeof(name), "shirudo-verify-%s", strrchr(staging, '/') + 1) < 0)
 		return -ENAMETOOLONG;
-	rc = shirudo_dm_verity_create(opened, name, &device);
-	if (rc)
-		return rc;
-	rc = shirudo_dm_verity_verify(&device, opened);
+	ret = shirudo_dm_verity_create(opened, name, &device);
+	if (ret)
+		return ret;
+	ret = shirudo_dm_verity_verify(&device, opened);
 	cleanup = shirudo_dm_verity_remove(&device, true);
 	if (cleanup)
 		pr_warn("image: cannot remove incoming mapping: %s",
 			strerror(-cleanup));
 	shirudo_dm_verity_close(&device);
-	return rc ? rc : cleanup;
+	return ret ? ret : cleanup;
 }
 
 int shirudo_image_cache_fetch(const char *source,
@@ -186,63 +186,63 @@ int shirudo_image_cache_fetch(const char *source,
 	char staging[] = IMAGE_CACHE_DIR "/incoming-XXXXXX";
 	char incoming[PATH_MAX], from[PATH_MAX], to[PATH_MAX];
 	char hex[65];
-	int dir = -1, rc;
+	int dir = -1, ret;
 	size_t i;
 
 	if (!mkdtemp(staging))
 		return -errno;
-	rc = seal_label(staging);
-	if (rc)
+	ret = seal_label(staging);
+	if (ret)
 		goto out;
 	if (strsprintf(incoming, sizeof(incoming), "%s/image", staging) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
 		if (strsprintf(from, sizeof(from), "%s%s", source, files[i].suffix) < 0 ||
 		    strsprintf(to, sizeof(to), "%s%s", incoming, files[i].suffix) < 0) {
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 			goto out;
 		}
-		rc = fetch_file(from, to, files[i].max_bytes);
-		if (rc)
+		ret = fetch_file(from, to, files[i].max_bytes);
+		if (ret)
 			goto out;
 	}
-	rc = shirudo_config_image_open(incoming, &opened);
-	if (rc)
+	ret = shirudo_config_image_open(incoming, &opened);
+	if (ret)
 		goto out;
-	rc = verify_incoming(&opened, staging);
-	if (!rc) {
+	ret = verify_incoming(&opened, staging);
+	if (!ret) {
 		memcpy(target->root_hash, opened.image.root_hash, 32);
 		hex_encode(target->root_hash, 32, hex);
 		if (strsprintf(target->prefix, sizeof(target->prefix), "%s/%s",
 			       IMAGE_CACHE_DIR, hex) < 0)
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 	}
 	shirudo_config_image_close(&opened);
-	if (rc)
+	if (ret)
 		goto out;
 	for (i = 0; i < ARRAY_SIZE(files); i++) {
 		if (strsprintf(from, sizeof(from), "%s%s", incoming, files[i].suffix) < 0 ||
 		    strsprintf(to, sizeof(to), "%s%s", target->prefix, files[i].suffix) < 0) {
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 			goto out;
 		}
 		if (link(from, to) && errno != EEXIST) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 	}
 	dir = open(IMAGE_CACHE_DIR,
 		   O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (dir < 0 || fsync(dir)) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
-	rc = shirudo_config_image_open(target->prefix, &opened);
-	if (!rc) {
+	ret = shirudo_config_image_open(target->prefix, &opened);
+	if (!ret) {
 		if (memcmp(opened.image.root_hash, target->root_hash, 32))
-			rc = -EKEYREJECTED;
+			ret = -EKEYREJECTED;
 		shirudo_config_image_close(&opened);
 	}
 out:
@@ -253,5 +253,5 @@ out:
 			unlink(to);
 	}
 	rmdir(staging);
-	return rc;
+	return ret;
 }

@@ -158,13 +158,13 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "ecc-public") == 0 && argc == 3) {
 		struct shirudo_tpm_ecc_public pub;
-		int rc;
+		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = tpm_ecc_public_parse(buf, len, &pub);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = tpm_ecc_public_parse(buf, len, &pub);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 0;
 		printf("attrs=0x%08x scheme=0x%04x hash=0x%04x curve=0x%04x\n",
 		       pub.attrs, pub.scheme, pub.hash, pub.curve);
@@ -176,13 +176,13 @@ int main(int argc, char **argv)
 		struct shirudo_tpm_public pub;
 		__u8 again[512];
 		size_t again_len = 0;
-		int rc;
+		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = tpm_public_parse(buf, len, &pub);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = tpm_public_parse(buf, len, &pub);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 0;
 		printf("type=0x%04x attrs=0x%08x policy_len=%zu sym=0x%04x/%u/0x%04x "
 		       "scheme=0x%04x/0x%04x curve=0x%04x rsa_bits=%u exponent=%u "
@@ -190,10 +190,10 @@ int main(int argc, char **argv)
 		       pub.sym_alg, pub.sym_bits, pub.sym_mode, pub.scheme,
 		       pub.scheme_hash, pub.curve, pub.rsa_bits,
 		       pub.rsa_exponent, pub.n_len);
-		rc = tpm_public_marshal(&pub, again, sizeof(again),
-					&again_len);
-		printf("marshal_rc=%d same=%d\n", rc,
-		       rc == 0 && again_len == len && !memcmp(again, buf, len));
+		ret = tpm_public_marshal(&pub, again, sizeof(again),
+					 &again_len);
+		printf("marshal_rc=%d same=%d\n", ret,
+		       ret == 0 && again_len == len && !memcmp(again, buf, len));
 		return 0;
 	}
 	if (strcmp(argv[1], "kdfa") == 0 && argc == 6) {
@@ -243,13 +243,13 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "signature") == 0 && argc == 3) {
 		__u8 r[32], s[32];
-		int rc;
+		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = tpm_ecdsa_signature_parse(buf, len, r, s);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = tpm_ecdsa_signature_parse(buf, len, r, s);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 0;
 		puthex(r, 32);
 		puthex(s, 32);
@@ -257,13 +257,13 @@ int main(int argc, char **argv)
 	}
 	if (strcmp(argv[1], "attest") == 0 && argc == 3) {
 		struct shirudo_tpm_attest at;
-		int rc;
+		int ret;
 
 		if (gethex(argv[2], buf, sizeof(buf), &len))
 			return 2;
-		rc = tpm_attest_parse(buf, len, &at);
-		printf("rc=%d\n", rc);
-		if (rc)
+		ret = tpm_attest_parse(buf, len, &at);
+		printf("rc=%d\n", ret);
+		if (ret)
 			return 0;
 		printf("type=0x%04x reset=%u restart=%u safe=%d\n", at.type,
 		       at.reset_count, at.restart_count, at.safe);

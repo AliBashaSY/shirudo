@@ -75,7 +75,7 @@ int shirudo_build_compile(const char *source, const char *output,
 	char inc_shirudo_bpf_buf[PATH_MAX + 8];
 	char vmlinux_dir[1024];
 	char *cf_copy = NULL;
-	int rc = 0;
+	int ret = 0;
 	int status;
 	int n = 0;
 	pid_t pid;
@@ -152,10 +152,10 @@ int shirudo_build_compile(const char *source, const char *output,
 			return -ENOMEM;
 		for (tok = strtok(cf_copy, " \t\n"); tok;
 		     tok = strtok(NULL, " \t\n")) {
-			rc = push(argv, &n, tok);
-			if (rc) {
+			ret = push(argv, &n, tok);
+			if (ret) {
 				xstrfree(cf_copy);
-				return rc;
+				return ret;
 			}
 		}
 	}
@@ -163,7 +163,7 @@ int shirudo_build_compile(const char *source, const char *output,
 
 	pid = fork();
 	if (pid < 0) {
-		rc = -errno;
+		ret = -errno;
 		pr_err("fork: %s", strerror(errno));
 		goto out;
 	}
@@ -175,7 +175,7 @@ int shirudo_build_compile(const char *source, const char *output,
 	}
 	while (waitpid(pid, &status, 0) < 0) {
 		if (errno != EINTR) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 	}
@@ -183,18 +183,18 @@ int shirudo_build_compile(const char *source, const char *output,
 		int es = WEXITSTATUS(status);
 
 		if (es == 0) {
-			rc = 0;
+			ret = 0;
 		} else {
 			pr_err("clang exited with status %d", es);
-			rc = -EIO;
+			ret = -EIO;
 		}
 	} else if (WIFSIGNALED(status)) {
 		pr_err("clang killed by signal %d", WTERMSIG(status));
-		rc = -EINTR;
+		ret = -EINTR;
 	} else {
-		rc = -EIO;
+		ret = -EIO;
 	}
 out:
 	xstrfree(cf_copy);
-	return rc;
+	return ret;
 }

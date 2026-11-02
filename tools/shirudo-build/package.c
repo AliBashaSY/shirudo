@@ -144,7 +144,7 @@ static int verify_payload(const struct shirudo_upatch *u,
 	__u8 digest[SHA256_LEN], *payload;
 	__u64 payload_len;
 	__u32 digest_len;
-	int rc;
+	int ret;
 
 	payload_len = (__u64)u->hdr.loader_insns_len + u->hdr.data_len;
 	if (payload_len > SIZE_MAX)
@@ -155,16 +155,16 @@ static int verify_payload(const struct shirudo_upatch *u,
 	memcpy(payload, upatch_loader(u), u->hdr.loader_insns_len);
 	memcpy(payload + u->hdr.loader_insns_len, upatch_data(u),
 	       u->hdr.data_len);
-	rc = bpm_verify_cms(payload, (size_t)payload_len,
-			    upatch_signature(u), u->hdr.signature_len,
-			    cert_path);
-	if (!rc && (EVP_Digest(payload, (size_t)payload_len, digest,
-			       &digest_len, EVP_sha256(), NULL) != 1 ||
-		    digest_len != sizeof(digest) ||
-		    memcmp(digest, u->hdr.payload_sha256, sizeof(digest))))
-		rc = -EBADMSG;
+	ret = bpm_verify_cms(payload, (size_t)payload_len,
+			     upatch_signature(u), u->hdr.signature_len,
+			     cert_path);
+	if (!ret && (EVP_Digest(payload, (size_t)payload_len, digest,
+				&digest_len, EVP_sha256(), NULL) != 1 ||
+		     digest_len != sizeof(digest) ||
+		     memcmp(digest, u->hdr.payload_sha256, sizeof(digest))))
+		ret = -EBADMSG;
 	xfree(payload, (size_t)payload_len);
-	return rc;
+	return ret;
 }
 
 static int package_resign_symbols(const char *original,
@@ -187,18 +187,18 @@ static int package_resign_symbols(const char *original,
 	__u64 total;
 	bool wrote = false;
 	int fd = -1;
-	int rc;
+	int ret;
 
 	if (!original || !modified || !output || !ranges || !symbols ||
 	    !nr_ranges || nr_ranges > ARRAY_SIZE(expected) ||
 	    nr_symbols != nr_ranges || !strcmp(original, output) ||
 	    !strcmp(modified, output))
 		return -EINVAL;
-	rc = upatch_open(original, &src);
-	if (rc)
-		return rc;
-	rc = upatch_open(modified, &mod);
-	if (rc)
+	ret = upatch_open(original, &src);
+	if (ret)
+		return ret;
+	ret = upatch_open(modified, &mod);
+	if (ret)
 		goto out;
 	src_data = upatch_data(&src);
 	mod_data = upatch_data(&mod);
@@ -215,7 +215,7 @@ static int package_resign_symbols(const char *original,
 	    (src.hdr.metadata_len &&
 	     memcmp(upatch_metadata(&src), upatch_metadata(&mod),
 		    src.hdr.metadata_len))) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	for (i = 0; i < nr_ranges; i++) {
@@ -223,7 +223,7 @@ static int package_resign_symbols(const char *original,
 		    ranges[i].length > src.hdr.data_len - ranges[i].offset ||
 		    (i && ranges[i].offset <
 		     ranges[i - 1].offset + ranges[i - 1].length)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto out;
 		}
 	}
@@ -237,20 +237,20 @@ static int package_resign_symbols(const char *original,
 				break;
 			}
 		if (!allowed && src_data[i] != mod_data[i]) {
-			rc = -EPERM;
+			ret = -EPERM;
 			goto out;
 		}
 	}
 	if (!memchr(src.hdr.name, '\0', sizeof(src.hdr.name))) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
-	rc = verify_payload(&src, cert_path);
-	if (rc)
+	ret = verify_payload(&src, cert_path);
+	if (ret)
 		goto out;
 	for (i = 0; i < nr_symbols; i++) {
-		rc = upatch_rodata_symbol_range(&src, symbols[i], &expected[i]);
-		if (rc)
+		ret = upatch_rodata_symbol_range(&src, symbols[i], &expected[i]);
+		if (ret)
 			goto out;
 	}
 	for (i = 0; i < nr_ranges; i++) {
@@ -262,13 +262,13 @@ static int package_resign_symbols(const char *original,
 				break;
 			}
 		if (j == nr_symbols) {
-			rc = -EPERM;
+			ret = -EPERM;
 			goto out;
 		}
 	}
 	sig_buf = xmalloc(MAX_SIG_SIZE);
 	if (!sig_buf) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	sio.insns = upatch_loader(&mod);
@@ -277,28 +277,28 @@ static int package_resign_symbols(const char *original,
 	sio.data_sz = mod.hdr.data_len;
 	sio.signature = sig_buf;
 	sio.signature_sz = MAX_SIG_SIZE;
-	rc = cms_sign(&sio, pkey_path, cert_path);
-	if (rc)
+	ret = cms_sign(&sio, pkey_path, cert_path);
+	if (ret)
 		goto out;
 	loader_off = sizeof(hdr);
 	if ((__u64)loader_off + sio.insns_sz > UINT32_MAX) {
-		rc = -EOVERFLOW;
+		ret = -EOVERFLOW;
 		goto out;
 	}
 	sig_off = loader_off + (__u32)sio.insns_sz;
 	if ((__u64)sig_off + sio.signature_sz > UINT32_MAX) {
-		rc = -EOVERFLOW;
+		ret = -EOVERFLOW;
 		goto out;
 	}
 	data_off = sig_off + (__u32)sio.signature_sz;
 	if ((__u64)data_off + sio.data_sz > UINT32_MAX) {
-		rc = -EOVERFLOW;
+		ret = -EOVERFLOW;
 		goto out;
 	}
 	meta_off = data_off + (__u32)sio.data_sz;
 	total = (__u64)meta_off + mod.hdr.metadata_len;
 	if (total > UPATCH_FILE_MAX) {
-		rc = -E2BIG;
+		ret = -E2BIG;
 		goto out;
 	}
 	memcpy(name, mod.hdr.name, UPATCH_NAME_MAX);
@@ -313,35 +313,35 @@ static int package_resign_symbols(const char *original,
 		    mod.hdr.nr_maps, mod.hdr.nr_progs);
 	fd = open(output, O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
-	rc = output_is_input(fd, original, modified) ? -EINVAL : 0;
-	if (!rc && ftruncate(fd, 0))
-		rc = -errno;
-	wrote = !rc;
-	if (!rc)
-		rc = write_complete(fd, &hdr, sizeof(hdr));
-	if (!rc)
-		rc = write_complete(fd, sio.insns, sio.insns_sz);
-	if (!rc)
-		rc = write_complete(fd, sig_buf, sio.signature_sz);
-	if (!rc && sio.data_sz)
-		rc = write_complete(fd, sio.data, sio.data_sz);
-	if (!rc && mod.hdr.metadata_len)
-		rc = write_complete(fd, upatch_metadata(&mod), mod.hdr.metadata_len);
-	if (!rc && fsync(fd) != 0)
-		rc = -errno;
+	ret = output_is_input(fd, original, modified) ? -EINVAL : 0;
+	if (!ret && ftruncate(fd, 0))
+		ret = -errno;
+	wrote = !ret;
+	if (!ret)
+		ret = write_complete(fd, &hdr, sizeof(hdr));
+	if (!ret)
+		ret = write_complete(fd, sio.insns, sio.insns_sz);
+	if (!ret)
+		ret = write_complete(fd, sig_buf, sio.signature_sz);
+	if (!ret && sio.data_sz)
+		ret = write_complete(fd, sio.data, sio.data_sz);
+	if (!ret && mod.hdr.metadata_len)
+		ret = write_complete(fd, upatch_metadata(&mod), mod.hdr.metadata_len);
+	if (!ret && fsync(fd) != 0)
+		ret = -errno;
 out:
 	if (fd >= 0)
 		close(fd);
-	if (rc && wrote)
+	if (ret && wrote)
 		unlink(output);
 	if (sig_buf)
 		xfree(sig_buf, MAX_SIG_SIZE);
 	upatch_close(&mod);
 	upatch_close(&src);
-	return rc;
+	return ret;
 }
 
 static int shirudo_build_package_resign(const char *original,
@@ -373,55 +373,55 @@ int shirudo_build_package_patch_rodata(const char *input, const char *output,
 	__u8 *candidate = NULL;
 	bool created = false;
 	int fd = -1;
-	int rc;
+	int ret;
 
 	if (!input || !output || !symbol || !value || !value_len ||
 	    !strcmp(input, output))
 		return -EINVAL;
-	rc = upatch_open(input, &src);
-	if (rc)
-		return rc;
+	ret = upatch_open(input, &src);
+	if (ret)
+		return ret;
 	if (upatch_is_unload(&src)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
-	rc = verify_payload(&src, cert_path);
-	if (rc)
+	ret = verify_payload(&src, cert_path);
+	if (ret)
 		goto out;
-	rc = upatch_rodata_symbol_range(&src, symbol, &range);
-	if (rc)
+	ret = upatch_rodata_symbol_range(&src, symbol, &range);
+	if (ret)
 		goto out;
 	if (value_len != range.size || range.offset > src.hdr.data_len ||
 	    value_len > src.hdr.data_len - range.offset) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	candidate = xmalloc(src.map_size);
 	if (!candidate) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	memcpy(candidate, src.map, src.map_size);
 	memcpy(candidate + src.hdr.data_off + range.offset, value, value_len);
 	fd = mkstemp(modified);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 	created = true;
-	rc = write_complete(fd, candidate, src.map_size);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
+	ret = write_complete(fd, candidate, src.map_size);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
 	fd = -1;
-	if (rc)
+	if (ret)
 		goto out;
 	allowed.offset = range.offset;
 	allowed.length = range.size;
-	rc = package_resign_symbols(input, modified, output, &allowed, 1,
-				    symbols, ARRAY_SIZE(symbols), pkey_path,
-				    cert_path);
+	ret = package_resign_symbols(input, modified, output, &allowed, 1,
+				     symbols, ARRAY_SIZE(symbols), pkey_path,
+				     cert_path);
 out:
 	if (fd >= 0)
 		close(fd);
@@ -430,21 +430,21 @@ out:
 	if (candidate)
 		xfree(candidate, src.map_size);
 	upatch_close(&src);
-	return rc;
+	return ret;
 }
 
 int shirudo_build_package_verify(const char *input, const char *cert_path)
 {
 	struct shirudo_upatch upatch = {};
-	int rc;
+	int ret;
 
-	rc = upatch_open(input, &upatch);
-	if (rc)
-		return rc;
-	rc = upatch_is_unload(&upatch) ? -EINVAL :
+	ret = upatch_open(input, &upatch);
+	if (ret)
+		return ret;
+	ret = upatch_is_unload(&upatch) ? -EINVAL :
 	     verify_payload(&upatch, cert_path);
 	upatch_close(&upatch);
-	return rc;
+	return ret;
 }
 
 int shirudo_build_upatch_cli(int argc, char **argv)
@@ -458,7 +458,7 @@ int shirudo_build_upatch_cli(int argc, char **argv)
 	int pkey_explicit = 0, cert_explicit = 0;
 	size_t nr_ranges = 0;
 	int i;
-	int rc;
+	int ret;
 
 	if (argc < 2 || strcmp(argv[1], "rewrite-rodata")) {
 		fprintf(stderr,
@@ -519,25 +519,25 @@ int shirudo_build_upatch_cli(int argc, char **argv)
 	keys_dir = keys_dir_resolve(keys_dir);
 	if (keys_dir) {
 		if (!pkey_explicit) {
-			rc = shirudo_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
-					      SIGNING_KEY_FILE);
-			if (rc)
+			ret = shirudo_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
+					       SIGNING_KEY_FILE);
+			if (ret)
 				return 2;
 			pkey = pkey_buf;
 		}
 		if (!cert_explicit) {
-			rc = shirudo_key_path(cert_buf, sizeof(cert_buf), keys_dir,
-					      CERT_FILE);
-			if (rc)
+			ret = shirudo_key_path(cert_buf, sizeof(cert_buf), keys_dir,
+					       CERT_FILE);
+			if (ret)
 				return 2;
 			cert = cert_buf;
 		}
 	}
-	rc = shirudo_build_package_resign(original, modified, output,
-					  ranges, nr_ranges, pkey, cert);
-	if (rc)
-		pr_err("upatch rewrite-rodata: %s", strerror(-rc));
-	return rc ? 1 : 0;
+	ret = shirudo_build_package_resign(original, modified, output,
+					   ranges, nr_ranges, pkey, cert);
+	if (ret)
+		pr_err("upatch rewrite-rodata: %s", strerror(-ret));
+	return ret ? 1 : 0;
 }
 
 static bool unsupported_kprobe_section(const char *sec)
@@ -716,17 +716,17 @@ static int split_probe_target(const char *src, char *target,
 	if (plus) {
 		const char *num = plus + 1;
 		size_t n = strlen(num);
-		int rc;
+		int ret;
 
 		if (plus == src)
 			return -EINVAL;
 		if (n > 2 && num[0] == '0' && (num[1] == 'x' || num[1] == 'X'))
-			rc = parse_x64(num + 2, n - 2, UINT64_MAX, offset);
+			ret = parse_x64(num + 2, n - 2, UINT64_MAX, offset);
 		else if (n > 1 && num[0] == '0')
-			rc = -EINVAL;
+			ret = -EINVAL;
 		else
-			rc = parse_u64(num, n, UINT64_MAX, offset);
-		if (rc)
+			ret = parse_u64(num, n, UINT64_MAX, offset);
+		if (ret)
 			return -EINVAL;
 		len = (size_t)(plus - src);
 	} else {

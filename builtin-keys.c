@@ -147,7 +147,7 @@ static int compute_spki_fpr(EVP_PKEY *pkey,
 	__u32 n = SHA256_DIGEST_LENGTH;
 	__u8 *der = NULL;
 	int der_len;
-	int rc = -1;
+	int ret = -1;
 
 	der_len = i2d_PUBKEY(pkey, &der);
 	if (der_len <= 0) {
@@ -159,10 +159,10 @@ static int compute_spki_fpr(EVP_PKEY *pkey,
 		openssl_complain("EVP_Digest");
 		goto out;
 	}
-	rc = 0;
+	ret = 0;
 out:
 	OPENSSL_free(der);
-	return rc;
+	return ret;
 }
 
 static void print_fpr(const char *label, const __u8 *fpr)
@@ -236,7 +236,7 @@ static int dump_signing_key(const char *pkey_path,
 	__u8 fpr_priv[SHA256_DIGEST_LENGTH];
 	char alg_s[64];
 	EVP_PKEY *priv;
-	int rc = 0;
+	int ret = 0;
 
 	if (!path_exists(pkey_path)) {
 		printf("Signing key (%s):\n", pkey_path);
@@ -255,7 +255,7 @@ static int dump_signing_key(const char *pkey_path,
 	printf("  %-22s %s\n", "Algorithm:", alg_s);
 
 	if (compute_spki_fpr(priv, fpr_priv) != 0) {
-		rc = -1;
+		ret = -1;
 		goto out;
 	}
 	print_fpr("SPKI fingerprint:", fpr_priv);
@@ -267,11 +267,11 @@ static int dump_signing_key(const char *pkey_path,
 		printf("  %-22s %s\n", "Cert match:",
 		       "MISMATCH  (private key does NOT match cert)");
 		pr_warn("keys: private key and cert have different public keys");
-		rc = -1;
+		ret = -1;
 	}
 out:
 	EVP_PKEY_free(priv);
-	return rc;
+	return ret;
 }
 
 static int keys_dump_disk_material(const char *cert_path,
@@ -280,7 +280,7 @@ static int keys_dump_disk_material(const char *cert_path,
 	X509 *cert;
 	EVP_PKEY *pub;
 	__u8 cert_spki_fpr[SHA256_DIGEST_LENGTH];
-	int rc;
+	int ret;
 
 	cert = read_cert_der(cert_path);
 	if (!cert)
@@ -296,13 +296,13 @@ static int keys_dump_disk_material(const char *cert_path,
 		return 1;
 	}
 
-	rc = dump_operator_cert(cert, cert_path, cert_spki_fpr);
-	if (rc == 0) {
+	ret = dump_operator_cert(cert, cert_path, cert_spki_fpr);
+	if (ret == 0) {
 		printf("\n");
-		rc = dump_signing_key(pkey_path, cert_spki_fpr);
+		ret = dump_signing_key(pkey_path, cert_spki_fpr);
 	}
 	X509_free(cert);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 /* A keyring init froze: its serial and the keys it recorded in it. */
@@ -337,7 +337,7 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 	bool frozen = !id_rc && a->frozen > 0;
 	struct keyring_link *links = NULL;
 	size_t n = 0, i;
-	int rc;
+	int ret;
 
 	printf("Keyring (%s):\n", a->label);
 	printf("  %-22s %d\n", "Serial:", (int)ring);
@@ -354,9 +354,9 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 		       strerror(-id_rc));
 	}
 
-	rc = keyring_links(ring, &links, &n);
-	if (rc) {
-		pr_err("keyring list: %s", strerror(-rc));
+	ret = keyring_links(ring, &links, &n);
+	if (ret) {
+		pr_err("keyring list: %s", strerror(-ret));
 		return 1;
 	}
 	printf("  Members (%zu):\n", n);
@@ -381,13 +381,13 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 	return 0;
 }
 
-static void keyring_absent(const struct keys_anchor *a, key_serial_t rc,
+static void keyring_absent(const struct keys_anchor *a, key_serial_t ret,
 			   int id_rc)
 {
 	printf("Keyring (%s):\n", a->label);
-	if (rc != (key_serial_t)-ENOKEY)
+	if (ret != (key_serial_t)-ENOKEY)
 		printf("  %-22s lookup error: %s\n", "Present:",
-		       strerror(-rc));
+		       strerror(-ret));
 	else if (!id_rc && a->frozen > 0)
 		printf("  %-22s no  (gone: init froze serial %d this boot)\n",
 		       "Present:", (int)a->frozen);
@@ -484,18 +484,18 @@ static int check_cert_algorithm(const __u8 *der, size_t der_sz,
 {
 	struct shirudo_cert cert = {};
 	char name[64] = {};
-	int rc;
+	int ret;
 
-	rc = cert_read_der(der, der_sz, &cert);
-	if (rc) {
+	ret = cert_read_der(der, der_sz, &cert);
+	if (ret) {
 		pr_err("keys add: %s is not a certificate", what);
-		return rc;
+		return ret;
 	}
-	rc = cert_key_algorithm(&cert, name, sizeof(name));
+	ret = cert_key_algorithm(&cert, name, sizeof(name));
 	cert_free(&cert);
-	if (rc || strcmp(name, "ML-DSA-87")) {
+	if (ret || strcmp(name, "ML-DSA-87")) {
 		pr_err("keys add: %s is %s; shirudo accepts only ML-DSA-87",
-		       what, rc ? "of an unknown algorithm" : name);
+		       what, ret ? "of an unknown algorithm" : name);
 		return -EKEYREJECTED;
 	}
 	return 0;
@@ -513,7 +513,7 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 	const __u8 *der = NULL;
 	key_serial_t ring;
 	size_t der_sz = 0;
-	int rc = 0;
+	int ret = 0;
 	size_t i;
 
 	if (identity_read(&id) ||
@@ -528,13 +528,13 @@ static int check_voucher_live(const struct shirudo_trusted_set *set,
 	}
 	if (i == set->n)
 		return -ENOKEY;
-	rc = keys_cert_der(&set->certs[i], &der, &der_sz);
-	if (rc)
-		return rc;
-	rc = keyring_holds_cert(ring, der, der_sz);
-	if (rc < 0)
-		return rc;
-	return rc ? 0 : -ENOKEY;
+	ret = keys_cert_der(&set->certs[i], &der, &der_sz);
+	if (ret)
+		return ret;
+	ret = keyring_holds_cert(ring, der, der_sz);
+	if (ret < 0)
+		return ret;
+	return ret ? 0 : -ENOKEY;
 }
 
 static int keys_add(int argc, const char **argv)
@@ -548,7 +548,7 @@ static int keys_add(int argc, const char **argv)
 	char revoked[PATH_MAX];
 	const char *keys_dir;
 	char out[PATH_MAX];
-	int rc = 1;
+	int ret = 1;
 	size_t i;
 
 	for (int a = 1; a < argc; a++) {
@@ -588,39 +588,39 @@ static int keys_add(int argc, const char **argv)
 		return 2;
 	}
 
-	rc = keys_read_der(cert, &der, &der_sz);
-	if (rc) {
-		pr_err("keys add: read %s: %s", cert, strerror(-rc));
+	ret = keys_read_der(cert, &der, &der_sz);
+	if (ret) {
+		pr_err("keys add: read %s: %s", cert, strerror(-ret));
 		return 1;
 	}
-	rc = keys_digest_der(der, der_sz, sha256, fp);
-	if (rc) {
+	ret = keys_digest_der(der, der_sz, sha256, fp);
+	if (ret) {
 		pr_err("keys add: %s is not a certificate", cert);
 		goto out;
 	}
-	rc = check_cert_algorithm(der, der_sz, cert);
-	if (rc)
+	ret = check_cert_algorithm(der, der_sz, cert);
+	if (ret)
 		goto out;
 	hex_encode(fp, 32, fp_hex);
 
-	rc = keys_load(keys_dir, NULL, true, &set);
-	if (rc) {
+	ret = keys_load(keys_dir, NULL, true, &set);
+	if (ret) {
 		pr_err("keys add: no trusted set under %s: %s (install the "
-		       "primary certificate first)", keys_dir, strerror(-rc));
+		       "primary certificate first)", keys_dir, strerror(-ret));
 		goto out;
 	}
 	if (keys_is_revoked(revoked, fp)) {
 		pr_err("keys add: %s was revoked on this target", fp_hex);
-		rc = -EKEYREVOKED;
+		ret = -EKEYREVOKED;
 		goto out;
 	}
-	rc = keys_read_der(vouch_path, &sig, &sig_sz);
-	if (rc) {
-		pr_err("keys add: read %s: %s", vouch_path, strerror(-rc));
+	ret = keys_read_der(vouch_path, &sig, &sig_sz);
+	if (ret) {
+		pr_err("keys add: read %s: %s", vouch_path, strerror(-ret));
 		goto out;
 	}
-	rc = keys_verify_vouch(&set, der, der_sz, sig, sig_sz, by);
-	if (rc) {
+	ret = keys_verify_vouch(&set, der, der_sz, sig, sig_sz, by);
+	if (ret) {
 		pr_err("keys add: %s does not vouch for %s under any of the "
 		       "%zu trusted certificate%s", vouch_path, fp_hex, set.n,
 		       set.n == 1 ? "" : "s");
@@ -628,12 +628,12 @@ static int keys_add(int argc, const char **argv)
 	}
 	hex_encode(by, 32, by_hex);
 	if (!strcmp(keys_dir, KEYS_DIR)) {
-		rc = check_voucher_live(&set, by);
-		if (rc) {
+		ret = check_voucher_live(&set, by);
+		if (ret) {
 			pr_err("keys add: the vouching certificate %s is not "
 			       "in the bpf keyring this boot%s%s", by_hex,
-			       rc == -ENOKEY ? "" : ": ",
-			       rc == -ENOKEY ? "" : strerror(-rc));
+			       ret == -ENOKEY ? "" : ": ",
+			       ret == -ENOKEY ? "" : strerror(-ret));
 			goto out;
 		}
 	}
@@ -642,21 +642,21 @@ static int keys_add(int argc, const char **argv)
 			continue;
 		pr_info("keys add: %s is already trusted", fp_hex);
 		printf("%s\n", fp_hex);
-		rc = 0;
+		ret = 0;
 		goto out;
 	}
 	/* A set past the limit would fail to load at all, init included. */
 	if (set.n >= KEYS_MAX) {
 		pr_err("keys add: the trusted set holds %d certificates, the "
 		       "most a target enrols", KEYS_MAX);
-		rc = -E2BIG;
+		ret = -E2BIG;
 		goto out;
 	}
-	rc = keys_install(keys_dir, der, der_sz, sig, sig_sz, out,
-			  sizeof(out));
-	if (rc) {
+	ret = keys_install(keys_dir, der, der_sz, sig, sig_sz, out,
+			   sizeof(out));
+	if (ret) {
 		pr_err("keys add: install under %s/trusted: %s", keys_dir,
-		       strerror(-rc));
+		       strerror(-ret));
 		goto out;
 	}
 	pr_audit("keys add: fingerprint=%s vouched_by=%s path=%s", fp_hex,
@@ -668,7 +668,7 @@ out:
 	if (sig)
 		xfree(sig, sig_sz);
 	xfree(der, der_sz);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 static const struct shirudo_help keys_revoke_help = {
@@ -708,26 +708,26 @@ static int measure_revoke_locked(const struct shirudo_trusted_cert *c,
 {
 	__u8 event[32], chain[32];
 	char sha_hex[65], chain_hex[65];
-	int rc;
+	int ret;
 
 	chain_key_event("shirudo-key-revoke", c->sha256, event);
-	rc = chain_extend(event, chain);
-	if (rc) {
+	ret = chain_extend(event, chain);
+	if (ret) {
 		pr_err("keys revoke: register %s (category: %s); the key is "
 		       "revoked but the revocation is NOT measured; operator "
 		       "must reconcile",
-		       rc == -ENODEV ? "unavailable" :
-		       rc == -EACCES ? "is not the one init bound" :
+		       ret == -ENODEV ? "unavailable" :
+		       ret == -EACCES ? "is not the one init bound" :
 		       "extend failed",
-		       rc == -EACCES ? "tampered" : "tpm_error");
-		return rc;
+		       ret == -EACCES ? "tampered" : "tpm_error");
+		return ret;
 	}
 	hex_encode(c->sha256, 32, sha_hex);
-	rc = append_key_event("key_revoke", fp_hex, sha_hex, event);
-	if (rc) {
+	ret = append_key_event("key_revoke", fp_hex, sha_hex, event);
+	if (ret) {
 		pr_err("keys revoke: eventlog append failed after extend -- "
 		       "chain/log desync; operator must reconcile");
-		return rc;
+		return ret;
 	}
 	hex_encode(chain, 32, chain_hex);
 	pr_audit("key revoke measured: fingerprint=%s chain=%s", fp_hex,
@@ -738,7 +738,7 @@ static int measure_revoke_locked(const struct shirudo_trusted_cert *c,
 static int measure_revoke(const struct shirudo_trusted_cert *c,
 			  const char *fp_hex)
 {
-	int lock, rc;
+	int lock, ret;
 
 	lock = eventlog_lock();
 	if (lock < 0) {
@@ -746,9 +746,9 @@ static int measure_revoke(const struct shirudo_trusted_cert *c,
 		       "revocation is NOT measured", strerror(-lock));
 		return lock;
 	}
-	rc = measure_revoke_locked(c, fp_hex);
+	ret = measure_revoke_locked(c, fp_hex);
 	eventlog_unlock(lock);
-	return rc;
+	return ret;
 }
 
 /*
@@ -762,7 +762,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 {
 	struct shirudo_cert cert = {};
 	struct dirent **names = NULL;
-	int n, i, rc = 0, purged = 0;
+	int n, i, ret = 0, purged = 0;
 
 	*unloaded = 0;
 	if (cert_read_der(der, der_sz, &cert))
@@ -795,7 +795,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 		if (prc < 0) {
 			pr_err("keys revoke: purge %s: %s", name,
 			       strerror(-prc));
-			rc = prc;
+			ret = prc;
 			continue;
 		}
 		pr_info("keys revoke: %s %s", name, prc ? "unloaded and purged" :
@@ -807,7 +807,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 		libc_free(names[i]);
 	libc_free(names);
 	cert_free(&cert);
-	return rc ? rc : purged;
+	return ret ? ret : purged;
 }
 
 int shirudo_keys_revoke_image(const __u8 *der, size_t size, bool boot)
@@ -816,7 +816,7 @@ int shirudo_keys_revoke_image(const __u8 *der, size_t size, bool boot)
 	key_serial_t ring, key;
 	char fingerprint[65];
 	size_t unloaded;
-	int rc;
+	int ret;
 
 	ring = keyring_bpf_serial();
 	if (ring < 0)
@@ -825,22 +825,22 @@ int shirudo_keys_revoke_image(const __u8 *der, size_t size, bool boot)
 	if (key != -ENOKEY && key < 0)
 		return key;
 	if (key >= 0) {
-		rc = keyring_unlink_key(ring, key);
-		if (rc)
-			return rc;
+		ret = keyring_unlink_key(ring, key);
+		if (ret)
+			return ret;
 		if (!boot) {
-			rc = keys_digest_der(der, size, cert.sha256,
-					     cert.fingerprint);
-			if (rc)
-				return rc;
+			ret = keys_digest_der(der, size, cert.sha256,
+					      cert.fingerprint);
+			if (ret)
+				return ret;
 			hex_encode(cert.fingerprint, 32, fingerprint);
-			rc = measure_revoke(&cert, fingerprint);
-			if (rc)
-				return rc;
+			ret = measure_revoke(&cert, fingerprint);
+			if (ret)
+				return ret;
 		}
 	}
-	rc = purge_signed_by(der, size, &unloaded);
-	return rc < 0 ? rc : 0;
+	ret = purge_signed_by(der, size, &unloaded);
+	return ret < 0 ? ret : 0;
 }
 
 static int keys_revoke(int argc, const char **argv)
@@ -858,7 +858,7 @@ static int keys_vouch(int argc, const char **argv)
 {
 	const char **helper_argv;
 	size_t sz;
-	int rc;
+	int ret;
 
 	if (argc >= 2 && is_help(argv[1])) {
 		print_help(&keys_vouch_help);
@@ -872,9 +872,9 @@ static int keys_vouch(int argc, const char **argv)
 	helper_argv[2] = "vouch";
 	for (int i = 1; i < argc; i++)
 		helper_argv[i + 2] = argv[i];
-	rc = shirudo_build_exec("keys vouch", (char **)helper_argv);
+	ret = shirudo_build_exec("keys vouch", (char **)helper_argv);
 	xfree(helper_argv, sz);
-	return rc;
+	return ret;
 }
 
 static int keys_show(int argc, const char **argv);
@@ -905,7 +905,7 @@ static int keys_show(int argc, const char **argv)
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
 	bool shown = false;
-	int rc = 0, id_rc;
+	int ret = 0, id_rc;
 
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--keys-dir") == 0 &&
@@ -930,11 +930,11 @@ static int keys_show(int argc, const char **argv)
 	keys_dir = shirudo_image_config_active() ? RUNTIME_DIR "/keys" :
 		keys_dir_resolve(keys_dir_arg);
 
-	rc = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
-		       cert_path, sizeof(cert_path));
-	if (rc) {
+	ret = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
+			cert_path, sizeof(cert_path));
+	if (ret) {
 		pr_err("keys: invalid keys dir %s: %s",
-		       keys_dir, strerror(-rc));
+		       keys_dir, strerror(-ret));
 		return 2;
 	}
 
@@ -946,7 +946,7 @@ static int keys_show(int argc, const char **argv)
 	 */
 	if (path_exists(cert_path)) {
 		if (keys_dump_disk_material(cert_path, pkey_path))
-			rc = 1;
+			ret = 1;
 		shown = true;
 	}
 
@@ -993,7 +993,7 @@ static int keys_show(int argc, const char **argv)
 				if (shown)
 					printf("\n");
 				if (keys_list_keyring(ring, a, id_rc))
-					rc = 1;
+					ret = 1;
 				shown = true;
 			} else if (ring == -ENOKEY && id_rc) {
 				if (shown) {
@@ -1005,7 +1005,7 @@ static int keys_show(int argc, const char **argv)
 					printf("\n");
 				keyring_absent(a, ring, id_rc);
 				shown = true;
-				rc = 1;
+				ret = 1;
 			}
 		}
 	}
@@ -1015,7 +1015,7 @@ static int keys_show(int argc, const char **argv)
 		       "\"%s\" kernel keyring -- run `shirudo genkey` "
 		       "(operator) or `shirudo init` (target)",
 		       cert_path, ".bpf");
-		rc = 1;
+		ret = 1;
 	}
-	return rc;
+	return ret;
 }

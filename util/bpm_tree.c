@@ -413,13 +413,13 @@ static int tree_operations_reserve(struct shirudo_tree_publication *pub)
 int tree_publication_append(struct shirudo_tree_publication *pub,
 			    const struct shirudo_tree_operation *op)
 {
-	int rc;
+	int ret;
 
 	if (!pub || !op)
 		return -EINVAL;
-	rc = tree_operations_reserve(pub);
-	if (rc)
-		return rc;
+	ret = tree_operations_reserve(pub);
+	if (ret)
+		return ret;
 	pub->operations[pub->n_operations++] = *op;
 	return 0;
 }
@@ -460,14 +460,14 @@ int tree_parse(const char *body, size_t len,
 	bool seen_base = false, seen_base_seq = false;
 	bool seen_operations = false, seen_head = false, seen_head_seq = false;
 	__s64 schema = 0;
-	int rc;
+	int ret;
 
 	if (!body || !out || len > JSON_MAX_BYTES)
 		return -EINVAL;
 	p = (struct tree_parser){ .p = body, .end = body + len };
 	*out = (struct shirudo_tree_publication){};
 	if (tp_char(&p, '{')) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto fail;
 	}
 	for (;;) {
@@ -477,44 +477,44 @@ int tree_parse(const char *body, size_t len,
 			break;
 		}
 		if (tp_key(&p, key, sizeof(key), &first)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto fail;
 		}
 		if (!strcmp(key, "schema")) {
 			if (tp_int(&p, &schema)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 			out->schema = (int)schema;
 			seen_schema = true;
 		} else if (!strcmp(key, "tree_id")) {
 			if (tp_string(&p, out->tree_id, sizeof(out->tree_id))) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 		} else if (!strcmp(key, "generation")) {
 			if (tp_int(&p, &out->generation)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 			seen_generation = true;
 		} else if (!strcmp(key, "parent_manifest_digest")) {
 			if (tp_string(&p, out->parent_manifest_digest,
 				      sizeof(out->parent_manifest_digest))) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 		} else if (!strcmp(key, "base")) {
 			seen_base = true;
 			if (tp_seq_object(&p, key, sizeof(key), &out->base_seq,
 					  &seen_base_seq)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 		} else if (!strcmp(key, "operations")) {
 			seen_operations = true;
 			if (tp_char(&p, '[')) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 			for (;;) {
@@ -523,11 +523,11 @@ int tree_parse(const char *body, size_t len,
 					p.p++;
 					break;
 				}
-				rc = tree_operations_reserve(out);
-				if (rc)
+				ret = tree_operations_reserve(out);
+				if (ret)
 					goto fail;
 				if (tp_operation(&p, &out->operations[out->n_operations])) {
-					rc = -EINVAL;
+					ret = -EINVAL;
 					goto fail;
 				}
 				out->n_operations++;
@@ -540,18 +540,18 @@ int tree_parse(const char *body, size_t len,
 					p.p++;
 					break;
 				}
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 		} else if (!strcmp(key, "head")) {
 			seen_head = true;
 			if (tp_seq_object(&p, key, sizeof(key), &out->head_seq,
 					  &seen_head_seq)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				goto fail;
 			}
 		} else if (tp_skip(&p)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto fail;
 		}
 		tp_ws(&p);
@@ -560,7 +560,7 @@ int tree_parse(const char *body, size_t len,
 			break;
 		}
 		if (p.p >= p.end) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto fail;
 		}
 	}
@@ -571,20 +571,20 @@ int tree_parse(const char *body, size_t len,
 	    out->generation < 0 || out->generation == INT64_MAX ||
 	    out->base_seq < 0 || out->head_seq < out->base_seq ||
 	    out->head_seq == INT64_MAX) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto fail;
 	}
 	/* Every operation's seq is positive, so seq - 1 cannot overflow. */
 	for (int i = 0; i < out->n_operations; i++) {
 		if (i && out->operations[i].seq - 1 != out->operations[i - 1].seq) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			goto fail;
 		}
 	}
 	return 0;
 fail:
 	tree_publication_free(out);
-	return rc;
+	return ret;
 }
 
 static int tree_selector_kv_compare(const void *left, const void *right)
@@ -677,15 +677,15 @@ static int tree_emit_operation(struct shirudo_json_emit *e,
 			       const struct shirudo_tree_operation *op,
 			       bool with_digest)
 {
-	int rc;
+	int ret;
 
 	json_obj_open(e);
 	json_kv_int(e, "seq", op->seq);
 	json_kv_string(e, "op", op->op);
 	json_kv_string(e, "id", op->id);
-	rc = tree_emit_selector(e, &op->selector);
-	if (rc)
-		return rc;
+	ret = tree_emit_selector(e, &op->selector);
+	if (ret)
+		return ret;
 	tree_emit_artifact(e, &op->artifact);
 	if (with_digest)
 		json_kv_string(e, "operation_digest", op->operation_digest);
@@ -704,22 +704,22 @@ int tree_operation_digest(const struct shirudo_tree_operation *op,
 	struct shirudo_json_emit e;
 	char *body, hex[65];
 	__u8 digest[32];
-	int rc;
+	int ret;
 
 	body = xmalloc(body_cap);
 	if (!body)
 		return -ENOMEM;
 	e = (struct shirudo_json_emit){ .buf = body, .cap = body_cap };
-	rc = tree_emit_operation(&e, op, false);
-	if (!rc && sha256_buffer(body, e.len, digest))
-		rc = -EIO;
-	if (!rc) {
+	ret = tree_emit_operation(&e, op, false);
+	if (!ret && sha256_buffer(body, e.len, digest))
+		ret = -EIO;
+	if (!ret) {
 		hex_encode(digest, sizeof(digest), hex);
 		memcpy(out, "sha256:", 7);
 		memcpy(out + 7, hex, sizeof(hex));
 	}
 	xfree(body, body_cap);
-	return rc;
+	return ret;
 }
 
 static size_t tree_json_bound(const char *s)
@@ -771,7 +771,7 @@ int tree_emit_publication(const struct shirudo_tree_publication *pub,
 	struct shirudo_json_emit e;
 	size_t cap = 4096;
 	char *body;
-	int rc = 0;
+	int ret = 0;
 
 	for (int i = 0; i < pub->n_operations; i++)
 		cap += tree_operation_bound(&pub->operations[i]);
@@ -790,18 +790,18 @@ int tree_emit_publication(const struct shirudo_tree_publication *pub,
 	json_kv_int(&e, "seq", pub->base_seq);
 	json_obj_close(&e);
 	json_arr_open(&e, "operations");
-	for (int i = 0; !rc && i < pub->n_operations; i++)
-		rc = tree_emit_operation(&e, &pub->operations[i], true);
+	for (int i = 0; !ret && i < pub->n_operations; i++)
+		ret = tree_emit_operation(&e, &pub->operations[i], true);
 	json_arr_close(&e);
 	json_obj_open_key(&e, "head");
 	json_kv_int(&e, "seq", pub->head_seq);
 	json_obj_close(&e);
 	json_obj_close(&e);
-	if (!rc)
-		rc = e.err;
-	if (rc) {
+	if (!ret)
+		ret = e.err;
+	if (ret) {
 		xfree(body, cap);
-		return rc;
+		return ret;
 	}
 	*out = body;
 	*out_len = e.len;

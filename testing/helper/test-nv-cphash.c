@@ -18,11 +18,11 @@ enum signature_fault {
 	SIGNATURE_CORRUPT,
 };
 
-static int tpm_failed(TSS2_RC rc, const char *operation)
+static int tpm_failed(TSS2_RC ret, const char *operation)
 {
-	if (rc == TSS2_RC_SUCCESS)
+	if (ret == TSS2_RC_SUCCESS)
 		return 0;
-	fprintf(stderr, "%s: rc=0x%08x\n", operation, (__u32)rc);
+	fprintf(stderr, "%s: rc=0x%08x\n", operation, (__u32)ret);
 	return 1;
 }
 
@@ -39,7 +39,7 @@ static int flush(ESYS_CONTEXT *esys, ESYS_TR *session)
 static int read_value(ESYS_CONTEXT *esys, ESYS_TR nv, __u8 out[32])
 {
 	TPM2B_MAX_NV_BUFFER *data = NULL;
-	int rc = 1;
+	int ret = 1;
 
 	if (tpm_failed(Esys_NV_Read(esys, nv, nv, ESYS_TR_PASSWORD,
 				    ESYS_TR_NONE, ESYS_TR_NONE, 32, 0, &data),
@@ -50,10 +50,10 @@ static int read_value(ESYS_CONTEXT *esys, ESYS_TR nv, __u8 out[32])
 		goto out;
 	}
 	memcpy(out, data->buffer, 32);
-	rc = 0;
+	ret = 0;
 out:
 	Esys_Free(data);
-	return rc;
+	return ret;
 }
 
 static int sign_digest(ESYS_CONTEXT *esys, ESYS_TR writer,
@@ -67,7 +67,7 @@ static int sign_digest(ESYS_CONTEXT *esys, ESYS_TR writer,
 	TPMT_SIG_SCHEME scheme = { .scheme = TPM2_ALG_RSASSA };
 	TPMT_SIGNATURE *signed_digest = NULL;
 	TPM2B_DIGEST input = { .size = 32 };
-	int rc = 1;
+	int ret = 1;
 
 	scheme.details.rsassa.hashAlg = TPM2_ALG_SHA256;
 	memcpy(input.buffer, digest, input.size);
@@ -83,10 +83,10 @@ static int sign_digest(ESYS_CONTEXT *esys, ESYS_TR writer,
 	}
 	memcpy(signature, signed_digest->signature.rsassa.sig.buffer,
 	       TPM_NV_RSA_BYTES);
-	rc = 0;
+	ret = 0;
 out:
 	Esys_Free(signed_digest);
-	return rc;
+	return ret;
 }
 
 static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
@@ -98,7 +98,7 @@ static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
 	__u8 signature[TPM_NV_RSA_BYTES];
 	TPM2B_NAME *name = NULL;
 	TSS2_RC trc;
-	int rc = 1;
+	int ret = 1;
 
 	if (tpm_policy_session_start(t, session) ||
 	    tpm_failed(Esys_TRSess_SetAttributes(t->esys, *session,
@@ -128,16 +128,16 @@ static int authorize(struct shirudo_tpm *t, ESYS_TR writer, ESYS_TR nv,
 				(__u32)trc);
 			goto out;
 		}
-		rc = 0;
+		ret = 0;
 		goto out;
 	}
 	if (tpm_failed(trc, "PolicySigned") || tpm_policy_session_finish(t, *session, policy))
 		goto out;
 	memcpy(saved, signature, sizeof(signature));
-	rc = 0;
+	ret = 0;
 out:
 	Esys_Free(name);
-	return rc;
+	return ret;
 }
 
 int main(void)
@@ -157,7 +157,7 @@ int main(void)
 	__u8 policy[32], zero[32] = {};
 	bool defined = false;
 	ssize_t got;
-	int rc = 1, err;
+	int ret = 1, err;
 	TSS2_RC trc;
 
 	if (tpm_open(&t))
@@ -235,20 +235,20 @@ int main(void)
 		fprintf(stderr, "authorized NV_Extend did not produce SHA256(before || A)\n");
 		goto out;
 	}
-	rc = 0;
+	ret = 0;
 out:
 	if (esys) {
 		if (flush(esys, &session))
-			rc = 1;
+			ret = 1;
 		if (defined && tpm_nv_undefine(t, TEST_NV_INDEX, NULL, 0))
-			rc = 1;
+			ret = 1;
 		if (flush(esys, &writer))
-			rc = 1;
+			ret = 1;
 	}
 	tpm_close(t);
-	if (!rc) {
+	if (!ret) {
 		puts("PolicySigned: replay and corruption rejected; value unchanged");
 		puts("cpHash: authorized A; rejected B unchanged; extended A; scratch index removed");
 	}
-	return rc;
+	return ret;
 }

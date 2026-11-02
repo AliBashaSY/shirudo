@@ -70,21 +70,21 @@ static void display_openssl_errors(void)
 int open_signing_key(const char *pkey_path)
 {
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
 	/* A FIFO in its place would block open() before fstat() refuses it. */
 	fd = open(pkey_path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		pr_err("open private key %s: %s", pkey_path, strerror(errno));
-		return rc;
+		return ret;
 	}
 	if (fstat(fd, &st)) {
-		rc = -errno;
+		ret = -errno;
 		pr_err("stat private key %s: %s", pkey_path, strerror(errno));
 		goto err;
 	}
-	rc = -EPERM;
+	ret = -EPERM;
 	if (!S_ISREG(st.st_mode)) {
 		pr_err("signing key %s is not a regular file", pkey_path);
 		goto err;
@@ -98,7 +98,7 @@ int open_signing_key(const char *pkey_path)
 	return fd;
 err:
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static EVP_PKEY *read_private_key(const char *pkey_path)

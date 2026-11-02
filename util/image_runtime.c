@@ -106,41 +106,41 @@ static int reject_overrides(void)
 int shirudo_image_bootstrap_load(void)
 {
 	struct shirudo_identity identity;
-	int mode, rc;
+	int mode, ret;
 
 	if (image.loaded)
 		return 1;
 	mode = shirudo_enforcement_active();
 	if (mode < 0)
 		return mode;
-	rc = identity_read(&identity);
-	if (mode && rc)
-		return rc;
-	if (!rc && !mode)
+	ret = identity_read(&identity);
+	if (mode && ret)
+		return ret;
+	if (!ret && !mode)
 		return -EPROTO;
-	if (!rc) {
+	if (!ret) {
 		memcpy(image.bootstrap.runtime_root, identity.runtime_root, 32);
 		image.bootstrap.have_root = true;
-		rc = load_runtime_config(false);
+		ret = load_runtime_config(false);
 	} else {
-		rc = shirudo_image_bootstrap_read(CONF_PATH,
-						  &image.bootstrap, true);
-		if (!rc &&
+		ret = shirudo_image_bootstrap_read(CONF_PATH,
+						   &image.bootstrap, true);
+		if (!ret &&
 		    (!image.bootstrap.runtime[0] || !image.bootstrap.have_root))
-			rc = -EINVAL;
-		if (!rc)
-			rc = config_load_path(&image.bootstrap_config,
-					      CONF_PATH);
+			ret = -EINVAL;
+		if (!ret)
+			ret = config_load_path(&image.bootstrap_config,
+					       CONF_PATH);
 	}
-	if (rc)
-		return rc;
-	rc = reject_overrides();
-	if (rc)
-		return rc;
-	rc = shirudo_image_config_set(&image.bootstrap_config, -1);
-	if (!rc)
+	if (ret)
+		return ret;
+	ret = reject_overrides();
+	if (ret)
+		return ret;
+	ret = shirudo_image_config_set(&image.bootstrap_config, -1);
+	if (!ret)
 		image.loaded = true;
-	return rc ? rc : 1;
+	return ret ? ret : 1;
 }
 
 const __u8 *shirudo_image_runtime_root(void)
@@ -178,7 +178,7 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 	__u64 key, next, diskseq;
 	struct stat st;
 	char path[64];
-	int fd, block, rc = -EACCES;
+	int fd, block, ret = -EACCES;
 
 	if (strsprintf(path, sizeof(path), "/dev/dm-%u", minor(device)) < 0)
 		return -ENAMETOOLONG;
@@ -187,13 +187,13 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 		return -errno;
 	if (fstat(block, &st) || !S_ISBLK(st.st_mode) || st.st_rdev != device ||
 	    ioctl(block, BLKGETDISKSEQ, &diskseq)) {
-		rc = errno ? -errno : -EPERM;
+		ret = errno ? -errno : -EPERM;
 		close(block);
-		return rc;
+		return ret;
 	}
 	fd = bpf_obj_get(BPFFS_DIR "/devices");
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out_block;
 	}
 	if (bpf_map_get_next_key(fd, NULL, &key))
@@ -203,7 +203,7 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 		    entry.dev == dev && entry.kind == kind &&
 		    entry.diskseq == diskseq &&
 		    (!root || !memcmp(entry.root, root, 32))) {
-			rc = 0;
+			ret = 0;
 			break;
 		}
 		if (bpf_map_get_next_key(fd, &key, &next))
@@ -214,7 +214,7 @@ out:
 	close(fd);
 out_block:
 	close(block);
-	return rc;
+	return ret;
 }
 
 static int runtime_observed(dev_t device)
@@ -238,17 +238,17 @@ static int mount_flags(int fd, bool executable)
 static int open_runtime_file(const char *path, dev_t device)
 {
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
 	fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return -errno;
-	rc = fstat(fd, &st) ? -errno : 0;
-	if (!rc && (!S_ISREG(st.st_mode) || st.st_dev != device))
-		rc = -EPERM;
-	if (rc) {
+	ret = fstat(fd, &st) ? -errno : 0;
+	if (!ret && (!S_ISREG(st.st_mode) || st.st_dev != device))
+		ret = -EPERM;
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return fd;
 }
@@ -256,37 +256,37 @@ static int open_runtime_file(const char *path, dev_t device)
 static int load_runtime_config(bool trusted_boot)
 {
 	struct stat root;
-	int fd, rc;
+	int fd, ret;
 
 	if (!trusted_boot) {
-		rc = shirudo_image_guards_ready();
-		if (rc)
-			return rc;
+		ret = shirudo_image_guards_ready();
+		if (ret)
+			return ret;
 	}
 	if (stat(RUNTIME_DIR, &root))
 		return -errno;
 	if (!trusted_boot) {
-		rc = runtime_observed(root.st_dev);
-		if (rc)
-			return rc;
+		ret = runtime_observed(root.st_dev);
+		if (ret)
+			return ret;
 	}
 
 	fd = open_runtime_file(RUNTIME_CONF_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
-	rc = shirudo_image_bootstrap_read_fd(fd, &image.bootstrap, false);
-	if (!rc)
-		rc = config_load_fd(&image.bootstrap_config, fd,
-				    RUNTIME_CONF_PATH);
+	ret = shirudo_image_bootstrap_read_fd(fd, &image.bootstrap, false);
+	if (!ret)
+		ret = config_load_fd(&image.bootstrap_config, fd,
+				     RUNTIME_CONF_PATH);
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (!image.bootstrap.config[0] || !image.bootstrap.certificate[0] ||
 	    !image.bootstrap.have_pcr)
 		return -EINVAL;
-	rc = shirudo_image_config_set(&image.bootstrap_config, -1);
-	if (rc)
-		return rc;
+	ret = shirudo_image_config_set(&image.bootstrap_config, -1);
+	if (ret)
+		return ret;
 
 	fd = open_runtime_file(image.bootstrap.certificate, root.st_dev);
 	if (fd < 0)
@@ -298,10 +298,10 @@ static int load_runtime_config(bool trusted_boot)
 	fd = open_runtime_file(RUNTIME_CERT_PATH, root.st_dev);
 	if (fd < 0)
 		return fd;
-	rc = mount_flags(fd, true);
+	ret = mount_flags(fd, true);
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 
 	/* The verified config certificate stays open through key enrollment. */
 	return 0;
@@ -321,7 +321,7 @@ static int mount_runtime(bool trusted_boot)
 		.hash_loop_fd = -1,
 	};
 	bool created = false;
-	int rc, cleanup;
+	int ret, cleanup;
 	struct stat st;
 
 	if (!image.loaded)
@@ -329,53 +329,53 @@ static int mount_runtime(bool trusted_boot)
 	if (!trusted_boot && !stat(RUNTIME_DIR, &st) &&
 	    !runtime_observed(st.st_dev))
 		return load_runtime_config(trusted_boot);
-	rc = shirudo_config_image_open_root(image.bootstrap.runtime,
-					    image.bootstrap.runtime_root,
-					    &opened);
-	if (!rc) {
+	ret = shirudo_config_image_open_root(image.bootstrap.runtime,
+					     image.bootstrap.runtime_root,
+					     &opened);
+	if (!ret) {
 		step = "prepare runtime mountpoint";
-		rc = mkdir_owned(RUNTIME_DIR);
+		ret = mkdir_owned(RUNTIME_DIR);
 	}
-	if (!rc) {
+	if (!ret) {
 		step = "create runtime dm-verity mapping";
-		rc = shirudo_dm_verity_create(&opened, "shirudo-runtime",
-					      &device);
-		created = !rc;
-	}
-	if (rc == -EEXIST) {
-		step = "inspect runtime dm-verity mapping";
-		rc = shirudo_dm_verity_inspect("shirudo-runtime", &opened.image,
+		ret = shirudo_dm_verity_create(&opened, "shirudo-runtime",
 					       &device);
+		created = !ret;
 	}
-	if (!rc) {
+	if (ret == -EEXIST) {
+		step = "inspect runtime dm-verity mapping";
+		ret = shirudo_dm_verity_inspect("shirudo-runtime", &opened.image,
+						&device);
+	}
+	if (!ret) {
 		step = "verify runtime image";
-		rc = shirudo_dm_verity_verify(&device, &opened);
+		ret = shirudo_dm_verity_verify(&device, &opened);
 	}
-	if (!rc) {
+	if (!ret) {
 		step = "mount runtime image";
-		rc = shirudo_dm_verity_mount(&device, RUNTIME_DIR,
-					     true);
+		ret = shirudo_dm_verity_mount(&device, RUNTIME_DIR,
+					      true);
 	}
-	if (rc && created) {
+	if (ret && created) {
 		cleanup = shirudo_dm_verity_remove(&device, false);
 		if (cleanup)
 			pr_warn("image: cannot remove runtime mapping: %s",
 				strerror(-cleanup));
 	}
 	shirudo_dm_verity_close(&device);
-	if (!rc && trusted_boot)
+	if (!ret && trusted_boot)
 		image.boot_runtime = device;
 	shirudo_config_image_close(&opened);
-	if (!rc) {
+	if (!ret) {
 		step = "load runtime config";
-		rc = load_runtime_config(trusted_boot);
-		if (rc && umount2(RUNTIME_DIR, MNT_DETACH))
+		ret = load_runtime_config(trusted_boot);
+		if (ret && umount2(RUNTIME_DIR, MNT_DETACH))
 			pr_warn("image: cannot unmount the runtime: %s",
 				strerror(errno));
 	}
-	if (rc)
-		pr_err("image: %s: %s", step, strerror(-rc));
-	return rc;
+	if (ret)
+		pr_err("image: %s: %s", step, strerror(-ret));
+	return ret;
 }
 
 int shirudo_image_runtime_mount(void)
@@ -420,7 +420,7 @@ static int collect_mapping(const char *name, dev_t device, void *ctx)
 		.hash_loop_fd = -1,
 	};
 	const dev_t *active = ctx;
-	int rc;
+	int ret;
 
 	if (device == *active ||
 	    device_observed(device, NULL, DEVICE_CONFIG))
@@ -429,10 +429,10 @@ static int collect_mapping(const char *name, dev_t device, void *ctx)
 		return -ENAMETOOLONG;
 	strscpy(retired.name, name, sizeof(retired.name));
 	retired.device = device;
-	rc = shirudo_dm_verity_remove(&retired, false);
-	if (rc && rc != -EBUSY && rc != -ENXIO && rc != -ENODEV)
+	ret = shirudo_dm_verity_remove(&retired, false);
+	if (ret && ret != -EBUSY && ret != -ENXIO && ret != -ENODEV)
 		pr_warn("image: cannot remove retired mapping %s: %s", name,
-			strerror(-rc));
+			strerror(-ret));
 	return 0;
 }
 
@@ -440,16 +440,16 @@ static void collect_mappings(void)
 {
 	struct stat st;
 	dev_t active = 0;
-	int rc;
+	int ret;
 
 	if (image.update.lock_fd < 0)
 		return;
 	if (!stat(CONFIG_IMAGE_DIR, &st))
 		active = st.st_dev;
-	rc = shirudo_dm_verity_list(collect_mapping, &active);
-	if (rc)
+	ret = shirudo_dm_verity_list(collect_mapping, &active);
+	if (ret)
 		pr_warn("image: cannot collect retired mappings: %s",
-			strerror(-rc));
+			strerror(-ret));
 }
 
 static void close_candidate(void)
@@ -469,27 +469,27 @@ static void close_candidate(void)
 static int remove_candidate(struct shirudo_dm_verity *device)
 {
 	__u32 attempt;
-	int rc;
+	int ret;
 
 	for (attempt = 0; attempt < 100; attempt++) {
-		rc = shirudo_dm_verity_remove(device, false);
-		if (rc != -EBUSY)
-			return rc;
+		ret = shirudo_dm_verity_remove(device, false);
+		if (ret != -EBUSY)
+			return ret;
 		if (attempt < 99)
 			usleep(10000);
 	}
-	return rc;
+	return ret;
 }
 
 static int candidate_keys(int fd)
 {
-	int rc;
+	int ret;
 
-	rc = shirudo_keys_validate_image(fd);
-	if (rc == -ENOKEY)
+	ret = shirudo_keys_validate_image(fd);
+	if (ret == -ENOKEY)
 		pr_err("image: BPF signer was not enrolled at boot; "
 		       "reboot with the new trusted key set required");
-	return rc;
+	return ret;
 }
 
 static int mount_candidate(struct image_context *current)
@@ -497,7 +497,7 @@ static int mount_candidate(struct image_context *current)
 	struct shirudo_dm_verity *device = &current->candidate_device;
 	const char *mountpoint = CONFIG_CANDIDATE_DIR;
 	struct stat st;
-	int rc;
+	int ret;
 
 	if (!stat(CONFIG_IMAGE_DIR, &st) &&
 	    st.st_dev == current->candidate_device.device) {
@@ -507,11 +507,11 @@ static int mount_candidate(struct image_context *current)
 		if (umount2(mountpoint, MNT_DETACH) &&
 		    errno != EINVAL && errno != ENOENT)
 			return -errno;
-		rc = mkdir_owned(mountpoint);
-		if (!rc)
-			rc = shirudo_dm_verity_mount(device, mountpoint, false);
-		if (rc)
-			return rc;
+		ret = mkdir_owned(mountpoint);
+		if (!ret)
+			ret = shirudo_dm_verity_mount(device, mountpoint, false);
+		if (ret)
+			return ret;
 		current->candidate_fd = open(mountpoint,
 					     O_PATH | O_DIRECTORY | O_CLOEXEC);
 	}
@@ -524,7 +524,7 @@ static int prepare_config(struct image_context *current,
 {
 	struct shirudo_dm_verity *device = &current->candidate_device;
 	bool created = false;
-	int rc, cleanup;
+	int ret, cleanup;
 	char name[128];
 
 	close_candidate();
@@ -534,83 +534,83 @@ static int prepare_config(struct image_context *current,
 		    sizeof(IMAGE_CACHE_DIR)) ||
 	    !shirudo_image_path_valid(target->prefix))
 		return -EPERM;
-	rc = shirudo_config_image_open(target->prefix, &current->candidate);
-	if (rc)
-		return rc;
+	ret = shirudo_config_image_open(target->prefix, &current->candidate);
+	if (ret)
+		return ret;
 	if (memcmp(target->root_hash, current->candidate.image.root_hash, 32))
 		return -EKEYREJECTED;
-	rc = mapping_name(target->root_hash, name);
-	if (rc)
-		return rc;
-	rc = shirudo_dm_verity_inspect(name, &current->candidate.image,
-				       device);
-	if (rc == -ENXIO || rc == -ENODEV || rc == -ENOENT) {
-		rc = shirudo_dm_verity_create(&current->candidate, name,
-					      device);
-		created = !rc;
+	ret = mapping_name(target->root_hash, name);
+	if (ret)
+		return ret;
+	ret = shirudo_dm_verity_inspect(name, &current->candidate.image,
+					device);
+	if (ret == -ENXIO || ret == -ENODEV || ret == -ENOENT) {
+		ret = shirudo_dm_verity_create(&current->candidate, name,
+					       device);
+		created = !ret;
 	}
-	if (!rc)
-		rc = shirudo_dm_verity_verify(device, &current->candidate);
-	if (!rc && !trusted_boot)
-		rc = device_observed(current->candidate_device.device,
-				     current->candidate.image.root_hash,
-				     DEVICE_CONFIG);
-	if (rc)
+	if (!ret)
+		ret = shirudo_dm_verity_verify(device, &current->candidate);
+	if (!ret && !trusted_boot)
+		ret = device_observed(current->candidate_device.device,
+				      current->candidate.image.root_hash,
+				      DEVICE_CONFIG);
+	if (ret)
 		goto out;
-	rc = mount_candidate(current);
-	if (rc)
+	ret = mount_candidate(current);
+	if (ret)
 		goto out;
-	rc = mount_flags(current->candidate_fd, false);
-	if (!rc)
-		rc = shirudo_image_config_validate(current->candidate_fd);
-	if (!rc && !trusted_boot)
-		rc = candidate_keys(current->candidate_fd);
+	ret = mount_flags(current->candidate_fd, false);
+	if (!ret)
+		ret = shirudo_image_config_validate(current->candidate_fd);
+	if (!ret && !trusted_boot)
+		ret = candidate_keys(current->candidate_fd);
 out:
-	if (rc && created) {
+	if (ret && created) {
 		close_candidate();
 		cleanup = remove_candidate(device);
 		if (cleanup && cleanup != -ENXIO && cleanup != -ENODEV)
 			pr_warn("image: cannot remove rejected mapping %s: %s",
 				device->name, strerror(-cleanup));
 	}
-	return rc;
+	return ret;
 }
 
 static int activate_config(struct image_context *current, bool boot)
 {
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
-	rc = shirudo_keys_apply_image(current->candidate_fd, boot);
-	if (rc)
-		return rc;
-	rc = mkdir_owned(CONFIG_IMAGE_DIR);
-	if (rc)
-		return rc;
+	ret = shirudo_keys_apply_image(current->candidate_fd, boot);
+	if (ret)
+		return ret;
+	ret = mkdir_owned(CONFIG_IMAGE_DIR);
+	if (ret)
+		return ret;
 	if (stat(CONFIG_IMAGE_DIR, &st))
 		return -errno;
 	if (st.st_dev != current->candidate_device.device) {
 		if (umount2(CONFIG_IMAGE_DIR, MNT_DETACH) &&
 		    errno != EINVAL)
 			return -errno;
-		rc = shirudo_dm_verity_mount(&current->candidate_device,
-					     CONFIG_IMAGE_DIR, false);
-		if (rc)
-			return rc;
+		ret = shirudo_dm_verity_mount(&current->candidate_device,
+					      CONFIG_IMAGE_DIR, false);
+		if (ret)
+			return ret;
 	}
 	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
 	if (fstat(fd, &st))
-		rc = -errno;
+		ret = -errno;
 	else if (st.st_dev != current->candidate_device.device)
-		rc = -ESTALE;
+		ret = -ESTALE;
 	else
-		rc = mount_flags(fd, false);
-	if (!rc)
-		rc = shirudo_image_config_set(&current->bootstrap_config, fd);
+		ret = mount_flags(fd, false);
+	if (!ret)
+		ret = shirudo_image_config_set(&current->bootstrap_config, fd);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static int prepare_update(void *ctx,
@@ -654,20 +654,20 @@ static const struct shirudo_config_update_ops boot_ops = {
 
 static int open_update(void)
 {
-	int rc;
+	int ret;
 
 	if (image.update.lock_fd >= 0)
 		return 0;
-	rc = mkdir_owned(CONFIG_UPDATE_DIR);
-	if (!rc)
-		rc = tpm_open(&image.tpm);
-	if (!rc)
-		rc = chain_tpm_bound(image.tpm);
-	if (!rc)
-		rc = shirudo_config_update_open(CONFIG_UPDATE_DIR,
-						&update_ops, &image,
-						&image.update);
-	return rc;
+	ret = mkdir_owned(CONFIG_UPDATE_DIR);
+	if (!ret)
+		ret = tpm_open(&image.tpm);
+	if (!ret)
+		ret = chain_tpm_bound(image.tpm);
+	if (!ret)
+		ret = shirudo_config_update_open(CONFIG_UPDATE_DIR,
+						 &update_ops, &image,
+						 &image.update);
+	return ret;
 }
 
 static int boot_target(struct shirudo_config_update_target *target)
@@ -676,31 +676,31 @@ static int boot_target(struct shirudo_config_update_target *target)
 	struct shirudo_config_image_open opened;
 	const char *prefix;
 	bool selected;
-	int rc;
+	int ret;
 
-	rc = shirudo_config_update_read(&image.update, &previous);
-	selected = !rc;
+	ret = shirudo_config_update_read(&image.update, &previous);
+	selected = !ret;
 	prefix = selected ? previous.target.prefix : image.bootstrap.config;
-	if (rc && rc != -ENOENT)
-		return rc;
-	rc = shirudo_config_image_open(prefix, &opened);
-	if (rc)
-		return rc;
+	if (ret && ret != -ENOENT)
+		return ret;
+	ret = shirudo_config_image_open(prefix, &opened);
+	if (ret)
+		return ret;
 	if (selected && memcmp(previous.target.root_hash,
 			       opened.image.root_hash, 32)) {
-		rc = -EKEYREJECTED;
+		ret = -EKEYREJECTED;
 	} else {
 		strscpy(target->prefix, prefix, sizeof(target->prefix));
 		memcpy(target->root_hash, opened.image.root_hash, 32);
 	}
 	shirudo_config_image_close(&opened);
-	return rc;
+	return ret;
 }
 
-static int boot_keys_error(const char *step, int rc)
+static int boot_keys_error(const char *step, int ret)
 {
-	pr_err("initrd boot keys: %s: %s", step, strerror(-rc));
-	return rc;
+	pr_err("initrd boot keys: %s: %s", step, strerror(-ret));
+	return ret;
 }
 
 /*
@@ -712,7 +712,7 @@ static int seal_config_key(key_serial_t ring, const __u8 *der, size_t size)
 {
 	struct keyring_cert cert = { .der = der, .len = size };
 	key_serial_t key;
-	int rc;
+	int ret;
 
 	key = shirudo_keyring_dm_verity_add_cert(der, size);
 	if (key < 0 && key != -EPERM && key != -EACCES)
@@ -723,19 +723,19 @@ static int seal_config_key(key_serial_t ring, const __u8 *der, size_t size)
 				       "boot with dm_verity.keyring_unsealed=1",
 				       -ENOKEY);
 	if (key >= 0) {
-		rc = shirudo_keyring_dm_verity_seal();
-		if (rc == -EEXIST)
+		ret = shirudo_keyring_dm_verity_seal();
+		if (ret == -EEXIST)
 			return boot_keys_error("seal dm-verity keyring restricted "
 					       "by another task (tampered)",
 					       -EKEYREJECTED);
-		if (rc)
-			return boot_keys_error("seal dm-verity keyring", rc);
+		if (ret)
+			return boot_keys_error("seal dm-verity keyring", ret);
 	}
-	rc = keyring_holds_exactly(ring, &cert, 1);
-	if (rc <= 0)
+	ret = keyring_holds_exactly(ring, &cert, 1);
+	if (ret <= 0)
 		return boot_keys_error("check dm-verity keyring holds only the "
 				       "config certificate",
-				       rc ? rc : -EKEYREJECTED);
+				       ret ? ret : -EKEYREJECTED);
 	return 0;
 }
 
@@ -744,21 +744,21 @@ static int enroll_config_key(void)
 	__u8 *der = NULL;
 	key_serial_t ring;
 	size_t size = 0;
-	int rc;
+	int ret;
 
-	rc = image.certificate_fd < 0 ? -EBADF :
+	ret = image.certificate_fd < 0 ? -EBADF :
 	     keys_read_der_fd(image.certificate_fd, &der, &size);
-	if (rc)
-		return boot_keys_error("read config verification certificate", rc);
+	if (ret)
+		return boot_keys_error("read config verification certificate", ret);
 	ring = shirudo_keyring_dm_verity_serial();
 	if (ring < 0) {
-		rc = (int)ring;
+		ret = (int)ring;
 		xfree(der, size);
-		return boot_keys_error("lookup dm-verity keyring", rc);
+		return boot_keys_error("lookup dm-verity keyring", ret);
 	}
-	rc = seal_config_key(ring, der, size);
+	ret = seal_config_key(ring, der, size);
 	xfree(der, size);
-	return rc;
+	return ret;
 }
 
 /* The authenticated initrd validates the boot set before installing guards. */
@@ -766,35 +766,35 @@ int shirudo_image_boot_keys(struct shirudo_trusted_set *set)
 {
 	struct shirudo_trusted_cert primary = { .primary = true };
 	size_t i;
-	int rc;
+	int ret;
 
 	/* These temporary mounts are released before loading the guards. */
 	image.boot_keys_open = true;
-	rc = mount_runtime(true);
-	if (rc)
-		return boot_keys_error("mount runtime", rc);
-	rc = enroll_config_key();
-	if (rc)
-		return boot_keys_error("enrol config certificate", rc);
-	rc = open_update();
-	if (rc)
-		return boot_keys_error("open config update state", rc);
-	rc = boot_target(&image.boot_target);
-	if (rc)
-		return boot_keys_error("select boot config", rc);
-	rc = prepare_config(&image, &image.boot_target, true);
-	if (rc)
-		return boot_keys_error("prepare boot config", rc);
-	rc = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
-					     image.candidate_fd, set);
-	if (rc)
-		return boot_keys_error("validate BPF trust set", rc);
+	ret = mount_runtime(true);
+	if (ret)
+		return boot_keys_error("mount runtime", ret);
+	ret = enroll_config_key();
+	if (ret)
+		return boot_keys_error("enrol config certificate", ret);
+	ret = open_update();
+	if (ret)
+		return boot_keys_error("open config update state", ret);
+	ret = boot_target(&image.boot_target);
+	if (ret)
+		return boot_keys_error("select boot config", ret);
+	ret = prepare_config(&image, &image.boot_target, true);
+	if (ret)
+		return boot_keys_error("prepare boot config", ret);
+	ret = shirudo_keys_validate_image_set(RUNTIME_CERT_PATH,
+					      image.candidate_fd, set);
+	if (ret)
+		return boot_keys_error("validate BPF trust set", ret);
 	/* Guard loaders need the initial signer until activation. */
 	strscpy(primary.path, RUNTIME_CERT_PATH, sizeof(primary.path));
-	rc = keys_digest_file(primary.path, primary.sha256,
-			      primary.fingerprint);
-	if (rc)
-		return boot_keys_error("digest primary certificate", rc);
+	ret = keys_digest_file(primary.path, primary.sha256,
+			       primary.fingerprint);
+	if (ret)
+		return boot_keys_error("digest primary certificate", ret);
 	for (i = 0; i < set->n; i++)
 		if (!memcmp(set->certs[i].sha256, primary.sha256, 32))
 			break;
@@ -810,7 +810,7 @@ int shirudo_image_boot_keys(struct shirudo_trusted_set *set)
 
 int shirudo_image_boot_keys_close(void)
 {
-	int rc = 0, err;
+	int ret = 0, err;
 
 	if (!image.boot_keys_open)
 		return 0;
@@ -823,48 +823,48 @@ int shirudo_image_boot_keys_close(void)
 	image.certificate_fd = -1;
 	if (umount(CONFIG_CANDIDATE_DIR) && errno != EINVAL &&
 	    errno != ENOENT)
-		rc = -errno;
+		ret = -errno;
 	if (image.candidate_device.name[0]) {
 		err = shirudo_dm_verity_remove(&image.candidate_device, false);
-		if (!rc && err && err != -ENXIO && err != -ENODEV)
-			rc = err;
+		if (!ret && err && err != -ENXIO && err != -ENODEV)
+			ret = err;
 	}
 	shirudo_config_image_close(&image.candidate);
 	if (umount(RUNTIME_DIR) && errno != EINVAL && errno != ENOENT &&
-	    !rc)
-		rc = -errno;
+	    !ret)
+		ret = -errno;
 	if (image.boot_runtime.name[0]) {
 		err = shirudo_dm_verity_remove(&image.boot_runtime, false);
-		if (!rc && err && err != -ENXIO && err != -ENODEV)
-			rc = err;
+		if (!ret && err && err != -ENXIO && err != -ENODEV)
+			ret = err;
 	}
 	image.boot_keys_open = false;
-	return rc;
+	return ret;
 }
 
 int shirudo_image_boot(void)
 {
 	struct shirudo_config_update_target target = {};
-	int rc;
+	int ret;
 
-	rc = open_update();
-	if (rc)
-		return rc;
+	ret = open_update();
+	if (ret)
+		return ret;
 	if (image.boot_target_valid) {
 		target = image.boot_target;
 	} else {
-		rc = boot_target(&target);
-		if (rc)
-			return rc;
+		ret = boot_target(&target);
+		if (ret)
+			return ret;
 	}
 	/* Boot and live updates record key revocations differently. */
 	image.update.ops = &boot_ops;
-	rc = shirudo_config_update_boot(&image.update, &target,
-					image.bootstrap.pcr);
+	ret = shirudo_config_update_boot(&image.update, &target,
+					 image.bootstrap.pcr);
 	image.update.ops = &update_ops;
-	if (rc == -EINPROGRESS)
+	if (ret == -EINPROGRESS)
 		pr_err("image: activation is pending; further changes are blocked");
-	return rc;
+	return ret;
 }
 
 static int config_mount_check(const struct shirudo_config_update_record *record)
@@ -873,64 +873,64 @@ static int config_mount_check(const struct shirudo_config_update_record *record)
 	struct shirudo_dm_verity device;
 	struct stat st;
 	char name[128];
-	int fd, rc;
+	int fd, ret;
 
-	rc = shirudo_config_image_open(record->target.prefix, &opened);
-	if (rc)
-		return rc;
+	ret = shirudo_config_image_open(record->target.prefix, &opened);
+	if (ret)
+		return ret;
 	if (memcmp(record->target.root_hash, opened.image.root_hash, 32))
-		rc = -EKEYREJECTED;
-	if (!rc)
-		rc = mapping_name(record->target.root_hash, name);
-	if (!rc)
-		rc = shirudo_dm_verity_inspect(name, &opened.image, &device);
+		ret = -EKEYREJECTED;
+	if (!ret)
+		ret = mapping_name(record->target.root_hash, name);
+	if (!ret)
+		ret = shirudo_dm_verity_inspect(name, &opened.image, &device);
 	shirudo_config_image_close(&opened);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (stat(CONFIG_IMAGE_DIR, &st) || st.st_dev != device.device) {
-		rc = -EUCLEAN;
+		ret = -EUCLEAN;
 		goto out;
 	}
-	rc = device_observed(device.device, record->target.root_hash,
-			     DEVICE_CONFIG);
-	if (rc)
+	ret = device_observed(device.device, record->target.root_hash,
+			      DEVICE_CONFIG);
+	if (ret)
 		goto out;
 	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
-	rc = mount_flags(fd, false);
-	if (!rc)
-		rc = shirudo_image_config_set(&image.bootstrap_config, fd);
+	ret = mount_flags(fd, false);
+	if (!ret)
+		ret = shirudo_image_config_set(&image.bootstrap_config, fd);
 	close(fd);
 out:
 	shirudo_dm_verity_close(&device);
-	return rc;
+	return ret;
 }
 
 int shirudo_image_boot_complete(void)
 {
 	struct shirudo_config_update_record record;
-	int rc;
+	int ret;
 
-	rc = shirudo_config_update_read(&image.update, &record);
-	if (!rc)
-		rc = config_mount_check(&record);
-	if (!rc)
-		rc = shirudo_config_update_complete_boot(&image.update);
-	return rc;
+	ret = shirudo_config_update_read(&image.update, &record);
+	if (!ret)
+		ret = config_mount_check(&record);
+	if (!ret)
+		ret = shirudo_config_update_complete_boot(&image.update);
+	return ret;
 }
 
 static int current_config(void)
 {
 	struct shirudo_config_update_record record;
-	int rc;
+	int ret;
 
-	rc = open_update();
-	if (!rc)
-		rc = shirudo_config_update_check(&image.update, &record);
-	return rc ? rc : config_mount_check(&record);
+	ret = open_update();
+	if (!ret)
+		ret = shirudo_config_update_check(&image.update, &record);
+	return ret ? ret : config_mount_check(&record);
 }
 
 /*
@@ -953,7 +953,7 @@ static int status_config(int state)
 int shirudo_image_enter(const char *command, int argc, const char **argv)
 {
 	struct shirudo_identity identity;
-	int mode, rc;
+	int mode, ret;
 
 	if (!strcmp(command, "image") && argc > 1 &&
 	    (!strcmp(argv[1], "build") || !strcmp(argv[1], "verify") ||
@@ -967,19 +967,19 @@ int shirudo_image_enter(const char *command, int argc, const char **argv)
 	mode = shirudo_enforcement_active();
 	if (mode < 0)
 		return mode;
-	rc = identity_read(&identity);
-	if (mode && rc)
-		return rc;
-	if (rc)
-		return rc == -ENOENT || rc == -EPERM || rc == -EACCES ? 0 : rc;
+	ret = identity_read(&identity);
+	if (mode && ret)
+		return ret;
+	if (ret)
+		return ret == -ENOENT || ret == -EPERM || ret == -EACCES ? 0 : ret;
 	if (!mode)
 		return -EPROTO;
-	rc = shirudo_image_bootstrap_load();
-	if (rc < 0)
-		return rc;
-	rc = load_runtime_config(false);
-	if (rc)
-		return rc;
+	ret = shirudo_image_bootstrap_load();
+	if (ret < 0)
+		return ret;
+	ret = load_runtime_config(false);
+	if (ret)
+		return ret;
 	for (int i = 1; i < argc; i++) {
 		if (!strncmp(argv[i], "--keys-dir", 10) ||
 		    !strncmp(argv[i], "--cert", 6) ||
@@ -988,12 +988,12 @@ int shirudo_image_enter(const char *command, int argc, const char **argv)
 	}
 	if (!strcmp(command, "image"))
 		return open_update();
-	rc = current_config();
+	ret = current_config();
 	if (!strcmp(command, "status") &&
-	    (rc == -EINPROGRESS || rc == -EUCLEAN || rc == -ESTALE ||
-	     rc == -EKEYREJECTED))
-		return status_config(rc);
-	return rc;
+	    (ret == -EINPROGRESS || ret == -EUCLEAN || ret == -ESTALE ||
+	     ret == -EKEYREJECTED))
+		return status_config(ret);
+	return ret;
 }
 
 int shirudo_image_config_state(__u8 root[32])
@@ -1017,15 +1017,15 @@ int shirudo_image_status(void)
 		.buf = buffer,
 		.cap = sizeof(buffer),
 	};
-	int rc;
+	int ret;
 
 	if (image.update.lock_fd < 0)
 		return -ENODEV;
-	rc = shirudo_config_update_read(&image.update, &record);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_read(&image.update, &record);
+	if (ret)
+		return ret;
 	hex_encode(record.target.root_hash, 32, root);
-	rc = record.pending ? -EINPROGRESS : current_config();
+	ret = record.pending ? -EINPROGRESS : current_config();
 	json_obj_open(&emit);
 	json_kv_string(&emit, "root_hash", root);
 	json_kv_int(&emit, "pcr", record.pcr);
@@ -1033,12 +1033,12 @@ int shirudo_image_status(void)
 	json_kv_int(&emit, "reset_count", record.reset_count);
 	json_kv_int(&emit, "restart_count", record.restart_count);
 	json_kv_bool(&emit, "pending", record.pending);
-	json_kv_bool(&emit, "consistent", !rc);
+	json_kv_bool(&emit, "consistent", !ret);
 	json_obj_close(&emit);
 	if (emit.err)
 		return emit.err;
 	puts(buffer);
-	return rc;
+	return ret;
 }
 
 void shirudo_image_leave(void)
@@ -1060,17 +1060,17 @@ void shirudo_image_leave(void)
 int shirudo_image_update(const char *prefix)
 {
 	struct shirudo_config_update_target target = {};
-	int rc;
+	int ret;
 
 	if (image.update.lock_fd < 0)
 		return -ENODEV;
-	rc = current_config();
-	if (!rc)
-		rc = mkdir_owned(IMAGE_CACHE_DIR);
-	if (!rc)
-		rc = shirudo_image_cache_fetch(prefix, &target);
-	if (!rc)
-		rc = shirudo_config_update_begin(&image.update, &target,
-						 image.bootstrap.pcr);
-	return rc;
+	ret = current_config();
+	if (!ret)
+		ret = mkdir_owned(IMAGE_CACHE_DIR);
+	if (!ret)
+		ret = shirudo_image_cache_fetch(prefix, &target);
+	if (!ret)
+		ret = shirudo_config_update_begin(&image.update, &target,
+						  image.bootstrap.pcr);
+	return ret;
 }

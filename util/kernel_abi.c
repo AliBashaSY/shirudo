@@ -198,7 +198,7 @@ int kernel_abi_check(char *detail, size_t detail_sz)
 {
 	struct btf *btf;
 	long err;
-	int rc;
+	int ret;
 
 	if (detail && detail_sz)
 		detail[0] = '\0';
@@ -209,7 +209,7 @@ int kernel_abi_check(char *detail, size_t detail_sz)
 				"cannot read target kernel BTF: %s; boot a Shirudo-patched kernel",
 				strerror((int)-err));
 
-	rc = kernel_abi_validate_btf(btf, detail, detail_sz);
+	ret = kernel_abi_validate_btf(btf, detail, detail_sz);
 	btf__free(btf);
-	return rc;
+	return ret;
 }

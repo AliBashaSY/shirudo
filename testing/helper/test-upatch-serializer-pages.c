@@ -63,7 +63,7 @@ static int check_map_locks(void)
 {
 	char dir[] = "/tmp/shirudo-serializer-lock-XXXXXX";
 	char path1[256], path2[256];
-	int first = -1, busy = -1, other = -1, again = -1, rc = 1;
+	int first = -1, busy = -1, other = -1, again = -1, ret = 1;
 
 	if (!mkdtemp(dir))
 		return fail("mkdtemp failed");
@@ -89,7 +89,7 @@ static int check_map_locks(void)
 		fail("released serializer lock could not be reacquired");
 		goto out;
 	}
-	rc = 0;
+	ret = 0;
 out:
 	if (first >= 0)
 		close(first);
@@ -104,7 +104,7 @@ out:
 	unlink(path1);
 	unlink(path2);
 	rmdir(dir);
-	return rc;
+	return ret;
 }
 
 int main(void)

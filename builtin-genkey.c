@@ -47,16 +47,16 @@
 
 static int ensure_keys_dir(const char *keys_dir)
 {
-	int rc;
+	int ret;
 
 	if (!strcmp(keys_dir, "/")) {
 		pr_err("keys dir cannot be /");
 		return -EINVAL;
 	}
-	rc = seal_mkdir_p(keys_dir, 0700);
-	if (rc)
-		pr_err("mkdir %s: %s", keys_dir, strerror(-rc));
-	return rc;
+	ret = seal_mkdir_p(keys_dir, 0700);
+	if (ret)
+		pr_err("mkdir %s: %s", keys_dir, strerror(-ret));
+	return ret;
 }
 
 static int check_user_keys_dir(const char *keys_dir)
@@ -64,7 +64,7 @@ static int check_user_keys_dir(const char *keys_dir)
 	char component[NAME_MAX + 1];
 	struct stat st;
 	const char *p, *end;
-	int dirfd, nextfd, rc = 0;
+	int dirfd, nextfd, ret = 0;
 
 	if (keys_dir[0] != '/')
 		return -EINVAL;
@@ -72,9 +72,9 @@ static int check_user_keys_dir(const char *keys_dir)
 	if (dirfd < 0)
 		return -errno;
 	if (fstat(dirfd, &st) != 0) {
-		rc = -errno;
+		ret = -errno;
 		close(dirfd);
-		return rc;
+		return ret;
 	}
 	if (st.st_uid != 0 || (st.st_mode & 0022)) {
 		close(dirfd);
@@ -89,7 +89,7 @@ static int check_user_keys_dir(const char *keys_dir)
 		if (!len)
 			continue;
 		if (len > NAME_MAX) {
-			rc = -ENAMETOOLONG;
+			ret = -ENAMETOOLONG;
 			break;
 		}
 		memcpy(component, p, len);
@@ -97,11 +97,11 @@ static int check_user_keys_dir(const char *keys_dir)
 		nextfd = openat(dirfd, component,
 				O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 		if (nextfd < 0) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		if (fstat(nextfd, &st) != 0) {
-			rc = -errno;
+			ret = -errno;
 			close(nextfd);
 			break;
 		}
@@ -109,7 +109,7 @@ static int check_user_keys_dir(const char *keys_dir)
 		if ((st.st_uid != 0 && st.st_uid != geteuid()) ||
 		    (final && st.st_uid != geteuid()) ||
 		    (st.st_mode & 0022)) {
-			rc = -EPERM;
+			ret = -EPERM;
 			close(nextfd);
 			break;
 		}
@@ -119,7 +119,7 @@ static int check_user_keys_dir(const char *keys_dir)
 			break;
 	}
 	close(dirfd);
-	return rc;
+	return ret;
 }
 
 static EVP_PKEY *gen_keypair(void)
@@ -159,7 +159,7 @@ static int add_ext(X509 *c, int nid, const char *value)
 {
 	X509_EXTENSION *ex;
 	X509V3_CTX ctx;
-	int rc;
+	int ret;
 
 	X509V3_set_ctx_nodb(&ctx);
 	X509V3_set_ctx(&ctx, c, c, NULL, NULL, 0);
@@ -169,9 +169,9 @@ static int add_ext(X509 *c, int nid, const char *value)
 		openssl_complain("X509V3_EXT_conf_nid");
 		return -1;
 	}
-	rc = X509_add_ext(c, ex, -1);
+	ret = X509_add_ext(c, ex, -1);
 	X509_EXTENSION_free(ex);
-	if (rc != 1) {
+	if (ret != 1) {
 		openssl_complain("X509_add_ext");
 		return -1;
 	}
@@ -237,7 +237,7 @@ static int build_cert(X509 *c, EVP_PKEY *pkey)
 
 static int write_private_pem(EVP_PKEY *pkey, const char *path)
 {
-	int fd, rc = -1;
+	int fd, ret = -1;
 	FILE *fp = NULL;
 
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -263,20 +263,20 @@ static int write_private_pem(EVP_PKEY *pkey, const char *path)
 		pr_err("flush %s: %s", path, strerror(errno));
 		goto out;
 	}
-	rc = 0;
+	ret = 0;
 out:
 	if (fp)
 		fclose(fp);
 	else if (fd >= 0)
 		close(fd);
-	if (rc != 0)
+	if (ret != 0)
 		unlink(path);
-	return rc;
+	return ret;
 }
 
 static int write_cert_der(X509 *c, const char *path)
 {
-	int fd, rc = -1;
+	int fd, ret = -1;
 	BIO *bio = NULL;
 
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -301,15 +301,15 @@ static int write_cert_der(X509 *c, const char *path)
 		pr_err("fsync %s: %s", path, strerror(errno));
 		goto out;
 	}
-	rc = 0;
+	ret = 0;
 out:
 	if (bio)
 		BIO_free(bio);
 	if (fd >= 0)
 		close(fd);
-	if (rc != 0)
+	if (ret != 0)
 		unlink(path);
-	return rc;
+	return ret;
 }
 
 /*
@@ -395,7 +395,7 @@ int cmd_genkey(int argc, const char **argv)
 	const char *keys_dir;
 	X509 *cert = NULL;
 	int force = 0;
-	int rc = 1;
+	int ret = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "--force") == 0 ||
@@ -418,29 +418,29 @@ int cmd_genkey(int argc, const char **argv)
 
 	keys_dir = keys_dir_resolve(keys_dir_arg);
 
-	rc = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
-		       cert_path, sizeof(cert_path));
-	if (rc) {
+	ret = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
+			cert_path, sizeof(cert_path));
+	if (ret) {
 		pr_err("genkey: invalid keys dir %s: %s",
-		       keys_dir, strerror(-rc));
+		       keys_dir, strerror(-ret));
 		return 1;
 	}
 
 	if (ensure_keys_dir(keys_dir) != 0)
 		return 1;
 	if (geteuid() != 0 && strcmp(keys_dir, KEYS_DIR) == 0) {
-		rc = check_user_keys_dir(keys_dir);
-		if (rc) {
+		ret = check_user_keys_dir(keys_dir);
+		if (ret) {
 			pr_err("genkey: default keys dir %s is not safe for user key "
 			       "generation: %s", KEYS_DIR,
-			       strerror(-rc));
+			       strerror(-ret));
 			pr_err("it must be owned by the current user and not writable "
 			       "by group or others");
 			pr_err("rerun with sudo or pass --keys-dir <dir>");
 			return 1;
 		}
 	}
-	rc = 1;
+	ret = 1;
 
 	if (!force && (path_exists(pkey_path) ||
 		       path_exists(cert_path))) {
@@ -504,11 +504,11 @@ int cmd_genkey(int argc, const char **argv)
 		cert_path, VALIDITY_DAYS);
 	pr_audit("genkey: created shirudo %s signing material at %s",
 		 GENKEY_ALG, keys_dir);
-	rc = 0;
+	ret = 0;
 out:
 	if (cert)
 		X509_free(cert);
 	if (pkey)
 		EVP_PKEY_free(pkey);
-	return rc;
+	return ret;
 }

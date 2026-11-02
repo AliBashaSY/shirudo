@@ -220,15 +220,15 @@ static void check_cert_algorithm(struct shirudo_preflight_result *r)
 	for (i = 0; i < set.n; i++) {
 		struct shirudo_cert cert = {};
 		char name[64];
-		int rc;
+		int ret;
 
 		if (keys_cert_read(&set.certs[i], &cert)) {
 			fail(r, c, "%s: cannot parse", set.certs[i].path);
 			return;
 		}
-		rc = cert_key_algorithm(&cert, name, sizeof(name));
+		ret = cert_key_algorithm(&cert, name, sizeof(name));
 		cert_free(&cert);
-		if (rc) {
+		if (ret) {
 			fail(r, c, "%s: cannot determine public-key algorithm",
 			     set.certs[i].path);
 			return;
@@ -270,28 +270,28 @@ static void check_cert_kernel_algo(struct shirudo_preflight_result *r)
 		const __u8 *der = NULL;
 		size_t der_sz = 0;
 		long key;
-		int rc;
+		int ret;
 
-		rc = keys_cert_der(&set.certs[i], &der, &der_sz);
-		if (rc) {
-			fail(r, c, "%s: %s", set.certs[i].path, strerror(-rc));
+		ret = keys_cert_der(&set.certs[i], &der, &der_sz);
+		if (ret) {
+			fail(r, c, "%s: %s", set.certs[i].path, strerror(-ret));
 			return;
 		}
 		key = syscall(__NR_add_key, "asymmetric", "", der, der_sz,
 			      (long)KEY_SPEC_THREAD_KEYRING);
-		rc = key < 0 ? errno : 0;
+		ret = key < 0 ? errno : 0;
 		syscall(__NR_keyctl, KEYCTL_CLEAR,
 			(long)KEY_SPEC_THREAD_KEYRING, 0L, 0L, 0L);
-		if (!rc)
+		if (!ret)
 			continue;
-		if (rc == ENOENT || rc == ENOPKG)
+		if (ret == ENOENT || ret == ENOPKG)
 			fail(r, c,
 			     "kernel cannot verify the public-key algorithm of %s (ML-DSA certs need CONFIG_CRYPTO_MLDSA=y and CONFIG_CRYPTO_SHA512=y)",
 			     set.certs[i].path);
 		else
 			fail(r, c, "kernel rejected %s: %s "
 			     "(add_key asymmetric)", set.certs[i].path,
-			     strerror(rc));
+			     strerror(ret));
 		return;
 	}
 	pass(c);

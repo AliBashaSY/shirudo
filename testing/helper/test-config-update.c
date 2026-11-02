@@ -42,7 +42,7 @@ struct test_context {
 static int simulator_save(struct test_context *ctx)
 {
 	char path[PATH_MAX], temporary[PATH_MAX];
-	int fd, dir, rc;
+	int fd, dir, ret;
 
 	if (snprintf(path, sizeof(path), "%s/simulator", ctx->directory) >=
 		    (int)sizeof(path) ||
@@ -53,21 +53,21 @@ static int simulator_save(struct test_context *ctx)
 		  O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
 	if (fd < 0)
 		return -errno;
-	rc = write_complete(fd, &ctx->sim, sizeof(ctx->sim));
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
-	if (!rc && rename(temporary, path))
-		rc = -errno;
-	if (rc)
-		return rc;
+	ret = write_complete(fd, &ctx->sim, sizeof(ctx->sim));
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
+	if (!ret && rename(temporary, path))
+		ret = -errno;
+	if (ret)
+		return ret;
 	dir = open(ctx->directory, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (dir < 0)
 		return -errno;
-	rc = fsync(dir) ? -errno : 0;
+	ret = fsync(dir) ? -errno : 0;
 	close(dir);
-	return rc;
+	return ret;
 }
 
 static int simulator_load(struct test_context *ctx)
@@ -120,25 +120,25 @@ static int test_pcr_extend(void *opaque, __u32 pcr,
 	const char *mode = getenv("SHIRUDO_TEST_CONFIG_EXTEND");
 	struct test_context *ctx = opaque;
 	__u8 wrong[32] = { 1 };
-	int rc;
+	int ret;
 
 	ctx->sim.extends++;
-	rc = simulator_save(ctx);
-	if (rc)
-		return rc;
+	ret = simulator_save(ctx);
+	if (ret)
+		return ret;
 	if (mode && !strcmp(mode, "before"))
 		return -EIO;
 	if (mode && !strcmp(mode, "drift"))
 		event = wrong;
 	if (ctx->tpm)
-		rc = tpm_pcr_extend(ctx->tpm, pcr, event);
+		ret = tpm_pcr_extend(ctx->tpm, pcr, event);
 	else
-		rc = shirudo_chain_fold_checked(ctx->sim.value, event);
-	if (!rc)
-		rc = simulator_save(ctx);
-	if (!rc && mode && !strcmp(mode, "ambiguous"))
+		ret = shirudo_chain_fold_checked(ctx->sim.value, event);
+	if (!ret)
+		ret = simulator_save(ctx);
+	if (!ret && mode && !strcmp(mode, "ambiguous"))
 		return -ETIMEDOUT;
-	return rc;
+	return ret;
 }
 
 static int test_prepare(void *opaque,
@@ -146,12 +146,12 @@ static int test_prepare(void *opaque,
 {
 	struct test_context *ctx = opaque;
 	size_t i;
-	int rc;
+	int ret;
 
 	ctx->sim.prepares++;
-	rc = simulator_save(ctx);
-	if (rc)
-		return rc;
+	ret = simulator_save(ctx);
+	if (ret)
+		return ret;
 	if (getenv("SHIRUDO_TEST_CONFIG_PREPARE_FAIL"))
 		return -EKEYREJECTED;
 	if (strlen(target->prefix) != sizeof("/verified/config-A") - 1 ||
@@ -171,21 +171,21 @@ static int test_activate(void *opaque,
 	struct shirudo_config_update_record record;
 	struct test_context *ctx = opaque;
 	__u8 live[32];
-	int rc;
+	int ret;
 
-	rc = shirudo_config_update_read(ctx->update, &record);
-	if (!rc)
-		rc = test_pcr_read(ctx, record.pcr, live);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_read(ctx->update, &record);
+	if (!ret)
+		ret = test_pcr_read(ctx, record.pcr, live);
+	if (ret)
+		return ret;
 	if (!record.pending ||
 	    memcmp(target->root_hash, record.target.root_hash, 32))
 		return -EUCLEAN;
 	ctx->sim.activations++;
 	ctx->sim.partial = target->prefix[strlen(target->prefix) - 1];
-	rc = simulator_save(ctx);
-	if (rc)
-		return rc;
+	ret = simulator_save(ctx);
+	if (ret)
+		return ret;
 	if (getenv("SHIRUDO_TEST_CONFIG_ACTIVATE_FAIL"))
 		return -EIO;
 	memcpy(ctx->sim.active, target->root_hash, sizeof(ctx->sim.active));
@@ -252,7 +252,7 @@ static void inspect(struct test_context *ctx)
 	__u8 value[32];
 	__u32 count = 0;
 	char hex[65];
-	int rc;
+	int ret;
 
 	printf("extends=%u\nprepares=%u\nactivations=%u\npartial=%u\n",
 	       ctx->sim.extends, ctx->sim.prepares, ctx->sim.activations,
@@ -261,9 +261,9 @@ static void inspect(struct test_context *ctx)
 		hex_encode(value, 32, hex);
 		printf("pcr_value=%s\n", hex);
 	}
-	rc = shirudo_config_update_read(ctx->update, &record);
-	printf("state_rc=%d\n", rc);
-	if (!rc) {
+	ret = shirudo_config_update_read(ctx->update, &record);
+	printf("state_rc=%d\n", ret);
+	if (!ret) {
 		printf("sequence=%llu\npending=%u\nkind=%u\npcr=%u\nreset=%u\n",
 		       (__u64)record.sequence, record.pending,
 		       record.kind, record.pcr, record.reset_count);
@@ -274,8 +274,8 @@ static void inspect(struct test_context *ctx)
 		hex_encode(record.target.root_hash, 32, hex);
 		printf("root_hash=%s\n", hex);
 	}
-	rc = shirudo_config_update_events(ctx->update, show_event, &count);
-	printf("events_rc=%d\nevents=%u\n", rc, count);
+	ret = shirudo_config_update_events(ctx->update, show_event, &count);
+	printf("events_rc=%d\nevents=%u\n", ret, count);
 }
 
 int main(int argc, char **argv)
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
 	char hex[65];
 	__u32 pcr = 15;
 	__u8 event[32];
-	int rc;
+	int ret;
 
 	if (argc < 3 || argc > 5)
 		return 2;
@@ -298,71 +298,71 @@ int main(int argc, char **argv)
 		return 2;
 	if (argc == 5)
 		pcr = strtoul(argv[4], NULL, 10);
-	rc = make_target(argc > 3 ? argv[3][0] : 'A', &target);
-	if (rc)
+	ret = make_target(argc > 3 ? argv[3][0] : 'A', &target);
+	if (ret)
 		return 1;
 	if (!strcmp(argv[2], "describe")) {
 		hex_encode(target.root_hash, sizeof(target.root_hash),
 			   hex);
 		printf("root_hash=%s\n", hex);
-		rc = shirudo_config_measure_event(SHIRUDO_CONFIG_EVENT_BOOT,
-						  target.root_hash, event);
-		if (!rc) {
+		ret = shirudo_config_measure_event(SHIRUDO_CONFIG_EVENT_BOOT,
+						   target.root_hash, event);
+		if (!ret) {
 			hex_encode(event, sizeof(event), hex);
 			printf("boot_event=%s\n", hex);
 		}
-		return rc ? 1 : 0;
+		return ret ? 1 : 0;
 	}
-	rc = simulator_load(&ctx);
-	if (rc)
+	ret = simulator_load(&ctx);
+	if (ret)
 		goto out;
 	if (getenv("SHIRUDO_TEST_CONFIG_TPM")) {
-		rc = tpm_open(&ctx.tpm);
-		if (rc)
+		ret = tpm_open(&ctx.tpm);
+		if (ret)
 			goto out;
 	}
 	ops = test_ops;
 	if (getenv("SHIRUDO_TEST_CONFIG_LOCK_WAIT_MS"))
 		ops.lock_wait_ms = strtoul(getenv("SHIRUDO_TEST_CONFIG_LOCK_WAIT_MS"),
 					   NULL, 10);
-	rc = shirudo_config_update_open(argv[1], &ops, &ctx, &update);
-	if (rc)
+	ret = shirudo_config_update_open(argv[1], &ops, &ctx, &update);
+	if (ret)
 		goto out;
 	if (!strcmp(argv[2], "boot")) {
-		rc = shirudo_config_update_boot(&update, &target, pcr);
-		if (!rc && !getenv("SHIRUDO_TEST_CONFIG_BOOT_PENDING"))
-			rc = shirudo_config_update_complete_boot(&update);
+		ret = shirudo_config_update_boot(&update, &target, pcr);
+		if (!ret && !getenv("SHIRUDO_TEST_CONFIG_BOOT_PENDING"))
+			ret = shirudo_config_update_complete_boot(&update);
 	} else if (!strcmp(argv[2], "update")) {
-		rc = shirudo_config_update_begin(&update, &target, pcr);
+		ret = shirudo_config_update_begin(&update, &target, pcr);
 	} else if (!strcmp(argv[2], "complete")) {
-		rc = shirudo_config_update_complete_boot(&update);
+		ret = shirudo_config_update_complete_boot(&update);
 	} else if (!strcmp(argv[2], "check")) {
-		rc = shirudo_config_update_check(&update, NULL);
+		ret = shirudo_config_update_check(&update, NULL);
 	} else if (!strcmp(argv[2], "inspect")) {
-		rc = 0;
+		ret = 0;
 	} else if (!strcmp(argv[2], "reset")) {
 		ctx.sim.reset_count++;
 		memset(ctx.sim.value, 0, sizeof(ctx.sim.value));
-		rc = simulator_save(&ctx);
+		ret = simulator_save(&ctx);
 	} else if (!strcmp(argv[2], "restart")) {
 		ctx.sim.restart_count++;
 		memset(ctx.sim.value, 0, sizeof(ctx.sim.value));
-		rc = simulator_save(&ctx);
+		ret = simulator_save(&ctx);
 	} else if (!strcmp(argv[2], "drift")) {
 		memset(ctx.sim.value, 0x55, sizeof(ctx.sim.value));
-		rc = simulator_save(&ctx);
+		ret = simulator_save(&ctx);
 	} else if (!strcmp(argv[2], "lock")) {
-		rc = shirudo_config_update_open(argv[1], &test_ops, &ctx,
-						&second);
+		ret = shirudo_config_update_open(argv[1], &test_ops, &ctx,
+						 &second);
 		shirudo_config_update_close(&second);
 	} else {
-		rc = -EINVAL;
+		ret = -EINVAL;
 	}
 	inspect(&ctx);
 	shirudo_config_update_close(&update);
 out:
 	if (ctx.tpm)
 		tpm_close(ctx.tpm);
-	printf("rc=%d\n", rc);
-	return rc ? 1 : 0;
+	printf("rc=%d\n", ret);
+	return ret ? 1 : 0;
 }

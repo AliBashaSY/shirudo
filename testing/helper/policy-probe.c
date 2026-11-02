@@ -26,7 +26,7 @@ static int check_mark(const char *pin, int expected)
 {
 	struct shirudo_task_authority authority = {};
 	union bpf_attr attr = {};
-	int fd, pidfd, rc;
+	int fd, pidfd, ret;
 
 	pidfd = syscall(SYS_pidfd_open, getpid(), 0);
 	if (pidfd < 0)
@@ -36,22 +36,22 @@ static int check_mark(const char *pin, int expected)
 	fd = syscall(SYS_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 	if (fd < 0) {
 		/* Only a task with authority may open the pin at all. */
-		rc = errno == EACCES && !expected ? 0 : 1;
+		ret = errno == EACCES && !expected ? 0 : 1;
 		close(pidfd);
-		return rc;
+		return ret;
 	}
 	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = (uintptr_t)&pidfd;
 	attr.value = (uintptr_t)&authority;
-	rc = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
-	if (rc && errno != ENOENT)
-		rc = 1;
+	ret = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+	if (ret && errno != ENOENT)
+		ret = 1;
 	else
-		rc = !!authority.trusted != expected;
+		ret = !!authority.trusted != expected;
 	close(pidfd);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static void print_hex(const __u8 *bytes, size_t n)
@@ -68,7 +68,7 @@ static int print_identity(const char *pin, const char *field)
 	struct shirudo_identity id = {};
 	union bpf_attr attr = {};
 	__u32 zero = 0;
-	int fd, rc;
+	int fd, ret;
 
 	attr.pathname = (uintptr_t)pin;
 	attr.file_flags = BPF_F_RDONLY;
@@ -79,9 +79,9 @@ static int print_identity(const char *pin, const char *field)
 	attr.map_fd = fd;
 	attr.key = (uintptr_t)&zero;
 	attr.value = (uintptr_t)&id;
-	rc = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+	ret = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 	close(fd);
-	if (rc)
+	if (ret)
 		return 1;
 	if (!strcmp(field, "runtime_root"))
 		print_hex(id.runtime_root, sizeof(id.runtime_root));

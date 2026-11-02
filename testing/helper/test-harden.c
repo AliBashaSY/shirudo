@@ -27,7 +27,7 @@ int mlockall(int flags)
 int main(int argc, char **argv)
 {
 	struct rlimit core = {};
-	int rc;
+	int ret;
 
 	if (argc != 2)
 		goto usage;
@@ -40,8 +40,8 @@ int main(int argc, char **argv)
 	else
 		goto usage;
 
-	rc = harden_self();
-	if (lock_flags != (MCL_CURRENT | MCL_FUTURE) || rc != -lock_error) {
+	ret = harden_self();
+	if (lock_flags != (MCL_CURRENT | MCL_FUTURE) || ret != -lock_error) {
 		fprintf(stderr, "unexpected lock flags or result\n");
 		return 2;
 	}
@@ -51,8 +51,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "existing startup hardening changed\n");
 		return 2;
 	}
-	printf("rc=%d\n", rc);
-	return rc ? 1 : 0;
+	printf("rc=%d\n", ret);
+	return ret ? 1 : 0;
 usage:
 	fprintf(stderr, "usage: %s success|denied|limit\n", argv[0]);
 	return 2;

@@ -153,7 +153,7 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 				      char *reason, size_t reason_sz)
 {
 	struct metric_type mt;
-	int rc;
+	int ret;
 
 	if (!v || !signal)
 		return -EINVAL;
@@ -171,8 +171,8 @@ int shirudo_upatch_maps_otel_classify(const struct shirudo_map_view *v,
 		strscpy(reason, "map is not per-CPU", reason_sz);
 		return 0;
 	}
-	rc = metric_type_from_view(v, &mt);
-	if (rc) {
+	ret = metric_type_from_view(v, &mt);
+	if (ret) {
 		strscpy(reason, "value is not a BTF integer scalar", reason_sz);
 		return 0;
 	}
@@ -410,7 +410,7 @@ static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
 static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 				struct shirudo_json_emit *e, bool wrap)
 {
-	int rc;
+	int ret;
 
 	if (c->depth++ >= JSON_MAX_DEPTH) {
 		c->depth--;
@@ -435,35 +435,35 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 		const char *key;
 		size_t key_len;
 
-		rc = json_anyvalue_string(c, &key, &key_len);
-		if (rc)
+		ret = json_anyvalue_string(c, &key, &key_len);
+		if (ret)
 			break;
 		json_anyvalue_skip_ws(c);
 		if (c->p >= c->end || *c->p++ != ':') {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		json_anyvalue_skip_ws(c);
 		json_obj_open(e);
 		json_kv_raw(e, "key", key, key_len);
 		json_obj_open_key(e, "value");
-		rc = json_anyvalue_emit_contents(c, e);
+		ret = json_anyvalue_emit_contents(c, e);
 		json_obj_close(e);
 		json_obj_close(e);
-		if (rc)
+		if (ret)
 			break;
 		json_anyvalue_skip_ws(c);
 		if (c->p >= c->end) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (*c->p == '}') {
 			c->p++;
-			rc = 0;
+			ret = 0;
 			break;
 		}
 		if (*c->p++ != ',') {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		json_anyvalue_skip_ws(c);
@@ -473,13 +473,13 @@ static int json_anyvalue_object(struct json_anyvalue_ctx *c,
 	if (wrap)
 		json_obj_close(e);
 	c->depth--;
-	return rc;
+	return ret;
 }
 
 static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 			       struct shirudo_json_emit *e, bool wrap)
 {
-	int rc = 0;
+	int ret = 0;
 
 	if (c->depth++ >= JSON_MAX_DEPTH) {
 		c->depth--;
@@ -496,12 +496,12 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 	} else {
 		for (;;) {
 			json_anyvalue_skip_ws(c);
-			rc = json_anyvalue_emit(c, e);
-			if (rc)
+			ret = json_anyvalue_emit(c, e);
+			if (ret)
 				break;
 			json_anyvalue_skip_ws(c);
 			if (c->p >= c->end) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			if (*c->p == ']') {
@@ -509,7 +509,7 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 				break;
 			}
 			if (*c->p++ != ',') {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 		}
@@ -519,7 +519,7 @@ static int json_anyvalue_array(struct json_anyvalue_ctx *c,
 	if (wrap)
 		json_obj_close(e);
 	c->depth--;
-	return rc;
+	return ret;
 }
 
 static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
@@ -527,7 +527,7 @@ static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
 {
 	const char *start;
 	size_t len;
-	int rc;
+	int ret;
 
 	json_anyvalue_skip_ws(c);
 	if (c->p >= c->end)
@@ -538,27 +538,27 @@ static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
 	case '[':
 		return json_anyvalue_array(c, e, false);
 	case '"':
-		rc = json_anyvalue_string(c, &start, &len);
-		if (rc)
-			return rc;
+		ret = json_anyvalue_string(c, &start, &len);
+		if (ret)
+			return ret;
 		json_kv_raw(e, "stringValue", start, len);
 		return 0;
 	case 't':
-		rc = json_anyvalue_literal(c, "true");
-		if (rc)
-			return rc;
+		ret = json_anyvalue_literal(c, "true");
+		if (ret)
+			return ret;
 		json_kv_bool(e, "boolValue", true);
 		return 0;
 	case 'f':
-		rc = json_anyvalue_literal(c, "false");
-		if (rc)
-			return rc;
+		ret = json_anyvalue_literal(c, "false");
+		if (ret)
+			return ret;
 		json_kv_bool(e, "boolValue", false);
 		return 0;
 	case 'n':
-		rc = json_anyvalue_literal(c, "null");
-		if (rc)
-			return rc;
+		ret = json_anyvalue_literal(c, "null");
+		if (ret)
+			return ret;
 		/* An empty AnyValue is the OTLP JSON representation of null. */
 		return 0;
 	default:
@@ -569,12 +569,12 @@ static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
 static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
 			      struct shirudo_json_emit *e)
 {
-	int rc;
+	int ret;
 
 	json_obj_open(e);
-	rc = json_anyvalue_emit_contents(c, e);
+	ret = json_anyvalue_emit_contents(c, e);
 	json_obj_close(e);
-	return rc;
+	return ret;
 }
 
 static int json_anyvalue_from_document(struct shirudo_json_emit *e,
@@ -584,14 +584,14 @@ static int json_anyvalue_from_document(struct shirudo_json_emit *e,
 		.p = json,
 		.end = json + len,
 	};
-	int rc;
+	int ret;
 
 	if (!wrap && (c.p >= c.end || *c.p != '{'))
 		return -EINVAL;
-	rc = wrap ? json_anyvalue_emit(&c, e) :
+	ret = wrap ? json_anyvalue_emit(&c, e) :
 		json_anyvalue_object(&c, e, false);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	json_anyvalue_skip_ws(&c);
 	return c.p == c.end ? 0 : -EINVAL;
 }
@@ -865,13 +865,13 @@ static int build_metric_decoded_payload(const char *path,
 	struct shirudo_json_emit e = {};
 	char *decoded = NULL, *decoded_buf, *buf;
 	size_t decoded_len = 0, decoded_alloc_len;
-	int rc;
+	int ret;
 
-	rc = path ? upatch_decode_map_file_json(path, v,
+	ret = path ? upatch_decode_map_file_json(path, v,
 							&decoded, &decoded_len) :
 		upatch_decode_map_json(v, &decoded, &decoded_len);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	decoded_buf = decoded;
 	decoded_alloc_len = decoded_len;
 	while (decoded_len && isspace((__u8)decoded[0])) {
@@ -1002,7 +1002,7 @@ static int validate_endpoint_security(struct otel_state *st)
 	CURLU *url = curl_url();
 	char *scheme = NULL, *host = NULL, *user = NULL, *password = NULL;
 	CURLUcode uc;
-	int rc = 0;
+	int ret = 0;
 
 	if (!url)
 		return -ENOMEM;
@@ -1011,22 +1011,22 @@ static int validate_endpoint_security(struct otel_state *st)
 		return curl_url_cleanup(url), -EINVAL;
 	if (curl_url_get(url, CURLUPART_SCHEME, &scheme, 0) ||
 	    curl_url_get(url, CURLUPART_HOST, &host, 0)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	(void)curl_url_get(url, CURLUPART_USER, &user, 0);
 	(void)curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
 	if ((user && user[0]) || (password && password[0])) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	if (strscpy(st->host, host, sizeof(st->host)) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	if (strcmp(scheme, "http") == 0) {
 		if (!loopback_host(host) && !st->opts.allow_insecure) {
-			rc = -EPERM;
+			ret = -EPERM;
 			goto out;
 		}
 		if (st->opts.allow_insecure)
@@ -1040,7 +1040,7 @@ static int validate_endpoint_security(struct otel_state *st)
 				"and hostname verification for %s; the Collector's "
 				"identity is not verified\n", host);
 	} else {
-		rc = -EPROTONOSUPPORT;
+		ret = -EPROTONOSUPPORT;
 	}
 out:
 	curl_free(scheme);
@@ -1048,7 +1048,7 @@ out:
 	curl_free(user);
 	curl_free(password);
 	curl_url_cleanup(url);
-	return rc;
+	return ret;
 }
 
 int shirudo_upatch_maps_otel_build_metric_file(const char *path,
@@ -1123,7 +1123,7 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 	char *copy, *save = NULL, *pair;
 	size_t total = input ? strlen(input) : 0;
 	bool tenant_seen = false;
-	int rc = 0;
+	int ret = 0;
 
 	if (!input)
 		return 0;
@@ -1140,7 +1140,7 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		size_t n;
 
 		if (!eq) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		*eq = '\0';
@@ -1157,14 +1157,14 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		if (!name[0] || reserved_header(name) ||
 		    percent_decode(value) != 0 || strpbrk(name, "\r\n:") ||
 		    strpbrk(value, "\r\n")) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (tenant) {
 			if (st->opts.tenant_id)
 				continue;
 			if (tenant_seen || !tenant_id_valid(value)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 			tenant_seen = true;
@@ -1173,19 +1173,19 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		n = strlen(name) + strlen(value) + 3;
 		line = xmalloc(n);
 		if (!line) {
-			rc = -ENOMEM;
+			ret = -ENOMEM;
 			break;
 		}
-		rc = strsprintf(line, n, "%s: %s", name, value) < 0 ? -E2BIG :
+		ret = strsprintf(line, n, "%s: %s", name, value) < 0 ? -E2BIG :
 		     append_header(st, line);
 		explicit_bzero(line, n);
 		xfree(line, n);
-		if (rc)
+		if (ret)
 			break;
 	}
 	explicit_bzero(copy, total);
 	xfree(copy, total + 1);
-	return rc;
+	return ret;
 }
 
 static int configure_state(struct otel_state *st, const char *spec,
@@ -1194,7 +1194,7 @@ static int configure_state(struct otel_state *st, const char *spec,
 	const char *protocol = otel_env(st->signal, "PROTOCOL");
 	const char *compression = otel_env(st->signal, "COMPRESSION");
 	const char *headers = otel_env(st->signal, "HEADERS");
-	int rc;
+	int ret;
 
 	if (protocol && strcmp(protocol, "http/json") != 0)
 		return -EPROTONOSUPPORT;
@@ -1207,26 +1207,26 @@ static int configure_state(struct otel_state *st, const char *spec,
 	st->client_key = otel_env(st->signal, "CLIENT_KEY");
 	if (!!st->client_cert != !!st->client_key)
 		return -EINVAL;
-	rc = parse_timeout(otel_env(st->signal, "TIMEOUT"), &st->timeout_ms);
-	if (rc)
-		return rc;
-	rc = resolve_endpoint(st, spec, spec_is_base);
-	if (rc)
-		return rc;
-	rc = validate_endpoint_security(st);
-	if (rc)
-		return rc;
-	rc = append_header(st, "Content-Type: application/json");
-	if (rc)
-		return rc;
+	ret = parse_timeout(otel_env(st->signal, "TIMEOUT"), &st->timeout_ms);
+	if (ret)
+		return ret;
+	ret = resolve_endpoint(st, spec, spec_is_base);
+	if (ret)
+		return ret;
+	ret = validate_endpoint_security(st);
+	if (ret)
+		return ret;
+	ret = append_header(st, "Content-Type: application/json");
+	if (ret)
+		return ret;
 	if (st->gzip) {
-		rc = append_header(st, "Content-Encoding: gzip");
-		if (rc)
-			return rc;
+		ret = append_header(st, "Content-Encoding: gzip");
+		if (ret)
+			return ret;
 	}
-	rc = add_configured_headers(st, headers);
-	if (rc || !st->opts.tenant_id)
-		return rc;
+	ret = add_configured_headers(st, headers);
+	if (ret || !st->opts.tenant_id)
+		return ret;
 	if (!tenant_id_valid(st->opts.tenant_id))
 		return -EINVAL;
 	{
@@ -1427,12 +1427,12 @@ static int check_partial_success(enum shirudo_otel_signal signal,
 		  partial, ARRAY_SIZE(partial) },
 	};
 	__s64 rejected = 0;
-	int rc;
+	int ret;
 
 	if (len == 0)
 		return 0;
-	rc = json_parse(body, len, root, ARRAY_SIZE(root));
-	if (rc) {
+	ret = json_parse(body, len, root, ARRAY_SIZE(root));
+	if (ret) {
 		partial[0] = (struct shirudo_json_field){
 			count, SHIRUDO_JSON_T_INT, &rejected, 0, 0, NULL, 0 };
 		if (json_parse(body, len, root, ARRAY_SIZE(root)))
@@ -1492,15 +1492,15 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 	const void *body = json;
 	size_t body_len = json_len, compressed_cap = 0;
 	__u32 attempt, max_attempts = st->opts.retries + 1;
-	int rc = -EIO;
+	int ret = -EIO;
 
 	if (!st->s3_reference && st->opts.otlp_max_bytes &&
 	    json_len > st->opts.otlp_max_bytes)
 		return -E2BIG;
 	if (st->gzip) {
-		rc = gzip_data(json, json_len, &compressed, &body_len);
-		if (rc)
-			return rc;
+		ret = gzip_data(json, json_len, &compressed, &body_len);
+		if (ret)
+			return ret;
 		body = compressed;
 		compressed_cap = compressBound(json_len) + 32;
 	}
@@ -1512,7 +1512,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 		bool retry;
 
 		if (!curl) {
-			rc = -ENOMEM;
+			ret = -ENOMEM;
 			break;
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, st->endpoint);
@@ -1535,7 +1535,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 				 st->insecure_tls ? 0L : 2L);
 		if (tls_curl_policy(curl, NULL)) {
 			curl_easy_cleanup(curl);
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (st->ca_file)
@@ -1548,8 +1548,8 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 		if (cc == CURLE_OK)
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
 		if (cc == CURLE_OK && status == 200) {
-			rc = check_partial_success(st->signal, response.buf,
-						   response.len);
+			ret = check_partial_success(st->signal, response.buf,
+						    response.len);
 			curl_easy_cleanup(curl);
 			break;
 		}
@@ -1561,7 +1561,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 		else
 			fprintf(stderr, "otel: export attempt %u/%u received HTTP %ld\n",
 				attempt + 1, max_attempts, status);
-		rc = cc == CURLE_OPERATION_TIMEDOUT ? -ETIMEDOUT :
+		ret = cc == CURLE_OPERATION_TIMEDOUT ? -ETIMEDOUT :
 		     cc != CURLE_OK ? -EHOSTUNREACH : -EREMOTEIO;
 		curl_easy_cleanup(curl);
 		if (!retry || attempt + 1 == max_attempts)
@@ -1571,7 +1571,7 @@ static int otel_post(struct otel_state *st, const char *json, size_t json_len)
 	}
 	if (compressed)
 		xfree(compressed, compressed_cap);
-	return rc;
+	return ret;
 }
 
 static int otel_open_transport(enum shirudo_otel_signal signal,
@@ -1580,7 +1580,7 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 			       const char *decoder_path, void **state)
 {
 	struct otel_state *st;
-	int rc;
+	int ret;
 
 	if (!state)
 		return -EINVAL;
@@ -1599,12 +1599,12 @@ static int otel_open_transport(enum shirudo_otel_signal signal,
 			MAP_EXPORT_LOG_RECORD_MAX_DEFAULT;
 	st->decoder_path = decoder_path;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-		rc = -EIO;
+		ret = -EIO;
 		goto err;
 	}
 	/* Explicit CLI/config endpoints are base URLs for the selected signal. */
-	rc = configure_state(st, spec, true);
-	if (rc)
+	ret = configure_state(st, spec, true);
+	if (ret)
 		goto err_global;
 	*state = st;
 	return 0;
@@ -1614,7 +1614,7 @@ err_global:
 err:
 	curl_slist_free_all(st->headers);
 	xfree(st, sizeof(*st));
-	return rc;
+	return ret;
 }
 
 static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
@@ -1624,15 +1624,15 @@ static int otel_open_common(const char *spec, const struct shirudo_map_view *v,
 {
 	enum shirudo_otel_signal signal;
 	char reason[160];
-	int rc;
+	int ret;
 
 	if (!v || !state)
 		return -EINVAL;
 	if (automatic) {
-		rc = shirudo_upatch_maps_otel_classify(v, &signal,
-						       reason, sizeof(reason));
-		if (rc)
-			return rc;
+		ret = shirudo_upatch_maps_otel_classify(v, &signal,
+							reason, sizeof(reason));
+		if (ret)
+			return ret;
 		fprintf(stderr, "otel: selected %s for %s map %s: %s\n",
 			signal == SHIRUDO_OTEL_LOG ? "log" : "metric",
 			v->type_name, v->name, reason);
@@ -1647,22 +1647,22 @@ static int otel_emit(void *state, const struct shirudo_map_view *v)
 	struct otel_state *st = state;
 	char *payload = NULL;
 	size_t len = 0;
-	int rc;
+	int ret;
 
 	if (!st || !v)
 		return -EINVAL;
 	if (st->signal == SHIRUDO_OTEL_LOG)
-		rc = build_log_payload(st->decoder_path, v,
-				       st->opts.log_record_max_bytes,
-				       &payload, &len);
+		ret = build_log_payload(st->decoder_path, v,
+					st->opts.log_record_max_bytes,
+					&payload, &len);
 	else
-		rc = build_metric_decoded_payload(st->decoder_path, v,
-						  &payload, &len);
-	if (rc)
-		return rc;
-	rc = otel_post(st, payload, len);
+		ret = build_metric_decoded_payload(st->decoder_path, v,
+						   &payload, &len);
+	if (ret)
+		return ret;
+	ret = otel_post(st, payload, len);
 	xfree(payload, JSON_MAX_BYTES);
-	return rc;
+	return ret;
 }
 
 static int otel_close(void *state)
@@ -1696,7 +1696,7 @@ static int build_generic_log_payload(const char *scope_name,
 {
 	struct shirudo_json_emit e = {};
 	char *buf;
-	int rc;
+	int ret;
 	size_t cap;
 
 	if (!scope_name || !event_name || !severity_text || !body_json ||
@@ -1713,11 +1713,11 @@ static int build_generic_log_payload(const char *scope_name,
 
 	log_open(&e, scope_name, severity_number, severity_text, event_name);
 	json_obj_open_key(&e, "body");
-	rc = json_anyvalue_from_document(&e, body_json, body_len, false);
+	ret = json_anyvalue_from_document(&e, body_json, body_len, false);
 	json_obj_close(&e);
-	if (rc) {
+	if (ret) {
 		xfree(buf, cap);
-		return rc;
+		return ret;
 	}
 	json_arr_open(&e, "attributes");
 	if (status)
@@ -1751,24 +1751,24 @@ int shirudo_otel_send_log_json(const struct shirudo_otel_opts *opts,
 	char *payload = NULL;
 	void *state = NULL;
 	size_t payload_len = 0, alloc_len = 0;
-	int rc;
+	int ret;
 
-	rc = otel_open_transport(SHIRUDO_OTEL_LOG,
-				 opts ? opts->endpoint : NULL, opts, NULL, &state);
-	if (rc)
-		return rc;
-	rc = build_generic_log_payload(scope_name, event_name,
-				       severity_number, severity_text,
-				       status, version_id,
-				       tamper_attempts,
-				       body_json, body_len,
-				       &payload, &payload_len, &alloc_len);
-	if (!rc)
-		rc = otel_post(state, payload, payload_len);
+	ret = otel_open_transport(SHIRUDO_OTEL_LOG,
+				  opts ? opts->endpoint : NULL, opts, NULL, &state);
+	if (ret)
+		return ret;
+	ret = build_generic_log_payload(scope_name, event_name,
+					severity_number, severity_text,
+					status, version_id,
+					tamper_attempts,
+					body_json, body_len,
+					&payload, &payload_len, &alloc_len);
+	if (!ret)
+		ret = otel_post(state, payload, payload_len);
 	if (payload)
 		xfree(payload, alloc_len);
 	otel_close(state);
-	return rc;
+	return ret;
 }
 
 struct snapshot_writer {
@@ -1797,24 +1797,24 @@ static int snapshot_temp_file(FILE **out)
 	if (fd < 0)
 		return -errno;
 	if (fchmod(fd, 0600) != 0) {
-		int rc = -errno;
+		int ret = -errno;
 
 		unlink(path);
 		close(fd);
-		return rc;
+		return ret;
 	}
 	if (unlink(path) != 0) {
-		int rc = -errno;
+		int ret = -errno;
 
 		close(fd);
-		return rc;
+		return ret;
 	}
 	file = fdopen(fd, "w+b");
 	if (!file) {
-		int rc = -errno;
+		int ret = -errno;
 
 		close(fd);
-		return rc;
+		return ret;
 	}
 	*out = file;
 	return 0;
@@ -1877,7 +1877,7 @@ static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 		w->z.avail_in = chunk;
 		while (w->z.avail_in) {
 			size_t produced;
-			int rc, zr;
+			int ret, zr;
 
 			w->z.next_out = out;
 			w->z.avail_out = sizeof(out);
@@ -1885,9 +1885,9 @@ static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 			if (zr != Z_OK)
 				return -EIO;
 			produced = sizeof(out) - w->z.avail_out;
-			rc = snapshot_write_compressed(w, out, produced);
-			if (rc)
-				return rc;
+			ret = snapshot_write_compressed(w, out, produced);
+			if (ret)
+				return ret;
 		}
 		data += chunk;
 		len -= chunk;
@@ -1899,7 +1899,7 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 				  struct s3_snapshot *snapshot)
 {
 	__u8 out[S3_GZIP_BUFFER_SIZE];
-	int zr, rc;
+	int zr, ret;
 
 	do {
 		size_t produced;
@@ -1910,9 +1910,9 @@ static int snapshot_writer_finish(struct snapshot_writer *w,
 		if (zr != Z_OK && zr != Z_STREAM_END)
 			return -EIO;
 		produced = sizeof(out) - w->z.avail_out;
-		rc = snapshot_write_compressed(w, out, produced);
-		if (rc)
-			return rc;
+		ret = snapshot_write_compressed(w, out, produced);
+		if (ret)
+			return ret;
 	} while (zr != Z_STREAM_END);
 	if (deflateEnd(&w->z) != Z_OK)
 		return -EIO;
@@ -1940,38 +1940,38 @@ static int build_s3_snapshot(const char *decoder_path,
 	struct snapshot_writer writer;
 	char *decoded = NULL;
 	size_t decoded_len = 0;
-	int rc;
+	int ret;
 
 	memset(snapshot, 0, sizeof(*snapshot));
 	/* S3 stores exactly the canonical value returned by the signed decoder. */
 	if (decoder_path)
-		rc = upatch_decode_map_file_json_limit(decoder_path, v,
-						       S3_DECODER_JSON_MAX_BYTES,
-						       &decoded,
-						       &decoded_len);
+		ret = upatch_decode_map_file_json_limit(decoder_path, v,
+							S3_DECODER_JSON_MAX_BYTES,
+							&decoded,
+							&decoded_len);
 	else
-		rc = upatch_decode_map_json_limit(v,
-						  S3_DECODER_JSON_MAX_BYTES,
-						  &decoded,
-						  &decoded_len);
-	if (rc)
-		return rc;
-	rc = snapshot_temp_file(&snapshot->file);
-	if (rc) {
+		ret = upatch_decode_map_json_limit(v,
+						   S3_DECODER_JSON_MAX_BYTES,
+						   &decoded,
+						   &decoded_len);
+	if (ret)
+		return ret;
+	ret = snapshot_temp_file(&snapshot->file);
+	if (ret) {
 		xfree(decoded, decoded_len + 1);
-		return rc;
+		return ret;
 	}
-	rc = snapshot_writer_init(&writer, snapshot->file);
-	if (rc) {
+	ret = snapshot_writer_init(&writer, snapshot->file);
+	if (ret) {
 		xfree(decoded, decoded_len + 1);
 		goto err_writer;
 	}
-	rc = snapshot_json_sink(&writer, decoded, decoded_len);
+	ret = snapshot_json_sink(&writer, decoded, decoded_len);
 	xfree(decoded, decoded_len + 1);
-	if (rc)
+	if (ret)
 		goto err_writer;
-	rc = snapshot_writer_finish(&writer, snapshot);
-	if (rc)
+	ret = snapshot_writer_finish(&writer, snapshot);
+	if (ret)
 		goto err_writer;
 	return 0;
 
@@ -1979,7 +1979,7 @@ err_writer:
 	snapshot_writer_abort(&writer);
 	fclose(snapshot->file);
 	snapshot->file = NULL;
-	return rc;
+	return ret;
 }
 
 static bool valid_bucket(const char *bucket, size_t len)
@@ -2098,7 +2098,7 @@ static int validate_s3_endpoint(struct otel_s3_state *st)
 {
 	CURLU *url;
 	char *scheme = NULL, *host = NULL, *user = NULL, *password = NULL;
-	int rc = 0;
+	int ret = 0;
 
 	if (!st->custom_endpoint) {
 		if (st->opts.allow_insecure) {
@@ -2114,27 +2114,27 @@ static int validate_s3_endpoint(struct otel_s3_state *st)
 	if (curl_url_set(url, CURLUPART_URL, st->endpoint, 0) ||
 	    curl_url_get(url, CURLUPART_SCHEME, &scheme, 0) ||
 	    curl_url_get(url, CURLUPART_HOST, &host, 0)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	(void)curl_url_get(url, CURLUPART_USER, &user, 0);
 	(void)curl_url_get(url, CURLUPART_PASSWORD, &password, 0);
 	if ((user && user[0]) || (password && password[0]) ||
 	    strchr(st->endpoint, '?') || strchr(st->endpoint, '#')) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	if (strlen(host) >= sizeof(st->host)) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	if (strscpy(st->host, host, sizeof(st->host)) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	if (strcmp(scheme, "http") == 0) {
 		if (!loopback_host(host) && !st->opts.allow_insecure) {
-			rc = -EPERM;
+			ret = -EPERM;
 			goto out;
 		}
 		if (st->opts.allow_insecure)
@@ -2146,7 +2146,7 @@ static int validate_s3_endpoint(struct otel_s3_state *st)
 			fprintf(stderr, "WARNING: --otel-insecure disables TLS certificate "
 				"and hostname verification for S3 endpoint %s\n", host);
 	} else {
-		rc = -EPROTONOSUPPORT;
+		ret = -EPROTONOSUPPORT;
 	}
 out:
 	curl_free(scheme);
@@ -2154,7 +2154,7 @@ out:
 	curl_free(user);
 	curl_free(password);
 	curl_url_cleanup(url);
-	return rc;
+	return ret;
 }
 
 static void safe_key_segment(char *segment)
@@ -2197,7 +2197,7 @@ static int build_s3_urls(const struct otel_s3_state *st,
 {
 	char hostname[256] = "unknown";
 	char key[S3_URL_MAX], escaped[S3_URL_MAX];
-	int n, rc;
+	int n, ret;
 
 	if (gethostname(hostname, sizeof(hostname)) != 0)
 		strscpy(hostname, "unknown", sizeof(hostname));
@@ -2208,9 +2208,9 @@ static int build_s3_urls(const struct otel_s3_state *st,
 		       v->upatch, v->name, snapshot->sha256_hex);
 	if (n < 0 || (size_t)n > S3_KEY_MAX)
 		return -ENAMETOOLONG;
-	rc = escape_s3_path(key, escaped, sizeof(escaped));
-	if (rc)
-		return rc;
+	ret = escape_s3_path(key, escaped, sizeof(escaped));
+	if (ret)
+		return ret;
 	if (strsprintf(uri, uri_sz, "s3://%s/%s", st->bucket, escaped) < 0)
 		return -ENAMETOOLONG;
 	if (st->custom_endpoint)
@@ -2253,7 +2253,7 @@ static int s3_headers(const struct otel_s3_state *st,
 		upatch,
 		map,
 	};
-	int rc;
+	int ret;
 
 	if (strsprintf(sha256, sizeof(sha256), "x-amz-content-sha256: %s",
 		       snapshot->sha256_hex) < 0 ||
@@ -2265,9 +2265,9 @@ static int s3_headers(const struct otel_s3_state *st,
 		       v->name) < 0)
 		return -E2BIG;
 	for (size_t i = 0; i < ARRAY_SIZE(lines); i++) {
-		rc = s3_header(out, lines[i]);
-		if (rc)
-			return rc;
+		ret = s3_header(out, lines[i]);
+		if (ret)
+			return ret;
 	}
 	/* STS session tokens run well past a kilobyte. */
 	if (st->session_token) {
@@ -2277,12 +2277,12 @@ static int s3_headers(const struct otel_s3_state *st,
 
 		if (!token)
 			return -ENOMEM;
-		rc = strsprintf(token, len, "x-amz-security-token: %s",
-				st->session_token) < 0 ? -E2BIG :
+		ret = strsprintf(token, len, "x-amz-security-token: %s",
+				 st->session_token) < 0 ? -E2BIG :
 		     s3_header(out, token);
 		xfree(token, len);
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -2301,16 +2301,16 @@ static int s3_put(struct otel_s3_state *st,
 	struct curl_slist *headers = NULL;
 	char sigv4[128];
 	__u32 max_attempts = st->opts.retries + 1;
-	int rc;
+	int ret;
 
 	*already_present = false;
-	rc = s3_headers(st, v, snapshot, &headers);
-	if (rc) {
+	ret = s3_headers(st, v, snapshot, &headers);
+	if (ret) {
 		curl_slist_free_all(headers);
-		return rc;
+		return ret;
 	}
 	if (strsprintf(sigv4, sizeof(sigv4), "aws:amz:%s:s3", st->region) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	for (__u32 attempt = 0; attempt < max_attempts; attempt++) {
@@ -2321,13 +2321,13 @@ static int s3_put(struct otel_s3_state *st,
 		bool retry;
 
 		if (!curl) {
-			rc = -ENOMEM;
+			ret = -ENOMEM;
 			break;
 		}
 		clearerr(snapshot->file);
 		if (fseeko(snapshot->file, 0, SEEK_SET) != 0) {
 			curl_easy_cleanup(curl);
-			rc = -EIO;
+			ret = -EIO;
 			break;
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -2353,7 +2353,7 @@ static int s3_put(struct otel_s3_state *st,
 				 st->insecure_tls ? 0L : 2L);
 		if (tls_curl_policy(curl, NULL)) {
 			curl_easy_cleanup(curl);
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (st->ca_file)
@@ -2365,7 +2365,7 @@ static int s3_put(struct otel_s3_state *st,
 		    (status == 200 || status == 201 || status == 204 ||
 		     status == 412)) {
 			*already_present = status == 412;
-			rc = 0;
+			ret = 0;
 			curl_easy_cleanup(curl);
 			break;
 		}
@@ -2377,7 +2377,7 @@ static int s3_put(struct otel_s3_state *st,
 		else
 			fprintf(stderr, "otel.s3: upload attempt %u/%u received HTTP %ld\n",
 				attempt + 1, max_attempts, status);
-		rc = cc == CURLE_OPERATION_TIMEDOUT ? -ETIMEDOUT :
+		ret = cc == CURLE_OPERATION_TIMEDOUT ? -ETIMEDOUT :
 		     cc != CURLE_OK ? -EHOSTUNREACH : -EREMOTEIO;
 		curl_easy_cleanup(curl);
 		if (!retry || attempt + 1 == max_attempts)
@@ -2387,7 +2387,7 @@ static int s3_put(struct otel_s3_state *st,
 	}
 out:
 	curl_slist_free_all(headers);
-	return rc;
+	return ret;
 }
 
 static int build_s3_reference(const struct shirudo_map_view *v,
@@ -2458,7 +2458,7 @@ static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
 {
 	struct otel_s3_state *st;
 	void *otel = NULL;
-	int rc;
+	int ret;
 
 	if (!v || !state || !spec || !spec[0])
 		return -EINVAL;
@@ -2472,15 +2472,15 @@ static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
 	st->opts.retries = 3;
 	if (opts)
 		st->opts = *opts;
-	rc = parse_s3_spec(st, spec);
-	if (rc)
+	ret = parse_s3_spec(st, spec);
+	if (ret)
 		goto err;
-	rc = validate_s3_endpoint(st);
-	if (rc)
+	ret = validate_s3_endpoint(st);
+	if (ret)
 		goto err;
-	rc = otel_open_common(st->opts.endpoint, v, &st->opts, false,
-			      SHIRUDO_OTEL_LOG, decoder_path, &otel);
-	if (rc)
+	ret = otel_open_common(st->opts.endpoint, v, &st->opts, false,
+			       SHIRUDO_OTEL_LOG, decoder_path, &otel);
+	if (ret)
 		goto err;
 	st->otel = otel;
 	st->otel->s3_reference = true;
@@ -2488,7 +2488,7 @@ static int otel_s3_open(const char *spec, const struct shirudo_map_view *v,
 	return 0;
 err:
 	otel_s3_state_free(st);
-	return rc;
+	return ret;
 }
 
 static int otel_s3_emit(void *state, const struct shirudo_map_view *v)
@@ -2499,34 +2499,34 @@ static int otel_s3_emit(void *state, const struct shirudo_map_view *v)
 	char *payload = NULL;
 	size_t payload_len = 0;
 	bool already_present;
-	int rc;
+	int ret;
 
 	if (!st || !v)
 		return -EINVAL;
-	rc = build_s3_snapshot(st->otel ? st->otel->decoder_path : NULL,
-			       v, &snapshot);
-	if (rc)
-		return rc;
-	rc = build_s3_urls(st, v, &snapshot, url, sizeof(url), uri,
-			   sizeof(uri));
-	if (rc)
+	ret = build_s3_snapshot(st->otel ? st->otel->decoder_path : NULL,
+				v, &snapshot);
+	if (ret)
+		return ret;
+	ret = build_s3_urls(st, v, &snapshot, url, sizeof(url), uri,
+			    sizeof(uri));
+	if (ret)
 		goto out;
-	rc = s3_put(st, v, &snapshot, url, &already_present);
-	if (rc)
+	ret = s3_put(st, v, &snapshot, url, &already_present);
+	if (ret)
 		goto out;
 	fprintf(stderr, "otel.s3: %s %s (%llu bytes)\n",
 		already_present ? "found" : "uploaded", uri,
 		snapshot.object_bytes);
-	rc = build_s3_reference(v, &snapshot, uri, &payload, &payload_len);
-	if (rc)
+	ret = build_s3_reference(v, &snapshot, uri, &payload, &payload_len);
+	if (ret)
 		goto out;
-	rc = otel_post(st->otel, payload, payload_len);
+	ret = otel_post(st->otel, payload, payload_len);
 out:
 	if (payload)
 		xfree(payload, S3_REFERENCE_MAX);
 	if (snapshot.file)
 		fclose(snapshot.file);
-	return rc;
+	return ret;
 }
 
 static int otel_s3_close(void *state)
@@ -2544,17 +2544,17 @@ int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
 	bool automatic = mode == SHIRUDO_OTEL_AUTO;
 	enum shirudo_otel_signal signal;
 	void *state = NULL;
-	int rc, close_rc;
+	int ret, close_rc;
 
 	if (mode == SHIRUDO_OTEL_S3) {
 		if (!opts || !opts->s3_uri)
 			return -EINVAL;
-		rc = otel_s3_open(opts->s3_uri, v, opts, decoder_path, &state);
-		if (rc)
-			return rc;
-		rc = otel_s3_emit(state, v);
+		ret = otel_s3_open(opts->s3_uri, v, opts, decoder_path, &state);
+		if (ret)
+			return ret;
+		ret = otel_s3_emit(state, v);
 		close_rc = otel_s3_close(state);
-		return rc ? rc : close_rc;
+		return ret ? ret : close_rc;
 	}
 	if (mode == SHIRUDO_OTEL_FORCE_LOG)
 		signal = SHIRUDO_OTEL_LOG;
@@ -2564,13 +2564,13 @@ int shirudo_upatch_maps_otel_send_file(const char *decoder_path,
 		signal = SHIRUDO_OTEL_LOG;
 	else
 		return -EINVAL;
-	rc = otel_open_common(endpoint, v, opts, automatic, signal,
-			      decoder_path, &state);
-	if (rc)
-		return rc;
-	rc = otel_emit(state, v);
+	ret = otel_open_common(endpoint, v, opts, automatic, signal,
+			       decoder_path, &state);
+	if (ret)
+		return ret;
+	ret = otel_emit(state, v);
 	close_rc = otel_close(state);
-	return rc ? rc : close_rc;
+	return ret ? ret : close_rc;
 }
 
 int shirudo_upatch_maps_otel_send(const struct shirudo_map_view *v,
@@ -2584,17 +2584,17 @@ int shirudo_upatch_maps_otel_send_decoded(const struct shirudo_map_view *v,
 					  enum shirudo_otel_signal signal,
 					  const struct shirudo_otel_opts *opts)
 {
-	int rc;
+	int ret;
 
 	if (signal == SHIRUDO_OTEL_LOG)
-		rc = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
-						   opts);
+		ret = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_LOG,
+						    opts);
 	else if (signal == SHIRUDO_OTEL_METRIC)
-		rc = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
-						   opts);
+		ret = shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_FORCE_METRIC,
+						    opts);
 	else
 		return -EINVAL;
-	if (rc == -E2BIG && opts && opts->s3_uri)
+	if (ret == -E2BIG && opts && opts->s3_uri)
 		return shirudo_upatch_maps_otel_send(v, SHIRUDO_OTEL_S3, opts);
-	return rc;
+	return ret;
 }

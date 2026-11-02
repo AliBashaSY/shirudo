@@ -108,23 +108,23 @@ SEC("syscall")
 int shirudo_test__kernel_obs(void *ctx)
 {
 	__u64 now = obs_now();
-	int rc;
+	int ret;
 
 	(void)ctx;
-	rc = priv_init(now);
-	if (!rc)
-		rc = exec_init(now);
-	if (!rc)
-		rc = net_init(now);
-	if (!rc)
-		rc = socket_init(now);
-	if (!rc)
-		rc = listen_init(now);
-	if (!rc)
-		rc = watch_init(now);
-	if (!rc)
-		rc = dns_init(now);
-	if (!rc)
-		rc = file_init(now);
-	return rc;
+	ret = priv_init(now);
+	if (!ret)
+		ret = exec_init(now);
+	if (!ret)
+		ret = net_init(now);
+	if (!ret)
+		ret = socket_init(now);
+	if (!ret)
+		ret = listen_init(now);
+	if (!ret)
+		ret = watch_init(now);
+	if (!ret)
+		ret = dns_init(now);
+	if (!ret)
+		ret = file_init(now);
+	return ret;
 }

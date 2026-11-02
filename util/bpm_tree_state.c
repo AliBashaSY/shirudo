@@ -89,7 +89,7 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 			    int *n, int max, bool gz)
 {
 	char line[512];
-	int rc = 0;
+	int ret = 0;
 
 	*n = 0;
 	if (gz) {
@@ -106,7 +106,7 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 				eq = strstr(key, " is not set");
 				if (eq) {
 					*eq = '\0';
-					rc = kv_add(out, n, max, key, "n");
+					ret = kv_add(out, n, max, key, "n");
 				}
 			} else if (eq) {
 				*eq++ = '\0';
@@ -121,13 +121,13 @@ static int read_config_file(const char *path, struct shirudo_tree_kv *out,
 						value++;
 					}
 				}
-				rc = kv_add(out, n, max, key, value);
+				ret = kv_add(out, n, max, key, value);
 			}
-			if (rc)
+			if (ret)
 				break;
 		}
 		gzclose(f);
-		return rc;
+		return ret;
 	}
 	{
 		FILE *f = fopen(path, "r");
@@ -144,14 +144,14 @@ static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
 {
 	size_t capacity = 0;
 	char *line = NULL;
-	int got, rc = 0;
+	int got, ret = 0;
 
 	*n = 0;
 	while ((got = read_text_line(f, &line, &capacity, 511)) != 0) {
 		char *start = line, *end, *eq;
 
 		if (got < 0) {
-			rc = got;
+			ret = got;
 			break;
 		}
 
@@ -171,13 +171,13 @@ static int read_config_stream(FILE *f, struct shirudo_tree_kv *out, int *n,
 			*--end = '\0';
 		while (*eq && isspace((__u8)*eq))
 			eq++;
-		rc = kv_add(out, n, max, start, eq);
-		if (rc)
+		ret = kv_add(out, n, max, start, eq);
+		if (ret)
 			break;
 	}
 	libc_free(line);
 	fclose(f);
-	return rc;
+	return ret;
 }
 
 static int read_config_fd(int fd, struct shirudo_tree_kv *out, int *n,
@@ -186,10 +186,10 @@ static int read_config_fd(int fd, struct shirudo_tree_kv *out, int *n,
 	FILE *f = fdopen(fd, "r");
 
 	if (!f) {
-		int rc = -errno;
+		int ret = -errno;
 
 		close(fd);
-		return rc;
+		return ret;
 	}
 	return read_config_stream(f, out, n, max);
 }
@@ -311,7 +311,7 @@ static int read_selector_config_file(const char *path,
 				     bool found[], bool gz)
 {
 	char line[1024];
-	int rc = 0;
+	int ret = 0;
 
 	if (gz) {
 		gzFile f = gzopen(path, "rb");
@@ -319,15 +319,15 @@ static int read_selector_config_file(const char *path,
 		if (!f)
 			return -errno;
 		while (gzgets(f, line, sizeof(line))) {
-			rc = selector_config_line(line, s, slots, values, found);
-			if (rc)
+			ret = selector_config_line(line, s, slots, values, found);
+			if (ret)
 				break;
 		}
-		if (!rc && gzclose(f) != Z_OK)
-			rc = -EIO;
-		else if (rc)
+		if (!ret && gzclose(f) != Z_OK)
+			ret = -EIO;
+		else if (ret)
 			gzclose(f);
-		return rc;
+		return ret;
 	}
 
 	{
@@ -336,15 +336,15 @@ static int read_selector_config_file(const char *path,
 		if (!f)
 			return -errno;
 		while (fgets(line, sizeof(line), f)) {
-			rc = selector_config_line(line, s, slots, values, found);
-			if (rc)
+			ret = selector_config_line(line, s, slots, values, found);
+			if (ret)
 				break;
 		}
-		if (!rc && ferror(f))
-			rc = errno ? -errno : -EIO;
+		if (!ret && ferror(f))
+			ret = errno ? -errno : -EIO;
 		fclose(f);
 	}
-	return rc;
+	return ret;
 }
 
 int tree_selector_matches(const struct shirudo_tree_selector *s)
@@ -354,7 +354,7 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 	char cfg_values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
 	int cfg_slots[TREE_SELECTOR_HASH_SIZE];
 	bool cfg_found[TREE_MAX_KCONFIG] = {};
-	int nl = 0, config_rc, rc;
+	int nl = 0, config_rc, ret;
 	const char *v;
 	char path[PATH_MAX];
 	bool matched, config_any;
@@ -454,16 +454,16 @@ int tree_selector_matches(const struct shirudo_tree_selector *s)
 				return 0;
 			if (fd < 0)
 				return fd;
-			rc = read_config_fd(fd, labels, &nl, ARRAY_SIZE(labels));
+			ret = read_config_fd(fd, labels, &nl, ARRAY_SIZE(labels));
 		} else {
-			rc = read_config_file("/etc/shirudo/node.labels",
-					      labels, &nl, ARRAY_SIZE(labels),
-					      false);
+			ret = read_config_file("/etc/shirudo/node.labels",
+					       labels, &nl, ARRAY_SIZE(labels),
+					       false);
 		}
-		if (rc == -ENOENT)
+		if (ret == -ENOENT)
 			return 0;
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 		for (int i = 0; i < s->n_labels; i++) {
 			v = kv_value(labels, nl, s->labels[i].key);
 			if (!v || !selector_values_match(&s->labels[i], v))
@@ -504,50 +504,50 @@ int tree_state_read(struct shirudo_tree_state *out)
 		{ "manifest_digest", SHIRUDO_JSON_T_STRING, out->manifest_digest,
 		  sizeof(out->manifest_digest), 0, NULL, 0 },
 	};
-	int rc;
+	int ret;
 
 	*out = (struct shirudo_tree_state){};
-	rc = tree_read_file(BPM_TREE_STATE_PATH, &body, &len);
-	if (rc)
-		return rc;
-	rc = json_parse((const char *)body, len, f, ARRAY_SIZE(f));
-	if (!rc && (schema != 1 || !f[1].seen || !f[3].seen || !f[4].seen))
-		rc = -EINVAL;
-	if (!rc && !f[5].seen) {
+	ret = tree_read_file(BPM_TREE_STATE_PATH, &body, &len);
+	if (ret)
+		return ret;
+	ret = json_parse((const char *)body, len, f, ARRAY_SIZE(f));
+	if (!ret && (schema != 1 || !f[1].seen || !f[3].seen || !f[4].seen))
+		ret = -EINVAL;
+	if (!ret && !f[5].seen) {
 		/* State written before the software projection field was added. */
 		memcpy(out->projection_root_tpm, out->projection_root,
 		       sizeof(out->projection_root_tpm));
 	}
-	if (!rc && (strlen(out->projection_root) != 64 ||
-		    !hex32_valid(out->projection_root) ||
-		    (out->projection_root_tpm[0] &&
-		     (strlen(out->projection_root_tpm) != 64 ||
-		      !hex32_valid(out->projection_root_tpm)))))
-		rc = -EINVAL;
-	if (!rc && out->manifest_digest[0] &&
+	if (!ret && (strlen(out->projection_root) != 64 ||
+		     !hex32_valid(out->projection_root) ||
+		     (out->projection_root_tpm[0] &&
+		      (strlen(out->projection_root_tpm) != 64 ||
+		       !hex32_valid(out->projection_root_tpm)))))
+		ret = -EINVAL;
+	if (!ret && out->manifest_digest[0] &&
 	    (strlen(out->manifest_digest) != 71 ||
 	     strncmp(out->manifest_digest, "sha256:", 7) ||
 	     !hex32_valid(out->manifest_digest + 7)))
-		rc = -EINVAL;
+		ret = -EINVAL;
 	out->schema = (int)schema;
 	xfree(body, len + 1);
-	return rc;
+	return ret;
 }
 
 static int tree_atomic_write(const char *path, const void *data, size_t len)
 {
 	const char *slash = strrchr(path, '/');
 	char dir[PATH_MAX];
-	int rc;
+	int ret;
 
 	if (!slash || (size_t)(slash - path) >= sizeof(dir))
 		return -EINVAL;
 	memcpy(dir, path, slash - path);
 	dir[slash - path] = '\0';
-	rc = seal_mkdir_p(dir, 0700);
-	if (rc) {
-		pr_err("tree state mkdir %s: %s", dir, strerror(-rc));
-		return rc;
+	ret = seal_mkdir_p(dir, 0700);
+	if (ret) {
+		pr_err("tree state mkdir %s: %s", dir, strerror(-ret));
+		return ret;
 	}
 	return seal_write_file(path, data, len, 0600);
 }
@@ -577,7 +577,7 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	char buf[1024], root[65];
 	struct shirudo_json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
 	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
 	    !hex32_valid(operation_digest + 7))
@@ -591,9 +591,9 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	json_obj_close(&e);
 	if (e.err)
 		return e.err;
-	rc = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
-	if (rc)
-		return rc;
+	ret = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
+	if (ret)
+		return ret;
 	fd = seal_open(BPM_TREE_EVENTLOG_PATH,
 		       O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
@@ -601,26 +601,26 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	/* A partial line would fail every later replay; roll it back. */
 	while (flock(fd, LOCK_EX) != 0) {
 		if (errno != EINTR) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 	}
 	if (fstat(fd, &st) != 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
-	rc = write_complete(fd, buf, e.len);
-	if (!rc)
-		rc = write_complete(fd, "\n", 1);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (rc && ftruncate(fd, st.st_size))
+	ret = write_complete(fd, buf, e.len);
+	if (!ret)
+		ret = write_complete(fd, "\n", 1);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (ret && ftruncate(fd, st.st_size))
 		pr_warn("tree: could not roll back a partial append to %s: %s",
 			BPM_TREE_EVENTLOG_PATH, strerror(errno));
 out:
-	if (close(fd) && !rc)
-		rc = -errno;
-	return rc;
+	if (close(fd) && !ret)
+		ret = -errno;
+	return ret;
 }
 
 int tree_event_replay(__u8 out[32])
@@ -630,10 +630,10 @@ int tree_event_replay(__u8 out[32])
 	char *save, *line;
 	__u8 chain[32] = {};
 	__s64 previous_seq = 0;
-	int rc = tree_read_file(BPM_TREE_EVENTLOG_PATH, &body, &len);
+	int ret = tree_read_file(BPM_TREE_EVENTLOG_PATH, &body, &len);
 
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	/* A NUL would end the walk early and replay a shorter chain. */
 	if (memchr(body, '\0', len)) {
 		xfree(body, len + 1);
@@ -653,33 +653,33 @@ int tree_event_replay(__u8 out[32])
 		};
 		__u8 d[32], next[64], recorded[32];
 
-		rc = json_parse(line, strlen(line), f, ARRAY_SIZE(f));
-		if (rc || !f[0].seen || !f[1].seen || !f[2].seen ||
+		ret = json_parse(line, strlen(line), f, ARRAY_SIZE(f));
+		if (ret || !f[0].seen || !f[1].seen || !f[2].seen ||
 		    seq <= previous_seq || strlen(projection) != 64 ||
 		    hex_decode(projection, recorded, 32)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		previous_seq = seq;
 		if (strncmp(digest, "sha256:", 7) ||
 		    hex_decode(digest + 7, d, sizeof(d))) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		memcpy(next, chain, 32);
 		memcpy(next + 32, d, 32);
-		rc = shirudo_sha256(next, sizeof(next), chain);
-		if (rc)
+		ret = shirudo_sha256(next, sizeof(next), chain);
+		if (ret)
 			break;
 		if (!ct_eq(chain, recorded, 32)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 	}
-	if (!rc)
+	if (!ret)
 		memcpy(out, chain, 32);
 	xfree(body, len + 1);
-	return rc;
+	return ret;
 }
 
 void tree_emit_status(struct shirudo_json_emit *e)

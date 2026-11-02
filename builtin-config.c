@@ -39,7 +39,7 @@ int cmd_config(int argc, const char **argv)
 	bool image_mode = shirudo_image_config_active();
 	struct shirudo_config cfg;
 	bool file_present;
-	int rc;
+	int ret;
 	int i;
 
 	for (i = 1; i < argc; i++) {
@@ -53,10 +53,10 @@ int cmd_config(int argc, const char **argv)
 	}
 
 	file_present = access(CONF_PATH, F_OK) == 0;
-	rc = config_load(&cfg);
-	if (rc && rc != -ENOENT) {
+	ret = config_load(&cfg);
+	if (ret && ret != -ENOENT) {
 		pr_err("config: load %s: %s",
-		       CONF_PATH, strerror(-rc));
+		       CONF_PATH, strerror(-ret));
 		return 1;
 	}
 

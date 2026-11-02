@@ -269,7 +269,7 @@ struct OBS_FN(emit_ctx) {
 	__u32 used;
 	__u32 output_slots;
 	__u32 next;
-	int rc;
+	int ret;
 };
 
 static int OBS_FN(emit_cb)(__u32 scanned, void *data)
@@ -278,9 +278,9 @@ static int OBS_FN(emit_cb)(__u32 scanned, void *data)
 	struct OBS_FN(entry) __arena *e;
 	struct shirudo_serial_chunk *chunk;
 	__u32 idx, off;
-	int rc;
+	int ret;
 
-	if (emit->rc)
+	if (emit->ret)
 		return 1;
 	idx = emit->start + scanned + 1;
 	if (idx == 0 || idx > emit->used || idx > OBS_T_CAPACITY) {
@@ -297,14 +297,14 @@ static int OBS_FN(emit_cb)(__u32 scanned, void *data)
 		return 0;
 	chunk = OBS_FN(slot)(emit->output_slots, &off);
 	if (!chunk) {
-		emit->rc = -ENOSPC;
+		emit->ret = -ENOSPC;
 		return 1;
 	}
 	*(__u32 *)&chunk->data[off] = idx;
 	*(__u32 *)&chunk->data[off + 4] = OBS_REC_F_PRESENT;
-	rc = OBS_T_EMIT(chunk, off, e);
-	if (rc) {
-		emit->rc = rc;
+	ret = OBS_T_EMIT(chunk, off, e);
+	if (ret) {
+		emit->ret = ret;
 		return 1;
 	}
 	emit->output_slots++;
@@ -319,7 +319,7 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 	__u32 flags = 0, hdr_flags = 0, total_chunks, page_bytes, scan, i;
 	__u64 now = obs_now();
 	bool peek;
-	int rc;
+	int ret;
 
 	if (!obs_serial_ctx_valid(ctx))
 		return -EINVAL;
@@ -348,19 +348,19 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 
 #pragma clang loop unroll(full)
 	for (i = 0; i < OBS_SERIAL_PAGE_CHUNKS; i++) {
-		rc = OBS_FN(chunk_meta)(i, 0, OBS_SERIAL_PAGE_CHUNKS,
-					OBS_SERIAL_PAGE_CHUNKS *
-					SERIAL_CHUNK_PAYLOAD,
-					ctx, ctx->cursor);
-		if (rc) {
-			obs_serial_error(ctx, rc);
-			return rc;
+		ret = OBS_FN(chunk_meta)(i, 0, OBS_SERIAL_PAGE_CHUNKS,
+					 OBS_SERIAL_PAGE_CHUNKS *
+					 SERIAL_CHUNK_PAYLOAD,
+					 ctx, ctx->cursor);
+		if (ret) {
+			obs_serial_error(ctx, ret);
+			return ret;
 		}
 	}
-	rc = OBS_FN(emit_header)(state, hdr_flags, now);
-	if (rc) {
-		obs_serial_error(ctx, rc);
-		return rc;
+	ret = OBS_FN(emit_header)(state, hdr_flags, now);
+	if (ret) {
+		obs_serial_error(ctx, ret);
+		return ret;
 	}
 
 	emit.state = state;
@@ -372,14 +372,14 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 	emit.next = emit.start;
 	if (emit.start < emit.used) {
 		scan = emit.used - emit.start;
-		rc = bpf_loop(scan, OBS_FN(emit_cb), &emit, 0);
-		if (rc < 0) {
-			obs_serial_error(ctx, rc);
-			return rc;
+		ret = bpf_loop(scan, OBS_FN(emit_cb), &emit, 0);
+		if (ret < 0) {
+			obs_serial_error(ctx, ret);
+			return ret;
 		}
-		if (emit.rc) {
-			obs_serial_error(ctx, emit.rc);
-			return emit.rc;
+		if (emit.ret) {
+			obs_serial_error(ctx, emit.ret);
+			return emit.ret;
 		}
 	} else {
 		emit.next = emit.used;
@@ -401,10 +401,10 @@ int OBS_CAT(shirudo_serialize__, OBS_T_MAP)(struct shirudo_serialize_ctx *ctx)
 		      OBS_T_PER_CHUNK) * OBS_T_RECORD;
 #pragma clang loop unroll(full)
 	for (i = 0; i < OBS_SERIAL_PAGE_CHUNKS; i++) {
-		rc = OBS_FN(chunk_meta)(i, flags, total_chunks, page_bytes,
-					ctx, emit.next);
-		if (rc)
-			return rc;
+		ret = OBS_FN(chunk_meta)(i, flags, total_chunks, page_bytes,
+					 ctx, emit.next);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }

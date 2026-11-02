@@ -32,7 +32,7 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 	const char *vlog = r->verifier_log ? r->verifier_log : "";
 	size_t loglen = strlen(vlog);
 	size_t cap = loglen * 6 + 16384;	/* worst-case escape + slack */
-	int fd, rc = 0;
+	int fd, ret = 0;
 	char *buf;
 
 	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
@@ -102,17 +102,17 @@ int report_emit(const char *path, const struct shirudo_op_report *r)
 		xfree(buf, cap);
 		return fd;
 	}
-	rc = write_complete(fd, buf, strlen(buf));
-	if (!rc)
-		rc = write_complete(fd, "\n", 1);
-	if (close(fd) != 0 && !rc)
-		rc = -errno;
-	if (rc) {
-		pr_err("report: write %s: %s", path, strerror(-rc));
+	ret = write_complete(fd, buf, strlen(buf));
+	if (!ret)
+		ret = write_complete(fd, "\n", 1);
+	if (close(fd) != 0 && !ret)
+		ret = -errno;
+	if (ret) {
+		pr_err("report: write %s: %s", path, strerror(-ret));
 		unlink(path);
 	}
 	xfree(buf, cap);
-	return rc;
+	return ret;
 }
 
 void report_set_log(struct shirudo_op_report *r, const char *log)

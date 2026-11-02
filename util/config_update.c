@@ -78,7 +78,7 @@ static int record_decode(const char *data, size_t length, bool state,
 	__s64 pcr = 0, kind = 0;
 	int pending = 0;
 	size_t i;
-	int rc;
+	int ret;
 	struct shirudo_json_field fields[] = {
 		{ "schema", SHIRUDO_JSON_T_INT, &schema, 0, 0, NULL, 0 },
 		{ "sequence", SHIRUDO_JSON_T_INT, &sequence, 0, 0, NULL, 0 },
@@ -97,9 +97,9 @@ static int record_decode(const char *data, size_t length, bool state,
 	};
 
 	memset(record, 0, sizeof(*record));
-	rc = json_parse(data, length, fields, ARRAY_SIZE(fields));
-	if (rc)
-		return rc;
+	ret = json_parse(data, length, fields, ARRAY_SIZE(fields));
+	if (ret)
+		return ret;
 	for (i = 0; i < ARRAY_SIZE(fields) - (state ? 0 : 2); i++)
 		if (!fields[i].seen)
 			return -EBADMSG;
@@ -173,7 +173,7 @@ int shirudo_config_update_open(const char *directory,
 			       void *ctx, struct shirudo_config_update *out)
 {
 	struct stat st;
-	int rc;
+	int ret;
 
 	if (!out)
 		return -EINVAL;
@@ -191,45 +191,45 @@ int shirudo_config_update_open(const char *directory,
 	if (out->dir_fd < 0)
 		return -errno;
 	if (fstat(out->dir_fd, &st)) {
-		rc = -errno;
+		ret = -errno;
 		goto fail;
 	}
 	if (st.st_uid != geteuid() || (st.st_mode & 022)) {
-		rc = -EPERM;
+		ret = -EPERM;
 		goto fail;
 	}
-	rc = ops->seal(ctx, out->dir_fd);
-	if (rc)
+	ret = ops->seal(ctx, out->dir_fd);
+	if (ret)
 		goto fail;
 	out->lock_fd = openat(out->dir_fd,
 			      "lock",
 			      O_RDWR | O_CREAT | O_CLOEXEC |
 			      O_NOFOLLOW | O_NONBLOCK, 0600);
 	if (out->lock_fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto fail;
 	}
-	rc = regular_file(out->lock_fd);
-	if (rc)
+	ret = regular_file(out->lock_fd);
+	if (ret)
 		goto fail;
-	rc = lock_wait(out->lock_fd, ops->lock_wait_ms);
-	if (rc) {
-		if (rc == -EWOULDBLOCK)
+	ret = lock_wait(out->lock_fd, ops->lock_wait_ms);
+	if (ret) {
+		if (ret == -EWOULDBLOCK)
 			pr_err("image: another shirudo command still holds the config operation lock %s/lock after %u seconds",
 			       directory, ops->lock_wait_ms / 1000);
 		goto fail;
 	}
-	rc = ops->seal(ctx, out->lock_fd);
-	if (rc)
+	ret = ops->seal(ctx, out->lock_fd);
+	if (ret)
 		goto fail;
 	if (fsync(out->lock_fd) || fsync(out->dir_fd)) {
-		rc = -errno;
+		ret = -errno;
 		goto fail;
 	}
 	return 0;
 fail:
 	shirudo_config_update_close(out);
-	return rc;
+	return ret;
 }
 
 void shirudo_config_update_close(struct shirudo_config_update *update)
@@ -251,7 +251,7 @@ int shirudo_config_update_read(struct shirudo_config_update *update,
 	struct stat st;
 	size_t done = 0;
 	ssize_t got;
-	int fd, rc;
+	int fd, ret;
 
 	if (!update || update->dir_fd < 0 || !out)
 		return -EINVAL;
@@ -259,27 +259,27 @@ int shirudo_config_update_read(struct shirudo_config_update *update,
 		    O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	if (fd < 0)
 		return -errno;
-	rc = regular_file(fd);
-	if (!rc && fstat(fd, &st))
-		rc = -errno;
-	if (!rc && (st.st_size <= 0 || (__u64)st.st_size >= sizeof(wire)))
-		rc = -EBADMSG;
-	while (!rc && done < (size_t)st.st_size) {
+	ret = regular_file(fd);
+	if (!ret && fstat(fd, &st))
+		ret = -errno;
+	if (!ret && (st.st_size <= 0 || (__u64)st.st_size >= sizeof(wire)))
+		ret = -EBADMSG;
+	while (!ret && done < (size_t)st.st_size) {
 		got = read(fd, wire + done, st.st_size - done);
 		if (got < 0) {
 			if (errno == EINTR)
 				continue;
-			rc = -errno;
+			ret = -errno;
 		} else if (!got) {
-			rc = -EIO;
+			ret = -EIO;
 		} else {
 			done += got;
 		}
 	}
-	if (!rc)
-		rc = record_decode(wire, done, true, out);
+	if (!ret)
+		ret = record_decode(wire, done, true, out);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static int state_save(struct shirudo_config_update *update,
@@ -288,36 +288,36 @@ static int state_save(struct shirudo_config_update *update,
 {
 	char wire[RECORD_MAX];
 	size_t length;
-	int fd, rc;
+	int fd, ret;
 
-	rc = record_encode(record, true, wire, sizeof(wire), &length);
-	if (rc)
-		return rc;
+	ret = record_encode(record, true, wire, sizeof(wire), &length);
+	if (ret)
+		return ret;
 	if (unlinkat(update->dir_fd, ".state.tmp", 0) && errno != ENOENT)
 		return -errno;
 	fd = openat(update->dir_fd, ".state.tmp",
 		    O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
 	if (fd < 0)
 		return -errno;
-	rc = update->ops->seal(update->ctx, fd);
-	if (!rc)
-		rc = write_complete(fd, wire, length);
-	if (!rc && inject)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_WRITE);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
-	if (!rc &&
+	ret = update->ops->seal(update->ctx, fd);
+	if (!ret)
+		ret = write_complete(fd, wire, length);
+	if (!ret && inject)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_WRITE);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
+	if (!ret &&
 	    renameat(update->dir_fd, ".state.tmp", update->dir_fd, "state"))
-		rc = -errno;
-	if (!rc && inject)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_RENAME);
-	if (!rc && fsync(update->dir_fd))
-		rc = -errno;
-	if (rc)
+		ret = -errno;
+	if (!ret && inject)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_STATE_RENAME);
+	if (!ret && fsync(update->dir_fd))
+		ret = -errno;
+	if (ret)
 		unlinkat(update->dir_fd, ".state.tmp", 0);
-	return rc;
+	return ret;
 }
 
 static bool same_boot(const struct shirudo_config_update_record *a,
@@ -379,7 +379,7 @@ static int events_scan(struct shirudo_config_update *update,
 	__u8 running[32] = {}, digest[32];
 	char wire[RECORD_MAX];
 	size_t length;
-	int fd, rc;
+	int fd, ret;
 	FILE *file;
 
 	memset(last, 0, sizeof(*last));
@@ -389,50 +389,50 @@ static int events_scan(struct shirudo_config_update *update,
 		    O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
 	if (fd < 0)
 		return errno == ENOENT ? 0 : -errno;
-	rc = regular_file(fd);
-	if (rc) {
+	ret = regular_file(fd);
+	if (ret) {
 		close(fd);
-		return rc;
+		return ret;
 	}
 	file = fdopen(fd, "r");
 	if (!file) {
-		rc = -errno;
+		ret = -errno;
 		close(fd);
-		return rc;
+		return ret;
 	}
-	while ((rc = read_line(file, wire, sizeof(wire), &length)) > 0) {
-		rc = record_decode(wire, length, false, &record);
-		if (!rc)
-			rc = event_follows(&previous, &record);
-		if (!rc && record.kind == SHIRUDO_CONFIG_EVENT_BOOT)
+	while ((ret = read_line(file, wire, sizeof(wire), &length)) > 0) {
+		ret = record_decode(wire, length, false, &record);
+		if (!ret)
+			ret = event_follows(&previous, &record);
+		if (!ret && record.kind == SHIRUDO_CONFIG_EVENT_BOOT)
 			memcpy(running, record.initial_pcr, 32);
-		if (!rc)
-			rc = shirudo_config_measure_event(record.kind,
-							  root, digest);
-		if (!rc)
-			rc = shirudo_chain_fold_checked(running, digest);
-		if (!rc && consume)
-			rc = consume(&record, ctx);
-		if (rc)
+		if (!ret)
+			ret = shirudo_config_measure_event(record.kind,
+							   root, digest);
+		if (!ret)
+			ret = shirudo_chain_fold_checked(running, digest);
+		if (!ret && consume)
+			ret = consume(&record, ctx);
+		if (ret)
 			break;
 		previous = record;
 		if (end) {
 			*end = ftello(file);
 			if (*end < 0) {
-				rc = -errno;
+				ret = -errno;
 				break;
 			}
 		}
 	}
-	if (rc == -ENODATA && partial)
-		rc = 0;
-	if (!rc) {
+	if (ret == -ENODATA && partial)
+		ret = 0;
+	if (!ret) {
 		*last = previous;
 		if (value)
 			memcpy(value, running, 32);
 	}
 	fclose(file);
-	return rc;
+	return ret;
 }
 
 int shirudo_config_update_events(struct shirudo_config_update *update,
@@ -451,55 +451,55 @@ static int event_append(struct shirudo_config_update *update,
 	struct shirudo_config_update_record last;
 	char wire[RECORD_MAX];
 	size_t length;
-	int fd, rc;
+	int fd, ret;
 	off_t end;
 
-	rc = events_scan(update, &last, NULL, &end,
-			 record->kind == SHIRUDO_CONFIG_EVENT_BOOT, NULL, NULL);
-	if (!rc)
-		rc = event_follows(&last, record);
-	if (!rc)
-		rc = record_encode(record, false, wire, sizeof(wire), &length);
-	if (rc)
-		return rc;
+	ret = events_scan(update, &last, NULL, &end,
+			  record->kind == SHIRUDO_CONFIG_EVENT_BOOT, NULL, NULL);
+	if (!ret)
+		ret = event_follows(&last, record);
+	if (!ret)
+		ret = record_encode(record, false, wire, sizeof(wire), &length);
+	if (ret)
+		return ret;
 	fd = openat(update->dir_fd, "events",
 		    O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NOFOLLOW |
 			    O_NONBLOCK, 0600);
 	if (fd < 0)
 		return -errno;
-	rc = regular_file(fd);
-	if (!rc)
-		rc = update->ops->seal(update->ctx, fd);
-	if (!rc && ftruncate(fd, end))
-		rc = -errno;
-	if (!rc)
-		rc = write_complete(fd, wire, length);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_WRITE);
-	if (!rc && fsync(fd))
-		rc = -errno;
-	if (close(fd) && !rc)
-		rc = -errno;
-	if (!rc && fsync(update->dir_fd))
-		rc = -errno;
-	return rc;
+	ret = regular_file(fd);
+	if (!ret)
+		ret = update->ops->seal(update->ctx, fd);
+	if (!ret && ftruncate(fd, end))
+		ret = -errno;
+	if (!ret)
+		ret = write_complete(fd, wire, length);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_WRITE);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
+	if (!ret && fsync(update->dir_fd))
+		ret = -errno;
+	return ret;
 }
 
 static int live_read(struct shirudo_config_update *update, __u32 pcr,
 		     __u32 *reset, __u32 *restart, __u8 value[32])
 {
 	__u32 reset_after, restart_after;
-	int rc;
+	int ret;
 
-	rc = update->ops->boot_identity(update->ctx, reset, restart);
-	if (!rc)
-		rc = update->ops->pcr_read(update->ctx, pcr, value);
-	if (!rc)
-		rc = update->ops->boot_identity(update->ctx, &reset_after,
-						&restart_after);
-	if (!rc && (*reset != reset_after || *restart != restart_after))
-		rc = -ESTALE;
-	return rc;
+	ret = update->ops->boot_identity(update->ctx, reset, restart);
+	if (!ret)
+		ret = update->ops->pcr_read(update->ctx, pcr, value);
+	if (!ret)
+		ret = update->ops->boot_identity(update->ctx, &reset_after,
+						 &restart_after);
+	if (!ret && (*reset != reset_after || *restart != restart_after))
+		ret = -ESTALE;
+	return ret;
 }
 
 static int check_record(struct shirudo_config_update *update,
@@ -508,59 +508,59 @@ static int check_record(struct shirudo_config_update *update,
 	struct shirudo_config_update_record last;
 	__u8 expected[32], value[32];
 	__u32 reset, restart;
-	int rc;
+	int ret;
 
-	rc = events_scan(update, &last, expected, NULL, false, NULL, NULL);
-	if (!rc && !same_event(record, &last))
-		rc = -EUCLEAN;
-	if (!rc)
-		rc = live_read(update, record->pcr, &reset, &restart, value);
-	if (!rc && (reset != record->reset_count ||
-		    restart != record->restart_count))
-		rc = -ESTALE;
-	if (!rc && memcmp(value, expected, 32))
-		rc = -EUCLEAN;
-	return rc;
+	ret = events_scan(update, &last, expected, NULL, false, NULL, NULL);
+	if (!ret && !same_event(record, &last))
+		ret = -EUCLEAN;
+	if (!ret)
+		ret = live_read(update, record->pcr, &reset, &restart, value);
+	if (!ret && (reset != record->reset_count ||
+		     restart != record->restart_count))
+		ret = -ESTALE;
+	if (!ret && memcmp(value, expected, 32))
+		ret = -EUCLEAN;
+	return ret;
 }
 
 int shirudo_config_update_check(struct shirudo_config_update *update,
 				struct shirudo_config_update_record *out)
 {
 	struct shirudo_config_update_record record;
-	int rc;
+	int ret;
 
-	rc = shirudo_config_update_read(update, &record);
-	if (!rc && record.pending)
-		rc = -EINPROGRESS;
-	if (!rc)
-		rc = check_record(update, &record);
-	if (!rc && out)
+	ret = shirudo_config_update_read(update, &record);
+	if (!ret && record.pending)
+		ret = -EINPROGRESS;
+	if (!ret)
+		ret = check_record(update, &record);
+	if (!ret && out)
 		*out = record;
-	return rc;
+	return ret;
 }
 
 static int complete(struct shirudo_config_update *update)
 {
 	struct shirudo_config_update_record record;
-	int rc, restore;
+	int ret, restore;
 
-	rc = shirudo_config_update_read(update, &record);
-	if (!rc)
-		rc = check_record(update, &record);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_read(update, &record);
+	if (!ret)
+		ret = check_record(update, &record);
+	if (ret)
+		return ret;
 	record.pending = false;
-	rc = state_save(update, &record, true);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_COMPLETE_SYNC);
-	if (rc) {
+	ret = state_save(update, &record, true);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_COMPLETE_SYNC);
+	if (ret) {
 		record.pending = true;
 		restore = state_save(update, &record, false);
 		if (restore)
 			pr_err("image: cannot restore pending selection: %s",
 			       strerror(-restore));
 	}
-	return rc;
+	return ret;
 }
 
 static int begin_event(struct shirudo_config_update *update,
@@ -571,56 +571,56 @@ static int begin_event(struct shirudo_config_update *update,
 	struct shirudo_config_update_record record = {};
 	__u8 before[32], expected[32], value[32], event[32];
 	__u32 reset, restart;
-	int rc;
+	int ret;
 
 	if (previous->sequence == INT64_MAX)
 		return -EOVERFLOW;
-	rc = update->ops->prepare(update->ctx, target);
-	if (rc)
-		return rc;
+	ret = update->ops->prepare(update->ctx, target);
+	if (ret)
+		return ret;
 	record.target = *target;
 	record.sequence = previous->sequence + 1;
 	record.pcr = pcr;
 	record.kind = kind;
 	record.pending = true;
-	rc = live_read(update, pcr, &record.reset_count, &record.restart_count,
-		       before);
-	if (rc)
-		return rc;
+	ret = live_read(update, pcr, &record.reset_count, &record.restart_count,
+			before);
+	if (ret)
+		return ret;
 	memcpy(record.initial_pcr, kind == SHIRUDO_CONFIG_EVENT_BOOT ?
 	       before : previous->initial_pcr, 32);
-	if (!rc)
-		rc = event_follows(previous, &record);
-	if (!rc)
-		rc = shirudo_config_measure_event(kind, target->root_hash,
-						  event);
+	if (!ret)
+		ret = event_follows(previous, &record);
+	if (!ret)
+		ret = shirudo_config_measure_event(kind, target->root_hash,
+						   event);
 	memcpy(expected, before, 32);
-	if (!rc)
-		rc = shirudo_chain_fold_checked(expected, event);
-	if (!rc)
-		rc = state_save(update, &record, true);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_PENDING_SYNC);
-	if (!rc)
-		rc = update->ops->pcr_extend(update->ctx, pcr, event);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_EXTEND);
-	if (!rc)
-		rc = live_read(update, pcr, &reset, &restart, value);
-	if (!rc && (reset != record.reset_count ||
-		    restart != record.restart_count ||
-		    memcmp(value, expected, 32)))
-		rc = -EUCLEAN;
-	if (!rc)
-		rc = event_append(update, &record);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_SYNC);
-	if (!rc)
-		rc = update->ops->activate(update->ctx, target);
-	if (!rc)
-		rc = checkpoint(update, SHIRUDO_CONFIG_CHECK_ACTIVATE);
-	if (rc)
-		return rc;
+	if (!ret)
+		ret = shirudo_chain_fold_checked(expected, event);
+	if (!ret)
+		ret = state_save(update, &record, true);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_PENDING_SYNC);
+	if (!ret)
+		ret = update->ops->pcr_extend(update->ctx, pcr, event);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EXTEND);
+	if (!ret)
+		ret = live_read(update, pcr, &reset, &restart, value);
+	if (!ret && (reset != record.reset_count ||
+		     restart != record.restart_count ||
+		     memcmp(value, expected, 32)))
+		ret = -EUCLEAN;
+	if (!ret)
+		ret = event_append(update, &record);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_EVENT_SYNC);
+	if (!ret)
+		ret = update->ops->activate(update->ctx, target);
+	if (!ret)
+		ret = checkpoint(update, SHIRUDO_CONFIG_CHECK_ACTIVATE);
+	if (ret)
+		return ret;
 	if (kind == SHIRUDO_CONFIG_EVENT_BOOT) {
 		update->boot_pending = true;
 		return 0;
@@ -633,14 +633,14 @@ int shirudo_config_update_begin(struct shirudo_config_update *update,
 				__u32 pcr)
 {
 	struct shirudo_config_update_record previous;
-	int rc;
+	int ret;
 
 	if (!update || update->dir_fd < 0 || target_valid(t) ||
 	    shirudo_config_measure_pcr_valid(pcr))
 		return -EINVAL;
-	rc = shirudo_config_update_check(update, &previous);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_check(update, &previous);
+	if (ret)
+		return ret;
 	if (pcr != previous.pcr)
 		return -EPERM;
 	if (!memcmp(t->root_hash, previous.target.root_hash, 32))
@@ -655,18 +655,18 @@ int shirudo_config_update_boot(struct shirudo_config_update *update,
 {
 	struct shirudo_config_update_record previous = {}, last;
 	__u32 reset, restart;
-	int rc;
+	int ret;
 
 	if (!update || update->dir_fd < 0 || target_valid(t) ||
 	    shirudo_config_measure_pcr_valid(pcr))
 		return -EINVAL;
 	update->boot_pending = false;
-	rc = shirudo_config_update_read(update, &previous);
-	if (rc && rc != -ENOENT)
-		return rc;
-	rc = update->ops->boot_identity(update->ctx, &reset, &restart);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_read(update, &previous);
+	if (ret && ret != -ENOENT)
+		return ret;
+	ret = update->ops->boot_identity(update->ctx, &reset, &restart);
+	if (ret)
+		return ret;
 	if (previous.sequence && previous.reset_count == reset &&
 	    previous.restart_count == restart) {
 		if (previous.pending)
@@ -680,10 +680,10 @@ int shirudo_config_update_boot(struct shirudo_config_update *update,
 	    (strcmp(t->prefix, previous.target.prefix) ||
 	     memcmp(t->root_hash, previous.target.root_hash, 32)))
 		return -EUCLEAN;
-	rc = events_scan(update, &last, NULL, NULL, previous.pending,
-			 NULL, NULL);
-	if (rc)
-		return rc;
+	ret = events_scan(update, &last, NULL, NULL, previous.pending,
+			  NULL, NULL);
+	if (ret)
+		return ret;
 	if (!previous.sequence && last.sequence)
 		return -EUCLEAN;
 	if (previous.sequence &&
@@ -696,13 +696,13 @@ int shirudo_config_update_boot(struct shirudo_config_update *update,
 
 int shirudo_config_update_complete_boot(struct shirudo_config_update *update)
 {
-	int rc;
+	int ret;
 
 	if (!update || update->dir_fd < 0)
 		return -EINVAL;
 	if (!update->boot_pending)
 		return shirudo_config_update_check(update, NULL);
 	update->boot_pending = false;
-	rc = complete(update);
-	return rc;
+	ret = complete(update);
+	return ret;
 }

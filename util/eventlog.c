@@ -56,11 +56,11 @@ static int adopt_pending(void);
  */
 int eventlog_append(const char *json_line)
 {
-	int rc;
+	int ret;
 
-	rc = adopt_pending();
-	if (rc)
-		return rc;
+	ret = adopt_pending();
+	if (ret)
+		return ret;
 	return eventlog_append_to(eventlog_path(), json_line);
 }
 
@@ -73,7 +73,7 @@ int eventlog_append_to(const char *path, const char *json_line)
 {
 	size_t len = strlen(json_line);
 	struct stat st;
-	int fd, rc;
+	int fd, ret;
 
 	fd = seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (fd < 0) {
@@ -82,29 +82,29 @@ int eventlog_append_to(const char *path, const char *json_line)
 	}
 	while (flock(fd, LOCK_EX) != 0) {
 		if (errno != EINTR) {
-			rc = -errno;
+			ret = -errno;
 			goto out;
 		}
 	}
 	if (fstat(fd, &st) != 0) {
-		rc = -errno;
+		ret = -errno;
 		goto out;
 	}
 
-	rc = write_complete(fd, json_line, len);
-	if (!rc && (len == 0 || json_line[len - 1] != '\n'))
-		rc = write_complete(fd, "\n", 1);
-	if (!rc && fsync(fd) != 0)
-		rc = -errno;
-	if (rc && ftruncate(fd, st.st_size) != 0)
+	ret = write_complete(fd, json_line, len);
+	if (!ret && (len == 0 || json_line[len - 1] != '\n'))
+		ret = write_complete(fd, "\n", 1);
+	if (!ret && fsync(fd) != 0)
+		ret = -errno;
+	if (ret && ftruncate(fd, st.st_size) != 0)
 		pr_warn("eventlog: could not roll back a partial append to "
 			"%s: %s", path, strerror(errno));
 out:
-	if (close(fd) != 0 && !rc)
-		rc = -errno;
-	if (rc) {
-		pr_err("eventlog: append: %s", strerror(-rc));
-		return rc;
+	if (close(fd) != 0 && !ret)
+		ret = -errno;
+	if (ret) {
+		pr_err("eventlog: append: %s", strerror(-ret));
+		return ret;
 	}
 	return 0;
 }
@@ -125,12 +125,12 @@ static int read_log(char **out, size_t *out_len)
 {
 	size_t base_len = 0, pending_len = 0, off;
 	char *base = NULL, *pending = NULL, *buf;
-	int rc, rc_pending;
+	int ret, rc_pending;
 
-	rc = read_file(eventlog_path(), JSON_MAX_BYTES,
-		       &base, &base_len);
-	if (rc && rc != -ENOENT)
-		return rc;
+	ret = read_file(eventlog_path(), JSON_MAX_BYTES,
+			&base, &base_len);
+	if (ret && ret != -ENOENT)
+		return ret;
 	rc_pending = read_file(eventlog_pending_path(),
 			       JSON_MAX_BYTES, &pending,
 			       &pending_len);
@@ -138,25 +138,25 @@ static int read_log(char **out, size_t *out_len)
 		xfree(base, base_len + 1);
 		return rc_pending;
 	}
-	if (rc && rc_pending)
+	if (ret && rc_pending)
 		return -ENOENT;
 	if (rc_pending) {
 		*out = base;
 		*out_len = base_len;
 		return 0;
 	}
-	if (rc) {
+	if (ret) {
 		*out = pending;
 		*out_len = pending_len;
 		return 0;
 	}
 	if (base_len + pending_len > JSON_MAX_BYTES) {
-		rc = -EFBIG;
+		ret = -EFBIG;
 		goto out;
 	}
 	buf = xmalloc(base_len + pending_len + 2);
 	if (!buf) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 	memcpy(buf, base, base_len);
@@ -171,7 +171,7 @@ static int read_log(char **out, size_t *out_len)
 out:
 	xfree(base, base_len + 1);
 	xfree(pending, pending_len + 1);
-	return rc;
+	return ret;
 }
 
 /*
@@ -184,10 +184,10 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 	char boot_id[64], line_boot[64], type[32];
 	bool in_boot = false;
 	char *line, *save;
-	int rc = 0;
+	int ret = 0;
 
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	for (line = strtok_r(buf, "\n", &save); line && !rc;
+	for (line = strtok_r(buf, "\n", &save); line && !ret;
 	     line = strtok_r(NULL, "\n", &save)) {
 		struct shirudo_json_field f[] = {
 			{ "boot_id", SHIRUDO_JSON_T_STRING, line_boot,
@@ -200,7 +200,7 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 		line_boot[0] = '\0';
 		type[0] = '\0';
 		if (json_parse(line, strlen(line), f, 2)) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		if (!f[0].seen || !boot_id[0] || strcmp(line_boot, boot_id))
@@ -210,11 +210,11 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 			in_boot = true;
 		if (!in_boot)
 			continue;
-		rc = cb(line, strlen(line), is_init, ctx);
+		ret = cb(line, strlen(line), is_init, ctx);
 	}
-	if (!rc && !in_boot)
+	if (!ret && !in_boot)
 		return -ENOENT;
-	return rc;
+	return ret;
 }
 
 static int walk_boot(int (*cb)(const char *line, size_t len, bool is_init,
@@ -222,14 +222,14 @@ static int walk_boot(int (*cb)(const char *line, size_t len, bool is_init,
 {
 	char *buf = NULL;
 	size_t len = 0;
-	int rc;
+	int ret;
 
-	rc = read_log(&buf, &len);
-	if (rc)
-		return rc;
-	rc = walk_lines(buf, cb, ctx);
+	ret = read_log(&buf, &len);
+	if (ret)
+		return ret;
+	ret = walk_lines(buf, cb, ctx);
 	xfree(buf, len + 1);
-	return rc;
+	return ret;
 }
 
 struct adopt_ctx {
@@ -253,18 +253,18 @@ static int log_holds(const char *line, size_t len)
 	struct adopt_ctx a = { .line = line, .len = len };
 	char *buf = NULL;
 	size_t blen = 0;
-	int rc;
+	int ret;
 
-	rc = read_file(eventlog_path(), JSON_MAX_BYTES,
-		       &buf, &blen);
-	if (rc == -ENOENT)
+	ret = read_file(eventlog_path(), JSON_MAX_BYTES,
+			&buf, &blen);
+	if (ret == -ENOENT)
 		return 0;
-	if (rc)
-		return rc;
-	rc = walk_lines(buf, adopt_seen, &a);
+	if (ret)
+		return ret;
+	ret = walk_lines(buf, adopt_seen, &a);
 	xfree(buf, blen + 1);
-	if (rc && rc != -ENOENT)
-		return rc;
+	if (ret && ret != -ENOENT)
+		return ret;
 	return a.found ? 1 : 0;
 }
 
@@ -273,29 +273,29 @@ static int adopt_pending(void)
 	const char *pending = eventlog_pending_path();
 	char *buf = NULL, *line, *save;
 	size_t len = 0;
-	int rc;
+	int ret;
 
-	rc = read_file(pending, JSON_MAX_BYTES, &buf, &len);
-	if (rc == -ENOENT)
+	ret = read_file(pending, JSON_MAX_BYTES, &buf, &len);
+	if (ret == -ENOENT)
 		return 0;
-	if (rc)
-		return rc;
-	for (line = strtok_r(buf, "\n", &save); line && !rc;
+	if (ret)
+		return ret;
+	for (line = strtok_r(buf, "\n", &save); line && !ret;
 	     line = strtok_r(NULL, "\n", &save)) {
 		if (!*line)
 			continue;
-		rc = log_holds(line, strlen(line));
-		if (rc > 0) {
-			rc = 0;
+		ret = log_holds(line, strlen(line));
+		if (ret > 0) {
+			ret = 0;
 			continue;
 		}
-		if (!rc)
-			rc = eventlog_append_to(eventlog_path(),
-						line);
+		if (!ret)
+			ret = eventlog_append_to(eventlog_path(),
+						 line);
 	}
 	xfree(buf, len + 1);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (unlink(pending) != 0 && errno != ENOENT)
 		return -errno;
 	return 0;
@@ -311,7 +311,7 @@ static int adopt_pending(void)
 int eventlog_lock(void)
 {
 	char path[PATH_MAX];
-	int fd, rc;
+	int fd, ret;
 
 	if (strsprintf(path, sizeof(path), "%s.lock", eventlog_path()) < 0)
 		return -ENAMETOOLONG;
@@ -320,9 +320,9 @@ int eventlog_lock(void)
 		return fd;
 	while (flock(fd, LOCK_EX)) {
 		if (errno != EINTR) {
-			rc = -errno;
+			ret = -errno;
 			close(fd);
-			return rc;
+			return ret;
 		}
 	}
 	return fd;
@@ -342,16 +342,16 @@ void eventlog_unlock(int fd)
  */
 int eventlog_adopt_pending(void)
 {
-	int lock, rc;
+	int lock, ret;
 
 	if (access(eventlog_pending_path(), F_OK) && errno == ENOENT)
 		return 0;
 	lock = eventlog_lock();
 	if (lock < 0)
 		return lock;
-	rc = adopt_pending();
+	ret = adopt_pending();
 	eventlog_unlock(lock);
-	return rc;
+	return ret;
 }
 
 static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
@@ -378,12 +378,12 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 int eventlog_replay(__u8 out[32])
 {
 	__u8 chain[32] = {};
-	int rc;
+	int ret;
 
-	rc = walk_boot(replay_line, chain);
-	if (!rc)
+	ret = walk_boot(replay_line, chain);
+	if (!ret)
 		memcpy(out, chain, 32);
-	return rc;
+	return ret;
 }
 
 static int init_line(const char *line, size_t len, bool is_init, void *ctx)

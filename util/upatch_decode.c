@@ -817,7 +817,7 @@ static int lua_shirudo_page_slots(lua_State *L)
 	__u8 *data = NULL;
 	size_t hex_len, data_len = 0, off = 0, per_chunk;
 	__u64 chunks;
-	int slot_size, n = 0, rc;
+	int slot_size, n = 0, ret;
 
 	luaL_checktype(L, 1, LUA_TTABLE);
 	slot_size = lua_check_c_int(L, 2);
@@ -831,8 +831,8 @@ static int lua_shirudo_page_slots(lua_State *L)
 		lua_newtable(L);
 		return 1;
 	}
-	rc = hex_decode_push(L, hex, hex_len, &data, &data_len);
-	if (rc)
+	ret = hex_decode_push(L, hex, hex_len, &data, &data_len);
+	if (ret)
 		return luaL_error(L, "invalid page data_hex");
 	per_chunk = SERIAL_CHUNK_PAYLOAD / (size_t)slot_size;
 	lua_newtable(L);
@@ -860,11 +860,11 @@ static int lua_check_u64_string(lua_State *L, int arg, __u64 *out)
 {
 	size_t len;
 	const char *s = luaL_checklstring(L, arg, &len);
-	int rc = parse_u64(s, len, UINT64_MAX, out);
+	int ret = parse_u64(s, len, UINT64_MAX, out);
 
-	if (rc == -ERANGE)
+	if (ret == -ERANGE)
 		return luaL_argerror(L, arg, "u64 string out of range");
-	if (rc)
+	if (ret)
 		return luaL_argerror(L, arg, "expected a decimal u64 string");
 	return 0;
 }
@@ -938,7 +938,7 @@ static int lua_shirudo_fixed_records(lua_State *L)
 		__u8 *data = NULL;
 		__u64 cursor, chunks;
 		size_t hex_len, data_len = 0;
-		int rc;
+		int ret;
 
 		lua_rawgeti(L, pages_idx, (int)i);
 		if (!lua_istable(L, -1)) {
@@ -953,8 +953,8 @@ static int lua_shirudo_fixed_records(lua_State *L)
 			lua_pop(L, 2);
 			continue;
 		}
-		rc = hex_decode_push(L, hex, hex_len, &data, &data_len);
-		if (rc) {
+		ret = hex_decode_push(L, hex, hex_len, &data, &data_len);
+		if (ret) {
 			lua_pop(L, 2);
 			return luaL_error(L, "invalid page data_hex");
 		}
@@ -1209,7 +1209,7 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	};
 	struct json_out jo = {};
 	lua_State *L;
-	int rc = 0;
+	int ret = 0;
 
 	L = lua_newstate(lua_limited_alloc, &memory);
 	if (!L)
@@ -1231,11 +1231,11 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	    lua_pcall(L, 0, 1, 0)) {
 		fprintf(stderr, "upatch map: decoder load failed: %s\n",
 			lua_error_message(L));
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out_close;
 	}
-	rc = lua_get_decoder_entrypoint(L, d->entrypoint);
-	if (rc) {
+	ret = lua_get_decoder_entrypoint(L, d->entrypoint);
+	if (ret) {
 		fprintf(stderr, "upatch map: decoder entrypoint '%s' not found\n",
 			d->entrypoint);
 		goto out_close;
@@ -1247,18 +1247,18 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	if (lua_pcall(L, 0, 1, 0)) {
 		fprintf(stderr, "upatch map: decoder failed: %s\n",
 			lua_error_message(L));
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out_close;
 	}
-	rc = otel ? lua_otel_emit_value(L, -1, &jo, 0) :
+	ret = otel ? lua_otel_emit_value(L, -1, &jo, 0) :
 		lua_json_emit_value(L, -1, &jo, 0);
-	if (rc) {
+	if (ret) {
 		fprintf(stderr, "upatch map: decoder encode failed: %s\n",
-			strerror(-rc));
+			strerror(-ret));
 		goto out_close;
 	}
 	if (jo.err) {
-		rc = jo.err;
+		ret = jo.err;
 		goto out_close;
 	}
 	*out = jo.buf;
@@ -1273,7 +1273,7 @@ out_close:
 	lua_sethook(L, NULL, 0, 0);
 	current_lua_budget = NULL;
 	lua_close(L);
-	return rc;
+	return ret;
 }
 
 static int decoder_matches(const struct upatch_decoder_view *d,
@@ -1301,16 +1301,16 @@ static int decoder_matches(const struct upatch_decoder_view *d,
 static int archive_open(const char *path, bool archived,
 			struct shirudo_upatch *u)
 {
-	int fd, rc;
+	int fd, ret;
 
 	if (!archived)
 		return upatch_open(path, u);
 	fd = seal_open_read(path);
 	if (fd < 0)
 		return fd;
-	rc = upatch_open_fd(fd, u);
+	ret = upatch_open_fd(fd, u);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static int decode_map_open(const char *path, bool archived,
@@ -1320,7 +1320,7 @@ static int decode_map_open(const char *path, bool archived,
 {
 	struct shirudo_upatch u;
 	__u32 i;
-	int rc;
+	int ret;
 
 	if (!path || !v || !out || !out_len)
 		return -EINVAL;
@@ -1328,10 +1328,10 @@ static int decode_map_open(const char *path, bool archived,
 	*out_len = 0;
 	if (!upatch_name_valid(v->upatch))
 		return -EINVAL;
-	rc = archive_open(path, archived, &u);
-	if (rc)
-		return rc == -ENOENT ? -ENOENT : rc;
-	rc = -ENODATA;
+	ret = archive_open(path, archived, &u);
+	if (ret)
+		return ret == -ENOENT ? -ENOENT : ret;
+	ret = -ENODATA;
 	for (i = 0; i < u.nr_decoders; i++) {
 		struct upatch_decoder_view d;
 
@@ -1339,11 +1339,11 @@ static int decode_map_open(const char *path, bool archived,
 			continue;
 		if (!decoder_matches(&d, v))
 			continue;
-		rc = run_lua_decoder(&d, v, otel, max_bytes, out, out_len);
+		ret = run_lua_decoder(&d, v, otel, max_bytes, out, out_len);
 		break;
 	}
 	upatch_close(&u);
-	return rc;
+	return ret;
 }
 
 static int decode_map_file(const char *path, const struct shirudo_map_view *v,
@@ -1359,17 +1359,17 @@ int upatch_decode_map_signal(const struct shirudo_map_view *v,
 	struct shirudo_upatch u;
 	char path[PATH_MAX];
 	__u32 i;
-	int rc;
+	int ret;
 
 	if (!v || !signal_out || !upatch_name_valid(v->upatch))
 		return -EINVAL;
 	if (strsprintf(path, sizeof(path), "%s/%s.upatch", UPATCHES_DIR,
 		       v->upatch) < 0)
 		return -ENAMETOOLONG;
-	rc = archive_open(path, true, &u);
-	if (rc)
-		return rc == -ENOENT ? -ENOENT : rc;
-	rc = -ENODATA;
+	ret = archive_open(path, true, &u);
+	if (ret)
+		return ret == -ENOENT ? -ENOENT : ret;
+	ret = -ENODATA;
 	for (i = 0; i < u.nr_decoders; i++) {
 		struct upatch_decoder_view d;
 
@@ -1377,11 +1377,11 @@ int upatch_decode_map_signal(const struct shirudo_map_view *v,
 		    !decoder_matches(&d, v))
 			continue;
 		*signal_out = d.export_signal;
-		rc = 0;
+		ret = 0;
 		break;
 	}
 	upatch_close(&u);
-	return rc;
+	return ret;
 }
 
 static int decode_map(const struct shirudo_map_view *v, bool otel,

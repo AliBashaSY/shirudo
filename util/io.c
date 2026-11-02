@@ -72,15 +72,15 @@ int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
 	char *buf, *p;
 	size_t left;
 	off_t off;
-	int rc;
+	int ret;
 
 	if (fstat(fd, &st) != 0)
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	rc = check_trusted(fd, label, false);
-	if (rc)
-		return rc;
+	ret = check_trusted(fd, label, false);
+	if (ret)
+		return ret;
 	if ((uintmax_t)st.st_size > max)
 		return -EFBIG;
 	buf = xmalloc((size_t)st.st_size + 1);
@@ -128,7 +128,7 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max)
 
 int read_file(const char *path, size_t max, void *out, size_t *len)
 {
-	int fd, rc;
+	int fd, ret;
 
 	if (under(path, VAR_LIB)) {
 		fd = seal_open_read(path);
@@ -139,9 +139,9 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 		if (fd < 0)
 			return -errno;
 	}
-	rc = read_fd(fd, path, max, out, len);
+	ret = read_fd(fd, path, max, out, len);
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static bool under(const char *path, const char *dir)

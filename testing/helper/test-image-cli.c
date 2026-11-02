@@ -31,46 +31,46 @@ int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 int main(int argc, const char **argv)
 {
 	struct shirudo_config bootstrap;
-	int fd, rc;
+	int fd, ret;
 
 	if (argc < 3)
 		return 2;
 	fd = open(argv[1], O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return 1;
-	rc = config_load_path(&bootstrap, "/dev/null");
-	if (!rc) {
+	ret = config_load_path(&bootstrap, "/dev/null");
+	if (!ret) {
 		memcpy(bootstrap.tpm_owner_auth, "bootstrap-owner", 15);
 		bootstrap.tpm_owner_auth_len = 15;
 		strscpy(bootstrap.tpm_tcti, "bootstrap-tcti", sizeof(bootstrap.tpm_tcti));
-		rc = shirudo_image_config_set(&bootstrap, fd);
+		ret = shirudo_image_config_set(&bootstrap, fd);
 	}
 	close(fd);
-	if (rc)
+	if (ret)
 		return 1;
 	if (!strcmp(argv[2], "bpm")) {
-		rc = cmd_bpm(argc - 2, argv + 2);
+		ret = cmd_bpm(argc - 2, argv + 2);
 	} else if (!strcmp(argv[2], "keys")) {
-		rc = cmd_keys(argc - 2, argv + 2);
+		ret = cmd_keys(argc - 2, argv + 2);
 	} else if (!strcmp(argv[2], "config")) {
-		rc = cmd_config(argc - 2, argv + 2);
+		ret = cmd_config(argc - 2, argv + 2);
 	} else if (!strcmp(argv[2], "source") && argc == 4) {
 		struct bpm_source source;
 
-		rc = load_source(argv[3], &source);
-		if (!rc) {
+		ret = load_source(argv[3], &source);
+		if (!ret) {
 			char content[64];
 			int kfd = shirudo_image_open_relative(source.key_file,
 							      O_RDONLY);
 			FILE *file = kfd < 0 ? NULL : fdopen(kfd, "r");
 
 			if (!file) {
-				rc = kfd < 0 ? kfd : -errno;
+				ret = kfd < 0 ? kfd : -errno;
 				if (kfd >= 0)
 					close(kfd);
 			} else {
 				if (!fgets(content, sizeof(content), file))
-					rc = -EIO;
+					ret = -EIO;
 				else
 					fputs(content, stdout);
 				fclose(file);
@@ -83,11 +83,11 @@ int main(int argc, const char **argv)
 
 		strscpy(config.endpoint, "oci://example.invalid/tree", sizeof(config.endpoint));
 		strscpy(config.reference, "latest", sizeof(config.reference));
-		rc = tree_fetch_publication(&config, &publication, digest,
-					    sizeof(digest));
+		ret = tree_fetch_publication(&config, &publication, digest,
+					     sizeof(digest));
 	} else {
-		rc = 2;
+		ret = 2;
 	}
 	shirudo_image_config_clear();
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }

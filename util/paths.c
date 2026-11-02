@@ -46,12 +46,12 @@ int key_paths(const char *keys_dir,
 	      char *pkey_path, size_t pkey_sz,
 	      char *cert_path, size_t cert_sz)
 {
-	int rc;
+	int ret;
 
-	rc = shirudo_key_path(pkey_path, pkey_sz, keys_dir,
-			      SIGNING_KEY_FILE);
-	if (rc)
-		return rc;
+	ret = shirudo_key_path(pkey_path, pkey_sz, keys_dir,
+			       SIGNING_KEY_FILE);
+	if (ret)
+		return ret;
 	return shirudo_key_path(cert_path, cert_sz, keys_dir,
 				CERT_FILE);
 }

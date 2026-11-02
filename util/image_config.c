@@ -73,14 +73,14 @@ int shirudo_image_open_relative(const char *path, int flags)
 /* The image's shirudo.conf, read through its root. */
 static int config_load_root(struct shirudo_config *cfg, int root_fd)
 {
-	int fd, rc;
+	int fd, ret;
 
 	fd = open_beneath(root_fd, "etc/shirudo/shirudo.conf", O_RDONLY);
 	if (fd < 0)
 		return fd;
-	rc = config_load_fd(cfg, fd, "config image shirudo.conf");
+	ret = config_load_fd(cfg, fd, "config image shirudo.conf");
 	close(fd);
-	return rc;
+	return ret;
 }
 
 static int validate_tree(int root_fd, dev_t device, __u32 depth,
@@ -89,7 +89,7 @@ static int validate_tree(int root_fd, dev_t device, __u32 depth,
 	struct dirent *entry;
 	struct stat st;
 	DIR *dir;
-	int fd, rc = 0;
+	int fd, ret = 0;
 
 	if (depth > 32)
 		return -ELOOP;
@@ -98,25 +98,25 @@ static int validate_tree(int root_fd, dev_t device, __u32 depth,
 		return -errno;
 	dir = fdopendir(fd);
 	if (!dir) {
-		rc = -errno;
+		ret = -errno;
 		close(fd);
-		return rc;
+		return ret;
 	}
 	errno = 0;
 	while ((entry = readdir(dir)) != NULL) {
 		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
 			continue;
 		if (++*entries > 65536) {
-			rc = -E2BIG;
+			ret = -E2BIG;
 			break;
 		}
 		if (fstatat(fd, entry->d_name, &st, AT_SYMLINK_NOFOLLOW)) {
-			rc = -errno;
+			ret = -errno;
 			break;
 		}
 		if (st.st_dev != device ||
 		    (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))) {
-			rc = -EPERM;
+			ret = -EPERM;
 			break;
 		}
 		if (S_ISDIR(st.st_mode)) {
@@ -125,20 +125,20 @@ static int validate_tree(int root_fd, dev_t device, __u32 depth,
 						   O_NOFOLLOW);
 
 			if (child < 0) {
-				rc = -errno;
+				ret = -errno;
 				break;
 			}
-			rc = validate_tree(child, device, depth + 1, entries);
+			ret = validate_tree(child, device, depth + 1, entries);
 			close(child);
-			if (rc)
+			if (ret)
 				break;
 		}
 		errno = 0;
 	}
-	if (!entry && errno && !rc)
-		rc = -errno;
+	if (!entry && errno && !ret)
+		ret = -errno;
 	closedir(dir);
-	return rc;
+	return ret;
 }
 
 static int validate_settings(int root_fd)
@@ -147,7 +147,7 @@ static int validate_settings(int root_fd)
 	size_t capacity = 0;
 	FILE *file;
 	ssize_t length;
-	int fd, rc = 0;
+	int fd, ret = 0;
 
 	fd = openat(root_fd, "etc/shirudo/shirudo.conf",
 		    O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
@@ -155,15 +155,15 @@ static int validate_settings(int root_fd)
 		return -errno;
 	file = fdopen(fd, "r");
 	if (!file) {
-		rc = -errno;
+		ret = -errno;
 		close(fd);
-		return rc;
+		return ret;
 	}
 	while ((length = getline(&line, &capacity, file)) >= 0) {
 		char *p = line, *end, *value;
 
 		if (length > 1023 || strlen(line) != (size_t)length) {
-			rc = -E2BIG;
+			ret = -E2BIG;
 			break;
 		}
 		while (*p == ' ' || *p == '\t')
@@ -172,7 +172,7 @@ static int validate_settings(int root_fd)
 			continue;
 		value = strchr(p, '=');
 		if (!value) {
-			rc = -EINVAL;
+			ret = -EINVAL;
 			break;
 		}
 		*value++ = 0;
@@ -191,19 +191,19 @@ static int validate_settings(int root_fd)
 			       end[-1] == '\n'))
 				end--;
 			if (parse_u64(value, end - value, ~0ULL, &bytes)) {
-				rc = -EINVAL;
+				ret = -EINVAL;
 				break;
 			}
 		} else if (strncmp(p, "map_export.", 11)) {
-			rc = -EPERM;
+			ret = -EPERM;
 			break;
 		}
 	}
-	if (ferror(file) && !rc)
-		rc = -EIO;
+	if (ferror(file) && !ret)
+		ret = -EIO;
 	libc_free(line);
 	fclose(file);
-	return rc;
+	return ret;
 }
 
 int shirudo_image_config_validate(int root_fd)
@@ -211,44 +211,44 @@ int shirudo_image_config_validate(int root_fd)
 	struct shirudo_config candidate;
 	__u32 entries = 0;
 	struct stat st;
-	int rc;
+	int ret;
 
 	if (fstat(root_fd, &st))
 		return -errno;
 	if (!S_ISDIR(st.st_mode))
 		return -ENOTDIR;
-	rc = validate_tree(root_fd, st.st_dev, 0, &entries);
-	if (!rc)
-		rc = validate_settings(root_fd);
-	if (!rc) {
-		rc = config_load_root(&candidate, root_fd);
-		if (!rc && (!candidate.map_export_valid ||
-			    !candidate.tls_classical_hosts_valid))
-			rc = -EINVAL;
+	ret = validate_tree(root_fd, st.st_dev, 0, &entries);
+	if (!ret)
+		ret = validate_settings(root_fd);
+	if (!ret) {
+		ret = config_load_root(&candidate, root_fd);
+		if (!ret && (!candidate.map_export_valid ||
+			     !candidate.tls_classical_hosts_valid))
+			ret = -EINVAL;
 		explicit_bzero(&candidate, sizeof(candidate));
 	}
-	return rc;
+	return ret;
 }
 
 int shirudo_image_config_set(const struct shirudo_config *bootstrap,
 			     int root_fd)
 {
 	struct shirudo_config candidate;
-	int fd = -1, rc;
+	int fd = -1, ret;
 
 	candidate = *bootstrap;
 	if (root_fd >= 0) {
-		rc = shirudo_image_config_validate(root_fd);
-		if (rc)
-			return rc;
+		ret = shirudo_image_config_validate(root_fd);
+		if (ret)
+			return ret;
 		fd = fcntl(root_fd, F_DUPFD_CLOEXEC, 3);
 		if (fd < 0)
 			return -errno;
-		rc = config_load_root(&candidate, fd);
-		if (rc || !candidate.map_export_valid ||
+		ret = config_load_root(&candidate, fd);
+		if (ret || !candidate.map_export_valid ||
 		    !candidate.tls_classical_hosts_valid) {
 			close(fd);
-			return rc ? rc : -EINVAL;
+			return ret ? ret : -EINVAL;
 		}
 		memcpy(candidate.tpm_owner_auth, bootstrap->tpm_owner_auth,
 		       sizeof(candidate.tpm_owner_auth));

@@ -22,7 +22,7 @@ static void image_help(void)
 
 int cmd_image(int argc, const char **argv)
 {
-	int rc;
+	int ret;
 
 	if (argc == 2 && !strcmp(argv[1], "--list-cmds")) {
 		puts("build verify update status");
@@ -44,22 +44,22 @@ int cmd_image(int argc, const char **argv)
 		helper[1] = "image";
 		for (i = 1; i < argc; i++)
 			helper[i + 1] = (char *)argv[i];
-		rc = shirudo_build_exec(!strcmp(argv[1], "build") ?
-					"image build" : "image verify", helper);
+		ret = shirudo_build_exec(!strcmp(argv[1], "build") ?
+					 "image build" : "image verify", helper);
 		xfree(helper, bytes);
-		return rc;
+		return ret;
 	}
 	if (!strcmp(argv[1], "update") && argc == 3) {
-		rc = shirudo_image_update(argv[2]);
+		ret = shirudo_image_update(argv[2]);
 	} else if (!strcmp(argv[1], "status") && argc == 2) {
-		rc = shirudo_image_status();
+		ret = shirudo_image_status();
 	} else {
 		image_help();
 		return 2;
 	}
-	if (rc == -EINPROGRESS)
+	if (ret == -EINPROGRESS)
 		pr_err("image: activation is pending; further changes are blocked");
-	else if (rc)
-		pr_err("image %s: %s", argv[1], strerror(-rc));
-	return rc ? 1 : 0;
+	else if (ret)
+		pr_err("image %s: %s", argv[1], strerror(-ret));
+	return ret ? 1 : 0;
 }

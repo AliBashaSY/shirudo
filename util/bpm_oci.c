@@ -278,7 +278,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	__u8 *body = NULL;
 	size_t body_len = 0;
 	char *p, *end, *auth;
-	int rc;
+	int ret;
 
 	if (getenv("BPM_OCI_USERNAME") && getenv("BPM_OCI_PASSWORD")) {
 		if (strscpy(c->username, getenv("BPM_OCI_USERNAME"),
@@ -305,9 +305,9 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	}
 	if (strsprintf(needle, sizeof(needle), "\"%s\"", registry) < 0)
 		return -ENAMETOOLONG;
-	rc = read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
-	if (rc)
-		return rc == -ENOENT ? 0 : rc;
+	ret = read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
+	if (ret)
+		return ret == -ENOENT ? 0 : ret;
 	/*
 	 * The auth file is local input; require the registry key and auth
 	 * member to occur in the same JSON object before accepting
@@ -340,10 +340,10 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 		xfree(body, body_len + 1);
 		return -EINVAL;
 	}
-	rc = decode_basic(auth + 1, c->username, sizeof(c->username),
-			  c->password, sizeof(c->password));
+	ret = decode_basic(auth + 1, c->username, sizeof(c->username),
+			   c->password, sizeof(c->password));
 	xfree(body, body_len + 1);
-	return rc;
+	return ret;
 }
 
 int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
@@ -625,7 +625,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	struct bpm_http_response r = {};
 	CURLcode cc;
 	char *esc_service = NULL, *esc_scope = NULL;
-	int rc = -EINVAL;
+	int ret = -EINVAL;
 
 	if (provided_token && *provided_token) {
 		if (strlen(provided_token) >= sizeof(c->token))
@@ -645,22 +645,22 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		goto out;
 	if (strsprintf(url, sizeof(url), "%s?service=%s&scope=%s", realm,
 		       esc_service, esc_scope) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
 	if (c->username[0]) {
-		rc = encode_basic(c->username, c->password, basic,
-				  sizeof(basic));
-		if (rc)
+		ret = encode_basic(c->username, c->password, basic,
+				   sizeof(basic));
+		if (ret)
 			goto out;
 		if (strsprintf(auth_header, sizeof(auth_header),
 			       "Authorization: Basic %s", basic) < 0) {
-			rc = -E2BIG;
+			ret = -E2BIG;
 			goto out;
 		}
 		headers = curl_slist_append(headers, auth_header);
 		if (!headers) {
-			rc = -ENOMEM;
+			ret = -ENOMEM;
 			goto out;
 		}
 	}
@@ -680,23 +680,23 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 	if (tls_curl_policy(curl, &c->tls_ca)) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto out;
 	}
 	cc = curl_easy_perform(curl);
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &r.status);
 	if (cc != CURLE_OK) {
-		rc = -EHOSTUNREACH;
+		ret = -EHOSTUNREACH;
 		goto out;
 	}
 	if (r.status >= 300) {
-		rc = -EACCES;
+		ret = -EACCES;
 		goto out;
 	}
 	/* curl never calls the write callback for an empty body. */
 	if (!r.body.data)
 		goto out;
-	rc = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
+	ret = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
 out:
 	curl_free(esc_service);
 	curl_free(esc_scope);
@@ -704,7 +704,7 @@ out:
 	curl_easy_cleanup(curl);
 	tls_ca_cleanup(&c->tls_ca);
 	bpm_buffer_free(&r.body);
-	return rc;
+	return ret;
 }
 
 static int get_memory(struct bpm_oci_client *c, const char *url,
@@ -712,49 +712,49 @@ static int get_memory(struct bpm_oci_client *c, const char *url,
 {
 	struct bpm_http_response r = {};
 	char auth[BPM_OCI_AUTH_VALUE_SIZE];
-	int rc;
+	int ret;
 
-	rc = curl_once(c, "GET", url, accept, NULL, &r, NULL, follow);
-	if (rc)
+	ret = curl_once(c, "GET", url, accept, NULL, &r, NULL, follow);
+	if (ret)
 		goto out;
 	if (r.status == 401 && r.www_auth[0]) {
 		if (!strncasecmp(r.www_auth, "Bearer", 6)) {
-			rc = get_bearer_token(c, r.www_auth);
-			if (rc)
+			ret = get_bearer_token(c, r.www_auth);
+			if (ret)
 				goto out;
 			if (strsprintf(auth, sizeof(auth), "Bearer %s",
 				       c->token) < 0) {
-				rc = -E2BIG;
+				ret = -E2BIG;
 				goto out;
 			}
 		} else if (!strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
-			rc = encode_basic(c->username, c->password, encoded, sizeof(encoded));
-			if (rc)
+			ret = encode_basic(c->username, c->password, encoded, sizeof(encoded));
+			if (ret)
 				goto out;
 			if (strsprintf(auth, sizeof(auth), "Basic %s",
 				       encoded) < 0) {
-				rc = -E2BIG;
+				ret = -E2BIG;
 				goto out;
 			}
 		} else {
-			rc = -EACCES;
+			ret = -EACCES;
 			goto out;
 		}
 		bpm_buffer_free(&r.body);
 		r = (struct bpm_http_response){};
-		rc = curl_once(c, "GET", url, accept, auth, &r, NULL, follow);
+		ret = curl_once(c, "GET", url, accept, auth, &r, NULL, follow);
 	}
-	if (!rc && (r.status < 200 || r.status >= 300))
-		rc = r.status == 404 ? -ENOENT : -EACCES;
-	if (!rc) {
+	if (!ret && (r.status < 200 || r.status >= 300))
+		ret = r.status == 404 ? -ENOENT : -EACCES;
+	if (!ret) {
 		*out = r.body;
 		r.body.data = NULL;
 	}
 out:
 	bpm_buffer_free(&r.body);
-	return rc;
+	return ret;
 }
 
 int bpm_oci_get_memory(struct bpm_oci_client *c, const char *url,
@@ -775,54 +775,54 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 	struct bpm_http_response r = {};
 	struct bpm_file_sink sink = {};
 	char auth[BPM_OCI_AUTH_VALUE_SIZE];
-	int rc;
+	int ret;
 
 	if (size < 0 || fd < 0)
 		return -EINVAL;
 	if ((__u64)size > BPM_MAX_PACKAGE_BYTES)
 		return -EFBIG;
-	rc = sink_restart(&sink, fd, (__u64)size);
-	if (rc)
-		return rc;
-	rc = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
-	if (!rc && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
-		rc = sink_restart(&sink, fd, (__u64)size);
-		if (!rc)
-			rc = get_bearer_token(c, r.www_auth);
-		if (!rc && strsprintf(auth, sizeof(auth), "Bearer %s",
-				      c->token) < 0)
-			rc = -E2BIG;
-		if (!rc) {
+	ret = sink_restart(&sink, fd, (__u64)size);
+	if (ret)
+		return ret;
+	ret = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
+	if (!ret && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
+		ret = sink_restart(&sink, fd, (__u64)size);
+		if (!ret)
+			ret = get_bearer_token(c, r.www_auth);
+		if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
+				       c->token) < 0)
+			ret = -E2BIG;
+		if (!ret) {
 			bpm_buffer_free(&r.body);
 			r = (struct bpm_http_response){};
-			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
+			ret = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
-	} else if (!rc && r.status == 401 && r.www_auth[0] &&
+	} else if (!ret && r.status == 401 && r.www_auth[0] &&
 		   !strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
 		char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
-		rc = sink_restart(&sink, fd, (__u64)size);
-		if (!rc)
-			rc = encode_basic(c->username, c->password, encoded,
-					  sizeof(encoded));
-		if (!rc && strsprintf(auth, sizeof(auth), "Basic %s",
-				      encoded) < 0)
-			rc = -E2BIG;
-		if (!rc) {
+		ret = sink_restart(&sink, fd, (__u64)size);
+		if (!ret)
+			ret = encode_basic(c->username, c->password, encoded,
+					   sizeof(encoded));
+		if (!ret && strsprintf(auth, sizeof(auth), "Basic %s",
+				       encoded) < 0)
+			ret = -E2BIG;
+		if (!ret) {
 			bpm_buffer_free(&r.body);
 			r = (struct bpm_http_response){};
-			rc = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
+			ret = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	}
 	/* A failed write ends the transfer too; it, not the transfer, is the cause. */
 	if (sink.overflow)
-		rc = -EFBIG;
+		ret = -EFBIG;
 	else if (sink.err)
-		rc = sink.err;
-	if (!rc && (r.status < 200 || r.status >= 300))
-		rc = r.status == 404 ? -ENOENT : -EACCES;
+		ret = sink.err;
+	if (!ret && (r.status < 200 || r.status >= 300))
+		ret = r.status == 404 ? -ENOENT : -EACCES;
 	bpm_buffer_free(&r.body);
-	return rc;
+	return ret;
 }
 
 /*
@@ -836,28 +836,28 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 			   size_t body_len, struct bpm_http_response *r)
 {
 	char auth[BPM_OCI_AUTH_VALUE_SIZE] = {};
-	int rc;
+	int ret;
 
 	*r = (struct bpm_http_response){};
-	rc = curl_once_ex(c, method, url, accept, content_type, body, body_len,
-			  NULL, r, NULL, false);
-	if (rc)
-		return rc;
+	ret = curl_once_ex(c, method, url, accept, content_type, body, body_len,
+			   NULL, r, NULL, false);
+	if (ret)
+		return ret;
 	if (r->status == 401 && r->www_auth[0]) {
 		if (!strncasecmp(r->www_auth, "Bearer", 6)) {
-			rc = get_bearer_token(c, r->www_auth);
-			if (rc)
-				return rc;
+			ret = get_bearer_token(c, r->www_auth);
+			if (ret)
+				return ret;
 			if (strsprintf(auth, sizeof(auth), "Bearer %s",
 				       c->token) < 0)
 				return -E2BIG;
 		} else if (!strncasecmp(r->www_auth, "Basic", 5) && c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
-			rc = encode_basic(c->username, c->password, encoded,
-					  sizeof(encoded));
-			if (rc)
-				return rc;
+			ret = encode_basic(c->username, c->password, encoded,
+					   sizeof(encoded));
+			if (ret)
+				return ret;
 			if (strsprintf(auth, sizeof(auth), "Basic %s",
 				       encoded) < 0)
 				return -E2BIG;
@@ -866,10 +866,10 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 		}
 		bpm_buffer_free(&r->body);
 		*r = (struct bpm_http_response){};
-		rc = curl_once_ex(c, method, url, accept, content_type, body,
-				  body_len, auth, r, NULL, false);
-		if (rc)
-			return rc;
+		ret = curl_once_ex(c, method, url, accept, content_type, body,
+				   body_len, auth, r, NULL, false);
+		if (ret)
+			return ret;
 	}
 	if (r->status < 200 || r->status >= 300) {
 		if (r->status != 404) {
@@ -910,7 +910,7 @@ int bpm_oci_get_signed(struct bpm_oci_client *c, const char *repository,
 		       const char *payload_media, const char *sig_media,
 		       struct bpm_buffer *payload, struct bpm_buffer *sig)
 {
-	int n_payload = 0, n_sig = 0, i, rc;
+	int n_payload = 0, n_sig = 0, i, ret;
 	char url[PATH_MAX], hex[65];
 
 	for (i = 0; i < n_layers; i++) {
@@ -928,13 +928,13 @@ int bpm_oci_get_signed(struct bpm_oci_client *c, const char *repository,
 		}
 		if ((*seen)++)
 			return -EINVAL;
-		rc = bpm_oci_url(c, repository, "blobs", layers[i].digest,
-				 url, sizeof(url));
-		if (rc)
-			return rc;
-		rc = bpm_oci_get_blob(c, url, layers[i].media, dst);
-		if (rc)
-			return rc;
+		ret = bpm_oci_url(c, repository, "blobs", layers[i].digest,
+				  url, sizeof(url));
+		if (ret)
+			return ret;
+		ret = bpm_oci_get_blob(c, url, layers[i].media, dst);
+		if (ret)
+			return ret;
 		if ((layers[i].size >= 0 && (__s64)dst->len != layers[i].size) ||
 		    bpm_sha256_hex(dst->data, dst->len, hex, sizeof(hex)) ||
 		    !bpm_digest_matches(layers[i].digest, hex))
@@ -1121,7 +1121,7 @@ int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
 int bpm_trim(const char *in, char *out, size_t out_sz)
 {
 	const char *start = in, *end;
-	int rc = 0;
+	int ret = 0;
 
 	while (*start && isspace((__u8)*start))
 		start++;
@@ -1130,11 +1130,11 @@ int bpm_trim(const char *in, char *out, size_t out_sz)
 		end--;
 	if ((size_t)(end - start) >= out_sz) {
 		end = start + out_sz - 1;
-		rc = -E2BIG;
+		ret = -E2BIG;
 	}
 	memmove(out, start, end - start);
 	out[end - start] = '\0';
-	return rc;
+	return ret;
 }
 
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
@@ -1194,59 +1194,59 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 	struct bpm_http_response r = {};
 	char hex[65], digest[72], url[PATH_MAX], upload[PATH_MAX];
 	char location[PATH_MAX], *sep;
-	int rc;
+	int ret;
 
 	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)))
 		return -EINVAL;
 	if (strsprintf(digest, sizeof(digest), "sha256:%s", hex) < 0)
 		return -ENAMETOOLONG;
-	rc = bpm_oci_url(c, repository, "blobs", digest, url, sizeof(url));
-	if (rc)
-		return rc;
-	rc = bpm_oci_request(c, "HEAD", url, NULL, NULL, NULL, 0, &r);
+	ret = bpm_oci_url(c, repository, "blobs", digest, url, sizeof(url));
+	if (ret)
+		return ret;
+	ret = bpm_oci_request(c, "HEAD", url, NULL, NULL, NULL, 0, &r);
 	bpm_buffer_free(&r.body);
-	if (!rc) {
+	if (!ret) {
 		bpm_copy_string(out->media, sizeof(out->media), media);
 		bpm_copy_string(out->digest, sizeof(out->digest), digest);
 		out->size = (__s64)body_len;
 		return 0;
 	}
-	if (rc != -ENOENT)
-		return rc;
+	if (ret != -ENOENT)
+		return ret;
 
-	rc = bpm_oci_url(c, repository, "blobs/uploads", "", url, sizeof(url));
-	if (rc)
-		return rc;
-	rc = bpm_oci_request(c, "POST", url, NULL, NULL, NULL, 0, &r);
-	if (rc)
+	ret = bpm_oci_url(c, repository, "blobs/uploads", "", url, sizeof(url));
+	if (ret)
+		return ret;
+	ret = bpm_oci_request(c, "POST", url, NULL, NULL, NULL, 0, &r);
+	if (ret)
 		goto out;
 	if (r.status != 202 || !r.location[0]) {
-		rc = r.status == 202 ? -EINVAL : -EACCES;
+		ret = r.status == 202 ? -EINVAL : -EACCES;
 		goto out;
 	}
 	bpm_copy_string(location, sizeof(location), r.location);
 	bpm_buffer_free(&r.body);
 	r = (struct bpm_http_response){};
-	rc = upload_location(c, location, upload, sizeof(upload));
-	if (rc)
+	ret = upload_location(c, location, upload, sizeof(upload));
+	if (ret)
 		goto out;
 	sep = strchr(upload, '?') ? "&" : "?";
 	if (strsprintf(url, sizeof(url), "%s%sdigest=%s", upload, sep, digest) < 0) {
-		rc = -ENAMETOOLONG;
+		ret = -ENAMETOOLONG;
 		goto out;
 	}
-	rc = bpm_oci_request(c, "PUT", url, NULL, "application/octet-stream",
-			     body, body_len, &r);
-	if (!rc && r.status != 201)
-		rc = -EACCES;
-	if (!rc) {
+	ret = bpm_oci_request(c, "PUT", url, NULL, "application/octet-stream",
+			      body, body_len, &r);
+	if (!ret && r.status != 201)
+		ret = -EACCES;
+	if (!ret) {
 		bpm_copy_string(out->media, sizeof(out->media), media);
 		bpm_copy_string(out->digest, sizeof(out->digest), digest);
 		out->size = (__s64)body_len;
 	}
 out:
 	bpm_buffer_free(&r.body);
-	return rc;
+	return ret;
 }
 
 void bpm_oci_emit_descriptor(struct shirudo_json_emit *e, const char *key,
@@ -1273,17 +1273,17 @@ int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
 {
 	struct bpm_http_response r = {};
 	char hex[65], url[PATH_MAX];
-	int rc;
+	int ret;
 
 	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)) ||
 	    strsprintf(digest, digest_sz, "sha256:%s", hex) < 0)
 		return -ENAMETOOLONG;
-	rc = bpm_oci_url(c, repository, "manifests", reference, url,
-			 sizeof(url));
-	if (rc)
-		return rc;
-	rc = bpm_oci_request(c, "PUT", url, "application/vnd.oci.image.manifest.v1+json",
-			     "application/vnd.oci.image.manifest.v1+json", body, body_len, &r);
+	ret = bpm_oci_url(c, repository, "manifests", reference, url,
+			  sizeof(url));
+	if (ret)
+		return ret;
+	ret = bpm_oci_request(c, "PUT", url, "application/vnd.oci.image.manifest.v1+json",
+			      "application/vnd.oci.image.manifest.v1+json", body, body_len, &r);
 	bpm_buffer_free(&r.body);
-	return rc;
+	return ret;
 }

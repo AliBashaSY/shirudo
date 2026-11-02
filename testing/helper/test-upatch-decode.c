@@ -21,14 +21,14 @@ static int dump_chunk(lua_State *L, const void *p, size_t sz, void *ud)
 static int dump(const char *source)
 {
 	lua_State *L = luaL_newstate();
-	int rc = 1;
+	int ret = 1;
 
 	if (!L)
 		return 1;
 	if (!luaL_loadfile(L, source))
-		rc = lua_dump(L, dump_chunk, stdout);
+		ret = lua_dump(L, dump_chunk, stdout);
 	lua_close(L);
-	return rc ? 1 : 0;
+	return ret ? 1 : 0;
 }
 
 int main(int argc, char **argv)
@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	};
 	char *out = NULL;
 	size_t out_len = 0;
-	int rc;
+	int ret;
 
 	if (argc == 3 && strcmp(argv[1], "dump") == 0)
 		return dump(argv[2]);
@@ -64,13 +64,13 @@ int main(int argc, char **argv)
 	else if (strcmp(argv[1], "loop") == 0)
 		view.serial_bytes_total = 999;
 	if (strcmp(argv[1], "otel") == 0)
-		rc = upatch_decode_map_file_otel(argv[2], &view,
-						 &out, &out_len);
+		ret = upatch_decode_map_file_otel(argv[2], &view,
+						  &out, &out_len);
 	else
-		rc = upatch_decode_map_file_json(argv[2], &view,
-						 &out, &out_len);
-	if (rc) {
-		fprintf(stderr, "decode: %d\n", rc);
+		ret = upatch_decode_map_file_json(argv[2], &view,
+						  &out, &out_len);
+	if (ret) {
+		fprintf(stderr, "decode: %d\n", ret);
 		return 1;
 	}
 	if (fwrite(out, 1, out_len, stdout) != out_len) {

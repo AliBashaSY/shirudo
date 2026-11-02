@@ -116,7 +116,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 	struct edge { __u16 user, dep; } *edges = NULL;
 	char *line, *end;
 	size_t i, j;
-	int rc;
+	int ret;
 
 	memset(set, 0, sizeof(*set));
 	end = buf + strlen(buf);
@@ -129,7 +129,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 	set->deps = xmalloc(deps_cap * sizeof(*set->deps));
 	edges = xmalloc(edge_cap * sizeof(*edges));
 	if (!set->mods || !set->deps || !edges) {
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -158,7 +158,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 						 sizeof(*set->mods));
 
 			if (!np) {
-				rc = -ENOMEM;
+				ret = -ENOMEM;
 				goto out;
 			}
 			set->mods = np;
@@ -229,7 +229,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 							 sizeof(*edges));
 
 				if (!np) {
-					rc = -ENOMEM;
+					ret = -ENOMEM;
 					goto out;
 				}
 				edges = np;
@@ -253,7 +253,7 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 							 sizeof(*set->deps));
 
 				if (!np) {
-					rc = -ENOMEM;
+					ret = -ENOMEM;
 					goto out;
 				}
 				set->deps = np;
@@ -264,31 +264,31 @@ int kmodules_parse(char *buf, struct shirudo_kmod_set *set)
 		}
 	}
 
-	rc = 0;
+	ret = 0;
 out:
 	xfree(edges, edge_cap * sizeof(*edges));
-	if (rc) {
+	if (ret) {
 		xfree(set->mods, mod_cap * sizeof(*set->mods));
 		xfree(set->deps, deps_cap * sizeof(*set->deps));
 		memset(set, 0, sizeof(*set));
 	}
-	return rc;
+	return ret;
 }
 
 int kmodules_read(struct shirudo_kmod_set *set)
 {
 	size_t buf_cap = 0, i;
 	char *buf = NULL;
-	int rc;
+	int ret;
 
 	memset(set, 0, sizeof(*set));
-	rc = slurp(&buf, &buf_cap);
-	if (rc)
-		return rc;
-	rc = kmodules_parse(buf, set);
+	ret = slurp(&buf, &buf_cap);
+	if (ret)
+		return ret;
+	ret = kmodules_parse(buf, set);
 	xfree(buf, buf_cap);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 
 	/*
 	 * Stat each /sys/module/<name>/ for its kernfs mtime, which the

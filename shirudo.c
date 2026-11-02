@@ -106,7 +106,7 @@ int main(int argc, const char **argv)
 	const char *names[ARRAY_SIZE(commands)];
 	size_t matches[ARRAY_SIZE(commands)];
 	size_t i, n_match;
-	int rc;
+	int ret;
 
 	harden_stdio();
 	log_init();
@@ -169,14 +169,14 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
-	rc = shirudo_image_enter(c->name, argc - 1, argv + 1);
+	ret = shirudo_image_enter(c->name, argc - 1, argv + 1);
 
-	if (rc) {
-		fprintf(stderr, "shirudo: image state: %s\n", strerror(-rc));
+	if (ret) {
+		fprintf(stderr, "shirudo: image state: %s\n", strerror(-ret));
 		shirudo_image_leave();
 		return 1;
 	}
-	rc = c->fn(argc - 1, argv + 1);
+	ret = c->fn(argc - 1, argv + 1);
 	shirudo_image_leave();
-	return rc;
+	return ret;
 }

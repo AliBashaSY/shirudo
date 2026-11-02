@@ -44,14 +44,14 @@ int keyring_holds_cert(key_serial_t ring, const __u8 *der,
 	for (i = 0; i < held_count; i++) {
 		__u8 *candidate = NULL;
 		size_t length = 0;
-		int rc;
+		int ret;
 
-		rc = keys_read_der(held[i], &candidate, &length);
-		if (rc)
-			return rc;
-		rc = size == length && !memcmp(der, candidate, size);
+		ret = keys_read_der(held[i], &candidate, &length);
+		if (ret)
+			return ret;
+		ret = size == length && !memcmp(der, candidate, size);
 		xfree(candidate, length);
-		if (rc)
+		if (ret)
 			return 1;
 	}
 	return 0;
@@ -136,47 +136,47 @@ static int live_update(const char *directory, struct shirudo_trusted_set *set)
 	struct shirudo_config_update_target target = {};
 	struct shirudo_config_update update;
 	struct test_context ctx = { .set = set };
-	int rc;
+	int ret;
 
-	rc = shirudo_config_update_open(directory, &ops, &ctx, &update);
-	if (rc)
-		return rc;
+	ret = shirudo_config_update_open(directory, &ops, &ctx, &update);
+	if (ret)
+		return ret;
 	strcpy(target.prefix, "/verified/boot");
 	memset(target.root_hash, 1, 32);
-	rc = shirudo_config_update_boot(&update, &target, 15);
-	if (!rc)
-		rc = shirudo_config_update_complete_boot(&update);
+	ret = shirudo_config_update_boot(&update, &target, 15);
+	if (!ret)
+		ret = shirudo_config_update_complete_boot(&update);
 	ctx.live = true;
 	ctx.interrupt = !!getenv("SHIRUDO_TEST_IMAGE_INTERRUPT");
 	ctx.extends = 0;
 	ctx.activations = 0;
 	strcpy(target.prefix, "/verified/live");
 	memset(target.root_hash, 2, 32);
-	if (!rc)
-		rc = shirudo_config_update_begin(&update, &target, 15);
+	if (!ret)
+		ret = shirudo_config_update_begin(&update, &target, 15);
 
 	printf("extends=%u activations=%u\n", ctx.extends, ctx.activations);
 	shirudo_config_update_close(&update);
-	return rc;
+	return ret;
 }
 
 int main(int argc, char **argv)
 {
 	struct shirudo_trusted_set set = {};
-	int fd, rc;
+	int fd, ret;
 
 	if (argc != 3 && argc < 5)
 		return 2;
 	fd = open(argv[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return 2;
-	rc = shirudo_keys_validate_image_set(argv[1], fd, &set);
-	if (!rc && argc >= 5) {
+	ret = shirudo_keys_validate_image_set(argv[1], fd, &set);
+	if (!ret && argc >= 5) {
 		held = argv + 4;
 		held_count = argc - 4;
-		rc = live_update(argv[3], &set);
+		ret = live_update(argv[3], &set);
 	}
 	close(fd);
-	printf("rc=%d mutations=%u signers=%zu\n", rc, mutations, set.n);
-	return rc || mutations ? 1 : 0;
+	printf("rc=%d mutations=%u signers=%zu\n", ret, mutations, set.n);
+	return ret || mutations ? 1 : 0;
 }

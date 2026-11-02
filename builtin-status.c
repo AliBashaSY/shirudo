@@ -936,10 +936,10 @@ int cmd_status(int argc, const char **argv)
 	}
 	json = json_stdout || otel;
 	if (otel) {
-		int rc = config_load(&otel_cfg);
+		int err = config_load(&otel_cfg);
 
-		if (rc) {
-			pr_err("status: load OTEL configuration: %s", strerror(-rc));
+		if (err) {
+			pr_err("status: load OTEL configuration: %s", strerror(-err));
 			return 1;
 		}
 		if (!otel_cfg.map_export_valid) {
@@ -1374,23 +1374,23 @@ int cmd_status(int argc, const char **argv)
 						  (__s64)tamper.total : -1;
 				const char *severity_text;
 				int severity_number;
-				int rc;
+				int err;
 
 				severity_number =
 					shirudo_status_otel_severity(otel_status,
 								     &severity_text);
-				rc = shirudo_otel_send_log_json(&otel_opts,
-								"shirudo.keepalive",
-								"shirudo.keepalive",
-								severity_number,
-								severity_text,
-								otel_status,
-								shirudo_version_id,
+				err = shirudo_otel_send_log_json(&otel_opts,
+								 "shirudo.keepalive",
+								 "shirudo.keepalive",
+								 severity_number,
+								 severity_text,
+								 otel_status,
+								 shirudo_version_id,
 							refused, json_buf,
 							strlen(json_buf));
-				if (rc) {
+				if (err) {
 					pr_err("status: OTEL export failed: %s",
-					       strerror(-rc));
+					       strerror(-err));
 					ret = 1;
 				}
 			}

@@ -167,7 +167,7 @@ int shirudo_config_root_begin(const __u8 root[32],
 	struct shirudo_expected_root previous = {}, expected = { .valid = 1 };
 	const struct shirudo_guard_map *map =
 		&shirudo_guard_maps[SHIRUDO_GUARD_ROOTS];
-	int mode, rc;
+	int mode, ret;
 
 	*guard = (struct shirudo_config_root_guard) {
 		.map_fd = -1,
@@ -183,22 +183,22 @@ int shirudo_config_root_begin(const __u8 root[32],
 		return -errno;
 	guard->task_fd = syscall(SYS_pidfd_open, getpid(), 0);
 	if (guard->task_fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		goto fail;
 	}
 	if (bpf_map_lookup_elem(guard->map_fd, &guard->task_fd, &previous)) {
 		if (errno != ENOENT) {
-			rc = -errno;
+			ret = -errno;
 			goto fail;
 		}
 	} else if (previous.valid) {
-		rc = -EBUSY;
+		ret = -EBUSY;
 		goto fail;
 	}
 	memcpy(expected.root, root, sizeof(expected.root));
 	if (bpf_map_update_elem(guard->map_fd, &guard->task_fd, &expected,
 				BPF_ANY)) {
-		rc = -errno;
+		ret = -errno;
 		goto fail;
 	}
 	return 0;
@@ -208,25 +208,25 @@ fail:
 	close(guard->map_fd);
 	guard->map_fd = -1;
 	guard->task_fd = -1;
-	return rc;
+	return ret;
 }
 
 /* Clear through retained FDs on every exit; report failure to clear. */
 int shirudo_config_root_end(struct shirudo_config_root_guard *guard)
 {
 	struct shirudo_expected_root empty = {};
-	int rc = 0;
+	int ret = 0;
 
 	if (guard->map_fd < 0)
 		return 0;
 	if (bpf_map_update_elem(guard->map_fd, &guard->task_fd, &empty,
 				BPF_ANY))
-		rc = -errno;
+		ret = -errno;
 	close(guard->task_fd);
 	close(guard->map_fd);
 	guard->map_fd = -1;
 	guard->task_fd = -1;
-	return rc;
+	return ret;
 }
 
 static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
@@ -234,7 +234,7 @@ static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
 	struct bpf_map_info info;
 	__u32 length;
 	__u32 i;
-	int fd, rc;
+	int fd, ret;
 
 	for (i = 0; i < SHIRUDO_GUARD_MAP_COUNT; i++) {
 		const struct shirudo_guard_map *expected =
@@ -245,9 +245,9 @@ static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
 			return -errno;
 		memset(&info, 0, sizeof(info));
 		length = sizeof(info);
-		rc = bpf_map_get_info_by_fd(fd, &info, &length);
-		if (rc)
-			rc = -errno;
+		ret = bpf_map_get_info_by_fd(fd, &info, &length);
+		if (ret)
+			ret = -errno;
 		else if (!info.id || info.type != expected->type ||
 			 info.key_size != expected->key_size ||
 			 info.value_size != expected->value_size ||
@@ -256,12 +256,12 @@ static int guard_map_ids(__u32 ids[SHIRUDO_GUARD_MAP_COUNT])
 			 info.name[sizeof(info.name) - 1] ||
 			 strncmp(info.name, expected->name,
 				 sizeof(info.name) - 1))
-			rc = -EPROTO;
+			ret = -EPROTO;
 		close(fd);
-		if (rc) {
+		if (ret) {
 			pr_err("image: invalid guard map %s: %s", expected->pin,
-			       strerror(-rc));
-			return rc;
+			       strerror(-ret));
+			return ret;
 		}
 		ids[i] = info.id;
 	}
@@ -275,7 +275,7 @@ static int guard_program_maps(const struct bpf_prog_info *program,
 	struct bpf_map_info info;
 	__u32 i, j;
 	__u32 length;
-	int fd, rc;
+	int fd, ret;
 
 	for (i = 0; i < program->nr_map_ids; i++) {
 		fd = bpf_map_get_fd_by_id(map_ids[i]);
@@ -283,12 +283,12 @@ static int guard_program_maps(const struct bpf_prog_info *program,
 			return -errno;
 		memset(&info, 0, sizeof(info));
 		length = sizeof(info);
-		rc = bpf_map_get_info_by_fd(fd, &info, &length);
-		if (rc)
-			rc = -errno;
+		ret = bpf_map_get_info_by_fd(fd, &info, &length);
+		if (ret)
+			ret = -errno;
 		close(fd);
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 		for (j = 0; j < SHIRUDO_GUARD_MAP_COUNT; j++) {
 			if (strncmp(info.name, shirudo_guard_maps[j].name,
 				    sizeof(info.name) - 1))
@@ -306,27 +306,27 @@ static int guard_kernel_btf(__u32 id, struct btf **result)
 	__u32 length = sizeof(info);
 	char name[16] = {};
 	struct btf *btf;
-	int fd, rc;
+	int fd, ret;
 
 	fd = bpf_btf_get_fd_by_id(id);
 	if (fd < 0)
 		return -errno;
 	info.name = (uintptr_t)name;
 	info.name_len = sizeof(name);
-	rc = bpf_btf_get_info_by_fd(fd, &info, &length);
-	if (rc)
-		rc = -errno;
+	ret = bpf_btf_get_info_by_fd(fd, &info, &length);
+	if (ret)
+		ret = -errno;
 	else if (!info.kernel_btf ||
 		 !memchr(name, '\0', sizeof(name)) ||
 		 strcmp(name, "vmlinux"))
-		rc = -EPROTO;
+		ret = -EPROTO;
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	btf = btf__load_from_kernel_by_id(id);
-	rc = libbpf_get_error(btf);
-	if (rc)
-		return rc;
+	ret = libbpf_get_error(btf);
+	if (ret)
+		return ret;
 	*result = btf;
 	return 0;
 }
@@ -341,34 +341,34 @@ static int guard_link(const struct shirudo_image_guard *guard,
 	char function[96];
 	__u32 length;
 	const char *suffix;
-	int fd, prog, rc, type_id;
+	int fd, prog, ret, type_id;
 
 	fd = bpf_obj_get(guard->pin);
 	if (fd < 0)
 		return -errno;
 	length = sizeof(link);
-	rc = bpf_link_get_info_by_fd(fd, &link, &length);
-	if (rc)
-		rc = -errno;
+	ret = bpf_link_get_info_by_fd(fd, &link, &length);
+	if (ret)
+		ret = -errno;
 	else if (link.type != BPF_LINK_TYPE_TRACING ||
 		 !link.id || !link.prog_id ||
 		 link.tracing.attach_type != BPF_LSM_MAC)
-		rc = -EPROTO;
+		ret = -EPROTO;
 	close(fd);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	prog = bpf_prog_get_fd_by_id(link.prog_id);
 	if (prog < 0)
 		return -errno;
 	program.map_ids = (uintptr_t)map_ids;
 	program.nr_map_ids = ARRAY_SIZE(map_ids);
 	length = sizeof(program);
-	rc = bpf_prog_get_info_by_fd(prog, &program, &length);
-	if (rc)
-		rc = -errno;
+	ret = bpf_prog_get_info_by_fd(prog, &program, &length);
+	if (ret)
+		ret = -errno;
 	close(prog);
-	if (rc)
-		return rc;
+	if (ret)
+		return ret;
 	if (program.type != BPF_PROG_TYPE_LSM || !program.attach_btf_id ||
 	    !program.attach_btf_obj_id || program.id != link.prog_id ||
 	    program.nr_map_ids > ARRAY_SIZE(map_ids) ||
@@ -377,9 +377,9 @@ static int guard_link(const struct shirudo_image_guard *guard,
 	    link.tracing.target_btf_id != program.attach_btf_id)
 		return -EPROTO;
 	if (!*kernel) {
-		rc = guard_kernel_btf(program.attach_btf_obj_id, kernel);
-		if (rc)
-			return rc;
+		ret = guard_kernel_btf(program.attach_btf_obj_id, kernel);
+		if (ret)
+			return ret;
 		*kernel_id = program.attach_btf_obj_id;
 	}
 	if (*kernel_id != program.attach_btf_obj_id)
@@ -430,25 +430,25 @@ int shirudo_image_guards_ready(void)
 	struct btf *kernel = NULL;
 	__u32 kernel_id = 0;
 	__u32 i, j;
-	int rc;
+	int ret;
 
-	rc = guard_map_ids(map_ids);
-	if (rc)
-		return rc;
+	ret = guard_map_ids(map_ids);
+	if (ret)
+		return ret;
 	for (i = 0; i < ARRAY_SIZE(groups); i++) {
 		for (j = 0; j < groups[i].count; j++) {
 			const struct shirudo_image_guard *guard =
 				&groups[i].guards[j];
 
-			rc = guard_link(guard, map_ids, &kernel, &kernel_id);
-			if (rc) {
+			ret = guard_link(guard, map_ids, &kernel, &kernel_id);
+			if (ret) {
 				pr_err("image: missing or invalid guard %s: %s",
-				       guard->pin, strerror(-rc));
+				       guard->pin, strerror(-ret));
 				goto out;
 			}
 		}
 	}
 out:
 	btf__free(kernel);
-	return rc;
+	return ret;
 }
