@@ -132,8 +132,10 @@ static int check_mappings(const char *trusted, const char *outside)
 	}
 	errno = 0;
 	if (!mprotect(mapping, length, PROT_READ | PROT_WRITE) ||
-	    errno != EACCES)
+	    errno != EACCES) {
+		close(fd);
 		return 1;
+	}
 	munmap(mapping, length);
 	mapping = mmap(NULL, length, PROT_READ | PROT_WRITE,
 		       MAP_PRIVATE, fd, 0);
