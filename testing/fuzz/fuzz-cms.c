@@ -36,9 +36,9 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (!cert_read_der(der, der_len, &cert)) {
 		int signed_by = cms_signed_by(sig, sig_len, &cert);
 
-		/* A signature that verifies is one that parses. */
+		/* A signature that verifies is one the certificate made. */
 		if (!verify_detached(der, der_len, sig, sig_len, &cert) &&
-		    signed_by < 0)
+		    signed_by != 1)
 			abort();
 		if (!cert_pubkey(&cert, &pub) && pub.n_len > sizeof(pub.n))
 			abort();

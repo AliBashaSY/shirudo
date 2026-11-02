@@ -58,7 +58,9 @@ All five use one format, produced by one function on the operator:
 - Algorithm: ML-DSA-87 (FIPS 204). The signing code refuses any other
   key, the smaller ML-DSA parameter sets included
 - Container: a detached CMS ``SignedData`` with no certificates; the
-  signer is named by its subject key identifier
+  signer is named by its subject key identifier. shirudo's own checks
+  take the signer only from the certificate they are given, never from
+  one the container carries
 - With OpenSSL 3.x: signed attributes with a SHA-512 message digest and
   no signing time, because OpenSSL 3.x cannot sign ML-DSA without
   signed attributes and the kernel accepts only SHA-512 for ML-DSA in

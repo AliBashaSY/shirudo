@@ -404,7 +404,7 @@ int verify_detached(const __u8 *payload, size_t payload_len,
 		goto done;
 	cms = read_cms(signature, signature_len);
 	if (cms && CMS_verify(cms, signers, store, data, out,
-			      CMS_BINARY | CMS_DETACHED) == 1)
+			      CMS_BINARY | CMS_DETACHED | CMS_NOINTERN) == 1)
 		ret = 0;
 done:
 	if (ret)
@@ -673,7 +673,8 @@ int cert_verify_chain(const struct cert *cert,
 		goto out;
 	}
 	/* An intermediate in the bundle is a trust anchor too. */
-	X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN);
+	if (X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN) != 1)
+		goto out;
 	ctx = X509_STORE_CTX_new();
 	if (!ctx || X509_STORE_CTX_init(ctx, store, cert->impl, NULL) != 1)
 		goto out;
