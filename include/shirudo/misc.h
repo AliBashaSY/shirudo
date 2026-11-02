@@ -32,18 +32,30 @@
 	(offsetof(type, __VA_ARGS__) + sizeof_field(type, __VA_ARGS__))
 
 /*
- * Each argument is evaluated once, and arguments of two types refuse to
- * compile rather than compare after a silent conversion: min_t() and
- * max_t() convert both to the type they name. The temporaries take a
- * __COUNTER__ suffix so that a nested call shadows nothing.
+ * Each argument is evaluated once, and two that compare differently as
+ * signed and as unsigned refuse to compile rather than compare after a
+ * silent conversion: both unsigned or both signed, of any width, or an
+ * unsigned narrower than int, which C promotes to int. A constant
+ * compared with an unsigned value takes a U suffix. The two compare in
+ * the type C converts them to, which then holds both values. min_t()
+ * and max_t() convert both to the type they name, which can cut a value
+ * short, so they are for only what min() and max() refuse. The
+ * temporaries take a __COUNTER__ suffix so that a nested call shadows
+ * nothing.
  */
+/* 1 when x compares as unsigned, 2 as signed, 3 either way. */
+#define __sign_use(x)							\
+	((typeof(x))(-1) < 1 ? 2 : sizeof(x) < sizeof(int) ? 3 : 1)
 #define __minmax_op_min		<
 #define __minmax_op_max		>
 #define __minmax_n(op, x, y, n) ({					\
 	__auto_type __x##n = (x);					\
 	__auto_type __y##n = (y);					\
-	(void)(&__x##n == &__y##n);					\
-	__x##n __minmax_op_##op __y##n ? __x##n : __y##n; })
+	typeof(__x##n + __y##n) __a##n = __x##n;			\
+	typeof(__x##n + __y##n) __b##n = __y##n;			\
+	BUILD_BUG_ON_MSG(!(__sign_use(__x##n) & __sign_use(__y##n)),	\
+			 #op "(" #x ", " #y ") mixes signed and unsigned"); \
+	__a##n __minmax_op_##op __b##n ? __a##n : __b##n; })
 #define __minmax(op, x, y, n)	__minmax_n(op, x, y, n)
 #define min(x, y)		__minmax(min, x, y, __COUNTER__)
 #define max(x, y)		__minmax(max, x, y, __COUNTER__)
