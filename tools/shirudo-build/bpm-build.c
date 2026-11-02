@@ -926,10 +926,10 @@ build_rodata_command_source(const struct bpm_build_rodata *rodata, bool update)
 	return n > 1 ? command[1] : NULL;
 }
 
-static int build_validate(struct bpm_build_spec *spec,
-			  bool allow_missing_upatch_source)
+static int __build_validate(struct bpm_build_spec *spec,
+			    bool allow_missing_upatch_source,
+			    char seen[][PATH_MAX])
 {
-	char seen[BPM_BUILD_MAX_ENTRIES * 3][PATH_MAX];
 	char resolved[PATH_MAX];
 	struct stat st;
 	size_t n = 0;
@@ -994,6 +994,22 @@ static int build_validate(struct bpm_build_spec *spec,
 		}
 	}
 	return 0;
+}
+
+/* The targets seen take 1.5 MiB, which a stack frame should not carry. */
+static int build_validate(struct bpm_build_spec *spec,
+			  bool allow_missing_upatch_source)
+{
+	const size_t cap = BPM_BUILD_MAX_ENTRIES * 3;
+	char (*seen)[PATH_MAX];
+	int ret;
+
+	seen = xcalloc(cap, PATH_MAX);
+	if (!seen)
+		return -ENOMEM;
+	ret = __build_validate(spec, allow_missing_upatch_source, seen);
+	xfree(seen, cap * PATH_MAX);
+	return ret;
 }
 
 static int build_join(char *out, size_t cap, const char *dir, const char *name)
@@ -1495,11 +1511,11 @@ static void build_usage(void)
 		"is available only in shirudo-operator and requires signing keys.\n");
 }
 
-static int build_bpm_build(int argc, char **argv)
+static int __build_bpm_build(int argc, char **argv,
+			     struct bpm_build_input_override *overrides)
 {
 	const char *context = ".", *file_arg = NULL, *version = NULL;
 	const char *keys_arg = NULL, *vmlinux_arg = NULL;
-	struct bpm_build_input_override overrides[BPM_BUILD_MAX_ENTRIES] = {};
 	size_t n_overrides = 0;
 	const char *vmlinux_override = NULL;
 	const char *shirudo_bpf_incdir = NULL;
@@ -1549,7 +1565,7 @@ static int build_bpm_build(int argc, char **argv)
 				goto usage;
 			ret = parse_rodata_input(argv[i], overrides,
 						 &n_overrides,
-						 ARRAY_SIZE(overrides));
+						 BPM_BUILD_MAX_ENTRIES);
 			if (ret > 0)
 				goto usage;
 			if (ret)
@@ -1658,6 +1674,20 @@ out:
 usage:
 	build_usage();
 	return -EINVAL;
+}
+
+/* The overrides take half a MiB, which a stack frame should not carry. */
+static int build_bpm_build(int argc, char **argv)
+{
+	struct bpm_build_input_override *overrides;
+	int ret;
+
+	overrides = xcalloc(BPM_BUILD_MAX_ENTRIES, sizeof(*overrides));
+	if (!overrides)
+		return -ENOMEM;
+	ret = __build_bpm_build(argc, argv, overrides);
+	xfree(overrides, BPM_BUILD_MAX_ENTRIES * sizeof(*overrides));
+	return ret;
 }
 
 static int build_copy_package_member(const char *package, const char *member,
@@ -1789,11 +1819,11 @@ out:
 	return ret;
 }
 
-static int build_bpm_config_update(int argc, char **argv)
+static int __build_bpm_config_update(int argc, char **argv,
+				     struct bpm_build_input_override *overrides)
 {
 	const char *file_arg = NULL, *base_arg = NULL;
 	const char *version = NULL, *keys_arg = NULL;
-	struct bpm_build_input_override overrides[BPM_BUILD_MAX_ENTRIES] = {};
 	size_t n_overrides = 0;
 	char build_file[PATH_MAX], resolved_file[PATH_MAX], source_dir[PATH_MAX];
 	char base_package[PATH_MAX], base_package_tmp[] =
@@ -1842,7 +1872,7 @@ static int build_bpm_config_update(int argc, char **argv)
 				goto usage;
 			ret = parse_rodata_input(argv[i], overrides,
 						 &n_overrides,
-						 ARRAY_SIZE(overrides));
+						 BPM_BUILD_MAX_ENTRIES);
 			if (ret > 0)
 				goto usage;
 			if (ret)
@@ -2097,6 +2127,20 @@ usage:
 		"[-f <name>.bee] "
 		"[--rodata-input <name>=<path>]... [--keys-dir <dir>]\n");
 	return -EINVAL;
+}
+
+/* The overrides take half a MiB, which a stack frame should not carry. */
+static int build_bpm_config_update(int argc, char **argv)
+{
+	struct bpm_build_input_override *overrides;
+	int ret;
+
+	overrides = xcalloc(BPM_BUILD_MAX_ENTRIES, sizeof(*overrides));
+	if (!overrides)
+		return -ENOMEM;
+	ret = __build_bpm_config_update(argc, argv, overrides);
+	xfree(overrides, BPM_BUILD_MAX_ENTRIES * sizeof(*overrides));
+	return ret;
 }
 
 static void bpm_usage(FILE *fp)
