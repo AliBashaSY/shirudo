@@ -19,7 +19,8 @@ Before you begin
 ----------------
 
 - A shirudo checkout built with ``make`` and ``make shirudo-build``, and
-  clang installed as ``/usr/bin/clang``, the path the build helper runs.
+  clang 23 installed as ``/usr/bin/clang``, the path the build helper
+  runs.
 - A test VM running from that checkout, as :doc:`/upatches/test/testing`
   describes. The
   steps below use the default ``bpf-next`` VM and the signing key its

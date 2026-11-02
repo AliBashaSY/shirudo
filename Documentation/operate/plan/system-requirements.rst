@@ -411,10 +411,11 @@ keyrings. Any Linux kernel on which the tools below run serves.
        ``tss2-tctildr``, ``libelf``, ``zlib``, LuaJIT
      - Linked by the ``shirudo`` binary, which is the same program on
        both roles.
-   * - ``clang`` and LLVM 23 with the BPF target, ``clang`` installed as
-       ``/usr/bin/clang``
-     - ``shirudo build`` runs that path and does not search ``PATH``.
-       It compiles for BPF instruction set v4.
+   * - ``clang`` and LLVM 23 with the BPF target
+     - ``shirudo build`` runs ``/usr/bin/clang``, and the helper of the
+       Debian package ``/usr/lib/llvm-23/bin/clang``. It does not search
+       ``PATH``; ``make SHIRUDO_CLANG_PATH=<path>`` builds a helper that
+       runs another. It compiles for BPF instruction set v4.
    * - The target kernel's ``vmlinux.h``
      - The one kernel-derived input of a build. ``shirudo build`` takes
        ``--vmlinux``, else ``./vmlinux.h``, else
@@ -431,10 +432,14 @@ keyrings. Any Linux kernel on which the tools below run serves.
      - ``shirudo`` and ``shirudo-build`` lock all their memory before
        they dispatch a command.
 
-The operator package depends on ``clang``, ``llvm`` and the
-``veritysetup`` package. Where the distribution's ``clang`` is older than
-23, install clang 23 and point ``/usr/bin/clang`` at it. The operator and
-target packages conflict, so one host cannot install both.
+The operator package depends on clang 23, as ``clang-23`` in the Debian
+package and ``clang >= 23`` in the RPM, and on ``llvm`` and the
+``veritysetup`` package. Debian unstable, Fedora 45 and apt.llvm.org
+ship clang 23. On Debian testing or Ubuntu 24.04, add Debian unstable or
+apt.llvm.org as a package source before you install the package. A
+build from source runs ``/usr/bin/clang``, so point that at clang 23.
+The operator and target packages conflict, so one host cannot install
+both.
 
 Build host for the target binary
 --------------------------------

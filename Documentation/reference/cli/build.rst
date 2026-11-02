@@ -13,7 +13,7 @@ unload directive for a loaded upatch.
 
 Runs on: operator host, without the image gate. Requires: the
 ``shirudo-build`` helper, the signing key and certificate, and for a
-``.bpf.c`` input ``/usr/bin/clang`` and a ``vmlinux.h``. Changes measured
+``.bpf.c`` input clang 23 and a ``vmlinux.h``. Changes measured
 state: no.
 
 Usage
@@ -65,7 +65,8 @@ Building a upatch
    directory, the libbpf headers and the shirudo BPF headers on the
    include path, plus ``--extra-cflags``. ``-mcpu=v4`` selects BPF
    instruction set v4, the newest clang knows and one every target kernel
-   runs. The clang path is fixed when the helper is built, and ``PATH`` is
+   runs. The clang path is fixed when the helper is built,
+   ``/usr/lib/llvm-23/bin/clang`` in the Debian package, and ``PATH`` is
    not searched. The object goes to a temporary file in
    ``/tmp``, or with ``--emit-artifacts`` beside the output.
 #. A ``.bpf.o`` or ``.o`` input is packaged as it is. Any other input is

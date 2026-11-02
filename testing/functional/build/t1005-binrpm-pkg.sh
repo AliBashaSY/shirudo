@@ -114,7 +114,7 @@ test_expect_success 'buildrpm.sh gives the operator its compiler and verity tool
 	rpm -qp --qf "%{NAME} %{VERSION} %{RELEASE}\n" "$WORK/operator.rpm" |
 		grep -qx "shirudo-operator 1.2.3 1" &&
 	rpm -qp --conflicts "$WORK/operator.rpm" | grep -qx "shirudo-target" &&
-	rpm -qp --requires "$WORK/operator.rpm" | grep -qx clang &&
+	rpm -qp --requires "$WORK/operator.rpm" | grep -qx "clang >= 23" &&
 	rpm -qp --requires "$WORK/operator.rpm" | grep -qx llvm &&
 	rpm -qp --requires "$WORK/operator.rpm" | grep -qx cryptsetup &&
 	rpm -qpl "$WORK/operator.rpm" >"$WORK/operator.files" &&
@@ -127,7 +127,7 @@ test_expect_success 'buildrpm.sh gives the operator its compiler and verity tool
 '
 
 if command -v dpkg-deb >/dev/null 2>&1; then
-	test_expect_success 'Debian packages require veritysetup only for the operator' '
+	test_expect_success 'Debian packages require clang 23 and veritysetup only for the operator' '
 		arch=$(dpkg --print-architecture) &&
 		../packaging/deb/builddeb.sh target "$WORK/target" 1.2.3 "$arch" \
 			"Test <test@example.invalid>" "$WORK/target.deb" >/dev/null &&
@@ -136,11 +136,13 @@ if command -v dpkg-deb >/dev/null 2>&1; then
 		dpkg-deb -f "$WORK/target.deb" Depends >"$WORK/target.deb.requires" &&
 		dpkg-deb -f "$WORK/operator.deb" Depends >"$WORK/operator.deb.requires" &&
 		! grep -q cryptsetup "$WORK/target.deb.requires" &&
-		grep -Eq "(^|, )cryptsetup-bin(,|$)" "$WORK/operator.deb.requires"
+		! grep -q clang "$WORK/target.deb.requires" &&
+		grep -Eq "(^|, )cryptsetup-bin(,|$)" "$WORK/operator.deb.requires" &&
+		grep -Eq "(^|, )clang-23(,|$)" "$WORK/operator.deb.requires"
 	'
 else
 	TAP_COUNT=$((TAP_COUNT + 1))
-	printf 'ok %d - Debian operator verity dependency # SKIP no dpkg-deb\n' "$TAP_COUNT"
+	printf 'ok %d - Debian operator clang and verity dependencies # SKIP no dpkg-deb\n' "$TAP_COUNT"
 fi
 
 test_expect_success 'buildrpm.sh rejects a dash in version or release and an unknown role' '
@@ -173,6 +175,14 @@ test_expect_success 'PKG_ROLES=operator leaves the target package and its static
 	grep -q "install-target" "$WORK/plan-deb" &&
 	! grep -q "install-operator" "$WORK/plan-deb" &&
 	! grep -q "builddeb.sh operator" "$WORK/plan-deb"
+'
+
+test_expect_success 'only the Debian helper runs clang 23 from /usr/lib/llvm-23' '
+	(cd .. && make -n -C packaging bindeb-pkg PKG_ROLES=operator \
+		>"$WORK/plan-deb-op" 2>&1) &&
+	test "$(grep -c "SHIRUDO_CLANG_PATH=/usr/lib/llvm-23/bin/clang" \
+		"$WORK/plan-deb-op")" -eq 2 &&
+	! grep -q SHIRUDO_CLANG_PATH "$WORK/plan-op"
 '
 
 test_expect_success 'static PIE target packages do not require a shared runtime or loader' '

@@ -73,8 +73,9 @@ shirudo and shirudo-build
    * - ``PATH``
      - ``shirudo`` looking up ``shirudo-build``; ``shirudo-build``
        running ``veritysetup``; the generator scripts
-     - Search path. ``shirudo-build`` runs ``clang`` from the fixed path
-       ``/usr/bin/clang`` only.
+     - Search path. ``shirudo-build`` runs ``clang`` only from the path
+       fixed when it was built: ``/usr/bin/clang``, or
+       ``/usr/lib/llvm-23/bin/clang`` in the Debian package.
    * - ``SHIRUDO_INIT_ARGS``
      - ``shirudo.service``, from ``/etc/shirudo/init.env``
      - Arguments appended to ``init``. ``init`` accepts only

@@ -50,8 +50,10 @@ Packages
        - the BPF headers under ``/usr/share/shirudo/bpf/include/``
        - bash completion
 
-       It depends on clang, LLVM and ``veritysetup`` (``cryptsetup-bin``
-       or ``cryptsetup``) and installs no systemd unit.
+       It depends on clang 23, LLVM and ``veritysetup``
+       (``cryptsetup-bin`` or ``cryptsetup``) and installs no systemd
+       unit. :doc:`/operate/plan/system-requirements` says where clang 23
+       comes from.
    * - ``shirudo-target``
      - Target
      - - ``/usr/bin/shirudo``, a static PIE

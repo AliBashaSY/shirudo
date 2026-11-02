@@ -72,6 +72,8 @@ SHIRUDO_LIBEXEC_DIR ?= $(libexecdir)/shirudo
 SHIRUDO_BPF_INCDIR  ?= $(sharedir)/shirudo/bpf/include
 # Installed kernel BTF types used as the default vmlinux.h fallback.
 SHIRUDO_VMLINUX_PATH ?= $(sharedir)/shirudo/vmlinux.h
+# The clang shirudo-build runs, as it never searches PATH.
+SHIRUDO_CLANG_PATH ?= /usr/bin/clang
 
 # A warning fails the build, ours and that of the vendored libbpf and
 # the BPF objects alike; WERROR=0 lets a compiler newer than the tree
@@ -134,7 +136,8 @@ CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(CC_WARNINGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
                -DLIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
                -DBPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
-               -DVMLINUX_PATH='"$(SHIRUDO_VMLINUX_PATH)"'
+               -DVMLINUX_PATH='"$(SHIRUDO_VMLINUX_PATH)"' \
+               -DCLANG_PATH='"$(SHIRUDO_CLANG_PATH)"'
 
 # make SANITIZE=address,undefined instruments the host-side binaries and
 # the test helpers; BPF objects come from clang -target bpf and are never

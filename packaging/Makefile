@@ -96,6 +96,11 @@ RPM_STAGE_PATH := $(call root-path,$(RPM_STAGE))
 RPM_TARGET_PKG_PATH := $(call root-path,$(RPM_TARGET_PKG))
 RPM_OPERATOR_PKG_PATH := $(call root-path,$(RPM_OPERATOR_PKG))
 
+# Debian's clang-23, which the operator package depends on, installs clang
+# under /usr/lib/llvm-23 and leaves /usr/bin/clang to the distribution's
+# default release, so the helper of that package runs it from there.
+DEB_CLANG := SHIRUDO_CLANG_PATH=/usr/lib/llvm-23/bin/clang
+
 PKG_PATHS := prefix=$(PKG_PREFIX) exec_prefix=$(PKG_PREFIX) \
              bindir=$(PKG_PREFIX)/bin libexecdir=$(PKG_PREFIX)/libexec \
              sharedir=$(PKG_PREFIX)/share libdir=$(PKG_PREFIX)/lib \
@@ -150,14 +155,14 @@ bindeb-pkg:
 	    exit 1; }
 	@printf '  CLEAN   (rebuild with prefix=$(PKG_PREFIX) for packaging)\n'
 	+$(Q)$(MAKE) -C $(ROOT) clean
-	+$(Q)$(MAKE) -C $(ROOT) $(PKG_PATHS) all $(if $(filter operator,$(PKG_ROLES)),shirudo-build)
+	+$(Q)$(MAKE) -C $(ROOT) $(PKG_PATHS) $(DEB_CLANG) all $(if $(filter operator,$(PKG_ROLES)),shirudo-build)
 	$(Q)rm -rf $(DEB_STAGE_PATH) \
 	    $(if $(filter target,$(PKG_ROLES)),$(DEB_TARGET_PKG_PATH)) \
 	    $(if $(filter operator,$(PKG_ROLES)),$(DEB_OPERATOR_PKG_PATH))
 	$(if $(filter target,$(PKG_ROLES)),@printf '  STAGE   $(DEB_STAGE_PATH)/target\n')
 	$(if $(filter target,$(PKG_ROLES)),+$(Q)$(MAKE) -C $(ROOT) $(PKG_PATHS) DESTDIR=$(DEB_STAGE_PATH)/target install-target)
 	$(if $(filter operator,$(PKG_ROLES)),@printf '  STAGE   $(DEB_STAGE_PATH)/operator\n')
-	$(if $(filter operator,$(PKG_ROLES)),+$(Q)$(MAKE) -C $(ROOT) $(PKG_PATHS) DESTDIR=$(DEB_STAGE_PATH)/operator install-operator)
+	$(if $(filter operator,$(PKG_ROLES)),+$(Q)$(MAKE) -C $(ROOT) $(PKG_PATHS) $(DEB_CLANG) DESTDIR=$(DEB_STAGE_PATH)/operator install-operator)
 	$(if $(filter target,$(PKG_ROLES)),$(Q)$(ROOT)/packaging/deb/builddeb.sh target $(DEB_STAGE_PATH)/target \
 	    '$(DEB_VERSION)' '$(DEB_ARCH)' '$(PKG_MAINTAINER)' $(DEB_TARGET_PKG_PATH))
 	$(if $(filter operator,$(PKG_ROLES)),$(Q)$(ROOT)/packaging/deb/builddeb.sh operator $(DEB_STAGE_PATH)/operator \

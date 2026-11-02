@@ -296,7 +296,7 @@ jobs:
             SHIRUDO_GIT_DESCRIBE='printenv SHIRUDO_CI_VERSION'
           cmp bpf-next/vmlinux.h build/rpm/operator/usr/share/shirudo/vmlinux.h
           rpm -qpi shirudo-operator-*.rpm
-          rpm -qp --requires shirudo-operator-*.rpm | grep -qx clang
+          rpm -qp --requires shirudo-operator-*.rpm | grep -qx 'clang >= 23'
           .github/scripts/gen-sbom.sh shirudo-operator-*.rpm
 
       - name: Install, exercise and remove both packages

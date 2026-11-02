@@ -55,10 +55,12 @@ Operator host
      - none
      - none
      - Searched in this order when ``--vmlinux`` is not given.
-   * - ``/usr/bin/clang``
+   * - ``/usr/bin/clang``, ``/usr/lib/llvm-23/bin/clang`` in the Debian
+       package
      - none
      - none
-     - The compiler ``shirudo-build`` executes for ``.bpf.c`` input.
+     - The compiler ``shirudo-build`` executes for ``.bpf.c`` input,
+       clang 23.
    * - ``/tmp/shirudo-build-XXXXXX.bpf.o``
      - ``build``
      - none

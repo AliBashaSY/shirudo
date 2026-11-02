@@ -164,7 +164,6 @@ jobs:
               /bin/sh /host/.github/scripts/kernel-obs-apt-diagnostics.sh
               exit 1
             fi
-            sh /host/.github/scripts/install-clang.sh
 
             keys_dir=/host/.ci/kernel-obs-keys
             version=\$(cat /host/build/kernel-obs-version)

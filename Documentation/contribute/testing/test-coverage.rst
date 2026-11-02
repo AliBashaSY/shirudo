@@ -80,7 +80,9 @@ signed config image.
    * - ``t1004-target-system-libdir``
      - Where ``make target-deps`` finds the system static archives
    * - ``t1005-binrpm-pkg``
-     - rpm packages: metadata, file lists, requirements and scriptlets
+     - rpm packages: metadata, file lists, requirements and scriptlets;
+       the clang 23 requirement of both operator packages and the clang
+       path of the Debian one
    * - ``t1006-gen-initrd-cli``
      - Initrd generator and installer options, the installer's
        ``--dry-run`` plan

@@ -27,7 +27,7 @@ Before you begin
 - Network access. The first boot clones the bpf-next kernel tree and
   downloads an Ubuntu cloud image.
 - To build shirudo: a C toolchain with ``make`` and ``pkg-config``, a
-  current clang and LLVM with the BPF target, installed as
+  clang and LLVM 23 with the BPF target, ``clang`` installed as
   ``/usr/bin/clang``, and the development files of OpenSSL 3.5 or later,
   libelf, zlib, libcurl 7.75 or later, tpm2-tss (``tss2-esys`` 4.0 or later
   and ``tss2-tctildr``) and LuaJIT.

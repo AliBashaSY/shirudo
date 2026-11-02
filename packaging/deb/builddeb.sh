@@ -60,7 +60,7 @@ esac
 depends=$("$here/depends.sh" $bins || true)
 if [ "$role" = operator ]; then
 	# Operator-only compilers and the standard image format/verify tool.
-	depends="${depends:+$depends, }clang, llvm, cryptsetup-bin"
+	depends="${depends:+$depends, }clang-23, llvm, cryptsetup-bin"
 fi
 
 # Installed-Size is in KiB, computed before DEBIAN/ exists.
