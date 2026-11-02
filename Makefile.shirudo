@@ -146,7 +146,12 @@ ifneq ($(SANITIZE),)
 CFLAGS_BASE += -O1 -fno-omit-frame-pointer -fsanitize=$(SANITIZE) \
                -fno-sanitize-recover=all -U_FORTIFY_SOURCE
 else
-CFLAGS_BASE += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
+# No frame larger than 128 KiB: a table belongs on the heap, where its
+# allocation fails cleanly, not on a stack two such frames would take a
+# good part of. ASan pads every object, so the sanitized build is left
+# without the limit.
+CFLAGS_BASE += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+               -Wframe-larger-than=131072
 endif
 
 INCLUDES := \
