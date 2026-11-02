@@ -847,7 +847,7 @@ testing/helper/test-image-cleanup: testing/helper/test-image-cleanup.c \
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(RPATH_LDFLAGS) -o $@ \
 		$(filter-out %.h util/image_runtime.c,$^) \
-		-Wl,--wrap=dm_verity_remove,--wrap=usleep \
+		-Wl,--wrap=dm_verity_remove,--wrap=nanosleep \
 		$(STATIC_LIBS) $(DYNAMIC_LIBS)
 
 testing/helper/test-mode-objects: testing/helper/test-mode-objects.c \

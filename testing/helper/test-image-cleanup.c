@@ -20,9 +20,10 @@ int __wrap_dm_verity_remove(struct dm_verity *device,
 	return remove_calls <= busy_calls ? -EBUSY : remove_result;
 }
 
-int __wrap_usleep(useconds_t usec)
+int __wrap_nanosleep(const struct timespec *req, struct timespec *rem)
 {
-	if (usec != 10000 || remove_calls != sleep_calls + 1)
+	if (req->tv_sec || req->tv_nsec != 10000000 ||
+	    remove_calls != sleep_calls + 1)
 		invalid_call = true;
 	sleep_calls++;
 	return 0;

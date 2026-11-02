@@ -4,12 +4,12 @@
 #ifndef SHIRUDO_TEST_IMAGE_CLEANUP_H
 #define SHIRUDO_TEST_IMAGE_CLEANUP_H
 
-#include <unistd.h>
+#include <time.h>
 
 #include "util/dm_verity.h"
 
 int __wrap_dm_verity_remove(struct dm_verity *device,
 			    bool deferred);
-int __wrap_usleep(useconds_t usec);
+int __wrap_nanosleep(const struct timespec *req, struct timespec *rem);
 
 #endif /* SHIRUDO_TEST_IMAGE_CLEANUP_H */
