@@ -499,7 +499,7 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 					   m[i].offset;
 			__u32 byte_off = bit_off / 8, bit_size = 0;
 			const struct btf_type *ft;
-			__u32 fsize = 0;
+			__u32 fsize = 0, end;
 			const char *fname;
 			char *fval;
 
@@ -515,7 +515,8 @@ static char *btf_format_value(const struct btf *btf, __u32 type_id,
 				if (sz > 0)
 					fsize = (__u32)sz;
 			}
-			if (!fsize || byte_off + fsize > bytes_size)
+			if (!fsize || check_add_overflow(byte_off, fsize, &end) ||
+			    end > bytes_size)
 				fsize = bytes_size - byte_off;
 			if (bit_size)
 				fval = btf_format_bitfield(btf, m[i].type,
