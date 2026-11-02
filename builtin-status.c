@@ -67,7 +67,7 @@ static int notdot(const struct dirent *e)
 	return strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0;
 }
 
-static int count_eventlog(long *entries, long *bytes)
+static noinline_for_stack int count_eventlog(long *entries, long *bytes)
 {
 	char buf[65536];
 	struct stat st;

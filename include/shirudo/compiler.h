@@ -12,6 +12,9 @@
 #define __must_check	__attribute__((warn_unused_result))
 #define __noreturn	__attribute__((noreturn))
 #define __cleanup(func)	__attribute__((cleanup(func)))
+#define noinline	__attribute__((noinline))
+/* A function with a large frame that inlining would add to its caller's. */
+#define noinline_for_stack	noinline
 
 /*
  * An empty asm that may read memory through ptr, so that a store to that

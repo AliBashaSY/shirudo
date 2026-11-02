@@ -1498,7 +1498,8 @@ static void retry_wait(__u32 retry, __u64 retry_after,
 		;
 }
 
-static int otel_post(struct otel_state *st, const char *json, size_t json_len)
+static noinline_for_stack int otel_post(struct otel_state *st,
+					const char *json, size_t json_len)
 {
 	__u8 *compressed = NULL;
 	const void *body = json;
@@ -2307,10 +2308,10 @@ static bool retryable_s3_http(long status)
 	       retryable_http(status);
 }
 
-static int s3_put(struct otel_s3_state *st,
-		  const struct map_view *v,
-		  struct s3_snapshot *snapshot, const char *url,
-		  bool *already_present)
+static noinline_for_stack int s3_put(struct otel_s3_state *st,
+				     const struct map_view *v,
+				     struct s3_snapshot *snapshot,
+				     const char *url, bool *already_present)
 {
 	struct curl_slist *headers = NULL;
 	char sigv4[128];
