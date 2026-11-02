@@ -1536,7 +1536,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	struct decoder_set decoders = {};
 	struct sign_io sio = {};
 	void *signed_data = NULL;
-	size_t loader_data_len;
+	size_t loader_data_len = 0;
 	void *loader_data_buf = NULL;
 	void *decoder_blob = NULL;
 	__u32 nr_decoders = 0;
