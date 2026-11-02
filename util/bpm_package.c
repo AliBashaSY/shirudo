@@ -546,41 +546,6 @@ static X509 *read_x509_memory(const __u8 *body, size_t len)
 	return x;
 }
 
-/*
- * Hash the exact DER SubjectPublicKeyInfo representation used by Go's
- * x509.MarshalPKIXPublicKey.  Keep this explicit instead of relying on
- * X509_pubkey_digest(), whose meaning is easy to confuse with a digest of
- * the key material itself when diagnosing package signer mismatches.
- */
-static int x509_spki_sha256(const X509 *cert, __u8 digest[32])
-{
-	X509_PUBKEY *spki;
-	__u8 *der = NULL, *p;
-	__u32 digest_len = 0;
-	int der_len, encoded_len, rc = -EINVAL;
-
-	spki = X509_get_X509_PUBKEY((X509 *)cert);
-	if (!spki)
-		return -EINVAL;
-	der_len = i2d_X509_PUBKEY(spki, NULL);
-	if (der_len <= 0)
-		return -EINVAL;
-	der = xmalloc((size_t)der_len);
-	if (!der)
-		return -ENOMEM;
-	p = der;
-	encoded_len = i2d_X509_PUBKEY(spki, &p);
-	if (encoded_len != der_len)
-		goto out;
-	if (!EVP_Digest(der, (size_t)der_len, digest, &digest_len,
-			EVP_sha256(), NULL) || digest_len != 32)
-		goto out;
-	rc = 0;
-out:
-	xfree(der, (size_t)der_len);
-	return rc;
-}
-
 int bpm_pkg_extract(const char *archive, const char *dest)
 {
 	gzFile gz = gzopen(archive, "rb");
@@ -747,6 +712,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		char signer[BPM_MAX_DIGEST];
 	} parsed = {};
 	struct shirudo_json_field package_fields[2], shirudo_fields[1], root[2];
+	struct shirudo_cert signer = {};
 	__u8 digest[32];
 	X509 *cert = NULL;
 	char hex[EVP_MAX_MD_SIZE * 2 + 1];
@@ -792,7 +758,8 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 	if (rc)
 		goto out;
 	cert = read_x509_memory(info->cert, info->cert_len);
-	if (!cert || x509_spki_sha256(cert, digest)) {
+	signer.impl = cert;
+	if (!cert || cert_pubkey_digest(&signer, digest)) {
 		rc = -EINVAL;
 		goto out;
 	}

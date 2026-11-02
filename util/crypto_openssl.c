@@ -228,7 +228,9 @@ void cert_free(struct shirudo_cert *cert)
 }
 
 /*
- * SHA-256 over the DER SubjectPublicKeyInfo. Re-encoding through
+ * SHA-256 over the DER SubjectPublicKeyInfo, the bytes Go's
+ * x509.MarshalPKIXPublicKey writes; X509_pubkey_digest() hashes only the
+ * key's bit string, which is easy to mistake for it. Re-encoding through
  * i2d_X509_PUBKEY keeps the value identical for every key algorithm the
  * X.509 parser accepts, including ML-DSA keys libcrypto cannot otherwise
  * marshal as a bare EVP_PKEY on older releases.
