@@ -127,6 +127,14 @@ static void leave(struct shirudo_json_emit *e)
 		e->depth--;
 }
 
+static void json_value_begin(struct shirudo_json_emit *e)
+{
+	if (e->value_pending)
+		e->value_pending = false;
+	else
+		sep(e);
+}
+
 void json_obj_open(struct shirudo_json_emit *e)
 {
 	sep(e);
@@ -178,14 +186,6 @@ void json_key(struct shirudo_json_emit *e, const char *key)
 	put_string(e, key);
 	put(e, ':');
 	e->value_pending = true;
-}
-
-void json_value_begin(struct shirudo_json_emit *e)
-{
-	if (e->value_pending)
-		e->value_pending = false;
-	else
-		sep(e);
 }
 
 void json_arr_close(struct shirudo_json_emit *e)

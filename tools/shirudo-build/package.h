@@ -10,11 +10,6 @@
 
 #include <shirudo/misc.h>
 
-struct shirudo_data_range {
-	__u32 offset;
-	__u32 length;
-};
-
 int shirudo_build_package_load(const char *bpf_o, const char *src_path,
 			       const char *out_upatch, const char *upatch_name,
 			       const char *pkey_path, const char *cert_path);
@@ -25,11 +20,6 @@ int shirudo_build_package_unload(const char *name,
 				 const char *pkey_path,
 				 const char *cert_path);
 
-int shirudo_build_package_resign(const char *original,
-				 const char *modified, const char *output,
-				 const struct shirudo_data_range *ranges,
-				 size_t nr_ranges, const char *pkey_path,
-				 const char *cert_path);
 int shirudo_build_package_patch_rodata(const char *input, const char *output,
 				       const char *symbol, const __u8 *value,
 				      size_t value_len, const char *pkey_path,

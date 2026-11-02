@@ -214,7 +214,7 @@ int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
  * its first stray byte, or a base-256 size read as zero, put the next
  * member where no other tar reader would.
  */
-int bpm_tar_octal(const char *p, size_t n, __u64 *out)
+static int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 {
 	size_t i = 0, first;
 	__u64 v = 0;
@@ -237,7 +237,7 @@ int bpm_tar_octal(const char *p, size_t n, __u64 *out)
 }
 
 /* The checksum is the header's byte sum with its own field as blanks. */
-bool bpm_tar_header_ok(const __u8 h[512])
+static bool bpm_tar_header_ok(const __u8 h[512])
 {
 	__u64 want, sum = 0;
 	size_t i;

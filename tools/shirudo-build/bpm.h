@@ -91,7 +91,6 @@ int bpm_build_parse_beefile(const __u8 *body, size_t len,
 void bpm_build_spec_free(struct bpm_build_spec *spec);
 
 int shirudo_build_bpm(int argc, char **argv);
-int shirudo_build_bpm_config_update(int argc, char **argv);
 int shirudo_build_bpm_push(int argc, char **argv);
 int shirudo_build_bpm_tree(int argc, char **argv);
 bool shirudo_build_is_help(const char *arg);

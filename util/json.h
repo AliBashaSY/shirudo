@@ -47,7 +47,6 @@ void json_arr_open(struct shirudo_json_emit *e, const char *key);
 void json_arr_open_value(struct shirudo_json_emit *e);
 void json_arr_close(struct shirudo_json_emit *e);
 void json_key(struct shirudo_json_emit *e, const char *key);
-void json_value_begin(struct shirudo_json_emit *e);
 void json_kv_string(struct shirudo_json_emit *e,
 		    const char *key, const char *val);
 void json_kv_int(struct shirudo_json_emit *e,

@@ -53,8 +53,8 @@ int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz)
 	return rc;
 }
 
-int keys_read_der_at(int dirfd, const char *name, __u8 **out,
-		     size_t *out_sz)
+static int keys_read_der_at(int dirfd, const char *name, __u8 **out,
+			    size_t *out_sz)
 {
 	int fd, rc;
 
@@ -221,8 +221,9 @@ int keys_digest_file(const char *path, __u8 sha256[32],
 	return rc;
 }
 
-int keys_path_for(const char *dir, const __u8 fingerprint[32],
-		  const char *suffix, char *out, size_t cap)
+/* <dir>/<fingerprint hex><suffix>, the name a certificate has in a set. */
+static int keys_path_for(const char *dir, const __u8 fingerprint[32],
+			 const char *suffix, char *out, size_t cap)
 {
 	char hex[65];
 
@@ -659,13 +660,6 @@ out:
 	return rc;
 }
 
-int shirudo_keys_load_split(const char *primary, const char *keys_dir,
-			    const char *revoked_dir, bool with_trusted,
-			    struct shirudo_trusted_set *set)
-{
-	return load_set(primary, keys_dir, revoked_dir, with_trusted, set);
-}
-
 int shirudo_keys_load_image_at(const char *primary, int keys_fd,
 			       bool with_trusted,
 			       struct shirudo_trusted_set *set)
@@ -704,8 +698,7 @@ int keys_load(const char *keys_dir, const char *revoked_dir,
 						    with_trusted, set);
 	if (strsprintf(primary, sizeof(primary), "%s/%s", keys_dir, SHIRUDO_CERT_FILE) < 0)
 		return -ENAMETOOLONG;
-	return shirudo_keys_load_split(primary, keys_dir, revoked_dir,
-				      with_trusted, set);
+	return load_set(primary, keys_dir, revoked_dir, with_trusted, set);
 }
 
 static int digest_cmp(const void *a, const void *b)
@@ -747,7 +740,7 @@ int keys_set_digest(const struct shirudo_trusted_set *set,
 	return keys_anchor_digest(sha, set->n, out);
 }
 
-int keys_write_file(const char *path, const void *data, size_t len)
+static int keys_write_file(const char *path, const void *data, size_t len)
 {
 	return seal_write_file(path, data, len, 0644);
 }

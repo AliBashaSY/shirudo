@@ -51,6 +51,11 @@
 
 static struct bpf_map *find_rodata(struct bpf_object *obj);
 
+struct shirudo_data_range {
+	__u32 offset;
+	__u32 length;
+};
+
 struct shirudo_unload_params {
 	char	name[SHIRUDO_UPATCH_NAME_MAX];
 	__u8	expected_sha256[SHIRUDO_UPATCH_PAYLOAD_HASH_LEN];
@@ -333,11 +338,12 @@ out:
 	return rc;
 }
 
-int shirudo_build_package_resign(const char *original,
-				 const char *modified, const char *output,
-				 const struct shirudo_data_range *ranges,
-				 size_t nr_ranges, const char *pkey_path,
-				 const char *cert_path)
+static int shirudo_build_package_resign(const char *original,
+					const char *modified,
+					const char *output,
+					const struct shirudo_data_range *ranges,
+					size_t nr_ranges, const char *pkey_path,
+					const char *cert_path)
 {
 	static const char *const symbols[] = {
 		"obs_watch_v4", "obs_watch_v6",

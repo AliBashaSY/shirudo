@@ -1784,7 +1784,7 @@ out:
 	return rc;
 }
 
-int shirudo_build_bpm_config_update(int argc, char **argv)
+static int shirudo_build_bpm_config_update(int argc, char **argv)
 {
 	const char *file_arg = NULL, *base_arg = NULL;
 	const char *version = NULL, *keys_arg = NULL;

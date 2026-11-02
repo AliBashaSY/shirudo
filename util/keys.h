@@ -55,10 +55,6 @@ struct shirudo_trusted_set {
 int keys_load(const char *keys_dir, const char *revoked_dir,
 	      bool with_trusted, struct shirudo_trusted_set *set);
 
-int shirudo_keys_load_split(const char *primary, const char *keys_dir,
-			    const char *revoked_dir, bool with_trusted,
-			    struct shirudo_trusted_set *set);
-
 /*
  * The set of a config image, read through its root descriptor; historical
  * vouches are validated before revoked signing keys are excluded.
@@ -87,8 +83,6 @@ int keys_cert_read(const struct shirudo_trusted_cert *c,
 int keys_read_der(const char *path, __u8 **out,
 		  size_t *out_sz);
 int keys_read_der_fd(int fd, __u8 **out, size_t *out_sz);
-int keys_read_der_at(int dirfd, const char *name, __u8 **out,
-		     size_t *out_sz);
 
 int keys_digest_der(const __u8 *der, size_t der_sz,
 		    __u8 sha256[32], __u8 fingerprint[32]);
@@ -108,10 +102,6 @@ int keys_set_digest(const struct shirudo_trusted_set *set,
 bool keys_is_revoked(const char *revoked_dir,
 		     const __u8 fingerprint[32]);
 
-/* <dir>/<fingerprint hex><suffix>, the name a certificate has in a set. */
-int keys_path_for(const char *dir, const __u8 fingerprint[32],
-		  const char *suffix, char *out, size_t cap);
-
 /* The bytes a vouch signs: the prefix and the certificate, xmalloc'd. */
 int keys_vouch_payload(const __u8 *der, size_t der_sz,
 		       __u8 **out, size_t *out_sz);
@@ -125,8 +115,6 @@ int keys_verify_vouch(const struct shirudo_trusted_set *set,
 		      const __u8 *der, size_t der_sz,
 		      const __u8 *sig, size_t sig_sz,
 		      __u8 voucher[32]);
-
-int keys_write_file(const char *path, const void *data, size_t len);
 
 /*
  * Write the certificate and its vouch under <keys_dir>/trusted, named
