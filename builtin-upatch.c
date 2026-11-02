@@ -3776,10 +3776,12 @@ static int cmd_upatch_get(int argc, const char **argv)
 	upatch_maps_list_one(want, &maps, &nm);
 	map_cap = show_full ? 0 : MAP_ENTRIES_DEFAULT;
 
-	if (json)
+	if (json) {
 		ret = render_get_json(&ctx, maps, nm, map_cap);
-	else
-		render_get_text(&ctx, maps, nm, map_cap), ret = 0;
+	} else {
+		render_get_text(&ctx, maps, nm, map_cap);
+		ret = 0;
+	}
 
 	map_summary_free(maps, nm);
 	upatch_get_ctx_free(&ctx);
