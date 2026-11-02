@@ -89,8 +89,10 @@ WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
 # The warnings that not every compiler shirudo builds with has, each
 # kept where the compiler takes it: a __DATE__ that would make the build
 # unreproducible, a switch without a default, an include directory that
-# does not exist, and gcc's test of a logical operator on equal
-# operands. gcc's
+# does not exist, gcc's test of a logical operator on equal operands, a
+# bidirectional control character, which makes source read other than
+# it compiles, and a nested function's trampoline, which needs an
+# executable stack. gcc's
 # -Wmaybe-uninitialized is off, as in the kernel: what it reports
 # changes with the gcc version and the optimization level, so it fails a
 # build on one host and not on the next, and the uninit Coccinelle rule
@@ -98,7 +100,8 @@ WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wstrict-prototypes -Wvla \
 cc-option = $(foreach f,$(2),$(shell $(1) -Werror $(f) -E -x c /dev/null \
 		-o /dev/null >/dev/null 2>&1 && echo $(f)))
 PROBED_WARNINGS := -Wdate-time -Wswitch-default -Wmissing-include-dirs \
-                   -Wlogical-op -Wno-maybe-uninitialized
+                   -Wlogical-op -Wno-maybe-uninitialized -Wbidi-chars=any \
+                   -Wtrampolines
 CC_WARNINGS := $(call cc-option,$(CC),$(PROBED_WARNINGS))
 
 SHIRUDO_DEBUG ?= 1
@@ -126,13 +129,20 @@ HARDEN_STATIC_PIE_LDFLAGS := $(filter-out -pie,$(HARDEN_LDFLAGS))
 # The language the kernel builds in: signed overflow wraps rather than
 # license the compiler to drop a test for it, a NULL test after a
 # dereference stays, a pointer cast between types is not miscompiled,
-# and char is unsigned on every architecture, as it is on arm64 and
-# riscv64 already.
+# char is unsigned on every architecture, as it is on arm64 and riscv64
+# already, and only a [] at the end of a struct is a flexible array, so
+# _FORTIFY_SOURCE and the sanitizers bound one of a fixed size. Where
+# the compiler has it, gcc 15 and newer, the padding of an initialized
+# automatic object is zeroed too, rather than left with what the stack
+# held, for an object that is hashed, written out or handed to the
+# kernel.
 LANG_CFLAGS := -fno-strict-overflow -fno-delete-null-pointer-checks \
-               -fno-strict-aliasing -funsigned-char
+               -fno-strict-aliasing -funsigned-char -fstrict-flex-arrays=3
+PROBED_LANG := -fzero-init-padding-bits=all
+CC_LANG := $(call cc-option,$(CC),$(PROBED_LANG))
 
 CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(CC_WARNINGS) \
-               $(HARDEN_CFLAGS) $(LANG_CFLAGS) \
+               $(HARDEN_CFLAGS) $(LANG_CFLAGS) $(CC_LANG) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE \
                -DLIBEXEC_DIR='"$(SHIRUDO_LIBEXEC_DIR)"' \
                -DBPF_INCDIR='"$(SHIRUDO_BPF_INCDIR)"' \
@@ -949,6 +959,7 @@ sparse:
 FUZZ_CC ?= clang
 FUZZ_WARNINGS := $(call cc-option,$(FUZZ_CC),$(PROBED_WARNINGS))
 FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer $(LANG_CFLAGS) \
+               $(call cc-option,$(FUZZ_CC),$(PROBED_LANG)) \
                -fsanitize=fuzzer,address,undefined \
                -fno-sanitize-recover=all $(WARNINGS) $(FUZZ_WARNINGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
