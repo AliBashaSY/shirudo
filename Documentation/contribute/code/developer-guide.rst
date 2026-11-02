@@ -551,6 +551,9 @@ can rewrite what it finds does so with ``-D patch``:
        copies.
    * - ``test_after_use``
      - A pointer tested for NULL after its use.
+   * - ``null_deref``
+     - A pointer dereferenced in the branch of the test that found it
+       NULL.
    * - ``alloc_unchecked``
      - An allocation used before it is checked.
    * - ``use_after_free``
