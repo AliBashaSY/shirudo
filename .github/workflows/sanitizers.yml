@@ -7,6 +7,9 @@ on:
     tags:
       - '*'
   pull_request:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +17,7 @@ permissions:
 jobs:
   tests:
     name: ASan+UBSan (${{ matrix.compiler }})
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -100,9 +104,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Every run starts from the corpus the last nightly run kept; the
+      # newest one is restored, as each is saved under a key of its own.
+      - name: Restore the fuzz corpora
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: build/fuzz-corpus
+          key: fuzz-corpus-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: fuzz-corpus-
+
       # The targets need no BPF objects, but the toolchain the other jobs
-      # build in comes with the LVH guest.
+      # build in comes with the LVH guest. A push or a pull request gets a
+      # minute per target, the nightly run ten.
       - name: Fuzz the parsers of input from outside the host in LVH VM
+        id: fuzz
         uses: cilium/little-vm-helper@f86d344aca812dda5aef167867a9a0a90ca6cca5 # v0.0.31
         with:
           test-name: shirudo-libfuzzer
@@ -118,4 +133,23 @@ jobs:
             cd /host
             .github/scripts/vm-toolchain.sh libclang-rt-21-dev
             . build/vm-toolchain.env
-            make -C testing fuzz FUZZ_SECONDS=60
+            make -C testing fuzz \
+              FUZZ_SECONDS=${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 600 || 60 }} \
+              FUZZ_CORPUS=/host/build/fuzz-corpus
+
+      # Only the nightly and manual runs save, so that each push does not
+      # add a corpus to the cache the kernel and the VM images share.
+      - name: Save the fuzz corpora
+        if: always() && steps.fuzz.outcome != 'skipped' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: build/fuzz-corpus
+          key: fuzz-corpus-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crashes
+          path: testing/fuzz/crash-*
+          if-no-files-found: ignore
