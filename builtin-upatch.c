@@ -1666,8 +1666,8 @@ static void close_loader_fds(const struct shirudo_loader_ctx *cx,
 }
 
 /* Shared by `upatch load` and boot restore: one signature-verified path. */
-static int upatch_apply(const char *path, bool verify_only,
-			struct shirudo_op_report *rep)
+static int __upatch_apply(const char *path, bool verify_only,
+			  struct shirudo_op_report *rep)
 {
 	struct shirudo_upatch u;
 	struct shirudo_prog_spec *prog_specs = NULL;
@@ -1860,8 +1860,8 @@ static int upatch_apply(const char *path, bool verify_only,
 	{
 		__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
 
-		if (shirudo_sha256(insns, u.hdr.loader_insns_len,
-				   loader_digest)) {
+		if (sha256_calc(insns, u.hdr.loader_insns_len,
+				loader_digest)) {
 			pr_err("__loader.map: cannot hash the loader");
 			rep_fail(rep, "signed_loader_load", "unknown", EIO,
 				 "loader digest failed");
@@ -2056,9 +2056,9 @@ out:
 	return ret;
 }
 
-int shirudo_upatch_apply(const char *path)
+int upatch_apply(const char *path)
 {
-	return upatch_apply(path, false, NULL);
+	return __upatch_apply(path, false, NULL);
 }
 
 /*
@@ -2705,7 +2705,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 		goto done;
 	}
 
-	if (upatch_apply(file, false, &rep) != 0)
+	if (__upatch_apply(file, false, &rep) != 0)
 		goto done;
 	if (!have_id) {		/* loaded but couldn't read identity */
 		ret = 0;
@@ -2864,7 +2864,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		goto done;
 
 	/* A bad signature fails here, before anything is removed. */
-	if (upatch_apply(file, true, &rep) != 0) {
+	if (__upatch_apply(file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");
 		goto done;
 	}

@@ -179,13 +179,13 @@ static void check_cert(struct shirudo_preflight_result *r)
 		next_slot(r, SHIRUDO_PRE_CERT_ON_DISK, "cert_on_disk");
 	struct stat st;
 
-	if (stat(shirudo_cert_path(), &st) == 0 &&
+	if (stat(get_cert_path(), &st) == 0 &&
 	    S_ISREG(st.st_mode) && st.st_size > 0)
 		pass(c);
 	else
 		fail(r, c,
 		     "%s missing or empty (copy the operator's cert)",
-		     shirudo_cert_path());
+		     get_cert_path());
 }
 
 /*
@@ -200,7 +200,7 @@ static void check_cert(struct shirudo_preflight_result *r)
  */
 static int preflight_keys(struct shirudo_trusted_set *set)
 {
-	return keys_load(shirudo_keys_dir(), KEYS_REVOKED_DIR,
+	return keys_load(get_keys_dir(), KEYS_REVOKED_DIR,
 			 true, set);
 }
 

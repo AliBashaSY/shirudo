@@ -40,7 +40,7 @@ static void image_usage(FILE *fp)
 		    "Build and offline verification require veritysetup.\n");
 }
 
-static int build_image(int argc, char **argv)
+static int __build_image(int argc, char **argv)
 {
 	char executable[PATH_MAX], script[PATH_MAX], directory[PATH_MAX];
 	char **command;
@@ -236,7 +236,7 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 	return ret;
 }
 
-int shirudo_build_image(int argc, char **argv)
+int build_image(int argc, char **argv)
 {
 	bool explicit_key = false, explicit_cert = false;
 	char pkey_path[PATH_MAX], cert_path[PATH_MAX];
@@ -247,7 +247,7 @@ int shirudo_build_image(int argc, char **argv)
 	int i, ret;
 
 	if (argc >= 2 && !strcmp(argv[1], "build"))
-		return build_image(argc, argv);
+		return __build_image(argc, argv);
 	if (argc == 2 && !strcmp(argv[1], "--help")) {
 		image_usage(stdout);
 		return 0;

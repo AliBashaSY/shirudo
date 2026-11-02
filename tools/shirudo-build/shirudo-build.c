@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (argc >= 2 && strcmp(argv[1], "image") == 0)
-		return shirudo_build_image(argc - 1, argv + 1);
+		return build_image(argc - 1, argv + 1);
 	if (argc >= 2 && strcmp(argv[1], "upatch") == 0)
 		return build_upatch_cli(argc - 1, argv + 1);
 	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
@@ -267,9 +267,9 @@ int main(int argc, char **argv)
 
 	if (keys_dir) {
 		if (!pkey_explicit) {
-			ret = shirudo_key_path(pkey_path, sizeof(pkey_path),
-					       keys_dir,
-					       SIGNING_KEY_FILE);
+			ret = format_key_path(pkey_path, sizeof(pkey_path),
+					      keys_dir,
+					      SIGNING_KEY_FILE);
 			if (ret) {
 				pr_err("invalid keys dir %s: %s",
 				       keys_dir, strerror(-ret));
@@ -278,8 +278,8 @@ int main(int argc, char **argv)
 			pkey = pkey_path;
 		}
 		if (!cert_explicit) {
-			ret = shirudo_key_path(cert_path, sizeof(cert_path),
-					       keys_dir, CERT_FILE);
+			ret = format_key_path(cert_path, sizeof(cert_path),
+					      keys_dir, CERT_FILE);
 			if (ret) {
 				pr_err("invalid keys dir %s: %s",
 				       keys_dir, strerror(-ret));

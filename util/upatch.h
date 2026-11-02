@@ -145,7 +145,7 @@ void prog_specs_free(struct shirudo_prog_spec *specs, __u32 nr_progs);
  * The target's upatch lifecycle, which builtin-upatch.c implements for
  * init, bpm and keys: load, install, unload.
  */
-int shirudo_upatch_apply(const char *path);
+int upatch_apply(const char *path);
 int upatch_install(const char *path);
 int upatch_remove(const char *path);
 

@@ -1006,7 +1006,7 @@ static int boot_restore(bool recorded,
 			ret = -EPERM;
 			goto next;
 		}
-		if (shirudo_upatch_apply(path) != 0) {
+		if (upatch_apply(path) != 0) {
 			pr_err("boot-restore: failed to apply %s",
 			       names[i]->d_name);
 			ret = -EINVAL;

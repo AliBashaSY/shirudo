@@ -519,15 +519,15 @@ int build_upatch_cli(int argc, char **argv)
 	keys_dir = keys_dir_resolve(keys_dir);
 	if (keys_dir) {
 		if (!pkey_explicit) {
-			ret = shirudo_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
-					       SIGNING_KEY_FILE);
+			ret = format_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
+					      SIGNING_KEY_FILE);
 			if (ret)
 				return 2;
 			pkey = pkey_buf;
 		}
 		if (!cert_explicit) {
-			ret = shirudo_key_path(cert_buf, sizeof(cert_buf), keys_dir,
-					       CERT_FILE);
+			ret = format_key_path(cert_buf, sizeof(cert_buf), keys_dir,
+					      CERT_FILE);
 			if (ret)
 				return 2;
 			cert = cert_buf;

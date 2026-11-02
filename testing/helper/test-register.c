@@ -465,7 +465,7 @@ int main(int argc, char **argv)
 		if (!ret)
 			ret = chain_anchor(nv.name, anchor, sizeof(anchor));
 		if (!ret) {
-			shirudo_sha256(anchor, strlen(anchor), anchor_digest);
+			sha256_calc(anchor, strlen(anchor), anchor_digest);
 			ret = tpm_pcr_extend(tpm, pcr, anchor_digest);
 		}
 		if (!ret)

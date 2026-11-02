@@ -1595,7 +1595,7 @@ static int tree_fetch_publication(const struct bpm_tree_config *cfg,
 	if (ret)
 		return ret;
 	return bpm_tree_fetch_publication(&c, repository, cfg->reference,
-					  shirudo_cert_path(), pub,
+					  get_cert_path(), pub,
 					  manifest_digest, digest_sz);
 }
 

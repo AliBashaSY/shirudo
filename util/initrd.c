@@ -28,7 +28,7 @@ const char *sysroot(void)
 	return env && *env ? env : "/sysroot";
 }
 
-const char *shirudo_keys_dir(void)
+const char *get_keys_dir(void)
 {
 	if (image_config_root_fd() >= 0)
 		return RUNTIME_DIR "/keys";
@@ -36,7 +36,7 @@ const char *shirudo_keys_dir(void)
 				     KEYS_DIR;
 }
 
-const char *shirudo_cert_path(void)
+const char *get_cert_path(void)
 {
 	if (image_config_root_fd() >= 0)
 		return RUNTIME_CERT_PATH;

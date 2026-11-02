@@ -371,7 +371,7 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 		memset(chain, 0, 32);
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, digest, 32);
-	shirudo_sha256(cat, sizeof(cat), chain);
+	sha256_calc(cat, sizeof(cat), chain);
 	return 0;
 }
 

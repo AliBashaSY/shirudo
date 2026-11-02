@@ -698,7 +698,7 @@ static int check_signed(struct reporter *rep, const char *what,
 		say(rep, false, "%s: signature structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	shirudo_sha256(attest, *attest_len, digest);
+	sha256_calc(attest, *attest_len, digest);
 	ret = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
 	say(rep, ret == 0, "%s: ECDSA signature by the attestation key", what);
 	tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qn);
@@ -1176,7 +1176,7 @@ int attest_verify(const char *evidence, size_t len,
 		bool named = !chain_anchor(p->init.name, anchor,
 					   sizeof(anchor));
 
-		shirudo_sha256(anchor, strlen(anchor), anchor_digest);
+		sha256_calc(anchor, strlen(anchor), anchor_digest);
 		say(&rep, named && ct_eq(anchor_digest, p->init.anchor_digest,
 					 32),
 		    "anchor: record digest matches the index name");

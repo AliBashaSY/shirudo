@@ -29,7 +29,7 @@
 #include "paths.h"
 #include "tpm.h"
 
-int shirudo_sha256(const void *data, size_t len, __u8 out[32])
+int sha256_calc(const void *data, size_t len, __u8 out[32])
 {
 	int ret = sha256_buffer(data, len, out);
 
@@ -103,7 +103,7 @@ int chain_init_event(const __u8 cert_sha[32],
 		}
 		off += (size_t)w;
 	}
-	ret = shirudo_sha256(listing, listing_len, set_digest);
+	ret = sha256_calc(listing, listing_len, set_digest);
 	xfree(listing, listing_len + 1);
 	if (ret)
 		return ret;
@@ -112,7 +112,7 @@ int chain_init_event(const __u8 cert_sha[32],
 	memcpy(tag + taglen, cert_sha, 32);
 	memcpy(tag + taglen + 32, set_digest, 32);
 	memcpy(tag + taglen + 64, tree_root, 32);
-	return shirudo_sha256(tag, taglen + 96, event);
+	return sha256_calc(tag, taglen + 96, event);
 }
 
 int chain_upatch_event(const char *tag, const char *name,
@@ -128,7 +128,7 @@ int chain_upatch_event(const char *tag, const char *name,
 	off += 32;
 	memcpy(buf + off, name, namelen);
 	off += namelen;
-	return shirudo_sha256(buf, off, event);
+	return sha256_calc(buf, off, event);
 }
 
 void chain_key_event(const char *tag, const __u8 cert_sha[32],
@@ -148,7 +148,7 @@ void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	for (i = 0; i < 8; i++)
 		buf[taglen + i] = (__u8)(s >> (56 - 8 * i));
 	memcpy(buf + taglen + 8, operation_digest, 32);
-	shirudo_sha256(buf, taglen + 40, event);
+	sha256_calc(buf, taglen + 40, event);
 }
 
 int chain_fold_checked(__u8 chain[32], const __u8 event[32])
@@ -428,8 +428,8 @@ int chain_init(const __u8 event[32],
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	ret = shirudo_sha256(info->anchor, strlen(info->anchor),
-			     info->anchor_digest);
+	ret = sha256_calc(info->anchor, strlen(info->anchor),
+			  info->anchor_digest);
 	if (ret)
 		goto out;
 	ret = tpm_pcr_extend(tpm, CHAIN_PCR,

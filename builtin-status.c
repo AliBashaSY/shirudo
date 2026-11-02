@@ -152,7 +152,7 @@ static void gather_assets(struct asset_view *a)
 	struct stat st;
 
 	*a = (struct asset_view){};
-	a->cert = access(shirudo_cert_path(), F_OK) == 0;
+	a->cert = access(get_cert_path(), F_OK) == 0;
 	a->signing_key = access(SIGNING_KEY_PATH, F_OK) == 0;
 	if (stat(eventlog_path(), &st) == 0) {
 		a->eventlog = true;
@@ -1003,7 +1003,7 @@ int cmd_status(int argc, const char **argv)
 	keyring_view_dm_verity(&dmv, &ident);
 	mode = lsm_attached ? "production" : "inactive";
 	is_operator = access(SIGNING_KEY_PATH, F_OK) == 0;
-	cert_present = access(shirudo_cert_path(), F_OK) == 0;
+	cert_present = access(get_cert_path(), F_OK) == 0;
 	is_target = cert_present || lsm_attached || keyring_present;
 
 	n_ups = scandir(BPFFS_UPATCHES_DIR, &ups, notdot, alphasort);

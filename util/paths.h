@@ -135,8 +135,8 @@
 /* Site config. */
 #define CONF_PATH		"/etc/shirudo/shirudo.conf"
 
-int shirudo_key_path(char *out, size_t out_sz,
-		     const char *keys_dir, const char *file);
+int format_key_path(char *out, size_t out_sz,
+		    const char *keys_dir, const char *file);
 int key_paths(const char *keys_dir,
 	      char *pkey_path, size_t pkey_sz,
 	      char *cert_path, size_t cert_sz);

@@ -23,7 +23,7 @@ const char *sysroot(void);
  * initrd runs, the state tree's otherwise. cert.der is the primary
  * certificate in that directory.
  */
-const char *shirudo_keys_dir(void);
-const char *shirudo_cert_path(void);
+const char *get_keys_dir(void);
+const char *get_cert_path(void);
 
 #endif /* SHIRUDO_UTIL_INITRD_H */

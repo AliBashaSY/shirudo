@@ -668,7 +668,7 @@ int tree_event_replay(__u8 out[32])
 		}
 		memcpy(next, chain, 32);
 		memcpy(next + 32, d, 32);
-		ret = shirudo_sha256(next, sizeof(next), chain);
+		ret = sha256_calc(next, sizeof(next), chain);
 		if (ret)
 			break;
 		if (!ct_eq(chain, recorded, 32)) {

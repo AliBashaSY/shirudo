@@ -129,17 +129,17 @@ int build_keys_vouch(int argc, char **argv)
 	keys_dir = keys_dir_resolve(keys_dir_arg);
 	if (keys_dir) {
 		if (!pkey_explicit) {
-			if (shirudo_key_path(pkey_path, sizeof(pkey_path),
-					     keys_dir,
-					     SIGNING_KEY_FILE)) {
+			if (format_key_path(pkey_path, sizeof(pkey_path),
+					    keys_dir,
+					    SIGNING_KEY_FILE)) {
 				pr_err("invalid keys dir %s", keys_dir);
 				return 2;
 			}
 			pkey = pkey_path;
 		}
 		if (!cert_explicit) {
-			if (shirudo_key_path(cert_path, sizeof(cert_path),
-					     keys_dir, CERT_FILE)) {
+			if (format_key_path(cert_path, sizeof(cert_path),
+					    keys_dir, CERT_FILE)) {
 				pr_err("invalid keys dir %s", keys_dir);
 				return 2;
 			}

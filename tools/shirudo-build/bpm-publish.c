@@ -662,14 +662,14 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		const char *keys_dir = keys_dir_resolve(keys_dir_arg);
 
 		if (!key) {
-			if (shirudo_key_path(key_path, sizeof(key_path), keys_dir,
-					     SIGNING_KEY_FILE))
+			if (format_key_path(key_path, sizeof(key_path), keys_dir,
+					    SIGNING_KEY_FILE))
 				return -EINVAL;
 			key = key_path;
 		}
 		if (!cert) {
-			if (shirudo_key_path(cert_path, sizeof(cert_path), keys_dir,
-					     CERT_FILE))
+			if (format_key_path(cert_path, sizeof(cert_path), keys_dir,
+					    CERT_FILE))
 				return -EINVAL;
 			cert = cert_path;
 		}
@@ -895,11 +895,11 @@ int build_bpm_push(int argc, char **argv)
 	}
 	if (keys_dir_arg) {
 		if ((!index_cert &&
-		     shirudo_key_path(cert_path, sizeof(cert_path),
-				      keys_dir_arg, CERT_FILE)) ||
+		     format_key_path(cert_path, sizeof(cert_path),
+				     keys_dir_arg, CERT_FILE)) ||
 		    (!index_key &&
-		     shirudo_key_path(key_path, sizeof(key_path),
-				      keys_dir_arg, SIGNING_KEY_FILE)))
+		     format_key_path(key_path, sizeof(key_path),
+				     keys_dir_arg, SIGNING_KEY_FILE)))
 			return publish_fail("push", -EINVAL);
 		if (!index_cert)
 			index_cert = cert_path;

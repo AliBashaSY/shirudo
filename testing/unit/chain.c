@@ -12,7 +12,7 @@ static void sha256_matches_fips_180_vector(void)
 	char hex[2 * 32 + 1];
 	__u8 d[32];
 
-	ASSERT_EQ(shirudo_sha256("abc", 3, d), 0);
+	ASSERT_EQ(sha256_calc("abc", 3, d), 0);
 	hex_encode(d, sizeof(d), hex);
 	EXPECT_STREQ(hex, want);
 }

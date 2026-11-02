@@ -247,7 +247,7 @@ static int cert_digest(const char *path, __u8 out[32])
 	}
 	got = read(fd, buf, (size_t)st.st_size);
 	close(fd);
-	if (got == st.st_size && shirudo_sha256(buf, (size_t)got, out))
+	if (got == st.st_size && sha256_calc(buf, (size_t)got, out))
 		got = -1;
 	xfree(buf, (size_t)st.st_size);
 	return got == st.st_size ? 0 : -EIO;
@@ -419,7 +419,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 			goto out;
 		}
 		printf("anchor: %s\n", anchor);
-		if (shirudo_sha256(anchor, strlen(anchor), anchor_digest)) {
+		if (sha256_calc(anchor, strlen(anchor), anchor_digest)) {
 			pr_err("attest predict: cannot hash the anchor");
 			goto out;
 		}
