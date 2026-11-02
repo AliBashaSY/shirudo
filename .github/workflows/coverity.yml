@@ -58,8 +58,6 @@ jobs:
             apt-get install -y --no-install-recommends \
               build-essential \
               ca-certificates \
-              clang \
-              llvm \
               curl \
               git \
               pkg-config \
@@ -70,6 +68,7 @@ jobs:
               libtpms-dev \
               libtss2-dev \
               zlib1g-dev
+            sh .github/scripts/install-clang.sh
 
             git config --global --add safe.directory /host
 

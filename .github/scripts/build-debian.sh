@@ -4,7 +4,8 @@
 #
 # .github/scripts/build-debian.sh -- build on a Debian testing container of
 # any architecture, with the distribution's compiler and libraries, which
-# are new enough to need no toolchain of their own: the binary and the
+# are new enough to need no toolchain of their own, and clang 23 from
+# unstable through install-clang.sh: the binary and the
 # shirudo-build helper, then the unit tests and the linkage check. The BPF
 # objects are bytecode whatever the host, so the BTF can come from a
 # kernel of another architecture.
@@ -32,9 +33,7 @@ apt-get update
 apt-get install -y --no-install-recommends \
 	build-essential \
 	ca-certificates \
-	clang \
 	git \
-	llvm \
 	openssl \
 	pkgconf \
 	python3 \
@@ -44,6 +43,7 @@ apt-get install -y --no-install-recommends \
 	libssl-dev \
 	libtss2-dev \
 	zlib1g-dev
+sh .github/scripts/install-clang.sh
 
 git config --global --add safe.directory "$PWD"
 uname -m

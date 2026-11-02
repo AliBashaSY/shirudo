@@ -312,7 +312,9 @@ one usually still compiles and passes tests.
   grows the TCB; the agentless design exists to keep it minimal.
 - **Bleeding-edge kernel and toolchain only.** The signed-loader ABI
   described in `Documentation/operate/plan/system-requirements.rst` and
-  current clang/LLVM are hard prerequisites. Development trees can
+  current clang/LLVM, release 23, are hard prerequisites. Every CI job
+  installs it with `.github/scripts/install-clang.sh`; verify compiler
+  behavior with it, not an older host clang. Development trees can
   expose that ABI before the corresponding release number changes; use a
   verified commit, not just `uname`, to identify the tested kernel. No
   legacy-kernel fallback paths; a missing kernel feature fails the build

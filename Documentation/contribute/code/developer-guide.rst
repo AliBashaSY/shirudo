@@ -19,10 +19,10 @@ Before you begin
 
 - A Linux host on x86-64, arm64 or riscv64. The test VM runs on x86-64
   and arm64 hosts only.
-- A C compiler, GNU make, ``pkg-config``, ``python3`` and a current
-  ``clang`` and ``llvm`` with the BPF target. CI installs clang 20 on
-  its Ubuntu runners because clang 18 lacks the BPF address-space casts
-  that arena upatches need.
+- A C compiler, GNU make, ``pkg-config``, ``python3``, and ``clang`` and
+  ``llvm`` 23 with the BPF target, the release CI builds and tests with.
+  :src:`.github/scripts/install-clang.sh` installs them on Debian, Ubuntu
+  and Fedora.
 - The development files that :src:`Makefile.config` probes for with
   ``pkg-config``:
 
@@ -451,8 +451,15 @@ the commit at ``HEAD`` alone without them.
        shirudo-build`` and ``make -C testing test-helpers``. It
        refuses to start with uncommitted changes and checks out each
        commit in the working tree.
+   * - ``install-clang.sh [<package>...]``
+     - Installs clang and LLVM 23, from the distribution, Debian unstable
+       or apt.llvm.org, and points ``clang``, ``llvm-strip``,
+       ``llvm-objcopy`` and ``llvm-symbolizer`` in ``/usr/bin`` at them.
+       Every CI job that compiles runs it. It installs packages as root,
+       so run it only in a throwaway container or VM.
    * - ``build-debian.sh <btf>``
-     - Installs Debian testing's compiler and libraries, builds the
+     - Installs Debian testing's compiler and libraries and clang 23
+       from unstable, builds the
        binary and the helper with the BTF given, and runs the unit tests
        and ``check-operator-linkage.sh``. The ``Build`` workflow runs it
        in a ``debian:testing`` container on arm64 and riscv64. It

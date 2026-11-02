@@ -11,14 +11,13 @@ grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
 }
 
 cd /host
+sh .github/scripts/install-clang.sh
 apt-get update
 apt-get install -y --no-install-recommends \
 	build-essential \
 	ca-certificates \
-	clang \
 	cryptsetup-bin \
 	e2fsprogs \
-	llvm \
 	python3 \
 	pkg-config \
 	autoconf \

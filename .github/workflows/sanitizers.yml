@@ -56,11 +56,8 @@ jobs:
             apt-get install -y --no-install-recommends \
               build-essential \
               ca-certificates \
-              clang \
               cryptsetup-bin \
               e2fsprogs \
-              libclang-rt-21-dev \
-              llvm \
               curl \
               git \
               pkg-config \
@@ -71,6 +68,7 @@ jobs:
               libtpms-dev \
               libtss2-dev \
               zlib1g-dev
+            sh .github/scripts/install-clang.sh libclang-rt-23-dev
 
             git config --global --add safe.directory /host
 
@@ -131,7 +129,7 @@ jobs:
           mem: 8G
           cmd: |
             cd /host
-            .github/scripts/vm-toolchain.sh libclang-rt-21-dev
+            .github/scripts/vm-toolchain.sh libclang-rt-23-dev
             . build/vm-toolchain.env
             make -C testing fuzz \
               FUZZ_SECONDS=${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 600 || 60 }} \

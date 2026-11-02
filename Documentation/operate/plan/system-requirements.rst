@@ -411,9 +411,10 @@ keyrings. Any Linux kernel on which the tools below run serves.
        ``tss2-tctildr``, ``libelf``, ``zlib``, LuaJIT
      - Linked by the ``shirudo`` binary, which is the same program on
        both roles.
-   * - ``clang`` and LLVM with the BPF target, installed as
+   * - ``clang`` and LLVM 23 with the BPF target, ``clang`` installed as
        ``/usr/bin/clang``
      - ``shirudo build`` runs that path and does not search ``PATH``.
+       It compiles for BPF instruction set v4.
    * - The target kernel's ``vmlinux.h``
      - The one kernel-derived input of a build. ``shirudo build`` takes
        ``--vmlinux``, else ``./vmlinux.h``, else
@@ -431,8 +432,9 @@ keyrings. Any Linux kernel on which the tools below run serves.
        they dispatch a command.
 
 The operator package depends on ``clang``, ``llvm`` and the
-``veritysetup`` package. The operator and target packages conflict, so
-one host cannot install both.
+``veritysetup`` package. Where the distribution's ``clang`` is older than
+23, install clang 23 and point ``/usr/bin/clang`` at it. The operator and
+target packages conflict, so one host cannot install both.
 
 Build host for the target binary
 --------------------------------
@@ -464,7 +466,7 @@ target-deps`` first.
        static PIE support (``libc6-dev`` on Debian, ``glibc-static`` on
        Fedora)
      - The static PIE link. They come from the compiler's sysroot.
-   * - ``clang`` with the BPF target
+   * - ``clang`` 23 with the BPF target
      - The BPF objects embedded in the binary.
    * - BTF of a kernel with the signed-loader ABI
      - The embedded BPF objects read ``prog->aux->sig`` and do not

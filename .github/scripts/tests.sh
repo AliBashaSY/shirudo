@@ -221,14 +221,10 @@ setup() {
 	mkdir -p build
 	sudo BPF_VMLINUX_BTF="$PWD/$kernel/vmlinux.btf" \
 		.github/scripts/vm-toolchain.sh \
-		autoconf autoconf-archive automake clang-20 cloud-image-utils \
+		autoconf autoconf-archive automake cloud-image-utils \
 		dracut-core file isc-dhcp-client libguestfs-tools libltdl-dev \
 		libtool libzstd-dev cryptsetup-bin e2fsprogs qemu-system-x86 qemu-utils swtpm \
 		swtpm-tools tpm2-tools coccinelle
-
-	# Ubuntu 24.04's clang 18 lacks the BPF address-space casts the
-	# arena upatches need, and shirudo-build runs /usr/bin/clang.
-	sudo ln -sf clang-20 /usr/bin/clang
 
 	# Ubuntu's dracut 060 looks for systemd-pcrphase, which systemd 255
 	# calls systemd-pcrextend, and so leaves out the PCR phase

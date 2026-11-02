@@ -4,8 +4,9 @@
 #
 # .github/scripts/vm-toolchain.sh -- prepare the LVH guest a workflow builds
 # in, or the runner itself: check that the kernel the BPF objects are
-# built for takes signed BPF, install the build dependencies and build an
-# OpenSSL 3.5 toolchain, since the distribution's predates ML-DSA. The
+# built for takes signed BPF, install clang 23 with install-clang.sh and the
+# build dependencies, and build an OpenSSL 3.5 toolchain, since the
+# distribution's predates ML-DSA. The
 # environment the build then needs is written to build/vm-toolchain.env
 # for the caller to source.
 #
@@ -32,14 +33,13 @@ grep -aq 'signature_size' "$btf" || {
 	exit 1
 }
 
+sh "$root/.github/scripts/install-clang.sh"
 apt-get update
 apt-get install -y --no-install-recommends \
 	build-essential \
 	ca-certificates \
-	clang \
 	cryptsetup-bin \
 	e2fsprogs \
-	llvm \
 	curl \
 	git \
 	pkg-config \

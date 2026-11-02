@@ -231,7 +231,7 @@ Run the fuzz targets
 --------------------
 
 The fuzz targets cover the parsers of input from outside the host. They
-need clang with its libFuzzer runtime, ``libclang-rt-21-dev`` on the CI
+need clang with its libFuzzer runtime, ``libclang-rt-23-dev`` on the CI
 runner.
 
 1. Build and run every target on its seed corpus for 60 seconds each:
