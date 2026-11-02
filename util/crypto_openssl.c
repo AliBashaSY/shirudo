@@ -36,22 +36,25 @@
 #include "log.h"
 #include "malloc.h"
 
-static X509 *read_x509(const char *path)
+static int read_x509(const char *path, X509 **out)
 {
 	int fd = open(path, O_RDONLY | O_CLOEXEC);
 	X509 *cert;
 	BIO *bio;
+	int rc;
 
+	*out = NULL;
 	if (fd < 0)
-		return NULL;
-	if (check_trusted(fd, path, false)) {
+		return -errno;
+	rc = check_trusted(fd, path, false);
+	if (rc) {
 		close(fd);
-		return NULL;
+		return rc;
 	}
 	bio = BIO_new_fd(fd, BIO_CLOSE);
 	if (!bio) {
 		close(fd);
-		return NULL;
+		return -ENOMEM;
 	}
 	cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
 	if (!cert) {
@@ -61,9 +64,12 @@ static X509 *read_x509(const char *path)
 			cert = d2i_X509_bio(bio, NULL);
 	}
 	BIO_free(bio);
-	if (!cert)
+	if (!cert) {
 		ERR_clear_error();
-	return cert;
+		return -EINVAL;
+	}
+	*out = cert;
+	return 0;
 }
 
 int sha256_init(struct shirudo_sha256_ctx *ctx)
@@ -211,10 +217,14 @@ out:
 
 int cert_read_file(const char *path, struct shirudo_cert *cert)
 {
+	X509 *x509;
+	int rc;
+
 	if (!path || !cert)
 		return -EINVAL;
-	cert->impl = read_x509(path);
-	return cert->impl ? 0 : -EINVAL;
+	rc = read_x509(path, &x509);
+	cert->impl = x509;
+	return rc;
 }
 
 int cert_read_fd(int fd, struct shirudo_cert *cert)
