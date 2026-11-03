@@ -95,7 +95,7 @@ static __always_inline int OBS_FN(init)(__u64 now)
 		OBS_FN(states)[i] = state;
 	}
 	OBS_FN(drain) = OBS_FN(states)[1];
-	WRITE_ONCE(OBS_FN(active), OBS_FN(states)[0]);
+	__atomic_store_n(&OBS_FN(active), OBS_FN(states)[0], __ATOMIC_RELEASE);
 	return 0;
 }
 
@@ -168,7 +168,7 @@ static __always_inline void OBS_FN(flip)(__u64 now)
 		OBS_FN(clear)(spare);
 	}
 	spare->since_ns = now;
-	WRITE_ONCE(OBS_FN(active), spare);
+	__atomic_store_n(&OBS_FN(active), spare, __ATOMIC_RELEASE);
 	OBS_FN(drain) = cur;
 }
 
