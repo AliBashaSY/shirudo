@@ -160,7 +160,7 @@ Load it and read the map
    .. code-block:: console
 
       target# shirudo upatch map sleep-count calls
-      upatch:              sleep-count
+      Name:                sleep-count
       Map:                 calls
       Type:                array
       Max entries:         1

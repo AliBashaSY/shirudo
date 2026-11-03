@@ -382,18 +382,18 @@ Run the checks as root on a target:
 .. code-block:: console
 
    target# shirudo init --check-only
-   pre-flight checks:
-     root                   OK
-     bpf_lsm_active         OK
-     bpffs_supported        OK
-     signed_loader_kernel_abi OK
-     cert_on_disk           OK
-     cert_algorithm         OK
-     cert_kernel_support    OK
-     kernel_keyring         OK
-     embedded_loader        OK
-     tpm2_reachable         OK: TCTI override: device:/dev/tpmrm0
-   10/10 passed (0 failed)
+   Pre-flight checks:
+     OK    root
+     OK    bpf_lsm_active
+     OK    bpffs_supported
+     OK    signed_loader_kernel_abi
+     OK    cert_on_disk
+     OK    cert_algorithm
+     OK    cert_kernel_support
+     OK    kernel_keyring
+     OK    embedded_loader
+     OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
+   10 of 10 passed
 
 A failed check prints ``FAIL`` and its reason, and the command exits 1
 after ``init: pre-flight failed (<failed>/<total> checks)``.

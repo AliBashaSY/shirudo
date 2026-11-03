@@ -64,31 +64,55 @@ Check that init worked
    .. code-block:: console
 
       target# shirudo status
-      Host:              docs
-      Roles:             target
-      Mode:              production
-      Status:            ok
-      Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+      Host:                  docs
+      Roles:                 target
+      Mode:                  production
+      Status:                ok
+      Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
+
+      Conditions:
+        TYPE               STATUS  DETAIL
+        LsmAttached        OK      lsm/bpf link present and pinned
+        KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+        ChainIntact        OK      live register equals the eventlog replay
+        UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+        TpmMeasured        OK      NV index 0x01818E00 readable
+        ConfigActive       OK      config 6d5ed552f448.. is active
+
+      Tamper attempts (this boot):
+        LoadNotLoader            15  program load that is not a signed loader
+        MapCreate                 1  map creation by another executable
+        BpfCommand                8  detach, update, delete or unclassified bpf() command
+        BpffsUmount               1  unmount of the private bpffs
+        SealWrite                 1  write open of a sealed file
+        SealPtrace                7  ptrace of a shirudo task
+        SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+      Loaded upatches (1):
+        NAME                      LOCATION                       MAPS  STATUS                        AGE
+        shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+
+      Folded: keyrings, TPM measurement, assets (--show-full)
 
       Conditions:
         TYPE             STATUS  DETAIL
         LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
-        ChainIntact      OK      live register == eventlog replay
+        KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
+        ChainIntact      OK      live register equals the eventlog replay
         TpmMeasured      OK      NV index 0x01818E00 readable
         ConfigActive     OK      config dc90bacc356f.. is active
       ...
-      TPM Measurement:
-        TPM:               reachable (device:/dev/tpmrm0)
-        NV index:          0x01818E00 (anchored in PCR 9)
-        Chain:             dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
-        Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-        Anchored:          yes (name on record)
-        PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
-        Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
-        Bound in:          initrd
-        Chain vs eventlog: matches
-        Eventlog:          /var/lib/shirudo/eventlog  (3 entries, 2675 bytes)
+      TPM measurement:
+        TPM:                   reachable (device:/dev/tpmrm0)
+        NV index:              0x01818E00 (anchored in PCR 9)
+        Chain:                 dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
+        Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
+        Anchored:              yes (name on record)
+        PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+        Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+        Bound in:              initrd
+        Chain vs eventlog:     matches
+        Eventlog:              /var/lib/shirudo/eventlog  (3 entries, 2675 bytes)
       ...
 
    ``Status: ok`` and five ``OK`` conditions mean that enforcement is
@@ -159,18 +183,18 @@ It changes no persistent or enforcement state:
 .. code-block:: console
 
    target# shirudo init --check-only
-   pre-flight checks:
-     root                   OK
-     bpf_lsm_active         OK
-     bpffs_supported        OK
-     signed_loader_kernel_abi OK
-     cert_on_disk           OK
-     cert_algorithm         OK
-     cert_kernel_support    OK
-     kernel_keyring         OK
-     embedded_loader        OK
-     tpm2_reachable         OK: TCTI override: device:/dev/tpmrm0
-   10/10 passed (0 failed)
+   Pre-flight checks:
+     OK    root
+     OK    bpf_lsm_active
+     OK    bpffs_supported
+     OK    signed_loader_kernel_abi
+     OK    cert_on_disk
+     OK    cert_algorithm
+     OK    cert_kernel_support
+     OK    kernel_keyring
+     OK    embedded_loader
+     OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
+   10 of 10 passed
 
 :doc:`/reference/cli/init` describes each check.
 
@@ -246,8 +270,8 @@ Register binding failures
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When init cannot bind the register, it logs
-``init: incomplete -- LSM active and upatches loaded, but TPM register
-not advanced`` after one of these lines:
+``init: incomplete: LSM active and upatches loaded, but the TPM register
+did not advance`` after one of these lines:
 
 .. list-table::
    :header-rows: 1

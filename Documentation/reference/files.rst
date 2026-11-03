@@ -477,16 +477,12 @@ Kernel and system interfaces
      - Attaching kprobe and kretprobe programs.
    * - ``/sys/fs/cgroup``
      - Attaching ``cgroup_skb`` programs at the root cgroup.
-   * - ``/proc/modules``, ``/sys/module/``
-     - ``status --include-modules``.
    * - ``/sys/kernel/notes``, ``/boot/config-<release>``,
        ``/proc/config.gz``
      - Kernel build ID and configuration, matched by tree selectors.
    * - ``/etc/os-release``, ``/etc/machine-id``, ``/proc/meminfo``,
        ``/proc/uptime``
      - ``status --include-system``.
-   * - ``/dev/kmsg``
-     - ``status --include-kernellog``.
    * - ``/etc/initrd-release``
      - Whether ``init`` runs in the initrd.
 

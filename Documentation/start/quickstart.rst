@@ -148,17 +148,40 @@ Check enforcement
    .. code-block:: console
 
       target# shirudo status
-      Host:              quickstart
-      Roles:             target
-      Mode:              production
-      Status:            ok
-      Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+      Host:                  quickstart
+      Roles:                 target
+      Mode:                  production
+      Status:                ok
+      Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
+
+      Conditions:
+        TYPE               STATUS  DETAIL
+        LsmAttached        OK      lsm/bpf link present and pinned
+        KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+        ChainIntact        OK      live register equals the eventlog replay
+        UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+        TpmMeasured        OK      NV index 0x01818E00 readable
+        ConfigActive       OK      config 6d5ed552f448.. is active
+
+      Tamper attempts (this boot):
+        LoadNotLoader            15  program load that is not a signed loader
+        MapCreate                 1  map creation by another executable
+        BpfCommand                8  detach, update, delete or unclassified bpf() command
+        BpffsUmount               1  unmount of the private bpffs
+        SealWrite                 1  write open of a sealed file
+        SealPtrace                7  ptrace of a shirudo task
+        SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+      Loaded upatches (0):
+        none
+
+      Folded: keyrings, TPM measurement, assets (--show-full)
 
       Conditions:
         TYPE             STATUS  DETAIL
         LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
-        ChainIntact      OK      live register == eventlog replay
+        KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
+        ChainIntact      OK      live register equals the eventlog replay
         TpmMeasured      OK      NV index 0x01818E00 readable
         ConfigActive     OK      config dc90bacc356f.. is active
 
@@ -187,19 +210,19 @@ Check enforcement
             CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
-      upatches loaded (0):
+      Loaded upatches (0):
 
-      TPM Measurement:
-        TPM:               reachable (device:/dev/tpmrm0)
-        NV index:          0x01818E00 (anchored in PCR 9)
-        Chain:             dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
-        Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-        Anchored:          yes (name on record)
-        PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
-        Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
-        Bound in:          initrd
-        Chain vs eventlog: matches
-        Eventlog:          /var/lib/shirudo/eventlog  (1 entries, 1975 bytes)
+      TPM measurement:
+        TPM:                   reachable (device:/dev/tpmrm0)
+        NV index:              0x01818E00 (anchored in PCR 9)
+        Chain:                 dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
+        Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
+        Anchored:              yes (name on record)
+        PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+        Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+        Bound in:              initrd
+        Chain vs eventlog:     matches
+        Eventlog:              /var/lib/shirudo/eventlog  (1 entries, 1975 bytes)
 
       Assets (/var/lib/shirudo):
         keys/cert.der          present
@@ -343,12 +366,11 @@ Load it
    .. code-block:: console
 
       target# shirudo upatch load basic.upatch
-      loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=124 data=2456B
-      loader ok, retval=0 (maps=0 progs=1)
-      attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/basic/link
-      upatch load: name=basic keyring=531121468 progs=1
-      upatch load: chain extended, value=ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
-      upatch load measured: name=basic chain=ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+      upatch load: signed loader accepted, keyring 272801410, 124 instructions
+      upatch load: loader ran, 0 maps and 1 programs
+      upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/basic/link
+      upatch load: basic loaded, 1 programs, keyring 272801410
+      upatch load: basic measured, register 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
 
    The kernel checked the loader's signature against the ``.bpf`` keyring
    (the serial from the status report) before it accepted the load. The
@@ -362,9 +384,9 @@ Load it
    .. code-block:: console
 
       target# shirudo upatch list
-      upatches (/var/lib/shirudo/upatches):
-        loaded  type    kind    payload-sha256      name
-        yes     load    bpf     46f3d9f5f6568bdd..  basic
+      Archived upatches (/var/lib/shirudo/upatches):
+        NAME                      LOADED  TYPE    KIND  PAYLOAD
+        basic        yes     load    bpf   8aee7072a1a15e4d..
 
    The target keeps a copy of the artifact and loads it again at the next
    boot.
@@ -373,17 +395,24 @@ Load it
 
    .. code-block:: console
 
-      target# shirudo status
+      target# shirudo status --show-full
       ...
-      upatches loaded (1):
+      Loaded upatches (1):
         NAME                      LOCATION                       MAPS  STATUS                        AGE
-        basic                     fentry/do_nanosleep               0  success                       0s
+        basic        fentry/do_nanosleep               0  success                       1s
 
-      TPM Measurement:
+      TPM measurement:
         ...
-        Chain:             ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+        Chain:                 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
         ...
-        Eventlog:          /var/lib/shirudo/eventlog  (2 entries, 2311 bytes)
+        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+      ...
+
+      TPM measurement:
+        ...
+        Chain:                 ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+        ...
+        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2311 bytes)
       ...
 
    The register moved from its boot value to the value the load printed,
@@ -446,32 +475,32 @@ nothing but the evidence, your certificates and your artifacts.
    .. code-block:: console
 
       operator$ shirudo attest verify --evidence="$EV" --nonce="$NONCE" --ak-name="$(jq -r .ak.name "$EV")" --expect-chain=<register-after-events>
-      ok:   nonce matches the request
-      ok:   attestation key: restricted, fixed to this TPM
-      ok:   attestation key: name matches its public area
-      ok:   attestation key: the pinned key
+        OK    nonce matches the request
+        OK    attestation key: restricted, fixed to this TPM
+        OK    attestation key: name matches its public area
+        OK    attestation key: the pinned key
       ...
-      ok:   quote: ECDSA signature by the attestation key
+        OK    quote: ECDSA signature by the attestation key
       ...
-      ok:   register: certified contents match the listed value
-      ok:   quote and certification are of one TPM reset
-      ok:   config: config root history matches the quoted PCR
-      note: config root has no operator approval; use --expect-config-root with --expect-config-pcr
-      note: config records a selection; direct TPM writer protection is deferred
-      ok:   eventlog: this boot has an init record
+        OK    register: certified contents match the listed value
+        OK    quote and certification are of one TPM reset
+        OK    config: config root history matches the quoted PCR
+        note  config root has no operator approval; use --expect-config-root with --expect-config-pcr
+        note  config records a selection; direct TPM writer protection is deferred
+        OK    eventlog: this boot has an init record
       ...
-      ok:   eventlog: 2 records replay to the certified value
-      ok:   anchor: record digest matches the index name
-      ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-      ok:   state: register equals the expected value
-      note: event after boot: upatch_load basic
+        OK    eventlog: 2 records replay to the certified value
+        OK    anchor: record digest matches the index name
+        OK    anchor: PCR 9 equals the recorded value extended by the anchor
+        OK    state: register equals the expected value
+        note  event after boot: upatch_load basic
       verdict: ok
 
    ``<register-after-events>`` is the last line of the prediction. The
    checks prove that the target's TPM signed the evidence for your nonce,
    that the eventlog replays to the register value the TPM certified, and
    that this value is the one you predicted. The command exits with 0 on
-   ``verdict: ok`` and with 1 on ``verdict: FAIL``. The notes name checks
+   ``verdict: ok`` and with 1 on ``verdict: fail``. The notes name checks
    this page leaves out, such as the approved config image.
    :doc:`/operate/run/attest` covers them.
 
@@ -488,11 +517,10 @@ Unload it
    .. code-block:: console
 
       target# shirudo upatch unload basic.unload.upatch
-      loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=165 data=2808B
-      upatch unload: payload matches for 'basic'
-      upatch unload: chain extended, value=fe7bd139c02aca0d6e5efc3940c1cd902adbe676b7875be4c73c878b3f5212b8
-      upatch unload measured: name=basic chain=fe7bd139c02aca0d6e5efc3940c1cd902adbe676b7875be4c73c878b3f5212b8
-      upatch unload: detached + unpinned basic
+      upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+      upatch unload: basic carries the directive's payload
+      upatch unload: basic measured, register 256f5ad373d8728c777455949bef6ee362c2460c06740ac971f7fba5b19315cc
+      upatch unload: basic detached and unpinned
 
    The target ran the signed directive, checked that the loaded payload is
    the one it names, measured the unload, then detached the program.
@@ -502,8 +530,8 @@ Unload it
    .. code-block:: console
 
       target# shirudo upatch list
-      upatches (/var/lib/shirudo/upatches):
-        (none persisted)
+      Archived upatches (/var/lib/shirudo/upatches):
+        none
 
    The register did not return to its boot value. It moved forward to a
    third value, and the eventlog records the boot, the load and the

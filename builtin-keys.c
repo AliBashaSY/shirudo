@@ -154,6 +154,9 @@ out:
 	return ret;
 }
 
+/* Set while keys prints JSON: every printer below emits into it instead. */
+static struct json_emit *keys_json;
+
 static void print_fpr(const char *label, const __u8 *fpr)
 {
 	printf("  %-22s SHA256:", label);
@@ -197,13 +200,39 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	asn1_time_to_iso(nb, nb_s, sizeof(nb_s));
 	self_signed = (X509_NAME_cmp(subj, iss) == 0);
 
-	printf("Cert (%s):\n", cert_path);
+	if (keys_json) {
+		char hex[65];
+
+		json_obj_open_key(keys_json, "cert");
+		json_kv_string(keys_json, "path", cert_path);
+		json_kv_string(keys_json, "subject", subj_s);
+		json_kv_string(keys_json, "issuer", iss_s);
+		json_kv_bool(keys_json, "self_signed", self_signed);
+		if (pub) {
+			format_pkey_algorithm(pub, alg_s, sizeof(alg_s));
+			json_kv_string(keys_json, "algorithm", alg_s);
+		} else {
+			json_kv_null(keys_json, "algorithm");
+		}
+		if (compute_cert_fpr(cert, fpr) == 0) {
+			hex_encode(fpr, SHA256_DIGEST_LENGTH, hex);
+			json_kv_string(keys_json, "fingerprint", hex);
+		} else {
+			json_kv_null(keys_json, "fingerprint");
+		}
+		hex_encode(cert_spki_fpr, SHA256_DIGEST_LENGTH, hex);
+		json_kv_string(keys_json, "spki_fingerprint", hex);
+		json_kv_string(keys_json, "not_before", nb_s);
+		json_obj_close(keys_json);
+		return 0;
+	}
+	printf("Certificate (%s):\n", cert_path);
 	printf("  %-22s %s\n", "Subject:", subj_s);
 	printf("  %-22s %s%s\n", "Issuer:", iss_s,
 	       self_signed ? "  (self-signed)" : "");
 	if (pub) {
 		format_pkey_algorithm(pub, alg_s, sizeof(alg_s));
-		printf("  %-22s %s\n", "Public-key:", alg_s);
+		printf("  %-22s %s\n", "Public key:", alg_s);
 	}
 	if (compute_cert_fpr(cert, fpr) == 0)
 		print_fpr("Fingerprint:", fpr);
@@ -216,42 +245,60 @@ static int dump_signing_key(const char *pkey_path,
 			    const __u8 cert_spki_fpr[SHA256_DIGEST_LENGTH])
 {
 	__u8 fpr_priv[SHA256_DIGEST_LENGTH];
-	char alg_s[64];
+	char alg_s[64], hex[65];
 	EVP_PKEY *priv;
+	bool matches;
 	int ret = 0;
 
 	if (!path_exists(pkey_path)) {
+		if (keys_json) {
+			json_obj_open_key(keys_json, "signing_key");
+			json_kv_string(keys_json, "path", pkey_path);
+			json_kv_bool(keys_json, "present", false);
+			json_obj_close(keys_json);
+			return 0;
+		}
 		printf("Signing key (%s):\n", pkey_path);
 		printf("  %-22s %s\n", "Present:",
-		       "no  (target host -- private key lives on the operator)");
+		       "no, a target holds no private key");
 		return 0;
 	}
 
 	priv = read_priv_pem(pkey_path);
 	if (!priv)
 		return -1;
-
-	printf("Signing key (%s):\n", pkey_path);
-	printf("  %-22s %s\n", "Present:", "yes");
 	format_pkey_algorithm(priv, alg_s, sizeof(alg_s));
-	printf("  %-22s %s\n", "Algorithm:", alg_s);
-
+	if (keys_json) {
+		json_obj_open_key(keys_json, "signing_key");
+		json_kv_string(keys_json, "path", pkey_path);
+		json_kv_bool(keys_json, "present", true);
+		json_kv_string(keys_json, "algorithm", alg_s);
+	} else {
+		printf("Signing key (%s):\n", pkey_path);
+		printf("  %-22s %s\n", "Present:", "yes");
+		printf("  %-22s %s\n", "Algorithm:", alg_s);
+	}
 	if (compute_spki_fpr(priv, fpr_priv) != 0) {
 		ret = -1;
 		goto out;
 	}
-	print_fpr("SPKI fingerprint:", fpr_priv);
-
-	if (memcmp(fpr_priv, cert_spki_fpr, SHA256_DIGEST_LENGTH) == 0) {
-		printf("  %-22s %s\n", "Cert match:",
-		       "OK  (signing key matches cert)");
+	matches = memcmp(fpr_priv, cert_spki_fpr, SHA256_DIGEST_LENGTH) == 0;
+	if (keys_json) {
+		hex_encode(fpr_priv, SHA256_DIGEST_LENGTH, hex);
+		json_kv_string(keys_json, "spki_fingerprint", hex);
+		json_kv_bool(keys_json, "matches_cert", matches);
 	} else {
-		printf("  %-22s %s\n", "Cert match:",
-		       "MISMATCH  (private key does NOT match cert)");
+		print_fpr("SPKI fingerprint:", fpr_priv);
+		printf("  %-22s %s\n", "Matches cert:", matches ? "yes" :
+		       "no, the private key is not the certificate's");
+	}
+	if (!matches) {
 		pr_warn("keys: private key and cert have different public keys");
 		ret = -1;
 	}
 out:
+	if (keys_json)
+		json_obj_close(keys_json);
 	EVP_PKEY_free(priv);
 	return ret;
 }
@@ -280,7 +327,8 @@ static int keys_dump_disk_material(const char *cert_path,
 
 	ret = dump_operator_cert(cert, cert_path, cert_spki_fpr);
 	if (ret == 0) {
-		printf("\n");
+		if (!keys_json)
+			printf("\n");
 		ret = dump_signing_key(pkey_path, cert_spki_fpr);
 	}
 	X509_free(cert);
@@ -321,13 +369,53 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 	size_t n = 0, i;
 	int ret;
 
+	if (keys_json) {
+		json_obj_open(keys_json);
+		json_kv_string(keys_json, "name", a->label);
+		json_kv_bool(keys_json, "present", true);
+		json_kv_int(keys_json, "serial", ring);
+		if (frozen)
+			json_kv_int(keys_json, "frozen_serial", a->frozen);
+		else
+			json_kv_null(keys_json, "frozen_serial");
+		ret = keyring_links(ring, &links, &n);
+		json_arr_open(keys_json, "members");
+		for (i = 0; !ret && i < n; i++) {
+			const struct keyring_link *l = &links[i];
+
+			json_obj_open(keys_json);
+			json_kv_int(keys_json, "serial", l->serial);
+			if (l->err) {
+				json_kv_null(keys_json, "type");
+				json_kv_null(keys_json, "description");
+			} else {
+				json_kv_string(keys_json, "type", l->type);
+				json_kv_string(keys_json, "description",
+					       l->description);
+			}
+			if (frozen)
+				json_kv_bool(keys_json, "frozen",
+					     keys_anchor_holds(a, l->serial));
+			else
+				json_kv_null(keys_json, "frozen");
+			json_obj_close(keys_json);
+		}
+		json_arr_close(keys_json);
+		json_obj_close(keys_json);
+		if (ret) {
+			pr_err("keyring list: %s", strerror(-ret));
+			return 1;
+		}
+		xfree(links, n * sizeof(*links));
+		return 0;
+	}
 	printf("Keyring (%s):\n", a->label);
 	printf("  %-22s %d\n", "Serial:", (int)ring);
 	if (frozen) {
 		printf("  %-22s %d  (%s)\n", "Frozen serial:", (int)a->frozen,
-		       a->frozen == ring ? "matches" : "MISMATCH");
+		       a->frozen == ring ? "matches" : "swapped");
 		if (a->frozen != ring)
-			pr_warn("%s keyring serial %d != frozen %d (swap?)",
+			pr_warn("%s keyring serial %d is not the frozen %d: swapped",
 				a->label, (int)ring, (int)a->frozen);
 	} else if (!id_rc || id_rc == -ENOENT) {
 		printf("  %-22s %s\n", "Frozen serial:", "(none this boot)");
@@ -355,7 +443,7 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 			print_safe(l->description);
 		if (frozen)
 			printf("  (%s)", keys_anchor_holds(a, l->serial) ?
-			       "frozen" : "NOT frozen");
+			       "frozen" : "not frozen");
 		printf("\n");
 	}
 	xfree(links, n * sizeof(*links));
@@ -365,19 +453,40 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 static void keyring_absent(const struct keys_anchor *a, key_serial_t ret,
 			   int id_rc)
 {
-	printf("Keyring (%s):\n", a->label);
+	char reason[128];
+
+	int n;
+
 	if (ret != (key_serial_t)-ENOKEY)
-		printf("  %-22s lookup error: %s\n", "Present:",
-		       strerror(-ret));
+		n = strsprintf(reason, sizeof(reason), "lookup error: %s",
+			       strerror(-ret));
 	else if (!id_rc && a->frozen > 0)
-		printf("  %-22s no  (gone: init froze serial %d this boot)\n",
-		       "Present:", (int)a->frozen);
+		n = strsprintf(reason, sizeof(reason),
+			       "gone, init froze serial %d this boot",
+			       (int)a->frozen);
 	else if (!id_rc || id_rc == -ENOENT)
-		printf("  %-22s %s\n", "Present:",
-		       "no  (operator host, or `shirudo init` not yet run)");
+		n = strscpy(reason, "absent before init", sizeof(reason));
 	else
-		printf("  %-22s unknown  (frozen identity unreadable: %s)\n",
-		       "Present:", strerror(-id_rc));
+		n = strsprintf(reason, sizeof(reason),
+			       "frozen identity unreadable: %s",
+			       strerror(-id_rc));
+	if (n < 0)
+		strscpy(reason, "?", sizeof(reason));
+	if (keys_json) {
+		json_obj_open(keys_json);
+		json_kv_string(keys_json, "name", a->label);
+		json_kv_bool(keys_json, "present", false);
+		json_kv_null(keys_json, "serial");
+		if (!id_rc && a->frozen > 0)
+			json_kv_int(keys_json, "frozen_serial", a->frozen);
+		else
+			json_kv_null(keys_json, "frozen_serial");
+		json_kv_string(keys_json, "reason", reason);
+		json_obj_close(keys_json);
+		return;
+	}
+	printf("Keyring (%s):\n", a->label);
+	printf("  %-22s no, %s\n", "Present:", reason);
 }
 
 static const struct help_item keys_subcmds[] = {
@@ -387,7 +496,8 @@ static const struct help_item keys_subcmds[] = {
 };
 
 static const struct help_item keys_options[] = {
-	{ "--keys-dir <dir>", "read signing_key.pem + cert.der from <dir>" },
+	{ "--keys-dir <dir>", "read signing_key.pem and cert.der from <dir>" },
+	{ "--json",           "print the key material as JSON" },
 };
 
 static const struct help_section keys_help_sections[] = {
@@ -397,7 +507,7 @@ static const struct help_section keys_help_sections[] = {
 };
 
 static const struct help keys_help = {
-	.usage   = "shirudo keys [--keys-dir <dir>]\n"
+	.usage   = "shirudo keys [--keys-dir <dir>] [--json]\n"
 		   "       shirudo keys add <cert.der> --vouch <file>\n"
 		   "       shirudo keys revoke <fingerprint> [--promote <fp>]\n"
 		   "       shirudo keys vouch <cert.der> [-o <file>]",
@@ -440,7 +550,7 @@ static const struct help keys_add_help = {
 
 static const struct help_item keys_vouch_options[] = {
 	{ "-o <file>", "where to write the vouch (default <cert.der>.vouch)" },
-	{ "--keys-dir <dir>", "read signing_key.pem + cert.der from <dir>" },
+	{ "--keys-dir <dir>", "read signing_key.pem and cert.der from <dir>" },
 	{ "--key <pem>", "the signing key (overrides --keys-dir)" },
 	{ "--cert <der>", "the signing certificate (overrides --keys-dir)" },
 };
@@ -705,8 +815,8 @@ static int measure_revoke_locked(const struct trusted_cert *c,
 	hex_encode(c->sha256, 32, sha_hex);
 	ret = append_key_event("key_revoke", fp_hex, sha_hex, event);
 	if (ret) {
-		pr_err("keys revoke: eventlog append failed after extend -- "
-		       "chain/log desync; operator must reconcile");
+		pr_err("keys revoke: eventlog append failed after the extend: "
+		       "register and log disagree; the operator must reconcile");
 		return ret;
 	}
 	hex_encode(chain, 32, chain_hex);
@@ -879,12 +989,13 @@ int cmd_keys(int argc, const char **argv)
 static int keys_show(int argc, const char **argv)
 {
 	const char *keys_dir_arg = NULL;
+	struct json_emit je = { .cap = 65536 };
 	struct identity id = {};
 	struct trusted_set set;
 	const char *keys_dir;
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
-	bool shown = false;
+	bool shown = false, json = false, have_set = false;
 	int ret = 0, id_rc;
 
 	for (int i = 1; i < argc; i++) {
@@ -893,6 +1004,8 @@ static int keys_show(int argc, const char **argv)
 			keys_dir_arg = argv[++i];
 		} else if (strncmp(argv[i], "--keys-dir=", 11) == 0) {
 			keys_dir_arg = argv[i] + 11;
+		} else if (strcmp(argv[i], "--json") == 0) {
+			json = true;
 		} else if (is_help(argv[i])) {
 			print_help(&keys_help);
 			return 0;
@@ -924,33 +1037,64 @@ static int keys_show(int argc, const char **argv)
 	 * rather than picking one mode: the on-disk cert + signing key,
 	 * then the kernel keyring once `shirudo init` has populated one.
 	 */
+	if (json) {
+		je.buf = xmalloc(je.cap);
+		if (!je.buf)
+			return 1;
+		keys_json = &je;
+		json_obj_open(&je);
+		json_kv_int(&je, "schema", 1);
+	}
 	if (path_exists(cert_path)) {
 		if (keys_dump_disk_material(cert_path, pkey_path))
 			ret = 1;
 		shown = true;
+	} else if (json) {
+		json_kv_null(&je, "cert");
+		json_kv_null(&je, "signing_key");
 	}
 
-	if (keys_load(keys_dir, NULL, true, &set) == 0 &&
-	    (set.n > 1 || set.n_revoked || set.n_unvouched)) {
+	have_set = keys_load(keys_dir, NULL, true, &set) == 0;
+	if (json)
+		json_arr_open(&je, "trusted_set");
+	if (have_set && (json || set.n > 1 || set.n_revoked ||
+			 set.n_unvouched)) {
 		size_t i;
 
-		printf("%sTrusted set (%zu member%s, %zu revoked, "
-		       "%zu unvouched):\n", shown ? "\n" : "", set.n,
-		       set.n == 1 ? "" : "s", set.n_revoked, set.n_unvouched);
+		if (!json)
+			printf("%sTrusted set (%zu member%s, %zu revoked, "
+			       "%zu unvouched):\n", shown ? "\n" : "", set.n,
+			       set.n == 1 ? "" : "s", set.n_revoked,
+			       set.n_unvouched);
 		for (i = 0; i < set.n; i++) {
-			char fp[65], sha[65];
+			char fp[65], sha[65], voucher[65];
 
 			hex_encode(set.certs[i].fingerprint, 32, fp);
 			hex_encode(set.certs[i].sha256, 32, sha);
+			hex_encode(set.certs[i].voucher, 32, voucher);
+			if (json) {
+				json_obj_open(&je);
+				json_kv_string(&je, "fingerprint", fp);
+				json_kv_string(&je, "sha256", sha);
+				json_kv_bool(&je, "primary",
+					     set.certs[i].primary);
+				if (set.certs[i].primary)
+					json_kv_null(&je, "voucher");
+				else
+					json_kv_string(&je, "voucher", voucher);
+				json_obj_close(&je);
+				continue;
+			}
 			printf("  %s%s\n    sha256 %s\n", fp,
 			       set.certs[i].primary ? "  (primary)" : "", sha);
-			if (set.certs[i].primary)
-				continue;
-			hex_encode(set.certs[i].voucher, 32, fp);
-			printf("    vouched by %s\n", fp);
+			if (!set.certs[i].primary)
+				printf("    vouched by %s\n", voucher);
 		}
-		shown = true;
+		if (!json)
+			shown = true;
 	}
+	if (json)
+		json_arr_close(&je);
 
 	id_rc = identity_read(&id);
 	{
@@ -964,35 +1108,50 @@ static int keys_show(int argc, const char **argv)
 		};
 		size_t i;
 
+		if (json)
+			json_arr_open(&je, "keyrings");
 		for (i = 0; i < ARRAY_SIZE(anchors); i++) {
 			const struct keys_anchor *a = &anchors[i];
 			key_serial_t ring = id_rc ? -ENOKEY : a->serial();
 
 			if (ring >= 0) {
-				if (shown)
+				if (shown && !json)
 					printf("\n");
 				if (keys_list_keyring(ring, a, id_rc))
 					ret = 1;
 				shown = true;
 			} else if (ring == -ENOKEY && id_rc) {
-				if (shown) {
-					printf("\n");
+				if (shown || json) {
+					if (!json)
+						printf("\n");
 					keyring_absent(a, ring, id_rc);
 				}
 			} else {
-				if (shown)
+				if (shown && !json)
 					printf("\n");
 				keyring_absent(a, ring, id_rc);
 				shown = true;
 				ret = 1;
 			}
 		}
+		if (json)
+			json_arr_close(&je);
 	}
-
+	if (json) {
+		json_obj_close(&je);
+		keys_json = NULL;
+		if (je.err) {
+			pr_err("keys: json encode failed");
+			ret = 1;
+		} else {
+			puts(je.buf);
+		}
+		xfree(je.buf, je.cap);
+	}
 	if (!shown) {
 		pr_err("no shirudo key material on this host: no %s and no "
-		       "\"%s\" kernel keyring -- run `shirudo genkey` "
-		       "(operator) or `shirudo init` (target)",
+		       "%s kernel keyring; run shirudo genkey on an operator "
+		       "or shirudo init on a target",
 		       cert_path, ".bpf");
 		ret = 1;
 	}

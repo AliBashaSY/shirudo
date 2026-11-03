@@ -279,12 +279,12 @@ Check where the kernel attached it and read the counters:
 .. code-block:: console
 
    target# shirudo-runtime upatch get cve-2026-63984-rpl
-   upatch:        cve-2026-63984-rpl
-   Location:      fentry/ipv6_rpl_srh_decompress
-   Prog id:       77
-   Loaded at:     <time>  (12s ago)
-   Payload:       f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711  (signature-bound)
-   Maps (2):    activity, hits
+   Name:                  cve-2026-63984-rpl
+   Location:              fentry/ipv6_rpl_srh_decompress
+   Program ID:            77
+   Loaded at:             <time>  (12s ago)
+   Payload sha256:        f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711  (signature-bound)
+   Maps:                  activity, hits
 
    Source (kernel BTF line_info):
 
@@ -308,7 +308,7 @@ Read one map:
 .. code-block:: console
 
    target# shirudo-runtime upatch map cve-2026-63984-rpl hits
-   upatch:              cve-2026-63984-rpl
+   Name:                  cve-2026-63984-rpl
    Map:                 hits
    Type:                percpu_array (64 CPUs)
    Max entries:         1

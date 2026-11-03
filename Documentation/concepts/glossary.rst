@@ -454,7 +454,7 @@ it.
       overall status of ``ok``, ``degraded``, ``reboot-pending``,
       ``init-pending``, ``lsm-off`` or ``tampered``, and ``OK``, ``WARN``
       or ``ALERT`` for each condition. ``shirudo attest verify`` ends with
-      ``verdict: ok`` or ``verdict: FAIL``. See :doc:`/operate/run/read-status`.
+      ``verdict: ok`` or ``verdict: fail``. See :doc:`/operate/run/read-status`.
 
    vouch
       A detached CMS signature by a trusted key over the prefix

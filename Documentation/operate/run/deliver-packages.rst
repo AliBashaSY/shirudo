@@ -255,9 +255,9 @@ Install a package
    .. code-block:: console
 
       target# shirudo upatch list
-      upatches (/var/lib/shirudo/upatches):
-        loaded  type    kind    payload-sha256      name
-        yes     load    bpf     8aee7072a1a15e4d..  shirudo-test-basic
+      Archived upatches (/var/lib/shirudo/upatches):
+        NAME                      LOADED  TYPE    KIND  PAYLOAD
+        shirudo-test-basic        yes     load    bpf   8aee7072a1a15e4d..
 
    This target holds one upatch, loaded by hand. A package's upatches
    appear the same way, one line each.

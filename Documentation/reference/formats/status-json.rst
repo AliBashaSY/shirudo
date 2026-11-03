@@ -42,6 +42,9 @@ determined, as noted.
      - string
      - The binary's ``SHIRUDO_VERSION_ID``, as
        ``shirudo version --version-id`` prints it.
+   * - ``host``
+     - string
+     - The host name.
    * - ``is_target``
      - boolean
      - ``true`` when the certificate is present, the LSM link is
@@ -52,9 +55,13 @@ determined, as noted.
    * - ``status``
      - string
      - The verdict, see `Verdicts`_.
+   * - ``reason``
+     - string or ``null``
+     - The reason the human report prints after the verdict, ``null``
+       for ``ok``.
    * - ``conditions``
      - array of object
-     - Five conditions, each with ``type``, ``status`` and ``detail``,
+     - Six conditions, each with ``type``, ``status`` and ``detail``,
        see `Conditions`_.
    * - ``lsm_attached``
      - boolean
@@ -136,12 +143,6 @@ determined, as noted.
    * - ``upatch_tree``
      - object
      - The upatch tree, see `upatch_tree`_.
-   * - ``kernel_log``
-     - array of object
-     - Only with ``--include-kernellog``, see `Optional blocks`_.
-   * - ``boot_at``, ``modules``
-     - string, array of object
-     - Only with ``--include-modules``, see `Optional blocks`_.
 
 Verdicts
 --------
@@ -195,27 +196,27 @@ its details that applies, in the order listed.
      - ``lsm/bpf link present and pinned``
    * -
      - ``ALERT``
-     - ``lsm/bpf absent -- enforcement OFF``
+     - ``lsm/bpf link absent, enforcement off``
    * - ``KeyringSealed``
      - ``ALERT``
-     - ``pin serial=<serial>, the BPF keyring is gone (removed?)``
+     - ``pinned serial <serial>, the .bpf keyring is gone``
    * -
      - ``WARN``
-     - ``shirudo keyring absent (not init'd?)``
+     - ``.bpf keyring absent before init``
    * -
      - ``ALERT``
-     - ``pin serial=<serial> != live serial=<serial> (swapped?)``
+     - ``pinned serial <serial>, live serial <serial>: swapped``
    * -
      - ``ALERT``
      - ``the BPF keyring holds <n> link(s) init did not freeze``
    * -
      - ``ALERT``
-     - ``dm-verity pin serial=<serial>, the dm-verity keyring is gone
-       (removed?)``
+     - ``dm-verity pinned serial <serial>, the dm-verity keyring is
+       gone``
    * -
      - ``ALERT``
-     - ``dm-verity pin serial=<serial> != live serial=<serial>
-       (swapped?)``
+     - ``dm-verity pinned serial <serial>, live serial <serial>:
+       swapped``
    * -
      - ``ALERT``
      - ``the dm-verity keyring holds <n> link(s) init did not freeze``
@@ -224,10 +225,10 @@ its details that applies, in the order listed.
      - ``the config key init froze is gone from the dm-verity keyring``
    * -
      - ``OK``
-     - ``bpf serial=<serial>, dm-verity serial=<serial>, pins match``
+     - ``bpf serial <serial>, dm-verity serial <serial>, pins match``
    * - ``ChainIntact``
      - ``OK``
-     - ``live register == eventlog replay``
+     - ``live register equals the eventlog replay``
    * -
      - ``WARN``
      - ``no register bound this boot (init incomplete)``
@@ -236,7 +237,7 @@ its details that applies, in the order listed.
      - ``no TPM answered, no register to replay``
    * -
      - ``ALERT``
-     - ``live register != eventlog replay (tamper?)``
+     - ``live register differs from the eventlog replay``
    * - ``UpatchesMeasured``
      - ``OK``
      - ``every pinned or archived upatch is in this boot's records``
@@ -263,22 +264,22 @@ its details that applies, in the order listed.
      - ``config <root>.. is active``
    * -
      - ``WARN``
-     - ``no config activation state (init not run?)``
+     - ``no config activation state before init``
    * -
      - ``WARN``
      - ``the activation of config <root>.. is pending until the next
        reboot``
    * -
      - ``ALERT``
-     - ``the config activation record does not belong to this TPM boot
-       (tamper?)``
+     - ``the config activation record does not belong to this TPM
+       boot``
    * -
      - ``ALERT``
-     - ``the mounted config does not match the selected root (tamper?)``
+     - ``the mounted config does not match the selected root``
    * -
      - ``ALERT``
-     - ``the config PCR, activation records and mounted config disagree
-       (tamper?)``
+     - ``the config PCR, activation records and mounted config
+       disagree``
 
 Keyrings
 --------
@@ -585,7 +586,7 @@ upatch_tree
 Optional blocks
 ---------------
 
-``--show-full`` turns on every block below.
+``--show-full`` turns on both blocks below.
 
 .. list-table::
    :header-rows: 1
@@ -609,13 +610,6 @@ Optional blocks
        and ``digest``, plus ``set_digest`` for ``init`` and ``upatch``
        (``name``, ``payload_sha256``) for upatch events. A line that
        does not parse gives ``{"type": "unparseable"}``.
-   * - ``--include-kernellog[=<n>]``
-     - ``kernel_log``: the last ``<n>`` kernel log records, 1 to 100,
-       default 10, each with ``ts`` (ISO 8601 UTC) and ``msg``.
-   * - ``--include-modules``
-     - ``boot_at`` (boot time, ISO 8601 UTC) and ``modules``: each
-       loaded module with ``name``, ``size``, ``refcount``,
-       ``loaded_at``, ``since_boot_sec`` (or ``null``) and ``deps``.
 
 ``status`` sizes its output buffer from the options, the eventlog size
 and the number of loaded upatches, at most 8 MiB. A document that does
@@ -696,10 +690,12 @@ indented here:
 
    {
      "schema": 1,
-     "version_id": "447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064",
+     "version_id": "d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9",
+     "host": "docs",
      "is_target": true,
      "is_operator": false,
      "status": "ok",
+     "reason": null,
      "conditions": [
        {
          "type": "LsmAttached",
@@ -709,12 +705,12 @@ indented here:
        {
          "type": "KeyringSealed",
          "status": "OK",
-         "detail": "bpf serial=130847582, dm-verity serial=962472513, pins match"
+         "detail": "bpf serial 272801410, dm-verity serial 799624487, pins match"
        },
        {
          "type": "ChainIntact",
          "status": "OK",
-         "detail": "live register == eventlog replay"
+         "detail": "live register equals the eventlog replay"
        },
        {
          "type": "UpatchesMeasured",
@@ -729,27 +725,27 @@ indented here:
        {
          "type": "ConfigActive",
          "status": "OK",
-         "detail": "config dc90bacc356f.. is active"
+         "detail": "config 6d5ed552f448.. is active"
        }
      ],
      "lsm_attached": true,
      "mode": "production",
      "keyring_mode": "bpf",
      "keyring_present": true,
-     "keyring_serial": 130847582,
-     "keyring_serial_pinned": 130847582,
+     "keyring_serial": 272801410,
+     "keyring_serial_pinned": 272801410,
      "keyring_serial_matches": true,
      "cert_present": true,
      "certs": [
        {
-         "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
-         "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
-         "primary": true
+         "sha256": "79b04130628135a03630a0ed9e92a574f8701847404ec281469348a09b9b3b45",
+         "fingerprint": "a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f",
+         "primary": false
        },
        {
-         "sha256": "f2b0444aa3873b394afda3d222a20dc6506ebfb33e07ac17a7e2069bdabb3126",
-         "fingerprint": "c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e",
-         "primary": false
+         "sha256": "c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1",
+         "fingerprint": "6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858",
+         "primary": true
        }
      ],
      "certs_revoked": 0,
@@ -757,30 +753,30 @@ indented here:
      "certs_enrolled": 2,
      "bpf_keyring": {
        "present": true,
-       "serial": 130847582,
-       "serial_pinned": 130847582,
+       "serial": 272801410,
+       "serial_pinned": 272801410,
        "serial_matches": true,
        "certs": [
          {
-           "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
-           "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
-           "primary": true,
-           "subject": "CN=shirudo",
-           "algorithm": "ML-DSA-87",
-           "not_before": "2026-10-29",
-           "key_serial": 199275792,
-           "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
-           "frozen": true
-         },
-         {
-           "sha256": "f2b0444aa3873b394afda3d222a20dc6506ebfb33e07ac17a7e2069bdabb3126",
-           "fingerprint": "c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e",
+           "sha256": "79b04130628135a03630a0ed9e92a574f8701847404ec281469348a09b9b3b45",
+           "fingerprint": "a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f",
            "primary": false,
            "subject": "CN=shirudo",
            "algorithm": "ML-DSA-87",
-           "not_before": "2026-10-29",
-           "key_serial": 106884895,
-           "key_description": "shirudo: c350bd270c426c5760b202062e15e274ea30f45d",
+           "not_before": "2026-11-03",
+           "key_serial": 465853497,
+           "key_description": "shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265",
+           "frozen": true
+         },
+         {
+           "sha256": "c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1",
+           "fingerprint": "6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858",
+           "primary": true,
+           "subject": "CN=shirudo",
+           "algorithm": "ML-DSA-87",
+           "not_before": "2026-11-03",
+           "key_serial": 91435879,
+           "key_description": "shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e",
            "frozen": true
          }
        ],
@@ -788,19 +784,19 @@ indented here:
      },
      "dm_verity_keyring": {
        "present": true,
-       "serial": 962472513,
-       "serial_pinned": 962472513,
+       "serial": 799624487,
+       "serial_pinned": 799624487,
        "serial_matches": true,
        "certs": [
          {
-           "sha256": "08915eb1c67b2446e3708d766f0c5acb5d6ef2f71606cd27a28ce7a1f8c22815",
-           "fingerprint": "d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497",
+           "sha256": "c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1",
+           "fingerprint": "6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858",
            "config": true,
            "subject": "CN=shirudo",
            "algorithm": "ML-DSA-87",
-           "not_before": "2026-10-29",
-           "key_serial": 200951639,
-           "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
+           "not_before": "2026-11-03",
+           "key_serial": 403194297,
+           "key_description": "shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e",
            "frozen": true
          }
        ],
@@ -813,8 +809,8 @@ indented here:
          "location": "fentry/do_nanosleep",
          "status": "success",
          "n_maps": 0,
-         "loaded_at": "2026-10-29T21:29:10Z",
-         "age_sec": 2,
+         "loaded_at": "2026-11-03T14:54:33Z",
+         "age_sec": 1,
          "payload_sha256": "8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"
        }
      ],
@@ -829,30 +825,57 @@ indented here:
        "bpffs_mounted": true
      },
      "tamper_attempts": {
-       "total": 39,
+       "total": 35,
        "counters": {
-         "LoadNotLoader": 21, "LoadUnsigned": 0, "LoadUnverified": 0, "LoadKeyringKind": 0,
-         "LoadKeyring": 0, "MapCreate": 1, "MapWrite": 0, "MapFdWrite": 0,
-         "ProgRun": 0, "ProgAttach": 0, "ObjPin": 0, "BpfCommand": 10,
-         "ExeIdentity": 0, "KeyringWrite": 0, "PinUnlink": 0, "PinRename": 0,
-         "PinXattr": 0, "BpffsUmount": 0, "BpffsUmountAbove": 0, "BpffsMount": 0,
-         "SealWrite": 0, "SealUnlink": 0, "SealRename": 0, "SealSetattr": 0,
-         "SealXattr": 0, "SealLabel": 0, "SealPtrace": 7, "SealPerf": 0,
-         "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
-         "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 0,
+         "LoadNotLoader": 15,
+         "LoadUnsigned": 0,
+         "LoadUnverified": 0,
+         "LoadKeyringKind": 0,
+         "LoadKeyring": 0,
+         "MapCreate": 1,
+         "MapWrite": 0,
+         "MapFdWrite": 0,
+         "ProgRun": 0,
+         "ProgAttach": 0,
+         "ObjPin": 0,
+         "BpfCommand": 8,
+         "ExeIdentity": 0,
+         "KeyringWrite": 0,
+         "PinUnlink": 0,
+         "PinRename": 0,
+         "PinXattr": 0,
+         "BpffsUmount": 1,
+         "BpffsUmountAbove": 0,
+         "BpffsMount": 0,
+         "SealWrite": 1,
+         "SealUnlink": 0,
+         "SealRename": 0,
+         "SealSetattr": 0,
+         "SealXattr": 0,
+         "SealLabel": 0,
+         "SealPtrace": 7,
+         "SealPerf": 0,
+         "ExecTraced": 0,
+         "SealEntry": 2,
+         "PerfAttach": 0,
+         "PinEntry": 0,
+         "SealCopyUp": 0,
+         "Kexec": 0,
+         "TpmExtend": 0,
+         "ObjGet": 0,
          "SealSignal": 0
        }
      },
      "config": {
-       "root_hash": "dc90bacc356f04c2e34a2f3c00c13c2a555c7cc5ee7cdc57fd568f2b44910c99",
+       "root_hash": "6d5ed552f4487728d1ccec8604ddb44b66b18e3430614c20bb4d284995f99f63",
        "activation_pending": false,
        "error": null
      },
      "tpm": {
        "reachable": true,
        "nv_index": "0x01818E00",
-       "chain": "0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84",
-       "nv_name": "000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8",
+       "chain": "7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548",
+       "nv_name": "000b21eb0d45ac9ee1bb0a87dbb069120e3b8cb251b3d40cc2a86a307ab73f728789",
        "register_bound": true,
        "register_anchored": true,
        "init_records": 1,

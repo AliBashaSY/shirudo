@@ -34,13 +34,13 @@ Before you begin
      Roles:             target
      Mode:              production
      Status:            ok
-     Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+     Version ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
 
      Conditions:
        TYPE             STATUS  DETAIL
        LsmAttached      OK      lsm/bpf link present and pinned
-       KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
-       ChainIntact      OK      live register == eventlog replay
+       KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
+       ChainIntact      OK      live register equals the eventlog replay
        TpmMeasured      OK      NV index 0x01818E00 readable
        ConfigActive     OK      config dc90bacc356f.. is active
      ...
@@ -477,18 +477,18 @@ Meaning
    .. code-block:: console
 
       target# shirudo init --check-only
-      pre-flight checks:
-        root                   OK
-        bpf_lsm_active         OK
-        bpffs_supported        OK
-        signed_loader_kernel_abi OK
-        cert_on_disk           OK
-        cert_algorithm         OK
-        cert_kernel_support    OK
-        kernel_keyring         OK
-        embedded_loader        OK
-        tpm2_reachable         OK: TCTI override: device:/dev/tpmrm0
-      10/10 passed (0 failed)
+      Pre-flight checks:
+        OK    root
+        OK    bpf_lsm_active
+        OK    bpffs_supported
+        OK    signed_loader_kernel_abi
+        OK    cert_on_disk
+        OK    cert_algorithm
+        OK    cert_kernel_support
+        OK    kernel_keyring
+        OK    embedded_loader
+        OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
+      10 of 10 passed
 
 Causes
    The check names the requirement that is missing: root, the BPF LSM

@@ -22,7 +22,7 @@ int image_boot_complete(void);
 int image_enter(const char *command, int argc, const char **argv);
 void image_leave(void);
 int image_update(const char *prefix);
-int image_status(void);
+int image_status(bool json);
 
 /*
  * The config state status reports: 0 with the selected config active,

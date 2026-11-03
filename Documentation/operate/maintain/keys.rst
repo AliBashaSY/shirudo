@@ -169,7 +169,7 @@ Check what a target trusts
       Cert (/run/shirudo/runtime/keys/cert.der):
         Subject:               /CN=shirudo
         Issuer:                /CN=shirudo  (self-signed)
-        Public-key:            ML-DSA-87
+        Public key:            ML-DSA-87
         Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
         SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
         Issued:                2026-10-29T21:50:28Z

@@ -116,7 +116,7 @@ Add the last 50 kernel log lines with :doc:`cli/status`:
 
 .. code-block:: console
 
-   target# shirudo status --include-kernellog=50
+   target# shirudo status --show-full
 
 Print the effective configuration with :doc:`cli/config`:
 

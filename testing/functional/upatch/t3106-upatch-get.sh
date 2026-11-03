@@ -55,7 +55,7 @@ assert set(u) == {"name", "location", "prog_id", "loaded_at", "age",
 assert u["name"] == "shirudo-test-marker"
 assert u["location"] == "fentry/do_nanosleep"
 assert u["prog_id"] > 0
-assert re.search(r"^Prog id: +%d$" % u["prog_id"], text, re.M)
+assert re.search(r"^Program ID: +%d$" % u["prog_id"], text, re.M)
 assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", u["loaded_at"])
 assert u["age"]
 assert u["payload_sha256"] == payload

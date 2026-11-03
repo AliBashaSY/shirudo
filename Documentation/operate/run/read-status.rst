@@ -34,39 +34,126 @@ Print the report
 
    .. code-block:: console
 
-      target# shirudo status
+      target# shirudo status --show-full
+      Host:                  docs
+      Roles:                 target
+      Mode:                  production
+      Status:                ok
+      Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
 
-2. To add this boot's eventlog to the report, print it with
-   ``--include-eventlog``:
+      Conditions:
+        TYPE               STATUS  DETAIL
+        LsmAttached        OK      lsm/bpf link present and pinned
+        KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+        ChainIntact        OK      live register equals the eventlog replay
+        UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+        TpmMeasured        OK      NV index 0x01818E00 readable
+        ConfigActive       OK      config 6d5ed552f448.. is active
+
+      Tamper attempts (this boot):
+        LoadNotLoader            15  program load that is not a signed loader
+        MapCreate                 1  map creation by another executable
+        BpfCommand                8  detach, update, delete or unclassified bpf() command
+        BpffsUmount               1  unmount of the private bpffs
+        SealWrite                 1  write open of a sealed file
+        SealPtrace                7  ptrace of a shirudo task
+        SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+      Loaded upatches (1):
+        NAME                      LOCATION                       MAPS  STATUS                        AGE
+        shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+
+      Keyring (.bpf):
+        Serial:                272801410
+        Frozen serial:         272801410  (matches)
+        Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
+          a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 465853497  shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265  (frozen)
+          6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (primary)
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 91435879  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
+
+      Keyring (.dm-verity):
+        Serial:                799624487
+        Frozen serial:         799624487  (matches)
+        Certificates:          1 trusted, 1 in the dm-verity keyring
+          6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (config)
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 403194297  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
+
+      TPM measurement:
+        TPM:                   reachable (device:/dev/tpmrm0)
+        NV index:              0x01818E00 (anchored in PCR 9)
+        Chain:                 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
+        Register name:         000b21eb0d45ac9ee1bb0a87dbb069120e3b8cb251b3d40cc2a86a307ab73f728789
+        Anchored:              yes, name on record
+        PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+        Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+        Bound in:              initrd
+        Chain vs eventlog:     matches
+        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+
+      Eventlog:
+        TIME                 TYPE          DIGEST        DETAIL
+        2026-11-03T14:53:17Z init          377ce174fb1f  set_digest=e3b0c44298fc..
+        2026-11-03T14:54:33Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
+
+      Assets (/var/lib/shirudo):
+        keys/cert.der          present
+        keys/signing_key.pem   absent
+        eventlog               present (2324 bytes)
+        upatches/              1 archived
+        incoming/              empty
+        bpffs/                 mounted
+
+      System:
+        OS:                    Ubuntu 26.04.1 LTS
+        Kernel:                7.3.0-bpf-next+
+        Kernel version:        #1 SMP PREEMPT Tue Nov  3 13:54:40 UTC 2026
+        Kernel build ID:       132d1451aab18a693c59d5b9519d25a06f2236bf
+        Architecture:          x86_64
+        CPUs:                  4
+        Memory:                314M/3.85G
+        Disk:                  1.99G/6.61G
+        Uptime:                0d 0h 1m
+        Machine ID:            6bae4cfbc0ed04ed63cc4cf8cb0a1b6c
+        Boot ID:               82639935-1127-4dab-91b5-f818eabc7f13
+
+2. The report folds the sections whose condition is ``OK``: the
+   keyrings, the TPM measurement and the assets. To print them all, and
+   the system and eventlog sections with them:
 
    .. code-block:: console
 
-      target# shirudo status --include-eventlog
+      target# shirudo status --show-full
 
-:doc:`/reference/cli/status` lists the other sections you can add
-(``--include-system``, ``--include-kernellog``, ``--include-modules``,
-``--show-full``).
+:doc:`/reference/cli/status` lists the options, ``--include-system`` and
+``--include-eventlog`` among them.
 
 Read the report
 ---------------
 
-This is the report of a healthy production target with one upatch
-loaded, captured from the test VM:
+This is the full report of a healthy production target with one upatch
+loaded, captured from the test VM with ``--show-full``. Without the
+option the report ends after the loaded upatches and names the folded
+sections, the keyrings, the TPM measurement and the assets, on its last
+line; a section unfolds on its own when its condition is not ``OK``.
 
 .. code-block:: console
 
    target# shirudo status
-   Host:              docs
-   Roles:             target
-   Mode:              production
-   Status:            ok
-   Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+   Host:                  docs
+   Roles:                 target
+   Mode:                  production
+   Status:                ok
+   Version ID:            447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
 
    Conditions:
      TYPE             STATUS  DETAIL
      LsmAttached      OK      lsm/bpf link present and pinned
-     KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
-     ChainIntact      OK      live register == eventlog replay
+     KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
+     ChainIntact      OK      live register equals the eventlog replay
      UpatchesMeasured OK      every pinned or archived upatch is in this boot's records
      TpmMeasured      OK      NV index 0x01818E00 readable
      ConfigActive     OK      config dc90bacc356f.. is active
@@ -96,21 +183,21 @@ loaded, captured from the test VM:
          CN=shirudo, ML-DSA-87, issued 2026-10-29
          key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
-   upatches loaded (1):
+   Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
      shirudo-test-basic        fentry/do_nanosleep               0  success                       2s
 
-   TPM Measurement:
-     TPM:               reachable (device:/dev/tpmrm0)
-     NV index:          0x01818E00 (anchored in PCR 9)
-     Chain:             0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
-     Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-     Anchored:          yes (name on record)
-     PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
-     Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
-     Bound in:          initrd
-     Chain vs eventlog: matches
-     Eventlog:          /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+   TPM measurement:
+     TPM:                   reachable (device:/dev/tpmrm0)
+     NV index:              0x01818E00 (anchored in PCR 9)
+     Chain:                 0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
+     Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
+     Anchored:              yes (name on record)
+     PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+     Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+     Bound in:              initrd
+     Chain vs eventlog:     matches
+     Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
 
    Assets (/var/lib/shirudo):
      keys/cert.der          present
@@ -146,7 +233,7 @@ Header
     The verdict, followed by the reason in parentheses when it is not
     ``ok``. :ref:`status-verdicts` explains each verdict.
 
-``Version-ID``
+``Version ID``
     The identifier of the shirudo build that runs. Compare it with the
     build you deployed, see :doc:`/operate/maintain/upgrade`.
 
@@ -163,8 +250,8 @@ verdict is derived from them.
    * - Condition
      - What it checks, and the details other than ``OK``
    * - ``LsmAttached``
-     - The ``lsm/bpf`` link is pinned. ``ALERT`` ``lsm/bpf absent --
-       enforcement OFF`` means enforcement did not come up this boot.
+     - The ``lsm/bpf`` link is pinned. ``ALERT`` ``lsm/bpf link absent,
+       enforcement off`` means enforcement did not come up this boot.
    * - ``KeyringSealed``
      - The live ``.bpf`` and ``.dm-verity`` keyrings are the ones
        ``init`` sealed and recorded in the frozen identity map, they
@@ -176,7 +263,7 @@ verdict is derived from them.
    * - ``ChainIntact``
      - The live register is the NV index ``init`` bound this boot, was
        bound once, and equals this boot's eventlog records replayed.
-       ``ALERT`` ``live register != eventlog replay (tamper?)``. ``WARN``
+       ``ALERT`` ``live register differs from the eventlog replay``. ``WARN``
        ``no register bound this boot (init incomplete)`` or ``no TPM
        answered, no register to replay``.
    * - ``UpatchesMeasured``
@@ -221,7 +308,7 @@ roots, read the same way.
 
 ``Frozen serial``
     The serial ``init`` recorded when it sealed the keyring, followed by
-    ``(matches)``, ``(MISMATCH -- swapped?)`` or ``(GONE -- removed?)``.
+    ``(matches)``, ``(swapped)`` or ``(gone)``.
 
 ``Certificates``
     The certificates the keyring should hold, and how many keys it
@@ -254,15 +341,15 @@ roots, read the same way.
     trusts every key such a link reaches, so ``KeyringSealed`` is
     ``ALERT`` and the verdict ``tampered``.
 
-upatches loaded
+Loaded upatches
 ~~~~~~~~~~~~~~~
 
 One row per upatch pinned in the private bpffs: its name, the attach
 location resolved from kernel BTF, its number of maps, ``success`` and
-the time since it was loaded. ``upatches loaded (0):`` with no rows
+the time since it was loaded. ``Loaded upatches (0):`` with no rows
 means nothing is loaded.
 
-TPM Measurement
+TPM measurement
 ~~~~~~~~~~~~~~~
 
 ``TPM``
@@ -299,10 +386,10 @@ TPM Measurement
 
 ``Init records``
     Printed only when the register was bound more than once for this TPM
-    reset: ``<n> for this TPM reset (REBOUND after init; tamper?)``.
+    reset: ``<n> for this TPM reset, rebound after init``.
 
 ``Chain vs eventlog``
-    ``matches``, ``MISMATCH (tamper?)`` or ``n/a`` when there is no
+    ``matches``, ``MISMATCH`` or ``n/a`` when there is no
     register to compare.
 
 ``Eventlog``
@@ -335,18 +422,18 @@ Eventlog
 ~~~~~~~~
 
 With ``--include-eventlog`` the report adds every record of the
-eventlog, of all boots, between the ``TPM Measurement`` and ``Assets``
+eventlog, of all boots, between the ``TPM measurement`` and ``Assets``
 sections. This target recorded its boot, then one load and one unload:
 
 .. code-block:: console
 
    target# shirudo status --include-eventlog
    ...
-   Eventlog (audit trail):
+   Eventlog:
      TIME                 TYPE          DIGEST        DETAIL
-     2026-10-29T16:17:38Z init          cb206abf8e51  set_digest=e3b0c44298fc..
-     2026-10-29T16:21:19Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
-     2026-10-29T16:21:20Z upatch_unload 26dae981e9bb  shirudo-test-basic payload=8aee7072a1a1..
+     2026-11-03T14:53:17Z init          377ce174fb1f  set_digest=e3b0c44298fc..
+     2026-11-03T14:54:33Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
+     2026-11-03T14:54:35Z upatch_unload 26dae981e9bb  shirudo-test-basic payload=8aee7072a1a1..
    ...
 
 The ``init`` record comes from the initrd run. Every later record is a
@@ -410,20 +497,20 @@ The register does not replay from the eventlog:
 
 .. code-block:: text
 
-   Status:            tampered  (live register != eventlog replay)
+   Status:                tampered  (live register differs from the eventlog replay)
    ...
-     ChainIntact      ALERT   live register != eventlog replay (tamper?)
+     ChainIntact      ALERT   live register differs from the eventlog replay
 
 Something extended or replaced the register without a matching eventlog
 record, the eventlog of this boot was altered or hidden, or the index is
-not the one ``init`` bound. The ``TPM Measurement`` section shows which
+not the one ``init`` bound. The ``TPM measurement`` section shows which
 lines disagree.
 
 A upatch is pinned or archived without a record:
 
 .. code-block:: text
 
-   Status:            tampered  (a upatch is pinned or archived without a record of this boot)
+   Status:                tampered  (a upatch is pinned or archived without a record of this boot)
    ...
      UpatchesMeasured ALERT   1 pinned or archived without a record of this boot: <name>
 
@@ -440,17 +527,17 @@ The live keyring is not the one ``init`` sealed:
 
 .. code-block:: text
 
-   Status:            tampered  (keyring serial swap detected)
+   Status:                tampered  (keyring serial swap detected)
    ...
-     KeyringSealed    ALERT   pin serial=<pinned> != live serial=<live> (swapped?)
+     KeyringSealed    ALERT   pinned serial <pinned>, live serial <live>: swapped
 
 The keyring ``init`` sealed is gone:
 
 .. code-block:: text
 
-   Status:            tampered  (the keyring init froze is gone)
+   Status:                tampered  (the keyring init froze is gone)
    ...
-     KeyringSealed    ALERT   pin serial=<pinned>, the BPF keyring is gone (removed?)
+     KeyringSealed    ALERT   pinned serial <pinned>, the .bpf keyring is gone
 
 The same for ``.dm-verity`` reads ``dm-verity keyring serial swap
 detected`` or ``the dm-verity keyring init froze is gone``.
@@ -460,7 +547,7 @@ for signatures from then on:
 
 .. code-block:: text
 
-   Status:            tampered  (a keyring holds a link init did not freeze)
+   Status:                tampered  (a keyring holds a link init did not freeze)
    ...
      KeyringSealed    ALERT   the dm-verity keyring holds 1 link init did not freeze
 
@@ -472,21 +559,19 @@ The config cannot be verified against its records:
 
 .. code-block:: text
 
-   Status:            tampered  (the selected config cannot be verified against its records)
+   Status:                tampered  (the selected config cannot be verified against its records)
    ...
-     ConfigActive     ALERT   the config PCR, activation records and mounted config disagree (tamper?)
+     ConfigActive     ALERT   the config PCR, activation records and mounted config disagree
 
 The detail of ``ConfigActive`` names the cause:
 
-- ``the config PCR, activation records and mounted config disagree
-  (tamper?)``: the config PCR does not hold the value the activation
+- ``the config PCR, activation records and mounted config disagree``: the config PCR does not hold the value the activation
   records predict. Something extended the PCR after this boot's config
   measurement. Software that measures into the same PCR causes this
   too, see :doc:`/operate/plan/hardening` for the PCR choice.
-- ``the config activation record does not belong to this TPM boot
-  (tamper?)``: the TPM was reset since the config was measured, for
+- ``the config activation record does not belong to this TPM boot``: the TPM was reset since the config was measured, for
   example by a resume from hibernation.
-- ``the mounted config does not match the selected root (tamper?)``: the
+- ``the mounted config does not match the selected root``: the
   config image mounted at ``/run/shirudo/config`` is not the one the
   records select.
 
@@ -505,9 +590,9 @@ journal and the state of this boot are the evidence. Follow
 
 .. code-block:: text
 
-   Status:            lsm-off  (LSM not attached -- enforcement OFF)
+   Status:                lsm-off  (LSM not attached, enforcement off)
    ...
-     LsmAttached      ALERT   lsm/bpf absent -- enforcement OFF
+     LsmAttached      ALERT   lsm/bpf link absent, enforcement off
 
 Enforcement is not up. Root can load BPF, and the seal on shirudo's
 state is not enforced. A failure of ``init`` in the initrd does not stop
@@ -532,7 +617,7 @@ in this state. So does a target booted without the shirudo initrd.
 
 .. code-block:: text
 
-   Status:            reboot-pending  (a config activation is pending until the next reboot)
+   Status:                reboot-pending  (a config activation is pending until the next reboot)
    ...
      ConfigActive     WARN    the activation of config <root>.. is pending until the next reboot
 
@@ -568,7 +653,7 @@ its own.
 
 .. code-block:: text
 
-   Status:            degraded  (no register bound this boot)
+   Status:                degraded  (no register bound this boot)
    ...
      ChainIntact      WARN    no register bound this boot (init incomplete)
      UpatchesMeasured WARN    no record of this boot to check the pins against

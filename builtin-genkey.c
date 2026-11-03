@@ -371,7 +371,7 @@ static int replace_pair(const char *pkey_new, const char *pkey_path,
 
 static const struct help_item genkey_options[] = {
 	{ "--force, -f",      "overwrite an existing key/cert (refused otherwise)" },
-	{ "--keys-dir <dir>", "write signing_key.pem + cert.der under <dir> "
+	{ "--keys-dir <dir>", "write signing_key.pem and cert.der under <dir> "
 			      "instead of the default" },
 };
 
@@ -382,7 +382,7 @@ static const struct help_section genkey_help_sections[] = {
 
 static const struct help genkey_help = {
 	.usage   = "shirudo genkey [--force] [--keys-dir <dir>]",
-	.summary = "Generate a self-signed X.509 cert + ML-DSA-87 (FIPS 204) "
+	.summary = "Generate a self-signed X.509 certificate and an ML-DSA-87 (FIPS 204) "
 		   "private key\nfor signing .upatch loader bytes. "
 		   "Operator-only; needs OpenSSL >= 3.5.",
 	.sections   = genkey_help_sections,

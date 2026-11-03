@@ -170,9 +170,9 @@ none, so here the target installs by direct reference.
    .. code-block:: console
 
       target# shirudo upatch list
-      upatches (/var/lib/shirudo/upatches):
-        loaded  type    kind    payload-sha256      name
-        yes     load    bpf     109848737a32f431..  hello
+      Archived upatches (/var/lib/shirudo/upatches):
+        NAME                      LOADED  TYPE    KIND  PAYLOAD
+        hello                     yes     load    bpf   109848737a32f431..
 
 Remove it
 ---------

@@ -51,8 +51,7 @@ Collect on the target
 
    .. code-block:: console
 
-      target# shirudo status --json --include-system --include-eventlog \
-          > bug/status.json
+      target# shirudo status --json --show-full > bug/status.json
 
    The ``system`` block holds the kernel release, version and build ID,
    and every ``CONFIG_*`` value from ``/boot/config-<release>`` when that

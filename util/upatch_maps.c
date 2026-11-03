@@ -1496,7 +1496,7 @@ void upatch_maps_print_detail(const struct map_view *v)
 {
 	__u32 i;
 
-	printf("upatch:              %s\n", v->upatch);
+	printf("Name:                %s\n", v->upatch);
 	printf("Map:                 %s\n", v->name);
 	if (upatch_map_is_percpu(v->type))
 		printf("Type:                %s (%u CPUs)\n",
@@ -1505,7 +1505,7 @@ void upatch_maps_print_detail(const struct map_view *v)
 		printf("Type:                %s\n", v->type_name);
 	printf("Max entries:         %u\n", v->max_entries);
 	if (v->skipped) {
-		printf("Status:              skipped -- %s\n",
+		printf("Status:              skipped: %s\n",
 		       v->skipped_reason ? v->skipped_reason : "(no reason)");
 		return;
 	}

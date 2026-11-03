@@ -24,10 +24,10 @@ static bool config_untrusted(const struct conditions_input *in)
 static const char *config_untrusted_detail(int state)
 {
 	if (state == -ESTALE)
-		return "the config activation record does not belong to this TPM boot (tamper?)";
+		return "the config activation record does not belong to this TPM boot";
 	if (state == -EKEYREJECTED)
-		return "the mounted config does not match the selected root (tamper?)";
-	return "the config PCR, activation records and mounted config disagree (tamper?)";
+		return "the mounted config does not match the selected root";
+	return "the config PCR, activation records and mounted config disagree";
 }
 
 static bool keyring_tampered(const struct conditions_input *in)
@@ -58,13 +58,13 @@ static void keyring_condition(const struct conditions_input *in,
 	c->type = "KeyringSealed";
 	if (!in->keyring_present && in->ksp_seen)
 		set_detail(c, "ALERT",
-			   "pin serial=%lld, the BPF keyring is gone (removed?)",
+			   "pinned serial %lld, the .bpf keyring is gone",
 			   (__s64)in->keyring_serial_pinned);
 	else if (!in->keyring_present)
-		set_detail(c, "WARN", "shirudo keyring absent (not init'd?)");
+		set_detail(c, "WARN", ".bpf keyring absent before init");
 	else if (in->ksm_seen && !in->keyring_serial_matches)
 		set_detail(c, "ALERT",
-			   "pin serial=%lld != live serial=%lld (swapped?)",
+			   "pinned serial %lld, live serial %lld: swapped",
 			   (__s64)in->keyring_serial_pinned,
 			   (__s64)in->keyring_serial);
 	else if (in->bpf_unfrozen)
@@ -73,11 +73,11 @@ static void keyring_condition(const struct conditions_input *in,
 			   in->bpf_unfrozen, in->bpf_unfrozen == 1 ? "" : "s");
 	else if (in->dmvp_seen && !in->dmv_present)
 		set_detail(c, "ALERT",
-			   "dm-verity pin serial=%lld, the dm-verity keyring is gone (removed?)",
+			   "dm-verity pinned serial %lld, the dm-verity keyring is gone",
 			   (__s64)in->dmv_serial_pinned);
 	else if (in->dmvm_seen && !in->dmv_serial_matches)
 		set_detail(c, "ALERT",
-			   "dm-verity pin serial=%lld != live serial=%lld (swapped?)",
+			   "dm-verity pinned serial %lld, live serial %lld: swapped",
 			   (__s64)in->dmv_serial_pinned,
 			   (__s64)in->dmv_serial);
 	else if (in->dmv_unfrozen)
@@ -89,10 +89,10 @@ static void keyring_condition(const struct conditions_input *in,
 			   "the config key init froze is gone from the dm-verity keyring");
 	else if (in->ksp_seen && in->dmvp_seen)
 		set_detail(c, "OK",
-			   "bpf serial=%lld, dm-verity serial=%lld, pins match",
+			   "bpf serial %lld, dm-verity serial %lld, pins match",
 			   (__s64)in->keyring_serial, (__s64)in->dmv_serial);
 	else
-		set_detail(c, "OK", "bpf serial=%lld, %s",
+		set_detail(c, "OK", "bpf serial %lld, %s",
 			   (__s64)in->keyring_serial,
 			   in->ksp_seen ? "pin matches" : "no pin recorded");
 }
@@ -107,7 +107,7 @@ size_t conditions(const struct conditions_input *in,
 		c[n].status = in->lsm_attached ? "OK" : "ALERT";
 		strscpy(c[n].detail, in->lsm_attached ?
 			"lsm/bpf link present and pinned" :
-			"lsm/bpf absent -- enforcement OFF",
+			"lsm/bpf link absent, enforcement off",
 			sizeof(c[n].detail));
 		n++;
 	}
@@ -123,12 +123,12 @@ size_t conditions(const struct conditions_input *in,
 				sizeof(c[n].detail));
 		} else if (in->cm_seen && in->chain_matches) {
 			c[n].status = "OK";
-			strscpy(c[n].detail, "live register == eventlog replay",
+			strscpy(c[n].detail, "live register equals the eventlog replay",
 				sizeof(c[n].detail));
 		} else if (in->cm_seen) {
 			c[n].status = "ALERT";
 			strscpy(c[n].detail,
-				"live register != eventlog replay (tamper?)",
+				"live register differs from the eventlog replay",
 				sizeof(c[n].detail));
 		} else {
 			c[n].status = "WARN";
@@ -183,7 +183,7 @@ size_t conditions(const struct conditions_input *in,
 		c[n].status = "OK";
 		if (!in->config_seen) {
 			c[n].status = "WARN";
-			strscpy(c[n].detail, "no config activation state (init not run?)",
+			strscpy(c[n].detail, "no config activation state before init",
 				sizeof(c[n].detail));
 		} else if (in->config_state == -EINPROGRESS) {
 			c[n].status = "WARN";
@@ -209,9 +209,9 @@ void conditions_print(const struct condition *c, size_t n)
 	size_t i;
 
 	printf("Conditions:\n");
-	printf("  %-16s %-7s %s\n", "TYPE", "STATUS", "DETAIL");
+	printf("  %-18s %-7s %s\n", "TYPE", "STATUS", "DETAIL");
 	for (i = 0; i < n; i++)
-		printf("  %-16s %-7s %s\n", c[i].type, c[i].status,
+		printf("  %-18s %-7s %s\n", c[i].type, c[i].status,
 		       c[i].detail);
 }
 
@@ -248,7 +248,7 @@ void status_reason(const struct conditions_input *in,
 		strscpy(buf, "status JSON unparseable", cap);
 	} else if (strcmp(v, "tampered") == 0) {
 		if (in->cm_seen && !in->chain_matches)
-			strscpy(buf, "live register != eventlog replay", cap);
+			strscpy(buf, "live register differs from the eventlog replay", cap);
 		else if (in->pins_unmeasured)
 			strscpy(buf, "a upatch is pinned or archived without a record of this boot",
 				cap);
@@ -271,7 +271,7 @@ void status_reason(const struct conditions_input *in,
 		else
 			strscpy(buf, "the config key init froze is gone", cap);
 	} else if (strcmp(v, "lsm-off") == 0) {
-		strscpy(buf, "LSM not attached -- enforcement OFF", cap);
+		strscpy(buf, "LSM not attached, enforcement off", cap);
 	} else if (strcmp(v, "init-pending") == 0) {
 		strscpy(buf, "target hasn't been `shirudo init`'d", cap);
 	} else if (strcmp(v, "reboot-pending") == 0) {

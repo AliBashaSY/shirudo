@@ -167,7 +167,7 @@ def snapshot(label):
                     for p in sorted(config.JOURNAL.iterdir()) if p.is_file()},
         "mappings": config.mapping_inventory(),
     }
-    status = json.loads(config.run(label + "-status", "image", "status"))
+    status = json.loads(config.run(label + "-status", "image", "status", "--json"))
     require(status["consistent"] and not status["pending"] and
             status["root_hash"] == ROOT and status["pcr"] == 14, status)
     require("map_export.tenant_id = config-boot-keys\n" in effects["settings"],

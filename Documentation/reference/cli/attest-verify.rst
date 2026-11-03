@@ -38,7 +38,7 @@ Description
 -----------
 
 ``verify`` prints one line per check, ``ok:``, ``FAIL:`` or ``note:``,
-followed by ``verdict: ok`` or ``verdict: FAIL``. It checks:
+followed by ``verdict: ok`` or ``verdict: fail``. It checks:
 
 - the nonce, in the document, the quote and the register certification
 - the attestation key: restricted, fixed to its TPM, its name matching its
@@ -128,6 +128,11 @@ Options
    * - ``--strict-anchor``
      - none
      - Require PCR 9 to hold only the anchor.
+   * - ``--json``
+     - none
+     - Print one JSON object: ``schema`` (1), ``verdict`` (``ok`` or
+       ``fail``) and ``checks``, a list of ``result`` (``ok``, ``fail``
+       or ``note``) and ``text``.
    * - ``--require-initrd``
      - none
      - Fail unless ``init`` bound the register from the initrd.
@@ -144,7 +149,7 @@ Exit status
    * - 0
      - ``verdict: ok``.
    * - 1
-     - ``verdict: FAIL``.
+     - ``verdict: fail``.
    * - 2
      - A usage error or an invalid value, ``--evidence`` or ``--nonce``
        missing, an option that needs another, an unreadable evidence file
@@ -159,37 +164,37 @@ attestation key pinned:
 .. code-block:: console
 
    operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE --ak-name=<ak-name> --expect-chain=<register>
-   ok:   nonce matches the request
-   ok:   attestation key: restricted, fixed to this TPM
-   ok:   attestation key: name matches its public area
-   ok:   attestation key: the pinned key
-   ok:   endorsement key: name matches its public area
-   ok:   endorsement key: TCG default template under the endorsement policy
-   ok:   quote: ECDSA signature by the attestation key
-   ok:   quote: signed by the key as an endorsement primary
-   ok:   quote: carries the nonce
-   ok:   quote: covers the PCRs the document lists
-   ok:   quote: PCR digest matches the listed values
-   ok:   register: ECDSA signature by the attestation key
-   ok:   register: signed by the key as an endorsement primary
-   ok:   register: carries the nonce
-   ok:   register: certification names the listed index
-   ok:   register: certified contents match the listed value
-   ok:   quote and certification are of one TPM reset
-   ok:   config: config root history matches the quoted PCR
-   note: config root has no operator approval; use --expect-config-root with --expect-config-pcr
-   note: config records a selection; direct TPM writer protection is deferred
-   ok:   eventlog: this boot has an init record
-   ok:   register: the document names index 0x01818E00 and PCRs 9 and 11
-   ok:   register: public area is bound to PCRs 9 and 11 as recorded
-   note: binding: made in the initrd
-   ok:   eventlog: one init record for this TPM reset (1 this boot)
-   ok:   register: init record is of the TPM's current reset count
-   ok:   eventlog: 2 records replay to the certified value
-   ok:   anchor: record digest matches the index name
-   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-   ok:   state: register equals the expected value
-   note: event after boot: upatch_load basic
+     OK    nonce matches the request
+     OK    attestation key: restricted, fixed to this TPM
+     OK    attestation key: name matches its public area
+     OK    attestation key: the pinned key
+     OK    endorsement key: name matches its public area
+     OK    endorsement key: TCG default template under the endorsement policy
+     OK    quote: ECDSA signature by the attestation key
+     OK    quote: signed by the key as an endorsement primary
+     OK    quote: carries the nonce
+     OK    quote: covers the PCRs the document lists
+     OK    quote: PCR digest matches the listed values
+     OK    register: ECDSA signature by the attestation key
+     OK    register: signed by the key as an endorsement primary
+     OK    register: carries the nonce
+     OK    register: certification names the listed index
+     OK    register: certified contents match the listed value
+     OK    quote and certification are of one TPM reset
+     OK    config: config root history matches the quoted PCR
+     note  config root has no operator approval; use --expect-config-root with --expect-config-pcr
+     note  config records a selection; direct TPM writer protection is deferred
+     OK    eventlog: this boot has an init record
+     OK    register: the document names index 0x01818E00 and PCRs 9 and 11
+     OK    register: public area is bound to PCRs 9 and 11 as recorded
+     note  binding: made in the initrd
+     OK    eventlog: one init record for this TPM reset (1 this boot)
+     OK    register: init record is of the TPM's current reset count
+     OK    eventlog: 2 records replay to the certified value
+     OK    anchor: record digest matches the index name
+     OK    anchor: PCR 9 equals the recorded value extended by the anchor
+     OK    state: register equals the expected value
+     note  event after boot: upatch_load basic
    verdict: ok
 
 ``$NONCE`` holds the nonce given to ``shirudo attest``, ``<ak-name>`` the
@@ -208,17 +213,17 @@ after boot:
 
 .. code-block:: none
 
-   ok:   binding: made while the initrd ran
-   ok:   eventlog: one init record for this TPM reset (1 this boot)
-   ok:   register: init record is of the TPM's current reset count
-   ok:   eventlog: 3 records replay to the certified value
-   ok:   anchor: record digest matches the index name
-   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-   FAIL: state: init event covers the expected certificate, set and tree root
-   FAIL: state: 2 events after boot change the register
-   note: event after boot: upatch_load shirudo-test-basic
-   note: event after boot: upatch_unload shirudo-test-basic
-   verdict: FAIL
+     OK    binding: made while the initrd ran
+     OK    eventlog: one init record for this TPM reset (1 this boot)
+     OK    register: init record is of the TPM's current reset count
+     OK    eventlog: 3 records replay to the certified value
+     OK    anchor: record digest matches the index name
+     OK    anchor: PCR 9 equals the recorded value extended by the anchor
+     FAIL  state: init event covers the expected certificate, set and tree root
+     FAIL  state: 2 events after boot change the register
+     note  event after boot: upatch_load shirudo-test-basic
+     note  event after boot: upatch_unload shirudo-test-basic
+   verdict: fail
 
 The first ``FAIL`` line says that the target enrolls a certificate set
 other than the one given: that target enrolls two certificates and the

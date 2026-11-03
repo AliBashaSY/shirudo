@@ -20,7 +20,7 @@ Usage
 
 .. code-block:: none
 
-   shirudo keys [--keys-dir <dir> | --keys-dir=<dir>]
+   shirudo keys [--keys-dir <dir> | --keys-dir=<dir>] [--json]
    shirudo keys add <certificate> (--vouch <vouch> | --vouch=<vouch>)
                     [--keys-dir <dir> | --keys-dir=<dir>]
    shirudo keys vouch <certificate> [-o <vouch>]
@@ -121,6 +121,15 @@ Options
      - ``<dir>``, next argument or after ``=``
      - ``$SHIRUDO_KEYS_DIR``, else ``/var/lib/shirudo/keys``
      - Display, ``add`` and ``vouch``: the keys directory.
+   * - ``--json``
+     - none
+     - off
+     - Print the key material as one JSON object: ``schema`` (1),
+       ``cert`` and ``signing_key`` (objects, or ``null`` when absent),
+       ``trusted_set`` (a list of ``fingerprint``, ``sha256``,
+       ``primary`` and ``voucher``) and ``keyrings`` (``.bpf`` and
+       ``.dm-verity``, each with ``present``, ``serial``,
+       ``frozen_serial`` and ``members``).
    * - ``--vouch``
      - ``<vouch>``, next argument or after ``=``
      - none, required
@@ -186,13 +195,36 @@ Show the key material on a target:
 .. code-block:: console
 
    target# shirudo keys
-   Cert (/run/shirudo/runtime/keys/cert.der):
+   Certificate (/run/shirudo/runtime/keys/cert.der):
      Subject:               /CN=shirudo
      Issuer:                /CN=shirudo  (self-signed)
-     Public-key:            ML-DSA-87
-     Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
-     SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
-     Issued:                2026-10-29T21:50:28Z
+     Public key:            ML-DSA-87
+     Fingerprint:           SHA256:c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1
+     SPKI fingerprint:      SHA256:6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858
+     Issued:                2026-11-03T14:52:11Z
+
+   Signing key (/run/shirudo/runtime/keys/signing_key.pem):
+     Present:               no, a target holds no private key
+
+   Trusted set (2 members, 0 revoked, 0 unvouched):
+     a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f
+       sha256 79b04130628135a03630a0ed9e92a574f8701847404ec281469348a09b9b3b45
+       vouched by 6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858
+     6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (primary)
+       sha256 c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1
+
+   Keyring (.bpf):
+     Serial:                272801410
+     Frozen serial:         272801410  (matches)
+     Members (2):
+       serial=465853497   type=asymmetric  shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265  (frozen)
+       serial=91435879    type=asymmetric  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
+
+   Keyring (.dm-verity):
+     Serial:                799624487
+     Frozen serial:         799624487  (matches)
+     Members (1):
+       serial=403194297   type=asymmetric  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
 
    Signing key (/run/shirudo/runtime/keys/signing_key.pem):
      Present:               no  (target host -- private key lives on the operator)

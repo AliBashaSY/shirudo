@@ -29,13 +29,13 @@ Description
 ``init`` restores at boot, and the pin directories under
 ``/run/shirudo/bpffs/upatches/``:
 
-- one row per archived artifact, with ``loaded`` ``yes`` or ``no``, its
-  type (``load`` or ``unload``), its payload kind, the first 16
-  hexadecimal characters of its payload digest and its name
+- one row per archived artifact: its name, ``LOADED`` ``yes`` or
+  ``no``, its type (``load`` or ``unload``), its payload kind and the
+  first 16 hexadecimal characters of its payload digest
 - one row per pinned upatch without an archive copy, marked
-  ``(orphan: no persisted .upatch, will not survive reboot)``
+  ``not archived, gone at reboot``
 
-An archived artifact that cannot be read is listed as ``(unreadable)``.
+An archived artifact that cannot be read is listed as ``unreadable``.
 
 Options
 -------
@@ -52,8 +52,8 @@ Options
      - none
      - off
      - Print one JSON object: ``schema`` (1) and ``upatches``, a list of
-       ``name``, ``type``, ``payload_type``, ``loaded``, ``persisted`` and
-       ``payload_sha256``. An orphan has ``type`` and
+       ``name``, ``type``, ``payload_type``, ``loaded``, ``archived`` and
+       ``payload_sha256``. A upatch without an archive has ``type`` and
        ``payload_sha256`` ``null`` and no ``payload_type``.
 
 Exit status
@@ -80,17 +80,17 @@ List the upatches of a target with one loaded upatch:
 .. code-block:: console
 
    target# shirudo upatch list
-   upatches (/var/lib/shirudo/upatches):
-     loaded  type    kind    payload-sha256      name
-     yes     load    bpf     46f3d9f5f6568bdd..  basic
+   Archived upatches (/var/lib/shirudo/upatches):
+     NAME                      LOADED  TYPE    KIND  PAYLOAD
+     shirudo-test-basic        yes     load    bpf   8aee7072a1a15e4d..
 
 The same target after the unload:
 
 .. code-block:: console
 
    target# shirudo upatch list
-   upatches (/var/lib/shirudo/upatches):
-     (none persisted)
+   Archived upatches (/var/lib/shirudo/upatches):
+     none
 
 Related
 -------

@@ -1020,7 +1020,7 @@ int image_config_state(__u8 root[32])
 	return image.config_state;
 }
 
-int image_status(void)
+int image_status(bool json)
 {
 	struct config_update_record record;
 	char buffer[512], root[65];
@@ -1037,6 +1037,19 @@ int image_status(void)
 		return ret;
 	hex_encode(record.target.root_hash, 32, root);
 	ret = record.pending ? -EINPROGRESS : current_config();
+	if (!json) {
+		printf("%-22s %s\n", "Config root hash:", root);
+		printf("%-22s %d\n", "PCR:", record.pcr);
+		printf("%-22s %lld\n", "Sequence:", (long long)record.sequence);
+		printf("%-22s %lld\n", "TPM reset count:",
+		       (long long)record.reset_count);
+		printf("%-22s %lld\n", "Restart count:",
+		       (long long)record.restart_count);
+		printf("%-22s %s\n", "Pending:", record.pending ?
+		       "yes, until the next reboot" : "no");
+		printf("%-22s %s\n", "Consistent:", ret ? "no" : "yes");
+		return ret;
+	}
 	json_obj_open(&emit);
 	json_kv_string(&emit, "root_hash", root);
 	json_kv_int(&emit, "pcr", record.pcr);

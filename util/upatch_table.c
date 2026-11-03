@@ -31,9 +31,11 @@ void upatch_table_print(const struct upatch_table_row *rows,
 {
 	size_t i;
 
-	printf("\nupatches loaded (%zu):\n", n);
-	if (n == 0)
+	printf("\nLoaded upatches (%zu):\n", n);
+	if (n == 0) {
+		printf("  none\n");
 		return;
+	}
 	printf("  %-24s  %-28s  %5s  %-28s  %s\n",
 	       "NAME", "LOCATION", "MAPS", "STATUS", "AGE");
 	for (i = 0; i < n; i++) {

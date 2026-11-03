@@ -330,14 +330,14 @@ every verdict, ``tampered`` included. Parse ``.status`` of
        is refused or the output cannot be written; 2 for a usage error or
        an unreadable challenge.
    * - ``attest verify``
-     - 0 for ``verdict: ok``; 1 for ``verdict: FAIL``; 2 for a usage
+     - 0 for ``verdict: ok``; 1 for ``verdict: fail``; 2 for a usage
        error, an unreadable evidence file or a file that is not an
        evidence document.
    * - ``attest predict``
      - 0; 1 when the write policy cannot be computed; 2 for a usage error
        or invalid input.
    * - ``attest challenge``
-     - 0; 1 for ``verdict: FAIL`` or a write error; 2 for a usage error,
+     - 0; 1 for ``verdict: fail`` or a write error; 2 for a usage error,
        an unreadable evidence file or evidence without an endorsement key.
    * - ``keys``
      - 0; 1 when no key material or no ``.bpf`` keyring is found; 2 for a

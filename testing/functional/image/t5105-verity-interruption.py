@@ -50,7 +50,7 @@ def main():
     (RESULTS / "crash.state").write_bytes((config.JOURNAL / "state").read_bytes())
     (RESULTS / "crash.events").write_bytes((config.JOURNAL / "events").read_bytes())
     config.require(pcr("crash") == expected, "config PCR did not extend exactly once")
-    status = json.loads(config.run("pending-status", "image", "status", success=False))
+    status = json.loads(config.run("pending-status", "image", "status", "--json", success=False))
     config.require(status["pending"] and not status["consistent"],
                    "interrupted activation looked healthy")
     config.run("blocked-update", "image", "update", config.IMAGES / target, success=False)

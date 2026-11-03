@@ -65,6 +65,7 @@ static const struct help_item verify_options[] = {
 	{ "--expect-config-pcr=<n>", "reserved config PCR number" },
 	{ "--expect-pcr=<n>=<hex>", "a PCR value the quote must carry (repeatable)" },
 	{ "--allow-runtime-events", "accept loads, unloads and revocations after boot" },
+	{ "--json",             "print the checks and the verdict as JSON" },
 	{ "--strict-anchor",       "require the anchoring PCR to hold only the anchor" },
 	{ "--expect-credential=<hex>", "the credential the challenge given to the target carried" },
 	{ "--ek-name=<hex>",       "the endorsement key name pinned at enrollment" },
@@ -89,6 +90,7 @@ static const struct help_item predict_options[] = {
 	{ "--event=<kind>:<name>=<hex>",
 	  "a load, unload, tree:<seq> or revoke:<fingerprint> event after boot" },
 	{ "--bind-pcr=<n>=<hex>",  "PCR 9 and 11 values at binding, for the register name" },
+	{ "--json",             "print the values as JSON" },
 	{ "--writer-public=<hex>", "init record's 384-byte RSA modulus (with --bind-pcr)" },
 };
 
@@ -291,8 +293,24 @@ static int apply_event(const char *spec, __u8 chain[32])
 	return 0;
 }
 
+struct predict_out {
+	bool		json;
+	struct json_emit e;
+};
+
+static void predict_kv(struct predict_out *po, const char *key,
+		       const char *value)
+{
+	if (po->json)
+		json_kv_string(&po->e, key, value);
+	else
+		printf("%s: %s\n", key, value);
+}
+
 static int cmd_attest_predict(int argc, const char **argv)
 {
+	struct predict_out po = { .e = { .cap = 4096 } };
+	char pcr_key[32];
 	__u8 writer_public[TPM_NV_RSA_BYTES];
 	__u8 cert_sha[32], tree_root[32] = {}, set_digest[32], init[32];
 	__u8 cert_shas[KEYS_MAX][32];
@@ -342,6 +360,8 @@ static int cmd_attest_predict(int argc, const char **argv)
 				goto out;
 			}
 			have_writer = true;
+		} else if (!strcmp(a, "--json")) {
+			po.json = true;
 		} else if (!strncmp(a, "--bind-pcr=", 11)) {
 			const char *value = NULL;
 			int slot = -1;
@@ -371,6 +391,15 @@ static int cmd_attest_predict(int argc, const char **argv)
 		pr_err("attest predict: --cert is required");
 		goto out;
 	}
+	if (po.json) {
+		po.e.buf = xmalloc(po.e.cap);
+		if (!po.e.buf) {
+			ret = 1;
+			goto out;
+		}
+		json_obj_open(&po.e);
+		json_kv_int(&po.e, "schema", 1);
+	}
 	if (keys_anchor_digest(cert_shas, n_certs, cert_sha) ||
 	    chain_init_event(cert_sha, m.set, m.n, tree_root, set_digest,
 			     init)) {
@@ -378,12 +407,12 @@ static int cmd_attest_predict(int argc, const char **argv)
 		goto out;
 	}
 	hex_encode(set_digest, 32, hex);
-	printf("set_digest: %s\n", hex);
+	predict_kv(&po, "set_digest", hex);
 	hex_encode(init, 32, hex);
-	printf("init_event: %s\n", hex);
+	predict_kv(&po, "init_event", hex);
 	chain_fold(chain, init);
 	hex_encode(chain, 32, hex);
-	printf("register_at_boot: %s\n", hex);
+	predict_kv(&po, "register_at_boot", hex);
 	for (i = 0; i < n_events; i++) {
 		if (apply_event(events[i], chain)) {
 			pr_err("attest predict: bad --event '%s'", events[i]);
@@ -392,7 +421,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 	}
 	if (n_events) {
 		hex_encode(chain, 32, hex);
-		printf("register_after_events: %s\n", hex);
+		predict_kv(&po, "register_after_events", hex);
 	}
 	if (have_bind[0] && have_bind[1]) {
 		__u8 branch_written[32], branch_init[32], policy[32];
@@ -416,27 +445,94 @@ static int cmd_attest_predict(int argc, const char **argv)
 			goto out;
 		}
 		hex_encode(name, sizeof(name), hex);
-		printf("register_name: %s\n", hex);
+		predict_kv(&po, "register_name", hex);
 		if (chain_anchor(name, anchor, sizeof(anchor))) {
 			pr_err("attest predict: the anchor does not fit");
 			goto out;
 		}
-		printf("anchor: %s\n", anchor);
+		predict_kv(&po, "anchor", anchor);
 		if (sha256_calc(anchor, strlen(anchor), anchor_digest)) {
 			pr_err("attest predict: cannot hash the anchor");
 			goto out;
 		}
 		chain_fold(bind[0], anchor_digest);
 		hex_encode(bind[0], 32, hex);
-		printf("pcr%u_after_anchor: %s\n", CHAIN_PCR, hex);
+		if (strsprintf(pcr_key, sizeof(pcr_key), "pcr%u_after_anchor",
+			       CHAIN_PCR) >= 0)
+			predict_kv(&po, pcr_key, hex);
 	} else if (have_bind[0] || have_bind[1] || have_writer) {
 		pr_err("attest predict: --bind-pcr needs both %u and %u",
 		       CHAIN_PCR, CHAIN_PHASE_PCR);
 		goto out;
 	}
 	ret = 0;
+	if (po.json) {
+		json_obj_close(&po.e);
+		if (po.e.err) {
+			pr_err("attest predict: json encode failed");
+			ret = 1;
+		} else {
+			puts(po.e.buf);
+		}
+	}
 out:
+	xfree(po.e.buf, po.e.cap);
 	xfree(m.set, ATTEST_MEMBERS_MAX * sizeof(*m.set));
+	return ret;
+}
+
+/*
+ * The report is one check or note per line, OK, FAIL or note then the
+ * text, which the JSON form carries as an array of objects.
+ */
+static int report_emit_json(const char *report, const char *verdict)
+{
+	char *buf = xmalloc(ATTEST_REPORT_MAX * 2);
+	struct json_emit e = { .buf = buf, .cap = ATTEST_REPORT_MAX * 2 };
+	const char *line = report;
+	int ret = 0;
+
+	if (!buf)
+		return 1;
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_string(&e, "verdict", verdict);
+	json_arr_open(&e, "checks");
+	while (*line) {
+		const char *nl = strchr(line, '\n');
+		size_t len = nl ? (size_t)(nl - line) : strlen(line);
+		char text[ATTEST_REPORT_MAX];
+		const char *kind = NULL;
+
+		if (len > 8 && !strncmp(line, "  OK    ", 8))
+			kind = "ok";
+		else if (len > 8 && !strncmp(line, "  FAIL  ", 8))
+			kind = "fail";
+		else if (len > 8 && !strncmp(line, "  note  ", 8))
+			kind = "note";
+		if (kind) {
+			size_t n = min(len - 8, sizeof(text) - 1);
+
+			memcpy(text, line + 8, n);
+			text[n] = '\0';
+			json_obj_open(&e);
+			json_kv_string(&e, "result", kind);
+			json_kv_string(&e, "text", text);
+			json_obj_close(&e);
+		}
+		if (!nl)
+			break;
+		line = nl + 1;
+	}
+	json_arr_close(&e);
+	json_obj_close(&e);
+	if (e.err) {
+		pr_err("attest: json encode failed");
+		ret = 1;
+	} else {
+		puts(buf);
+	}
+	xfree(buf, ATTEST_REPORT_MAX * 2);
 	return ret;
 }
 
@@ -479,6 +575,7 @@ static int read_evidence(const char *path, char **out, size_t *len)
 
 static int cmd_attest_verify(int argc, const char **argv)
 {
+	bool json = false;
 	struct attest_expect x = {};
 	__u8 nonce[ATTEST_NONCE_MAX], cert_sha[32], set_digest[32];
 	__u8 cert_shas[KEYS_MAX][32];
@@ -570,6 +667,8 @@ static int cmd_attest_verify(int argc, const char **argv)
 			    parse_hex32("--expect-pcr value", value, x.pcrs[n]))
 				goto out;
 			x.pcr_expect_mask |= 1u << n;
+		} else if (!strcmp(a, "--json")) {
+			json = true;
 		} else if (!strcmp(a, "--allow-runtime-events")) {
 			x.allow_runtime_events = true;
 		} else if (!strcmp(a, "--strict-anchor")) {
@@ -652,17 +751,20 @@ static int cmd_attest_verify(int argc, const char **argv)
 		goto out;
 	err = attest_verify(evidence, evidence_len, &x, report,
 			    ATTEST_REPORT_MAX);
-	fputs(report, stdout);
 	if (err == -EINVAL) {
+		if (!json)
+			fputs(report, stdout);
 		pr_err("attest verify: %s is not a shirudo evidence document",
 		       evidence_path);
 		ret = 2;
-	} else if (err) {
-		printf("verdict: FAIL\n");
-		ret = 1;
+	} else if (json) {
+		ret = report_emit_json(report, err ? "fail" : "ok");
+		if (!ret && err)
+			ret = 1;
 	} else {
-		printf("verdict: ok\n");
-		ret = 0;
+		fputs(report, stdout);
+		printf("verdict: %s\n", err ? "fail" : "ok");
+		ret = err ? 1 : 0;
 	}
 out:
 	xfree(evidence, evidence ? evidence_len + 1 : 0);
@@ -737,7 +839,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		goto out;
 	}
 	if (err) {
-		printf("verdict: FAIL\n");
+		printf("verdict: fail\n");
 		ret = 1;
 		goto out;
 	}

@@ -144,7 +144,7 @@ static int print_sha256_hex(const __u8 hash[32])
 static const struct help upatch_info_help = {
 	.usage   = "shirudo upatch info [--json] <file.upatch>",
 	.summary = "Describe a .upatch file: header, signature, payload "
-		   "digest,\nattach metadata and signed decoders. Offline -- "
+		   "digest,\nattach metadata and signed decoders. Offline: "
 		   "no kernel state\nread, runs on any host. For the program as "
 		   "actually loaded\n(authoritative, via kernel BTF line_info) "
 		   "use `shirudo upatch get`.",
@@ -156,11 +156,9 @@ static const struct help upatch_info_help = {
 
 static const struct help upatch_list_help = {
 	.usage   = "shirudo upatch list [--json]",
-	.summary = "List upatches on this host. Shows the persisted set\n"
-		   "(under /var/lib/shirudo/upatches/, survives reboot) "
-		   "alongside the\nbpffs-pinned active set (loaded now). "
-		   "Drift in either direction\n(persisted-but-not-loaded "
-		   "or loaded-but-not-persisted) is flagged.",
+	.summary = "List the upatches archived under /var/lib/shirudo/upatches,\n"
+		   "which init restores at boot, with whether each is loaded now,\n"
+		   "and any upatch loaded without an archive.",
 	.footer  =
 "Examples:\n"
 "  shirudo upatch list\n"
@@ -228,7 +226,7 @@ static const struct help upatch_map_help = {
 		      "target kernel. With no positional args, list every "
 		      "pinned\nmap across every loaded upatch. With "
 		      "<upatch>, list maps\nfor that upatch only. With "
-		      "<upatch> <map>, dump the map's\ncontents -- BTF "
+		      "<upatch> <map>, dump the map's\ncontents, BTF "
 		      "type-aware where the build embedded `-g`. If the "
 		      "upatch\npins a serializer for the map, run it and "
 		      "print the serialized\npages. With --all, export detailed "
@@ -268,7 +266,7 @@ static const struct help upatch_get_help = {
 		   "    signed loader (authoritative, but sparse),\n"
 		   "  - every pinned map: BTF key/value type definitions plus\n"
 		   "    the live key/value contents.\n"
-		   "Read-only; uses only LSM-allowed bpf() ops + xattr / stat.",
+		   "Read-only; uses only LSM-allowed bpf() ops, xattr and stat.",
 	.sections   = upatch_get_sections,
 	.n_sections = ARRAY_SIZE(upatch_get_sections),
 	.footer  =
@@ -401,7 +399,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	printf("Type:                  %s\n", flag_str(&u));
 	printf("Payload type:          %s\n", upatch_type_str(&u));
 	printf("Version:               %u\n", u.hdr.version);
-	printf("Payload SHA256:        ");
+	printf("Payload sha256:        ");
 	print_sha256_hex(u.hdr.payload_sha256);
 	printf("\n");
 	printf("File size:             %zu bytes\n", u.map_size);
@@ -545,12 +543,12 @@ static int cmd_upatch_list(int argc, const char **argv)
 		json_kv_int(&e, "schema", 1);
 		json_arr_open(&e, "upatches");
 	} else {
-		printf("upatches (%s):\n", UPATCHES_DIR);
-		if (np == 0)
-			printf("  (none persisted)\n");
+		printf("Archived upatches (%s):\n", UPATCHES_DIR);
+		if (np == 0 && na == 0)
+			printf("  none\n");
 		else
-			printf("  %-6s  %-6s  %-6s  %-18s  %s\n",
-			       "loaded", "type", "kind", "payload-sha256", "name");
+			printf("  %-24s  %-6s  %-6s  %-4s  %s\n",
+			       "NAME", "LOADED", "TYPE", "KIND", "PAYLOAD");
 	}
 
 	for (i = 0; i < np; i++) {
@@ -566,8 +564,9 @@ static int cmd_upatch_list(int argc, const char **argv)
 			continue;
 		if (upatch_open(path, &u) != 0) {
 			if (!json)
-				printf("  %-6s  %-6s  %-18s  %s\n", "?", "?",
-				       "(unreadable)", persisted[i]->d_name);
+				printf("  %-24s  %-6s  %-6s  %-4s  %s\n",
+				       persisted[i]->d_name, "?", "?", "?",
+				       "unreadable");
 			continue;
 		}
 		memcpy(name, u.hdr.name, sizeof(u.hdr.name));
@@ -584,7 +583,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 			json_kv_string(&e, "type", type);
 			json_kv_string(&e, "payload_type", payload_type);
 			json_kv_bool(&e, "loaded", loaded);
-			json_kv_bool(&e, "persisted", 1);
+			json_kv_bool(&e, "archived", 1);
 			json_kv_string(&e, "payload_sha256", payload_hex);
 			json_obj_close(&e);
 		} else {
@@ -592,8 +591,8 @@ static int cmd_upatch_list(int argc, const char **argv)
 
 			memcpy(shown, payload_hex, 16);
 			memcpy(shown + 16, "..", 3);
-			printf("  %-6s  %-6s  %-6s  %-18s  %s\n",
-			       loaded ? "yes" : "no", type, payload_type, shown, name);
+			printf("  %-24s  %-6s  %-6s  %-4s  %s\n", name,
+			       loaded ? "yes" : "no", type, payload_type, shown);
 		}
 	}
 
@@ -618,13 +617,12 @@ static int cmd_upatch_list(int argc, const char **argv)
 			json_kv_string(&e, "name", raw_name);
 			json_kv_null(&e, "type");
 			json_kv_bool(&e, "loaded", 1);
-			json_kv_bool(&e, "persisted", 0);
+			json_kv_bool(&e, "archived", 0);
 			json_kv_null(&e, "payload_sha256");
 			json_obj_close(&e);
 		} else {
-			printf("  %-6s  %-6s  %-18s  %s  (orphan: no persisted "
-			       ".upatch, will not survive reboot)\n",
-			       "yes", "?", "-", raw_name);
+			printf("  %-24s  %-6s  %-6s  %-4s  %s\n", raw_name,
+			       "yes", "-", "-", "not archived, gone at reboot");
 		}
 	}
 
@@ -1471,7 +1469,7 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 			goto out;
 		}
 		made[i] = true;
-		pr_info("attached + pinned prog %u (%s) -> %s",
+		pr_info("upatch load: program %u (%s) pinned at %s",
 			i, attach_kind_name(spec->kind), pin);
 	}
 	if (test_fd >= 0) {
@@ -2020,10 +2018,9 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	pr_info("loaded signed loader: prog_fd=%d keyring=%d "
-		"sig=%uB insns=%zu data=%uB",
-		prog_fd, (int)serial, u.hdr.signature_len, insn_cnt,
-		u.hdr.data_len);
+	pr_info("%s: signed loader accepted, keyring %d, %zu instructions",
+		verify_only ? "upatch unload" : "upatch load", (int)serial,
+		insn_cnt);
 
 	if (verify_only) {
 		ret = 0;
@@ -2157,7 +2154,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	pr_info("loader ok, retval=%d (maps=%u progs=%u)", (__s32)retval,
+	pr_info("upatch load: loader ran, %u maps and %u programs",
 		u.hdr.nr_maps, u.hdr.nr_progs);
 
 	/*
@@ -2195,8 +2192,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 	set_pin_payload(upatch_name, u.hdr.payload_sha256);
 	apply_policy_labels(&u);
 
-	pr_audit("upatch load: name=%s keyring=%d progs=%u", upatch_name,
-		 (int)serial, u.hdr.nr_progs);
+	pr_audit("upatch load: %s loaded, %u programs, keyring %d",
+		 upatch_name, u.hdr.nr_progs, (int)serial);
 	if (rep)
 		rep->loader_return = (__s32)retval;
 	ret = 0;
@@ -2248,7 +2245,7 @@ static int upatch_preflight(const char *expect_chain,
 	fd = bpf_obj_get(LSM_LINK_PIN);
 	if (fd < 0) {
 		pr_err("upatch load: pre-flight refused (category: tampered, "
-		       "message: lsm_detached) -- %s not pinned",
+		       "message: lsm_detached): %s not pinned",
 		       LSM_LINK_PIN);
 		return -1;
 	}
@@ -2265,7 +2262,7 @@ static int upatch_preflight(const char *expect_chain,
 	ret = chain_read(have);
 	if (ret == -ENODEV) {
 		pr_err("upatch load: pre-flight refused (category: tampered, "
-		       "message: chain_drift) -- register unreadable, cannot "
+		       "message: chain_drift): register unreadable, cannot "
 		       "confirm --expect-chain");
 		return -1;
 	}
@@ -2276,8 +2273,8 @@ static int upatch_preflight(const char *expect_chain,
 	if (memneq_explicit(want, have, sizeof(want))) {
 		hex_encode(have, sizeof(have), have_hex);
 		pr_err("upatch load: pre-flight refused (category: tampered, "
-		       "message: chain_drift) -- live chain %s != expected; "
-		       "re-status and re-issue with the refreshed value",
+		       "message: chain_drift): live register %s is not the "
+		       "expected one; run status and pass the refreshed value",
 		       have_hex);
 		return -1;
 	}
@@ -2295,7 +2292,8 @@ static int eventlog_room(struct op_report *rep, const char *op)
 	config_load(&cfg);
 	if (eventlog_would_exceed(cfg.eventlog_max_bytes)) {
 		pr_err("upatch %s: eventlog %s would exceed "
-		       "eventlog.max_bytes=%llu; refusing -- no load, no extend",
+		       "eventlog.max_bytes %llu; refused, nothing loaded or "
+		       "extended",
 		       op, eventlog_path(), cfg.eventlog_max_bytes);
 		rep_fail(rep, "pre_flight", "eventlog_full", ENOSPC,
 			 "eventlog would exceed eventlog.max_bytes");
@@ -2314,8 +2312,8 @@ static int version_gate(const char *expect_version_id, bool no_version_check,
 	if (no_version_check || !expect_version_id)
 		return 0;
 	if (strcmp(expect_version_id, shirudo_version_id) != 0) {
-		pr_err("upatch %s: version mismatch -- operator expects %s, "
-		       "target is %s; redeploy a matching shirudo or pass "
+		pr_err("upatch %s: version mismatch, the operator expects %s "
+		       "and the target is %s; deploy a matching shirudo or pass "
 		       "--no-version-check", op, expect_version_id,
 		       shirudo_version_id);
 		rep_fail(rep, "pre_flight", "version_mismatch", EPERM,
@@ -2393,14 +2391,14 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 
 	ret = chain_extend(event, chain);
 	if (ret == -ENODEV) {
-		pr_err("upatch %s: TPM/register unavailable (category: "
-		       "tpm_error) -- op done but NOT measured; shirudo "
-		       "requires the register init bound this boot", op);
+		pr_err("upatch %s: TPM register unavailable (category: "
+		       "tpm_error): done but not measured; shirudo needs the "
+		       "register init bound this boot", op);
 		return ret;
 	}
 	if (ret == -EACCES) {
 		pr_err("upatch %s: register is not the one init bound "
-		       "(category: tampered) -- op done but NOT measured; "
+		       "(category: tampered): done but not measured; the "
 		       "operator must reconcile", op);
 		return ret;
 	}
@@ -2414,15 +2412,15 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 		*measured = true;
 	ret = append_upatch_event(type, name, payload, event, reason);
 	if (ret) {
-		pr_err("upatch %s: eventlog append failed after extend -- "
-		       "chain/log desync; operator must reconcile", op);
+		pr_err("upatch %s: eventlog append failed after the extend: "
+		       "register and log disagree; the operator must reconcile",
+		       op);
 		return ret;
 	}
 	hex_encode(chain, 32, chain_hex);
 	if (out_chain)
 		memcpy(out_chain, chain_hex, sizeof(chain_hex));
-	pr_info("upatch %s: chain extended, value=%s", op, chain_hex);
-	pr_audit("upatch %s measured: name=%s chain=%s", op, name, chain_hex);
+	pr_audit("upatch %s: %s measured, register %s", op, name, chain_hex);
 	return 0;
 }
 
@@ -2446,7 +2444,7 @@ static int upatch_chain_event(const char *tag, const char *type,
 	lock = eventlog_lock();
 	if (lock < 0) {
 		pr_err("upatch %s: cannot take the register lock: %s "
-		       "(category: tpm_error) -- nothing measured", op,
+		       "(category: tpm_error); nothing measured", op,
 		       strerror(-lock));
 		return lock;
 	}
@@ -2928,7 +2926,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	lock = eventlog_lock();
 	if (lock < 0) {
 		pr_err("upatch load: cannot take the register lock: %s "
-		       "(category: tpm_error) -- nothing loaded",
+		       "(category: tpm_error); nothing loaded",
 		       strerror(-lock));
 		rep_fail(&rep, "tpm_extend", "tpm_error", -lock,
 			 "cannot take the register lock");
@@ -3112,7 +3110,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	lock = eventlog_lock();
 	if (lock < 0) {
 		pr_err("upatch unload: cannot take the register lock: %s "
-		       "(category: tpm_error) -- nothing detached",
+		       "(category: tpm_error); nothing detached",
 		       strerror(-lock));
 		rep_fail(&rep, "tpm_extend", "tpm_error", -lock,
 			 "cannot take the register lock");
@@ -3138,14 +3136,15 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		xrc = get_pin_payload(name, live);
 		if (xrc == 0) {
 			if (memneq_explicit(live, payload, sizeof(payload))) {
-				pr_err("upatch unload: payload_mismatch -- the "
+				pr_err("upatch unload: payload_mismatch, the "
 				       "upatch loaded under '%s' is not what the "
-				       "directive expects; refusing", name);
+				       "directive expects; refused", name);
 				rep_fail(&rep, "pin", "payload_mismatch", EPERM,
 					 "loaded payload does not match directive");
 				goto done;
 			}
-			pr_info("upatch unload: payload matches for '%s'", name);
+			pr_info("upatch unload: %s carries the directive's payload",
+				name);
 		} else if (xrc != -ENOENT) {
 			pr_err("upatch unload: cannot read the payload "
 			       "recorded for '%s': %s; refusing", name,
@@ -3194,7 +3193,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 			 "pin removal failed after the event was measured");
 		goto done;
 	}
-	pr_info("upatch unload: detached + unpinned %s", name);
+	pr_info("upatch unload: %s detached and unpinned", name);
 
 	if (unlink(persisted) != 0 && errno != ENOENT)
 		pr_warn("upatch unload: could not remove %s: %s",
@@ -3875,25 +3874,28 @@ static void render_get_text(const struct upatch_get_ctx *c,
 
 	age_from_ts(c->loaded_at, age, sizeof(age));
 
-	printf("upatch:        %s\n", c->upatch);
-	printf("Location:      %s\n",
+	printf("%-22s %s\n", "Name:", c->upatch);
+	printf("%-22s %s\n", "Location:",
 	       c->location[0] ? c->location : "?");
-	printf("Prog id:       %u\n", c->prog_id);
+	printf("%-22s %u\n", "Program ID:", c->prog_id);
 	if (c->loaded_at[0])
-		printf("Loaded at:     %s%s%s%s\n", c->loaded_at,
+		printf("%-22s %s%s%s%s\n", "Loaded at:", c->loaded_at,
 		       age[0] ? "  (" : "", age, age[0] ? " ago)" : "");
 	if (c->payload[0])
-		printf("Payload:       %s  (signature-bound)\n", c->payload);
+		printf("%-22s %s  (signature-bound)\n", "Payload sha256:",
+		       c->payload);
 	else
-		printf("Payload:       (unavailable)\n");
-	printf("Maps (%zu):    ", nm);
+		printf("%-22s unavailable\n", "Payload sha256:");
+	printf("%-22s ", "Maps:");
+	if (nm == 0)
+		printf("none");
 	for (k = 0; k < nm; k++)
 		printf("%s%s", maps[k].name, k + 1 < nm ? ", " : "");
 	printf("\n");
 
 	printf("\nSource (kernel BTF line_info):\n\n");
 	if (c->n_ents == 0)
-		printf("  (no line info -- built without `clang -g`?)\n");
+		printf("  no line info: built without clang -g\n");
 	else
 		dump_line_info_text(c->ents, c->n_ents);
 
@@ -4037,7 +4039,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 static const struct help_item upatch_subcmds[] = {
 	{ "load",   "load a signed .upatch into the target kernel (target-only)" },
 	{ "unload", "apply a signed UNLOAD directive (forward chain extension)" },
-	{ "list",   "list persisted + bpffs-pinned upatches on this host" },
+	{ "list",   "list the archived and the loaded upatches on this host" },
 	{ "info",   "describe a .upatch file (any host; offline, no kernel state)" },
 	{ "get",    "dump source of a loaded upatch from the target kernel (BTF line_info)" },
 	{ "map",    "read pinned map contents (target-only; BTF type-aware)" },

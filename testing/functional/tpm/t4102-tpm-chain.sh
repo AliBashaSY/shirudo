@@ -97,7 +97,7 @@ test_expect_success 'the installed binary emits evidence that verifies against t
 		--ak-name="$AK" --ek-name="$EK" --expect-chain="$CHAIN" \
 		--strict-anchor >"$W/report" &&
 	grep -qx "verdict: ok" "$W/report" &&
-	grep -q "^ok:   register: public area is bound to PCRs 9 and 11" "$W/report"
+	grep -q "^  OK    register: public area is bound to PCRs 9 and 11" "$W/report"
 '
 
 AK=$(evidence_field ak.name) || exit 1
@@ -139,8 +139,8 @@ PY
 	! "$SHIRUDO_BIN" attest verify --evidence="$W/forged.json" --nonce="$NONCE" \
 		--ak-name="$AK" --expect-chain="$(cat "$W/forged-chain")" \
 		>"$W/forged-report" &&
-	grep -q "^FAIL: eventlog:" "$W/forged-report" &&
-	grep -q "^FAIL: state:" "$W/forged-report"
+	grep -q "^  FAIL  eventlog:" "$W/forged-report" &&
+	grep -q "^  FAIL  state:" "$W/forged-report"
 '
 
 test_expect_success 'the certified name binds the writer public key and its exact encoding' '
@@ -175,7 +175,7 @@ PY
 			;;
 		*)
 			[ "$rc" = 1 ] &&
-			grep -q "^FAIL: register: public area" "$W/writer-$kind.report" || failed=1
+			grep -q "^  FAIL  register: public area" "$W/writer-$kind.report" || failed=1
 			;;
 		esac
 	done &&
@@ -185,16 +185,16 @@ PY
 test_expect_success 'a challenge requires the correct pinned endorsement and attestation keys' '
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
 		--out="$W/challenge-none.json" >"$W/challenge-none.out" &&
-	grep -q "^FAIL: no endorsement certificate: pin the key" "$W/challenge-none.out" &&
+	grep -q "^  FAIL  no endorsement certificate: pin the key" "$W/challenge-none.out" &&
 	[ ! -e "$W/challenge-none.json" ] &&
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
 		--ek-name=000b$(printf "%064d" 0) --out="$W/challenge-wrong.json" \
 		>"$W/challenge-wrong.out" &&
-	grep -q "^FAIL: endorsement key: the pinned key" "$W/challenge-wrong.out" &&
+	grep -q "^  FAIL  endorsement key: the pinned key" "$W/challenge-wrong.out" &&
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
 		--ak-name=000b$(printf "%064d" 0) --trust-presented-ek \
 		--out="$W/challenge-wrong.json" >"$W/challenge-wrong-ak.out" &&
-	grep -q "^FAIL: attestation key: the pinned key" "$W/challenge-wrong-ak.out"
+	grep -q "^  FAIL  attestation key: the pinned key" "$W/challenge-wrong-ak.out"
 '
 
 test_expect_success 'the production target activates an ECC endorsement-key challenge' '
@@ -214,7 +214,7 @@ test_expect_success 'wrong credentials, corrupted blobs and foreign challenges a
 	! "$SHIRUDO_BIN" attest verify --evidence="$W/evidence-credential.json" --nonce=1112 \
 		--ak-name="$AK" --allow-runtime-events --expect-credential=$(printf "%064d" 0) \
 		>"$W/wrong-credential.report" &&
-	grep -q "^FAIL: attestation key: activated the credential" "$W/wrong-credential.report" &&
+	grep -q "^  FAIL  attestation key: activated the credential" "$W/wrong-credential.report" &&
 	python3 - "$W/challenge.json" "$W" <<"PY"
 import copy, json, sys
 d = json.load(open(sys.argv[1]))
@@ -266,7 +266,7 @@ json.dump(d, open(sys.argv[2], "w"))
 PY
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/fake-ek.json" --trust-presented-ek \
 		--out="$W/challenge-fake.json" >"$W/fake-ek.out" &&
-	grep -q "^FAIL: endorsement key: TCG default template" "$W/fake-ek.out" &&
+	grep -q "^  FAIL  endorsement key: TCG default template" "$W/fake-ek.out" &&
 	[ ! -e "$W/challenge-fake.json" ]
 '
 

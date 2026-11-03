@@ -304,7 +304,7 @@ one load and one unload prints the eventlog as a table (excerpt):
 
 .. code-block:: text
 
-   Eventlog (audit trail):
+   Eventlog:
      TIME                 TYPE          DIGEST        DETAIL
      2026-10-29T16:17:38Z init          cb206abf8e51  set_digest=e3b0c44298fc..
      2026-10-29T16:21:19Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..

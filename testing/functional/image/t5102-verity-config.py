@@ -108,7 +108,7 @@ def snapshot(label):
                     for p in sorted(JOURNAL.iterdir()) if p.is_file()},
         "mappings": mapping_inventory(),
     }
-    status = json.loads(run(label + "-status", "image", "status"))
+    status = json.loads(run(label + "-status", "image", "status", "--json"))
     require(status["consistent"] and not status["pending"], status)
     require(status["pcr"] == 14, status)
     selected = next((name for name in NAMES

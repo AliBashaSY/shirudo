@@ -19,40 +19,40 @@ H=helper/test-conditions
 test_expect_success 'the bpf keyring init froze is the production anchor' '
 	out=$(./$H 1 bpf 100 100 match) &&
 	echo "$out" | grep -qx "status=ok" &&
-	echo "$out" | grep -qx "KeyringSealed OK bpf serial=100, dm-verity serial=200, pins match"
+	echo "$out" | grep -qx "KeyringSealed OK bpf serial 100, dm-verity serial 200, pins match"
 '
 
 test_expect_success 'before init the keyring is pending, not tampered' '
 	out=$(./$H 0 none -1 0 none) &&
 	echo "$out" | grep -qx "status=lsm-off" &&
-	echo "$out" | grep -qx "KeyringSealed WARN shirudo keyring absent (not init'"'"'d?)"
+	echo "$out" | grep -qx "KeyringSealed WARN .bpf keyring absent before init"
 '
 
 test_expect_success 'a swapped keyring is tampered' '
 	out=$(./$H 1 bpf 101 100 match) &&
 	echo "$out" | grep -qx "status=tampered" &&
 	echo "$out" | grep -qx "reason=keyring serial swap detected" &&
-	echo "$out" | grep -qx "KeyringSealed ALERT pin serial=100 != live serial=101 (swapped?)"
+	echo "$out" | grep -qx "KeyringSealed ALERT pinned serial 100, live serial 101: swapped"
 '
 
 test_expect_success 'a frozen bpf keyring that is gone is tampered' '
 	out=$(./$H 1 bpf -1 100 match) &&
 	echo "$out" | grep -qx "status=tampered" &&
-	echo "$out" | grep -qx "KeyringSealed ALERT pin serial=100, the BPF keyring is gone (removed?)"
+	echo "$out" | grep -qx "KeyringSealed ALERT pinned serial 100, the .bpf keyring is gone"
 '
 
 test_expect_success 'a swapped dm-verity keyring is tampered' '
 	out=$(SHIRUDO_TEST_DMV_SERIAL=201 ./$H 1 bpf 100 100 match) &&
 	echo "$out" | grep -qx "status=tampered" &&
 	echo "$out" | grep -qx "reason=dm-verity keyring serial swap detected" &&
-	echo "$out" | grep -qx "KeyringSealed ALERT dm-verity pin serial=200 != live serial=201 (swapped?)"
+	echo "$out" | grep -qx "KeyringSealed ALERT dm-verity pinned serial 200, live serial 201: swapped"
 '
 
 test_expect_success 'a frozen dm-verity keyring that is gone is tampered' '
 	out=$(SHIRUDO_TEST_DMV_SERIAL=-1 ./$H 1 bpf 100 100 match) &&
 	echo "$out" | grep -qx "status=tampered" &&
 	echo "$out" | grep -qx "reason=the dm-verity keyring init froze is gone" &&
-	echo "$out" | grep -qx "KeyringSealed ALERT dm-verity pin serial=200, the dm-verity keyring is gone (removed?)"
+	echo "$out" | grep -qx "KeyringSealed ALERT dm-verity pinned serial 200, the dm-verity keyring is gone"
 '
 
 test_expect_success 'a link init did not freeze is tampered, in either keyring' '
@@ -74,7 +74,7 @@ test_expect_success 'a config key that is gone is tampered' '
 
 test_expect_success 'a bpf keyring swap is reported before the dm-verity state' '
 	SHIRUDO_TEST_DMV_SERIAL=201 ./$H 1 bpf 101 100 match |
-		grep -qx "KeyringSealed ALERT pin serial=100 != live serial=101 (swapped?)"
+		grep -qx "KeyringSealed ALERT pinned serial 100, live serial 101: swapped"
 '
 
 test_expect_success 'with the LSM off a gone keyring is still tampered' '
@@ -83,7 +83,7 @@ test_expect_success 'with the LSM off a gone keyring is still tampered' '
 
 test_expect_success 'a register mismatch is the reason given first' '
 	./$H 1 bpf -1 200 mismatch |
-		grep -qx "reason=live register != eventlog replay"
+		grep -qx "reason=live register differs from the eventlog replay"
 '
 
 test_expect_success 'no TPM answering is told apart from an unbound register' '
@@ -130,7 +130,7 @@ test_expect_success 'pins that cannot be checked are a warning, not a verdict' '
 
 test_expect_success 'a register mismatch is the reason given before the pins' '
 	SHIRUDO_TEST_PINS=unmeasured:x ./$H 1 bpf 100 100 mismatch |
-		grep -qx "reason=live register != eventlog replay"
+		grep -qx "reason=live register differs from the eventlog replay"
 '
 
 test_expect_success 'an active config is OK' '
@@ -151,7 +151,7 @@ test_expect_success 'a config its records cannot vouch for is tampered' '
 		out=$(SHIRUDO_TEST_CONFIG_STATE=$state ./$H 1 bpf 100 100 match) &&
 		echo "$out" | grep -qx "status=tampered" &&
 		echo "$out" | grep -qx "reason=the selected config cannot be verified against its records" &&
-		echo "$out" | grep -q "^ConfigActive ALERT .*(tamper?)$" || return 1
+		echo "$out" | grep -q "^ConfigActive ALERT " || return 1
 	done
 '
 

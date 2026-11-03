@@ -84,7 +84,7 @@ PY
 
 test_expect_success 'genuine TPM evidence verifies against the operator root and PCR choice' '
 	verify "$WORK/b.json" >"$WORK/verified" &&
-	grep -q "^ok:   config: config root history matches the quoted PCR" "$WORK/verified" &&
+	grep -q "^  OK    config: config root history matches the quoted PCR" "$WORK/verified" &&
 	grep -qx "verdict: ok" "$WORK/verified"
 '
 
@@ -114,7 +114,7 @@ test_expect_success 'without operator approval the report names its limit explic
 	"$S" attest verify --evidence="$WORK/b.json" --nonce="$NONCE" \
 		--ak-name="$(field "$WORK/b.json" ak.name)" --expect-chain="$CHAIN" \
 		>"$WORK/unapproved" &&
-	grep -q "^note: config root has no operator approval" "$WORK/unapproved" &&
+	grep -q "^  note  config root has no operator approval" "$WORK/unapproved" &&
 	grep -q "direct TPM writer protection is deferred" "$WORK/unapproved"
 '
 
@@ -162,9 +162,9 @@ done
 
 test_expect_success 'an inconsistent config history names the check it fails' '
 	! verify "$WORK/bad-reordered.json" >"$WORK/reordered-report" 2>/dev/null &&
-	grep -qx "FAIL: config: the events are one boot event followed by updates in sequence" \
+	grep -qx "  FAIL  config: the events are one boot event followed by updates in sequence" \
 		"$WORK/reordered-report" &&
-	grep -qx "verdict: FAIL" "$WORK/reordered-report"
+	grep -qx "verdict: fail" "$WORK/reordered-report"
 '
 
 test_expect_success 'pending effects prevent evidence collection despite a measured selection' '

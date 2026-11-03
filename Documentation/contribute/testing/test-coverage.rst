@@ -524,7 +524,7 @@ the binaries the functional tests run.
    * - ``kconfig``
      - A kernel configuration and ``node.labels``
    * - ``kernel``
-     - ``/dev/kmsg`` records, ``/proc/modules`` and kernel notes
+     - The kernel's ELF notes
    * - ``oci-http``
      - Registry and token server responses
    * - ``oci-manifest``
@@ -794,8 +794,7 @@ Commands and procedures
 - ``upatch load`` or ``upatch unload`` refusing ``tampered`` for a
   stale ``--expect-chain``. Only ``attest verify`` is tested with that
   option.
-- ``status --include-eventlog``, ``--include-kernellog``,
-  ``--include-modules`` and ``--show-full``.
+- ``status --include-eventlog`` and ``--show-full``.
 - ``upatch rewrite-rodata`` in ``shirudo-build``, which
   ``kernel-obs`` uses to rewrite its watch lists.
 - The ``kernel-cve`` package. Its Beefile is a seed of the ``beefile``

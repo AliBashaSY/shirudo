@@ -63,18 +63,45 @@ static void print_preflight(const struct preflight_result *r)
 {
 	int i;
 
-	printf("pre-flight checks:\n");
+	printf("Pre-flight checks:\n");
 	for (i = 0; i < r->n; i++) {
 		const struct preflight_check *c = &r->checks[i];
 
-		printf("  %-22s %s%s%s\n",
-		       c->name,
-		       c->ok ? "OK" : "FAIL",
-		       c->detail[0] ? ": " : "",
-		       c->detail);
+		printf("  %-4s  %s%s%s\n", c->ok ? "OK" : "FAIL", c->name,
+		       c->detail[0] ? ": " : "", c->detail);
 	}
-	printf("%d/%d passed (%d failed)\n",
-	       r->n - r->n_failed, r->n, r->n_failed);
+	printf("%d of %d passed\n", r->n - r->n_failed, r->n);
+}
+
+static int print_preflight_json(const struct preflight_result *r)
+{
+	char buf[8192];
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	int i;
+
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_int(&e, "passed", r->n - r->n_failed);
+	json_kv_int(&e, "failed", r->n_failed);
+	json_arr_open(&e, "checks");
+	for (i = 0; i < r->n; i++) {
+		const struct preflight_check *c = &r->checks[i];
+
+		json_obj_open(&e);
+		json_kv_string(&e, "name", c->name);
+		json_kv_bool(&e, "ok", c->ok);
+		if (c->detail[0])
+			json_kv_string(&e, "detail", c->detail);
+		else
+			json_kv_null(&e, "detail");
+		json_obj_close(&e);
+	}
+	json_arr_close(&e);
+	json_obj_close(&e);
+	if (e.err)
+		return e.err;
+	puts(buf);
+	return 0;
 }
 
 static struct trusted_set enrolled;
@@ -845,7 +872,7 @@ static int init_lsm(void)
 		goto out;
 	}
 
-	pr_info("%s + seal attached: lsm/bpf gate live, writable state sealed",
+	pr_info("%s and seal attached: lsm/bpf gate live, writable state sealed",
 		blob->name);
 	err = 0;
 out:
@@ -1243,8 +1270,8 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 		return ret;
 	}
 	if (ret) {
-		pr_err("tpm: register extend failed -- chain NOT advanced "
-		       "while LSM active (tpm_error); operator must "
+		pr_err("tpm: register extend failed, the chain did not advance "
+		       "while the LSM is active (tpm_error); the operator must "
 		       "reconcile");
 		return ret;
 	}
@@ -1257,8 +1284,8 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 	ret = append_init_event(set, n, cert_sha, set_digest, tree_root,
 				init_digest, &info);
 	if (ret) {
-		pr_err("eventlog: append failed after extend -- chain/log "
-		       "desync; operator must reconcile");
+		pr_err("eventlog: append failed after the extend: register and "
+		       "log disagree; the operator must reconcile");
 		return ret;
 	}
 
@@ -1280,6 +1307,7 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 
 static const struct help_item init_options[] = {
 	{ "--check-only", "run the pre-flight only; never touch kernel state" },
+	{ "--json",       "with --check-only, print the checks as JSON" },
 };
 
 static const struct help_section init_help_sections[] = {
@@ -1288,7 +1316,7 @@ static const struct help_section init_help_sections[] = {
 };
 
 static const struct help init_help = {
-	.usage      = "shirudo init [--check-only]",
+	.usage      = "shirudo init [--check-only [--json]]",
 	.summary    = "Bootstrap enforcement on this target. Idempotent; safe "
 		      "to re-run.\nThe pinned link survives the process exit.",
 	.sections   = init_help_sections,
@@ -1451,8 +1479,8 @@ static int run_init(void)
 	ret = chain_extend_init(set, n);
 	xfree(set, n * sizeof(*set));
 	if (ret) {
-		pr_err("init: incomplete -- LSM active and upatches "
-		       "loaded, but TPM register not advanced");
+		pr_err("init: incomplete: LSM active and upatches loaded, but "
+		       "the TPM register did not advance");
 		return init_phase_error(ret, "binding the TPM register");
 	}
 
@@ -1467,7 +1495,7 @@ static int run_init(void)
 int cmd_init(int argc, const char **argv)
 {
 	struct preflight_result res;
-	bool check_only = false;
+	bool check_only = false, json = false;
 	int i, ret;
 
 	for (i = 1; i < argc; i++) {
@@ -1475,6 +1503,10 @@ int cmd_init(int argc, const char **argv)
 
 		if (strcmp(a, "--check-only") == 0) {
 			check_only = true;
+			continue;
+		}
+		if (strcmp(a, "--json") == 0) {
+			json = true;
 			continue;
 		}
 		if (is_help(a)) {
@@ -1492,11 +1524,20 @@ int cmd_init(int argc, const char **argv)
 		pr_err("init: authenticated image settings: %s", strerror(-ret));
 		return 1;
 	}
+	if (json && !check_only) {
+		pr_err("init: --json takes --check-only");
+		return 2;
+	}
 	preflight_run(&res);
-	print_preflight(&res);
+	if (json) {
+		if (print_preflight_json(&res))
+			return 1;
+	} else {
+		print_preflight(&res);
+	}
 
 	if (res.n_failed > 0) {
-		pr_err("init: pre-flight failed (%d/%d checks)",
+		pr_err("init: pre-flight failed, %d of %d checks",
 		       res.n_failed, res.n);
 		return 1;
 	}

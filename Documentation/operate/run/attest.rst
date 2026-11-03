@@ -158,7 +158,7 @@ you trust.
           --ak-name=<ak-name> --ek-name=<ek-name> --expect-credential=<credential>
 
    The report must contain
-   ``ok:   attestation key: activated the credential made for it under the endorsement key``
+   ``OK    attestation key: activated the credential made for it under the endorsement key``
    and end with ``verdict: ok``.
 
 7. Record ``<ak-name>`` and ``<ek-name>`` for this target in your
@@ -254,7 +254,7 @@ Verify evidence
    you activated. ``<config-pcr>`` is ``config.pcr`` of the runtime
    bootstrap file.
 
-3. Check the exit status: 0 for ``verdict: ok``, 1 for ``verdict: FAIL``
+3. Check the exit status: 0 for ``verdict: ok``, 1 for ``verdict: fail``
    and 2 for a usage error or a file that is not an evidence document.
 
 The report prints one line per check, ``ok:`` or ``FAIL:``, and
@@ -265,37 +265,37 @@ target, verified with ``--ak-name`` and ``--expect-chain`` only:
 
    operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE \
        --ak-name=<ak-name> --expect-chain=<register>
-   ok:   nonce matches the request
-   ok:   attestation key: restricted, fixed to this TPM
-   ok:   attestation key: name matches its public area
-   ok:   attestation key: the pinned key
-   ok:   endorsement key: name matches its public area
-   ok:   endorsement key: TCG default template under the endorsement policy
-   ok:   quote: ECDSA signature by the attestation key
-   ok:   quote: signed by the key as an endorsement primary
-   ok:   quote: carries the nonce
-   ok:   quote: covers the PCRs the document lists
-   ok:   quote: PCR digest matches the listed values
-   ok:   register: ECDSA signature by the attestation key
-   ok:   register: signed by the key as an endorsement primary
-   ok:   register: carries the nonce
-   ok:   register: certification names the listed index
-   ok:   register: certified contents match the listed value
-   ok:   quote and certification are of one TPM reset
-   ok:   config: config root history matches the quoted PCR
-   note: config root has no operator approval; use --expect-config-root with --expect-config-pcr
-   note: config records a selection; direct TPM writer protection is deferred
-   ok:   eventlog: this boot has an init record
-   ok:   register: the document names index 0x01818E00 and PCRs 9 and 11
-   ok:   register: public area is bound to PCRs 9 and 11 as recorded
-   note: binding: made in the initrd
-   ok:   eventlog: one init record for this TPM reset (1 this boot)
-   ok:   register: init record is of the TPM's current reset count
-   ok:   eventlog: 2 records replay to the certified value
-   ok:   anchor: record digest matches the index name
-   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-   ok:   state: register equals the expected value
-   note: event after boot: upatch_load basic
+     OK    nonce matches the request
+     OK    attestation key: restricted, fixed to this TPM
+     OK    attestation key: name matches its public area
+     OK    attestation key: the pinned key
+     OK    endorsement key: name matches its public area
+     OK    endorsement key: TCG default template under the endorsement policy
+     OK    quote: ECDSA signature by the attestation key
+     OK    quote: signed by the key as an endorsement primary
+     OK    quote: carries the nonce
+     OK    quote: covers the PCRs the document lists
+     OK    quote: PCR digest matches the listed values
+     OK    register: ECDSA signature by the attestation key
+     OK    register: signed by the key as an endorsement primary
+     OK    register: carries the nonce
+     OK    register: certification names the listed index
+     OK    register: certified contents match the listed value
+     OK    quote and certification are of one TPM reset
+     OK    config: config root history matches the quoted PCR
+     note  config root has no operator approval; use --expect-config-root with --expect-config-pcr
+     note  config records a selection; direct TPM writer protection is deferred
+     OK    eventlog: this boot has an init record
+     OK    register: the document names index 0x01818E00 and PCRs 9 and 11
+     OK    register: public area is bound to PCRs 9 and 11 as recorded
+     note  binding: made in the initrd
+     OK    eventlog: one init record for this TPM reset (1 this boot)
+     OK    register: init record is of the TPM's current reset count
+     OK    eventlog: 2 records replay to the certified value
+     OK    anchor: record digest matches the index name
+     OK    anchor: PCR 9 equals the recorded value extended by the anchor
+     OK    state: register equals the expected value
+     note  event after boot: upatch_load basic
    verdict: ok
 
 Read it in groups:
@@ -329,10 +329,10 @@ A wrong or stale nonce fails the first check, and the verdict follows:
 
    operator$ shirudo attest verify --evidence=ev.json --nonce=<wrong-nonce> \
        --ak-name=<ak-name>
-   FAIL: nonce matches the request
-   ok:   attestation key: restricted, fixed to this TPM
+     FAIL  nonce matches the request
+     OK    attestation key: restricted, fixed to this TPM
    ...
-   verdict: FAIL
+   verdict: fail
 
 A target whose state differs from your records fails the state lines.
 This report is from a second test target. The verifier expected the boot
@@ -343,17 +343,17 @@ set only, but a load and an unload happened after boot:
    operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE \
        --ak-name=<ak-name> --cert=cert.der --require-initrd --strict-anchor
    ...
-   ok:   binding: made while the initrd ran
-   ok:   eventlog: one init record for this TPM reset (1 this boot)
-   ok:   register: init record is of the TPM's current reset count
-   ok:   eventlog: 3 records replay to the certified value
-   ok:   anchor: record digest matches the index name
-   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-   FAIL: state: init event covers the expected certificate, set and tree root
-   FAIL: state: 2 events after boot change the register
-   note: event after boot: upatch_load shirudo-test-basic
-   note: event after boot: upatch_unload shirudo-test-basic
-   verdict: FAIL
+     OK    binding: made while the initrd ran
+     OK    eventlog: one init record for this TPM reset (1 this boot)
+     OK    register: init record is of the TPM's current reset count
+     OK    eventlog: 3 records replay to the certified value
+     OK    anchor: record digest matches the index name
+     OK    anchor: PCR 9 equals the recorded value extended by the anchor
+     FAIL  state: init event covers the expected certificate, set and tree root
+     FAIL  state: 2 events after boot change the register
+     note  event after boot: upatch_load shirudo-test-basic
+     note  event after boot: upatch_unload shirudo-test-basic
+   verdict: fail
 
 The init event line fails too, because that target enrolled two
 certificates and the verifier passed one. A failed state check does not
@@ -371,14 +371,14 @@ evidence and the nonce:
 
    operator$ shirudo attest verify --evidence=ev.json --nonce=$NONCE
    attest verify: no --ak-name; the signer is not pinned
-   ok:   nonce matches the request
-   ok:   attestation key: restricted, fixed to this TPM
-   ok:   attestation key: name matches its public area
-   note: attestation key not pinned: name 000b6e354140b22198138167393ecd1233cfc27e8b16ef0b2b60cce88563c5588dbc
+     OK    nonce matches the request
+     OK    attestation key: restricted, fixed to this TPM
+     OK    attestation key: name matches its public area
+     note  attestation key not pinned: name 000b6e354140b22198138167393ecd1233cfc27e8b16ef0b2b60cce88563c5588dbc
    ...
-   note: no expected state given; the register value is e57e1428ab398e758b63f8eda52bac87b5d85c1368c2d8d786ed446448e46239
-   note: event after boot: upatch_load shirudo-test-basic
-   note: event after boot: upatch_unload shirudo-test-basic
+     note  no expected state given; the register value is e57e1428ab398e758b63f8eda52bac87b5d85c1368c2d8d786ed446448e46239
+     note  event after boot: upatch_load shirudo-test-basic
+     note  event after boot: upatch_unload shirudo-test-basic
    verdict: ok
 
 The verdict is ``ok`` and the exit status 0, but the run proves only

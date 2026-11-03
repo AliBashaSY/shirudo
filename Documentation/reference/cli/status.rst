@@ -21,9 +21,8 @@ Usage
 
 .. code-block:: none
 
-   shirudo status [--json] [--otel] [--include-system] [--include-eventlog]
-                  [--include-kernellog | --include-kernellog=<lines>]
-                  [--include-modules] [--show-full]
+   shirudo status [--json | --otel] [--check] [--show-full]
+                  [--include-system] [--include-eventlog]
 
 Description
 -----------
@@ -112,26 +111,23 @@ Options
      - none
      - off
      - Add the eventlog entries.
-   * - ``--include-kernellog``
-     - ``<lines>``, 1 to 100, after ``=``
-     - 10
-     - Add the last lines of the kernel ring buffer.
-   * - ``--include-modules``
+   * - ``--check``
      - none
      - off
-     - Add the 10 most recently loaded kernel modules.
+     - Exit 1 when the verdict is ``tampered``.
    * - ``--show-full``
      - none
      - off
-     - Turn on every ``--include-*`` option and print the module
-       dependency tree.
+     - Print the folded sections, the keyrings, the TPM measurement and
+       the assets, whatever their conditions say, and turn on
+       ``--include-system`` and ``--include-eventlog``.
 
 Exit status
 -----------
 
-``status`` exits with 0 whatever the verdict, ``tampered`` included.
-Monitoring must read ``.status`` and the conditions from the JSON
-document.
+``status`` exits with 0 whatever the verdict, ``tampered`` included,
+unless ``--check`` is given, which exits 1 for ``tampered``. Monitoring
+reads ``.status`` and the conditions from the JSON document.
 
 .. list-table::
    :header-rows: 1
@@ -146,8 +142,8 @@ document.
        request failed. With ``--json``: the document does not fit the
        output buffer. Also an allocation failure.
    * - 2
-     - An unknown option, a ``--include-kernellog`` value outside 1 to
-       100, or with ``--otel`` an invalid ``map_export`` configuration.
+     - An unknown option, or with ``--otel`` an invalid ``map_export``
+       configuration.
 
 Files and environment
 ---------------------
@@ -170,17 +166,41 @@ Show the state of a target:
 .. code-block:: console
 
    target# shirudo status
-   Host:              docs
-   Roles:             target
-   Mode:              production
-   Status:            ok
-   Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+   Host:                  docs
+   Roles:                 target
+   Mode:                  production
+   Status:                ok
+   Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
+
+   Conditions:
+     TYPE               STATUS  DETAIL
+     LsmAttached        OK      lsm/bpf link present and pinned
+     KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+     ChainIntact        OK      live register equals the eventlog replay
+     UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+     TpmMeasured        OK      NV index 0x01818E00 readable
+     ConfigActive       OK      config 6d5ed552f448.. is active
+
+   Tamper attempts (this boot):
+     LoadNotLoader            15  program load that is not a signed loader
+     MapCreate                 1  map creation by another executable
+     BpfCommand                8  detach, update, delete or unclassified bpf() command
+     BpffsUmount               1  unmount of the private bpffs
+     SealWrite                 1  write open of a sealed file
+     SealPtrace                7  ptrace of a shirudo task
+     SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+   Loaded upatches (1):
+     NAME                      LOCATION                       MAPS  STATUS                        AGE
+     shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+
+   Folded: keyrings, TPM measurement, assets (--show-full)
 
    Conditions:
      TYPE             STATUS  DETAIL
      LsmAttached      OK      lsm/bpf link present and pinned
-     KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
-     ChainIntact      OK      live register == eventlog replay
+     KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
+     ChainIntact      OK      live register equals the eventlog replay
      UpatchesMeasured OK      every pinned or archived upatch is in this boot's records
      TpmMeasured      OK      NV index 0x01818E00 readable
      ConfigActive     OK      config dc90bacc356f.. is active
@@ -210,21 +230,21 @@ Show the state of a target:
          CN=shirudo, ML-DSA-87, issued 2026-10-29
          key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
-   upatches loaded (1):
+   Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
      shirudo-test-basic        fentry/do_nanosleep               0  success                       2s
 
-   TPM Measurement:
-     TPM:               reachable (device:/dev/tpmrm0)
-     NV index:          0x01818E00 (anchored in PCR 9)
-     Chain:             0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
-     Register name:     000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-     Anchored:          yes (name on record)
-     PCR before init:   0000000000000000000000000000000000000000000000000000000000000000
-     Phase at init:     0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
-     Bound in:          initrd
-     Chain vs eventlog: matches
-     Eventlog:          /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+   TPM measurement:
+     TPM:                   reachable (device:/dev/tpmrm0)
+     NV index:              0x01818E00 (anchored in PCR 9)
+     Chain:                 0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
+     Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
+     Anchored:              yes (name on record)
+     PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+     Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+     Bound in:              initrd
+     Chain vs eventlog:     matches
+     Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
 
    Assets (/var/lib/shirudo):
      keys/cert.der          present
@@ -251,11 +271,11 @@ The eventlog section of that report:
 
 .. code-block:: none
 
-   Eventlog (audit trail):
+   Eventlog:
      TIME                 TYPE          DIGEST        DETAIL
-     2026-10-29T16:17:38Z init          cb206abf8e51  set_digest=e3b0c44298fc..
-     2026-10-29T16:21:19Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
-     2026-10-29T16:21:20Z upatch_unload 26dae981e9bb  shirudo-test-basic payload=8aee7072a1a1..
+     2026-11-03T14:53:17Z init          377ce174fb1f  set_digest=e3b0c44298fc..
+     2026-11-03T14:54:33Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
+     2026-11-03T14:54:35Z upatch_unload 26dae981e9bb  shirudo-test-basic payload=8aee7072a1a1..
 
 Related
 -------

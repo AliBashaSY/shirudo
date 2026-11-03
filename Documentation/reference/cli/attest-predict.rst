@@ -122,6 +122,10 @@ Options
    * - ``--event``
      - ``<event>``, see above
      - An event after boot. Repeatable, applied in order.
+   * - ``--json``
+     - none
+     - Print the values as one JSON object with ``schema`` (1) and the
+       keys above.
    * - ``--bind-pcr``
      - ``9=<value>`` or ``11=<value>``
      - PCR values the register was bound under. Give both.

@@ -139,11 +139,11 @@ test_expect_success 'evidence verifies against the pinned key, the binding and t
 		--expect-bind-pcr=9=$Z --expect-bind-pcr=11=$PHASE \
 		>"$WORK/report" &&
 	grep -qx "verdict: ok" "$WORK/report" &&
-	grep -q "^ok:   register: public area is bound to PCRs 9 and 11" "$WORK/report" &&
-	grep -q "^ok:   binding: PCR 11 held the expected value" "$WORK/report" &&
-	grep -q "^ok:   binding: made while the initrd ran" "$WORK/report" &&
-	grep -q "^ok:   endorsement key: the pinned key" "$WORK/report" &&
-	! grep -q "^FAIL" "$WORK/report"
+	grep -q "^  OK    register: public area is bound to PCRs 9 and 11" "$WORK/report" &&
+	grep -q "^  OK    binding: PCR 11 held the expected value" "$WORK/report" &&
+	grep -q "^  OK    binding: made while the initrd ran" "$WORK/report" &&
+	grep -q "^  OK    endorsement key: the pinned key" "$WORK/report" &&
+	! grep -q "^  FAIL" "$WORK/report"
 '
 
 test_expect_success 'verify computes the state from cert and set, flags runtime events' '
@@ -152,8 +152,8 @@ test_expect_success 'verify computes the state from cert and set, flags runtime 
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		>"$WORK/report3"; rc=$? &&
 	[ "$rc" = 1 ] &&
-	grep -q "^ok:   state: init event covers" "$WORK/report3" &&
-	grep -q "^FAIL: state: 1 event after boot" "$WORK/report3" &&
+	grep -q "^  OK    state: init event covers" "$WORK/report3" &&
+	grep -q "^  FAIL  state: 1 event after boot" "$WORK/report3" &&
 	$S attest verify --evidence="$WORK/evidence.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--allow-runtime-events | grep -qx "verdict: ok"
@@ -176,11 +176,11 @@ test_expect_success 'a wrong nonce, key name, binding value or tampered value fa
 	! $S attest verify --evidence="$WORK/evidence.json" --nonce=$nonce \
 		--ak-name="$ak" --expect-chain="$value" --expect-bind-pcr=11=$Z \
 		>"$WORK/report4b" &&
-	grep -q "^FAIL: binding: PCR 11 held the expected value" "$WORK/report4b" &&
+	grep -q "^  FAIL  binding: PCR 11 held the expected value" "$WORK/report4b" &&
 	sed "s/\"value\":\"$value\"/\"value\":\"$Z\"/" "$WORK/evidence.json" >"$WORK/tampered.json" &&
 	! $S attest verify --evidence="$WORK/tampered.json" --nonce=$nonce \
 		--ak-name="$ak" --expect-chain="$value" >"$WORK/report4" &&
-	grep -q "^FAIL: register: certified contents" "$WORK/report4"
+	grep -q "^  FAIL  register: certified contents" "$WORK/report4"
 '
 
 # The pre-init fixture uses the kernel writer to certify a substitute
@@ -203,9 +203,9 @@ PY
 		--ak-name="$(cat "$WORK/ak")" --ek-name="$(cat "$WORK/ek")" \
 		--cert="$WORK/keys/cert.der" --strict-anchor --require-initrd \
 		>"$WORK/report-forged" &&
-	grep -q "^FAIL: register: the document names index 0x01818E00 and PCRs 9 and 11" \
+	grep -q "^  FAIL  register: the document names index 0x01818E00 and PCRs 9 and 11" \
 		"$WORK/report-forged" &&
-	grep -q "^ok:   register: certified contents match the listed value" \
+	grep -q "^  OK    register: certified contents match the listed value" \
 		"$WORK/report-forged"
 '
 
@@ -216,9 +216,9 @@ test_expect_success 'an event relabelled after the fact fails although the repla
 	! $S attest verify --evidence="$WORK/relabelled.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--allow-runtime-events >"$WORK/report-relabelled" &&
-	grep -q "^ok:   eventlog: 2 records replay to the certified value" \
+	grep -q "^  OK    eventlog: 2 records replay to the certified value" \
 		"$WORK/report-relabelled" &&
-	grep -q "^FAIL: eventlog: event 1 (upatch_unload foo) digest does not derive from its fields" \
+	grep -q "^  FAIL  eventlog: event 1 (upatch_unload foo) digest does not derive from its fields" \
 		"$WORK/report-relabelled" &&
 	$S attest verify --evidence="$WORK/evidence.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
@@ -239,23 +239,23 @@ test_expect_success 'a tree operation records its digest as the target writes it
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--allow-runtime-events >"$WORK/report-tree" &&
 	grep -qx "verdict: ok" "$WORK/report-tree" &&
-	grep -q "^ok:   eventlog: 3 records replay to the certified value" "$WORK/report-tree" &&
+	grep -q "^  OK    eventlog: 3 records replay to the certified value" "$WORK/report-tree" &&
 	! grep -q "does not derive" "$WORK/report-tree"
 '
 
 test_expect_success 'a challenge needs a vouched-for endorsement key' '
 	! $S attest challenge --evidence="$WORK/evidence.json" \
 		--out="$WORK/challenge-none.json" >"$WORK/challenge-none.out" &&
-	grep -q "^FAIL: no endorsement certificate: pin the key" "$WORK/challenge-none.out" &&
+	grep -q "^  FAIL  no endorsement certificate: pin the key" "$WORK/challenge-none.out" &&
 	[ ! -e "$WORK/challenge-none.json" ] &&
 	! $S attest challenge --evidence="$WORK/evidence.json" \
 		--ek-name="000b$(py "print(\"00\"*32)")" \
 		--out="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong.out" &&
-	grep -q "^FAIL: endorsement key: the pinned key" "$WORK/challenge-wrong.out" &&
+	grep -q "^  FAIL  endorsement key: the pinned key" "$WORK/challenge-wrong.out" &&
 	! $S attest challenge --evidence="$WORK/evidence.json" \
 		--ak-name="000b$(py "print(\"00\"*32)")" --trust-presented-ek \
 		--out="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong2.out" &&
-	grep -q "^FAIL: attestation key: the pinned key" "$WORK/challenge-wrong2.out"
+	grep -q "^  FAIL  attestation key: the pinned key" "$WORK/challenge-wrong2.out"
 '
 
 test_expect_success 'a challenge made from the evidence activates on the target' '
@@ -263,10 +263,10 @@ test_expect_success 'a challenge made from the evidence activates on the target'
 	$S attest challenge --evidence="$WORK/evidence.json" \
 		--ak-name="$(cat "$WORK/ak")" --ek-name="$(cat "$WORK/ek")" \
 		--out="$WORK/challenge.json" >"$WORK/challenge.out" &&
-	grep -q "^ok:   attestation key: the pinned key" "$WORK/challenge.out" &&
-	grep -q "^ok:   endorsement key: the pinned key" "$WORK/challenge.out" &&
-	grep -q "^ok:   endorsement key: TCG default template" "$WORK/challenge.out" &&
-	grep -q "^note: no endorsement certificate" "$WORK/challenge.out" &&
+	grep -q "^  OK    attestation key: the pinned key" "$WORK/challenge.out" &&
+	grep -q "^  OK    endorsement key: the pinned key" "$WORK/challenge.out" &&
+	grep -q "^  OK    endorsement key: TCG default template" "$WORK/challenge.out" &&
+	grep -q "^  note  no endorsement certificate" "$WORK/challenge.out" &&
 	sed -n "s/^credential: //p" "$WORK/challenge.out" >"$WORK/credential" &&
 	[ "$(wc -c <"$WORK/credential")" = 65 ] &&
 	./helper/test-tpm-wire public "$(py "import json; print(json.load(open(\"$WORK/evidence.json\"))[\"ek\"][\"public\"])")" |
@@ -278,8 +278,8 @@ test_expect_success 'a challenge made from the evidence activates on the target'
 		--allow-runtime-events \
 		--expect-credential="$(cat "$WORK/credential")" >"$WORK/report-cred" &&
 	grep -qx "verdict: ok" "$WORK/report-cred" &&
-	grep -q "^ok:   attestation key: activated the credential" "$WORK/report-cred" &&
-	grep -q "^ok:   endorsement key: TCG default template" "$WORK/report-cred"
+	grep -q "^  OK    attestation key: activated the credential" "$WORK/report-cred" &&
+	grep -q "^  OK    endorsement key: TCG default template" "$WORK/report-cred"
 '
 
 test_expect_success 'a credential expectation needs the pinned attestation key' '
@@ -297,7 +297,7 @@ test_expect_success 'a wrong credential, a tampered blob and a foreign challenge
 	! $S attest verify --evidence="$WORK/evidence-cred.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --allow-runtime-events \
 		--expect-credential="$(py "print(\"00\"*32)")" >"$WORK/report-cred2" &&
-	grep -q "^FAIL: attestation key: activated the credential" "$WORK/report-cred2" &&
+	grep -q "^  FAIL  attestation key: activated the credential" "$WORK/report-cred2" &&
 	sed "s/\"credential_blob\":\"\([0-9a-f]\{4\}\)[0-9a-f]\{4\}/\"credential_blob\":\"\10000/" \
 		"$WORK/challenge.json" >"$WORK/challenge-tampered.json" &&
 	! ./$R evidence $nonce "$WORK/challenge-tampered.json" >/dev/null 2>&1 &&
@@ -326,8 +326,8 @@ test_expect_success 'challenge refuses a key that is not an endorsement key' '
 	py "import json; d=json.load(open(\"$WORK/evidence.json\")); d[\"ek\"]={\"type\":\"ecc\",\"public\":d[\"ak\"][\"public\"],\"name\":d[\"ak\"][\"name\"]}; open(\"$WORK/fake-ek.json\",\"w\").write(json.dumps(d))" &&
 	! $S attest challenge --evidence="$WORK/fake-ek.json" --trust-presented-ek \
 		--out="$WORK/challenge-fake.json" >"$WORK/fake.out" &&
-	grep -q "^FAIL: endorsement key: TCG default template" "$WORK/fake.out" &&
-	grep -qx "verdict: FAIL" "$WORK/fake.out" &&
+	grep -q "^  FAIL  endorsement key: TCG default template" "$WORK/fake.out" &&
+	grep -qx "verdict: fail" "$WORK/fake.out" &&
 	[ ! -e "$WORK/challenge-fake.json" ]
 '
 
@@ -376,15 +376,15 @@ test_expect_success 'a late binding is told apart by the phase value and the ini
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--strict-anchor >"$WORK/report6" &&
 	grep -qx "verdict: ok" "$WORK/report6" &&
-	grep -q "^note: binding: made in the root file system" "$WORK/report6" &&
-	grep -q "^ok:   eventlog: one init record for this TPM reset (2 this boot)" "$WORK/report6" &&
-	grep -q "^ok:   register: init record is of the TPM" "$WORK/report6" &&
-	grep -q "^ok:   quote and certification are of one TPM reset" "$WORK/report6" &&
+	grep -q "^  note  binding: made in the root file system" "$WORK/report6" &&
+	grep -q "^  OK    eventlog: one init record for this TPM reset (2 this boot)" "$WORK/report6" &&
+	grep -q "^  OK    register: init record is of the TPM" "$WORK/report6" &&
+	grep -q "^  OK    quote and certification are of one TPM reset" "$WORK/report6" &&
 	! $S attest verify --evidence="$WORK/evidence2.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--require-initrd --expect-bind-pcr=11=$PHASE >"$WORK/report6b" &&
-	grep -q "^FAIL: binding: PCR 11 held the expected value" "$WORK/report6b" &&
-	grep -q "^FAIL: binding: made while the initrd ran" "$WORK/report6b"
+	grep -q "^  FAIL  binding: PCR 11 held the expected value" "$WORK/report6b" &&
+	grep -q "^  FAIL  binding: made while the initrd ran" "$WORK/report6b"
 '
 
 test_expect_success 'a second init record for one TPM reset fails status and verify' '
@@ -405,7 +405,7 @@ PY
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		>"$WORK/report7"; rc=$? &&
 	[ "$rc" = 1 ] &&
-	grep -q "^FAIL: eventlog: one init record for this TPM reset" "$WORK/report7" &&
+	grep -q "^  FAIL  eventlog: one init record for this TPM reset" "$WORK/report7" &&
 	cp "$WORK/eventlog.orig" "$WORK/eventlog" &&
 	./$R status | grep -qx "rebound=0"
 '
@@ -418,7 +418,7 @@ test_expect_success 'an init record of another TPM reset fails verification' '
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		>"$WORK/report8"; rc=$? &&
 	[ "$rc" = 1 ] &&
-	grep -q "^FAIL: register: init record is of the TPM" "$WORK/report8"
+	grep -q "^  FAIL  register: init record is of the TPM" "$WORK/report8"
 '
 
 test_done

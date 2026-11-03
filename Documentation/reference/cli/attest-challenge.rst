@@ -96,7 +96,7 @@ Exit status
    * - 0
      - The challenge was written.
    * - 1
-     - A check failed (``verdict: FAIL``), or the challenge could not be
+     - A check failed (``verdict: fail``), or the challenge could not be
        written.
    * - 2
      - ``--evidence`` or ``--out`` missing, an unknown option or invalid

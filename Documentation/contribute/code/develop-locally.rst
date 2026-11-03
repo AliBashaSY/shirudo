@@ -362,9 +362,9 @@ Install it
       target# shirudo bpm list
       exec-count 1.0.0 dev
       target# shirudo upatch list
-      upatches (/var/lib/shirudo/upatches):
-        loaded  type    kind    payload-sha256      name
-        yes     load    bpf     00357162c0dfd6dc..  exec-count
+      Archived upatches (/var/lib/shirudo/upatches):
+        NAME                      LOADED  TYPE    KIND  PAYLOAD
+        exec-count                yes     load    bpf   00357162c0dfd6dc..
 
 Watch the data
 --------------
@@ -483,7 +483,7 @@ Remove it
 
    The target runs the package's signed unload directive, measures the
    unload and deletes the package. ``shirudo bpm list`` prints nothing
-   and ``shirudo upatch list`` prints ``(none persisted)``.
+   and ``shirudo upatch list`` prints ``none``.
 
 2. Check the collector's terminal. The map records stop, and the
    keepalives go on.
@@ -521,7 +521,7 @@ target runs takes a new bundle and a new VM.
   a new VM, which takes about two minutes once the kernel and the disk
   image exist. It refuses a name that still has state, hence
   ``vm-clean``. ``shirudo status`` on the target then prints a new
-  ``Version-ID``. The target accepts only the binary on its
+  ``Version ID``. The target accepts only the binary on its
   authenticated runtime image, so there is no faster way to run changed
   target code. The rebuilt bundle has a new signing key, so repeat this
   page from `Boot the target`_ with an empty registry: remove and start

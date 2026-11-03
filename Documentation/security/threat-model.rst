@@ -1081,7 +1081,7 @@ document can carry a software key's signatures (U1).
 
 :Adversary: ADV-B and ADV-C
 :Enforced at: no hook; the TPM signs and the verifier checks
-:Refusal: ``verdict: FAIL`` from ``shirudo attest verify``, with the
+:Refusal: ``verdict: fail`` from ``shirudo attest verify``, with the
    failed check named
 :Counters: none
 :Tests: ``t4003``, ``t4004``, ``t4102``

@@ -41,6 +41,8 @@ _shirudo()
 				--cert --salt" -- "$cur") )
 		elif [[ $cur == -* && $sub == verify ]]; then
 			COMPREPLY=( $(compgen -W "--cert" -- "$cur") )
+		elif [[ $cur == -* && $sub == status ]]; then
+			COMPREPLY=( $(compgen -W "--json" -- "$cur") )
 		else
 			COMPREPLY=( $(compgen -f -- "$cur") )
 		fi
@@ -97,6 +99,10 @@ _shirudo()
 			COMPREPLY=( $(compgen -f -X '!*.bee' -- "$cur") $(compgen -d -- "$cur") )
 		elif [[ $sub == config && ${COMP_WORDS[3]} == register && cword -eq 4 ]]; then
 			COMPREPLY=( $(compgen -W "add list remove" -- "$cur") )
+		elif [[ $sub == config && ${COMP_WORDS[3]} == register && ${COMP_WORDS[4]} == list ]]; then
+			COMPREPLY=( $(compgen -W "--json" -- "$cur") )
+		elif [[ ($sub == list || ($sub == key && ${COMP_WORDS[3]} == list)) && $cur == -* ]]; then
+			COMPREPLY=( $(compgen -W "--json" -- "$cur") )
 		elif [[ $sub == config && ${COMP_WORDS[3]} == register && ${COMP_WORDS[4]} == add && $cur == -* ]]; then
 			COMPREPLY=( $(compgen -W "--key-file=" -- "$cur") )
 		elif [[ $sub == repo && cword -eq 3 ]]; then
@@ -172,13 +178,12 @@ _shirudo()
 		fi
 		;;
 	init)
-		COMPREPLY=( $(compgen -W "--check-only" -- "$cur") )
+		COMPREPLY=( $(compgen -W "--check-only --json" -- "$cur") )
 		;;
 	status)
 		COMPREPLY=( $(compgen -W "--json \
 			--include-system --include-eventlog \
-			--include-kernellog --include-modules \
-			--include-maps --show-full" -- "$cur") )
+			--check --show-full" -- "$cur") )
 		;;
 	attest)
 		if [[ $cword -eq 2 && $cur != -* ]]; then
@@ -187,11 +192,11 @@ _shirudo()
 			COMPREPLY=( $(compgen -W "--evidence= --nonce= --ak-name= \
 				--cert= --upatch= --expect= --tree-root= \
 				--expect-chain= --expect-pcr= --expect-credential= \
-				--allow-runtime-events --strict-anchor \
+				--allow-runtime-events --strict-anchor --json \
 				--expect-config-root= --expect-config-pcr=" -- "$cur") )
 		elif [[ $sub == predict ]]; then
 			COMPREPLY=( $(compgen -W "--cert= --upatch= --expect= \
-				--tree-root= --event=" -- "$cur") )
+				--tree-root= --event= --json" -- "$cur") )
 		elif [[ $sub == challenge ]]; then
 			COMPREPLY=( $(compgen -W "--evidence= --ek-ca= --out=" \
 				-- "$cur") )
@@ -204,7 +209,7 @@ _shirudo()
 		if (( cword == 2 )); then
 			local subs
 			subs=$("$bin" keys --list-cmds 2>/dev/null)
-			COMPREPLY=( $(compgen -W "$subs --keys-dir=" -- "$cur") )
+			COMPREPLY=( $(compgen -W "$subs --keys-dir= --json" -- "$cur") )
 		elif [[ $cur == -* ]]; then
 			case "$sub" in
 			add)

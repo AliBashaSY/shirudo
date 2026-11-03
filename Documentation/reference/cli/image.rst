@@ -27,7 +27,7 @@ Usage
                        [--salt <salt>]
    shirudo image verify <prefix> --cert <certificate>
    shirudo image update <prefix>
-   shirudo image status
+   shirudo image status [--json]
    shirudo image --list-cmds
 
 The subcommand names must be spelled out. ``image`` without a subcommand
@@ -207,7 +207,13 @@ Show the active selection:
 .. code-block:: console
 
    target# shirudo image status
-   {"root_hash":"12dbf3c750834908c0f6510481e35fbb0cc76cf6b1896de524304535e63aff0f","pcr":14,"sequence":1,"reset_count":1,"restart_count":0,"pending":false,"consistent":true}
+   Config root hash:      6d5ed552f4487728d1ccec8604ddb44b66b18e3430614c20bb4d284995f99f63
+   PCR:                   14
+   Sequence:              1
+   TPM reset count:       1
+   Restart count:         0
+   Pending:               no
+   Consistent:            yes
 
 Related
 -------

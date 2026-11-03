@@ -17,7 +17,7 @@ static void image_help(void)
 		"usage: shirudo image build [image builder options]\n"
 		"       shirudo image verify <prefix> --cert <certificate>\n"
 		"       shirudo image update <prefix-or-https-prefix>\n"
-		"       shirudo image status\n");
+		"       shirudo image status [--json]\n");
 }
 
 int cmd_image(int argc, const char **argv)
@@ -51,8 +51,13 @@ int cmd_image(int argc, const char **argv)
 	}
 	if (!strcmp(argv[1], "update") && argc == 3) {
 		ret = image_update(argv[2]);
-	} else if (!strcmp(argv[1], "status") && argc == 2) {
-		ret = image_status();
+	} else if (!strcmp(argv[1], "status") &&
+		   (argc == 2 || (argc == 3 && !strcmp(argv[2], "--json")))) {
+		ret = image_status(argc == 3);
+		if (ret == -ENODEV) {
+			pr_err("image status: no config activation state on this host");
+			return 1;
+		}
 	} else {
 		image_help();
 		return 2;

@@ -91,10 +91,10 @@ Challenge the attestation key
    .. code-block:: console
 
       operator$ shirudo attest challenge --evidence="$RESULT/first.json" --ak-name="$AK" --trust-presented-ek --out="$RESULT/challenge.json"
-      ok:   attestation key: the pinned key
-      ok:   endorsement key: name matches its public area
-      ok:   endorsement key: TCG default template under the endorsement policy
-      note: no endorsement certificate: the endorsement key is trusted as presented
+        OK    attestation key: the pinned key
+        OK    endorsement key: name matches its public area
+        OK    endorsement key: TCG default template under the endorsement policy
+        note  no endorsement certificate: the endorsement key is trusted as presented
       challenge: build/test-vm/vms/quickstart/result/challenge.json
       credential: b17d3f29447eaf539bcffa2556b010082a7a10e2b7ab60746c485d176b7a40cc
 
@@ -159,22 +159,22 @@ Verify the enrollment
    .. code-block:: console
 
       operator$ shirudo attest verify --evidence="$RESULT/enrolled.json" --nonce="$NONCE2" --ak-name="$AK" --ek-name="$EK" --expect-credential="$CRED" --cert="$KEYS/cert.der" --cert="$OWN" --allow-runtime-events
-      ok:   nonce matches the request
-      ok:   attestation key: restricted, fixed to this TPM
-      ok:   attestation key: name matches its public area
-      ok:   attestation key: the pinned key
-      ok:   endorsement key: name matches its public area
-      ok:   endorsement key: TCG default template under the endorsement policy
-      ok:   endorsement key: the pinned key
-      ok:   attestation key: activated the credential made for it under the endorsement key
+        OK    nonce matches the request
+        OK    attestation key: restricted, fixed to this TPM
+        OK    attestation key: name matches its public area
+        OK    attestation key: the pinned key
+        OK    endorsement key: name matches its public area
+        OK    endorsement key: TCG default template under the endorsement policy
+        OK    endorsement key: the pinned key
+        OK    attestation key: activated the credential made for it under the endorsement key
       ...
-      ok:   eventlog: 7 records replay to the certified value
-      ok:   anchor: record digest matches the index name
-      ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-      ok:   state: init event covers the expected certificate, set and tree root
-      ok:   state: 6 events after boot change the register
-      note: event after boot: upatch_load basic
-      note: event after boot: upatch_unload basic
+        OK    eventlog: 7 records replay to the certified value
+        OK    anchor: record digest matches the index name
+        OK    anchor: PCR 9 equals the recorded value extended by the anchor
+        OK    state: init event covers the expected certificate, set and tree root
+        OK    state: 6 events after boot change the register
+        note  event after boot: upatch_load basic
+        note  event after boot: upatch_unload basic
       ...
       verdict: ok
 
@@ -211,7 +211,7 @@ Predict the register
       init_event: 1014642f2d76b1eb10b4872c4299a70e191be0eb2958de65a7098bfe92a93124
       register_at_boot: 33ec2c3ed20693c2e40131e693a11b169b91efd8f7438f86313c915e512121e5
 
-   Verifying against that set fails with ``FAIL: state: init event
+   Verifying against that set fails with ``FAIL  state: init event
    covers the expected certificate, set and tree root``.
 
 2. Add the events since boot, in their order:
@@ -252,14 +252,14 @@ Verify evidence
    .. code-block:: console
 
       operator$ shirudo attest verify --evidence="$RESULT/ev.json" --nonce="$NONCE3" --ak-name="$AK" --expect-chain=<register-after-events>
-      ok:   nonce matches the request
+        OK    nonce matches the request
       ...
-      ok:   eventlog: 7 records replay to the certified value
-      ok:   anchor: record digest matches the index name
-      ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-      ok:   state: register equals the expected value
-      note: event after boot: upatch_load basic
-      note: event after boot: upatch_unload basic
+        OK    eventlog: 7 records replay to the certified value
+        OK    anchor: record digest matches the index name
+        OK    anchor: PCR 9 equals the recorded value extended by the anchor
+        OK    state: register equals the expected value
+        note  event after boot: upatch_load basic
+        note  event after boot: upatch_unload basic
       ...
       verdict: ok
 
@@ -274,9 +274,9 @@ still reports ``verdict: ok``:
 
    operator$ shirudo attest verify --evidence="$RESULT/ev.json" --nonce="$NONCE3" --ak-name="$AK"
    ...
-   ok:   anchor: PCR 9 equals the recorded value extended by the anchor
-   note: no expected state given; the register value is 52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
-   note: event after boot: upatch_load basic
+     OK    anchor: PCR 9 equals the recorded value extended by the anchor
+     note  no expected state given; the register value is 52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
+     note  event after boot: upatch_load basic
    ...
    verdict: ok
 

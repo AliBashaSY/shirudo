@@ -70,7 +70,7 @@ if [ "$have_mldsa" = 1 ]; then
 
 	test_expect_success 'keys reports ML-DSA-87 and a matching key/cert pair' '
 		"$SHIRUDO" keys --keys-dir "$tmp/keys" >"$tmp/keys.out" 2>&1 &&
-		grep -q "Public-key: *ML-DSA-87" "$tmp/keys.out" &&
+		grep -q "Public key: *ML-DSA-87" "$tmp/keys.out" &&
 		grep -q "Algorithm: *ML-DSA-87" "$tmp/keys.out" &&
 		grep -q "Issued: *20[0-9][0-9]-" "$tmp/keys.out" &&
 		! grep -Eq "Valid until|Expires in" "$tmp/keys.out" &&

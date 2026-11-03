@@ -205,13 +205,11 @@ Load an artifact and print the report:
 .. code-block:: console
 
    target# shirudo upatch load --report=- shirudo-test-basic.upatch
-   loaded signed loader: prog_fd=10 keyring=420195959 sig=4853B insns=124 data=2400B
-   loader ok, retval=0 (maps=0 progs=1)
-   attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/shirudo-test-basic/link
-   upatch load: name=shirudo-test-basic keyring=420195959 progs=1
-   upatch load: chain extended, value=c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd
-   upatch load measured: name=shirudo-test-basic chain=c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd
-   {"schema":1,"result":"ok","op":"upatch_load","phase":"done","errno":null,"errno_name":null,"category":"ok","message":"","verifier_log":"","loader_return":0,"upatch":{"path":"shirudo-test-basic.upatch","name":"shirudo-test-basic","payload_sha256":"8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f"},"kernel":{"release":"7.3.0-bpf-next+"},"tpm":{"nv_index":"0x01818E00","chain_after":"c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd"}}
+   upatch load: signed loader accepted, keyring 272801410, 124 instructions
+   upatch load: loader ran, 0 maps and 1 programs
+   upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/shirudo-test-basic/link
+   upatch load: shirudo-test-basic loaded, 1 programs, keyring 272801410
+   upatch load: shirudo-test-basic measured, register 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
 
 Load only when the register holds the value you predicted:
 

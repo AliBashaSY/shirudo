@@ -22,7 +22,7 @@ Usage
 .. code-block:: none
 
    shirudo bpm config register add <source> oci://<registry> (--key-file <certificate> | --key-file=<certificate>)
-   shirudo bpm config register list
+   shirudo bpm config register list [--json]
    shirudo bpm config register (remove | rm) <source>
    shirudo bpm config update --base-package <package> --version <version>
                              [-f <beefile> | --file <beefile>]
@@ -31,7 +31,7 @@ Usage
    shirudo bpm tree sync [--dry-run] [--report <path> | --report=<path>]
    shirudo bpm tree append <package> oci://<registry>/<repository> [<append-options>]
    shirudo bpm key (add | fingerprint) <certificate | package | oci-reference>
-   shirudo bpm key list
+   shirudo bpm key list [--json]
    shirudo bpm pull oci://<registry>/<repository>:<tag>
    shirudo bpm info <package>
    shirudo bpm info upatches <package> [--all]
@@ -44,7 +44,7 @@ Usage
    shirudo bpm install <source>/<name>[@<version>]
    shirudo bpm install oci://<registry>/<repository>:<tag>
    shirudo bpm upgrade
-   shirudo bpm list
+   shirudo bpm list [--json]
    shirudo bpm uninstall <name>
    shirudo bpm --list-cmds
 
@@ -236,7 +236,10 @@ key
   refuses with ``EPERM``. On a target with a config image ``add`` is
   refused.
 - ``key list`` prints the fingerprints of the certificates in
-  ``/var/lib/shirudo/keys``.
+  ``/var/lib/shirudo/keys``, as a list under a heading or, with
+  ``--json``, as one object with ``schema`` and ``fingerprints``.
+  ``list`` and ``config register list`` take ``--json`` the same way,
+  with ``packages`` (``name``, ``version``, ``source``) and ``sources``.
 
 ``key add`` with an ``oci://`` reference installs the certificate the
 registry serves. Run ``key fingerprint`` on the same reference first and
@@ -391,6 +394,8 @@ packages:
    target# shirudo bpm repo update
    target# shirudo bpm install example/example-shield@1.0.0
    target# shirudo bpm list
+   Installed packages:
+     none
 
 Preview a tree sync:
 

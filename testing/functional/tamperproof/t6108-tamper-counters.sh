@@ -118,7 +118,8 @@ test_expect_success 'the human report lists the counters that moved' '
 	grep -q "^  PinRename  *[1-9][0-9]*  rename of a pin" "$W/status" &&
 	grep -q "^  BpffsUmount  *[1-9][0-9]*  unmount of the private bpffs" \
 		"$W/status" &&
-	! grep -q "^  none$" "$W/status"
+	! sed -n "/^Tamper attempts (this boot):/,/^$/p" "$W/status" |
+		grep -q "^  none$"
 '
 
 test_done

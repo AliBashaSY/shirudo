@@ -353,8 +353,9 @@ static void check_tpm(struct preflight_result *r)
 		if (override) {
 			pass(c);
 			if (strsprintf(c->detail, sizeof(c->detail),
-				       "TCTI override: %s", cfg.tpm_tcti) < 0)
-				strscpy(c->detail, "TCTI override",
+				       "TCTI from the config: %s",
+				       cfg.tpm_tcti) < 0)
+				strscpy(c->detail, "TCTI from the config",
 					sizeof(c->detail));
 		}
 		if (override)

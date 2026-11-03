@@ -184,7 +184,7 @@ leaves the activation pending. The journal shows one of:
 .. code-block:: text
 
    init: boot-restore failed; further changes and attestation remain blocked
-   init: incomplete -- LSM active and upatches loaded, but TPM register not advanced
+   init: incomplete: LSM active and upatches loaded, but the TPM register did not advance
 
 In this state the LSM is attached and enforcement is up. The upatches
 restored before the failure stay loaded, the register is not bound, and
@@ -260,8 +260,7 @@ either changes while the system runs, as on a resume from hibernation:
   skip that check.
 - ``shirudo status`` reports ``tampered`` with the reason ``the selected
   config cannot be verified against its records``, and ``ConfigActive``
-  reads ``the config activation record does not belong to this TPM boot
-  (tamper?)``.
+  reads ``the config activation record does not belong to this TPM boot``.
 - The register can be gone, which ``ChainIntact`` reports as a warning.
 
 If you know the TPM was reset, reboot. Do not run ``init`` again: after a

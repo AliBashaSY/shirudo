@@ -139,20 +139,19 @@ Unload with a directive bound to the loaded payload:
 
 .. code-block:: console
 
-   target# shirudo upatch unload basic.unload.upatch
-   loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=165 data=2808B
-   upatch unload: payload matches for 'basic'
-   upatch unload: chain extended, value=fe7bd139c02aca0d6e5efc3940c1cd902adbe676b7875be4c73c878b3f5212b8
-   upatch unload measured: name=basic chain=fe7bd139c02aca0d6e5efc3940c1cd902adbe676b7875be4c73c878b3f5212b8
-   upatch unload: detached + unpinned basic
+   target# shirudo upatch unload shirudo-test-basic.unload.upatch
+   upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+   upatch unload: shirudo-test-basic carries the directive's payload
+   upatch unload: shirudo-test-basic measured, register 256f5ad373d8728c777455949bef6ee362c2460c06740ac971f7fba5b19315cc
+   upatch unload: shirudo-test-basic detached and unpinned
 
 A directive that expects a different payload is refused:
 
 .. code-block:: console
 
    target# shirudo upatch unload --report=- shirudo-test-basic-mismatch.unload.upatch
-   loaded signed loader: prog_fd=10 keyring=420195959 sig=4853B insns=165 data=2808B
-   upatch unload: payload_mismatch -- the upatch loaded under 'shirudo-test-basic' is not what the directive expects; refusing
+   upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+   upatch unload: payload_mismatch, the upatch loaded under 'shirudo-test-basic' is not what the directive expects; refused
    upatch unload failed: name=shirudo-test-basic phase=pin category=payload_mismatch err=1 (Operation not permitted) message=loaded payload does not match directive
 
 The report of that refusal carries ``"phase":"pin"``,

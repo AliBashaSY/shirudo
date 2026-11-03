@@ -39,7 +39,7 @@ for key, serial in rings:
     assert k["other_links"] == [], (key, k["other_links"])
 sealed = [c for c in d["conditions"] if c["type"] == "KeyringSealed"][0]
 assert sealed["status"] == "OK", sealed
-assert sealed["detail"] == "bpf serial=%d, dm-verity serial=%d, pins match" % (
+assert sealed["detail"] == "bpf serial %d, dm-verity serial %d, pins match" % (
     rings[0][1], rings[1][1]), sealed
 assert d["status"] != "tampered", d["status"]
 PY
@@ -81,14 +81,14 @@ PY
 '
 
 test_expect_success 'the report shows each certificate with its frozen key' '
-	"$SHIRUDO_BIN" status >"$W/status.txt" &&
+	"$SHIRUDO_BIN" status --show-full >"$W/status.txt" &&
 	grep -qx "Keyring (.bpf):" "$W/status.txt" &&
 	grep -qx "Keyring (.dm-verity):" "$W/status.txt" &&
 	[ "$(grep -c "^  Frozen serial: .*  (matches)$" "$W/status.txt")" = 2 ] &&
 	grep -Eqx "    [0-9a-f]{64}  \(config\)" "$W/status.txt" &&
 	grep -Eqx "    [0-9a-f]{64}  \(primary\)" "$W/status.txt" &&
 	grep -Eq "^      key [0-9]+  .*  \(frozen\)$" "$W/status.txt" &&
-	! grep -q "NOT frozen\|Other links:" "$W/status.txt"
+	! grep -q "not frozen\|Other links:" "$W/status.txt"
 '
 
 test_done

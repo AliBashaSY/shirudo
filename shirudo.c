@@ -39,8 +39,8 @@ static int cmd_help(int argc, const char **argv);
  * completion, which pulls the list live through --list-cmds.
  */
 static const struct cmd commands[] = {
-	{ "genkey",	cmd_genkey,	GROUP_OPERATOR,	"generate the signing key + cert" },
-	{ "build",	cmd_build,	GROUP_OPERATOR,	"compile + sign a .upatch" },
+	{ "genkey",	cmd_genkey,	GROUP_OPERATOR,	"create the signing key and certificate" },
+	{ "build",	cmd_build,	GROUP_OPERATOR,	"compile and sign a .upatch" },
 
 	{ "image", cmd_image, GROUP_LOCAL,
 	  "build, verify and activate dm-verity config images" },
@@ -51,7 +51,7 @@ static const struct cmd commands[] = {
 	{ "bpm",	cmd_bpm,	GROUP_TARGET,
 	  "manage signed OCI packages on this target" },
 
-	{ "status",	cmd_status,	GROUP_LOCAL,	"local readiness + state report" },
+	{ "status",	cmd_status,	GROUP_LOCAL,	"report the state of this host" },
 	{ "attest",	cmd_attest,	GROUP_LOCAL,
 	  "TPM-signed evidence (target); verify / predict (operator)" },
 	{ "keys",	cmd_keys,	GROUP_LOCAL,	"inspect cert / keyring contents" },

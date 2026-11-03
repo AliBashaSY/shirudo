@@ -841,7 +841,7 @@ static int key_fingerprint_compare(const void *a, const void *b)
 	return strcmp(*(char * const *)a, *(char * const *)b);
 }
 
-static int list_keys(void)
+static int list_keys(bool json)
 {
 	char **fingerprints = NULL;
 	size_t count = 0, cap = 0;
@@ -850,9 +850,9 @@ static int list_keys(void)
 	int ret = 0;
 
 	dir = opendir(KEYS_DIR);
-	if (!dir)
-		return errno == ENOENT ? 0 : -errno;
-	for (;;) {
+	if (!dir && errno != ENOENT)
+		return -errno;
+	while (dir) {
 		char path[PATH_MAX], hex[65], **next;
 		struct stat st;
 		bool valid = true;
@@ -892,12 +892,32 @@ static int list_keys(void)
 		}
 		count++;
 	}
-	closedir(dir);
-	if (!ret && count) {
+	if (dir)
+		closedir(dir);
+	if (!ret && count)
 		qsort(fingerprints, count, sizeof(*fingerprints),
 		      key_fingerprint_compare);
+	if (!ret && json) {
+		char buf[8192];
+		struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+
+		json_obj_open(&e);
+		json_kv_int(&e, "schema", 1);
+		json_arr_open(&e, "fingerprints");
 		for (size_t i = 0; i < count; i++)
-			puts(fingerprints[i]);
+			json_str(&e, fingerprints[i]);
+		json_arr_close(&e);
+		json_obj_close(&e);
+		if (e.err)
+			ret = e.err;
+		else
+			puts(buf);
+	} else if (!ret) {
+		printf("Package certificates:\n");
+		if (!count)
+			printf("  none\n");
+		for (size_t i = 0; i < count; i++)
+			printf("  %s\n", fingerprints[i]);
 	}
 	for (size_t i = 0; i < count; i++)
 		xstrfree(fingerprints[i]);
@@ -1478,18 +1498,47 @@ static int cmd_bpm_config(int argc, const char **argv)
 	if (argc < 3)
 		return 2;
 	if (!strcmp(argv[2], "list")) {
+		bool json = argc == 4 && !strcmp(argv[3], "--json");
+		char buf[8192];
+		struct json_emit je = { .buf = buf, .cap = sizeof(buf) };
 		DIR *d = registries_opendir();
 		struct dirent *e;
+		size_t count = 0;
 
-		if (!d)
-			return errno == ENOENT ? 0 : 1;
-		while ((e = readdir(d))) {
-			size_t n = strlen(e->d_name);
-
-			if (n > 5 && !strcmp(e->d_name + n - 5, ".conf"))
-				printf("%.*s\n", (int)(n - 5), e->d_name);
+		if (argc != 3 && !json)
+			return 2;
+		if (json) {
+			json_obj_open(&je);
+			json_kv_int(&je, "schema", 1);
+			json_arr_open(&je, "sources");
+		} else {
+			printf("Registered sources:\n");
 		}
-		closedir(d);
+		while (d && (e = readdir(d))) {
+			size_t n = strlen(e->d_name);
+			char name[NAME_MAX + 1];
+
+			if (n <= 5 || strcmp(e->d_name + n - 5, ".conf") ||
+			    strsprintf(name, sizeof(name), "%.*s",
+				       (int)(n - 5), e->d_name) < 0)
+				continue;
+			if (json)
+				json_str(&je, name);
+			else
+				printf("  %s\n", name);
+			count++;
+		}
+		if (d)
+			closedir(d);
+		if (json) {
+			json_arr_close(&je);
+			json_obj_close(&je);
+			if (je.err)
+				return 1;
+			puts(buf);
+		} else if (!count) {
+			printf("  none\n");
+		}
 		return 0;
 	}
 	if (image_config_active() &&
@@ -2524,7 +2573,8 @@ static int cmd_bpm_key(int argc, const char **argv)
 		print_help(&bpm_key_help);
 		return 0;
 	}
-	if ((!strcmp(sub, "list") && argc != 2) ||
+	if ((!strcmp(sub, "list") && argc != 2 &&
+	     !(argc == 3 && !strcmp(argv[2], "--json"))) ||
 	    (strcmp(sub, "list") && argc != 3)) {
 		print_help(&bpm_key_help);
 		return 2;
@@ -2535,7 +2585,7 @@ static int cmd_bpm_key(int argc, const char **argv)
 		return 1;
 	}
 	if (!strcmp(sub, "list")) {
-		ret = list_keys();
+		ret = list_keys(argc == 3);
 		return ret ? bpm_fail("key list", ret) : 0;
 	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
@@ -2876,20 +2926,58 @@ int cmd_bpm(int argc, const char **argv)
 	if (!strcmp(sub, "install") && argc == 3)
 		return with_tables(bpm_install, argv[2], "install");
 	if (!strcmp(sub, "list")) {
+		bool json = argc == 3 && !strcmp(argv[2], "--json");
 		struct bpm_state_entry *state;
 		int n_state, ret;
 
-		if (argc != 2) {
-			fprintf(stderr, "usage: shirudo bpm list\n");
+		if (argc != 2 && !json) {
+			fprintf(stderr, "usage: shirudo bpm list [--json]\n");
 			return argc == 3 && is_help(argv[2]) ? 0 : 2;
 		}
 		state = xcalloc(BPM_MAX_STATE, sizeof(*state));
 		if (!state)
 			return bpm_fail("list", -ENOMEM);
 		ret = state_read(state, &n_state);
-		for (int i = 0; !ret && i < n_state; i++)
-			printf("%s %s %s\n", state[i].name, state[i].version,
-			       state[i].source);
+		if (!ret && json) {
+			size_t cap = 256 + (size_t)n_state * 3 * BPM_MAX_NAME;
+			char *buf = xmalloc(cap);
+			struct json_emit e = { .buf = buf, .cap = cap };
+
+			if (!buf) {
+				ret = -ENOMEM;
+			} else {
+				json_obj_open(&e);
+				json_kv_int(&e, "schema", 1);
+				json_arr_open(&e, "packages");
+				for (int i = 0; i < n_state; i++) {
+					json_obj_open(&e);
+					json_kv_string(&e, "name",
+						       state[i].name);
+					json_kv_string(&e, "version",
+						       state[i].version);
+					json_kv_string(&e, "source",
+						       state[i].source);
+					json_obj_close(&e);
+				}
+				json_arr_close(&e);
+				json_obj_close(&e);
+				if (e.err)
+					ret = e.err;
+				else
+					puts(buf);
+				xfree(buf, cap);
+			}
+		} else if (!ret) {
+			printf("Installed packages:\n");
+			if (!n_state)
+				printf("  none\n");
+			else
+				printf("  %-24s  %-12s  %s\n", "NAME",
+				       "VERSION", "SOURCE");
+			for (int i = 0; i < n_state; i++)
+				printf("  %-24s  %-12s  %s\n", state[i].name,
+				       state[i].version, state[i].source);
+		}
 		xfree(state, BPM_MAX_STATE * sizeof(*state));
 		return ret ? bpm_fail("list", ret) : 0;
 	}

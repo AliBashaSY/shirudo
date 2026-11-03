@@ -108,7 +108,7 @@ int cmd_config(int argc, const char **argv)
 		       image_mode ? "runtime image" :
 		       env && *env ? "$SHIRUDO_TPM_TCTI" : CONF_PATH);
 	} else {
-		printf("# tpm.tcti = (unset -- using device:/dev/tpmrm0)\n\n");
+		printf("# tpm.tcti = (unset, using device:/dev/tpmrm0)\n\n");
 	}
 
 	printf("# Exact DNS hosts that may use classical TLS key exchange.\n"

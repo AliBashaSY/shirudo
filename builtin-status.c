@@ -37,7 +37,6 @@
 #include "util/crypto.h"
 #include "util/eventlog.h"
 
-#define KERNEL_LOG_MAX 100
 #include "util/help.h"
 #include "util/io.h"
 #include "util/json.h"
@@ -50,8 +49,6 @@
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/initrd.h"
-#include "util/kmodules.h"
-#include "util/kmsg.h"
 #include "util/format.h"
 #include "util/sysinfo.h"
 #include "util/timefmt.h"
@@ -281,7 +278,7 @@ static void print_eventlog_table(void)
 	if (read_file(eventlog_path(), JSON_MAX_BYTES,
 		      &buf, &len) != 0)
 		return;
-	printf("\nEventlog (audit trail):\n");
+	printf("\nEventlog:\n");
 	printf("  %-20s %-13s %-13s %s\n", "TIME", "TYPE", "DIGEST",
 	       "DETAIL");
 	for (line = strtok_r(buf, "\n", &save); line;
@@ -303,17 +300,17 @@ static void print_eventlog_table(void)
 
 static void print_system_human(const struct sysinfo *si)
 {
-	printf("\nSystem Info:\n");
-	printf("  %-16s %s\n", "OS:", si->os_pretty);
-	printf("  %-16s %s\n", "Kernel:", si->kernel_release);
+	printf("\nSystem:\n");
+	printf("  %-22s %s\n", "OS:", si->os_pretty);
+	printf("  %-22s %s\n", "Kernel:", si->kernel_release);
 	if (si->kernel_version[0])
-		printf("  %-16s %s\n", "Kernel Version:", si->kernel_version);
+		printf("  %-22s %s\n", "Kernel version:", si->kernel_version);
 	if (si->kernel_build_id[0])
-		printf("  %-16s %s\n", "Kernel Build ID:",
+		printf("  %-22s %s\n", "Kernel build ID:",
 		       si->kernel_build_id);
-	printf("  %-16s %s\n", "Architecture:", si->machine);
+	printf("  %-22s %s\n", "Architecture:", si->machine);
 	if (si->nproc > 0)
-		printf("  %-16s %ld\n", "CPUs:", si->nproc);
+		printf("  %-22s %ld\n", "CPUs:", si->nproc);
 	if (si->mem_total_kb > 0) {
 		char tot[16], used[16];
 
@@ -324,9 +321,9 @@ static void print_system_human(const struct sysinfo *si)
 			human_size((__u64)(si->mem_total_kb -
 					   si->mem_avail_kb) * 1024,
 				   used, sizeof(used));
-			printf("  %-16s %s/%s\n", "Memory:", used, tot);
+			printf("  %-22s %s/%s\n", "Memory:", used, tot);
 		} else {
-			printf("  %-16s %s\n", "Memory:", tot);
+			printf("  %-22s %s\n", "Memory:", tot);
 		}
 	}
 	if (si->disk_total_kb > 0) {
@@ -336,47 +333,28 @@ static void print_system_human(const struct sysinfo *si)
 			   tot, sizeof(tot));
 		human_size((__u64)si->disk_used_kb * 1024,
 			   used, sizeof(used));
-		printf("  %-16s %s/%s\n", "Disk:", used, tot);
+		printf("  %-22s %s/%s\n", "Disk:", used, tot);
 	}
 	if (si->uptime_sec >= 0)
-		printf("  %-16s %ldd %ldh %ldm\n", "Uptime:",
+		printf("  %-22s %ldd %ldh %ldm\n", "Uptime:",
 		       si->uptime_sec / 86400,
 		       (si->uptime_sec % 86400) / 3600,
 		       (si->uptime_sec % 3600) / 60);
-	if (si->hostname[0])
-		printf("  %-16s %s\n", "Hostname:", si->hostname);
 	if (si->machine_id[0])
-		printf("  %-16s %s\n", "Machine ID:", si->machine_id);
+		printf("  %-22s %s\n", "Machine ID:", si->machine_id);
 	if (si->boot_id[0])
-		printf("  %-16s %s\n", "Boot ID:", si->boot_id);
-}
-
-static void print_kernel_config_entry(void *ctx, const char *key,
-				      const char *value)
-{
-	printf("    %s=%s\n", key, value);
-}
-
-static void print_kernel_config_human(const struct sysinfo *si)
-{
-	printf("  Kernel Config:\n");
-	if (sysinfo_kernel_config_foreach(si->kernel_release,
-					  print_kernel_config_entry,
-					  NULL) < 0)
-		printf("    (unavailable)\n");
+		printf("  %-22s %s\n", "Boot ID:", si->boot_id);
 }
 
 static const struct help_item status_options[] = {
-	{ "--json",                 "machine-readable JSON output" },
-	{ "--otel",                 "export the status report as an OTLP log" },
-	{ "--include-system",       "add a `system` block (hostname, kernel, arch, cpus, ...)" },
-	{ "--include-eventlog",     "dump eventlog entries" },
-	{ "--include-kernellog[=N]", "last N lines of the kernel ring buffer "
-				     "(default 10, max 100)" },
-	{ "--include-modules",
-	  "loaded kernel modules (10 most recent; --show-full for tree)" },
-	{ "--show-full",            "opt into a full dump: implies every --include-* flag and "
-				    "expands the loaded-modules dependency tree" },
+	{ "--json",             "print the report as one JSON document" },
+	{ "--otel",             "send the JSON report as an OTLP keepalive log" },
+	{ "--check",            "exit 1 when the verdict is tampered" },
+	{ "--show-full",        "print every section, folded or not, and the "
+				"system and eventlog sections" },
+	{ "--include-system",   "add the system section: OS, kernel, machine, "
+				"memory, disk, uptime" },
+	{ "--include-eventlog", "add this boot's eventlog records" },
 };
 
 static const struct help_section status_help_sections[] = {
@@ -385,12 +363,15 @@ static const struct help_section status_help_sections[] = {
 };
 
 static const struct help status_help = {
-	.usage      = "shirudo status [--json] [--otel] "
-		      "[--include-system] [--include-eventlog]\n"
-		      "                       [--include-kernellog[=N]] "
-		      "[--include-modules] [--show-full]",
-	.summary    = "Local readiness + state report. Auto-detects target "
-		      "vs operator role.\nSafe to run before `shirudo init`.",
+	.usage      = "shirudo status [--json | --otel] [--check] "
+		      "[--show-full]\n"
+		      "                       [--include-system] "
+		      "[--include-eventlog]",
+	.summary    = "Report the state of this host: the verdict, the "
+		      "conditions behind it, the\ntamper counters and the "
+		      "loaded upatches. A section whose condition is not OK\n"
+		      "unfolds below them. Safe to run before init, on a target "
+		      "or an operator host.",
 	.sections   = status_help_sections,
 	.n_sections = ARRAY_SIZE(status_help_sections),
 };
@@ -792,7 +773,7 @@ static void print_link(const struct status_keyring *k, size_t i,
 		       (int)l->serial);
 		print_safe(l->description);
 	}
-	printf("  (%s)\n", k->state[i].frozen ? "frozen" : "NOT frozen");
+	printf("  (%s)\n", k->state[i].frozen ? "frozen" : "not frozen");
 }
 
 static void print_keyring_certs(const struct status_keyring *k,
@@ -840,9 +821,7 @@ static void print_keyring_serials(const struct status_keyring *k)
 	if (k->serial >= 0)
 		printf("  %-22s %lld\n", "Serial:", (__s64)k->serial);
 	else if (k->pinned == -ENOENT)
-		printf("  %-22s %s\n", "Serial:",
-		       "absent  (operator host, or `shirudo init` "
-		       "not yet run)");
+		printf("  %-22s %s\n", "Serial:", "absent before init");
 	else if (k->serial == -ENOKEY)
 		printf("  %-22s %s\n", "Serial:", "absent");
 	else
@@ -855,11 +834,8 @@ static void print_keyring_serials(const struct status_keyring *k)
 		       strerror(-k->pinned));
 	else
 		printf("  %-22s %lld%s\n", "Frozen serial:",
-		       (__s64)k->pinned, k->serial < 0 ?
-		       "  (GONE -- removed?)" :
-		       k->serial == k->pinned ?
-		       "  (matches)" :
-		       "  (MISMATCH -- swapped?)");
+		       (__s64)k->pinned, k->serial < 0 ? "  (gone)" :
+		       k->serial == k->pinned ? "  (matches)" : "  (swapped)");
 	if (k->links_rc && k->serial >= 0)
 		printf("  %-22s unreadable: %s\n", "Links:",
 		       strerror(-k->links_rc));
@@ -870,9 +846,9 @@ int cmd_status(int argc, const char **argv)
 	bool json = false;
 	bool json_stdout = false, otel = false;
 	bool include_system = false, include_eventlog = false;
-	bool include_kernel_log = false, include_modules = false;
-	bool show_full = false;
-	__u32 kernel_log_lines = 10;
+	bool show_full = false, check = false;
+	char hostname[256] = "?";
+	char reason[160];
 	bool lsm_attached, keyring_present, is_operator, cert_present, is_target;
 	key_serial_t keyring_serial, keyring_pinned;
 	const char *keyring_mode, *mode;
@@ -920,23 +896,8 @@ int cmd_status(int argc, const char **argv)
 			include_system = true;
 		} else if (strcmp(argv[i], "--include-eventlog") == 0) {
 			include_eventlog = true;
-		} else if (strcmp(argv[i], "--include-kernellog") == 0) {
-			include_kernel_log = true;
-		} else if (strncmp(argv[i], "--include-kernellog=", 20) == 0) {
-			const char *n = argv[i] + 20;
-			__u64 v;
-
-			if (parse_u64(n, strlen(n), KERNEL_LOG_MAX, &v) ||
-			    v < 1) {
-				fprintf(stderr, "status: --include-kernellog=N "
-					"must be 1..%d\n",
-					KERNEL_LOG_MAX);
-				return 2;
-			}
-			include_kernel_log = true;
-			kernel_log_lines = (__u32)v;
-		} else if (strcmp(argv[i], "--include-modules") == 0) {
-			include_modules = true;
+		} else if (strcmp(argv[i], "--check") == 0) {
+			check = true;
 		} else if (strcmp(argv[i], "--show-full") == 0) {
 			show_full = true;
 		} else if (is_help(argv[i])) {
@@ -971,19 +932,15 @@ int cmd_status(int argc, const char **argv)
 			status_otel_endpoint_configured(&otel_cfg);
 	}
 
-	/*
-	 * --show-full is the one-switch verbose mode: every section the
-	 * --include-* flags can opt into, plus the modules dep-tree. Stack
-	 * it on first so any individual --include-* already given is a no-op.
-	 */
 	if (show_full) {
 		include_system = true;
 		include_eventlog = true;
-		include_kernel_log = true;
-		include_modules = true;
 	}
 	if (include_system)
 		sysinfo_gather(&sysi);
+	if (gethostname(hostname, sizeof(hostname)))
+		strscpy(hostname, "?", sizeof(hostname));
+	hostname[sizeof(hostname) - 1] = '\0';
 
 	fd = bpf_obj_get(LSM_LINK_PIN);
 	lsm_attached = fd >= 0;
@@ -1120,10 +1077,6 @@ int cmd_status(int argc, const char **argv)
 			    (6 * (KEYRING_DESC_MAX + STATUS_SUBJECT_MAX) + 512);
 		if (include_eventlog && ev_rc == 0)
 			json_cap += 65536 + 3 * (size_t)ev_bytes;
-		if (include_kernel_log)
-			json_cap += (size_t)kernel_log_lines * 1024 + 4096;
-		if (include_modules)
-			json_cap += 64 * 1024;
 		if (include_system)
 			json_cap += 1024 * 1024;
 		if (json_cap > JSON_MAX_BYTES)
@@ -1139,6 +1092,7 @@ int cmd_status(int argc, const char **argv)
 		json_obj_open(&e);
 		json_kv_int(&e, "schema", 1);
 		json_kv_string(&e, "version_id", shirudo_version_id);
+		json_kv_string(&e, "host", hostname);
 		json_kv_bool(&e, "is_target", is_target);
 		json_kv_bool(&e, "is_operator", is_operator);
 		{
@@ -1148,6 +1102,11 @@ int cmd_status(int argc, const char **argv)
 			otel_status = status_verdict(&cin);
 			json_kv_string(&e, "status",
 				       otel_status);
+			status_reason(&cin, reason, sizeof(reason));
+			if (reason[0])
+				json_kv_string(&e, "reason", reason);
+			else
+				json_kv_null(&e, "reason");
 			nc = conditions(&cin, conds,
 					ARRAY_SIZE(conds));
 			json_arr_open(&e, "conditions");
@@ -1319,83 +1278,6 @@ int cmd_status(int argc, const char **argv)
 			json_obj_close(&e);
 			tree_emit_status(&e);
 		}
-		if (include_kernel_log) {
-			size_t bytes = (size_t)kernel_log_lines *
-				       sizeof(struct kmsg_record);
-			struct kmsg_record *recs = xmalloc(bytes);
-			int nr = recs ? kmsg_tail(recs, kernel_log_lines)
-				      : -ENOMEM;
-			int j;
-
-			json_arr_open(&e, "kernel_log");
-			for (j = 0; j < nr; j++) {
-				json_obj_open(&e);
-				json_kv_string(&e, "ts", recs[j].ts);
-				json_kv_string(&e, "msg", recs[j].msg);
-				json_obj_close(&e);
-			}
-			json_arr_close(&e);
-			xfree(recs, bytes);
-		}
-		if (include_modules) {
-			struct kmod_set ks = {};
-			int mrc = kmodules_read(&ks);
-			struct timespec rt = {}, bt = {};
-			__s64 boot_sec = 0;
-			char boot_iso[32] = "";
-			size_t mi;
-
-			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
-			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0) {
-				boot_sec = (__s64)rt.tv_sec - bt.tv_sec;
-				iso8601((time_t)boot_sec, boot_iso,
-					sizeof(boot_iso));
-			}
-			json_kv_string(&e, "boot_at",
-				       boot_iso[0] ? boot_iso : "");
-			json_arr_open(&e, "modules");
-			if (mrc == 0) {
-				for (mi = 0; mi < ks.n; mi++) {
-					const struct kmod *m =
-						&ks.mods[mi];
-					time_t at = m->loaded_at_sec;
-					char iso[32] = "";
-					__u16 di;
-
-					if (at > 0)
-						iso8601(at, iso,
-							sizeof(iso));
-					json_obj_open(&e);
-					json_kv_string(&e, "name",
-						       m->name);
-					json_kv_int(&e, "size",
-						    (__s64)m->size);
-					json_kv_int(&e, "refcount",
-						    m->refcount);
-					json_kv_string(&e, "loaded_at",
-						       iso);
-					if (boot_sec > 0 &&
-					    m->loaded_at_sec >= boot_sec)
-						json_kv_int(&e,
-							    "since_boot_sec",
-							    m->loaded_at_sec - boot_sec);
-					else
-						json_kv_null(&e,
-							     "since_boot_sec");
-					json_arr_open(&e, "deps");
-					for (di = 0; di < m->n_deps; di++) {
-						size_t dk = ks.deps[m->deps_off
-								    + di];
-						json_str(&e,
-							 ks.mods[dk].name);
-					}
-					json_arr_close(&e);
-					json_obj_close(&e);
-				}
-			}
-			json_arr_close(&e);
-			kmodules_free(&ks);
-		}
 		json_obj_close(&e);
 
 		if (e.err) {
@@ -1439,40 +1321,49 @@ int cmd_status(int argc, const char **argv)
 	} else {
 		struct condition conds[CONDITIONS_MAX];
 		struct upatch_table_row *rows = NULL;
+		bool keyrings_open, tpm_open;
+		const char *folded[3];
 		size_t n_rows = 0;
-		size_t nc;
-		char hostname[256] = "?";
-		char reason[160];
+		size_t nc, ci, nf = 0;
 		const char *verdict;
 
 		verdict = status_verdict(&cin);
 		status_reason(&cin, reason, sizeof(reason));
 		nc = conditions(&cin, conds, ARRAY_SIZE(conds));
 		n_rows = build_upatches_table(ups, n_ups, &rows);
-		if (gethostname(hostname, sizeof(hostname)))
-			strscpy(hostname, "?", sizeof(hostname));
-		hostname[sizeof(hostname) - 1] = '\0';
-
-		printf("Host:              %s\n", hostname);
-		printf("Roles:             %s\n",
+		/*
+		 * A section a condition vouches for says nothing the
+		 * condition did not: it unfolds when that condition is not
+		 * OK on a target, or on request.
+		 */
+		keyrings_open = show_full;
+		tpm_open = show_full;
+		for (ci = 0; is_target && ci < nc; ci++) {
+			if (!strcmp(conds[ci].status, "OK"))
+				continue;
+			if (!strcmp(conds[ci].type, "KeyringSealed"))
+				keyrings_open = true;
+			else if (!strcmp(conds[ci].type, "ChainIntact") ||
+				 !strcmp(conds[ci].type, "TpmMeasured"))
+				tpm_open = true;
+		}
+		printf("%-22s %s\n", "Host:", hostname);
+		printf("%-22s %s\n", "Roles:",
 		       roles_str(is_target, is_operator));
-		printf("Mode:              %s\n", mode);
+		printf("%-22s %s\n", "Mode:", mode);
 		if (reason[0])
-			printf("Status:            %s  (%s)\n", verdict,
+			printf("%-22s %s  (%s)\n", "Status:", verdict,
 			       reason);
 		else
-			printf("Status:            %s\n", verdict);
-		printf("Version-ID:        %s\n", shirudo_version_id);
-
+			printf("%-22s %s\n", "Status:", verdict);
+		printf("%-22s %s\n", "Version ID:", shirudo_version_id);
 		printf("\n");
 		conditions_print(conds, nc);
-
 		printf("\nTamper attempts (this boot):\n");
 		if (tamper_rc == -ENOENT)
-			printf("  (none recorded: init has not pinned the counters "
-			       "this boot)\n");
+			printf("  none recorded before init\n");
 		else if (tamper_rc)
-			printf("  (unavailable: %s)\n", strerror(-tamper_rc));
+			printf("  unavailable: %s\n", strerror(-tamper_rc));
 		else if (tamper.total == 0)
 			printf("  none\n");
 		for (i = 0; tamper_rc == 0 && i < TAMPER_MAX; i++) {
@@ -1482,177 +1373,135 @@ int cmd_status(int argc, const char **argv)
 				       (__u64)tamper.count[i],
 				       tamper_meaning(i));
 		}
-
-		printf("\nKeyring (.bpf):\n");
-		print_keyring_serials(&bpf);
-		if (certs_rc == 0) {
-			printf("  %-22s %zu trusted, %zu revoked, %zu "
-			       "unvouched", "Certificates:", certs.n,
-			       certs.n_revoked, certs.n_unvouched);
-			if (certs_enrolled >= 0)
-				printf(", %d in the bpf keyring",
-				       certs_enrolled);
-			printf("\n");
-			print_keyring_certs(&bpf, "primary",
-					    "enrolled at the next boot");
-		}
-		print_other_links(&bpf);
-
-		printf("\nKeyring (.dm-verity):\n");
-		print_keyring_serials(&dmv);
-		if (dmv.certs_rc == 0) {
-			printf("  %-22s %zu trusted", "Certificates:",
-			       dmv.n_certs);
-			if (!dmv.links_rc)
-				printf(", %zu in the dm-verity keyring",
-				       dmv.n_asymmetric);
-			printf("\n");
-			print_keyring_certs(&dmv, "config", "MISSING");
-		} else if (dmv.certs_rc != -ENOENT) {
-			printf("  %-22s unreadable: %s\n", "Certificates:",
-			       strerror(-dmv.certs_rc));
-		}
-		print_other_links(&dmv);
-
-		if (include_system) {
-			print_system_human(&sysi);
-			print_kernel_config_human(&sysi);
-		}
-
 		upatch_table_print(rows, n_rows);
 		xfree(rows, n_rows * sizeof(*rows));
 		rows = NULL;
-
-		{
-			printf("\nTPM Measurement:\n");
-			printf("  %-18s %s (%s)\n", "TPM:",
-			       cst.tpm ? "reachable" : "NOT reachable", tcti);
-			printf("  %-18s %s (anchored in PCR %u)\n", "NV index:",
+		if (keyrings_open) {
+			printf("\nKeyring (.bpf):\n");
+			print_keyring_serials(&bpf);
+			if (certs_rc == 0) {
+				printf("  %-22s %zu trusted, %zu revoked, %zu "
+				       "unvouched", "Certificates:", certs.n,
+				       certs.n_revoked, certs.n_unvouched);
+				if (certs_enrolled >= 0)
+					printf(", %d in the bpf keyring",
+					       certs_enrolled);
+				printf("\n");
+				print_keyring_certs(&bpf, "primary",
+						    "enrolled at the next boot");
+			}
+			print_other_links(&bpf);
+			printf("\nKeyring (.dm-verity):\n");
+			print_keyring_serials(&dmv);
+			if (dmv.certs_rc == 0) {
+				printf("  %-22s %zu trusted", "Certificates:",
+				       dmv.n_certs);
+				if (!dmv.links_rc)
+					printf(", %zu in the dm-verity keyring",
+					       dmv.n_asymmetric);
+				printf("\n");
+				print_keyring_certs(&dmv, "config", "missing");
+			} else if (dmv.certs_rc != -ENOENT) {
+				printf("  %-22s unreadable: %s\n",
+				       "Certificates:",
+				       strerror(-dmv.certs_rc));
+			}
+			print_other_links(&dmv);
+		} else {
+			folded[nf++] = "keyrings";
+		}
+		if (tpm_open) {
+			printf("\nTPM measurement:\n");
+			printf("  %-22s %s (%s)\n", "TPM:",
+			       cst.tpm ? "reachable" : "not reachable", tcti);
+			printf("  %-22s %s (anchored in PCR %u)\n", "NV index:",
 			       nv_index, CHAIN_PCR);
 			if (chain_rc == 0) {
-				printf("  %-18s %s\n", "Chain:", chain_hex);
-				printf("  %-18s %s\n", "Register name:",
+				printf("  %-22s %s\n", "Chain:", chain_hex);
+				printf("  %-22s %s\n", "Register name:",
 				       name_hex);
-				printf("  %-18s %s\n", "Anchored:",
-				       cst.anchored ? "yes (name on record)" :
-				       "NO (index is not the one init bound)");
+				printf("  %-22s %s\n", "Anchored:",
+				       cst.anchored ? "yes, name on record" :
+				       "no, the index is not the one init bound");
 			} else if (!cst.tpm) {
-				printf("  %-18s %s\n", "Chain:",
-				       "unavailable (no TPM answered)");
+				printf("  %-22s %s\n", "Chain:",
+				       "unavailable, no TPM answered");
 			} else if (chain_rc == -ENODEV) {
-				printf("  %-18s %s\n", "Chain:",
-				       "unavailable (register not bound this "
-				       "boot)");
+				printf("  %-22s %s\n", "Chain:",
+				       "unavailable, register not bound this "
+				       "boot");
 			} else {
-				printf("  %-18s unavailable (TPM error: %s)\n",
+				printf("  %-22s unavailable, TPM error: %s\n",
 				       "Chain:", strerror(-chain_rc));
 			}
 			if (cst.logged) {
-				printf("  %-18s %s\n", "PCR before init:",
+				printf("  %-22s %s\n", "PCR before init:",
 				       pcr_before_hex);
-				printf("  %-18s %s (PCR %u)\n", "Phase at init:",
+				printf("  %-22s %s (PCR %u)\n", "Phase at init:",
 				       phase_before_hex, CHAIN_PHASE_PCR);
-				printf("  %-18s %s\n", "Bound in:",
+				printf("  %-22s %s\n", "Bound in:",
 				       cst.init.initrd ? "initrd" :
 				       "root file system");
 			}
 			if (cst.rebound)
-				printf("  %-18s %u for this TPM reset "
-				       "(REBOUND after init; tamper?)\n",
+				printf("  %-22s %u for this TPM reset, "
+				       "rebound after init\n",
 				       "Init records:",
 				       cst.init.records_epoch);
-			printf("  %-18s %s\n", "Chain vs eventlog:",
-			       match < 0 ? "n/a" :
-			       match ? "matches" : "MISMATCH (tamper?)");
+			printf("  %-22s %s\n", "Chain vs eventlog:",
+			       match < 0 ? "not evaluated" :
+			       match ? "matches" : "mismatch");
 			if (ev_rc == 0)
-				printf("  %-18s %s  (%ld entries, %ld bytes)\n",
+				printf("  %-22s %s  (%ld entries, %ld bytes)\n",
 				       "Eventlog:", eventlog_path(),
 				       ev_entries, ev_bytes);
 			else
-				printf("  %-18s absent\n", "Eventlog:");
+				printf("  %-22s absent\n", "Eventlog:");
+		} else {
+			folded[nf++] = "TPM measurement";
 		}
-
 		if (include_eventlog)
 			print_eventlog_table();
-
-		printf("\nAssets (%s):\n", VAR_LIB);
-		printf("  %-22s %s\n", "keys/cert.der",
-		       assets.cert ? "present" : "absent");
-		printf("  %-22s %s\n", "keys/signing_key.pem",
-		       assets.signing_key ? "present" : "absent");
-		if (assets.eventlog)
-			printf("  %-22s present (%ld bytes)\n", "eventlog",
-			       assets.eventlog_bytes);
-		else
-			printf("  %-22s absent\n", "eventlog");
-		if (assets.n_upatches < 0)
-			printf("  %-22s absent\n", "upatches/");
-		else
-			printf("  %-22s %d .upatch\n", "upatches/",
-			       assets.n_upatches);
-		if (assets.n_incoming < 0)
-			printf("  %-22s absent\n", "incoming/");
-		else if (assets.n_incoming == 0)
-			printf("  %-22s empty\n", "incoming/");
-		else
-			printf("  %-22s %d staged\n", "incoming/",
-			       assets.n_incoming);
-		printf("  %-22s %s\n", "bpffs/",
-		       assets.bpffs_mounted ? "mounted" : "not mounted");
-
-		if (include_kernel_log) {
-			size_t bytes = (size_t)kernel_log_lines *
-				       sizeof(struct kmsg_record);
-			struct kmsg_record *recs = xmalloc(bytes);
-			int nr = recs ? kmsg_tail(recs, kernel_log_lines)
-				      : -ENOMEM;
-			int j;
-
-			printf("\nKernel log (last %u lines, newest first):\n",
-			       kernel_log_lines);
-			if (nr <= 0) {
-				printf("  (unavailable)\n");
-			} else {
-				for (j = nr; j-- > 0;)
-					printf("  [%s]  %s\n", recs[j].ts,
-					       recs[j].msg);
-			}
-			xfree(recs, bytes);
+		if (show_full) {
+			printf("\nAssets (%s):\n", VAR_LIB);
+			printf("  %-22s %s\n", "keys/cert.der",
+			       assets.cert ? "present" : "absent");
+			printf("  %-22s %s\n", "keys/signing_key.pem",
+			       assets.signing_key ? "present" : "absent");
+			if (assets.eventlog)
+				printf("  %-22s present (%ld bytes)\n",
+				       "eventlog", assets.eventlog_bytes);
+			else
+				printf("  %-22s absent\n", "eventlog");
+			if (assets.n_upatches < 0)
+				printf("  %-22s absent\n", "upatches/");
+			else
+				printf("  %-22s %d archived\n", "upatches/",
+				       assets.n_upatches);
+			if (assets.n_incoming < 0)
+				printf("  %-22s absent\n", "incoming/");
+			else if (assets.n_incoming == 0)
+				printf("  %-22s empty\n", "incoming/");
+			else
+				printf("  %-22s %d staged\n", "incoming/",
+				       assets.n_incoming);
+			printf("  %-22s %s\n", "bpffs/",
+			       assets.bpffs_mounted ? "mounted" :
+			       "not mounted");
+		} else {
+			folded[nf++] = "assets";
 		}
-		if (include_modules) {
-			struct kmod_set ks = {};
-			int mrc = kmodules_read(&ks);
-			struct timespec rt = {}, bt = {};
-			__s64 boot_sec = 0;
-			size_t last = 10;
-			size_t shown = min(ks.n, last);
-
-			if (clock_gettime(CLOCK_REALTIME, &rt) == 0 &&
-			    clock_gettime(CLOCK_BOOTTIME, &bt) == 0)
-				boot_sec = (__s64)rt.tv_sec - bt.tv_sec;
-
-			if (mrc != 0) {
-				printf("\nLoaded modules:\n");
-				printf("  (unavailable: %s)\n", strerror(-mrc));
-			} else {
-				printf("\nLoaded modules (total %zu, "
-				       "last %zu loads, newest first):\n",
-				       ks.n, shown);
-				kmodules_print_recent(&ks, last,
-						      boot_sec);
-				if (!show_full) {
-					printf("  (Use --show-full to show "
-					       "all loaded modules in a "
-					       "dependency tree)\n");
-				} else {
-					printf("\nDependency tree:\n");
-					kmodules_print_tree(&ks);
-				}
-			}
-			kmodules_free(&ks);
+		if (include_system)
+			print_system_human(&sysi);
+		if (nf) {
+			printf("\nFolded:");
+			for (ci = 0; ci < nf; ci++)
+				printf("%s %s", ci ? "," : "", folded[ci]);
+			printf(" (--show-full)\n");
 		}
 	}
-
+	if (check && !ret && !strcmp(status_verdict(&cin), "tampered"))
+		ret = 1;
 out:
 	keyring_view_free(&bpf);
 	keyring_view_free(&dmv);
