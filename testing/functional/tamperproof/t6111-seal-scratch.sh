@@ -44,7 +44,11 @@ echo scratch >"$WORK/scratch"
 	for f in $SEALED; do
 		echo "write $WORK/scratch $f"
 	done
-	for f in sh py $SEALED; do
+	echo "write $WORK/scratch private"
+	echo "sif /private mode 0100600"
+	echo "mkdir privdir"
+	echo "sif /privdir mode 040700"
+	for f in sh py $SEALED private privdir; do
 		echo "ea_set -f $WORK/label /$f security.bpf.shirudo"
 	done
 } >"$WORK/cmds"
@@ -173,6 +177,41 @@ test_expect_success 'root cannot truncate, chmod or chown a labelled file' '
 	[ "$(cat "$MNT/sealed6")" = scratch ] &&
 	! chmod 0200 "$MNT/sealed7" 2>/dev/null &&
 	! chown 1:1 "$MNT/sealed7" 2>/dev/null
+'
+
+# At an fsuid that cannot read the label, root keeps the CAP_SYS_ADMIN a
+# security.* xattr change needs, while the seal's label read fails.
+cat >"$WORK/fsuid.py" <<'PYEOF'
+import ctypes
+import os
+import sys
+
+fd = os.open(sys.argv[2], os.O_RDONLY)
+libc = ctypes.CDLL(None)
+libc.setfsuid(65534)
+if sys.argv[1] == "unlabel":
+    os.removexattr(fd, "security.bpf.shirudo")
+else:
+    os.setxattr(fd, "security.shirudo-probe", b"x")
+    libc.setfsuid(0)
+    os.close(os.open(sys.argv[2] + "/entry", os.O_WRONLY | os.O_CREAT, 0o600))
+PYEOF
+
+test_expect_success 'root cannot remove a label at an fsuid that cannot read it' '
+	! python3 "$WORK/fsuid.py" unlabel "$MNT/private" 2>/dev/null &&
+	python3 -c "
+import os, sys
+sys.exit(len(os.getxattr(sys.argv[1], \"security.bpf.shirudo\")) != 64)
+" "$MNT/private"
+'
+
+test_expect_success 'a label read root cannot make leaves a directory sealed' '
+	! python3 "$WORK/fsuid.py" entry "$MNT/privdir" 2>/dev/null &&
+	python3 -c "
+import os, sys
+os.getxattr(sys.argv[1], \"security.shirudo-probe\")
+" "$MNT/privdir" &&
+	[ ! -e "$MNT/privdir/entry" ]
 '
 
 test_done
