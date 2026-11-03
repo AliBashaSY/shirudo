@@ -649,8 +649,8 @@ refused, since it is a tree bound over the path rather than the one
 unlink, either end of a rename, a setattr (truncate, chmod, chown,
 utimes) and an xattr change need runtime authority (``SealWrite``,
 ``SealUnlink``, ``SealRename``, ``SealSetattr``, ``SealXattr``). Only an
-authorized task sets the exact seal label or changes the policy label on
-any inode (``SealLabel``).
+authorized task sets or removes the exact seal label or changes the
+policy label on any inode (``SealLabel``).
 
 The label is a public constant, the same on every build. It marks a
 target and never grants authority: a file system root mounts can carry
@@ -659,7 +659,11 @@ with an error other than ``ENODATA``, ``EOPNOTSUPP``, ``EACCES`` or
 ``EPERM`` requires authority, and so does a failure to allocate the
 seal's scratch memory. The two permission errors count as unlabeled
 because the kernel checks read permission for the caller before it
-returns the label (U12).
+returns the label (U12). The labels themselves are refused to such a
+caller whatever the read said: root takes a file system uid that cannot
+read the inode with ``setfsuid()`` and keeps the ``CAP_SYS_ADMIN`` that
+a ``security.*`` xattr change needs, so the read fails where the
+removal would pass (``t6111``).
 
 Executables may carry ``security.bpf.shirudo.policy``, an 8-byte
 target-native ``__u64`` bitset. During exec, the seal ORs the value from

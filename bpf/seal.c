@@ -460,13 +460,18 @@ int BPF_PROG(shirudo_seal_inode_setxattr, struct mnt_idmap *idmap,
 	return seal_dentry(dentry, TAMPER_SEAL_XATTR);
 }
 
+/*
+ * The label read fails with -EACCES for a caller who may not read the
+ * inode, which root becomes at will with setfsuid() while it keeps the
+ * CAP_SYS_ADMIN the removal needs: the labels are never left to it.
+ */
 SEC("lsm.s/inode_removexattr")
 int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, const char *name, int ret)
 {
 	if (ret)
 		return ret;
-	if (seal_is_policy(name))
+	if (seal_is_label(name) || seal_is_policy(name))
 		return seal_caller(TAMPER_SEAL_LABEL);
 	return seal_dentry(dentry, TAMPER_SEAL_XATTR);
 }

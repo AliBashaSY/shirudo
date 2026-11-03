@@ -296,9 +296,9 @@ one usually still compiles and passes tests.
   from the authenticated runtime grants the committed task mark. Fork inherits
   it, successful exec re-evaluates it and failed exec preserves it. Writable
   state retains its seal xattrs; runtime and config files use dm-verity. Only
-  an authorized caller may set the exact seal xattr. Both rename endpoints,
-  write open, unlink, setattr and xattr changes are checked. There is no
-  executable replacement exception.
+  an authorized caller may set or remove the exact seal xattr. Both rename
+  endpoints, write open, unlink, setattr and xattr changes are checked. There
+  is no executable replacement exception.
   Label read errors require authority except ENODATA, EOPNOTSUPP, EACCES
   and EPERM; scratch allocation failure also requires authority. The seal
   labels new inodes during creation when the parent has a cached directory
