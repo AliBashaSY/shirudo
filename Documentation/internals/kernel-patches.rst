@@ -34,13 +34,24 @@ Summary
      - Daniel Borkmann
      - No
      - All
+   * - ``0004-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch``
+     - Daniel Borkmann
+     - No
+     - All
+   * - ``0005-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch``
+     - Daniel Borkmann
+     - No
+     - All
 
 "In bpf-next" was checked against the bpf-next tree at commit
 ``cd5bc55288d4``: ``include/linux/ftrace.h`` there still marks jmp mode
 with bit 0, ``include/linux/lsm_hook_defs.h`` has no ``tpm_command``
-hook, and ``fs/bpf_fs_kfuncs.c`` checks the calling task's read
-permission before it returns a ``security.bpf.`` xattr to an LSM
-program.
+hook, ``fs/bpf_fs_kfuncs.c`` checks the calling task's read permission
+before it returns a ``security.bpf.`` xattr to an LSM program, the
+sleepable hook set of ``kernel/bpf/bpf_lsm.c`` lacks ``inode_mkdir``,
+``inode_link``, ``inode_set_acl``, ``inode_remove_acl``,
+``inode_file_setattr`` and ``inode_copy_up``, and the verifier trusts
+``d_inode`` of a dentry but not ``d_parent``.
 
 How the test kernel applies them
 --------------------------------

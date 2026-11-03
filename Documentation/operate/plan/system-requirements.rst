@@ -83,6 +83,17 @@ Kernel source
        LSMs read their labels. Without it the seal takes a label its
        caller may not read for a missing one unless the inode carries a
        mark, which root can arrange with an idmapped mount or an ACL.
+   * - :src:`kernel/0004-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
+     - Lets a sleepable LSM program attach to ``inode_mkdir``,
+       ``inode_link``, ``inode_set_acl``, ``inode_remove_acl``,
+       ``inode_file_setattr`` and ``inode_copy_up``. The seal reads
+       labels in those hooks and ``shirudo init`` fails to attach them
+       without it.
+   * - :src:`kernel/0005-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`
+     - Lets an LSM program pass ``dentry->d_parent`` to the xattr kfunc.
+       The seal reads the label of the directory a new entry goes into
+       from it; without the patch the verifier refuses the seal's entry
+       hooks.
 
 :doc:`/internals/kernel-patches` gives the upstream status of the
 carried patches.
