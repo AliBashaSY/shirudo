@@ -93,7 +93,8 @@ the switch to the root file system. It needs
    ``/run/shirudo/config`` with ``ro,nodev,nosuid,noexec``.
 #. Restore the archived upatches from ``/var/lib/shirudo/upatches`` in
    sorted order through the signed loader path. An entry without the
-   seal label, or one that is not a valid artifact, is ignored. The
+   seal label, one that is not a valid artifact, or one whose load the
+   eventlog does not record as still loaded, is ignored. The
    first failure stops the restore; upatches restored before it stay
    loaded.
 #. Bind the measurement register, extend it with one ``init`` event that

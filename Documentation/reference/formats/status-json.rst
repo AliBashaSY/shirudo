@@ -159,8 +159,8 @@ Verdicts
        ``.bpf`` or ``.dm-verity`` keyring's serial differs from the
        pinned serial, a keyring ``init`` pinned is gone, a keyring holds
        a link ``init`` did not freeze, the config key ``init`` froze is
-       gone from ``.dm-verity``, a upatch is pinned without a record of
-       this boot, or the selected config cannot be verified against its
+       gone from ``.dm-verity``, a upatch is pinned or archived without
+       a record of this boot, or the selected config cannot be verified against its
        activation records.
    * - ``lsm-off``
      - The LSM link is not pinned. Enforcement is off.
@@ -239,7 +239,7 @@ its details that applies, in the order listed.
      - ``live register != eventlog replay (tamper?)``
    * - ``UpatchesMeasured``
      - ``OK``
-     - ``every pinned upatch is in this boot's records``
+     - ``every pinned or archived upatch is in this boot's records``
    * -
      - ``WARN``
      - ``no record of this boot to check the pins against``
@@ -248,7 +248,7 @@ its details that applies, in the order listed.
      - ``pins not checked against the records: <error>``
    * -
      - ``ALERT``
-     - ``<n> pinned without a record of this boot: <names>``
+     - ``<n> pinned or archived without a record of this boot: <names>``
    * - ``TpmMeasured``
      - ``OK``
      - ``NV index 0x01818E00 readable``
@@ -719,7 +719,7 @@ indented here:
        {
          "type": "UpatchesMeasured",
          "status": "OK",
-         "detail": "every pinned upatch is in this boot's records"
+         "detail": "every pinned or archived upatch is in this boot's records"
        },
        {
          "type": "TpmMeasured",

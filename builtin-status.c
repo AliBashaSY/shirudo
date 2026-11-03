@@ -78,6 +78,12 @@ static int note_unmeasured(const char *name, void *ctx)
 	return 0;
 }
 
+static int note_unmeasured_archive(const char *name, const char *path,
+				   void *ctx)
+{
+	return note_unmeasured(name, ctx);
+}
+
 static int notdot(const struct dirent *e)
 {
 	return strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0;
@@ -899,6 +905,7 @@ int cmd_status(int argc, const char **argv)
 	const char *otel_status = NULL;
 	bool otel_endpoint_configured = false;
 	char unmeasured_names[UNMEASURED_NAMES] = "";
+	struct measured_set *mset = NULL;
 	char config_root_hex[65] = "";
 	__u8 config_root[32];
 	int unmeasured, lock;
@@ -1017,8 +1024,21 @@ int cmd_status(int argc, const char **argv)
 	if (n_ups < 0)
 		n_ups = 0;
 	lock = eventlog_lock();
-	unmeasured = lock < 0 ? lock :
-		     measured_unmeasured_pins(note_unmeasured, unmeasured_names);
+	unmeasured = lock < 0 ? lock : measured_set_boot(&mset);
+	if (!unmeasured) {
+		unmeasured = measured_unmeasured_pins(mset, note_unmeasured,
+						      unmeasured_names);
+		if (unmeasured >= 0) {
+			int archived;
+
+			archived = measured_unmeasured_archives(mset,
+								note_unmeasured_archive,
+								unmeasured_names);
+			unmeasured = archived < 0 ? archived :
+				     unmeasured + archived;
+		}
+		measured_set_free(mset);
+	}
 	eventlog_unlock(lock);
 
 	gather_assets(&assets);

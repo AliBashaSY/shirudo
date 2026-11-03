@@ -67,7 +67,7 @@ loaded, captured from the test VM:
      LsmAttached      OK      lsm/bpf link present and pinned
      KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
      ChainIntact      OK      live register == eventlog replay
-     UpatchesMeasured OK      every pinned upatch is in this boot's records
+     UpatchesMeasured OK      every pinned or archived upatch is in this boot's records
      TpmMeasured      OK      NV index 0x01818E00 readable
      ConfigActive     OK      config dc90bacc356f.. is active
 
@@ -180,11 +180,13 @@ verdict is derived from them.
        ``no register bound this boot (init incomplete)`` or ``no TPM
        answered, no register to replay``.
    * - ``UpatchesMeasured``
-     - Every upatch pinned in the private bpffs is in this boot's
-       records: loaded with the payload its pin records and not unloaded
-       since. ``ALERT`` ``<n> pinned without a record of this boot:
-       <names>`` is what a load stopped between its pins and its extend
-       leaves, which the next ``upatch load`` or ``upatch unload``
+     - Every upatch pinned in the private bpffs or archived under
+       ``/var/lib/shirudo/upatches`` is in this boot's records: loaded
+       with the payload its pin or archive records and not unloaded
+       since. ``ALERT`` ``<n> pinned or archived without a record of
+       this boot: <names>`` is what a load stopped between its pins and
+       its extend leaves, or an archive root brought back after its
+       unload, which the next ``upatch load`` or ``upatch unload``
        undoes before it acts. ``WARN`` ``no record of this boot to check
        the pins against`` before ``init``, or ``pins not checked against
        the records: <error>``.
@@ -417,20 +419,22 @@ record, the eventlog of this boot was altered or hidden, or the index is
 not the one ``init`` bound. The ``TPM Measurement`` section shows which
 lines disagree.
 
-A upatch is pinned without a record:
+A upatch is pinned or archived without a record:
 
 .. code-block:: text
 
-   Status:            tampered  (a upatch is pinned without a record of this boot)
+   Status:            tampered  (a upatch is pinned or archived without a record of this boot)
    ...
-     UpatchesMeasured ALERT   1 pinned without a record of this boot: <name>
+     UpatchesMeasured ALERT   1 pinned or archived without a record of this boot: <name>
 
 A load was stopped between its pins and its extend, so the upatch runs
-while the register does not cover it, or an unload was stopped after
-its extend. The next ``upatch load`` or ``upatch unload``, and every
-``bpm`` command that loads or unloads, undoes those pins before it acts
-and records the undo in the journal. What stopped the load is the
-question for the incident.
+while the register does not cover it, an unload was stopped after its
+extend, or an archive came back after its unload, which ``init`` would
+not restore. The next ``upatch load`` or ``upatch unload``, and every
+``bpm`` command that loads or unloads, undoes those pins and archives
+before it acts and records the undo in the journal. What stopped the
+load, or who brought the archive back, is the question for the
+incident.
 
 The live keyring is not the one ``init`` sealed:
 

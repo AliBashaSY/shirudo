@@ -377,6 +377,9 @@ signed config image.
    * - ``t6143-unmeasured-load``
      - A load stopped before its extend is counted, reported by status
        and undone by the next upatch command
+   * - ``t6144-returned-archive``
+     - An archive root brings back after its unload is reported, not
+       restored by init and removed by the next upatch command
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -592,7 +595,7 @@ Coverage by area
        ``t5003``
    * - TPM register
      - ``t4001``, ``t4003``, ``t4101``, ``t4102``, ``t4103``,
-       ``t6125``, ``t6128``, ``t6143``. Unit: ``chain``
+       ``t6125``, ``t6128``, ``t6143``, ``t6144``. Unit: ``chain``
    * - Attestation
      - ``t2003``, ``t2005``, ``t4003``, ``t4004``, ``t4102``,
        ``t9105``. Fuzz: ``attest``, ``tpm-wire``

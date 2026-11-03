@@ -46,10 +46,11 @@ Description
 #. It refuses when the eventlog would exceed ``eventlog.max_bytes``
    (``eventlog_full``).
 #. It takes the register lock, ``/var/lib/shirudo/eventlog.lock``, which
-   it holds to the end, and undoes the pins of a load that was stopped
-   before its extend or of an unload stopped after it, the pins
-   ``status`` reports under ``UpatchesMeasured``. A upatch of the same
-   name that is loaded is refused (``already_loaded``).
+   it holds to the end, and undoes the pins and archives this boot's
+   records do not cover: those of a load stopped before its extend, of
+   an unload stopped after it, and an archive brought back after its
+   unload, which ``status`` reports under ``UpatchesMeasured``. A upatch
+   of the same name that is loaded is refused (``already_loaded``).
 #. It parses the artifact: a LOAD artifact, a safe and signed name, a
    payload digest that matches the payload, valid attach metadata
    (``parser_rejected``). For a uprobe it checks each target binary

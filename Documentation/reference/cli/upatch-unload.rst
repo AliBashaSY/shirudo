@@ -41,8 +41,7 @@ both in signed sections (see :doc:`build`). ``unload``:
 #. Refuses when the eventlog would exceed ``eventlog.max_bytes``
    (``eventlog_full``).
 #. Takes the register lock, which it holds to the end, and undoes the
-   pins of a load or an unload that was stopped before the register
-   covered them, as ``load`` does.
+   pins and archives this boot's records do not cover, as ``load`` does.
 #. Loads the directive's loader with ``BPF_PROG_LOAD`` against the
    ``.bpf`` keyring, so that the kernel verifies its signature before
    anything is removed.

@@ -2813,20 +2813,46 @@ static int undo_unmeasured_pin(const char *name, void *ctx)
 	return 0;
 }
 
+static int undo_unmeasured_archive(const char *name, const char *path,
+				   void *ctx)
+{
+	if (unlink(path) != 0 && errno != ENOENT)
+		pr_err("upatch: %s is archived without a record of its load and could not be removed: %s; operator must reconcile",
+		       name, strerror(errno));
+	else
+		pr_audit("upatch: %s was archived without a record of its load; the archive was removed",
+			 name);
+	return 0;
+}
+
 /*
  * A load that a signal stopped between its pins and its extend, or an
  * unload stopped between its append and its detach, left pins the
- * register does not cover, which status reports meanwhile. Every upatch
- * command undoes them before it acts, under the register lock a load
- * holds from before its pins to its append, so that the scan never
- * takes a load in flight for one that was stopped.
+ * register does not cover, and an archive root brought back after its
+ * unload is one the records do not cover either; status reports both
+ * meanwhile. Every upatch command undoes them before it acts, under the
+ * register lock a load holds from before its pins to its append, so that
+ * the scan never takes a load in flight for one that was stopped.
  */
-static void undo_unmeasured_pins(void)
+static void undo_unmeasured(void)
 {
-	int ret = measured_unmeasured_pins(undo_unmeasured_pin, NULL);
+	struct measured_set *set;
+	int ret;
 
-	if (ret < 0 && ret != -ENOENT)
-		pr_warn("upatch: cannot check the pins against this boot's records: %s",
+	ret = measured_set_boot(&set);
+	if (ret) {
+		if (ret != -ENOENT)
+			pr_warn("upatch: cannot read this boot's records: %s",
+				strerror(-ret));
+		return;
+	}
+	ret = measured_unmeasured_pins(set, undo_unmeasured_pin, NULL);
+	if (ret >= 0)
+		ret = measured_unmeasured_archives(set, undo_unmeasured_archive,
+						   NULL);
+	measured_set_free(set);
+	if (ret < 0)
+		pr_warn("upatch: cannot check the pins and archives against this boot's records: %s",
 			strerror(-ret));
 }
 
@@ -2908,7 +2934,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 			 "cannot take the register lock");
 		goto done;
 	}
-	undo_unmeasured_pins();
+	undo_unmeasured();
 	/*
 	 * Only a completed load records the payload and only an unload
 	 * removes it. A load over a live upatch rebinds its serializer pins
@@ -3092,7 +3118,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 			 "cannot take the register lock");
 		goto done;
 	}
-	undo_unmeasured_pins();
+	undo_unmeasured();
 	/* A bad signature fails here, before anything is removed. */
 	if (__upatch_apply(file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");

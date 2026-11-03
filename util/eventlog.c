@@ -179,8 +179,9 @@ out:
  * This boot's records from its last init line on; the callback learns
  * which line that is so a replay can start from zero.
  */
-static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
-					   bool is_init, void *ctx), void *ctx)
+static int walk_lines(char *buf, bool all,
+		      int (*cb)(const char *line, size_t len, bool is_init,
+				void *ctx), void *ctx)
 {
 	char boot_id[64], line_boot[64], type[32];
 	bool in_boot = false;
@@ -204,22 +205,23 @@ static int walk_lines(char *buf, int (*cb)(const char *line, size_t len,
 			ret = -EINVAL;
 			break;
 		}
-		if (!f[0].seen || !boot_id[0] || strcmp(line_boot, boot_id))
+		if (!all &&
+		    (!f[0].seen || !boot_id[0] || strcmp(line_boot, boot_id)))
 			continue;
 		is_init = f[1].seen && strcmp(type, "init") == 0;
 		if (is_init)
 			in_boot = true;
-		if (!in_boot)
+		if (!all && !in_boot)
 			continue;
 		ret = cb(line, strlen(line), is_init, ctx);
 	}
-	if (!ret && !in_boot)
+	if (!all && !ret && !in_boot)
 		return -ENOENT;
 	return ret;
 }
 
-static int walk_boot(int (*cb)(const char *line, size_t len, bool is_init,
-			       void *ctx), void *ctx)
+static int walk_log(bool all, int (*cb)(const char *line, size_t len,
+					bool is_init, void *ctx), void *ctx)
 {
 	char *buf = NULL;
 	size_t len = 0;
@@ -228,9 +230,15 @@ static int walk_boot(int (*cb)(const char *line, size_t len, bool is_init,
 	ret = read_log(&buf, &len);
 	if (ret)
 		return ret;
-	ret = walk_lines(buf, cb, ctx);
+	ret = walk_lines(buf, all, cb, ctx);
 	xfree(buf, len + 1);
 	return ret;
+}
+
+static int walk_boot(int (*cb)(const char *line, size_t len, bool is_init,
+			       void *ctx), void *ctx)
+{
+	return walk_log(false, cb, ctx);
 }
 
 struct adopt_ctx {
@@ -261,7 +269,7 @@ static int log_holds(const char *line, size_t len)
 		return 0;
 	if (ret)
 		return ret;
-	ret = walk_lines(buf, adopt_seen, &a);
+	ret = walk_lines(buf, false, adopt_seen, &a);
 	xfree(buf, blen + 1);
 	if (ret && ret != -ENOENT)
 		return ret;
@@ -542,6 +550,16 @@ int eventlog_boot_upatches(int (*cb)(enum eventlog_upatch_event event,
 	struct upatches_ctx u = { .cb = cb, .ctx = ctx };
 
 	return walk_boot(upatches_line, &u);
+}
+
+int eventlog_upatches(int (*cb)(enum eventlog_upatch_event event,
+				const char *name, const char *payload_hex,
+				void *ctx),
+		      void *ctx)
+{
+	struct upatches_ctx u = { .cb = cb, .ctx = ctx };
+
+	return walk_log(true, upatches_line, &u);
 }
 
 void eventlog_timestamp(char *out, size_t cap)

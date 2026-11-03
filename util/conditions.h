@@ -47,7 +47,7 @@ struct conditions_input {
 	int		config_state;	/* image_config_state() */
 	const char	*config_root;	/* hex, when config_seen */
 	int		pins_rc;	/* 0 when the pins were checked, else -errno */
-	int		pins_unmeasured;	/* pinned without a record this boot */
+	int		pins_unmeasured;	/* pinned or archived without a record this boot */
 	const char	*pins_detail;	/* their names, when any */
 };
 

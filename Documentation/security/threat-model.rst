@@ -807,7 +807,7 @@ An authorized process is protected against being taken over:
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
-   ``t6135``, ``t6136``, ``t6137``
+   ``t6135``, ``t6136``, ``t6137``, ``t6144``
 :Residual: R2, R15, R19, R22
 
 T4 Substituting artifacts
@@ -898,7 +898,9 @@ its extend, with ``SIGKILL`` say (counted as ``SealSignal``), leaves
 pins the register does not
 cover and the upatch attached: ``shirudo status`` reports them
 (``UpatchesMeasured``, verdict ``tampered``) and the next upatch
-command, ``bpm``'s included, undoes them before it acts. A measuring
+command, ``bpm``'s included, undoes them, pins and archives, before it
+acts; ``init`` restores only an archive whose load the eventlog records
+without a later unload. A measuring
 command holds a lock beside the eventlog from its extend to its append,
 a load or an unload from that undo to its append, so the register and
 the log advance in one order and the undo never takes a load in flight
@@ -926,7 +928,7 @@ tree operations run without it.
    ``tpm_error`` and ``eventlog_full`` from shirudo
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
-   ``t6122``, ``t6128``, ``t6143``
+   ``t6122``, ``t6128``, ``t6143``, ``t6144``
 :Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window
@@ -1434,13 +1436,16 @@ R15 Marks can be evicted
    replaces state by rename, so root can keep earlier labeled versions
    alive through hard links in an unsealed directory on the same file
    system and bring them back. An unlabeled entry stays inert: shirudo
-   neither follows nor restores it. A returned labeled entry is taken
-   for shirudo's own. While a file's mark is absent, root can change
+   neither follows nor restores it. A returned archive is not restored
+   either: ``init`` restores only an archive whose load the eventlog
+   records without a later unload, ``status`` reports it
+   (``UpatchesMeasured``) and the next upatch command removes it
+   (``t6144``). A returned labeled entry elsewhere in the state is
+   taken for shirudo's own. While a file's mark is absent, root can change
    its ACL and inode flags, and on a kernel without the carried xattr
    patch (A3) a label read it made fail counts as unlabeled (T3).
-   Detection: only signatures and measurement; an
-   archived upatch restored at the next boot appears in the init event's
-   set. Mitigation: D6.
+   Detection: a returned archive shows in ``status``; other returned
+   entries only through signatures and measurement. Mitigation: D6.
 
 R16 Any artifact ever signed loads at any time
    There is no version floor, no expiry and no per-target

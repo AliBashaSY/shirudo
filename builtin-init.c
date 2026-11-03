@@ -53,6 +53,7 @@
 #include "util/nv_writer.h"
 #include "util/paths.h"
 #include "util/preflight.h"
+#include "util/measured.h"
 #include "util/seal.h"
 #include "util/tpm.h"
 #include "util/upatch.h"
@@ -907,19 +908,24 @@ out:
 
 /*
  * All or nothing: one failure leaves init incomplete and the register
- * unextended. On a re-run an upatch already pinned this boot with the
- * archived payload is counted and left alone; loading it again would
- * only attach a second link to fail at the pin. Once this boot's init
- * event is on record the restore has happened and the register covers
- * what it loaded, so an archived artifact that is not loaded cannot be
- * applied any more: nothing would measure it. It was renamed into the
- * archive since, or left behind by an unload cut short, and either is
- * for the operator to resolve.
+ * unextended. The eventlog says which archives are shirudo's to
+ * restore: those whose load it records without a later unload. One it
+ * does not, an archive root brought back through a hard link after its
+ * unload or one a stopped load left without a record, carries the
+ * label and is ignored. On a re-run an upatch already pinned this boot
+ * with the archived payload is counted and left alone; loading it again
+ * would only attach a second link to fail at the pin. Once this boot's
+ * init event is on record the restore has happened and the register
+ * covers what it loaded, so an archived artifact that is not loaded
+ * cannot be applied any more: nothing would measure it. It was renamed
+ * into the archive since, or left behind by an unload cut short, and
+ * either is for the operator to resolve.
  */
 static int boot_restore(bool recorded,
 			struct measured_upatch **out_set, size_t *out_n)
 {
 	struct measured_upatch *set = NULL;
+	struct measured_set *measured = NULL;
 	struct dirent **names = NULL;
 	int n, i, ret = 0;
 	size_t cnt = 0;
@@ -947,6 +953,16 @@ static int boot_restore(bool recorded,
 			libc_free(names[i]);
 		libc_free(names);
 		return -ENOMEM;
+	}
+	ret = measured_set_log(&measured);
+	if (ret) {
+		pr_err("boot-restore: cannot read the eventlog's loads: %s",
+		       strerror(-ret));
+		for (i = 0; i < n; i++)
+			libc_free(names[i]);
+		libc_free(names);
+		xfree(set, (size_t)n * sizeof(*set));
+		return ret;
 	}
 
 	pr_info("boot-restore: re-applying %d upatch%s from %s",
@@ -983,6 +999,13 @@ static int boot_restore(bool recorded,
 		hex_encode(u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
 			   set[cnt].payload_hex);
 		upatch_close(&u);
+		if (!measured_holds(measured, set[cnt].name,
+				    set[cnt].payload_hex)) {
+			pr_warn("boot-restore: %s is archived without a "
+				"record of its load (returned or foreign "
+				"entry); ignored", names[i]->d_name);
+			goto next;
+		}
 		fd = upatch_open_first_link(set[cnt].name);
 		if (fd >= 0) {
 			close(fd);
@@ -1019,6 +1042,7 @@ next:
 		libc_free(names[i]);
 	}
 	libc_free(names);
+	measured_set_free(measured);
 
 	if (ret) {
 		xfree(set, (size_t)n * sizeof(*set));

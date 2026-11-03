@@ -16,6 +16,8 @@
 #include "malloc.h"
 #include "measured.h"
 #include "paths.h"
+#include "seal.h"
+#include "upatch.h"
 
 #define MEASURED_MAX	4096
 
@@ -61,8 +63,45 @@ static int measured_event(enum eventlog_upatch_event event, const char *name,
 	return 0;
 }
 
-static bool measured_holds(const struct measured_set *s, const char *name,
-			   const char *payload_hex)
+static int measured_set_fold(struct measured_set **out, bool all)
+{
+	struct measured_set *s;
+	int ret;
+
+	*out = NULL;
+	s = xmalloc(sizeof(*s));
+	if (!s)
+		return -ENOMEM;
+	s->n = 0;
+	s->entries = xcalloc(MEASURED_MAX, sizeof(*s->entries));
+	if (!s->entries) {
+		xfree(s, sizeof(*s));
+		return -ENOMEM;
+	}
+	ret = all ? eventlog_upatches(measured_event, s) :
+	      eventlog_boot_upatches(measured_event, s);
+	if (ret == -ENOENT && all)
+		ret = 0;
+	if (ret) {
+		measured_set_free(s);
+		return ret;
+	}
+	*out = s;
+	return 0;
+}
+
+int measured_set_boot(struct measured_set **out)
+{
+	return measured_set_fold(out, false);
+}
+
+int measured_set_log(struct measured_set **out)
+{
+	return measured_set_fold(out, true);
+}
+
+bool measured_holds(const struct measured_set *s, const char *name,
+		    const char *payload_hex)
 {
 	size_t i;
 
@@ -74,24 +113,33 @@ static bool measured_holds(const struct measured_set *s, const char *name,
 	return false;
 }
 
-int measured_unmeasured_pins(int (*cb)(const char *name, void *ctx),
+void measured_set_free(struct measured_set *s)
+{
+	if (!s)
+		return;
+	xfree(s->entries, MEASURED_MAX * sizeof(*s->entries));
+	xfree(s, sizeof(*s));
+}
+
+static void free_names(struct dirent **names, int n)
+{
+	int i;
+
+	for (i = 0; i < n; i++)
+		libc_free(names[i]);
+	libc_free(names);
+}
+
+int measured_unmeasured_pins(const struct measured_set *s,
+			     int (*cb)(const char *name, void *ctx),
 			     void *ctx)
 {
-	struct measured_set s = {};
 	struct dirent **pins = NULL;
-	int n, i, ret, unmeasured = 0;
+	int n, i, ret = 0, unmeasured = 0;
 
-	s.entries = xcalloc(MEASURED_MAX, sizeof(*s.entries));
-	if (!s.entries)
-		return -ENOMEM;
-	ret = eventlog_boot_upatches(measured_event, &s);
-	if (ret)
-		goto out;
 	n = scandir(BPFFS_UPATCHES_DIR, &pins, NULL, alphasort);
-	if (n < 0) {
-		ret = errno == ENOENT ? 0 : -errno;
-		goto out;
-	}
+	if (n < 0)
+		return errno == ENOENT ? 0 : -errno;
 	for (i = 0; i < n; i++) {
 		char payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1] = "";
 		__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
@@ -108,7 +156,7 @@ int measured_unmeasured_pins(int (*cb)(const char *name, void *ctx),
 		if (getxattr(dir, XATTR_PAYLOAD, payload, sizeof(payload)) ==
 		    (ssize_t)sizeof(payload))
 			hex_encode(payload, sizeof(payload), payload_hex);
-		if (measured_holds(&s, name, payload_hex))
+		if (measured_holds(s, name, payload_hex))
 			continue;
 		unmeasured++;
 		if (cb) {
@@ -117,10 +165,45 @@ int measured_unmeasured_pins(int (*cb)(const char *name, void *ctx),
 				break;
 		}
 	}
-	for (i = 0; i < n; i++)
-		libc_free(pins[i]);
-	libc_free(pins);
-out:
-	xfree(s.entries, MEASURED_MAX * sizeof(*s.entries));
+	free_names(pins, n);
+	return ret ? ret : unmeasured;
+}
+
+int measured_unmeasured_archives(const struct measured_set *s,
+				 int (*cb)(const char *name,
+					   const char *path, void *ctx),
+				 void *ctx)
+{
+	struct dirent **names = NULL;
+	int n, i, ret = 0, unmeasured = 0;
+
+	n = scandir(UPATCHES_DIR, &names, upatch_select, alphasort);
+	if (n < 0)
+		return errno == ENOENT ? 0 : -errno;
+	for (i = 0; i < n; i++) {
+		char payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
+		char name[UPATCH_NAME_MAX + 1];
+		char path[PATH_MAX];
+		struct upatch u;
+
+		if (strsprintf(path, sizeof(path), "%s/%s", UPATCHES_DIR,
+			       names[i]->d_name) < 0 ||
+		    !seal_owns(path) || upatch_open(path, &u))
+			continue;
+		memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
+		name[UPATCH_NAME_MAX] = '\0';
+		hex_encode(u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
+			   payload_hex);
+		upatch_close(&u);
+		if (measured_holds(s, name, payload_hex))
+			continue;
+		unmeasured++;
+		if (cb) {
+			ret = cb(name, path, ctx);
+			if (ret)
+				break;
+		}
+	}
+	free_names(names, n);
 	return ret ? ret : unmeasured;
 }

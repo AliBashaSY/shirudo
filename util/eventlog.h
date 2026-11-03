@@ -81,14 +81,19 @@ enum eventlog_upatch_event {
 };
 
 /*
- * The loads and unloads this boot's records measure, in order. An init
- * record gives EVENTLOG_UPATCH_INIT with no name, which starts the set
- * over, then each upatch of its set as a load.
+ * The loads and unloads the records measure, in order: this boot's, or
+ * every boot's since the log began. An init record gives
+ * EVENTLOG_UPATCH_INIT with no name, which starts the set over, then
+ * each upatch of its set as a load.
  */
 int eventlog_boot_upatches(int (*cb)(enum eventlog_upatch_event event,
 				     const char *name,
 				     const char *payload_hex, void *ctx),
 			   void *ctx);
+int eventlog_upatches(int (*cb)(enum eventlog_upatch_event event,
+				const char *name, const char *payload_hex,
+				void *ctx),
+		      void *ctx);
 
 /*
  * 1 if appending one more event would push the eventlog past max_bytes;

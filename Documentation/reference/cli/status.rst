@@ -54,8 +54,8 @@ The report shows six conditions, each ``OK``, ``WARN`` or ``ALERT``:
      - The live register differs from the eventlog replay, the ``.bpf``
        or ``.dm-verity`` keyring is not the one ``init`` froze or is
        gone, a keyring holds a link ``init`` did not freeze, the config
-       key is gone from ``.dm-verity``, a upatch is pinned without a
-       record of this boot, or the selected config cannot be verified
+       key is gone from ``.dm-verity``, a upatch is pinned or archived
+       without a record of this boot, or the selected config cannot be verified
        against its records.
    * - ``lsm-off``
      - The LSM link is not pinned.
@@ -181,7 +181,7 @@ Show the state of a target:
      LsmAttached      OK      lsm/bpf link present and pinned
      KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
      ChainIntact      OK      live register == eventlog replay
-     UpatchesMeasured OK      every pinned upatch is in this boot's records
+     UpatchesMeasured OK      every pinned or archived upatch is in this boot's records
      TpmMeasured      OK      NV index 0x01818E00 readable
      ConfigActive     OK      config dc90bacc356f.. is active
 

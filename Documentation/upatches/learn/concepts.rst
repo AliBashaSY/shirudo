@@ -267,7 +267,7 @@ detach it.
 It cannot stay loaded unmeasured. A load whose archive copy or register
 extend fails is undone, a load stopped before its extend is undone by the
 next load or unload and reported by ``status`` until then, and ``init``
-refuses to restore an archived upatch the register does not cover.
+restores only an archived upatch whose load the eventlog records.
 
 It cannot be removed without the signer. A loaded upatch goes away through
 a signed unload directive bound to its payload, or through a key

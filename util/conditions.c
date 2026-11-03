@@ -149,12 +149,12 @@ size_t conditions(const struct conditions_input *in,
 				   strerror(-in->pins_rc));
 		else if (in->pins_unmeasured)
 			set_detail(&c[n], "ALERT",
-				   "%d pinned without a record of this boot: %s",
+				   "%d pinned or archived without a record of this boot: %s",
 				   in->pins_unmeasured,
 				   in->pins_detail ? in->pins_detail : "?");
 		else
 			set_detail(&c[n], "OK",
-				   "every pinned upatch is in this boot's records");
+				   "every pinned or archived upatch is in this boot's records");
 		n++;
 	}
 	if (n < cap) {
@@ -250,7 +250,7 @@ void status_reason(const struct conditions_input *in,
 		if (in->cm_seen && !in->chain_matches)
 			strscpy(buf, "live register != eventlog replay", cap);
 		else if (in->pins_unmeasured)
-			strscpy(buf, "a upatch is pinned without a record of this boot",
+			strscpy(buf, "a upatch is pinned or archived without a record of this boot",
 				cap);
 		else if (config_untrusted(in))
 			strscpy(buf, "the selected config cannot be verified against its records",

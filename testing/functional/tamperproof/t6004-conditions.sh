@@ -109,14 +109,14 @@ test_expect_success 'a bound register is measured' '
 
 test_expect_success 'every pinned upatch in the records is OK' '
 	./$H 1 bpf 100 100 match |
-		grep -qx "UpatchesMeasured OK every pinned upatch is in this boot.s records"
+		grep -qx "UpatchesMeasured OK every pinned or archived upatch is in this boot.s records"
 '
 
 test_expect_success 'a pin without a record of this boot is tampered' '
 	out=$(SHIRUDO_TEST_PINS=unmeasured:shirudo-test-basic,kernel-obs ./$H 1 bpf 100 100 match) &&
 	echo "$out" | grep -qx "status=tampered" &&
-	echo "$out" | grep -qx "reason=a upatch is pinned without a record of this boot" &&
-	echo "$out" | grep -qx "UpatchesMeasured ALERT 2 pinned without a record of this boot: shirudo-test-basic,kernel-obs"
+	echo "$out" | grep -qx "reason=a upatch is pinned or archived without a record of this boot" &&
+	echo "$out" | grep -qx "UpatchesMeasured ALERT 2 pinned or archived without a record of this boot: shirudo-test-basic,kernel-obs"
 '
 
 test_expect_success 'pins that cannot be checked are a warning, not a verdict' '
