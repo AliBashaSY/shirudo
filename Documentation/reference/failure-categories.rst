@@ -176,6 +176,12 @@ Categories
        priority, a kprobe at another function or offset.
      - Run the load in the host's initial cgroup and network namespaces
        and with the host's sysfs.
+   * - ``already_loaded``
+     - ``pin``
+     - ``EEXIST``
+     - A upatch of that name is loaded, with the payload a completed load
+       records. Nothing was touched.
+     - Unload it with its signed directive first.
    * - ``payload_mismatch``
      - ``pin``
      - ``EPERM``, errno of the read

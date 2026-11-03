@@ -182,6 +182,8 @@ signed config image.
        multiple policy bits with a preexisting xattr; its signed policy
        section binds verdict programs to shared task and socket policy
        maps
+   * - ``t3110-double-load``
+     - A second load of a loaded upatch is refused as ``already_loaded``
 
 ``tpm`` (4)
 ~~~~~~~~~~~

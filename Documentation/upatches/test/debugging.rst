@@ -179,6 +179,10 @@ Find the cause
           expects, or its recorded digest cannot be read. Build the
           directive with ``--payload-sha256`` set to the digest of the
           loaded build, from ``shirudo upatch info --json``.
+      * - ``pin``
+        - ``already_loaded``
+        - A upatch of that name is loaded. Unload it with its signed
+          directive first; nothing was touched.
       * - ``done``
         - ``already_unloaded``
         - Nothing of that name is loaded. Exit status 0, nothing measured.

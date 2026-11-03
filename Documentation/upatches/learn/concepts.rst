@@ -167,7 +167,9 @@ signed digest with the payload attribute of the pin directory. A
 different digest fails with ``payload_mismatch``, so a directive removes
 the exact build its signer made it for and nothing else. When nothing of
 that name is pinned, the result is ``already_unloaded`` and nothing is
-measured.
+measured. The other way round, a load of an artifact whose upatch is
+loaded is refused as ``already_loaded`` before anything is touched: a
+second copy would rebind the serializers to maps nothing reads.
 
 Build every unload directive with ``--payload-sha256`` set to the digest
 of the load it undoes. Without the option, the helper looks for an

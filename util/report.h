@@ -21,8 +21,8 @@
  *   pin, persist, tpm_extend, done
  * Category strings: ok, tampered, keyring_missing, lsm_denied,
  *   signature_rejected, verifier_rejected, parser_rejected,
- *   payload_mismatch, already_unloaded, detach_failed, tpm_error,
- *   unknown.
+ *   payload_mismatch, already_loaded, already_unloaded, detach_failed,
+ *   tpm_error, unknown.
  */
 struct op_report {
 	bool		ok;

@@ -2796,8 +2796,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 {
 	const char *file, *expect_chain, *expect_version_id, *report;
 	char name[UPATCH_NAME_MAX + 1] = {};
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN], live[UPATCH_PAYLOAD_HASH_LEN];
 	char staged[PATH_MAX] = {};
-	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
 	struct upatch u;
 	struct op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false, measured;
@@ -2859,6 +2859,19 @@ static int cmd_upatch_load(int argc, const char **argv)
 		pr_err("upatch load: refusing unsafe upatch name '%s'", name);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
+		goto done;
+	}
+	/*
+	 * Only a completed load records the payload and only an unload
+	 * removes it. A load over a live upatch rebinds its serializer pins
+	 * to maps nothing reads, and an undo of that load would take the
+	 * live one's pins and archive with it.
+	 */
+	if (have_id && !get_pin_payload(name, live)) {
+		pr_err("upatch load: %s is already loaded; unload it with its signed directive first",
+		       name);
+		rep_fail(&rep, "pin", "already_loaded", EEXIST,
+			 "upatch already loaded");
 		goto done;
 	}
 
