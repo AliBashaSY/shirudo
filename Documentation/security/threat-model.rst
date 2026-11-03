@@ -646,9 +646,12 @@ labels the existing tree on the run that brings enforcement up, before
 the seal attaches. On every later run a state root without the label is
 refused, since it is a tree bound over the path rather than the one
 ``init`` sealed (``t6123``). For a labeled inode, a write open, an
-unlink, either end of a rename, a setattr (truncate, chmod, chown,
-utimes) and an xattr change need runtime authority (``SealWrite``,
-``SealUnlink``, ``SealRename``, ``SealSetattr``, ``SealXattr``). Only an
+unlink or the removal of an empty directory, either end of a rename, a
+setattr (truncate, chmod, chown, utimes) and an xattr change need
+runtime authority (``SealWrite``, ``SealUnlink``, ``SealRename``,
+``SealSetattr``, ``SealXattr``), and for a marked one so do a change of
+its POSIX ACL (``SealXattr``) and of its inode flags with ``chattr``
+(``SealSetattr``), whose hooks cannot read the label. Only an
 authorized task sets or removes the exact seal label or changes the
 policy label on any inode (``SealLabel``).
 
@@ -657,13 +660,22 @@ target and never grants authority: a file system root mounts can carry
 it, and a binary that carries it gains nothing. A label read that fails
 with an error other than ``ENODATA``, ``EOPNOTSUPP``, ``EACCES`` or
 ``EPERM`` requires authority, and so does a failure to allocate the
-seal's scratch memory. The two permission errors count as unlabeled
-because the kernel checks read permission for the caller before it
-returns the label (U12). The labels themselves are refused to such a
-caller whatever the read said: root takes a file system uid that cannot
-read the inode with ``setfsuid()`` and keeps the ``CAP_SYS_ADMIN`` that
-a ``security.*`` xattr change needs, so the read fails where the
-removal would pass (``t6111``).
+seal's scratch memory. The kernel checks read permission for the caller
+before it returns the label, against the raw ids of the inode (U12), so
+the two permission errors mean either a caller that may do nothing or
+one that root gave a write without a read: through an idmapped bind
+mount, which shows uid 0's files as another id's to the permission
+check, or through an ACL, and then at a file system uid that cannot
+read. Where the read fails that way, the mark of the inode, or of the
+directory the operation changes, decides, and the operation needs
+authority when either is marked (``t6111``). The seal marks every inode
+it labels at creation, every file shirudo opens, every file anyone
+opens for writing and every directory anyone opens; a file shirudo has
+not touched since it came into memory has no mark (R15). The labels
+themselves are refused to such a caller whatever the read said: root
+takes a file system uid that cannot read the inode with ``setfsuid()``
+and keeps the ``CAP_SYS_ADMIN`` that a ``security.*`` xattr change
+needs, so the read fails where the removal would pass (``t6111``).
 
 Executables may carry ``security.bpf.shirudo.policy``, an 8-byte
 target-native ``__u64`` bitset. During exec, the seal ORs the value from
@@ -761,8 +773,10 @@ An authorized process is protected against being taken over:
 
 :Adversary: ADV-B and ADV-C
 :Enforced at: ``lsm.s/file_open``, ``lsm.s/inode_unlink``,
-   ``lsm.s/inode_rename``, ``lsm.s/inode_setattr``,
-   ``lsm.s/inode_setxattr``, ``lsm.s/inode_removexattr``,
+   ``lsm.s/inode_rmdir``, ``lsm.s/inode_rename``,
+   ``lsm.s/inode_setattr``, ``lsm.s/inode_setxattr``,
+   ``lsm.s/inode_removexattr``, ``lsm/inode_set_acl``,
+   ``lsm/inode_remove_acl``, ``lsm/inode_file_setattr``,
    ``lsm/inode_create``, ``lsm/inode_mkdir``, ``lsm/inode_symlink``,
    ``lsm/inode_mknod``, ``lsm/inode_link``, ``lsm/inode_init_security``,
    ``lsm/inode_copy_up``, ``lsm/key_permission``,
@@ -781,7 +795,7 @@ An authorized process is protected against being taken over:
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``
-:Residual: R2, R15, R19, R22, U5, U12
+:Residual: R2, R15, R19, R22, U12
 
 T4 Substituting artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1386,18 +1400,22 @@ R14 Configs roll back
    Detection: ``--expect-config-root`` with ``--expect-config-pcr``.
    Mitigation: D2.
 
-R15 Directory marks can be evicted
-   The label at creation and the entry checks follow a mark that the
-   seal keeps on a directory inode in memory. Root can evict the inode,
-   by dropping caches for instance, whenever shirudo does not hold the
-   directory open. While the mark is absent, root can create entries in
-   a labeled directory and hard-link an already labeled inode into it; a
-   hard link is the same inode and carries the label. shirudo replaces
-   state by rename, so root can keep earlier labeled versions alive
-   through hard links in an unsealed directory on the same file system
-   and bring them back. An unlabeled entry stays inert: shirudo neither
-   follows nor restores it. A returned labeled entry is taken for
-   shirudo's own. Detection: only signatures and measurement; an
+R15 Marks can be evicted
+   The label at creation, the entry checks, the ACL and inode flag
+   checks and the verdict on a label read that fails for the caller
+   follow a mark that the seal keeps on an inode in memory. Root can
+   evict the inode, by dropping caches for instance, whenever shirudo
+   does not hold it open, and a file shirudo has not opened since it
+   came into memory has no mark. While a directory's mark is absent,
+   root can create entries in it and hard-link an already labeled inode
+   into it; a hard link is the same inode and carries the label. shirudo
+   replaces state by rename, so root can keep earlier labeled versions
+   alive through hard links in an unsealed directory on the same file
+   system and bring them back. An unlabeled entry stays inert: shirudo
+   neither follows nor restores it. A returned labeled entry is taken
+   for shirudo's own. While a file's mark is absent, root can change
+   its ACL and inode flags, and a label read it made fail counts as
+   unlabeled (T3). Detection: only signatures and measurement; an
    archived upatch restored at the next boot appears in the init event's
    set. Mitigation: D6.
 
@@ -1527,19 +1545,6 @@ U4 Signatures other than ML-DSA-87 are accepted in places
    :Meanwhile: Use only certificates that ``shirudo genkey`` made, for
       repositories too.
 
-U5 The seal does not cover every operation
-   :Affects: Writable state (T3).
-   :Consequence: ``inode_rmdir``, ``inode_file_setattr`` (``chattr``)
-      and the POSIX ACL hooks are not attached, so root can remove an
-      empty labeled directory, set the immutable or append-only flag
-      on sealed files, and change their ACLs. The seal's link check
-      looks at the destination directory only, so a hard link keeps a
-      labeled inode alive in an unsealed directory (R15).
-   :Status: The missing hooks are confirmed in code; the consequences
-      are a code-path reading, not reproduced.
-   :Meanwhile: Nothing on the target. A changed upatch archive still
-      fails at load or shows in the init event.
-
 U6 The eventlog becomes unreadable at 8 MiB
    :Affects: Every reader of the eventlog: replay, ``shirudo status``,
       ``shirudo attest`` and ``init``.
@@ -1629,9 +1634,9 @@ U12 Another LSM can switch the seal off
    :Consequence: The kernel's label read checks the caller's read
       permission, and every LSM's ``inode_permission`` hook takes part.
       A policy that grants write or unlink but refuses read makes a
-      labeled file look unlabeled, and the operation goes through
-      without a counter. The same refusal on a directory open leaves
-      its mark as it was.
+      labeled inode without a mark look unlabeled, and the operation
+      goes through without a counter; a marked one needs authority
+      (T3), and the same refusal on an open leaves the mark as it was.
    :Status: Confirmed in code and in the kernel; the attack is a
       code-path reading, not reproduced.
    :Meanwhile: Run no other LSM whose policy root can change at

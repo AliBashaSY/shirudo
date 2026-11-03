@@ -184,14 +184,19 @@ Reading the label
 
 The seal reads the label with the ``bpf_get_file_xattr()`` and
 ``bpf_get_dentry_xattr()`` kfuncs. Both first check that the calling
-task may read the inode. If the seal refused every operation whose label
-read failed, it would refuse every write-only open and every unlink of a
-file the caller cannot read, on every file system. So these results count
-as unlabeled and the operation goes ahead: no label (``ENODATA``), no
-security extended attributes on the file system (``EOPNOTSUPP``), and a
-label the caller may not read (``EACCES``, ``EPERM``). A label of any
-length, any other error, and a failure to allocate the scratch buffer
-the kfunc writes into require runtime authority.
+task may read the inode, against its raw ids. If the seal refused every
+operation whose label read failed, it would refuse every write-only
+open and every unlink of a file the caller cannot read, on every file
+system. So no label (``ENODATA``) and no security extended attributes
+on the file system (``EOPNOTSUPP``) count as unlabeled and the operation
+goes ahead. A label the caller may not read (``EACCES``, ``EPERM``) is
+also what root makes of any label by granting a write without a read,
+through an idmapped bind mount or an ACL, and then acting at a file
+system uid that cannot read. There the mark of the inode, or of the
+directory the operation changes, decides, and a marked one requires
+runtime authority. A label of any length, any other error, and a
+failure to allocate the scratch buffer the kfunc writes into require
+runtime authority.
 
 Labeling at creation
 ---------------------
@@ -205,11 +210,12 @@ creation: no inode is better than one of shirudo's without its label.
 
 That hook cannot sleep, so it cannot read the parent's extended
 attribute. It uses a cached mark instead: ``seal_dir_marks``, inode
-storage that records a directory's label. A directory gets its mark when
-any task opens it and its label is read, when an extended attribute on it
-changes, and when it is created under a marked parent. A directory open
-whose label read finds nothing removes the mark; a read that fails, for
-a caller who may not read the directory, leaves it.
+storage that records an inode's label. A directory gets its mark when
+any task opens it and its label is read, a file when an authorized task
+opens it or any task opens it for writing, and either when an extended
+attribute on it changes and when it is created under a marked parent.
+An open whose label read finds nothing removes the mark; a read that
+fails, for a caller who may not read the inode, leaves it.
 
 shirudo's writers keep the mark in place. They open the parent directory
 and create files relative to that descriptor, which holds the inode in
@@ -231,12 +237,14 @@ Limits
 These are properties of the mechanism as it is. The
 :doc:`/security/threat-model` states their consequences.
 
-Directory eviction
-    A mark is a cache. When the kernel evicts a directory's inode,
-    under memory pressure or through ``vm.drop_caches``, its mark goes
-    with it until the next open of that directory. In that window,
-    creation, links and renames into the directory are not checked, and
-    ``inode_init_security`` adds no label.
+Mark eviction
+    A mark is a cache. When the kernel evicts an inode, under memory
+    pressure or through ``vm.drop_caches``, its mark goes with it until
+    the next open that reads the label. In that window, creation, links
+    and renames into a directory are not checked,
+    ``inode_init_security`` adds no label, an ACL or inode flag change
+    is not checked, and a label read that fails for the caller counts
+    as unlabeled.
 
 Hard links to labeled inodes
     ``inode_link`` checks the destination directory's mark, not the
@@ -251,14 +259,15 @@ Label reads under another LSM
     The kfuncs' read permission check runs every LSM's
     ``inode_permission`` hook for the calling task. A policy of another
     LSM that lets a task write or unlink a file but not read it makes a
-    labeled inode look unlabeled to the seal, and the same failure on
-    a directory open removes the directory's mark.
+    labeled inode without a mark look unlabeled to the seal; a marked
+    one is refused, and the same failure on an open leaves the mark.
 
-Operations without a check
-    The seal does not attach ``inode_rmdir``, ``inode_file_setattr`` or
-    the ACL hooks ``inode_set_acl`` and ``inode_remove_acl``. Root can
-    remove an empty labeled directory, set the immutable or append-only
-    flag on sealed files with ``chattr``, and change their POSIX ACLs.
+ACLs and inode flags
+    ``inode_set_acl``, ``inode_remove_acl`` and ``inode_file_setattr``
+    cannot sleep, so a POSIX ACL change and ``chattr`` on a marked inode
+    are refused by the mark alone, and an inode without a mark is not
+    checked. The removal of an empty labeled directory reads the label
+    as an unlink does.
 
 Bind mounts
     No mount guard covers the state file system, and shirudo's opens

@@ -130,20 +130,23 @@ counter.
      - ``lsm.s/file_open``
      - ``EACCES``
    * - ``SealUnlink``
-     - unlink of a sealed file
-     - ``lsm.s/inode_unlink``
+     - unlink of a sealed file or removal of a sealed directory
+     - ``lsm.s/inode_unlink``, ``lsm.s/inode_rmdir``
      - ``EACCES``
    * - ``SealRename``
      - rename of or over a sealed file
      - ``lsm.s/inode_rename``: a labeled source or victim
      - ``EACCES``
    * - ``SealSetattr``
-     - truncate, chmod, chown or utimes of a sealed file
-     - ``lsm.s/inode_setattr``
+     - truncate, chmod, chown, utimes or chattr of a sealed file
+     - ``lsm.s/inode_setattr``; ``lsm/inode_file_setattr`` on a marked
+       inode
      - ``EACCES``
    * - ``SealXattr``
-     - xattr change on a sealed file
-     - ``lsm.s/inode_setxattr``, ``lsm.s/inode_removexattr``
+     - xattr or ACL change on a sealed file
+     - ``lsm.s/inode_setxattr``, ``lsm.s/inode_removexattr``;
+       ``lsm/inode_set_acl`` and ``lsm/inode_remove_acl`` on a marked
+       inode
      - ``EACCES``
    * - ``SealLabel``
      - seal or policy label changed by another executable

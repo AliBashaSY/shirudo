@@ -22,7 +22,10 @@ struct {
 
 /*
  * The label of an inode as the last hook with a handle on it read it: a
- * directory at every open, a file at an open for writing.
+ * directory at every open, a file at an open for writing by anyone, at
+ * any open by an authorized task and at its creation under a marked
+ * directory. Where a hook cannot read the label, or the read fails for
+ * the caller, the mark stands in for it.
  */
 struct seal_dir_mark {
 	char	label[LABEL_LEN];
@@ -59,23 +62,45 @@ static __always_inline int seal_caller(enum tamper_point point)
 	       shirudo_tamper_deny(point, -EACCES);
 }
 
+static __always_inline bool seal_task_authorized(void)
+{
+	struct sb_id *id;
+	__u32 zero = 0;
+
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	return id && shirudo_task_is_self(id);
+}
+
+static __always_inline bool seal_marked(struct inode *inode)
+{
+	return inode && bpf_inode_storage_get(&seal_dir_marks, inode, NULL, 0);
+}
+
 /*
  * Decide on the result of reading the target's label (tlen). No label
  * (-ENODATA) or no security xattrs on the file system (-EOPNOTSUPP) is
- * not shirudo's inode. Neither is one the caller may not read (-EACCES,
- * -EPERM): the kfunc checks read permission for the caller, so failing
- * those closed would refuse every write-only open and every unlink of an
- * unreadable file. A label of any size, or any other error, requires the
- * caller to be shirudo. 0 = allow, -EACCES = deny.
+ * not shirudo's inode. The kfunc checks read permission for the caller
+ * against the raw ids of the inode, so the read fails with -EACCES or
+ * -EPERM for a caller that may neither read nor write, and for one that
+ * an ACL or an idmapped mount lets write what it may not read. Failing
+ * every such read closed would refuse every write-only open and every
+ * unlink of an unreadable file, so the mark of the inode, or of the
+ * directory the operation changes, decides there. A label of any size,
+ * or any other error, requires the caller to be shirudo. 0 = allow,
+ * -EACCES = deny.
  */
-static __always_inline int seal_verdict(int tlen,
+static __always_inline int seal_verdict(int tlen, struct inode *inode,
+					struct inode *dir,
 					enum tamper_point point)
 {
 	switch (tlen) {
 	case -ENODATA:
 	case -EOPNOTSUPP:
+		return 0;
 	case -EACCES:
 	case -EPERM:
+		if (seal_marked(inode) || seal_marked(dir))
+			return seal_caller(point);
 		return 0;
 	default:
 		return seal_caller(point);
@@ -251,8 +276,18 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 			  bpf_get_file_xattr(file, XATTR_SEAL, &tdp));
 		return 0;
 	}
-	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
+	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE)) {
+		/* A read by shirudo marks what it reads; others cost nothing. */
+		if (!seal_task_authorized())
+			return 0;
+		s = seal_scratch_get(task);
+		if (!s)
+			return 0;
+		bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
+		seal_mark(inode, s->target,
+			  bpf_get_file_xattr(file, XATTR_SEAL, &tdp));
 		return 0;
+	}
 	s = seal_scratch_get(task);
 	if (!s)				/* cannot read the label */
 		return seal_caller(TAMPER_SEAL_WRITE);
@@ -260,7 +295,7 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 	tlen = bpf_get_file_xattr(file, XATTR_SEAL, &tdp);
 	if (tlen == LABEL_LEN)
 		seal_mark(inode, s->target, tlen);
-	return seal_verdict(tlen, TAMPER_SEAL_WRITE);
+	return seal_verdict(tlen, inode, NULL, TAMPER_SEAL_WRITE);
 }
 
 /*
@@ -284,14 +319,14 @@ int BPF_PROG(shirudo_seal_inode_copy_up, struct dentry *src,
 	return shirudo_tamper_deny(TAMPER_SEAL_COPY_UP, -EPERM);
 }
 
-/* Refresh a directory's mark from its label after an xattr change. */
+/* Refresh an inode's mark from its label after an xattr change. */
 static __always_inline void seal_mark_dentry(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct seal_scratch *s;
 	struct bpf_dynptr tdp;
 
-	if (!inode || !seal_is_dir(inode))
+	if (!inode)
 		return;
 	s = seal_scratch_get(bpf_get_current_task_btf());
 	if (!s)
@@ -317,8 +352,9 @@ void BPF_PROG(shirudo_seal_inode_post_removexattr, struct dentry *dentry,
 
 /*
  * Label a new inode inside the transaction that creates it when its
- * parent directory is marked, with the parent's label, and mark a new
- * directory in turn so a subtree created in one go needs no reopen.
+ * parent directory is marked, with the parent's label, and mark the new
+ * inode in turn: a subtree created in one go needs no reopen, and a
+ * file carries its mark from the start.
  * The hook cannot sleep, so the label comes from the mark, not from
  * disk. A claim that fails (no slot left, no memory) aborts the
  * creation: better no inode than one of shirudo's without its label,
@@ -342,8 +378,6 @@ int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
 	bpf_dynptr_from_mem(m->label, LABEL_LEN, 0, &dp);
 	if (bpf_inode_init_xattr(xattrs, xattr_count, XATTR_SEAL, &dp))
 		return -EACCES;
-	if (!seal_is_dir(inode))
-		return 0;
 	child = bpf_inode_storage_get(&seal_dir_marks, inode, NULL,
 				      BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (child)
@@ -351,7 +385,8 @@ int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
 	return 0;
 }
 
-static __always_inline int seal_dentry(struct dentry *dentry,
+static __always_inline int seal_dentry(struct inode *dir,
+				       struct dentry *dentry,
 				       enum tamper_point point)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
@@ -362,14 +397,14 @@ static __always_inline int seal_dentry(struct dentry *dentry,
 		return seal_caller(point);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 	return seal_verdict(bpf_get_dentry_xattr(dentry, XATTR_SEAL, &tdp),
-			    point);
+			    dentry->d_inode, dir, point);
 }
 
 SEC("lsm.s/inode_unlink")
 int BPF_PROG(shirudo_seal_inode_unlink, struct inode *dir,
 	     struct dentry *dentry, int ret)
 {
-	return ret ? ret : seal_dentry(dentry, TAMPER_SEAL_UNLINK);
+	return ret ? ret : seal_dentry(dir, dentry, TAMPER_SEAL_UNLINK);
 }
 
 /*
@@ -435,7 +470,7 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 
 	if (ret)
 		return ret;
-	err = seal_dentry(old_dentry, TAMPER_SEAL_RENAME);
+	err = seal_dentry(old_dir, old_dentry, TAMPER_SEAL_RENAME);
 	if (err)
 		return err;
 	err = seal_dir_entry(new_dir);
@@ -443,7 +478,7 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 		return err;
 	if (!target)
 		return 0;
-	return seal_dentry(new_dentry, TAMPER_SEAL_RENAME);
+	return seal_dentry(new_dir, new_dentry, TAMPER_SEAL_RENAME);
 }
 
 /* Truncate, chmod, chown and utimes all come through here. */
@@ -451,7 +486,7 @@ SEC("lsm.s/inode_setattr")
 int BPF_PROG(shirudo_seal_inode_setattr, struct mnt_idmap *idmap,
 	     struct dentry *dentry, struct iattr *attr, int ret)
 {
-	return ret ? ret : seal_dentry(dentry, TAMPER_SEAL_SETATTR);
+	return ret ? ret : seal_dentry(NULL, dentry, TAMPER_SEAL_SETATTR);
 }
 
 SEC("lsm.s/inode_setxattr")
@@ -463,7 +498,7 @@ int BPF_PROG(shirudo_seal_inode_setxattr, struct mnt_idmap *idmap,
 		return ret;
 	if (seal_is_label(name) || seal_is_policy(name))
 		return seal_caller(TAMPER_SEAL_LABEL);
-	return seal_dentry(dentry, TAMPER_SEAL_XATTR);
+	return seal_dentry(NULL, dentry, TAMPER_SEAL_XATTR);
 }
 
 /*
@@ -479,7 +514,49 @@ int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 		return ret;
 	if (seal_is_label(name) || seal_is_policy(name))
 		return seal_caller(TAMPER_SEAL_LABEL);
-	return seal_dentry(dentry, TAMPER_SEAL_XATTR);
+	return seal_dentry(NULL, dentry, TAMPER_SEAL_XATTR);
+}
+
+/*
+ * ACL changes and the inode flags of chattr come through hooks that
+ * cannot sleep, so the mark stands in for the label. An ACL that grants
+ * another id a write without a read would otherwise open a marked inode
+ * to that id, whose label read then fails (seal_verdict).
+ */
+SEC("lsm/inode_set_acl")
+int BPF_PROG(shirudo_seal_inode_set_acl, const struct mnt_idmap *idmap,
+	     struct dentry *dentry, const char *acl_name,
+	     struct posix_acl *kacl, int ret)
+{
+	if (ret)
+		return ret;
+	return seal_marked(dentry->d_inode) ? seal_caller(TAMPER_SEAL_XATTR) : 0;
+}
+
+SEC("lsm/inode_remove_acl")
+int BPF_PROG(shirudo_seal_inode_remove_acl, const struct mnt_idmap *idmap,
+	     struct dentry *dentry, const char *acl_name, int ret)
+{
+	if (ret)
+		return ret;
+	return seal_marked(dentry->d_inode) ? seal_caller(TAMPER_SEAL_XATTR) : 0;
+}
+
+SEC("lsm/inode_file_setattr")
+int BPF_PROG(shirudo_seal_inode_file_setattr, struct dentry *dentry,
+	     struct file_kattr *fa, int ret)
+{
+	if (ret)
+		return ret;
+	return seal_marked(dentry->d_inode) ?
+	       seal_caller(TAMPER_SEAL_SETATTR) : 0;
+}
+
+SEC("lsm.s/inode_rmdir")
+int BPF_PROG(shirudo_seal_inode_rmdir, struct inode *dir,
+	     struct dentry *dentry, int ret)
+{
+	return ret ? ret : seal_dentry(dir, dentry, TAMPER_SEAL_UNLINK);
 }
 
 char _license[] SEC("license") = "Dual BSD/GPL";

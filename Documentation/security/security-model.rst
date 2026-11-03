@@ -42,9 +42,9 @@ What shirudo provides
    * - Only shirudo changes its state
      - The seal labels ``/var/lib/shirudo`` and checks every change to
        a labeled inode; keyrings and authorized processes are guarded.
-     - Directory marks can be evicted; some operations and other LSMs
-       are not covered; offline writes bypass it.
-     - :ref:`T3 <tm-t3>`, R15, R19, U5, U12
+     - Marks can be evicted; another LSM can refuse the label read;
+       offline writes bypass it.
+     - :ref:`T3 <tm-t3>`, R15, R19, U12
    * - Every change is measured
      - Loads, unloads, revocations and tree operations extend a TPM NV
        register whose writes ``lsm/tpm_command`` keeps to shirudo.

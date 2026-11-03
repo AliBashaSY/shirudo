@@ -299,12 +299,16 @@ one usually still compiles and passes tests.
   an authorized caller may set or remove the exact seal xattr. Both rename
   endpoints, write open, unlink, setattr and xattr changes are checked. There
   is no executable replacement exception.
-  Label read errors require authority except ENODATA, EOPNOTSUPP, EACCES
-  and EPERM; scratch allocation failure also requires authority. The seal
-  labels new inodes during creation when the parent has a cached directory
-  mark. Writers hold an open parent directory to retain that mark. Directory
-  eviction and foreign link/rename entries remain limitations; existing
-  writable descriptors and mappings are not revoked.
+  Label read errors require authority except ENODATA and EOPNOTSUPP; an
+  EACCES or EPERM, which root brings about with an idmapped mount or an
+  ACL, requires authority when the inode or the directory the operation
+  changes carries a mark; scratch allocation failure also requires
+  authority. The seal marks what it labels at creation, what shirudo
+  opens and what anyone opens for writing or as a directory, and the
+  marks alone guard ACL and inode flag changes. Writers hold an open
+  parent directory to retain that mark. Mark eviction and foreign
+  link/rename entries remain limitations; existing writable descriptors
+  and mappings are not revoked.
 - **Single shirudo instance per host.** Keyring name, private bpffs,
   `/var/lib/shirudo`, the `security.bpf.shirudo` xattr namespace and
   the NV index are single-tenant by design.

@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#define SEAL_HOOK_COUNT 22
+#define SEAL_HOOK_COUNT 26
 #define IMAGE_SEAL_HOOK_COUNT 2
 #define MOUNT_HOOK_COUNT 5
 #define OBSERVER_HOOK_COUNT 9

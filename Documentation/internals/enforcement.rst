@@ -207,7 +207,7 @@ order:
    ``sb_remount`` and the ``file_open`` recorder, open the bpffs root so
    the recorder notes the mount, and freeze that record.
 #. Load ``seal`` on the shared maps, freeze its scratch map, and attach
-   its twenty-two hooks, then ``mmap_file`` and ``file_mprotect``.
+   its twenty-six hooks, then ``mmap_file`` and ``file_mprotect``.
 #. Attach ``lsm/bpf_map``, then ``lsm/bpf_prog_load``, then ``lsm/bpf``.
 
 ``init`` pins every link as it attaches it, before the next fallible
@@ -236,8 +236,9 @@ in which they attached. The kernel's BPF trampoline puts a new program at
 the head of the list, and for an LSM hook that returns a value, a
 non-zero return ends the list. Where ``bpf2`` and ``seal`` share a hook
 (``bprm_check_security``, ``file_open``, ``inode_unlink``,
-``inode_rename``, ``inode_setxattr``, ``inode_removexattr``,
-``inode_mkdir``, ``inode_symlink``, ``inode_link``), the ``seal``
+``inode_rmdir``, ``inode_rename``, ``inode_setxattr``,
+``inode_removexattr``, ``inode_mkdir``, ``inode_symlink``,
+``inode_link``), the ``seal``
 program runs first, and when it refuses, its errno and counter are the
 ones the caller sees. A traced exec of a runtime file, for example, fails with
 ``EACCES`` from ``seal`` rather than ``EPERM`` from ``bpf2``.
@@ -476,19 +477,27 @@ when the record it needs is missing.
      - Unconditional.
    * - ``lsm.s/file_open`` (``seal``)
      - A write open of a labeled file to a task without authority. On a
-       directory open, records or clears the directory mark from its
-       label.
+       directory open, and on any open by an authorized task, records or
+       clears the mark from the label; a write open records it.
      - ``EACCES``
      - ``SealWrite``
      - See the label verdict below.
-   * - ``lsm.s/inode_unlink``, ``lsm.s/inode_setattr``,
-       ``lsm.s/inode_removexattr`` (``seal``)
+   * - ``lsm.s/inode_unlink``, ``lsm.s/inode_rmdir``,
+       ``lsm.s/inode_setattr``, ``lsm.s/inode_removexattr`` (``seal``)
      - The operation on a labeled inode to a task without authority.
        Setattr covers truncate, chmod, chown and timestamps. Removing the
-       policy xattr is refused on any inode without authority.
+       seal or the policy label is refused on any inode without
+       authority.
      - ``EACCES``
-     - ``SealUnlink``, ``SealSetattr``, ``SealXattr``
+     - ``SealUnlink``, ``SealSetattr``, ``SealXattr``, ``SealLabel``
      - See the label verdict below.
+   * - ``lsm/inode_set_acl``, ``lsm/inode_remove_acl``,
+       ``lsm/inode_file_setattr`` (``seal``)
+     - A POSIX ACL change or a change of the inode flags (``chattr``) on
+       a marked inode to a task without authority.
+     - ``EACCES``
+     - ``SealXattr``, ``SealSetattr``
+     - Open: an inode without a cached mark is not checked.
    * - ``lsm.s/inode_setxattr`` (``seal``)
      - Setting ``security.bpf.shirudo`` or
        ``security.bpf.shirudo.policy`` on any inode, and any other name
@@ -512,7 +521,7 @@ when the record it needs is missing.
      - Open: a directory without a cached mark is not checked.
    * - ``lsm/inode_init_security`` (``seal``)
      - Labels a new inode under a marked directory, inside the creation,
-       and marks a new directory. Refuses the creation when it cannot add
+       and marks the new inode. Refuses the creation when it cannot add
        the label.
      - ``EACCES``
      - Uncounted
@@ -530,10 +539,12 @@ when the record it needs is missing.
      - A failed read removes the mark.
 
 The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
-with the caller's permission. No label (``ENODATA``), no security
-extended attributes on the file system (``EOPNOTSUPP``) and a label the
-caller may not read (``EACCES``, ``EPERM``) count as unlabeled, and the
-operation goes ahead. A label of any length, any other read error and a
+with the caller's permission. No label (``ENODATA``) and no security
+extended attributes on the file system (``EOPNOTSUPP``) count as
+unlabeled, and the operation goes ahead. A label the caller may not
+read (``EACCES``, ``EPERM``) counts as unlabeled unless the inode, or
+the directory the operation changes, carries a mark, which requires
+runtime authority. A label of any length, any other read error and a
 failure to allocate the scratch buffer require runtime authority.
 :doc:`seal` explains why and what follows from it.
 
