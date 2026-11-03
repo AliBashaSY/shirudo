@@ -288,6 +288,8 @@ bundle_is_current()
 	[[ -x "$BUNDLE_DIR/root/usr/local/bin/shirudo" ]] || return 1
 	[[ -s "$BUNDLE_DIR/runtime-image-key" ]] || return 1
 	[[ -s "$OPERATOR_KEYS_DIR/keys/signing_key.pem" ]] || return 1
+	cmp -s "$OPERATOR_KEYS_DIR/keys/cert.der" \
+		"$BUNDLE_DIR/fixtures/cert.der" || return 1
 	[[ "$(<"$BUNDLE_DIR/runtime-image-key")" == "$RUNTIME_KEY" ]] || return 1
 	[[ -s "$RUNTIME_IMAGE" ]] || return 1
 	for input in $STAMP_INPUTS; do

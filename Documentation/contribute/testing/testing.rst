@@ -357,10 +357,12 @@ target, the test helpers, the upatch fixtures signed with keys
 generated for the bundle, the dm-verity runtime image and the signed
 config images. :src:`testing/vm/build-bundle.sh` builds the bpf-next
 bundle into ``build/test-vm/host-bundle-bpf-next-verity/`` and keeps
-the signing key in
-``build/test-vm/host-bundle-bpf-next-verity.operator/keys/``.
-Every target that boots a VM rebuilds the bundle when one of its inputs
-changed. Build it alone with:
+the signing key outside the checkout, which every guest can read, in
+``/tmp/shirudo-test-vm-private-<uid>/operator-keys/keys/``.
+``TEST_VM_HOST_PRIVATE_DIR`` names another directory, which must lie
+outside the repository. Every target that boots a VM rebuilds the bundle
+when one of its inputs changed, or when that directory does not hold the
+key the bundle's fixtures are signed with. Build it alone with:
 
 .. code-block:: console
 
