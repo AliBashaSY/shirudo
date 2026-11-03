@@ -678,7 +678,7 @@ declarations, and the target supplies both pinned map FDs to the
 generated loader. The upatch's signed BPF programs can inspect task and
 socket policy values at any supported LSM hook. Authors are expected to
 read these values; the verifier does not prevent signed programs from
-changing them. Upatches without ``SHPL`` receive no binding to these
+changing them. upatches without ``SHPL`` receive no binding to these
 maps.
 
 The seal keeps a mark in inode storage on every labeled directory it

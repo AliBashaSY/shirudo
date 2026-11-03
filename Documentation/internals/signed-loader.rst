@@ -117,7 +117,7 @@ loader inside the kernel, which ``lsm/bpf`` sees with ``kernel`` true.
      - ``BPF_PROG_TEST_RUN`` of the loader
      - ``lsm/bpf``, runtime authority (``ProgRun``). The loader then
        runs in the kernel. When the signed ``SHPL`` section is present,
-       Shirudo opens its pinned ``policy_map`` and
+       shirudo opens its pinned ``policy_map`` and
        ``socket_policy_map`` and supplies both FDs at their signed
        descriptor indices. The generated loader reuses them; it neither
        creates nor pins private copies.

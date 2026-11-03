@@ -603,7 +603,7 @@ Coverage by area
        ``t7103``, ``t9105``. Fuzz: ``tree``, ``tree-state``,
        ``kconfig``. Unit: ``kernel_build_id``, ``kernel_release``
    * - Policy labels
-     - Upatch labels and Beefile serialization: ``t3109``, ``t7006``.
+     - upatch labels and Beefile serialization: ``t3109``, ``t7006``.
        Unauthorized policy-xattr changes: ``t6111``. Task and socket
        inheritance: ``t6141``, ``t6142``
    * - Telemetry

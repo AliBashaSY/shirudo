@@ -590,8 +590,8 @@ fixed-size entries. ``policy_map_idx`` and ``socket_policy_map_idx`` are
 the zero-based indices of the shared maps in the loader's map descriptor
 array. The builder accepts this section only when the BPF object declares
 compatible maps named ``policy_map`` and ``socket_policy_map``. At load
-time, Shirudo supplies the pinned task and socket storage maps at those
-descriptors; the loader does not create or pin private copies. Upatches
+time, shirudo supplies the pinned task and socket storage maps at those
+descriptors; the loader does not create or pin private copies. upatches
 without ``SHPL`` use their normal maps.
 
 .. list-table::
