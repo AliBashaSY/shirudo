@@ -311,11 +311,14 @@ one usually still compiles and passes tests.
   ACL, requires authority when the inode or the directory the operation
   changes carries a mark; scratch allocation failure also requires
   authority. The seal marks what it labels at creation, what shirudo
-  opens and what anyone opens for writing or as a directory, and the
-  marks alone guard ACL and inode flag changes. Writers hold an open
-  parent directory to retain that mark. Mark eviction and foreign
-  link/rename entries remain limitations; existing writable descriptors
-  and mappings are not revoked.
+  opens and what anyone opens for writing or as a directory, and
+  refreshes a directory's mark in every entry hook from the label it
+  reads there (carried kernel patches 0004 and 0005 make those hooks
+  sleepable and `dentry->d_parent` trusted), so that
+  `inode_init_security`, which has no dentry, labels the new inode from
+  it: the marks are a cache, never the decision. A sealed inode cannot
+  be hard-linked by a task without authority. Existing writable
+  descriptors and mappings are not revoked.
 - **Single shirudo instance per host.** Keyring name, private bpffs,
   `/var/lib/shirudo`, the `security.bpf.shirudo` xattr namespace and
   the NV index are single-tenant by design.

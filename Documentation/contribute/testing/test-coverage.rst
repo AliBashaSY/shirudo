@@ -378,8 +378,10 @@ signed config image.
      - A load stopped before its extend is counted, reported by status
        and undone by the next upatch command
    * - ``t6144-returned-archive``
-     - An archive root brings back after its unload is reported, not
-       restored by init and removed by the next upatch command
+     - The archive directory with its mark evicted takes nothing and
+       lets no labeled archive out; an archive without a record of its
+       load is reported, not restored by init and removed by the next
+       upatch command
 
 ``bpm`` (7)
 ~~~~~~~~~~~

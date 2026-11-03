@@ -679,9 +679,10 @@ read. Where the read fails that way, the mark of the inode, or of the
 directory the operation changes, decides, and the operation needs
 authority when either is marked (``t6111``). The seal marks every inode
 it labels at creation, every file shirudo opens, every file anyone
-opens for writing and every directory anyone opens; on a kernel
-without the patch, a file shirudo has not touched since it came into
-memory has no mark (R15). The labels
+opens for writing, every directory anyone opens and the directory of
+every new entry, from the label the entry hook reads; the marks are a
+cache that only ``lsm/inode_init_security``, which has no dentry to
+read from, decides by. The labels
 themselves are refused to such a caller whatever the read said: root
 takes a file system uid that cannot read the inode with ``setfsuid()``
 and keeps the ``CAP_SYS_ADMIN`` that a ``security.*`` xattr change
@@ -711,17 +712,20 @@ hook. Authors are expected to read these values; the verifier does not
 prevent signed programs from changing them. upatches without ``SHPL``
 receive no binding to these maps.
 
-The seal keeps a mark in inode storage on every labeled directory it
-has seen since the inode came into memory. A new inode under a marked
-directory receives the label inside the transaction that creates it
-(``lsm/inode_init_security``), and a marked directory takes new entries,
-by create, mkdir, symlink, mknod, hard link or rename, only from
-authorized tasks (``SealEntry``). shirudo's writers hold the parent
-directory open while they create, which keeps the mark in memory. An
-overlay copy-up of a marked inode is refused (``SealCopyUp``), so a
-write through an overlay root mounts over sealed state fails instead of
-landing in root's upper directory. Where the mark is absent, R15
-applies.
+A labeled directory takes new entries, by create, mkdir, symlink,
+mknod, hard link or rename, only from authorized tasks (``SealEntry``):
+each entry hook reads the directory's label from the new entry's parent
+dentry, which the carried patches 0004 and 0005 (A3) make possible by
+letting a sleepable program attach to ``inode_mkdir`` and ``inode_link``
+and by trusting ``dentry->d_parent``, and refreshes the directory's
+mark on the way, from which ``lsm/inode_init_security`` gives the new
+inode its label inside the transaction that creates it. Evicting the
+inode cache therefore opens nothing (``t6118``, ``t6144``). A labeled
+inode is hard-linked nowhere by a task without authority, so its label
+cannot be kept alive beside the state it left. An overlay copy-up of a
+labeled inode is refused (``SealCopyUp``), so a write through an
+overlay root mounts over sealed state fails instead of landing in
+root's upper directory.
 
 shirudo opens sealed state without following symbolic links and takes
 no entry without the label for its own: ``init`` ignores such an entry
@@ -788,11 +792,12 @@ An authorized process is protected against being taken over:
 :Enforced at: ``lsm.s/file_open``, ``lsm.s/inode_unlink``,
    ``lsm.s/inode_rmdir``, ``lsm.s/inode_rename``,
    ``lsm.s/inode_setattr``, ``lsm.s/inode_setxattr``,
-   ``lsm.s/inode_removexattr``, ``lsm/inode_set_acl``,
-   ``lsm/inode_remove_acl``, ``lsm/inode_file_setattr``,
-   ``lsm/inode_create``, ``lsm/inode_mkdir``, ``lsm/inode_symlink``,
-   ``lsm/inode_mknod``, ``lsm/inode_link``, ``lsm/inode_init_security``,
-   ``lsm/inode_copy_up``, ``lsm/key_permission``,
+   ``lsm.s/inode_removexattr``, ``lsm.s/inode_set_acl``,
+   ``lsm.s/inode_remove_acl``, ``lsm.s/inode_file_setattr``,
+   ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
+   ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod``, ``lsm.s/inode_link``,
+   ``lsm/inode_init_security``, ``lsm.s/inode_copy_up``,
+   ``lsm/key_permission``,
    ``lsm.s/bprm_check_security``, ``lsm.s/bprm_committed_creds``,
    ``lsm/task_alloc``, ``lsm/bprm_check_security``,
    ``lsm/ptrace_access_check``, ``lsm/perf_event_alloc``,
@@ -808,7 +813,7 @@ An authorized process is protected against being taken over:
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``
-:Residual: R2, R15, R19, R22
+:Residual: R2, R19, R22
 
 T4 Substituting artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1424,29 +1429,6 @@ R14 Configs roll back
    Detection: ``--expect-config-root`` with ``--expect-config-pcr``.
    Mitigation: D2.
 
-R15 Marks can be evicted
-   The label at creation, the entry checks, the ACL and inode flag
-   checks and the verdict on a label read that fails for the caller
-   follow a mark that the seal keeps on an inode in memory. Root can
-   evict the inode, by dropping caches for instance, whenever shirudo
-   does not hold it open, and a file shirudo has not opened since it
-   came into memory has no mark. While a directory's mark is absent,
-   root can create entries in it and hard-link an already labeled inode
-   into it; a hard link is the same inode and carries the label. shirudo
-   replaces state by rename, so root can keep earlier labeled versions
-   alive through hard links in an unsealed directory on the same file
-   system and bring them back. An unlabeled entry stays inert: shirudo
-   neither follows nor restores it. A returned archive is not restored
-   either: ``init`` restores only an archive whose load the eventlog
-   records without a later unload, ``status`` reports it
-   (``UpatchesMeasured``) and the next upatch command removes it
-   (``t6144``). A returned labeled entry elsewhere in the state is
-   taken for shirudo's own. While a file's mark is absent, root can change
-   its ACL and inode flags, and on a kernel without the carried xattr
-   patch (A3) a label read it made fail counts as unlabeled (T3).
-   Detection: a returned archive shows in ``status``; other returned
-   entries only through signatures and measurement. Mitigation: D6.
-
 R16 Any artifact ever signed loads at any time
    There is no version floor, no expiry and no per-target
    authorization. Neither shirudo nor the kernel checks a certificate's
@@ -1768,13 +1750,6 @@ D5 In-kernel detach
    Detach and unpin from the signed unload directive in kernel context,
    which :src:`bpf/unload.c` holds a placeholder for, once ``bpf_sys_bpf()``
    supports it (R1).
-
-D6 A sleepable hook at dentry instantiation
-   A ``d_instantiate`` hook in which the BPF LSM can read the label,
-   marking a directory the moment its dentry is bound and closing the
-   eviction gap (R15). The `directory-entry investigation
-   <https://github.com/shirudo-dev/shirudo/issues/13>`__ records the
-   analysis.
 
 D7 Pins without the mount tree
    Keep the enforcement links alive without depending on the bpffs

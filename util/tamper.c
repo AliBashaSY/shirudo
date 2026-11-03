@@ -79,7 +79,7 @@ static const struct {
 	[TAMPER_EXEC_TRACED] = { "ExecTraced",
 		"exec of shirudo by a traced task" },
 	[TAMPER_SEAL_ENTRY] = { "SealEntry",
-		"entry created, linked or renamed into a sealed directory" },
+		"entry into a sealed directory, or a sealed inode linked" },
 	[TAMPER_PERF_ATTACH] = { "PerfAttach",
 		"program attached to a perf event by another executable" },
 	[TAMPER_PIN_ENTRY] = { "PinEntry",

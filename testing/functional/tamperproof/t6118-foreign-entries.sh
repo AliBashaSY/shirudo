@@ -5,10 +5,10 @@
 # t6118 -- entries root brings into sealed state. A sealed directory
 # takes new entries from shirudo alone: a file, directory, symbolic link
 # or device root creates there is refused, and so is a rename or hard
-# link, which would bring an inode in with its contents. One that slips
-# in while the directory's mark is evicted carries no label: shirudo
-# never follows it, adopts it or reads it as its own, and a re-run of
-# init completes with it in place. Non-destructive.
+# link, which would bring an inode in with its contents. The seal reads
+# the directory's label in the hook, so evicting the directory's mark
+# opens nothing either, and a re-run of init completes unchanged.
+# Non-destructive.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -53,8 +53,8 @@ except OSError:
     sys.exit(1)" "$1"
 }
 
-# Rename while the directory's mark is evicted, the gap the seal keeps
-# (residual risk 15); the entry comes in unlabelled.
+# Rename while the directory's mark is evicted: the seal reads the
+# label, so every try is refused.
 plant() {
 	i=0
 	while [ "$i" -lt 8 ]; do
@@ -88,20 +88,18 @@ test_expect_success 'root cannot rename or hard-link content into sealed state' 
 	[ "$(counter)" -ge $((before + 2)) ]
 '
 
-# The archive entry is a link to a signed artifact root keeps elsewhere:
-# init must neither follow it nor label it.
-test_expect_success 'a link that slipped in while the mark was evicted is not followed' '
+# A link to a signed artifact root keeps elsewhere cannot slip in even
+# while the directory's mark is evicted.
+test_expect_success 'a link cannot slip in while the directory mark is evicted' '
+	before=$(counter) &&
 	mkdir -p "$STAGE" && cp "$LOAD" "$STAGE/$NAME.upatch" &&
 	ln -s "$STAGE/$NAME.upatch" "$STAGE/t6118-link.upatch" &&
-	plant "$STAGE/t6118-link.upatch" "$ARCHIVE/t6118-link.upatch" &&
-	[ -L "$ARCHIVE/t6118-link.upatch" ] &&
-	"$SHIRUDO_BIN" init >/dev/null 2>"$STAGE/init.err" &&
-	grep -q "t6118-link.upatch is not shirudo.s own (foreign entry); ignored" \
-		"$STAGE/init.err" &&
+	! plant "$STAGE/t6118-link.upatch" "$ARCHIVE/t6118-link.upatch" &&
+	[ ! -L "$ARCHIVE/t6118-link.upatch" ] &&
+	[ "$(counter)" -gt "$before" ] &&
+	"$SHIRUDO_BIN" init >/dev/null 2>&1 &&
 	[ ! -e "$PIN" ] &&
-	! labelled "$ARCHIVE/t6118-link.upatch" &&
-	[ "$(chain)" = "$CHAIN" ] &&
-	rm "$ARCHIVE/t6118-link.upatch"
+	[ "$(chain)" = "$CHAIN" ]
 '
 
 test_expect_success 'root cannot plant a link where shirudo stages' '

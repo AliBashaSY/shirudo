@@ -243,23 +243,16 @@ Limits
 These are properties of the mechanism as it is. The
 :doc:`/security/threat-model` states their consequences.
 
-Mark eviction
-    A mark is a cache. When the kernel evicts an inode, under memory
-    pressure or through ``vm.drop_caches``, its mark goes with it until
-    the next open that reads the label. In that window, creation, links
-    and renames into a directory are not checked,
-    ``inode_init_security`` adds no label, an ACL or inode flag change
-    is not checked, and a label read that fails for the caller counts
-    as unlabeled.
-
-Hard links to labeled inodes
-    ``inode_link`` checks the destination directory's mark, not the
-    source inode. Root can hard-link a labeled file into an unsealed
-    directory on the same file system. shirudo replaces state by writing
-    a new file and renaming it over the old one, so the old inode stays
-    reachable through that link. While a directory's mark is absent, such
-    a link can be made inside a sealed directory, where it carries a
-    valid label.
+Marks are a cache
+    A mark is a cache of a label the seal read. When the kernel evicts
+    an inode, under memory pressure or through ``vm.drop_caches``, its
+    mark goes with it, and nothing opens: every hook that decides reads
+    the label, and the entry hooks read the directory's from the new
+    entry's parent dentry and refresh its mark on the way, which
+    ``inode_init_security``, the one hook without a dentry, labels the
+    new inode from in the same operation. On a kernel without the
+    carried patches 0004 and 0005, the seal's entry hooks do not load
+    and ``init`` fails.
 
 Label reads on an upstream kernel
     Without the carried xattr patch, the kfuncs check that the calling
@@ -268,13 +261,6 @@ Label reads on an upstream kernel
     mount, an ACL or another LSM's policy, makes a labeled inode
     without a mark look unlabeled to the seal; a marked one is refused,
     and the same failure on an open leaves the mark.
-
-ACLs and inode flags
-    ``inode_set_acl``, ``inode_remove_acl`` and ``inode_file_setattr``
-    cannot sleep, so a POSIX ACL change and ``chattr`` on a marked inode
-    are refused by the mark alone, and an inode without a mark is not
-    checked. The removal of an empty labeled directory reads the label
-    as an unlink does.
 
 Bind mounts
     No mount guard covers the state file system, and shirudo's opens

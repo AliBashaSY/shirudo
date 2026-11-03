@@ -228,15 +228,16 @@ The seal pairs the label with inode storage in the pattern above. When
 one of its sleepable programs reads a label, on every open of a
 directory, on an open of a file for writing and after an xattr change,
 it records the label for that inode in the ``seal_dir_marks`` map, or
-drops the record when there is no label. The hooks that cannot read the
-label use the record. ``lsm/inode_init_security`` gives a new inode the
-label of its directory's record and records a new directory in turn, so
-a subtree created in one go needs no reopen. ``lsm/inode_copy_up``
-refuses an overlay copy-up of a recorded inode (``SealCopyUp``). The
-hooks that add an entry to a directory, by creation, link or rename,
-require runtime authority when the directory is recorded
-(``SealEntry``). shirudo's writers create files relative to an open
-descriptor of the parent directory, which keeps its record in memory.
+drops the record when there is no label. The hooks that add an entry to
+a directory, by creation, link or rename, read the directory's label
+from the new entry's parent dentry, require runtime authority when it
+is labeled (``SealEntry``) and refresh the record on the way.
+``lsm/inode_init_security``, which has no dentry to read from, gives a
+new inode the label of its directory's record, refreshed a moment
+before by the entry hook of the same operation, and records a new
+directory in turn, so a subtree created in one go needs no reopen.
+``lsm.s/inode_copy_up`` refuses an overlay copy-up of a labeled inode
+(``SealCopyUp``).
 Like every map of shirudo's, ``seal_dir_marks`` is refused to tasks
 without runtime authority, so userspace can neither read nor change a
 record. See :doc:`/internals/seal`.
@@ -261,8 +262,7 @@ file system's own permission checks then decide. The threat model lists
 this under threats to resolve: :doc:`/security/threat-model`.
 
 The seal's records in inode storage are lost when an inode leaves the
-inode cache. Until a sleepable program reads the label again, a file
-created in that directory gets no label at creation, and creation, links
-and renames into it are not checked. :doc:`/security/threat-model`
-lists this as residual risk R15. A file system without ``security.`` xattrs cannot carry
+inode cache, and nothing depends on them: the hooks read the label, and
+the record a creation labels from is refreshed by the entry hook that
+precedes it. A file system without ``security.`` xattrs cannot carry
 the label at all.

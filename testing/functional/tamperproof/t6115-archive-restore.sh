@@ -6,9 +6,9 @@
 # bound. Rename brings an inode into a sealed directory without creating
 # one, so root used to place any operator-signed .upatch there and a
 # re-run of init restored it, attached and pinned, without a register
-# event. The seal now refuses the rename; one that slips in while the
-# directory's mark is evicted carries no label, and init leaves it alone
-# instead of labelling, following or restoring it. The restore also
+# event. The seal refuses the rename by the directory's label, which it
+# reads in the hook, so evicting the directory's mark opens nothing, and
+# a re-run of init restores nothing new. The restore also
 # must not take a state directory hidden behind a mount that carries no
 # eventlog for the real one, nor a root file system for the initramfs
 # because root wrote /etc/initrd-release.
@@ -54,8 +54,8 @@ counter() {
 		python3 -c "import json,sys; print(json.load(sys.stdin)[\"tamper_attempts\"][\"counters\"][\"SealEntry\"])"
 }
 
-# Rename while the directory's mark is evicted, the gap the seal keeps
-# (residual risk 15); the entry comes in unlabelled.
+# Rename while the directory's mark is evicted: the seal reads the
+# label, so every try is refused.
 plant() {
 	i=0
 	while [ "$i" -lt 8 ]; do
@@ -82,21 +82,14 @@ test_expect_success 'root cannot rename a signed artifact into the archive' '
 	[ "$(counter)" -gt "$before" ]
 '
 
-test_expect_success 'one that slips in while the mark is evicted is ignored by init' '
-	plant "$STAGE/$NAME.upatch" "$ARCHIVE/$NAME.upatch" &&
-	! labelled "$ARCHIVE/$NAME.upatch" &&
-	"$SHIRUDO_BIN" init >/dev/null 2>"$STAGE/init.err" &&
-	grep -q "$NAME.upatch is not shirudo.s own (foreign entry); ignored" \
-		"$STAGE/init.err" &&
-	[ ! -e "$PIN" ] &&
-	! labelled "$ARCHIVE/$NAME.upatch" &&
-	[ "$(chain)" = "$CHAIN" ]
-'
-
-test_expect_success 'the foreign entry is root'"'"'s to remove' '
-	rm "$ARCHIVE/$NAME.upatch" &&
+test_expect_success 'nothing slips in while the directory mark is evicted' '
+	before=$(counter) &&
+	! plant "$STAGE/$NAME.upatch" "$ARCHIVE/$NAME.upatch" &&
 	[ ! -e "$ARCHIVE/$NAME.upatch" ] &&
+	[ -s "$STAGE/$NAME.upatch" ] &&
+	[ "$(counter)" -gt "$before" ] &&
 	"$SHIRUDO_BIN" init >/dev/null 2>&1 &&
+	[ ! -e "$PIN" ] &&
 	[ "$(chain)" = "$CHAIN" ]
 '
 

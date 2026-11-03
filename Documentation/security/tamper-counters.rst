@@ -141,14 +141,12 @@ counter.
      - ``EACCES``
    * - ``SealSetattr``
      - truncate, chmod, chown, utimes or chattr of a sealed file
-     - ``lsm.s/inode_setattr``; ``lsm/inode_file_setattr`` on a marked
-       inode
+     - ``lsm.s/inode_setattr``, ``lsm.s/inode_file_setattr``
      - ``EACCES``
    * - ``SealXattr``
      - xattr or ACL change on a sealed file
-     - ``lsm.s/inode_setxattr``, ``lsm.s/inode_removexattr``;
-       ``lsm/inode_set_acl`` and ``lsm/inode_remove_acl`` on a marked
-       inode
+     - ``lsm.s/inode_setxattr``, ``lsm.s/inode_removexattr``,
+       ``lsm.s/inode_set_acl``, ``lsm.s/inode_remove_acl``
      - ``EACCES``
    * - ``SealLabel``
      - seal or policy label changed by another executable
@@ -175,10 +173,11 @@ counter.
        ``lsm/bprm_check_security`` in the ``bpf2`` object
      - ``EACCES``, or ``EPERM`` from the ``bpf2`` hook
    * - ``SealEntry``
-     - entry created, linked or renamed into a sealed directory
-     - ``lsm/inode_create``, ``lsm/inode_mkdir``,
-       ``lsm/inode_symlink``, ``lsm/inode_mknod``, ``lsm/inode_link`` in
-       the seal object, and ``lsm.s/inode_rename`` for the destination
+     - entry into a sealed directory, or a sealed inode linked
+     - ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
+       ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod`` and
+       ``lsm.s/inode_link`` in the seal object, which read the
+       directory's label, and ``lsm.s/inode_rename`` for the destination
      - ``EACCES``
    * - ``PerfAttach``
      - program attached to a perf event by another executable
@@ -192,7 +191,7 @@ counter.
      - ``EPERM``
    * - ``SealCopyUp``
      - overlay copy-up of a sealed inode
-     - ``lsm/inode_copy_up``
+     - ``lsm.s/inode_copy_up``
      - ``EPERM``
    * - ``Kexec``
      - kexec image or initramfs load

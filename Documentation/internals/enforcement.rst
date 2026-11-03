@@ -501,13 +501,13 @@ when the record it needs is missing.
      - ``EACCES``
      - ``SealUnlink``, ``SealSetattr``, ``SealXattr``, ``SealLabel``
      - See the label verdict below.
-   * - ``lsm/inode_set_acl``, ``lsm/inode_remove_acl``,
-       ``lsm/inode_file_setattr`` (``seal``)
+   * - ``lsm.s/inode_set_acl``, ``lsm.s/inode_remove_acl``,
+       ``lsm.s/inode_file_setattr`` (``seal``)
      - A POSIX ACL change or a change of the inode flags (``chattr``) on
-       a marked inode to a task without authority.
+       a labeled inode to a task without authority.
      - ``EACCES``
      - ``SealXattr``, ``SealSetattr``
-     - Open: an inode without a cached mark is not checked.
+     - See the label verdict below.
    * - ``lsm.s/inode_setxattr`` (``seal``)
      - Setting ``security.bpf.shirudo`` or
        ``security.bpf.shirudo.policy`` on any inode, and any other name
@@ -517,30 +517,33 @@ when the record it needs is missing.
      - ``SealLabel``, ``SealXattr``
      - See the label verdict below.
    * - ``lsm.s/inode_rename`` (``seal``)
-     - A labeled source, a marked destination directory or a labeled
+     - A labeled source, a labeled destination directory or a labeled
        inode it would replace, to a task without authority.
      - ``EACCES``
      - ``SealRename``, ``SealEntry``
      - See the label verdict below.
-   * - ``lsm/inode_create``, ``lsm/inode_mkdir``, ``lsm/inode_symlink``,
-       ``lsm/inode_mknod``, ``lsm/inode_link`` (``seal``)
-     - A new entry in a marked directory to a task without authority.
-       The source inode of a hard link is not checked.
+   * - ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
+       ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod``,
+       ``lsm.s/inode_link`` (``seal``)
+     - A new entry in a labeled directory to a task without authority,
+       read from the entry's parent dentry, and a hard link of a labeled
+       inode anywhere. Each refreshes the directory's mark.
      - ``EACCES``
      - ``SealEntry``
-     - Open: a directory without a cached mark is not checked.
+     - See the label verdict below.
    * - ``lsm/inode_init_security`` (``seal``)
      - Labels a new inode under a marked directory, inside the creation,
        and marks the new inode. Refuses the creation when it cannot add
        the label.
      - ``EACCES``
      - Uncounted
-     - Open without a parent mark; closed when the label cannot be added.
-   * - ``lsm/inode_copy_up`` (``seal``)
-     - The overlay copy-up of a marked inode.
+     - Cannot read: the entry hook of the same operation refreshed the
+       parent's mark from its label just before.
+   * - ``lsm.s/inode_copy_up`` (``seal``)
+     - The overlay copy-up of a labeled inode, by anyone.
      - ``EPERM``
      - ``SealCopyUp``
-     - Open: an inode without a cached mark is not checked.
+     - See the label verdict below.
    * - ``lsm.s/inode_post_setxattr``, ``lsm.s/inode_post_removexattr``
        (``seal``)
      - Refresh a directory's mark from its label after the change.
