@@ -35,8 +35,7 @@ key_serial_t keyring_bpf_serial(void)
 	return 42;
 }
 
-int keyring_holds_cert(key_serial_t ring __attribute__((__unused__)),
-		       const __u8 *der,
+int keyring_holds_cert(key_serial_t ring, const __u8 *der,
 		       size_t size)
 {
 	int i;
@@ -57,24 +56,20 @@ int keyring_holds_cert(key_serial_t ring __attribute__((__unused__)),
 	return 0;
 }
 
-int keys_revoke_image(const __u8 *der __attribute__((__unused__)),
-		      size_t size __attribute__((__unused__)),
-		      bool boot __attribute__((__unused__)))
+int keys_revoke_image(const __u8 *der, size_t size, bool boot)
 {
 	mutations++;
 	return -EPERM;
 }
 
-static int boot_count(void *opaque __attribute__((__unused__)),
-		      __u32 *reset, __u32 *restart)
+static int boot_count(void *opaque, __u32 *reset, __u32 *restart)
 {
 	*reset = 1;
 	*restart = 1;
 	return 0;
 }
 
-static int pcr_read(void *opaque, __u32 pcr __attribute__((__unused__)),
-		    __u8 out[32])
+static int pcr_read(void *opaque, __u32 pcr, __u8 out[32])
 {
 	struct test_context *ctx = opaque;
 
@@ -82,8 +77,7 @@ static int pcr_read(void *opaque, __u32 pcr __attribute__((__unused__)),
 	return 0;
 }
 
-static int pcr_extend(void *opaque, __u32 pcr __attribute__((__unused__)),
-		      const __u8 event[32])
+static int pcr_extend(void *opaque, __u32 pcr, const __u8 event[32])
 {
 	struct test_context *ctx = opaque;
 
@@ -92,8 +86,7 @@ static int pcr_extend(void *opaque, __u32 pcr __attribute__((__unused__)),
 }
 
 static int prepare(void *opaque,
-		   const struct config_update_target *target
-		   __attribute__((__unused__)))
+		   const struct config_update_target *target)
 {
 	struct test_context *ctx = opaque;
 
@@ -101,8 +94,7 @@ static int prepare(void *opaque,
 }
 
 static int activate(void *opaque,
-		    const struct config_update_target *target
-		    __attribute__((__unused__)))
+		    const struct config_update_target *target)
 {
 	struct test_context *ctx = opaque;
 
@@ -114,8 +106,7 @@ static int activate(void *opaque,
 	return 0;
 }
 
-static int seal(void *opaque __attribute__((__unused__)),
-		int fd __attribute__((__unused__)))
+static int seal(void *opaque, int fd)
 {
 	return 0;
 }

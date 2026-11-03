@@ -193,13 +193,12 @@ static int test_activate(void *opaque,
 	return simulator_save(ctx);
 }
 
-static int test_seal(void *opaque __attribute__((__unused__)),
-		     int fd __attribute__((__unused__)))
+static int test_seal(void *opaque, int fd)
 {
 	return getenv("SHIRUDO_TEST_CONFIG_SEAL_FAIL") ? -EPERM : 0;
 }
 
-static int test_checkpoint(void *opaque __attribute__((__unused__)),
+static int test_checkpoint(void *opaque,
 			   enum config_update_checkpoint checkpoint)
 {
 	const char *crash = getenv("SHIRUDO_TEST_CONFIG_CRASH");

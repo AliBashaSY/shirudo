@@ -64,8 +64,7 @@ static int append_init(const char *path, const char *bound_in,
 	return eventlog_append_to(path, buf);
 }
 
-static int count_lines(const char *line __attribute__((__unused__)),
-		       size_t len __attribute__((__unused__)), void *ctx)
+static int count_lines(const char *line, size_t len, void *ctx)
 {
 	__u32 *n = ctx;
 

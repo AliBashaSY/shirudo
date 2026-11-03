@@ -52,8 +52,7 @@ static ssize_t seal_lget(const char *path, char label[SEAL_LABEL_LEN]);
  * left alone, never labelled, followed or read as shirudo's own.
  */
 static int seal_label_cb(const char *path, const struct stat *sb,
-			 int typeflag __attribute__((__unused__)),
-			 struct FTW *ftwbuf __attribute__((__unused__)))
+			 int typeflag, struct FTW *ftwbuf)
 {
 	char label[SEAL_LABEL_LEN];
 	int ret;

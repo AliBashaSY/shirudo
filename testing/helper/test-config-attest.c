@@ -20,8 +20,7 @@
 #include "util/malloc.h"
 #include "util/tpm.h"
 
-static int boot_identity(void *ctx __attribute__((__unused__)),
-			 __u32 *reset, __u32 *restart)
+static int boot_identity(void *ctx, __u32 *reset, __u32 *restart)
 {
 	struct tpm *tpm = NULL;
 	int ret;
@@ -33,8 +32,7 @@ static int boot_identity(void *ctx __attribute__((__unused__)),
 	return ret;
 }
 
-static int pcr_read(void *ctx __attribute__((__unused__)),
-		    __u32 pcr, __u8 out[32])
+static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
 {
 	struct tpm *tpm = NULL;
 	int ret;
@@ -46,22 +44,18 @@ static int pcr_read(void *ctx __attribute__((__unused__)),
 	return ret;
 }
 
-static int no_extend(void *ctx __attribute__((__unused__)),
-		     __u32 pcr __attribute__((__unused__)),
-		     const __u8 event[32] __attribute__((__unused__)))
+static int no_extend(void *ctx, __u32 pcr, const __u8 event[32])
 {
 	return -EPERM;
 }
 
-static int no_activate(void *ctx __attribute__((__unused__)),
-		       const struct config_update_target *target
-		       __attribute__((__unused__)))
+static int no_activate(void *ctx,
+		       const struct config_update_target *target)
 {
 	return -EPERM;
 }
 
-static int no_seal(void *ctx __attribute__((__unused__)),
-		   int fd __attribute__((__unused__)))
+static int no_seal(void *ctx, int fd)
 {
 	return 0;
 }

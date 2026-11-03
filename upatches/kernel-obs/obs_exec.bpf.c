@@ -147,8 +147,7 @@ int BPF_PROG(obs_exec, struct linux_binprm *bprm)
 }
 
 SEC("lsm/task_alloc")
-int BPF_PROG(obs_task_alloc, struct task_struct *child,
-	     __u64 clone_flags __attribute__((__unused__)))
+int BPF_PROG(obs_task_alloc, struct task_struct *child, __u64 clone_flags)
 {
 	struct task_struct *parent = bpf_get_current_task_btf();
 	struct obs_task_meta *meta, *inherited;

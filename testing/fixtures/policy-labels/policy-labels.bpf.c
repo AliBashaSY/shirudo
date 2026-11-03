@@ -13,8 +13,7 @@ int BPF_PROG(shirudo_test_policy_labels)
 }
 
 SEC("lsm.s/bprm_check_security")
-int BPF_PROG(shirudo_test_policy_verdict,
-	     struct linux_binprm *bprm __attribute__((__unused__)), int ret)
+int BPF_PROG(shirudo_test_policy_verdict, struct linux_binprm *bprm, int ret)
 {
 	struct shirudo_task_policy *policy;
 
@@ -26,11 +25,8 @@ int BPF_PROG(shirudo_test_policy_verdict,
 }
 
 SEC("lsm.s/socket_connect")
-int BPF_PROG(shirudo_test_socket_policy_verdict,
-	     struct socket *sock,
-	     struct sockaddr *address __attribute__((__unused__)),
-	     int addrlen __attribute__((__unused__)),
-	     int ret)
+int BPF_PROG(shirudo_test_socket_policy_verdict, struct socket *sock,
+	     struct sockaddr *address, int addrlen, int ret)
 {
 	struct shirudo_task_policy *policy;
 	struct sock *sk;

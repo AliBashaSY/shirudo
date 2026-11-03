@@ -474,11 +474,8 @@ int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 char _license[] SEC("license") = "Dual BSD/GPL";
 
 SEC("lsm/socket_post_create")
-int BPF_PROG(shirudo_seal_socket_post_create, struct socket *sock,
-	     int family __attribute__((__unused__)),
-	     int type __attribute__((__unused__)),
-	     int protocol __attribute__((__unused__)),
-	     int kern __attribute__((__unused__)), int ret)
+int BPF_PROG(shirudo_seal_socket_post_create, struct socket *sock, int family,
+	     int type, int protocol, int kern, int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct shirudo_task_policy *policy;
@@ -516,8 +513,8 @@ static __always_inline bool shirudo_task_has_seccomp(struct task_struct *task)
 }
 
 SEC("lsm.s/bprm_creds_for_exec")
-int BPF_PROG(shirudo_seal_bprm_creds_for_exec,
-	     struct linux_binprm *bprm __attribute__((__unused__)), int ret)
+int BPF_PROG(shirudo_seal_bprm_creds_for_exec, struct linux_binprm *bprm,
+	     int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct shirudo_task_policy *policy;

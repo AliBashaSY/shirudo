@@ -23,7 +23,7 @@ int upatch_decode_map_json(const struct map_view *v,
 }
 
 int upatch_decode_map_json_limit(const struct map_view *v,
-				 size_t max_bytes __attribute__((__unused__)),
+				 size_t max_bytes,
 				 char **out, size_t *out_len)
 {
 	return upatch_decode_map_json(v, out, out_len);
@@ -35,26 +35,22 @@ int upatch_decode_map_otel(const struct map_view *v,
 	return upatch_decode_map_json(v, out, out_len);
 }
 
-int upatch_decode_map_file_json(const char *path
-				__attribute__((__unused__)),
+int upatch_decode_map_file_json(const char *path,
 				const struct map_view *v,
 				char **out, size_t *out_len)
 {
 	return upatch_decode_map_json(v, out, out_len);
 }
 
-int upatch_decode_map_file_json_limit(const char *path
-				      __attribute__((__unused__)),
+int upatch_decode_map_file_json_limit(const char *path,
 				      const struct map_view *v,
-				      size_t max_bytes __attribute__((__unused__)),
-				      char **out,
+				      size_t max_bytes, char **out,
 				      size_t *out_len)
 {
 	return upatch_decode_map_json(v, out, out_len);
 }
 
-int upatch_decode_map_file_otel(const char *path
-				__attribute__((__unused__)),
+int upatch_decode_map_file_otel(const char *path,
 				const struct map_view *v,
 				char **out, size_t *out_len)
 {
@@ -1018,8 +1014,7 @@ static void lua_disable_globals(lua_State *L)
 	}
 }
 
-static void lua_budget_hook(lua_State *L,
-			    lua_Debug * __attribute__((__unused__)) ar)
+static void lua_budget_hook(lua_State *L, lua_Debug *ar)
 {
 	struct lua_budget *budget;
 
