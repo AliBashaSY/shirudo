@@ -890,9 +890,15 @@ The order of the steps decides what a crash or a stopped process
 leaves. A load whose archive copy or extension fails is undone, pins
 and archive. An unload or a purge is measured before it detaches, so an
 interruption leaves a register that claims more than happened, never a
-detach it does not know. A measuring command holds a lock beside the
-eventlog from its extend to its append, so the register and the log
-advance in one order. An append that fails after a successful extend
+detach it does not know. A load that root stops between its pins and
+its extend, with ``SIGKILL`` say, leaves pins the register does not
+cover and the upatch attached: ``shirudo status`` reports them
+(``UpatchesMeasured``, verdict ``tampered``) and the next upatch
+command, ``bpm``'s included, undoes them before it acts. A measuring
+command holds a lock beside the eventlog from its extend to its append,
+a load or an unload from that undo to its append, so the register and
+the log advance in one order and the undo never takes a load in flight
+for a stopped one. An append that fails after a successful extend
 leaves the register ahead of the log; shirudo reports the desync and
 ``shirudo status`` reports a register its replay cannot explain.
 
@@ -916,7 +922,7 @@ tree operations run without it.
    ``tpm_error`` and ``eventlog_full`` from shirudo
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
-   ``t6122``, ``t6128``
+   ``t6122``, ``t6128``, ``t6143``
 :Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window
@@ -1275,7 +1281,8 @@ R2 The command interface of the runtime binary is the boundary
    serializer with ``shirudo upatch map`` and send the output where it
    chooses, and hold the lock files shirudo serializes on. No hook
    covers signals, so root can also stop a running command, which
-   keeps open whatever descriptors it holds (U17).
+   keeps open whatever descriptors it holds (U17); a load stopped
+   before its extend is reported and undone (T5).
    ``CAP_SYS_RESOURCE`` can rewrite a process's executable link, which
    ``lsm/task_prctl`` refuses and the mark does not depend on. The
    initrd's bootstrap binary and the memory of authorized tasks stay

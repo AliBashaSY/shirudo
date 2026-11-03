@@ -46,6 +46,9 @@ struct conditions_input {
 	int		config_seen;
 	int		config_state;	/* image_config_state() */
 	const char	*config_root;	/* hex, when config_seen */
+	int		pins_rc;	/* 0 when the pins were checked, else -errno */
+	int		pins_unmeasured;	/* pinned without a record this boot */
+	const char	*pins_detail;	/* their names, when any */
 };
 
 struct condition {
@@ -59,7 +62,7 @@ struct condition {
  * KeyringSealed, ChainIntact, TpmMeasured, ConfigActive); callers can
  * size their stack array off this.
  */
-#define CONDITIONS_MAX	5
+#define CONDITIONS_MAX	6
 
 size_t conditions(const struct conditions_input *in,
 		  struct condition *out, size_t cap);

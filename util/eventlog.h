@@ -74,6 +74,22 @@ int eventlog_boot_init(struct eventlog_init *out);
 int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 				  void *ctx), void *ctx);
 
+enum eventlog_upatch_event {
+	EVENTLOG_UPATCH_INIT,
+	EVENTLOG_UPATCH_LOAD,
+	EVENTLOG_UPATCH_UNLOAD,
+};
+
+/*
+ * The loads and unloads this boot's records measure, in order. An init
+ * record gives EVENTLOG_UPATCH_INIT with no name, which starts the set
+ * over, then each upatch of its set as a load.
+ */
+int eventlog_boot_upatches(int (*cb)(enum eventlog_upatch_event event,
+				     const char *name,
+				     const char *payload_hex, void *ctx),
+			   void *ctx);
+
 /*
  * 1 if appending one more event would push the eventlog past max_bytes;
  * 0 if it fits or max_bytes is 0 (unlimited). The register and the log

@@ -136,7 +136,9 @@ Measure
    a matching record to the eventlog. When the archive copy or the
    extension fails, shirudo undoes the load rather than leave it
    unmeasured. If the undo fails as well, the command says so and leaves
-   the target for the operator to reconcile.
+   the target for the operator to reconcile. A load stopped before the
+   extension leaves pins the register does not cover; ``status`` reports
+   them and the next load or unload undoes them.
 
    The register starts from zero at every boot. Its value depends only on
    the trusted certificates, the set restored at boot, the upatch tree's

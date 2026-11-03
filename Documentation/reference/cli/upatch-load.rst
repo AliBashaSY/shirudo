@@ -45,6 +45,11 @@ Description
    message ``chain_drift``).
 #. It refuses when the eventlog would exceed ``eventlog.max_bytes``
    (``eventlog_full``).
+#. It takes the register lock, ``/var/lib/shirudo/eventlog.lock``, which
+   it holds to the end, and undoes the pins of a load that was stopped
+   before its extend or of an unload stopped after it, the pins
+   ``status`` reports under ``UpatchesMeasured``. A upatch of the same
+   name that is loaded is refused (``already_loaded``).
 #. It parses the artifact: a LOAD artifact, a safe and signed name, a
    payload digest that matches the payload, valid attach metadata
    (``parser_rejected``). For a uprobe it checks each target binary
@@ -68,7 +73,10 @@ Description
 When the copy to the archive or the register extend fails, ``load``
 removes the pins and the archive again, so that no upatch runs
 unmeasured. When the extend succeeded and only the eventlog append failed,
-the upatch stays loaded and the report says ``tpm_error``.
+the upatch stays loaded and the report says ``tpm_error``. A ``load``
+stopped between its pins and its extend leaves the pins: ``status``
+reports them as ``tampered`` and the next ``load`` or ``unload`` undoes
+them before it acts.
 
 ``--no-precheck`` skips step 3 only. The kernel signature check and the
 LSM still apply. ``bpm`` passes it when it loads the upatches of a

@@ -32,6 +32,7 @@
 #include "util/chain.h"
 #include "util/bpm_tree.h"
 #include "util/conditions.h"
+#include "util/measured.h"
 #include "util/config.h"
 #include "util/crypto.h"
 #include "util/eventlog.h"
@@ -61,6 +62,21 @@
 #include "util/upatch_resolve.h"
 #include "util/upatch_table.h"
 #include "util/version.h"
+
+#define UNMEASURED_NAMES	256
+
+static int note_unmeasured(const char *name, void *ctx)
+{
+	char *names = ctx;
+	size_t used = strlen(names);
+
+	if (used >= 3 && !strcmp(names + used - 3, "..."))
+		return 0;
+	if (strsprintf(names + used, UNMEASURED_NAMES - used, "%s%s",
+		       used ? ", " : "", name) < 0 && used)
+		strscpy(names + used, ", ...", UNMEASURED_NAMES - used);
+	return 0;
+}
 
 static int notdot(const struct dirent *e)
 {
@@ -882,8 +898,10 @@ int cmd_status(int argc, const char **argv)
 	int n_ups, i, fd, ret = 0;
 	const char *otel_status = NULL;
 	bool otel_endpoint_configured = false;
+	char unmeasured_names[UNMEASURED_NAMES] = "";
 	char config_root_hex[65] = "";
 	__u8 config_root[32];
+	int unmeasured, lock;
 	int config_state;
 
 	for (i = 1; i < argc; i++) {
@@ -998,6 +1016,10 @@ int cmd_status(int argc, const char **argv)
 	n_ups = scandir(BPFFS_UPATCHES_DIR, &ups, notdot, alphasort);
 	if (n_ups < 0)
 		n_ups = 0;
+	lock = eventlog_lock();
+	unmeasured = lock < 0 ? lock :
+		     measured_unmeasured_pins(note_unmeasured, unmeasured_names);
+	eventlog_unlock(lock);
 
 	gather_assets(&assets);
 	tamper_rc = tamper_read(&tamper);
@@ -1057,6 +1079,9 @@ int cmd_status(int argc, const char **argv)
 	cin.config_seen = config_state != -ENODEV;
 	cin.config_state = config_state;
 	cin.config_root = config_root_hex;
+	cin.pins_rc = min(unmeasured, 0);
+	cin.pins_unmeasured = max(unmeasured, 0);
+	cin.pins_detail = unmeasured_names;
 	keyring_cond_input(&cin, &bpf, &dmv);
 
 	if (json) {

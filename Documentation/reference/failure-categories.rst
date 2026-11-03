@@ -198,8 +198,9 @@ Categories
    * - ``tpm_error``
      - ``tpm_extend``
      - errno of the call
-     - The register lock, the TPM or the extend failed. A load is undone
-       when the register did not move. When the extend succeeded and the
+     - The register lock could not be taken, in which case nothing was
+       loaded or detached, or the TPM or the extend failed. A load is
+       undone when the register did not move. When the extend succeeded and the
        eventlog append failed, the message reads ``eventlog append failed
        after the extend``.
      - Check ``shirudo status``. A register ahead of the eventlog shows as

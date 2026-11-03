@@ -19,6 +19,7 @@
 
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
+#include <shirudo/upatch.h>
 
 #include "chain.h"
 #include "eventlog.h"
@@ -469,6 +470,78 @@ int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 	struct lines_ctx l = { cb, ctx };
 
 	return walk_boot(lines_line, &l);
+}
+
+struct upatches_ctx {
+	int	(*cb)(enum eventlog_upatch_event event, const char *name,
+		      const char *payload_hex, void *ctx);
+	void	*ctx;
+	char	name[UPATCH_NAME_MAX + 1];
+	char	payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
+	int	ret;
+};
+
+static int upatches_set_entry(void *arg)
+{
+	struct upatches_ctx *u = arg;
+
+	if (!u->name[0] || strlen(u->payload_hex) != 2 * UPATCH_PAYLOAD_HASH_LEN)
+		return -EINVAL;
+	u->ret = u->cb(EVENTLOG_UPATCH_LOAD, u->name, u->payload_hex, u->ctx);
+	u->name[0] = '\0';
+	u->payload_hex[0] = '\0';
+	return u->ret;
+}
+
+static int upatches_line(const char *line, size_t len, bool is_init,
+			 void *ctx)
+{
+	struct upatches_ctx *u = ctx;
+	struct json_field entry[] = {
+		{ "name", JSON_T_STRING, u->name, sizeof(u->name), 0,
+		  NULL, 0 },
+		{ "payload_sha256", JSON_T_STRING, u->payload_hex,
+		  sizeof(u->payload_hex), 0, NULL, 0 },
+	};
+	struct json_array set = { upatches_set_entry, u };
+	char type[32];
+	struct json_field f[] = {
+		{ "type", JSON_T_STRING, type, sizeof(type), 0, NULL, 0 },
+		{ "set", JSON_T_ARRAY, &set, 0, 0, entry, ARRAY_SIZE(entry) },
+		{ "upatch", JSON_T_OBJECT, NULL, 0, 0, entry,
+		  ARRAY_SIZE(entry) },
+	};
+	int ret;
+
+	u->name[0] = '\0';
+	u->payload_hex[0] = '\0';
+	type[0] = '\0';
+	if (is_init) {
+		ret = u->cb(EVENTLOG_UPATCH_INIT, NULL, NULL, u->ctx);
+		if (ret)
+			return ret;
+	}
+	if (json_parse(line, len, f, ARRAY_SIZE(f)))
+		return u->ret ? u->ret : -EINVAL;
+	if (is_init)
+		return 0;
+	if (strcmp(type, "upatch_load") && strcmp(type, "upatch_unload"))
+		return 0;
+	if (!f[2].seen || !u->name[0] ||
+	    strlen(u->payload_hex) != 2 * UPATCH_PAYLOAD_HASH_LEN)
+		return -EINVAL;
+	return u->cb(type[7] == 'l' ? EVENTLOG_UPATCH_LOAD :
+		     EVENTLOG_UPATCH_UNLOAD, u->name, u->payload_hex, u->ctx);
+}
+
+int eventlog_boot_upatches(int (*cb)(enum eventlog_upatch_event event,
+				     const char *name,
+				     const char *payload_hex, void *ctx),
+			   void *ctx)
+{
+	struct upatches_ctx u = { .cb = cb, .ctx = ctx };
+
+	return walk_boot(upatches_line, &u);
 }
 
 void eventlog_timestamp(char *out, size_t cap)

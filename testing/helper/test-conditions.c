@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	struct condition conds[CONDITIONS_MAX];
 	struct conditions_input in = {};
 	__s64 lsm, serial, pinned;
-	const char *mode, *config;
+	const char *mode, *config, *pins;
 	char reason[160];
 	size_t n, i;
 
@@ -96,6 +96,17 @@ int main(int argc, char **argv)
 			  !strcmp(config, "untrusted") ? -EUCLEAN :
 			  !strcmp(config, "stale") ? -ESTALE : 0;
 	in.config_root = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+	pins = getenv("SHIRUDO_TEST_PINS");
+	if (pins && !strcmp(pins, "norecord")) {
+		in.pins_rc = -ENOENT;
+	} else if (pins && !strcmp(pins, "error")) {
+		in.pins_rc = -EACCES;
+	} else if (pins && !strncmp(pins, "unmeasured:", 11)) {
+		in.pins_detail = pins + 11;
+		in.pins_unmeasured = 1;
+		for (pins = in.pins_detail; *pins; pins++)
+			in.pins_unmeasured += *pins == ',';
+	}
 
 	status_reason(&in, reason, sizeof(reason));
 	printf("status=%s\n", status_verdict(&in));

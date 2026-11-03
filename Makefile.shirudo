@@ -221,6 +221,7 @@ UTIL_SRCS := \
 	$(TLS_SRC) \
     util/loader.c \
     util/upatch.c \
+    util/measured.c \
     util/keyring.c \
     util/keys.c \
     util/identity.c \

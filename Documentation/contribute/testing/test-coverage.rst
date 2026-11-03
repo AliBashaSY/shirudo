@@ -274,7 +274,8 @@ signed config image.
    * - ``t6003-tamper-points``
      - Every tamper counter has a name and a meaning
    * - ``t6004-conditions``
-     - Status conditions: both keyrings, register, config activation
+     - Status conditions: both keyrings, register, pins, config
+       activation
    * - ``t6005-mode-objects``
      - The embedded admission and seal objects include image
        enforcement
@@ -373,6 +374,9 @@ signed config image.
        interpreter handlers
    * - ``t6142-policy-socket-inheritance``
      - Task policy is inherited by a listener and its accepted socket
+   * - ``t6143-unmeasured-load``
+     - A load stopped before its extend is reported by status and undone
+       by the next upatch command
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -588,7 +592,7 @@ Coverage by area
        ``t5003``
    * - TPM register
      - ``t4001``, ``t4003``, ``t4101``, ``t4102``, ``t4103``,
-       ``t6125``, ``t6128``. Unit: ``chain``
+       ``t6125``, ``t6128``, ``t6143``. Unit: ``chain``
    * - Attestation
      - ``t2003``, ``t2005``, ``t4003``, ``t4004``, ``t4102``,
        ``t9105``. Fuzz: ``attest``, ``tpm-wire``

@@ -259,7 +259,11 @@ one usually still compiles and passes tests.
 - **upatch state changes extend the TPM measurement register**
   with a domain-separated tag, in deterministic order. Commands refuse
   on drift (`tampered`) rather than retrying. Boot restore is exactly one
-  register event and a re-run of `init` adds none. The register follows
+  register event and a re-run of `init` adds none. A load stopped
+  between its pins and its extend leaves pins without a record: `status`
+  reports them (`UpatchesMeasured`) and the next upatch command undoes
+  them under the register lock, which a load or an unload holds from
+  before it touches the pins to its append. The register follows
   systemd's NvPCR construction (`util/chain.c`): an NV extend index that
   clears at TPM reset, a first write only possible while PCRs 9 and 11
   hold the values the policy was computed from, which is why `init`

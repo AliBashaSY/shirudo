@@ -8,7 +8,8 @@
 # key that is gone makes the status tampered, and the register
 # conditions tell a TPM that does not answer from one with no register.
 # A pending config activation is reboot-pending, and a config its records
-# cannot vouch for is tampered.
+# cannot vouch for is tampered. A pin without a record of this boot is
+# tampered, and pins that cannot be checked are a warning.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -104,6 +105,32 @@ test_expect_success 'a TPM without a register this boot says so' '
 test_expect_success 'a bound register is measured' '
 	./$H 1 bpf 100 100 match |
 		grep -qx "TpmMeasured OK NV index 0x01818E00 readable"
+'
+
+test_expect_success 'every pinned upatch in the records is OK' '
+	./$H 1 bpf 100 100 match |
+		grep -qx "UpatchesMeasured OK every pinned upatch is in this boot.s records"
+'
+
+test_expect_success 'a pin without a record of this boot is tampered' '
+	out=$(SHIRUDO_TEST_PINS=unmeasured:shirudo-test-basic,kernel-obs ./$H 1 bpf 100 100 match) &&
+	echo "$out" | grep -qx "status=tampered" &&
+	echo "$out" | grep -qx "reason=a upatch is pinned without a record of this boot" &&
+	echo "$out" | grep -qx "UpatchesMeasured ALERT 2 pinned without a record of this boot: shirudo-test-basic,kernel-obs"
+'
+
+test_expect_success 'pins that cannot be checked are a warning, not a verdict' '
+	out=$(SHIRUDO_TEST_PINS=norecord ./$H 1 bpf 100 100 match) &&
+	echo "$out" | grep -qx "status=ok" &&
+	echo "$out" | grep -qx "UpatchesMeasured WARN no record of this boot to check the pins against" &&
+	out=$(SHIRUDO_TEST_PINS=error ./$H 1 bpf 100 100 match) &&
+	echo "$out" | grep -qx "status=ok" &&
+	echo "$out" | grep -qx "UpatchesMeasured WARN pins not checked against the records: Permission denied"
+'
+
+test_expect_success 'a register mismatch is the reason given before the pins' '
+	SHIRUDO_TEST_PINS=unmeasured:x ./$H 1 bpf 100 100 mismatch |
+		grep -qx "reason=live register != eventlog replay"
 '
 
 test_expect_success 'an active config is OK' '

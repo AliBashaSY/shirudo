@@ -130,7 +130,8 @@ the label as foreign. In the initrd, ``init`` binds
    * - ``eventlog.lock``
      - measuring commands
      - ``0600``
-     - Lock held from each register extend to its eventlog append.
+     - Lock held from each register extend to its eventlog append, and
+       by a load or an unload from before it touches the pins.
    * - ``locks/bpm.lock``
      - ``bpm``
      - ``0600``

@@ -158,8 +158,9 @@ Verdicts
        ``.bpf`` or ``.dm-verity`` keyring's serial differs from the
        pinned serial, a keyring ``init`` pinned is gone, a keyring holds
        a link ``init`` did not freeze, the config key ``init`` froze is
-       gone from ``.dm-verity``, or the selected config cannot be
-       verified against its activation records.
+       gone from ``.dm-verity``, a upatch is pinned without a record of
+       this boot, or the selected config cannot be verified against its
+       activation records.
    * - ``lsm-off``
      - The LSM link is not pinned. Enforcement is off.
    * - ``init-pending``
@@ -175,7 +176,7 @@ Verdicts
 Conditions
 ----------
 
-``conditions`` always holds these five types, in this order. ``status``
+``conditions`` always holds these six types, in this order. ``status``
 is ``OK``, ``WARN`` or ``ALERT``. ``<serial>``, ``<n>`` and ``<root>``
 stand for a keyring serial, a number of links and the first 12 hex
 digits of the config root hash. ``KeyringSealed`` reports the first of
@@ -235,6 +236,18 @@ its details that applies, in the order listed.
    * -
      - ``ALERT``
      - ``live register != eventlog replay (tamper?)``
+   * - ``UpatchesMeasured``
+     - ``OK``
+     - ``every pinned upatch is in this boot's records``
+   * -
+     - ``WARN``
+     - ``no record of this boot to check the pins against``
+   * -
+     - ``WARN``
+     - ``pins not checked against the records: <error>``
+   * -
+     - ``ALERT``
+     - ``<n> pinned without a record of this boot: <names>``
    * - ``TpmMeasured``
      - ``OK``
      - ``NV index 0x01818E00 readable``
@@ -701,6 +714,11 @@ indented here:
          "type": "ChainIntact",
          "status": "OK",
          "detail": "live register == eventlog replay"
+       },
+       {
+         "type": "UpatchesMeasured",
+         "status": "OK",
+         "detail": "every pinned upatch is in this boot's records"
        },
        {
          "type": "TpmMeasured",

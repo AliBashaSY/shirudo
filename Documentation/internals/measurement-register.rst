@@ -247,13 +247,17 @@ of their own could interleave extend, extend, append, append, and leave a
 log that replays the events in the other order. Every measuring command,
 an upatch load or unload, a live revocation and a tree operation,
 therefore holds ``/var/lib/shirudo/eventlog.lock`` from its extension to
-its append.
+its append; a load or an unload holds it from before it touches the pins.
 
 The order of extension and state change is chosen per operation. A load
 loads, archives and then extends; a failed archive copy or a refused
 extension undoes the load, so no upatch runs unmeasured. An unload
 extends first and detaches after, so a stopped process leaves a register
-that records more than happened, never less. An append that fails after
+that records more than happened, never less. A load stopped between its
+pins and its extension leaves pins the register does not cover:
+``status`` reports them and the next load or unload undoes them under
+the same lock before it acts, so the register stays behind what runs
+for one command at most. An append that fails after
 a successful extension is reported as a desync for the operator to
 reconcile.
 

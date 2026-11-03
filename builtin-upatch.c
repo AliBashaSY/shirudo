@@ -50,6 +50,7 @@
 #include "util/keyring.h"
 #include "util/tpm.h"
 #include "util/log.h"
+#include "util/measured.h"
 #include "util/hex.h"
 #include "util/malloc.h"
 #include "util/paths.h"
@@ -2773,7 +2774,7 @@ static int stage_upatch(const char *src, char *staged, size_t sz)
 }
 
 /* Take a load the register did not record back out: pins, then archive. */
-static void unload_unmeasured(const char *name)
+static int undo_load(const char *name)
 {
 	char persisted[PATH_MAX];
 	int ret;
@@ -2783,6 +2784,13 @@ static void unload_unmeasured(const char *name)
 			       UPATCHES_DIR, name) >= 0 &&
 	    unlink(persisted) != 0 && errno != ENOENT)
 		ret = -errno;
+	return ret;
+}
+
+static void unload_unmeasured(const char *name)
+{
+	int ret = undo_load(name);
+
 	if (ret)
 		pr_err("upatch load: %s is loaded but not measured and could "
 		       "not be undone: %s; operator must reconcile", name,
@@ -2790,6 +2798,36 @@ static void unload_unmeasured(const char *name)
 	else
 		pr_err("upatch load: %s was not measured; the load was undone",
 		       name);
+}
+
+static int undo_unmeasured_pin(const char *name, void *ctx)
+{
+	int ret = undo_load(name);
+
+	if (ret)
+		pr_err("upatch: %s is pinned without a record of this boot and could not be undone: %s; operator must reconcile",
+		       name, strerror(-ret));
+	else
+		pr_audit("upatch: %s was pinned without a record of this boot; the load was undone",
+			 name);
+	return 0;
+}
+
+/*
+ * A load that a signal stopped between its pins and its extend, or an
+ * unload stopped between its append and its detach, left pins the
+ * register does not cover, which status reports meanwhile. Every upatch
+ * command undoes them before it acts, under the register lock a load
+ * holds from before its pins to its append, so that the scan never
+ * takes a load in flight for one that was stopped.
+ */
+static void undo_unmeasured_pins(void)
+{
+	int ret = measured_unmeasured_pins(undo_unmeasured_pin, NULL);
+
+	if (ret < 0 && ret != -ENOENT)
+		pr_warn("upatch: cannot check the pins against this boot's records: %s",
+			strerror(-ret));
 }
 
 static int cmd_upatch_load(int argc, const char **argv)
@@ -2801,7 +2839,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	struct upatch u;
 	struct op_report rep = { .op = "upatch_load", .phase = "done" };
 	bool no_precheck, no_version_check, have_id = false, measured;
-	int err, ret = 1;
+	int err, lock = -1, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (is_help(argv[i])) {
@@ -2861,6 +2899,16 @@ static int cmd_upatch_load(int argc, const char **argv)
 			 "unsafe upatch name");
 		goto done;
 	}
+	lock = eventlog_lock();
+	if (lock < 0) {
+		pr_err("upatch load: cannot take the register lock: %s "
+		       "(category: tpm_error) -- nothing loaded",
+		       strerror(-lock));
+		rep_fail(&rep, "tpm_extend", "tpm_error", -lock,
+			 "cannot take the register lock");
+		goto done;
+	}
+	undo_unmeasured_pins();
 	/*
 	 * Only a completed load records the payload and only an unload
 	 * removes it. A load over a live upatch rebinds its serializer pins
@@ -2889,8 +2937,9 @@ static int cmd_upatch_load(int argc, const char **argv)
 	 * would drift from it. A load whose archive copy fails, a file system
 	 * root filled say, or one the register then refuses to take is
 	 * undone, pins and archive, so that no upatch runs unmeasured; a
-	 * caller who stops this process first gets the same at the next
-	 * init, which refuses to restore what the register does not cover.
+	 * caller who stops this process first gets the same from the next
+	 * upatch command, and from the next init, which refuses to restore
+	 * what the register does not cover.
 	 */
 	err = persist_upatch(file, name);
 	if (err) {
@@ -2902,9 +2951,9 @@ static int cmd_upatch_load(int argc, const char **argv)
 		goto done;
 	}
 
-	err = upatch_chain_event("shirudo-upatch", "upatch_load", "load",
-				 name, payload, NULL, rep.chain_after,
-				 &measured);
+	err = upatch_chain_event_locked("shirudo-upatch", "upatch_load",
+					"load", name, payload, NULL,
+					rep.chain_after, &measured);
 	if (err) {
 		if (!measured)
 			unload_unmeasured(name);
@@ -2919,6 +2968,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 	rep.tpm_present = rep.chain_after[0] != '\0';
 	ret = 0;
 done:
+	eventlog_unlock(lock);
 	if (ret == 1 && rep.category &&
 	    !strcmp(rep.category, "attach_target_missing"))
 		ret = UPATCH_INSTALL_TARGET_MISSING;
@@ -2940,7 +2990,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	struct upatch u;
 	struct op_report rep = { .op = "upatch_unload", .phase = "done" };
 	bool no_precheck, no_version_check;
-	int err, ret = 1;
+	int err, lock = -1, ret = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (is_help(argv[i])) {
@@ -3033,6 +3083,16 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	if (eventlog_room(&rep, "unload") != 0)
 		goto done;
 
+	lock = eventlog_lock();
+	if (lock < 0) {
+		pr_err("upatch unload: cannot take the register lock: %s "
+		       "(category: tpm_error) -- nothing detached",
+		       strerror(-lock));
+		rep_fail(&rep, "tpm_extend", "tpm_error", -lock,
+			 "cannot take the register lock");
+		goto done;
+	}
+	undo_unmeasured_pins();
 	/* A bad signature fails here, before anything is removed. */
 	if (__upatch_apply(file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");
@@ -3091,8 +3151,9 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * fails after the event leaves a shield the register says is gone,
 	 * which the next status reports and the operator can repeat.
 	 */
-	err = upatch_chain_event("shirudo-unload", "upatch_unload", "unload",
-				 name, payload, NULL, rep.chain_after, NULL);
+	err = upatch_chain_event_locked("shirudo-unload", "upatch_unload",
+					"unload", name, payload, NULL,
+					rep.chain_after, NULL);
 	if (err) {
 		rep_fail(&rep, "tpm_extend", chain_event_category(err, false),
 			 err, "chain extend failed; nothing detached");
@@ -3117,6 +3178,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	rep.tpm_present = rep.chain_after[0] != '\0';
 	ret = 0;
 done:
+	eventlog_unlock(lock);
 	if (ret != 0)
 		pr_err("upatch unload failed: name=%s phase=%s category=%s "
 		       "err=%d (%s) message=%s",
