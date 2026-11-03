@@ -85,25 +85,24 @@ static __always_inline int seal_verdict(int tlen,
 /* Whether an xattr name is the label itself, not a longer name under it. */
 static __always_inline bool seal_is_label(const char *name)
 {
-	char buf[sizeof(XATTR) + 1];
+	char buf[sizeof(XATTR_SEAL) + 1];
 	long n;
 
 	n = bpf_probe_read_kernel_str(buf, sizeof(buf), name);
-	if (n != sizeof(XATTR))
+	if (n != sizeof(XATTR_SEAL))
 		return false;
-	return !bpf_strncmp(buf, sizeof(XATTR), XATTR);
+	return !bpf_strncmp(buf, sizeof(XATTR_SEAL), XATTR_SEAL);
 }
 
 static __always_inline bool seal_is_policy(const char *name)
 {
-	char buf[sizeof(SHIRUDO_POLICY_XATTR) + 1];
+	char buf[sizeof(XATTR_POLICY) + 1];
 	long n;
 
 	n = bpf_probe_read_kernel_str(buf, sizeof(buf), name);
-	if (n != sizeof(SHIRUDO_POLICY_XATTR))
+	if (n != sizeof(XATTR_POLICY))
 		return false;
-	return !bpf_strncmp(buf, sizeof(SHIRUDO_POLICY_XATTR),
-			    SHIRUDO_POLICY_XATTR);
+	return !bpf_strncmp(buf, sizeof(XATTR_POLICY), XATTR_POLICY);
 }
 
 static __always_inline struct seal_scratch *
@@ -242,7 +241,7 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 			return 0;
 		bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 		seal_mark(inode, s->target,
-			  bpf_get_file_xattr(file, XATTR, &tdp));
+			  bpf_get_file_xattr(file, XATTR_SEAL, &tdp));
 		return 0;
 	}
 	if (!(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
@@ -251,7 +250,7 @@ int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 	if (!s)				/* cannot read the label */
 		return seal_caller(TAMPER_SEAL_WRITE);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
-	tlen = bpf_get_file_xattr(file, XATTR, &tdp);
+	tlen = bpf_get_file_xattr(file, XATTR_SEAL, &tdp);
 	if (tlen == LABEL_LEN)
 		seal_mark(inode, s->target, tlen);
 	return seal_verdict(tlen, TAMPER_SEAL_WRITE);
@@ -292,7 +291,7 @@ static __always_inline void seal_mark_dentry(struct dentry *dentry)
 		return;
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
 	seal_mark(inode, s->target,
-		  bpf_get_dentry_xattr(dentry, XATTR, &tdp));
+		  bpf_get_dentry_xattr(dentry, XATTR_SEAL, &tdp));
 }
 
 SEC("lsm.s/inode_post_setxattr")
@@ -334,7 +333,7 @@ int BPF_PROG(shirudo_seal_inode_init_security, struct inode *inode,
 	if (!m)
 		return 0;
 	bpf_dynptr_from_mem(m->label, LABEL_LEN, 0, &dp);
-	if (bpf_inode_init_xattr(xattrs, xattr_count, XATTR, &dp))
+	if (bpf_inode_init_xattr(xattrs, xattr_count, XATTR_SEAL, &dp))
 		return -EACCES;
 	if (!seal_is_dir(inode))
 		return 0;
@@ -355,7 +354,7 @@ static __always_inline int seal_dentry(struct dentry *dentry,
 	if (!s)
 		return seal_caller(point);
 	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
-	return seal_verdict(bpf_get_dentry_xattr(dentry, XATTR, &tdp),
+	return seal_verdict(bpf_get_dentry_xattr(dentry, XATTR_SEAL, &tdp),
 			    point);
 }
 
@@ -556,7 +555,7 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 	if (!scratch)
 		return -ENOMEM;
 	bpf_dynptr_from_mem(scratch->target, sizeof(value), 0, &tdp);
-	len = bpf_get_file_xattr(bprm->file, SHIRUDO_POLICY_XATTR, &tdp);
+	len = bpf_get_file_xattr(bprm->file, XATTR_POLICY, &tdp);
 	if (len == -ENODATA || len == -EOPNOTSUPP)
 		value = 0;
 	else if (len != sizeof(value))

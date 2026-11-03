@@ -4,8 +4,8 @@
 #ifndef SHIRUDO_BPF_XATTR_H
 #define SHIRUDO_BPF_XATTR_H
 
-#define XATTR		"security.bpf.shirudo"
-#define SHIRUDO_POLICY_XATTR "security.bpf.shirudo.policy"
+#define XATTR_SEAL	"security.bpf.shirudo"
+#define XATTR_POLICY	"security.bpf.shirudo.policy"
 /* The label is a SHA-256 hex string (util/seal.h) -- always 64 bytes. */
 #define LABEL_LEN	64
 

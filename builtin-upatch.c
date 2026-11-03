@@ -2780,8 +2780,7 @@ static void apply_policy_labels(const char *artifact)
 				entry->path, entry->policy, strerror(errno));
 			continue;
 		}
-		n = fgetxattr(fd, SHIRUDO_POLICY_XATTR, &current,
-			      sizeof(current));
+		n = fgetxattr(fd, XATTR_POLICY, &current, sizeof(current));
 		if (n < 0 && (errno == ENODATA || errno == EOPNOTSUPP)) {
 			current = 0;
 		} else if (n != (ssize_t)sizeof(current)) {
@@ -2791,8 +2790,7 @@ static void apply_policy_labels(const char *artifact)
 			continue;
 		}
 		current |= bits;
-		if (fsetxattr(fd, SHIRUDO_POLICY_XATTR, &current,
-			      sizeof(current), 0) != 0)
+		if (fsetxattr(fd, XATTR_POLICY, &current, sizeof(current), 0))
 			pr_warn("upatch: cannot set policy label on %s: %s",
 				entry->path, strerror(errno));
 		close(fd);

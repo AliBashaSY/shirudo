@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include "../../util/identity.h"
+#include "../../util/paths.h"
 
 static __u64 probe_word = 0x5348495255444fUL;
 
@@ -191,8 +192,7 @@ static int socket_inheritance(const char *script, __u64 extra)
 	{
 		__u64 value = extra;
 
-		if (setxattr(acceptor, "security.bpf.shirudo.policy", &value,
-			     sizeof(value), 0))
+		if (setxattr(acceptor, XATTR_POLICY, &value, sizeof(value), 0))
 			return 1;
 	}
 	length = snprintf(number, sizeof(number), "%d", listener);
@@ -246,8 +246,7 @@ static int set_policy(const char *path, const char *text)
 
 	if (parse_policy(text, &value))
 		return 2;
-	return setxattr(path, "security.bpf.shirudo.policy", &value,
-			sizeof(value), 0) ? 1 : 0;
+	return setxattr(path, XATTR_POLICY, &value, sizeof(value), 0) ? 1 : 0;
 }
 
 static int remove_policy(const char *path)
@@ -255,10 +254,9 @@ static int remove_policy(const char *path)
 	__u64 value;
 	ssize_t n;
 
-	if (removexattr(path, "security.bpf.shirudo.policy"))
+	if (removexattr(path, XATTR_POLICY))
 		return 1;
-	n = getxattr(path, "security.bpf.shirudo.policy", &value,
-		     sizeof(value));
+	n = getxattr(path, XATTR_POLICY, &value, sizeof(value));
 	return n < 0 && errno == ENODATA ? 0 : 1;
 }
 

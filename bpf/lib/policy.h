@@ -8,6 +8,8 @@
 #ifndef SHIRUDO_BPF_POLICY_H
 #define SHIRUDO_BPF_POLICY_H
 
+#include "xattr.h"
+
 struct task_policy {
 	__u64	active;
 	__u64	candidate;

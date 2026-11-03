@@ -91,7 +91,6 @@ enum upatch_section_tag {
 #define UPATCH_MAPS_MAX			64u
 #define UPATCH_POLICY_NAME_MAX		64u
 #define UPATCH_POLICY_PATH_MAX		4096u
-#define SHIRUDO_POLICY_XATTR		"security.bpf.shirudo.policy"
 
 struct upatch_policy_label_header {
 	__u32	magic;

@@ -7,7 +7,6 @@
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 
-#define SHIRUDO_POLICY_XATTR "security.bpf.shirudo.policy"
 #define AF_INET 2
 #ifndef ENODATA
 #define ENODATA 61
@@ -51,8 +50,7 @@ int BPF_PROG(shirudo_test_policy_exec_graph,
 	    bpf_dynptr_from_mem(&scratch->target, sizeof(scratch->target),
 				0, &value_ptr))
 		return -13;
-	len = bpf_get_file_xattr(bprm->file, SHIRUDO_POLICY_XATTR,
-				 &value_ptr);
+	len = bpf_get_file_xattr(bprm->file, XATTR_POLICY, &value_ptr);
 	if (len == -ENODATA || len == -EOPNOTSUPP)
 		target = 0;
 	else if (len != sizeof(scratch->target))

@@ -305,6 +305,7 @@ BPF_LIBBPF_HEADERS := $(addprefix $(LIBBPF_DIR)/,\
 BPF_LIB_HEADERS    := bpf/lib/misc.h \
                       bpf/lib/serializer.h \
                       bpf/lib/policy.h \
+                      bpf/lib/xattr.h \
                       bpf/lib/decoder.h
 
 # bpf/*.bpf.c sources compiled with clang -target bpf and embedded via
@@ -612,7 +613,7 @@ TPMSIM_HELPER := $(if $(TPMSIM_LIBS),testing/helper/tpmsim-cmd,)
 VERITY_TEST_HELPERS := build/verity-tests/shirudo-policy-probe
 
 build/verity-tests/shirudo-policy-probe: \
-		testing/helper/policy-probe.c util/identity.h
+		testing/helper/policy-probe.c util/identity.h util/paths.h
 	@printf '  CC      $@\n'
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CC) -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) \
