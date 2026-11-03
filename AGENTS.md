@@ -403,9 +403,10 @@ one usually still compiles and passes tests.
   and update a per-CPU counter there with an atomic. Elsewhere, such as a
   counter only one `kprobe` program updates, the plain form is right. A
   upatch whose correctness depends on the model says in its `README.md`
-  which one it is written for, and its code is checked against that one.
-  The test kernel is built with `PREEMPT_LAZY` alone, so the VM suite
-  shows the preemption cases only for `syscall` and sleepable programs.
+  which one it is written for, as kernel-obs does for the test VM's
+  kernel, and its code is checked against that one. The test kernel is
+  built with `PREEMPT_LAZY` alone, so the VM suite shows the preemption
+  cases only for `syscall` and sleepable programs.
 
   The `bpf_` rules in `testing/coccinelle/` refuse these patterns within
   one function. No rule refuses per-CPU scratch, as whether it is a

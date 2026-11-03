@@ -546,6 +546,11 @@ static __always_inline bool dns_query_ident(struct __sk_buff *skb,
 	return obs_ident_checked(ident, obs_now());
 }
 
+/*
+ * The scratch is per CPU and unguarded: kernel-obs is written for a kernel
+ * without preemptible RCU, where no egress run starts on a CPU before
+ * another one there ends.
+ */
 static __always_inline void dns_parse_query_payload(struct __sk_buff *skb,
 						    __u32 dns_off,
 						    struct dns_request_key *req_key)

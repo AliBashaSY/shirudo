@@ -88,7 +88,8 @@ a hazard where it applies and not elsewhere: a busy flag or an atomic
 that no interleaving needs costs time on every run and hides the
 reasoning behind the code that does need one. An upatch whose
 correctness depends on the preemption model says in its ``README.md``
-which model it is written for.
+which model it is written for, as ``kernel-obs`` does for the test VM's
+kernel.
 
 .. list-table::
    :header-rows: 1

@@ -150,6 +150,37 @@ Reading a table drains it, exactly as the map-export timer does; add
 `--peek` to look at the interval being collected without taking it
 from the exporter.
 
+## Preemption model
+
+`kernel-obs` is written for the preemption model of the kernel the test
+VM runs: `CONFIG_PREEMPT_LAZY` alone, without `CONFIG_PREEMPT_DYNAMIC`
+and so without preemptible RCU (`CONFIG_PREEMPT_RCU`). The VM suite is
+where the package is loaded and its tables are checked, in CI and in a
+local `make tests`, so its concurrency is reviewed against the kernel
+that suite runs rather than against one no test exercises.
+
+On that kernel the `lsm` and `cgroup_skb` programs run with preemption
+disabled, so no other task's run starts on a CPU before one ends; a
+softirq can still run an ingress program on top of an egress one, and
+the sleepable `lsm.s` programs can sleep. The DNS parser builds a query
+in a per-CPU scratch buffer without a guard: only egress runs use it,
+and those come from the task that sends the query, so on that kernel
+none starts before another ends. Runs on different CPUs share the arena
+tables on every kernel, so the tables take and count their entries with
+atomics, publish a buffer with a release store, and an export expects
+late writes into the buffer it drains.
+
+A kernel with preemptible RCU, which `CONFIG_PREEMPT`,
+`CONFIG_PREEMPT_RT` and `CONFIG_PREEMPT_DYNAMIC` bring, is outside that
+model. `PREEMPT_DYNAMIC` is the kernel's default and what distribution
+kernels use, and since 7.0 it boots only in its `full` or `lazy` mode;
+before, distribution kernels mostly booted it as `voluntary`, which does
+not preempt a running program. On such a kernel another task's egress
+run can preempt a DNS query parse on the same CPU and overwrite the
+scratch, so that a DNS record carries the name of another query. The
+record is wrong, nothing more: `kernel-obs` observes and decides
+nothing.
+
 ## Limits
 
 DNS over TCP, TLS and HTTPS is not parsed; the resolvers are on the
