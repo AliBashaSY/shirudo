@@ -12,7 +12,7 @@
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
 target_guard
-for c in python3 mkfs.ext4 debugfs; do
+for c in python3 mkfs.ext4 debugfs chattr lsattr unshare; do
 	command -v "$c" >/dev/null 2>&1 || test_skip_all "no $c"
 done
 
@@ -48,7 +48,10 @@ echo scratch >"$WORK/scratch"
 	echo "sif /private mode 0100600"
 	echo "mkdir privdir"
 	echo "sif /privdir mode 040700"
-	for f in sh py $SEALED private privdir; do
+	echo "write $WORK/scratch idmapped"
+	echo "sif /idmapped mode 0100600"
+	echo "mkdir emptydir"
+	for f in sh py $SEALED private privdir idmapped emptydir; do
 		echo "ea_set -f $WORK/label /$f security.bpf.shirudo"
 	done
 } >"$WORK/cmds"
@@ -212,6 +215,59 @@ import os, sys
 os.getxattr(sys.argv[1], \"security.shirudo-probe\")
 " "$MNT/privdir" &&
 	[ ! -e "$MNT/privdir/entry" ]
+'
+
+# Through an idmapped bind mount the owner's files are uid 65534's to the
+# permission check, while the seal's label read uses the raw ids and
+# fails for that uid: the marks of the file and of its directory decide.
+cat >"$WORK/idmap.py" <<'PYEOF'
+import ctypes
+import os
+import sys
+
+mnt = sys.argv[1]
+libc = ctypes.CDLL(None)
+os.close(os.open(mnt, os.O_RDONLY))
+try:
+    os.close(os.open(mnt + "/idmapped", os.O_WRONLY))
+    raise SystemExit("the write open at fsuid 0 was allowed")
+except PermissionError:
+    pass
+libc.setfsuid(65534)
+bad = 0
+for name, op in [
+    ("write", lambda: os.open(mnt + "/idmapped", os.O_WRONLY)),
+    ("rename", lambda: os.rename(mnt + "/idmapped", mnt + "/moved")),
+    ("unlink", lambda: os.unlink(mnt + "/idmapped")),
+]:
+    try:
+        op()
+    except PermissionError:
+        continue
+    print(name, "at fsuid 65534 was allowed", file=sys.stderr)
+    bad = 1
+sys.exit(bad)
+PYEOF
+
+test_expect_success 'a label read that fails through an idmapped mount leaves a marked file sealed' '
+	mkdir -p "$WORK/idm" &&
+	unshare -m sh -c "
+		mount --bind -o X-mount.idmap=0:65534:1 $MNT $WORK/idm &&
+		python3 $WORK/idmap.py $WORK/idm
+	" &&
+	[ -e "$MNT/idmapped" ] &&
+	[ ! -e "$MNT/moved" ]
+'
+
+test_expect_success 'root cannot change the inode flags of a marked file' '
+	! sh -c ": >> $MNT/idmapped" 2>/dev/null &&
+	! chattr +i "$MNT/idmapped" 2>/dev/null &&
+	! lsattr -d "$MNT/idmapped" | awk "{print \$1}" | grep -q i
+'
+
+test_expect_success 'root cannot remove an empty labelled directory' '
+	! rmdir "$MNT/emptydir" 2>/dev/null &&
+	[ -d "$MNT/emptydir" ]
 '
 
 test_done

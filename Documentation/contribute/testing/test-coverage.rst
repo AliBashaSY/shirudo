@@ -305,7 +305,8 @@ signed config image.
      - ``PR_SET_MM`` executable changes
    * - ``t6111-seal-scratch``
      - The seal against root, including policy xattr add, update and
-       removal, and root at a file system uid that cannot read the label
+       removal, root at a file system uid that cannot read the label,
+       directly and through an idmapped mount, chattr and rmdir
    * - ``t6112-key-permission``
      - The ``.bpf`` and ``.dm-verity`` keyrings cannot be changed
    * - ``t6113-verity-authority``
