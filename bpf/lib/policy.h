@@ -1,6 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
-#ifndef SHIRUDO_POLICY_MAP_H
-#define SHIRUDO_POLICY_MAP_H
+/*
+ * Copyright (c) 2026 Authors of shirudo
+ *
+ * The task and socket policy maps that policy-label upatches share.
+ */
+
+#ifndef SHIRUDO_BPF_POLICY_H
+#define SHIRUDO_BPF_POLICY_H
 
 struct shirudo_task_policy {
 	__u64	active;
@@ -21,4 +27,4 @@ struct {
 	__type(value, __u64);
 } socket_policy_map SEC(".maps");
 
-#endif
+#endif /* SHIRUDO_BPF_POLICY_H */

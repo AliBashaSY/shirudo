@@ -28,7 +28,7 @@
 #include <shirudo/enforcement.h>
 
 #include "identity.h"
-#include "shirudo_policy_map.h"
+#include "policy.h"
 #include "tamper.h"
 
 #define TASK_TRUSTED	1

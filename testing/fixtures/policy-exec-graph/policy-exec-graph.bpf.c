@@ -3,7 +3,7 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "shirudo_policy_map.h"
+#include "policy.h"
 
 char _license[] SEC("license") = "Dual BSD/GPL";
 

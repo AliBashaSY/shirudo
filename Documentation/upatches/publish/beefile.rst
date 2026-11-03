@@ -212,8 +212,8 @@ embeds the entries in the signed ``SHPL`` section. Its presence opts the
 upatch into shirudo's shared task ``policy_map`` and socket
 ``socket_policy_map``. The generated loader reuses both pinned maps
 rather than creating private copies. The BPF source must declare the map
-ABI, normally by including ``shirudo_policy_map.h`` after ``vmlinux.h``
-and the libbpf headers.
+ABI, normally by including ``policy.h`` after ``vmlinux.h`` and the
+libbpf headers.
 
 .. code-block:: toml
 
@@ -227,13 +227,13 @@ other upatches extends that policy; an ID cannot change masks, and two
 different IDs cannot use the same mask in one package. Paths may name
 non-executable files.
 
-For an upatch with at least one policy table, include
-``shirudo_policy_map.h`` in its BPF source so it declares both shared maps
-with the required ABI. The header is installed beside the shirudo BPF
-headers. The signed ``SHPL`` section opts the upatch into these bindings;
-declaring the maps without policy tables leaves them as ordinary
-upatch-owned maps. Signed BPF programs can write the maps, so enforcement
-programs must treat them as read-only by contract.
+For an upatch with at least one policy table, include ``policy.h`` in
+its BPF source so it declares both shared maps with the required ABI.
+The header is installed beside the shirudo BPF headers. The signed
+``SHPL`` section opts the upatch into these bindings; declaring the maps
+without policy tables leaves them as ordinary upatch-owned maps. Signed
+BPF programs can write the maps, so enforcement programs must treat them
+as read-only by contract.
 
 The generator and the updater run on the operator host with the
 operator's rights. The target receives only the signed result. Without
