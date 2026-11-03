@@ -174,8 +174,8 @@ Build and sign it
 -----------------
 
 The test VM enrolled the certificate of the key in
-``build/test-vm/host-bundle-bpf-next-verity.operator/keys``. Sign with
-that key:
+``/tmp/shirudo-test-vm-private-<uid>/operator-keys/keys``, where
+``<uid>`` is your user ID. Sign with that key:
 
 .. code-block:: console
 
@@ -183,8 +183,7 @@ that key:
        --keys-dir <keys-dir> -o cve-2026-63984-rpl.upatch
    wrote cve-2026-63984-rpl.upatch (insns=1376 sig=4853 data=3480 sections=2 maps=2 progs=1 decoders=0 name=cve-2026-63984-rpl)
 
-``<keys-dir>`` is ``../test-vm/host-bundle-bpf-next-verity.operator/keys``
-from this directory. ``shirudo build`` compiled the source, generated the
+``<keys-dir>`` is that directory. ``shirudo build`` compiled the source, generated the
 signed loader around the object, signed it with ML-DSA-87 and named the
 upatch after the file, ``cve-2026-63984-rpl``. The sizes and digests on
 this page depend on your headers and paths.

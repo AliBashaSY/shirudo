@@ -130,7 +130,7 @@ Boot the target
 
    .. code-block:: console
 
-      operator$ KEYS=$PWD/build/test-vm/host-bundle-bpf-next-verity.operator/keys
+      operator$ KEYS=/tmp/shirudo-test-vm-private-$(id -u)/operator-keys/keys
 
    The test VM trusts this key for upatches and config images. The
    bundle generates a new one every time it is rebuilt.

@@ -71,10 +71,10 @@ Get the upatch into the VM
 --------------------------
 
 4. Sign the upatch and its unload directive with the key the VM enrolled.
-   The bundle keeps it in
-   ``build/test-vm/host-bundle-<kernel>-verity.operator/keys``, where
-   ``<kernel>`` is ``bpf-next`` or ``v`` and the release, such as
-   ``v7.4``. Pass that directory to ``shirudo build --keys-dir``, as
+   The bundle keeps it outside the checkout, which the VM can read, in
+   ``/tmp/shirudo-test-vm-private-<uid>/operator-keys/keys``, where
+   ``<uid>`` is your user ID, or under ``TEST_VM_HOST_PRIVATE_DIR`` when
+   you set it. Pass that directory to ``shirudo build --keys-dir``, as
    root: the bundle belongs to the user who built the VM.
 
 5. Put both files under the checkout, for example under ``build/``. The VM

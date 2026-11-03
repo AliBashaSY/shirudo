@@ -152,25 +152,23 @@ Check enforcement
       Roles:                 target
       Mode:                  production
       Status:                ok
-      Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
+      Version ID:            414d0c75238fcc31b1d60ce78b4943a8b450f49556a5cb255d62392061b87ccf
 
       Conditions:
         TYPE               STATUS  DETAIL
         LsmAttached        OK      lsm/bpf link present and pinned
-        KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+        KeyringSealed      OK      bpf serial 1025034781, dm-verity serial 939334546, pins match
         ChainIntact        OK      live register equals the eventlog replay
         UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
         TpmMeasured        OK      NV index 0x01818E00 readable
-        ConfigActive       OK      config 6d5ed552f448.. is active
+        ConfigActive       OK      config bb3a83a57bbd.. is active
 
       Tamper attempts (this boot):
         LoadNotLoader            15  program load that is not a signed loader
         MapCreate                 1  map creation by another executable
         BpfCommand                8  detach, update, delete or unclassified bpf() command
-        BpffsUmount               1  unmount of the private bpffs
-        SealWrite                 1  write open of a sealed file
-        SealPtrace                7  ptrace of a shirudo task
-        SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+        SealPtrace                6  ptrace of a shirudo task
+        ObjGet                    1  pin, map or link opened by another executable
 
       Loaded upatches (0):
         none
@@ -188,16 +186,48 @@ Check enforcement
    - The tamper attempts: calls the policy refused since boot. Other
      software on the guest has already made some.
    - The last line names the sections the report folds while their
-     condition is ``OK``. ``shirudo status --show-full`` prints them.
-     In the keyring section, the frozen serial matches the live one, and
-     the ``.bpf`` keyring holds two certificates. The primary one belongs
-     to the bundle's signing key. The other is a second certificate,
-     vouched for by the first, which the test VM enrolls to exercise a
-     set of keys. In the TPM measurement section, ``Bound in: initrd``
-     and ``Chain vs eventlog: matches``. ``Chain`` is the register's
-     value, and the eventlog holds one entry, the boot event.
+     condition is ``OK``.
 
-2. Try to read one of shirudo's pins as root:
+2. Print the folded sections too:
+
+   .. code-block:: console
+
+      target# shirudo status --show-full
+      ...
+      Keyring (.bpf):
+        Serial:                1025034781
+        Frozen serial:         1025034781  (matches)
+        Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
+          bfe7b1df0c07741f9b6f2607d8f8bdfbc58be041d5b65d32e6f78c4b34016647
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 852704747  shirudo: 605059cd93947285c8b23396e4fc77ae37bface3  (frozen)
+          9bbda47d13266c06324074fb2161f937ece30017ac0530d28646249906479dcf  (primary)
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 318898416  shirudo: 2fb3cffc6101b3a9fac955424580c135ea3d0ec4  (frozen)
+      ...
+      TPM measurement:
+        TPM:                   reachable (device:/dev/tpmrm0)
+        NV index:              0x01818E00 (anchored in PCR 9)
+        Chain:                 a249d278a36e3428335fd8184afb251c7ba240108cde06cbab45a3ffaae82d65
+        Register name:         000b3d0f649c322fb97651c45bac7299d2429e8b746b65d788b187ba3af09a703405
+        Anchored:              yes, name on record
+        PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
+        Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
+        Bound in:              initrd
+        Chain vs eventlog:     matches
+        Eventlog:              /var/lib/shirudo/eventlog  (1 entries, 1975 bytes)
+      ...
+
+   The frozen serial matches the live one, and the ``.bpf`` keyring
+   holds two certificates. The primary one belongs to the bundle's
+   signing key. The other is a second certificate, vouched for by the
+   first, which the test VM enrolls to exercise a set of keys.
+   ``Bound in: initrd`` says that ``init`` bound the register from the
+   initrd, and ``Chain vs eventlog: matches`` that the eventlog replays
+   to it. ``Chain`` is the register's value, and the eventlog holds one
+   entry, the boot event.
+
+3. Try to read one of shirudo's pins as root:
 
    .. code-block:: console
 
@@ -213,11 +243,15 @@ Build and sign an upatch
 The test VM's bundle generated an ML-DSA-87 key pair for this VM, and the
 VM enrolled its certificate. You sign with that key on the host.
 
-1. Name the key directory, here for the default bpf-next kernel:
+1. Name the key directory:
 
    .. code-block:: console
 
-      operator$ KEYS=$PWD/build/test-vm/host-bundle-bpf-next-verity.operator/keys
+      operator$ KEYS=/tmp/shirudo-test-vm-private-$(id -u)/operator-keys/keys
+
+   The bundle keeps the private key outside the checkout, which the VM
+   can read, in a directory only you can open.
+   ``TEST_VM_HOST_PRIVATE_DIR`` names another one.
 
 2. Look at the upatch you are going to sign,
    :src:`testing/fixtures/basic.bpf.c`:
@@ -245,7 +279,7 @@ VM enrolled its certificate. You sign with that key on the host.
    .. code-block:: console
 
       operator$ shirudo build testing/fixtures/basic.bpf.c --keys-dir "$KEYS" --vmlinux vendor/linux/vmlinux.h -o basic.upatch
-      wrote basic.upatch (insns=992 sig=4853 data=2456 sections=2 maps=0 progs=1 decoders=0 name=basic)
+      wrote basic.upatch (insns=992 sig=4853 data=2400 sections=2 maps=0 progs=1 decoders=0 name=basic)
 
    The helper compiles the program with clang against the kernel types in
    ``vendor/linux/vmlinux.h``, turns the object into a loader program that
@@ -264,14 +298,14 @@ VM enrolled its certificate. You sign with that key on the host.
       Type:                  LOAD
       Payload type:          bpf
       Version:               1
-      Payload sha256:        46f3d9f5f6568bddb7692cad28e99a86a3104192d8a2251f9ef9ec6d593c2035
-      File size:             8661 bytes
+      Payload sha256:        3f8fda317513fb5bc952bf52c1b6ff05ed48ca64023b41aaaeeaffc19a99d176
+      File size:             8605 bytes
 
       Loader:
         Instructions:          off=360 len=992
         Log buffer size:       1048576
         Metadata:              (none)
-        Data:                  off=6205 len=2456
+        Data:                  off=6205 len=2400
 
       Signature:
         Offset:                1352
@@ -299,7 +333,7 @@ VM enrolled its certificate. You sign with that key on the host.
    .. code-block:: console
 
       operator$ shirudo build --unload basic --payload-sha256 "$PAYLOAD" --keys-dir "$KEYS" -o basic.unload.upatch
-      wrote basic.unload.upatch (insns=1320 sig=4853 data=2808 sections=2 maps=1 progs=1 decoders=0 name=basic UNLOAD)
+      wrote basic.unload.upatch (insns=1320 sig=4853 data=2824 sections=2 maps=1 progs=1 decoders=0 name=basic UNLOAD)
 
    An unload is a signed artifact too, and the target runs it through the
    same signature check as a load. The directive names the upatch and the
@@ -314,11 +348,11 @@ Load it
    .. code-block:: console
 
       target# shirudo upatch load basic.upatch
-      upatch load: signed loader accepted, keyring 272801410, 124 instructions
+      upatch load: signed loader accepted, keyring 1025034781, 124 instructions
       upatch load: loader ran, 0 maps and 1 programs
       upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/basic/link
-      upatch load: basic loaded, 1 programs, keyring 272801410
-      upatch load: basic measured, register ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+      upatch load: basic loaded, 1 programs, keyring 1025034781
+      upatch load: basic measured, register 2705e01ee2dbc5b81b7ba45749aa06251a32b535142788ef24a40be985b78bf7
 
    The kernel checked the loader's signature against the ``.bpf`` keyring
    (the serial from the status report) before it accepted the load. The
@@ -334,7 +368,7 @@ Load it
       target# shirudo upatch list
       Archived upatches (/var/lib/shirudo/upatches):
         NAME                      LOADED  TYPE    KIND  PAYLOAD
-        basic                     yes     load    bpf   46f3d9f5f6568bdd..
+        basic                     yes     load    bpf   3f8fda317513fb5b..
 
    The target keeps a copy of the artifact and loads it again at the next
    boot.
@@ -351,9 +385,9 @@ Load it
       ...
       TPM measurement:
         ...
-        Chain:                 ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+        Chain:                 2705e01ee2dbc5b81b7ba45749aa06251a32b535142788ef24a40be985b78bf7
         ...
-        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
+        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2311 bytes)
       ...
 
    The register moved from its boot value to the value the load printed,
@@ -372,7 +406,7 @@ nothing but the evidence, your certificates and your artifacts.
 
       operator$ NONCE=$(openssl rand -hex 32)
       operator$ echo "$NONCE"
-      407c16fda5701c6159662135fb40979a44f7e3b048fef2b73f84fff83ff91083
+      7357590a4a26d4e056e07ebc7f951acf78824b5ec6a5ea009f6102353559e1ed
 
 2. Ask the target for evidence that answers this nonce:
 
@@ -399,17 +433,17 @@ nothing but the evidence, your certificates and your artifacts.
 
       operator$ shirudo attest predict --cert="$KEYS/cert.der" --cert="$OWN" --event=load:basic="$PAYLOAD"
       set_digest: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-      init_event: cb206abf8e514bc714fc69f372d464d2c7512f1489431aed2319551c5ed34b9a
-      register_at_boot: d1bdb80f7c0cfc1560f0a5a0b974d282bfd05fc95852b7649d59a054b450aa51
-      register_after_events: ff0eb201e073fdeeba80a4b268f039bea58ec6dd2998e6651c4834ee99f3e103
+      init_event: c6e55c20f05634a4f46b4e3933c719c232a090db9a6b132af6f076869e9fc9cc
+      register_at_boot: a249d278a36e3428335fd8184afb251c7ba240108cde06cbab45a3ffaae82d65
+      register_after_events: 2705e01ee2dbc5b81b7ba45749aa06251a32b535142788ef24a40be985b78bf7
 
-   ``register_at_boot`` is the ``Chain`` of the first status report and
-   ``register_after_events`` the ``Chain`` after the load. The boot event
-   covers the set of certificates ``init`` enrolled, so the prediction
-   takes every enrolled certificate: the test VM enrolls two, the bundle's
-   ``cert.der`` and ``own.der``. It also covers the upatches restored at
-   boot, none here, which is why ``set_digest`` is the SHA-256 of empty
-   input.
+   ``register_at_boot`` is the ``Chain`` that ``status --show-full``
+   printed before the load, and ``register_after_events`` the ``Chain``
+   after it. The boot event covers the set of certificates ``init``
+   enrolled, so the prediction takes every enrolled certificate: the test
+   VM enrolls two, the bundle's ``cert.der`` and ``own.der``. It also
+   covers the upatches restored at boot, none here, which is why
+   ``set_digest`` is the SHA-256 of empty input.
 
 5. Verify the evidence against the prediction:
 
@@ -420,16 +454,28 @@ nothing but the evidence, your certificates and your artifacts.
         OK    attestation key: restricted, fixed to this TPM
         OK    attestation key: name matches its public area
         OK    attestation key: the pinned key
-      ...
+        OK    endorsement key: name matches its public area
+        OK    endorsement key: TCG default template under the endorsement policy
         OK    quote: ECDSA signature by the attestation key
-      ...
+        OK    quote: signed by the key as an endorsement primary
+        OK    quote: carries the nonce
+        OK    quote: covers the PCRs the document lists
+        OK    quote: PCR digest matches the listed values
+        OK    register: ECDSA signature by the attestation key
+        OK    register: signed by the key as an endorsement primary
+        OK    register: carries the nonce
+        OK    register: certification names the listed index
         OK    register: certified contents match the listed value
         OK    quote and certification are of one TPM reset
         OK    config: config root history matches the quoted PCR
         NOTE  config root has no operator approval; use --expect-config-root with --expect-config-pcr
         NOTE  config records a selection; direct TPM writer protection is deferred
         OK    eventlog: this boot has an init record
-      ...
+        OK    register: the document names index 0x01818E00 and PCRs 9 and 11
+        OK    register: public area is bound to PCRs 9 and 11 as recorded
+        NOTE  binding: made in the initrd
+        OK    eventlog: one init record for this TPM reset (1 this boot)
+        OK    register: init record is of the TPM's current reset count
         OK    eventlog: 2 records replay to the certified value
         OK    anchor: record digest matches the index name
         OK    anchor: PCR 9 equals the recorded value extended by the anchor
@@ -458,9 +504,9 @@ Unload it
    .. code-block:: console
 
       target# shirudo upatch unload basic.unload.upatch
-      upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+      upatch unload: signed loader accepted, keyring 1025034781, 165 instructions
       upatch unload: basic carries the directive's payload
-      upatch unload: basic measured, register fe7bd139c02aca0d6e5efc3940c1cd902adbe676b7875be4c73c878b3f5212b8
+      upatch unload: basic measured, register 0100998a4c3a96bd8d36356fd3d3d4fca9217ee926166907272bf8dfa33b9495
       upatch unload: basic detached and unpinned
 
    The target ran the signed directive, checked that the loaded payload is
