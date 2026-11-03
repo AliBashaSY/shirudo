@@ -400,7 +400,7 @@ build_tree_test_registry()
 	local payloads="$FIXTURE_WORK/tree-payload"
 	local reference
 
-	# One append-only tree that t7101, t7102 and t7103 walk in order:
+	# One append-only tree that t7101 to t7104 walk in order:
 	# the tree state a target writes is sealed, so no test can start
 	# over, and each generation extends the one before it.
 	python3 - "$registry_dir" \
@@ -483,6 +483,8 @@ match_unload_artifact = artifact("shirudo/tree-match-unload",
 this_node = {"architecture": [node_arch], "labels": {"env": ["tree-test"]}}
 other_node = {"architecture": [node_arch],
               "labels": {"env": ["not-this-node"]}}
+# Selected by the kernel config alone, which t7104 takes away and gives.
+kconfig_node = {"architecture": [node_arch], "kconfig": {"CONFIG_BPF": ["y"]}}
 operations = [
     operation(1, "shirudo-test-tree-match", {}, match_artifact),
     operation(2, "shirudo-test-tree-skip", other_node, skip_artifact),
@@ -490,8 +492,10 @@ operations = [
     operation(4, "shirudo-test-tree-match", this_node,
               match_unload_artifact, op="delete"),
     operation(5, "shirudo-test-tree-match", this_node, match_artifact),
+    operation(6, "shirudo-test-tree-match", kconfig_node,
+              match_unload_artifact, op="delete"),
 ]
-references = ("stable", "updated", "deleted", "restored")
+references = ("stable", "updated", "deleted", "restored", "kconfig")
 for generation, reference in enumerate(references, start=1):
     head = generation + 1
     publication = {
@@ -507,7 +511,7 @@ for generation, reference in enumerate(references, start=1):
                      .encode())
 PY
 
-	for reference in stable updated deleted restored; do
+	for reference in stable updated deleted restored kconfig; do
 		openssl cms -sign -binary -md sha512 \
 			-in "$payloads-$reference.json" \
 			-signer "$FIXTURE_WORK/trusted/cert.der" \
@@ -535,7 +539,7 @@ def write(path, body):
     path.write_bytes(body)
 
 
-for reference in ("stable", "updated", "deleted", "restored"):
+for reference in ("stable", "updated", "deleted", "restored", "kconfig"):
     stem = payloads.name + "-" + reference
     payload = payloads.with_name(stem + ".json").read_bytes()
     signature = payloads.with_name(stem + ".sig").read_bytes()

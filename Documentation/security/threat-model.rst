@@ -968,7 +968,7 @@ revocation does not reach tree publications (U13).
    kernel verifies each loader (T1)
 :Refusal: the ``bpm`` command fails and installs nothing
 :Counters: none
-:Tests: ``t7005``, ``t7101``, ``t7102``, ``t7103``, ``t8005``
+:Tests: ``t7005``, ``t7101``, ``t7102``, ``t7103``, ``t7104``, ``t8005``
 :Residual: R8, R9, U3, U4, U13, U15
 
 T8 Quantum-capable adversaries against the trust anchor

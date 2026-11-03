@@ -66,6 +66,7 @@ cp "$keys_dir/cert.der" "$output/public/primary.der"
 
 for name in config-boot-keys config-live-new-key config-a config-b config-bad config-revoke \
 	config-tree-stable config-tree-updated config-tree-deleted config-tree-restored \
+	config-tree-kconfig \
 	config-otel config-jsonl config-jsonl-bad config-interrupted config-end2end \
 	config-builtin; do
 	[ "$name" != config-builtin ] || [ -n "$builtin_key" ] || continue
