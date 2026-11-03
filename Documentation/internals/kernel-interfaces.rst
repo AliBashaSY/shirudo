@@ -272,12 +272,12 @@ LSM hooks
    * - ``inode_create``, ``inode_symlink``, ``inode_mknod``,
        ``inode_rename`` (all sleepable)
      - ``seal``
-     - Carried patch 0005, for the read of ``dentry->d_parent``
+     - Carried patch 0004, for the read of ``dentry->d_parent``
    * - ``inode_mkdir``, ``inode_link``, ``inode_set_acl``,
        ``inode_remove_acl``, ``inode_file_setattr``, ``inode_copy_up``
        (all sleepable)
      - ``seal``
-     - Carried patch 0004, and 0005 for ``inode_mkdir`` and
+     - Carried patch 0003, and 0004 for ``inode_mkdir`` and
        ``inode_link``
 
 A missing hook makes the object fail to load. :doc:`enforcement` gives
@@ -295,7 +295,7 @@ Kfuncs and helpers
    * - ``bpf_get_file_xattr()``, ``bpf_get_dentry_xattr()``
      - Read ``security.bpf.shirudo`` and ``security.bpf.shirudo.policy``.
        Sleepable; upstream they check ``MAY_READ`` for the calling task
-       first, which the carried patch 0003 skips for ``security.bpf.``
+       first, which the carried patch 0002 skips for ``security.bpf.``
        names.
    * - ``bpf_inode_init_xattr()``
      - Add the label in ``inode_init_security``.

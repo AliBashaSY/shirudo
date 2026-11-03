@@ -261,7 +261,7 @@ Marks are a cache
     entry's parent dentry and refresh its mark on the way, which
     ``inode_init_security``, the one hook without a dentry, labels the
     new inode from in the same operation. On a kernel without the
-    carried patches 0004 and 0005, the seal's entry hooks do not load
+    carried patches 0003 and 0004, the seal's entry hooks do not load
     and ``init`` fails.
 
 Label reads on an upstream kernel

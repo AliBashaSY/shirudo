@@ -24,7 +24,7 @@ Architectures
      - Notes
    * - x86-64
      - Target and operator. The test VM runs on x86-64 hosts. Targets
-       need ``kernel/0001`` (see below).
+       need upstream commit ``31ac959c915c`` (see below).
    * - arm64
      - Target and operator. The test VM runs on arm64 hosts.
    * - riscv64
@@ -41,7 +41,7 @@ Target kernel
 
 The target runs a bpf-next kernel with the signed-loader ABI. A release
 number does not identify such a kernel: development trees report the
-release they follow (the test kernel reports ``7.3.0-bpf-next+``), and
+release they follow (the test kernel reports ``7.4.0-rc1-bpf-next+``), and
 the ABI and the patches below decide whether shirudo works on it.
 
 Kernel source
@@ -60,36 +60,38 @@ Kernel source
        ``KEY_SPEC_BPF_KEYRING`` with the ``bpf.keyring_unsealed``
        parameter, and the kfuncs ``bpf_inode_init_xattr`` and
        ``bpf_real_data_inode``. The test suite runs bpf-next commit
-       ``cd5bc55288d4``.
+       ``57fae4059380``.
    * - Upstream commit ``1041fca2ee8a``
      - ``keys: add KEY_SPEC_DM_VERITY_KEYRING``. ``shirudo init``
        enrolls and seals the config certificate in the ``.dm-verity``
        keyring through ``KEY_SPEC_DM_VERITY_KEYRING``. Apply it to a
        bpf-next tree that predates it.
-   * - :src:`kernel/0001-x86-ftrace-Mark-jmp-mode-by-clearing-bit-63-of-the-trampoline-address.patch`
-     - x86-64 only. Without it, detaching one BPF program from a hook
-       that others share can crash tasks that run the hook during the
-       update, on kernels where an ftrace callback starts at an odd
-       address (seen with gcc 13 and ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``).
-       Unloading an upatch detaches its programs from hooks that other
-       programs share.
-   * - :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`
+   * - Upstream commit ``31ac959c915c``
+     - ``x86/ftrace: Mark jmp mode by clearing bit 63 of trampoline
+       address``, x86-64 only, in bpf-next and in the bpf fixes tree for
+       7.4. Without it, detaching one BPF program from a hook that others
+       share can crash tasks that run the hook during the update, on
+       kernels where an ftrace callback starts at an odd address (seen
+       with gcc 13 and ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``). Unloading an
+       upatch detaches its programs from hooks that other programs
+       share. Apply it to an x86-64 tree that predates it.
+   * - :src:`kernel/0001-tpm-Let-LSMs-inspect-userspace-commands.patch`
      - Adds the ``tpm_command`` LSM hook. ``shirudo init`` attaches
        ``lsm/tpm_command`` to refuse an untrusted ``TPM2_NV_Extend`` of
        its register and fails without the hook.
-   * - :src:`kernel/0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`
+   * - :src:`kernel/0002-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`
      - Lets an LSM program read a ``security.bpf.`` xattr without the
        calling task's read permission on the inode, as the in-kernel
        LSMs read their labels. Without it the seal takes a label its
        caller may not read for a missing one unless the inode carries a
        mark, which root can arrange with an idmapped mount or an ACL.
-   * - :src:`kernel/0004-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
+   * - :src:`kernel/0003-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
      - Lets a sleepable LSM program attach to ``inode_mkdir``,
        ``inode_link``, ``inode_set_acl``, ``inode_remove_acl``,
        ``inode_file_setattr`` and ``inode_copy_up``. The seal reads
        labels in those hooks and ``shirudo init`` fails to attach them
        without it.
-   * - :src:`kernel/0005-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`
+   * - :src:`kernel/0004-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`
      - Lets an LSM program pass ``dentry->d_parent`` to the xattr kfunc.
        The seal reads the label of the directory a new entry goes into
        from it; without the patch the verifier refuses the seal's entry
@@ -111,7 +113,7 @@ Identify the kernel
   without it fails with ``kernel_abi_unsupported``.
 - The test harness builds bpf-next by default. It also builds release
   tags and refuses any tag older than v7.4. It applies the patches in
-  :src:`kernel/` to either. A release kernel still needs ``kernel/0002``.
+  :src:`kernel/` to either. A release kernel still needs ``kernel/0001``.
 
 Kernel configuration
 ~~~~~~~~~~~~~~~~~~~~

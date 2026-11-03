@@ -49,9 +49,9 @@ Comparison
        ``-mbranch-protection=standard``
      - None
    * - Carried kernel patches
-     - ``kernel/0001`` to ``kernel/0005``
-     - ``kernel/0002`` to ``kernel/0005``
-     - ``kernel/0002`` to ``kernel/0005``
+     - ``kernel/0001`` to ``kernel/0004``
+     - ``kernel/0001`` to ``kernel/0004``
+     - ``kernel/0001`` to ``kernel/0004``
    * - BPF trampolines (``lsm``, ``fentry``, ``fexit``, ``fmod_ret``)
      - 36 programs per function
      - 37 programs per function
@@ -83,10 +83,12 @@ Comparison
 x86-64
 ------
 
-- Targets need ``kernel/0001``. Without it, a kernel whose functions can
-  start at an odd address, such as one built with gcc 13 and
+- Targets need upstream commit ``31ac959c915c``, which shirudo carried
+  until bpf-next took it. Without it, a kernel whose functions can start
+  at an odd address, such as one built with gcc 13 and
   ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``, can crash when a BPF trampoline is
-  installed. :doc:`/internals/kernel-patches` explains the bug.
+  updated. :doc:`/operate/plan/system-requirements` says which
+  kernels need it.
 - ``kernel-cve`` defines ``__TARGET_ARCH_x86`` for its ``kprobe``
   programs and loads on x86-64 only.
 
@@ -150,7 +152,7 @@ shirudo
 Linux kernel
 ~~~~~~~~~~~~
 
-- Get ``kernel/0001`` to ``kernel/0005`` upstream. None of them is in
+- Get ``kernel/0001`` to ``kernel/0004`` upstream. None of them is in
   bpf-next; :doc:`/internals/kernel-patches` describes each.
 - riscv64: BPF trampolines on a kernel built with ``CONFIG_CFI``.
 - riscv64: arenas on CPUs without Zacas.

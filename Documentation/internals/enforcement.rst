@@ -555,7 +555,7 @@ when the record it needs is missing.
      - No label removes the mark; a failed read leaves it.
 
 The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
-with the xattr kfuncs, which with the carried patch 0003 return it
+with the xattr kfuncs, which with the carried patch 0002 return it
 without the calling task's permission and upstream check that
 permission first. No label (``ENODATA``) and no security
 extended attributes on the file system (``EOPNOTSUPP``) count as
