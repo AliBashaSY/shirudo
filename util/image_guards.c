@@ -146,12 +146,12 @@ const struct guard_map shirudo_guard_maps[GUARD_MAP_COUNT] = {
 		sizeof(struct task_authority), 0, BPF_F_NO_PREALLOC,
 	},
 	[GUARD_POLICY] = {
-		"policy_map", POLICY_PIN,
+		"shirudo_task_policy", POLICY_PIN,
 		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
 		sizeof(struct task_policy), 0, BPF_F_NO_PREALLOC,
 	},
 	[GUARD_SOCKET_POLICY] = {
-		"socket_policy_map", SOCKET_POLICY_PIN,
+		"shirudo_sock_policy", SOCKET_POLICY_PIN,
 		BPF_MAP_TYPE_SK_STORAGE, sizeof(__u32), sizeof(__u64), 0,
 		BPF_F_NO_PREALLOC | BPF_F_CLONE,
 	},

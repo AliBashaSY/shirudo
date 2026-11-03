@@ -1775,8 +1775,8 @@ int build_package_load(const char *bpf_o, const char *src_path,
 {
 	__u32 label_len = 0, policy_map_idx = 0, socket_policy_map_idx = 0;
 	struct upatch_policy_label_header *label_blob = NULL;
-	struct bpf_map *map, *policy_map, *socket_policy_map;
 	struct upatch_policy_label_entry *label_entries;
+	struct bpf_map *map, *task_map, *sock_map;
 	int handler_ids[2] = {-1, -1};
 	struct bpf_object *obj;
 	__u32 map_idx = 0;
@@ -1800,46 +1800,47 @@ int build_package_load(const char *bpf_o, const char *src_path,
 		return err;
 	}
 	if (nr_policies) {
-		policy_map = bpf_object__find_map_by_name(obj, "policy_map");
-		socket_policy_map =
-			bpf_object__find_map_by_name(obj, "socket_policy_map");
-		if (!policy_map ||
-		    bpf_map__type(policy_map) != BPF_MAP_TYPE_TASK_STORAGE ||
-		    bpf_map__key_size(policy_map) != sizeof(__s32) ||
-		    bpf_map__value_size(policy_map) != 2 * sizeof(__u64) ||
-		    bpf_map__map_flags(policy_map) != BPF_F_NO_PREALLOC) {
-			pr_err("policy labels require compatible policy_map task storage");
+		task_map = bpf_object__find_map_by_name(obj,
+							"shirudo_task_policy");
+		sock_map = bpf_object__find_map_by_name(obj,
+							"shirudo_sock_policy");
+		if (!task_map ||
+		    bpf_map__type(task_map) != BPF_MAP_TYPE_TASK_STORAGE ||
+		    bpf_map__key_size(task_map) != sizeof(__s32) ||
+		    bpf_map__value_size(task_map) != 2 * sizeof(__u64) ||
+		    bpf_map__map_flags(task_map) != BPF_F_NO_PREALLOC) {
+			pr_err("policy labels require a compatible shirudo_task_policy map");
 			err = -EINVAL;
 			goto out;
 		}
-		if (!socket_policy_map ||
-		    bpf_map__type(socket_policy_map) != BPF_MAP_TYPE_SK_STORAGE ||
-		    bpf_map__key_size(socket_policy_map) != sizeof(__s32) ||
-		    bpf_map__value_size(socket_policy_map) != sizeof(__u64) ||
-		    bpf_map__map_flags(socket_policy_map) !=
+		if (!sock_map ||
+		    bpf_map__type(sock_map) != BPF_MAP_TYPE_SK_STORAGE ||
+		    bpf_map__key_size(sock_map) != sizeof(__s32) ||
+		    bpf_map__value_size(sock_map) != sizeof(__u64) ||
+		    bpf_map__map_flags(sock_map) !=
 				(BPF_F_NO_PREALLOC | BPF_F_CLONE)) {
-			pr_err("policy labels require compatible socket_policy_map storage");
+			pr_err("policy labels require a compatible shirudo_sock_policy map");
 			err = -EINVAL;
 			goto out;
 		}
 		bpf_object__for_each_map(map, obj) {
-			if (map == policy_map)
+			if (map == task_map)
 				break;
 			map_idx++;
 		}
-		if (map_idx >= UPATCH_MAPS_MAX || map != policy_map) {
+		if (map_idx >= UPATCH_MAPS_MAX || map != task_map) {
 			err = -E2BIG;
 			goto out;
 		}
 		policy_map_idx = map_idx;
 		map_idx = 0;
 		bpf_object__for_each_map(map, obj) {
-			if (map == socket_policy_map)
+			if (map == sock_map)
 				break;
 			map_idx++;
 		}
 		if (map_idx >= UPATCH_MAPS_MAX ||
-		    map != socket_policy_map || map_idx == policy_map_idx) {
+		    map != sock_map || map_idx == policy_map_idx) {
 			err = -E2BIG;
 			goto out;
 		}

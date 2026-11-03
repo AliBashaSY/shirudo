@@ -301,11 +301,11 @@ Assets
      - Frozen against ``bpf()`` writes; only the seal's programs set a
        mark (T3).
    * - Task policy bits
-     - ``policy_map`` task storage, pinned as ``policy_map``
+     - ``shirudo_task_policy`` task storage, pinned as ``task_policy``
      - Frozen against userspace writes; exec hooks OR protected inode
        values and commit only after a successful exec.
    * - Socket policy bits
-     - ``socket_policy_map`` socket storage, pinned as ``socket_policy_map``
+     - ``shirudo_sock_policy`` socket storage, pinned as ``socket_policy``
      - Frozen against userspace writes; socket creation snapshots task
        bits and accepted sockets inherit the listener's value.
    * - Device records and expected roots
@@ -663,7 +663,7 @@ returns the label (U12).
 
 Executables may carry ``security.bpf.shirudo.policy``, an 8-byte
 target-native ``__u64`` bitset. During exec, the seal ORs the value from
-the original file and each interpreter into ``policy_map``. Only
+the original file and each interpreter into ``shirudo_task_policy``. Only
 ``ENODATA`` or ``EOPNOTSUPP`` means no policy; malformed or unreadable
 values refuse exec.
 The candidate starts with the task's committed bits, so successful exec

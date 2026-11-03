@@ -57,7 +57,7 @@ int BPF_PROG(shirudo_test_policy_exec_graph,
 		return -13;
 	if (len == sizeof(scratch->target))
 		target = scratch->target;
-	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy, task, NULL, 0);
 	if (!policy)
 		return -13;
 	if ((!policy->active && (target == 0 || target == 1)) ||
@@ -94,7 +94,7 @@ int BPF_PROG(shirudo_test_policy_socket_graph, struct socket *sock,
 	sk = sock->sk;
 	if (!sk)
 		return -13;
-	socket_policy = bpf_sk_storage_get(&socket_policy_map, sk, NULL, 0);
+	socket_policy = bpf_sk_storage_get(&shirudo_sock_policy, sk, NULL, 0);
 	if (!socket_policy)
 		return -13;
 	if (*socket_policy & 16)

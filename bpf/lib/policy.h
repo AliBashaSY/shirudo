@@ -20,13 +20,13 @@ struct {
 	__uint(map_flags, BPF_F_NO_PREALLOC);
 	__type(key, int);
 	__type(value, struct task_policy);
-} policy_map SEC(".maps");
+} shirudo_task_policy SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC | BPF_F_CLONE);
 	__type(key, int);
 	__type(value, __u64);
-} socket_policy_map SEC(".maps");
+} shirudo_sock_policy SEC(".maps");
 
 #endif /* SHIRUDO_BPF_POLICY_H */

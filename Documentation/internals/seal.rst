@@ -76,7 +76,7 @@ Policy bits
 An executable may carry ``security.bpf.shirudo.policy``, an 8-byte native
 ``__u64`` bitset. During exec, ``bprm_check_security`` ORs the bitsets
 from the original file and each interpreter into a task-local candidate
-in ``policy_map``. ``bprm_committed_creds`` commits that value only after
+in ``shirudo_task_policy``. ``bprm_committed_creds`` commits that value only after
 exec succeeds. The candidate starts with the task's committed bits, so
 policy accumulates across execs as well as interpreter handlers. A failed
 exec leaves the committed value unchanged. A fork or clone inherits the
@@ -86,7 +86,7 @@ without xattrs contributes zero bits; invalid lengths and other read
 errors refuse the exec.
 
 ``socket_post_create`` snapshots a task's committed bits into
-``socket_policy_map`` when it creates a socket. A socket with no policy
+``shirudo_sock_policy`` when it creates a socket. A socket with no policy
 uses no storage and reads as zero. If nonzero policy storage cannot be
 allocated, socket creation fails. The map uses ``BPF_F_CLONE`` so an
 accepted socket inherits the listener's snapshot, even when the task

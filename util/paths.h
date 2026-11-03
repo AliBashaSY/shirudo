@@ -99,10 +99,10 @@
 #define BPFFS_UPATCHES_DIR	BPFFS_DIR "/upatches"
 #define IDENTITY_PIN		BPFFS_DIR "/identity"
 #define TAMPER_PIN		BPFFS_DIR "/tamper"
-#define POLICY_PIN		BPFFS_DIR "/policy_map"
+#define POLICY_PIN		BPFFS_DIR "/task_policy"
 #define SEAL_SOCKET_POST_CREATE_PIN \
 	BPFFS_DIR "/seal_socket_post_create_link"
-#define SOCKET_POLICY_PIN	BPFFS_DIR "/socket_policy_map"
+#define SOCKET_POLICY_PIN	BPFFS_DIR "/socket_policy"
 
 #define RUNTIME_DIR		RUN_DIR "/runtime"
 #define CONFIG_IMAGE_DIR		RUN_DIR "/config"

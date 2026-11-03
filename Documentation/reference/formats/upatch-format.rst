@@ -300,7 +300,8 @@ Section tags
      - variable
      - Signed policy labels, each naming a policy ID, one-hot bit and
        absolute file path. Its presence opts into the shared task
-       ``policy_map`` and socket ``socket_policy_map`` bindings.
+       ``shirudo_task_policy`` and socket ``shirudo_sock_policy``
+       bindings.
 
 The writer emits ``NAME``, then ``UNLD`` for an unload directive, or
 ``UPGM`` and optional ``DCDB`` and ``SHPL`` sections for a load artifact.
@@ -589,10 +590,10 @@ SHPL section
 fixed-size entries. ``policy_map_idx`` and ``socket_policy_map_idx`` are
 the zero-based indices of the shared maps in the loader's map descriptor
 array. The builder accepts this section only when the BPF object declares
-compatible maps named ``policy_map`` and ``socket_policy_map``. At load
-time, shirudo supplies the pinned task and socket storage maps at those
-descriptors; the loader does not create or pin private copies. upatches
-without ``SHPL`` use their normal maps.
+compatible maps named ``shirudo_task_policy`` and ``shirudo_sock_policy``.
+At load time, shirudo supplies the pinned task and socket storage maps at
+those descriptors; the loader does not create or pin private copies.
+upatches without ``SHPL`` use their normal maps.
 
 .. list-table::
    :header-rows: 1

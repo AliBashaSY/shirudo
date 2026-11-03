@@ -342,6 +342,10 @@ by ``BPF_OBJ_GET`` (``ObjGet``). Directories stay listable.
        :doc:`/security/tamper-counters`.
    * - ``task_authority``, ``config_roots``
      - Task storage maps of runtime authority and expected config roots.
+   * - ``task_policy``, ``socket_policy``
+     - Maps ``shirudo_task_policy`` and ``shirudo_sock_policy``: the
+       policy bits of each task and of each socket it creates, which
+       policy-label upatches read.
    * - ``devices``
      - Map of the dm-verity devices shirudo set up, with their root
        hashes.

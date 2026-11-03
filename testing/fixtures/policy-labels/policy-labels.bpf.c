@@ -19,8 +19,8 @@ int BPF_PROG(shirudo_test_policy_verdict, struct linux_binprm *bprm, int ret)
 
 	if (ret)
 		return ret;
-	policy = bpf_task_storage_get(&policy_map, bpf_get_current_task_btf(),
-				      NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy,
+				      bpf_get_current_task_btf(), NULL, 0);
 	return policy && (policy->candidate & 1) ? -13 : 0;
 }
 
@@ -37,9 +37,9 @@ int BPF_PROG(shirudo_test_socket_policy_verdict, struct socket *sock,
 	sk = sock->sk;
 	if (!sk)
 		return 0;
-	socket_policy = bpf_sk_storage_get(&socket_policy_map, sk, NULL, 0);
-	policy = bpf_task_storage_get(&policy_map, bpf_get_current_task_btf(),
-				      NULL, 0);
+	socket_policy = bpf_sk_storage_get(&shirudo_sock_policy, sk, NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy,
+				      bpf_get_current_task_btf(), NULL, 0);
 	return (socket_policy && (*socket_policy & 16)) ||
 	       (policy && (policy->active & 16)) ? -13 : 0;
 }

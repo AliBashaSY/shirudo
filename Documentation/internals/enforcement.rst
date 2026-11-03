@@ -62,11 +62,11 @@ The objects share seven maps, which ``init`` hands from ``bpf2`` to
    * - ``shirudo_tasks``
      - ``task_authority``
      - Task storage with each task's mark and exec candidate.
-   * - ``policy_map``
-     - ``policy_map``
+   * - ``shirudo_task_policy``
+     - ``task_policy``
      - Task storage with committed policy bits and the exec candidate.
-   * - ``socket_policy_map``
-     - ``socket_policy_map``
+   * - ``shirudo_sock_policy``
+     - ``socket_policy``
      - Socket storage for committed policy bits, cloned from listeners
        to accepted sockets.
    * - ``shirudo_devices``

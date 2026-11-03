@@ -2086,10 +2086,10 @@ static int __upatch_apply(const char *path, bool verify_only,
 					       2 * sizeof(__u64),
 					       BPF_F_NO_PREALLOC);
 		if (policy_map_fd < 0) {
-			pr_err("upatch load: open policy_map: %s",
+			pr_err("upatch load: open shirudo_task_policy: %s",
 			       strerror(-policy_map_fd));
 			rep_fail(rep, "payload_load", "unknown", -policy_map_fd,
-				 "policy_map binding failed");
+				 "shirudo_task_policy binding failed");
 			ret = 1;
 			goto out;
 		}
@@ -2100,10 +2100,10 @@ static int __upatch_apply(const char *path, bool verify_only,
 		if (socket_policy_map_fd < 0) {
 			int err = -socket_policy_map_fd;
 
-			pr_err("upatch load: open socket_policy_map: %s",
+			pr_err("upatch load: open shirudo_sock_policy: %s",
 			       strerror(err));
 			rep_fail(rep, "payload_load", "unknown", err,
-				 "socket_policy_map binding failed");
+				 "shirudo_sock_policy binding failed");
 			close(policy_map_fd);
 			policy_map_fd = -1;
 			ret = 1;

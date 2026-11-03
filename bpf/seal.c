@@ -142,7 +142,7 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	struct task_authority *authority;
 	struct task_policy *policy;
 
-	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy, task, NULL, 0);
 	if (policy) {
 		policy->active = policy->candidate;
 		policy->candidate = 0;
@@ -168,9 +168,10 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 
 	if (ret)
 		return ret;
-	parent_policy = bpf_task_storage_get(&policy_map, parent, NULL, 0);
+	parent_policy = bpf_task_storage_get(&shirudo_task_policy, parent,
+					     NULL, 0);
 	if (parent_policy && parent_policy->active) {
-		policy = bpf_task_storage_get(&policy_map, child, NULL,
+		policy = bpf_task_storage_get(&shirudo_task_policy, child, NULL,
 					      BPF_LOCAL_STORAGE_GET_F_CREATE);
 		if (!policy)
 			return -ENOMEM;
@@ -485,14 +486,14 @@ int BPF_PROG(shirudo_seal_socket_post_create, struct socket *sock, int family,
 		return ret;
 	if (!sock)
 		return -ENOMEM;
-	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy, task, NULL, 0);
 	if (!policy || !policy->active)
 		return 0;
 	sk = sock->sk;
 	if (!sk)
 		return -ENOMEM;
 	active = policy->active;
-	if (!bpf_sk_storage_get(&socket_policy_map, sk, &active,
+	if (!bpf_sk_storage_get(&shirudo_sock_policy, sk, &active,
 				BPF_LOCAL_STORAGE_GET_F_CREATE))
 		return -ENOMEM;
 	return 0;
@@ -520,7 +521,7 @@ int BPF_PROG(shirudo_seal_bprm_creds_for_exec, struct linux_binprm *bprm,
 
 	if (ret)
 		return ret;
-	policy = bpf_task_storage_get(&policy_map, task, NULL,
+	policy = bpf_task_storage_get(&shirudo_task_policy, task, NULL,
 				      BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (!policy)
 		return -ENOMEM;
@@ -562,7 +563,7 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 		return -EACCES;
 	if (len == sizeof(value))
 		__builtin_memcpy(&value, scratch->target, sizeof(value));
-	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
+	policy = bpf_task_storage_get(&shirudo_task_policy, task, NULL, 0);
 	if (!policy)
 		return -ENOMEM;
 	policy->candidate |= value;
