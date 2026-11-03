@@ -306,12 +306,13 @@ Other LSMs
    shirudo's programs and moves no counter. With ``bpf`` before them,
    shirudo's refusal ends the walk and the other LSM does not see or log
    the attempt.
-:Seal labels: The seal reads a file's label through a kfunc that checks
-   the caller's read permission, and every LSM that implements the
-   ``inode_permission`` hook takes part. In the kernel tree, SELinux and
-   Smack implement it; AppArmor, Landlock and Yama do not. A policy that
-   grants write or unlink but refuses read makes a sealed file look
-   unlabeled, and the operation goes through without a counter (U12 in
+:Seal labels: With the carried kernel patch, the seal reads a file's
+   label as the in-kernel LSMs read theirs, without the caller's read
+   permission, and no other LSM's ``inode_permission`` policy can hide
+   it. On an upstream kernel the kfunc checks that permission, every
+   LSM that implements the hook takes part, SELinux and Smack among
+   them, and a policy that grants write or unlink but refuses read
+   makes a sealed file without a mark look unlabeled (see the seal in
    :doc:`/security/threat-model`).
 :Policies: shirudo ships no SELinux, AppArmor or Smack policy. A policy
    that confines shirudo's processes must allow what they use, among it

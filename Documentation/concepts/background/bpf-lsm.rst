@@ -52,9 +52,9 @@ For a shirudo target, the most minimal and ideal setting is ``lsm=bpf``,
 which enables the BPF LSM alone; the capability checks still run first,
 and IMA and EVM, when built in, still run last. No other LSM then
 refuses an operation before shirudo's programs see and count it, and
-none can hide a seal label by refusing the read of it, the gap the
-threat model lists as U12 (see :doc:`/security/threat-model`). The
-security code the target runs shrinks to what shirudo uses. One more LSM
+on an upstream kernel without the carried xattr patch none can hide a
+seal label by refusing the read of it (see :doc:`/security/threat-model`).
+The security code the target runs shrinks to what shirudo uses. One more LSM
 matters: the threat model assumes ``lockdown=integrity``, and lockdown is
 an LSM as well. A kernel built with
 ``CONFIG_SECURITY_LOCKDOWN_LSM_EARLY`` starts it before it reads the

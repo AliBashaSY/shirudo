@@ -60,7 +60,7 @@ Kernel source
        ``KEY_SPEC_BPF_KEYRING`` with the ``bpf.keyring_unsealed``
        parameter, and the kfuncs ``bpf_inode_init_xattr`` and
        ``bpf_real_data_inode``. The test suite runs bpf-next commit
-       ``4169c9c90532``.
+       ``cd5bc55288d4``.
    * - Upstream commit ``1041fca2ee8a``
      - ``keys: add KEY_SPEC_DM_VERITY_KEYRING``. ``shirudo init``
        enrolls and seals the config certificate in the ``.dm-verity``
@@ -77,6 +77,12 @@ Kernel source
      - Adds the ``tpm_command`` LSM hook. ``shirudo init`` attaches
        ``lsm/tpm_command`` to refuse an untrusted ``TPM2_NV_Extend`` of
        its register and fails without the hook.
+   * - :src:`kernel/0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`
+     - Lets an LSM program read a ``security.bpf.`` xattr without the
+       calling task's read permission on the inode, as the in-kernel
+       LSMs read their labels. Without it the seal takes a label its
+       caller may not read for a missing one unless the inode carries a
+       mark, which root can arrange with an idmapped mount or an ACL.
 
 :doc:`/internals/kernel-patches` gives the upstream status of the
 carried patches.

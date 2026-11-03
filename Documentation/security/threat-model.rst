@@ -147,13 +147,18 @@ without the protection.
        checked.
    * - A3
      - The kernel has the signed-loader ABI of the bpf-next tree shirudo
-       targets and the ``tpm_command`` LSM hook. Upstream has no such
-       hook, and shirudo carries it as
-       :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`.
-     - T1 needs the ABI, T5 the hook.
-     - Yes. The pre-flight check ``signed_loader_kernel_abi`` tests the
-       ABI. Without the hook the ``bpf2`` object does not load and
-       ``init`` fails.
+       targets, the ``tpm_command`` LSM hook, and xattr kfuncs that
+       return a ``security.bpf.`` label to an LSM program without the
+       calling task's read permission. Upstream has neither the hook nor
+       the latter, and shirudo carries them as
+       :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`
+       and
+       :src:`kernel/0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`.
+     - T1 needs the ABI, T5 the hook, T3 the label read.
+     - Partly. The pre-flight check ``signed_loader_kernel_abi`` tests
+       the ABI. Without the hook the ``bpf2`` object does not load and
+       ``init`` fails. Without the label read, the seal falls back to
+       its marks where a read fails for the caller (T3).
    * - A4
      - The kernel refuses unsigned modules (``CONFIG_MODULE_SIG`` with
        enforcement) and runs with lockdown in integrity mode
@@ -661,9 +666,12 @@ target and never grants authority: a file system root mounts can carry
 it, and a binary that carries it gains nothing. A label read that fails
 with an error other than ``ENODATA``, ``EOPNOTSUPP``, ``EACCES`` or
 ``EPERM`` requires authority, and so does a failure to allocate the
-seal's scratch memory. The kernel checks read permission for the caller
-before it returns the label, against the raw ids of the inode (U12), so
-the two permission errors mean either a caller that may do nothing or
+seal's scratch memory. With the carried xattr patch (A3) the kernel
+returns the label to the seal without the caller's read permission, as
+it returns their labels to the in-kernel LSMs, and the two permission
+errors do not occur. Upstream, the kernel checks read permission for
+the caller before it returns the label, against the raw ids of the
+inode, so the two errors mean either a caller that may do nothing or
 one that root gave a write without a read: through an idmapped bind
 mount, which shows uid 0's files as another id's to the permission
 check, or through an ACL, and then at a file system uid that cannot
@@ -671,8 +679,9 @@ read. Where the read fails that way, the mark of the inode, or of the
 directory the operation changes, decides, and the operation needs
 authority when either is marked (``t6111``). The seal marks every inode
 it labels at creation, every file shirudo opens, every file anyone
-opens for writing and every directory anyone opens; a file shirudo has
-not touched since it came into memory has no mark (R15). The labels
+opens for writing and every directory anyone opens; on a kernel
+without the patch, a file shirudo has not touched since it came into
+memory has no mark (R15). The labels
 themselves are refused to such a caller whatever the read said: root
 takes a file system uid that cannot read the inode with ``setfsuid()``
 and keeps the ``CAP_SYS_ADMIN`` that a ``security.*`` xattr change
@@ -796,7 +805,7 @@ An authorized process is protected against being taken over:
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``
-:Residual: R2, R15, R19, R22, U12
+:Residual: R2, R15, R19, R22
 
 T4 Substituting artifacts
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1415,8 +1424,9 @@ R15 Marks can be evicted
    system and bring them back. An unlabeled entry stays inert: shirudo
    neither follows nor restores it. A returned labeled entry is taken
    for shirudo's own. While a file's mark is absent, root can change
-   its ACL and inode flags, and a label read it made fail counts as
-   unlabeled (T3). Detection: only signatures and measurement; an
+   its ACL and inode flags, and on a kernel without the carried xattr
+   patch (A3) a label read it made fail counts as unlabeled (T3).
+   Detection: only signatures and measurement; an
    archived upatch restored at the next boot appears in the init event's
    set. Mitigation: D6.
 
@@ -1646,19 +1656,6 @@ U11 The boot continues when init fails
       pinned, and treat a missing keepalive as a signal. A deployer who
       prefers a halted boot can add an ``OnFailure=`` drop-in to
       ``shirudo-initrd.service``; this is not tested.
-
-U12 Another LSM can switch the seal off
-   :Affects: The seal (T3).
-   :Consequence: The kernel's label read checks the caller's read
-      permission, and every LSM's ``inode_permission`` hook takes part.
-      A policy that grants write or unlink but refuses read makes a
-      labeled inode without a mark look unlabeled, and the operation
-      goes through without a counter; a marked one needs authority
-      (T3), and the same refusal on an open leaves the mark as it was.
-   :Status: Confirmed in code and in the kernel; the attack is a
-      code-path reading, not reproduced.
-   :Meanwhile: Run no other LSM whose policy root can change at
-      runtime.
 
 U13 Revocation does not reach everything
    :Affects: Tree publications and vouched keys (R13).

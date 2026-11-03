@@ -30,11 +30,17 @@ Summary
      - KP Singh
      - No
      - All
+   * - ``0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch``
+     - Daniel Borkmann
+     - No
+     - All
 
 "In bpf-next" was checked against the bpf-next tree at commit
-``4169c9c90532``: ``include/linux/ftrace.h`` there still marks jmp mode
-with bit 0, and ``include/linux/lsm_hook_defs.h`` has no ``tpm_command``
-hook.
+``cd5bc55288d4``: ``include/linux/ftrace.h`` there still marks jmp mode
+with bit 0, ``include/linux/lsm_hook_defs.h`` has no ``tpm_command``
+hook, and ``fs/bpf_fs_kfuncs.c`` checks the calling task's read
+permission before it returns a ``security.bpf.`` xattr to an LSM
+program.
 
 How the test kernel applies them
 --------------------------------

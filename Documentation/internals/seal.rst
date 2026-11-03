@@ -183,20 +183,22 @@ Reading the label
 ~~~~~~~~~~~~~~~~~
 
 The seal reads the label with the ``bpf_get_file_xattr()`` and
-``bpf_get_dentry_xattr()`` kfuncs. Both first check that the calling
-task may read the inode, against its raw ids. If the seal refused every
-operation whose label read failed, it would refuse every write-only
-open and every unlink of a file the caller cannot read, on every file
-system. So no label (``ENODATA``) and no security extended attributes
-on the file system (``EOPNOTSUPP``) count as unlabeled and the operation
-goes ahead. A label the caller may not read (``EACCES``, ``EPERM``) is
-also what root makes of any label by granting a write without a read,
-through an idmapped bind mount or an ACL, and then acting at a file
-system uid that cannot read. There the mark of the inode, or of the
-directory the operation changes, decides, and a marked one requires
-runtime authority. A label of any length, any other error, and a
-failure to allocate the scratch buffer the kfunc writes into require
-runtime authority.
+``bpf_get_dentry_xattr()`` kfuncs. With the carried kernel patch they
+return a ``security.bpf.`` label as the in-kernel LSMs read theirs,
+without the calling task's permission. Upstream they first check that
+the calling task may read the inode, against its raw ids. If the seal
+refused every operation whose label read failed, it would refuse every
+write-only open and every unlink of a file the caller cannot read, on
+every file system. So no label (``ENODATA``) and no security extended
+attributes on the file system (``EOPNOTSUPP``) count as unlabeled and
+the operation goes ahead. A label the caller may not read (``EACCES``,
+``EPERM``) is, on an upstream kernel, also what root makes of any label
+by granting a write without a read, through an idmapped bind mount or
+an ACL, and then acting at a file system uid that cannot read. There
+the mark of the inode, or of the directory the operation changes,
+decides, and a marked one requires runtime authority. A label of any
+length, any other error, and a failure to allocate the scratch buffer
+the kfunc writes into require runtime authority.
 
 Labeling at creation
 ---------------------
@@ -255,12 +257,13 @@ Hard links to labeled inodes
     a link can be made inside a sealed directory, where it carries a
     valid label.
 
-Label reads under another LSM
-    The kfuncs' read permission check runs every LSM's
-    ``inode_permission`` hook for the calling task. A policy of another
-    LSM that lets a task write or unlink a file but not read it makes a
-    labeled inode without a mark look unlabeled to the seal; a marked
-    one is refused, and the same failure on an open leaves the mark.
+Label reads on an upstream kernel
+    Without the carried xattr patch, the kfuncs check that the calling
+    task may read the inode, and every LSM's ``inode_permission`` hook
+    takes part. A read that fails for the caller, through an idmapped
+    mount, an ACL or another LSM's policy, makes a labeled inode
+    without a mark look unlabeled to the seal; a marked one is refused,
+    and the same failure on an open leaves the mark.
 
 ACLs and inode flags
     ``inode_set_acl``, ``inode_remove_acl`` and ``inode_file_setattr``
