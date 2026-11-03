@@ -163,14 +163,19 @@ static bool pkey_is_mldsa87(const EVP_PKEY *pkey)
 	return EVP_PKEY_is_a(pkey, "ML-DSA-87");
 }
 
+/*
+ * Never a signing time: the kernel refuses a signature whose signing
+ * time falls outside the signer's validity period
+ * (crypto/asymmetric_keys/pkcs7_verify.c), which would let a
+ * certificate's dates decide what loads. Every OpenSSL shirudo builds
+ * with has the flag, so it is not guarded.
+ */
 int cms_sign(struct sign_io *io,
 	     const char *pkey_path, const char *cert_path)
 {
 	unsigned int signer_flags = CMS_NOCERTS | CMS_BINARY | CMS_NOSMIMECAP |
-#ifdef CMS_NO_SIGNING_TIME
-				    CMS_NO_SIGNING_TIME |
-#endif
-				    CMS_USE_KEYID | CMS_NOATTR;
+				    CMS_NO_SIGNING_TIME | CMS_USE_KEYID |
+				    CMS_NOATTR;
 	unsigned int hash_len = SHA256_LEN;
 	const EVP_MD *cms_digest = EVP_sha256();
 	BIO *bd_in = NULL, *bd_out = NULL;

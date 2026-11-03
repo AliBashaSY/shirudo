@@ -40,7 +40,7 @@ Display
 
 - the certificate ``cert.der`` and the signing key ``signing_key.pem`` in
   the keys directory: subject, issuer, algorithm, both fingerprints and
-  validity
+  the date the certificate was issued
 - the trusted set, when it has more than the primary certificate or
   holds revoked or unvouched entries: each member's SPKI fingerprint, the
   SHA-256 of its certificate and the certificate that vouched for it
@@ -192,9 +192,7 @@ Show the key material on a target:
      Public-key:            ML-DSA-87
      Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
      SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
-     Valid from:            2026-10-29T21:50:28Z
-     Valid until:           2036-10-26T21:50:28Z
-     Expires in:            9y 364d
+     Issued:                2026-10-29T21:50:28Z
 
    Signing key (/run/shirudo/runtime/keys/signing_key.pem):
      Present:               no  (target host -- private key lives on the operator)

@@ -118,25 +118,6 @@ static void asn1_time_to_iso(const ASN1_TIME *t, char *out, size_t out_sz)
 		strscpy(out, "(format error)", out_sz);
 }
 
-static long days_remaining(const ASN1_TIME *not_after)
-{
-	int days, secs;
-
-	if (!ASN1_TIME_diff(&days, &secs, NULL, not_after))
-		return -1;
-	return days;
-}
-
-static int format_expires_in(long days, char *out, size_t out_sz)
-{
-	if (days < 0)
-		return strsprintf(out, out_sz, "EXPIRED %ld days ago", -days);
-	if (days >= 365)
-		return strsprintf(out, out_sz, "%ldy %ldd", days / 365,
-				  days % 365);
-	return strsprintf(out, out_sz, "%ldd", days);
-}
-
 static int compute_cert_fpr(X509 *c, __u8 fpr[SHA256_DIGEST_LENGTH])
 {
 	__u32 n = SHA256_DIGEST_LENGTH;
@@ -205,20 +186,15 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	const X509_NAME *subj = X509_get_subject_name(cert);
 	const X509_NAME *iss  = X509_get_issuer_name(cert);
 	const ASN1_TIME *nb = X509_get0_notBefore(cert);
-	const ASN1_TIME *na = X509_get0_notAfter(cert);
+	char subj_s[256], iss_s[256], nb_s[32];
 	EVP_PKEY *pub = X509_get0_pubkey(cert);
-	char subj_s[256], iss_s[256], nb_s[32], na_s[32], exp_s[48];
 	__u8 fpr[SHA256_DIGEST_LENGTH];
-	char alg_s[64];
 	int self_signed;
-	long left;
+	char alg_s[64];
 
 	name_to_str(subj, subj_s, sizeof(subj_s));
 	name_to_str(iss, iss_s, sizeof(iss_s));
 	asn1_time_to_iso(nb, nb_s, sizeof(nb_s));
-	asn1_time_to_iso(na, na_s, sizeof(na_s));
-	left = days_remaining(na);
-	format_expires_in(left, exp_s, sizeof(exp_s));
 	self_signed = (X509_NAME_cmp(subj, iss) == 0);
 
 	printf("Cert (%s):\n", cert_path);
@@ -232,9 +208,7 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	if (compute_cert_fpr(cert, fpr) == 0)
 		print_fpr("Fingerprint:", fpr);
 	print_fpr("SPKI fingerprint:", cert_spki_fpr);
-	printf("  %-22s %s\n", "Valid from:", nb_s);
-	printf("  %-22s %s\n", "Valid until:", na_s);
-	printf("  %-22s %s\n", "Expires in:", exp_s);
+	printf("  %-22s %s\n", "Issued:", nb_s);
 	return 0;
 }
 

@@ -33,8 +33,8 @@
 #include "util/paths.h"
 #include "util/seal.h"
 
-#define VALIDITY_DAYS	(10L * 365L)
 #define CERT_CN		"shirudo"
+#define CERT_NO_EXPIRY	"99991231235959Z"
 
 /*
  * ML-DSA-87 (FIPS 204, NIST category 5) is the only key type: the
@@ -197,15 +197,21 @@ static int build_serial(X509 *c)
 	return 0;
 }
 
+/*
+ * Neither shirudo nor the kernel compares a certificate's validity with
+ * the clock; a key is retired by revoking it. notAfter therefore holds
+ * the value RFC 5280 4.1.2.5 gives a certificate with no well-defined
+ * expiration, not a date that reads as the end of the key's trust.
+ */
 static int build_validity(X509 *c)
 {
 	if (!X509_gmtime_adj(X509_getm_notBefore(c), 0)) {
 		openssl_complain("X509_gmtime_adj notBefore");
 		return -1;
 	}
-	if (!X509_gmtime_adj(X509_getm_notAfter(c),
-			     VALIDITY_DAYS * 24L * 60L * 60L)) {
-		openssl_complain("X509_gmtime_adj notAfter");
+	if (ASN1_TIME_set_string_X509(X509_getm_notAfter(c),
+				      CERT_NO_EXPIRY) != 1) {
+		openssl_complain("ASN1_TIME_set_string_X509 notAfter");
 		return -1;
 	}
 	return 0;
@@ -507,8 +513,8 @@ int cmd_genkey(int argc, const char **argv)
 	}
 
 	pr_info("wrote %s (%s, mode 0600)", pkey_path, GENKEY_ALG);
-	pr_info("wrote %s (X.509 self-signed, %ld-day validity)",
-		cert_path, VALIDITY_DAYS);
+	pr_info("wrote %s (X.509 self-signed, no expiration date)",
+		cert_path);
 	pr_audit("genkey: created shirudo %s signing material at %s",
 		 GENKEY_ALG, keys_dir);
 	ret = 0;

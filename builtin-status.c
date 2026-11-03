@@ -502,7 +502,6 @@ struct status_cert {
 	char	subject[STATUS_SUBJECT_MAX];
 	char	algorithm[32];
 	char	not_before[11];
-	char	not_after[11];
 	long	link;			/* into the keyring's links, or -1 */
 };
 
@@ -583,8 +582,7 @@ static void keyring_view_cert(struct status_keyring *k, struct status_cert *c,
 			c->info_rc = cert_key_algorithm(&cert, c->algorithm,
 							sizeof(c->algorithm));
 		if (!c->info_rc)
-			c->info_rc = cert_validity(&cert, c->not_before,
-						   c->not_after);
+			c->info_rc = cert_not_before(&cert, c->not_before);
 		cert_free(&cert);
 	}
 	if (k->links_rc || keyring_cert_description(der, len, desc))
@@ -713,12 +711,10 @@ static void keyring_emit_json(struct json_emit *e, const char *key,
 			json_kv_null(e, "subject");
 			json_kv_null(e, "algorithm");
 			json_kv_null(e, "not_before");
-			json_kv_null(e, "not_after");
 		} else {
 			json_kv_string(e, "subject", c->subject);
 			json_kv_string(e, "algorithm", c->algorithm);
 			json_kv_string(e, "not_before", c->not_before);
-			json_kv_string(e, "not_after", c->not_after);
 		}
 		if (l) {
 			json_kv_int(e, "key_serial", l->serial);
@@ -794,8 +790,8 @@ static void print_keyring_certs(const struct status_keyring *k,
 			printf("      (details unreadable: %s)\n",
 			       strerror(-c->info_rc));
 		else
-			printf("      %s, %s, valid %s to %s\n", c->subject,
-			       c->algorithm, c->not_before, c->not_after);
+			printf("      %s, %s, issued %s\n", c->subject,
+			       c->algorithm, c->not_before);
 		if (c->link >= 0)
 			print_link(k, (size_t)c->link, "      ");
 		else if (!k->links_rc)

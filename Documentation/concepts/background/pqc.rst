@@ -192,8 +192,9 @@ certificate.
 
 Certificate validity periods are not enforced. shirudo's own checks
 skip them, and its signatures carry no signing time for the kernel to
-compare. A key stops being trusted when a signed config revokes it, not
-when its certificate expires.
+compare, and ``shirudo genkey`` writes certificates without an
+expiration date. A key stops being trusted when a signed config revokes
+it, not at a date in its certificate.
 
 ``BPM_OCI_SCHEME=http`` turns TLS off for registry access, and
 ``map_export.otel_insecure`` turns off certificate verification for the

@@ -111,9 +111,12 @@ No verifier enforces a certificate's validity period. shirudo's own
 CMS and chain checks for signatures set ``X509_V_FLAG_NO_CHECK_TIME``.
 The kernel compares a signature's signing time with the signer's
 validity only when the signature carries a signing time, and shirudo's
-signatures carry none. ``shirudo genkey`` writes a validity of ten years
-into the certificate, which is informational. Retire a key by revoking
-it (residual risks R13 and R16).
+signatures carry none: every one is made with OpenSSL's
+``CMS_NO_SIGNING_TIME``. ``shirudo genkey`` writes no expiration date;
+the certificate's ``notAfter`` is ``99991231235959Z``, the value RFC 5280
+gives a certificate with no well-defined expiration. ``shirudo status``
+and ``shirudo keys`` show only the date a certificate was issued. Retire
+a key by revoking it (residual risks R13 and R16).
 
 Digests
 -------

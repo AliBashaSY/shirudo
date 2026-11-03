@@ -349,17 +349,11 @@ static int asn1_date(const ASN1_TIME *t, char out[11])
 	return strftime(out, 11, "%Y-%m-%d", &tm) == 10 ? 0 : -EINVAL;
 }
 
-int cert_validity(const struct cert *cert, char not_before[11],
-		  char not_after[11])
+int cert_not_before(const struct cert *cert, char out[11])
 {
-	int ret;
-
 	if (!cert || !cert->impl)
 		return -EINVAL;
-	ret = asn1_date(X509_get0_notBefore(cert->impl), not_before);
-	if (!ret)
-		ret = asn1_date(X509_get0_notAfter(cert->impl), not_after);
-	return ret;
+	return asn1_date(X509_get0_notBefore(cert->impl), out);
 }
 
 static CMS_ContentInfo *read_cms(const __u8 *signature, size_t len)

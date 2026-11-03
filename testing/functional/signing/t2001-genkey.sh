@@ -3,10 +3,11 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t2001 -- `shirudo genkey`: the only key type is ML-DSA-87 (FIPS 204),
-# the certificate is self-signed with the same key and carries matching
-# subject/authority key identifiers, and there is no algorithm option
-# at all. The ML-DSA cases need an OpenSSL (>= 3.5) that knows the
-# algorithm; on older toolchains genkey must refuse with an upgrade hint.
+# the certificate is self-signed with the same key, carries matching
+# subject/authority key identifiers and no expiration date, and there is
+# no algorithm option at all. The ML-DSA cases need an OpenSSL (>= 3.5)
+# that knows the algorithm; on older toolchains genkey must refuse with
+# an upgrade hint.
 # A --force that cannot put the new pair in place leaves the old one.
 
 cd "$(dirname "$0")/../.."
@@ -49,6 +50,11 @@ if [ "$have_mldsa" = 1 ]; then
 			-noout -ext authorityKeyIdentifier | grep -Eq "([0-9A-F]{2}:){19}[0-9A-F]{2}"
 	'
 
+	test_expect_success 'certificate has no expiration date' '
+		openssl asn1parse -inform DER -in "$tmp/keys/cert.der" |
+			grep -q "GENERALIZEDTIME *:99991231235959Z"
+	'
+
 	test_expect_success 'subject and authority key identifiers match' '
 		subject=$(openssl x509 -inform DER -in "$tmp/keys/cert.der" \
 			-noout -ext subjectKeyIdentifier | tail -1 | tr -d "[:space:]") &&
@@ -66,6 +72,8 @@ if [ "$have_mldsa" = 1 ]; then
 		"$SHIRUDO" keys --keys-dir "$tmp/keys" >"$tmp/keys.out" 2>&1 &&
 		grep -q "Public-key: *ML-DSA-87" "$tmp/keys.out" &&
 		grep -q "Algorithm: *ML-DSA-87" "$tmp/keys.out" &&
+		grep -q "Issued: *20[0-9][0-9]-" "$tmp/keys.out" &&
+		! grep -Eq "Valid until|Expires in" "$tmp/keys.out" &&
 		grep -q "signing key matches cert" "$tmp/keys.out"
 	'
 

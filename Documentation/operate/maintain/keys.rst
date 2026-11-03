@@ -172,9 +172,7 @@ Check what a target trusts
         Public-key:            ML-DSA-87
         Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
         SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
-        Valid from:            2026-10-29T21:50:28Z
-        Valid until:           2036-10-26T21:50:28Z
-        Expires in:            9y 364d
+        Issued:                2026-10-29T21:50:28Z
 
       Signing key (/run/shirudo/runtime/keys/signing_key.pem):
         Present:               no  (target host -- private key lives on the operator)
@@ -220,10 +218,10 @@ Check what a target trusts
         Frozen serial:         854623986  (matches)
         Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
           7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69  (primary)
-            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 209590502  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
           4e4d8da3b0d1a69205a3767baca002c052e90af92bc9815d245f9b25dc1b7d9a
-            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 646964383  shirudo: 8e781f2c1c0e9bccbba9d1d286129128e830e81f  (frozen)
       ...
 

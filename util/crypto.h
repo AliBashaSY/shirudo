@@ -54,9 +54,8 @@ int cert_key_algorithm(const struct cert *cert,
 /* The subject on one line, "O=Example, CN=fleet", control bytes escaped. */
 int cert_subject(const struct cert *cert, char *out, size_t out_sz)
 	__must_check;
-/* The validity window as UTC dates, YYYY-MM-DD. */
-int cert_validity(const struct cert *cert, char not_before[11],
-		  char not_after[11]) __must_check;
+/* The start of the validity period as a UTC date, YYYY-MM-DD. */
+int cert_not_before(const struct cert *cert, char out[11]) __must_check;
 int verify_detached(const __u8 *payload, size_t payload_len,
 		    const __u8 *signature, size_t signature_len,
 		    const struct cert *cert) __must_check;

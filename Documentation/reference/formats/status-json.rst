@@ -337,10 +337,11 @@ Each entry of ``certs``:
    * - ``algorithm``
      - string or ``null``
      - The public key algorithm, for example ``ML-DSA-87``.
-   * - ``not_before``, ``not_after``
+   * - ``not_before``
      - string or ``null``
-     - The validity dates, ``YYYY-MM-DD`` in UTC. The kernel does not
-       compare them with the clock.
+     - The date the certificate was issued, the start of its validity
+       period, ``YYYY-MM-DD`` in UTC. Nothing compares it with the
+       clock, and the end of the period is not reported.
    * - ``key_serial``
      - integer or ``null``
      - Serial of the key in the keyring that holds the certificate.
@@ -748,7 +749,6 @@ indented here:
            "subject": "CN=shirudo",
            "algorithm": "ML-DSA-87",
            "not_before": "2026-10-29",
-           "not_after": "2036-10-26",
            "key_serial": 199275792,
            "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
            "frozen": true
@@ -760,7 +760,6 @@ indented here:
            "subject": "CN=shirudo",
            "algorithm": "ML-DSA-87",
            "not_before": "2026-10-29",
-           "not_after": "2036-10-26",
            "key_serial": 106884895,
            "key_description": "shirudo: c350bd270c426c5760b202062e15e274ea30f45d",
            "frozen": true
@@ -781,7 +780,6 @@ indented here:
            "subject": "CN=shirudo",
            "algorithm": "ML-DSA-87",
            "not_before": "2026-10-29",
-           "not_after": "2036-10-26",
            "key_serial": 200951639,
            "key_description": "shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c",
            "frozen": true

@@ -173,10 +173,10 @@ Check enforcement
         Frozen serial:         130847582  (matches)
         Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
           d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (primary)
-            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 199275792  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
           c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e
-            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 106884895  shirudo: c350bd270c426c5760b202062e15e274ea30f45d  (frozen)
 
       Keyring (.dm-verity):
@@ -184,7 +184,7 @@ Check enforcement
         Frozen serial:         962472513  (matches)
         Certificates:          1 trusted, 1 in the dm-verity keyring
           d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (config)
-            CN=shirudo, ML-DSA-87, valid 2026-10-29 to 2036-10-26
+            CN=shirudo, ML-DSA-87, issued 2026-10-29
             key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
 
       upatches loaded (0):

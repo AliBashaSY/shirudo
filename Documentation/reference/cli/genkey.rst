@@ -37,7 +37,9 @@ Description
 
    - ``<dir>/signing_key.pem``: the private key, PEM, mode 0600
    - ``<dir>/cert.der``: a self-signed X.509 certificate, DER, mode 0600,
-     subject and issuer ``CN=shirudo``, valid for 3650 days
+     subject and issuer ``CN=shirudo``, valid from its creation and
+     without an expiration date (``notAfter`` ``99991231235959Z``, the
+     value RFC 5280 gives a certificate without one)
 
 #. It logs ``genkey: created shirudo ML-DSA-87 signing material at
    <dir>`` at audit priority.

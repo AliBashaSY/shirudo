@@ -60,7 +60,7 @@ assert any(c["primary"] and c["key_serial"] for c in bpf["certs"]), bpf
 assert d["certs_enrolled"] == len(held), d["certs_enrolled"]
 for c in bpf["certs"]:
     assert c["frozen"] is (True if c["key_serial"] else None), c
-    assert c["subject"] and c["algorithm"] and c["not_after"], c
+    assert c["subject"] and c["algorithm"] and c["not_before"], c
 dmv = d["dm_verity_keyring"]
 assert len(dmv["certs"]) == 1, dmv["certs"]
 c = dmv["certs"][0]
