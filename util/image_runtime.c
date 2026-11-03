@@ -392,7 +392,7 @@ int image_runtime_mount(void)
 
 static int seal_fd(void *ctx, int fd)
 {
-	return fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
+	return fsetxattr(fd, XATTR_SEAL, SEAL_LABEL,
 			 strlen(SEAL_LABEL), 0) ?
 		       -errno :
 		       0;

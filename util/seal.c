@@ -28,7 +28,7 @@
 
 int seal_label(const char *path)
 {
-	if (lsetxattr(path, XATTR_NAME, SEAL_LABEL,
+	if (lsetxattr(path, XATTR_SEAL, SEAL_LABEL,
 		      sizeof(SEAL_LABEL) - 1, 0) != 0)
 		return -errno;
 	return 0;
@@ -127,13 +127,13 @@ static ssize_t seal_label_len(ssize_t n)
 
 static ssize_t seal_fget(int fd, char label[SEAL_LABEL_LEN])
 {
-	return seal_label_len(fgetxattr(fd, XATTR_NAME, label,
+	return seal_label_len(fgetxattr(fd, XATTR_SEAL, label,
 					SEAL_LABEL_LEN));
 }
 
 static ssize_t seal_lget(const char *path, char label[SEAL_LABEL_LEN])
 {
-	return seal_label_len(lgetxattr(path, XATTR_NAME, label,
+	return seal_label_len(lgetxattr(path, XATTR_SEAL, label,
 					SEAL_LABEL_LEN));
 }
 
@@ -253,7 +253,7 @@ int seal_inherit(int dfd, int fd)
 		return (int)olen;
 	if (olen == plen && !memcmp(parent, own, (size_t)plen))
 		return 0;
-	if (fsetxattr(fd, XATTR_NAME, parent, (size_t)plen, 0))
+	if (fsetxattr(fd, XATTR_SEAL, parent, (size_t)plen, 0))
 		return -errno;
 	return 0;
 }
@@ -277,7 +277,7 @@ int seal_inherit_path(const char *path)
 		return (int)olen;
 	if (olen == plen && !memcmp(parent, own, (size_t)plen))
 		return 0;
-	if (lsetxattr(path, XATTR_NAME, parent, (size_t)plen, 0))
+	if (lsetxattr(path, XATTR_SEAL, parent, (size_t)plen, 0))
 		return -errno;
 	return 0;
 }
@@ -299,7 +299,7 @@ static int seal_regular(int fd)
 /* 1 for a label of any size, 0 for none, -errno when unreadable. */
 static int seal_fsealed(int fd)
 {
-	if (fgetxattr(fd, XATTR_NAME, NULL, 0) >= 0)
+	if (fgetxattr(fd, XATTR_SEAL, NULL, 0) >= 0)
 		return 1;
 	return errno == ENODATA || errno == ENOTSUP ? 0 : -errno;
 }

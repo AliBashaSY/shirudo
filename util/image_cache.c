@@ -133,7 +133,7 @@ static int fetch_file(const char *source, const char *destination, __u64 max)
 	if (fd < 0)
 		return -errno;
 	download.fd = fd;
-	ret = fsetxattr(fd, XATTR_NAME, SEAL_LABEL,
+	ret = fsetxattr(fd, XATTR_SEAL, SEAL_LABEL,
 			strlen(SEAL_LABEL), 0) ? -errno : 0;
 	if (!ret)
 		ret = !strncmp(source, "https://", 8) ?

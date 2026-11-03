@@ -117,7 +117,7 @@
 #define SIGNING_KEY_FILE	"signing_key.pem"
 #define SIGNING_KEY_PATH	KEYS_DIR "/" SIGNING_KEY_FILE
 
-#define XATTR_NAME		"security.bpf.shirudo"
+#define XATTR_SEAL		"security.bpf.shirudo"
 #define XATTR_POLICY		"security.bpf.shirudo.policy"
 
 /*
