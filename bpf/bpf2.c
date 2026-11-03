@@ -568,24 +568,36 @@ static __always_inline int shirudo_mount_group(struct mount *m)
 }
 
 /*
- * Whether unmounting m unmounts a: a is m, a peer of m, or a slave of
- * m's peer group, directly or through masters of its own.
+ * Whether unmounting m unmounts a: a is m, or a copy of m that
+ * propagation made, at m's mountpoint on a peer of m's parent or on a
+ * slave of that peer group, directly or through masters of its own. A
+ * peer of m itself at another mountpoint stays: a bind of a shared
+ * mount is a peer of its source, and the root's binds are peers of the
+ * root.
  */
-static __always_inline bool shirudo_umount_reaches(struct mount *m, int group,
+static __always_inline bool shirudo_umount_reaches(struct mount *m,
 						   struct mount *a)
 {
-	int i;
+	struct mount *parent;
+	int group, i;
 
 	if (a == m)
 		return true;
+	if (BPF_CORE_READ(a, mnt_mp) != BPF_CORE_READ(m, mnt_mp))
+		return false;
+	parent = BPF_CORE_READ(m, mnt_parent);
+	if (!parent)
+		return true;
+	group = shirudo_mount_group(parent);
 	if (!group)
 		return false;
+	parent = BPF_CORE_READ(a, mnt_parent);
 	bpf_for(i, 0, MOUNT_MASTERS_MAX) {
-		if (shirudo_mount_group(a) == group)
-			return true;
-		a = BPF_CORE_READ(a, mnt_master);
-		if (!a)
+		if (!parent)
 			return false;
+		if (shirudo_mount_group(parent) == group)
+			return true;
+		parent = BPF_CORE_READ(parent, mnt_master);
 	}
 	return true;
 }
@@ -598,14 +610,13 @@ static __always_inline bool shirudo_umount_takes_bpffs(struct mount *m,
 						       struct mount *bpffs)
 {
 	struct mount *a = bpffs, *parent;
-	int group = shirudo_mount_group(m);
 	int i;
 
 	bpf_for(i, 0, MOUNT_DEPTH_MAX) {
 		parent = BPF_CORE_READ(a, mnt_parent);
 		if (!parent || parent == a)
 			return false;
-		if (shirudo_umount_reaches(m, group, a))
+		if (shirudo_umount_reaches(m, a))
 			return true;
 		a = parent;
 	}

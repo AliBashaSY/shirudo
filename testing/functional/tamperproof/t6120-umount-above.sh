@@ -46,6 +46,17 @@ test_expect_success 'enforcement is live to begin with' '
 	enforcing
 '
 
+# A bind of a shared mount is a peer of its source: the root's binds are
+# peers of the root, under which the bpffs sits, and unmounting one must
+# not count as unmounting the root.
+test_expect_success 'a bind mount of a root file system path is any process'"'"'s to unmount' '
+	mkdir -p "$W/bind" &&
+	mount --bind /var/lib "$W/bind" &&
+	umount "$W/bind" &&
+	! mountpoint -q "$W/bind" &&
+	enforcing
+'
+
 test_expect_success 'a lazy unmount of /run is refused and counted' '
 	before=$(counter BpffsUmountAbove) &&
 	! umount -l /run 2>/dev/null &&

@@ -591,9 +591,10 @@ mount. ``lsm/sb_umount``, ``lsm/move_mount``, ``lsm/sb_mount`` and
 ``lsm/sb_remount`` refuse every caller, shirudo included, an unmount, a
 move, a mount over or a remount of the private bpffs (``BpffsUmount``,
 ``BpffsMount``). The kernel asks ``sb_umount`` only about the mount it
-was given, so the hook also walks what the unmount would take, the
-subtree and its propagation peers and slaves, from the bpffs mount
-``init`` recorded, and refuses an unmount that reaches it
+was given, so the hook also walks what the unmount would take: the
+subtree, and for each mount in it the copies that propagation made at
+its mountpoint on the peers and slaves of its parent, from the bpffs
+mount ``init`` recorded, and refuses an unmount that reaches it
 (``BpffsUmountAbove``). The walk runs without the namespace lock,
 within fixed bounds of 1024 mounts, 32 levels and 4 masters, and
 refuses a tree it cannot finish. The tmpfs at ``/run/shirudo`` gets the
@@ -1480,9 +1481,7 @@ R22 Labeled inodes are interchangeable
    package or tree state read from the wrong file. This is a reading of
    the code and is not reproduced. A bind mount over the state root in
    ``init``'s namespace, an idmapped one among them, was reproduced:
-   every command refuses the state as foreign from then on, and the
-   mount cannot be removed while the unmount guard refuses every
-   unmount of a mount in the root's propagation group (R3).
+   every command refuses the state as foreign from then on.
 
 R23 Policy labels follow the inode
    A policy label is an xattr of the executable's inode, applied at
