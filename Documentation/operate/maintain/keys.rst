@@ -103,8 +103,8 @@ table lists every key.
 The BPF signing keys and the config signing key are ML-DSA-87 keys from
 ``shirudo genkey``. The config signing key may be one of the BPF signing
 keys or a separate key. Keep the private signing keys on the operator
-host. A target needs none, and ``shirudo status`` on a target reports
-``keys/signing_key.pem absent``.
+host. A target needs none, and ``shirudo status --show-full`` on a
+target reports ``keys/signing_key.pem absent``.
 
 What can change when
 --------------------
@@ -166,63 +166,64 @@ Check what a target trusts
    .. code-block:: console
 
       target# shirudo keys
-      Cert (/run/shirudo/runtime/keys/cert.der):
+      Certificate (/run/shirudo/runtime/keys/cert.der):
         Subject:               /CN=shirudo
         Issuer:                /CN=shirudo  (self-signed)
         Public key:            ML-DSA-87
-        Fingerprint:           SHA256:75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
-        SPKI fingerprint:      SHA256:7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
-        Issued:                2026-10-29T21:50:28Z
+        Fingerprint:           SHA256:c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1
+        SPKI fingerprint:      SHA256:6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858
+        Issued:                2026-11-03T14:52:11Z
 
       Signing key (/run/shirudo/runtime/keys/signing_key.pem):
-        Present:               no  (target host -- private key lives on the operator)
+        Present:               no, a target holds no private key
 
       Trusted set (2 members, 0 revoked, 0 unvouched):
-        7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69  (primary)
-          sha256 75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
-        4e4d8da3b0d1a69205a3767baca002c052e90af92bc9815d245f9b25dc1b7d9a
-          sha256 ba3d36544ecfe66b43ea2db498f8f8e50b09fd6f301952636d120c648f76a740
-          vouched by 7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
+        a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f
+          sha256 79b04130628135a03630a0ed9e92a574f8701847404ec281469348a09b9b3b45
+          vouched by 6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858
+        6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (primary)
+          sha256 c00c2d9a30c11dd98bb53200ac79c744b063a50489e5780968ea97bcb5745eb1
 
       Keyring (.bpf):
-        Serial:                854623986
-        Frozen serial:         854623986  (matches)
+        Serial:                272801410
+        Frozen serial:         272801410  (matches)
         Members (2):
-          serial=209590502   type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
-          serial=646964383   type=asymmetric  shirudo: 8e781f2c1c0e9bccbba9d1d286129128e830e81f  (frozen)
+          serial=465853497   type=asymmetric  shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265  (frozen)
+          serial=91435879    type=asymmetric  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
 
       Keyring (.dm-verity):
-        Serial:                684706098
-        Frozen serial:         684706098  (matches)
+        Serial:                799624487
+        Frozen serial:         799624487  (matches)
         Members (1):
-          serial=37657992    type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
+          serial=403194297   type=asymmetric  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
 
-   ``Cert`` is the runtime primary. The trusted set lists each member by
-   its SPKI fingerprint, with the SHA-256 of its DER and the member that
-   vouched for it. ``Keyring (.bpf)`` is what the kernel verifies signed
-   loaders against: the serial init froze, and one key per member.
-   ``Keyring (.dm-verity)`` holds the one key the kernel verifies config
-   roots with. ``(frozen)`` marks a member ``init`` recorded; a member
-   marked ``(NOT frozen)`` is trusted by the kernel all the same, and
-   ``shirudo status`` reports the target ``tampered``.
+   ``Certificate`` is the runtime primary. The trusted set lists each
+   member by its SPKI fingerprint, with the SHA-256 of its DER and the
+   member that vouched for it. ``Keyring (.bpf)`` is what the kernel
+   verifies signed loaders against: the serial init froze, and one key
+   per member. ``Keyring (.dm-verity)`` holds the one key the kernel
+   verifies config roots with. ``(frozen)`` marks a member ``init``
+   recorded; a member marked ``(not frozen)`` is trusted by the kernel
+   all the same, and ``shirudo status`` reports the target ``tampered``.
 
 2. Read the same set from the status report, each certificate with the
-   key that holds it:
+   key that holds it. The report folds the keyring sections while
+   ``KeyringSealed`` is ``OK``, so ask for them:
 
    .. code-block:: console
 
-      target# shirudo status
+      target# shirudo status --show-full
       ...
       Keyring (.bpf):
-        Serial:                854623986
-        Frozen serial:         854623986  (matches)
+        Serial:                272801410
+        Frozen serial:         272801410  (matches)
         Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
-          7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69  (primary)
-            CN=shirudo, ML-DSA-87, issued 2026-10-29
-            key 209590502  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
-          4e4d8da3b0d1a69205a3767baca002c052e90af92bc9815d245f9b25dc1b7d9a
-            CN=shirudo, ML-DSA-87, issued 2026-10-29
-            key 646964383  shirudo: 8e781f2c1c0e9bccbba9d1d286129128e830e81f  (frozen)
+          a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 465853497  shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265  (frozen)
+          6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (primary)
+            CN=shirudo, ML-DSA-87, issued 2026-11-03
+            key 91435879  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
       ...
 
    ``unvouched`` counts certificates under ``keys/trusted`` without a

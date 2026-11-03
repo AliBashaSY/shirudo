@@ -80,7 +80,7 @@ differs. In this example the path of the artifact is shortened:
 .. code-block:: console
 
    target# shirudo upatch load --expect-version-id=0000000000000000000000000000000000000000000000000000000000000000 --report=- shirudo-test-lifecycle.upatch
-   upatch load: version mismatch -- operator expects 0000000000000000000000000000000000000000000000000000000000000000, target is 58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0; redeploy a matching shirudo or pass --no-version-check
+   upatch load: version mismatch, the operator expects 0000000000000000000000000000000000000000000000000000000000000000 and the target is 58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0; deploy a matching shirudo or pass --no-version-check
    {"schema":1,"result":"failed","op":"upatch_load","phase":"pre_flight","errno":1,"errno_name":"EPERM","category":"version_mismatch","message":"SHIRUDO_VERSION_ID mismatch (operator vs target)",...}
 
 Take the expected ID from the binary in the runtime image, never from the
@@ -189,9 +189,9 @@ Verify the upgrade
    The ID must be the one you recorded on the operator host.
 
 2. Check init as described in :doc:`/operate/deploy/initialize`:
-   ``shirudo status`` reports ``ok`` and ``Bound in: initrd``, and
-   ``shirudo image status`` reports ``"pending":false`` and
-   ``"consistent":true``.
+   ``shirudo status`` reports ``ok``, ``shirudo status --show-full``
+   shows ``Bound in: initrd``, and ``shirudo image status`` reports
+   ``Pending: no`` and ``Consistent: yes``.
 
 3. Update your verifiers. The new initrd and UKI change the PCR values
    that init records when it binds the register, which a verifier pins

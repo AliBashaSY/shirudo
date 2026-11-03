@@ -585,7 +585,8 @@ Coverage by area
        ``t6121``
    * - Seal
      - ``t6001``, ``t6002``, ``t6007``, ``t6111``, ``t6114``,
-       ``t6115``, ``t6118``, ``t6123``, ``t6124``, ``t6133``
+       ``t6115``, ``t6118``, ``t6123``, ``t6124``, ``t6133``,
+       ``t6144``
    * - Task authority
      - ``t6006``, ``t6110``, ``t6113``, ``t6131``, ``t6132``,
        ``t6134``, ``t6135``, ``t6136``, ``t6137``
@@ -716,7 +717,7 @@ tests assert that a refusal moves its counter:
    * - ``PerfAttach``
      - ``t6119``
    * - ``SealEntry``
-     - ``t6115``, ``t6118``
+     - ``t6115``, ``t6118``, ``t6144``
    * - ``SealCopyUp``
      - ``t6124``
    * - ``SealPtrace``
@@ -865,7 +866,7 @@ Parsers and units
 
 - The dm-verity superblock check in :src:`util/config_image.c` has no
   fuzz target. ``t5001`` covers truncation and unsupported fields.
-- 56 of the 63 modules in :src:`util/` have no unit suite of their own.
+- 54 of the 62 modules in :src:`util/` have no unit suite of their own.
 
 Related
 -------

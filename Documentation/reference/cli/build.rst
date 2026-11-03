@@ -21,12 +21,13 @@ Usage
 
 .. code-block:: none
 
-   shirudo build <input> [-o <output>] [--name <name>]
+   shirudo build <input> [-o <output> | --output <output>] [--name <name>]
                  [--keys-dir <dir> | --keys-dir=<dir>]
                  [--key <signing-key>] [--cert <certificate>]
                  [--vmlinux <vmlinux-h>] [--extra-cflags <flags>]
                  [--emit-artifacts]
-   shirudo build --unload <name> [-o <output>] [--payload-sha256 <digest>]
+   shirudo build --unload <name> [-o <output> | --output <output>]
+                 [--payload-sha256 <digest>]
                  [--keys-dir <dir> | --keys-dir=<dir>]
                  [--key <signing-key>] [--cert <certificate>]
    shirudo build --help
@@ -34,7 +35,8 @@ Usage
 
 Every option except ``--keys-dir`` takes its value as the next argument.
 The form ``--option=<value>`` is refused as an unknown option, except
-``--keys-dir=<dir>``. Options and the input may come in any order.
+``--keys-dir=<dir>``. ``-o`` and ``--output`` are the same option.
+Options and the input may come in any order.
 
 ``shirudo build`` executes the ``shirudo-build`` helper with the same
 arguments (see :doc:`shirudo` for how it finds the helper).
@@ -61,8 +63,9 @@ Building a upatch
    ``vmlinux.h`` (``/usr/share/shirudo/vmlinux.h`` in the operator
    package, ``/usr/local/share/shirudo/vmlinux.h`` after ``make
    install``). It then runs ``/usr/bin/clang -target bpf -mcpu=v4
-   -fno-jump-tables -O2 -g -Wall -Wextra -Wshadow -Wtype-limits`` with
-   the ``vmlinux.h`` directory, the libbpf headers and the shirudo BPF
+   -fno-jump-tables -O2 -g -Wall -Wextra -Wshadow -Wtype-limits
+   -Wno-missing-declarations -Wno-unused-parameter`` with the
+   ``vmlinux.h`` directory, the libbpf headers and the shirudo BPF
    headers on the include path, plus ``--extra-cflags``. ``-mcpu=v4``
    selects BPF instruction set v4, the newest clang knows and one every
    target kernel runs. ``-fno-jump-tables`` keeps a ``switch`` in
@@ -95,17 +98,14 @@ digest:
    characters. Read it from the artifact with ``upatch info --json`` (key
    ``payload_sha256``).
 #. Without ``--payload-sha256``, the helper reads the digest from
-   ``/var/lib/shirudo/upatches/<name>.upatch`` on the host it runs on.
-   Without that file it signs 32 zero bytes and prints a warning.
+   ``/var/lib/shirudo/upatches/<name>.upatch`` on the host it runs on,
+   and refuses with exit status 2 when that file is absent.
 #. The output is ``-o``, else ``<name>.unload.upatch`` in the current
    directory.
 
 A target applies a directive only to an upatch whose loaded payload
-digest equals the signed one (:doc:`upatch-unload`). The helper's warning
-and ``--help`` say that an all-zero digest makes the target skip that
-check. It does not: the target compares the digests and refuses a
-directive with a zero digest with ``payload_mismatch``. Always pass
-``--payload-sha256``.
+digest equals the signed one (:doc:`upatch-unload`); a directive with
+any other digest is refused with ``payload_mismatch``.
 
 Other helper commands
 ~~~~~~~~~~~~~~~~~~~~~
@@ -138,7 +138,7 @@ Options
      - Argument
      - Default
      - Description
-   * - ``-o``
+   * - ``-o``, ``--output``
      - ``<output>``
      - see above
      - Where to write the artifact or directive.

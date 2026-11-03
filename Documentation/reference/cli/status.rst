@@ -67,12 +67,16 @@ The report shows six conditions, each ``OK``, ``WARN`` or ``ALERT``:
    * - ``ok``
      - None of the above.
 
-The human report follows the verdict with the tamper counters that moved
-this boot, the ``.bpf`` and ``.dm-verity`` keyrings with the
-certificates each should hold and the key that holds each one, the
-loaded upatches, the TPM measurement state and the assets under
-``/var/lib/shirudo``. :doc:`/operate/run/read-status` explains each field and
-:doc:`/reference/formats/status-json` the JSON document.
+The human report follows the verdict with the conditions, the tamper
+counters that moved this boot and the loaded upatches. Three sections
+are folded unless ``--show-full`` asks for them: the ``.bpf`` and
+``.dm-verity`` keyrings with the certificates each should hold and the
+key that holds each one, the TPM measurement state and the assets under
+``/var/lib/shirudo``. On a target the keyrings unfold when
+``KeyringSealed`` is not ``OK``, and the TPM measurement when
+``ChainIntact`` or ``TpmMeasured`` is not. The last line names the
+sections that stayed folded. :doc:`/operate/run/read-status` explains
+each field and :doc:`/reference/formats/status-json` the JSON document.
 
 With ``--otel``, ``status`` builds the JSON report and sends it as one
 OTLP log record named ``shirudo.keepalive``, only when an endpoint is
@@ -105,12 +109,13 @@ Options
    * - ``--include-system``
      - none
      - off
-     - Add a ``system`` section: host, operating system, kernel and its
-       build ID, machine, boot ID, CPUs, memory, disk and uptime.
+     - Add the system section: operating system, kernel release, version
+       and build ID, architecture, CPUs, memory, disk, uptime, machine ID
+       and boot ID. The JSON ``system`` object carries the host name too.
    * - ``--include-eventlog``
      - none
      - off
-     - Add the eventlog entries.
+     - Add the eventlog records, all boots.
    * - ``--check``
      - none
      - off
@@ -138,9 +143,10 @@ reads ``.status`` and the conditions from the JSON document.
    * - 0
      - The report was produced.
    * - 1
-     - With ``--otel``: the configuration cannot be loaded or the OTLP
-       request failed. With ``--json``: the document does not fit the
-       output buffer. Also an allocation failure.
+     - With ``--check``: the verdict is ``tampered``. With ``--otel``:
+       the configuration cannot be loaded or the OTLP request failed.
+       With ``--json``: the document does not fit the output buffer.
+       Also an allocation failure.
    * - 2
      - An unknown option, or with ``--otel`` an invalid ``map_export``
        configuration.
@@ -196,63 +202,96 @@ Show the state of a target:
 
    Folded: keyrings, TPM measurement, assets (--show-full)
 
+Show the folded sections too. ``--show-full`` adds the eventlog and the
+system as well:
+
+.. code-block:: console
+
+   target# shirudo status --show-full
+   Host:                  docs
+   Roles:                 target
+   Mode:                  production
+   Status:                ok
+   Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
+
    Conditions:
-     TYPE             STATUS  DETAIL
-     LsmAttached      OK      lsm/bpf link present and pinned
-     KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
-     ChainIntact      OK      live register equals the eventlog replay
-     UpatchesMeasured OK      every pinned or archived upatch is in this boot's records
-     TpmMeasured      OK      NV index 0x01818E00 readable
-     ConfigActive     OK      config dc90bacc356f.. is active
+     TYPE               STATUS  DETAIL
+     LsmAttached        OK      lsm/bpf link present and pinned
+     KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+     ChainIntact        OK      live register equals the eventlog replay
+     UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+     TpmMeasured        OK      NV index 0x01818E00 readable
+     ConfigActive       OK      config 6d5ed552f448.. is active
 
    Tamper attempts (this boot):
-     LoadNotLoader            21  program load that is not a signed loader
+     LoadNotLoader            15  program load that is not a signed loader
      MapCreate                 1  map creation by another executable
-     BpfCommand               10  detach, update, delete or unclassified bpf() command
+     BpfCommand                8  detach, update, delete or unclassified bpf() command
+     BpffsUmount               1  unmount of the private bpffs
+     SealWrite                 1  write open of a sealed file
      SealPtrace                7  ptrace of a shirudo task
-
-   Keyring (.bpf):
-     Serial:                130847582
-     Frozen serial:         130847582  (matches)
-     Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
-       d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (primary)
-         CN=shirudo, ML-DSA-87, issued 2026-10-29
-         key 199275792  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
-       c1c30b07f86808e81ae1c0458c926f00b85bcc815d371d23d7683903f2d3266e
-         CN=shirudo, ML-DSA-87, issued 2026-10-29
-         key 106884895  shirudo: c350bd270c426c5760b202062e15e274ea30f45d  (frozen)
-
-   Keyring (.dm-verity):
-     Serial:                962472513
-     Frozen serial:         962472513  (matches)
-     Certificates:          1 trusted, 1 in the dm-verity keyring
-       d1bc43c91b9dabf4cd6f3ddf08a177927b3dac8ca833ddc496167253761b4497  (config)
-         CN=shirudo, ML-DSA-87, issued 2026-10-29
-         key 200951639  shirudo: 6ec99b4c3d1c51e461ce1299fae6ab87d212ce9c  (frozen)
+     SealEntry                 2  entry into a sealed directory, or a sealed inode linked
 
    Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
-     shirudo-test-basic        fentry/do_nanosleep               0  success                       2s
+     shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
+
+   Keyring (.bpf):
+     Serial:                272801410
+     Frozen serial:         272801410  (matches)
+     Certificates:          2 trusted, 0 revoked, 0 unvouched, 2 in the bpf keyring
+       a8be2bb837b0f052f7652f9edf446594a5465eed614d939964ddfcc96e61ba7f
+         CN=shirudo, ML-DSA-87, issued 2026-11-03
+         key 465853497  shirudo: 30dee65057025367c4c384928bcf1e4cd8fe0265  (frozen)
+       6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (primary)
+         CN=shirudo, ML-DSA-87, issued 2026-11-03
+         key 91435879  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
+
+   Keyring (.dm-verity):
+     Serial:                799624487
+     Frozen serial:         799624487  (matches)
+     Certificates:          1 trusted, 1 in the dm-verity keyring
+       6bd6b1a28b631295a013102d358d371d52ab1c894587aedceaf02e472c88f858  (config)
+         CN=shirudo, ML-DSA-87, issued 2026-11-03
+         key 403194297  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
 
    TPM measurement:
      TPM:                   reachable (device:/dev/tpmrm0)
      NV index:              0x01818E00 (anchored in PCR 9)
-     Chain:                 0307d216caac3067fe645d4a548b25ac5ed0f1e8cf5ae3b189feaefc47e81a84
-     Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-     Anchored:              yes (name on record)
+     Chain:                 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
+     Register name:         000b21eb0d45ac9ee1bb0a87dbb069120e3b8cb251b3d40cc2a86a307ab73f728789
+     Anchored:              yes, name on record
      PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
      Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
      Bound in:              initrd
      Chain vs eventlog:     matches
      Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
 
+   Eventlog:
+     TIME                 TYPE          DIGEST        DETAIL
+     2026-11-03T14:53:17Z init          377ce174fb1f  set_digest=e3b0c44298fc..
+     2026-11-03T14:54:33Z upatch_load   d979b373d4e5  shirudo-test-basic payload=8aee7072a1a1..
+
    Assets (/var/lib/shirudo):
      keys/cert.der          present
      keys/signing_key.pem   absent
      eventlog               present (2324 bytes)
-     upatches/              1 .upatch
+     upatches/              1 archived
      incoming/              empty
      bpffs/                 mounted
+
+   System:
+     OS:                    Ubuntu 26.04.1 LTS
+     Kernel:                7.3.0-bpf-next+
+     Kernel version:        #1 SMP PREEMPT Tue Nov  3 13:54:40 UTC 2026
+     Kernel build ID:       132d1451aab18a693c59d5b9519d25a06f2236bf
+     Architecture:          x86_64
+     CPUs:                  4
+     Memory:                314M/3.85G
+     Disk:                  1.99G/6.61G
+     Uptime:                0d 0h 1m
+     Machine ID:            6bae4cfbc0ed04ed63cc4cf8cb0a1b6c
+     Boot ID:               82639935-1127-4dab-91b5-f818eabc7f13
 
 Read the verdict in a script:
 

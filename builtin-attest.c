@@ -512,7 +512,7 @@ out:
 }
 
 /*
- * The report is one check or note per line, OK, FAIL or note then the
+ * The report is one check or note per line, OK, FAIL or NOTE then the
  * text, which the JSON form carries as an array of objects.
  */
 static int report_emit_json(const char *report, const char *verdict)
@@ -538,7 +538,7 @@ static int report_emit_json(const char *report, const char *verdict)
 			kind = "ok";
 		else if (len > 8 && !strncmp(line, "  FAIL  ", 8))
 			kind = "fail";
-		else if (len > 8 && !strncmp(line, "  note  ", 8))
+		else if (len > 8 && !strncmp(line, "  NOTE  ", 8))
 			kind = "note";
 		if (kind) {
 			size_t n = min(len - 8, sizeof(text) - 1);
@@ -1091,7 +1091,7 @@ static int cmd_attest_evidence(int argc, const char **argv)
 		return 1;
 	}
 	if (ret == -EKEYREJECTED) {
-		pr_err("attest: the challenge was refused (tampered?)");
+		pr_err("attest: the TPM refused the challenge; the attestation key or the endorsement key is not this TPM's");
 		return 1;
 	}
 	if (ret) {

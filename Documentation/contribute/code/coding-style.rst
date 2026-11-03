@@ -4,9 +4,41 @@ Linux kernel coding style
 =========================
 
 shirudo follows the Linux kernel coding style, in its userspace C as in
-its BPF programs. The rest of this page is a verbatim copy of the
-kernel's own ``Documentation/process/coding-style.rst``, kept here as the
-guideline to follow.
+its BPF programs, with these rules of its own, which
+:src:`.github/scripts/check-style.sh` and the semantic patches in
+:src:`testing/coccinelle/` enforce where they can:
+
+- Zero-initialize with ``= {}``, not ``= {0}``.
+- Spell fixed-width integers the kernel's way, ``__u8`` to ``__u64`` and
+  ``__s8`` to ``__s64`` from ``<shirudo/types.h>``, in userspace too:
+  not ``uint32_t`` and its kin, and not ``unsigned int``, ``unsigned
+  long`` and their kin outside the files the script names. ``__u64``
+  prints with ``%llu``.
+- Parse numbers with ``parse_u64()``, ``parse_s64()`` and
+  ``parse_x64()`` from ``<shirudo/string.h>``, which take a length and
+  refuse a sign, a blank or a base prefix. ``strtoul()``, ``atoi()`` and
+  their kin are refused.
+- Copy strings with ``strscpy()`` and format into a fixed buffer with
+  ``strsprintf()``, and check their results. ``strcpy()``, ``strncpy()``,
+  ``sprintf()``, ``snprintf()`` and their kin are refused.
+- Check size arithmetic with the helpers of ``<shirudo/overflow.h>``,
+  not by hand.
+- No ``(void)`` cast. A result a caller must not drop belongs to a
+  ``__must_check`` function, and every call checks it.
+- Name a return code ``ret``, and an errno a function keeps beside the
+  value it returns ``err``.
+- Declare locals in reverse Christmas tree order: the longest
+  declaration line first, the shortest last, except that a declaration
+  whose initializer uses an earlier local stays after it.
+- A block comment opens with ``/*`` on a line of its own, and ``//`` is
+  for the SPDX line of a ``.c`` file alone.
+- Userspace is ``BSD-2-Clause``. Everything compiled into a BPF object
+  is ``GPL-2.0 OR BSD-2-Clause``, and a BPF program declares
+  ``char _license[] SEC("license") = "Dual BSD/GPL";``.
+
+The rest of this page is a verbatim copy of the kernel's own
+``Documentation/process/coding-style.rst``, kept here as the guideline
+to follow.
 
 This is a short document describing the preferred coding style for the
 linux kernel.  Coding style is very personal, and I won't **force** my

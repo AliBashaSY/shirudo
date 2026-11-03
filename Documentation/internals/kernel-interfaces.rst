@@ -56,10 +56,11 @@ Kernel baseline
 bpf-next contains the signed-loader ABI at merge ``0867b7bfa9de``.
 :src:`testing/vm/build-kernel.sh` accepts bpf-next or a release of v7.4 or
 later. shirudo defines ``KEY_SPEC_DM_VERITY_KEYRING`` (-10) itself when
-the UAPI headers lack it. The ``tpm_command`` LSM hook is not
-in bpf-next; :doc:`kernel-patches` lists the patches the test kernel
-carries. A kernel is admitted by the ABI check below, not by its release
-string.
+the UAPI headers lack it. The ``tpm_command`` LSM hook, the label reads
+without the calling task's permission, the sleepable form of six inode
+hooks and the trusted ``d_parent`` are not in bpf-next;
+:doc:`kernel-patches` lists the patches the test kernel carries. A
+kernel is admitted by the ABI check below, not by its release string.
 
 Signing ABI check
 -----------------
@@ -259,16 +260,25 @@ LSM hooks
    * - ``perf_event_alloc``
      - ``seal``
      - ``CONFIG_PERF_EVENTS``
-   * - ``bprm_check_security``, ``bprm_committed_creds``, ``file_open``,
-       ``inode_unlink``, ``inode_rename``, ``inode_setattr``,
-       ``inode_setxattr``, ``inode_removexattr``,
-       ``inode_post_setxattr``, ``inode_post_removexattr`` (all
-       sleepable); ``task_alloc``, ``ptrace_access_check``,
-       ``inode_copy_up``, ``inode_init_security``, ``inode_create``,
-       ``inode_mkdir``, ``inode_symlink``, ``inode_mknod``,
-       ``inode_link``, ``mmap_file``, ``file_mprotect``
+   * - ``bprm_creds_for_exec``, ``bprm_check_security``,
+       ``bprm_committed_creds``, ``file_open``, ``inode_unlink``,
+       ``inode_rmdir``, ``inode_setattr``, ``inode_setxattr``,
+       ``inode_removexattr``, ``inode_post_setxattr``,
+       ``inode_post_removexattr`` (all sleepable); ``task_alloc``,
+       ``task_kill``, ``ptrace_access_check``, ``socket_post_create``,
+       ``inode_init_security``, ``mmap_file``, ``file_mprotect``
      - ``seal``
      - None
+   * - ``inode_create``, ``inode_symlink``, ``inode_mknod``,
+       ``inode_rename`` (all sleepable)
+     - ``seal``
+     - Carried patch 0005, for the read of ``dentry->d_parent``
+   * - ``inode_mkdir``, ``inode_link``, ``inode_set_acl``,
+       ``inode_remove_acl``, ``inode_file_setattr``, ``inode_copy_up``
+       (all sleepable)
+     - ``seal``
+     - Carried patch 0004, and 0005 for ``inode_mkdir`` and
+       ``inode_link``
 
 A missing hook makes the object fail to load. :doc:`enforcement` gives
 each hook's verdicts.
@@ -283,8 +293,10 @@ Kfuncs and helpers
    * - Kfunc
      - Use
    * - ``bpf_get_file_xattr()``, ``bpf_get_dentry_xattr()``
-     - Read ``security.bpf.shirudo``. Sleepable; check ``MAY_READ`` for
-       the calling task.
+     - Read ``security.bpf.shirudo`` and ``security.bpf.shirudo.policy``.
+       Sleepable; upstream they check ``MAY_READ`` for the calling task
+       first, which the carried patch 0003 skips for ``security.bpf.``
+       names.
    * - ``bpf_inode_init_xattr()``
      - Add the label in ``inode_init_security``.
    * - ``bpf_real_data_inode()``
@@ -296,13 +308,14 @@ Kfuncs and helpers
 Helpers: ``bpf_map_lookup_elem()``, ``bpf_map_update_elem()``,
 ``bpf_map_delete_elem()``, ``bpf_task_storage_get()``,
 ``bpf_inode_storage_get()``, ``bpf_inode_storage_delete()``,
-``bpf_get_current_task_btf()``, ``bpf_probe_read_kernel()``,
-``bpf_probe_read_kernel_str()``, ``bpf_bprm_opts_set()`` with
-``BPF_F_BPRM_SECUREEXEC``, ``bpf_dynptr_from_mem()``,
-``bpf_strncmp()``.
+``bpf_sk_storage_get()``, ``bpf_get_current_task_btf()``,
+``bpf_probe_read_kernel()``, ``bpf_probe_read_kernel_str()``,
+``bpf_bprm_opts_set()`` with ``BPF_F_BPRM_SECUREEXEC``,
+``bpf_dynptr_from_mem()``, ``bpf_strncmp()``.
 
 Map types: ``BPF_MAP_TYPE_ARRAY``, ``BPF_MAP_TYPE_HASH``,
-``BPF_MAP_TYPE_TASK_STORAGE``, ``BPF_MAP_TYPE_INODE_STORAGE``.
+``BPF_MAP_TYPE_TASK_STORAGE``, ``BPF_MAP_TYPE_INODE_STORAGE``,
+``BPF_MAP_TYPE_SK_STORAGE``.
 
 Keyrings
 --------

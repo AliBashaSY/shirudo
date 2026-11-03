@@ -165,8 +165,9 @@ Images and device mapper
     runtime authority only the read-only device-mapper control commands.
 
 Exec and processes
-    ``seal`` grants and inherits the task mark and keeps ptrace and
-    task-bound perf events away from marked tasks. ``bpf2`` runs every
+    ``seal`` grants and inherits the task mark, keeps ptrace and
+    task-bound perf events away from marked tasks and counts a signal to
+    one from a task without authority. ``bpf2`` runs every
     runtime executable in secure-exec mode, so the dynamic loader ignores
     ``LD_PRELOAD`` and the other unsafe variables, and refuses
     ``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` to tasks without
@@ -194,8 +195,9 @@ order:
 #. Load ``bpf2``.
 #. Fill the identity map and freeze it.
 #. Seed the bootstrap mark for its own process through a pidfd, freeze
-   ``shirudo_tasks``, ``shirudo_devices`` and ``shirudo_tamper``, and pin
-   them with ``shirudo_roots``. Pin the identity map.
+   ``shirudo_tasks``, ``shirudo_devices``, ``shirudo_tamper``,
+   ``shirudo_task_policy`` and ``shirudo_sock_policy``, and pin them
+   with ``shirudo_roots``. Pin the identity map.
 #. Attach ``task_prctl``, ``bprm_check_security``, ``inode_rmdir``,
    ``inode_rename``, ``inode_mkdir``, ``inode_symlink``, ``inode_link``,
    ``kernel_load_data`` and ``kernel_read_file``.
@@ -449,7 +451,7 @@ when the record it needs is missing.
        systemd stops the runs its timers start, and counted, so that a
        load stopped between its pins and its extend shows before the
        next command undoes what it left.
-     - none
+     - None
      - ``SealSignal``
      - Which signal is an attack: a stop by root and one by systemd
        count alike (R2).
@@ -543,16 +545,19 @@ when the record it needs is missing.
      - The overlay copy-up of a labeled inode, by anyone.
      - ``EPERM``
      - ``SealCopyUp``
-     - See the label verdict below.
+     - As the label verdict below, but a label, any other read error
+       and a failure to allocate the scratch buffer refuse every caller.
    * - ``lsm.s/inode_post_setxattr``, ``lsm.s/inode_post_removexattr``
        (``seal``)
-     - Refresh a directory's mark from its label after the change.
+     - Refresh an inode's mark from its label after the change.
      - None
      - None
-     - A failed read removes the mark.
+     - No label removes the mark; a failed read leaves it.
 
 The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
-with the caller's permission. No label (``ENODATA``) and no security
+with the xattr kfuncs, which with the carried patch 0003 return it
+without the calling task's permission and upstream check that
+permission first. No label (``ENODATA``) and no security
 extended attributes on the file system (``EOPNOTSUPP``) count as
 unlabeled, and the operation goes ahead. A label the caller may not
 read (``EACCES``, ``EPERM``) counts as unlabeled unless the inode, or
@@ -583,7 +588,7 @@ The hooks decide only what reaches them. These paths do not:
   ``/dev/tpmrm0``. A TPM reached around the kernel's TPM character
   devices is outside it. The hook is not in bpf-next;
   :doc:`kernel-patches` describes the patch the test kernel carries.
-- ``shirudo_roots`` and the directory marks are not frozen, by design.
+- ``shirudo_roots`` and the inode marks are not frozen, by design.
   Device records are limited to 128.
 - Several refusals are uncounted, as the table shows.
 

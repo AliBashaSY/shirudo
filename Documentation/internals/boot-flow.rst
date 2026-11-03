@@ -196,10 +196,14 @@ register is cleared and one of the counts changes while the kernel's
 boot ID stays. Register extensions then fail with ``tpm_error``, and every
 target command except ``shirudo status`` and ``shirudo image status``
 refuses because the config record belongs to another TPM boot. Nothing
-re-runs ``init`` automatically. A manual ``shirudo init`` records a new
-config boot event and binds the register again, from the root file system
-and with the PCR values of that moment; a verifier that requires an
-initrd binding rejects that evidence.
+re-runs ``init`` automatically. After a TPM reset, whose count the
+``init`` record no longer matches, a manual ``shirudo init`` records a
+new config boot event and binds the register again, from the root file
+system and with the PCR values of that moment; a verifier that requires
+an initrd binding rejects that evidence. After a TPM restart the reset
+count still matches the record, and ``init`` refuses to bind the cleared
+register again (``tampered``) before the next reboot, which leaves the
+config selection it recorded pending.
 
 Kexec
 -----

@@ -11,7 +11,7 @@ Beefile reference
 A Beefile describes a package: its name, the files it ships, the upatches
 ``shirudo bpm build`` compiles and signs into it, and the entries
 ``shirudo bpm tree append`` publishes to an upatch tree. ``bpm build``
-reads ``<context>/Beefile``, or the file given with ``-f``, and treats
+reads ``<context>/Beefile``, or the file given with ``--file``, and treats
 the directory that holds it as the package directory. Every path in the
 Beefile is relative to that directory. The package archives the Beefile
 unchanged as its ``Beefile`` member. :doc:`/reference/cli/bpm` lists the
@@ -222,10 +222,11 @@ libbpf headers.
    bit = 0x1
    paths = ["/usr/local/apache", "/usr/bin/apache"]
 
-``id`` maps to one one-hot 64-bit mask. Repeating the same ID and mask in
-other upatches extends that policy; an ID cannot change masks, and two
-different IDs cannot use the same mask in one package. Paths may name
-non-executable files.
+``id`` maps to one one-hot 64-bit mask. ``bit`` is read as hexadecimal,
+with or without ``0x``, so ``bit = 10`` is ``0x10``. Repeating the same
+ID and mask in other upatches extends that policy; an ID cannot change
+masks, and two different IDs cannot use the same mask in one package.
+Every path is absolute and may name a non-executable file.
 
 For an upatch with at least one policy table, include ``policy.h`` in
 its BPF source so it declares both shared maps with the required ABI.
@@ -238,7 +239,7 @@ programs must treat them as read-only by contract.
 
 The generator and the updater run on the operator host with the
 operator's rights. The target receives only the signed result. Without
-``-f``, ``bpm config update`` takes the Beefile and the updater from the
+``--file``, ``bpm config update`` takes the Beefile and the updater from the
 base package and runs them. It also trusts the base package's unsigned
 header to locate ``.rodata`` before it re-signs, so run it only on a base
 package you built or verified yourself.
@@ -323,7 +324,8 @@ Unknown keys and tables
    * - Where
      - Result
    * - an unknown key in ``[package]``, ``[[files]]``, ``[[upatches]]``,
-       ``[[upatches.rodata]]`` or ``[upatches.tree.selector]``
+       ``[[upatches.rodata]]``, ``[[upatches.policy]]`` or
+       ``[upatches.tree.selector]``
      - refused
    * - an unknown array of tables, ``[[name]]``
      - refused
@@ -351,6 +353,10 @@ Limits and reserved names
    * - ``[[upatches.rodata]]`` tables per upatch
      - 16
    * - arguments per ``generator`` or ``update`` command
+     - 16
+   * - ``[[upatches.policy]]`` tables per upatch
+     - 64
+   * - ``paths`` per policy table
      - 16
    * - values per selector key
      - 16

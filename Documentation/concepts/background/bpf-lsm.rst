@@ -153,8 +153,9 @@ authority. A task gains it by a successful exec of a binary from the
 verified runtime image. A ``BPF_MAP_TYPE_TASK_STORAGE`` map records the
 mark, ``lsm/task_alloc`` passes it to children, and the void hook
 ``lsm.s/bprm_committed_creds`` commits or clears it after each exec. A
-``BPF_MAP_TYPE_INODE_STORAGE`` map caches the seal label of directories.
-Many seal programs are sleepable because they read extended attributes.
+``BPF_MAP_TYPE_INODE_STORAGE`` map caches the seal label of the inodes
+the seal read it from. Many seal programs are sleepable because they
+read extended attributes.
 
 See :doc:`/internals/enforcement` for the inventory of hooks and
 :doc:`/internals/seal` for the seal.
@@ -167,5 +168,6 @@ hook, and access to the machine below the kernel, are outside it. When
 an earlier LSM in the list refuses an operation, shirudo's program for
 that hook does not run, so the refusal moves none of shirudo's tamper
 counters. Inode storage is lost when an inode leaves the cache, which is
-a limitation of the seal's directory marks. :doc:`/security/threat-model`
-lists the residual risks.
+why the seal's marks are a cache its hooks refresh from the label and
+never the decision. :doc:`/security/threat-model` lists the residual
+risks.

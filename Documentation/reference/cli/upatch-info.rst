@@ -93,7 +93,7 @@ Describe an artifact:
    Type:                  LOAD
    Payload type:          bpf
    Version:               1
-   Payload SHA256:        46f3d9f5f6568bddb7692cad28e99a86a3104192d8a2251f9ef9ec6d593c2035
+   Payload sha256:        46f3d9f5f6568bddb7692cad28e99a86a3104192d8a2251f9ef9ec6d593c2035
    File size:             8661 bytes
 
    Loader:

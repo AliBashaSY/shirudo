@@ -38,7 +38,11 @@ int eventlog_append_to(const char *path, const char *json_line);
 /* 0 when nothing was pending. */
 int eventlog_adopt_pending(void);
 
-/* Held from a register extend to its append; -errno when not taken. */
+/*
+ * Held by a load or an unload from before it touches the pins to its
+ * append, by every other measuring path from the extend to the append;
+ * -errno when not taken.
+ */
 int eventlog_lock(void);
 void eventlog_unlock(int fd);
 

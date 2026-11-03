@@ -250,7 +250,7 @@ for name, op in [
 sys.exit(bad)
 PYEOF
 
-test_expect_success 'a label read that fails through an idmapped mount leaves a marked file sealed' '
+test_expect_success 'a labelled file stays sealed through an idmapped mount' '
 	mkdir -p "$WORK/idm" &&
 	unshare -m sh -c "
 		mount --bind -o X-mount.idmap=0:65534:1 $MNT $WORK/idm &&
@@ -260,7 +260,7 @@ test_expect_success 'a label read that fails through an idmapped mount leaves a 
 	[ ! -e "$MNT/moved" ]
 '
 
-test_expect_success 'root cannot change the inode flags of a marked file' '
+test_expect_success 'root cannot change the inode flags of a labelled file' '
 	! sh -c ": >> $MNT/idmapped" 2>/dev/null &&
 	! chattr +i "$MNT/idmapped" 2>/dev/null &&
 	! lsattr -d "$MNT/idmapped" | awk "{print \$1}" | grep -q i

@@ -459,26 +459,11 @@ Boot and verify
 
       Folded: keyrings, TPM measurement, assets (--show-full)
 
-      Conditions:
-        TYPE             STATUS  DETAIL
-        LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
-        ChainIntact      OK      live register equals the eventlog replay
-        TpmMeasured      OK      NV index 0x01818E00 readable
-        ConfigActive     OK      config dc90bacc356f.. is active
-      ...
-      TPM measurement:
-        TPM:                   reachable (device:/dev/tpmrm0)
-        NV index:              0x01818E00 (anchored in PCR 9)
-        ...
-        Bound in:              initrd
-        Chain vs eventlog:     matches
-      ...
-
-   Check for ``Mode: production``, ``Status: ok``, five ``OK``
-   conditions and ``Bound in: initrd``. ``ConfigActive`` names the first
-   12 hex digits of the active config root. :doc:`/operate/run/read-status`
-   explains every section.
+   Check for ``Mode: production``, ``Status: ok`` and six ``OK``
+   conditions. ``ConfigActive`` names the first 12 hex digits of the
+   active config root. ``shirudo status --show-full`` prints the folded
+   TPM measurement section, whose ``Bound in:`` line must read
+   ``initrd``. :doc:`/operate/run/read-status` explains every section.
 
 3. Check the config activation:
 
@@ -493,9 +478,10 @@ Boot and verify
       Pending:               no
       Consistent:            yes
 
-   ``root_hash`` is the root of ``initial``, ``pcr`` is ``config.pcr``,
-   ``pending`` is ``false`` and ``consistent`` is ``true``. The command
-   exits 1 when the activation is pending or inconsistent.
+   ``Config root hash`` is the root of ``initial``, ``PCR`` is
+   ``config.pcr``, ``Pending`` is ``no`` and ``Consistent`` is ``yes``.
+   The command exits 1 when the activation is pending or inconsistent,
+   and ``--json`` prints the same fields as one JSON document.
 
 4. Read both init runs in the journal:
 

@@ -74,7 +74,9 @@ kfuncs:
     Read an xattr whose name starts with ``user.`` or ``security.bpf.``.
     They first check that the current task may read the inode
     (``inode_permission()`` with ``MAY_READ``) and return its error if
-    not. Both may sleep, so only sleepable programs call them.
+    not; a kernel patch shirudo carries skips that check for
+    ``security.bpf.`` names (:doc:`/internals/kernel-patches`). Both
+    may sleep, so only sleepable programs call them.
 
 ``bpf_set_dentry_xattr()`` and ``bpf_remove_dentry_xattr()``
     Write or remove a ``security.bpf.`` xattr, after a check that the
@@ -187,7 +189,12 @@ dentry or a file. ``inode_init_security``, ``inode_copy_up``,
 ``inode_link`` and ``inode_mkdir`` cannot sleep. ``inode_create``,
 ``inode_mknod``, ``inode_symlink`` and ``inode_rename`` can, but they
 receive the directory they change only as a ``struct inode``. None of
-them can read the xattr of the directory an operation changes.
+them can read the xattr of the directory an operation changes. Two
+kernel patches shirudo carries change that: one adds ``inode_mkdir``,
+``inode_link``, ``inode_copy_up`` and the ACL and inode flag hooks to
+the sleepable set, the other lets a program read ``dentry->d_parent``,
+the directory's dentry, as a trusted pointer
+(:doc:`/internals/kernel-patches`).
 
 The usual pattern follows from that. A sleepable hook that has a dentry
 or a file, ``file_open`` for instance, reads the xattr and stores what
@@ -255,11 +262,13 @@ bpffs to every task without runtime authority (``PinXattr``). See
 Limits
 ------
 
-The read kfuncs check the calling task's read permission even for
-``security.bpf.`` names. When another LSM, or file permissions, deny that
-task read access, the seal sees no label and allows the operation; the
-file system's own permission checks then decide. The threat model lists
-this under threats to resolve: :doc:`/security/threat-model`.
+Upstream, the read kfuncs check the calling task's read permission even
+for ``security.bpf.`` names; the kernel patch shirudo carries drops that
+check for them. On a kernel without the patch, when another LSM, an ACL
+or an idmapped mount denies that task read access, the seal decides by
+the record of the inode, or of the directory the operation changes, and
+a labeled inode without a record looks unlabeled. :doc:`/internals/seal`
+lists this among its limits.
 
 The seal's records in inode storage are lost when an inode leaves the
 inode cache, and nothing depends on them: the hooks read the label, and

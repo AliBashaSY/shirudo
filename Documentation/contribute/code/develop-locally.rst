@@ -209,12 +209,19 @@ from the config the target runs, and activate it.
 
       target# shirudo image update /workspace/shirudo/build/dev/config-1
       target# shirudo image status
-      {"root_hash":"bcca2bcd9661e77b094bd4197b335482a3a168ef693e2fc6706a37b62d0bcce9","pcr":14,"sequence":2,"reset_count":1,"restart_count":0,"pending":false,"consistent":true}
+      Config root hash:      bcca2bcd9661e77b094bd4197b335482a3a168ef693e2fc6706a37b62d0bcce9
+      PCR:                   14
+      Sequence:              2
+      TPM reset count:       1
+      Restart count:         0
+      Pending:               no
+      Consistent:            yes
       target# shirudo bpm config register list
-      dev
+      Registered sources:
+        dev
 
-   ``root_hash`` is the hash the host printed, ``pending`` is ``false``
-   and ``consistent`` is ``true``.
+   ``Config root hash`` is the hash the host printed, ``Pending`` is
+   ``no`` and ``Consistent`` is ``yes``.
 
 7. Let the target's package commands and services reach the registry
    over plain HTTP:
@@ -343,13 +350,12 @@ Install it
 
       target# shirudo bpm install dev/exec-count
       upatch load: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=335804852 sig=4853B insns=208 data=5104B
-      loader ok, retval=0 (maps=2 progs=1)
-      attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/exec-count/link
-      pinned map 0 (execs, type=1) -> /run/shirudo/bpffs/upatches/exec-count/maps/execs
-      upatch load: name=exec-count keyring=335804852 progs=1
-      upatch load: chain extended, value=23d80b8e3a30de1d5a556616d9d3eb388bbdb4bbc97f4e9fa81311909a3437ca
-      upatch load measured: name=exec-count chain=23d80b8e3a30de1d5a556616d9d3eb388bbdb4bbc97f4e9fa81311909a3437ca
+      upatch load: signed loader accepted, keyring 335804852, 208 instructions
+      upatch load: loader ran, 2 maps and 1 programs
+      upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/exec-count/link
+      upatch load: map 0 (execs) pinned at /run/shirudo/bpffs/upatches/exec-count/maps/execs
+      upatch load: exec-count loaded, 1 programs, keyring 335804852
+      upatch load: exec-count measured, register 23d80b8e3a30de1d5a556616d9d3eb388bbdb4bbc97f4e9fa81311909a3437ca
 
    The target checks the package against the signed index, requires its
    certificate to match the target's, and loads the upatch. The kernel
@@ -360,7 +366,9 @@ Install it
    .. code-block:: console
 
       target# shirudo bpm list
-      exec-count 1.0.0 dev
+      Installed packages:
+        NAME                      VERSION       SOURCE
+        exec-count                1.0.0         dev
       target# shirudo upatch list
       Archived upatches (/var/lib/shirudo/upatches):
         NAME                      LOADED  TYPE    KIND  PAYLOAD
@@ -439,21 +447,21 @@ Update it
       target# shirudo bpm repo update dev
       target# shirudo bpm upgrade
       upatch unload: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=335804852 sig=4853B insns=165 data=2808B
-      upatch unload: payload matches for 'exec-count'
-      upatch unload: chain extended, value=422dadf3d3e5b1abbc6a9257ccaabecc5259998ad2ace271b52c62a85e728602
-      upatch unload measured: name=exec-count chain=422dadf3d3e5b1abbc6a9257ccaabecc5259998ad2ace271b52c62a85e728602
-      upatch unload: detached + unpinned exec-count
+      upatch unload: signed loader accepted, keyring 335804852, 165 instructions
+      upatch unload: exec-count carries the directive's payload
+      upatch unload: exec-count measured, register 422dadf3d3e5b1abbc6a9257ccaabecc5259998ad2ace271b52c62a85e728602
+      upatch unload: exec-count detached and unpinned
       upatch load: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=335804852 sig=4853B insns=208 data=5168B
-      loader ok, retval=0 (maps=2 progs=1)
-      attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/exec-count/link
-      pinned map 0 (execs, type=1) -> /run/shirudo/bpffs/upatches/exec-count/maps/execs
-      upatch load: name=exec-count keyring=335804852 progs=1
-      upatch load: chain extended, value=5d01da4114c32805d9863fb76cf7d760c1d86a1839ef4d5f79b41685b833d46b
-      upatch load measured: name=exec-count chain=5d01da4114c32805d9863fb76cf7d760c1d86a1839ef4d5f79b41685b833d46b
+      upatch load: signed loader accepted, keyring 335804852, 208 instructions
+      upatch load: loader ran, 2 maps and 1 programs
+      upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/exec-count/link
+      upatch load: map 0 (execs) pinned at /run/shirudo/bpffs/upatches/exec-count/maps/execs
+      upatch load: exec-count loaded, 1 programs, keyring 335804852
+      upatch load: exec-count measured, register 5d01da4114c32805d9863fb76cf7d760c1d86a1839ef4d5f79b41685b833d46b
       target# shirudo bpm list
-      exec-count 1.1.0 dev
+      Installed packages:
+        NAME                      VERSION       SOURCE
+        exec-count                1.1.0         dev
 
    ``upgrade`` unloads the old version with its signed unload directive
    and loads the new one, and restores the old one if the new one fails
@@ -475,15 +483,14 @@ Remove it
 
       target# shirudo bpm uninstall exec-count
       upatch unload: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=335804852 sig=4853B insns=165 data=2808B
-      upatch unload: payload matches for 'exec-count'
-      upatch unload: chain extended, value=2bf2d8fda256c469544e6d33638bb23fc0801e650bba4068411a779c698ab131
-      upatch unload measured: name=exec-count chain=2bf2d8fda256c469544e6d33638bb23fc0801e650bba4068411a779c698ab131
-      upatch unload: detached + unpinned exec-count
+      upatch unload: signed loader accepted, keyring 335804852, 165 instructions
+      upatch unload: exec-count carries the directive's payload
+      upatch unload: exec-count measured, register 2bf2d8fda256c469544e6d33638bb23fc0801e650bba4068411a779c698ab131
+      upatch unload: exec-count detached and unpinned
 
    The target runs the package's signed unload directive, measures the
-   unload and deletes the package. ``shirudo bpm list`` prints nothing
-   and ``shirudo upatch list`` prints ``none``.
+   unload and deletes the package. ``shirudo bpm list`` and ``shirudo
+   upatch list`` print ``none``.
 
 2. Check the collector's terminal. The map records stop, and the
    keepalives go on.

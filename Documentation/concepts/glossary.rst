@@ -56,7 +56,7 @@ it.
       package directory, that names the package and lists its upatch
       sources, read-only data generators, extra files and tree selectors.
       ``shirudo bpm build`` reads ``Beefile`` in the package directory, or
-      the file that ``-f`` names. See :doc:`/upatches/publish/beefile`.
+      the file that ``--file`` names. See :doc:`/upatches/publish/beefile`.
 
    BPF keyring
       The kernel's ``.bpf`` keyring, which the kernel uses for a signed
@@ -391,10 +391,11 @@ it.
 
    tamper counter
       A counter for one point at which the enforcement programs refuse a
-      caller, such as ``BpfCommand``, ``PinUnlink`` or ``ObjGet``. The
-      counters live in a map pinned at ``/run/shirudo/bpffs/tamper`` that
-      only the enforcement programs increment, and ``shirudo status``
-      reports them. Not every refusal has a counter. See
+      caller, such as ``BpfCommand``, ``PinUnlink`` or ``ObjGet``, or,
+      for ``SealSignal``, let one through. The counters live in a map
+      pinned at ``/run/shirudo/bpffs/tamper`` that only the enforcement
+      programs increment, and ``shirudo status`` reports them. Not every
+      refusal has a counter. See
       :doc:`/security/tamper-counters`.
 
    target

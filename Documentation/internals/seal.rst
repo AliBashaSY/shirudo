@@ -163,25 +163,31 @@ What the seal checks
 For a labeled inode, these operations need runtime authority:
 
 - a write open (``SealWrite``);
-- unlink (``SealUnlink``);
+- unlink, or the removal of a directory (``SealUnlink``);
 - rename of it, or rename over it (``SealRename``);
 - truncate, chmod, chown and timestamp changes through
-  ``inode_setattr`` (``SealSetattr``);
-- setting or removing any extended attribute (``SealXattr``).
+  ``inode_setattr``, and a change of the inode flags with ``chattr``
+  through ``inode_file_setattr`` (``SealSetattr``);
+- setting or removing any extended attribute or POSIX ACL
+  (``SealXattr``).
 
-Setting the attribute ``security.bpf.shirudo`` itself needs runtime
-authority on every inode, labeled or not (``SealLabel``), so root cannot
-label an inode of its own as shirudo's.
+Setting or removing the attribute ``security.bpf.shirudo`` itself, or
+``security.bpf.shirudo.policy``, needs runtime authority on every inode,
+labeled or not (``SealLabel``), so root cannot label an inode of its own
+as shirudo's.
 
-A directory with a cached mark takes new entries only from a task with
-runtime authority: ``inode_create``, ``inode_mkdir``, ``inode_symlink``,
-``inode_mknod``, ``inode_link`` and a rename into it (``SealEntry``). A
-label stops writes to an inode, but a rename or a hard link brings an
-inode in with its contents, and a symbolic link sends whoever follows it
-elsewhere. ``inode_copy_up`` refuses the overlay copy-up of a marked inode
-(``SealCopyUp``): a write through an overlay mounted over sealed state
-would otherwise land in the upper directory and leave the sealed inode as
-it was.
+A labeled directory takes new entries only from a task with runtime
+authority: ``inode_create``, ``inode_mkdir``, ``inode_symlink``,
+``inode_mknod``, ``inode_link`` and a rename into it (``SealEntry``).
+Each of these hooks reads the directory's label from the new entry's
+parent dentry. A label stops writes to an inode, but a rename or a hard
+link brings an inode in with its contents, and a symbolic link sends
+whoever follows it elsewhere. A hard link of a labeled inode is refused
+anywhere to the same tasks (``SealEntry``), so a sealed inode keeps its
+label where shirudo put it. ``inode_copy_up`` refuses the overlay
+copy-up of a labeled inode to every caller (``SealCopyUp``): a write
+through an overlay mounted over sealed state would otherwise land in the
+upper directory and leave the sealed inode as it was.
 
 Reading the label
 ~~~~~~~~~~~~~~~~~
@@ -217,11 +223,15 @@ creation: no inode is better than one of shirudo's without its label.
 That hook cannot sleep, so it cannot read the parent's extended
 attribute. It uses a cached mark instead: ``seal_dir_marks``, inode
 storage that records an inode's label. A directory gets its mark when
-any task opens it and its label is read, a file when an authorized task
-opens it or any task opens it for writing, and either when an extended
-attribute on it changes and when it is created under a marked parent.
-An open whose label read finds nothing removes the mark; a read that
-fails, for a caller who may not read the inode, leaves it.
+any task opens it and its label is read, and when any task makes an
+entry in it, from the label the entry hook of that operation reads from
+the parent dentry; a file when an authorized task opens it or any task
+opens it for writing; and either when an extended attribute on it
+changes and when it is created under a marked parent. A directory open,
+an entry made in a directory, a read open by an authorized task or an
+attribute change whose label read finds nothing removes the mark; a
+write open only records one; a read that fails, for a caller who may
+not read the inode, leaves it.
 
 shirudo's writers keep the mark in place. They open the parent directory
 and create files relative to that descriptor, which holds the inode in

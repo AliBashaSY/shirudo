@@ -509,7 +509,7 @@ static const struct help_section keys_help_sections[] = {
 static const struct help keys_help = {
 	.usage   = "shirudo keys [--keys-dir <dir>] [--json]\n"
 		   "       shirudo keys add <cert.der> --vouch <file>\n"
-		   "       shirudo keys revoke <fingerprint> [--promote <fp>]\n"
+		   "       shirudo keys revoke\n"
 		   "       shirudo keys vouch <cert.der> [-o <file>]",
 	.summary = "Inspect the shirudo key material this host holds: the "
 		   "on-disk cert and\nsigning key (if present), the trusted "

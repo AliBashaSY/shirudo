@@ -202,7 +202,7 @@ Read the artifact back before it leaves the operator host:
    Type:                  LOAD
    Payload type:          bpf
    Version:               1
-   Payload SHA256:        f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711
+   Payload sha256:        f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711
    File size:             10069 bytes
 
    Loader:
@@ -223,7 +223,7 @@ Read the artifact back before it leaves the operator host:
    Decoders:
      (none)
 
-``Payload SHA256`` is the SHA-256 of the signed loader and its data. The
+``Payload sha256`` is the SHA-256 of the signed loader and its data. The
 signed sections hold the name and the attach metadata, one program entry
 for the fentry program. The file carries no decoders, because the source
 declares none.
@@ -256,20 +256,19 @@ runtime image. Load the upatch and print the report:
 
    target# shirudo-runtime upatch load --report=- \
        /mnt/shirudo-src/build/rpl-shield/cve-2026-63984-rpl.upatch
-   loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=172 data=3480B
-   loader ok, retval=0 (maps=2 progs=1)
-   attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/link
-   pinned map 0 (hits, type=6) -> /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/maps/hits
-   pinned map 1 (activity, type=6) -> /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/maps/activity
-   upatch load: name=cve-2026-63984-rpl keyring=531121468 progs=1
-   upatch load: chain extended, value=3380b0e2d22c066ecba561c182869b1366e5706f73fc3a657b907394953cfbfc
-   upatch load measured: name=cve-2026-63984-rpl chain=3380b0e2d22c066ecba561c182869b1366e5706f73fc3a657b907394953cfbfc
+   upatch load: signed loader accepted, keyring 531121468, 172 instructions
+   upatch load: loader ran, 2 maps and 1 programs
+   upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/link
+   upatch load: map 0 (hits) pinned at /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/maps/hits
+   upatch load: map 1 (activity) pinned at /run/shirudo/bpffs/upatches/cve-2026-63984-rpl/maps/activity
+   upatch load: cve-2026-63984-rpl loaded, 1 programs, keyring 531121468
+   upatch load: cve-2026-63984-rpl measured, register 3380b0e2d22c066ecba561c182869b1366e5706f73fc3a657b907394953cfbfc
    {"schema":1,"result":"ok","op":"upatch_load","phase":"done","errno":null,"errno_name":null,"category":"ok","message":"","verifier_log":"","loader_return":0,"upatch":{"path":"/mnt/shirudo-src/build/rpl-shield/cve-2026-63984-rpl.upatch","name":"cve-2026-63984-rpl","payload_sha256":"f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711"},"kernel":{"release":"7.3.0-bpf-next+"},"tpm":{"nv_index":"0x01818E00","chain_after":"3380b0e2d22c066ecba561c182869b1366e5706f73fc3a657b907394953cfbfc"}}
 
 The log lines go to standard error and the JSON report to standard
 output. The report has ``"result":"ok"``, phase ``done`` and category
 ``ok``, and its ``tpm.chain_after`` is the measurement register after the
-load. ``attached + pinned prog 0 (raw_tracepoint)`` means that shirudo
+load. ``program 0 (raw_tracepoint) pinned at ...`` means that shirudo
 attached the fentry program through ``BPF_RAW_TRACEPOINT_OPEN`` at the
 function the verifier bound, and pinned the link.
 :doc:`/upatches/test/debugging` explains the report when a load fails.
@@ -309,12 +308,12 @@ Read one map:
 
    target# shirudo-runtime upatch map cve-2026-63984-rpl hits
    Name:                  cve-2026-63984-rpl
-   Map:                 hits
-   Type:                percpu_array (64 CPUs)
-   Max entries:         1
-   Entries:             1 of 1
-   Key type:            unsigned int (4 B)
-   Value type:          unsigned long long (8 B)
+   Map:                   hits
+   Type:                  percpu_array (64 CPUs)
+   Max entries:           1
+   Entries:               1 of 1
+   Key type:              unsigned int (4 B)
+   Value type:            unsigned long long (8 B)
 
    Contents:
      key=0: sum=0
@@ -336,11 +335,10 @@ Apply the unload directive:
 
    target# shirudo-runtime upatch unload --report=- \
        /mnt/shirudo-src/build/rpl-shield/cve-2026-63984-rpl.unload.upatch
-   loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=165 data=2808B
-   upatch unload: payload matches for 'cve-2026-63984-rpl'
-   upatch unload: chain extended, value=3b96bfbac667807c99332a8d2ba9d2a7b5eb74db42aba18eea452bef9a7d0c6b
-   upatch unload measured: name=cve-2026-63984-rpl chain=3b96bfbac667807c99332a8d2ba9d2a7b5eb74db42aba18eea452bef9a7d0c6b
-   upatch unload: detached + unpinned cve-2026-63984-rpl
+   upatch unload: signed loader accepted, keyring 531121468, 165 instructions
+   upatch unload: cve-2026-63984-rpl carries the directive's payload
+   upatch unload: cve-2026-63984-rpl measured, register 3b96bfbac667807c99332a8d2ba9d2a7b5eb74db42aba18eea452bef9a7d0c6b
+   upatch unload: cve-2026-63984-rpl detached and unpinned
    {"schema":1,"result":"ok","op":"upatch_unload","phase":"done","errno":null,"errno_name":null,"category":"ok","message":"","verifier_log":"","loader_return":0,"upatch":{"path":"/mnt/shirudo-src/build/rpl-shield/cve-2026-63984-rpl.unload.upatch","name":"cve-2026-63984-rpl","payload_sha256":"f3e2894d7c20d90e759b9d716849fc2acf01ff5de2ad8565b1e0f0320ef9e711"},"kernel":{"release":"7.3.0-bpf-next+"},"tpm":{"nv_index":"0x01818E00","chain_after":"3b96bfbac667807c99332a8d2ba9d2a7b5eb74db42aba18eea452bef9a7d0c6b"}}
 
 The report again shows category ``ok``. The kernel verified the

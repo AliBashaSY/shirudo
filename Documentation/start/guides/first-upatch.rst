@@ -104,7 +104,7 @@ Build and sign it
       Type:                  LOAD
       Payload type:          bpf
       Version:               1
-      Payload SHA256:        d7eaea457b679a8e9a6d4a8708ded501c6a3f604c8756388d9e5e4d6f2922c6f
+      Payload sha256:        d7eaea457b679a8e9a6d4a8708ded501c6a3f604c8756388d9e5e4d6f2922c6f
       ...
 
    Check that ``Name`` is ``sleep-count`` and ``Type`` is ``LOAD``.
@@ -130,13 +130,12 @@ Load it and read the map
    .. code-block:: console
 
       target# shirudo upatch load /workspace/shirudo/build/tutorial/sleep-count.upatch
-      loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=148 data=3024B
-      loader ok, retval=0 (maps=1 progs=1)
-      attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/sleep-count/link
-      pinned map 0 (calls, type=2) -> /run/shirudo/bpffs/upatches/sleep-count/maps/calls
-      upatch load: name=sleep-count keyring=531121468 progs=1
-      upatch load: chain extended, value=88e45b0c80b0ffe83d471b6372402082a5dcf82173adc5c4bdd631039fe4609c
-      upatch load measured: name=sleep-count chain=88e45b0c80b0ffe83d471b6372402082a5dcf82173adc5c4bdd631039fe4609c
+      upatch load: signed loader accepted, keyring 272801410, 148 instructions
+      upatch load: loader ran, 1 maps and 1 programs
+      upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/sleep-count/link
+      upatch load: map 0 (calls) pinned at /run/shirudo/bpffs/upatches/sleep-count/maps/calls
+      upatch load: sleep-count loaded, 1 programs, keyring 272801410
+      upatch load: sleep-count measured, register 88e45b0c80b0ffe83d471b6372402082a5dcf82173adc5c4bdd631039fe4609c
 
    The loader created the map and the program in the kernel. shirudo
    pinned both in its private bpffs and measured the load.
@@ -152,6 +151,7 @@ Load it and read the map
    .. code-block:: console
 
       target# shirudo upatch map
+      Pinned maps (1):
         UPATCH                 MAP              TYPE               ENTRIES
         sleep-count            calls            array              max=1
 
@@ -160,13 +160,13 @@ Load it and read the map
    .. code-block:: console
 
       target# shirudo upatch map sleep-count calls
-      Name:                sleep-count
-      Map:                 calls
-      Type:                array
-      Max entries:         1
-      Entries:             1 of 1
-      Key type:            unsigned int (4 B)
-      Value type:          unsigned long long (8 B)
+      Name:                  sleep-count
+      Map:                   calls
+      Type:                  array
+      Max entries:           1
+      Entries:               1 of 1
+      Key type:              unsigned int (4 B)
+      Value type:            unsigned long long (8 B)
 
       Contents:
         key = 0
@@ -185,18 +185,18 @@ Unload it
    .. code-block:: console
 
       target# shirudo upatch unload /workspace/shirudo/build/tutorial/sleep-count.unload.upatch
-      loaded signed loader: prog_fd=10 keyring=531121468 sig=4853B insns=165 data=2808B
-      upatch unload: payload matches for 'sleep-count'
-      upatch unload: chain extended, value=52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
-      upatch unload measured: name=sleep-count chain=52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
-      upatch unload: detached + unpinned sleep-count
+      upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+      upatch unload: sleep-count carries the directive's payload
+      upatch unload: sleep-count measured, register 52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
+      upatch unload: sleep-count detached and unpinned
 
 2. Check that the map is gone:
 
    .. code-block:: console
 
       target# shirudo upatch map
-        (no pinned maps)
+      Pinned maps (0):
+        none
 
 The count was lost with the unload: the map lived only as long as the
 upatch. A single counter fits an array map. An upatch that accumulates

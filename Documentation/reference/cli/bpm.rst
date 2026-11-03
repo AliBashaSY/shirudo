@@ -135,7 +135,9 @@ image, the image's ``etc/shirudo/bpm/registries.d/`` is used instead, and
   path and that ``--cert`` is a certificate, copies the certificate to
   ``/etc/shirudo/bpm/keys/<source>.der`` and writes the source file.
   Arguments after the endpoint other than ``--cert`` are ignored.
-- ``list`` prints the registered source names, one per line.
+- ``list`` prints the registered source names under the heading
+  ``Registered sources:``, or ``none``. With ``--json`` it prints one
+  object with ``schema`` and ``sources``.
 - ``remove`` and ``rm`` delete the source file and its certificate.
 
 The key file verifies the signed index of the repository
@@ -151,12 +153,11 @@ the Beefile's ``update`` command for each input to produce the new
 ``.rodata`` (``--rodata-input`` replaces an input file), signs the upatch
 again and signs a new unload directive for it. The base package must be
 signed by the same key and declare ``.rodata`` inputs, and ``--version``
-must be greater than its version. Without ``-f``, the Beefile and the
+must be greater than its version. Without ``--file``, the Beefile and the
 commands it names come from the base package and run on the operator
 host: take base packages only from sources you trust. The output is
 ``<name>-<version>.bee`` in the current directory. Options take their
-value as the next argument only. The subcommand's ``--help`` does not list
-``--keys-dir``.
+value as the next argument only.
 
 repo update
 -----------
@@ -236,10 +237,9 @@ key
   refuses with ``EPERM``. On a target with a config image ``add`` is
   refused.
 - ``key list`` prints the fingerprints of the certificates in
-  ``/var/lib/shirudo/keys``, as a list under a heading or, with
-  ``--json``, as one object with ``schema`` and ``fingerprints``.
-  ``list`` and ``config register list`` take ``--json`` the same way,
-  with ``packages`` (``name``, ``version``, ``source``) and ``sources``.
+  ``/var/lib/shirudo/keys`` under the heading ``Package certificates:``,
+  or ``none``. With ``--json`` it prints one object with ``schema`` and
+  ``fingerprints``.
 
 ``key add`` with an ``oci://`` reference installs the certificate the
 registry serves. Run ``key fingerprint`` on the same reference first and
@@ -278,8 +278,8 @@ build
 ``build`` builds and signs a package from a Beefile
 (:doc:`/upatches/publish/beefile`):
 
-- The Beefile is ``-f``, else ``<context>/Beefile``, with ``<context>``
-  defaulting to the current directory.
+- The Beefile is ``--file``, else ``<context>/Beefile``, with
+  ``<context>`` defaulting to the current directory.
 - The keys directory is ``--keys-dir`` (a leading ``~`` is expanded), else
   ``$SHIRUDO_KEYS_DIR``, else ``/var/lib/shirudo/keys``.
 - ``vmlinux.h`` is ``--vmlinux``, else ``./vmlinux.h`` or
@@ -330,7 +330,11 @@ runs the timer.
 reverse name order, each measured, removes the package directory and
 drops it from the state.
 
-``list`` prints ``<name> <version> <source>`` for each installed package.
+``list`` prints the installed packages under the heading ``Installed
+packages:`` as a table with the columns ``NAME``, ``VERSION`` and
+``SOURCE``, or ``none``. With ``--json`` it prints one object with
+``schema`` and ``packages``, a list of ``name``, ``version`` and
+``source``.
 
 Exit status
 -----------
@@ -356,9 +360,6 @@ Exit status
        exactly one reference, and an unknown ``config`` action.
    * - 127
      - A helper subcommand cannot execute ``shirudo-build``.
-
-``bpm install --help`` and ``bpm repo update --help`` do not print help:
-they treat ``--help`` as a package and a source.
 
 Files and environment
 ---------------------
@@ -386,13 +387,17 @@ entry:
    operator$ shirudo bpm build ./example-shield --version 1.0.0 --keys-dir ~/shirudo-keys
    operator$ shirudo bpm push ./example-shield-1.0.0.bee oci://quay.io/example/example-shield --keys-dir ~/shirudo-keys
 
-On a target, refresh the indexes, install a pinned version and list the
-packages:
+On a target, refresh the indexes and install a pinned version:
 
 .. code-block:: console
 
    target# shirudo bpm repo update
    target# shirudo bpm install example/example-shield@1.0.0
+
+List the packages of a target without any:
+
+.. code-block:: console
+
    target# shirudo bpm list
    Installed packages:
      none

@@ -23,15 +23,14 @@ Usage
    shirudo keys [--keys-dir <dir> | --keys-dir=<dir>] [--json]
    shirudo keys add <certificate> (--vouch <vouch> | --vouch=<vouch>)
                     [--keys-dir <dir> | --keys-dir=<dir>]
-   shirudo keys vouch <certificate> [-o <vouch>]
+   shirudo keys vouch <certificate> [-o <vouch> | --output <vouch>]
                       [--keys-dir <dir> | --keys-dir=<dir>]
                       [--key <signing-key>] [--cert <certificate>]
    shirudo keys revoke
    shirudo keys --list-cmds
 
 ``keys`` without a subcommand, or with an option first, shows the key
-material. ``shirudo keys --help`` advertises ``keys revoke <fingerprint>
-[--promote <fp>]``, but the parser takes no argument and always refuses.
+material.
 
 Display
 -------
@@ -46,7 +45,7 @@ Display
   SHA-256 of its certificate and the certificate that vouched for it
 - the ``.bpf`` and ``.dm-verity`` keyrings ``init`` froze: each one's
   serial, the frozen serial and every member, whatever its type, marked
-  ``(frozen)`` when ``init`` recorded it and ``(NOT frozen)`` otherwise
+  ``(frozen)`` when ``init`` recorded it and ``(not frozen)`` otherwise
 
 The keys directory is ``--keys-dir``, else ``$SHIRUDO_KEYS_DIR``, else
 ``/var/lib/shirudo/keys``. On a target with an active config image it is
@@ -134,7 +133,7 @@ Options
      - ``<vouch>``, next argument or after ``=``
      - none, required
      - ``add``: the vouch an enrolled key signed for the certificate.
-   * - ``-o``
+   * - ``-o``, ``--output``
      - ``<vouch>``
      - ``<certificate>.vouch``
      - ``vouch``: where to write the vouch.
@@ -151,8 +150,8 @@ Options
      -
      - Print ``add``, ``revoke`` and ``vouch``, one per line.
 
-``vouch`` takes ``-o``, ``--key`` and ``--cert`` with the value as the next
-argument only.
+``vouch`` takes ``-o``, ``--output``, ``--key`` and ``--cert`` with the
+value as the next argument only.
 
 Exit status
 -----------
@@ -168,10 +167,13 @@ Exit status
        ``add``: the certificate is trusted. ``vouch``: the vouch was
        written.
    * - 1
-     - Display: no key material on the host, or a certificate or the
-       frozen keyring cannot be read. ``add``: refused or failed, including on a host with an
-       active config image. ``vouch``: the key is unusable or signing
-       failed. ``revoke``: always.
+     - Display: no key material on the host, the certificate or a keyring
+       cannot be read, the signing key is not the certificate's, or a
+       keyring ``init`` froze is gone. ``add``: refused or failed,
+       including on a host with an active config image. ``vouch``: the
+       key is unusable, the certificate cannot be read, is not ML-DSA-87
+       or is the signing key's own, or signing or writing failed.
+       ``revoke``: always.
    * - 2
      - An unknown option or subcommand, a missing certificate or
        ``--vouch``, an extra argument, or an unusable keys directory path.
@@ -225,29 +227,6 @@ Show the key material on a target:
      Frozen serial:         799624487  (matches)
      Members (1):
        serial=403194297   type=asymmetric  shirudo: 7fa1d435249690766f8b1397122775d26f1ed92e  (frozen)
-
-   Signing key (/run/shirudo/runtime/keys/signing_key.pem):
-     Present:               no  (target host -- private key lives on the operator)
-
-   Trusted set (2 members, 0 revoked, 0 unvouched):
-     7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69  (primary)
-       sha256 75171e034357238625311a1c810f7466835ac1dfbc73e9fbd383523439b24125
-     4e4d8da3b0d1a69205a3767baca002c052e90af92bc9815d245f9b25dc1b7d9a
-       sha256 ba3d36544ecfe66b43ea2db498f8f8e50b09fd6f301952636d120c648f76a740
-       vouched by 7773eae1c45bc435d9591068da9c318afacfe486007f5386a70ade477f670d69
-
-   Keyring (.bpf):
-     Serial:                854623986
-     Frozen serial:         854623986  (matches)
-     Members (2):
-       serial=209590502   type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
-       serial=646964383   type=asymmetric  shirudo: 8e781f2c1c0e9bccbba9d1d286129128e830e81f  (frozen)
-
-   Keyring (.dm-verity):
-     Serial:                684706098
-     Frozen serial:         684706098  (matches)
-     Members (1):
-       serial=37657992    type=asymmetric  shirudo: 08967f45330deb21bf31301e56bdf154283e2e58  (frozen)
 
 Vouch for a second operator's certificate:
 

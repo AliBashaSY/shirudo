@@ -94,7 +94,7 @@ Challenge the attestation key
         OK    attestation key: the pinned key
         OK    endorsement key: name matches its public area
         OK    endorsement key: TCG default template under the endorsement policy
-        note  no endorsement certificate: the endorsement key is trusted as presented
+        NOTE  no endorsement certificate: the endorsement key is trusted as presented
       challenge: build/test-vm/vms/quickstart/result/challenge.json
       credential: b17d3f29447eaf539bcffa2556b010082a7a10e2b7ab60746c485d176b7a40cc
 
@@ -148,7 +148,7 @@ Answer the challenge on the target
    .. code-block:: console
 
       attest: the challenge was made for another attestation key
-      attest: the challenge was refused (tampered?)
+      attest: the TPM refused the challenge; the attestation key or the endorsement key is not this TPM's
 
 Verify the enrollment
 ---------------------
@@ -173,8 +173,8 @@ Verify the enrollment
         OK    anchor: PCR 9 equals the recorded value extended by the anchor
         OK    state: init event covers the expected certificate, set and tree root
         OK    state: 6 events after boot change the register
-        note  event after boot: upatch_load basic
-        note  event after boot: upatch_unload basic
+        NOTE  event after boot: upatch_load basic
+        NOTE  event after boot: upatch_unload basic
       ...
       verdict: ok
 
@@ -258,8 +258,8 @@ Verify evidence
         OK    anchor: record digest matches the index name
         OK    anchor: PCR 9 equals the recorded value extended by the anchor
         OK    state: register equals the expected value
-        note  event after boot: upatch_load basic
-        note  event after boot: upatch_unload basic
+        NOTE  event after boot: upatch_load basic
+        NOTE  event after boot: upatch_unload basic
       ...
       verdict: ok
 
@@ -275,8 +275,8 @@ still reports ``verdict: ok``:
    operator$ shirudo attest verify --evidence="$RESULT/ev.json" --nonce="$NONCE3" --ak-name="$AK"
    ...
      OK    anchor: PCR 9 equals the recorded value extended by the anchor
-     note  no expected state given; the register value is 52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
-     note  event after boot: upatch_load basic
+     NOTE  no expected state given; the register value is 52764aa4e68b762c7e5bbacf1261bd3242b44a0b66876f34c89c5b8d57da7177
+     NOTE  event after boot: upatch_load basic
    ...
    verdict: ok
 

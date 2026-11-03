@@ -328,7 +328,8 @@ Check the pipeline
    .. code-block:: console
 
       target# shirudo upatch map
-        (no pinned maps)
+      Pinned maps (0):
+        none
 
    This target has no upatch with maps loaded. With maps, the command
    lists each map with its upatch, type and size.
@@ -400,15 +401,16 @@ The keepalive body is the ``shirudo status --json`` document.
    * - ``shirudo.status`` other than ``ok``
      - Read :doc:`/operate/run/read-status` for each verdict.
    * - A condition with ``status`` ``ALERT``
-     - ``LsmAttached``, ``KeyringSealed``, ``ChainIntact`` or
-       ``ConfigActive`` found tampering or lost enforcement.
+     - ``LsmAttached``, ``KeyringSealed``, ``ChainIntact``,
+       ``UpatchesMeasured`` or ``ConfigActive`` found tampering or lost
+       enforcement.
    * - ``shirudo.tamper_attempts`` rises
      - Something on the target tried an operation the guards refused.
        The counters start at zero each boot. See
        :doc:`/security/tamper-counters`.
    * - ``config.activation_pending`` is ``true``
      - A config activation waits for a reboot. Every command except
-       ``status`` is refused until then.
+       ``status`` and ``image status`` is refused until then.
    * - ``tpm.chain_matches_eventlog`` is ``false``
      - The register holds a value the eventlog does not explain. Handle
        it as in :doc:`/operate/troubleshoot/incident-tampered`.

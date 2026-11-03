@@ -41,7 +41,7 @@ Build the package
       operator$ shirudo bpm build <package-dir> --version <version> \
           --keys-dir <keys-dir>
 
-   ``<package-dir>`` holds the ``Beefile``; pass ``-f <file>`` for a
+   ``<package-dir>`` holds the ``Beefile``; pass ``--file <file>`` for a
    Beefile with another name. ``<version>`` is the new version and
    ``<keys-dir>`` your key directory. The command prints the path of
    ``<name>-<version>.bee``, which it writes into the current directory.

@@ -225,7 +225,7 @@ still bind what a target loads, so this gives root the position of a
 hostile registry.
 
 On the operator host, ``shirudo bpm config update --base-package
-oci://...`` without ``-f`` downloads the base package by tag, checks it
+oci://...`` without ``--file`` downloads the base package by tag, checks it
 only against its manifest's layer digest, and runs the updater
 commands of the Beefile inside it. Whoever can move that tag can run
 commands on the operator host. Pass ``-f`` with a Beefile you control,

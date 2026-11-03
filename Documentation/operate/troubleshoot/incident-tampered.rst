@@ -72,9 +72,9 @@ Preserve the evidence
 
       target# shirudo status --json --include-eventlog > status.json
 
-   ``status`` runs in every state, and it exits 0 even when the verdict is
-   ``tampered``. Keep the file, but do not rely on it: the target wrote
-   it.
+   ``status`` runs in every state, and without ``--check`` it exits 0
+   even when the verdict is ``tampered``. Keep the file, but do not rely
+   on it: the target wrote it.
 
 3. Copy the eventlog, the pending init record and the config activation
    records:
@@ -173,8 +173,9 @@ Read the result
        records do not cover. The ``event after boot`` notes list them.
        Each was a signed artifact that a process with shirudo's
        authority loaded or unloaded.
-     - Match every note with the journal's ``upatch load measured`` and
-       ``upatch unload measured`` lines and with your change records,
+     - Match every note with the journal's ``upatch load: <name>
+       measured, register <value>`` and ``upatch unload: <name>
+       measured, register <value>`` lines and with your change records,
        timers and tree included. A change nobody authorized means a
        signing key or root on the target is compromised.
    * - ``FAIL`` on ``eventlog:`` replay, ``register:``, ``anchor:`` or

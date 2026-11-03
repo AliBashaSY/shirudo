@@ -102,9 +102,13 @@ shirudo does not reboot the target.
 image status
 ------------
 
-``status`` prints one JSON object with the active selection:
-``root_hash``, ``pcr``, ``sequence``, ``reset_count``, ``restart_count``,
-``pending`` and ``consistent``.
+``status`` prints the active selection: the config root hash, the config
+PCR, the sequence number, the TPM reset count, the restart count, whether
+the activation is pending (``no``, or ``yes, until the next reboot``) and
+whether it is consistent with its records (``yes`` or ``no``). With
+``--json`` it prints one JSON object with ``root_hash``, ``pcr``,
+``sequence``, ``reset_count``, ``restart_count``, ``pending`` and
+``consistent`` instead.
 
 Options
 -------
@@ -142,6 +146,10 @@ Options
      - ``<salt>``, 64 hex characters
      - chosen by ``veritysetup``
      - ``build``: the dm-verity salt.
+   * - ``--json``
+     - none
+     - off
+     - ``status``: print the JSON object.
 
 Exit status
 -----------
@@ -160,8 +168,10 @@ Exit status
        does not verify, or a file is missing. ``update``: refused or
        failed, and while pending ``image: activation is pending; further
        changes are blocked``. ``status``: the activation is pending or
-       inconsistent, and the JSON is still printed. ``update`` and ``status``
-       on a host without config images fail with ``No such device``.
+       inconsistent, and the report is still printed. On a host without
+       config activation state, ``update`` fails with ``image update: No
+       such device`` and ``status`` with ``image status: no config
+       activation state on this host``.
    * - 2
      - No subcommand, an unknown subcommand, a wrong number of arguments
        to ``update`` or ``status``, or ``verify`` arguments in another

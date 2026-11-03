@@ -128,11 +128,17 @@ Option forms
 
 An option that takes a value takes it after an equals sign or as the
 next argument: ``--cert=cert.der`` and ``--cert cert.der`` are the
-same. The same function has the same name on every command: a file to
-write is ``-o <path>`` or ``--output <path>``, a certificate file is
-``--cert``, a signing key ``--key``, the directory that holds both
-``--keys-dir``, a Beefile ``--file``, and ``--json`` prints the JSON form
-wherever a command has one.
+same, and an option given last with nothing after it is a usage error.
+Two groups differ. The commands the ``shirudo-build`` helper serves
+(``build``, ``keys vouch``, ``image build``, ``image verify`` and ``bpm
+config update``) take the value as the next argument only, except
+``--keys-dir``, which takes both forms. ``upatch map --json=<path>``
+takes its path after the equals sign only. Each command page states the
+forms it accepts. The same function has the same name on every command:
+a file to write is ``-o <path>`` or ``--output <path>``, a certificate
+file is ``--cert``, a signing key ``--key``, the directory that holds
+both ``--keys-dir``, a Beefile ``--file``, and ``--json`` prints the
+JSON form wherever a command has one.
 
 Runtime binary
 ~~~~~~~~~~~~~~

@@ -126,8 +126,9 @@ Boot and enroll
      - Item
      - Page
    * - 18
-     - First boot completed: ``status`` reports ``ok``, ``Bound in:
-       initrd``, and ``image status`` reports no pending activation.
+     - First boot completed: ``status`` reports ``ok``, ``status
+       --show-full`` shows ``Bound in: initrd``, and ``image status``
+       reports ``Pending: no``.
      - :doc:`/operate/deploy/initialize`
    * - 19
      - Attestation key name recorded and the target's endorsement key

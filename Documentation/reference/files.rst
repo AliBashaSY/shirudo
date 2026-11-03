@@ -65,6 +65,11 @@ Operator host
      - ``build``
      - none
      - Temporary object, removed after packaging.
+   * - ``$TMPDIR/shirudo-bpm-build.XXXXXX/``
+     - ``bpm build``
+     - ``0700``
+     - Staging directory of a package build (``/tmp`` when ``TMPDIR``
+       is unset), removed when the build ends.
    * - ``/etc/shirudo/shirudo.conf``
      - administrator
      - none
@@ -186,7 +191,7 @@ the label as foreign. In the initrd, ``init`` binds
      - Config activation record and its event history.
    * - ``images/<root-hash>.img``, ``.verity``, ``.roothash``, ``.p7s``
      - ``image update``
-     - none
+     - ``0600``
      - Fetched config images, named by their dm-verity root hash.
    * - ``images/incoming-XXXXXX/``
      - ``image update``
@@ -327,10 +332,10 @@ by ``BPF_OBJ_GET`` (``ObjGet``). Directories stay listable.
        ``inode_rmdir_link``, ``bpf2_inode_rename_link``,
        ``inode_mkdir_link``, ``inode_symlink_link``, ``inode_link_link``,
        ``kernel_load_data_link``, ``kernel_read_file_link``
-     - Links of the observer hooks.
+     - Links of the exec identity, directory entry and kexec guards.
    * - ``file_ioctl_link``, ``file_ioctl_compat_link``,
        ``bdev_integrity_link``, ``bdev_free_link``
-     - Links of the image observer hooks.
+     - Links of the ioctl guard and the dm-verity device recorders.
    * - ``seal_*_link``
      - Links of the seal hooks, one per hook, such as
        ``seal_file_open_link`` and ``seal_mmap_link``.

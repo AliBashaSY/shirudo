@@ -1409,7 +1409,8 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 				goto out;
 			}
 			made[i] = true;
-			pr_info("pinned serializer prog %u -> %s", i, pin);
+			pr_info("upatch load: serializer program %u pinned at %s",
+				i, pin);
 			continue;
 		}
 		if (spec->role == UPATCH_PROG_ROLE_TEST_RUN) {
@@ -1429,7 +1430,8 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 				goto out;
 			}
 			made[i] = true;
-			pr_info("pinned test-run prog %u -> %s", i, pin);
+			pr_info("upatch load: test-run program %u pinned at %s",
+				i, pin);
 			continue;
 		}
 		attach_seen++;
@@ -1554,7 +1556,7 @@ static int pin_upatch_maps(const struct loader_ctx *cx,
 			continue;
 		err = bpf_map_get_info_by_fd(md->map_fd, &info, &info_len);
 		if (err) {
-			pr_warn("upatch maps: get_info(map %u): %s",
+			pr_warn("upatch load: map %u info: %s",
 				i, strerror(errno));
 			continue;
 		}
@@ -1571,12 +1573,12 @@ static int pin_upatch_maps(const struct loader_ctx *cx,
 		if (stat(pin, &st) == 0)
 			continue;	/* already pinned (idempotent) */
 		if (obj_pin(md->map_fd, pin) != 0) {
-			pr_warn("upatch maps: pin %s: %s", pin,
+			pr_warn("upatch load: pin %s: %s", pin,
 				strerror(errno));
 			continue;
 		}
-		pr_info("pinned map %u (%s, type=%u) -> %s",
-			i, info.name, (__u32)info.type, pin);
+		pr_info("upatch load: map %u (%s) pinned at %s",
+			i, info.name, pin);
 	}
 	return 0;
 }
@@ -2403,9 +2405,8 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 		return ret;
 	}
 	if (ret) {
-		pr_err("upatch %s: chain extend failed (category: tpm_error) "
-		       "-- op done but chain NOT advanced; operator must "
-		       "reconcile", op);
+		pr_err("upatch %s: register extend failed (category: tpm_error): "
+		       "done but not measured; the operator must reconcile", op);
 		return ret;
 	}
 	if (measured)
@@ -2984,8 +2985,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 	 */
 	err = persist_upatch(file, name);
 	if (err) {
-		pr_err("upatch load: loaded but failed to persist to %s: %s "
-		       "-- not measured", UPATCHES_DIR, strerror(-err));
+		pr_err("upatch load: loaded but not archived under %s: %s; "
+		       "not measured", UPATCHES_DIR, strerror(-err));
 		unload_unmeasured(name);
 		rep_fail(&rep, "persist", "unknown", -err,
 			 "persist failed; the load was undone");

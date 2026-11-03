@@ -186,8 +186,8 @@ TPM
        10 by default, and not PCR 15, which systemd extends with the
        machine ID, file systems and encrypted volumes
      - Any extension of the config PCR after init blocks every command
-       but ``status`` until the next reboot, and ``status`` reports
-       ``tampered``.
+       but ``status`` and ``image status`` until the next reboot, and
+       ``status`` reports ``tampered``.
      - partly: init refuses PCRs 9, 11 and above 15, and ``status``
        detects a later extension
    * - A ``device:`` TCTI

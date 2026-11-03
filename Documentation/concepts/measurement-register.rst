@@ -126,12 +126,14 @@ is not the one ``init`` bound, or when it differs from an
 ``--expect-chain`` value the caller passed.
 
 A load is measured after it is attached and archived, and undone when
-the extend fails. A load process stopped between the attach and the extend
-leaves the upatch attached without an event until the next boot, whose
-``init`` event covers the archive. An unload is measured before the pins
-go, so an interrupted unload leaves a register that records more than
-happened. :doc:`/reference/formats/eventlog` lists the fields of each
-event.
+the extend fails. A load process stopped between the attach and the
+extend leaves the upatch attached without an event: ``shirudo status``
+reports it under the ``UpatchesMeasured`` condition, the next load or
+unload undoes it before it acts, and ``init`` at the next boot restores
+no archive whose load the eventlog does not record. An unload is
+measured before the pins go, so an interrupted unload leaves a register
+that records more than happened. :doc:`/reference/formats/eventlog`
+lists the fields of each event.
 
 Eventlog
 --------

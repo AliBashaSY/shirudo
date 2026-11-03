@@ -59,8 +59,8 @@ struct condition {
 
 /*
  * Maximum number of conditions returned today (LsmAttached,
- * KeyringSealed, ChainIntact, TpmMeasured, ConfigActive); callers can
- * size their stack array off this.
+ * KeyringSealed, ChainIntact, UpatchesMeasured, TpmMeasured,
+ * ConfigActive); callers can size their stack array off this.
  */
 #define CONDITIONS_MAX	6
 

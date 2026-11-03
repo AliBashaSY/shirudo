@@ -101,7 +101,7 @@ Why shirudo needs it
     ``update_ftrace_direct_mod()`` registers a stub ops for the sites it
     modifies. Detaching one of several BPF LSM programs from a busy hook
     is such an update. shirudo puts several programs on the same hooks,
-    ``bpf2`` and ``seal`` share nine, and an upatch unload detaches
+    ``bpf2`` and ``seal`` share ten, and an upatch unload detaches
     programs from hooks that other tasks are running. The test kernel's
     slim configuration sets ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``.
 
@@ -148,6 +148,107 @@ Without it
     object fails to load and ``init`` fails at "loading enforcement". The
     boot is not stopped, and the target runs without enforcement, as
     :doc:`boot-flow` describes.
+
+Label reads without the caller's permission
+-------------------------------------------
+
+Subject
+    bpf: Read security.bpf xattrs for LSM programs without the caller's
+    permission
+
+Files
+    ``fs/bpf_fs_kfuncs.c``.
+
+What it changes
+    ``bpf_get_dentry_xattr()`` and ``bpf_get_file_xattr()`` check that
+    the calling task may read the inode before they return an extended
+    attribute, for ``user.`` and ``security.bpf.`` names alike. The
+    patch skips that check for ``security.bpf.`` names, which a BPF LSM
+    program keeps for itself, as SELinux, Smack and EVM read their
+    labels with ``__vfs_getxattr()`` in kernel context. ``user.`` names
+    keep the check.
+
+Why shirudo needs it
+    The seal reads ``security.bpf.shirudo`` in the hooks that decide the
+    calling task's operation, and that task is the one the seal may
+    refuse. With the check, the task's read permission decides whether
+    the seal sees the label, and root arranges a read that fails: an
+    idmapped bind mount shows its files as another id's, an ACL grants
+    another id a write without a read, a file system uid set with
+    ``setfsuid()`` keeps ``CAP_SYS_ADMIN`` without the DAC capabilities,
+    and another LSM's ``inode_permission`` policy refuses the read.
+    :doc:`seal` explains the verdict.
+
+Without it
+    The seal loads and runs. A label read that fails with ``EACCES`` or
+    ``EPERM`` is decided by the mark of the inode, or of the directory
+    the operation changes, and a labeled inode without a mark looks
+    unlabeled to the seal. :doc:`seal` lists this under its limits.
+
+Sleepable programs on the remaining inode hooks
+-----------------------------------------------
+
+Subject
+    bpf: Let sleepable LSM programs attach to the remaining inode hooks
+
+Files
+    ``kernel/bpf/bpf_lsm.c``.
+
+What it changes
+    The kernel keeps a list of the LSM hooks that take a sleepable BPF
+    program. The patch adds ``inode_mkdir``, ``inode_link``,
+    ``inode_set_acl``, ``inode_remove_acl``, ``inode_file_setattr`` and
+    ``inode_copy_up`` to it. Each is called from process context with
+    the inode lock held, as the hooks already in the list are, and may
+    sleep.
+
+Why shirudo needs it
+    The seal reads labels with ``bpf_get_dentry_xattr()``, which sleeps,
+    so only a sleepable program can decide an operation by a label.
+    ``lsm.s/inode_mkdir`` and ``lsm.s/inode_link`` read the label of the
+    directory the entry goes into, ``lsm.s/inode_set_acl``,
+    ``lsm.s/inode_remove_acl`` and ``lsm.s/inode_file_setattr`` the
+    label of the inode they change, and ``lsm.s/inode_copy_up`` the
+    label of the inode an overlay copies up, instead of a mark that an
+    eviction of the inode empties.
+
+Without it
+    The kernel refuses the ``lsm.s/`` form of those programs, so the
+    ``seal`` object fails to load and ``init`` fails at "loading
+    enforcement", with the result the TPM command hook describes.
+
+Trusted dentry parent
+---------------------
+
+Subject
+    bpf: Treat dentry->d_parent as a trusted pointer
+
+Files
+    ``kernel/bpf/verifier.c``.
+
+What it changes
+    The verifier lists the fields of a kernel structure that a program
+    may read as trusted pointers. For ``struct dentry`` it lists
+    ``d_inode``; the patch adds ``d_parent`` beside it, as trusted or
+    null, so a program checks it for NULL before use. The parent of a
+    dentry an inode hook receives is stable while the hook runs, under
+    the parent's inode lock the caller holds, and is never NULL, since
+    the root's points to itself.
+
+Why shirudo needs it
+    ``inode_create``, ``inode_mkdir``, ``inode_symlink``,
+    ``inode_mknod``, ``inode_link`` and ``inode_rename`` receive the
+    directory an entry goes into as a ``struct inode`` and the entry as
+    a dentry. ``bpf_get_dentry_xattr()`` takes a dentry, and the only
+    one the seal has for the directory is ``dentry->d_parent``. The
+    seal reads the directory's label from it and refreshes the
+    directory's mark on the way, which ``inode_init_security`` labels
+    the new inode from.
+
+Without it
+    The verifier refuses ``d_parent`` as the kfunc's argument, so the
+    ``seal`` object fails to load and ``init`` fails at "loading
+    enforcement", with the result the TPM command hook describes.
 
 Related
 -------

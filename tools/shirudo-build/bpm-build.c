@@ -1939,8 +1939,9 @@ static int __build_bpm_config_update(int argc, char **argv,
 				"usage: shirudo bpm config update "
 				"--base-package <package.bee|oci://host/repo:tag> "
 				"--version <version> "
-				"[--file <name>.bee] [--rodata-input <name>=<path>]...\n"
-				"Without -f, the Beefile and updater inputs come from "
+				"[--file <name>.bee] [--keys-dir <dir>] "
+				"[--rodata-input <name>=<path>]...\n"
+				"Without --file, the Beefile and updater inputs come from "
 				"--base-package and are trusted as operator-side code.\n");
 			return 0;
 		} else if (!strcmp(argv[i], "--file")) {

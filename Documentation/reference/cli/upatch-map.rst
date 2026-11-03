@@ -27,7 +27,8 @@ Usage
    shirudo upatch map --all [--json | --json=<path>] [--show-full] [--peek]
                       [--otel [<otlp-options>]]
 
-Every option with a value takes it after ``=``.
+``--json`` takes its path after ``=`` only. The other options with a
+value take it after ``=`` or as the next argument.
 
 Description
 -----------
@@ -153,10 +154,11 @@ Exit status
        the other maps are still handled. Also, with ``--all``, the
        configuration cannot be loaded.
    * - 2
-     - A usage error: an unknown or repeated option, an invalid value,
-       positional arguments with ``--all``, ``--otel`` without a map, OTLP
-       options without ``--otel``, an invalid upatch name, or with
-       ``--all`` an invalid ``map_export`` configuration.
+     - A usage error: an unknown or repeated option, an option given last
+       without its value, an invalid value, positional arguments with
+       ``--all``, ``--otel`` without a map, OTLP options without
+       ``--otel``, an invalid upatch name, or with ``--all`` an invalid
+       ``map_export`` configuration.
 
 Files and environment
 ---------------------
@@ -175,7 +177,8 @@ List the pinned maps of a target without any:
 .. code-block:: console
 
    target# shirudo upatch map
-     (no pinned maps)
+   Pinned maps (0):
+     none
 
 Look at a serializer-backed map without taking its records from the
 exporter:

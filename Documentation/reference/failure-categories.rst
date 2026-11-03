@@ -281,7 +281,8 @@ every verdict, ``tampered`` included. Parse ``.status`` of
        ``SHIRUDO_BUILD`` is empty.
    * - ``init``
      - 0; 1 on any failure, the pre-flight included; 2 for an unknown
-       option. ``--check-only`` exits 0 when every check passes, else 1.
+       option or for ``--json`` without ``--check-only``.
+       ``--check-only`` exits 0 when every check passes, else 1.
    * - ``status``
      - 0 for every verdict; 1 when memory runs out, the configuration
        cannot be loaded for ``--otel`` or the OTLP send fails; 2 for a
@@ -311,7 +312,8 @@ every verdict, ``tampered`` included. Parse ``.status`` of
        usage error.
    * - ``bpm tree sync``
      - 0, also when no tree is configured; 1 on failure and for an
-       unknown option.
+       unknown option; 2 for too many arguments or a ``--report`` path
+       that is too long.
    * - ``bpm build``, ``bpm config update``, ``bpm tree append``
      - 0; 1 on failure and for a usage error; 127 when the helper is
        missing.
@@ -321,7 +323,7 @@ every verdict, ``tampered`` included. Parse ``.status`` of
    * - ``image`` without a subcommand
      - 2.
    * - ``image update``
-     - 0; 1 on failure.
+     - 0; 1 on failure; 2 for a usage error.
    * - ``image status``
      - 0 when the activation is consistent and not pending; 1 when it is
        pending or inconsistent (after the JSON) or no record exists.

@@ -69,7 +69,7 @@ static void usage(FILE *fp)
 		"           then %s.\n"
 		"--payload-sha256: 64 hex chars; if omitted, read from the local\n"
 		"                  archive /var/lib/shirudo/upatches/<name>.upatch,\n"
-		"                  else all-zero (target skips the payload check).\n"
+		"                  which must then exist.\n"
 		"--emit-artifacts: for a .bpf.c input, also keep the compiled\n"
 		"                  .bpf.o next to the .upatch (instead of a temp\n"
 		"                  file that is removed). Reports every emitted\n"
@@ -306,12 +306,9 @@ int main(int argc, char **argv)
 			}
 		} else {
 			/*
-			 * No explicit digest: consult the operator's local
-			 * archive so the unload still binds payload_mismatch.
-			 * Absent there too, fall through with the all-zero
-			 * payload, which the target reads as "no expected
-			 * payload" and skips the check (the documented, less
-			 * safe escape hatch).
+			 * No explicit digest: take it from the operator's local
+			 * archive, since the target refuses a directive whose
+			 * digest is not the loaded payload's.
 			 */
 			char archive[PATH_MAX];
 			struct upatch u;
@@ -329,11 +326,9 @@ int main(int argc, char **argv)
 				pr_info("--payload-sha256 derived from archive %s",
 					archive);
 			} else {
-				pr_warn("--payload-sha256 omitted and no archive "
-					"entry at %s; the directive will carry no "
-					"expected payload and the target will skip "
-					"the payload_mismatch check. Pass "
-					"--payload-sha256 to bind it.", archive);
+				pr_err("--payload-sha256 omitted and no archive at %s; pass the digest upatch info shows",
+				       archive);
+				return 2;
 			}
 		}
 

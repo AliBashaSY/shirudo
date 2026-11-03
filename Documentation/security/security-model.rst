@@ -93,7 +93,7 @@ The properties above hold only on a deployment that provides the
 :ref:`assumptions <tm-assumptions>`. In brief:
 
 - A trusted kernel with the BPF LSM, the signed-loader ABI and the
-  ``tpm_command`` patch
+  carried kernel patches
 - Module signature enforcement and lockdown in integrity mode, no
   32-bit compatibility, no hibernation and no writes under mounted
   file systems

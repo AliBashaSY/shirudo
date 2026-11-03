@@ -1429,8 +1429,9 @@ void upatch_maps_print_summary(const struct map_summary *list,
 {
 	size_t i;
 
+	printf("Pinned maps (%zu):\n", n);
 	if (n == 0) {
-		printf("  (no pinned maps)\n");
+		printf("  none\n");
 		return;
 	}
 	printf("  %-22s %-16s %-18s %s\n", "UPATCH", "MAP", "TYPE",
@@ -1462,12 +1463,12 @@ static void print_type_def(const char *label, const char *def, __u32 size)
 {
 	const char *p = def;
 
-	printf("%-21s", label);
+	printf("%-22s ", label);
 	while (*p) {
 		const char *nl = strchr(p, '\n');
 
 		if (nl) {
-			printf("%.*s\n%-21s", (int)(nl - p), p, "");
+			printf("%.*s\n%-22s ", (int)(nl - p), p, "");
 			p = nl + 1;
 		} else {
 			printf("%s", p);
@@ -1496,40 +1497,40 @@ void upatch_maps_print_detail(const struct map_view *v)
 {
 	__u32 i;
 
-	printf("Name:                %s\n", v->upatch);
-	printf("Map:                 %s\n", v->name);
+	printf("%-22s %s\n", "Name:", v->upatch);
+	printf("%-22s %s\n", "Map:", v->name);
 	if (upatch_map_is_percpu(v->type))
-		printf("Type:                %s (%u CPUs)\n",
+		printf("%-22s %s (%u CPUs)\n", "Type:",
 		       v->type_name, v->n_cpus);
 	else
-		printf("Type:                %s\n", v->type_name);
-	printf("Max entries:         %u\n", v->max_entries);
+		printf("%-22s %s\n", "Type:", v->type_name);
+	printf("%-22s %u\n", "Max entries:", v->max_entries);
 	if (v->skipped) {
-		printf("Status:              skipped: %s\n",
+		printf("%-22s skipped: %s\n", "Status:",
 		       v->skipped_reason ? v->skipped_reason : "(no reason)");
 		return;
 	}
 	if (v->serialized) {
 		__u32 p;
 
-		printf("Status:              serialized\n");
-		printf("Serialized pages:    %u\n", v->n_serial_pages);
-		printf("Serialized bytes:    %llu\n",
+		printf("%-22s serialized\n", "Status:");
+		printf("%-22s %u\n", "Serialized pages:", v->n_serial_pages);
+		printf("%-22s %llu\n", "Serialized bytes:",
 		       v->serial_bytes_total);
 		for (p = 0; p < v->n_serial_pages; p++) {
 			const struct serial_page *page =
 				&v->serial_pages[p];
 
 			printf("\nPage %u:\n", page->page_index);
-			printf("  Cursor:            %llu\n",
+			printf("  %-22s %llu\n", "Cursor:",
 			       page->cursor);
-			printf("  Next cursor:       %llu\n",
+			printf("  %-22s %llu\n", "Next cursor:",
 			       page->next_cursor);
-			printf("  Done:              %s\n",
+			printf("  %-22s %s\n", "Done:",
 			       page->done ? "true" : "false");
-			printf("  Flags:             0x%x\n", page->flags);
-			printf("  Chunks:            %u\n", page->chunks);
-			printf("  Bytes:             %u\n", page->bytes);
+			printf("  %-22s 0x%x\n", "Flags:", page->flags);
+			printf("  %-22s %u\n", "Chunks:", page->chunks);
+			printf("  %-22s %u\n", "Bytes:", page->bytes);
 			if (page->bytes) {
 				printf("\n  Data (hex):\n");
 				print_serialized_hex(page->data, page->bytes);
@@ -1537,23 +1538,23 @@ void upatch_maps_print_detail(const struct map_view *v)
 		}
 		return;
 	}
-	printf("Entries:             %u of %u%s\n", v->n_entries,
+	printf("%-22s %u of %u%s\n", "Entries:", v->n_entries,
 	       v->max_entries,
 	       v->truncated ? "  (truncated; use --show-full)" : "");
 	if (v->key_type_def[0])
 		print_type_def("Key type:", v->key_type_def, v->key_size);
 	else if (v->btf_key_type[0])
-		printf("Key type:            %s (%u B)\n",
+		printf("%-22s %s (%u B)\n", "Key type:",
 		       v->btf_key_type, v->key_size);
 	else
-		printf("Key size:            %u B  (no BTF)\n", v->key_size);
+		printf("%-22s %u B  (no BTF)\n", "Key size:", v->key_size);
 	if (v->value_type_def[0])
 		print_type_def("Value type:", v->value_type_def, v->value_size);
 	else if (v->btf_value_type[0])
-		printf("Value type:          %s (%u B per CPU)\n",
+		printf("%-22s %s (%u B per CPU)\n", "Value type:",
 		       v->btf_value_type, v->value_size);
 	else
-		printf("Value size:          %u B  (no BTF)\n", v->value_size);
+		printf("%-22s %u B  (no BTF)\n", "Value size:", v->value_size);
 
 	if (v->n_entries == 0)
 		return;

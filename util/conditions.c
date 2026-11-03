@@ -273,7 +273,7 @@ void status_reason(const struct conditions_input *in,
 	} else if (strcmp(v, "lsm-off") == 0) {
 		strscpy(buf, "LSM not attached, enforcement off", cap);
 	} else if (strcmp(v, "init-pending") == 0) {
-		strscpy(buf, "target hasn't been `shirudo init`'d", cap);
+		strscpy(buf, ".bpf keyring absent before init", cap);
 	} else if (strcmp(v, "reboot-pending") == 0) {
 		strscpy(buf, "a config activation is pending until the next reboot",
 			cap);

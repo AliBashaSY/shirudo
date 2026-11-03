@@ -93,12 +93,7 @@ Describe a loaded upatch:
    Program ID:            72
    Loaded at:             2026-11-03T14:54:33Z  (1s ago)
    Payload sha256:        8aee7072a1a15e4dddc93ad6b253a0e2e70ad6cdf767442aa8a1c1997bc3069f  (signature-bound)
-   Maps:
-
-   Source (kernel BTF line_info):
-
-     <checkout>/testing/fixtures/basic.bpf.c:
-           9: int BPF_PROG(shirudo_test_basic)
+   Maps:                  none
 
    Source (kernel BTF line_info):
 

@@ -649,7 +649,7 @@ static void note(struct reporter *r, const char *fmt, ...)
 
 	if (r->len + 8 >= r->cap)
 		return;
-	n = strscpy(r->buf + r->len, "  note  ", r->cap - r->len);
+	n = strscpy(r->buf + r->len, "  NOTE  ", r->cap - r->len);
 	if (n > 0)
 		r->len += (size_t)n;
 	va_start(ap, fmt);

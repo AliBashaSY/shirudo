@@ -105,14 +105,8 @@ even when the verdict is ``tampered``:
 
    target# shirudo status --json | jq -r .status
 
-Show everything, with the eventlog, the system, the kernel log and the
-modules, with :doc:`cli/status`:
-
-.. code-block:: console
-
-   target# shirudo status --show-full
-
-Add the last 50 kernel log lines with :doc:`cli/status`:
+Show everything, the folded sections, the eventlog and the system, with
+:doc:`cli/status`:
 
 .. code-block:: console
 

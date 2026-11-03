@@ -266,7 +266,7 @@ test_expect_success 'a challenge made from the evidence activates on the target'
 	grep -q "^  OK    attestation key: the pinned key" "$WORK/challenge.out" &&
 	grep -q "^  OK    endorsement key: the pinned key" "$WORK/challenge.out" &&
 	grep -q "^  OK    endorsement key: TCG default template" "$WORK/challenge.out" &&
-	grep -q "^  note  no endorsement certificate" "$WORK/challenge.out" &&
+	grep -q "^  NOTE  no endorsement certificate" "$WORK/challenge.out" &&
 	sed -n "s/^credential: //p" "$WORK/challenge.out" >"$WORK/credential" &&
 	[ "$(wc -c <"$WORK/credential")" = 65 ] &&
 	./helper/test-tpm-wire public "$(py "import json; print(json.load(open(\"$WORK/evidence.json\"))[\"ek\"][\"public\"])")" |
@@ -376,7 +376,7 @@ test_expect_success 'a late binding is told apart by the phase value and the ini
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--strict-anchor >"$WORK/report6" &&
 	grep -qx "verdict: ok" "$WORK/report6" &&
-	grep -q "^  note  binding: made in the root file system" "$WORK/report6" &&
+	grep -q "^  NOTE  binding: made in the root file system" "$WORK/report6" &&
 	grep -q "^  OK    eventlog: one init record for this TPM reset (2 this boot)" "$WORK/report6" &&
 	grep -q "^  OK    register: init record is of the TPM" "$WORK/report6" &&
 	grep -q "^  OK    quote and certification are of one TPM reset" "$WORK/report6" &&

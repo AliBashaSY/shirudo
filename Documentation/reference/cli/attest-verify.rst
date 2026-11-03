@@ -28,17 +28,18 @@ Usage
                          [--expect-config-root=<root> --expect-config-pcr=<pcr>]
                          [--expect-pcr=<pcr>=<value>]...
                          [--expect-bind-pcr=<pcr>=<value>]...
-                         [--strict-anchor] [--require-initrd]
+                         [--strict-anchor] [--require-initrd] [--json]
 
-Every option takes its value after ``=``. On a host where enforcement is up
-the image gate refuses ``--cert``. Run ``verify`` where enforcement is not
-up.
+Every option takes its value after ``=`` or as the next argument. On a
+host where enforcement is up the image gate refuses ``--cert``. Run
+``verify`` where enforcement is not up.
 
 Description
 -----------
 
-``verify`` prints one line per check, ``ok:``, ``FAIL:`` or ``note:``,
-followed by ``verdict: ok`` or ``verdict: fail``. It checks:
+``verify`` prints one line per check, ``OK`` or ``FAIL``, and one per
+note, ``NOTE``, followed by ``verdict: ok`` or ``verdict: fail``. It
+checks:
 
 - the nonce, in the document, the quote and the register certification
 - the attestation key: restricted, fixed to its TPM, its name matching its
@@ -151,9 +152,10 @@ Exit status
    * - 1
      - ``verdict: fail``.
    * - 2
-     - A usage error or an invalid value, ``--evidence`` or ``--nonce``
-       missing, an option that needs another, an unreadable evidence file
-       or a file that is not a shirudo evidence document.
+     - A usage error or an invalid value, an option given last without
+       its value, ``--evidence`` or ``--nonce`` missing, an option that
+       needs another, an unreadable evidence file or a file that is not a
+       shirudo evidence document.
 
 Examples
 --------
@@ -182,19 +184,19 @@ attestation key pinned:
      OK    register: certified contents match the listed value
      OK    quote and certification are of one TPM reset
      OK    config: config root history matches the quoted PCR
-     note  config root has no operator approval; use --expect-config-root with --expect-config-pcr
-     note  config records a selection; direct TPM writer protection is deferred
+     NOTE  config root has no operator approval; use --expect-config-root with --expect-config-pcr
+     NOTE  config records a selection; direct TPM writer protection is deferred
      OK    eventlog: this boot has an init record
      OK    register: the document names index 0x01818E00 and PCRs 9 and 11
      OK    register: public area is bound to PCRs 9 and 11 as recorded
-     note  binding: made in the initrd
+     NOTE  binding: made in the initrd
      OK    eventlog: one init record for this TPM reset (1 this boot)
      OK    register: init record is of the TPM's current reset count
      OK    eventlog: 2 records replay to the certified value
      OK    anchor: record digest matches the index name
      OK    anchor: PCR 9 equals the recorded value extended by the anchor
      OK    state: register equals the expected value
-     note  event after boot: upatch_load basic
+     NOTE  event after boot: upatch_load basic
    verdict: ok
 
 ``$NONCE`` holds the nonce given to ``shirudo attest``, ``<ak-name>`` the
@@ -221,8 +223,8 @@ after boot:
      OK    anchor: PCR 9 equals the recorded value extended by the anchor
      FAIL  state: init event covers the expected certificate, set and tree root
      FAIL  state: 2 events after boot change the register
-     note  event after boot: upatch_load shirudo-test-basic
-     note  event after boot: upatch_unload shirudo-test-basic
+     NOTE  event after boot: upatch_load shirudo-test-basic
+     NOTE  event after boot: upatch_unload shirudo-test-basic
    verdict: fail
 
 The first ``FAIL`` line says that the target enrolls a certificate set

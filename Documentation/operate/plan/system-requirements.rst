@@ -396,7 +396,7 @@ Run the checks as root on a target:
    10 of 10 passed
 
 A failed check prints ``FAIL`` and its reason, and the command exits 1
-after ``init: pre-flight failed (<failed>/<total> checks)``.
+after ``init: pre-flight failed, <failed> of <total> checks``.
 
 Network
 -------

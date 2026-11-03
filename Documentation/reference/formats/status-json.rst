@@ -18,9 +18,10 @@ sends, see :doc:`otlp`. Options and exit status are in
 
    target# shirudo status --json
 
-``status`` exits ``0`` for every verdict, ``tampered`` included. A
-monitor reads ``status`` and the fields in `Fields to alert on`_, never
-the exit status alone.
+``status`` exits ``0`` for every verdict, ``tampered`` included, unless
+``--check`` is given, which exits ``1`` for ``tampered``. A monitor
+reads ``status`` and the fields in `Fields to alert on`_, never the
+exit status alone.
 
 Top-level fields
 ----------------
@@ -58,7 +59,7 @@ determined, as noted.
    * - ``reason``
      - string or ``null``
      - The reason the human report prints after the verdict, ``null``
-       for ``ok``.
+       for ``ok``, see `Reasons`_.
    * - ``conditions``
      - array of object
      - Six conditions, each with ``type``, ``status`` and ``detail``,
@@ -175,6 +176,49 @@ Verdicts
    * - ``ok``
      - None of the above.
 
+Reasons
+~~~~~~~
+
+``reason`` is ``null`` for ``ok`` and otherwise one of these strings.
+For ``tampered`` it names the first cause that applies, in the order
+listed. For ``degraded`` it is ``no TPM answered`` when no TPM
+answered, else ``no register bound this boot``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - ``status``
+     - ``reason``
+   * - ``tampered``
+     - ``live register differs from the eventlog replay``
+   * -
+     - ``a upatch is pinned or archived without a record of this boot``
+   * -
+     - ``the selected config cannot be verified against its records``
+   * -
+     - ``the keyring init froze is gone``
+   * -
+     - ``keyring serial swap detected``
+   * -
+     - ``the dm-verity keyring init froze is gone``
+   * -
+     - ``dm-verity keyring serial swap detected``
+   * -
+     - ``a keyring holds a link init did not freeze``
+   * -
+     - ``the config key init froze is gone``
+   * - ``lsm-off``
+     - ``LSM not attached, enforcement off``
+   * - ``init-pending``
+     - ``.bpf keyring absent before init``
+   * - ``reboot-pending``
+     - ``a config activation is pending until the next reboot``
+   * - ``degraded``
+     - ``no register bound this boot``
+   * -
+     - ``no TPM answered``
+
 Conditions
 ----------
 
@@ -226,6 +270,13 @@ its details that applies, in the order listed.
    * -
      - ``OK``
      - ``bpf serial <serial>, dm-verity serial <serial>, pins match``
+   * -
+     - ``OK``
+     - ``bpf serial <serial>, pin matches``, when ``init`` recorded no
+       ``.dm-verity`` serial
+   * -
+     - ``OK``
+     - ``bpf serial <serial>, no pin recorded``
    * - ``ChainIntact``
      - ``OK``
      - ``live register equals the eventlog replay``
@@ -235,6 +286,9 @@ its details that applies, in the order listed.
    * -
      - ``WARN``
      - ``no TPM answered, no register to replay``
+   * -
+     - ``WARN``
+     - ``chain present, replay not evaluated``
    * -
      - ``ALERT``
      - ``live register differs from the eventlog replay``
@@ -511,7 +565,8 @@ tpm
    * - ``register_anchored``
      - boolean
      - The register's name equals the name this boot's ``init``
-       record gives, for the TPM's current reset count.
+       record gives, for the TPM's current reset count, and the
+       recorded PCR values and writer key give that name.
    * - ``init_records``
      - integer
      - ``init`` records this boot.

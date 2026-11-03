@@ -20,11 +20,12 @@ Usage
 
 .. code-block:: none
 
-   shirudo attest challenge --evidence=<evidence> --output=<challenge>
+   shirudo attest challenge --evidence=<evidence> (-o <challenge> | --output=<challenge>)
                             (--ek-ca=<bundle> | --ek-name=<name> | --trust-presented-ek)
                             [--ak-name=<name>]
 
-Every option takes its value after ``=``.
+Every option takes its value after ``=`` or as the next argument, and
+``-o`` is ``--output``.
 
 Description
 -----------
@@ -68,7 +69,7 @@ Options
    * - ``--evidence``
      - ``<evidence>``, a file
      - Required. Evidence from the target.
-   * - ``--output``
+   * - ``--output``, ``-o``
      - ``<challenge>``, a path
      - Required. Where to write the challenge.
    * - ``--ak-name``
@@ -99,9 +100,10 @@ Exit status
      - A check failed (``verdict: fail``), or the challenge could not be
        written.
    * - 2
-     - ``--evidence`` or ``--output`` missing, an unknown option or invalid
-       value, an unreadable evidence file, or evidence that carries no
-       endorsement key.
+     - ``--evidence`` or ``--output`` missing, an unknown option, an
+       option given last without its value, an invalid value, an
+       unreadable evidence file, or evidence that carries no endorsement
+       key.
 
 Examples
 --------

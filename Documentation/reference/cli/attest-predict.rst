@@ -24,11 +24,10 @@ Usage
                           [--expect=<name>=<digest>]... [--tree-root=<digest>]
                           [--event=<event>]...
                           [--bind-pcr=9=<value> --bind-pcr=11=<value>
-                           --writer-public=<modulus>]
+                           --writer-public=<modulus>] [--json]
 
-Every option takes its value after ``=``. ``--cert cert.der`` with a space
-is refused. On a host where enforcement is up the image gate refuses
-``--cert``.
+Every option takes its value after ``=`` or as the next argument. On a
+host where enforcement is up the image gate refuses ``--cert``.
 
 Description
 -----------
@@ -149,9 +148,9 @@ Exit status
      - The register's write policy could not be computed, or memory ran
        out.
    * - 2
-     - No ``--cert``, an unknown option, an unreadable file, an invalid
-       value or event, or ``--bind-pcr`` without both PCRs or without
-       ``--writer-public``.
+     - No ``--cert``, an unknown option, an option given last without
+       its value, an unreadable file, an invalid value or event, or
+       ``--bind-pcr`` without both PCRs or without ``--writer-public``.
 
 Examples
 --------

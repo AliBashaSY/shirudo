@@ -2099,7 +2099,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 				return 2;
 			}
 		} else if (is_help(argv[i])) {
-			printf("usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
+			fprintf(stderr, "usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
 			ret = 0;
 			goto out;
 		} else {
@@ -2862,6 +2862,10 @@ int cmd_bpm(int argc, const char **argv)
 	if (!strcmp(sub, "repo") && argc >= 3 && !strcmp(argv[2], "update")) {
 		int lock, ret = 0;
 
+		if (argc == 4 && is_help(argv[3])) {
+			fprintf(stderr, "usage: shirudo bpm repo update [<source>]\n");
+			return 0;
+		}
 		if (argc > 4)
 			return 2;
 		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
@@ -2923,6 +2927,10 @@ int cmd_bpm(int argc, const char **argv)
 	}
 	if (!strcmp(sub, "key"))
 		return cmd_bpm_key(argc - 1, argv + 1);
+	if (!strcmp(sub, "install") && argc == 3 && is_help(argv[2])) {
+		fprintf(stderr, "usage: shirudo bpm install <package>\n");
+		return 0;
+	}
 	if (!strcmp(sub, "install") && argc == 3)
 		return with_tables(bpm_install, argv[2], "install");
 	if (!strcmp(sub, "list")) {

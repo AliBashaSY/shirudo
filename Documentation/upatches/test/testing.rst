@@ -53,10 +53,10 @@ Boot the test VM
    .. code-block:: console
 
       target# shirudo-runtime status
-      Host:              upatch-dev
-      Roles:             target
-      Mode:              production
-      Status:            ok
+      Host:                  upatch-dev
+      Roles:                 target
+      Mode:                  production
+      Status:                ok
       ...
 
    The ``Status:`` line reads ``ok``. In the VM, run every shirudo command

@@ -107,14 +107,14 @@ Plan for eventlog growth
 The eventlog grows by one record for each boot, upatch load and unload,
 key revocation and tree operation. shirudo never rotates or truncates
 it, has no command to, and the seal stops root from doing it. In the
-test VM, the init record of a target with two certificates takes 1975
-bytes and a load adds 336:
+test VM, the init record of a target with two certificates takes about
+2 KB and a load adds a few hundred bytes:
 
 .. code-block:: console
 
-   target# shirudo status
+   target# shirudo status --show-full
    ...
-     Eventlog:          /var/lib/shirudo/eventlog  (2 entries, 2311 bytes)
+     Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
    ...
 
 Every command that reads the eventlog reads all of it, plus the pending
@@ -146,7 +146,7 @@ Symptoms:
 
 - ``shirudo status`` reports ``reboot-pending`` with the reason ``a
   config activation is pending until the next reboot``.
-- ``shirudo image status`` prints ``"pending":true`` and exits 1.
+- ``shirudo image status`` prints ``Pending: yes`` and exits 1.
 - Every other command prints ``shirudo: image state: Operation now in
   progress`` and exits 1.
 
@@ -164,8 +164,8 @@ selection, or ``init`` failed after it recorded this boot's activation
    the node keeps running in this state with enforcement up.
 
 #. Check after the reboot that ``shirudo status`` reports ``ok`` and
-   ``shirudo image status`` prints ``"pending":false`` and
-   ``"consistent":true``.
+   ``shirudo image status`` prints ``Pending: no`` and
+   ``Consistent: yes``.
 
 At the next boot, ``init`` verifies the pending selection, records a
 fresh boot activation and completes. There is no command that clears a

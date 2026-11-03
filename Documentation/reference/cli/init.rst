@@ -147,10 +147,10 @@ Exit status
    * - 1
      - The bootstrap settings cannot be loaded
        (``init: authenticated image settings: <error>``), a pre-flight
-       check failed (``init: pre-flight failed (<n>/<m> checks)``), or a
-       phase failed (``init: <phase> failed: <error>``).
+       check failed (``init: pre-flight failed, <n> of <m> checks``), or
+       a phase failed (``init: <phase> failed: <error>``).
    * - 2
-     - An unknown option.
+     - An unknown option, or ``--json`` without ``--check-only``.
 
 Files and environment
 ---------------------

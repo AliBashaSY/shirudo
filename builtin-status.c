@@ -354,7 +354,7 @@ static const struct help_item status_options[] = {
 				"system and eventlog sections" },
 	{ "--include-system",   "add the system section: OS, kernel, machine, "
 				"memory, disk, uptime" },
-	{ "--include-eventlog", "add this boot's eventlog records" },
+	{ "--include-eventlog", "add the eventlog records, all boots" },
 };
 
 static const struct help_section status_help_sections[] = {

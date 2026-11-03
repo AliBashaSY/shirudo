@@ -114,7 +114,7 @@ test_expect_success 'without operator approval the report names its limit explic
 	"$S" attest verify --evidence="$WORK/b.json" --nonce="$NONCE" \
 		--ak-name="$(field "$WORK/b.json" ak.name)" --expect-chain="$CHAIN" \
 		>"$WORK/unapproved" &&
-	grep -q "^  note  config root has no operator approval" "$WORK/unapproved" &&
+	grep -q "^  NOTE  config root has no operator approval" "$WORK/unapproved" &&
 	grep -q "direct TPM writer protection is deferred" "$WORK/unapproved"
 '
 

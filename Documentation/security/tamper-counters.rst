@@ -162,11 +162,6 @@ counter.
      - perf event bound to a shirudo task
      - ``lsm/perf_event_alloc``
      - ``EACCES``
-   * - ``SealSignal``
-     - a signal other than 0 to a shirudo task from a task without
-       authority; let through
-     - ``lsm/task_kill``
-     - none
    * - ``ExecTraced``
      - exec of shirudo by a traced task
      - ``lsm.s/bprm_check_security`` in the seal object, and
@@ -177,7 +172,8 @@ counter.
      - ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
        ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod`` and
        ``lsm.s/inode_link`` in the seal object, which read the
-       directory's label, and ``lsm.s/inode_rename`` for the destination
+       directory's label, ``lsm.s/inode_link`` for a labeled source, and
+       ``lsm.s/inode_rename`` for the destination
      - ``EACCES``
    * - ``PerfAttach``
      - program attached to a perf event by another executable
@@ -191,7 +187,7 @@ counter.
      - ``EPERM``
    * - ``SealCopyUp``
      - overlay copy-up of a sealed inode
-     - ``lsm.s/inode_copy_up``
+     - ``lsm.s/inode_copy_up``, every caller
      - ``EPERM``
    * - ``Kexec``
      - kexec image or initramfs load
@@ -210,6 +206,11 @@ counter.
        descriptor; ``lsm/file_open`` in the ``bpf2`` object: a
        non-directory inode in the private bpffs
      - ``EACCES``
+   * - ``SealSignal``
+     - signal to a shirudo task (let through)
+     - ``lsm/task_kill``: a signal other than 0 to a marked task from a
+       task without authority; the signal is delivered
+     - none
 
 Unless the row says every caller, a task with runtime authority is
 not refused and moves nothing.
@@ -273,8 +274,8 @@ open the counter map, and its attempt moves ``ObjGet``.
 ``shirudo status`` prints the section ``Tamper attempts (this
 boot):`` with one line per counter that is not zero: its name, its
 count and its meaning. It prints ``none`` when every counter is zero,
-and ``(none recorded: init has not pinned the counters this boot)``
-before ``init`` has run.
+``none recorded before init`` before ``init`` has pinned the map, and
+``unavailable:`` with the error when the map cannot be read.
 
 ``shirudo status --json`` carries every counter under
 ``tamper_attempts``, with the sum in ``total`` and each counter by name
@@ -290,7 +291,10 @@ What a non-zero counter means
 -----------------------------
 
 A counter that moved means that a guard refused an operation this boot.
-The refusal is what moved it: the operation did not happen.
+The refusal is what moved it: the operation did not happen. The one
+exception is ``SealSignal``, which counts a signal the seal delivered:
+the task it went to may have been stopped, and the next upatch command
+and ``shirudo status`` find what a stopped load left.
 
 A non-zero counter does not mean:
 
@@ -299,9 +303,9 @@ A non-zero counter does not mean:
   capabilities, so an unprivileged process moves the counters of
   ``bpf()`` commands.
 - That a foreign program made it. ``BpfCommand``, ``Kexec``,
-  ``BpffsUmount``, ``BpffsUmountAbove``, ``BpffsMount`` and a malformed
-  TPM command count refusals of shirudo's own tasks too, and a shirudo
-  binary outside the runtime image moves ``ObjGet``.
+  ``BpffsUmount``, ``BpffsUmountAbove``, ``BpffsMount``, ``SealCopyUp``
+  and a malformed TPM command count refusals of shirudo's own tasks
+  too, and a shirudo binary outside the runtime image moves ``ObjGet``.
 - That the operation was the one the meaning names. ``PerfAttach``
   counts the ioctl number on any file, whatever the device.
 

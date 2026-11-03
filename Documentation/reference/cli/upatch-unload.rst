@@ -111,8 +111,9 @@ Exit status and failure categories
    * - 1
      - Refused or failed.
    * - 2
-     - A usage error: an unknown option, a second file, no file, or an
-       ``--expect-chain`` that is not 64 hexadecimal characters.
+     - A usage error: an unknown option, an option given last without
+       its value, a second file, no file, or an ``--expect-chain`` that
+       is not 64 hexadecimal characters.
 
 ``unload`` reports these categories: ``version_mismatch``,
 ``kernel_abi_unsupported``, ``keyring_missing``, ``tampered``,

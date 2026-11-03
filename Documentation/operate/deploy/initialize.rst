@@ -94,31 +94,33 @@ Check that init worked
 
       Folded: keyrings, TPM measurement, assets (--show-full)
 
-      Conditions:
-        TYPE             STATUS  DETAIL
-        LsmAttached      OK      lsm/bpf link present and pinned
-        KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
-        ChainIntact      OK      live register equals the eventlog replay
-        TpmMeasured      OK      NV index 0x01818E00 readable
-        ConfigActive     OK      config dc90bacc356f.. is active
+   ``Status: ok`` and six ``OK`` conditions mean that enforcement is
+   attached, the ``.bpf`` keyring is the one init sealed, the register
+   matches the eventlog, every pinned upatch is measured and the config
+   is active.
+
+2. Read where the register was bound:
+
+   .. code-block:: console
+
+      target# shirudo status --show-full
       ...
       TPM measurement:
         TPM:                   reachable (device:/dev/tpmrm0)
         NV index:              0x01818E00 (anchored in PCR 9)
-        Chain:                 dc21c3dabcd2fd0a751c7146ad71c595f2386a4406feb64c3d6e2bd65c5bc706
-        Register name:         000b9b7b0f925415fdf0d5676369f8cc9146b9e3142537148b31e79dbffcc96e72f8
-        Anchored:              yes (name on record)
+        Chain:                 7f63313a31ac8ddd3a6a16fce2038322c9c782d5787155d2dc18dfa582dff548
+        Register name:         000b21eb0d45ac9ee1bb0a87dbb069120e3b8cb251b3d40cc2a86a307ab73f728789
+        Anchored:              yes, name on record
         PCR before init:       0000000000000000000000000000000000000000000000000000000000000000
         Phase at init:         0000000000000000000000000000000000000000000000000000000000000000 (PCR 11)
         Bound in:              initrd
         Chain vs eventlog:     matches
-        Eventlog:              /var/lib/shirudo/eventlog  (3 entries, 2675 bytes)
+        Eventlog:              /var/lib/shirudo/eventlog  (2 entries, 2324 bytes)
       ...
 
-   ``Status: ok`` and five ``OK`` conditions mean that enforcement is
-   attached, the ``.bpf`` keyring is the one init sealed, the register
-   matches the eventlog and the config is active. ``Bound in: initrd``
-   says that the initrd run bound the register.
+   The report folds the TPM measurement section while ``ChainIntact``
+   and ``TpmMeasured`` are ``OK``, and ``--show-full`` prints it.
+   ``Bound in: initrd`` says that the initrd run bound the register.
 
    ``PCR before init`` and ``Phase at init`` are PCR 9 and PCR 11 as init
    found them. The output comes from the test VM, which boots the kernel
@@ -126,7 +128,7 @@ Check that init worked
    measured UKI shows its own values, and a verifier pins them as
    :doc:`/operate/run/attest` describes.
 
-2. Check the fields a script reads:
+3. Check the fields a script reads:
 
    .. code-block:: console
 
@@ -155,7 +157,7 @@ Check that init worked
 
    :doc:`/reference/formats/status-json` describes every field.
 
-3. Check that the root run adopted the initrd's record:
+4. Check that the root run adopted the initrd's record:
 
    .. code-block:: console
 
@@ -164,7 +166,7 @@ Check that init worked
    The file must not exist. When it remains, ``shirudo.service`` did not
    run or failed, and its journal says why.
 
-4. Read both runs in the journal:
+5. Read both runs in the journal:
 
    .. code-block:: console
 
@@ -288,8 +290,8 @@ did not advance`` after one of these lines:
        ``tpm.owner_auth`` in both bootstrap files as
        :doc:`/operate/deploy/boot-integration` describes. The environment
        variable that the message names is refused on a target.
-   * - ``tpm: register extend failed -- chain NOT advanced while LSM
-       active (tpm_error); operator must reconcile``
+   * - ``tpm: register extend failed, the chain did not advance while
+       the LSM is active (tpm_error); the operator must reconcile``
      - The register could not be defined or extended. Read the journal
        for the TPM error before it.
    * - ``tpm: the register this boot recorded is gone or replaced;

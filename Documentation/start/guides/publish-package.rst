@@ -140,12 +140,11 @@ none, so here the target installs by direct reference.
 
       target# BPM_OCI_SCHEME=http shirudo bpm install oci://10.0.2.2:5000/example/hello:1.0.0
       upatch load: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=531121468 sig=4853B insns=124 data=2376B
-      loader ok, retval=0 (maps=0 progs=1)
-      attached + pinned prog 0 (raw_tracepoint) -> /run/shirudo/bpffs/upatches/hello/link
-      upatch load: name=hello keyring=531121468 progs=1
-      upatch load: chain extended, value=55a8c670eb10d9bc6a9dc7475e3fc94407066016798dddbc59870138525f61b6
-      upatch load measured: name=hello chain=55a8c670eb10d9bc6a9dc7475e3fc94407066016798dddbc59870138525f61b6
+      upatch load: signed loader accepted, keyring 272801410, 124 instructions
+      upatch load: loader ran, 0 maps and 1 programs
+      upatch load: program 0 (raw_tracepoint) pinned at /run/shirudo/bpffs/upatches/hello/link
+      upatch load: hello loaded, 1 programs, keyring 272801410
+      upatch load: hello measured, register 55a8c670eb10d9bc6a9dc7475e3fc94407066016798dddbc59870138525f61b6
 
    The target honors ``BPM_OCI_SCHEME`` as the operator does. It
    downloads the package and checks its digest against the registry's
@@ -160,7 +159,9 @@ none, so here the target installs by direct reference.
    .. code-block:: console
 
       target# shirudo bpm list
-      hello 1.0.0 direct
+      Installed packages:
+        NAME                      VERSION       SOURCE
+        hello                     1.0.0         direct
 
    ``direct`` marks a package installed by reference rather than from a
    registered repository.
@@ -183,11 +184,10 @@ Remove it
 
       target# shirudo bpm uninstall hello
       upatch unload: --no-precheck, pre-flight state check skipped
-      loaded signed loader: prog_fd=11 keyring=531121468 sig=4853B insns=165 data=2808B
-      upatch unload: payload matches for 'hello'
-      upatch unload: chain extended, value=f4f9b2f7cb9b442d78acc3b0527ad79a4cf9dd1eae1eaedffce9263c53571c05
-      upatch unload measured: name=hello chain=f4f9b2f7cb9b442d78acc3b0527ad79a4cf9dd1eae1eaedffce9263c53571c05
-      upatch unload: detached + unpinned hello
+      upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+      upatch unload: hello carries the directive's payload
+      upatch unload: hello measured, register f4f9b2f7cb9b442d78acc3b0527ad79a4cf9dd1eae1eaedffce9263c53571c05
+      upatch unload: hello detached and unpinned
 
    The target runs the unload directives that shipped in the package and
    removes the package. ``shirudo bpm list`` no longer lists it.

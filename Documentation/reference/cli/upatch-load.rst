@@ -25,9 +25,10 @@ Usage
                        [--no-precheck] [--no-version-check] [--report=<path>]
                        <file>
 
-Every option with a value takes it after ``=``. ``--help`` anywhere on the
-line prints the help. Progress and error messages go to standard error,
-so with ``--report=-`` standard output carries only the report.
+Every option with a value takes it after ``=`` or as the next argument.
+``--help`` anywhere on the line prints the help. Progress and error
+messages go to standard error, so with ``--report=-`` standard output
+carries only the report.
 
 Description
 -----------
@@ -174,15 +175,16 @@ Exit status and failure categories
    * - 1
      - Refused or failed. The report and the message name the category.
    * - 2
-     - A usage error: an unknown option, a second file, no file, or an
-       ``--expect-chain`` that is not 64 hexadecimal characters. Also the
-       category ``attach_target_missing``.
+     - A usage error: an unknown option, an option given last without
+       its value, a second file, no file, or an ``--expect-chain`` that
+       is not 64 hexadecimal characters. Also the category
+       ``attach_target_missing``.
 
 ``load`` reports these categories: ``version_mismatch``,
 ``kernel_abi_unsupported``, ``keyring_missing``, ``tampered``,
-``eventlog_full``, ``parser_rejected``, ``signature_rejected``,
-``signature_unsupported``, ``lsm_denied``, ``verifier_rejected``,
-``attach_target_missing``, ``binary_mismatch``,
+``eventlog_full``, ``already_loaded``, ``parser_rejected``,
+``signature_rejected``, ``signature_unsupported``, ``lsm_denied``,
+``verifier_rejected``, ``attach_target_missing``, ``binary_mismatch``,
 ``attach_scope_mismatch``, ``tpm_error`` and ``unknown``.
 :doc:`/reference/failure-categories` gives the cause and the action for
 each. Handle ``tampered`` as an incident
@@ -223,7 +225,7 @@ differs, ``load`` refuses before it touches the kernel:
 
 .. code-block:: none
 
-   upatch load: pre-flight refused (category: tampered, message: chain_drift) -- live chain c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd != expected; re-status and re-issue with the refreshed value
+   upatch load: pre-flight refused (category: tampered, message: chain_drift): live register c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd is not the expected one; run status and pass the refreshed value
 
 The message suggests repeating the command with the live value. Do not.
 A register that differs from your prediction is an incident

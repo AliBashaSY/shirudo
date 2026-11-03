@@ -53,11 +53,10 @@ images:
 
    # shirudo config > /etc/shirudo/shirudo.conf
 
-The comments in the output are not a reference. Two of them are wrong: the
-``tpm.tcti`` comment points to a section of the documentation that does
-not exist, and the ``map_export`` comment says that empty destinations
-leave the export timer idle, while the timer runs ``upatch map --all``,
-which reads every map and prints it (see :doc:`upatch-map`).
+The comments in the output are not a reference. The ``map_export``
+comment is wrong: it says that empty destinations leave the export timer
+idle, while the timer runs ``upatch map --all``, which reads every map
+and prints it (see :doc:`upatch-map`).
 :doc:`/reference/formats/configuration` describes every setting.
 
 Options

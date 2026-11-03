@@ -83,8 +83,9 @@ shirudo and shirudo-build
    * - ``SHIRUDO_INIT_ARGS``
      - ``shirudo.service``, from ``/etc/shirudo/init.env``
      - Arguments appended to ``init``. ``init`` accepts only
-       ``--check-only``. The runtime drop-in clears ``ExecStart=`` and
-       ``EnvironmentFile=``, so the variable has no effect with it.
+       ``--check-only`` and ``--json``. The runtime drop-in clears
+       ``ExecStart=`` and ``EnvironmentFile=``, so the variable has no
+       effect with it.
    * - ``TMPDIR``
      - ``upatch map`` (snapshot file), ``shirudo-build bpm build``
        (staging directory), the generator scripts (``mktemp -d``)

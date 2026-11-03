@@ -313,8 +313,10 @@ static int adopt_pending(void)
  * The register and the eventlog advance together only while one process
  * at a time extends and appends: two measuring commands under locks of
  * their own interleaved extend, extend, append, append and left a log
- * that replays the events in the other order. Every measuring path holds
- * this from its extend to its append; it lives beside the log it guards.
+ * that replays the events in the other order. A load or an unload holds
+ * this from before it touches the pins to its append, every other
+ * measuring path from its extend to its append; it lives beside the log
+ * it guards.
  */
 int eventlog_lock(void)
 {

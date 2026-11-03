@@ -24,33 +24,35 @@ Before you begin
   :ref:`runtime-invocation`.
 - Run ``shirudo status`` first. It is the target's own report, and it
   still runs when most other commands refuse. The ``Status`` line gives
-  the verdict, and the five conditions below it the checks the verdict
+  the verdict, and the six conditions below it the checks the verdict
   is derived from. A healthy target starts its report like this:
 
   .. code-block:: console
 
      target# shirudo status
-     Host:              docs
-     Roles:             target
-     Mode:              production
-     Status:            ok
-     Version ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+     Host:                  docs
+     Roles:                 target
+     Mode:                  production
+     Status:                ok
+     Version ID:            d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9
 
      Conditions:
-       TYPE             STATUS  DETAIL
-       LsmAttached      OK      lsm/bpf link present and pinned
-       KeyringSealed    OK      bpf serial 130847582, dm-verity serial 962472513, pins match
-       ChainIntact      OK      live register equals the eventlog replay
-       TpmMeasured      OK      NV index 0x01818E00 readable
-       ConfigActive     OK      config dc90bacc356f.. is active
+       TYPE               STATUS  DETAIL
+       LsmAttached        OK      lsm/bpf link present and pinned
+       KeyringSealed      OK      bpf serial 272801410, dm-verity serial 799624487, pins match
+       ChainIntact        OK      live register equals the eventlog replay
+       UpatchesMeasured   OK      every pinned or archived upatch is in this boot's records
+       TpmMeasured        OK      NV index 0x01818E00 readable
+       ConfigActive       OK      config 6d5ed552f448.. is active
      ...
 
   A verdict other than ``ok`` is followed by its reason in parentheses,
   and the condition that raised it shows ``WARN`` or ``ALERT`` with a
   detail. Look the verdict up under `Status verdicts`_. ``status`` exits
-  0 whatever the verdict, so read the ``Status`` line, not the exit
-  status. If ``status`` itself prints ``shirudo: image state:``, start
-  from that message under `Commands refused before they run`_.
+  0 whatever the verdict unless you pass ``--check``, so read the
+  ``Status`` line, not the exit status. If ``status`` itself prints
+  ``shirudo: image state:``, start from that message under `Commands
+  refused before they run`_.
 - Every message shirudo prints also goes to the journal under the
   identifier ``shirudo``. Read the messages of this boot, and the two
   ``init`` runs, with:
@@ -225,7 +227,7 @@ need it. Nothing changed on the target unless the entry says otherwise.
 .. code-block:: console
 
    target# shirudo upatch load --expect-chain=0000000000000000000000000000000000000000000000000000000000000000 --report=- /mnt/shirudo-bundle/fixtures/shirudo-test-lifecycle.upatch
-   upatch load: pre-flight refused (category: tampered, message: chain_drift) -- live chain c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd != expected; re-status and re-issue with the refreshed value
+   upatch load: pre-flight refused (category: tampered, message: chain_drift): live register c50b22ac27c5bb6a90ee5ff9b440fbbd5bb60b84a2aa7b395daec3f330886fcd is not the expected one; run status and pass the refreshed value
    {"schema":1,"result":"failed","op":"upatch_load","phase":"pre_flight","errno":1,"errno_name":"EPERM","category":"tampered","message":"pre-flight check failed",...}
 
 Meaning
@@ -255,7 +257,7 @@ Action
 .. code-block:: console
 
    target# shirudo upatch load --expect-version-id=0000000000000000000000000000000000000000000000000000000000000000 --report=- /mnt/shirudo-bundle/fixtures/shirudo-test-lifecycle.upatch
-   upatch load: version mismatch -- operator expects 0000000000000000000000000000000000000000000000000000000000000000, target is 58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0; redeploy a matching shirudo or pass --no-version-check
+   upatch load: version mismatch, the operator expects 0000000000000000000000000000000000000000000000000000000000000000 and the target is 58b05ab35a2bcefaa649faf15f8c6be0211e24cea710450c1a29298c3b5c7de0; deploy a matching shirudo or pass --no-version-check
    {"schema":1,"result":"failed","op":"upatch_load","phase":"pre_flight","errno":1,"errno_name":"EPERM","category":"version_mismatch","message":"SHIRUDO_VERSION_ID mismatch (operator vs target)",...}
 
 Meaning
@@ -336,8 +338,8 @@ was built with.
 .. code-block:: console
 
    target# shirudo upatch unload --report=- /mnt/shirudo-bundle/fixtures/shirudo-test-basic-mismatch.unload.upatch
-   loaded signed loader: prog_fd=10 keyring=420195959 sig=4853B insns=165 data=2808B
-   upatch unload: payload_mismatch -- the upatch loaded under 'shirudo-test-basic' is not what the directive expects; refusing
+   upatch unload: signed loader accepted, keyring 272801410, 165 instructions
+   upatch unload: payload_mismatch, the upatch loaded under 'shirudo-test-basic' is not what the directive expects; refused
    upatch unload failed: name=shirudo-test-basic phase=pin category=payload_mismatch err=1 (Operation not permitted) message=loaded payload does not match directive
    {"schema":1,"result":"failed","op":"upatch_unload","phase":"pin","errno":1,"errno_name":"EPERM","category":"payload_mismatch","message":"loaded payload does not match directive",...}
 
@@ -365,8 +367,8 @@ Action
          operator$ shirudo build --unload <name> --payload-sha256 <payload> --keys-dir <keys-dir> -o <name>.unload.upatch
 
 ``<name>`` is the upatch name, ``<payload>`` the 64-character digest
-from the ``Payload:`` line, and ``<keys-dir>`` the directory of a trusted
-signing key.
+from the ``Payload sha256:`` line, and ``<keys-dir>`` the directory of a
+trusted signing key.
 
 ``attach_target_missing``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -449,7 +451,7 @@ Meaning
    The next record would take the eventlog past ``eventlog.max_bytes``.
    The command refused before it loaded or extended anything:
    ``upatch load: eventlog /var/lib/shirudo/eventlog would exceed
-   eventlog.max_bytes=<n>; refusing -- no load, no extend``.
+   eventlog.max_bytes <n>; refused, nothing loaded or extended``.
 
 Causes
    The eventlog grows by one record per boot, load, unload, revocation
@@ -470,7 +472,7 @@ Boot and init
 Meaning
    One of the checks ``init`` runs before it changes anything failed.
    ``init`` prints a table with ``FAIL`` and a detail for each failed
-   check, then ``init: pre-flight failed (<failed>/<total> checks)``.
+   check, then ``init: pre-flight failed, <failed> of <total> checks``.
    In the initrd the table is in the journal of
    ``shirudo-initrd.service``. A passing run looks like this:
 

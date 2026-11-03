@@ -147,18 +147,26 @@ without the protection.
        checked.
    * - A3
      - The kernel has the signed-loader ABI of the bpf-next tree shirudo
-       targets, the ``tpm_command`` LSM hook, and xattr kfuncs that
-       return a ``security.bpf.`` label to an LSM program without the
-       calling task's read permission. Upstream has neither the hook nor
-       the latter, and shirudo carries them as
-       :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`
+       targets, the ``tpm_command`` LSM hook, xattr kfuncs that return
+       a ``security.bpf.`` label to an LSM program without the calling
+       task's read permission, sleepable LSM programs on
+       ``inode_mkdir``, ``inode_link``, ``inode_set_acl``,
+       ``inode_remove_acl``, ``inode_file_setattr`` and
+       ``inode_copy_up``, and a ``dentry->d_parent`` the verifier
+       trusts. Upstream has none of these, and shirudo carries them as
+       :src:`kernel/0002-tpm-Let-LSMs-inspect-userspace-commands.patch`,
+       :src:`kernel/0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`,
+       :src:`kernel/0004-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
        and
-       :src:`kernel/0003-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`.
-     - T1 needs the ABI, T5 the hook, T3 the label read.
+       :src:`kernel/0005-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`.
+     - T1 needs the ABI, T5 the hook, T3 the label read, the sleepable
+       hooks and the trusted parent.
      - Partly. The pre-flight check ``signed_loader_kernel_abi`` tests
-       the ABI. Without the hook the ``bpf2`` object does not load and
-       ``init`` fails. Without the label read, the seal falls back to
-       its marks where a read fails for the caller (T3).
+       the ABI. Without the hook the ``bpf2`` object does not load, and
+       without the sleepable hooks and the trusted parent the ``seal``
+       object does not load; ``init`` fails either way. Without the
+       label read, the seal falls back to its marks where a read fails
+       for the caller (T3).
    * - A4
      - The kernel refuses unsigned modules (``CONFIG_MODULE_SIG`` with
        enforcement) and runs with lockdown in integrity mode
@@ -383,7 +391,7 @@ Figure 1 shows the parties and where trust ends.
    Figure 1. Trust boundaries and the evidence boundary.
 
 The target TCB is the kernel with its configuration and command line
-(A1, A4, A11) and the ``tpm_command`` patch; the firmware, boot loader
+(A1, A4, A11) and the carried kernel patches (A3); the firmware, boot loader
 and UKI (A6); the TPM (A15); the initrd and every unit it runs before
 ``shirudo-initrd.service`` completes; and the runtime image. The
 runtime image holds the shirudo binary with its two embedded BPF
@@ -653,13 +661,12 @@ the seal attaches. On every later run a state root without the label is
 refused, since it is a tree bound over the path rather than the one
 ``init`` sealed (``t6123``). For a labeled inode, a write open, an
 unlink or the removal of an empty directory, either end of a rename, a
-setattr (truncate, chmod, chown, utimes) and an xattr change need
+setattr (truncate, chmod, chown, utimes), a change of its inode flags
+with ``chattr``, an xattr change and a change of its POSIX ACL need
 runtime authority (``SealWrite``, ``SealUnlink``, ``SealRename``,
-``SealSetattr``, ``SealXattr``), and for a marked one so do a change of
-its POSIX ACL (``SealXattr``) and of its inode flags with ``chattr``
-(``SealSetattr``), whose hooks cannot read the label. Only an
-authorized task sets or removes the exact seal label or changes the
-policy label on any inode (``SealLabel``).
+``SealSetattr``, ``SealXattr``); every one of those hooks reads the
+label. Only an authorized task sets or removes the exact seal label or
+changes the policy label on any inode (``SealLabel``).
 
 The label is a public constant, the same on every build. It marks a
 target and never grants authority: a file system root mounts can carry
@@ -723,9 +730,9 @@ inode its label inside the transaction that creates it. Evicting the
 inode cache therefore opens nothing (``t6118``, ``t6144``). A labeled
 inode is hard-linked nowhere by a task without authority, so its label
 cannot be kept alive beside the state it left. An overlay copy-up of a
-labeled inode is refused (``SealCopyUp``), so a write through an
-overlay root mounts over sealed state fails instead of landing in
-root's upper directory.
+labeled inode is refused to every caller, shirudo included
+(``SealCopyUp``), so a write through an overlay root mounts over sealed
+state fails instead of landing in root's upper directory.
 
 shirudo opens sealed state without following symbolic links and takes
 no entry without the label for its own: ``init`` ignores such an entry
@@ -904,8 +911,10 @@ pins the register does not
 cover and the upatch attached: ``shirudo status`` reports them
 (``UpatchesMeasured``, verdict ``tampered``) and the next upatch
 command, ``bpm``'s included, undoes them, pins and archives, before it
-acts; ``init`` restores only an archive whose load the eventlog records
-without a later unload. A measuring
+acts. The same scan finds the pins an unload stopped after its extend
+leaves, and an archive without a record of its load; ``init`` restores
+only an archive whose load the eventlog records without a later unload
+(``t6144``). A measuring
 command holds a lock beside the eventlog from its extend to its append,
 a load or an unload from that undo to its append, so the register and
 the log advance in one order and the undo never takes a load in flight
@@ -1094,7 +1103,9 @@ T10 An attempt that leaves no trace
 
 A refusal the operator never sees invites the next attempt. Each named
 point at which a guard refuses counts the refusal in ``shirudo_tamper``,
-an array map ``init`` creates, freezes and pins at every boot. Only the
+an array map ``init`` creates, freezes and pins at every boot. One
+point counts what it lets through: a signal to an authorized task from
+a task without authority (``SealSignal``, T3). Only the
 hooks add to it, and no task resets it from userspace. ``shirudo
 status`` lists the counters that are not zero with their meaning,
 ``status --json`` carries them all, and the keepalive carries the total
@@ -1669,14 +1680,14 @@ U13 Revocation does not reach everything
 
 U14 The operator runs commands from a registry package
    :Affects: ``shirudo bpm config update --base-package oci://...``
-      without ``-f`` on the operator host.
+      without ``--file`` on the operator host.
    :Consequence: The command takes the Beefile from a package checked
       only against the registry's manifest digest and runs its updater
       commands on the host that holds the signing key. A hostile
       registry becomes ADV-F.
    :Status: Confirmed in code; the usage text says the commands are
       trusted as operator-side code.
-   :Meanwhile: Always pass ``-f`` with a local Beefile, or a local
+   :Meanwhile: Always pass ``--file`` with a local Beefile, or a local
       ``.bee`` file as the base package.
 
 U15 Certificates are fetched without a pin
@@ -1792,8 +1803,8 @@ the procedures.
 
 The deployer:
 
-- Builds the kernel with the signed-loader ABI and the ``tpm_command``
-  patch (A3), ``CONFIG_MODULE_SIG`` with enforcement and
+- Builds the kernel with the signed-loader ABI and the carried kernel
+  patches (A3), ``CONFIG_MODULE_SIG`` with enforcement and
   ``CONFIG_SECURITY_LOCKDOWN_LSM`` (A4), ``CONFIG_COMPAT=n`` (A5), both
   dm-verity keyring options off and no foreign built-in certificate
   (A7), the TPM driver without ``i2c-dev`` or ``spidev`` on its bus
@@ -1809,8 +1820,8 @@ The deployer:
   certificates included (U4)
 - Treats the TPM owner password as known to root (R20)
 - Never runs ``shirudo bpm config update --base-package oci://...``
-  without ``-f`` (U14), and checks the fingerprint of every certificate
-  it installs (U15)
+  without ``--file`` (U14), and checks the fingerprint of every
+  certificate it installs (U15)
 - Watches the size of the eventlog (U6) and the keepalives, and treats a
   ``tampered`` status as an incident to understand, not a condition to
   retry (:doc:`/operate/troubleshoot/incident-tampered`)

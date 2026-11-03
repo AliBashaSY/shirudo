@@ -148,7 +148,8 @@ Add a repository
 
       target# shirudo bpm config register list
 
-   The command prints one repository name per line.
+   The command prints ``Registered sources:`` and one repository name
+   per line, or ``none``.
 
 #. Fetch the repository's index now instead of waiting for the timer:
 
@@ -217,12 +218,19 @@ while it runs.
    .. code-block:: console
 
       target# shirudo image status
-      {"root_hash":"12dbf3c750834908c0f6510481e35fbb0cc76cf6b1896de524304535e63aff0f","pcr":14,"sequence":1,"reset_count":1,"restart_count":0,"pending":false,"consistent":true}
+      Config root hash:      6d5ed552f4487728d1ccec8604ddb44b66b18e3430614c20bb4d284995f99f63
+      PCR:                   14
+      Sequence:              1
+      TPM reset count:       1
+      Restart count:         0
+      Pending:               no
+      Consistent:            yes
 
    This output is from a target that runs its boot config. After an
-   update, ``root_hash`` is the root that ``image verify`` printed and
-   ``sequence`` is higher. ``pending`` must be ``false`` and
-   ``consistent`` must be ``true``. The command exits 1 otherwise. If an
+   update, ``Config root hash`` is the root that ``image verify`` printed
+   and ``Sequence`` is higher. ``Pending`` must be ``no`` and
+   ``Consistent`` must be ``yes``. The command exits 1 otherwise, and
+   ``--json`` prints the same fields as one JSON document. If an
    activation stays pending, follow :doc:`/operate/maintain/backup-recovery`.
 
 Install a package
@@ -246,9 +254,10 @@ Install a package
 
       target# shirudo bpm list
 
-   The command prints one line per installed package: its name, its
-   version and the repository it came from, or ``direct`` for an
-   ``oci://`` install.
+   The command prints ``Installed packages:``, a header and one line per
+   installed package: its name, its version and the repository it came
+   from, or ``direct`` for an ``oci://`` install. With no package
+   installed it prints ``none``.
 
 #. Check that its upatches are loaded:
 
@@ -422,8 +431,8 @@ longer than 30 seconds for it fails. A long download therefore delays
 the status keepalive and the map export, and a keepalive can fail while
 it runs. :doc:`/operate/troubleshoot/troubleshooting` has the message.
 
-Every command except ``status`` is refused while a config activation is
-pending, ``bpm uninstall`` included. :doc:`/operate/maintain/backup-recovery`
+Every command except ``status`` and ``image status`` is refused while a
+config activation is pending, ``bpm uninstall`` included. :doc:`/operate/maintain/backup-recovery`
 describes that state.
 
 Next steps

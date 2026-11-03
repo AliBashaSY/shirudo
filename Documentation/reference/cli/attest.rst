@@ -21,16 +21,16 @@ Usage
 .. code-block:: none
 
    shirudo attest [--nonce=<nonce>] [--pcrs=<list>] [--challenge=<challenge>]
-                  [--output=<path>]
+                  [-o <path> | --output=<path>]
    shirudo attest verify ...
    shirudo attest predict ...
    shirudo attest challenge ...
    shirudo attest --list-cmds
 
-Every option takes its value after ``=``. ``attest`` with no argument
-produces evidence. It does not print help. The subcommands run on the
-operator host: :doc:`attest-verify`, :doc:`attest-predict`,
-:doc:`attest-challenge`.
+Every option takes its value after ``=`` or as the next argument, and
+``-o`` is ``--output``. ``attest`` with no argument produces evidence. It
+does not print help. The subcommands run on the operator host:
+:doc:`attest-verify`, :doc:`attest-predict`, :doc:`attest-challenge`.
 
 Description
 -----------
@@ -80,7 +80,7 @@ Options
      - ``<challenge>``, a file
      - none
      - Credential challenge from ``attest challenge`` to activate.
-   * - ``--output``
+   * - ``--output``, ``-o``
      - ``<path>``
      - standard output
      - Write the evidence to ``<path>`` with mode 0600. A path in sealed
@@ -100,11 +100,13 @@ Exit status
    * - 1
      - No TPM answered (``attest: no TPM answered (tpm_error)``), the
        register is not bound this boot, the TPM refused the challenge
-       (``attest: the challenge was refused (tampered?)``), or producing
+       (``attest: the TPM refused the challenge; the attestation key or
+       the endorsement key is not this TPM's``), or producing
        or writing the evidence failed.
    * - 2
-     - An unknown option, an invalid ``--nonce`` or ``--pcrs``, or a
-       ``--challenge`` file that is not a shirudo credential challenge.
+     - An unknown option, an option given last without its value, an
+       invalid ``--nonce`` or ``--pcrs``, or a ``--challenge`` file that
+       is not a shirudo credential challenge.
 
 Files and environment
 ---------------------

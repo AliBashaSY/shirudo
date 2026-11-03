@@ -254,10 +254,11 @@ loads, archives and then extends; a failed archive copy or a refused
 extension undoes the load, so no upatch runs unmeasured. An unload
 extends first and detaches after, so a stopped process leaves a register
 that records more than happened, never less. A load stopped between its
-pins and its extension leaves pins the register does not cover:
-``status`` reports them and the next load or unload undoes them under
-the same lock before it acts, so the register stays behind what runs
-for one command at most. An append that fails after
+pins and its extension leaves pins, and after its archive copy an
+archive, that the register does not cover: ``status`` reports them and
+the next load or unload undoes them under the same lock before it acts,
+so the register stays behind what runs for one command at most. An
+append that fails after
 a successful extension is reported as a desync for the operator to
 reconcile.
 
