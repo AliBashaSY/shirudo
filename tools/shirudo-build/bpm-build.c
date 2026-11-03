@@ -1309,7 +1309,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		}
 		ret = build_package_load(bpf_o, src_path, load, name,
 					 labels, nr_labels, pkey, cert);
-		xfree(labels, (size_t)nr_labels * sizeof(*labels));
+		xfree(labels, size_mul(nr_labels, sizeof(*labels)));
 		if (bpf_o == object)
 			unlink(object);
 		if (ret)

@@ -1844,7 +1844,13 @@ int build_package_load(const char *bpf_o, const char *src_path,
 			goto out;
 		}
 		socket_policy_map_idx = map_idx;
-		label_len = sizeof(*label_blob) + nr_policies * sizeof(*label_entries);
+		if (check_mul_overflow(nr_policies, sizeof(*label_entries),
+				       &label_len) ||
+		    check_add_overflow(label_len, sizeof(*label_blob),
+				       &label_len)) {
+			err = -EOVERFLOW;
+			goto out;
+		}
 		label_blob = xcalloc(1, label_len);
 		if (!label_blob) {
 			err = -ENOMEM;

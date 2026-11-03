@@ -124,8 +124,9 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 				bool bind_policy_maps, __u32 *map_idx,
 				__u32 *socket_map_idx)
 {
-	struct upatch_policy_label_header h;
 	__u32 count, version, idx, socket_idx;
+	struct upatch_policy_label_header h;
+	struct upatch_policy_label_entry e;
 	__u32 header_len = bind_policy_maps ? sizeof(h) :
 		offsetof(struct upatch_policy_label_header,
 			 socket_policy_map_idx);
@@ -147,11 +148,9 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 	      socket_idx >= nr_maps ||
 	      socket_idx >= UPATCH_MAPS_MAX || idx == socket_idx)) ||
 	    (!bind_policy_maps && (idx || socket_idx)) || !count ||
-	    (__u64)header_len + (__u64)count *
-	    sizeof(struct upatch_policy_label_entry) != len)
+	    size_add(header_len, size_mul(count, sizeof(e))) != len)
 		return false;
 	for (__u32 i = 0; i < count; i++) {
-		struct upatch_policy_label_entry e;
 		__u64 bit;
 
 		memcpy(&e, p + header_len + i * sizeof(e), sizeof(e));
