@@ -3,9 +3,10 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t6143 -- a load stopped between its pins and its extend cannot keep a
-# upatch running unmeasured: status reports the pins the register does
-# not cover as tampered, and the next upatch command, a load or an
-# unload of another upatch, undoes them before it acts.
+# upatch running unmeasured: the signal that stopped it is counted,
+# status reports the pins the register does not cover as tampered, and
+# the next upatch command, a load or an unload of another upatch, undoes
+# them before it acts.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -35,6 +36,13 @@ for f in "$LOAD" "$UNLOAD" "$FIXTURES/$OTHER.upatch" \
 	[ -s "$f" ] || test_skip_all "missing fixture $f"
 done
 [ -s "$EVENTLOG" ] || test_skip_all "no eventlog"
+counter() {
+	"$SHIRUDO_BIN" status --json | python3 -c '
+import json, sys
+print(json.load(sys.stdin)["tamper_attempts"]["counters"][sys.argv[1]])
+' "$1"
+}
+before=$(counter SealSignal) || test_skip_all "no tamper counters"
 # An earlier test of the family may have left either loaded.
 [ ! -e "$PINDIR" ] || "$SHIRUDO_BIN" upatch unload "$UNLOAD" >/dev/null 2>&1
 [ ! -e "$OTHERDIR" ] ||
@@ -85,6 +93,9 @@ test_expect_success 'a load stopped before its extend leaves pins without a reco
 	stopped_load &&
 	[ -e "$PINDIR/link" ] &&
 	[ ! -e "$ARCHIVE" ]
+'
+test_expect_success 'the signal that stopped the load is counted as SealSignal' '
+	[ "$(counter SealSignal)" -ge $((before + 1)) ]
 '
 test_expect_success 'status reports the unmeasured pins as tampered' '
 	"$SHIRUDO_BIN" status --json >"$W/status.json" 2>/dev/null &&

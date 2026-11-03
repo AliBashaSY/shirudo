@@ -3,7 +3,8 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * The tamper counters: one per point at which a guard refuses a caller,
- * counted where the refusal happens and read back by `shirudo status`.
+ * counted where the refusal happens, and one, SealSignal, at which the
+ * seal counts what it lets through; read back by `shirudo status`.
  * On the BPF side, include after vmlinux.h and the libbpf headers.
  */
 
@@ -47,6 +48,7 @@ enum tamper_point {
 	TAMPER_KEXEC,
 	TAMPER_TPM_EXTEND,
 	TAMPER_OBJ_GET,
+	TAMPER_SEAL_SIGNAL,
 	TAMPER_MAX
 };
 
@@ -58,8 +60,7 @@ struct {
 	__type(value, __u64);
 } shirudo_tamper SEC(".maps");
 
-static __always_inline int shirudo_tamper_deny(enum tamper_point point,
-					       int err)
+static __always_inline void shirudo_tamper_count(enum tamper_point point)
 {
 	__u32 key = point;
 	__u64 *count;
@@ -67,6 +68,12 @@ static __always_inline int shirudo_tamper_deny(enum tamper_point point,
 	count = bpf_map_lookup_elem(&shirudo_tamper, &key);
 	if (count)
 		__sync_fetch_and_add(count, 1);
+}
+
+static __always_inline int shirudo_tamper_deny(enum tamper_point point,
+					       int err)
+{
+	shirudo_tamper_count(point);
 	return err;
 }
 #endif /* __BPF__ */

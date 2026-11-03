@@ -762,6 +762,9 @@ An authorized process is protected against being taken over:
 - ``lsm/perf_event_alloc`` refuses a perf event bound to a marked task
   (``SealPerf``). Events on all tasks of a CPU, and events opened on a
   task before the exec that marks it, are not checked (D9).
+- ``lsm/task_kill`` counts a signal to a marked task from a task
+  without authority (``SealSignal``) and lets it through: root can stop
+  a command (R2, U17), and the count shows that it did.
 - The exec of a runtime file by a traced task is refused
   (``ExecTraced``), and so is one under a seccomp filter, without a
   counter.
@@ -800,7 +803,7 @@ An authorized process is protected against being taken over:
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
-   ``ExecTraced``, ``ExeIdentity``
+   ``SealSignal``, ``ExecTraced``, ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
@@ -891,7 +894,8 @@ leaves. A load whose archive copy or extension fails is undone, pins
 and archive. An unload or a purge is measured before it detaches, so an
 interruption leaves a register that claims more than happened, never a
 detach it does not know. A load that root stops between its pins and
-its extend, with ``SIGKILL`` say, leaves pins the register does not
+its extend, with ``SIGKILL`` say (counted as ``SealSignal``), leaves
+pins the register does not
 cover and the upatch attached: ``shirudo status`` reports them
 (``UpatchesMeasured``, verdict ``tampered``) and the next upatch
 command, ``bpm``'s included, undoes them before it acts. A measuring
@@ -1280,9 +1284,10 @@ R2 The command interface of the runtime binary is the boundary
    signed artifact (R16), apply any published directive (R1), drain a
    serializer with ``shirudo upatch map`` and send the output where it
    chooses, and hold the lock files shirudo serializes on. No hook
-   covers signals, so root can also stop a running command, which
-   keeps open whatever descriptors it holds (U17); a load stopped
-   before its extend is reported and undone (T5).
+   refuses signals, so root can also stop a running command, which
+   ``lsm/task_kill`` counts (``SealSignal``) and which keeps open
+   whatever descriptors it holds (U17); a load stopped before its
+   extend is reported and undone (T5).
    ``CAP_SYS_RESOURCE`` can rewrite a process's executable link, which
    ``lsm/task_prctl`` refuses and the mark does not depend on. The
    initrd's bootstrap binary and the memory of authorized tasks stay
@@ -1709,7 +1714,8 @@ U16 Boot restore is not all or nothing
 U17 A stopped runtime command keeps its descriptors
    :Affects: The descriptor checks of T2.
    :Consequence: Runtime commands open link pins for short checks. No
-      hook covers signals, so root can stop such a command while it
+      hook refuses signals, ``lsm/task_kill`` only counts them
+      (``SealSignal``), so root can stop such a command while it
       holds a link descriptor, and that link then stays attached after
       its pin is removed by an unload or a revocation.
    :Status: Code-path reading, not reproduced.

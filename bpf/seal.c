@@ -254,6 +254,25 @@ int BPF_PROG(shirudo_seal_ptrace_access_check,
 	return 0;
 }
 
+/*
+ * A signal from outside is let through: root may end a command that
+ * hangs, and systemd stops the runs its timers start. It is counted, so
+ * that a load stopped between its pins and its extend shows in the
+ * counters before the next command finds what it left. Signal 0 only
+ * probes.
+ */
+SEC("lsm/task_kill")
+int BPF_PROG(shirudo_seal_task_kill, struct task_struct *p,
+	     struct kernel_siginfo *info, int sig, const struct cred *cred,
+	     int ret)
+{
+	if (ret)
+		return ret;
+	if (sig && shirudo_marked(p) && !seal_task_authorized())
+		shirudo_tamper_count(TAMPER_SEAL_SIGNAL);
+	return 0;
+}
+
 SEC("lsm.s/file_open")
 int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 {

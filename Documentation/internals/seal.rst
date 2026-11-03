@@ -124,6 +124,10 @@ it. ``lsm/ptrace_access_check`` refuses every ptrace access to a marked
 task (``SealPtrace``), which also covers ``/proc/<pid>/mem``,
 ``pidfd_getfd()`` and ``process_vm_readv()``. ``lsm/perf_event_alloc``
 refuses a perf event bound to a marked task (``SealPerf``).
+``lsm/task_kill`` lets a signal to a marked task through, since root
+may end a command that hangs and systemd stops the runs its timers
+start, and counts one from a task without authority (``SealSignal``),
+so that a command stopped on purpose shows in the counters.
 ``lsm/mmap_file`` and ``lsm/file_mprotect`` refuse a marked task
 executable memory that is writable or that does not come from the
 runtime image. ``bpf2`` makes every exec of a runtime file a secure-exec,

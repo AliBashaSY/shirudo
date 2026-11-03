@@ -1214,7 +1214,7 @@ int cmd_status(int argc, const char **argv)
 		json_kv_bool(&e, "bpffs_mounted", assets.bpffs_mounted);
 		json_obj_close(&e);
 		/*
-		 * What the guards refused this boot, every counter by name
+		 * What the guards counted this boot, every counter by name
 		 * so a collector's keys stay the same from one record to
 		 * the next; null until init has pinned the map.
 		 */
@@ -1447,7 +1447,7 @@ int cmd_status(int argc, const char **argv)
 		printf("\n");
 		conditions_print(conds, nc);
 
-		printf("\nTamper attempts (refused this boot):\n");
+		printf("\nTamper attempts (this boot):\n");
 		if (tamper_rc == -ENOENT)
 			printf("  (none recorded: init has not pinned the counters "
 			       "this boot)\n");

@@ -61,6 +61,7 @@ shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	  SEAL_PTRACE_PIN },
 	{ "shirudo_seal_perf_event_alloc",
 	  SEAL_PERF_PIN },
+	{ "shirudo_seal_task_kill",        SEAL_TASK_KILL_PIN },
 };
 
 const struct image_guard

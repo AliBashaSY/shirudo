@@ -207,7 +207,7 @@ order:
    ``sb_remount`` and the ``file_open`` recorder, open the bpffs root so
    the recorder notes the mount, and freeze that record.
 #. Load ``seal`` on the shared maps, freeze its scratch map, and attach
-   its twenty-six hooks, then ``mmap_file`` and ``file_mprotect``.
+   its twenty-seven hooks, then ``mmap_file`` and ``file_mprotect``.
 #. Attach ``lsm/bpf_map``, then ``lsm/bpf_prog_load``, then ``lsm/bpf``.
 
 ``init`` pins every link as it attaches it, before the next fallible
@@ -443,6 +443,16 @@ when the record it needs is missing.
      - ``ENOMEM``
      - None
      - Closed: no storage refuses the fork of a marked parent.
+   * - ``lsm/task_kill`` (``seal``)
+     - A signal other than 0 to a marked task from a task without
+       authority. Let through, root may end a command that hangs and
+       systemd stops the runs its timers start, and counted, so that a
+       load stopped between its pins and its extend shows before the
+       next command undoes what it left.
+     - none
+     - ``SealSignal``
+     - Which signal is an attack: a stop by root and one by systemd
+       count alike (R2).
    * - ``lsm/ptrace_access_check`` (``seal``)
      - Every ptrace access mode against a marked task, which covers
        attach, ``/proc/<pid>/mem``, ``pidfd_getfd()`` and

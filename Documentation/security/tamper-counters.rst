@@ -9,7 +9,9 @@ Tamper counters
 ===============
 
 Each point at which one of shirudo's guards refuses a caller has a
-counter. The guard adds one to it when it refuses. The counters live in
+counter. The guard adds one to it when it refuses. One point counts
+what it lets through: ``SealSignal``, a signal to a shirudo task from a
+task without authority, which no hook refuses. The counters live in
 the array map ``shirudo_tamper``, which ``init`` creates, freezes and
 pins at ``/run/shirudo/bpffs/tamper`` at every boot, so they count this
 boot's refusals. No task resets them from userspace; only the hooks add
@@ -162,6 +164,11 @@ counter.
      - perf event bound to a shirudo task
      - ``lsm/perf_event_alloc``
      - ``EACCES``
+   * - ``SealSignal``
+     - a signal other than 0 to a shirudo task from a task without
+       authority; let through
+     - ``lsm/task_kill``
+     - none
    * - ``ExecTraced``
      - exec of shirudo by a traced task
      - ``lsm.s/bprm_check_security`` in the seal object, and
@@ -264,7 +271,7 @@ image, the way the drop-in that ``shirudo-gen-runtime --unit-output``
 generates starts ``init``. A binary outside the runtime image cannot
 open the counter map, and its attempt moves ``ObjGet``.
 
-``shirudo status`` prints the section ``Tamper attempts (refused this
+``shirudo status`` prints the section ``Tamper attempts (this
 boot):`` with one line per counter that is not zero: its name, its
 count and its meaning. It prints ``none`` when every counter is zero,
 and ``(none recorded: init has not pinned the counters this boot)``

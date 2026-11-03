@@ -375,8 +375,8 @@ signed config image.
    * - ``t6142-policy-socket-inheritance``
      - Task policy is inherited by a listener and its accepted socket
    * - ``t6143-unmeasured-load``
-     - A load stopped before its extend is reported by status and undone
-       by the next upatch command
+     - A load stopped before its extend is counted, reported by status
+       and undone by the next upatch command
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -716,6 +716,8 @@ tests assert that a refusal moves its counter:
      - ``t6124``
    * - ``SealPtrace``
      - ``t6135``
+   * - ``SealSignal``
+     - ``t6143``
    * - ``ExecTraced``
      - ``t6137``
    * - ``Kexec``

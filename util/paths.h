@@ -81,6 +81,7 @@
 #define SEAL_TASK_ALLOC_PIN	BPFFS_DIR "/seal_task_alloc_link"
 #define SEAL_PTRACE_PIN		BPFFS_DIR "/seal_ptrace_access_check_link"
 #define SEAL_PERF_PIN		BPFFS_DIR "/seal_perf_event_alloc_link"
+#define SEAL_TASK_KILL_PIN	BPFFS_DIR "/seal_task_kill_link"
 #define SEAL_UNLINK_PIN		BPFFS_DIR "/seal_inode_unlink_link"
 #define SEAL_RENAME_PIN		BPFFS_DIR "/seal_inode_rename_link"
 #define SEAL_SETATTR_PIN \

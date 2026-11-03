@@ -71,7 +71,7 @@ loaded, captured from the test VM:
      TpmMeasured      OK      NV index 0x01818E00 readable
      ConfigActive     OK      config dc90bacc356f.. is active
 
-   Tamper attempts (refused this boot):
+   Tamper attempts (this boot):
      LoadNotLoader            21  program load that is not a signed loader
      MapCreate                 1  map creation by another executable
      BpfCommand               10  detach, update, delete or unclassified bpf() command
@@ -200,7 +200,8 @@ verdict is derived from them.
 Tamper attempts
 ~~~~~~~~~~~~~~~
 
-The counters of refused attempts this boot, one per guard point, with the
+The counters of attempts this boot, one per guard point, each refused
+there except ``SealSignal``, which is let through and counted, with the
 counters that are not zero listed by name, count and meaning. ``none``
 means every counter is zero. ``(none recorded: init has not pinned the
 counters this boot)`` means ``init`` did not get that far.
@@ -592,9 +593,12 @@ makes ``status`` itself fail with ``shirudo: image state:``.
 Read the tamper counters
 ------------------------
 
-Each counter counts the attempts that one guard point refused this boot.
-The refusal worked, so a counter alone does not change any condition or
-the verdict. It tells you that something on the host tried.
+Each counter counts the attempts at one guard point this boot, refused
+there except ``SealSignal``. A refusal worked, so a counter alone does
+not change any condition or the verdict. It tells you that something on
+the host tried. A ``SealSignal`` tells you that a shirudo command was
+signalled from outside; a load stopped that way shows under
+``UpatchesMeasured`` until the next upatch command undoes it.
 
 These four attempts, made as root without shirudo's runtime authority,
 were each refused:
@@ -618,7 +622,7 @@ LSM returns. The report afterwards lists one more count under
 
    target# shirudo status
    ...
-   Tamper attempts (refused this boot):
+   Tamper attempts (this boot):
      LoadNotLoader            39  program load that is not a signed loader
      MapCreate                 1  map creation by another executable
      BpfCommand               16  detach, update, delete or unclassified bpf() command

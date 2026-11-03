@@ -92,6 +92,8 @@ static const struct {
 		"extension of shirudo's TPM NV index by another executable" },
 	[TAMPER_OBJ_GET] = { "ObjGet",
 		"pin, map or link opened by another executable" },
+	[TAMPER_SEAL_SIGNAL] = { "SealSignal",
+		"signal to a shirudo task (let through)" },
 };
 
 const char *tamper_name(enum tamper_point point)

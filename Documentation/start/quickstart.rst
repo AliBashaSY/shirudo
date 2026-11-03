@@ -162,7 +162,7 @@ Check enforcement
         TpmMeasured      OK      NV index 0x01818E00 readable
         ConfigActive     OK      config dc90bacc356f.. is active
 
-      Tamper attempts (refused this boot):
+      Tamper attempts (this boot):
         LoadNotLoader            15  program load that is not a signed loader
         MapCreate                 1  map creation by another executable
         BpfCommand                8  detach, update, delete or unclassified bpf() command
