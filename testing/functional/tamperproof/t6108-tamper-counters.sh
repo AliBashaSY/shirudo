@@ -114,7 +114,7 @@ test_expect_success 'root cannot reset the counters' '
 
 test_expect_success 'the human report lists the counters that moved' '
 	"$SHIRUDO_BIN" status >"$W/status" &&
-	grep -q "^Tamper attempts (refused this boot):" "$W/status" &&
+	grep -q "^Tamper attempts (this boot):" "$W/status" &&
 	grep -q "^  PinRename  *[1-9][0-9]*  rename of a pin" "$W/status" &&
 	grep -q "^  BpffsUmount  *[1-9][0-9]*  unmount of the private bpffs" \
 		"$W/status" &&
