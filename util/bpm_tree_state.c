@@ -426,10 +426,22 @@ int tree_selector_matches(const struct tree_selector *s)
 		if (config_rc || !config_any) {
 			memset(cfg_found, 0, sizeof(cfg_found));
 			if (strsprintf(path, sizeof(path), "/boot/config-%s",
-				       u.release) < 0 ||
-			    read_selector_config_file(path, s, cfg_slots, cfg_values,
-						      cfg_found, false))
-				return 0;
+				       u.release) < 0)
+				return -ENAMETOOLONG;
+			ret = read_selector_config_file(path, s, cfg_slots,
+							cfg_values, cfg_found,
+							false);
+			/*
+			 * No config to show, or a value longer than any
+			 * selector names, matches nothing; a config that
+			 * cannot be read is no answer, and the sync must not
+			 * move past the operation on it.
+			 */
+			if (ret == -ENOENT || ret == -ENOSPC)
+				return config_rc && config_rc != -ENOENT &&
+				       config_rc != -ENOSPC ? config_rc : 0;
+			if (ret)
+				return ret;
 		}
 		/*
 		 * The config is read into the first entry of a key, so a key

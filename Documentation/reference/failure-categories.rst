@@ -551,7 +551,8 @@ rc=<rc> (<strerror>)`` and exits 1:
      - An interrupted operation cannot be reconciled with the tree
        eventlog.
    * - ``selector_evaluate``
-     - The selector cannot be evaluated.
+     - The selector cannot be evaluated: the node labels or the kernel
+       config cannot be read. The cursor stays on the operation.
    * - ``operation_digest_parse``
      - The operation digest is malformed.
    * - ``expected_payload_digest``

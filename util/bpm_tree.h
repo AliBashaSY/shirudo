@@ -102,7 +102,8 @@ int tree_emit_publication(const struct tree_publication *pub,
 /*
  * Evaluate a publication selector against the running node.  An empty
  * selector is an unconstrained wildcard and matches every node.  1 on a
- * match, 0 without one, -errno when the node's labels cannot be read.
+ * match, 0 without one, -errno when the node's labels or kernel config
+ * cannot be read.
  */
 int tree_selector_matches(const struct tree_selector *selector);
 

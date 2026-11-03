@@ -372,7 +372,10 @@ publication:
 
 - A sync moves the target's cursor past an operation whose selectors do
   not match. The target never applies that operation later, even when
-  its labels or kernel change.
+  its labels or kernel change. A selector the target cannot evaluate,
+  because its kernel config or its node labels cannot be read, stops
+  the sync with ``selector_evaluate`` and leaves the cursor on the
+  operation, so the next sync tries again.
 - An ``add`` whose attach target is in a kernel module that is not
   loaded is recorded as ``skipped: module not loaded``, and the cursor
   moves past it.
