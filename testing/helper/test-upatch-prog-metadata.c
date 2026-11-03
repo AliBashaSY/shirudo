@@ -182,17 +182,17 @@ static int expect_policy_labels(const struct upatch *u)
 	if (!raw || len != sizeof(header) + count * sizeof(entry))
 		return fail("policy label section length mismatch");
 	memcpy(&header, raw, sizeof(header));
-	if (le32toh(header.magic) != UPATCH_POLICY_LABELS_MAGIC ||
-	    le32toh(header.version) != UPATCH_POLICY_LABELS_VERSION ||
-	    le32toh(header.count) != count ||
-	    le32toh(header.policy_map_idx) != 0 ||
-	    le32toh(header.socket_policy_map_idx) != 1)
+	if (le32_to_cpu(header.magic) != UPATCH_POLICY_LABELS_MAGIC ||
+	    le32_to_cpu(header.version) != UPATCH_POLICY_LABELS_VERSION ||
+	    le32_to_cpu(header.count) != count ||
+	    le32_to_cpu(header.policy_map_idx) != 0 ||
+	    le32_to_cpu(header.socket_policy_map_idx) != 1)
 		return fail("policy label header mismatch");
 	cursor = raw + sizeof(header);
 	for (size_t i = 0; i < count; i++) {
 		memcpy(&entry, cursor, sizeof(entry));
 		cursor += sizeof(entry);
-		if (le64toh(entry.bit) != bits[i] ||
+		if (le64_to_cpu(entry.bit) != bits[i] ||
 		    strcmp(entry.policy, policies[i]) ||
 		    strcmp(entry.path, paths[i]))
 			return fail("policy label entry mismatch");

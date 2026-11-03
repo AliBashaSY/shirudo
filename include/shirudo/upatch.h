@@ -93,18 +93,21 @@ enum upatch_section_tag {
 #define UPATCH_POLICY_PATH_MAX		4096u
 
 struct upatch_policy_label_header {
-	__u32	magic;
-	__u32	version;
-	__u32	count;
-	__u32	policy_map_idx;
-	__u32	socket_policy_map_idx;
+	__le32	magic;
+	__le32	version;
+	__le32	count;
+	__le32	policy_map_idx;
+	__le32	socket_policy_map_idx;
 };
 
 struct upatch_policy_label_entry {
-	__u64	bit;
+	__le64	bit;
 	char	policy[UPATCH_POLICY_NAME_MAX];
 	char	path[UPATCH_POLICY_PATH_MAX];
 };
+
+BUILD_BUG_ON(sizeof(struct upatch_policy_label_header) != 20);
+BUILD_BUG_ON(sizeof(struct upatch_policy_label_entry) != 4168);
 
 struct upatch_signed_section {
 	__le32		tag;		/* enum upatch_section_tag */

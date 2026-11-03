@@ -64,17 +64,15 @@ struct task_authority {
 	__u32	pad2;
 };
 
-BUILD_BUG_ON(sizeof(struct device_authority) != 48);
-BUILD_BUG_ON(sizeof(struct task_authority) != 8);
-BUILD_BUG_ON(sizeof(struct identity) != 584);
-
 struct task_policy {
 	__u64	active;
 	__u64	candidate;
 };
 
-_Static_assert(sizeof(struct task_policy) == 16,
-	       "task policy ABI");
+BUILD_BUG_ON(sizeof(struct device_authority) != 48);
+BUILD_BUG_ON(sizeof(struct task_authority) != 8);
+BUILD_BUG_ON(sizeof(struct identity) != 584);
+BUILD_BUG_ON(sizeof(struct task_policy) != 16);
 
 /* The bpffs mount init made, which the unmount guard keeps mounted. */
 struct mount_record {

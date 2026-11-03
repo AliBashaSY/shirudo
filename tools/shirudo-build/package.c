@@ -1591,9 +1591,9 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	if (policy_labels_len) {
 		const struct upatch_policy_label_header *labels =
 			policy_labels;
-		__u32 map_idx = le32toh(labels->policy_map_idx);
+		__u32 map_idx = le32_to_cpu(labels->policy_map_idx);
 		__u32 socket_map_idx =
-			le32toh(labels->socket_policy_map_idx);
+			le32_to_cpu(labels->socket_policy_map_idx);
 
 		if (map_idx >= nr_maps || map_idx >= UPATCH_MAPS_MAX ||
 		    socket_map_idx >= nr_maps ||
@@ -1850,17 +1850,15 @@ int build_package_load(const char *bpf_o, const char *src_path,
 			err = -ENOMEM;
 			goto out;
 		}
-		label_blob->magic = htole32(UPATCH_POLICY_LABELS_MAGIC);
-		label_blob->version = htole32(UPATCH_POLICY_LABELS_VERSION);
-		label_blob->count = htole32(nr_policies);
-		label_blob->policy_map_idx = htole32(policy_map_idx);
+		label_blob->magic = cpu_to_le32(UPATCH_POLICY_LABELS_MAGIC);
+		label_blob->version = cpu_to_le32(UPATCH_POLICY_LABELS_VERSION);
+		label_blob->count = cpu_to_le32(nr_policies);
+		label_blob->policy_map_idx = cpu_to_le32(policy_map_idx);
 		label_blob->socket_policy_map_idx =
-			htole32(socket_policy_map_idx);
+			cpu_to_le32(socket_policy_map_idx);
 		label_entries = (void *)(label_blob + 1);
-		for (__u32 i = 0; i < nr_policies; i++) {
+		for (__u32 i = 0; i < nr_policies; i++)
 			label_entries[i] = policies[i];
-			label_entries[i].bit = htole64(policies[i].bit);
-		}
 	}
 	err = finalize_object(obj, out_path, upatch_name, 0, NULL, src_path,
 			      label_blob, label_len, pkey_path, cert_path);

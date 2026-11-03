@@ -134,11 +134,11 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 		return false;
 	memset(&h, 0, sizeof(h));
 	memcpy(&h, p, header_len);
-	count = le32toh(h.count);
-	version = le32toh(h.version);
-	idx = le32toh(h.policy_map_idx);
-	socket_idx = le32toh(h.socket_policy_map_idx);
-	if (le32toh(h.magic) != UPATCH_POLICY_LABELS_MAGIC ||
+	count = le32_to_cpu(h.count);
+	version = le32_to_cpu(h.version);
+	idx = le32_to_cpu(h.policy_map_idx);
+	socket_idx = le32_to_cpu(h.socket_policy_map_idx);
+	if (le32_to_cpu(h.magic) != UPATCH_POLICY_LABELS_MAGIC ||
 	    version != (bind_policy_maps ?
 			UPATCH_POLICY_LABELS_VERSION :
 			UPATCH_POLICY_UNLABELS_VERSION) ||
@@ -155,7 +155,7 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 		__u64 bit;
 
 		memcpy(&e, p + header_len + i * sizeof(e), sizeof(e));
-		bit = le64toh(e.bit);
+		bit = le64_to_cpu(e.bit);
 		if (!bit || (bit & (bit - 1)) ||
 		    !has_nul(e.policy, sizeof(e.policy)) || !e.policy[0] ||
 		    !has_nul(e.path, sizeof(e.path)) || e.path[0] != '/')

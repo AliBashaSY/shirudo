@@ -1301,7 +1301,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 					struct upatch_policy_label_entry *e =
 						&labels[nr_labels++];
 
-					e->bit = p->bit;
+					e->bit = cpu_to_le64(p->bit);
 					strscpy(e->policy, p->id, sizeof(e->policy));
 					strscpy(e->path, p->paths[k], sizeof(e->path));
 				}

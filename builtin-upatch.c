@@ -2766,11 +2766,11 @@ static void apply_policy_labels(const char *artifact)
 	if (!labels)
 		goto out;
 	header = labels;
-	count = le32toh(header->count);
+	count = le32_to_cpu(header->count);
 	entries = (const void *)((const __u8 *)labels + sizeof(*header));
 	for (__u32 i = 0; i < count; i++) {
 		const struct upatch_policy_label_entry *entry = &entries[i];
-		__u64 bits = le64toh(entry->bit), current = 0;
+		__u64 bits = le64_to_cpu(entry->bit), current = 0;
 		ssize_t n;
 		int fd;
 
