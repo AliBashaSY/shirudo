@@ -208,7 +208,8 @@ attribute. It uses a cached mark instead: ``seal_dir_marks``, inode
 storage that records a directory's label. A directory gets its mark when
 any task opens it and its label is read, when an extended attribute on it
 changes, and when it is created under a marked parent. A directory open
-whose label read finds nothing removes the mark.
+whose label read finds nothing removes the mark; a read that fails, for
+a caller who may not read the directory, leaves it.
 
 shirudo's writers keep the mark in place. They open the parent directory
 and create files relative to that descriptor, which holds the inode in

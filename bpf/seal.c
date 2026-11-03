@@ -117,12 +117,18 @@ static __always_inline bool seal_is_dir(struct inode *inode)
 	return (BPF_CORE_READ(inode, i_mode) & S_IFMT) == S_IFDIR;
 }
 
-/* Remember a directory's label as just read (len bytes), or forget it. */
+/*
+ * Remember a directory's label as just read (len bytes), or forget it
+ * when there is none. A read that failed, for a caller who may not read
+ * the directory say, tells nothing about the label: the mark stands.
+ */
 static __always_inline void seal_mark(struct inode *inode, const char *label,
 				      int len)
 {
 	struct seal_dir_mark *m;
 
+	if (len < 0 && len != -ENODATA && len != -EOPNOTSUPP)
+		return;
 	if (len != LABEL_LEN) {
 		bpf_inode_storage_delete(&seal_dir_marks, inode);
 		return;

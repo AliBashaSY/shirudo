@@ -1390,16 +1390,16 @@ R15 Directory marks can be evicted
    The label at creation and the entry checks follow a mark that the
    seal keeps on a directory inode in memory. Root can evict the inode,
    by dropping caches for instance, whenever shirudo does not hold the
-   directory open, or make the label read fail (U12). While the mark is
-   absent, root can create entries in a labeled directory and
-   hard-link an already labeled inode into it; a hard link is the same
-   inode and carries the label. shirudo replaces state by rename, so
-   root can keep earlier labeled versions alive through hard links in
-   an unsealed directory on the same file system and bring them back.
-   An unlabeled entry stays inert: shirudo neither follows nor restores
-   it. A returned labeled entry is taken for shirudo's own. Detection:
-   only signatures and measurement; an archived upatch restored at the
-   next boot appears in the init event's set. Mitigation: D6.
+   directory open. While the mark is absent, root can create entries in
+   a labeled directory and hard-link an already labeled inode into it; a
+   hard link is the same inode and carries the label. shirudo replaces
+   state by rename, so root can keep earlier labeled versions alive
+   through hard links in an unsealed directory on the same file system
+   and bring them back. An unlabeled entry stays inert: shirudo neither
+   follows nor restores it. A returned labeled entry is taken for
+   shirudo's own. Detection: only signatures and measurement; an
+   archived upatch restored at the next boot appears in the init event's
+   set. Mitigation: D6.
 
 R16 Any artifact ever signed loads at any time
    There is no version floor, no expiry and no per-target
@@ -1630,8 +1630,8 @@ U12 Another LSM can switch the seal off
       permission, and every LSM's ``inode_permission`` hook takes part.
       A policy that grants write or unlink but refuses read makes a
       labeled file look unlabeled, and the operation goes through
-      without a counter. The same refusal on a directory open removes
-      its mark.
+      without a counter. The same refusal on a directory open leaves
+      its mark as it was.
    :Status: Confirmed in code and in the kernel; the attack is a
       code-path reading, not reproduced.
    :Meanwhile: Run no other LSM whose policy root can change at
