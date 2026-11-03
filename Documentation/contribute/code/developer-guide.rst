@@ -655,17 +655,23 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``bpf_user_double_fetch``
      - Two reads of the same user address, between which the memory can
        change.
+   * - ``bpf_map_use_after_delete``
+     - A map value read through the pointer a lookup returned after
+       ``bpf_map_delete_elem()`` removed an entry of the same map, whose
+       element another update can already have taken.
 
 A new pattern worth refusing gets a rule: write it from scratch under
-the BSD-2-Clause, with a header that says why the pattern is refused,
-fix the tree in the commits before it, and add it to the table. A rule
-exists only to run in CI. Where the tree gives it no match, add a case
-of what it refuses to ``t0006-check-coccinelle``, which shows that it
-matches.
-``check-coccinelle.sh`` runs a rule without the headers a file
-includes, which keeps it fast but leaves the types they declare
-unknown. A rule that needs them, as ``sizeof_ptr`` needs the type of a
-struct member, names its include options on a ``#spatch`` line.
+the BSD-2-Clause, or carry one from a project that offers it with a
+BSD-2-Clause branch, keeping its SPDX and copyright lines and naming it
+in ``check-spdx.sh``, as ``bpf_map_use_after_delete`` comes from
+tetragon. Give it a header that says why the pattern is refused, fix the
+tree in the commits before it, and add it to the table. A rule exists
+only to run in CI. Where the tree gives it no match, add a case of what
+it refuses to ``t0006-check-coccinelle``, which shows that it matches.
+``check-coccinelle.sh`` runs a rule without the headers a file includes,
+which keeps it fast but leaves the types they declare unknown. A rule
+that needs them, as ``sizeof_ptr`` needs the type of a struct member,
+names its include options on a ``#spatch`` line.
 
 The ``bpf_`` rules read the BPF sources through
 :src:`testing/coccinelle/bpf.macros`, which tells Coccinelle what

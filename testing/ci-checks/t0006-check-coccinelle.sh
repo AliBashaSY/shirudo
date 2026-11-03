@@ -149,7 +149,7 @@ test_expect_success 'each rule taken from CERT C reports its sample' '
 # One case of each BPF hazard, and beside it the safe form, which no rule
 # reports: the count of reports shows the safe forms stay quiet.
 BPF_RULES="bpf_map_rmw bpf_cas_unchecked bpf_check_then_insert \
-bpf_publish bpf_user_double_fetch"
+bpf_publish bpf_user_double_fetch bpf_map_use_after_delete"
 write_bpf_samples() {
 	cat >"$1" <<'EOF'
 struct {
@@ -275,6 +275,32 @@ void flags_task(struct task_struct *task)
 		m->flags |= 1;
 }
 
+__u64 read_after_delete(__u32 *k)
+{
+	struct val *v;
+
+	v = bpf_map_lookup_elem(&vals, k);
+	if (!v)
+		return 0;
+	bpf_map_delete_elem(&vals, k);
+	return v->count;
+}
+
+__u64 read_before_delete(__u32 *k)
+{
+	struct val *v;
+	__u64 n;
+
+	v = bpf_map_lookup_elem(&vals, k);
+	if (!v)
+		return 0;
+	n = v->count;
+	bpf_map_delete_elem(&vals, k);
+	if (!v)
+		return 0;
+	return n;
+}
+
 struct meta *flags_reassigned(struct sock *sk)
 {
 	struct meta *m = bpf_sk_storage_get(&socks, sk, 0, 0);
@@ -303,8 +329,8 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 	for r in $BPF_RULES; do
 		grep -q "^$r: samples.bpf.c:" "$W/err" || exit 1
 	done &&
-	grep -q "5 of 5 rules matched" "$W/err" &&
-	[ "$(grep -c "^bpf_[a-z_]*: samples.bpf.c:" "$W/err")" = 6 ]
+	grep -q "6 of 6 rules matched" "$W/err" &&
+	[ "$(grep -c "^bpf_[a-z_]*: samples.bpf.c:" "$W/err")" = 7 ]
 '
 
 test_expect_success 'the tree passes' '

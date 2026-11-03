@@ -5,7 +5,8 @@
 # t0002 -- .github/scripts/check-spdx.sh: the tag every source needs, its form
 # by file type, the two expressions, the dual licence of everything a
 # BPF object compiles and a Beefile ships, the licences vendored C may
-# carry, on a throwaway repository, and the tree itself.
+# carry, the upstream tag of a file carried from another project, on a
+# throwaway repository, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -63,10 +64,13 @@ put "$R/pkg/p.bpf.c" '// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause' \
 	'#include "vmlinux.h"' '#include "common.h"'
 put "$R/pkg/decoders/x.lua" '-- SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause'
 put "$R/pkg/gen.py" '#!/usr/bin/env python3' '# SPDX-License-Identifier: BSD-2-Clause'
+put "$R/testing/coccinelle/bpf_map_use_after_delete.cocci" \
+	'// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)' \
+	'// Copyright Authors of Tetragon'
 
 test_expect_success 'a tree of well-tagged files passes' '
 	check "$R" &&
-	grep -q "SPDX: 18 files checked" "$W/out"
+	grep -q "SPDX: 19 files checked" "$W/out"
 '
 
 B=$W/bad
@@ -96,10 +100,12 @@ put "$B/pkg/gen.py" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$B/nolic/Beefile" '[package]' 'name = "x"'
 put "$B/vendor/types.h" '/* SPDX-License-Identifier: GPL-2.0 */'
 put "$B/vendor/bare.c" 'int x;'
+put "$B/testing/coccinelle/other.cocci" \
+	'// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)'
 
 test_expect_success 'a tree of badly tagged files fails' '
 	! check "$B" &&
-	grep -q "^16 SPDX problems" "$W/err"
+	grep -q "^17 SPDX problems" "$W/err"
 '
 
 test_expect_success 'the form of the tag follows the file type' '
@@ -136,6 +142,10 @@ test_expect_success 'a package ships its sources under the licence of its Beefil
 test_expect_success 'vendored C carries a licence the binaries can take' '
 	grep -q "^vendor/types.h: licence expression .GPL-2.0. is not one vendored code may carry" "$W/err" &&
 	grep -q "^vendor/bare.c: vendored without an SPDX-License-Identifier tag on line 1" "$W/err"
+'
+
+test_expect_success 'only a file carried from another project keeps its upstream tag' '
+	grep -q "^testing/coccinelle/other.cocci: licence expression .(GPL-2.0-only OR BSD-2-Clause). is neither" "$W/err"
 '
 
 test_expect_success 'the tree passes' '

@@ -5,8 +5,9 @@
 # .github/scripts/check-spdx.sh -- verify the SPDX-License-Identifier tags of the
 # tracked sources against the licensing rules in AGENTS.md: every source
 # file carries a tag in the kernel's form for its type, the expression is
-# BSD-2-Clause or GPL-2.0 OR BSD-2-Clause, and everything compiled into a
-# BPF object, the headers it includes too, and every source a Beefile
+# BSD-2-Clause or GPL-2.0 OR BSD-2-Clause, or the upstream one of a file
+# carried from another project, and everything compiled into a BPF
+# object, the headers it includes too, and every source a Beefile
 # packages carries the dual licence.
 #
 #   .github/scripts/check-spdx.sh
@@ -53,6 +54,17 @@ vendor_ok() {
 	'(LGPL-2.1 OR BSD-2-Clause)'|'BSD-2-Clause'|\
 	'GPL-2.0 WITH Linux-syscall-note'|\
 	'((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)')
+		return 0 ;;
+	esac
+	return 1
+}
+
+# A file carried from another project outside vendor/ keeps its upstream
+# tag, which offers the BSD-2-Clause branch shirudo takes it under:
+# bpf_map_use_after_delete.cocci comes from tetragon.
+carried_ok() {
+	case "$1:$2" in
+	'testing/coccinelle/bpf_map_use_after_delete.cocci:(GPL-2.0-only OR BSD-2-Clause)')
 		return 0 ;;
 	esac
 	return 1
@@ -156,8 +168,10 @@ check_file() {
 	"$BSD"|"$DUAL")
 		;;
 	*)
-		report "$f" "licence expression '$expr' is neither '$BSD' nor '$DUAL'"
-		return ;;
+		carried_ok "$f" "$expr" || {
+			report "$f" "licence expression '$expr' is neither '$BSD' nor '$DUAL'"
+			return
+		} ;;
 	esac
 	expected="${prefix}SPDX-License-Identifier: ${expr}${suffix}"
 	if [ "$line" != "$expected" ]; then

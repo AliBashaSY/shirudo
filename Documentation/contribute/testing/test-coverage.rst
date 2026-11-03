@@ -37,7 +37,7 @@ signed config image.
    * - ``t0002-check-spdx``
      - ``check-spdx.sh``: tag form by file type, the two expressions,
        the dual license of BPF sources and package files, vendored
-       licenses, and the tree itself
+       licenses, the upstream tag of a carried file, and the tree itself
    * - ``t0003-check-style``
      - ``check-style.sh``: checkpatch at 100 columns, the block-comment
        opener, the subject length, the integer, parser, copy and

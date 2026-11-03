@@ -372,9 +372,10 @@ one usually still compiles and passes tests.
   on every kernel: update a value other CPUs share, of a map that is not
   per-CPU or in inode, socket or cgroup storage, with
   `__sync_fetch_and_add()` and its kin; insert a missing key with
-  `BPF_NOEXIST` and look it up again on `-EEXIST`; check every
-  compare-and-swap result, as a failed one changes and orders nothing;
-  publish a filled record with
+  `BPF_NOEXIST` and look it up again on `-EEXIST`; read or copy a map
+  value before deleting its entry, as the map hands the element to the
+  next update at once; check every compare-and-swap result, as a failed
+  one changes and orders nothing; publish a filled record with
   `__atomic_store_n(&p, v, __ATOMIC_RELEASE)` or a value-returning
   atomic, never `WRITE_ONCE()`, and read it through `READ_ONCE()` and an
   address dependency, or a load-acquire where the code compares the index
@@ -522,8 +523,10 @@ one usually still compiles and passes tests.
   from `<shirudo/byteorder.h>`. `.github/scripts/check-coccinelle.sh`
   runs the semantic patches in `testing/coccinelle/`, each a pattern the
   tree is kept free of, and fails on any match; a pattern worth refusing
-  for good gets a rule there, written from scratch, with the tree fixed
-  first. CI runs all five on every pull request,
+  for good gets a rule there, written from scratch or carried with its
+  SPDX and copyright lines from a project that offers it with a
+  BSD-2-Clause branch, with the tree fixed first. CI runs all five on
+  every pull request,
   and `.github/scripts/build-commits.sh <range>` builds every commit of
   a pull request on its own; run them before handing work over.
 - Shell that a workflow runs lives in `.github/scripts/`, not inline in

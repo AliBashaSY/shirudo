@@ -106,7 +106,8 @@ kernel.
        that a process runs. Not where only ``kprobe`` and ``kretprobe``
        programs use it, nor where one guarded program uses it alone.
    * - Updates of shared values, inserting a missing key,
-       compare-and-swap, reading user memory twice
+       compare-and-swap, using a value after deleting its entry, reading
+       user memory twice
      - On every kernel: other CPUs, or another thread, run at the same
        time.
    * - Publishing a record
@@ -170,6 +171,19 @@ insert, and the later insert overwrites what the first one stored, and
 any update made to it in between. Insert with ``BPF_NOEXIST``, and when
 it returns ``-EEXIST``, look the key up again and use the entry the
 other CPU made. ``bpf_check_then_insert`` refuses the ``BPF_ANY`` form.
+
+Using a value after deleting its entry
+--------------------------------------
+
+``bpf_map_delete_elem()`` gives a hash map's element back to the map's
+free list at once, without waiting for an RCU grace period. An update on
+this CPU or another one can take it and fill it with another entry while
+a pointer from an earlier lookup still reads it: RCU keeps the memory
+valid, not its contents. Read or copy what the code needs before the
+delete. ``bpf_map_use_after_delete`` refuses a read through the pointer
+after a delete from the same map; it cannot tell whether the two keys
+are equal and takes any delete. Testing the pointer against ``NULL``
+reads nothing and is left alone.
 
 Compare-and-swap
 ----------------
