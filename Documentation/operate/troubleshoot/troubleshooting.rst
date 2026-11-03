@@ -22,6 +22,35 @@ Before you begin
 - On the target, ``shirudo`` means the binary on the runtime image,
   ``/run/shirudo/runtime/usr/bin/shirudo``, see
   :ref:`runtime-invocation`.
+- Run ``shirudo status`` first. It is the target's own report, and it
+  still runs when most other commands refuse. The ``Status`` line gives
+  the verdict, and the five conditions below it the checks the verdict
+  is derived from. A healthy target starts its report like this:
+
+  .. code-block:: console
+
+     target# shirudo status
+     Host:              docs
+     Roles:             target
+     Mode:              production
+     Status:            ok
+     Version-ID:        447b34bc8bc5547334ced4c737f987a9d3f8f03e332cf234626f0b81b5955064
+
+     Conditions:
+       TYPE             STATUS  DETAIL
+       LsmAttached      OK      lsm/bpf link present and pinned
+       KeyringSealed    OK      bpf serial=130847582, dm-verity serial=962472513, pins match
+       ChainIntact      OK      live register == eventlog replay
+       TpmMeasured      OK      NV index 0x01818E00 readable
+       ConfigActive     OK      config dc90bacc356f.. is active
+     ...
+
+  A verdict other than ``ok`` is followed by its reason in parentheses,
+  and the condition that raised it shows ``WARN`` or ``ALERT`` with a
+  detail. Look the verdict up under `Status verdicts`_. ``status`` exits
+  0 whatever the verdict, so read the ``Status`` line, not the exit
+  status. If ``status`` itself prints ``shirudo: image state:``, start
+  from that message under `Commands refused before they run`_.
 - Every message shirudo prints also goes to the journal under the
   identifier ``shirudo``. Read the messages of this boot, and the two
   ``init`` runs, with:
@@ -512,6 +541,12 @@ Status verdicts
    Enforcement did not come up this boot and the target is unprotected.
    Read the journal of ``shirudo-initrd.service``, fix the cause and
    reboot, see :ref:`status-lsm-off`.
+
+``init-pending``
+   ``init`` did not finish this boot. The ``lsm/bpf`` link is pinned,
+   but no keyring is recorded. Read the journal of
+   ``shirudo-initrd.service``, fix the cause and reboot, see
+   :doc:`/operate/deploy/initialize`.
 
 Next steps
 ----------
