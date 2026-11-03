@@ -361,10 +361,10 @@ static int build_target_ok(const char *target);
 static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 {
 	struct bpm_build_upatch *upatch = NULL, *tree_owner = NULL;
-	struct bpm_build_rodata *rodata = NULL;
-	struct tree_selector *sel = NULL;
 	struct bpm_build_policy *policy = NULL;
+	struct bpm_build_rodata *rodata = NULL;
 	struct bpm_build_file *file = NULL;
+	struct tree_selector *sel = NULL;
 	bool tree_section = false;
 	char *save = NULL, *line;
 	char section[48] = {};
@@ -1243,13 +1243,13 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		char source[PATH_MAX], load[PATH_MAX], unload[PATH_MAX];
 		char object[PATH_MAX], name[UPATCH_NAME_MAX];
+		struct upatch_policy_label_entry *labels = NULL;
 		struct bpm_build_upatch *u = &spec->upatches[i];
 		const char *bpf_o = source, *src_path = NULL;
 		__u8 payload[CRYPTO_SHA256_LEN];
 		struct upatch parsed = {};
-		int ret;
-		struct upatch_policy_label_entry *labels = NULL;
 		__u32 nr_labels = 0;
+		int ret;
 
 		if (build_resolve_source(spec, u->source, source, sizeof(source),
 					 &(struct stat){}))

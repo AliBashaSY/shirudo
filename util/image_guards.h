@@ -13,6 +13,7 @@
 #define MOUNT_HOOK_COUNT 5
 #define OBSERVER_HOOK_COUNT 9
 #define IMAGE_OBSERVER_HOOK_COUNT 4
+
 struct image_guard {
 	const char *prog;
 	const char *pin;

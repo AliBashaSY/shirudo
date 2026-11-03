@@ -139,8 +139,8 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	      const struct linux_binprm *bprm)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct task_policy *policy;
 	struct task_authority *authority;
+	struct task_policy *policy;
 
 	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
 	if (policy) {
@@ -161,10 +161,10 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	     __u64 clone_flags, int ret)
 {
 	struct task_struct *parent = bpf_get_current_task_btf();
-	struct task_policy *parent_policy;
 	struct task_authority *parent_authority;
-	struct task_policy *policy;
+	struct task_policy *parent_policy;
 	struct task_authority *authority;
+	struct task_policy *policy;
 
 	if (ret)
 		return ret;
@@ -539,13 +539,13 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct task_authority *authority;
-	struct task_policy *policy;
 	struct seal_scratch *scratch;
-	struct bpf_dynptr tdp;
+	struct task_policy *policy;
 	struct inode *real_inode;
+	struct bpf_dynptr tdp;
+	bool trusted;
 	__u64 value;
 	int len;
-	bool trusted;
 
 	if (ret)
 		return ret;

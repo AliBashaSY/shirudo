@@ -63,7 +63,7 @@ static int read_policy(const char *pin, __u64 *active)
 {
 	struct task_policy policy = {};
 	union bpf_attr attr = {};
-	int fd, pidfd, rc;
+	int fd, pidfd, ret;
 
 	pidfd = syscall(SYS_pidfd_open, getpid(), 0);
 	if (pidfd < 0)
@@ -72,30 +72,30 @@ static int read_policy(const char *pin, __u64 *active)
 	attr.file_flags = BPF_F_RDONLY;
 	fd = syscall(SYS_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 	if (fd < 0) {
-		rc = -errno;
+		ret = -errno;
 		close(pidfd);
-		return rc;
+		return ret;
 	}
 	memset(&attr, 0, sizeof(attr));
 	attr.map_fd = fd;
 	attr.key = (uintptr_t)&pidfd;
 	attr.value = (uintptr_t)&policy;
-	rc = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr)) ?
+	ret = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr)) ?
 		-errno : 0;
 	close(fd);
 	close(pidfd);
-	if (!rc)
+	if (!ret)
 		*active = policy.active;
-	return rc;
+	return ret;
 }
 
 static int read_socket_policy(int socket_fd, __u64 *active)
 {
 	union bpf_attr attr = {};
 	__u64 value = 0;
-	int fd, rc;
+	int fd, ret;
 
-	attr.pathname = (uintptr_t)"/run/shirudo/bpffs/socket_policy_map";
+	attr.pathname = (uintptr_t)SOCKET_POLICY_PIN;
 	attr.file_flags = BPF_F_RDONLY;
 	fd = syscall(SYS_bpf, BPF_OBJ_GET, &attr, sizeof(attr));
 	if (fd < 0)
@@ -104,15 +104,15 @@ static int read_socket_policy(int socket_fd, __u64 *active)
 	attr.map_fd = fd;
 	attr.key = (uintptr_t)&socket_fd;
 	attr.value = (uintptr_t)&value;
-	rc = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
-	if (rc && errno != ENOENT)
-		rc = -errno;
+	ret = syscall(SYS_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
+	if (ret && errno != ENOENT)
+		ret = -errno;
 	else
-		rc = 0;
+		ret = 0;
 	close(fd);
-	if (!rc)
+	if (!ret)
 		*active = value;
-	return rc;
+	return ret;
 }
 
 static int check_socket_policy(int socket_fd, __u64 expected)
@@ -122,18 +122,29 @@ static int check_socket_policy(int socket_fd, __u64 expected)
 	return read_socket_policy(socket_fd, &actual) || actual != expected;
 }
 
-static int parse_policy(const char *text, __u64 *value);
+static int parse_policy(const char *text, __u64 *value)
+{
+	__u64 parsed;
+	char *end;
+
+	errno = 0;
+	parsed = strtoull(text, &end, 0);
+	if (errno || end == text || *end)
+		return -EINVAL;
+	*value = parsed;
+	return 0;
+}
 
 static int accept_child(void)
 {
-	__u64 active = 0;
-	__u64 task_bits, socket_bits;
 	const char *listener_text = getenv("SHIRUDO_TEST_LISTENER");
-	const char *task_text = getenv("SHIRUDO_TEST_TASK_BITS");
 	const char *socket_text = getenv("SHIRUDO_TEST_SOCKET_BITS");
-	char *end;
+	const char *task_text = getenv("SHIRUDO_TEST_TASK_BITS");
+	__u64 task_bits, socket_bits;
+	__u64 active = 0;
 	long listener;
 	int accepted;
+	char *end;
 
 	if (!listener_text || !task_text || !socket_text ||
 	    parse_policy(task_text, &task_bits) ||
@@ -141,7 +152,7 @@ static int accept_child(void)
 		return 1;
 	listener = strtol(listener_text, &end, 10);
 	if (*end || listener < 0 ||
-	    read_policy("/run/shirudo/bpffs/policy_map", &active) ||
+	    read_policy(POLICY_PIN, &active) ||
 	    active != task_bits)
 		return 1;
 	accepted = accept((int)listener, NULL, NULL);
@@ -152,15 +163,15 @@ static int accept_child(void)
 
 static int socket_inheritance(const char *script, __u64 extra)
 {
-	struct sockaddr_in addr = {};
 	static const char contents[] =
 		"#!/run/shirudo/runtime/usr/bin/shirudo-policy-probe accept-child\n";
+	int listener, client, status, ret, length;
 	char acceptor[PATH_MAX], number[32];
+	struct sockaddr_in addr = {};
 	__u64 active = 0;
-	int listener, client, status, rc, length;
 	pid_t child;
 
-	if (read_policy("/run/shirudo/bpffs/policy_map", &active) || !active)
+	if (read_policy(POLICY_PIN, &active) || !active)
 		return 1;
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 	if (listener < 0 || check_socket_policy(listener, active))
@@ -170,9 +181,9 @@ static int socket_inheritance(const char *script, __u64 extra)
 	if (bind(listener, (struct sockaddr *)&addr, sizeof(addr)) ||
 	    listen(listener, 1))
 		return 1;
-	rc = getsockname(listener, (struct sockaddr *)&addr,
-			 (socklen_t[]){ sizeof(addr) });
-	if (rc)
+	ret = getsockname(listener, (struct sockaddr *)&addr,
+			  (socklen_t[]){ sizeof(addr) });
+	if (ret)
 		return 1;
 	length = snprintf(acceptor, sizeof(acceptor), "%s.acceptor", script);
 	if (length < 0 || (size_t)length >= sizeof(acceptor))
@@ -227,19 +238,6 @@ static int socket_inheritance(const char *script, __u64 extra)
 	return !WIFEXITED(status) || WEXITSTATUS(status);
 }
 
-static int parse_policy(const char *text, __u64 *value)
-{
-	char *end;
-	__u64 parsed;
-
-	errno = 0;
-	parsed = strtoull(text, &end, 0);
-	if (errno || end == text || *end)
-		return -EINVAL;
-	*value = (__u64)parsed;
-	return 0;
-}
-
 static int set_policy(const char *path, const char *text)
 {
 	__u64 value;
@@ -265,7 +263,7 @@ static int check_policy(const char *text)
 	__u64 expected, active = 0;
 
 	if (parse_policy(text, &expected) ||
-	    read_policy("/run/shirudo/bpffs/policy_map", &active))
+	    read_policy(POLICY_PIN, &active))
 		return 1;
 	return active != expected;
 }

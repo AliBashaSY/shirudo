@@ -1769,17 +1769,17 @@ static int check_upatch_name(const char *name)
 
 int build_package_load(const char *bpf_o, const char *src_path,
 		       const char *out_path, const char *upatch_name,
-			       const struct upatch_policy_label_entry *policies,
-			       __u32 nr_policies,
-			       const char *pkey_path, const char *cert_path)
+		       const struct upatch_policy_label_entry *policies,
+		       __u32 nr_policies,
+		       const char *pkey_path, const char *cert_path)
 {
-	struct bpf_object *obj;
-	struct upatch_policy_label_header *label_blob = NULL;
-	struct upatch_policy_label_entry *label_entries;
-	struct bpf_map *map, *policy_map, *socket_policy_map;
 	__u32 label_len = 0, policy_map_idx = 0, socket_policy_map_idx = 0;
-	__u32 map_idx = 0;
+	struct upatch_policy_label_header *label_blob = NULL;
+	struct bpf_map *map, *policy_map, *socket_policy_map;
+	struct upatch_policy_label_entry *label_entries;
 	int handler_ids[2] = {-1, -1};
+	struct bpf_object *obj;
+	__u32 map_idx = 0;
 	int err;
 
 	err = check_upatch_name(upatch_name);

@@ -1589,26 +1589,26 @@ static int open_shared_policy_map(const char *pin, __u32 type,
 {
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
-	int fd, rc;
+	int fd, ret;
 
 	fd = bpf_obj_get(pin);
 	if (fd < 0)
 		return -errno;
-	rc = bpf_map_get_info_by_fd(fd, &info, &info_len);
-	if (rc) {
-		rc = -errno;
+	ret = bpf_map_get_info_by_fd(fd, &info, &info_len);
+	if (ret) {
+		ret = -errno;
 		goto err;
 	}
 	if (info.type != type || info.key_size != sizeof(__s32) ||
 	    info.value_size != value_size || info.map_flags != map_flags) {
-		rc = -EINVAL;
+		ret = -EINVAL;
 		goto err;
 	}
 	if (fd == 0) {
 		int copy_fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
 
 		if (copy_fd < 0) {
-			rc = -errno;
+			ret = -errno;
 			goto err;
 		}
 		close(fd);
@@ -1617,7 +1617,7 @@ static int open_shared_policy_map(const char *pin, __u32 type,
 	return fd;
 err:
 	close(fd);
-	return rc;
+	return ret;
 }
 
 /*

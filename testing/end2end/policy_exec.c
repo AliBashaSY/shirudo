@@ -25,8 +25,8 @@ static int exec_child(const char *path, const char *name,
 		      const char *mode, const char *arg)
 {
 	char *const argv[] = {(char *)name, (char *)mode, (char *)arg, NULL};
-	pid_t pid;
 	int status;
+	pid_t pid;
 
 	pid = fork();
 	if (pid < 0)
@@ -64,7 +64,7 @@ static int listen_loopback(int *port)
 static int socket_connect(const char *name, const char *port_string)
 {
 	struct sockaddr_in address = {};
-	int fd, port, rc;
+	int fd, port, err;
 
 	port = atoi(port_string);
 	fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -73,14 +73,13 @@ static int socket_connect(const char *name, const char *port_string)
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	address.sin_port = htons(port);
-	rc = connect(fd, (struct sockaddr *)&address, sizeof(address));
-	if (!rc) {
+	if (!connect(fd, (struct sockaddr *)&address, sizeof(address))) {
 		close(fd);
 		return !strcmp(name, "socket-a") ? 28 : 29;
 	}
-	rc = errno;
+	err = errno;
 	close(fd);
-	return !strcmp(name, "socket-b") && rc == EACCES ? 100 : 101;
+	return !strcmp(name, "socket-b") && err == EACCES ? 100 : 101;
 }
 
 static void report(int *failed, int number, int passed, const char *title)
@@ -95,11 +94,11 @@ static void report(int *failed, int number, int passed, const char *title)
 
 int main(int argc, char **argv)
 {
+	int listener, accepted, port, port_len, socket_a, socket_b;
 	const char *name = basename(argv[0]);
-	char port_string[8];
 	struct sockaddr_in peer = {};
 	socklen_t peer_len = sizeof(peer);
-	int listener, accepted, port, port_len, socket_a, socket_b;
+	char port_string[8];
 	int socket_b_probe;
 	int failed = 0;
 
