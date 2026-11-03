@@ -417,6 +417,26 @@ one usually still compiles and passes tests.
   review and blitmus.
   `Documentation/upatches/write/memory-consistency/hazards.rst` says
   where each hazard applies.
+- **Plan for what an upatch program does not see.** The kernel skips
+  `kprobe` and `kretprobe` runs while another one runs on the CPU or the
+  CPU is in a `bpf()` map call, runs of an `fentry`, `fexit`, `fmod_ret`
+  or `tp_btf` program already running there, and `kretprobe` returns
+  beyond its instances, so a detector can miss what it looks for. Refuse
+  an operation in an `lsm` program wherever a hook covers it, never in
+  `fmod_ret`: a skipped `fmod_ret` run lets the call through, and a task
+  can arrange the skip. An `lsm` program does not see what an LSM before
+  it refused, and its hook runs before the operation, which can still
+  fail. In a softirq the current task is whichever one was interrupted. A
+  sleepable program walks RCU pointers under `bpf_rcu_read_lock()`. Check
+  map update and delete results where a lost update matters, size LRU
+  maps with room to spare, and read values userspace rewrites under
+  `BPF_F_LOCK`. Prefer `lsm`, `tp_btf` and `fentry` to `kprobe`, which
+  misses calls the compiler inlined.
+  `Documentation/upatches/write/pitfalls.rst` explains each. When
+  `shirudo build` starts accepting another attach kind, the same commit
+  adds its run context to the table in `hazards.rst` and what it misses
+  or cannot rely on to `pitfalls.rst`, so that agents writing upatches
+  for it meet its hazards there.
 
 ## Memory, JSON and logging
 

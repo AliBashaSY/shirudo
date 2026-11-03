@@ -119,6 +119,11 @@ error-injection marks take effect only with
 ``CONFIG_FUNCTION_ERROR_INJECTION``. On any other function the load fails
 in phase ``payload_load``. ``fmod_ret.s`` declares the sleepable variant.
 
+The kernel skips a run of an ``fmod_ret`` program that is already running
+on the CPU, and the call then goes through. :doc:`pitfalls` says when, and
+why an ``lsm`` program is the place to refuse an operation where a hook
+covers it.
+
 lsm
 ---
 

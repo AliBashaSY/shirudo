@@ -153,7 +153,10 @@ of a map that is not per-CPU, and for inode, socket and cgroup storage,
 which hooks on different CPUs reach for the same inode, socket or
 cgroup. Update such a value with ``__sync_fetch_and_add()``,
 ``__sync_fetch_and_or()`` and their kin, which do it in one instruction.
-``bpf_map_rmw`` refuses the plain forms.
+``bpf_map_rmw`` refuses the plain forms. A global variable is a value
+too, of the one array map that holds the object's ``.bss`` or ``.data``,
+which every CPU shares; ``bpf_map_rmw`` does not see it, so update it
+the same way.
 
 A per-CPU counter needs an atomic only where a run can come in between
 on the same CPU: in a program the kernel does not guard, as listed
@@ -184,6 +187,14 @@ delete. ``bpf_map_use_after_delete`` refuses a read through the pointer
 after a delete from the same map; it cannot tell whether the two keys
 are equal and takes any delete. Testing the pointer against ``NULL``
 reads nothing and is left alone.
+
+An update of a key the hash map already holds does the same to the old
+element: the map links a new element in its place and hands the old one
+to the next update on that CPU. A program that holds a pointer from a
+lookup and updates the value through it changes the entry in place; one
+that replaces the entry with ``bpf_map_update_elem()`` while other runs
+hold pointers to it lets them read or write a stranger's entry. No rule
+refuses this.
 
 Compare-and-swap
 ----------------
@@ -259,6 +270,8 @@ Related
 -------
 
 - :doc:`blitmus` to test an ordering on each architecture
+- :doc:`/upatches/write/pitfalls` for what a program misses or cannot
+  rely on
 - :doc:`/upatches/write/maps-arenas-serializers` for the arena table and
   its serializer
 - :doc:`/contribute/code/developer-guide` for the Coccinelle rules
