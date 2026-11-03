@@ -907,7 +907,7 @@ tree operations run without it.
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
    ``t6122``, ``t6128``
-:Residual: R4, R12, R20, U6, U8, U9, U18
+:Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window
 ~~~~~~~~~~~~~~
@@ -942,7 +942,7 @@ either system call (``Kexec``).
 :Refusal: ``EPERM`` from ``kexec_load(2)`` and ``kexec_file_load(2)``
 :Counters: ``Kexec``
 :Tests: ``t4003``, ``t4101``, ``t6126``
-:Residual: R6, R7, R12, U11, U16, U18
+:Residual: R6, R7, R12, U11, U16
 
 .. _tm-t7:
 
@@ -1696,22 +1696,6 @@ U17 A stopped runtime command keeps its descriptors
    :Meanwhile: A stopped shirudo process is visible in the process
       list; compare the loaded links with the measured set when one is
       found.
-
-U18 Restoring many upatches overflows the init record
-   :Affects: ``init`` (T5, T6).
-   :Consequence: ``init`` encodes the init record of a boot in a fixed
-      64 KiB buffer after it has extended the register. The record takes
-      about 1.9 KiB, plus 95 bytes and the name for every restored
-      upatch, so about 550 upatches with 20-character names fit. With
-      more, every boot extends the register, fails to append the record
-      and logs ``eventlog: append failed after extend -- chain/log
-      desync; operator must reconcile``. The register is then ahead of
-      the log, ``shirudo status`` reports a register its replay cannot
-      explain, and attestation fails for want of an init record.
-   :Status: Confirmed in code; the count is computed from the record's
-      fields, not reproduced.
-   :Meanwhile: Keep the archived upatches of a target well below the
-      limit; :doc:`/operate/plan/scalability` gives the sizes.
 
 U19 A decoder cannot name a long upatch
    :Affects: Lua decoders and map export (T13).

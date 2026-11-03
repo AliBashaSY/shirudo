@@ -124,14 +124,10 @@ shirudo limits
      - Limit
      - When it is reached
    * - Boot restore
-     - The init record of a boot holds at most 64 KiB: about 1.9 KiB, plus
-       95 bytes and the name for every restored upatch. About 550
-       upatches with 20-character names fit, 400 with 63-character names.
-     - ``init`` extends the register and then fails to append its
-       record, with ``eventlog: append failed after extend -- chain/log
-       desync; operator must reconcile``. ``shirudo status`` then
-       reports a register its replay cannot explain. See U18 in the
-       :doc:`/security/threat-model`.
+     - The init record of a boot grows with the restored set: about
+       1.9 KiB, plus 95 bytes and the name for every restored upatch, in
+       a buffer sized for the set.
+     - The eventlog limits apply, see the next row.
    * - Eventlog
      - Readers accept at most 8 MiB, across all boots, and the log is never
        rotated. A load or an unload adds about 330 bytes plus the name,

@@ -29,6 +29,7 @@
 #include <bpf/libbpf.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
@@ -1040,14 +1041,20 @@ static int append_init_event(const struct measured_upatch *set,
 			     const __u8 init_digest[32],
 			     const struct chain_init_info *info)
 {
-	char writer_hex[HEXLEN(TPM_NV_RSA_BYTES)];
-	char buf[64 * 1024];
-	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	char pcr_hex[HEXLEN(32)], anchor_hex[HEXLEN(32)], chain_hex[HEXLEN(32)];
+	/* Every set entry is a name, its digest and their keys. */
+	size_t cap = size_add(64 * 1024, size_mul(n, UPATCH_NAME_MAX + 128));
 	char name_hex[HEXLEN(TPM_NAME_LEN)], tree_hex[HEXLEN(32)];
+	char writer_hex[HEXLEN(TPM_NV_RSA_BYTES)];
 	char cert_hex[HEXLEN(32)], set_hex[HEXLEN(32)];
+	struct json_emit e = { .cap = cap };
 	char phase_hex[HEXLEN(32)];
 	size_t i;
+	int ret;
+
+	e.buf = xmalloc(cap);
+	if (!e.buf)
+		return -ENOMEM;
 
 	hex_encode(cert_sha, 32, cert_hex);
 	hex_encode(set_digest, 32, set_hex);
@@ -1097,15 +1104,18 @@ static int append_init_event(const struct measured_upatch *set,
 	if (e.err) {
 		pr_err("eventlog: init entry encode failed: %s",
 		       strerror(-e.err));
+		xfree(e.buf, cap);
 		return e.err;
 	}
 	/*
 	 * From the initrd the record waits under /run for the root file
 	 * system's init: the eventlog is on a root that is read-only here.
 	 */
-	return eventlog_append_to(initrd_mode ?
-				  eventlog_pending_path() :
-				  eventlog_path(), buf);
+	ret = eventlog_append_to(initrd_mode ?
+				 eventlog_pending_path() :
+				 eventlog_path(), e.buf);
+	xfree(e.buf, cap);
+	return ret;
 }
 
 static bool phase_unmeasured(const __u8 pcr[32])
