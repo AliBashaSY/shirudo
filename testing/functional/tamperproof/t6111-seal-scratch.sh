@@ -183,7 +183,8 @@ test_expect_success 'root cannot truncate, chmod or chown a labelled file' '
 '
 
 # At an fsuid that cannot read the label, root keeps the CAP_SYS_ADMIN a
-# security.* xattr change needs, while the seal's label read fails.
+# security.* xattr change needs, while the seal's label read fails: the
+# mark of the inode decides, and the change is refused.
 cat >"$WORK/fsuid.py" <<'PYEOF'
 import ctypes
 import os
@@ -210,10 +211,10 @@ sys.exit(len(os.getxattr(sys.argv[1], \"security.bpf.shirudo\")) != 64)
 
 test_expect_success 'a label read root cannot make leaves a directory sealed' '
 	! python3 "$WORK/fsuid.py" entry "$MNT/privdir" 2>/dev/null &&
-	python3 -c "
+	! python3 -c "
 import os, sys
 os.getxattr(sys.argv[1], \"security.shirudo-probe\")
-" "$MNT/privdir" &&
+" "$MNT/privdir" 2>/dev/null &&
 	[ ! -e "$MNT/privdir/entry" ]
 '
 
