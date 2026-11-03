@@ -121,49 +121,37 @@ static bool has_nul(const char *s, size_t n)
 }
 
 static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
-				bool bind_policy_maps, __u32 *map_idx,
-				__u32 *socket_map_idx)
+				__u32 *map_idx, __u32 *socket_map_idx)
 {
-	__u32 count, version, idx, socket_idx;
 	struct upatch_policy_label_header h;
 	struct upatch_policy_label_entry e;
-	__u32 header_len = bind_policy_maps ? sizeof(h) :
-		offsetof(struct upatch_policy_label_header,
-			 socket_policy_map_idx);
+	__u32 count, idx, socket_idx;
 
-	if (len < header_len)
+	if (len < sizeof(h))
 		return false;
-	memset(&h, 0, sizeof(h));
-	memcpy(&h, p, header_len);
+	memcpy(&h, p, sizeof(h));
 	count = le32_to_cpu(h.count);
-	version = le32_to_cpu(h.version);
 	idx = le32_to_cpu(h.policy_map_idx);
 	socket_idx = le32_to_cpu(h.socket_policy_map_idx);
 	if (le32_to_cpu(h.magic) != UPATCH_POLICY_LABELS_MAGIC ||
-	    version != (bind_policy_maps ?
-			UPATCH_POLICY_LABELS_VERSION :
-			UPATCH_POLICY_UNLABELS_VERSION) ||
-	    (bind_policy_maps &&
-	     (idx >= nr_maps || idx >= UPATCH_MAPS_MAX ||
-	      socket_idx >= nr_maps ||
-	      socket_idx >= UPATCH_MAPS_MAX || idx == socket_idx)) ||
-	    (!bind_policy_maps && (idx || socket_idx)) || !count ||
-	    size_add(header_len, size_mul(count, sizeof(e))) != len)
+	    le32_to_cpu(h.version) != UPATCH_POLICY_LABELS_VERSION ||
+	    idx >= nr_maps || idx >= UPATCH_MAPS_MAX ||
+	    socket_idx >= nr_maps || socket_idx >= UPATCH_MAPS_MAX ||
+	    idx == socket_idx || !count ||
+	    size_add(sizeof(h), size_mul(count, sizeof(e))) != len)
 		return false;
 	for (__u32 i = 0; i < count; i++) {
 		__u64 bit;
 
-		memcpy(&e, p + header_len + i * sizeof(e), sizeof(e));
+		memcpy(&e, p + sizeof(h) + i * sizeof(e), sizeof(e));
 		bit = le64_to_cpu(e.bit);
 		if (!bit || (bit & (bit - 1)) ||
 		    !has_nul(e.policy, sizeof(e.policy)) || !e.policy[0] ||
 		    !has_nul(e.path, sizeof(e.path)) || e.path[0] != '/')
 			return false;
 	}
-	if (bind_policy_maps) {
-		*map_idx = idx;
-		*socket_map_idx = socket_idx;
-	}
+	*map_idx = idx;
+	*socket_map_idx = socket_idx;
 	return true;
 }
 
@@ -235,8 +223,6 @@ static void forget_signed_sections(struct upatch *u)
 	u->signed_policy_labels_len = 0;
 	u->signed_policy_map_idx = 0;
 	u->signed_socket_policy_map_idx = 0;
-	u->signed_policy_unlabels = NULL;
-	u->signed_policy_unlabels_len = 0;
 }
 
 /*
@@ -308,20 +294,11 @@ static void parse_signed_sections(struct upatch *u)
 		case UPATCH_SECTION_POLICY_LABELS:
 			bit = 16;
 			if (!parse_policy_labels(data + off, len, u->hdr.nr_maps,
-						 true,
 						 &u->signed_policy_map_idx,
 						 &u->signed_socket_policy_map_idx))
 				goto reject;
 			u->signed_policy_labels = data + off;
 			u->signed_policy_labels_len = len;
-			break;
-		case UPATCH_SECTION_POLICY_UNLABELS:
-			bit = 32;
-			if (!parse_policy_labels(data + off, len, u->hdr.nr_maps,
-						 false, NULL, NULL))
-				goto reject;
-			u->signed_policy_unlabels = data + off;
-			u->signed_policy_unlabels_len = len;
 			break;
 		default:
 			goto reject;
@@ -439,13 +416,6 @@ const void *upatch_signed_policy_labels(const struct upatch *u,
 {
 	*len = u->map ? u->signed_policy_labels_len : 0;
 	return u->map ? u->signed_policy_labels : NULL;
-}
-
-const void *upatch_signed_policy_unlabels(const struct upatch *u,
-					  __u32 *len)
-{
-	*len = u->map ? u->signed_policy_unlabels_len : 0;
-	return u->map ? u->signed_policy_unlabels : NULL;
 }
 
 const void *upatch_loader(const struct upatch *u)

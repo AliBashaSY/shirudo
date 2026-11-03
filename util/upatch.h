@@ -58,8 +58,6 @@ struct upatch {
 	__u32				signed_policy_labels_len;
 	__u32				signed_policy_map_idx;
 	__u32				signed_socket_policy_map_idx;
-	const void			*signed_policy_unlabels;
-	__u32				signed_policy_unlabels_len;
 };
 
 struct upatch_decoder_view {
@@ -115,9 +113,6 @@ const __u8 *upatch_signed_unload_payload(const struct upatch *u);
 
 const void *upatch_signed_policy_labels(const struct upatch *u,
 					__u32 *len);
-
-const void *upatch_signed_policy_unlabels(const struct upatch *u,
-					  __u32 *len);
 
 /*
  * Validate an externally-provided upatch name: non-empty, doesn't
