@@ -1520,12 +1520,14 @@ U3 The environment reaches authorized processes
    :Consequence: ``BPM_OCI_SCHEME=http`` turns TLS off,
       ``BPM_OCI_CA_FILE`` adds a trust anchor, proxy variables redirect
       the traffic, and credentials come from the environment and auth
-      files. Libraries in the process honor ``SSLKEYLOGFILE`` (libcurl)
-      and ``TSS2_LOGFILE`` (tpm2-tss), which open a file root names
-      with the process's authority, sealed state included. The
-      environment files of the shipped units are writable by root.
+      files. The environment files of the shipped units are writable
+      by root. ``TSS2_LOGFILE`` (tpm2-tss) and ``SSLKEYLOGFILE``
+      (libcurl), which open a file root names with the process's
+      authority, are refused on a target like shirudo's own overrides
+      (``t6136``): with the first set, ``shirudo status`` wrote the
+      library's log into a sealed file.
    :Status: Confirmed in code for shirudo's own variables; the library
-      variables are a code-path reading, not reproduced.
+      log file was reproduced on a test VM and is refused now.
    :Meanwhile: Keep ``/etc/shirudo/bpm/environment``,
       ``/etc/shirudo/map-export.env`` and ``/etc/shirudo/init.env``
       absent or empty and owned by root, and watch who runs runtime

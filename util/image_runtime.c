@@ -91,6 +91,8 @@ static int reject_overrides(void)
 		"SHIRUDO_EVENTLOG_PENDING_PATH",
 		"SHIRUDO_INITRD_RELEASE",
 		"SHIRUDO_SYSROOT",
+		"TSS2_LOGFILE",
+		"SSLKEYLOGFILE",
 	};
 	size_t i;
 

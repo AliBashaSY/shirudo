@@ -56,4 +56,12 @@ test_expect_success 'its copy outside the image runs without' '
 	[ "$("$W/probe" secure)" = 0 ]
 '
 
+test_expect_success 'a library variable that names a file is refused' '
+	for v in TSS2_LOGFILE SSLKEYLOGFILE; do
+		! env "$v=$W/$v" "$BIN" status >"$W/out" 2>&1 &&
+		grep -q "bootstrap override $v is forbidden" "$W/out" &&
+		[ ! -e "$W/$v" ] || exit 1
+	done
+'
+
 test_done

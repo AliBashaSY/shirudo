@@ -358,7 +358,8 @@ signed config image.
    * - ``t6135-task-descriptors``
      - Descriptors through ``/proc`` and ``pidfd_getfd``
    * - ``t6136-secure-exec``
-     - Secure-exec mode and no program interpreter
+     - Secure-exec mode, no program interpreter, and the library
+       variables a target refuses
    * - ``t6137-traced-exec``
      - A traced task cannot exec shirudo
    * - ``t6138-upatch-integrity``

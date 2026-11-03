@@ -51,6 +51,10 @@ forbidden`` and fails with ``EPERM`` and exit status 1.
 ``SHIRUDO_KEYS_DIR`` also serves operator hosts. The others serve
 development and tests.
 
+``TSS2_LOGFILE`` and ``SSLKEYLOGFILE`` are refused on a target the same
+way. tpm2-tss and libcurl open the file they name with the process's
+authority, sealed state included, and neither has a use on a target.
+
 shirudo and shirudo-build
 -------------------------
 
