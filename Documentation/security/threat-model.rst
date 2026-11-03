@@ -40,7 +40,7 @@ Every entry has a stable ID that commits, issues and other pages cite:
      - Adversaries.
    * - T1 to T14
      - Threats shirudo addresses, each with a fact box.
-   * - R1 to R22
+   * - R1 to R23
      - Residual risks: known and bounded limits of the mechanisms.
    * - U1 to U19
      - Threats to resolve: gaps in the code that are not closed yet.
@@ -1478,7 +1478,24 @@ R22 Labeled inodes are interchangeable
    for a shirudo command it runs there. U9 is one consequence; others
    are a hidden eventlog, which makes measuring commands fail, and
    package or tree state read from the wrong file. This is a reading of
-   the code and is not reproduced.
+   the code and is not reproduced. A bind mount over the state root in
+   ``init``'s namespace, an idmapped one among them, was reproduced:
+   every command refuses the state as foreign from then on, and the
+   mount cannot be removed while the unmount guard refuses every
+   unmount of a mount in the root's propagation group (R3).
+
+R23 Policy labels follow the inode
+   A policy label is an xattr of the executable's inode, applied at
+   every load and boot restore of the upatch that declares it. A copy
+   of the executable, or the new inode a package upgrade or an editor
+   leaves in its place, carries no policy until the upatch is loaded
+   again, and a hard link or a rename that root makes of an inode
+   without the seal label moves the policy to another path. A task
+   keeps the bits it accumulated, a socket keeps the snapshot of its
+   creator, and a socket passed from another task carries that task's
+   bits. An enforcement upatch therefore decides what an execution
+   without policy bits may do, and the operator reloads after a change
+   to a labeled path. Detection: none on the target.
 
 Threats to resolve
 ------------------
