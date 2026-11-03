@@ -10,7 +10,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -342,10 +341,16 @@ int upatch_open_memory(const void *data, size_t size,
 	return upatch_parse(data, size, out);
 }
 
+/*
+ * A copy, not a mapping: a private mapping still shows what is written to
+ * the file after mmap(), so the bytes parsed here, the ones handed to the
+ * kernel and the ones acted on after its signature check could differ.
+ */
 int upatch_open_fd(int fd, struct upatch *out)
 {
 	struct stat st;
-	void *m;
+	size_t size, off;
+	__u8 *buf;
 	int ret;
 
 	memset(out, 0, sizeof(*out));
@@ -357,17 +362,29 @@ int upatch_open_fd(int fd, struct upatch *out)
 	if ((uintmax_t)st.st_size > UPATCH_FILE_MAX)
 		return -EFBIG;
 
-	m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (m == MAP_FAILED)
-		return -errno;
+	size = (size_t)st.st_size;
+	buf = xmalloc(size);
+	if (!buf)
+		return -ENOMEM;
+	for (off = 0; off < size; ) {
+		ssize_t n = pread(fd, buf + off, size - off, (off_t)off);
 
-	ret = upatch_parse(m, (size_t)st.st_size, out);
-	if (ret) {
-		munmap(m, (size_t)st.st_size);
-		return ret;
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0) {
+			ret = n < 0 ? -errno : -EIO;
+			goto err;
+		}
+		off += (size_t)n;
 	}
-	out->mapped = true;
+	ret = upatch_parse(buf, size, out);
+	if (ret)
+		goto err;
+	out->owned = true;
 	return 0;
+err:
+	xfree(buf, size);
+	return ret;
 }
 
 int upatch_open(const char *path, struct upatch *out)
@@ -385,12 +402,12 @@ int upatch_open(const char *path, struct upatch *out)
 
 void upatch_close(struct upatch *u)
 {
-	if (u->map && u->mapped)
-		munmap((void *)u->map, u->map_size);
+	if (u->map && u->owned)
+		xfree((void *)u->map, u->map_size);
 	if (u->map) {
 		u->map = NULL;
 		u->map_size = 0;
-		u->mapped = false;
+		u->owned = false;
 		forget_signed_sections(u);
 	}
 }

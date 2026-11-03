@@ -45,7 +45,7 @@ struct upatch {
 	struct upatch_host_header	hdr;
 	const __u8			*map;
 	size_t				map_size;
-	bool				mapped;
+	bool				owned;
 	bool				rodata_offset_valid;
 	const struct upatch_decoder_blob *decoder_blob;
 	__u32				decoder_blob_len;

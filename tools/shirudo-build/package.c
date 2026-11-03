@@ -118,9 +118,9 @@ static void pack_header(struct upatch_header *h,
 }
 
 /*
- * The inputs stay mapped while the output is written, so an output that
- * is one of them, under whatever name, must be refused before it is
- * truncated.
+ * An output that is one of the inputs, under whatever name, is refused
+ * before it is truncated, so that a write that fails cannot take the
+ * input with it.
  */
 static bool output_is_input(int fd, const char *original,
 			    const char *modified)
