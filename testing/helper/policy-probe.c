@@ -60,7 +60,7 @@ static int check_mark(const char *pin, int expected)
 
 static int read_policy(const char *pin, __u64 *active)
 {
-	struct shirudo_task_policy policy = {};
+	struct task_policy policy = {};
 	union bpf_attr attr = {};
 	int fd, pidfd, rc;
 

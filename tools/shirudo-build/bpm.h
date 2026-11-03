@@ -24,7 +24,7 @@
 #define BPM_BUILD_MAX_POLICIES 64
 
 struct bpm_build_policy {
-	char id[SHIRUDO_UPATCH_POLICY_NAME_MAX];
+	char id[UPATCH_POLICY_NAME_MAX];
 	char paths[16][TREE_STRING_MAX];
 	int n_paths;
 	__u64 bit;

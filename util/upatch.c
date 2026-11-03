@@ -124,10 +124,10 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 				bool bind_policy_maps, __u32 *map_idx,
 				__u32 *socket_map_idx)
 {
-	struct shirudo_upatch_policy_label_header h;
+	struct upatch_policy_label_header h;
 	__u32 count, version, idx, socket_idx;
 	__u32 header_len = bind_policy_maps ? sizeof(h) :
-		offsetof(struct shirudo_upatch_policy_label_header,
+		offsetof(struct upatch_policy_label_header,
 			 socket_policy_map_idx);
 
 	if (len < header_len)
@@ -138,20 +138,20 @@ static bool parse_policy_labels(const __u8 *p, __u32 len, __u32 nr_maps,
 	version = le32toh(h.version);
 	idx = le32toh(h.policy_map_idx);
 	socket_idx = le32toh(h.socket_policy_map_idx);
-	if (le32toh(h.magic) != SHIRUDO_UPATCH_POLICY_LABELS_MAGIC ||
+	if (le32toh(h.magic) != UPATCH_POLICY_LABELS_MAGIC ||
 	    version != (bind_policy_maps ?
-			SHIRUDO_UPATCH_POLICY_LABELS_VERSION :
-			SHIRUDO_UPATCH_POLICY_UNLABELS_VERSION) ||
+			UPATCH_POLICY_LABELS_VERSION :
+			UPATCH_POLICY_UNLABELS_VERSION) ||
 	    (bind_policy_maps &&
-	     (idx >= nr_maps || idx >= SHIRUDO_UPATCH_MAPS_MAX ||
+	     (idx >= nr_maps || idx >= UPATCH_MAPS_MAX ||
 	      socket_idx >= nr_maps ||
-	      socket_idx >= SHIRUDO_UPATCH_MAPS_MAX || idx == socket_idx)) ||
+	      socket_idx >= UPATCH_MAPS_MAX || idx == socket_idx)) ||
 	    (!bind_policy_maps && (idx || socket_idx)) || !count ||
 	    (__u64)header_len + (__u64)count *
-	    sizeof(struct shirudo_upatch_policy_label_entry) != len)
+	    sizeof(struct upatch_policy_label_entry) != len)
 		return false;
 	for (__u32 i = 0; i < count; i++) {
-		struct shirudo_upatch_policy_label_entry e;
+		struct upatch_policy_label_entry e;
 		__u64 bit;
 
 		memcpy(&e, p + header_len + i * sizeof(e), sizeof(e));
@@ -306,7 +306,7 @@ static void parse_signed_sections(struct upatch *u)
 			if (!parse_decoders(u, data + off, len))
 				goto reject;
 			break;
-		case SHIRUDO_UPATCH_SECTION_POLICY_LABELS:
+		case UPATCH_SECTION_POLICY_LABELS:
 			bit = 16;
 			if (!parse_policy_labels(data + off, len, u->hdr.nr_maps,
 						 true,
@@ -316,7 +316,7 @@ static void parse_signed_sections(struct upatch *u)
 			u->signed_policy_labels = data + off;
 			u->signed_policy_labels_len = len;
 			break;
-		case SHIRUDO_UPATCH_SECTION_POLICY_UNLABELS:
+		case UPATCH_SECTION_POLICY_UNLABELS:
 			bit = 32;
 			if (!parse_policy_labels(data + off, len, u->hdr.nr_maps,
 						 false, NULL, NULL))

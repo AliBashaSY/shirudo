@@ -1589,15 +1589,15 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 
 	opts.gen_hash = true;
 	if (policy_labels_len) {
-		const struct shirudo_upatch_policy_label_header *labels =
+		const struct upatch_policy_label_header *labels =
 			policy_labels;
 		__u32 map_idx = le32toh(labels->policy_map_idx);
 		__u32 socket_map_idx =
 			le32toh(labels->socket_policy_map_idx);
 
-		if (map_idx >= nr_maps || map_idx >= SHIRUDO_UPATCH_MAPS_MAX ||
+		if (map_idx >= nr_maps || map_idx >= UPATCH_MAPS_MAX ||
 		    socket_map_idx >= nr_maps ||
-		    socket_map_idx >= SHIRUDO_UPATCH_MAPS_MAX ||
+		    socket_map_idx >= UPATCH_MAPS_MAX ||
 		    map_idx == socket_map_idx) {
 			err = -EINVAL;
 			goto out;
@@ -1644,7 +1644,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 			};
 		if (policy_labels_len)
 			sections[nr_sections++] = (struct signed_section){
-				SHIRUDO_UPATCH_SECTION_POLICY_LABELS,
+				UPATCH_SECTION_POLICY_LABELS,
 				policy_labels, policy_labels_len,
 			};
 	}
@@ -1769,13 +1769,13 @@ static int check_upatch_name(const char *name)
 
 int build_package_load(const char *bpf_o, const char *src_path,
 		       const char *out_path, const char *upatch_name,
-			       const struct shirudo_upatch_policy_label_entry *policies,
+			       const struct upatch_policy_label_entry *policies,
 			       __u32 nr_policies,
 			       const char *pkey_path, const char *cert_path)
 {
 	struct bpf_object *obj;
-	struct shirudo_upatch_policy_label_header *label_blob = NULL;
-	struct shirudo_upatch_policy_label_entry *label_entries;
+	struct upatch_policy_label_header *label_blob = NULL;
+	struct upatch_policy_label_entry *label_entries;
 	struct bpf_map *map, *policy_map, *socket_policy_map;
 	__u32 label_len = 0, policy_map_idx = 0, socket_policy_map_idx = 0;
 	__u32 map_idx = 0;
@@ -1827,7 +1827,7 @@ int build_package_load(const char *bpf_o, const char *src_path,
 				break;
 			map_idx++;
 		}
-		if (map_idx >= SHIRUDO_UPATCH_MAPS_MAX || map != policy_map) {
+		if (map_idx >= UPATCH_MAPS_MAX || map != policy_map) {
 			err = -E2BIG;
 			goto out;
 		}
@@ -1838,7 +1838,7 @@ int build_package_load(const char *bpf_o, const char *src_path,
 				break;
 			map_idx++;
 		}
-		if (map_idx >= SHIRUDO_UPATCH_MAPS_MAX ||
+		if (map_idx >= UPATCH_MAPS_MAX ||
 		    map != socket_policy_map || map_idx == policy_map_idx) {
 			err = -E2BIG;
 			goto out;
@@ -1850,8 +1850,8 @@ int build_package_load(const char *bpf_o, const char *src_path,
 			err = -ENOMEM;
 			goto out;
 		}
-		label_blob->magic = htole32(SHIRUDO_UPATCH_POLICY_LABELS_MAGIC);
-		label_blob->version = htole32(SHIRUDO_UPATCH_POLICY_LABELS_VERSION);
+		label_blob->magic = htole32(UPATCH_POLICY_LABELS_MAGIC);
+		label_blob->version = htole32(UPATCH_POLICY_LABELS_VERSION);
 		label_blob->count = htole32(nr_policies);
 		label_blob->policy_map_idx = htole32(policy_map_idx);
 		label_blob->socket_policy_map_idx =

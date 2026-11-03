@@ -140,7 +140,7 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 	      const struct linux_binprm *bprm)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct task_authority *authority;
 
 	policy = bpf_task_storage_get(&policy_map, task, NULL, 0);
@@ -162,9 +162,9 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	     __u64 clone_flags, int ret)
 {
 	struct task_struct *parent = bpf_get_current_task_btf();
-	struct shirudo_task_policy *parent_policy;
+	struct task_policy *parent_policy;
 	struct task_authority *parent_authority;
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct task_authority *authority;
 
 	if (ret)
@@ -478,7 +478,7 @@ int BPF_PROG(shirudo_seal_socket_post_create, struct socket *sock, int family,
 	     int type, int protocol, int kern, int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct sock *sk;
 	__u64 active;
 
@@ -517,7 +517,7 @@ int BPF_PROG(shirudo_seal_bprm_creds_for_exec, struct linux_binprm *bprm,
 	     int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 
 	if (ret)
 		return ret;
@@ -540,7 +540,7 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 	struct task_authority *authority;
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct seal_scratch *scratch;
 	struct bpf_dynptr tdp;
 	struct inode *real_inode;

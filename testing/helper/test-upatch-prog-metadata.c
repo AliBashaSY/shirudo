@@ -172,8 +172,8 @@ static int expect_policy_labels(const struct upatch *u)
 		"/tmp/shirudo-policy-label-test/socket-executable",
 	};
 	static const __u64 bits[] = { 1, 2, 4, 16 };
-	struct shirudo_upatch_policy_label_entry entry;
-	struct shirudo_upatch_policy_label_header header;
+	struct upatch_policy_label_entry entry;
+	struct upatch_policy_label_header header;
 	const __u8 *raw, *cursor;
 	__u32 len;
 	size_t count = ARRAY_SIZE(bits);
@@ -182,8 +182,8 @@ static int expect_policy_labels(const struct upatch *u)
 	if (!raw || len != sizeof(header) + count * sizeof(entry))
 		return fail("policy label section length mismatch");
 	memcpy(&header, raw, sizeof(header));
-	if (le32toh(header.magic) != SHIRUDO_UPATCH_POLICY_LABELS_MAGIC ||
-	    le32toh(header.version) != SHIRUDO_UPATCH_POLICY_LABELS_VERSION ||
+	if (le32toh(header.magic) != UPATCH_POLICY_LABELS_MAGIC ||
+	    le32toh(header.version) != UPATCH_POLICY_LABELS_VERSION ||
 	    le32toh(header.count) != count ||
 	    le32toh(header.policy_map_idx) != 0 ||
 	    le32toh(header.socket_policy_map_idx) != 1)

@@ -35,7 +35,7 @@ int BPF_PROG(shirudo_test_policy_exec_graph,
 	     struct linux_binprm *bprm, int ret)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct policy_exec_scratch *scratch;
 	struct bpf_dynptr value_ptr;
 	__u64 target;

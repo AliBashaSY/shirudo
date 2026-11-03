@@ -81,24 +81,19 @@ enum upatch_section_tag {
 	UPATCH_SECTION_ATTACH	= 0x4d475055u,	/* "UPGM" le */
 	UPATCH_SECTION_UNLOAD	= 0x444c4e55u,	/* "UNLD" le */
 	UPATCH_SECTION_DECODERS	= 0x42444344u,	/* "DCDB" le */
-	SHIRUDO_UPATCH_SECTION_POLICY_LABELS = 0x4c504853u,	/* "SHPL" le */
-	SHIRUDO_UPATCH_SECTION_POLICY_UNLABELS = 0x554c5053u,	/* "SPLU" le */
+	UPATCH_SECTION_POLICY_LABELS	= 0x4c504853u,	/* "SHPL" le */
+	UPATCH_SECTION_POLICY_UNLABELS	= 0x554c5053u,	/* "SPLU" le */
 };
 
-#define SHIRUDO_UPATCH_SECTION_NAME	UPATCH_SECTION_NAME
-#define SHIRUDO_UPATCH_SECTION_ATTACH	UPATCH_SECTION_ATTACH
-#define SHIRUDO_UPATCH_SECTION_UNLOAD	UPATCH_SECTION_UNLOAD
-#define SHIRUDO_UPATCH_SECTION_DECODERS	UPATCH_SECTION_DECODERS
+#define UPATCH_POLICY_LABELS_MAGIC	0x4c504853u	/* "SHPL" le */
+#define UPATCH_POLICY_LABELS_VERSION	1u
+#define UPATCH_POLICY_UNLABELS_VERSION	1u
+#define UPATCH_MAPS_MAX			64u
+#define UPATCH_POLICY_NAME_MAX		64u
+#define UPATCH_POLICY_PATH_MAX		4096u
+#define SHIRUDO_POLICY_XATTR		"security.bpf.shirudo.policy"
 
-#define SHIRUDO_UPATCH_POLICY_LABELS_MAGIC	0x4c504853u	/* "SHPL" le */
-#define SHIRUDO_UPATCH_POLICY_LABELS_VERSION	1u
-#define SHIRUDO_UPATCH_POLICY_UNLABELS_VERSION	1u
-#define SHIRUDO_UPATCH_MAPS_MAX			64u
-#define SHIRUDO_UPATCH_POLICY_NAME_MAX		64u
-#define SHIRUDO_UPATCH_POLICY_PATH_MAX		4096u
-#define SHIRUDO_POLICY_XATTR			"security.bpf.shirudo.policy"
-
-struct shirudo_upatch_policy_label_header {
+struct upatch_policy_label_header {
 	__u32	magic;
 	__u32	version;
 	__u32	count;
@@ -106,10 +101,10 @@ struct shirudo_upatch_policy_label_header {
 	__u32	socket_policy_map_idx;
 };
 
-struct shirudo_upatch_policy_label_entry {
+struct upatch_policy_label_entry {
 	__u64	bit;
-	char	policy[SHIRUDO_UPATCH_POLICY_NAME_MAX];
-	char	path[SHIRUDO_UPATCH_POLICY_PATH_MAX];
+	char	policy[UPATCH_POLICY_NAME_MAX];
+	char	path[UPATCH_POLICY_PATH_MAX];
 };
 
 struct upatch_signed_section {

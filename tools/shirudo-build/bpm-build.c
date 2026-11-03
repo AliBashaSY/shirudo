@@ -1248,7 +1248,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		__u8 payload[CRYPTO_SHA256_LEN];
 		struct upatch parsed = {};
 		int ret;
-		struct shirudo_upatch_policy_label_entry *labels = NULL;
+		struct upatch_policy_label_entry *labels = NULL;
 		__u32 nr_labels = 0;
 
 		if (build_resolve_source(spec, u->source, source, sizeof(source),
@@ -1298,7 +1298,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 				struct bpm_build_policy *p = &u->policies[j];
 
 				for (int k = 0; k < p->n_paths; k++) {
-					struct shirudo_upatch_policy_label_entry *e =
+					struct upatch_policy_label_entry *e =
 						&labels[nr_labels++];
 
 					e->bit = p->bit;

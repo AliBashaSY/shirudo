@@ -15,7 +15,7 @@ int BPF_PROG(shirudo_test_policy_labels)
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(shirudo_test_policy_verdict, struct linux_binprm *bprm, int ret)
 {
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 
 	if (ret)
 		return ret;
@@ -28,7 +28,7 @@ SEC("lsm.s/socket_connect")
 int BPF_PROG(shirudo_test_socket_policy_verdict, struct socket *sock,
 	     struct sockaddr *address, int addrlen, int ret)
 {
-	struct shirudo_task_policy *policy;
+	struct task_policy *policy;
 	struct sock *sk;
 	__u64 *socket_policy;
 

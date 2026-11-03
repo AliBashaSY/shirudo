@@ -1727,8 +1727,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 	int prog_fd = -1, map_fd = -1, policy_map_fd = -1;
 	int socket_policy_map_fd = -1, ret;
 	struct loader_ctx *cx = NULL;
-	__u32 retval = 0, shared_policy_map_idx = SHIRUDO_UPATCH_MAPS_MAX;
-	__u32 shared_socket_policy_map_idx = SHIRUDO_UPATCH_MAPS_MAX;
+	__u32 retval = 0, shared_policy_map_idx = UPATCH_MAPS_MAX;
+	__u32 shared_socket_policy_map_idx = UPATCH_MAPS_MAX;
 
 	vlog = xmalloc(VERIFIER_LOG_MAX);
 	if (!vlog) {
@@ -2753,8 +2753,8 @@ static void unload_unmeasured(const char *name)
 static void apply_policy_labels(const char *artifact)
 {
 	struct upatch upatch = {};
-	const struct shirudo_upatch_policy_label_header *header;
-	const struct shirudo_upatch_policy_label_entry *entries;
+	const struct upatch_policy_label_header *header;
+	const struct upatch_policy_label_entry *entries;
 	const void *labels;
 	__u32 len, count;
 	int rc;
@@ -2769,7 +2769,7 @@ static void apply_policy_labels(const char *artifact)
 	count = le32toh(header->count);
 	entries = (const void *)((const __u8 *)labels + sizeof(*header));
 	for (__u32 i = 0; i < count; i++) {
-		const struct shirudo_upatch_policy_label_entry *entry = &entries[i];
+		const struct upatch_policy_label_entry *entry = &entries[i];
 		__u64 bits = le64toh(entry->bit), current = 0;
 		ssize_t n;
 		int fd;
