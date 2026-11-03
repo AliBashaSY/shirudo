@@ -675,11 +675,15 @@ with runtime authority may set, update or remove it (``SealLabel``).
 A signed upatch with an ``SHPL`` path-to-policy section opts into the
 shared task and socket policy maps. The builder requires compatible map
 declarations, and the target supplies both pinned map FDs to the
-generated loader. The upatch's signed BPF programs can inspect task and
-socket policy values at any supported LSM hook. Authors are expected to
-read these values; the verifier does not prevent signed programs from
-changing them. upatches without ``SHPL`` receive no binding to these
-maps.
+generated loader. After the load, shirudo ORs each entry's bit into the
+policy xattr of its path. It reads the artifact once and takes the
+entries from the copy it handed to the kernel, not from the file again,
+so a task that writes the artifact during the load cannot have shirudo
+set a label the signature does not cover. The upatch's signed BPF
+programs can inspect task and socket policy values at any supported LSM
+hook. Authors are expected to read these values; the verifier does not
+prevent signed programs from changing them. upatches without ``SHPL``
+receive no binding to these maps.
 
 The seal keeps a mark in inode storage on every labeled directory it
 has seen since the inode came into memory. A new inode under a marked

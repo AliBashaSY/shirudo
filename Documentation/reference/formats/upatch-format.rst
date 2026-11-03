@@ -625,8 +625,10 @@ without ``SHPL`` use their normal maps.
 
 Each entry is 4168 bytes: a little-endian one-hot ``u64`` policy bit,
 64 bytes of NUL-terminated policy ID, then 4096 bytes of NUL-terminated
-absolute path. The loader applies each entry by ORing the policy bit into
-the inode's existing policy xattr.
+absolute path. After a successful load, shirudo applies each entry by
+ORing the policy bit into the inode's existing policy xattr. It takes the
+entries from the copy of the artifact the kernel verified, not from the
+file again.
 
 Header fields outside the signature
 -----------------------------------
