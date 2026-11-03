@@ -18,10 +18,10 @@
 struct decoder_manifest {
 	__u32	magic;		/* DECODER_MANIFEST_MAGIC */
 	__u16	version;		/* UPATCH_DECODER_VERSION */
-	__u16	language;	/* SHIRUDO_UPATCH_DECODER_LANG_* */
+	__u16	language;	/* UPATCH_DECODER_LANG_* */
 	__u16	api_version;
 	__u16	input_format;	/* UPATCH_DECODER_INPUT_MAP_V1 */
-	__u16	export_signal;	/* SHIRUDO_UPATCH_DECODER_EXPORT_* */
+	__u16	export_signal;	/* UPATCH_DECODER_EXPORT_* */
 	__u16	reserved;
 	char	upatch[64];
 	char	map[16];

@@ -123,7 +123,7 @@ struct upatch_signed_trailer {
 
 /*
  * Decoders embedded inside the signature-covered data section. BPF
- * programs declare a shirudo_decoder_manifest in .rodata; shirudo-build
+ * programs declare a struct decoder_manifest in .rodata; shirudo-build
  * resolves and embeds the decoder source before signing.
  */
 #define DECODER_MANIFEST_MAGIC	0x44434544u	/* "DECD" le */
