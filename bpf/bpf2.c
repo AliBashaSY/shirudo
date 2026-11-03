@@ -6,7 +6,7 @@
  * These hooks track verity devices, restrict DM controls, and protect the
  * runtime/config mounts alongside the shared bpffs and BPF admission checks.
  */
-#include "verity_policy.h"
+#include "verity.h"
 #include <bpf/bpf_endian.h>
 
 /*

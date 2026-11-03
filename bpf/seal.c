@@ -2,7 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 /* shirudo retains the writable-state label seal and trusts runtime execs. */
-#include "verity_policy.h"
+#include "verity.h"
 #include "xattr.h"
 
 /*
