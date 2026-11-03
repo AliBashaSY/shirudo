@@ -48,4 +48,10 @@ test_expect_success 'a correctly-bound UNLOAD directive detaches + removes the p
 	[ ! -e "$PIN" ]
 '
 
+test_expect_success 'the list drops the upatch and never ends on a bare header' '
+	"$SHIRUDO_BIN" upatch list >"$WORK/list" 2>/dev/null &&
+	! grep -q "$NAME" "$WORK/list" &&
+	! tail -n 1 "$WORK/list" | grep -q "^  NAME "
+'
+
 test_done

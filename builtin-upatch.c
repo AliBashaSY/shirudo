@@ -475,6 +475,11 @@ static int is_upatch_file(const struct dirent *e)
 	return len > 7 && strcmp(e->d_name + len - 7, ".upatch") == 0;
 }
 
+static int is_not_dot(const struct dirent *e)
+{
+	return strcmp(e->d_name, ".") && strcmp(e->d_name, "..");
+}
+
 static bool upatch_is_loaded(const char *name)
 {
 	char pin[PATH_MAX];
@@ -527,7 +532,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 		     alphasort);
 	if (np < 0)
 		np = 0;
-	na = scandir(BPFFS_UPATCHES_DIR, &active, NULL, alphasort);
+	na = scandir(BPFFS_UPATCHES_DIR, &active, is_not_dot, alphasort);
 	if (na < 0)
 		na = 0;
 
@@ -602,8 +607,6 @@ static int cmd_upatch_list(int argc, const char **argv)
 		const char *nm = active[i]->d_name;
 		struct stat st;
 
-		if (strcmp(nm, ".") == 0 || strcmp(nm, "..") == 0)
-			continue;
 		if (upatch_name_from_bpffs(raw_name, sizeof(raw_name), nm))
 			continue;
 		if (strsprintf(persist, sizeof(persist), "%s/%s.upatch",
