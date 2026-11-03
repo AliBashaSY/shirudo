@@ -350,13 +350,13 @@ one usually still compiles and passes tests.
 - **upatch state lives in BPF arenas where possible.** A upatch that
   accumulates records keeps them in its one `BPF_MAP_TYPE_ARENA` map and
   ships a `shirudo_serialize__<map>` program that walks them; hash and
-  array maps are for what cannot live in an arena: task, socket and
-  per-CPU scratch state, lookup keys the kernel owns, and the serializer
-  output. An arena gives one consistent snapshot, memory the serializer
-  can reset between exports, and an overflow count the record carries,
-  where an element-by-element read of a plain map gives a torn view and
-  a table that silently fills up. `upatches/kernel-obs/obs_table.h` is
-  the template to instantiate.
+  array maps are for what cannot live in an arena: task and socket
+  state, per-CPU counters and scratch, lookup keys the kernel owns, and
+  the serializer output. An arena gives one consistent snapshot, memory
+  the serializer can reset between exports, and an overflow count the
+  record carries, where an element-by-element read of a plain map gives
+  a torn view and a table that silently fills up.
+  `upatches/kernel-obs/obs_table.h` is the template to instantiate.
 - **Test the locking of complex upatch BPF code with blitmus.** Where
   programs on several CPUs share state through atomics, acquire and
   release, or a lock or lock-free structure built from them, write the
@@ -366,6 +366,55 @@ one usually still compiles and passes tests.
   `READ_ONCE()`, `WRITE_ONCE()`, acquire, release and the BPF atomics,
   not `bpf_spin_lock()` or RCU.
   `Documentation/upatches/write/memory-consistency/blitmus.rst` shows how.
+- **Write upatch BPF code for runs that interleave, and apply each fix
+  only under the preemption model and program types its hazard needs**,
+  never to every program by reflex. Runs on different CPUs at once exist
+  on every kernel: update a value other CPUs share, of a map that is not
+  per-CPU or in inode, socket or cgroup storage, with
+  `__sync_fetch_and_add()` and its kin; insert a missing key with
+  `BPF_NOEXIST` and look it up again on `-EEXIST`; check every
+  compare-and-swap result, as a failed one changes and orders nothing;
+  publish a filled record with
+  `__atomic_store_n(&p, v, __ATOMIC_RELEASE)` or a value-returning
+  atomic, never `WRITE_ONCE()`, and read it through `READ_ONCE()` and an
+  address dependency, or a load-acquire where the code compares the index
+  with a constant first; expect writes that land in the half of a double
+  buffer being drained, as BPF has no grace period; and read user memory
+  once.
+
+  A second run on one CPU before the first one ends depends on the
+  kernel. `PREEMPT`, `PREEMPT_RT` and `PREEMPT_DYNAMIC`, the default and
+  what distribution kernels use, bring preemptible RCU, and
+  `PREEMPT_LAZY` on its own does not. Since 7.0 `PREEMPT_DYNAMIC` boots
+  only `full` or `lazy`, not the `voluntary` distribution kernels used to
+  boot, in which no task preempted a running program: do not carry that
+  assumption over. With preemptible RCU another task can preempt most
+  programs, and on every kernel `syscall` and sleepable ones. On every
+  kernel a softirq can run on top of a run in a process, and `lsm`,
+  `syscall`, `cgroup_skb`, `netfilter` and `uprobe.multi` programs have
+  no guard against a second run of themselves, while `kprobe` and
+  `kretprobe` programs never interleave with each other on a CPU and
+  `fentry`, `fexit`, `fmod_ret` and `tp_btf` programs never with
+  themselves. Only where such a second run can come is a per-CPU map
+  value, or a slot picked by `bpf_get_smp_processor_id()`, shared between
+  runs: keep scratch there in task storage where no program a softirq
+  runs uses it (as the seal does), on the stack, or behind a busy flag
+  taken with `__atomic_exchange_n()` and given back with a release store,
+  and update a per-CPU counter there with an atomic. Elsewhere, such as a
+  counter only one `kprobe` program updates, the plain form is right. A
+  upatch whose correctness depends on the model says in its `README.md`
+  which one it is written for, and its code is checked against that one.
+  The test kernel is built with `PREEMPT_LAZY` alone, so the VM suite
+  shows the preemption cases only for `syscall` and sleepable programs.
+
+  The `bpf_` rules in `testing/coccinelle/` refuse these patterns within
+  one function. No rule refuses per-CPU scratch, as whether it is a
+  hazard depends on the kernel and the programs that share a map, which a
+  rule cannot tell: review decides. A hazard spread over functions, or a
+  file with its own token-pasting macros such as `obs_table.h`, needs
+  review and blitmus.
+  `Documentation/upatches/write/memory-consistency/hazards.rst` says
+  where each hazard applies.
 
 ## Memory, JSON and logging
 

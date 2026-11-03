@@ -640,6 +640,21 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``fclose_unchecked``
      - ``fclose()`` of a stream opened for writing with its result
        ignored, after CERT C ERR33-C.
+   * - ``bpf_map_rmw``
+     - ``++``, ``+=`` or ``|=`` through the value of a map that is not
+       per-CPU, or through inode, socket or cgroup storage, which other
+       CPUs update meanwhile.
+   * - ``bpf_cas_unchecked``
+     - A compare-and-swap whose result is dropped.
+   * - ``bpf_check_then_insert``
+     - A ``BPF_ANY`` update of a key after a lookup found it missing,
+       which races with another CPU doing the same.
+   * - ``bpf_publish``
+     - ``WRITE_ONCE()`` of a pointer, which publishes what it points to
+       without ordering the stores that filled it.
+   * - ``bpf_user_double_fetch``
+     - Two reads of the same user address, between which the memory can
+       change.
 
 A new pattern worth refusing gets a rule: write it from scratch under
 the BSD-2-Clause, with a header that says why the pattern is refused,
@@ -651,6 +666,19 @@ matches.
 includes, which keeps it fast but leaves the types they declare
 unknown. A rule that needs them, as ``sizeof_ptr`` needs the type of a
 struct member, names its include options on a ``#spatch`` line.
+
+The ``bpf_`` rules read the BPF sources through
+:src:`testing/coccinelle/bpf.macros`, which tells Coccinelle what
+``SEC()``, ``BPF_PROG()`` and the map definition macros mean, and each
+declares ``SEC`` an attribute. Without that, Coccinelle takes a map
+defined as ``} name SEC(".maps");`` for a type and skips every function
+that takes its address, without an error. A file that defines its own
+token-pasting macros, as :src:`upatches/kernel-obs/obs_table.h` does,
+stays out of their reach. Each matches a hazard that exists on every
+kernel. Per-CPU memory used as scratch is a hazard only under some
+preemption models and program types, which a rule cannot tell, so no
+rule refuses it. :doc:`/upatches/write/memory-consistency/hazards`
+explains each hazard and where it applies.
 
 Next steps
 ----------

@@ -27,7 +27,12 @@ The JIT turns each into the CPU's own instructions. Whether a given
 choice of them is enough for a pattern is the question a litmus test
 answers.
 
+:doc:`hazards` lists the patterns that go wrong in BPF code, what to
+write instead and the Coccinelle rules that refuse them, and
+:doc:`blitmus` tests an ordering on real hardware.
+
 .. toctree::
    :titlesonly:
 
+   hazards
    blitmus

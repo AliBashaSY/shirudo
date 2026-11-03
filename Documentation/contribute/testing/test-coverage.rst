@@ -52,7 +52,8 @@ signed config image.
      - ``check-coccinelle.sh``: a match that fails the check with its
        file, line and rule, the vendored sources left out, a rule named
        alone, the rewrite of ``-D patch``, a case for each rule taken
-       from CERT C, and the tree itself
+       from CERT C, a case for each BPF hazard rule beside the safe
+       form it leaves alone, and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library
