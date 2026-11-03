@@ -96,7 +96,8 @@ int build_keys_vouch(int argc, char **argv)
 	for (int i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (!strcmp(a, "-o") && i + 1 < argc) {
+		if ((!strcmp(a, "-o") || !strcmp(a, "--output")) &&
+		    i + 1 < argc) {
 			output = argv[++i];
 		} else if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
 			keys_dir_arg = argv[++i];

@@ -43,7 +43,7 @@ else
 	UNLABELED_RESULT=failed
 fi
 "$WORK/exec-1" run "$UNLABELED_RESULT" || exit 1
-"$SHIRUDO_BIN" attest --nonce="$NONCE" --out="$OUT/evidence.json" ||
+"$SHIRUDO_BIN" attest --nonce="$NONCE" --output="$OUT/evidence.json" ||
 	exit 1
 "$SHIRUDO_BIN" upatch unload "$UNLOAD" --no-precheck >/dev/null 2>&1 ||
 	exit 1

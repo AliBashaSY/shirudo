@@ -111,7 +111,7 @@ Preserve the evidence
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce> --out=evidence/evidence.json
+      target# shirudo attest --nonce=<nonce> --output=evidence/evidence.json
 
    When the config cannot be verified or its activation is pending,
    every command but ``status`` and ``image status`` refuses,

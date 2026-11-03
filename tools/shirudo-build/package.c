@@ -460,7 +460,8 @@ int build_upatch_cli(int argc, char **argv)
 		return 2;
 	}
 	for (i = 2; i < argc; i++) {
-		if (!strcmp(argv[i], "-o") && i + 1 < argc) {
+		if ((!strcmp(argv[i], "-o") || !strcmp(argv[i], "--output")) &&
+		    i + 1 < argc) {
 			output = argv[++i];
 		} else if (!strcmp(argv[i], "--data-range") && i + 1 < argc) {
 			const char *range = argv[++i];

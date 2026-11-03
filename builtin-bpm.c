@@ -1490,7 +1490,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 			"usage: shirudo bpm config register {add|list|remove} ...\n"
 			"       shirudo bpm config update --base-package "
 			"<package.bee|oci://host/repo:tag> --version <version> "
-			"[-f <name>.bee] [options]\n");
+			"[--file <name>.bee] [options]\n");
 		return op ? 0 : 2;
 	}
 	if (strcmp(op, "register"))
@@ -1576,16 +1576,16 @@ static int cmd_bpm_config(int argc, const char **argv)
 			return 2;
 		}
 		for (int i = 5; i < argc; i++) {
-			if (!strncmp(argv[i], "--key-file=", 11))
-				key = argv[i] + 11;
-			else if (!strcmp(argv[i], "--key-file") && i + 1 < argc)
+			if (!strncmp(argv[i], "--cert=", 7))
+				key = argv[i] + 7;
+			else if (!strcmp(argv[i], "--cert") && i + 1 < argc)
 				key = argv[++i];
 		}
 		if (!key || cert_read_file(key, &cert) ||
 		    !bpm_name_ok(s.name) ||
 		    bpm_oci_parse_endpoint(s.endpoint, &probe)) {
 			cert_free(&cert);
-			pr_err("bpm: register add requires a valid oci:// endpoint and --key-file certificate");
+			pr_err("bpm: register add requires a valid oci:// endpoint and --cert certificate");
 			return 2;
 		}
 		cert_free(&cert);

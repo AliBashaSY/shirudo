@@ -49,7 +49,7 @@ static const struct help_item attest_options[] = {
 	{ "--nonce=<hex>",      "freshness value from the verifier (up to 64 bytes)" },
 	{ "--pcrs=<list>",      "PCRs to quote, comma separated (default 0-7,9,11-15)" },
 	{ "--challenge=<path>", "a challenge from the verifier to activate while attesting" },
-	{ "--out=<path>",       "write the evidence there (0600) instead of stdout" },
+	{ "-o, --output <path>", "write the evidence there (0600) instead of stdout" },
 };
 
 static const struct help_item verify_options[] = {
@@ -79,7 +79,7 @@ static const struct help_item challenge_options[] = {
 	{ "--ek-ca=<bundle>",   "PEM issuers the endorsement certificate must chain to" },
 	{ "--ek-name=<hex>",    "an endorsement key name known out of band" },
 	{ "--trust-presented-ek", "accept an endorsement key nothing vouches for" },
-	{ "--out=<path>",       "write the challenge there (0600)" },
+	{ "-o, --output <path>", "write the challenge there (0600)" },
 };
 
 static const struct help_item predict_options[] = {
@@ -108,12 +108,12 @@ static const struct help_section attest_help_sections[] = {
 
 static const struct help attest_help = {
 	.usage      = "shirudo attest [--nonce=<hex>] [--pcrs=<list>] "
-		      "[--challenge=<path>] [--out=<path>]\n"
+		      "[--challenge=<path>] [--output=<path>]\n"
 		      "       shirudo attest verify --evidence=<path> --nonce=<hex> "
 		      "--ak-name=<hex> [options]\n"
 		      "       shirudo attest predict --cert=<cert.der> [options]\n"
 		      "       shirudo attest challenge --evidence=<path> "
-		      "--out=<path> --ek-ca=<bundle>|--ek-name=<hex>|"
+		      "--output=<path> --ek-ca=<bundle>|--ek-name=<hex>|"
 		      "--trust-presented-ek [options]",
 	.summary    = "Without a subcommand: emit a TPM-signed evidence document "
 		      "for this\ntarget (quote over the PCRs, certification of "
@@ -328,46 +328,76 @@ static int cmd_attest_predict(int argc, const char **argv)
 		return 1;
 	for (i = 2; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
-		if (!strncmp(a, "--cert=", 7)) {
+		if (opt_arg("--cert", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
 			if (n_certs >= KEYS_MAX) {
 				pr_err("attest predict: at most %d --cert",
 				       KEYS_MAX);
 				goto out;
 			}
-			if (cert_digest(a + 7, cert_shas[n_certs]))
+			if (cert_digest(v, cert_shas[n_certs]))
 				goto out;
 			n_certs++;
 			have_cert = true;
-		} else if (!strncmp(a, "--upatch=", 9)) {
-			if (member_add_file(&m, a + 9))
-				goto out;
-		} else if (!strncmp(a, "--expect=", 9)) {
-			if (member_add_spec(&m, a + 9)) {
-				pr_err("attest: bad --expect '%s'", a + 9);
+		} else if (opt_arg("--upatch", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
 				goto out;
 			}
-		} else if (!strncmp(a, "--tree-root=", 12)) {
-			if (parse_hex32("--tree-root", a + 12, tree_root))
+			if (member_add_file(&m, v))
 				goto out;
-		} else if (!strncmp(a, "--event=", 8)) {
+		} else if (opt_arg("--expect", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
+			if (member_add_spec(&m, v)) {
+				pr_err("attest: bad --expect '%s'", v);
+				goto out;
+			}
+		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
+			if (parse_hex32("--tree-root", v, tree_root))
+				goto out;
+		} else if (opt_arg("--event", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
 			if (n_events >= EVENTS_MAX)
 				goto out;
-			events[n_events++] = a + 8;
-		} else if (!strncmp(a, "--writer-public=", 16)) {
-			if (hex_decode(a + 16, writer_public, sizeof(writer_public))) {
+			events[n_events++] = v;
+		} else if (opt_arg("--writer-public", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
+			if (hex_decode(v, writer_public, sizeof(writer_public))) {
 				pr_err("attest predict: invalid RSA-3072 --writer-public");
 				goto out;
 			}
 			have_writer = true;
 		} else if (!strcmp(a, "--json")) {
 			po.json = true;
-		} else if (!strncmp(a, "--bind-pcr=", 11)) {
+		} else if (opt_arg("--bind-pcr", a, argc, argv, &i, &v, &r)) {
 			const char *value = NULL;
 			int slot = -1;
 			__u64 n;
 
-			if (!parse_pcr_value(a + 11, &n, &value))
+			if (r == OPT_MISSING) {
+				pr_err("attest predict: %s takes a value", a);
+				goto out;
+			}
+			if (!parse_pcr_value(v, &n, &value))
 				slot = n == CHAIN_PCR ? 0 :
 				       n == CHAIN_PHASE_PCR ? 1 : -1;
 			if (slot < 0 ||
@@ -594,11 +624,23 @@ static int cmd_attest_verify(int argc, const char **argv)
 		goto out;
 	for (i = 2; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
-		if (!strncmp(a, "--evidence=", 11)) {
-			evidence_path = a + 11;
-		} else if (!strncmp(a, "--nonce=", 8)) {
-			if (parse_hex(a + 8, nonce, sizeof(nonce),
+		if (opt_arg("--evidence", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			evidence_path = v;
+		} else if (opt_arg("--nonce", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex(v, nonce, sizeof(nonce),
 				      &nonce_len)) {
 				pr_err("attest verify: --nonce must be hex of "
 				       "up to %d bytes",
@@ -606,10 +648,15 @@ static int cmd_attest_verify(int argc, const char **argv)
 				goto out;
 			}
 			have_nonce = true;
-		} else if (!strncmp(a, "--ak-name=", 10)) {
+		} else if (opt_arg("--ak-name", a, argc, argv, &i, &v, &r)) {
 			size_t n;
 
-			if (parse_hex(a + 10, x.ak_name, sizeof(x.ak_name),
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex(v, x.ak_name, sizeof(x.ak_name),
 				      &n) || n != TPM_NAME_LEN) {
 				pr_err("attest verify: --ak-name must be %d "
 				       "hex characters",
@@ -617,53 +664,93 @@ static int cmd_attest_verify(int argc, const char **argv)
 				goto out;
 			}
 			x.have_ak_name = true;
-		} else if (!strncmp(a, "--cert=", 7)) {
+		} else if (opt_arg("--cert", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
 			if (n_certs >= KEYS_MAX) {
 				pr_err("attest verify: at most %d --cert",
 				       KEYS_MAX);
 				goto out;
 			}
-			if (cert_digest(a + 7, cert_shas[n_certs]))
+			if (cert_digest(v, cert_shas[n_certs]))
 				goto out;
 			n_certs++;
 			have_cert = true;
-		} else if (!strncmp(a, "--upatch=", 9)) {
-			if (member_add_file(&m, a + 9))
-				goto out;
-		} else if (!strncmp(a, "--expect=", 9)) {
-			if (member_add_spec(&m, a + 9)) {
-				pr_err("attest verify: bad --expect '%s'",
-				       a + 9);
+		} else if (opt_arg("--upatch", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
 				goto out;
 			}
-		} else if (!strncmp(a, "--tree-root=", 12)) {
-			if (parse_hex32("--tree-root", a + 12, tree_root))
+			if (member_add_file(&m, v))
+				goto out;
+		} else if (opt_arg("--expect", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (member_add_spec(&m, v)) {
+				pr_err("attest verify: bad --expect '%s'",
+				       v);
+				goto out;
+			}
+		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex32("--tree-root", v, tree_root))
 				goto out;
 			have_tree_root = true;
-		} else if (!strncmp(a, "--expect-config-root=", 21)) {
+		} else if (opt_arg("--expect-config-root", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
 			if (x.have_config_root ||
-			    parse_hex32("--expect-config-root", a + 21,
+			    parse_hex32("--expect-config-root", v,
 					x.config_root))
 				goto out;
 			x.have_config_root = true;
-		} else if (!strncmp(a, "--expect-config-pcr=", 20)) {
+		} else if (opt_arg("--expect-config-pcr", a, argc, argv, &i, &v, &r)) {
 			__u64 pcr;
 
-			if (parse_u64(a + 20, strlen(a + 20), 15, &pcr) ||
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_u64(v, strlen(v), 15, &pcr) ||
 			    x.have_config_pcr ||
 			    config_measure_pcr_valid(pcr))
 				goto out;
 			x.config_pcr = pcr;
 			x.have_config_pcr = true;
-		} else if (!strncmp(a, "--expect-chain=", 15)) {
-			if (parse_hex32("--expect-chain", a + 15, x.chain))
+		} else if (opt_arg("--expect-chain", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex32("--expect-chain", v, x.chain))
 				goto out;
 			x.have_chain = true;
-		} else if (!strncmp(a, "--expect-pcr=", 13)) {
+		} else if (opt_arg("--expect-pcr", a, argc, argv, &i, &v, &r)) {
 			const char *value;
 			__u64 n;
 
-			if (parse_pcr_value(a + 13, &n, &value) ||
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_pcr_value(v, &n, &value) ||
 			    parse_hex32("--expect-pcr value", value, x.pcrs[n]))
 				goto out;
 			x.pcr_expect_mask |= 1u << n;
@@ -673,15 +760,25 @@ static int cmd_attest_verify(int argc, const char **argv)
 			x.allow_runtime_events = true;
 		} else if (!strcmp(a, "--strict-anchor")) {
 			x.strict_anchor = true;
-		} else if (!strncmp(a, "--expect-credential=", 20)) {
-			if (parse_hex32("--expect-credential", a + 20,
+		} else if (opt_arg("--expect-credential", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex32("--expect-credential", v,
 					x.credential))
 				goto out;
 			x.have_credential = true;
-		} else if (!strncmp(a, "--ek-name=", 10)) {
+		} else if (opt_arg("--ek-name", a, argc, argv, &i, &v, &r)) {
 			size_t n;
 
-			if (parse_hex(a + 10, x.ek_name, sizeof(x.ek_name),
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex(v, x.ek_name, sizeof(x.ek_name),
 				      &n) || n != TPM_NAME_LEN) {
 				pr_err("attest verify: --ek-name must be %d "
 				       "hex characters",
@@ -689,11 +786,16 @@ static int cmd_attest_verify(int argc, const char **argv)
 				goto out;
 			}
 			x.have_ek_name = true;
-		} else if (!strncmp(a, "--expect-bind-pcr=", 18)) {
+		} else if (opt_arg("--expect-bind-pcr", a, argc, argv, &i, &v, &r)) {
 			const char *value;
 			__u64 n;
 
-			if (parse_pcr_value(a + 18, &n, &value) ||
+			if (r == OPT_MISSING) {
+				pr_err("attest verify: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_pcr_value(v, &n, &value) ||
 			    parse_hex32("--expect-bind-pcr value", value,
 					x.bind_values[n]))
 				goto out;
@@ -789,21 +891,46 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		return 1;
 	for (i = 2; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
-		if (!strncmp(a, "--evidence=", 11)) {
-			evidence_path = a + 11;
-		} else if (!strncmp(a, "--ek-ca=", 8)) {
-			pol.ek_ca = a + 8;
-		} else if (!strncmp(a, "--ak-name=", 10)) {
-			if (parse_hex(a + 10, ak_name, sizeof(ak_name), &n) ||
+		if (!strcmp(a, "-o"))
+			a = "--output";
+
+		if (opt_arg("--evidence", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest challenge: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			evidence_path = v;
+		} else if (opt_arg("--ek-ca", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest challenge: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			pol.ek_ca = v;
+		} else if (opt_arg("--ak-name", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest challenge: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex(v, ak_name, sizeof(ak_name), &n) ||
 			    n != TPM_NAME_LEN) {
 				pr_err("attest challenge: --ak-name must be %d "
 				       "hex characters", 2 * TPM_NAME_LEN);
 				goto out;
 			}
 			pol.ak_name = ak_name;
-		} else if (!strncmp(a, "--ek-name=", 10)) {
-			if (parse_hex(a + 10, ek_name, sizeof(ek_name), &n) ||
+		} else if (opt_arg("--ek-name", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest challenge: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			if (parse_hex(v, ek_name, sizeof(ek_name), &n) ||
 			    n != TPM_NAME_LEN) {
 				pr_err("attest challenge: --ek-name must be %d "
 				       "hex characters", 2 * TPM_NAME_LEN);
@@ -812,8 +939,13 @@ static int cmd_attest_challenge(int argc, const char **argv)
 			pol.ek_name = ek_name;
 		} else if (!strcmp(a, "--trust-presented-ek")) {
 			pol.trust_presented = true;
-		} else if (!strncmp(a, "--out=", 6)) {
-			out_path = a + 6;
+		} else if (opt_arg("--output", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest challenge: %s takes a value", a);
+				ret = 2;
+				goto out;
+			}
+			out_path = v;
 		} else if (is_help(a)) {
 			print_help(&attest_help);
 			ret = 0;
@@ -824,7 +956,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		}
 	}
 	if (!evidence_path || !out_path) {
-		pr_err("attest challenge: --evidence and --out are required");
+		pr_err("attest challenge: --evidence and --output are required");
 		goto out;
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
@@ -888,24 +1020,45 @@ static int cmd_attest_evidence(int argc, const char **argv)
 
 	for (i = 1; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
-		if (!strncmp(a, "--challenge=", 12)) {
-			challenge_path = a + 12;
-		} else if (!strncmp(a, "--nonce=", 8)) {
-			if (parse_hex(a + 8, nonce, sizeof(nonce),
+		if (!strcmp(a, "-o"))
+			a = "--output";
+
+		if (opt_arg("--challenge", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest: %s takes a value", a);
+				return 2;
+			}
+			challenge_path = v;
+		} else if (opt_arg("--nonce", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest: %s takes a value", a);
+				return 2;
+			}
+			if (parse_hex(v, nonce, sizeof(nonce),
 				      &nonce_len)) {
 				pr_err("attest: --nonce must be hex of up to "
 				       "%d bytes", ATTEST_NONCE_MAX);
 				return 2;
 			}
-		} else if (!strncmp(a, "--pcrs=", 7)) {
-			if (parse_pcrs(a + 7, &mask)) {
+		} else if (opt_arg("--pcrs", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest: %s takes a value", a);
+				return 2;
+			}
+			if (parse_pcrs(v, &mask)) {
 				pr_err("attest: --pcrs takes a comma separated "
 				       "list of 0..23");
 				return 2;
 			}
-		} else if (!strncmp(a, "--out=", 6)) {
-			out_path = a + 6;
+		} else if (opt_arg("--output", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				pr_err("attest: %s takes a value", a);
+				return 2;
+			}
+			out_path = v;
 		} else if (is_help(a)) {
 			print_help(&attest_help);
 			return 0;

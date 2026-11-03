@@ -270,7 +270,8 @@ int build_image(int argc, char **argv)
 			image_usage(stdout);
 			return 0;
 		}
-		if (!strcmp(arg, "-o") && i + 1 < argc) {
+		if ((!strcmp(arg, "-o") || !strcmp(arg, "--output")) &&
+		    i + 1 < argc) {
 			prefix = argv[++i];
 		} else if (!strcmp(arg, "--keys-dir") && i + 1 < argc) {
 			keys_dir = argv[++i];

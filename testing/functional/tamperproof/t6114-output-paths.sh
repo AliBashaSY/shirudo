@@ -3,7 +3,7 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t6114 -- a path root names for shirudo to write. The seal lets the
-# runtime task write what it denies everyone else, so a --report, --out
+# runtime task write what it denies everyone else, so a --report, --output
 # or --json path pointed at sealed state, directly or through a symbolic
 # link, must be refused rather than clobber the eventlog or plant a file
 # the next boot restores. Non-destructive: every refusal leaves the state
@@ -54,7 +54,7 @@ test_expect_success 'a map listing is not appended to the eventlog' '
 '
 
 test_expect_success 'evidence is not written over the eventlog' '
-	! "$SHIRUDO_BIN" attest --nonce=00 --out="$EVENTLOG" \
+	! "$SHIRUDO_BIN" attest --nonce=00 --output="$EVENTLOG" \
 		>/dev/null 2>"$LINK.err" &&
 	grep -q "refusing to write sealed state" "$LINK.err" &&
 	[ "$(sha256sum "$EVENTLOG" | cut -d" " -f1)" = "$BEFORE" ]

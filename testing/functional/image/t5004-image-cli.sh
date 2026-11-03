@@ -35,7 +35,7 @@ refused() {
 test_expect_success 'local repository mutations fail before changing config or keys' '
 	source_file keep "$WORK/host.der" &&
 	cp "$REG/keep.conf" "$WORK/before.conf" &&
-	refused bpm config register add new oci://example.invalid --key-file "$WORK/host.der" &&
+	refused bpm config register add new oci://example.invalid --cert "$WORK/host.der" &&
 	refused bpm config register remove keep &&
 	refused bpm config register rm keep &&
 	cmp "$REG/keep.conf" "$WORK/before.conf" &&
@@ -55,7 +55,7 @@ test_expect_success 'local key changes explain signed revocation and reboot enro
 
 test_expect_success 'read-only repository listing and command help remain available' '
 	"$H" "$ROOT" bpm config register list >"$WORK/list" &&
-	grep -qx keep "$WORK/list" &&
+	grep -qx "  keep" "$WORK/list" &&
 	"$H" "$ROOT" keys add --help &&
 	"$H" "$ROOT" keys revoke --help &&
 	"$H" "$ROOT" bpm key add --help &&

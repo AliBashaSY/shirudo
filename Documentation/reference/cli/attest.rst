@@ -21,7 +21,7 @@ Usage
 .. code-block:: none
 
    shirudo attest [--nonce=<nonce>] [--pcrs=<list>] [--challenge=<challenge>]
-                  [--out=<path>]
+                  [--output=<path>]
    shirudo attest verify ...
    shirudo attest predict ...
    shirudo attest challenge ...
@@ -80,7 +80,7 @@ Options
      - ``<challenge>``, a file
      - none
      - Credential challenge from ``attest challenge`` to activate.
-   * - ``--out``
+   * - ``--output``
      - ``<path>``
      - standard output
      - Write the evidence to ``<path>`` with mode 0600. A path in sealed
@@ -111,7 +111,7 @@ Files and environment
 
 - Reads the TPM, ``/var/lib/shirudo/eventlog``, the config activation
   records and the firmware and systemd event logs
-- Writes ``--out``
+- Writes ``--output``
 
 Examples
 --------
@@ -126,7 +126,7 @@ On the target, produce evidence for that nonce:
 
 .. code-block:: console
 
-   target# shirudo attest --nonce=a707993af885f29e88a1f9e936a3ccf9806b8d8b02c43dfe56fe571ce0f200d3 --out=ev.json
+   target# shirudo attest --nonce=a707993af885f29e88a1f9e936a3ccf9806b8d8b02c43dfe56fe571ce0f200d3 --output=ev.json
 
 ``attest`` prints nothing on success and writes ``ev.json`` with mode
 0600. The document is JSON with the keys ``schema``, ``kind``

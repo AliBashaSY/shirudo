@@ -73,7 +73,7 @@ test_expect_success 'the map export unit ships what the package observed' '
 
 test_expect_success 'the target attests what it runs' '
 	"$SHIRUDO_BIN" attest --nonce="$(cat "$E2E/nonce")" \
-		--out="$OUT/evidence.json" &&
+		--output="$OUT/evidence.json" &&
 	[ -s "$OUT/evidence.json" ]
 '
 

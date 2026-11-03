@@ -20,7 +20,7 @@ Usage
 
 .. code-block:: none
 
-   shirudo attest challenge --evidence=<evidence> --out=<challenge>
+   shirudo attest challenge --evidence=<evidence> --output=<challenge>
                             (--ek-ca=<bundle> | --ek-name=<name> | --trust-presented-ek)
                             [--ak-name=<name>]
 
@@ -47,7 +47,7 @@ to the target's endorsement key:
 
    Without any of the three, the check fails.
 #. It makes a random 32-byte credential, protects it for the endorsement
-   key and the attestation key name, writes the challenge to ``--out``
+   key and the attestation key name, writes the challenge to ``--output``
    with mode 0600 and prints ``challenge: <path>`` and
    ``credential: <hex>``.
 
@@ -68,7 +68,7 @@ Options
    * - ``--evidence``
      - ``<evidence>``, a file
      - Required. Evidence from the target.
-   * - ``--out``
+   * - ``--output``
      - ``<challenge>``, a path
      - Required. Where to write the challenge.
    * - ``--ak-name``
@@ -99,7 +99,7 @@ Exit status
      - A check failed (``verdict: fail``), or the challenge could not be
        written.
    * - 2
-     - ``--evidence`` or ``--out`` missing, an unknown option or invalid
+     - ``--evidence`` or ``--output`` missing, an unknown option or invalid
        value, an unreadable evidence file, or evidence that carries no
        endorsement key.
 
@@ -110,7 +110,7 @@ Make a challenge for a target whose TPM vendor roots you hold:
 
 .. code-block:: console
 
-   operator$ shirudo attest challenge --evidence=ev.json --ak-name=<ak-name> --ek-ca=<tpm-vendor-roots> --out=challenge.json
+   operator$ shirudo attest challenge --evidence=ev.json --ak-name=<ak-name> --ek-ca=<tpm-vendor-roots> --output=challenge.json
 
 ``<ak-name>`` is ``.ak.name`` of the evidence (:doc:`attest`) and
 ``<tpm-vendor-roots>`` a PEM bundle of the TPM manufacturers' issuing

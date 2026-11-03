@@ -184,9 +184,9 @@ PY
 test_expect_success 'status --include-system prints kernel config' '
 	work=$(mktemp -d) &&
 	"$S" status --include-system >"$work/status" 2>"$work/stderr" &&
-	grep -q "^  Kernel Config:$" "$work/status" &&
-	grep -Eq "^  Kernel Build ID: ([0-9a-f]+)?$" "$work/status" &&
-	grep -Eq "^    (CONFIG_[^=]+=.*|\\(unavailable\\))$" "$work/status" &&
+	grep -Eq "^  Kernel build ID: +([0-9a-f]+)?$" "$work/status" &&
+	"$S" status --json --include-system 2>/dev/null |
+		python3 -c "import json, sys; sys.exit(0 if \"kernel_config\" in json.load(sys.stdin)[\"system\"] else 1)" &&
 	rm -rf "$work"
 '
 

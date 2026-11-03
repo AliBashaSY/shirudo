@@ -1596,7 +1596,7 @@ static void build_usage(void)
 {
 	fprintf(stderr,
 		"usage: shirudo bpm build [context] --version <version>\n"
-		"       shirudo bpm build [context] -f <name>.bee --version <version>\n"
+		"       shirudo bpm build [context] --file <name>.bee --version <version>\n"
 		"                              [--keys-dir <dir>]\n"
 		"                              [--vmlinux <vmlinux.h>]\n"
 		"                              [--rodata-input <name>=<path>]...\n\n"
@@ -1629,7 +1629,7 @@ static int __build_bpm_build(int argc, char **argv,
 		if (build_is_help(argv[i])) {
 			build_usage();
 			return 0;
-		} else if (!strcmp(argv[i], "-f") || !strcmp(argv[i], "--file")) {
+		} else if (!strcmp(argv[i], "--file")) {
 			if (++i >= argc)
 				goto usage;
 			file_arg = argv[i];
@@ -1939,12 +1939,11 @@ static int __build_bpm_config_update(int argc, char **argv,
 				"usage: shirudo bpm config update "
 				"--base-package <package.bee|oci://host/repo:tag> "
 				"--version <version> "
-				"[-f <name>.bee] [--rodata-input <name>=<path>]...\n"
+				"[--file <name>.bee] [--rodata-input <name>=<path>]...\n"
 				"Without -f, the Beefile and updater inputs come from "
 				"--base-package and are trusted as operator-side code.\n");
 			return 0;
-		} else if (!strcmp(argv[i], "-f") ||
-			   !strcmp(argv[i], "--file")) {
+		} else if (!strcmp(argv[i], "--file")) {
 			if (++i >= argc)
 				goto usage;
 			file_arg = argv[i];
@@ -2037,7 +2036,7 @@ static int __build_bpm_config_update(int argc, char **argv,
 		ret = build_copy_package_member(base_package, "Beefile", build_file);
 		if (ret == -ENOENT) {
 			pr_err("bpm config update: base package %s has no Beefile; "
-			       "rebuild it with a Beefile or pass -f <name>.bee",
+			       "rebuild it with a Beefile or pass --file <name>.bee",
 			       base_package);
 			ret = -EINVAL;
 		}
@@ -2217,7 +2216,7 @@ usage:
 	fprintf(stderr,
 		"usage: shirudo bpm config update --base-package "
 		"<package.bee|oci://host/repo:tag> --version <version> "
-		"[-f <name>.bee] "
+		"[--file <name>.bee] "
 		"[--rodata-input <name>=<path>]... [--keys-dir <dir>]\n");
 	return -EINVAL;
 }
@@ -2239,11 +2238,11 @@ static int build_bpm_config_update(int argc, char **argv)
 static void bpm_usage(FILE *fp)
 {
 	fprintf(fp,
-		"usage: shirudo bpm build [context] --version <version> [-f <name>.bee]\n"
+		"usage: shirudo bpm build [context] --version <version> [--file <name>.bee]\n"
 		"                         [--keys-dir <dir>] [--vmlinux <vmlinux.h>]\n"
 		"                         [--rodata-input <name>=<path>]...\n"
 		"       shirudo bpm config update --base-package <package.bee|oci://...>\n"
-		"                         --version <version> [-f <name>.bee]\n"
+		"                         --version <version> [--file <name>.bee]\n"
 		"                         [--rodata-input <name>=<path>]...\n"
 		"       shirudo bpm push <package-file> <repository> [--keys-dir <dir> |\n"
 		"                        --index-cert <cert.der> --index-key <key.pem>]\n"

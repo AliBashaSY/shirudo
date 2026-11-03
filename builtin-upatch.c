@@ -2620,7 +2620,7 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 			 const char **expect_version_id, bool *no_precheck,
 			 bool *no_version_check, const char **report)
 {
-	int i;
+	size_t i;
 
 	*file = NULL;
 	*expect_chain = NULL;
@@ -2628,17 +2628,34 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 	*no_precheck = false;
 	*no_version_check = false;
 	*report = NULL;
-	for (i = 1; i < argc; i++) {
+	for (i = 1; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
-		if (strncmp(a, "--expect-chain=", 15) == 0) {
-			*expect_chain = a + 15;
-		} else if (strncmp(a, "--expect-version-id=", 20) == 0) {
-			*expect_version_id = a + 20;
+		if (opt_arg("--expect-chain", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch %s: %s takes a value\n",
+					verb, a);
+				return 2;
+			}
+			*expect_chain = v;
+		} else if (opt_arg("--expect-version-id", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch %s: %s takes a value\n",
+					verb, a);
+				return 2;
+			}
+			*expect_version_id = v;
 		} else if (strcmp(a, "--no-version-check") == 0) {
 			*no_version_check = true;
-		} else if (strncmp(a, "--report=", 9) == 0) {
-			*report = a + 9;
+		} else if (opt_arg("--report", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch %s: %s takes a value\n",
+					verb, a);
+				return 2;
+			}
+			*report = v;
 		} else if (strcmp(a, "--no-precheck") == 0) {
 			*no_precheck = true;
 		} else if (a[0] == '-') {
@@ -3485,10 +3502,13 @@ static int cmd_upatch_map(int argc, const char **argv)
 	bool insecure_set = false;
 	bool retries_set = false;
 	size_t n = 0;
-	int i, ret = 0;
+	size_t i;
+	int ret = 0;
 
-	for (i = 1; i < argc; i++) {
+	for (i = 1; i < (size_t)argc; i++) {
 		const char *a = argv[i];
+		const char *v = NULL;
+		enum opt_status r;
 
 		if (is_help(a)) {
 			print_help(&upatch_map_help);
@@ -3524,22 +3544,30 @@ static int cmd_upatch_map(int argc, const char **argv)
 				return 2;
 			}
 			otel = true;
-		} else if (strncmp(a, "--otel-endpoint=", 16) == 0) {
-			if (otel_opts.endpoint || !a[16]) {
+		} else if (opt_arg("--otel-endpoint", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch map: %s takes a value\n", a);
+				return 2;
+			}
+			if (otel_opts.endpoint || !v[0]) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
 					"--otel-endpoint\n");
 				return 2;
 			}
-			otel_opts.endpoint = a + 16;
-		} else if (strncmp(a, "--tenant-id=", 12) == 0) {
+			otel_opts.endpoint = v;
+		} else if (opt_arg("--tenant-id", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch map: %s takes a value\n", a);
+				return 2;
+			}
 			if (otel_opts.tenant_id ||
-			    !tenant_id_valid(a + 12)) {
+			    !tenant_id_valid(v)) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
 					"--tenant-id; expected 1..128 characters using "
 					"A-Z, a-z, 0-9, '.', '_', or '-'\n");
 				return 2;
 			}
-			otel_opts.tenant_id = a + 12;
+			otel_opts.tenant_id = v;
 		} else if (strcmp(a, "--otel-insecure") == 0) {
 			if (insecure_set) {
 				fprintf(stderr, "upatch map: duplicate --otel-insecure\n");
@@ -3547,27 +3575,35 @@ static int cmd_upatch_map(int argc, const char **argv)
 			}
 			insecure_set = true;
 			otel_opts.allow_insecure = true;
-		} else if (strncmp(a, "--otel-retries=", 15) == 0) {
+		} else if (opt_arg("--otel-retries", a, argc, argv, &i, &v, &r)) {
 			__u64 value;
 
-			if (retries_set || !a[15]) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch map: %s takes a value\n", a);
+				return 2;
+			}
+			if (retries_set || !v[0]) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
 					"--otel-retries\n");
 				return 2;
 			}
-			if (parse_u64(a + 15, strlen(a + 15), 10, &value)) {
+			if (parse_u64(v, strlen(v), 10, &value)) {
 				fprintf(stderr, "upatch map: --otel-retries must be 0..10\n");
 				return 2;
 			}
 			otel_opts.retries = (__u32)value;
 			retries_set = true;
-		} else if (strncmp(a, "--s3-uri=", 9) == 0) {
-			if (otel_opts.s3_uri || !a[9]) {
+		} else if (opt_arg("--s3-uri", a, argc, argv, &i, &v, &r)) {
+			if (r == OPT_MISSING) {
+				fprintf(stderr, "upatch map: %s takes a value\n", a);
+				return 2;
+			}
+			if (otel_opts.s3_uri || !v[0]) {
 				fprintf(stderr, "upatch map: invalid or duplicate "
 					"--s3-uri\n");
 				return 2;
 			}
-			otel_opts.s3_uri = a + 9;
+			otel_opts.s3_uri = v;
 		} else if (a[0] == '-') {
 			fprintf(stderr, "upatch map: unknown option '%s'\n", a);
 			return 2;

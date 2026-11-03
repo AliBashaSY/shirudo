@@ -104,7 +104,7 @@ _shirudo()
 		elif [[ ($sub == list || ($sub == key && ${COMP_WORDS[3]} == list)) && $cur == -* ]]; then
 			COMPREPLY=( $(compgen -W "--json" -- "$cur") )
 		elif [[ $sub == config && ${COMP_WORDS[3]} == register && ${COMP_WORDS[4]} == add && $cur == -* ]]; then
-			COMPREPLY=( $(compgen -W "--key-file=" -- "$cur") )
+			COMPREPLY=( $(compgen -W "--cert=" -- "$cur") )
 		elif [[ $sub == repo && cword -eq 3 ]]; then
 			COMPREPLY=( $(compgen -W "update" -- "$cur") )
 		elif [[ $sub == info && cword -eq 3 ]]; then
@@ -198,11 +198,11 @@ _shirudo()
 			COMPREPLY=( $(compgen -W "--cert= --upatch= --expect= \
 				--tree-root= --event= --json" -- "$cur") )
 		elif [[ $sub == challenge ]]; then
-			COMPREPLY=( $(compgen -W "--evidence= --ek-ca= --out=" \
+			COMPREPLY=( $(compgen -W "--evidence= --ek-ca= --output=" \
 				-- "$cur") )
 		else
 			COMPREPLY=( $(compgen -W "--nonce= --pcrs= --challenge= \
-				--out=" -- "$cur") )
+				--output=" -- "$cur") )
 		fi
 		;;
 	keys)

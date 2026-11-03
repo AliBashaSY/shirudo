@@ -62,7 +62,7 @@ Take the first evidence
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce1> --out=/mnt/shirudo-out/first.json
+      target# shirudo attest --nonce=<nonce1> --output=/mnt/shirudo-out/first.json
 
    ``<nonce1>`` is the value you printed.
 
@@ -90,7 +90,7 @@ Challenge the attestation key
 
    .. code-block:: console
 
-      operator$ shirudo attest challenge --evidence="$RESULT/first.json" --ak-name="$AK" --trust-presented-ek --out="$RESULT/challenge.json"
+      operator$ shirudo attest challenge --evidence="$RESULT/first.json" --ak-name="$AK" --trust-presented-ek --output="$RESULT/challenge.json"
         OK    attestation key: the pinned key
         OK    endorsement key: name matches its public area
         OK    endorsement key: TCG default template under the endorsement policy
@@ -139,7 +139,7 @@ Answer the challenge on the target
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce2> --challenge=/mnt/shirudo-out/challenge.json --out=/mnt/shirudo-out/enrolled.json
+      target# shirudo attest --nonce=<nonce2> --challenge=/mnt/shirudo-out/challenge.json --output=/mnt/shirudo-out/enrolled.json
 
    The TPM activates the credential for its attestation key, and the
    evidence carries the recovered value. A challenge made for another
@@ -245,7 +245,7 @@ Verify evidence
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce3> --out=/mnt/shirudo-out/ev.json
+      target# shirudo attest --nonce=<nonce3> --output=/mnt/shirudo-out/ev.json
 
 3. Verify it with the pinned key and the predicted register:
 

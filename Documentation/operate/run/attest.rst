@@ -107,7 +107,7 @@ you trust.
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce> --out=enroll.json
+      target# shirudo attest --nonce=<nonce> --output=enroll.json
 
    ``<nonce>`` is the hex string from step 1. The command prints nothing
    on success and writes the file with mode ``0600``. Copy
@@ -126,7 +126,7 @@ you trust.
    .. code-block:: console
 
       operator$ shirudo attest challenge --evidence=enroll.json \
-          --ak-name=<ak-name> --ek-ca=<ek-issuers.pem> --out=challenge.json
+          --ak-name=<ak-name> --ek-ca=<ek-issuers.pem> --output=challenge.json
 
    ``<ak-name>`` is the name from step 3. ``<ek-issuers.pem>`` is your
    manufacturer's issuer bundle. The endorsement certificate in the
@@ -144,7 +144,7 @@ you trust.
    .. code-block:: console
 
       target# shirudo attest --nonce=<nonce-2> --challenge=challenge.json \
-          --out=answer.json
+          --output=answer.json
 
    The TPM can recover the credential only when the attestation key and
    the endorsement key are in it. The command refuses with
@@ -218,7 +218,7 @@ Collect evidence
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce> --out=ev.json
+      target# shirudo attest --nonce=<nonce> --output=ev.json
 
    The evidence holds the TPM quote of PCRs 0 to 7, 9 and 11 to 15, the
    certified register, this boot's eventlog records and the config

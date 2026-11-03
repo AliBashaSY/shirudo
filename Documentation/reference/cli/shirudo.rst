@@ -123,6 +123,17 @@ of ``image``, the actions of ``bpm config register`` and the words
 ``shirudo --list-cmds`` and ``shirudo help --list-cmds`` print the
 command names one per line. Bash completion reads them from there.
 
+Option forms
+~~~~~~~~~~~~
+
+An option that takes a value takes it after an equals sign or as the
+next argument: ``--cert=cert.der`` and ``--cert cert.der`` are the
+same. The same function has the same name on every command: a file to
+write is ``-o <path>`` or ``--output <path>``, a certificate file is
+``--cert``, a signing key ``--key``, the directory that holds both
+``--keys-dir``, a Beefile ``--file``, and ``--json`` prints the JSON form
+wherever a command has one.
+
 Runtime binary
 ~~~~~~~~~~~~~~
 

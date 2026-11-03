@@ -21,11 +21,11 @@ Usage
 
 .. code-block:: none
 
-   shirudo bpm config register add <source> oci://<registry> (--key-file <certificate> | --key-file=<certificate>)
+   shirudo bpm config register add <source> oci://<registry> (--cert <certificate> | --cert=<certificate>)
    shirudo bpm config register list [--json]
    shirudo bpm config register (remove | rm) <source>
    shirudo bpm config update --base-package <package> --version <version>
-                             [-f <beefile> | --file <beefile>]
+                             [--file <beefile>]
                              [--rodata-input <name>=<path>]... [--keys-dir <dir>]
    shirudo bpm repo update [<source>]
    shirudo bpm tree sync [--dry-run] [--report <path> | --report=<path>]
@@ -38,7 +38,7 @@ Usage
    shirudo bpm info data <package> <member> [--json]
    shirudo bpm push <package> oci://<registry>/<repository>
                     [--keys-dir <dir> | --index-cert <certificate> --index-key <signing-key>]
-   shirudo bpm build [<context>] --version <version> [-f <beefile> | --file <beefile>]
+   shirudo bpm build [<context>] --version <version> [--file <beefile>]
                      [--keys-dir <dir>] [--vmlinux <vmlinux-h>]
                      [--rodata-input <name>=<path>]...
    shirudo bpm install <source>/<name>[@<version>]
@@ -132,9 +132,9 @@ image, the image's ``etc/shirudo/bpm/registries.d/`` is used instead, and
    image mode: change repository definitions and keys in a signed config image, then run `shirudo image update`
 
 - ``add`` checks that the endpoint is ``oci://<host>[:<port>]`` without a
-  path and that ``--key-file`` is a certificate, copies the certificate to
+  path and that ``--cert`` is a certificate, copies the certificate to
   ``/etc/shirudo/bpm/keys/<source>.der`` and writes the source file.
-  Arguments after the endpoint other than ``--key-file`` are ignored.
+  Arguments after the endpoint other than ``--cert`` are ignored.
 - ``list`` prints the registered source names, one per line.
 - ``remove`` and ``rm`` delete the source file and its certificate.
 

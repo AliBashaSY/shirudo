@@ -74,7 +74,7 @@ if [ "$have_mldsa" = 1 ]; then
 		grep -q "Algorithm: *ML-DSA-87" "$tmp/keys.out" &&
 		grep -q "Issued: *20[0-9][0-9]-" "$tmp/keys.out" &&
 		! grep -Eq "Valid until|Expires in" "$tmp/keys.out" &&
-		grep -q "signing key matches cert" "$tmp/keys.out"
+		grep -q "Matches cert: *yes" "$tmp/keys.out"
 	'
 
 	test_expect_success 'genkey refuses to overwrite without --force' '
@@ -94,7 +94,7 @@ if [ "$have_mldsa" = 1 ]; then
 		rmdir "$tmp/keys/cert.der" &&
 		mv "$tmp/old.der" "$tmp/keys/cert.der" &&
 		"$SHIRUDO" keys --keys-dir "$tmp/keys" >"$tmp/keys.out" 2>&1 &&
-		grep -q "signing key matches cert" "$tmp/keys.out"
+		grep -q "Matches cert: *yes" "$tmp/keys.out"
 	'
 else
 	test_expect_success 'genkey refuses with an upgrade hint on an OpenSSL without ML-DSA' '

@@ -89,7 +89,7 @@ test_expect_success 'a real signed unload extends the register and remains repla
 '
 
 test_expect_success 'the installed binary emits evidence that verifies against the live register' '
-	"$SHIRUDO_BIN" attest --nonce="$NONCE" --out="$W/evidence.json" &&
+	"$SHIRUDO_BIN" attest --nonce="$NONCE" --output="$W/evidence.json" &&
 	AK=$(evidence_field ak.name) &&
 	EK=$(evidence_field ek.name) &&
 	CHAIN=$(tpm_chain chain) &&
@@ -184,26 +184,26 @@ PY
 
 test_expect_success 'a challenge requires the correct pinned endorsement and attestation keys' '
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
-		--out="$W/challenge-none.json" >"$W/challenge-none.out" &&
+		--output="$W/challenge-none.json" >"$W/challenge-none.out" &&
 	grep -q "^  FAIL  no endorsement certificate: pin the key" "$W/challenge-none.out" &&
 	[ ! -e "$W/challenge-none.json" ] &&
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
-		--ek-name=000b$(printf "%064d" 0) --out="$W/challenge-wrong.json" \
+		--ek-name=000b$(printf "%064d" 0) --output="$W/challenge-wrong.json" \
 		>"$W/challenge-wrong.out" &&
 	grep -q "^  FAIL  endorsement key: the pinned key" "$W/challenge-wrong.out" &&
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
 		--ak-name=000b$(printf "%064d" 0) --trust-presented-ek \
-		--out="$W/challenge-wrong.json" >"$W/challenge-wrong-ak.out" &&
+		--output="$W/challenge-wrong.json" >"$W/challenge-wrong-ak.out" &&
 	grep -q "^  FAIL  attestation key: the pinned key" "$W/challenge-wrong-ak.out"
 '
 
 test_expect_success 'the production target activates an ECC endorsement-key challenge' '
 	"$SHIRUDO_BIN" attest challenge --evidence="$W/evidence.json" \
-		--ak-name="$AK" --ek-name="$EK" --out="$W/challenge.json" >"$W/challenge.out" &&
+		--ak-name="$AK" --ek-name="$EK" --output="$W/challenge.json" >"$W/challenge.out" &&
 	credential=$(sed -n "s/^credential: //p" "$W/challenge.out") &&
 	[ "${#credential}" = 64 ] &&
 	"$SHIRUDO_BIN" attest --nonce=1112 --challenge="$W/challenge.json" \
-		--out="$W/evidence-credential.json" &&
+		--output="$W/evidence-credential.json" &&
 	"$SHIRUDO_BIN" attest verify --evidence="$W/evidence-credential.json" --nonce=1112 \
 		--ak-name="$AK" --ek-name="$EK" --allow-runtime-events \
 		--expect-credential="$credential" >"$W/credential.report" &&
@@ -228,9 +228,9 @@ foreign["ak_name"] = "000b" + "00" * 32
 json.dump(foreign, open(sys.argv[2] + "/challenge-foreign.json", "w"))
 PY
 	! "$SHIRUDO_BIN" attest --nonce=1112 --challenge="$W/challenge-corrupt.json" \
-		--out="$W/corrupt-evidence.json" &&
+		--output="$W/corrupt-evidence.json" &&
 	! "$SHIRUDO_BIN" attest --nonce=1112 --challenge="$W/challenge-foreign.json" \
-		--out="$W/foreign-evidence.json"
+		--output="$W/foreign-evidence.json"
 '
 
 test_expect_success 'an RSA endorsement key activates the challenge through the production target' '
@@ -247,10 +247,10 @@ doc = {"ak": {"name": d["ak"]["name"]},
 json.dump(doc, open(sys.argv[3], "w"))
 PY
 	"$SHIRUDO_BIN" attest challenge --evidence="$W/rsa.json" --trust-presented-ek \
-		--out="$W/challenge-rsa.json" >"$W/challenge-rsa.out" &&
+		--output="$W/challenge-rsa.json" >"$W/challenge-rsa.out" &&
 	credential=$(sed -n "s/^credential: //p" "$W/challenge-rsa.out") &&
 	"$SHIRUDO_BIN" attest --nonce=1314 --challenge="$W/challenge-rsa.json" \
-		--out="$W/evidence-rsa.json" &&
+		--output="$W/evidence-rsa.json" &&
 	"$SHIRUDO_BIN" attest verify --evidence="$W/evidence-rsa.json" --nonce=1314 \
 		--ak-name="$AK" --allow-runtime-events --expect-credential="$credential" \
 		>"$W/rsa.report" &&
@@ -265,7 +265,7 @@ d["ek"] = {"type": "ecc", "public": d["ak"]["public"], "name": d["ak"]["name"]}
 json.dump(d, open(sys.argv[2], "w"))
 PY
 	! "$SHIRUDO_BIN" attest challenge --evidence="$W/fake-ek.json" --trust-presented-ek \
-		--out="$W/challenge-fake.json" >"$W/fake-ek.out" &&
+		--output="$W/challenge-fake.json" >"$W/fake-ek.out" &&
 	grep -q "^  FAIL  endorsement key: TCG default template" "$W/fake-ek.out" &&
 	[ ! -e "$W/challenge-fake.json" ]
 '

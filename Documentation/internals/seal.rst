@@ -233,7 +233,7 @@ shirudo's readers do not trust an entry because it is there. They open
 each path component without following symbolic links and require every
 entry under a labeled directory to carry its parent's label; anything
 else is reported as a foreign entry and refused. A path a caller names
-for shirudo to write, such as ``--report`` or ``--out``, must be an
+for shirudo to write, such as ``--report`` or ``--output``, must be an
 unlabeled regular file outside any labeled directory, so a task with
 runtime authority cannot be pointed at sealed state.
 

@@ -281,7 +281,7 @@ Produce evidence for that nonce on the target with :doc:`cli/attest`:
 
 .. code-block:: console
 
-   target# shirudo attest --nonce=<nonce> --out=ev.json
+   target# shirudo attest --nonce=<nonce> --output=ev.json
 
 Read the attestation key name to pin at enrollment:
 
@@ -294,13 +294,13 @@ Make a credential challenge for the pinned key with
 
 .. code-block:: console
 
-   operator$ shirudo attest challenge --evidence=ev.json --ak-name=<ak-name> --ek-ca=<tpm-vendor-roots> --out=challenge.json
+   operator$ shirudo attest challenge --evidence=ev.json --ak-name=<ak-name> --ek-ca=<tpm-vendor-roots> --output=challenge.json
 
 Answer the challenge on the target with :doc:`cli/attest`:
 
 .. code-block:: console
 
-   target# shirudo attest --nonce=<nonce> --challenge=challenge.json --out=ev.json
+   target# shirudo attest --nonce=<nonce> --challenge=challenge.json --output=ev.json
 
 Predict the register for the certificates the target enrolls and a load
 after boot with :doc:`cli/attest-predict`:

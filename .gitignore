@@ -20,7 +20,7 @@
 *.upatch.json
 
 # Local bpf-next kernel and userspace dependency artifacts
-/artifacts/
+/artifacts
 
 # Generated headers
 /vmlinux.h

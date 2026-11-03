@@ -8,6 +8,8 @@
 #ifndef SHIRUDO_HELP_H
 #define SHIRUDO_HELP_H
 
+#include <stdbool.h>
+#include <string.h>
 #include <stddef.h>
 
 struct help_item {
@@ -32,6 +34,44 @@ struct help {
 int is_help(const char *arg);
 
 int is_list_cmds(const char *arg);
+
+/*
+ * A valued option takes its value after an equals sign or as the next
+ * argument. opt_arg() says whether arg, argv[*i] or a name a caller
+ * substituted for it, is the option name: it hands the value out and
+ * steps *i past a value that followed, or reports an option that came
+ * last with nothing after it.
+ */
+enum opt_status {
+	OPT_NONE,
+	OPT_VALUE,
+	OPT_MISSING,
+};
+
+static inline bool opt_arg(const char *name, const char *arg, int argc,
+			   const char **argv, size_t *i, const char **value,
+			   enum opt_status *status)
+{
+	size_t n = strlen(name);
+
+	*status = OPT_NONE;
+	if (strncmp(arg, name, n))
+		return false;
+	if (arg[n] == '=') {
+		*value = arg + n + 1;
+		*status = OPT_VALUE;
+		return true;
+	}
+	if (arg[n])
+		return false;
+	if (*i + 1 >= (size_t)argc) {
+		*status = OPT_MISSING;
+		return true;
+	}
+	*value = argv[++*i];
+	*status = OPT_VALUE;
+	return true;
+}
 
 void print_help(const struct help *h);
 

@@ -437,7 +437,7 @@ nothing but the evidence, your certificates and your artifacts.
 
    .. code-block:: console
 
-      target# shirudo attest --nonce=<nonce> --out=/mnt/shirudo-out/ev.json
+      target# shirudo attest --nonce=<nonce> --output=/mnt/shirudo-out/ev.json
 
    ``<nonce>`` is the value you printed. The TPM signs a quote over the
    PCRs and a certification of the register with its attestation key, and

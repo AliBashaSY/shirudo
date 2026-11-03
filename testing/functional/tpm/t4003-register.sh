@@ -245,16 +245,16 @@ test_expect_success 'a tree operation records its digest as the target writes it
 
 test_expect_success 'a challenge needs a vouched-for endorsement key' '
 	! $S attest challenge --evidence="$WORK/evidence.json" \
-		--out="$WORK/challenge-none.json" >"$WORK/challenge-none.out" &&
+		--output="$WORK/challenge-none.json" >"$WORK/challenge-none.out" &&
 	grep -q "^  FAIL  no endorsement certificate: pin the key" "$WORK/challenge-none.out" &&
 	[ ! -e "$WORK/challenge-none.json" ] &&
 	! $S attest challenge --evidence="$WORK/evidence.json" \
 		--ek-name="000b$(py "print(\"00\"*32)")" \
-		--out="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong.out" &&
+		--output="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong.out" &&
 	grep -q "^  FAIL  endorsement key: the pinned key" "$WORK/challenge-wrong.out" &&
 	! $S attest challenge --evidence="$WORK/evidence.json" \
 		--ak-name="000b$(py "print(\"00\"*32)")" --trust-presented-ek \
-		--out="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong2.out" &&
+		--output="$WORK/challenge-wrong.json" >"$WORK/challenge-wrong2.out" &&
 	grep -q "^  FAIL  attestation key: the pinned key" "$WORK/challenge-wrong2.out"
 '
 
@@ -262,7 +262,7 @@ test_expect_success 'a challenge made from the evidence activates on the target'
 	nonce=1112 &&
 	$S attest challenge --evidence="$WORK/evidence.json" \
 		--ak-name="$(cat "$WORK/ak")" --ek-name="$(cat "$WORK/ek")" \
-		--out="$WORK/challenge.json" >"$WORK/challenge.out" &&
+		--output="$WORK/challenge.json" >"$WORK/challenge.out" &&
 	grep -q "^  OK    attestation key: the pinned key" "$WORK/challenge.out" &&
 	grep -q "^  OK    endorsement key: the pinned key" "$WORK/challenge.out" &&
 	grep -q "^  OK    endorsement key: TCG default template" "$WORK/challenge.out" &&
@@ -315,7 +315,7 @@ test_expect_success 'an RSA endorsement key protects and activates the challenge
 		"$(cat "$WORK/ak")" "$(echo "$out" | field public)" \
 		"$(echo "$out" | field name)" >"$WORK/rsa.json" &&
 	$S attest challenge --evidence="$WORK/rsa.json" --trust-presented-ek \
-		--out="$WORK/challenge-rsa.json" |
+		--output="$WORK/challenge-rsa.json" |
 		sed -n "s/^credential: //p" >"$WORK/credential-rsa" &&
 	nonce=1314 &&
 	./$R evidence $nonce "$WORK/challenge-rsa.json" >"$WORK/evidence-rsa.json" &&
@@ -325,7 +325,7 @@ test_expect_success 'an RSA endorsement key protects and activates the challenge
 test_expect_success 'challenge refuses a key that is not an endorsement key' '
 	py "import json; d=json.load(open(\"$WORK/evidence.json\")); d[\"ek\"]={\"type\":\"ecc\",\"public\":d[\"ak\"][\"public\"],\"name\":d[\"ak\"][\"name\"]}; open(\"$WORK/fake-ek.json\",\"w\").write(json.dumps(d))" &&
 	! $S attest challenge --evidence="$WORK/fake-ek.json" --trust-presented-ek \
-		--out="$WORK/challenge-fake.json" >"$WORK/fake.out" &&
+		--output="$WORK/challenge-fake.json" >"$WORK/fake.out" &&
 	grep -q "^  FAIL  endorsement key: TCG default template" "$WORK/fake.out" &&
 	grep -qx "verdict: fail" "$WORK/fake.out" &&
 	[ ! -e "$WORK/challenge-fake.json" ]

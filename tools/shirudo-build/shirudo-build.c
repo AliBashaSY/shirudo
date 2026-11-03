@@ -224,7 +224,8 @@ int main(int argc, char **argv)
 	for (i = 1; i < argc; i++) {
 		const char *a = argv[i];
 
-		if (strcmp(a, "-o") == 0 && i + 1 < argc) {
+		if ((strcmp(a, "-o") == 0 || strcmp(a, "--output") == 0) &&
+		    i + 1 < argc) {
 			output = argv[++i];
 		} else if (strcmp(a, "--name") == 0 && i + 1 < argc) {
 			name = argv[++i];
