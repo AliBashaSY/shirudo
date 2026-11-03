@@ -207,7 +207,7 @@ order:
    ``sb_remount`` and the ``file_open`` recorder, open the bpffs root so
    the recorder notes the mount, and freeze that record.
 #. Load ``seal`` on the shared maps, freeze its scratch map, and attach
-   its twenty hooks, then ``mmap_file`` and ``file_mprotect``.
+   its twenty-two hooks, then ``mmap_file`` and ``file_mprotect``.
 #. Attach ``lsm/bpf_map``, then ``lsm/bpf_prog_load``, then ``lsm/bpf``.
 
 ``init`` pins every link as it attaches it, before the next fallible
