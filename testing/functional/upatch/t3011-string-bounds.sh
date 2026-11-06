@@ -5,7 +5,8 @@
 # t3011 -- names keep their terminator and are never cut into others: a
 # pointer type whose name fills the buffer, a signed name section with
 # no terminator, an upatch name the targets refuse or the header cannot
-# hold, and a tree repository longer than its field.
+# hold, and a tree repository longer than its field. The .rodata view
+# prints no BTF name with a control in it and spells no type that loops.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -25,6 +26,15 @@ test_expect_success 'a pointer type name that fills the buffer is refused, termi
 	"$R" 253 1 >"$WORK/fits" && grep -q "off=255 terminated=1" "$WORK/fits" &&
 	! "$R" 254 1 >"$WORK/full" && grep -q "rc=-28 .*terminated=1" "$WORK/full" &&
 	! "$R" 252 2 >"$WORK/full2" && grep -q "terminated=1" "$WORK/full2"
+'
+
+test_expect_success 'a .rodata type with controls in a name or a loop is not dumped' '
+	"$R" dumpable plain >/dev/null &&
+	for what in member enum pointee loop proto; do
+		rc=0 &&
+		"$R" dumpable $what >/dev/null || rc=$? &&
+		[ "$rc" -eq 1 ] || return 1
+	done
 '
 
 test_expect_success 'an upatch name the targets refuse is not signed' '

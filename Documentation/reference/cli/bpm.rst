@@ -261,7 +261,11 @@ its ``upatches/*.upatch`` members, with ``--all`` also the
 None of them checks the package signature, so each shows a control
 character, and a byte that starts no UTF-8 character, as ``?``: in the
 ``README.md`` all but tab, line feed and a carriage return before a line
-feed, in a member or upatch name all of them.
+feed, in a member or upatch name all of them. ``info data`` refuses a
+``.rodata`` whose BTF names a variable or a type with anything but
+printable ASCII, and without ``--json`` also a member or an enumerator,
+or spells a type through a function prototype or through a chain of
+more than 32 modifiers, pointers and arrays.
 
 push
 ----

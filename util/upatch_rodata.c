@@ -26,6 +26,7 @@
 
 #define RODATA_MAPS_MAX	64
 #define RODATA_JSON_MAX_DEPTH	8
+#define RODATA_DECL_MAX		32
 
 struct rodata_map {
 	char name[BPF_OBJ_NAME_LEN + 1];
@@ -386,6 +387,22 @@ out:
 	return ret;
 }
 
+/*
+ * The BTF may come from an unsigned package, and its names go to the
+ * terminal: take printable ASCII alone, all that a kernel would load.
+ */
+static bool btf_name_printable(const struct btf *btf, __u32 off)
+{
+	const char *name = btf__name_by_offset(btf, off);
+
+	if (!name)
+		return false;
+	for (; *name; name++)
+		if ((__u8)*name < 0x20 || (__u8)*name > 0x7e)
+			return false;
+	return true;
+}
+
 static __u32 btf_unwrap(const struct btf *btf, __u32 id)
 {
 	const struct btf_type *t;
@@ -424,6 +441,8 @@ static int append_type_name(const struct btf *btf, __u32 id, char *buf,
 	if (!t)
 		return -EINVAL;
 	kind = BTF_INFO_KIND(t->info);
+	if (!btf_name_printable(btf, t->name_off))
+		return -EINVAL;
 	name = btf__name_by_offset(btf, t->name_off);
 	if (kind == BTF_KIND_TYPEDEF && name && name[0]) {
 		n = strsprintf(buf + *off, cap - *off, "%s", name);
@@ -755,7 +774,8 @@ static const char *btf_var_name(const struct btf *btf,
 {
 	const struct btf_type *t = btf__type_by_id(btf, var->type);
 
-	return t && BTF_INFO_KIND(t->info) == BTF_KIND_VAR ?
+	return t && BTF_INFO_KIND(t->info) == BTF_KIND_VAR &&
+	       btf_name_printable(btf, t->name_off) ?
 	       btf__name_by_offset(btf, t->name_off) : NULL;
 }
 
@@ -779,31 +799,90 @@ static __printf(2, 0) void print_text(void *ctx, const char *fmt,
 }
 
 /*
+ * The cast libbpf's dumper writes before a value spells its type through
+ * modifiers, pointers and arrays, and stops at no loop: a pointer to
+ * itself grows its stack until memory runs out, and a function prototype
+ * whose parameter leads back to it recurses until the stack does.
+ */
+static bool btf_decl_printable(const struct btf *btf, __u32 id)
+{
+	const struct btf_type *t;
+	__u32 step;
+
+	for (step = 0; step < RODATA_DECL_MAX; step++) {
+		if (!id)
+			return true;
+		t = btf__type_by_id(btf, id);
+		if (!t)
+			return false;
+		switch (BTF_INFO_KIND(t->info)) {
+		case BTF_KIND_PTR:
+		case BTF_KIND_VOLATILE:
+		case BTF_KIND_CONST:
+		case BTF_KIND_RESTRICT:
+		case BTF_KIND_TYPE_TAG:
+			id = t->type;
+			break;
+		case BTF_KIND_ARRAY:
+			id = ((const struct btf_array *)(t + 1))->type;
+			break;
+		case BTF_KIND_INT:
+		case BTF_KIND_ENUM:
+		case BTF_KIND_ENUM64:
+		case BTF_KIND_FWD:
+		case BTF_KIND_STRUCT:
+		case BTF_KIND_UNION:
+		case BTF_KIND_TYPEDEF:
+		case BTF_KIND_FLOAT:
+			return btf_name_printable(btf, t->name_off);
+		default:
+			return false;
+		}
+	}
+	return false;
+}
+
+/*
  * libbpf's dumper follows member, element and modifier types with no
  * bound, and the BTF may come from an unsigned package: a VAR whose type
  * is the DATASEC holding it sends it round until the stack is gone, and
  * zero-sized elements counted in billions keep it busy. Walk what it
  * would follow first, through value types alone and within the depth
- * the JSON view keeps to; done marks the types already found fine.
+ * the JSON view keeps to, with the cast and the member and enumerator
+ * names it would print; done marks the types already found fine.
  */
 static bool btf_dumpable(const struct btf *btf, __u32 id, __u32 depth,
 			 __u8 *done)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
+	const struct btf_enum64 *e64;
 	const struct btf_member *m;
 	const struct btf_array *a;
+	const struct btf_enum *e;
 	__u32 i;
 
 	if (!t || depth >= RODATA_JSON_MAX_DEPTH)
 		return false;
 	if (done[id / 8] & (1u << (id % 8)))
 		return true;
+	if (!btf_decl_printable(btf, id))
+		return false;
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_PTR:
-	case BTF_KIND_ENUM:
-	case BTF_KIND_ENUM64:
 	case BTF_KIND_FLOAT:
+		break;
+	case BTF_KIND_ENUM:
+		e = (const struct btf_enum *)(t + 1);
+		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
+			if (!btf_name_printable(btf, e[i].name_off))
+				return false;
+		break;
+	case BTF_KIND_ENUM64:
+		e64 = (const struct btf_enum64 *)(t + 1);
+		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
+			if (!btf_name_printable(btf, e64[i].name_off))
+				return false;
 		break;
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_VOLATILE:
@@ -823,7 +902,8 @@ static bool btf_dumpable(const struct btf *btf, __u32 id, __u32 depth,
 	case BTF_KIND_UNION:
 		m = (const struct btf_member *)(t + 1);
 		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
-			if (!btf_dumpable(btf, m[i].type, depth + 1, done))
+			if (!btf_name_printable(btf, m[i].name_off) ||
+			    !btf_dumpable(btf, m[i].type, depth + 1, done))
 				return false;
 		break;
 	default:
