@@ -97,6 +97,32 @@ test_expect_success 'bpm build packages the upatch with its tree metadata' '
 '
 [ -s "$WORK/t7005-1.0.0.bee" ] || test_done
 
+# TOML spells the selector these ways too; read as unknown metadata or an
+# unknown table, each left the operation without one, for every node.
+for n in 1 2 3 4; do
+	mkdir -p "$WORK/spelled/$n" &&
+	cp "$WORK/pkg/t7005.bpf.c" "$WORK/spelled/$n/" &&
+	printf '[package]\nname = "t7005"\n\n[[upatches]]\nsource = "t7005.bpf.c"\n\n' \
+		>"$WORK/spelled/$n/Beefile"
+done
+printf '[upatches.tree]\nid = "t7005"\nselector.architecture = ["aarch64"]\n' \
+	>>"$WORK/spelled/1/Beefile"
+printf '[upatches.tree]\nid = "t7005"\nselector = { architecture = ["aarch64"] }\n' \
+	>>"$WORK/spelled/2/Beefile"
+printf '[upatches.tree]\nid = "t7005"\n\n[upatches .tree.selector]\narchitecture = ["aarch64"]\n' \
+	>>"$WORK/spelled/3/Beefile"
+printf '[upatches.tree]\nid = "t7005"\n\n["upatches".tree.selector]\narchitecture = ["aarch64"]\n' \
+	>>"$WORK/spelled/4/Beefile"
+
+test_expect_success 'bpm build refuses a tree selector spelled another way' '
+	for n in 1 2 3 4; do
+		( cd "$WORK" && ! "$S" bpm build spelled/$n --version 9.0.$n \
+			--keys-dir "$WORK/keys" ) 2>"$WORK/spelled/$n.err" &&
+		grep -q "is not a valid Beefile" "$WORK/spelled/$n.err" &&
+		! test -e "$WORK/t7005-9.0.$n.bee" || return 1
+	done
+'
+
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
 REG="$WORK/registry"
 python3 ./helper/test-oci-registry.py --root "$REG" --port "$PORT" --writable \

@@ -358,6 +358,22 @@ static int build_default_targets(struct bpm_build_upatch *u)
 
 static int build_target_ok(const char *target);
 
+/* A TOML bare key, or with dots a dotted one of bare keys alone. */
+static bool build_bare_key(const char *key, bool dots)
+{
+	bool part = false;
+
+	for (; *key; key++) {
+		if (isalnum((__u8)*key) || *key == '_' || *key == '-')
+			part = true;
+		else if (dots && *key == '.' && part)
+			part = false;
+		else
+			return false;
+	}
+	return part;
+}
+
 static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 {
 	struct bpm_build_upatch *upatch = NULL, *tree_owner = NULL;
@@ -392,6 +408,13 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			s = build_trim(section);
 			if (s != section)
 				memmove(section, s, strlen(s) + 1);
+			/*
+			 * TOML spells [upatches.tree] with blanks or quotes
+			 * around its parts too: such a header could name a
+			 * tree table this reader would pass over.
+			 */
+			if (!build_bare_key(section, true))
+				return -EINVAL;
 			file = NULL;
 			upatch = NULL;
 			rodata = NULL;
@@ -568,7 +591,13 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			char *dst = NULL;
 			size_t cap = 0;
 
-			/* Unknown tree keys are additive metadata for newer publishers. */
+			/*
+			 * Unknown tree keys are additive metadata for newer
+			 * publishers, but a dotted key or an inline table
+			 * would be the selector spelled another way.
+			 */
+			if (!build_bare_key(key, false) || !strcmp(key, "selector"))
+				return -EINVAL;
 			if (!strcmp(key, "id")) {
 				dst = t->id;
 				cap = sizeof(t->id);

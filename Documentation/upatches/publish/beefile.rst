@@ -332,8 +332,13 @@ Unknown keys and tables
    * - an unknown table under ``upatches.tree``
      - refused, because a selector the builder cannot read would widen
        the rollout
+   * - a table name with quotes, or blanks around its dots, such as
+       ``[upatches ."tree".selector]``
+     - refused, for the same reason
    * - an unknown key in ``[upatches.tree]``
-     - ignored, as metadata for newer publishers
+     - ignored, as metadata for newer publishers, unless it is
+       ``selector``, quoted or dotted, such as
+       ``selector.architecture = ["aarch64"]``, which is refused
    * - a key before the first table, or in a table with any other name
      - ignored
 
