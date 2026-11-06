@@ -324,7 +324,7 @@ static int upatch_parse(const void *data, size_t size,
 	ret = parse_header(out->map, out->map_size, &out->hdr);
 	if (ret)
 		goto err;
-	out->rodata_offset_valid = true;
+	out->rodata_offset_in_header = true;
 	ret = validate_bounds(&out->hdr, out->map_size);
 	if (ret)
 		goto err;

@@ -243,6 +243,7 @@ static int btf_rodata_btf(const struct upatch *u,
 	struct btf *found = NULL;
 	__u32 found_id = 0;
 	size_t i;
+	int ret;
 
 	for (i = 0; i + sizeof(struct btf_header) <= u->hdr.data_len; i++) {
 		const struct btf_header *raw = (const void *)(data + i);
@@ -297,24 +298,16 @@ static int btf_rodata_btf(const struct upatch *u,
 	if (!found)
 		return -ENOENT;
 	view->btf = found;
-	if (u->rodata_offset_valid) {
-		const struct btf_type *sec = btf__type_by_id(found, found_id);
-		__u32 size = sec ? sec->size : 0;
-
-		if (!size || u->hdr.rodata_data_off > u->hdr.data_len ||
-		    size > u->hdr.data_len - u->hdr.rodata_data_off) {
-			btf__free(found);
-			view->btf = NULL;
-			return -EINVAL;
-		}
-	view->bytes = (const __u8 *)upatch_data(u) +
-			u->hdr.rodata_data_off;
-		view->data_offset = u->hdr.rodata_data_off;
-		view->size = size;
-		view->type_id = found_id;
-		return 0;
-	}
-	return find_rodata_data(u, found, found_id, view);
+	/*
+	 * The header is not signed: .rodata is where the signed loader
+	 * takes it from, and a header that names another offset would aim
+	 * a rewrite the operator then signs at other bytes.
+	 */
+	ret = find_rodata_data(u, found, found_id, view);
+	if (!ret && u->rodata_offset_in_header &&
+	    view->data_offset != u->hdr.rodata_data_off)
+		return -EINVAL;
+	return ret;
 }
 
 int upatch_rodata_data_offset(const struct upatch *u, __u32 *offset)

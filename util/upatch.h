@@ -46,7 +46,7 @@ struct upatch {
 	const __u8			*map;
 	size_t				map_size;
 	bool				owned;
-	bool				rodata_offset_valid;
+	bool				rodata_offset_in_header;
 	const struct upatch_decoder_blob *decoder_blob;
 	__u32				decoder_blob_len;
 	__u32				nr_decoders;

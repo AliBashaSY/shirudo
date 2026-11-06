@@ -663,11 +663,14 @@ signed bytes and trusts others as they are.
        descriptors in the loader context, and to pin and close the map
        descriptors.
    * - ``rodata_data_off``
-     - Bounds-checked only: the ``.rodata`` size from the signed BTF must
-       fit between it and the end of ``data``. ``bpm info data`` reads
-       ``.rodata`` at this offset, and the operator's ``.rodata`` rewrites
-       (``bpm build`` and ``bpm config update`` rodata entries) patch at it
-       and re-sign.
+     - Must equal the offset in ``data`` from which the signed loader's
+       ``BPF_MAP_UPDATE_ELEM`` of the ``.rodata`` map takes its value,
+       which also holds the ``.rodata`` size from the signed BTF. ``bpm
+       info data`` reads ``.rodata`` there, and the operator's ``.rodata``
+       rewrites (``bpm build`` and ``bpm config update`` rodata entries)
+       patch there and re-sign. A header that names another offset is
+       refused, so a package from a registry cannot aim the rewrite at
+       other signed bytes.
    * - ``log_buf_sz``
      - Ignored.
    * - ``metadata_off``, ``metadata_len``
