@@ -246,23 +246,26 @@ static int btf_rodata_btf(const struct upatch *u,
 	int ret;
 
 	for (i = 0; i + sizeof(struct btf_header) <= u->hdr.data_len; i++) {
-		const struct btf_header *raw = (const void *)(data + i);
-		struct btf_header hdr;
 		__u32 end, type_end, str_end, layout_end;
+		const __u8 *raw = data + i;
+		struct btf_header hdr;
 		struct btf *btf;
-	__s32 id;
+		__s32 id;
 
 		if (data[i] != (BTF_MAGIC & 0xff) ||
 		    data[i + 1] != (BTF_MAGIC >> 8))
 			continue;
-		memcpy(&hdr, data + i, sizeof(hdr));
-		hdr.hdr_len = get_le32(&raw->hdr_len);
-		hdr.type_off = get_le32(&raw->type_off);
-		hdr.type_len = get_le32(&raw->type_len);
-		hdr.str_off = get_le32(&raw->str_off);
-		hdr.str_len = get_le32(&raw->str_len);
-		hdr.layout_off = get_le32(&raw->layout_off);
-		hdr.layout_len = get_le32(&raw->layout_len);
+		/* data + i has any alignment: no struct access through it. */
+		memcpy(&hdr, raw, sizeof(hdr));
+		hdr.hdr_len = get_le32(raw + offsetof(struct btf_header, hdr_len));
+		hdr.type_off = get_le32(raw + offsetof(struct btf_header, type_off));
+		hdr.type_len = get_le32(raw + offsetof(struct btf_header, type_len));
+		hdr.str_off = get_le32(raw + offsetof(struct btf_header, str_off));
+		hdr.str_len = get_le32(raw + offsetof(struct btf_header, str_len));
+		hdr.layout_off = get_le32(raw + offsetof(struct btf_header,
+							 layout_off));
+		hdr.layout_len = get_le32(raw + offsetof(struct btf_header,
+							 layout_len));
 		if (hdr.hdr_len < offsetof(struct btf_header, layout_off) ||
 		    hdr.hdr_len > u->hdr.data_len - i)
 			continue;
