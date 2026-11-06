@@ -1776,7 +1776,6 @@ int build_package_load(const char *bpf_o, const char *src_path,
 {
 	__u32 label_len = 0, policy_map_idx = 0, socket_policy_map_idx = 0;
 	struct upatch_policy_label_header *label_blob = NULL;
-	struct upatch_policy_label_entry *label_entries;
 	struct bpf_map *map, *task_map, *sock_map;
 	int handler_ids[2] = {-1, -1};
 	struct bpf_object *obj;
@@ -1846,7 +1845,7 @@ int build_package_load(const char *bpf_o, const char *src_path,
 			goto out;
 		}
 		socket_policy_map_idx = map_idx;
-		if (check_mul_overflow(nr_policies, sizeof(*label_entries),
+		if (check_mul_overflow(nr_policies, sizeof(*policies),
 				       &label_len) ||
 		    check_add_overflow(label_len, sizeof(*label_blob),
 				       &label_len)) {
@@ -1864,9 +1863,8 @@ int build_package_load(const char *bpf_o, const char *src_path,
 		label_blob->policy_map_idx = cpu_to_le32(policy_map_idx);
 		label_blob->socket_policy_map_idx =
 			cpu_to_le32(socket_policy_map_idx);
-		label_entries = (void *)(label_blob + 1);
-		for (__u32 i = 0; i < nr_policies; i++)
-			label_entries[i] = policies[i];
+		memcpy(label_blob + 1, policies,
+		       label_len - sizeof(*label_blob));
 	}
 	err = finalize_object(obj, out_path, upatch_name, 0, NULL, src_path,
 			      label_blob, label_len, pkey_path, cert_path);
