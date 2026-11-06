@@ -2097,26 +2097,6 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	return 0;
 }
 
-static int tree_validate_operation(const struct tree_operation *op)
-{
-	__u8 digest[32];
-	char expected_digest[72];
-
-	if (!op || op->seq <= 0 || !upatch_name_valid(op->id) ||
-	    (strcmp(op->op, "add") && strcmp(op->op, "delete")))
-		return -EINVAL;
-	if (sha256_digest_decode(op->operation_digest, digest) ||
-	    sha256_digest_decode(op->artifact.manifest_digest, digest) ||
-	    sha256_digest_decode(op->artifact.layer_digest, digest) ||
-	    sha256_digest_decode(op->artifact.payload_sha256, digest))
-		return -EINVAL;
-	if (tree_operation_digest(op, expected_digest))
-		return -EINVAL;
-	if (strcmp(op->operation_digest, expected_digest))
-		return -EKEYREJECTED;
-	return 0;
-}
-
 static void tree_sync_report_error(const char *phase,
 				   const struct tree_operation *op, int ret)
 {
@@ -2151,7 +2131,6 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	char manifest_digest[BPM_MAX_DIGEST];
 	char report[PATH_MAX] = {};
 	bool dry_run = false, have_state = false;
-	bool same_manifest;
 	int selected = 0, skipped = 0, applied = 0, module_skipped = 0;
 	int tpm_available = 0;
 	int ret;
@@ -2198,11 +2177,6 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 				     sizeof(manifest_digest));
 	if (ret)
 		goto out;
-	if (pub.parent_manifest_digest[0] &&
-	    !tree_digest_valid(pub.parent_manifest_digest)) {
-		ret = -EINVAL;
-		goto out;
-	}
 	/*
 	 * The node records the tree ID in its state, which takes names
 	 * alone: one that is not would be applied, measured and logged
@@ -2212,63 +2186,20 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		ret = -EINVAL;
 		goto out;
 	}
-	/* Snapshot compaction belongs to a later schema. */
-	if (pub.base_seq != 0) {
-		ret = -ENOTSUP;
+	ret = tree_publication_check(&pub);
+	if (ret)
 		goto out;
-	}
-	if (pub.n_operations && pub.operations[0].seq != pub.base_seq + 1) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (pub.n_operations && pub.head_seq != pub.operations[pub.n_operations - 1].seq) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (!pub.n_operations && pub.head_seq != pub.base_seq) {
-		ret = -EINVAL;
-		goto out;
-	}
 	for (int i = 0; i < pub.n_operations; i++) {
-		ret = tree_validate_operation(&pub.operations[i]);
+		ret = tree_operation_validate(&pub.operations[i]);
 		if (ret) {
 			tree_sync_report_error("operation_validate", &pub.operations[i], ret);
 			goto out;
 		}
 	}
-	same_manifest = have_state && !strcmp(state.manifest_digest, manifest_digest);
-	if (have_state && strcmp(state.tree_id, pub.tree_id)) {
-		ret = -EINVAL;
+	ret = tree_publication_follows(&pub, have_state ? &state : NULL,
+				       manifest_digest);
+	if (ret)
 		goto out;
-	}
-	if (have_state && !same_manifest && pub.generation <= state.generation) {
-		ret = -ERANGE;
-		goto out;
-	}
-	/*
-	 * Only a direct successor names the manifest this target recorded
-	 * as its parent; one that missed a generation never saw the parent.
-	 */
-	if (have_state && !same_manifest &&
-	    pub.generation == state.generation + 1 &&
-	    pub.parent_manifest_digest[0] &&
-	    strcmp(pub.parent_manifest_digest, state.manifest_digest)) {
-		ret = -ERANGE;
-		goto out;
-	}
-	if (have_state && pub.head_seq < state.last_seq) {
-		ret = -ERANGE;
-		goto out;
-	}
-	/* The publication must contain the cursor base. */
-	if (have_state && pub.base_seq > state.last_seq) {
-		ret = -ERANGE;
-		goto out;
-	}
-	if (!have_state && pub.base_seq != 0) {
-		ret = -ERANGE;
-		goto out;
-	}
 	if (!have_state) {
 		state.schema = 1;
 		bpm_copy_string(state.tree_id, sizeof(state.tree_id), pub.tree_id);

@@ -12,4 +12,5 @@ attest-name-digest	--unwind 72 LEN=64-70
 paths-bpffs-name	--unwind 18
 upatch-header		--unwind 2 --unwindset memchr.0:257
 string-number-model	--unwind 6
+bpm-tree-follows	--unwind 4
 bpm-upatch-member	--unwind 30 LEN=0-18

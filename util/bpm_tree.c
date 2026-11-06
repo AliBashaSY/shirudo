@@ -15,6 +15,7 @@
 #include "hex.h"
 #include "json.h"
 #include "malloc.h"
+#include "upatch.h"
 
 int tree_selector_kv_add(struct tree_selector_kv **kvs, int *n, int max,
 			 struct tree_selector_kv **kv)
@@ -622,5 +623,67 @@ int tree_emit_publication(const struct tree_publication *pub,
 	}
 	*out = body;
 	*out_len = e.len;
+	return 0;
+}
+
+int tree_operation_validate(const struct tree_operation *op)
+{
+	char expected[72];
+	__u8 digest[32];
+
+	if (op->seq <= 0 || !upatch_name_valid(op->id) ||
+	    (strcmp(op->op, "add") && strcmp(op->op, "delete")))
+		return -EINVAL;
+	if (sha256_digest_decode(op->operation_digest, digest) ||
+	    sha256_digest_decode(op->artifact.manifest_digest, digest) ||
+	    sha256_digest_decode(op->artifact.layer_digest, digest) ||
+	    sha256_digest_decode(op->artifact.payload_sha256, digest))
+		return -EINVAL;
+	if (tree_operation_digest(op, expected))
+		return -EINVAL;
+	return strcmp(op->operation_digest, expected) ? -EKEYREJECTED : 0;
+}
+
+int tree_publication_check(const struct tree_publication *pub)
+{
+	__u8 digest[32];
+	int n = pub->n_operations;
+
+	if (pub->parent_manifest_digest[0] &&
+	    sha256_digest_decode(pub->parent_manifest_digest, digest))
+		return -EINVAL;
+	if (pub->base_seq != 0)
+		return -ENOTSUP;
+	if (n && (pub->operations[0].seq != pub->base_seq + 1 ||
+		  pub->head_seq != pub->operations[n - 1].seq))
+		return -EINVAL;
+	if (!n && pub->head_seq != pub->base_seq)
+		return -EINVAL;
+	return 0;
+}
+
+int tree_publication_follows(const struct tree_publication *pub,
+			     const struct tree_state *state,
+			     const char *manifest_digest)
+{
+	bool same;
+
+	if (!state)
+		return pub->base_seq ? -ERANGE : 0;
+	if (strcmp(state->tree_id, pub->tree_id))
+		return -EINVAL;
+	same = !strcmp(state->manifest_digest, manifest_digest);
+	if (!same && pub->generation <= state->generation)
+		return -ERANGE;
+	/*
+	 * Only a direct successor names the manifest this node recorded
+	 * as its parent; one that missed a generation never saw the parent.
+	 */
+	if (!same && pub->generation - 1 == state->generation &&
+	    pub->parent_manifest_digest[0] &&
+	    strcmp(pub->parent_manifest_digest, state->manifest_digest))
+		return -ERANGE;
+	if (pub->head_seq < state->last_seq || pub->base_seq > state->last_seq)
+		return -ERANGE;
 	return 0;
 }

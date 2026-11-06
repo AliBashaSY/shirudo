@@ -116,6 +116,27 @@ int tree_emit_publication(const struct tree_publication *pub,
 			  char **out, size_t *out_len);
 
 /*
+ * What tree sync checks before it applies anything. An operation has a
+ * positive sequence number, an upatch name, add or delete, well-formed
+ * digests and the operation digest its fields hash to: 0, -EINVAL, or
+ * -EKEYREJECTED for a digest that does not match. A publication names a
+ * well-formed parent digest if any, and its operations run from
+ * base_seq + 1 to head_seq, or head_seq is base_seq without them: 0 or
+ * -EINVAL, and -ENOTSUP for a base past 0, which snapshot compaction, a
+ * later schema, would need. And it may follow the state the node
+ * recorded, NULL for none, with manifest_digest its manifest's: the same
+ * tree, a later generation unless it is the same manifest, the parent
+ * the node recorded when it is the next generation and names one, no
+ * head before the node's cursor and no base after it. 0, -EINVAL for
+ * another tree, or -ERANGE.
+ */
+int tree_operation_validate(const struct tree_operation *op);
+int tree_publication_check(const struct tree_publication *pub);
+int tree_publication_follows(const struct tree_publication *pub,
+			     const struct tree_state *state,
+			     const char *manifest_digest);
+
+/*
  * Evaluate a publication selector against the running node.  An empty
  * selector is an unconstrained wildcard and matches every node.  1 on a
  * match, 0 without one, -errno when the node's labels or kernel config

@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
+#include <stdint.h>
 
 #include <shirudo/string.h>
 
@@ -92,9 +93,98 @@ static void publication_reads_back(void)
 	xfree(op, sizeof(*op));
 }
 
+/* What sync checks of an operation before it applies one. */
+static void operation_validates_against_its_digest(void)
+{
+	struct tree_operation *op = operation();
+
+	ASSERT_EQ(tree_operation_digest(op, op->operation_digest), 0);
+	EXPECT_EQ(tree_operation_validate(op), 0);
+	op->seq = 2;
+	EXPECT_EQ(tree_operation_validate(op), -EKEYREJECTED);
+	op->seq = 0;
+	EXPECT_EQ(tree_operation_validate(op), -EINVAL);
+	op->seq = 1;
+	set(op->op, sizeof(op->op), "replace");
+	EXPECT_EQ(tree_operation_validate(op), -EINVAL);
+	set(op->op, sizeof(op->op), "add");
+	set(op->id, sizeof(op->id), "../t");
+	EXPECT_EQ(tree_operation_validate(op), -EINVAL);
+	set(op->id, sizeof(op->id), "t");
+	set(op->artifact.layer_digest, sizeof(op->artifact.layer_digest),
+	    "sha256:aa");
+	EXPECT_EQ(tree_operation_validate(op), -EINVAL);
+	tree_selector_free(&op->selector);
+	xfree(op, sizeof(*op));
+}
+
+static void publication_runs_from_base_to_head(void)
+{
+	struct tree_operation ops[2] = { { .seq = 1 }, { .seq = 2 } };
+	struct tree_publication pub = { .operations = ops, .n_operations = 2,
+					.head_seq = 2 };
+
+	EXPECT_EQ(tree_publication_check(&pub), 0);
+	pub.head_seq = 3;
+	EXPECT_EQ(tree_publication_check(&pub), -EINVAL);
+	pub.head_seq = 2;
+	ops[0].seq = 2;
+	EXPECT_EQ(tree_publication_check(&pub), -EINVAL);
+	ops[0].seq = 1;
+	pub.base_seq = 1;
+	EXPECT_EQ(tree_publication_check(&pub), -ENOTSUP);
+	pub.base_seq = 0;
+	set(pub.parent_manifest_digest, sizeof(pub.parent_manifest_digest),
+	    "sha256:aa");
+	EXPECT_EQ(tree_publication_check(&pub), -EINVAL);
+	set(pub.parent_manifest_digest, sizeof(pub.parent_manifest_digest),
+	    DIGEST);
+	EXPECT_EQ(tree_publication_check(&pub), 0);
+	pub.n_operations = 0;
+	EXPECT_EQ(tree_publication_check(&pub), -EINVAL);
+	pub.head_seq = 0;
+	EXPECT_EQ(tree_publication_check(&pub), 0);
+}
+
+/* A node never goes back to an older tree, or skips past its cursor. */
+static void publication_follows_the_recorded_state(void)
+{
+	struct tree_state state = { .generation = 5, .last_seq = 3 };
+	struct tree_publication pub = { .generation = 6, .head_seq = 4 };
+
+	set(state.tree_id, sizeof(state.tree_id), "t");
+	set(state.manifest_digest, sizeof(state.manifest_digest), "m5");
+	set(pub.tree_id, sizeof(pub.tree_id), "t");
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m6"), 0);
+	EXPECT_EQ(tree_publication_follows(&pub, NULL, "m6"), 0);
+	set(pub.parent_manifest_digest, sizeof(pub.parent_manifest_digest),
+	    "m5");
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m6"), 0);
+	set(pub.parent_manifest_digest, sizeof(pub.parent_manifest_digest),
+	    "m4");
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m6"), -ERANGE);
+	pub.generation = 7;
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m7"), 0);
+	pub.generation = 5;
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m5"), 0);
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "other"), -ERANGE);
+	pub.generation = 7;
+	pub.head_seq = 2;
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m7"), -ERANGE);
+	pub.head_seq = 4;
+	set(pub.tree_id, sizeof(pub.tree_id), "u");
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m7"), -EINVAL);
+	state.generation = INT64_MAX;
+	set(pub.tree_id, sizeof(pub.tree_id), "t");
+	EXPECT_EQ(tree_publication_follows(&pub, &state, "m7"), -ERANGE);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(operation_takes_no_control_character),
 	UNIT_CASE(publication_reads_back),
+	UNIT_CASE(operation_validates_against_its_digest),
+	UNIT_CASE(publication_runs_from_base_to_head),
+	UNIT_CASE(publication_follows_the_recorded_state),
 	{}
 };
 

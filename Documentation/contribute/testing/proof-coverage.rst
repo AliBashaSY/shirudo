@@ -91,6 +91,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - A name without ``~`` maps to a pin name without a dot and back to
        itself; a pin name without a dot that decodes is the encoding of
        what it decodes to
+   * - ``bpm-tree-follows``
+     - ``tree_publication_follows()``
+     - Every sequence number and generation; strings up to 2 bytes
+     - Accepts exactly a publication of the same tree, of a later
+       generation unless the same manifest, naming the recorded parent
+       when the next generation, with the node's cursor between its base
+       and head; without a state, one that starts at 0
    * - ``bpm-upatch-member``
      - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
      - Lengths 0 to 18
