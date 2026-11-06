@@ -51,13 +51,19 @@ reasoning; leave the plain form where only one guarded program, or only
 ## 4. Plan for what the program does not see
 
 The kernel skips `kprobe` and `kretprobe` runs while another runs on the
-CPU, nested `fentry`, `fexit`, `fmod_ret` and `tp_btf` runs, and
-`kretprobe` returns beyond its instances. Refuse an operation in an
-`lsm` program, never in `fmod_ret`. Walk RCU pointers under
+CPU or the CPU is in a `bpf()` map call, nested `fentry`, `fexit`,
+`fmod_ret` and `tp_btf` runs, and `kretprobe` returns beyond its
+instances, so a detector can miss what it looks for. Refuse an
+operation in an `lsm` program, never in `fmod_ret`: a skipped
+`fmod_ret` run lets the call through, and a task can arrange the skip.
+An `lsm` program does not see what an LSM before it refused, and its
+hook runs before the operation, which can still fail. In a softirq the
+current task is whichever one was interrupted. Walk RCU pointers under
 `bpf_rcu_read_lock()` in a sleepable program, check map update and
-delete results where a lost update matters, and read values userspace
-rewrites under `BPF_F_LOCK`. Prefer `lsm`, `tp_btf` and `fentry` to
-`kprobe`.
+delete results where a lost update matters, size LRU maps with room to
+spare, and read values userspace rewrites under `BPF_F_LOCK`. Prefer
+`lsm`, `tp_btf` and `fentry` to `kprobe`, which misses calls the
+compiler inlined. `pitfalls.rst` explains each.
 
 ## 5. Check
 

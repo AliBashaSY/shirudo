@@ -58,6 +58,7 @@ Then go through the pages each kind of change has:
 ```sh
 .github/scripts/check-docs.sh
 make -C Documentation check       # DOCS_CONTAINER=0 without podman or docker
+make docs                         # renders and serves on 127.0.0.1:8000
 ```
 
 `check-docs.sh` checks the options of console examples, the failure

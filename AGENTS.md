@@ -5,21 +5,6 @@ this repository. The code and `Documentation/` are authoritative for
 what shirudo does; this file holds the rules and the reasoning that are
 not visible from the code.
 
-## Capability requirement
-
-shirudo is a security-critical BPF security platform. A subtle error in
-signature verification, LSM hook policy, TPM measurement, the pre-flight
-tamper check or the signed-loader artifact format silently invalidates
-the trust model while the code still looks correct, and it ships to
-fleets and embedded devices that are hard to patch. Work here only with
-a frontier-class model at its highest reasoning effort (for Claude
-Code: Mythos or newer at high or extended effort; Codex: the strongest
-available model at high reasoning). Lower tiers may read and answer
-questions but must decline to change anything and say why. Before
-changing security-relevant code, read
-`Documentation/internals/architecture.rst` and
-`Documentation/security/threat-model.rst`.
-
 ## What shirudo is
 
 A BPF security platform that locks down the `bpf()` syscall so only signed in-kernel
@@ -46,6 +31,10 @@ integration and no fleet state; do not reintroduce the removed fleet,
 remote-management or transport layers.
 
 ## Where things are documented
+
+Before changing security-relevant code, read
+`Documentation/internals/architecture.rst` and
+`Documentation/security/threat-model.rst`.
 
 | Path | Purpose |
 |---|---|
@@ -90,117 +79,36 @@ package for `bpm info`.
 
 ## Coding conventions
 
-- **Plain C.** Userspace and BPF both. No C++.
-- **Zero-initialise with `= {}`, not `= {0}`.** The empty-initializer
-  form is the kernel convention (a GNU extension shirudo's `-std=gnu11`
-  accepts). Use it for every struct/array/union zero-init. When adding
-  new code, write `= {}`.
-- **Spell fixed-width integers the kernel's way**: `__u8`, `__u16`,
-  `__u32`, `__u64` and `__s8` to `__s64`, from `<shirudo/types.h>`,
-  which `<shirudo/misc.h>` includes, in userspace and `vmlinux.h` in
-  BPF, not `uint32_t` and its kin nor `unsigned int`, `unsigned long`
-  and the like. `__u64` is `unsigned long long`, so it prints with
-  `%llu`, and `ptr_to_u64()` turns a pointer into the `__u64` the bpf()
-  ABI carries. A library interface that takes another type keeps it,
-  and BPF programs spell hook arguments as the kernel's prototypes do.
-  `<shirudo/misc.h>` poisons `uint8_t` to `int64_t`, so a system header
-  that uses them, `<netinet/in.h>`, `<elf.h>` or one of OpenSSL's or
-  tpm2-tss's, goes above the first shirudo header. `check-style.sh`
-  rejects `uint32_t` and its kin everywhere and `unsigned char`,
-  `short`, `int` and `long` in userspace, less the files it names.
-- **Parse numbers with `parse_u64()`, `parse_s64()` and `parse_x64()`**
-  from `<shirudo/string.h>`, and find where one ends with `digits()`:
-  they take a length, read nothing past it and refuse a sign, blank or
-  base prefix. `<shirudo/string.h>` poisons `strtoul()` and its kin and
-  `atoi()`, and `check-style.sh` rejects them outside `testing/`.
-- **Check size and length arithmetic with the helpers of
-  `<shirudo/overflow.h>`**: `check_add_overflow()`,
-  `check_sub_overflow()` and `check_mul_overflow()` say whether the
-  result fits the destination, and `size_add()`, `size_sub()`,
-  `size_mul()` and `struct_size()` stick at `SIZE_MAX`, so the
-  allocation they size fails. Not `a > SIZE_MAX - b` or
-  `n > SIZE_MAX / size` by hand.
-- **Copy strings with `strscpy()` and format into a fixed buffer with
-  `strsprintf()`**, or `vstrsprintf()` from a `va_list`, all from
-  `<shirudo/string.h>`: `strscpy()` always terminates and returns
-  `-E2BIG` when it cut, which a caller checks wherever a cut path or name
-  would mean a different one, and `strsprintf()` returns `-E2BIG` with
-  the buffer left empty rather than a cut value, and its result must be
-  used: a path or value is refused, a helper that formats display text
-  returns it, and status shows `"?"` for a field it cannot fill. Bytes
-  are hex-encoded with `hex_encode()` and constant text is copied, not
-  formatted. `<shirudo/string.h>` poisons `strcpy()`,
-  `strncpy()` and their kin and `sprintf()`, `snprintf()` and their
-  `va_list` forms, which only `util/string.c` and the `xasprintf()` of
-  `util/malloc.c` call, and `check-style.sh` rejects them outside
-  `testing/`.
-- **Name a return code `ret`**, as the kernel does, and an errno from a
-  callee that a function keeps beside the value it returns `err`.
-- **No `(void)` casts.** A function whose result a caller must not
-  drop is `__must_check`, and every call checks it; a fuzz target holds
-  what it parses to an invariant and `abort()`s when it breaks. A result
-  that callers may ignore belongs to a function that is not
-  `__must_check`. Unused parameters need nothing, as every build passes
-  `-Wno-unused-parameter`, and an unused variable is removed.
-- **Do not prefix internal names with `shirudo_` or `SHIRUDO_`.** A
-  function or macro of shirudo's own code is named after what it is,
-  `upatch_open()` and `NV_INDEX`, as in the kernel. The prefix stays
-  where the name leaves the code: include guards, the BPF map, program
-  and pin names a loader or a pin path finds, the environment variables,
-  and a name that would otherwise collide, such as `shirudo_trunc()`
-  beside libm's `trunc()`.
-- **Declare locals in reverse-Christmas-tree order** (the netdev
-  convention): longest declaration line first, shortest last. Group
-  declarations that have no initializer dependency and sort them by
-  descending line length; a declaration whose initializer references an
-  earlier local must stay after it (correctness wins over the sort).
-  Apply this whenever you add or touch a declaration block.
-- **Linux kernel coding style**
-  (`Documentation/contribute/code/coding-style.rst` — the kernel's own
-  coding-style.rst, copied into this tree). Tabs (8-wide), 80-col soft
-  limit and 100-col hard limit (checkpatch), K&R braces, no spaces
-  inside parens.
-  Apply to userspace too — eases review. **Comments are rare and
-  follow §8** (see below): at the function head, not inside the
-  body; file headers are SPDX + Copyright + at most one line of
-  purpose, never multi-paragraph descriptions.
-- **Multi-line comments**: the opening `/*` and closing `*/` each
-  go on their own line, with every content line beginning with ` *`.
-  Single-line comments (`/* foo */`) and trailing field annotations
-  (`int x; /* sticky */`) are fine. WRONG:
-  ```
-  /* Foo bar
-   * baz quux. */
-  ```
-  RIGHT:
-  ```
-  /*
-   * Foo bar
-   * baz quux.
-   */
-  ```
-  This applies to every block comment — function-head doc comments,
-  TODO blocks, struct-internal explanations, multi-line trailing
-  comments inside a function body. The rule mirrors the kernel
-  example in `Documentation/contribute/code/coding-style.rst` §8.
-- **`//` is for SPDX only.** Per the kernel convention, .c files
-  use `// SPDX-License-Identifier: …` and nothing else `//`-style;
-  .h files use `/* SPDX-License-Identifier: … */` and nothing else
-  `//`-style. Every other comment is `/* */`.
-- **License: BSD-2-Clause** for userspace. The BPF program must declare
-  `char _license[] SEC("license") = "Dual BSD/GPL";` (the LSM hook framework
-  rejects non-GPL-compatible BPF), and every file compiled into a BPF
-  object, including the headers it includes and the package's Lua
-  decoders, carries `SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause`,
-  the kernel's form of the dual licence, matching the Beefile.
-- **No emojis** anywhere — code, comments, commit messages, logs.
-- **Comments are rare.** Add one only for what is non-obvious and cannot
-  be inferred from the code: a hidden invariant, a kernel or library
-  quirk, why the code takes the less obvious path. It explains *why*,
-  never *what*: no comment that restates a function, parameter or field
-  name, the return value, or the messages the code prints. No
-  multi-paragraph docstrings. No "added for issue X" or "used by Y" —
-  those go in commit messages.
+C follows the kernel coding style,
+`Documentation/contribute/code/coding-style.rst`, in userspace and BPF
+alike; the `coding` skill gives these conventions with their reasons and
+the helpers to use.
+
+- Plain C, no C++. Zero-initialise with `= {}`. Integers are `__u8` to
+  `__u64` and `__s8` to `__s64`; a system header that uses `uint8_t` and
+  its kin goes above the first shirudo header, which poisons them.
+- Use the helpers of `util/` and `include/shirudo/` over libc and open
+  code: `parse_u64()` and its kin for numbers, `<shirudo/overflow.h>`
+  for sizes, `strscpy()` and `strsprintf()` with their `-E2BIG`
+  checked, the `xmalloc()` family, `min()` and `max()`,
+  `memzero_explicit()` and `memneq_explicit()` for secrets,
+  `util/json.c` for all JSON and `pr_*()` for all logging. The libc names
+  they replace are poisoned. Code that a second place needs moves into
+  `util/` with unit cases rather than being copied.
+- `ret` names a return code and `err` an errno kept beside the value a
+  function returns. No `(void)` casts: a result that must be checked
+  comes from a `__must_check` function, and every call checks it.
+  Internal names carry no `shirudo_` prefix. Locals go in
+  reverse-Christmas-tree order.
+- Write self-documenting code: names that say what a function does and
+  what a value holds, and small functions, so that comments stay rare. A
+  file starts with its SPDX line, the copyright and at most five lines of
+  purpose; in code a comment says only the why the code cannot, never
+  what it does or how it came to be. Block comments follow section 8 of
+  the style, and `//` is for SPDX alone.
+- Userspace is BSD-2-Clause. Every file compiled into a BPF object, and
+  every Lua decoder, is `GPL-2.0 OR BSD-2-Clause`, and a BPF program
+  declares `char _license[] SEC("license") = "Dual BSD/GPL";`. No emojis.
 
 ## Commits
 
@@ -338,144 +246,31 @@ one usually still compiles and passes tests.
   verified commit, not just `uname`, to identify the tested kernel. No
   legacy-kernel fallback paths; a missing kernel feature fails the build
   or the load. x86-64, arm64 and riscv64 are the supported architectures.
-- **BPF is CO-RE.** Hard-coded struct offsets sign fine and fail on the
-  wrong kernel, where the verifier rejects the payload
-  (`verifier_rejected`).
-- **BPF targets instruction set v4.** Every `clang -target bpf` in the
-  tree passes `-mcpu=v4`: the upatch build, the embedded objects, the
-  configure probe and the tests. Not `-mcpu=probe`, which describes the
-  build host's kernel, not the targets'. Each compile also passes
-  `-fno-jump-tables`: clang 23 otherwise turns a dense `switch` into a
-  table in `.rodata` read at an offset the verifier cannot bound, and
-  the program is refused. upatches are therefore compiled
-  with the full BPF instruction set: load-acquire and store-release,
-  sign-extending loads and moves, and signed division and modulo are all
-  there, so write the code that needs them directly and do not work
-  around their absence.
-- **upatch state lives in BPF arenas where possible.** A upatch that
-  accumulates records keeps them in its one `BPF_MAP_TYPE_ARENA` map and
-  ships a `shirudo_serialize__<map>` program that walks them; hash and
-  array maps are for what cannot live in an arena: task and socket
-  state, per-CPU counters and scratch, lookup keys the kernel owns, and
-  the serializer output. An arena gives one consistent snapshot, memory
-  the serializer can reset between exports, and an overflow count the
-  record carries, where an element-by-element read of a plain map gives
-  a torn view and a table that silently fills up.
-  `upatches/kernel-obs/obs_table.h` is the template to instantiate.
-- **Test the locking of complex upatch BPF code with blitmus.** Where
-  programs on several CPUs share state through atomics, acquire and
-  release, or a lock or lock-free structure built from them, write the
-  pattern as a litmus test and run it with blitmus
-  (https://github.com/puranjaymohan/blitmus) on x86-64, arm64 and
-  riscv64: a pass on x86-64 says little about the other two. It covers
-  `READ_ONCE()`, `WRITE_ONCE()`, acquire, release, full barriers and the
-  add, exchange and compare-and-exchange atomics, not the or, and and
-  xor atomics, `bpf_spin_lock()` or RCU.
-  `Documentation/upatches/write/memory-consistency/blitmus.rst` shows how.
-- **Write upatch BPF code for runs that interleave, and apply each fix
-  only under the preemption model and program types its hazard needs**,
-  never to every program by reflex. Runs on different CPUs at once exist
-  on every kernel: update a value other CPUs share, of a map that is not
-  per-CPU or in inode, socket or cgroup storage, with
-  `__sync_fetch_and_add()` and its kin; insert a missing key with
-  `BPF_NOEXIST` and look it up again on `-EEXIST`; read or copy a map
-  value before deleting its entry, as the map hands the element to the
-  next update at once; check every compare-and-swap result, as a failed
-  one changes and orders nothing; publish a filled record with
-  `__atomic_store_n(&p, v, __ATOMIC_RELEASE)` or a value-returning
-  atomic, never `WRITE_ONCE()`, and read it through `READ_ONCE()` and an
-  address dependency, or a load-acquire where the code compares the index
-  with a constant first; expect writes that land in the half of a double
-  buffer being drained, as BPF has no grace period; and read user memory
-  once.
-
-  A second run on one CPU before the first one ends depends on the
-  kernel. `PREEMPT`, `PREEMPT_RT` and `PREEMPT_DYNAMIC`, the default and
-  what distribution kernels use, bring preemptible RCU, and
-  `PREEMPT_LAZY` on its own does not. Since 7.0 `PREEMPT_DYNAMIC` boots
-  only `full` or `lazy`, not the `voluntary` distribution kernels used to
-  boot, in which no task preempted a running program: do not carry that
-  assumption over. With preemptible RCU another task can preempt most
-  programs, and on every kernel `syscall` and sleepable ones. On every
-  kernel a softirq can run on top of a run in a process, and `lsm`,
-  `syscall`, `cgroup_skb`, `netfilter` and `uprobe.multi` programs have
-  no guard against a second run of themselves, while `kprobe` and
-  `kretprobe` programs never interleave with each other on a CPU and
-  `fentry`, `fexit`, `fmod_ret` and `tp_btf` programs never with
-  themselves. Only where such a second run can come is a per-CPU map
-  value, or a slot picked by `bpf_get_smp_processor_id()`, shared between
-  runs: keep scratch there in task storage where no program a softirq
-  runs uses it (as the seal does), on the stack, or behind a busy flag
-  taken with `__atomic_exchange_n()` and given back with a release store,
-  and update a per-CPU counter there with an atomic. Elsewhere, such as a
-  counter only one `kprobe` program updates, the plain form is right. A
-  upatch whose correctness depends on the model says in its `README.md`
-  which one it is written for, as kernel-obs does for the test VM's
-  kernel, and its code is checked against that one. The test kernel is
-  built with `PREEMPT_LAZY` alone, so the VM suite shows the preemption
-  cases only for `syscall` and sleepable programs.
-
-  The `bpf_` rules in `testing/coccinelle/` refuse these patterns within
-  one function. No rule refuses per-CPU scratch, as whether it is a
-  hazard depends on the kernel and the programs that share a map, which a
-  rule cannot tell: review decides. A hazard spread over functions, or a
-  file with its own token-pasting macros such as `obs_table.h`, needs
-  review and blitmus.
+- **BPF is CO-RE, built for instruction set v4.** Hard-coded struct
+  offsets sign fine and fail on the wrong kernel (`verifier_rejected`).
+  Every `clang -target bpf` in the tree passes `-mcpu=v4`, not
+  `-mcpu=probe`, which describes the build host's kernel, and
+  `-fno-jump-tables`, without which clang 23 turns a dense `switch` into
+  a `.rodata` table the verifier refuses. upatch code uses the v4
+  instructions directly rather than working around their absence.
+- **upatch state lives in BPF arenas where possible.** The records a
+  upatch accumulates go in its one `BPF_MAP_TYPE_ARENA` map, with a
+  `shirudo_serialize__<map>` program that walks them: one consistent
+  snapshot and an overflow count, where a plain map gives a torn view
+  and a table that silently fills up. Hash and array maps hold what
+  cannot live there. `upatches/kernel-obs/obs_table.h` is the template.
+- **upatch BPF code is written for runs that interleave and runs the
+  kernel skips.**
   `Documentation/upatches/write/memory-consistency/hazards.rst` says
-  where each hazard applies.
-- **Plan for what an upatch program does not see.** The kernel skips
-  `kprobe` and `kretprobe` runs while another one runs on the CPU or the
-  CPU is in a `bpf()` map call, runs of an `fentry`, `fexit`, `fmod_ret`
-  or `tp_btf` program already running there, and `kretprobe` returns
-  beyond its instances, so a detector can miss what it looks for. Refuse
-  an operation in an `lsm` program wherever a hook covers it, never in
-  `fmod_ret`: a skipped `fmod_ret` run lets the call through, and a task
-  can arrange the skip. An `lsm` program does not see what an LSM before
-  it refused, and its hook runs before the operation, which can still
-  fail. In a softirq the current task is whichever one was interrupted. A
-  sleepable program walks RCU pointers under `bpf_rcu_read_lock()`. Check
-  map update and delete results where a lost update matters, size LRU
-  maps with room to spare, and read values userspace rewrites under
-  `BPF_F_LOCK`. Prefer `lsm`, `tp_btf` and `fentry` to `kprobe`, which
-  misses calls the compiler inlined.
-  `Documentation/upatches/write/pitfalls.rst` explains each. When
-  `shirudo build` starts accepting another attach kind, the same commit
-  adds its run context to the table in `hazards.rst` and what it misses
-  or cannot rely on to `pitfalls.rst`, so that agents writing upatches
-  for it meet its hazards there.
-
-## Memory, JSON and logging
-
-- Keep tables off the stack: a frame past 128 KiB fails the build
-  (`-Wframe-larger-than`). Allocate a table with `xcalloc()`, and mark
-  a helper with a large buffer `noinline_for_stack` where inlining
-  would add its frame to its caller's.
-- Take the smaller or larger of two values with `min()` and `max()`,
-  which refuse operands that compare differently as signed and
-  unsigned; a constant compared with an unsigned value takes a `U`
-  suffix. `min_t()` and `max_t()` cast, which can cut a value short, so
-  they are for only what `min()` and `max()` refuse.
-- Use the zeroing allocator in `util/malloc.{c,h}`: `xmalloc`/`xcalloc`
-  return NULL on failure (never die), `xfree(ptr, size)` and
-  `xstrfree` scrub before freeing. The libc allocators are poisoned
-  project-wide; do not add exceptions, wrap in `util/malloc.c` instead.
-  `xstrdup` is strlen-based, so never apply it to user, file or network
-  input; use `xstrndup(s, bound)`. `xasprintf` formats into memory of
-  the size needed, freed with `xstrfree`.
-- Scrub a secret, a key, an auth value, a seed, a KDF output, a
-  credential or a buffer that held one, with `memzero_explicit()` from
-  `<shirudo/string.h>` on every path out of its scope, the error paths
-  included. A `memset()` of memory nothing reads afterwards is a dead
-  store the compiler drops; `explicit_bzero()` is poisoned in favor of
-  the kernel's name. Compare such a value with `memneq_explicit()`
-  from the same header, which reads every byte whatever the bytes
-  before it held; `memcmp()` returns at the first difference.
-- `util/json.{c,h}` is the only JSON code. Extend its schema
-  definitions for new fields or documents; never open-code JSON bytes
-  elsewhere.
-- Logging is `syslog(3)` through `util/log.c` (`pr_info`, `pr_warn`,
-  `pr_err`, `pr_audit`); journald picks it up. No `libsystemd`, no
-  on-disk log of shirudo's own.
+  which hazard applies under which preemption model and program type,
+  and each fix goes only where its hazard applies;
+  `Documentation/upatches/write/pitfalls.rst` covers what a program
+  does not see, and an operation is refused in an `lsm` program, never
+  in `fmod_ret`. Ordering between CPUs is tested with blitmus on x86-64,
+  arm64 and riscv64. The `bpf-concurrency` and `bpf-coccinelle` skills
+  give the procedure. When `shirudo build` starts accepting another
+  attach kind, the same commit adds its run context to the table in
+  `hazards.rst` and what it misses to `pitfalls.rst`.
 
 ## Dependencies and licensing
 
@@ -498,76 +293,31 @@ one usually still compiles and passes tests.
 
 ## Building, testing, packaging
 
-- `make` builds the operator binary; `make shirudo-build` the helper;
+- `make` builds the operator binary, `make shirudo-build` the helper and
   `make target` the fully static PIE target profile (`make target-deps`
-  builds OpenSSL, libcurl and tpm2-tss from source first).
-- A compiler warning fails every build the Makefiles drive, the BPF
-  objects, vendored libbpf, test helpers and fuzz targets included;
-  fix the warning rather than silence it. `WERROR=0` is for a compiler
-  newer than the tree, while its new warnings get fixed.
-- Validate C changes, test code included, with both GCC and Clang.
-  Use `make -B` when switching `CC` to avoid reusing objects.
-- `make tests` (or `make -C testing`) runs every test, and is what CI runs;
-  `make -C testing unit`, `ci-checks`, `functional` or `end2end` runs one
-  tier, `unit/<suite>` or `functional/<family>` part of one. The target
-  tests (`t?1??`) run as root in QEMU/swtpm VMs, one fresh VM per family;
-  `VM=0` leaves them out, and `make tests VM=0
-  SANITIZE=address,undefined` runs the rest under ASan and UBSan (CI does
-  too). `make -C testing help` lists the suites and families.
-- The target tests always boot the dm-verity runtime and signed
-  config from a dracut initrd. CI runs that same required suite through
-  `.github/scripts/tests.sh`; the old root-only installer suite is gone.
-- `util/<m>.c` is unit tested by `testing/unit/<m>.c`: a change to a util
-  function adds or updates its cases there. A shell test is named
-  `t<F><K><NN>`, family, operator (0) or target (1), and order, and lives in
-  its family's directory; `Documentation/contribute/testing/testing.rst` has the
-  families.
-- `make -C testing fuzz [FUZZ_SECONDS=60]` runs the libFuzzer targets in
-  `testing/fuzz/` for the parsers of input from outside the host, under
-  ASan and UBSan, on their seed corpora; CI runs them too. A parser that
-  takes such input gets a target there.
-- `make docs` renders the documentation with Sphinx in a container and
-  serves it on 127.0.0.1:8000. `make -C Documentation check` renders it
-  with every warning an error and runs `.github/scripts/check-docs.sh`,
-  which checks the options, failure categories, tamper counters, hooks,
-  tests and units the pages name against the tree. CI runs both on every
-  push, so run the check after touching a document or one of those names
-  in the code. It needs podman or docker; `DOCS_CONTAINER=0` uses a host
-  Sphinx installed from `Documentation/requirements.txt`.
-- `.github/scripts/check-spdx.sh` checks the SPDX tag of every tracked
-  source against the licensing rules above: the form for the file type,
-  the expression, the dual licence for everything a BPF object compiles
-  and a Beefile ships. `.github/scripts/check-dco.sh <range>` checks
-  that every commit has a one-line subject, a body beyond its tags and
-  the author's sign-off from a real address: a noreply address or a
-  `[bot]` is rejected as author, signer or co-developer.
-  `.github/scripts/check-style.sh <range>` runs the kernel's
-  checkpatch.pl in strict mode over the C each commit touches and over
-  its message, with the userspace exceptions listed in the script, and
-  rejects the netdev block-comment opener.
-  `.github/scripts/check-sparse.sh` runs `make sparse`, sparse over the
-  userspace sources, which fails on a little-endian or big-endian field
-  read or written without `le32_to_cpu()`, `cpu_to_le32()` or their kin
-  from `<shirudo/byteorder.h>`. `.github/scripts/check-coccinelle.sh`
-  runs the semantic patches in `testing/coccinelle/`, each a pattern the
-  tree is kept free of, and fails on any match; a pattern worth refusing
-  for good gets a rule there, written from scratch or carried with its
-  SPDX and copyright lines from a project that offers it with a
-  BSD-2-Clause branch, with the tree fixed first. CI runs all five on
-  every pull request,
-  and `.github/scripts/build-commits.sh <range>` builds every commit of
-  a pull request on its own; run them before handing work over.
-- Shell that a workflow runs lives in `.github/scripts/`, not inline in
+  builds OpenSSL, libcurl and tpm2-tss from source first). A checkout
+  used in place of an installed operator package names the helper with
+  `SHIRUDO_BUILD=<path>`.
+- A compiler warning fails every build; fix it rather than silence it.
+  Validate C changes, test code included, with GCC and with clang 23,
+  `make -B` when switching `CC`.
+- `make tests` runs every test as CI does. `util/<m>.c` is unit tested
+  by `testing/unit/<m>.c`, a parser of input from outside the host has a
+  fuzz target, and a shell test `t<F><K><NN>` lives in its family's
+  directory (`Documentation/contribute/testing/testing.rst`). The
+  `testing` and `fuzz-target` skills say how to run and add them.
+- CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
+  `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
+  `check-spdx.sh` and the documentation check on every pull request;
+  run them before handing work over, as the `pre-submit` skill says.
+  Shell that a workflow runs lives in `.github/scripts/`, not inline in
   the workflow file.
-- `make -C packaging bindeb-pkg`, `make -C packaging binrpm-pkg` and `make -C packaging bintar-pkg` build the
-  distribution packages. The target package is fully static PIE
-  and portable; the operator package links the host's shared libraries
-  and is built on the distribution it is for (`PKG_ROLES=operator`),
-  against a bpf-next `vmlinux.h` (`BPF_VMLINUX_H=`). Package targets
-  start from `make clean`.
-- When a checkout is used in place of an installed operator package,
-  `SHIRUDO_BUILD=<path>` names the helper, or put
-  `tools/shirudo-build` and the checkout root on `PATH`.
+- `make -C packaging bindeb-pkg`, `binrpm-pkg` and `bintar-pkg` build the
+  distribution packages, each from `make clean`. The target package is
+  fully static PIE and portable; the operator package links the host's
+  shared libraries and is built on the distribution it is for
+  (`PKG_ROLES=operator`), against a bpf-next `vmlinux.h`
+  (`BPF_VMLINUX_H=`).
 
 ## Out of scope
 

@@ -39,8 +39,14 @@ for c in $(git rev-list --reverse $range); do
 done
 ```
 
-`check-dco.sh` wants the author's sign-off, which an agent never adds:
-it fails until the person who submits the series signs off.
+`check-style.sh` runs the kernel's checkpatch.pl in strict mode over the
+C each commit touches and over its message, with the userspace
+exceptions the script lists, and refuses the netdev block-comment
+opener. `check-dco.sh` wants a one-line subject, a body beyond the tags
+and the author's sign-off from a real address; a noreply address or a
+`[bot]` is refused as author, signer or co-developer. An agent never
+adds a sign-off, so it fails until the person who submits the series
+signs off.
 
 ## The head of the series
 
@@ -57,7 +63,11 @@ make -C testing fuzz FUZZ_SECONDS=60
 make -C testing functional/<family>                  # each family it touches
 ```
 
-A warning fails every build. Fix it rather than silence it.
+A warning fails every build. Fix it rather than silence it; `WERROR=0`
+is only for a compiler newer than the tree while its new warnings get
+fixed. `check-sparse.sh` refuses a little- or big-endian field read or
+written without `le32_to_cpu()`, `cpu_to_le32()` or their kin, and
+`check-spdx.sh` the wrong license tag for a file's kind.
 
 ## Fixing a commit of the series
 

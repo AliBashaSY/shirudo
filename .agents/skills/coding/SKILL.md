@@ -119,11 +119,24 @@ code, signing and the package builder, stays out of the core binary.
 - Plain C; zero-initialise with `= {}`.
 - Integers are `__u8` to `__u64` and `__s8` to `__s64`; `__u64` prints
   with `%llu`, and `ptr_to_u64()` gives the `__u64` the bpf() ABI takes.
-  System headers that use `uint8_t` and kin go above the first shirudo
-  header, which poisons them.
+  A library interface that takes another type keeps it, and BPF spells
+  hook arguments as the kernel's prototypes do. `check-style.sh` refuses
+  `uint32_t` and its kin, and in userspace `unsigned int`, `long` and
+  the like. System headers that use `uint8_t` and kin go above the first
+  shirudo header, which poisons them.
 - `strtoul()`, `atoi()`, `strcpy()`, `sprintf()`, `snprintf()`, the libc
   allocators and `explicit_bzero()` are poisoned; the table above has
-  what replaces each.
+  what replaces each, and a missing one is wrapped in `util/`, never
+  given an exception.
+- A `strsprintf()` that does not fit leaves the buffer empty: a path or
+  value is refused, a helper formatting display text returns the error,
+  and status shows `"?"`. Constant text is copied, not formatted.
+- `xstrdup()` measures with `strlen()`, so outside input gets
+  `xstrndup(s, bound)`. `xfree(p, size)` and `xstrfree()` scrub before
+  they free.
+- `min_t()` and `max_t()` cast and can cut a value, so they are for
+  only what `min()` and `max()` refuse; a constant compared with an
+  unsigned value takes a `U` suffix.
 - `ret` holds a return code, `err` an errno kept beside the value a
   function returns. No `(void)` casts: a result that must be checked
   comes from a `__must_check` function, and every call checks it.

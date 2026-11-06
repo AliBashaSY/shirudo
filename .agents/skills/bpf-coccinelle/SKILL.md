@@ -63,7 +63,10 @@ hazard's section in `hazards.rst` says. There is no comment that hides
 a match: when the code is safe for a reason the rule cannot see, write
 it so that the rule sees it, such as reading the compare-and-swap result
 or inserting with `BPF_NOEXIST`. The rules see one function at a time,
-so a hazard spread over two passes them.
+so a hazard spread over two passes them. No rule refuses per-CPU
+scratch: whether it is a hazard depends on the kernel's preemption
+model and on the programs that share the map, which a rule cannot tell,
+so review decides.
 
 ## Add a rule
 
