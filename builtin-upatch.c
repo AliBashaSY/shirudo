@@ -2379,20 +2379,19 @@ static int upatch_chain_event_locked(const char *tag, const char *type,
 
 	ret = chain_extend(event, chain);
 	if (ret == -ENODEV) {
-		pr_err("upatch %s: TPM register unavailable (category: "
-		       "tpm_error): done but not measured; shirudo needs the "
-		       "register init bound this boot", op);
+		pr_err("upatch %s: TPM register unavailable (category: tpm_error): not measured; shirudo needs the register init bound this boot",
+		       op);
 		return ret;
 	}
 	if (ret == -EACCES) {
-		pr_err("upatch %s: register is not the one init bound "
-		       "(category: tampered): done but not measured; the "
-		       "operator must reconcile", op);
+		pr_err("upatch %s: register is not the one init bound (category: tampered): not measured; the operator must reconcile",
+		       op);
 		return ret;
 	}
+	/* A lost answer or a failed read back: the register may have moved. */
 	if (ret) {
-		pr_err("upatch %s: register extend failed (category: tpm_error): "
-		       "done but not measured; the operator must reconcile", op);
+		pr_err("upatch %s: register extend failed (category: tpm_error): the TPM may have taken the event without its record; the operator must reconcile",
+		       op);
 		return ret;
 	}
 	if (measured)

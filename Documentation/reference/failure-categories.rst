@@ -202,10 +202,12 @@ Categories
      - The register lock could not be taken, or this boot's records could
        not be read or what they do not cover could not be undone, in which
        case nothing was loaded or detached, or the TPM or the extend
-       failed. A load is
-       undone when the register did not move. When the extend succeeded and the
-       eventlog append failed, the message reads ``eventlog append failed
-       after the extend``.
+       failed. A failed extend undoes a load and detaches nothing for an
+       unload, though a lost answer can leave the register moved, and the
+       message then reads ``the TPM may have taken the event without its
+       record``. When the extend succeeded and the eventlog append failed,
+       the message reads ``eventlog append failed after the extend`` and
+       the load stays.
      - Check ``shirudo status``. A register ahead of the eventlog shows as
        ``tampered``; handle that as an incident.
    * - ``unknown``
