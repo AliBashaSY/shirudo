@@ -314,8 +314,8 @@ static void declared_key_takes_one_value(void)
 	EXPECT_EQ(json_parse(nested, strlen(nested), top, ARRAY_SIZE(top)),
 		  -EINVAL);
 
-	ASSERT_EQ(parse("{\"type\":null,\"type\":\"b\"}", &d), 0);
-	EXPECT_STREQ(d.type, "b");
+	EXPECT_EQ(parse("{\"type\":null,\"type\":\"b\"}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"type\":null,\"type\":null}", &d), -EINVAL);
 	ASSERT_EQ(parse("{\"x\":1,\"x\":{},\"type\":\"t\"}", &d), 0);
 	EXPECT_STREQ(d.type, "t");
 	ASSERT_EQ(parse("{\"events\":[{\"type\":\"a\"},{\"type\":\"b\"}]}",

@@ -539,9 +539,10 @@ static int parse_object(struct pctx *c)
 {
 	char buf[256], *key = c->v ? c->scratch : buf;
 	size_t key_cap = c->v ? c->scratch_cap : sizeof(buf);
+	__u64 named = 0;
 	int ret;
 
-	if (++c->depth > JSON_MAX_DEPTH)
+	if (++c->depth > JSON_MAX_DEPTH || c->n_fields > JSON_MAX_FIELDS)
 		return -E2BIG;
 	c->p++;				/* consume '{' */
 	ret = visit_open(c, false);
@@ -574,8 +575,13 @@ static int parse_object(struct pctx *c)
 			}
 		}
 		/* Readers that take the first or the last would differ. */
-		if (f && f->seen)
-			return -EINVAL;
+		if (f) {
+			__u64 bit = 1ULL << (f - c->fields);
+
+			if (named & bit)
+				return -EINVAL;
+			named |= bit;
+		}
 		ret = parse_value(c, f);
 		if (ret)
 			return ret;

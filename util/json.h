@@ -19,6 +19,8 @@
 #ifndef JSON_MAX_DEPTH
 #define JSON_MAX_DEPTH		32u
 #endif
+/* The declared keys of one object, which json_parse() tells apart. */
+#define JSON_MAX_FIELDS		64u
 #ifndef JSON_MAX_STRING_BYTES
 #define JSON_MAX_STRING_BYTES	(16u * 1024u * 1024u)
 #endif
@@ -132,9 +134,10 @@ struct json_field {
 };
 
 /*
- * -EINVAL on malformed input, a type mismatch or a declared key given a
- * value twice in one object (null gives none), -E2BIG on a bounds
- * violation, -ENOSPC when a string exceeds its dst_cap.
+ * -EINVAL on malformed input, a type mismatch or a declared key named
+ * twice in one object, null or not, -E2BIG on a bounds violation or more
+ * than JSON_MAX_FIELDS declared keys, -ENOSPC when a string exceeds its
+ * dst_cap.
  */
 int json_parse(const char *data, size_t len,
 	       struct json_field *fields, size_t n_fields);
