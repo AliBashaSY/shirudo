@@ -91,6 +91,88 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - A name without ``~`` maps to a pin name without a dot and back to
        itself; a pin name without a dot that decodes is the encoding of
        what it decodes to
+   * - ``bpm-tar-octal``
+     - ``bpm_tar_octal()``
+     - Every field of 8 and 12 bytes
+     - Accepted exactly as octal digits with blanks or NULs around them,
+       at their value; nothing written on refusal
+   * - ``bpm-tar-header``
+     - ``bpm_tar_header_ok()``
+     - Every header without an octal checksum; the checksum against
+       headers with 64 free bytes at three places
+     - Holds exactly when the field is the byte sum with its own bytes as
+       blanks
+   * - ``bpm-archive-path``
+     - ``bpm_archive_rel_ok()``, ``package_member_name_ok()``
+     - Names of 0 to 10 bytes
+     - A name passes exactly when it cannot leave its directory; a member
+       exactly when it is the path below the one top directory
+   * - ``bpm-names``
+     - ``bpm_name_ok()``, ``bpm_version_ok()``, ``bpm_package_name_ok()``
+     - Up to 129 bytes, past the 128-byte limit
+     - Exactly the character, length and first-character rules
+   * - ``bpm-semver-valid``
+     - ``bpm_semver_valid()``
+     - Up to 11 bytes
+     - Valid exactly by the SemVer 2.0.0 grammar; the pre-release parsed
+       is the text between the core and ``+``
+   * - ``bpm-semver-order``
+     - ``bpm_semver_compare()``
+     - Every pair of strings up to 7 bytes
+     - Antisymmetric; equal exactly up to build metadata; every version
+       above every invalid string; the core by number; a pre-release
+       below its release
+   * - ``bpm-semver-transitive``
+     - ``bpm_semver_compare()``
+     - Every three strings up to 7 bytes
+     - Transitive, valid versions or not
+   * - ``bpm-semver-prerelease``
+     - ``prerelease_compare()``
+     - Identifiers up to 3 bytes, lists up to 5
+     - Numeric by value and below alphanumeric, alphanumeric by bytes;
+       the first difference decides, else the longer list
+   * - ``bpm-oci-challenge``
+     - ``parse_challenge()``
+     - ``WWW-Authenticate`` values up to 17 bytes
+     - Outputs terminated in their buffers; only ``Bearer`` with a realm;
+       each value a quoted value of the header
+   * - ``bpm-oci-token``
+     - ``token_from_body()``
+     - Answers up to 17 bytes
+     - Nothing written on refusal; a token without controls, quotes or
+       backslashes, quoted in the answer under ``token`` or
+       ``access_token``
+   * - ``bpm-oci-header``
+     - ``bpm_header()``
+     - Header lines up to 20 bytes, NULs included
+     - The whole line taken; values terminated, without a leading blank,
+       a media type without parameters, a location without CR or LF
+   * - ``bpm-oci-descriptor``
+     - ``on_descriptor()``, ``on_index_entry()``
+     - Any descriptor or index entry, into an empty or a full table
+     - Kept exactly when whole, with a ``sha256:`` digest of 64 digits,
+       and with room; copied as read; a refusal not counted
+   * - ``bpm-oci-strings``
+     - ``bpm_trim()``, ``bpm_copy_string()``, ``bpm_digest_matches()``
+     - Strings up to 6 bytes, buffers up to 4
+     - Terminated, what fits; a digest matches exactly ``sha256:`` and its
+       hex in either case
+   * - ``bpm-source-config``
+     - ``bpm_parse_source_line()``, ``bpm_parse_tree_line()``
+     - Lines up to 12 bytes
+     - A setting written only for its exact key and terminated, without
+       CR or LF
+   * - ``bpm-tree-selector``
+     - ``tree_selector_kv_add()``, ``tree_selector_copy()``,
+       ``tree_selector_free()``, ``tree_text()``
+     - 0 or 1 pairs, every limit, allocations allowed to fail
+     - ``-E2BIG`` exactly at the limit with nothing changed; a copy owns
+       its arrays, a failed one holds nothing; text without controls
+   * - ``bpm-tree-reader``
+     - ``tree_map_pair()``, ``tree_take_operation()``
+     - Every pair and operation, into an empty or a full publication
+     - A key taken once, with a value, below its limit; an operation
+       taken exactly when whole and with room
    * - ``bpm-tree-follows``
      - ``tree_publication_follows()``
      - Every sequence number and generation; strings up to 2 bytes
@@ -383,14 +465,15 @@ Not covered yet
 
 The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
 does: how ``json_parse()`` dispatches objects, arrays and maps to their
-schemas, the OTLP headers a configuration adds, the package archive,
-index and manifest readers, the tree publication and log, the eventlog's lines,
-the evidence document beyond its PCRs, the config update record, the
-site configuration file, the config image's settings and tree, and the
-kernel configuration. The ``.upatch`` reader and the TPM structures are
-covered part by part, as the table shows; what joins those parts and
-the event encoders of the register, which need a model of SHA-256, have
-no proof.
+schemas, the OTLP headers a configuration adds, the walk over a
+package's tar members, the registry references and URLs, the kernel
+configuration the tree selectors read, the tree log, the eventlog's
+lines, the evidence document beyond its PCRs, the config update record,
+the site configuration file and the config image's settings and tree.
+The ``.upatch`` reader, the TPM structures and the package, index and
+tree readers are covered part by part, as the table shows; what joins
+those parts, and the event encoders of the register, which need a model
+of SHA-256, have no proof.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

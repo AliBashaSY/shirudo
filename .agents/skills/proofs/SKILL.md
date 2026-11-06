@@ -132,6 +132,10 @@ determining its events.
   5.95's `memcpy()` model, not the code: rerun the input as a constant
   to confirm, then define `PROOF_MEMCPY_BYTEWISE` before including
   `proof.h` (as `bpm-upatch-member.c` does).
+- CBMC 5.95 also reads wrong bytes at a symbolic offset from a heap
+  object of struct type that a `memcpy()` filled, `xreallocarray()`'s
+  for one; a wrong value can make a check pass as well as fail. Read
+  such an object by its members, never cast to bytes.
 - `run.sh` passes `--unsigned-char`, as the build passes
   `-funsigned-char`; a conversion failure on `char` elsewhere means the
   proof is not built as the code is.

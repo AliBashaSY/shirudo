@@ -9,6 +9,13 @@
 #ifndef SHIRUDO_PROOF_H
 #define SHIRUDO_PROOF_H
 
+/*
+ * glibc's <ctype.h> macros index a locale table CBMC has no body for; the
+ * functions they stand for CBMC models in the C locale, the one shirudo
+ * runs in.
+ */
+#define __NO_CTYPE 1
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -18,8 +25,8 @@
 #include <shirudo/types.h>
 
 /*
- * CBMC models neither strnlen(), memchr(), strstr() nor vsnprintf(), and a
- * function without a body returns anything.
+ * CBMC models neither strnlen(), memchr(), strcspn(), strstr() nor
+ * vsnprintf(), and a function without a body returns anything.
  */
 size_t strnlen(const char *s, size_t max)
 {
@@ -61,6 +68,17 @@ void *memchr(const void *s, int c, size_t n)
 	return NULL;
 }
 #endif
+
+size_t strcspn(const char *s, const char *reject)
+{
+	size_t n, i;
+
+	for (n = 0; s[n]; n++)
+		for (i = 0; reject[i]; i++)
+			if (s[n] == reject[i])
+				return n;
+	return n;
+}
 
 char *strstr(const char *s, const char *needle)
 {
