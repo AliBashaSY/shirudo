@@ -422,6 +422,9 @@ Selector
 ~~~~~~~~
 
 Every key present must match. A list matches when one value matches.
+Lists hold at least one value, and an option or label appears once in
+``kconfig`` and ``kernel_config`` together or in ``labels``: the node
+refuses a publication otherwise.
 
 .. list-table::
    :header-rows: 1

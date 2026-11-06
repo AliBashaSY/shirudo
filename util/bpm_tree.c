@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,363 +15,6 @@
 #include "hex.h"
 #include "json.h"
 #include "malloc.h"
-
-/*
- * The tree payload is deliberately parsed here instead of through the
- * schema parser: selectors contain maps whose keys are not known ahead of
- * time.  The parser is still bounded and ignores unknown fields.
- */
-struct tree_parser {
-	const char *p;
-	const char *end;
-	__u32 depth;
-};
-
-static void tp_ws(struct tree_parser *p)
-{
-	while (p->p < p->end && isspace((__u8)*p->p))
-		p->p++;
-}
-
-static int tp_char(struct tree_parser *p, char c)
-{
-	tp_ws(p);
-	if (p->p >= p->end || *p->p != c)
-		return -EINVAL;
-	p->p++;
-	return 0;
-}
-
-static int tp_string(struct tree_parser *p, char *out, size_t cap)
-{
-	size_t n = 0;
-
-	tp_ws(p);
-	if (p->p >= p->end || *p->p++ != '"')
-		return -EINVAL;
-	while (p->p < p->end) {
-		__u8 c = (__u8)*p->p++;
-
-		if (c == '"') {
-			if (cap)
-				out[min(n, cap - 1)] = '\0';
-			return n < cap ? 0 : -ENOSPC;
-		}
-		if (c == '\\') {
-			if (p->p >= p->end)
-				return -EINVAL;
-			c = (__u8)*p->p++;
-			switch (c) {
-			case '"':
-			case '\\':
-			case '/':
-				break;
-			case 'b':
-				c = '\b';
-				break;
-			case 'f':
-				c = '\f';
-				break;
-			case 'n':
-				c = '\n';
-				break;
-			case 'r':
-				c = '\r';
-				break;
-			case 't':
-				c = '\t';
-				break;
-			default:
-				return -EINVAL;
-			}
-		}
-		if (c < 0x20)
-			return -EINVAL;
-		if (n + 1 < cap)
-			out[n] = (char)c;
-		n++;
-	}
-	return -EINVAL;
-}
-
-static int tp_skip(struct tree_parser *p)
-{
-	char scratch[TREE_STRING_MAX];
-
-	tp_ws(p);
-	if (p->p >= p->end)
-		return -EINVAL;
-	if (*p->p == '"')
-		return tp_string(p, scratch, sizeof(scratch));
-	if (*p->p == '{' || *p->p == '[') {
-		char open = *p->p++, close = open == '{' ? '}' : ']';
-
-		if (++p->depth > 32)
-			return -E2BIG;
-		for (;;) {
-			tp_ws(p);
-			if (p->p >= p->end)
-				return -EINVAL;
-			if (*p->p == close) {
-				p->p++;
-				p->depth--;
-				return 0;
-			}
-			if (open == '{') {
-				if (tp_string(p, scratch, sizeof(scratch)) ||
-				    tp_char(p, ':'))
-					return -EINVAL;
-			}
-			if (tp_skip(p))
-				return -EINVAL;
-			tp_ws(p);
-			if (p->p < p->end && *p->p == ',') {
-				p->p++;
-				continue;
-			}
-			if (p->p < p->end && *p->p == close)
-				continue;
-			return -EINVAL;
-		}
-	}
-	if (*p->p == '-' || isdigit((__u8)*p->p)) {
-		if (*p->p == '-')
-			p->p++;
-		while (p->p < p->end && isdigit((__u8)*p->p))
-			p->p++;
-		if (p->p < p->end && *p->p == '.') {
-			p->p++;
-			while (p->p < p->end && isdigit((__u8)*p->p))
-				p->p++;
-		}
-		return 0;
-	}
-	if ((size_t)(p->end - p->p) >= 4 && !strncmp(p->p, "true", 4)) {
-		p->p += 4;
-		return 0;
-	}
-	if ((size_t)(p->end - p->p) >= 5 && !strncmp(p->p, "false", 5)) {
-		p->p += 5;
-		return 0;
-	}
-	if ((size_t)(p->end - p->p) >= 4 && !strncmp(p->p, "null", 4)) {
-		p->p += 4;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static int tp_int(struct tree_parser *p, __s64 *out)
-{
-	size_t len, n;
-	bool neg;
-
-	tp_ws(p);
-	len = (size_t)(p->end - p->p);
-	neg = len && *p->p == '-';
-	n = neg + digits(p->p + neg, len - neg);
-	if (parse_s64(p->p, n, INT64_MIN, INT64_MAX, out))
-		return -EINVAL;
-	p->p += n;
-	return 0;
-}
-
-static int tp_key(struct tree_parser *p, char *key, size_t cap, bool *first)
-{
-	tp_ws(p);
-	if (!*first) {
-		if (tp_char(p, ','))
-			return -EINVAL;
-	}
-	*first = false;
-	if (tp_string(p, key, cap) || tp_char(p, ':'))
-		return -EINVAL;
-	return 0;
-}
-
-static int tp_string_array(struct tree_parser *p,
-			   char values[][TREE_STRING_MAX], int *n, int max)
-{
-	int count = 0;
-
-	if (tp_char(p, '['))
-		return -EINVAL;
-	for (;;) {
-		tp_ws(p);
-		if (p->p < p->end && *p->p == ']') {
-			p->p++;
-			if (!count)
-				return -EINVAL;
-			*n = count;
-			return 0;
-		}
-		if (count >= max || tp_string(p, values[count],
-					      TREE_STRING_MAX))
-			return count >= max ? -E2BIG : -EINVAL;
-		count++;
-		tp_ws(p);
-		if (p->p >= p->end)
-			return -EINVAL;
-		if (*p->p == ',') {
-			p->p++;
-			continue;
-		}
-		if (*p->p != ']')
-			return -EINVAL;
-	}
-}
-
-static int tp_selector_string_map(struct tree_parser *p,
-				  struct tree_selector_kv **dst,
-				  int *n, int max)
-{
-	char key[TREE_STRING_MAX];
-	bool first = true;
-
-	if (tp_char(p, '{'))
-		return -EINVAL;
-	for (;;) {
-		struct tree_selector_kv *kv;
-
-		tp_ws(p);
-		if (p->p < p->end && *p->p == '}') {
-			p->p++;
-			return 0;
-		}
-		if (tp_key(p, key, sizeof(key), &first) ||
-		    tree_selector_kv_add(dst, n, max, &kv) ||
-		    tp_string_array(p, kv->values, &kv->n_values,
-				    TREE_MAX_SELECTOR_VALUES))
-			return -EINVAL;
-		strscpy(kv->key, key, sizeof(kv->key));
-	}
-}
-
-static int tp_selector(struct tree_parser *p, struct tree_selector *s)
-{
-	char key[TREE_STRING_MAX];
-	bool first = true;
-
-	if (tp_char(p, '{'))
-		return -EINVAL;
-	for (;;) {
-		tp_ws(p);
-		if (p->p < p->end && *p->p == '}') {
-			p->p++;
-			return 0;
-		}
-		if (tp_key(p, key, sizeof(key), &first))
-			return -EINVAL;
-		if (!strcmp(key, "kernel_release_prefix")) {
-			if (tp_string_array(p, s->kernel_release_prefix,
-					    &s->n_kernel_release_prefix,
-					    TREE_MAX_SELECTOR_VALUES))
-				return -EINVAL;
-		} else if (!strcmp(key, "kernel_build_id")) {
-			if (tp_string_array(p, s->kernel_build_id,
-					    &s->n_kernel_build_id,
-					    TREE_MAX_SELECTOR_VALUES))
-				return -EINVAL;
-		} else if (!strcmp(key, "architecture")) {
-			if (tp_string_array(p, s->architecture,
-					    &s->n_architecture,
-					    TREE_MAX_SELECTOR_VALUES))
-				return -EINVAL;
-		} else if (!strcmp(key, "kconfig") ||
-			   !strcmp(key, "kernel_config")) {
-			if (tp_selector_string_map(p, &s->kconfig, &s->n_kconfig,
-						   TREE_MAX_KCONFIG))
-				return -EINVAL;
-		} else if (!strcmp(key, "labels")) {
-			if (tp_selector_string_map(p, &s->labels, &s->n_labels,
-						   TREE_MAX_LABELS))
-				return -EINVAL;
-		} else if (tp_skip(p)) {
-			return -EINVAL;
-		}
-	}
-}
-
-static int tp_artifact(struct tree_parser *p, struct tree_artifact *a)
-{
-	char key[TREE_STRING_MAX];
-	bool first = true;
-
-	if (tp_char(p, '{'))
-		return -EINVAL;
-	for (;;) {
-		tp_ws(p);
-		if (p->p < p->end && *p->p == '}') {
-			p->p++;
-			return 0;
-		}
-		if (tp_key(p, key, sizeof(key), &first))
-			return -EINVAL;
-		if (!strcmp(key, "repository")) {
-			if (tp_string(p, a->repository, sizeof(a->repository)))
-				return -EINVAL;
-		} else if (!strcmp(key, "manifest_digest")) {
-			if (tp_string(p, a->manifest_digest,
-				      sizeof(a->manifest_digest)))
-				return -EINVAL;
-		} else if (!strcmp(key, "layer_digest")) {
-			if (tp_string(p, a->layer_digest, sizeof(a->layer_digest)))
-				return -EINVAL;
-		} else if (!strcmp(key, "payload_sha256")) {
-			if (tp_string(p, a->payload_sha256,
-				      sizeof(a->payload_sha256)))
-				return -EINVAL;
-		} else if (tp_skip(p)) {
-			return -EINVAL;
-		}
-	}
-}
-
-static int tp_operation(struct tree_parser *p, struct tree_operation *o)
-{
-	char key[TREE_STRING_MAX];
-	bool first = true;
-
-	if (tp_char(p, '{'))
-		return -EINVAL;
-	for (;;) {
-		tp_ws(p);
-		if (p->p < p->end && *p->p == '}') {
-			p->p++;
-			if (!o->id[0] || !o->op[0] || o->seq <= 0 ||
-			    !o->operation_digest[0] || !o->artifact.repository[0] ||
-			    !o->artifact.manifest_digest[0] ||
-			    !o->artifact.layer_digest[0] ||
-			    !o->artifact.payload_sha256[0])
-				return -EINVAL;
-			return 0;
-		}
-		if (tp_key(p, key, sizeof(key), &first))
-			return -EINVAL;
-		if (!strcmp(key, "seq")) {
-			if (tp_int(p, &o->seq))
-				return -EINVAL;
-		} else if (!strcmp(key, "op")) {
-			if (tp_string(p, o->op, sizeof(o->op)))
-				return -EINVAL;
-		} else if (!strcmp(key, "id")) {
-			if (tp_string(p, o->id, sizeof(o->id)))
-				return -EINVAL;
-		} else if (!strcmp(key, "selector")) {
-			if (tp_selector(p, &o->selector))
-				return -EINVAL;
-		} else if (!strcmp(key, "artifact")) {
-			if (tp_artifact(p, &o->artifact))
-				return -EINVAL;
-		} else if (!strcmp(key, "operation_digest")) {
-			if (tp_string(p, o->operation_digest,
-				      sizeof(o->operation_digest)))
-				return -EINVAL;
-		} else if (tp_skip(p)) {
-			return -EINVAL;
-		}
-	}
-}
 
 int tree_selector_kv_add(struct tree_selector_kv **kvs, int *n, int max,
 			 struct tree_selector_kv **kv)
@@ -482,166 +124,232 @@ int tree_publication_append(struct tree_publication *pub,
 	return 0;
 }
 
-/* The "base" and "head" objects: {"seq": <int>} plus fields to skip. */
-static int tp_seq_object(struct tree_parser *p, char *key, size_t cap,
-			 __s64 *seq, bool *seen_seq)
-{
-	bool first = true;
+/* The operation the parse fills before tree_parse() keeps it. */
+struct tree_reader {
+	struct tree_publication	*pub;
+	struct tree_operation	op;
+	struct json_field	*lists;		/* the selector's three lists */
+	char			value[TREE_STRING_MAX];
+	char			pair[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
+	int			n_pair;
+};
 
-	if (tp_char(p, '{'))
+struct tree_list {
+	struct tree_reader	*r;
+	char			(*values)[TREE_STRING_MAX];
+	int			*n;
+};
+
+struct tree_map {
+	struct tree_reader	*r;
+	struct tree_selector_kv	**kvs;
+	int			*n;
+	int			max;
+};
+
+static int tree_list_value(void *ctx)
+{
+	struct tree_list *l = ctx;
+
+	if (*l->n >= TREE_MAX_SELECTOR_VALUES)
+		return -E2BIG;
+	strscpy(l->values[(*l->n)++], l->r->value, TREE_STRING_MAX);
+	return 0;
+}
+
+/*
+ * Each key of a kconfig or labels map once, with a list of one value or
+ * more: a key twice would order the canonical form by however qsort()
+ * places equal keys.
+ */
+static int tree_map_pair(void *ctx, const char *key)
+{
+	struct tree_map *m = ctx;
+	struct tree_reader *r = m->r;
+	struct tree_selector_kv *kv;
+	int ret;
+
+	if (!r->n_pair)
 		return -EINVAL;
-	for (;;) {
-		tp_ws(p);
-		if (p->p < p->end && *p->p == '}') {
-			p->p++;
-			return 0;
-		}
-		if (tp_key(p, key, cap, &first))
+	for (int i = 0; i < *m->n; i++)
+		if (!strcmp((*m->kvs)[i].key, key))
 			return -EINVAL;
-		if (!strcmp(key, "seq")) {
-			if (tp_int(p, seq))
-				return -EINVAL;
-			*seen_seq = true;
-		} else if (tp_skip(p)) {
+	ret = tree_selector_kv_add(m->kvs, m->n, m->max, &kv);
+	if (ret)
+		return ret;
+	strscpy(kv->key, key, sizeof(kv->key));
+	memcpy(kv->values, r->pair, sizeof(kv->values));
+	kv->n_values = r->n_pair;
+	r->n_pair = 0;
+	return 0;
+}
+
+static int tree_take_operation(void *ctx)
+{
+	struct tree_reader *r = ctx;
+	struct tree_operation *o = &r->op;
+	const struct tree_selector *s = &o->selector;
+	const int counts[] = {
+		s->n_kernel_release_prefix, s->n_kernel_build_id,
+		s->n_architecture,
+	};
+	int ret;
+
+	if (!o->id[0] || !o->op[0] || o->seq <= 0 ||
+	    !o->operation_digest[0] || !o->artifact.repository[0] ||
+	    !o->artifact.manifest_digest[0] ||
+	    !o->artifact.layer_digest[0] ||
+	    !o->artifact.payload_sha256[0])
+		return -EINVAL;
+	/* A selector list is one value or more, never []. */
+	for (size_t i = 0; i < ARRAY_SIZE(counts); i++)
+		if (r->lists[i].seen && !counts[i])
 			return -EINVAL;
-		}
-	}
+	ret = tree_operations_reserve(r->pub);
+	if (ret)
+		return ret;
+	/* The publication takes over the operation's pairs. */
+	r->pub->operations[r->pub->n_operations++] = *o;
+	memzero_explicit(o, sizeof(*o));
+	return 0;
 }
 
 int tree_parse(const char *body, size_t len,
 	       struct tree_publication *out)
 {
-	struct tree_parser p;
-	char key[TREE_STRING_MAX];
-	bool first = true;
-	bool seen_schema = false, seen_generation = false;
-	bool seen_base = false, seen_base_seq = false;
-	bool seen_operations = false, seen_head = false, seen_head_seq = false;
+	struct tree_reader *r;
+	struct tree_operation *o;
 	__s64 schema = 0;
 	int ret;
 
 	if (!body || !out || len > JSON_MAX_BYTES)
 		return -EINVAL;
-	p = (struct tree_parser){ .p = body, .end = body + len };
 	*out = (struct tree_publication){};
-	if (tp_char(&p, '{')) {
+	r = xcalloc(1, sizeof(*r));
+	if (!r)
+		return -ENOMEM;
+	r->pub = out;
+	o = &r->op;
+	{
+		struct tree_list release = {
+			r, o->selector.kernel_release_prefix,
+			&o->selector.n_kernel_release_prefix,
+		};
+		struct tree_list build_id = {
+			r, o->selector.kernel_build_id,
+			&o->selector.n_kernel_build_id,
+		};
+		struct tree_list arch = {
+			r, o->selector.architecture, &o->selector.n_architecture,
+		};
+		struct tree_list pair = { r, r->pair, &r->n_pair };
+		struct tree_map kconfig = {
+			r, &o->selector.kconfig, &o->selector.n_kconfig,
+			TREE_MAX_KCONFIG,
+		};
+		struct tree_map labels = {
+			r, &o->selector.labels, &o->selector.n_labels,
+			TREE_MAX_LABELS,
+		};
+		struct json_array release_sink = { tree_list_value, &release };
+		struct json_array build_id_sink = { tree_list_value, &build_id };
+		struct json_array arch_sink = { tree_list_value, &arch };
+		struct json_array pair_sink = { tree_list_value, &pair };
+		struct json_map kconfig_map = { tree_map_pair, &kconfig };
+		struct json_map labels_map = { tree_map_pair, &labels };
+		struct json_array operations = { tree_take_operation, r };
+		struct json_field value[] = {
+			{ "", JSON_T_STRING, r->value, sizeof(r->value), 0, NULL,
+			  0 },
+		};
+		struct json_field pair_value[] = {
+			{ "", JSON_T_ARRAY, &pair_sink, 0, 0, value,
+			  ARRAY_SIZE(value) },
+		};
+		struct json_field selector[] = {
+			{ "kernel_release_prefix", JSON_T_ARRAY, &release_sink,
+			  0, 0, value, ARRAY_SIZE(value) },
+			{ "kernel_build_id", JSON_T_ARRAY, &build_id_sink, 0, 0,
+			  value, ARRAY_SIZE(value) },
+			{ "architecture", JSON_T_ARRAY, &arch_sink, 0, 0, value,
+			  ARRAY_SIZE(value) },
+			{ "kconfig", JSON_T_MAP, &kconfig_map, 0, 0, pair_value,
+			  ARRAY_SIZE(pair_value) },
+			{ "kernel_config", JSON_T_MAP, &kconfig_map, 0, 0,
+			  pair_value, ARRAY_SIZE(pair_value) },
+			{ "labels", JSON_T_MAP, &labels_map, 0, 0, pair_value,
+			  ARRAY_SIZE(pair_value) },
+		};
+		struct json_field artifact[] = {
+			{ "repository", JSON_T_STRING, o->artifact.repository,
+			  sizeof(o->artifact.repository), 0, NULL, 0 },
+			{ "manifest_digest", JSON_T_STRING,
+			  o->artifact.manifest_digest,
+			  sizeof(o->artifact.manifest_digest), 0, NULL, 0 },
+			{ "layer_digest", JSON_T_STRING, o->artifact.layer_digest,
+			  sizeof(o->artifact.layer_digest), 0, NULL, 0 },
+			{ "payload_sha256", JSON_T_STRING,
+			  o->artifact.payload_sha256,
+			  sizeof(o->artifact.payload_sha256), 0, NULL, 0 },
+		};
+		struct json_field operation[] = {
+			{ "seq", JSON_T_INT, &o->seq, 0, 0, NULL, 0 },
+			{ "op", JSON_T_STRING, o->op, sizeof(o->op), 0, NULL, 0 },
+			{ "id", JSON_T_STRING, o->id, sizeof(o->id), 0, NULL, 0 },
+			{ "selector", JSON_T_OBJECT, NULL, 0, 0, selector,
+			  ARRAY_SIZE(selector) },
+			{ "artifact", JSON_T_OBJECT, NULL, 0, 0, artifact,
+			  ARRAY_SIZE(artifact) },
+			{ "operation_digest", JSON_T_STRING, o->operation_digest,
+			  sizeof(o->operation_digest), 0, NULL, 0 },
+		};
+		struct json_field base[] = {
+			{ "seq", JSON_T_INT, &out->base_seq, 0, 0, NULL, 0 },
+		};
+		struct json_field head[] = {
+			{ "seq", JSON_T_INT, &out->head_seq, 0, 0, NULL, 0 },
+		};
+		struct json_field root[] = {
+			{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+			{ "tree_id", JSON_T_STRING, out->tree_id,
+			  sizeof(out->tree_id), 0, NULL, 0 },
+			{ "generation", JSON_T_INT, &out->generation, 0, 0, NULL,
+			  0 },
+			{ "parent_manifest_digest", JSON_T_STRING,
+			  out->parent_manifest_digest,
+			  sizeof(out->parent_manifest_digest), 0, NULL, 0 },
+			{ "base", JSON_T_OBJECT, NULL, 0, 0, base,
+			  ARRAY_SIZE(base) },
+			{ "operations", JSON_T_ARRAY, &operations, 0, 0,
+			  operation, ARRAY_SIZE(operation) },
+			{ "head", JSON_T_OBJECT, NULL, 0, 0, head,
+			  ARRAY_SIZE(head) },
+		};
+
+		r->lists = selector;
+		ret = json_parse(body, len, root, ARRAY_SIZE(root));
+		if (!ret && (!root[0].seen || !root[2].seen || !root[4].seen ||
+			     !base[0].seen || !root[5].seen || !root[6].seen ||
+			     !head[0].seen))
+			ret = -EINVAL;
+	}
+	if (ret && ret != -E2BIG && ret != -ENOMEM)
 		ret = -EINVAL;
-		goto fail;
-	}
-	for (;;) {
-		tp_ws(&p);
-		if (p.p < p.end && *p.p == '}') {
-			p.p++;
-			break;
-		}
-		if (tp_key(&p, key, sizeof(key), &first)) {
-			ret = -EINVAL;
-			goto fail;
-		}
-		if (!strcmp(key, "schema")) {
-			if (tp_int(&p, &schema)) {
-				ret = -EINVAL;
-				goto fail;
-			}
-			out->schema = (int)schema;
-			seen_schema = true;
-		} else if (!strcmp(key, "tree_id")) {
-			if (tp_string(&p, out->tree_id, sizeof(out->tree_id))) {
-				ret = -EINVAL;
-				goto fail;
-			}
-		} else if (!strcmp(key, "generation")) {
-			if (tp_int(&p, &out->generation)) {
-				ret = -EINVAL;
-				goto fail;
-			}
-			seen_generation = true;
-		} else if (!strcmp(key, "parent_manifest_digest")) {
-			if (tp_string(&p, out->parent_manifest_digest,
-				      sizeof(out->parent_manifest_digest))) {
-				ret = -EINVAL;
-				goto fail;
-			}
-		} else if (!strcmp(key, "base")) {
-			seen_base = true;
-			if (tp_seq_object(&p, key, sizeof(key), &out->base_seq,
-					  &seen_base_seq)) {
-				ret = -EINVAL;
-				goto fail;
-			}
-		} else if (!strcmp(key, "operations")) {
-			seen_operations = true;
-			if (tp_char(&p, '[')) {
-				ret = -EINVAL;
-				goto fail;
-			}
-			for (;;) {
-				tp_ws(&p);
-				if (p.p < p.end && *p.p == ']') {
-					p.p++;
-					break;
-				}
-				ret = tree_operations_reserve(out);
-				if (ret)
-					goto fail;
-				if (tp_operation(&p, &out->operations[out->n_operations])) {
-					ret = -EINVAL;
-					goto fail;
-				}
-				out->n_operations++;
-				tp_ws(&p);
-				if (p.p < p.end && *p.p == ',') {
-					p.p++;
-					continue;
-				}
-				if (p.p < p.end && *p.p == ']') {
-					p.p++;
-					break;
-				}
-				ret = -EINVAL;
-				goto fail;
-			}
-		} else if (!strcmp(key, "head")) {
-			seen_head = true;
-			if (tp_seq_object(&p, key, sizeof(key), &out->head_seq,
-					  &seen_head_seq)) {
-				ret = -EINVAL;
-				goto fail;
-			}
-		} else if (tp_skip(&p)) {
-			ret = -EINVAL;
-			goto fail;
-		}
-		tp_ws(&p);
-		if (p.p < p.end && *p.p == '}') {
-			p.p++;
-			break;
-		}
-		if (p.p >= p.end) {
-			ret = -EINVAL;
-			goto fail;
-		}
-	}
-	tp_ws(&p);
-	if (p.p != p.end || !seen_schema || !seen_generation || !seen_base ||
-	    !seen_base_seq || !seen_operations || !seen_head || !seen_head_seq ||
-	    schema != 1 || !out->tree_id[0] ||
-	    out->generation < 0 || out->generation == INT64_MAX ||
-	    out->base_seq < 0 || out->head_seq < out->base_seq ||
-	    out->head_seq == INT64_MAX) {
+	if (!ret && (schema != 1 || !out->tree_id[0] ||
+		     out->generation < 0 || out->generation == INT64_MAX ||
+		     out->base_seq < 0 || out->head_seq < out->base_seq ||
+		     out->head_seq == INT64_MAX))
 		ret = -EINVAL;
-		goto fail;
-	}
+	out->schema = (int)schema;
 	/* Every operation's seq is positive, so seq - 1 cannot overflow. */
-	for (int i = 0; i < out->n_operations; i++) {
-		if (i && out->operations[i].seq - 1 != out->operations[i - 1].seq) {
+	for (int i = 0; !ret && i < out->n_operations; i++) {
+		if (i && out->operations[i].seq - 1 != out->operations[i - 1].seq)
 			ret = -EINVAL;
-			goto fail;
-		}
 	}
-	return 0;
-fail:
-	tree_publication_free(out);
+	tree_selector_free(&r->op.selector);
+	xfree(r, sizeof(*r));
+	if (ret)
+		tree_publication_free(out);
 	return ret;
 }
 
@@ -660,9 +368,9 @@ static int tree_selector_kv_compare(const void *left, const void *right)
  * form, so publisher and consumer share one emitter.
  */
 /*
- * tp_string() refuses a control character, however it is escaped, so
- * the emitter writes none: a publication would go out that no node can
- * read, and every later sync of the tree would fail on it.
+ * A tree string holds no control character: the node cannot compute the
+ * digest of an operation with one and refuses it, so a publication that
+ * held one would go out signed and fail every later sync of the tree.
  */
 static bool tree_text(const char *s)
 {
@@ -905,6 +613,9 @@ int tree_emit_publication(const struct tree_publication *pub,
 	json_obj_close(&e);
 	if (!ret)
 		ret = e.err;
+	/* tree_parse() takes JSON_MAX_BYTES at most. */
+	if (!ret && e.len > JSON_MAX_BYTES)
+		ret = -E2BIG;
 	if (ret) {
 		xfree(body, cap);
 		return ret;

@@ -80,6 +80,7 @@ static void publication_reads_back(void)
 	pub.head_seq = 1;
 	ASSERT_EQ(tree_emit_publication(&pub, &doc, &len), 0);
 	ASSERT_EQ(tree_parse(doc, len, &back), 0);
+	EXPECT_EQ(back.schema, 1);
 	ASSERT_EQ(back.n_operations, 1);
 	ASSERT_EQ(tree_operation_digest(&back.operations[0], again), 0);
 	EXPECT_STREQ(again, op->operation_digest);
