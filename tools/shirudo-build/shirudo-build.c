@@ -98,21 +98,13 @@ static const char *derive_name(const char *input, char *buf, size_t buf_sz)
 	return buf;
 }
 
-static int ends_with(const char *s, const char *suf)
-{
-	size_t ns = strlen(s);
-	size_t nf = strlen(suf);
-
-	return ns >= nf && strcmp(s + ns - nf, suf) == 0;
-}
-
 /* foo/bar.bpf.c lands at foo/bar.bpf.upatch beside its input. */
 static int derive_output(const char *input, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(input);
 
-	if (stem > 2 && (strcmp(input + stem - 2, ".c") == 0 ||
-			 strcmp(input + stem - 2, ".o") == 0))
+	if (name_has_suffix(input, stem, ".c") ||
+	    name_has_suffix(input, stem, ".o"))
 		stem -= 2;
 
 	if (strsprintf(buf, buf_sz, "%.*s.upatch", (int)stem, input) < 0)
@@ -125,7 +117,7 @@ static int derive_artifact_o(const char *output, char *buf, size_t buf_sz)
 {
 	size_t stem = strlen(output);
 
-	if (stem > 7 && strcmp(output + stem - 7, ".upatch") == 0)
+	if (name_has_suffix(output, stem, ".upatch"))
 		stem -= 7;
 
 	if (strsprintf(buf, buf_sz, "%.*s.o", (int)stem, output) < 0)
@@ -375,7 +367,7 @@ int main(int argc, char **argv)
 		pr_info("writing %s (no -o given)", output);
 	}
 
-	if (ends_with(input, ".bpf.c")) {
+	if (name_has_suffix(input, strlen(input), ".bpf.c")) {
 		const char *vmlinux_h =
 			build_locate_vmlinux(vmlinux_override);
 		if (!vmlinux_h) {
@@ -411,7 +403,7 @@ int main(int argc, char **argv)
 			bpf_o = temp_bpf_o;
 		}
 		src_path = input;	/* anchors relative decoder paths */
-	} else if (ends_with(input, ".bpf.o") || ends_with(input, ".o")) {
+	} else if (name_has_suffix(input, strlen(input), ".o")) {
 		bpf_o = input;		/* decoder paths resolve from the cwd */
 	} else {
 		pr_err("input must be .bpf.c or .bpf.o");

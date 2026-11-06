@@ -349,9 +349,7 @@ static int set_add(struct trusted_set *set, const char *path,
 
 static int select_der(const struct dirent *e)
 {
-	size_t n = strlen(e->d_name);
-
-	return n > 4 && strcmp(e->d_name + n - 4, ".der") == 0;
+	return name_has_suffix(e->d_name, strlen(e->d_name), ".der");
 }
 
 static size_t count_der(const char *dir)

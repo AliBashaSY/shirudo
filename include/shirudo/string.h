@@ -2,9 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting, DNS names,
- * UTF-8 characters and text for a terminal, from util/string.c, and the
- * scrub and compare for secrets.
+ * Bounded number parsing, string copies and formatting, file name
+ * suffixes, DNS names, UTF-8 characters and text for a terminal, from
+ * util/string.c, and the scrub and compare for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -52,6 +52,12 @@ int strsprintf(char *buf, size_t size, const char *fmt, ...)
 	__printf(3, 4) __must_check;
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 	__printf(3, 0) __must_check;
+
+/*
+ * Whether the len bytes at name are a stem of at least one byte and then
+ * suffix, as a file name and its extension are.
+ */
+bool name_has_suffix(const char *name, size_t len, const char *suffix);
 
 /*
  * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63

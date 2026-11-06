@@ -482,13 +482,6 @@ out:
 	return ret;
 }
 
-static int is_upatch_file(const struct dirent *e)
-{
-	size_t len = strlen(e->d_name);
-
-	return len > 7 && strcmp(e->d_name + len - 7, ".upatch") == 0;
-}
-
 static int is_not_dot(const struct dirent *e)
 {
 	return strcmp(e->d_name, ".") && strcmp(e->d_name, "..");
@@ -542,7 +535,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 		}
 	}
 
-	np = scandir(UPATCHES_DIR, &persisted, is_upatch_file,
+	np = scandir(UPATCHES_DIR, &persisted, upatch_select,
 		     alphasort);
 	if (np < 0)
 		np = 0;

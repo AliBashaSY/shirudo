@@ -137,8 +137,7 @@ static bool bee_title_ok(const char *title)
 {
 	size_t n = strlen(title);
 
-	return n > strlen(".bee") && bpm_package_name_ok(title) &&
-	       !strcmp(title + n - strlen(".bee"), ".bee");
+	return bpm_package_name_ok(title) && name_has_suffix(title, n, ".bee");
 }
 
 /*
@@ -862,7 +861,7 @@ static int key_source_file(const char *source, char *temp, size_t temp_sz)
 		unlink(archive);
 		return ret;
 	}
-	if (len >= 4 && !strcmp(source + len - 4, ".bee"))
+	if (name_has_suffix(source, len, ".bee"))
 		return extract_package_cert(source, temp, temp_sz);
 	return 0;
 }
@@ -1574,7 +1573,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 			size_t n = strlen(e->d_name);
 			char name[NAME_MAX + 1];
 
-			if (n <= 5 || strcmp(e->d_name + n - 5, ".conf") ||
+			if (!name_has_suffix(e->d_name, n, ".conf") ||
 			    strsprintf(name, sizeof(name), "%.*s",
 				       (int)(n - 5), e->d_name) < 0)
 				continue;
@@ -2970,7 +2969,7 @@ int cmd_bpm(int argc, const char **argv)
 				size_t len = strlen(entry->d_name);
 				char source[BPM_MAX_NAME];
 
-				if (len <= 5 || strcmp(entry->d_name + len - 5, ".conf"))
+				if (!name_has_suffix(entry->d_name, len, ".conf"))
 					continue;
 				if (strsprintf(source, sizeof(source), "%.*s",
 					       (int)(len - 5), entry->d_name) < 0) {

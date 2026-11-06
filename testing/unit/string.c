@@ -478,6 +478,17 @@ static void memneq_explicit_tells_every_bit_apart(void)
 	}
 }
 
+static void name_has_suffix_wants_a_stem(void)
+{
+	EXPECT_TRUE(name_has_suffix("a.upatch", 8, ".upatch"));
+	EXPECT_TRUE(name_has_suffix("a.upatch.x", 8, ".upatch"));
+	EXPECT_FALSE(name_has_suffix(".upatch", 7, ".upatch"));
+	EXPECT_FALSE(name_has_suffix("a.upatch.bak", 12, ".upatch"));
+	EXPECT_FALSE(name_has_suffix("a.UPATCH", 8, ".upatch"));
+	EXPECT_FALSE(name_has_suffix("", 0, ""));
+	EXPECT_TRUE(name_has_suffix("a", 1, ""));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -500,6 +511,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(text_sanitize_passes_all_but_the_controls),
 	UNIT_CASE(memzero_explicit_clears_its_span_only),
 	UNIT_CASE(memneq_explicit_tells_every_bit_apart),
+	UNIT_CASE(name_has_suffix_wants_a_stem),
 	{}
 };
 

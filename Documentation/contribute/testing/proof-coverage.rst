@@ -57,6 +57,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Strings and buffers up to 8 bytes
      - Terminates what it writes; the whole string and its length, or
        what fits and ``-E2BIG``
+   * - ``string-suffix``
+     - ``name_has_suffix()``
+     - Names up to 6 bytes, suffixes up to 3
+     - True exactly when the name's last bytes are the suffix and at
+       least one byte comes before them
    * - ``hex``
      - ``hex_encode()``, ``hex_decode()``, ``hex_decode_max()``
      - Up to 4 bytes, strings up to 9 characters

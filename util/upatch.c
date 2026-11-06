@@ -15,6 +15,7 @@
 
 #include <shirudo/misc.h>
 #include <shirudo/overflow.h>
+#include <shirudo/string.h>
 
 #include "malloc.h"
 #include "upatch.h"
@@ -525,9 +526,7 @@ bool upatch_name_valid(const char *name)
 
 int upatch_select(const struct dirent *e)
 {
-	size_t n = strlen(e->d_name);
-
-	return n > 7 && strcmp(e->d_name + n - 7, ".upatch") == 0;
+	return name_has_suffix(e->d_name, strlen(e->d_name), ".upatch");
 }
 
 void prog_specs_free(struct prog_spec *specs, __u32 nr_progs)

@@ -1129,13 +1129,6 @@ static int build_entry_name(char *out, size_t cap, const char *top,
 	return 0;
 }
 
-static bool build_ends_with(const char *s, const char *suffix)
-{
-	size_t n = strlen(s), m = strlen(suffix);
-
-	return n >= m && !strcmp(s + n - m, suffix);
-}
-
 static void build_upatch_name(const char *source, char *out, size_t cap)
 {
 	const char *base = strrchr(source, '/');
@@ -1289,7 +1282,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			return -ENAMETOOLONG;
 		strscpy(u->load_path, load, sizeof(u->load_path));
 		strscpy(u->unload_path, unload, sizeof(u->unload_path));
-		if (build_ends_with(source, ".bpf.c")) {
+		if (name_has_suffix(source, strlen(source), ".bpf.c")) {
 			if (!vmlinux_h) {
 				vmlinux_h = build_locate_vmlinux(NULL);
 				if (!vmlinux_h) {
@@ -1309,8 +1302,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			}
 			bpf_o = object;
 			src_path = source;
-		} else if (!build_ends_with(source, ".bpf.o") &&
-			   !build_ends_with(source, ".o")) {
+		} else if (!name_has_suffix(source, strlen(source), ".o")) {
 			pr_err("bpm build: %s is neither .bpf.c nor .bpf.o", u->source);
 			return -EINVAL;
 		}

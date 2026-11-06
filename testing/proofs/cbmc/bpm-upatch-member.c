@@ -8,9 +8,15 @@
  */
 
 #include <stdbool.h>
+#include <zlib.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
 
 #define PROOF_MEMCPY_BYTEWISE
 #include "proof.h"
+#include "../../../util/string.c"
 #include "../../../util/bpm_package.c"
 
 static bool ends_with(const char *s, size_t len, const char *suffix)

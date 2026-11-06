@@ -100,6 +100,7 @@ extra check left to the caller, and move one found in a builtin into
 |---|---|
 | Parse a number | `parse_u64()`, `parse_s64()`, `parse_x64()`, `digits()` (`<shirudo/string.h>`) |
 | Copy or format a string | `strscpy()`, `strsprintf()`, `vstrsprintf()`, and check `-E2BIG` |
+| A file name's extension | `name_has_suffix()` (`<shirudo/string.h>`), `upatch_select()` for a scandir of upatches |
 | Text from outside on a terminal | `text_sanitize()`; UTF-8 with `utf8_width()` |
 | Sizes and lengths | `check_add_overflow()` and kin, `size_add()`, `size_mul()`, `struct_size()` (`<shirudo/overflow.h>`) |
 | Smaller or larger | `min()`, `max()` (`<shirudo/misc.h>`) |

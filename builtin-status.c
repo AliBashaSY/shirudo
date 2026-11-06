@@ -53,6 +53,7 @@
 #include "util/sysinfo.h"
 #include "util/timefmt.h"
 #include "util/tpm.h"
+#include "util/upatch.h"
 #include "util/upatch_maps.h"
 #include "util/upatch_maps_otel.h"
 #include "util/tamper.h"
@@ -132,11 +133,7 @@ static int count_dir(const char *dir, bool upatch_only)
 	if (n < 0)
 		return -1;	/* directory absent */
 	for (i = 0; i < n; i++) {
-		const char *nm = list[i]->d_name;
-		size_t len = strlen(nm);
-
-		if (!upatch_only ||
-		    (len > 7 && strcmp(nm + len - 7, ".upatch") == 0))
+		if (!upatch_only || upatch_select(list[i]))
 			count++;
 		libc_free(list[i]);
 	}

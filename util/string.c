@@ -135,6 +135,13 @@ static bool numeric_dns_label(const char *label, size_t len)
 	return !hex || i > 2;
 }
 
+bool name_has_suffix(const char *name, size_t len, const char *suffix)
+{
+	size_t n = strlen(suffix);
+
+	return len > n && !memcmp(name + len - n, suffix, n);
+}
+
 bool dns_name_valid(const char *name)
 {
 	size_t len = strlen(name), label_len = 0, label_start = 0;

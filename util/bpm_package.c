@@ -339,20 +339,13 @@ bool bpm_archive_rel_ok(const char *name)
 	return true;
 }
 
-static bool has_suffix(const char *name, size_t len, const char *suffix)
-{
-	size_t n = strlen(suffix);
-
-	return len > n && !memcmp(name + len - n, suffix, n);
-}
-
 enum bpm_upatch_member bpm_upatch_member(const char *name, size_t len)
 {
 	if (!len || name[0] == '.' || memchr(name, '\0', len))
 		return BPM_UPATCH_OTHER;
-	if (has_suffix(name, len, ".unload.upatch"))
+	if (name_has_suffix(name, len, ".unload.upatch"))
 		return BPM_UPATCH_UNLOAD;
-	if (has_suffix(name, len, ".upatch"))
+	if (name_has_suffix(name, len, ".upatch"))
 		return BPM_UPATCH_LOAD;
 	return BPM_UPATCH_OTHER;
 }
