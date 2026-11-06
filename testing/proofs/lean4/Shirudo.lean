@@ -6,3 +6,7 @@ import Shirudo.Chain
 import Shirudo.SemVer
 import Shirudo.Events
 import Shirudo.Measured
+import Shirudo.PinName
+import Shirudo.ArchivePath
+import Shirudo.Hex
+import Shirudo.JsonString

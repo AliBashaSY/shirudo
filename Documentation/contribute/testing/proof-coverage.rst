@@ -69,6 +69,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        exactly ``2 * n`` hex digits of either case and yields their
        value, and ``hex_decode_max()`` any even count up to ``2 * cap``,
        reading no further than the digit after them
+   * - ``hex-model``
+     - ``hex_encode()``, ``hex_decode()``, ``hex_decode_max()``
+     - Up to 8 bytes, strings up to 17 characters, counts and capacities
+       up to 8 and past ``SIZE_MAX / 2``
+     - The result and the bytes of the Lean model ``Shirudo.Hex``
    * - ``io-lines``
      - ``lines_len()``
      - Up to 8 bytes
@@ -96,6 +101,10 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Every field of 8 and 12 bytes
      - Accepted exactly as octal digits with blanks or NULs around them,
        at their value; nothing written on refusal
+   * - ``paths-bpffs-name-model``
+     - ``upatch_bpffs_name()``, ``upatch_name_from_bpffs()``
+     - Up to 8 bytes, buffers up to 18
+     - The result and the string of the Lean model ``Shirudo.PinName``
    * - ``bpm-tar-header``
      - ``bpm_tar_header_ok()``
      - Every header without an octal checksum; the checksum against
@@ -111,6 +120,10 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``bpm_name_ok()``, ``bpm_version_ok()``, ``bpm_package_name_ok()``
      - Up to 129 bytes, past the 128-byte limit
      - Exactly the character, length and first-character rules
+   * - ``bpm-archive-path-model``
+     - ``bpm_archive_rel_ok()``, ``package_member_name_ok()``
+     - Names of lengths 0 to 10, members up to 3 bytes
+     - The decision of the Lean model ``Shirudo.ArchivePath``
    * - ``bpm-semver-valid``
      - ``bpm_semver_valid()``
      - Up to 11 bytes
@@ -293,6 +306,17 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - An integer field takes exactly an ECMA-404 integer at its value; a
        string fits its room; a boolean takes ``true`` or ``false``;
        ``null`` gives no value
+   * - ``json-string-model``
+     - ``parse_string()``
+     - Lengths 0 to 6, every buffer up to 7 bytes or none, a
+       ``JSON_MAX_STRING_BYTES`` of 3
+     - The result, end and bytes of the Lean model ``Shirudo.JsonString``
+   * - ``json-escape-model``
+     - ``parse_string()``
+     - Every pair of ``\u`` escapes in either case, every buffer up to 8
+       bytes or none
+     - The result, end and bytes of the Lean model ``Shirudo.JsonString``,
+       surrogate pairs, ``\u0000`` and lone surrogates included
    * - ``json-walk``
      - ``json_walk()``
      - Every document of up to 2 bytes, depth 2
@@ -314,6 +338,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - The writer and ``parse_string()``
      - Strings of 0 to 4 bytes
      - Every string the strict writer takes reads back whole
+   * - ``json-emit-string-model``
+     - ``put_string_n()``, strict
+     - Lengths 0 to 4
+     - Refuses exactly where the Lean model ``Shirudo.JsonString`` does,
+       and otherwise writes the same bytes
    * - ``json-emit-buffer``
      - ``put()``, ``grow()``
      - Texts of 0 to 4 bytes, every room and limit, allocations allowed
@@ -512,6 +541,58 @@ the model follows the C.
      - None; numeric identifiers compare by value only without a leading
        zero, which ``semverParse_wellFormed`` shows the parser ensures
      - CBMC, ``bpm-semver-model``, up to 9 bytes
+   * - ``Shirudo.PinName``, ``upatch_bpffs_name()`` and
+       ``upatch_name_from_bpffs()`` of :src:`util/paths.h`
+     - ``decode_encode``: a name without ``~`` decodes back from its
+       encoding; ``dot_not_mem_encode``: an encoding holds no dot;
+       ``encode_injective``: no two names without ``~`` share a pin;
+       ``encode_decode``, ``tilde_not_mem_decode``: a pin name without a
+       dot that decodes is the encoding of a name without ``~``;
+       ``bpffsName_ok``, ``nameFromBpffs_ok``, ``pin_round_trip``: the
+       same through the buffers, ``-ENAMETOOLONG`` exactly where the C
+       refuses
+     - A C string is shorter than 2^63 bytes
+     - CBMC, ``paths-bpffs-name-model``, up to 8 bytes
+   * - ``Shirudo.ArchivePath``, ``bpm_archive_rel_ok()``,
+       ``package_member_name_ok()`` and the member checks of
+       ``bpm_pkg_extract()`` of :src:`util/bpm_package.c`
+     - ``relOk_iff``, ``relOk_plain``: the check takes exactly the relative
+       paths of plain components, with or without a final ``/``;
+       ``relOk_contained``: every name it takes, resolved below any
+       directory, leads strictly below it, as does each directory on the
+       way; ``memberNameOk_iff``: a member matches only as one plain
+       component, ``/`` and the member; ``extract_contained``: every
+       member extracted is a regular file or a directory strictly below
+       ``dest``, or ``dest`` itself
+     - Resolution as the kernel walks a path, ``.`` staying, ``..`` going
+       up and an empty component refused; the extraction's limits on
+       count, size and path length are left out
+     - CBMC, ``bpm-archive-path-model``, names of lengths 0 to 10; review
+       for ``bpm_pkg_extract()``
+   * - ``Shirudo.Hex``, :src:`util/hex.c`
+     - ``decode_encode``, ``length_encode``, ``encode_lower``: an encoding
+       is lowercase hex twice its length that decodes back;
+       ``decode_spec``: ``hex_decode()`` takes exactly ``2 * n`` hex
+       digits of either case, and its bytes encode back to them in
+       lowercase; ``decodeMax_spec``: ``hex_decode_max()`` takes exactly
+       the even runs of at most ``2 * cap``; ``encode_injective``
+     - A string is shorter than ``SIZE_MAX``
+     - CBMC, ``hex-model``, up to 8 bytes and 17 digits
+   * - ``Shirudo.JsonString``, the strict ``put_string_n()`` that
+       ``json_str()`` calls and ``parse_string()`` of :src:`util/json.c`
+     - ``read_write``: the reader returns exactly every string the writer
+       takes and stops at its closing quote; ``write_isSome``: the writer
+       takes exactly well-formed UTF-8 without NUL; ``write_string``: it
+       writes one ECMA-404 string in well-formed UTF-8, with no control
+       byte and no ``"`` or ``\`` outside an escape; ``readString_wf``:
+       whatever the reader returns, from any input, is well-formed UTF-8
+       without NUL
+     - The emitter has room; for ``read_write``, the string fits
+       ``JSON_MAX_STRING_BYTES`` and the buffer; well-formed UTF-8 is
+       Table 3-7, which ``string-utf8`` proves ``utf8_width()`` computes
+     - CBMC, ``json-emit-string-model`` up to 4 bytes,
+       ``json-string-model`` lengths 0 to 6, ``json-escape-model`` every
+       pair of ``\u`` escapes
 
 Not covered yet
 ---------------
