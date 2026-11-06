@@ -33,6 +33,7 @@
 #include "malloc.h"
 #include "paths.h"
 #include "tpm.h"
+#include "upatch.h"
 #include "version.h"
 
 #define FIRMWARE_LOG_PATH \
@@ -497,6 +498,19 @@ static int on_pcr(void *ctx)
 	return 0;
 }
 
+/*
+ * The report prints a record's type and label as they stand, and the
+ * target writes them: only the words its writers use may pass, or an
+ * escape sequence would rewrite what the operator reads.
+ */
+static bool record_word(const char *s)
+{
+	for (; *s; s++)
+		if ((*s < 'a' || *s > 'z') && *s != '_')
+			return false;
+	return true;
+}
+
 static int on_record(void *ctx)
 {
 	struct parse *p = ctx;
@@ -504,6 +518,8 @@ static int on_record(void *ctx)
 
 	if (p->n_recs >= RECORDS_MAX)
 		return -E2BIG;
+	if (!record_word(p->type))
+		return -EINVAL;
 	r = &p->recs[p->n_recs];
 	memset(r, 0, sizeof(*r));
 	strscpy(r->type, p->type, sizeof(r->type));
@@ -559,6 +575,8 @@ static int on_record(void *ctx)
 		bool load = p->type[7] == 'l';
 		__u8 payload[32], event[32];
 
+		if (!upatch_name_valid(p->upatch_name))
+			return -EINVAL;
 		strscpy(r->label, p->upatch_name, sizeof(r->label));
 		if (!hex_decode(p->upatch_payload_hex, payload, 32) &&
 		    !chain_upatch_event(load ? "shirudo-upatch" :
@@ -568,21 +586,32 @@ static int on_record(void *ctx)
 	} else if (!strcmp(p->type, "tree_op")) {
 		__u8 operation[32], event[32];
 
-		if (strsprintf(r->label, sizeof(r->label), "%s %s seq %lld",
-			       p->tree_op, p->tree_id, (__s64)p->tree_seq) < 0)
+		/* verify cannot tie op and id to the digest: leave them out. */
+		if (strsprintf(r->label, sizeof(r->label), "seq %lld",
+			       (__s64)p->tree_seq) < 0)
 			return -E2BIG;
 		if (p->tree_seq > 0 &&
 		    !strncmp(p->tree_digest_hex, "sha256:", 7) &&
 		    !hex_decode(p->tree_digest_hex + 7, operation, 32) &&
-		    !chain_tree_event(p->tree_seq, operation, event))
+		    !chain_tree_event(p->tree_seq, operation, event)) {
 			r->derived = !memneq_explicit(event, r->digest, 32);
+			if (strsprintf(r->label, sizeof(r->label),
+				       "seq %lld operation %.12s",
+				       (__s64)p->tree_seq,
+				       p->tree_digest_hex + 7) < 0)
+				return -E2BIG;
+		}
 	} else if (!strcmp(p->type, "key_revoke")) {
 		__u8 sha[32], event[32];
 
-		strscpy(r->label, p->key_fingerprint, sizeof(r->label));
+		/* Nor the fingerprint: name the measured certificate. */
 		if (!hex_decode(p->key_sha_hex, sha, 32) &&
-		    !chain_key_event("shirudo-key-revoke", sha, event))
+		    !chain_key_event("shirudo-key-revoke", sha, event)) {
 			r->derived = !memneq_explicit(event, r->digest, 32);
+			if (strsprintf(r->label, sizeof(r->label),
+				       "certificate %.12s", p->key_sha_hex) < 0)
+				return -E2BIG;
+		}
 	}
 	p->n_recs++;
 	/* Reset the per-element scratch the next element may not set. */

@@ -749,7 +749,7 @@ testing/helper/test-tpm-wire: testing/helper/test-tpm-wire.c util/tpm_wire.o uti
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ -lcrypto -lssl
 
 testing/helper/test-register: testing/helper/test-register.c util/attest.o util/keyring.o \
-                        $(REGISTER_OBJS)
+                        util/upatch.o $(REGISTER_OBJS)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
@@ -868,7 +868,7 @@ testing/helper/test-config-update: testing/helper/test-config-update.c \
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
 testing/helper/test-config-attest: testing/helper/test-config-attest.c \
-		util/attest.o $(REGISTER_OBJS)
+		util/attest.o util/upatch.o $(REGISTER_OBJS)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(REGISTER_LIBS)
 
@@ -1010,7 +1010,8 @@ testing/fuzz/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
                           util/crypto_openssl.c util/io.c $(FUZZ_SEAL) \
                           util/config_attest.c util/config_update.c \
                           util/config_measure.c util/initrd.c util/identity.c \
-                          util/keyring.c util/version_id.c $(LIBBPF_A)
+                          util/keyring.c util/version_id.c util/upatch.c \
+                          $(LIBBPF_A)
 testing/fuzz/fuzz-attest: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
 testing/fuzz/fuzz-eventlog: testing/fuzz/fuzz-eventlog.c $(FUZZ_BASE) \

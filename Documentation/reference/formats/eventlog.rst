@@ -205,7 +205,13 @@ Each digest is a SHA-256 over a tag, its terminating NUL byte and the
 event's fields. Hex fields enter the hash as their 32 decoded bytes.
 ``attest verify`` recomputes every non-``init`` digest from the
 record's own fields and fails a record whose digest does not derive
-from them.
+from them. Its report names a record by what the digest covers: the
+upatch name, the tree ``seq`` and ``operation_digest``, or the
+certificate's ``cert_sha256``. A tree operation's ``op`` and ``id`` and
+a key's ``fingerprint`` are not shown, as verify cannot tie them to the
+digest. Evidence with a record ``type`` other than lowercase letters and
+``_``, or an upatch record without a valid upatch name, is no evidence
+document.
 
 .. list-table::
    :header-rows: 1
