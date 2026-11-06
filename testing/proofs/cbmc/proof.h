@@ -9,14 +9,17 @@
 #ifndef SHIRUDO_PROOF_H
 #define SHIRUDO_PROOF_H
 
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <shirudo/types.h>
 
 /*
- * CBMC models neither strnlen(), memchr() nor strstr(), and a function
- * without a body returns anything.
+ * CBMC models neither strnlen(), memchr(), strstr() nor vsnprintf(), and a
+ * function without a body returns anything.
  */
 size_t strnlen(const char *s, size_t max)
 {
@@ -69,6 +72,106 @@ char *strstr(const char *s, const char *needle)
 		if (!*s)
 			return NULL;
 	}
+}
+
+static size_t format_char(char *buf, size_t size, size_t n, char c)
+{
+	if (n + 1 < size)
+		buf[n] = c;
+	return n + 1;
+}
+
+static size_t format_number(char *buf, size_t size, size_t n, __u64 v,
+			    bool neg, __u32 base, size_t width, bool zero)
+{
+	size_t k = 0;
+	char d[20];
+
+	do {
+		d[k++] = "0123456789abcdef"[base == 16 ? v & 15 : v % 10];
+		v = base == 16 ? v >> 4 : v / 10;
+	} while (v);
+	for (; !zero && width > k + neg; width--)
+		n = format_char(buf, size, n, ' ');
+	if (neg)
+		n = format_char(buf, size, n, '-');
+	for (; zero && width > k + neg; width--)
+		n = format_char(buf, size, n, '0');
+	while (k)
+		n = format_char(buf, size, n, d[--k]);
+	return n;
+}
+
+/*
+ * CBMC passes each variadic argument as an object of its own type, a
+ * char not promoted to int, so an integer is read by its size, a char or
+ * short as unsigned.
+ */
+static __u64 integer_arg(va_list *ap, bool is_signed, bool *neg)
+{
+	__s64 v;
+
+	switch (__CPROVER_OBJECT_SIZE(*(void **)*ap)) {
+	case 1:
+		return va_arg(*ap, __u8);
+	case 2:
+		return va_arg(*ap, __u16);
+	case 4:
+		v = is_signed ? va_arg(*ap, __s32) : va_arg(*ap, __u32);
+		break;
+	default:
+		if (!is_signed)
+			return va_arg(*ap, __u64);
+		v = va_arg(*ap, __s64);
+	}
+	*neg = v < 0;
+	return *neg ? (__u64)-(v + 1) + 1 : (__u64)v;
+}
+
+/*
+ * CBMC has no vsnprintf() either. This one formats what shirudo's proofs
+ * reach, %s and the d, u and x conversions with a zero flag, a width and
+ * ll, and fails the proof on any other.
+ */
+int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
+{
+	size_t n = 0;
+
+	for (; *fmt; fmt++) {
+		bool zero = false, neg = false;
+		size_t width = 0;
+		const char *s;
+		__u64 v;
+
+		if (*fmt != '%' || fmt[1] == '%') {
+			n = format_char(buf, size, n, *fmt);
+			fmt += *fmt == '%';
+			continue;
+		}
+		if (*++fmt == '0') {
+			zero = true;
+			fmt++;
+		}
+		while (*fmt >= '1' && *fmt <= '9' && width < 10)
+			width = width * 10 + (size_t)(*fmt++ - '0');
+		if (fmt[0] == 'l' && fmt[1] == 'l')
+			fmt += 2;
+		if (*fmt == 's') {
+			__CPROVER_assert(!zero && !width,
+					 "a plain %s in the vsnprintf() model");
+			for (s = va_arg(ap, const char *); *s; s++)
+				n = format_char(buf, size, n, *s);
+			continue;
+		}
+		__CPROVER_assert(*fmt == 'd' || *fmt == 'u' || *fmt == 'x',
+				 "a conversion the vsnprintf() model has");
+		v = integer_arg(&ap, *fmt == 'd', &neg);
+		n = format_number(buf, size, n, v, neg, *fmt == 'x' ? 16 : 10,
+				  width, zero);
+	}
+	if (size)
+		buf[n < size ? n : size - 1] = '\0';
+	return (int)n;
 }
 
 /*

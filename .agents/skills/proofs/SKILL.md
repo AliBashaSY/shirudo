@@ -75,6 +75,15 @@ to wait for.
   `--conversion-check`. Include the file between `#pragma CPROVER check
   push`, `#pragma CPROVER check disable "conversion"` and `#pragma CPROVER
   check pop`, and keep the check on everywhere else.
+- A write at a symbolic index makes every later read of that array
+  symbolic, and a heap object of symbolic size blows up memory: give an
+  allocation a fixed size the harness bounds. A write through a pointer
+  into a big struct becomes an update of all of it; index the member in
+  place, as `sep()` of `util/json.c` does.
+- `proof.h` models `vsnprintf()` for `%s` and `%d`, `%u`, `%x` with a zero
+  flag, a width and `ll`, and fails a proof on any other conversion;
+  CBMC does not promote variadic arguments, so the model reads each by
+  its size.
 - A struct of tens of kilobytes, such as a tree operation, makes even a
   few symbolic copies slow: prove the logic that reads its fields on a
   smaller harness, or leave it to the unit cases.

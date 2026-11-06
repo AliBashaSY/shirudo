@@ -188,6 +188,66 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Every encoding and every value of up to 8 bytes
      - The bits stay inside the integer's bytes; the value is zero- or
        sign-extended from them
+   * - ``json-string``
+     - ``parse_string()`` of :src:`util/json.c`
+     - Lengths 0 to 6, every room up to one byte more
+     - Accepts exactly the ECMA-404 strings without ``\u0000``, a lone
+       surrogate or bytes that are not UTF-8, decoded as a reference
+       decoder does; ``-ENOSPC`` exactly when the value does not fit;
+       nothing written past its room
+   * - ``json-escape``
+     - ``\u`` escapes and surrogate pairs
+     - Every pair of code units
+     - A pair is its 4-byte UTF-8, a code unit its own; ``\u0000`` and
+       a lone surrogate refused
+   * - ``json-field``
+     - ``parse_value()`` into an integer, string or boolean field
+     - Values of 0 to 6 bytes
+     - An integer field takes exactly an ECMA-404 integer at its value; a
+       string fits its room; a boolean takes ``true`` or ``false``;
+       ``null`` gives no value
+   * - ``json-walk``
+     - ``json_walk()``
+     - Every document of up to 2 bytes, depth 2
+     - Agrees with an independent ECMA-404 recognizer; containers in
+       pairs, numbers whole with their integer flag
+   * - ``json-limits``
+     - The bounds of ``json_walk()`` and ``json_parse()``
+     - Fixed documents at small bounds
+     - Past the size or depth limit ``-E2BIG`` before any read; a
+       callback's error ends the walk; a declared key named twice,
+       null or not, refused
+   * - ``json-emit-string``
+     - ``put_string_n()`` of the JSON writer, strict and lossy
+     - Strings of 0 to 4 bytes
+     - Refuses exactly a NUL or bytes that are not UTF-8; writes one
+       ECMA-404 string that decodes back to the input, or with U+FFFD in
+       place of each NUL and stray byte
+   * - ``json-roundtrip``
+     - The writer and ``parse_string()``
+     - Strings of 0 to 4 bytes
+     - Every string the strict writer takes reads back whole
+   * - ``json-emit-buffer``
+     - ``put()``, ``grow()``
+     - Texts of 0 to 4 bytes, every room and limit, allocations allowed
+       to fail
+     - Grows only up to its limit; fails exactly when the text does not
+       fit, keeping the longest prefix that does, terminated
+   * - ``json-emit-nest``
+     - Every container and key writer
+     - Every sequence of up to 4 calls, every depth
+     - Valid JSON by a byte-level recognizer; a comma only after a
+       member; ``-E2BIG`` past the deepest level
+   * - ``otel-header-fields``
+     - The OTLP header checks and ``percent_decode()``
+     - Strings up to 32 bytes
+     - Names exactly RFC 9110 tokens, values without controls but tab;
+       each ``%XX`` decoded, a stray ``%`` and ``%00`` refused
+   * - ``otel-retry-after``
+     - ``otel_retry_after()``, ``response_header()``
+     - Headers up to 32 bytes, dates modelled
+     - A delay is at most 30 seconds, the value itself when shorter; a
+       header line read only within itself
    * - ``tpm-reader``
      - The TPM reader primitives of :src:`util/tpm_wire.c`: ``get8()``
        to ``get64()``, ``get2b()``, ``get2b_fixed()``, ``get_name()``
@@ -322,8 +382,9 @@ Not covered yet
 ---------------
 
 The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
-does: the JSON parser and emitter, the package archive, index and
-manifest readers, the tree publication and log, the eventlog's lines,
+does: how ``json_parse()`` dispatches objects, arrays and maps to their
+schemas, the OTLP headers a configuration adds, the package archive,
+index and manifest readers, the tree publication and log, the eventlog's lines,
 the evidence document beyond its PCRs, the config update record, the
 site configuration file, the config image's settings and tree, and the
 kernel configuration. The ``.upatch`` reader and the TPM structures are
