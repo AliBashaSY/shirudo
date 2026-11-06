@@ -837,7 +837,7 @@ testing/helper/test-upatch-rodata: testing/helper/test-upatch-rodata.c \
 
 testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
 			      util/upatch_decode.o util/upatch.o util/malloc.o util/hex.o \
-			      util/string.o util/seal.o util/io.o util/log.o
+			      util/string.o util/seal.o util/io.o util/log.o util/json.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 

@@ -109,14 +109,6 @@ struct lua_slot {
 	__u8		data[];
 };
 
-struct json_out {
-	char	*buf;
-	size_t	len;
-	size_t	cap;
-	size_t	max_bytes;
-	int	err;
-};
-
 struct lua_budget {
 	int	remaining;
 };
@@ -169,128 +161,6 @@ static void *lua_limited_alloc(void *ud, void *ptr, size_t old_size,
 	return next;
 }
 
-static int json_out_reserve(struct json_out *out, size_t need)
-{
-	char *buf;
-	size_t new_cap;
-
-	if (out->err)
-		return out->err;
-	if (need > out->max_bytes) {
-		out->err = -E2BIG;
-		return out->err;
-	}
-	if (need <= out->cap)
-		return 0;
-
-	new_cap = out->cap ? out->cap : 4096;
-	while (new_cap < need) {
-		if (new_cap > out->max_bytes / 2) {
-			new_cap = out->max_bytes;
-			break;
-		}
-		new_cap *= 2;
-	}
-	buf = xmalloc(new_cap);
-	if (!buf) {
-		out->err = -ENOMEM;
-		return out->err;
-	}
-	if (out->buf) {
-		memcpy(buf, out->buf, out->len);
-		xfree(out->buf, out->cap);
-	}
-	out->buf = buf;
-	out->cap = new_cap;
-	out->buf[out->len] = '\0';
-	return 0;
-}
-
-static void json_putc(struct json_out *out, char ch)
-{
-	if (json_out_reserve(out, out->len + 2))
-		return;
-	out->buf[out->len++] = ch;
-	out->buf[out->len] = '\0';
-}
-
-static void json_puts(struct json_out *out, const char *s)
-{
-	size_t n;
-
-	if (!s || out->err)
-		return;
-	n = strlen(s);
-	if (json_out_reserve(out, out->len + n + 1))
-		return;
-	memcpy(out->buf + out->len, s, n);
-	out->len += n;
-	out->buf[out->len] = '\0';
-}
-
-/*
- * Names the kernel hands over are raw bytes, cut at a fixed length
- * mid-character as often as not, and one bad byte must not cost the
- * whole snapshot, which the serializer has already drained: it is
- * exported as U+FFFD.
- */
-static void json_put_string(struct json_out *out, const char *s, size_t n)
-{
-	static const char hexdigits[] = "0123456789abcdef";
-	size_t i;
-
-	json_putc(out, '"');
-	for (i = 0; i < n && !out->err; i++) {
-		__u8 c = s[i];
-
-		switch (c) {
-		case '"':
-		case '\\':
-			json_putc(out, '\\');
-			json_putc(out, (char)c);
-			break;
-		case '\b':
-			json_puts(out, "\\b");
-			break;
-		case '\f':
-			json_puts(out, "\\f");
-			break;
-		case '\n':
-			json_puts(out, "\\n");
-			break;
-		case '\r':
-			json_puts(out, "\\r");
-			break;
-		case '\t':
-			json_puts(out, "\\t");
-			break;
-		default:
-			if (c < 0x20) {
-				json_puts(out, "\\u00");
-				json_putc(out, hexdigits[c >> 4]);
-				json_putc(out, hexdigits[c & 0xf]);
-			} else if (c >= 0x80) {
-				size_t width = utf8_width(s + i, n - i), j;
-
-				if (!width) {
-					json_puts(out, "\\ufffd");
-					break;
-				}
-				for (j = 0; j < width; j++)
-					json_putc(out, s[i + j]);
-				i += width - 1;
-			} else {
-				json_putc(out, (char)c);
-			}
-			break;
-		}
-	}
-	json_putc(out, '"');
-}
-
-static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
-			       int depth);
-
 static int lua_table_is_array(lua_State *L, int idx, size_t *len_out)
 {
 	size_t count = 0, max = 0;
@@ -329,243 +199,257 @@ static int lua_table_is_array(lua_State *L, int idx, size_t *len_out)
 	return 0;
 }
 
-static void lua_json_emit_key(lua_State *L, int idx, struct json_out *out)
+/*
+ * A table key as text: a string as it is, a number and a boolean
+ * spelled out. Names the kernel hands over are raw bytes, cut at a fixed
+ * length mid-character as often as not, and one bad byte must not cost
+ * the whole snapshot, which the serializer has already drained: the
+ * lossy writers export it as U+FFFD.
+ */
+static void lua_json_emit_key(lua_State *L, int idx, struct json_emit *e,
+			      bool as_key)
 {
+	const char *s = "unsupported_key";
+	size_t n = strlen(s);
 	char num[64];
-	size_t n;
-	const char *s;
 
 	switch (lua_type(L, idx)) {
 	case LUA_TSTRING:
 		s = lua_tolstring(L, idx, &n);
-		json_put_string(out, s ? s : "", n);
+		if (!s) {
+			s = "";
+			n = 0;
+		}
 		break;
 	case LUA_TNUMBER:
 		if (strsprintf(num, sizeof(num), "%.17g",
 			       (double)lua_tonumber(L, idx)) < 0) {
-			out->err = -E2BIG;
-			break;
+			e->err = -E2BIG;
+			return;
 		}
-		json_put_string(out, num, strlen(num));
+		s = num;
+		n = strlen(num);
 		break;
 	case LUA_TBOOLEAN:
 		s = lua_toboolean(L, idx) ? "true" : "false";
-		json_put_string(out, s, strlen(s));
+		n = strlen(s);
 		break;
 	default:
-		json_put_string(out, "unsupported_key", strlen("unsupported_key"));
 		break;
 	}
+	if (as_key)
+		json_key_lossy(e, s, n);
+	else
+		json_str_lossy(e, s, n);
 }
 
-static int lua_json_emit_table(lua_State *L, int idx, struct json_out *out,
-			       int depth)
-{
-	size_t len = 0;
-	size_t i;
-	int first = 1;
-
-	idx = lua_absindex(L, idx);
-	if (lua_table_is_array(L, idx, &len)) {
-		json_putc(out, '[');
-		for (i = 1; i <= len && !out->err; i++) {
-			if (!first)
-				json_putc(out, ',');
-			first = 0;
-			lua_rawgeti(L, idx, (int)i);
-			lua_json_emit_value(L, -1, out, depth + 1);
-			lua_pop(L, 1);
-		}
-		json_putc(out, ']');
-		return out->err;
-	}
-
-	json_putc(out, '{');
-	lua_pushnil(L);
-	while (lua_next(L, idx) != 0) {
-		int key_type = lua_type(L, -2);
-
-		if (key_type != LUA_TSTRING && key_type != LUA_TNUMBER &&
-		    key_type != LUA_TBOOLEAN) {
-			out->err = -EINVAL;
-			lua_pop(L, 1);
-			break;
-		}
-		if (!first)
-			json_putc(out, ',');
-		first = 0;
-		lua_json_emit_key(L, -2, out);
-		json_putc(out, ':');
-		lua_json_emit_value(L, -1, out, depth + 1);
-		lua_pop(L, 1);
-		if (out->err)
-			break;
-	}
-	json_putc(out, '}');
-	return out->err;
-}
-
-static int lua_otel_emit_value(lua_State *L, int idx, struct json_out *out,
+static int lua_json_emit_value(lua_State *L, int idx, struct json_emit *e,
 			       int depth);
 
-static int lua_otel_emit_table(lua_State *L, int idx, struct json_out *out,
+static int lua_json_emit_table(lua_State *L, int idx, struct json_emit *e,
 			       int depth)
 {
 	size_t len = 0, i;
-	int first = 1;
 
 	idx = lua_absindex(L, idx);
 	if (lua_table_is_array(L, idx, &len)) {
-		json_puts(out, "{\"arrayValue\":{\"values\":[");
-		for (i = 1; i <= len && !out->err; i++) {
-			if (!first)
-				json_putc(out, ',');
-			first = 0;
+		json_arr_open_value(e);
+		for (i = 1; i <= len && !e->err; i++) {
 			lua_rawgeti(L, idx, (int)i);
-			lua_otel_emit_value(L, -1, out, depth + 1);
+			lua_json_emit_value(L, -1, e, depth + 1);
 			lua_pop(L, 1);
 		}
-		json_puts(out, "]}}");
-		return out->err;
+		json_arr_close(e);
+		return e->err;
 	}
 
-	json_puts(out, "{\"kvlistValue\":{\"values\":[");
+	json_obj_value_open(e);
 	lua_pushnil(L);
 	while (lua_next(L, idx) != 0) {
 		int key_type = lua_type(L, -2);
 
 		if (key_type != LUA_TSTRING && key_type != LUA_TNUMBER &&
 		    key_type != LUA_TBOOLEAN) {
-			out->err = -EINVAL;
+			e->err = -EINVAL;
+			lua_pop(L, 2);
+			break;
+		}
+		lua_json_emit_key(L, -2, e, true);
+		lua_json_emit_value(L, -1, e, depth + 1);
+		lua_pop(L, 1);
+		if (e->err) {
 			lua_pop(L, 1);
 			break;
 		}
-		if (!first)
-			json_putc(out, ',');
-		first = 0;
-		json_puts(out, "{\"key\":");
-		lua_json_emit_key(L, -2, out);
-		json_puts(out, ",\"value\":");
-		lua_otel_emit_value(L, -1, out, depth + 1);
-		json_putc(out, '}');
-		lua_pop(L, 1);
-		if (out->err)
-			break;
 	}
-	json_puts(out, "]}}");
-	return out->err;
+	json_obj_close(e);
+	return e->err;
 }
 
-static int lua_otel_emit_value(lua_State *L, int idx, struct json_out *out,
+static int lua_otel_emit_value(lua_State *L, int idx, struct json_emit *e,
+			       int depth);
+
+static int lua_otel_emit_table(lua_State *L, int idx, struct json_emit *e,
+			       int depth)
+{
+	size_t len = 0, i;
+
+	idx = lua_absindex(L, idx);
+	json_obj_value_open(e);
+	if (lua_table_is_array(L, idx, &len)) {
+		json_obj_open_key(e, "arrayValue");
+		json_arr_open(e, "values");
+		for (i = 1; i <= len && !e->err; i++) {
+			lua_rawgeti(L, idx, (int)i);
+			lua_otel_emit_value(L, -1, e, depth + 1);
+			lua_pop(L, 1);
+		}
+		json_arr_close(e);
+		json_obj_close(e);
+		json_obj_close(e);
+		return e->err;
+	}
+
+	json_obj_open_key(e, "kvlistValue");
+	json_arr_open(e, "values");
+	lua_pushnil(L);
+	while (lua_next(L, idx) != 0) {
+		int key_type = lua_type(L, -2);
+
+		if (key_type != LUA_TSTRING && key_type != LUA_TNUMBER &&
+		    key_type != LUA_TBOOLEAN) {
+			e->err = -EINVAL;
+			lua_pop(L, 2);
+			break;
+		}
+		json_obj_value_open(e);
+		json_key(e, "key");
+		lua_json_emit_key(L, -2, e, false);
+		json_key(e, "value");
+		lua_otel_emit_value(L, -1, e, depth + 1);
+		json_obj_close(e);
+		lua_pop(L, 1);
+		if (e->err) {
+			lua_pop(L, 1);
+			break;
+		}
+	}
+	json_arr_close(e);
+	json_obj_close(e);
+	json_obj_close(e);
+	return e->err;
+}
+
+static int lua_otel_emit_value(lua_State *L, int idx, struct json_emit *e,
 			       int depth)
 {
 	const double max_exact_integer = 9007199254740991.0;
 	char num[64];
 	const char *s;
-	size_t n;
 	double value;
+	size_t n;
 
 	if (depth > LUA_JSON_MAX_DEPTH) {
-		out->err = -E2BIG;
-		return out->err;
+		e->err = -E2BIG;
+		return e->err;
 	}
 
 	switch (lua_type(L, idx)) {
 	case LUA_TNIL:
 		/* An empty AnyValue represents a Lua nil. */
-		json_puts(out, "{}");
+		json_obj_value_open(e);
+		json_obj_close(e);
 		break;
 	case LUA_TBOOLEAN:
-		json_puts(out, "{\"boolValue\":");
-		json_puts(out, lua_toboolean(L, idx) ? "true}" : "false}");
+		json_obj_value_open(e);
+		json_kv_bool(e, "boolValue", lua_toboolean(L, idx));
+		json_obj_close(e);
 		break;
 	case LUA_TNUMBER:
 		value = (double)lua_tonumber(L, idx);
 		if (!isfinite(value)) {
-			out->err = -EINVAL;
+			e->err = -EINVAL;
 			break;
 		}
+		json_obj_value_open(e);
 		if (shirudo_trunc(value) == value &&
 		    fabs(value) <= max_exact_integer) {
 			if (strsprintf(num, sizeof(num), "%.0f",
 				       value == 0 ? 0 : value) < 0) {
-				out->err = -E2BIG;
+				e->err = -E2BIG;
 				break;
 			}
-			json_puts(out, "{\"intValue\":");
-			json_put_string(out, num, strlen(num));
-			json_putc(out, '}');
+			json_kv_string(e, "intValue", num);
 		} else {
 			if (strsprintf(num, sizeof(num), "%.17g", value) < 0) {
-				out->err = -E2BIG;
+				e->err = -E2BIG;
 				break;
 			}
-			json_puts(out, "{\"doubleValue\":");
-			json_puts(out, num);
-			json_putc(out, '}');
+			json_kv_raw(e, "doubleValue", num, strlen(num));
 		}
+		json_obj_close(e);
 		break;
 	case LUA_TSTRING:
 		s = lua_tolstring(L, idx, &n);
-		json_puts(out, "{\"stringValue\":");
-		json_put_string(out, s ? s : "", n);
-		json_putc(out, '}');
+		json_obj_value_open(e);
+		json_key(e, "stringValue");
+		json_str_lossy(e, s ? s : "", s ? n : 0);
+		json_obj_close(e);
 		break;
 	case LUA_TTABLE:
-		lua_otel_emit_table(L, idx, out, depth);
+		lua_otel_emit_table(L, idx, e, depth);
 		break;
 	default:
-		out->err = -EINVAL;
+		e->err = -EINVAL;
 		break;
 	}
-	return out->err;
+	return e->err;
 }
 
-static int lua_json_emit_value(lua_State *L, int idx, struct json_out *out,
+static int lua_json_emit_value(lua_State *L, int idx, struct json_emit *e,
 			       int depth)
 {
 	char num[64];
-	size_t n;
 	const char *s;
-	int type;
+	size_t n;
 
 	if (depth > LUA_JSON_MAX_DEPTH) {
-		out->err = -E2BIG;
-		return out->err;
+		e->err = -E2BIG;
+		return e->err;
 	}
 
-	type = lua_type(L, idx);
-	switch (type) {
+	switch (lua_type(L, idx)) {
 	case LUA_TNIL:
-		json_puts(out, "null");
+		json_raw_value(e, "null", 4);
 		break;
 	case LUA_TBOOLEAN:
-		json_puts(out, lua_toboolean(L, idx) ? "true" : "false");
+		s = lua_toboolean(L, idx) ? "true" : "false";
+		json_raw_value(e, s, strlen(s));
 		break;
 	case LUA_TNUMBER:
 		if (!isfinite((double)lua_tonumber(L, idx))) {
-			out->err = -EINVAL;
+			e->err = -EINVAL;
 			break;
 		}
 		if (strsprintf(num, sizeof(num), "%.17g",
 			       (double)lua_tonumber(L, idx)) < 0) {
-			out->err = -E2BIG;
+			e->err = -E2BIG;
 			break;
 		}
-		json_puts(out, num);
+		json_raw_value(e, num, strlen(num));
 		break;
 	case LUA_TSTRING:
 		s = lua_tolstring(L, idx, &n);
-		json_put_string(out, s ? s : "", n);
+		json_str_lossy(e, s ? s : "", s ? n : 0);
 		break;
 	case LUA_TTABLE:
-		lua_json_emit_table(L, idx, out, depth);
+		lua_json_emit_table(L, idx, e, depth);
 		break;
 	default:
-		out->err = -EINVAL;
+		e->err = -EINVAL;
 		break;
 	}
-	return out->err;
+	return e->err;
 }
 
 /*
@@ -1190,7 +1074,7 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 		.limit = LUA_MEMORY_LIMIT,
 	};
 	lua_State *allocator, *L;
-	struct json_out jo = {};
+	struct json_emit jo = {};
 	int ret = 0;
 
 	allocator = luaL_newstate();
@@ -1202,7 +1086,7 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 		lua_close(allocator);
 		return -ENOMEM;
 	}
-	jo.max_bytes = max_bytes;
+	jo.max = max_bytes;
 	luaL_openlibs(L);
 	lua_disable_globals(L);
 	/* Instruction hooks must observe every instruction; do not run traces. */
@@ -1253,7 +1137,6 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	*out = jo.buf;
 	*out_len = jo.len;
 	jo.buf = NULL;
-	jo.len = 0;
 	jo.cap = 0;
 
 out_close:

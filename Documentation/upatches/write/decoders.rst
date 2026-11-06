@@ -171,8 +171,8 @@ Write the function
    an ``intValue`` and any other number a ``doubleValue``. A metric
    decoder returns an array of OTLP ``Metric`` objects, exactly as they
    appear in the ``metrics`` array of a ``scopeMetrics`` entry. A string
-   that is not valid UTF-8 is exported with U+FFFD in place of each bad
-   byte.
+   or a key that is not valid UTF-8 is exported with U+FFFD in place of
+   each bad byte and of each NUL.
 
    To turn a timestamp a serializer took on the boot-time clock into wall
    clock time, subtract its age from ``timeUnixNano``. The ``kernel-obs``
