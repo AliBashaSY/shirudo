@@ -32,6 +32,7 @@
 #include "util/chain.h"
 #include "util/crypto.h"
 #include "util/eventlog.h"
+#include "util/format.h"
 #include "util/help.h"
 #include "util/hex.h"
 #include "util/identity.h"
@@ -354,16 +355,6 @@ static bool keys_anchor_holds(const struct keys_anchor *a, key_serial_t key)
 	return false;
 }
 
-/* Kernel descriptions carry certificate subjects: keep the terminal safe. */
-static void print_safe(const char *s)
-{
-	char shown[KEYRING_DESC_MAX];
-
-	strscpy(shown, s, sizeof(shown));
-	text_sanitize(shown, strlen(shown), false);
-	fputs(shown, stdout);
-}
-
 static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 			     int id_rc)
 {
@@ -443,7 +434,7 @@ static int keys_list_keyring(key_serial_t ring, const struct keys_anchor *a,
 		if (l->err)
 			printf("(cannot describe: %s)", strerror(-l->err));
 		else
-			print_safe(l->description);
+			fputs_sanitized(l->description, stdout);
 		if (frozen)
 			printf("  (%s)", keys_anchor_holds(a, l->serial) ?
 			       "frozen" : "not frozen");

@@ -40,3 +40,15 @@ int human_size(__u64 bytes, char *out, size_t out_cap)
 		n = strsprintf(out, out_cap, "%.2f%s", v, suf);
 	return n < 0 ? -E2BIG : 0;
 }
+
+void fputs_sanitized(const char *s, FILE *f)
+{
+	char shown[512];
+	ssize_t n;
+
+	n = strscpy(shown, s, sizeof(shown));
+	if (n < 0)
+		n = sizeof(shown) - 1;
+	text_sanitize(shown, n, false);
+	fputs(shown, f);
+}

@@ -727,16 +727,6 @@ static void keyring_emit_json(struct json_emit *e, const char *key,
 	json_obj_close(e);
 }
 
-/* Kernel descriptions carry certificate subjects: keep the terminal safe. */
-static void print_safe(const char *s)
-{
-	char shown[KEYRING_DESC_MAX];
-
-	strscpy(shown, s, sizeof(shown));
-	text_sanitize(shown, strlen(shown), false);
-	fputs(shown, stdout);
-}
-
 static void print_link(const struct status_keyring *k, size_t i,
 		       const char *indent)
 {
@@ -749,7 +739,7 @@ static void print_link(const struct status_keyring *k, size_t i,
 		printf("%s%s %d  ", indent,
 		       strcmp(l->type, "asymmetric") ? l->type : "key",
 		       (int)l->serial);
-		print_safe(l->description);
+		fputs_sanitized(l->description, stdout);
 	}
 	printf("  (%s)\n", k->state[i].frozen ? "frozen" : "not frozen");
 }

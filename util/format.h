@@ -9,6 +9,7 @@
 #define SHIRUDO_UTIL_FORMAT_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include <shirudo/misc.h>
 
@@ -18,5 +19,12 @@
  * regardless of magnitude (16K / 1.8M / 5.57G / 1.23G / 124G).
  */
 int human_size(__u64 bytes, char *out, size_t out_cap);
+
+/*
+ * Text from outside, such as the certificate subject in a key's
+ * description, on f as text_sanitize() leaves it, on one line and cut
+ * after 511 bytes.
+ */
+void fputs_sanitized(const char *s, FILE *f);
 
 #endif /* SHIRUDO_UTIL_FORMAT_H */
