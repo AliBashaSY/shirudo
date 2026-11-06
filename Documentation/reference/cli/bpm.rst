@@ -258,6 +258,10 @@ pull: File exists``, so remove or rename the old one first.
 its ``upatches/*.upatch`` members, with ``--all`` also the
 ``.unload.upatch`` directives. ``info data`` decodes the initial
 ``.rodata`` of one member through its BTF types, with ``--json`` as JSON.
+None of them checks the package signature, so each shows a control
+character, and a byte that starts no UTF-8 character, as ``?``: in the
+``README.md`` all but tab, line feed and a carriage return before a line
+feed, in a member or upatch name all of them.
 
 push
 ----

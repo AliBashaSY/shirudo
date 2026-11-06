@@ -79,6 +79,9 @@ data = bytearray(header)
 struct.pack_into("<II", data, 320, 359, 1)
 (root / "metadata-in-header").write_bytes(data)
 mutate("data-len-overflow", 332, "<I", 0xffffffff)
+data = bytearray(header)
+data[16:32] = b"a\x1b[2Jb\xc2\x9bc\xff".ljust(16, bytes([0]))
+(root / "controls-in-name").write_bytes(data)
 with (root / "oversized").open("wb") as f:
     f.truncate(16 * 1024 * 1024 + 1)
 PY
@@ -89,6 +92,11 @@ test_expect_success 'structured header and section bounds fail cleanly' '
 	for f in bad-version rodata-offset-oob reserved1 zero-loader zero-signature \
 		 loader-in-header signature-oob data-overflow metadata-in-header \
 		 data-len-overflow; do reject "$WORK/$f" || exit 1; done
+'
+test_expect_success 'a name from the file shows its controls as ?' '
+	"$S" upatch info "$WORK/controls-in-name" >"$WORK/info.out" 2>&1 &&
+	grep -q "^Name: *a?\[2Jb??c?\$" "$WORK/info.out" &&
+	! grep -q "$(printf "\033")" "$WORK/info.out"
 '
 test_expect_success 'file larger than 16 MiB is rejected without mapping it' '
 	reject "$WORK/oversized"

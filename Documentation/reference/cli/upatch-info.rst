@@ -41,6 +41,10 @@ The human output has these parts:
 - the decoders: target upatch and map, language and API version, input
   format, export signal (``log`` or ``metric``) and source
 
+As no signature is checked, the file, the names and the decoder fields
+are printed with each control character, and each byte that starts no
+UTF-8 character, shown as ``?``.
+
 :doc:`/reference/formats/upatch-format` describes each field.
 
 Options

@@ -68,6 +68,24 @@ class InfoTests(unittest.TestCase):
         self.assertEqual(result.stdout, README)
         self.assertEqual(list(self.root.iterdir()), [self.root / "package.bee"])
 
+    def test_readme_controls_show_as_question_marks(self):
+        readme = (b"# T\x1b]0;x\x07itle\r\nline\rover\n"
+                  b"\xc2\x9b2J caf\xc3\xa9 \xff\n")
+        result = self.local(package(readme))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout,
+                         b"# T?]0;x?itle\r\nline?over\n??2J caf\xc3\xa9 ?\n")
+
+    def test_member_name_controls_show_as_question_marks(self):
+        path = self.root / "package.bee"
+        path.write_bytes(package_bytes([
+            ("example-1.0/Beefile", b'[package]\nname = "example"\n'),
+            ("example-1.0/upatches/a\x1b[2Jb.upatch", b"x"),
+        ]))
+        result = self.run_info("upatches", str(path))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, b"upatches/a?[2Jb.upatch\n")
+
     def test_empty_readme(self):
         result = self.local(package(b""))
         self.assertEqual(result.returncode, 0, result.stderr)

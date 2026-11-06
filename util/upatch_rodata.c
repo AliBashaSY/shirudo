@@ -855,6 +855,7 @@ static int print_rodata_text(const struct upatch *u,
 
 	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
 	name[UPATCH_NAME_MAX] = '\0';
+	text_sanitize(name, strlen(name), false);
 	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
 	       name, path, view->size, view->data_offset,
 	       u->hdr.data_off + view->data_offset);

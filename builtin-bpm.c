@@ -554,6 +554,7 @@ static int print_package_readme(const char *source)
 			pr_err("bpm info: package %s does not include README.md", source);
 		goto out;
 	}
+	text_sanitize((char *)readme, readme_len, true);
 	ret = write_complete(STDOUT_FILENO, readme, readme_len);
 out:
 	xfree(beefile, beefile_len + 1);
@@ -610,6 +611,7 @@ static int print_upatch_member(void *ctx, const char *member, char type)
 		opts->cap = cap;
 	}
 	memcpy(opts->list + opts->len, member, len);
+	text_sanitize(opts->list + opts->len, len, false);
 	opts->list[opts->len + len] = '\n';
 	opts->len = need;
 	return 0;

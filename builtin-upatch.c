@@ -275,10 +275,21 @@ static const struct help upatch_get_help = {
 "  shirudo upatch get cve-2026-31431 --json | jq",
 };
 
+/*
+ * upatch info checks no signature, so the names it prints are as the
+ * file has them.
+ */
+static char *printable(char *s)
+{
+	text_sanitize(s, strlen(s), false);
+	return s;
+}
+
 static int cmd_upatch_info(int argc, const char **argv)
 {
 	char name[UPATCH_NAME_MAX + 1];	/* not NUL-term on disk */
 	const __u8 *unload_payload;
+	char file[PATH_MAX];
 	struct upatch u;
 	const char *path = NULL;
 	bool json = false;
@@ -394,8 +405,9 @@ static int cmd_upatch_info(int argc, const char **argv)
 		goto out;
 	}
 
-	printf("File:                  %s\n", path);
-	printf("Name:                  %s\n", name);
+	strscpy(file, path, sizeof(file));
+	printf("File:                  %s\n", printable(file));
+	printf("Name:                  %s\n", printable(name));
 	printf("Type:                  %s\n", flag_str(&u));
 	printf("Payload type:          %s\n", upatch_type_str(&u));
 	printf("Version:               %u\n", u.hdr.version);
@@ -426,7 +438,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 	printf("\nSigned sections:\n");
 	if (upatch_signed_name(&u)) {
 		memcpy(name, upatch_signed_name(&u), sizeof(u.hdr.name));
-		printf("  %-22s %s\n", "Name:", name);
+		printf("  %-22s %s\n", "Name:", printable(name));
 	} else {
 		printf("  %-22s (none)\n", "Name:");
 	}
@@ -451,7 +463,8 @@ static int cmd_upatch_info(int argc, const char **argv)
 
 			if (upatch_decoder_view(&u, j, &d))
 				continue;
-			printf("  %-22s %s/%s\n", "Target:", d.upatch, d.map);
+			printf("  %-22s %s/%s\n", "Target:",
+			       printable(d.upatch), printable(d.map));
 			printf("    %-20s %s (api=%u)\n", "Language:",
 			       decoder_language_str(d.language), d.api_version);
 			printf("    %-20s %s\n", "Input:",
@@ -459,7 +472,8 @@ static int cmd_upatch_info(int argc, const char **argv)
 			printf("    %-20s %s\n", "Export signal:",
 			       decoder_signal_str(d.export_signal));
 			printf("    %-20s %s:%s (%u bytes)\n", "Source:",
-			       d.source_name, d.entrypoint, d.source_len);
+			       printable(d.source_name),
+			       printable(d.entrypoint), d.source_len);
 		}
 	}
 	ret = 0;
