@@ -244,9 +244,10 @@ this boot's records the same way:
 - They read ``/var/lib/shirudo/eventlog`` followed by
   ``/run/shirudo/eventlog.pending``.
 - They parse every line. One line that is not valid JSON fails the
-  replay, whatever boot it belongs to. A last line without ``\n`` is
-  skipped, as it is no record yet. The register then runs ahead of the
-  log, as after an append that failed.
+  replay, whatever boot it belongs to, and so does a NUL anywhere in
+  either file, which would end the walk early. A last line without
+  ``\n`` is skipped, as it is no record yet. The register then runs
+  ahead of the log, as after an append that failed.
 - They skip lines without a ``boot_id`` or with another boot's
   ``boot_id``.
 - They start at this boot's first ``init`` record. Every ``init``

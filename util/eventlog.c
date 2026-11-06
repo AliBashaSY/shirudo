@@ -109,6 +109,19 @@ int eventlog_would_exceed(__u64 max_bytes)
 	return cur + EVENTLOG_LINE_MAX > max_bytes;
 }
 
+/*
+ * The records of the len bytes read_file() left at buf: a NUL would end
+ * every walk there and hide the records after it, and a last line
+ * without its newline is no record yet.
+ */
+static int log_records(char *buf, size_t len)
+{
+	if (memchr(buf, '\0', len))
+		return -EINVAL;
+	buf[lines_len(buf, len)] = '\0';
+	return 0;
+}
+
 static int read_log(char **out, size_t *out_len)
 {
 	size_t base_len = 0, pending_len = 0, off;
@@ -128,14 +141,17 @@ static int read_log(char **out, size_t *out_len)
 	}
 	if (ret && rc_pending)
 		return -ENOENT;
+	if ((!ret && log_records(base, base_len)) ||
+	    (!rc_pending && log_records(pending, pending_len))) {
+		ret = -EINVAL;
+		goto out;
+	}
 	if (rc_pending) {
-		base[lines_len(base, base_len)] = '\0';
 		*out = base;
 		*out_len = base_len;
 		return 0;
 	}
 	if (ret) {
-		pending[lines_len(pending, pending_len)] = '\0';
 		*out = pending;
 		*out_len = pending_len;
 		return 0;
@@ -149,10 +165,10 @@ static int read_log(char **out, size_t *out_len)
 		ret = -ENOMEM;
 		goto out;
 	}
-	off = lines_len(base, base_len);
+	off = strlen(base);
 	memcpy(buf, base, off);
-	memcpy(buf + off, pending, lines_len(pending, pending_len));
-	off += lines_len(pending, pending_len);
+	memcpy(buf + off, pending, strlen(pending));
+	off += strlen(pending);
 	buf[off] = '\0';
 	*out = buf;
 	*out_len = off;
@@ -256,8 +272,9 @@ static int log_holds(const char *line, size_t len)
 		return 0;
 	if (ret)
 		return ret;
-	buf[lines_len(buf, blen)] = '\0';
-	ret = walk_lines(buf, false, adopt_seen, &a);
+	ret = log_records(buf, blen);
+	if (!ret)
+		ret = walk_lines(buf, false, adopt_seen, &a);
 	xfree(buf, blen + 1);
 	if (ret && ret != -ENOENT)
 		return ret;
@@ -276,7 +293,7 @@ static int adopt_pending(void)
 		return 0;
 	if (ret)
 		return ret;
-	buf[lines_len(buf, len)] = '\0';
+	ret = log_records(buf, len);
 	for (line = strtok_r(buf, "\n", &save); line && !ret;
 	     line = strtok_r(NULL, "\n", &save)) {
 		if (!*line)
