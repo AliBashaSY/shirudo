@@ -18,6 +18,7 @@
 #include "builtin.h"
 #include "util/help.h"
 #include "util/log.h"
+#include "util/malloc.h"
 
 #ifndef LIBEXEC_DIR
 #define LIBEXEC_DIR	"/usr/local/libexec/shirudo"
@@ -111,6 +112,30 @@ int build_exec(const char *label, const char **argv)
 		execv(path, (char *const *)argv);
 	pr_err("exec %s: %s", path, strerror(errno));
 	return 127;
+}
+
+int build_forward(const char *label, const char *const words[], int argc,
+		  const char **argv)
+{
+	const char **helper;
+	size_t n = 0, count, i;
+	int ret;
+
+	while (words[n])
+		n++;
+	count = n + (size_t)argc + 2;
+	helper = xcalloc(count, sizeof(*helper));
+	if (!helper) {
+		pr_err("'%s': %s", label, strerror(ENOMEM));
+		return 1;
+	}
+	for (i = 0; i < n; i++)
+		helper[1 + i] = words[i];
+	for (i = 0; i < (size_t)argc; i++)
+		helper[1 + n + i] = argv[i];
+	ret = build_exec(label, helper);
+	xfree(helper, count * sizeof(*helper));
+	return ret;
 }
 
 int cmd_build(int argc, const char **argv)

@@ -944,25 +944,13 @@ static int keys_revoke(int argc, const char **argv)
 
 static int keys_vouch(int argc, const char **argv)
 {
-	const char **helper_argv;
-	size_t sz;
-	int ret;
-
 	if (argc >= 2 && is_help(argv[1])) {
 		print_help(&keys_vouch_help);
 		return 0;
 	}
-	sz = ((size_t)argc + 3) * sizeof(*helper_argv);
-	helper_argv = xcalloc((size_t)argc + 3, sizeof(*helper_argv));
-	if (!helper_argv)
-		return 1;
-	helper_argv[1] = "keys";
-	helper_argv[2] = "vouch";
-	for (int i = 1; i < argc; i++)
-		helper_argv[i + 2] = argv[i];
-	ret = build_exec("keys vouch", helper_argv);
-	xfree(helper_argv, sz);
-	return ret;
+	return build_forward("keys vouch",
+			     (const char *const[]){ "keys", "vouch", NULL },
+			     argc - 1, argv + 1);
 }
 
 static int keys_show(int argc, const char **argv);

@@ -20,6 +20,12 @@ int cmd_build(int argc, const char **argv);
  */
 bool build_available(void);
 int build_exec(const char *label, const char **argv);
+/*
+ * Run shirudo-build with words, up to their NULL, and then the argc
+ * arguments at argv: the operator half of a command shirudo dispatches.
+ */
+int build_forward(const char *label, const char *const words[], int argc,
+		  const char **argv);
 
 /* Target-side. */
 int cmd_init(int argc, const char **argv);

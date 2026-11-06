@@ -2453,24 +2453,12 @@ static const struct help_item bpm_target_subcmds[] = {
  */
 static int bpm_exec_operator(const char *sub, int argc, const char **argv)
 {
-	const char **helper_argv = xcalloc((size_t)argc + 2,
-					   sizeof(*helper_argv));
 	char label[64];
-	int ret;
 
-	if (!helper_argv)
-		return bpm_fail(sub, -ENOMEM);
-	if (strsprintf(label, sizeof(label), "bpm %s", sub) < 0) {
-		xfree(helper_argv, ((size_t)argc + 2) * sizeof(*helper_argv));
+	if (strsprintf(label, sizeof(label), "bpm %s", sub) < 0)
 		return bpm_fail(sub, -E2BIG);
-	}
-	helper_argv[1] = "bpm";
-	helper_argv[2] = sub;
-	for (int i = 3; i < argc + 1; i++)
-		helper_argv[i] = argv[i - 1];
-	ret = build_exec(label, helper_argv);
-	xfree(helper_argv, ((size_t)argc + 2) * sizeof(*helper_argv));
-	return ret;
+	return build_forward(label, (const char *const[]){ "bpm", sub, NULL },
+			     argc - 2, argv + 2);
 }
 
 static const struct help bpm_target_help = {

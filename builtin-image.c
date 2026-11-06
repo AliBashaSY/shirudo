@@ -32,23 +32,11 @@ int cmd_image(int argc, const char **argv)
 		image_help();
 		return argc < 2 ? 2 : 0;
 	}
-	if (!strcmp(argv[1], "build") || !strcmp(argv[1], "verify")) {
-		const char **helper;
-		size_t bytes;
-		int i;
-
-		bytes = ((size_t)argc + 2) * sizeof(*helper);
-		helper = xcalloc((size_t)argc + 2, sizeof(*helper));
-		if (!helper)
-			return 1;
-		helper[1] = "image";
-		for (i = 1; i < argc; i++)
-			helper[i + 1] = argv[i];
-		ret = build_exec(!strcmp(argv[1], "build") ?
-				 "image build" : "image verify", helper);
-		xfree(helper, bytes);
-		return ret;
-	}
+	if (!strcmp(argv[1], "build") || !strcmp(argv[1], "verify"))
+		return build_forward(!strcmp(argv[1], "build") ?
+				     "image build" : "image verify",
+				     (const char *const[]){ "image", NULL },
+				     argc - 1, argv + 1);
 	if (!strcmp(argv[1], "update") && argc == 3) {
 		ret = image_update(argv[2]);
 	} else if (!strcmp(argv[1], "status") &&
