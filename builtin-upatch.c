@@ -62,6 +62,7 @@
 #include "util/upatch_maps.h"
 #include "util/upatch_maps_otel.h"
 #include "util/upatch_resolve.h"
+#include "util/upatch_table.h"
 #include "util/version.h"
 
 #ifndef NFPROTO_IPV6
@@ -3769,14 +3770,11 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 
 static void age_from_ts(const char *ts, char *out, size_t cap)
 {
-	struct tm tm = {};
+	__s64 age = upatch_age_sec(ts);
 
 	out[0] = '\0';
-	if (!ts || !ts[0])
-		return;
-	if (!strptime(ts, "%Y-%m-%dT%H:%M:%SZ", &tm))
-		return;
-	format_duration((long)(time(NULL) - timegm(&tm)), out, cap);
+	if (age >= 0)
+		format_duration((long)age, out, cap);
 }
 
 static void render_one_map_text(const char *upatch, const char *map,
