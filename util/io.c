@@ -50,6 +50,79 @@ int write_complete(int fd, const void *buf, size_t len)
  * mounts or links elsewhere, /proc/<pid>/fd before an exec say, is
  * followed.
  */
+size_t lines_len(const char *buf, size_t len)
+{
+	while (len && buf[len - 1] != '\n')
+		len--;
+	return len;
+}
+
+static int last_line_end(int fd, off_t size, off_t *end)
+{
+	char chunk[4096];
+	const off_t step = sizeof(chunk);
+	off_t off = size;
+
+	while (off > 0) {
+		size_t n = (size_t)min(off, step), i;
+		off_t start = off - (off_t)n;
+		ssize_t got = pread(fd, chunk, n, start);
+
+		if (got < 0 && errno == EINTR)
+			continue;
+		if (got < 0)
+			return -errno;
+		if ((size_t)got != n)
+			return -EIO;
+		for (i = n; i; i--) {
+			if (chunk[i - 1] == '\n') {
+				*end = start + (off_t)i;
+				return 0;
+			}
+		}
+		off = start;
+	}
+	*end = 0;
+	return 0;
+}
+
+int append_line(int fd, const char *path, const char *line, size_t len)
+{
+	struct stat st;
+	off_t end;
+	char *buf;
+	int ret;
+
+	if (len && line[len - 1] == '\n')
+		len--;
+	if (memchr(line, '\n', len) || memchr(line, '\0', len))
+		return -EINVAL;
+	if (fstat(fd, &st))
+		return -errno;
+	ret = last_line_end(fd, st.st_size, &end);
+	if (ret)
+		return ret;
+	if (end != st.st_size) {
+		if (ftruncate(fd, end))
+			return -errno;
+		pr_warn("%s: dropped %lld bytes at its end, an append that did not finish",
+			path, (__s64)(st.st_size - end));
+	}
+	buf = xmalloc(len + 1);
+	if (!buf)
+		return -ENOMEM;
+	memcpy(buf, line, len);
+	buf[len] = '\n';
+	ret = write_complete(fd, buf, len + 1);
+	xfree(buf, len + 1);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (ret && ftruncate(fd, end))
+		pr_warn("%s: could not roll back a partial append: %s", path,
+			strerror(errno));
+	return ret;
+}
+
 int open_beneath(int dirfd, const char *rel, int flags)
 {
 	struct open_how how = {

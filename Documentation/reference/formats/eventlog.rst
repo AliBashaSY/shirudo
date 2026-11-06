@@ -52,10 +52,14 @@ Neither is part of the eventlog.
 Record format
 -------------
 
-- One compact JSON object per line, terminated by ``\n``.
+- One compact JSON object per line, terminated by ``\n``. A record is
+  not in the log until its ``\n`` is: a last line without one is an
+  append that did not finish, killed or cut short by a crash.
 - A command appends a record only after the register extend succeeded,
-  then calls ``fsync``. An append that fails part-way is truncated back
-  to the previous size.
+  writes it and its ``\n`` in one ``write``, then calls ``fsync``. An
+  append that fails part-way is truncated back to the previous size, and
+  the next append first drops a last line that did not finish, with a
+  warning in the journal.
 - Digests are SHA-256, written as 64 lowercase hex digits.
 
 Every record carries these fields:
@@ -240,7 +244,9 @@ this boot's records the same way:
 - They read ``/var/lib/shirudo/eventlog`` followed by
   ``/run/shirudo/eventlog.pending``.
 - They parse every line. One line that is not valid JSON fails the
-  replay, whatever boot it belongs to.
+  replay, whatever boot it belongs to. A last line without ``\n`` is
+  skipped, as it is no record yet. The register then runs ahead of the
+  log, as after an append that failed.
 - They skip lines without a ``boot_id`` or with another boot's
   ``boot_id``.
 - They start at this boot's first ``init`` record. Every ``init``

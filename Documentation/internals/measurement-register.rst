@@ -218,8 +218,11 @@ Eventlog
 
 ``/var/lib/shirudo/eventlog`` holds one JSON line per extension: the
 event digest and type, the boot ID, and the fields the digest was
-computed from. Each line is appended with ``fsync``, and a partial append
-is truncated away. The file is sealed like the rest of the state tree.
+computed from. Each line goes out with its newline in one write and is
+followed by ``fsync``. A partial append is truncated away, and one that
+was killed before it could be is skipped by every reader and dropped by
+the next append, so that it cannot join the next record on its line.
+The file is sealed like the rest of the state tree.
 :doc:`/reference/formats/eventlog` gives the format.
 
 The ``init`` run in the initrd writes its record to

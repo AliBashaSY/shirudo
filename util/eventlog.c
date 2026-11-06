@@ -66,17 +66,16 @@ int eventlog_append(const char *json_line)
 }
 
 /*
- * A line cut short, by a full file system say, would leave every reader
- * of the log failing on it, so a failed append is rolled back under the
- * lock that keeps appenders from interleaving.
+ * A line cut short, by a full file system or a kill between writes,
+ * would join the next record on its line and leave every reader of the
+ * log failing on it, so appenders take the lock that keeps them from
+ * interleaving and append_line() drops what did not finish.
  */
 int eventlog_append_to(const char *path, const char *json_line)
 {
-	size_t len = strlen(json_line);
-	struct stat st;
 	int fd, ret;
 
-	fd = seal_open(path, O_WRONLY | O_CREAT | O_APPEND, 0600);
+	fd = seal_open(path, O_RDWR | O_CREAT | O_APPEND, 0600);
 	if (fd < 0) {
 		pr_err("eventlog: open %s: %s", path, strerror(-fd));
 		return fd;
@@ -87,19 +86,7 @@ int eventlog_append_to(const char *path, const char *json_line)
 			goto out;
 		}
 	}
-	if (fstat(fd, &st) != 0) {
-		ret = -errno;
-		goto out;
-	}
-
-	ret = write_complete(fd, json_line, len);
-	if (!ret && (len == 0 || json_line[len - 1] != '\n'))
-		ret = write_complete(fd, "\n", 1);
-	if (!ret && fsync(fd) != 0)
-		ret = -errno;
-	if (ret && ftruncate(fd, st.st_size) != 0)
-		pr_warn("eventlog: could not roll back a partial append to "
-			"%s: %s", path, strerror(errno));
+	ret = append_line(fd, path, json_line, strlen(json_line));
 out:
 	if (close(fd) != 0 && !ret)
 		ret = -errno;
@@ -142,11 +129,13 @@ static int read_log(char **out, size_t *out_len)
 	if (ret && rc_pending)
 		return -ENOENT;
 	if (rc_pending) {
+		base[lines_len(base, base_len)] = '\0';
 		*out = base;
 		*out_len = base_len;
 		return 0;
 	}
 	if (ret) {
+		pending[lines_len(pending, pending_len)] = '\0';
 		*out = pending;
 		*out_len = pending_len;
 		return 0;
@@ -155,17 +144,15 @@ static int read_log(char **out, size_t *out_len)
 		ret = -EFBIG;
 		goto out;
 	}
-	buf = xmalloc(base_len + pending_len + 2);
+	buf = xmalloc(base_len + pending_len + 1);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memcpy(buf, base, base_len);
-	off = base_len;
-	if (off && buf[off - 1] != '\n')
-		buf[off++] = '\n';
-	memcpy(buf + off, pending, pending_len);
-	off += pending_len;
+	off = lines_len(base, base_len);
+	memcpy(buf, base, off);
+	memcpy(buf + off, pending, lines_len(pending, pending_len));
+	off += lines_len(pending, pending_len);
 	buf[off] = '\0';
 	*out = buf;
 	*out_len = off;
@@ -269,6 +256,7 @@ static int log_holds(const char *line, size_t len)
 		return 0;
 	if (ret)
 		return ret;
+	buf[lines_len(buf, blen)] = '\0';
 	ret = walk_lines(buf, false, adopt_seen, &a);
 	xfree(buf, blen + 1);
 	if (ret && ret != -ENOENT)
@@ -288,6 +276,7 @@ static int adopt_pending(void)
 		return 0;
 	if (ret)
 		return ret;
+	buf[lines_len(buf, len)] = '\0';
 	for (line = strtok_r(buf, "\n", &save); line && !ret;
 	     line = strtok_r(NULL, "\n", &save)) {
 		if (!*line)

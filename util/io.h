@@ -11,6 +11,19 @@
 int write_complete(int fd, const void *buf, size_t len);
 
 /*
+ * A log record is a line that ends in its newline: a tail without one
+ * is an append that did not finish, killed between its writes or cut by
+ * a crash. lines_len() is how much of the len bytes at buf are whole
+ * records, which is all a reader may take. append_line() drops such a
+ * tail from the log open on fd at path, which the caller has opened
+ * O_RDWR | O_APPEND and locked, and adds line and its newline in one
+ * write, taking the file back to its last record when that fails. A
+ * line with a newline or a NUL inside is -EINVAL.
+ */
+size_t lines_len(const char *buf, size_t len);
+int append_line(int fd, const char *path, const char *line, size_t len);
+
+/*
  * A regular file of at most max bytes, into *out xmalloc'd to *len + 1
  * bytes and NUL-terminated; out is the address of a char or unsigned
  * char pointer.

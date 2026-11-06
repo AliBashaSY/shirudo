@@ -491,13 +491,13 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover nine of the modules in
-:src:`util/`: ``chain``, ``hex``, ``json``, ``kernel_abi``,
+The unit suites in :src:`testing/unit/` cover ten of the modules in
+:src:`util/`: ``chain``, ``hex``, ``io``, ``json``, ``kernel_abi``,
 ``kernel_build_id``, ``kernel_release``, ``string``, ``upatch`` and
 ``upatch_decode``, and ``overflow`` the arithmetic of
-:src:`include/shirudo/overflow.h`. The
-other modules are reached through the test helpers, the fuzz targets and
-the binaries the functional tests run.
+:src:`include/shirudo/overflow.h`. The other modules are reached through
+the test helpers, the fuzz targets and the binaries the functional tests
+run.
 
 .. list-table::
    :header-rows: 1
@@ -610,7 +610,7 @@ Coverage by area
        ``t9105``. Fuzz: ``attest``, ``tpm-wire``
    * - Eventlog
      - ``t4002``, ``t4102``, ``t5007``, ``t6114``, ``t6128``. Fuzz:
-       ``eventlog``
+       ``eventlog``. Unit: ``io``
    * - Boot and initrd
      - ``t1006``, ``t4002``, ``t4101``, ``t5006``, ``t6115``,
        ``t6126``
