@@ -64,8 +64,6 @@
 #include "util/upatch_resolve.h"
 #include "util/version.h"
 
-static bool safe_upatch_name(const char *name);
-
 #ifndef NFPROTO_IPV6
 #define NFPROTO_IPV6			10
 #endif
@@ -1867,7 +1865,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 */
 	memcpy(upatch_name, u.hdr.name, UPATCH_NAME_MAX);
 	upatch_name[UPATCH_NAME_MAX] = '\0';
-	if (!safe_upatch_name(upatch_name)) {
+	if (!upatch_name_valid(upatch_name)) {
 		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
@@ -2483,27 +2481,6 @@ static int upatch_chain_event(const char *tag, const char *type,
 	return ret;
 }
 
-/*
- * The name is not covered by the signature and becomes a path, so only
- * one safe component is allowed.
- */
-static bool safe_upatch_name(const char *name)
-{
-	size_t i;
-
-	if (name[0] == '\0' || name[0] == '.')
-		return false;
-	for (i = 0; name[i]; i++) {
-		char c = name[i];
-
-		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-		      (c >= '0' && c <= '9') || c == '.' || c == '_' ||
-		      c == '-'))
-			return false;
-	}
-	return true;
-}
-
 static int append_json_record(const char *path, const char *json, size_t len)
 {
 	struct stat st;
@@ -2963,7 +2940,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 
 	if (eventlog_room(&rep, "load") != 0)
 		goto done;
-	if (have_id && !safe_upatch_name(name)) {
+	if (have_id && !upatch_name_valid(name)) {
 		pr_err("upatch load: refusing unsafe upatch name '%s'", name);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
@@ -3130,7 +3107,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	rep.name = name;
 	hex_encode(payload, sizeof(payload), rep.payload_hex);
 
-	if (!safe_upatch_name(name)) {
+	if (!upatch_name_valid(name)) {
 		pr_err("upatch unload: refusing unsafe upatch name '%s'", name);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
@@ -3275,7 +3252,7 @@ int upatch_purge(const char *name, const char *reason)
 	bool loaded;
 	int fd, ret;
 
-	if (!safe_upatch_name(name))
+	if (!upatch_name_valid(name))
 		return -EINVAL;
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		       UPATCHES_DIR, name) < 0)
@@ -3706,7 +3683,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 		}
 	}
 	if (upatch && map) {
-		if (!safe_upatch_name(upatch)) {
+		if (!upatch_name_valid(upatch)) {
 			pr_err("upatch map: invalid upatch name '%s'", upatch);
 			return 2;
 		}
@@ -3731,7 +3708,7 @@ static int cmd_upatch_map(int argc, const char **argv)
 	}
 
 	if (upatch) {
-		if (!safe_upatch_name(upatch)) {
+		if (!upatch_name_valid(upatch)) {
 			pr_err("upatch map: invalid upatch name '%s'", upatch);
 			return 2;
 		}
@@ -4075,7 +4052,7 @@ static int cmd_upatch_get(int argc, const char **argv)
 		print_help(&upatch_get_help);
 		return 2;
 	}
-	if (!safe_upatch_name(want)) {
+	if (!upatch_name_valid(want)) {
 		pr_err("upatch get: invalid name '%s'", want);
 		return 2;
 	}
