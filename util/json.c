@@ -533,6 +533,8 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 				return ret;
 		}
 	}
+	if (dst && !cap)
+		return -ENOSPC;
 	if (dst)
 		dst[len] = '\0';
 	return 0;

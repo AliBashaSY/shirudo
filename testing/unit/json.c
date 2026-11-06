@@ -744,6 +744,23 @@ static void growth_keeps_room_for_the_nul(void)
 	grow_to(3, 0);
 }
 
+/* A string field has room for nothing without a byte for its NUL. */
+static void string_field_needs_room_for_the_nul(void)
+{
+	char guard[2] = { 'x', 'y' };
+	struct json_field f[] = {
+		{ "s", JSON_T_STRING, guard + 1, 0, 0, NULL, 0 },
+	};
+
+	EXPECT_EQ(json_parse("{\"s\":\"\"}", 8, f, ARRAY_SIZE(f)), -ENOSPC);
+	EXPECT_EQ(guard[1], 'y');
+	f[0].dst = guard;
+	f[0].dst_cap = 1;
+	EXPECT_EQ(json_parse("{\"s\":\"\"}", 8, f, ARRAY_SIZE(f)), 0);
+	EXPECT_EQ(guard[0], '\0');
+	EXPECT_EQ(guard[1], 'y');
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(extracts_scalars_and_skips_nested_sets),
 	UNIT_CASE(skips_unknown_keys_and_objects),
@@ -760,6 +777,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(seen_flags_are_the_elements_own),
 	UNIT_CASE(declared_key_takes_one_value),
 	UNIT_CASE(growth_keeps_room_for_the_nul),
+	UNIT_CASE(string_field_needs_room_for_the_nul),
 	UNIT_CASE(malformed_arrays_are_refused),
 	UNIT_CASE(object_array_takes_objects_only),
 	UNIT_CASE(integer_takes_json_integers_only),
