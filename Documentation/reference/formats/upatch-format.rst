@@ -665,10 +665,11 @@ signed bytes and trusts others as they are.
    * - ``rodata_data_off``
      - Must equal the offset in ``data`` from which the signed loader's
        ``BPF_MAP_UPDATE_ELEM`` of the ``.rodata`` map takes its value,
-       which also holds the ``.rodata`` size from the signed BTF. ``bpm
-       info data`` reads ``.rodata`` there, and the operator's ``.rodata``
-       rewrites (``bpm build`` and ``bpm config update`` rodata entries)
-       patch there and re-sign. A header that names another offset is
+       which also holds the ``.rodata`` size from the BTF its one
+       ``BPF_BTF_LOAD`` takes from ``data``. ``bpm info data`` reads
+       ``.rodata`` there, and the operator's ``.rodata`` rewrites
+       (``bpm build`` and ``bpm config update`` rodata entries) patch
+       there and re-sign. A header that names another offset is
        refused, so a package from a registry cannot aim the rewrite at
        other signed bytes.
    * - ``log_buf_sz``

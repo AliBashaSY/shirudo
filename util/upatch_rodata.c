@@ -123,28 +123,28 @@ static bool map_update_slot(const struct bpf_insn *insns, size_t count,
 	return false;
 }
 
-static bool map_update_value(const struct bpf_insn *insns, size_t count,
-			     size_t call, __u32 attr, __u32 *value_off)
+/*
+ * The data offset the loader stores into the attr field at field before
+ * the sys_bpf() call at call, as libbpf's gen_loader writes a pointer
+ * into its data.
+ */
+static bool loader_store_source(const struct bpf_insn *insns, size_t count,
+				size_t call, __u32 field, __u32 *source)
 {
 	size_t start = call > 24 ? call - 24 : 0;
-	__u32 value_field;
 	size_t i;
-
-	if (check_add_overflow(attr, offsetof(union bpf_attr, value),
-			       &value_field))
-		return false;
 
 	for (i = start; i + 4 < call; i++) {
 		__u32 source_off, dest_off;
 
 		if (!loader_lddw(insns, count, i, BPF_REG_0, &source_off) ||
 		    !loader_lddw(insns, count, i + 2, BPF_REG_1, &dest_off) ||
-		    dest_off != value_field ||
+		    dest_off != field ||
 		    insns[i + 4].code != (BPF_STX | BPF_DW | BPF_MEM) ||
 		    insns[i + 4].dst_reg != BPF_REG_1 ||
 		    insns[i + 4].src_reg != BPF_REG_0 || insns[i + 4].off)
 			continue;
-		*value_off = source_off;
+		*source = source_off;
 		return true;
 	}
 	return false;
@@ -215,11 +215,14 @@ static int find_rodata_data(const struct upatch *u,
 					sizeof(maps[slot].name));
 			}
 		} else if (cmd == BPF_MAP_UPDATE_ELEM) {
-			__u32 slot, value_off;
+			__u32 slot, value_field, value_off;
 
-			if (!map_update_slot(insns, count, i, attr_off, &slot) ||
-			    !map_update_value(insns, count, i, attr_off,
-					      &value_off))
+			if (check_add_overflow(attr_off,
+					       offsetof(union bpf_attr, value),
+					       &value_field) ||
+			    !map_update_slot(insns, count, i, attr_off, &slot) ||
+			    !loader_store_source(insns, count, i, value_field,
+						 &value_off))
 				continue;
 			if (!maps[slot].found)
 				continue;
@@ -237,77 +240,76 @@ static int find_rodata_data(const struct upatch *u,
 	return ret;
 }
 
+/*
+ * The BTF the loader's one BPF_BTF_LOAD loads: the offset in data it
+ * stores into attr.btf, and the attr.btf_size beside it.
+ */
+static int loader_btf(const struct upatch *u, __u32 *off, __u32 *size)
+{
+	const struct bpf_insn *insns = upatch_loader(u);
+	const __u8 *data = upatch_data(u);
+	size_t count = u->hdr.loader_insns_len / sizeof(*insns), i;
+	bool found = false;
+
+	if (!data)
+		return -ENOENT;
+	if (u->hdr.loader_insns_len % sizeof(*insns))
+		return -EINVAL;
+	for (i = 4; i < count; i++) {
+		__u32 cmd, attr_off, attr_size, field, btf_off;
+		union bpf_attr attr = {};
+
+		if (!sys_bpf_call(insns, count, i, &cmd, &attr_off,
+				  &attr_size) || cmd != BPF_BTF_LOAD)
+			continue;
+		if (found)
+			return -E2BIG;
+		if (attr_size > sizeof(attr) ||
+		    attr_size < offsetofend(union bpf_attr, btf_size) ||
+		    attr_off > u->hdr.data_len ||
+		    attr_size > u->hdr.data_len - attr_off)
+			return -EINVAL;
+		memcpy(&attr, data + attr_off, attr_size);
+		if (check_add_overflow(attr_off, offsetof(union bpf_attr, btf),
+				       &field) ||
+		    !loader_store_source(insns, count, i, field, &btf_off) ||
+		    btf_off > u->hdr.data_len ||
+		    attr.btf_size > u->hdr.data_len - btf_off)
+			return -EINVAL;
+		*off = btf_off;
+		*size = attr.btf_size;
+		found = true;
+	}
+	return found ? 0 : -ENOENT;
+}
+
 static int btf_rodata_btf(const struct upatch *u,
 			  struct rodata_view *view)
 {
 	const __u8 *data = upatch_data(u);
-	struct btf *found = NULL;
-	__u32 found_id = 0;
-	size_t i;
+	__u32 btf_off, btf_size;
+	struct btf *btf;
+	__s32 id;
 	int ret;
 
-	for (i = 0; i + sizeof(struct btf_header) <= u->hdr.data_len; i++) {
-		__u32 end, type_end, str_end, layout_end;
-		const __u8 *raw = data + i;
-		struct btf_header hdr;
-		struct btf *btf;
-		__s32 id;
-
-		if (data[i] != (BTF_MAGIC & 0xff) ||
-		    data[i + 1] != (BTF_MAGIC >> 8))
-			continue;
-		/* data + i has any alignment: no struct access through it. */
-		memcpy(&hdr, raw, sizeof(hdr));
-		hdr.hdr_len = get_le32(raw + offsetof(struct btf_header, hdr_len));
-		hdr.type_off = get_le32(raw + offsetof(struct btf_header, type_off));
-		hdr.type_len = get_le32(raw + offsetof(struct btf_header, type_len));
-		hdr.str_off = get_le32(raw + offsetof(struct btf_header, str_off));
-		hdr.str_len = get_le32(raw + offsetof(struct btf_header, str_len));
-		hdr.layout_off = get_le32(raw + offsetof(struct btf_header,
-							 layout_off));
-		hdr.layout_len = get_le32(raw + offsetof(struct btf_header,
-							 layout_len));
-		if (hdr.hdr_len < offsetof(struct btf_header, layout_off) ||
-		    hdr.hdr_len > u->hdr.data_len - i)
-			continue;
-		if (hdr.hdr_len < sizeof(hdr)) {
-			hdr.layout_off = 0;
-			hdr.layout_len = 0;
-		}
-		if (check_add_overflow(hdr.type_off, hdr.type_len, &type_end) ||
-		    check_add_overflow(hdr.str_off, hdr.str_len, &str_end) ||
-		    check_add_overflow(hdr.layout_off, hdr.layout_len,
-				       &layout_end) ||
-		    check_add_overflow(hdr.hdr_len,
-				       max(max(type_end, str_end), layout_end),
-				       &end) ||
-		    end > u->hdr.data_len - i)
-			continue;
-		btf = btf__new(data + i, end);
-		if (libbpf_get_error(btf))
-			continue;
-		id = btf__find_by_name_kind(btf, ".rodata", BTF_KIND_DATASEC);
-		if (id <= 0) {
-			btf__free(btf);
-			continue;
-		}
-		if (found) {
-			btf__free(btf);
-			btf__free(found);
-			return -E2BIG;
-		}
-		found = btf;
-		found_id = (__u32)id;
-	}
-	if (!found)
+	ret = loader_btf(u, &btf_off, &btf_size);
+	if (ret)
+		return ret;
+	btf = btf__new(data + btf_off, btf_size);
+	if (libbpf_get_error(btf))
 		return -ENOENT;
-	view->btf = found;
+	id = btf__find_by_name_kind(btf, ".rodata", BTF_KIND_DATASEC);
+	if (id <= 0) {
+		btf__free(btf);
+		return -ENOENT;
+	}
+	view->btf = btf;
 	/*
 	 * The header is not signed: .rodata is where the signed loader
 	 * takes it from, and a header that names another offset would aim
 	 * a rewrite the operator then signs at other bytes.
 	 */
-	ret = find_rodata_data(u, found, found_id, view);
+	ret = find_rodata_data(u, btf, (__u32)id, view);
 	if (!ret && u->rodata_offset_in_header &&
 	    view->data_offset != u->hdr.rodata_data_off)
 		return -EINVAL;
