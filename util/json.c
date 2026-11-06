@@ -73,27 +73,15 @@ static void put_string(struct json_emit *e, const char *s)
 			put(e, (char)c);
 			p++;
 		} else {
-			int n;
+			size_t n = utf8_width((const char *)p,
+					      strnlen((const char *)p, 4));
 
-			if ((c & 0xE0) == 0xC0) {
-				n = 2;
-			} else if ((c & 0xF0) == 0xE0) {
-				n = 3;
-			} else if ((c & 0xF8) == 0xF0) {
-				n = 4;
-			} else {
+			if (!n) {
 				e->err = -EILSEQ;
 				return;
 			}
-			for (int i = 0; i < n; i++) {
-				if (i > 0 && (p[i] & 0xC0) != 0x80) {
-					e->err = -EILSEQ;
-					return;
-				}
-			}
-			for (int i = 0; i < n; i++)
-				put(e, (char)p[i]);
-			p += n;
+			while (n--)
+				put(e, (char)*p++);
 		}
 	}
 	put(e, '"');

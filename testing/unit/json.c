@@ -271,6 +271,33 @@ static void discarded_number_follows_the_grammar(void)
 	}
 }
 
+static int emit_string(const char *val, char *buf, size_t cap)
+{
+	struct json_emit e = { .buf = buf, .cap = cap };
+
+	json_obj_open(&e);
+	json_kv_string(&e, "v", val);
+	json_obj_close(&e);
+	return e.err;
+}
+
+static void emitter_takes_well_formed_utf8_only(void)
+{
+	static const char *const bad[] = {
+		"\xc0\xaf", "\xc0\x80", "\xe0\x80\xaf", "\xed\xa0\x80",
+		"\xf4\x90\x80\x80", "\xf5\x80\x80\x80", "\xff", "a\xc3",
+		"\xe2\x82z",
+	};
+	char buf[64];
+	size_t i;
+
+	ASSERT_EQ(emit_string("caf\xc3\xa9 \xf0\x9f\x90\x9d", buf,
+			      sizeof(buf)), 0);
+	EXPECT_STREQ(buf, "{\"v\":\"caf\xc3\xa9 \xf0\x9f\x90\x9d\"}");
+	for (i = 0; i < ARRAY_SIZE(bad); i++)
+		EXPECT_EQ(emit_string(bad[i], buf, sizeof(buf)), -EILSEQ);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(extracts_scalars_and_skips_nested_sets),
 	UNIT_CASE(skips_unknown_keys_and_objects),
@@ -288,6 +315,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(integer_takes_json_integers_only),
 	UNIT_CASE(integer_holds_any_s64_and_no_more),
 	UNIT_CASE(discarded_number_follows_the_grammar),
+	UNIT_CASE(emitter_takes_well_formed_utf8_only),
 	{}
 };
 
