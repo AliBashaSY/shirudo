@@ -331,8 +331,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 		return 1;
 	}
 
-	memcpy(name, u.hdr.name, sizeof(u.hdr.name));
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, name);
 	upatch_signed_attach(&u, &attach_len);
 	unload_payload = upatch_signed_unload_payload(&u);
 
@@ -581,8 +580,7 @@ static int cmd_upatch_list(int argc, const char **argv)
 				       "unreadable");
 			continue;
 		}
-		memcpy(name, u.hdr.name, sizeof(u.hdr.name));
-		name[UPATCH_NAME_MAX] = '\0';
+		upatch_header_name(&u, name);
 		hex_encode(u.hdr.payload_sha256, 32, payload_hex);
 		type = upatch_is_unload(&u) ? "unload" : "load";
 		payload_type = upatch_type_str(&u);
@@ -1856,8 +1854,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 * restore reaches here without the command-level check, so validate it
 	 * again.
 	 */
-	memcpy(upatch_name, u.hdr.name, UPATCH_NAME_MAX);
-	upatch_name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, upatch_name);
 	if (!upatch_name_valid(upatch_name)) {
 		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
@@ -2913,8 +2910,7 @@ static int cmd_upatch_load(int argc, const char **argv)
 			 "cannot open .upatch");
 		goto done;
 	}
-	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, name);
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	hex_encode(payload, sizeof(payload), rep.payload_hex);
 	rep.name = name;
@@ -3093,8 +3089,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		upatch_close(&u);
 		goto done;
 	}
-	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, name);
 	memcpy(payload, upatch_signed_unload_payload(&u), sizeof(payload));
 	upatch_close(&u);
 	rep.name = name;

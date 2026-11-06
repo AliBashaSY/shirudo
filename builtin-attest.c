@@ -32,6 +32,7 @@
 #include "util/keys.h"
 #include "util/log.h"
 #include "util/malloc.h"
+#include "util/measured.h"
 #include "util/paths.h"
 #include "util/seal.h"
 #include "util/upatch.h"
@@ -174,7 +175,6 @@ struct members {
 
 static int member_add_file(struct members *m, const char *path)
 {
-	struct measured_upatch *e;
 	struct upatch u;
 	int ret;
 
@@ -185,11 +185,7 @@ static int member_add_file(struct members *m, const char *path)
 		pr_err("attest: open %s: %s", path, strerror(-ret));
 		return ret;
 	}
-	e = &m->set[m->n++];
-	memcpy(e->name, u.hdr.name, UPATCH_NAME_MAX);
-	e->name[UPATCH_NAME_MAX] = '\0';
-	hex_encode(u.hdr.payload_sha256,
-		   UPATCH_PAYLOAD_HASH_LEN, e->payload_hex);
+	measured_upatch_of(&m->set[m->n++], &u);
 	upatch_close(&u);
 	return 0;
 }

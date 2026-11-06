@@ -413,6 +413,12 @@ void upatch_close(struct upatch *u)
 	}
 }
 
+void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1])
+{
+	memcpy(out, u->hdr.name, UPATCH_NAME_MAX);
+	out[UPATCH_NAME_MAX] = '\0';
+}
+
 const char *upatch_signed_name(const struct upatch *u)
 {
 	return u->map ? u->signed_name : NULL;

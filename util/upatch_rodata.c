@@ -935,8 +935,7 @@ static int print_rodata_text(const struct upatch *u,
 	__u8 *done;
 	int ret = 0;
 
-	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(u, name);
 	text_sanitize(name, strlen(name), false);
 	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
 	       name, path, view->size, view->data_offset,
@@ -1000,8 +999,7 @@ static int print_rodata_json(const struct upatch *u,
 	char name[UPATCH_NAME_MAX + 1];
 	int ret = 0;
 
-	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(u, name);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
 	json_key(&e, "upatch");

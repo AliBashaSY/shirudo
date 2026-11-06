@@ -582,8 +582,7 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 		pr_err("bpm tree append: %s is not a valid upatch", id);
 		return ret;
 	}
-	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, name);
 	hex_encode(u.hdr.payload_sha256, 32, hex);
 	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
 		ret = -EKEYREJECTED;

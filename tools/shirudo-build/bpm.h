@@ -70,7 +70,7 @@ struct bpm_build_upatch {
 	char unload_target[PATH_MAX];
 	char load_path[PATH_MAX];
 	char unload_path[PATH_MAX];
-	char name[UPATCH_NAME_MAX];
+	char name[UPATCH_NAME_MAX + 1];
 	char payload_sha256[CRYPTO_SHA256_LEN * 2 + 1];
 	struct bpm_build_tree tree;
 	struct bpm_build_rodata *rodata;

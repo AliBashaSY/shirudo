@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
+#include <string.h>
 
 #include "unit.h"
 #include "upatch.h"
@@ -52,9 +53,23 @@ static void prog_specs_refuse_another_header_count(void)
 	EXPECT_FALSE(specs);
 }
 
+static void header_name_is_terminated(void)
+{
+	char out[UPATCH_NAME_MAX + 1];
+	struct upatch u = {};
+
+	memcpy(u.hdr.name, "kernel-obs", 10);
+	upatch_header_name(&u, out);
+	EXPECT_STREQ(out, "kernel-obs");
+	memset(u.hdr.name, 'a', sizeof(u.hdr.name));
+	upatch_header_name(&u, out);
+	EXPECT_EQ(strlen(out), UPATCH_NAME_MAX);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(prog_specs_take_the_signed_counts),
 	UNIT_CASE(prog_specs_refuse_another_header_count),
+	UNIT_CASE(header_name_is_terminated),
 	{}
 };
 

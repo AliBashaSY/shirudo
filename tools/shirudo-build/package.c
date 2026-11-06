@@ -294,8 +294,7 @@ static int package_resign_symbols(const char *original,
 		ret = -E2BIG;
 		goto out;
 	}
-	memcpy(name, mod.hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&mod, name);
 	pack_header(&hdr, name, mod.hdr.type, mod.hdr.flags,
 		    sio.payload_sha256,
 		    loader_off, (__u32)sio.insns_sz,

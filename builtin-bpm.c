@@ -1756,8 +1756,7 @@ static int tree_verify_upatch(const char *path, const char *expected,
 
 	if (ret)
 		return ret;
-	memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-	name[UPATCH_NAME_MAX] = '\0';
+	upatch_header_name(&u, name);
 	hex_encode(u.hdr.payload_sha256, 32, actual);
 	if (!bpm_digest_matches(expected, actual) ||
 	    (id && strcmp(name, id)) ||

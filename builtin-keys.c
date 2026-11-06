@@ -875,8 +875,7 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 			continue;
 		signed_by = cms_signed_by(upatch_signature(&u),
 					  u.hdr.signature_len, &cert);
-		memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-		name[UPATCH_NAME_MAX] = '\0';
+		upatch_header_name(&u, name);
 		upatch_close(&u);
 		if (signed_by != 1)
 			continue;

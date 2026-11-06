@@ -22,6 +22,12 @@ bool measured_holds(const struct measured_set *s, const char *name,
 		    const char *payload_hex);
 void measured_set_free(struct measured_set *s);
 
+struct measured_upatch;
+struct upatch;
+
+/* The name and payload an init record lists for the upatch u. */
+void measured_upatch_of(struct measured_upatch *e, const struct upatch *u);
+
 /*
  * The upatches pinned in the private bpffs, or archived with the seal
  * label, that the set does not hold with the payload their pin or

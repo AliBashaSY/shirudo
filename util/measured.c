@@ -11,6 +11,7 @@
 #include <shirudo/string.h>
 #include <shirudo/upatch.h>
 
+#include "chain.h"
 #include "eventlog.h"
 #include "hex.h"
 #include "malloc.h"
@@ -100,6 +101,13 @@ int measured_set_log(struct measured_set **out)
 	return measured_set_fold(out, true);
 }
 
+void measured_upatch_of(struct measured_upatch *e, const struct upatch *u)
+{
+	upatch_header_name(u, e->name);
+	hex_encode(u->hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
+		   e->payload_hex);
+}
+
 bool measured_holds(const struct measured_set *s, const char *name,
 		    const char *payload_hex)
 {
@@ -181,8 +189,7 @@ int measured_unmeasured_archives(const struct measured_set *s,
 	if (n < 0)
 		return errno == ENOENT ? 0 : -errno;
 	for (i = 0; i < n; i++) {
-		char payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
-		char name[UPATCH_NAME_MAX + 1];
+		struct measured_upatch m;
 		char path[PATH_MAX];
 		struct upatch u;
 
@@ -190,16 +197,13 @@ int measured_unmeasured_archives(const struct measured_set *s,
 			       names[i]->d_name) < 0 ||
 		    !seal_owns(path) || upatch_open(path, &u))
 			continue;
-		memcpy(name, u.hdr.name, UPATCH_NAME_MAX);
-		name[UPATCH_NAME_MAX] = '\0';
-		hex_encode(u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
-			   payload_hex);
+		measured_upatch_of(&m, &u);
 		upatch_close(&u);
-		if (measured_holds(s, name, payload_hex))
+		if (measured_holds(s, m.name, m.payload_hex))
 			continue;
 		unmeasured++;
 		if (cb) {
-			ret = cb(name, path, ctx);
+			ret = cb(m.name, path, ctx);
 			if (ret)
 				break;
 		}

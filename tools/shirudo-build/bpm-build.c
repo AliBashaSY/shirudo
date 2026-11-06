@@ -1348,7 +1348,7 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			upatch_close(&parsed);
 			return -EINVAL;
 		}
-		strscpy(u->name, parsed.hdr.name, sizeof(u->name));
+		upatch_header_name(&parsed, u->name);
 		hex_encode(parsed.hdr.payload_sha256,
 			   CRYPTO_SHA256_LEN,
 			   u->payload_sha256);
@@ -2215,7 +2215,7 @@ static int __build_bpm_config_update(int argc, char **argv,
 			upatch_close(&parsed);
 			break;
 		}
-		strscpy(upatch->name, parsed.hdr.name, sizeof(upatch->name));
+		upatch_header_name(&parsed, upatch->name);
 		memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
 		hex_encode(payload, sizeof(payload), upatch->payload_sha256);
 		strscpy(upatch->type, upatch_type_str(&parsed),

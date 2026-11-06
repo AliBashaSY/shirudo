@@ -992,10 +992,7 @@ static int boot_restore(bool recorded,
 				names[i]->d_name);
 			goto next;
 		}
-		memcpy(set[cnt].name, u.hdr.name, UPATCH_NAME_MAX);
-		set[cnt].name[UPATCH_NAME_MAX] = '\0';
-		hex_encode(u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN,
-			   set[cnt].payload_hex);
+		measured_upatch_of(&set[cnt], &u);
 		upatch_close(&u);
 		if (!measured_holds(measured, set[cnt].name,
 				    set[cnt].payload_hex)) {

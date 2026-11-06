@@ -107,6 +107,9 @@ int upatch_decoder_view(const struct upatch *u, __u32 idx,
  * shows what there is.
  */
 const char *upatch_signed_name(const struct upatch *u);
+
+/* The name in the header, which the file need not terminate, with a NUL. */
+void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1]);
 const void *upatch_signed_attach(const struct upatch *u,
 				 __u32 *len);
 const __u8 *upatch_signed_unload_payload(const struct upatch *u);
