@@ -291,6 +291,37 @@ static void seen_flags_are_the_elements_own(void)
 	EXPECT_EQ(sub[0].seen, 0);
 }
 
+static void declared_key_takes_one_value(void)
+{
+	static const char nested[] = "{\"o\":{\"k\":\"v\"},\"o\":{}}";
+	char k[8];
+	struct json_field sub[] = {
+		{ "k", JSON_T_STRING, k, sizeof(k), 0, NULL, 0 },
+	};
+	struct json_field top[] = {
+		{ "o", JSON_T_OBJECT, NULL, 0, 0, sub, ARRAY_SIZE(sub) },
+	};
+	struct doc d;
+
+	EXPECT_EQ(parse("{\"type\":\"a\",\"type\":\"b\"}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"type\":\"a\",\"type\":null}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"schema\":1,\"schema\":1}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"names\":[\"a\"],\"names\":[\"b\"]}", &d),
+		  -EINVAL);
+	EXPECT_EQ(parse("{\"events\":[{\"type\":\"a\",\"type\":\"b\"}]}", &d),
+		  -EINVAL);
+	EXPECT_EQ(json_parse(nested, strlen(nested), top, ARRAY_SIZE(top)),
+		  -EINVAL);
+
+	ASSERT_EQ(parse("{\"type\":null,\"type\":\"b\"}", &d), 0);
+	EXPECT_STREQ(d.type, "b");
+	ASSERT_EQ(parse("{\"x\":1,\"x\":{},\"type\":\"t\"}", &d), 0);
+	EXPECT_STREQ(d.type, "t");
+	ASSERT_EQ(parse("{\"events\":[{\"type\":\"a\"},{\"type\":\"b\"}]}",
+			&d), 0);
+	EXPECT_EQ(d.events, 2);
+}
+
 static void malformed_arrays_are_refused(void)
 {
 	struct doc d;
@@ -417,6 +448,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(object_array_uses_element_schema),
 	UNIT_CASE(nested_array_then_trailing_scalar),
 	UNIT_CASE(seen_flags_are_the_elements_own),
+	UNIT_CASE(declared_key_takes_one_value),
 	UNIT_CASE(malformed_arrays_are_refused),
 	UNIT_CASE(integer_takes_json_integers_only),
 	UNIT_CASE(integer_holds_any_s64_and_no_more),

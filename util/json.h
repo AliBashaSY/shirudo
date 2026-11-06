@@ -99,7 +99,8 @@ struct json_field {
 };
 
 /*
- * -EINVAL on malformed input or a type mismatch, -E2BIG on a bounds
+ * -EINVAL on malformed input, a type mismatch or a declared key given a
+ * value twice in one object (null gives none), -E2BIG on a bounds
  * violation, -ENOSPC when a string exceeds its dst_cap.
  */
 int json_parse(const char *data, size_t len,

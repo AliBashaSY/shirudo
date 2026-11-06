@@ -495,6 +495,9 @@ static int parse_object(struct pctx *c)
 				break;
 			}
 		}
+		/* Readers that take the first or the last would differ. */
+		if (f && f->seen)
+			return -EINVAL;
 		ret = parse_value(c, f);
 		if (ret)
 			return ret;
