@@ -8,3 +8,4 @@ hex			--unwind 12
 io-lines		--unwind 10
 upatch-header		--unwind 2 --unwindset memchr.0:257
 string-number-model	--unwind 6
+bpm-upatch-member	--unwind 30 LEN=0-18

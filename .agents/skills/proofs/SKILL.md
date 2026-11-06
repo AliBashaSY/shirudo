@@ -92,6 +92,11 @@ determining its events.
   `-v`. Rebuild the input it names as a unit test or a small C program
   before calling it a bug: a harness that assumed too little or stated
   the property wrongly fails too.
+- A trace in which a copy yields bytes that are in neither its source
+  nor its destination, from a literal chosen by symbolic data, is CBMC
+  5.95's `memcpy()` model, not the code: rerun the input as a constant
+  to confirm, then define `PROOF_MEMCPY_BYTEWISE` before including
+  `proof.h` (as `bpm-upatch-member.c` does).
 - `run.sh` passes `--unsigned-char`, as the build passes
   `-funsigned-char`; a conversion failure on `char` elsewhere means the
   proof is not built as the code is.

@@ -116,7 +116,10 @@ Write a CBMC proof
 A function without a body in the proof, a libc one CBMC does not model or
 a system call, returns any value, and ``run.sh`` fails a proof that calls
 one. Give the function a model in ``proof.h``, or keep the proof away from
-the code that calls it.
+the code that calls it. CBMC 5.95's own ``memcpy()`` reads wrong bytes from
+a string literal that symbolic data picks among several, and fails a proof
+the code meets; a harness that copies from such a pointer defines
+``PROOF_MEMCPY_BYTEWISE`` before it includes ``proof.h``.
 
 Write a Lean 4 proof
 --------------------

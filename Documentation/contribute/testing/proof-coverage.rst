@@ -66,6 +66,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``lines_len()``
      - Up to 8 bytes
      - Ends at a newline or is 0, with no newline behind it
+   * - ``bpm-upatch-member``
+     - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
+     - Lengths 0 to 18
+     - What install loads and uninstall unloads goes by the suffix alone;
+       a pair is terminated, the other half, and pairs back to the name
    * - ``upatch-header``
      - ``parse_header()``, ``validate_bounds()`` of the ``.upatch``
        reader

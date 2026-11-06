@@ -37,6 +37,25 @@ void *memchr(const void *s, int c, size_t n)
 	return NULL;
 }
 
+/*
+ * CBMC 5.95's memcpy() reads wrong bytes from a string literal when the
+ * source pointer is one of several literals picked by symbolic data, and
+ * so fails a proof the code meets. A harness that copies from such a
+ * pointer defines PROOF_MEMCPY_BYTEWISE before including this header.
+ */
+#ifdef PROOF_MEMCPY_BYTEWISE
+void *memcpy(void *dst, const void *src, size_t n)
+{
+	const __u8 *s = src;
+	__u8 *d = dst;
+	size_t i;
+
+	for (i = 0; i < n; i++)
+		d[i] = s[i];
+	return dst;
+}
+#endif
+
 static inline void *any_bytes(size_t size)
 {
 	void *p = __CPROVER_allocate(size, 0);
