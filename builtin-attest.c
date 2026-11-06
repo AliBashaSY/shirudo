@@ -173,36 +173,21 @@ static int member_add_spec(struct members *m, const char *spec)
 	return 0;
 }
 
+/* What the init event counts of a certificate: the SHA-256 of its DER. */
 static int cert_digest(const char *path, __u8 out[32])
 {
-	struct stat st;
-	ssize_t got;
-	__u8 *buf;
-	int fd;
+	size_t len = 0;
+	__u8 *der;
+	int ret;
 
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		int err = -errno;
-
-		pr_err("attest: open %s: %s", path, strerror(-err));
-		return err;
+	ret = read_file(path, KEYS_DER_MAX, &der, &len);
+	if (!ret) {
+		ret = len ? sha256_calc(der, len, out) : -ENODATA;
+		xfree(der, len + 1);
 	}
-	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
-	    st.st_size > 1024 * 1024) {
-		close(fd);
-		return -EINVAL;
-	}
-	buf = xmalloc((size_t)st.st_size);
-	if (!buf) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, buf, (size_t)st.st_size);
-	close(fd);
-	if (got == st.st_size && sha256_calc(buf, (size_t)got, out))
-		got = -1;
-	xfree(buf, (size_t)st.st_size);
-	return got == st.st_size ? 0 : -EIO;
+	if (ret)
+		pr_err("attest: --cert %s: %s", path, strerror(-ret));
+	return ret;
 }
 
 static int apply_event(const char *spec, __u8 chain[32])
@@ -519,39 +504,17 @@ static int report_emit_json(const char *report, const char *verdict)
 
 static int read_evidence(const char *path, char **out, size_t *len)
 {
-	struct stat st;
-	ssize_t got;
-	int fd;
+	int ret;
 
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		int err = -errno;
-
-		pr_err("attest verify: open %s: %s", path, strerror(-err));
-		return err;
-	}
-	if (fstat(fd, &st) != 0 || st.st_size <= 0 ||
-	    st.st_size > (off_t)EVIDENCE_MAX) {
-		close(fd);
-		pr_err("attest verify: %s: empty or larger than %u bytes",
-		       path, EVIDENCE_MAX);
-		return -EFBIG;
-	}
-	*out = xmalloc((size_t)st.st_size + 1);
-	if (!*out) {
-		close(fd);
-		return -ENOMEM;
-	}
-	got = read(fd, *out, (size_t)st.st_size);
-	close(fd);
-	if (got != st.st_size) {
-		xfree(*out, (size_t)st.st_size + 1);
+	ret = read_file(path, EVIDENCE_MAX, out, len);
+	if (!ret && !*len) {
+		xfree(*out, 1);
 		*out = NULL;
-		return -EIO;
+		ret = -ENODATA;
 	}
-	(*out)[got] = '\0';
-	*len = (size_t)got;
-	return 0;
+	if (ret)
+		pr_err("attest: evidence %s: %s", path, strerror(-ret));
+	return ret;
 }
 
 static int cmd_attest_verify(int argc, const char **argv)
