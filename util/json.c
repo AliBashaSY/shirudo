@@ -432,7 +432,14 @@ static int parse_string(struct pctx *c, char *dst, size_t cap)
 		} else if (ch < 0x20) {
 			return -EINVAL;		/* unescaped control char */
 		} else {
+			size_t n = utf8_width(c->p - 1,
+					      (size_t)(c->end - c->p) + 1);
+
+			if (!n)
+				return -EINVAL;
 			ret = emit_byte(dst, cap, &len, ch);
+			while (!ret && --n)
+				ret = emit_byte(dst, cap, &len, (__u8)*c->p++);
 			if (ret)
 				return ret;
 		}

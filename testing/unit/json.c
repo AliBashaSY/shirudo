@@ -271,6 +271,38 @@ static void discarded_number_follows_the_grammar(void)
 	}
 }
 
+/*
+ * Whatever the parser takes, the emitter writes back: a value it would
+ * refuse to write must not be read in the first place.
+ */
+static void malformed_utf8_is_refused(void)
+{
+	static const char *const bad[] = {
+		"\xc0\xaf", "\xc0\x80", "\xe0\x80\xaf", "\xed\xa0\x80",
+		"\xf4\x90\x80\x80", "\xf5\x80\x80\x80", "\xff", "\x80",
+		"a\xc3", "\xe2\x82z",
+	};
+	char text[64];
+	struct doc d;
+	size_t i;
+
+	ASSERT_EQ(parse("{\"type\":\"caf\xc3\xa9 \xf0\x9f\x90\x9d\"}", &d), 0);
+	EXPECT_STREQ(d.type, "caf\xc3\xa9 \xf0\x9f\x90\x9d");
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		ASSERT_TRUE(strsprintf(text, sizeof(text),
+				       "{\"type\":\"%s\"}", bad[i]) > 0);
+		EXPECT_EQ(parse(text, &d), -EINVAL);
+		ASSERT_TRUE(strsprintf(text, sizeof(text),
+				       "{\"x\":\"%s\",\"type\":\"t\"}",
+				       bad[i]) > 0);
+		EXPECT_EQ(parse(text, &d), -EINVAL);
+		ASSERT_TRUE(strsprintf(text, sizeof(text),
+				       "{\"%s\":1,\"type\":\"t\"}", bad[i]) > 0);
+		EXPECT_EQ(parse(text, &d), -EINVAL);
+	}
+	EXPECT_EQ(parse("{\"type\":\"\xe2\x82", &d), -EINVAL);
+}
+
 static int emit_string(const char *val, char *buf, size_t cap)
 {
 	struct json_emit e = { .buf = buf, .cap = cap };
@@ -315,6 +347,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(integer_takes_json_integers_only),
 	UNIT_CASE(integer_holds_any_s64_and_no_more),
 	UNIT_CASE(discarded_number_follows_the_grammar),
+	UNIT_CASE(malformed_utf8_is_refused),
 	UNIT_CASE(emitter_takes_well_formed_utf8_only),
 	{}
 };
