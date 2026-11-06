@@ -304,8 +304,10 @@ to 16 accepted values, and each key may appear once.
     Up to 64 keys, each a Kconfig option, once, with its accepted values,
     such as ``CONFIG_IPV6 = ["y", "m"]``. An option that is not set matches
     ``"n"``. The target reads ``/proc/config.gz`` and, when that is
-    missing or names none of the options, ``/boot/config-<release>``. A
-    target with neither does not match. A line of 1024 bytes or more is
+    missing, is not one whole gzip stream or names none of the options,
+    ``/boot/config-<release>``, each of at most 4 MiB. A target with
+    neither does not match, and one whose configuration cannot be read
+    stops the sync at the operation. A line of 1024 bytes or more is
     skipped whole, so its option reads as not set.
 ``[upatches.tree.selector.labels]``
     Up to 64 keys, each a node label, once, with its accepted values, such

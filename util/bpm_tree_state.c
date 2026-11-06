@@ -304,60 +304,118 @@ static int selector_config_line(const char *line,
 	return 0;
 }
 
+#define KCONFIG_MAX	(4U << 20)	/* a distribution's is some 300 KiB */
+
+/*
+ * The one gzip member of the len bytes at in, with nothing behind it,
+ * into *out, NUL-terminated, of *cap + 1 bytes. Not through gzgets():
+ * zlib 1.3.2 reads on past the end of a member into a next one, finds
+ * that cut short, and has gzclose() fail the whole file for it.
+ */
+static int gunzip(char *in, size_t len, char **out, size_t *out_len,
+		  size_t *cap)
+{
+	size_t have = 0, size = 0, want;
+	z_stream z = {};
+	char *buf = NULL, *grown;
+	int zret, ret = 0;
+
+	if (inflateInit2(&z, 16 + MAX_WBITS) != Z_OK)
+		return -ENOMEM;
+	z.next_in = (Bytef *)in;
+	z.avail_in = (uInt)len;
+	do {
+		if (have == size) {
+			if (size >= KCONFIG_MAX) {
+				ret = -EFBIG;
+				break;
+			}
+			want = min(size ? size * 2 : 65536U, KCONFIG_MAX);
+			grown = xreallocarray(buf, size ? size + 1 : 0, want + 1, 1);
+			if (!grown) {
+				ret = -ENOMEM;
+				break;
+			}
+			buf = grown;
+			size = want;
+		}
+		z.next_out = (Bytef *)buf + have;
+		z.avail_out = (uInt)(size - have);
+		zret = inflate(&z, Z_NO_FLUSH);
+		have = size - z.avail_out;
+		if (zret == Z_MEM_ERROR)
+			ret = -ENOMEM;
+		else if (zret != Z_OK && zret != Z_STREAM_END)
+			ret = -EINVAL;
+	} while (!ret && zret != Z_STREAM_END);
+	if (!ret && z.avail_in)
+		ret = -EINVAL;
+	inflateEnd(&z);
+	if (ret) {
+		xfree(buf, size ? size + 1 : 0);
+		return ret;
+	}
+	buf[have] = '\0';
+	*out = buf;
+	*out_len = have;
+	*cap = size + 1;
+	return 0;
+}
+
+/*
+ * A line of sizeof(line) bytes or more with its newline is skipped whole,
+ * as a part from the middle of a long string value would read as an
+ * option of its own: its option reads as not set.
+ */
+static int selector_config_text(const char *text, size_t len,
+				const struct tree_selector *s,
+				const int slots[TREE_SELECTOR_HASH_SIZE],
+				char values[][TREE_STRING_MAX], bool found[])
+{
+	char line[1024];
+	size_t off, n;
+	int ret;
+
+	for (off = 0; off < len; off += n + 1) {
+		const char *nl = memchr(text + off, '\n', len - off);
+
+		n = nl ? (size_t)(nl - text) - off : len - off;
+		if (n >= sizeof(line) - 1)
+			continue;
+		memcpy(line, text + off, n);
+		line[n] = '\0';
+		ret = selector_config_line(line, s, slots, values, found);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 static int read_selector_config_file(const char *path,
 				     const struct tree_selector *s,
 				     const int slots[TREE_SELECTOR_HASH_SIZE],
 				     char values[][TREE_STRING_MAX],
 				     bool found[], bool gz)
 {
-	bool skip = false, whole;
-	char line[1024];
-	int ret = 0;
+	size_t len, text_len, cap;
+	char *raw, *text;
+	int ret;
 
-	/*
-	 * A line longer than the buffer comes in parts, and a part from the
-	 * middle of a long string value would read as an option of its own:
-	 * none of such a line is taken, and its option reads as not set.
-	 */
-	if (gz) {
-		gzFile f = gzopen(path, "rb");
-
-		if (!f)
-			return -errno;
-		while (gzgets(f, line, sizeof(line))) {
-			whole = strchr(line, '\n') || gzeof(f);
-			if (!skip && whole)
-				ret = selector_config_line(line, s, slots, values,
-							   found);
-			skip = !whole;
-			if (ret)
-				break;
-		}
-		if (!ret && gzclose(f) != Z_OK)
-			ret = -EIO;
-		else if (ret)
-			gzclose(f);
+	ret = read_file(path, KCONFIG_MAX, &raw, &len);
+	if (ret)
 		return ret;
+	if (gz) {
+		ret = gunzip(raw, len, &text, &text_len, &cap);
+		xfree(raw, len + 1);
+		if (ret)
+			return ret;
+	} else {
+		text = raw;
+		text_len = len;
+		cap = len + 1;
 	}
-
-	{
-		FILE *f = fopen(path, "re");
-
-		if (!f)
-			return -errno;
-		while (fgets(line, sizeof(line), f)) {
-			whole = strchr(line, '\n') || feof(f);
-			if (!skip && whole)
-				ret = selector_config_line(line, s, slots, values,
-							   found);
-			skip = !whole;
-			if (ret)
-				break;
-		}
-		if (!ret && ferror(f))
-			ret = errno ? -errno : -EIO;
-		fclose(f);
-	}
+	ret = selector_config_text(text, text_len, s, slots, values, found);
+	xfree(text, cap);
 	return ret;
 }
 
