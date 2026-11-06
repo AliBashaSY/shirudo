@@ -3,9 +3,10 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * What util/tpm_wire.c hands SHA-256, modelled as any result, for every
- * length a caller can pass: the policy digests but PolicyPCR's, the object,
- * NV and qualified names, cpHash and the writer's authorization hash only
- * whole inputs into whole outputs, and a nonce of 1 to 64 bytes.
+ * length a caller can pass: the policy digests, PolicyPCR's for every mask
+ * and the register's for every count of PCR values, the object, NV and
+ * qualified names, cpHash and the writer's authorization hash only whole
+ * inputs into whole outputs, and a nonce of 1 to 64 bytes.
  */
 
 #include "proof.h"
@@ -76,14 +77,20 @@ static void policies(void)
 {
 	__u8 *a = digest(), *b = digest(), *name = any_bytes(TPM_NAME_LEN);
 	__u8 *prev = digest(), *out = digest(), *pub = any_bytes(384);
-	__u32 cc, index, attrs, hierarchy;
+	__u32 cc, index, attrs, hierarchy, mask;
 	__u16 data_size;
+	size_t n_values;
 	bool written;
+
+	__CPROVER_assume(n_values <= 24);
 
 	if (tpm_policy_nv_written(prev, written, out) ||
 	    tpm_policy_or(a, b, out) || tpm_policy_signed(prev, pub, out) ||
 	    tpm_policy_command_code(prev, cc, out) ||
 	    tpm_register_policy_final(a, b, pub, out) ||
+	    tpm_policy_pcr(prev, mask, a, out) ||
+	    tpm_register_policy(mask, any_bytes(32 * n_values), n_values, pub,
+				digest(), digest(), out) ||
 	    tpm_nv_name(index, attrs, prev, data_size, name) ||
 	    tpm_qualified_name(hierarchy, name, any_bytes(TPM_NAME_LEN)) ||
 	    tpm_nv_extend_cphash(name, prev, out))

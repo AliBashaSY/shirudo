@@ -131,9 +131,9 @@ tpm_pcr_selection(__u32 pcr_mask,
 	put_be32(out, 1);
 	put_be16(out + 4, TPM_ALG_SHA256);
 	out[6] = TPM_PCR_SELECT_LEN;
-	out[7] = (__u8)pcr_mask;
-	out[8] = (__u8)(pcr_mask >> 8);
-	out[9] = (__u8)(pcr_mask >> 16);
+	out[7] = (__u8)(pcr_mask & 0xff);
+	out[8] = (__u8)(pcr_mask >> 8 & 0xff);
+	out[9] = (__u8)(pcr_mask >> 16 & 0xff);
 }
 
 int tpm_policy_pcr(const __u8 prev[32], __u32 pcr_mask,

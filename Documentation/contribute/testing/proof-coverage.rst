@@ -214,8 +214,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        256-byte modulus, each spanning exactly the input
    * - ``tpm-digest``
      - The policy, name and cpHash digests of :src:`util/tpm_wire.c`,
-       ``tpm_writer_auth_hash()``
-     - Names of any length, SHA-256 as any result
+       the register's policy, ``tpm_writer_auth_hash()``
+     - Names of any length, every PCR mask, up to 24 PCR values, SHA-256
+       as any result
      - Each reads only whole inputs and writes only its output; an object
        name has a public area of 4 bytes or more; a writer's
        authorization takes a nonce of 1 to 64 bytes
@@ -326,9 +327,9 @@ manifest readers, the tree publication and log, the eventlog's lines,
 the evidence document beyond its PCRs, the config update record, the
 site configuration file, the config image's settings and tree, and the
 kernel configuration. The ``.upatch`` reader and the TPM structures are
-covered part by part, as the table shows; what joins those parts, the
-TPM policy that takes a PCR selection and the event encoders of the
-register, which need a model of SHA-256, have no proof.
+covered part by part, as the table shows; what joins those parts and
+the event encoders of the register, which need a model of SHA-256, have
+no proof.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the
