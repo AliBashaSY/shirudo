@@ -1058,6 +1058,15 @@ testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
 testing/fuzz/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
                           $(FUZZ_CONFIG) util/seal.c util/io.c \
                           util/bpm_source_config.c
+testing/fuzz/fuzz-image: testing/fuzz/fuzz-image.c $(FUZZ_BASE) \
+                         util/image_bootstrap.c util/config_image.c \
+                         util/config_measure.c util/crypto_openssl.c \
+                         util/io.c util/paths.c \
+                         $(FUZZ_SEAL)
+testing/fuzz/fuzz-config-update: testing/fuzz/fuzz-config-update.c \
+                                 $(FUZZ_BASE) util/config_update.c \
+                                 util/config_measure.c testing/fuzz/chain.c \
+                                 util/crypto_openssl.c util/io.c $(FUZZ_SEAL)
 FUZZ_TREE_STATE := util/bpm_tree_state.c util/bpm_tree.c util/io.c $(FUZZ_SEAL) \
                    util/kernel_build_id.c util/kernel_release.c \
                    util/crypto_openssl.c testing/fuzz/chain.c
@@ -1074,6 +1083,7 @@ testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
 testing/fuzz/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
 testing/fuzz/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
 testing/fuzz/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
+testing/fuzz/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'

@@ -520,12 +520,17 @@ run.
      - Certificates and detached CMS signatures
    * - ``config``
      - ``shirudo.conf``, registry sources and ``upatch-tree.conf``
+   * - ``config-update``
+     - The config activation history in the target's state
    * - ``decoder``
      - Map data a Lua decoder reads
    * - ``elf``
      - The build ID of a uprobe target binary
    * - ``eventlog``
      - The eventlog and its replay
+   * - ``image``
+     - Runtime image bootstrap settings and a config image's verity
+       superblock
    * - ``json``
      - The JSON parser
    * - ``kconfig``
@@ -619,7 +624,8 @@ Coverage by area
        ``t6126``
    * - Config images
      - ``t4004``, ``t5001`` to ``t5008``, ``t5101`` to ``t5105``,
-       ``t6112``, ``t6127``, ``t6130``, ``t6132``. Fuzz: ``config``
+       ``t6112``, ``t6127``, ``t6130``, ``t6132``. Fuzz: ``config``,
+       ``config-update``, ``image``
    * - Packages and repositories
      - ``t7001``, ``t7002``, ``t7003``, ``t7004``, ``t7005``,
        ``t7006``. Fuzz:
