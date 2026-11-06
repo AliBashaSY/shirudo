@@ -12,19 +12,39 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "hex.h"
 #include "json.h"
+#include "malloc.h"
+
+static bool grow(struct json_emit *e)
+{
+	size_t cap = e->cap ? size_mul(e->cap, 2) : 4096;
+	char *buf;
+
+	if (!e->max || e->cap >= e->max) {
+		e->err = e->max ? -E2BIG : -ENOSPC;
+		return false;
+	}
+	cap = min(cap, e->max);
+	buf = xreallocarray(e->buf, e->cap, cap, 1);
+	if (!buf) {
+		e->err = -ENOMEM;
+		return false;
+	}
+	e->buf = buf;
+	e->cap = cap;
+	return true;
+}
 
 static void put(struct json_emit *e, char c)
 {
 	if (e->err)
 		return;
-	if (e->len + 1 >= e->cap) {
-		e->err = -ENOSPC;
+	if (e->len + 1 >= e->cap && !grow(e))
 		return;
-	}
 	e->buf[e->len++] = c;
 	e->buf[e->len] = '\0';
 }
@@ -37,14 +57,15 @@ static void put_raw(struct json_emit *e, const char *s)
 
 /*
  * Malformed UTF-8 is -EILSEQ, so a stray byte can never produce
- * invalid JSON.
+ * invalid JSON; lossy writes U+FFFD for it, and for a NUL, instead.
  */
-static void put_string(struct json_emit *e, const char *s)
+static void put_string_n(struct json_emit *e, const char *s, size_t len,
+			 bool lossy)
 {
-	const __u8 *p = (const __u8 *)s;
+	const __u8 *p = (const __u8 *)s, *end = p + len;
 
 	put(e, '"');
-	while (*p && !e->err) {
+	while (p < end && !e->err) {
 		__u8 c = *p;
 
 		if (c == '"' || c == '\\') {
@@ -60,7 +81,7 @@ static void put_string(struct json_emit *e, const char *s)
 		} else if (c == '\t') {
 			put_raw(e, "\\t");
 			p++;
-		} else if (c < 0x20) {
+		} else if (c && c < 0x20) {
 			char u[7];
 
 			if (strsprintf(u, sizeof(u), "\\u%04x", c) < 0) {
@@ -69,16 +90,21 @@ static void put_string(struct json_emit *e, const char *s)
 			}
 			put_raw(e, u);
 			p++;
-		} else if (c < 0x80) {
+		} else if (c && c < 0x80) {
 			put(e, (char)c);
 			p++;
 		} else {
-			size_t n = utf8_width((const char *)p,
-					      strnlen((const char *)p, 4));
+			size_t left = end - p;
+			size_t n = c ? utf8_width((const char *)p,
+						  min(left, 4U)) : 0;
 
-			if (!n) {
+			if (!n && !lossy) {
 				e->err = -EILSEQ;
 				return;
+			}
+			if (!n) {
+				put_raw(e, "\\ufffd");
+				p++;
 			}
 			while (n--)
 				put(e, (char)*p++);
@@ -87,26 +113,34 @@ static void put_string(struct json_emit *e, const char *s)
 	put(e, '"');
 }
 
+static void put_string(struct json_emit *e, const char *s)
+{
+	put_string_n(e, s, strlen(s), false);
+}
+
 static void sep(struct json_emit *e)
 {
+	__u64 bit = 1ull << (e->depth % 64);
+	__u64 *word = &e->nonempty[e->depth / 64];
+
 	if (e->err)
 		return;
-	if (e->nonempty & (1u << e->depth))
+	if (*word & bit)
 		put(e, ',');
 	else
-		e->nonempty |= (1u << e->depth);
+		*word |= bit;
 }
 
 static void enter(struct json_emit *e)
 {
 	if (e->err)
 		return;
-	if (e->depth + 1 >= JSON_MAX_DEPTH) {
+	if (e->depth + 1 >= JSON_EMIT_MAX_DEPTH) {
 		e->err = -E2BIG;
 		return;
 	}
 	e->depth++;
-	e->nonempty &= ~(1u << e->depth);
+	e->nonempty[e->depth / 64] &= ~(1ull << (e->depth % 64));
 }
 
 static void leave(struct json_emit *e)
@@ -264,6 +298,20 @@ void json_raw(struct json_emit *e, const char *value,
 	sep(e);
 	for (i = 0; i < value_len && !e->err; i++)
 		put(e, value[i]);
+}
+
+void json_str_lossy(struct json_emit *e, const char *s, size_t n)
+{
+	json_value_begin(e);
+	put_string_n(e, s, n, true);
+}
+
+void json_key_lossy(struct json_emit *e, const char *s, size_t n)
+{
+	sep(e);
+	put_string_n(e, s, n, true);
+	put(e, ':');
+	e->value_pending = true;
 }
 
 struct pctx {

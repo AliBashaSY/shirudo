@@ -7,6 +7,7 @@
 #include <shirudo/string.h>
 
 #include "json.h"
+#include "malloc.h"
 #include "unit.h"
 
 /* What an eventlog-shaped schema extracts from one document. */
@@ -452,6 +453,52 @@ static void emitter_takes_well_formed_utf8_only(void)
 		EXPECT_EQ(emit_string(bad[i], buf, sizeof(buf)), -EILSEQ);
 }
 
+static void emitter_grows_up_to_its_max(void)
+{
+	struct json_emit deep = { .max = 1u << 20 };
+	struct json_emit big = { .max = 1u << 20 };
+	struct json_emit small = { .max = 64 };
+	char text[6000];
+	int i;
+
+	memset(text, 'x', sizeof(text) - 1);
+	text[sizeof(text) - 1] = '\0';
+	json_obj_open(&big);
+	json_kv_string(&big, "v", text);
+	json_obj_close(&big);
+	ASSERT_EQ(big.err, 0);
+	EXPECT_EQ(big.len, sizeof(text) - 1 + 8);
+	EXPECT_EQ(big.buf[big.len], '\0');
+	xfree(big.buf, big.cap);
+
+	json_obj_open(&small);
+	json_kv_string(&small, "v", text);
+	json_obj_close(&small);
+	EXPECT_EQ(small.err, -E2BIG);
+	xfree(small.buf, small.cap);
+
+	for (i = 0; i < 150; i++)
+		json_arr_open_value(&deep);
+	for (i = 0; i < 150; i++)
+		json_arr_close(&deep);
+	EXPECT_EQ(deep.err, 0);
+	xfree(deep.buf, deep.cap);
+}
+
+static void lossy_writes_replace_bad_bytes(void)
+{
+	char buf[128];
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+
+	json_obj_open(&e);
+	json_key_lossy(&e, "k\xc3", 2);
+	json_str_lossy(&e, "a\xff\x62\0c\xc0\xaf\xc3\xa9", 9);
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+	EXPECT_STREQ(buf, "{\"k\\ufffd\":"
+		     "\"a\\ufffdb\\ufffdc\\ufffd\\ufffd\xc3\xa9\"}");
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(extracts_scalars_and_skips_nested_sets),
 	UNIT_CASE(skips_unknown_keys_and_objects),
@@ -474,6 +521,8 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(discarded_number_follows_the_grammar),
 	UNIT_CASE(malformed_utf8_is_refused),
 	UNIT_CASE(emitter_takes_well_formed_utf8_only),
+	UNIT_CASE(emitter_grows_up_to_its_max),
+	UNIT_CASE(lossy_writes_replace_bad_bytes),
 	{}
 };
 

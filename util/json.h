@@ -23,13 +23,23 @@
 #define JSON_MAX_STRING_BYTES	(16u * 1024u * 1024u)
 #endif
 
+/* An OTLP AnyValue nests four levels for each level of a decoder table. */
+#define JSON_EMIT_MAX_DEPTH	192u
+
+/*
+ * buf and cap are the caller's, or with max set the emitter's: it grows
+ * buf, xfree(buf, cap) releases it, and a document past max bytes is
+ * -E2BIG.
+ */
 struct json_emit {
 	char		*buf;
 	size_t		cap;
 	size_t		len;
-	int		err;	/* sticky; -ENOSPC, -EILSEQ, -E2BIG */
+	size_t		max;
+	int		err;	/* sticky; -ENOSPC, -EILSEQ, -E2BIG, -ENOMEM */
 	__u32		depth;	/* open-container nesting */
-	__u32		nonempty; /* bit d set: container at depth d has a member */
+	/* bit d set: the container at depth d has a member */
+	__u64		nonempty[JSON_EMIT_MAX_DEPTH / 64];
 	bool		value_pending;
 };
 
@@ -63,6 +73,14 @@ void json_raw_value(struct json_emit *e, const char *value,
 		    size_t value_len);
 void json_raw(struct json_emit *e, const char *value,
 	      size_t value_len);
+/*
+ * The n bytes at s as a value or a key, with U+FFFD for each byte that
+ * starts no well-formed UTF-8 character and for each NUL: for bytes
+ * from outside, cut mid-character as often as not, where one bad byte
+ * must not cost the whole document.
+ */
+void json_str_lossy(struct json_emit *e, const char *s, size_t n);
+void json_key_lossy(struct json_emit *e, const char *s, size_t n);
 
 /*
  * Not a generic deserialiser: declared keys are dispatched, everything
