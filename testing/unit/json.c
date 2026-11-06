@@ -627,6 +627,82 @@ static void walk_follows_ecma_404(void)
 		EXPECT_EQ(walk(restricted[i], &t), -EINVAL);
 }
 
+struct members {
+	char	keys[64];
+	char	value[16];
+	int	values, members;
+	struct json_field *slot;
+};
+
+static int member_value(void *ctx)
+{
+	struct members *m = ctx;
+
+	m->values++;
+	return 0;
+}
+
+static int member_key(void *ctx, const char *key)
+{
+	struct members *m = ctx;
+	char entry[32];
+
+	if (strstr(m->keys, key))
+		return -EEXIST;
+	if (strsprintf(entry, sizeof(entry), "%s=%d ", key,
+		       m->slot->seen ? m->values : -1) < 0 ||
+	    strlen(m->keys) + strlen(entry) >= sizeof(m->keys))
+		return -E2BIG;
+	memcpy(m->keys + strlen(m->keys), entry, strlen(entry) + 1);
+	m->values = 0;
+	m->members++;
+	return 0;
+}
+
+static int parse_members(const char *text, struct members *m)
+{
+	struct json_array values = { member_value, m };
+	struct json_map map = { member_key, m };
+	struct json_field value_sub[] = {
+		{ "", JSON_T_STRING, m->value, sizeof(m->value), 0, NULL, 0 },
+	};
+	struct json_field member_sub[] = {
+		{ "", JSON_T_ARRAY, &values, 0, 0, value_sub,
+		  ARRAY_SIZE(value_sub) },
+	};
+	struct json_field f[] = {
+		{ "map", JSON_T_MAP, &map, 0, 0, member_sub,
+		  ARRAY_SIZE(member_sub) },
+	};
+	int ret;
+
+	memset(m, 0, sizeof(*m));
+	m->slot = &member_sub[0];
+	ret = json_parse(text, strlen(text), f, ARRAY_SIZE(f));
+	return ret ? ret : f[0].seen ? 0 : -ENOENT;
+}
+
+/* A map takes keys no schema names, each value as sub[0] takes it. */
+static void map_takes_any_key(void)
+{
+	struct members m;
+
+	ASSERT_EQ(parse_members("{\"map\":{\"a\":[\"x\",\"y\"],\"b\":[],"
+				"\"c\":null}}", &m), 0);
+	EXPECT_STREQ(m.keys, "a=2 b=0 c=-1 ");
+	EXPECT_EQ(m.members, 3);
+	ASSERT_EQ(parse_members("{\"map\":{}}", &m), 0);
+	EXPECT_EQ(m.members, 0);
+	EXPECT_EQ(parse_members("{}", &m), -ENOENT);
+
+	EXPECT_EQ(parse_members("{\"map\":{\"a\":[],\"a\":[]}}", &m), -EEXIST);
+	EXPECT_EQ(parse_members("{\"map\":{\"a\":\"x\"}}", &m), -EINVAL);
+	EXPECT_EQ(parse_members("{\"map\":{\"a\":[1]}}", &m), -EINVAL);
+	EXPECT_EQ(parse_members("{\"map\":[]}", &m), -EINVAL);
+	EXPECT_EQ(parse_members("{\"map\":{},\"map\":{}}", &m), -EINVAL);
+	EXPECT_EQ(parse_members("{\"map\":{\"a\":[]}", &m), -EINVAL);
+}
+
 static int stop_at_number(void *ctx, const char *text, size_t len,
 			  bool integer)
 {
@@ -667,6 +743,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(lossy_writes_replace_bad_bytes),
 	UNIT_CASE(walk_reports_every_token),
 	UNIT_CASE(walk_follows_ecma_404),
+	UNIT_CASE(map_takes_any_key),
 	UNIT_CASE(walk_stops_where_a_callback_says),
 	{}
 };

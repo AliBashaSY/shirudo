@@ -93,6 +93,7 @@ enum json_vtype {
 	JSON_T_BOOL,	/* dst: int *  (0/1)                     */
 	JSON_T_OBJECT,	/* nested object -> sub[] sub-schema     */
 	JSON_T_ARRAY,	/* sub[] schema; dst = shirudo_json_array * */
+	JSON_T_MAP,	/* object of any keys: sub[0] each value; dst = json_map * */
 };
 
 /*
@@ -105,6 +106,18 @@ enum json_vtype {
  */
 struct json_array {
 	int	(*on_elem)(void *ctx);
+	void	*ctx;
+};
+
+/*
+ * A map takes an object whose keys the schema does not name: each value
+ * goes into sub[0], its seen flags and those nested in it reset first,
+ * and on_member then gets its key, at most 255 bytes, to copy the value
+ * out or return a negative errno, a repeated key included where the
+ * caller refuses one.
+ */
+struct json_map {
+	int	(*on_member)(void *ctx, const char *key);
 	void	*ctx;
 };
 

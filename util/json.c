@@ -352,7 +352,8 @@ static void reset_seen(struct json_field *fields, size_t n)
 	for (i = 0; i < n; i++) {
 		fields[i].seen = 0;
 		if (fields[i].type == JSON_T_OBJECT ||
-		    fields[i].type == JSON_T_ARRAY)
+		    fields[i].type == JSON_T_ARRAY ||
+		    fields[i].type == JSON_T_MAP)
 			reset_seen(fields[i].sub, fields[i].n_sub);
 	}
 }
@@ -693,6 +694,55 @@ static int parse_array_into(struct pctx *c, struct json_field *f)
 	return 0;
 }
 
+static int parse_map(struct pctx *c, struct json_field *f)
+{
+	struct json_map *sink = f->dst;
+	char key[256];
+	int ret;
+
+	if (++c->depth > JSON_MAX_DEPTH)
+		return -E2BIG;
+	c->p++;				/* consume '{' */
+	skip_ws(c);
+	if (c->p < c->end && *c->p == '}') {
+		c->p++;
+		c->depth--;
+		f->seen = 1;
+		return 0;
+	}
+	for (;;) {
+		reset_seen(f->sub, f->n_sub);
+		skip_ws(c);
+		ret = parse_string(c, key, sizeof(key));
+		if (ret)
+			return ret;
+		skip_ws(c);
+		if (c->p >= c->end || *c->p != ':')
+			return -EINVAL;
+		c->p++;
+		ret = parse_value(c, f->n_sub ? &f->sub[0] : NULL);
+		if (!ret && sink && sink->on_member)
+			ret = sink->on_member(sink->ctx, key);
+		if (ret)
+			return ret;
+		skip_ws(c);
+		if (c->p >= c->end)
+			return -EINVAL;
+		if (*c->p == ',') {
+			c->p++;
+			continue;
+		}
+		if (*c->p == '}') {
+			c->p++;
+			break;
+		}
+		return -EINVAL;
+	}
+	c->depth--;
+	f->seen = 1;
+	return 0;
+}
+
 static int lit(struct pctx *c, const char *s)
 {
 	size_t n = strlen(s);
@@ -764,6 +814,8 @@ static int parse_value(struct pctx *c, struct json_field *f)
 		int ret;
 
 		if (f) {
+			if (f->type == JSON_T_MAP)
+				return parse_map(c, f);
 			if (f->type != JSON_T_OBJECT)
 				return -EINVAL;
 			c->fields = f->sub;
