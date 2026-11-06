@@ -1,0 +1,75 @@
+---
+name: pre-submit
+description: Run the checks CI runs on a series of shirudo commits before handing it over. Covers each commit built on its own, checkpatch, sign-offs, Coccinelle, sparse, SPDX and the documentation check, both compilers, the sanitizer and fuzz runs, and the VM families the change reaches. Use before saying a change is ready, after rebasing or reordering a series, and to reproduce a CI failure.
+---
+
+# Pre-submit checks
+
+CI runs these on every pull request (`.github/workflows/`, with the
+scripts in `.github/scripts/`). Run them on the series before handing it
+over, and again on the commits a fixup or rebase rewrote. The
+`testing` skill covers running the tests and reading their results.
+
+## Where to run
+
+- `build-commits.sh` checks out each commit in the checkout it runs in
+  and goes back to the branch afterwards. Run it, the Coccinelle loop
+  below and a build with another compiler in a `git worktree`, never in
+  the checkout being edited or one a VM bundle builds from.
+- A worktree has no `artifacts/`, so its build reads the host's kernel
+  BTF: set `BPF_VMLINUX_BTF=<checkout>/artifacts/bpf-next-kernel-debs/vmlinux.btf`
+  when the host kernel lacks the signed-loader ABI.
+- Objects of another `CC` or `SANITIZE` stay behind and break the link:
+  `make clean` or `make -B` when switching.
+- Every compiler check takes clang 23. CI's
+  `.github/scripts/install-clang.sh` makes `/usr/bin/clang` that one;
+  where the host's is older, pass `CC=clang-23` and build
+  `shirudo-build` with `SHIRUDO_CLANG_PATH=/usr/bin/clang-23`.
+
+## Each commit of the series
+
+```sh
+range=origin/main..HEAD
+.github/scripts/build-commits.sh $range
+.github/scripts/check-style.sh $range
+.github/scripts/check-dco.sh $range
+for c in $(git rev-list --reverse $range); do
+	git checkout -q --detach "$c" &&
+	.github/scripts/check-coccinelle.sh || break
+done
+```
+
+`check-dco.sh` wants the author's sign-off, which an agent never adds:
+it fails until the person who submits the series signs off.
+
+## The head of the series
+
+```sh
+.github/scripts/check-sparse.sh
+.github/scripts/check-spdx.sh
+make -C Documentation check         # DOCS_CONTAINER=0 without podman or docker
+make -B && make -B shirudo-build && make -B -f Makefile.shirudo test-helpers
+make -B CC=clang && make -B CC=clang shirudo-build &&
+	make -B -f Makefile.shirudo CC=clang test-helpers
+make tests VM=0 SANITIZE=address,undefined           # CC=gcc and CC=clang,
+                                                     # one worktree each
+make -C testing fuzz FUZZ_SECONDS=60
+make -C testing functional/<family>                  # each family it touches
+```
+
+A warning fails every build. Fix it rather than silence it.
+
+## Fixing a commit of the series
+
+Fold a fix into the commit it belongs to rather than adding one on top:
+
+```sh
+git commit --fixup=<commit>
+GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash <base>
+```
+
+Then run the checks again on the commits that changed. A commit message
+follows `Documentation/contribute/code/contributing.rst`: a subject of
+`area: imperative summary` of at most 75 characters, a body that says
+why before what, and a `Fixes:` tag with the 12-character hash and the
+subject as `git log -1 --format=%s` prints it.
