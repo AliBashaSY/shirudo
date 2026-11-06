@@ -558,8 +558,6 @@ rc=<rc> (<strerror>)`` and exits 1:
        config cannot be read. The cursor stays on the operation.
    * - ``operation_digest_parse``
      - The operation digest is malformed.
-   * - ``expected_payload_digest``
-     - The artifact's payload differs from the expected payload.
    * - ``pending_write``
      - ``pending.json`` cannot be written.
    * - ``artifact_fetch_or_verify``

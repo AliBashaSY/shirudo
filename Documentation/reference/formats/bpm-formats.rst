@@ -414,10 +414,6 @@ Operation
      - Digest of the ``.upatch`` layer.
    * - ``artifact.payload_sha256``
      - ``sha256:`` and the artifact's header ``payload_sha256``.
-   * - ``expected_payload_sha256``
-     - Optional. When present, must equal ``artifact.payload_sha256``.
-       ``bpm tree append`` does not write it, and ``operation_digest`` does
-       not cover it.
    * - ``operation_digest``
      - ``sha256:`` and the SHA-256 of the canonical operation, see
        `Operation digest`_.

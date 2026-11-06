@@ -2138,9 +2138,6 @@ static int tree_validate_operation(const struct tree_operation *op)
 		return -EINVAL;
 	if (strcmp(op->operation_digest, expected_digest))
 		return -EKEYREJECTED;
-	if (op->expected_payload_sha256[0] &&
-	    tree_digest_hex(op->expected_payload_sha256, digest))
-		return -EINVAL;
 	return 0;
 }
 
@@ -2336,13 +2333,6 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		if (ret) {
 			tree_sync_report_error("operation_digest_parse", op, ret);
 			ret = -EINVAL;
-			goto out;
-		}
-		if (op->expected_payload_sha256[0] &&
-		    strcmp(op->expected_payload_sha256, op->artifact.payload_sha256)) {
-			tree_sync_report_error("expected_payload_digest", op,
-					       -EKEYREJECTED);
-			ret = -EKEYREJECTED;
 			goto out;
 		}
 		ret = tree_write_pending(op);

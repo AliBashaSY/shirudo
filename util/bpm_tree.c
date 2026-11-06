@@ -365,10 +365,6 @@ static int tp_operation(struct tree_parser *p, struct tree_operation *o)
 		} else if (!strcmp(key, "artifact")) {
 			if (tp_artifact(p, &o->artifact))
 				return -EINVAL;
-		} else if (!strcmp(key, "expected_payload_sha256")) {
-			if (tp_string(p, o->expected_payload_sha256,
-				      sizeof(o->expected_payload_sha256)))
-				return -EINVAL;
 		} else if (!strcmp(key, "operation_digest")) {
 			if (tp_string(p, o->operation_digest,
 				      sizeof(o->operation_digest)))

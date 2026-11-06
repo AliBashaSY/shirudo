@@ -55,7 +55,6 @@ struct tree_operation {
 	char id[TREE_STRING_MAX];
 	struct tree_selector selector;
 	struct tree_artifact artifact;
-	char expected_payload_sha256[128];
 	char operation_digest[128];
 };
 
