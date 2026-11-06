@@ -1724,18 +1724,11 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	return 0;
 }
 
-static int tree_digest_hex(const char *digest, __u8 out[32])
-{
-	if (!digest || strncmp(digest, "sha256:", 7))
-		return -EINVAL;
-	return hex_decode(digest + 7, out, 32);
-}
-
 static bool tree_digest_valid(const char *digest)
 {
 	__u8 raw[32];
 
-	return !tree_digest_hex(digest, raw);
+	return !sha256_digest_decode(digest, raw);
 }
 
 static int tree_fetch_publication(const struct bpm_tree_config *cfg,
@@ -2070,7 +2063,7 @@ static int tree_recover_pending(const struct tree_publication *pub,
 		unlink(BPM_TREE_PENDING_PATH);
 		return 0;
 	}
-	if (tree_digest_hex(pending.operation_digest, digest) ||
+	if (sha256_digest_decode(pending.operation_digest, digest) ||
 	    hex_decode(state->projection_root, previous, 32))
 		return -EINVAL;
 	ret = sha256_2(previous, sizeof(previous), digest, sizeof(digest),
@@ -2121,10 +2114,10 @@ static int tree_validate_operation(const struct tree_operation *op)
 	if (!op || op->seq <= 0 || !upatch_name_valid(op->id) ||
 	    (strcmp(op->op, "add") && strcmp(op->op, "delete")))
 		return -EINVAL;
-	if (tree_digest_hex(op->operation_digest, digest) ||
-	    tree_digest_hex(op->artifact.manifest_digest, digest) ||
-	    tree_digest_hex(op->artifact.layer_digest, digest) ||
-	    tree_digest_hex(op->artifact.payload_sha256, digest))
+	if (sha256_digest_decode(op->operation_digest, digest) ||
+	    sha256_digest_decode(op->artifact.manifest_digest, digest) ||
+	    sha256_digest_decode(op->artifact.layer_digest, digest) ||
+	    sha256_digest_decode(op->artifact.payload_sha256, digest))
 		return -EINVAL;
 	if (tree_operation_digest(op, expected_digest))
 		return -EINVAL;
@@ -2321,7 +2314,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		selected++;
 		if (dry_run)
 			continue;
-		ret = tree_digest_hex(op->operation_digest, digest);
+		ret = sha256_digest_decode(op->operation_digest, digest);
 		if (ret) {
 			tree_sync_report_error("operation_digest_parse", op, ret);
 			ret = -EINVAL;

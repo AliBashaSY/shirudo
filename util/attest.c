@@ -591,8 +591,7 @@ static int on_record(void *ctx)
 			       (__s64)p->tree_seq) < 0)
 			return -E2BIG;
 		if (p->tree_seq > 0 &&
-		    !strncmp(p->tree_digest_hex, "sha256:", 7) &&
-		    !hex_decode(p->tree_digest_hex + 7, operation, 32) &&
+		    !sha256_digest_decode(p->tree_digest_hex, operation) &&
 		    !chain_tree_event(p->tree_seq, operation, event)) {
 			r->derived = !memneq_explicit(event, r->digest, 32);
 			if (strsprintf(r->label, sizeof(r->label),

@@ -572,7 +572,7 @@ static bool hex32_valid(const char *hex)
 
 int tree_state_read(struct tree_state *out)
 {
-	__u8 *body;
+	__u8 *body, digest[32];
 	size_t len;
 	__s64 schema = 0;
 	struct json_field f[] = {
@@ -609,9 +609,7 @@ int tree_state_read(struct tree_state *out)
 		       !hex32_valid(out->projection_root_tpm)))))
 		ret = -EINVAL;
 	if (!ret && out->manifest_digest[0] &&
-	    (strlen(out->manifest_digest) != 71 ||
-	     strncmp(out->manifest_digest, "sha256:", 7) ||
-	     !hex32_valid(out->manifest_digest + 7)))
+	    sha256_digest_decode(out->manifest_digest, digest))
 		ret = -EINVAL;
 	out->schema = (int)schema;
 	xfree(body, len + 1);
@@ -660,10 +658,10 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 {
 	char buf[1024], root[65];
 	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	__u8 digest[32];
 	int fd, ret;
 
-	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
-	    !hex32_valid(operation_digest + 7))
+	if (sha256_digest_decode(operation_digest, digest))
 		return -EINVAL;
 	hex_encode(projection_root, 32, root);
 	json_obj_open(&e);
@@ -734,8 +732,7 @@ int tree_event_replay(__u8 out[32])
 			break;
 		}
 		previous_seq = seq;
-		if (strncmp(digest, "sha256:", 7) ||
-		    hex_decode(digest + 7, d, sizeof(d))) {
+		if (sha256_digest_decode(digest, d)) {
 			ret = -EINVAL;
 			break;
 		}

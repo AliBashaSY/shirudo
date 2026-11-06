@@ -58,3 +58,10 @@ int hex_decode(const char *hex, __u8 *out, size_t n)
 	}
 	return 0;
 }
+
+int sha256_digest_decode(const char *digest, __u8 out[32])
+{
+	if (!digest || strncmp(digest, "sha256:", 7))
+		return -EINVAL;
+	return hex_decode(digest + 7, out, 32);
+}

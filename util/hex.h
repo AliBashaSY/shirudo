@@ -23,4 +23,10 @@ int hex_nibble(int c);
 /* Exactly 2 * n hex digits, either case. 0 or -EINVAL. */
 int hex_decode(const char *hex, __u8 *out, size_t n);
 
+/*
+ * An OCI digest, "sha256:" and 64 hex digits of either case, into its 32
+ * bytes. 0 or -EINVAL.
+ */
+int sha256_digest_decode(const char *digest, __u8 out[32]);
+
 #endif /* SHIRUDO_HEX_H */

@@ -42,11 +42,33 @@ static void decode_refuses_non_hex(void)
 	EXPECT_EQ(hex_decode("zz", out, 1), -EINVAL);
 }
 
+#define HEX64 "00112233445566778899aabbccddeeffFFEEDDCCBBAA99887766554433221100"
+#define NOTHEX64 "g0112233445566778899aabbccddeeffFFEEDDCCBBAA99887766554433221100"
+
+static void sha256_digest_is_prefix_and_64_digits(void)
+{
+	__u8 out[32];
+
+	EXPECT_EQ(sha256_digest_decode("sha256:" HEX64, out), 0);
+	EXPECT_EQ(out[0], 0x00);
+	EXPECT_EQ(out[1], 0x11);
+	EXPECT_EQ(out[16], 0xff);
+	EXPECT_EQ(out[31], 0x00);
+	EXPECT_EQ(sha256_digest_decode(NULL, out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode(HEX64, out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode("sha512:" HEX64, out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode("SHA256:" HEX64, out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode("sha256:" HEX64 "0", out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode("sha256:", out), -EINVAL);
+	EXPECT_EQ(sha256_digest_decode("sha256:" NOTHEX64, out), -EINVAL);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(encode_is_lower_case),
 	UNIT_CASE(decode_takes_either_case),
 	UNIT_CASE(decode_wants_the_exact_length),
 	UNIT_CASE(decode_refuses_non_hex),
+	UNIT_CASE(sha256_digest_is_prefix_and_64_digits),
 	{}
 };
 

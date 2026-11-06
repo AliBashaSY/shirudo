@@ -922,8 +922,7 @@ static int on_descriptor(void *ud)
 		return -E2BIG;
 	/* The registry wrote this: a layer is all three or none. */
 	if (!s->scratch.media[0] || s->scratch.size < 0 ||
-	    strncmp(s->scratch.digest, "sha256:", 7) ||
-	    hex_decode(s->scratch.digest + 7, digest, sizeof(digest)))
+	    sha256_digest_decode(s->scratch.digest, digest))
 		return -EINVAL;
 	s->items[s->n++] = s->scratch;
 	memset(&s->scratch, 0, sizeof(s->scratch));
