@@ -12,7 +12,9 @@ This page lists what the tests under :src:`testing/` cover, by family, by
 area and by threat, and what no test covers. A test is named by its
 number here, and by its file name without ``.sh`` in the family
 tables. :doc:`/contribute/testing/testing` explains the families, the numbering
-and how to run them.
+and how to run them. What the proofs cover, for every input within their
+bounds rather than for the inputs a test picks, is on
+:doc:`proof-coverage`.
 
 Families
 --------

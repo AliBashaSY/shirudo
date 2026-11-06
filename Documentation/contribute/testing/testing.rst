@@ -79,10 +79,15 @@ Test tiers
      - :src:`testing/fuzz/`
      - On the build host, under libFuzzer, ASan and UBSan
      - ``make -C testing fuzz``
+   * - Proofs
+     - :src:`testing/proofs/`
+     - On the build host, with CBMC and Lean 4, about an hour for all
+     - ``make proofs``
 
 ``make tests`` in the checkout root, or ``make -C testing``, runs the
 unit, CI check, functional and end-to-end tiers in that order. The fuzz
-targets run on their own.
+targets and the proofs run on their own, and CI does not run the
+proofs: :doc:`proofs` says which to run for a change.
 
 Test numbers and families
 -------------------------

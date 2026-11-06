@@ -16,6 +16,14 @@ with ``bpm repo update``, ``bpm install``, ``bpm upgrade`` and
 ``bpm tree sync``. The ``.upatch`` files inside are specified in
 :doc:`upatch-format`.
 
+CBMC proves the target's readers of these formats within the bounds
+:doc:`/contribute/testing/proof-coverage` lists: the tar headers and
+member names, the registry's challenges, tokens, headers and
+descriptors, the package names and versions, the tree publication's
+selectors and operations, and the checks that keep a publication from
+taking a node back. Lean 4 proves the version order total for versions
+of every length.
+
 What is signed
 --------------
 

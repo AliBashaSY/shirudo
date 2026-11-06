@@ -58,6 +58,10 @@ The fields of the box are:
   :doc:`tamper-counters`
 - Tests: the target tests under :src:`testing/functional/` that exercise
   the refusal
+- Proofs: where a userspace check stands against the threat, the CBMC
+  and Lean 4 proofs of it in
+  :doc:`/contribute/testing/proof-coverage`; a proof holds for the code
+  it reads, within its bounds, not for the kernel or the hooks
 - Residual: the residual risks and threats to resolve that bound it
 
 A claim on this page is one of three kinds, and the text says which. A
@@ -868,6 +872,10 @@ other.
 :Counters: ``PinXattr`` for a forged payload binding; none for a
    modified loader, which the kernel refuses first
 :Tests: ``t3104``, ``t6117``, ``t6138``
+:Proofs: ``upatch-header``, ``upatch-signed-sections``,
+   ``upatch-signed-name``, ``upatch-name``, ``upatch-prog-specs``,
+   ``upatch-prog-uprobes``, ``upatch-decoders``,
+   ``upatch-policy-labels``
 :Residual: R1, R16
 
 .. _tm-t5:
@@ -950,6 +958,7 @@ tree operations run without it.
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
    ``t6122``, ``t6128``, ``t6143``, ``t6144``
+:Proofs: ``Shirudo.Chain``, ``eventlog-records``, ``tpm-digest``
 :Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window
@@ -1026,6 +1035,11 @@ revocation does not reach tree publications (U13).
 :Refusal: the ``bpm`` command fails and installs nothing
 :Counters: none
 :Tests: ``t7005``, ``t7101``, ``t7102``, ``t7103``, ``t7104``, ``t8005``
+:Proofs: ``bpm-tar-header``, ``bpm-tar-octal``, ``bpm-archive-path``,
+   ``bpm-oci-challenge``, ``bpm-oci-token``, ``bpm-oci-header``,
+   ``bpm-oci-descriptor``, ``bpm-semver-model``, ``Shirudo.SemVer``,
+   ``bpm-tree-follows``, ``bpm-tree-reader``, ``json-string``,
+   ``json-limits``
 :Residual: R8, R9, U3, U4, U13, U15
 
 T8 Quantum-capable adversaries against the trust anchor
@@ -1103,6 +1117,9 @@ document can carry a software key's signatures (U1).
    failed check named
 :Counters: none
 :Tests: ``t4003``, ``t4004``, ``t4102``
+:Proofs: ``tpm-reader``, ``tpm-attest``, ``tpm-signature``,
+   ``tpm-public``, ``attest-pcr``, ``attest-fields``,
+   ``attest-name-digest``, ``Shirudo.Chain``
 :Residual: R10, R11, U1, U8, U9
 
 .. _tm-t10:
@@ -1190,6 +1207,8 @@ Which keys can sign a config is A7, and U2 is the gap there.
    refusals move none
 :Tests: ``t5101``, ``t5102``, ``t5103``, ``t5104``, ``t6101``,
    ``t6113``, ``t6127``, ``t6130``, ``t6131``, ``t6132``
+:Proofs: ``config-image``, ``image-bootstrap``, ``image-path``,
+   ``dm-names``
 :Residual: R5, R14, U2
 
 T12 Interrupted image activation
@@ -1285,6 +1304,7 @@ commands that reach the real driver.
 :Counters: ``TpmExtend`` for a refused extension; none for a
    substituted device
 :Tests: ``t4103``, ``t6125``
+:Proofs: ``tpm-public``, ``tpm-kdf``
 :Residual: U8
 
 Residual risks
