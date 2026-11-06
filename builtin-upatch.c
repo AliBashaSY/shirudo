@@ -2463,12 +2463,9 @@ static int append_json_record(const char *path, const char *json, size_t len)
 	fd = seal_output_open(path, O_RDWR | O_CREAT | O_APPEND, 0644);
 	if (fd < 0)
 		return fd;
-	while (flock(fd, LOCK_EX) != 0) {
-		if (errno != EINTR) {
-			ret = -errno;
-			goto out;
-		}
-	}
+	ret = lock_exclusive(fd);
+	if (ret)
+		goto out;
 	if (fstat(fd, &st) != 0) {
 		ret = -errno;
 		goto out_unlock;

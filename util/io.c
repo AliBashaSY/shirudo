@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
 #include <sys/syscall.h>
@@ -295,4 +296,13 @@ int bpffs_mounted_at(const char *path)
 		      stx.stx_attributes & STATX_ATTR_MOUNT_ROOT;
 	close(fd);
 	return ret;
+}
+
+int lock_exclusive(int fd)
+{
+	while (flock(fd, LOCK_EX)) {
+		if (errno != EINTR)
+			return -errno;
+	}
+	return 0;
 }

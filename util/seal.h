@@ -63,6 +63,19 @@ int seal_write_file(const char *path, const void *data, size_t len,
 		    mode_t mode);
 
 /*
+ * The lock file at path, created sealed when it is not there, held
+ * exclusively until the returned descriptor is closed; or -errno.
+ */
+int seal_lock(const char *path);
+
+/*
+ * line appended as one record to the sealed log at path, created when it
+ * is not there, under the lock that keeps its appenders apart; see
+ * append_line(). 0 or -errno.
+ */
+int seal_append_line(const char *path, const char *line, size_t len);
+
+/*
  * Open a file the caller names for shirudo to write: a report, a
  * download, an export. Root may run shirudo with any path, and the seal
  * lets shirudo write what it denies everyone else, so the file must be

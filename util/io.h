@@ -47,6 +47,9 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
  */
 int check_trusted(int fd, const char *path, bool secret);
 
+/* An exclusive flock() on fd, waited for through signals. 0 or -errno. */
+int lock_exclusive(int fd);
+
 /* A st_dev or st_rdev as the kernel encodes the dev_t in s_dev. */
 __u32 kernel_dev(dev_t dev);
 

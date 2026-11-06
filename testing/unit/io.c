@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/file.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
 
@@ -95,6 +96,22 @@ static void append_line_takes_one_line_alone(void)
 	close(fd);
 }
 
+static void lock_exclusive_keeps_others_out(void)
+{
+	int fd = log_with("", 0), other;
+	char path[64];
+
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "/proc/self/fd/%d", fd) > 0);
+	other = open(path, O_RDONLY | O_CLOEXEC);
+	ASSERT_TRUE(other >= 0);
+	EXPECT_EQ(lock_exclusive(fd), 0);
+	EXPECT_EQ(flock(other, LOCK_EX | LOCK_NB), -1);
+	EXPECT_EQ(errno, EWOULDBLOCK);
+	close(fd);
+	EXPECT_EQ(lock_exclusive(other), 0);
+	close(other);
+}
+
 static void kernel_dev_is_major_over_20_minor_bits(void)
 {
 	EXPECT_EQ(kernel_dev(makedev(8, 1)), 0x800001U);
@@ -117,6 +134,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(append_line_adds_one_record),
 	UNIT_CASE(append_line_drops_what_did_not_finish),
 	UNIT_CASE(append_line_takes_one_line_alone),
+	UNIT_CASE(lock_exclusive_keeps_others_out),
 	UNIT_CASE(kernel_dev_is_major_over_20_minor_bits),
 	UNIT_CASE(bpffs_mounted_at_wants_the_root_of_a_bpffs),
 	{}

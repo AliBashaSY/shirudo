@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -73,28 +72,12 @@ int eventlog_append(const char *json_line)
  */
 int eventlog_append_to(const char *path, const char *json_line)
 {
-	int fd, ret;
+	int ret;
 
-	fd = seal_open(path, O_RDWR | O_CREAT | O_APPEND, 0600);
-	if (fd < 0) {
-		pr_err("eventlog: open %s: %s", path, strerror(-fd));
-		return fd;
-	}
-	while (flock(fd, LOCK_EX) != 0) {
-		if (errno != EINTR) {
-			ret = -errno;
-			goto out;
-		}
-	}
-	ret = append_line(fd, path, json_line, strlen(json_line));
-out:
-	if (close(fd) != 0 && !ret)
-		ret = -errno;
-	if (ret) {
-		pr_err("eventlog: append: %s", strerror(-ret));
-		return ret;
-	}
-	return 0;
+	ret = seal_append_line(path, json_line, strlen(json_line));
+	if (ret)
+		pr_err("eventlog: append to %s: %s", path, strerror(-ret));
+	return ret;
 }
 
 int eventlog_would_exceed(__u64 max_bytes)
@@ -327,21 +310,10 @@ static int adopt_pending(void)
 int eventlog_lock(void)
 {
 	char path[PATH_MAX];
-	int fd, ret;
 
 	if (strsprintf(path, sizeof(path), "%s.lock", eventlog_path()) < 0)
 		return -ENAMETOOLONG;
-	fd = seal_open(path, O_RDWR | O_CREAT, 0600);
-	if (fd < 0)
-		return fd;
-	while (flock(fd, LOCK_EX)) {
-		if (errno != EINTR) {
-			ret = -errno;
-			close(fd);
-			return ret;
-		}
-	}
-	return fd;
+	return seal_lock(path);
 }
 
 void eventlog_unlock(int fd)

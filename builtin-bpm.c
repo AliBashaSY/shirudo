@@ -456,20 +456,10 @@ static int save_source(const struct bpm_source *s)
 
 static int with_bpm_lock(void)
 {
-	int fd, ret;
+	int ret;
 
 	ret = seal_mkdir_p(LOCKS_DIR, 0700);
-	if (ret)
-		return ret;
-	fd = seal_open(BPM_LOCK_PATH, O_RDWR | O_CREAT, 0600);
-	if (fd < 0)
-		return fd;
-	if (flock(fd, LOCK_EX)) {
-		ret = -errno;
-		close(fd);
-		return ret;
-	}
-	return fd;
+	return ret ? ret : seal_lock(BPM_LOCK_PATH);
 }
 
 static int bpm_fail(const char *action, int ret)

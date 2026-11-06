@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
@@ -659,7 +658,7 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	char buf[1024], root[65];
 	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
 	__u8 digest[32];
-	int fd, ret;
+	int ret;
 
 	if (sha256_digest_decode(operation_digest, digest))
 		return -EINVAL;
@@ -675,22 +674,7 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	ret = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
 	if (ret)
 		return ret;
-	fd = seal_open(BPM_TREE_EVENTLOG_PATH,
-		       O_RDWR | O_CREAT | O_APPEND, 0600);
-	if (fd < 0)
-		return fd;
-	/* A partial line would fail every later replay. */
-	while (flock(fd, LOCK_EX) != 0) {
-		if (errno != EINTR) {
-			ret = -errno;
-			goto out;
-		}
-	}
-	ret = append_line(fd, BPM_TREE_EVENTLOG_PATH, buf, e.len);
-out:
-	if (close(fd) && !ret)
-		ret = -errno;
-	return ret;
+	return seal_append_line(BPM_TREE_EVENTLOG_PATH, buf, e.len);
 }
 
 int tree_event_replay(__u8 out[32])

@@ -357,6 +357,36 @@ out_dir:
 	return ret;
 }
 
+int seal_lock(const char *path)
+{
+	int fd, ret;
+
+	fd = seal_open(path, O_RDWR | O_CREAT, 0600);
+	if (fd < 0)
+		return fd;
+	ret = lock_exclusive(fd);
+	if (ret) {
+		close(fd);
+		return ret;
+	}
+	return fd;
+}
+
+int seal_append_line(const char *path, const char *line, size_t len)
+{
+	int fd, ret;
+
+	fd = seal_open(path, O_RDWR | O_CREAT | O_APPEND, 0600);
+	if (fd < 0)
+		return fd;
+	ret = lock_exclusive(fd);
+	if (!ret)
+		ret = append_line(fd, path, line, len);
+	if (close(fd) && !ret)
+		ret = -errno;
+	return ret;
+}
+
 int seal_output_open(const char *path, int flags, mode_t mode)
 {
 	return output_open(path, flags, mode, NULL, NULL);
