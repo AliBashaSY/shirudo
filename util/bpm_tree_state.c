@@ -569,6 +569,63 @@ static bool hex32_valid(const char *hex)
 	return !hex_decode(hex, raw, sizeof(raw));
 }
 
+int tree_pending_parse(const char *body, size_t len,
+		       struct tree_pending *out)
+{
+	__s64 schema = 0;
+	struct json_field fields[] = {
+		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
+		{ "seq", JSON_T_INT, &out->seq, 0, 0, NULL, 0 },
+		{ "id", JSON_T_STRING, out->id, sizeof(out->id), 0, NULL, 0 },
+		{ "operation_digest", JSON_T_STRING, out->operation_digest,
+		  sizeof(out->operation_digest), 0, NULL, 0 },
+	};
+	__u8 digest[32];
+	int ret;
+
+	*out = (struct tree_pending){};
+	ret = json_parse(body, len, fields, ARRAY_SIZE(fields));
+	if (!ret && (schema != 1 || out->seq <= 0 ||
+		     !upatch_name_valid(out->id) ||
+		     sha256_digest_decode(out->operation_digest, digest)))
+		ret = -EINVAL;
+	return ret;
+}
+
+int tree_pending_read(struct tree_pending *out)
+{
+	size_t len;
+	char *body;
+	int ret;
+
+	ret = read_file(BPM_TREE_PENDING_PATH, 64u * 1024u, &body, &len);
+	if (ret)
+		return ret;
+	ret = tree_pending_parse(body, len, out);
+	xfree(body, len + 1);
+	return ret;
+}
+
+int tree_pending_write(const struct tree_operation *op)
+{
+	char buf[1024];
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	int ret;
+
+	json_obj_open(&e);
+	json_kv_int(&e, "schema", 1);
+	json_kv_int(&e, "seq", op->seq);
+	json_kv_string(&e, "id", op->id);
+	json_kv_string(&e, "operation_digest", op->operation_digest);
+	json_obj_close(&e);
+	if (e.err)
+		return e.err;
+	ret = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
+	if (ret)
+		return ret;
+	return seal_write_file(BPM_TREE_PENDING_PATH, buf, e.len, 0600);
+}
+
 int tree_state_read(struct tree_state *out)
 {
 	__u8 *body, digest[32];

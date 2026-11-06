@@ -144,6 +144,23 @@ int tree_publication_follows(const struct tree_publication *pub,
  */
 int tree_selector_matches(const struct tree_selector *selector);
 
+/*
+ * The operation tree sync is applying, recorded before it starts so that
+ * a sync after a crash reconciles it with the tree eventlog: its
+ * sequence number, upatch name and operation digest. Parsing refuses a
+ * record that does not have those; reading is -ENOENT for none.
+ */
+struct tree_pending {
+	__s64 seq;
+	char id[TREE_STRING_MAX];
+	char operation_digest[128];
+};
+
+int tree_pending_parse(const char *body, size_t len,
+		       struct tree_pending *out);
+int tree_pending_read(struct tree_pending *out);
+int tree_pending_write(const struct tree_operation *op);
+
 int tree_state_read(struct tree_state *out);
 int tree_state_write(const struct tree_state *state);
 int tree_event_append(__s64 seq, const char *operation_digest,

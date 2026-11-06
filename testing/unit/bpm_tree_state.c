@@ -113,9 +113,39 @@ static void gzip_config_is_one_whole_member(void)
 	EXPECT_EQ(read_gz(false, 0, NULL), -EINVAL);
 }
 
+#define PENDING_DIGEST \
+	"sha256:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+static int pending(const char *doc, struct tree_pending *out)
+{
+	return tree_pending_parse(doc, strlen(doc), out);
+}
+
+static void pending_is_an_operation_in_flight(void)
+{
+	struct tree_pending p;
+
+	ASSERT_EQ(pending("{\"schema\":1,\"seq\":3,\"id\":\"fix\","
+			  "\"operation_digest\":\"" PENDING_DIGEST "\"}", &p), 0);
+	EXPECT_EQ(p.seq, 3);
+	EXPECT_STREQ(p.id, "fix");
+	EXPECT_EQ(pending("{\"schema\":2,\"seq\":3,\"id\":\"fix\","
+			  "\"operation_digest\":\"" PENDING_DIGEST "\"}", &p),
+		  -EINVAL);
+	EXPECT_EQ(pending("{\"schema\":1,\"seq\":0,\"id\":\"fix\","
+			  "\"operation_digest\":\"" PENDING_DIGEST "\"}", &p),
+		  -EINVAL);
+	EXPECT_EQ(pending("{\"schema\":1,\"seq\":3,\"id\":\"../fix\","
+			  "\"operation_digest\":\"" PENDING_DIGEST "\"}", &p),
+		  -EINVAL);
+	EXPECT_EQ(pending("{\"schema\":1,\"seq\":3,\"id\":\"fix\","
+			  "\"operation_digest\":\"sha256:00\"}", &p), -EINVAL);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(long_line_is_one_line),
 	UNIT_CASE(gzip_config_is_one_whole_member),
+	UNIT_CASE(pending_is_an_operation_in_flight),
 	{}
 };
 

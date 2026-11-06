@@ -1768,27 +1768,6 @@ static int tree_write_report(const char *path, const struct tree_state *s,
 	return 0;
 }
 
-static int tree_write_pending(const struct tree_operation *op)
-{
-	char buf[1024];
-	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	int ret;
-
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_kv_int(&e, "seq", op->seq);
-	json_kv_string(&e, "id", op->id);
-	json_kv_string(&e, "operation_digest", op->operation_digest);
-	json_obj_close(&e);
-	if (e.err)
-		return e.err;
-	ret = seal_mkdir_p(BPM_TREE_VAR_DIR, 0700);
-	if (ret)
-		return ret;
-	return seal_write_file(BPM_TREE_PENDING_PATH, buf,
-			       e.len, 0600);
-}
-
 static int tree_status_write(const char *id, const char *status)
 {
 	char path[PATH_MAX];
@@ -1814,39 +1793,6 @@ static void tree_status_clear(const char *id)
 		       BPM_TREE_STATUS_DIR, id) < 0)
 		return;
 	unlink(path);
-}
-
-struct bpm_tree_pending {
-	__s64 seq;
-	char id[TREE_STRING_MAX];
-	char operation_digest[128];
-};
-
-static int tree_read_pending(struct bpm_tree_pending *pending)
-{
-	__u8 *body;
-	size_t len;
-	__s64 schema = 0;
-	struct json_field fields[] = {
-		{ "schema", JSON_T_INT, &schema, 0, 0, NULL, 0 },
-		{ "seq", JSON_T_INT, &pending->seq, 0, 0, NULL, 0 },
-		{ "id", JSON_T_STRING, pending->id,
-		  sizeof(pending->id), 0, NULL, 0 },
-		{ "operation_digest", JSON_T_STRING,
-		  pending->operation_digest, sizeof(pending->operation_digest),
-		  0, NULL, 0 },
-	};
-	int ret = read_file(BPM_TREE_PENDING_PATH, 64u * 1024u,
-			    &body, &len);
-	if (ret)
-		return ret;
-	ret = json_parse((const char *)body, len, fields, ARRAY_SIZE(fields));
-	if (!ret && (schema != 1 || pending->seq <= 0 ||
-		     !upatch_name_valid(pending->id) ||
-		     !tree_digest_valid(pending->operation_digest)))
-		ret = -EINVAL;
-	xfree(body, len + 1);
-	return ret;
 }
 
 /*
@@ -1906,13 +1852,13 @@ static int tree_measure_operation(const struct tree_operation *op,
 static int tree_recover_pending(const struct tree_publication *pub,
 				struct tree_state *state)
 {
-	struct bpm_tree_pending pending = {};
+	struct tree_pending pending;
 	const struct tree_operation *op = NULL;
 	__u8 digest[32], previous[32], next[32], replay[32];
 	bool applied = false, event_present = false;
 	int ret;
 
-	ret = tree_read_pending(&pending);
+	ret = tree_pending_read(&pending);
 	if (ret == -ENOENT)
 		return 0;
 	if (ret)
@@ -2120,7 +2066,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			ret = -EINVAL;
 			goto out;
 		}
-		ret = tree_write_pending(op);
+		ret = tree_pending_write(op);
 		if (ret) {
 			tree_sync_report_error("pending_write", op, ret);
 			goto out;
