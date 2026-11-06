@@ -541,8 +541,11 @@ operations = [
     operation(5, "shirudo-test-tree-match", this_node, match_artifact),
     operation(6, "shirudo-test-tree-match", kconfig_node,
               match_unload_artifact, op="delete"),
+    # t7105 loads this upatch by hand first.
+    operation(7, "shirudo-test-tree-match", this_node, match_artifact),
 ]
-references = ("stable", "updated", "deleted", "restored", "kconfig")
+references = ("stable", "updated", "deleted", "restored", "kconfig",
+              "reloaded")
 for generation, reference in enumerate(references, start=1):
     head = generation + 1
     publication = {
@@ -558,7 +561,7 @@ for generation, reference in enumerate(references, start=1):
                      .encode())
 PY
 
-	for reference in stable updated deleted restored kconfig; do
+	for reference in stable updated deleted restored kconfig reloaded; do
 		openssl cms -sign -binary -md sha512 \
 			-in "$payloads-$reference.json" \
 			-signer "$FIXTURE_WORK/trusted/cert.der" \
@@ -586,7 +589,8 @@ def write(path, body):
     path.write_bytes(body)
 
 
-for reference in ("stable", "updated", "deleted", "restored", "kconfig"):
+for reference in ("stable", "updated", "deleted", "restored", "kconfig",
+                  "reloaded"):
     stem = payloads.name + "-" + reference
     payload = payloads.with_name(stem + ".json").read_bytes()
     signature = payloads.with_name(stem + ".sig").read_bytes()

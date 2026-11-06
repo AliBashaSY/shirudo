@@ -2781,31 +2781,31 @@ static int undo_unmeasured(struct op_report *rep, const char *op)
 	return ret;
 }
 
-static int cmd_upatch_load(int argc, const char **argv)
+struct load_args {
+	const char	*file;
+	const char	*expect_chain;
+	const char	*expect_version_id;
+	const char	*report;
+	bool		no_precheck;
+	bool		no_version_check;
+	bool		loaded_is_done;
+};
+
+static int upatch_load(const struct load_args *args)
 {
-	const char *file, *expect_chain, *expect_version_id, *report;
+	const char *file = args->file, *report = args->report;
 	char name[UPATCH_NAME_MAX + 1] = {};
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN], live[UPATCH_PAYLOAD_HASH_LEN];
 	char staged[PATH_MAX] = {};
 	struct upatch u;
 	struct op_report rep = { .op = "upatch_load", .phase = "done" };
-	bool no_precheck, no_version_check, have_id = false, measured;
+	bool have_id = false, measured;
 	int err, lock = -1, ret = 1;
 
-	for (int i = 1; i < argc; i++) {
-		if (is_help(argv[i])) {
-			print_help(&upatch_load_help);
-			return 0;
-		}
-	}
-	err = parse_op_args(argc, argv, "load", &upatch_load_help,
-			    &file, &expect_chain, &expect_version_id,
-			    &no_precheck, &no_version_check, &report);
-	if (err)
-		return err;
 	rep.path = file;
 
-	if (version_gate(expect_version_id, no_version_check, &rep, "load") != 0)
+	if (version_gate(args->expect_version_id, args->no_version_check, &rep,
+			 "load") != 0)
 		goto done;
 
 	err = stage_upatch(file, staged, sizeof(staged));
@@ -2831,10 +2831,10 @@ static int cmd_upatch_load(int argc, const char **argv)
 	upatch_close(&u);
 	have_id = true;
 
-	if (no_precheck) {
+	if (args->no_precheck) {
 		pr_warn("upatch load: --no-precheck, pre-flight state check "
 			"skipped");
-	} else if (upatch_preflight(expect_chain, &rep) != 0) {
+	} else if (upatch_preflight(args->expect_chain, &rep) != 0) {
 		if (!rep.category)
 			rep_fail(&rep, "pre_flight", "tampered", EPERM,
 				 "pre-flight check failed");
@@ -2861,12 +2861,23 @@ static int cmd_upatch_load(int argc, const char **argv)
 	if (undo_unmeasured(&rep, "load"))
 		goto done;
 	/*
-	 * Only a completed load records the payload and only an unload
-	 * removes it. A load over a live upatch rebinds its serializer pins
-	 * to maps nothing reads, and an undo of that load would take the
-	 * live one's pins and archive with it.
+	 * Past the undo pass a payload on the pins is a load this boot's
+	 * records hold, and only an unload removes it. A load over a live
+	 * upatch rebinds its serializer pins to maps nothing reads, and an
+	 * undo of that load would take the live one's pins and archive with
+	 * it. An install of the very payload loaded is done: bpm retries one
+	 * that a stop cut off between this load and its own record.
 	 */
 	if (have_id && !get_pin_payload(name, live)) {
+		if (args->loaded_is_done &&
+		    !memcmp(live, payload, sizeof(live))) {
+			pr_info("upatch load: %s is already loaded with this payload",
+				name);
+			rep.ok = true;
+			rep.category = "already_loaded";
+			ret = 0;
+			goto done;
+		}
 		pr_err("upatch load: %s is already loaded; unload it with its signed directive first",
 		       name);
 		rep_fail(&rep, "pin", "already_loaded", EEXIST,
@@ -2929,6 +2940,26 @@ done:
 		report_emit(report, &rep);
 	report_free(&rep);
 	return ret;
+}
+
+static int cmd_upatch_load(int argc, const char **argv)
+{
+	struct load_args args = {};
+	int err;
+
+	for (int i = 1; i < argc; i++) {
+		if (is_help(argv[i])) {
+			print_help(&upatch_load_help);
+			return 0;
+		}
+	}
+	err = parse_op_args(argc, argv, "load", &upatch_load_help,
+			    &args.file, &args.expect_chain,
+			    &args.expect_version_id, &args.no_precheck,
+			    &args.no_version_check, &args.report);
+	if (err)
+		return err;
+	return upatch_load(&args);
 }
 
 static int cmd_upatch_unload(int argc, const char **argv)
@@ -3224,12 +3255,19 @@ int upatch_purge(const char *name, const struct cert *signer,
 	return ret;
 }
 
-/* Package installs take the same path as the upatch commands. */
+/*
+ * Package installs take the same path as the upatch commands, and take
+ * the payload already loaded under the name for one done.
+ */
 int upatch_install(const char *path)
 {
-	const char *argv[] = { "load", "--no-precheck", path };
+	const struct load_args args = {
+		.file		= path,
+		.no_precheck	= true,
+		.loaded_is_done	= true,
+	};
 
-	return cmd_upatch_load(3, argv);
+	return upatch_load(&args);
 }
 
 int upatch_remove(const char *path)

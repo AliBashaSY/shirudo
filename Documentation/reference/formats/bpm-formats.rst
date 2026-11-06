@@ -545,7 +545,9 @@ not published.
        ``operation_digest`` while an operation is in progress. The next
        sync completes the operation without applying it again when the
        tree eventlog or this boot's eventlog already records it, and
-       applies it again otherwise.
+       applies it again otherwise. An ``add`` applied again whose upatch
+       a stopped sync already loaded with its payload counts as
+       installed.
    * - ``artifacts/<hex>.upatch``
      - Fetched artifacts, named by their layer digest.
    * - ``status/<id>``

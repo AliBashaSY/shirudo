@@ -427,6 +427,9 @@ signed config image.
    * - ``t7104-bpm-tree-kconfig``
      - A kconfig selector the target cannot read stops the sync where it
        is; the operation applies once the config reads
+   * - ``t7105-bpm-tree-loaded``
+     - An add whose upatch is already loaded with its payload counts as
+       installed; a direct load of it is still refused
 
 ``otel`` (8)
 ~~~~~~~~~~~~
@@ -638,8 +641,8 @@ Coverage by area
        ``bpm_oci``, ``bpm_package``
    * - upatch tree
      - ``t3011``, ``t5004``, ``t7005``, ``t7101``, ``t7102``,
-       ``t7103``, ``t7104``, ``t9105``. Fuzz: ``tree``, ``tree-state``,
-       ``kconfig``. Unit: ``bpm_tree``, ``bpm_tree_state``,
+       ``t7103``, ``t7104``, ``t7105``, ``t9105``. Fuzz: ``tree``,
+       ``tree-state``, ``kconfig``. Unit: ``bpm_tree``, ``bpm_tree_state``,
        ``kernel_build_id``, ``kernel_release``
    * - Policy labels
      - upatch labels and Beefile serialization: ``t3109``, ``t7006``.
@@ -700,7 +703,7 @@ The threats are those of :doc:`/security/threat-model`.
      - ``t1006``, ``t4101``, ``t6115``, ``t6126``
    * - T7 The delivery path
      - ``t7002``, ``t7003``, ``t7005``, ``t7101``, ``t7102``,
-       ``t7103``, ``t7104``, ``t8005``, ``t9105``
+       ``t7103``, ``t7104``, ``t7105``, ``t8005``, ``t9105``
    * - T8 Quantum-capable adversaries
      - ``t2001``, ``t2002``, ``t5001``, ``t8005``
    * - T9 A target lying about its state

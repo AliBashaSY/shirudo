@@ -181,7 +181,8 @@ Categories
      - ``pin``
      - ``EEXIST``
      - A upatch of that name is loaded, with the payload a completed load
-       records. Nothing was touched.
+       records. Nothing was touched. A ``bpm`` install or a tree sync of
+       an artifact with that very payload counts it as installed instead.
      - Unload it with its signed directive first.
    * - ``payload_mismatch``
      - ``pin``
