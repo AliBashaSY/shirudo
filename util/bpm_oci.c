@@ -916,11 +916,18 @@ struct desc_sink {
 static int on_descriptor(void *ud)
 {
 	struct desc_sink *s = ud;
+	__u8 digest[32];
 
 	if (s->n >= s->max)
 		return -E2BIG;
+	/* The registry wrote this: a layer is all three or none. */
+	if (!s->scratch.media[0] || s->scratch.size < 0 ||
+	    strncmp(s->scratch.digest, "sha256:", 7) ||
+	    hex_decode(s->scratch.digest + 7, digest, sizeof(digest)))
+		return -EINVAL;
 	s->items[s->n++] = s->scratch;
 	memset(&s->scratch, 0, sizeof(s->scratch));
+	s->scratch.size = -1;
 	return 0;
 }
 
@@ -973,6 +980,7 @@ int bpm_oci_parse_manifest(const __u8 *body, size_t len,
 	struct json_field sub[4], root[3];
 	__s64 schema = 0;
 
+	sink.scratch.size = -1;
 	memset(sub, 0, sizeof(sub));
 	sub[0] = (struct json_field){ .key = "mediaType", .type = JSON_T_STRING,
 		.dst = sink.scratch.media, .dst_cap = sizeof(sink.scratch.media) };

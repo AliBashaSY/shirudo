@@ -219,6 +219,10 @@ Package in the registry
 
 The last path component of ``<repository>`` follows the package name rule.
 
+A manifest shirudo reads, for a package, an index, a tree publication or
+an artifact, is refused unless each of its layers is an object with a
+``mediaType``, a ``sha256:`` digest and a ``size``.
+
 Repository index
 ----------------
 
