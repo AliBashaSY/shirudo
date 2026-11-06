@@ -147,8 +147,10 @@ services read them from ``/etc/shirudo/map-export.env``.
      - ``none`` or ``gzip``
    * - ``OTEL_EXPORTER_OTLP_HEADERS``
      - ``<name>=<value>[,<name>=<value>...]``, at most 16384 bytes.
-       Values are percent-decoded. Refused: a name that is empty or
-       contains ``:``, CR or LF, a value with CR or LF, and the names
+       Blanks around names and values are dropped and values are
+       percent-decoded. Refused: a name that is not an HTTP token (RFC
+       9110), a value that holds a control character other than tab
+       before or after decoding, ``%00`` included, and the names
        ``Content-Type``, ``Content-Encoding``, ``Content-Length``,
        ``Host`` and ``User-Agent``. One ``X-Tenant-ID`` is allowed and
        must be a valid tenant id. A tenant id from the command line or

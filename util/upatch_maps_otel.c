@@ -1108,7 +1108,8 @@ static int percent_decode(char *s)
 				return -EINVAL;
 			hi = hex_nibble(src[1]);
 			lo = hex_nibble(src[2]);
-			if (hi < 0 || lo < 0)
+			/* A NUL would cut the value where the string ends. */
+			if (hi < 0 || lo < 0 || !(hi | lo))
 				return -EINVAL;
 			*dst++ = (char)((hi << 4) | lo);
 			src += 3;
@@ -1118,6 +1119,26 @@ static int percent_decode(char *s)
 	}
 	*dst = '\0';
 	return 0;
+}
+
+/* RFC 9110, 5.6.2: a field name is a token. */
+static bool header_name_ok(const char *s)
+{
+	if (!*s)
+		return false;
+	for (; *s; s++)
+		if (!isalnum((__u8)*s) && !strchr("!#$%&'*+-.^_`|~", *s))
+			return false;
+	return true;
+}
+
+/* RFC 9110, 5.5: a field value holds no control character but tab. */
+static bool header_value_ok(const char *s)
+{
+	for (; *s; s++)
+		if (((__u8)*s < 0x20 && *s != '\t') || *s == 0x7f)
+			return false;
+	return true;
 }
 
 static int add_configured_headers(struct otel_state *st, const char *input)
@@ -1156,10 +1177,12 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		for (char *p = name + strlen(name);
 		     p > name && isspace((__u8)p[-1]); p--)
 			p[-1] = '\0';
+		for (char *p = value + strlen(value);
+		     p > value && isspace((__u8)p[-1]); p--)
+			p[-1] = '\0';
 		tenant = strcasecmp(name, "x-tenant-id") == 0;
-		if (!name[0] || reserved_header(name) ||
-		    percent_decode(value) != 0 || strpbrk(name, "\r\n:") ||
-		    strpbrk(value, "\r\n")) {
+		if (!header_name_ok(name) || reserved_header(name) ||
+		    percent_decode(value) != 0 || !header_value_ok(value)) {
 			ret = -EINVAL;
 			break;
 		}

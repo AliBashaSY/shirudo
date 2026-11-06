@@ -104,7 +104,21 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	}
 
 	if (!memchr(data, '\0', size)) {
-		add_configured_headers(&st, body);
+		if (!add_configured_headers(&st, body)) {
+			for (struct curl_slist *h = st.headers; h; h = h->next) {
+				char *colon = strchr(h->data, ':');
+				bool ok;
+
+				if (!colon)
+					abort();
+				*colon = '\0';
+				ok = header_name_ok(h->data) &&
+				     header_value_ok(colon + 1);
+				*colon = ':';
+				if (!ok)
+					abort();
+			}
+		}
 		curl_slist_free_all(st.headers);
 	}
 	xfree(body, size + 1);
