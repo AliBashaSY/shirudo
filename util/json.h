@@ -78,8 +78,10 @@ enum json_vtype {
 };
 
 /*
- * The seen flags of the sub fields, and of the fields nested in them,
- * reset per element; the dst buffers do not. on_elem may copy the
+ * An array of scalars declares one sub field with an empty key, which
+ * takes each element; any other sub[] takes objects alone, and none
+ * discards the elements. The seen flags of the sub fields, and of the
+ * fields nested in them, reset per element; the dst buffers do not. on_elem may copy the
  * element out of the scratch dst buffers before the next one overwrites
  * them, and returns a negative errno to abort.
  */

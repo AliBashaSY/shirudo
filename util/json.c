@@ -572,7 +572,9 @@ static int parse_array_into(struct pctx *c, struct json_field *f)
 		skip_ws(c);
 		if (c->p >= c->end)
 			return -EINVAL;
-		if (*c->p == '{') {
+		if (f->n_sub == 1 && (!f->sub[0].key || !f->sub[0].key[0])) {
+			ret = parse_value(c, &f->sub[0]);
+		} else if (*c->p == '{') {
 			struct json_field *save_f = c->fields;
 			size_t save_n = c->n_fields;
 
@@ -581,8 +583,10 @@ static int parse_array_into(struct pctx *c, struct json_field *f)
 			ret = parse_object(c);
 			c->fields = save_f;
 			c->n_fields = save_n;
+		} else if (!f->n_sub) {
+			ret = parse_value(c, NULL);
 		} else {
-			ret = parse_value(c, f->n_sub ? &f->sub[0] : NULL);
+			return -EINVAL;	/* not an object, as sub[] asks */
 		}
 		if (ret)
 			return ret;

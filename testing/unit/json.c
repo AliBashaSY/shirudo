@@ -328,6 +328,24 @@ static void malformed_arrays_are_refused(void)
 
 	EXPECT_EQ(parse("{\"names\":[123]}", &d), -EINVAL);
 	EXPECT_EQ(parse("{\"names\":[\"a\",\"b\"", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"names\":[{\"\":\"a\"}]}", &d), -EINVAL);
+}
+
+/*
+ * An element that is not an object would land in the first field of
+ * the element schema, a type in place of a whole record.
+ */
+static void object_array_takes_objects_only(void)
+{
+	struct doc d;
+
+	EXPECT_EQ(parse("{\"events\":[\"init\"]}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"events\":[1]}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"events\":[null]}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"events\":[{\"type\":\"a\"},true]}", &d), -EINVAL);
+	EXPECT_EQ(parse("{\"events\":[[]]}", &d), -EINVAL);
+	ASSERT_EQ(parse("{\"events\":[{},{\"type\":\"a\"}]}", &d), 0);
+	EXPECT_EQ(d.events, 2);
 }
 
 static void integer_takes_json_integers_only(void)
@@ -450,6 +468,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(seen_flags_are_the_elements_own),
 	UNIT_CASE(declared_key_takes_one_value),
 	UNIT_CASE(malformed_arrays_are_refused),
+	UNIT_CASE(object_array_takes_objects_only),
 	UNIT_CASE(integer_takes_json_integers_only),
 	UNIT_CASE(integer_holds_any_s64_and_no_more),
 	UNIT_CASE(discarded_number_follows_the_grammar),
