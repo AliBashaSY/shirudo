@@ -1013,10 +1013,10 @@ is a signed upatch the kernel verifies at load (T1).
 
 ``shirudo bpm tree sync`` fetches a signed tree publication and verifies
 it against the runtime image's primary certificate. A publication
-carries a digest for each operation, must have a higher generation than
-the one applied, and names its parent, which the target compares when
-the generation is exactly one higher. A delete applies the signed
-unload directive whose name equals the operation's id.
+carries a digest for each operation, is the one the target recorded or
+has a higher generation, and names its parent, which the target
+compares when the generation is exactly one higher. A delete applies
+the signed unload directive whose name equals the operation's id.
 
 The transport is TLS 1.3 only, with the hybrid groups
 ``X25519MLKEM768`` and ``SecP256r1MLKEM768`` and certificate
@@ -1409,7 +1409,12 @@ R8 Registry withholding and replay
    measured. ``bpm push`` builds the next index from the one the registry
    serves, so an older one makes the operator sign an index without the
    packages added since; a registry that claims to have none is refused
-   unless ``--new-index`` is given. Detection: compare the upatch payloads
+   unless ``--new-index`` is given. ``bpm tree append`` builds the next
+   publication on the one the registry serves the same way, so an older
+   one makes the operator sign a second branch of the tree. A target
+   compares the parent of a direct successor only, and takes a
+   publication of that branch two or more generations on, applying its
+   operations after those of the first. Detection: compare the upatch payloads
    and tree operations that ``attest verify`` certifies with what you
    published, and the pushed index with the versions you released.
 
