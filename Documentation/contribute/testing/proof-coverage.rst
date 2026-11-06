@@ -131,6 +131,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Identifiers up to 3 bytes, lists up to 5
      - Numeric by value and below alphanumeric, alphanumeric by bytes;
        the first difference decides, else the longer list
+   * - ``bpm-semver-model``
+     - ``bpm_semver_compare()``, ``semver_parse()``,
+       ``prerelease_compare()``
+     - Every pair of strings up to 9 bytes
+     - The sign of the Lean model ``Shirudo.SemVer``
    * - ``bpm-oci-challenge``
      - ``parse_challenge()``
      - ``WWW-Authenticate`` values up to 17 bytes
@@ -459,6 +464,18 @@ the model follows the C.
      - The hash is injective on (register, event) pairs and never yields
        the initial value; the tagged event encoding is injective
      - Review
+   * - ``Shirudo.SemVer``, ``bpm_semver_compare()`` of
+       :src:`util/bpm_package.c`
+     - ``compareStrings_refl``, ``compareStrings_swap``,
+       ``compareStrings_trans``: a total order on strings of every
+       length; ``compareStrings_eq_iff``, ``compareStrings_invalid``,
+       ``compareStrings_valid``: equal exactly for the same version up to
+       build metadata, and for strings that are not SemVer for the same
+       bytes; ``numCmp_value`` and the other rules of SemVer 2.0.0
+       precedence
+     - None; numeric identifiers compare by value only without a leading
+       zero, which ``semverParse_wellFormed`` shows the parser ensures
+     - CBMC, ``bpm-semver-model``, up to 9 bytes
 
 Not covered yet
 ---------------
