@@ -114,8 +114,19 @@ printf '[upatches.tree]\nid = "t7005"\n\n[upatches .tree.selector]\narchitecture
 printf '[upatches.tree]\nid = "t7005"\n\n["upatches".tree.selector]\narchitecture = ["aarch64"]\n' \
 	>>"$WORK/spelled/4/Beefile"
 
-test_expect_success 'bpm build refuses a tree selector spelled another way' '
-	for n in 1 2 3 4; do
+# Targets the archive reader refuses or reads as another member.
+n=5
+for target in ./Beefile a/./data.txt dir/; do
+	mkdir -p "$WORK/spelled/$n" &&
+	cp "$WORK/pkg/t7005.bpf.c" "$WORK/spelled/$n/" &&
+	echo data >"$WORK/spelled/$n/data.txt" &&
+	printf '[package]\nname = "t7005"\n\n[[files]]\nsource = "data.txt"\ntarget = "%s"\n\n[[upatches]]\nsource = "t7005.bpf.c"\n' \
+		"$target" >"$WORK/spelled/$n/Beefile"
+	n=$((n + 1))
+done
+
+test_expect_success 'bpm build refuses a tree selector or a target spelled another way' '
+	for n in 1 2 3 4 5 6 7; do
 		( cd "$WORK" && ! "$S" bpm build spelled/$n --version 9.0.$n \
 			--keys-dir "$WORK/keys" ) 2>"$WORK/spelled/$n.err" &&
 		grep -q "is not a valid Beefile" "$WORK/spelled/$n.err" &&

@@ -958,14 +958,19 @@ static int build_target_ok(const char *target)
 {
 	const char *p = target;
 
-	if (!target[0] || target[0] == '/' || !strcmp(target, ".") ||
-	    !strcmp(target, ".."))
+	if (!target[0] || target[0] == '/')
 		return -EINVAL;
+	/*
+	 * As the target's archive reader takes a path, or the package
+	 * would build and never install, or read one way and install
+	 * another: ./Beefile is the reserved Beefile, and a/./b is a/b.
+	 */
 	while (*p) {
 		const char *q = strchr(p, '/');
 		size_t n = q ? (size_t)(q - p) : strlen(p);
 
-		if (!n || (n == 2 && !strncmp(p, "..", 2)))
+		if (!n || (n == 1 && *p == '.') ||
+		    (n == 2 && !strncmp(p, "..", 2)) || (q && !q[1]))
 			return -EINVAL;
 		p = q ? q + 1 : p + n;
 	}

@@ -261,7 +261,8 @@ bool bpm_archive_rel_ok(const char *name)
 		q = strchr(p, '/');
 		if (!q)
 			q = p + strlen(p);
-		if (q == p || (q - p == 2 && !strncmp(p, "..", 2)))
+		if (q == p || (q - p == 1 && *p == '.') ||
+		    (q - p == 2 && !strncmp(p, "..", 2)))
 			return false;
 		p = *q ? q + 1 : q;
 	}

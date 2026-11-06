@@ -57,8 +57,27 @@ static void index_entry_needs_its_package_size(void)
 		  -EINVAL);
 }
 
+/*
+ * One rule for every member: an archive rooted at ./ unpacked, while
+ * the member readers, which want <name>-<version>/<member>, found none.
+ */
+static void archive_path_has_no_dot_component(void)
+{
+	EXPECT_TRUE(bpm_archive_rel_ok("t-1.0.0/"));
+	EXPECT_TRUE(bpm_archive_rel_ok("t-1.0.0/Beefile"));
+	EXPECT_TRUE(bpm_archive_rel_ok("t-1.0.0/a/.b"));
+	EXPECT_FALSE(bpm_archive_rel_ok(""));
+	EXPECT_FALSE(bpm_archive_rel_ok("/t-1.0.0/Beefile"));
+	EXPECT_FALSE(bpm_archive_rel_ok("./"));
+	EXPECT_FALSE(bpm_archive_rel_ok("./Beefile"));
+	EXPECT_FALSE(bpm_archive_rel_ok("t-1.0.0/./Beefile"));
+	EXPECT_FALSE(bpm_archive_rel_ok("t-1.0.0/../Beefile"));
+	EXPECT_FALSE(bpm_archive_rel_ok("t-1.0.0//Beefile"));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(index_entry_needs_its_package_size),
+	UNIT_CASE(archive_path_has_no_dot_component),
 	{}
 };
 

@@ -146,7 +146,9 @@ The target refuses an archive that breaks any of these:
   that is NUL-terminated within its 100 bytes, an empty prefix field and a
   size field of octal digits.
 - Every member lies under the one top-level directory. No path is
-  absolute or has an empty or ``..`` component.
+  absolute or has an empty, ``.`` or ``..`` component, so an archive
+  rooted at ``./`` is refused, as the member readers would find nothing
+  in it.
 - Every member is a regular file or a directory.
 - At most 4096 members and 256 MiB of content.
 - No regular file appears twice.
