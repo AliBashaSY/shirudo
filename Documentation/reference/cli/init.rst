@@ -61,7 +61,9 @@ Description
    boot's register was bound is refused as tampered.
 #. It binds the measurement register under PCRs 9 and 11 and records one
    init event that covers the certificate set, the restored upatches and
-   the upatch tree root.
+   the upatch tree root. Without tree state the root is 64 zeros; tree
+   state that cannot be read or parsed stops ``init`` before the
+   register is bound, rather than being measured as no tree.
 #. It completes the config ``BOOT`` event.
 
 Measurement: the config PCR receives one ``BOOT`` event per boot. The

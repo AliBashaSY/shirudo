@@ -1180,14 +1180,20 @@ static bool phase_unmeasured(const __u8 pcr[32])
 	return true;
 }
 
-static void tree_root_at_boot(__u8 out[32])
+static int tree_root_at_boot(__u8 out[32])
 {
 	struct tree_state s = {};
+	int ret;
 
 	memset(out, 0, 32);
-	if (tree_state_read(&s) == 0 &&
-	    hex_decode(s.projection_root, out, 32) != 0)
+	ret = tree_state_read(&s);
+	if (ret == -ENOENT)
+		return 0;
+	if (!ret)
+		ret = hex_decode(s.projection_root, out, 32);
+	if (ret)
 		memset(out, 0, 32);
+	return ret;
 }
 
 /*
@@ -1242,7 +1248,12 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 	 *                     || tree_root), the formula the operator's
 	 * predictor shares (util/attest.c).
 	 */
-	tree_root_at_boot(tree_root);
+	ret = tree_root_at_boot(tree_root);
+	if (ret) {
+		pr_err("chain: cannot read the upatch tree state %s: %s",
+		       BPM_TREE_STATE_PATH, strerror(-ret));
+		return ret;
+	}
 	ret = chain_init_event(cert_sha, set, n, tree_root, set_digest,
 			       init_digest);
 
