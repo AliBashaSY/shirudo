@@ -111,10 +111,13 @@ Options
        16.
    * - ``--upatch``
      - ``<file>``
-     - An artifact archived on the target at boot. Repeatable.
+     - An artifact archived on the target at boot. Repeatable, each
+       upatch name once across ``--upatch`` and ``--expect``.
    * - ``--expect``
      - ``<name>=<digest>``
-     - An archived upatch by name and payload digest. Repeatable.
+     - An archived upatch by name and payload digest. Repeatable. The
+       name is one an upatch can have, ``[A-Za-z0-9._-]`` not starting
+       with a dot, and comes once.
    * - ``--tree-root``
      - ``<digest>``, 64 hex characters
      - The upatch tree projection root at boot. Default: all zero.

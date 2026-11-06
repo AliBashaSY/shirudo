@@ -98,12 +98,14 @@ Options
      - A certificate the target enrolls. Repeat for each, up to 16.
    * - ``--upatch``
      - ``<file>``
-     - An artifact archived on the target at boot. Repeatable. Needs
+     - An artifact archived on the target at boot. Repeatable, each
+       upatch name once across ``--upatch`` and ``--expect``. Needs
        ``--cert``.
    * - ``--expect``
      - ``<name>=<digest>``
-     - An archived upatch by name and payload digest. Repeatable. Needs
-       ``--cert``.
+     - An archived upatch by name and payload digest. Repeatable. The
+       name is one an upatch can have, ``[A-Za-z0-9._-]`` not starting
+       with a dot, and comes once. Needs ``--cert``.
    * - ``--tree-root``
      - ``<digest>``, 64 hex characters
      - The upatch tree projection root at boot. Needs ``--cert``.

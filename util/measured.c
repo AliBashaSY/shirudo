@@ -108,6 +108,28 @@ void measured_upatch_of(struct measured_upatch *e, const struct upatch *u)
 		   e->payload_hex);
 }
 
+int measured_set_add(struct measured_upatch *set, size_t *n, size_t max,
+		     const char *name, const char *payload_hex)
+{
+	struct measured_upatch *e;
+	size_t i;
+
+	if (!upatch_member_valid(name, payload_hex))
+		return -EINVAL;
+	for (i = 0; i < *n; i++) {
+		if (!strcmp(set[i].name, name))
+			return -EEXIST;
+	}
+	if (*n >= max)
+		return -E2BIG;
+	e = &set[*n];
+	if (strscpy(e->name, name, sizeof(e->name)) < 0 ||
+	    strscpy(e->payload_hex, payload_hex, sizeof(e->payload_hex)) < 0)
+		return -E2BIG;
+	(*n)++;
+	return 0;
+}
+
 bool measured_holds(const struct measured_set *s, const char *name,
 		    const char *payload_hex)
 {

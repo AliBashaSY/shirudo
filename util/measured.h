@@ -5,6 +5,7 @@
 #define SHIRUDO_MEASURED_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 /*
  * The set of upatches the eventlog records as loaded, each with the
@@ -27,6 +28,15 @@ struct upatch;
 
 /* The name and payload an init record lists for the upatch u. */
 void measured_upatch_of(struct measured_upatch *e, const struct upatch *u);
+
+/*
+ * A member added to the *n of set, which holds at most max: 0, -EINVAL
+ * for one upatch_member_valid() refuses, -EEXIST for a name the set
+ * holds, for an init event lists each upatch once and sorts by name, or
+ * -E2BIG when the set is full.
+ */
+int measured_set_add(struct measured_upatch *set, size_t *n, size_t max,
+		     const char *name, const char *payload_hex);
 
 /*
  * The upatches pinned in the private bpffs, or archived with the seal

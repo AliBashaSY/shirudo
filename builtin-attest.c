@@ -143,34 +143,45 @@ struct members {
 
 static int member_add_file(struct members *m, const char *path)
 {
+	struct measured_upatch e;
 	struct upatch u;
 	int ret;
 
-	if (m->n >= ATTEST_MEMBERS_MAX)
-		return -E2BIG;
 	ret = upatch_open(path, &u);
 	if (ret) {
 		pr_err("attest: open %s: %s", path, strerror(-ret));
 		return ret;
 	}
-	measured_upatch_of(&m->set[m->n++], &u);
+	measured_upatch_of(&e, &u);
 	upatch_close(&u);
-	return 0;
+	ret = measured_set_add(m->set, &m->n, ATTEST_MEMBERS_MAX, e.name,
+			       e.payload_hex);
+	if (ret)
+		pr_err("attest: --upatch %s: %s", path,
+		       ret == -EEXIST ? "a second upatch of that name" :
+		       strerror(-ret));
+	return ret;
 }
 
 static int member_add_spec(struct members *m, const char *spec)
 {
-	struct measured_upatch *e;
-	__u8 payload[32];
+	char name[UPATCH_NAME_MAX + 1];
+	char hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
+	int ret;
 
-	if (m->n >= ATTEST_MEMBERS_MAX)
-		return -E2BIG;
-	e = &m->set[m->n];
-	if (attest_parse_name_digest(spec, e->name, payload))
-		return -EINVAL;
-	hex_encode(payload, 32, e->payload_hex);
-	m->n++;
-	return 0;
+	ret = attest_parse_name_digest(spec, name, payload);
+	if (!ret) {
+		hex_encode(payload, sizeof(payload), hex);
+		ret = measured_set_add(m->set, &m->n, ATTEST_MEMBERS_MAX, name,
+				       hex);
+	}
+	if (ret)
+		pr_err("attest: --expect '%s': %s", spec,
+		       ret == -EEXIST ? "a second upatch of that name" :
+		       ret == -EINVAL ? "not an upatch name and a digest" :
+		       strerror(-ret));
+	return ret;
 }
 
 /* What the init event counts of a certificate: the SHA-256 of its DER. */
@@ -286,10 +297,8 @@ static int cmd_attest_predict(int argc, const char **argv)
 				pr_err("attest predict: %s takes a value", a);
 				goto out;
 			}
-			if (member_add_spec(&m, v)) {
-				pr_err("attest: bad --expect '%s'", v);
+			if (member_add_spec(&m, v))
 				goto out;
-			}
 		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
 			if (r == OPT_MISSING) {
 				pr_err("attest predict: %s takes a value", a);
@@ -604,11 +613,8 @@ static int cmd_attest_verify(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (member_add_spec(&m, v)) {
-				pr_err("attest verify: bad --expect '%s'",
-				       v);
+			if (member_add_spec(&m, v))
 				goto out;
-			}
 		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
 			if (r == OPT_MISSING) {
 				pr_err("attest verify: %s takes a value", a);
