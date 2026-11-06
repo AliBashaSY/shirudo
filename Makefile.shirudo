@@ -1058,7 +1058,7 @@ testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
 testing/fuzz/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
                           $(FUZZ_CONFIG) util/seal.c util/io.c \
                           util/bpm_source_config.c
-FUZZ_TREE_STATE := util/bpm_tree_state.c util/io.c $(FUZZ_SEAL) \
+FUZZ_TREE_STATE := util/bpm_tree_state.c util/bpm_tree.c util/io.c $(FUZZ_SEAL) \
                    util/kernel_build_id.c util/kernel_release.c \
                    util/crypto_openssl.c testing/fuzz/chain.c
 testing/fuzz/fuzz-tree-state: testing/fuzz/fuzz-tree-state.c $(FUZZ_BASE) \

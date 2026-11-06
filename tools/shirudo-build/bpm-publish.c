@@ -820,11 +820,17 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			pr_err("bpm tree append: package entry %s not found", member);
 			goto out;
 		}
+		tree_selector_free(&op->selector);
 		*op = (struct tree_operation){ .seq = seq };
 		bpm_copy_string(op->op, sizeof(op->op), operation);
 		bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
-		if (u->tree.selector)
-			op->selector = *u->tree.selector;
+		if (u->tree.selector) {
+			ret = tree_selector_copy(&op->selector, u->tree.selector);
+			if (ret) {
+				xfree(body, body_len + 1);
+				goto out;
+			}
+		}
 		tree_selector_canonicalize(&op->selector);
 		ret = tree_push_artifact(&c, repository, repo_ref, body, body_len,
 					 u->tree.id, unload, &op->artifact);
@@ -891,6 +897,8 @@ out:
 	xfree(manifest, BPM_MANIFEST_CAP);
 	sig_free(sig);
 	xfree(payload, payload_len);
+	if (op)
+		tree_selector_free(&op->selector);
 	xfree(op, sizeof(*op));
 	tree_publication_free(&pub);
 	bpm_build_spec_free(spec);

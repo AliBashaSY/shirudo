@@ -223,7 +223,7 @@ static int tp_string_array(struct tree_parser *p,
 }
 
 static int tp_selector_string_map(struct tree_parser *p,
-				  struct tree_selector_kv *dst,
+				  struct tree_selector_kv **dst,
 				  int *n, int max)
 {
 	char key[TREE_STRING_MAX];
@@ -232,20 +232,19 @@ static int tp_selector_string_map(struct tree_parser *p,
 	if (tp_char(p, '{'))
 		return -EINVAL;
 	for (;;) {
-		int values = 0;
+		struct tree_selector_kv *kv;
 
 		tp_ws(p);
 		if (p->p < p->end && *p->p == '}') {
 			p->p++;
 			return 0;
 		}
-		if (tp_key(p, key, sizeof(key), &first) || *n >= max ||
-		    tp_string_array(p, dst[*n].values, &values,
+		if (tp_key(p, key, sizeof(key), &first) ||
+		    tree_selector_kv_add(dst, n, max, &kv) ||
+		    tp_string_array(p, kv->values, &kv->n_values,
 				    TREE_MAX_SELECTOR_VALUES))
 			return -EINVAL;
-		strscpy(dst[*n].key, key, sizeof(dst[*n].key));
-		dst[*n].n_values = values;
-		(*n)++;
+		strscpy(kv->key, key, sizeof(kv->key));
 	}
 }
 
@@ -281,11 +280,11 @@ static int tp_selector(struct tree_parser *p, struct tree_selector *s)
 				return -EINVAL;
 		} else if (!strcmp(key, "kconfig") ||
 			   !strcmp(key, "kernel_config")) {
-			if (tp_selector_string_map(p, s->kconfig, &s->n_kconfig,
+			if (tp_selector_string_map(p, &s->kconfig, &s->n_kconfig,
 						   TREE_MAX_KCONFIG))
 				return -EINVAL;
 		} else if (!strcmp(key, "labels")) {
-			if (tp_selector_string_map(p, s->labels, &s->n_labels,
+			if (tp_selector_string_map(p, &s->labels, &s->n_labels,
 						   TREE_MAX_LABELS))
 				return -EINVAL;
 		} else if (tp_skip(p)) {
@@ -375,10 +374,66 @@ static int tp_operation(struct tree_parser *p, struct tree_operation *o)
 	}
 }
 
+int tree_selector_kv_add(struct tree_selector_kv **kvs, int *n, int max,
+			 struct tree_selector_kv **kv)
+{
+	struct tree_selector_kv *grown;
+
+	if (*n >= max)
+		return -E2BIG;
+	grown = xreallocarray(*kvs, (size_t)*n, (size_t)*n + 1,
+			      sizeof(**kvs));
+	if (!grown)
+		return -ENOMEM;
+	*kvs = grown;
+	*kv = &grown[(*n)++];
+	return 0;
+}
+
+static int tree_kvs_copy(struct tree_selector_kv **dst,
+			 const struct tree_selector_kv *src, int n)
+{
+	*dst = NULL;
+	if (!n)
+		return 0;
+	*dst = xcalloc((size_t)n, sizeof(**dst));
+	if (!*dst)
+		return -ENOMEM;
+	memcpy(*dst, src, (size_t)n * sizeof(**dst));
+	return 0;
+}
+
+int tree_selector_copy(struct tree_selector *dst,
+		       const struct tree_selector *src)
+{
+	*dst = *src;
+	if (tree_kvs_copy(&dst->kconfig, src->kconfig, src->n_kconfig) ||
+	    tree_kvs_copy(&dst->labels, src->labels, src->n_labels)) {
+		tree_selector_free(dst);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+void tree_selector_free(struct tree_selector *s)
+{
+	if (!s)
+		return;
+	xfree(s->kconfig, (size_t)s->n_kconfig * sizeof(*s->kconfig));
+	xfree(s->labels, (size_t)s->n_labels * sizeof(*s->labels));
+	s->kconfig = NULL;
+	s->labels = NULL;
+	s->n_kconfig = 0;
+	s->n_labels = 0;
+}
+
 void tree_publication_free(struct tree_publication *pub)
 {
 	if (!pub)
 		return;
+	/* A slot past n_operations may hold an operation that failed to parse. */
+	for (int i = 0; i < pub->operations_capacity; i++)
+		tree_selector_free(&pub->operations[i].selector);
 	xfree(pub->operations,
 	      (size_t)pub->operations_capacity * sizeof(*pub->operations));
 	*pub = (struct tree_publication){};
@@ -415,7 +470,15 @@ int tree_publication_append(struct tree_publication *pub,
 	ret = tree_operations_reserve(pub);
 	if (ret)
 		return ret;
-	pub->operations[pub->n_operations++] = *op;
+	pub->operations[pub->n_operations] = *op;
+	ret = tree_selector_copy(&pub->operations[pub->n_operations].selector,
+				 &op->selector);
+	if (ret) {
+		memset(&pub->operations[pub->n_operations], 0,
+		       sizeof(pub->operations[pub->n_operations]));
+		return ret;
+	}
+	pub->n_operations++;
 	return 0;
 }
 

@@ -267,11 +267,12 @@ static int build_parse_string_array(const char *value,
 }
 
 static int build_parse_selector_kv(const char *key, const char *value,
-				   struct tree_selector_kv *kvs,
+				   struct tree_selector_kv **kvs,
 				   int max, int *n)
 {
 	struct tree_selector_kv *kv;
 	size_t key_len = strlen(key);
+	int ret;
 
 	if (key_len >= 2 && (key[0] == '"' || key[0] == '\'') &&
 	    key[key_len - 1] == key[0]) {
@@ -281,20 +282,19 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	if (!key_len || key_len >= TREE_STRING_MAX)
 		return -EINVAL;
 	for (int i = 0; i < *n; i++) {
-		if (strlen(kvs[i].key) == key_len &&
-		    !strncmp(kvs[i].key, key, key_len))
+		if (strlen((*kvs)[i].key) == key_len &&
+		    !strncmp((*kvs)[i].key, key, key_len))
 			return -EEXIST;
 	}
-	if (*n >= max)
-		return -E2BIG;
-	kv = &kvs[*n];
+	ret = tree_selector_kv_add(kvs, n, max, &kv);
+	if (ret)
+		return ret;
 	memcpy(kv->key, key, key_len);
 	kv->key[key_len] = '\0';
 	if (build_parse_string_array(value, kv->values,
 				     TREE_MAX_SELECTOR_VALUES,
 				     &kv->n_values))
 		return -EINVAL;
-	(*n)++;
 	return 0;
 }
 
@@ -625,12 +625,12 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 							   TREE_MAX_SELECTOR_VALUES, n))
 				return -EINVAL;
 		} else if (tree_section && !strcmp(section, "upatches.tree.selector.kconfig")) {
-			if (build_parse_selector_kv(key, value, sel->kconfig,
+			if (build_parse_selector_kv(key, value, &sel->kconfig,
 						    TREE_MAX_KCONFIG,
 						    &sel->n_kconfig))
 				return -EINVAL;
 		} else if (tree_section) {
-			if (build_parse_selector_kv(key, value, sel->labels,
+			if (build_parse_selector_kv(key, value, &sel->labels,
 						    TREE_MAX_LABELS,
 						    &sel->n_labels))
 				return -EINVAL;
@@ -714,6 +714,7 @@ void bpm_build_spec_free(struct bpm_build_spec *spec)
 	if (!spec)
 		return;
 	for (size_t i = 0; i < spec->n_upatches; i++) {
+		tree_selector_free(spec->upatches[i].tree.selector);
 		xfree(spec->upatches[i].tree.selector,
 		      sizeof(*spec->upatches[i].tree.selector));
 		xfree(spec->upatches[i].rodata,

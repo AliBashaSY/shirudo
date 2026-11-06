@@ -19,9 +19,14 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 		"CONFIG_LSM", "CONFIG_MODULES",
 	};
 
-	for (size_t i = 0; i < ARRAY_SIZE(keys); i++)
-		strscpy(sel.kconfig[i].key, keys[i], sizeof(sel.kconfig[i].key));
-	sel.n_kconfig = ARRAY_SIZE(keys);
+	for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
+		struct tree_selector_kv *kv;
+
+		if (tree_selector_kv_add(&sel.kconfig, &sel.n_kconfig,
+					 TREE_MAX_KCONFIG, &kv))
+			abort();
+		strscpy(kv->key, keys[i], sizeof(kv->key));
+	}
 	selector_hash_build(&sel, slots);
 	return 0;
 }

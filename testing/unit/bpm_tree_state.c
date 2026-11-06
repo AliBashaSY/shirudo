@@ -35,15 +35,18 @@ static const char *modules_in(const char *text, bool gz)
 	static int slots[TREE_SELECTOR_HASH_SIZE];
 	static struct tree_selector sel;
 	bool found[TREE_MAX_KCONFIG] = {};
+	struct tree_selector_kv *kv;
 	int ret;
 
 	memset(&sel, 0, sizeof(sel));
 	memset(values, 0, sizeof(values));
-	strscpy(sel.kconfig[0].key, "CONFIG_MODULES", sizeof(sel.kconfig[0].key));
-	sel.n_kconfig = 1;
+	ASSERT_EQ(tree_selector_kv_add(&sel.kconfig, &sel.n_kconfig,
+				       TREE_MAX_KCONFIG, &kv), 0);
+	strscpy(kv->key, "CONFIG_MODULES", sizeof(kv->key));
 	selector_hash_build(&sel, slots);
 	write_config(text, gz);
 	ret = read_selector_config_file(path, &sel, slots, values, found, gz);
+	tree_selector_free(&sel);
 	unlink(path);
 	ASSERT_EQ(ret, 0);
 	return found[0] ? values[0] : "-";

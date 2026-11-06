@@ -33,8 +33,9 @@ static struct tree_operation *operation(void)
 	    DIGEST);
 	set(op->artifact.payload_sha256, sizeof(op->artifact.payload_sha256),
 	    DIGEST);
-	op->selector.n_labels = 1;
-	label = &op->selector.labels[0];
+	ASSERT_EQ(tree_selector_kv_add(&op->selector.labels,
+				       &op->selector.n_labels, TREE_MAX_LABELS,
+				       &label), 0);
 	set(label->key, sizeof(label->key), "site");
 	label->n_values = 1;
 	set(label->values[0], sizeof(label->values[0]), "a b");
@@ -60,6 +61,7 @@ static void operation_takes_no_control_character(void)
 	label->key[0] = 's';
 	op->artifact.repository[0] = '\r';
 	EXPECT_EQ(tree_operation_digest(op, digest), -EINVAL);
+	tree_selector_free(&op->selector);
 	xfree(op, sizeof(*op));
 }
 
@@ -85,6 +87,7 @@ static void publication_reads_back(void)
 	xfree(doc, len);
 	tree_publication_free(&pub);
 	tree_publication_free(&back);
+	tree_selector_free(&op->selector);
 	xfree(op, sizeof(*op));
 }
 

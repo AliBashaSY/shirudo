@@ -36,11 +36,27 @@ struct tree_selector {
 	int n_kernel_build_id;
 	char architecture[TREE_MAX_SELECTOR_VALUES][TREE_STRING_MAX];
 	int n_architecture;
-	struct tree_selector_kv kconfig[TREE_MAX_KCONFIG];
+	/*
+	 * Owned and sized to what a selector names: at their full limits,
+	 * every operation of a publication took 545 KiB for them.
+	 */
+	struct tree_selector_kv *kconfig;
 	int n_kconfig;
-	struct tree_selector_kv labels[TREE_MAX_LABELS];
+	struct tree_selector_kv *labels;
 	int n_labels;
 };
+
+/*
+ * A new zeroed pair at the end of the n at *kvs, of at most max: 0 with
+ * it in *kv, -E2BIG or -ENOMEM. tree_selector_copy() fills dst, which
+ * holds no pairs, with copies of src's; tree_selector_free() releases
+ * the pairs, and a zeroed selector holds none.
+ */
+int tree_selector_kv_add(struct tree_selector_kv **kvs, int *n, int max,
+			 struct tree_selector_kv **kv);
+int tree_selector_copy(struct tree_selector *dst,
+		       const struct tree_selector *src);
+void tree_selector_free(struct tree_selector *s);
 
 struct tree_artifact {
 	char repository[512];
@@ -83,6 +99,7 @@ struct tree_state {
 
 int tree_parse(const char *body, size_t len,
 	       struct tree_publication *out);
+/* Appends a copy of op, its selector included. */
 int tree_publication_append(struct tree_publication *pub,
 			    const struct tree_operation *op);
 void tree_publication_free(struct tree_publication *pub);
