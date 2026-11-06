@@ -126,14 +126,14 @@ static void put_string(struct json_emit *e, const char *s)
 static void sep(struct json_emit *e)
 {
 	__u64 bit = 1ull << (e->depth % 64);
-	__u64 *word = &e->nonempty[e->depth / 64];
+	__u32 word = e->depth / 64;
 
 	if (e->err)
 		return;
-	if (*word & bit)
+	if (e->nonempty[word] & bit)
 		put(e, ',');
 	else
-		*word |= bit;
+		e->nonempty[word] |= bit;
 }
 
 static void enter(struct json_emit *e)
