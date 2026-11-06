@@ -73,7 +73,11 @@ that is added, changed or removed is added, changed or removed in
 change closes leaves the threat model. A page that no longer matches
 the code is a bug, whichever of the two is wrong.
 `.github/scripts/check-docs.sh` catches the names it can; the prose is
-the author's to check.
+the author's to check. The skills in `.agents/skills/` name commands,
+make targets, options, files, scripts and rules as well: a change to
+one of those checks the skills that mention it (`git grep -n '<name>'
+.agents/skills`) and updates them in the same commit, and a skill that
+no longer matches the tree is a bug like a page.
 
 New documentation extends an existing page or adds one to its section's
 toctree, and follows `Documentation/contribute/documentation/writing-docs.rst`. Only
