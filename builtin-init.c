@@ -19,7 +19,6 @@
 #include <sys/statfs.h>
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
-#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -42,6 +41,7 @@
 #include "util/json.h"
 #include "util/identity.h"
 #include "util/initrd.h"
+#include "util/io.h"
 #include "util/image_config.h"
 #include "util/image_guards.h"
 #include "util/image_runtime.h"
@@ -334,12 +334,6 @@ static int init_bpffs(void)
 	pr_info("mounted private bpffs at %s "
 		"(mode=0700,nosuid,nodev,noexec)", BPFFS_DIR);
 	return 0;
-}
-
-/* The BPF side compares s_dev in the kernel's encoding, not glibc's. */
-static __u32 kernel_dev_t(dev_t st_dev)
-{
-	return ((__u32)major(st_dev) << 20) | (minor(st_dev) & 0xfffffu);
 }
 
 static int attach_pin(struct bpf_program *p, const char *pin,
@@ -684,12 +678,12 @@ static int init_lsm(void)
 		pr_err("stat %s: %s", BPFFS_DIR, strerror(errno));
 		goto out;
 	}
-	id.sb_dev = kernel_dev_t(st.st_dev);
+	id.sb_dev = kernel_dev(st.st_dev);
 	if (stat(RUN_DIR, &st)) {
 		err = -errno;
 		goto out;
 	}
-	id.run_dev = kernel_dev_t(st.st_dev);
+	id.run_dev = kernel_dev(st.st_dev);
 
 	memcpy(id.runtime_root, image_runtime_root(), 32);
 

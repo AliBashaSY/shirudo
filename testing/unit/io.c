@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include <shirudo/string.h>
@@ -94,11 +95,19 @@ static void append_line_takes_one_line_alone(void)
 	close(fd);
 }
 
+static void kernel_dev_is_major_over_20_minor_bits(void)
+{
+	EXPECT_EQ(kernel_dev(makedev(8, 1)), 0x800001U);
+	EXPECT_EQ(kernel_dev(makedev(253, 0x12345)), 253U << 20 | 0x12345U);
+	EXPECT_EQ(kernel_dev(makedev(0xfff, 0xfffff)), 0xffffffffU);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(lines_len_ends_at_the_last_newline),
 	UNIT_CASE(append_line_adds_one_record),
 	UNIT_CASE(append_line_drops_what_did_not_finish),
 	UNIT_CASE(append_line_takes_one_line_alone),
+	UNIT_CASE(kernel_dev_is_major_over_20_minor_bits),
 	{}
 };
 

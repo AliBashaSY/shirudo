@@ -7,6 +7,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <sys/types.h>
+
+#include <shirudo/types.h>
 
 int write_complete(int fd, const void *buf, size_t len);
 
@@ -43,5 +46,8 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
  * points shirudo, is the caller's to vouch for. 0, or -EPERM logged.
  */
 int check_trusted(int fd, const char *path, bool secret);
+
+/* A st_dev or st_rdev as the kernel encodes the dev_t in s_dev. */
+__u32 kernel_dev(dev_t dev);
 
 #endif /* SHIRUDO_IO_H */

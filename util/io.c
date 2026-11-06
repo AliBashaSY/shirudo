@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include <linux/openat2.h>
@@ -267,4 +268,9 @@ int check_trusted(int fd, const char *path, bool secret)
 		}
 	} while (slash != real);
 	return 0;
+}
+
+__u32 kernel_dev(dev_t dev)
+{
+	return (__u32)major(dev) << 20 | (minor(dev) & 0xfffffU);
 }

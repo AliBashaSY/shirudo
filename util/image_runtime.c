@@ -39,6 +39,7 @@
 #include "image_guards.h"
 #include "image_keys.h"
 #include "image_runtime.h"
+#include "io.h"
 #include "json.h"
 #include "keys.h"
 #include "keyring.h"
@@ -177,7 +178,7 @@ static int mapping_name(const __u8 root[32], char out[128])
 static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 {
 	struct device_authority entry;
-	__u32 dev = (major(device) << 20) | minor(device);
+	__u32 dev = kernel_dev(device);
 	__u64 key, next, diskseq;
 	struct stat st;
 	char path[64];

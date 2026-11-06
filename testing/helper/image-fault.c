@@ -8,7 +8,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
-#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include <bpf/bpf.h>
@@ -20,6 +19,7 @@
 #include "util/config_image.h"
 #include "util/dm_verity.h"
 #include "util/identity.h"
+#include "util/io.h"
 #include "util/paths.h"
 
 enum root_test_mode {
@@ -95,7 +95,7 @@ out:
 
 static int check_classification(const struct dm_verity *device)
 {
-	__u32 dev = (major(device->device) << 20) | minor(device->device);
+	__u32 dev = kernel_dev(device->device);
 	struct device_authority entry;
 	__u64 key, next, diskseq;
 	__u32 matches = 0;
