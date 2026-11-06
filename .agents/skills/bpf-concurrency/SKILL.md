@@ -1,0 +1,78 @@
+---
+name: bpf-concurrency
+description: Write or review BPF code in a shirudo upatch whose runs share state, across CPUs at once or interleaved on one. Covers shared map values, per-CPU scratch, inserting and deleting entries, compare-and-swap, publishing records, double buffers, user memory, and the runs the kernel skips. Use when an upatch program updates state other runs read, when a lock, atomic, acquire or release is involved, or to check such code with the Coccinelle rules and blitmus.
+---
+
+# Concurrent BPF code in upatches
+
+The rules and their reasons are in
+`Documentation/upatches/write/memory-consistency/hazards.rst`, where
+each hazard has a section and a table says where it applies, and in
+`Documentation/upatches/write/pitfalls.rst`, on the runs a program does
+not see. `memory-consistency/blitmus.rst` shows how to test ordering
+between CPUs. Read the sections for the hazards the code meets; this
+skill is the order to work in.
+
+## 1. Map the shared state
+
+For every map value, arena record or variable more than one run
+touches, write down the programs that read and write it, their program
+types, and what holds it: a plain map, a per-CPU map, task, inode,
+socket or cgroup storage, an arena, or the stack.
+
+## 2. Fix the model
+
+Runs on different CPUs at once happen on every kernel. A second run on
+the same CPU before the first ends depends on the kernel's preemption
+model and the program types, as the table in "Where each hazard
+applies" says. Distribution kernels boot `PREEMPT_DYNAMIC` as `full` or
+`lazy`, with preemptible RCU; the test kernel has `PREEMPT_LAZY` alone,
+so the VM suite shows same-CPU interleaving only for `syscall` and
+sleepable programs. When the code is correct only under one model, its
+`README.md` says which, as `upatches/kernel-obs/README.md` does.
+
+## 3. Apply each fix where its hazard applies, and only there
+
+| Hazard (section in hazards.rst) | Fix |
+|---|---|
+| Updates of shared values | `__sync_fetch_and_add()` and its kin on a value other CPUs share |
+| Inserting a missing key | `BPF_NOEXIST`, and on `-EEXIST` look it up again |
+| Using a value after deleting its entry | read or copy the value first |
+| Compare-and-swap | check every result; a failed one changes and orders nothing |
+| Publishing a record | `__atomic_store_n(&p, v, __ATOMIC_RELEASE)` or a value-returning atomic, never `WRITE_ONCE()`; read through `READ_ONCE()` and an address dependency, or a load-acquire where the index is compared with a constant first |
+| Switching buffers | expect writes into the half being drained |
+| Reading user memory twice | read it once |
+| Per-CPU memory used as scratch | where a second run can come: task storage no softirq program uses, the stack, or a busy flag taken with `__atomic_exchange_n()` and released with a release store; a per-CPU counter there with an atomic |
+
+A fix where no interleaving needs it costs every run and hides the
+reasoning; leave the plain form where only one guarded program, or only
+`kprobe` and `kretprobe` programs, touch the memory.
+
+## 4. Plan for what the program does not see
+
+The kernel skips `kprobe` and `kretprobe` runs while another runs on the
+CPU, nested `fentry`, `fexit`, `fmod_ret` and `tp_btf` runs, and
+`kretprobe` returns beyond its instances. Refuse an operation in an
+`lsm` program, never in `fmod_ret`. Walk RCU pointers under
+`bpf_rcu_read_lock()` in a sleepable program, check map update and
+delete results where a lost update matters, and read values userspace
+rewrites under `BPF_F_LOCK`. Prefer `lsm`, `tp_btf` and `fentry` to
+`kprobe`.
+
+## 5. Check
+
+```sh
+.github/scripts/check-coccinelle.sh bpf_cas_unchecked bpf_check_then_insert \
+	bpf_map_rmw bpf_map_use_after_delete bpf_publish bpf_user_double_fetch
+```
+
+The rules see one function at a time and cannot parse a file with its
+own token-pasting macros, such as `obs_table.h`. Write the ordering
+between CPUs such code relies on as litmus tests, with a control test
+the CPU may break, and run them with blitmus on x86-64, arm64 and
+riscv64, built with clang 23 (`blitmus.rst`): a pass on x86-64 alone
+says little. blitmus covers `READ_ONCE()`, `WRITE_ONCE()`, acquire,
+release, full barriers and the add, exchange and compare-and-exchange
+atomics, not the or, and and xor atomics, `bpf_spin_lock()` or RCU.
+Review decides what neither tool sees: hazards spread over functions,
+same-CPU interleaving and what maps and helpers do inside.
