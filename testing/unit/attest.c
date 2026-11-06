@@ -2,6 +2,9 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
+#include <string.h>
+
+#include <shirudo/string.h>
 
 #include "attest.h"
 #include "unit.h"
@@ -43,9 +46,39 @@ static void pcr_value_is_a_pcr_and_an_equals(void)
 	EXPECT_EQ(attest_parse_pcr_value("1 5=ab", &pcr, &value), -EINVAL);
 }
 
+#define D64 "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+static void name_digest_is_a_name_and_64_digits(void)
+{
+	char name[UPATCH_NAME_MAX + 1], longest[UPATCH_NAME_MAX + 3 + 64];
+	__u8 digest[32];
+
+	ASSERT_EQ(attest_parse_name_digest("fix=" D64, name, digest), 0);
+	EXPECT_STREQ(name, "fix");
+	EXPECT_EQ(digest[1], 0x11);
+	ASSERT_EQ(attest_parse_name_digest("a:b=" D64, name, digest), 0);
+	EXPECT_STREQ(name, "a:b");
+	EXPECT_EQ(attest_parse_name_digest("=" D64, name, digest), -EINVAL);
+	EXPECT_EQ(attest_parse_name_digest("fix" D64, name, digest), -EINVAL);
+	EXPECT_EQ(attest_parse_name_digest("fix=" D64 "0", name, digest),
+		  -EINVAL);
+	EXPECT_EQ(attest_parse_name_digest("fix==" D64, name, digest),
+		  -EINVAL);
+	memset(longest, 'n', UPATCH_NAME_MAX);
+	ASSERT_TRUE(strscpy(longest + UPATCH_NAME_MAX, "=" D64,
+			    sizeof(longest) - UPATCH_NAME_MAX) > 0);
+	EXPECT_EQ(attest_parse_name_digest(longest, name, digest), 0);
+	EXPECT_EQ(strlen(name), UPATCH_NAME_MAX);
+	memset(longest, 'n', UPATCH_NAME_MAX + 1);
+	ASSERT_TRUE(strscpy(longest + UPATCH_NAME_MAX + 1, "=" D64,
+			    sizeof(longest) - UPATCH_NAME_MAX - 1) > 0);
+	EXPECT_EQ(attest_parse_name_digest(longest, name, digest), -EINVAL);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(pcrs_are_a_list_up_to_23),
 	UNIT_CASE(pcr_value_is_a_pcr_and_an_equals),
+	UNIT_CASE(name_digest_is_a_name_and_64_digits),
 	{}
 };
 

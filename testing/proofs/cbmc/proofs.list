@@ -8,6 +8,7 @@ string-sanitize		--unwind 8 LEN=0-6
 hex			--unwind 12
 io-lines		--unwind 10
 attest-pcrs		--unwind 9
+attest-name-digest	--unwind 72 LEN=64-70
 paths-bpffs-name	--unwind 18
 upatch-header		--unwind 2 --unwindset memchr.0:257
 string-number-model	--unwind 6

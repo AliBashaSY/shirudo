@@ -1587,3 +1587,19 @@ int attest_parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
 	*value = arg + len + 1;
 	return 0;
 }
+
+int attest_parse_name_digest(const char *spec, char name[UPATCH_NAME_MAX + 1],
+			     __u8 digest[32])
+{
+	const char *eq = strchr(spec, '=');
+	size_t len;
+
+	if (!eq)
+		return -EINVAL;
+	len = eq - spec;
+	if (!len || len > UPATCH_NAME_MAX || hex_decode(eq + 1, digest, 32))
+		return -EINVAL;
+	memcpy(name, spec, len);
+	name[len] = '\0';
+	return 0;
+}

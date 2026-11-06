@@ -112,5 +112,12 @@ int attest_verify(const char *evidence, size_t len,
 int attest_parse_pcrs(const char *list, __u32 *mask);
 /* "<pcr>=<value>": the PCR, below 24, and where its value starts. */
 int attest_parse_pcr_value(const char *arg, __u64 *pcr, const char **value);
+/*
+ * "<name>=<digest>", as attest predict's --expect and the part of each
+ * --event after its kind take it: a name of 1 to UPATCH_NAME_MAX bytes up
+ * to the first equals sign, then 64 hex digits. 0 or -EINVAL.
+ */
+int attest_parse_name_digest(const char *spec, char name[UPATCH_NAME_MAX + 1],
+			     __u8 digest[32]);
 
 #endif /* SHIRUDO_ATTEST_H */

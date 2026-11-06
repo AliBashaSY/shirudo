@@ -79,6 +79,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - A list is accepted exactly when it is decimal PCRs 0 to 23 apart
        by single commas, into the mask of those PCRs; a value exactly
        after a PCR to 23 and an equals sign
+   * - ``attest-name-digest``
+     - ``attest_parse_name_digest()``
+     - Lengths 64 to 70
+     - Accepted exactly when a name of a byte or more runs to the first
+       equals sign and 64 hex digits follow, into that name and their
+       value
    * - ``paths-bpffs-name``
      - ``upatch_bpffs_name()``, ``upatch_name_from_bpffs()``
      - Names up to 4 bytes, pin names up to 8

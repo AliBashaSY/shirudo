@@ -161,19 +161,15 @@ static int member_add_file(struct members *m, const char *path)
 static int member_add_spec(struct members *m, const char *spec)
 {
 	struct measured_upatch *e;
-	const char *eq = strchr(spec, '=');
 	__u8 payload[32];
 
-	if (!eq || eq == spec ||
-	    (size_t)(eq - spec) > UPATCH_NAME_MAX ||
-	    parse_hex32("--expect payload digest", eq + 1, payload))
-		return -EINVAL;
 	if (m->n >= ATTEST_MEMBERS_MAX)
 		return -E2BIG;
-	e = &m->set[m->n++];
-	memcpy(e->name, spec, (size_t)(eq - spec));
-	e->name[eq - spec] = '\0';
+	e = &m->set[m->n];
+	if (attest_parse_name_digest(spec, e->name, payload))
+		return -EINVAL;
 	hex_encode(payload, 32, e->payload_hex);
+	m->n++;
 	return 0;
 }
 
@@ -211,21 +207,14 @@ static int cert_digest(const char *path, __u8 out[32])
 
 static int apply_event(const char *spec, __u8 chain[32])
 {
+	const char *colon = strchr(spec, ':');
 	char name[UPATCH_NAME_MAX + 1];
-	const char *colon = strchr(spec, ':'), *eq;
 	__u8 digest[32], event[32];
-	size_t kind_len, name_len;
+	size_t kind_len;
 
-	eq = colon ? strchr(colon, '=') : NULL;
-	if (!colon || !eq || eq <= colon + 1 ||
-	    parse_hex32("--event digest", eq + 1, digest))
+	if (!colon || attest_parse_name_digest(colon + 1, name, digest))
 		return -EINVAL;
 	kind_len = (size_t)(colon - spec);
-	name_len = (size_t)(eq - colon - 1);
-	if (name_len > UPATCH_NAME_MAX)
-		return -EINVAL;
-	memcpy(name, colon + 1, name_len);
-	name[name_len] = '\0';
 	if (kind_len == 4 && !strncmp(spec, "load", 4)) {
 		if (chain_upatch_event("shirudo-upatch", name, digest, event))
 			return -EIO;
