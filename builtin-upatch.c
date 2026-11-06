@@ -2706,28 +2706,39 @@ static void unload_unmeasured(const char *name)
 		       name);
 }
 
+/* The rest are still undone when one fails; *ctx keeps the first error. */
 static int undo_unmeasured_pin(const char *name, void *ctx)
 {
-	int ret = undo_load(name);
+	int *failed = ctx, ret = undo_load(name);
 
-	if (ret)
+	if (ret) {
 		pr_err("upatch: %s is pinned without a record of this boot and could not be undone: %s; operator must reconcile",
 		       name, strerror(-ret));
-	else
+		if (!*failed)
+			*failed = ret;
+	} else {
 		pr_audit("upatch: %s was pinned without a record of this boot; the load was undone",
 			 name);
+	}
 	return 0;
 }
 
 static int undo_unmeasured_archive(const char *name, const char *path,
 				   void *ctx)
 {
+	int *failed = ctx, ret = 0;
+
 	if (unlink(path) != 0 && errno != ENOENT)
+		ret = -errno;
+	if (ret) {
 		pr_err("upatch: %s is archived without a record of its load and could not be removed: %s; operator must reconcile",
-		       name, strerror(errno));
-	else
+		       name, strerror(-ret));
+		if (!*failed)
+			*failed = ret;
+	} else {
 		pr_audit("upatch: %s was archived without a record of its load; the archive was removed",
 			 name);
+	}
 	return 0;
 }
 
@@ -2738,28 +2749,37 @@ static int undo_unmeasured_archive(const char *name, const char *path,
  * unload is one the records do not cover either; status reports both
  * meanwhile. Every upatch command undoes them before it acts, under the
  * register lock a load holds from before its pins to its append, so that
- * the scan never takes a load in flight for one that was stopped.
+ * the scan never takes a load in flight for one that was stopped. A
+ * command whose pass cannot read the records or take out what they do
+ * not cover refuses: a load beside such pins could share their directory
+ * under one name, and its own record would not tell the two apart.
  */
-static void undo_unmeasured(void)
+static int undo_unmeasured(struct op_report *rep, const char *op)
 {
 	struct measured_set *set;
-	int ret;
+	int failed = 0, ret;
 
 	ret = measured_set_boot(&set);
 	if (ret) {
-		if (ret != -ENOENT)
-			pr_warn("upatch: cannot read this boot's records: %s",
-				strerror(-ret));
-		return;
+		pr_err("upatch %s: cannot read this boot's records: %s; refused, nothing changed",
+		       op, strerror(-ret));
+		rep_fail(rep, "tpm_extend", "tpm_error", ret,
+			 "cannot read this boot's records");
+		return ret;
 	}
-	ret = measured_unmeasured_pins(set, undo_unmeasured_pin, NULL);
+	ret = measured_unmeasured_pins(set, undo_unmeasured_pin, &failed);
 	if (ret >= 0)
 		ret = measured_unmeasured_archives(set, undo_unmeasured_archive,
-						   NULL);
+						   &failed);
 	measured_set_free(set);
-	if (ret < 0)
-		pr_warn("upatch: cannot check the pins and archives against this boot's records: %s",
-			strerror(-ret));
+	if (ret >= 0 && !failed)
+		return 0;
+	ret = ret < 0 ? ret : failed;
+	pr_err("upatch %s: cannot undo what this boot's records do not cover: %s; refused",
+	       op, strerror(-ret));
+	rep_fail(rep, "tpm_extend", "tpm_error", ret,
+		 "cannot undo what this boot's records do not cover");
+	return ret;
 }
 
 static int cmd_upatch_load(int argc, const char **argv)
@@ -2839,7 +2859,8 @@ static int cmd_upatch_load(int argc, const char **argv)
 			 "cannot take the register lock");
 		goto done;
 	}
-	undo_unmeasured();
+	if (undo_unmeasured(&rep, "load"))
+		goto done;
 	/*
 	 * Only a completed load records the payload and only an unload
 	 * removes it. A load over a live upatch rebinds its serializer pins
@@ -3020,7 +3041,8 @@ static int cmd_upatch_unload(int argc, const char **argv)
 			 "cannot take the register lock");
 		goto done;
 	}
-	undo_unmeasured();
+	if (undo_unmeasured(&rep, "unload"))
+		goto done;
 	/* A bad signature fails here, before anything is removed. */
 	if (__upatch_apply(file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");

@@ -926,8 +926,9 @@ pins the register does not
 cover and the upatch attached: ``shirudo status`` reports them
 (``UpatchesMeasured``, verdict ``tampered``) and the next upatch
 command, ``bpm``'s included, undoes them, pins and archives, before it
-acts. The same scan finds the pins an unload stopped after its extend
-leaves, and an archive without a record of its load; ``init`` restores
+acts, and refuses when it cannot read the records or undo them. The
+same scan finds the pins an unload stopped after its extend leaves, and
+an archive without a record of its load; ``init`` restores
 only an archive whose load the eventlog records without a later unload
 (``t6144``). A measuring
 command holds a lock beside the eventlog from its extend to its append,
