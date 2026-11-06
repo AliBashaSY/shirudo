@@ -43,6 +43,8 @@ put "$R/Makefile" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$R/Makefile.config" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$R/unit.service.in" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$R/d.lua" '-- SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause'
+put "$R/Proof.lean" '-- SPDX-License-Identifier: BSD-2-Clause'
+put "$R/lakefile.toml" '# SPDX-License-Identifier: BSD-2-Clause'
 put "$R/block.rst" '..' '   SPDX-License-Identifier: BSD-2-Clause' '   Copyright (c) 2026'
 put "$R/line.rst" '.. SPDX-License-Identifier: BSD-2-Clause'
 put "$R/notes.md" 'no tag here'
@@ -70,7 +72,7 @@ put "$R/testing/coccinelle/bpf_map_use_after_delete.cocci" \
 
 test_expect_success 'a tree of well-tagged files passes' '
 	check "$R" &&
-	grep -q "SPDX: 19 files checked" "$W/out"
+	grep -q "SPDX: 21 files checked" "$W/out"
 '
 
 B=$W/bad
@@ -102,22 +104,26 @@ put "$B/vendor/types.h" '/* SPDX-License-Identifier: GPL-2.0 */'
 put "$B/vendor/bare.c" 'int x;'
 put "$B/testing/coccinelle/other.cocci" \
 	'// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)'
+put "$B/Style.lean" '# SPDX-License-Identifier: BSD-2-Clause'
+put "$B/notag.toml" 'name = "x"'
 
 test_expect_success 'a tree of badly tagged files fails' '
 	! check "$B" &&
-	grep -q "^17 SPDX problems" "$W/err"
+	grep -q "^19 SPDX problems" "$W/err"
 '
 
 test_expect_success 'the form of the tag follows the file type' '
 	grep -q "^style.c: the tag of a c file reads .// SPDX-License-Identifier: BSD-2-Clause., found: /\* SPDX" "$W/err" &&
 	grep -q "^style.h: the tag of a h file reads ./\* SPDX-License-Identifier: BSD-2-Clause \*/., found: // SPDX" "$W/err" &&
-	grep -q "^indent.rst: the tag of a rst file reads .   SPDX-License-Identifier: BSD-2-Clause., found: SPDX" "$W/err"
+	grep -q "^indent.rst: the tag of a rst file reads .   SPDX-License-Identifier: BSD-2-Clause., found: SPDX" "$W/err" &&
+	grep -q "^Style.lean: the tag of a lua file reads .-- SPDX-License-Identifier: BSD-2-Clause., found: # SPDX" "$W/err"
 '
 
 test_expect_success 'the tag sits on the first line, or the second after a shebang' '
 	grep -q "^late.sh: SPDX tag on line 3, expected on line 2" "$W/err" &&
 	grep -q "^none.py: no SPDX-License-Identifier tag on line 1" "$W/err" &&
-	grep -q "^tool: no SPDX-License-Identifier tag on line 2" "$W/err"
+	grep -q "^tool: no SPDX-License-Identifier tag on line 2" "$W/err" &&
+	grep -q "^notag.toml: no SPDX-License-Identifier tag on line 1" "$W/err"
 '
 
 test_expect_success 'only the two expressions of the tree are accepted' '

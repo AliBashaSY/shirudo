@@ -88,15 +88,15 @@ check_vendor() {
 }
 
 # The comment form of the tag by file type, the kernel's rules with --
-# for Lua and .. for reStructuredText. Any other file needs a tag only
-# when it starts with a shebang.
+# for Lua and Lean and .. for reStructuredText. Any other file needs a
+# tag only when it starts with a shebang.
 kind_of() {
 	case "$1" in
 	*.c|*.cocci) echo c ;;
 	*.h) echo h ;;
-	*.lua) echo lua ;;
+	*.lua|*.lean) echo lua ;;
 	*.rst) echo rst ;;
-	*.sh|*.bash|*.py|*.in|*.timer|*.service|*.mk)
+	*.sh|*.bash|*.py|*.in|*.timer|*.service|*.mk|*.toml)
 		echo hash ;;
 	Makefile|*/Makefile|Makefile.*|*/Makefile.*)
 		echo hash ;;
