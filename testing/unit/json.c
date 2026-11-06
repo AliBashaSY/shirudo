@@ -218,6 +218,79 @@ static void nested_array_then_trailing_scalar(void)
 	EXPECT_STREQ(d.last_type, "init");
 }
 
+struct nested {
+	struct json_field *meta, *tag_field;
+	int meta_seen[4], tag_seen[4];
+	char id[8], tag[8];
+	int n;
+};
+
+static int nested_on_elem(void *ctx)
+{
+	struct nested *x = ctx;
+
+	if (x->n < 4) {
+		x->meta_seen[x->n] = x->meta->seen;
+		x->tag_seen[x->n] = x->tag_field->seen;
+	}
+	x->n++;
+	return 0;
+}
+
+static int parse_nested(const char *text, struct nested *x)
+{
+	struct json_array sink = { nested_on_elem, x };
+	struct json_field meta_sub[] = {
+		{ "tag", JSON_T_STRING, x->tag, sizeof(x->tag), 0, NULL, 0 },
+	};
+	struct json_field item_sub[] = {
+		{ "id", JSON_T_STRING, x->id, sizeof(x->id), 0, NULL, 0 },
+		{ "meta", JSON_T_OBJECT, NULL, 0, 0, meta_sub,
+		  ARRAY_SIZE(meta_sub) },
+	};
+	struct json_field f[] = {
+		{ "items", JSON_T_ARRAY, &sink, 0, 0, item_sub,
+		  ARRAY_SIZE(item_sub) },
+	};
+
+	memset(x, 0, sizeof(*x));
+	x->meta = &item_sub[1];
+	x->tag_field = &meta_sub[0];
+	return json_parse(text, strlen(text), f, ARRAY_SIZE(f));
+}
+
+/*
+ * A field an element or a document leaves out is not given, however
+ * deep in the schema it sits and whatever the one before gave.
+ */
+static void seen_flags_are_the_elements_own(void)
+{
+	static const char second[] = "{}";
+	static const char first[] = "{\"o\":{\"k\":\"v\"}}";
+	char k[8];
+	struct json_field sub[] = {
+		{ "k", JSON_T_STRING, k, sizeof(k), 0, NULL, 0 },
+	};
+	struct json_field top[] = {
+		{ "o", JSON_T_OBJECT, NULL, 0, 0, sub, ARRAY_SIZE(sub) },
+	};
+	struct nested x;
+
+	ASSERT_EQ(parse_nested("{\"items\":[{\"id\":\"a\",\"meta\":"
+			       "{\"tag\":\"x\"}},{\"id\":\"b\"}]}", &x), 0);
+	ASSERT_EQ(x.n, 2);
+	EXPECT_EQ(x.meta_seen[0], 1);
+	EXPECT_EQ(x.tag_seen[0], 1);
+	EXPECT_EQ(x.meta_seen[1], 0);
+	EXPECT_EQ(x.tag_seen[1], 0);
+
+	ASSERT_EQ(json_parse(first, strlen(first), top, ARRAY_SIZE(top)), 0);
+	EXPECT_EQ(sub[0].seen, 1);
+	ASSERT_EQ(json_parse(second, strlen(second), top, ARRAY_SIZE(top)), 0);
+	EXPECT_EQ(top[0].seen, 0);
+	EXPECT_EQ(sub[0].seen, 0);
+}
+
 static void malformed_arrays_are_refused(void)
 {
 	struct doc d;
@@ -343,6 +416,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(string_array_dispatches_each_element),
 	UNIT_CASE(object_array_uses_element_schema),
 	UNIT_CASE(nested_array_then_trailing_scalar),
+	UNIT_CASE(seen_flags_are_the_elements_own),
 	UNIT_CASE(malformed_arrays_are_refused),
 	UNIT_CASE(integer_takes_json_integers_only),
 	UNIT_CASE(integer_holds_any_s64_and_no_more),

@@ -274,6 +274,18 @@ struct pctx {
 	size_t				n_fields;
 };
 
+static void reset_seen(struct json_field *fields, size_t n)
+{
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		fields[i].seen = 0;
+		if (fields[i].type == JSON_T_OBJECT ||
+		    fields[i].type == JSON_T_ARRAY)
+			reset_seen(fields[i].sub, fields[i].n_sub);
+	}
+}
+
 static void skip_ws(struct pctx *c)
 {
 	while (c->p < c->end) {
@@ -553,10 +565,7 @@ static int parse_array_into(struct pctx *c, struct json_field *f)
 		return 0;
 	}
 	for (;;) {
-		size_t i;
-
-		for (i = 0; i < f->n_sub; i++)
-			f->sub[i].seen = 0;
+		reset_seen(f->sub, f->n_sub);
 		skip_ws(c);
 		if (c->p >= c->end)
 			return -EINVAL;
@@ -744,13 +753,11 @@ int json_parse(const char *data, size_t len,
 		.p = data, .end = data + len,
 		.fields = fields, .n_fields = n_fields,
 	};
-	size_t i;
 	int ret;
 
 	if (len > JSON_MAX_BYTES)
 		return -E2BIG;
-	for (i = 0; i < n_fields; i++)
-		fields[i].seen = 0;
+	reset_seen(fields, n_fields);
 
 	skip_ws(&c);
 	if (c.p >= c.end || *c.p != '{')

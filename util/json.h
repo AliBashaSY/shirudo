@@ -78,7 +78,8 @@ enum json_vtype {
 };
 
 /*
- * The sub fields' seen flags reset per element; on_elem may copy the
+ * The seen flags of the sub fields, and of the fields nested in them,
+ * reset per element; the dst buffers do not. on_elem may copy the
  * element out of the scratch dst buffers before the next one overwrites
  * them, and returns a negative errno to abort.
  */
