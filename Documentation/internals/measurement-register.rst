@@ -262,7 +262,9 @@ therefore holds ``/var/lib/shirudo/eventlog.lock`` from its extension to
 its append; a load or an unload holds it from before it touches the pins,
 and a revocation's purge of an upatch from its archive read until its
 pins and archive are gone, so that a load of the same name cannot come
-between the purge's event and its removal.
+between the purge's event and its removal. The purge checks the signer
+on what that read finds: an upgrade that replaced the upatch since the
+revocation's scan with one another key signed leaves it in place.
 
 The order of extension and state change is chosen per operation. A load
 loads, archives and then extends; a failed archive copy or a refused

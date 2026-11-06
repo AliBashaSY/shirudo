@@ -184,11 +184,15 @@ int upatch_remove(const char *path);
  */
 #define UPATCH_INSTALL_TARGET_MISSING	2
 
+struct cert;
+
 /*
  * Detach, unpin and unarchive without a directive, because the key
  * that signed the upatch was revoked: 1 when the unload was measured,
- * 0 when only the archive went, -errno otherwise.
+ * 0 when only the archive went, -ESTALE when the archive under the name
+ * is no longer one signer signed and stays, -errno otherwise.
  */
-int upatch_purge(const char *name, const char *reason);
+int upatch_purge(const char *name, const struct cert *signer,
+		 const char *reason);
 
 #endif /* SHIRUDO_UTIL_UPATCH_H */

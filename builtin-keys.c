@@ -879,7 +879,12 @@ static int purge_signed_by(const __u8 *der, size_t der_sz,
 		upatch_close(&u);
 		if (signed_by != 1)
 			continue;
-		prc = upatch_purge(name, "key_revoke");
+		prc = upatch_purge(name, &cert, "key_revoke");
+		if (prc == -ESTALE) {
+			pr_info("keys revoke: %s was replaced by an upatch the key did not sign; left alone",
+				name);
+			continue;
+		}
 		if (prc < 0) {
 			pr_err("keys revoke: purge %s: %s", name,
 			       strerror(-prc));

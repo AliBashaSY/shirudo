@@ -3147,7 +3147,8 @@ done:
 	return ret;
 }
 
-static int upatch_purge_locked(const char *name, const char *reason)
+static int upatch_purge_locked(const char *name, const struct cert *signer,
+			       const char *reason)
 {
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
@@ -3166,8 +3167,11 @@ static int upatch_purge_locked(const char *name, const char *reason)
 	close(fd);
 	if (ret)
 		return ret;
+	ret = cms_signed_by(upatch_signature(&u), u.hdr.signature_len, signer);
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	upatch_close(&u);
+	if (ret != 1)
+		return ret < 0 ? ret : -ESTALE;
 
 	/* As for unload: the event first, then the detach it describes. */
 	loaded = upatch_is_pinned(name);
@@ -3197,9 +3201,13 @@ static int upatch_purge_locked(const char *name, const char *reason)
 /*
  * Under the register lock from the archive read to its unlink, as a
  * load and an unload hold it, so that a load of the name that takes the
- * lock after the purge's event is not the one the purge then removes.
+ * lock after the purge's event is not the one the purge then removes,
+ * and with the signer checked on what that read finds: a caller's scan
+ * ran before the lock, and an upgrade may have replaced the upatch since
+ * with one another key signed.
  */
-int upatch_purge(const char *name, const char *reason)
+int upatch_purge(const char *name, const struct cert *signer,
+		 const char *reason)
 {
 	int lock, ret;
 
@@ -3212,7 +3220,7 @@ int upatch_purge(const char *name, const char *reason)
 		       strerror(-lock));
 		return lock;
 	}
-	ret = upatch_purge_locked(name, reason);
+	ret = upatch_purge_locked(name, signer, reason);
 	eventlog_unlock(lock);
 	return ret;
 }
