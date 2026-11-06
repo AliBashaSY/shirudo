@@ -68,6 +68,15 @@ one of those checks the skills that mention it (`git grep -n '<name>'
 .agents/skills`) and updates them in the same commit, and a skill that
 no longer matches the tree is a bug like a page.
 
+The proofs under `testing/proofs/` follow the code the same way. A
+change to a file or function a CBMC harness includes or reaches (`git
+grep -n '<file>.c\|<function>' testing/proofs/cbmc`), or to an algorithm
+a Lean 4 model of `testing/proofs/lean4/` follows, adapts the harness or
+the model in the same commit, with its line in `proofs.list` and its row
+in `Documentation/contribute/testing/proof-coverage.rst`, and runs the
+proofs it touches. A proof that no longer matches the code, or no
+longer holds, is a bug like a page.
+
 New documentation extends an existing page or adds one to its section's
 toctree, and follows `Documentation/contribute/documentation/writing-docs.rst`. Only
 what concerns the project as a whole goes in the top-level directory

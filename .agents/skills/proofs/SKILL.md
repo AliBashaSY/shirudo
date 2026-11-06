@@ -7,9 +7,11 @@ description: Run, write and debug shirudo's proofs, CBMC under testing/proofs/cb
 
 `Documentation/contribute/testing/proofs.rst` is the how-to, and
 `Documentation/contribute/testing/proof-coverage.rst` lists every proof
-and what no proof covers yet. A change to code a proof covers runs that
-proof, and a change to a proof or to what it covers updates the coverage
-page in the same commit.
+and what no proof covers yet. A change to code a proof covers adapts the
+harness or the Lean 4 model in the same commit, where the change moved
+what it states, and runs that proof (`git grep -n '<file>.c\|<function>'
+testing/proofs/cbmc` finds the harnesses that reach the code); a change to
+a proof or to what it covers updates the coverage page too.
 
 ## Run
 

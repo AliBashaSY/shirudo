@@ -176,6 +176,8 @@ code, signing and the package builder, stays out of the core binary.
 
 A warning fails the build, so fix it rather than silence it. Build with
 GCC and with clang 23 (`make -B` when switching), run the unit suite of
-every `util/` file the change touches, and run the `pre-submit` skill's
-checks before handing the change over: checkpatch in strict mode,
-Coccinelle, sparse and both sanitizers find what review misses.
+every `util/` file the change touches, adapt and run the proofs under
+`testing/proofs/` that reach the code (the `proofs` skill), and run the
+`pre-submit` skill's checks before handing the change over: checkpatch
+in strict mode, Coccinelle, sparse and both sanitizers find what review
+misses.
