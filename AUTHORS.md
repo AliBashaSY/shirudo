@@ -3,6 +3,7 @@
 The following people, in alphabetical order, have either authored or
 signed off on commits in the shirudo project:
 
+ * Andrea Lattuada           \<andrea@lattuada.me\>
  * Bill Mulligan             \<billmulligan516@gmail.com\>
  * Daniel Borkmann           \<daniel@iogearbox.net\>
  * Jeremy Colvin             \<jeremy.colvin@isovalent.com\>
@@ -14,4 +15,5 @@ signed off on commits in the shirudo project:
  * Martynas Pumputis         \<martynas@pumputis.org\>
  * Michi Mutsuzaki           \<michi@isovalent.com\>
  * Puranjay Mohan            \<puranjay@kernel.org\>
+ * Tobias Klauser            \<tklauser@distanz.ch\>
  * Vadim Shchekoldin         \<inbox@vadim.sh\>
