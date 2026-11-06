@@ -2,10 +2,16 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * json_parse() over a schema with every field type.
+ * json_parse() over a schema with every field type, and json_walk()
+ * over the same input.
  */
 
+#include <stdlib.h>
+
 #include "fuzz.h"
+
+#include <shirudo/string.h>
+
 #include "json.h"
 
 static int on_elem(void *ctx)
@@ -13,6 +19,23 @@ static int on_elem(void *ctx)
 	(*(int *)ctx)++;
 	return 0;
 }
+
+/* Whatever the walk hands over is whole UTF-8 text without a NUL. */
+static int check_text(void *ctx, const char *s)
+{
+	size_t n = strlen(s), w;
+
+	for (size_t i = 0; i < n; i += w) {
+		w = utf8_width(s + i, n - i);
+		if (!w)
+			abort();
+	}
+	return 0;
+}
+
+static const struct json_visitor checker = {
+	.key = check_text, .string = check_text,
+};
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
@@ -37,5 +60,6 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	};
 
 	json_parse((const char *)data, size, root, ARRAY_SIZE(root));
+	json_walk((const char *)data, size, &checker, NULL);
 	return 0;
 }

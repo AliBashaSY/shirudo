@@ -499,6 +499,148 @@ static void lossy_writes_replace_bad_bytes(void)
 		     "\"a\\ufffdb\\ufffdc\\ufffd\\ufffd\xc3\xa9\"}");
 }
 
+struct trace {
+	char	buf[512];
+	size_t	len;
+};
+
+static int trace_put(struct trace *t, const char *s)
+{
+	size_t n = strlen(s);
+
+	if (t->len + n >= sizeof(t->buf))
+		return -E2BIG;
+	memcpy(t->buf + t->len, s, n + 1);
+	t->len += n;
+	return 0;
+}
+
+static int trace_open(void *ctx, bool array)
+{
+	return trace_put(ctx, array ? "[" : "{");
+}
+
+static int trace_close(void *ctx, bool array)
+{
+	return trace_put(ctx, array ? "]" : "}");
+}
+
+static int trace_key(void *ctx, const char *key)
+{
+	return trace_put(ctx, "k:") ?: trace_put(ctx, key) ?: trace_put(ctx, " ");
+}
+
+static int trace_string(void *ctx, const char *s)
+{
+	return trace_put(ctx, "s:") ?: trace_put(ctx, s) ?: trace_put(ctx, " ");
+}
+
+static int trace_number(void *ctx, const char *text, size_t len,
+			bool integer)
+{
+	char num[64];
+
+	if (strsprintf(num, sizeof(num), "%s:%.*s ", integer ? "i" : "d",
+		       (int)len, text) < 0)
+		return -E2BIG;
+	return trace_put(ctx, num);
+}
+
+static int trace_literal(void *ctx, int value)
+{
+	return trace_put(ctx, value > 0 ? "true " : value ? "null " : "false ");
+}
+
+static const struct json_visitor tracer = {
+	.open = trace_open, .close = trace_close, .key = trace_key,
+	.string = trace_string, .number = trace_number,
+	.literal = trace_literal,
+};
+
+static int walk(const char *text, struct trace *t)
+{
+	t->len = 0;
+	t->buf[0] = '\0';
+	return json_walk(text, strlen(text), &tracer, t);
+}
+
+/* The walk reports a document in order, held to the parser's rules. */
+static void walk_reports_every_token(void)
+{
+	char deep[128];
+	struct trace t;
+	int i;
+
+	ASSERT_EQ(walk(" {\"a\":[1,\"x\\u00e9\",true,null,{\"b\":-2.5e3}],"
+		       "\"c\":{},\"d\":false} ", &t), 0);
+	EXPECT_STREQ(t.buf, "{k:a [i:1 s:x\xc3\xa9 true null {k:b d:-2.5e3 }]"
+		     "k:c {}k:d false }");
+	ASSERT_EQ(walk("\"top\"", &t), 0);
+	EXPECT_STREQ(t.buf, "s:top ");
+	ASSERT_EQ(walk("-0", &t), 0);
+	EXPECT_STREQ(t.buf, "i:-0 ");
+
+	EXPECT_EQ(walk("{\"a\":1,}", &t), -EINVAL);
+	EXPECT_EQ(walk("{\"a\":\"\\u0000\"}", &t), -EINVAL);
+	EXPECT_EQ(walk("[\"\xff\"]", &t), -EINVAL);
+	EXPECT_EQ(walk("[1] 2", &t), -EINVAL);
+	EXPECT_EQ(walk("", &t), -EINVAL);
+	for (i = 0; i < 40; i++)
+		deep[i] = '[';
+	deep[i] = '\0';
+	EXPECT_EQ(walk(deep, &t), -E2BIG);
+	EXPECT_EQ(json_walk("[1]", 3, NULL, NULL), -EINVAL);
+}
+
+/*
+ * ECMA-404, 2nd edition: what the grammar holds is taken, what it does
+ * not is refused, and the restrictions json.h lists are refused too.
+ */
+static void walk_follows_ecma_404(void)
+{
+	static const char *const conforming[] = {
+		"[]", "{}", "0", "-0", "1.5e+10", "1E-2", "-0.0e0", "true",
+		"null", "\"\"", "{\"\":0}", " \t\n\r[1] ",
+		"[\"\\u002F\\u002f\\/\"]", "\"\\uD834\\uDD1E\"",
+		"[\"\\b\\f\\n\\r\\t\\\"\\\\\"]", "[\"\x7f\"]",
+		"{\"a\":[{\"b\":null}],\"c\":\"\xf0\x9d\x84\x9e\"}",
+	};
+	static const char *const nonconforming[] = {
+		"[01]", "[1.]", "[.5]", "[+1]", "[-]", "[1e]", "[1e+]", "[NaN]",
+		"[Infinity]", "[\"\x01\"]", "[\"\\x41\"]", "[\"\\u12\"]",
+		"[True]", "[1,]", "{\"a\":1,}", "{a:1}", "['a']", "[\"a\" \"b\"]",
+		"\v[1]", "\f[1]", "\xef\xbb\xbf[1]", "[1]x", "[\"a]", "{\"a\"}",
+		"{\"a\" 1}", "[1 2]", "",
+	};
+	static const char *const restricted[] = {
+		"\"\\u0000\"", "\"\\uD800\"", "\"\\uDC00\"",
+		"\"\\uD800\\u0041\"", "[\"\xff\"]", "[\"\xed\xa0\x80\"]",
+	};
+	struct trace t;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(conforming); i++)
+		EXPECT_EQ(walk(conforming[i], &t), 0);
+	for (i = 0; i < ARRAY_SIZE(nonconforming); i++)
+		EXPECT_EQ(walk(nonconforming[i], &t), -EINVAL);
+	for (i = 0; i < ARRAY_SIZE(restricted); i++)
+		EXPECT_EQ(walk(restricted[i], &t), -EINVAL);
+}
+
+static int stop_at_number(void *ctx, const char *text, size_t len,
+			  bool integer)
+{
+	return -ECANCELED;
+}
+
+static void walk_stops_where_a_callback_says(void)
+{
+	static const struct json_visitor stop = { .number = stop_at_number };
+
+	EXPECT_EQ(json_walk("[\"a\",2,3]", 9, &stop, NULL), -ECANCELED);
+	EXPECT_EQ(json_walk("[\"a\"]", 5, &stop, NULL), 0);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(extracts_scalars_and_skips_nested_sets),
 	UNIT_CASE(skips_unknown_keys_and_objects),
@@ -523,6 +665,9 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(emitter_takes_well_formed_utf8_only),
 	UNIT_CASE(emitter_grows_up_to_its_max),
 	UNIT_CASE(lossy_writes_replace_bad_bytes),
+	UNIT_CASE(walk_reports_every_token),
+	UNIT_CASE(walk_follows_ecma_404),
+	UNIT_CASE(walk_stops_where_a_callback_says),
 	{}
 };
 

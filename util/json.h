@@ -126,4 +126,32 @@ struct json_field {
 int json_parse(const char *data, size_t len,
 	       struct json_field *fields, size_t n_fields);
 
+/*
+ * Both readers take JSON text as ECMA-404, 2nd edition, defines it,
+ * under the restrictions its section 2 lets a processor impose:
+ * json_parse() takes an object alone and a declared key once, and both
+ * refuse \u0000 and a lone surrogate escape, which no C string or UTF-8
+ * holds, bytes that are no well-formed UTF-8, more than JSON_MAX_DEPTH
+ * levels and more than JSON_MAX_BYTES.
+ *
+ * json_walk() reports every token of a document of any one value, in
+ * order and checked as json_parse() checks one: strings and keys
+ * decoded and terminated, numbers as their text, with integer set when
+ * it has no fraction or exponent, literals as 1 for true, 0 for false
+ * and -1 for null. A callback may be NULL; one that returns a negative
+ * errno stops the walk with it.
+ */
+struct json_visitor {
+	int	(*open)(void *ctx, bool array);
+	int	(*close)(void *ctx, bool array);
+	int	(*key)(void *ctx, const char *key);
+	int	(*string)(void *ctx, const char *s);
+	int	(*number)(void *ctx, const char *text, size_t len,
+			  bool integer);
+	int	(*literal)(void *ctx, int value);
+};
+
+int json_walk(const char *data, size_t len,
+	      const struct json_visitor *v, void *ctx);
+
 #endif /* SHIRUDO_JSON_H */

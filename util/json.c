@@ -320,7 +320,30 @@ struct pctx {
 	__u32				depth;
 	struct json_field	*fields;
 	size_t				n_fields;
+	const struct json_visitor	*v;
+	void				*v_ctx;
+	char				*scratch;	/* walk: decoded text */
+	size_t				scratch_cap;
 };
+
+/*
+ * A walk reports what the parse discards, through the same grammar, so
+ * that one parser checks every document shirudo reads.
+ */
+static int visit_open(struct pctx *c, bool array)
+{
+	return c->v && c->v->open ? c->v->open(c->v_ctx, array) : 0;
+}
+
+static int visit_close(struct pctx *c, bool array)
+{
+	return c->v && c->v->close ? c->v->close(c->v_ctx, array) : 0;
+}
+
+static int visit_literal(struct pctx *c, int value)
+{
+	return c->v && c->v->literal ? c->v->literal(c->v_ctx, value) : 0;
+}
 
 static void reset_seen(struct json_field *fields, size_t n)
 {
@@ -513,24 +536,30 @@ static int parse_value(struct pctx *c, struct json_field *f);
 
 static int parse_object(struct pctx *c)
 {
-	char key[256];
+	char buf[256], *key = c->v ? c->scratch : buf;
+	size_t key_cap = c->v ? c->scratch_cap : sizeof(buf);
 	int ret;
 
 	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
 	c->p++;				/* consume '{' */
+	ret = visit_open(c, false);
+	if (ret)
+		return ret;
 	skip_ws(c);
 	if (c->p < c->end && *c->p == '}') {
 		c->p++;
 		c->depth--;
-		return 0;
+		return visit_close(c, false);
 	}
 	for (;;) {
 		struct json_field *f = NULL;
 		size_t i;
 
 		skip_ws(c);
-		ret = parse_string(c, key, sizeof(key));
+		ret = parse_string(c, key, key_cap);
+		if (!ret && c->v && c->v->key)
+			ret = c->v->key(c->v_ctx, key);
 		if (ret)
 			return ret;
 		skip_ws(c);
@@ -563,7 +592,7 @@ static int parse_object(struct pctx *c)
 		return -EINVAL;
 	}
 	c->depth--;
-	return 0;
+	return visit_close(c, false);
 }
 
 static int parse_array(struct pctx *c)
@@ -573,11 +602,14 @@ static int parse_array(struct pctx *c)
 	if (++c->depth > JSON_MAX_DEPTH)
 		return -E2BIG;
 	c->p++;				/* consume '[' */
+	ret = visit_open(c, true);
+	if (ret)
+		return ret;
 	skip_ws(c);
 	if (c->p < c->end && *c->p == ']') {
 		c->p++;
 		c->depth--;
-		return 0;
+		return visit_close(c, true);
 	}
 	for (;;) {
 		ret = parse_value(c, NULL);	/* elements never dispatched */
@@ -597,7 +629,7 @@ static int parse_array(struct pctx *c)
 		return -EINVAL;
 	}
 	c->depth--;
-	return 0;
+	return visit_close(c, true);
 }
 
 static int parse_array_into(struct pctx *c, struct json_field *f)
@@ -708,7 +740,9 @@ static int parse_number(struct pctx *c, struct json_field *f)
 			return -EINVAL;
 	}
 	if (!f)
-		return 0;
+		return c->v && c->v->number ?
+		       c->v->number(c->v_ctx, start, (size_t)(c->p - start),
+				    c->p == int_end) : 0;
 	if (f->type != JSON_T_INT || c->p != int_end)
 		return -EINVAL;
 	if (parse_s64(start, (size_t)(int_end - start), INT64_MIN, INT64_MAX,
@@ -771,6 +805,13 @@ static int parse_value(struct pctx *c, struct json_field *f)
 			f->seen = 1;
 			return 0;
 		}
+		if (c->v) {
+			int ret = parse_string(c, c->scratch, c->scratch_cap);
+
+			if (!ret && c->v->string)
+				ret = c->v->string(c->v_ctx, c->scratch);
+			return ret;
+		}
 		return parse_string(c, NULL, 0);
 	case 't':
 		if (lit(c, "true"))
@@ -781,7 +822,7 @@ static int parse_value(struct pctx *c, struct json_field *f)
 			*(int *)f->dst = 1;
 			f->seen = 1;
 		}
-		return 0;
+		return f ? 0 : visit_literal(c, 1);
 	case 'f':
 		if (lit(c, "false"))
 			return -EINVAL;
@@ -791,11 +832,11 @@ static int parse_value(struct pctx *c, struct json_field *f)
 			*(int *)f->dst = 0;
 			f->seen = 1;
 		}
-		return 0;
+		return f ? 0 : visit_literal(c, 0);
 	case 'n':
 		if (lit(c, "null"))
 			return -EINVAL;
-		return 0;		/* null never dispatched */
+		return f ? 0 : visit_literal(c, -1);	/* null never dispatched */
 	default:
 		return parse_number(c, f);
 	}
@@ -824,4 +865,29 @@ int json_parse(const char *data, size_t len,
 	if (c.p != c.end)
 		return -EINVAL;		/* trailing garbage */
 	return 0;
+}
+
+int json_walk(const char *data, size_t len,
+	      const struct json_visitor *v, void *ctx)
+{
+	struct pctx c = {
+		.p = data, .end = data + len, .v = v, .v_ctx = ctx,
+	};
+	int ret;
+
+	if (len > JSON_MAX_BYTES || !v)
+		return len > JSON_MAX_BYTES ? -E2BIG : -EINVAL;
+	/* A decoded string is never longer than its encoding. */
+	c.scratch_cap = len + 1;
+	c.scratch = xmalloc(c.scratch_cap);
+	if (!c.scratch)
+		return -ENOMEM;
+	ret = parse_value(&c, NULL);
+	if (!ret) {
+		skip_ws(&c);
+		if (c.p != c.end)
+			ret = -EINVAL;
+	}
+	xfree(c.scratch, c.scratch_cap);
+	return ret;
 }
