@@ -38,6 +38,7 @@ eventlog-records	--unwind 34 LEN=0-32
 config-image		--unwind 6 --unwindset memcmp.0:89,harness.0:33 LEN=0,511,512,4096
 config-auth		--unwind 18 LEN=0-16
 config-hosts		--unwind 9 LEN=0-7
+config-update-follows	--unwind 33
 image-bootstrap		--unwind 12 --unwindset bootstrap_parse.0:2,hex_decode.0:1 LEN=0-8
 image-path		--unwind 11
 dm-names		--unwind 10

@@ -10,3 +10,4 @@ import Shirudo.PinName
 import Shirudo.ArchivePath
 import Shirudo.Hex
 import Shirudo.JsonString
+import Shirudo.ConfigActivation

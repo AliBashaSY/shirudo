@@ -441,6 +441,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``tls_classical_hosts_valid()``
      - Values of 0 to 7 bytes
      - Empty, or DNS names apart by commas
+   * - ``config-update-follows``
+     - ``event_follows()`` and ``same_event()`` of :src:`util/config_update.c`
+     - Every record ``record_decode()`` accepts, and the zeroed one before
+       the first line
+     - ``event_follows()`` accepts exactly what ``Follows`` of
+       ``Shirudo.ConfigActivation`` does and refuses with ``EUCLEAN``;
+       ``same_event()`` is the equality of TPM boot, sequence, PCR, kind,
+       initial value and root
    * - ``image-bootstrap``
      - ``bootstrap_parse()`` with ``read_text_line()``
      - One settings line of 0 to 8 bytes, every earlier state, failed
@@ -594,6 +602,30 @@ the model follows the C.
      - CBMC, ``json-emit-string-model`` up to 4 bytes,
        ``json-string-model`` lengths 0 to 6, ``json-escape-model`` every
        pair of ``\u`` escapes
+   * - ``Shirudo.ConfigActivation``, the config activation of
+       :src:`util/config_update.c` as ``image update``, ``status`` and
+       ``init`` drive it
+     - ``consistent_or_refusing``, ``refusal_persists``: the PCR replays
+       from the record with its config mounted, or every command but
+       ``status`` and ``image status`` refuses, a pending or drifted state
+       until the TPM boot changes; ``extends_once``,
+       ``extension_follows_pending``, ``interrupted_never_extends``: one
+       extension per activation and TPM boot, after the pending record,
+       none after an interruption; ``reboot_stale``, ``reboot_recovers``,
+       ``boot_completion``: after a reboot commands refuse until ``init``
+       records a boot event, which an uninterrupted ``init`` does, and from
+       any journal ``init`` completes only with the PCR holding exactly the
+       selected config's boot event; ``configInUse_vouched``,
+       ``mounted_selected``, ``consistent_mounted``, ``journal_wellformed``,
+       ``pcr_replay``, ``completion_by_complete``
+     - Commands one at a time; an atomic ``state`` rename; a crash leaves a
+       prefix of a line; only shirudo writes the journal and the config
+       mount during a boot; PCRs reset only at a reboot or TPM Restart;
+       equal values from equal extensions (``pcr_value_eq_iff`` with
+       ``Shirudo.Chain``'s assumptions); TPM boot identities never repeat;
+       a TPM Restart or Resume only between commands
+     - Review; CBMC, ``config-update-follows``, for ``event_follows()`` and
+       ``same_event()``
 
 Not covered yet
 ---------------

@@ -249,6 +249,17 @@ restart count differs from the record's, commands refuse with
 ``ESTALE`` until ``init`` runs again and records a boot event for the new
 TPM boot.
 
+Lean 4 proves this protocol for every sequence of commands, crashes,
+failed or lost TPM answers, extensions by other processes and reboots:
+shirudo extends the config PCR at most once per activation and TPM boot
+and never after an interruption, a pending or drifted state refuses
+every command but ``status`` and ``image status`` until the TPM boot
+changes, and after a reboot an uninterrupted ``init`` records the boot
+event and admits commands again. The model takes a TPM Restart or Resume
+to come only between commands. CBMC shows that ``event_follows()``
+accepts exactly the records the model lets follow. The proofs are in
+:doc:`/contribute/testing/proof-coverage`.
+
 What can change without a reboot
 --------------------------------
 
