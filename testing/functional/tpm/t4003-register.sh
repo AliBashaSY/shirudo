@@ -379,7 +379,7 @@ test_expect_success 'a late binding is told apart by the phase value and the ini
 	grep -q "^  NOTE  binding: made in the root file system" "$WORK/report6" &&
 	grep -q "^  OK    eventlog: one init record for this TPM reset (2 this boot)" "$WORK/report6" &&
 	grep -q "^  OK    register: init record is of the TPM" "$WORK/report6" &&
-	grep -q "^  OK    quote and certification are of one TPM reset" "$WORK/report6" &&
+	grep -q "^  OK    quote and certification are of one TPM boot" "$WORK/report6" &&
 	! $S attest verify --evidence="$WORK/evidence2.json" --nonce=$nonce \
 		--ak-name="$(cat "$WORK/ak")" --cert="$WORK/keys/cert.der" \
 		--require-initrd --expect-bind-pcr=11=$PHASE >"$WORK/report6b" &&

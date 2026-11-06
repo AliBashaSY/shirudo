@@ -49,7 +49,7 @@ checks:
   credential the target recovered
 - the quote and the register certification: signed by the attestation key
   as an endorsement primary, covering the listed PCRs and index, of one
-  TPM reset
+  TPM boot: the same reset and restart counts
 - the config root history against the quoted config PCR, and with
   ``--expect-config-root`` the approved root
 - the register's public area against the recorded PCR 9 and 11 binding,
@@ -182,7 +182,7 @@ attestation key pinned:
      OK    register: carries the nonce
      OK    register: certification names the listed index
      OK    register: certified contents match the listed value
-     OK    quote and certification are of one TPM reset
+     OK    quote and certification are of one TPM boot
      OK    config: config root history matches the quoted PCR
      NOTE  config root has no operator approval; use --expect-config-root with --expect-config-pcr
      NOTE  config records a selection; direct TPM writer protection is deferred

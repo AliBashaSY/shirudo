@@ -466,7 +466,7 @@ nothing but the evidence, your certificates and your artifacts.
         OK    register: carries the nonce
         OK    register: certification names the listed index
         OK    register: certified contents match the listed value
-        OK    quote and certification are of one TPM reset
+        OK    quote and certification are of one TPM boot
         OK    config: config root history matches the quoted PCR
         NOTE  config root has no operator approval; use --expect-config-root with --expect-config-pcr
         NOTE  config records a selection; direct TPM writer protection is deferred

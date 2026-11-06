@@ -1070,14 +1070,16 @@ carries.
 attestation key, its name against its public area and, with
 ``--ak-name``, against the pinned name. It checks the quote's PCR
 digest, that the certification names the listed index and value, and
-that both come from one TPM reset. It recomputes the index's public area
-from the recorded PCR 9 and 11 binding values and the NV writer's public
-key, so a recreated index fails. It replays the eventlog to the
-certified value, checks that every event's digest derives from its
-fields, and checks the PCR 9 anchor. With ``--cert`` and ``--upatch``
-it computes the expected init event, with ``--expect-chain`` it compares
-the register, and with ``--expect-bind-pcr``, ``--expect-pcr`` and
-``--expect-config-root`` it compares the values the operator pins.
+that both come from one TPM boot, with the same reset and restart
+counts, as a restart clears the register too. It recomputes the index's
+public area from the recorded PCR 9 and 11 binding values and the NV
+writer's public key, so a recreated index fails. It replays the eventlog
+to the certified value, checks that every event's digest derives from
+its fields, and checks the PCR 9 anchor. With ``--cert`` and
+``--upatch`` it computes the expected init event, with
+``--expect-chain`` it compares the register, and with
+``--expect-bind-pcr``, ``--expect-pcr`` and ``--expect-config-root`` it
+compares the values the operator pins.
 Which firmware, kernel and initrd values are acceptable is the platform
 owner's policy.
 

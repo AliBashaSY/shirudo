@@ -1059,10 +1059,12 @@ int attest_verify(const char *evidence, size_t len,
 		    !memneq_explicit(certify.nv_data, reg_value, 32),
 		    "register: certified contents match the listed value");
 	}
+	/* A restart clears the register as a reset does. */
 	if (qrc == 0 && crc == 0)
 		say(&rep, quote.reset_count == certify.reset_count &&
+		    quote.restart_count == certify.restart_count &&
 		    quote.firmware_version == certify.firmware_version,
-		    "quote and certification are of one TPM reset");
+		    "quote and certification are of one TPM boot");
 
 	if (config.present || expect->have_config_root ||
 	    expect->have_config_pcr) {

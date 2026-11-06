@@ -282,7 +282,7 @@ verified with ``--ak-name`` and ``--expect-chain`` only:
      OK    register: carries the nonce
      OK    register: certification names the listed index
      OK    register: certified contents match the listed value
-     OK    quote and certification are of one TPM reset
+     OK    quote and certification are of one TPM boot
      OK    config: config root history matches the quoted PCR
      NOTE  config root has no operator approval; use --expect-config-root with --expect-config-pcr
      NOTE  config records a selection; direct TPM writer protection is deferred
@@ -304,7 +304,7 @@ Read it in groups:
 - The nonce, attestation key and endorsement key lines say the TPM you
   enrolled signed this evidence for your request.
 - The quote and register lines say the PCR values and the register
-  value are what the TPM certified, in one TPM reset.
+  value are what the TPM certified, in one TPM boot.
 - The config lines replay the config activation history to the quoted
   config PCR. The note says no root was pinned: this run left out
   ``--expect-config-root``.
