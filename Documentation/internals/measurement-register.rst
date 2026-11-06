@@ -282,7 +282,9 @@ a successful extension is reported as a desync for the operator to
 reconcile.
 
 ``init`` binds the register and writes its record without taking this
-lock.
+lock, from the initrd, before any upatch command is admitted. Its run
+from the root file system, which upatch commands can run beside, holds
+the lock while it checks the archive against the pins.
 
 Lean 4 proves this protocol for every sequence of loads, unloads,
 purges, kills, failed steps, reboots and root's changes to unlabeled

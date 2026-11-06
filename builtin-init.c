@@ -919,8 +919,8 @@ out:
  * into the archive since, or left behind by an unload cut short, and
  * either is for the operator to resolve.
  */
-static int boot_restore(bool recorded,
-			struct measured_upatch **out_set, size_t *out_n)
+static int boot_restore_locked(bool recorded,
+			       struct measured_upatch **out_set, size_t *out_n)
 {
 	struct measured_upatch *set = NULL;
 	struct measured_set *measured = NULL;
@@ -1049,6 +1049,32 @@ next:
 	pr_info("boot-restore: %zu upatch%s re-applied", cnt,
 		cnt == 1 ? "" : "es");
 	return 0;
+}
+
+/*
+ * A run after the register was bound this boot runs beside the upatch
+ * commands the completed activation admits, so it takes their lock: an
+ * unload between the archive scan and the pin check is otherwise taken
+ * for an archived upatch that is not loaded.
+ */
+static int boot_restore(bool recorded,
+			struct measured_upatch **out_set, size_t *out_n)
+{
+	int lock = -1, ret;
+
+	if (recorded) {
+		lock = eventlog_lock();
+		if (lock < 0) {
+			pr_err("boot-restore: cannot take the register lock: %s",
+			       strerror(-lock));
+			*out_set = NULL;
+			*out_n = 0;
+			return lock;
+		}
+	}
+	ret = boot_restore_locked(recorded, out_set, out_n);
+	eventlog_unlock(lock);
+	return ret;
 }
 
 /* The binding a verifier needs to recompute the register's public area. */
