@@ -119,37 +119,38 @@ void print_help(const struct help *h)
 		fprintf(stderr, "\n%s\n", h->footer);
 }
 
+void help_suggest(const char *bad, const char *const *names, size_t n_names)
+{
+	struct suggestion sugg[4];
+	size_t i, n;
+	int max_dist;
+
+	/*
+	 * A quarter of the length is too tight for short words and lets
+	 * anything through for long ones, so half plus one, at most 3.
+	 */
+	max_dist = min((int)strlen(bad) / 2 + 1, 3);
+	n = suggest(bad, names, n_names, max_dist, sugg, ARRAY_SIZE(sugg));
+	if (!n)
+		return;
+	fprintf(stderr, "\nDid you mean one of:\n");
+	for (i = 0; i < n; i++)
+		fprintf(stderr, "\t%s\n", sugg[i].name);
+}
+
 static void
 help_unknown_subcommand(const char *cmd_label, const char *bad,
 			const struct help_item *subcmds,
 			size_t n_subcmds)
 {
-	struct suggestion sugg[4];
 	const char *names[SUBCMD_MAX];
-	size_t i, n_names = 0, n;
-	int max_dist, len;
+	size_t i, n_names = 0;
 
 	fprintf(stderr, "%s: '%s' is not a known subcommand.\n"
 		"See '%s --help'.\n", cmd_label, bad, cmd_label);
-
-	if (!subcmds || !n_subcmds)
-		return;
-
-	/* Same threshold heuristic as the top-level dispatcher. */
-	len = (int)strlen(bad);
-	max_dist = len / 2 + 1;
-	if (max_dist > 3)
-		max_dist = 3;
-
-	for (i = 0; i < n_subcmds && n_names < SUBCMD_MAX; i++)
+	for (i = 0; subcmds && i < n_subcmds && n_names < SUBCMD_MAX; i++)
 		names[n_names++] = subcmds[i].name;
-	n = suggest(bad, names, n_names, max_dist, sugg,
-		    ARRAY_SIZE(sugg));
-	if (n) {
-		fprintf(stderr, "\nDid you mean one of:\n");
-		for (i = 0; i < n; i++)
-			fprintf(stderr, "\t%s\n", sugg[i].name);
-	}
+	help_suggest(bad, names, n_names);
 }
 
 const char *resolve_subcommand(const char *cmd_label,

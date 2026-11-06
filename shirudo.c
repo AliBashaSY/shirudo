@@ -142,30 +142,10 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 	if (!c) {
-		struct suggestion sugg[4];
-		size_t n;
-		int max_dist, len;
-
 		fprintf(stderr,
 			"'%s' is not a shirudo command.\n"
 			"See 'shirudo help'.\n", argv[1]);
-
-		/*
-		 * Edit-distance threshold: a quarter is too tight for short
-		 * inputs and "anything goes" for long ones, so cap at 3.
-		 */
-		len = (int)strlen(argv[1]);
-		max_dist = len / 2 + 1;
-		if (max_dist > 3)
-			max_dist = 3;
-
-		n = suggest(argv[1], names, commands_n, max_dist,
-			    sugg, ARRAY_SIZE(sugg));
-		if (n) {
-			fprintf(stderr, "\nDid you mean one of:\n");
-			for (i = 0; i < n; i++)
-				fprintf(stderr, "\t%s\n", sugg[i].name);
-		}
+		help_suggest(argv[1], names, commands_n);
 		return 1;
 	}
 

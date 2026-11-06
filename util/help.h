@@ -75,6 +75,12 @@ static inline bool opt_arg(const char *name, const char *arg, int argc,
 
 void print_help(const struct help *h);
 
+/*
+ * The names among n_names close enough to bad, a word the user typed
+ * that matches none, printed as a did-you-mean block on stderr.
+ */
+void help_suggest(const char *bad, const char *const *names, size_t n_names);
+
 /* What bash completion reads through --list-cmds. */
 void print_subcmd_list(const struct help_item *items,
 		       size_t n_items);
