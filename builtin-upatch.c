@@ -1878,9 +1878,18 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 */
 	{
 		__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
+		int err;
 
-		sha256_2(insns, u.hdr.loader_insns_len,
-			 data, u.hdr.data_len, content_digest);
+		err = sha256_2(insns, u.hdr.loader_insns_len,
+			       data, u.hdr.data_len, content_digest);
+		if (err) {
+			pr_err("upatch: cannot hash the payload of '%s': %s",
+			       upatch_name, strerror(-err));
+			rep_fail(rep, "parse", "unknown", -err,
+				 "payload hash failed");
+			ret = 1;
+			goto out;
+		}
 		if (memneq_explicit(content_digest, u.hdr.payload_sha256,
 				    sizeof(content_digest))) {
 			pr_err("upatch: payload_sha256 does not match signed "

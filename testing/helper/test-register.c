@@ -257,7 +257,8 @@ int main(int argc, char **argv)
 		if (strncmp(argv[5], "sha256:", 7) ||
 		    hex_decode(argv[5] + 7, operation, 32))
 			return 2;
-		chain_tree_event(seq, operation, event);
+		if (chain_tree_event(seq, operation, event))
+			return 2;
 		ret = chain_extend(event, chain);
 		printf("rc=%d\n", ret);
 		if (ret)

@@ -283,14 +283,15 @@ static int apply_event(const char *spec, __u8 chain[32])
 
 		if (parse_s64(name, strlen(name), 1, INT64_MAX, &seq))
 			return -EINVAL;
-		chain_tree_event(seq, digest, event);
+		if (chain_tree_event(seq, digest, event))
+			return -EIO;
 	} else if (kind_len == 6 && !strncmp(spec, "revoke", 6)) {
-		chain_key_event("shirudo-key-revoke", digest, event);
+		if (chain_key_event("shirudo-key-revoke", digest, event))
+			return -EIO;
 	} else {
 		return -EINVAL;
 	}
-	chain_fold(chain, event);
-	return 0;
+	return chain_fold(chain, event) ? -EIO : 0;
 }
 
 struct predict_out {
@@ -440,7 +441,10 @@ static int cmd_attest_predict(int argc, const char **argv)
 	predict_kv(&po, "set_digest", hex);
 	hex_encode(init, 32, hex);
 	predict_kv(&po, "init_event", hex);
-	chain_fold(chain, init);
+	if (chain_fold(chain, init)) {
+		pr_err("attest predict: cannot hash the register at boot");
+		goto out;
+	}
 	hex_encode(chain, 32, hex);
 	predict_kv(&po, "register_at_boot", hex);
 	for (i = 0; i < n_events; i++) {
@@ -485,7 +489,11 @@ static int cmd_attest_predict(int argc, const char **argv)
 			pr_err("attest predict: cannot hash the anchor");
 			goto out;
 		}
-		chain_fold(bind[0], anchor_digest);
+		if (chain_fold(bind[0], anchor_digest)) {
+			pr_err("attest predict: cannot hash PCR %u after the anchor",
+			       CHAIN_PCR);
+			goto out;
+		}
 		hex_encode(bind[0], 32, hex);
 		if (strsprintf(pcr_key, sizeof(pcr_key), "pcr%u_after_anchor",
 			       CHAIN_PCR) >= 0)

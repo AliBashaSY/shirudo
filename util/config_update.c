@@ -410,7 +410,7 @@ static int events_scan(struct config_update *update,
 			ret = config_measure_event(record.kind,
 						   root, digest);
 		if (!ret)
-			ret = chain_fold_checked(running, digest);
+			ret = chain_fold(running, digest);
 		if (!ret && consume)
 			ret = consume(&record, ctx);
 		if (ret)
@@ -595,7 +595,7 @@ static int begin_event(struct config_update *update,
 					   event);
 	memcpy(expected, before, 32);
 	if (!ret)
-		ret = chain_fold_checked(expected, event);
+		ret = chain_fold(expected, event);
 	if (!ret)
 		ret = state_save(update, &record, true);
 	if (!ret)

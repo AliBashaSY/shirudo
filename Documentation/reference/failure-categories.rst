@@ -569,6 +569,9 @@ rc=<rc> (<strerror>)`` and exits 1:
        ``upatch load`` or ``upatch unload``.
    * - ``projection_root_decode``
      - The recorded projection root is malformed.
+   * - ``projection_root_hash``
+     - The next projection root cannot be computed. The register is
+       not extended.
    * - ``register_extend``
      - The register extend failed.
    * - ``tree_event_append``

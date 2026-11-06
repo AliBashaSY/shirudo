@@ -37,9 +37,9 @@
 int sha256_calc(const void *data, size_t len,
 		__u8 out[CHAIN_DIGEST_LEN]) __must_check;
 
-void sha256_2(const void *a, size_t a_len,
-	      const void *b, size_t b_len,
-	      __u8 out[CHAIN_DIGEST_LEN]);
+int sha256_2(const void *a, size_t a_len,
+	     const void *b, size_t b_len,
+	     __u8 out[CHAIN_DIGEST_LEN]) __must_check;
 
 struct measured_upatch {
 	char	name[UPATCH_NAME_MAX + 1];
@@ -55,14 +55,13 @@ int chain_init_event(const __u8 cert_sha[32],
 		     const __u8 tree_root[32],
 		     __u8 set_digest[32], __u8 event[32]) __must_check;
 /* SHA256(tag || NUL || cert_sha256), tag "shirudo-key-revoke". */
-void chain_key_event(const char *tag, const __u8 cert_sha[32],
-		     __u8 event[32]);
+int chain_key_event(const char *tag, const __u8 cert_sha[32],
+		    __u8 event[32]) __must_check;
 int chain_upatch_event(const char *tag, const char *name,
 		       const __u8 payload[32], __u8 event[32]) __must_check;
-void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
-		      __u8 event[32]);
-int chain_fold_checked(__u8 chain[32], const __u8 event[32]) __must_check;
-void chain_fold(__u8 chain[32], const __u8 event[32]);
+int chain_tree_event(__s64 seq, const __u8 operation_digest[32],
+		     __u8 event[32]) __must_check;
+int chain_fold(__u8 chain[32], const __u8 event[32]) __must_check;
 
 /* The PCR record anchoring a register name: nvpcr-init:shirudo:0x..:<name>. */
 int chain_anchor(const __u8 name[TPM_NAME_LEN],

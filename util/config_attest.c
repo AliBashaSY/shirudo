@@ -59,7 +59,7 @@ static int replay(const struct config_evidence *view, __u8 out[32])
 		ret = config_measure_event(event->kind, event->root_hash,
 					   digest);
 		if (!ret)
-			ret = chain_fold_checked(out, digest);
+			ret = chain_fold(out, digest);
 		if (ret)
 			return ret;
 		sequence = event->sequence;

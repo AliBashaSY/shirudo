@@ -800,7 +800,12 @@ static int measure_revoke_locked(const struct trusted_cert *c,
 	char sha_hex[65], chain_hex[65];
 	int ret;
 
-	chain_key_event("shirudo-key-revoke", c->sha256, event);
+	ret = chain_key_event("shirudo-key-revoke", c->sha256, event);
+	if (ret) {
+		pr_err("keys revoke: cannot hash the revocation event: %s; the key is revoked but the revocation is NOT measured; operator must reconcile",
+		       strerror(-ret));
+		return ret;
+	}
 	ret = chain_extend(event, chain);
 	if (ret) {
 		pr_err("keys revoke: register %s (category: %s); the key is "

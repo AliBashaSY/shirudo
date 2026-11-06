@@ -38,21 +38,25 @@ int sha256_calc(const void *data, size_t len, __u8 out[32])
 	return ret;
 }
 
-void sha256_2(const void *a, size_t a_len,
-	      const void *b, size_t b_len, __u8 out[32])
+int sha256_2(const void *a, size_t a_len,
+	     const void *b, size_t b_len, __u8 out[32])
 {
 	struct sha256_ctx ctx;
+	int ret;
 
-	if (sha256_init(&ctx) != 0) {
+	ret = sha256_init(&ctx);
+	if (ret)
+		goto out;
+	ret = sha256_update(&ctx, a, a_len);
+	if (!ret && b_len)
+		ret = sha256_update(&ctx, b, b_len);
+	if (!ret)
+		ret = sha256_final(&ctx, out);
+	sha256_free(&ctx);
+out:
+	if (ret)
 		memset(out, 0, 32);
-		return;
-	}
-	if (sha256_update(&ctx, a, a_len) != 0 ||
-	    (b_len && sha256_update(&ctx, b, b_len) != 0) ||
-	    sha256_final(&ctx, out) != 0) {
-		memset(out, 0, 32);
-		sha256_free(&ctx);
-	}
+	return ret;
 }
 
 static int member_cmp(const void *a, const void *b)
@@ -120,14 +124,14 @@ int chain_upatch_event(const char *tag, const char *name,
 	return sha256_calc(buf, off, event);
 }
 
-void chain_key_event(const char *tag, const __u8 cert_sha[32],
-		     __u8 event[32])
+int chain_key_event(const char *tag, const __u8 cert_sha[32],
+		    __u8 event[32])
 {
-	sha256_2(tag, strlen(tag) + 1, cert_sha, 32, event);
+	return sha256_2(tag, strlen(tag) + 1, cert_sha, 32, event);
 }
 
-void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
-		      __u8 event[32])
+int chain_tree_event(__s64 seq, const __u8 operation_digest[32],
+		     __u8 event[32])
 {
 	__u8 buf[sizeof("shirudo-tree") + 8 + 32];
 	size_t taglen = sizeof("shirudo-tree"), i;
@@ -137,23 +141,16 @@ void chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	for (i = 0; i < 8; i++)
 		buf[taglen + i] = (__u8)(s >> (56 - 8 * i));
 	memcpy(buf + taglen + 8, operation_digest, 32);
-	if (sha256_calc(buf, taglen + 40, event))
-		memset(event, 0, 32);
+	return sha256_calc(buf, taglen + 40, event);
 }
 
-int chain_fold_checked(__u8 chain[32], const __u8 event[32])
+int chain_fold(__u8 chain[32], const __u8 event[32])
 {
 	__u8 cat[64];
 
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, event, 32);
-	return sha256_buffer(cat, sizeof(cat), chain);
-}
-
-void chain_fold(__u8 chain[32], const __u8 event[32])
-{
-	if (chain_fold_checked(chain, event))
-		memset(chain, 0, 32);
+	return sha256_calc(cat, sizeof(cat), chain);
 }
 
 int chain_anchor(const __u8 name[TPM_NAME_LEN],

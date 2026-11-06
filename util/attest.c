@@ -573,18 +573,16 @@ static int on_record(void *ctx)
 			return -E2BIG;
 		if (p->tree_seq > 0 &&
 		    !strncmp(p->tree_digest_hex, "sha256:", 7) &&
-		    !hex_decode(p->tree_digest_hex + 7, operation, 32)) {
-			chain_tree_event(p->tree_seq, operation, event);
+		    !hex_decode(p->tree_digest_hex + 7, operation, 32) &&
+		    !chain_tree_event(p->tree_seq, operation, event))
 			r->derived = !memneq_explicit(event, r->digest, 32);
-		}
 	} else if (!strcmp(p->type, "key_revoke")) {
 		__u8 sha[32], event[32];
 
 		strscpy(r->label, p->key_fingerprint, sizeof(r->label));
-		if (!hex_decode(p->key_sha_hex, sha, 32)) {
-			chain_key_event("shirudo-key-revoke", sha, event);
+		if (!hex_decode(p->key_sha_hex, sha, 32) &&
+		    !chain_key_event("shirudo-key-revoke", sha, event))
 			r->derived = !memneq_explicit(event, r->digest, 32);
-		}
 	}
 	p->n_recs++;
 	/* Reset the per-element scratch the next element may not set. */
@@ -733,7 +731,7 @@ int attest_verify(const char *evidence, size_t len,
 	size_t reg_name_len, reg_value_len, cred_len = 0, i, runtime = 0;
 	__u64 reg_index;
 	__u32 bit;
-	bool have_ek = false, have_cred = false;
+	bool have_ek = false, have_cred = false, replayed = true;
 	int ret = 0, qrc = -1, crc = -1;
 
 	if (report_cap)
@@ -1163,11 +1161,12 @@ int attest_verify(const char *evidence, size_t len,
 		    "count");
 
 	for (i = 0; i < p->n_recs; i++) {
-		chain_fold(chain, p->recs[i].digest);
+		if (chain_fold(chain, p->recs[i].digest))
+			replayed = false;
 		if (i)
 			runtime++;
 	}
-	say(&rep, !memneq_explicit(chain, reg_value, 32),
+	say(&rep, replayed && !memneq_explicit(chain, reg_value, 32),
 	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
 	    p->n_recs == 1 ? "" : "s");
 	/*
@@ -1193,9 +1192,10 @@ int attest_verify(const char *evidence, size_t len,
 		    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),
 		    "anchor: record digest matches the index name");
 		memcpy(pcr_expected, p->init.pcr_before, 32);
-		chain_fold(pcr_expected, anchor_digest);
+		named = !chain_fold(pcr_expected, anchor_digest) && named;
 		if (p->pcr_have & (1u << CHAIN_PCR)) {
-			bool exact = !memneq_explicit(pcr_expected,
+			bool exact = named &&
+				     !memneq_explicit(pcr_expected,
 						      p->pcrs[CHAIN_PCR], 32);
 
 			if (exact || expect->strict_anchor)
@@ -1223,10 +1223,11 @@ int attest_verify(const char *evidence, size_t len,
 		    "state: register equals the expected value");
 	} else if (expect->have_init) {
 		__u8 predicted[32] = {};
+		bool folded = !chain_fold(predicted, expect->init_event);
 
-		chain_fold(predicted, expect->init_event);
 		if (runtime == 0)
-			say(&rep, !memneq_explicit(reg_value, predicted, 32),
+			say(&rep, folded &&
+			    !memneq_explicit(reg_value, predicted, 32),
 			    "state: register equals the value predicted for "
 			    "the set at boot");
 		else

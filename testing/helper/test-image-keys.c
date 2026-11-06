@@ -82,7 +82,7 @@ static int pcr_extend(void *opaque, __u32 pcr, const __u8 event[32])
 	struct test_context *ctx = opaque;
 
 	ctx->extends++;
-	return chain_fold_checked(ctx->pcr, event);
+	return chain_fold(ctx->pcr, event);
 }
 
 static int prepare(void *opaque,

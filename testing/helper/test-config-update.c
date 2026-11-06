@@ -133,7 +133,7 @@ static int test_pcr_extend(void *opaque, __u32 pcr,
 	if (ctx->tpm)
 		ret = tpm_pcr_extend(ctx->tpm, pcr, event);
 	else
-		ret = chain_fold_checked(ctx->sim.value, event);
+		ret = chain_fold(ctx->sim.value, event);
 	if (!ret)
 		ret = simulator_save(ctx);
 	if (!ret && mode && !strcmp(mode, "ambiguous"))

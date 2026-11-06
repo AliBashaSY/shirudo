@@ -2016,8 +2016,9 @@ static int tree_measure_locked(const struct tree_operation *op,
 	char line[4096], chain_hex[65];
 	int ret;
 
-	chain_tree_event(op->seq, operation_digest, event);
-	ret = chain_extend(event, chain);
+	ret = chain_tree_event(op->seq, operation_digest, event);
+	if (!ret)
+		ret = chain_extend(event, chain);
 	if (ret)
 		return ret;
 
@@ -2086,7 +2087,10 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	if (tree_digest_hex(pending.operation_digest, digest) ||
 	    hex_decode(state->projection_root, previous, 32))
 		return -EINVAL;
-	sha256_2(previous, sizeof(previous), digest, sizeof(digest), next);
+	ret = sha256_2(previous, sizeof(previous), digest, sizeof(digest),
+		       next);
+	if (ret)
+		return ret;
 
 	ret = tree_event_replay(replay);
 	if (!ret) {
@@ -2366,12 +2370,16 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			ret = -EINVAL;
 			goto out;
 		}
+		ret = sha256_2(previous, 32, digest, 32, next);
+		if (ret) {
+			tree_sync_report_error("projection_root_hash", op, ret);
+			goto out;
+		}
 		ret = tree_measure_operation(op, digest);
 		if (ret) {
 			tree_sync_report_error("register_extend", op, ret);
 			goto out;
 		}
-		sha256_2(previous, 32, digest, 32, next);
 		hex_encode(next, 32, state.projection_root);
 		hex_encode(next, 32, state.projection_root_tpm);
 		ret = tree_event_append(op->seq, op->operation_digest, next);
