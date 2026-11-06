@@ -113,6 +113,79 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        payload, a loader and a signature, whole aligned instructions,
        every section inside the file and behind the header, and a
        ``.rodata`` offset inside the data
+   * - ``upatch-signed-sections``
+     - ``parse_signed_sections()``
+     - Data of 15, 16, 40 and 64 bytes
+     - Sections kept only behind a valid trailer, the directory below
+       the trailer, each section inside the data below the directory;
+       nothing kept on refusal
+   * - ``upatch-signed-name``
+     - The ``NAME`` and ``DECODERS`` sections of
+       ``parse_signed_sections()``
+     - A one-section directory in 288 bytes
+     - A kept name is terminated within 256 bytes; a refusal keeps
+       neither
+   * - ``upatch-decoders``
+     - ``parse_decoders()``, ``upatch_decoder_view()``,
+       ``upatch_has_decoders()``
+     - Sections of every length declaring up to 2 decoders
+     - Names terminated, each source non-empty and inside the section
+       behind the entries, every kind set, nothing kept on refusal,
+       ``-ENOENT`` past the last decoder
+   * - ``upatch-policy-labels``
+     - ``parse_policy_labels()``
+     - Sections of 0, 1 and 2 labels and the lengths around them
+     - An accepted section fills its length exactly, with its magic and
+       version, two distinct map indexes below the map count, one bit
+       per label and a terminated name and absolute path; a refusal
+       writes nothing
+   * - ``upatch-name``
+     - ``upatch_name_valid()``, ``upatch_select()``
+     - Names up to 24 bytes, archive names up to 31
+     - Valid exactly for ``[A-Za-z0-9._-]+`` not starting with a dot;
+       an archive entry exactly for a name and ``.upatch``
+   * - ``upatch-prog-specs``
+     - ``prog_specs_parse()``, ``prog_specs_free()``
+     - Tables of 3, 15, 16 and 176 bytes, as many programs as fit, every
+       allocation allowed to fail
+     - A refusal leaves nothing allocated and ``*out`` NULL; an accepted
+       program has a known role and kind, a terminated target and map,
+       and uprobe fields only on a uprobe
+   * - ``upatch-prog-uprobes``
+     - The uprobe target records of ``prog_specs_parse()``
+     - One program and one record in 226 bytes, path and build ID up to
+       9 bytes, up to 2 offsets
+     - An absolute path of its stated length without a NUL, a target
+       without ``,`` or ``|``, a build ID of 1 to 64 bytes, offsets
+       non-empty and strictly rising, everything freed
+   * - ``upatch-loader``
+     - ``loader_lddw()``, ``sys_bpf_call()``, ``map_create_slot()``,
+       ``map_update_slot()``, ``loader_store_source()``
+     - Loaders of 4, 5, 25 and 49 instructions
+     - Reads only the loader, and only instructions before the call it
+       looks back from; reports exactly what it matched; every slot
+       below the table's size
+   * - ``upatch-rodata-btf``
+     - ``loader_btf()``
+     - Loaders of 4, 10 and 15 instructions and 24 bytes of data
+     - The BTF it locates lies inside the data
+   * - ``upatch-rodata``
+     - ``find_rodata_data()``, ``map_name_rodata()``
+     - Any loader of 6 or 8 instructions; at 24, the shape the loader
+       generator emits with every other field free; 48 bytes of data
+     - The value it locates lies inside the data, with the size and type
+       its section declares
+   * - ``upatch-btf``
+     - ``btf_name_printable()``, ``btf_decl_printable()``,
+       ``btf_unwrap()``
+     - BTF of 4 types, names up to 6 bytes, libbpf modelled
+     - A printed name is printable ASCII, an accepted declaration chain
+       has no loop, an unwrapped type is 0 or has no qualifier
+   * - ``upatch-btf-int``
+     - ``btf_integer()``
+     - Every encoding and every value of up to 8 bytes
+     - The bits stay inside the integer's bytes; the value is zero- or
+       sign-extended from them
 
 Lean 4 proofs
 -------------
@@ -146,8 +219,15 @@ Not covered yet
 ---------------
 
 The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
-does: the JSON parser and emitter, the ``.upatch`` signed sections,
-decoders and policy labels, the ``.rodata`` view, the package archive,
-index and manifest readers, the tree publication and log, the eventlog,
-the TPM structures of evidence, the configuration files and images, and
-the kernel notes and configuration.
+does: the JSON parser and emitter, the package archive, index and
+manifest readers, the tree publication and log, the eventlog, the TPM
+structures of evidence, the configuration files and images, and the
+kernel notes and configuration.
+
+Within the ``.upatch`` reader, the proofs cover its parts but not their
+composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the
+header, the signed sections, the decoders and the policy labels the
+proofs cover one by one, and a proof of the whole file runs out of
+memory. A program table of two or more programs, ``find_rodata_data()``
+on loaders of other shapes, ``btf_dumpable()``, the ``.rodata`` printers
+and the libbpf calls behind ``btf_rodata_btf()`` have no proof.

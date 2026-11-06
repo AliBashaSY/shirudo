@@ -26,6 +26,26 @@ size_t strnlen(const char *s, size_t max)
 	return n;
 }
 
+#ifdef PROOF_MEMCHR_QUANTIFIED
+/*
+ * For ranges of thousands of bytes, which a loop unrolls too slowly, where
+ * the caller asks whether a byte is there and not where: NULL exactly when
+ * none of the n bytes matches, n a constant, and otherwise any match. CBMC
+ * ignores a quantifier over a range it cannot bound ("warning: ignoring
+ * forall"), and then this may also return NULL where a byte matches.
+ */
+void *memchr(const void *s, int c, size_t n)
+{
+	const __u8 *p = s;
+	size_t i;
+
+	__CPROVER_assert(__CPROVER_r_ok(s, n), "memchr() reads its range");
+	if (__CPROVER_forall { size_t j; j >= n || p[j] != (__u8)c })
+		return NULL;
+	__CPROVER_assume(i < n && p[i] == (__u8)c);
+	return (void *)(p + i);
+}
+#else
 void *memchr(const void *s, int c, size_t n)
 {
 	const __u8 *p = s;
@@ -36,6 +56,7 @@ void *memchr(const void *s, int c, size_t n)
 			return (void *)(p + i);
 	return NULL;
 }
+#endif
 
 /*
  * CBMC 5.95's memcpy() reads wrong bytes from a string literal when the

@@ -54,8 +54,24 @@ to wait for.
   global one small; the unwinding assertions fail the proof if an input
   needs more, so a tight bound is safe.
 - A loop the input cannot reach at the harness's sizes takes bound 0, as
-  the policy labels do in data too short to hold one.
+  the policy labels do in data too short to hold one. CBMC still runs
+  its body once to the unwinding assertion, so a costly body bounded 0
+  is better kept out of reach by the harness, as `upatch-signed-sections`
+  does with no maps.
 - `too many addressed objects` asks for `--object-bits 12`.
+- Division and remainder cost the SAT solver most: `--refine-arithmetic`
+  took one proof from 360 s to 21 s, though it slows others. Time both.
+- A `memchr()` over thousands of bytes unrolls slowly. Where the caller
+  only asks whether the byte is there and `n` is a constant, define
+  `PROOF_MEMCHR_QUANTIFIED` before including `proof.h` for a quantified
+  model; it returns any match, not the first.
+- A cast the code means, such as `(__u32)insn.imm`, fails
+  `--conversion-check`. Include the file between `#pragma CPROVER check
+  push`, `#pragma CPROVER check disable "conversion"` and `#pragma CPROVER
+  check pop`, and keep the check on everywhere else.
+- A struct of tens of kilobytes, such as a tree operation, makes even a
+  few symbolic copies slow: prove the logic that reads its fields on a
+  smaller harness, or leave it to the unit cases.
 - A proof over a few hundred symbolic bytes with long string scans can
   take minutes: split it, proving the parts the caller composes, as the
   `.upatch` header, sections and decoders are proven apart.

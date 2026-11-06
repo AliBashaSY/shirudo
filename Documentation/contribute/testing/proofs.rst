@@ -119,7 +119,10 @@ one. Give the function a model in ``proof.h``, or keep the proof away from
 the code that calls it. CBMC 5.95's own ``memcpy()`` reads wrong bytes from
 a string literal that symbolic data picks among several, and fails a proof
 the code meets; a harness that copies from such a pointer defines
-``PROOF_MEMCPY_BYTEWISE`` before it includes ``proof.h``.
+``PROOF_MEMCPY_BYTEWISE`` before it includes ``proof.h``. A harness whose
+code searches thousands of bytes with ``memchr()`` only to learn whether
+a byte is there defines ``PROOF_MEMCHR_QUANTIFIED`` for a model that
+answers without a loop.
 
 Write a Lean 4 proof
 --------------------
