@@ -168,6 +168,43 @@ bool dns_name_valid(const char *name)
 	return !numeric_address;
 }
 
+size_t utf8_width(const char *s, size_t n)
+{
+	size_t width, i;
+	__u32 cp;
+	__u8 c;
+
+	if (!n)
+		return 0;
+	c = (__u8)s[0];
+	if (c < 0x80)
+		return 1;
+	if ((c & 0xe0) == 0xc0) {
+		width = 2;
+		cp = c & 0x1f;
+	} else if ((c & 0xf0) == 0xe0) {
+		width = 3;
+		cp = c & 0x0f;
+	} else if ((c & 0xf8) == 0xf0) {
+		width = 4;
+		cp = c & 0x07;
+	} else {
+		return 0;
+	}
+	if (width > n)
+		return 0;
+	for (i = 1; i < width; i++) {
+		if (((__u8)s[i] & 0xc0) != 0x80)
+			return 0;
+		cp = cp << 6 | ((__u8)s[i] & 0x3f);
+	}
+	if ((width == 2 && cp < 0x80) || (width == 3 && cp < 0x800) ||
+	    (width == 4 && cp < 0x10000) || cp > 0x10ffff ||
+	    (cp >= 0xd800 && cp <= 0xdfff))
+		return 0;
+	return width;
+}
+
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
 	int n = vsnprintf(buf, size, fmt, ap);

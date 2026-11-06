@@ -2,8 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting, DNS names, from
- * util/string.c, and the scrub and compare for secrets.
+ * Bounded number parsing, string copies and formatting, DNS names and
+ * UTF-8 characters, from util/string.c, and the scrub and compare for
+ * secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -58,6 +59,14 @@ int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
  * numbers is refused, as an IPv4 parser would read it as an address.
  */
 bool dns_name_valid(const char *name);
+
+/*
+ * The length, 1 to 4, of the well-formed UTF-8 character the n bytes at
+ * s start with, or 0 when they start none: a stray or cut byte, an
+ * overlong form, a surrogate or a code point past U+10FFFF. Nothing past
+ * n is read.
+ */
+size_t utf8_width(const char *s, size_t n);
 
 /*
  * Zero the count bytes at s even when nothing reads them afterwards, as

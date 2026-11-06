@@ -229,43 +229,11 @@ static void json_puts(struct json_out *out, const char *s)
 }
 
 /*
- * The bytes of one well-formed UTF-8 character at s, or 0. Names the
- * kernel hands over are raw bytes, cut at a fixed length mid-character
- * as often as not, and one bad byte must not cost the whole snapshot,
- * which the serializer has already drained: it is exported as U+FFFD.
+ * Names the kernel hands over are raw bytes, cut at a fixed length
+ * mid-character as often as not, and one bad byte must not cost the
+ * whole snapshot, which the serializer has already drained: it is
+ * exported as U+FFFD.
  */
-static size_t utf8_width(const char *s, size_t n)
-{
-	__u8 c = s[0];
-	size_t width, j;
-	__u32 cp;
-
-	if ((c & 0xe0) == 0xc0) {
-		width = 2;
-		cp = c & 0x1f;
-	} else if ((c & 0xf0) == 0xe0) {
-		width = 3;
-		cp = c & 0x0f;
-	} else if ((c & 0xf8) == 0xf0) {
-		width = 4;
-		cp = c & 0x07;
-	} else {
-		return 0;
-	}
-	if (width > n)
-		return 0;
-	for (j = 1; j < width; j++) {
-		if (((__u8)s[j] & 0xc0) != 0x80)
-			return 0;
-		cp = cp << 6 | ((__u8)s[j] & 0x3f);
-	}
-	if ((width == 2 && cp < 0x80) || (width == 3 && cp < 0x800) ||
-	    (width == 4 && cp < 0x10000) || cp > 0x10ffff ||
-	    (cp >= 0xd800 && cp <= 0xdfff))
-		return 0;
-	return width;
-}
-
 static void json_put_string(struct json_out *out, const char *s, size_t n)
 {
 	static const char hexdigits[] = "0123456789abcdef";

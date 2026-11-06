@@ -281,6 +281,116 @@ static void dns_name_is_ldh_labels_and_no_address(void)
 	EXPECT_FALSE(dns_name_valid(name));
 }
 
+static size_t width_of(const char *text, size_t len)
+{
+	char *buf = span(text, len);
+	size_t width = utf8_width(buf, len);
+
+	xfree(buf, len ? len : 1);
+	return width;
+}
+
+static void utf8_width_takes_well_formed_characters_only(void)
+{
+	EXPECT_EQ(width_of("", 0), 0);
+	EXPECT_EQ(width_of("a", 1), 1);
+	EXPECT_EQ(width_of("\x7f", 1), 1);
+	EXPECT_EQ(width_of("\xc2\x80", 2), 2);
+	EXPECT_EQ(width_of("\xdf\xbf", 2), 2);
+	EXPECT_EQ(width_of("\xe0\xa0\x80", 3), 3);
+	EXPECT_EQ(width_of("\xed\x9f\xbf", 3), 3);
+	EXPECT_EQ(width_of("\xee\x80\x80", 3), 3);
+	EXPECT_EQ(width_of("\xef\xbf\xbf", 3), 3);
+	EXPECT_EQ(width_of("\xf0\x90\x80\x80", 4), 4);
+	EXPECT_EQ(width_of("\xf4\x8f\xbf\xbf", 4), 4);
+	EXPECT_EQ(width_of("\xc3\xa9z", 3), 2);
+
+	EXPECT_EQ(width_of("\x80", 1), 0);
+	EXPECT_EQ(width_of("\xbf", 1), 0);
+	EXPECT_EQ(width_of("\xc3", 1), 0);
+	EXPECT_EQ(width_of("\xe2\x82", 2), 0);
+	EXPECT_EQ(width_of("\xe2\x82z", 3), 0);
+	EXPECT_EQ(width_of("\xc0\x80", 2), 0);
+	EXPECT_EQ(width_of("\xc0\xaf", 2), 0);
+	EXPECT_EQ(width_of("\xc1\xbf", 2), 0);
+	EXPECT_EQ(width_of("\xe0\x80\xaf", 3), 0);
+	EXPECT_EQ(width_of("\xe0\x9f\xbf", 3), 0);
+	EXPECT_EQ(width_of("\xed\xa0\x80", 3), 0);
+	EXPECT_EQ(width_of("\xed\xbf\xbf", 3), 0);
+	EXPECT_EQ(width_of("\xf0\x8f\xbf\xbf", 4), 0);
+	EXPECT_EQ(width_of("\xf4\x90\x80\x80", 4), 0);
+	EXPECT_EQ(width_of("\xf5\x80\x80\x80", 4), 0);
+	EXPECT_EQ(width_of("\xf8\x88\x80\x80\x80", 5), 0);
+	EXPECT_EQ(width_of("\xff", 1), 0);
+}
+
+static size_t utf8_encode(__u32 cp, char *buf)
+{
+	if (cp < 0x80) {
+		buf[0] = (char)cp;
+		return 1;
+	}
+	if (cp < 0x800) {
+		buf[0] = (char)(0xc0 | cp >> 6);
+		buf[1] = (char)(0x80 | (cp & 0x3f));
+		return 2;
+	}
+	if (cp < 0x10000) {
+		buf[0] = (char)(0xe0 | cp >> 12);
+		buf[1] = (char)(0x80 | (cp >> 6 & 0x3f));
+		buf[2] = (char)(0x80 | (cp & 0x3f));
+		return 3;
+	}
+	buf[0] = (char)(0xf0 | cp >> 18);
+	buf[1] = (char)(0x80 | (cp >> 12 & 0x3f));
+	buf[2] = (char)(0x80 | (cp >> 6 & 0x3f));
+	buf[3] = (char)(0x80 | (cp & 0x3f));
+	return 4;
+}
+
+/*
+ * Every scalar value's encoding is taken, and there are no more 2-, 3-
+ * and 4-byte sequences taken than scalar values of that length, so
+ * those encodings are all there is.
+ */
+static void utf8_width_takes_the_scalar_values_alone(void)
+{
+	__u32 cp, i, wrong = 0, two = 0, three = 0, four = 0;
+	char buf[4];
+
+	for (cp = 0; cp <= 0x10ffff; cp++) {
+		size_t len;
+
+		if (cp >= 0xd800 && cp <= 0xdfff)
+			continue;
+		len = utf8_encode(cp, buf);
+		if (utf8_width(buf, len) != len)
+			wrong++;
+	}
+	EXPECT_EQ(wrong, 0);
+	for (i = 0; i < 1u << 16; i++) {
+		buf[0] = (char)(i >> 8);
+		buf[1] = (char)i;
+		two += utf8_width(buf, 2) == 2;
+	}
+	EXPECT_EQ(two, 0x780);
+	for (i = 0; i < 1u << 24; i++) {
+		buf[0] = (char)(i >> 16);
+		buf[1] = (char)(i >> 8);
+		buf[2] = (char)i;
+		three += utf8_width(buf, 3) == 3;
+	}
+	EXPECT_EQ(three, 0xf000);
+	for (i = 0; i < 1u << 22; i++) {
+		buf[0] = (char)(0xf0 | i >> 18);
+		buf[1] = (char)(0x80 | (i >> 12 & 0x3f));
+		buf[2] = (char)(0x80 | (i >> 6 & 0x3f));
+		buf[3] = (char)(0x80 | (i & 0x3f));
+		four += utf8_width(buf, 4) == 4;
+	}
+	EXPECT_EQ(four, 0x100000);
+}
+
 static void memzero_explicit_clears_its_span_only(void)
 {
 	__u8 want[16], buf[16];
@@ -329,6 +439,8 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(strsprintf_leaves_nothing_when_cut),
 	UNIT_CASE(xasprintf_allocates_the_size_needed),
 	UNIT_CASE(dns_name_is_ldh_labels_and_no_address),
+	UNIT_CASE(utf8_width_takes_well_formed_characters_only),
+	UNIT_CASE(utf8_width_takes_the_scalar_values_alone),
 	UNIT_CASE(memzero_explicit_clears_its_span_only),
 	UNIT_CASE(memneq_explicit_tells_every_bit_apart),
 	{}
