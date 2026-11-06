@@ -40,12 +40,13 @@ case "$SHB" in
 esac
 
 export SHIRUDO_BUILD="$B"
-( cd "$WORK" && "$S" bpm build pkg --version 1.0.0 \
-	--keys-dir "$WORK/keys" --vmlinux "$REPO/vendor/linux/vmlinux.h" ) \
-	>"$WORK/build.out" 2>&1 || {
-	cat "$WORK/build.out" >&2
-	test_skip_all "bpm build failed"
-}
+test_expect_success 'bpm build packages the policy-labeled upatch' '
+	( cd "$WORK" && "$S" bpm build pkg --version 1.0.0 \
+		--keys-dir "$WORK/keys" \
+		--vmlinux "$REPO/vendor/linux/vmlinux.h" ) >&2 &&
+	test -s "$WORK/policy-labels-1.0.0.bee"
+'
+[ -s "$WORK/policy-labels-1.0.0.bee" ] || test_done
 
 test_expect_success 'Beefile policy entries are carried in the signed upatch' '
 	tar -xOf "$WORK/policy-labels-1.0.0.bee" \

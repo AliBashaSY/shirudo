@@ -90,12 +90,12 @@ export SHIRUDO_BUILD="$B" BPM_OCI_SCHEME=http
 export REGISTRY_AUTH_FILE="$WORK/absent-auth.json" NO_PROXY=127.0.0.1 no_proxy=127.0.0.1
 unset BPM_OCI_CA_FILE BPM_OCI_USERNAME BPM_OCI_PASSWORD
 
-( cd "$WORK" && "$S" bpm build pkg --version 1.0.0 --keys-dir "$WORK/keys" ) \
-	>"$WORK/build.out" 2>&1 || {
-	cat "$WORK/build.out" >&2
-	test_skip_all "bpm build failed (clang/headers?)"
-}
-[ -s "$WORK/t7005-1.0.0.bee" ] || test_skip_all "bpm build produced no package"
+test_expect_success 'bpm build packages the upatch with its tree metadata' '
+	( cd "$WORK" && "$S" bpm build pkg --version 1.0.0 \
+		--keys-dir "$WORK/keys" ) >&2 &&
+	test -s "$WORK/t7005-1.0.0.bee"
+'
+[ -s "$WORK/t7005-1.0.0.bee" ] || test_done
 
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
 REG="$WORK/registry"
