@@ -543,6 +543,8 @@ the binaries the functional tests run.
      - A load upatch's program metadata
    * - ``registry-auth``
      - The container auth file
+   * - ``rodata``
+     - The ``.rodata`` of a ``.upatch`` as ``bpm info data`` reads it
    * - ``serializer``
      - Serializer output pages
    * - ``tpm-wire``
