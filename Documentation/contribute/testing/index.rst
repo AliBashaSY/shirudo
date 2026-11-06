@@ -5,11 +5,13 @@
 Testing
 =======
 
-Run the test tiers and the test VM, write a test, and see what the tests
-cover and what they do not.
+Run the test tiers and the test VM, write a test or a proof, and see what
+the tests and proofs cover and what they do not.
 
 .. toctree::
    :titlesonly:
 
    testing
    test-coverage
+   proofs
+   proof-coverage

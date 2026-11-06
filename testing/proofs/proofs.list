@@ -1,0 +1,8 @@
+# Each harness of this directory and the CBMC options it runs with.
+# --unwind must exceed the longest loop the harness's bound allows.
+string-number		--unwind 24
+string-utf8		--unwind 10
+string-copy		--unwind 10
+string-sanitize		--unwind 8 LEN=0-6
+hex			--unwind 12
+io-lines		--unwind 10
