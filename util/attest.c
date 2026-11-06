@@ -1556,3 +1556,34 @@ out:
 	}
 	return ret;
 }
+
+int attest_parse_pcrs(const char *list, __u32 *mask)
+{
+	const char *p = list;
+
+	*mask = 0;
+	while (*p) {
+		size_t len = digits(p, strlen(p));
+		__u64 n;
+
+		if (parse_u64(p, len, 23, &n))
+			return -EINVAL;
+		*mask |= 1u << n;
+		p += len;
+		if (*p == ',')
+			p++;
+		else if (*p)
+			return -EINVAL;
+	}
+	return *mask ? 0 : -EINVAL;
+}
+
+int attest_parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
+{
+	size_t len = digits(arg, strlen(arg));
+
+	if (arg[len] != '=' || parse_u64(arg, len, 23, pcr))
+		return -EINVAL;
+	*value = arg + len + 1;
+	return 0;
+}

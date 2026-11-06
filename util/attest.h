@@ -108,4 +108,9 @@ int attest_verify(const char *evidence, size_t len,
 		  const struct attest_expect *expect,
 		  char *report, size_t report_cap);
 
+/* --pcrs: PCRs 0 to 23 apart by commas, into a mask. 0 or -EINVAL. */
+int attest_parse_pcrs(const char *list, __u32 *mask);
+/* "<pcr>=<value>": the PCR, below 24, and where its value starts. */
+int attest_parse_pcr_value(const char *arg, __u64 *pcr, const char **value);
+
 #endif /* SHIRUDO_ATTEST_H */

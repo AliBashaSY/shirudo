@@ -136,38 +136,6 @@ static int parse_hex32(const char *what, const char *hex, __u8 out[32])
 	return 0;
 }
 
-static int parse_pcrs(const char *list, __u32 *mask)
-{
-	const char *p = list;
-
-	*mask = 0;
-	while (*p) {
-		size_t len = digits(p, strlen(p));
-		__u64 n;
-
-		if (parse_u64(p, len, 23, &n))
-			return -EINVAL;
-		*mask |= 1u << n;
-		p += len;
-		if (*p == ',')
-			p++;
-		else if (*p)
-			return -EINVAL;
-	}
-	return *mask ? 0 : -EINVAL;
-}
-
-/* "<pcr>=<value>": the PCR, below 24, and where its value starts. */
-static int parse_pcr_value(const char *arg, __u64 *pcr, const char **value)
-{
-	size_t len = digits(arg, strlen(arg));
-
-	if (arg[len] != '=' || parse_u64(arg, len, 23, pcr))
-		return -EINVAL;
-	*value = arg + len + 1;
-	return 0;
-}
-
 struct members {
 	struct measured_upatch	*set;
 	size_t				n;
@@ -384,7 +352,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 				pr_err("attest predict: %s takes a value", a);
 				goto out;
 			}
-			if (!parse_pcr_value(v, &n, &value))
+			if (!attest_parse_pcr_value(v, &n, &value))
 				slot = n == CHAIN_PCR ? 0 :
 				       n == CHAIN_PHASE_PCR ? 1 : -1;
 			if (slot < 0 ||
@@ -741,7 +709,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (parse_pcr_value(v, &n, &value) ||
+			if (attest_parse_pcr_value(v, &n, &value) ||
 			    parse_hex32("--expect-pcr value", value, x.pcrs[n]))
 				goto out;
 			x.pcr_expect_mask |= 1u << n;
@@ -783,7 +751,7 @@ static int cmd_attest_verify(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (parse_pcr_value(v, &n, &value) ||
+			if (attest_parse_pcr_value(v, &n, &value) ||
 			    parse_hex32("--expect-bind-pcr value", value,
 					x.bind_values[n]))
 				goto out;
@@ -1034,7 +1002,7 @@ static int cmd_attest_evidence(int argc, const char **argv)
 				pr_err("attest: %s takes a value", a);
 				return 2;
 			}
-			if (parse_pcrs(v, &mask)) {
+			if (attest_parse_pcrs(v, &mask)) {
 				pr_err("attest: --pcrs takes a comma separated "
 				       "list of 0..23");
 				return 2;

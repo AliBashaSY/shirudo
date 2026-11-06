@@ -491,14 +491,14 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover seventeen of the modules in
-:src:`util/`: ``bpm_oci``, ``bpm_package``, ``bpm_tree``,
+The unit suites in :src:`testing/unit/` cover eighteen of the modules in
+:src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_tree``,
 ``bpm_tree_state``, ``chain``, ``eventlog``, ``format``, ``hex``, ``io``,
 ``json``, ``kernel_abi``, ``kernel_build_id``, ``kernel_release``,
-``paths``, ``string``, ``upatch`` and ``upatch_decode``, and ``overflow`` the arithmetic of
-:src:`include/shirudo/overflow.h`. The other modules are reached through
-the test helpers, the fuzz targets and the binaries the functional tests
-run.
+``paths``, ``string``, ``upatch`` and ``upatch_decode``, and ``overflow``
+the arithmetic of :src:`include/shirudo/overflow.h`. The other modules
+are reached through the test helpers, the fuzz targets and the binaries
+the functional tests run.
 
 .. list-table::
    :header-rows: 1
