@@ -259,7 +259,10 @@ of their own could interleave extend, extend, append, append, and leave a
 log that replays the events in the other order. Every measuring command,
 an upatch load or unload, a live revocation and a tree operation,
 therefore holds ``/var/lib/shirudo/eventlog.lock`` from its extension to
-its append; a load or an unload holds it from before it touches the pins.
+its append; a load or an unload holds it from before it touches the pins,
+and a revocation's purge of an upatch from its archive read until its
+pins and archive are gone, so that a load of the same name cannot come
+between the purge's event and its removal.
 
 The order of extension and state change is chosen per operation. A load
 loads, archives and then extends; a failed archive copy or a refused

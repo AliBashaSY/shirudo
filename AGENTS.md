@@ -185,7 +185,8 @@ one usually still compiles and passes tests.
   between its pins and its extend leaves pins without a record: `status`
   reports them (`UpatchesMeasured`) and the next upatch command undoes
   them under the register lock, which a load or an unload holds from
-  before it touches the pins to its append. `init` restores only an
+  before it touches the pins to its append, and a purge from its archive
+  read until its pins and archive are gone. `init` restores only an
   archive whose load the eventlog records without a later unload; a
   labeled archive root brings back is reported and removed, never
   restored. The register follows

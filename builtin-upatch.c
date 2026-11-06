@@ -2402,30 +2402,6 @@ static const char *chain_event_category(int ret, bool measured)
 	return !measured && ret == -EACCES ? "tampered" : "tpm_error";
 }
 
-static int upatch_chain_event(const char *tag, const char *type,
-			      const char *op, const char *name,
-			      const __u8 payload[32], const char *reason,
-			      char out_chain[65], bool *measured)
-{
-	int lock, ret;
-
-	if (out_chain)
-		out_chain[0] = '\0';
-	if (measured)
-		*measured = false;
-	lock = eventlog_lock();
-	if (lock < 0) {
-		pr_err("upatch %s: cannot take the register lock: %s "
-		       "(category: tpm_error); nothing measured", op,
-		       strerror(-lock));
-		return lock;
-	}
-	ret = upatch_chain_event_locked(tag, type, op, name, payload, reason,
-					out_chain, measured);
-	eventlog_unlock(lock);
-	return ret;
-}
-
 static int append_json_record(const char *path, const char *json, size_t len)
 {
 	struct stat st;
@@ -3134,7 +3110,7 @@ done:
 	return ret;
 }
 
-int upatch_purge(const char *name, const char *reason)
+static int upatch_purge_locked(const char *name, const char *reason)
 {
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
@@ -3142,8 +3118,6 @@ int upatch_purge(const char *name, const char *reason)
 	bool loaded;
 	int fd, ret;
 
-	if (!upatch_name_valid(name))
-		return -EINVAL;
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		       UPATCHES_DIR, name) < 0)
 		return -ENAMETOOLONG;
@@ -3161,9 +3135,9 @@ int upatch_purge(const char *name, const char *reason)
 	/* As for unload: the event first, then the detach it describes. */
 	loaded = upatch_is_pinned(name);
 	if (loaded) {
-		ret = upatch_chain_event("shirudo-unload", "upatch_unload",
-					 "purge", name, payload, reason, NULL,
-					 NULL);
+		ret = upatch_chain_event_locked("shirudo-unload",
+						"upatch_unload", "purge", name,
+						payload, reason, NULL, NULL);
 		if (ret)
 			return ret;
 		ret = remove_pin_dir(name);
@@ -3181,6 +3155,29 @@ int upatch_purge(const char *name, const char *reason)
 	pr_audit("upatch purge: name=%s reason=%s %s", name, reason,
 		 loaded ? "detached" : "archive_only");
 	return loaded ? 1 : 0;
+}
+
+/*
+ * Under the register lock from the archive read to its unlink, as a
+ * load and an unload hold it, so that a load of the name that takes the
+ * lock after the purge's event is not the one the purge then removes.
+ */
+int upatch_purge(const char *name, const char *reason)
+{
+	int lock, ret;
+
+	if (!upatch_name_valid(name))
+		return -EINVAL;
+	lock = eventlog_lock();
+	if (lock < 0) {
+		pr_err("upatch purge: cannot take the register lock: %s "
+		       "(category: tpm_error); nothing measured or detached",
+		       strerror(-lock));
+		return lock;
+	}
+	ret = upatch_purge_locked(name, reason);
+	eventlog_unlock(lock);
+	return ret;
 }
 
 /* Package installs take the same path as the upatch commands. */
