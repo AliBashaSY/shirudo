@@ -26,7 +26,8 @@ attaches. The target loads, pins, archives and measures it as a whole.
 
 Every upatch has a name, by default the base name of its source file. A
 name consists of letters, digits, ``.``, ``_`` and ``-``, does not start
-with a dot, and has at most 255 characters. It names the pin directory
+with a dot, and has at most 255 characters, each dot counting as two,
+because the pin directory spells it ``~d``. It names the pin directory
 under ``/run/shirudo/bpffs/upatches/``, the archived copy
 ``/var/lib/shirudo/upatches/<name>.upatch`` that ``init`` restores at boot,
 and the events in the measurement register.

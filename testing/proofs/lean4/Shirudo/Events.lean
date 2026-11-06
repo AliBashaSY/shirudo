@@ -149,11 +149,20 @@ def nameChar (c : UInt8) : Bool :=
   (97 ≤ c && c ≤ 122) || (65 ≤ c && c ≤ 90) || (48 ≤ c && c ≤ 57) ||
     c == 46 || c == 95 || c == 45
 
+/-- `NAME_MAX`, the longest name of a pin directory. -/
+def pinMax : Nat := 255
+
+/-- The length of `upatch_bpffs_name()` of util/paths.h, which spells each
+dot in two bytes. -/
+def pinLength (n : List UInt8) : Nat :=
+  (n.map fun c => if c == 46 then 2 else 1).sum
+
 /-- `upatch_name_valid()` of util/upatch.c: not empty, not starting with a
-dot, and only bytes of `nameChar`. -/
+dot, only bytes of `nameChar`, and a pin directory name that fits. -/
 def nameValid : List UInt8 → Bool
   | [] => false
-  | c :: cs => c != 46 && (c :: cs).all nameChar
+  | c :: cs => c != 46 && (c :: cs).all nameChar &&
+      decide (pinLength (c :: cs) ≤ pinMax)
 
 /-- The names that reach `chain_upatch_event()` and `chain_init_event()`
 on a target and in `attest verify`: what `upatch_name_valid()` accepts,
@@ -184,7 +193,7 @@ theorem nameValid_mem {n : List UInt8} (h : nameValid n = true) :
   | nil => simp [nameValid] at h
   | cons c cs =>
     simp only [nameValid, Bool.and_eq_true, List.all_eq_true] at h
-    exact h.2
+    exact h.1.2
 
 theorem nameChar_ne {c : UInt8} (h : nameChar c = true) : c ≠ 0 ∧ c ≠ 10 := by
   constructor <;> (rintro rfl; exact absurd h (by decide))

@@ -1752,18 +1752,13 @@ out:
 	return err;
 }
 
-/*
- * Every target refuses a name outside the upatch character set, and a
- * name the header cannot hold would be cut and signed as another one.
- */
+/* Every target refuses a name upatch_name_valid() does not take. */
 static int check_upatch_name(const char *name)
 {
-	if (name && upatch_name_valid(name) &&
-	    strlen(name) < UPATCH_NAME_MAX)
+	if (upatch_name_valid(name))
 		return 0;
-	pr_err("upatch name '%s' is not 1 to %d characters of [A-Za-z0-9._-] "
-	       "not starting with '.'", name ? name : "",
-	       UPATCH_NAME_MAX - 1);
+	pr_err("upatch name '%s' is not 1 to %d characters of [A-Za-z0-9._-], each '.' counting as two, not starting with '.'",
+	       name ? name : "", NAME_MAX);
 	return -EINVAL;
 }
 

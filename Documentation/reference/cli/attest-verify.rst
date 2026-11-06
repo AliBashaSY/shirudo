@@ -104,8 +104,9 @@ Options
    * - ``--expect``
      - ``<name>=<digest>``
      - An archived upatch by name and payload digest. Repeatable. The
-       name is one an upatch can have, ``[A-Za-z0-9._-]`` not starting
-       with a dot, and comes once. Needs ``--cert``.
+       name is one an upatch can have, see
+       :doc:`/concepts/upatches-and-packages`, and comes once. Needs
+       ``--cert``.
    * - ``--tree-root``
      - ``<digest>``, 64 hex characters
      - The upatch tree projection root at boot. Needs ``--cert``.

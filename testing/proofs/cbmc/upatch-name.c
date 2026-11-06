@@ -4,7 +4,8 @@
  *
  * The upatch names util/upatch.c takes from outside, for every name of up
  * to LEN_MAX bytes: upatch_name_valid() accepts exactly [A-Za-z0-9._-]+
- * not starting with a dot, so no path separator, "." or "..",
+ * not starting with a dot whose pin directory, each dot two bytes, fits
+ * NAME_MAX, so no path separator, "." or "..",
  * upatch_select() exactly the archive names, something then ".upatch",
  * and upatch_prog_name() gives the loader program a zero-padded name the
  * kernel takes, the header's with every other byte made '_'.
@@ -24,18 +25,21 @@ static bool name_char(char c)
 
 static void name_valid(void)
 {
+	size_t n, i, pin = 0;
 	bool valid, chars = true;
-	size_t n, i;
 	char *name;
 
 	__CPROVER_assume(n <= LEN_MAX);
 	name = any_bytes(n + 1);
 	__CPROVER_assume(!name[n] && strnlen(name, n) == n);
 	valid = upatch_name_valid(name);
-	for (i = 0; i < n; i++)
+	for (i = 0; i < n; i++) {
 		chars &= name_char(name[i]);
-	__CPROVER_assert(valid == (n > 0 && name[0] != '.' && chars),
-			 "exactly the names of the pattern");
+		pin += name[i] == '.' ? 2 : 1;
+	}
+	__CPROVER_assert(valid == (n > 0 && name[0] != '.' && chars &&
+				   pin <= NAME_MAX),
+			 "exactly the names of the pattern whose pin fits");
 	for (i = 0; i < n; i++)
 		__CPROVER_assert(!valid || name[i] != '/', "no separator");
 	__CPROVER_assert(!upatch_name_valid(NULL), "no name is invalid");

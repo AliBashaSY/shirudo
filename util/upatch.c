@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -541,7 +542,7 @@ int upatch_decoder_view(const struct upatch *u, __u32 idx,
 
 bool upatch_name_valid(const char *name)
 {
-	size_t i;
+	size_t i, pin = 0;
 
 	if (!name || name[0] == '\0' || name[0] == '.')
 		return false;
@@ -551,6 +552,9 @@ bool upatch_name_valid(const char *name)
 		if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
 		      (c >= '0' && c <= '9') || c == '.' || c == '_' ||
 		      c == '-'))
+			return false;
+		pin += c == '.' ? 2 : 1;
+		if (pin > NAME_MAX)
 			return false;
 	}
 	return true;

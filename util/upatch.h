@@ -136,9 +136,9 @@ const void *upatch_signed_policy_labels(const struct upatch *u,
 					__u32 *len);
 
 /*
- * Validate an externally-provided upatch name: non-empty, doesn't
- * start with '.', and matches [A-Za-z0-9._-]+. Rejects anything that
- * could escape the bpffs / on-disk path namespace.
+ * An upatch name: [A-Za-z0-9._-]+ not starting with '.', so nothing that
+ * leaves the bpffs or the archive directory, and short enough for its pin
+ * directory, which spells each '.' in two bytes, to fit NAME_MAX.
  */
 bool upatch_name_valid(const char *name);
 

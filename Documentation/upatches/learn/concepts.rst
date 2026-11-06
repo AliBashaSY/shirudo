@@ -192,7 +192,8 @@ file, the eventlog record and the target of its unload directive.
      - Rule
    * - upatch name
      - 1 to 255 characters of ``A-Z``, ``a-z``, ``0-9``, ``.``, ``_`` and
-       ``-``, not starting with ``.``. The builder refuses anything else,
+       ``-``, each ``.`` counting as two, not starting with ``.``. The
+       builder refuses anything else,
        and the target refuses it again at load.
    * - name from ``shirudo build``
      - The input's base name without ``.bpf.c``, ``.bpf.o`` or ``.o``.

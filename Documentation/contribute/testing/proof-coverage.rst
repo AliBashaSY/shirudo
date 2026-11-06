@@ -243,7 +243,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``upatch_name_valid()``, ``upatch_select()``,
        ``upatch_prog_name()``
      - Names up to 24 bytes, archive names up to 31
-     - Valid exactly for ``[A-Za-z0-9._-]+`` not starting with a dot;
+     - Valid exactly for ``[A-Za-z0-9._-]+`` not starting with a dot
+       whose pin directory name, each dot two bytes, fits ``NAME_MAX``;
        an archive entry exactly for a name and ``.upatch``; a program
        name zero-padded, of the header's bytes or ``_`` in their place
    * - ``upatch-prog-specs``

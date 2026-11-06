@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
+#include <limits.h>
 #include <string.h>
 
 #include "unit.h"
@@ -106,6 +107,24 @@ static void member_is_a_name_and_a_payload(void)
 	EXPECT_FALSE(upatch_member_valid("fix", NULL));
 }
 
+/* A name's pin directory spells each dot in two bytes, within NAME_MAX. */
+static void name_fits_its_pin_directory(void)
+{
+	char name[NAME_MAX + 2];
+
+	memset(name, 'a', NAME_MAX);
+	name[NAME_MAX] = '\0';
+	EXPECT_TRUE(upatch_name_valid(name));
+	name[NAME_MAX - 1] = '.';
+	EXPECT_FALSE(upatch_name_valid(name));
+	name[NAME_MAX - 1] = '\0';
+	name[NAME_MAX - 2] = '.';
+	EXPECT_TRUE(upatch_name_valid(name));
+	memset(name, 'a', NAME_MAX + 1);
+	name[NAME_MAX + 1] = '\0';
+	EXPECT_FALSE(upatch_name_valid(name));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(prog_specs_take_the_signed_counts),
 	UNIT_CASE(prog_specs_refuse_another_header_count),
@@ -113,6 +132,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(prog_name_is_what_the_kernel_takes),
 	UNIT_CASE(name_signed_is_the_header_name),
 	UNIT_CASE(member_is_a_name_and_a_payload),
+	UNIT_CASE(name_fits_its_pin_directory),
 	{}
 };
 

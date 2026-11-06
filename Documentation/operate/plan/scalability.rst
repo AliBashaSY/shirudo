@@ -237,9 +237,10 @@ One upatch
      - 4 GiB (``kernel/bpf/arena.c``)
    * - Name
      - 255 characters from ``A-Z``, ``a-z``, ``0-9``, ``.``, ``_`` and
-       ``-``, not starting with ``.``. A decoder names its upatch in 64
-       bytes, so only upatches with names of at most 63 characters can
-       have one (U19 in the :doc:`/security/threat-model`).
+       ``-``, each ``.`` counting as two, not starting with ``.``. A
+       decoder names its upatch in 64 bytes, so only upatches with names
+       of at most 63 characters can have one (U19 in the
+       :doc:`/security/threat-model`).
    * - Map export
      - :doc:`/upatches/write/maps-arenas-serializers` and
        :doc:`/upatches/write/decoders` give the serializer and decoder limits.

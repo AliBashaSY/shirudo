@@ -99,7 +99,8 @@ Names
    * - upatch name
      - The source file's basename without ``.bpf.c``, ``.bpf.o`` or ``.o``
      - The Beefile cannot override it. 1 to 255 characters of
-       ``[A-Za-z0-9._-]``, not starting with ``.``.
+       ``[A-Za-z0-9._-]``, each ``.`` counting as two, not starting with
+       ``.``.
    * - Tree operation ``id``
      - Beefile ``[upatches.tree] id``
      - Must equal the upatch name of the artifact it publishes, so the

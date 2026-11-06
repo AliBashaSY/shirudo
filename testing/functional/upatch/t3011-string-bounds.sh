@@ -54,6 +54,18 @@ test_expect_success 'an upatch name the header cannot hold is not cut and signed
 		--keys-dir "$WORK/keys" >/dev/null 2>&1
 '
 
+test_expect_success 'an upatch name whose pin directory would not fit is not signed' '
+	dotted=n$(printf ".n%.0s" $(seq 127)) &&
+	! "$B" --unload "$dotted" -o "$WORK/dotted.upatch" \
+		--payload-sha256 "$PAYLOAD" --keys-dir "$WORK/keys" \
+		>/dev/null 2>"$WORK/dotted.err" &&
+	grep -q "each .\.. counting as two" "$WORK/dotted.err" &&
+	[ ! -e "$WORK/dotted.upatch" ] &&
+	fits=n$(printf ".n%.0s" $(seq 84)) &&
+	"$B" --unload "$fits" -o "$WORK/fits.upatch" --payload-sha256 "$PAYLOAD" \
+		--keys-dir "$WORK/keys" >/dev/null 2>&1
+'
+
 test_expect_success 'a signed name section without its terminator is no name' '
 	"$B" --unload good -o "$WORK/good.upatch" --payload-sha256 "$PAYLOAD" \
 		--keys-dir "$WORK/keys" >/dev/null 2>&1 &&

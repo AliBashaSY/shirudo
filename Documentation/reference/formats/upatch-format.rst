@@ -89,7 +89,8 @@ Header
      - 256
      - ``name``
      - The upatch name, NUL-padded. Writers accept 1 to 255 characters of
-       ``[A-Za-z0-9._-]`` that do not start with ``.``. For an unload
+       ``[A-Za-z0-9._-]``, each ``.`` counting as two, that do not start
+       with ``.``. For an unload
        directive, the name of the upatch to unload.
    * - 272
      - 32
@@ -736,8 +737,9 @@ of checks 1 to 6 is reported as ``parser_rejected``, see
 
 #. ``flags`` bit 0 is clear.
 #. ``loader_insns_len`` is a multiple of 8.
-#. The header ``name`` is not empty, does not start with ``.`` and
-   contains only ``[A-Za-z0-9._-]``.
+#. The header ``name`` is not empty, does not start with ``.``, contains
+   only ``[A-Za-z0-9._-]`` and has at most 255 characters with each ``.``
+   counted twice, so that its pin directory name fits.
 #. A ``NAME`` section is present and equals the header ``name``.
 #. ``payload_sha256`` equals SHA-256 of ``loader_insns || data``.
 #. A ``UPGM`` section is present and parses: version 1 (any other version
@@ -813,7 +815,8 @@ Limits
    * - Signed sections
      - 1 to 8
    * - Name of an upatch
-     - 255 characters of ``[A-Za-z0-9._-]``, not starting with ``.``
+     - 255 characters of ``[A-Za-z0-9._-]``, each ``.`` counting as two,
+       not starting with ``.``
    * - ``kprobe``, ``kretprobe`` or ``uprobe.multi`` target
      - 127 bytes
    * - Serializer map name
