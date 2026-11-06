@@ -4,9 +4,9 @@
 #
 # .github/scripts/check-docs.sh -- check Documentation/ against the tree:
 # every option a console example passes to shirudo exists in a parser,
-# every failure category the code emits and every tamper counter has its
-# entry in the reference, and every hook, counter, test and unit a page
-# names exists.
+# every failure category the code emits, every tamper counter and every
+# proof has its entry in the reference, and every hook, counter, test,
+# proof and unit a page names exists.
 #
 #   .github/scripts/check-docs.sh
 #
@@ -96,6 +96,27 @@ while IFS= read -r page; do
 		sort -u | while IFS= read -r test; do
 		grep -qx "$test" "$work/tests" ||
 			report "$page" "no test is numbered $test"
+	done
+done <"$work/pages"
+
+# Every proof has a row on the coverage page, and a fact box names only
+# proofs that exist.
+coverage=Documentation/contribute/testing/proof-coverage.rst
+grep -v '^[[:space:]]*\(#\|$\)' testing/proofs/cbmc/proofs.list |
+	awk '{ print $1 }' >"$work/proofs"
+for model in testing/proofs/lean4/Shirudo/*.lean; do
+	model=${model##*/}
+	printf 'Shirudo.%s\n' "${model%.lean}"
+done >>"$work/proofs"
+while IFS= read -r proof; do
+	grep -qF "* - \`\`$proof\`\`" "$coverage" ||
+		report "$coverage" "no row for the proof $proof"
+done <"$work/proofs"
+while IFS= read -r page; do
+	grep '^:Proofs:' "$page" | grep -oE '``[A-Za-z0-9.-]+``' | tr -d '`' |
+		sort -u | while IFS= read -r proof; do
+		grep -qx "$proof" "$work/proofs" ||
+			report "$page" "no proof is named $proof"
 	done
 done <"$work/pages"
 

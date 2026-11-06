@@ -91,10 +91,13 @@ the ``facts`` class:
    :Refusal: ``EACCES`` from the denied system call
    :Counters: ``BpfCommand``, ``PinUnlink``, ``BpffsUmount``
    :Tests: ``t6106``, ``t6107``, ``t6120``
+   :Proofs: ``upatch-header``, ``Shirudo.Chain``
    :Residual: R3
 
-Name only hooks, counters and tests that exist. ``make -C Documentation
-check`` verifies them against the tree.
+Name only hooks, counters, tests and proofs that exist, a proof by its
+name in :src:`testing/proofs/cbmc/proofs.list` or its Lean 4 module, and
+add ``:Proofs:`` only where a proof covers the check the threat rests
+on. ``make -C Documentation check`` verifies them against the tree.
 
 Page metadata
 -------------

@@ -62,5 +62,6 @@ make docs                         # renders and serves on 127.0.0.1:8000
 ```
 
 `check-docs.sh` checks the options of console examples, the failure
-categories, tamper counters, hooks, tests and units the pages name. It
+categories, tamper counters, hooks, tests, proofs and units the pages
+name, and that every proof has a row on the proof coverage page. It
 cannot check the prose: read each changed paragraph against the code.
