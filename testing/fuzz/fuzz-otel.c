@@ -62,6 +62,31 @@ int upatch_decode_map_file_otel(const char *path,
 	return -EOPNOTSUPP;
 }
 
+static const struct json_visitor any_value = {};
+
+static size_t deepest_nesting(const char *s, size_t len)
+{
+	size_t depth = 0, deepest = 0, i;
+	bool in_string = false;
+
+	for (i = 0; i < len; i++) {
+		if (in_string) {
+			if (s[i] == '\\')
+				i++;
+			else if (s[i] == '"')
+				in_string = false;
+		} else if (s[i] == '"') {
+			in_string = true;
+		} else if (s[i] == '{' || s[i] == '[') {
+			if (++depth > deepest)
+				deepest = depth;
+		} else if ((s[i] == '}' || s[i] == ']') && depth) {
+			depth--;
+		}
+	}
+	return deepest;
+}
+
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
 	struct json_emit e = {};
@@ -69,6 +94,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	struct otel_state st = {};
 	size_t off, n, cap;
 	char *body, *line;
+	int ret;
 
 	/*
 	 * curl hands the header callback one line at a time, end included
@@ -99,7 +125,20 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	if (e.buf) {
 		e.cap = cap;
 		json_obj_open(&e);
-		json_anyvalue_from_document(&e, body, size, false);
+		/*
+		 * What the conversion writes reads back as JSON. An input level
+		 * takes up to four in the output, which can so nest deeper than
+		 * the walk goes; such output must read back up to that depth.
+		 */
+		if (!json_anyvalue_from_document(&e, body, size, false)) {
+			json_obj_close(&e);
+			if (!e.err) {
+				ret = json_walk(e.buf, e.len, &any_value, NULL);
+				if (deepest_nesting(e.buf, e.len) <= JSON_MAX_DEPTH ?
+				    ret : ret != -E2BIG)
+					abort();
+			}
+		}
 		xfree(e.buf, cap);
 	}
 

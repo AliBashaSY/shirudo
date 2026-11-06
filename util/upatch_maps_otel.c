@@ -282,319 +282,154 @@ static void otlp_array_kvlist_end(struct json_emit *e)
 	json_obj_close(e);
 }
 
-/*
- * Convert one ordinary JSON value into the OTLP JSON representation of an
- * AnyValue.  Status already has a stable JSON emitter, so keeping this
- * adapter here lets status and its machine-readable output share one source
- * of truth without duplicating every status field in an OTLP renderer.
- */
-struct json_anyvalue_ctx {
-	const char *p;
-	const char *end;
-	__u32 depth;
+struct anyvalue_walk {
+	struct json_emit	*e;
+	__u32			depth;
+	bool			wrap;
+	/* Whether the container at each depth is an array. */
+	bool			array[JSON_MAX_DEPTH + 1];
 };
 
-static void json_anyvalue_skip_ws(struct json_anyvalue_ctx *c)
+/*
+ * A value in an array is an AnyValue object of its own; one in an object
+ * goes into the {"key","value"} the key opened; one at the top is the
+ * caller's AnyValue, or with wrap an object of its own.
+ */
+static void anyvalue_begin(struct anyvalue_walk *w)
 {
-	while (c->p < c->end && isspace((__u8)*c->p))
-		c->p++;
+	if (w->depth ? w->array[w->depth] : w->wrap)
+		json_obj_open(w->e);
 }
 
-static int json_anyvalue_string(struct json_anyvalue_ctx *c,
-				const char **start, size_t *len)
+static void anyvalue_end(struct anyvalue_walk *w)
 {
-	const char *p;
-
-	if (c->p >= c->end || *c->p != '"')
-		return -EINVAL;
-	p = c->p++;
-	while (c->p < c->end) {
-		__u8 ch = (__u8)*c->p++;
-
-		if (ch == '"') {
-			*start = p;
-			*len = (size_t)(c->p - p);
-			return 0;
-		}
-		if (ch == '\\') {
-			if (c->p >= c->end)
-				return -EINVAL;
-			ch = (__u8)*c->p++;
-			if (ch == 'u') {
-				int i;
-
-				if ((size_t)(c->end - c->p) < 4)
-					return -EINVAL;
-				for (i = 0; i < 4; i++) {
-					if (!isxdigit((__u8)c->p[i]))
-						return -EINVAL;
-				}
-				c->p += 4;
-			} else if (ch != '"' && ch != '\\' && ch != '/' &&
-				   ch != 'b' && ch != 'f' && ch != 'n' &&
-				   ch != 'r' && ch != 't') {
-				return -EINVAL;
-			}
-		} else if (ch < 0x20) {
-			return -EINVAL;
-		}
-	}
-	return -EINVAL;
-}
-
-static int json_anyvalue_literal(struct json_anyvalue_ctx *c,
-				 const char *literal)
-{
-	size_t len = strlen(literal);
-
-	if ((size_t)(c->end - c->p) < len ||
-	    memcmp(c->p, literal, len) != 0)
-		return -EINVAL;
-	c->p += len;
-	return 0;
-}
-
-static int json_anyvalue_number(struct json_anyvalue_ctx *c,
-				struct json_emit *e)
-{
-	const char *start = c->p;
-	bool fraction = false;
-	size_t len;
-	char number[128];
-
-	if (c->p < c->end && *c->p == '-')
-		c->p++;
-	if (c->p >= c->end || !isdigit((__u8)*c->p))
-		return -EINVAL;
-	if (*c->p == '0') {
-		c->p++;
+	if (!w->depth) {
+		if (w->wrap)
+			json_obj_close(w->e);
+	} else if (w->array[w->depth]) {
+		json_obj_close(w->e);
 	} else {
-		while (c->p < c->end && isdigit((__u8)*c->p))
-			c->p++;
+		json_obj_close(w->e);
+		json_obj_close(w->e);
 	}
-	if (c->p < c->end && *c->p == '.') {
-		fraction = true;
-		c->p++;
-		if (c->p >= c->end || !isdigit((__u8)*c->p))
-			return -EINVAL;
-		while (c->p < c->end && isdigit((__u8)*c->p))
-			c->p++;
-	}
-	if (c->p < c->end && (*c->p == 'e' || *c->p == 'E')) {
-		fraction = true;
-		c->p++;
-		if (c->p < c->end && (*c->p == '+' || *c->p == '-'))
-			c->p++;
-		if (c->p >= c->end || !isdigit((__u8)*c->p))
-			return -EINVAL;
-		while (c->p < c->end && isdigit((__u8)*c->p))
-			c->p++;
-	}
-	len = (size_t)(c->p - start);
-	if (len == 0 || len >= sizeof(number))
-		return -E2BIG;
-	memcpy(number, start, len);
-	number[len] = '\0';
-	if (fraction)
-		json_kv_string(e, "doubleValue", number);
-	else
-		json_kv_string(e, "intValue", number);
-	return 0;
 }
 
-static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
-				       struct json_emit *e);
-
-static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
-			      struct json_emit *e);
-
-static int json_anyvalue_object(struct json_anyvalue_ctx *c,
-				struct json_emit *e, bool wrap)
+static int anyvalue_open(void *ctx, bool array)
 {
-	int ret;
+	struct anyvalue_walk *w = ctx;
 
-	if (c->depth++ >= JSON_MAX_DEPTH) {
-		c->depth--;
-		return -E2BIG;
-	}
-	c->p++;
-	if (wrap)
-		json_obj_open(e);
-	json_obj_open_key(e, "kvlistValue");
-	json_arr_open(e, "values");
-	json_anyvalue_skip_ws(c);
-	if (c->p < c->end && *c->p == '}') {
-		c->p++;
-		json_arr_close(e);
-		json_obj_close(e);
-		if (wrap)
-			json_obj_close(e);
-		c->depth--;
-		return 0;
-	}
-	for (;;) {
-		const char *key;
-		size_t key_len;
-
-		ret = json_anyvalue_string(c, &key, &key_len);
-		if (ret)
-			break;
-		json_anyvalue_skip_ws(c);
-		if (c->p >= c->end || *c->p++ != ':') {
-			ret = -EINVAL;
-			break;
-		}
-		json_anyvalue_skip_ws(c);
-		json_obj_open(e);
-		json_kv_raw(e, "key", key, key_len);
-		json_obj_open_key(e, "value");
-		ret = json_anyvalue_emit_contents(c, e);
-		json_obj_close(e);
-		json_obj_close(e);
-		if (ret)
-			break;
-		json_anyvalue_skip_ws(c);
-		if (c->p >= c->end) {
-			ret = -EINVAL;
-			break;
-		}
-		if (*c->p == '}') {
-			c->p++;
-			ret = 0;
-			break;
-		}
-		if (*c->p++ != ',') {
-			ret = -EINVAL;
-			break;
-		}
-		json_anyvalue_skip_ws(c);
-	}
-	json_arr_close(e);
-	json_obj_close(e);
-	if (wrap)
-		json_obj_close(e);
-	c->depth--;
-	return ret;
-}
-
-static int json_anyvalue_array(struct json_anyvalue_ctx *c,
-			       struct json_emit *e, bool wrap)
-{
-	int ret = 0;
-
-	if (c->depth++ >= JSON_MAX_DEPTH) {
-		c->depth--;
-		return -E2BIG;
-	}
-	c->p++;
-	if (wrap)
-		json_obj_open(e);
-	json_obj_open_key(e, "arrayValue");
-	json_arr_open(e, "values");
-	json_anyvalue_skip_ws(c);
-	if (c->p < c->end && *c->p == ']') {
-		c->p++;
-	} else {
-		for (;;) {
-			json_anyvalue_skip_ws(c);
-			ret = json_anyvalue_emit(c, e);
-			if (ret)
-				break;
-			json_anyvalue_skip_ws(c);
-			if (c->p >= c->end) {
-				ret = -EINVAL;
-				break;
-			}
-			if (*c->p == ']') {
-				c->p++;
-				break;
-			}
-			if (*c->p++ != ',') {
-				ret = -EINVAL;
-				break;
-			}
-		}
-	}
-	json_arr_close(e);
-	json_obj_close(e);
-	if (wrap)
-		json_obj_close(e);
-	c->depth--;
-	return ret;
-}
-
-static int json_anyvalue_emit_contents(struct json_anyvalue_ctx *c,
-				       struct json_emit *e)
-{
-	const char *start;
-	size_t len;
-	int ret;
-
-	json_anyvalue_skip_ws(c);
-	if (c->p >= c->end)
+	if (!w->depth && !w->wrap && array)
 		return -EINVAL;
-	switch (*c->p) {
-	case '{':
-		return json_anyvalue_object(c, e, false);
-	case '[':
-		return json_anyvalue_array(c, e, false);
-	case '"':
-		ret = json_anyvalue_string(c, &start, &len);
-		if (ret)
-			return ret;
-		json_kv_raw(e, "stringValue", start, len);
-		return 0;
-	case 't':
-		ret = json_anyvalue_literal(c, "true");
-		if (ret)
-			return ret;
-		json_kv_bool(e, "boolValue", true);
-		return 0;
-	case 'f':
-		ret = json_anyvalue_literal(c, "false");
-		if (ret)
-			return ret;
-		json_kv_bool(e, "boolValue", false);
-		return 0;
-	case 'n':
-		ret = json_anyvalue_literal(c, "null");
-		if (ret)
-			return ret;
-		/* An empty AnyValue is the OTLP JSON representation of null. */
-		return 0;
-	default:
-		return json_anyvalue_number(c, e);
-	}
+	anyvalue_begin(w);
+	json_obj_open_key(w->e, array ? "arrayValue" : "kvlistValue");
+	json_arr_open(w->e, "values");
+	w->array[++w->depth] = array;
+	return w->e->err;
 }
 
-static int json_anyvalue_emit(struct json_anyvalue_ctx *c,
-			      struct json_emit *e)
+static int anyvalue_close(void *ctx, bool array)
 {
-	int ret;
+	struct anyvalue_walk *w = ctx;
 
-	json_obj_open(e);
-	ret = json_anyvalue_emit_contents(c, e);
-	json_obj_close(e);
-	return ret;
+	json_arr_close(w->e);
+	json_obj_close(w->e);
+	w->depth--;
+	anyvalue_end(w);
+	return w->e->err;
 }
 
+static int anyvalue_key(void *ctx, const char *key)
+{
+	struct anyvalue_walk *w = ctx;
+
+	json_obj_open(w->e);
+	json_kv_string(w->e, "key", key);
+	json_obj_open_key(w->e, "value");
+	return w->e->err;
+}
+
+static int anyvalue_scalar(struct anyvalue_walk *w)
+{
+	return !w->depth && !w->wrap ? -EINVAL : 0;
+}
+
+static int anyvalue_string(void *ctx, const char *s)
+{
+	struct anyvalue_walk *w = ctx;
+	int ret = anyvalue_scalar(w);
+
+	if (ret)
+		return ret;
+	anyvalue_begin(w);
+	json_kv_string(w->e, "stringValue", s);
+	anyvalue_end(w);
+	return w->e->err;
+}
+
+/*
+ * An AnyValue's intValue is a 64-bit integer: a longer one, or one with a
+ * fraction or an exponent, goes as a doubleValue as it is written.
+ */
+static int anyvalue_number(void *ctx, const char *text, size_t len,
+			   bool integer)
+{
+	struct anyvalue_walk *w = ctx;
+	int ret = anyvalue_scalar(w);
+	__s64 value;
+
+	if (ret)
+		return ret;
+	anyvalue_begin(w);
+	if (integer && !parse_s64(text, len, INT64_MIN, INT64_MAX, &value)) {
+		char num[24];
+
+		if (strsprintf(num, sizeof(num), "%lld", value) < 0)
+			return -E2BIG;
+		json_kv_string(w->e, "intValue", num);
+	} else {
+		json_kv_raw(w->e, "doubleValue", text, len);
+	}
+	anyvalue_end(w);
+	return w->e->err;
+}
+
+static int anyvalue_literal(void *ctx, int value)
+{
+	struct anyvalue_walk *w = ctx;
+	int ret = anyvalue_scalar(w);
+
+	if (ret)
+		return ret;
+	anyvalue_begin(w);
+	/* An empty AnyValue is the OTLP JSON representation of null. */
+	if (value >= 0)
+		json_kv_bool(w->e, "boolValue", value);
+	anyvalue_end(w);
+	return w->e->err;
+}
+
+static const struct json_visitor anyvalue_visitor = {
+	.open = anyvalue_open,
+	.close = anyvalue_close,
+	.key = anyvalue_key,
+	.string = anyvalue_string,
+	.number = anyvalue_number,
+	.literal = anyvalue_literal,
+};
+
+/*
+ * One ordinary JSON value as the OTLP JSON representation of an
+ * AnyValue: with wrap any value as an AnyValue object of its own,
+ * without it an object as the kvlistValue of the AnyValue the caller has
+ * open. Status already has a stable JSON emitter, so that status and its
+ * machine-readable output share one source of truth.
+ */
 static int json_anyvalue_from_document(struct json_emit *e,
 				       const char *json, size_t len, bool wrap)
 {
-	struct json_anyvalue_ctx c = {
-		.p = json,
-		.end = json + len,
-	};
-	int ret;
+	struct anyvalue_walk w = { .e = e, .wrap = wrap };
 
-	if (!wrap && (c.p >= c.end || *c.p != '{'))
-		return -EINVAL;
-	ret = wrap ? json_anyvalue_emit(&c, e) :
-		json_anyvalue_object(&c, e, false);
-	if (ret)
-		return ret;
-	json_anyvalue_skip_ws(&c);
-	return c.p == c.end ? 0 : -EINVAL;
+	return json_walk(json, len, &anyvalue_visitor, &w);
 }
 
 static void emit_resource_attributes(struct json_emit *e)
