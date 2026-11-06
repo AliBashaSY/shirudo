@@ -5,33 +5,48 @@
 :page-type: How-to
 :audience: shirudo contributors
 
-Prove code with CBMC
-====================
+Prove code with CBMC and Lean 4
+===============================
 
 A test checks the inputs someone thought of, and a fuzz target the ones it
-happens to find. A proof under :src:`testing/proofs/cbmc/` checks every input
-within its bounds: `CBMC <https://www.cprover.org/cbmc/>`_ turns shirudo's
-C and a harness into a formula and asks a SAT solver for an input that
-breaks a property. When none exists, the property holds for all of them.
+happens to find. shirudo's proofs check all of them, in two ways that
+complement each other:
 
-Each proof states two kinds of property. CBMC adds the first to every
+- `CBMC <https://www.cprover.org/cbmc/>`_ proves properties of the C
+  itself. The proofs under :src:`testing/proofs/cbmc/` turn shirudo's C
+  and a harness into a formula and ask a SAT solver for an input that
+  breaks a property; when none exists, the property holds for every input
+  within the harness's bounds.
+- `Lean 4 <https://lean-lang.org/>`_ proves properties of a model of an
+  algorithm. The proofs under :src:`testing/proofs/lean4/` state the
+  algorithm in Lean and prove it meets its specification for every input,
+  of any length, without a bound. Lean does not read shirudo's C: a CBMC
+  proof checks the C against the model within its bounds, where one does.
+
+A CBMC proof states two kinds of property. CBMC adds the first to every
 proof: no read or write outside an object, no null or dangling pointer,
 no signed overflow, no shift past the width of a type, no division by
 zero, no conversion that changes a value, and no loop that runs longer
 than the harness allows. The harness states the second: what the code
 must do, such as that a parser accepts exactly the well-formed inputs and
-that every offset it returns lies inside the input.
-
-A proof covers every input up to the bound its harness names. Where the
-format itself bounds what the code reads, as a fixed-size header does, the
-proof covers every input of any size; elsewhere it covers every input up
-to the stated length, and :doc:`proof-coverage` says which is which.
+that every offset it returns lies inside the input. A CBMC proof covers
+every input up to the bound its harness names. Where the format itself
+bounds what the code reads, as a fixed-size header does, the proof covers
+every input of any size; elsewhere it covers every input up to the stated
+length, and :doc:`proof-coverage` says which is which.
 
 Before you begin
 ----------------
 
 - CBMC 5.95 or newer, packaged as ``cbmc`` by Debian and Ubuntu.
-- Memory: most proofs need little, but a large one can take several
+- For the Lean 4 proofs, elan, packaged as ``elan``, and the toolchain
+  :src:`testing/proofs/lean4/lean-toolchain` names:
+
+  .. code-block:: console
+
+     $ elan toolchain install "$(cat testing/proofs/lean4/lean-toolchain)"
+
+- Memory: most CBMC proofs need little, but a large one can take several
   gigabytes.
 
 Run the proofs
@@ -43,29 +58,32 @@ Run the proofs
 
       $ make proofs
 
-   Each line names a proof, the number of checks CBMC made and the time
-   it took. ``proofs: <n> hold`` ends a run in which all of them held.
+   Each CBMC line names a proof, the number of checks CBMC made and the
+   time it took, and ``proofs: <n> hold`` ends a run in which all of them
+   held. ``Build completed successfully`` ends the Lean 4 run.
 
-2. Run some of them by name:
+2. Run one kind, or some CBMC proofs by name:
 
    .. code-block:: console
 
-      $ make proofs PROOFS="string-number upatch-header"
+      $ make proofs-lean4
+      $ make proofs-cbmc PROOFS="string-number upatch-header"
 
-3. Read why one failed:
+3. Read why a CBMC proof failed:
 
    .. code-block:: console
 
       $ testing/proofs/cbmc/run.sh -v string-number
 
    ``-v`` prints CBMC's whole output, with the trace of each failed
-   check: the input that breaks it and the steps that lead there.
+   check: the input that breaks it and the steps that lead there. Lean
+   prints the theorem and the goal it could not close.
 
-Write a proof
--------------
+Write a CBMC proof
+------------------
 
-1. Write ``testing/proofs/cbmc/<name>.c``. It includes ``proof.h`` and the
-   source file it proves, so that it reaches static functions too, and
+1. Write ``testing/proofs/cbmc/<name>.c``. It includes ``proof.h`` and
+   the source file it proves, so that it reaches static functions too, and
    defines ``harness()``, which CBMC runs with every input at once.
    ``any_bytes(n)`` gives ``n`` bytes of any contents, and a variable
    left uninitialized takes any value; ``__CPROVER_assume()`` narrows the
@@ -100,14 +118,38 @@ a system call, returns any value, and ``run.sh`` fails a proof that calls
 one. Give the function a model in ``proof.h``, or keep the proof away from
 the code that calls it.
 
+Write a Lean 4 proof
+--------------------
+
+1. Write the model in ``testing/proofs/lean4/Shirudo/<Name>.lean`` as
+   close to the C as Lean allows: the same steps, the same checks, the
+   values the C can hold. State each theorem as the specification the
+   algorithm must meet for every input, and assume what the C cannot
+   prove, such as a hash being collision resistant, as an explicit
+   hypothesis of the theorem.
+
+2. Import the module in :src:`testing/proofs/lean4/Shirudo.lean`. A
+   ``sorry`` or any other warning fails the build, so every theorem is
+   proved in full.
+
+3. Where CBMC can, add a CBMC proof that the C computes what the model
+   computes, for every input up to a bound, as
+   :src:`testing/proofs/cbmc/string-number-model.c` does for the number
+   parser; elsewhere the model follows the C by review, and the coverage
+   page says so.
+
+4. Add a row to :doc:`proof-coverage`.
+
 Limits
 ------
 
-A proof is about the code CBMC sees: the C of the files the harness
+A CBMC proof is about the code CBMC sees: the C of the files the harness
 includes, with ``-funsigned-char`` as the build sets it, against a model
 of the libc functions it calls. It says nothing about the kernel, the
 compiler's code generation, time, or other threads, and it holds only
-within its bounds.
+within its bounds. A Lean 4 proof holds for every input, but of the model:
+it carries over to the C as far as the model matches the C, and its
+assumptions hold.
 
 Related
 -------

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+
+name = "shirudo-proofs"
+defaultTargets = ["Shirudo"]
+
+[[lean_lib]]
+name = "Shirudo"
+# A warning, a sorry among them, fails the build.
+leanOptions = { warningAsError = true }

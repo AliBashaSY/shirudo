@@ -90,3 +90,6 @@ util/version_id.c
 # rendered documentation from make docs and make -C Documentation html
 /Documentation/output*/
 __pycache__/
+
+# Lean 4 build output
+/testing/proofs/lean4/.lake/

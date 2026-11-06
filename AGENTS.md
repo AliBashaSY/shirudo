@@ -46,7 +46,7 @@ Before changing security-relevant code, read
 | `Documentation/upatches/` | Authoring and shipping upatches: attach kinds, maps and serializers, decoders, the Beefile, publishing, debugging a failed load. |
 | `Documentation/reference/` | Every command (`reference/cli/`), the formats and settings (`reference/formats/`, including the `.upatch` container), failure categories and exit status, files, units, environment variables, the cheat sheet. |
 | `Documentation/contribute/` | Developer guide, test tiers and the test VM (read `testing.rst` before adding or moving a test), test coverage, the kernel coding style, commits and sign-off (read `contributing.rst` before crafting a commit), and the documentation style guide `writing-docs.rst`. |
-| `.agents/skills/` | Skills for coding agents in the `SKILL.md` format of agentskills.io, which Codex reads there and Claude Code through the `.claude/skills` link: `coding` writes C in the tree's style and grows `util/`, `testing` runs the test tiers and the test VM, `pre-submit` the checks CI runs on a series, `upatch` writes for the target's preemption model and a low cost, builds, packages and publishes an upatch, `bpf-concurrency` checks upatch code whose runs share state, `bpf-coccinelle` runs and extends the Coccinelle rules for it, `docs` finds and checks the pages a change touches, `fuzz-target` adds a libFuzzer target for a parser, `proofs` runs and writes the CBMC proofs. |
+| `.agents/skills/` | Skills for coding agents in the `SKILL.md` format of agentskills.io, which Codex reads there and Claude Code through the `.claude/skills` link: `coding` writes C in the tree's style and grows `util/`, `testing` runs the test tiers and the test VM, `pre-submit` the checks CI runs on a series, `upatch` writes for the target's preemption model and a low cost, builds, packages and publishes an upatch, `bpf-concurrency` checks upatch code whose runs share state, `bpf-coccinelle` runs and extends the Coccinelle rules for it, `docs` finds and checks the pages a change touches, `fuzz-target` adds a libFuzzer target for a parser, `proofs` runs and writes the CBMC and Lean 4 proofs. |
 
 The kernel side of the signing design is the kernel's own
 `Documentation/bpf/signing.rst`; `bpf_prog_verify_signature()` runs
@@ -306,10 +306,12 @@ one usually still compiles and passes tests.
   fuzz target, and a shell test `t<F><K><NN>` lives in its family's
   directory (`Documentation/contribute/testing/testing.rst`). The
   `testing` and `fuzz-target` skills say how to run and add them.
-- `make proofs` runs the CBMC proofs of `testing/proofs/cbmc/`, which check
-  parsers and emitters for every input within a bound. A change to code a
-  proof covers runs it, and a new parser gets one where CBMC can carry
-  it; the `proofs` skill says how.
+- `make proofs` runs the CBMC proofs of `testing/proofs/cbmc/`, which
+  check parsers and emitters for every input within a bound, and the Lean
+  4 proofs of `testing/proofs/lean4/`, which prove models of algorithms
+  for every input. A change to code a proof covers, or to an algorithm a
+  model follows, runs them, and a new parser gets a proof where CBMC can
+  carry one; the `proofs` skill says how.
 - CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
   `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
   `check-spdx.sh` and the documentation check on every pull request;

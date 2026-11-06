@@ -8,18 +8,19 @@
 Proof coverage
 ==============
 
-This page lists the CBMC proofs under :src:`testing/proofs/cbmc/`, the code
-each one proves, the inputs it covers and the properties it states, and
-the parsers no proof covers yet. :doc:`proofs` explains how to run and
-write them. Every proof also shows that the code reads and writes nothing
-outside its objects and has no undefined arithmetic for those inputs.
+This page lists the CBMC proofs under :src:`testing/proofs/cbmc/` and the
+Lean 4 proofs under :src:`testing/proofs/lean4/`, what each one proves and
+for which inputs, and the parsers no proof covers yet. :doc:`proofs`
+explains how to run and write them.
 
-"Every input" means every input of any length. A bound such as "up to 22
-bytes" means every input of that length or shorter, and "lengths 0 to 6"
-every input of each of those lengths.
+CBMC proofs
+-----------
 
-Proofs
-------
+Every CBMC proof shows that the code reads and writes nothing outside its
+objects and has no undefined arithmetic for the inputs it covers, besides
+the properties the table lists. "Every input" means every input of any
+length. A bound such as "up to 22 bytes" means every input of that length
+or shorter, and "lengths 0 to 6" every input of each of those lengths.
 
 .. list-table::
    :header-rows: 1
@@ -35,6 +36,11 @@ Proofs
      - Refuses exactly what is empty or holds a non-digit; a number
        within its bounds and of the sign the string spells; nothing
        written on refusal; ``digits()`` finds the whole run
+   * - ``string-number-model``
+     - ``parse_u64()``, ``parse_x64()``
+     - Up to 4 bytes
+     - The value of the Lean model ``Shirudo.Number``, or ``-ERANGE``
+       exactly where the model refuses
    * - ``string-utf8``
      - ``utf8_width()``
      - Every input
@@ -70,6 +76,34 @@ Proofs
        payload, a loader and a signature, whole aligned instructions,
        every section inside the file and behind the header, and a
        ``.rodata`` offset inside the data
+
+Lean 4 proofs
+-------------
+
+Each proof holds for every input of the model; the last column says how
+the model follows the C.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 30 26 22
+
+   * - Model
+     - Theorems
+     - Assumptions
+     - Follows the C
+   * - ``Shirudo.Number``, ``parse_base()`` of :src:`util/string.c`
+     - ``parse_exact``: for digit strings of every length, the value they
+       spell, or ``-ERANGE`` exactly when it passes ``max``
+     - ``max`` fits a ``__u64``
+     - CBMC, ``string-number-model``, up to 4 bytes
+   * - ``Shirudo.Chain``, the register of :src:`util/chain.c`
+     - ``register_injective``, ``register_tagged_injective``: equal
+       registers come from the same events, tagged the same, in the same
+       order; ``register_eq_foldl``: the register folds the events in the
+       order they came
+     - The hash is injective on (register, event) pairs and never yields
+       the initial value; the tagged event encoding is injective
+     - Review
 
 Not covered yet
 ---------------

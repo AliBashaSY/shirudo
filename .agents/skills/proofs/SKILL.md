@@ -1,6 +1,6 @@
 ---
 name: proofs
-description: Run, write and debug shirudo's CBMC proofs under testing/proofs/cbmc, which check its parsers and emitters for every input within a bound. Covers make proofs, the harness and proofs.list conventions, choosing properties and bounds, keeping a proof fast and within memory, and telling a real bug from a harness error. Use when changing code a proof covers, when adding a parser or emitter, when a proof fails, or when asked to prove code correct.
+description: Run, write and debug shirudo's proofs, CBMC under testing/proofs/cbmc, which checks its parsers and emitters for every input within a bound, and Lean 4 under testing/proofs/lean4, which proves models of its algorithms for every input. Covers make proofs, the CBMC harness and proofs.list conventions, writing a Lean model and linking it to the C, choosing properties and bounds, keeping a proof fast and within memory, and telling a real bug from a harness error. Use when changing code a proof covers, when adding a parser or emitter, when a proof fails, or when asked to prove code correct.
 ---
 
 # Proofs
@@ -14,9 +14,10 @@ page in the same commit.
 ## Run
 
 ```sh
-make proofs                                  # every proof
-make proofs PROOFS="string-number hex"       # some of them
+make proofs                                  # CBMC and Lean 4
+make proofs-cbmc PROOFS="string-number hex"  # some CBMC proofs
 testing/proofs/cbmc/run.sh -v <proof>        # whole output and traces
+make proofs-lean4                            # the Lean 4 proofs
 ```
 
 Cap the memory of a long run, `ulimit -v 24000000` in the shell that
@@ -58,6 +59,29 @@ to wait for.
 - A proof over a few hundred symbolic bytes with long string scans can
   take minutes: split it, proving the parts the caller composes, as the
   `.upatch` header, sections and decoders are proven apart.
+
+## Lean 4
+
+CBMC proves the C within a bound; Lean proves a model for every input.
+Use Lean where a bounded proof is not enough: an algorithm whose
+correctness needs every length, such as `Number.lean`'s exact value of a
+digit string, or a protocol property, such as `Chain.lean`'s register
+determining its events.
+
+- A model goes in `testing/proofs/lean4/Shirudo/<Name>.lean`, imported
+  from `Shirudo.lean`, and follows the C step by step, with the values the
+  C can hold (2^64 for a `__u64`).
+- What the C cannot show, such as a hash being collision resistant, is
+  an explicit hypothesis of the theorem, never an axiom.
+- Core Lean only, no Mathlib: `omega`, `simp`, `decide` and induction
+  carry these proofs. A lemma Mathlib has, such as
+  `List.map_injective_iff`, is proved in the file.
+- The lakefile makes every warning an error, so a `sorry`, a deprecated
+  name or an unused `simp` argument fails the build.
+- Link the model to the C with a CBMC proof where one is cheap, as
+  `string-number-model.c` checks `parse_u64()` against `Number.lean` up
+  to 4 bytes; the coverage page says which models follow the C by review.
+- The toolchain is the one `lean-toolchain` names; elan installs it.
 
 ## When it fails
 
