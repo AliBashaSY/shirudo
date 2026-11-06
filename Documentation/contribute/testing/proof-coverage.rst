@@ -8,7 +8,7 @@
 Proof coverage
 ==============
 
-This page lists the CBMC proofs under :src:`testing/proofs/`, the code
+This page lists the CBMC proofs under :src:`testing/proofs/cbmc/`, the code
 each one proves, the inputs it covers and the properties it states, and
 the parsers no proof covers yet. :doc:`proofs` explains how to run and
 write them. Every proof also shows that the code reads and writes nothing

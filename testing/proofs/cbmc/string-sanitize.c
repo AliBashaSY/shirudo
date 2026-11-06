@@ -12,7 +12,7 @@
 #include <stdbool.h>
 
 #include "proof.h"
-#include "../../util/string.c"
+#include "../../../util/string.c"
 
 static bool in(__u8 c, __u8 lo, __u8 hi)
 {

@@ -9,7 +9,7 @@
  */
 
 #include "proof.h"
-#include "../../util/upatch.c"
+#include "../../../util/upatch.c"
 
 static bool inside(__u32 off, __u32 len, size_t n)
 {

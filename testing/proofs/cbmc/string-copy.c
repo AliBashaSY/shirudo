@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #include "proof.h"
-#include "../../util/string.c"
+#include "../../../util/string.c"
 
 #define LEN_MAX	8
 

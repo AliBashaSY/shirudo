@@ -1,6 +1,6 @@
 ---
 name: proofs
-description: Run, write and debug shirudo's CBMC proofs under testing/proofs, which check its parsers and emitters for every input within a bound. Covers make proofs, the harness and proofs.list conventions, choosing properties and bounds, keeping a proof fast and within memory, and telling a real bug from a harness error. Use when changing code a proof covers, when adding a parser or emitter, when a proof fails, or when asked to prove code correct.
+description: Run, write and debug shirudo's CBMC proofs under testing/proofs/cbmc, which check its parsers and emitters for every input within a bound. Covers make proofs, the harness and proofs.list conventions, choosing properties and bounds, keeping a proof fast and within memory, and telling a real bug from a harness error. Use when changing code a proof covers, when adding a parser or emitter, when a proof fails, or when asked to prove code correct.
 ---
 
 # Proofs
@@ -16,7 +16,7 @@ page in the same commit.
 ```sh
 make proofs                                  # every proof
 make proofs PROOFS="string-number hex"       # some of them
-testing/proofs/run.sh -v <proof>             # whole output and traces
+testing/proofs/cbmc/run.sh -v <proof>        # whole output and traces
 ```
 
 Cap the memory of a long run, `ulimit -v 24000000` in the shell that
@@ -25,8 +25,8 @@ to wait for.
 
 ## Write
 
-- `testing/proofs/<name>.c` includes `"proof.h"` and the `.c` it proves,
-  and defines `harness()`. Inputs come from `any_bytes(n)` and from
+- `testing/proofs/cbmc/<name>.c` includes `"proof.h"` and the `.c` it
+  proves, and defines `harness()`. Inputs come from `any_bytes(n)` and from
   variables left uninitialized; `__CPROVER_assume()` bounds them and
   `__CPROVER_assert(cond, "what holds")` states each property.
 - State the contract, not the implementation: which inputs are accepted,

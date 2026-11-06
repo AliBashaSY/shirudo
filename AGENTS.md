@@ -306,7 +306,7 @@ one usually still compiles and passes tests.
   fuzz target, and a shell test `t<F><K><NN>` lives in its family's
   directory (`Documentation/contribute/testing/testing.rst`). The
   `testing` and `fuzz-target` skills say how to run and add them.
-- `make proofs` runs the CBMC proofs of `testing/proofs/`, which check
+- `make proofs` runs the CBMC proofs of `testing/proofs/cbmc/`, which check
   parsers and emitters for every input within a bound. A change to code a
   proof covers runs it, and a new parser gets one where CBMC can carry
   it; the `proofs` skill says how.

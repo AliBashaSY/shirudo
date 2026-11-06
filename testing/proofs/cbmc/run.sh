@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 Authors of shirudo
 #
-# testing/proofs/run.sh -- check with CBMC that shirudo's parsers keep the
+# testing/proofs/cbmc/run.sh -- check with CBMC that shirudo's parsers keep the
 # properties the harnesses in this directory state, for every input within
 # the bounds each harness names, and fail when one does not hold. Each
 # harness defines harness() and includes the source it proves; proofs.list
@@ -11,7 +11,7 @@
 # has to keep symbolic. -v prints the whole CBMC output and the trace of a
 # failed check.
 #
-#   testing/proofs/run.sh [-v] [<proof>...]
+#   testing/proofs/cbmc/run.sh [-v] [<proof>...]
 
 set -eu
 
@@ -22,7 +22,7 @@ if [ "${1:-}" = -v ]; then
 fi
 
 cd "$(dirname "$0")"
-root=$(cd ../.. && pwd)
+root=$(cd ../../.. && pwd)
 command -v cbmc >/dev/null 2>&1 || {
 	printf 'proofs: cbmc not found; install cbmc\n' >&2
 	exit 2

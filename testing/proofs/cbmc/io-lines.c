@@ -8,7 +8,7 @@
  */
 
 #include "proof.h"
-#include "../../util/io.c"
+#include "../../../util/io.c"
 
 #define LEN_MAX	8
 

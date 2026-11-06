@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #include "proof.h"
-#include "../../util/hex.c"
+#include "../../../util/hex.c"
 
 #define LEN_MAX	4
 

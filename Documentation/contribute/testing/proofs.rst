@@ -9,7 +9,7 @@ Prove code with CBMC
 ====================
 
 A test checks the inputs someone thought of, and a fuzz target the ones it
-happens to find. A proof under :src:`testing/proofs/` checks every input
+happens to find. A proof under :src:`testing/proofs/cbmc/` checks every input
 within its bounds: `CBMC <https://www.cprover.org/cbmc/>`_ turns shirudo's
 C and a harness into a formula and asks a SAT solver for an input that
 breaks a property. When none exists, the property holds for all of them.
@@ -56,7 +56,7 @@ Run the proofs
 
    .. code-block:: console
 
-      $ testing/proofs/run.sh -v string-number
+      $ testing/proofs/cbmc/run.sh -v string-number
 
    ``-v`` prints CBMC's whole output, with the trace of each failed
    check: the input that breaks it and the steps that lead there.
@@ -64,7 +64,7 @@ Run the proofs
 Write a proof
 -------------
 
-1. Write ``testing/proofs/<name>.c``. It includes ``proof.h`` and the
+1. Write ``testing/proofs/cbmc/<name>.c``. It includes ``proof.h`` and the
    source file it proves, so that it reaches static functions too, and
    defines ``harness()``, which CBMC runs with every input at once.
    ``any_bytes(n)`` gives ``n`` bytes of any contents, and a variable
@@ -77,7 +77,7 @@ Write a proof
    every section inside it. A check that restates the implementation
    proves nothing about it.
 
-3. Add the proof to :src:`testing/proofs/proofs.list` with its CBMC
+3. Add the proof to :src:`testing/proofs/cbmc/proofs.list` with its CBMC
    options:
 
    - ``--unwind <n>`` for loops, ``--unwindset <loop>:<n>`` for one loop,

@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #include "proof.h"
-#include "../../util/string.c"
+#include "../../../util/string.c"
 
 #define LEN_MAX	22	/* past the 20 digits of the largest __u64 */
 #define UNSET	0x5a5a5a5a5a5a5a5aULL
