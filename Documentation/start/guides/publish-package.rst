@@ -117,13 +117,14 @@ Publish it
 
    .. code-block:: console
 
-      operator$ BPM_OCI_SCHEME=http shirudo bpm push hello-1.0.0.bee oci://127.0.0.1:5000/example/hello --keys-dir "$KEYS"
+      operator$ BPM_OCI_SCHEME=http shirudo bpm push hello-1.0.0.bee oci://127.0.0.1:5000/example/hello --keys-dir "$KEYS" --new-index
       oci://127.0.0.1:5000/example/hello:1.0.0
 
    The push tags the package with its version. With ``--keys-dir``, it
    also adds the package to the registry's signed index,
    ``<namespace>/bpm-index:stable``, which targets read when they install from
-   a registered repository. ``BPM_OCI_SCHEME=http`` drops TLS, which suits
+   a registered repository. ``--new-index`` starts that index, as this is
+   the namespace's first package; later pushes leave it out. ``BPM_OCI_SCHEME=http`` drops TLS, which suits
    only a registry on your own host. Without it, shirudo speaks HTTPS with
    TLS 1.3 and a hybrid ML-KEM key exchange.
 

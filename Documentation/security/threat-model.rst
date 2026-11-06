@@ -1373,8 +1373,12 @@ R8 Registry withholding and replay
    the last index that verifies, and nothing orders one index before
    another or binds it to the registry it came from. ``shirudo bpm
    list`` shows the target's own state, and a repository update is not
-   measured. Detection: compare the upatch payloads and tree operations
-   that ``attest verify`` certifies with what you published.
+   measured. ``bpm push`` builds the next index from the one the registry
+   serves, so an older one makes the operator sign an index without the
+   packages added since; a registry that claims to have none is refused
+   unless ``--new-index`` is given. Detection: compare the upatch payloads
+   and tree operations that ``attest verify`` certifies with what you
+   published, and the pushed index with the versions you released.
 
 R9 Classical pieces
    The WebPKI certificates of registries and collectors authenticate

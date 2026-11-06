@@ -123,7 +123,8 @@ id = "kernel-obs"\
 role = ["end2end"]' "$W/pkg/kernel-obs/Beefile"
 (cd "$W/pkg" && "$S" bpm build kernel-obs --version 1.0.0 --keys-dir "$KEYS")
 BEE=$W/pkg/kernel-obs-1.0.0.bee
-"$S" bpm push "$BEE" "oci://$REGISTRY/shirudo/kernel-obs" --keys-dir "$KEYS"
+"$S" bpm push "$BEE" "oci://$REGISTRY/shirudo/kernel-obs" --keys-dir "$KEYS" \
+	--new-index
 "$S" bpm tree append "$BEE" "oci://$REGISTRY/shirudo/end2end-tree" \
 	--keys-dir "$KEYS"
 tar -xzf "$BEE" -C "$W/pkg"

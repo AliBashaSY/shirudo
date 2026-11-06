@@ -38,6 +38,7 @@ Usage
    shirudo bpm info data <package> <member> [--json]
    shirudo bpm push <package> oci://<registry>/<repository>
                     [--keys-dir <dir> | --index-cert <certificate> --index-key <signing-key>]
+                    [--new-index]
    shirudo bpm build [<context>] --version <version> [--file <beefile>]
                      [--keys-dir <dir>] [--vmlinux <vmlinux-h>]
                      [--rodata-input <name>=<path>]...
@@ -269,6 +270,13 @@ adds the package to the registry's signed index
 derived from the package repository path. Without signing options only the
 package is published. ``push`` does not read ``SHIRUDO_KEYS_DIR``. Its
 options take the value as the next argument or after ``=``.
+
+``push`` refuses a namespace without an index unless ``--new-index`` is
+given, and refuses ``--new-index`` where an index exists. The operator
+keeps no state, so a registry that answers that it has no index cannot
+be told from one that never had any, and the index signed then would
+leave out every package listed before. Pass ``--new-index`` for the first
+package of a namespace alone.
 
 build
 -----

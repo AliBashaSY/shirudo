@@ -324,8 +324,11 @@ Build and publish it
 
    .. code-block:: console
 
-      operator$ BPM_OCI_SCHEME=http shirudo bpm push "$DEV/exec-count-1.0.0.bee" oci://127.0.0.1:5000/dev/exec-count --keys-dir "$KEYS"
+      operator$ BPM_OCI_SCHEME=http shirudo bpm push "$DEV/exec-count-1.0.0.bee" oci://127.0.0.1:5000/dev/exec-count --keys-dir "$KEYS" --new-index
       oci://127.0.0.1:5000/dev/exec-count:1.0.0
+
+   ``--new-index`` starts the registry's index with this first package;
+   later pushes to the namespace leave it out.
 
    The index holds one package per version. A package built again under
    a version the index lists already is refused with ``bpm push: the

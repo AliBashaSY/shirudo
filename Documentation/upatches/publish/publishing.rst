@@ -83,6 +83,11 @@ Push it to a repository
    prints the pushed reference,
    ``oci://<registry>/<namespace>/<name>:<version>``.
 
+   The first package of a namespace needs ``--new-index``: ``bpm push``
+   refuses a namespace without an index otherwise, so that a registry that
+   hides the index cannot have you sign one without the packages it
+   listed. ``--new-index`` is refused where an index exists.
+
    Without ``--keys-dir``, or ``--index-cert`` and ``--index-key``, the
    command pushes the package and moves the version tag, but leaves the
    index unchanged and does not check that the version is new. Targets

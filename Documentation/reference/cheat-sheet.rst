@@ -205,6 +205,9 @@ Publish a package and add it to the registry's signed index with
 
    operator$ shirudo bpm push ./kernel-obs-1.0.0.bee oci://quay.io/example/kernel-obs --keys-dir ~/shirudo-keys
 
+Add ``--new-index`` for the first package of a namespace, which has no
+index yet.
+
 Build the next version with a new ``.rodata`` input with :doc:`bpm config
 update <cli/bpm>`. ``watch`` names the Beefile input ``watch.list``:
 

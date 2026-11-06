@@ -114,7 +114,7 @@ static int index_repository_for_package(const char *repository, char *out, size_
 	return 0;
 }
 
-/* A registry without an index yields an empty one. */
+/* -ENOENT when the registry has no index there. */
 static int fetch_index(struct bpm_oci_client *c, const char *repository,
 		       const char *cert,
 		       struct bpm_index_entry *entries, int *n)
@@ -130,8 +130,6 @@ static int fetch_index(struct bpm_oci_client *c, const char *repository,
 	if (ret)
 		return ret;
 	ret = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
-	if (ret == -ENOENT)
-		return 0;
 	if (ret)
 		return ret;
 	layers = xcalloc(BPM_MAX_ENTRIES, sizeof(*layers));
@@ -192,14 +190,17 @@ out:
 /*
  * Add or refresh the package's entry in the signed index beside its
  * repository namespace. A version already listed with different content
- * is refused: published versions are immutable.
+ * is refused: published versions are immutable. The operator keeps no
+ * state, so only new_index tells a namespace without an index from a
+ * registry that hides one: the index pushed then would be signed without
+ * every package listed before.
  */
 static int push_index(struct bpm_oci_client *c, const char *index_repository,
 		      const char *repository,
 		      const struct bpm_package_info *info,
 		      const char *manifest_digest,
 		      const struct bpm_descriptor *layer,
-		      const char *key, const char *cert)
+		      const char *key, const char *cert, bool new_index)
 {
 	struct bpm_descriptor config, payload_layer, sig_layer;
 	struct bpm_index_entry *entries, *entry = NULL;
@@ -216,6 +217,16 @@ static int push_index(struct bpm_oci_client *c, const char *index_repository,
 	if (!entries)
 		return -ENOMEM;
 	ret = fetch_index(c, index_repository, cert, entries, &n);
+	if (ret == -ENOENT && new_index) {
+		ret = 0;
+	} else if (ret == -ENOENT) {
+		pr_err("bpm push: %s has no repository index; pass --new-index to start one, and only for a namespace that never had one",
+		       index_repository);
+	} else if (!ret && new_index) {
+		pr_err("bpm push: %s has a repository index already; --new-index starts one only where there is none",
+		       index_repository);
+		ret = -EEXIST;
+	}
 	if (ret)
 		goto out;
 	for (int i = 0; i < n; i++) {
@@ -330,7 +341,7 @@ out:
 
 static int push_package(const char *package_path, const char *raw_repository,
 			const char *index_key, const char *index_cert,
-			const char **reference_out)
+			bool new_index, const char **reference_out)
 {
 	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_package_info info = {};
@@ -490,7 +501,8 @@ static int push_package(const char *package_path, const char *raw_repository,
 		goto out;
 	if (index_key && index_cert) {
 		ret = push_index(&c, index_repository, repository, &info,
-				 package_digest, &layer, index_key, index_cert);
+				 package_digest, &layer, index_key, index_cert,
+				 new_index);
 		if (ret)
 			goto out;
 	}
@@ -892,11 +904,13 @@ static void bpm_push_usage(void)
 	fprintf(stderr,
 		"usage: shirudo bpm push <package-file> <repository>\n"
 		"                        [--keys-dir <dir> | --index-cert <cert.der>\n"
-		"                         --index-key <signing_key.pem>]\n\n"
+		"                         --index-key <signing_key.pem>] [--new-index]\n\n"
 		"The repository must start with oci:// and must not include a tag.\n"
 		"With signing material the registry's signed index at\n"
 		"<namespace>/bpm-index:stable gains the package entry, signed with the\n"
-		"operator key; without it only the package is published.\n"
+		"operator key; without it only the package is published. A namespace\n"
+		"without an index is refused unless --new-index starts one, which in\n"
+		"turn is refused where an index exists.\n"
 		"Examples:\n"
 		"  shirudo bpm push ./package.bee oci://quay.io/namespace/package\n"
 		"  shirudo bpm push ./package.bee oci://quay.io/namespace/package \\\n"
@@ -908,6 +922,7 @@ int build_bpm_push(int argc, char **argv)
 	const char *package = NULL, *repository = NULL, *reference = NULL;
 	const char *keys_dir_arg = NULL, *index_cert = NULL, *index_key = NULL;
 	char cert_path[PATH_MAX], key_path[PATH_MAX];
+	bool new_index = false;
 	int ret;
 
 	if (argc == 2 && build_is_help(argv[1])) {
@@ -929,6 +944,8 @@ int build_bpm_push(int argc, char **argv)
 			index_key = argv[++i];
 		} else if (!strncmp(a, "--index-key=", 12)) {
 			index_key = a + 12;
+		} else if (!strcmp(a, "--new-index")) {
+			new_index = true;
 		} else if (a[0] == '-' || (package && repository)) {
 			bpm_push_usage();
 			return 2;
@@ -959,11 +976,16 @@ int build_bpm_push(int argc, char **argv)
 		pr_err("bpm push: --index-cert and --index-key must be supplied together");
 		return 2;
 	}
+	if (new_index && !index_key) {
+		pr_err("bpm push: --new-index needs --keys-dir, or --index-cert and --index-key");
+		return 2;
+	}
 	if (index_key && build_check_keys(index_key, index_cert))
 		return 1;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return publish_fail("initialize curl", -EIO);
-	ret = push_package(package, repository, index_key, index_cert, &reference);
+	ret = push_package(package, repository, index_key, index_cert,
+			   new_index, &reference);
 	curl_global_cleanup();
 	if (ret)
 		return publish_fail("push", ret);

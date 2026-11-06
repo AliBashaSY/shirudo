@@ -163,7 +163,7 @@ _shirudo()
 				    $(compgen -d -- "$cur") )
 		elif [[ $sub == push && $cur == -* ]]; then
 			COMPREPLY=( $(compgen -W "--keys-dir --index-cert \
-				--index-key" -- "$cur") )
+				--index-key --new-index" -- "$cur") )
 		elif [[ $sub == push ]]; then
 			COMPREPLY=( $(compgen -f -X '!*.bee' -- "$cur") \
 				    $(compgen -d -- "$cur") )

@@ -181,9 +181,22 @@ pathlib.Path(f"{out}.artifact_type").write_text(manifest["artifactType"])
 PY
 }
 
+# A registry that answers 404 for the index cannot be told from a namespace
+# that never had one, and the operator would sign an index without every
+# package it held: starting one takes --new-index.
+test_expect_success 'bpm push refuses a namespace without an index unless told to start one' '
+	! "$S" bpm push "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/t7005" \
+		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/noindex.err" &&
+	grep -q "has no repository index; pass --new-index" "$WORK/noindex.err" &&
+	! test -e "$REG/ns/bpm-index/manifests/stable" &&
+	! "$S" bpm push "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/t7005" \
+		--new-index >/dev/null 2>"$WORK/noindex2.err" &&
+	grep -q "new-index needs --keys-dir" "$WORK/noindex2.err"
+'
+
 test_expect_success 'bpm push publishes the package and a signed repository index' '
 	"$S" bpm push "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/t7005" \
-		--keys-dir "$WORK/keys" >"$WORK/push.out" 2>"$WORK/push.err" &&
+		--keys-dir "$WORK/keys" --new-index >"$WORK/push.out" 2>"$WORK/push.err" &&
 	grep -qx "oci://$REGISTRY/ns/t7005:1.0.0" "$WORK/push.out" &&
 	test -s "$REG/ns/t7005/manifests/1.0.0" &&
 	test -s "$REG/ns/bpm-index/manifests/stable" &&
@@ -248,6 +261,14 @@ test_expect_success 'push without signing material leaves the index untouched' '
 	test -s "$REG/ns/t7005/manifests/2.0.0" &&
 	split_layers "$REG/ns/bpm-index/manifests/stable" "$REG/ns/bpm-index" "$WORK/index4" &&
 	cmp -s "$WORK/index3.payload" "$WORK/index4.payload"
+'
+
+test_expect_success 'push refuses to start an index where one exists' '
+	! "$S" bpm push "$WORK/t7005-2.0.0.bee" "oci://$REGISTRY/ns/t7005" \
+		--keys-dir "$WORK/keys" --new-index >/dev/null 2>"$WORK/newindex.err" &&
+	grep -q "has a repository index already" "$WORK/newindex.err" &&
+	split_layers "$REG/ns/bpm-index/manifests/stable" "$REG/ns/bpm-index" "$WORK/index5" &&
+	cmp -s "$WORK/index3.payload" "$WORK/index5.payload"
 '
 
 test_expect_success 'push refuses half of the index signing pair' '
