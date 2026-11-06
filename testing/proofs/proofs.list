@@ -6,3 +6,4 @@ string-copy		--unwind 10
 string-sanitize		--unwind 8 LEN=0-6
 hex			--unwind 12
 io-lines		--unwind 10
+upatch-header		--unwind 2 --unwindset memchr.0:257

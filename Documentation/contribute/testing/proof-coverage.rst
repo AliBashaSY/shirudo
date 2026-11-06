@@ -60,6 +60,16 @@ Proofs
      - ``lines_len()``
      - Up to 8 bytes
      - Ends at a newline or is 0, with no newline behind it
+   * - ``upatch-header``
+     - ``parse_header()``, ``validate_bounds()`` of the ``.upatch``
+       reader
+     - Every file: the header is read from a buffer of exactly its size
+       for files of any size
+     - Reads nothing past the header; an accepted header has its magic,
+       version, zero reserved field and a terminated name, a BPF
+       payload, a loader and a signature, whole aligned instructions,
+       every section inside the file and behind the header, and a
+       ``.rodata`` offset inside the data
 
 Not covered yet
 ---------------
