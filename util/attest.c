@@ -1029,7 +1029,7 @@ int attest_verify(const char *evidence, size_t len,
 		__u8 digest[32] = {};
 		bool complete =
 			quote.type == TPM_ST_ATTEST_QUOTE &&
-			quote.pcr_mask == (__u32)p->pcr_mask &&
+			p->pcr_mask == (__s64)quote.pcr_mask &&
 			p->pcr_have == quote.pcr_mask;
 		bool hashed = false;
 		bool vouched;
