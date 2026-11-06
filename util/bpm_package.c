@@ -221,6 +221,13 @@ static int prerelease_compare(const char *a, size_t la, const char *b,
 	return la ? 1 : lb ? -1 : 0;
 }
 
+bool bpm_semver_valid(const char *s)
+{
+	struct semver v;
+
+	return s && semver_parse(s, &v);
+}
+
 /*
  * SemVer 2.0.0 precedence, build metadata ignored. A version it does not
  * describe sorts below every one it does, and such versions sort among

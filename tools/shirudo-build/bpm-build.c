@@ -311,17 +311,10 @@ static bool build_name_ok(const char *s)
 	return true;
 }
 
+/* A version the target orders as the operator means it. */
 static bool build_version_ok(const char *s)
 {
-	const __u8 *p = (const __u8 *)s;
-
-	if (!s || !*s || !isalnum((__u8)s[0]) || strlen(s) >= 128)
-		return false;
-	for (; *p; p++) {
-		if (!(isalnum(*p) || *p == '.' || *p == '_' || *p == '-' || *p == '+'))
-			return false;
-	}
-	return true;
+	return s && strlen(s) < 128 && bpm_semver_valid(s);
 }
 
 static int build_default_targets(struct bpm_build_upatch *u)
@@ -1705,9 +1698,14 @@ static int __build_bpm_build(int argc, char **argv,
 			goto usage;
 		}
 	}
-	if (!version || !build_version_ok(version)) {
+	if (!version) {
 		pr_err("bpm build: --version <version> is required");
 		goto usage;
+	}
+	if (!build_version_ok(version)) {
+		pr_err("bpm build: --version %s is not a SemVer 2.0.0 version such as 1.2.0, 1.2.0-rc.1 or 1.2.0+build.5",
+		       version);
+		return -EINVAL;
 	}
 	if (!build_resolve_keys_dir(keys_arg, keys_dir, sizeof(keys_dir)) ||
 	    !realpath(keys_dir, keys_abs)) {
@@ -2008,8 +2006,13 @@ static int __build_bpm_config_update(int argc, char **argv,
 			goto usage;
 		}
 	}
-	if (!base_arg || !version || !build_version_ok(version))
+	if (!base_arg || !version)
 		goto usage;
+	if (!build_version_ok(version)) {
+		pr_err("bpm config update: --version %s is not a SemVer 2.0.0 version such as 1.2.0, 1.2.0-rc.1 or 1.2.0+build.5",
+		       version);
+		return -EINVAL;
+	}
 	if (!strncmp(base_arg, "oci://", 6)) {
 		ret = build_download_package(base_arg, base_package_tmp);
 		if (ret)

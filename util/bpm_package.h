@@ -38,6 +38,8 @@ int bpm_index_parse(const __u8 *body, size_t len,
 		    struct bpm_index_entry *entries, int *n_entries);
 /* The order of two package versions: below 0, 0 or above 0. */
 int bpm_semver_compare(const char *a, const char *b);
+/* Whether s is a SemVer 2.0.0 version, as bpm build takes alone. */
+bool bpm_semver_valid(const char *s);
 int bpm_verify_cms(const __u8 *payload, size_t payload_len,
 		   const __u8 *sig, size_t sig_len,
 		   const char *cert_path);

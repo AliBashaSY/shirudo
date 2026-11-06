@@ -125,6 +125,15 @@ for target in ./Beefile a/./data.txt dir/; do
 	n=$((n + 1))
 done
 
+test_expect_success 'bpm build takes a SemVer version alone' '
+	for v in 1.0 01.0.0 1.0.0.1 1.0.0_rc; do
+		( cd "$WORK" && ! "$S" bpm build pkg --version $v \
+			--keys-dir "$WORK/keys" ) 2>"$WORK/version.err" &&
+		grep -q "is not a SemVer 2.0.0 version" "$WORK/version.err" &&
+		! test -e "$WORK/t7005-$v.bee" || return 1
+	done
+'
+
 test_expect_success 'bpm build refuses a tree selector or a target spelled another way' '
 	for n in 1 2 3 4 5 6 7; do
 		( cd "$WORK" && ! "$S" bpm build spelled/$n --version 9.0.$n \

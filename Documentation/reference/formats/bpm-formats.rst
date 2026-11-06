@@ -80,13 +80,13 @@ Names
        128 characters.
    * - Package version
      - ``bpm build --version``
-     - Starts with a letter or digit, then ``[A-Za-z0-9._+-]``, fewer
-       than 128 characters. The target also accepts a version that
-       starts with another character than ``.``. The newest version is
-       chosen by SemVer 2.0.0 precedence, build metadata ignored. A
-       version that is not SemVer 2.0.0, such as ``1.2`` or
-       ``01.0.0``, is older than every one that is, and such versions
-       order by their bytes.
+     - A SemVer 2.0.0 version such as ``1.2.0``, ``1.2.0-rc.1`` or
+       ``1.2.0+build.5``, fewer than 128 characters. The newest version is
+       chosen by SemVer 2.0.0 precedence, build metadata ignored. The
+       target also accepts other versions of ``[A-Za-z0-9._+-]`` that do
+       not start with ``.``, from packages built before this rule: such
+       a version is older than every SemVer one, and they order by
+       their bytes.
    * - upatch name
      - The source file's basename without ``.bpf.c``, ``.bpf.o`` or ``.o``
      - The Beefile cannot override it. 1 to 255 characters of

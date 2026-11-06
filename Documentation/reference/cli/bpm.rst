@@ -151,7 +151,7 @@ the Beefile's ``update`` command for each input to produce the new
 ``.rodata`` (``--rodata-input`` replaces an input file), signs the upatch
 again and signs a new unload directive for it. The base package must be
 signed by the same key and declare ``.rodata`` inputs, and ``--version``
-must be greater than its version. Without ``--file``, the Beefile and the
+must be a SemVer 2.0.0 version greater than its version. Without ``--file``, the Beefile and the
 commands it names come from the base package and run on the operator
 host: take base packages only from sources you trust. The output is
 ``<name>-<version>.bee`` in the current directory. Options take their
@@ -286,6 +286,8 @@ build
 - ``--rodata-input <name>=<path>`` replaces a ``.rodata`` input file of
   the Beefile. ``<name>`` is the file's base name up to the first dot
   (``watch`` for ``watch.list``). It is repeatable, once per name.
+- ``--version`` is a SemVer 2.0.0 version, such as ``1.2.0`` or
+  ``1.2.0-rc.1``.
 - Every upatch is compiled in the Beefile's directory and signed.
 - The output is ``<name>-<version>.bee`` in the current directory, and
   ``build`` prints its path.

@@ -130,8 +130,28 @@ static void version_order_is_total(void)
 	}
 }
 
+static void semver_valid_is_semver_alone(void)
+{
+	static const char *const good[] = {
+		"0.0.0", "1.2.3", "1.0.0-rc.1", "1.0.0-0.3.7", "1.0.0-x-y.z",
+		"1.0.0+build.5", "1.0.0-alpha+001", "18446744073709551615.0.0",
+	};
+	static const char *const bad[] = {
+		"", "1", "1.2", "1.2.3.4", "01.0.0", "1.02.0", "1.0.0foo",
+		"1.0.0-", "1.0.0-rc..1", "1.0.0-rc.01", "1.0.0+", "1.0.0+a..b",
+		"1.0.0_rc", "v1.0.0", "1.0.0-rc.1+b_1", "18446744073709551616.0.0",
+	};
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(good); i++)
+		EXPECT_TRUE(bpm_semver_valid(good[i]));
+	for (i = 0; i < ARRAY_SIZE(bad); i++)
+		EXPECT_FALSE(bpm_semver_valid(bad[i]));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(index_entry_needs_its_package_size),
+	UNIT_CASE(semver_valid_is_semver_alone),
 	UNIT_CASE(semver_follows_its_precedence),
 	UNIT_CASE(version_order_is_total),
 	UNIT_CASE(archive_path_has_no_dot_component),
