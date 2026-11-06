@@ -22,7 +22,10 @@ socket or cgroup storage, an arena, or the stack.
 
 ## 2. Fix the model
 
-Runs on different CPUs at once happen on every kernel. A second run on
+Ask which kernels the upatch is for when the task does not say, and
+without an answer write for preemptible RCU, which is right on every
+model; the `upatch` skill says how to read a target's model. Runs on
+different CPUs at once happen on every kernel. A second run on
 the same CPU before the first ends depends on the kernel's preemption
 model and the program types, as the table in "Where each hazard
 applies" says. Distribution kernels boot `PREEMPT_DYNAMIC` as `full` or

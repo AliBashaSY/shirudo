@@ -1,6 +1,6 @@
 ---
 name: upatch
-description: Write, build, sign, inspect and package a shirudo upatch. Covers the BPF C program, `shirudo build` for a .upatch and its unload directive, the Beefile and `shirudo bpm build` for a .bee package, `bpm info` to inspect one, `bpm push` and `bpm tree append` to publish, and loading it on a test target. Use when asked to create, change or ship an upatch or a bpm package, or to reproduce a failed upatch build or load.
+description: Write, build, sign, inspect and package a shirudo upatch. Covers the BPF C program written for the target kernels' preemption model and at a low cost on machines large and small, `shirudo build` for a .upatch and its unload directive, the Beefile and `shirudo bpm build` for a .bee package, `bpm info` to inspect one, `bpm push` and `bpm tree append` to publish, and loading it on a test target. Use when asked to create, change or ship an upatch or a bpm package, or to reproduce a failed upatch build or load.
 ---
 
 # Upatch
@@ -27,10 +27,69 @@ walk through every command below.
   `shirudo_serialize__<map>` program that walks them;
   `upatches/kernel-obs/obs_table.h` is the template.
 - Where runs share state across CPUs or interleave on one, follow the
-  `bpf-concurrency` skill.
+  `bpf-concurrency` skill, for the kernels below.
 - `shirudo build` compiles with `-mcpu=v4 -fno-jump-tables` itself, so
   the whole v4 instruction set is there: write load-acquire,
   store-release, sign extension and signed division directly.
+
+## Know the kernels it runs on
+
+Which hazards apply, and so which locking and memory ordering the code
+needs, depends on the target kernels' preemption model
+(`Documentation/upatches/write/memory-consistency/hazards.rst`). Settle
+it before writing code that shares state:
+
+- When the task does not say which kernels the upatch is for, ask:
+  distribution kernels (`PREEMPT_DYNAMIC`, booted `full` or `lazy`),
+  `PREEMPT_RT`, `PREEMPT_LAZY` alone as the test VM runs, or a mix.
+- On a target, `CONFIG_PREEMPT_RCU` in `/proc/config.gz` or
+  `/boot/config-$(uname -r)` says whether RCU is preemptible, `uname -v`
+  names `PREEMPT_DYNAMIC` or `PREEMPT_RT`, and with `PREEMPT_DYNAMIC`
+  `/sys/kernel/debug/sched/preempt` shows the mode it booted in.
+- Without an answer, write for preemptible RCU, the weakest guarantee
+  and what distribution kernels give: the code is then right on every
+  model.
+- Write for that model and no stronger one: a guard or atomic that no
+  interleaving on the target needs costs every run. The upatch's
+  `README.md` names the model it is written for, as
+  `upatches/kernel-obs/README.md` does.
+
+## Keep its cost low
+
+An upatch runs on every event of its hooks, on servers with hundreds of
+CPUs and on embedded devices with little memory, and shirudo bounds
+neither how often its programs run nor how large its maps are
+(`Documentation/operate/plan/overhead.rst`). Make each run cheap:
+
+- Attach to the narrowest hook that sees the event, `tp_btf`, `fentry`
+  or `lsm` rather than `kprobe`, and not to one that fires for every
+  syscall when one call matters.
+- Decide early whether an event matters, with the cheapest test first,
+  and return. Keep map lookups, helper calls and reads of user memory
+  off the path most runs take, and bound the work of each run; leave
+  sums, sorting and formatting to the serializer, the decoder or
+  userspace.
+- Put settings in `const volatile` variables in `.rodata`, as
+  `[[upatches.rodata]]` entries write them: the verifier knows their
+  values at load and prunes the branches they turn off.
+- On many CPUs, a value every CPU writes moves its cache line from CPU
+  to CPU on every write, atomic or not. Count in a per-CPU map and sum
+  on export: its value stays in its CPU's cache, and needs an atomic only
+  where the model lets a second run interleave on that CPU. Keep fields
+  that different CPUs write in different 64-byte lines, and keep
+  `bpf_spin_lock()` and other locks off hot paths; publish with release
+  and acquire instead.
+- On little memory, remember that a map takes its memory at load: a
+  hash map preallocates `max_entries` unless it has
+  `BPF_F_NO_PREALLOC`, and a per-CPU map holds a value for every
+  possible CPU. Size each map for what it must hold, use an LRU map
+  where old entries may go, and keep records in the arena, whose pages
+  are taken only as the program allocates them.
+- Measure before shipping: with `sysctl kernel.bpf_stats_enabled=1` the
+  kernel counts each program's runs and run time, which `bpftool prog
+  show` prints. shirudo's lockdown leaves program information readable,
+  but the test VM image has no `bpftool`; bring one. Say in the
+  `README.md` what the upatch costs where that is more than a little.
 
 ## Build and sign one upatch
 
