@@ -6,9 +6,9 @@
 # properties the harnesses in this directory state, for every input within
 # the bounds each harness names, and fail when one does not hold. Each
 # harness defines harness() and includes the source it proves; proofs.list
-# gives its CBMC options, and LEN=<a>-<b> or LEN=<x>,<y> there runs it once
-# for each length, as CBMC handles a fixed length far faster than one it
-# has to keep symbolic. -v prints the whole CBMC output and the trace of a
+# gives its CBMC options, and LEN=<a>-<b>,<c> there runs it once for each
+# length the list of lengths and ranges names, as CBMC handles a fixed
+# length far faster than one it has to keep symbolic. -v prints the whole CBMC output and the trace of a
 # failed check.
 #
 #   testing/proofs/cbmc/run.sh [-v] [<proof>...]
@@ -72,11 +72,11 @@ while read -r name opts; do
 		*) rest="$rest $o" ;;
 		esac
 	done
-	case $lens in
-	-) ;;
-	*-*) lens=$(seq "${lens%-*}" "${lens#*-}") ;;
-	*) lens=$(printf '%s' "$lens" | tr ',' ' ') ;;
-	esac
+	[ "$lens" = - ] ||
+		lens=$(printf '%s\n' "$lens" | tr ',' '\n' |
+			while IFS=- read -r from to; do
+				seq "$from" "${to:-$from}"
+			done)
 	start=$(date +%s)
 	checked=0
 	bad=

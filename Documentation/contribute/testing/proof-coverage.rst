@@ -188,6 +188,105 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Every encoding and every value of up to 8 bytes
      - The bits stay inside the integer's bytes; the value is zero- or
        sign-extended from them
+   * - ``tpm-reader``
+     - The TPM reader primitives of :src:`util/tpm_wire.c`: ``get8()``
+       to ``get64()``, ``get2b()``, ``get2b_fixed()``, ``get_name()``
+     - Every reader state over an input of any size
+     - Every read stays inside what is left, and what is left still ends
+       at the input's end; a sized field lies inside the input and its
+       bound; a name is at most 34 bytes
+   * - ``tpm-signature``
+     - ``tpm_ecdsa_signature_parse()``
+     - Every input
+     - Accepts exactly ECDSA over SHA-256 with 32-byte r and s, in 72
+       bytes, and returns those bytes
+   * - ``tpm-attest``
+     - ``tpm_attest_parse()``
+     - Every input; takes about 8 minutes
+     - Starts with ``TPM_GENERATED``; names fit 34 bytes; extra data of
+       at most 64 bytes inside the input; a quote spans the input with a
+       24-bit PCR mask; an NV certification ends with its data, at most
+       2048 bytes
+   * - ``tpm-public``
+     - ``tpm_public_parse()``, ``tpm_ecc_public_parse()``
+     - Every input; takes about 5 minutes and 7 GB
+     - Accepts only the key shapes shirudo uses, P-256 or RSA-2048 with a
+       256-byte modulus, each spanning exactly the input
+   * - ``tpm-digest``
+     - The policy, name and cpHash digests of :src:`util/tpm_wire.c`,
+       ``tpm_writer_auth_hash()``
+     - Names of any length, SHA-256 as any result
+     - Each reads only whole inputs and writes only its output; an object
+       name has a public area of 4 bytes or more; a writer's
+       authorization takes a nonce of 1 to 64 bytes
+   * - ``tpm-kdf``
+     - ``tpm_kdfa()``, ``tpm_kdfe()``, ``tpm_credential_protect()``
+     - Labels up to 66 bytes, outputs up to 64, any context
+     - Reads and writes only what it is given; an oversized context or
+       party is refused
+   * - ``attest-fields``
+     - ``record_word()``
+     - Up to 16 characters
+     - Passes exactly ``[a-z_]``
+   * - ``attest-pcr``
+     - ``on_pcr()`` of the evidence parser
+     - Every index and 64-byte value text
+     - Stores only PCRs 0 to 23 and marks exactly that one, from 64 hex
+       digits; a refusal marks nothing
+   * - ``eventlog-records``
+     - ``log_records()``
+     - Logs of 0 to 32 bytes
+     - Refuses exactly a log with a NUL; keeps whole lines unchanged up
+       to the last newline, cutting only a torn last line
+   * - ``config-image``
+     - ``config_image_read_header()``
+     - Hash files of 0, 511, 512 and 4096 bytes
+     - Accepts exactly the version 1 SHA-256 layout with 4096-byte blocks,
+       a 32-byte salt and 1 to 2^28 data blocks; the hash tree's size
+       by dm-verity's own formula; nothing changed on refusal
+   * - ``config-auth``
+     - ``set_owner_auth()``
+     - Values of 0 to 16 bytes
+     - A passphrase as it stands, ``hex:`` digits as the bytes they spell;
+       a refusal keeps the value before
+   * - ``config-hosts``
+     - ``tls_classical_hosts_valid()``
+     - Values of 0 to 7 bytes
+     - Empty, or DNS names apart by commas
+   * - ``image-bootstrap``
+     - ``bootstrap_parse()`` with ``read_text_line()``
+     - One settings line of 0 to 8 bytes, every earlier state, failed
+       reads and allocations
+     - A certificate under the runtime directory; a PCR only one the
+       config accepts; nothing changes the runtime outside the initial
+       settings
+   * - ``image-path``
+     - ``image_path_valid()``
+     - Up to 8 bytes
+     - An accepted path is absolute, not ``/``, with no ``..`` component
+       and no empty one but the last; every absolute path of plain
+       components is accepted
+   * - ``dm-names``
+     - ``dm_name_ok()``, ``dm_device()``
+     - Up to 7 bytes
+     - A name of 1 to 127 of ``[A-Za-z0-9._-]``, not ``.`` or ``..``; a
+       device as decimal major and minor
+   * - ``kernel-notes``
+     - ``kernel_build_id_from_notes()``
+     - Notes of 0 to 24, 28, 32, 36 and 40 bytes
+     - Reads nothing past the notes; a build ID of 1 to 64 lowercase hex
+       digits that is the first GNU build ID note's, or empty
+   * - ``kernel-release``
+     - ``kernel_release_prefix_matches()``
+     - Releases and prefixes up to 8 bytes
+     - Matches exactly where the prefix ends with the release or before a
+       ``.`` or ``-``
+   * - ``log-escape``
+     - ``escape()`` of :src:`util/log.c`
+     - Messages of 0 to 5 bytes, every buffer size
+     - Terminated printable ASCII, every backslash a ``\\`` or three octal
+       digits, decoding to the message or to a prefix cut between
+       characters
 
 Lean 4 proofs
 -------------
@@ -222,9 +321,13 @@ Not covered yet
 
 The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
 does: the JSON parser and emitter, the package archive, index and
-manifest readers, the tree publication and log, the eventlog, the TPM
-structures of evidence, the configuration files and images, and the
-kernel notes and configuration.
+manifest readers, the tree publication and log, the eventlog's lines,
+the evidence document beyond its PCRs, the config update record, the
+site configuration file, the config image's settings and tree, and the
+kernel configuration. The ``.upatch`` reader and the TPM structures are
+covered part by part, as the table shows; what joins those parts, the
+TPM policy that takes a PCR selection and the event encoders of the
+register, which need a model of SHA-256, have no proof.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

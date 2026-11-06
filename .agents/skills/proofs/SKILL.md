@@ -45,8 +45,8 @@ to wait for.
 ## Keep it fast
 
 - A length CBMC keeps symbolic makes every access to the buffer costly.
-  Run the proof once per length instead: `LEN=0-6` or `LEN=16,64` in
-  `proofs.list`, with the harness using `LEN`.
+  Run the proof once per length instead: `LEN=0-6`, `LEN=16,64` or
+  `LEN=0-24,28,32` in `proofs.list`, with the harness using `LEN`.
 - A global `--unwind` unrolls every loop that far, including those whose
   count comes from the data. Give each loop its bound with
   `--unwindset <function>.<n>:<bound>` (`goto-cc --function harness ... -o
@@ -61,6 +61,12 @@ to wait for.
 - `too many addressed objects` asks for `--object-bits 12`.
 - Division and remainder cost the SAT solver most: `--refine-arithmetic`
   took one proof from 360 s to 21 s, though it slows others. Time both.
+- Code that reads a file goes through the `PROOF_FILE` models of
+  `proof.h` (`getline()`, `pread()`, and an `errno` that keeps its value:
+  CBMC's own changes at every read, so an `EINTR` retry loop never ends).
+  `any_input(len, max)` covers inputs of every length for code that reads
+  at most `max` bytes. A `pread()` model that may fail made one proof take
+  18 GB; let it succeed and prove the failure paths apart.
 - A `memchr()` over thousands of bytes unrolls slowly. Where the caller
   only asks whether the byte is there and `n` is a constant, define
   `PROOF_MEMCHR_QUANTIFIED` before including `proof.h` for a quantified

@@ -85,10 +85,12 @@ Write a CBMC proof
 1. Write ``testing/proofs/cbmc/<name>.c``. It includes ``proof.h`` and
    the source file it proves, so that it reaches static functions too, and
    defines ``harness()``, which CBMC runs with every input at once.
-   ``any_bytes(n)`` gives ``n`` bytes of any contents, and a variable
-   left uninitialized takes any value; ``__CPROVER_assume()`` narrows the
-   inputs to the bound, and ``__CPROVER_assert()`` states each property
-   with a message that says what holds.
+   ``any_bytes(n)`` gives ``n`` bytes of any contents, ``any_input(len,
+   max)`` an input of any length for code that reads at most ``max``
+   bytes of it, and a variable left uninitialized takes any value;
+   ``__CPROVER_assume()`` narrows the inputs to the bound, and
+   ``__CPROVER_assert()`` states each property with a message that says
+   what holds.
 
 2. State what the code must do from its contract, not from its code: an
    accepted string is a number of the right digits, an accepted file has
@@ -102,9 +104,10 @@ Write a CBMC proof
      with ``goto-instrument --show-loops`` naming them. The unwinding
      assertions ``run.sh`` adds fail when an input needs more iterations,
      so a bound too low fails the proof rather than weakening it.
-   - ``LEN=<a>-<b>`` runs the proof once for each length, with ``LEN``
-     defined: CBMC takes far longer over an input whose length it has to
-     keep symbolic.
+   - ``LEN=<a>-<b>``, or a list of lengths and ranges such as
+     ``LEN=0-24,28,32``, runs the proof once for each length, with
+     ``LEN`` defined: CBMC takes far longer over an input whose length it
+     has to keep symbolic.
    - ``--object-bits <n>`` when CBMC reports too many addressed objects.
 
 4. Check that the proof can fail: break the code it proves, for instance
@@ -122,7 +125,11 @@ the code meets; a harness that copies from such a pointer defines
 ``PROOF_MEMCPY_BYTEWISE`` before it includes ``proof.h``. A harness whose
 code searches thousands of bytes with ``memchr()`` only to learn whether
 a byte is there defines ``PROOF_MEMCHR_QUANTIFIED`` for a model that
-answers without a loop.
+answers without a loop. ``PROOF_FILE`` models a file of that many bytes
+that ``getline()`` and ``pread()`` read, and an ``errno`` that keeps what
+was stored, where CBMC's own takes any value and lets a loop that
+retries on ``EINTR`` run for ever; ``PROOF_DEVICE_NUMBERS`` gives
+``makedev()``, ``major()`` and ``minor()`` bodies.
 
 Write a Lean 4 proof
 --------------------
