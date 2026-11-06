@@ -43,7 +43,8 @@ The human output has these parts:
 
 As no signature is checked, the file, the names and the decoder fields
 are printed with each control character, and each byte that starts no
-UTF-8 character, shown as ``?``.
+UTF-8 character, shown as ``?``. ``--json`` writes them as JSON
+strings, with such a byte as U+FFFD.
 
 :doc:`/reference/formats/upatch-format` describes each field.
 

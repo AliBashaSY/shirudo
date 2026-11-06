@@ -98,6 +98,21 @@ test_expect_success 'a name from the file shows its controls as ?' '
 	grep -q "^Name: *a?\[2Jb??c?\$" "$WORK/info.out" &&
 	! grep -q "$(printf "\033")" "$WORK/info.out"
 '
+test_expect_success 'upatch info --json writes a stray byte of a name as U+FFFD' '
+	"$S" upatch info --json "$WORK/controls-in-name" >"$WORK/info.json" &&
+	python3 - "$WORK/info.json" <<"PY"
+import json, sys
+name = json.load(open(sys.argv[1]))["name"]
+assert name == "a\x1b[2Jb\x9bc\ufffd", repr(name)
+PY
+'
+test_expect_success 'upatch info --json grows to hold a long escaped path' '
+	dir=$WORK && seg=$(printf "\001%.0s" $(seq 200)) &&
+	for i in $(seq 15); do dir=$dir/$seg; done &&
+	mkdir -p "$dir" && cp "$WORK/valid-structured" "$dir/u" &&
+	"$S" upatch info --json "$dir/u" >"$WORK/long.json" &&
+	[ "$(wc -c <"$WORK/long.json")" -gt 16384 ]
+'
 test_expect_success 'file larger than 16 MiB is rejected without mapping it' '
 	reject "$WORK/oversized"
 '

@@ -285,6 +285,14 @@ static char *printable(char *s)
 	return s;
 }
 
+/* What printable() shows, as JSON escapes it and U+FFFD for a stray byte. */
+static void json_kv_unverified(struct json_emit *e, const char *key,
+			       const char *val)
+{
+	json_key(e, key);
+	json_str_lossy(e, val, strlen(val));
+}
+
 static int cmd_upatch_info(int argc, const char **argv)
 {
 	char name[UPATCH_NAME_MAX + 1];	/* not NUL-term on disk */
@@ -331,20 +339,14 @@ static int cmd_upatch_info(int argc, const char **argv)
 	unload_payload = upatch_signed_unload_payload(&u);
 
 	if (json) {
-		size_t cap = 8192 + (size_t)u.nr_decoders * 768;
-		struct json_emit e = {};
+		struct json_emit e = { .max = JSON_MAX_BYTES };
 		char payload_hex[2 * 32 + 1];
-		char *buf = xmalloc(cap);
 
-		if (!buf)
-			goto out;
-		e.buf = buf;
-		e.cap = cap;
 		hex_encode(u.hdr.payload_sha256, 32, payload_hex);
 		json_obj_open(&e);
 		json_kv_int(&e, "schema", 1);
-		json_kv_string(&e, "path", path);
-		json_kv_string(&e, "name", name);
+		json_kv_unverified(&e, "path", path);
+		json_kv_unverified(&e, "name", name);
 		json_kv_string(&e, "type",
 			       upatch_is_unload(&u) ? "unload"
 								    : "load");
@@ -361,7 +363,7 @@ static int cmd_upatch_info(int argc, const char **argv)
 		json_kv_int(&e, "file_size", (__s64)u.map_size);
 		if (upatch_signed_name(&u)) {
 			memcpy(name, upatch_signed_name(&u), sizeof(u.hdr.name));
-			json_kv_string(&e, "signed_name", name);
+			json_kv_unverified(&e, "signed_name", name);
 		} else {
 			json_kv_null(&e, "signed_name");
 		}
@@ -386,10 +388,10 @@ static int cmd_upatch_info(int argc, const char **argv)
 				       decoder_input_str(d.input_format));
 			json_kv_string(&e, "export_signal",
 				       decoder_signal_str(d.export_signal));
-			json_kv_string(&e, "upatch", d.upatch);
-			json_kv_string(&e, "map", d.map);
-			json_kv_string(&e, "source_file", d.source_name);
-			json_kv_string(&e, "entrypoint", d.entrypoint);
+			json_kv_unverified(&e, "upatch", d.upatch);
+			json_kv_unverified(&e, "map", d.map);
+			json_kv_unverified(&e, "source_file", d.source_name);
+			json_kv_unverified(&e, "entrypoint", d.entrypoint);
 			json_kv_int(&e, "source_len", d.source_len);
 			json_obj_close(&e);
 		}
@@ -399,8 +401,8 @@ static int cmd_upatch_info(int argc, const char **argv)
 			fprintf(stderr, "upatch info: json encode failed: %s\n",
 				strerror(-e.err));
 		else
-			printf("%s\n", buf);
-		xfree(buf, cap);
+			printf("%s\n", e.buf);
+		xfree(e.buf, e.cap);
 		ret = e.err ? 1 : 0;
 		goto out;
 	}

@@ -995,22 +995,19 @@ static int print_rodata_json(const struct upatch *u,
 							    view->type_id);
 	const struct btf_var_secinfo *vars =
 		(const struct btf_var_secinfo *)(sec + 1);
-	char name[UPATCH_NAME_MAX + 1];
-	char *buf = xmalloc(JSON_MAX_BYTES);
-	struct json_emit e = {};
+	struct json_emit e = { .max = JSON_MAX_BYTES };
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
+	char name[UPATCH_NAME_MAX + 1];
 	int ret = 0;
 
-	if (!buf)
-		return -ENOMEM;
-	e.buf = buf;
-	e.cap = JSON_MAX_BYTES;
 	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
 	name[UPATCH_NAME_MAX] = '\0';
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
-	json_kv_string(&e, "upatch", name);
-	json_kv_string(&e, "path", path);
+	json_key(&e, "upatch");
+	json_str_lossy(&e, name, strlen(name));
+	json_key(&e, "path");
+	json_str_lossy(&e, path, strlen(path));
 	json_kv_string(&e, "section", ".rodata");
 	json_kv_int(&e, "size", view->size);
 	json_kv_int(&e, "data_offset", view->data_offset);
@@ -1058,12 +1055,12 @@ static int print_rodata_json(const struct upatch *u,
 	if (!ret && e.err)
 		ret = e.err;
 	if (!ret)
-		ret = write_complete(STDOUT_FILENO, buf, e.len);
+		ret = write_complete(STDOUT_FILENO, e.buf, e.len);
 	if (!ret)
 		ret = write_complete(STDOUT_FILENO, "\n", 1);
-	if (ret == -ENOSPC)
+	if (e.err == -E2BIG)
 		pr_err("BTF JSON output exceeds %u bytes", JSON_MAX_BYTES);
-	xfree(buf, JSON_MAX_BYTES);
+	xfree(e.buf, e.cap);
 	return ret;
 }
 
