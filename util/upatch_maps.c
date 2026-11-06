@@ -726,14 +726,10 @@ static int open_map_pin(const char *upatch, const char *map_name,
 			int *fd_out, struct bpf_map_info *info_out)
 {
 	char path[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	__u32 info_len = sizeof(*info_out);
 	int fd;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
-		return -ENAMETOOLONG;
-	if (strsprintf(path, sizeof(path), "%s/%s/maps/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
+	if (upatch_pin_path(path, sizeof(path), upatch, "maps", map_name, NULL))
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -759,13 +755,10 @@ static struct btf *try_load_btf(__u32 btf_id)
 static int open_serializer_pin(const char *upatch, const char *map_name)
 {
 	char path[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	int fd;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
-		return -ENAMETOOLONG;
-	if (strsprintf(path, sizeof(path), "%s/%s/serializers/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name, map_name) < 0)
+	if (upatch_pin_path(path, sizeof(path), upatch, "serializers",
+			    map_name, NULL))
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(path);
 	if (fd < 0)
@@ -1230,7 +1223,6 @@ int upatch_maps_read(const char *upatch, const char *map,
 {
 	struct bpf_map_info info = {};
 	char upatch_dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat upatch_st;
 	int fd = -1;
 	int ret;
@@ -1260,9 +1252,7 @@ int upatch_maps_read(const char *upatch, const char *map,
 		out->n_cpus = (__u32)n;
 	}
 	resolve_map_location(out);
-	if (!upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch) &&
-	    strsprintf(upatch_dir, sizeof(upatch_dir), "%s/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name) >= 0 &&
+	if (!upatch_pin_path(upatch_dir, sizeof(upatch_dir), upatch, NULL) &&
 	    stat(upatch_dir, &upatch_st) == 0)
 		out->lifetime_start_ns =
 			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
@@ -1333,14 +1323,10 @@ static void scan_upatch_maps(const char *upatch,
 			     size_t *cap)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct dirent *e;
 	DIR *d;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), upatch))
-		return;
-	if (strsprintf(dir, sizeof(dir), "%s/%s/maps",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), upatch, "maps", NULL))
 		return;
 	d = opendir(dir);
 	if (!d)

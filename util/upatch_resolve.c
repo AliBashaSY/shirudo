@@ -42,21 +42,16 @@
 int upatch_open_first_link(const char *name)
 {
 	char pin[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	int fd, first_errno;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return -ENAMETOOLONG;
-	if (strsprintf(pin, sizeof(pin), "%s/%s/link",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(pin, sizeof(pin), name, "link", NULL))
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(pin);
 	if (fd >= 0)
 		return fd;
 	first_errno = errno;
 
-	if (strsprintf(pin, sizeof(pin), "%s/%s/link_0",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(pin, sizeof(pin), name, "link_0", NULL))
 		return -ENAMETOOLONG;
 	fd = bpf_obj_get(pin);
 	if (fd >= 0)
@@ -193,14 +188,10 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 void upatch_loaded_at(const char *name, char *out, size_t cap)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 
 	out[0] = '\0';
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return;
-	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return;
 	if (stat(dir, &st) != 0)
 		return;
@@ -210,17 +201,13 @@ void upatch_loaded_at(const char *name, char *out, size_t cap)
 void upatch_payload_sha256(const char *name, char *out, size_t cap)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	__u8 raw[32];
 	ssize_t n;
 
 	out[0] = '\0';
 	if (cap < 65)
 		return;
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return;
-	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return;
 	n = getxattr(dir, XATTR_PAYLOAD, raw, sizeof(raw));
 	if (n != (ssize_t)sizeof(raw))

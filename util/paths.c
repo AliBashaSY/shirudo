@@ -6,12 +6,14 @@
  */
 
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 #include <shirudo/string.h>
+#include <shirudo/upatch.h>
 
 #include "paths.h"
 
@@ -54,6 +56,38 @@ int key_paths(const char *keys_dir,
 		return ret;
 	return format_key_path(cert_path, cert_sz, keys_dir,
 			       CERT_FILE);
+}
+
+int upatch_pin_path(char *out, size_t cap, const char *name, ...)
+{
+	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
+	const char *part;
+	int n, ret = 0;
+	size_t len;
+	va_list ap;
+
+	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+		goto too_long;
+	n = strsprintf(out, cap, "%s/%s", BPFFS_UPATCHES_DIR, bpffs_name);
+	if (n < 0)
+		goto too_long;
+	len = n;
+	va_start(ap, name);
+	while ((part = va_arg(ap, const char *))) {
+		n = strsprintf(out + len, cap - len, "/%s", part);
+		if (n < 0) {
+			ret = -ENAMETOOLONG;
+			break;
+		}
+		len += n;
+	}
+	va_end(ap);
+	if (!ret)
+		return 0;
+too_long:
+	if (cap)
+		out[0] = '\0';
+	return -ENAMETOOLONG;
 }
 
 bool path_exists(const char *path)

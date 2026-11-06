@@ -73,6 +73,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``lines_len()``
      - Up to 8 bytes
      - Ends at a newline or is 0, with no newline behind it
+   * - ``paths-bpffs-name``
+     - ``upatch_bpffs_name()``, ``upatch_name_from_bpffs()``
+     - Names up to 4 bytes, pin names up to 8
+     - A name without ``~`` maps to a pin name without a dot and back to
+       itself; a pin name without a dot that decodes is the encoding of
+       what it decodes to
    * - ``bpm-upatch-member``
      - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
      - Lengths 0 to 18

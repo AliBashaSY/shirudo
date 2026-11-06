@@ -11,6 +11,7 @@
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 #define __must_check	__attribute__((warn_unused_result))
 #define __noreturn	__attribute__((noreturn))
+#define __sentinel	__attribute__((sentinel))
 #define __cleanup(func)	__attribute__((cleanup(func)))
 #define noinline	__attribute__((noinline))
 /* A function with a large frame that inlining would add to its caller's. */

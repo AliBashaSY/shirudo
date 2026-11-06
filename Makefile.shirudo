@@ -805,6 +805,7 @@ testing/helper/test-otel-map: testing/helper/test-otel-map.c util/upatch_maps.o 
                         util/config.o util/image_config.o \
                         util/upatch_decode.o util/upatch_resolve.o \
                         util/upatch.o util/json.o util/string.o util/log.o \
+                        util/paths.o \
                         util/io.o util/malloc.o $(LIBBPF_A) util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
@@ -823,7 +824,7 @@ testing/helper/test-upatch-serializer-pages: testing/helper/test-upatch-serializ
                                        util/serializer.o util/seal.o \
                                        util/json.o util/string.o \
                                        util/config.o util/image_config.o \
-                                       util/malloc.o util/io.o \
+                                       util/malloc.o util/io.o util/paths.o \
                                        util/log.o util/hex.o util/timefmt.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(STATIC_LIBS) $(DYNAMIC_LIBS)
@@ -1030,7 +1031,7 @@ testing/fuzz/fuzz-elf: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-elf: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
 testing/fuzz/fuzz-serializer: testing/fuzz/fuzz-serializer.c $(FUZZ_BASE) \
                               util/upatch_maps.c util/upatch_resolve.c \
-                              util/serializer.c $(FUZZ_SEAL) util/io.c \
+                              util/serializer.c $(FUZZ_SEAL) util/io.c util/paths.c \
                               util/timefmt.c $(LIBBPF_A)
 testing/fuzz/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)

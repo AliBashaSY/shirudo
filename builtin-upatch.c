@@ -489,7 +489,6 @@ static int is_not_dot(const struct dirent *e)
 static bool upatch_is_loaded(const char *name)
 {
 	char pin[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 	int fd;
 
@@ -500,10 +499,7 @@ static bool upatch_is_loaded(const char *name)
 	return true;
 
 test_pin:
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return false;
-	if (strsprintf(pin, sizeof(pin), "%s/%s/test",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(pin, sizeof(pin), name, "test", NULL))
 		return false;
 	return stat(pin, &st) == 0;
 }
@@ -1336,7 +1332,6 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 				const struct prog_spec *specs)
 {
 	char dir[PATH_MAX], serializers_dir[PATH_MAX + 16];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	__u32 i, attach_count = 0, attach_seen = 0;
 	bool made_dir = false, made_serializers = false;
 	char pin[PATH_MAX + 32];
@@ -1348,7 +1343,7 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 		pr_warn("upatch carries no programs to attach");
 		return 0;
 	}
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return -ENAMETOOLONG;
 
 	ret = mkdir_if_absent(BPFFS_UPATCHES_DIR, 0700, NULL);
@@ -1357,9 +1352,6 @@ static int attach_and_pin_progs(const struct loader_ctx *cx,
 		       strerror(-ret));
 		return ret;
 	}
-	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
-		return -ENAMETOOLONG;
 	if (strsprintf(serializers_dir, sizeof(serializers_dir),
 		       "%s/serializers", dir) < 0)
 		return -ENAMETOOLONG;
@@ -1529,17 +1521,13 @@ static int pin_upatch_maps(const struct loader_ctx *cx,
 			   const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	char pin[PATH_MAX + 32];
 	__u32 i;
 	int ret;
 
 	if (nr_maps == 0)
 		return 0;
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return 0;
-	if (strsprintf(dir, sizeof(dir), "%s/%s",
-		       BPFFS_UPATCHES_DIR, bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return -ENAMETOOLONG;
 	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
@@ -1635,12 +1623,8 @@ err:
 static void set_pin_payload(const char *name, const __u8 payload[32])
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
-		       bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return;
 	if (setxattr(dir, XATTR_PAYLOAD, payload, 32, 0) != 0)
 		pr_err("upatch: cannot record payload xattr on %s: %s "
@@ -1651,13 +1635,9 @@ static void set_pin_payload(const char *name, const __u8 payload[32])
 static int get_pin_payload(const char *name, __u8 out[32])
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	ssize_t n;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return -ENAMETOOLONG;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
-		       bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return -ENAMETOOLONG;
 	n = getxattr(dir, XATTR_PAYLOAD, out, 32);
 	if (n < 0)
@@ -2712,13 +2692,9 @@ static int wipe_dir_flat(const char *dir)
 static bool upatch_is_pinned(const char *name)
 {
 	char dir[PATH_MAX];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return false;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
-		       bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return false;
 	return stat(dir, &st) == 0;
 }
@@ -2728,14 +2704,10 @@ static int remove_pin_dir(const char *name)
 {
 	char dir[PATH_MAX], maps_dir[PATH_MAX + 8];
 	char serializers_dir[PATH_MAX + 16];
-	char bpffs_name[UPATCH_BPFFS_NAME_MAX + 1];
 	struct stat st;
 	int ret;
 
-	if (upatch_bpffs_name(bpffs_name, sizeof(bpffs_name), name))
-		return -ENAMETOOLONG;
-	if (strsprintf(dir, sizeof(dir), "%s/%s", BPFFS_UPATCHES_DIR,
-		       bpffs_name) < 0)
+	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
 		return -ENAMETOOLONG;
 	if (strsprintf(maps_dir, sizeof(maps_dir), "%s/maps", dir) < 0)
 		return -ENAMETOOLONG;
