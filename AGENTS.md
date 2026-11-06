@@ -309,9 +309,11 @@ one usually still compiles and passes tests.
 - `make proofs` runs the CBMC proofs of `testing/proofs/cbmc/`, which
   check parsers and emitters for every input within a bound, and the Lean
   4 proofs of `testing/proofs/lean4/`, which prove models of algorithms
-  for every input. A change to code a proof covers, or to an algorithm a
-  model follows, runs them, and a new parser gets a proof where CBMC can
-  carry one; the `proofs` skill says how.
+  for every input. CI does not run them: a full run takes about an hour.
+  A change to code a proof covers, or to an algorithm a model follows,
+  runs those proofs by name, all of them after a change to `proof.h` or
+  `run.sh`, and a new parser gets a proof where CBMC can carry one; the
+  `proofs` skill says how.
 - CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
   `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
   `check-spdx.sh` and the documentation check on every pull request;

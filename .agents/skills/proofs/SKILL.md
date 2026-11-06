@@ -20,9 +20,11 @@ testing/proofs/cbmc/run.sh -v <proof>        # whole output and traces
 make proofs-lean4                            # the Lean 4 proofs
 ```
 
-Cap the memory of a long run, `ulimit -v 24000000` in the shell that
-starts it: a proof that grows past a few gigabytes is one to reshape, not
-to wait for.
+CI does not run the proofs, as all of them take about an hour: run the
+ones covering the code you changed by name, and all of them after a
+change to `proof.h` or `run.sh`. Cap the memory of a long run, `ulimit
+-v 24000000` in the shell that starts it: a proof that grows past a few
+gigabytes is one to reshape, not to wait for.
 
 ## Write
 

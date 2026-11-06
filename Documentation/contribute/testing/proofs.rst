@@ -60,7 +60,11 @@ Run the proofs
 
    Each CBMC line names a proof, the number of checks CBMC made and the
    time it took, and ``proofs: <n> hold`` ends a run in which all of them
-   held. ``Build completed successfully`` ends the Lean 4 run.
+   held. ``Build completed successfully`` ends the Lean 4 run. CI does
+   not run the proofs: all of them take about an hour, a few of them
+   minutes and gigabytes each. Run the ones that cover the code you
+   change by name, as the next step shows, and all of them after a
+   change to ``proof.h`` or ``run.sh``.
 
 2. Run one kind, or some CBMC proofs by name:
 
