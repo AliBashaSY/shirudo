@@ -381,6 +381,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Every index and 64-byte value text
      - Stores only PCRs 0 to 23 and marks exactly that one, from 64 hex
        digits; a refusal marks nothing
+   * - ``chain-events``
+     - ``chain_upatch_event()``, ``chain_key_event()``,
+       ``chain_tree_event()``, ``chain_fold()``, ``chain_init_event()`` of
+       an empty set
+     - Names of 0 to 8 and 255 to 257 bytes; every payload, digest,
+       sequence number and register
+     - SHA-256 is given exactly the bytes of the Lean model
+       ``Shirudo.Events``: the tag and its NUL, then the fixed fields, the
+       name cut at 256 bytes and the sequence number most significant byte
+       first; the event is the digest, or zeros with the error
    * - ``eventlog-records``
      - ``log_records()``
      - Logs of 0 to 32 bytes
@@ -459,10 +469,36 @@ the model follows the C.
    * - ``Shirudo.Chain``, the register of :src:`util/chain.c`
      - ``register_injective``, ``register_tagged_injective``: equal
        registers come from the same events, tagged the same, in the same
-       order; ``register_eq_foldl``: the register folds the events in the
-       order they came
-     - The hash is injective on (register, event) pairs and never yields
-       the initial value; the tagged event encoding is injective
+       order; ``register_injective_on``: the same with the hash injective
+       only on the pairs the two sequences fold; ``register_eq_foldl``: the
+       register folds the events in the order they came
+     - The hash is injective on the (register, event) pairs (for
+       ``register_injective_on`` only those folded) and never yields the
+       initial value; ``register_tagged_injective`` also takes the tagged
+       encoding as injective, which ``Shirudo.Events`` proves
+     - Review
+   * - ``Shirudo.Events``, the event encodings of :src:`util/chain.c`
+     - ``bytes_injective``: two admitted events hash the same bytes only
+       when they are the same event; ``listing_injective``: the init
+       event's listing spells one set while no name holds a newline;
+       ``sorts_unique``: ``qsort()`` leaves a set of distinct names in one
+       order; ``replay_injective_on``, ``replay_collision``,
+       ``verify_sound``: equal registers come from the same typed events in
+       the same order, or the strings hashed hold a SHA-256 collision or a
+       string that hashes to zero; ``upatch_cut``, ``listing_newline``,
+       ``sorts_tie``: where the domain ends
+     - SHA-256 maps no two different strings the two histories hash to one
+       digest and none to 32 zero bytes; names ``upatch_name_valid()``
+       accepts of at most 256 bytes; sequence numbers of a ``__s64``
+     - CBMC, ``chain-events``, names of up to 8 and of 255 to 257 bytes;
+       the listing of a non-empty set and the NV extend by review
+   * - ``Shirudo.Measured``, ``measured_event()`` of :src:`util/measured.c`
+     - ``holds_iff``: ``measured_holds()`` finds a name and payload exactly
+       when the last init, load or unload bearing on the name is its load
+       with that payload; ``measuredSet_nodup``: each name once;
+       ``measuredSet_init``: an init record starts the set over;
+       ``holds_last_load``, ``not_holds_after_unload``
+     - None
      - Review
    * - ``Shirudo.SemVer``, ``bpm_semver_compare()`` of
        :src:`util/bpm_package.c`
@@ -489,8 +525,7 @@ lines, the evidence document beyond its PCRs, the config update record,
 the site configuration file and the config image's settings and tree.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
-those parts, and the event encoders of the register, which need a model
-of SHA-256, have no proof.
+those parts has no proof.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

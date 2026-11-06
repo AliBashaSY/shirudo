@@ -10,6 +10,9 @@ signed. Assuming `H` is collision resistant, modelled as injective on
 (register, event) pairs and never yielding the initial value, and the
 tagged encoding of events likewise, equal registers mean the target
 measured exactly the events the log shows, in that order.
+`register_injective_on` asks the same of `H` only on the pairs the two
+sequences fold, which a real hash can meet; `Shirudo.Events` proves the
+encodings of util/chain.c injective and builds the end theorem on it.
 -/
 
 namespace Shirudo.Chain
@@ -40,6 +43,43 @@ theorem register_injective (H : D → D → D) (init : D)
     have ⟨hr, he⟩ := hH _ _ _ _ h
     rw [he, register_injective H init hH hinit es fs hr]
 
+/-- The (register, event) pairs `H` folds on the way to the register of
+`events`, newest first. -/
+def steps (H : D → D → D) (init : D) : List D → List (D × D)
+  | [] => []
+  | e :: es => (register H init es, e) :: steps H init es
+
+/-- Equal registers come from equal event sequences when `H` maps no two
+of the pairs the two sequences fold to one value, and none of them to the
+initial value. Unlike `register_injective`, this asks nothing of `H` on
+pairs neither sequence folds, which a hash with a 32-byte output can
+meet. -/
+theorem register_injective_on (H : D → D → D) (init : D) :
+    ∀ l1 l2 : List D,
+      (∀ p ∈ steps H init l1, ∀ q ∈ steps H init l2,
+        H p.1 p.2 = H q.1 q.2 → p = q) →
+      (∀ p ∈ steps H init l1 ++ steps H init l2, H p.1 p.2 ≠ init) →
+      register H init l1 = register H init l2 → l1 = l2
+  | [], [], _, _, _ => rfl
+  | [], f :: fs, _, hinit, h =>
+    absurd h.symm (hinit (register H init fs, f) (by simp [steps]))
+  | e :: es, [], _, hinit, h =>
+    absurd h (hinit (register H init es, e) (by simp [steps]))
+  | e :: es, f :: fs, hH, hinit, h => by
+    have hp := hH (register H init es, e) (by simp [steps])
+      (register H init fs, f) (by simp [steps]) h
+    simp only [Prod.mk.injEq] at hp
+    have hrest : es = fs :=
+      register_injective_on H init es fs
+        (fun p hp' q hq => hH p (by simp [steps, hp']) q (by simp [steps, hq]))
+        (fun p hp' => hinit p (by
+          simp only [List.mem_append] at hp' ⊢
+          rcases hp' with hp' | hp'
+          · exact Or.inl (by simp [steps, hp'])
+          · exact Or.inr (by simp [steps, hp'])))
+        hp.1
+    rw [hp.2, hrest]
+
 theorem map_injective {α β : Type} (f : α → β) (hf : Function.Injective f) :
     ∀ l1 l2 : List α, l1.map f = l2.map f → l1 = l2
   | [], [], _ => rfl
@@ -48,6 +88,20 @@ theorem map_injective {α β : Type} (f : α → β) (hf : Function.Injective f)
   | a :: as, b :: bs, h => by
     simp only [List.map_cons, List.cons.injEq] at h
     rw [hf h.1, map_injective f hf as bs h.2]
+
+/-- `map_injective` for an `f` injective only between the elements of the
+two lists. -/
+theorem map_injective_on {α β : Type} (f : α → β) :
+    ∀ l1 l2 : List α, (∀ a ∈ l1, ∀ b ∈ l2, f a = f b → a = b) →
+      l1.map f = l2.map f → l1 = l2
+  | [], [], _, _ => rfl
+  | [], _ :: _, _, h => by simp at h
+  | _ :: _, [], _, h => by simp at h
+  | a :: as, b :: bs, hf, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    rw [hf a (by simp) b (by simp) h.1,
+      map_injective_on f as bs
+        (fun x hx y hy => hf x (by simp [hx]) y (by simp [hy])) h.2]
 
 /-- Equal registers come from the same tagged events, in the same order:
 an event can be neither left out, added, swapped for another nor moved. -/

@@ -213,6 +213,15 @@ purges follows as an ``upatch_unload`` with the reason ``key_revoke``.
 Revocations a config carries at boot are not individual events; the
 ``init`` event's trust set reflects them.
 
+Lean 4 proves that these encodings tell every two events apart, for
+upatch names of every length ``upatch_name_valid()`` takes and every
+sequence number, and that the ``init`` listing spells one set of distinct
+names whatever order ``qsort()`` leaves. With the register's fold, equal
+registers then come from the same events in the same order unless
+SHA-256 collides among the strings the two histories hash. CBMC shows
+that :src:`util/chain.c` hashes exactly the bytes the model encodes. The
+proofs are in :doc:`/contribute/testing/proof-coverage`.
+
 Eventlog
 --------
 

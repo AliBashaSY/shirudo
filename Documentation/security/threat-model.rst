@@ -958,7 +958,8 @@ tree operations run without it.
 :Counters: ``TpmExtend``
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
    ``t6122``, ``t6128``, ``t6143``, ``t6144``
-:Proofs: ``Shirudo.Chain``, ``eventlog-records``, ``tpm-digest``
+:Proofs: ``Shirudo.Chain``, ``Shirudo.Events``, ``Shirudo.Measured``,
+   ``chain-events``, ``eventlog-records``, ``tpm-digest``
 :Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window
@@ -1119,7 +1120,7 @@ document can carry a software key's signatures (U1).
 :Tests: ``t4003``, ``t4004``, ``t4102``
 :Proofs: ``tpm-reader``, ``tpm-attest``, ``tpm-signature``,
    ``tpm-public``, ``attest-pcr``, ``attest-fields``,
-   ``attest-name-digest``, ``Shirudo.Chain``
+   ``attest-name-digest``, ``Shirudo.Chain``, ``Shirudo.Events``
 :Residual: R10, R11, U1, U8, U9
 
 .. _tm-t10:

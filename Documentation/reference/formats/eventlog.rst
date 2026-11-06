@@ -261,6 +261,14 @@ this boot's records the same way:
   last ``init`` record and the records after it.
 - A boot without an ``init`` record has no replay.
 
+The upatches this boot measured are folded from the same records: an
+``init`` record starts the set over with its ``set``, and an
+``upatch_load`` or ``upatch_unload`` record adds or removes its upatch.
+Only an ``init`` record's ``set`` counts. Lean 4 proves the fold holds an
+upatch exactly when the last record that bears on it, an ``init`` record
+or a load or unload of it, leaves it loaded: its load, or an ``init``
+record whose ``set`` lists it, with that payload.
+
 ``status`` compares the replay with the live register (condition
 ``ChainIntact``, field ``tpm.chain_matches_eventlog`` in
 :doc:`status-json`). It also reports a mismatch when the register's
