@@ -181,7 +181,7 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 	__u64 key, next, diskseq;
 	struct stat st;
 	char path[64];
-	int fd, block, ret = -EACCES;
+	int fd, block, ret;
 
 	if (strsprintf(path, sizeof(path), "/dev/dm-%u", minor(device)) < 0)
 		return -ENAMETOOLONG;
@@ -205,6 +205,7 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 		ret = -errno;
 		goto out_block;
 	}
+	ret = -EACCES;
 	if (bpf_map_get_next_key(fd, NULL, &key))
 		goto out;
 	do {
