@@ -42,6 +42,26 @@ static void decode_refuses_non_hex(void)
 	EXPECT_EQ(hex_decode("zz", out, 1), -EINVAL);
 }
 
+static void decode_max_takes_an_even_count_up_to_cap(void)
+{
+	__u8 out[3] = {};
+	size_t len = 9;
+
+	EXPECT_EQ(hex_decode_max("", out, sizeof(out), &len), 0);
+	EXPECT_EQ(len, 0);
+	EXPECT_EQ(hex_decode_max("aB", out, sizeof(out), &len), 0);
+	EXPECT_EQ(len, 1);
+	EXPECT_EQ(out[0], 0xab);
+	EXPECT_EQ(hex_decode_max("00ff10", out, sizeof(out), &len), 0);
+	EXPECT_EQ(len, 3);
+	EXPECT_EQ(out[2], 0x10);
+	len = 9;
+	EXPECT_EQ(hex_decode_max("abc", out, sizeof(out), &len), -EINVAL);
+	EXPECT_EQ(hex_decode_max("00ff1022", out, sizeof(out), &len), -EINVAL);
+	EXPECT_EQ(hex_decode_max("0g", out, sizeof(out), &len), -EINVAL);
+	EXPECT_EQ(len, 9);
+}
+
 #define HEX64 "00112233445566778899aabbccddeeffFFEEDDCCBBAA99887766554433221100"
 #define NOTHEX64 "g0112233445566778899aabbccddeeffFFEEDDCCBBAA99887766554433221100"
 
@@ -68,6 +88,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(decode_takes_either_case),
 	UNIT_CASE(decode_wants_the_exact_length),
 	UNIT_CASE(decode_refuses_non_hex),
+	UNIT_CASE(decode_max_takes_an_even_count_up_to_cap),
 	UNIT_CASE(sha256_digest_is_prefix_and_64_digits),
 	{}
 };

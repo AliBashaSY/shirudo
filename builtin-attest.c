@@ -126,19 +126,9 @@ static const struct help attest_help = {
 	.n_sections = ARRAY_SIZE(attest_help_sections),
 };
 
-static int parse_hex(const char *hex, __u8 *out, size_t cap, size_t *len)
-{
-	size_t n = strlen(hex);
-
-	if (n == 0 || (n & 1) || n / 2 > cap)
-		return -EINVAL;
-	*len = n / 2;
-	return hex_decode(hex, out, n / 2);
-}
-
 static int parse_hex32(const char *what, const char *hex, __u8 out[32])
 {
-	if (strlen(hex) != 64 || hex_decode(hex, out, 32)) {
+	if (hex_decode(hex, out, 32)) {
 		pr_err("attest: %s must be 64 hex characters", what);
 		return -EINVAL;
 	}
@@ -648,8 +638,8 @@ static int cmd_attest_verify(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (parse_hex(v, nonce, sizeof(nonce),
-				      &nonce_len)) {
+			if (hex_decode_max(v, nonce, sizeof(nonce),
+					   &nonce_len) || !nonce_len) {
 				pr_err("attest verify: --nonce must be hex of "
 				       "up to %d bytes",
 				       ATTEST_NONCE_MAX);
@@ -657,15 +647,12 @@ static int cmd_attest_verify(int argc, const char **argv)
 			}
 			have_nonce = true;
 		} else if (opt_arg("--ak-name", a, argc, argv, &i, &v, &r)) {
-			size_t n;
-
 			if (r == OPT_MISSING) {
 				pr_err("attest verify: %s takes a value", a);
 				ret = 2;
 				goto out;
 			}
-			if (parse_hex(v, x.ak_name, sizeof(x.ak_name),
-				      &n) || n != TPM_NAME_LEN) {
+			if (hex_decode(v, x.ak_name, TPM_NAME_LEN)) {
 				pr_err("attest verify: --ak-name must be %d "
 				       "hex characters",
 				       2 * TPM_NAME_LEN);
@@ -779,15 +766,12 @@ static int cmd_attest_verify(int argc, const char **argv)
 				goto out;
 			x.have_credential = true;
 		} else if (opt_arg("--ek-name", a, argc, argv, &i, &v, &r)) {
-			size_t n;
-
 			if (r == OPT_MISSING) {
 				pr_err("attest verify: %s takes a value", a);
 				ret = 2;
 				goto out;
 			}
-			if (parse_hex(v, x.ek_name, sizeof(x.ek_name),
-				      &n) || n != TPM_NAME_LEN) {
+			if (hex_decode(v, x.ek_name, TPM_NAME_LEN)) {
 				pr_err("attest verify: --ek-name must be %d "
 				       "hex characters",
 				       2 * TPM_NAME_LEN);
@@ -891,7 +875,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	const char *evidence_path = NULL, *out_path = NULL;
 	char *evidence = NULL, *doc = NULL, *report;
 	char hex[2 * TPM_CREDENTIAL_LEN + 1];
-	size_t evidence_len = 0, len = 0, cap = 0, i, n;
+	size_t evidence_len = 0, len = 0, cap = 0, i;
 	int err, ret = 2;
 
 	report = xmalloc(ATTEST_REPORT_MAX);
@@ -925,8 +909,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (parse_hex(v, ak_name, sizeof(ak_name), &n) ||
-			    n != TPM_NAME_LEN) {
+			if (hex_decode(v, ak_name, TPM_NAME_LEN)) {
 				pr_err("attest challenge: --ak-name must be %d "
 				       "hex characters", 2 * TPM_NAME_LEN);
 				goto out;
@@ -938,8 +921,7 @@ static int cmd_attest_challenge(int argc, const char **argv)
 				ret = 2;
 				goto out;
 			}
-			if (parse_hex(v, ek_name, sizeof(ek_name), &n) ||
-			    n != TPM_NAME_LEN) {
+			if (hex_decode(v, ek_name, TPM_NAME_LEN)) {
 				pr_err("attest challenge: --ek-name must be %d "
 				       "hex characters", 2 * TPM_NAME_LEN);
 				goto out;
@@ -1045,8 +1027,8 @@ static int cmd_attest_evidence(int argc, const char **argv)
 				pr_err("attest: %s takes a value", a);
 				return 2;
 			}
-			if (parse_hex(v, nonce, sizeof(nonce),
-				      &nonce_len)) {
+			if (hex_decode_max(v, nonce, sizeof(nonce),
+					   &nonce_len) || !nonce_len) {
 				pr_err("attest: --nonce must be hex of up to "
 				       "%d bytes", ATTEST_NONCE_MAX);
 				return 2;

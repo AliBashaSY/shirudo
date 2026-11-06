@@ -22,6 +22,11 @@ int hex_nibble(int c);
 
 /* Exactly 2 * n hex digits, either case. 0 or -EINVAL. */
 int hex_decode(const char *hex, __u8 *out, size_t n);
+/*
+ * An even count of hex digits, either case and none at all included, of
+ * at most cap bytes, into *len bytes at out. 0 or -EINVAL.
+ */
+int hex_decode_max(const char *hex, __u8 *out, size_t cap, size_t *len);
 
 /*
  * An OCI digest, "sha256:" and 64 hex digits of either case, into its 32

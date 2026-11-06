@@ -110,30 +110,17 @@ static void set_owner_auth(struct config *cfg, const char *val)
 	size_t l;
 
 	if (strncmp(val, "hex:", 4) == 0) {
-		char auth[sizeof(cfg->tpm_owner_auth)];
-		const char *h = val + 4;
-		size_t hl = strlen(h), i;
+		__u8 auth[sizeof(cfg->tpm_owner_auth)];
+		size_t n;
 
-		if (hl % 2 || hl / 2 > sizeof(cfg->tpm_owner_auth)) {
-			pr_warn("config: tpm.owner_auth: bad hex length "
-				"(ignored)");
-			return;
-		}
 		/* An ignored value must leave the one set before intact. */
-		for (i = 0; i < hl / 2; i++) {
-			int hi = hex_nibble(h[2 * i]);
-			int lo = hex_nibble(h[2 * i + 1]);
-
-			if (hi < 0 || lo < 0) {
-				pr_warn("config: tpm.owner_auth: bad hex "
-					"(ignored)");
-				memzero_explicit(auth, sizeof(auth));
-				return;
-			}
-			auth[i] = (char)((hi << 4) | lo);
+		if (!hex_decode_max(val + 4, auth, sizeof(auth), &n)) {
+			memcpy(cfg->tpm_owner_auth, auth, n);
+			cfg->tpm_owner_auth_len = n;
+		} else {
+			pr_warn("config: tpm.owner_auth: not an even count of up to %zu hex digits (ignored)",
+				2 * sizeof(auth));
 		}
-		memcpy(cfg->tpm_owner_auth, auth, hl / 2);
-		cfg->tpm_owner_auth_len = hl / 2;
 		memzero_explicit(auth, sizeof(auth));
 		return;
 	}

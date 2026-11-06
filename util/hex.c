@@ -59,6 +59,19 @@ int hex_decode(const char *hex, __u8 *out, size_t n)
 	return 0;
 }
 
+int hex_decode_max(const char *hex, __u8 *out, size_t cap, size_t *len)
+{
+	size_t n = strnlen(hex, size_add(size_mul(cap, 2), 1));
+	int ret;
+
+	if (n % 2 || n / 2 > cap)
+		return -EINVAL;
+	ret = hex_decode(hex, out, n / 2);
+	if (!ret)
+		*len = n / 2;
+	return ret;
+}
+
 int sha256_digest_decode(const char *digest, __u8 out[32])
 {
 	if (!digest || strncmp(digest, "sha256:", 7))

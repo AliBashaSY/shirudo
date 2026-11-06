@@ -58,10 +58,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Terminates what it writes; the whole string and its length, or
        what fits and ``-E2BIG``
    * - ``hex``
-     - ``hex_encode()``, ``hex_decode()``
+     - ``hex_encode()``, ``hex_decode()``, ``hex_decode_max()``
      - Up to 4 bytes, strings up to 9 characters
      - Lowercase hex that decodes back to the input; a decode takes
-       exactly ``2 * n`` hex digits of either case and yields their value
+       exactly ``2 * n`` hex digits of either case and yields their
+       value, and ``hex_decode_max()`` any even count up to ``2 * cap``,
+       reading no further than the digit after them
    * - ``io-lines``
      - ``lines_len()``
      - Up to 8 bytes

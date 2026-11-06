@@ -689,16 +689,6 @@ static void note(struct reporter *r, const char *fmt, ...)
 	}
 }
 
-static int hex_bytes(const char *hex, __u8 *out, size_t cap, size_t *len)
-{
-	size_t n = strlen(hex);
-
-	if (n & 1 || n / 2 > cap)
-		return -EINVAL;
-	*len = n / 2;
-	return hex_decode(hex, out, n / 2);
-}
-
 static int check_signed(struct reporter *rep, const char *what,
 			const char *attest_hex, const char *sig_hex,
 			const struct tpm_ecc_public *ak,
@@ -712,8 +702,8 @@ static int check_signed(struct reporter *rep, const char *what,
 	size_t sig_len;
 	int ret;
 
-	if (hex_bytes(attest_hex, attest, attest_cap, attest_len) ||
-	    hex_bytes(sig_hex, sig, sizeof(sig), &sig_len))
+	if (hex_decode_max(attest_hex, attest, attest_cap, attest_len) ||
+	    hex_decode_max(sig_hex, sig, sizeof(sig), &sig_len))
 		return -EINVAL;
 	if (tpm_attest_parse(attest, *attest_len, parsed)) {
 		say(rep, false, "%s: attestation structure unparseable", what);
@@ -755,8 +745,8 @@ int attest_verify(const char *evidence, size_t len,
 	__u8 expected_name[TPM_NAME_LEN], pcr_expected[32];
 	__u8 anchor_digest[32] = {}, cred[TPM_CREDENTIAL_LEN];
 	struct parse *p;
-	size_t ak_public_len, ak_name_len, nonce_len, attest_len;
-	size_t reg_name_len, reg_value_len, cred_len = 0, i, runtime = 0;
+	size_t ak_public_len, nonce_len, attest_len;
+	size_t cred_len = 0, i, runtime = 0;
 	__u64 reg_index;
 	__u32 bit;
 	bool have_ek = false, have_cred = false, replayed = true;
@@ -925,7 +915,7 @@ int attest_verify(const char *evidence, size_t len,
 		goto out;
 
 	/* Freshness: the document must answer this request. */
-	if (hex_bytes(p->nonce_hex, nonce, sizeof(nonce), &nonce_len)) {
+	if (hex_decode_max(p->nonce_hex, nonce, sizeof(nonce), &nonce_len)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -934,10 +924,9 @@ int attest_verify(const char *evidence, size_t len,
 	     !memneq_explicit(nonce, expect->nonce, nonce_len)),
 	    "nonce matches the request");
 
-	if (hex_bytes(p->ak_public_hex, ak_public, sizeof(ak_public),
-		      &ak_public_len) ||
-	    hex_bytes(p->ak_name_hex, ak_name, sizeof(ak_name), &ak_name_len) ||
-	    ak_name_len != TPM_NAME_LEN) {
+	if (hex_decode_max(p->ak_public_hex, ak_public, sizeof(ak_public),
+			   &ak_public_len) ||
+	    hex_decode(p->ak_name_hex, ak_name, TPM_NAME_LEN)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -969,13 +958,12 @@ int attest_verify(const char *evidence, size_t len,
 		__u8 ek_public[TPM_PUBLIC_MAX];
 		__u8 ek_name[TPM_NAME_LEN], computed[TPM_NAME_LEN];
 		struct tpm_public ek_pub;
-		size_t ek_public_len, ek_name_len;
+		size_t ek_public_len;
 		bool parsed;
 
-		if (hex_bytes(p->ek_public_hex, ek_public, sizeof(ek_public),
-			      &ek_public_len) ||
-		    hex_bytes(p->ek_name_hex, ek_name, sizeof(ek_name),
-			      &ek_name_len) || ek_name_len != TPM_NAME_LEN) {
+		if (hex_decode_max(p->ek_public_hex, ek_public,
+				   sizeof(ek_public), &ek_public_len) ||
+		    hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -995,15 +983,14 @@ int attest_verify(const char *evidence, size_t len,
 	}
 	if (expect->have_ek_name) {
 		__u8 ek_name[TPM_NAME_LEN];
-		size_t n;
 
 		say(&rep, have_ek &&
-		    !hex_bytes(p->ek_name_hex, ek_name, sizeof(ek_name), &n) &&
-		    n == TPM_NAME_LEN &&
+		    !hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN) &&
 		    !memneq_explicit(ek_name, expect->ek_name, TPM_NAME_LEN),
 		    "endorsement key: the pinned key");
 	}
-	if (have_cred && hex_bytes(p->cred_hex, cred, sizeof(cred), &cred_len)) {
+	if (have_cred &&
+	    hex_decode_max(p->cred_hex, cred, sizeof(cred), &cred_len)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1064,11 +1051,8 @@ int attest_verify(const char *evidence, size_t len,
 	if (ret == -EINVAL)
 		goto out;
 	crc = ret;
-	if (hex_bytes(p->reg_name_hex, reg_name, sizeof(reg_name),
-		      &reg_name_len) ||
-	    reg_name_len != TPM_NAME_LEN ||
-	    hex_bytes(p->reg_value_hex, reg_value, sizeof(reg_value),
-		      &reg_value_len) || reg_value_len != 32 ||
+	if (hex_decode(p->reg_name_hex, reg_name, TPM_NAME_LEN) ||
+	    hex_decode(p->reg_value_hex, reg_value, 32) ||
 	    strncmp(p->reg_index, "0x", 2) ||
 	    parse_x64(p->reg_index + 2, strlen(p->reg_index + 2), 0xffffffffULL,
 		      &reg_index) ||
@@ -1307,7 +1291,7 @@ int attest_challenge_read(const char *path,
 		{ "secret", JSON_T_STRING, secret_hex,
 		  sizeof(secret_hex), 0, NULL, 0 },
 	};
-	size_t len, ak_len;
+	size_t len;
 	char *doc;
 	int ret;
 
@@ -1329,12 +1313,12 @@ int attest_challenge_read(const char *path,
 		out->ek_rsa = true;
 	else if (strcmp(type, "ecc"))
 		return -EINVAL;
-	if (hex_bytes(ak_hex, out->ak_name, sizeof(out->ak_name), &ak_len) ||
-	    ak_len != TPM_NAME_LEN ||
-	    hex_bytes(blob_hex, out->blob, sizeof(out->blob), &out->blob_len) ||
+	if (hex_decode(ak_hex, out->ak_name, TPM_NAME_LEN) ||
+	    hex_decode_max(blob_hex, out->blob, sizeof(out->blob),
+			   &out->blob_len) ||
 	    out->blob_len != TPM_ID_OBJECT_LEN ||
-	    hex_bytes(secret_hex, out->secret, sizeof(out->secret),
-		      &out->secret_len) || !out->secret_len)
+	    hex_decode_max(secret_hex, out->secret, sizeof(out->secret),
+			   &out->secret_len) || !out->secret_len)
 		return -EINVAL;
 	return 0;
 }
@@ -1396,7 +1380,7 @@ int attest_challenge_make(const char *evidence, size_t len,
 		{ "ek_certificate", JSON_T_STRING, cert_b64,
 		  EK_CERT_B64_MAX, 0, NULL, 0 },
 	};
-	size_t ak_len, ek_public_len, ek_name_len, secret_len = 0, der_len = 0;
+	size_t ek_public_len, secret_len = 0, der_len = 0;
 	const char *reason = "";
 	int ret = -EINVAL;
 	bool rsa;
@@ -1416,12 +1400,10 @@ int attest_challenge_make(const char *evidence, size_t len,
 	if (json_parse(evidence, len, top, ARRAY_SIZE(top)) ||
 	    !ak_sub[0].seen || !ek_sub[0].seen || !ek_sub[1].seen ||
 	    !ek_sub[2].seen ||
-	    hex_bytes(ak_hex, ak_name, sizeof(ak_name), &ak_len) ||
-	    ak_len != TPM_NAME_LEN ||
-	    hex_bytes(ek_public_hex, ek_public, sizeof(ek_public),
-		      &ek_public_len) ||
-	    hex_bytes(ek_name_hex, ek_name, sizeof(ek_name), &ek_name_len) ||
-	    ek_name_len != TPM_NAME_LEN)
+	    hex_decode(ak_hex, ak_name, TPM_NAME_LEN) ||
+	    hex_decode_max(ek_public_hex, ek_public, sizeof(ek_public),
+			   &ek_public_len) ||
+	    hex_decode(ek_name_hex, ek_name, TPM_NAME_LEN))
 		goto out;
 	if (!strcmp(ek_type, "rsa"))
 		rsa = true;

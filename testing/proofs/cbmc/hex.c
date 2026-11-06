@@ -3,8 +3,10 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * util/hex.c for every input of up to LEN_MAX bytes: an encoding is
- * lowercase hex that decodes back to its input, and a decode takes
- * exactly 2 * n hex digits of either case and yields their value.
+ * lowercase hex that decodes back to its input, a decode takes exactly
+ * 2 * n hex digits of either case and yields their value, and one of at
+ * most cap bytes any even count of them up to 2 * cap, reading no
+ * further than the digit after those.
  */
 
 #include <errno.h>
@@ -71,8 +73,50 @@ static void decoded(void)
 				 "the value of each pair");
 }
 
+static void decoded_max(void)
+{
+	size_t len, cap, n, i;
+	bool hex = true;
+	char *s;
+	__u8 *out;
+	int ret;
+
+	__CPROVER_assume(len <= 2 * LEN_MAX + 1 && cap <= LEN_MAX);
+	s = any_bytes(len + 1);
+	__CPROVER_assume(!s[len] && strnlen(s, len) == len);
+	out = any_bytes(cap);
+	ret = hex_decode_max(s, out, cap, &n);
+	for (i = 0; i < len; i++)
+		if (digit(s[i]) < 0)
+			hex = false;
+	__CPROVER_assert(!ret || ret == -EINVAL, "0 or -EINVAL");
+	__CPROVER_assert(!ret == (len % 2 == 0 && len / 2 <= cap && hex),
+			 "an even count of hex digits, at most 2 * cap");
+	__CPROVER_assert(ret || n == len / 2, "half as many bytes");
+	for (i = 0; !ret && i < n; i++)
+		__CPROVER_assert(out[i] == digit(s[2 * i]) * 16 +
+					    digit(s[2 * i + 1]),
+				 "the value of each pair");
+}
+
+static void decoded_max_unterminated(void)
+{
+	size_t cap, n;
+	__u8 *out;
+	char *s;
+
+	__CPROVER_assume(cap <= LEN_MAX);
+	s = any_bytes(2 * cap + 1);
+	out = any_bytes(cap);
+	__CPROVER_assume(!memchr(s, '\0', 2 * cap + 1));
+	__CPROVER_assert(hex_decode_max(s, out, cap, &n) == -EINVAL,
+			 "too long, read no further than 2 * cap + 1");
+}
+
 void harness(void)
 {
 	encoded();
 	decoded();
+	decoded_max();
+	decoded_max_unterminated();
 }
