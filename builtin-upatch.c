@@ -2518,57 +2518,12 @@ static int emit_json_record(const char *path, const char *json, size_t len)
 		print_json_record(json, len);
 }
 
-static int copy_file_atomic(const char *src, const char *dst)
-{
-	char tmp[PATH_MAX + 8], buf[65536];
-	int in, out, dir, ret = 0;
-	ssize_t r;
-
-	if (strsprintf(tmp, sizeof(tmp), "%s.new", dst) < 0)
-		return -ENAMETOOLONG;
-	in = open(src, O_RDONLY | O_CLOEXEC);
-	if (in < 0)
-		return -errno;
-	out = seal_open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW,
-			0644);
-	if (out < 0) {
-		close(in);
-		return out;
-	}
-	while ((r = read(in, buf, sizeof(buf))) > 0) {
-		ret = write_complete(out, buf, (size_t)r);
-		if (ret)
-			break;
-	}
-	if (r < 0 && !ret)
-		ret = -errno;
-	if (!ret && fsync(out) != 0)
-		ret = -errno;
-	close(in);
-	if (close(out) != 0 && !ret)
-		ret = -errno;
-	if (ret) {
-		unlink(tmp);
-		return ret;
-	}
-	if (rename(tmp, dst) != 0) {
-		ret = -errno;
-		unlink(tmp);
-		return ret;
-	}
-	/* Persist the rename so a crash can't lose a "loaded" upatch. */
-	dir = open(UPATCHES_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-	if (dir >= 0) {
-		fsync(dir);
-		close(dir);
-	}
-	return 0;
-}
-
 static int persist_upatch(const char *src, const char *name)
 {
 	char dst[PATH_MAX];
 	struct stat ss, ds;
+	__u8 *buf = NULL;
+	size_t len = 0;
 	int ret;
 
 	ret = seal_mkdir_p(UPATCHES_DIR, 0700);
@@ -2584,7 +2539,12 @@ static int persist_upatch(const char *src, const char *name)
 	    ss.st_ino == ds.st_ino && ss.st_dev == ds.st_dev)
 		return 0;	/* already the installed copy */
 
-	return copy_file_atomic(src, dst);
+	ret = read_file(src, UPATCH_FILE_MAX, &buf, &len);
+	if (ret)
+		return ret;
+	ret = seal_write_file(dst, buf, len, 0644);
+	xfree(buf, len + 1);
+	return ret;
 }
 
 static int parse_op_args(int argc, const char **argv, const char *verb,
