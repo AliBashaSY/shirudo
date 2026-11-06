@@ -88,8 +88,13 @@ Worth writing:
 
 ## Use util/, and grow it
 
-Look for a helper before writing one: `git grep -n '<word>' util
-include/shirudo`. The basics:
+Never write the same logic twice. Before writing a parser, a check, a
+path, a copy loop or a record format, look for one that already does it,
+in `util/`, `include/shirudo/` and the builtins alike: `git grep -n
+'<word>'`. A variant that differs only in a length check, a bound or a
+message is still a copy: make one helper, with a parameter or with the
+extra check left to the caller, and move one found in a builtin into
+`util/` for both. The basics:
 
 | Need | Use |
 |---|---|
@@ -145,6 +150,9 @@ code, signing and the package builder, stays out of the core binary.
   variables, a clash with libc.
 - Locals in reverse-Christmas-tree order, longest line first, except
   where an initializer needs an earlier local.
+- Never two blank lines in a row. Removing code often brings the blank
+  lines around it together: drop one of them. checkpatch checks only
+  the lines a patch adds, so it does not see a pair a deletion makes.
 - A frame past 128 KiB fails the build: tables go on the heap, and a
   helper with a big buffer is `noinline_for_stack`.
 - Scrub a key, a seed, a credential or a buffer that held one with
