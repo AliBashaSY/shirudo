@@ -29,6 +29,11 @@ static bool grow(struct json_emit *e)
 		return false;
 	}
 	cap = min(cap, e->max);
+	/* put() writes a byte and the NUL behind it. */
+	if (cap <= e->len + 1) {
+		e->err = -E2BIG;
+		return false;
+	}
 	buf = xreallocarray(e->buf, e->cap, cap, 1);
 	if (!buf) {
 		e->err = -ENOMEM;

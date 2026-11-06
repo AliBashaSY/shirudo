@@ -717,6 +717,33 @@ static void walk_stops_where_a_callback_says(void)
 	EXPECT_EQ(json_walk("[\"a\"]", 5, &stop, NULL), 0);
 }
 
+static void grow_to(size_t max, int err)
+{
+	struct json_emit e = { .max = max };
+
+	json_obj_open(&e);
+	json_obj_close(&e);
+	EXPECT_EQ(e.err, err);
+	EXPECT_TRUE(e.cap <= max);
+	if (!err)
+		EXPECT_STREQ(e.buf, "{}");
+	xfree(e.buf, e.cap);
+}
+
+/* An emitter that may grow to max bytes holds max - 1 of text and a NUL. */
+static void growth_keeps_room_for_the_nul(void)
+{
+	struct json_emit one = { .max = 1 };
+
+	json_obj_open(&one);
+	EXPECT_EQ(one.err, -E2BIG);
+	EXPECT_EQ(one.len, 0);
+	xfree(one.buf, one.cap);
+	grow_to(1, -E2BIG);
+	grow_to(2, -E2BIG);
+	grow_to(3, 0);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(extracts_scalars_and_skips_nested_sets),
 	UNIT_CASE(skips_unknown_keys_and_objects),
@@ -732,6 +759,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(nested_array_then_trailing_scalar),
 	UNIT_CASE(seen_flags_are_the_elements_own),
 	UNIT_CASE(declared_key_takes_one_value),
+	UNIT_CASE(growth_keeps_room_for_the_nul),
 	UNIT_CASE(malformed_arrays_are_refused),
 	UNIT_CASE(object_array_takes_objects_only),
 	UNIT_CASE(integer_takes_json_integers_only),
