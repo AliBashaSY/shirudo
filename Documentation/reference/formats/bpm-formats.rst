@@ -351,7 +351,7 @@ Publication document
    * - ``schema``
      - ``1``. Required.
    * - ``tree_id``
-     - Non-empty. Required.
+     - A package name. Required.
    * - ``generation``
      - Required. 1 for the first publication, one more for each append.
        From 0 to 2\ :sup:`63` - 2.
@@ -481,9 +481,9 @@ Target acceptance
    matching its descriptor's digest and size.
 #. The signature verifies against the runtime image's initial
    certificate.
-#. The document parses with the rules above, ``base.seq`` is 0, and every
-   operation has a valid ``id``, ``op`` and digests and a correct
-   ``operation_digest``.
+#. The document parses with the rules above, ``tree_id`` is a package
+   name, ``base.seq`` is 0, and every operation has a valid ``id``,
+   ``op`` and digests and a correct ``operation_digest``.
 #. ``tree_id`` equals the one the node recorded.
 #. A publication other than the recorded one has a higher
    ``generation``. A direct successor that names a

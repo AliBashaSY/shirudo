@@ -2230,6 +2230,15 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		ret = -EINVAL;
 		goto out;
 	}
+	/*
+	 * The node records the tree ID in its state, which takes names
+	 * alone: one that is not would be applied, measured and logged
+	 * and then never recorded, failing every later sync.
+	 */
+	if (!bpm_package_name_ok(pub.tree_id)) {
+		ret = -EINVAL;
+		goto out;
+	}
 	/* Snapshot compaction belongs to a later schema. */
 	if (pub.base_seq != 0) {
 		ret = -ENOTSUP;
