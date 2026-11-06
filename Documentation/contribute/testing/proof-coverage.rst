@@ -73,6 +73,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``lines_len()``
      - Up to 8 bytes
      - Ends at a newline or is 0, with no newline behind it
+   * - ``attest-pcrs``
+     - ``attest_parse_pcrs()``, ``attest_parse_pcr_value()``
+     - Up to 6 bytes
+     - A list is accepted exactly when it is decimal PCRs 0 to 23 apart
+       by single commas, into the mask of those PCRs; a value exactly
+       after a PCR to 23 and an equals sign
    * - ``paths-bpffs-name``
      - ``upatch_bpffs_name()``, ``upatch_name_from_bpffs()``
      - Names up to 4 bytes, pin names up to 8

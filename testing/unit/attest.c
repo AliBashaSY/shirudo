@@ -20,6 +20,8 @@ static void pcrs_are_a_list_up_to_23(void)
 	EXPECT_EQ(attest_parse_pcrs("24", &mask), -EINVAL);
 	EXPECT_EQ(attest_parse_pcrs("1,,2", &mask), -EINVAL);
 	EXPECT_EQ(attest_parse_pcrs(",1", &mask), -EINVAL);
+	EXPECT_EQ(attest_parse_pcrs("1,", &mask), -EINVAL);
+	EXPECT_EQ(attest_parse_pcrs("1,2,", &mask), -EINVAL);
 	EXPECT_EQ(attest_parse_pcrs("1 ", &mask), -EINVAL);
 	EXPECT_EQ(attest_parse_pcrs("+1", &mask), -EINVAL);
 	EXPECT_EQ(attest_parse_pcrs("0x1", &mask), -EINVAL);

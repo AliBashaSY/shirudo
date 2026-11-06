@@ -1570,7 +1570,7 @@ int attest_parse_pcrs(const char *list, __u32 *mask)
 			return -EINVAL;
 		*mask |= 1u << n;
 		p += len;
-		if (*p == ',')
+		if (*p == ',' && p[1])
 			p++;
 		else if (*p)
 			return -EINVAL;
