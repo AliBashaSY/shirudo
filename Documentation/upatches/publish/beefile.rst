@@ -27,7 +27,10 @@ A Beefile is a small subset of TOML, read line by line.
   or nothing.
 - A value is a quoted string or an array of quoted strings on the same
   line. A ``"..."`` string takes the escapes ``\n``, ``\r``, ``\t``,
-  ``\\`` and ``\"``; a ``'...'`` string takes none.
+  ``\\`` and ``\"``; a ``'...'`` string takes none. A tree id or
+  selector value holding a control character, as the first three spell,
+  is refused by ``bpm tree append``, as no node could read the
+  publication.
 - ``#`` starts a comment outside a string.
 - Numeric values are accepted for policy bit masks; booleans, inline
   tables and values that span lines are not supported.

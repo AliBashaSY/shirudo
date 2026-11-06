@@ -600,6 +600,52 @@ static int tree_selector_kv_compare(const void *left, const void *right)
  * the publisher's order. Targets recompute operation digests from this
  * form, so publisher and consumer share one emitter.
  */
+/*
+ * tp_string() refuses a control character, however it is escaped, so
+ * the emitter writes none: a publication would go out that no node can
+ * read, and every later sync of the tree would fail on it.
+ */
+static bool tree_text(const char *s)
+{
+	for (; *s; s++)
+		if ((__u8)*s < 0x20)
+			return false;
+	return true;
+}
+
+static bool tree_texts(const char (*v)[TREE_STRING_MAX], int n)
+{
+	for (int i = 0; i < n; i++)
+		if (!tree_text(v[i]))
+			return false;
+	return true;
+}
+
+static bool tree_kv_texts(const struct tree_selector_kv *kv, int n)
+{
+	for (int i = 0; i < n; i++)
+		if (!tree_text(kv[i].key) ||
+		    !tree_texts(kv[i].values, kv[i].n_values))
+			return false;
+	return true;
+}
+
+static bool tree_operation_text(const struct tree_operation *op)
+{
+	const struct tree_selector *s = &op->selector;
+	const struct tree_artifact *a = &op->artifact;
+
+	return tree_text(op->op) && tree_text(op->id) &&
+	       tree_texts(s->kernel_release_prefix,
+			  s->n_kernel_release_prefix) &&
+	       tree_texts(s->kernel_build_id, s->n_kernel_build_id) &&
+	       tree_texts(s->architecture, s->n_architecture) &&
+	       tree_kv_texts(s->kconfig, s->n_kconfig) &&
+	       tree_kv_texts(s->labels, s->n_labels) &&
+	       tree_text(a->repository) && tree_text(a->manifest_digest) &&
+	       tree_text(a->layer_digest) && tree_text(a->payload_sha256);
+}
+
 static int tree_emit_selector(struct json_emit *e,
 			      const struct tree_selector *s)
 {
@@ -678,6 +724,8 @@ static int tree_emit_operation(struct json_emit *e,
 {
 	int ret;
 
+	if (!tree_operation_text(op))
+		return -EINVAL;
 	json_obj_open(e);
 	json_kv_int(e, "seq", op->seq);
 	json_kv_string(e, "op", op->op);
