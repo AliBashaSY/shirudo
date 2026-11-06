@@ -1549,13 +1549,6 @@ static int otel_close(void *state)
 	return 0;
 }
 
-static size_t generic_log_capacity(size_t body_len)
-{
-	size_t cap = size_add(size_mul(body_len, 4), 65536);
-
-	return cap == SIZE_MAX ? 0 : cap;
-}
-
 static int build_generic_log_payload(const char *scope_name,
 				     const char *event_name,
 				     int severity_number,
@@ -1566,29 +1559,18 @@ static int build_generic_log_payload(const char *scope_name,
 				     char **out, size_t *out_len,
 				     size_t *alloc_len)
 {
-	struct json_emit e = {};
-	char *buf;
+	struct json_emit e = { .max = JSON_MAX_BYTES };
 	int ret;
-	size_t cap;
 
 	if (!scope_name || !event_name || !severity_text || !body_json ||
 	    !out || !out_len || !alloc_len)
 		return -EINVAL;
-	cap = generic_log_capacity(body_len);
-	if (!cap)
-		return -EOVERFLOW;
-	buf = xmalloc(cap);
-	if (!buf)
-		return -ENOMEM;
-	e.buf = buf;
-	e.cap = cap;
-
 	log_open(&e, scope_name, severity_number, severity_text, event_name);
 	json_obj_open_key(&e, "body");
 	ret = json_anyvalue_from_document(&e, body_json, body_len, false);
 	json_obj_close(&e);
 	if (ret) {
-		xfree(buf, cap);
+		xfree(e.buf, e.cap);
 		return ret;
 	}
 	json_arr_open(&e, "attributes");
@@ -1601,12 +1583,12 @@ static int build_generic_log_payload(const char *scope_name,
 	json_arr_close(&e);
 	log_close(&e);
 	if (e.err) {
-		xfree(buf, cap);
+		xfree(e.buf, e.cap);
 		return e.err;
 	}
-	*out = buf;
+	*out = e.buf;
 	*out_len = e.len;
-	*alloc_len = cap;
+	*alloc_len = e.cap;
 	return 0;
 }
 

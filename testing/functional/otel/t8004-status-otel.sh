@@ -100,6 +100,31 @@ PY
 	done
 '
 
+test_expect_success 'a status body many times larger as AnyValues is sent whole' '
+	work=$(mktemp -d) || return 1
+	python3 helper/otel-mock.py success "$work/port" "$work/body" \
+		"$work/meta" &
+	server=$!
+	trap "kill $server 2>/dev/null || true; wait $server 2>/dev/null || true; rm -rf $work" EXIT
+	i=0
+	while test ! -s "$work/port" && test "$i" -lt 100; do
+		sleep .02
+		i=$((i + 1))
+	done
+	port=$(cat "$work/port") &&
+	"$H" send-wide-status "http://127.0.0.1:$port" 100000 &&
+	wait "$server" &&
+	python3 - "$work/body" <<'\''PY'\'' &&
+import json, sys
+rl = json.load(open(sys.argv[1]))["resourceLogs"][0]
+record = rl["scopeLogs"][0]["logRecords"][0]
+body = {item["key"]: item["value"] for item in record["body"]["kvlistValue"]["values"]}
+values = body["conditions"]["arrayValue"]["values"]
+assert len(values) == 100000 and values[-1] == {"intValue": "1"}, len(values)
+PY
+	rm -rf "$work"
+'
+
 test_expect_success 'status --json --otel keeps JSON output available' '
 	work=$(mktemp -d)
 	python3 helper/otel-mock.py success "$work/port" "$work/body" \

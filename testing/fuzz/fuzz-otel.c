@@ -89,10 +89,10 @@ static size_t deepest_nesting(const char *s, size_t len)
 
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 {
-	struct json_emit e = {};
+	struct json_emit e = { .max = JSON_MAX_BYTES };
 	struct otel_response r = {};
 	struct otel_state st = {};
-	size_t off, n, cap;
+	size_t off, n;
 	char *body, *line;
 	int ret;
 
@@ -120,27 +120,25 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	check_partial_success(OTEL_LOG, body, size);
 	check_partial_success(OTEL_METRIC, body, size);
 
-	cap = generic_log_capacity(size);
-	e.buf = xmalloc(cap);
-	if (e.buf) {
-		e.cap = cap;
-		json_obj_open(&e);
-		/*
-		 * What the conversion writes reads back as JSON. An input level
-		 * takes up to four in the output, which can so nest deeper than
-		 * the walk goes; such output must read back up to that depth.
-		 */
-		if (!json_anyvalue_from_document(&e, body, size, false)) {
-			json_obj_close(&e);
-			if (!e.err) {
-				ret = json_walk(e.buf, e.len, &any_value, NULL);
-				if (deepest_nesting(e.buf, e.len) <= JSON_MAX_DEPTH ?
-				    ret : ret != -E2BIG)
-					abort();
-			}
+	json_obj_open(&e);
+	/*
+	 * What the conversion writes reads back as JSON, in a buffer that
+	 * grows for it. An input level takes up to four in the output,
+	 * which can so nest deeper than the walk goes; such output must read
+	 * back up to that depth.
+	 */
+	if (!json_anyvalue_from_document(&e, body, size, false)) {
+		json_obj_close(&e);
+		if (e.err == -ENOSPC)
+			abort();
+		if (!e.err) {
+			ret = json_walk(e.buf, e.len, &any_value, NULL);
+			if (deepest_nesting(e.buf, e.len) <= JSON_MAX_DEPTH ?
+			    ret : ret != -E2BIG)
+				abort();
 		}
-		xfree(e.buf, cap);
 	}
+	xfree(e.buf, e.cap);
 
 	if (!memchr(data, '\0', size)) {
 		if (!add_configured_headers(&st, body)) {
