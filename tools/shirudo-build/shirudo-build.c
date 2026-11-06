@@ -81,23 +81,6 @@ static void usage(FILE *fp)
 		CERT_PATH, VMLINUX_PATH);
 }
 
-static const char *derive_name(const char *input, char *buf, size_t buf_sz)
-{
-	const char *base = strrchr(input, '/');
-	size_t n;
-
-	strscpy(buf, base ? base + 1 : input, buf_sz);
-
-	n = strlen(buf);
-	if (n > 6 && strcmp(buf + n - 6, ".bpf.c") == 0)
-		buf[n - 6] = '\0';
-	else if (n > 6 && strcmp(buf + n - 6, ".bpf.o") == 0)
-		buf[n - 6] = '\0';
-	else if (n > 2 && strcmp(buf + n - 2, ".o") == 0)
-		buf[n - 2] = '\0';
-	return buf;
-}
-
 /* foo/bar.bpf.c lands at foo/bar.bpf.upatch beside its input. */
 static int derive_output(const char *input, char *buf, size_t buf_sz)
 {
@@ -410,8 +393,13 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	if (!name)
-		name = derive_name(input, name_buf, sizeof(name_buf));
+	if (!name) {
+		if (build_upatch_name(input, name_buf, sizeof(name_buf))) {
+			pr_err("upatch name from %s too long", input);
+			return 2;
+		}
+		name = name_buf;
+	}
 
 	ret = build_package_load(bpf_o, src_path, output, name,
 				 NULL, 0, pkey, cert);

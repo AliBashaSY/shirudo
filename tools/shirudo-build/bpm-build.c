@@ -1129,17 +1129,20 @@ static int build_entry_name(char *out, size_t cap, const char *top,
 	return 0;
 }
 
-static void build_upatch_name(const char *source, char *out, size_t cap)
+int build_upatch_name(const char *source, char *out, size_t cap)
 {
 	const char *base = strrchr(source, '/');
-	size_t n;
+	ssize_t n;
 
-	strscpy(out, base ? base + 1 : source, cap);
-	n = strlen(out);
-	if (n > 6 && (!strcmp(out + n - 6, ".bpf.c") || !strcmp(out + n - 6, ".bpf.o")))
+	n = strscpy(out, base ? base + 1 : source, cap);
+	if (n < 0)
+		return n;
+	if (name_has_suffix(out, n, ".bpf.c") ||
+	    name_has_suffix(out, n, ".bpf.o"))
 		out[n - 6] = '\0';
-	else if (n > 2 && !strcmp(out + n - 2, ".o"))
+	else if (name_has_suffix(out, n, ".o"))
 		out[n - 2] = '\0';
+	return 0;
 }
 
 /*
@@ -1306,7 +1309,8 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			pr_err("bpm build: %s is neither .bpf.c nor .bpf.o", u->source);
 			return -EINVAL;
 		}
-		build_upatch_name(source, name, sizeof(name));
+		if (build_upatch_name(source, name, sizeof(name)))
+			return -ENAMETOOLONG;
 		for (size_t j = 0; j < u->n_policies; j++)
 			nr_labels += u->policies[j].n_paths;
 		if (nr_labels) {
@@ -2184,8 +2188,10 @@ static int __build_bpm_config_update(int argc, char **argv,
 		ret = build_package_verify(load, cert_path);
 		if (ret)
 			break;
-		build_upatch_name(upatch->source, expected_name,
-				  sizeof(expected_name));
+		ret = build_upatch_name(upatch->source, expected_name,
+					sizeof(expected_name));
+		if (ret)
+			break;
 		ret = upatch_open(load, &parsed);
 		if (ret)
 			break;
