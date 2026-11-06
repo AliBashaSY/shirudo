@@ -488,6 +488,52 @@ int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 	return walk_boot(lines_line, &l);
 }
 
+struct tree_op_ctx {
+	const char	*operation_digest;
+	__s64		seq;
+	bool		found;
+};
+
+static int tree_op_line(const char *line, size_t len, bool is_init,
+			void *ctx)
+{
+	struct tree_op_ctx *t = ctx;
+	char type[32], digest[128];
+	__s64 seq = 0;
+	struct json_field tree[] = {
+		{ "seq", JSON_T_INT, &seq, 0, 0, NULL, 0 },
+		{ "operation_digest", JSON_T_STRING, digest, sizeof(digest),
+		  0, NULL, 0 },
+	};
+	struct json_field f[] = {
+		{ "type", JSON_T_STRING, type, sizeof(type), 0, NULL, 0 },
+		{ "tree", JSON_T_OBJECT, NULL, 0, 0, tree, ARRAY_SIZE(tree) },
+	};
+
+	if (json_parse(line, len, f, ARRAY_SIZE(f)))
+		return -EINVAL;
+	if (f[0].seen && !strcmp(type, "tree_op") && tree[0].seen &&
+	    tree[1].seen && seq == t->seq &&
+	    !strcmp(digest, t->operation_digest))
+		t->found = true;
+	return 0;
+}
+
+int eventlog_tree_op_measured(__s64 seq, const char *operation_digest)
+{
+	struct tree_op_ctx t = {
+		.operation_digest = operation_digest, .seq = seq,
+	};
+	int ret;
+
+	ret = walk_boot(tree_op_line, &t);
+	if (ret == -ENOENT)
+		return 0;
+	if (ret)
+		return ret;
+	return t.found;
+}
+
 struct upatches_ctx {
 	int	(*cb)(enum eventlog_upatch_event event, const char *name,
 		      const char *payload_hex, void *ctx);

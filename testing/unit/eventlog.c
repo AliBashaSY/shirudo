@@ -122,9 +122,53 @@ static void nul_in_the_log_is_refused(void)
 	drop_log();
 }
 
+#define OPERATION "sha256:abababababababababababababababababababababababababababababababab"
+
+static void tree_record(char *buf, size_t cap, __s64 seq, const char *op)
+{
+	struct json_emit e = { .buf = buf, .cap = cap };
+	__u8 digest[32];
+
+	memset(digest, 7, sizeof(digest));
+	eventlog_record_open(&e, "tree_op", digest);
+	json_obj_open_key(&e, "tree");
+	json_kv_int(&e, "seq", seq);
+	json_kv_string(&e, "operation_digest", op);
+	json_obj_close(&e);
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+}
+
+/*
+ * Tree recovery asks whether an operation was measured this boot before
+ * it applies the operation again, which would measure it twice.
+ */
+static void tree_op_measured_this_boot(void)
+{
+	char init[1024], tree[1024], text[2048];
+	int len;
+
+	use_log();
+	record(init, sizeof(init), "init", 1);
+	tree_record(tree, sizeof(tree), 3, OPERATION);
+	EXPECT_EQ(eventlog_tree_op_measured(3, OPERATION), 0);
+	len = strsprintf(text, sizeof(text), "%s\n%s\n", init, tree);
+	ASSERT_TRUE(len > 0);
+	write_log(text, (size_t)len);
+	EXPECT_EQ(eventlog_tree_op_measured(3, OPERATION), 1);
+	EXPECT_EQ(eventlog_tree_op_measured(4, OPERATION), 0);
+	EXPECT_EQ(eventlog_tree_op_measured(3, OPERATION "0"), 0);
+	len = strsprintf(text, sizeof(text), "%s\n", tree);
+	ASSERT_TRUE(len > 0);
+	write_log(text, (size_t)len);
+	EXPECT_EQ(eventlog_tree_op_measured(3, OPERATION), 0);
+	drop_log();
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(unfinished_append_is_no_record),
 	UNIT_CASE(nul_in_the_log_is_refused),
+	UNIT_CASE(tree_op_measured_this_boot),
 	{}
 };
 

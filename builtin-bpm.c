@@ -2053,7 +2053,9 @@ static int tree_measure_operation(const struct tree_operation *op,
 
 /*
  * Complete the only non-idempotent window: the process may have
- * appended the event before the sealed cursor was committed.
+ * measured the operation, or appended its tree event too, before the
+ * sealed cursor was committed. Applying it again would extend the
+ * register with it a second time this boot.
  */
 static int tree_recover_pending(const struct tree_publication *pub,
 				struct tree_state *state)
@@ -2103,9 +2105,15 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	} else if (ret != -ENOENT) {
 		return -EKEYREJECTED;
 	}
-	/* Still pre-operation; retry normally. */
-	if (!applied)
-		return 0;
+	if (!applied) {
+		ret = eventlog_tree_op_measured(op->seq, op->operation_digest);
+		if (ret < 0)
+			return -EKEYREJECTED;
+		/* Still pre-operation; retry normally. */
+		if (!ret)
+			return 0;
+		applied = true;
+	}
 	if (!event_present) {
 		ret = tree_event_append(op->seq, op->operation_digest, next);
 		if (ret)

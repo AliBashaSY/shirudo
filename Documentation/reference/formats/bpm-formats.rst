@@ -528,7 +528,10 @@ not published.
        did not finish: the replay skips it and the next append drops it.
    * - ``pending.json``
      - JSON object with ``schema`` (1), ``seq``, ``id`` and
-       ``operation_digest`` while an operation is in progress.
+       ``operation_digest`` while an operation is in progress. The next
+       sync completes the operation without applying it again when the
+       tree eventlog or this boot's eventlog already records it, and
+       applies it again otherwise.
    * - ``artifacts/<hex>.upatch``
      - Fetched artifacts, named by their layer digest.
    * - ``status/<id>``

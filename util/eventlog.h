@@ -78,6 +78,13 @@ int eventlog_boot_init(struct eventlog_init *out);
 int eventlog_boot_lines(int (*cb)(const char *line, size_t len,
 				  void *ctx), void *ctx);
 
+/*
+ * Whether this boot's records hold the tree_op of operation seq with
+ * operation_digest: 1, 0, or -errno when the log cannot be read. A boot
+ * without an init record holds none.
+ */
+int eventlog_tree_op_measured(__s64 seq, const char *operation_digest);
+
 enum eventlog_upatch_event {
 	EVENTLOG_UPATCH_INIT,
 	EVENTLOG_UPATCH_LOAD,
