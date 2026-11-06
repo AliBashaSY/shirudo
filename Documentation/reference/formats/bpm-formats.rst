@@ -281,8 +281,8 @@ The index document:
        package layer has another digest, and a download that hashes to
        another value.
    * - ``package_size``
-     - Size of the ``.bee`` layer in bytes. When positive, the target
-       refuses a layer of another size.
+     - Size of the ``.bee`` layer in bytes, required and positive. The
+       target refuses a layer of another size.
    * - ``signer_fingerprint``
      - ``shirudo.spki_sha256_fingerprint`` of the package. Not checked by
        the target.

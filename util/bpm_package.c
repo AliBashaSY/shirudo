@@ -50,7 +50,7 @@ static int on_index_entry(void *ud)
 		return -E2BIG;
 	if (!bpm_name_ok(s->scratch.name) || !bpm_version_ok(s->scratch.version) ||
 	    !s->scratch.repository[0] || !s->scratch.manifest_digest[0] ||
-	    !s->scratch.package_digest[0] || s->scratch.package_size < 0)
+	    !s->scratch.package_digest[0] || s->scratch.package_size <= 0)
 		return -EINVAL;
 	s->items[s->n++] = s->scratch;
 	/* A field the next entry leaves out is not this entry's. */
@@ -67,6 +67,8 @@ int bpm_index_parse(const __u8 *body, size_t len,
 	struct json_field sub[7], root[2];
 	__s64 schema = 0;
 
+	/* Missing from the first entry as from any other, not 0. */
+	sink.scratch.package_size = -1;
 	memset(sub, 0, sizeof(sub));
 	sub[0] = (struct json_field){
 		.key = "name", .type = JSON_T_STRING,

@@ -491,13 +491,13 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover eleven of the modules in
-:src:`util/`: ``chain``, ``eventlog``, ``hex``, ``io``, ``json``,
-``kernel_abi``, ``kernel_build_id``, ``kernel_release``, ``string``,
-``upatch`` and ``upatch_decode``, and ``overflow`` the arithmetic of
-:src:`include/shirudo/overflow.h`. The other modules are reached through
-the test helpers, the fuzz targets and the binaries the functional tests
-run.
+The unit suites in :src:`testing/unit/` cover twelve of the modules in
+:src:`util/`: ``bpm_package``, ``chain``, ``eventlog``, ``hex``, ``io``,
+``json``, ``kernel_abi``, ``kernel_build_id``, ``kernel_release``,
+``string``, ``upatch`` and ``upatch_decode``, and ``overflow`` the
+arithmetic of :src:`include/shirudo/overflow.h`. The other modules are
+reached through the test helpers, the fuzz targets and the binaries the
+functional tests run.
 
 .. list-table::
    :header-rows: 1
@@ -621,7 +621,8 @@ Coverage by area
      - ``t7001``, ``t7002``, ``t7003``, ``t7004``, ``t7005``,
        ``t7006``. Fuzz:
        ``beefile``, ``bpm-index``, ``bpm-package``, ``bpm-tar``,
-       ``oci-http``, ``oci-manifest``, ``oci-ref``, ``registry-auth``
+       ``oci-http``, ``oci-manifest``, ``oci-ref``, ``registry-auth``. Unit:
+       ``bpm_package``
    * - upatch tree
      - ``t3011``, ``t5004``, ``t7005``, ``t7101``, ``t7102``,
        ``t7103``, ``t7104``, ``t9105``. Fuzz: ``tree``, ``tree-state``,
