@@ -35,6 +35,7 @@
 #include "builtin.h"
 #include "util/bpm_oci.h"
 #include "util/bpm_package.h"
+#include "util/bpm_state.h"
 #include "util/bpm_tree.h"
 #include "util/bpm_source_config.h"
 #include "util/chain.h"
@@ -57,13 +58,6 @@ struct bpm_source {
 	char endpoint[BPM_MAX_ENDPOINT];
 	char index_repository[BPM_MAX_ENDPOINT];
 	char key_file[BPM_MAX_KEY];
-};
-
-struct bpm_state_entry {
-	char name[BPM_MAX_NAME];
-	char version[BPM_MAX_NAME];
-	char source[BPM_MAX_NAME];
-	char path[PATH_MAX];
 };
 
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz);
@@ -942,112 +936,6 @@ static int list_keys(bool json)
 	for (size_t i = 0; i < count; i++)
 		xstrfree(fingerprints[i]);
 	xfree(fingerprints, cap * sizeof(*fingerprints));
-	return ret;
-}
-
-struct state_sink {
-	struct bpm_state_entry *items;
-	int n;
-	struct bpm_state_entry scratch;
-};
-
-static int on_state_entry(void *ud)
-{
-	struct state_sink *s = ud;
-	char expected[PATH_MAX];
-
-	if (s->n >= BPM_MAX_STATE || !s->scratch.name[0] || !s->scratch.version[0])
-		return -E2BIG;
-	if (!bpm_name_ok(s->scratch.name) || !bpm_version_ok(s->scratch.version) ||
-	    !bpm_name_ok(s->scratch.source))
-		return -EINVAL;
-	if (strsprintf(expected, sizeof(expected), "%s/%s/%s",
-		       BPM_PACKAGES_DIR, s->scratch.name,
-		       s->scratch.version) < 0 ||
-	    strcmp(expected, s->scratch.path))
-		return -EINVAL;
-	s->items[s->n++] = s->scratch;
-	/* A field the next entry leaves out is not this entry's. */
-	memset(&s->scratch, 0, sizeof(s->scratch));
-	return 0;
-}
-
-static int state_read(struct bpm_state_entry *st, int *n)
-{
-	__u8 *body;
-	size_t len;
-	int ret;
-	struct state_sink sink = { .items = st };
-	struct json_array arr = { on_state_entry, &sink };
-	struct json_field sub[4], root[1];
-
-	ret = read_file(BPM_STATE_PATH, 8u * 1024u * 1024u,
-			&body, &len);
-	if (ret == -ENOENT) {
-		*n = 0;
-		return 0;
-	}
-	if (ret)
-		return ret;
-	sub[0] = (struct json_field){
-		.key = "name", .type = JSON_T_STRING,
-		.dst = sink.scratch.name, .dst_cap = sizeof(sink.scratch.name),
-	};
-	sub[1] = (struct json_field){
-		.key = "version", .type = JSON_T_STRING,
-		.dst = sink.scratch.version,
-		.dst_cap = sizeof(sink.scratch.version),
-	};
-	sub[2] = (struct json_field){
-		.key = "source", .type = JSON_T_STRING,
-		.dst = sink.scratch.source,
-		.dst_cap = sizeof(sink.scratch.source),
-	};
-	sub[3] = (struct json_field){
-		.key = "path", .type = JSON_T_STRING,
-		.dst = sink.scratch.path, .dst_cap = sizeof(sink.scratch.path),
-	};
-	root[0] = (struct json_field){
-		.key = "packages", .type = JSON_T_ARRAY,
-		.dst = &arr, .sub = sub, .n_sub = ARRAY_SIZE(sub),
-	};
-	ret = json_parse((const char *)body, len, root, ARRAY_SIZE(root));
-	xfree(body, len + 1);
-	if (ret || !root[0].seen)
-		return ret ? ret : -EINVAL;
-	*n = sink.n;
-	return 0;
-}
-
-static int state_write(const struct bpm_state_entry *st, int n)
-{
-	const size_t cap = 1024 * 1024;
-	struct json_emit e = {};
-	char *buf;
-	int ret;
-
-	buf = xmalloc(cap);
-	if (!buf)
-		return -ENOMEM;
-	e = (struct json_emit){ .buf = buf, .cap = cap };
-	json_obj_open(&e);
-	json_kv_int(&e, "schema", 1);
-	json_arr_open(&e, "packages");
-	for (int i = 0; i < n; i++) {
-		json_obj_open(&e);
-		json_kv_string(&e, "name", st[i].name);
-		json_kv_string(&e, "version", st[i].version);
-		json_kv_string(&e, "source", st[i].source);
-		json_kv_string(&e, "path", st[i].path);
-		json_obj_close(&e);
-	}
-	json_arr_close(&e);
-	json_obj_close(&e);
-	ret = e.err ? -E2BIG : seal_mkdir_p(BPM_VAR_DIR, 0700);
-	if (!ret)
-		ret = seal_write_file(BPM_STATE_PATH, buf, e.len,
-				      0600);
-	xfree(buf, cap);
 	return ret;
 }
 
@@ -2635,7 +2523,7 @@ static int bpm_install(const char *ref, struct bpm_tables *t)
 					sizeof(name), version, sizeof(version));
 	}
 	if (!ret)
-		ret = state_read(state, &n_state);
+		ret = bpm_state_read(state, &n_state);
 	if (ret)
 		return bpm_finish(lock, ret, "install");
 	for (i = 0; i < n_state; i++) {
@@ -2674,7 +2562,7 @@ static int bpm_install(const char *ref, struct bpm_tables *t)
 		       direct ? selected.name : name,
 		       selected.version) < 0)
 		return bpm_finish(lock, -ENAMETOOLONG, "install");
-	ret = state_write(state, n_state + 1);
+	ret = bpm_state_write(state, n_state + 1);
 	if (ret) {
 		/* Unlisted, the package could never be removed. */
 		if (package_uninstall(&state[n_state]))
@@ -2698,7 +2586,7 @@ static int bpm_upgrade(const char *unused, struct bpm_tables *t)
 	lock = with_bpm_lock();
 	if (lock < 0)
 		return bpm_finish(-1, lock, "lock");
-	ret = state_read(state, &n_state);
+	ret = bpm_state_read(state, &n_state);
 	if (ret)
 		return bpm_finish(lock, ret, "read state");
 	for (i = 0; i < n_state; i++) {
@@ -2738,7 +2626,7 @@ static int bpm_upgrade(const char *unused, struct bpm_tables *t)
 		bpm_copy_string(state[i].path, sizeof(state[i].path), path);
 	}
 	/* Packages upgraded before a failure stay on record. */
-	wrc = state_write(state, n_state);
+	wrc = bpm_state_write(state, n_state);
 	if (ret)
 		return bpm_finish(lock, ret, "upgrade");
 	return bpm_finish(lock, wrc, "write state");
@@ -2931,7 +2819,7 @@ int cmd_bpm(int argc, const char **argv)
 		state = xcalloc(BPM_MAX_STATE, sizeof(*state));
 		if (!state)
 			return bpm_fail("list", -ENOMEM);
-		ret = state_read(state, &n_state);
+		ret = bpm_state_read(state, &n_state);
 		if (!ret && json) {
 			size_t cap = 256 + (size_t)n_state * 3 * BPM_MAX_NAME;
 			char *buf = xmalloc(cap);
@@ -2993,7 +2881,7 @@ int cmd_bpm(int argc, const char **argv)
 			xfree(state, BPM_MAX_STATE * sizeof(*state));
 			return bpm_finish(-1, lock, "lock");
 		}
-		ret = state_read(state, &n_state);
+		ret = bpm_state_read(state, &n_state);
 		for (i = 0; !ret && i < n_state; i++) {
 			if (!strcmp(state[i].name, argv[2]))
 				break;
@@ -3005,7 +2893,7 @@ int cmd_bpm(int argc, const char **argv)
 		if (!ret) {
 			memmove(&state[i], &state[i + 1],
 				(size_t)(n_state - i - 1) * sizeof(*state));
-			ret = state_write(state, n_state - 1);
+			ret = bpm_state_write(state, n_state - 1);
 		}
 		xfree(state, BPM_MAX_STATE * sizeof(*state));
 		return bpm_finish(lock, ret, "uninstall");

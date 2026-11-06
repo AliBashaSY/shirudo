@@ -244,6 +244,7 @@ UTIL_SRCS := \
     util/bpm_tree_state.c \
     util/bpm_oci.c \
     util/bpm_package.c \
+    util/bpm_state.c \
     util/kernel_build_id.c \
     util/kernel_release.c \
     util/config.c \
