@@ -919,22 +919,19 @@ static int cmd_attest_challenge(int argc, const char **argv)
 		goto out;
 	}
 	{
-		int fd = seal_output_open(out_path,
-					  O_WRONLY | O_CREAT | O_TRUNC, 0600);
+		struct seal_output out;
 
-		if (fd < 0) {
+		err = seal_output_create(&out, out_path, 0600);
+		if (err) {
 			pr_err("attest challenge: open %s: %s", out_path,
-			       strerror(-fd));
+			       strerror(-err));
 			ret = 1;
 			goto out;
 		}
-		err = write_complete(fd, doc, len) ||
-		     write_complete(fd, "\n", 1) ? -EIO : 0;
-		if (close(fd) && !err)
-			err = -EIO;
+		err = seal_output_commit(&out, doc, len);
 		if (err) {
 			pr_err("attest challenge: write %s: %s", out_path,
-			       strerror(errno));
+			       strerror(-err));
 			ret = 1;
 			goto out;
 		}
@@ -1042,21 +1039,16 @@ static int cmd_attest_evidence(int argc, const char **argv)
 		return 1;
 	}
 	if (out_path) {
-		int fd = seal_output_open(out_path,
-					  O_WRONLY | O_CREAT | O_TRUNC, 0600);
+		struct seal_output out;
 
-		if (fd < 0) {
-			pr_err("attest: open %s: %s", out_path, strerror(-fd));
-			ret = fd;
+		ret = seal_output_create(&out, out_path, 0600);
+		if (ret) {
+			pr_err("attest: open %s: %s", out_path, strerror(-ret));
 		} else {
-			if (write_complete(fd, doc, len) ||
-			    write_complete(fd, "\n", 1))
-				ret = -EIO;
-			if (close(fd) && !ret)
-				ret = -EIO;
+			ret = seal_output_commit(&out, doc, len);
 			if (ret)
 				pr_err("attest: write %s: %s", out_path,
-				       strerror(errno));
+				       strerror(-ret));
 		}
 	} else if (fwrite(doc, 1, len, stdout) != len ||
 		   fputc('\n', stdout) == EOF) {

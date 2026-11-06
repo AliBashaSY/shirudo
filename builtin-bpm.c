@@ -1880,18 +1880,11 @@ static int tree_write_report(const char *path, const struct tree_state *s,
 	if (e.err)
 		return e.err;
 	if (path) {
-		int fd, ret;
+		struct seal_output out;
+		int ret;
 
-		fd = seal_output_open(path, O_WRONLY | O_CREAT | O_TRUNC,
-				      0600);
-		if (fd < 0)
-			return fd;
-		ret = write_complete(fd, buf, e.len);
-		if (!ret)
-			ret = write_complete(fd, "\n", 1);
-		if (close(fd) && !ret)
-			ret = -errno;
-		return ret;
+		ret = seal_output_create(&out, path, 0600);
+		return ret ? ret : seal_output_commit(&out, buf, e.len);
 	}
 	printf("%s\n", buf);
 	return 0;
