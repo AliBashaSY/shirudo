@@ -575,20 +575,19 @@ static int print_upatch_member(void *ctx, const char *member, char type)
 {
 	struct bpm_upatches_ctx *opts = ctx;
 	static const char prefix[] = "upatches/";
-	static const char unload[] = ".unload.upatch";
-	static const char suffix[] = ".upatch";
-	size_t len = strlen(member), unload_len = sizeof(unload) - 1;
-	size_t suffix_len = sizeof(suffix) - 1;
-	size_t need, cap;
+	size_t len = strlen(member), need, cap;
+	enum bpm_upatch_member kind;
+	const char *base;
 	char *next;
 
-	if (type != '0' || strncmp(member, prefix, sizeof(prefix) - 1) ||
-	    len < suffix_len || strcmp(member + len - suffix_len, suffix))
+	if (type != '0' || strncmp(member, prefix, sizeof(prefix) - 1))
 		return 0;
-	if (!opts->all && len >= unload_len &&
-	    !strcmp(member + len - unload_len, unload))
+	base = member + sizeof(prefix) - 1;
+	if (strchr(base, '/'))
 		return 0;
-	if (len <= sizeof(prefix) - 1 || strchr(member + sizeof(prefix) - 1, '/'))
+	kind = bpm_upatch_member(base, strlen(base));
+	if (kind == BPM_UPATCH_OTHER ||
+	    (!opts->all && kind == BPM_UPATCH_UNLOAD))
 		return 0;
 	if (check_add_overflow(opts->len, len, &need) ||
 	    check_add_overflow(need, 1, &need))
@@ -669,7 +668,6 @@ static int print_package_upatches(const char *source, bool all)
 static int print_package_upatch_data(const char *source, const char *member,
 				     bool json)
 {
-	static const char suffix[] = ".upatch";
 	char temporary[] = "/tmp/shirudo-bpm-data-XXXXXX";
 	size_t beefile_len = 0, upatch_len = 0;
 	__u8 *beefile = NULL, *bytes = NULL;
@@ -679,9 +677,9 @@ static int print_package_upatch_data(const char *source, const char *member,
 	int ret;
 
 	if (!bpm_archive_rel_ok(member) || strncmp(member, "upatches/", 9) ||
-	    strlen(member) < sizeof(suffix) - 1 ||
-	    strcmp(member + strlen(member) - (sizeof(suffix) - 1), suffix) ||
-	    strchr(member + 9, '/'))
+	    strchr(member + 9, '/') ||
+	    bpm_upatch_member(member + 9, strlen(member + 9)) ==
+	    BPM_UPATCH_OTHER)
 		return -EINVAL;
 	ret = bpm_info_archive(source, temporary);
 	if (ret)
@@ -1386,9 +1384,8 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			char up[PATH_MAX];
 			struct stat st;
 
-			if (de->d_name[0] == '.')
-				continue;
-			if (!strstr(de->d_name, ".upatch") || strstr(de->d_name, ".unload.upatch"))
+			if (bpm_upatch_member(de->d_name, strlen(de->d_name)) !=
+			    BPM_UPATCH_LOAD)
 				continue;
 			if (strsprintf(up, sizeof(up), "%s/upatches/%s", package_dir,
 				       de->d_name) < 0) {
@@ -1423,31 +1420,23 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 			d = opendir(olddir);
 			if (d) {
 				while ((de = readdir(d))) {
-					const char *suffix = strstr(de->d_name, ".unload.upatch");
-					size_t dir_len, entry_len, base_len;
+					size_t len = strlen(de->d_name);
+					char load[NAME_MAX + 1];
 
-					if (!suffix || nold >= INSTALL_PATHS_MAX)
+					if (bpm_upatch_member(de->d_name, len) !=
+					    BPM_UPATCH_UNLOAD || nold >= INSTALL_PATHS_MAX)
 						continue;
-					dir_len = strlen(olddir);
-					entry_len = strlen(de->d_name);
-					base_len = (size_t)(suffix - de->d_name);
-					if (dir_len + 1 + entry_len + 1 >=
-					    sizeof(old_unloads[nold]) ||
-					    dir_len + 1 + base_len + strlen(".upatch") + 1 >=
-					    sizeof(old_loads[nold])) {
+					if (bpm_upatch_pair(de->d_name, len, load,
+							    sizeof(load)) ||
+					    strsprintf(old_unloads[nold],
+						       sizeof(old_unloads[nold]), "%s/%s",
+						       olddir, de->d_name) < 0 ||
+					    strsprintf(old_loads[nold],
+						       sizeof(old_loads[nold]), "%s/%s",
+						       olddir, load) < 0) {
 						ret = -ENAMETOOLONG;
 						break;
 					}
-					memcpy(old_unloads[nold], olddir, dir_len);
-					old_unloads[nold][dir_len] = '/';
-					memcpy(old_unloads[nold] + dir_len + 1, de->d_name,
-					       entry_len + 1);
-					memcpy(old_loads[nold], olddir, dir_len);
-					old_loads[nold][dir_len] = '/';
-					memcpy(old_loads[nold] + dir_len + 1, de->d_name,
-					       base_len);
-					memcpy(old_loads[nold] + dir_len + 1 + base_len,
-					       ".upatch", strlen(".upatch") + 1);
 					nold++;
 				}
 				closedir(d);
@@ -1489,26 +1478,16 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 	goto out;
 rollback:
 	for (int active_i = nactive - 1; active_i >= 0; active_i--) {
-		char unload[PATH_MAX];
 		const char *base = strrchr(loaded[active_i], '/');
+		char unload[PATH_MAX], name[NAME_MAX + 1];
 
-		if (!base)
+		if (!base ||
+		    bpm_upatch_pair(base + 1, strlen(base + 1), name,
+				    sizeof(name)) ||
+		    strsprintf(unload, sizeof(unload), "%.*s/%s",
+			       (int)(base - loaded[active_i]), loaded[active_i],
+			       name) < 0)
 			continue;
-		{
-			size_t dir_len = (size_t)(base - loaded[active_i]);
-			size_t name_len = strlen(base + 1);
-
-			if (name_len < strlen(".upatch") ||
-			    dir_len + 1 + name_len - strlen(".upatch") +
-			    strlen(".unload.upatch") + 1 >= sizeof(unload))
-				continue;
-			memcpy(unload, loaded[active_i], dir_len);
-			unload[dir_len] = '/';
-			memcpy(unload + dir_len + 1, base + 1,
-			       name_len - strlen(".upatch"));
-			memcpy(unload + dir_len + 1 + name_len - strlen(".upatch"),
-			       ".unload.upatch", strlen(".unload.upatch") + 1);
-		}
 		upatch_remove(unload);
 	}
 	for (int restore_i = nold - 1; restore_i >= 0; restore_i--)
@@ -2497,11 +2476,8 @@ static int package_uninstall(const struct bpm_state_entry *st)
 		goto out;
 	}
 	while (d && (de = readdir(d))) {
-		size_t len = strlen(de->d_name);
-
-		if (de->d_name[0] == '.' || len <= strlen(".unload.upatch") ||
-		    strcmp(de->d_name + len - strlen(".unload.upatch"),
-			   ".unload.upatch"))
+		if (bpm_upatch_member(de->d_name, strlen(de->d_name)) !=
+		    BPM_UPATCH_UNLOAD)
 			continue;
 		if (n >= 128) {
 			ret = -E2BIG;

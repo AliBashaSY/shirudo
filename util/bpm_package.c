@@ -339,6 +339,44 @@ bool bpm_archive_rel_ok(const char *name)
 	return true;
 }
 
+static bool has_suffix(const char *name, size_t len, const char *suffix)
+{
+	size_t n = strlen(suffix);
+
+	return len > n && !memcmp(name + len - n, suffix, n);
+}
+
+enum bpm_upatch_member bpm_upatch_member(const char *name, size_t len)
+{
+	if (!len || name[0] == '.' || memchr(name, '\0', len))
+		return BPM_UPATCH_OTHER;
+	if (has_suffix(name, len, ".unload.upatch"))
+		return BPM_UPATCH_UNLOAD;
+	if (has_suffix(name, len, ".upatch"))
+		return BPM_UPATCH_LOAD;
+	return BPM_UPATCH_OTHER;
+}
+
+int bpm_upatch_pair(const char *name, size_t len, char *out, size_t cap)
+{
+	enum bpm_upatch_member kind = bpm_upatch_member(name, len);
+	const char *from = kind == BPM_UPATCH_LOAD ? ".upatch" :
+			   ".unload.upatch";
+	const char *to = kind == BPM_UPATCH_LOAD ? ".unload.upatch" :
+			 ".upatch";
+	size_t base, n;
+
+	if (kind == BPM_UPATCH_OTHER)
+		return -EINVAL;
+	base = len - strlen(from);
+	n = strlen(to);
+	if (base >= cap || n >= cap - base)
+		return -ENAMETOOLONG;
+	memcpy(out, name, base);
+	memcpy(out + base, to, n + 1);
+	return 0;
+}
+
 static bool package_member_name_ok(const char *name, const char *member)
 {
 	const char *slash;

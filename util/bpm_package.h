@@ -48,6 +48,26 @@ int bpm_verify_cms_fd(const __u8 *payload, size_t payload_len,
 
 bool bpm_archive_rel_ok(const char *name);
 
+enum bpm_upatch_member {
+	BPM_UPATCH_OTHER,
+	BPM_UPATCH_LOAD,
+	BPM_UPATCH_UNLOAD,
+};
+
+/*
+ * What a file of a package's upatches/ is by the len bytes of its name:
+ * <x>.unload.upatch an unload directive, any other <x>.upatch a load,
+ * and a hidden name neither.
+ */
+enum bpm_upatch_member bpm_upatch_member(const char *name, size_t len);
+
+/*
+ * The other half of a load or unload name, <x>.unload.upatch for
+ * <x>.upatch and back, into the cap bytes at out: 0, -EINVAL for a name
+ * that is neither, -ENAMETOOLONG when it does not fit.
+ */
+int bpm_upatch_pair(const char *name, size_t len, char *out, size_t cap);
+
 typedef int (*bpm_pkg_member_fn)(void *ctx, const char *member, char type);
 
 /* Visit validated package-relative ustar members without extracting them. */

@@ -149,12 +149,49 @@ static void semver_valid_is_semver_alone(void)
 		EXPECT_FALSE(bpm_semver_valid(bad[i]));
 }
 
+static enum bpm_upatch_member kind_of(const char *name)
+{
+	return bpm_upatch_member(name, strlen(name));
+}
+
+/*
+ * Install took any name holding .upatch for a load while uninstall went
+ * by the suffix, so x.upatch.bak was loaded and never unloaded.
+ */
+static void upatch_member_goes_by_suffix(void)
+{
+	char out[32];
+
+	EXPECT_EQ(kind_of("x.upatch"), BPM_UPATCH_LOAD);
+	EXPECT_EQ(kind_of("unload.upatch"), BPM_UPATCH_LOAD);
+	EXPECT_EQ(kind_of("x.unload.upatch"), BPM_UPATCH_UNLOAD);
+	EXPECT_EQ(kind_of("x.upatch.bak"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of("x.upatchy"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of("x.unload.upatch.x"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of(".x.upatch"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of(".upatch"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of("upatch"), BPM_UPATCH_OTHER);
+	EXPECT_EQ(kind_of(""), BPM_UPATCH_OTHER);
+	EXPECT_EQ(bpm_upatch_member("x.upatch\0x.upatch", 17),
+		  BPM_UPATCH_OTHER);
+
+	EXPECT_EQ(bpm_upatch_pair("x.upatch", 8, out, sizeof(out)), 0);
+	EXPECT_STREQ(out, "x.unload.upatch");
+	EXPECT_EQ(bpm_upatch_pair("x.unload.upatch", 15, out, sizeof(out)), 0);
+	EXPECT_STREQ(out, "x.upatch");
+	EXPECT_EQ(bpm_upatch_pair("x.upatch.bak", 12, out, sizeof(out)),
+		  -EINVAL);
+	EXPECT_EQ(bpm_upatch_pair("x.upatch", 8, out, 15), -ENAMETOOLONG);
+	EXPECT_EQ(bpm_upatch_pair("x.upatch", 8, out, 16), 0);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(index_entry_needs_its_package_size),
 	UNIT_CASE(semver_valid_is_semver_alone),
 	UNIT_CASE(semver_follows_its_precedence),
 	UNIT_CASE(version_order_is_total),
 	UNIT_CASE(archive_path_has_no_dot_component),
+	UNIT_CASE(upatch_member_goes_by_suffix),
 	{}
 };
 
