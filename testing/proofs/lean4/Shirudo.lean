@@ -11,3 +11,4 @@ import Shirudo.ArchivePath
 import Shirudo.Hex
 import Shirudo.JsonString
 import Shirudo.ConfigActivation
+import Shirudo.UpatchLoad

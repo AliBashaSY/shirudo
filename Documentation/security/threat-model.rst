@@ -960,7 +960,8 @@ tree operations run without it.
 :Tests: ``t4002``, ``t4003``, ``t4102``, ``t4103``, ``t6115``,
    ``t6122``, ``t6128``, ``t6143``, ``t6144``
 :Proofs: ``Shirudo.Chain``, ``Shirudo.Events``, ``Shirudo.Measured``,
-   ``chain-events``, ``eventlog-records``, ``tpm-digest``
+   ``Shirudo.UpatchLoad``, ``chain-events``, ``measured-fold-model``,
+   ``eventlog-records``, ``tpm-digest``
 :Residual: R4, R12, R20, U6, U8, U9
 
 T6 Boot window

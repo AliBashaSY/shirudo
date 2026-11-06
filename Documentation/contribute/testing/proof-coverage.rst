@@ -421,6 +421,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``Shirudo.Events``: the tag and its NUL, then the fixed fields, the
        name cut at 256 bytes and the sequence number most significant byte
        first; the event is the digest, or zeros with the error
+   * - ``measured-fold-model``
+     - ``measured_event()``, ``measured_holds()``
+     - Every sequence of up to six init, load and unload records over two
+       names and two payloads
+     - The set holds a name with a payload exactly as the Lean model
+       ``Shirudo.UpatchLoad`` folds the records, and never with the empty
+       payload of a missing xattr
    * - ``eventlog-records``
      - ``log_records()``
      - Logs of 0 to 32 bytes
@@ -626,6 +633,32 @@ the model follows the C.
        a TPM Restart or Resume only between commands
      - Review; CBMC, ``config-update-follows``, for ``event_follows()`` and
        ``same_event()``
+   * - ``Shirudo.UpatchLoad``, the load, unload and purge of
+       :src:`builtin-upatch.c`, the gate of :src:`util/image_runtime.c` and
+       the boot restore of :src:`builtin-init.c`
+     - ``undo_pass_sound``: once a command's undo pass is done, every pin
+       directory holds one link, of the payload its xattr names and this
+       boot's records hold, and every archive file shirudo wrote is on
+       record; ``loaded_once``: no name holds two links;
+       ``recorded_runs``: every name the records hold is pinned with one
+       link of that payload; ``commands_need_init``: every command runs
+       in a boot whose init record is on the log;
+       ``init_restores_exactly``: ``init`` loads exactly the labeled
+       archive files whose last record is a load of that payload, and the
+       new boot's records hold exactly those; ``log_sublist_register``,
+       ``register_length``, ``register_eq_log_iff``, ``replay_differs``:
+       this boot's records are a sublist of the register's events, equal
+       once the lock is free unless an append was lost, and a difference
+       shows in the replay; dropping the lock, the undo pass, its refusal,
+       the gate, the undo of a failed payload xattr, the lock across the
+       purge or the restore's filter breaks the matching theorem
+     - The lock excludes and a kill releases it; a kill keeps pins and
+       files; pin directory removals, archive renames and appends are
+       whole; a reboot clears pins and register and ``init`` runs as one
+       step; root changes only unlabeled archive files and brings files
+       back; the hash of ``Shirudo.Chain`` for ``replay_differs``
+     - CBMC, ``measured-fold-model``, for ``measured_event()`` and
+       ``measured_holds()`` up to six records; review for the rest
 
 Not covered yet
 ---------------
