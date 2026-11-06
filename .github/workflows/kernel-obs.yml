@@ -154,8 +154,6 @@ jobs:
           images-folder-parent: ${{ github.workspace }}/../lvh
           install-dependencies: false
           ssh-port: 2222
-          cpu: 4
-          mem: 8G
           cmd: |
             set -eu
             cd /host

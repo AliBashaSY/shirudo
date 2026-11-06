@@ -57,8 +57,6 @@ jobs:
           host-mount: ${{ github.workspace }}
           images-folder-parent: ${{ github.workspace }}/../lvh
           install-dependencies: true
-          cpu: 4
-          mem: 8G
           cmd: |
             grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
               echo 'kernel BTF lacks bpf_attr.signature_size; needs a signed-BPF capable bpf-next kernel' >&2
@@ -136,8 +134,6 @@ jobs:
           host-mount: ${{ github.workspace }}
           images-folder-parent: ${{ github.workspace }}/../lvh
           install-dependencies: true
-          cpu: 4
-          mem: 8G
           cmd: |
             cd /host
             .github/scripts/vm-toolchain.sh libclang-rt-23-dev
