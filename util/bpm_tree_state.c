@@ -310,16 +310,26 @@ static int read_selector_config_file(const char *path,
 				     char values[][TREE_STRING_MAX],
 				     bool found[], bool gz)
 {
+	bool skip = false, whole;
 	char line[1024];
 	int ret = 0;
 
+	/*
+	 * A line longer than the buffer comes in parts, and a part from the
+	 * middle of a long string value would read as an option of its own:
+	 * none of such a line is taken, and its option reads as not set.
+	 */
 	if (gz) {
 		gzFile f = gzopen(path, "rb");
 
 		if (!f)
 			return -errno;
 		while (gzgets(f, line, sizeof(line))) {
-			ret = selector_config_line(line, s, slots, values, found);
+			whole = strchr(line, '\n') || gzeof(f);
+			if (!skip && whole)
+				ret = selector_config_line(line, s, slots, values,
+							   found);
+			skip = !whole;
 			if (ret)
 				break;
 		}
@@ -336,7 +346,11 @@ static int read_selector_config_file(const char *path,
 		if (!f)
 			return -errno;
 		while (fgets(line, sizeof(line), f)) {
-			ret = selector_config_line(line, s, slots, values, found);
+			whole = strchr(line, '\n') || feof(f);
+			if (!skip && whole)
+				ret = selector_config_line(line, s, slots, values,
+							   found);
+			skip = !whole;
 			if (ret)
 				break;
 		}

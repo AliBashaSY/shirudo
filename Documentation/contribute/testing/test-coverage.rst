@@ -491,11 +491,11 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover fourteen of the modules in
-:src:`util/`: ``bpm_oci``, ``bpm_package``, ``bpm_tree``, ``chain``,
-``eventlog``, ``hex``, ``io``, ``json``, ``kernel_abi``,
-``kernel_build_id``, ``kernel_release``, ``string``, ``upatch`` and
-``upatch_decode``, and ``overflow`` the arithmetic of
+The unit suites in :src:`testing/unit/` cover fifteen of the modules in
+:src:`util/`: ``bpm_oci``, ``bpm_package``, ``bpm_tree``,
+``bpm_tree_state``, ``chain``, ``eventlog``, ``hex``, ``io``, ``json``,
+``kernel_abi``, ``kernel_build_id``, ``kernel_release``, ``string``,
+``upatch`` and ``upatch_decode``, and ``overflow`` the arithmetic of
 :src:`include/shirudo/overflow.h`. The other modules are reached through
 the test helpers, the fuzz targets and the binaries the functional tests
 run.
@@ -629,8 +629,8 @@ Coverage by area
    * - upatch tree
      - ``t3011``, ``t5004``, ``t7005``, ``t7101``, ``t7102``,
        ``t7103``, ``t7104``, ``t9105``. Fuzz: ``tree``, ``tree-state``,
-       ``kconfig``. Unit: ``bpm_tree``, ``kernel_build_id``,
-       ``kernel_release``
+       ``kconfig``. Unit: ``bpm_tree``, ``bpm_tree_state``,
+       ``kernel_build_id``, ``kernel_release``
    * - Policy labels
      - upatch labels and Beefile serialization: ``t3109``, ``t7006``.
        Unauthorized policy-xattr changes: ``t6111``. Task and socket

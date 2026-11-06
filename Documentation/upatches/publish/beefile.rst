@@ -305,7 +305,8 @@ to 16 accepted values, and each key may appear once.
     such as ``CONFIG_IPV6 = ["y", "m"]``. An option that is not set matches
     ``"n"``. The target reads ``/proc/config.gz`` and, when that is
     missing or names none of the options, ``/boot/config-<release>``. A
-    target with neither does not match.
+    target with neither does not match. A line of 1024 bytes or more is
+    skipped whole, so its option reads as not set.
 ``[upatches.tree.selector.labels]``
     Up to 64 keys, each a node label, once, with its accepted values, such
     as ``env = ["prod", "canary"]``. The target reads its labels from the
