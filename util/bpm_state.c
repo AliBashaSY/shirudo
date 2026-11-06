@@ -28,10 +28,10 @@ static int on_state_entry(void *ud)
 	struct state_sink *s = ud;
 	char expected[PATH_MAX];
 
-	if (s->n >= BPM_MAX_STATE || !s->scratch.name[0] ||
-	    !s->scratch.version[0])
+	if (s->n >= BPM_MAX_STATE)
 		return -E2BIG;
-	if (!bpm_name_ok(s->scratch.name) ||
+	if (!s->scratch.name[0] || !s->scratch.version[0] ||
+	    !bpm_name_ok(s->scratch.name) ||
 	    !bpm_version_ok(s->scratch.version) ||
 	    !bpm_name_ok(s->scratch.source))
 		return -EINVAL;

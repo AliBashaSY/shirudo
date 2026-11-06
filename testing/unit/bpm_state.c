@@ -53,6 +53,9 @@ static void state_refuses_an_entry_out_of_place(void)
 	ASSERT_EQ(bpm_state_emit(&in, 1, buf, sizeof(buf), &len), 0);
 	EXPECT_EQ(bpm_state_parse(buf, len, out, &n), -EINVAL);
 	EXPECT_EQ(bpm_state_parse("{\"schema\":1}", 12, out, &n), -EINVAL);
+	in.name[0] = '\0';
+	ASSERT_EQ(bpm_state_emit(&in, 1, buf, sizeof(buf), &len), 0);
+	EXPECT_EQ(bpm_state_parse(buf, len, out, &n), -EINVAL);
 }
 
 static const struct unit_case cases[] = {
