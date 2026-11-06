@@ -1793,15 +1793,6 @@ static int __upatch_apply(const char *path, bool verify_only,
 		ret = 1;
 		goto out;
 	}
-	if (u.hdr.loader_insns_len % sizeof(struct bpf_insn)) {
-		pr_err("upatch load: loader_insns_len=%u not a multiple of %zu",
-		       u.hdr.loader_insns_len, sizeof(struct bpf_insn));
-		rep_fail(rep, "parse", "parser_rejected", 0,
-			 "loader_insns_len misaligned");
-		ret = 1;
-		goto out;
-	}
-
 	if (trust_anchor_keyring(&keyring, &serial, rep)) {
 		ret = 1;
 		goto out;
@@ -1812,22 +1803,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	data  = upatch_data(&u);
 	insn_cnt = u.hdr.loader_insns_len / sizeof(struct bpf_insn);
 
-	/* bpf_obj_name_cpy() takes alphanumerics, '_' and '.' alone. */
-	memset(prog_name, 0, sizeof(prog_name));
-	{
-		size_t i, n = strnlen(u.hdr.name, sizeof(u.hdr.name));
-
-		if (n > sizeof(prog_name) - 1)
-			n = sizeof(prog_name) - 1;
-		for (i = 0; i < n; i++) {
-			char c = u.hdr.name[i];
-			int ok = (c >= 'a' && c <= 'z') ||
-				 (c >= 'A' && c <= 'Z') ||
-				 (c >= '0' && c <= '9') ||
-				 c == '_' || c == '.';
-			prog_name[i] = ok ? c : '_';
-		}
-	}
+	upatch_prog_name(&u, prog_name, sizeof(prog_name));
 
 	/*
 	 * The pin directory, the archive and unload share the raw name. Boot
@@ -1843,9 +1819,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 	/* The header's copy of the name is what everything else reads. */
-	if (!upatch_signed_name(&u) ||
-	    memcmp(upatch_signed_name(&u), u.hdr.name,
-		   UPATCH_NAME_MAX)) {
+	if (!upatch_name_signed(&u)) {
 		pr_err("upatch: the name of '%s' is not signature-covered or "
 		       "differs from the signed one; rebuild the artifact",
 		       upatch_name);
@@ -3007,9 +2981,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * directive's signed sections; the header's name must be the same,
 	 * since status and the package tooling read it.
 	 */
-	if (!upatch_signed_name(&u) || !upatch_signed_unload_payload(&u) ||
-	    memcmp(upatch_signed_name(&u), u.hdr.name,
-		   UPATCH_NAME_MAX)) {
+	if (!upatch_name_signed(&u) || !upatch_signed_unload_payload(&u)) {
 		pr_err("upatch unload: the target of %s is not "
 		       "signature-covered or differs from the header; rebuild "
 		       "the directive", rep.path);

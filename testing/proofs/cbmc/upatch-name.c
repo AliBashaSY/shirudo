@@ -4,8 +4,10 @@
  *
  * The upatch names util/upatch.c takes from outside, for every name of up
  * to LEN_MAX bytes: upatch_name_valid() accepts exactly [A-Za-z0-9._-]+
- * not starting with a dot, so no path separator, "." or "..", and
- * upatch_select() exactly the archive names, something then ".upatch".
+ * not starting with a dot, so no path separator, "." or "..",
+ * upatch_select() exactly the archive names, something then ".upatch",
+ * and upatch_prog_name() gives the loader program a zero-padded name the
+ * kernel takes, the header's with every other byte made '_'.
  */
 
 #include "proof.h"
@@ -56,8 +58,36 @@ static void archive_name(void)
 			 "exactly a name before .upatch");
 }
 
+static bool prog_char(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+	       (c >= '0' && c <= '9') || c == '_' || c == '.';
+}
+
+static void prog_name(void)
+{
+	size_t n, len = 0, i;
+	struct upatch u;
+	char out[16];
+
+	__CPROVER_assume(n <= LEN_MAX && !u.hdr.name[n]);
+	while (u.hdr.name[len])
+		len++;
+	upatch_prog_name(&u, out, sizeof(out));
+	for (i = 0; i < sizeof(out); i++) {
+		char c = u.hdr.name[i];
+
+		if (i < len && i < sizeof(out) - 1)
+			__CPROVER_assert(out[i] == (prog_char(c) ? c : '_'),
+					 "the header's byte, or '_'");
+		else
+			__CPROVER_assert(!out[i], "zero-padded");
+	}
+}
+
 void harness(void)
 {
+	prog_name();
 	name_valid();
 	archive_name();
 }

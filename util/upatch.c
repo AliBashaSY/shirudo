@@ -419,6 +419,31 @@ void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1])
 	out[UPATCH_NAME_MAX] = '\0';
 }
 
+bool upatch_name_signed(const struct upatch *u)
+{
+	const char *name = upatch_signed_name(u);
+
+	return name && !memcmp(name, u->hdr.name, UPATCH_NAME_MAX);
+}
+
+static bool prog_name_char(char c)
+{
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+	       (c >= '0' && c <= '9') || c == '_' || c == '.';
+}
+
+void upatch_prog_name(const struct upatch *u, char *out, size_t size)
+{
+	size_t i, n = strnlen(u->hdr.name, sizeof(u->hdr.name));
+
+	if (!size)
+		return;
+	memset(out, 0, size);
+	n = min(n, size - 1);
+	for (i = 0; i < n; i++)
+		out[i] = prog_name_char(u->hdr.name[i]) ? u->hdr.name[i] : '_';
+}
+
 const char *upatch_signed_name(const struct upatch *u)
 {
 	return u->map ? u->signed_name : NULL;

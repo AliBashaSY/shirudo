@@ -66,10 +66,39 @@ static void header_name_is_terminated(void)
 	EXPECT_EQ(strlen(out), UPATCH_NAME_MAX);
 }
 
+static void prog_name_is_what_the_kernel_takes(void)
+{
+	char out[16];
+	struct upatch u = {};
+
+	memcpy(u.hdr.name, "fix-cve.2026", 12);
+	upatch_prog_name(&u, out, sizeof(out));
+	EXPECT_STREQ(out, "fix_cve.2026");
+	memset(u.hdr.name, 'a', sizeof(u.hdr.name));
+	upatch_prog_name(&u, out, sizeof(out));
+	EXPECT_EQ(strlen(out), 15);
+}
+
+static void name_signed_is_the_header_name(void)
+{
+	char signed_name[UPATCH_NAME_MAX] = "fix";
+	struct upatch u = {};
+
+	memcpy(u.hdr.name, "fix", 3);
+	u.map = (const __u8 *)signed_name;
+	EXPECT_FALSE(upatch_name_signed(&u));
+	u.signed_name = signed_name;
+	EXPECT_TRUE(upatch_name_signed(&u));
+	u.hdr.name[2] = 'y';
+	EXPECT_FALSE(upatch_name_signed(&u));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(prog_specs_take_the_signed_counts),
 	UNIT_CASE(prog_specs_refuse_another_header_count),
 	UNIT_CASE(header_name_is_terminated),
+	UNIT_CASE(prog_name_is_what_the_kernel_takes),
+	UNIT_CASE(name_signed_is_the_header_name),
 	{}
 };
 

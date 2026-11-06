@@ -110,6 +110,17 @@ const char *upatch_signed_name(const struct upatch *u);
 
 /* The name in the header, which the file need not terminate, with a NUL. */
 void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1]);
+/*
+ * Whether the header's name is the one the signed sections carry: the
+ * header's is what the pins, the archive and the eventlog go by.
+ */
+bool upatch_name_signed(const struct upatch *u);
+/*
+ * The name the loader program takes, zero-padded to size: at most
+ * size - 1 bytes of the header's, with every byte but those
+ * bpf_obj_name_cpy() takes, an alphanumeric, '_' or '.', made '_'.
+ */
+void upatch_prog_name(const struct upatch *u, char *out, size_t size);
 const void *upatch_signed_attach(const struct upatch *u,
 				 __u32 *len);
 const __u8 *upatch_signed_unload_payload(const struct upatch *u);
