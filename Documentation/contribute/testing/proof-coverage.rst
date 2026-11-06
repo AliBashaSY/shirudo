@@ -198,6 +198,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        generation unless the same manifest, naming the recorded parent
        when the next generation, with the node's cursor between its base
        and head; without a state, one that starts at 0
+   * - ``bpm-tree-sync-model``
+     - ``cmd_bpm_tree_sync()``, ``tree_recover_pending()``,
+       ``tree_publication_check()``, ``tree_publication_follows()``
+     - Every state, pending record, tree eventlog replay and record of the
+       pending operation, publications of 0 to 2 operations that
+       ``tree_parse()`` lets through, every selector answer and every
+       failure below sync; strings of one byte
+     - The writes of the Lean model ``Shirudo.TreeSync``, in its order,
+       none after a failure, all of them when nothing fails
    * - ``bpm-upatch-member``
      - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
      - Lengths 0 to 18
@@ -659,6 +668,33 @@ the model follows the C.
        back; the hash of ``Shirudo.Chain`` for ``replay_differs``
      - CBMC, ``measured-fold-model``, for ``measured_event()`` and
        ``measured_holds()`` up to six records; review for the rest
+   * - ``Shirudo.TreeSync``, ``cmd_bpm_tree_sync()`` and
+       ``tree_recover_pending()`` of :src:`builtin-bpm.c`
+     - ``generation_mono``, ``lastSeq_mono``, ``log_grows``: between any two
+       points of any history of syncs of signed publications, stops after
+       any write and reboots, the generation, the cursor and the tree
+       eventlog never go back; ``manifest_fixed``: at an equal generation
+       only the recorded manifest; ``older_refused``,
+       ``accepted_older_refused``: a publication older than one accepted
+       writes nothing; ``log_increasing``, ``measured_increasing``: each
+       operation applied at most once, in increasing order, in the tree
+       eventlog and in this boot's records; ``recover_pending``,
+       ``measured_kept``, ``recover_settles``: after a stop between
+       ``pending.json`` and the commit, recovery appends the operation once,
+       exactly when it was measured or appended, and otherwise leaves the
+       cursor below it; nothing measured is lost; ``state_is_fold``,
+       ``replay_not_bad``: the state is the fold of the tree eventlog but
+       between an append and its commit; ``applied_signed``,
+       ``applied_consistent``: an applied operation is one of a signed
+       publication of the tree, and that of every one when the signer never
+       gives a number two operations
+     - A manifest digest names one publication; the hash is injective on
+       (root, digest) and never 64 zeros; only sync writes the tree files,
+       each write whole, one sync at a time; the unlink of ``pending.json``
+       succeeds; an extend and its eventlog record are one write
+     - CBMC: ``bpm-tree-follows`` for ``tree_publication_follows()``,
+       ``bpm-tree-sync-model`` for the writes of a sync of up to two
+       operations; ``tree_parse()`` by review
 
 Not covered yet
 ---------------

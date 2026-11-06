@@ -22,8 +22,11 @@ member names, the registry's challenges, tokens, headers and
 descriptors, the package names and versions, the tree publication's
 selectors and operations, and the checks that keep a publication from
 taking a node back. Lean 4 proves the version order total for versions
-of every length, and that every member name the archive check takes,
-of any length, extracts strictly below the package's directory.
+of every length, that every member name the archive check takes, of any
+length, extracts strictly below the package's directory, and that across
+any history of syncs, stops and reboots a node's generation, cursor and
+tree eventlog never go back and each operation is applied at most once;
+CBMC shows that ``bpm tree sync`` makes exactly the model's writes.
 
 What is signed
 --------------
