@@ -245,29 +245,6 @@ static int init_keyring(void)
 	return 0;
 }
 
-static int is_bpffs_mounted(const char *path)
-{
-	FILE *f = fopen("/proc/self/mounts", "re");
-	char line[4096];
-	int found = 0;
-
-	if (!f)
-		return -errno;
-	while (fgets(line, sizeof(line), f)) {
-		char src[256], target[256], type[256];
-
-		if (sscanf(line, "%255s %255s %255s",
-			   src, target, type) != 3)
-			continue;
-		if (strcmp(target, path) == 0 && strcmp(type, "bpf") == 0) {
-			found = 1;
-			break;
-		}
-	}
-	fclose(f);
-	return found;
-}
-
 static int init_bpffs(void)
 {
 	struct stat parent, run;
@@ -283,7 +260,7 @@ static int init_bpffs(void)
 		pr_err("mkdir %s: %s", RUN_DIR, strerror(-ret));
 		return ret;
 	}
-	ret = is_bpffs_mounted(BPFFS_DIR);
+	ret = bpffs_mounted_at(BPFFS_DIR);
 	if (ret < 0)
 		return ret;
 	if (ret)
@@ -314,9 +291,9 @@ static int init_bpffs(void)
 		return ret;
 	}
 
-	ret = is_bpffs_mounted(BPFFS_DIR);
+	ret = bpffs_mounted_at(BPFFS_DIR);
 	if (ret < 0) {
-		pr_err("read /proc/self/mounts: %s", strerror(-ret));
+		pr_err("check the bpffs at %s: %s", BPFFS_DIR, strerror(-ret));
 		return ret;
 	}
 	if (ret) {

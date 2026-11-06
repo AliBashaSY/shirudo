@@ -9,10 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
 
+#include <linux/magic.h>
 #include <linux/openat2.h>
 
 #include <shirudo/misc.h>
@@ -273,4 +275,24 @@ int check_trusted(int fd, const char *path, bool secret)
 __u32 kernel_dev(dev_t dev)
 {
 	return (__u32)major(dev) << 20 | (minor(dev) & 0xfffffU);
+}
+
+int bpffs_mounted_at(const char *path)
+{
+	struct statx stx = {};
+	struct statfs fs = {};
+	int fd, ret;
+
+	fd = open(path, O_PATH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0)
+		return errno == ENOENT ? 0 : -errno;
+	if (fstatfs(fd, &fs) ||
+	    statx(fd, "", AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, 0, &stx))
+		ret = -errno;
+	else
+		ret = fs.f_type == BPF_FS_MAGIC &&
+		      stx.stx_attributes_mask & STATX_ATTR_MOUNT_ROOT &&
+		      stx.stx_attributes & STATX_ATTR_MOUNT_ROOT;
+	close(fd);
+	return ret;
 }

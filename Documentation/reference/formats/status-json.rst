@@ -493,7 +493,8 @@ assets
        directory is absent.
    * - ``bpffs_mounted``
      - boolean
-     - ``/run/shirudo/bpffs`` is a mount point.
+     - ``/run/shirudo/bpffs`` is the root of a bpffs mount, not
+       hidden under another mount.
 
 tamper_attempts
 ---------------

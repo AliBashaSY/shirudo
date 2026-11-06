@@ -50,4 +50,11 @@ int check_trusted(int fd, const char *path, bool secret);
 /* A st_dev or st_rdev as the kernel encodes the dev_t in s_dev. */
 __u32 kernel_dev(dev_t dev);
 
+/*
+ * 1 when path is the root of a bpf file system mount, which a bpffs
+ * mounted on a directory above it or under another mount on top of it is
+ * not; 0 when it is not, or there is no such path; else -errno.
+ */
+int bpffs_mounted_at(const char *path);
+
 #endif /* SHIRUDO_IO_H */

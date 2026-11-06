@@ -144,28 +144,6 @@ static int count_dir(const char *dir, bool upatch_only)
 	return count;
 }
 
-static bool bpffs_is_mounted(void)
-{
-	char line[4096];
-	bool found = false;
-	FILE *f;
-
-	f = fopen("/proc/self/mounts", "re");
-	if (!f)
-		return false;
-	while (fgets(line, sizeof(line), f)) {
-		char *mp = strchr(line, ' ');	/* field 2 = mountpoint */
-
-		if (mp && strncmp(mp + 1, BPFFS_DIR " ",
-				  strlen(BPFFS_DIR) + 1) == 0) {
-			found = true;
-			break;
-		}
-	}
-	fclose(f);
-	return found;
-}
-
 static void gather_assets(struct asset_view *a)
 {
 	struct stat st;
@@ -179,7 +157,7 @@ static void gather_assets(struct asset_view *a)
 	}
 	a->n_upatches = count_dir(UPATCHES_DIR, true);
 	a->n_incoming = count_dir(INCOMING_DIR, false);
-	a->bpffs_mounted = bpffs_is_mounted();
+	a->bpffs_mounted = bpffs_mounted_at(BPFFS_DIR) > 0;
 }
 
 /*

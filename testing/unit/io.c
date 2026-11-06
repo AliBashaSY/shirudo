@@ -102,12 +102,23 @@ static void kernel_dev_is_major_over_20_minor_bits(void)
 	EXPECT_EQ(kernel_dev(makedev(0xfff, 0xfffff)), 0xffffffffU);
 }
 
+static void bpffs_mounted_at_wants_the_root_of_a_bpffs(void)
+{
+	const char *dir = getenv("TMPDIR");
+
+	EXPECT_EQ(bpffs_mounted_at(dir && dir[0] ? dir : "/tmp"), 0);
+	EXPECT_EQ(bpffs_mounted_at("/"), 0);
+	EXPECT_EQ(bpffs_mounted_at("/nonexistent/shirudo"), 0);
+	EXPECT_EQ(bpffs_mounted_at("/dev/null"), -ENOTDIR);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(lines_len_ends_at_the_last_newline),
 	UNIT_CASE(append_line_adds_one_record),
 	UNIT_CASE(append_line_drops_what_did_not_finish),
 	UNIT_CASE(append_line_takes_one_line_alone),
 	UNIT_CASE(kernel_dev_is_major_over_20_minor_bits),
+	UNIT_CASE(bpffs_mounted_at_wants_the_root_of_a_bpffs),
 	{}
 };
 

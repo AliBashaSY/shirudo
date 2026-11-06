@@ -470,8 +470,6 @@ Kernel and system interfaces
      - Creating and checking the dm-verity mappings of the images.
    * - ``/sys/kernel/security/lsm``, ``/proc/filesystems``
      - Pre-flight: BPF LSM active, bpffs supported.
-   * - ``/proc/self/mounts``
-     - Whether the private bpffs is mounted.
    * - ``/proc/sys/kernel/random/boot_id``
      - The ``boot_id`` of eventlog records.
    * - ``/sys/kernel/security/tpm0/binary_bios_measurements``,
