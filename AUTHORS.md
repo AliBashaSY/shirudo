@@ -17,3 +17,4 @@ signed off on commits in the shirudo project:
  * Puranjay Mohan            \<puranjay@kernel.org\>
  * Tobias Klauser            \<tklauser@distanz.ch\>
  * Vadim Shchekoldin         \<inbox@vadim.sh\>
+ * William Findlay           \<william.findlay@isovalent.com\>
