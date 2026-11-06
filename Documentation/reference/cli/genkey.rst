@@ -11,8 +11,9 @@ shirudo genkey
 Generate an ML-DSA-87 private key and a self-signed X.509 certificate for
 signing upatches.
 
-Runs on: operator host, without the image gate. Requires: write
-access to the keys directory. Changes measured state: no.
+Runs on: operator host, without the image gate; refused on a target
+where shirudo enforces. Requires: write access to the keys directory.
+Changes measured state: no.
 
 Usage
 -----
@@ -96,7 +97,8 @@ Exit status
      - The pair was written.
    * - 1
      - The pair exists and ``--force`` was not given, the directory is
-       unsafe or not writable, or generating or writing failed.
+       unsafe or not writable, generating or writing failed, or shirudo
+       enforces on this host.
    * - 2
      - An unknown option, or ``--keys-dir`` without a value.
 

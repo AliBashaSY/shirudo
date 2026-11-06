@@ -28,6 +28,7 @@
 
 #include "builtin.h"
 #include "util/help.h"
+#include "util/identity.h"
 #include "util/log.h"
 #include "util/crypto.h"
 #include "util/paths.h"
@@ -427,6 +428,15 @@ int cmd_genkey(int argc, const char **argv)
 			usage();
 			return 2;
 		}
+	}
+
+	/*
+	 * A target never holds a private key, and its task has the authority
+	 * the seal denies root, which would write the pair wherever root asks.
+	 */
+	if (enforcement_active()) {
+		pr_err("genkey: refusing on a target: the signing key belongs on the operator host");
+		return 1;
 	}
 
 	keys_dir = keys_dir_resolve(keys_dir_arg);

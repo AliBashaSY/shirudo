@@ -6,8 +6,9 @@
 # runtime task write what it denies everyone else, so a --report, --output
 # or --json path pointed at sealed state, directly or through a symbolic
 # link, must be refused rather than clobber the eventlog or plant a file
-# the next boot restores. Non-destructive: every refusal leaves the state
-# as it was.
+# the next boot restores, and genkey, whose key pair has no place on a
+# target, writes none anywhere. Non-destructive: every refusal leaves the
+# state as it was.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -58,6 +59,16 @@ test_expect_success 'evidence is not written over the eventlog' '
 		>/dev/null 2>"$LINK.err" &&
 	grep -q "refusing to write sealed state" "$LINK.err" &&
 	[ "$(sha256sum "$EVENTLOG" | cut -d" " -f1)" = "$BEFORE" ]
+'
+
+test_expect_success 'genkey writes no key pair on a target' '
+	KEYS_BEFORE=$(ls -la /var/lib/shirudo/keys 2>/dev/null | sha256sum) &&
+	! "$SHIRUDO_BIN" genkey --force \
+		--keys-dir=/var/lib/shirudo/keys >/dev/null 2>"$LINK.err" &&
+	grep -q "refusing on a target" "$LINK.err" &&
+	! "$SHIRUDO_BIN" genkey --keys-dir=/tmp/t6114-keys >/dev/null 2>&1 &&
+	[ ! -e /tmp/t6114-keys ] &&
+	[ "$(ls -la /var/lib/shirudo/keys 2>/dev/null | sha256sum)" = "$KEYS_BEFORE" ]
 '
 
 test_expect_success 'the eventlog still replays' '

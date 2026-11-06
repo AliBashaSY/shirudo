@@ -743,7 +743,10 @@ through a symbolic link and not created under a labeled directory. When
 root makes the write fail, shirudo removes the file through the
 directory it opened it in, and only while the name still holds the
 inode it wrote, never by resolving the path again, where a directory
-root swapped for a link would lead it to sealed state (``t6007``). The
+root swapped for a link would lead it to sealed state (``t6007``).
+``genkey`` refuses to run where shirudo enforces, so that no target holds
+a private key and root cannot have shirudo write a key pair into sealed
+state (``t6114``). The
 contents of a config image are read from the descriptor of its verified
 root with ``openat2(2)`` and ``RESOLVE_BENEATH``, never through a
 ``/proc/<pid>/fd`` path that root could mount over.

@@ -318,7 +318,7 @@ signed config image.
    * - ``t6113-verity-authority``
      - Task authority on exec, fork and failed exec
    * - ``t6114-output-paths``
-     - Output paths aimed at sealed state
+     - Output paths aimed at sealed state; ``genkey`` refused on a target
    * - ``t6115-archive-restore``
      - Artifacts brought into the archive, a hidden state directory,
        ``/etc/initrd-release``
