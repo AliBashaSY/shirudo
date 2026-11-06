@@ -93,12 +93,26 @@ static void name_signed_is_the_header_name(void)
 	EXPECT_FALSE(upatch_name_signed(&u));
 }
 
+#define PAYLOAD "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+static void member_is_a_name_and_a_payload(void)
+{
+	EXPECT_TRUE(upatch_member_valid("fix", PAYLOAD));
+	EXPECT_FALSE(upatch_member_valid("a\nb", PAYLOAD));
+	EXPECT_FALSE(upatch_member_valid("../fix", PAYLOAD));
+	EXPECT_FALSE(upatch_member_valid("", PAYLOAD));
+	EXPECT_FALSE(upatch_member_valid("fix", PAYLOAD "0"));
+	EXPECT_FALSE(upatch_member_valid("fix", "00"));
+	EXPECT_FALSE(upatch_member_valid("fix", NULL));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(prog_specs_take_the_signed_counts),
 	UNIT_CASE(prog_specs_refuse_another_header_count),
 	UNIT_CASE(header_name_is_terminated),
 	UNIT_CASE(prog_name_is_what_the_kernel_takes),
 	UNIT_CASE(name_signed_is_the_header_name),
+	UNIT_CASE(member_is_a_name_and_a_payload),
 	{}
 };
 

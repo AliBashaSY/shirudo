@@ -519,7 +519,7 @@ static int upatches_set_entry(void *arg)
 {
 	struct upatches_ctx *u = arg;
 
-	if (!u->name[0] || strlen(u->payload_hex) != 2 * UPATCH_PAYLOAD_HASH_LEN)
+	if (!upatch_member_valid(u->name, u->payload_hex))
 		return -EINVAL;
 	u->ret = u->cb(EVENTLOG_UPATCH_LOAD, u->name, u->payload_hex, u->ctx);
 	u->name[0] = '\0';
@@ -539,9 +539,11 @@ static int upatches_line(const char *line, size_t len, bool is_init,
 	};
 	struct json_array set = { upatches_set_entry, u };
 	char type[32];
+	/* Only an init record's set lists what boot restore loaded. */
 	struct json_field f[] = {
 		{ "type", JSON_T_STRING, type, sizeof(type), 0, NULL, 0 },
-		{ "set", JSON_T_ARRAY, &set, 0, 0, entry, ARRAY_SIZE(entry) },
+		{ is_init ? "set" : NULL, JSON_T_ARRAY, &set, 0, 0, entry,
+		  ARRAY_SIZE(entry) },
 		{ "upatch", JSON_T_OBJECT, NULL, 0, 0, entry,
 		  ARRAY_SIZE(entry) },
 	};
@@ -561,8 +563,7 @@ static int upatches_line(const char *line, size_t len, bool is_init,
 		return 0;
 	if (strcmp(type, "upatch_load") && strcmp(type, "upatch_unload"))
 		return 0;
-	if (!f[2].seen || !u->name[0] ||
-	    strlen(u->payload_hex) != 2 * UPATCH_PAYLOAD_HASH_LEN)
+	if (!f[2].seen || !upatch_member_valid(u->name, u->payload_hex))
 		return -EINVAL;
 	return u->cb(type[7] == 'l' ? EVENTLOG_UPATCH_LOAD :
 		     EVENTLOG_UPATCH_UNLOAD, u->name, u->payload_hex, u->ctx);

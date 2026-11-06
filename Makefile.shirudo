@@ -701,7 +701,7 @@ testing/helper/test-harden: testing/helper/test-harden.c util/harden.o util/log.
 # label writer and the JSON codec.
 REGISTER_OBJS := util/config_attest.o util/config_update.o util/config_measure.o util/config_image.o \
                  util/chain.o util/tpm.o util/tpm_wire.o util/eventlog.o \
-                 util/timefmt.o \
+                 util/timefmt.o util/upatch.o \
                  util/hex.o util/crypto_openssl.o util/json.o util/string.o \
                  util/io.o util/seal.o util/config.o util/image_config.o \
                  util/log.o util/malloc.o \
@@ -817,7 +817,8 @@ testing/helper/test-upatch-map-types: testing/helper/test-upatch-map-types.c
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-upatch-prog-metadata: testing/helper/test-upatch-prog-metadata.c \
-                                    util/upatch.o util/malloc.o util/string.o
+                                    util/upatch.o util/malloc.o util/string.o \
+                                    util/hex.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
@@ -1028,8 +1029,9 @@ testing/fuzz/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
 testing/fuzz/fuzz-attest: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
 testing/fuzz/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
 testing/fuzz/fuzz-eventlog: testing/fuzz/fuzz-eventlog.c $(FUZZ_BASE) \
-                            util/eventlog.c util/timefmt.c $(FUZZ_SEAL) \
-                            util/io.c util/crypto_openssl.c testing/fuzz/chain.c
+                            util/eventlog.c util/timefmt.c util/upatch.c \
+                            $(FUZZ_SEAL) util/io.c util/crypto_openssl.c \
+                            testing/fuzz/chain.c
 testing/fuzz/fuzz-kernel: testing/fuzz/fuzz-kernel.c $(FUZZ_BASE) \
                           util/kernel_build_id.c
 testing/fuzz/fuzz-elf: testing/fuzz/fuzz-elf.c $(FUZZ_BASE) \

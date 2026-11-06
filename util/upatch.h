@@ -108,6 +108,13 @@ int upatch_decoder_view(const struct upatch *u, __u32 idx,
  */
 const char *upatch_signed_name(const struct upatch *u);
 
+/*
+ * A member of a set of measured upatches, as an init record and the
+ * commands that predict one list it: a name upatch_name_valid() takes and
+ * the 64 hex digits of its payload's SHA-256.
+ */
+bool upatch_member_valid(const char *name, const char *payload_hex);
+
 /* The name in the header, which the file need not terminate, with a NUL. */
 void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1]);
 /*

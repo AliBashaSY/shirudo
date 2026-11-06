@@ -122,7 +122,8 @@ static void nul_in_the_log_is_refused(void)
 	drop_log();
 }
 
-#define OPERATION "sha256:abababababababababababababababababababababababababababababababab"
+#define DIGEST_HEX "abababababababababababababababababababababababababababababababab"
+#define OPERATION "sha256:" DIGEST_HEX
 
 static void tree_record(char *buf, size_t cap, __s64 seq, const char *op)
 {
@@ -165,10 +166,74 @@ static void tree_op_measured_this_boot(void)
 	drop_log();
 }
 
+struct seen_upatches {
+	int	inits;
+	int	loads;
+	char	last[64];
+};
+
+static int count_upatch(enum eventlog_upatch_event event, const char *name,
+			const char *payload_hex, void *ctx)
+{
+	struct seen_upatches *s = ctx;
+
+	if (event == EVENTLOG_UPATCH_INIT) {
+		s->inits++;
+		return 0;
+	}
+	s->loads += event == EVENTLOG_UPATCH_LOAD;
+	ASSERT_TRUE(strscpy(s->last, name, sizeof(s->last)) > 0);
+	return 0;
+}
+
+static void set_record(char *buf, size_t cap, const char *type,
+		       const char *name)
+{
+	struct json_emit e = { .buf = buf, .cap = cap };
+	__u8 digest[32];
+
+	memset(digest, 2, sizeof(digest));
+	eventlog_record_open(&e, type, digest);
+	json_arr_open(&e, "set");
+	json_obj_open(&e);
+	json_kv_string(&e, "name", name);
+	json_kv_string(&e, "payload_sha256", DIGEST_HEX);
+	json_obj_close(&e);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+}
+
+/* Only an init record's set says what boot restore loaded. */
+static void set_counts_in_an_init_record_alone(void)
+{
+	char init[1024], other[1024], text[2048];
+	struct seen_upatches s = {};
+	int len;
+
+	use_log();
+	set_record(init, sizeof(init), "init", "fix");
+	set_record(other, sizeof(other), "key_revoke", "ghost");
+	len = strsprintf(text, sizeof(text), "%s\n%s\n", init, other);
+	ASSERT_TRUE(len > 0);
+	write_log(text, (size_t)len);
+	ASSERT_EQ(eventlog_boot_upatches(count_upatch, &s), 0);
+	EXPECT_EQ(s.inits, 1);
+	EXPECT_EQ(s.loads, 1);
+	EXPECT_STREQ(s.last, "fix");
+	set_record(init, sizeof(init), "init", "../fix");
+	len = strsprintf(text, sizeof(text), "%s\n", init);
+	ASSERT_TRUE(len > 0);
+	write_log(text, (size_t)len);
+	EXPECT_EQ(eventlog_boot_upatches(count_upatch, &s), -EINVAL);
+	drop_log();
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(unfinished_append_is_no_record),
 	UNIT_CASE(nul_in_the_log_is_refused),
 	UNIT_CASE(tree_op_measured_this_boot),
+	UNIT_CASE(set_counts_in_an_init_record_alone),
 	{}
 };
 

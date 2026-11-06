@@ -17,6 +17,7 @@
 #include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
+#include "hex.h"
 #include "malloc.h"
 #include "upatch.h"
 
@@ -553,6 +554,14 @@ bool upatch_name_valid(const char *name)
 			return false;
 	}
 	return true;
+}
+
+bool upatch_member_valid(const char *name, const char *payload_hex)
+{
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
+
+	return upatch_name_valid(name) && payload_hex &&
+	       !hex_decode(payload_hex, payload, sizeof(payload));
 }
 
 int upatch_select(const struct dirent *e)
