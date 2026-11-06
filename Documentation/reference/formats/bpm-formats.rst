@@ -519,7 +519,8 @@ not published.
        (1), ``seq``, ``digest`` (the ``operation_digest``) and
        ``projection_root``. ``projection_root`` is the SHA-256 of the
        previous root followed by the raw operation digest, starting from
-       32 zero bytes.
+       32 zero bytes. A last line without its newline is an append that
+       did not finish: the replay skips it and the next append drops it.
    * - ``pending.json``
      - JSON object with ``schema`` (1), ``seq``, ``id`` and
        ``operation_digest`` while an operation is in progress.

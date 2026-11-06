@@ -588,7 +588,6 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 {
 	char buf[1024], root[65];
 	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
-	struct stat st;
 	int fd, ret;
 
 	if (!operation_digest || strncmp(operation_digest, "sha256:", 7) ||
@@ -607,28 +606,17 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 	if (ret)
 		return ret;
 	fd = seal_open(BPM_TREE_EVENTLOG_PATH,
-		       O_WRONLY | O_CREAT | O_APPEND, 0600);
+		       O_RDWR | O_CREAT | O_APPEND, 0600);
 	if (fd < 0)
 		return fd;
-	/* A partial line would fail every later replay; roll it back. */
+	/* A partial line would fail every later replay. */
 	while (flock(fd, LOCK_EX) != 0) {
 		if (errno != EINTR) {
 			ret = -errno;
 			goto out;
 		}
 	}
-	if (fstat(fd, &st) != 0) {
-		ret = -errno;
-		goto out;
-	}
-	ret = write_complete(fd, buf, e.len);
-	if (!ret)
-		ret = write_complete(fd, "\n", 1);
-	if (!ret && fsync(fd))
-		ret = -errno;
-	if (ret && ftruncate(fd, st.st_size))
-		pr_warn("tree: could not roll back a partial append to %s: %s",
-			BPM_TREE_EVENTLOG_PATH, strerror(errno));
+	ret = append_line(fd, BPM_TREE_EVENTLOG_PATH, buf, e.len);
 out:
 	if (close(fd) && !ret)
 		ret = -errno;
@@ -651,6 +639,7 @@ int tree_event_replay(__u8 out[32])
 		xfree(body, len + 1);
 		return -EINVAL;
 	}
+	body[lines_len((const char *)body, len)] = '\0';
 	for (line = strtok_r((char *)body, "\n", &save); line;
 	     line = strtok_r(NULL, "\n", &save)) {
 		char digest[128] = {};
