@@ -21,7 +21,7 @@ Usage
 
 .. code-block:: none
 
-   shirudo bpm config register add <source> oci://<registry> [--index-repository <repository>] (--key-file <certificate> | --key-file=<certificate>)
+   shirudo bpm config register add <source> oci://<registry> [--index-repository <repository>] (--cert <certificate> | --cert=<certificate>)
    shirudo bpm config register list
    shirudo bpm config register (remove | rm) <source>
    shirudo bpm config update --base-package <package> --version <version>
@@ -133,8 +133,8 @@ image, the image's ``etc/shirudo/bpm/registries.d/`` is used instead, and
    image mode: change repository definitions and keys in a signed config image, then run `shirudo image update`
 
 - ``add`` checks that the endpoint is ``oci://<host>[:<port>]`` without a
-  path, checks ``--index-repository`` and that ``--key-file`` is a
-  certificate. It copies the certificate to
+  path, checks ``--index-repository`` and that ``--cert`` is a
+  certificate, and refuses any other option. It copies the certificate to
   ``/etc/shirudo/bpm/keys/<source>.der`` and writes the source file.
 - ``list`` prints the registered source names, one per line.
 - ``remove`` and ``rm`` delete the source file and its certificate.

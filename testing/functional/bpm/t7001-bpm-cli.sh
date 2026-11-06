@@ -60,6 +60,15 @@ test_expect_success 'bpm tree help covers sync and append' '
 	! $SHIRUDO bpm tree not-a-command >/dev/null 2>&1
 '
 
+test_expect_success 'bpm config register add takes --cert and refuses other options' '
+	rc=0 &&
+	out=$($SHIRUDO bpm config register add src oci://registry.example \
+		--key-file x.der 2>&1) || rc=$? &&
+	[ "$rc" -eq 2 ] &&
+	echo "$out" | grep -q "unknown option .--key-file." &&
+	$SHIRUDO bpm config --help 2>&1 | grep -q -- "--cert <certificate>"
+'
+
 test_expect_success 'bpm uninstall and list validate their arguments' '
 	! $SHIRUDO bpm uninstall >/dev/null 2>&1 &&
 	! $SHIRUDO bpm uninstall ../etc >/dev/null 2>&1 &&

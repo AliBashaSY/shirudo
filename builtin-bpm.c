@@ -1562,8 +1562,8 @@ static int cmd_bpm_config(int argc, const char **argv)
 	if (!op || is_help(op)) {
 		fprintf(stderr,
 			"usage: shirudo bpm config register add <source> "
-			"oci://<registry> --index-repository <repository> "
-			"--key-file <certificate>\n"
+			"oci://<registry> [--index-repository <repository>] "
+			"--cert <certificate>\n"
 			"       shirudo bpm config register {list|remove} ...\n"
 			"       shirudo bpm config update --base-package "
 			"<package.bee|oci://host/repo:tag> --version <version> "
@@ -1670,6 +1670,10 @@ static int cmd_bpm_config(int argc, const char **argv)
 					return 2;
 			} else if (!strcmp(argv[i], "--index-repository")) {
 				return 2;
+			} else {
+				pr_err("bpm: register add: unknown option '%s'",
+				       argv[i]);
+				return 2;
 			}
 		}
 		if (!s.index_repository[0] &&
@@ -1683,8 +1687,7 @@ static int cmd_bpm_config(int argc, const char **argv)
 		    source_index_repository_valid(s.endpoint,
 						  s.index_repository)) {
 			cert_free(&cert);
-			pr_err("bpm: register add requires a valid endpoint, index "
-			       "repository and --key-file certificate");
+			pr_err("bpm: register add requires a valid endpoint, index repository and --cert certificate");
 			return 2;
 		}
 		cert_free(&cert);
