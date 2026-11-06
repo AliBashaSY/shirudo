@@ -66,8 +66,10 @@ rewrites under `BPF_F_LOCK`. Prefer `lsm`, `tp_btf` and `fentry` to
 	bpf_map_rmw bpf_map_use_after_delete bpf_publish bpf_user_double_fetch
 ```
 
-The rules see one function at a time and cannot parse a file with its
-own token-pasting macros, such as `obs_table.h`. Write the ordering
+The `bpf-coccinelle` skill shows how to run them on files the tree does
+not track and how to make sure Coccinelle parsed them. The rules see
+one function at a time and cannot parse a file with its own
+token-pasting macros, such as `obs_table.h`. Write the ordering
 between CPUs such code relies on as litmus tests, with a control test
 the CPU may break, and run them with blitmus on x86-64, arm64 and
 riscv64, built with clang 23 (`blitmus.rst`): a pass on x86-64 alone
