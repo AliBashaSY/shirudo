@@ -75,8 +75,65 @@ static void archive_path_has_no_dot_component(void)
 	EXPECT_FALSE(bpm_archive_rel_ok("t-1.0.0//Beefile"));
 }
 
+static int sign(int v)
+{
+	return (v > 0) - (v < 0);
+}
+
+/* The precedence example of SemVer 2.0.0, 11.4, and build metadata. */
+static void semver_follows_its_precedence(void)
+{
+	static const char *const order[] = {
+		"1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta",
+		"1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1",
+		"1.0.0-rc.2+x", "1.0.0-rc.10", "1.0.0", "1.2.3", "1.10.0",
+	};
+	size_t i, j;
+
+	for (i = 0; i < ARRAY_SIZE(order); i++) {
+		for (j = 0; j < ARRAY_SIZE(order); j++)
+			EXPECT_EQ(bpm_semver_compare(order[i], order[j]),
+				  sign((int)i - (int)j));
+	}
+	EXPECT_EQ(bpm_semver_compare("1.0.0-rc.1+b2", "1.0.0-rc.1+b1"), 0);
+	EXPECT_EQ(bpm_semver_compare("1.0.0+b2", "1.0.0"), 0);
+}
+
+/*
+ * Versions SemVer does not describe sort below those it does and by
+ * their bytes among themselves: the order is total over all of them.
+ */
+static void version_order_is_total(void)
+{
+	static const char *const v[] = {
+		"1.", "1.2.3-rc.1", "01.10.0", "1.2", "01.2.0", "1.2.0-rc",
+		"1.2.3.4", "1.2.3.5", "1.0.0foo", "1.0.0", "1.0.0-rc.01",
+		"1.0.0-rc.1", "0.9.0+build.5", "2.0.0-0.3.7", "1_0", "9",
+	};
+	size_t a, b, c;
+
+	EXPECT_EQ(bpm_semver_compare("1.2.3.5", "1.2.3.4"), 1);
+	EXPECT_EQ(bpm_semver_compare("01.0.0", "0.0.1"), -1);
+	EXPECT_EQ(bpm_semver_compare("1.0.0-rc.01", "1.0.0-rc.1"), -1);
+	for (a = 0; a < ARRAY_SIZE(v); a++) {
+		for (b = 0; b < ARRAY_SIZE(v); b++) {
+			int ab = bpm_semver_compare(v[a], v[b]);
+
+			EXPECT_EQ(ab, -bpm_semver_compare(v[b], v[a]));
+			for (c = 0; c < ARRAY_SIZE(v); c++) {
+				if (ab <= 0 &&
+				    bpm_semver_compare(v[b], v[c]) <= 0)
+					EXPECT_TRUE(bpm_semver_compare(v[a],
+								       v[c]) <= 0);
+			}
+		}
+	}
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(index_entry_needs_its_package_size),
+	UNIT_CASE(semver_follows_its_precedence),
+	UNIT_CASE(version_order_is_total),
 	UNIT_CASE(archive_path_has_no_dot_component),
 	{}
 };

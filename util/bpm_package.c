@@ -5,6 +5,7 @@
  * .bee archive reading, package identity, signed index and tree fetch.
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -117,74 +118,136 @@ int bpm_index_parse(const __u8 *body, size_t len,
 	return 0;
 }
 
-/*
- * SemVer 2.0.0, 11.4: dot-separated identifiers, numeric ones by value
- * and below alphanumeric ones, a longer list after a shorter equal one.
- */
-static int prerelease_compare(const char *a, const char *b)
-{
-	while (*a && *b) {
-		size_t la = strcspn(a, "."), lb = strcspn(b, ".");
-		bool na = strspn(a, "0123456789") == la;
-		bool nb = strspn(b, "0123456789") == lb;
-		int c;
+struct semver {
+	__u64		core[3];
+	const char	*pre;
+	size_t		pre_len;
+};
 
-		if (na && nb) {
-			while (la > 1 && *a == '0') {
-				a++;
-				la--;
-			}
-			while (lb > 1 && *b == '0') {
-				b++;
-				lb--;
-			}
-			c = la != lb ? (la > lb ? 1 : -1) : strncmp(a, b, la);
-		} else if (na != nb) {
-			c = na ? -1 : 1;
-		} else {
-			c = strncmp(a, b, min(la, lb));
-			if (!c && la != lb)
-				c = la > lb ? 1 : -1;
+/* SemVer 2.0.0, 9 and 10: identifiers of [0-9A-Za-z-], dot-separated. */
+static bool semver_identifiers(const char *s, size_t len, bool prerelease)
+{
+	size_t i = 0;
+
+	while (i < len) {
+		size_t n = 0;
+
+		while (i + n < len && s[i + n] != '.') {
+			if (!isalnum((__u8)s[i + n]) && s[i + n] != '-')
+				return false;
+			n++;
 		}
-		if (c)
-			return c > 0 ? 1 : -1;
-		a += la;
-		b += lb;
-		if (*a == '.')
-			a++;
-		if (*b == '.')
-			b++;
+		if (!n || (prerelease && n > 1 && s[i] == '0' &&
+			   digits(s + i, n) == n))
+			return false;
+		i += n;
+		if (i < len && ++i == len)
+			return false;
 	}
-	return *a ? 1 : *b ? -1 : 0;
+	return len > 0;
+}
+
+static bool semver_parse(const char *s, struct semver *v)
+{
+	const char *p = s;
+	size_t n;
+
+	for (int i = 0; i < 3; i++) {
+		n = digits(p, strlen(p));
+		if (!n || (n > 1 && p[0] == '0') ||
+		    parse_u64(p, n, UINT64_MAX, &v->core[i]))
+			return false;
+		p += n;
+		if (i < 2 && *p++ != '.')
+			return false;
+	}
+	v->pre = NULL;
+	v->pre_len = 0;
+	if (*p == '-') {
+		n = strcspn(p + 1, "+");
+		if (!semver_identifiers(p + 1, n, true))
+			return false;
+		v->pre = p + 1;
+		v->pre_len = n;
+		p += 1 + n;
+	}
+	if (*p == '+') {
+		n = strlen(p + 1);
+		if (!semver_identifiers(p + 1, n, false))
+			return false;
+		p += 1 + n;
+	}
+	return !*p;
 }
 
 /*
- * Strict enough for repository selection: numeric dotted core, optional
- * prerelease, and build metadata.  Build metadata does not affect order.
+ * SemVer 2.0.0, 11.4: identifiers left to right, numeric ones by value
+ * and below alphanumeric ones, a longer list after a shorter equal one.
+ */
+static int prerelease_compare(const char *a, size_t la, const char *b,
+			      size_t lb)
+{
+	while (la && lb) {
+		const char *da = memchr(a, '.', la), *db = memchr(b, '.', lb);
+		size_t na = da ? (size_t)(da - a) : la;
+		size_t nb = db ? (size_t)(db - b) : lb;
+		bool numa = digits(a, na) == na, numb = digits(b, nb) == nb;
+		int c;
+
+		if (numa && numb) {
+			c = na != nb ? (na > nb ? 1 : -1) : memcmp(a, b, na);
+		} else if (numa != numb) {
+			c = numa ? -1 : 1;
+		} else {
+			c = memcmp(a, b, min(na, nb));
+			if (!c && na != nb)
+				c = na > nb ? 1 : -1;
+		}
+		if (c)
+			return c > 0 ? 1 : -1;
+		a += na;
+		la -= na;
+		b += nb;
+		lb -= nb;
+		if (la) {
+			a++;
+			la--;
+		}
+		if (lb) {
+			b++;
+			lb--;
+		}
+	}
+	return la ? 1 : lb ? -1 : 0;
+}
+
+/*
+ * SemVer 2.0.0 precedence, build metadata ignored. A version it does not
+ * describe sorts below every one it does, and such versions sort among
+ * themselves by their bytes, so that the order stays total over every
+ * version bpm_version_ok() lets through.
  */
 int bpm_semver_compare(const char *a, const char *b)
 {
-	const char *pa = a, *pb = b;
+	bool sa, sb;
+	struct semver va, vb;
+	int c;
 
-	for (int part = 0; part < 3; part++) {
-		size_t na = digits(pa, strlen(pa));
-		size_t nb = digits(pb, strlen(pb));
-		__u64 va, vb;
-
-		if (parse_u64(pa, na, UINT64_MAX, &va) ||
-		    parse_u64(pb, nb, UINT64_MAX, &vb))
-			return strcmp(a, b);
-		if (va != vb)
-			return va > vb ? 1 : -1;
-		pa = pa[na] == '.' ? pa + na + 1 : pa + na;
-		pb = pb[nb] == '.' ? pb + nb + 1 : pb + nb;
+	sa = semver_parse(a, &va);
+	sb = semver_parse(b, &vb);
+	if (!sa || !sb) {
+		if (sa != sb)
+			return sa ? 1 : -1;
+		c = strcmp(a, b);
+		return c > 0 ? 1 : c < 0 ? -1 : 0;
 	}
-	if (*pa == '-' || *pb == '-') {
-		if (*pa != '-' || *pb != '-')
-			return *pa == '-' ? -1 : 1;
-		return prerelease_compare(pa + 1, pb + 1);
+	for (int i = 0; i < 3; i++) {
+		if (va.core[i] != vb.core[i])
+			return va.core[i] > vb.core[i] ? 1 : -1;
 	}
-	return 0;
+	if (!va.pre_len || !vb.pre_len)
+		return va.pre_len ? -1 : vb.pre_len ? 1 : 0;
+	return prerelease_compare(va.pre, va.pre_len, vb.pre, vb.pre_len);
 }
 
 int bpm_verify_cms(const __u8 *payload, size_t payload_len,
