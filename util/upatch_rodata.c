@@ -778,6 +778,61 @@ static __printf(2, 0) void print_text(void *ctx, const char *fmt,
 	vfprintf(fp, fmt, args);
 }
 
+/*
+ * libbpf's dumper follows member, element and modifier types with no
+ * bound, and the BTF may come from an unsigned package: a VAR whose type
+ * is the DATASEC holding it sends it round until the stack is gone, and
+ * zero-sized elements counted in billions keep it busy. Walk what it
+ * would follow first, through value types alone and within the depth
+ * the JSON view keeps to; done marks the types already found fine.
+ */
+static bool btf_dumpable(const struct btf *btf, __u32 id, __u32 depth,
+			 __u8 *done)
+{
+	const struct btf_type *t = btf__type_by_id(btf, id);
+	const struct btf_member *m;
+	const struct btf_array *a;
+	__u32 i;
+
+	if (!t || depth >= RODATA_JSON_MAX_DEPTH)
+		return false;
+	if (done[id / 8] & (1u << (id % 8)))
+		return true;
+	switch (BTF_INFO_KIND(t->info)) {
+	case BTF_KIND_INT:
+	case BTF_KIND_PTR:
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+	case BTF_KIND_FLOAT:
+		break;
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_CONST:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
+		if (!btf_dumpable(btf, t->type, depth + 1, done))
+			return false;
+		break;
+	case BTF_KIND_ARRAY:
+		a = (const struct btf_array *)(t + 1);
+		if ((a->nelems && btf__resolve_size(btf, a->type) <= 0) ||
+		    !btf_dumpable(btf, a->type, depth + 1, done))
+			return false;
+		break;
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+		m = (const struct btf_member *)(t + 1);
+		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
+			if (!btf_dumpable(btf, m[i].type, depth + 1, done))
+				return false;
+		break;
+	default:
+		return false;
+	}
+	done[id / 8] |= 1u << (id % 8);
+	return true;
+}
+
 static int print_rodata_text(const struct upatch *u,
 			     const char *path, const struct rodata_view *view)
 {
@@ -792,8 +847,10 @@ static int print_rodata_text(const struct upatch *u,
 							    view->type_id);
 	const struct btf_var_secinfo *vars =
 		(const struct btf_var_secinfo *)(sec + 1);
+	size_t done_len = btf__type_cnt(view->btf) / 8 + 1;
 	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
 	char name[UPATCH_NAME_MAX + 1];
+	__u8 *done;
 	int ret = 0;
 
 	memcpy(name, u->hdr.name, UPATCH_NAME_MAX);
@@ -801,9 +858,14 @@ static int print_rodata_text(const struct upatch *u,
 	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
 	       name, path, view->size, view->data_offset,
 	       u->hdr.data_off + view->data_offset);
+	done = xcalloc(done_len, 1);
+	if (!done)
+		return -ENOMEM;
 	dump = btf_dump__new(view->btf, print_text, stdout, NULL);
-	if (libbpf_get_error(dump))
+	if (libbpf_get_error(dump)) {
+		xfree(done, done_len);
 		return -EINVAL;
+	}
 	for (i = 0; i < vlen; i++) {
 		__u32 type_id;
 		const char *var_name = btf_var_name(view->btf, &vars[i]);
@@ -820,7 +882,8 @@ static int print_rodata_text(const struct upatch *u,
 		if (ret)
 			goto out;
 		if (vars[i].offset > view->size ||
-		    vars[i].size > view->size - vars[i].offset) {
+		    vars[i].size > view->size - vars[i].offset ||
+		    !btf_dumpable(view->btf, type_id, 0, done)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -836,11 +899,10 @@ static int print_rodata_text(const struct upatch *u,
 		putchar('\n');
 	}
 	putchar('\n');
-	btf_dump__free(dump);
-	return 0;
 out:
 	btf_dump__free(dump);
-	return ret;
+	xfree(done, done_len);
+	return min(ret, 0);
 }
 
 static int print_rodata_json(const struct upatch *u,
