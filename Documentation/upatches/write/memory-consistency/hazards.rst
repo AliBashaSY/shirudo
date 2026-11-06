@@ -153,10 +153,11 @@ of a map that is not per-CPU, and for inode, socket and cgroup storage,
 which hooks on different CPUs reach for the same inode, socket or
 cgroup. Update such a value with ``__sync_fetch_and_add()``,
 ``__sync_fetch_and_or()`` and their kin, which do it in one instruction.
-``bpf_map_rmw`` refuses the plain forms. A global variable is a value
-too, of the one array map that holds the object's ``.bss`` or ``.data``,
-which every CPU shares; ``bpf_map_rmw`` does not see it, so update it
-the same way.
+``bpf_map_rmw`` refuses the plain forms: ``++``, ``--``, ``+=``, ``-=``,
+``|=``, ``&=``, ``x = x + n`` and ``x = x - n``. A global variable is a
+value too, of the one array map that holds the object's ``.bss`` or
+``.data``, which every CPU shares; ``bpf_map_rmw`` does not see it, so
+update it the same way.
 
 A per-CPU counter needs an atomic only where a run can come in between
 on the same CPU: in a program the kernel does not guard, as listed

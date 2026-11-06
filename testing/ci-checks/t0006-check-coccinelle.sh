@@ -312,6 +312,41 @@ struct meta *flags_reassigned(struct sock *sk)
 		m->flags |= 1;
 	return m;
 }
+
+void count_add(void)
+{
+	__u32 zero = 0;
+	__u64 *count = bpf_map_lookup_elem(&hits, &zero);
+
+	if (count)
+		*count += 1;
+}
+
+void count_sum(void)
+{
+	__u32 zero = 0;
+	__u64 *count = bpf_map_lookup_elem(&hits, &zero);
+
+	if (count)
+		*count = *count + 2;
+}
+
+void count_percpu_add(void)
+{
+	__u32 zero = 0;
+	__u64 *count = bpf_map_lookup_elem(&cpu_hits, &zero);
+
+	if (count)
+		*count += 1;
+}
+
+void flags_inode(struct inode *inode)
+{
+	struct meta *m = bpf_inode_storage_get(&inodes, inode, 0, 0);
+
+	if (m)
+		m->flags = m->flags + 1;
+}
 EOF
 }
 
@@ -330,7 +365,7 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 		grep -q "^$r: samples.bpf.c:" "$W/err" || exit 1
 	done &&
 	grep -q "6 of 6 rules matched" "$W/err" &&
-	[ "$(grep -c "^bpf_[a-z_]*: samples.bpf.c:" "$W/err")" = 7 ]
+	[ "$(grep -c "^bpf_[a-z_]*: samples.bpf.c:" "$W/err")" = 10 ]
 '
 
 test_expect_success 'the tree passes' '

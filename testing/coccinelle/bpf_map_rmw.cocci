@@ -35,7 +35,7 @@ def shared_maps(path):
 		shared[path] = names
 	return shared[path]
 
-@r depends on report@
+@r depends on report exists@
 attribute name SEC;
 identifier m, p, f;
 expression k, e, e2;
@@ -65,14 +65,24 @@ p->f@pos &= e
 |
  (*p@pos)--
 |
-*p@pos += e
+ *p@pos += e
 |
-*p@pos -= e
+ *p@pos -= e
 |
-*p@pos |= e
+ *p@pos |= e
+|
+ *p@pos &= e
+|
+ *p@pos = *p + e
+|
+ *p@pos = *p - e
+|
+p->f@pos = p->f + e
+|
+p->f@pos = p->f - e
 )
 
-@s depends on report@
+@s depends on report exists@
 identifier get = {bpf_inode_storage_get, bpf_sk_storage_get,
 		  bpf_cgrp_storage_get};
 expression list args;
@@ -99,6 +109,10 @@ p->f@pos -= e
 p->f@pos |= e
 |
 p->f@pos &= e
+|
+p->f@pos = p->f + e
+|
+p->f@pos = p->f - e
 )
 
 @script:python depends on report@
