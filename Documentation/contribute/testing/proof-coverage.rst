@@ -275,7 +275,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``kernel_build_id_from_notes()``
      - Notes of 0 to 24, 28, 32, 36 and 40 bytes
      - Reads nothing past the notes; a build ID of 1 to 64 lowercase hex
-       digits that is the first GNU build ID note's, or empty
+       digits that is the first GNU build ID note's, or empty, and none
+       from a section whose one note is another
    * - ``kernel-release``
      - ``kernel_release_prefix_matches()``
      - Releases and prefixes up to 8 bytes

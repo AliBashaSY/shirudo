@@ -5,7 +5,8 @@
  * kernel_build_id_from_notes() of util/kernel_build_id.c on every note
  * section of LEN bytes: it reads nothing outside the section, a refusal
  * leaves an empty string, and a build ID is the lowercase hex of at most
- * 64 bytes, that of the first note when it is the GNU build ID.
+ * 64 bytes, that of the first note when it is the GNU build ID, type 3
+ * named "GNU", and none from a section whose one note is anything else.
  */
 
 #include "proof.h"
@@ -25,6 +26,21 @@ static bool lower_hex(char c)
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
 }
 
+static bool gnu_build_id(const __u8 *notes)
+{
+	return word(notes + 8) == 3 && word(notes) == 4 &&
+	       !memcmp(notes + 12, "GNU", 4);
+}
+
+/* A section of one note, of a name of up to 4 bytes and a descriptor. */
+static bool one_note(const __u8 *notes)
+{
+	__u32 namesz = word(notes), descsz = word(notes + 4);
+
+	return LEN >= 12 && namesz <= 4 && descsz <= LEN &&
+	       12 + align4(namesz) + align4(descsz) == LEN;
+}
+
 static void first_note(const __u8 *notes, const char *out)
 {
 	static const char d[] = "0123456789abcdef";
@@ -35,8 +51,7 @@ static void first_note(const __u8 *notes, const char *out)
 		return;
 	namesz = word(notes);
 	descsz = word(notes + 4);
-	if (word(notes + 8) != 3 || namesz < 3 || namesz > LEN ||
-	    memcmp(notes + 12, "GNU", 3) || !descsz || descsz > LEN)
+	if (!gnu_build_id(notes) || !descsz || descsz > LEN)
 		return;
 	desc = 12 + align4(namesz);
 	if (desc + align4(descsz) > LEN)
@@ -59,6 +74,8 @@ void harness(void)
 		__CPROVER_assert(!out[0], "a refusal leaves an empty string");
 		return;
 	}
+	__CPROVER_assert(!one_note(notes) || gnu_build_id(notes),
+			 "only a GNU build ID note gives one");
 	n = strnlen(out, sizeof(out));
 	__CPROVER_assert(n < sizeof(out) && n >= 2 && !(n % 2),
 			 "a terminated ID of whole bytes, at most 64");
