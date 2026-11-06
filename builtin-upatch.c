@@ -1616,21 +1616,30 @@ err:
 	return ret;
 }
 
+static int remove_pin_dir(const char *name);
+
 /*
- * The value `upatch unload` checks, unforgeable behind bpf2's xattr
- * guard. The load stands, so a failure is not fatal, but it leaves the
- * upatch un-unloadable through the normal path: an error, not a warning.
+ * The value `upatch unload` checks and every undo pass compares with the
+ * records, unforgeable behind bpf2's xattr guard. Pins without it are
+ * ones no record covers, which the next upatch command would take out
+ * after this load's own record: the load is taken out here, before it.
  */
-static void set_pin_payload(const char *name, const __u8 payload[32])
+static int set_pin_payload(const char *name, const __u8 payload[32])
 {
 	char dir[PATH_MAX];
+	int ret;
 
 	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
-		return;
-	if (setxattr(dir, XATTR_PAYLOAD, payload, 32, 0) != 0)
-		pr_err("upatch: cannot record payload xattr on %s: %s "
-		       "(unload of this upatch will refuse)",
-		       dir, strerror(errno));
+		return -ENAMETOOLONG;
+	if (!setxattr(dir, XATTR_PAYLOAD, payload, 32, 0))
+		return 0;
+	ret = -errno;
+	pr_err("upatch: cannot record the payload on %s: %s; undoing the load",
+	       dir, strerror(-ret));
+	if (remove_pin_dir(name))
+		pr_err("upatch: %s could not be undone; the next upatch command takes it out",
+		       name);
+	return ret;
 }
 
 static int get_pin_payload(const char *name, __u8 out[32])
@@ -2162,7 +2171,13 @@ static int __upatch_apply(const char *path, bool verify_only,
 			shared_socket_policy_map_idx, upatch_name);
 
 	/* After attach and pin, so the value records a loaded upatch. */
-	set_pin_payload(upatch_name, u.hdr.payload_sha256);
+	ret = set_pin_payload(upatch_name, u.hdr.payload_sha256);
+	if (ret) {
+		rep_fail(rep, "link_create", "unknown", ret,
+			 "cannot record the payload on the pin directory; the load was undone");
+		ret = 1;
+		goto out;
+	}
 	apply_policy_labels(&u);
 
 	pr_audit("upatch load: %s loaded, %u programs, keyring %d",

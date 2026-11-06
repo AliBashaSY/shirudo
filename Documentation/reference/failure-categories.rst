@@ -51,7 +51,8 @@ measures in ``tpm_extend`` and removes the pins in ``pin``.
        programs and maps through the verifier.
    * - ``link_create``
      - Attaching each program, checking the link against the attach
-       metadata and pinning it in the private bpffs.
+       metadata, pinning it in the private bpffs and recording the payload
+       on the pin directory.
    * - ``pin``
      - Unload only: comparing the payload recorded on the pin directory
        with the directive's, and removing the pins.
@@ -210,8 +211,9 @@ Categories
        ``payload_load``, ``link_create``, ``persist``
      - errno of the call
      - Any other failure: out of memory, a failed hash of the loader, an
-       unclassified attach error, or a failed archive copy (the load is
-       undone).
+       unclassified attach error, a payload that cannot be recorded on the
+       pin directory or a failed archive copy (the load is undone for
+       both).
      - Read ``message`` and the journal. For ``persist``, check the space
        on the file system that holds ``/var/lib/shirudo``.
 
