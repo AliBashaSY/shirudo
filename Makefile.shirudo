@@ -645,6 +645,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-image-cli \
                 testing/helper/test-image-cleanup \
                 testing/helper/test-mode-objects \
+                testing/helper/test-seal-output \
                 testing/helper/test-image-config \
                 testing/helper/test-config-image \
                 testing/helper/test-config-update \
@@ -909,6 +910,11 @@ testing/helper/test-mode-objects: testing/helper/test-mode-objects.c \
 		$(call obj,util/loader.o) $(LIBBPF_A)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lelf -lz
+
+testing/helper/test-seal-output: testing/helper/test-seal-output.c \
+		util/seal.o util/io.o util/log.o util/string.o util/malloc.o
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -Wl,--wrap=write_complete
 
 test-helpers: $(TEST_HELPERS)
 

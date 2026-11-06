@@ -286,7 +286,8 @@ signed config image.
    * - ``t6006-harden``
      - Memory locking at startup, failing closed
    * - ``t6007-output-paths``
-     - Output paths: no symbolic links, directories or devices
+     - Output paths: no symbolic links, directories or devices; a failed
+       write removes only the file written, where it was opened
    * - ``t6101-mode-objects``
      - Device, memory and config-root guards are pinned
    * - ``t6102-siggate``

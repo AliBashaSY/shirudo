@@ -304,7 +304,9 @@ static int seal_fsealed(int fd)
 	return errno == ENODATA || errno == ENOTSUP ? 0 : -errno;
 }
 
-int seal_output_open(const char *path, int flags, mode_t mode)
+/* seal_output_open(), keeping the directory open in *dirfd when it is set. */
+static int output_open(const char *path, int flags, mode_t mode,
+		       int *dirfd, const char **out_name)
 {
 	const char *name;
 	struct stat st;
@@ -337,7 +339,12 @@ int seal_output_open(const char *path, int flags, mode_t mode)
 		ret = -errno;
 		goto out_fd;
 	}
-	close(dfd);
+	if (dirfd) {
+		*dirfd = dfd;
+		*out_name = name;
+	} else {
+		close(dfd);
+	}
 	return fd;
 out_fd:
 	close(fd);
@@ -347,6 +354,49 @@ out_dir:
 		pr_err("%s: refusing to write sealed state", path);
 		ret = -EPERM;
 	}
+	return ret;
+}
+
+int seal_output_open(const char *path, int flags, mode_t mode)
+{
+	return output_open(path, flags, mode, NULL, NULL);
+}
+
+int seal_output_create(struct seal_output *out, const char *path,
+		       mode_t mode)
+{
+	int fd;
+
+	fd = output_open(path, O_WRONLY | O_CREAT | O_TRUNC, mode, &out->dfd,
+			 &out->name);
+	if (fd < 0)
+		return fd;
+	out->fd = fd;
+	return 0;
+}
+
+static bool same_inode(const struct stat *a, const struct stat *b)
+{
+	return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+}
+
+int seal_output_commit(struct seal_output *out, const void *buf, size_t len)
+{
+	struct stat wrote, named;
+	bool known;
+	int ret;
+
+	ret = write_complete(out->fd, buf, len);
+	if (!ret)
+		ret = write_complete(out->fd, "\n", 1);
+	known = !fstat(out->fd, &wrote);
+	if (close(out->fd) && !ret)
+		ret = -errno;
+	if (ret && known &&
+	    !fstatat(out->dfd, out->name, &named, AT_SYMLINK_NOFOLLOW) &&
+	    same_inode(&wrote, &named))
+		unlinkat(out->dfd, out->name, 0);
+	close(out->dfd);
 	return ret;
 }
 

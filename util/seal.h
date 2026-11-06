@@ -72,6 +72,25 @@ int seal_write_file(const char *path, const void *data, size_t len,
  */
 int seal_output_open(const char *path, int flags, mode_t mode);
 
+/*
+ * A document and its newline written to such a file, truncated first. A
+ * file the write does not complete is removed, but through the directory
+ * it was opened in and only while its name still holds the inode that
+ * was written: root, who picks the path and can make the write fail,
+ * could otherwise point it at sealed state for shirudo to remove.
+ * seal_output_create() is 0 or what seal_output_open() refused with;
+ * seal_output_commit() closes the file and is 0 or -errno.
+ */
+struct seal_output {
+	int		fd;
+	int		dfd;
+	const char	*name;
+};
+
+int seal_output_create(struct seal_output *out, const char *path,
+		       mode_t mode);
+int seal_output_commit(struct seal_output *out, const void *buf, size_t len);
+
 /* Give the inode behind fd the label of its directory, open as dfd. */
 int seal_inherit(int dfd, int fd);
 

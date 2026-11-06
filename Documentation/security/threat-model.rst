@@ -739,7 +739,11 @@ no entry without the label for its own: ``init`` ignores such an entry
 rather than labeling, following or restoring it. A path that root
 names for shirudo to write, a report, an export, evidence or a
 download, must be a regular file without the label that is not reached
-through a symbolic link and not created under a labeled directory. The
+through a symbolic link and not created under a labeled directory. When
+root makes the write fail, shirudo removes the file through the
+directory it opened it in, and only while the name still holds the
+inode it wrote, never by resolving the path again, where a directory
+root swapped for a link would lead it to sealed state (``t6007``). The
 contents of a config image are read from the descriptor of its verified
 root with ``openat2(2)`` and ``RESOLVE_BENEATH``, never through a
 ``/proc/<pid>/fd`` path that root could mount over.

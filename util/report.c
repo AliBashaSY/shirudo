@@ -25,6 +25,7 @@
 
 int report_emit(const char *path, const struct op_report *r)
 {
+	struct seal_output out;
 	struct json_emit e;
 	struct utsname uts;
 	char nv_index[16];
@@ -32,7 +33,7 @@ int report_emit(const char *path, const struct op_report *r)
 	const char *vlog = r->verifier_log ? r->verifier_log : "";
 	size_t loglen = strlen(vlog);
 	size_t cap = loglen * 6 + 16384;	/* worst-case escape + slack */
-	int fd, ret = 0;
+	int ret = 0;
 	char *buf;
 
 	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
@@ -96,21 +97,15 @@ int report_emit(const char *path, const struct op_report *r)
 		xfree(buf, cap);
 		return 0;
 	}
-	fd = seal_output_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd < 0) {
-		pr_err("report: open %s: %s", path, strerror(-fd));
-		xfree(buf, cap);
-		return fd;
-	}
-	ret = write_complete(fd, buf, strlen(buf));
-	if (!ret)
-		ret = write_complete(fd, "\n", 1);
-	if (close(fd) != 0 && !ret)
-		ret = -errno;
+	ret = seal_output_create(&out, path, 0644);
 	if (ret) {
-		pr_err("report: write %s: %s", path, strerror(-ret));
-		unlink(path);
+		pr_err("report: open %s: %s", path, strerror(-ret));
+		xfree(buf, cap);
+		return ret;
 	}
+	ret = seal_output_commit(&out, buf, strlen(buf));
+	if (ret)
+		pr_err("report: write %s: %s", path, strerror(-ret));
 	xfree(buf, cap);
 	return ret;
 }
