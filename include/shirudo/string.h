@@ -2,9 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting, DNS names and
- * UTF-8 characters, from util/string.c, and the scrub and compare for
- * secrets.
+ * Bounded number parsing, string copies and formatting, DNS names,
+ * UTF-8 characters and text for a terminal, from util/string.c, and the
+ * scrub and compare for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -67,6 +67,15 @@ bool dns_name_valid(const char *name);
  * n is read.
  */
 size_t utf8_width(const char *s, size_t n);
+
+/*
+ * Make the len bytes at s, text from outside, safe to print on a
+ * terminal: each byte of a control character, C0, DEL or C1 alike, and
+ * each byte that starts no well-formed UTF-8 character becomes '?',
+ * but for a tab and a line feed where lines is set, and there a carriage
+ * return before a line feed. The length stays as it was.
+ */
+void text_sanitize(char *s, size_t len, bool lines);
 
 /*
  * Zero the count bytes at s even when nothing reads them afterwards, as

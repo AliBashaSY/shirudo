@@ -391,6 +391,61 @@ static void utf8_width_takes_the_scalar_values_alone(void)
 	EXPECT_EQ(four, 0x100000);
 }
 
+static bool sanitized(const char *text, size_t len, bool lines,
+		      const char *want)
+{
+	char *buf = span(text, len);
+	bool same;
+
+	text_sanitize(buf, len, lines);
+	same = !memcmp(buf, want, len);
+	xfree(buf, len ? len : 1);
+	return same;
+}
+
+static void text_sanitize_replaces_controls_and_stray_bytes(void)
+{
+	EXPECT_TRUE(sanitized("", 0, false, ""));
+	EXPECT_TRUE(sanitized("plain ~text", 11, false, "plain ~text"));
+	EXPECT_TRUE(sanitized("\x1b[31mred", 8, false, "?[31mred"));
+	EXPECT_TRUE(sanitized("a\0b\x7f", 4, false, "a?b?"));
+	EXPECT_TRUE(sanitized("t\tl\n", 4, false, "t?l?"));
+	EXPECT_TRUE(sanitized("t\tl\n", 4, true, "t\tl\n"));
+	EXPECT_TRUE(sanitized("a\r\nb\rc\r", 7, true, "a\r\nb?c?"));
+	EXPECT_TRUE(sanitized("\xc2\x9b\x33\x31m", 5, true, "??31m"));
+	EXPECT_TRUE(sanitized("\xc2\x80\xc2\x9f\xc2\xa0", 6, false,
+			      "????\xc2\xa0"));
+	EXPECT_TRUE(sanitized("caf\xc3\xa9 \xe2\x82\xac \xf0\x9f\x90\x9d",
+			      14, false,
+			      "caf\xc3\xa9 \xe2\x82\xac \xf0\x9f\x90\x9d"));
+	EXPECT_TRUE(sanitized("\xff\xc3z\xe2\x82", 5, false, "??z??"));
+	EXPECT_TRUE(sanitized("\xed\xa0\x80", 3, false, "???"));
+}
+
+/* Every scalar value but the controls passes; a control leaves only '?'. */
+static void text_sanitize_passes_all_but_the_controls(void)
+{
+	__u32 cp, wrong = 0;
+	char buf[4];
+
+	for (cp = 0; cp <= 0x10ffff; cp++) {
+		bool control = cp < 0x20 || (cp >= 0x7f && cp <= 0x9f);
+		size_t len, i, marks = 0;
+		char copy[4];
+
+		if (cp >= 0xd800 && cp <= 0xdfff)
+			continue;
+		len = utf8_encode(cp, buf);
+		memcpy(copy, buf, len);
+		text_sanitize(buf, len, false);
+		for (i = 0; i < len; i++)
+			marks += buf[i] == '?';
+		if (control ? marks != len : memcmp(buf, copy, len))
+			wrong++;
+	}
+	EXPECT_EQ(wrong, 0);
+}
+
 static void memzero_explicit_clears_its_span_only(void)
 {
 	__u8 want[16], buf[16];
@@ -441,6 +496,8 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(dns_name_is_ldh_labels_and_no_address),
 	UNIT_CASE(utf8_width_takes_well_formed_characters_only),
 	UNIT_CASE(utf8_width_takes_the_scalar_values_alone),
+	UNIT_CASE(text_sanitize_replaces_controls_and_stray_bytes),
+	UNIT_CASE(text_sanitize_passes_all_but_the_controls),
 	UNIT_CASE(memzero_explicit_clears_its_span_only),
 	UNIT_CASE(memneq_explicit_tells_every_bit_apart),
 	{}

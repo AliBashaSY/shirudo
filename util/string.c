@@ -205,6 +205,32 @@ size_t utf8_width(const char *s, size_t n)
 	return width;
 }
 
+void text_sanitize(char *s, size_t len, bool lines)
+{
+	size_t i, n;
+
+	for (i = 0; i < len; i += n) {
+		__u8 c = s[i];
+		bool shown;
+
+		n = utf8_width(s + i, len - i);
+		if (c == '\t' || c == '\n')
+			shown = lines;
+		else if (c == '\r')
+			shown = lines && i + 1 < len && s[i + 1] == '\n';
+		else if (n == 1)
+			shown = c >= 0x20 && c != 0x7f;
+		else if (n == 2)
+			shown = c != 0xc2 || (__u8)s[i + 1] >= 0xa0;
+		else
+			shown = n != 0;
+		if (!n)
+			n = 1;
+		if (!shown)
+			memset(s + i, '?', n);
+	}
+}
+
 int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
 	int n = vsnprintf(buf, size, fmt, ap);

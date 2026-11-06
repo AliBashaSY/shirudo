@@ -755,8 +755,11 @@ static void keyring_emit_json(struct json_emit *e, const char *key,
 /* Kernel descriptions carry certificate subjects: keep the terminal safe. */
 static void print_safe(const char *s)
 {
-	for (; *s; s++)
-		putchar((__u8)*s < 0x20 || *s == 0x7f ? '?' : *s);
+	char shown[KEYRING_DESC_MAX];
+
+	strscpy(shown, s, sizeof(shown));
+	text_sanitize(shown, strlen(shown), false);
+	fputs(shown, stdout);
 }
 
 static void print_link(const struct status_keyring *k, size_t i,
