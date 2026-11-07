@@ -79,6 +79,12 @@ gigabytes is one to reshape, not to wait for.
   `--conversion-check`. Include the file between `#pragma CPROVER check
   push`, `#pragma CPROVER check disable "conversion"` and `#pragma CPROVER
   check pop`, and keep the check on everywhere else.
+- An array larger than `--max-field-sensitivity-array-size`, 64 by
+  default, is one object to CBMC, so the bytes stored in it stay
+  symbolic to every later read and comparison, constant strings
+  included. A proof that rests on such an array's contents raises the
+  bound to its size, as `bpm-tar-header` takes 512 for the tar header
+  and `bpm-tree-sync-model` 257 for the tree's 256-byte strings.
 - A write at a symbolic index makes every later read of that array
   symbolic, and a heap object of symbolic size blows up memory: give an
   allocation a fixed size the harness bounds. A write through a pointer
@@ -113,9 +119,11 @@ determining its events.
   `List.map_injective_iff`, is proved in the file.
 - The lakefile makes every warning an error, so a `sorry`, a deprecated
   name or an unused `simp` argument fails the build.
-- Link the model to the C with a CBMC proof where one is cheap, as
-  `string-number-model.c` checks `parse_u64()` against `Number.lean` up
-  to 4 bytes; the coverage page says which models follow the C by review.
+- A model proves the algorithm, not the C. Link the two with a CBMC
+  proof where one is cheap, as `string-number-model.c` checks
+  `parse_u64()` against `Number.lean` up to 4 bytes and
+  `bpm-tree-sync-model.c` runs the tree sync against `TreeSync.lean`'s
+  steps; the coverage page says which models follow the C by review.
 - The toolchain is the one `lean-toolchain` names; elan installs it.
 
 ## When it fails
@@ -131,7 +139,9 @@ determining its events.
   nor its destination, from a literal chosen by symbolic data, is CBMC
   5.95's `memcpy()` model, not the code: rerun the input as a constant
   to confirm, then define `PROOF_MEMCPY_BYTEWISE` before including
-  `proof.h` (as `bpm-upatch-member.c` does).
+  `proof.h` (as `bpm-upatch-member.c` does). Such a copy is also
+  pathologically slow, wrong bytes or not: when a proof stalls in
+  `memcpy()`, look for a literal source chosen by symbolic data first.
 - CBMC 5.95 also reads wrong bytes at a symbolic offset from a heap
   object of struct type that a `memcpy()` filled, `xreallocarray()`'s
   for one; a wrong value can make a check pass as well as fail. Read
