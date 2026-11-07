@@ -42,6 +42,34 @@ static int name_into(size_t len, int ptrs, size_t cap)
 	return ret ? 3 : 0;
 }
 
+/* A chain of n typedefs to type, or -1. */
+static int typedefs(struct btf *btf, const char *prefix, int n, int type)
+{
+	char name[16];
+
+	while (type > 0 && n--) {
+		if (strsprintf(name, sizeof(name), "%s%d", prefix, n) < 0)
+			return -1;
+		type = btf__add_typedef(btf, name, type);
+	}
+	return type;
+}
+
+/* Four levels of 64 members all laid over the bytes of an int, or -1. */
+static int overlaid(struct btf *btf, int type)
+{
+	int level, inner, i;
+
+	for (level = 0; type > 0 && level < 4; level++) {
+		inner = type;
+		type = btf__add_struct(btf, NULL, 4);
+		for (i = 0; type > 0 && i < 64; i++)
+			if (btf__add_field(btf, NULL, inner, 0, 0))
+				type = -1;
+	}
+	return type;
+}
+
 /*
  * A struct of an int, an enum and a pointer, spoiled as what says,
  * through the walk that guards libbpf's dumper: 0 when it may be dumped,
@@ -50,11 +78,11 @@ static int name_into(size_t len, int ptrs, size_t cap)
 static int dumpable(const char *what)
 {
 	const char *member = "a", *value = "E", *pointee = "int";
-	int ints, en, target, ptr, st, ret = 2;
+	int ints, en, target, ptr, st, a, b, ret = 2;
+	struct dump_cost *cost;
 	struct btf_type *t;
 	struct btf *btf;
-	size_t done_len;
-	__u8 *done;
+	__u32 types;
 
 	if (!strcmp(what, "member"))
 		member = "a\x1b[2J";
@@ -80,19 +108,31 @@ static int dumpable(const char *what)
 		t = (struct btf_type *)btf__type_by_id(btf, ptr);
 		t->type = ptr;
 	}
+	a = ints;
+	b = en;
+	if (!strcmp(what, "elements")) {
+		a = btf__add_array(btf, ints, ints, 1u << 20);
+	} else if (!strcmp(what, "overlaid")) {
+		a = overlaid(btf, ints);
+	} else if (!strcmp(what, "shared") || !strcmp(what, "deep")) {
+		a = typedefs(btf, "t", 6, ints);
+		b = !strcmp(what, "deep") ? typedefs(btf, "u", 2, a) : a;
+	}
 	st = btf__add_struct(btf, "s", 16);
-	if (ints <= 0 || target <= 0 || en <= 0 || ptr <= 0 || st <= 0 ||
-	    btf__add_field(btf, member, ints, 0, 0) ||
-	    btf__add_field(btf, "b", en, 32, 0) ||
+	if (ints <= 0 || target <= 0 || en <= 0 || ptr <= 0 || a <= 0 ||
+	    b <= 0 || st <= 0 ||
+	    btf__add_field(btf, member, a, 0, 0) ||
+	    btf__add_field(btf, "b", b, 32, 0) ||
 	    btf__add_field(btf, "p", ptr, 64, 0))
 		goto out;
-	done_len = btf__type_cnt(btf) / 8 + 1;
-	done = xcalloc(done_len, 1);
-	if (!done)
+	types = btf__type_cnt(btf);
+	cost = xcalloc(types, sizeof(*cost));
+	if (!cost)
 		goto out;
-	ret = btf_dumpable(btf, (__u32)st, 0, done) ? 0 : 1;
-	printf("%s dumpable=%d\n", what, !ret);
-	xfree(done, done_len);
+	ret = btf_dump_cost(btf, (__u32)st, 0, cost);
+	printf("%s dumpable=%d rc=%d\n", what, !ret, ret);
+	ret = ret ? 1 : 0;
+	xfree(cost, types * sizeof(*cost));
 out:
 	btf__free(btf);
 	return ret;

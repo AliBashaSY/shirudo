@@ -26,6 +26,7 @@
 
 #define RODATA_MAPS_MAX	64
 #define RODATA_JSON_MAX_DEPTH	8
+#define RODATA_TEXT_MAX_VALUES	(1u << 20)
 #define RODATA_DECL_MAX		32
 
 struct rodata_map {
@@ -844,31 +845,42 @@ static bool btf_decl_printable(const struct btf *btf, __u32 id)
 	return false;
 }
 
+/* What the dumper visits of a value of a type: values printed, types deep. */
+struct dump_cost {
+	__u32	values;
+	__u32	height;
+};
+
 /*
  * libbpf's dumper follows member, element and modifier types with no
  * bound, and the BTF may come from an unsigned package: a VAR whose type
  * is the DATASEC holding it sends it round until the stack is gone, and
- * zero-sized elements counted in billions keep it busy. Walk what it
- * would follow first, through value types alone and within the depth
- * the JSON view keeps to, with the cast and the member and enumerator
- * names it would print; done marks the types already found fine.
+ * billions of elements, of zero size or not, or members laid over the
+ * same bytes keep it busy. Walk what it would follow first, through value
+ * types alone, with the cast and the member and enumerator names it would
+ * print, and count what it would visit: -EINVAL for more than
+ * RODATA_JSON_MAX_DEPTH types deep, -E2BIG for more than
+ * RODATA_TEXT_MAX_VALUES values. cost keeps the counts of the types found
+ * fine, so a type reached again brings its depth and values along.
  */
-static bool btf_dumpable(const struct btf *btf, __u32 id, __u32 depth,
-			 __u8 *done)
+static int btf_dump_cost(const struct btf *btf, __u32 id, __u32 depth,
+			 struct dump_cost *cost)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
+	struct dump_cost c = { .values = 1, .height = 1 };
 	const struct btf_enum64 *e64;
 	const struct btf_member *m;
 	const struct btf_array *a;
 	const struct btf_enum *e;
-	__u32 i;
+	__u32 i, child;
+	int ret;
 
 	if (!t || depth >= RODATA_JSON_MAX_DEPTH)
-		return false;
-	if (done[id / 8] & (1u << (id % 8)))
-		return true;
+		return -EINVAL;
+	if (cost[id].values)
+		return 0;
 	if (!btf_decl_printable(btf, id))
-		return false;
+		return -EINVAL;
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_PTR:
@@ -878,41 +890,63 @@ static bool btf_dumpable(const struct btf *btf, __u32 id, __u32 depth,
 		e = (const struct btf_enum *)(t + 1);
 		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
 			if (!btf_name_printable(btf, e[i].name_off))
-				return false;
+				return -EINVAL;
 		break;
 	case BTF_KIND_ENUM64:
 		e64 = (const struct btf_enum64 *)(t + 1);
 		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
 			if (!btf_name_printable(btf, e64[i].name_off))
-				return false;
+				return -EINVAL;
 		break;
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
 	case BTF_KIND_TYPE_TAG:
-		if (!btf_dumpable(btf, t->type, depth + 1, done))
-			return false;
+		ret = btf_dump_cost(btf, t->type, depth + 1, cost);
+		if (ret)
+			return ret;
+		c.values = cost[t->type].values;
+		c.height = cost[t->type].height + 1;
 		break;
 	case BTF_KIND_ARRAY:
 		a = (const struct btf_array *)(t + 1);
-		if ((a->nelems && btf__resolve_size(btf, a->type) <= 0) ||
-		    !btf_dumpable(btf, a->type, depth + 1, done))
-			return false;
+		if (a->nelems && btf__resolve_size(btf, a->type) <= 0)
+			return -EINVAL;
+		ret = btf_dump_cost(btf, a->type, depth + 1, cost);
+		if (ret)
+			return ret;
+		if (check_mul_overflow(cost[a->type].values, a->nelems,
+				       &child) ||
+		    check_add_overflow(c.values, child, &c.values))
+			return -E2BIG;
+		c.height = cost[a->type].height + 1;
 		break;
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION:
 		m = (const struct btf_member *)(t + 1);
-		for (i = 0; i < BTF_INFO_VLEN(t->info); i++)
-			if (!btf_name_printable(btf, m[i].name_off) ||
-			    !btf_dumpable(btf, m[i].type, depth + 1, done))
-				return false;
+		for (i = 0; i < BTF_INFO_VLEN(t->info); i++) {
+			if (!btf_name_printable(btf, m[i].name_off))
+				return -EINVAL;
+			ret = btf_dump_cost(btf, m[i].type, depth + 1, cost);
+			if (ret)
+				return ret;
+			if (check_add_overflow(c.values,
+					       cost[m[i].type].values,
+					       &c.values))
+				return -E2BIG;
+			c.height = max(c.height, cost[m[i].type].height + 1);
+		}
 		break;
 	default:
-		return false;
+		return -EINVAL;
 	}
-	done[id / 8] |= 1u << (id % 8);
-	return true;
+	if (c.height > RODATA_JSON_MAX_DEPTH)
+		return -EINVAL;
+	if (c.values > RODATA_TEXT_MAX_VALUES)
+		return -E2BIG;
+	cost[id] = c;
+	return 0;
 }
 
 static int print_rodata_text(const struct upatch *u,
@@ -929,10 +963,10 @@ static int print_rodata_text(const struct upatch *u,
 							    view->type_id);
 	const struct btf_var_secinfo *vars =
 		(const struct btf_var_secinfo *)(sec + 1);
-	size_t done_len = btf__type_cnt(view->btf) / 8 + 1;
-	__u32 i, vlen = BTF_INFO_VLEN(sec->info);
+	__u32 i, values = 0, vlen = BTF_INFO_VLEN(sec->info);
+	__u32 types = btf__type_cnt(view->btf);
 	char name[UPATCH_NAME_MAX + 1];
-	__u8 *done;
+	struct dump_cost *cost;
 	int ret = 0;
 
 	upatch_header_name(u, name);
@@ -940,12 +974,12 @@ static int print_rodata_text(const struct upatch *u,
 	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
 	       name, path, view->size, view->data_offset,
 	       u->hdr.data_off + view->data_offset);
-	done = xcalloc(done_len, 1);
-	if (!done)
+	cost = xcalloc(types, sizeof(*cost));
+	if (!cost)
 		return -ENOMEM;
 	dump = btf_dump__new(view->btf, print_text, stdout, NULL);
 	if (libbpf_get_error(dump)) {
-		xfree(done, done_len);
+		xfree(cost, types * sizeof(*cost));
 		return -EINVAL;
 	}
 	for (i = 0; i < vlen; i++) {
@@ -964,11 +998,20 @@ static int print_rodata_text(const struct upatch *u,
 		if (ret)
 			goto out;
 		if (vars[i].offset > view->size ||
-		    vars[i].size > view->size - vars[i].offset ||
-		    !btf_dumpable(view->btf, type_id, 0, done)) {
+		    vars[i].size > view->size - vars[i].offset) {
 			ret = -EINVAL;
 			goto out;
 		}
+		ret = btf_dump_cost(view->btf, type_id, 0, cost);
+		if (!ret &&
+		    (check_add_overflow(values, cost[type_id].values, &values) ||
+		     values > RODATA_TEXT_MAX_VALUES))
+			ret = -E2BIG;
+		if (ret == -E2BIG)
+			pr_err("BTF text output exceeds %u values",
+			       RODATA_TEXT_MAX_VALUES);
+		if (ret)
+			goto out;
 		printf("\n%s: %s, size=%u, rodata+%u, data+%u, file+%u = ",
 		       var_name, type, vars[i].size, vars[i].offset,
 		       view->data_offset + vars[i].offset,
@@ -983,7 +1026,7 @@ static int print_rodata_text(const struct upatch *u,
 	putchar('\n');
 out:
 	btf_dump__free(dump);
-	xfree(done, done_len);
+	xfree(cost, types * sizeof(*cost));
 	return min(ret, 0);
 }
 

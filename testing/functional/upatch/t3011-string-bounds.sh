@@ -6,7 +6,8 @@
 # pointer type whose name fills the buffer, a signed name section with
 # no terminator, an upatch name the targets refuse or the header cannot
 # hold, and a tree repository longer than its field. The .rodata view
-# prints no BTF name with a control in it and spells no type that loops.
+# prints no BTF name with a control in it, spells no type that loops and
+# dumps no type nested too deep or with more values than it prints.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -34,6 +35,15 @@ test_expect_success 'a .rodata type with controls in a name or a loop is not dum
 		rc=0 &&
 		"$R" dumpable $what >/dev/null || rc=$? &&
 		[ "$rc" -eq 1 ] || return 1
+	done
+'
+
+test_expect_success 'a .rodata type too deep or with too many values is not dumped' '
+	"$R" dumpable shared >/dev/null &&
+	! "$R" dumpable deep >"$WORK/deep" && grep -q "rc=-22" "$WORK/deep" &&
+	for what in elements overlaid; do
+		! "$R" dumpable $what >"$WORK/$what" &&
+		grep -q "rc=-7" "$WORK/$what" || return 1
 	done
 '
 

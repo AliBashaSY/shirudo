@@ -265,7 +265,11 @@ feed, in a member or upatch name all of them. ``info data`` refuses a
 ``.rodata`` whose BTF names a variable or a type with anything but
 printable ASCII, and without ``--json`` also a member or an enumerator,
 or spells a type through a function prototype or through a chain of
-more than 32 modifiers, pointers and arrays.
+more than 32 modifiers, pointers and arrays. Without ``--json`` it also
+refuses a ``.rodata`` whose types nest more than eight deep, typedefs
+and modifiers counted, or whose dump would print more than 1048576
+values; with ``--json``, one whose structs and arrays nest more than
+eight deep or whose JSON would exceed 8 MiB.
 
 push
 ----
