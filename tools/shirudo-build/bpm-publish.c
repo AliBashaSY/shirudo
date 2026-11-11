@@ -528,26 +528,16 @@ out:
 	return ret;
 }
 
-static int tree_string_compare(const void *left, const void *right)
-{
-	return strcmp(left, right);
-}
-
 /* Selector lists are sets: sort them so equal Beefiles digest equally. */
 static void tree_selector_canonicalize(struct tree_selector *s)
 {
-	qsort(s->kernel_release_prefix, (size_t)s->n_kernel_release_prefix,
-	      TREE_STRING_MAX, tree_string_compare);
-	qsort(s->kernel_build_id, (size_t)s->n_kernel_build_id,
-	      TREE_STRING_MAX, tree_string_compare);
-	qsort(s->architecture, (size_t)s->n_architecture,
-	      TREE_STRING_MAX, tree_string_compare);
+	bpm_strings_sort(s->kernel_release_prefix, s->n_kernel_release_prefix);
+	bpm_strings_sort(s->kernel_build_id, s->n_kernel_build_id);
+	bpm_strings_sort(s->architecture, s->n_architecture);
 	for (int i = 0; i < s->n_kconfig; i++)
-		qsort(s->kconfig[i].values, (size_t)s->kconfig[i].n_values,
-		      TREE_STRING_MAX, tree_string_compare);
+		bpm_strings_sort(s->kconfig[i].values, s->kconfig[i].n_values);
 	for (int i = 0; i < s->n_labels; i++)
-		qsort(s->labels[i].values, (size_t)s->labels[i].n_values,
-		      TREE_STRING_MAX, tree_string_compare);
+		bpm_strings_sort(s->labels[i].values, s->labels[i].n_values);
 }
 
 /* An artifact that is described for its operation and not uploaded yet. */

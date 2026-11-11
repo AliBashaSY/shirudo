@@ -302,6 +302,62 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	return 0;
 }
 
+static bool build_fix_id_ok(const char *id)
+{
+	return id[0] && !id[strspn(id, BPM_FIX_ID_CHARS)];
+}
+
+static int strings_compare(const void *left, const void *right)
+{
+	return strcmp(left, right);
+}
+
+void bpm_strings_sort(char strings[][TREE_STRING_MAX], int n)
+{
+	qsort(strings, (size_t)n, TREE_STRING_MAX, strings_compare);
+}
+
+static int build_parse_fixes(const char *value, struct bpm_fixes *fixes)
+{
+	int ret;
+
+	if (fixes->n) {
+		pr_err("Beefile: fixes is given twice in one [upatches.tree]");
+		return -EINVAL;
+	}
+	ret = build_parse_string_array(value, fixes->ids, BPM_BUILD_MAX_FIXES,
+				       &fixes->n);
+	if (ret == -E2BIG) {
+		pr_err("Beefile: fixes holds more than %d IDs",
+		       BPM_BUILD_MAX_FIXES);
+		return ret;
+	}
+	if (ret) {
+		pr_err("Beefile: fixes is not an array of 1 to %d strings of at most %d bytes",
+		       BPM_BUILD_MAX_FIXES, TREE_STRING_MAX - 1);
+		return ret;
+	}
+	for (int i = 0; i < fixes->n; i++) {
+		if (!fixes->ids[i][0]) {
+			pr_err("Beefile: fixes holds an empty ID");
+			return -EINVAL;
+		}
+		if (!build_fix_id_ok(fixes->ids[i])) {
+			pr_err("Beefile: ID %d of fixes has a character outside [A-Za-z0-9._:-]",
+			       i + 1);
+			return -EINVAL;
+		}
+	}
+	bpm_strings_sort(fixes->ids, fixes->n);
+	for (int i = 1; i < fixes->n; i++) {
+		if (!strcmp(fixes->ids[i - 1], fixes->ids[i])) {
+			pr_err("Beefile: fixes holds %s twice", fixes->ids[i]);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static bool build_name_ok(const char *s)
 {
 	const __u8 *p = (const __u8 *)s;
@@ -604,6 +660,10 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			} else if (!strcmp(key, "unload_artifact")) {
 				dst = t->unload_artifact;
 				cap = sizeof(t->unload_artifact);
+			} else if (!strcmp(key, "fixes")) {
+				if (build_parse_fixes(value, &t->fixes))
+					return -EINVAL;
+				continue;
 			} else {
 				continue;
 			}

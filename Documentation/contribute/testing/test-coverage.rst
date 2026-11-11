@@ -479,12 +479,13 @@ signed config image.
      - The repository update unit and timer and their package
        scriptlets, as text
    * - ``t7005-bpm-publish``
-     - ``bpm build`` and its refusal of a target below another member
-       and of members a target could not unpack together, ``bpm push``
-       with a signed index, ``bpm tree append`` and its refusal of an
-       XDP device class two upatches of a tree select and of an entry no
-       target would take, each before anything is uploaded, A-to-B tree
-       signing-key rotation with explicit predecessor verification
+     - ``bpm build``, the ``fixes`` lists it takes and refuses, and its
+       refusal of a target below another member and of members a target
+       could not unpack together, ``bpm push`` with a signed index,
+       ``bpm tree append`` and its refusal of an XDP device class two
+       upatches of a tree select and of an entry no target would take,
+       each before anything is uploaded, A-to-B tree signing-key rotation
+       with explicit predecessor verification
    * - ``t7006-policy-labels``
      - Beefile policy declarations are serialized into the signed
        upatch section

@@ -22,6 +22,9 @@
 #define BPM_BUILD_MAX_RODATA 16
 #define BPM_BUILD_MAX_COMMAND_ARGS 16
 #define BPM_BUILD_MAX_POLICIES 64
+#define BPM_BUILD_MAX_FIXES 16
+#define BPM_FIX_ID_CHARS \
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-"
 
 struct bpm_build_policy {
 	char id[UPATCH_POLICY_NAME_MAX];
@@ -49,6 +52,11 @@ struct bpm_build_file {
 	char target[PATH_MAX];
 };
 
+struct bpm_fixes {
+	char ids[BPM_BUILD_MAX_FIXES][TREE_STRING_MAX];
+	int n;
+};
+
 /*
  * Optional [upatches.tree] table. Publication metadata read by `bpm tree
  * append` on the operator; the target consumes the signed publication and
@@ -60,6 +68,7 @@ struct bpm_build_tree {
 	char id[UPATCH_NAME_MAX];
 	char load_artifact[PATH_MAX];
 	char unload_artifact[PATH_MAX];
+	struct bpm_fixes fixes;
 	struct tree_selector *selector;
 };
 
@@ -99,6 +108,7 @@ struct bpm_build_spec {
 int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec);
 void bpm_build_spec_free(struct bpm_build_spec *spec);
+void bpm_strings_sort(char strings[][TREE_STRING_MAX], int n);
 
 int build_bpm(int argc, char **argv);
 int build_bpm_push(int argc, char **argv);
