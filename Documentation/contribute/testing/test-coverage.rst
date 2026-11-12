@@ -638,7 +638,7 @@ the functional tests run.
    * - ``tree``
      - An upatch tree publication
    * - ``tree-state``
-     - The tree's ``state.json`` and eventlog
+     - The tree's ``state.json``, eventlog and outcome lines
    * - ``upatch``
      - A ``.upatch`` container and its decoder table
 

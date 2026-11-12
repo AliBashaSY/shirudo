@@ -95,6 +95,8 @@ struct tree_state {
 	char projection_root[65];
 	char projection_root_tpm[65];
 	char manifest_digest[128];
+	__s64 head_seq;
+	__s64 segment_base_seq;
 };
 
 int tree_parse(const char *body, size_t len,
@@ -166,6 +168,29 @@ int tree_state_write(const struct tree_state *state);
 int tree_event_append(__s64 seq, const char *operation_digest,
 		      const __u8 projection_root[32]);
 int tree_event_replay(__u8 out[32]);
+
+enum tree_outcome {
+	TREE_OUTCOME_APPLIED = 1,
+	TREE_OUTCOME_UNMATCHED = 2,
+	TREE_OUTCOME_MODULE_ABSENT = 3,
+};
+
+/*
+ * A writer holds the bpm lock. tree_outcomes_read() gives the outcomes
+ * of seq from + 1 through seq to and the roots at from;
+ * tree_outcomes_resume() gives the history root at last_seq and drops
+ * the lines past it, which a sync that stopped left. Seq 0 has zero
+ * roots. Both are -ENOENT without a record unless they ask for no line,
+ * and -EBADMSG for one that ends early or is out of order.
+ */
+int tree_outcome_append(__s64 seq, enum tree_outcome outcome,
+			const __u8 projection_root[32],
+			const __u8 history_root[32]) __must_check;
+int tree_outcomes_read(__s64 from, __s64 to, __u8 *codes,
+		       __u8 projection_root[32],
+		       __u8 history_root[32]) __must_check;
+int tree_outcomes_resume(__s64 last_seq,
+			 __u8 history_root[32]) __must_check;
 
 void tree_emit_status(struct json_emit *e);
 
