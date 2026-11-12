@@ -54,6 +54,7 @@
 #include "util/paths.h"
 #include "util/seal.h"
 #include "util/upatch.h"
+#include "util/upatch_pins.h"
 #include "util/upatch_rodata.h"
 
 struct bpm_source {
@@ -1816,6 +1817,15 @@ static void tree_status_clear(const char *id)
 	unlink(path);
 }
 
+static int tree_status_update(const char *id, bool module_absent)
+{
+	if (!module_absent) {
+		tree_status_clear(id);
+		return 0;
+	}
+	return tree_status_write(id, "skipped: module not loaded");
+}
+
 /*
  * event = SHA256("shirudo-tree\0" || seq || operation_digest). The
  * tree's own projection stays a file chain; the register is what an
@@ -1864,19 +1874,73 @@ static int tree_measure_operation(const struct tree_operation *op,
 	return ret;
 }
 
+static int tree_outcome_record(__s64 seq, const __u8 operation_digest[32],
+			       enum tree_outcome outcome,
+			       const __u8 projection_root[32],
+			       __u8 history_root[32])
+{
+	int ret;
+
+	ret = chain_history_step(history_root, operation_digest, history_root);
+	if (ret)
+		return ret;
+	return tree_outcome_append(seq, outcome, projection_root, history_root);
+}
+
+static int tree_outcome_unmatched(const struct tree_operation *op,
+				  const __u8 projection_root[32],
+				  __u8 history_root[32])
+{
+	__u8 digest[32];
+
+	if (sha256_digest_decode(op->operation_digest, digest))
+		return -EINVAL;
+	return tree_outcome_record(op->seq, digest, TREE_OUTCOME_UNMATCHED,
+				   projection_root, history_root);
+}
+
+/*
+ * The operations between the cursor and the pending one had no match in
+ * the sync that stopped: it would have committed the cursor at one that
+ * had.
+ */
+static int tree_outcomes_passed(const struct tree_publication *pub,
+				__s64 last_seq, __s64 pending_seq,
+				const __u8 projection_root[32],
+				__u8 history_root[32])
+{
+	int ret;
+
+	for (int i = 0; i < pub->n_operations; i++) {
+		const struct tree_operation *op = &pub->operations[i];
+
+		if (op->seq >= pending_seq)
+			break;
+		if (op->seq <= last_seq)
+			continue;
+		ret = tree_outcome_unmatched(op, projection_root, history_root);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 /*
  * Complete the only non-idempotent window: the process may have
  * measured the operation, or appended its tree event too, before the
  * sealed cursor was committed. Applying it again would extend the
- * register with it a second time this boot.
+ * register with it a second time this boot. The install's answer went
+ * with the process, so an add whose upatch is not loaded is one whose
+ * module was absent.
  */
 static int tree_recover_pending(const struct tree_publication *pub,
-				struct tree_state *state)
+				struct tree_state *state,
+				__u8 history_root[32])
 {
 	struct tree_pending pending;
 	const struct tree_operation *op = NULL;
 	__u8 digest[32], previous[32], next[32], replay[32];
-	bool applied = false, event_present = false;
+	bool applied = false, event_present = false, absent;
 	int ret;
 
 	ret = tree_pending_read(&pending);
@@ -1932,10 +1996,23 @@ static int tree_recover_pending(const struct tree_publication *pub,
 		if (ret)
 			return ret;
 	}
+	ret = tree_outcomes_passed(pub, state->last_seq, op->seq, previous,
+				   history_root);
+	if (ret)
+		return ret;
+	absent = !strcmp(op->op, "add") && !upatch_loaded_pins(op->id);
+	ret = tree_outcome_record(op->seq, digest,
+				  absent ? TREE_OUTCOME_MODULE_ABSENT :
+					   TREE_OUTCOME_APPLIED,
+				  next, history_root);
+	if (ret)
+		return ret;
 	hex_encode(next, sizeof(next), state->projection_root);
 	hex_encode(next, sizeof(next), state->projection_root_tpm);
 	state->last_seq = op->seq;
 	ret = tree_state_write(state);
+	if (!ret)
+		ret = tree_status_update(op->id, absent);
 	if (ret)
 		return ret;
 	unlink(BPM_TREE_PENDING_PATH);
@@ -1975,6 +2052,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 	struct tree_state state = {};
 	char manifest_digest[BPM_MAX_DIGEST];
 	char report[PATH_MAX] = {};
+	__u8 root[32], history_root[32];
 	bool dry_run = false, have_state = false;
 	int selected = 0, skipped = 0, applied = 0, module_skipped = 0;
 	int tpm_available = 0;
@@ -2053,17 +2131,42 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		memset(state.projection_root_tpm, '0', 64);
 		state.projection_root_tpm[64] = '\0';
 	}
-	state.head_seq = pub.head_seq;
-	state.segment_base_seq = pub.base_seq;
-	ret = tree_recover_pending(&pub, &state);
+	ret = tree_outcomes_resume(state.last_seq, history_root);
+	if (ret) {
+		tree_sync_report_error("outcomes_check", NULL, ret);
+		goto out;
+	}
+	ret = tree_recover_pending(&pub, &state, history_root);
 	if (ret) {
 		tree_sync_report_error("pending_recovery", NULL, ret);
+		goto out;
+	}
+	/*
+	 * Recorded before its first operation is processed, so that a
+	 * sync that stops among them leaves the cursor within the
+	 * publication the state names.
+	 */
+	if (!dry_run) {
+		state.generation = pub.generation;
+		bpm_copy_string(state.manifest_digest, sizeof(state.manifest_digest),
+				manifest_digest);
+		state.head_seq = pub.head_seq;
+		state.segment_base_seq = pub.base_seq;
+		ret = tree_state_write(&state);
+		if (ret) {
+			tree_sync_report_error("tree_state_commit_accept", NULL, ret);
+			goto out;
+		}
+	}
+	if (hex_decode(state.projection_root, root, sizeof(root))) {
+		tree_sync_report_error("projection_root_decode", NULL, -EINVAL);
+		ret = -EINVAL;
 		goto out;
 	}
 	tpm_available = chain_bound();
 	for (int i = 0; i < pub.n_operations; i++) {
 		struct tree_operation *op = &pub.operations[i];
-		__u8 digest[32], previous[32], next[32];
+		__u8 digest[32], next[32];
 		char artifact[PATH_MAX];
 		bool skipped_module = false;
 
@@ -2076,8 +2179,14 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 		}
 		if (!ret) {
 			skipped++;
-			if (!dry_run)
-				state.last_seq = op->seq;
+			if (dry_run)
+				continue;
+			ret = tree_outcome_unmatched(op, root, history_root);
+			if (ret) {
+				tree_sync_report_error("tree_outcome_append", op, ret);
+				goto out;
+			}
+			state.last_seq = op->seq;
 			continue;
 		}
 		selected++;
@@ -2118,12 +2227,7 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("upatch_install", op, ret);
 			goto out;
 		}
-		if (hex_decode(state.projection_root, previous, 32)) {
-			tree_sync_report_error("projection_root_decode", op, -EINVAL);
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = sha256_2(previous, 32, digest, 32, next);
+		ret = sha256_2(root, 32, digest, 32, next);
 		if (ret) {
 			tree_sync_report_error("projection_root_hash", op, ret);
 			goto out;
@@ -2133,11 +2237,21 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("register_extend", op, ret);
 			goto out;
 		}
+		memcpy(root, next, sizeof(root));
 		hex_encode(next, 32, state.projection_root);
 		hex_encode(next, 32, state.projection_root_tpm);
 		ret = tree_event_append(op->seq, op->operation_digest, next);
 		if (ret) {
 			tree_sync_report_error("tree_event_append", op, ret);
+			goto out;
+		}
+		ret = tree_outcome_record(op->seq, digest,
+					  skipped_module ?
+					  TREE_OUTCOME_MODULE_ABSENT :
+					  TREE_OUTCOME_APPLIED,
+					  next, history_root);
+		if (ret) {
+			tree_sync_report_error("tree_outcome_append", op, ret);
 			goto out;
 		}
 		state.last_seq = op->seq;
@@ -2147,22 +2261,15 @@ static int cmd_bpm_tree_sync(int argc, const char **argv)
 			tree_sync_report_error("tree_state_commit", op, ret);
 			goto out;
 		}
-		if (skipped_module)
-			ret = tree_status_write(op->id, "skipped: module not loaded");
-		else
-			tree_status_clear(op->id);
+		ret = tree_status_update(op->id, skipped_module);
 		if (ret) {
 			tree_sync_report_error("tree_status_write", op, ret);
 			goto out;
 		}
 		unlink(BPM_TREE_PENDING_PATH);
 	}
+	/* A run of operations without a match at the end moved the cursor. */
 	if (!dry_run) {
-		state.generation = pub.generation;
-		bpm_copy_string(state.manifest_digest, sizeof(state.manifest_digest),
-				manifest_digest);
-		if (!state.tree_id[0])
-			bpm_copy_string(state.tree_id, sizeof(state.tree_id), pub.tree_id);
 		ret = tree_state_write(&state);
 		if (ret) {
 			tree_sync_report_error("tree_state_commit_final", NULL, ret);
