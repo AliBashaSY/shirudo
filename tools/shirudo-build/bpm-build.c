@@ -302,7 +302,7 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	return 0;
 }
 
-static bool build_fix_id_ok(const char *id)
+bool bpm_fix_id_ok(const char *id)
 {
 	return id[0] && !id[strspn(id, BPM_FIX_ID_CHARS)];
 }
@@ -342,7 +342,7 @@ static int build_parse_fixes(const char *value, struct bpm_fixes *fixes)
 			pr_err("Beefile: fixes holds an empty ID");
 			return -EINVAL;
 		}
-		if (!build_fix_id_ok(fixes->ids[i])) {
+		if (!bpm_fix_id_ok(fixes->ids[i])) {
 			pr_err("Beefile: ID %d of fixes has a character outside [A-Za-z0-9._:-]",
 			       i + 1);
 			return -EINVAL;

@@ -109,6 +109,7 @@ int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec);
 void bpm_build_spec_free(struct bpm_build_spec *spec);
 void bpm_strings_sort(char strings[][TREE_STRING_MAX], int n);
+bool bpm_fix_id_ok(const char *id);
 
 int build_bpm(int argc, char **argv);
 int build_bpm_push(int argc, char **argv);

@@ -78,7 +78,7 @@ void harness(void)
 	char *body;
 	int ret;
 
-	__CPROVER_assert(!tree_emit_publication(pub, &body, &len),
+	__CPROVER_assert(!tree_emit_publication(pub, NULL, &body, &len),
 			 "a publication written");
 	ret = tree_parse(body, len, &back);
 	/* bpm tree append refuses to write the last three. */

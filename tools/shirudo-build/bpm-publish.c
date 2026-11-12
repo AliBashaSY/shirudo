@@ -562,6 +562,116 @@ static int tree_describe_blob(const void *body, size_t len, const char *media,
 	return 0;
 }
 
+static bool tree_fixes_valid(const struct bpm_fixes *fixes)
+{
+	if (!fixes->n)
+		return false;
+	for (int i = 0; i < fixes->n; i++) {
+		if (!bpm_fix_id_ok(fixes->ids[i]) ||
+		    (i && strcmp(fixes->ids[i - 1], fixes->ids[i]) >= 0))
+			return false;
+	}
+	return true;
+}
+
+struct tree_fixes_reader {
+	const struct tree_publication	*pub;
+	struct bpm_fixes		*fixes;
+	int				n;
+	struct json_field		*fixes_key;
+	__s64				seq;
+	struct bpm_fixes		op;
+	char				id[TREE_STRING_MAX];
+};
+
+static int tree_fixes_take_id(void *ctx)
+{
+	struct tree_fixes_reader *r = ctx;
+
+	if (r->op.n >= BPM_BUILD_MAX_FIXES)
+		return -E2BIG;
+	memcpy(r->op.ids[r->op.n++], r->id, sizeof(r->id));
+	return 0;
+}
+
+static int tree_fixes_take_operation(void *ctx)
+{
+	struct tree_fixes_reader *r = ctx;
+	const struct tree_operation *op;
+
+	if (r->n >= r->pub->n_operations)
+		return -EINVAL;
+	op = &r->pub->operations[r->n];
+	if (r->seq != op->seq)
+		return -EINVAL;
+	if (r->fixes_key->seen &&
+	    (strcmp(op->op, "add") || !tree_fixes_valid(&r->op)))
+		return -EINVAL;
+	r->fixes[r->n++] = r->op;
+	r->seq = 0;
+	r->op.n = 0;
+	return 0;
+}
+
+static int tree_fixes_parse(struct tree_fixes_reader *r,
+			    const struct bpm_buffer *document)
+{
+	struct json_array id_sink = { tree_fixes_take_id, r };
+	struct json_array operation_sink = { tree_fixes_take_operation, r };
+	struct json_field id[] = {
+		{ "", JSON_T_STRING, r->id, sizeof(r->id), 0, NULL, 0 },
+	};
+	struct json_field operation[] = {
+		{ "seq", JSON_T_INT, &r->seq, 0, 0, NULL, 0 },
+		{ "fixes", JSON_T_ARRAY, &id_sink, 0, 0, id, ARRAY_SIZE(id) },
+	};
+	struct json_field root[] = {
+		{ "operations", JSON_T_ARRAY, &operation_sink, 0, 0,
+		  operation, ARRAY_SIZE(operation) },
+	};
+
+	r->fixes_key = &operation[1];
+	return json_parse((const char *)document->data, document->len, root,
+			  ARRAY_SIZE(root));
+}
+
+/*
+ * tree_parse() is the node's parser and keeps no key a node does not
+ * use, so the fixes of the previous publication come from a second read
+ * of its bytes. fixes has room for every operation of pub.
+ */
+static int tree_read_fixes(const struct bpm_buffer *document,
+			   const struct tree_publication *pub,
+			   struct bpm_fixes *fixes)
+{
+	struct tree_fixes_reader *r;
+	int ret;
+
+	r = xcalloc(1, sizeof(*r));
+	if (!r)
+		return -ENOMEM;
+	r->pub = pub;
+	r->fixes = fixes;
+	ret = tree_fixes_parse(r, document);
+	if (!ret && r->n != pub->n_operations)
+		ret = -EINVAL;
+	xfree(r, sizeof(*r));
+	return ret;
+}
+
+static int tree_emit_fixes(struct json_emit *e, int index, void *ctx)
+{
+	const struct bpm_fixes *fixes = (const struct bpm_fixes *)ctx + index;
+
+	if (!fixes->n)
+		return 0;
+	json_arr_open(e, "fixes");
+	for (int i = 0; i < fixes->n; i++)
+		json_str(e, fixes->ids[i]);
+	json_arr_close(e);
+	return 0;
+}
+
 /*
  * Describe one immutable upatch artifact for the tree, with the manifest
  * its upload will put. The bytes are checked to be the directive the
@@ -786,6 +896,10 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	char parent[BPM_MAX_DIGEST] = {}, digest[72];
 	struct tree_xdp_classes *seen = NULL;
 	struct tree_upload *uploads = NULL;
+	struct bpm_buffer previous = {};
+	struct bpm_fixes *fixes = NULL;
+	struct tree_emit_extra extra;
+	size_t n_fixes = 0;
 	struct tree_publication pub = {};
 	struct tree_operation *op = NULL;
 	size_t len, payload_len = 0, sig_len = 0;
@@ -904,8 +1018,11 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		pr_err("bpm tree append: the repository must be oci://registry/repository");
 		goto out;
 	}
-	ret = bpm_tree_fetch_publication(&c, repository, reference, previous_cert,
-					 NULL, &pub, parent, sizeof(parent));
+	ret = bpm_tree_fetch_document(&c, repository, reference, previous_cert,
+				      NULL, &previous, parent, sizeof(parent));
+	if (!ret)
+		ret = tree_parse((const char *)previous.data, previous.len,
+				 &pub);
 	if (ret == -ENOENT) {
 		pub = (struct tree_publication){ .schema = 1,
 							 .generation = 1 };
@@ -935,6 +1052,21 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		bpm_copy_string(pub.tree_id, sizeof(pub.tree_id), info.name);
 	bpm_copy_string(pub.parent_manifest_digest,
 			sizeof(pub.parent_manifest_digest), parent);
+
+	n_fixes = min_t(size_t, pub.n_operations + spec->n_upatches,
+			TREE_MAX_OPS);
+	n_fixes = max(n_fixes, 1U);
+	fixes = xcalloc(n_fixes, sizeof(*fixes));
+	if (!fixes) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	if (previous.data && tree_read_fixes(&previous, &pub, fixes)) {
+		pr_err("bpm tree append: the publication at %s:%s has a fixes list bpm tree append would not write, so it cannot carry it into the next generation",
+		       repo_ref, reference);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	op = xmalloc(sizeof(*op));
 	seen = xcalloc(1, sizeof(*seen));
@@ -1013,6 +1145,8 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 			goto out;
 		seen->classes[pub.n_operations - 1] = classes;
 		seen->known[pub.n_operations - 1] = true;
+		if (!unload)
+			fixes[pub.n_operations - 1] = u->tree.fixes;
 		pub.head_seq = op->seq;
 		appended++;
 	}
@@ -1021,7 +1155,8 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		ret = -ENOENT;
 		goto out;
 	}
-	ret = tree_emit_publication(&pub, &payload, &payload_len);
+	extra = (struct tree_emit_extra){ tree_emit_fixes, fixes };
+	ret = tree_emit_publication(&pub, &extra, &payload, &payload_len);
 	if (ret)
 		goto out;
 	ret = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
@@ -1083,6 +1218,8 @@ out:
 		xfree(uploads[i].body, uploads[i].body_len + 1);
 	}
 	xfree(uploads, BPM_BUILD_MAX_ENTRIES * sizeof(*uploads));
+	xfree(fixes, n_fixes * sizeof(*fixes));
+	bpm_buffer_free(&previous);
 	tree_publication_free(&pub);
 	bpm_build_spec_free(spec);
 	xfree(beefile, len + 1);
