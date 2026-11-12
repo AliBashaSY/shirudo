@@ -1219,8 +1219,8 @@ a proof covers.
    * - :src:`util/crypto_openssl.c`, :src:`util/curl.c`,
        :src:`util/elf_target.c`, :src:`util/kernel_abi.c`,
        :src:`util/nv_writer.c`, :src:`util/sign.c`,
-       :src:`util/tls_openssl.c`, :src:`util/tpm.c`,
-       :src:`util/upatch_decode.c`
+       :src:`util/keepalive_quote.c`, :src:`util/tls_openssl.c`,
+       :src:`util/tpm.c`, :src:`util/upatch_decode.c`
      - Mostly calls into a library a harness would have to model whole:
        OpenSSL, libcurl, libelf, the BTF reader of libbpf, tpm2-tss and
        LuaJIT
