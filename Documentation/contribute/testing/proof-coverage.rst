@@ -1259,7 +1259,8 @@ package's tar members, the registry references and URLs, the kernel
 configuration and the labels the tree selectors read, the tree's
 ``state.json``, the eventlog's lines, the evidence document beyond its
 PCRs and its config history, the config update record, the site
-configuration file and the config image's settings and tree.
+configuration file, the config image's settings and tree and the fields
+of a ``shirudo-quote-check`` row.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof. So it is with the package state:
