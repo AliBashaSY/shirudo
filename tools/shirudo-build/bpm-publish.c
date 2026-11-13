@@ -1041,27 +1041,6 @@ static int tree_refuse_sealed_xdp_class(struct bpm_oci_client *c,
 	return ret;
 }
 
-/* history_root at the head of seg: its base's, over its operations. */
-static int tree_history_at_head(const struct tree_publication *seg,
-				char out[65])
-{
-	__u8 root[32] = {}, digest[32];
-	int ret;
-
-	if (seg->base_seq && hex_decode(seg->history_root, root, sizeof(root)))
-		return -EINVAL;
-	for (int i = 0; i < seg->n_operations; i++) {
-		ret = sha256_digest_decode(seg->operations[i].operation_digest,
-					   digest);
-		if (!ret)
-			ret = chain_history_step(root, digest, root);
-		if (ret)
-			return ret;
-	}
-	hex_encode(root, sizeof(root), out);
-	return 0;
-}
-
 static int tree_segment_tag(__u64 k, char *tag, size_t tag_sz)
 {
 	return strsprintf(tag, tag_sz, "segment-%llu", k) < 0 ?
@@ -1171,6 +1150,9 @@ static int tree_start_segment(const struct tree_publication *sealed,
 			      const char *sealed_digest,
 			      struct tree_publication *pub)
 {
+	__u8 root[32];
+	int ret;
+
 	*pub = (struct tree_publication){
 		.schema = 1,
 		.generation = sealed->generation,
@@ -1180,7 +1162,10 @@ static int tree_start_segment(const struct tree_publication *sealed,
 	bpm_copy_string(pub->tree_id, sizeof(pub->tree_id), sealed->tree_id);
 	bpm_copy_string(pub->segment_manifest_digest,
 			sizeof(pub->segment_manifest_digest), sealed_digest);
-	return tree_history_at_head(sealed, pub->history_root);
+	ret = tree_history_at(sealed, sealed->head_seq, root);
+	if (!ret)
+		hex_encode(root, sizeof(root), pub->history_root);
+	return ret;
 }
 
 static int cmd_bpm_tree_append(int argc, char **argv)
