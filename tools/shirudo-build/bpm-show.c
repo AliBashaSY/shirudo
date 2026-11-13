@@ -40,22 +40,6 @@ static void tree_show_usage(void)
 		"reference names.\n");
 }
 
-int build_tree_publication_verify(const struct tree_publication *pub)
-{
-	int ret;
-
-	/*
-	 * The node records the tree ID in its state, which takes names
-	 * alone, so it refuses one that is not.
-	 */
-	if (!bpm_package_name_ok(pub->tree_id))
-		return -EINVAL;
-	ret = tree_publication_check(pub);
-	for (int i = 0; !ret && i < pub->n_operations; i++)
-		ret = tree_operation_validate(&pub->operations[i]);
-	return ret;
-}
-
 int build_tree_fetch_checked(struct bpm_oci_client *c, const char *repository,
 			     const char *reference, const char *cert_path,
 			     const struct trusted_set *trusted,
@@ -72,7 +56,7 @@ int build_tree_fetch_checked(struct bpm_oci_client *c, const char *repository,
 	if (!ret)
 		ret = tree_parse((const char *)bytes.data, bytes.len, pub);
 	if (!ret)
-		ret = build_tree_publication_verify(pub);
+		ret = tree_publication_verify(pub, NULL);
 	if (ret || !document)
 		bpm_buffer_free(&bytes);
 	else
