@@ -189,7 +189,10 @@ static __u64 integer_arg(va_list *ap, bool is_signed, bool *neg)
 	case 2:
 		return va_arg(*ap, __u16);
 	case 4:
-		v = is_signed ? va_arg(*ap, __s32) : va_arg(*ap, __u32);
+		if (is_signed)
+			v = va_arg(*ap, __s32);
+		else
+			v = va_arg(*ap, __u32);
 		break;
 	default:
 		if (!is_signed)
