@@ -115,7 +115,7 @@ bpm-beefile-lines	--unwind 14 LEN=0-10
 bpm-beefile-tables	--unwind 40 LEN=0-7
 bpm-beefile-names	--unwind 131
 bpm-beefile-version	--unwind 13 LEN=5-9
-bpm-beefile-targets	--unwind 11 LEN=0-8
+bpm-beefile-targets	--unwind 11 --unwindset strlen.0:24,strncmp.0:24 LEN=0-8
 bpm-beefile-members	--unwind 11 LEN=0-6
 bpm-index-writer	--unwind 26 --unwindset strlen.0:64,strnlen.0:64,memcpy.0:64,put_string_n.1:64 --max-field-sensitivity-array-size 512 LEN=0-3
 bpm-index-append	--unwind 26 --unwindset strlen.0:260,strcmp.0:64,strnlen.0:64,memcpy.0:64,put_string_n.1:64 --max-field-sensitivity-array-size 512 LEN=0-2

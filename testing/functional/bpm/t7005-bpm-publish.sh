@@ -125,6 +125,22 @@ for target in ./Beefile a/./data.txt dir/; do
 	n=$((n + 1))
 done
 
+# A name that would be a file and a directory at once, in either order,
+# below a member bpm build writes itself, and above the load artifact.
+n=1
+for pair in "a a/b" "a/b a" "data.txt README.md/data.txt" "data.txt upatches"; do
+	mkdir -p "$WORK/nested/$n" &&
+	cp "$WORK/pkg/t7005.bpf.c" "$WORK/nested/$n/" &&
+	echo data >"$WORK/nested/$n/data.txt" &&
+	printf '[package]\nname = "t7005"\n' >"$WORK/nested/$n/Beefile" &&
+	for target in $pair; do
+		printf '\n[[files]]\nsource = "data.txt"\ntarget = "%s"\n' \
+			"$target" >>"$WORK/nested/$n/Beefile"
+	done &&
+	printf '\n[[upatches]]\nsource = "t7005.bpf.c"\n' >>"$WORK/nested/$n/Beefile"
+	n=$((n + 1))
+done
+
 test_expect_success 'bpm build takes a SemVer version alone' '
 	for v in 1.0 01.0.0 1.0.0.1 1.0.0_rc; do
 		( cd "$WORK" && ! "$S" bpm build pkg --version $v \
@@ -140,6 +156,15 @@ test_expect_success 'bpm build refuses a tree selector or a target spelled anoth
 			--keys-dir "$WORK/keys" ) 2>"$WORK/spelled/$n.err" &&
 		grep -q "is not a valid Beefile" "$WORK/spelled/$n.err" &&
 		! test -e "$WORK/t7005-9.0.$n.bee" || return 1
+	done
+'
+
+test_expect_success 'bpm build refuses a target below another member' '
+	for n in 1 2 3 4; do
+		( cd "$WORK" && ! "$S" bpm build nested/$n --version 9.1.$n \
+			--keys-dir "$WORK/keys" ) 2>"$WORK/nested/$n.err" &&
+		grep -q "is not a valid Beefile" "$WORK/nested/$n.err" &&
+		! test -e "$WORK/t7005-9.1.$n.bee" || return 1
 	done
 '
 

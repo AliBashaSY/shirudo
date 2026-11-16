@@ -298,8 +298,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Targets of 0 to 8 bytes; up to 4 bytes into a table that holds one
        target
      - Takes exactly the paths the archive reader takes that have no
-       final slash; a target joins the table once, and a refused one is
-       not counted
+       final slash; a target joins the table once, none above or below
+       one that is in it, and a refused one is not counted
    * - ``bpm-beefile-members``
      - ``build_entry_name()``, against ``package_member_name_ok()`` and
        ``bpm_archive_rel_ok()``
@@ -349,7 +349,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``[[upatches.policy]]`` are counted below 128, 128, 16 and 64 and
        refused there; a table without its upatch is refused and counted
        nowhere; ``Beefile``, ``README.md``, ``cert.der`` and
-       ``build-environment.json`` are no targets
+       ``build-environment.json`` are no targets, nor is a path below
+       one of them
    * - ``bpm-index-writer``
      - ``push_index()`` of :src:`tools/shirudo-build/bpm-publish.c`,
        against ``bpm_index_parse()``

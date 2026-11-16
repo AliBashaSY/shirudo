@@ -971,15 +971,34 @@ static int build_target_ok(const char *target)
 	return 0;
 }
 
+static bool build_target_below(const char *dir, const char *path)
+{
+	size_t n = strlen(dir);
+
+	return !strncmp(path, dir, n) && path[n] == '/';
+}
+
+/*
+ * A name is a file or a directory, not both: a target below another, or
+ * below a member bpm build writes itself, would build and never install.
+ */
 static int build_add_target(char seen[][PATH_MAX], size_t *n, const char *target)
 {
+	static const char *const own[] = {
+		"Beefile", "README.md", "cert.der", "build-environment.json",
+	};
+
 	if (build_target_ok(target))
 		return -EINVAL;
-	if (!strcmp(target, "Beefile") || !strcmp(target, "README.md") ||
-	    !strcmp(target, "cert.der") || !strcmp(target, "build-environment.json"))
-		return -EEXIST;
+	for (size_t i = 0; i < ARRAY_SIZE(own); i++) {
+		if (!strcmp(target, own[i]) ||
+		    build_target_below(own[i], target))
+			return -EEXIST;
+	}
 	for (size_t i = 0; i < *n; i++) {
-		if (!strcmp(seen[i], target))
+		if (!strcmp(seen[i], target) ||
+		    build_target_below(seen[i], target) ||
+		    build_target_below(target, seen[i]))
 			return -EEXIST;
 	}
 	if (*n >= BPM_BUILD_MAX_ENTRIES * 3)

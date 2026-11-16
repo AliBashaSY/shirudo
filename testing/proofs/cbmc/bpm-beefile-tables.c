@@ -6,7 +6,7 @@
  * of tables up to its limit: one more [[files]], [[upatches]], rodata or
  * policy table is counted below the limit and refused at it, and a
  * sub-table without its [[upatches]] or a target that is one of bpm
- * build's own members is refused. LEN picks the case.
+ * build's own members, or lies below one, is refused. LEN picks the case.
  */
 
 /* As proof.h, before the system headers can include <ctype.h>. */
@@ -104,12 +104,17 @@ static void own_members_refused(void)
 	static const char *const own[] = {
 		"Beefile", "README.md", "cert.der", "build-environment.json",
 	};
+	static const char *const below[] = {
+		"Beefile/a", "README.md/a", "cert.der/a",
+		"build-environment.json/a",
+	};
 	char seen[1][PATH_MAX];
 	size_t n = 0, i;
 
 	for (i = 0; i < ARRAY_SIZE(own); i++)
 		__CPROVER_assert(build_add_target(seen, &n, own[i]) == -EEXIST &&
-				 !n, "no target is one of bpm build's own");
+				 build_add_target(seen, &n, below[i]) == -EEXIST &&
+				 !n, "no target is one of bpm build's own, or below one");
 }
 
 void harness(void)
