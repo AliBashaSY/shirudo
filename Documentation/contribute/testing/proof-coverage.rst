@@ -201,6 +201,22 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Lines up to 12 bytes
      - A setting written only for its exact key and terminated, without
        CR or LF
+   * - ``bpm-state-entry``
+     - ``on_state_entry()`` of :src:`util/bpm_state.c`
+     - Any entry with a name and version of up to 6 bytes, into an empty
+       or a full table; a path buffer of 40 bytes, which some of those
+       paths outgrow, in place of ``PATH_MAX``, which none does
+     - Kept exactly when name, version and source are valid, the path is
+       ``BPM_PACKAGES_DIR/<name>/<version>`` and the table has room; kept
+       as read, with the next read into a cleared entry; a refusal not
+       counted, ``-E2BIG`` from a full table
+   * - ``bpm-state-emit``
+     - ``bpm_state_emit()`` with the writer of :src:`util/json.c`
+     - None, one or both of two fixed entries, into buffers of 0 bytes
+       and of each document's size with and without its NUL
+     - 0 exactly when the document fits with its NUL, then the state
+       document byte for byte and its length; nothing written past the
+       buffer, nor to the length on ``-E2BIG``
    * - ``bpm-tree-selector``
      - ``tree_selector_kv_add()``, ``tree_selector_copy()``,
        ``tree_selector_free()``, ``tree_text()``
@@ -812,6 +828,30 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - The first command that is the word, else the commands the word
        begins, else those that begin it, in table order, as many as the
        capacity takes and none written past it
+   * - ``conditions-verdict``
+     - ``status_verdict()``, ``status_reason()``
+     - Every input; reasons into 1, 8, 32 and 160 bytes
+     - The first verdict of its order that applies; ``tampered`` exactly
+       when a cause holds on a host that answered, whatever the other
+       fields say; the reason of the first cause in the order of the
+       reasons, terminated and cut to the buffer
+   * - ``conditions-rows``
+     - ``conditions()``, ``keyring_condition()``, ``conditions_print()``
+     - Every input ``status`` can build: status codes of 0 or a negated
+       errno, a replay result only with a register, pins counted or not
+       checked; room for 0 to 8 rows; ``vsnprintf()`` modelled to keep
+       its arguments
+     - As many rows as there is room for, in the report's order; with
+       room for all, each the first state of its row that applies, the
+       worst first but for ``KeyringSealed``, formatted from that
+       state's numbers and names; an ``ALERT`` only under ``tampered``,
+       that of ``LsmAttached`` also under ``lsm-off``
+   * - ``conditions-detail``
+     - ``set_detail()``
+     - Every text of up to 193 bytes; texts of 832 to 1024 bytes that
+       start with a fixed 832
+     - The whole text up to 191 bytes, else its first 188 and ``...``;
+       ``?`` for a text of 1024 bytes
 
 Lean 4 proofs
 -------------
@@ -1027,11 +1067,10 @@ a proof covers.
 
    * - Files
      - Why no proof reads them
-   * - :src:`util/bpm_state.c`, :src:`util/bpm_tree_overlap.c`,
-       :src:`util/bpm_tree_state.c`, :src:`util/conditions.c`
+   * - :src:`util/bpm_tree_overlap.c`, :src:`util/bpm_tree_state.c`
      - No proof is written yet. A harness could carry their logic, in
-       whole or in part: the package state and tree state readers, which
-       selectors of a tree can meet on one node and the status verdict
+       whole or in part: the tree state reader and which selectors of a
+       tree can meet on one node
    * - :src:`util/harden.c`, :src:`util/identity.c`,
        :src:`util/image_cache.c`, :src:`util/image_config.c`,
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
@@ -1090,7 +1129,12 @@ the config update record, the site configuration file and the config
 image's settings and tree.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
-those parts has no proof.
+those parts has no proof. So it is with the package state:
+``bpm_state_parse()`` hands ``on_state_entry()`` to ``json_parse()``,
+and neither that nor reading back what ``bpm_state_emit()`` writes has a
+proof, as a string of any contents moves all that follows it in the
+document, which costs CBMC more memory than it has. The ``bpm_state``
+unit cases check both on fixed entries.
 
 Of :src:`util/paths.c` and :src:`util/serializer.c` the proofs cover the
 functions the table names. ``key_paths()``, which calls
