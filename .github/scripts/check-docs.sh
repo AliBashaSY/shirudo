@@ -5,8 +5,9 @@
 # .github/scripts/check-docs.sh -- check Documentation/ against the tree:
 # every option a console example passes to shirudo exists in a parser,
 # every failure category the code emits, every tamper counter and every
-# proof has its entry in the reference, and every hook, counter, test,
-# proof and unit a page names exists.
+# proof has its entry in the reference, every hook, counter, test, proof
+# and unit a page names exists, and every source file is read by a proof
+# or listed as read by none.
 #
 #   .github/scripts/check-docs.sh
 #
@@ -128,6 +129,42 @@ while IFS= read -r page; do
 			report "$page" "no proof is named $proof"
 	done
 done <"$work/pages"
+
+# The tree files a harness includes, through another harness too.
+harness_reads() {
+	grep -oE '^#include "[^"]+"' "$1" | sed -E 's/^#include "(.*)"$/\1/' |
+		while IFS= read -r inc; do
+		case $inc in
+		../../../*) printf '%s\n' "${inc#../../../}" ;;
+		proof.h) ;;
+		*)
+			[ ! -e "testing/proofs/cbmc/$inc" ] ||
+				harness_reads "testing/proofs/cbmc/$inc"
+			;;
+		esac
+	done
+}
+
+# Every source file is read by a harness or listed on the coverage page
+# as read by none, and no file is both.
+for harness in testing/proofs/cbmc/*.c; do
+	harness_reads "$harness"
+done | sort -u >"$work/read"
+sed -n '/^Files without a proof$/,/^Not covered yet$/p' "$coverage" |
+	grep -oE ':src:`[^`]+\.c`' | sed -E 's/:src:`(.*)`/\1/' |
+	sort -u >"$work/unread"
+git ls-files 'util/*.c' 'builtin-*.c' shirudo.c 'tools/shirudo-build/*.c' |
+	sort >"$work/sources"
+while IFS= read -r source; do
+	grep -qxF "$source" "$work/read" || grep -qxF "$source" "$work/unread" ||
+		report "$coverage" "no proof reads $source and no line says why"
+done <"$work/sources"
+while IFS= read -r source; do
+	grep -qxF "$source" "$work/sources" ||
+		report "$coverage" "no source file is named $source"
+	! grep -qxF "$source" "$work/read" ||
+		report "$coverage" "a proof reads $source, which the page lists as read by none"
+done <"$work/unread"
 
 # Every unit a page names exists under systemd/.
 while IFS= read -r page; do

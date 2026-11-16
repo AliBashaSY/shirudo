@@ -320,13 +320,17 @@ beside the model step for step, with every constant, the order, each
 branch and each error path, and every commit to the C since the model
 last changed.
 
-Then the gaps. Every parser of outside input, every emitter whose
-output is hashed, signed or measured, and every protocol with crash
-states has a proof, or stands under "Not covered yet" with what covers
-it in its place. A function of a proven file that no harness reaches
-and the page does not name is a gap too, and so is the code that joins
-proven parts. Where neither a proof nor a fuzz target reaches, hunt
-first.
+Then the gaps. The coverage page lists the files no harness reads
+under "Files without a proof", each with the reason, which
+`check-docs.sh` keeps complete, and under "Not covered yet" what the
+proofs of the other files leave out. Every parser of outside input,
+every emitter whose output is hashed, signed or measured, and every
+protocol with crash states has a proof or stands in one of the two.
+Read each reason against the file: "calls the kernel" stops being one
+for logic that can move out from between the calls. A function of a
+proven file that no harness reaches and the page does not name is a
+gap too, and so is the code that joins proven parts. Where neither a
+proof nor a fuzz target reaches, hunt first.
 
 A proof out of sync with the code is a security bug, whichever of the
 two is right: a fact box or a coverage row then claims an assurance the

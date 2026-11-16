@@ -128,7 +128,8 @@ Write a CBMC proof
    a loop that reads one byte too many, run it and see it fail, then
    restore the code.
 
-5. Add a row to :doc:`proof-coverage`.
+5. Add a row to :doc:`proof-coverage`, and take a file the harness is
+   the first to read off that page's list of files without a proof.
 
 A function without a body in the proof, a libc one CBMC does not model or
 a system call, returns any value, and ``run.sh`` fails a proof that calls

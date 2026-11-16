@@ -63,7 +63,8 @@ signed config image.
        binaries when built
    * - ``t0008-check-docs``
      - ``check-docs.sh``: the whole of each field of a threat's fact
-       box, a hook by its section, and the tree itself
+       box, a hook by its section, the source files a proof reads or the
+       proof coverage page lists as read by none, and the tree itself
 
 ``build`` (1)
 ~~~~~~~~~~~~~

@@ -10,8 +10,8 @@ Proof coverage
 
 This page lists the CBMC proofs under :src:`testing/proofs/cbmc/` and the
 Lean 4 proofs under :src:`testing/proofs/lean4/`, what each one proves and
-for which inputs, and the parsers no proof covers yet. :doc:`proofs`
-explains how to run and write them.
+for which inputs, the source files no proof reads and the parsers no
+proof covers yet. :doc:`proofs` explains how to run and write them.
 
 CBMC proofs
 -----------
@@ -734,6 +734,84 @@ the model follows the C.
        ``bpm-tree-sync-model`` and its two-operation variants for
        sync writes, ``bpm-tree-recovery-model`` for pending recovery;
        ``tree_parse()`` by review
+
+Files without a proof
+---------------------
+
+A harness reads a source file by including it. Every file of
+:src:`util/` and :src:`tools/shirudo-build/` that the repository tracks,
+every ``builtin-*.c`` and :src:`shirudo.c` is read by a harness or
+listed here with the reason,
+and ``.github/scripts/check-docs.sh`` fails when a file is neither or
+when a harness reads a file this list still names. A file a harness
+reads is not proven whole: the tables above say which of its functions
+a proof covers.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 46 54
+
+   * - Files
+     - Why no proof reads them
+   * - :src:`util/bpm_state.c`, :src:`util/bpm_tree_overlap.c`,
+       :src:`util/bpm_tree_state.c`, :src:`util/conditions.c`,
+       :src:`util/config_attest.c`, :src:`util/paths.c`,
+       :src:`util/serializer.c`, :src:`util/similar.c`
+     - No proof is written yet. A harness could carry their logic, in
+       whole or in part: the package state and tree state readers, which
+       selectors of a tree can meet on one node, the status verdict, the
+       config history of an evidence document, the pin and key paths,
+       ``serial_chunk_validate()`` and the edit distance
+   * - :src:`tools/shirudo-build/bpm-build.c`,
+       :src:`tools/shirudo-build/bpm-publish.c`,
+       :src:`tools/shirudo-build/package.c`,
+       :src:`tools/shirudo-build/vouch.c`
+     - No proof is written yet. The operator's Beefile reader and its
+       writers of the loader, the ``.upatch`` container, the package,
+       the index, the tree publication and the vouch: the proofs cover
+       what the target's readers accept, not what these write
+   * - :src:`util/harden.c`, :src:`util/identity.c`,
+       :src:`util/image_cache.c`, :src:`util/image_config.c`,
+       :src:`util/image_guards.c`, :src:`util/image_keys.c`,
+       :src:`util/image_runtime.c`, :src:`util/initrd.c`,
+       :src:`util/keyring.c`, :src:`util/preflight.c`,
+       :src:`util/seal.c`, :src:`util/sysinfo.c`, :src:`util/tamper.c`,
+       :src:`util/upatch_maps.c`, :src:`util/upatch_pins.c`,
+       :src:`util/upatch_resolve.c`, :src:`util/upatch_verify.c`,
+       :src:`util/xdp.c`
+     - Mostly calls into the kernel, which CBMC has no body for: files,
+       extended attributes, mounts, the device mapper, keyrings,
+       ``bpf()``, netlink, ``/proc`` and the process's own limits
+   * - :src:`util/crypto_openssl.c`, :src:`util/curl.c`,
+       :src:`util/elf_target.c`, :src:`util/kernel_abi.c`,
+       :src:`util/keys.c`, :src:`util/nv_writer.c`, :src:`util/sign.c`,
+       :src:`util/tls_openssl.c`, :src:`util/tpm.c`,
+       :src:`util/upatch_decode.c`
+     - Mostly calls into a library a harness would have to model whole:
+       OpenSSL, libcurl, libelf, the BTF reader of libbpf, tpm2-tss and
+       LuaJIT
+   * - :src:`util/format.c`, :src:`util/help.c`, :src:`util/report.c`,
+       :src:`util/timefmt.c`, :src:`util/upatch_table.c`
+     - Output for people: sizes, durations, help, the load report and
+       the table of loaded upatches. ``proof.h`` models neither floating
+       point conversions nor ``strftime()``, and the JSON they emit goes
+       through the emitters the proofs cover
+   * - :src:`util/loader.c`
+     - Data only: the embedded BPF objects
+   * - :src:`builtin-attest.c`, :src:`builtin-build.c`,
+       :src:`builtin-config.c`, :src:`builtin-genkey.c`,
+       :src:`builtin-image.c`, :src:`builtin-init.c`,
+       :src:`builtin-keys.c`, :src:`builtin-status.c`,
+       :src:`builtin-upatch.c`, :src:`builtin-version.c`,
+       :src:`shirudo.c`, :src:`tools/shirudo-build/compile.c`,
+       :src:`tools/shirudo-build/image.c`,
+       :src:`tools/shirudo-build/shirudo-build.c`,
+       :src:`tools/shirudo-build/vmlinux.c`
+     - Commands: options, the order of calls into :src:`util/` and
+       output. ``Shirudo.UpatchLoad`` models the protocols of ``init``,
+       ``upatch load`` and ``upatch unload``, by review, and the tree
+       sync harnesses read ``builtin-bpm.c``; no proof reads the other
+       commands
 
 Not covered yet
 ---------------

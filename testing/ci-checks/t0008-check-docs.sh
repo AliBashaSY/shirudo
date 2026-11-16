@@ -3,8 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0008 -- .github/scripts/check-docs.sh: the whole of each field of a
-# threat's fact box and a hook by its section, on a throwaway repository,
-# and the tree itself.
+# threat's fact box, a hook by its section, and the source files a proof
+# reads or the coverage page lists as read by none, on a throwaway
+# repository, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -26,7 +27,7 @@ put() {
 }
 
 # A tree the check passes: one fact box whose fields continue on a second
-# line.
+# line, two harnesses, one of which reads its file through a header.
 good() {
 	rm -rf "$R" && mkdir -p "$R" && git init -q "$R" &&
 	put shirudo.c 'int main(void) { return 0; }' &&
@@ -36,12 +37,17 @@ good() {
 	put tools/gen-initrd/gen '#!/bin/sh' &&
 	put util/tamper.c 'static const struct point points[] = {' \
 		'	[0] = { "Good", 1 },' '};' &&
+	put util/read.c 'int read_one;' &&
+	put util/chained.c 'int chained;' &&
+	put util/unread.c 'int unread;' &&
 	put bpf/guard.c 'SEC("lsm/file_open")' 'SEC("lsm.s/inode_setattr")' &&
 	put bpf/lib/guard.h 'struct guard;' &&
 	put testing/functional/build/t1001-one.sh '#!/bin/sh' &&
 	put testing/proofs/cbmc/proofs.list 'first --unwind 1' 'second --unwind 1' &&
-	put testing/proofs/cbmc/first.c '#include "proof.h"' &&
-	put testing/proofs/cbmc/second.c '#include "proof.h"' &&
+	put testing/proofs/cbmc/first.c '#include "proof.h"' \
+		'#include "../../../util/read.c"' &&
+	put testing/proofs/cbmc/model.h '#include "../../../util/chained.c"' &&
+	put testing/proofs/cbmc/second.c '#include "proof.h"' '#include "model.h"' &&
 	put testing/proofs/lean4/Shirudo/Model.lean 'theorem model : True := trivial' &&
 	put Documentation/security/tamper-counters.rst '``Good``' &&
 	put "$TM" ':Enforced at: ``lsm/file_open``,' \
@@ -52,7 +58,12 @@ good() {
 		':Proofs: ``first``,' \
 		'   ``second``' &&
 	put "$COV" '   * - ``first``' '   * - ``second``' \
-		'   * - ``Shirudo.Model``'
+		'   * - ``Shirudo.Model``' '' \
+		'Files without a proof' '---------------------' '' \
+		'   * - :src:`shirudo.c`, :src:`builtin-upatch.c`,' \
+		'       :src:`tools/shirudo-build/build.c`,' \
+		'       :src:`util/tamper.c`, :src:`util/unread.c`' '' \
+		'Not covered yet' '---------------'
 }
 
 check() {
@@ -80,6 +91,21 @@ test_expect_success 'a counter and a proof on a continuation line are checked' '
 	refuses "no tamper counter is named Goodx" &&
 	good && sed -i "s|\`\`second\`\`|\`\`secondx\`\`|" "$R/$TM" &&
 	refuses "no proof is named secondx"
+'
+
+test_expect_success 'a source file is read by a proof or listed as read by none' '
+	good && put util/new.c "int new_file;" &&
+	refuses "no proof reads util/new.c and no line says why" &&
+	good && put testing/proofs/cbmc/second.c "#include \"proof.h\"" &&
+	refuses "no proof reads util/chained.c and no line says why"
+'
+
+test_expect_success 'the list names only source files no proof reads' '
+	good && sed -i "s|:src:\`util/unread.c\`|:src:\`util/unread.c\`, :src:\`util/read.c\`|" "$R/$COV" &&
+	refuses "a proof reads util/read.c, which the page lists as read by none" &&
+	good && sed -i "s|:src:\`util/unread.c\`|:src:\`util/gone.c\`|" "$R/$COV" &&
+	refuses "no source file is named util/gone.c" &&
+	grep -qF "no proof reads util/unread.c and no line says why" "$W/err"
 '
 
 test_expect_success 'the tree itself passes' '
