@@ -541,6 +541,9 @@ signed config image.
      - TLS 1.3 with ``X25519MLKEM768`` only
    * - ``t8006-otel-transport``
      - OTLP environment variables, headers and limits
+   * - ``t8007-keepalive-fixtures``
+     - Every digest, root, set hash, mask and tree key of the keepalive
+       fixtures recomputes from their example tree
    * - ``t8101-map-export-all``
      - ``upatch map --all`` and JSON lines
    * - ``t8102-otel-backend``
@@ -743,7 +746,7 @@ Coverage by area
        Unauthorized policy-xattr changes: ``t6111``. Task and socket
        inheritance: ``t6141``, ``t6142``
    * - Telemetry
-     - ``t6139``, ``t8001`` to ``t8006``, ``t8101`` to ``t8105``,
+     - ``t6139``, ``t8001`` to ``t8007``, ``t8101`` to ``t8105``,
        ``t9101`` to ``t9105``. Fuzz: ``otel``, ``serializer``
    * - Decoders
      - ``t3002``, ``t8102``, ``t9101``. Fuzz: ``decoder``
