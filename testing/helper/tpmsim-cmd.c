@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -28,7 +29,9 @@
  * stdin, so a plain blocking read() never sees the EOF that would
  * otherwise drive save_state() below. Route the signal through a
  * self-pipe and treat it exactly like EOF instead of dying with
- * whatever TPM state is still unsaved.
+ * whatever TPM state is still unsaved. The TCTI signals and waits for
+ * the /bin/sh it starts, which is this process only when the command
+ * begins with exec.
  */
 static int shutdown_pipe[2] = { -1, -1 };
 
@@ -66,6 +69,27 @@ static int wait_for_command(void)
 	if (ret < 0)
 		return -1;
 	return (pfd[1].revents & POLLIN) ? 0 : 1;
+}
+
+/*
+ * A caller that exits, or whose shell stays between it and this process,
+ * goes on before the state is saved, and the next instance would load
+ * what the one before it has not written yet. Hold the state directory
+ * for as long as this instance runs: the descriptor returned owns the lock.
+ */
+static int lock_state(void)
+{
+	int fd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+
+	if (fd < 0)
+		return -1;
+	while (flock(fd, LOCK_EX) != 0) {
+		if (errno != EINTR) {
+			close(fd);
+			return -1;
+		}
+	}
+	return fd;
 }
 
 /* TPM2_Startup(TPM_SU_CLEAR): sent when no volatile state was restored. */
@@ -197,7 +221,7 @@ int main(int argc, char **argv)
 	__u8 *resp = NULL, *permanent = NULL, *vol = NULL;
 	__u32 resp_size = 0, resp_cap = 0, permanent_len, vol_len;
 	char path[4096];
-	int ret = 0;
+	int lock_fd, ret = 0;
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: tpmsim-cmd <state-dir>\n");
@@ -206,6 +230,11 @@ int main(int argc, char **argv)
 	if ((mkdir(argv[1], 0700) != 0 && errno != EEXIST) ||
 	    chdir(argv[1]) != 0) {
 		perror("tpmsim-cmd: state directory");
+		return 1;
+	}
+	lock_fd = lock_state();
+	if (lock_fd < 0) {
+		perror("tpmsim-cmd: state lock");
 		return 1;
 	}
 	if (install_shutdown_handler() != 0) {
@@ -276,5 +305,6 @@ int main(int argc, char **argv)
 	free(resp);
 	free(permanent);
 	free(vol);
+	close(lock_fd);
 	return ret;
 }
