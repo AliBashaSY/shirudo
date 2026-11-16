@@ -931,6 +931,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        start with a fixed 832
      - The whole text up to 191 bytes, else its first 188 and ``...``;
        ``?`` for a text of 1024 bytes
+   * - ``keepalive-pack``
+     - ``keepalive_mask()``, ``keepalive_cond()``
+     - Masks of 0 to 9, 512 and 513 codes, every code and buffer size;
+       0 to 7 conditions of every known type, one unknown, and every
+       status. OpenSSL's encoder is a stub that keeps its input
+     - A window past 512 or a code past two bits is ``-EINVAL``, a
+       buffer too small ``-E2BIG``; else each code in its two bits, the
+       first highest, the last byte padded with zeros. Each condition's
+       pair at the place of its type name, from the first of that type,
+       ``00`` for a missing one or an unknown status, none past seven
 
 Lean 4 proofs
 -------------
