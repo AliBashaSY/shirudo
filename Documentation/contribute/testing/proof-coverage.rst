@@ -984,6 +984,17 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        first highest, the last byte padded with zeros. Each condition's
        pair at the place of its type name, from the first of that type,
        ``00`` for a missing one or an unknown status, none past seven
+   * - ``sysinfo-image``
+     - ``os_release_unquote()``, ``os_release_value()``,
+       ``cmdline_image_root()``
+     - Values and texts of 0 to 6 bytes; values of 255, 256 and 257
+       bytes; command lines of a word, ``usrhash=`` and ``roothash=``,
+       each there or not, with hashes of any 64 bytes but blanks
+     - A value taken exactly when one or more printable bytes remain
+       after one pair of quotes and the escapes of double quotes, at
+       most 255 of them; of a key's lines the last; the root
+       ``roothash=`` names, else ``usrhash=``, in lowercase when it is
+       64 hex digits, else none
 
 Lean 4 proofs
 -------------
@@ -1253,7 +1264,7 @@ a proof covers.
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
        :src:`util/image_runtime.c`, :src:`util/initrd.c`,
        :src:`util/keyring.c`, :src:`util/preflight.c`,
-       :src:`util/seal.c`, :src:`util/sysinfo.c`, :src:`util/tamper.c`,
+       :src:`util/seal.c`, :src:`util/tamper.c`,
        :src:`util/upatch_maps.c`, :src:`util/upatch_pins.c`,
        :src:`util/upatch_resolve.c`, :src:`util/upatch_verify.c`,
        :src:`util/xdp.c`
@@ -1324,7 +1335,10 @@ of :src:`util/upatch_maps.c` that puts a page together from the chunks
 ``serial_chunk_validate()`` accepted. ``edit_distance()`` of
 :src:`util/similar.c` is proven on strings of up to 3 bytes: at its
 limit of 64 CBMC ends a run on the code as it is and none on the code
-broken, so no proof of the limit is kept.
+broken, so no proof of the limit is kept. Of :src:`util/sysinfo.c` the
+proofs cover the image identity's parsers; reading the files they parse,
+and the readers of ``/proc`` and the root file system, go to the kernel
+and have none.
 
 Within the operator's package builder and publisher, the proofs cover the
 tar header, the member names, the Beefile's values, lines, names and
