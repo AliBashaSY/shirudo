@@ -152,6 +152,18 @@ int chain_fold(__u8 chain[32], const __u8 event[32])
 	return sha256_calc(cat, sizeof(cat), chain);
 }
 
+int chain_history_step(const __u8 prev[32], const __u8 operation_digest[32],
+		       __u8 out[32])
+{
+	static const char tag[] = "shirudo-tree-history";
+	__u8 buf[sizeof(tag) + 64];
+
+	memcpy(buf, tag, sizeof(tag));
+	memcpy(buf + sizeof(tag), prev, 32);
+	memcpy(buf + sizeof(tag) + 32, operation_digest, 32);
+	return sha256_calc(buf, sizeof(buf), out);
+}
+
 int chain_anchor(const __u8 name[TPM_NAME_LEN],
 		 char *out, size_t cap)
 {
