@@ -224,10 +224,16 @@ void json_arr_close(struct json_emit *e)
 void json_kv_string(struct json_emit *e,
 		    const char *key, const char *val)
 {
+	json_kv_string_n(e, key, val, strlen(val));
+}
+
+void json_kv_string_n(struct json_emit *e, const char *key,
+		      const char *val, size_t len)
+{
 	sep(e);
 	put_string(e, key);
 	put(e, ':');
-	put_string(e, val);
+	put_string_n(e, val, len, false);
 }
 
 void json_kv_int(struct json_emit *e,

@@ -453,6 +453,29 @@ static void emitter_takes_well_formed_utf8_only(void)
 		EXPECT_EQ(emit_string(bad[i], buf, sizeof(buf)), -EILSEQ);
 }
 
+static void emitter_takes_a_string_of_its_length(void)
+{
+	struct json_emit e;
+	char buf[64];
+
+	e = (struct json_emit){ .buf = buf, .cap = sizeof(buf) };
+	json_obj_open(&e);
+	json_kv_string_n(&e, "v", "a\"bc", 3);
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+	EXPECT_STREQ(buf, "{\"v\":\"a\\\"b\"}");
+
+	e = (struct json_emit){ .buf = buf, .cap = sizeof(buf) };
+	json_obj_open(&e);
+	json_kv_string_n(&e, "v", "a\0b", 3);
+	EXPECT_EQ(e.err, -EILSEQ);
+
+	e = (struct json_emit){ .buf = buf, .cap = sizeof(buf) };
+	json_obj_open(&e);
+	json_kv_string_n(&e, "v", "a\xc3", 2);
+	EXPECT_EQ(e.err, -EILSEQ);
+}
+
 static void emitter_grows_up_to_its_max(void)
 {
 	struct json_emit deep = { .max = 1u << 20 };
@@ -785,6 +808,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(discarded_number_follows_the_grammar),
 	UNIT_CASE(malformed_utf8_is_refused),
 	UNIT_CASE(emitter_takes_well_formed_utf8_only),
+	UNIT_CASE(emitter_takes_a_string_of_its_length),
 	UNIT_CASE(emitter_grows_up_to_its_max),
 	UNIT_CASE(lossy_writes_replace_bad_bytes),
 	UNIT_CASE(walk_reports_every_token),

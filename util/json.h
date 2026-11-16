@@ -61,6 +61,9 @@ void json_arr_close(struct json_emit *e);
 void json_key(struct json_emit *e, const char *key);
 void json_kv_string(struct json_emit *e,
 		    const char *key, const char *val);
+/* A NUL among the len bytes is -EILSEQ, as malformed UTF-8 is. */
+void json_kv_string_n(struct json_emit *e, const char *key,
+		      const char *val, size_t len);
 void json_kv_int(struct json_emit *e,
 		 const char *key, __s64 val);
 void json_kv_bool(struct json_emit *e,
