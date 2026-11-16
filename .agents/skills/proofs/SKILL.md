@@ -39,6 +39,10 @@ gigabytes is one to reshape, not to wait for.
   proves, and defines `harness()`. Inputs come from `any_bytes(n)` and from
   variables left uninitialized; `__CPROVER_assume()` bounds them and
   `__CPROVER_assert(cond, "what holds")` states each property.
+- Only a local left uninitialized is any value. A `static` or global
+  object of a harness is zeros, as in C: a table meant to be any table
+  takes each entry from a local, or the proof runs on the one empty
+  table and holds of nothing else.
 - State the contract, not the implementation: which inputs are accepted,
   that every offset or pointer returned lies inside the input, that a
   refusal writes nothing, that output reads back. Proving the code equal
@@ -152,6 +156,14 @@ determining its events.
   object of struct type that a `memcpy()` filled, `xreallocarray()`'s
   for one; a wrong value can make a check pass as well as fail. Read
   such an object by its members, never cast to bytes.
+- It does so without a `memcpy()` and on the stack too: a read through a
+  `char *` at an index that depends on the data, as
+  `release[strlen(prefix)]` is, from an object whose type starts with an
+  array of `char`, as `struct tree_selector` and `struct utsname` do, is
+  taken from that first member. Hold such an object inside one that
+  starts with another type, as `bpm-tree-overlap-model` holds a selector
+  in a `struct tree_operation`, and keep a harness's own reads at
+  indices its loops give.
 - `run.sh` passes `--unsigned-char`, as the build passes
   `-funsigned-char`; a conversion failure on `char` elsewhere means the
   proof is not built as the code is.
