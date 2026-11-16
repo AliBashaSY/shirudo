@@ -487,7 +487,19 @@ test_expect_success 'tree append refuses two upatches of one package that select
 		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/t7005xg.err" &&
 	grep -q "t7005xh and t7005xg (seq 1) both select XDP device classes 16 " \
 		"$WORK/t7005xg.err" &&
-	! test -e "$REG/ns/xdp2/manifests/stable"
+	! test -e "$REG/ns/xdp2"
+'
+
+# No node can digest an operation with a control character in it, so the
+# entry is refused, and before its artifact reaches the registry.
+test_expect_success 'tree append uploads nothing for an entry no target would take' '
+	xdp_package t7005ct 16 "$(site "\"a\\\\tb\"")" &&
+	grep -q "^site = \[\"a.tb\"\]\$" "$WORK/t7005ct/Beefile" &&
+	! "$S" bpm tree append "$WORK/t7005ct-1.0.0.bee" "oci://$REGISTRY/ns/ctl" \
+		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/t7005ct.err" &&
+	grep -q "the tree entry of t7005ct makes an operation no target takes" \
+		"$WORK/t7005ct.err" &&
+	! test -e "$REG/ns/ctl"
 '
 
 test_expect_success 'the operator commands are reachable directly in shirudo-build' '

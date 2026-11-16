@@ -550,26 +550,46 @@ static void tree_selector_canonicalize(struct tree_selector *s)
 		      TREE_STRING_MAX, tree_string_compare);
 }
 
+/* An artifact that is described for its operation and not uploaded yet. */
+struct tree_upload {
+	__u8	*body;
+	size_t	body_len;
+	char	tag[160];
+	char	*manifest;
+	size_t	manifest_len;
+};
+
+static int tree_describe_blob(const void *body, size_t len, const char *media,
+			      struct bpm_descriptor *out)
+{
+	char hex[65];
+
+	if (bpm_sha256_hex(body, len, hex, sizeof(hex)) ||
+	    strsprintf(out->digest, sizeof(out->digest), "sha256:%s", hex) < 0)
+		return -EINVAL;
+	bpm_copy_string(out->media, sizeof(out->media), media);
+	out->size = (__s64)len;
+	return 0;
+}
+
 /*
- * Publish one immutable upatch artifact and describe it for the tree.
- * The bytes are checked to be the directive the operation claims (same
- * name, load versus unload) before anything is uploaded, so a target
+ * Describe one immutable upatch artifact for the tree, with the manifest
+ * its upload will put. The bytes are checked to be the directive the
+ * operation claims, same name and load versus unload, so that a target
  * never meets an operation its own tree_verify_upatch() would reject.
  */
-static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
-			      const char *raw_repository,
-			      const __u8 *body, size_t len,
-			      const char *id, bool unload,
-			      struct tree_artifact *out)
+static int tree_describe_artifact(const char *raw_repository,
+				  const __u8 *body, size_t len,
+				  const char *id, bool unload,
+				  struct tree_artifact *out,
+				  struct tree_upload *up)
 {
 	char name[UPATCH_NAME_MAX + 1], title[UPATCH_NAME_MAX + 16];
 	char temporary[] = "/tmp/shirudo-bpm-tree-XXXXXX";
-	struct bpm_descriptor layer, config;
-	char empty_config[] = "{}";
+	struct bpm_descriptor layer = {}, config = {};
+	char hex[65], manifest_hex[65];
 	struct json_emit e;
 	struct upatch u;
-	char hex[65], tag[160];
-	char *manifest;
 	int fd, ret;
 
 	fd = mkstemp(temporary);
@@ -595,23 +615,21 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 		       unload ? "load" : "unload", name);
 		return ret;
 	}
-	if (strsprintf(tag, sizeof(tag), "upatch-%s-%.16s", id, hex) < 0 || strlen(tag) > 128)
+	if (strsprintf(up->tag, sizeof(up->tag), "upatch-%s-%.16s", id, hex) < 0 ||
+	    strlen(up->tag) > 128)
 		return -ENAMETOOLONG;
 	if (strsprintf(title, sizeof(title), "%s.upatch", id) < 0)
 		return -ENAMETOOLONG;
-	ret = bpm_oci_push_blob(c, repository, body, len, BPM_UPATCH_MEDIA,
-				&layer);
+	ret = tree_describe_blob(body, len, BPM_UPATCH_MEDIA, &layer);
+	if (!ret)
+		ret = tree_describe_blob("{}", 2, BPM_EMPTY_CONFIG_MEDIA,
+					 &config);
 	if (ret)
 		return ret;
-	ret = bpm_oci_push_blob(c, repository, empty_config,
-				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
-				&config);
-	if (ret)
-		return ret;
-	manifest = xmalloc(BPM_MANIFEST_CAP);
-	if (!manifest)
+	up->manifest = xmalloc(BPM_MANIFEST_CAP);
+	if (!up->manifest)
 		return -ENOMEM;
-	e = (struct json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
+	e = (struct json_emit){ .buf = up->manifest, .cap = BPM_MANIFEST_CAP };
 	json_obj_open(&e);
 	json_kv_int(&e, "schemaVersion", 2);
 	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
@@ -624,21 +642,41 @@ static int tree_push_artifact(struct bpm_oci_client *c, const char *repository,
 	json_kv_string(&e, "org.opencontainers.image.title", title);
 	json_obj_close(&e);
 	json_obj_close(&e);
-	ret = e.err;
-	if (!ret)
-		ret = bpm_oci_put_manifest(c, repository, tag,
-					   (const __u8 *)manifest, e.len,
-					   out->manifest_digest,
-					   sizeof(out->manifest_digest));
-	xfree(manifest, BPM_MANIFEST_CAP);
-	if (ret)
-		return ret;
-	bpm_copy_string(out->repository, sizeof(out->repository), raw_repository);
-	bpm_copy_string(out->layer_digest, sizeof(out->layer_digest), layer.digest);
-	if (strsprintf(out->payload_sha256, sizeof(out->payload_sha256),
+	if (e.err)
+		return e.err;
+	up->manifest_len = e.len;
+	if (bpm_sha256_hex(up->manifest, e.len, manifest_hex,
+			   sizeof(manifest_hex)) ||
+	    strsprintf(out->manifest_digest, sizeof(out->manifest_digest),
+		       "sha256:%s", manifest_hex) < 0 ||
+	    strsprintf(out->payload_sha256, sizeof(out->payload_sha256),
 		       "sha256:%s", hex) < 0)
 		return -E2BIG;
+	bpm_copy_string(out->repository, sizeof(out->repository), raw_repository);
+	bpm_copy_string(out->layer_digest, sizeof(out->layer_digest), layer.digest);
 	return 0;
+}
+
+static int tree_upload_artifact(struct bpm_oci_client *c, const char *repository,
+				const struct tree_upload *up)
+{
+	struct bpm_descriptor layer, config;
+	char empty_config[] = "{}";
+	char digest[72];
+	int ret;
+
+	ret = bpm_oci_push_blob(c, repository, up->body, up->body_len,
+				BPM_UPATCH_MEDIA, &layer);
+	if (!ret)
+		ret = bpm_oci_push_blob(c, repository, empty_config,
+					strlen(empty_config),
+					BPM_EMPTY_CONFIG_MEDIA, &config);
+	if (!ret)
+		ret = bpm_oci_put_manifest(c, repository, up->tag,
+					   (const __u8 *)up->manifest,
+					   up->manifest_len, digest,
+					   sizeof(digest));
+	return ret;
 }
 
 /* The classes of a load upatch, none for one without an XDP program. */
@@ -757,6 +795,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	char key_path[PATH_MAX], cert_path[PATH_MAX];
 	char parent[BPM_MAX_DIGEST] = {}, digest[72];
 	struct tree_xdp_classes *seen = NULL;
+	struct tree_upload *uploads = NULL;
 	struct tree_publication pub = {};
 	struct tree_operation *op = NULL;
 	size_t len, payload_len = 0, sig_len = 0;
@@ -909,7 +948,8 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 
 	op = xmalloc(sizeof(*op));
 	seen = xcalloc(1, sizeof(*seen));
-	if (!op || !seen) {
+	uploads = xcalloc(BPM_BUILD_MAX_ENTRIES, sizeof(*uploads));
+	if (!op || !seen || !uploads) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -960,15 +1000,25 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 								   classes);
 		}
 		if (!ret)
-			ret = tree_push_artifact(&c, repository, repo_ref, body,
-						 body_len, u->tree.id, unload,
-						 &op->artifact);
-		xfree(body, body_len + 1);
-		if (ret)
+			ret = tree_describe_artifact(repo_ref, body, body_len,
+						     u->tree.id, unload,
+						     &op->artifact,
+						     &uploads[appended]);
+		if (ret) {
+			xfree(body, body_len + 1);
 			goto out;
+		}
+		uploads[appended].body = body;
+		uploads[appended].body_len = body_len;
 		ret = tree_operation_digest(op, op->operation_digest);
 		if (!ret)
-			ret = tree_publication_append(&pub, op);
+			ret = tree_operation_validate(op);
+		if (ret) {
+			pr_err("bpm tree append: the tree entry of %s makes an operation no target takes",
+			       u->tree.id);
+			goto out;
+		}
+		ret = tree_publication_append(&pub, op);
 		if (ret)
 			goto out;
 		seen->classes[pub.n_operations - 1] = classes;
@@ -987,6 +1037,12 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	ret = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
 	if (ret)
 		goto out;
+	/* Nothing is uploaded before all of it is known to be publishable. */
+	for (int i = 0; i < appended; i++) {
+		ret = tree_upload_artifact(&c, repository, &uploads[i]);
+		if (ret)
+			goto out;
+	}
 	ret = bpm_oci_push_blob(&c, repository, empty_config,
 				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
 				&config);
@@ -1032,6 +1088,11 @@ out:
 		tree_selector_free(&op->selector);
 	xfree(op, sizeof(*op));
 	xfree(seen, sizeof(*seen));
+	for (size_t i = 0; uploads && i < BPM_BUILD_MAX_ENTRIES; i++) {
+		xfree(uploads[i].manifest, BPM_MANIFEST_CAP);
+		xfree(uploads[i].body, uploads[i].body_len + 1);
+	}
+	xfree(uploads, BPM_BUILD_MAX_ENTRIES * sizeof(*uploads));
 	tree_publication_free(&pub);
 	bpm_build_spec_free(spec);
 	xfree(beefile, len + 1);

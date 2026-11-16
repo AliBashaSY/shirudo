@@ -226,6 +226,13 @@ package as the next operations of the signed tree at
      - ``add``
      - ``add`` or ``delete``.
 
+``tree append`` works out every operation of the package, checks each
+as a target will and signs the publication before it uploads anything:
+when it refuses, the registry is as it was. An entry no target could
+take, one with a control character in its id or in a selector value,
+fails with ``bpm tree append: the tree entry of <id> makes an operation
+no target takes``.
+
 An ``add`` is refused when an XDP program of the upatch selects a device
 class that an XDP program of another upatch in the tree selects, and the
 selectors of the two operations do not exclude each other. A device runs
