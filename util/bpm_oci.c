@@ -1189,6 +1189,18 @@ int bpm_sha256_hex(const void *data, size_t len,
 	return 0;
 }
 
+int bpm_sha256_digest(const void *data, size_t len, char *out, size_t out_sz)
+{
+	__u8 digest[CRYPTO_SHA256_LEN];
+
+	if (out_sz < SHA256_DIGEST_STR_SIZE)
+		return -ENAMETOOLONG;
+	if (sha256_buffer(data, len, digest))
+		return -EINVAL;
+	sha256_digest_encode(digest, out);
+	return 0;
+}
+
 bool bpm_digest_matches(const char *want, const char *hex)
 {
 	return want && !strncmp(want, "sha256:", 7) &&
@@ -1220,16 +1232,15 @@ int bpm_oci_push_blob(struct bpm_oci_client *c, const char *repository,
 		      const void *body, size_t body_len, const char *media,
 		      struct bpm_descriptor *out)
 {
+	char digest[SHA256_DIGEST_STR_SIZE], url[PATH_MAX], upload[PATH_MAX];
 	struct bpm_http_response r = {};
-	char hex[65], digest[72], url[PATH_MAX], upload[PATH_MAX];
 	char location[PATH_MAX];
 	const char *sep;
 	int ret;
 
-	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)))
-		return -EINVAL;
-	if (strsprintf(digest, sizeof(digest), "sha256:%s", hex) < 0)
-		return -ENAMETOOLONG;
+	ret = bpm_sha256_digest(body, body_len, digest, sizeof(digest));
+	if (ret)
+		return ret;
 	ret = bpm_oci_url(c, repository, "blobs", digest, url, sizeof(url));
 	if (ret)
 		return ret;
@@ -1302,12 +1313,12 @@ int bpm_oci_put_manifest(struct bpm_oci_client *c, const char *repository,
 			 size_t body_len, char *digest, size_t digest_sz)
 {
 	struct bpm_http_response r = {};
-	char hex[65], url[PATH_MAX];
+	char url[PATH_MAX];
 	int ret;
 
-	if (bpm_sha256_hex(body, body_len, hex, sizeof(hex)) ||
-	    strsprintf(digest, digest_sz, "sha256:%s", hex) < 0)
-		return -ENAMETOOLONG;
+	ret = bpm_sha256_digest(body, body_len, digest, digest_sz);
+	if (ret)
+		return ret;
 	ret = bpm_oci_url(c, repository, "manifests", reference, url,
 			  sizeof(url));
 	if (ret)

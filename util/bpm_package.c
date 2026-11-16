@@ -901,7 +901,7 @@ int bpm_tree_fetch_document(struct bpm_oci_client *c,
 {
 	struct bpm_buffer manifest = {}, sig = {};
 	struct bpm_descriptor *layers = NULL;
-	char url[PATH_MAX], hex[65];
+	char url[PATH_MAX];
 	int nl = 0, ret;
 
 	if (!reference[0] || strchr(reference, '/') || strchr(reference, '?') ||
@@ -914,14 +914,10 @@ int bpm_tree_fetch_document(struct bpm_oci_client *c,
 	ret = bpm_oci_get_memory(c, url, BPM_MANIFEST_MEDIA, &manifest);
 	if (ret)
 		goto out;
-	if (bpm_sha256_hex(manifest.data, manifest.len, hex, sizeof(hex))) {
-		ret = -EKEYREJECTED;
+	ret = bpm_sha256_digest(manifest.data, manifest.len, manifest_digest,
+				digest_sz);
+	if (ret)
 		goto out;
-	}
-	if (strsprintf(manifest_digest, digest_sz, "sha256:%s", hex) < 0) {
-		ret = -ENAMETOOLONG;
-		goto out;
-	}
 	layers = xcalloc(BPM_MAX_ENTRIES, sizeof(*layers));
 	if (!layers) {
 		ret = -ENOMEM;

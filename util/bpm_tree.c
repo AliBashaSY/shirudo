@@ -537,8 +537,8 @@ int tree_operation_digest(const struct tree_operation *op,
 {
 	size_t body_cap = 1024u * 1024u;
 	struct json_emit e;
-	char *body, hex[65];
 	__u8 digest[32];
+	char *body;
 	int ret;
 
 	body = xmalloc(body_cap);
@@ -552,11 +552,8 @@ int tree_operation_digest(const struct tree_operation *op,
 		ret = e.err;
 	if (!ret && sha256_buffer(body, e.len, digest))
 		ret = -EIO;
-	if (!ret) {
-		hex_encode(digest, sizeof(digest), hex);
-		memcpy(out, "sha256:", 7);
-		memcpy(out + 7, hex, sizeof(hex));
-	}
+	if (!ret)
+		sha256_digest_encode(digest, out);
 	xfree(body, body_cap);
 	return ret;
 }

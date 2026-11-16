@@ -358,9 +358,10 @@ static int push_package(const char *package_path, const char *raw_repository,
 	struct json_emit e = {};
 	__u8 *archive = NULL, *manifest = NULL;
 	const char *base;
-	char repository[BPM_MAX_ENDPOINT], package_digest[72], key_digest[72];
+	char repository[BPM_MAX_ENDPOINT];
+	char package_digest[SHA256_DIGEST_STR_SIZE];
+	char key_digest[SHA256_DIGEST_STR_SIZE];
 	char index_repository[BPM_MAX_ENDPOINT] = {};
-	char hex[65];
 	char reference[PATH_MAX];
 	char config_body[] = "{\"mediaType\":\"" BPM_CONFIG_MEDIA "\"}";
 	char empty_config[] = "{}";
@@ -439,8 +440,8 @@ static int push_package(const char *package_path, const char *raw_repository,
 	}
 	manifest_len = e.len;
 	manifest = (__u8 *)manifest_body;
-	if (bpm_sha256_hex(manifest, manifest_len, hex, sizeof(hex)) ||
-	    strsprintf(package_digest, sizeof(package_digest), "sha256:%s", hex) < 0) {
+	if (bpm_sha256_digest(manifest, manifest_len, package_digest,
+			      sizeof(package_digest))) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -496,9 +497,8 @@ static int push_package(const char *package_path, const char *raw_repository,
 		goto out;
 	}
 	key_manifest_len = e.len;
-	if (bpm_sha256_hex(key_manifest_body, key_manifest_len, hex,
-			   sizeof(hex)) ||
-	    strsprintf(key_digest, sizeof(key_digest), "sha256:%s", hex) < 0) {
+	if (bpm_sha256_digest(key_manifest_body, key_manifest_len, key_digest,
+			      sizeof(key_digest))) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -559,10 +559,7 @@ struct tree_upload {
 static int tree_describe_blob(const void *body, size_t len, const char *media,
 			      struct bpm_descriptor *out)
 {
-	char hex[65];
-
-	if (bpm_sha256_hex(body, len, hex, sizeof(hex)) ||
-	    strsprintf(out->digest, sizeof(out->digest), "sha256:%s", hex) < 0)
+	if (bpm_sha256_digest(body, len, out->digest, sizeof(out->digest)))
 		return -EINVAL;
 	bpm_copy_string(out->media, sizeof(out->media), media);
 	out->size = (__s64)len;
@@ -694,8 +691,9 @@ static int tree_describe_artifact(const char *raw_repository,
 	char name[UPATCH_NAME_MAX + 1], title[UPATCH_NAME_MAX + 16];
 	char temporary[] = "/tmp/shirudo-bpm-tree-XXXXXX";
 	struct bpm_descriptor layer = {}, config = {};
-	char hex[65], manifest_hex[65];
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
 	struct json_emit e;
+	char hex[65];
 	struct upatch u;
 	int fd, ret;
 
@@ -712,7 +710,8 @@ static int tree_describe_artifact(const char *raw_repository,
 		return ret;
 	}
 	upatch_header_name(&u, name);
-	hex_encode(u.hdr.payload_sha256, 32, hex);
+	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
+	hex_encode(payload, sizeof(payload), hex);
 	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
 		ret = -EKEYREJECTED;
 	upatch_close(&u);
@@ -752,13 +751,11 @@ static int tree_describe_artifact(const char *raw_repository,
 	if (e.err)
 		return e.err;
 	up->manifest_len = e.len;
-	if (bpm_sha256_hex(up->manifest, e.len, manifest_hex,
-			   sizeof(manifest_hex)) ||
-	    strsprintf(out->manifest_digest, sizeof(out->manifest_digest),
-		       "sha256:%s", manifest_hex) < 0 ||
-	    strsprintf(out->payload_sha256, sizeof(out->payload_sha256),
-		       "sha256:%s", hex) < 0)
-		return -E2BIG;
+	ret = bpm_sha256_digest(up->manifest, e.len, out->manifest_digest,
+				sizeof(out->manifest_digest));
+	if (ret)
+		return ret;
+	sha256_digest_encode(payload, out->payload_sha256);
 	bpm_copy_string(out->repository, sizeof(out->repository), raw_repository);
 	bpm_copy_string(out->layer_digest, sizeof(out->layer_digest), layer.digest);
 	return 0;

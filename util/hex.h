@@ -39,7 +39,9 @@ int hex_decode_max(const char *hex, __u8 *out, size_t cap, size_t *len);
  * bytes. 0 or -EINVAL. sha256_digest_encode() writes the 32 bytes at in
  * as one, in lowercase and terminated.
  */
+#define SHA256_DIGEST_STR_SIZE	72
 int sha256_digest_decode(const char *digest, __u8 out[32]);
-void sha256_digest_encode(const __u8 in[32], char out[72]);
+void sha256_digest_encode(const __u8 in[32],
+			  char out[SHA256_DIGEST_STR_SIZE]);
 
 #endif /* SHIRUDO_HEX_H */
