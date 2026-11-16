@@ -201,7 +201,7 @@ Header
 Conditions
 ~~~~~~~~~~
 
-Six conditions, each ``OK``, ``WARN`` or ``ALERT`` with a detail. The
+Seven conditions, each ``OK``, ``WARN`` or ``ALERT`` with a detail. The
 verdict is derived from them.
 
 .. list-table::

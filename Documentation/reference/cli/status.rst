@@ -47,12 +47,14 @@ The report shows seven conditions, each ``OK``, ``WARN`` or ``ALERT``:
    * - Verdict
      - Applies when
    * - ``tampered``
-     - The live register differs from the eventlog replay, the ``.bpf``
-       or ``.dm-verity`` keyring is not the one ``init`` froze or is
-       gone, a keyring holds a link ``init`` did not freeze, the config
-       key is gone from ``.dm-verity``, a upatch is pinned or archived
-       without a record of this boot, or the selected config cannot be verified
-       against its records.
+     - The live register differs from the eventlog replay, the archive
+       of a loaded XDP upatch differs from what was loaded, a loaded
+       upatch is missing a link or its archive, a upatch is pinned or
+       archived without a record of this boot, the selected config
+       cannot be verified against its records, the ``.bpf`` or
+       ``.dm-verity`` keyring is not the one ``init`` froze or is gone,
+       a keyring holds a link ``init`` did not freeze, or the config key
+       is gone from ``.dm-verity``.
    * - ``lsm-off``
      - The LSM link is not pinned.
    * - ``init-pending``

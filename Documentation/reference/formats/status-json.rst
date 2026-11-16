@@ -62,7 +62,7 @@ determined, as noted.
        for ``ok``, see `Reasons`_.
    * - ``conditions``
      - array of object
-     - Six conditions, each with ``type``, ``status`` and ``detail``,
+     - Seven conditions, each with ``type``, ``status`` and ``detail``,
        see `Conditions`_.
    * - ``lsm_attached``
      - boolean
@@ -153,13 +153,15 @@ Verdicts
    * - ``status``
      - Condition
    * - ``tampered``
-     - The live register differs from the eventlog replay, the
-       ``.bpf`` or ``.dm-verity`` keyring's serial differs from the
-       pinned serial, a keyring ``init`` pinned is gone, a keyring holds
-       a link ``init`` did not freeze, the config key ``init`` froze is
-       gone from ``.dm-verity``, a upatch is pinned or archived without
-       a record of this boot, or the selected config cannot be verified against its
-       activation records.
+     - The live register differs from the eventlog replay, the archive
+       of a loaded XDP upatch differs from what was loaded, a loaded
+       upatch is missing a link or its archive, a upatch is pinned or
+       archived without a record of this boot, the selected config
+       cannot be verified against its activation records, a keyring
+       ``init`` pinned is gone, the ``.bpf`` or ``.dm-verity`` keyring's
+       serial differs from the pinned serial, a keyring holds a link
+       ``init`` did not freeze, or the config key ``init`` froze is gone
+       from ``.dm-verity``.
    * - ``lsm-off``
      - The LSM link is not pinned. Enforcement is off.
    * - ``init-pending``
@@ -190,6 +192,11 @@ else ``a device an XDP upatch selects does not run it``.
      - ``reason``
    * - ``tampered``
      - ``live register differs from the eventlog replay``
+   * -
+     - ``the archive of a loaded XDP upatch differs from what was
+       loaded``
+   * -
+     - ``a loaded upatch is missing a link or its archive``
    * -
      - ``a upatch is pinned or archived without a record of this boot``
    * -
@@ -303,6 +310,15 @@ bytes: a longer one, such as a long list of names, is cut and ends with
    * -
      - ``WARN``
      - ``pins not checked against the records: <error>``
+   * -
+     - ``WARN``
+     - ``links or archives not checked: <error>``
+   * -
+     - ``ALERT``
+     - ``<n> XDP archives differ from the loaded payload: <names>``
+   * -
+     - ``ALERT``
+     - ``<n> upatches are missing a link or their archive: <names>``
    * -
      - ``ALERT``
      - ``<n> pinned or archived without a record of this boot: <names>``
