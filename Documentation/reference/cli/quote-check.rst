@@ -123,14 +123,15 @@ to a TPM.
 Compared with attest verify
 ---------------------------
 
-``shirudo attest verify`` checks the signature and the signer of the
-quotes in an evidence document with code of its own,
-:src:`util/attest.c`, where this program has
-:src:`tools/quote-check/row.c`. Both parse the key with the same
-``TPMT_PUBLIC`` parser, which refuses a curve other than NIST P-256 and
-an ECDSA hash other than SHA-256, and both check the signer as the
-key's qualified name under the endorsement hierarchy. They differ in
-these:
+``shirudo attest verify`` and this program check a signature and its
+signer with the same two functions of :src:`util/tpm_wire.c`,
+``tpm_attest_verify()`` and ``tpm_attest_signer()``: the ECDSA signature
+over the SHA-256 of the ``attest`` bytes, where a key that is no point
+of the curve verifies nothing, and the signer as the key's qualified
+name under the endorsement hierarchy, compared in constant time. Both
+parse the key with the same ``TPMT_PUBLIC`` parser, which refuses a
+curve other than NIST P-256 and an ECDSA hash other than SHA-256. What
+each asks of the key and how it reports differ:
 
 .. list-table::
    :header-rows: 1
@@ -149,16 +150,10 @@ these:
        fixedParent and sensitiveDataOrigin
      - No
      - Yes
-   * - The signer's name is compared
-     - With ``memcmp()``
-     - In constant time, with ``memneq_explicit()``
    * - After a check fails
      - Stops: the first failure decides the reason
      - Goes on and reports every check, unless a structure does not
        parse
-   * - A key that is no point of the curve
-     - ``bad_signature``
-     - The signature check fails
 
 The attribute check would prove little here. The ``ak`` field travels
 with the row from the node, so its attributes are what the node
@@ -167,14 +162,6 @@ declares, and a software P-256 key can carry the same bits (U1 of
 credential activation, :doc:`attest-challenge` and ``shirudo attest
 --challenge``, and from pinning its name in :doc:`attest-verify`; a
 backend treats every node as ``untrusted`` until it has done that (R17).
-The signer's name is public, so the comparison needs no constant time.
-
-.. note::
-
-   The two verifiers are separate code: a check added to one, or a fix
-   to one, does not reach the other. Change both, and their tests, in
-   the same commit. D10 of :doc:`/security/threat-model` is the
-   consolidation into one function.
 
 Output
 ------

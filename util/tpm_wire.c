@@ -624,3 +624,32 @@ int tpm_attest_parse(const __u8 *buf, size_t len,
 	}
 	return -EPROTONOSUPPORT;
 }
+
+int tpm_attest_signer(const struct tpm_attest *a,
+		      const __u8 ak_name[TPM_NAME_LEN], bool *is)
+{
+	__u8 qualified[TPM_NAME_LEN];
+	int ret;
+
+	ret = tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qualified);
+	if (ret)
+		return ret;
+	*is = a->signer_len == TPM_NAME_LEN &&
+	      !memneq_explicit(a->signer, qualified, TPM_NAME_LEN);
+	return 0;
+}
+
+int tpm_attest_verify(const __u8 *attest, size_t len,
+		      const __u8 *sig, size_t sig_len,
+		      const __u8 x[32], const __u8 y[32])
+{
+	__u8 digest[CRYPTO_SHA256_LEN], r[32], s[32];
+	int ret;
+
+	if (tpm_ecdsa_signature_parse(sig, sig_len, r, s))
+		return -EBADMSG;
+	ret = sha256_buffer(attest, len, digest);
+	if (!ret)
+		ret = ecdsa_p256_verify(x, y, digest, r, s);
+	return ret == -EINVAL ? -EKEYREJECTED : ret;
+}

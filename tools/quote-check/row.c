@@ -103,52 +103,15 @@ static bool attest_is_keepalive_quote(const struct tpm_attest *attest)
 	return attest->type == TPM_ST_ATTEST_QUOTE && !attest->pcr_mask;
 }
 
-static int signer_is_endorsement_primary(const struct tpm_attest *attest,
-					 const __u8 ak_name[TPM_NAME_LEN],
-					 bool *is)
-{
-	__u8 qualified[TPM_NAME_LEN];
-	int ret;
-
-	ret = tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qualified);
-	if (ret)
-		return ret;
-	*is = attest->signer_len == TPM_NAME_LEN &&
-	      !memcmp(attest->signer, qualified, TPM_NAME_LEN);
-	return 0;
-}
-
-/*
- * 0 with *valid, or a negative errno. A key that is no point of the
- * curve, -EINVAL, verifies nothing, like a signature that does not
- * match.
- */
-static int signature_verify(const struct tpm_public *ak,
-			    const __u8 *attest, size_t attest_len,
-			    const __u8 r[32], const __u8 s[32], bool *valid)
-{
-	__u8 digest[CRYPTO_SHA256_LEN];
-	int ret;
-
-	ret = sha256_buffer(attest, attest_len, digest);
-	if (ret)
-		return ret;
-	ret = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
-	if (ret && ret != -EKEYREJECTED && ret != -EINVAL)
-		return ret;
-	*valid = !ret;
-	return 0;
-}
-
 int quote_row_check(const char *row, size_t len, struct quote_result *res)
 {
 	__u8 attest[TPM_ATTEST_MAX], sig[TPM_SIGNATURE_MAX];
-	__u8 body_sha256[TPM_DIGEST_LEN], r[32], s[32];
+	__u8 body_sha256[TPM_DIGEST_LEN];
 	struct field fields[FIELD_COUNT];
 	size_t attest_len, sig_len;
 	struct tpm_attest quote;
 	struct tpm_public ak;
-	bool passed;
+	bool signer;
 	int ret;
 
 	memset(res, 0, sizeof(*res));
@@ -171,24 +134,23 @@ int quote_row_check(const char *row, size_t len, struct quote_result *res)
 	ret = tpm_object_name(res->ak_public, res->ak_public_len,
 			      res->ak_name);
 	if (!ret)
-		ret = signer_is_endorsement_primary(&quote, res->ak_name,
-						    &passed);
+		ret = tpm_attest_signer(&quote, res->ak_name, &signer);
 	if (ret)
 		return ret;
-	if (!passed) {
+	if (!signer) {
 		res->verdict = QUOTE_BAD_SIGNATURE;
 		return 0;
 	}
 
-	if (tpm_ecdsa_signature_parse(sig, sig_len, r, s))
+	ret = tpm_attest_verify(attest, attest_len, sig, sig_len, ak.x, ak.y);
+	if (ret == -EBADMSG)
 		return 0;
-	ret = signature_verify(&ak, attest, attest_len, r, s, &passed);
-	if (ret)
-		return ret;
-	if (!passed) {
+	if (ret == -EKEYREJECTED) {
 		res->verdict = QUOTE_BAD_SIGNATURE;
 		return 0;
 	}
+	if (ret)
+		return ret;
 
 	if (quote.extra_len != sizeof(body_sha256) ||
 	    memcmp(quote.extra, body_sha256, sizeof(body_sha256))) {

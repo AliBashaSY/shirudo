@@ -67,9 +67,9 @@ a note. A ``verdict: ok`` then says only that the document is consistent
 in itself. Pin the keys at enrollment (:doc:`attest-challenge`) and always
 give the expected state.
 
-:doc:`quote-check` checks a keepalive quote with code of its own, not
-with ``verify``'s, and checks fewer fields of the attestation key; its
-page lists the differences.
+:doc:`quote-check` checks a keepalive quote's signature and signer
+with the same functions as ``verify``, and fewer fields of the
+attestation key; its page lists the differences.
 
 Options
 -------

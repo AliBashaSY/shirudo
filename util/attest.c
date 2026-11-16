@@ -697,8 +697,8 @@ static int check_signed(struct reporter *rep, const char *what,
 			__u8 *attest, size_t attest_cap, size_t *attest_len,
 			struct tpm_attest *parsed)
 {
-	__u8 sig[TPM_SIGNATURE_MAX], r[32], s[32], digest[32];
-	__u8 qn[TPM_NAME_LEN];
+	__u8 sig[TPM_SIGNATURE_MAX];
+	bool signer = false;
 	size_t sig_len;
 	int ret;
 
@@ -709,17 +709,14 @@ static int check_signed(struct reporter *rep, const char *what,
 		say(rep, false, "%s: attestation structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	if (tpm_ecdsa_signature_parse(sig, sig_len, r, s)) {
+	ret = tpm_attest_verify(attest, *attest_len, sig, sig_len, ak->x,
+				ak->y);
+	if (ret == -EBADMSG) {
 		say(rep, false, "%s: signature structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	ret = sha256_calc(attest, *attest_len, digest);
-	if (!ret)
-		ret = ecdsa_p256_verify(ak->x, ak->y, digest, r, s);
 	say(rep, ret == 0, "%s: ECDSA signature by the attestation key", what);
-	say(rep, !tpm_qualified_name(TPM_RH_ENDORSEMENT, ak_name, qn) &&
-	    parsed->signer_len == TPM_NAME_LEN &&
-	    !memneq_explicit(parsed->signer, qn, TPM_NAME_LEN),
+	say(rep, !tpm_attest_signer(parsed, ak_name, &signer) && signer,
 	    "%s: signed by the key as an endorsement primary", what);
 	say(rep, parsed->extra_len == nonce_len &&
 	    (nonce_len == 0 ||
