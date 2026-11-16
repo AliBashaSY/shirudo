@@ -757,7 +757,10 @@ CBMC proves these checks of the reader for every header, of a file of
 any size, and for the signed sections, decoders, policy labels and
 program table within the bounds
 :doc:`/contribute/testing/proof-coverage` lists: what the reader accepts
-lies inside the file, and what it refuses leaves nothing behind.
+lies inside the file, and what it refuses leaves nothing behind. Within
+the bounds listed there it also proves that the reader takes what the
+writer lays out, and reads back the header, the signed sections, the
+decoders and the program table as they were written.
 
 Target admission
 ----------------

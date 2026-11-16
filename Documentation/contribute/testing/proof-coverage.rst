@@ -350,6 +350,87 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Every encoding and every value of up to 8 bytes
      - The bits stay inside the integer's bytes; the value is zero- or
        sign-extended from them
+   * - ``upatch-writer-header``
+     - ``pack_header()`` of :src:`tools/shirudo-build/package.c`, read
+       back by ``parse_header()``
+     - Every value of every field and every name shorter than 256 bytes
+     - The reader takes the header from a file of any size and reads back
+       each value; the name is padded with zeros to its 256 bytes
+   * - ``upatch-writer-sections``
+     - ``compose_signed_data()``, read back by
+       ``parse_signed_sections()``
+     - Loader data of 0, 1, 7 and 8 bytes; a name with an unload digest,
+       or with attach metadata of 1 to 8 bytes
+     - The reader finds each section where the writer put it, at an
+       8-byte boundary, with its bytes and length, the loader's data in
+       front and zeros between; a count of 0 or above 8 and data past what
+       a length field holds are refused, with nothing written
+   * - ``upatch-writer-load``
+     - The four sections of a load, through the same two functions
+     - 1 byte of loader data, 3 of attach metadata, any 217 bytes as
+       decoders and any 4188 as policy labels
+     - Data of the length the format gives; the reader keeps the sections
+       exactly when ``parse_decoders()`` and ``parse_policy_labels()``
+       take those bytes, each at its offset behind its padding, with the
+       maps the labels name
+   * - ``upatch-writer-decoders``
+     - ``parse_decoder_manifest()`` and ``build_decoder_blob()``, read
+       back by ``parse_decoders()`` and ``upatch_decoder_view()``
+     - 0 to 2 decoders with sources of 3 and 1 bytes; any manifest the
+       writer takes for one decoder, names of 2 bytes for two
+     - A section of the length the format gives, its reserved field zero;
+       each view shows the manifest's values, its names padded with zeros
+       and the source's bytes at its offset; no section without a decoder
+       and none past what a length field holds
+   * - ``upatch-writer-prog-specs``
+     - ``build_prog_metadata()`` and the section parsers it calls, read
+       back by ``prog_specs_parse()``; libbpf's object and the ELF
+       resolver modelled
+     - 22 objects of 0 to 2 programs from a table: the sections attached
+       by BTF target, cgroup and netfilter, a test run, serializers of
+       one and two maps, one with any 3 bytes behind its map's first,
+       a map name at its limit, and the sections and programs the writer
+       must refuse; any map count, any two map names and any output map,
+       or none
+     - A table of the length the format gives; the reader takes it and
+       reads back each role, kind, target, offset and map; a refusal
+       leaves nothing written and nothing allocated
+   * - ``upatch-writer-kprobes``
+     - The kprobe entries of ``build_prog_metadata()``
+     - 16 objects from a table: a symbol of 1 to 127 bytes, alone or with
+       a decimal or hexadecimal offset of up to 64 bits, and the sections
+       the writer must refuse, a symbol of 128 bytes and an offset behind
+       ``kretprobe`` among them
+     - The symbol and offset read back are the section's; what the reader
+       refuses, or would cut short, is refused
+   * - ``upatch-writer-xdp``
+     - The XDP entries of ``build_prog_metadata()``
+     - ``xdp/`` with a first digit of 0 to 4, 8 or 9 and any 3 bytes
+       behind it; one program, or two that start with 1 and 2 or both
+       with 1
+     - The device classes read back are the decimal mask of the section;
+       a mask the reader refuses, and a class two programs select, are
+       refused
+   * - ``upatch-writer-uprobes``
+     - The uprobe target block of ``build_prog_metadata()``
+     - 22 objects from a table: each uprobe section form at the path
+       ``/x``, alone, before and behind another program, with any build
+       ID of 1, 2, 3, 20 or 64 bytes and any one offset, or two rising
+       ones for a glob; sections the writer must refuse; a resolver that
+       fails
+     - The reader takes the block and reads back each record's path,
+       build ID and offsets for the program it names, a function's offset
+       below 4 GiB; a refusal leaves nothing written and nothing allocated
+   * - ``vouch-payload``
+     - ``keys_vouch_payload()``, ``keys_verify_vouch()`` and
+       ``keys_verify_signature()`` of :src:`util/keys.c`, the signature
+       check a stub that takes the signed bytes from their signer alone
+     - Certificates of 0 to 2 bytes, a set of two members, every
+       allocation allowed to fail
+     - What ``shirudo-build keys vouch`` signs is the prefix, its NUL and
+       the certificate; the vouch admits that certificate under the
+       member that signed it, and no other certificate of its length or
+       longer; without memory nothing is written
    * - ``json-string``
      - ``parse_string()`` of :src:`util/json.c`
      - Lengths 0 to 6, every room up to one byte more
@@ -850,13 +931,11 @@ a proof covers.
        whole or in part: the package state and tree state readers, which
        selectors of a tree can meet on one node and the status verdict
    * - :src:`tools/shirudo-build/bpm-build.c`,
-       :src:`tools/shirudo-build/bpm-publish.c`,
-       :src:`tools/shirudo-build/package.c`,
-       :src:`tools/shirudo-build/vouch.c`
+       :src:`tools/shirudo-build/bpm-publish.c`
      - No proof is written yet. The operator's Beefile reader and its
-       writers of the loader, the ``.upatch`` container, the package,
-       the index, the tree publication and the vouch: the proofs cover
-       what the target's readers accept, not what these write
+       writers of the package, the index and the tree publication: the
+       proofs cover what the target's readers accept, not what these
+       write
    * - :src:`util/harden.c`, :src:`util/identity.c`,
        :src:`util/image_cache.c`, :src:`util/image_config.c`,
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
@@ -871,7 +950,7 @@ a proof covers.
        ``bpf()``, netlink, ``/proc`` and the process's own limits
    * - :src:`util/crypto_openssl.c`, :src:`util/curl.c`,
        :src:`util/elf_target.c`, :src:`util/kernel_abi.c`,
-       :src:`util/keys.c`, :src:`util/nv_writer.c`, :src:`util/sign.c`,
+       :src:`util/nv_writer.c`, :src:`util/sign.c`,
        :src:`util/tls_openssl.c`, :src:`util/tpm.c`,
        :src:`util/upatch_decode.c`
      - Mostly calls into a library a harness would have to model whole:
@@ -893,12 +972,14 @@ a proof covers.
        :src:`shirudo.c`, :src:`tools/shirudo-build/compile.c`,
        :src:`tools/shirudo-build/image.c`,
        :src:`tools/shirudo-build/shirudo-build.c`,
-       :src:`tools/shirudo-build/vmlinux.c`
+       :src:`tools/shirudo-build/vmlinux.c`,
+       :src:`tools/shirudo-build/vouch.c`
      - Commands: options, the order of calls into :src:`util/` and
        output. ``Shirudo.UpatchLoad`` models the protocols of ``init``,
        ``upatch load`` and ``upatch unload``, by review, and the tree
        sync harnesses read ``builtin-bpm.c``; no proof reads the other
-       commands
+       commands. ``vouch.c`` has OpenSSL sign the bytes
+       ``keys_vouch_payload()`` gives it, which ``vouch-payload`` covers
 
 Not covered yet
 ---------------
@@ -935,3 +1016,14 @@ that two XDP programs select disjoint device classes, which the
 ``upatch`` unit cases check, ``find_rodata_data()``
 on loaders of other shapes, ``btf_dump_cost()``, the ``.rodata`` printers
 and the libbpf calls behind ``btf_rodata_btf()`` have no proof.
+
+Within the ``.upatch`` writer, the proofs cover the functions that lay
+out bytes, each with the reader of its part, but not what joins them:
+``finalize_object()`` and ``package_resign_symbols()`` compute the
+header's offsets around the loader libbpf generates and the signature
+OpenSSL makes, ``build_package_load()`` writes the header of the policy
+labels between its libbpf calls, and ``collect_decoder_manifests()``
+picks the manifests out of ``.rodata``. The attach metadata is proven
+for the sections of a table, not for every section name: a kprobe or
+uprobe target of any bytes makes the reader's side of the proof too
+large, and no proof reaches a uprobe path at its 4095-byte limit.
