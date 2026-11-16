@@ -1058,6 +1058,7 @@ and tree signatures accept algorithms other than ML-DSA (U4).
    ``Shirudo.JsonString``, ``Shirudo.TreeSync``, ``bpm-tree-follows``,
    ``bpm-tree-sync-model``, ``bpm-tree-sync-application``,
    ``bpm-tree-sync-pending``, ``bpm-tree-recovery-model``,
+   ``bpm-tree-state-pending``, ``bpm-tree-state-replay``,
    ``bpm-tree-reader``, ``json-string``,
    ``json-limits``
 :Residual: R8, R9, U3, U4, U15

@@ -273,6 +273,74 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        symbolic bytes.
      - The return decision, ordered writes, cursor, tree ID, manifest
        and both projection roots match the independent recovery model
+   * - ``bpm-tree-overlap-model``
+     - ``tree_selectors_disjoint()``, ``selector_covers()`` and the list,
+       prefix and pair checks under them
+     - Every two selectors of up to 2 entries a list and a map and 2
+       values a pair, strings up to 2 bytes
+     - The decisions of the Lean model ``Shirudo.TreeOverlap``, which
+       proves them sound for what a node matches
+   * - ``bpm-tree-overlap-live``
+     - ``tree_add_live()``
+     - Publications of up to 3 operations, at every index; an ``op`` of
+       up to 7 bytes, an id of up to 2, selectors of one architecture or
+       none
+     - ``addLive`` of the Lean model ``Shirudo.TreeOverlap``: live until
+       a later operation is a delete of the same upatch whose selector
+       covers its own
+   * - ``bpm-tree-state-match``
+     - ``tree_selector_matches()`` with ``read_config_stream()`` and the
+       two readers that call it
+     - Selectors of up to 2 release prefixes, build IDs and
+       architectures against any release, machine and build ID, and of
+       up to 2 labels against five fixed label lines or labels that
+       cannot be read; strings up to 2 bytes. The node's files are
+       stubs. Not a selector that names a kernel option
+     - 1 exactly where ``selectorMatches`` of the Lean model
+       ``Shirudo.TreeOverlap`` holds, 0 where not, an error only for
+       labels it could not read; the labels closed and their line
+       released
+   * - ``bpm-tree-state-options``
+     - ``selector_hash_build()``, ``selector_hash_find()``
+     - Selectors of up to 2 kernel options, keys up to 2 bytes, a key
+       twice among them
+     - A key is found at the first pair that has it, where the config's
+       value for it is kept, and no other key
+   * - ``bpm-tree-state-pairs``
+     - ``kv_add()``, ``kv_value()``, ``selector_values_match()``,
+       ``hex32_valid()``
+     - A key or a value of 0 to 2, 255 and 256 bytes into 0 to 2 pairs;
+       up to 2 pairs and values of strings up to 2 bytes; digests up to
+       65 bytes
+     - A pair is added only below its limit and when both strings fit,
+       whole, and a refusal counts nothing; ``kvValue`` and ``listHolds``
+       of the Lean model ``Shirudo.TreeOverlap``; exactly 64 hex digits
+   * - ``bpm-tree-state-pending``
+     - ``tree_pending_parse()``, ``tree_pending_write()``
+     - Any record ``json_parse()`` hands over and every operation
+       ``tree_operation_validate()`` takes, ids up to 8 bytes; the
+       emitter, the directory or the write failing. ``util/json.c`` is a
+       stub that passes keys and values
+     - Takes exactly a whole record of schema 1 with a positive seq, an
+       upatch name and a sha256 digest; writes schema 1 and the
+       operation's seq, id and digest once, which reads back as the
+       operation's
+   * - ``bpm-tree-state-replay``
+     - ``tree_event_replay()``
+     - Tree eventlogs of 0 to 3 lines of any records; the read or the
+       hash failing. The JSON of a line, ``util/hex.c`` and SHA-256 are
+       stubs
+     - ``replayFrom`` of the Lean model ``Shirudo.TreeSync``: the root
+       exactly when each line has its fields, a sequence number above
+       the one before and the hash of the root before and its digest as
+       its root; a refusal writes nothing and reads no further line
+   * - ``bpm-tree-state-replay-lines``
+     - ``tree_event_replay()`` with ``lines_len()``
+     - Tree eventlogs of 0 to 4 and 6 bytes, any bytes, whose lines hold
+       records that replay but for one at most
+     - Each whole line read once and in order, nothing of a last line
+       without its newline; a log with a NUL refused unread; the log
+       released once
    * - ``bpm-upatch-member``
      - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
      - Lengths 0 to 18
@@ -1049,8 +1117,30 @@ the model follows the C.
        succeeds; an extend and its eventlog record are one write
      - CBMC: ``bpm-tree-follows`` for ``tree_publication_follows()``,
        ``bpm-tree-sync-model`` and its two-operation variants for
-       sync writes, ``bpm-tree-recovery-model`` for pending recovery;
+       sync writes, ``bpm-tree-recovery-model`` for pending recovery,
+       ``bpm-tree-state-replay`` for ``tree_event_replay()``;
        ``tree_parse()`` by review
+   * - ``Shirudo.TreeOverlap``, :src:`util/bpm_tree_overlap.c` against
+       ``tree_selector_matches()`` of :src:`util/bpm_tree_state.c`
+     - ``disjoint_sound``: no node matches two selectors that
+       ``tree_selectors_disjoint()`` calls disjoint; ``covers_sound``: a
+       selector that ``selector_covers()`` says covers another matches
+       every node the other matches; ``addLive_false``: an add that
+       ``tree_add_live()`` says is no longer live is followed by a delete
+       of the same upatch that matches every node the add matches;
+       ``prefixes_meet_iff``: two release prefixes take a common release
+       exactly when one takes the other read as a release;
+       ``disjoint_comm``, ``covers_refl``: the order of two selectors
+       does not matter, and a selector covers itself
+     - One node for both selectors: its release, machine, build ID,
+       config values and labels are the same for the two matches, and
+       ``/proc/config.gz`` and ``/boot/config-<release>`` give an option
+       the same value; a match that returns an error is no answer
+     - CBMC, ``bpm-tree-overlap-model`` and ``bpm-tree-overlap-live`` for
+       the publisher's checks, ``bpm-tree-state-match``,
+       ``bpm-tree-state-pairs`` and ``bpm-tree-state-options`` for the
+       node's match, each on short selectors; the match of a kernel
+       option against the config by review
 
 Files without a proof
 ---------------------
@@ -1070,10 +1160,6 @@ a proof covers.
 
    * - Files
      - Why no proof reads them
-   * - :src:`util/bpm_tree_overlap.c`, :src:`util/bpm_tree_state.c`
-     - No proof is written yet. A harness could carry their logic, in
-       whole or in part: the tree state reader and which selectors of a
-       tree can meet on one node
    * - :src:`util/harden.c`, :src:`util/identity.c`,
        :src:`util/image_cache.c`, :src:`util/image_config.c`,
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
@@ -1126,10 +1212,10 @@ The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
 does: how ``json_parse()`` dispatches objects, arrays and maps to their
 schemas, the OTLP headers a configuration adds, the walk over a
 package's tar members, the registry references and URLs, the kernel
-configuration the tree selectors read, the tree log, the eventlog's
-lines, the evidence document beyond its PCRs and its config history,
-the config update record, the site configuration file and the config
-image's settings and tree.
+configuration and the labels the tree selectors read, the tree's
+``state.json``, the eventlog's lines, the evidence document beyond its
+PCRs and its config history, the config update record, the site
+configuration file and the config image's settings and tree.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof. So it is with the package state:
