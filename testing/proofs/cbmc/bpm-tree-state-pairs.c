@@ -49,9 +49,9 @@ static char *string_of(size_t len)
 }
 
 /*
- * read_config_stream() and the gzip branch of read_config_file() add to
- * the max pairs of labels[] from a count that starts at 0 and that only
- * kv_add() moves, so n is at most max and max the pairs there are.
+ * read_config_stream() adds to the max pairs of labels[] from a count
+ * that starts at 0 and that only kv_add() moves, so n is at most max and
+ * max the pairs there are.
  */
 static void pair_added(size_t key_len, size_t value_len, int n)
 {

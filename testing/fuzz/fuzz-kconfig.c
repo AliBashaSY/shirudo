@@ -44,7 +44,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 		return 0;
 	read_selector_config_file(path, &sel, slots, values, found, false);
 	read_selector_config_file(path, &sel, slots, values, found, true);
-	read_config_file(path, labels, &n, ARRAY_SIZE(labels), false);
+	read_config_file(path, labels, &n, ARRAY_SIZE(labels));
 	close(fd);
 	return 0;
 }

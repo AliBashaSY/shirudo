@@ -142,10 +142,33 @@ static void pending_is_an_operation_in_flight(void)
 			  "\"operation_digest\":\"sha256:00\"}", &p), -EINVAL);
 }
 
+/* As the format has it: blanks go but for those between a key and its =. */
+static void labels_are_cut_at_the_first_equals(void)
+{
+	static struct tree_kv labels[4];
+	int n = -1;
+
+	write_config("# site=x\n  site = a \t\nzone=b=c\njunk\nempty=\t\n",
+		     false);
+	ASSERT_EQ(read_config_file(path, labels, &n, ARRAY_SIZE(labels)), 0);
+	unlink(path);
+	ASSERT_EQ(n, 3);
+	EXPECT_STREQ(labels[0].key, "site ");
+	EXPECT_STREQ(labels[0].value, "a");
+	EXPECT_STREQ(labels[1].key, "zone");
+	EXPECT_STREQ(labels[1].value, "b=c");
+	EXPECT_STREQ(labels[2].key, "empty");
+	EXPECT_STREQ(labels[2].value, "");
+	EXPECT_EQ(read_config_file("/nonexistent/node.labels", labels, &n,
+				   ARRAY_SIZE(labels)), -ENOENT);
+	EXPECT_EQ(n, 0);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(long_line_is_one_line),
 	UNIT_CASE(gzip_config_is_one_whole_member),
 	UNIT_CASE(pending_is_an_operation_in_flight),
+	UNIT_CASE(labels_are_cut_at_the_first_equals),
 	{}
 };
 

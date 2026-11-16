@@ -81,62 +81,6 @@ bool tree_configured(void)
 	return true;
 }
 
-static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
-			      int max);
-
-static int read_config_file(const char *path, struct tree_kv *out,
-			    int *n, int max, bool gz)
-{
-	char line[512];
-	int ret = 0;
-
-	*n = 0;
-	if (gz) {
-		gzFile f = gzopen(path, "rb");
-
-		if (!f)
-			return -errno;
-		while (gzgets(f, line, sizeof(line))) {
-			char *eq, *key, *value;
-
-			eq = strchr(line, '=');
-			if (line[0] == '#' && !strncmp(line, "# CONFIG_", 9)) {
-				key = line + 2;
-				eq = strstr(key, " is not set");
-				if (eq) {
-					*eq = '\0';
-					ret = kv_add(out, n, max, key, "n");
-				}
-			} else if (eq) {
-				*eq++ = '\0';
-				key = line;
-				value = eq;
-				value[strcspn(value, "\r\n")] = '\0';
-				if (value[0] == '"') {
-					size_t l = strlen(value);
-
-					if (l > 1 && value[l - 1] == '"') {
-						value[l - 1] = '\0';
-						value++;
-					}
-				}
-				ret = kv_add(out, n, max, key, value);
-			}
-			if (ret)
-				break;
-		}
-		gzclose(f);
-		return ret;
-	}
-	{
-		FILE *f = fopen(path, "re");
-
-		if (!f)
-			return -errno;
-		return read_config_stream(f, out, n, max);
-	}
-}
-
 /* The stream is consumed and closed. */
 static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
 			      int max)
@@ -165,9 +109,6 @@ static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
 		if (!eq)
 			continue;
 		*eq++ = '\0';
-		end = eq + strlen(eq);
-		while (end > eq && isspace((__u8)end[-1]))
-			*--end = '\0';
 		while (*eq && isspace((__u8)*eq))
 			eq++;
 		ret = kv_add(out, n, max, start, eq);
@@ -177,6 +118,17 @@ static int read_config_stream(FILE *f, struct tree_kv *out, int *n,
 	libc_free(line);
 	fclose(f);
 	return ret;
+}
+
+static int read_config_file(const char *path, struct tree_kv *out,
+			    int *n, int max)
+{
+	FILE *f = fopen(path, "re");
+
+	*n = 0;
+	if (!f)
+		return -errno;
+	return read_config_stream(f, out, n, max);
 }
 
 static int read_config_fd(int fd, struct tree_kv *out, int *n,
@@ -540,8 +492,7 @@ int tree_selector_matches(const struct tree_selector *s)
 			ret = read_config_fd(fd, labels, &nl, ARRAY_SIZE(labels));
 		} else {
 			ret = read_config_file("/etc/shirudo/node.labels",
-					       labels, &nl, ARRAY_SIZE(labels),
-					       false);
+					       labels, &nl, ARRAY_SIZE(labels));
 		}
 		if (ret == -ENOENT)
 			return 0;
