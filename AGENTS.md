@@ -75,8 +75,10 @@ grep -n '<file>.c\|<function>' testing/proofs/cbmc`), or to an algorithm
 a Lean 4 model of `testing/proofs/lean4/` follows, adapts the harness or
 the model in the same commit, with its line in `proofs.list` and its row
 in `Documentation/contribute/testing/proof-coverage.rst`, and runs the
-proofs it touches. A proof that no longer matches the code, or no
-longer holds, is a bug like a page.
+proofs it touches (`make proofs-cbmc CHANGED=<range>` picks them). A
+proof that no longer matches the code, or no longer holds, is a security
+bug: a threat's fact box or a coverage row then claims an assurance the
+tree does not have.
 
 New documentation extends an existing page or adds one to its section's
 toctree, and follows `Documentation/contribute/documentation/writing-docs.rst`. Only

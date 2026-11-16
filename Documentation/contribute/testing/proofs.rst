@@ -63,15 +63,25 @@ Run the proofs
    held. ``Build completed successfully`` ends the Lean 4 run. CI does
    not run the proofs: all of them take about an hour, a few of them
    minutes and gigabytes each. Run the ones that cover the code you
-   change by name, as the next step shows, and all of them after a
-   change to ``proof.h`` or ``run.sh``.
+   change, as the next step shows, and all of them after a change to
+   ``proof.h`` or ``run.sh``.
 
-2. Run one kind, or some CBMC proofs by name:
+2. Run one kind, some CBMC proofs by name, or the CBMC proofs that read
+   a file you changed:
 
    .. code-block:: console
 
       $ make proofs-lean4
       $ make proofs-cbmc PROOFS="string-number upatch-header"
+      $ make proofs-cbmc CHANGED=origin/main..HEAD
+
+   ``CHANGED`` takes what ``git diff`` takes, a range of commits or one
+   commit to compare the working tree with. The compiler lists the files
+   each harness includes, and a proof runs when one of them changed; a
+   change to ``run.sh`` or ``proofs.list`` runs every proof. A run that
+   finds none prints ``proofs: none reads a file changed in <range>``.
+   No run checks a Lean 4 model against the C it follows by review: read
+   the model against the change.
 
 3. Read why a CBMC proof failed:
 

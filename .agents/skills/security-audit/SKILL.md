@@ -63,9 +63,10 @@ before code that did not.
 For a change, the diff names the rows it touches. A check it removes
 or moves is read first: `git log -S'<the check>'` finds the commit
 that added it and why. Then the threats whose fact boxes name the
-hooks and functions touched, the tests and proofs behind them, and
-every caller of a changed `util/` function, since each relied on what
-it did before.
+hooks and functions touched, the tests and proofs behind them (`make
+proofs-cbmc CHANGED=<range>` runs the proofs that read a changed
+file), and every caller of a changed `util/` function, since each
+relied on what it did before.
 
 For a reported issue, restate it as the five things before reading
 code, then take it through "Refute it".

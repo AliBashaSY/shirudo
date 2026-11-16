@@ -18,13 +18,15 @@ a proof or to what it covers updates the coverage page too.
 ```sh
 make proofs                                  # CBMC and Lean 4
 make proofs-cbmc PROOFS="string-number hex"  # some CBMC proofs
+make proofs-cbmc CHANGED=origin/main..HEAD   # those reading a changed file
 testing/proofs/cbmc/run.sh -v <proof>        # whole output and traces
 make proofs-lean4                            # the Lean 4 proofs
 ```
 
 CI does not run the proofs, as all of them take about an hour: run the
-ones covering the code you changed by name, and all of them after a
-change to `proof.h` or `run.sh`. Cap the memory of a long run, `ulimit
+ones covering the code you changed, which `CHANGED` picks from what
+each harness includes, and all of them after a change to `proof.h` or
+`run.sh`, which `CHANGED` does too. Cap the memory of a long run, `ulimit
 -v 24000000` in the shell that starts it: a proof that grows past a few
 gigabytes is one to reshape, not to wait for.
 

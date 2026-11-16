@@ -1,6 +1,6 @@
 ---
 name: pre-submit
-description: Run the checks CI runs on a series of shirudo commits before handing it over. Covers each commit built on its own, checkpatch, sign-offs, Coccinelle, sparse, SPDX and the documentation check, both compilers, the sanitizer and fuzz runs, and the VM families the change reaches. Use before saying a change is ready, after rebasing or reordering a series, and to reproduce a CI failure.
+description: Run the checks CI runs on a series of shirudo commits before handing it over, and the proofs CI does not run. Covers each commit built on its own, checkpatch, sign-offs, Coccinelle, sparse, SPDX and the documentation check, both compilers, the sanitizer and fuzz runs, the proofs that read the code the series changed, and the VM families the change reaches. Use before saying a change is ready, after rebasing or reordering a series, and to reproduce a CI failure.
 ---
 
 # Pre-submit checks
@@ -60,6 +60,8 @@ make -B CC=clang && make -B CC=clang shirudo-build &&
 make tests VM=0 SANITIZE=address,undefined           # CC=gcc and CC=clang,
                                                      # one worktree each
 make -C testing fuzz FUZZ_SECONDS=60
+make proofs-cbmc CHANGED=$range                      # the proofs that read
+make proofs-lean4                                    # what the series changed
 make -C testing functional/<family>                  # each family it touches
 ```
 
@@ -68,6 +70,18 @@ is only for a compiler newer than the tree while its new warnings get
 fixed. `check-sparse.sh` refuses a little- or big-endian field read or
 written without `le32_to_cpu()`, `cpu_to_le32()` or their kin, and
 `check-spdx.sh` the wrong license tag for a file's kind.
+
+CI does not run the proofs, so this run is the only one a series gets
+before it lands. `CHANGED` takes what `git diff` takes and runs the CBMC
+proofs whose harness reads a file changed there, all of them after a
+change to `run.sh` or `proofs.list`. A proof that fails, or that passes
+and no longer states what the changed code does, is brought back in
+step in the series, with its row in
+`Documentation/contribute/testing/proof-coverage.rst`; so is a Lean 4
+model that the page links to the changed C by review, which no run
+checks: read it against the change. A proof out of step with the code
+is a security bug, as the `security-audit` skill has it; the `proofs`
+skill says how to fix one.
 
 ## Fixing a commit of the series
 

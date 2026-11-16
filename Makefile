@@ -130,7 +130,7 @@ cscope:
 proofs: proofs-cbmc proofs-lean4
 
 proofs-cbmc:
-	$(Q)testing/proofs/cbmc/run.sh $(PROOFS)
+	$(Q)testing/proofs/cbmc/run.sh $(if $(CHANGED),-c '$(CHANGED)') $(PROOFS)
 
 proofs-lean4:
 	$(Q)testing/proofs/lean4/run.sh
