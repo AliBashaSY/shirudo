@@ -71,17 +71,26 @@ while IFS= read -r counter; do
 		report "$counters" "no entry for the counter $counter"
 done <"$work/counters"
 
-# The hooks, counters and tests a threat fact box names exist.
+# A field of a fact box, with the lines that continue it, as one line.
+field() {
+	awk -v name=":$1:" '
+		index($0, name) == 1 { on = 1; printf "%s", $0; next }
+		on && /^[ \t]+[^ \t]/ { printf " %s", $0; next }
+		on { print ""; on = 0 }
+		END { if (on) print "" }' "$2"
+}
+
+# The hooks and counters a threat fact box names exist. A hook is named
+# by its section, which says whether the program is sleepable.
 grep -ohE 'SEC\("lsm(\.s)?/[a-z_]+"\)' bpf/*.c bpf/lib/*.h |
-	sed -E 's/SEC\("lsm(\.s)?\/([a-z_]+)"\)/\2/' | sort -u >"$work/hooks"
+	sed -E 's/SEC\("(.*)"\)/\1/' | sort -u >"$work/hooks"
 while IFS= read -r page; do
-	grep -E '^:(Enforced at|Counters|Tests):' "$page" >"$work/facts" || continue
-	grep '^:Enforced at:' "$work/facts" | grep -oE '``(lsm/)?[a-z_]+``' |
-		tr -d '`' | sed 's|^lsm/||' | sort -u | while IFS= read -r hook; do
-		grep -qx "$hook" "$work/hooks" ||
-			report "$page" "no BPF program attaches to $hook"
+	field 'Enforced at' "$page" | grep -oE '``lsm(\.s)?/[a-z_]+``' |
+		tr -d '`' | sort -u | while IFS= read -r hook; do
+		grep -qxF "$hook" "$work/hooks" ||
+			report "$page" "no BPF program has the section $hook"
 	done
-	grep '^:Counters:' "$work/facts" | grep -oE '``[A-Za-z]+``' |
+	field Counters "$page" | grep -oE '``[A-Za-z]+``' |
 		tr -d '`' | sort -u | while IFS= read -r counter; do
 		grep -qx "$counter" "$work/counters" ||
 			report "$page" "no tamper counter is named $counter"
@@ -113,7 +122,7 @@ while IFS= read -r proof; do
 		report "$coverage" "no row for the proof $proof"
 done <"$work/proofs"
 while IFS= read -r page; do
-	grep '^:Proofs:' "$page" | grep -oE '``[A-Za-z0-9.-]+``' | tr -d '`' |
+	field Proofs "$page" | grep -oE '``[A-Za-z0-9.-]+``' | tr -d '`' |
 		sort -u | while IFS= read -r proof; do
 		grep -qx "$proof" "$work/proofs" ||
 			report "$page" "no proof is named $proof"

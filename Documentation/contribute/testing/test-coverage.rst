@@ -61,6 +61,9 @@ signed config image.
        may link and its own interpreter, another loader, a library
        outside the list or named like one on it, and the operator
        binaries when built
+   * - ``t0008-check-docs``
+     - ``check-docs.sh``: the whole of each field of a threat's fact
+       box, a hook by its section, and the tree itself
 
 ``build`` (1)
 ~~~~~~~~~~~~~
@@ -734,7 +737,7 @@ Coverage by area
      - ``t0005``, ``t0007``, ``t1003``, ``t1004``, ``t1005``,
        ``t1008``, ``t7004``, ``t8003``
    * - CI scripts
-     - ``t0001`` to ``t0007``
+     - ``t0001`` to ``t0008``
    * - Parsers
      - ``t3001``, ``t3011``, ``t5002``, ``t5006``, ``t5008``. Unit:
        ``hex``, ``json``, ``string``. Every fuzz target
