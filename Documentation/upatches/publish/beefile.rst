@@ -376,8 +376,8 @@ Limits and reserved names
    * - length of a string in a selector or command
      - 255 bytes
    * - package version, ``--version``
-     - 1 to 127 characters of letters, digits, ``.``, ``_``, ``-`` and
-       ``+``, starting with a letter or a digit
+     - A SemVer 2.0.0 version of at most 127 characters, such as
+       ``1.2.0``, ``1.2.0-rc.1`` or ``1.2.0+build.5``
    * - member path including ``<name>-<version>/``
      - 99 bytes, the limit of a ustar name
    * - ``.bee`` file
