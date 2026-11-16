@@ -381,7 +381,7 @@ Limits and reserved names
    * - member path including ``<name>-<version>/``
      - 99 bytes, the limit of a ustar name
    * - ``.bee`` file
-     - 256 MiB per member file
+     - 256 MiB per member file, and for all members together
 
 Every member path must be unique, and none may lie below another: a
 name is a file or a directory, not both, so ``a`` and ``a/b`` do not go
@@ -389,7 +389,9 @@ into one package. ``Beefile``, ``README.md``, ``cert.der`` and
 ``build-environment.json`` are reserved for the members ``bpm build``
 writes itself, and no member path lies below one of them either. A
 member path longer than the ustar limit fails the build with ``bpm
-build: File name too long``.
+build: File name too long``, and members of more than 256 MiB together
+with ``bpm build: the members of the package are more than 256 MiB
+together, the most a target installs``: a target unpacks no more.
 
 Example
 -------

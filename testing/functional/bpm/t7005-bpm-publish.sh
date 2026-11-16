@@ -141,6 +141,15 @@ for pair in "a a/b" "a/b a" "data.txt README.md/data.txt" "data.txt upatches"; d
 	n=$((n + 1))
 done
 
+# Two members that each fit and together pass what a target unpacks.
+mkdir -p "$WORK/large" &&
+	ln -s "$REPO/vendor" "$WORK/large/vendor" &&
+	ln -s "$REPO/bpf" "$WORK/large/bpf" &&
+	cp "$WORK/pkg/t7005.bpf.c" "$WORK/large/" &&
+	truncate -s 134217729 "$WORK/large/one" "$WORK/large/two" &&
+	printf '[package]\nname = "t7005"\n\n[[files]]\nsource = "one"\n\n[[files]]\nsource = "two"\n\n[[upatches]]\nsource = "t7005.bpf.c"\n' \
+		>"$WORK/large/Beefile"
+
 test_expect_success 'bpm build takes a SemVer version alone' '
 	for v in 1.0 01.0.0 1.0.0.1 1.0.0_rc; do
 		( cd "$WORK" && ! "$S" bpm build pkg --version $v \
@@ -166,6 +175,14 @@ test_expect_success 'bpm build refuses a target below another member' '
 		grep -q "is not a valid Beefile" "$WORK/nested/$n.err" &&
 		! test -e "$WORK/t7005-9.1.$n.bee" || return 1
 	done
+'
+
+test_expect_success 'bpm build refuses members a target could not unpack together' '
+	( cd "$WORK" && ! "$S" bpm build large --version 9.2.0 \
+		--keys-dir "$WORK/keys" ) 2>"$WORK/large.err" &&
+	grep -q "more than 256 MiB together, the most a target installs" \
+		"$WORK/large.err" &&
+	! test -e "$WORK/t7005-9.2.0.bee"
 '
 
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')

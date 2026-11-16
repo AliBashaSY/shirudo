@@ -3,7 +3,8 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * tar_entry() of tools/shirudo-build/bpm-build.c on every name of LEN
- * bytes, size and mode: a member is refused before a byte is written, or
+ * bytes, size and mode: a member is refused before a byte is written, as
+ * one is that takes the archive past what bpm_pkg_extract() unpacks, or
  * its header is one block the readers of util/bpm_package.c take, with the
  * same name, size and type, and the next header lies where they look.
  */
@@ -37,7 +38,6 @@
 
 #define TAR_BLOCK	512
 #define TAR_NAME	100
-#define TAR_SIZE_MAX	077777777777ULL
 /* The last bytes of a name that are free where the checksum is proven. */
 #define FREE		16
 
@@ -106,14 +106,17 @@ static void member_written(const char *name, bool checksum)
 {
 	const size_t name_len = LEN;
 	struct bpm_tar tar;
+	__u64 before, pad;
 	mode_t mode;
 	size_t len;
-	__u64 pad;
 	char type;
 	int ret;
 
 	/* build_archive() writes files, and one directory without content. */
 	__CPROVER_assume(type == '0' || (type == '5' && !len));
+	/* It starts from 0, and tar_entry() keeps the sum, as shown below. */
+	__CPROVER_assume(tar.total <= BPM_MAX_PACKAGE_BYTES);
+	before = tar.total;
 	member = name;
 	member_len = len;
 	member_mode = mode;
@@ -124,17 +127,17 @@ static void member_written(const char *name, bool checksum)
 	ret = tar_entry(&tar, name, NULL, len, mode, type);
 	if (checksum)
 		return;
-	if (name_len >= TAR_NAME || len > TAR_SIZE_MAX) {
-		__CPROVER_assert(ret && !headed,
-				 "refused before a byte is written");
+	if (name_len >= TAR_NAME || len > BPM_MAX_PACKAGE_BYTES - before) {
+		__CPROVER_assert(ret && !headed && tar.total == before,
+				 "refused before a byte is written or counted");
+		__CPROVER_assert(name_len >= TAR_NAME || ret == -EFBIG,
+				 "more than the extractor unpacks is named so");
 		return;
 	}
-	__CPROVER_assert(headed, "the header written");
-	/* One gzwrite() takes INT_MAX bytes; build_read_file() reads 256 MiB. */
-	__CPROVER_assert(!ret == (len <= INT_MAX),
-			 "written whole, up to what one write takes");
-	if (ret)
-		return;
+	__CPROVER_assert(!ret && headed, "the header and the content written");
+	__CPROVER_assert(tar.total == before + len &&
+			 tar.total <= BPM_MAX_PACKAGE_BYTES,
+			 "counted, within what the extractor unpacks");
 	pad = (TAR_BLOCK - len % TAR_BLOCK) % TAR_BLOCK;
 	__CPROVER_assert(archived == TAR_BLOCK + len + pad,
 			 "the next header where the readers look for it");

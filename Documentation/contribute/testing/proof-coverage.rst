@@ -282,16 +282,18 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``tar_entry()``, ``tar_octal()``, ``tar_write()`` of
        :src:`tools/shirudo-build/bpm-build.c`, against
        ``bpm_tar_header_ok()`` and ``bpm_tar_octal()``
-     - Names of 1, 99 and 100 bytes, every size and mode, a file or a
-       directory without content; the checksum for names that end in 16
-       free bytes; every value into a field of 8 and 12 bytes;
-       ``gzwrite()`` a stub that takes every write
-     - Refused before a byte is written from 100 bytes of name or 8 GiB of
-       content on; else one 512-byte header the reader takes, with its
-       checksum, the name terminated in its field, no prefix, and name,
-       size and type read back, uid, gid and mtime 0; content of up to
-       2\ :sup:`31` - 1 bytes padded to where the reader looks for the
-       next header; a value wider than its field is refused
+     - Names of 1, 99 and 100 bytes, every size and mode, after members
+       of every total up to 256 MiB, a file or a directory without
+       content; the checksum for names that end in 16 free bytes; every
+       value into a field of 8 and 12 bytes; ``gzwrite()`` a stub that
+       takes every write
+     - Refused before a byte is written or counted from 100 bytes of name
+       on, and with ``EFBIG`` when the member takes the archive past the
+       256 MiB the extractor unpacks; else counted, and one 512-byte
+       header the reader takes, with its checksum, the name terminated
+       in its field, no prefix, and name, size and type read back, uid,
+       gid and mtime 0, the content padded to where the reader looks for
+       the next header; a value wider than its field is refused
    * - ``bpm-beefile-targets``
      - ``build_target_ok()``, ``build_add_target()``, against
        ``bpm_archive_rel_ok()``

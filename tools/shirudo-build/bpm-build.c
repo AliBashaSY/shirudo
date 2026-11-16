@@ -1443,6 +1443,7 @@ static int build_environment(const struct bpm_build_spec *spec,
 
 struct bpm_tar {
 	gzFile gz;
+	__u64 total;
 };
 
 static int tar_write(struct bpm_tar *tar, const void *data, size_t len)
@@ -1467,8 +1468,15 @@ static int tar_entry(struct bpm_tar *tar, const char *name, const void *data,
 	__u32 sum = 0;
 	__u8 zeros[512] = {};
 
-	if (strlen(name) >= 100 || (type == '0' && len > 077777777777ULL))
+	if (strlen(name) >= 100)
 		return -ENAMETOOLONG;
+	/*
+	 * The sum the target's extractor takes: more would build and never
+	 * install.
+	 */
+	if (len > BPM_MAX_PACKAGE_BYTES - tar->total)
+		return -EFBIG;
+	tar->total += len;
 	memcpy(h, name, strlen(name));
 	if (tar_octal(h, 100, 8, mode & 07777) || tar_octal(h, 108, 8, 0) ||
 	    tar_octal(h, 116, 8, 0) || tar_octal(h, 124, 12, len) ||
@@ -1508,14 +1516,14 @@ static int tar_path(struct bpm_tar *tar, const char *name, const char *path)
 	return ret;
 }
 
-static int build_archive(const struct bpm_build_spec *spec, const char *version,
-			 const char *cert_path, const char *fingerprint,
-			 const char *out_dir)
+static int build_archive(const char *command, const struct bpm_build_spec *spec,
+			 const char *version, const char *cert_path,
+			 const char *fingerprint, const char *out_dir)
 {
 	char output[PATH_MAX], top[PATH_MAX], name[PATH_MAX];
 	size_t environment_len = 0, cert_len = 0;
 	__u8 *environment = NULL, *cert = NULL;
-	struct bpm_tar tar;
+	struct bpm_tar tar = {};
 	int ret;
 
 	if (strsprintf(top, sizeof(top), "%s-%s", spec->name, version) < 0 ||
@@ -1606,6 +1614,11 @@ static int build_archive(const struct bpm_build_spec *spec, const char *version,
 		ret = ret ? ret : -EIO;
 	xfree(environment, BPM_BUILD_MAX_JSON);
 	xfree(cert, cert_len + 1);
+	if (ret == -EFBIG) {
+		pr_err("%s: the members of the package are more than %u MiB together, the most a target installs",
+		       command, BPM_MAX_PACKAGE_BYTES >> 20);
+		ret = -EINVAL;
+	}
 	if (ret)
 		unlink(output);
 	else
@@ -1800,7 +1813,8 @@ static int __build_bpm_build(int argc, char **argv,
 	ret = build_upatches(spec, pkey, cert_path, vmlinux_override,
 			     shirudo_bpf_incdir, overrides, n_overrides, false);
 	if (!ret)
-		ret = build_archive(spec, version, cert_path, fingerprint, out_dir);
+		ret = build_archive("bpm build", spec, version, cert_path,
+				    fingerprint, out_dir);
 	build_stage_close(spec);
 out_cert:
 	cert_free(&cert);
@@ -2242,7 +2256,8 @@ static int __build_bpm_config_update(int argc, char **argv,
 					   pkey, cert_path);
 	}
 	if (!ret)
-		ret = build_archive(spec, version, cert_path, fingerprint, out_dir);
+		ret = build_archive("bpm config update", spec, version,
+				    cert_path, fingerprint, out_dir);
 out_cert:
 	cert_free(&cert);
 out:
