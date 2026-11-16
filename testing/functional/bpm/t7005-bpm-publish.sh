@@ -141,14 +141,21 @@ for pair in "a a/b" "a/b a" "data.txt README.md/data.txt" "data.txt upatches"; d
 	n=$((n + 1))
 done
 
-# Two members that each fit and together pass what a target unpacks.
-mkdir -p "$WORK/large" &&
+# Two members that each fit and together pass what a target unpacks, and
+# one that passes it alone.
+mkdir -p "$WORK/large" "$WORK/larger" &&
 	ln -s "$REPO/vendor" "$WORK/large/vendor" &&
 	ln -s "$REPO/bpf" "$WORK/large/bpf" &&
+	ln -s "$REPO/vendor" "$WORK/larger/vendor" &&
+	ln -s "$REPO/bpf" "$WORK/larger/bpf" &&
 	cp "$WORK/pkg/t7005.bpf.c" "$WORK/large/" &&
+	cp "$WORK/pkg/t7005.bpf.c" "$WORK/larger/" &&
 	truncate -s 134217729 "$WORK/large/one" "$WORK/large/two" &&
+	truncate -s 268435457 "$WORK/larger/one" &&
 	printf '[package]\nname = "t7005"\n\n[[files]]\nsource = "one"\n\n[[files]]\nsource = "two"\n\n[[upatches]]\nsource = "t7005.bpf.c"\n' \
-		>"$WORK/large/Beefile"
+		>"$WORK/large/Beefile" &&
+	printf '[package]\nname = "t7005"\n\n[[files]]\nsource = "one"\n\n[[upatches]]\nsource = "t7005.bpf.c"\n' \
+		>"$WORK/larger/Beefile"
 
 test_expect_success 'bpm build takes a SemVer version alone' '
 	for v in 1.0 01.0.0 1.0.0.1 1.0.0_rc; do
@@ -178,11 +185,13 @@ test_expect_success 'bpm build refuses a target below another member' '
 '
 
 test_expect_success 'bpm build refuses members a target could not unpack together' '
-	( cd "$WORK" && ! "$S" bpm build large --version 9.2.0 \
-		--keys-dir "$WORK/keys" ) 2>"$WORK/large.err" &&
-	grep -q "more than 256 MiB together, the most a target installs" \
-		"$WORK/large.err" &&
-	! test -e "$WORK/t7005-9.2.0.bee"
+	for n in large larger; do
+		( cd "$WORK" && ! "$S" bpm build $n --version 9.2.0 \
+			--keys-dir "$WORK/keys" ) 2>"$WORK/$n.err" &&
+		grep -q "more than 256 MiB together, the most a target installs" \
+			"$WORK/$n.err" &&
+		! test -e "$WORK/t7005-9.2.0.bee" || return 1
+	done
 '
 
 PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')

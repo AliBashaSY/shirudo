@@ -104,11 +104,15 @@ static int build_read_file(const char *path, __u8 **out, size_t *len,
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	if (fstat(fd, &st) || st.st_size < 0 || (uintmax_t)st.st_size > max) {
-		int ret = errno ? -errno : -E2BIG;
+	if (fstat(fd, &st)) {
+		int ret = -errno;
 
 		close(fd);
 		return ret;
+	}
+	if (st.st_size < 0 || (uintmax_t)st.st_size > max) {
+		close(fd);
+		return -EFBIG;
 	}
 	body = xmalloc((size_t)st.st_size + 1);
 	if (!body) {
@@ -1508,7 +1512,7 @@ static int tar_path(struct bpm_tar *tar, const char *name, const char *path)
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	ret = build_read_file(path, &body, &len, BPM_BUILD_MAX_FILE);
+	ret = build_read_file(path, &body, &len, BPM_MAX_PACKAGE_BYTES);
 	if (!ret) {
 		ret = tar_entry(tar, name, body, len, st.st_mode, '0');
 		xfree(body, len + 1);
