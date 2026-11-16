@@ -262,6 +262,108 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Lengths 0 to 18
      - What install loads and uninstall unloads goes by the suffix alone;
        a pair is terminated, the other half, and pairs back to the name
+   * - ``bpm-tar-writer``
+     - ``tar_entry()``, ``tar_octal()``, ``tar_write()`` of
+       :src:`tools/shirudo-build/bpm-build.c`, against
+       ``bpm_tar_header_ok()`` and ``bpm_tar_octal()``
+     - Names of 1, 99 and 100 bytes, every size and mode, a file or a
+       directory without content; the checksum for names that end in 16
+       free bytes; every value into a field of 8 and 12 bytes;
+       ``gzwrite()`` a stub that takes every write
+     - Refused before a byte is written from 100 bytes of name or 8 GiB of
+       content on; else one 512-byte header the reader takes, with its
+       checksum, the name terminated in its field, no prefix, and name,
+       size and type read back, uid, gid and mtime 0; content of up to
+       2\ :sup:`31` - 1 bytes padded to where the reader looks for the
+       next header; a value wider than its field is refused
+   * - ``bpm-beefile-targets``
+     - ``build_target_ok()``, ``build_add_target()``, against
+       ``bpm_archive_rel_ok()``
+     - Targets of 0 to 8 bytes; up to 4 bytes into a table that holds one
+       target
+     - Takes exactly the paths the archive reader takes that have no
+       final slash; a target joins the table once, and a refused one is
+       not counted
+   * - ``bpm-beefile-members``
+     - ``build_entry_name()``, against ``package_member_name_ok()`` and
+       ``bpm_archive_rel_ok()``
+     - Targets of 0 to 6 bytes below a directory of 2, every buffer size
+     - Refused exactly when it does not fit, with nothing written; else
+       the directory, a slash and the target, terminated; a target bpm
+       build takes is the member the reader finds, and the directory's
+       own entry a path it takes
+   * - ``bpm-beefile-names``
+     - ``build_name_ok()``, against ``bpm_package_name_ok()`` and
+       ``bpm_name_ok()``
+     - Up to 129 bytes, past the 128-byte limit
+     - Takes exactly the names the target takes as a package's, each one
+       the repository index takes
+   * - ``bpm-beefile-version``
+     - ``build_version_ok()``, against ``bpm_version_ok()`` and
+       ``bpm_archive_rel_ok()``
+     - Versions of 5 to 9 bytes, behind a name of 1
+     - A version bpm build takes is one the target takes, and
+       ``<name>-<version>`` one component to the archive reader
+   * - ``bpm-beefile-string``
+     - ``build_parse_string()``, ``build_parse_value()``
+     - Values of 0 to 12 bytes, every buffer size up to one byte more
+     - Takes exactly a quoted string between blanks that fits, decoded as
+       a reference decoder does, with ``\n``, ``\r``, ``\t``, ``\\`` and
+       ``\"`` in a ``"..."`` string alone; nothing written past its
+       buffer; a value read past is a string or starts as an array
+   * - ``bpm-beefile-array``
+     - ``build_parse_string_array()``
+     - Values up to 10 bytes, a limit of 1 or 2 strings
+     - One string or more up to the limit, each terminated, between
+       brackets; no row past the limit written; a refused array is not
+       counted
+   * - ``bpm-beefile-lines``
+     - ``build_strip_comment()``, ``build_trim()``, ``build_bare_key()``
+     - Lines of 0 to 10 bytes; a string, a ``#`` and 2 bytes behind it
+     - A line is cut at a ``#`` or not at all, at the first one in a line
+       without a quote, and a string the reader takes stays whole before
+       its comment; trimming drops the blanks at both ends alone; a name
+       is bare parts apart by single dots
+   * - ``bpm-beefile-tables``
+     - ``build_parse_spec()``, ``build_add_target()``
+     - One table header after every count of its kind up to the limit;
+       ``[upatches.tree]`` and the sub-tables without an upatch; four
+       fixed targets
+     - ``[[files]]``, ``[[upatches]]``, ``[[upatches.rodata]]`` and
+       ``[[upatches.policy]]`` are counted below 128, 128, 16 and 64 and
+       refused there; a table without its upatch is refused and counted
+       nowhere; ``Beefile``, ``README.md``, ``cert.der`` and
+       ``build-environment.json`` are no targets
+   * - ``bpm-index-writer``
+     - ``push_index()`` of :src:`tools/shirudo-build/bpm-publish.c`,
+       against ``bpm_index_parse()``
+     - One package of fixed short strings into a namespace without an
+       index, of sizes 1, 2\ :sup:`63` - 1, 0 and -1; registry, clock
+       and signer stubs
+     - The document handed to the signer is one the target reads, with
+       the one package and each field as pushed, but for a size of 0 or
+       less, which the target refuses; one document signed, one manifest
+       put
+   * - ``bpm-index-append``
+     - ``push_index()``, ``fetch_index()``, ``index_entry_compare()``,
+       against ``bpm_index_parse()``
+     - An index of one package as the registry serves it, and a push of
+       another package, of the same version again, and of the same
+       version with another digest; registry, signature check, clock and
+       signer stubs
+     - The index signed next is one the target reads, with the pushed
+       package once and before the one listed, which is kept as it was;
+       a version with other content is refused and nothing signed
+   * - ``bpm-tree-writer``
+     - ``tree_emit_publication()``, against ``tree_parse()`` and
+       ``tree_publication_check()``
+     - Five fixed publications without operations: the first of a tree,
+       the last generation and sequence number, one past each, and one
+       without a tree ID
+     - Tree, generation, parent, base and head read back as written;
+       the target reads up to generation and sequence number
+       2\ :sup:`63` - 2 and refuses the three ``bpm tree append`` does
+       not write
    * - ``upatch-header``
      - ``parse_header()``, ``validate_bounds()`` of the ``.upatch``
        reader
@@ -930,12 +1032,6 @@ a proof covers.
      - No proof is written yet. A harness could carry their logic, in
        whole or in part: the package state and tree state readers, which
        selectors of a tree can meet on one node and the status verdict
-   * - :src:`tools/shirudo-build/bpm-build.c`,
-       :src:`tools/shirudo-build/bpm-publish.c`
-     - No proof is written yet. The operator's Beefile reader and its
-       writers of the package, the index and the tree publication: the
-       proofs cover what the target's readers accept, not what these
-       write
    * - :src:`util/harden.c`, :src:`util/identity.c`,
        :src:`util/image_cache.c`, :src:`util/image_config.c`,
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
@@ -1006,6 +1102,17 @@ of :src:`util/upatch_maps.c` that puts a page together from the chunks
 :src:`util/similar.c` is proven on strings of up to 3 bytes: at its
 limit of 64 CBMC ends a run on the code as it is and none on the code
 broken, so no proof of the limit is kept.
+
+Within the operator's package builder and publisher, the proofs cover the
+tar header, the member names, the Beefile's values, lines, names and
+table limits, and the index and the tree publication on fixed documents.
+The Beefile's keys, defaults and the checks behind its last line,
+``build_validate()``, the rodata commands, ``build_archive()`` and what
+it puts into ``build-environment.json``, a publication with operations,
+the manifests, and the generation and sequence numbers ``bpm tree
+append`` counts up have no proof. A value of any length in a JSON
+document moves every byte behind it, and a tree operation takes 13 KiB
+in each of its copies: a proof over either runs for minutes.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

@@ -95,10 +95,11 @@ gigabytes is one to reshape, not to wait for.
   allocation a fixed size the harness bounds. A write through a pointer
   into a big struct becomes an update of all of it; index the member in
   place, as `sep()` of `util/json.c` does.
-- `proof.h` models `vsnprintf()` for `%s` and `%d`, `%u`, `%x` with a zero
-  flag, a width and `ll`, and fails a proof on any other conversion;
-  CBMC does not promote variadic arguments, so the model reads each by
-  its size.
+- `proof.h` models `vsnprintf()` for `%s` and `%d`, `%u`, `%x`, `%o` with
+  a zero flag, a width, written out or `*`, and `ll`, and fails a proof
+  on any other conversion; CBMC does not promote variadic arguments, so
+  the model reads each by its size. `%o` writes each digit at a place
+  known beforehand, as `bpm-tar-writer` needs of the tar header's fields.
 - A struct of tens of kilobytes, such as a tree operation, makes even a
   few symbolic copies slow: prove the logic that reads its fields on a
   smaller harness, or leave it to the unit cases.
