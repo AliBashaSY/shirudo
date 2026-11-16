@@ -441,6 +441,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - One string or more up to the limit, each terminated, between
        brackets; no row past the limit written; a refused array is not
        counted
+   * - ``bpm-beefile-fixes``
+     - ``build_parse_fixes()``, ``bpm_fix_id_ok()``,
+       ``bpm_strings_sort()``
+     - Arrays of three IDs of 0 to 2 bytes each, of any bytes but a
+       quote, a backslash and NUL; ``qsort()`` modelled as an insertion
+       sort
+     - Taken exactly when each ID is a nonempty run of
+       ``[A-Za-z0-9._:-]`` and no two are the same, then kept whole and
+       in ascending order; a second ``fixes`` in one table refused
    * - ``bpm-beefile-lines``
      - ``build_strip_comment()``, ``build_trim()``, ``build_bare_key()``
      - Lines of 0 to 10 bytes; a string, a ``#`` and 2 bytes behind it
@@ -1341,8 +1350,9 @@ and the readers of ``/proc`` and the root file system, go to the kernel
 and have none.
 
 Within the operator's package builder and publisher, the proofs cover the
-tar header, the member names, the Beefile's values, lines, names and
-table limits, and the index and the tree publication on fixed documents.
+tar header, the member names, the Beefile's values, lines, names, fixes
+and table limits, and the index and the tree publication on fixed
+documents.
 The Beefile's keys, defaults and the checks behind its last line,
 ``build_validate()``, the rodata commands, ``build_archive()`` and what
 it puts into ``build-environment.json``, a publication with operations,
