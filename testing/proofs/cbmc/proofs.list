@@ -87,3 +87,10 @@ json-emit-string-model	--unwind 5 --unwindset put_string_n.0:5,put_string_n.1:5,
 json-string-model	--unwind 5 --unwindset parse_string.0:7,parse_string.1:7,model_read.0:7,memcmp.0:7 LEN=0-6
 json-escape-model	--unwind 5 --unwindset parse_string.0:4,parse_string.1:4,model_read.0:4,memcmp.0:9
 bpm-archive-path-model	--unwind 12 LEN=0-10
+hex-digest		--unwind 74 LEN=0,6-8,70-72
+serializer-chunk	-I ../../.. --unwind 1
+paths-join		--unwind 12
+paths-pin		--unwind 32 LEN=0,1,28-35
+similar-distance	--max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:18 LEN=0-15
+similar-suggest		--object-bits 10 --max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:14 LEN=0-8,18-26
+similar-resolve		--object-bits 10 --unwind 8

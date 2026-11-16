@@ -63,9 +63,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - True exactly when the name's last bytes are the suffix and at
        least one byte comes before them
    * - ``hex``
-     - ``hex_encode()``, ``hex_decode()``, ``hex_decode_max()``
+     - ``hex_encode()``, ``hex_alloc()``, ``hex_decode()``,
+       ``hex_decode_max()``
      - Up to 4 bytes, strings up to 9 characters
-     - Lowercase hex that decodes back to the input; a decode takes
+     - Lowercase hex that decodes back to the input, in the caller's
+       buffer or one ``hex_alloc()`` allocates; a decode takes
        exactly ``2 * n`` hex digits of either case and yields their
        value, and ``hex_decode_max()`` any even count up to ``2 * cap``,
        reading no further than the digit after them
@@ -74,6 +76,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Up to 8 bytes, strings up to 17 characters, counts and capacities
        up to 8 and past ``SIZE_MAX / 2``
      - The result and the bytes of the Lean model ``Shirudo.Hex``
+   * - ``hex-digest``
+     - ``sha256_digest_decode()``
+     - Strings of 0, 6 to 8 and 70 to 72 bytes
+     - Accepted exactly as ``sha256:`` and 64 hex digits of either case,
+       into their value; a null pointer refused
    * - ``io-lines``
      - ``lines_len()``
      - Up to 8 bytes
@@ -96,6 +103,20 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - A name without ``~`` maps to a pin name without a dot and back to
        itself; a pin name without a dot that decodes is the encoding of
        what it decodes to
+   * - ``paths-join``
+     - ``path_join()``, ``format_key_path()``
+     - Parts up to 2 bytes, every buffer size up to 7
+     - The parts with one slash between them, terminated, exactly when
+       they fit, else ``-ENAMETOOLONG``, with an empty string from
+       ``path_join()``; no second slash after a key directory that ends
+       in one, and ``-EINVAL`` without a buffer, a directory or a file
+   * - ``paths-pin``
+     - ``upatch_pin_path()``
+     - A name and up to two parts of a byte each or none, buffers of 0,
+       1 and 28 to 35 bytes
+     - The pin directory, the pin name and each part after one slash,
+       terminated, exactly when they fit, else ``-ENAMETOOLONG`` with an
+       empty string
    * - ``bpm-tar-octal``
      - ``bpm_tar_octal()``
      - Every field of 8 and 12 bytes
@@ -538,6 +559,29 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Terminated printable ASCII, every backslash a ``\\`` or three octal
        digits, decoding to the message or to a prefix cut between
        characters
+   * - ``serializer-chunk``
+     - ``serial_chunk_validate()``
+     - Every chunk
+     - Accepted exactly as the chunk asked for, by index, count, page and
+       cursors, of this invocation and format, naming no more bytes than
+       a chunk carries; ``-EINVAL`` without a chunk or for invocation 0
+   * - ``similar-distance``
+     - ``edit_distance()``
+     - Two strings of 0 to 3 bytes each, caps 1 to 3
+     - The Levenshtein distance by its definition when it is within the
+       cap, and more than the cap when it is not
+   * - ``similar-suggest``
+     - ``suggest()``
+     - A word of 0 to 2 bytes, up to two commands of 0 to 2 bytes,
+       capacities 0 to 2, with ``strlen()`` given the lengths
+     - Commands of the table within the cap, each with its distance,
+       nearest first, never more than the capacity, none nearer left out
+   * - ``similar-resolve``
+     - ``resolve()``
+     - A word and up to three commands of 0 to 2 bytes, capacities 0 to 2
+     - The first command that is the word, else the commands the word
+       begins, else those that begin it, in table order, as many as the
+       capacity takes and none written past it
 
 Lean 4 proofs
 -------------
@@ -755,13 +799,11 @@ a proof covers.
      - Why no proof reads them
    * - :src:`util/bpm_state.c`, :src:`util/bpm_tree_overlap.c`,
        :src:`util/bpm_tree_state.c`, :src:`util/conditions.c`,
-       :src:`util/config_attest.c`, :src:`util/paths.c`,
-       :src:`util/serializer.c`, :src:`util/similar.c`
+       :src:`util/config_attest.c`
      - No proof is written yet. A harness could carry their logic, in
        whole or in part: the package state and tree state readers, which
-       selectors of a tree can meet on one node, the status verdict, the
-       config history of an evidence document, the pin and key paths,
-       ``serial_chunk_validate()`` and the edit distance
+       selectors of a tree can meet on one node, the status verdict and
+       the config history of an evidence document
    * - :src:`tools/shirudo-build/bpm-build.c`,
        :src:`tools/shirudo-build/bpm-publish.c`,
        :src:`tools/shirudo-build/package.c`,
@@ -826,6 +868,17 @@ the site configuration file and the config image's settings and tree.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof.
+
+Of :src:`util/paths.c` and :src:`util/serializer.c` the proofs cover the
+functions the table names. ``key_paths()``, which calls
+``format_key_path()`` twice, ``keys_dir_resolve()`` and
+``path_exists()``, and the serializer's lock and invocation number, which
+go to the environment or the kernel, have none, and neither has the loop
+of :src:`util/upatch_maps.c` that puts a page together from the chunks
+``serial_chunk_validate()`` accepted. ``edit_distance()`` of
+:src:`util/similar.c` is proven on strings of up to 3 bytes: at its
+limit of 64 CBMC ends a run on the code as it is and none on the code
+broken, so no proof of the limit is kept.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

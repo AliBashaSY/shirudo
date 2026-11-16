@@ -3,16 +3,17 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * util/hex.c for every input of up to LEN_MAX bytes: an encoding is
- * lowercase hex that decodes back to its input, a decode takes exactly
- * 2 * n hex digits of either case and yields their value, and one of at
- * most cap bytes any even count of them up to 2 * cap, reading no
- * further than the digit after those.
+ * lowercase hex that decodes back to its input, allocated or not, a
+ * decode takes exactly 2 * n hex digits of either case and yields their
+ * value, and one of at most cap bytes any even count of them up to
+ * 2 * cap, reading no further than the digit after those.
  */
 
 #include <errno.h>
 #include <stdbool.h>
 
 #include "proof.h"
+#include "../../../util/malloc.c"
 #include "../../../util/hex.c"
 
 #define LEN_MAX	4
@@ -46,6 +47,24 @@ static void encoded(void)
 				 "lowercase hex digits");
 	__CPROVER_assert(!hex_decode(out, back, n) && !memcmp(back, in, n),
 			 "decodes back to its input");
+}
+
+static void allocated(void)
+{
+	__u8 *in, *back;
+	char *out;
+	size_t n;
+
+	__CPROVER_assume(n <= LEN_MAX);
+	in = any_bytes(n);
+	back = any_bytes(n);
+	out = hex_alloc(in, n);
+	if (!out)
+		return;
+	__CPROVER_assert(strlen(out) == 2 * n, "2 * n digits, terminated");
+	__CPROVER_assert(!hex_decode(out, back, n) && !memcmp(back, in, n),
+			 "decodes back to its input");
+	xfree(out, 2 * n + 1);
 }
 
 static void decoded(void)
@@ -116,6 +135,7 @@ static void decoded_max_unterminated(void)
 void harness(void)
 {
 	encoded();
+	allocated();
 	decoded();
 	decoded_max();
 	decoded_max_unterminated();
