@@ -517,6 +517,53 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``Shirudo.ConfigActivation`` does and refuses with ``EUCLEAN``;
        ``same_event()`` is the equality of TPM boot, sequence, PCR, kind,
        initial value and root
+   * - ``config-evidence-event``
+     - ``on_event()``, ``append_event()`` of :src:`util/config_attest.c`
+     - Every event the JSON parser can hand over, into a history of 0, 1,
+       15, 16, 128, 4095 and 4096 events, allocations allowed to fail
+     - Joins exactly when whole, with a positive sequence, a boot or
+       update kind and a root of 64 hex digits, below 4096 events, as the
+       values given; a refusal keeps the history as it was; room for
+       more than 4096 events is never asked for
+   * - ``config-evidence-parse``
+     - ``config_evidence_parse()``, ``config_evidence_clear()``
+     - Every value, or none, under each key of a config history of 0 to 2
+       events, cut or malformed at any point; ``json_parse()`` a model of
+       its contract, SHA-256 as any result
+     - Takes exactly a history with every key, schema 1, a PCR from 0 to
+       15 but 9 and 11, 32-bit counts, 64 hex digits of initial value and
+       one boot event then updates in sequence, as said, and names one
+       out of order with ``EKEYREJECTED``; a refusal and evidence without
+       a history return nothing, with nothing left allocated
+   * - ``config-evidence-roundtrip``
+     - ``config_evidence_emit()``, ``emit_hash()`` into
+       ``config_evidence_parse()``
+     - Every view of 0 to 2 events; the JSON writer a model that records
+       each member under its key, ``json_parse()`` one that hands them to
+       the schema
+     - The parser returns every field the writer was given, exactly for a
+       view that replays; a sequence past a ``__s64`` is refused with
+       ``EOVERFLOW``; a view without a history writes nothing
+   * - ``config-evidence-verify``
+     - ``replay()``, ``config_evidence_verify()``,
+       ``config_measure_event()``
+     - Every view of 0 to 3 events, without events or past 4096 of them,
+       every quote mask, TPM boot, PCR value and expectation; SHA-256 as
+       any digest or failure
+     - Passes exactly when the PCR is one from 0 to 15 but 9 and 11,
+       quoted and the expected one, the TPM boot the quote's, the events
+       one boot event then updates in sequence, the quoted value the
+       initial one extended by each event's digest in order, and the last
+       root the expected one; a digest hashes the tag, the kind and the
+       root; a root without its PCR is refused
+   * - ``config-evidence-collect``
+     - ``config_evidence_collect()``, ``collect_event()``
+     - Every journal of 0 to 2 records and every active selection, the
+       journal's reader a stub that may fail; SHA-256 as any result
+     - Exports exactly the records of the selection's TPM boot, in order,
+       when they are on its PCR from its initial value, one boot event
+       then updates in sequence, and end at the selection; a refusal
+       returns nothing, with nothing left allocated
    * - ``image-bootstrap``
      - ``bootstrap_parse()`` with ``read_text_line()``
      - One settings line of 0 to 8 bytes, failed reads and allocations,
@@ -798,12 +845,10 @@ a proof covers.
    * - Files
      - Why no proof reads them
    * - :src:`util/bpm_state.c`, :src:`util/bpm_tree_overlap.c`,
-       :src:`util/bpm_tree_state.c`, :src:`util/conditions.c`,
-       :src:`util/config_attest.c`
+       :src:`util/bpm_tree_state.c`, :src:`util/conditions.c`
      - No proof is written yet. A harness could carry their logic, in
        whole or in part: the package state and tree state readers, which
-       selectors of a tree can meet on one node, the status verdict and
-       the config history of an evidence document
+       selectors of a tree can meet on one node and the status verdict
    * - :src:`tools/shirudo-build/bpm-build.c`,
        :src:`tools/shirudo-build/bpm-publish.c`,
        :src:`tools/shirudo-build/package.c`,
@@ -863,8 +908,9 @@ does: how ``json_parse()`` dispatches objects, arrays and maps to their
 schemas, the OTLP headers a configuration adds, the walk over a
 package's tar members, the registry references and URLs, the kernel
 configuration the tree selectors read, the tree log, the eventlog's
-lines, the evidence document beyond its PCRs, the config update record,
-the site configuration file and the config image's settings and tree.
+lines, the evidence document beyond its PCRs and its config history,
+the config update record, the site configuration file and the config
+image's settings and tree.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof.

@@ -94,3 +94,8 @@ paths-pin		--unwind 32 LEN=0,1,28-35
 similar-distance	--max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:18 LEN=0-15
 similar-suggest		--object-bits 10 --max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:14 LEN=0-8,18-26
 similar-resolve		--object-bits 10 --unwind 8
+config-evidence-event	--unwind 1 --unwindset harness.0:33,same_event.0:33,hex_digits.0:65,room_for.0:10,on_event.0:4,hex_decode.0:33,strlen.0:66 LEN=0,1,15,16,128,4095,4096
+config-evidence-parse	--unwind 1 --unwindset config_evidence_parse.0:7,on_event.0:4,replay.0:4,hex_decode.0:33,strlen.0:66,strcmp.0:15,named.0:7,json_parse.0:7,json_parse.1:4,give_event.0:4,give_text.0:66,any_document.0:4,whole.0:4,in_order.0:4,hex_digits.0:65,spells.0:33,blank.0:33,check_as_said.0:4,check_as_said.1:33 --memory-leak-check --slice-formula LEN=0-2
+config-evidence-roundtrip	--unwind 1 --unwindset config_evidence_emit.0:4,hex_encode.0:33,config_evidence_parse.0:7,on_event.0:4,replay.0:4,hex_decode.0:33,strlen.0:66,strcmp.0:15,named.0:7,json_parse.0:7,json_parse.1:4,give_event.0:4,give_text.0:66,json_kv_string.0:66,sequence_overflows.0:4,replays.0:4,same.0:33,blank.0:33,check_read_back.0:4 --memory-leak-check --slice-formula LEN=0-2
+config-evidence-verify	--unwind 1 --unwindset replay.0:4,memcmp.0:33,in_order.0:4,check_event.0:24,same.0:33 --slice-formula LEN=0-3
+config-evidence-collect	--unwind 1 --unwindset config_update_events.0:4,replay.0:4,memcmp.0:33,history.0:4,check_exported.0:4,same.0:33,blank.0:33 --memory-leak-check --slice-formula LEN=0-2
