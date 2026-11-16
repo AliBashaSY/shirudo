@@ -6,8 +6,9 @@
 # every option a console example passes to shirudo exists in a parser,
 # every failure category the code emits, every tamper counter and every
 # proof has its entry in the reference, every hook, counter, test, proof
-# and unit a page names exists, and every source file is read by a proof
-# or listed as read by none.
+# and unit a page names exists, every LSM program and tamper counter
+# stands in the fact box of a threat, and every source file is read by a
+# proof or listed as read by none.
 #
 #   .github/scripts/check-docs.sh
 #
@@ -97,6 +98,24 @@ while IFS= read -r page; do
 			report "$page" "no tamper counter is named $counter"
 	done
 done <"$work/pages"
+
+# Every LSM program and every tamper counter stands in the fact box of
+# some threat. A page without one is no error of the loop.
+threats=Documentation/security/threat-model.rst
+while IFS= read -r page; do
+	field 'Enforced at' "$page" | grep -oE '``lsm(\.s)?/[a-z_]+``' || :
+done <"$work/pages" | tr -d '`' | sort -u >"$work/named_hooks"
+while IFS= read -r hook; do
+	grep -qxF "$hook" "$work/named_hooks" ||
+		report "$threats" "no threat names the program $hook"
+done <"$work/hooks"
+while IFS= read -r page; do
+	field Counters "$page" | grep -oE '``[A-Za-z]+``' || :
+done <"$work/pages" | tr -d '`' | sort -u >"$work/named_counters"
+while IFS= read -r counter; do
+	grep -qx "$counter" "$work/named_counters" ||
+		report "$threats" "no threat names the counter $counter"
+done <"$work/counters"
 
 # Every test id a page names exists under testing/.
 find testing -name 't[0-9][0-9][0-9][0-9]-*' | sed -E 's|.*/(t[0-9]{4}).*|\1|' |

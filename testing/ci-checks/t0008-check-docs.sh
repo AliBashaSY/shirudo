@@ -3,9 +3,9 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t0008 -- .github/scripts/check-docs.sh: the whole of each field of a
-# threat's fact box, a hook by its section, and the source files a proof
-# reads or the coverage page lists as read by none, on a throwaway
-# repository, and the tree itself.
+# threat's fact box, a hook by its section, the programs and counters no
+# threat names, and the source files a proof reads or the coverage page
+# lists as read by none, on a throwaway repository, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -91,6 +91,16 @@ test_expect_success 'a counter and a proof on a continuation line are checked' '
 	refuses "no tamper counter is named Goodx" &&
 	good && sed -i "s|\`\`second\`\`|\`\`secondx\`\`|" "$R/$TM" &&
 	refuses "no proof is named secondx"
+'
+
+test_expect_success 'every program and every counter stands in a fact box' '
+	good && put bpf/guard.c "SEC(\"lsm/file_open\")" \
+		"SEC(\"lsm.s/inode_setattr\")" "SEC(\"lsm/task_kill\")" &&
+	refuses "no threat names the program lsm/task_kill" &&
+	good && put util/tamper.c "static const struct point points[] = {" \
+		"	[0] = { \"Good\", 1 }," "	[1] = { \"Other\", 1 }," "};" &&
+	put Documentation/security/tamper-counters.rst "\`\`Good\`\`" "\`\`Other\`\`" &&
+	refuses "no threat names the counter Other"
 '
 
 test_expect_success 'a source file is read by a proof or listed as read by none' '

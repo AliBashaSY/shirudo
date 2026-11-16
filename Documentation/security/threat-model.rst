@@ -52,7 +52,8 @@ The fields of the box are:
 
 - Adversary: who mounts the threat
 - Enforced at: the BPF LSM programs that refuse it, by their section
-  name in :src:`bpf/`
+  name in :src:`bpf/`, and after them the programs that refuse nothing
+  and keep the state the refusals read
 - Refusal: what the caller sees
 - Counters: the tamper counters the refusal moves, described in
   :doc:`tamper-counters`
@@ -529,7 +530,8 @@ the keyring.
 
 Root cannot assemble a validly signed loader outside shirudo either. A
 loader needs its metadata map, and ``BPF_MAP_CREATE`` needs runtime
-authority (``MapCreate``), as do the routes to an existing map (T13).
+authority (``MapCreate``), as do filling and freezing the map
+(``MapWrite``) and the routes to an existing one (T13).
 The programs a verified loader loads run in kernel context, and both
 hooks admit calls whose ``kernel`` argument is set.
 
@@ -550,7 +552,7 @@ any loader the key ever signed passes (R16).
    as ``ENOKEY``, ``EKEYREJECTED``, or ``EPERM`` for a caller-supplied
    keyring
 :Counters: ``LoadNotLoader``, ``LoadUnsigned``, ``LoadUnverified``,
-   ``LoadKeyringKind``, ``MapCreate``
+   ``LoadKeyringKind``, ``LoadKeyring``, ``MapCreate``, ``MapWrite``
 :Tests: ``t6102``, ``t6103``, ``t6104``, ``t6107``, ``t6108``, ``t6138``
 :Residual: R7, R16, R18
 
@@ -825,7 +827,11 @@ An authorized process is protected against being taken over:
    ``lsm.s/bprm_check_security``, ``lsm.s/bprm_committed_creds``,
    ``lsm/task_alloc``, ``lsm/bprm_check_security``,
    ``lsm/ptrace_access_check``, ``lsm/perf_event_alloc``,
-   ``lsm/task_prctl``, ``lsm/mmap_file``, ``lsm/file_mprotect``
+   ``lsm/task_prctl``, ``lsm/mmap_file``, ``lsm/file_mprotect``; in
+   support, ``lsm.s/bprm_creds_for_exec`` and ``lsm/socket_post_create``
+   carry the policy bits, ``lsm.s/inode_post_setxattr`` and
+   ``lsm.s/inode_post_removexattr`` refresh an inode's mark, and
+   ``lsm/task_kill`` counts a signal it lets through
 :Refusal: ``EACCES`` from the seal and the task hooks; ``EPERM`` from a
    copy-up, a traced exec in the ``bpf2`` hook and ``PR_SET_MM``;
    ``tampered`` or a foreign-entry warning from shirudo
@@ -1268,7 +1274,9 @@ the operator relies on.
 authority: a writable one as ``MapFdWrite`` and a read-only one as
 ``ObjGet``. ``lsm/bpf`` refuses the routes to a descriptor,
 ``BPF_OBJ_GET`` and ``BPF_MAP_GET_FD_BY_ID`` (``ObjGet``), and
-``BPF_PROG_TEST_RUN`` (``ProgRun``). ``lsm/file_open`` refuses opening a
+``BPF_PROG_TEST_RUN`` (``ProgRun``), and with ``BPF_MAP_UPDATE_ELEM``
+and ``BPF_MAP_FREEZE`` the writing and freezing of a map
+(``MapWrite``). ``lsm/file_open`` refuses opening a
 pin as a file, through which bpffs would print a map's contents
 (``ObjGet``). A writable memory mapping of an arena needs a writable
 descriptor. A process whose executable is not on the runtime image
@@ -1284,7 +1292,7 @@ given (R2).
 :Adversary: ADV-B, root on the target without the signing key
 :Enforced at: ``lsm/bpf``, ``lsm/bpf_map``, ``lsm/file_open``
 :Refusal: ``EACCES`` from ``bpf()`` and from opening a pin
-:Counters: ``ObjGet``, ``MapFdWrite``, ``ProgRun``
+:Counters: ``ObjGet``, ``MapFdWrite``, ``MapWrite``, ``ProgRun``
 :Tests: ``t6107``, ``t6108``, ``t6109``, ``t6110``
 :Residual: R2, U19
 
