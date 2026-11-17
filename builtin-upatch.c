@@ -52,6 +52,7 @@
 #include "util/tpm.h"
 #include "util/log.h"
 #include "util/measured.h"
+#include "util/options.h"
 #include "util/hex.h"
 #include "util/malloc.h"
 #include "util/paths.h"
@@ -159,6 +160,57 @@ static int print_sha256_hex(const __u8 hash[32])
 	return fputs(hex, stdout) < 0 ? -1 : 0;
 }
 
+enum upatch_info_opt {
+	UPATCH_INFO_JSON,
+};
+
+static const struct opt_spec upatch_info_opts[] = {
+	[UPATCH_INFO_JSON] = { "--json", 0, 0, NULL,
+		"print one JSON object" },
+};
+
+static const struct help_section upatch_info_sections[] = {
+	HELP_OPTIONS("options:", upatch_info_opts),
+};
+
+enum upatch_list_opt {
+	UPATCH_LIST_JSON,
+};
+
+static const struct opt_spec upatch_list_opts[] = {
+	[UPATCH_LIST_JSON] = { "--json", 0, 0, NULL,
+		"print one JSON object" },
+};
+
+static const struct help_section upatch_list_sections[] = {
+	HELP_OPTIONS("options:", upatch_list_opts),
+};
+
+enum upatch_op_opt {
+	UPATCH_OP_EXPECT_CHAIN,
+	UPATCH_OP_EXPECT_VERSION_ID,
+	UPATCH_OP_NO_PRECHECK,
+	UPATCH_OP_NO_VERSION_CHECK,
+	UPATCH_OP_REPORT,
+};
+
+static const struct opt_spec upatch_op_opts[] = {
+	[UPATCH_OP_EXPECT_CHAIN] = { "--expect-chain", 0, 0, "<hex>",
+		"refuse unless the register holds this value before" },
+	[UPATCH_OP_EXPECT_VERSION_ID] = { "--expect-version-id", 0, 0, "<hex>",
+		"refuse unless this binary's SHIRUDO_VERSION_ID is this" },
+	[UPATCH_OP_NO_PRECHECK] = { "--no-precheck", 0, 0, NULL,
+		"skip the pre-flight checks, --expect-chain included" },
+	[UPATCH_OP_NO_VERSION_CHECK] = { "--no-version-check", 0, 0, NULL,
+		"skip the --expect-version-id comparison" },
+	[UPATCH_OP_REPORT] = { "--report", 0, 0, "<path>",
+		"write the JSON report there, - for standard output" },
+};
+
+static const struct help_section upatch_op_sections[] = {
+	HELP_OPTIONS("options:", upatch_op_opts),
+};
+
 static const struct help upatch_info_help = {
 	.usage   = "shirudo upatch info [--json] <file.upatch>",
 	.summary = "Describe a .upatch file: header, signature, payload "
@@ -170,6 +222,8 @@ static const struct help upatch_info_help = {
 "Examples:\n"
 "  shirudo upatch info cve-2026-31431.upatch\n"
 "  shirudo upatch info --json /var/lib/shirudo/upatches/foo.upatch",
+	.sections   = upatch_info_sections,
+	.n_sections = ARRAY_SIZE(upatch_info_sections),
 };
 
 static const struct help upatch_list_help = {
@@ -181,6 +235,8 @@ static const struct help upatch_list_help = {
 "Examples:\n"
 "  shirudo upatch list\n"
 "  shirudo upatch list --json | jq",
+	.sections   = upatch_list_sections,
+	.n_sections = ARRAY_SIZE(upatch_list_sections),
 };
 
 static const struct help upatch_load_help = {
@@ -198,6 +254,8 @@ static const struct help upatch_load_help = {
 "  shirudo upatch load cve-2026-31431.upatch\n"
 "  shirudo upatch load --expect-chain=$(...) foo.upatch\n"
 "  shirudo upatch load --report=- foo.upatch | jq",
+	.sections   = upatch_op_sections,
+	.n_sections = ARRAY_SIZE(upatch_op_sections),
 };
 
 static const struct help upatch_unload_help = {
@@ -214,23 +272,48 @@ static const struct help upatch_unload_help = {
 "Examples:\n"
 "  shirudo upatch unload cve-2026-31431.unload.upatch\n"
 "  shirudo upatch unload --report=- foo.unload.upatch | jq",
+	.sections   = upatch_op_sections,
+	.n_sections = ARRAY_SIZE(upatch_op_sections),
 };
 
-static const struct help_item upatch_map_options[] = {
-	{ "--all", "export every map from every loaded upatch" },
-	{ "--json[=<path>]", "print JSON or append it to path" },
-	{ "--show-full",  "lift the per-map 256-entry truncation cap" },
-	{ "--peek", "read serializer-backed maps without draining them" },
-	{ "--otel", "export maps through signed decoders or automatic classification" },
-	{ "--otel-endpoint=<url>", "OTLP base URL (signal path is appended)" },
-	{ "--tenant-id=<id>", "add X-Tenant-ID to OTLP requests" },
-	{ "--otel-insecure", "allow cleartext remote OTLP or disable HTTPS verification" },
-	{ "--otel-retries=<0-10>", "OTLP retries after the first attempt (default: 3)" },
-	{ "--s3-uri=<uri>", "S3 overflow destination for OTLP payloads" },
+enum upatch_map_opt {
+	UPATCH_MAP_ALL,
+	UPATCH_MAP_JSON,
+	UPATCH_MAP_SHOW_FULL,
+	UPATCH_MAP_PEEK,
+	UPATCH_MAP_OTEL,
+	UPATCH_MAP_OTEL_ENDPOINT,
+	UPATCH_MAP_TENANT_ID,
+	UPATCH_MAP_OTEL_INSECURE,
+	UPATCH_MAP_OTEL_RETRIES,
+	UPATCH_MAP_S3_URI,
+};
+
+static const struct opt_spec upatch_map_opts[] = {
+	[UPATCH_MAP_ALL] = { "--all", 0, 0, NULL,
+		"export every map from every loaded upatch" },
+	[UPATCH_MAP_JSON] = { "--json", 0, OPT_OPTIONAL, "<path>",
+		"print JSON or append it to path" },
+	[UPATCH_MAP_SHOW_FULL] = { "--show-full", 0, 0, NULL,
+		"lift the per-map 256-entry truncation cap" },
+	[UPATCH_MAP_PEEK] = { "--peek", 0, 0, NULL,
+		"read serializer-backed maps without draining them" },
+	[UPATCH_MAP_OTEL] = { "--otel", 0, 0, NULL,
+		"export maps through signed decoders or automatic classification" },
+	[UPATCH_MAP_OTEL_ENDPOINT] = { "--otel-endpoint", 0, 0, "<url>",
+		"OTLP base URL (signal path is appended)" },
+	[UPATCH_MAP_TENANT_ID] = { "--tenant-id", 0, 0, "<id>",
+		"add X-Tenant-ID to OTLP requests" },
+	[UPATCH_MAP_OTEL_INSECURE] = { "--otel-insecure", 0, 0, NULL,
+		"allow cleartext remote OTLP or disable HTTPS verification" },
+	[UPATCH_MAP_OTEL_RETRIES] = { "--otel-retries", 0, 0, "<0-10>",
+		"OTLP retries after the first attempt (default: 3)" },
+	[UPATCH_MAP_S3_URI] = { "--s3-uri", 0, 0, "<uri>",
+		"S3 overflow destination for OTLP payloads" },
 };
 
 static const struct help_section upatch_map_sections[] = {
-	HELP_ITEMS("options:", upatch_map_options),
+	HELP_OPTIONS("options:", upatch_map_opts),
 };
 
 static const struct help upatch_map_help = {
@@ -267,13 +350,20 @@ static const struct help upatch_map_help = {
 "  shirudo upatch map cve-2026-31431-counter big_hash --show-full",
 };
 
-static const struct help_item upatch_get_options[] = {
-	{ "--json",       "machine-readable JSON output" },
-	{ "--show-full",  "lift the per-map 256-entry truncation cap" },
+enum upatch_get_opt {
+	UPATCH_GET_JSON,
+	UPATCH_GET_SHOW_FULL,
+};
+
+static const struct opt_spec upatch_get_opts[] = {
+	[UPATCH_GET_JSON] = { "--json", 0, 0, NULL,
+		"machine-readable JSON output" },
+	[UPATCH_GET_SHOW_FULL] = { "--show-full", 0, 0, NULL,
+		"lift the per-map 256-entry truncation cap" },
 };
 
 static const struct help_section upatch_get_sections[] = {
-	HELP_ITEMS("options:", upatch_get_options),
+	HELP_OPTIONS("options:", upatch_get_opts),
 };
 
 static const struct help upatch_get_help = {
@@ -318,31 +408,35 @@ static int cmd_upatch_info(int argc, const char **argv)
 	char file[PATH_MAX];
 	struct upatch u;
 	const char *path = NULL;
+	struct opt_parser p;
+	int opt, err, ret = 1;
 	bool json = false;
-	int i, err, ret = 1;
 	__u32 attach_len;
 
-	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0) {
+	OPT_INIT(&p, "upatch info", upatch_info_opts, &upatch_info_help, argc,
+		 argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_INFO_JSON:
 			json = true;
-		} else if (is_help(argv[i])) {
-			print_help(&upatch_info_help);
+			break;
+		case OPT_ARG:
+			if (path) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			path = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		} else if (argv[i][0] == '-') {
-			fprintf(stderr, "upatch info: unknown option '%s'\n",
-				argv[i]);
-			return 2;
-		} else if (!path) {
-			path = argv[i];
-		} else {
-			fprintf(stderr, "upatch info: unexpected argument '%s'\n",
-				argv[i]);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!path) {
-		print_help(&upatch_info_help);
-		return 2;
+		opt_usage(&p, "takes <file.upatch>");
+		return EXIT_USAGE;
 	}
 
 	err = upatch_open(path, &u);
@@ -527,20 +621,25 @@ static int cmd_upatch_list(int argc, const char **argv)
 {
 	struct dirent **persisted = NULL, **active = NULL;
 	struct json_emit e = { .buf = NULL };
-	int np, na, i, j, ret = 0;
+	int np, na, i, j, ret = 0, opt;
+	struct opt_parser p;
 	bool json = false;
 	char *jbuf = NULL;
 
-	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0) {
+	OPT_INIT(&p, "upatch list", upatch_list_opts, &upatch_list_help, argc,
+		 argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_LIST_JSON:
 			json = true;
-		} else if (is_help(argv[i])) {
-			print_help(&upatch_list_help);
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
-		} else {
-			fprintf(stderr, "upatch list: unknown option '%s'\n",
-				argv[i]);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 
@@ -2703,13 +2802,20 @@ static int persist_upatch(const __u8 *buf, size_t len, const char *name)
 	return seal_write_file(dst, buf, len, 0644);
 }
 
+/*
+ * The options and the file of a load or an unload: 0 to go on, or the
+ * status to exit with, 0 after help.
+ */
 static int parse_op_args(int argc, const char **argv, const char *verb,
 			 const struct help *help,
 			 const char **file, const char **expect_chain,
 			 const char **expect_version_id, bool *no_precheck,
 			 bool *no_version_check, const char **report)
 {
-	size_t i;
+	__u8 want[CHAIN_DIGEST_LEN];
+	struct opt_parser p;
+	char command[16];
+	int opt;
 
 	*file = NULL;
 	*expect_chain = NULL;
@@ -2717,60 +2823,48 @@ static int parse_op_args(int argc, const char **argv, const char *verb,
 	*no_precheck = false;
 	*no_version_check = false;
 	*report = NULL;
-	for (i = 1; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (opt_arg("--expect-chain", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch %s: %s takes a value\n",
-					verb, a);
-				return 2;
+	if (strsprintf(command, sizeof(command), "upatch %s", verb) < 0)
+		return EXIT_USAGE;
+	OPT_INIT(&p, command, upatch_op_opts, help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_OP_EXPECT_CHAIN:
+			if (hex_decode(p.value, want, sizeof(want))) {
+				opt_usage(&p, "--expect-chain must be %d hexadecimal characters",
+					  2 * CHAIN_DIGEST_LEN);
+				return EXIT_USAGE;
 			}
-			*expect_chain = v;
-		} else if (opt_arg("--expect-version-id", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch %s: %s takes a value\n",
-					verb, a);
-				return 2;
-			}
-			*expect_version_id = v;
-		} else if (strcmp(a, "--no-version-check") == 0) {
-			*no_version_check = true;
-		} else if (opt_arg("--report", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch %s: %s takes a value\n",
-					verb, a);
-				return 2;
-			}
-			*report = v;
-		} else if (strcmp(a, "--no-precheck") == 0) {
+			*expect_chain = p.value;
+			break;
+		case UPATCH_OP_EXPECT_VERSION_ID:
+			*expect_version_id = p.value;
+			break;
+		case UPATCH_OP_NO_PRECHECK:
 			*no_precheck = true;
-		} else if (a[0] == '-') {
-			fprintf(stderr, "upatch %s: unknown option '%s'\n",
-				verb, a);
-			return 2;
-		} else if (!*file) {
-			*file = a;
-		} else {
-			fprintf(stderr, "upatch %s: unexpected argument '%s'\n",
-				verb, a);
-			return 2;
+			break;
+		case UPATCH_OP_NO_VERSION_CHECK:
+			*no_version_check = true;
+			break;
+		case UPATCH_OP_REPORT:
+			*report = p.value;
+			break;
+		case OPT_ARG:
+			if (*file) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			*file = p.value;
+			break;
+		case OPT_DONE:
+			return OPT_DONE;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!*file) {
-		print_help(help);
-		return 2;
-	}
-	if (*expect_chain) {
-		__u8 want[CHAIN_DIGEST_LEN];
-
-		if (hex_decode(*expect_chain, want, sizeof(want))) {
-			fprintf(stderr, "upatch %s: --expect-chain must be %d hexadecimal characters\n",
-				verb, 2 * CHAIN_DIGEST_LEN);
-			return 2;
-		}
+		opt_usage(&p, "takes the .upatch file");
+		return EXIT_USAGE;
 	}
 	return 0;
 }
@@ -3135,18 +3229,12 @@ static int cmd_upatch_load(int argc, const char **argv)
 	struct load_args args = {};
 	int err;
 
-	for (int i = 1; i < argc; i++) {
-		if (is_help(argv[i])) {
-			print_help(&upatch_load_help);
-			return 0;
-		}
-	}
 	err = parse_op_args(argc, argv, "load", &upatch_load_help,
 			    &args.file, &args.expect_chain,
 			    &args.expect_version_id, &args.no_precheck,
 			    &args.no_version_check, &args.report);
 	if (err)
-		return err;
+		return err == OPT_DONE ? 0 : err;
 	return upatch_load(&args);
 }
 
@@ -3163,17 +3251,11 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	__u8 *buf = NULL;
 	size_t len = 0;
 
-	for (int i = 1; i < argc; i++) {
-		if (is_help(argv[i])) {
-			print_help(&upatch_unload_help);
-			return 0;
-		}
-	}
 	err = parse_op_args(argc, argv, "unload", &upatch_unload_help,
 			    &file, &expect_chain, &expect_version_id,
 			    &no_precheck, &no_version_check, &report);
 	if (err)
-		return err;
+		return err == OPT_DONE ? 0 : err;
 	rep.path = file;
 
 	if (version_gate(expect_version_id, no_version_check, &rep, "unload") != 0)
@@ -3670,122 +3752,67 @@ static int cmd_upatch_map(int argc, const char **argv)
 	const char *upatch = NULL, *map = NULL, *json_path = NULL;
 	bool all = false, json_output = false, show_full = false;
 	bool otel = false, peek = false;
-	bool insecure_set = false;
-	bool retries_set = false;
+	struct opt_parser p;
+	int ret = 0, opt;
 	size_t n = 0;
-	size_t i;
-	int ret = 0;
+	__u64 retries;
 
-	for (i = 1; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (is_help(a)) {
-			print_help(&upatch_map_help);
-			return 0;
-		}
-		if (strcmp(a, "--all") == 0) {
-			if (all) {
-				fprintf(stderr, "upatch map: duplicate --all\n");
-				return 2;
-			}
+	OPT_INIT(&p, "upatch map", upatch_map_opts, &upatch_map_help, argc,
+		 argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_MAP_ALL:
 			all = true;
-		} else if (strncmp(a, "--json=", 7) == 0) {
-			if (json_output || !a[7]) {
-				fprintf(stderr,
-					"upatch map: invalid or duplicate --json\n");
-				return 2;
-			}
+			break;
+		case UPATCH_MAP_JSON:
 			json_output = true;
-			json_path = a + 7;
-		} else if (strcmp(a, "--json") == 0) {
-			if (json_output) {
-				fprintf(stderr, "upatch map: duplicate --json\n");
-				return 2;
-			}
-			json_output = true;
-		} else if (strcmp(a, "--show-full") == 0) {
+			json_path = p.value;
+			break;
+		case UPATCH_MAP_SHOW_FULL:
 			show_full = true;
-		} else if (strcmp(a, "--peek") == 0) {
+			break;
+		case UPATCH_MAP_PEEK:
 			peek = true;
-		} else if (strcmp(a, "--otel") == 0) {
-			if (otel) {
-				fprintf(stderr, "upatch map: duplicate --otel\n");
-				return 2;
-			}
+			break;
+		case UPATCH_MAP_OTEL:
 			otel = true;
-		} else if (opt_arg("--otel-endpoint", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch map: %s takes a value\n", a);
-				return 2;
+			break;
+		case UPATCH_MAP_OTEL_ENDPOINT:
+			otel_opts.endpoint = p.value;
+			break;
+		case UPATCH_MAP_TENANT_ID:
+			if (!tenant_id_valid(p.value)) {
+				opt_usage(&p, "--tenant-id takes 1..128 characters using A-Z, a-z, 0-9, '.', '_', or '-'");
+				return EXIT_USAGE;
 			}
-			if (otel_opts.endpoint || !v[0]) {
-				fprintf(stderr, "upatch map: invalid or duplicate "
-					"--otel-endpoint\n");
-				return 2;
-			}
-			otel_opts.endpoint = v;
-		} else if (opt_arg("--tenant-id", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch map: %s takes a value\n", a);
-				return 2;
-			}
-			if (otel_opts.tenant_id ||
-			    !tenant_id_valid(v)) {
-				fprintf(stderr, "upatch map: invalid or duplicate "
-					"--tenant-id; expected 1..128 characters using "
-					"A-Z, a-z, 0-9, '.', '_', or '-'\n");
-				return 2;
-			}
-			otel_opts.tenant_id = v;
-		} else if (strcmp(a, "--otel-insecure") == 0) {
-			if (insecure_set) {
-				fprintf(stderr, "upatch map: duplicate --otel-insecure\n");
-				return 2;
-			}
-			insecure_set = true;
+			otel_opts.tenant_id = p.value;
+			break;
+		case UPATCH_MAP_OTEL_INSECURE:
 			otel_opts.allow_insecure = true;
-		} else if (opt_arg("--otel-retries", a, argc, argv, &i, &v, &r)) {
-			__u64 value;
-
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch map: %s takes a value\n", a);
-				return 2;
+			break;
+		case UPATCH_MAP_OTEL_RETRIES:
+			if (opt_u64(&p, 0, 10, &retries))
+				return EXIT_USAGE;
+			otel_opts.retries = (__u32)retries;
+			break;
+		case UPATCH_MAP_S3_URI:
+			otel_opts.s3_uri = p.value;
+			break;
+		case OPT_ARG:
+			if (map) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
 			}
-			if (retries_set || !v[0]) {
-				fprintf(stderr, "upatch map: invalid or duplicate "
-					"--otel-retries\n");
-				return 2;
-			}
-			if (parse_u64(v, strlen(v), 10, &value)) {
-				fprintf(stderr, "upatch map: --otel-retries must be 0..10\n");
-				return 2;
-			}
-			otel_opts.retries = (__u32)value;
-			retries_set = true;
-		} else if (opt_arg("--s3-uri", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				fprintf(stderr, "upatch map: %s takes a value\n", a);
-				return 2;
-			}
-			if (otel_opts.s3_uri || !v[0]) {
-				fprintf(stderr, "upatch map: invalid or duplicate "
-					"--s3-uri\n");
-				return 2;
-			}
-			otel_opts.s3_uri = v;
-		} else if (a[0] == '-') {
-			fprintf(stderr, "upatch map: unknown option '%s'\n", a);
-			return 2;
-		} else if (!upatch) {
-			upatch = a;
-		} else if (!map) {
-			map = a;
-		} else {
-			fprintf(stderr, "upatch map: unexpected argument '%s'\n",
-				a);
-			return 2;
+			if (upatch)
+				map = p.value;
+			else
+				upatch = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (all) {
@@ -3815,10 +3842,10 @@ static int cmd_upatch_map(int argc, const char **argv)
 			    export_cfg.map_export_tenant_id[0])
 				otel_opts.tenant_id =
 					export_cfg.map_export_tenant_id;
-			if (!insecure_set)
+			if (!opt_given(&p, UPATCH_MAP_OTEL_INSECURE))
 				otel_opts.allow_insecure =
 					export_cfg.map_export_otel_insecure;
-			if (!retries_set)
+			if (!opt_given(&p, UPATCH_MAP_OTEL_RETRIES))
 				otel_opts.retries =
 					export_cfg.map_export_otel_retries;
 			otel_opts.log_record_max_bytes =
@@ -3830,27 +3857,24 @@ static int cmd_upatch_map(int argc, const char **argv)
 		}
 	}
 
-	{
-		if ((otel_opts.endpoint || otel_opts.tenant_id || insecure_set ||
-		     retries_set ||
-		     otel_opts.s3_uri) && !otel) {
-			fprintf(stderr, "upatch map: OTLP options require --otel\n");
-			return 2;
-		}
-		if (all && (upatch || map)) {
-			fprintf(stderr,
-				"upatch map: --all does not accept positional arguments\n");
-			return 2;
-		}
-		if (otel && !all && (!upatch || !map)) {
-			fprintf(stderr, "upatch map: --otel requires <upatch> and <map>\n");
-			return 2;
-		}
+	if ((otel_opts.endpoint || otel_opts.tenant_id || otel_opts.s3_uri ||
+	     opt_given(&p, UPATCH_MAP_OTEL_INSECURE) ||
+	     opt_given(&p, UPATCH_MAP_OTEL_RETRIES)) && !otel) {
+		opt_usage(&p, "OTLP options require --otel");
+		return EXIT_USAGE;
+	}
+	if (all && (upatch || map)) {
+		opt_usage(&p, "--all does not accept positional arguments");
+		return EXIT_USAGE;
+	}
+	if (otel && !all && (!upatch || !map)) {
+		opt_usage(&p, "--otel requires <upatch> and <map>");
+		return EXIT_USAGE;
 	}
 	if (upatch && map) {
 		if (!upatch_name_valid(upatch)) {
-			pr_err("upatch map: invalid upatch name '%s'", upatch);
-			return 2;
+			opt_usage(&p, "invalid upatch name '%s'", upatch);
+			return EXIT_USAGE;
 		}
 		return export_one_map(upatch, map, json_output, json_path, otel,
 				      &otel_opts, show_full, peek,
@@ -3874,8 +3898,8 @@ static int cmd_upatch_map(int argc, const char **argv)
 
 	if (upatch) {
 		if (!upatch_name_valid(upatch)) {
-			pr_err("upatch map: invalid upatch name '%s'", upatch);
-			return 2;
+			opt_usage(&p, "invalid upatch name '%s'", upatch);
+			return EXIT_USAGE;
 		}
 		upatch_maps_list_one(upatch, &list, &n);
 	} else {
@@ -4173,39 +4197,42 @@ static int cmd_upatch_get(int argc, const char **argv)
 	struct upatch_get_ctx ctx = {};
 	const char *want = NULL;
 	bool json = false, show_full = false;
+	struct opt_parser p;
 	size_t nm = 0;
 	__u32 map_cap;
-	int ret, i;
+	int ret, opt;
 
-	for (i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if (is_help(a)) {
-			print_help(&upatch_get_help);
-			return 0;
-		}
-		if (strcmp(a, "--json") == 0) {
+	OPT_INIT(&p, "upatch get", upatch_get_opts, &upatch_get_help, argc,
+		 argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_GET_JSON:
 			json = true;
-		} else if (strcmp(a, "--show-full") == 0) {
+			break;
+		case UPATCH_GET_SHOW_FULL:
 			show_full = true;
-		} else if (a[0] == '-') {
-			fprintf(stderr, "upatch get: unknown option '%s'\n", a);
-			return 2;
-		} else if (!want) {
-			want = a;
-		} else {
-			fprintf(stderr,
-				"upatch get: unexpected argument '%s'\n", a);
-			return 2;
+			break;
+		case OPT_ARG:
+			if (want) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			want = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!want) {
-		print_help(&upatch_get_help);
-		return 2;
+		opt_usage(&p, "takes the name of a loaded upatch");
+		return EXIT_USAGE;
 	}
 	if (!upatch_name_valid(want)) {
-		pr_err("upatch get: invalid name '%s'", want);
-		return 2;
+		opt_usage(&p, "invalid name '%s'", want);
+		return EXIT_USAGE;
 	}
 
 	ret = upatch_get_collect(want, &ctx);
@@ -4229,12 +4256,27 @@ static int cmd_upatch_get(int argc, const char **argv)
 	return ret;
 }
 
+enum upatch_reconcile_opt {
+	UPATCH_RECONCILE_REPORT,
+};
+
+static const struct opt_spec upatch_reconcile_opts[] = {
+	[UPATCH_RECONCILE_REPORT] = { "--report", 0, 0, "<path>",
+		"write the operation report as JSON, - for standard output" },
+};
+
+static const struct help_section upatch_reconcile_sections[] = {
+	HELP_OPTIONS("options:", upatch_reconcile_opts),
+};
+
 static const struct help upatch_reconcile_help = {
 	.usage   = "shirudo upatch reconcile [--report=<path>]",
 	.summary = "Attach each loaded XDP upatch to the devices its signed "
 		   "classes select\nand that it is not attached to yet, and "
 		   "remove the pins of devices that\nare gone. One pass; udev "
 		   "and a timer run it.",
+	.sections   = upatch_reconcile_sections,
+	.n_sections = ARRAY_SIZE(upatch_reconcile_sections),
 };
 
 struct xdp_work {
@@ -4607,23 +4649,24 @@ static int cmd_upatch_reconcile(int argc, const char **argv)
 	struct xdp_device *devices = NULL;
 	struct xdp_work *work = NULL;
 	const char *report = NULL;
-	int ret = 1;
-	size_t i;
+	struct opt_parser p;
+	int ret = 1, opt;
 
-	for (i = 1; i < (size_t)argc; i++) {
-		const char *a = argv[i], *v = NULL;
-		enum opt_status r;
-
-		if (is_help(a)) {
-			print_help(&upatch_reconcile_help);
+	OPT_INIT(&p, "upatch reconcile", upatch_reconcile_opts,
+		 &upatch_reconcile_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case UPATCH_RECONCILE_REPORT:
+			report = p.value;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
+		default:
+			return EXIT_USAGE;
 		}
-		if (!opt_arg("--report", a, argc, argv, &i, &v, &r) ||
-		    r == OPT_MISSING) {
-			fprintf(stderr, "upatch reconcile: bad option '%s'\n", a);
-			return 2;
-		}
-		report = v;
 	}
 	if (reconcile_preflight(&rep) ||
 	    reconcile_collect(&work, &nr_work, &rep))

@@ -190,9 +190,9 @@ Exit status and failure categories
    * - 1
      - Refused or failed. The report and the message name the category.
    * - 2
-     - A usage error: an unknown option, an option given last without
-       its value, a second file, no file, or an ``--expect-chain`` that
-       is not 64 hexadecimal characters. Also ``attach_target_missing``
+     - A usage error: an unknown option or one given twice, a value
+       missing or empty, a second file, no file, or an
+       ``--expect-chain`` that is not 64 hexadecimal characters. Also ``attach_target_missing``
        for missing probe targets.
 
 ``load`` reports these categories: ``version_mismatch``,
