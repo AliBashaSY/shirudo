@@ -1282,12 +1282,9 @@ static void any_replay_root(void)
 
 void harness(void)
 {
-	const char *argv[2];
 	__u32 first_failure;
 
 	fail_at = first_failure;
-	argv[0] = "tree";
-	argv[1] = "sync";
 	any_node();
 #ifdef TREE_SYNC_APPLICATION_ONLY
 	__CPROVER_assume(!have_pending);
@@ -1297,7 +1294,7 @@ void harness(void)
 	any_publication();
 	any_replay_root();
 	run();
-	cmd_bpm_tree_sync(2, argv);
+	cmd_bpm_tree_sync(false, NULL);
 	__CPROVER_assert(failed || n_got == n_want,
 			 "all of them when nothing fails");
 }

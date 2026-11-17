@@ -51,6 +51,7 @@
 #include "util/keys.h"
 #include "util/json.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/seal.h"
@@ -1443,156 +1444,259 @@ static int parse_package_ref(const char *raw, char *source, size_t ssz,
 		(!version[0] || bpm_version_ok(version)) ? 0 : -EINVAL;
 }
 
-static int cmd_bpm_config(int argc, const char **argv)
+/* A usage error's status, or 0 where help or the option list was printed. */
+static int bpm_exit(int ret)
 {
-	const char *op = argc > 1 ? argv[1] : NULL;
+	return ret == OPT_DONE ? 0 : EXIT_USAGE;
+}
 
-	if (!op || is_help(op)) {
-		fprintf(stderr,
-			"usage: shirudo bpm config register add <source> "
-			"oci://<registry> [--index-repository <repository>] "
-			"--cert <certificate>\n"
-			"       shirudo bpm config register {list|remove} ...\n"
-			"       shirudo bpm config update --base-package "
-			"<package.bee|oci://host/repo:tag> --version <version> "
-			"[--file <name>.bee] [options]\n");
-		return op ? 0 : 2;
+/*
+ * The words of a bpm subcommand, from min to max of them into args, with
+ * the value of each option given into values where there is one: OPT_END
+ * to act, or OPT_DONE or OPT_USAGE to stop with. want names the words a
+ * command short of min lacks.
+ */
+static int bpm_args(struct opt_parser *p, const char **values,
+		    const char **args, size_t min, size_t max,
+		    const char *want, size_t *n)
+{
+	int opt;
+
+	*n = 0;
+	for (opt = opt_next(p); opt != OPT_END; opt = opt_next(p)) {
+		if (opt == OPT_DONE || opt == OPT_USAGE)
+			return opt;
+		if (opt != OPT_ARG) {
+			if (values)
+				values[opt] = p->value;
+			continue;
+		}
+		if (*n == max)
+			return opt_usage(p, "unexpected argument '%s'",
+					 p->value);
+		args[(*n)++] = p->value;
 	}
-	if (strcmp(op, "register"))
-		return 2;
-	if (argc < 3)
-		return 2;
-	if (!strcmp(argv[2], "list")) {
-		bool json = argc == 4 && !strcmp(argv[3], "--json");
-		char buf[8192];
-		struct json_emit je = { .buf = buf, .cap = sizeof(buf) };
-		DIR *d = registries_opendir();
-		struct dirent *e;
-		size_t count = 0;
+	if (*n < min)
+		return opt_usage(p, "takes %s", want);
+	return OPT_END;
+}
 
-		if (argc != 3 && !json)
-			return 2;
-		if (json) {
-			json_obj_open(&je);
-			json_kv_int(&je, "schema", 1);
-			json_arr_open(&je, "sources");
-		} else {
-			printf("Registered sources:\n");
-		}
-		while (d && (e = readdir(d))) {
-			size_t n = strlen(e->d_name);
-			char name[NAME_MAX + 1];
+enum bpm_register_add_opt {
+	REGISTER_ADD_CERT,
+	REGISTER_ADD_INDEX_REPOSITORY,
+};
 
-			if (!name_has_suffix(e->d_name, n, ".conf") ||
-			    strsprintf(name, sizeof(name), "%.*s",
-				       (int)(n - 5), e->d_name) < 0)
-				continue;
-			if (json)
-				json_str(&je, name);
-			else
-				printf("  %s\n", name);
-			count++;
-		}
-		if (d)
-			closedir(d);
-		if (json) {
-			json_arr_close(&je);
-			json_obj_close(&je);
-			if (je.err)
-				return 1;
-			puts(buf);
-		} else if (!count) {
-			printf("  none\n");
-		}
-		return 0;
+static const struct opt_spec bpm_register_add_opts[] = {
+	[REGISTER_ADD_CERT] = { "--cert", 0, 0, "<certificate>",
+		"the certificate the source's index and packages are signed for" },
+	[REGISTER_ADD_INDEX_REPOSITORY] = { "--index-repository", 0, 0,
+		"<repository>", "the repository of the signed index "
+		"(default <source>/" BPM_INDEX_REPOSITORY_NAME ")" },
+};
+
+enum bpm_register_list_opt {
+	REGISTER_LIST_JSON,
+};
+
+static const struct opt_spec bpm_register_list_opts[] = {
+	[REGISTER_LIST_JSON] = { "--json", 0, 0, NULL,
+		"print the registered sources as JSON" },
+};
+
+static const struct help_section bpm_config_sections[] = {
+	HELP_OPTIONS("register add options:", bpm_register_add_opts),
+	HELP_OPTIONS("register list options:", bpm_register_list_opts),
+};
+
+static const struct help bpm_config_help = {
+	.usage	    = "shirudo bpm config register add <source> oci://<registry> "
+		      "--cert <certificate>\n"
+		      "           [--index-repository <repository>]\n"
+		      "       shirudo bpm config register list [--json]\n"
+		      "       shirudo bpm config register remove <source>\n"
+		      "       shirudo bpm config update --base-package "
+		      "<package.bee|oci://host/repo:tag> --version <version> "
+		      "[--file <name>.bee] [options]",
+	.summary    = "Register the OCI repositories packages come from, or "
+		      "build a config\nupdate package (operator).",
+	.sections   = bpm_config_sections,
+	.n_sections = ARRAY_SIZE(bpm_config_sections),
+};
+
+static int bpm_register_list(int argc, const char **argv)
+{
+	char buf[8192];
+	struct json_emit je = { .buf = buf, .cap = sizeof(buf) };
+	struct opt_parser p;
+	struct dirent *e;
+	size_t count = 0, n;
+	bool json;
+	DIR *d;
+	int ret;
+
+	OPT_INIT(&p, "bpm config register list", bpm_register_list_opts,
+		 &bpm_config_help, argc, argv, 3);
+	ret = bpm_args(&p, NULL, NULL, 0, 0, NULL, &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	json = opt_given(&p, REGISTER_LIST_JSON);
+	d = registries_opendir();
+	if (json) {
+		json_obj_open(&je);
+		json_kv_int(&je, "schema", 1);
+		json_arr_open(&je, "sources");
+	} else {
+		printf("Registered sources:\n");
 	}
-	if (image_config_active() &&
-	    (!strcmp(argv[2], "add") || !strcmp(argv[2], "remove") ||
-	     !strcmp(argv[2], "rm"))) {
+	while (d && (e = readdir(d))) {
+		size_t len = strlen(e->d_name);
+		char name[NAME_MAX + 1];
+
+		if (!name_has_suffix(e->d_name, len, ".conf") ||
+		    strsprintf(name, sizeof(name), "%.*s",
+			       (int)(len - 5), e->d_name) < 0)
+			continue;
+		if (json)
+			json_str(&je, name);
+		else
+			printf("  %s\n", name);
+		count++;
+	}
+	if (d)
+		closedir(d);
+	if (json) {
+		json_arr_close(&je);
+		json_obj_close(&je);
+		if (je.err)
+			return 1;
+		puts(buf);
+	} else if (!count) {
+		printf("  none\n");
+	}
+	return 0;
+}
+
+static int bpm_register_remove(int argc, const char **argv,
+			       const char *command)
+{
+	char p_conf[PATH_MAX], key[PATH_MAX];
+	struct bpm_source s;
+	struct opt_parser p;
+	const char *name;
+	size_t n;
+	int ret;
+
+	opt_init(&p, command, NULL, 0, &bpm_config_help, argc, argv, 3);
+	ret = bpm_args(&p, NULL, &name, 1, 1, "<source>", &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	if (image_config_active()) {
 		pr_err("image mode: change repository definitions and keys in "
 		       "a signed config image, then run `shirudo image update`");
 		return 1;
 	}
-	if ((!strcmp(argv[2], "remove") || !strcmp(argv[2], "rm")) && argc == 4) {
-		char p[PATH_MAX], key[PATH_MAX];
-		struct bpm_source s;
+	if (source_path(name, p_conf, sizeof(p_conf)))
+		return EXIT_USAGE;
+	if (load_source(name, &s) == 0 && s.key_file[0])
+		unlink(s.key_file);
+	if (unlink(p_conf) && errno != ENOENT)
+		return 1;
+	if (strsprintf(key, sizeof(key), "%s/%s.der", BPM_KEYS_DIR, name) >= 0)
+		unlink(key);
+	return 0;
+}
 
-		if (source_path(argv[3], p, sizeof(p)))
-			return 2;
-		if (load_source(argv[3], &s) == 0 && s.key_file[0])
-			unlink(s.key_file);
-		if (unlink(p) && errno != ENOENT)
-			return 1;
-		if (strsprintf(key, sizeof(key), "%s/%s.der", BPM_KEYS_DIR,
-			       argv[3]) >= 0)
-			unlink(key);
-		return 0;
+static int bpm_register_add(int argc, const char **argv)
+{
+	struct bpm_oci_client probe __cleanup(bpm_oci_client_clear) = {};
+	const char *values[ARRAY_SIZE(bpm_register_add_opts)] = {};
+	struct bpm_source s = {};
+	const char *args[2], *key;
+	char managed[PATH_MAX];
+	struct cert cert = {};
+	struct opt_parser p;
+	size_t n;
+	int ret;
+
+	OPT_INIT(&p, "bpm config register add", bpm_register_add_opts,
+		 &bpm_config_help, argc, argv, 3);
+	ret = bpm_args(&p, values, args, 2, 2, "<source> and oci://<registry>",
+		       &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	if (image_config_active()) {
+		pr_err("image mode: change repository definitions and keys in "
+		       "a signed config image, then run `shirudo image update`");
+		return 1;
 	}
-	if (!strcmp(argv[2], "add") && argc >= 5) {
-		struct bpm_oci_client probe __cleanup(bpm_oci_client_clear) = {};
-		struct bpm_source s = {};
-		const char *key = NULL;
-		char managed[PATH_MAX];
-		struct cert cert = {};
-
-		if (strscpy(s.name, argv[3], sizeof(s.name)) < 0 ||
-		    strscpy(s.endpoint, argv[4], sizeof(s.endpoint)) < 0) {
-			pr_err("bpm: register add: name or endpoint too long");
-			return 2;
-		}
-		for (int i = 5; i < argc; i++) {
-			if (!strncmp(argv[i], "--cert=", 7)) {
-				key = argv[i] + 7;
-			} else if (!strcmp(argv[i], "--cert") && i + 1 < argc) {
-				key = argv[++i];
-			} else if (!strncmp(argv[i], "--index-repository=", 19)) {
-				if (strscpy(s.index_repository,
-					    argv[i] + 19,
-					    sizeof(s.index_repository)) < 0)
-					return 2;
-			} else if (!strcmp(argv[i], "--index-repository") &&
-				   i + 1 < argc) {
-				if (strscpy(s.index_repository,
-					    argv[++i],
-					    sizeof(s.index_repository)) < 0)
-					return 2;
-			} else if (!strcmp(argv[i], "--index-repository")) {
-				return 2;
-			} else {
-				pr_err("bpm: register add: unknown option '%s'",
-				       argv[i]);
-				return 2;
-			}
-		}
-		if (!s.index_repository[0] &&
-		    strsprintf(s.index_repository, sizeof(s.index_repository),
-			       "%s/%s", s.name,
-			       BPM_INDEX_REPOSITORY_NAME) < 0)
-			return 2;
-		if (!key || cert_read_file(key, &cert) ||
-		    !bpm_name_ok(s.name) ||
-		    bpm_oci_parse_endpoint(s.endpoint, &probe) ||
-		    source_index_repository_valid(s.endpoint,
-						  s.index_repository)) {
-			cert_free(&cert);
-			pr_err("bpm: register add requires a valid endpoint, index repository and --cert certificate");
-			return 2;
-		}
+	key = values[REGISTER_ADD_CERT];
+	if (!key) {
+		opt_usage(&p, "takes --cert <certificate>");
+		return EXIT_USAGE;
+	}
+	if (strscpy(s.name, args[0], sizeof(s.name)) < 0 ||
+	    strscpy(s.endpoint, args[1], sizeof(s.endpoint)) < 0) {
+		opt_usage(&p, "name or endpoint too long");
+		return EXIT_USAGE;
+	}
+	if (values[REGISTER_ADD_INDEX_REPOSITORY]) {
+		if (strscpy(s.index_repository,
+			    values[REGISTER_ADD_INDEX_REPOSITORY],
+			    sizeof(s.index_repository)) < 0)
+			return EXIT_USAGE;
+	} else if (strsprintf(s.index_repository, sizeof(s.index_repository),
+			      "%s/%s", s.name, BPM_INDEX_REPOSITORY_NAME) < 0) {
+		return EXIT_USAGE;
+	}
+	if (cert_read_file(key, &cert) ||
+	    !bpm_name_ok(s.name) ||
+	    bpm_oci_parse_endpoint(s.endpoint, &probe) ||
+	    source_index_repository_valid(s.endpoint, s.index_repository)) {
 		cert_free(&cert);
-		if (seal_mkdir_p(BPM_REGISTRIES_DIR, 0700) ||
-		    seal_mkdir_p(BPM_KEYS_DIR, 0700))
-			return 1;
-		if (strsprintf(managed, sizeof(managed), "%s/%s.der",
-			       BPM_KEYS_DIR, s.name) < 0)
-			return 1;
-		if (copy_file(key, managed, 0644))
-			return 1;
-		if (strlen(managed) >= sizeof(s.key_file))
-			return 1;
-		bpm_copy_string(s.key_file, sizeof(s.key_file), managed);
-		return save_source(&s) ? 1 : 0;
+		pr_err("bpm: register add requires a valid endpoint, index repository and --cert certificate");
+		return EXIT_USAGE;
 	}
-	return 2;
+	cert_free(&cert);
+	if (seal_mkdir_p(BPM_REGISTRIES_DIR, 0700) ||
+	    seal_mkdir_p(BPM_KEYS_DIR, 0700))
+		return 1;
+	if (strsprintf(managed, sizeof(managed), "%s/%s.der",
+		       BPM_KEYS_DIR, s.name) < 0)
+		return 1;
+	if (copy_file(key, managed, 0644))
+		return 1;
+	if (strlen(managed) >= sizeof(s.key_file))
+		return 1;
+	bpm_copy_string(s.key_file, sizeof(s.key_file), managed);
+	return save_source(&s) ? 1 : 0;
+}
+
+static int cmd_bpm_config(int argc, const char **argv)
+{
+	const char *action = argc > 2 ? argv[2] : NULL;
+
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(&bpm_config_help);
+		return argc < 2 ? EXIT_USAGE : 0;
+	}
+	if (strcmp(argv[1], "register")) {
+		pr_err("bpm config: '%s' is not a subcommand", argv[1]);
+		return EXIT_USAGE;
+	}
+	if (!action || is_help(action)) {
+		print_help(&bpm_config_help);
+		return action ? 0 : EXIT_USAGE;
+	}
+	if (!strcmp(action, "list"))
+		return bpm_register_list(argc, argv);
+	if (!strcmp(action, "add"))
+		return bpm_register_add(argc, argv);
+	if (!strcmp(action, "remove") || !strcmp(action, "rm"))
+		return bpm_register_remove(argc, argv, !strcmp(action, "rm") ?
+					   "bpm config register rm" :
+					   "bpm config register remove");
+	pr_err("bpm config register: '%s' is not an action", action);
+	return EXIT_USAGE;
 }
 
 struct bpm_tree_config {
@@ -2486,41 +2590,20 @@ static int tree_walk_forward(struct tree_source *src, struct tree_sync *sync,
 	return tree_apply_segment(sync, tag, tag_digest, w->n == 1);
 }
 
-static int cmd_bpm_tree_sync(int argc, const char **argv)
+static int cmd_bpm_tree_sync(bool dry_run, const char *report_path)
 {
 	struct tree_source src = {};
 	struct tree_walk walk = {};
-	struct tree_sync sync = {};
+	struct tree_sync sync = { .dry_run = dry_run };
 	struct bpm_tree_config cfg;
 	struct tree_publication pub = {};
 	char manifest_digest[BPM_MAX_DIGEST];
 	char report[PATH_MAX] = {};
 	int ret;
 
-	if (argc < 2 || strcmp(argv[1], "sync")) {
-		ret = -EINVAL;
+	if (report_path && strscpy(report, report_path, sizeof(report)) < 0) {
+		ret = -ENAMETOOLONG;
 		goto out;
-	}
-	for (int i = 2; i < argc; i++) {
-		if (!strcmp(argv[i], "--dry-run")) {
-			sync.dry_run = true;
-		} else if (!strncmp(argv[i], "--report=", 9) ||
-			   (!strcmp(argv[i], "--report") && i + 1 < argc)) {
-			const char *path = argv[i][8] == '=' ? argv[i] + 9 :
-							       argv[++i];
-
-			if (strscpy(report, path, sizeof(report)) < 0) {
-				pr_err("bpm tree sync: report path too long");
-				return 2;
-			}
-		} else if (is_help(argv[i])) {
-			fprintf(stderr, "usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n");
-			ret = 0;
-			goto out;
-		} else {
-			ret = -EINVAL;
-			goto out;
-		}
 	}
 	ret = load_tree_config(&cfg);
 	/* Optional integration: manual `shirudo upatch` remains valid. */
@@ -2588,19 +2671,6 @@ out:
 	tree_publication_free(&pub);
 	tree_source_clear(&src);
 	return ret;
-}
-
-static void bpm_tree_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm tree sync [--dry-run] [--report=<path>]\n"
-		"       shirudo bpm tree append <package-file> <repository> [options]\n"
-		"       shirudo bpm tree show <repository> --cert <file> [--reference <ref>] [--walk]\n\n"
-		"sync applies the configured tree on a target. append and show are\n"
-		"operator-only and run in shirudo-build: append publishes the\n"
-		"[upatches.tree] entries of a built package as the next operations of the\n"
-		"signed tree, show prints a verified publication; see their --help where\n"
-		"the operator package is installed.\n");
 }
 
 static int remove_tree_entry(const char *path, const struct stat *st,
@@ -2750,32 +2820,6 @@ static const struct help bpm_operator_help = {
 	.n_sections = 1,
 };
 
-static void bpm_pull_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm pull <package-reference>\n\n"
-		"The package reference must start with oci://.\n"
-		"Example:\n"
-		"  shirudo bpm pull oci://quay.io/namespace/package:tag\n");
-}
-
-static void bpm_info_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm info <package-file|package-reference>\n"
-		"       shirudo bpm info upatches <package> [--all]\n"
-		"       shirudo bpm info data <package> <upatch-member> [--json]\n\n"
-		"Prints package README.md, lists packaged upatches, or decodes\n"
-		"the BPF .rodata initial data using its BTF types.\n"
-		"Examples:\n"
-		"  shirudo bpm info ./package.bee\n"
-		"  shirudo bpm info upatches ./package.bee\n"
-		"  shirudo bpm info upatches ./package.bee --all\n"
-		"  shirudo bpm info data ./package.bee upatches/kernel-obs.upatch\n"
-		"  shirudo bpm info data ./package.bee upatches/kernel-obs.upatch --json\n"
-		"Package may be a local .bee file or an oci:// reference.\n");
-}
-
 static int bpm_finish(int lock, int ret, const char *action)
 {
 	if (lock >= 0) {
@@ -2792,13 +2836,25 @@ static const struct help_item bpm_key_subcmds[] = {
 	{ "list", "list installed certificate fingerprints" },
 };
 
+enum bpm_key_list_opt {
+	KEY_LIST_JSON,
+};
+
+static const struct opt_spec bpm_key_list_opts[] = {
+	[KEY_LIST_JSON] = { "--json", 0, 0, NULL,
+		"print the certificates as JSON" },
+};
+
+static const struct help_section bpm_key_sections[] = {
+	HELP_ITEMS("subcommands:", bpm_key_subcmds),
+	HELP_OPTIONS("list options:", bpm_key_list_opts),
+};
+
 static const struct help bpm_key_help = {
 	.usage = "shirudo bpm key <add|fingerprint|list>",
 	.summary = "Manage package signing certificates.",
-	.sections = (const struct help_section[]) {
-		HELP_ITEMS("subcommands:", bpm_key_subcmds),
-	},
-	.n_sections = 1,
+	.sections = bpm_key_sections,
+	.n_sections = ARRAY_SIZE(bpm_key_sections),
 	.footer = "add and fingerprint accept a certificate file, .bee package, or\n"
 		  "oci://registry/repository:tag. list reads /var/lib/shirudo/keys.\n"
 		  "Examples:\n"
@@ -2809,8 +2865,9 @@ static const struct help bpm_key_help = {
 
 static int cmd_bpm_key(int argc, const char **argv)
 {
-	size_t len = 0, cap = 0;
-	const char *sub;
+	size_t len = 0, cap = 0, n;
+	const char *sub, *source;
+	struct opt_parser p;
 	__u8 *der = NULL;
 	char hex[65];
 	int ret;
@@ -2828,28 +2885,30 @@ static int cmd_bpm_key(int argc, const char **argv)
 				 ARRAY_SIZE(bpm_key_subcmds));
 	if (!sub)
 		return 2;
-	if (argc == 3 && is_help(argv[2])) {
-		print_help(&bpm_key_help);
-		return 0;
+	if (!strcmp(sub, "list")) {
+		OPT_INIT(&p, "bpm key list", bpm_key_list_opts, &bpm_key_help,
+			 argc, argv, 2);
+		ret = bpm_args(&p, NULL, NULL, 0, 0, NULL, &n);
+		if (ret != OPT_END)
+			return bpm_exit(ret);
+		ret = list_keys(opt_given(&p, KEY_LIST_JSON));
+		return ret ? bpm_fail("key list", ret) : 0;
 	}
-	if ((!strcmp(sub, "list") && argc != 2 &&
-	     !(argc == 3 && !strcmp(argv[2], "--json"))) ||
-	    (strcmp(sub, "list") && argc != 3)) {
-		print_help(&bpm_key_help);
-		return 2;
-	}
+	opt_init(&p, !strcmp(sub, "add") ? "bpm key add" : "bpm key fingerprint",
+		 NULL, 0, &bpm_key_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, &source, 1, 1,
+		       "a certificate, a .bee package or an oci:// reference",
+		       &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
 	if (!strcmp(sub, "add") && image_config_active()) {
 		pr_err("image mode: add vouched BPF signers to the signed "
 		       "config selected for boot and reboot to enroll them");
 		return 1;
 	}
-	if (!strcmp(sub, "list")) {
-		ret = list_keys(argc == 3);
-		return ret ? bpm_fail("key list", ret) : 0;
-	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return bpm_fail("initialize curl", -EIO);
-	ret = key_source_read(argv[2], &der, &len, &cap);
+	ret = key_source_read(source, &der, &len, &cap);
 	if (!ret) {
 		ret = key_fingerprint(der, len, hex);
 		if (!ret && !strcmp(sub, "add"))
@@ -3013,6 +3072,398 @@ static int bpm_upgrade(const char *unused, struct bpm_tables *t)
 	return bpm_finish(lock, wrc, "write state");
 }
 
+enum bpm_info_opt {
+	INFO_ALL,
+	INFO_JSON,
+};
+
+static const struct opt_spec bpm_info_opts[] = {
+	[INFO_ALL] = { "--all", 0, 0, NULL,
+		"with upatches: the .unload.upatch directives too" },
+	[INFO_JSON] = { "--json", 0, 0, NULL,
+		"with data: the decoded .rodata as JSON" },
+};
+
+static const struct help_section bpm_info_sections[] = {
+	HELP_OPTIONS("options:", bpm_info_opts),
+};
+
+static const struct help bpm_info_help = {
+	.usage	    = "shirudo bpm info <package-file|package-reference>\n"
+		      "       shirudo bpm info upatches <package> [--all]\n"
+		      "       shirudo bpm info data <package> <upatch-member> "
+		      "[--json]",
+	.summary    = "Print a package's README.md, list its upatches, or "
+		      "decode the BPF\n.rodata initial data through its BTF "
+		      "types. A package is a local .bee\nfile or an oci:// "
+		      "reference.",
+	.sections   = bpm_info_sections,
+	.n_sections = ARRAY_SIZE(bpm_info_sections),
+	.footer     = "Examples:\n"
+		      "  shirudo bpm info ./package.bee\n"
+		      "  shirudo bpm info upatches ./package.bee --all\n"
+		      "  shirudo bpm info data ./package.bee "
+		      "upatches/kernel-obs.upatch --json",
+};
+
+enum bpm_tree_sync_opt {
+	TREE_SYNC_DRY_RUN,
+	TREE_SYNC_REPORT,
+};
+
+static const struct opt_spec bpm_tree_sync_opts[] = {
+	[TREE_SYNC_DRY_RUN] = { "--dry-run", 0, 0, NULL,
+		"say what would change and change nothing" },
+	[TREE_SYNC_REPORT] = { "--report", 0, 0, "<path>",
+		"write the JSON report there" },
+};
+
+static const struct help_section bpm_tree_sections[] = {
+	HELP_OPTIONS("sync options:", bpm_tree_sync_opts),
+};
+
+static const struct help bpm_tree_help = {
+	.usage	    = "shirudo bpm tree sync [--dry-run] [--report=<path>]\n"
+		      "       shirudo bpm tree append <package-file> "
+		      "<repository> [options]\n"
+		      "       shirudo bpm tree show <repository> --cert <file> "
+		      "[--reference <ref>] [--walk]",
+	.summary    = "sync applies the configured tree on a target. append "
+		      "and show are\noperator-only and run in shirudo-build: "
+		      "append publishes the\n[upatches.tree] entries of a "
+		      "built package as the next operations of the\nsigned "
+		      "tree, show prints a verified publication; see their "
+		      "--help where\nthe operator package is installed.",
+	.sections   = bpm_tree_sections,
+	.n_sections = ARRAY_SIZE(bpm_tree_sections),
+};
+
+static const struct help bpm_pull_help = {
+	.usage	 = "shirudo bpm pull <package-reference>",
+	.summary = "Download an OCI package into the current directory. The "
+		   "reference\nstarts with oci://.",
+	.footer	 = "Example:\n"
+		   "  shirudo bpm pull oci://quay.io/namespace/package:tag",
+};
+
+static const struct help bpm_repo_help = {
+	.usage	 = "shirudo bpm repo update [<source>]",
+	.summary = "Refresh the signed index of one registered source, or of "
+		   "all of them.",
+};
+
+static const struct help bpm_install_help = {
+	.usage	 = "shirudo bpm install <package>",
+	.summary = "Download and activate a repository or OCI package.",
+};
+
+enum bpm_list_opt {
+	LIST_JSON,
+};
+
+static const struct opt_spec bpm_list_opts[] = {
+	[LIST_JSON] = { "--json", 0, 0, NULL,
+		"print the installed packages as JSON" },
+};
+
+static const struct help_section bpm_list_sections[] = {
+	HELP_OPTIONS("options:", bpm_list_opts),
+};
+
+static const struct help bpm_list_help = {
+	.usage	    = "shirudo bpm list [--json]",
+	.summary    = "List the installed packages.",
+	.sections   = bpm_list_sections,
+	.n_sections = ARRAY_SIZE(bpm_list_sections),
+};
+
+static const struct help bpm_uninstall_help = {
+	.usage	 = "shirudo bpm uninstall <package>",
+	.summary = "Unload and remove an installed package.",
+};
+
+static const struct help bpm_upgrade_help = {
+	.usage	 = "shirudo bpm upgrade",
+	.summary = "Activate the newer package versions the cached indexes "
+		   "offer.",
+};
+
+static int bpm_info_cmd(int argc, const char **argv)
+{
+	const char *args[3] = {};
+	struct opt_parser p;
+	size_t n;
+	int ret;
+
+	OPT_INIT(&p, "bpm info", bpm_info_opts, &bpm_info_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, args, 1, 3, "a package", &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	if (!strcmp(args[0], "upatches") && n != 2)
+		ret = opt_usage(&p, "upatches takes <package>");
+	else if (!strcmp(args[0], "data") && n != 3)
+		ret = opt_usage(&p, "data takes <package> <upatch-member>");
+	else if (strcmp(args[0], "upatches") && strcmp(args[0], "data") &&
+		 n != 1)
+		ret = opt_usage(&p, "unexpected argument '%s'", args[1]);
+	else if (opt_given(&p, INFO_ALL) && strcmp(args[0], "upatches"))
+		ret = opt_usage(&p, "--all goes with upatches alone");
+	else if (opt_given(&p, INFO_JSON) && strcmp(args[0], "data"))
+		ret = opt_usage(&p, "--json goes with data alone");
+	if (ret != OPT_END)
+		return EXIT_USAGE;
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+		return bpm_fail("initialize curl", -EIO);
+	if (!strcmp(args[0], "upatches"))
+		ret = print_package_upatches(args[1],
+					     opt_given(&p, INFO_ALL));
+	else if (!strcmp(args[0], "data"))
+		ret = print_package_upatch_data(args[1], args[2],
+						opt_given(&p, INFO_JSON));
+	else
+		ret = print_package_readme(args[0]);
+	return bpm_finish(-1, ret, "info");
+}
+
+static int bpm_tree_cmd(int argc, const char **argv)
+{
+	const char *values[ARRAY_SIZE(bpm_tree_sync_opts)] = {};
+	struct opt_parser p;
+	int lock, ret;
+	size_t n;
+
+	if (argc < 3 || is_help(argv[2])) {
+		print_help(&bpm_tree_help);
+		return argc < 3 ? EXIT_USAGE : 0;
+	}
+	if (!strcmp(argv[2], "append") || !strcmp(argv[2], "show"))
+		return bpm_exec_operator("tree", argc, argv);
+	if (strcmp(argv[2], "sync")) {
+		pr_err("bpm tree: '%s' is not a subcommand", argv[2]);
+		return EXIT_USAGE;
+	}
+	OPT_INIT(&p, "bpm tree sync", bpm_tree_sync_opts, &bpm_tree_help, argc,
+		 argv, 3);
+	ret = bpm_args(&p, values, NULL, 0, 0, NULL, &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	/*
+	 * The tree is optional. Avoid taking the BPM lock (and avoid
+	 * requiring writable state directories) when it is not configured.
+	 */
+	if (!tree_configured())
+		return 0;
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+		return bpm_fail("initialize curl", -EIO);
+	lock = with_bpm_lock();
+	if (lock < 0)
+		return bpm_finish(-1, lock, "lock");
+	ret = cmd_bpm_tree_sync(opt_given(&p, TREE_SYNC_DRY_RUN),
+				values[TREE_SYNC_REPORT]);
+	return bpm_finish(lock, ret, "tree sync");
+}
+
+static int bpm_pull_cmd(int argc, const char **argv)
+{
+	struct opt_parser p;
+	const char *ref;
+	size_t n;
+	int ret;
+
+	opt_init(&p, "bpm pull", NULL, 0, &bpm_pull_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, &ref, 1, 1,
+		       "a package reference starting with oci://, such as "
+		       "oci://quay.io/namespace/package:tag", &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+		return bpm_fail("initialize curl", -EIO);
+	return bpm_finish(-1, pull_package(ref), "pull");
+}
+
+static int bpm_repo_cmd(int argc, const char **argv)
+{
+	const char *named = NULL;
+	struct opt_parser p;
+	int lock, ret = 0;
+	size_t n;
+
+	if (argc < 3 || is_help(argv[2])) {
+		print_help(&bpm_repo_help);
+		return argc < 3 ? EXIT_USAGE : 0;
+	}
+	if (strcmp(argv[2], "update")) {
+		pr_err("bpm repo: '%s' is not a subcommand", argv[2]);
+		return EXIT_USAGE;
+	}
+	opt_init(&p, "bpm repo update", NULL, 0, &bpm_repo_help, argc, argv, 3);
+	ret = bpm_args(&p, NULL, &named, 0, 1, NULL, &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	ret = 0;
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+		return bpm_fail("initialize curl", -EIO);
+	lock = with_bpm_lock();
+	if (lock < 0)
+		return bpm_finish(-1, lock, "lock");
+	if (!named) {
+		DIR *d = registries_opendir();
+		struct dirent *entry;
+
+		if (!d && errno != ENOENT)
+			ret = -errno;
+		/* One unreachable registry must not hold back the others. */
+		while (d && (entry = readdir(d))) {
+			size_t len = strlen(entry->d_name);
+			char source[BPM_MAX_NAME];
+
+			if (!name_has_suffix(entry->d_name, len, ".conf"))
+				continue;
+			if (strsprintf(source, sizeof(source), "%.*s",
+				       (int)(len - 5), entry->d_name) < 0) {
+				ret = -ENAMETOOLONG;
+				continue;
+			}
+			if (repo_update_one(source))
+				ret = -EIO;
+		}
+		if (d)
+			closedir(d);
+	} else {
+		ret = repo_update_one(named);
+	}
+	return bpm_finish(lock, ret, "repo update");
+}
+
+static int bpm_install_cmd(int argc, const char **argv)
+{
+	struct opt_parser p;
+	const char *package;
+	size_t n;
+	int ret;
+
+	opt_init(&p, "bpm install", NULL, 0, &bpm_install_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, &package, 1, 1, "<package>", &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	return with_tables(bpm_install, package, "install");
+}
+
+static int bpm_list_cmd(int argc, const char **argv)
+{
+	struct bpm_state_entry *state;
+	struct opt_parser p;
+	int n_state, ret;
+	bool json;
+	size_t n;
+
+	OPT_INIT(&p, "bpm list", bpm_list_opts, &bpm_list_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, NULL, 0, 0, NULL, &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	json = opt_given(&p, LIST_JSON);
+	state = xcalloc(BPM_MAX_STATE, sizeof(*state));
+	if (!state)
+		return bpm_fail("list", -ENOMEM);
+	ret = bpm_state_read(state, &n_state);
+	if (!ret && json) {
+		size_t cap = 256 + (size_t)n_state * 3 * BPM_MAX_NAME;
+		char *buf = xmalloc(cap);
+		struct json_emit e = { .buf = buf, .cap = cap };
+
+		if (!buf) {
+			ret = -ENOMEM;
+		} else {
+			json_obj_open(&e);
+			json_kv_int(&e, "schema", 1);
+			json_arr_open(&e, "packages");
+			for (int i = 0; i < n_state; i++) {
+				json_obj_open(&e);
+				json_kv_string(&e, "name",
+					       state[i].name);
+				json_kv_string(&e, "version",
+					       state[i].version);
+				json_kv_string(&e, "source",
+					       state[i].source);
+				json_obj_close(&e);
+			}
+			json_arr_close(&e);
+			json_obj_close(&e);
+			if (e.err)
+				ret = e.err;
+			else
+				puts(buf);
+			xfree(buf, cap);
+		}
+	} else if (!ret) {
+		printf("Installed packages:\n");
+		if (!n_state)
+			printf("  none\n");
+		else
+			printf("  %-24s  %-12s  %s\n", "NAME",
+			       "VERSION", "SOURCE");
+		for (int i = 0; i < n_state; i++)
+			printf("  %-24s  %-12s  %s\n", state[i].name,
+			       state[i].version, state[i].source);
+	}
+	xfree(state, BPM_MAX_STATE * sizeof(*state));
+	return ret ? bpm_fail("list", ret) : 0;
+}
+
+static int bpm_uninstall_cmd(int argc, const char **argv)
+{
+	struct bpm_state_entry *state;
+	int n_state, lock, ret, i;
+	struct opt_parser p;
+	const char *package;
+	size_t n;
+
+	opt_init(&p, "bpm uninstall", NULL, 0, &bpm_uninstall_help, argc, argv,
+		 2);
+	ret = bpm_args(&p, NULL, &package, 1, 1, "<package>", &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	if (!bpm_name_ok(package))
+		return bpm_fail("uninstall", -EINVAL);
+	state = xcalloc(BPM_MAX_STATE, sizeof(*state));
+	if (!state)
+		return bpm_fail("uninstall", -ENOMEM);
+	lock = with_bpm_lock();
+	if (lock < 0) {
+		xfree(state, BPM_MAX_STATE * sizeof(*state));
+		return bpm_finish(-1, lock, "lock");
+	}
+	ret = bpm_state_read(state, &n_state);
+	for (i = 0; !ret && i < n_state; i++) {
+		if (!strcmp(state[i].name, package))
+			break;
+	}
+	if (!ret && i == n_state)
+		ret = -ENOENT;
+	if (!ret)
+		ret = package_uninstall(&state[i]);
+	if (!ret) {
+		memmove(&state[i], &state[i + 1],
+			(size_t)(n_state - i - 1) * sizeof(*state));
+		ret = bpm_state_write(state, n_state - 1);
+	}
+	xfree(state, BPM_MAX_STATE * sizeof(*state));
+	return bpm_finish(lock, ret, "uninstall");
+}
+
+static int bpm_upgrade_cmd(int argc, const char **argv)
+{
+	struct opt_parser p;
+	size_t n;
+	int ret;
+
+	opt_init(&p, "bpm upgrade", NULL, 0, &bpm_upgrade_help, argc, argv, 2);
+	ret = bpm_args(&p, NULL, NULL, 0, 0, NULL, &n);
+	if (ret != OPT_END)
+		return bpm_exit(ret);
+	return with_tables(bpm_upgrade, NULL, "upgrade");
+}
+
 int cmd_bpm(int argc, const char **argv)
 {
 	const struct help *help = build_available() ?
@@ -3025,7 +3476,7 @@ int cmd_bpm(int argc, const char **argv)
 
 	if (argc < 2 || is_help(argv[1])) {
 		print_help(help);
-		return argc < 2 ? 2 : 0;
+		return argc < 2 ? EXIT_USAGE : 0;
 	}
 	if (is_list_cmds(argv[1])) {
 		print_subcmd_list(subcmds, n_subcmds);
@@ -3034,253 +3485,29 @@ int cmd_bpm(int argc, const char **argv)
 	sub = resolve_subcommand("shirudo bpm", argv[1], subcmds,
 				 n_subcmds);
 	if (!sub)
-		return 2;
+		return EXIT_USAGE;
 	if (!strcmp(sub, "config") && argc >= 3 &&
 	    !strcmp(argv[2], "update"))
 		return bpm_exec_operator("config", argc, argv);
 	if (!strcmp(sub, "config"))
 		return cmd_bpm_config(argc - 1, argv + 1);
-	if (!strcmp(sub, "info")) {
-		bool json = false, all = false;
-		const char *source;
-		int ret;
-
-		if (argc == 3 && is_help(argv[2])) {
-			bpm_info_usage();
-			return 0;
-		}
-		if (argc < 3) {
-			bpm_info_usage();
-			return 2;
-		}
-		if (!strcmp(argv[2], "upatches")) {
-			if ((argc != 4 && argc != 5) ||
-			    (argc == 5 && strcmp(argv[4], "--all"))) {
-				bpm_info_usage();
-				return 2;
-			}
-			source = argv[3];
-			all = argc == 5;
-		} else if (!strcmp(argv[2], "data")) {
-			if ((argc != 5 && argc != 6) ||
-			    (argc == 6 && strcmp(argv[5], "--json"))) {
-				bpm_info_usage();
-				return 2;
-			}
-			source = argv[3];
-			json = argc == 6;
-		} else {
-			if (argc != 3) {
-				bpm_info_usage();
-				return 2;
-			}
-			source = argv[2];
-		}
-		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
-			return bpm_fail("initialize curl", -EIO);
-		if (!strcmp(argv[2], "upatches"))
-			ret = print_package_upatches(source, all);
-		else if (!strcmp(argv[2], "data"))
-			ret = print_package_upatch_data(source, argv[4], json);
-		else
-			ret = print_package_readme(source);
-		return bpm_finish(-1, ret, "info");
-	}
-	if (!strcmp(sub, "tree") && (argc < 3 || is_help(argv[2]))) {
-		bpm_tree_usage();
-		return argc < 3 ? 2 : 0;
-	}
-	if (!strcmp(sub, "tree") &&
-	    (!strcmp(argv[2], "append") || !strcmp(argv[2], "show")))
-		return bpm_exec_operator(sub, argc, argv);
-	if (!strcmp(sub, "tree") && strcmp(argv[2], "sync")) {
-		bpm_tree_usage();
-		return 2;
-	}
 	if (!strcmp(sub, "build") || !strcmp(sub, "push"))
 		return bpm_exec_operator(sub, argc, argv);
-	if (!strcmp(sub, "pull")) {
-		int ret;
-
-		if (argc == 3 && is_help(argv[2])) {
-			bpm_pull_usage();
-			return 0;
-		}
-		if (argc != 3) {
-			bpm_pull_usage();
-			return 2;
-		}
-		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
-			return bpm_fail("initialize curl", -EIO);
-		ret = pull_package(argv[2]);
-		return bpm_finish(-1, ret, "pull");
-	}
-	if (!strcmp(sub, "repo") && argc >= 3 && !strcmp(argv[2], "update")) {
-		int lock, ret = 0;
-
-		if (argc == 4 && is_help(argv[3])) {
-			fprintf(stderr, "usage: shirudo bpm repo update [<source>]\n");
-			return 0;
-		}
-		if (argc > 4)
-			return 2;
-		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
-			return bpm_fail("initialize curl", -EIO);
-		lock = with_bpm_lock();
-		if (lock < 0)
-			return bpm_finish(-1, lock, "lock");
-		if (argc == 3) {
-			DIR *d = registries_opendir();
-			struct dirent *entry;
-
-			if (!d && errno != ENOENT)
-				ret = -errno;
-			/* One unreachable registry must not hold back the others. */
-			while (d && (entry = readdir(d))) {
-				size_t len = strlen(entry->d_name);
-				char source[BPM_MAX_NAME];
-
-				if (!name_has_suffix(entry->d_name, len, ".conf"))
-					continue;
-				if (strsprintf(source, sizeof(source), "%.*s",
-					       (int)(len - 5), entry->d_name) < 0) {
-					ret = -ENAMETOOLONG;
-					continue;
-				}
-				if (repo_update_one(source))
-					ret = -EIO;
-			}
-			if (d)
-				closedir(d);
-		} else {
-			ret = repo_update_one(argv[3]);
-		}
-		return bpm_finish(lock, ret, "repo update");
-	}
-	if (!strcmp(sub, "tree")) {
-		int lock, ret;
-
-		if (argc > 6)
-			return 2;
-		if (argc == 4 && is_help(argv[3])) {
-			bpm_tree_usage();
-			return 0;
-		}
-		/*
-		 * The tree is optional. Avoid taking the BPM lock (and
-		 * avoid requiring writable state directories) when it is
-		 * not configured.
-		 */
-		if (!tree_configured())
-			return 0;
-		if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
-			return bpm_fail("initialize curl", -EIO);
-		lock = with_bpm_lock();
-		if (lock < 0)
-			return bpm_finish(-1, lock, "lock");
-		ret = cmd_bpm_tree_sync(argc - 1, argv + 1);
-		return bpm_finish(lock, ret, "tree sync");
-	}
 	if (!strcmp(sub, "key"))
 		return cmd_bpm_key(argc - 1, argv + 1);
-	if (!strcmp(sub, "install") && argc == 3 && is_help(argv[2])) {
-		fprintf(stderr, "usage: shirudo bpm install <package>\n");
-		return 0;
-	}
-	if (!strcmp(sub, "install") && argc == 3)
-		return with_tables(bpm_install, argv[2], "install");
-	if (!strcmp(sub, "list")) {
-		bool json = argc == 3 && !strcmp(argv[2], "--json");
-		struct bpm_state_entry *state;
-		int n_state, ret;
-
-		if (argc != 2 && !json) {
-			fprintf(stderr, "usage: shirudo bpm list [--json]\n");
-			return argc == 3 && is_help(argv[2]) ? 0 : 2;
-		}
-		state = xcalloc(BPM_MAX_STATE, sizeof(*state));
-		if (!state)
-			return bpm_fail("list", -ENOMEM);
-		ret = bpm_state_read(state, &n_state);
-		if (!ret && json) {
-			size_t cap = 256 + (size_t)n_state * 3 * BPM_MAX_NAME;
-			char *buf = xmalloc(cap);
-			struct json_emit e = { .buf = buf, .cap = cap };
-
-			if (!buf) {
-				ret = -ENOMEM;
-			} else {
-				json_obj_open(&e);
-				json_kv_int(&e, "schema", 1);
-				json_arr_open(&e, "packages");
-				for (int i = 0; i < n_state; i++) {
-					json_obj_open(&e);
-					json_kv_string(&e, "name",
-						       state[i].name);
-					json_kv_string(&e, "version",
-						       state[i].version);
-					json_kv_string(&e, "source",
-						       state[i].source);
-					json_obj_close(&e);
-				}
-				json_arr_close(&e);
-				json_obj_close(&e);
-				if (e.err)
-					ret = e.err;
-				else
-					puts(buf);
-				xfree(buf, cap);
-			}
-		} else if (!ret) {
-			printf("Installed packages:\n");
-			if (!n_state)
-				printf("  none\n");
-			else
-				printf("  %-24s  %-12s  %s\n", "NAME",
-				       "VERSION", "SOURCE");
-			for (int i = 0; i < n_state; i++)
-				printf("  %-24s  %-12s  %s\n", state[i].name,
-				       state[i].version, state[i].source);
-		}
-		xfree(state, BPM_MAX_STATE * sizeof(*state));
-		return ret ? bpm_fail("list", ret) : 0;
-	}
-	if (!strcmp(sub, "uninstall")) {
-		struct bpm_state_entry *state;
-		int n_state, lock, ret, i;
-
-		if (argc != 3 || is_help(argv[2])) {
-			fprintf(stderr, "usage: shirudo bpm uninstall <package>\n");
-			return argc == 3 ? 0 : 2;
-		}
-		if (!bpm_name_ok(argv[2]))
-			return bpm_fail("uninstall", -EINVAL);
-		state = xcalloc(BPM_MAX_STATE, sizeof(*state));
-		if (!state)
-			return bpm_fail("uninstall", -ENOMEM);
-		lock = with_bpm_lock();
-		if (lock < 0) {
-			xfree(state, BPM_MAX_STATE * sizeof(*state));
-			return bpm_finish(-1, lock, "lock");
-		}
-		ret = bpm_state_read(state, &n_state);
-		for (i = 0; !ret && i < n_state; i++) {
-			if (!strcmp(state[i].name, argv[2]))
-				break;
-		}
-		if (!ret && i == n_state)
-			ret = -ENOENT;
-		if (!ret)
-			ret = package_uninstall(&state[i]);
-		if (!ret) {
-			memmove(&state[i], &state[i + 1],
-				(size_t)(n_state - i - 1) * sizeof(*state));
-			ret = bpm_state_write(state, n_state - 1);
-		}
-		xfree(state, BPM_MAX_STATE * sizeof(*state));
-		return bpm_finish(lock, ret, "uninstall");
-	}
-	if (!strcmp(sub, "upgrade") && argc == 2)
-		return with_tables(bpm_upgrade, NULL, "upgrade");
-	return 2;
+	if (!strcmp(sub, "info"))
+		return bpm_info_cmd(argc, argv);
+	if (!strcmp(sub, "tree"))
+		return bpm_tree_cmd(argc, argv);
+	if (!strcmp(sub, "pull"))
+		return bpm_pull_cmd(argc, argv);
+	if (!strcmp(sub, "repo"))
+		return bpm_repo_cmd(argc, argv);
+	if (!strcmp(sub, "install"))
+		return bpm_install_cmd(argc, argv);
+	if (!strcmp(sub, "list"))
+		return bpm_list_cmd(argc, argv);
+	if (!strcmp(sub, "uninstall"))
+		return bpm_uninstall_cmd(argc, argv);
+	return bpm_upgrade_cmd(argc, argv);
 }
