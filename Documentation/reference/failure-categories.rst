@@ -238,8 +238,9 @@ Categories
      - ``pin``
      - ``EPERM``, errno of the read
      - The upatch loaded under the name carries another payload than the
-       directive expects, or the recorded payload cannot be read.
-       Nothing was detached.
+       directive expects, or the recorded payload cannot be read. With
+       no pins, the archive of the name holds another payload or cannot
+       be read. Nothing was detached or removed.
      - Compare the ``Payload`` of ``shirudo upatch get <name>`` with the
        directive and build a directive for the loaded payload.
    * - ``detach_failed``
@@ -277,7 +278,7 @@ Categories
 
 A successful operation reports the category ``ok``. An unload of a
 upatch that has no pins reports ``already_unloaded``, exits 0 and
-records no event.
+records no event, after removing an archive of the directive's payload.
 
 Refusals before a command runs
 ------------------------------

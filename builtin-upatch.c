@@ -3286,10 +3286,29 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		}
 	}
 
+	/*
+	 * An archive with no pins is one init could not restore, or one an
+	 * interrupted unload left: the directive removes it only when it is
+	 * the payload the directive names, as it would its pins.
+	 */
 	if (!upatch_is_pinned(name)) {
-		if (unlink(persisted) != 0 && errno != ENOENT)
-			pr_warn("upatch unload: could not remove %s: %s",
-				persisted, strerror(errno));
+		struct upatch archived;
+
+		err = upatch_archive_verify(name, payload, &archived);
+		if (!err) {
+			upatch_close(&archived);
+			if (unlink(persisted) != 0 && errno != ENOENT)
+				pr_warn("upatch unload: could not remove %s: %s",
+					persisted, strerror(errno));
+		} else if (err != -ESTALE || !access(persisted, F_OK)) {
+			pr_err("upatch unload: payload_mismatch, %s is not the "
+			       "upatch the directive expects; it stays",
+			       persisted);
+			rep_fail(&rep, "pin", "payload_mismatch",
+				 err == -ESTALE ? EPERM : -err,
+				 "archived payload does not match directive");
+			goto done;
+		}
 		pr_info("upatch unload: %s already unloaded (no pin)", name);
 		pr_audit("upatch unload: name=%s already_unloaded", name);
 		rep.ok = true;

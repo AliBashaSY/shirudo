@@ -922,8 +922,9 @@ payload digest recorded on the upatch's pin directory, in the xattr
 ``security.bpf.shirudo.payload`` that only authorized tasks can change
 (``PinXattr``), with the directive's signed expected payload. It refuses
 ``payload_mismatch`` when they differ or when the xattr cannot be read.
-A directive therefore removes the upatch its signer made it for and no
-other.
+With no pins, it removes the name's archive only when the archive's
+bytes are the expected payload. A directive therefore removes the
+upatch its signer made it for and no other.
 
 The Lua decoders that map export runs with runtime authority ride in a
 signed section too. Export reads them from the archived artifact only
