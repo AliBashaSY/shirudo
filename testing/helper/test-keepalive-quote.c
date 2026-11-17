@@ -38,7 +38,7 @@ static int quote_values(char *quote, const char *values[QUOTE_FIELDS])
 		if (strncmp(field, keys[i], n))
 			return -EINVAL;
 		values[i] = field + n;
-		end = strchr(values[i], ';');
+		end = strchr(field + n, ';');
 		if (i + 1 == QUOTE_FIELDS) {
 			if (end)
 				return -EINVAL;
