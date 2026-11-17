@@ -95,9 +95,20 @@ static void any_array(char ids[IDS][LEN + 1], const size_t lens[IDS])
 	value[at] = '\0';
 }
 
+/*
+ * CBMC 5.95 reads a char at an index that depends on the data, as
+ * bpm_fix_id_ok() does, from the first member of an object whose type
+ * starts with an array of char, as struct bpm_fixes does: held behind
+ * another member, each row is read where it is.
+ */
+static struct {
+	int before;
+	struct bpm_fixes fixes;
+} held;
+
 void harness(void)
 {
-	struct bpm_fixes fixes = {};
+	struct bpm_fixes *fixes = &held.fixes;
 	char ids[IDS][LEN + 1];
 	bool valid = true;
 	size_t lens[IDS];
@@ -113,21 +124,21 @@ void harness(void)
 		for (int j = 0; j < i; j++)
 			valid = valid && strcmp(ids[i], ids[j]) != 0;
 	}
-	ret = build_parse_fixes(value, &fixes);
+	ret = build_parse_fixes(value, fixes);
 	__CPROVER_assert(!ret == valid,
 			 "taken exactly when each ID is a nonempty run of [A-Za-z0-9._:-], none twice");
 	if (ret)
 		return;
-	__CPROVER_assert(fixes.n == IDS, "every ID kept");
+	__CPROVER_assert(fixes->n == IDS, "every ID kept");
 	for (int i = 0; i < IDS; i++) {
 		bool given = false;
 
 		for (int j = 0; j < IDS; j++)
-			given = given || !strcmp(fixes.ids[i], ids[j]);
+			given = given || !strcmp(fixes->ids[i], ids[j]);
 		__CPROVER_assert(given, "each one of those given");
-		__CPROVER_assert(!i || strcmp(fixes.ids[i - 1], fixes.ids[i]) < 0,
+		__CPROVER_assert(!i || strcmp(fixes->ids[i - 1], fixes->ids[i]) < 0,
 				 "in ascending order");
 	}
-	__CPROVER_assert(build_parse_fixes(value, &fixes) == -EINVAL &&
-			 fixes.n == IDS, "fixes given twice in one table refused");
+	__CPROVER_assert(build_parse_fixes(value, fixes) == -EINVAL &&
+			 fixes->n == IDS, "fixes given twice in one table refused");
 }
