@@ -1363,8 +1363,11 @@ unit cases. Of :src:`util/sysinfo.c` the
 proofs cover the image identity's parsers; reading the files they parse,
 and the readers of ``/proc`` and the root file system, go to the kernel
 and have none. Of :src:`util/attest.c` the proofs cover the functions
-the table names; ``pcr_values_digest()``, which the target and
-``attest_verify()`` both check a quote's PCR digest with, has none.
+the table names. ``attest_verify()``, ``verify_document()`` and the
+steps it runs a document through, ``evidence_parse()`` to
+``verify_expected_pcrs()``, ``check_signed()`` and
+``pcr_values_digest()``, which the target checks its quote with too,
+have none; the ``attest`` fuzz target runs them.
 
 Within the operator's package builder and publisher, the proofs cover the
 tar header, the member names, the Beefile's values, lines, names, fixes

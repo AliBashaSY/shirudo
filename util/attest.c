@@ -701,66 +701,735 @@ static void note(struct reporter *r, const char *fmt, ...)
 	}
 }
 
-static int check_signed(struct reporter *rep, const char *what,
+/* What the steps of attest_verify() share. */
+struct verify {
+	struct reporter			rep;
+	const struct attest_expect	*expect;
+	struct parse			*p;
+	struct config_evidence		config;
+	bool				have_ek;
+	bool				have_cred;
+	__u8				nonce[ATTEST_NONCE_MAX];
+	size_t				nonce_len;
+	struct tpm_ecc_public		ak_pub;
+	__u8				ak_name[TPM_NAME_LEN];
+	/*
+	 * check_signed() decodes each attestation here, the register's
+	 * over the quote's: certify's pointers stay valid, the quote's do
+	 * not.
+	 */
+	__u8				attest[TPM_ATTEST_MAX];
+	struct tpm_attest		quote;
+	struct tpm_attest		certify;
+	int				qrc;	/* check_signed() of the quote */
+	int				crc;	/* and of the register */
+	__u8				reg_name[TPM_NAME_LEN];
+	__u8				reg_value[32];
+	__u64				reg_index;
+	size_t				runtime;	/* records after init */
+};
+
+static int check_signed(struct verify *v, const char *what,
 			const char *attest_hex, const char *sig_hex,
-			const struct tpm_ecc_public *ak,
-			const __u8 ak_name[TPM_NAME_LEN],
-			const __u8 *nonce, size_t nonce_len,
-			__u8 *attest, size_t attest_cap, size_t *attest_len,
 			struct tpm_attest *parsed)
 {
+	struct reporter *rep = &v->rep;
 	__u8 sig[TPM_SIGNATURE_MAX];
+	size_t attest_len, sig_len;
 	bool signer = false;
-	size_t sig_len;
 	int ret;
 
-	if (hex_decode_max(attest_hex, attest, attest_cap, attest_len) ||
+	if (hex_decode_max(attest_hex, v->attest, sizeof(v->attest),
+			   &attest_len) ||
 	    hex_decode_max(sig_hex, sig, sizeof(sig), &sig_len))
 		return -EINVAL;
-	if (tpm_attest_parse(attest, *attest_len, parsed)) {
+	if (tpm_attest_parse(v->attest, attest_len, parsed)) {
 		say(rep, false, "%s: attestation structure unparseable", what);
 		return -EKEYREJECTED;
 	}
-	ret = tpm_attest_verify(attest, *attest_len, sig, sig_len, ak->x,
-				ak->y);
+	ret = tpm_attest_verify(v->attest, attest_len, sig, sig_len,
+				v->ak_pub.x, v->ak_pub.y);
 	if (ret == -EBADMSG) {
 		say(rep, false, "%s: signature structure unparseable", what);
 		return -EKEYREJECTED;
 	}
 	say(rep, ret == 0, "%s: ECDSA signature by the attestation key", what);
-	say(rep, !tpm_attest_signer(parsed, ak_name, &signer) && signer,
+	say(rep, !tpm_attest_signer(parsed, v->ak_name, &signer) && signer,
 	    "%s: signed by the key as an endorsement primary", what);
-	say(rep, parsed->extra_len == nonce_len &&
-	    (nonce_len == 0 ||
-	     !memneq_explicit(parsed->extra, nonce, nonce_len)),
+	say(rep, parsed->extra_len == v->nonce_len &&
+	    (v->nonce_len == 0 ||
+	     !memneq_explicit(parsed->extra, v->nonce, v->nonce_len)),
 	    "%s: carries the nonce", what);
 	return 0;
+}
+
+static int evidence_parse(struct verify *v, const char *evidence, size_t len)
+{
+	struct parse *p = v->p;
+	struct json_array pcr_sink = { on_pcr, p };
+	struct json_array rec_sink = { on_record, p };
+	struct json_field pcr_sub[] = {
+		{ "index", JSON_T_INT, &p->pcr_index, 0, 0,
+		  NULL, 0 },
+		{ "value", JSON_T_STRING, p->pcr_value_hex,
+		  sizeof(p->pcr_value_hex), 0, NULL, 0 },
+	};
+	struct json_field ak_sub[] = {
+		{ "public", JSON_T_STRING, p->ak_public_hex,
+		  sizeof(p->ak_public_hex), 0, NULL, 0 },
+		{ "name", JSON_T_STRING, p->ak_name_hex,
+		  sizeof(p->ak_name_hex), 0, NULL, 0 },
+	};
+	struct json_field quote_sub[] = {
+		{ "attest", JSON_T_STRING, p->quote_attest_hex,
+		  sizeof(p->quote_attest_hex), 0, NULL, 0 },
+		{ "signature", JSON_T_STRING, p->quote_sig_hex,
+		  sizeof(p->quote_sig_hex), 0, NULL, 0 },
+	};
+	struct json_field ek_sub[] = {
+		{ "type", JSON_T_STRING, p->ek_type,
+		  sizeof(p->ek_type), 0, NULL, 0 },
+		{ "public", JSON_T_STRING, p->ek_public_hex,
+		  sizeof(p->ek_public_hex), 0, NULL, 0 },
+		{ "name", JSON_T_STRING, p->ek_name_hex,
+		  sizeof(p->ek_name_hex), 0, NULL, 0 },
+	};
+	struct json_field cred_sub[] = {
+		{ "value", JSON_T_STRING, p->cred_hex,
+		  sizeof(p->cred_hex), 0, NULL, 0 },
+	};
+	struct json_field reg_sub[] = {
+		{ "nv_index", JSON_T_STRING, p->reg_index,
+		  sizeof(p->reg_index), 0, NULL, 0 },
+		{ "pcr", JSON_T_INT, &p->reg_pcr, 0, 0, NULL,
+		  0 },
+		{ "name", JSON_T_STRING, p->reg_name_hex,
+		  sizeof(p->reg_name_hex), 0, NULL, 0 },
+		{ "value", JSON_T_STRING, p->reg_value_hex,
+		  sizeof(p->reg_value_hex), 0, NULL, 0 },
+		{ "attest", JSON_T_STRING, p->reg_attest_hex,
+		  sizeof(p->reg_attest_hex), 0, NULL, 0 },
+		{ "signature", JSON_T_STRING, p->reg_sig_hex,
+		  sizeof(p->reg_sig_hex), 0, NULL, 0 },
+	};
+	struct json_field upatch_sub[] = {
+		{ "name", JSON_T_STRING, p->upatch_name,
+		  sizeof(p->upatch_name), 0, NULL, 0 },
+		{ "payload_sha256", JSON_T_STRING,
+		  p->upatch_payload_hex, sizeof(p->upatch_payload_hex),
+		  0, NULL, 0 },
+	};
+	struct json_field key_sub[] = {
+		{ "fingerprint", JSON_T_STRING,
+		  p->key_fingerprint, sizeof(p->key_fingerprint), 0,
+		  NULL, 0 },
+		{ "cert_sha256", JSON_T_STRING, p->key_sha_hex,
+		  sizeof(p->key_sha_hex), 0, NULL, 0 },
+	};
+	struct json_field tree_sub[] = {
+		{ "seq", JSON_T_INT, &p->tree_seq, 0, 0, NULL,
+		  0 },
+		{ "op", JSON_T_STRING, p->tree_op,
+		  sizeof(p->tree_op), 0, NULL, 0 },
+		{ "id", JSON_T_STRING, p->tree_id,
+		  sizeof(p->tree_id), 0, NULL, 0 },
+		{ "operation_digest", JSON_T_STRING,
+		  p->tree_digest_hex, sizeof(p->tree_digest_hex), 0,
+		  NULL, 0 },
+	};
+	struct json_field rec_sub[] = {
+		{ "type", JSON_T_STRING, p->type,
+		  sizeof(p->type), 0, NULL, 0 },
+		{ "digest", JSON_T_STRING, p->digest_hex,
+		  sizeof(p->digest_hex), 0, NULL, 0 },
+		{ "pcr", JSON_T_INT, &p->rec_pcr, 0, 0, NULL,
+		  0 },
+		{ "tpm_reset_count", JSON_T_INT, &p->rec_reset,
+		  0, 0, NULL, 0 },
+		{ "pcr_before", JSON_T_STRING,
+		  p->pcr_before_hex, sizeof(p->pcr_before_hex), 0,
+		  NULL, 0 },
+		{ "phase_pcr", JSON_T_INT, &p->rec_phase_pcr, 0,
+		  0, NULL, 0 },
+		{ "phase_before", JSON_T_STRING,
+		  p->phase_before_hex, sizeof(p->phase_before_hex), 0,
+		  NULL, 0 },
+		{ "bound_in", JSON_T_STRING, p->bound_in,
+		  sizeof(p->bound_in), 0, NULL, 0 },
+		{ "nv_name", JSON_T_STRING, p->nv_name_hex,
+		  sizeof(p->nv_name_hex), 0, NULL, 0 },
+		{ "nv_writer_public", JSON_T_STRING,
+		  p->writer_public_hex, sizeof(p->writer_public_hex),
+		  0, NULL, 0 },
+		{ "anchor", JSON_T_STRING, p->anchor,
+		  sizeof(p->anchor), 0, NULL, 0 },
+		{ "anchor_digest", JSON_T_STRING,
+		  p->anchor_digest_hex, sizeof(p->anchor_digest_hex), 0,
+		  NULL, 0 },
+		{ "chain", JSON_T_STRING, p->chain_hex,
+		  sizeof(p->chain_hex), 0, NULL, 0 },
+		{ "upatch", JSON_T_OBJECT, NULL, 0, 0,
+		  upatch_sub, ARRAY_SIZE(upatch_sub) },
+		{ "tree", JSON_T_OBJECT, NULL, 0, 0, tree_sub,
+		  ARRAY_SIZE(tree_sub) },
+		{ "key", JSON_T_OBJECT, NULL, 0, 0, key_sub,
+		  ARRAY_SIZE(key_sub) },
+	};
+	struct json_field top[] = {
+		{ "nonce", JSON_T_STRING, p->nonce_hex,
+		  sizeof(p->nonce_hex), 0, NULL, 0 },
+		{ "pcr_mask", JSON_T_INT, &p->pcr_mask, 0, 0,
+		  NULL, 0 },
+		{ "pcrs", JSON_T_ARRAY, &pcr_sink, 0, 0,
+		  pcr_sub, ARRAY_SIZE(pcr_sub) },
+		{ "ak", JSON_T_OBJECT, NULL, 0, 0, ak_sub,
+		  ARRAY_SIZE(ak_sub) },
+		{ "quote", JSON_T_OBJECT, NULL, 0, 0, quote_sub,
+		  ARRAY_SIZE(quote_sub) },
+		{ "register", JSON_T_OBJECT, NULL, 0, 0,
+		  reg_sub, ARRAY_SIZE(reg_sub) },
+		{ "eventlog", JSON_T_ARRAY, &rec_sink, 0, 0,
+		  rec_sub, ARRAY_SIZE(rec_sub) },
+		{ "ek", JSON_T_OBJECT, NULL, 0, 0, ek_sub,
+		  ARRAY_SIZE(ek_sub) },
+		{ "credential", JSON_T_OBJECT, NULL, 0, 0,
+		  cred_sub, ARRAY_SIZE(cred_sub) },
+	};
+	int ret;
+
+	p->rec_pcr = -1;
+	p->rec_phase_pcr = -1;
+	p->rec_reset = -1;
+	ret = json_parse(evidence, len, top, ARRAY_SIZE(top));
+	if (ret || !top[0].seen || !top[1].seen || !top[2].seen ||
+	    !top[3].seen || !top[4].seen || !top[5].seen ||
+	    !top[6].seen)
+		return -EINVAL;
+	v->have_ek = ek_sub[0].seen && ek_sub[1].seen && ek_sub[2].seen;
+	v->have_cred = cred_sub[0].seen;
+	return 0;
+}
+
+static int evidence_parse_config(struct verify *v, const char *evidence,
+				 size_t len)
+{
+	int ret;
+
+	ret = config_evidence_parse(evidence, len, &v->config);
+	if (ret == -EKEYREJECTED)
+		say(&v->rep, false, "config: the events are one boot event followed by updates in sequence");
+	return ret;
+}
+
+/* Freshness: the document must answer this request. */
+static int verify_nonce(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+
+	if (hex_decode_max(v->p->nonce_hex, v->nonce, sizeof(v->nonce),
+			   &v->nonce_len))
+		return -EINVAL;
+	say(&v->rep, expect->nonce_len == v->nonce_len &&
+	    (v->nonce_len == 0 ||
+	     !memneq_explicit(v->nonce, expect->nonce, v->nonce_len)),
+	    "nonce matches the request");
+	return 0;
+}
+
+static int verify_ak(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	struct reporter *rep = &v->rep;
+	__u8 ak_public[TPM_PUBLIC_MAX];
+	__u8 computed[TPM_NAME_LEN];
+	struct parse *p = v->p;
+	size_t ak_public_len;
+
+	if (hex_decode_max(p->ak_public_hex, ak_public, sizeof(ak_public),
+			   &ak_public_len) ||
+	    hex_decode(p->ak_name_hex, v->ak_name, TPM_NAME_LEN))
+		return -EINVAL;
+	if (tpm_ecc_public_parse(ak_public, ak_public_len, &v->ak_pub)) {
+		say(rep, false, "attestation key: public area is not a "
+		    "P-256 ECDSA key");
+		return -EKEYREJECTED;
+	}
+	say(rep, (v->ak_pub.attrs & AK_ATTRS_REQUIRED) == AK_ATTRS_REQUIRED,
+	    "attestation key: restricted, fixed to this TPM");
+	say(rep,
+	    !tpm_object_name(ak_public, ak_public_len, computed) &&
+	    !memneq_explicit(computed, v->ak_name, sizeof(computed)),
+	    "attestation key: name matches its public area");
+	if (expect->have_ak_name)
+		say(rep,
+		    !memneq_explicit(v->ak_name, expect->ak_name, TPM_NAME_LEN),
+		    "attestation key: the pinned key");
+	else
+		note(rep, "attestation key not pinned: name %s",
+		     p->ak_name_hex);
+	return 0;
+}
+
+static int verify_ek(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	struct reporter *rep = &v->rep;
+	struct parse *p = v->p;
+
+	if (v->have_ek) {
+		__u8 ek_public[TPM_PUBLIC_MAX];
+		__u8 ek_name[TPM_NAME_LEN], computed[TPM_NAME_LEN];
+		struct tpm_public ek_pub;
+		size_t ek_public_len;
+		bool parsed;
+
+		if (hex_decode_max(p->ek_public_hex, ek_public,
+				   sizeof(ek_public), &ek_public_len) ||
+		    hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN))
+			return -EINVAL;
+		parsed = tpm_public_parse(ek_public, ek_public_len,
+					  &ek_pub) == 0;
+		say(rep, parsed &&
+		    !tpm_object_name(ek_public, ek_public_len, computed) &&
+		    !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
+		    "endorsement key: name matches its public area");
+		say(rep, parsed && ek_pub.attrs == TPM_EK_ATTRS &&
+		    ek_pub.policy_len == 32 &&
+		    !memneq_explicit(ek_pub.policy, shirudo_tpm_ek_policy, 32),
+		    "endorsement key: TCG default template under the "
+		    "endorsement policy");
+	} else {
+		note(rep, "no endorsement key in the evidence");
+	}
+	if (expect->have_ek_name) {
+		__u8 ek_name[TPM_NAME_LEN];
+
+		say(rep, v->have_ek &&
+		    !hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN) &&
+		    !memneq_explicit(ek_name, expect->ek_name, TPM_NAME_LEN),
+		    "endorsement key: the pinned key");
+	}
+	return 0;
+}
+
+static int verify_credential(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	struct reporter *rep = &v->rep;
+	__u8 cred[TPM_CREDENTIAL_LEN];
+	size_t cred_len = 0;
+	int ret = 0;
+
+	if (v->have_cred &&
+	    hex_decode_max(v->p->cred_hex, cred, sizeof(cred), &cred_len))
+		ret = -EINVAL;
+	else if (expect->have_credential)
+		say(rep, v->have_cred && cred_len == TPM_CREDENTIAL_LEN &&
+		    !memneq_explicit(cred, expect->credential,
+				     TPM_CREDENTIAL_LEN),
+		    "attestation key: activated the credential made for it "
+		    "under the endorsement key");
+	else if (v->have_cred)
+		note(rep, "a credential was activated but none is expected "
+		     "(--expect-credential)");
+	memzero_explicit(cred, sizeof(cred));
+	return ret;
+}
+
+static int verify_quote(struct verify *v)
+{
+	struct tpm_attest *quote = &v->quote;
+	struct reporter *rep = &v->rep;
+	struct parse *p = v->p;
+	int ret;
+
+	ret = check_signed(v, "quote", p->quote_attest_hex, p->quote_sig_hex,
+			   quote);
+	if (ret == -EINVAL)
+		return ret;
+	v->qrc = ret;
+	if (ret == 0) {
+		__u8 digest[32] = {};
+		bool complete =
+			quote->type == TPM_ST_ATTEST_QUOTE &&
+			p->pcr_mask == (__s64)quote->pcr_mask &&
+			p->pcr_have == quote->pcr_mask;
+		bool vouched;
+
+		say(rep, complete,
+		    "quote: covers the PCRs the document lists");
+		vouched = complete &&
+			  !pcr_values_digest(quote->pcr_mask, p->pcrs, digest) &&
+			  !memneq_explicit(digest, quote->pcr_digest, 32);
+		say(rep, vouched,
+		    "quote: PCR digest matches the listed values");
+		if (!vouched)
+			p->pcr_have = 0;
+	} else {
+		p->pcr_have = 0;
+	}
+	return 0;
+}
+
+static int verify_register(struct verify *v)
+{
+	const struct tpm_attest *quote = &v->quote;
+	struct tpm_attest *certify = &v->certify;
+	struct reporter *rep = &v->rep;
+	const char *reg_index_hex;
+	struct parse *p = v->p;
+	int ret;
+
+	ret = check_signed(v, "register", p->reg_attest_hex, p->reg_sig_hex,
+			   certify);
+	if (ret == -EINVAL)
+		return ret;
+	v->crc = ret;
+	reg_index_hex = p->reg_index;
+	if (hex_decode(p->reg_name_hex, v->reg_name, TPM_NAME_LEN) ||
+	    hex_decode(p->reg_value_hex, v->reg_value, 32) ||
+	    !str_skip_prefix(&reg_index_hex, "0x") ||
+	    parse_x64(reg_index_hex, strlen(reg_index_hex), 0xffffffffULL,
+		      &v->reg_index) ||
+	    p->reg_pcr < 0 || p->reg_pcr >= 24)
+		return -EINVAL;
+	if (ret == 0) {
+		say(rep, certify->type == TPM_ST_ATTEST_NV &&
+		    certify->index_name_len == TPM_NAME_LEN &&
+		    !memneq_explicit(certify->index_name, v->reg_name,
+				     TPM_NAME_LEN),
+		    "register: certification names the listed index");
+		say(rep, certify->type == TPM_ST_ATTEST_NV &&
+		    certify->offset == 0 && certify->nv_len == 32 &&
+		    !memneq_explicit(certify->nv_data, v->reg_value, 32),
+		    "register: certified contents match the listed value");
+	}
+	/* A restart clears the register as a reset does. */
+	if (v->qrc == 0 && v->crc == 0)
+		say(rep, quote->reset_count == certify->reset_count &&
+		    quote->restart_count == certify->restart_count &&
+		    quote->firmware_version == certify->firmware_version,
+		    "quote and certification are of one TPM boot");
+	return 0;
+}
+
+static void verify_config(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	const struct tpm_attest *quote = &v->quote;
+	const __u8 *root = expect->have_config_root ?
+			   expect->config_root : NULL;
+	struct reporter *rep = &v->rep;
+	const char *reason;
+	int pcr, ret;
+
+	if (!v->config.present && !expect->have_config_root &&
+	    !expect->have_config_pcr)
+		return;
+	pcr = expect->have_config_pcr ? (int)expect->config_pcr : -1;
+	ret = config_evidence_verify(&v->config, quote->pcr_mask,
+				     quote->reset_count,
+				     quote->restart_count,
+				     v->p->pcrs, root, pcr,
+				     &reason);
+	say(rep, !ret, "config: %s", reason);
+	if (v->config.present && !expect->have_config_root)
+		note(rep, "config root has no operator approval; use "
+		     "--expect-config-root with --expect-config-pcr");
+	if (v->config.present)
+		note(rep, "config records a selection; "
+		     "direct TPM writer protection is deferred");
+}
+
+static int register_written_name(struct verify *v, __u8 name[TPM_NAME_LEN])
+{
+	__u8 branch_written[32], branch_init[32], policy[32], bind[64];
+	struct reporter *rep = &v->rep;
+	struct parse *p = v->p;
+	int ret;
+
+	memcpy(bind, p->init.pcr_before, 32);
+	memcpy(bind + 32, p->init.phase_before, 32);
+	ret = tpm_register_policy(CHAIN_PCR_MASK, bind, 2,
+				  p->init.writer_public,
+				  branch_written, branch_init, policy);
+	if (ret) {
+		say(rep, false, "register: cannot compute the signed write policy");
+		/* Malformed recorded values are the document's failure, not a parse error. */
+		if (ret == -EINVAL)
+			ret = -EKEYREJECTED;
+		return ret;
+	}
+	ret = tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
+			  policy, 32, name);
+	if (ret) {
+		say(rep, false, "register: cannot compute the index name");
+		return ret;
+	}
+	return 0;
+}
+
+static void verify_bind_values(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	const struct parse *p = v->p;
+	__u32 bit;
+
+	for (bit = 0; bit < 24; bit++) {
+		const __u8 *held;
+
+		if (!(expect->bind_expect_mask & (1u << bit)))
+			continue;
+		held = bit == CHAIN_PCR ? p->init.pcr_before :
+		       bit == CHAIN_PHASE_PCR ? p->init.phase_before :
+		       NULL;
+		say(&v->rep, held &&
+		    !memneq_explicit(held, expect->bind_values[bit], 32),
+		    "binding: PCR %u held the expected value", bit);
+	}
+}
+
+/*
+ * The binding: the certified index must have the public area a
+ * register bound to the recorded PCR values has, which is what
+ * makes a recreation impossible to pass off, and those values are
+ * what the operator pins to tell an initrd binding from a later one.
+ * The handle and the PCRs are the register's, never the document's:
+ * taken from the record, a target could certify an index of its own
+ * under a policy over PCRs it can extend and reset at will.
+ */
+static int verify_binding(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	__u8 expected_name[TPM_NAME_LEN];
+	struct reporter *rep = &v->rep;
+	struct parse *p = v->p;
+	int ret;
+
+	say(rep, p->init.present, "eventlog: this boot has an init record");
+	if (!p->init.present)
+		return -EKEYREJECTED;
+	say(rep, v->reg_index == NV_INDEX &&
+	    (__u32)p->reg_pcr == CHAIN_PCR &&
+	    p->init.pcr == CHAIN_PCR &&
+	    p->init.phase_pcr == CHAIN_PHASE_PCR,
+	    "register: the document names index 0x%08X and PCRs %u and %u",
+	    NV_INDEX, CHAIN_PCR, CHAIN_PHASE_PCR);
+	ret = register_written_name(v, expected_name);
+	if (ret)
+		return ret;
+	say(rep, !memneq_explicit(expected_name, v->reg_name, TPM_NAME_LEN) &&
+	    !memneq_explicit(expected_name, p->init.name, TPM_NAME_LEN),
+	    "register: public area is bound to PCRs %u and %u as recorded",
+	    CHAIN_PCR, CHAIN_PHASE_PCR);
+	verify_bind_values(v);
+	if (expect->require_initrd)
+		say(rep, p->init.initrd, "binding: made while the initrd ran");
+	else
+		note(rep, "binding: made in the %s",
+		     p->init.initrd ? "initrd" : "root file system");
+	return 0;
+}
+
+/*
+ * The epoch: one binding per TPM reset, and the one on record is
+ * of the reset the TPM certifies in, so no register bound again
+ * after boot can pass as the boot's.
+ */
+static void verify_epoch(struct verify *v)
+{
+	struct reporter *rep = &v->rep;
+	const struct parse *p = v->p;
+
+	say(rep, p->inits_epoch == 1,
+	    "eventlog: one init record for this TPM reset (%u this boot)",
+	    p->inits);
+	if (v->crc == 0)
+		say(rep, p->init.have_reset_count &&
+		    p->init.reset_count == v->certify.reset_count,
+		    "register: init record is of the TPM's current reset "
+		    "count");
+}
+
+static void verify_replay(struct verify *v)
+{
+	const struct parse *p = v->p;
+	bool replayed = true;
+	__u8 chain[32] = {};
+	size_t i;
+
+	for (i = 0; i < p->n_recs; i++) {
+		if (chain_fold(chain, p->recs[i].digest))
+			replayed = false;
+		if (i)
+			v->runtime++;
+	}
+	say(&v->rep, replayed && !memneq_explicit(chain, v->reg_value, 32),
+	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
+	    p->n_recs == 1 ? "" : "s");
+}
+
+/*
+ * A digest the record's own fields do not produce is a record
+ * relabelled after the fact: the replay still closes, but what the
+ * events say happened is not what was measured.
+ */
+static void verify_derived(struct verify *v)
+{
+	const struct parse *p = v->p;
+	size_t i;
+
+	for (i = 1; i < p->n_recs; i++) {
+		if (!p->recs[i].derived)
+			say(&v->rep, false, "eventlog: event %zu (%s %s) digest "
+			    "does not derive from its fields", i,
+			    p->recs[i].type, p->recs[i].label);
+	}
+}
+
+static void verify_anchor(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	__u8 anchor_digest[32] = {}, pcr_expected[32];
+	struct reporter *rep = &v->rep;
+	char anchor[CHAIN_ANCHOR_MAX];
+	const struct parse *p = v->p;
+	bool named = !chain_anchor(p->init.name, anchor,
+				   sizeof(anchor)) &&
+		     !sha256_buffer(anchor, strlen(anchor),
+				    anchor_digest);
+
+	say(rep, named &&
+	    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),
+	    "anchor: record digest matches the index name");
+	memcpy(pcr_expected, p->init.pcr_before, 32);
+	named = !chain_fold(pcr_expected, anchor_digest) && named;
+	if (p->pcr_have & (1u << CHAIN_PCR)) {
+		bool exact = named &&
+			     !memneq_explicit(pcr_expected,
+					      p->pcrs[CHAIN_PCR], 32);
+
+		if (exact || expect->strict_anchor)
+			say(rep, exact, "anchor: PCR %u equals the "
+			    "recorded value extended by the anchor",
+			    CHAIN_PCR);
+		else
+			note(rep, "anchor: PCR %u carries further "
+			     "measurements after the anchor; replay "
+			     "the logs to confirm it",
+			     CHAIN_PCR);
+	} else {
+		say(rep, false, "anchor: PCR %u is not in the quote",
+		    CHAIN_PCR);
+	}
+}
+
+static void verify_state(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	struct reporter *rep = &v->rep;
+	const struct parse *p = v->p;
+	size_t i;
+
+	if (expect->have_init)
+		say(rep,
+		    !memneq_explicit(p->init.digest, expect->init_event, 32),
+		    "state: init event covers the expected certificate, set "
+		    "and tree root");
+	if (expect->have_chain) {
+		say(rep, !memneq_explicit(v->reg_value, expect->chain, 32),
+		    "state: register equals the expected value");
+	} else if (expect->have_init) {
+		__u8 predicted[32] = {};
+		bool folded = !chain_fold(predicted, expect->init_event);
+
+		if (v->runtime == 0)
+			say(rep, folded &&
+			    !memneq_explicit(v->reg_value, predicted, 32),
+			    "state: register equals the value predicted for "
+			    "the set at boot");
+		else
+			say(rep, expect->allow_runtime_events,
+			    "state: %zu event%s after boot change the register",
+			    v->runtime, v->runtime == 1 ? "" : "s");
+	} else {
+		note(rep, "no expected state given; the register value is "
+		     "%s", p->reg_value_hex);
+	}
+	for (i = 1; i < p->n_recs; i++)
+		note(rep, "event after boot: %s %s", p->recs[i].type,
+		     p->recs[i].label);
+}
+
+static void verify_expected_pcrs(struct verify *v)
+{
+	const struct attest_expect *expect = v->expect;
+	const struct parse *p = v->p;
+	__u32 bit;
+
+	for (bit = 0; bit < 24; bit++) {
+		if (!(expect->pcr_expect_mask & (1u << bit)))
+			continue;
+		say(&v->rep, (p->pcr_have & (1u << bit)) &&
+		    !memneq_explicit(p->pcrs[bit], expect->pcrs[bit], 32),
+		    "PCR %u matches the expected value", bit);
+	}
+}
+
+static int verify_document(struct verify *v, const char *evidence,
+			   size_t len)
+{
+	int ret;
+
+	ret = evidence_parse(v, evidence, len);
+	if (ret)
+		return ret;
+	ret = evidence_parse_config(v, evidence, len);
+	if (ret)
+		return ret;
+	ret = verify_nonce(v);
+	if (ret)
+		return ret;
+	ret = verify_ak(v);
+	if (ret)
+		return ret;
+	ret = verify_ek(v);
+	if (ret)
+		return ret;
+	ret = verify_credential(v);
+	if (ret)
+		return ret;
+	ret = verify_quote(v);
+	if (ret)
+		return ret;
+	ret = verify_register(v);
+	if (ret)
+		return ret;
+	verify_config(v);
+	ret = verify_binding(v);
+	if (ret)
+		return ret;
+	verify_epoch(v);
+	verify_replay(v);
+	verify_derived(v);
+	verify_anchor(v);
+	verify_state(v);
+	verify_expected_pcrs(v);
+	return v->rep.failed ? -EKEYREJECTED : 0;
 }
 
 int attest_verify(const char *evidence, size_t len,
 		  const struct attest_expect *expect,
 		  char *report, size_t report_cap)
 {
-	struct reporter rep = { .buf = report, .cap = report_cap };
-	struct config_evidence config = {};
-	struct tpm_attest quote = {}, certify = {};
-	struct tpm_ecc_public ak_pub;
-	__u8 ak_public[TPM_PUBLIC_MAX];
-	__u8 ak_name[TPM_NAME_LEN];
-	__u8 reg_name[TPM_NAME_LEN], reg_value[32];
-	__u8 attest[TPM_ATTEST_MAX];
-	__u8 nonce[ATTEST_NONCE_MAX], chain[32] = {};
-	__u8 branch_written[32], branch_init[32], policy[32], bind[64];
-	__u8 expected_name[TPM_NAME_LEN], pcr_expected[32];
-	__u8 anchor_digest[32] = {}, cred[TPM_CREDENTIAL_LEN];
-	const char *reg_index_hex;
+	struct verify v = {
+		.rep = { .buf = report, .cap = report_cap },
+		.expect = expect,
+		.qrc = -1,
+		.crc = -1,
+	};
 	struct parse *p;
-	size_t ak_public_len, nonce_len, attest_len;
-	size_t cred_len = 0, i, runtime = 0;
-	__u64 reg_index;
-	__u32 bit;
-	bool have_ek = false, have_cred = false, replayed = true;
-	int ret = 0, qrc = -1, crc = -1;
+	int ret;
 
 	if (report_cap)
 		report[0] = '\0';
@@ -772,499 +1441,11 @@ int attest_verify(const char *evidence, size_t len,
 		xfree(p, sizeof(*p));
 		return -ENOMEM;
 	}
-	p->rec_pcr = -1;
-	p->rec_phase_pcr = -1;
-	p->rec_reset = -1;
-
-	{
-		struct json_array pcr_sink = { on_pcr, p };
-		struct json_array rec_sink = { on_record, p };
-		struct json_field pcr_sub[] = {
-			{ "index", JSON_T_INT, &p->pcr_index, 0, 0,
-			  NULL, 0 },
-			{ "value", JSON_T_STRING, p->pcr_value_hex,
-			  sizeof(p->pcr_value_hex), 0, NULL, 0 },
-		};
-		struct json_field ak_sub[] = {
-			{ "public", JSON_T_STRING, p->ak_public_hex,
-			  sizeof(p->ak_public_hex), 0, NULL, 0 },
-			{ "name", JSON_T_STRING, p->ak_name_hex,
-			  sizeof(p->ak_name_hex), 0, NULL, 0 },
-		};
-		struct json_field quote_sub[] = {
-			{ "attest", JSON_T_STRING, p->quote_attest_hex,
-			  sizeof(p->quote_attest_hex), 0, NULL, 0 },
-			{ "signature", JSON_T_STRING, p->quote_sig_hex,
-			  sizeof(p->quote_sig_hex), 0, NULL, 0 },
-		};
-		struct json_field ek_sub[] = {
-			{ "type", JSON_T_STRING, p->ek_type,
-			  sizeof(p->ek_type), 0, NULL, 0 },
-			{ "public", JSON_T_STRING, p->ek_public_hex,
-			  sizeof(p->ek_public_hex), 0, NULL, 0 },
-			{ "name", JSON_T_STRING, p->ek_name_hex,
-			  sizeof(p->ek_name_hex), 0, NULL, 0 },
-		};
-		struct json_field cred_sub[] = {
-			{ "value", JSON_T_STRING, p->cred_hex,
-			  sizeof(p->cred_hex), 0, NULL, 0 },
-		};
-		struct json_field reg_sub[] = {
-			{ "nv_index", JSON_T_STRING, p->reg_index,
-			  sizeof(p->reg_index), 0, NULL, 0 },
-			{ "pcr", JSON_T_INT, &p->reg_pcr, 0, 0, NULL,
-			  0 },
-			{ "name", JSON_T_STRING, p->reg_name_hex,
-			  sizeof(p->reg_name_hex), 0, NULL, 0 },
-			{ "value", JSON_T_STRING, p->reg_value_hex,
-			  sizeof(p->reg_value_hex), 0, NULL, 0 },
-			{ "attest", JSON_T_STRING, p->reg_attest_hex,
-			  sizeof(p->reg_attest_hex), 0, NULL, 0 },
-			{ "signature", JSON_T_STRING, p->reg_sig_hex,
-			  sizeof(p->reg_sig_hex), 0, NULL, 0 },
-		};
-		struct json_field upatch_sub[] = {
-			{ "name", JSON_T_STRING, p->upatch_name,
-			  sizeof(p->upatch_name), 0, NULL, 0 },
-			{ "payload_sha256", JSON_T_STRING,
-			  p->upatch_payload_hex, sizeof(p->upatch_payload_hex),
-			  0, NULL, 0 },
-		};
-		struct json_field key_sub[] = {
-			{ "fingerprint", JSON_T_STRING,
-			  p->key_fingerprint, sizeof(p->key_fingerprint), 0,
-			  NULL, 0 },
-			{ "cert_sha256", JSON_T_STRING, p->key_sha_hex,
-			  sizeof(p->key_sha_hex), 0, NULL, 0 },
-		};
-		struct json_field tree_sub[] = {
-			{ "seq", JSON_T_INT, &p->tree_seq, 0, 0, NULL,
-			  0 },
-			{ "op", JSON_T_STRING, p->tree_op,
-			  sizeof(p->tree_op), 0, NULL, 0 },
-			{ "id", JSON_T_STRING, p->tree_id,
-			  sizeof(p->tree_id), 0, NULL, 0 },
-			{ "operation_digest", JSON_T_STRING,
-			  p->tree_digest_hex, sizeof(p->tree_digest_hex), 0,
-			  NULL, 0 },
-		};
-		struct json_field rec_sub[] = {
-			{ "type", JSON_T_STRING, p->type,
-			  sizeof(p->type), 0, NULL, 0 },
-			{ "digest", JSON_T_STRING, p->digest_hex,
-			  sizeof(p->digest_hex), 0, NULL, 0 },
-			{ "pcr", JSON_T_INT, &p->rec_pcr, 0, 0, NULL,
-			  0 },
-			{ "tpm_reset_count", JSON_T_INT, &p->rec_reset,
-			  0, 0, NULL, 0 },
-			{ "pcr_before", JSON_T_STRING,
-			  p->pcr_before_hex, sizeof(p->pcr_before_hex), 0,
-			  NULL, 0 },
-			{ "phase_pcr", JSON_T_INT, &p->rec_phase_pcr, 0,
-			  0, NULL, 0 },
-			{ "phase_before", JSON_T_STRING,
-			  p->phase_before_hex, sizeof(p->phase_before_hex), 0,
-			  NULL, 0 },
-			{ "bound_in", JSON_T_STRING, p->bound_in,
-			  sizeof(p->bound_in), 0, NULL, 0 },
-			{ "nv_name", JSON_T_STRING, p->nv_name_hex,
-			  sizeof(p->nv_name_hex), 0, NULL, 0 },
-			{ "nv_writer_public", JSON_T_STRING,
-			  p->writer_public_hex, sizeof(p->writer_public_hex),
-			  0, NULL, 0 },
-			{ "anchor", JSON_T_STRING, p->anchor,
-			  sizeof(p->anchor), 0, NULL, 0 },
-			{ "anchor_digest", JSON_T_STRING,
-			  p->anchor_digest_hex, sizeof(p->anchor_digest_hex), 0,
-			  NULL, 0 },
-			{ "chain", JSON_T_STRING, p->chain_hex,
-			  sizeof(p->chain_hex), 0, NULL, 0 },
-			{ "upatch", JSON_T_OBJECT, NULL, 0, 0,
-			  upatch_sub, ARRAY_SIZE(upatch_sub) },
-			{ "tree", JSON_T_OBJECT, NULL, 0, 0, tree_sub,
-			  ARRAY_SIZE(tree_sub) },
-			{ "key", JSON_T_OBJECT, NULL, 0, 0, key_sub,
-			  ARRAY_SIZE(key_sub) },
-		};
-		struct json_field top[] = {
-			{ "nonce", JSON_T_STRING, p->nonce_hex,
-			  sizeof(p->nonce_hex), 0, NULL, 0 },
-			{ "pcr_mask", JSON_T_INT, &p->pcr_mask, 0, 0,
-			  NULL, 0 },
-			{ "pcrs", JSON_T_ARRAY, &pcr_sink, 0, 0,
-			  pcr_sub, ARRAY_SIZE(pcr_sub) },
-			{ "ak", JSON_T_OBJECT, NULL, 0, 0, ak_sub,
-			  ARRAY_SIZE(ak_sub) },
-			{ "quote", JSON_T_OBJECT, NULL, 0, 0, quote_sub,
-			  ARRAY_SIZE(quote_sub) },
-			{ "register", JSON_T_OBJECT, NULL, 0, 0,
-			  reg_sub, ARRAY_SIZE(reg_sub) },
-			{ "eventlog", JSON_T_ARRAY, &rec_sink, 0, 0,
-			  rec_sub, ARRAY_SIZE(rec_sub) },
-			{ "ek", JSON_T_OBJECT, NULL, 0, 0, ek_sub,
-			  ARRAY_SIZE(ek_sub) },
-			{ "credential", JSON_T_OBJECT, NULL, 0, 0,
-			  cred_sub, ARRAY_SIZE(cred_sub) },
-		};
-
-		ret = json_parse(evidence, len, top, ARRAY_SIZE(top));
-		if (ret || !top[0].seen || !top[1].seen || !top[2].seen ||
-		    !top[3].seen || !top[4].seen || !top[5].seen ||
-		    !top[6].seen) {
-			ret = -EINVAL;
-			goto out;
-		}
-		have_ek = ek_sub[0].seen && ek_sub[1].seen && ek_sub[2].seen;
-		have_cred = cred_sub[0].seen;
-	}
-
-	ret = config_evidence_parse(evidence, len, &config);
-	if (ret == -EKEYREJECTED)
-		say(&rep, false, "config: the events are one boot event followed by updates in sequence");
-	if (ret)
-		goto out;
-
-	/* Freshness: the document must answer this request. */
-	if (hex_decode_max(p->nonce_hex, nonce, sizeof(nonce), &nonce_len)) {
-		ret = -EINVAL;
-		goto out;
-	}
-	say(&rep, expect->nonce_len == nonce_len &&
-	    (nonce_len == 0 ||
-	     !memneq_explicit(nonce, expect->nonce, nonce_len)),
-	    "nonce matches the request");
-
-	if (hex_decode_max(p->ak_public_hex, ak_public, sizeof(ak_public),
-			   &ak_public_len) ||
-	    hex_decode(p->ak_name_hex, ak_name, TPM_NAME_LEN)) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (tpm_ecc_public_parse(ak_public, ak_public_len, &ak_pub)) {
-		say(&rep, false, "attestation key: public area is not a "
-		    "P-256 ECDSA key");
-		ret = -EKEYREJECTED;
-		goto out;
-	}
-	say(&rep, (ak_pub.attrs & AK_ATTRS_REQUIRED) == AK_ATTRS_REQUIRED,
-	    "attestation key: restricted, fixed to this TPM");
-	{
-		__u8 computed[TPM_NAME_LEN];
-
-		say(&rep,
-		    !tpm_object_name(ak_public, ak_public_len, computed) &&
-		    !memneq_explicit(computed, ak_name, sizeof(computed)),
-		    "attestation key: name matches its public area");
-	}
-	if (expect->have_ak_name)
-		say(&rep,
-		    !memneq_explicit(ak_name, expect->ak_name, TPM_NAME_LEN),
-		    "attestation key: the pinned key");
-	else
-		note(&rep, "attestation key not pinned: name %s",
-		     p->ak_name_hex);
-
-	if (have_ek) {
-		__u8 ek_public[TPM_PUBLIC_MAX];
-		__u8 ek_name[TPM_NAME_LEN], computed[TPM_NAME_LEN];
-		struct tpm_public ek_pub;
-		size_t ek_public_len;
-		bool parsed;
-
-		if (hex_decode_max(p->ek_public_hex, ek_public,
-				   sizeof(ek_public), &ek_public_len) ||
-		    hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN)) {
-			ret = -EINVAL;
-			goto out;
-		}
-		parsed = tpm_public_parse(ek_public, ek_public_len,
-					  &ek_pub) == 0;
-		say(&rep, parsed &&
-		    !tpm_object_name(ek_public, ek_public_len, computed) &&
-		    !memneq_explicit(computed, ek_name, TPM_NAME_LEN),
-		    "endorsement key: name matches its public area");
-		say(&rep, parsed && ek_pub.attrs == TPM_EK_ATTRS &&
-		    ek_pub.policy_len == 32 &&
-		    !memneq_explicit(ek_pub.policy, shirudo_tpm_ek_policy, 32),
-		    "endorsement key: TCG default template under the "
-		    "endorsement policy");
-	} else {
-		note(&rep, "no endorsement key in the evidence");
-	}
-	if (expect->have_ek_name) {
-		__u8 ek_name[TPM_NAME_LEN];
-
-		say(&rep, have_ek &&
-		    !hex_decode(p->ek_name_hex, ek_name, TPM_NAME_LEN) &&
-		    !memneq_explicit(ek_name, expect->ek_name, TPM_NAME_LEN),
-		    "endorsement key: the pinned key");
-	}
-	if (have_cred &&
-	    hex_decode_max(p->cred_hex, cred, sizeof(cred), &cred_len)) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (expect->have_credential)
-		say(&rep, have_cred && cred_len == TPM_CREDENTIAL_LEN &&
-		    !memneq_explicit(cred, expect->credential,
-				     TPM_CREDENTIAL_LEN),
-		    "attestation key: activated the credential made for it "
-		    "under the endorsement key");
-	else if (have_cred)
-		note(&rep, "a credential was activated but none is expected "
-		     "(--expect-credential)");
-
-	ret = check_signed(&rep, "quote", p->quote_attest_hex, p->quote_sig_hex,
-			   &ak_pub, ak_name, nonce, nonce_len, attest,
-			   sizeof(attest), &attest_len, &quote);
-	if (ret == -EINVAL)
-		goto out;
-	qrc = ret;
-	if (ret == 0) {
-		__u8 digest[32] = {};
-		bool complete =
-			quote.type == TPM_ST_ATTEST_QUOTE &&
-			p->pcr_mask == (__s64)quote.pcr_mask &&
-			p->pcr_have == quote.pcr_mask;
-		bool vouched;
-
-		say(&rep, complete,
-		    "quote: covers the PCRs the document lists");
-		vouched = complete &&
-			  !pcr_values_digest(quote.pcr_mask, p->pcrs, digest) &&
-			  !memneq_explicit(digest, quote.pcr_digest, 32);
-		say(&rep, vouched,
-		    "quote: PCR digest matches the listed values");
-		if (!vouched)
-			p->pcr_have = 0;
-	} else {
-		p->pcr_have = 0;
-	}
-
-	ret = check_signed(&rep, "register", p->reg_attest_hex, p->reg_sig_hex,
-			   &ak_pub, ak_name, nonce, nonce_len, attest,
-			   sizeof(attest), &attest_len, &certify);
-	if (ret == -EINVAL)
-		goto out;
-	crc = ret;
-	reg_index_hex = p->reg_index;
-	if (hex_decode(p->reg_name_hex, reg_name, TPM_NAME_LEN) ||
-	    hex_decode(p->reg_value_hex, reg_value, 32) ||
-	    !str_skip_prefix(&reg_index_hex, "0x") ||
-	    parse_x64(reg_index_hex, strlen(reg_index_hex), 0xffffffffULL,
-		      &reg_index) ||
-	    p->reg_pcr < 0 || p->reg_pcr >= 24) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (ret == 0) {
-		say(&rep, certify.type == TPM_ST_ATTEST_NV &&
-		    certify.index_name_len == TPM_NAME_LEN &&
-		    !memneq_explicit(certify.index_name, reg_name,
-				     TPM_NAME_LEN),
-		    "register: certification names the listed index");
-		say(&rep, certify.type == TPM_ST_ATTEST_NV &&
-		    certify.offset == 0 && certify.nv_len == 32 &&
-		    !memneq_explicit(certify.nv_data, reg_value, 32),
-		    "register: certified contents match the listed value");
-	}
-	/* A restart clears the register as a reset does. */
-	if (qrc == 0 && crc == 0)
-		say(&rep, quote.reset_count == certify.reset_count &&
-		    quote.restart_count == certify.restart_count &&
-		    quote.firmware_version == certify.firmware_version,
-		    "quote and certification are of one TPM boot");
-
-	if (config.present || expect->have_config_root ||
-	    expect->have_config_pcr) {
-		const __u8 *root = expect->have_config_root ?
-				      expect->config_root : NULL;
-		const char *reason;
-		int pcr;
-
-		pcr = expect->have_config_pcr ? (int)expect->config_pcr : -1;
-		ret = config_evidence_verify(&config, quote.pcr_mask,
-					     quote.reset_count,
-					     quote.restart_count,
-					     p->pcrs, root, pcr,
-					     &reason);
-		say(&rep, !ret, "config: %s", reason);
-		if (config.present && !expect->have_config_root)
-			note(&rep, "config root has no operator approval; use "
-			     "--expect-config-root with --expect-config-pcr");
-		if (config.present)
-			note(&rep, "config records a selection; "
-			     "direct TPM writer protection is deferred");
-	}
-
-	/*
-	 * The binding: the certified index must have the public area a
-	 * register bound to the recorded PCR values has, which is what
-	 * makes a recreation impossible to pass off, and those values are
-	 * what the operator pins to tell an initrd binding from a later one.
-	 * The handle and the PCRs are the register's, never the document's:
-	 * taken from the record, a target could certify an index of its own
-	 * under a policy over PCRs it can extend and reset at will.
-	 */
-	say(&rep, p->init.present, "eventlog: this boot has an init record");
-	if (!p->init.present) {
-		ret = -EKEYREJECTED;
-		goto out;
-	}
-	say(&rep, reg_index == NV_INDEX &&
-	    (__u32)p->reg_pcr == CHAIN_PCR &&
-	    p->init.pcr == CHAIN_PCR &&
-	    p->init.phase_pcr == CHAIN_PHASE_PCR,
-	    "register: the document names index 0x%08X and PCRs %u and %u",
-	    NV_INDEX, CHAIN_PCR, CHAIN_PHASE_PCR);
-	memcpy(bind, p->init.pcr_before, 32);
-	memcpy(bind + 32, p->init.phase_before, 32);
-	ret = tpm_register_policy(CHAIN_PCR_MASK, bind, 2,
-				  p->init.writer_public,
-				  branch_written, branch_init, policy);
-	if (ret) {
-		say(&rep, false, "register: cannot compute the signed write policy");
-		/* Malformed recorded values are the document's failure, not a parse error. */
-		if (ret == -EINVAL)
-			ret = -EKEYREJECTED;
-		goto out;
-	}
-	ret = tpm_nv_name(NV_INDEX, TPM_REGISTER_ATTRS | TPM_NV_WRITTEN,
-			  policy, 32, expected_name);
-	if (ret) {
-		say(&rep, false, "register: cannot compute the index name");
-		goto out;
-	}
-	say(&rep, !memneq_explicit(expected_name, reg_name, TPM_NAME_LEN) &&
-	    !memneq_explicit(expected_name, p->init.name, TPM_NAME_LEN),
-	    "register: public area is bound to PCRs %u and %u as recorded",
-	    CHAIN_PCR, CHAIN_PHASE_PCR);
-	for (bit = 0; bit < 24; bit++) {
-		const __u8 *held;
-
-		if (!(expect->bind_expect_mask & (1u << bit)))
-			continue;
-		held = bit == CHAIN_PCR ? p->init.pcr_before :
-		       bit == CHAIN_PHASE_PCR ? p->init.phase_before :
-		       NULL;
-		say(&rep, held &&
-		    !memneq_explicit(held, expect->bind_values[bit], 32),
-		    "binding: PCR %u held the expected value", bit);
-	}
-	if (expect->require_initrd)
-		say(&rep, p->init.initrd, "binding: made while the initrd ran");
-	else
-		note(&rep, "binding: made in the %s",
-		     p->init.initrd ? "initrd" : "root file system");
-
-	/*
-	 * The epoch: one binding per TPM reset, and the one on record is
-	 * of the reset the TPM certifies in, so no register bound again
-	 * after boot can pass as the boot's.
-	 */
-	say(&rep, p->inits_epoch == 1,
-	    "eventlog: one init record for this TPM reset (%u this boot)",
-	    p->inits);
-	if (crc == 0)
-		say(&rep, p->init.have_reset_count &&
-		    p->init.reset_count == certify.reset_count,
-		    "register: init record is of the TPM's current reset "
-		    "count");
-
-	for (i = 0; i < p->n_recs; i++) {
-		if (chain_fold(chain, p->recs[i].digest))
-			replayed = false;
-		if (i)
-			runtime++;
-	}
-	say(&rep, replayed && !memneq_explicit(chain, reg_value, 32),
-	    "eventlog: %zu record%s replay to the certified value", p->n_recs,
-	    p->n_recs == 1 ? "" : "s");
-	/*
-	 * A digest the record's own fields do not produce is a record
-	 * relabelled after the fact: the replay still closes, but what the
-	 * events say happened is not what was measured.
-	 */
-	for (i = 1; i < p->n_recs; i++) {
-		if (!p->recs[i].derived)
-			say(&rep, false, "eventlog: event %zu (%s %s) digest "
-			    "does not derive from its fields", i,
-			    p->recs[i].type, p->recs[i].label);
-	}
-
-	{
-		char anchor[CHAIN_ANCHOR_MAX];
-		bool named = !chain_anchor(p->init.name, anchor,
-					   sizeof(anchor)) &&
-			     !sha256_buffer(anchor, strlen(anchor),
-					    anchor_digest);
-
-		say(&rep, named &&
-		    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),
-		    "anchor: record digest matches the index name");
-		memcpy(pcr_expected, p->init.pcr_before, 32);
-		named = !chain_fold(pcr_expected, anchor_digest) && named;
-		if (p->pcr_have & (1u << CHAIN_PCR)) {
-			bool exact = named &&
-				     !memneq_explicit(pcr_expected,
-						      p->pcrs[CHAIN_PCR], 32);
-
-			if (exact || expect->strict_anchor)
-				say(&rep, exact, "anchor: PCR %u equals the "
-				    "recorded value extended by the anchor",
-				    CHAIN_PCR);
-			else
-				note(&rep, "anchor: PCR %u carries further "
-				     "measurements after the anchor; replay "
-				     "the logs to confirm it",
-				     CHAIN_PCR);
-		} else {
-			say(&rep, false, "anchor: PCR %u is not in the quote",
-			    CHAIN_PCR);
-		}
-	}
-
-	if (expect->have_init)
-		say(&rep,
-		    !memneq_explicit(p->init.digest, expect->init_event, 32),
-		    "state: init event covers the expected certificate, set "
-		    "and tree root");
-	if (expect->have_chain) {
-		say(&rep, !memneq_explicit(reg_value, expect->chain, 32),
-		    "state: register equals the expected value");
-	} else if (expect->have_init) {
-		__u8 predicted[32] = {};
-		bool folded = !chain_fold(predicted, expect->init_event);
-
-		if (runtime == 0)
-			say(&rep, folded &&
-			    !memneq_explicit(reg_value, predicted, 32),
-			    "state: register equals the value predicted for "
-			    "the set at boot");
-		else
-			say(&rep, expect->allow_runtime_events,
-			    "state: %zu event%s after boot change the register",
-			    runtime, runtime == 1 ? "" : "s");
-	} else {
-		note(&rep, "no expected state given; the register value is "
-		     "%s", p->reg_value_hex);
-	}
-	for (i = 1; i < p->n_recs; i++)
-		note(&rep, "event after boot: %s %s", p->recs[i].type,
-		     p->recs[i].label);
-	for (bit = 0; bit < 24; bit++) {
-		if (!(expect->pcr_expect_mask & (1u << bit)))
-			continue;
-		say(&rep, (p->pcr_have & (1u << bit)) &&
-		    !memneq_explicit(p->pcrs[bit], expect->pcrs[bit], 32),
-		    "PCR %u matches the expected value", bit);
-	}
-	ret = rep.failed ? -EKEYREJECTED : 0;
-out:
-	config_evidence_clear(&config);
+	v.p = p;
+	ret = verify_document(&v, evidence, len);
+	config_evidence_clear(&v.config);
 	xfree(p->recs, RECORDS_MAX * sizeof(*p->recs));
 	xfree(p, sizeof(*p));
-	memzero_explicit(cred, sizeof(cred));
 	return ret;
 }
 
