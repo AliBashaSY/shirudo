@@ -13,9 +13,12 @@
 #include <sys/personality.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include <openssl/crypto.h>
+
+#include <shirudo/misc.h>
 
 #include "harden.h"
 #include "log.h"
@@ -47,11 +50,17 @@ void harden_stdio(void)
  * lookups without a module, in a static binary too. The personality
  * comes from the caller too: UNAME26 has uname() report a 2.6 release
  * to the tree selector, READ_IMPLIES_EXEC makes later mappings
- * executable.
+ * executable. So do the file size and CPU time limits and the interval
+ * timers, which exec keeps and with which the kernel would stop the
+ * command midway by SIGXFSZ, SIGXCPU or SIGALRM.
  */
 int harden_self(void)
 {
-	struct rlimit no_core = {};
+	static const int signalling[] = { RLIMIT_FSIZE, RLIMIT_CPU };
+	static const int timers[] = { ITIMER_REAL, ITIMER_VIRTUAL, ITIMER_PROF };
+	struct rlimit no_core = {}, unlimited = { RLIM_INFINITY, RLIM_INFINITY };
+	struct itimerval off = {};
+	size_t i;
 
 	if (personality(PER_LINUX) < 0) {
 		int err = -errno;
@@ -59,6 +68,24 @@ int harden_self(void)
 		pr_err("hardening: cannot reset the personality: %s",
 		       strerror(-err));
 		return err;
+	}
+	for (i = 0; i < ARRAY_SIZE(signalling); i++) {
+		if (setrlimit(signalling[i], &unlimited)) {
+			int err = -errno;
+
+			pr_err("hardening: cannot reset the resource limits: %s",
+			       strerror(-err));
+			return err;
+		}
+	}
+	for (i = 0; i < ARRAY_SIZE(timers); i++) {
+		if (setitimer(timers[i], &off, NULL)) {
+			int err = -errno;
+
+			pr_err("hardening: cannot disarm the interval timers: %s",
+			       strerror(-err));
+			return err;
+		}
 	}
 
 	prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);

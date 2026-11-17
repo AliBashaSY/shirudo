@@ -496,7 +496,15 @@ when the record it needs is missing.
      - None
      - ``SealSignal``
      - Which signal is an attack: a stop by root and one by systemd
-       count alike (R2).
+       count alike (R2). The kernel's own signals and the freezer pass
+       no hook.
+   * - ``lsm/task_setrlimit`` (``seal``)
+     - A change of a marked task's resource limits by another task
+       without authority, ``prlimit``, which could have the kernel
+       signal it. The task resets its own limits when it starts.
+     - ``EPERM``
+     - ``SealRlimit``
+     - Closed.
    * - ``lsm/ptrace_access_check`` (``seal``)
      - Every ptrace access mode against a marked task, which covers
        attach, ``/proc/<pid>/mem``, ``pidfd_getfd()``,

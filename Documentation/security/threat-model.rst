@@ -849,7 +849,11 @@ An authorized process is protected against being taken over:
   task before the exec that marks it, are not checked (D9).
 - ``lsm/task_kill`` counts a signal to a marked task from a task
   without authority (``SealSignal``) and lets it through: root can stop
-  a command (R2, U17), and the count shows that it did.
+  a command (R2, U17), and the count shows that it did. A command resets
+  its file size and CPU time limits and disarms its interval timers
+  when it starts, since exec keeps them and the kernel would signal it
+  by them, and ``lsm/task_setrlimit`` refuses another task a change of
+  its limits (``SealRlimit``, ``t6156``).
 - The exec of a runtime file by a traced task is refused
   (``ExecTraced``), and so is one by a task that shares its root and
   working directory with another process (``ExecShared``), which could
@@ -896,6 +900,7 @@ An authorized process is protected against being taken over:
    ``lsm.s/bprm_check_security``, ``lsm.s/bprm_committed_creds``,
    ``lsm/task_alloc``, ``lsm/bprm_check_security``,
    ``lsm/ptrace_access_check``, ``lsm/perf_event_alloc``,
+   ``lsm/task_setrlimit``,
    ``lsm/task_prctl``, ``lsm/mmap_file``, ``lsm/file_mprotect``; in
    support, ``lsm.s/bprm_creds_for_exec`` and ``lsm/socket_post_create``
    carry the policy bits, ``lsm.s/inode_post_setxattr`` and
@@ -907,14 +912,14 @@ An authorized process is protected against being taken over:
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
-   ``SealSignal``, ``SealCoreDump``, ``SealUprobe``, ``ExecTraced``,
-   ``ExecShared``, ``XattrHandle``,
+   ``SealSignal``, ``SealCoreDump``, ``SealUprobe``, ``SealRlimit``,
+   ``ExecTraced``, ``ExecShared``, ``XattrHandle``,
    ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
-   ``t6149``, ``t6150``, ``t6152``, ``t6153``
+   ``t6149``, ``t6150``, ``t6152``, ``t6153``, ``t6156``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts
@@ -1476,7 +1481,9 @@ R2 The command interface of the runtime binary is the boundary
    refuses signals, so root can also stop a running command, which
    ``lsm/task_kill`` counts (``SealSignal``) and which keeps open
    whatever descriptors it holds (U17); a load stopped before its
-   extend is reported and undone (T5).
+   extend is reported and undone (T5). A stop by the kernel, through
+   ``cgroup.kill``, the OOM killer, a pipe root closes or the cgroup
+   freezer, passes no hook and is not counted.
    ``CAP_SYS_RESOURCE`` can rewrite a process's executable link, which
    ``lsm/task_prctl`` refuses and the mark does not depend on. The
    initrd's bootstrap binary and the memory of authorized tasks stay
@@ -1940,7 +1947,8 @@ U17 A stopped runtime command keeps its descriptors
    :Affects: The descriptor checks of T2.
    :Consequence: Runtime commands open link pins for short checks. No
       hook refuses signals, ``lsm/task_kill`` only counts them
-      (``SealSignal``), so root can stop such a command while it
+      (``SealSignal``), and the kernel's own signals and the cgroup
+      freezer pass uncounted, so root can stop such a command while it
       holds a link descriptor, and that link then stays attached after
       its pin is removed by an unload or a revocation.
    :Status: Code-path reading, not reproduced.

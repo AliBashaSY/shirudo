@@ -515,6 +515,10 @@ signed config image.
      - From a namespace without ``/run``, an ``rmdir`` and a rename of
        the directory init's ``/run`` covers are refused and counted, and
        the private bpffs stays mounted
+   * - ``t6156-rlimit``
+     - A command writes past the file size limit it was started with,
+       outlives an interval timer set before its exec, and refuses
+       another task's ``prlimit``, counted as ``SealRlimit``
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -1042,6 +1046,8 @@ tests assert that a refusal moves its counter:
      - ``t6153``, on a kernel with XFS
    * - ``Lockdown``
      - ``t6154``
+   * - ``SealRlimit``
+     - ``t6156``
    * - ``Kexec``
      - ``t6126``
 

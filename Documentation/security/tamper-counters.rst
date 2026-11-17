@@ -219,7 +219,11 @@ counter.
    * - ``SealSignal``
      - signal to a shirudo task (let through)
      - ``lsm/task_kill``: a signal other than 0 to a marked task from a
-       task without authority; the signal is delivered
+       task without authority; the signal is delivered. The kernel's
+       own signals pass no hook and are not counted: ``SIGKILL`` from
+       ``cgroup.kill`` or the OOM killer, ``SIGPIPE`` on a pipe whose
+       reader is gone. Nor is the cgroup freezer, which stops a task
+       without a signal
      - none
    * - ``SealCoreDump``
      - core dump of a shirudo task, which acts without authority
@@ -248,6 +252,12 @@ counter.
        while another process shares the task's root and working
        directory (``CLONE_FS``)
      - ``EACCES``
+   * - ``SealRlimit``
+     - resource limit of a shirudo task changed by another task
+     - ``lsm/task_setrlimit``: ``prlimit`` on a marked task from a task
+       without authority, which could have the kernel stop it with
+       ``SIGXFSZ`` or ``SIGXCPU``
+     - ``EPERM``
    * - ``Lockdown``
      - change or read of the running kernel that lockdown refuses
      - ``lsm/locked_down``: every reason of integrity mode but module

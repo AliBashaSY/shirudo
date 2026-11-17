@@ -331,9 +331,10 @@ every verdict, ``tampered`` included. Parse ``.status`` of
    * - Unknown or ambiguous command
      - 1.
    * - Any command
-     - 1 when the personality cannot be reset (``hardening: cannot reset
-       the personality``), when ``mlockall()`` fails (``hardening: cannot
-       lock process memory``) or when the gate refuses.
+     - 1 when the hardening fails (``hardening: cannot reset the
+       personality``, ``cannot reset the resource limits``, ``cannot
+       disarm the interval timers``, ``cannot lock process memory``) or
+       when the gate refuses.
    * - ``genkey``
      - 0; 1 on failure or when keys exist without ``--force``; 2 for an
        unknown option.

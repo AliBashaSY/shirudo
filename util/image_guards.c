@@ -62,6 +62,8 @@ shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_perf_event_alloc",
 	  SEAL_PERF_PIN },
 	{ "shirudo_seal_task_kill",        SEAL_TASK_KILL_PIN },
+	{ "shirudo_seal_task_setrlimit",
+	  BPFFS_DIR "/seal_task_setrlimit_link" },
 };
 
 const struct image_guard

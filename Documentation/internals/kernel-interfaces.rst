@@ -299,7 +299,8 @@ LSM hooks
        ``inode_rmdir``, ``inode_setattr``, ``inode_setxattr``,
        ``inode_removexattr``, ``inode_post_setxattr``,
        ``inode_post_removexattr`` (all sleepable); ``task_alloc``,
-       ``task_kill``, ``ptrace_access_check``, ``socket_post_create``,
+       ``task_kill``, ``task_setrlimit``, ``ptrace_access_check``,
+       ``socket_post_create``,
        ``inode_init_security``, ``mmap_file``, ``file_mprotect``
      - ``seal``
      - None
@@ -425,6 +426,11 @@ Process setup and prctl
      - Drops the personality flags the caller passed down, ``UNAME26``
        among them, which would have ``uname()`` report a 2.6 release to
        the tree selector. A failure ends the command.
+   * - ``setrlimit(RLIMIT_FSIZE, RLIMIT_CPU)`` to unlimited,
+       ``setitimer()`` of the three interval timers to zero
+     - Exec keeps the limits and timers the caller set, with which the
+       kernel would stop the command by ``SIGXFSZ``, ``SIGXCPU`` or
+       ``SIGALRM``. A failure ends the command.
    * - ``prctl(PR_SET_DUMPABLE, 0)``, ``prctl(PR_SET_NO_NEW_PRIVS, 1)``,
        ``prctl(PR_SET_PTRACER, 0)``
      - Process hardening before every command.

@@ -960,7 +960,8 @@ indented here:
          "SealUprobe": 0,
          "ExecShared": 0,
          "XattrHandle": 0,
-         "Lockdown": 0
+         "Lockdown": 0,
+         "SealRlimit": 0
        }
      },
      "config": {
@@ -1017,7 +1018,7 @@ of the same target read:
        "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
        "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 1,
        "SealSignal": 0, "SealCoreDump": 0, "SealUprobe": 0,
-       "ExecShared": 0, "XattrHandle": 0, "Lockdown": 0
+       "ExecShared": 0, "XattrHandle": 0, "Lockdown": 0, "SealRlimit": 0
      }
    }
 

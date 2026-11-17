@@ -86,7 +86,8 @@ Every invocation goes through the same steps before the command runs:
 #. Standard input, output and error that are closed are reopened on
    ``/dev/null``.
 #. The process hardens itself: it drops the personality flags of its
-   caller, is not dumpable, sets ``no_new_privs``, writes no core file,
+   caller, lifts its file size and CPU time limits, disarms its interval
+   timers, is not dumpable, sets ``no_new_privs``, writes no core file,
    loads no OpenSSL configuration file, resolves host names through
    ``files`` and ``dns`` only and locks all its memory with
    ``mlockall()``. When the lock fails, ``shirudo`` prints

@@ -104,6 +104,8 @@ static const struct {
 		"XFS attribute change by file handle, which passes no xattr hook" },
 	[TAMPER_LOCKDOWN] = { "Lockdown",
 		"change or read of the running kernel that lockdown refuses" },
+	[TAMPER_SEAL_RLIMIT] = { "SealRlimit",
+		"resource limit of a shirudo task changed by another task" },
 };
 
 const char *tamper_name(enum tamper_point point)

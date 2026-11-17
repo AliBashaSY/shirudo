@@ -291,6 +291,23 @@ int BPF_PROG(shirudo_seal_task_kill, struct task_struct *p,
 	return 0;
 }
 
+/*
+ * A file size or CPU time limit has the kernel itself signal a command,
+ * which task_kill never sees. A command resets its own limits when it
+ * starts, and no one else changes them while it runs.
+ */
+SEC("lsm/task_setrlimit")
+int BPF_PROG(shirudo_seal_task_setrlimit, struct task_struct *p,
+	     unsigned int resource, struct rlimit *new_rlim, int ret)
+{
+	if (ret)
+		return ret;
+	if (p == bpf_get_current_task_btf() || !shirudo_marked(p) ||
+	    seal_task_authorized())
+		return 0;
+	return shirudo_tamper_deny(TAMPER_SEAL_RLIMIT, -EPERM);
+}
+
 SEC("lsm.s/file_open")
 int BPF_PROG(shirudo_seal_file_open, struct file *file, int ret)
 {

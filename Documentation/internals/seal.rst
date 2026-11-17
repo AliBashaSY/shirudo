@@ -162,7 +162,13 @@ refuses a perf event bound to a marked task (``SealPerf``).
 ``lsm/task_kill`` lets a signal to a marked task through, since root
 may end a command that hangs and systemd stops the runs its timers
 start, and counts one from a task without authority (``SealSignal``),
-so that a command stopped on purpose shows in the counters.
+so that a command stopped on purpose shows in the counters. The
+kernel's own signals pass no hook: those a file size or CPU time limit
+or an interval timer raise, the command forestalls by resetting its
+limits and disarming the timers it inherited when it starts, and
+``lsm/task_setrlimit`` refuses another task a change of its limits
+(``SealRlimit``). ``SIGKILL`` from ``cgroup.kill`` or the OOM killer,
+``SIGPIPE`` and the cgroup freezer stay uncounted.
 ``lsm/mmap_file`` and ``lsm/file_mprotect`` refuse a marked task
 executable memory that is writable or that does not come from the
 runtime image. ``bpf2`` makes every exec of a runtime file a secure-exec,
