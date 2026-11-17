@@ -94,8 +94,10 @@ loader inside the kernel, which ``lsm/bpf`` sees with ``kernel`` true.
        ``--expect-chain``, the register equals the given value.
    * - userspace
      - read and parse the file
-     - The file is read once into ``/var/lib/shirudo/incoming``. The
-       signed name must equal the header name, ``payload_sha256`` must
+     - The file is read once, into memory, and every later step takes
+       its bytes from that read: the name and payload measured, the
+       loader the kernel verifies and the copy archived. The signed name
+       must equal the header name, ``payload_sha256`` must
        equal SHA-256 of ``loader_insns || data``, and the signed attach
        metadata must parse. Each ``uprobe``, ``uretprobe``,
        ``uprobe.multi`` and ``uretprobe.multi`` target is opened and its

@@ -29,7 +29,6 @@
 #define INITRD_KEYS_DIR		"/etc/shirudo/keys"
 #define INITRD_CERT_PATH	INITRD_KEYS_DIR "/" CERT_FILE
 #define UPATCHES_DIR		VAR_LIB "/upatches"
-#define INCOMING_DIR		VAR_LIB "/incoming"
 #define LOCKS_DIR		VAR_LIB "/locks"
 #define EVENTLOG_PATH		VAR_LIB "/eventlog"
 /*

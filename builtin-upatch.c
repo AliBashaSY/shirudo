@@ -1933,10 +1933,15 @@ static void apply_policy_labels(const struct upatch *u)
 }
 
 /* Shared by `upatch load` and boot restore: one signature-verified path. */
-static int __upatch_apply(const char *path, bool verify_only,
-			  struct op_report *rep)
+/*
+ * Load and run the signed loader of u, which the caller read once and
+ * closes: the name the signature covers, the loader the kernel verifies
+ * and what the caller then measures and archives are all those bytes.
+ * label names them in messages.
+ */
+static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
+			struct op_report *rep)
 {
-	struct upatch u;
 	struct prog_spec *prog_specs = NULL;
 	const struct bpf_insn *insns;
 	const void *sig, *data;
@@ -1958,23 +1963,15 @@ static int __upatch_apply(const char *path, bool verify_only,
 	}
 	vlog[0] = '\0';
 
-	ret = upatch_open(path, &u);
-	if (ret) {
-		pr_err("open %s: %s", path, strerror(-ret));
-		rep_fail(rep, "parse", "parser_rejected", -ret,
-			 "cannot open .upatch");
-		xfree(vlog, VERIFIER_LOG_MAX);
-		return 1;
-	}
 	/*
 	 * verify_only loads the signed loader purely to make the kernel
 	 * verify its CMS signature (the unload-directive authorization
 	 * gate) -- so it deliberately accepts an UNLOAD directive and
 	 * stops before TEST_RUN/attach.
 	 */
-	if (!verify_only && upatch_is_unload(&u)) {
+	if (!verify_only && upatch_is_unload(u)) {
 		pr_err("upatch load: %s is an UNLOAD directive; "
-		       "use `shirudo upatch unload`", path);
+		       "use `shirudo upatch unload`", label);
 		rep_fail(rep, "parse", "parser_rejected", 0,
 			 "is an UNLOAD directive");
 		ret = 1;
@@ -1985,19 +1982,19 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	insns = upatch_loader(&u);
-	sig   = upatch_signature(&u);
-	data  = upatch_data(&u);
-	insn_cnt = u.hdr.loader_insns_len / sizeof(struct bpf_insn);
+	insns = upatch_loader(u);
+	sig   = upatch_signature(u);
+	data  = upatch_data(u);
+	insn_cnt = u->hdr.loader_insns_len / sizeof(struct bpf_insn);
 
-	upatch_prog_name(&u, prog_name, sizeof(prog_name));
+	upatch_prog_name(u, prog_name, sizeof(prog_name));
 
 	/*
 	 * The pin directory, the archive and unload share the raw name. Boot
 	 * restore reaches here without the command-level check, so validate it
 	 * again.
 	 */
-	upatch_header_name(&u, upatch_name);
+	upatch_header_name(u, upatch_name);
 	if (!upatch_name_valid(upatch_name)) {
 		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
@@ -2006,7 +2003,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 	/* The header's copy of the name is what everything else reads. */
-	if (!upatch_name_signed(&u)) {
+	if (!upatch_name_signed(u)) {
 		pr_err("upatch: the name of '%s' is not signature-covered or "
 		       "differs from the signed one; rebuild the artifact",
 		       upatch_name);
@@ -2025,8 +2022,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 		__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
 		int err;
 
-		err = sha256_2(insns, u.hdr.loader_insns_len,
-			       data, u.hdr.data_len, content_digest);
+		err = sha256_2(insns, u->hdr.loader_insns_len,
+			       data, u->hdr.data_len, content_digest);
 		if (err) {
 			pr_err("upatch: cannot hash the payload of '%s': %s",
 			       upatch_name, strerror(-err));
@@ -2035,7 +2032,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 			ret = 1;
 			goto out;
 		}
-		if (memneq_explicit(content_digest, u.hdr.payload_sha256,
+		if (memneq_explicit(content_digest, u->hdr.payload_sha256,
 				    sizeof(content_digest))) {
 			pr_err("upatch: payload_sha256 does not match signed "
 			       "content (insns || data); refusing");
@@ -2059,7 +2056,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 		const void *attach;
 		__u32 attach_len;
 
-		attach = upatch_signed_attach(&u, &attach_len);
+		attach = upatch_signed_attach(u, &attach_len);
 		if (!attach) {
 			pr_err("upatch: the attach metadata of '%s' is not "
 			       "signature-covered; rebuild the artifact",
@@ -2069,8 +2066,8 @@ static int __upatch_apply(const char *path, bool verify_only,
 			ret = 1;
 			goto out;
 		}
-		ret = prog_specs_parse(attach, attach_len, u.hdr.nr_maps,
-				       u.hdr.nr_progs, &prog_specs);
+		ret = prog_specs_parse(attach, attach_len, u->hdr.nr_maps,
+				       u->hdr.nr_progs, &prog_specs);
 		if (ret) {
 			pr_err("upatch program metadata rejected: %s",
 			       strerror(-ret));
@@ -2079,7 +2076,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 			ret = 1;
 			goto out;
 		}
-		ret = prepare_uprobe_targets(prog_specs, u.hdr.nr_progs);
+		ret = prepare_uprobe_targets(prog_specs, u->hdr.nr_progs);
 		if (ret) {
 			int e = -ret;
 			const char *cat;
@@ -2111,7 +2108,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	{
 		__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
 
-		if (sha256_calc(insns, u.hdr.loader_insns_len,
+		if (sha256_calc(insns, u->hdr.loader_insns_len,
 				loader_digest)) {
 			pr_err("__loader.map: cannot hash the loader");
 			rep_fail(rep, "signed_loader_load", "unknown", EIO,
@@ -2119,7 +2116,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 			ret = 1;
 			goto out;
 		}
-		map_fd = loader_map_create("__loader.map", u.hdr.data_len,
+		map_fd = loader_map_create("__loader.map", u->hdr.data_len,
 					   loader_digest, sizeof(loader_digest));
 	}
 	if (map_fd < 0) {
@@ -2132,7 +2129,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	ret = loader_map_update(map_fd, data, u.hdr.data_len);
+	ret = loader_map_update(map_fd, data, u->hdr.data_len);
 	if (ret) {
 		int err = errno;
 
@@ -2161,7 +2158,7 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 */
 	vlog[0] = '\0';
 	prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
-				   sig, u.hdr.signature_len,
+				   sig, u->hdr.signature_len,
 				   (__s32)keyring, map_fd,
 				   vlog, VERIFIER_LOG_MAX);
 	if (prog_fd < 0) {
@@ -2193,20 +2190,20 @@ static int __upatch_apply(const char *path, bool verify_only,
 	 * sized from the header's counts.
 	 */
 	prog_desc_off = size_add(sizeof(struct loader_ctx),
-				 size_mul(u.hdr.nr_maps,
+				 size_mul(u->hdr.nr_maps,
 					  sizeof(struct map_desc)));
 	/*
 	 * The loader's max_ctx_offset can exceed the descriptor tail, and
 	 * TEST_RUN rejects a smaller ctx_size_in, so pad generously.
 	 */
 	ctx_sz = size_add(size_add(prog_desc_off,
-				   size_mul(u.hdr.nr_progs,
+				   size_mul(u->hdr.nr_progs,
 					    sizeof(struct prog_desc))),
 			  1024);
 	/* TEST_RUN takes no larger a context for a syscall program. */
 	if (ctx_sz > UINT16_MAX) {
 		pr_err("upatch: %u maps and %u programs do not fit the loader context",
-		       u.hdr.nr_maps, u.hdr.nr_progs);
+		       u->hdr.nr_maps, u->hdr.nr_progs);
 		rep_fail(rep, "payload_load", "unknown", E2BIG,
 			 "loader context too large");
 		ctx_sz = 0;
@@ -2231,12 +2228,12 @@ static int __upatch_apply(const char *path, bool verify_only,
 	cx->log_level = 1;
 	cx->log_size = VERIFIER_LOG_MAX;
 	cx->log_buf = ptr_to_u64(vlog);
-	if (u.signed_policy_labels) {
+	if (u->signed_policy_labels) {
 		struct map_desc *md;
 
-		shared_policy_map_idx = u.signed_policy_map_idx;
+		shared_policy_map_idx = u->signed_policy_map_idx;
 		shared_socket_policy_map_idx =
-			u.signed_socket_policy_map_idx;
+			u->signed_socket_policy_map_idx;
 		policy_map_fd =
 			open_shared_policy_map(POLICY_PIN,
 					       BPF_MAP_TYPE_TASK_STORAGE,
@@ -2314,13 +2311,13 @@ static int __upatch_apply(const char *path, bool verify_only,
 	}
 
 	pr_info("upatch load: loader ran, %u maps and %u programs",
-		u.hdr.nr_maps, u.hdr.nr_progs);
+		u->hdr.nr_maps, u->hdr.nr_progs);
 
 	/*
 	 * Without a pinned link a program detaches when this one-shot CLI
 	 * exits.
 	 */
-	ret = attach_and_pin_progs(cx, prog_desc_off, u.hdr.nr_progs,
+	ret = attach_and_pin_progs(cx, prog_desc_off, u->hdr.nr_progs,
 				   upatch_name, prog_specs);
 	if (ret) {
 		int e = -xdp_attach_errno(ret);
@@ -2352,34 +2349,51 @@ static int __upatch_apply(const char *path, bool verify_only,
 		goto out;
 	}
 
-	pin_upatch_maps(cx, u.hdr.nr_maps, shared_policy_map_idx,
+	pin_upatch_maps(cx, u->hdr.nr_maps, shared_policy_map_idx,
 			shared_socket_policy_map_idx, upatch_name);
 
 	/* After attach and pin, so the value records a loaded upatch. */
-	ret = set_pin_payload(upatch_name, u.hdr.payload_sha256);
+	ret = set_pin_payload(upatch_name, u->hdr.payload_sha256);
 	if (ret) {
 		rep_fail(rep, "link_create", "unknown", ret,
 			 "cannot record the payload on the pin directory; the load was undone");
 		ret = 1;
 		goto out;
 	}
-	apply_policy_labels(&u);
+	apply_policy_labels(u);
 
 	pr_audit("upatch load: %s loaded, %u programs, keyring %d",
-		 upatch_name, u.hdr.nr_progs, (int)serial);
+		 upatch_name, u->hdr.nr_progs, (int)serial);
 	if (rep)
 		rep->loader_return = (__s32)retval;
 	ret = 0;
 out:
-	prog_specs_free(prog_specs, u.hdr.nr_progs);
+	prog_specs_free(prog_specs, u->hdr.nr_progs);
 	xfree(vlog, VERIFIER_LOG_MAX);
 	if (cx)
-		close_loader_fds(cx, u.hdr.nr_maps, u.hdr.nr_progs);
+		close_loader_fds(cx, u->hdr.nr_maps, u->hdr.nr_progs);
 	xfree(cx, ctx_sz);
 	if (prog_fd >= 0)
 		close(prog_fd);
 	if (map_fd >= 0)
 		close(map_fd);
+	return ret;
+}
+
+static int __upatch_apply(const char *path, bool verify_only,
+			  struct op_report *rep)
+{
+	struct upatch u;
+	int ret;
+
+	ret = upatch_open(path, &u);
+	if (ret) {
+		pr_err("open %s: %s", path, strerror(-ret));
+		rep_fail(rep, "parse", "parser_rejected", -ret,
+			 "cannot open .upatch");
+		return 1;
+	}
+	ret = upatch_apply(&u, path, verify_only, rep);
 	upatch_close(&u);
 	return ret;
 }
@@ -2675,12 +2689,9 @@ static int emit_json_record(const char *path, const char *json, size_t len)
 		print_json_record(json, len);
 }
 
-static int persist_upatch(const char *src, const char *name)
+static int persist_upatch(const __u8 *buf, size_t len, const char *name)
 {
 	char dst[PATH_MAX];
-	struct stat ss, ds;
-	__u8 *buf = NULL;
-	size_t len = 0;
 	int ret;
 
 	ret = seal_mkdir_p(UPATCHES_DIR, 0700);
@@ -2692,16 +2703,7 @@ static int persist_upatch(const char *src, const char *name)
 		       name) < 0)
 		return -ENAMETOOLONG;
 
-	if (stat(src, &ss) == 0 && stat(dst, &ds) == 0 &&
-	    ss.st_ino == ds.st_ino && ss.st_dev == ds.st_dev)
-		return 0;	/* already the installed copy */
-
-	ret = read_file(src, UPATCH_FILE_MAX, &buf, &len);
-	if (ret)
-		return ret;
-	ret = seal_write_file(dst, buf, len, 0644);
-	xfree(buf, len + 1);
-	return ret;
+	return seal_write_file(dst, buf, len, 0644);
 }
 
 static int parse_op_args(int argc, const char **argv, const char *verb,
@@ -2844,29 +2846,27 @@ static int remove_pin_dir(const char *name)
 }
 
 /*
- * The operator's file is read once: the name and payload measured, the
- * program loaded and the copy archived all come from that one read, in
- * a directory only shirudo writes, so another artifact renamed over the
- * path midway cannot set them apart.
+ * The operator's file is read once, into memory: the name and payload
+ * measured, the program loaded and the copy archived all come from that
+ * one read. A copy on disk, under a name another command can take, or a
+ * file read again, could set them apart.
  */
-static int stage_upatch(const char *src, char *staged, size_t sz)
+static int read_upatch(const char *src, __u8 **buf, size_t *len,
+		       struct upatch *u)
 {
-	__u8 *buf = NULL;
-	size_t len = 0;
 	int ret;
 
-	ret = read_file(src, UPATCH_FILE_MAX, &buf, &len);
+	*buf = NULL;
+	*len = 0;
+	ret = read_file(src, UPATCH_FILE_MAX, buf, len);
 	if (ret)
 		return ret;
-	ret = seal_mkdir_p(INCOMING_DIR, 0700);
-	if (!ret && strsprintf(staged, sz, "%s/load-%d.upatch",
-			       INCOMING_DIR, (int)getpid()) < 0)
-		ret = -ENAMETOOLONG;
-	if (!ret)
-		ret = seal_write_file(staged, buf, len, 0600);
-	xfree(buf, len + 1);
-	if (ret)
-		staged[0] = '\0';
+	ret = upatch_open_memory(*buf, *len, u);
+	if (ret) {
+		xfree(*buf, *len + 1);
+		*buf = NULL;
+		*len = 0;
+	}
 	return ret;
 }
 
@@ -2997,11 +2997,12 @@ static int upatch_load(const struct load_args *args)
 	const char *file = args->file, *report = args->report;
 	char name[UPATCH_NAME_MAX + 1] = {};
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN], live[UPATCH_PAYLOAD_HASH_LEN];
-	char staged[PATH_MAX] = {};
-	struct upatch u;
 	struct op_report rep = { .op = "upatch_load", .phase = "done" };
-	bool have_id = false, measured;
+	struct upatch u = {};
+	bool measured;
 	int err, lock = -1, ret = 1;
+	__u8 *buf = NULL;
+	size_t len = 0;
 
 	rep.path = file;
 
@@ -3009,28 +3010,17 @@ static int upatch_load(const struct load_args *args)
 			 "load") != 0)
 		goto done;
 
-	err = stage_upatch(file, staged, sizeof(staged));
+	err = read_upatch(file, &buf, &len, &u);
 	if (err) {
 		pr_err("upatch load: read %s: %s", file, strerror(-err));
 		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot read .upatch");
 		goto done;
 	}
-	file = staged;
-
-	err = upatch_open(file, &u);
-	if (err) {
-		pr_err("open %s: %s", file, strerror(-err));
-		rep_fail(&rep, "parse", "parser_rejected", -err,
-			 "cannot open .upatch");
-		goto done;
-	}
 	upatch_header_name(&u, name);
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	hex_encode(payload, sizeof(payload), rep.payload_hex);
 	rep.name = name;
-	upatch_close(&u);
-	have_id = true;
 
 	if (args->no_precheck) {
 		pr_warn("upatch load: --no-precheck, pre-flight state check "
@@ -3044,7 +3034,7 @@ static int upatch_load(const struct load_args *args)
 
 	if (eventlog_room(&rep, "load") != 0)
 		goto done;
-	if (have_id && !upatch_name_valid(name)) {
+	if (!upatch_name_valid(name)) {
 		pr_err("upatch load: refusing unsafe upatch name '%s'", name);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "unsafe upatch name");
@@ -3069,7 +3059,7 @@ static int upatch_load(const struct load_args *args)
 	 * it. An install of the very payload loaded is done: bpm retries one
 	 * that a stop cut off between this load and its own record.
 	 */
-	if (have_id && !upatch_pin_payload(name, live)) {
+	if (!upatch_pin_payload(name, live)) {
 		if (args->loaded_is_done &&
 		    !memcmp(live, payload, sizeof(live))) {
 			pr_info("upatch load: %s is already loaded with this payload",
@@ -3086,13 +3076,8 @@ static int upatch_load(const struct load_args *args)
 		goto done;
 	}
 
-	if (__upatch_apply(file, false, &rep) != 0)
+	if (upatch_apply(&u, file, false, &rep) != 0)
 		goto done;
-	if (!have_id) {		/* loaded but couldn't read identity */
-		ret = 0;
-		rep.ok = true;
-		goto done;
-	}
 
 	/*
 	 * Persist before measuring: the archive is the intent boot restore
@@ -3104,7 +3089,7 @@ static int upatch_load(const struct load_args *args)
 	 * upatch command, and from the next init, which refuses to restore
 	 * what the register does not cover.
 	 */
-	err = persist_upatch(file, name);
+	err = persist_upatch(buf, len, name);
 	if (err) {
 		pr_err("upatch load: loaded but not archived under %s: %s; "
 		       "not measured", UPATCHES_DIR, strerror(-err));
@@ -3135,8 +3120,8 @@ done:
 	if (ret == 1 && rep.category &&
 	    !strcmp(rep.category, "attach_target_missing"))
 		ret = UPATCH_INSTALL_TARGET_MISSING;
-	if (staged[0])
-		unlink(staged);
+	upatch_close(&u);
+	xfree(buf, len + 1);
 	if (report)
 		report_emit(report, &rep);
 	report_free(&rep);
@@ -3166,14 +3151,15 @@ static int cmd_upatch_load(int argc, const char **argv)
 static int cmd_upatch_unload(int argc, const char **argv)
 {
 	const char *file, *expect_chain, *expect_version_id, *report;
-	char name[UPATCH_NAME_MAX + 1] = {};
-	char staged[PATH_MAX] = {};
-	char persisted[PATH_MAX];
-	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
-	struct upatch u;
 	struct op_report rep = { .op = "upatch_unload", .phase = "done" };
+	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
+	char name[UPATCH_NAME_MAX + 1] = {};
 	bool no_precheck, no_version_check;
 	int err, lock = -1, ret = 1;
+	char persisted[PATH_MAX];
+	struct upatch u = {};
+	__u8 *buf = NULL;
+	size_t len = 0;
 
 	for (int i = 1; i < argc; i++) {
 		if (is_help(argv[i])) {
@@ -3193,23 +3179,14 @@ static int cmd_upatch_unload(int argc, const char **argv)
 
 	/*
 	 * Read once, as a load is: the target and the payload the kernel's
-	 * signature check covers must be the bytes read back after it, and
-	 * a file of root's is root's to rewrite between the two.
+	 * signature check covers must be the bytes acted on after it, and a
+	 * file of root's is root's to rewrite between the two.
 	 */
-	err = stage_upatch(file, staged, sizeof(staged));
+	err = read_upatch(file, &buf, &len, &u);
 	if (err) {
 		pr_err("upatch unload: read %s: %s", file, strerror(-err));
 		rep_fail(&rep, "parse", "parser_rejected", -err,
 			 "cannot read .upatch");
-		goto done;
-	}
-	file = staged;
-
-	err = upatch_open(file, &u);
-	if (err) {
-		pr_err("open %s: %s", file, strerror(-err));
-		rep_fail(&rep, "parse", "parser_rejected", -err,
-			 "cannot open .upatch");
 		goto done;
 	}
 	if (!upatch_is_unload(&u)) {
@@ -3217,7 +3194,6 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		       "`shirudo upatch load`", file);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "is a LOAD upatch");
-		upatch_close(&u);
 		goto done;
 	}
 	/*
@@ -3231,12 +3207,10 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		       "the directive", rep.path);
 		rep_fail(&rep, "parse", "parser_rejected", 0,
 			 "directive target not signed");
-		upatch_close(&u);
 		goto done;
 	}
 	upatch_header_name(&u, name);
 	memcpy(payload, upatch_signed_unload_payload(&u), sizeof(payload));
-	upatch_close(&u);
 	rep.name = name;
 	hex_encode(payload, sizeof(payload), rep.payload_hex);
 
@@ -3275,7 +3249,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	if (undo_unmeasured(&rep, "unload"))
 		goto done;
 	/* A bad signature fails here, before anything is removed. */
-	if (__upatch_apply(file, true, &rep) != 0) {
+	if (upatch_apply(&u, file, true, &rep) != 0) {
 		pr_err("upatch unload: signature verification failed; refusing");
 		goto done;
 	}
@@ -3370,8 +3344,8 @@ done:
 		       rep.err,
 		       rep.err ? strerror(rep.err) : "none",
 		       rep.message[0] ? rep.message : "(none)");
-	if (staged[0])
-		unlink(staged);
+	upatch_close(&u);
+	xfree(buf, len + 1);
 	if (report)
 		report_emit(report, &rep);
 	report_free(&rep);

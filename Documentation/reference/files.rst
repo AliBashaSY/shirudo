@@ -128,11 +128,6 @@ the label as foreign. In the initrd, ``init`` binds
      - ``0644``
      - Archive of every loaded upatch, restored by ``init`` at boot.
        ``upatch unload`` and a revocation purge remove it.
-   * - ``incoming/load-<pid>.upatch``
-     - ``upatch load``, ``upatch unload``
-     - ``0600``
-     - The one copy of the artifact an operation reads. Removed when it
-       ends.
    * - ``eventlog``
      - measuring commands
      - ``0600``

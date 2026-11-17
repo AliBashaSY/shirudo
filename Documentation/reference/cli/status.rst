@@ -381,7 +381,6 @@ system as well:
      keys/signing_key.pem   absent
      eventlog               present (2324 bytes)
      upatches/              1 archived
-     incoming/              empty
      bpffs/                 mounted
 
    System:

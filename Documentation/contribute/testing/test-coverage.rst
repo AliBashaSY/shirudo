@@ -485,6 +485,9 @@ signed config image.
        forged pending record, or another boot ID bound over ``/proc``,
        detaches nothing: the undo pass takes only the records the
        register vouches for
+   * - ``t6148-read-once``
+     - A load and an unload stage nothing in sealed state, and the
+       archive holds the bytes the load read
 
 ``bpm`` (7)
 ~~~~~~~~~~~

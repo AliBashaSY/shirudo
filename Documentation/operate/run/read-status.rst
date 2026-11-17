@@ -155,7 +155,6 @@ line; a section unfolds on its own when its condition is not ``OK``.
      keys/signing_key.pem   absent
      eventlog               present (2324 bytes)
      upatches/              1 archived
-     incoming/              empty
      bpffs/                 mounted
 
    System:
@@ -413,9 +412,8 @@ Assets
     The number of archived upatches that ``init`` restores at the next
     boot.
 
-``incoming/`` and ``bpffs/``
-    The staging directory for loads in progress and whether the private
-    bpffs is mounted.
+``bpffs/``
+    Whether the private bpffs is mounted.
 
 Eventlog
 ~~~~~~~~

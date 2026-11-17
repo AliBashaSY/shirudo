@@ -521,10 +521,6 @@ assets
      - integer or ``null``
      - ``.upatch`` files in ``/var/lib/shirudo/upatches``. ``null``
        when the directory is absent.
-   * - ``incoming``
-     - integer or ``null``
-     - Entries in ``/var/lib/shirudo/incoming``. ``null`` when the
-       directory is absent.
    * - ``bpffs_mounted``
      - boolean
      - ``/run/shirudo/bpffs`` is the root of a bpffs mount, not
@@ -918,7 +914,6 @@ indented here:
        "eventlog": true,
        "eventlog_bytes": 2324,
        "upatches": 1,
-       "incoming": 0,
        "bpffs_mounted": true
      },
      "tamper_attempts": {

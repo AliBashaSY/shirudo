@@ -132,14 +132,13 @@ static noinline_for_stack int count_eventlog(long *entries, long *bytes)
 struct asset_view {
 	long eventlog_bytes;
 	int n_upatches;
-	int n_incoming;
 	bool cert;
 	bool signing_key;
 	bool eventlog;
 	bool bpffs_mounted;
 };
 
-static int count_dir(const char *dir, bool upatch_only)
+static int count_upatches(const char *dir)
 {
 	struct dirent **list = NULL;
 	int n, i, count = 0;
@@ -148,7 +147,7 @@ static int count_dir(const char *dir, bool upatch_only)
 	if (n < 0)
 		return -1;	/* directory absent */
 	for (i = 0; i < n; i++) {
-		if (!upatch_only || upatch_select(list[i]))
+		if (upatch_select(list[i]))
 			count++;
 		libc_free(list[i]);
 	}
@@ -167,8 +166,7 @@ static void gather_assets(struct asset_view *a)
 		a->eventlog = true;
 		a->eventlog_bytes = (long)st.st_size;
 	}
-	a->n_upatches = count_dir(UPATCHES_DIR, true);
-	a->n_incoming = count_dir(INCOMING_DIR, false);
+	a->n_upatches = count_upatches(UPATCHES_DIR);
 	a->bpffs_mounted = bpffs_mounted_at(BPFFS_DIR) > 0;
 }
 
@@ -1476,10 +1474,6 @@ int cmd_status(int argc, const char **argv)
 			json_kv_int(&e, "upatches", assets.n_upatches);
 		else
 			json_kv_null(&e, "upatches");
-		if (assets.n_incoming >= 0)
-			json_kv_int(&e, "incoming", assets.n_incoming);
-		else
-			json_kv_null(&e, "incoming");
 		json_kv_bool(&e, "bpffs_mounted", assets.bpffs_mounted);
 		json_obj_close(&e);
 		/*
@@ -1736,13 +1730,6 @@ int cmd_status(int argc, const char **argv)
 			else
 				printf("  %-22s %d archived\n", "upatches/",
 				       assets.n_upatches);
-			if (assets.n_incoming < 0)
-				printf("  %-22s absent\n", "incoming/");
-			else if (assets.n_incoming == 0)
-				printf("  %-22s empty\n", "incoming/");
-			else
-				printf("  %-22s %d staged\n", "incoming/",
-				       assets.n_incoming);
 			printf("  %-22s %s\n", "bpffs/",
 			       assets.bpffs_mounted ? "mounted" :
 			       "not mounted");
