@@ -403,6 +403,12 @@ corpus, which the next libFuzzer run merges down. A crash fails the run
 and leaves its input in ``testing/fuzz/crash-afl-<target>-<n>``; the
 libFuzzer build of the target reproduces it like any other input.
 
+The ``afl-fuzz`` job of the ``Sanitizers`` workflow runs every target
+under AFL++ when the ``libFuzzer`` job does, for as long, and saves its
+corpus when that job does. Each starts from the newest corpus either
+kept, so that what one finds the other starts from. What crashed is in
+the job's ``afl-fuzz-crashes`` artifact.
+
 Use the test VM
 ---------------
 
