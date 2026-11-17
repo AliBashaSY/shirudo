@@ -20,6 +20,21 @@ int LLVMFuzzerInitialize(int *argc, char ***argv);
 int LLVMFuzzerTestOneInput(const __u8 *data, size_t size);
 
 /*
+ * testing/fuzz/output.c, for the targets of what a command prints, which
+ * call fuzz_output_capture() once to make stdout a memfd. fuzz_run() runs
+ * cmd with the words up to the NULL as its argv, as the CLI does, and
+ * returns its exit status. It abort()s unless what the command printed
+ * to stdout is none or one JSON value that json_walk() takes and a line
+ * feed, where the last word is --json, and otherwise keeps the promise of
+ * text_sanitize() for a terminal: well-formed UTF-8 with no C0 or C1
+ * control and no DEL, but for a tab, a line feed and a carriage return
+ * before a line feed.
+ */
+void fuzz_output_capture(void);
+int fuzz_run(int (*cmd)(int argc, const char **argv), const char *word,
+	     ...) __sentinel;
+
+/*
  * The input as a file for the parsers that read one by name: a memfd,
  * named through /proc/self/fd. -1, or the descriptor to close after.
  */

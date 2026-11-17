@@ -14,12 +14,20 @@ Every parser of input from outside the host gets a target in
 `testing/fuzz/fuzz-<name>.c` defines `LLVMFuzzerTestOneInput()`. System
 headers come first, then `"fuzz.h"`, then shirudo's headers, which
 poison the libc names they replace. A target that reaches a static
-function includes its `.c` file. A parser that reads a file by name gets
-one from `fuzz_file()`, or `fuzz_gzip_file()`, both in `fuzz.h`. A
-target whose code prints sends stdout to `/dev/null` in
+function includes its `.c` file, a builtin's too. A parser that reads a
+file by name gets one from `fuzz_file()`, or `fuzz_gzip_file()`, both in
+`fuzz.h`. A target whose code prints sends stdout to `/dev/null` in
 `LLVMFuzzerInitialize()`, as `fuzz-rodata.c` does, and one that needs a
 directory makes it under `TMPDIR` and removes it `atexit()`, as
 `fuzz-config-update.c` does.
+
+A target of what a command prints from a file it has not verified calls
+`fuzz_output_capture()` in `LLVMFuzzerInitialize()` and runs the command
+as the CLI does with `fuzz_run()` of `testing/fuzz/output.c`, as
+`fuzz-upatch-info.c` does. That holds what the command printed to the
+promise of `text_sanitize()` for a terminal, or to one JSON document
+after `--json`. The command must not reach the network, the kernel or
+the TPM: give it a local file and options that keep it off those paths.
 
 Not crashing is the least a target checks. Make it `abort()` when a
 property of the parser breaks:

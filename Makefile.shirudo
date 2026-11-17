@@ -1277,9 +1277,31 @@ $(FUZZ_OUT)/fuzz-kconfig: testing/fuzz/fuzz-kconfig.c $(FUZZ_BASE) \
 $(FUZZ_OUT)/fuzz-quote-check: testing/fuzz/fuzz-quote-check.c $(FUZZ_BASE) \
                                tools/quote-check/row.c util/tpm_wire.c \
                                util/crypto_openssl.c util/io.c util/seal.c
+$(FUZZ_OUT)/fuzz-upatch-info: testing/fuzz/fuzz-upatch-info.c $(FUZZ_BASE) \
+                              testing/fuzz/output.c builtin-upatch.c \
+                              builtin.h util/chain.c util/crypto_openssl.c \
+                              util/curl.c util/elf_target.c util/eventlog.c \
+                              util/help.c util/identity.c util/initrd.c \
+                              util/io.c util/kernel_abi.c util/keyring.c \
+                              util/measured.c util/nv_writer.c \
+                              util/options.c util/paths.c util/report.c \
+                              util/serializer.c util/similar.c \
+                              util/timefmt.c util/tls_openssl.c util/tpm.c \
+                              util/tpm_wire.c util/upatch.c \
+                              util/upatch_decode.c util/upatch_maps.c \
+                              util/upatch_maps_otel.c util/upatch_pins.c \
+                              util/upatch_resolve.c util/upatch_table.c \
+                              util/upatch_verify.c util/version_id.c \
+                              util/xdp.c $(FUZZ_SEAL) $(LIBBPF_A)
+# util/upatch_decode.c defines upatch_decode_map_signal(), which
+# builtin-upatch.c calls, with LuaJIT alone; upatch info runs no Lua.
+$(FUZZ_OUT)/fuzz-upatch-info: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS) \
+                                             $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
+$(FUZZ_OUT)/fuzz-upatch-info: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) \
+                                           $(LIBELF_LIBS) $(LUAJIT_LIBS)
 
-# A target that reaches static parsers includes their source, which it
-# then depends on without linking it a second time.
+# A target that reaches static parsers or printers includes their source,
+# which it then depends on without linking it a second time.
 $(FUZZ_OUT)/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
 $(FUZZ_OUT)/fuzz-tree-state $(FUZZ_OUT)/fuzz-kconfig: \
 	FUZZ_INCLUDED := util/bpm_tree_state.c
@@ -1287,6 +1309,7 @@ $(FUZZ_OUT)/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
 $(FUZZ_OUT)/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
 $(FUZZ_OUT)/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
 $(FUZZ_OUT)/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
+$(FUZZ_OUT)/fuzz-upatch-info: FUZZ_INCLUDED := builtin-upatch.c
 
 # A target compiles its sources and links in one step, so it depends on
 # every header a source may include, and on the compiler and flags it was
