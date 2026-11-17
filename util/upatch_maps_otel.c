@@ -1098,7 +1098,6 @@ int otel_retry_after(const char *value, time_t now, __u64 *seconds)
 		*seconds = min(delay, 30U);
 		return 0;
 	}
-	parsed = 0;
 	memset(&date, 0, sizeof(date));
 	end = strptime(value, "%a, %d %b %Y %H:%M:%S GMT", &date);
 	parsed = !!end;

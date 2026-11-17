@@ -78,7 +78,6 @@ static int parse_header(const __u8 *m, size_t n,
 	out->type		= get_le32(p);
 	p += 4;
 	out->reserved1		= get_le32(p);
-	p += 4;
 	if (out->reserved1 != 0)
 		return -EINVAL;
 	return 0;

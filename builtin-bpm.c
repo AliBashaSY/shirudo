@@ -2020,7 +2020,6 @@ static int tree_recover_pending(const struct tree_publication *pub,
 		/* Still pre-operation; retry normally. */
 		if (!ret)
 			return 0;
-		applied = true;
 	}
 	if (!event_present) {
 		ret = tree_event_append(op->seq, op->operation_digest, next);

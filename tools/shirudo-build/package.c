@@ -1525,7 +1525,6 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_maps,
 				goto err_free;
 			}
 			md = grown;
-			md_alloc_len = len;
 		}
 		targets.magic = cpu_to_le32(UPATCH_UPROBE_TARGET_MAGIC);
 		targets.version = cpu_to_le32(UPATCH_UPROBE_TARGET_VERSION);

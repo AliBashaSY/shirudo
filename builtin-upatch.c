@@ -2259,7 +2259,6 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 			rep_fail(rep, "payload_load", "unknown", err,
 				 "shirudo_sock_policy binding failed");
 			close(policy_map_fd);
-			policy_map_fd = -1;
 			ret = 1;
 			goto out;
 		}
@@ -2285,14 +2284,10 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		goto out;
 	}
 	if ((__s32)retval < 0) {
-		if (policy_map_fd >= 0) {
+		if (policy_map_fd >= 0)
 			close(policy_map_fd);
-			policy_map_fd = -1;
-		}
-		if (socket_policy_map_fd >= 0) {
+		if (socket_policy_map_fd >= 0)
 			close(socket_policy_map_fd);
-			socket_policy_map_fd = -1;
-		}
 		/*
 		 * The loader closed what it made before it failed; the
 		 * numbers left in the context name nothing of ours now.
