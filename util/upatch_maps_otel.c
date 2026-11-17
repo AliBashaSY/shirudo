@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/random.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -1446,34 +1447,18 @@ struct snapshot_writer {
 	bool		deflate_ready;
 };
 
+/*
+ * In memory: a file under TMPDIR, which root sets, could be created in a
+ * sealed directory, labeled.
+ */
 static int snapshot_temp_file(FILE **out)
 {
-	const char *tmpdir = getenv("TMPDIR");
-	char path[PATH_MAX];
 	FILE *file;
 	int fd;
 
-	if (!tmpdir || !tmpdir[0])
-		tmpdir = "/tmp";
-	if (strsprintf(path, sizeof(path), "%s/%s", tmpdir,
-		       "shirudo-map-snapshot.XXXXXX") < 0)
-		return -ENAMETOOLONG;
-	fd = mkstemp(path);
+	fd = memfd_create("shirudo-map-snapshot", MFD_CLOEXEC);
 	if (fd < 0)
 		return -errno;
-	if (fchmod(fd, 0600) != 0) {
-		int ret = -errno;
-
-		unlink(path);
-		close(fd);
-		return ret;
-	}
-	if (unlink(path) != 0) {
-		int ret = -errno;
-
-		close(fd);
-		return ret;
-	}
 	file = fdopen(fd, "w+b");
 	if (!file) {
 		int ret = -errno;

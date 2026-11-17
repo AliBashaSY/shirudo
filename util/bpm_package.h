@@ -72,9 +72,15 @@ int bpm_upatch_pair(const char *name, size_t len, char *out, size_t cap);
 
 typedef int (*bpm_pkg_member_fn)(void *ctx, const char *member, char type);
 
-/* Visit validated package-relative ustar members without extracting them. */
+/*
+ * Visit validated package-relative ustar members without extracting them.
+ * The _fd variants read the archive from the start of fd, which they
+ * leave open.
+ */
 int bpm_pkg_visit_members(const char *archive, const char *package_dir,
 			  bpm_pkg_member_fn visit, void *ctx);
+int bpm_pkg_visit_members_fd(int fd, const char *package_dir,
+			     bpm_pkg_member_fn visit, void *ctx);
 
 /*
  * Read one member of a gzip'd ustar .bee into an xmalloc'd buffer of
@@ -83,6 +89,10 @@ int bpm_pkg_visit_members(const char *archive, const char *package_dir,
  * reports it otherwise.
  */
 int bpm_pkg_read_member_in(const char *archive, const char *member,
+			   const char *package_dir, char *found_dir,
+			   size_t found_dir_sz, __u8 **out,
+			   size_t *out_len, size_t max);
+int bpm_pkg_read_member_fd(int fd, const char *member,
 			   const char *package_dir, char *found_dir,
 			   size_t found_dir_sz, __u8 **out,
 			   size_t *out_len, size_t max);

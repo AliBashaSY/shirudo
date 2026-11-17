@@ -123,6 +123,9 @@ int base64_decode(const char *in, size_t in_len, __u8 *out,
 
 int cert_read_der(const __u8 *der, size_t len,
 		  struct cert *cert) __must_check;
+/* A DER or a PEM certificate, as cert_read_file() takes from a file. */
+int cert_read_memory(const __u8 *buf, size_t len,
+		     struct cert *cert) __must_check;
 
 struct cert_pubkey {
 	bool		rsa;

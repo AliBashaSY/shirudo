@@ -1723,7 +1723,10 @@ R22 Labeled inodes are interchangeable
    its own, root can bind one labeled inode over another sealed path
    for a shirudo command it runs there. U9 is one consequence; others
    are a hidden eventlog, which makes measuring commands fail, and
-   package or tree state read from the wrong file. This is a reading of
+   package or tree state read from the wrong file. What root can bind is
+   what shirudo labeled: no target command writes a temporary file,
+   which a sealed directory bound over ``/tmp`` would have labeled with
+   content from a registry (``t7002``). This is a reading of
    the code and is not reproduced. A bind mount over the state root in
    ``init``'s namespace, an idmapped one among them, was reproduced:
    every command refuses the state as foreign from then on.

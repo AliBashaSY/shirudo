@@ -87,8 +87,8 @@ shirudo and shirudo-build
        ``ExecStart=`` and ``EnvironmentFile=``, so the variable has no
        effect with it.
    * - ``TMPDIR``
-     - ``upatch map`` (snapshot file), ``shirudo-build bpm build``
-       (staging directory), the generator scripts (``mktemp -d``)
+     - ``shirudo-build bpm build`` (staging directory), the generator
+       scripts (``mktemp -d``)
      - Directory for temporary files, ``/tmp`` when unset or empty.
    * - ``HOME``
      - Registry credential lookup; ``shirudo-build bpm build`` expanding

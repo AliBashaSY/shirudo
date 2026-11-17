@@ -402,7 +402,8 @@ key
 
 - ``key fingerprint`` prints the SHA-256 fingerprint of a certificate's
   public key (SPKI). The argument is a DER certificate, a ``.bee`` package
-  (its ``cert.der``) or an ``oci://`` package reference.
+  (its ``cert.der``) or an ``oci://`` package reference. The certificate
+  is read once, so ``key add`` installs the bytes it fingerprints.
 - ``key add`` prints the same fingerprint and installs the certificate in
   ``/var/lib/shirudo/keys/<fingerprint>.der``. When
   ``/var/lib/shirudo/keys/cert.der`` does not exist, it links ``cert.der``

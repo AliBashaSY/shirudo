@@ -513,7 +513,9 @@ signed config image.
      - Subcommands, reference validation before network access, source
        and tree configuration lines
    * - ``t7002-bpm-info``
-     - READMEs of local and OCI packages, archive integrity
+     - READMEs of local and OCI packages, archive integrity, a download
+       kept in a memory file rather than in ``/tmp``, and one key
+       fingerprint from a certificate, a package and a download
    * - ``t7003-bpm-key``
      - ``bpm key`` from files and OCI references, ``bpm pull``, which
        replaces no file, not even after a failed digest, and names none

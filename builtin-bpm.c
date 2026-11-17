@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -65,6 +66,7 @@ struct bpm_source {
 };
 
 static int sha256_file_hex(const char *path, char *hex, size_t hex_sz);
+static int sha256_fd_hex(int fd, char *hex, size_t hex_sz);
 static int remove_tree(const char *path);
 
 static int prepare_direct_install(const char *raw, struct bpm_source *source,
@@ -145,7 +147,33 @@ static bool bee_title_ok(const char *title)
  * opened as output root may ask for: never a sealed file nor one
  * reached through a link.
  */
-static int download_package(const char *raw, const char *destination, int fd)
+/* The layer's title, else <package>-<tag>.bee. */
+static int pull_filename(const char *repository, const char *tag,
+			 const char *package_name, const char *title,
+			 char *filename, size_t cap)
+{
+	const char *base = strrchr(repository, '/');
+
+	if (bee_title_ok(title)) {
+		bpm_copy_string(filename, cap, title);
+		return 0;
+	}
+	base = base ? base + 1 : repository;
+	if (package_name[0])
+		base = package_name;
+	if (!bpm_package_name_ok(base))
+		return -EINVAL;
+	if (strsprintf(filename, cap, "%s-%s.bee", base, tag) < 0)
+		return -ENAMETOOLONG;
+	return 0;
+}
+
+/*
+ * Download the package raw names into fd, or with fd -1 into a file of
+ * the working directory, and check what was written there, read back
+ * from the descriptor that wrote it.
+ */
+static int download_package(const char *raw, int fd)
 {
 	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8];
@@ -183,29 +211,13 @@ static int download_package(const char *raw, const char *destination, int fd)
 		/* A cut title would name another file; fall back to the package name. */
 		if (bpm_trim(layers[i].title, title, sizeof(title)))
 			title[0] = '\0';
-		if (destination) {
-			bpm_copy_string(filename, sizeof(filename), destination);
-		} else if (bee_title_ok(title)) {
-			bpm_copy_string(filename, sizeof(filename), title);
-		} else {
-			const char *base = strrchr(repository, '/');
-
-			base = base ? base + 1 : repository;
-			if (package_name[0])
-				base = package_name;
-			if (!bpm_package_name_ok(base)) {
-				ret = -EINVAL;
+		if (fd < 0) {
+			ret = pull_filename(repository, tag, package_name, title,
+					    filename, sizeof(filename));
+			if (ret)
 				goto out;
-			}
-			if (strsprintf(filename, sizeof(filename), "%s-%s.bee",
-				       base, tag) < 0) {
-				ret = -ENAMETOOLONG;
-				goto out;
-			}
-		}
-		if (!destination) {
 			out = seal_output_open(filename,
-					       O_WRONLY | O_CREAT | O_EXCL,
+					       O_RDWR | O_CREAT | O_EXCL,
 					       0644);
 			if (out < 0) {
 				ret = out;
@@ -214,18 +226,18 @@ static int download_package(const char *raw, const char *destination, int fd)
 		}
 		ret = bpm_oci_get_file(&c, url, BPM_PACKAGE_MEDIA, out,
 				       layers[i].size);
-		if (!destination)
-			close(out);
-		if (!ret && (sha256_file_hex(filename, digest, sizeof(digest)) ||
+		if (!ret && (sha256_fd_hex(out, digest, sizeof(digest)) ||
 			     !bpm_digest_matches(layers[i].digest, digest)))
 			ret = -EKEYREJECTED;
 		if (!ret && layers[i].size >= 0) {
 			struct stat st;
 
-			if (stat(filename, &st) || st.st_size != layers[i].size)
+			if (fstat(out, &st) || st.st_size != layers[i].size)
 				ret = -EKEYREJECTED;
 		}
-		if (ret && !destination)
+		if (fd < 0)
+			close(out);
+		if (ret && fd < 0)
 			unlink(filename);
 		goto out;
 	}
@@ -237,7 +249,7 @@ out:
 
 static int pull_package(const char *raw)
 {
-	return download_package(raw, NULL, -1);
+	return download_package(raw, -1);
 }
 
 static int copy_file_ex(const char *src, const char *dst, mode_t mode,
@@ -478,55 +490,79 @@ static int cache_path(const char *source, char *out, size_t sz)
 	return 0;
 }
 
-static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
+/* The digest of fd's bytes from its start, whatever its offset. */
+static int sha256_fd_hex(int fd, char *hex, size_t hex_sz)
 {
-	struct sha256_ctx ctx;
 	__u8 digest[CRYPTO_SHA256_LEN];
+	struct sha256_ctx ctx;
 	__u8 buf[65536];
+	off_t at = 0;
 	ssize_t nr;
-	int fd, ret = -EIO;
+	int ret = -EIO;
 
 	if (hex_sz < 65 || sha256_init(&ctx) != 0)
 		return -EINVAL;
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		sha256_free(&ctx);
-		return -errno;
-	}
-	while ((nr = read(fd, buf, sizeof(buf))) > 0) {
+	while ((nr = pread(fd, buf, sizeof(buf), at)) > 0) {
 		if (sha256_update(&ctx, buf, (size_t)nr) != 0)
 			goto done;
+		at += nr;
 	}
 	if (nr < 0 || sha256_final(&ctx, digest) != 0)
 		goto done;
 	hex_encode(digest, sizeof(digest), hex);
 	ret = 0;
 done:
-	close(fd);
 	sha256_free(&ctx);
 	return ret;
 }
 
+static int sha256_file_hex(const char *path, char *hex, size_t hex_sz)
+{
+	int fd, ret;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	ret = sha256_fd_hex(fd, hex, hex_sz);
+	close(fd);
+	return ret;
+}
+
+/*
+ * A package the operator names, open for reading: the local file, or
+ * the download in memory. Never a file of /tmp, which root can bind to a
+ * sealed directory for shirudo to create a labeled file in.
+ */
+static int package_source_open(const char *source)
+{
+	int fd, ret;
+
+	if (strncmp(source, "oci://", 6)) {
+		fd = open(source, O_RDONLY | O_CLOEXEC);
+		return fd < 0 ? -errno : fd;
+	}
+	fd = memfd_create("shirudo-bpm-package", MFD_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	ret = download_package(source, fd);
+	if (ret) {
+		close(fd);
+		return ret;
+	}
+	return fd;
+}
+
 static int print_package_readme(const char *source)
 {
-	char temporary[] = "/tmp/shirudo-bpm-info-XXXXXX";
 	size_t beefile_len = 0, readme_len = 0;
 	__u8 *beefile = NULL, *readme = NULL;
-	const char *archive = source;
 	char package_dir[101];
 	int fd, ret;
 
-	if (!strncmp(source, "oci://", 6)) {
-		fd = mkstemp(temporary);
-		if (fd < 0)
-			return -errno;
-		archive = temporary;
-		ret = download_package(source, archive, fd);
-		close(fd);
-		if (ret)
-			goto out;
-	}
-	ret = bpm_pkg_read_member_in(archive, "Beefile", NULL, package_dir,
+	fd = package_source_open(source);
+	if (fd < 0)
+		return fd;
+	ret = bpm_pkg_read_member_fd(fd, "Beefile", NULL, package_dir,
 				     sizeof(package_dir), &beefile, &beefile_len,
 				     4u * 1024u * 1024u);
 	if (ret) {
@@ -534,7 +570,7 @@ static int print_package_readme(const char *source)
 			pr_err("bpm info: package %s does not include Beefile", source);
 		goto out;
 	}
-	ret = bpm_pkg_read_member_in(archive, "README.md", package_dir, NULL, 0,
+	ret = bpm_pkg_read_member_fd(fd, "README.md", package_dir, NULL, 0,
 				     &readme, &readme_len, 4u * 1024u * 1024u);
 	if (ret) {
 		if (ret == -ENOENT)
@@ -546,8 +582,7 @@ static int print_package_readme(const char *source)
 out:
 	xfree(beefile, beefile_len + 1);
 	xfree(readme, readme_len + 1);
-	if (archive == temporary)
-		unlink(temporary);
+	close(fd);
 	return ret;
 }
 
@@ -603,43 +638,23 @@ static int print_upatch_member(void *ctx, const char *member, char type)
 	return 0;
 }
 
-static int bpm_info_archive(const char *source, char temporary[])
-{
-	int fd, ret;
-
-	if (strncmp(source, "oci://", 6))
-		return 0;
-	fd = mkstemp(temporary);
-	if (fd < 0)
-		return -errno;
-	ret = download_package(source, temporary, fd);
-	close(fd);
-	if (ret)
-		unlink(temporary);
-	return ret;
-}
-
 static int print_package_upatches(const char *source, bool all)
 {
-	char temporary[] = "/tmp/shirudo-bpm-upatches-XXXXXX";
+	struct bpm_upatches_ctx ctx = { .all = all };
 	size_t beefile_len = 0;
 	__u8 *beefile = NULL;
-	const char *archive = source;
 	char package_dir[101];
-	struct bpm_upatches_ctx ctx = { .all = all };
-	int ret = 0;
+	int fd, ret;
 
-	ret = bpm_info_archive(source, temporary);
-	if (ret)
-		return ret;
-	if (!strncmp(source, "oci://", 6))
-		archive = temporary;
-	ret = bpm_pkg_read_member_in(archive, "Beefile", NULL, package_dir,
+	fd = package_source_open(source);
+	if (fd < 0)
+		return fd;
+	ret = bpm_pkg_read_member_fd(fd, "Beefile", NULL, package_dir,
 				     sizeof(package_dir), &beefile, &beefile_len,
 				     4u * 1024u * 1024u);
 	if (!ret)
-		ret = bpm_pkg_visit_members(archive, package_dir,
-					    print_upatch_member, &ctx);
+		ret = bpm_pkg_visit_members_fd(fd, package_dir,
+					       print_upatch_member, &ctx);
 	if (!ret && ctx.len)
 		ret = write_complete(STDOUT_FILENO, ctx.list, ctx.len);
 	if (ret == -ENOENT)
@@ -647,33 +662,28 @@ static int print_package_upatches(const char *source, bool all)
 		       source);
 	xfree(beefile, beefile_len + 1);
 	xfree(ctx.list, ctx.cap);
-	if (archive == temporary)
-		unlink(temporary);
+	close(fd);
 	return ret;
 }
 
 static int print_package_upatch_data(const char *source, const char *member,
 				     bool json)
 {
-	char temporary[] = "/tmp/shirudo-bpm-data-XXXXXX";
 	size_t beefile_len = 0, upatch_len = 0;
 	__u8 *beefile = NULL, *bytes = NULL;
-	const char *archive = source;
 	char package_dir[101];
 	struct upatch u = {};
-	int ret;
+	int fd, ret;
 
 	if (!bpm_archive_rel_ok(member) || strncmp(member, "upatches/", 9) ||
 	    strchr(member + 9, '/') ||
 	    bpm_upatch_member(member + 9, strlen(member + 9)) ==
 	    BPM_UPATCH_OTHER)
 		return -EINVAL;
-	ret = bpm_info_archive(source, temporary);
-	if (ret)
-		return ret;
-	if (!strncmp(source, "oci://", 6))
-		archive = temporary;
-	ret = bpm_pkg_read_member_in(archive, "Beefile", NULL, package_dir,
+	fd = package_source_open(source);
+	if (fd < 0)
+		return fd;
+	ret = bpm_pkg_read_member_fd(fd, "Beefile", NULL, package_dir,
 				     sizeof(package_dir), &beefile, &beefile_len,
 				     4u * 1024u * 1024u);
 	if (ret) {
@@ -682,7 +692,7 @@ static int print_package_upatch_data(const char *source, const char *member,
 			       source);
 		goto out;
 	}
-	ret = bpm_pkg_read_member_in(archive, member, package_dir, NULL, 0,
+	ret = bpm_pkg_read_member_fd(fd, member, package_dir, NULL, 0,
 				     &bytes, &upatch_len,
 				     UPATCH_FILE_MAX);
 	if (ret) {
@@ -712,18 +722,18 @@ out:
 	upatch_close(&u);
 	xfree(beefile, beefile_len + 1);
 	xfree(bytes, upatch_len + 1);
-	if (archive == temporary)
-		unlink(temporary);
+	close(fd);
 	return ret;
 }
 
-static int cert_matches_active(const char *path)
+/* 0 when the certificate has the public key of the active cert.der. */
+static int cert_matches_active(const __u8 *der, size_t len)
 {
 	struct cert a = {}, b = {};
 	__u8 da[CRYPTO_SHA256_LEN], db[CRYPTO_SHA256_LEN];
 	int ret = -EINVAL;
 
-	if (!cert_read_file(path, &a) &&
+	if (!cert_read_memory(der, len, &a) &&
 	    !cert_read_file(CERT_PATH, &b) &&
 	    !cert_pubkey_digest(&a, da) &&
 	    !cert_pubkey_digest(&b, db) &&
@@ -734,13 +744,27 @@ static int cert_matches_active(const char *path)
 	return ret;
 }
 
-static int key_file_fingerprint(const char *path, char hex[65])
+static int cert_file_matches_active(const char *path)
 {
-	struct cert cert = {};
-	__u8 digest[CRYPTO_SHA256_LEN];
+	size_t len = 0;
+	__u8 *der;
 	int ret;
 
-	ret = cert_read_file(path, &cert);
+	ret = keys_read_der(path, &der, &len);
+	if (ret)
+		return ret;
+	ret = cert_matches_active(der, len);
+	xfree(der, len);
+	return ret;
+}
+
+static int key_fingerprint(const __u8 *der, size_t len, char hex[65])
+{
+	__u8 digest[CRYPTO_SHA256_LEN];
+	struct cert cert = {};
+	int ret;
+
+	ret = cert_read_memory(der, len, &cert);
 	if (!ret)
 		ret = cert_pubkey_digest(&cert, digest);
 	cert_free(&cert);
@@ -750,14 +774,45 @@ static int key_file_fingerprint(const char *path, char hex[65])
 	return 0;
 }
 
-static int install_key_file(const char *src)
+static int key_file_fingerprint(const char *path, char hex[65])
+{
+	size_t len = 0;
+	__u8 *der;
+	int ret;
+
+	ret = keys_read_der(path, &der, &len);
+	if (ret)
+		return ret;
+	ret = key_fingerprint(der, len, hex);
+	xfree(der, len);
+	return ret;
+}
+
+static int write_key(const char *dst, const __u8 *der, size_t len)
+{
+	int fd, ret;
+
+	fd = seal_open(dst, O_WRONLY | O_CREAT | O_EXCL, 0644);
+	if (fd < 0)
+		return fd;
+	ret = write_complete(fd, der, len);
+	if (!ret && fsync(fd))
+		ret = -errno;
+	if (close(fd) && !ret)
+		ret = -errno;
+	if (ret)
+		unlink(dst);
+	return ret;
+}
+
+static int install_key(const __u8 *der, size_t len)
 {
 	char hex[65], dst[PATH_MAX];
 	bool active, made = false;
 	struct stat st;
 	int ret;
 
-	ret = key_file_fingerprint(src, hex);
+	ret = key_fingerprint(der, len, hex);
 	if (ret)
 		return ret;
 	ret = seal_mkdir_p(KEYS_DIR, 0700);
@@ -766,7 +821,7 @@ static int install_key_file(const char *src)
 	active = lstat(CERT_PATH, &st) == 0;
 	if (!active && errno != ENOENT)
 		return -errno;
-	if (active && cert_matches_active(src))
+	if (active && cert_matches_active(der, len))
 		return -EPERM;
 	if (strsprintf(dst, sizeof(dst), "%s/%s.der", KEYS_DIR,
 		       hex) < 0)
@@ -780,7 +835,7 @@ static int install_key_file(const char *src)
 	} else {
 		if (errno != ENOENT)
 			return -errno;
-		ret = copy_file_ex(src, dst, 0644, true);
+		ret = write_key(dst, der, len);
 		if (ret)
 			return ret;
 		made = true;
@@ -792,7 +847,7 @@ static int install_key_file(const char *src)
 			ret = -errno;
 			goto undo;
 		}
-		ret = cert_matches_active(src) ? -EPERM : 0;
+		ret = cert_matches_active(der, len) ? -EPERM : 0;
 		goto undo;
 	}
 	ret = seal_inherit_path(CERT_PATH);
@@ -802,56 +857,31 @@ undo:
 	return ret;
 }
 
-static int extract_package_cert(const char *archive, char *out, size_t out_sz)
+/*
+ * The DER certificate a key command takes, read once so that the key
+ * installed is the one fingerprinted: the file named, or the cert.der of
+ * a package, a download read in memory. *cap is what xfree() takes.
+ */
+static int key_source_read(const char *source, __u8 **der, size_t *len,
+			   size_t *cap)
 {
-	char tmp[] = "/tmp/shirudo-bpm-cert-XXXXXX";
-	__u8 *body = NULL;
-	size_t len = 0;
+	size_t n = strlen(source);
 	int fd, ret;
 
-	ret = bpm_pkg_read_member(archive, "cert.der", &body, &len, 1024 * 1024);
-	if (ret)
+	if (strncmp(source, "oci://", 6) &&
+	    !name_has_suffix(source, n, ".bee")) {
+		ret = keys_read_der(source, der, len);
+		*cap = *len;
 		return ret;
-	if (sizeof(tmp) > out_sz) {
-		xfree(body, len + 1);
-		return -ENAMETOOLONG;
 	}
-	fd = mkstemp(tmp);
-	if (fd < 0) {
-		xfree(body, len + 1);
-		return -errno;
-	}
-	ret = write_complete(fd, body, len);
-	if (close(fd) && !ret)
-		ret = -errno;
-	xfree(body, len + 1);
-	if (ret)
-		unlink(tmp);
-	else
-		bpm_copy_string(out, out_sz, tmp);
+	fd = package_source_open(source);
+	if (fd < 0)
+		return fd;
+	ret = bpm_pkg_read_member_fd(fd, "cert.der", NULL, NULL, 0, der, len,
+				     KEYS_DER_MAX);
+	close(fd);
+	*cap = *len + 1;
 	return ret;
-}
-
-static int key_source_file(const char *source, char *temp, size_t temp_sz)
-{
-	char archive[] = "/tmp/shirudo-bpm-key-XXXXXX";
-	size_t len = strlen(source);
-	int fd, ret;
-
-	if (!strncmp(source, "oci://", 6)) {
-		fd = mkstemp(archive);
-		if (fd < 0)
-			return -errno;
-		ret = download_package(source, archive, fd);
-		close(fd);
-		if (!ret)
-			ret = extract_package_cert(archive, temp, temp_sz);
-		unlink(archive);
-		return ret;
-	}
-	if (name_has_suffix(source, len, ".bee"))
-		return extract_package_cert(source, temp, temp_sz);
-	return 0;
 }
 
 static int key_fingerprint_compare(const void *a, const void *b)
@@ -1242,7 +1272,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				ret = -ENAMETOOLONG;
 				goto out;
 			}
-			if (cert_matches_active(cert)) {
+			if (cert_file_matches_active(cert)) {
 				ret = -EKEYREJECTED;
 				goto out;
 			}
@@ -2782,8 +2812,10 @@ static const struct help bpm_key_help = {
 
 static int cmd_bpm_key(int argc, const char **argv)
 {
-	char temp[PATH_MAX] = {}, hex[65];
-	const char *sub, *src;
+	size_t len = 0, cap = 0;
+	const char *sub;
+	__u8 *der = NULL;
+	char hex[65];
 	int ret;
 
 	if (argc < 2 || is_help(argv[1])) {
@@ -2820,19 +2852,15 @@ static int cmd_bpm_key(int argc, const char **argv)
 	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return bpm_fail("initialize curl", -EIO);
-	src = argv[2];
-	ret = key_source_file(src, temp, sizeof(temp));
+	ret = key_source_read(argv[2], &der, &len, &cap);
 	if (!ret) {
-		if (temp[0])
-			src = temp;
-		ret = key_file_fingerprint(src, hex);
+		ret = key_fingerprint(der, len, hex);
 		if (!ret && !strcmp(sub, "add"))
-			ret = install_key_file(src);
+			ret = install_key(der, len);
 		if (!ret)
 			puts(hex);
+		xfree(der, cap);
 	}
-	if (temp[0])
-		unlink(temp);
 	return bpm_finish(-1, ret, !strcmp(sub, "add") ?
 			  "key add" : "key fingerprint");
 }

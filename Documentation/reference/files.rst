@@ -520,10 +520,12 @@ Kernel and system interfaces
 Temporary files
 ---------------
 
-``bpm info`` and ``bpm key`` create ``/tmp/shirudo-bpm-*-XXXXXX``
-files. ``upatch map --s3-uri`` writes a
-snapshot to ``$TMPDIR/shirudo-map-snapshot.XXXXXX`` (``/tmp`` when
-``TMPDIR`` is unset) with mode ``0600``.
+The target commands create none. ``bpm info`` and ``bpm key`` keep a
+downloaded package in a memory file, ``memfd:shirudo-bpm-package``, and
+``upatch map --s3-uri`` its snapshot in ``memfd:shirudo-map-snapshot``:
+a file of ``/tmp`` or of ``TMPDIR``, which root chooses, could be
+created in a sealed directory bound there, with the label and content
+from a registry.
 
 Related
 -------

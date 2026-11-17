@@ -611,6 +611,27 @@ int cert_read_der(const __u8 *der, size_t len,
 	return cert->impl ? 0 : -EINVAL;
 }
 
+int cert_read_memory(const __u8 *buf, size_t len, struct cert *cert)
+{
+	BIO *bio;
+
+	if (!buf || !cert || len > INT_MAX)
+		return -EINVAL;
+	if (!cert_read_der(buf, len, cert))
+		return 0;
+	ERR_clear_error();
+	bio = BIO_new_mem_buf(buf, (int)len);
+	if (!bio)
+		return -ENOMEM;
+	cert->impl = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+	BIO_free(bio);
+	if (!cert->impl) {
+		ERR_clear_error();
+		return -EINVAL;
+	}
+	return 0;
+}
+
 int cert_pubkey(const struct cert *cert,
 		struct cert_pubkey *out)
 {

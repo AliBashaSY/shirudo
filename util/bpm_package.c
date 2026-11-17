@@ -382,12 +382,31 @@ static bool package_member_name_ok(const char *name, const char *member)
 		bpm_archive_rel_ok(member) && !strcmp(slash + 1, member);
 }
 
-int bpm_pkg_read_member_in(const char *archive, const char *member,
-			   const char *package_dir, char *found_dir,
-			   size_t found_dir_sz, __u8 **out,
-			   size_t *out_len, size_t max)
+/* A gzip stream from the start of fd, on a descriptor of its own. */
+static gzFile package_gzdopen(int fd)
 {
-	gzFile gz = gzopen(archive, "rb");
+	gzFile gz;
+	int copy;
+
+	if (lseek(fd, 0, SEEK_SET) < 0)
+		return NULL;
+	copy = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+	if (copy < 0)
+		return NULL;
+	gz = gzdopen(copy, "rb");
+	if (!gz) {
+		close(copy);
+		errno = ENOMEM;
+	}
+	return gz;
+}
+
+/* Takes gz over, and its open's errno when it is NULL. */
+static int read_member_gz(gzFile gz, const char *member,
+			  const char *package_dir, char *found_dir,
+			  size_t found_dir_sz, __u8 **out,
+			  size_t *out_len, size_t max)
+{
 	int ret = -ENOENT;
 	__u8 h[512];
 
@@ -502,6 +521,24 @@ done:
 	return ret;
 }
 
+int bpm_pkg_read_member_in(const char *archive, const char *member,
+			   const char *package_dir, char *found_dir,
+			   size_t found_dir_sz, __u8 **out,
+			   size_t *out_len, size_t max)
+{
+	return read_member_gz(gzopen(archive, "rb"), member, package_dir,
+			      found_dir, found_dir_sz, out, out_len, max);
+}
+
+int bpm_pkg_read_member_fd(int fd, const char *member,
+			   const char *package_dir, char *found_dir,
+			   size_t found_dir_sz, __u8 **out,
+			   size_t *out_len, size_t max)
+{
+	return read_member_gz(package_gzdopen(fd), member, package_dir,
+			      found_dir, found_dir_sz, out, out_len, max);
+}
+
 int bpm_pkg_read_member(const char *archive, const char *member,
 			__u8 **out, size_t *out_len, size_t max)
 {
@@ -509,10 +546,10 @@ int bpm_pkg_read_member(const char *archive, const char *member,
 				      out, out_len, max);
 }
 
-int bpm_pkg_visit_members(const char *archive, const char *package_dir,
-			  bpm_pkg_member_fn visit, void *ctx)
+/* Takes gz over, and its open's errno when it is NULL. */
+static int visit_members_gz(gzFile gz, const char *package_dir,
+			    bpm_pkg_member_fn visit, void *ctx)
 {
-	gzFile gz = gzopen(archive, "rb");
 	char root[256] = {};
 	__u8 h[512];
 	int ret = 0;
@@ -633,6 +670,18 @@ done:
 	if (gzclose(gz) != Z_OK && !ret)
 		ret = -EINVAL;
 	return ret;
+}
+
+int bpm_pkg_visit_members(const char *archive, const char *package_dir,
+			  bpm_pkg_member_fn visit, void *ctx)
+{
+	return visit_members_gz(gzopen(archive, "rb"), package_dir, visit, ctx);
+}
+
+int bpm_pkg_visit_members_fd(int fd, const char *package_dir,
+			     bpm_pkg_member_fn visit, void *ctx)
+{
+	return visit_members_gz(package_gzdopen(fd), package_dir, visit, ctx);
 }
 
 static X509 *read_x509_memory(const __u8 *body, size_t len)
