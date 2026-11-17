@@ -106,8 +106,8 @@ Table 1 lists what it does hold.
    * - The trusted certificates
      - The kernel's ``.bpf`` keyring
      - Sealed by ``init``, and ``lsm/key_permission``
-   * - Enforcement links, the identity map, the tamper counters, upatch
-       links and maps
+   * - Enforcement links, the identity map, the tamper and integrity
+       counters, upatch links and maps
      - The private bpffs at ``/run/shirudo/bpffs``
      - BPF LSM hooks on unlink, rename, mount and descriptor access
    * - Archived upatches, the eventlog, package and tree state, cached

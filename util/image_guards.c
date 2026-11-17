@@ -21,6 +21,7 @@
 
 #include "identity.h"
 #include "image_guards.h"
+#include "integrity.h"
 #include "log.h"
 #include "paths.h"
 #include "tamper.h"
@@ -184,6 +185,11 @@ const struct guard_map shirudo_guard_maps[GUARD_MAP_COUNT] = {
 		"shirudo_tamper", TAMPER_PIN,
 		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
 		sizeof(__u64), TAMPER_MAX, 0,
+	},
+	[GUARD_INTEGRITY] = {
+		"shirudo_integrity", INTEGRITY_PIN,
+		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
+		sizeof(__u64), INTEGRITY_MAX, 0,
 	},
 };
 

@@ -244,10 +244,10 @@ target on builds of the same commit.
    * - Initrd binary and runtime image binary
      - Must be the same build (:doc:`/operate/deploy/boot-integration`).
        Nothing compares their IDs. The runtime binary reads the identity
-       map and the tamper counters that the initrd's ``init`` pinned and
-       refuses maps whose layout differs from its own: a different
-       identity layout stops every command with ``shirudo: image state:
-       Protocol error``.
+       map and the tamper and integrity counters that the initrd's
+       ``init`` pinned and refuses maps whose layout differs from its
+       own: a different identity layout stops every command with
+       ``shirudo: image state: Protocol error``.
    * - Operator artifacts on a target of another build
      - Load when a key the target trusts signed them, the container and
        section versions match, and the target kernel accepts the signed

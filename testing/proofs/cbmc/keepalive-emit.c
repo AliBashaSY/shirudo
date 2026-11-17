@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * keepalive_emit() of util/keepalive.c: three bodies, each one JSON
- * object of 22 members; a last number of up to LEN + 1 digits in a room
+ * object of 23 members; a last number of up to LEN + 1 digits in a room
  * for LEN changes only its digits, or is -ENOSPC exactly when too long;
  * a bad input, a room cut short or a string not UTF-8 leaves no body.
  */
@@ -18,15 +18,16 @@
 #define HASH \
 	"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 #define NOT_A_HASH	"sha256:0123456789abcdef"
-#define MEMBERS		22
+#define MEMBERS		23
 /* Past the longest of these bodies, and a room inside the shortest. */
-#define ROOM		832
+#define ROOM		896
 #define CUT_SHORT	(ROOM / 4)
 
 enum state { START, KEY, STRING, COLON, VALUE, ELEMENT, ZERO, DIGITS, WORD,
 	     NEXT, END };
 
 static const __u64 counters[TAMPER_MAX];
+static const __u64 integrity[INTEGRITY_MAX];
 static char reference[ROOM];
 
 /* keepalive_mask() is not reached: the mask comes in as text. */
@@ -169,8 +170,9 @@ static struct keepalive_input with_every_value(void)
 		.image_root = HASH,
 		.verdict = "ok",
 		.cond = 5461,
-		.flags = 63,
+		.flags = 127,
 		.tamper = counters,
+		.integrity = integrity,
 		.tree = true,
 		.tree_id = "t",
 		.generation = 42,
@@ -205,7 +207,7 @@ static void is_an_object(const struct keepalive_input *in)
 	__CPROVER_assert(!keepalive_emit(in, buf, ROOM, &len) && len < ROOM &&
 			 !buf[len], "the body fits, terminated");
 	__CPROVER_assert(json_members(buf, len) == MEMBERS,
-			 "one JSON object of 22 members");
+			 "one JSON object of 23 members");
 }
 
 /*

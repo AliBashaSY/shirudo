@@ -26,4 +26,7 @@ const char *tamper_meaning(enum tamper_point point);
  */
 int tamper_read(struct tamper_counts *out);
 
+/* tamper_read() of the n counters of any such map, pinned at pin. */
+int counters_read(const char *pin, __u32 n, __u64 *count, __u64 *total);
+
 #endif /* SHIRUDO_UTIL_TAMPER_H */

@@ -185,6 +185,9 @@ Check enforcement
         BpfCommand                8  detach, update, delete or unclassified bpf() command
         ObjGet                    1  pin, map or link opened by another executable
 
+      Integrity attempts (this boot):
+        none
+
       Loaded upatches (0):
         none
 

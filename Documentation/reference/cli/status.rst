@@ -69,7 +69,7 @@ The report shows seven conditions, each ``OK``, ``WARN`` or ``ALERT``:
      - None of the above.
 
 The human report follows the verdict with the conditions, the tamper
-counters that moved this boot and the loaded upatches. Three sections
+and integrity counters that moved this boot and the loaded upatches. Three sections
 are folded unless ``--show-full`` asks for them: the ``.bpf`` and
 ``.dm-verity`` keyrings with the certificates each should hold and the
 key that holds each one, the TPM measurement state and the assets under
@@ -100,11 +100,11 @@ the full document, not the keepalive body, and ``--include-system`` and
 With ``--keepalive``, ``status`` prints the keepalive body, the compact
 status record a node's TPM quotes, as one line on standard output. It
 neither quotes nor sends it and needs no TPM, so an operator can see
-what a node reports. The body has 22 keys in a fixed order: ``schema``
+what a node reports. The body has 23 keys in a fixed order: ``schema``
 (``shirudo.keepalive/1``), ``boot_id``, ``version_id``, ``config_root``,
 ``kernel_release``, ``image_id``, ``image_version``, ``image_root``,
-``verdict``, ``cond``, ``flags``, ``tamper``, ``tree_id``,
-``generation``, ``base_seq``, ``last_seq``, ``base_root``,
+``verdict``, ``cond``, ``flags``, ``tamper``, ``integrity``,
+``tree_id``, ``generation``, ``base_seq``, ``last_seq``, ``base_root``,
 ``projection_root``, ``mask``, ``set_sha256``, ``count`` and ``not_ok``.
 A key that does not apply is ``null``:
 
@@ -117,7 +117,9 @@ at bits ``2i`` and ``2i+1``, ``LsmAttached`` first and ``XdpCovered``
 last: ``00`` not evaluated, ``01`` ``OK``, ``10`` ``WARN``, ``11``
 ``ALERT``. All seven ``OK`` is ``5461``. ``tamper`` lists every counter
 of :doc:`/security/tamper-counters`, zeros included, in the order of
-that page.
+that page, and ``integrity`` every counter of
+:doc:`/security/integrity-counters` the same way. A collector reads a
+counter by its place: a new one is appended, never put between two.
 
 The tree keys report a window of the last 512 operations up to the head
 of the recorded publication, whatever segments hold them: ``base_seq``
@@ -163,6 +165,9 @@ The bits of ``flags``:
      - ``snapshot_unsettled``
      - ``state.json`` kept changing while the body was read, which the
        config operation lock leaves to a writer outside it.
+   * - 6
+     - ``integrity_unavailable``
+     - The integrity counters cannot be read; ``integrity`` is ``null``.
 
 ``status`` holds the config operation lock for its whole run, as every
 target command does, a ``bpm tree sync`` included. It therefore never
@@ -255,7 +260,8 @@ reads ``.status`` and the conditions from the JSON document.
 Files and environment
 ---------------------
 
-- Reads ``/run/shirudo/bpffs`` (pins, identity, tamper counters), the
+- Reads ``/run/shirudo/bpffs`` (pins, identity, tamper and integrity
+  counters), the
   ``.bpf`` and ``.dm-verity`` keyrings, the TPM register,
   ``/var/lib/shirudo/eventlog``, ``/var/lib/shirudo/keys``, the config
   certificate the runtime image's bootstrap names and the config
@@ -301,6 +307,9 @@ Show the state of a target:
      SealWrite                 1  write open of a sealed file
      SealEntry                 2  entry into a sealed directory, or a sealed inode linked
 
+   Integrity attempts (this boot):
+     none
+
    Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
      shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
@@ -335,6 +344,9 @@ system as well:
      BpffsUmount               1  unmount of the private bpffs
      SealWrite                 1  write open of a sealed file
      SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+   Integrity attempts (this boot):
+     none
 
    Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
@@ -408,7 +420,7 @@ Print the keepalive body of the same target, which follows no tree:
 .. code-block:: console
 
    target# shirudo status --keepalive
-   {"schema":"shirudo.keepalive/1","boot_id":"82639935-1127-4dab-91b5-f818eabc7f13","version_id":"d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9","config_root":"6d5ed552f448a1c07e3b9d24f5a86c1e0b7d93f2c4e5a6b7180c9d2e3f4a5b6c","kernel_release":"7.3.0-bpf-next+","image_id":null,"image_version":null,"image_root":null,"verdict":"ok","cond":5461,"flags":0,"tamper":[15,0,0,0,0,1,0,0,0,0,0,8,0,0,0,0,0,1,0,0,1,0,0,0,0,0,7,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0],"tree_id":null,"generation":null,"base_seq":null,"last_seq":null,"base_root":null,"projection_root":null,"mask":null,"set_sha256":"5f0c2e8b7a1d4c3f9e6b2a0d8c7f1e3b5a9d4c2e6f8b0a1d3c5e7f9b2d4a6c8e","count":1,"not_ok":0}
+   {"schema":"shirudo.keepalive/1","boot_id":"82639935-1127-4dab-91b5-f818eabc7f13","version_id":"d0d7aa800303439023907d1979d917d46a21bec21f816689c138728a28e84af9","config_root":"6d5ed552f448a1c07e3b9d24f5a86c1e0b7d93f2c4e5a6b7180c9d2e3f4a5b6c","kernel_release":"7.3.0-bpf-next+","image_id":null,"image_version":null,"image_root":null,"verdict":"ok","cond":5461,"flags":0,"tamper":[15,0,0,0,0,1,0,0,0,0,0,8,0,0,0,0,0,1,0,0,1,0,0,0,0,0,7,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0],"integrity":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"tree_id":null,"generation":null,"base_seq":null,"last_seq":null,"base_root":null,"projection_root":null,"mask":null,"set_sha256":"5f0c2e8b7a1d4c3f9e6b2a0d8c7f1e3b5a9d4c2e6f8b0a1d3c5e7f9b2d4a6c8e","count":1,"not_ok":0}
 
 Add this boot's eventlog to the report:
 

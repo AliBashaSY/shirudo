@@ -30,6 +30,7 @@
 #include <shirudo/enforcement.h>
 
 #include "identity.h"
+#include "integrity.h"
 #include "policy.h"
 #include "tamper.h"
 

@@ -287,8 +287,9 @@ Module loading and kernel live patching
    other.
 :Symptom: ``init_module(2)`` and ``finit_module(2)`` of an unsigned
    module fail with ``EPERM`` (``modprobe`` prints ``Operation not
-   permitted``), and ``Lockdown`` counts it. ``modprobe --force``, which
-   strips the version checks, makes a signed module count as unsigned.
+   permitted``), and the integrity counter ``ModuleSignature`` counts
+   it. ``modprobe --force``, which strips the version checks, makes a
+   signed module count as unsigned.
 :What to do: Build the kernel with ``CONFIG_MODULE_SIG``, as
    :doc:`/operate/plan/hardening` lists, and sign every module the
    target loads, livepatch modules included, with a key the kernel

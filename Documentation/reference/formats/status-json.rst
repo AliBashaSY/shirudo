@@ -128,6 +128,11 @@ determined, as noted.
      - Attempts counted this boot, refused except ``SealSignal``, see
        `tamper_attempts`_. ``null``
        until ``init`` has pinned the counters.
+   * - ``integrity_attempts``
+     - object or ``null``
+     - Changes or reads of the running kernel refused this boot, see
+       `integrity_attempts`_. ``null`` until ``init`` has pinned the
+       counters.
    * - ``config``
      - object or ``null``
      - Config image activation, see `config`_. ``null`` on a host
@@ -547,6 +552,14 @@ tamper_attempts
 The counters live in a pinned BPF map under ``/run/shirudo/bpffs`` and
 start at zero at every boot.
 
+integrity_attempts
+------------------
+
+The same two fields as `tamper_attempts`_, ``total`` and ``counters``,
+for the integrity counters, which :doc:`/security/integrity-counters`
+lists. They live in their own pinned map and start at zero at every
+boot.
+
 config
 ------
 
@@ -730,6 +743,13 @@ Fields to alert on
      - The counter that moved names the refused action,
        :doc:`/security/tamper-counters`.
    * - ``tamper_attempts``
+     - ``null`` on a target
+     - ``init`` has not pinned the counters this boot.
+   * - ``integrity_attempts.total``
+     - rises
+     - The counter that moved names the refused change of the running
+       kernel, :doc:`/security/integrity-counters`.
+   * - ``integrity_attempts``
      - ``null`` on a target
      - ``init`` has not pinned the counters this boot.
    * - ``lsm_attached``

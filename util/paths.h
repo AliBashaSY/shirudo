@@ -107,6 +107,7 @@
 #define BPFFS_UPATCHES_DIR	BPFFS_DIR "/upatches"
 #define IDENTITY_PIN		BPFFS_DIR "/identity"
 #define TAMPER_PIN		BPFFS_DIR "/tamper"
+#define INTEGRITY_PIN		BPFFS_DIR "/integrity"
 #define POLICY_PIN		BPFFS_DIR "/task_policy"
 #define SEAL_SOCKET_POST_CREATE_PIN \
 	BPFFS_DIR "/seal_socket_post_create_link"

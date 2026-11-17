@@ -63,8 +63,9 @@ signed config image.
        binaries when built
    * - ``t0008-check-docs``
      - ``check-docs.sh``: the whole of each field of a threat's fact
-       box, a hook by its section, the source files a proof reads or the
-       proof coverage page lists as read by none, and the tree itself
+       box, a hook by its section, each tamper and integrity counter's
+       entry on its page, the source files a proof reads or the proof
+       coverage page lists as read by none, and the tree itself
 
 ``build`` (1)
 ~~~~~~~~~~~~~
@@ -357,7 +358,7 @@ signed config image.
    * - ``t6002-seal-seccomp``
      - The seal builds with either seccomp layout in ``vmlinux.h``
    * - ``t6003-tamper-points``
-     - Every tamper counter has a name and a meaning
+     - Every tamper and integrity counter has a name and a meaning
    * - ``t6004-conditions``
      - Status conditions: both keyrings, register, pins, config
        activation
@@ -510,8 +511,9 @@ signed config image.
    * - ``t6154-lockdown``
      - A module without its signature, a PCI config write,
        ``/proc/kcore`` and ``/dev/mem``, where the kernel has them, are
-       refused, all but the last counted as ``Lockdown``, and a read of
-       ``/sys/power/state`` counts nothing
+       refused, all but the last counted on their integrity counters,
+       which ``status``, its JSON and the keepalive report, and a read
+       of ``/sys/power/state`` counts nothing
    * - ``t6155-mountpoint-removal``
      - From a namespace without ``/run``, an ``rmdir`` and a rename of
        the directory init's ``/run`` covers are refused and counted, and
@@ -1045,12 +1047,21 @@ tests assert that a refusal moves its counter:
      - ``t6152``
    * - ``XattrHandle``
      - ``t6153``, on a kernel with XFS
-   * - ``Lockdown``
-     - ``t6154``
    * - ``SealRlimit``
      - ``t6156``
    * - ``Kexec``
      - ``t6126``
+
+Coverage of integrity counters
+------------------------------
+
+``t6003`` checks that every integrity counter has a name and a meaning.
+``t6154`` asserts that a refusal moves ``ModuleSignature``, ``Kcore``
+and ``PciAccess``, the last two where the kernel has them, and that
+``status``, its JSON and the keepalive report the counters. No test
+moves the others. The test guest boots without UEFI firmware, so it has
+no efivarfs for ``HibernateLocation``, and ``KexecSignature`` cannot
+move while the ``Kexec`` guard refuses every kexec image first.
 
 Not covered
 -----------

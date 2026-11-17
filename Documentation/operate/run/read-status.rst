@@ -58,6 +58,9 @@ Print the report
         SealWrite                 1  write open of a sealed file
         SealEntry                 2  entry into a sealed directory, or a sealed inode linked
 
+      Integrity attempts (this boot):
+        none
+
       Loaded upatches (1):
         NAME                      LOCATION                       MAPS  STATUS                        AGE
         shirudo-test-basic        fentry/do_nanosleep               0  success                       1s
@@ -109,6 +112,9 @@ line; a section unfolds on its own when its condition is not ``OK``.
      BpffsUmount               1  unmount of the private bpffs
      SealWrite                 1  write open of a sealed file
      SealEntry                 2  entry into a sealed directory, or a sealed inode linked
+
+   Integrity attempts (this boot):
+     none
 
    Loaded upatches (1):
      NAME                      LOCATION                       MAPS  STATUS                        AGE
@@ -766,6 +772,14 @@ Read the counters with these rules:
 
 :doc:`/security/tamper-counters` lists every counter and the guard point
 that raises it.
+
+``Integrity attempts (this boot):`` follows with the same layout for
+the refused changes and reads of the running kernel: an unsigned
+module, ``/dev/mem``, a PCI configuration write, ``/proc/kcore`` and
+the others lockdown in integrity mode names.
+:doc:`/security/integrity-counters` lists them. Read them with the same
+rules, and count with a baseline here too: a tool that opens a writable
+debugfs file to read it moves ``Debugfs``.
 
 Monitor with ``status --json``
 ------------------------------

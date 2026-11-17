@@ -14,6 +14,7 @@
 
 #include <shirudo/misc.h>
 
+#include "bpf/lib/integrity.h"
 #include "bpf/lib/tamper.h"
 #include "bpm_tree.h"
 #include "conditions.h"
@@ -43,6 +44,7 @@ BUILD_BUG_ON(KEEPALIVE_WINDOW_OPS < 1 ||
 #define KEEPALIVE_TAMPER_UNAVAILABLE	(1u << 3)
 #define KEEPALIVE_TREE_OP_PENDING	(1u << 4)
 #define KEEPALIVE_SNAPSHOT_UNSETTLED	(1u << 5)
+#define KEEPALIVE_INTEGRITY_UNAVAILABLE	(1u << 6)
 
 /*
  * How many times a snapshot reads the tree before it gives up on a state
@@ -67,6 +69,7 @@ struct keepalive_input {
 	__u16		cond;			/* keepalive_cond() */
 	__u32		flags;
 	const __u64	*tamper;		/* TAMPER_MAX counters or null */
+	const __u64	*integrity;		/* INTEGRITY_MAX counters or null */
 	/* Not set: the node follows no tree and the seven tree keys are null. */
 	bool		tree;
 	const char	*tree_id;

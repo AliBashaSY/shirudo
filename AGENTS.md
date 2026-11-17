@@ -227,7 +227,8 @@ one usually still compiles and passes tests.
   pointer, and the verifier would allow it. `shirudo_bpffs_sb` carries
   the flag for that reason. A map a BPF program writes, even once
   (`shirudo_mnt_rec`, the task, socket and inode storage maps,
-  `shirudo_tamper`, `shirudo_devices`, upatch state), does not take it.
+  `shirudo_tamper`, `shirudo_integrity`, `shirudo_devices`, upatch
+  state), does not take it.
   A map added later that fits the no-BPF-write criterion takes the flag
   from the commit that adds it; a map that stops fitting it drops the
   flag in the same commit that adds the write.

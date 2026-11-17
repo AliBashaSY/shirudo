@@ -176,7 +176,9 @@ on.
    different lists of counters, ``tamper``, in the keepalives of one
    boot in ten minutes. The counters only grow within a boot and start
    at zero at the next, so more than one list means a counter rose, and
-   a reboot in the window gives no alert.
+   a reboot in the window gives no alert. ``integrity`` lists the
+   integrity counters the same way; the rule with ``integrity`` in place
+   of ``tamper`` alerts on a refused change to the running kernel.
 
 #. Point the ruler at the directory and at your Alertmanager in Loki's
    configuration:

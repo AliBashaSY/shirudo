@@ -279,8 +279,8 @@ it.
    private bpffs
       The BPF file system instance that ``init`` mounts at
       ``/run/shirudo/bpffs`` with mode ``0700``. It holds the pins of the
-      enforcement links, the identity map, the tamper counters and every
-      upatch's links and maps. BPF LSM hooks refuse unlink, rename and
+      enforcement links, the identity map, the tamper and integrity
+      counters and every upatch's links and maps. BPF LSM hooks refuse unlink, rename and
       opening a pin there to tasks without runtime authority, and refuse
       every caller the unmount, move or remount of the mount ``init``
       made. See :doc:`/internals/enforcement`.
@@ -390,6 +390,14 @@ it.
       ``BPF_PROG_LOAD`` against the ``.bpf`` keyring. After ``init``, it
       is the only way BPF from userspace enters the kernel. See
       :doc:`/internals/signed-loader`.
+
+   integrity counter
+      A counter for one way to change or read the running kernel that
+      the enforcement programs refuse, such as ``ModuleSignature``,
+      ``DevMem`` or ``Kcore``. The counters live in a map pinned at
+      ``/run/shirudo/bpffs/integrity``, apart from the tamper counters,
+      and ``shirudo status`` reports them. See
+      :doc:`/security/integrity-counters`.
 
    tamper counter
       A counter for one point at which the enforcement programs refuse a

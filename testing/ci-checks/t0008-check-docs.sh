@@ -37,6 +37,8 @@ good() {
 	put tools/gen-initrd/gen '#!/bin/sh' &&
 	put util/tamper.c 'static const struct point points[] = {' \
 		'	[0] = { "Good", 1 },' '};' &&
+	put util/integrity.c 'static const struct point points[] = {' \
+		'	[0] = { "Kept", 1 },' '};' &&
 	put util/read.c 'int read_one;' &&
 	put util/chained.c 'int chained;' &&
 	put util/unread.c 'int unread;' &&
@@ -50,10 +52,11 @@ good() {
 	put testing/proofs/cbmc/second.c '#include "proof.h"' '#include "model.h"' &&
 	put testing/proofs/lean4/Shirudo/Model.lean 'theorem model : True := trivial' &&
 	put Documentation/security/tamper-counters.rst '``Good``' &&
+	put Documentation/security/integrity-counters.rst '``Kept``' &&
 	put "$TM" ':Enforced at: ``lsm/file_open``,' \
 		'   ``lsm.s/inode_setattr``' \
 		':Counters: none for a first attempt,' \
-		'   ``Good``' \
+		'   ``Good``, ``Kept``' \
 		':Tests: ``t1001``' \
 		':Proofs: ``first``,' \
 		'   ``second``' &&
@@ -62,7 +65,8 @@ good() {
 		'Files without a proof' '---------------------' '' \
 		'   * - :src:`shirudo.c`, :src:`builtin-upatch.c`,' \
 		'       :src:`tools/shirudo-build/build.c`,' \
-		'       :src:`util/tamper.c`, :src:`util/unread.c`' '' \
+		'       :src:`util/integrity.c`, :src:`util/tamper.c`,' \
+		'       :src:`util/unread.c`' '' \
 		'Not covered yet' '---------------'
 }
 
@@ -88,9 +92,16 @@ test_expect_success 'a hook on a continuation line is checked, by its section' '
 
 test_expect_success 'a counter and a proof on a continuation line are checked' '
 	good && sed -i "s|\`\`Good\`\`|\`\`Goodx\`\`|" "$R/$TM" &&
-	refuses "no tamper counter is named Goodx" &&
+	refuses "no counter is named Goodx" &&
 	good && sed -i "s|\`\`second\`\`|\`\`secondx\`\`|" "$R/$TM" &&
 	refuses "no proof is named secondx"
+'
+
+test_expect_success 'an integrity counter needs its entry and a fact box' '
+	good && put Documentation/security/integrity-counters.rst "none" &&
+	refuses "no entry for the counter Kept" &&
+	good && sed -i "s|, \`\`Kept\`\`||" "$R/$TM" &&
+	refuses "no threat names the counter Kept"
 '
 
 test_expect_success 'every program and every counter stands in a fact box' '

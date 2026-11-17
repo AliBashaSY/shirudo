@@ -102,8 +102,6 @@ static const struct {
 		"exec of the runtime binary by a task that shares its file system context" },
 	[TAMPER_XATTR_HANDLE] = { "XattrHandle",
 		"XFS attribute change by file handle, which passes no xattr hook" },
-	[TAMPER_LOCKDOWN] = { "Lockdown",
-		"change or read of the running kernel that lockdown refuses" },
 	[TAMPER_SEAL_RLIMIT] = { "SealRlimit",
 		"resource limit of a shirudo task changed by another task" },
 };
@@ -122,33 +120,38 @@ const char *tamper_meaning(enum tamper_point point)
 	return tamper_points[point].meaning;
 }
 
-int tamper_read(struct tamper_counts *out)
+int counters_read(const char *pin, __u32 n, __u64 *count, __u64 *total)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
 	int fd, ret;
 	__u32 key;
 
-	memset(out, 0, sizeof(*out));
-	fd = bpf_obj_get(TAMPER_PIN);
+	memset(count, 0, n * sizeof(*count));
+	*total = 0;
+	fd = bpf_obj_get(pin);
 	if (fd < 0)
 		return -errno;
 	ret = bpf_map_get_info_by_fd(fd, &info, &len);
 	if (ret) {
 		ret = -errno;
-	} else if (info.max_entries != TAMPER_MAX ||
-		   info.value_size != sizeof(out->count[0])) {
+	} else if (info.max_entries != n || info.value_size != sizeof(*count)) {
 		ret = -EPROTO;
 	} else {
-		for (key = 0; key < TAMPER_MAX; key++) {
-			ret = bpf_map_lookup_elem(fd, &key, &out->count[key]);
+		for (key = 0; key < n; key++) {
+			ret = bpf_map_lookup_elem(fd, &key, &count[key]);
 			if (ret) {
 				ret = -errno;
 				break;
 			}
-			out->total += out->count[key];
+			*total += count[key];
 		}
 	}
 	close(fd);
 	return ret;
+}
+
+int tamper_read(struct tamper_counts *out)
+{
+	return counters_read(TAMPER_PIN, TAMPER_MAX, out->count, &out->total);
 }

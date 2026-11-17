@@ -16,6 +16,8 @@ the array map ``shirudo_tamper``, which ``init`` creates, freezes and
 pins at ``/run/shirudo/bpffs/tamper`` at every boot, so they count this
 boot's refusals. No task resets them from userspace; only the hooks add
 to them. Threat T10 of the :doc:`threat-model` explains their purpose.
+Refusals of changes to the running kernel count apart, as
+:doc:`integrity-counters`.
 
 Counters
 --------
@@ -258,13 +260,6 @@ counter.
        without authority, which could have the kernel stop it with
        ``SIGXFSZ`` or ``SIGXCPU``
      - ``EPERM``
-   * - ``Lockdown``
-     - change or read of the running kernel that lockdown refuses
-     - ``lsm/locked_down``: every reason of integrity mode, an unsigned
-       module included, but hibernation, refused uncounted, and
-       ``LOCKDOWN_KCORE``, for every caller; ``lsm/file_open``: a write
-       open of a ``HibernateLocation`` EFI variable, for every caller
-     - ``EPERM``
 
 Unless the row says every caller, a task with runtime authority is
 not refused and moves nothing.
@@ -393,5 +388,6 @@ evidence. To act on a counter, see
 Related
 -------
 
+- :doc:`integrity-counters` for the attempts on the running kernel
 - :doc:`threat-model`, threat T10, for the purpose and the limits
 - :doc:`/internals/enforcement` for the hooks

@@ -33,9 +33,9 @@ import json, sys
 
 KEYS = ["schema", "boot_id", "version_id", "config_root", "kernel_release",
         "image_id", "image_version", "image_root", "verdict", "cond",
-        "flags", "tamper", "tree_id", "generation", "base_seq", "last_seq",
-        "base_root", "projection_root", "mask", "set_sha256", "count",
-        "not_ok"]
+        "flags", "tamper", "integrity", "tree_id", "generation",
+        "base_seq", "last_seq", "base_root", "projection_root", "mask",
+        "set_sha256", "count", "not_ok"]
 text = open(sys.argv[1]).read()
 assert text.endswith("}\n") and text.count("\n") == 1, text
 pairs = json.loads(text, object_pairs_hook=list)

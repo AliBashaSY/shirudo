@@ -4,11 +4,11 @@
 #
 # .github/scripts/check-docs.sh -- check Documentation/ against the tree:
 # every option a console example passes to shirudo exists in a parser,
-# every failure category the code emits, every tamper counter and every
-# proof has its entry in the reference, every hook, counter, test, proof
-# and unit a page names exists, every LSM program and tamper counter
-# stands in the fact box of a threat, and every source file is read by a
-# proof or listed as read by none.
+# every failure category the code emits, every tamper and integrity
+# counter and every proof has its entry in the reference, every hook,
+# counter, test, proof and unit a page names exists, every LSM program
+# and counter stands in the fact box of a threat, and every source file
+# is read by a proof or listed as read by none.
 #
 #   .github/scripts/check-docs.sh
 #
@@ -64,14 +64,22 @@ while IFS= read -r category; do
 		report "$categories" "no entry for the emitted category $category"
 done <"$work/categories"
 
-# Every tamper counter has an entry, and a page names no other.
-counters=Documentation/security/tamper-counters.rst
-grep -oE '= \{ "[A-Za-z]+",' util/tamper.c | sed -E 's/.*"([A-Za-z]+)".*/\1/' |
-	sort -u >"$work/counters"
-while IFS= read -r counter; do
-	grep -qF "\`\`$counter\`\`" "$counters" ||
-		report "$counters" "no entry for the counter $counter"
-done <"$work/counters"
+# Every tamper and integrity counter has an entry on its page, and a
+# page names no other.
+counter_names() {
+	grep -oE '= \{ "[A-Za-z]+",' "$1" | sed -E 's/.*"([A-Za-z]+)".*/\1/' |
+		sort -u
+}
+counter_names util/tamper.c >"$work/tamper_counters"
+counter_names util/integrity.c >"$work/integrity_counters"
+sort -u "$work/tamper_counters" "$work/integrity_counters" >"$work/counters"
+for kind in tamper integrity; do
+	counters=Documentation/security/$kind-counters.rst
+	while IFS= read -r counter; do
+		grep -qF "\`\`$counter\`\`" "$counters" ||
+			report "$counters" "no entry for the counter $counter"
+	done <"$work/${kind}_counters"
+done
 
 # A field of a fact box, with the lines that continue it, as one line.
 field() {
@@ -95,12 +103,12 @@ while IFS= read -r page; do
 	field Counters "$page" | grep -oE '``[A-Za-z]+``' |
 		tr -d '`' | sort -u | while IFS= read -r counter; do
 		grep -qx "$counter" "$work/counters" ||
-			report "$page" "no tamper counter is named $counter"
+			report "$page" "no counter is named $counter"
 	done
 done <"$work/pages"
 
-# Every LSM program and every tamper counter stands in the fact box of
-# some threat. A page without one is no error of the loop.
+# Every LSM program and every counter stands in the fact box of some
+# threat. A page without one is no error of the loop.
 threats=Documentation/security/threat-model.rst
 while IFS= read -r page; do
 	field 'Enforced at' "$page" | grep -oE '``lsm(\.s)?/[a-z_]+``' || :

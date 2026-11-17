@@ -463,6 +463,9 @@ Boot and verify
         SealWrite                 1  write open of a sealed file
         SealEntry                 2  entry into a sealed directory, or a sealed inode linked
 
+      Integrity attempts (this boot):
+        none
+
       Loaded upatches (1):
         NAME                      LOCATION                       MAPS  STATUS                        AGE
         shirudo-test-basic        fentry/do_nanosleep               0  success                       1s

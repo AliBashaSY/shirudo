@@ -228,6 +228,7 @@ UTIL_SRCS := \
     util/identity.c \
     util/nv_writer.c \
     util/tamper.c \
+    util/integrity.c \
     util/initrd.c \
     util/paths.c \
     util/harden.c \

@@ -629,6 +629,11 @@ static int init_lsm(void)
 		       strerror(errno));
 		return -errno;
 	}
+	if (unlink(INTEGRITY_PIN) != 0 && errno != ENOENT) {
+		pr_err("unlink stale %s: %s", INTEGRITY_PIN,
+		       strerror(errno));
+		return -errno;
+	}
 
 	if (!blob || !blob->data || !blob->size) {
 		pr_err("embedded bpf2 blob missing");
@@ -889,6 +894,7 @@ out:
 				bpf_link__unpin(links[i]);
 		unlink(IDENTITY_PIN);
 		unlink(TAMPER_PIN);
+		unlink(INTEGRITY_PIN);
 		unlink(BPFFS_DIR "/task_authority");
 		unlink(POLICY_PIN);
 		unlink(SOCKET_POLICY_PIN);

@@ -51,6 +51,7 @@
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/initrd.h"
+#include "util/integrity.h"
 #include "util/format.h"
 #include "util/sysinfo.h"
 #include "util/timefmt.h"
@@ -284,6 +285,25 @@ static void print_eventlog_table(void)
 		       ev.digest[0] ? ev.digest : "-", detail);
 	}
 	xfree(buf, len + 1);
+}
+
+static void print_counters(int rc, __u64 total, const __u64 *count,
+			   __u32 n, const char *(*name)(__u32),
+			   const char *(*meaning)(__u32))
+{
+	__u32 i;
+
+	if (rc == -ENOENT)
+		printf("  none recorded before init\n");
+	else if (rc)
+		printf("  unavailable: %s\n", strerror(-rc));
+	else if (total == 0)
+		printf("  none\n");
+	for (i = 0; rc == 0 && i < n; i++) {
+		if (count[i])
+			printf("  %-20s %6llu  %s\n", name(i),
+			       (__u64)count[i], meaning(i));
+	}
 }
 
 static void print_system_human(const struct sysinfo *si)
@@ -618,7 +638,16 @@ static const struct keepalive_snapshot_ops keepalive_ops = {
 	.collect	= keepalive_collect,
 };
 
-static __u32 keepalive_flags(const struct chain_status *cst, int tamper_rc,
+/* What the guards counted this boot, and each set's read error. */
+struct guard_counts {
+	struct tamper_counts	tamper;
+	struct integrity_counts	integrity;
+	int			tamper_rc;
+	int			integrity_rc;
+};
+
+static __u32 keepalive_flags(const struct chain_status *cst,
+			     const struct guard_counts *counts,
 			     const struct keepalive_view *v, int state_rc)
 {
 	__u32 flags = 0;
@@ -629,8 +658,10 @@ static __u32 keepalive_flags(const struct chain_status *cst, int tamper_rc,
 		flags |= KEEPALIVE_BOUND_LATE;
 	if (v->log_mismatch || (!state_rc && v->outcomes_rc))
 		flags |= KEEPALIVE_TREE_LOG_MISMATCH;
-	if (tamper_rc)
+	if (counts->tamper_rc)
 		flags |= KEEPALIVE_TAMPER_UNAVAILABLE;
+	if (counts->integrity_rc)
+		flags |= KEEPALIVE_INTEGRITY_UNAVAILABLE;
 	return flags;
 }
 
@@ -638,7 +669,7 @@ static __u32 keepalive_flags(const struct chain_status *cst, int tamper_rc,
 static noinline_for_stack int
 keepalive_body(const struct conditions_input *cin,
 	       const struct chain_status *cst,
-	       const struct tamper_counts *tamper, int tamper_rc,
+	       const struct guard_counts *counts,
 	       const char *config_root_hex, char body[KEEPALIVE_BODY_MAX],
 	       size_t *len)
 {
@@ -671,9 +702,12 @@ keepalive_body(const struct conditions_input *cin,
 		.image_root		= img.root,
 		.verdict		= status_verdict(cin),
 		.cond			= keepalive_cond(conds, nc),
-		.flags			= flags | keepalive_flags(cst, tamper_rc,
+		.flags			= flags | keepalive_flags(cst, counts,
 								  &v, state_rc),
-		.tamper			= tamper_rc ? NULL : tamper->count,
+		.tamper			= counts->tamper_rc ? NULL :
+					  counts->tamper.count,
+		.integrity		= counts->integrity_rc ? NULL :
+					  counts->integrity.count,
 		.set_sha256		= v.set_sha256,
 		.count			= v.count,
 		.not_ok			= v.not_ok,
@@ -726,14 +760,13 @@ static int send_keepalive(const struct otel_opts *opts, const char *verdict,
 static noinline_for_stack int
 status_keepalive(const struct conditions_input *cin,
 		 const struct chain_status *cst,
-		 const struct tamper_counts *tamper, int tamper_rc,
+		 const struct guard_counts *counts,
 		 const char *config_root_hex, const struct otel_opts *opts)
 {
 	char body[KEEPALIVE_BODY_MAX];
 	size_t len;
 
-	if (keepalive_body(cin, cst, tamper, tamper_rc, config_root_hex, body,
-			   &len))
+	if (keepalive_body(cin, cst, counts, config_root_hex, body, &len))
 		return 1;
 	if (!opts) {
 		printf("%s\n", body);
@@ -1107,9 +1140,11 @@ int cmd_status(int argc, const char **argv)
 	struct config otel_cfg __cleanup(config_clear) = {};
 	struct otel_opts otel_opts = {};
 	struct asset_view assets;
-	struct tamper_counts tamper = {};
+	struct guard_counts counts = {
+		.tamper_rc = -ENOENT,
+		.integrity_rc = -ENOENT,
+	};
 	struct conditions_input cin;
-	int tamper_rc = -ENOENT;
 	struct dirent **ups = NULL;
 	char pcr_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
 	char phase_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
@@ -1274,7 +1309,8 @@ int cmd_status(int argc, const char **argv)
 	eventlog_unlock(lock);
 
 	gather_assets(&assets);
-	tamper_rc = tamper_read(&tamper);
+	counts.tamper_rc = tamper_read(&counts.tamper);
+	counts.integrity_rc = integrity_read(&counts.integrity);
 	config_state = image_config_state(config_root);
 	if (config_state != -ENODEV)
 		hex_encode(config_root, sizeof(config_root), config_root_hex);
@@ -1345,7 +1381,7 @@ int cmd_status(int argc, const char **argv)
 	keyring_cond_input(&cin, &bpf, &dmv);
 
 	if (keepalive || (otel && otel_endpoint_configured))
-		ret = status_keepalive(&cin, &cst, &tamper, tamper_rc,
+		ret = status_keepalive(&cin, &cst, &counts,
 				       config_state ? NULL : config_root_hex,
 				       otel ? &otel_opts : NULL);
 	if (otel && !otel_endpoint_configured && config_state &&
@@ -1481,17 +1517,30 @@ int cmd_status(int argc, const char **argv)
 		 * so a collector's keys stay the same from one record to
 		 * the next; null until init has pinned the map.
 		 */
-		if (tamper_rc == 0) {
+		if (counts.tamper_rc == 0) {
 			json_obj_open_key(&e, "tamper_attempts");
-			json_kv_int(&e, "total", (__s64)tamper.total);
+			json_kv_int(&e, "total", (__s64)counts.tamper.total);
 			json_obj_open_key(&e, "counters");
 			for (i = 0; i < TAMPER_MAX; i++)
 				json_kv_int(&e, tamper_name(i),
-					    (__s64)tamper.count[i]);
+					    (__s64)counts.tamper.count[i]);
 			json_obj_close(&e);
 			json_obj_close(&e);
 		} else {
 			json_kv_null(&e, "tamper_attempts");
+		}
+		if (counts.integrity_rc == 0) {
+			json_obj_open_key(&e, "integrity_attempts");
+			json_kv_int(&e, "total",
+				    (__s64)counts.integrity.total);
+			json_obj_open_key(&e, "counters");
+			for (i = 0; i < INTEGRITY_MAX; i++)
+				json_kv_int(&e, integrity_name(i),
+					    (__s64)counts.integrity.count[i]);
+			json_obj_close(&e);
+			json_obj_close(&e);
+		} else {
+			json_kv_null(&e, "integrity_attempts");
 		}
 		if (config_state != -ENODEV) {
 			json_obj_open_key(&e, "config");
@@ -1612,19 +1661,13 @@ int cmd_status(int argc, const char **argv)
 		printf("\n");
 		conditions_print(conds, nc);
 		printf("\nTamper attempts (this boot):\n");
-		if (tamper_rc == -ENOENT)
-			printf("  none recorded before init\n");
-		else if (tamper_rc)
-			printf("  unavailable: %s\n", strerror(-tamper_rc));
-		else if (tamper.total == 0)
-			printf("  none\n");
-		for (i = 0; tamper_rc == 0 && i < TAMPER_MAX; i++) {
-			if (tamper.count[i])
-				printf("  %-20s %6llu  %s\n",
-				       tamper_name(i),
-				       (__u64)tamper.count[i],
-				       tamper_meaning(i));
-		}
+		print_counters(counts.tamper_rc, counts.tamper.total,
+			       counts.tamper.count, TAMPER_MAX, tamper_name,
+			       tamper_meaning);
+		printf("\nIntegrity attempts (this boot):\n");
+		print_counters(counts.integrity_rc, counts.integrity.total,
+			       counts.integrity.count, INTEGRITY_MAX,
+			       integrity_name, integrity_meaning);
 		upatch_table_print(rows, n_rows);
 		xfree(rows, n_rows * sizeof(*rows));
 		rows = NULL;

@@ -60,7 +60,8 @@ allow for. See :doc:`/reference/systemd-units`.
 The keepalive record has the event name ``shirudo.keepalive``. Its body
 is a string, the keepalive body that ``shirudo status --keepalive``
 prints: one compact JSON object of about a kilobyte with the verdict,
-the conditions, the tamper counters, the build, the config and image,
+the conditions, the tamper and integrity counters, the build, the
+config and image,
 the tree the target follows and the upatches it has loaded
 (:doc:`/reference/cli/status`). Its one attribute, ``shirudo.quote``, is
 the TPM quote of the SHA-256 of the body by the attestation key of
@@ -423,6 +424,10 @@ eventlog, is read with ``shirudo status --json`` on the target.
      - Something on the target tried an operation the guards refused.
        The counters start at zero each boot. See
        :doc:`/security/tamper-counters`.
+   * - A counter of ``integrity`` rises
+     - Something on the target tried to change or read the running
+       kernel, and ``bpf2`` refused it. The counters start at zero each
+       boot. See :doc:`/security/integrity-counters`.
    * - Bit 0 of ``flags``, ``register_rebound``
      - The register was bound twice in one TPM reset.
    * - Bit 1 of ``flags``, ``bound_late``

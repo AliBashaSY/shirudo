@@ -126,9 +126,9 @@ import sys
 
 KEYS = ["schema", "boot_id", "version_id", "config_root", "kernel_release",
         "image_id", "image_version", "image_root", "verdict", "cond", "flags",
-        "tamper", "tree_id", "generation", "base_seq", "last_seq",
-        "base_root", "projection_root", "mask", "set_sha256", "count",
-        "not_ok"]
+        "tamper", "integrity", "tree_id", "generation", "base_seq",
+        "last_seq", "base_root", "projection_root", "mask", "set_sha256",
+        "count", "not_ok"]
 TREE_LOG_MISMATCH, TREE_OP_PENDING, SNAPSHOT_UNSETTLED = 4, 16, 32
 
 body_path, mode, state_path, outcomes_path, repo = sys.argv[1:6]

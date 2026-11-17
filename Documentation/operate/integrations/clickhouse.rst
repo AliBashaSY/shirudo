@@ -192,7 +192,10 @@ to alert on.
    ``tamper`` lists every counter, so their sum is the number of
    refusals since boot. The counters only grow within a boot and start
    at zero at the next, so the query compares the keepalives of one boot,
-   ``boot_id``, and a reboot in the window reports nothing.
+   ``boot_id``, and a reboot in the window reports nothing. ``integrity``
+   lists the integrity counters the same way; the query with
+   ``integrity`` in place of ``tamper`` finds targets that refused a
+   change to their running kernel.
 
 Next steps
 ----------

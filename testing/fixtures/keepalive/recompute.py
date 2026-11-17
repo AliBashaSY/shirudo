@@ -20,11 +20,12 @@ EMPTY_SET = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 BODY_KEYS = [
     "schema", "boot_id", "version_id", "config_root", "kernel_release",
     "image_id", "image_version", "image_root", "verdict", "cond", "flags",
-    "tamper", "tree_id", "generation", "base_seq", "last_seq", "base_root",
-    "projection_root", "mask", "set_sha256", "count", "not_ok",
+    "tamper", "integrity", "tree_id", "generation", "base_seq", "last_seq",
+    "base_root", "projection_root", "mask", "set_sha256", "count", "not_ok",
 ]
 CANONICAL_KEYS = ["seq", "op", "id", "selector", "artifact"]
-TAMPER_COUNTERS = 43
+TAMPER_COUNTERS = 42
+INTEGRITY_COUNTERS = 22
 ALL_OK = 0x1555
 
 OPERATION_DIGESTS = [
@@ -51,9 +52,9 @@ MASKS = [
 
 # The body the example pages print for node A after release 1.1.0: six
 # conditions and no image keys.
-PAGE_BODY_LEN = 744
+PAGE_BODY_LEN = 800
 PAGE_BODY_SHA256 = \
-    "3b7aac94ab7c0145070d6fd82862a0b98e2f20f8da1e34f9db2d570ae926215b"
+    "3a9fea87b58e250df58b7f336f6511a8b7c4a69752af3ccae3d76b2626bcbacd"
 PAGE_COND = 0x555
 
 VERSION_ID = "d6d918ad22ff597579e6678bef75adca84d30f9661e0b7bbdbf534eebc138c1f"
@@ -228,6 +229,7 @@ def check_health(name, body):
     check(f"{name}: cond", body["cond"], ALL_OK)
     check(f"{name}: flags", body["flags"], 0)
     check(f"{name}: tamper", body["tamper"], [0] * TAMPER_COUNTERS)
+    check(f"{name}: integrity", body["integrity"], [0] * INTEGRITY_COUNTERS)
 
 
 def check_node(tree, node, release, generation, head_seq):

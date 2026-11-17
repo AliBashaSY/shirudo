@@ -509,12 +509,64 @@ int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
 	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
 }
 
+#define REASON(name)	bpf_core_enum_value(enum lockdown_reason, name)
+
+/* The kernel's numbers move between releases; the counters' do not. */
+static __always_inline enum integrity_point
+integrity_point_of(enum lockdown_reason what)
+{
+	if (what == REASON(LOCKDOWN_MODULE_SIGNATURE))
+		return INTEGRITY_MODULE_SIGNATURE;
+	if (what == REASON(LOCKDOWN_DEV_MEM))
+		return INTEGRITY_DEV_MEM;
+	if (what == REASON(LOCKDOWN_EFI_TEST))
+		return INTEGRITY_EFI_TEST;
+	if (what == REASON(LOCKDOWN_KEXEC))
+		return INTEGRITY_KEXEC;
+	if (what == REASON(LOCKDOWN_PCI_ACCESS))
+		return INTEGRITY_PCI_ACCESS;
+	if (what == REASON(LOCKDOWN_IOPORT))
+		return INTEGRITY_IOPORT;
+	if (what == REASON(LOCKDOWN_MSR))
+		return INTEGRITY_MSR;
+	if (what == REASON(LOCKDOWN_ACPI_TABLES))
+		return INTEGRITY_ACPI_TABLES;
+	if (what == REASON(LOCKDOWN_DEVICE_TREE))
+		return INTEGRITY_DEVICE_TREE;
+	if (what == REASON(LOCKDOWN_PCMCIA_CIS))
+		return INTEGRITY_PCMCIA_CIS;
+	if (what == REASON(LOCKDOWN_TIOCSSERIAL))
+		return INTEGRITY_TIOCSSERIAL;
+	if (what == REASON(LOCKDOWN_MODULE_PARAMETERS))
+		return INTEGRITY_MODULE_PARAMETERS;
+	if (what == REASON(LOCKDOWN_MMIOTRACE))
+		return INTEGRITY_MMIOTRACE;
+	if (what == REASON(LOCKDOWN_DEBUGFS))
+		return INTEGRITY_DEBUGFS;
+	if (what == REASON(LOCKDOWN_XMON_WR))
+		return INTEGRITY_XMON_WR;
+	if (what == REASON(LOCKDOWN_BPF_WRITE_USER))
+		return INTEGRITY_BPF_WRITE_USER;
+	if (what == REASON(LOCKDOWN_DBG_WRITE_KERNEL))
+		return INTEGRITY_DBG_WRITE_KERNEL;
+	if (what == REASON(LOCKDOWN_RTAS_ERROR_INJECTION))
+		return INTEGRITY_RTAS_ERROR_INJECTION;
+	if (what == REASON(LOCKDOWN_XEN_USER_ACTIONS))
+		return INTEGRITY_XEN_USER_ACTIONS;
+	if (what == REASON(LOCKDOWN_KCORE))
+		return INTEGRITY_KCORE;
+	return INTEGRITY_OTHER;
+}
+
+#undef REASON
+
 /*
  * Lockdown in integrity mode, the ways root has to change the running
  * kernel, from an unsigned module and /dev/mem to debugfs writes, and
  * /proc/kcore, which that mode leaves readable, whether or not the
  * command line asks for lockdown: the kernel's own lockdown LSM decides
- * first where it runs. The hibernation check, which every read of
+ * first where it runs. Each refusal counts on the integrity counter of
+ * its reason. The hibernation check, which every read of
  * /sys/power/state makes, is refused without a count.
  */
 SEC("lsm/locked_down")
@@ -529,7 +581,7 @@ int BPF_PROG(shirudo_lsm_locked_down, enum lockdown_reason what, int ret)
 	    (what > LOCKDOWN_NONE &&
 	     what < bpf_core_enum_value(enum lockdown_reason,
 					LOCKDOWN_INTEGRITY_MAX)))
-		return shirudo_tamper_deny(TAMPER_LOCKDOWN, -EPERM);
+		return shirudo_integrity_deny(integrity_point_of(what), -EPERM);
 	return 0;
 }
 
@@ -822,7 +874,8 @@ int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 	if (ret)
 		return ret;
 	if (hibernate_location(file))
-		return shirudo_tamper_deny(TAMPER_LOCKDOWN, -EPERM);
+		return shirudo_integrity_deny(INTEGRITY_HIBERNATE_LOCATION,
+					      -EPERM);
 	if (!id)
 		return 0;
 	mnt = BPF_CORE_READ(file, f_path.mnt);

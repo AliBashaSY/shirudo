@@ -131,17 +131,18 @@ static void kv_string_or_null(struct json_emit *e, const char *key,
 		json_kv_string(e, key, val);
 }
 
-static void kv_tamper(struct json_emit *e, const __u64 *tamper)
+static void kv_counters(struct json_emit *e, const char *key,
+			const __u64 *count, size_t n)
 {
 	size_t i;
 
-	if (!tamper) {
-		json_kv_null(e, "tamper");
+	if (!count) {
+		json_kv_null(e, key);
 		return;
 	}
-	json_arr_open(e, "tamper");
-	for (i = 0; i < TAMPER_MAX; i++)
-		json_u64_value(e, tamper[i]);
+	json_arr_open(e, key);
+	for (i = 0; i < n; i++)
+		json_u64_value(e, count[i]);
 	json_arr_close(e);
 }
 
@@ -189,7 +190,8 @@ static void body(struct json_emit *e, const struct keepalive_input *in)
 	json_kv_string(e, "verdict", in->verdict);
 	json_kv_u64(e, "cond", in->cond);
 	json_kv_u64(e, "flags", in->flags);
-	kv_tamper(e, in->tamper);
+	kv_counters(e, "tamper", in->tamper, TAMPER_MAX);
+	kv_counters(e, "integrity", in->integrity, INTEGRITY_MAX);
 	kv_tree(e, in);
 	json_kv_string(e, "set_sha256", in->set_sha256);
 	json_kv_u64(e, "count", in->count);

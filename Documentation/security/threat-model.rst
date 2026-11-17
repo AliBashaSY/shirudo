@@ -182,7 +182,8 @@ without the protection.
        replace the running kernel that lockdown in integrity mode
        refuses, ``/dev/mem``, MSR writes, port I/O, PCI BAR access,
        debugfs writes and ACPI table overrides, and ``/proc/kcore``,
-       which that mode leaves readable (``Lockdown``, ``t6154``). The
+       which that mode leaves readable (``ModuleSignature`` and the
+       other integrity counters, ``t6154``). The
        kernel's lockdown LSM is not needed for them, and where it runs
        it decides first. A kernel without ``CONFIG_MODULE_SIG`` asks
        nothing and loads any module.
@@ -233,7 +234,8 @@ without the protection.
        swap. ``bpf2`` refuses hibernation once ``init`` runs, and the
        write of a ``HibernateLocation`` EFI variable, through which
        systemd's initrd resumes from a device the running system names
-       (``Lockdown``). What the authenticated UKI names is left.
+       (``HibernateLocation``). What the authenticated UKI names is
+       left.
        The behavior of the register across hibernation is not analyzed
        here.
      - No.
@@ -343,6 +345,9 @@ Assets
    * - Tamper counters
      - ``shirudo_tamper``, pinned as ``tamper``
      - Frozen; only the hooks add to it (T10).
+   * - Integrity counters
+     - ``shirudo_integrity``, pinned as ``integrity``
+     - Frozen; only the hooks add to it (T6, T10).
    * - Payload binding of a pin
      - The ``security.bpf.shirudo.payload`` xattr on each upatch pin
        directory
@@ -1105,12 +1110,13 @@ port I/O, PCI resources, debugfs writes and ACPI table overrides change
 it, an unsigned module joins it, and ``/proc/kcore`` reads it.
 ``lsm/locked_down`` refuses what lockdown in integrity mode refuses, an
 unsigned module the kernel asks about included (A4), and
-``/proc/kcore`` with it, to every task, whatever the command line says
-(``Lockdown``). Hibernation is refused too, but a resume runs in the
-initrd before ``init``: ``lsm/file_open`` refuses the write of a
-``HibernateLocation`` EFI variable, which would have the next boot's
-initrd resume from a device root chose, and A9 keeps the UKI from naming
-one.
+``/proc/kcore`` with it, to every task, whatever the command line says,
+and counts each refusal on the integrity counter of its reason.
+Hibernation is refused too, but a resume runs in the initrd before
+``init``: ``lsm/file_open`` refuses the write of a ``HibernateLocation``
+EFI variable, which would have the next boot's initrd resume from a
+device root chose (``HibernateLocation``), and A9 keeps the UKI from
+naming one. :doc:`integrity-counters` lists the counters.
 
 .. rst-class:: facts
 
@@ -1120,7 +1126,13 @@ one.
 :Refusal: ``EPERM`` from ``kexec_load(2)`` and ``kexec_file_load(2)``,
    from each lockdown check and from the open of a
    ``HibernateLocation`` EFI variable for writing
-:Counters: ``Kexec``, ``Lockdown``
+:Counters: ``Kexec``; the integrity counters ``ModuleSignature``,
+   ``DevMem``, ``EfiTest``, ``KexecSignature``, ``PciAccess``,
+   ``IoPort``, ``Msr``, ``AcpiTables``, ``DeviceTree``, ``PcmciaCis``,
+   ``Tiocsserial``, ``ModuleParameters``, ``Mmiotrace``, ``Debugfs``,
+   ``XmonWrite``, ``BpfWriteUser``, ``DbgWriteKernel``,
+   ``RtasErrorInjection``, ``XenUserActions``, ``Kcore``,
+   ``HibernateLocation`` and ``Other``
 :Tests: ``t4003``, ``t4101``, ``t6126``, ``t6154``
 :Residual: R6, R7, R12, U11, U16
 
@@ -1288,7 +1300,11 @@ a task without authority (``SealSignal``, T3). Only the
 hooks add to it, and no task resets it from userspace. ``shirudo
 status`` lists the counters that are not zero with their meaning,
 ``status --json`` carries them all, and so does the keepalive body,
-which the TPM quotes, in its ``tamper`` list.
+which the TPM quotes, in its ``tamper`` list. The refusals of changes to
+the running kernel (T6) count apart from those of shirudo's own state,
+in ``shirudo_integrity``, which ``init`` creates, freezes and pins the
+same way; ``status`` reports them in their own section and key, and the
+keepalive in its ``integrity`` list.
 
 A counter is evidence of an attempt, not of a compromise. Some
 refusals move no counter: the kernel's signature errors, the guards of
@@ -1296,14 +1312,15 @@ the ``/run/shirudo`` tmpfs and the image mounts, the device-mapper and
 mapping checks, the seccomp and memory checks, and refusals by another
 LSM ordered before ``bpf``. Zero does not mean that nobody tried.
 :doc:`tamper-counters` lists every counter, its hooks and the refusals
-without one.
+without one, and :doc:`integrity-counters` the integrity counters.
 
 .. rst-class:: facts
 
 :Adversary: ADV-A and ADV-B
-:Enforced at: every hook that counts; :doc:`tamper-counters` lists them
+:Enforced at: every hook that counts; :doc:`tamper-counters` and
+   :doc:`integrity-counters` list them
 :Refusal: the refused operation fails and its counter moves
-:Counters: all, see :doc:`tamper-counters`
+:Counters: all, see :doc:`tamper-counters` and :doc:`integrity-counters`
 :Tests: ``t6003``, ``t6108``
 :Residual: R17
 

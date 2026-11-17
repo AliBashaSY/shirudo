@@ -7,6 +7,7 @@
 
 #include <shirudo/string.h>
 
+#include "integrity.h"
 #include "json.h"
 #include "keepalive.h"
 #include "tamper.h"
@@ -45,6 +46,7 @@
 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 static const __u64 no_tamper[TAMPER_MAX];
+static const __u64 no_integrity[INTEGRITY_MAX];
 
 static void expect_mask(const __u8 *codes, size_t n, const char *want)
 {
@@ -312,6 +314,7 @@ static struct keepalive_input node_a(void)
 		.verdict = "ok",
 		.cond = ALL_OK,
 		.tamper = no_tamper,
+		.integrity = no_integrity,
 		.tree = true,
 		.tree_id = "fleet-base",
 		.base_root = ZEROS,
@@ -411,7 +414,7 @@ static struct keepalive_input all_null(void)
 		.version_id = VERSION_ID,
 		.kernel_release = "k",
 		.verdict = "init-pending",
-		.flags = 8,
+		.flags = 72,
 		.set_sha256 = SET_EMPTY,
 	};
 }
@@ -425,9 +428,10 @@ static void body_with_every_nullable_key_null(void)
 		    "\"version_id\":\"" VERSION_ID "\",\"config_root\":null,"
 		    "\"kernel_release\":\"k\",\"image_id\":null,"
 		    "\"image_version\":null,\"image_root\":null,"
-		    "\"verdict\":\"init-pending\",\"cond\":0,\"flags\":8,"
-		    "\"tamper\":null,\"tree_id\":null,\"generation\":null,"
-		    "\"base_seq\":null,\"last_seq\":null,\"base_root\":null,"
+		    "\"verdict\":\"init-pending\",\"cond\":0,\"flags\":72,"
+		    "\"tamper\":null,\"integrity\":null,\"tree_id\":null,"
+		    "\"generation\":null,\"base_seq\":null,\"last_seq\":null,"
+		    "\"base_root\":null,"
 		    "\"projection_root\":null,\"mask\":null,"
 		    "\"set_sha256\":\"" SET_EMPTY "\",\"count\":0,"
 		    "\"not_ok\":0}");
@@ -493,7 +497,9 @@ static void body_gives_each_nullable_key_as_null(void)
 	in.image_root = "";
 	expect_member(&in, ",\"image_root\":null,\"verdict\":");
 	in.tamper = NULL;
-	expect_member(&in, ",\"tamper\":null,\"tree_id\":\"fleet-base\",");
+	expect_member(&in, ",\"tamper\":null,\"integrity\":[0,");
+	in.integrity = NULL;
+	expect_member(&in, ",\"integrity\":null,\"tree_id\":\"fleet-base\",");
 	in.base_root = NULL;
 	expect_member(&in, ",\"base_root\":null,\"projection_root\":\"");
 	in.base_root = "";
@@ -524,8 +530,8 @@ struct key_walk {
 static const char * const body_keys[] = {
 	"schema", "boot_id", "version_id", "config_root", "kernel_release",
 	"image_id", "image_version", "image_root", "verdict", "cond", "flags",
-	"tamper", "tree_id", "generation", "base_seq", "last_seq", "base_root",
-	"projection_root", "mask", "set_sha256", "count", "not_ok",
+	"tamper", "integrity", "tree_id", "generation", "base_seq", "last_seq",
+	"base_root", "projection_root", "mask", "set_sha256", "count", "not_ok",
 };
 
 static int walk_open(void *ctx, bool array)
@@ -568,7 +574,7 @@ static void expect_the_keys_in_order(const struct keepalive_input *in)
 
 	ASSERT_EQ(keepalive_emit(in, body, sizeof(body), &len), 0);
 	ASSERT_EQ(json_walk(body, len, &visitor, &walk), 0);
-	EXPECT_EQ(walk.n, 22);
+	EXPECT_EQ(walk.n, 23);
 	EXPECT_EQ(walk.n, ARRAY_SIZE(body_keys));
 	EXPECT_TRUE(walk.in_order);
 }
@@ -595,15 +601,23 @@ static const char * const tamper_order[] = {
 	"SealRename", "SealSetattr", "SealXattr", "SealLabel", "SealPtrace",
 	"SealPerf", "ExecTraced", "SealEntry", "PerfAttach", "PinEntry",
 	"SealCopyUp", "Kexec", "TpmExtend", "ObjGet", "SealSignal",
-	"SealCoreDump", "SealUprobe", "ExecShared", "XattrHandle", "Lockdown",
-	"SealRlimit",
+	"SealCoreDump", "SealUprobe", "ExecShared", "XattrHandle", "SealRlimit",
+};
+
+/* The same for enum integrity_point. */
+static const char * const integrity_order[] = {
+	"ModuleSignature", "DevMem", "EfiTest", "KexecSignature", "PciAccess",
+	"IoPort", "Msr", "AcpiTables", "DeviceTree", "PcmciaCis",
+	"Tiocsserial", "ModuleParameters", "Mmiotrace", "Debugfs", "XmonWrite",
+	"BpfWriteUser", "DbgWriteKernel", "RtasErrorInjection",
+	"XenUserActions", "Kcore", "HibernateLocation", "Other",
 };
 
 static void tamper_counters_keep_their_places(void)
 {
 	size_t i;
 
-	ASSERT_EQ(ARRAY_SIZE(tamper_order), 43);
+	ASSERT_EQ(ARRAY_SIZE(tamper_order), 42);
 	ASSERT_EQ(TAMPER_MAX, ARRAY_SIZE(tamper_order));
 	EXPECT_EQ(TAMPER_LOAD_NOT_LOADER, 0);
 	EXPECT_EQ(TAMPER_SEAL_RLIMIT, TAMPER_MAX - 1);
@@ -611,19 +625,42 @@ static void tamper_counters_keep_their_places(void)
 		EXPECT_STREQ(tamper_name(i), tamper_order[i]);
 }
 
+static void integrity_counters_keep_their_places(void)
+{
+	size_t i;
+
+	ASSERT_EQ(ARRAY_SIZE(integrity_order), 22);
+	ASSERT_EQ(INTEGRITY_MAX, ARRAY_SIZE(integrity_order));
+	EXPECT_EQ(INTEGRITY_MODULE_SIGNATURE, 0);
+	EXPECT_EQ(INTEGRITY_OTHER, INTEGRITY_MAX - 1);
+	for (i = 0; i < ARRAY_SIZE(integrity_order); i++) {
+		EXPECT_STREQ(integrity_name(i), integrity_order[i]);
+		EXPECT_TRUE(strcmp(integrity_meaning(i), "?"));
+	}
+	EXPECT_STREQ(integrity_name(INTEGRITY_MAX), "?");
+}
+
 static void body_lists_the_counters_in_enum_order(void)
 {
 	struct keepalive_input in = node_a_at_1_0_0();
+	__u64 integrity[INTEGRITY_MAX];
 	__u64 tamper[TAMPER_MAX];
 	size_t i;
 
 	for (i = 0; i < TAMPER_MAX; i++)
 		tamper[i] = i + 1;
 	tamper[TAMPER_SEAL_SIGNAL] = ~0ULL;
+	for (i = 0; i < INTEGRITY_MAX; i++)
+		integrity[i] = 100 + i;
+	integrity[INTEGRITY_KCORE] = ~0ULL;
 	in.tamper = tamper;
+	in.integrity = integrity;
 	expect_member(&in, ",\"tamper\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,"
 		      "16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,"
-		      "34,35,36,18446744073709551615,38,39,40,41,42,43],\"tree_id\":");
+		      "34,35,36,18446744073709551615,38,39,40,41,42],"
+		      "\"integrity\":[100,101,102,103,104,105,106,107,108,109,"
+		      "110,111,112,113,114,115,116,117,118,"
+		      "18446744073709551615,120,121],\"tree_id\":");
 }
 
 static void body_refuses_a_missing_string(void)
@@ -730,6 +767,7 @@ static void body_of_the_largest_values_fits(void)
 		.count = ~0ULL,
 		.not_ok = ~0ULL,
 	};
+	__u64 integrity[INTEGRITY_MAX];
 	__u64 tamper[TAMPER_MAX];
 	size_t whole, len, i;
 
@@ -740,10 +778,13 @@ static void body_of_the_largest_values_fits(void)
 				 sizeof(mask)), 0);
 	for (i = 0; i < TAMPER_MAX; i++)
 		tamper[i] = ~0ULL;
+	for (i = 0; i < INTEGRITY_MAX; i++)
+		integrity[i] = ~0ULL;
 	in.tamper = tamper;
+	in.integrity = integrity;
 
 	ASSERT_EQ(keepalive_emit(&in, body, sizeof(body), &whole), 0);
-	EXPECT_EQ(whole, 3424);
+	EXPECT_EQ(whole, 3879);
 	EXPECT_LT(whole, KEEPALIVE_BODY_MAX);
 	EXPECT_EQ(keepalive_emit(&in, body, whole, &len), -ENOSPC);
 	EXPECT_EQ(keepalive_emit(&in, body, whole + 1, &len), 0);
@@ -930,6 +971,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(body_tells_an_empty_mask_from_none),
 	UNIT_CASE(body_has_every_key_in_order),
 	UNIT_CASE(tamper_counters_keep_their_places),
+	UNIT_CASE(integrity_counters_keep_their_places),
 	UNIT_CASE(body_lists_the_counters_in_enum_order),
 	UNIT_CASE(body_refuses_a_missing_string),
 	UNIT_CASE(body_refuses_what_is_no_hash),

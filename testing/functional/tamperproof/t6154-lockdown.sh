@@ -4,9 +4,10 @@
 #
 # t6154 -- bpf2 refuses what lockdown in integrity mode refuses, whatever
 # the command line says, and /proc/kcore with it: an unsigned module and
-# the reads and writes of the running kernel fail with EPERM and count as
-# Lockdown, while the hibernation check every read of /sys/power/state
-# makes counts nothing.
+# the reads and writes of the running kernel fail with EPERM and each
+# counts on the integrity counter of its reason, which status, its JSON
+# and the keepalive report, while the hibernation check every read of
+# /sys/power/state makes counts nothing.
 
 cd "$(dirname "$0")/../.."
 . ./integration-lib.sh
@@ -17,7 +18,8 @@ trap 'rm -rf "$W"' EXIT
 counter() {
 	"$SHIRUDO_BIN" status --json | python3 -c '
 import json, sys
-print(json.load(sys.stdin)["tamper_attempts"]["counters"][sys.argv[1]])
+d = json.load(sys.stdin)["integrity_attempts"]
+print(d["total"] if sys.argv[1] == "total" else d["counters"][sys.argv[1]])
 ' "$1"
 }
 # Prints the errno name an open of $1 for reading fails with, or done.
@@ -31,14 +33,14 @@ except OSError as e:
     print(errno.errorcode[e.errno])
 ' "$1"
 }
-counter Lockdown >/dev/null || test_skip_all "no tamper counters"
+counter total >/dev/null || test_skip_all "no integrity counters"
 
 # The guest's modules are signed; a copy without the signature is what the
 # kernel asks lockdown about.
 test_expect_success 'a module without its signature is refused and counted' '
 	module=$(find "/lib/modules/$(uname -r)" -name "*.ko" | head -1) &&
 	[ -n "$module" ] &&
-	now=$(counter Lockdown) &&
+	now=$(counter ModuleSignature) &&
 	python3 - "$module" "$W/unsigned.ko" >"$W/module" <<-\PY &&
 	import ctypes, errno, os, platform, sys
 	MARKER = b"~Module signature appended~\n"
@@ -55,21 +57,21 @@ test_expect_success 'a module without its signature is refused and counted' '
 	print("done" if ret == 0 else errno.errorcode[ctypes.get_errno()])
 	PY
 	grep -qx EPERM "$W/module" &&
-	[ "$(counter Lockdown)" -gt "$now" ]
+	[ "$(counter ModuleSignature)" -gt "$now" ]
 '
 
 if [ -e /proc/kcore ]; then
 	test_expect_success '/proc/kcore is refused and counted' '
-		now=$(counter Lockdown) &&
+		now=$(counter Kcore) &&
 		[ "$(open_errno /proc/kcore)" = EPERM ] &&
-		[ "$(counter Lockdown)" -gt "$now" ]
+		[ "$(counter Kcore)" -gt "$now" ]
 	'
 fi
 CONFIG=$(ls /sys/bus/pci/devices/*/config 2>/dev/null | head -1)
 if [ -n "$CONFIG" ]; then
 	# The interrupt line byte written back as it is, should the write pass.
 	test_expect_success 'a PCI config write is refused and counted' '
-		now=$(counter Lockdown) &&
+		now=$(counter PciAccess) &&
 		python3 - "$CONFIG" >"$W/pci" <<-\PY &&
 		import errno, sys
 		with open(sys.argv[1], "r+b", buffering=0) as f:
@@ -83,7 +85,7 @@ if [ -n "$CONFIG" ]; then
 		        print(errno.errorcode[e.errno])
 		PY
 		grep -qx EPERM "$W/pci" &&
-		[ "$(counter Lockdown)" -gt "$now" ]
+		[ "$(counter PciAccess)" -gt "$now" ]
 	'
 fi
 if [ -e /dev/mem ]; then
@@ -92,8 +94,29 @@ if [ -e /dev/mem ]; then
 	'
 fi
 test_expect_success 'reading /sys/power/state counts nothing' '
-	now=$(counter Lockdown) &&
+	now=$(counter total) &&
 	cat /sys/power/state >/dev/null 2>&1 || :
-	[ "$(counter Lockdown)" -eq "$now" ]
+	[ "$(counter total)" -eq "$now" ]
+'
+test_expect_success 'status lists the integrity counters apart from the tamper counters' '
+	"$SHIRUDO_BIN" status >"$W/status" &&
+	sed -n "/^Integrity attempts (this boot):/,/^\$/p" "$W/status" \
+		>"$W/integrity" &&
+	grep -q "^  ModuleSignature  *[1-9][0-9]*  module load without" \
+		"$W/integrity" &&
+	! sed -n "/^Tamper attempts (this boot):/,/^\$/p" "$W/status" |
+		grep -q "ModuleSignature"
+'
+test_expect_success 'the keepalive carries every integrity counter in order' '
+	"$SHIRUDO_BIN" status --keepalive | python3 -c "
+import json, sys
+body = json.load(sys.stdin)
+integrity = body[\"integrity\"]
+assert len(integrity) == 22 and integrity[0] > 0, integrity
+assert body[\"flags\"] & 64 == 0, body[\"flags\"]
+"
+'
+test_expect_success 'root cannot open the integrity counter map' '
+	[ "$(open_errno /run/shirudo/bpffs/integrity)" = EACCES ]
 '
 test_done

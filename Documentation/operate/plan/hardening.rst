@@ -55,7 +55,7 @@ Kernel configuration
        kernel does not refuse it first (``CONFIG_MODULE_SIG_FORCE`` or
        ``module.sig_enforce=1``).
      - partly: from ``init`` on, an unsigned module is refused and
-       counted as ``Lockdown``
+       counted as ``ModuleSignature``
    * - ``CONFIG_STRICT_DEVMEM`` and ``CONFIG_IO_STRICT_DEVMEM``, or no
        ``/dev/mem`` at all
      - Limits ``/dev/mem`` before ``init``, after which ``bpf2`` refuses
@@ -77,7 +77,7 @@ Kernel configuration
      - partly: from ``init`` on, hibernating is refused, and so is a
        write of the ``HibernateLocation`` EFI variable through which
        systemd's initrd finds an image the UKI does not name, counted
-       as ``Lockdown``
+       as ``HibernateLocation``
    * - Kexec
      - A kexec boots a kernel and initrd of root's choosing while the
        TPM keeps this boot's register and PCRs.

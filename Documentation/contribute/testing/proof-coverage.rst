@@ -738,9 +738,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Three fixed bodies, without a tree, with a tree and nothing else
        that may be null, and with every value; the last of these with a
        last number of up to 4 digits in a buffer that holds 0 to 3 of
-       them; rooms of 0, 1 and 208 bytes; a missing string, a bad hash
+       them; rooms of 0, 1 and 224 bytes; a missing string, a bad hash
        and a byte that is not UTF-8
-     - Each body one JSON object of 22 members by a byte-level
+     - Each body one JSON object of 23 members by a byte-level
        recognizer, terminated in the buffer; another last number
        changes only its digits, without a leading zero, or is
        ``-ENOSPC`` exactly when it does not fit; ``-EINVAL`` and
@@ -1275,11 +1275,11 @@ a proof covers.
        :src:`util/image_cache.c`, :src:`util/image_config.c`,
        :src:`util/image_guards.c`, :src:`util/image_keys.c`,
        :src:`util/image_runtime.c`, :src:`util/initrd.c`,
-       :src:`util/keyring.c`, :src:`util/preflight.c`,
-       :src:`util/seal.c`, :src:`util/tamper.c`,
-       :src:`util/upatch_maps.c`, :src:`util/upatch_pins.c`,
-       :src:`util/upatch_resolve.c`, :src:`util/upatch_verify.c`,
-       :src:`util/xdp.c`
+       :src:`util/integrity.c`, :src:`util/keyring.c`,
+       :src:`util/preflight.c`, :src:`util/seal.c`,
+       :src:`util/tamper.c`, :src:`util/upatch_maps.c`,
+       :src:`util/upatch_pins.c`, :src:`util/upatch_resolve.c`,
+       :src:`util/upatch_verify.c`, :src:`util/xdp.c`
      - Mostly calls into the kernel, which CBMC has no body for: files,
        extended attributes, mounts, the device mapper, keyrings,
        ``bpf()``, netlink, ``/proc`` and the process's own limits

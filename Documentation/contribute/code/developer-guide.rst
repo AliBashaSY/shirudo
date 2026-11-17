@@ -388,7 +388,7 @@ Project layout
      - The headers more than one BPF program includes: the LSM helpers
        and verity device records of ``bpf2.c`` and ``seal.c``, and,
        shared with upatches and userspace, decoders, identity,
-       serializers, tamper counters and common helpers.
+       serializers, tamper and integrity counters and common helpers.
    * - :src:`include/shirudo/`
      - Integer types, string and number helpers, the ``.upatch``
        container layout, TPM types and the enforcement definitions

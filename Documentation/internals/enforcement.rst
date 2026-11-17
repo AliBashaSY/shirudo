@@ -83,6 +83,10 @@ The objects share seven maps, which ``init`` hands from ``bpf2`` to
    * - ``shirudo_tamper``
      - ``tamper``
      - One counter per refusal point, see :doc:`/security/tamper-counters`.
+   * - ``shirudo_integrity``
+     - ``integrity``
+     - One counter per way to change or read the running kernel that
+       ``bpf2`` refuses, see :doc:`/security/integrity-counters`.
 
 ``init`` freezes every one of them against userspace writes except
 ``shirudo_roots``, which an authorized task writes before each config
@@ -351,7 +355,7 @@ when the record it needs is missing.
        when the bootstrap task opens its root. Opening a
        ``HibernateLocation`` EFI variable for writing, to every caller.
      - ``EACCES``; ``EPERM`` for the EFI variable
-     - ``ObjGet``; ``Lockdown``
+     - ``ObjGet``; ``HibernateLocation``
      - Closed.
    * - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat`` (``bpf2``)
      - ``PERF_EVENT_IOC_SET_BPF`` on any file,
@@ -552,7 +556,7 @@ when the record it needs is missing.
      - Every lockdown reason of integrity mode, an unsigned module
        included, and ``LOCKDOWN_KCORE``, to every caller.
      - ``EPERM``
-     - ``Lockdown``; hibernation uncounted
+     - The integrity counter of the reason; hibernation uncounted
      - Unconditional; the kernel's lockdown LSM decides first.
    * - ``lsm.s/file_open`` (``seal``)
      - A write open of a labeled file to a task without authority. On a

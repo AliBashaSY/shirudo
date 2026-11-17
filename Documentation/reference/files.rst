@@ -362,6 +362,9 @@ by ``BPF_OBJ_GET`` (``ObjGet``). Directories stay listable.
    * - ``tamper``
      - Map ``shirudo_tamper``: the tamper counters. See
        :doc:`/security/tamper-counters`.
+   * - ``integrity``
+     - Map ``shirudo_integrity``: the integrity counters. See
+       :doc:`/security/integrity-counters`.
    * - ``task_authority``, ``config_roots``
      - Task storage maps of runtime authority and expected config roots.
    * - ``task_policy``, ``socket_policy``

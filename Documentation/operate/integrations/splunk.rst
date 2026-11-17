@@ -146,7 +146,10 @@ on.
    ``tamper`` lists every counter since boot. The counters only grow
    within a boot and start at zero at the next, so more than one list in
    the keepalives of one ``boot_id`` means a counter rose, and a reboot
-   in the window reports nothing.
+   in the window reports nothing. ``integrity`` lists the integrity
+   counters the same way; the query with ``integrity`` in place of
+   ``tamper`` finds targets that refused a change to their running
+   kernel.
 
 Next steps
 ----------

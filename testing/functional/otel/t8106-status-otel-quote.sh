@@ -55,9 +55,9 @@ import base64, json, re, sys
 
 KEYS = ["schema", "boot_id", "version_id", "config_root", "kernel_release",
         "image_id", "image_version", "image_root", "verdict", "cond",
-        "flags", "tamper", "tree_id", "generation", "base_seq", "last_seq",
-        "base_root", "projection_root", "mask", "set_sha256", "count",
-        "not_ok"]
+        "flags", "tamper", "integrity", "tree_id", "generation",
+        "base_seq", "last_seq", "base_root", "projection_root", "mask",
+        "set_sha256", "count", "not_ok"]
 SEVERITY = {"ok": (9, "INFO"), "degraded": (13, "WARN"),
             "init-pending": (13, "WARN"), "reboot-pending": (13, "WARN"),
             "tampered": (17, "ERROR"), "lsm-off": (17, "ERROR")}
