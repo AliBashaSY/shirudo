@@ -211,20 +211,20 @@ static int apply_event(const char *spec, __u8 chain[32])
 	if (!colon || attest_parse_name_digest(colon + 1, name, digest))
 		return -EINVAL;
 	kind_len = (size_t)(colon - spec);
-	if (kind_len == 4 && !strncmp(spec, "load", 4)) {
+	if (span_equals(spec, kind_len, "load")) {
 		if (chain_upatch_event("shirudo-upatch", name, digest, event))
 			return -EIO;
-	} else if (kind_len == 6 && !strncmp(spec, "unload", 6)) {
+	} else if (span_equals(spec, kind_len, "unload")) {
 		if (chain_upatch_event("shirudo-unload", name, digest, event))
 			return -EIO;
-	} else if (kind_len == 4 && !strncmp(spec, "tree", 4)) {
+	} else if (span_equals(spec, kind_len, "tree")) {
 		__s64 seq;
 
 		if (parse_s64(name, strlen(name), 1, INT64_MAX, &seq))
 			return -EINVAL;
 		if (chain_tree_event(seq, digest, event))
 			return -EIO;
-	} else if (kind_len == 6 && !strncmp(spec, "revoke", 6)) {
+	} else if (span_equals(spec, kind_len, "revoke")) {
 		if (chain_key_event("shirudo-key-revoke", digest, event))
 			return -EIO;
 	} else {
@@ -477,18 +477,20 @@ static int report_emit_json(const char *report, const char *verdict)
 		const char *nl = strchr(line, '\n');
 		size_t len = nl ? (size_t)(nl - line) : strlen(line);
 		char text[ATTEST_REPORT_MAX];
-		const char *kind = NULL;
+		const char *kind = NULL, *rest = line;
+		size_t mark;
 
-		if (len > 8 && !strncmp(line, "  OK    ", 8))
+		if (str_skip_prefix(&rest, "  OK    "))
 			kind = "ok";
-		else if (len > 8 && !strncmp(line, "  FAIL  ", 8))
+		else if (str_skip_prefix(&rest, "  FAIL  "))
 			kind = "fail";
-		else if (len > 8 && !strncmp(line, "  NOTE  ", 8))
+		else if (str_skip_prefix(&rest, "  NOTE  "))
 			kind = "note";
-		if (kind) {
-			size_t n = min(len - 8, sizeof(text) - 1);
+		mark = (size_t)(rest - line);
+		if (kind && len > mark) {
+			size_t n = min(len - mark, sizeof(text) - 1);
 
-			memcpy(text, line + 8, n);
+			memcpy(text, rest, n);
 			text[n] = '\0';
 			json_obj_open(&e);
 			json_kv_string(&e, "result", kind);

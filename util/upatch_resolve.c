@@ -317,9 +317,8 @@ int upatch_resolve_location(struct btf *vbtf, const char *name,
 		prefix = "?";
 
 	/* Strip the bpf_lsm_ prefix the kernel mangles LSM hooks with. */
-	if (info.type == BPF_PROG_TYPE_LSM && attach_name &&
-	    strncmp(attach_name, "bpf_lsm_", 8) == 0)
-		attach_name += 8;
+	if (info.type == BPF_PROG_TYPE_LSM && attach_name)
+		attach_name += str_has_prefix(attach_name, "bpf_lsm_");
 
 	if (attach_name && *attach_name)
 		return strsprintf(out, cap, "%s/%s", prefix, attach_name) < 0 ?

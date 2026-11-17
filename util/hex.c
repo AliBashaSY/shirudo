@@ -6,6 +6,7 @@
 
 #include <shirudo/misc.h>
 #include <shirudo/overflow.h>
+#include <shirudo/string.h>
 
 #include "hex.h"
 #include "malloc.h"
@@ -85,9 +86,9 @@ int hex_decode_max(const char *hex, __u8 *out, size_t cap, size_t *len)
 
 int sha256_digest_decode(const char *digest, __u8 out[32])
 {
-	if (!digest || strncmp(digest, "sha256:", 7))
+	if (!digest || !str_skip_prefix(&digest, "sha256:"))
 		return -EINVAL;
-	return hex_decode(digest + 7, out, 32);
+	return hex_decode(digest, out, 32);
 }
 
 void sha256_digest_encode(const __u8 in[32],

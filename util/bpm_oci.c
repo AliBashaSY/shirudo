@@ -365,9 +365,9 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 	const char *p, *ca_file, *scheme = getenv("BPM_OCI_SCHEME");
 	char transport[16] = "https";
 
-	if (!endpoint || strncmp(endpoint, "oci://", 6) != 0)
+	p = endpoint;
+	if (!p || !str_skip_prefix(&p, "oci://"))
 		return -EINVAL;
-	p = endpoint + 6;
 	if (!*p || strchr(p, '/') || strchr(p, '?') || strchr(p, '#') || strchr(p, '@'))
 		return -EINVAL;
 	if (scheme && *scheme) {
@@ -493,7 +493,7 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, follow ? 1L : 0L);
 	if (follow) {
 		const char *redirect_protocols =
-			!strncmp(c->base_url, "https://", 8) ? "https" : "http,https";
+			str_has_prefix(c->base_url, "https://") ? "https" : "http,https";
 
 		curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
 #if LIBCURL_VERSION_NUM >= 0x075500
@@ -571,8 +571,7 @@ static int parse_challenge(const char *header, char *realm, size_t rsz,
 	for (p = header + 6; *p;) {
 		while (*p == ' ' || *p == ',')
 			p++;
-		if (!strncmp(p, "realm=\"", 7)) {
-			p += 7;
+		if (str_skip_prefix(&p, "realm=\"")) {
 			q = strchr(p, '"');
 			if (!q)
 				return -EINVAL;
@@ -581,8 +580,7 @@ static int parse_challenge(const char *header, char *realm, size_t rsz,
 			memcpy(realm, p, q - p);
 			realm[q - p] = 0;
 			p = q + 1;
-		} else if (!strncmp(p, "service=\"", 9)) {
-			p += 9;
+		} else if (str_skip_prefix(&p, "service=\"")) {
 			q = strchr(p, '"');
 			if (!q)
 				return -EINVAL;
@@ -591,8 +589,7 @@ static int parse_challenge(const char *header, char *realm, size_t rsz,
 			memcpy(service, p, q - p);
 			service[q - p] = 0;
 			p = q + 1;
-		} else if (!strncmp(p, "scope=\"", 7)) {
-			p += 7;
+		} else if (str_skip_prefix(&p, "scope=\"")) {
 			q = strchr(p, '"');
 			if (!q)
 				return -EINVAL;
@@ -697,8 +694,8 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 	 * over no weaker a transport than the registry's own.
 	 */
 	curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR,
-			 strncmp(c->base_url, "https://", 8) ? "http,https" :
-							       "https");
+			 str_has_prefix(c->base_url, "https://") ? "https" :
+								    "http,https");
 	curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
@@ -1047,9 +1044,9 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 	if (!raw || strlen(raw) >= sizeof(normalized))
 		return -EINVAL;
 	bpm_trim(raw, normalized, sizeof(normalized));
-	if (strncmp(normalized, "oci://", 6))
+	p = normalized;
+	if (!str_skip_prefix(&p, "oci://"))
 		return -EINVAL;
-	p = normalized + 6;
 	if (!*p || strchr(p, '@') || strchr(p, '?') || strchr(p, '#'))
 		return -EINVAL;
 	slash = strchr(p, '/');
@@ -1059,13 +1056,12 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 	colon = strrchr(p, ':');
 	if (!colon || colon <= last_slash || colon == last_slash + 1 || !colon[1])
 		return -EINVAL;
-	if ((size_t)(slash - p) >= sizeof(endpoint) - 6 ||
+	if ((size_t)(slash - normalized) >= sizeof(endpoint) ||
 	    (size_t)(colon - slash - 1) >= repository_sz ||
 	    strlen(colon + 1) >= tag_sz)
 		return -ENAMETOOLONG;
-	memcpy(endpoint, "oci://", 6);
-	memcpy(endpoint + 6, p, slash - p);
-	endpoint[6 + (slash - p)] = '\0';
+	memcpy(endpoint, normalized, slash - normalized);
+	endpoint[slash - normalized] = '\0';
 	memcpy(repository, slash + 1, colon - slash - 1);
 	repository[colon - slash - 1] = '\0';
 	bpm_copy_string(tag, tag_sz, colon + 1);
@@ -1077,7 +1073,7 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 
 		if (!end)
 			end = part + strlen(part);
-		if (end == part || (end - part == 2 && !strncmp(part, "..", 2)))
+		if (end == part || span_equals(part, (size_t)(end - part), ".."))
 			return -EINVAL;
 		part = *end ? end + 1 : end;
 	}
@@ -1097,30 +1093,31 @@ int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 	if (!raw || strlen(raw) >= sizeof(normalized))
 		return -EINVAL;
 	bpm_trim(raw, normalized, sizeof(normalized));
-	if (strncmp(normalized, "oci://", 6))
+	p = normalized;
+	if (!str_skip_prefix(&p, "oci://"))
 		return -EINVAL;
-	p = normalized + 6;
 	slash = strchr(p, '/');
 	if (!*p || !slash || slash == p || !slash[1] || strchr(p, '@') ||
 	    strchr(p, '?') || strchr(p, '#'))
 		return -EINVAL;
-	if ((size_t)(slash - p) >= sizeof(endpoint) - 6 ||
+	if ((size_t)(slash - normalized) >= sizeof(endpoint) ||
 	    strlen(slash + 1) >= repository_sz)
 		return -ENAMETOOLONG;
-	memcpy(endpoint, "oci://", 6);
-	memcpy(endpoint + 6, p, slash - p);
-	endpoint[6 + (slash - p)] = '\0';
+	memcpy(endpoint, normalized, slash - normalized);
+	endpoint[slash - normalized] = '\0';
 	bpm_copy_string(repository, repository_sz, slash + 1);
 	if (strchr(repository, ':') || strstr(repository, "//") ||
 	    strstr(repository, ".."))
 		return -EINVAL;
 	for (const char *part = repository; *part;) {
 		const char *end = strchr(part, '/');
+		size_t len;
 
 		if (!end)
 			end = part + strlen(part);
-		if (end == part || (end - part == 1 && part[0] == '.') ||
-		    (end - part == 2 && !strncmp(part, "..", 2)))
+		len = (size_t)(end - part);
+		if (!len || span_equals(part, len, ".") ||
+		    span_equals(part, len, ".."))
 			return -EINVAL;
 		part = *end ? end + 1 : end;
 	}
@@ -1136,19 +1133,18 @@ int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
 	char endpoint[BPM_MAX_ENDPOINT];
 	const char *p, *slash;
 
-	if (!raw || strncmp(raw, "oci://", 6))
+	p = raw;
+	if (!p || !str_skip_prefix(&p, "oci://"))
 		return -EINVAL;
-	p = raw + 6;
 	slash = strchr(p, '/');
 	if (!slash || slash == p || !slash[1] || strchr(p, '?') ||
 	    strchr(p, '#') || strchr(p, '@'))
 		return -EINVAL;
-	if ((size_t)(slash - p) + 6 >= sizeof(endpoint) ||
+	if ((size_t)(slash - raw) >= sizeof(endpoint) ||
 	    strlen(slash + 1) >= repository_sz)
 		return -ENAMETOOLONG;
-	memcpy(endpoint, "oci://", 6);
-	memcpy(endpoint + 6, p, (size_t)(slash - p));
-	endpoint[6 + (size_t)(slash - p)] = '\0';
+	memcpy(endpoint, raw, (size_t)(slash - raw));
+	endpoint[slash - raw] = '\0';
 	bpm_copy_string(repository, repository_sz, slash + 1);
 	if (strstr(repository, "..") || strstr(repository, "//") ||
 	    strchr(repository, ':'))
@@ -1214,8 +1210,8 @@ int bpm_sha256_digest(const void *data, size_t len, char *out, size_t out_sz)
 
 bool bpm_digest_matches(const char *want, const char *hex)
 {
-	return want && !strncmp(want, "sha256:", 7) &&
-		!strcasecmp(want + 7, hex);
+	return want && str_skip_prefix(&want, "sha256:") &&
+		!strcasecmp(want, hex);
 }
 
 static int upload_location(const struct bpm_oci_client *c, const char *location,

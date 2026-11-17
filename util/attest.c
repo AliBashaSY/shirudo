@@ -741,6 +741,7 @@ int attest_verify(const char *evidence, size_t len,
 	__u8 branch_written[32], branch_init[32], policy[32], bind[64];
 	__u8 expected_name[TPM_NAME_LEN], pcr_expected[32];
 	__u8 anchor_digest[32] = {}, cred[TPM_CREDENTIAL_LEN];
+	const char *reg_index_hex;
 	struct parse *p;
 	size_t ak_public_len, nonce_len, attest_len;
 	size_t cred_len = 0, i, runtime = 0;
@@ -1048,10 +1049,11 @@ int attest_verify(const char *evidence, size_t len,
 	if (ret == -EINVAL)
 		goto out;
 	crc = ret;
+	reg_index_hex = p->reg_index;
 	if (hex_decode(p->reg_name_hex, reg_name, TPM_NAME_LEN) ||
 	    hex_decode(p->reg_value_hex, reg_value, 32) ||
-	    strncmp(p->reg_index, "0x", 2) ||
-	    parse_x64(p->reg_index + 2, strlen(p->reg_index + 2), 0xffffffffULL,
+	    !str_skip_prefix(&reg_index_hex, "0x") ||
+	    parse_x64(reg_index_hex, strlen(reg_index_hex), 0xffffffffULL,
 		      &reg_index) ||
 	    p->reg_pcr < 0 || p->reg_pcr >= 24) {
 		ret = -EINVAL;

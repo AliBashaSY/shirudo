@@ -109,12 +109,12 @@ static void set_owner_auth(struct config *cfg, const char *val)
 {
 	size_t l;
 
-	if (strncmp(val, "hex:", 4) == 0) {
+	if (str_skip_prefix(&val, "hex:")) {
 		__u8 auth[sizeof(cfg->tpm_owner_auth)];
 		size_t n;
 
 		/* An ignored value must leave the one set before intact. */
-		if (!hex_decode_max(val + 4, auth, sizeof(auth), &n)) {
+		if (!hex_decode_max(val, auth, sizeof(auth), &n)) {
 			memcpy(cfg->tpm_owner_auth, auth, n);
 			cfg->tpm_owner_auth_len = n;
 		} else {
@@ -247,13 +247,13 @@ static int config_parse(struct config *cfg, FILE *f,
 				cfg->map_export_log_record_max_bytes = (__u32)v;
 			else
 				cfg->map_export_otlp_max_bytes = (__u32)v;
-		} else if (!strncmp(key, "config.", 7) ||
-			   !strncmp(key, "runtime.", 8)) {
+		} else if (str_has_prefix(key, "config.") ||
+			   str_has_prefix(key, "runtime.")) {
 			continue;
 		} else {
-			if (strncmp(key, "map_export.", 11) == 0) {
+			if (str_has_prefix(key, "map_export.")) {
 				map_export_bad(cfg, key, val, "unknown key");
-			} else if (strncmp(key, "tls.", 4) == 0) {
+			} else if (str_has_prefix(key, "tls.")) {
 				cfg->tls_classical_hosts_valid = false;
 				pr_warn("config: %s: unknown TLS setting", key);
 			} else {

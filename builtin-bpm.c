@@ -425,7 +425,7 @@ static int load_source(const char *name, struct bpm_source *s)
 		return ret;
 	/* With a config image the key file is the image's, named from its root. */
 	if (image_config_active()) {
-		if (!strncmp(s->key_file, "/etc/shirudo/bpm/keys/", 22))
+		if (str_has_prefix(s->key_file, "/etc/shirudo/bpm/keys/"))
 			memmove(s->key_file, s->key_file + 1,
 				strlen(s->key_file));
 		if (s->key_file[0] == '/' || strstr(s->key_file, ".."))
@@ -537,7 +537,7 @@ static int package_source_open(const char *source)
 {
 	int fd, ret;
 
-	if (strncmp(source, "oci://", 6)) {
+	if (!str_has_prefix(source, "oci://")) {
 		fd = open(source, O_RDONLY | O_CLOEXEC);
 		return fd < 0 ? -errno : fd;
 	}
@@ -596,15 +596,13 @@ struct bpm_upatches_ctx {
 static int print_upatch_member(void *ctx, const char *member, char type)
 {
 	struct bpm_upatches_ctx *opts = ctx;
-	static const char prefix[] = "upatches/";
 	size_t len = strlen(member), need, cap;
 	enum bpm_upatch_member kind;
-	const char *base;
+	const char *base = member;
 	char *next;
 
-	if (type != '0' || strncmp(member, prefix, sizeof(prefix) - 1))
+	if (type != '0' || !str_skip_prefix(&base, "upatches/"))
 		return 0;
-	base = member + sizeof(prefix) - 1;
 	if (strchr(base, '/'))
 		return 0;
 	kind = bpm_upatch_member(base, strlen(base));
@@ -671,14 +669,14 @@ static int print_package_upatch_data(const char *source, const char *member,
 {
 	size_t beefile_len = 0, upatch_len = 0;
 	__u8 *beefile = NULL, *bytes = NULL;
+	const char *base = member;
 	char package_dir[101];
 	struct upatch u = {};
 	int fd, ret;
 
-	if (!bpm_archive_rel_ok(member) || strncmp(member, "upatches/", 9) ||
-	    strchr(member + 9, '/') ||
-	    bpm_upatch_member(member + 9, strlen(member + 9)) ==
-	    BPM_UPATCH_OTHER)
+	if (!bpm_archive_rel_ok(member) ||
+	    !str_skip_prefix(&base, "upatches/") || strchr(base, '/') ||
+	    bpm_upatch_member(base, strlen(base)) == BPM_UPATCH_OTHER)
 		return -EINVAL;
 	fd = package_source_open(source);
 	if (fd < 0)
@@ -868,7 +866,7 @@ static int key_source_read(const char *source, __u8 **der, size_t *len,
 	size_t n = strlen(source);
 	int fd, ret;
 
-	if (strncmp(source, "oci://", 6) &&
+	if (!str_has_prefix(source, "oci://") &&
 	    !name_has_suffix(source, n, ".bee")) {
 		ret = keys_read_der(source, der, len);
 		*cap = *len;
@@ -1186,7 +1184,7 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 	 * Repository indexes carry a sha256 manifest digest; direct OCI
 	 * references carry the tag in this field and cannot be digest-checked.
 	 */
-	if (!strncmp(entry->manifest_digest, "sha256:", 7)) {
+	if (str_has_prefix(entry->manifest_digest, "sha256:")) {
 		char manifest_hex[65];
 
 		if (bpm_sha256_hex(manifest.data, manifest.len, manifest_hex,
@@ -2889,7 +2887,7 @@ static int bpm_install(const char *ref, struct bpm_tables *t)
 	char source[BPM_MAX_NAME], name[BPM_MAX_NAME], version[BPM_MAX_NAME];
 	struct bpm_index_entry *entries = t->entries;
 	struct bpm_state_entry *state = t->state;
-	bool direct = !strncmp(ref, "oci://", 6);
+	bool direct = str_has_prefix(ref, "oci://");
 	struct bpm_index_entry selected;
 	struct bpm_source source_cfg;
 	int n_entries, n_state, lock, ret, i;

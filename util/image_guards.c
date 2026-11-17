@@ -417,8 +417,10 @@ static int guard_link(const struct image_guard *guard,
 	}
 	if (*kernel_id != program.attach_btf_obj_id)
 		return -EPROTO;
-	suffix = !strncmp(guard->prog, "shirudo_lsm_", 12) ?
-		 guard->prog + 12 : guard->prog + 13;
+	suffix = guard->prog;
+	if (!str_skip_prefix(&suffix, "shirudo_lsm_") &&
+	    !str_skip_prefix(&suffix, "shirudo_seal_"))
+		return -EPROTO;
 	if (strsprintf(function, sizeof(function), "bpf_lsm_%s", suffix) < 0)
 		return -ENAMETOOLONG;
 	type_id = btf__find_by_name_kind(*kernel, function, BTF_KIND_FUNC);

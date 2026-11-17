@@ -524,8 +524,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 						return -ENOMEM;
 				}
 				sel = tree_owner->tree.selector;
-			} else if (!strncmp(section, "upatches.tree",
-					    strlen("upatches.tree"))) {
+			} else if (str_has_prefix(section, "upatches.tree")) {
 				/*
 				 * A selector the builder cannot read would
 				 * widen the rollout.
@@ -1027,8 +1026,8 @@ static int build_target_ok(const char *target)
 		const char *q = strchr(p, '/');
 		size_t n = q ? (size_t)(q - p) : strlen(p);
 
-		if (!n || (n == 1 && *p == '.') ||
-		    (n == 2 && !strncmp(p, "..", 2)) || (q && !q[1]))
+		if (!n || span_equals(p, n, ".") || span_equals(p, n, "..") ||
+		    (q && !q[1]))
 			return -EINVAL;
 		p = q ? q + 1 : p + n;
 	}
@@ -2055,7 +2054,7 @@ static int __build_bpm_config_update(int argc, char **argv,
 				     struct bpm_build_input_override *overrides)
 {
 	const char *file_arg = NULL, *base_arg = NULL, *base_digest = NULL;
-	const char *version = NULL, *keys_arg = NULL;
+	const char *version = NULL, *keys_arg = NULL, *base_hex;
 	size_t n_overrides = 0;
 	char build_file[PATH_MAX], resolved_file[PATH_MAX], source_dir[PATH_MAX];
 	char base_package[PATH_MAX], base_package_tmp[] =
@@ -2127,13 +2126,13 @@ static int __build_bpm_config_update(int argc, char **argv,
 		       version);
 		return -EINVAL;
 	}
-	if (!strncmp(base_arg, "oci://", 6) != !!base_digest) {
+	if (!!str_has_prefix(base_arg, "oci://") != !!base_digest) {
 		pr_err("bpm config update: --base-digest names the manifest of an oci:// base package, and one needs it");
 		return -EINVAL;
 	}
-	if (base_digest && (strncmp(base_digest, "sha256:", 7) ||
-			    strlen(base_digest + 7) != 64 ||
-			    !hex_is_lower(base_digest + 7, 64))) {
+	base_hex = base_digest;
+	if (base_hex && (!str_skip_prefix(&base_hex, "sha256:") ||
+			 strlen(base_hex) != 64 || !hex_is_lower(base_hex, 64))) {
 		pr_err("bpm config update: --base-digest %s is not sha256:<64 lowercase hex>",
 		       base_digest);
 		return -EINVAL;

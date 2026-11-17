@@ -4,7 +4,8 @@
  *
  * Bounded number parsing, string copies and formatting, file name
  * suffixes, DNS names, UTF-8 characters and text for a terminal, from
- * util/string.c, and the scrub and compare for secrets.
+ * util/string.c, compares with a string literal, and the scrub and compare
+ * for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -58,6 +59,34 @@ int vstrsprintf(char *buf, size_t size, const char *fmt, va_list ap)
  * suffix, as a file name and its extension are.
  */
 bool name_has_suffix(const char *name, size_t len, const char *suffix);
+
+/*
+ * The length of prefix where s starts with it, else 0. prefix is a string
+ * literal, whose length the compiler takes from its size: anything else
+ * fails the build, so that the size of a pointer never stands in for it.
+ */
+#define str_has_prefix(s, prefix)					\
+	(strncmp(s, "" prefix, sizeof(prefix) - 1) ? 0 : sizeof(prefix) - 1)
+
+/*
+ * Whether *sp starts with the string literal prefix; where it does, *sp
+ * moves past it. Where a test after it fails, *sp has still moved, so a
+ * chain that tests the rest of the string takes str_has_prefix().
+ */
+#define str_skip_prefix(sp, prefix) ({					\
+	__auto_type __sp = (sp);					\
+	size_t __n = str_has_prefix(*__sp, prefix);			\
+									\
+	*__sp += __n;							\
+	__n != 0;							\
+})
+
+/*
+ * Whether the len bytes at s are the string literal lit, no more and no
+ * fewer, its length again taken from its size.
+ */
+#define span_equals(s, len, lit)					\
+	((len) == sizeof(lit) - 1 && !strncmp(s, "" lit, sizeof(lit) - 1))
 
 /*
  * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63

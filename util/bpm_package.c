@@ -325,6 +325,7 @@ static bool bpm_tar_header_ok(const __u8 h[512])
 bool bpm_archive_rel_ok(const char *name)
 {
 	const char *p = name, *q;
+	size_t len;
 
 	if (!name || !*name || *name == '/')
 		return false;
@@ -332,8 +333,8 @@ bool bpm_archive_rel_ok(const char *name)
 		q = strchr(p, '/');
 		if (!q)
 			q = p + strlen(p);
-		if (q == p || (q - p == 1 && *p == '.') ||
-		    (q - p == 2 && !strncmp(p, "..", 2)))
+		len = (size_t)(q - p);
+		if (!len || span_equals(p, len, ".") || span_equals(p, len, ".."))
 			return false;
 		p = *q ? q + 1 : q;
 	}
@@ -378,7 +379,7 @@ static bool package_member_name_ok(const char *name, const char *member)
 	if (!bpm_archive_rel_ok(name) || !member)
 		return false;
 	slash = strchr(name, '/');
-	return slash && slash != name && strncmp(name, "./", 2) &&
+	return slash && slash != name && !str_has_prefix(name, "./") &&
 		bpm_archive_rel_ok(member) && !strcmp(slash + 1, member);
 }
 

@@ -227,6 +227,14 @@ static void kernel_config_entries_free(struct kernel_config_entry *entries,
 	xfree(entries, cap * sizeof(*entries));
 }
 
+/* CONFIG_ and a name after it. */
+static bool config_name(const char *key)
+{
+	size_t n = str_has_prefix(key, "CONFIG_");
+
+	return n && key[n];
+}
+
 int sysinfo_kernel_config_foreach(const char *kernel_release,
 				  shirudo_kernel_config_cb cb,
 				  void *ctx)
@@ -252,10 +260,11 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 		if (!*key)
 			continue;
 
-		if (strncmp(key, "# CONFIG_", 9) == 0) {
-			key += 2;
+		if (str_has_prefix(key, "# CONFIG_")) {
+			key += strlen("# ");
 			not_set = strstr(key, " is not set");
-			if (!not_set || trim_config_text(not_set + 11)[0] != '\0')
+			if (!not_set ||
+			    trim_config_text(not_set + strlen(" is not set"))[0] != '\0')
 				continue;
 			*not_set = '\0';
 			value = unset;
@@ -265,7 +274,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 				continue;
 			*eq = '\0';
 			key = trim_config_text(key);
-			if (strncmp(key, "CONFIG_", 7) != 0 || !key[7])
+			if (!config_name(key))
 				continue;
 			value = trim_config_text(eq + 1);
 			{
@@ -277,7 +286,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 				}
 			}
 		}
-		if (strncmp(key, "CONFIG_", 7) != 0 || !key[7])
+		if (!config_name(key))
 			continue;
 		if (n == cap) {
 			struct kernel_config_entry *next;

@@ -196,7 +196,7 @@ static int validate_settings(int root_fd)
 				ret = -EINVAL;
 				break;
 			}
-		} else if (strncmp(p, "map_export.", 11)) {
+		} else if (!str_has_prefix(p, "map_export.")) {
 			ret = -EPERM;
 			break;
 		}

@@ -651,8 +651,7 @@ static int prepare_config(struct image_context *current,
 	close_candidate();
 	if (!trusted_boot)
 		collect_mappings();
-	if (strncmp(target->prefix, IMAGE_CACHE_DIR "/",
-		    sizeof(IMAGE_CACHE_DIR)) ||
+	if (!str_has_prefix(target->prefix, IMAGE_CACHE_DIR "/") ||
 	    !image_path_valid(target->prefix))
 		return -EPERM;
 	ret = config_image_open(target->prefix, &current->candidate);
@@ -1092,9 +1091,9 @@ int image_enter(const char *command, int argc, const char **argv)
 	if (ret)
 		return ret;
 	for (int i = 1; i < argc; i++) {
-		if (!strncmp(argv[i], "--keys-dir", 10) ||
-		    !strncmp(argv[i], "--cert", 6) ||
-		    !strncmp(argv[i], "--tcti", 6))
+		if (str_has_prefix(argv[i], "--keys-dir") ||
+		    str_has_prefix(argv[i], "--cert") ||
+		    str_has_prefix(argv[i], "--tcti"))
 			return -EPERM;
 	}
 	if (!strcmp(command, "image"))

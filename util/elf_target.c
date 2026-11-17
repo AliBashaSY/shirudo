@@ -47,10 +47,11 @@ static int note_build_id(Elf_Data *data,
 		next = gelf_getnote(data, off, &nhdr, &name_off, &desc_off);
 		if (!next)
 			break;
-		if (nhdr.n_type == NT_GNU_BUILD_ID && nhdr.n_namesz == 4 &&
+		if (nhdr.n_type == NT_GNU_BUILD_ID &&
+		    nhdr.n_namesz == sizeof("GNU") &&
 		    name_off <= data->d_size && nhdr.n_namesz <= data->d_size - name_off &&
 		    desc_off <= data->d_size && nhdr.n_descsz <= data->d_size - desc_off &&
-		    memcmp(p + name_off, "GNU", 4) == 0) {
+		    !memcmp(p + name_off, "GNU", sizeof("GNU"))) {
 			if (!nhdr.n_descsz ||
 			    nhdr.n_descsz > UPATCH_BUILD_ID_MAX)
 				return -E2BIG;

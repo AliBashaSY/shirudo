@@ -536,8 +536,8 @@ static bool unsupported_kprobe_section(const char *sec)
 		strcmp(sec, "kretprobe") == 0 ||
 		strcmp(sec, "kprobe/") == 0 ||
 		strcmp(sec, "kretprobe/") == 0 ||
-		strncmp(sec, "kprobe.multi", 12) == 0 ||
-		strncmp(sec, "kretprobe.multi", 15) == 0);
+		str_has_prefix(sec, "kprobe.multi") ||
+		str_has_prefix(sec, "kretprobe.multi"));
 }
 
 /*
@@ -582,11 +582,11 @@ static bool unsupported_uprobe_section(const char *sec)
 	if (uprobe_section_target(sec, &kind))
 		return false;
 	return strcmp(sec, "uprobe") == 0 ||
-	       strncmp(sec, "uprobe/", 7) == 0 ||
-	       strncmp(sec, "uprobe.", 7) == 0 ||
+	       str_has_prefix(sec, "uprobe/") ||
+	       str_has_prefix(sec, "uprobe.") ||
 	       strcmp(sec, "uretprobe") == 0 ||
-	       strncmp(sec, "uretprobe/", 10) == 0 ||
-	       strncmp(sec, "uretprobe.", 10) == 0;
+	       str_has_prefix(sec, "uretprobe/") ||
+	       str_has_prefix(sec, "uretprobe.");
 }
 
 static bool unsupported_sk_skb_section(const char *sec)
@@ -594,7 +594,7 @@ static bool unsupported_sk_skb_section(const char *sec)
 	if (sec && sec[0] == '?')
 		sec++;
 	return sec && (strcmp(sec, "sk_skb") == 0 ||
-		       strncmp(sec, "sk_skb/", 7) == 0);
+		       str_has_prefix(sec, "sk_skb/"));
 }
 
 static bool unsupported_socket_filter_section(const char *sec)
@@ -603,8 +603,8 @@ static bool unsupported_socket_filter_section(const char *sec)
 		sec++;
 	return sec && (strcmp(sec, "socket") == 0 ||
 		       strcmp(sec, "socket_filter") == 0 ||
-		       strncmp(sec, "socket/", 7) == 0 ||
-		       strncmp(sec, "socket_filter/", 14) == 0);
+		       str_has_prefix(sec, "socket/") ||
+		       str_has_prefix(sec, "socket_filter/"));
 }
 
 static bool unsupported_cgroup_skb_section(const char *sec)
@@ -618,7 +618,7 @@ static bool unsupported_cgroup_skb_section(const char *sec)
 		return false;
 	return strcmp(sec, "cgroup/skb") == 0 ||
 	       strcmp(sec, "cgroup_skb") == 0 ||
-	       strncmp(sec, "cgroup_skb/", 11) == 0;
+	       str_has_prefix(sec, "cgroup_skb/");
 }
 
 static bool unsupported_fmod_ret_section(const char *sec)
@@ -662,18 +662,21 @@ static __u32 attach_kind_from_section(const char *sec,
 				      const char **target)
 {
 	__u32 kind;
+	size_t n;
 
 	*target = NULL;
 	if (!sec)
 		return UPATCH_ATTACH_RAW_TRACEPOINT;
 	if (sec[0] == '?')
 		sec++;
-	if (strncmp(sec, "kprobe/", 7) == 0 && sec[7]) {
-		*target = sec + 7;
+	n = str_has_prefix(sec, "kprobe/");
+	if (n && sec[n]) {
+		*target = sec + n;
 		return UPATCH_ATTACH_KPROBE;
 	}
-	if (strncmp(sec, "kretprobe/", 10) == 0 && sec[10]) {
-		*target = sec + 10;
+	n = str_has_prefix(sec, "kretprobe/");
+	if (n && sec[n]) {
+		*target = sec + n;
 		return UPATCH_ATTACH_KRETPROBE;
 	}
 	*target = uprobe_section_target(sec, &kind);
@@ -683,14 +686,17 @@ static __u32 attach_kind_from_section(const char *sec,
 		return UPATCH_ATTACH_CGROUP_SKB_INGRESS;
 	if (strcmp(sec, "cgroup_skb/egress") == 0)
 		return UPATCH_ATTACH_CGROUP_SKB_EGRESS;
-	if (strncmp(sec, "fmod_ret/", 9) == 0 && sec[9])
+	n = str_has_prefix(sec, "fmod_ret/");
+	if (n && sec[n])
 		return UPATCH_ATTACH_FMOD_RET;
-	if (strncmp(sec, "fmod_ret.s/", 11) == 0 && sec[11])
+	n = str_has_prefix(sec, "fmod_ret.s/");
+	if (n && sec[n])
 		return UPATCH_ATTACH_FMOD_RET;
 	if (strcmp(sec, "netfilter") == 0)
 		return UPATCH_ATTACH_NETFILTER_IPV6_PRE_ROUTING;
-	if (strncmp(sec, "xdp/", 4) == 0 && sec[4]) {
-		*target = sec + 4;
+	n = str_has_prefix(sec, "xdp/");
+	if (n && sec[n]) {
+		*target = sec + n;
 		return UPATCH_ATTACH_XDP;
 	}
 	return UPATCH_ATTACH_RAW_TRACEPOINT;
@@ -1595,7 +1601,7 @@ static int set_target_attach_types(struct bpf_object *obj)
 			type = BPF_CGROUP_INET_INGRESS;
 		else if (strcmp(sec, "cgroup_skb/egress") == 0)
 			type = BPF_CGROUP_INET_EGRESS;
-		else if (!strncmp(sec, "xdp/", 4)) {
+		else if (str_has_prefix(sec, "xdp/")) {
 			type = BPF_XDP;
 			if (bpf_program__set_flags(p, bpf_program__flags(p) |
 						   BPF_F_XDP_HAS_FRAGS) != 0) {

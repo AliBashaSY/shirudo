@@ -44,7 +44,7 @@ static int bootstrap_add_certificate(struct image_bootstrap *boot,
 {
 	size_t i;
 
-	if (strncmp(path, RUNTIME_DIR "/", sizeof(RUNTIME_DIR)) ||
+	if (!str_has_prefix(path, RUNTIME_DIR "/") ||
 	    !image_path_valid(path))
 		return -EPERM;
 	if (boot->n_certificates == KEYS_MAX)
@@ -118,8 +118,8 @@ static int bootstrap_parse(FILE *file, struct image_bootstrap *boot,
 				boot->pcr = pcr;
 				boot->have_pcr = true;
 			}
-		} else if (!strncmp(key, "config.", 7) ||
-			   !strncmp(key, "runtime.", 8)) {
+		} else if (str_has_prefix(key, "config.") ||
+			   str_has_prefix(key, "runtime.")) {
 			ret = -EINVAL;
 		}
 		if (ret)

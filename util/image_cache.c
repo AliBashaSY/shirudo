@@ -136,7 +136,7 @@ static int fetch_file(const char *source, const char *destination, __u64 max)
 	ret = fsetxattr(fd, XATTR_SEAL, SEAL_LABEL,
 			strlen(SEAL_LABEL), 0) ? -errno : 0;
 	if (!ret)
-		ret = !strncmp(source, "https://", 8) ?
+		ret = str_has_prefix(source, "https://") ?
 			download_https(source, &download) :
 			copy_local(source, &download);
 	if (!ret && fsync(fd))

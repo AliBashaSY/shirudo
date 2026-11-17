@@ -1665,9 +1665,9 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 	const char *access, *secret;
 	size_t bucket_len, prefix_len, credentials_len;
 
-	if (!spec || strncmp(spec, "s3://", 5) != 0)
+	bucket = spec;
+	if (!bucket || !str_skip_prefix(&bucket, "s3://"))
 		return -EINVAL;
-	bucket = spec + 5;
 	slash = strchr(bucket, '/');
 	bucket_len = slash ? (size_t)(slash - bucket) : strlen(bucket);
 	if (!valid_bucket(bucket, bucket_len))

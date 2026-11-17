@@ -1756,7 +1756,7 @@ static int pin_upatch_maps(const struct loader_ctx *cx,
 		if (strchr(info.name, '.'))
 			continue;
 		/* upatch-private maps are intentionally not operator-visible. */
-		if (strncmp(info.name, "obs_i_", 6) == 0)
+		if (str_has_prefix(info.name, "obs_i_"))
 			continue;
 		if (strsprintf(pin, sizeof(pin), "%s/%s", maps_dir,
 			       info.name) < 0)

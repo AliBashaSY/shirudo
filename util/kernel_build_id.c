@@ -53,7 +53,8 @@ int kernel_build_id_from_notes(const void *notes, size_t notes_len,
 		    align4(descsz) > notes_len - desc_off)
 			return -EINVAL;
 		next = desc_off + align4(descsz);
-		if (type == 3 && namesz == 4 && !memcmp(p + name_off, "GNU", 4)) {
+		if (type == 3 && namesz == sizeof("GNU") &&
+		    !memcmp(p + name_off, "GNU", sizeof("GNU"))) {
 			if (!descsz || descsz > KERNEL_BUILD_ID_MAX)
 				return -E2BIG;
 			hex_encode(p + desc_off, descsz, out);

@@ -97,7 +97,7 @@ int tpm_tcti(char *buf, size_t size)
 		tcti = cfg.tpm_tcti;
 	if (!tcti || !*tcti)
 		tcti = "device:/dev/tpmrm0";
-	if (image_config_active() && strncmp(tcti, "device:", 7))
+	if (image_config_active() && !str_has_prefix(tcti, "device:"))
 		return -EACCES;
 	n = strscpy(buf, tcti, size);
 	return n < 0 ? (int)n : 0;
