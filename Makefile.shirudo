@@ -1313,6 +1313,22 @@ $(FUZZ_OUT)/fuzz-bpm-info: testing/fuzz/fuzz-bpm-info.c $(FUZZ_BASE) \
                            util/upatch_rodata.c util/format.c $(LIBBPF_A)
 $(FUZZ_OUT)/fuzz-bpm-info: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
 $(FUZZ_OUT)/fuzz-bpm-info: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) $(LIBELF_LIBS)
+$(FUZZ_OUT)/fuzz-attest-report: testing/fuzz/fuzz-attest-report.c \
+                               $(FUZZ_BASE) testing/fuzz/output.c \
+                               builtin-attest.c builtin.h util/attest.c \
+                               util/chain.c util/chain_history.c \
+                               util/config_attest.c util/config_measure.c \
+                               util/config_update.c util/crypto_openssl.c \
+                               util/eventlog.c util/help.c util/identity.c \
+                               util/initrd.c util/io.c util/keyring.c \
+                               util/keys.c util/measured.c util/nv_writer.c \
+                               util/options.c util/paths.c util/similar.c \
+                               util/timefmt.c util/tpm.c util/tpm_wire.c \
+                               util/upatch.c util/version_id.c $(FUZZ_SEAL) \
+                               $(LIBBPF_A)
+$(FUZZ_OUT)/fuzz-attest-report: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
+$(FUZZ_OUT)/fuzz-attest-report: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) \
+                                             $(LIBELF_LIBS)
 
 # A target that reaches static parsers or printers includes their source,
 # which it then depends on without linking it a second time.
@@ -1325,6 +1341,7 @@ $(FUZZ_OUT)/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
 $(FUZZ_OUT)/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
 $(FUZZ_OUT)/fuzz-upatch-info: FUZZ_INCLUDED := builtin-upatch.c
 $(FUZZ_OUT)/fuzz-bpm-info: FUZZ_INCLUDED := builtin-bpm.c
+$(FUZZ_OUT)/fuzz-attest-report: FUZZ_INCLUDED := builtin-attest.c
 
 # A target compiles its sources and links in one step, so it depends on
 # every header a source may include, and on the compiler and flags it was

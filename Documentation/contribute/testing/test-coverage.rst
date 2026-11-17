@@ -820,6 +820,9 @@ the functional tests run.
      - Input
    * - ``attest``
      - Evidence as ``attest verify`` reads it, and challenges
+   * - ``attest-report``
+     - The report ``attest verify`` prints on evidence, as text and as
+       JSON, which give the same checks and verdict
    * - ``beefile``
      - A Beefile
    * - ``bpm-index``
@@ -882,11 +885,11 @@ the functional tests run.
    * - ``upatch-info``
      - A ``.upatch`` as ``upatch info`` prints it, as text and as JSON
 
-``bpm-info`` and ``upatch-info`` hold what their command prints from a
-file it has not verified to what ``text_sanitize()`` leaves for a
-terminal, UTF-8 with no control character but a tab, a line feed and a
-carriage return before a line feed, and its JSON to one document
-:src:`util/json.c` reads.
+``attest-report``, ``bpm-info`` and ``upatch-info`` hold what their
+command prints from a file it has not verified to what
+``text_sanitize()`` leaves for a terminal, UTF-8 with no control
+character but a tab, a line feed and a carriage return before a line
+feed, and its JSON to one document :src:`util/json.c` reads.
 
 Backend tests
 ~~~~~~~~~~~~~
@@ -955,7 +958,7 @@ Coverage by area
    * - Attestation
      - ``t2003``, ``t2005``, ``t4003``, ``t4004``, ``t4102``,
        ``t4104``, ``t9105``, ``t9109``, ``t9112``. Fuzz: ``attest``,
-       ``tpm-wire``
+       ``attest-report``, ``tpm-wire``
    * - Eventlog
      - ``t4002``, ``t4102``, ``t5007``, ``t6114``, ``t6128``. Fuzz:
        ``eventlog``. Unit: ``eventlog``, ``io``

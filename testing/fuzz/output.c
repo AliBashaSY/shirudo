@@ -60,6 +60,12 @@ static void output_take(void)
 	printed_len = size;
 }
 
+const char *fuzz_output(size_t *len)
+{
+	*len = printed_len;
+	return printed;
+}
+
 /* Whether the width bytes at i are a control text_sanitize() takes out. */
 static bool stray_control(const char *s, size_t len, size_t i, size_t width)
 {

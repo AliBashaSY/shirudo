@@ -28,8 +28,9 @@ A target of what a command prints from a file it has not verified calls
 as the CLI does with `fuzz_run()` of `testing/fuzz/output.c`, as
 `fuzz-upatch-info.c` does. That holds what the command printed to the
 promise of `text_sanitize()` for a terminal, or to one JSON document
-after `--json`. The command must not reach the network, the kernel or
-the TPM: give it a local file and options that keep it off those paths.
+after `--json`, and `fuzz_output()` returns it for a target's own checks.
+The command must not reach the network, the kernel or the TPM: give it a
+local file and options that keep it off those paths.
 
 Not crashing is the least a target checks. Make it `abort()` when a
 property of the parser breaks:
@@ -40,7 +41,9 @@ property of the parser breaks:
   holds the line of a verdict to JSON;
 - offsets and sizes it returns lie within the input, as `fuzz-rodata.c`
   holds the `.rodata` range;
-- two ways to the same value agree.
+- two ways to the same value agree, as `fuzz-attest-report.c` holds the
+  text and the JSON report of `attest verify` to the same checks and
+  verdict.
 
 A property holds for every input. Where a valid input may legitimately
 exceed a bound, such as output nested deeper than the reader goes,

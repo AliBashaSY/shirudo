@@ -28,11 +28,13 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size);
  * feed, where the last word is --json, and otherwise keeps the promise of
  * text_sanitize() for a terminal: well-formed UTF-8 with no C0 or C1
  * control and no DEL, but for a tab, a line feed and a carriage return
- * before a line feed.
+ * before a line feed. fuzz_output() returns what it printed, with a NUL
+ * behind, until the next run.
  */
 void fuzz_output_capture(void);
 int fuzz_run(int (*cmd)(int argc, const char **argv), const char *word,
 	     ...) __sentinel;
+const char *fuzz_output(size_t *len);
 
 /*
  * The input as a file for the parsers that read one by name: a memfd,
