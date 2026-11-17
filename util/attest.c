@@ -117,28 +117,40 @@ static void emit_hex(struct json_emit *e, const char *key,
 	json_kv_string(e, key, hex);
 }
 
+/* The PCR digest a quote of the PCRs in mask carries for these values. */
+static int pcr_values_digest(__u32 mask, const __u8 values[24][32],
+			     __u8 digest[32])
+{
+	struct sha256_ctx ctx;
+	__u32 i;
+	int ret;
+
+	ret = sha256_init(&ctx);
+	if (ret)
+		return ret;
+	for (i = 0; i < 24; i++) {
+		if (!(mask & (1u << i)))
+			continue;
+		ret = sha256_update(&ctx, values[i], 32);
+		if (ret) {
+			sha256_free(&ctx);
+			return ret;
+		}
+	}
+	return sha256_final(&ctx, digest);
+}
+
 /* A quote is accepted only when it covers the PCR values read beside it. */
 static bool quote_covers(const struct tpm_attestation *quote,
 			 __u32 mask, __u8 values[24][32])
 {
 	struct tpm_attest a;
-	struct sha256_ctx ctx;
 	__u8 digest[32];
-	__u32 i;
 
 	if (tpm_attest_parse(quote->attest, quote->attest_len, &a) ||
 	    a.type != TPM_ST_ATTEST_QUOTE || a.pcr_mask != mask)
 		return false;
-	if (sha256_init(&ctx) != 0)
-		return false;
-	for (i = 0; i < 24; i++) {
-		if ((mask & (1u << i)) &&
-		    sha256_update(&ctx, values[i], 32) != 0) {
-			sha256_free(&ctx);
-			return false;
-		}
-	}
-	if (sha256_final(&ctx, digest) != 0)
+	if (pcr_values_digest(mask, values, digest))
 		return false;
 	return !memneq_explicit(digest, a.pcr_digest, 32);
 }
@@ -1009,31 +1021,17 @@ int attest_verify(const char *evidence, size_t len,
 		goto out;
 	qrc = ret;
 	if (ret == 0) {
-		struct sha256_ctx ctx;
 		__u8 digest[32] = {};
 		bool complete =
 			quote.type == TPM_ST_ATTEST_QUOTE &&
 			p->pcr_mask == (__s64)quote.pcr_mask &&
 			p->pcr_have == quote.pcr_mask;
-		bool hashed = false;
 		bool vouched;
 
 		say(&rep, complete,
 		    "quote: covers the PCRs the document lists");
-		if (complete && sha256_init(&ctx) == 0) {
-			int err = 0;
-
-			for (bit = 0; bit < 24 && !err; bit++) {
-				if (quote.pcr_mask & (1u << bit))
-					err = sha256_update(&ctx,
-							    p->pcrs[bit], 32);
-			}
-			if (err)
-				sha256_free(&ctx);
-			else
-				hashed = !sha256_final(&ctx, digest);
-		}
-		vouched = hashed &&
+		vouched = complete &&
+			  !pcr_values_digest(quote.pcr_mask, p->pcrs, digest) &&
 			  !memneq_explicit(digest, quote.pcr_digest, 32);
 		say(&rep, vouched,
 		    "quote: PCR digest matches the listed values");

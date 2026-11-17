@@ -1362,7 +1362,9 @@ the text of the usage messages, which only ``pr_err()`` reads, and
 unit cases. Of :src:`util/sysinfo.c` the
 proofs cover the image identity's parsers; reading the files they parse,
 and the readers of ``/proc`` and the root file system, go to the kernel
-and have none.
+and have none. Of :src:`util/attest.c` the proofs cover the functions
+the table names; ``pcr_values_digest()``, which the target and
+``attest_verify()`` both check a quote's PCR digest with, has none.
 
 Within the operator's package builder and publisher, the proofs cover the
 tar header, the member names, the Beefile's values, lines, names, fixes
