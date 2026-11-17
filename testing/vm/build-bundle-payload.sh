@@ -101,6 +101,7 @@ testing/helper/test-bpf-load
 testing/helper/test-bpf-cmd
 testing/helper/test-exec-fail
 testing/helper/test-exec-shared
+testing/helper/test-xfs-attrmulti
 testing/helper/test-perf-attach
 testing/helper/test-otel-map
 testing/helper/test-upatch-map-types

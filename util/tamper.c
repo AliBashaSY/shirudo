@@ -100,6 +100,8 @@ static const struct {
 		"uprobe in a shirudo task, which acts without authority" },
 	[TAMPER_EXEC_SHARED] = { "ExecShared",
 		"exec of the runtime binary by a task that shares its file system context" },
+	[TAMPER_XATTR_HANDLE] = { "XattrHandle",
+		"XFS attribute change by file handle, which passes no xattr hook" },
 };
 
 const char *tamper_name(enum tamper_point point)

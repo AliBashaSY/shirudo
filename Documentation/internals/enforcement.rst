@@ -342,14 +342,16 @@ when the record it needs is missing.
      - ``ObjGet``
      - Closed.
    * - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat`` (``bpf2``)
-     - ``PERF_EVENT_IOC_SET_BPF`` on any file, and every device-mapper
+     - ``PERF_EVENT_IOC_SET_BPF`` on any file,
+       ``XFS_IOC_ATTRMULTI_BY_HANDLE`` on an XFS file system, which
+       changes attributes past every xattr hook, and every device-mapper
        control command except ``DM_VERSION``, ``DM_LIST_DEVICES``,
        ``DM_DEV_STATUS``, ``DM_DEV_WAIT``, ``DM_TABLE_DEPS``,
        ``DM_TABLE_STATUS``, ``DM_LIST_VERSIONS`` and
        ``DM_GET_TARGET_VERSION`` on the control device (10:236), to a
        task without authority.
-     - ``EACCES`` (perf), ``EPERM`` (DM)
-     - ``PerfAttach``; DM refusals uncounted
+     - ``EACCES`` (perf, XFS), ``EPERM`` (DM)
+     - ``PerfAttach``, ``XattrHandle``; DM refusals uncounted
      - Closed: unknown DM commands are refused.
    * - ``lsm/inode_unlink``, ``lsm/inode_rmdir``, ``lsm/inode_mkdir``,
        ``lsm/inode_symlink``, ``lsm/inode_link``, ``lsm/inode_rename``,

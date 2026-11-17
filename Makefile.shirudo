@@ -777,6 +777,7 @@ TEST_HELPERS := $(VERITY_TEST_HELPERS) \
                 testing/helper/test-bpf-cmd \
                 testing/helper/test-exec-fail \
                 testing/helper/test-exec-shared \
+                testing/helper/test-xfs-attrmulti \
                 testing/helper/test-perf-attach \
                 testing/helper/test-otel-map \
                 testing/helper/test-upatch-map-types \
@@ -920,6 +921,10 @@ testing/helper/test-exec-fail: testing/helper/test-exec-fail.c
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
 testing/helper/test-exec-shared: testing/helper/test-exec-shared.c
+	@printf '  CC      $@\n'
+	$(Q)$(CC) $(CFLAGS) -o $@ $^
+
+testing/helper/test-xfs-attrmulti: testing/helper/test-xfs-attrmulti.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 

@@ -975,6 +975,23 @@ static __always_inline int shirudo_dm_ioctl(struct file *file,
  * program a signed loader created would run at a probe of root's own.
  * Keep it to the caller BPF_LINK_CREATE is kept to.
  */
+#define XFS_SUPER_MAGIC		0x58465342
+#define XFS_IOC_ATTRMULTI_NR	123
+
+/*
+ * XFS_IOC_ATTRMULTI_BY_HANDLE sets and removes the attributes of the
+ * inode a handle names through xfs_attr_change(), past vfs_setxattr()
+ * and so past every xattr hook: a seal label removed that way unseals
+ * the inode. Matched by type and number, as its size differs between
+ * the native and the compat call.
+ */
+static __always_inline bool xfs_attrmulti(struct file *file, unsigned int cmd)
+{
+	return ((cmd >> 8) & 0xff) == 'X' &&
+	       (cmd & 0xff) == XFS_IOC_ATTRMULTI_NR &&
+	       BPF_CORE_READ(file, f_inode, i_sb, s_magic) == XFS_SUPER_MAGIC;
+}
+
 static __always_inline int shirudo_ioctl(struct file *file, unsigned int cmd,
 					 int ret)
 {
@@ -982,6 +999,8 @@ static __always_inline int shirudo_ioctl(struct file *file, unsigned int cmd,
 		return ret;
 	if (cmd == PERF_EVENT_IOC_SET_BPF)
 		return shirudo_self_or_deny(TAMPER_PERF_ATTACH);
+	if (xfs_attrmulti(file, cmd))
+		return shirudo_self_or_deny(TAMPER_XATTR_HANDLE);
 	return shirudo_dm_ioctl(file, cmd, ret);
 }
 

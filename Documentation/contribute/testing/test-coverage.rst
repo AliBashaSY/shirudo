@@ -502,6 +502,11 @@ signed config image.
    * - ``t6152-exec-shared``
      - The exec of the runtime binary by a task that shares its
        ``fs_struct`` is refused and counted; another program's is not
+   * - ``t6153-xfs-attrmulti``
+     - The ``XFS_IOC_ATTRMULTI_BY_HANDLE`` number on another file system
+       is not refused or counted, and on an XFS image it is refused and
+       counted. The XFS case needs XFS in the kernel and ``mkfs.xfs``,
+       which the slim test VM kernel lacks
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -1025,6 +1030,8 @@ tests assert that a refusal moves its counter:
      - ``t6137``
    * - ``ExecShared``
      - ``t6152``
+   * - ``XattrHandle``
+     - ``t6153``, on a kernel with XFS
    * - ``Kexec``
      - ``t6126``
 

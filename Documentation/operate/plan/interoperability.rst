@@ -403,6 +403,10 @@ Debuggers, tracing and /proc
    * - Starting shirudo under ``strace`` or ``gdb``
      - The exec fails with ``EACCES``
      - ``ExecTraced``
+   * - Starting shirudo from a process that shares its root and working
+       directory with another, made with ``clone(CLONE_FS)``
+     - The exec fails with ``EACCES``
+     - ``ExecShared``
    * - Reading ``/proc/<pid>/mem`` of a shirudo command
      - ``EACCES``
      - ``SealPtrace``
@@ -427,6 +431,23 @@ Debuggers, tracing and /proc
 
 A task-bound perf event that a process opened before the exec that marks
 the task is not refused (D9 in :doc:`/security/threat-model`).
+
+XFS dump and restore
+--------------------
+
+:Mechanism: ``lsm/file_ioctl`` refuses ``XFS_IOC_ATTRMULTI_BY_HANDLE``
+   on an XFS file system to every task without runtime authority, since
+   XFS changes the attributes a handle names without passing an xattr
+   hook, and a seal label removed that way would unseal the inode.
+:Symptom: ``xfsdump`` and ``xfsrestore``, which read and write extended
+   attributes through that ioctl, fail on the attributes with
+   ``EACCES``, and ``XattrHandle`` moves.
+:Not refused: Reading and writing attributes through ``getfattr``,
+   ``setfattr`` and the other xattr system calls, which the seal checks
+   as it checks every xattr change.
+:What to do: Back up XFS file systems on a target with a tool that reads
+   attributes through the xattr system calls, or without extended
+   attributes.
 
 TPM tools
 ---------

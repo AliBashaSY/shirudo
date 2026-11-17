@@ -231,6 +231,12 @@ counter.
        its authority for good, and the hook refuses the operation and
        moves its own counter
      - the hook's
+   * - ``XattrHandle``
+     - XFS attribute change by file handle, which passes no xattr hook
+     - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat``:
+       ``XFS_IOC_ATTRMULTI_BY_HANDLE`` on an XFS file system, reads
+       included, from a task without authority
+     - ``EACCES``
    * - ``ExecShared``
      - exec of the runtime binary by a task that shares its file system
        context

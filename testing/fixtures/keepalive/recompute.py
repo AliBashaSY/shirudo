@@ -24,7 +24,7 @@ BODY_KEYS = [
     "projection_root", "mask", "set_sha256", "count", "not_ok",
 ]
 CANONICAL_KEYS = ["seq", "op", "id", "selector", "artifact"]
-TAMPER_COUNTERS = 40
+TAMPER_COUNTERS = 41
 ALL_OK = 0x1555
 
 OPERATION_DIGESTS = [
@@ -51,9 +51,9 @@ MASKS = [
 
 # The body the example pages print for node A after release 1.1.0: six
 # conditions and no image keys.
-PAGE_BODY_LEN = 738
+PAGE_BODY_LEN = 740
 PAGE_BODY_SHA256 = \
-    "387a1917e56c2e73478982a50df323289fd648195afe5baa3f3c37ef8ad1f724"
+    "6e40704db76a1be5e3fd544511962cc502380e9aa63137e1e5fc4fa91d1a377c"
 PAGE_COND = 0x555
 
 VERSION_ID = "d6d918ad22ff597579e6678bef75adca84d30f9661e0b7bbdbf534eebc138c1f"

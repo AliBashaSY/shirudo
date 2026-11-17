@@ -683,7 +683,10 @@ with ``chattr``, an xattr change and a change of its POSIX ACL need
 runtime authority (``SealWrite``, ``SealUnlink``, ``SealRename``,
 ``SealSetattr``, ``SealXattr``); every one of those hooks reads the
 label. Only an authorized task sets or removes the exact seal label or
-changes the policy label on any inode (``SealLabel``).
+changes the policy label on any inode (``SealLabel``). XFS also changes
+attributes by file handle, ``XFS_IOC_ATTRMULTI_BY_HANDLE``, through no
+xattr hook, so ``lsm/file_ioctl`` refuses that ioctl on XFS to tasks
+without authority (``XattrHandle``, ``t6153``).
 
 A rename of a directory above the state root, ``/var/lib`` say, would
 move the sealed tree aside for the next boot's bootstrap run of
@@ -867,7 +870,8 @@ An authorized process is protected against being taken over:
 
 :Adversary: ADV-B and ADV-C
 :Enforced at: ``lsm.s/file_open``, ``lsm.s/inode_unlink``,
-   ``lsm.s/inode_rmdir``, ``lsm.s/inode_rename``,
+   ``lsm.s/inode_rmdir``, ``lsm.s/inode_rename``, ``lsm/file_ioctl``,
+   ``lsm/file_ioctl_compat``,
    ``lsm.s/inode_setattr``, ``lsm.s/inode_setxattr``,
    ``lsm.s/inode_removexattr``, ``lsm.s/inode_set_acl``,
    ``lsm.s/inode_remove_acl``, ``lsm.s/inode_file_setattr``,
@@ -890,13 +894,13 @@ An authorized process is protected against being taken over:
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
    ``SealSignal``, ``SealCoreDump``, ``SealUprobe``, ``ExecTraced``,
-   ``ExecShared``,
+   ``ExecShared``, ``XattrHandle``,
    ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
-   ``t6149``, ``t6150``, ``t6152``
+   ``t6149``, ``t6150``, ``t6152``, ``t6153``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts
