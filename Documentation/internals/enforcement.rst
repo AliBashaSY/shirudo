@@ -367,11 +367,13 @@ when the record it needs is missing.
        ``lsm/inode_setxattr``, ``lsm/inode_removexattr`` (``bpf2``)
      - The operation in the private bpffs or the ``/run/shirudo`` tmpfs
        to a task without authority. Rename checks both directories.
-       Other file systems are not checked.
+       On any file system, unlink, rmdir and rename refuse such a task
+       the mount point of the recorded bpffs mount or of a mount above
+       it, which the kernel would detach or move in every namespace.
      - ``EPERM``
      - In the bpffs: ``PinUnlink``, ``PinEntry`` (mkdir, symlink, link),
-       ``PinRename``, ``PinXattr``. Rmdir and ``/run/shirudo`` refusals
-       uncounted.
+       ``PinRename``, ``PinXattr``. A mount point: ``BpffsUmountAbove``.
+       Rmdir and ``/run/shirudo`` refusals uncounted.
      - Closed for those two file systems.
    * - ``lsm/sb_umount`` (``bpf2``)
      - To every caller: unmounting the bpffs, an unmount whose subtree or

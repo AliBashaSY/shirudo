@@ -380,14 +380,54 @@ int BPF_PROG(shirudo_lsm_tpm_command, struct file *file,
  * `rm` -- is denied, so the LSM link cannot be detached by removing
  * its pin.
  */
+#define MOUNTPOINT_DEPTH_MAX	32
+
+/*
+ * Removing or renaming a dentry detaches or moves what is mounted on it
+ * in every namespace, without sb_umount: from a namespace where /run is
+ * not mounted, an rmdir of the directory init's /run covers takes the
+ * private bpffs with it. The mount points from that bpffs up to the
+ * root of init's namespace are shirudo's alone to remove or rename.
+ */
+static __always_inline int shirudo_mountpoint_guard(struct dentry *dentry)
+{
+	struct mount_record *rec;
+	struct mount *m, *parent;
+	struct sb_id *id;
+	__u32 zero = 0;
+	int i;
+
+	if (!dentry || !(BPF_CORE_READ(dentry, d_flags) &
+			 bpf_core_enum_value(enum dentry_flags, DCACHE_MOUNTED)))
+		return 0;
+	rec = bpf_map_lookup_elem(&shirudo_mnt_rec, &zero);
+	if (!rec || !rec->mount)
+		return 0;
+	m = (struct mount *)rec->mount;
+	bpf_for(i, 0, MOUNTPOINT_DEPTH_MAX) {
+		if (BPF_CORE_READ(m, mnt_mountpoint) == dentry)
+			goto deny;
+		parent = BPF_CORE_READ(m, mnt_parent);
+		if (!parent || parent == m)
+			return 0;
+		m = parent;
+	}
+deny:
+	id = bpf_map_lookup_elem(&shirudo_bpffs_sb, &zero);
+	if (id && shirudo_task_is_self(id))
+		return 0;
+	return shirudo_tamper_deny(TAMPER_BPFFS_UMOUNT_ABOVE, -EPERM);
+}
+
 SEC("lsm/inode_unlink")
 int BPF_PROG(shirudo_lsm_inode_unlink, struct inode *dir,
 	     struct dentry *dentry, int ret)
 {
 	if (ret)
 		return ret;
-	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   TAMPER_PIN_UNLINK);
+	ret = shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				  TAMPER_PIN_UNLINK);
+	return ret ? ret : shirudo_mountpoint_guard(dentry);
 }
 
 SEC("lsm/inode_rmdir")
@@ -396,8 +436,9 @@ int BPF_PROG(shirudo_lsm_inode_rmdir, struct inode *dir,
 {
 	if (ret)
 		return ret;
-	return shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
-				   TAMPER_MAX);
+	ret = shirudo_bpffs_guard(BPF_CORE_READ(dir, i_sb, s_dev),
+				  TAMPER_MAX);
+	return ret ? ret : shirudo_mountpoint_guard(dentry);
 }
 
 /*
@@ -505,9 +546,12 @@ int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 		return ret;
 	ret = shirudo_bpffs_guard(BPF_CORE_READ(old_dir, i_sb, s_dev),
 				  TAMPER_PIN_RENAME);
-	return ret ? ret :
-	       shirudo_bpffs_guard(BPF_CORE_READ(new_dir, i_sb, s_dev),
-				   TAMPER_PIN_RENAME);
+	if (!ret)
+		ret = shirudo_bpffs_guard(BPF_CORE_READ(new_dir, i_sb, s_dev),
+					  TAMPER_PIN_RENAME);
+	if (!ret)
+		ret = shirudo_mountpoint_guard(old_dentry);
+	return ret ? ret : shirudo_mountpoint_guard(new_dentry);
 }
 
 /*

@@ -120,7 +120,11 @@ counter.
      - unmount of a mount above the private bpffs
      - ``lsm/sb_umount``: an unmount whose subtree or propagation
        reaches the recorded bpffs mount, or a tree the walk cannot
-       finish, every caller
+       finish, every caller; ``lsm/inode_rmdir``,
+       ``lsm/inode_unlink``, ``lsm/inode_rename``: the removal or rename
+       of the mount point of that mount or of one above it, which
+       detaches or moves the mounts on it in every namespace, to a task
+       without authority
      - ``EPERM``
    * - ``BpffsMount``
      - move, mount over or remount of the private bpffs

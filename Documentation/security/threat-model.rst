@@ -629,9 +629,16 @@ its mountpoint on the peers and slaves of its parent, from the bpffs
 mount ``init`` recorded, and refuses an unmount that reaches it
 (``BpffsUmountAbove``). The walk runs without the namespace lock,
 within fixed bounds of 1024 mounts, 32 levels and 4 masters, and
-refuses a tree it cannot finish. The tmpfs at ``/run/shirudo`` gets the
-same treatment without counters: no caller unmounts, moves or remounts
-it, and only authorized tasks mount onto it.
+refuses a tree it cannot finish. Removing a dentry detaches what is
+mounted on it in every namespace, and renaming it moves those mounts,
+both without ``sb_umount``: from a namespace where ``/run`` is not
+mounted, an ``rmdir`` of the directory init's ``/run`` covers would take
+the bpffs along. ``lsm/inode_rmdir``, ``lsm/inode_unlink`` and
+``lsm/inode_rename`` refuse a task without authority the removal or
+rename of the mount point of the recorded bpffs mount or of any mount
+above it (``BpffsUmountAbove``, ``t6155``). The tmpfs at
+``/run/shirudo`` gets the same treatment without counters: no caller
+unmounts, moves or remounts it, and only authorized tasks mount onto it.
 
 Root also controls part of the site a load attaches at, since root
 runs ``shirudo upatch load``. A ``cgroup_skb`` program attaches at the
@@ -661,7 +668,8 @@ and the returned link's ifindex around attachment.
    ``PerfAttach``, ``PinUnlink``, ``PinRename``, ``PinEntry``,
    ``PinXattr``, ``BpffsUmount``, ``BpffsUmountAbove``, ``BpffsMount``
 :Tests: ``t6105``, ``t6106``, ``t6107``, ``t6108``, ``t6109``,
-   ``t6116``, ``t6119``, ``t6120``, ``t6121``, ``t6138``, ``t3111``
+   ``t6116``, ``t6119``, ``t6120``, ``t6121``, ``t6138``, ``t6155``,
+   ``t3111``
 :Residual: R1, R2, R3, U17
 
 .. _tm-t3:

@@ -511,6 +511,10 @@ signed config image.
      - A PCI config write, ``/proc/kcore`` and ``/dev/mem``, where the
        kernel has them, are refused, the first two counted as
        ``Lockdown``, and a read of ``/sys/power/state`` counts nothing
+   * - ``t6155-mountpoint-removal``
+     - From a namespace without ``/run``, an ``rmdir`` and a rename of
+       the directory init's ``/run`` covers are refused and counted, and
+       the private bpffs stays mounted
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -1017,7 +1021,7 @@ tests assert that a refusal moves its counter:
        ``BpfCommand``, ``PinUnlink``, ``PinRename``, ``BpffsUmount``
      - ``t6108``
    * - ``BpffsUmountAbove``
-     - ``t6120``
+     - ``t6120``, ``t6155``
    * - ``PinEntry``
      - ``t6121``
    * - ``PerfAttach``
