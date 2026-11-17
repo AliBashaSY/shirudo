@@ -73,12 +73,9 @@ int bpm_upatch_pair(const char *name, size_t len, char *out, size_t cap);
 typedef int (*bpm_pkg_member_fn)(void *ctx, const char *member, char type);
 
 /*
- * Visit validated package-relative ustar members without extracting them.
- * The _fd variants read the archive from the start of fd, which they
- * leave open.
+ * Visit validated package-relative ustar members without extracting them,
+ * reading the archive from the start of fd, which it leaves open.
  */
-int bpm_pkg_visit_members(const char *archive, const char *package_dir,
-			  bpm_pkg_member_fn visit, void *ctx);
 int bpm_pkg_visit_members_fd(int fd, const char *package_dir,
 			     bpm_pkg_member_fn visit, void *ctx);
 

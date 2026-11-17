@@ -672,12 +672,6 @@ done:
 	return ret;
 }
 
-int bpm_pkg_visit_members(const char *archive, const char *package_dir,
-			  bpm_pkg_member_fn visit, void *ctx)
-{
-	return visit_members_gz(gzopen(archive, "rb"), package_dir, visit, ctx);
-}
-
 int bpm_pkg_visit_members_fd(int fd, const char *package_dir,
 			     bpm_pkg_member_fn visit, void *ctx)
 {
