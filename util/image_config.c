@@ -152,10 +152,9 @@ static int validate_settings(int root_fd)
 	ssize_t length;
 	int fd, ret = 0;
 
-	fd = openat(root_fd, "etc/shirudo/shirudo.conf",
-		    O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	fd = open_beneath(root_fd, "etc/shirudo/shirudo.conf", O_RDONLY);
 	if (fd < 0)
-		return -errno;
+		return fd;
 	file = fdopen(fd, "r");
 	if (!file) {
 		ret = -errno;

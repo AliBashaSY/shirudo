@@ -588,6 +588,31 @@ static noinline_for_stack int candidate_keys(int fd, bool enrolled)
 	return ret;
 }
 
+#define EXT4_ROOT_INO	2
+
+/*
+ * The root of the config image on device as a descriptor, opened once
+ * and checked where it was opened: a path checked first and opened after
+ * is root's to swap between the two in a mount namespace of its own, and
+ * a directory of the image bound elsewhere has the image's device too,
+ * but every relative path read from it lands elsewhere in the image.
+ */
+static int config_root_open(const char *dir, dev_t device, int bad)
+{
+	struct stat st;
+	int fd;
+
+	fd = open(dir, O_PATH | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	if (fstat(fd, &st))
+		bad = -errno;
+	else if (st.st_dev == device && st.st_ino == EXT4_ROOT_INO)
+		return fd;
+	close(fd);
+	return bad;
+}
+
 static int mount_candidate(struct image_context *current)
 {
 	struct dm_verity *device = &current->candidate_device;
@@ -597,8 +622,7 @@ static int mount_candidate(struct image_context *current)
 
 	if (!stat(CONFIG_IMAGE_DIR, &st) &&
 	    st.st_dev == current->candidate_device.device) {
-		current->candidate_fd = open(CONFIG_IMAGE_DIR,
-					     O_PATH | O_DIRECTORY | O_CLOEXEC);
+		mountpoint = CONFIG_IMAGE_DIR;
 	} else {
 		if (umount2(mountpoint, MNT_DETACH) &&
 		    errno != EINVAL && errno != ENOENT)
@@ -608,10 +632,10 @@ static int mount_candidate(struct image_context *current)
 			ret = dm_verity_mount(device, mountpoint, false);
 		if (ret)
 			return ret;
-		current->candidate_fd = open(mountpoint,
-					     O_PATH | O_DIRECTORY | O_CLOEXEC);
 	}
-	return current->candidate_fd < 0 ? -errno : 0;
+	current->candidate_fd = config_root_open(mountpoint, device->device,
+						 -ESTALE);
+	return min(current->candidate_fd, 0);
 }
 
 static int prepare_config(struct image_context *current,
@@ -699,15 +723,11 @@ static int activate_config(struct image_context *current, bool boot)
 		if (ret)
 			return ret;
 	}
-	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	fd = config_root_open(CONFIG_IMAGE_DIR, current->candidate_device.device,
+			      -ESTALE);
 	if (fd < 0)
-		return -errno;
-	if (fstat(fd, &st))
-		ret = -errno;
-	else if (st.st_dev != current->candidate_device.device)
-		ret = -ESTALE;
-	else
-		ret = mount_flags(fd, false);
+		return fd;
+	ret = mount_flags(fd, false);
 	if (!ret)
 		ret = image_config_set(&current->bootstrap_config, fd);
 	close(fd);
@@ -986,17 +1006,12 @@ static int config_mount_check(const struct config_update_record *record)
 			      DEVICE_CONFIG);
 	if (ret)
 		goto out;
-	fd = open(CONFIG_IMAGE_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	fd = config_root_open(CONFIG_IMAGE_DIR, device.device, -EUCLEAN);
 	if (fd < 0) {
-		ret = -errno;
+		ret = fd;
 		goto out;
 	}
-	if (fstat(fd, &st))
-		ret = -errno;
-	else if (st.st_dev != device.device)
-		ret = -EUCLEAN;
-	else
-		ret = mount_flags(fd, false);
+	ret = mount_flags(fd, false);
 	if (!ret)
 		ret = image_config_set(&image.bootstrap_config, fd);
 	close(fd);

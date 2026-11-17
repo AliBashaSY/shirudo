@@ -488,6 +488,10 @@ signed config image.
    * - ``t6148-read-once``
      - A load and an unload stage nothing in sealed state, and the
        archive holds the bytes the load read
+   * - ``t6149-config-root``
+     - A directory of the config image bound in place of its mount, in a
+       namespace with a ``/run`` of root's making, is refused as the
+       config
 
 ``bpm`` (7)
 ~~~~~~~~~~~

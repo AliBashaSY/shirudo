@@ -765,8 +765,13 @@ root swapped for a link would lead it to sealed state (``t6007``).
 a private key and root cannot have shirudo write a key pair into sealed
 state (``t6114``). The
 contents of a config image are read from the descriptor of its verified
-root with ``openat2(2)`` and ``RESOLVE_BENEATH``, never through a
-``/proc/<pid>/fd`` path that root could mount over.
+root with ``openat2(2)`` and ``RESOLVE_BENEATH``, or one component at a
+time without following links, never through a ``/proc/<pid>/fd`` path
+that root could mount over. shirudo opens that descriptor once and
+checks it where it opened it, for the image's device and the root inode
+of its file system: a path checked and then opened is root's to swap in
+between, and a directory of the image bound in place of its mount has
+the image's device but leads every relative path elsewhere (``t6149``).
 
 The ``.bpf`` and ``.dm-verity`` keyrings are sealed with
 ``KEYCTL_RESTRICT_KEYRING`` and no restriction type, so the kernel
@@ -878,7 +883,8 @@ An authorized process is protected against being taken over:
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
-   ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``
+   ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
+   ``t6149``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts

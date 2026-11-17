@@ -209,9 +209,11 @@ then publishes it in the cache as ``<root hash>.img`` and its siblings.
 It then activates it:
 
 #. Map and check the candidate as above, require the device record,
-   mount it at ``/run/shirudo/config-candidate``, validate it, and check
-   that every certificate of its trust set is in the sealed ``.bpf``
-   keyring.
+   mount it at ``/run/shirudo/config-candidate``, open its root once and
+   check on that descriptor that it is the image's device and the root
+   inode of its file system, validate it, and check that every
+   certificate of its trust set is in the sealed ``.bpf`` keyring.
+   Everything that follows reads the image through that descriptor.
 #. Record the selection in the journal as pending.
 #. Extend the config PCR with the update event.
 #. Read the PCR and the TPM's reset and restart counts back; the PCR must
