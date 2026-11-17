@@ -269,8 +269,9 @@ Before sending
   opened without close-on-exec or a pointer tested for NULL after its
   use. CI runs it as the ``Coccinelle`` job of the ``Lint`` workflow.
 - Keep each commit to one logical change that builds and passes on its
-  own, so the history bisects. CI builds every commit of a pull request
-  on its own in the ``Build every commit`` workflow.
+  own, so the history bisects. CI builds every commit of a pull request,
+  and every commit a push adds to ``main``, on its own in the
+  ``Build every commit`` workflow.
   ``.github/scripts/build-commits.sh origin/main..HEAD`` does the same
   locally.
 - Read :doc:`/security/threat-model` before changing anything on a
