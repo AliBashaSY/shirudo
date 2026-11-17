@@ -58,6 +58,12 @@ void print_help(const struct help *h)
 {
 }
 
+/* As util/help.c has it. */
+int is_list_cmds(const char *arg)
+{
+	return arg && strcmp(arg, "--list-cmds") == 0;
+}
+
 void help_suggest(const char *bad, const char *const *names, size_t n_names)
 {
 	__CPROVER_assert(n_names <= OPT_MAX, "the names fit");

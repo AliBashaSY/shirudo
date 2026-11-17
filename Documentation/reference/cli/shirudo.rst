@@ -134,9 +134,10 @@ option, an option given twice where it does not repeat, a value missing
 or empty, and an argument the command does not take are usage errors:
 the command prints one line, ``<command>: <what is wrong>``, with the
 closest option names after an unknown one, and exits with 2. ``--``
-ends the options, ``-h`` and ``--help`` print the command's help, and
+ends the options, ``-h`` and ``--help`` print the command's help,
 ``--list-opts`` prints its options one a line, a value's placeholder
-after a tab, which the bash completion reads. ``upatch map
+after a tab, and ``--list-cmds`` its subcommands, none where it has
+none. The bash completion reads both. ``upatch map
 --json=<path>`` takes its path after the equals sign only, as ``--json``
 alone prints the JSON. ``image build`` hands its arguments to
 ``shirudo-gen-verity``, which takes each value as the next argument

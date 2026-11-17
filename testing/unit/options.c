@@ -150,6 +150,7 @@ static void help_and_the_option_list_end_parsing(void)
 {
 	static const char *const help[] = { "--cert", "a", "-h", "--bogus" };
 	static const char *const list[] = { "--list-opts" };
+	static const char *const cmds[] = { "--list-cmds" };
 	struct opt_parser p;
 	FILE *saved = stdout;
 
@@ -159,6 +160,8 @@ static void help_and_the_option_list_end_parsing(void)
 	stdout = fopen("/dev/null", "w");
 	ASSERT_TRUE(stdout);
 	parse(&p, list, 1);
+	EXPECT_EQ(opt_next(&p), OPT_DONE);
+	parse(&p, cmds, 1);
 	EXPECT_EQ(opt_next(&p), OPT_DONE);
 	EXPECT_EQ(fclose(stdout), 0);
 	stdout = saved;

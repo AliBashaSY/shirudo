@@ -81,7 +81,8 @@ void opt_init(struct opt_parser *p, const char *command,
  * for an OPT_OPTIONAL one given without; otherwise one of the OPT_ codes
  * above. An unknown option, a value missing, empty or given to a flag,
  * and an option given twice are usage errors. --list-opts prints the
- * options, one a line, a value's metavar after a tab, for completion.
+ * options, one a line, a value's metavar after a tab, for completion,
+ * and --list-cmds the subcommands, which are none.
  */
 int opt_next(struct opt_parser *p);
 

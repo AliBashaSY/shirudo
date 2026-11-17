@@ -195,6 +195,9 @@ int opt_next(struct opt_parser *p)
 	}
 	if (!strcmp(arg, "--list-opts"))
 		return opt_list(p);
+	/* A command whose options this parser reads has no subcommands. */
+	if (is_list_cmds(arg))
+		return OPT_DONE;
 	opt = spec_find(p, arg, &eq);
 	if (opt < 0)
 		return opt_unknown(p, arg);
