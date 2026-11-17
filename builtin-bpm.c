@@ -3228,9 +3228,45 @@ static const struct help bpm_upgrade_help = {
 		   "offer.",
 };
 
+enum bpm_info_show {
+	INFO_SHOW_README,	/* <package> */
+	INFO_SHOW_UPATCHES,	/* upatches <package> */
+	INFO_SHOW_DATA,		/* data <package> <upatch-member> */
+};
+
+static enum bpm_info_show bpm_info_show(const char *word)
+{
+	if (!strcmp(word, "upatches"))
+		return INFO_SHOW_UPATCHES;
+	if (!strcmp(word, "data"))
+		return INFO_SHOW_DATA;
+	return INFO_SHOW_README;
+}
+
+/* Whether the words and options of bpm info go together, saying why not. */
+static bool bpm_info_usage_ok(const struct opt_parser *p,
+			      enum bpm_info_show show, const char **args,
+			      size_t n)
+{
+	if (show == INFO_SHOW_UPATCHES && n != 2)
+		opt_usage(p, "upatches takes <package>");
+	else if (show == INFO_SHOW_DATA && n != 3)
+		opt_usage(p, "data takes <package> <upatch-member>");
+	else if (show == INFO_SHOW_README && n != 1)
+		opt_usage(p, "unexpected argument '%s'", args[1]);
+	else if (opt_given(p, INFO_ALL) && show != INFO_SHOW_UPATCHES)
+		opt_usage(p, "--all goes with upatches alone");
+	else if (opt_given(p, INFO_JSON) && show != INFO_SHOW_DATA)
+		opt_usage(p, "--json goes with data alone");
+	else
+		return true;
+	return false;
+}
+
 static int bpm_info_cmd(int argc, const char **argv)
 {
 	const char *args[3] = {};
+	enum bpm_info_show show;
 	struct opt_parser p;
 	size_t n;
 	int ret;
@@ -3239,29 +3275,24 @@ static int bpm_info_cmd(int argc, const char **argv)
 	ret = bpm_args(&p, NULL, args, 1, 3, "a package", &n);
 	if (ret != OPT_END)
 		return bpm_exit(ret);
-	if (!strcmp(args[0], "upatches") && n != 2)
-		ret = opt_usage(&p, "upatches takes <package>");
-	else if (!strcmp(args[0], "data") && n != 3)
-		ret = opt_usage(&p, "data takes <package> <upatch-member>");
-	else if (strcmp(args[0], "upatches") && strcmp(args[0], "data") &&
-		 n != 1)
-		ret = opt_usage(&p, "unexpected argument '%s'", args[1]);
-	else if (opt_given(&p, INFO_ALL) && strcmp(args[0], "upatches"))
-		ret = opt_usage(&p, "--all goes with upatches alone");
-	else if (opt_given(&p, INFO_JSON) && strcmp(args[0], "data"))
-		ret = opt_usage(&p, "--json goes with data alone");
-	if (ret != OPT_END)
+	show = bpm_info_show(args[0]);
+	if (!bpm_info_usage_ok(&p, show, args, n))
 		return EXIT_USAGE;
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return bpm_fail("initialize curl", -EIO);
-	if (!strcmp(args[0], "upatches"))
+	switch (show) {
+	case INFO_SHOW_UPATCHES:
 		ret = print_package_upatches(args[1],
 					     opt_given(&p, INFO_ALL));
-	else if (!strcmp(args[0], "data"))
+		break;
+	case INFO_SHOW_DATA:
 		ret = print_package_upatch_data(args[1], args[2],
 						opt_given(&p, INFO_JSON));
-	else
+		break;
+	default:
 		ret = print_package_readme(args[0]);
+		break;
+	}
 	return bpm_finish(-1, ret, "info");
 }
 
