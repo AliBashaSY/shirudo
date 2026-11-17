@@ -273,6 +273,21 @@ int BPF_PROG(shirudo_seal_ptrace_access_check,
 }
 
 /*
+ * mm_access() grants a read-mode access to CAP_PERFMON after the check
+ * above refused it, and asks here first (carried patch 0005): the
+ * environment, memory map and page map of a marked task stay its own,
+ * refused as uncounted as any read mode.
+ */
+SEC("lsm/mm_read_access")
+int BPF_PROG(shirudo_seal_mm_read_access, struct task_struct *task,
+	     unsigned int mode, int ret)
+{
+	if (ret)
+		return ret;
+	return shirudo_marked(task) ? -EACCES : 0;
+}
+
+/*
  * A signal from outside is let through: root may end a command that
  * hangs, and systemd stops the runs its timers start. It is counted, so
  * that a load stopped between its pins and its extend shows in the

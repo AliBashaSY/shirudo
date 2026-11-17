@@ -513,6 +513,13 @@ when the record it needs is missing.
      - ``EACCES``
      - ``SealPtrace``, attach mode only
      - Closed.
+   * - ``lsm/mm_read_access`` (``seal``)
+     - A read-only access to a marked task's memory that
+       ``mm_access()`` would grant ``CAP_PERFMON`` after the ptrace check
+       refused it: ``environ``, ``maps``, ``smaps``, ``pagemap``.
+     - ``EACCES``
+     - None
+     - Closed, with carried patch 0005.
    * - ``lsm/perf_event_alloc`` (``seal``)
      - A perf event bound to a marked task. CPU-wide events have no task
        and are not checked.

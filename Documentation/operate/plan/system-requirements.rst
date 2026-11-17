@@ -96,6 +96,11 @@ Kernel source
        The seal reads the label of the directory a new entry goes into
        from it; without the patch the verifier refuses the seal's entry
        hooks.
+   * - :src:`kernel/0005-mm-Let-LSMs-check-read-only-remote-mm-access-under-CAP_PERFMON.patch`
+     - Adds the ``mm_read_access`` LSM hook, which ``mm_access()`` asks
+       before it grants a read-only access to another task's memory to
+       ``CAP_PERFMON``. The seal refuses a task with runtime authority
+       there, and ``init`` fails without the hook.
 
 :doc:`/internals/kernel-patches` gives the upstream status of the
 carried patches.

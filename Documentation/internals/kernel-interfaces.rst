@@ -58,7 +58,8 @@ bpf-next contains the signed-loader ABI at merge ``0867b7bfa9de``.
 later. shirudo defines ``KEY_SPEC_DM_VERITY_KEYRING`` (-10) itself when
 the UAPI headers lack it. The ``tpm_command`` LSM hook, the label reads
 without the calling task's permission, the sleepable form of six inode
-hooks and the trusted ``d_parent`` are not in bpf-next;
+hooks, the trusted ``d_parent`` and the ``mm_read_access`` LSM hook are
+not in bpf-next;
 :doc:`kernel-patches` lists the patches the test kernel carries. A
 kernel is admitted by the ABI check below, not by its release string.
 
@@ -281,6 +282,9 @@ LSM hooks
      - ``CONFIG_KEYS``
    * - ``tpm_command``
      - ``bpf2``
+     - Carried patch
+   * - ``mm_read_access``
+     - ``seal``
      - Carried patch
    * - ``task_prctl``, ``bprm_check_security``, ``inode_unlink``,
        ``inode_rmdir``, ``inode_mkdir``, ``inode_symlink``,

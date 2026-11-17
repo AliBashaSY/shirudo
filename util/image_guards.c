@@ -59,6 +59,8 @@ shirudo_seal_guards[SEAL_HOOK_COUNT] = {
 	{ "shirudo_seal_inode_copy_up",    SEAL_COPY_UP_PIN },
 	{ "shirudo_seal_ptrace_access_check",
 	  SEAL_PTRACE_PIN },
+	{ "shirudo_seal_mm_read_access",
+	  BPFFS_DIR "/seal_mm_read_access_link" },
 	{ "shirudo_seal_perf_event_alloc",
 	  SEAL_PERF_PIN },
 	{ "shirudo_seal_task_kill",        SEAL_TASK_KILL_PIN },

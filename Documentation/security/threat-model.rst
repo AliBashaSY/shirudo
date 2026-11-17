@@ -157,15 +157,16 @@ without the protection.
        task's read permission, sleepable LSM programs on
        ``inode_mkdir``, ``inode_link``, ``inode_set_acl``,
        ``inode_remove_acl``, ``inode_file_setattr`` and
-       ``inode_copy_up``, and a ``dentry->d_parent`` the verifier
-       trusts. Upstream has none of these, and shirudo carries them as
+       ``inode_copy_up``, a ``dentry->d_parent`` the verifier trusts,
+       and the ``mm_read_access`` LSM hook. Upstream has none of these,
+       and shirudo carries them as
        :src:`kernel/0001-tpm-Let-LSMs-inspect-userspace-commands.patch`,
        :src:`kernel/0002-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`,
-       :src:`kernel/0003-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
-       and
-       :src:`kernel/0004-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`.
+       :src:`kernel/0003-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`,
+       :src:`kernel/0004-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`
+       and :src:`kernel/0005-mm-Let-LSMs-check-read-only-remote-mm-access-under-CAP_PERFMON.patch`.
      - T1 needs the ABI, T5 the hook, T3 the label read, the sleepable
-       hooks and the trusted parent.
+       hooks, the trusted parent and the read-only mm access hook.
      - Partly. The pre-flight check ``signed_loader_kernel_abi`` tests
        the ABI. Without the hook the ``bpf2`` object does not load, and
        without the sleepable hooks and the trusted parent the ``seal``
@@ -843,7 +844,9 @@ An authorized process is protected against being taken over:
   ``/proc/<pid>/mem``, ``pidfd_getfd(2)`` and ``process_vm_readv(2)``
   (``SealPtrace``), and refuses a read-mode one, which covers
   ``/proc/<pid>/exe``, ``environ``, ``maps`` and the ``fd`` links,
-  without a counter.
+  without a counter. ``lsm/mm_read_access`` refuses the read-only
+  access ``mm_access()`` would otherwise grant ``CAP_PERFMON`` past that
+  refusal (carried patch 0005, A3).
 - ``lsm/perf_event_alloc`` refuses a perf event bound to a marked task
   (``SealPerf``). Events on all tasks of a CPU, and events opened on a
   task before the exec that marks it, are not checked (D9).
@@ -899,8 +902,8 @@ An authorized process is protected against being taken over:
    ``lsm/key_permission``,
    ``lsm.s/bprm_check_security``, ``lsm.s/bprm_committed_creds``,
    ``lsm/task_alloc``, ``lsm/bprm_check_security``,
-   ``lsm/ptrace_access_check``, ``lsm/perf_event_alloc``,
-   ``lsm/task_setrlimit``,
+   ``lsm/ptrace_access_check``, ``lsm/mm_read_access``,
+   ``lsm/perf_event_alloc``, ``lsm/task_setrlimit``,
    ``lsm/task_prctl``, ``lsm/mmap_file``, ``lsm/file_mprotect``; in
    support, ``lsm.s/bprm_creds_for_exec`` and ``lsm/socket_post_create``
    carry the policy bits, ``lsm.s/inode_post_setxattr`` and

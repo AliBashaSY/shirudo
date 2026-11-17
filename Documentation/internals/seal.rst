@@ -157,7 +157,10 @@ task. It counts one whose mode includes ``PTRACE_MODE_ATTACH``
 (``SealPtrace``), which covers attach, ``/proc/<pid>/mem``,
 ``pidfd_getfd()`` and ``process_vm_readv()``, and refuses a read-mode
 one uncounted, because journald reads ``/proc/<pid>/exe`` of every
-process it logs for and a counted read would rise on an honest node. ``lsm/perf_event_alloc``
+process it logs for and a counted read would rise on an honest node.
+``lsm/mm_read_access``, a hook of carried patch 0005, refuses the
+read-only access ``mm_access()`` grants ``CAP_PERFMON`` after that
+refusal, to ``environ``, ``maps`` and the other memory files. ``lsm/perf_event_alloc``
 refuses a perf event bound to a marked task (``SealPerf``).
 ``lsm/task_kill`` lets a signal to a marked task through, since root
 may end a command that hangs and systemd stops the runs its timers

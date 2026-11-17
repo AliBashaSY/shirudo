@@ -98,8 +98,10 @@ if fd >= 0:
 sys.exit(1 if ctypes.get_errno() == 13 else 3)
 '
 
-test_expect_success 'root cannot read the exe link or environ of a running shirudo' '
-	for kind in exe environ; do
+# mm_access() grants CAP_PERFMON a read of environ and maps past the
+# ptrace check unless mm_read_access refuses it (carried patch 0005).
+test_expect_success 'root cannot read the exe link, environ or maps of a running shirudo' '
+	for kind in exe environ maps; do
 		python3 -c "$PROC" "$kind" "$PID"; rc=$?
 		[ "$rc" = 1 ] || { echo "$kind: $rc" >&2; return 1; }
 	done
