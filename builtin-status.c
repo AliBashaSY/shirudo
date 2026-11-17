@@ -1099,704 +1099,901 @@ static void print_keyring_serials(const struct status_keyring *k)
 		       strerror(-k->links_rc));
 }
 
-int cmd_status(int argc, const char **argv)
+/* The options of one status run. */
+struct status_args {
+	bool	json_stdout;
+	bool	otel;
+	bool	keepalive;
+	bool	check;
+	bool	show_full;
+	bool	include_system;
+	bool	include_eventlog;
+};
+
+/* What the checks of the pins against the records found, or -errno. */
+struct status_pins {
+	char	unmeasured_names[UNMEASURED_NAMES];
+	char	xdp_tampered_names[UNMEASURED_NAMES];
+	char	links_lost_names[UNMEASURED_NAMES];
+	char	xdp_uncovered_names[UNMEASURED_NAMES];
+	int	unmeasured;
+	int	xdp_tampered;
+	int	links_lost;
+	int	xdp_uncovered;
+	int	checks_rc;
+	int	xdp_coverage_rc;
+};
+
+/* The measurement register and the eventlog it must match. */
+struct status_tpm {
+	struct chain_status	cst;
+	char			tcti[TPM_TCTI_MAX];
+	char			nv_index[16];
+	char			chain_hex[2 * CHAIN_DIGEST_LEN + 1];
+	char			name_hex[2 * TPM_NAME_LEN + 1];
+	char			pcr_before_hex[2 * CHAIN_DIGEST_LEN + 1];
+	char			phase_before_hex[2 * CHAIN_DIGEST_LEN + 1];
+	int			chain_rc;
+	int			ev_rc;
+	long			ev_entries;
+	long			ev_bytes;
+	int			match;	/* -1 unknown, 0 mismatch, 1 match */
+};
+
+/*
+ * What one report reads of the host. cin points into the names, the NV
+ * index and the config root, so the view lives as long as cin is used.
+ * At over 80 KB it goes by pointer only.
+ */
+struct status_view {
+	struct conditions_input	cin;
+	char			hostname[256];
+	bool			lsm_attached;
+	bool			is_operator;
+	bool			cert_present;
+	bool			is_target;
+	key_serial_t		keyring_serial;
+	key_serial_t		keyring_pinned;
+	const char		*keyring_mode;
+	bool			keyring_present;
+	struct trusted_set	certs;
+	int			certs_rc;
+	int			certs_enrolled;	/* -1 when unread */
+	struct status_keyring	bpf;
+	struct status_keyring	dmv;
+	struct dirent		**ups;
+	int			n_ups;
+	struct status_pins	pins;
+	struct asset_view	assets;
+	struct guard_counts	counts;
+	int			config_state;
+	char			config_root_hex[65];
+	struct status_tpm	tpm;
+	struct sysinfo		sysi;
+};
+
+/* 0 to go on, OPT_DONE once help is printed, or OPT_USAGE, reported. */
+static int status_parse_args(struct status_args *a, int argc,
+			     const char **argv)
 {
-	bool json_stdout = false, otel = false, keepalive = false;
-	bool include_system = false, include_eventlog = false;
-	bool show_full = false, check = false;
-	char hostname[256] = "?";
-	char reason[160];
-	bool lsm_attached, keyring_present, is_operator, cert_present, is_target;
-	key_serial_t keyring_serial, keyring_pinned;
-	const char *keyring_mode;
-	struct sysinfo sysi = {};
-	struct trusted_set certs = {};
-	int certs_enrolled = -1;
-	struct status_keyring bpf = {}, dmv = {};
-	struct identity ident = {};
-	int certs_rc = -ENOENT;
-	struct config otel_cfg __cleanup(config_clear) = {};
-	struct otel_opts otel_opts = {};
-	struct asset_view assets;
-	struct guard_counts counts = {
-		.tamper_rc = -ENOENT,
-		.integrity_rc = -ENOENT,
-	};
-	struct conditions_input cin;
-	struct dirent **ups = NULL;
-	char pcr_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
-	char phase_before_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
-	char chain_hex[2 * CHAIN_DIGEST_LEN + 1] = "";
-	char name_hex[2 * TPM_NAME_LEN + 1] = "";
-	struct chain_status cst = {};
-	char tcti[TPM_TCTI_MAX];
-	char nv_index[16];
-	char *json_buf = NULL;
-	size_t json_cap = 0;
-	long ev_entries = 0, ev_bytes = 0;
-	int chain_rc = 0, ev_rc = -ENOENT;
-	int match = -1;		/* -1 unknown, 0 mismatch, 1 match */
-	int n_ups, i, fd, ret = 0;
-	bool otel_endpoint_configured = false;
-	char unmeasured_names[UNMEASURED_NAMES] = "";
-	char xdp_tampered_names[UNMEASURED_NAMES] = "";
-	char links_lost_names[UNMEASURED_NAMES] = "";
-	char xdp_uncovered_names[UNMEASURED_NAMES] = "";
-	struct upatch_checks checks = {
-		.changed = note_unmeasured,
-		.changed_ctx = xdp_tampered_names,
-		.lost = note_unmeasured,
-		.lost_ctx = links_lost_names,
-		.uncovered = note_uncovered,
-		.uncovered_ctx = xdp_uncovered_names,
-	};
-	struct measured_set *mset = NULL;
-	int xdp_tampered = 0;
-	int xdp_coverage_rc = 0;
-	int xdp_uncovered = 0;
-	int links_lost = 0;
-	int checks_rc = 0;
-	char config_root_hex[65] = "";
-	__u8 config_root[32];
-	int unmeasured, lock;
-	int config_state, opt;
 	struct opt_parser p;
+	int opt;
 
 	OPT_INIT(&p, "status", status_opts, &status_help, argc, argv, 1);
 	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
 		switch (opt) {
 		case STATUS_JSON:
-			json_stdout = true;
+			a->json_stdout = true;
 			break;
 		case STATUS_OTEL:
-			otel = true;
+			a->otel = true;
 			break;
 		case STATUS_KEEPALIVE:
-			keepalive = true;
+			a->keepalive = true;
 			break;
 		case STATUS_CHECK:
-			check = true;
+			a->check = true;
 			break;
 		case STATUS_SHOW_FULL:
-			show_full = true;
+			a->show_full = true;
 			break;
 		case STATUS_INCLUDE_SYSTEM:
-			include_system = true;
+			a->include_system = true;
 			break;
 		case STATUS_INCLUDE_EVENTLOG:
-			include_eventlog = true;
+			a->include_eventlog = true;
 			break;
 		case OPT_ARG:
 			opt_usage(&p, "unexpected argument '%s'", p.value);
-			return EXIT_USAGE;
+			return OPT_USAGE;
 		case OPT_DONE:
-			return 0;
+			return OPT_DONE;
 		default:
-			return EXIT_USAGE;
+			return OPT_USAGE;
 		}
 	}
-	if (keepalive && (json_stdout || otel)) {
+	if (a->keepalive && (a->json_stdout || a->otel)) {
 		opt_usage(&p, "--keepalive goes without --json and --otel");
-		return EXIT_USAGE;
+		return OPT_USAGE;
 	}
-	if (otel) {
-		int err = config_load(&otel_cfg);
-
-		if (err) {
-			pr_err("status: load OTEL configuration: %s", strerror(-err));
-			return 1;
-		}
-		if (!otel_cfg.map_export_valid) {
-			pr_err("status: invalid OTEL configuration");
-			return 2;
-		}
-		otel_opts.endpoint = otel_cfg.map_export_otel_endpoint[0] ?
-			otel_cfg.map_export_otel_endpoint : NULL;
-		otel_opts.tenant_id = otel_cfg.map_export_tenant_id[0] ?
-			otel_cfg.map_export_tenant_id : NULL;
-		otel_opts.allow_insecure = otel_cfg.map_export_otel_insecure;
-		otel_opts.retries = otel_cfg.map_export_otel_retries;
-		otel_opts.otlp_max_bytes = otel_cfg.map_export_otlp_max_bytes;
-		otel_endpoint_configured =
-			status_otel_endpoint_configured(&otel_cfg);
+	if (a->show_full) {
+		a->include_system = true;
+		a->include_eventlog = true;
 	}
+	return 0;
+}
 
-	if (show_full) {
-		include_system = true;
-		include_eventlog = true;
+/* 0, or the exit status for a configuration that cannot be used. */
+static int status_otel_load(struct config *cfg, struct otel_opts *opts)
+{
+	int err = config_load(cfg);
+
+	if (err) {
+		pr_err("status: load OTEL configuration: %s", strerror(-err));
+		return 1;
 	}
-	if (include_system)
-		sysinfo_gather(&sysi);
-	if (gethostname(hostname, sizeof(hostname)))
-		strscpy(hostname, "?", sizeof(hostname));
-	hostname[sizeof(hostname) - 1] = '\0';
+	if (!cfg->map_export_valid) {
+		pr_err("status: invalid OTEL configuration");
+		return 2;
+	}
+	opts->endpoint = cfg->map_export_otel_endpoint[0] ?
+		cfg->map_export_otel_endpoint : NULL;
+	opts->tenant_id = cfg->map_export_tenant_id[0] ?
+		cfg->map_export_tenant_id : NULL;
+	opts->allow_insecure = cfg->map_export_otel_insecure;
+	opts->retries = cfg->map_export_otel_retries;
+	opts->otlp_max_bytes = cfg->map_export_otlp_max_bytes;
+	return 0;
+}
 
-	fd = bpf_obj_get(LSM_LINK_PIN);
-	lsm_attached = fd >= 0;
+static bool lsm_link_pinned(void)
+{
+	int fd = bpf_obj_get(LSM_LINK_PIN);
+
 	if (fd >= 0)
 		close(fd);
+	return fd >= 0;
+}
+
+static void status_read_keyrings(struct status_view *v)
+{
+	struct identity ident = {};
+
 	/*
 	 * The anchor init froze is the kernel's record; the live keyring
 	 * of that kind is what a load would name, and the two must agree.
 	 */
-	keyring_pinned = identity_read(&ident);
-	if (!keyring_pinned)
-		keyring_pinned = ident.keyring_serial;
-	keyring_serial = keyring_pinned >= 1 ? keyring_bpf_serial() : -ENOKEY;
-	keyring_mode = keyring_serial >= 0 ? "bpf" : "none";
-	keyring_present = keyring_serial >= 0;
+	v->keyring_pinned = identity_read(&ident);
+	if (!v->keyring_pinned)
+		v->keyring_pinned = ident.keyring_serial;
+	v->keyring_serial = v->keyring_pinned >= 1 ? keyring_bpf_serial() :
+			    -ENOKEY;
+	v->keyring_mode = v->keyring_serial >= 0 ? "bpf" : "none";
+	v->keyring_present = v->keyring_serial >= 0;
 	/*
 	 * The certificates the keyring of that kind would have been given,
 	 * and how many keys the bpf keyring holds right now: the two part
 	 * when a certificate was added or revoked since the boot.
 	 */
-	certs_rc = keys_load(KEYS_DIR, NULL,
-			     !strcmp(keyring_mode, "bpf"), &certs);
-	bpf.serial = keyring_serial;
-	bpf.pinned = keyring_pinned;
-	keyring_view_bpf(&bpf, &ident, &certs, certs_rc);
-	if (!bpf.links_rc)
-		certs_enrolled = (int)bpf.n_asymmetric;
-	dmv.pinned = keyring_pinned < 0 ? keyring_pinned : ident.dm_verity_ring;
-	dmv.serial = dmv.pinned >= 1 ? keyring_dm_verity_serial() :
-		     -ENOKEY;
-	keyring_view_dm_verity(&dmv, &ident);
-	is_operator = access(SIGNING_KEY_PATH, F_OK) == 0;
-	cert_present = access(get_cert_path(), F_OK) == 0;
-	is_target = cert_present || lsm_attached || keyring_present;
+	v->certs_rc = keys_load(KEYS_DIR, NULL,
+				!strcmp(v->keyring_mode, "bpf"), &v->certs);
+	v->bpf.serial = v->keyring_serial;
+	v->bpf.pinned = v->keyring_pinned;
+	keyring_view_bpf(&v->bpf, &ident, &v->certs, v->certs_rc);
+	v->certs_enrolled = -1;
+	if (!v->bpf.links_rc)
+		v->certs_enrolled = (int)v->bpf.n_asymmetric;
+	v->dmv.pinned = v->keyring_pinned < 0 ? v->keyring_pinned :
+			ident.dm_verity_ring;
+	v->dmv.serial = v->dmv.pinned >= 1 ? keyring_dm_verity_serial() :
+			-ENOKEY;
+	keyring_view_dm_verity(&v->dmv, &ident);
+}
 
-	n_ups = scandir(BPFFS_UPATCHES_DIR, &ups, notdot, alphasort);
-	if (n_ups < 0)
-		n_ups = 0;
+static int count_unmeasured(const struct measured_set *mset, char *names)
+{
+	int unmeasured;
+
+	unmeasured = measured_unmeasured_pins(mset, note_unmeasured, names);
+	if (unmeasured >= 0) {
+		int archived;
+
+		archived = measured_unmeasured_archives(mset,
+							note_unmeasured_archive,
+							names);
+		unmeasured = archived < 0 ? archived :
+			     unmeasured + archived;
+	}
+	return unmeasured;
+}
+
+static void status_check_pins(struct status_pins *pins)
+{
+	struct upatch_checks checks = {
+		.changed = note_unmeasured,
+		.changed_ctx = pins->xdp_tampered_names,
+		.lost = note_unmeasured,
+		.lost_ctx = pins->links_lost_names,
+		.uncovered = note_uncovered,
+		.uncovered_ctx = pins->xdp_uncovered_names,
+	};
+	struct measured_set *mset = NULL;
+	int lock;
+
 	lock = eventlog_lock();
-	unmeasured = lock < 0 ? lock : measured_set_boot(&mset);
-	if (!unmeasured) {
-		unmeasured = measured_unmeasured_pins(mset, note_unmeasured,
-						      unmeasured_names);
-		if (unmeasured >= 0) {
-			int archived;
-
-			archived = measured_unmeasured_archives(mset,
-								note_unmeasured_archive,
-								unmeasured_names);
-			unmeasured = archived < 0 ? archived :
-				     unmeasured + archived;
-		}
+	pins->unmeasured = lock < 0 ? lock : measured_set_boot(&mset);
+	if (!pins->unmeasured) {
+		pins->unmeasured = count_unmeasured(mset,
+						    pins->unmeasured_names);
 		upatch_checks_run(mset, &checks);
-		xdp_tampered = checks.nr_changed;
-		links_lost = measured_unpinned(mset, note_unmeasured,
-					       links_lost_names);
-		links_lost = links_lost < 0 ? links_lost :
-			     links_lost + checks.nr_lost;
-		xdp_uncovered = checks.nr_uncovered;
-		checks_rc = checks.check_err;
-		xdp_coverage_rc = checks.coverage_err;
+		pins->xdp_tampered = checks.nr_changed;
+		pins->links_lost = measured_unpinned(mset, note_unmeasured,
+						     pins->links_lost_names);
+		pins->links_lost = pins->links_lost < 0 ? pins->links_lost :
+				   pins->links_lost + checks.nr_lost;
+		pins->xdp_uncovered = checks.nr_uncovered;
+		pins->checks_rc = checks.check_err;
+		pins->xdp_coverage_rc = checks.coverage_err;
 		measured_set_free(mset);
 	}
 	eventlog_unlock(lock);
+}
 
-	gather_assets(&assets);
-	counts.tamper_rc = tamper_read(&counts.tamper);
-	counts.integrity_rc = integrity_read(&counts.integrity);
-	config_state = image_config_state(config_root);
-	if (config_state != -ENODEV)
-		hex_encode(config_root, sizeof(config_root), config_root_hex);
+static void status_read_config(struct status_view *v)
+{
+	__u8 config_root[32];
 
-	{
-		if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
-			       NV_INDEX) < 0)
-			strscpy(nv_index, "?", sizeof(nv_index));
-		if (tpm_tcti(tcti, sizeof(tcti)))
-			strscpy(tcti, "?", sizeof(tcti));
-		chain_rc = chain_status(&cst);
-		if (chain_rc == 0 && !(cst.defined && cst.written))
-			chain_rc = -ENODEV;
-		if (chain_rc == 0) {
-			hex_encode(cst.value, sizeof(cst.value),
-				   chain_hex);
-			hex_encode(cst.name, cst.name_len, name_hex);
-		}
-		if (cst.logged) {
-			hex_encode(cst.init.pcr_before,
-				   sizeof(cst.init.pcr_before),
-				   pcr_before_hex);
-			hex_encode(cst.init.phase_before,
-				   sizeof(cst.init.phase_before),
-				   phase_before_hex);
-		}
-		ev_rc = count_eventlog(&ev_entries, &ev_bytes);
+	v->config_state = image_config_state(config_root);
+	if (v->config_state != -ENODEV)
+		hex_encode(config_root, sizeof(config_root),
+			   v->config_root_hex);
+}
 
-		/*
-		 * Tamper check: the live register must be the index init
-		 * bound this boot and equal this boot's eventlog records
-		 * replayed from zero. A replay failure (malformed log, or
-		 * no init record while a register exists) is a mismatch.
-		 */
-		if (chain_rc == 0) {
-			__u8 replay[CHAIN_DIGEST_LEN];
+/*
+ * Tamper check: the live register must be the index init
+ * bound this boot and equal this boot's eventlog records
+ * replayed from zero. A replay failure (malformed log, or
+ * no init record while a register exists) is a mismatch.
+ */
+static int chain_matches_eventlog(const struct status_tpm *t)
+{
+	__u8 replay[CHAIN_DIGEST_LEN];
 
-			match = cst.anchored && !cst.rebound &&
-				eventlog_replay(replay) == 0 &&
-				!memneq_explicit(cst.value, replay,
-						 sizeof(replay));
-		}
+	if (t->chain_rc)
+		return -1;
+	return t->cst.anchored && !t->cst.rebound &&
+	       eventlog_replay(replay) == 0 &&
+	       !memneq_explicit(t->cst.value, replay, sizeof(replay));
+}
+
+static void status_read_tpm(struct status_tpm *t)
+{
+	if (strsprintf(t->nv_index, sizeof(t->nv_index), "0x%08X",
+		       NV_INDEX) < 0)
+		strscpy(t->nv_index, "?", sizeof(t->nv_index));
+	if (tpm_tcti(t->tcti, sizeof(t->tcti)))
+		strscpy(t->tcti, "?", sizeof(t->tcti));
+	t->chain_rc = chain_status(&t->cst);
+	if (t->chain_rc == 0 && !(t->cst.defined && t->cst.written))
+		t->chain_rc = -ENODEV;
+	if (t->chain_rc == 0) {
+		hex_encode(t->cst.value, sizeof(t->cst.value), t->chain_hex);
+		hex_encode(t->cst.name, t->cst.name_len, t->name_hex);
 	}
+	if (t->cst.logged) {
+		hex_encode(t->cst.init.pcr_before,
+			   sizeof(t->cst.init.pcr_before),
+			   t->pcr_before_hex);
+		hex_encode(t->cst.init.phase_before,
+			   sizeof(t->cst.init.phase_before),
+			   t->phase_before_hex);
+	}
+	t->ev_rc = count_eventlog(&t->ev_entries, &t->ev_bytes);
+	t->match = chain_matches_eventlog(t);
+}
 
-	/* Status runs on the host: reachable and parsed are trivially true. */
-	cin = (struct conditions_input){
+/* Status runs on the host: reachable and parsed are trivially true. */
+static void status_cond_input(struct status_view *v)
+{
+	const struct status_pins *pins = &v->pins;
+	const struct status_tpm *t = &v->tpm;
+
+	v->cin = (struct conditions_input){
 		.reachable		= true,
 		.parsed			= true,
-		.lsm_attached		= lsm_attached,
-		.keyring_present	= keyring_present,
-		.keyring_mode		= keyring_mode,
-		.keyring_serial		= keyring_serial,
-		.keyring_serial_pinned	= keyring_pinned >= 1 ?
-					  keyring_pinned : 0,
-		.keyring_serial_matches	= keyring_present &&
-					  keyring_pinned >= 1 &&
-					  keyring_serial == keyring_pinned,
-		.tpm_reachable		= cst.tpm,
-		.ks_seen		= keyring_present,
-		.ksp_seen		= keyring_pinned >= 1,
-		.ksm_seen		= keyring_present &&
-					  keyring_pinned >= 1,
-		.chain_seen		= chain_rc == 0,
-		.chain_matches		= match == 1,
-		.cm_seen		= match >= 0,
-		.nv_index		= nv_index,
-		.config_seen		= config_state != -ENODEV,
-		.config_state		= config_state,
-		.config_root		= config_root_hex,
-		.pins_rc		= min(unmeasured, 0),
-		.pins_unmeasured	= max(unmeasured, 0),
-		.pins_detail		= unmeasured_names,
-		.xdp_tampered		= max(xdp_tampered, 0),
-		.xdp_tampered_detail	= xdp_tampered_names,
-		.links_lost		= max(links_lost, 0),
-		.links_lost_detail	= links_lost_names,
-		.checks_rc		= checks_rc,
-		.xdp_uncovered		= max(xdp_uncovered, 0),
-		.xdp_uncovered_detail	= xdp_uncovered_names,
-		.xdp_coverage_rc	= xdp_coverage_rc,
+		.lsm_attached		= v->lsm_attached,
+		.keyring_present	= v->keyring_present,
+		.keyring_mode		= v->keyring_mode,
+		.keyring_serial		= v->keyring_serial,
+		.keyring_serial_pinned	= v->keyring_pinned >= 1 ?
+					  v->keyring_pinned : 0,
+		.keyring_serial_matches	= v->keyring_present &&
+					  v->keyring_pinned >= 1 &&
+					  v->keyring_serial == v->keyring_pinned,
+		.tpm_reachable		= t->cst.tpm,
+		.ks_seen		= v->keyring_present,
+		.ksp_seen		= v->keyring_pinned >= 1,
+		.ksm_seen		= v->keyring_present &&
+					  v->keyring_pinned >= 1,
+		.chain_seen		= t->chain_rc == 0,
+		.chain_matches		= t->match == 1,
+		.cm_seen		= t->match >= 0,
+		.nv_index		= t->nv_index,
+		.config_seen		= v->config_state != -ENODEV,
+		.config_state		= v->config_state,
+		.config_root		= v->config_root_hex,
+		.pins_rc		= min(pins->unmeasured, 0),
+		.pins_unmeasured	= max(pins->unmeasured, 0),
+		.pins_detail		= pins->unmeasured_names,
+		.xdp_tampered		= max(pins->xdp_tampered, 0),
+		.xdp_tampered_detail	= pins->xdp_tampered_names,
+		.links_lost		= max(pins->links_lost, 0),
+		.links_lost_detail	= pins->links_lost_names,
+		.checks_rc		= pins->checks_rc,
+		.xdp_uncovered		= max(pins->xdp_uncovered, 0),
+		.xdp_uncovered_detail	= pins->xdp_uncovered_names,
+		.xdp_coverage_rc	= pins->xdp_coverage_rc,
 	};
-	keyring_cond_input(&cin, &bpf, &dmv);
+	keyring_cond_input(&v->cin, &v->bpf, &v->dmv);
+}
 
-	if (keepalive || (otel && otel_endpoint_configured))
-		ret = status_keepalive(&cin, &cst, &counts,
-				       config_state ? NULL : config_root_hex,
-				       otel ? &otel_opts : NULL);
-	if (otel && !otel_endpoint_configured && config_state &&
-	    config_state != -ENODEV)
-		pr_warn("status: no keepalive is sent: with the config activation %s, no export endpoint is known, since a config image is used only when its activation record vouches for it; OTEL_EXPORTER_OTLP_ENDPOINT in /etc/shirudo/map-export.env still names one",
-			config_state == -EINPROGRESS ? "pending" : "unverifiable");
-	if (json_stdout) {
-		struct json_emit e;
+static void status_gather(struct status_view *v, bool include_system)
+{
+	if (include_system)
+		sysinfo_gather(&v->sysi);
+	if (gethostname(v->hostname, sizeof(v->hostname)))
+		strscpy(v->hostname, "?", sizeof(v->hostname));
+	v->hostname[sizeof(v->hostname) - 1] = '\0';
+	v->lsm_attached = lsm_link_pinned();
+	status_read_keyrings(v);
+	v->is_operator = access(SIGNING_KEY_PATH, F_OK) == 0;
+	v->cert_present = access(get_cert_path(), F_OK) == 0;
+	v->is_target = v->cert_present || v->lsm_attached || v->keyring_present;
+	v->n_ups = scandir(BPFFS_UPATCHES_DIR, &v->ups, notdot, alphasort);
+	if (v->n_ups < 0)
+		v->n_ups = 0;
+	status_check_pins(&v->pins);
+	gather_assets(&v->assets);
+	v->counts.tamper_rc = tamper_read(&v->counts.tamper);
+	v->counts.integrity_rc = integrity_read(&v->counts.integrity);
+	status_read_config(v);
+	status_read_tpm(&v->tpm);
+	status_cond_input(v);
+}
 
-		/*
-		 * Every loaded upatch adds a row, every certificate and link
-		 * of the keyrings an entry, whose strings JSON escaping can
-		 * grow sixfold, and the events[] dump re-emits the log. The
-		 * clamp below keeps it under JSON_MAX_BYTES.
-		 */
-		json_cap = 16384 + (size_t)n_ups *
-			   (6 * sizeof(struct upatch_table_row) + 256);
-		json_cap += (bpf.n_certs + bpf.n_links + dmv.n_certs +
-			     dmv.n_links) *
-			    (6 * (KEYRING_DESC_MAX + STATUS_SUBJECT_MAX) + 512);
-		if (include_eventlog && ev_rc == 0)
-			json_cap += 65536 + 3 * (size_t)ev_bytes;
-		if (include_system)
-			json_cap += 1024 * 1024;
-		if (json_cap > JSON_MAX_BYTES)
-			json_cap = JSON_MAX_BYTES;
-		json_buf = xmalloc(json_cap);
-		if (!json_buf) {
-			fprintf(stderr, "status: out of memory\n");
-			ret = 1;
-			goto out;
-		}
-		e = (struct json_emit){ .buf = json_buf, .cap = json_cap };
+static void status_view_free(struct status_view *v)
+{
+	int i;
 
-		json_obj_open(&e);
-		json_kv_int(&e, "schema", 1);
-		json_kv_string(&e, "version_id", shirudo_version_id);
-		json_kv_string(&e, "host", hostname);
-		json_kv_bool(&e, "is_target", is_target);
-		json_kv_bool(&e, "is_operator", is_operator);
-		{
-			struct condition conds[CONDITIONS_MAX];
-			size_t nc, ci;
+	keyring_view_free(&v->bpf);
+	keyring_view_free(&v->dmv);
+	for (i = 0; i < v->n_ups; i++)
+		libc_free(v->ups[i]);
+	libc_free(v->ups);
+}
 
-			json_kv_string(&e, "status", status_verdict(&cin));
-			status_reason(&cin, reason, sizeof(reason));
-			if (reason[0])
-				json_kv_string(&e, "reason", reason);
-			else
-				json_kv_null(&e, "reason");
-			nc = conditions(&cin, conds,
-					ARRAY_SIZE(conds));
-			json_arr_open(&e, "conditions");
-			for (ci = 0; ci < nc; ci++) {
-				json_obj_open(&e);
-				json_kv_string(&e, "type",
-					       conds[ci].type);
-				json_kv_string(&e, "status",
-					       conds[ci].status);
-				json_kv_string(&e, "detail",
-					       conds[ci].detail);
-				json_obj_close(&e);
-			}
-			json_arr_close(&e);
-		}
-		json_kv_bool(&e, "lsm_attached", lsm_attached);
-		json_kv_string(&e, "keyring_mode", keyring_mode);
-		json_kv_bool(&e, "keyring_present", keyring_present);
-		if (keyring_present)
-			json_kv_int(&e, "keyring_serial",
-				    keyring_serial);
-		else
-			json_kv_null(&e, "keyring_serial");
-		if (keyring_pinned >= 1)
-			json_kv_int(&e, "keyring_serial_pinned",
-				    keyring_pinned);
-		else
-			json_kv_null(&e, "keyring_serial_pinned");
-		if (keyring_present && keyring_pinned >= 1)
-			json_kv_bool(&e, "keyring_serial_matches",
-				     keyring_serial == keyring_pinned);
-		else
-			json_kv_null(&e, "keyring_serial_matches");
-		json_kv_bool(&e, "cert_present", cert_present);
-		json_arr_open(&e, "certs");
-		for (i = 0; certs_rc == 0 && i < (int)certs.n; i++) {
-			char sha_hex[65], fp_hex[65];
+static void emit_verdict_json(struct json_emit *e,
+			      const struct conditions_input *cin)
+{
+	struct condition conds[CONDITIONS_MAX];
+	char reason[160];
+	size_t nc, ci;
 
-			hex_encode(certs.certs[i].sha256, 32, sha_hex);
-			hex_encode(certs.certs[i].fingerprint, 32,
-				   fp_hex);
-			json_obj_open(&e);
-			json_kv_string(&e, "sha256", sha_hex);
-			json_kv_string(&e, "fingerprint", fp_hex);
-			json_kv_bool(&e, "primary",
-				     certs.certs[i].primary);
-			json_obj_close(&e);
-		}
-		json_arr_close(&e);
-		json_kv_int(&e, "certs_revoked",
-			    certs_rc == 0 ? (int)certs.n_revoked : 0);
-		json_kv_int(&e, "certs_unvouched",
-			    certs_rc == 0 ? (int)certs.n_unvouched : 0);
-		if (certs_enrolled >= 0)
-			json_kv_int(&e, "certs_enrolled",
-				    certs_enrolled);
-		else
-			json_kv_null(&e, "certs_enrolled");
-		keyring_emit_json(&e, "bpf_keyring", &bpf, "primary");
-		keyring_emit_json(&e, "dm_verity_keyring", &dmv, "config");
-		json_kv_bool(&e, "signing_key_present", is_operator);
-		{
-			struct upatch_table_row *rows = NULL;
-			size_t n_rows = build_upatches_table(ups, n_ups, &rows);
-
-			upatch_table_emit_json(&e, rows, n_rows);
-			xfree(rows, n_rows * sizeof(*rows));
-		}
-		json_obj_open_key(&e, "assets");
-		json_kv_string(&e, "root", VAR_LIB);
-		json_kv_bool(&e, "cert", assets.cert);
-		json_kv_bool(&e, "signing_key", assets.signing_key);
-		json_kv_bool(&e, "eventlog", assets.eventlog);
-		json_kv_int(&e, "eventlog_bytes", assets.eventlog_bytes);
-		if (assets.n_upatches >= 0)
-			json_kv_int(&e, "upatches", assets.n_upatches);
-		else
-			json_kv_null(&e, "upatches");
-		json_kv_bool(&e, "bpffs_mounted", assets.bpffs_mounted);
-		json_obj_close(&e);
-		/*
-		 * What the guards counted this boot, every counter by name
-		 * so a collector's keys stay the same from one record to
-		 * the next; null until init has pinned the map.
-		 */
-		if (counts.tamper_rc == 0) {
-			json_obj_open_key(&e, "tamper_attempts");
-			json_kv_int(&e, "total", (__s64)counts.tamper.total);
-			json_obj_open_key(&e, "counters");
-			for (i = 0; i < TAMPER_MAX; i++)
-				json_kv_int(&e, tamper_name(i),
-					    (__s64)counts.tamper.count[i]);
-			json_obj_close(&e);
-			json_obj_close(&e);
-		} else {
-			json_kv_null(&e, "tamper_attempts");
-		}
-		if (counts.integrity_rc == 0) {
-			json_obj_open_key(&e, "integrity_attempts");
-			json_kv_int(&e, "total",
-				    (__s64)counts.integrity.total);
-			json_obj_open_key(&e, "counters");
-			for (i = 0; i < INTEGRITY_MAX; i++)
-				json_kv_int(&e, integrity_name(i),
-					    (__s64)counts.integrity.count[i]);
-			json_obj_close(&e);
-			json_obj_close(&e);
-		} else {
-			json_kv_null(&e, "integrity_attempts");
-		}
-		if (config_state != -ENODEV) {
-			json_obj_open_key(&e, "config");
-			json_kv_string(&e, "root_hash", config_root_hex);
-			json_kv_bool(&e, "activation_pending",
-				     config_state == -EINPROGRESS);
-			if (config_state && config_state != -EINPROGRESS)
-				json_kv_string(&e, "error",
-					       strerror(-config_state));
-			else
-				json_kv_null(&e, "error");
-			json_obj_close(&e);
-		} else {
-			json_kv_null(&e, "config");
-		}
-		if (include_system)
-			sysinfo_emit_json(&e, &sysi);
-		{
-			json_obj_open_key(&e, "tpm");
-			json_kv_bool(&e, "reachable", cst.tpm);
-			json_kv_string(&e, "nv_index", nv_index);
-			if (chain_rc == 0)
-				json_kv_string(&e, "chain", chain_hex);
-			else
-				json_kv_null(&e, "chain");
-			if (chain_rc == 0)
-				json_kv_string(&e, "nv_name", name_hex);
-			else
-				json_kv_null(&e, "nv_name");
-			json_kv_bool(&e, "register_bound",
-				     chain_rc == 0);
-			json_kv_bool(&e, "register_anchored",
-				     cst.anchored);
-			json_kv_int(&e, "init_records",
-				    cst.logged ? (int)cst.init.records :
-				    0);
-			json_kv_bool(&e, "register_rebound",
-				     cst.rebound);
-			json_kv_int(&e, "pcr", CHAIN_PCR);
-			json_kv_int(&e, "phase_pcr",
-				    CHAIN_PHASE_PCR);
-			if (cst.logged) {
-				json_kv_string(&e, "pcr_before",
-					       pcr_before_hex);
-				json_kv_string(&e, "phase_before",
-					       phase_before_hex);
-				json_kv_string(&e, "bound_in",
-					       cst.init.initrd ?
-					       "initrd" : "root");
-			} else {
-				json_kv_null(&e, "pcr_before");
-				json_kv_null(&e, "phase_before");
-				json_kv_null(&e, "bound_in");
-			}
-			if (match < 0)
-				json_kv_null(&e, "chain_matches_eventlog");
-			else
-				json_kv_bool(&e, "chain_matches_eventlog",
-					     match);
-			json_obj_open_key(&e, "eventlog");
-			json_kv_bool(&e, "present", ev_rc == 0);
-			json_kv_int(&e, "entries",
-				    ev_rc == 0 ? ev_entries : 0);
-			json_kv_int(&e, "bytes", ev_rc == 0 ? ev_bytes : 0);
-			if (include_eventlog)
-				emit_eventlog_events(&e);
-			json_obj_close(&e);
-			json_obj_close(&e);
-			tree_emit_status(&e);
-		}
-		json_obj_close(&e);
-
-		if (e.err) {
-			fprintf(stderr, "status: json encode failed: %s\n",
-				strerror(-e.err));
-			ret = 1;
-		} else {
-			printf("%s\n", json_buf);
-		}
-	} else if (!keepalive && !otel) {
-		struct condition conds[CONDITIONS_MAX];
-		struct upatch_table_row *rows = NULL;
-		bool keyrings_open, tpm_open;
-		const char *folded[3];
-		size_t n_rows = 0;
-		size_t nc, ci, nf = 0;
-		const char *verdict;
-
-		verdict = status_verdict(&cin);
-		status_reason(&cin, reason, sizeof(reason));
-		nc = conditions(&cin, conds, ARRAY_SIZE(conds));
-		n_rows = build_upatches_table(ups, n_ups, &rows);
-		/*
-		 * A section a condition vouches for says nothing the
-		 * condition did not: it unfolds when that condition is not
-		 * OK on a target, or on request.
-		 */
-		keyrings_open = show_full;
-		tpm_open = show_full;
-		for (ci = 0; is_target && ci < nc; ci++) {
-			if (!strcmp(conds[ci].status, "OK"))
-				continue;
-			if (!strcmp(conds[ci].type, "KeyringSealed"))
-				keyrings_open = true;
-			else if (!strcmp(conds[ci].type, "ChainIntact") ||
-				 !strcmp(conds[ci].type, "TpmMeasured"))
-				tpm_open = true;
-		}
-		printf("%-22s %s\n", "Host:", hostname);
-		printf("%-22s %s\n", "Roles:",
-		       roles_str(is_target, is_operator));
-		if (reason[0])
-			printf("%-22s %s  (%s)\n", "Status:", verdict,
-			       reason);
-		else
-			printf("%-22s %s\n", "Status:", verdict);
-		printf("%-22s %s\n", "Version ID:", shirudo_version_id);
-		printf("\n");
-		conditions_print(conds, nc);
-		printf("\nTamper attempts (this boot):\n");
-		print_counters(counts.tamper_rc, counts.tamper.total,
-			       counts.tamper.count, TAMPER_MAX, tamper_name,
-			       tamper_meaning);
-		printf("\nIntegrity attempts (this boot):\n");
-		print_counters(counts.integrity_rc, counts.integrity.total,
-			       counts.integrity.count, INTEGRITY_MAX,
-			       integrity_name, integrity_meaning);
-		upatch_table_print(rows, n_rows);
-		xfree(rows, n_rows * sizeof(*rows));
-		rows = NULL;
-		if (keyrings_open) {
-			printf("\nKeyring (.bpf):\n");
-			print_keyring_serials(&bpf);
-			if (certs_rc == 0) {
-				printf("  %-22s %zu trusted, %zu revoked, %zu "
-				       "unvouched", "Certificates:", certs.n,
-				       certs.n_revoked, certs.n_unvouched);
-				if (certs_enrolled >= 0)
-					printf(", %d in the bpf keyring",
-					       certs_enrolled);
-				printf("\n");
-				print_keyring_certs(&bpf, "primary",
-						    "enrolled at the next boot");
-			}
-			print_other_links(&bpf);
-			printf("\nKeyring (.dm-verity):\n");
-			print_keyring_serials(&dmv);
-			if (dmv.certs_rc == 0) {
-				printf("  %-22s %zu trusted", "Certificates:",
-				       dmv.n_certs);
-				if (!dmv.links_rc)
-					printf(", %zu in the dm-verity keyring",
-					       dmv.n_asymmetric);
-				printf("\n");
-				print_keyring_certs(&dmv, "config", "missing");
-			} else if (dmv.certs_rc != -ENOENT) {
-				printf("  %-22s unreadable: %s\n",
-				       "Certificates:",
-				       strerror(-dmv.certs_rc));
-			}
-			print_other_links(&dmv);
-		} else {
-			folded[nf++] = "keyrings";
-		}
-		if (tpm_open) {
-			printf("\nTPM measurement:\n");
-			printf("  %-22s %s (%s)\n", "TPM:",
-			       cst.tpm ? "reachable" : "not reachable", tcti);
-			printf("  %-22s %s (anchored in PCR %u)\n", "NV index:",
-			       nv_index, CHAIN_PCR);
-			if (chain_rc == 0) {
-				printf("  %-22s %s\n", "Chain:", chain_hex);
-				printf("  %-22s %s\n", "Register name:",
-				       name_hex);
-				printf("  %-22s %s\n", "Anchored:",
-				       cst.anchored ? "yes, name on record" :
-				       "no, the index is not the one init bound");
-			} else if (!cst.tpm) {
-				printf("  %-22s %s\n", "Chain:",
-				       "unavailable, no TPM answered");
-			} else if (chain_rc == -ENODEV) {
-				printf("  %-22s %s\n", "Chain:",
-				       "unavailable, register not bound this "
-				       "boot");
-			} else {
-				printf("  %-22s unavailable, TPM error: %s\n",
-				       "Chain:", strerror(-chain_rc));
-			}
-			if (cst.logged) {
-				printf("  %-22s %s\n", "PCR before init:",
-				       pcr_before_hex);
-				printf("  %-22s %s (PCR %u)\n", "Phase at init:",
-				       phase_before_hex, CHAIN_PHASE_PCR);
-				printf("  %-22s %s\n", "Bound in:",
-				       cst.init.initrd ? "initrd" :
-				       "root file system");
-			}
-			if (cst.rebound)
-				printf("  %-22s %u for this TPM reset, "
-				       "rebound after init\n",
-				       "Init records:",
-				       cst.init.records_epoch);
-			printf("  %-22s %s\n", "Chain vs eventlog:",
-			       match < 0 ? "not evaluated" :
-			       match ? "matches" : "mismatch");
-			if (ev_rc == 0)
-				printf("  %-22s %s  (%ld entries, %ld bytes)\n",
-				       "Eventlog:", eventlog_path(),
-				       ev_entries, ev_bytes);
-			else
-				printf("  %-22s absent\n", "Eventlog:");
-		} else {
-			folded[nf++] = "TPM measurement";
-		}
-		if (include_eventlog)
-			print_eventlog_table();
-		if (show_full) {
-			printf("\nAssets (%s):\n", VAR_LIB);
-			printf("  %-22s %s\n", "keys/cert.der",
-			       assets.cert ? "present" : "absent");
-			printf("  %-22s %s\n", "keys/signing_key.pem",
-			       assets.signing_key ? "present" : "absent");
-			if (assets.eventlog)
-				printf("  %-22s present (%ld bytes)\n",
-				       "eventlog", assets.eventlog_bytes);
-			else
-				printf("  %-22s absent\n", "eventlog");
-			if (assets.n_upatches < 0)
-				printf("  %-22s absent\n", "upatches/");
-			else
-				printf("  %-22s %d archived\n", "upatches/",
-				       assets.n_upatches);
-			printf("  %-22s %s\n", "bpffs/",
-			       assets.bpffs_mounted ? "mounted" :
-			       "not mounted");
-		} else {
-			folded[nf++] = "assets";
-		}
-		if (include_system)
-			print_system_human(&sysi);
-		if (nf) {
-			printf("\nFolded:");
-			for (ci = 0; ci < nf; ci++)
-				printf("%s %s", ci ? "," : "", folded[ci]);
-			printf(" (--show-full)\n");
-		}
+	json_kv_string(e, "status", status_verdict(cin));
+	status_reason(cin, reason, sizeof(reason));
+	if (reason[0])
+		json_kv_string(e, "reason", reason);
+	else
+		json_kv_null(e, "reason");
+	nc = conditions(cin, conds, ARRAY_SIZE(conds));
+	json_arr_open(e, "conditions");
+	for (ci = 0; ci < nc; ci++) {
+		json_obj_open(e);
+		json_kv_string(e, "type", conds[ci].type);
+		json_kv_string(e, "status", conds[ci].status);
+		json_kv_string(e, "detail", conds[ci].detail);
+		json_obj_close(e);
 	}
-	if (check && !ret && !strcmp(status_verdict(&cin), "tampered"))
+	json_arr_close(e);
+}
+
+static void emit_anchor_json(struct json_emit *e, const struct status_view *v)
+{
+	json_kv_string(e, "keyring_mode", v->keyring_mode);
+	json_kv_bool(e, "keyring_present", v->keyring_present);
+	if (v->keyring_present)
+		json_kv_int(e, "keyring_serial", v->keyring_serial);
+	else
+		json_kv_null(e, "keyring_serial");
+	if (v->keyring_pinned >= 1)
+		json_kv_int(e, "keyring_serial_pinned", v->keyring_pinned);
+	else
+		json_kv_null(e, "keyring_serial_pinned");
+	if (v->keyring_present && v->keyring_pinned >= 1)
+		json_kv_bool(e, "keyring_serial_matches",
+			     v->keyring_serial == v->keyring_pinned);
+	else
+		json_kv_null(e, "keyring_serial_matches");
+}
+
+static void emit_certs_json(struct json_emit *e, const struct status_view *v)
+{
+	int i;
+
+	json_arr_open(e, "certs");
+	for (i = 0; v->certs_rc == 0 && i < (int)v->certs.n; i++) {
+		char sha_hex[65], fp_hex[65];
+
+		hex_encode(v->certs.certs[i].sha256, 32, sha_hex);
+		hex_encode(v->certs.certs[i].fingerprint, 32, fp_hex);
+		json_obj_open(e);
+		json_kv_string(e, "sha256", sha_hex);
+		json_kv_string(e, "fingerprint", fp_hex);
+		json_kv_bool(e, "primary", v->certs.certs[i].primary);
+		json_obj_close(e);
+	}
+	json_arr_close(e);
+	json_kv_int(e, "certs_revoked",
+		    v->certs_rc == 0 ? (int)v->certs.n_revoked : 0);
+	json_kv_int(e, "certs_unvouched",
+		    v->certs_rc == 0 ? (int)v->certs.n_unvouched : 0);
+	if (v->certs_enrolled >= 0)
+		json_kv_int(e, "certs_enrolled", v->certs_enrolled);
+	else
+		json_kv_null(e, "certs_enrolled");
+}
+
+static void emit_upatches_json(struct json_emit *e, struct dirent **ups,
+			       int n_ups)
+{
+	struct upatch_table_row *rows = NULL;
+	size_t n_rows = build_upatches_table(ups, n_ups, &rows);
+
+	upatch_table_emit_json(e, rows, n_rows);
+	xfree(rows, n_rows * sizeof(*rows));
+}
+
+static void emit_assets_json(struct json_emit *e,
+			     const struct asset_view *assets)
+{
+	json_obj_open_key(e, "assets");
+	json_kv_string(e, "root", VAR_LIB);
+	json_kv_bool(e, "cert", assets->cert);
+	json_kv_bool(e, "signing_key", assets->signing_key);
+	json_kv_bool(e, "eventlog", assets->eventlog);
+	json_kv_int(e, "eventlog_bytes", assets->eventlog_bytes);
+	if (assets->n_upatches >= 0)
+		json_kv_int(e, "upatches", assets->n_upatches);
+	else
+		json_kv_null(e, "upatches");
+	json_kv_bool(e, "bpffs_mounted", assets->bpffs_mounted);
+	json_obj_close(e);
+}
+
+/*
+ * What the guards counted this boot, every counter by name
+ * so a collector's keys stay the same from one record to
+ * the next; null until init has pinned the map.
+ */
+static void emit_guard_counts_json(struct json_emit *e,
+				   const struct guard_counts *counts)
+{
+	int i;
+
+	if (counts->tamper_rc == 0) {
+		json_obj_open_key(e, "tamper_attempts");
+		json_kv_int(e, "total", (__s64)counts->tamper.total);
+		json_obj_open_key(e, "counters");
+		for (i = 0; i < TAMPER_MAX; i++)
+			json_kv_int(e, tamper_name(i),
+				    (__s64)counts->tamper.count[i]);
+		json_obj_close(e);
+		json_obj_close(e);
+	} else {
+		json_kv_null(e, "tamper_attempts");
+	}
+	if (counts->integrity_rc == 0) {
+		json_obj_open_key(e, "integrity_attempts");
+		json_kv_int(e, "total", (__s64)counts->integrity.total);
+		json_obj_open_key(e, "counters");
+		for (i = 0; i < INTEGRITY_MAX; i++)
+			json_kv_int(e, integrity_name(i),
+				    (__s64)counts->integrity.count[i]);
+		json_obj_close(e);
+		json_obj_close(e);
+	} else {
+		json_kv_null(e, "integrity_attempts");
+	}
+}
+
+static void emit_config_json(struct json_emit *e, int config_state,
+			     const char *config_root_hex)
+{
+	if (config_state != -ENODEV) {
+		json_obj_open_key(e, "config");
+		json_kv_string(e, "root_hash", config_root_hex);
+		json_kv_bool(e, "activation_pending",
+			     config_state == -EINPROGRESS);
+		if (config_state && config_state != -EINPROGRESS)
+			json_kv_string(e, "error", strerror(-config_state));
+		else
+			json_kv_null(e, "error");
+		json_obj_close(e);
+	} else {
+		json_kv_null(e, "config");
+	}
+}
+
+static void emit_tpm_json(struct json_emit *e, const struct status_tpm *t,
+			  bool include_eventlog)
+{
+	json_obj_open_key(e, "tpm");
+	json_kv_bool(e, "reachable", t->cst.tpm);
+	json_kv_string(e, "nv_index", t->nv_index);
+	if (t->chain_rc == 0)
+		json_kv_string(e, "chain", t->chain_hex);
+	else
+		json_kv_null(e, "chain");
+	if (t->chain_rc == 0)
+		json_kv_string(e, "nv_name", t->name_hex);
+	else
+		json_kv_null(e, "nv_name");
+	json_kv_bool(e, "register_bound", t->chain_rc == 0);
+	json_kv_bool(e, "register_anchored", t->cst.anchored);
+	json_kv_int(e, "init_records",
+		    t->cst.logged ? (int)t->cst.init.records : 0);
+	json_kv_bool(e, "register_rebound", t->cst.rebound);
+	json_kv_int(e, "pcr", CHAIN_PCR);
+	json_kv_int(e, "phase_pcr", CHAIN_PHASE_PCR);
+	if (t->cst.logged) {
+		json_kv_string(e, "pcr_before", t->pcr_before_hex);
+		json_kv_string(e, "phase_before", t->phase_before_hex);
+		json_kv_string(e, "bound_in",
+			       t->cst.init.initrd ? "initrd" : "root");
+	} else {
+		json_kv_null(e, "pcr_before");
+		json_kv_null(e, "phase_before");
+		json_kv_null(e, "bound_in");
+	}
+	if (t->match < 0)
+		json_kv_null(e, "chain_matches_eventlog");
+	else
+		json_kv_bool(e, "chain_matches_eventlog", t->match);
+	json_obj_open_key(e, "eventlog");
+	json_kv_bool(e, "present", t->ev_rc == 0);
+	json_kv_int(e, "entries", t->ev_rc == 0 ? t->ev_entries : 0);
+	json_kv_int(e, "bytes", t->ev_rc == 0 ? t->ev_bytes : 0);
+	if (include_eventlog)
+		emit_eventlog_events(e);
+	json_obj_close(e);
+	json_obj_close(e);
+}
+
+static void status_emit_json(struct json_emit *e, const struct status_view *v,
+			     const struct status_args *a)
+{
+	json_obj_open(e);
+	json_kv_int(e, "schema", 1);
+	json_kv_string(e, "version_id", shirudo_version_id);
+	json_kv_string(e, "host", v->hostname);
+	json_kv_bool(e, "is_target", v->is_target);
+	json_kv_bool(e, "is_operator", v->is_operator);
+	emit_verdict_json(e, &v->cin);
+	json_kv_bool(e, "lsm_attached", v->lsm_attached);
+	emit_anchor_json(e, v);
+	json_kv_bool(e, "cert_present", v->cert_present);
+	emit_certs_json(e, v);
+	keyring_emit_json(e, "bpf_keyring", &v->bpf, "primary");
+	keyring_emit_json(e, "dm_verity_keyring", &v->dmv, "config");
+	json_kv_bool(e, "signing_key_present", v->is_operator);
+	emit_upatches_json(e, v->ups, v->n_ups);
+	emit_assets_json(e, &v->assets);
+	emit_guard_counts_json(e, &v->counts);
+	emit_config_json(e, v->config_state, v->config_root_hex);
+	if (a->include_system)
+		sysinfo_emit_json(e, &v->sysi);
+	emit_tpm_json(e, &v->tpm, a->include_eventlog);
+	tree_emit_status(e);
+	json_obj_close(e);
+}
+
+/*
+ * Every loaded upatch adds a row, every certificate and link
+ * of the keyrings an entry, whose strings JSON escaping can
+ * grow sixfold, and the events[] dump re-emits the log. The
+ * clamp below keeps it under JSON_MAX_BYTES.
+ */
+static size_t status_json_cap(const struct status_view *v,
+			      const struct status_args *a)
+{
+	size_t json_cap;
+
+	json_cap = 16384 + (size_t)v->n_ups *
+		   (6 * sizeof(struct upatch_table_row) + 256);
+	json_cap += (v->bpf.n_certs + v->bpf.n_links + v->dmv.n_certs +
+		     v->dmv.n_links) *
+		    (6 * (KEYRING_DESC_MAX + STATUS_SUBJECT_MAX) + 512);
+	if (a->include_eventlog && v->tpm.ev_rc == 0)
+		json_cap += 65536 + 3 * (size_t)v->tpm.ev_bytes;
+	if (a->include_system)
+		json_cap += 1024 * 1024;
+	if (json_cap > JSON_MAX_BYTES)
+		json_cap = JSON_MAX_BYTES;
+	return json_cap;
+}
+
+/* 0, or 1 when the document could not be built. */
+static int status_print_json(const struct status_view *v,
+			     const struct status_args *a)
+{
+	size_t json_cap = status_json_cap(v, a);
+	struct json_emit e;
+	char *json_buf;
+	int ret = 0;
+
+	json_buf = xmalloc(json_cap);
+	if (!json_buf) {
+		fprintf(stderr, "status: out of memory\n");
+		return 1;
+	}
+	e = (struct json_emit){ .buf = json_buf, .cap = json_cap };
+	status_emit_json(&e, v, a);
+	if (e.err) {
+		fprintf(stderr, "status: json encode failed: %s\n",
+			strerror(-e.err));
 		ret = 1;
-out:
-	keyring_view_free(&bpf);
-	keyring_view_free(&dmv);
-	for (i = 0; i < n_ups; i++)
-		libc_free(ups[i]);
-	libc_free(ups);
+	} else {
+		printf("%s\n", json_buf);
+	}
 	xfree(json_buf, json_cap);
+	return ret;
+}
+
+static void unfold_sections(const struct condition *conds, size_t nc,
+			    bool *keyrings_open, bool *tpm_open)
+{
+	size_t ci;
+
+	for (ci = 0; ci < nc; ci++) {
+		if (!strcmp(conds[ci].status, "OK"))
+			continue;
+		if (!strcmp(conds[ci].type, "KeyringSealed"))
+			*keyrings_open = true;
+		else if (!strcmp(conds[ci].type, "ChainIntact") ||
+			 !strcmp(conds[ci].type, "TpmMeasured"))
+			*tpm_open = true;
+	}
+}
+
+static void print_summary(const struct status_view *v, const char *verdict,
+			  const char *reason)
+{
+	printf("%-22s %s\n", "Host:", v->hostname);
+	printf("%-22s %s\n", "Roles:",
+	       roles_str(v->is_target, v->is_operator));
+	if (reason[0])
+		printf("%-22s %s  (%s)\n", "Status:", verdict, reason);
+	else
+		printf("%-22s %s\n", "Status:", verdict);
+	printf("%-22s %s\n", "Version ID:", shirudo_version_id);
+	printf("\n");
+}
+
+static void print_guard_counts(const struct guard_counts *counts)
+{
+	printf("\nTamper attempts (this boot):\n");
+	print_counters(counts->tamper_rc, counts->tamper.total,
+		       counts->tamper.count, TAMPER_MAX, tamper_name,
+		       tamper_meaning);
+	printf("\nIntegrity attempts (this boot):\n");
+	print_counters(counts->integrity_rc, counts->integrity.total,
+		       counts->integrity.count, INTEGRITY_MAX,
+		       integrity_name, integrity_meaning);
+}
+
+static void print_keyrings(const struct status_view *v)
+{
+	printf("\nKeyring (.bpf):\n");
+	print_keyring_serials(&v->bpf);
+	if (v->certs_rc == 0) {
+		printf("  %-22s %zu trusted, %zu revoked, %zu "
+		       "unvouched", "Certificates:", v->certs.n,
+		       v->certs.n_revoked, v->certs.n_unvouched);
+		if (v->certs_enrolled >= 0)
+			printf(", %d in the bpf keyring", v->certs_enrolled);
+		printf("\n");
+		print_keyring_certs(&v->bpf, "primary",
+				    "enrolled at the next boot");
+	}
+	print_other_links(&v->bpf);
+	printf("\nKeyring (.dm-verity):\n");
+	print_keyring_serials(&v->dmv);
+	if (v->dmv.certs_rc == 0) {
+		printf("  %-22s %zu trusted", "Certificates:",
+		       v->dmv.n_certs);
+		if (!v->dmv.links_rc)
+			printf(", %zu in the dm-verity keyring",
+			       v->dmv.n_asymmetric);
+		printf("\n");
+		print_keyring_certs(&v->dmv, "config", "missing");
+	} else if (v->dmv.certs_rc != -ENOENT) {
+		printf("  %-22s unreadable: %s\n", "Certificates:",
+		       strerror(-v->dmv.certs_rc));
+	}
+	print_other_links(&v->dmv);
+}
+
+static void print_tpm(const struct status_tpm *t)
+{
+	printf("\nTPM measurement:\n");
+	printf("  %-22s %s (%s)\n", "TPM:",
+	       t->cst.tpm ? "reachable" : "not reachable", t->tcti);
+	printf("  %-22s %s (anchored in PCR %u)\n", "NV index:",
+	       t->nv_index, CHAIN_PCR);
+	if (t->chain_rc == 0) {
+		printf("  %-22s %s\n", "Chain:", t->chain_hex);
+		printf("  %-22s %s\n", "Register name:", t->name_hex);
+		printf("  %-22s %s\n", "Anchored:",
+		       t->cst.anchored ? "yes, name on record" :
+		       "no, the index is not the one init bound");
+	} else if (!t->cst.tpm) {
+		printf("  %-22s %s\n", "Chain:",
+		       "unavailable, no TPM answered");
+	} else if (t->chain_rc == -ENODEV) {
+		printf("  %-22s %s\n", "Chain:",
+		       "unavailable, register not bound this "
+		       "boot");
+	} else {
+		printf("  %-22s unavailable, TPM error: %s\n",
+		       "Chain:", strerror(-t->chain_rc));
+	}
+	if (t->cst.logged) {
+		printf("  %-22s %s\n", "PCR before init:",
+		       t->pcr_before_hex);
+		printf("  %-22s %s (PCR %u)\n", "Phase at init:",
+		       t->phase_before_hex, CHAIN_PHASE_PCR);
+		printf("  %-22s %s\n", "Bound in:",
+		       t->cst.init.initrd ? "initrd" :
+		       "root file system");
+	}
+	if (t->cst.rebound)
+		printf("  %-22s %u for this TPM reset, "
+		       "rebound after init\n",
+		       "Init records:",
+		       t->cst.init.records_epoch);
+	printf("  %-22s %s\n", "Chain vs eventlog:",
+	       t->match < 0 ? "not evaluated" :
+	       t->match ? "matches" : "mismatch");
+	if (t->ev_rc == 0)
+		printf("  %-22s %s  (%ld entries, %ld bytes)\n",
+		       "Eventlog:", eventlog_path(),
+		       t->ev_entries, t->ev_bytes);
+	else
+		printf("  %-22s absent\n", "Eventlog:");
+}
+
+static void print_assets(const struct asset_view *assets)
+{
+	printf("\nAssets (%s):\n", VAR_LIB);
+	printf("  %-22s %s\n", "keys/cert.der",
+	       assets->cert ? "present" : "absent");
+	printf("  %-22s %s\n", "keys/signing_key.pem",
+	       assets->signing_key ? "present" : "absent");
+	if (assets->eventlog)
+		printf("  %-22s present (%ld bytes)\n",
+		       "eventlog", assets->eventlog_bytes);
+	else
+		printf("  %-22s absent\n", "eventlog");
+	if (assets->n_upatches < 0)
+		printf("  %-22s absent\n", "upatches/");
+	else
+		printf("  %-22s %d archived\n", "upatches/",
+		       assets->n_upatches);
+	printf("  %-22s %s\n", "bpffs/",
+	       assets->bpffs_mounted ? "mounted" :
+	       "not mounted");
+}
+
+static void print_folded(const char *const *folded, size_t nf)
+{
+	size_t i;
+
+	printf("\nFolded:");
+	for (i = 0; i < nf; i++)
+		printf("%s %s", i ? "," : "", folded[i]);
+	printf(" (--show-full)\n");
+}
+
+static void status_print_text(const struct status_view *v,
+			      const struct status_args *a)
+{
+	struct condition conds[CONDITIONS_MAX];
+	struct upatch_table_row *rows = NULL;
+	bool keyrings_open, tpm_open;
+	const char *folded[3];
+	size_t n_rows = 0;
+	size_t nc, nf = 0;
+	const char *verdict;
+	char reason[160];
+
+	verdict = status_verdict(&v->cin);
+	status_reason(&v->cin, reason, sizeof(reason));
+	nc = conditions(&v->cin, conds, ARRAY_SIZE(conds));
+	n_rows = build_upatches_table(v->ups, v->n_ups, &rows);
+	/*
+	 * A section a condition vouches for says nothing the
+	 * condition did not: it unfolds when that condition is not
+	 * OK on a target, or on request.
+	 */
+	keyrings_open = a->show_full;
+	tpm_open = a->show_full;
+	if (v->is_target)
+		unfold_sections(conds, nc, &keyrings_open, &tpm_open);
+	print_summary(v, verdict, reason);
+	conditions_print(conds, nc);
+	print_guard_counts(&v->counts);
+	upatch_table_print(rows, n_rows);
+	xfree(rows, n_rows * sizeof(*rows));
+	rows = NULL;
+	if (keyrings_open)
+		print_keyrings(v);
+	else
+		folded[nf++] = "keyrings";
+	if (tpm_open)
+		print_tpm(&v->tpm);
+	else
+		folded[nf++] = "TPM measurement";
+	if (a->include_eventlog)
+		print_eventlog_table();
+	if (a->show_full)
+		print_assets(&v->assets);
+	else
+		folded[nf++] = "assets";
+	if (a->include_system)
+		print_system_human(&v->sysi);
+	if (nf)
+		print_folded(folded, nf);
+}
+
+int cmd_status(int argc, const char **argv)
+{
+	struct config otel_cfg __cleanup(config_clear) = {};
+	bool otel_endpoint_configured = false;
+	struct otel_opts otel_opts = {};
+	struct status_args a = {};
+	struct status_view v = {};
+	int ret;
+
+	ret = status_parse_args(&a, argc, argv);
+	if (ret)
+		return ret == OPT_DONE ? 0 : EXIT_USAGE;
+	if (a.otel) {
+		ret = status_otel_load(&otel_cfg, &otel_opts);
+		if (ret)
+			return ret;
+		otel_endpoint_configured =
+			status_otel_endpoint_configured(&otel_cfg);
+	}
+
+	status_gather(&v, a.include_system);
+	if (a.keepalive || (a.otel && otel_endpoint_configured))
+		ret = status_keepalive(&v.cin, &v.tpm.cst, &v.counts,
+				       v.config_state ? NULL :
+				       v.config_root_hex,
+				       a.otel ? &otel_opts : NULL);
+	if (a.otel && !otel_endpoint_configured && v.config_state &&
+	    v.config_state != -ENODEV)
+		pr_warn("status: no keepalive is sent: with the config activation %s, no export endpoint is known, since a config image is used only when its activation record vouches for it; OTEL_EXPORTER_OTLP_ENDPOINT in /etc/shirudo/map-export.env still names one",
+			v.config_state == -EINPROGRESS ? "pending" :
+			"unverifiable");
+	if (a.json_stdout) {
+		if (status_print_json(&v, &a))
+			ret = 1;
+	} else if (!a.keepalive && !a.otel) {
+		status_print_text(&v, &a);
+	}
+	if (a.check && !ret && !strcmp(status_verdict(&v.cin), "tampered"))
+		ret = 1;
+	status_view_free(&v);
 	return ret;
 }
