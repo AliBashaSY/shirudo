@@ -3,6 +3,7 @@
 
 #include <shirudo/byteorder.h>
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include <errno.h>
@@ -45,8 +46,8 @@ static int verity_hash_blocks(__u64 data_blocks, __u64 *out)
 					CONFIG_IMAGE_BLOCK_SIZE)
 		return -EFBIG;
 	while (data_blocks > 1) {
-		data_blocks = (data_blocks + VERITY_DIGESTS_PER_BLOCK - 1) /
-			      VERITY_DIGESTS_PER_BLOCK;
+		data_blocks = DIV_ROUND_UP(data_blocks,
+					   VERITY_DIGESTS_PER_BLOCK);
 		total += data_blocks;
 	}
 	*out = total;

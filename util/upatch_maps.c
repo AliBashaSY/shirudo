@@ -343,7 +343,7 @@ static char *btf_format_int(const struct btf_type *t, const void *bytes,
 	__u32 bits = BTF_INT_BITS(enc_word);
 	__u32 encoding = BTF_INT_ENCODING(enc_word);
 	bool is_signed = (encoding & BTF_INT_SIGNED) != 0;
-	__u8 bytes_used = (__u8)((bits + 7) / 8);
+	__u8 bytes_used = (__u8)DIV_ROUND_UP(bits, 8);
 
 	if (bytes_used == 0 || bytes_used > bytes_size || bytes_used > 8)
 		return xasprintf("?");
@@ -375,7 +375,7 @@ static char *btf_format_bitfield(const struct btf *btf, __u32 type_id,
 				 const void *bytes, __u32 bytes_size,
 				 __u32 bit_off, __u32 bit_size)
 {
-	__u32 shift = bit_off % 8, n = (shift + bit_size + 7) / 8, i;
+	__u32 shift = bit_off % 8, n = DIV_ROUND_UP(shift + bit_size, 8), i;
 	const __u8 *b = (const __u8 *)bytes + bit_off / 8;
 	const struct btf_type *t;
 	bool is_signed = false;

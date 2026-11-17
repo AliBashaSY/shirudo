@@ -690,7 +690,7 @@ static int json_btf_value(struct json_emit *e, const struct btf *btf,
 			}
 			json_key(e, name);
 			if (bit_size) {
-				__u32 n = (bit_off % 8 + bit_size + 7) / 8;
+				__u32 n = DIV_ROUND_UP(bit_off % 8 + bit_size, 8);
 				__u32 j;
 				const struct btf_type *member_type =
 					btf__type_by_id(btf,

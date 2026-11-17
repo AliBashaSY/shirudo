@@ -28,6 +28,7 @@
 #include <openssl/x509_vfy.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "crypto.h"
@@ -588,7 +589,7 @@ int base64_decode(const char *in, size_t in_len, __u8 *out,
 	EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
 	int n = 0, fin = 0, ret = -EINVAL;
 
-	if (!ctx || in_len > INT_MAX || cap < 3 * ((in_len + 3) / 4))
+	if (!ctx || in_len > INT_MAX || cap < 3 * DIV_ROUND_UP(in_len, 4))
 		goto out;
 	EVP_DecodeInit(ctx);
 	if (EVP_DecodeUpdate(ctx, out, &n, (const __u8 *)in,

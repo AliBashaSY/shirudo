@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
 #include "crypto.h"
@@ -39,7 +40,7 @@ static const char * const cond_order[] = {
 
 int keepalive_mask(const __u8 *codes, size_t n, char *b64, size_t cap)
 {
-	size_t len = (n + CODES_PER_BYTE - 1) / CODES_PER_BYTE, i;
+	size_t len = DIV_ROUND_UP(n, CODES_PER_BYTE), i;
 	__u8 raw[KEEPALIVE_MASK_BYTES] = {};
 
 	if (n > KEEPALIVE_MASK_OPS)
