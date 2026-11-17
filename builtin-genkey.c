@@ -30,6 +30,7 @@
 #include "util/help.h"
 #include "util/identity.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/crypto.h"
 #include "util/paths.h"
 #include "util/seal.h"
@@ -369,14 +370,20 @@ static int replace_pair(const char *pkey_new, const char *pkey_path,
 	return 0;
 }
 
-static const struct help_item genkey_options[] = {
-	{ "--force, -f",      "overwrite an existing key/cert (refused otherwise)" },
-	{ "--keys-dir <dir>", "write signing_key.pem and cert.der under <dir> "
-			      "instead of the default" },
+enum genkey_opt {
+	GENKEY_FORCE,
+	GENKEY_KEYS_DIR,
+};
+
+static const struct opt_spec genkey_opts[] = {
+	[GENKEY_FORCE] = { "--force", 'f', 0, NULL,
+		"overwrite an existing key/cert (refused otherwise)" },
+	[GENKEY_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"write signing_key.pem and cert.der under <dir> instead of the default" },
 };
 
 static const struct help_section genkey_help_sections[] = {
-	HELP_ITEMS("options:", genkey_options),
+	HELP_OPTIONS("options:", genkey_opts),
 };
 
 static const struct help genkey_help = {
@@ -393,38 +400,35 @@ static const struct help genkey_help = {
 		   " environment variable\noverrides the default directory.",
 };
 
-static void usage(void)
-{
-	fprintf(stderr, "usage: %s\n", genkey_help.usage);
-}
-
 int cmd_genkey(int argc, const char **argv)
 {
 	const char *keys_dir_arg = NULL;
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
 	EVP_PKEY *pkey = NULL;
+	struct opt_parser p;
 	const char *keys_dir;
 	X509 *cert = NULL;
 	int force = 0;
 	int ret = 1;
+	int opt;
 
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--force") == 0 ||
-		    strcmp(argv[i], "-f") == 0) {
+	OPT_INIT(&p, "genkey", genkey_opts, &genkey_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case GENKEY_FORCE:
 			force = 1;
-		} else if (strcmp(argv[i], "--keys-dir") == 0 &&
-			   i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (strncmp(argv[i], "--keys-dir=", 11) == 0) {
-			keys_dir_arg = argv[i] + 11;
-		} else if (is_help(argv[i])) {
-			print_help(&genkey_help);
+			break;
+		case GENKEY_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		} else {
-			pr_err("genkey: unknown option '%s'", argv[i]);
-			usage();
-			return 2;
+		case OPT_ARG:
+			opt_usage(&p, "takes no argument, got '%s'", p.value);
+			return EXIT_USAGE;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 

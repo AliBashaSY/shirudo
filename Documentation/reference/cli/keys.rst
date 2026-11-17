@@ -176,8 +176,10 @@ Exit status
        or is the signing key's own, or signing or writing failed.
        ``revoke``: always.
    * - 2
-     - An unknown option or subcommand, a missing certificate or
-       ``--vouch``, an extra argument, or an unusable keys directory path.
+     - A usage error: an unknown option or subcommand, an option given
+       twice, a value missing or empty, a missing certificate or
+       ``--vouch``, or an extra argument. Or an unusable keys directory
+       path.
    * - 127
      - ``vouch``: ``shirudo`` cannot execute the helper.
 

@@ -42,6 +42,7 @@
 #include "util/keyring.h"
 #include "util/keys.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/seal.h"
@@ -489,14 +490,21 @@ static const struct help_item keys_subcmds[] = {
 	{ "vouch", "sign a vouch for a certificate (operator)" },
 };
 
-static const struct help_item keys_options[] = {
-	{ "--keys-dir <dir>", "read signing_key.pem and cert.der from <dir>" },
-	{ "--json",           "print the key material as JSON" },
+enum keys_opt {
+	KEYS_KEYS_DIR,
+	KEYS_JSON,
+};
+
+static const struct opt_spec keys_opts[] = {
+	[KEYS_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[KEYS_JSON] = { "--json", 0, 0, NULL,
+		"print the key material as JSON" },
 };
 
 static const struct help_section keys_help_sections[] = {
 	HELP_ITEMS("subcommands:", keys_subcmds),
-	HELP_ITEMS("options:", keys_options),
+	HELP_OPTIONS("options:", keys_opts),
 };
 
 static const struct help keys_help = {
@@ -517,18 +525,20 @@ static const struct help keys_help = {
 		   " environment variable.",
 };
 
-static void usage(void)
-{
-	fprintf(stderr, "usage: %s\n", keys_help.usage);
-}
+enum keys_add_opt {
+	KEYS_ADD_VOUCH,
+	KEYS_ADD_KEYS_DIR,
+};
 
-static const struct help_item keys_add_options[] = {
-	{ "--vouch <file>", "the vouch an enrolled key signed for the certificate" },
-	{ "--keys-dir <dir>", "the keys directory (default " KEYS_DIR ")" },
+static const struct opt_spec keys_add_opts[] = {
+	[KEYS_ADD_VOUCH] = { "--vouch", 0, 0, "<file>",
+		"the vouch an enrolled key signed for the certificate" },
+	[KEYS_ADD_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"the keys directory (default " KEYS_DIR ")" },
 };
 
 static const struct help_section keys_add_sections[] = {
-	HELP_ITEMS("options:", keys_add_options),
+	HELP_OPTIONS("options:", keys_add_opts),
 };
 
 static const struct help keys_add_help = {
@@ -630,36 +640,38 @@ static int keys_add(int argc, const char **argv)
 	char fp_hex[65], by_hex[65];
 	size_t der_sz = 0, sig_sz = 0;
 	char revoked[PATH_MAX];
+	struct opt_parser p;
 	const char *keys_dir;
 	char out[PATH_MAX];
-	int ret = 1;
+	int ret = 1, opt;
 	size_t i;
 
-	for (int a = 1; a < argc; a++) {
-		if (!strcmp(argv[a], "--vouch") && a + 1 < argc) {
-			vouch_path = argv[++a];
-		} else if (!strncmp(argv[a], "--vouch=", 8)) {
-			vouch_path = argv[a] + 8;
-		} else if (!strcmp(argv[a], "--keys-dir") && a + 1 < argc) {
-			keys_dir_arg = argv[++a];
-		} else if (!strncmp(argv[a], "--keys-dir=", 11)) {
-			keys_dir_arg = argv[a] + 11;
-		} else if (is_help(argv[a])) {
-			print_help(&keys_add_help);
+	OPT_INIT(&p, "keys add", keys_add_opts, &keys_add_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case KEYS_ADD_VOUCH:
+			vouch_path = p.value;
+			break;
+		case KEYS_ADD_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case OPT_ARG:
+			if (cert) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			cert = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		} else if (argv[a][0] == '-') {
-			pr_err("keys add: unknown option '%s'", argv[a]);
-			return 2;
-		} else if (!cert) {
-			cert = argv[a];
-		} else {
-			pr_err("keys add: unexpected argument '%s'", argv[a]);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!cert || !vouch_path) {
-		print_help(&keys_add_help);
-		return 2;
+		opt_usage(&p, "takes <cert.der> and --vouch <file>");
+		return EXIT_USAGE;
 	}
 	if (image_config_active()) {
 		pr_err("target: add vouched BPF signers to the signed "
@@ -963,7 +975,15 @@ int cmd_keys(int argc, const char **argv)
 {
 	const char *sub;
 
-	if (argc < 2 || argv[1][0] == '-' || is_help(argv[1]))
+	if (argc >= 2 && is_help(argv[1])) {
+		print_help(&keys_help);
+		return 0;
+	}
+	if (argc >= 2 && is_list_cmds(argv[1])) {
+		print_subcmd_list(keys_subcmds, ARRAY_SIZE(keys_subcmds));
+		return 0;
+	}
+	if (argc < 2 || argv[1][0] == '-')
 		return keys_show(argc, argv);
 	sub = resolve_subcommand("shirudo keys", argv[1], keys_subcmds,
 				 ARRAY_SIZE(keys_subcmds));
@@ -986,27 +1006,25 @@ static int keys_show(int argc, const char **argv)
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
 	bool shown = false, json = false, have_set = false;
-	int ret = 0, id_rc;
+	int ret = 0, id_rc, opt;
+	struct opt_parser p;
 
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--keys-dir") == 0 &&
-		    i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (strncmp(argv[i], "--keys-dir=", 11) == 0) {
-			keys_dir_arg = argv[i] + 11;
-		} else if (strcmp(argv[i], "--json") == 0) {
+	OPT_INIT(&p, "keys", keys_opts, &keys_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case KEYS_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case KEYS_JSON:
 			json = true;
-		} else if (is_help(argv[i])) {
-			print_help(&keys_help);
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
-		} else if (is_list_cmds(argv[i])) {
-			print_subcmd_list(keys_subcmds,
-					  ARRAY_SIZE(keys_subcmds));
-			return 0;
-		} else {
-			pr_err("keys: unknown option '%s'", argv[i]);
-			usage();
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 
