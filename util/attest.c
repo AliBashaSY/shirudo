@@ -651,24 +651,17 @@ struct reporter {
 	int	failed;
 };
 
-static void say(struct reporter *r, bool ok, const char *fmt, ...)
-	__printf(3, 4);
-
-static void say(struct reporter *r, bool ok, const char *fmt, ...)
+static __printf(3, 0) void report_line(struct reporter *r, const char *mark,
+				       const char *fmt, va_list ap)
 {
-	va_list ap;
 	int n;
 
-	if (!ok)
-		r->failed++;
 	if (r->len + 8 >= r->cap)
 		return;
-	n = strscpy(r->buf + r->len, ok ? "  OK    " : "  FAIL  ", r->cap - r->len);
+	n = strscpy(r->buf + r->len, mark, r->cap - r->len);
 	if (n > 0)
 		r->len += (size_t)n;
-	va_start(ap, fmt);
 	n = vstrsprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
-	va_end(ap);
 	if (n > 0)
 		r->len += (size_t)n;
 	if (r->len + 1 < r->cap) {
@@ -677,28 +670,30 @@ static void say(struct reporter *r, bool ok, const char *fmt, ...)
 	}
 }
 
+static void say(struct reporter *r, bool ok, const char *fmt, ...)
+	__printf(3, 4);
+
+static void say(struct reporter *r, bool ok, const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!ok)
+		r->failed++;
+	va_start(ap, fmt);
+	report_line(r, ok ? "  OK    " : "  FAIL  ", fmt, ap);
+	va_end(ap);
+}
+
 static void note(struct reporter *r, const char *fmt, ...)
 	__printf(2, 3);
 
 static void note(struct reporter *r, const char *fmt, ...)
 {
 	va_list ap;
-	int n;
 
-	if (r->len + 8 >= r->cap)
-		return;
-	n = strscpy(r->buf + r->len, "  NOTE  ", r->cap - r->len);
-	if (n > 0)
-		r->len += (size_t)n;
 	va_start(ap, fmt);
-	n = vstrsprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
+	report_line(r, "  NOTE  ", fmt, ap);
 	va_end(ap);
-	if (n > 0)
-		r->len += (size_t)n;
-	if (r->len + 1 < r->cap) {
-		r->buf[r->len++] = '\n';
-		r->buf[r->len] = '\0';
-	}
 }
 
 /* What the steps of attest_verify() share. */
