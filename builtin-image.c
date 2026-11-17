@@ -67,14 +67,16 @@ static int image_done(const char *sub, int ret)
 }
 
 /*
- * The arguments of an update or a stage: OPT_END with *prefix or, where
- * cancel is given, *cancel set, or OPT_DONE or OPT_USAGE to stop at.
+ * The arguments of an update or a stage: OPT_END with either *prefix or
+ * *cancel set, or OPT_DONE or OPT_USAGE to stop at. want names what the
+ * command takes.
  */
 static int image_target(struct opt_parser *p, bool *cancel,
-			const char **prefix)
+			const char **prefix, const char *want)
 {
 	int opt;
 
+	*cancel = false;
 	*prefix = NULL;
 	for (opt = opt_next(p); opt != OPT_END; opt = opt_next(p)) {
 		switch (opt) {
@@ -91,10 +93,8 @@ static int image_target(struct opt_parser *p, bool *cancel,
 			return opt;
 		}
 	}
-	if (cancel && *cancel == !!*prefix)
-		return opt_usage(p, "takes <prefix> or --cancel");
-	if (!cancel && !*prefix)
-		return opt_usage(p, "takes <prefix>");
+	if (*cancel == !!*prefix)
+		return opt_usage(p, "takes %s", want);
 	return OPT_END;
 }
 
@@ -102,10 +102,11 @@ static int image_update_cmd(int argc, const char **argv)
 {
 	const char *prefix;
 	struct opt_parser p;
+	bool cancel;
 	int ret;
 
 	opt_init(&p, "image update", NULL, 0, &image_help, argc, argv, 1);
-	ret = image_target(&p, NULL, &prefix);
+	ret = image_target(&p, &cancel, &prefix, "<prefix>");
 	if (ret != OPT_END)
 		return ret == OPT_DONE ? 0 : EXIT_USAGE;
 	return image_done("update", image_update(prefix));
@@ -113,14 +114,14 @@ static int image_update_cmd(int argc, const char **argv)
 
 static int image_stage_cmd(int argc, const char **argv)
 {
-	bool cancel = false;
 	const char *prefix;
 	struct opt_parser p;
+	bool cancel;
 	int ret;
 
 	OPT_INIT(&p, "image stage", image_stage_opts, &image_help, argc, argv,
 		 1);
-	ret = image_target(&p, &cancel, &prefix);
+	ret = image_target(&p, &cancel, &prefix, "<prefix> or --cancel");
 	if (ret != OPT_END)
 		return ret == OPT_DONE ? 0 : EXIT_USAGE;
 	return image_done("stage", cancel ? image_stage_cancel() :
