@@ -14,8 +14,10 @@ Every parser of input from outside the host gets a target in
 `testing/fuzz/fuzz-<name>.c` defines `LLVMFuzzerTestOneInput()`. System
 headers come first, then `"fuzz.h"`, then shirudo's headers, which
 poison the libc names they replace. A target that reaches a static
-function includes its `.c` file, a builtin's too. A parser that reads a
-file by name gets one from `fuzz_file()`, or `fuzz_gzip_file()`, both in
+function includes its `.c` file, a builtin's too, with a stub that
+`abort()`s for each function the builtin calls only on paths the target
+does not take, as `fuzz-bpm-info.c` does. A parser that reads a file by
+name gets one from `fuzz_file()`, or `fuzz_gzip_file()`, both in
 `fuzz.h`. A target whose code prints sends stdout to `/dev/null` in
 `LLVMFuzzerInitialize()`, as `fuzz-rodata.c` does, and one that needs a
 directory makes it under `TMPDIR` and removes it `atexit()`, as

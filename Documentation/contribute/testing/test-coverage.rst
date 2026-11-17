@@ -824,6 +824,9 @@ the functional tests run.
      - A Beefile
    * - ``bpm-index``
      - A repository index
+   * - ``bpm-info``
+     - A ``.bee`` package as ``bpm info`` prints its README, its
+       upatches and the ``.rodata`` of each, as text and as JSON
    * - ``bpm-package``
      - A ``.bee`` package as ``bpm install`` unpacks it
    * - ``bpm-tar``
@@ -879,11 +882,11 @@ the functional tests run.
    * - ``upatch-info``
      - A ``.upatch`` as ``upatch info`` prints it, as text and as JSON
 
-``upatch-info`` holds what its command prints from a file it has not
-verified to what ``text_sanitize()`` leaves for a terminal, UTF-8 with
-no control character but a tab, a line feed and a carriage return
-before a line feed, and its JSON to one document :src:`util/json.c`
-reads.
+``bpm-info`` and ``upatch-info`` hold what their command prints from a
+file it has not verified to what ``text_sanitize()`` leaves for a
+terminal, UTF-8 with no control character but a tab, a line feed and a
+carriage return before a line feed, and its JSON to one document
+:src:`util/json.c` reads.
 
 Backend tests
 ~~~~~~~~~~~~~
@@ -966,8 +969,9 @@ Coverage by area
    * - Packages and repositories
      - ``t7001``, ``t7002``, ``t7003``, ``t7004``, ``t7005``,
        ``t7006``. Fuzz:
-       ``beefile``, ``bpm-index``, ``bpm-package``, ``bpm-tar``,
-       ``oci-http``, ``oci-manifest``, ``oci-ref``, ``registry-auth``. Unit:
+       ``beefile``, ``bpm-index``, ``bpm-info``, ``bpm-package``,
+       ``bpm-tar``, ``oci-http``, ``oci-manifest``, ``oci-ref``,
+       ``registry-auth``. Unit:
        ``bpm_oci``, ``bpm_package``
    * - upatch tree
      - ``t3011``, ``t5004``, ``t7005``, ``t7007``, ``t7008``, ``t7009``,
