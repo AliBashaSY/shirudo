@@ -367,13 +367,14 @@ QUOTE_CHECK_OBJS := $(foreach s,$(QUOTE_CHECK_SRCS),$(call obj,$(s:.c=.o)))
 
 MAIN_OBJ     := $(call obj,shirudo.o)
 VERSION_OBJ  := $(call obj,util/version_id.o)
+SIGN_OBJ     := $(call obj,util/sign.o)
 
 # Header-dependency tracking (-MMD -MP writes a .d per .o). Without this,
 # changing a header would leave dependent .o files stale -- e.g. a struct
 # whose size grew in a header but whose .c was not re-touched, producing
 # an ABI mismatch and memory corruption at runtime.
 DEP_OBJS := $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) $(VERSION_OBJ) \
-            $(BUILD_OBJS) $(QUOTE_CHECK_OBJS)
+            $(BUILD_OBJS) $(SIGN_OBJ) $(QUOTE_CHECK_OBJS)
 DEPS     := $(DEP_OBJS:.o=.d)
 
 # ----- top-level goals --------------------------------------------
@@ -544,7 +545,7 @@ build/target/util/loader.o: $(BPF_OBJS)
 # --unload directive emission path), and the OCI client for the
 # operator-only `bpm build|push|tree append|tree show`. Not linked into
 # the core shirudo binary.
-tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o util/config_image.o \
+tools/shirudo-build/shirudo-build: $(BUILD_OBJS) $(SIGN_OBJ) util/config_image.o \
                                    util/log.o util/json.o util/loader.o \
                                    util/io.o util/malloc.o util/paths.o util/config.o \
                                    util/image_config.o util/upatch.o util/timefmt.o \
@@ -1296,7 +1297,8 @@ clean:
 	$(Q)rm -f shirudo shirudo-target tools/shirudo-build/shirudo-build $(TEST_HELPERS)
 	$(Q)rm -f tools/quote-check/shirudo-quote-check
 	$(Q)rm -f $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) \
-	          $(BUILD_OBJS) $(QUOTE_CHECK_OBJS) $(VERSION_OBJ) util/version_id.c
+	          $(BUILD_OBJS) $(SIGN_OBJ) $(QUOTE_CHECK_OBJS) $(VERSION_OBJ) \
+	          util/version_id.c
 	$(Q)rm -rf build/target build/unit build/quote-check
 	$(Q)rm -f $(DEPS) testing/helper/*.d
 	$(Q)rm -f $(BPF_OBJS) $(VMLINUX_H) systemd/shirudo.service \
