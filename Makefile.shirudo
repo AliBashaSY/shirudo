@@ -1235,7 +1235,8 @@ $(FUZZ_OUT)/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
 $(FUZZ_OUT)/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
                            util/upatch_decode.c util/upatch.c util/io.c \
                            util/crypto_openssl.c $(FUZZ_SEAL)
-$(FUZZ_OUT)/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
+$(FUZZ_OUT)/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT \
+	-DFUZZ_SOURCE_TREE='"$(CURDIR)"'
 $(FUZZ_OUT)/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
 $(FUZZ_OUT)/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/curl.c \
