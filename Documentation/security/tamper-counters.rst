@@ -136,8 +136,10 @@ counter.
      - ``lsm.s/inode_unlink``, ``lsm.s/inode_rmdir``
      - ``EACCES``
    * - ``SealRename``
-     - rename of or over a sealed file
-     - ``lsm.s/inode_rename``: a labeled source or victim
+     - rename of or over a sealed file, or of or over a directory above
+       the state root
+     - ``lsm.s/inode_rename``: a labeled source or victim, or one that
+       carries the ``security.bpf.shirudo.ancestor`` mark
      - ``EACCES``
    * - ``SealSetattr``
      - truncate, chmod, chown, utimes or chattr of a sealed file
@@ -151,8 +153,8 @@ counter.
    * - ``SealLabel``
      - seal or policy label changed by another executable
      - ``lsm.s/inode_setxattr`` or ``lsm.s/inode_removexattr``: the exact
-       names ``security.bpf.shirudo`` or
-       ``security.bpf.shirudo.policy`` on any inode
+       names ``security.bpf.shirudo``, ``security.bpf.shirudo.policy`` or
+       ``security.bpf.shirudo.ancestor`` on any inode
      - ``EACCES``
    * - ``SealPtrace``
      - ptrace of a shirudo task

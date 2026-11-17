@@ -492,6 +492,10 @@ signed config image.
      - A directory of the config image bound in place of its mount, in a
        namespace with a ``/run`` of root's making, is refused as the
        config
+   * - ``t6150-ancestor-rename``
+     - The directories above the state root carry the ancestor mark; a
+       rename of one and the removal of the mark are refused and counted,
+       and a directory beside the state root still renames
 
 ``bpm`` (7)
 ~~~~~~~~~~~

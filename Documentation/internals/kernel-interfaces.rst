@@ -327,7 +327,8 @@ Kfuncs and helpers
    * - Kfunc
      - Use
    * - ``bpf_get_file_xattr()``, ``bpf_get_dentry_xattr()``
-     - Read ``security.bpf.shirudo`` and ``security.bpf.shirudo.policy``.
+     - Read ``security.bpf.shirudo``, ``security.bpf.shirudo.policy``
+       and ``security.bpf.shirudo.ancestor``.
        Sleepable; upstream they check ``MAY_READ`` for the calling task
        first, which the carried patch 0002 skips for ``security.bpf.``
        names.

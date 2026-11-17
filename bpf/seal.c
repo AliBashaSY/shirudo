@@ -130,6 +130,17 @@ static __always_inline bool seal_is_policy(const char *name)
 	return !bpf_strncmp(buf, sizeof(XATTR_POLICY), XATTR_POLICY);
 }
 
+static __always_inline bool seal_is_ancestor(const char *name)
+{
+	char buf[sizeof(XATTR_ANCESTOR) + 1];
+	long n;
+
+	n = bpf_probe_read_kernel_str(buf, sizeof(buf), name);
+	if (n != sizeof(XATTR_ANCESTOR))
+		return false;
+	return !bpf_strncmp(buf, sizeof(XATTR_ANCESTOR), XATTR_ANCESTOR);
+}
+
 static __always_inline struct seal_scratch *
 seal_scratch_get(struct task_struct *task)
 {
@@ -515,6 +526,32 @@ int BPF_PROG(shirudo_seal_inode_link, const struct mnt_idmap *idmap,
 	return seal_parent(new_dentry, TAMPER_SEAL_ENTRY);
 }
 
+/*
+ * A rename of a directory above the state root, /var/lib say, moves the
+ * sealed tree aside, and the next boot's bootstrap init labels whatever
+ * root then puts at the path as shirudo's. init marks those directories
+ * with an xattr of their own, which only this check reads: the seal
+ * label would refuse root every new entry there.
+ */
+static __always_inline int seal_ancestor(struct dentry *dentry)
+{
+	struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+	struct seal_scratch *s;
+	struct bpf_dynptr tdp;
+	int len;
+
+	if (!inode || !seal_is_dir(inode))
+		return 0;
+	s = seal_scratch_get(bpf_get_current_task_btf());
+	if (!s)
+		return seal_caller(TAMPER_SEAL_RENAME);
+	bpf_dynptr_from_mem(s->target, LABEL_LEN, 0, &tdp);
+	len = bpf_get_dentry_xattr(dentry, XATTR_ANCESTOR, &tdp);
+	if (len == -ENODATA || len == -EOPNOTSUPP)
+		return 0;
+	return seal_caller(TAMPER_SEAL_RENAME);
+}
+
 /* Protect the source, the destination directory and an existing target. */
 SEC("lsm.s/inode_rename")
 int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
@@ -529,12 +566,16 @@ int BPF_PROG(shirudo_seal_inode_rename, struct inode *old_dir,
 	err = seal_dentry(old_dir, old_dentry, TAMPER_SEAL_RENAME);
 	if (err)
 		return err;
+	err = seal_ancestor(old_dentry);
+	if (err)
+		return err;
 	err = seal_parent(new_dentry, TAMPER_SEAL_ENTRY);
 	if (err)
 		return err;
 	if (!target)
 		return 0;
-	return seal_dentry(new_dir, new_dentry, TAMPER_SEAL_RENAME);
+	err = seal_dentry(new_dir, new_dentry, TAMPER_SEAL_RENAME);
+	return err ? err : seal_ancestor(new_dentry);
 }
 
 /* Truncate, chmod, chown and utimes all come through here. */
@@ -552,7 +593,8 @@ int BPF_PROG(shirudo_seal_inode_setxattr, struct mnt_idmap *idmap,
 {
 	if (ret)
 		return ret;
-	if (seal_is_label(name) || seal_is_policy(name))
+	if (seal_is_label(name) || seal_is_policy(name) ||
+	    seal_is_ancestor(name))
 		return seal_caller(TAMPER_SEAL_LABEL);
 	return seal_dentry(NULL, dentry, TAMPER_SEAL_XATTR);
 }
@@ -568,7 +610,8 @@ int BPF_PROG(shirudo_seal_inode_removexattr, struct mnt_idmap *idmap,
 {
 	if (ret)
 		return ret;
-	if (seal_is_label(name) || seal_is_policy(name))
+	if (seal_is_label(name) || seal_is_policy(name) ||
+	    seal_is_ancestor(name))
 		return seal_caller(TAMPER_SEAL_LABEL);
 	return seal_dentry(NULL, dentry, TAMPER_SEAL_XATTR);
 }

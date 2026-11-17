@@ -425,6 +425,14 @@ Extended attributes
        bitset. Exec ORs the original file and interpreter values into
        task storage. Only a task with runtime authority may set, update
        or remove it (``SealLabel``).
+   * - ``security.bpf.shirudo.ancestor``
+     - Each directory above ``/var/lib/shirudo`` on its file system,
+       ``/var/lib`` and ``/var`` when the state is on the root file
+       system.
+     - ``1``, set by the run of ``init`` that brings enforcement up. The
+       seal refuses a task without runtime authority a rename of or over
+       a directory that carries it (``SealRename``), and the setting or
+       removal of it on any inode (``SealLabel``).
    * - ``security.bpf.shirudo.payload``
      - Each ``upatches/<bpffs-name>/`` directory in the private bpffs.
      - 32 bytes, the ``payload_sha256`` of the loaded upatch. Set after

@@ -685,6 +685,15 @@ runtime authority (``SealWrite``, ``SealUnlink``, ``SealRename``,
 label. Only an authorized task sets or removes the exact seal label or
 changes the policy label on any inode (``SealLabel``).
 
+A rename of a directory above the state root, ``/var/lib`` say, would
+move the sealed tree aside for the next boot's bootstrap run of
+``init`` to label whatever root then puts at the path. That run marks
+the directories above the state root on its file system with
+``security.bpf.shirudo.ancestor``, and the seal refuses a task without
+authority a rename of a marked directory or over it (``SealRename``)
+and the setting or removal of the mark (``SealLabel``) (``t6150``).
+What the next boot mounts at the path stays root's choice (R19).
+
 The label is a public constant, the same on every build. It marks a
 target and never grants authority: a file system root mounts can carry
 it, and a binary that carries it gains nothing. A label read that fails
@@ -884,7 +893,7 @@ An authorized process is protected against being taken over:
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
-   ``t6149``
+   ``t6149``, ``t6150``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts
@@ -1627,7 +1636,12 @@ R19 Raw device and offline writes bypass the seal
    The seal guards file operations. A write to the block device under
    ``/var/lib/shirudo`` while it is mounted (A10), or any change between
    boots, bypasses it. Removing the label from the state root offline
-   makes the next bootstrap run of ``init`` label everything under it.
+   makes the next bootstrap run of ``init`` label everything under it,
+   and so does another tree at ``/var/lib/shirudo`` on the next boot,
+   which root chooses on the running system too: the root file system's
+   ``fstab`` decides what the initrd mounts at ``/var`` and below
+   (``x-initrd.mount``). Only the rename of a directory above the state
+   root on its own file system is refused (T3).
    Across reboots only signatures and the register protect state:
    upatches are verified at load and measured in the init event, and
    the package, tree and config selection state is not authenticated.

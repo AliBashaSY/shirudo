@@ -208,6 +208,14 @@ Setting or removing the attribute ``security.bpf.shirudo`` itself, or
 labeled or not (``SealLabel``), so root cannot label an inode of its own
 as shirudo's.
 
+The directories above the state root are not labeled, since root makes
+entries in ``/var/lib`` freely, but renaming one would move the sealed
+tree aside, and the next boot's bootstrap run would label whatever root
+put at ``/var/lib/shirudo``. That run marks each of them, up to the root
+of the state's file system, with ``security.bpf.shirudo.ancestor``, and
+a rename of a marked directory, or over one, needs runtime authority
+(``SealRename``), as does setting or removing the mark (``SealLabel``).
+
 A labeled directory takes new entries only from a task with runtime
 authority: ``inode_create``, ``inode_mkdir``, ``inode_symlink``,
 ``inode_mknod``, ``inode_link`` and a rename into it (``SealEntry``).

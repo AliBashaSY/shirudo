@@ -34,6 +34,69 @@ int seal_label(const char *path)
 	return 0;
 }
 
+static int open_parent(int fd, struct stat *st)
+{
+	int parent;
+
+	parent = openat(fd, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (parent < 0)
+		return -errno;
+	if (fstat(parent, st)) {
+		int err = -errno;
+
+		close(parent);
+		return err;
+	}
+	return parent;
+}
+
+/*
+ * A directory whose parent is another file system, or itself, is the
+ * root of its own: renaming it does not move the state tree off the
+ * device the next boot mounts there.
+ */
+int seal_mark_ancestors(const char *root)
+{
+	struct stat st, cur, up;
+	int fd, parent, ret;
+
+	fd = open(root, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	if (fstat(fd, &st)) {
+		ret = -errno;
+		goto out;
+	}
+	ret = open_parent(fd, &cur);
+	if (ret < 0)
+		goto out;
+	close(fd);
+	fd = ret;
+	while (cur.st_dev == st.st_dev) {
+		parent = open_parent(fd, &up);
+		if (parent < 0) {
+			ret = parent;
+			goto out;
+		}
+		if (up.st_dev != cur.st_dev || up.st_ino == cur.st_ino) {
+			close(parent);
+			break;
+		}
+		if (fsetxattr(fd, XATTR_ANCESTOR, "1", 1, 0)) {
+			ret = -errno;
+			close(parent);
+			goto out;
+		}
+		close(fd);
+		fd = parent;
+		cur = up;
+	}
+	ret = 0;
+out:
+	close(fd);
+	return ret;
+}
+
 /*
  * nftw is callback-only with no user pointer, so the root device is
  * passed via a file-scope variable -- shirudo init is single-threaded

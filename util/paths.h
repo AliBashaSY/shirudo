@@ -127,6 +127,7 @@
 
 #define XATTR_SEAL		"security.bpf.shirudo"
 #define XATTR_POLICY		"security.bpf.shirudo.policy"
+#define XATTR_ANCESTOR		"security.bpf.shirudo.ancestor"
 
 /*
  * Per-upatch payload_sha256 recorded on the pin directory in bpffs.

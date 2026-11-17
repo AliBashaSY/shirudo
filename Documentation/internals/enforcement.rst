@@ -527,8 +527,8 @@ when the record it needs is missing.
        ``lsm.s/inode_setattr``, ``lsm.s/inode_removexattr`` (``seal``)
      - The operation on a labeled inode to a task without authority.
        Setattr covers truncate, chmod, chown and timestamps. Removing the
-       seal or the policy label is refused on any inode without
-       authority.
+       seal or the policy label or the ancestor mark is refused on any
+       inode without authority.
      - ``EACCES``
      - ``SealUnlink``, ``SealSetattr``, ``SealXattr``, ``SealLabel``
      - See the label verdict below.
@@ -540,8 +540,9 @@ when the record it needs is missing.
      - ``SealXattr``, ``SealSetattr``
      - See the label verdict below.
    * - ``lsm.s/inode_setxattr`` (``seal``)
-     - Setting ``security.bpf.shirudo`` or
-       ``security.bpf.shirudo.policy`` on any inode, and any other name
+     - Setting ``security.bpf.shirudo``,
+       ``security.bpf.shirudo.policy`` or
+       ``security.bpf.shirudo.ancestor`` on any inode, and any other name
        on a labeled inode, to a task without authority. Policy values
        must be exactly 8 bytes.
      - ``EACCES``
@@ -549,7 +550,8 @@ when the record it needs is missing.
      - See the label verdict below.
    * - ``lsm.s/inode_rename`` (``seal``)
      - A labeled source, a labeled destination directory or a labeled
-       inode it would replace, to a task without authority.
+       inode it would replace, or a source or replaced directory that
+       carries the ancestor mark, to a task without authority.
      - ``EACCES``
      - ``SealRename``, ``SealEntry``
      - See the label verdict below.

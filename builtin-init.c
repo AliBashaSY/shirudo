@@ -1345,6 +1345,14 @@ static void usage(void)
 	fprintf(stderr, "usage: %s\n", init_help.usage);
 }
 
+/* Where the state tree is on the root file system, which the initrd binds. */
+static int state_source(char *buf, size_t cap)
+{
+	if (!initrd_mode)
+		return strscpy(buf, VAR_LIB, cap);
+	return strsprintf(buf, cap, "%s%s", sysroot(), VAR_LIB);
+}
+
 /*
  * The initrd phase reads the root's state tree: the archived upatches
  * to restore, the eventlog to continue, the keys to compare. A
@@ -1372,8 +1380,7 @@ static int initrd_enter(void)
 		pr_err("initrd: the root file system is not an initramfs");
 		return -ENOTBLK;
 	}
-	if (strsprintf(src, sizeof(src), "%s%s", sysroot(),
-		       VAR_LIB) < 0)
+	if (state_source(src, sizeof(src)) < 0)
 		return -ENAMETOOLONG;
 	if (stat(src, &st) != 0 || !S_ISDIR(st.st_mode)) {
 		pr_err("initrd: %s is not a directory; the root file system "
@@ -1451,6 +1458,15 @@ static int run_init(void)
 	ret = seal_label_tree(bootstrap);
 	if (ret)
 		return init_phase_error(ret, "sealing persistent state");
+	if (bootstrap) {
+		char src[PATH_MAX];
+
+		ret = state_source(src, sizeof(src));
+		if (ret >= 0)
+			ret = seal_mark_ancestors(src);
+		if (ret)
+			return init_phase_error(ret, "marking the directories above the state root");
+	}
 	ret = eventlog_adopt_pending();
 	if (ret)
 		return init_phase_error(ret, "adopting the pending eventlog");

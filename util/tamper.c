@@ -65,7 +65,7 @@ static const struct {
 	[TAMPER_SEAL_UNLINK] = { "SealUnlink",
 		"unlink of a sealed file or removal of a sealed directory" },
 	[TAMPER_SEAL_RENAME] = { "SealRename",
-		"rename of or over a sealed file" },
+		"rename of or over a sealed file or a directory above the state root" },
 	[TAMPER_SEAL_SETATTR] = { "SealSetattr",
 		"truncate, chmod, chown, utimes or chattr of a sealed file" },
 	[TAMPER_SEAL_XATTR] = { "SealXattr",
