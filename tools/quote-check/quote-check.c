@@ -10,26 +10,25 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "help.h"
 #include "io.h"
 #include "malloc.h"
+#include "options.h"
 #include "row.h"
 
-static void usage(FILE *fp)
-{
-	fprintf(fp,
-		"usage: shirudo-quote-check\n"
-		"\n"
-		"Reads TabSeparated rows from standard input until it ends:\n"
-		"  <attest>\\t<sig>\\t<ak>\\t<body_sha256>\n"
-		"attest, sig and ak are a keepalive quote's TPMS_ATTEST and\n"
-		"TPMT_SIGNATURE and the signing key's TPMT_PUBLIC, in standard\n"
-		"base64. body_sha256 is the SHA-256 of the record's body, 64\n"
-		"hex digits. Writes one JSON line per row, in order:\n"
-		"  {\"ok\":1,\"ak_name\":\"<hex>\",\"ak_public\":\"<base64>\",\n"
-		"   \"reset_count\":<n>,\"clock\":<n>}\n"
-		"  {\"ok\":0,\"reason\":\"bad_signature\"|\"body_mismatch\"|\n"
-		"   \"malformed\"}\n");
-}
+static const struct help quote_check_help = {
+	.usage	 = "shirudo-quote-check",
+	.summary = "Reads TabSeparated rows from standard input until it ends:\n"
+		   "  <attest>\\t<sig>\\t<ak>\\t<body_sha256>\n"
+		   "attest, sig and ak are a keepalive quote's TPMS_ATTEST and\n"
+		   "TPMT_SIGNATURE and the signing key's TPMT_PUBLIC, in standard\n"
+		   "base64. body_sha256 is the SHA-256 of the record's body, 64\n"
+		   "hex digits. Writes one JSON line per row, in order:\n"
+		   "  {\"ok\":1,\"ak_name\":\"<hex>\",\"ak_public\":\"<base64>\",\n"
+		   "   \"reset_count\":<n>,\"clock\":<n>}\n"
+		   "  {\"ok\":0,\"reason\":\"bad_signature\"|\"body_mismatch\"|\n"
+		   "   \"malformed\"}",
+};
 
 /* got is what read_text_line() returned for line, never 0. */
 static int line_check(const char *line, int got, struct quote_result *res)
@@ -67,16 +66,19 @@ int main(int argc, char **argv)
 {
 	struct quote_result res;
 	char *line = NULL;
+	struct opt_parser p;
 	size_t cap = 0;
-	int got, ret = 0;
+	int got, ret = 0, opt;
 
-	if (argc == 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h"))) {
-		usage(stdout);
+	opt_init(&p, "shirudo-quote-check", NULL, 0, &quote_check_help, argc,
+		 (const char **)argv, 1);
+	opt = opt_next(&p);
+	if (opt == OPT_DONE)
 		return 0;
-	}
-	if (argc != 1) {
-		usage(stderr);
-		return 2;
+	if (opt != OPT_END) {
+		if (opt == OPT_ARG)
+			opt_usage(&p, "takes no argument, got '%s'", p.value);
+		return EXIT_USAGE;
 	}
 
 	do {

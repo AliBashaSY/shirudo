@@ -32,7 +32,7 @@ Usage
    shirudo-quote-check
 
 The program takes no option besides ``-h`` and ``--help``, which print
-the usage on standard output. It reads rows from standard input until
+the usage on standard error. It reads rows from standard input until
 the input ends and writes one line to standard output for each row, in
 the order of the rows. It flushes standard output after every line, so
 a caller that keeps the process running gets each answer before it sends
@@ -233,7 +233,8 @@ Exit status
        ``shirudo-quote-check: <reason>`` on standard error. The row it
        stopped at has no line.
    * - 2
-     - An argument other than ``-h`` or ``--help``.
+     - An argument or an option other than ``-h`` or ``--help``, reported
+       on one line.
 
 Examples
 --------
