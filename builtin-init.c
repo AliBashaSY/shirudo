@@ -336,18 +336,46 @@ static int attach_pin(struct bpf_program *p, const char *pin,
 	return 0;
 }
 
-static struct bpf_program *guard_program(struct bpf_object *object,
-					 enum gate_guard guard)
+static int find_gate_programs(struct bpf_object *obj,
+			      struct bpf_program *programs[GATE_HOOK_COUNT])
 {
-	const struct image_guard *entry = &shirudo_gate_guards[guard];
+	__u32 guard;
 
-	return bpf_object__find_program_by_name(object, entry->prog);
+	for (guard = 0; guard < GATE_HOOK_COUNT; guard++) {
+		const char *name = shirudo_gate_guards[guard].prog;
+
+		programs[guard] = bpf_object__find_program_by_name(obj, name);
+		if (!programs[guard]) {
+			pr_err("expected programs missing in bpf2 object");
+			return -ENOENT;
+		}
+	}
+	return 0;
 }
 
-static int attach_guard(struct bpf_program *program,
-			enum gate_guard guard, struct bpf_link **link)
+/* Attach in order. The caller owns each pinned link, including on failure. */
+static int attach_gates(struct bpf_program *const programs[GATE_HOOK_COUNT],
+			const enum gate_guard *order, size_t count,
+			struct bpf_link *links[GATE_HOOK_COUNT])
 {
-	return attach_pin(program, shirudo_gate_guards[guard].pin, link);
+	struct bpf_program *program;
+	enum gate_guard guard;
+	size_t i;
+	int err;
+
+	for (i = 0; i < count; i++) {
+		guard = order[i];
+		program = programs[guard];
+		err = attach_pin(program, shirudo_gate_guards[guard].pin,
+				 &links[guard]);
+		if (err) {
+			pr_err("attach %s: %s",
+			       bpf_program__section_name(program),
+			       strerror(-err));
+			return err;
+		}
+	}
+	return 0;
 }
 
 /* The admission and seal objects share bootstrap state and task marks. */
@@ -422,6 +450,20 @@ static int record_bpffs_mount(struct bpf_object *obj)
 	return bpf_map_freeze(bpf_map__fd(map)) ? -errno : 0;
 }
 
+static int attach_mount_guards(struct bpf_object *obj, struct bpf_link **links)
+{
+	int err;
+
+	err = attach_guard_group(obj, shirudo_mount_guards,
+				 ARRAY_SIZE(shirudo_mount_guards), links);
+	if (err)
+		return err;
+	err = record_bpffs_mount(obj);
+	if (err)
+		pr_err("record the bpffs mount: %s", strerror(-err));
+	return err;
+}
+
 /* Writable state and runtime processes always get the full seal. */
 static int attach_seal(struct bpf_object *policy, struct bpf_object **obj_out,
 		       struct bpf_link **links, struct bpf_link **image_links)
@@ -490,6 +532,49 @@ static void collect_asymmetric(key_serial_t serial, const char *type,
 		return;
 	}
 	k->serials[k->n++] = (__s32)serial;
+}
+
+static int bpf_anchor(struct identity *id)
+{
+	struct anchor_keys keys = {};
+	key_serial_t keyring;
+	int err;
+
+	/*
+	 * The trust anchor lsm/bpf_prog_load enforces: only a load the
+	 * kernel verified against exactly this sealed keyring, of exactly
+	 * this kind, is admitted from userspace. init_keyring has already
+	 * enrolled the cert and sealed the keyring, so this resolves the
+	 * serial the kernel records for a load that names it as keyring_id.
+	 */
+	keyring = keyring_bpf_serial();
+	id->keyring_type = SIG_KEYRING_BPF;
+	if (keyring <= 0) {
+		err = keyring ? keyring : -ENOKEY;
+		pr_err("resolve the bpf keyring serial: %s", strerror(-err));
+		return err;
+	}
+	id->keyring_serial = (__s32)keyring;
+
+	/*
+	 * The keys that keyring holds, for lsm/key_permission: with the
+	 * keyring itself, what no task but shirudo may write, unlink,
+	 * revoke or invalidate for the rest of the boot.
+	 */
+	err = keyring_list(keyring, collect_asymmetric, &keys);
+	if (err) {
+		pr_err("list the anchor keyring %d: %s", (int)keyring,
+		       strerror(-err));
+		return err;
+	}
+	if (keys.overflow || keys.n == 0) {
+		pr_err("anchor keyring %d holds %s asymmetric keys",
+		       (int)keyring, keys.overflow ? "too many" : "no");
+		return keys.overflow ? -E2BIG : -ENOKEY;
+	}
+	id->n_keys = (__u32)keys.n;
+	memcpy(id->key_serials, keys.serials, keys.n * sizeof(keys.serials[0]));
+	return 0;
 }
 
 /* Boot validation checked the complete config verification key set. */
@@ -580,45 +665,272 @@ static int record_ek_name(struct identity *id)
 	return 0;
 }
 
-static int init_lsm(void)
+static int identity_devices(struct identity *id)
 {
-	struct bpf_link *identity_links[ARRAY_SIZE(shirudo_observer_guards)] = {};
-	struct bpf_link *link_setx = NULL, *link_rmx = NULL, *link_pload = NULL;
-	struct bpf_link *mount_links[ARRAY_SIZE(shirudo_mount_guards)] = {};
-	struct bpf_program *p_bpf, *p_bpf_map, *p_unlink, *p_setx, *p_rmx;
-	struct bpf_link *image_links[IMAGE_OBSERVER_HOOK_COUNT] = {};
-	struct bpf_link *image_seal[IMAGE_SEAL_HOOK_COUNT] = {};
-	struct bpf_link *link_bpf = NULL, *link_bpf_map = NULL;
-	struct bpf_link *link_keyperm = NULL, *link_tpm = NULL;
-	struct bpf_link *seal_links[SEAL_HOOK_COUNT] = {};
-	struct bpf_object *obj = NULL, *seal_obj = NULL;
-	const struct embedded_bpf *blob = bpf2_blob();
-	struct bpf_link *link_bpf_prog = NULL;
-	struct bpf_link *link_unlink = NULL;
-	struct bpf_program *p_key, *p_tpm;
-	struct bpf_program *p_bpf_prog;
-	struct anchor_keys keys = {};
-	struct bpf_program *p_pload;
-	struct identity id = {};
-	key_serial_t keyring;
-	struct bpf_map *m_sb;
-	int err, map_fd, i;
-	__u32 zero = 0;
 	struct stat st;
+	int err;
 
-	if (access(shirudo_gate_guards[GUARD_BPF].pin, F_OK) == 0) {
-		err = identity_read(&id);
-		if (err || !(id.nv_writer_public[0] & 0x80) ||
-		    id.nv_index != NV_INDEX ||
-		    access(TPM_COMMAND_LINK_PIN, F_OK)) {
-			pr_err("init: TPM NV index guard missing or changed; reboot "
-			       "with the updated initrd");
-			return err ? err : -EACCES;
-		}
-		pr_info("bpf2 already attached (%s exists)",
-			shirudo_gate_guards[GUARD_BPF].pin);
-		return 0;
+	if (stat(BPFFS_DIR, &st) != 0) {
+		err = -errno;
+		pr_err("stat %s: %s", BPFFS_DIR, strerror(errno));
+		return err;
 	}
+	id->sb_dev = kernel_dev(st.st_dev);
+	if (stat(RUN_DIR, &st))
+		return -errno;
+	id->run_dev = kernel_dev(st.st_dev);
+	return 0;
+}
+
+static int identity_build(struct identity *id)
+{
+	int err;
+
+	err = identity_devices(id);
+	if (err)
+		return err;
+
+	memcpy(id->runtime_root, image_runtime_root(), 32);
+	id->nv_index = NV_INDEX;
+
+	err = bpf_anchor(id);
+	if (err)
+		return err;
+	err = dm_verity_anchor(id);
+	if (err)
+		return err;
+	err = nv_writer_create(id->nv_writer_seed, id->nv_writer_public);
+	if (err) {
+		pr_err("init: create TPM RSA-3072 NV writer: %s", strerror(-err));
+		return err;
+	}
+	err = record_ek_name(id);
+	if (err) {
+		pr_err("init: record the endorsement key name: %s (tpm_error)",
+		       strerror(-err));
+		return err;
+	}
+	return 0;
+}
+
+static int identity_publish(struct bpf_object *obj, const struct identity *id)
+{
+	struct bpf_map *m_sb;
+	int err, map_fd;
+	__u32 zero = 0;
+
+	m_sb = bpf_object__find_map_by_name(obj, "shirudo_bpffs_sb");
+	if (!m_sb) {
+		pr_err("shirudo_bpffs_sb map not in embedded bpf2");
+		return -ENOENT;
+	}
+	map_fd = bpf_map__fd(m_sb);
+	if (bpf_map_update_elem(map_fd, &zero, id, BPF_ANY) != 0) {
+		err = -errno;
+		pr_err("populate sb-identity map: %s", strerror(errno));
+		return err;
+	}
+	if (bpf_map_freeze(map_fd) != 0) {
+		err = -errno;
+		pr_err("freeze sb-identity map: %s", strerror(errno));
+		return err;
+	}
+	err = freeze_task_maps(obj);
+	if (err)
+		return err;
+	/*
+	 * Pinned so that every later command reads the anchor init froze
+	 * from the kernel rather than from a file: the serial a load names
+	 * and status reports is the one lsm/bpf_prog_load enforces.
+	 */
+	if (bpf_obj_pin(map_fd, IDENTITY_PIN) != 0) {
+		err = -errno;
+		pr_err("pin identity map at %s: %s", IDENTITY_PIN,
+		       strerror(errno));
+		return err;
+	}
+	return 0;
+}
+
+struct lsm_links {
+	struct bpf_link *observers[OBSERVER_HOOK_COUNT];
+	struct bpf_link *image_observers[IMAGE_OBSERVER_HOOK_COUNT];
+	struct bpf_link *gates[GATE_HOOK_COUNT];
+	struct bpf_link *mounts[MOUNT_HOOK_COUNT];
+	struct bpf_link *seal[SEAL_HOOK_COUNT];
+	struct bpf_link *image_seal[IMAGE_SEAL_HOOK_COUNT];
+	struct bpf_object *seal_obj;
+};
+
+static const enum gate_guard early_gates[] = {
+	GUARD_UNLINK,
+	GUARD_SETXATTR,
+	GUARD_REMOVEXATTR,
+	GUARD_KEY_PERMISSION,
+	GUARD_TPM_COMMAND,
+};
+
+static const enum gate_guard bpf_gates[] = {
+	GUARD_BPF_MAP,
+	GUARD_BPF_PROG,
+	GUARD_PROG_LOAD,
+	GUARD_BPF,
+};
+
+static int attach_guards(struct bpf_object *obj, struct lsm_links *links)
+{
+	struct bpf_program *gates[GATE_HOOK_COUNT] = {};
+	int err;
+
+	/* The executable-identity guard precedes every BPF admission gate. */
+	err = attach_guard_group(obj, shirudo_observer_guards,
+				 ARRAY_SIZE(shirudo_observer_guards),
+				 links->observers);
+	if (!err)
+		err = attach_guard_group(obj, shirudo_image_observer_guards,
+					 IMAGE_OBSERVER_HOOK_COUNT,
+					 links->image_observers);
+	if (err)
+		return err;
+
+	err = find_gate_programs(obj, gates);
+	if (err)
+		return err;
+
+	/*
+	 * The prctl identity guard is already active. Order the remaining
+	 * hooks as bpffs guards, seal's filesystem and exec-identity hooks,
+	 * then the bpf() gates (map fd access, bpf_prog_load admission, then
+	 * lsm/bpf) LAST.
+	 * Pinning a link creates a bpffs inode, gated by neither guard set;
+	 * seal's unsigned load and the identity-map freeze precede the gates.
+	 */
+	err = attach_gates(gates, early_gates, ARRAY_SIZE(early_gates),
+			   links->gates);
+	if (err)
+		return err;
+	/*
+	 * With the other bpffs guards, so the mount is immutable before
+	 * enforcement goes live.
+	 */
+	err = attach_mount_guards(obj, links->mounts);
+	if (err)
+		return err;
+
+	err = attach_seal(obj, &links->seal_obj, links->seal,
+			  links->image_seal);
+	if (err)
+		return err;
+
+	return attach_gates(gates, bpf_gates, ARRAY_SIZE(bpf_gates),
+			    links->gates);
+}
+
+static int lsm_attach(struct bpf_object *obj, struct lsm_links *links)
+{
+	struct identity id = {};
+	int err;
+
+	err = bpf_object__load(obj);
+	if (err) {
+		pr_err("bpf_object__load: %d", err);
+		return err;
+	}
+	err = identity_build(&id);
+	if (err)
+		return err;
+	err = identity_publish(obj, &id);
+	if (err)
+		return err;
+	return attach_guards(obj, links);
+}
+
+static const enum gate_guard gate_release_order[] = {
+	GUARD_BPF,
+	GUARD_BPF_MAP,
+	GUARD_BPF_PROG,
+	GUARD_PROG_LOAD,
+	GUARD_KEY_PERMISSION,
+	GUARD_TPM_COMMAND,
+	GUARD_REMOVEXATTR,
+	GUARD_SETXATTR,
+	GUARD_UNLINK,
+};
+
+static const enum guard_map_index map_release_order[] = {
+	GUARD_IDENTITY,
+	GUARD_TAMPER,
+	GUARD_INTEGRITY,
+	GUARD_TASKS,
+	GUARD_POLICY,
+	GUARD_SOCKET_POLICY,
+	GUARD_DEVICES,
+	GUARD_ROOTS,
+};
+
+static void release_link_group(struct bpf_link **links, size_t count,
+			       bool unpin)
+{
+	size_t i;
+
+	for (i = 0; i < count; i++) {
+		if (unpin && links[i])
+			bpf_link__unpin(links[i]);
+		bpf_link__destroy(links[i]);
+	}
+}
+
+/* A pinned link outlives its descriptor; after a failure the pins go too. */
+static void lsm_links_release(struct lsm_links *links, bool failed)
+{
+	struct bpf_link *link;
+	size_t i;
+
+	release_link_group(links->image_seal, ARRAY_SIZE(links->image_seal),
+			   failed);
+	release_link_group(links->image_observers,
+			   ARRAY_SIZE(links->image_observers), failed);
+	release_link_group(links->observers, ARRAY_SIZE(links->observers),
+			   failed);
+	release_link_group(links->seal, ARRAY_SIZE(links->seal), failed);
+	release_link_group(links->mounts, ARRAY_SIZE(links->mounts), failed);
+	if (failed) {
+		for (i = 0; i < ARRAY_SIZE(gate_release_order); i++) {
+			link = links->gates[gate_release_order[i]];
+			if (link)
+				bpf_link__unpin(link);
+		}
+		for (i = 0; i < ARRAY_SIZE(map_release_order); i++)
+			unlink(shirudo_guard_maps[map_release_order[i]].pin);
+	}
+	bpf_object__close(links->seal_obj);
+	for (i = 0; i < ARRAY_SIZE(gate_release_order); i++)
+		bpf_link__destroy(links->gates[gate_release_order[i]]);
+}
+
+static int lsm_check_attached(void)
+{
+	struct identity id = {};
+	int err;
+
+	err = identity_read(&id);
+	if (err || !(id.nv_writer_public[0] & 0x80) ||
+	    id.nv_index != NV_INDEX ||
+	    access(TPM_COMMAND_LINK_PIN, F_OK)) {
+		pr_err("init: TPM NV index guard missing or changed; reboot "
+		       "with the updated initrd");
+		return err ? err : -EACCES;
+	}
+	pr_info("bpf2 already attached (%s exists)",
+		shirudo_gate_guards[GUARD_BPF].pin);
+	return 0;
+}
+
+static int unlink_stale_pins(void)
+{
+	__u32 i;
+	int err;
+
 	/*
 	 * A failed attempt removes its own pins, a crash does not. Once the
 	 * identity map is pinned, image_bootstrap_load() refuses a re-run
@@ -633,6 +945,21 @@ static int init_lsm(void)
 			return err;
 		}
 	}
+	return 0;
+}
+
+static int init_lsm(void)
+{
+	const struct embedded_bpf *blob = bpf2_blob();
+	struct lsm_links links = {};
+	struct bpf_object *obj;
+	int err;
+
+	if (access(shirudo_gate_guards[GUARD_BPF].pin, F_OK) == 0)
+		return lsm_check_attached();
+	err = unlink_stale_pins();
+	if (err)
+		return err;
 
 	if (!blob || !blob->data || !blob->size) {
 		pr_err("embedded bpf2 blob missing");
@@ -646,270 +973,11 @@ static int init_lsm(void)
 		return err;
 	}
 
-	err = bpf_object__load(obj);
-	if (err) {
-		pr_err("bpf_object__load: %d", err);
-		goto out;
-	}
-
-	if (stat(BPFFS_DIR, &st) != 0) {
-		err = -errno;
-		pr_err("stat %s: %s", BPFFS_DIR, strerror(errno));
-		goto out;
-	}
-	id.sb_dev = kernel_dev(st.st_dev);
-	if (stat(RUN_DIR, &st)) {
-		err = -errno;
-		goto out;
-	}
-	id.run_dev = kernel_dev(st.st_dev);
-
-	memcpy(id.runtime_root, image_runtime_root(), 32);
-
-	/*
-	 * The trust anchor lsm/bpf_prog_load enforces: only a load the
-	 * kernel verified against exactly this sealed keyring, of exactly
-	 * this kind, is admitted from userspace. init_keyring has already
-	 * enrolled the cert and sealed the keyring, so this resolves the
-	 * serial the kernel records for a load that names it as keyring_id.
-	 */
-	keyring = keyring_bpf_serial();
-	id.keyring_type = SIG_KEYRING_BPF;
-	if (keyring <= 0) {
-		err = keyring ? keyring : -ENOKEY;
-		pr_err("resolve the bpf keyring serial: %s", strerror(-err));
-		goto out;
-	}
-	id.keyring_serial = (__s32)keyring;
-
-	/*
-	 * The keys that keyring holds, for lsm/key_permission: with the
-	 * keyring itself, what no task but shirudo may write, unlink,
-	 * revoke or invalidate for the rest of the boot.
-	 */
-	err = keyring_list(keyring, collect_asymmetric, &keys);
-	if (err) {
-		pr_err("list the anchor keyring %d: %s", (int)keyring,
-		       strerror(-err));
-		goto out;
-	}
-	if (keys.overflow || keys.n == 0) {
-		pr_err("anchor keyring %d holds %s asymmetric keys",
-		       (int)keyring, keys.overflow ? "too many" : "no");
-		err = keys.overflow ? -E2BIG : -ENOKEY;
-		goto out;
-	}
-	id.n_keys = (__u32)keys.n;
-	id.nv_index = NV_INDEX;
-	memcpy(id.key_serials, keys.serials, keys.n * sizeof(keys.serials[0]));
-	err = dm_verity_anchor(&id);
-	if (err)
-		goto out;
-	err = nv_writer_create(id.nv_writer_seed, id.nv_writer_public);
-	if (err) {
-		pr_err("init: create TPM RSA-3072 NV writer: %s", strerror(-err));
-		goto out;
-	}
-	err = record_ek_name(&id);
-	if (err) {
-		pr_err("init: record the endorsement key name: %s (tpm_error)",
-		       strerror(-err));
-		goto out;
-	}
-
-	m_sb = bpf_object__find_map_by_name(obj, "shirudo_bpffs_sb");
-	if (!m_sb) {
-		pr_err("shirudo_bpffs_sb map not in embedded bpf2");
-		err = -ENOENT;
-		goto out;
-	}
-	map_fd = bpf_map__fd(m_sb);
-	if (bpf_map_update_elem(map_fd, &zero, &id, BPF_ANY) != 0) {
-		err = -errno;
-		pr_err("populate sb-identity map: %s", strerror(errno));
-		goto out;
-	}
-	if (bpf_map_freeze(map_fd) != 0) {
-		err = -errno;
-		pr_err("freeze sb-identity map: %s", strerror(errno));
-		goto out;
-	}
-	err = freeze_task_maps(obj);
-	if (err)
-		goto out;
-	/*
-	 * Pinned so that every later command reads the anchor init froze
-	 * from the kernel rather than from a file: the serial a load names
-	 * and status reports is the one lsm/bpf_prog_load enforces.
-	 */
-	if (bpf_obj_pin(map_fd, IDENTITY_PIN) != 0) {
-		err = -errno;
-		pr_err("pin identity map at %s: %s", IDENTITY_PIN,
-		       strerror(errno));
-		goto out;
-	}
-
-	/* The executable-identity guard precedes every BPF admission gate. */
-	err = attach_guard_group(obj, shirudo_observer_guards,
-				 ARRAY_SIZE(shirudo_observer_guards),
-				 identity_links);
+	err = lsm_attach(obj, &links);
 	if (!err)
-		err = attach_guard_group(obj, shirudo_image_observer_guards,
-					 IMAGE_OBSERVER_HOOK_COUNT,
-					 image_links);
-	if (err)
-		goto out;
-
-	p_unlink = guard_program(obj, GUARD_UNLINK);
-	p_setx = guard_program(obj, GUARD_SETXATTR);
-	p_rmx = guard_program(obj, GUARD_REMOVEXATTR);
-	p_pload = guard_program(obj, GUARD_PROG_LOAD);
-	p_bpf_map = guard_program(obj, GUARD_BPF_MAP);
-	p_bpf_prog = guard_program(obj, GUARD_BPF_PROG);
-	p_key = guard_program(obj, GUARD_KEY_PERMISSION);
-	p_tpm = guard_program(obj, GUARD_TPM_COMMAND);
-	p_bpf = guard_program(obj, GUARD_BPF);
-	if (!p_unlink || !p_setx || !p_rmx || !p_pload || !p_bpf_map ||
-	    !p_bpf || !p_bpf_prog ||
-	    !p_key || !p_tpm) {
-		pr_err("expected programs missing in bpf2 object");
-		err = -ENOENT;
-		goto out;
-	}
-
-	/*
-	 * The prctl identity guard is already active. Order the remaining
-	 * hooks as bpffs guards, seal's filesystem and exec-identity hooks,
-	 * then the bpf() gates (map fd access, bpf_prog_load admission, then
-	 * lsm/bpf) LAST.
-	 * Pinning a link creates a bpffs inode, gated by neither guard set;
-	 * seal's unsigned load and the identity-map freeze precede the gates.
-	 */
-	err = attach_guard(p_unlink, GUARD_UNLINK, &link_unlink);
-	if (err) {
-		pr_err("attach lsm/inode_unlink: %s", strerror(-err));
-		goto out;
-	}
-	err = attach_guard(p_setx, GUARD_SETXATTR, &link_setx);
-	if (err) {
-		pr_err("attach lsm/inode_setxattr: %s", strerror(-err));
-		goto out;
-	}
-	err = attach_guard(p_rmx, GUARD_REMOVEXATTR, &link_rmx);
-	if (err) {
-		pr_err("attach lsm/inode_removexattr: %s", strerror(-err));
-		goto out;
-	}
-	err = attach_guard(p_key, GUARD_KEY_PERMISSION, &link_keyperm);
-	if (err) {
-		pr_err("attach lsm/key_permission: %s", strerror(-err));
-		goto out;
-	}
-	err = attach_guard(p_tpm, GUARD_TPM_COMMAND, &link_tpm);
-	if (err) {
-		pr_err("attach lsm/tpm_command: %s", strerror(-err));
-		goto out;
-	}
-	/*
-	 * With the other bpffs guards, so the mount is immutable before
-	 * enforcement goes live.
-	 */
-	err = attach_guard_group(obj, shirudo_mount_guards,
-				 ARRAY_SIZE(shirudo_mount_guards), mount_links);
-	if (err)
-		goto out;
-	err = record_bpffs_mount(obj);
-	if (err) {
-		pr_err("record the bpffs mount: %s", strerror(-err));
-		goto out;
-	}
-
-	err = attach_seal(obj, &seal_obj, seal_links, image_seal);
-	if (err)
-		goto out;
-
-	err = attach_guard(p_bpf_map, GUARD_BPF_MAP, &link_bpf_map);
-	if (err) {
-		pr_err("attach lsm/bpf_map: %s", strerror(-err));
-		goto out;
-	}
-
-	err = attach_guard(p_bpf_prog, GUARD_BPF_PROG, &link_bpf_prog);
-	if (err) {
-		pr_err("attach lsm/bpf_prog: %s", strerror(-err));
-		goto out;
-	}
-
-	err = attach_guard(p_pload, GUARD_PROG_LOAD, &link_pload);
-	if (err) {
-		pr_err("attach lsm/bpf_prog_load: %s", strerror(-err));
-		goto out;
-	}
-
-	err = attach_guard(p_bpf, GUARD_BPF, &link_bpf);
-	if (err) {
-		pr_err("attach lsm/bpf: %s", strerror(-err));
-		goto out;
-	}
-
-	pr_info("%s and seal attached: lsm/bpf gate live, writable state sealed",
-		blob->name);
-	err = 0;
-out:
-	for (i = 0; i < (int)ARRAY_SIZE(image_seal); i++) {
-		if (err && image_seal[i])
-			bpf_link__unpin(image_seal[i]);
-		bpf_link__destroy(image_seal[i]);
-	}
-	for (i = 0; i < (int)ARRAY_SIZE(image_links); i++) {
-		if (err && image_links[i])
-			bpf_link__unpin(image_links[i]);
-		bpf_link__destroy(image_links[i]);
-	}
-	for (i = 0; i < (int)ARRAY_SIZE(identity_links); i++) {
-		if (err && identity_links[i])
-			bpf_link__unpin(identity_links[i]);
-		bpf_link__destroy(identity_links[i]);
-	}
-	for (i = 0; i < (int)ARRAY_SIZE(seal_links); i++) {
-		if (err && seal_links[i])
-			bpf_link__unpin(seal_links[i]);
-		bpf_link__destroy(seal_links[i]);
-	}
-	for (i = 0; i < (int)ARRAY_SIZE(mount_links); i++) {
-		if (err && mount_links[i])
-			bpf_link__unpin(mount_links[i]);
-		bpf_link__destroy(mount_links[i]);
-	}
-	if (err) {
-		struct bpf_link *links[] = {
-			link_bpf, link_bpf_map, link_bpf_prog, link_pload,
-			link_keyperm, link_tpm,
-			link_rmx, link_setx, link_unlink,
-		};
-
-		for (i = 0; i < (int)ARRAY_SIZE(links); i++)
-			if (links[i])
-				bpf_link__unpin(links[i]);
-		unlink(IDENTITY_PIN);
-		unlink(TAMPER_PIN);
-		unlink(INTEGRITY_PIN);
-		unlink(BPFFS_DIR "/task_authority");
-		unlink(POLICY_PIN);
-		unlink(SOCKET_POLICY_PIN);
-		unlink(BPFFS_DIR "/devices");
-		unlink(BPFFS_DIR "/config_roots");
-	}
-	bpf_object__close(seal_obj);
-	bpf_link__destroy(link_bpf);
-	bpf_link__destroy(link_bpf_map);
-	bpf_link__destroy(link_bpf_prog);
-	bpf_link__destroy(link_pload);
-	bpf_link__destroy(link_keyperm);
-	bpf_link__destroy(link_tpm);
-	bpf_link__destroy(link_rmx);
-	bpf_link__destroy(link_setx);
-	bpf_link__destroy(link_unlink);
+		pr_info("%s and seal attached: lsm/bpf gate live, writable state sealed",
+			blob->name);
+	lsm_links_release(&links, err != 0);
 	bpf_object__close(obj);
 	return err;
 }
