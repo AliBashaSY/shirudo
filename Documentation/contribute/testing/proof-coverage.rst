@@ -959,6 +959,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - The first command that is the word, else the commands the word
        begins, else those that begin it, in table order, as many as the
        capacity takes and none written past it
+   * - ``options-next``
+     - ``opt_next()``, ``opt_u64()``
+     - One call from any state a run reaches, on up to three arguments
+       of 0 to 6 bytes, against a table with an option of each kind
+     - Each call takes an argument, so a run ends; an argument or a
+       value lies in an argument; a flag has no value; a value is there
+       and not empty unless the option allows it; no option comes back
+       twice unless it repeats; a number lies in its bounds
    * - ``conditions-verdict``
      - ``status_verdict()``, ``status_reason()``
      - Every input; reasons into 1, 8, 32 and 160 bytes
@@ -1347,7 +1355,9 @@ of :src:`util/upatch_maps.c` that puts a page together from the chunks
 ``serial_chunk_validate()`` accepted. ``edit_distance()`` of
 :src:`util/similar.c` is proven on strings of up to 3 bytes: at its
 limit of 64 CBMC ends a run on the code as it is and none on the code
-broken, so no proof of the limit is kept. Of :src:`util/sysinfo.c` the
+broken, so no proof of the limit is kept. ``options-next`` takes
+``parse_u64()`` by the contract ``string-number`` proves and leaves out
+the text of the usage messages, which only ``pr_err()`` reads. Of :src:`util/sysinfo.c` the
 proofs cover the image identity's parsers; reading the files they parse,
 and the readers of ``/proc`` and the root file system, go to the kernel
 and have none.

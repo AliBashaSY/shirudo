@@ -9,8 +9,10 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "help.h"
+#include "options.h"
 #include "similar.h"
 
 #define SUBCMD_MAX	32
@@ -79,42 +81,71 @@ void print_subcmd_list(const struct help_item *items,
 		printf("%s\n", items[i].name);
 }
 
+/* An option as help shows it: "-o, --output <path>", "--json[=<path>]". */
+static const char *option_label(const struct opt_spec *o, char *buf,
+				size_t size)
+{
+	char alias[5] = "";
+	int ret;
+
+	if (o->short_name &&
+	    strsprintf(alias, sizeof(alias), "-%c, ", o->short_name) < 0)
+		return o->name;
+	if (!o->metavar)
+		ret = strsprintf(buf, size, "%s%s", alias, o->name);
+	else if (o->flags & OPT_OPTIONAL)
+		ret = strsprintf(buf, size, "%s%s[=%s]", alias, o->name,
+				 o->metavar);
+	else
+		ret = strsprintf(buf, size, "%s%s %s", alias, o->name,
+				 o->metavar);
+	return ret < 0 ? o->name : buf;
+}
+
+static void print_row(const char *name, const char *summary, size_t w)
+{
+	size_t indent = 2 + w;
+	size_t avail = indent < HELP_WIDTH ? HELP_WIDTH - indent : 1;
+
+	fprintf(stderr, "  %-*s", (int)w, name);
+	wrap_print(summary, indent, avail);
+}
+
+static void print_section(const struct help_section *s)
+{
+	char label[96];
+	size_t i, w = 0;
+
+	if (!s->n_items && !s->n_options)
+		return;
+	/*
+	 * Per section, so an Options section reads as cleanly as a
+	 * Subcommands one.
+	 */
+	for (i = 0; i < s->n_items; i++)
+		w = max(w, strlen(s->items[i].name));
+	for (i = 0; i < s->n_options; i++)
+		w = max(w, strlen(option_label(&s->options[i], label,
+					       sizeof(label))));
+	w += 2;
+	fprintf(stderr, "\n%s\n", s->header);
+	for (i = 0; i < s->n_items; i++)
+		print_row(s->items[i].name, s->items[i].summary, w);
+	for (i = 0; i < s->n_options; i++)
+		print_row(option_label(&s->options[i], label, sizeof(label)),
+			  s->options[i].summary, w);
+}
+
 void print_help(const struct help *h)
 {
-	size_t i, j;
+	size_t i;
 
 	if (h->usage)
 		fprintf(stderr, "usage: %s\n", h->usage);
 	if (h->summary && *h->summary)
 		fprintf(stderr, "\n%s\n", h->summary);
-
-	for (i = 0; i < h->n_sections; i++) {
-		const struct help_section *s = &h->sections[i];
-		size_t w = 0;
-
-		if (s->n_items == 0)
-			continue;
-		/*
-		 * Per section, so an Options section reads as cleanly as a
-		 * Subcommands one.
-		 */
-		for (j = 0; j < s->n_items; j++) {
-			size_t l = strlen(s->items[j].name);
-
-			if (l > w)
-				w = l;
-		}
-		w += 2;
-		fprintf(stderr, "\n%s\n", s->header);
-		for (j = 0; j < s->n_items; j++) {
-			size_t indent = 2 + w;
-			size_t avail = indent < HELP_WIDTH ?
-				       HELP_WIDTH - indent : 1;
-
-			fprintf(stderr, "  %-*s", (int)w, s->items[j].name);
-			wrap_print(s->items[j].summary, indent, avail);
-		}
-	}
+	for (i = 0; i < h->n_sections; i++)
+		print_section(&h->sections[i]);
 	if (h->footer && *h->footer)
 		fprintf(stderr, "\n%s\n", h->footer);
 }

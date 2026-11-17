@@ -14,21 +14,31 @@
 
 #include <shirudo/misc.h>
 
+struct opt_spec;
+
 struct help_item {
 	const char	*name;
 	const char	*summary;
 };
 
+/* A section lists items, or the options of a command's opt_spec table. */
 struct help_section {
 	const char			*header;
 	const struct help_item	*items;
 	size_t				n_items;
+	const struct opt_spec		*options;
+	size_t				n_options;
 };
 
 /* A section named h listing the items of the array a. */
 #define HELP_ITEMS(h, a)						\
 	{ .header = (h), .items = (a),					\
 	  .n_items = sizeof(a) / sizeof((a)[0]) + __must_be_array(a) }
+
+/* A section named h listing the options of the opt_spec array a. */
+#define HELP_OPTIONS(h, a)						\
+	{ .header = (h), .options = (a),				\
+	  .n_options = sizeof(a) / sizeof((a)[0]) + __must_be_array(a) }
 
 struct help {
 	const char				*usage;

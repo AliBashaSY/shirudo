@@ -284,6 +284,7 @@ UTIL_SRCS := \
     util/sysinfo.c \
     util/similar.c \
     util/help.c \
+    util/options.c \
     util/timefmt.c \
     util/conditions.c \
     util/keepalive.c \
