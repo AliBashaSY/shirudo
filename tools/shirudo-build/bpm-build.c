@@ -1982,9 +1982,10 @@ static int build_download_package(const char *reference, const char *want,
 	struct bpm_buffer manifest = {};
 	char repository[BPM_MAX_ENDPOINT], tag[BPM_MAX_NAME];
 	char url[PATH_MAX], digest[BPM_MAX_DIGEST];
+	bool created = false;
 	__u8 *body = NULL;
 	size_t body_len = 0;
-	int n_layers = 0, fd = -1, ret;
+	int n_layers = 0, ret;
 
 	ret = bpm_oci_parse_pull_ref(reference, &client, repository,
 				     sizeof(repository), tag, sizeof(tag));
@@ -2012,6 +2013,8 @@ static int build_download_package(const char *reference, const char *want,
 	if (ret)
 		goto out;
 	for (int i = 0; i < n_layers; i++) {
+		int fd;
+
 		if (strcmp(layers[i].media, BPM_PACKAGE_MEDIA))
 			continue;
 		ret = bpm_oci_url(&client, repository, "blobs", layers[i].digest,
@@ -2023,11 +2026,11 @@ static int build_download_package(const char *reference, const char *want,
 			ret = -errno;
 			goto out;
 		}
+		created = true;
 		ret = bpm_oci_get_file(&client, url, BPM_PACKAGE_MEDIA, fd,
 				       layers[i].size);
 		if (close(fd) && !ret)
 			ret = -errno;
-		fd = -1;
 		if (ret)
 			goto out;
 		ret = build_read_file(path, &body, &body_len, BPM_BUILD_MAX_FILE);
@@ -2041,9 +2044,7 @@ static int build_download_package(const char *reference, const char *want,
 	if (!ret)
 		ret = -ENOENT;
 out:
-	if (fd >= 0)
-		close(fd);
-	if (ret)
+	if (ret && created)
 		unlink(path);
 	xfree(body, body_len + 1);
 	bpm_buffer_free(&manifest);
