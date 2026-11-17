@@ -14,7 +14,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
 #include <curl/curl.h>
 
 #include <shirudo/misc.h>
@@ -728,22 +727,14 @@ static int tree_describe_artifact(const char *raw_repository,
 				  struct tree_upload *up)
 {
 	char name[UPATCH_NAME_MAX + 1], title[UPATCH_NAME_MAX + 16];
-	char temporary[] = "/tmp/shirudo-bpm-tree-XXXXXX";
 	struct bpm_descriptor layer = {}, config = {};
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN];
 	struct json_emit e;
 	char hex[65];
 	struct upatch u;
-	int fd, ret;
+	int ret;
 
-	fd = mkstemp(temporary);
-	if (fd < 0)
-		return -errno;
-	ret = write_complete(fd, body, len);
-	close(fd);
-	if (!ret)
-		ret = upatch_open(temporary, &u);
-	unlink(temporary);
+	ret = upatch_open_memory(body, len, &u);
 	if (ret) {
 		pr_err("bpm tree append: %s is not a valid upatch", id);
 		return ret;
