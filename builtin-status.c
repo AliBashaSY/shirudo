@@ -451,37 +451,6 @@ static size_t build_upatches_table(struct dirent **ups, int n_ups,
 	return (size_t)n_ups;
 }
 
-/* Status runs on the host, so reachable and parsed are trivially true. */
-static void local_cond_input(struct conditions_input *in,
-			     int lsm_attached, int keyring_present,
-			     const char *keyring_mode,
-			     __s64 keyring_serial,
-			     __s64 keyring_serial_pinned,
-			     int ks_seen, int ksp_seen, int ksm_seen,
-			     int ks_matches, int tpm_reachable,
-			     int chain_seen, int chain_matches, int cm_seen,
-			     const char *nv_index)
-{
-	*in = (struct conditions_input){
-		.reachable		= true,
-		.parsed			= true,
-		.lsm_attached		= lsm_attached,
-		.keyring_present	= keyring_present,
-		.keyring_mode		= keyring_mode,
-		.keyring_serial		= keyring_serial,
-		.keyring_serial_pinned	= keyring_serial_pinned,
-		.keyring_serial_matches	= ks_matches,
-		.tpm_reachable		= tpm_reachable,
-		.ks_seen		= ks_seen,
-		.ksp_seen		= ksp_seen,
-		.ksm_seen		= ksm_seen,
-		.chain_seen		= chain_seen,
-		.chain_matches		= chain_matches,
-		.cm_seen		= cm_seen,
-		.nv_index		= nv_index,
-	};
-}
-
 static const char *roles_str(int is_target, int is_operator)
 {
 	if (is_target && is_operator)
@@ -1373,29 +1342,43 @@ int cmd_status(int argc, const char **argv)
 		}
 	}
 
-	local_cond_input(&cin, lsm_attached, keyring_present, keyring_mode,
-			 keyring_serial,
-			 keyring_pinned >= 1 ? keyring_pinned : 0,
-			 keyring_present, keyring_pinned >= 1,
-			 keyring_present && keyring_pinned >= 1,
-			 keyring_present && keyring_pinned >= 1 &&
-			 keyring_serial == keyring_pinned,
-			 cst.tpm, chain_rc == 0, match == 1, match >= 0,
-			 nv_index);
-	cin.config_seen = config_state != -ENODEV;
-	cin.config_state = config_state;
-	cin.config_root = config_root_hex;
-	cin.pins_rc = min(unmeasured, 0);
-	cin.pins_unmeasured = max(unmeasured, 0);
-	cin.pins_detail = unmeasured_names;
-	cin.xdp_tampered = max(xdp_tampered, 0);
-	cin.xdp_tampered_detail = xdp_tampered_names;
-	cin.links_lost = max(links_lost, 0);
-	cin.links_lost_detail = links_lost_names;
-	cin.checks_rc = checks_rc;
-	cin.xdp_uncovered = max(xdp_uncovered, 0);
-	cin.xdp_uncovered_detail = xdp_uncovered_names;
-	cin.xdp_coverage_rc = xdp_coverage_rc;
+	/* Status runs on the host: reachable and parsed are trivially true. */
+	cin = (struct conditions_input){
+		.reachable		= true,
+		.parsed			= true,
+		.lsm_attached		= lsm_attached,
+		.keyring_present	= keyring_present,
+		.keyring_mode		= keyring_mode,
+		.keyring_serial		= keyring_serial,
+		.keyring_serial_pinned	= keyring_pinned >= 1 ?
+					  keyring_pinned : 0,
+		.keyring_serial_matches	= keyring_present &&
+					  keyring_pinned >= 1 &&
+					  keyring_serial == keyring_pinned,
+		.tpm_reachable		= cst.tpm,
+		.ks_seen		= keyring_present,
+		.ksp_seen		= keyring_pinned >= 1,
+		.ksm_seen		= keyring_present &&
+					  keyring_pinned >= 1,
+		.chain_seen		= chain_rc == 0,
+		.chain_matches		= match == 1,
+		.cm_seen		= match >= 0,
+		.nv_index		= nv_index,
+		.config_seen		= config_state != -ENODEV,
+		.config_state		= config_state,
+		.config_root		= config_root_hex,
+		.pins_rc		= min(unmeasured, 0),
+		.pins_unmeasured	= max(unmeasured, 0),
+		.pins_detail		= unmeasured_names,
+		.xdp_tampered		= max(xdp_tampered, 0),
+		.xdp_tampered_detail	= xdp_tampered_names,
+		.links_lost		= max(links_lost, 0),
+		.links_lost_detail	= links_lost_names,
+		.checks_rc		= checks_rc,
+		.xdp_uncovered		= max(xdp_uncovered, 0),
+		.xdp_uncovered_detail	= xdp_uncovered_names,
+		.xdp_coverage_rc	= xdp_coverage_rc,
+	};
 	keyring_cond_input(&cin, &bpf, &dmv);
 
 	if (keepalive || (otel && otel_endpoint_configured))
