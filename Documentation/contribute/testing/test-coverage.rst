@@ -119,6 +119,11 @@ signed config image.
 
    * - ``t1010-local-stack``
      - VM-first service configuration and stable public trust across starts
+   * - ``t1011-completion``
+     - The bash completion: commands and subcommands from ``--list-cmds``,
+       options from ``--list-opts``, a value by its placeholder, and a
+       command without subcommands that answers ``--list-cmds`` with
+       nothing and logs nothing
 
 ``signing`` (2)
 ~~~~~~~~~~~~~~~
@@ -957,7 +962,7 @@ Coverage by area
        ``t6120``, ``t6121``, ``t6124``, ``t6126``, ``t6135``,
        ``t6137``
    * - CLI
-     - ``t1001``, ``t1002``, ``t2001``, ``t3005``, ``t3106``,
+     - ``t1001``, ``t1002``, ``t1011``, ``t2001``, ``t3005``, ``t3106``,
        ``t3108``, ``t5004``, ``t5103``, ``t6007``, ``t6114``,
        ``t7001``, ``t8001``
    * - Build and packaging
