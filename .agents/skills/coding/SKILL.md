@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
+description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, the commit message that carries the change, with a chart where one explains it faster, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
 ---
 
 # Coding
@@ -55,13 +55,19 @@ Code says what it does; a comment is for what it cannot say.
   the copyright, `Copyright (c) 2026 Authors of shirudo`, and at most
   five lines on what the file holds. Nothing more at the top.
 - In a function, almost never. Write one only for the why a reader
-  cannot get from the code: an invariant kept elsewhere, a kernel or
-  library quirk ("zlib 1.3.2 reads past the end of a member"), the
-  reason the obvious way is wrong here. One or two sentences, before the
-  code it explains.
+  cannot get from the code: an invariant kept elsewhere, a locking rule
+  or an order two steps must keep, a kernel or library quirk ("zlib
+  1.3.2 reads past the end of a member"), the reason the obvious way is
+  wrong here. Before the code it explains, as short as it can be
+  without cutting the reasoning: usually a sentence or two, and what a
+  lock or a race needs to be understood, however many that takes.
 - Never what the code does, what a name already says, or what a message
-  prints; never history ("added for", "was", "used by"), which goes in
-  the commit message; never code commented out.
+  prints; never history or narration of the change ("added for",
+  "was", "used by", "fix for", "new helper to"), which goes in the
+  commit message; never code commented out.
+- Drop a comment that carries nothing only in the lines the change adds
+  or touches. Leave the comments of code the change does not touch
+  alone, even where you would write them shorter.
 - A function's contract goes above its declaration in the header, and
   only when the prototype does not tell it: what it returns on which
   failure, what it owns or frees, what it refuses.
@@ -173,6 +179,73 @@ code, signing and the package builder, stays out of the core binary.
   `char _license[] SEC("license") = "Dual BSD/GPL";`. No emojis.
 - BPF code is CO-RE, built for `-mcpu=v4`; upatch code follows the
   `upatch` and `bpf-concurrency` skills.
+
+## Commit messages
+
+`Documentation/contribute/code/contributing.rst` sets the form: the
+subject `area: imperative summary`, specific ("seal: refuse the
+runtime to a task that shares its file system context", not "seal:
+fixes") and at most 75 characters; the body wrapped at 75 columns, the
+problem and its impact before the change. Write it for a reviewer who
+reads it once:
+
+- Short, plain sentences, one idea each. No filler and no long
+  background; drop any sentence the reviewer does not need to
+  understand the problem or the fix.
+- Plain paragraphs for a simple bug. `[BUG]`, `[CAUSE]` and `[FIX]`
+  headings only where the symptom, the cause and the fix each take
+  several paragraphs.
+- Quote what a program printed, an error, a log line or a call trace,
+  as it printed it: quoted text has no column limit and is never
+  folded.
+- Read `git log -- <the files>` for the recent messages of the area
+  before writing one.
+- Where a chart explains the problem faster than prose, draw one.
+
+### Charts
+
+An ASCII chart earns its place for:
+
+- a race: show the window, side by side, rather than describe it;
+- an error path seen from several callers, where one cleans up what
+  another already did;
+- a call chain across layers where the bug shows on one path only;
+- the order of steps, as in a load's pins, archive and extend, or
+  `init`'s phases.
+
+Function names only, no file paths or line numbers, and only the
+functions that matter. A state or an outcome goes in plain words under
+the function name. A race takes one column per racing context: a
+command, root, a CPU, a kworker.
+
+A race, a load that root stops between its pins and its extend:
+
+```
+ shirudo upatch load                root
+ upatch_load()
+ |-upatch_apply()
+ | \-attach_and_pin_progs()
+ |   The links are attached
+ |                                  kill -9 <pid>
+ |                                  The load ends here
+ \-upatch_chain_event_locked()
+   Never runs: pins without a record in the register.
+```
+
+A call chain where the bug shows on one path, an exec that fails past
+its point of no return:
+
+```
+ load_elf_binary()
+ |-begin_new_exec()
+ | \-security_bprm_committed_creds()
+ |   The task now holds runtime authority
+ |
+ \-create_elf_tables()
+   Fails: SIGSEGV, and the core dump runs as the task
+   \-coredump_file()
+     Unlinks the core_pattern path with that authority.
+```
 
 ## Check
 
