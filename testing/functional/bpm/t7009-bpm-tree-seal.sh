@@ -105,8 +105,8 @@ append() {
 	pkg=$1 tree=$2
 	shift 2
 	"$S" bpm tree append "$WORK/$pkg-1.0.0.bee" \
-		"oci://127.0.0.1:$PORT/ns/$tree" --keys-dir "$WORK/keys" "$@" \
-		>"$WORK/out" 2>"$WORK/err"
+		"oci://127.0.0.1:$PORT/ns/$tree" --tree-id "$tree" \
+		--keys-dir "$WORK/keys" "$@" >"$WORK/out" 2>"$WORK/err"
 }
 
 # The checks of the segments of a tree, read from the registry files.
@@ -314,7 +314,7 @@ synthetic() {
 	    ops.append(o)
 	if bad:
 	    ops[-1]["operation_digest"] = ops[0]["operation_digest"]
-	doc = {"schema": 1, "tree_id": "t7009a", "generation": 1,
+	doc = {"schema": 1, "tree_id": sys.argv[3], "generation": 1,
 	       "base": {"seq": 0}, "operations": ops, "head": {"seq": n}}
 	(work / "synthetic.json").write_bytes(
 	    json.dumps(doc, separators=(",", ":")).encode())

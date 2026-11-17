@@ -296,7 +296,8 @@ publication with the old certificate:
 .. code-block:: console
 
    operator$ shirudo bpm tree append <package> oci://<registry>/<tree> \
-       --keys-dir <standby-keys-dir> --previous-cert <primary-keys-dir>/cert.der
+       --tree-id <tree-id> --keys-dir <standby-keys-dir> \
+       --previous-cert <primary-keys-dir>/cert.der
 
 The new publication is signed by the standby key. Later appends use that
 key for both checks and can omit ``--previous-cert``. Targets accept

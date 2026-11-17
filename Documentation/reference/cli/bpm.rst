@@ -243,8 +243,11 @@ package as the next operations of the signed tree at
        certificate when the next publication will be signed by a new key.
        It does not change the certificate used to sign the new publication.
    * - ``--tree-id``
-     - the existing tree's, else the package name
-     - Tree ID. It must match the existing tree.
+     - for a new tree, the package name at ``stable`` and
+       ``<package>-<reference>`` at another reference
+     - Tree ID. Required to extend an existing tree, and it must be that
+       tree's: the registry chooses what the reference holds, so only the
+       operator can say which tree the new generation belongs to.
    * - ``--reference``
      - ``stable``
      - Tag of the tree publication.

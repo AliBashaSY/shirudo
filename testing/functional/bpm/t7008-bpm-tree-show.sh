@@ -149,6 +149,18 @@ test_expect_success 'show refuses a reference that does not exist' '
 		--reference absent
 '
 
+test_expect_success 'append refuses the tree of another reference served in place' '
+	cp "$REG/ns/tree/manifests/stable" "$WORK/stable" &&
+	cp "$REG/ns/tree/manifests/beta" "$REG/ns/tree/manifests/stable" &&
+	registry_sum >"$WORK/before" &&
+	! "$S" bpm tree append "$WORK/t7008-1.0.0.bee" "$TREE" \
+		--tree-id t7008 --keys-dir "$WORK/keys" >"$WORK/out" 2>"$WORK/err" &&
+	grep -q "holds tree t7008-beta, not t7008;" "$WORK/err" &&
+	registry_sum >"$WORK/after" &&
+	cmp -s "$WORK/before" "$WORK/after" &&
+	cp "$WORK/stable" "$REG/ns/tree/manifests/stable"
+'
+
 test_expect_success 'show refuses a wrong certificate' '
 	refused "Key was rejected by service" "$TREE" \
 		--cert "$WORK/other/cert.der"
@@ -272,8 +284,8 @@ test_expect_success 'tree append with --segment-ops 1 seals a segment per append
 	n=0 &&
 	for op in add delete add; do
 		"$S" bpm tree append "$WORK/t7008-1.0.0.bee" "$SEGS" \
-			--keys-dir "$WORK/keys" --segment-ops 1 --op "$op" \
-			>/dev/null || return 1
+			--tree-id t7008 --keys-dir "$WORK/keys" --segment-ops 1 \
+			--op "$op" >/dev/null || return 1
 		n=$((n + 1)) &&
 		cp "$REG/ns/segs/manifests/stable" "$WORK/g$n" || return 1
 	done

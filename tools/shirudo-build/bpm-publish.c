@@ -55,6 +55,7 @@ static void tree_append_usage(void)
 		"                               [--segment-ops <n>]\n\n"
 		"Publishes the [upatches.tree] entries of a built package as the next\n"
 		"operations of the signed tree at <repository>:<ref> (default stable).\n"
+		"Extending an existing tree needs --tree-id naming it.\n"
 		"A segment that holds --segment-ops operations (default %d, 1 to %d)\n"
 		"is sealed and the entries start the next one.\n"
 		"The key defaults to --keys-dir, SHIRUDO_KEYS_DIR or %s.\n",
@@ -1142,6 +1143,28 @@ static int tree_start_segment(const struct tree_publication *sealed,
 	return ret;
 }
 
+/*
+ * A new tree's id: the one --tree-id gives, else the package's at stable
+ * and the package's with the reference elsewhere, so that a canary tree
+ * one key publishes beside stable does not take stable's id, which an
+ * append checks to tell the two apart.
+ */
+static int tree_new_id(const char *tree_id, const char *package,
+		       const char *reference, char *out, size_t cap)
+{
+	if (tree_id)
+		return strscpy(out, tree_id, cap) < 0 ? -E2BIG : 0;
+	if (!strcmp(reference, "stable"))
+		return strscpy(out, package, cap) < 0 ? -E2BIG : 0;
+	if (strsprintf(out, cap, "%s-%s", package, reference) < 0 ||
+	    !bpm_package_name_ok(out)) {
+		pr_err("bpm tree append: %s-%s is no tree id; name the tree with --tree-id",
+		       package, reference);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int cmd_bpm_tree_append(int argc, char **argv)
 {
 	const char *package = NULL, *raw_repository = NULL, *keys_dir_arg = NULL;
@@ -1305,16 +1328,29 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		pub = (struct tree_publication){ .schema = 1,
 							 .generation = 1 };
 		parent[0] = '\0';
-		if (tree_id)
-			bpm_copy_string(pub.tree_id, sizeof(pub.tree_id), tree_id);
+		ret = tree_new_id(tree_id, info.name, reference, pub.tree_id,
+				  sizeof(pub.tree_id));
+		if (ret)
+			goto out;
 	} else if (ret) {
 		pr_err("bpm tree append: cannot read the publication at %s:%s",
 		       repo_ref, reference);
 		goto out;
 	} else {
-		if (tree_id && strcmp(pub.tree_id, tree_id)) {
-			pr_err("bpm tree append: tree id mismatch: existing %s, requested %s",
-			       pub.tree_id, tree_id);
+		/*
+		 * The registry chooses what the reference holds, another tree
+		 * the key signs among it: only the operator can say which tree
+		 * the signature it is about to make belongs to.
+		 */
+		if (!tree_id) {
+			pr_err("bpm tree append: %s:%s holds tree %s; name the tree to extend with --tree-id",
+			       repo_ref, reference, pub.tree_id);
+			ret = -EINVAL;
+			goto out;
+		}
+		if (strcmp(pub.tree_id, tree_id)) {
+			pr_err("bpm tree append: %s:%s holds tree %s, not %s; refusing to extend another tree",
+			       repo_ref, reference, pub.tree_id, tree_id);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1344,8 +1380,6 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		}
 	}
 	pub.schema = 1;
-	if (!pub.tree_id[0])
-		bpm_copy_string(pub.tree_id, sizeof(pub.tree_id), info.name);
 	bpm_copy_string(pub.parent_manifest_digest,
 			sizeof(pub.parent_manifest_digest), parent);
 

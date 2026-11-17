@@ -436,7 +436,7 @@ PY
 
 test_expect_success 'a delete append chains on the previous publication' '
 	"$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/keys" --op delete >/dev/null 2>&1 &&
+		--tree-id t7005 --keys-dir "$WORK/keys" --op delete >/dev/null 2>&1 &&
 	split_layers "$REG/ns/tree/manifests/stable" "$REG/ns/tree" "$WORK/tree2" &&
 	cms_verify "$WORK/tree2.sig" "$WORK/tree2.payload" &&
 	python3 - "$WORK/tree2.payload" "$WORK/tree1.manifest" "$WORK/tree1.payload" "$WORK/unload.json" <<'"'"'PY'"'"'
@@ -455,9 +455,15 @@ assert op["artifact"]["payload_sha256"] == "sha256:" + unload["payload_sha256"],
 PY
 '
 
-test_expect_success 'tree append refuses a different tree id and a package without tree entries' '
+test_expect_success 'tree append refuses another tree id, none, and a package without tree entries' '
 	! "$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/keys" --tree-id other >/dev/null 2>&1 &&
+		--keys-dir "$WORK/keys" --tree-id other >/dev/null 2>"$WORK/other.err" &&
+	grep -q "holds tree t7005, not other; refusing to extend another tree" \
+		"$WORK/other.err" &&
+	! "$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
+		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/noid.err" &&
+	grep -q "holds tree t7005; name the tree to extend with --tree-id" \
+		"$WORK/noid.err" &&
 	python3 - "$WORK" <<'"'"'PY'"'"'
 import io, pathlib, sys, tarfile
 work = pathlib.Path(sys.argv[1])
@@ -473,7 +479,7 @@ with tarfile.open(fileobj=body, mode="w:gz", format=tarfile.USTAR_FORMAT) as tar
 (work / "plain.bee").write_bytes(body.getvalue())
 PY
 	! "$S" bpm tree append "$WORK/plain.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/plain.err" &&
+		--tree-id t7005 --keys-dir "$WORK/keys" >/dev/null 2>"$WORK/plain.err" &&
 	grep -q "no \[upatches.tree\] entries" "$WORK/plain.err"
 '
 
@@ -568,7 +574,8 @@ test_expect_success 'the operator commands are reachable directly in shirudo-bui
 
 test_expect_success 'tree append needs readable signing material' '
 	! "$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--key "$WORK/missing.pem" --cert "$WORK/keys/cert.der" >/dev/null 2>&1
+		--tree-id t7005 --key "$WORK/missing.pem" \
+		--cert "$WORK/keys/cert.der" >/dev/null 2>&1
 '
 
 test_expect_success 'a new signing key does not silently replace the previous tree signer' '
@@ -576,13 +583,13 @@ test_expect_success 'a new signing key does not silently replace the previous tr
 	openssl x509 -inform DER -in "$WORK/next-key/cert.der" -out "$WORK/next-key.pem" &&
 	cp "$REG/ns/tree/manifests/stable" "$WORK/before-rotation.manifest" &&
 	! "$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/next-key" >/dev/null 2>&1 &&
+		--tree-id t7005 --keys-dir "$WORK/next-key" >/dev/null 2>&1 &&
 	cmp "$REG/ns/tree/manifests/stable" "$WORK/before-rotation.manifest"
 '
 
 test_expect_success 'previous-cert verifies A while B signs the next publication' '
 	"$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/next-key" --previous-cert "$WORK/keys/cert.der" >/dev/null &&
+		--tree-id t7005 --keys-dir "$WORK/next-key" --previous-cert "$WORK/keys/cert.der" >/dev/null &&
 	split_layers "$REG/ns/tree/manifests/stable" "$REG/ns/tree" "$WORK/rotated" &&
 	cms_verify "$WORK/rotated.sig" "$WORK/rotated.payload" "$WORK/next-key.pem" &&
 	! cms_verify "$WORK/rotated.sig" "$WORK/rotated.payload" &&
@@ -597,7 +604,7 @@ PYTEST
 
 test_expect_success 'later B publications use B to verify the predecessor by default' '
 	"$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/next-key" >/dev/null &&
+		--tree-id t7005 --keys-dir "$WORK/next-key" >/dev/null &&
 	split_layers "$REG/ns/tree/manifests/stable" "$REG/ns/tree" "$WORK/after-rotation" &&
 	cms_verify "$WORK/after-rotation.sig" "$WORK/after-rotation.payload" "$WORK/next-key.pem" &&
 	python3 -c "import json, sys; p=json.load(open(sys.argv[1])); assert p[\"generation\"] == 4" \
@@ -607,7 +614,7 @@ test_expect_success 'later B publications use B to verify the predecessor by def
 test_expect_success 'a wrong explicit predecessor certificate leaves the tree unchanged' '
 	cp "$REG/ns/tree/manifests/stable" "$WORK/rotated.manifest" &&
 	! "$S" bpm tree append "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/tree" \
-		--keys-dir "$WORK/next-key" --previous-cert="$WORK/keys/cert.der" >/dev/null 2>&1 &&
+		--tree-id t7005 --keys-dir "$WORK/next-key" --previous-cert="$WORK/keys/cert.der" >/dev/null 2>&1 &&
 	cmp "$REG/ns/tree/manifests/stable" "$WORK/rotated.manifest"
 '
 

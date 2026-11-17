@@ -110,7 +110,8 @@ Append it to the tree
    .. code-block:: console
 
       operator$ shirudo bpm tree append <name>-<version>.bee \
-          oci://<registry>/<namespace>/<tree> --keys-dir <keys-dir>
+          oci://<registry>/<namespace>/<tree> --tree-id <tree-id> \
+          --keys-dir <keys-dir>
 
    ``<tree>`` is the tree's repository. The command fetches the current
    publication at ``<tree>:stable`` and verifies its signature against
@@ -124,8 +125,11 @@ Append it to the tree
    as it was, its ``fixes`` included.
 
    A repository without a publication starts a new tree at generation 1,
-   with the package name as tree id or the id ``--tree-id`` gives. For an
-   existing tree, ``--tree-id`` must name the id it has. ``--reference
+   with the id ``--tree-id`` gives, else the package name at ``stable``
+   and ``<package>-<reference>`` at another reference, so that a canary
+   tree has an id of its own. To extend an existing tree, ``--tree-id``
+   must name the id it has, from your own records: a registry that serves
+   another tree your key signs at that reference is refused. ``--reference
    <ref>`` publishes to another tag than ``stable``, such as a canary
    tree.
 
@@ -134,7 +138,8 @@ Append it to the tree
    .. code-block:: console
 
       operator$ shirudo bpm tree append <name>-<version>.bee \
-          oci://<registry>/<namespace>/<tree> --keys-dir <keys-dir> --op delete
+          oci://<registry>/<namespace>/<tree> --tree-id <tree-id> \
+          --keys-dir <keys-dir> --op delete
 
    Nothing is ever removed from the tree: a ``delete`` is a new operation
    after the ``add``, and carries no ``fixes``. To replace a loaded

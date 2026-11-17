@@ -221,14 +221,14 @@ append <cli/bpm>`. ``<package>`` is a built package whose Beefile has
 
 .. code-block:: console
 
-   operator$ shirudo bpm tree append <package> oci://quay.io/example/tree --keys-dir ~/shirudo-keys
+   operator$ shirudo bpm tree append <package> oci://quay.io/example/tree --tree-id <tree-id> --keys-dir ~/shirudo-keys
 
 Retract them on another tree reference with :doc:`bpm tree append
 <cli/bpm>`:
 
 .. code-block:: console
 
-   operator$ shirudo bpm tree append <package> oci://quay.io/example/tree --keys-dir ~/shirudo-keys --reference canary --op delete
+   operator$ shirudo bpm tree append <package> oci://quay.io/example/tree --tree-id <canary-tree-id> --keys-dir ~/shirudo-keys --reference canary --op delete
 
 Refresh the indexes and upgrade, as ``shirudo-bpm-repo-update.timer``
 does, with :doc:`cli/bpm`:

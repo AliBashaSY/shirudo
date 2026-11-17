@@ -520,8 +520,9 @@ signed config image.
        could not unpack together, ``bpm push`` with a signed index,
        ``bpm tree append`` and its refusal of an XDP device class two
        upatches of a tree select and of an entry no target would take,
-       each before anything is uploaded, A-to-B tree signing-key rotation
-       with explicit predecessor verification
+       each before anything is uploaded, its refusal to extend a tree
+       without ``--tree-id`` or with another tree's id, A-to-B tree
+       signing-key rotation with explicit predecessor verification
    * - ``t7006-policy-labels``
      - Beefile policy declarations are serialized into the signed
        upatch section
@@ -538,7 +539,9 @@ signed config image.
        writes nothing to the registry; with ``--walk`` prints a tree
        never sealed as without it and every segment of a tree sealed
        by ``--segment-ops 1`` oldest first, stops at ``seq`` 0 from a
-       sealed segment, and refuses a tree whose sealed segment is gone
+       sealed segment, and refuses a tree whose sealed segment is gone;
+       ``bpm tree append`` refuses the ``beta`` tree served in place of
+       ``stable``
    * - ``t7009-bpm-tree-seal``
      - ``bpm tree append`` seals a segment at ``--segment-ops``, a value
        that may change between appends, or before one append would pass

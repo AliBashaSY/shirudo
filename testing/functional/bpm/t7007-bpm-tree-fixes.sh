@@ -87,7 +87,7 @@ TREE="oci://127.0.0.1:$PORT/ns/tree"
 append() {
 	pkg=$1
 	shift
-	"$S" bpm tree append "$WORK/$pkg-1.0.0.bee" "$TREE" \
+	"$S" bpm tree append "$WORK/$pkg-1.0.0.bee" "$TREE" --tree-id t7007a \
 		--keys-dir "$WORK/keys" "$@" >/dev/null 2>"$WORK/append.err" &&
 	python3 - "$REG/ns/tree" "$WORK" <<'PY'
 import json, pathlib, sys
@@ -223,7 +223,7 @@ PY
 refused() {
 	malformed "$1" "$2" &&
 	cp "$REG/ns/tree/manifests/stable" "$WORK/bad.manifest" &&
-	! "$S" bpm tree append "$WORK/t7007b-1.0.0.bee" "$TREE" \
+	! "$S" bpm tree append "$WORK/t7007b-1.0.0.bee" "$TREE" --tree-id t7007a \
 		--keys-dir "$WORK/keys" >/dev/null 2>"$WORK/bad.err" &&
 	grep -q "has a fixes list bpm tree append would not write" \
 		"$WORK/bad.err" &&

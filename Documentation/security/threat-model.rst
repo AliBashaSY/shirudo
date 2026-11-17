@@ -1500,7 +1500,10 @@ R8 Registry withholding and replay
    packages added since; a registry that claims to have none is refused
    unless ``--new-index`` is given. ``bpm tree append`` builds the next
    publication on the one the registry serves the same way, so an older
-   one makes the operator sign a second branch of the tree. A target
+   one makes the operator sign a second branch of the tree. It extends
+   only the tree ``--tree-id`` names, which an existing tree requires,
+   so a registry that serves another tree the key signs in its place, a
+   canary tree at ``stable``, is refused (``t7005``, ``t7008``). A target
    that processed an operation the second branch does not have refuses
    it, as its operations up to the target's cursor do not fold to the
    ``history_root`` the target holds, in a segment and at a segment's
