@@ -165,6 +165,7 @@ jobs:
               flex \
               gawk \
               git \
+              libltdl-dev \
               libluajit-5.1-dev \
               libtool \
               m4 \
