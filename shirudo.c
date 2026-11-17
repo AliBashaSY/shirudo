@@ -84,7 +84,7 @@ static void print_group(enum cmd_group g, const char *header)
 
 static int cmd_help(int argc, const char **argv)
 {
-	if (argc > 1 && strcmp(argv[1], "--list-cmds") == 0) {
+	if (argc > 1 && is_list_cmds(argv[1])) {
 		for (size_t i = 0; i < commands_n; i++)
 			printf("%s\n", commands[i].name);
 		return 0;

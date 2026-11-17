@@ -601,6 +601,42 @@ test_expect_success 'dead_store reports a store stored over and spares the reads
 	[ "$(grep -c "^dead_store: samples.c:" "$W/err")" = 1 ]
 '
 
+# An option compared by hand, which option_by_hand reports, beside the
+# standard output path "-", which is no option, and the parser itself,
+# whose file the rule leaves alone.
+write_option_samples() {
+	cat >"$1/samples.c" <<'EOF'
+int by_hand(int argc, const char **argv)
+{
+	return argc > 1 && !strcmp(argv[1], "--json");
+}
+
+int to_stdout(const char *path)
+{
+	return !strcmp(path, "-");
+}
+EOF
+	mkdir -p "$1/util" &&
+	cat >"$1/util/options.c" <<'EOF'
+int is_end(const char *arg)
+{
+	return !strcmp(arg, "--");
+}
+EOF
+}
+
+test_expect_success 'option_by_hand reports an option compared outside the parser' '
+	R7=$W/option &&
+	mkdir -p "$R7/testing/coccinelle" &&
+	git init -q "$R7" &&
+	cp "$ROOT/testing/coccinelle/option_by_hand.cocci" \
+		"$R7/testing/coccinelle/" &&
+	write_option_samples "$R7" &&
+	! (cd "$R7" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	grep -q "^option_by_hand: samples.c:3:" "$W/err" &&
+	[ "$(grep -c "^option_by_hand:" "$W/err")" = 1 ]
+'
+
 # A spatch that gives up, as a rule with --timeout makes it: the file it
 # gave up on is named and the check passes, while another failure fails.
 write_fake_spatch() {
