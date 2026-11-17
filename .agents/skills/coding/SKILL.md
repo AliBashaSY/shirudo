@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, the commit message that carries the change, with a chart where one explains it faster, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
+description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, how to shape interfaces, resources, errors, types, shared state and hot paths so that a mistake has nowhere to hide, what to delete, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, the commit message that carries the change, with a chart where one explains it faster, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
 ---
 
 # Coding
@@ -46,6 +46,148 @@ if (upatch_map_is_percpu(type))
 	continue;
 ```
 
+## Shape the code
+
+Code that reads well is code a mistake cannot hide in. These choices
+keep it that way.
+
+### Interfaces
+
+- When callers keep getting an interface wrong, change the interface,
+  not each caller. Return what every caller needs, such as the end
+  pointer rather than a length, or the object found under the lock
+  rather than a yes and a second lookup. Make the cleanup accept what a
+  failed constructor returns, so that freeing whatever came back is
+  always right. Prefer one entry point to two that each have their own
+  problem cases.
+- Put a check where it cannot be skipped: in the constructor, in the
+  one accessor of a raw field, in the single decoder. Fix the helper
+  that owns a rule rather than every caller of it.
+- Make a special case impossible rather than handled. A counter that
+  cannot wrap is a `__u64`; an empty table beats a NULL to test.
+- A name means one thing and states an odd contract, even when that
+  makes it long. When a field's meaning changes, rename it so that every
+  stale user fails to compile, and delete a function whose tempting name
+  invites misuse.
+
+### Resources and errors
+
+- Take and release a resource in the same function. When the cleanup
+  grows, a wrapper takes and releases and an inner function does the
+  work with plain returns, instead of a ladder of `goto` labels:
+
+  ```c
+  int record_load(const char *path, struct record *out)
+  {
+  	int fd, ret;
+
+  	fd = open(path, O_RDONLY | O_CLOEXEC);
+  	if (fd < 0)
+  		return -errno;
+  	ret = record_read(fd, out);
+  	close(fd);
+  	return ret;
+  }
+  ```
+
+- Free in the function that allocated. A helper makes all of its
+  allocations or none, and hands over ownership by clearing the pointer
+  it gave away.
+- Order a function so that everything that can fail comes before
+  anything that cannot be undone. Compute into a local, check it, then
+  publish it to shared state or to an output parameter, and write an
+  output once. Check a failure where it happens, so that the shared
+  cleanup at the end runs unconditionally.
+- One errno for each distinct failure, the one that means it: `ENOTTY`
+  for an unknown request, `EAGAIN` for a busy resource, `ENOMEM` only
+  for memory.
+
+### Data and types
+
+- The simplest representation that fits: a `__u64`, not two `__u32`; a
+  `bool` or a bit, not a bitmap, for two flags; a lookup table, not a
+  `switch`, to classify characters; a table indexed by its enum with
+  designated initializers, `[KIND_LOAD] = "load"`, not one that depends
+  on the order of its lines; no negative enumerator as a sentinel.
+- Let the compiler see the real types: `const` on what a function only
+  reads, a union instead of a cast, one named helper for a cast that
+  cannot be avoided, a constant of the type it is compared with.
+- Keep a length in the type it arrives in and make wraparound explicit.
+  Compare bytes as `unsigned char` or with `memcmp()`; never rely on
+  `char` being signed, which it is not on arm64 and riscv64.
+- Compute in the data's own unit and convert only at the edges. A range
+  check subtracts from the limit, where adding to the offset can wrap,
+  and accepts an end exactly at the limit:
+
+  ```c
+  if (off > size || len > size - off)
+  	return -EINVAL;
+  ```
+
+  A limit gets a name, not a literal whose digits a reader counts.
+- A loop ends by construction: its condition tests what is left, a
+  chain it walks must strictly advance, and a limit is clamped once
+  before it starts.
+- A constant table inside a function is `static const`, or the compiler
+  copies it to the stack, which a BPF program has 512 bytes of. A return
+  value beats an output parameter wherever one value comes back.
+
+### State that changes under you
+
+- Read a value that can change under you once, into a local, and use
+  only the local. In BPF that is `READ_ONCE()`; `volatile` is never the
+  fix.
+- Never measure and then fill, or test and then look up again, across a
+  window in which the data can change. Size for the maximum once, or
+  have the lookup return what it found.
+- Take the lock a whole operation needs, once. Do not release and retake
+  it when the caller holds on to state, re-read what may have changed
+  after any lock was dropped, and register for a wakeup before testing
+  the condition it waits for.
+
+### Warnings, noise and dead code
+
+- A warning about code a reader also finds hard to follow is fixed by
+  making the code clear: return the match from inside the search loop
+  rather than break and test the index afterwards. Never a cast, an
+  annotation or a dummy value whose only job is to quiet a tool. Where
+  no clearer shape exists, start the value at the one the code relies
+  on.
+- Before adding an annotation or a check that warns, a `__must_check`, a
+  Coccinelle rule or an analyzer, fix its existing users in the commits
+  before it.
+- Print nothing nobody will act on. A warning users cannot respond to
+  teaches them that warnings are normal, and then they miss the real
+  one.
+- Delete rather than keep: a helper with no caller, a variant that is
+  dangerous or unused, a debug check that never caught anything, an
+  optimization nobody measured to pay off. Disallow what has no reason
+  to be allowed; it can come back the day a user needs it.
+- No option in place of a decision. A new option defaults off, and
+  behavior users rely on, command output, JSON keys and exit statuses,
+  is an interface: changing it breaks them.
+
+### Hot paths
+
+BPF programs and upatches run in the kernel's hot paths, where these
+matter. The userspace commands rarely do.
+
+- Keep the common path straight-line and cheap, and never make it
+  slower for a rare case. Move the rare case into a function of its own
+  marked `noinline`, keep a critical section minimal, and test before
+  writing memory other CPUs read rather than writing it every time.
+- Distrust an optimization until it is measured, and remove the ones
+  that do not pay.
+
+### Refactors
+
+- Keep a refactor apart from a behavior change, each in a commit of its
+  own, and say in the refactor's message that behavior does not change.
+- To untangle code, first rewrite it to a clean base, then add each
+  special case back as a helper of its own in the next commit.
+- A mechanical change, a rename or a converted call, goes in a commit
+  of its own.
+
 ## Comments
 
 Code says what it does; a comment is for what it cannot say.
@@ -71,6 +213,9 @@ Code says what it does; a comment is for what it cannot say.
 - A function's contract goes above its declaration in the header, and
   only when the prototype does not tell it: what it returns on which
   failure, what it owns or frees, what it refuses.
+- Where a reader once misread code that was right, a comment goes
+  exactly there, and names any other code that must stay in step with
+  it.
 - Block comments open with `/*` and close with `*/` on lines of their
   own, every line between starting with ` *`; `//` is for SPDX alone.
 
@@ -201,6 +346,27 @@ reads it once:
 - Read `git log -- <the files>` for the recent messages of the area
   before writing one.
 - Where a chart explains the problem faster than prose, draw one.
+- The length follows the reasoning, not the diff: a one-line fix can
+  need three paragraphs, and deleting dead code one sentence.
+- When old code changes or goes, say why it once made sense and why
+  that reason is gone, citing the commits that added it and that broke
+  it.
+- State the scope: what the change deliberately leaves alone, whether
+  it is the minimal fix and what the full one would be and why it waits,
+  what was tested and what was not, and what would make it be undone.
+- Where a bug has a short reproducer, give it: the command or the small
+  program, and what it printed.
+- Where an interface changes, show the old and the new call in a short
+  snippet.
+- A mechanical change gives the exact command that made it, `git grep
+  -l ... | xargs sed -i ...`, says how to review it, for instance with
+  `git show -w`, and lists the cases fixed by hand.
+- A revert has the subject `Revert "<subject>"` and starts with `This
+  reverts commit <hash> ("<subject>").`, then gives the symptom as
+  reported, why it is reverted rather than fixed now, and what comes
+  next. A partial revert says what it keeps.
+- A side note, such as advice for a backport or a nit outside the
+  change, goes in a `[ ... ]` paragraph after the main text.
 
 ### Charts
 
