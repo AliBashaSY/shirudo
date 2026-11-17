@@ -1691,7 +1691,7 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 	void *sig_buf = NULL;
 	struct bpf_map *m;
 	int err = 0;
-	int fd = -1;
+	int fd;
 
 	/*
 	 * The loader writes map_fd/prog_fd back into descriptor arrays
@@ -1869,8 +1869,8 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		err = write_complete(fd, signed_data, data_len);
 	if (!err && fsync(fd) != 0)
 		err = -errno;
-	close(fd);
-	fd = -1;
+	if (close(fd) && !err)
+		err = -errno;
 	if (err) {
 		unlink(out_path);
 		goto out;
@@ -1883,8 +1883,6 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		upatch_name,
 		(flags & DIRECTIVE_UNLOAD) ? " UNLOAD" : "");
 out:
-	if (fd >= 0)
-		close(fd);
 	xfree(loader_data_buf, loader_data_len);
 	free_decoder_set(&decoders);
 	xfree(signed_data, signed_data_len);
