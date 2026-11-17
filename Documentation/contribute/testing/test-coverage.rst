@@ -777,10 +777,10 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover 30 of the modules in
+The unit suites in :src:`testing/unit/` cover 31 of the modules in
 :src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_state``,
 ``bpm_tree``, ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain``,
-``chain_history``, ``conditions``,
+``chain_history``, ``conditions``, ``crypto_openssl``,
 ``eventlog``, ``format``, ``hex``, ``io``, ``json``, ``kernel_abi``,
 ``keepalive``, ``keepalive_quote``, ``kernel_build_id``,
 ``kernel_release``, ``measured``,

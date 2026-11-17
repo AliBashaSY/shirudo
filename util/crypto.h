@@ -29,6 +29,7 @@ int sha256_update(struct sha256_ctx *ctx,
 int sha256_final(struct sha256_ctx *ctx,
 		 __u8 out[CRYPTO_SHA256_LEN]) __must_check;
 void sha256_free(struct sha256_ctx *ctx);
+/* Where it fails, out is all zeros. */
 int sha256_buffer(const void *data, size_t len,
 		  __u8 out[CRYPTO_SHA256_LEN]) __must_check;
 /*

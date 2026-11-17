@@ -131,6 +131,8 @@ int sha256_buffer(const void *data, size_t len,
 		ret = sha256_final(&ctx, out);
 	else
 		sha256_free(&ctx);
+	if (ret && out)
+		memset(out, 0, CRYPTO_SHA256_LEN);
 	return ret;
 }
 
