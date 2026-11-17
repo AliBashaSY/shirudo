@@ -19,6 +19,9 @@ import unittest
 
 SHIRUDO = str(Path(sys.argv.pop(1)).resolve())
 README = b"# Example package\n\nPackage documentation without a final newline."
+# A upatch named rodata with a struct and an integer in .rodata.
+RODATA_UPATCH = (Path(__file__).resolve().parents[1] /
+                 "fuzz/corpus/rodata/struct").read_bytes()
 
 
 def package_bytes(entries):
@@ -111,6 +114,20 @@ class InfoTests(BpmTestCase):
         result = self.run_info("upatches", str(path))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, b"upatches/a?[2Jb.upatch\n")
+
+    def test_data_member_name_controls_show_as_question_marks(self):
+        member = "upatches/a\x1b]0;x\x07b.upatch"
+        path = self.root / "package.bee"
+        path.write_bytes(package_bytes([
+            ("example-1.0/Beefile", b'[package]\nname = "example"\n'),
+            ("example-1.0/" + member, RODATA_UPATCH),
+        ]))
+        result = self.run_info("data", str(path), member)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(result.stdout.startswith(
+            b"upatch rodata (upatches/a?]0;x?b.upatch) .rodata: "),
+            result.stdout[:80])
+        self.assertNotIn(b"\x1b", result.stdout)
 
     def test_empty_readme(self):
         result = self.local(package(b""))

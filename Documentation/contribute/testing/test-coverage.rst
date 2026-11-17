@@ -550,8 +550,10 @@ signed config image.
        and tree configuration lines
    * - ``t7002-bpm-info``
      - READMEs of local and OCI packages, archive integrity, a download
-       kept in a memory file rather than in ``/tmp``, and one key
-       fingerprint from a certificate, a package and a download
+       kept in a memory file rather than in ``/tmp``, one key
+       fingerprint from a certificate, a package and a download, and the
+       control characters of a README and of a member name shown as
+       ``?`` by ``info``, ``info upatches`` and ``info data``
    * - ``t7003-bpm-key``
      - ``bpm key`` from files and OCI references, ``bpm pull``, which
        replaces no file, not even after a failed digest, and names none

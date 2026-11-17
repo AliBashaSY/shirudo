@@ -17,6 +17,7 @@
 #include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
+#include "format.h"
 #include "io.h"
 #include "json.h"
 #include "log.h"
@@ -971,9 +972,10 @@ static int print_rodata_text(const struct upatch *u,
 
 	upatch_header_name(u, name);
 	text_sanitize(name, strlen(name), false);
-	printf("upatch %s (%s) .rodata: %u bytes at data+%u, file+%u\n",
-	       name, path, view->size, view->data_offset,
-	       u->hdr.data_off + view->data_offset);
+	printf("upatch %s (", name);
+	fputs_sanitized(path, stdout);
+	printf(") .rodata: %u bytes at data+%u, file+%u\n", view->size,
+	       view->data_offset, u->hdr.data_off + view->data_offset);
 	cost = xcalloc(types, sizeof(*cost));
 	if (!cost)
 		return -ENOMEM;
