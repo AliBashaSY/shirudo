@@ -507,6 +507,10 @@ signed config image.
        is not refused or counted, and on an XFS image it is refused and
        counted. The XFS case needs XFS in the kernel and ``mkfs.xfs``,
        which the slim test VM kernel lacks
+   * - ``t6154-lockdown``
+     - A PCI config write, ``/proc/kcore`` and ``/dev/mem``, where the
+       kernel has them, are refused, the first two counted as
+       ``Lockdown``, and a read of ``/sys/power/state`` counts nothing
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -1032,6 +1036,8 @@ tests assert that a refusal moves its counter:
      - ``t6152``
    * - ``XattrHandle``
      - ``t6153``, on a kernel with XFS
+   * - ``Lockdown``
+     - ``t6154``
    * - ``Kexec``
      - ``t6126``
 

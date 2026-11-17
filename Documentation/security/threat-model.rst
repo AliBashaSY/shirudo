@@ -174,18 +174,20 @@ without the protection.
        for the caller (T3).
    * - A4
      - The kernel refuses unsigned modules (``CONFIG_MODULE_SIG`` with
-       enforcement) and runs with lockdown in integrity mode
-       (``CONFIG_SECURITY_LOCKDOWN_LSM`` and ``lockdown=integrity``).
-     - An unsigned module is kernel code of root's choosing. Module
-       signatures alone leave root ``/dev/mem``, MSR writes, port I/O,
-       PCI BAR access, debugfs writes, ACPI table overrides and
-       hibernation, each a way to change or replace the running
-       kernel, and lockdown refuses them. Lockdown refuses an unsigned
-       module only on a kernel that checks module signatures at all.
-     - No, see U10. In confidentiality mode the kernel withholds
-       ``bpf_probe_read_kernel()`` from BPF programs, which shirudo's
-       own programs use, so that mode would stop ``init``. This is a
-       reading of the kernel source and is not tested.
+       enforcement).
+     - An unsigned module is kernel code of root's choosing, and
+       shirudo leaves module signatures to the kernel. The other ways
+       root has to change or replace the running kernel, ``/dev/mem``,
+       MSR writes, port I/O, PCI BAR access, debugfs writes and ACPI
+       table overrides, the ones lockdown in integrity mode refuses,
+       ``bpf2`` refuses from ``init`` on through ``lsm/locked_down``,
+       with ``/proc/kcore``, which that mode leaves readable
+       (``Lockdown``, ``t6154``). The kernel's lockdown LSM is not
+       needed for them, and where it runs it decides first.
+     - No, see U10. Lockdown in confidentiality mode would withhold
+       ``bpf_probe_read_kernel()`` from shirudo's own programs and stop
+       ``init``. This is a reading of the kernel source and is not
+       tested.
    * - A5
      - 32-bit compatibility is off: ``CONFIG_COMPAT=n``, and on x86-64
        also ``CONFIG_IA32_EMULATION=n`` and ``CONFIG_X86_X32_ABI=n``.
@@ -219,10 +221,13 @@ without the protection.
        and ``/dev/tpmrm0``.
      - No.
    * - A9
-     - Hibernation is unavailable. Lockdown in integrity mode disables
-       it.
+     - Hibernation is unavailable from boot: ``CONFIG_HIBERNATION=n``,
+       or ``nohibernate`` or ``lockdown=integrity`` on the command line.
      - A hibernation image is kernel memory on disk that root can
        change before resume, through ``/dev/snapshot`` among others.
+       ``bpf2`` refuses hibernation once ``init`` runs, but a resume
+       runs in the initrd before it, from an image root can write to
+       swap.
        The behavior of the register across hibernation is not analyzed
        here.
      - No.
@@ -234,9 +239,10 @@ without the protection.
      - No. See R19.
    * - A11
      - The kernel command line is authenticated as part of the UKI. It
-       carries ``lsm=`` with ``bpf``, ``lockdown=integrity``,
-       ``bpf.keyring_unsealed=1`` and ``dm_verity.keyring_unsealed=1``,
-       and nothing that masks or skips ``shirudo-initrd.service``.
+       carries ``lsm=`` with ``bpf``, ``bpf.keyring_unsealed=1`` and
+       ``dm_verity.keyring_unsealed=1``, ``nohibernate`` or
+       ``lockdown=integrity`` on a kernel with hibernation (A9), and
+       nothing that masks or skips ``shirudo-initrd.service``.
      - The command line decides whether the LSM runs, whether the
        keyrings accept shirudo's keys and whether ``init`` runs at all.
      - Partly. ``init`` refuses a ``.bpf`` keyring the kernel sealed
@@ -1074,13 +1080,23 @@ runs next. ``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` refuse
 every kexec image and initramfs to every task, shirudo included, by
 either system call (``Kexec``).
 
+The kernel that runs this boot has other ways in: ``/dev/mem``, MSRs,
+port I/O, PCI resources, debugfs writes and ACPI table overrides change
+it, and ``/proc/kcore`` reads it. ``lsm/locked_down`` refuses what
+lockdown in integrity mode refuses, module signatures aside (A4), and
+``/proc/kcore`` with it, to every task, whatever the command line says
+(``Lockdown``). Hibernation is refused too, but a resume runs in the
+initrd before ``init``, which A9 keeps off.
+
 .. rst-class:: facts
 
 :Adversary: ADV-B, root on the target without the signing key
-:Enforced at: ``lsm/kernel_load_data``, ``lsm/kernel_read_file``
-:Refusal: ``EPERM`` from ``kexec_load(2)`` and ``kexec_file_load(2)``
-:Counters: ``Kexec``
-:Tests: ``t4003``, ``t4101``, ``t6126``
+:Enforced at: ``lsm/kernel_load_data``, ``lsm/kernel_read_file``,
+   ``lsm/locked_down``
+:Refusal: ``EPERM`` from ``kexec_load(2)`` and ``kexec_file_load(2)``,
+   and from each lockdown check
+:Counters: ``Kexec``, ``Lockdown``
+:Tests: ``t4003``, ``t4101``, ``t6126``, ``t6154``
 :Residual: R6, R7, R12, U11, U16
 
 .. _tm-t7:
@@ -1672,8 +1688,8 @@ R21 upatches can be neutralized by changing their targets
    An upatch stays loaded and measured while root makes it ineffective:
    by unloading the module a kprobe targets, by replacing the binary a
    ``uprobe``, ``uretprobe``, ``uprobe.multi`` or ``uretprobe.multi``
-   target names with a new inode,
-   or, without lockdown (A4), by disabling kprobes through debugfs. These
+   target names with a new inode. Disabling kprobes through debugfs is
+   a debugfs write, which ``bpf2``'s lockdown refuses (A4). These
    are readings of the kernel source and are not tested.
 
    XDP coverage is reconciled, not continuous. A device added after load
@@ -1860,15 +1876,14 @@ U9 init can rebind the register after hiding this boot's record
 
 U10 Kernel prerequisites are not checked
    :Affects: A4, A5, A7, A9 and A10.
-   :Consequence: A target without lockdown, with 32-bit compatibility,
-      with the dm-verity keyring options on, with hibernation available
-      or with writes under mounted file systems allowed initializes
-      without an error and without the protection those assumptions
-      give.
+   :Consequence: A target without module signature enforcement, with
+      32-bit compatibility, with the dm-verity keyring options on, with
+      hibernation available at boot or with writes under mounted file
+      systems allowed initializes without an error and without the
+      protection those assumptions give.
    :Status: Confirmed in code: the pre-flight checks none of them.
-   :Meanwhile: Boot with ``lockdown=integrity`` on an authenticated
-      command line and build the kernel as :doc:`/operate/plan/hardening`
-      describes.
+   :Meanwhile: Build the kernel and its command line as
+      :doc:`/operate/plan/hardening` describes.
 
 U11 The boot continues when init fails
    :Affects: ``shirudo-initrd.service`` and the root file system's
@@ -2026,15 +2041,15 @@ the procedures.
 The deployer:
 
 - Builds the kernel with the signed-loader ABI and the carried kernel
-  patches (A3), ``CONFIG_MODULE_SIG`` with enforcement and
-  ``CONFIG_SECURITY_LOCKDOWN_LSM`` (A4), ``CONFIG_COMPAT=n`` (A5), both
+  patches (A3), ``CONFIG_MODULE_SIG`` with enforcement (A4),
+  ``CONFIG_COMPAT=n`` (A5), both
   dm-verity keyring options off and no foreign built-in certificate
   (A7), the TPM driver without ``i2c-dev`` or ``spidev`` on its bus
   (A8), and ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10)
 - Boots a signed, measured UKI under Secure Boot whose command line
-  carries ``lsm=`` with ``bpf``, ``lockdown=integrity``,
-  ``bpf.keyring_unsealed=1`` and ``dm_verity.keyring_unsealed=1`` (A6,
-  A11)
+  carries ``lsm=`` with ``bpf``, ``bpf.keyring_unsealed=1``,
+  ``dm_verity.keyring_unsealed=1`` and, on a kernel with hibernation,
+  ``nohibernate`` (A6, A9, A11)
 - Keeps generic tools off the runtime image (A14)
 - Keeps the environment files of the units absent or empty (U3) and
   starts every shirudo unit from the runtime image (U7)

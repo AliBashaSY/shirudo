@@ -346,7 +346,8 @@ by ``BPF_OBJ_GET`` (``ObjGet``). Directories stay listable.
    * - ``bpf2_task_prctl_link``, ``bpf2_bprm_check_security_link``,
        ``inode_rmdir_link``, ``bpf2_inode_rename_link``,
        ``inode_mkdir_link``, ``inode_symlink_link``, ``inode_link_link``,
-       ``kernel_load_data_link``, ``kernel_read_file_link``
+       ``kernel_load_data_link``, ``kernel_read_file_link``,
+       ``locked_down_link``
      - Links of the exec identity, directory entry and kexec guards.
    * - ``file_ioctl_link``, ``file_ioctl_compat_link``,
        ``bdev_integrity_link``, ``bdev_free_link``

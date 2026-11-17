@@ -99,6 +99,8 @@ shirudo_observer_guards[OBSERVER_HOOK_COUNT] = {
 	  BPFFS_DIR "/kernel_load_data_link" },
 	{ "shirudo_lsm_kernel_read_file",
 	  BPFFS_DIR "/kernel_read_file_link" },
+	{ "shirudo_lsm_locked_down",
+	  BPFFS_DIR "/locked_down_link" },
 };
 
 const struct image_guard

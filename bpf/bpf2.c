@@ -468,6 +468,34 @@ int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
 	return shirudo_tamper_deny(TAMPER_KEXEC, -EPERM);
 }
 
+/*
+ * Lockdown in integrity mode, the ways root has to change the running
+ * kernel, from /dev/mem to debugfs writes, and /proc/kcore, which that
+ * mode leaves readable, whether or not the command line asks for
+ * lockdown: the kernel's own lockdown LSM decides first where it runs.
+ * Module signatures stay with the kernel's enforcement (A4), and the
+ * hibernation check, which every read of /sys/power/state makes, is
+ * refused without a count.
+ */
+SEC("lsm/locked_down")
+int BPF_PROG(shirudo_lsm_locked_down, enum lockdown_reason what, int ret)
+{
+	if (ret)
+		return ret;
+	if (what == bpf_core_enum_value(enum lockdown_reason,
+					LOCKDOWN_MODULE_SIGNATURE))
+		return 0;
+	if (what == bpf_core_enum_value(enum lockdown_reason,
+					LOCKDOWN_HIBERNATION))
+		return -EPERM;
+	if (what == bpf_core_enum_value(enum lockdown_reason, LOCKDOWN_KCORE) ||
+	    (what > LOCKDOWN_NONE &&
+	     what < bpf_core_enum_value(enum lockdown_reason,
+					LOCKDOWN_INTEGRITY_MAX)))
+		return shirudo_tamper_deny(TAMPER_LOCKDOWN, -EPERM);
+	return 0;
+}
+
 SEC("lsm/inode_rename")
 int BPF_PROG(shirudo_lsm_inode_rename, struct inode *old_dir,
 	     struct dentry *old_dentry, struct inode *new_dir,

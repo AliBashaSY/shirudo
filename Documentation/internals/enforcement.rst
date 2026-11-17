@@ -202,6 +202,15 @@ Kexec
     ``lsm/kernel_read_file`` refuse every kexec image and initramfs to
     every caller.
 
+Lockdown
+    ``lsm/locked_down`` refuses, to every caller, what the kernel's
+    lockdown in integrity mode refuses, the ways root has to change the
+    running kernel, and ``/proc/kcore``, which that mode leaves
+    readable. Module signatures stay with the kernel's enforcement, and
+    the hibernation check is refused without a count, as every read of
+    ``/sys/power/state`` makes one. The kernel's lockdown LSM, where it
+    runs, decides first, and covers the boot before ``init``.
+
 Writable state
     ``seal`` refuses changes to labeled inodes under
     ``/var/lib/shirudo`` to tasks without runtime authority.
@@ -221,7 +230,7 @@ order:
    with ``shirudo_roots``. Pin the identity map.
 #. Attach ``task_prctl``, ``bprm_check_security``, ``inode_rmdir``,
    ``inode_rename``, ``inode_mkdir``, ``inode_symlink``, ``inode_link``,
-   ``kernel_load_data`` and ``kernel_read_file``.
+   ``kernel_load_data``, ``kernel_read_file`` and ``locked_down``.
 #. Attach ``file_ioctl``, ``file_ioctl_compat``, ``bdev_setintegrity``
    and ``bdev_free_security``.
 #. Attach ``inode_unlink``, ``inode_setxattr``, ``inode_removexattr``,
@@ -519,6 +528,12 @@ when the record it needs is missing.
      - ``EPERM``
      - ``Kexec``
      - Unconditional.
+   * - ``lsm/locked_down`` (``bpf2``)
+     - Every lockdown reason of integrity mode but module signatures,
+       and ``LOCKDOWN_KCORE``, to every caller.
+     - ``EPERM``
+     - ``Lockdown``; hibernation uncounted
+     - Unconditional; the kernel's lockdown LSM decides first.
    * - ``lsm.s/file_open`` (``seal``)
      - A write open of a labeled file to a task without authority. On a
        directory open, and on any open by an authorized task, records or

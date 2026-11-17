@@ -35,16 +35,17 @@ Kernel configuration
    * - Item
      - Why
      - Checked
-   * - Lockdown in integrity mode: ``CONFIG_SECURITY_LOCKDOWN_LSM`` with
-       ``lockdown`` in the LSM list and ``lockdown=integrity``, or
-       ``CONFIG_LOCK_DOWN_KERNEL_FORCE_INTEGRITY``
-     - Without lockdown, root keeps ways to write kernel memory or
-       reconfigure hardware that shirudo has no hook for: ``/dev/mem``,
-       MSRs, I/O ports, PCI resources, debugfs, ACPI table overrides and
-       hibernation images. Module signature enforcement alone does not
-       close them. Do not use confidentiality mode: it withholds
-       ``bpf_probe_read_kernel()`` from BPF programs, which shirudo's own
-       programs need, so they would not load.
+   * - Lockdown in integrity mode: optional
+     - shirudo's ``bpf2`` object refuses, from ``init`` on, what
+       integrity mode refuses but module signatures: ``/dev/mem``, MSRs,
+       I/O ports, PCI resources, debugfs writes, ACPI table overrides
+       and hibernation, and ``/proc/kcore`` with them, which the mode
+       leaves readable. The kernel's lockdown LSM, where it runs, refuses
+       first and covers the boot before ``init``; module signatures and
+       hibernation need the rows below either way. Do not use
+       confidentiality mode: it withholds ``bpf_probe_read_kernel()``
+       from BPF programs, which shirudo's own programs need, so they
+       would not load.
      - no
    * - Module signature enforcement: ``CONFIG_MODULE_SIG_FORCE`` or
        ``module.sig_enforce=1``, or lockdown, which also refuses unsigned
@@ -53,7 +54,8 @@ Kernel configuration
      - no
    * - ``CONFIG_STRICT_DEVMEM`` and ``CONFIG_IO_STRICT_DEVMEM``, or no
        ``/dev/mem`` at all
-     - Limits ``/dev/mem`` when lockdown is not in force.
+     - Limits ``/dev/mem`` before ``init``, after which ``bpf2`` refuses
+       it.
      - no
    * - ``CONFIG_BLK_DEV_WRITE_MOUNTED=n``
      - The seal acts on file operations. Root writing to the block
@@ -62,10 +64,11 @@ Kernel configuration
        mounted block device.
      - no
    * - No hibernation: ``CONFIG_HIBERNATION=n``, ``nohibernate`` or
-       lockdown
+       ``lockdown=integrity``
      - Resuming from a hibernation image replaces kernel memory with
-       what the image holds. shirudo refuses kexec loads, but it does not
-       refuse hibernation.
+       what the image holds. shirudo refuses hibernating once ``init``
+       runs, but the initrd resumes before ``init``, from an image root
+       can write to swap.
      - no
    * - Kexec
      - A kexec boots a kernel and initrd of root's choosing while the

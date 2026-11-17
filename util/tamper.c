@@ -102,6 +102,8 @@ static const struct {
 		"exec of the runtime binary by a task that shares its file system context" },
 	[TAMPER_XATTR_HANDLE] = { "XattrHandle",
 		"XFS attribute change by file handle, which passes no xattr hook" },
+	[TAMPER_LOCKDOWN] = { "Lockdown",
+		"change or read of the running kernel that lockdown refuses" },
 };
 
 const char *tamper_name(enum tamper_point point)

@@ -286,7 +286,7 @@ LSM hooks
        ``inode_rmdir``, ``inode_mkdir``, ``inode_symlink``,
        ``inode_link``, ``inode_rename``, ``inode_setxattr``,
        ``inode_removexattr``, ``kernel_load_data``, ``kernel_read_file``,
-       ``file_open``, ``sb_umount``, ``move_mount``, ``sb_mount``,
+       ``locked_down``, ``file_open``, ``sb_umount``, ``move_mount``, ``sb_mount``,
        ``sb_remount``, ``file_ioctl``, ``file_ioctl_compat``,
        ``bdev_setintegrity`` (sleepable), ``bdev_free_security``
      - ``bpf2``

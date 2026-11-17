@@ -278,8 +278,9 @@ Module loading and kernel live patching
 
 :Mechanism: shirudo does not gate module loading.
    ``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` let every load
-   other than a kexec image or initramfs through. Whether a module loads
-   is the kernel's decision: module signature enforcement and lockdown
+   other than a kexec image or initramfs through, and
+   ``lsm/locked_down`` leaves module signatures to the kernel. Whether a
+   module loads is the kernel's decision: module signature enforcement
    (A4 in :doc:`/security/threat-model`). A livepatch module, as kpatch
    or the kernel's ``klp-build`` produce, is a kernel module like any
    other.
