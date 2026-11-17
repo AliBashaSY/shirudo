@@ -98,6 +98,24 @@ static inline bool opt_given(const struct opt_parser *p, int opt)
 int opt_u64(const struct opt_parser *p, __u64 min, __u64 max,
 	    __u64 *out) __must_check;
 
+/* A name an option's value may be, and the value it stands for. */
+struct opt_name {
+	const char	*name;
+	int		value;
+};
+
+/*
+ * The value of the name the option last returned was given, from the n
+ * names of names: 0, or OPT_USAGE, reported with the names it takes.
+ */
+int opt_choice(const struct opt_parser *p, const struct opt_name *names,
+	       size_t n, int *out) __must_check;
+
+#define OPT_CHOICE(p, names, out)					\
+	opt_choice(p, names,						\
+		   sizeof(names) / sizeof((names)[0]) + __must_be_array(names), \
+		   out)
+
 /* A usage error the command finds, as "<command>: <message>": OPT_USAGE. */
 int opt_usage(const struct opt_parser *p, const char *fmt, ...)
 	__printf(2, 3);

@@ -220,3 +220,29 @@ int opt_u64(const struct opt_parser *p, __u64 min, __u64 max, __u64 *out)
 	*out = v;
 	return 0;
 }
+
+int opt_choice(const struct opt_parser *p, const struct opt_name *names,
+	       size_t n, int *out)
+{
+	char list[256] = "";
+	size_t i, len = 0;
+
+	if (p->opt < 0 || !p->value)
+		return opt_usage(p, "no option value to read as a name");
+	for (i = 0; i < n; i++) {
+		if (!strcmp(p->value, names[i].name)) {
+			*out = names[i].value;
+			return 0;
+		}
+	}
+	for (i = 0; i < n; i++) {
+		const char *sep = !i ? "" : i + 1 < n ? ", " : " or ";
+		int ret = strsprintf(list + len, sizeof(list) - len, "%s%s",
+				     sep, names[i].name);
+
+		if (ret < 0)
+			break;
+		len += (size_t)ret;
+	}
+	return opt_usage(p, "%s takes %s", p->specs[p->opt].name, list);
+}

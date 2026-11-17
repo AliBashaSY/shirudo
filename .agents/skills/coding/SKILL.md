@@ -282,7 +282,7 @@ already, or should. The basics:
 | SHA-256 | `sha256_buffer()`, or `sha256_init()`, `sha256_update()` and `sha256_final()` over pieces (`util/crypto.h`); `sha256_digest_encode()` and `sha256_digest_decode()` for the `sha256:<hex>` form (`util/hex.h`), `bpm_sha256_digest()` to hash and write it at once (`util/bpm_oci.h`) |
 | JSON | `util/json.h`: `json_parse()` with a schema, `json_walk()`, `struct json_emit` |
 | Messages | `pr_err()`, `pr_warn()`, `pr_info()`, `pr_audit()` (`util/log.h`) |
-| A command's options | a table of `struct opt_spec` indexed by the command's enum, `OPT_INIT()`, a switch over `opt_next()`, `opt_u64()`, `opt_usage()` and `EXIT_USAGE` (`util/options.h`); `HELP_OPTIONS()` lists the same table in help, and `--list-opts` for completion; never compare `argv[]` by hand |
+| A command's options | a table of `struct opt_spec` indexed by the command's enum, `OPT_INIT()`, a switch over `opt_next()`, `opt_u64()`, `OPT_CHOICE()` for a value from a set of names, `opt_usage()` and `EXIT_USAGE` (`util/options.h`); `HELP_OPTIONS()` lists the same table in help, and `--list-opts` for completion; never compare `argv[]` by hand |
 
 Code that a second place needs moves into `util/<m>.c`, declared in
 `util/<m>.h`, or in `include/shirudo/` for the project's basics, with

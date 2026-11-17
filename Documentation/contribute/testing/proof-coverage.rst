@@ -1357,7 +1357,9 @@ of :src:`util/upatch_maps.c` that puts a page together from the chunks
 limit of 64 CBMC ends a run on the code as it is and none on the code
 broken, so no proof of the limit is kept. ``options-next`` takes
 ``parse_u64()`` by the contract ``string-number`` proves and leaves out
-the text of the usage messages, which only ``pr_err()`` reads. Of :src:`util/sysinfo.c` the
+the text of the usage messages, which only ``pr_err()`` reads, and
+``opt_choice()``, a comparison of the value with a fixed table, to the
+unit cases. Of :src:`util/sysinfo.c` the
 proofs cover the image identity's parsers; reading the files they parse,
 and the readers of ``/proc`` and the root file system, go to the kernel
 and have none.

@@ -189,6 +189,28 @@ static void a_number_is_bounded(void)
 	EXPECT_EQ(opt_u64(&p, 1, 512, &n), OPT_USAGE);
 }
 
+static void a_choice_names_its_value(void)
+{
+	static const struct opt_name ops[] = {
+		{ "add", 0 },
+		{ "delete", 1 },
+	};
+	static const char *const del[] = { "--tag=delete" };
+	static const char *const bad[] = { "--tag=remove" };
+	struct opt_parser p;
+	int op = -1;
+
+	parse(&p, del, 1);
+	ASSERT_EQ(opt_next(&p), T_TAG);
+	ASSERT_EQ(OPT_CHOICE(&p, ops, &op), 0);
+	EXPECT_EQ(op, 1);
+	op = -1;
+	parse(&p, bad, 1);
+	ASSERT_EQ(opt_next(&p), T_TAG);
+	EXPECT_EQ(OPT_CHOICE(&p, ops, &op), OPT_USAGE);
+	EXPECT_EQ(op, -1);
+}
+
 static void a_malformed_table_is_refused_before_any_argument(void)
 {
 	static const struct opt_spec hole[] = {
@@ -227,6 +249,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(an_optional_value_comes_after_equals_alone),
 	UNIT_CASE(help_and_the_option_list_end_parsing),
 	UNIT_CASE(a_number_is_bounded),
+	UNIT_CASE(a_choice_names_its_value),
 	UNIT_CASE(a_malformed_table_is_refused_before_any_argument),
 	{}
 };
