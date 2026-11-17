@@ -34,6 +34,13 @@ static int stale_unless_resources(int err)
 	return err == -ENOMEM || err == -EMFILE || err == -ENFILE ? err : -ESTALE;
 }
 
+int upatch_payload_digest(const struct upatch *u,
+			  __u8 out[UPATCH_PAYLOAD_HASH_LEN])
+{
+	return sha256_2(upatch_loader(u), u->hdr.loader_insns_len,
+			upatch_data(u), u->hdr.data_len, out);
+}
+
 int upatch_verify_fd(int fd, const __u8 payload[UPATCH_PAYLOAD_HASH_LEN],
 		     struct upatch *out)
 {
@@ -43,8 +50,7 @@ int upatch_verify_fd(int fd, const __u8 payload[UPATCH_PAYLOAD_HASH_LEN],
 	ret = upatch_open_fd(fd, out);
 	if (ret)
 		return stale_unless_resources(ret);
-	ret = sha256_2(upatch_loader(out), out->hdr.loader_insns_len,
-		       upatch_data(out), out->hdr.data_len, digest);
+	ret = upatch_payload_digest(out, digest);
 	if (!ret && (memneq_explicit(digest, payload, sizeof(digest)) ||
 		     memneq_explicit(out->hdr.payload_sha256, payload,
 				     sizeof(digest))))

@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "crypto.h"
 #include "paths.h"
 #include "unit.h"
 #include "upatch.h"
@@ -49,6 +50,51 @@ static void payload_of_fixture(const __u8 *buf, size_t len,
 	ASSERT_EQ(upatch_open_fd(fd, &u), 0);
 	close(fd);
 	memcpy(payload, u.hdr.payload_sha256, UPATCH_PAYLOAD_HASH_LEN);
+	upatch_close(&u);
+}
+
+static void open_fixture(struct upatch *u)
+{
+	size_t len = 0;
+	const __u8 *buf = read_fixture(&len);
+	int fd = memfd_of(buf, len);
+
+	ASSERT_EQ(upatch_open_fd(fd, u), 0);
+	close(fd);
+}
+
+static void the_payload_digest_hashes_the_loader_then_the_data(void)
+{
+	__u8 want[UPATCH_PAYLOAD_HASH_LEN], got[UPATCH_PAYLOAD_HASH_LEN];
+	static __u8 cat[1 << 16];
+	size_t loader_len;
+	struct upatch u;
+
+	open_fixture(&u);
+	loader_len = u.hdr.loader_insns_len;
+	ASSERT_TRUE(u.hdr.data_len > 0);
+	ASSERT_TRUE(loader_len + u.hdr.data_len <= sizeof(cat));
+	memcpy(cat, upatch_loader(&u), loader_len);
+	memcpy(cat + loader_len, upatch_data(&u), u.hdr.data_len);
+	ASSERT_EQ(sha256_buffer(cat, loader_len + u.hdr.data_len, want), 0);
+	ASSERT_EQ(upatch_payload_digest(&u, got), 0);
+	EXPECT_MEMEQ(got, want, sizeof(got));
+	EXPECT_MEMEQ(got, u.hdr.payload_sha256, sizeof(got));
+	upatch_close(&u);
+}
+
+static void a_payload_without_data_hashes_the_loader_alone(void)
+{
+	__u8 want[UPATCH_PAYLOAD_HASH_LEN], got[UPATCH_PAYLOAD_HASH_LEN];
+	struct upatch u;
+
+	open_fixture(&u);
+	u.hdr.data_len = 0;
+	ASSERT_TRUE(!upatch_data(&u));
+	ASSERT_EQ(sha256_buffer(upatch_loader(&u), u.hdr.loader_insns_len,
+				want), 0);
+	ASSERT_EQ(upatch_payload_digest(&u, got), 0);
+	EXPECT_MEMEQ(got, want, sizeof(got));
 	upatch_close(&u);
 }
 
@@ -162,6 +208,8 @@ static void nothing_pinned_checks_clean(void)
 }
 
 static const struct unit_case cases[] = {
+	UNIT_CASE(the_payload_digest_hashes_the_loader_then_the_data),
+	UNIT_CASE(a_payload_without_data_hashes_the_loader_alone),
 	UNIT_CASE(the_loaded_bytes_verify),
 	UNIT_CASE(another_payload_is_stale),
 	UNIT_CASE(changed_data_under_an_intact_header_is_stale),

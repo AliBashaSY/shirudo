@@ -2123,8 +2123,7 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
 		int err;
 
-		err = sha256_2(insns, u->hdr.loader_insns_len,
-			       data, u->hdr.data_len, content_digest);
+		err = upatch_payload_digest(u, content_digest);
 		if (err) {
 			pr_err("upatch: cannot hash the payload of '%s': %s",
 			       upatch_name, strerror(-err));

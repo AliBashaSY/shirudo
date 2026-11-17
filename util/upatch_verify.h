@@ -19,6 +19,14 @@ struct upatch;
 struct xdp_device;
 
 /*
+ * SHA-256 of the loader's instructions, then the data: what a header's
+ * payload_sha256 claims and the pin directory, the register and an
+ * unload directive record. 0, or a negative errno with out zeroed.
+ */
+int upatch_payload_digest(const struct upatch *u,
+			  __u8 out[UPATCH_PAYLOAD_HASH_LEN]) __must_check;
+
+/*
  * 0 with the artifact open in *out, -ESTALE when it is not what payload
  * names, or another negative errno when the check itself could not run.
  * The bytes are hashed, not the header's claim about them.
