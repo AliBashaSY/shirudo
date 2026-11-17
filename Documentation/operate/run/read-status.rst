@@ -300,6 +300,15 @@ means every counter is zero. ``none recorded before init`` means
 <error>`` that they could not be read.
 :ref:`status-tamper-counters` explains how to read them.
 
+Integrity attempts
+~~~~~~~~~~~~~~~~~~
+
+The counters of the changes and reads of the running kernel refused this
+boot, one per way in: an unsigned module, ``/dev/mem``, a PCI
+configuration write, ``/proc/kcore`` and the others lockdown in
+integrity mode names. They are listed, and read, as the tamper attempts
+above are.
+
 Keyrings
 ~~~~~~~~
 
@@ -713,8 +722,8 @@ makes ``status`` itself fail with ``shirudo: image state:``.
 
 .. _status-tamper-counters:
 
-Read the tamper counters
-------------------------
+Read the tamper and integrity counters
+--------------------------------------
 
 Each counter counts the attempts at one guard point this boot, refused
 there except ``SealSignal``. A refusal worked, so a counter alone does
@@ -773,13 +782,36 @@ Read the counters with these rules:
 :doc:`/security/tamper-counters` lists every counter and the guard point
 that raises it.
 
-``Integrity attempts (this boot):`` follows with the same layout for
-the refused changes and reads of the running kernel: an unsigned
-module, ``/dev/mem``, a PCI configuration write, ``/proc/kcore`` and
-the others lockdown in integrity mode names.
-:doc:`/security/integrity-counters` lists them. Read them with the same
-rules, and count with a baseline here too: a tool that opens a writable
-debugfs file to read it moves ``Debugfs``.
+The integrity counters count the attempts on the running kernel the
+same way. These three, made as root, were each refused: a module whose
+signature the kernel cannot verify, ``/dev/mem`` and ``/proc/kcore``:
+
+.. code-block:: console
+
+   # insmod ./unsigned.ko
+   insmod: ERROR: could not insert module ./unsigned.ko: Operation not permitted
+   # dd if=/dev/mem of=/dev/null count=1
+   dd: failed to open '/dev/mem': Operation not permitted
+   # cat /proc/kcore >/dev/null
+   cat: /proc/kcore: Operation not permitted
+
+The report afterwards lists them under their own heading, after the
+tamper attempts:
+
+.. code-block:: console
+
+   target# shirudo status
+   ...
+   Integrity attempts (this boot):
+     ModuleSignature           1  module load without a valid signature
+     DevMem                    1  /dev/mem or /dev/port
+     Kcore                     1  /proc/kcore, the kernel's memory
+   ...
+
+Read them with the same rules, with a baseline here too: a tool that
+opens a writable debugfs file only to read it moves ``Debugfs``.
+:doc:`/security/integrity-counters` lists every counter and the
+condition that raises it.
 
 Monitor with ``status --json``
 ------------------------------
@@ -820,6 +852,8 @@ The fields that matter for monitoring:
      - Any condition is ``ALERT``.
    * - ``tamper_attempts.total``
      - It rises beyond your baseline. It is ``null`` before ``init``.
+   * - ``integrity_attempts.total``
+     - It rises beyond your baseline. It is ``null`` before ``init``.
    * - ``config.activation_pending``
      - It is ``true``.
    * - ``config.error``
@@ -851,6 +885,30 @@ The fields that matter for monitoring:
 ``upatches_loaded`` lists each loaded upatch with its
 ``payload_sha256``, which you can compare with the artifacts you
 shipped. :doc:`/reference/formats/status-json` describes every field.
+
+``tamper_attempts`` and ``integrity_attempts`` name every counter, zeros
+included, so that a collector sees the same keys in every record. The
+counters that moved, after the three attempts above:
+
+.. code-block:: console
+
+   target# shirudo status --json |
+         jq '.integrity_attempts.counters | with_entries(select(.value > 0))'
+   {
+     "ModuleSignature": 1,
+     "DevMem": 1,
+     "Kcore": 1
+   }
+
+The keepalive carries the same counters as the lists ``tamper`` and
+``integrity``, in the order of :doc:`/security/tamper-counters` and
+:doc:`/security/integrity-counters`, which the TPM's quote covers with
+the rest of the body:
+
+.. code-block:: console
+
+   target# shirudo status --keepalive | jq -c .integrity
+   [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0]
 
 Alert separately when ``status`` does not run at all. A target that
 refuses every command, ``status`` included, prints ``shirudo: image
