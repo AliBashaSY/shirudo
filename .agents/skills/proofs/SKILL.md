@@ -24,14 +24,28 @@ make proofs-cbmc PROOFS="string-number hex"  # some CBMC proofs
 make proofs-cbmc CHANGED=origin/main..HEAD   # those reading a changed file
 testing/proofs/cbmc/run.sh -v <proof>        # whole output and traces
 make proofs-lean4                            # the Lean 4 proofs
+.github/scripts/proofs.sh run 3 8            # CI's shard 3 of 8
 ```
 
-CI does not run the proofs, as all of them take about an hour: run the
+The `Proofs` workflow runs them after a push to main, never on a pull
+request, as they take hours of CPU: before a change is sent, run the
 ones covering the code you changed, which `CHANGED` picks from what
 each harness includes, and all of them after a change to `proof.h` or
 `run.sh`, which `CHANGED` does too. Cap the memory of a long run, `ulimit
 -v 24000000` in the shell that starts it: a proof that grows past a few
 gigabytes is one to reshape, not to wait for.
+
+CI splits `proofs.list` into eight shards and runs each proof alone
+under the 14 GB and 60 minutes `.github/scripts/proofs.sh` caps it at;
+a proof added there has to fit both. It leaves out the proofs
+`testing/proofs/cbmc/ci-skip.list` names, each with why, which no run
+checks unless a developer starts it: run one by hand after a change to
+what it reads, and take it off the list once it fits. A proof that
+fails in CI prints its whole output, trace included, in its shard's
+job log and leaves it in the `cbmc-logs-<k>` artifact. `proofs.sh`
+pins CBMC 5.95.1 and elan, and Lean is the release `lean-toolchain`
+names; `proofs.sh install-cbmc` unpacks the same CBMC into `build/cbmc`
+without root.
 
 ## Write
 

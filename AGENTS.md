@@ -87,10 +87,11 @@ grep -n '<file>.c\|<function>' testing/proofs/cbmc`), or to an algorithm
 a Lean 4 model of `testing/proofs/lean4/` follows, adapts the harness or
 the model in the same commit, with its line in `proofs.list` and its row
 in `Documentation/contribute/testing/proof-coverage.rst`, and runs the
-proofs it touches (`make proofs-cbmc CHANGED=<range>` picks them). A
-proof that no longer matches the code, or no longer holds, is a security
-bug: a threat's fact box or a coverage row then claims an assurance the
-tree does not have.
+proofs it touches (`make proofs-cbmc CHANGED=<range>` picks them), as
+CI runs them only once the change is on main. A proof that no longer
+matches the code, or no longer holds, is a security bug: a threat's
+fact box or a coverage row then claims an assurance the tree does not
+have.
 
 New documentation extends an existing page or adds one to its section's
 toctree, and follows `Documentation/contribute/documentation/writing-docs.rst`. Only
@@ -349,11 +350,13 @@ one usually still compiles and passes tests.
 - `make proofs` runs the CBMC proofs of `testing/proofs/cbmc/`, which
   check parsers and emitters for every input within a bound, and the Lean
   4 proofs of `testing/proofs/lean4/`, which prove models of algorithms
-  for every input. CI does not run them: a full run takes about an hour.
-  A change to code a proof covers, or to an algorithm a model follows,
-  runs those proofs by name, all of them after a change to `proof.h` or
-  `run.sh`, and a new parser gets a proof where CBMC can carry one; the
-  `proofs` skill says how.
+  for every input. They take hours of CPU, so CI runs them after a push
+  to main, in the `Proofs` workflow, never on a pull request, and leaves
+  out the CBMC proofs `testing/proofs/cbmc/ci-skip.list` names, which
+  take hours each. A change to code a proof covers, or to an algorithm
+  a model follows, runs those proofs by name before it is sent, all of
+  them after a change to `proof.h` or `run.sh`, and a new parser gets a
+  proof where CBMC can carry one; the `proofs` skill says how.
 - CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
   `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
   `check-spdx.sh`, `check-unused.sh`, `scan-build.sh` and the

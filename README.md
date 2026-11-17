@@ -7,6 +7,7 @@
 [![Build packages](https://github.com/shirudo-dev/shirudo/actions/workflows/packages.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/packages.yml)<br/>
 [![CI suite](https://github.com/shirudo-dev/shirudo/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/tests.yml)<br/>
 [![Sanitizers](https://github.com/shirudo-dev/shirudo/actions/workflows/sanitizers.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/sanitizers.yml)<br/>
+[![Proofs](https://github.com/shirudo-dev/shirudo/actions/workflows/proofs.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/proofs.yml)<br/>
 [![CodeQL](https://github.com/shirudo-dev/shirudo/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/codeql.yml)<br/>
 [![Documentation](https://github.com/shirudo-dev/shirudo/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/shirudo-dev/shirudo/actions/workflows/docs.yml)<br/>
 [![Coverage Status](https://coveralls.io/repos/github/shirudo-dev/shirudo/badge.svg?branch=main)](https://coveralls.io/github/shirudo-dev/shirudo?branch=main)<br/>

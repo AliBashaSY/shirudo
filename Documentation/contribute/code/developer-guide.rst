@@ -548,6 +548,16 @@ the commit at ``HEAD`` alone without them.
        only host test dependencies. The arm64 job uses this to run unit,
        ``ci-checks`` and host functional tests without target VMs.
        Meant for CI runners, which are discarded afterwards.
+   * - ``proofs.sh install-cbmc|install-lean``,
+       ``proofs.sh list|run <k> <n>``
+     - Installs the CBMC and the elan CI pins, each verified by its
+       SHA-256, and Lean, all without root: CBMC into ``build/cbmc``,
+       elan and the toolchain ``lean-toolchain`` names into
+       ``ELAN_HOME``. Prints the directory to put on ``PATH``. ``run``
+       runs the CBMC proofs of shard ``<k>`` of ``<n>`` as the ``CBMC``
+       jobs of the ``Proofs`` workflow do, each alone under a memory and
+       time cap, and ``list`` prints them. See
+       :doc:`/contribute/testing/proofs`.
 
 ``check-style.sh`` fetches the kernel's ``checkpatch.pl`` at a pinned
 tag into ``build/checkpatch/`` and verifies its SHA-256. Set

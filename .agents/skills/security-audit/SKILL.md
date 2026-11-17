@@ -276,11 +276,13 @@ before rating it; the page changes with the fix either way.
 ## Proofs against the code
 
 The proofs of `testing/proofs/` are evidence only while they hold for
-the code as it is, and CI does not run them. An audit runs all of them
-at the commit it audits, `make proofs`, about an hour, so start it
-first as the `proofs` skill says, and reports the commit and the
-result. A failure is sorted like any candidate: a bug in the code, a
-harness that assumed too little, or a proof the code left behind.
+the code as it is, and CI runs them only after a push to main, without
+the CBMC proofs `testing/proofs/cbmc/ci-skip.list` names. An audit runs
+all of them at the commit it audits, `make proofs`, those on that list
+for hours each, so start it first as the `proofs` skill says, and
+reports the commit and the result. A failure is sorted like any
+candidate: a bug in the code, a harness that assumed too little, or a
+proof the code left behind.
 
 A proof that passes can still prove less than its row in
 `Documentation/contribute/testing/proof-coverage.rst` says. For each

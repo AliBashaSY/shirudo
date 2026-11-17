@@ -1,6 +1,6 @@
 ---
 name: pre-submit
-description: Run the checks CI runs on a series of shirudo commits before handing it over, and the proofs CI does not run. Covers each commit built on its own, checkpatch, sign-offs, Coccinelle, sparse, SPDX and the documentation check, both compilers, the sanitizer and fuzz runs, the proofs that read the code the series changed, and the VM families the change reaches. Use before saying a change is ready, after rebasing or reordering a series, and to reproduce a CI failure.
+description: Run the checks CI runs on a series of shirudo commits before handing it over, and the proofs CI runs only once a series is on main. Covers each commit built on its own, checkpatch, sign-offs, Coccinelle, sparse, SPDX and the documentation check, both compilers, the sanitizer and fuzz runs, the proofs that read the code the series changed, and the VM families the change reaches. Use before saying a change is ready, after rebasing or reordering a series, and to reproduce a CI failure.
 ---
 
 # Pre-submit checks
@@ -81,8 +81,10 @@ written without `le32_to_cpu()`, `cpu_to_le32()` or their kin, and
 scan-build what clang's static analyzer proves on some path: a NULL or
 uninitialized value used, a leak, a use after free, a store never read.
 
-CI does not run the proofs, so this run is the only one a series gets
-before it lands. `CHANGED` takes what `git diff` takes and runs the CBMC
+CI runs the proofs only after a push to main, in the `Proofs` workflow,
+so this run is the only one a series gets before it lands, and the only
+one at all of a proof `testing/proofs/cbmc/ci-skip.list` names, which CI
+leaves out. `CHANGED` takes what `git diff` takes and runs the CBMC
 proofs whose harness reads a file changed there, all of them after a
 change to `run.sh` or `proofs.list`. A proof that fails, or that passes
 and no longer states what the changed code does, is brought back in
