@@ -96,15 +96,11 @@ static const struct help_item predict_options[] = {
 };
 
 static const struct help_section attest_help_sections[] = {
-	{ "subcommands:", attest_subcmds, ARRAY_SIZE(attest_subcmds) },
-	{ "evidence options (target):", attest_options,
-	  ARRAY_SIZE(attest_options) },
-	{ "verify options (operator):", verify_options,
-	  ARRAY_SIZE(verify_options) },
-	{ "predict options (operator):", predict_options,
-	  ARRAY_SIZE(predict_options) },
-	{ "challenge options (operator):", challenge_options,
-	  ARRAY_SIZE(challenge_options) },
+	HELP_ITEMS("subcommands:", attest_subcmds),
+	HELP_ITEMS("evidence options (target):", attest_options),
+	HELP_ITEMS("verify options (operator):", verify_options),
+	HELP_ITEMS("predict options (operator):", predict_options),
+	HELP_ITEMS("challenge options (operator):", challenge_options),
 };
 
 static const struct help attest_help = {

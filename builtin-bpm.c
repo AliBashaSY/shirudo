@@ -2736,7 +2736,7 @@ static const struct help bpm_target_help = {
 	.usage = "shirudo bpm <config|repo|tree|key|pull|info|install|upgrade|list|uninstall>",
 	.summary = "Manage signed target-local BPM packages backed by OCI repositories.",
 	.sections = (const struct help_section[]) {
-		{ "subcommands:", bpm_target_subcmds, ARRAY_SIZE(bpm_target_subcmds) },
+		HELP_ITEMS("subcommands:", bpm_target_subcmds),
 	},
 	.n_sections = 1,
 };
@@ -2745,7 +2745,7 @@ static const struct help bpm_operator_help = {
 	.usage = "shirudo bpm <config|repo|tree|key|pull|info|push|build|install|upgrade|list|uninstall>",
 	.summary = "Manage signed OCI packages and publish packages from the operator.",
 	.sections = (const struct help_section[]) {
-		{ "subcommands:", bpm_subcmds, ARRAY_SIZE(bpm_subcmds) },
+		HELP_ITEMS("subcommands:", bpm_subcmds),
 	},
 	.n_sections = 1,
 };
@@ -2796,7 +2796,7 @@ static const struct help bpm_key_help = {
 	.usage = "shirudo bpm key <add|fingerprint|list>",
 	.summary = "Manage package signing certificates.",
 	.sections = (const struct help_section[]) {
-		{ "subcommands:", bpm_key_subcmds, ARRAY_SIZE(bpm_key_subcmds) },
+		HELP_ITEMS("subcommands:", bpm_key_subcmds),
 	},
 	.n_sections = 1,
 	.footer = "add and fingerprint accept a certificate file, .bee package, or\n"

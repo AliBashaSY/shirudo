@@ -495,9 +495,8 @@ static const struct help_item keys_options[] = {
 };
 
 static const struct help_section keys_help_sections[] = {
-	{ "subcommands:", keys_subcmds, ARRAY_SIZE(keys_subcmds) },
-	{ "options:", keys_options,
-	  ARRAY_SIZE(keys_options) },
+	HELP_ITEMS("subcommands:", keys_subcmds),
+	HELP_ITEMS("options:", keys_options),
 };
 
 static const struct help keys_help = {
@@ -529,7 +528,7 @@ static const struct help_item keys_add_options[] = {
 };
 
 static const struct help_section keys_add_sections[] = {
-	{ "options:", keys_add_options, ARRAY_SIZE(keys_add_options) },
+	HELP_ITEMS("options:", keys_add_options),
 };
 
 static const struct help keys_add_help = {
@@ -550,7 +549,7 @@ static const struct help_item keys_vouch_options[] = {
 };
 
 static const struct help_section keys_vouch_sections[] = {
-	{ "options:", keys_vouch_options, ARRAY_SIZE(keys_vouch_options) },
+	HELP_ITEMS("options:", keys_vouch_options),
 };
 
 static const struct help keys_vouch_help = {

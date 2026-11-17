@@ -376,8 +376,7 @@ static const struct help_item genkey_options[] = {
 };
 
 static const struct help_section genkey_help_sections[] = {
-	{ "options:", genkey_options,
-	  ARRAY_SIZE(genkey_options) },
+	HELP_ITEMS("options:", genkey_options),
 };
 
 static const struct help genkey_help = {

@@ -368,8 +368,7 @@ static const struct help_item status_options[] = {
 };
 
 static const struct help_section status_help_sections[] = {
-	{ "options:", status_options,
-	  ARRAY_SIZE(status_options) },
+	HELP_ITEMS("options:", status_options),
 };
 
 static const struct help status_help = {

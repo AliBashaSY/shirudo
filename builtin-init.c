@@ -1334,8 +1334,7 @@ static const struct help_item init_options[] = {
 };
 
 static const struct help_section init_help_sections[] = {
-	{ "options:", init_options,
-	  ARRAY_SIZE(init_options) },
+	HELP_ITEMS("options:", init_options),
 };
 
 static const struct help init_help = {

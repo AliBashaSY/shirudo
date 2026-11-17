@@ -230,7 +230,7 @@ static const struct help_item upatch_map_options[] = {
 };
 
 static const struct help_section upatch_map_sections[] = {
-	{ "options:", upatch_map_options, ARRAY_SIZE(upatch_map_options) },
+	HELP_ITEMS("options:", upatch_map_options),
 };
 
 static const struct help upatch_map_help = {
@@ -273,7 +273,7 @@ static const struct help_item upatch_get_options[] = {
 };
 
 static const struct help_section upatch_get_sections[] = {
-	{ "options:", upatch_get_options, ARRAY_SIZE(upatch_get_options) },
+	HELP_ITEMS("options:", upatch_get_options),
 };
 
 static const struct help upatch_get_help = {
@@ -4663,8 +4663,7 @@ static const struct help_item upatch_subcmds[] = {
 };
 
 static const struct help_section upatch_help_sections[] = {
-	{ "subcommands:", upatch_subcmds,
-	  ARRAY_SIZE(upatch_subcmds) },
+	HELP_ITEMS("subcommands:", upatch_subcmds),
 };
 
 static const struct help upatch_help = {

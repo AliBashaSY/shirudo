@@ -12,6 +12,8 @@
 #include <string.h>
 #include <stddef.h>
 
+#include <shirudo/misc.h>
+
 struct help_item {
 	const char	*name;
 	const char	*summary;
@@ -22,6 +24,11 @@ struct help_section {
 	const struct help_item	*items;
 	size_t				n_items;
 };
+
+/* A section named h listing the items of the array a. */
+#define HELP_ITEMS(h, a)						\
+	{ .header = (h), .items = (a),					\
+	  .n_items = sizeof(a) / sizeof((a)[0]) + __must_be_array(a) }
 
 struct help {
 	const char				*usage;

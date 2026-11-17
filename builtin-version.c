@@ -19,8 +19,7 @@ static const struct help_item version_options[] = {
 };
 
 static const struct help_section version_help_sections[] = {
-	{ "options:", version_options,
-	  ARRAY_SIZE(version_options) },
+	HELP_ITEMS("options:", version_options),
 };
 
 static const struct help version_help = {
