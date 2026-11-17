@@ -60,7 +60,7 @@ struct task_authority {
 	__u8	trusted;
 	__u8	candidate_valid;
 	__u8	candidate_trusted;
-	__u8	pad;
+	__u8	revoked;
 	__u32	pad2;
 };
 

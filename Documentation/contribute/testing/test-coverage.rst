@@ -472,6 +472,10 @@ signed config image.
        lets no labeled archive out; an archive without a record of its
        load is reported, not restored by init and removed by the next
        upatch command
+   * - ``t6145-core-dump``
+     - An exec of the runtime that fails after its mark is committed
+       dumps core without authority: the dump cannot unlink a pin or
+       replace a sealed file, and ``SealCoreDump`` counts it
 
 ``bpm`` (7)
 ~~~~~~~~~~~

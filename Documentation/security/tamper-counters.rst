@@ -215,6 +215,13 @@ counter.
      - ``lsm/task_kill``: a signal other than 0 to a marked task from a
        task without authority; the signal is delivered
      - none
+   * - ``SealCoreDump``
+     - core dump of a shirudo task, which acts without authority
+     - Any hook that asks for runtime authority, the first time a
+       marked task that is dumping core asks: the task loses its
+       authority for good, and the hook refuses the operation and moves
+       its own counter
+     - the hook's
 
 Unless the row says every caller, a task with runtime authority is
 not refused and moves nothing.
@@ -313,7 +320,10 @@ A counter that moved means that a guard refused an operation this boot.
 The refusal is what moved it: the operation did not happen. The one
 exception is ``SealSignal``, which counts a signal the seal delivered:
 the task it went to may have been stopped, and the next upatch load or unload
-and ``shirudo status`` find what a stopped load left.
+and ``shirudo status`` find what a stopped load left. ``SealCoreDump``
+counts a shirudo task that dumped core, after a crash or after an exec
+that failed past its point of no return, which root can bring about
+with a small stack limit; the dump did not get the task's authority.
 
 A non-zero counter does not mean:
 

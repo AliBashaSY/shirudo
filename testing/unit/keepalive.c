@@ -453,8 +453,7 @@ static void body_without_a_tree_ignores_the_tree_values(void)
 	in.mask = NULL;
 	ASSERT_EQ(keepalive_emit(&in, without, sizeof(without), &len), 0);
 	EXPECT_STREQ(with_values, without);
-	expect_member(&in, "\"tamper\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
-		      "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\"tree_id\":null,"
+	expect_member(&in, ",0],\"tree_id\":null,"
 		      "\"generation\":null,\"base_seq\":null,\"last_seq\":null,"
 		      "\"base_root\":null,\"projection_root\":null,"
 		      "\"mask\":null,\"set_sha256\":");
@@ -596,16 +595,17 @@ static const char * const tamper_order[] = {
 	"SealRename", "SealSetattr", "SealXattr", "SealLabel", "SealPtrace",
 	"SealPerf", "ExecTraced", "SealEntry", "PerfAttach", "PinEntry",
 	"SealCopyUp", "Kexec", "TpmExtend", "ObjGet", "SealSignal",
+	"SealCoreDump",
 };
 
 static void tamper_counters_keep_their_places(void)
 {
 	size_t i;
 
-	ASSERT_EQ(ARRAY_SIZE(tamper_order), 37);
+	ASSERT_EQ(ARRAY_SIZE(tamper_order), 38);
 	ASSERT_EQ(TAMPER_MAX, ARRAY_SIZE(tamper_order));
 	EXPECT_EQ(TAMPER_LOAD_NOT_LOADER, 0);
-	EXPECT_EQ(TAMPER_SEAL_SIGNAL, TAMPER_MAX - 1);
+	EXPECT_EQ(TAMPER_SEAL_CORE_DUMP, TAMPER_MAX - 1);
 	for (i = 0; i < ARRAY_SIZE(tamper_order); i++)
 		EXPECT_STREQ(tamper_name(i), tamper_order[i]);
 }
@@ -622,7 +622,7 @@ static void body_lists_the_counters_in_enum_order(void)
 	in.tamper = tamper;
 	expect_member(&in, ",\"tamper\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,"
 		      "16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,"
-		      "34,35,36,18446744073709551615],\"tree_id\":");
+		      "34,35,36,18446744073709551615,38],\"tree_id\":");
 }
 
 static void body_refuses_a_missing_string(void)
@@ -742,7 +742,7 @@ static void body_of_the_largest_values_fits(void)
 	in.tamper = tamper;
 
 	ASSERT_EQ(keepalive_emit(&in, body, sizeof(body), &whole), 0);
-	EXPECT_EQ(whole, 3298);
+	EXPECT_EQ(whole, 3319);
 	EXPECT_LT(whole, KEEPALIVE_BODY_MAX);
 	EXPECT_EQ(keepalive_emit(&in, body, whole, &len), -ENOSPC);
 	EXPECT_EQ(keepalive_emit(&in, body, whole + 1, &len), 0);

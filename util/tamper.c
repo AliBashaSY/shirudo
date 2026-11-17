@@ -94,6 +94,8 @@ static const struct {
 		"pin, map or link opened by another executable" },
 	[TAMPER_SEAL_SIGNAL] = { "SealSignal",
 		"signal to a shirudo task (let through)" },
+	[TAMPER_SEAL_CORE_DUMP] = { "SealCoreDump",
+		"core dump of a shirudo task, which acts without authority" },
 };
 
 const char *tamper_name(enum tamper_point point)

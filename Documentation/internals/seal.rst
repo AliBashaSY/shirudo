@@ -70,6 +70,19 @@ that is not on the runtime image commits an untrusted candidate and so
 clears the mark. ``lsm/task_alloc`` copies a parent's mark to every
 child.
 
+A task that dumps core keeps its mark but loses its authority. An exec
+can still fail after ``bprm_committed_creds`` has committed the mark,
+when the new stack cannot take the argument pointers, and the task then
+dies by ``SIGSEGV`` and dumps core before the new program has run a
+single instruction. The kernel's dump code runs as the task: it unlinks
+the file ``kernel.core_pattern`` names, root's choice, and creates it
+anew. The first check of authority that finds ``PF_DUMPCORE`` on the
+task revokes the authority for good and counts ``SealCoreDump``, and the
+operation is refused as it is for any task without authority. The mark
+stays, so the protections below still keep other tasks off the dumping
+task, and a fork copies the revocation along with the mark. The next
+successful exec commits a fresh mark without it.
+
 Policy bits
 -----------
 

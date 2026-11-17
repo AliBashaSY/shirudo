@@ -183,6 +183,7 @@ void BPF_PROG(shirudo_seal_bprm_committed_creds,
 		return;
 	authority->trusted = authority->candidate_valid &&
 			     authority->candidate_trusted;
+	authority->revoked = 0;
 	authority->candidate_valid = 0;
 	authority->candidate_trusted = 0;
 }
@@ -217,6 +218,7 @@ int BPF_PROG(shirudo_seal_task_alloc, struct task_struct *child,
 	if (!authority)
 		return -ENOMEM;
 	authority->trusted = parent_authority->trusted;
+	authority->revoked = parent_authority->revoked;
 	return 0;
 }
 

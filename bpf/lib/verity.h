@@ -47,10 +47,36 @@ static __always_inline bool shirudo_bootstrap_task(void)
 	return authority && authority->trusted == TASK_BOOTSTRAP;
 }
 
-/* The mark changes only when exec commits, so failed exec keeps authority. */
+#define PF_DUMPCORE		0x00000200
+
+/* A task loses authority for good, and the cause is counted once. */
+static __always_inline bool shirudo_revoke(struct task_authority *authority,
+					   enum tamper_point point)
+{
+	if (!authority->revoked) {
+		authority->revoked = 1;
+		shirudo_tamper_count(point);
+	}
+	return false;
+}
+
+/*
+ * The mark changes only when exec commits, so failed exec keeps authority.
+ * An exec that fails after its commit dumps core, and so does a crash:
+ * the dump runs as the task and unlinks and creates the file
+ * core_pattern names, which is root's choice, not the program's.
+ */
 static __always_inline bool shirudo_task_is_self(const struct sb_id *id)
 {
-	return shirudo_marked(bpf_get_current_task_btf());
+	struct task_struct *task = bpf_get_current_task_btf();
+	struct task_authority *authority;
+
+	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL, 0);
+	if (!authority || !authority->trusted || authority->revoked)
+		return false;
+	if (BPF_CORE_READ(task, flags) & PF_DUMPCORE)
+		return shirudo_revoke(authority, TAMPER_SEAL_CORE_DUMP);
+	return true;
 }
 
 static __always_inline bool

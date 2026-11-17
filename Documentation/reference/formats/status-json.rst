@@ -955,7 +955,8 @@ indented here:
          "Kexec": 0,
          "TpmExtend": 0,
          "ObjGet": 0,
-         "SealSignal": 0
+         "SealSignal": 0,
+         "SealCoreDump": 0
        }
      },
      "config": {
@@ -1011,7 +1012,7 @@ of the same target read:
        "SealXattr": 0, "SealLabel": 0, "SealPtrace": 0, "SealPerf": 0,
        "ExecTraced": 0, "SealEntry": 0, "PerfAttach": 0, "PinEntry": 0,
        "SealCopyUp": 0, "Kexec": 0, "TpmExtend": 0, "ObjGet": 1,
-       "SealSignal": 0
+       "SealSignal": 0, "SealCoreDump": 0
      }
    }
 

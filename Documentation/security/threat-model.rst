@@ -789,6 +789,13 @@ copies the mark, a failed exec keeps it, and a successful exec of
 anything else clears it. The initrd's ``init`` process receives a
 bootstrap mark through a pidfd before the gates attach.
 
+A task that dumps core loses its authority (``SealCoreDump``). The
+kernel's dump code runs as the task and unlinks and creates the file
+``kernel.core_pattern`` names, root's choice. An exec can fail after
+its mark was committed, when root gives it a stack too small for its
+arguments, and the task then dumps core before shirudo has run: a pin
+or a sealed file at that path was the dump's to remove (``t6145``).
+
 An authorized process is protected against being taken over:
 
 - ``lsm/ptrace_access_check`` refuses every ptrace mode against a marked
@@ -857,11 +864,11 @@ An authorized process is protected against being taken over:
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
-   ``SealSignal``, ``ExecTraced``, ``ExeIdentity``
+   ``SealSignal``, ``SealCoreDump``, ``ExecTraced``, ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
-   ``t6135``, ``t6136``, ``t6137``, ``t6144``
+   ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts
