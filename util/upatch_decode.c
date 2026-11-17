@@ -79,8 +79,10 @@ int upatch_decode_map_file_otel(const char *path,
 #include <shirudo/overflow.h>
 #include <shirudo/string.h>
 
+#include "crypto.h"
 #include "json.h"
 #include "hex.h"
+#include "log.h"
 #include "malloc.h"
 #include "paths.h"
 #include "seal.h"
@@ -842,6 +844,9 @@ static void lua_register_slot(lua_State *L)
 	lua_pushcfunction(L, lua_slot_cstring);
 	lua_setfield(L, -2, "cstring");
 	lua_setfield(L, -2, "__index");
+	/* A __gc a decoder added to it would run with hooks off. */
+	lua_pushliteral(L, LUA_SLOT_MT);
+	lua_setfield(L, -2, "__metatable");
 	lua_pop(L, 1);
 }
 
@@ -862,12 +867,23 @@ static void lua_install_host_api(lua_State *L)
 	lua_setglobal(L, "shirudo");
 }
 
+/*
+ * LuaJIT runs a finalizer with hooks off, so newproxy(), which makes a
+ * userdata that takes one, would run code past the budget, and so does
+ * the handler xpcall() calls for the error the budget hook raises, from
+ * inside the hook. A pattern match is one C call the count hook never
+ * interrupts, and backtracks for as long as the subject, a string a map
+ * recorded, makes it.
+ */
 static void lua_disable_globals(lua_State *L)
 {
 	static const char *const deny[] = {
 		"io", "os", "package", "require", "debug", "jit", "ffi",
 		"dofile", "loadfile", "load", "loadstring", "module",
-		"collectgarbage",
+		"collectgarbage", "newproxy", "xpcall", "print",
+	};
+	static const char *const patterns[] = {
+		"find", "match", "gmatch", "gsub",
 	};
 	size_t i;
 
@@ -875,8 +891,18 @@ static void lua_disable_globals(lua_State *L)
 		lua_pushnil(L);
 		lua_setglobal(L, deny[i]);
 	}
+	lua_getglobal(L, "string");
+	for (i = 0; i < ARRAY_SIZE(patterns); i++) {
+		lua_pushnil(L);
+		lua_setfield(L, -2, patterns[i]);
+	}
+	lua_pop(L, 1);
 }
 
+/*
+ * pcall() catches the error, so once the budget is spent every
+ * instruction raises it again: no protected call runs past it.
+ */
 static void lua_budget_hook(lua_State *L, lua_Debug *ar)
 {
 	struct lua_budget *budget;
@@ -884,6 +910,7 @@ static void lua_budget_hook(lua_State *L, lua_Debug *ar)
 	budget = current_lua_budget;
 	if (!budget || --budget->remaining > 0)
 		return;
+	lua_sethook(L, lua_budget_hook, LUA_MASKCOUNT, 1);
 	luaL_error(L, "decoder instruction limit exceeded");
 }
 
@@ -1034,24 +1061,38 @@ static int lua_get_decoder_entrypoint(lua_State *L, const char *entrypoint)
 
 struct lua_decoder_call {
 	const struct map_view *view;
+	struct json_emit *jo;
+	bool otel;
+	int ret;
 };
 
+/* The result is encoded under the same pcall, as it may run out of memory. */
 static int lua_call_decoder(lua_State *L)
 {
-	const struct lua_decoder_call *call =
-		lua_touserdata(L, lua_upvalueindex(1));
+	struct lua_decoder_call *call = lua_touserdata(L, lua_upvalueindex(1));
 
 	lua_pushvalue(L, lua_upvalueindex(2));
 	lua_push_map_input(L, call->view);
 	lua_call(L, 1, 1);
-	return 1;
+	call->ret = call->otel ? lua_otel_emit_value(L, -1, call->jo, 0) :
+		lua_json_emit_value(L, -1, call->jo, 0);
+	return 0;
 }
 
-static const char *lua_error_message(lua_State *L)
+/* The message is the decoder's, and may carry what a map recorded. */
+static void lua_report(lua_State *L, const char *what)
 {
-	const char *message = lua_tostring(L, -1);
+	const char *message = "unknown Lua error";
+	char shown[256];
+	ssize_t len;
 
-	return message ? message : "unknown Lua error";
+	if (lua_type(L, -1) == LUA_TSTRING)
+		message = lua_tostring(L, -1);
+	len = strscpy(shown, message, sizeof(shown));
+	if (len < 0)
+		len = sizeof(shown) - 1;
+	text_sanitize(shown, len, false);
+	pr_err("upatch map: %s: %s", what, shown);
 }
 
 /*
@@ -1064,8 +1105,11 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 			   bool otel, size_t max_bytes,
 			   char **out, size_t *out_len)
 {
+	struct json_emit jo = {};
 	struct lua_decoder_call call = {
 		.view = v,
+		.jo = &jo,
+		.otel = otel,
 	};
 	struct lua_budget budget = {
 		.remaining = LUA_INSN_LIMIT / LUA_HOOK_COUNT,
@@ -1074,7 +1118,6 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 		.limit = LUA_MEMORY_LIMIT,
 	};
 	lua_State *allocator, *L;
-	struct json_emit jo = {};
 	int ret = 0;
 
 	allocator = luaL_newstate();
@@ -1102,32 +1145,28 @@ static int run_lua_decoder(const struct upatch_decoder_view *d,
 	if (luaL_loadbufferx(L, d->source, d->source_len, d->source_name,
 			     "t") ||
 	    lua_pcall(L, 0, 1, 0)) {
-		fprintf(stderr, "upatch map: decoder load failed: %s\n",
-			lua_error_message(L));
+		lua_report(L, "decoder load failed");
 		ret = -EINVAL;
 		goto out_close;
 	}
 	ret = lua_get_decoder_entrypoint(L, d->entrypoint);
 	if (ret) {
-		fprintf(stderr, "upatch map: decoder entrypoint '%s' not found\n",
-			d->entrypoint);
+		pr_err("upatch map: decoder entrypoint %s not found",
+		       d->entrypoint);
 		goto out_close;
 	}
 	lua_pushlightuserdata(L, &call);
 	lua_pushvalue(L, -2);
 	lua_pushcclosure(L, lua_call_decoder, 2);
 	lua_remove(L, -2);
-	if (lua_pcall(L, 0, 1, 0)) {
-		fprintf(stderr, "upatch map: decoder failed: %s\n",
-			lua_error_message(L));
+	if (lua_pcall(L, 0, 0, 0)) {
+		lua_report(L, "decoder failed");
 		ret = -EINVAL;
 		goto out_close;
 	}
-	ret = otel ? lua_otel_emit_value(L, -1, &jo, 0) :
-		lua_json_emit_value(L, -1, &jo, 0);
+	ret = call.ret;
 	if (ret) {
-		fprintf(stderr, "upatch map: decoder encode failed: %s\n",
-			strerror(-ret));
+		pr_err("upatch map: decoder encode failed: %s", strerror(-ret));
 		goto out_close;
 	}
 	if (jo.err) {
@@ -1164,15 +1203,35 @@ static int decoder_matches(const struct upatch_decoder_view *d,
 	return 1;
 }
 
+static int payload_digest(const struct upatch *u,
+			  __u8 out[UPATCH_PAYLOAD_HASH_LEN])
+{
+	struct sha256_ctx ctx;
+	int ret;
+
+	ret = sha256_init(&ctx);
+	if (ret)
+		return ret;
+	ret = sha256_update(&ctx, upatch_loader(u), u->hdr.loader_insns_len);
+	if (!ret)
+		ret = sha256_update(&ctx, upatch_data(u), u->hdr.data_len);
+	if (!ret)
+		ret = sha256_final(&ctx, out);
+	sha256_free(&ctx);
+	return ret;
+}
+
 /*
  * The archived artifact the decoders come from, opened as sealed state
  * when archived: an entry under the archive that is not shirudo's own,
  * brought in while the directory's mark was gone, is refused rather
- * than run, signed or not.
+ * than run, signed or not, and so is an archive whose bytes are not the
+ * payload the pin directory says was loaded.
  */
 static int archive_open(const char *path, bool archived,
-			struct upatch *u)
+			const struct map_view *v, struct upatch *u)
 {
+	__u8 digest[UPATCH_PAYLOAD_HASH_LEN];
 	int fd, ret;
 
 	if (!archived)
@@ -1182,6 +1241,19 @@ static int archive_open(const char *path, bool archived,
 		return fd;
 	ret = upatch_open_fd(fd, u);
 	close(fd);
+	if (ret)
+		return ret;
+	ret = payload_digest(u, digest);
+	if (!ret && (!v->has_payload ||
+		     memneq_explicit(digest, v->payload, sizeof(digest)) ||
+		     memneq_explicit(u->hdr.payload_sha256, v->payload,
+				     sizeof(digest)))) {
+		pr_err("upatch map: the archive of %s is not the upatch loaded; its decoders do not run",
+		       v->upatch);
+		ret = -ESTALE;
+	}
+	if (ret)
+		upatch_close(u);
 	return ret;
 }
 
@@ -1200,7 +1272,7 @@ static int decode_map_open(const char *path, bool archived,
 	*out_len = 0;
 	if (!upatch_name_valid(v->upatch))
 		return -EINVAL;
-	ret = archive_open(path, archived, &u);
+	ret = archive_open(path, archived, v, &u);
 	if (ret)
 		return ret == -ENOENT ? -ENOENT : ret;
 	ret = -ENODATA;
@@ -1238,7 +1310,7 @@ int upatch_decode_map_signal(const struct map_view *v,
 	if (strsprintf(path, sizeof(path), "%s/%s.upatch", UPATCHES_DIR,
 		       v->upatch) < 0)
 		return -ENAMETOOLONG;
-	ret = archive_open(path, true, &u);
+	ret = archive_open(path, true, v, &u);
 	if (ret)
 		return ret == -ENOENT ? -ENOENT : ret;
 	ret = -ENODATA;

@@ -978,7 +978,8 @@ testing/helper/test-upatch-rodata: testing/helper/test-upatch-rodata.c \
 
 testing/helper/test-upatch-decode: testing/helper/test-upatch-decode.c \
 			      util/upatch_decode.o util/upatch.o util/malloc.o util/hex.o \
-			      util/string.o util/seal.o util/io.o util/log.o util/json.o
+			      util/string.o util/seal.o util/io.o util/log.o util/json.o \
+			      util/crypto_openssl.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^ $(DYNAMIC_LIBS)
 
@@ -1197,7 +1198,7 @@ testing/fuzz/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
                        util/crypto_openssl.c util/io.c $(FUZZ_SEAL)
 testing/fuzz/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
                            util/upatch_decode.c util/upatch.c util/io.c \
-                           $(FUZZ_SEAL)
+                           util/crypto_openssl.c $(FUZZ_SEAL)
 testing/fuzz/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
 testing/fuzz/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
 testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \

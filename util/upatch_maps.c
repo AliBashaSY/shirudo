@@ -34,6 +34,7 @@
 #include "serializer.h"
 #include "upatch_map_types.h"
 #include "upatch_maps.h"
+#include "upatch_pins.h"
 #include "upatch_resolve.h"
 #include "bpf/lib/serializer.h"
 
@@ -1257,6 +1258,7 @@ int upatch_maps_read(const char *upatch, const char *map,
 		out->lifetime_start_ns =
 			(__u64)upatch_st.st_ctim.tv_sec * 1000000000ULL +
 			(__u64)upatch_st.st_ctim.tv_nsec;
+	out->has_payload = !upatch_pin_payload(upatch, out->payload);
 
 	ret = try_read_serialized(upatch, map, flags, out);
 	if (ret < 0) {

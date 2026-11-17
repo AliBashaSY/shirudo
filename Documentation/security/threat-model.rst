@@ -925,6 +925,12 @@ payload digest recorded on the upatch's pin directory, in the xattr
 A directive therefore removes the upatch its signer made it for and no
 other.
 
+The Lua decoders that map export runs with runtime authority ride in a
+signed section too. Export reads them from the archived artifact only
+when its bytes hash to the payload digest on the pin directory, so a
+decoder runs only beside the maps of the payload it was signed with. No
+test makes the two differ, which takes runtime authority.
+
 .. rst-class:: facts
 
 :Adversary: ADV-B, root on the target without the signing key
