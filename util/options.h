@@ -117,8 +117,11 @@ int opt_choice(const struct opt_parser *p, const struct opt_name *names,
 		   sizeof(names) / sizeof((names)[0]) + __must_be_array(names), \
 		   out)
 
-/* A usage error the command finds, as "<command>: <message>": OPT_USAGE. */
-int opt_usage(const struct opt_parser *p, const char *fmt, ...)
+/*
+ * Reports a usage error the command finds, as "<command>: <message>";
+ * the caller returns OPT_USAGE or EXIT_USAGE.
+ */
+void opt_usage(const struct opt_parser *p, const char *fmt, ...)
 	__printf(2, 3);
 
 #endif /* SHIRUDO_OPTIONS_H */

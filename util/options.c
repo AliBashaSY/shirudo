@@ -18,7 +18,7 @@
 #include "options.h"
 #include "similar.h"
 
-int opt_usage(const struct opt_parser *p, const char *fmt, ...)
+void opt_usage(const struct opt_parser *p, const char *fmt, ...)
 {
 	char msg[512];
 	va_list ap;
@@ -28,7 +28,6 @@ int opt_usage(const struct opt_parser *p, const char *fmt, ...)
 	ret = vstrsprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 	pr_err("%s: %s", p->command, ret < 0 ? fmt : msg);
-	return OPT_USAGE;
 }
 
 void opt_init(struct opt_parser *p, const char *command,
@@ -149,19 +148,26 @@ static int opt_list(const struct opt_parser *p)
 static int opt_take_value(struct opt_parser *p, const struct opt_spec *s,
 			  const char *eq)
 {
-	if (!s->metavar)
-		return eq ? opt_usage(p, "%s takes no value", s->name) : 0;
-	if (eq)
+	if (!s->metavar) {
+		if (!eq)
+			return 0;
+		opt_usage(p, "%s takes no value", s->name);
+		return OPT_USAGE;
+	}
+	if (eq) {
 		p->value = eq;
-	else if (s->flags & OPT_OPTIONAL)
+	} else if (s->flags & OPT_OPTIONAL) {
 		return 0;
-	else if (p->next < p->argc)
+	} else if (p->next < p->argc) {
 		p->value = p->argv[p->next++];
-	else
-		return opt_usage(p, "%s takes a value", s->name);
-	if (!*p->value && !(s->flags & OPT_EMPTY))
-		return opt_usage(p, "%s takes a value, not an empty one",
-				 s->name);
+	} else {
+		opt_usage(p, "%s takes a value", s->name);
+		return OPT_USAGE;
+	}
+	if (!*p->value && !(s->flags & OPT_EMPTY)) {
+		opt_usage(p, "%s takes a value, not an empty one", s->name);
+		return OPT_USAGE;
+	}
 	return 0;
 }
 
@@ -171,8 +177,10 @@ int opt_next(struct opt_parser *p)
 	const char *arg, *eq;
 	int opt;
 
-	if (!p->checked && !specs_valid(p->specs, p->n_specs))
-		return opt_usage(p, "the table of its options is malformed");
+	if (!p->checked && !specs_valid(p->specs, p->n_specs)) {
+		opt_usage(p, "the table of its options is malformed");
+		return OPT_USAGE;
+	}
 	p->checked = true;
 	p->value = NULL;
 	p->opt = OPT_END;
@@ -202,8 +210,10 @@ int opt_next(struct opt_parser *p)
 	if (opt < 0)
 		return opt_unknown(p, arg);
 	s = &p->specs[opt];
-	if (opt_given(p, opt) && !(s->flags & OPT_REPEAT))
-		return opt_usage(p, "%s given twice", s->name);
+	if (opt_given(p, opt) && !(s->flags & OPT_REPEAT)) {
+		opt_usage(p, "%s given twice", s->name);
+		return OPT_USAGE;
+	}
 	if (opt_take_value(p, s, eq))
 		return OPT_USAGE;
 	p->given |= 1ULL << opt;
@@ -215,11 +225,15 @@ int opt_u64(const struct opt_parser *p, __u64 min, __u64 max, __u64 *out)
 {
 	__u64 v;
 
-	if (p->opt < 0 || !p->value)
-		return opt_usage(p, "no option value to read as a number");
-	if (parse_u64(p->value, strlen(p->value), max, &v) || v < min)
-		return opt_usage(p, "%s takes a number from %llu to %llu",
-				 p->specs[p->opt].name, min, max);
+	if (p->opt < 0 || !p->value) {
+		opt_usage(p, "no option value to read as a number");
+		return OPT_USAGE;
+	}
+	if (parse_u64(p->value, strlen(p->value), max, &v) || v < min) {
+		opt_usage(p, "%s takes a number from %llu to %llu",
+			  p->specs[p->opt].name, min, max);
+		return OPT_USAGE;
+	}
 	*out = v;
 	return 0;
 }
@@ -230,8 +244,10 @@ int opt_choice(const struct opt_parser *p, const struct opt_name *names,
 	char list[256] = "";
 	size_t i, len = 0;
 
-	if (p->opt < 0 || !p->value)
-		return opt_usage(p, "no option value to read as a name");
+	if (p->opt < 0 || !p->value) {
+		opt_usage(p, "no option value to read as a name");
+		return OPT_USAGE;
+	}
 	for (i = 0; i < n; i++) {
 		if (!strcmp(p->value, names[i].name)) {
 			*out = names[i].value;
@@ -247,5 +263,6 @@ int opt_choice(const struct opt_parser *p, const struct opt_name *names,
 			break;
 		len += (size_t)ret;
 	}
-	return opt_usage(p, "%s takes %s", p->specs[p->opt].name, list);
+	opt_usage(p, "%s takes %s", p->specs[p->opt].name, list);
+	return OPT_USAGE;
 }

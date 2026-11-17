@@ -84,17 +84,21 @@ static int image_target(struct opt_parser *p, bool *cancel,
 			*cancel = true;
 			break;
 		case OPT_ARG:
-			if (*prefix)
-				return opt_usage(p, "unexpected argument '%s'",
-						 p->value);
+			if (*prefix) {
+				opt_usage(p, "unexpected argument '%s'",
+					  p->value);
+				return OPT_USAGE;
+			}
 			*prefix = p->value;
 			break;
 		default:
 			return opt;
 		}
 	}
-	if (*cancel == !!*prefix)
-		return opt_usage(p, "takes %s", want);
+	if (*cancel == !!*prefix) {
+		opt_usage(p, "takes %s", want);
+		return OPT_USAGE;
+	}
 	return OPT_END;
 }
 

@@ -1471,13 +1471,16 @@ static int bpm_args(struct opt_parser *p, const char **values,
 				values[opt] = p->value;
 			continue;
 		}
-		if (*n == max)
-			return opt_usage(p, "unexpected argument '%s'",
-					 p->value);
+		if (*n == max) {
+			opt_usage(p, "unexpected argument '%s'", p->value);
+			return OPT_USAGE;
+		}
 		args[(*n)++] = p->value;
 	}
-	if (*n < min)
-		return opt_usage(p, "takes %s", want);
+	if (*n < min) {
+		opt_usage(p, "takes %s", want);
+		return OPT_USAGE;
+	}
 	return OPT_END;
 }
 
