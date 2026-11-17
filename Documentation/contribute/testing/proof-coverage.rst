@@ -1379,7 +1379,11 @@ it puts into ``build-environment.json``, a publication with operations,
 the manifests, and the generation and sequence numbers ``bpm tree
 append`` counts up have no proof. A value of any length in a JSON
 document moves every byte behind it, and a tree operation takes 13 KiB
-in each of its copies: a proof over either runs for minutes.
+in each of its copies: a proof over either runs for minutes. Of
+:src:`tools/shirudo-build/bpm-publish.c` the proofs read
+``push_index()`` and what it calls; ``cmd_bpm_tree_append()`` and the
+steps it runs, ``tree_append_parse()`` to ``tree_append_free()``, have
+none.
 
 Within the ``.upatch`` reader, the proofs cover its parts but not their
 composition: ``upatch_parse()`` and ``upatch_open_memory()`` join the

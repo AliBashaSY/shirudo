@@ -1194,38 +1194,54 @@ static int tree_new_id(const char *tree_id, const char *package,
 	return 0;
 }
 
-static int cmd_bpm_tree_append(int argc, const char **argv)
+/* One bpm tree append, filled in by its steps in turn. */
+struct tree_append {
+	const char		*package;
+	const char		*raw_repository;
+	const char		*keys_dir_arg;
+	const char		*key;
+	const char		*cert;
+	const char		*previous_cert;
+	const char		*tree_id;
+	const char		*reference;
+	int			segment_ops;
+	bool			unload;
+	char			key_path[PATH_MAX];
+	char			cert_path[PATH_MAX];
+	char			repo_ref[BPM_MAX_ENDPOINT];
+	struct bpm_package_info	info;
+	__u8			*beefile;
+	size_t			beefile_len;
+	char			package_dir[101];
+	struct bpm_build_spec	*spec;
+	size_t			entries;
+	struct bpm_oci_client	c;
+	char			repository[BPM_MAX_ENDPOINT];
+	struct bpm_buffer	previous;
+	char			parent[BPM_MAX_DIGEST];
+	struct tree_publication	pub;
+	struct tree_publication	*sealed;
+	struct bpm_fixes	*fixes;
+	size_t			n_fixes;
+	struct tree_operation	*op;
+	struct tree_xdp_classes	*seen;
+	struct tree_upload	*uploads;
+	int			appended;
+	char			*payload;
+	size_t			payload_len;
+	__u8			*sig;
+	size_t			sig_len;
+};
+
+/*
+ * 0, or EXIT_USAGE for a usage error, reported, or OPT_DONE where help
+ * or the option list was printed.
+ */
+static int tree_append_parse(struct tree_append *ta, int argc,
+			     const char **argv)
 {
-	const char *package = NULL, *raw_repository = NULL, *keys_dir_arg = NULL;
-	char repository[BPM_MAX_ENDPOINT], repo_ref[BPM_MAX_ENDPOINT];
-	struct bpm_descriptor config, payload_layer, sig_layer;
-	const char *key = NULL, *cert = NULL, *tree_id = NULL;
-	const char *previous_cert = NULL;
-	const char *reference = "stable";
-	char key_path[PATH_MAX], cert_path[PATH_MAX];
-	char parent[BPM_MAX_DIGEST] = {}, digest[72];
-	struct tree_publication *sealed = NULL;
-	struct tree_xdp_classes *seen = NULL;
-	struct tree_upload *uploads = NULL;
-	int segment_ops = TREE_SEGMENT_OPS;
-	size_t entries = 0;
-	struct bpm_buffer previous = {};
-	struct bpm_fixes *fixes = NULL;
-	struct tree_emit_extra extra;
-	size_t n_fixes = 0;
-	struct tree_publication pub = {};
-	struct tree_operation *op = NULL;
-	size_t len, payload_len = 0, sig_len = 0, manifest_len;
-	char *payload = NULL, *manifest = NULL;
-	struct bpm_build_spec *spec = NULL;
-	__u8 *beefile = NULL, *sig = NULL;
-	struct bpm_package_info info = {};
-	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
-	char empty_config[] = "{}";
-	char package_dir[101];
-	int appended = 0, ret, opt, op_delete = false;
+	int opt, op_delete = false;
 	struct opt_parser p;
-	bool unload;
 	__u64 n_ops;
 
 	OPT_INIT(&p, "bpm tree append", tree_append_opts, &tree_append_help,
@@ -1233,26 +1249,26 @@ static int cmd_bpm_tree_append(int argc, const char **argv)
 	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
 		switch (opt) {
 		case TREE_APPEND_KEYS_DIR:
-			keys_dir_arg = p.value;
+			ta->keys_dir_arg = p.value;
 			break;
 		case TREE_APPEND_KEY:
-			key = p.value;
+			ta->key = p.value;
 			break;
 		case TREE_APPEND_CERT:
-			cert = p.value;
+			ta->cert = p.value;
 			break;
 		case TREE_APPEND_PREVIOUS_CERT:
-			previous_cert = p.value;
+			ta->previous_cert = p.value;
 			break;
 		case TREE_APPEND_TREE_ID:
 			if (!bpm_package_name_ok(p.value)) {
 				opt_usage(&p, "invalid --tree-id %s", p.value);
 				return EXIT_USAGE;
 			}
-			tree_id = p.value;
+			ta->tree_id = p.value;
 			break;
 		case TREE_APPEND_REFERENCE:
-			reference = p.value;
+			ta->reference = p.value;
 			break;
 		case TREE_APPEND_OP:
 			if (OPT_CHOICE(&p, tree_append_ops, &op_delete))
@@ -1261,320 +1277,476 @@ static int cmd_bpm_tree_append(int argc, const char **argv)
 		case TREE_APPEND_SEGMENT_OPS:
 			if (opt_u64(&p, 1, TREE_MAX_OPS, &n_ops))
 				return EXIT_USAGE;
-			segment_ops = (int)n_ops;
+			ta->segment_ops = (int)n_ops;
 			break;
 		case OPT_ARG:
-			if (raw_repository) {
+			if (ta->raw_repository) {
 				opt_usage(&p, "unexpected argument '%s'",
 					  p.value);
 				return EXIT_USAGE;
 			}
-			if (package)
-				raw_repository = p.value;
+			if (ta->package)
+				ta->raw_repository = p.value;
 			else
-				package = p.value;
+				ta->package = p.value;
 			break;
 		case OPT_DONE:
-			return 0;
+			return OPT_DONE;
 		default:
 			return EXIT_USAGE;
 		}
 	}
-	if (!package || !raw_repository) {
+	if (!ta->package || !ta->raw_repository) {
 		opt_usage(&p, "takes <package-file> and <repository>");
 		return EXIT_USAGE;
 	}
-	unload = op_delete;
-	if (!key || !cert) {
-		const char *keys_dir = keys_dir_resolve(keys_dir_arg);
+	ta->unload = op_delete;
+	return 0;
+}
 
-		if (!key) {
-			if (format_key_path(key_path, sizeof(key_path), keys_dir,
-					    SIGNING_KEY_FILE))
+static int tree_append_signing_keys(struct tree_append *ta)
+{
+	if (!ta->key || !ta->cert) {
+		const char *keys_dir = keys_dir_resolve(ta->keys_dir_arg);
+
+		if (!ta->key) {
+			if (format_key_path(ta->key_path, sizeof(ta->key_path),
+					    keys_dir, SIGNING_KEY_FILE))
 				return -EINVAL;
-			key = key_path;
+			ta->key = ta->key_path;
 		}
-		if (!cert) {
-			if (format_key_path(cert_path, sizeof(cert_path), keys_dir,
+		if (!ta->cert) {
+			if (format_key_path(ta->cert_path,
+					    sizeof(ta->cert_path), keys_dir,
 					    CERT_FILE))
 				return -EINVAL;
-			cert = cert_path;
+			ta->cert = ta->cert_path;
 		}
 	}
-	if (build_check_keys(key, cert))
+	if (build_check_keys(ta->key, ta->cert))
 		return -EACCES;
-	if (!previous_cert)
-		previous_cert = cert;
-	if (bpm_trim(raw_repository, repo_ref, sizeof(repo_ref))) {
+	if (!ta->previous_cert)
+		ta->previous_cert = ta->cert;
+	return 0;
+}
+
+static int tree_append_trim_repository(struct tree_append *ta)
+{
+	if (bpm_trim(ta->raw_repository, ta->repo_ref, sizeof(ta->repo_ref))) {
 		pr_err("bpm tree append: repository is longer than %zu bytes",
-		       sizeof(repo_ref) - 1);
+		       sizeof(ta->repo_ref) - 1);
 		return -ENAMETOOLONG;
 	}
+	return 0;
+}
 
-	ret = bpm_pkg_load_info(package, &info);
+static int tree_append_read_package(struct tree_append *ta)
+{
+	int ret;
+
+	ret = bpm_pkg_load_info(ta->package, &ta->info);
 	if (ret)
 		return ret;
-	ret = bpm_pkg_read_member_in(package, "Beefile", NULL, package_dir,
-				     sizeof(package_dir), &beefile, &len,
+	ret = bpm_pkg_read_member_in(ta->package, "Beefile", NULL,
+				     ta->package_dir, sizeof(ta->package_dir),
+				     &ta->beefile, &ta->beefile_len,
 				     4u * 1024u * 1024u);
 	if (ret) {
-		pr_err("bpm tree append: package %s does not include Beefile", package);
-		goto out;
+		pr_err("bpm tree append: package %s does not include Beefile",
+		       ta->package);
+		return ret;
 	}
-	spec = xmalloc(sizeof(*spec));
-	if (!spec) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	ret = bpm_build_parse_beefile(beefile, len, spec);
+	ta->spec = xmalloc(sizeof(*ta->spec));
+	if (!ta->spec)
+		return -ENOMEM;
+	ret = bpm_build_parse_beefile(ta->beefile, ta->beefile_len, ta->spec);
 	if (ret) {
-		pr_err("bpm tree append: cannot parse the Beefile of %s", package);
-		goto out;
+		pr_err("bpm tree append: cannot parse the Beefile of %s",
+		       ta->package);
+		return ret;
 	}
-	for (size_t i = 0; i < spec->n_upatches; i++)
-		entries += spec->upatches[i].tree.present;
-	ret = bpm_oci_parse_push_repo(repo_ref, &c, repository, sizeof(repository));
+	for (size_t i = 0; i < ta->spec->n_upatches; i++)
+		ta->entries += ta->spec->upatches[i].tree.present;
+	return 0;
+}
+
+static int tree_append_seal_if_full(struct tree_append *ta)
+{
+	if (ta->pub.n_operations >= ta->segment_ops ||
+	    (size_t)ta->pub.n_operations + ta->entries > TREE_MAX_OPS) {
+		ta->sealed = xmalloc(sizeof(*ta->sealed));
+		if (!ta->sealed)
+			return -ENOMEM;
+		*ta->sealed = ta->pub;
+		return tree_start_segment(ta->sealed, ta->parent, &ta->pub);
+	}
+	return 0;
+}
+
+static int tree_append_extend(struct tree_append *ta)
+{
+	int ret;
+
+	/*
+	 * The registry chooses what the reference holds, another tree
+	 * the key signs among it: only the operator can say which tree
+	 * the signature it is about to make belongs to.
+	 */
+	if (!ta->tree_id) {
+		pr_err("bpm tree append: %s:%s holds tree %s; name the tree to extend with --tree-id",
+		       ta->repo_ref, ta->reference, ta->pub.tree_id);
+		return -EINVAL;
+	}
+	if (strcmp(ta->pub.tree_id, ta->tree_id)) {
+		pr_err("bpm tree append: %s:%s holds tree %s, not %s; refusing to extend another tree",
+		       ta->repo_ref, ta->reference, ta->pub.tree_id,
+		       ta->tree_id);
+		return -EINVAL;
+	}
+	ret = tree_publication_verify(&ta->pub, NULL);
+	if (ret) {
+		pr_err("bpm tree append: the publication at %s:%s does not verify",
+		       ta->repo_ref, ta->reference);
+		return ret;
+	}
+	ret = tree_append_seal_if_full(ta);
+	if (ret)
+		return ret;
+	if (check_add_overflow(ta->pub.generation, 1, &ta->pub.generation) ||
+	    ta->pub.generation == INT64_MAX) {
+		pr_err("bpm tree append: the tree's generation is exhausted");
+		return -EOVERFLOW;
+	}
+	return 0;
+}
+
+/* The next generation of the tree at the reference, or a new tree's first. */
+static int tree_append_head(struct tree_append *ta)
+{
+	int ret;
+
+	ret = bpm_oci_parse_push_repo(ta->repo_ref, &ta->c, ta->repository,
+				      sizeof(ta->repository));
 	if (ret) {
 		pr_err("bpm tree append: the repository must be oci://registry/repository");
-		goto out;
+		return ret;
 	}
-	ret = bpm_tree_fetch_document(&c, repository, reference, previous_cert,
-				      NULL, &previous, parent, sizeof(parent));
+	ret = bpm_tree_fetch_document(&ta->c, ta->repository, ta->reference,
+				      ta->previous_cert, NULL, &ta->previous,
+				      ta->parent, sizeof(ta->parent));
 	if (!ret)
-		ret = tree_parse((const char *)previous.data, previous.len,
-				 &pub);
+		ret = tree_parse((const char *)ta->previous.data,
+				 ta->previous.len, &ta->pub);
 	if (ret == -ENOENT) {
-		pub = (struct tree_publication){ .schema = 1,
-							 .generation = 1 };
-		parent[0] = '\0';
-		ret = tree_new_id(tree_id, info.name, reference, pub.tree_id,
-				  sizeof(pub.tree_id));
-		if (ret)
-			goto out;
+		ta->pub = (struct tree_publication){ .schema = 1,
+						     .generation = 1 };
+		ta->parent[0] = '\0';
+		ret = tree_new_id(ta->tree_id, ta->info.name, ta->reference,
+				  ta->pub.tree_id, sizeof(ta->pub.tree_id));
 	} else if (ret) {
 		pr_err("bpm tree append: cannot read the publication at %s:%s",
-		       repo_ref, reference);
-		goto out;
+		       ta->repo_ref, ta->reference);
 	} else {
-		/*
-		 * The registry chooses what the reference holds, another tree
-		 * the key signs among it: only the operator can say which tree
-		 * the signature it is about to make belongs to.
-		 */
-		if (!tree_id) {
-			pr_err("bpm tree append: %s:%s holds tree %s; name the tree to extend with --tree-id",
-			       repo_ref, reference, pub.tree_id);
-			ret = -EINVAL;
-			goto out;
-		}
-		if (strcmp(pub.tree_id, tree_id)) {
-			pr_err("bpm tree append: %s:%s holds tree %s, not %s; refusing to extend another tree",
-			       repo_ref, reference, pub.tree_id, tree_id);
-			ret = -EINVAL;
-			goto out;
-		}
-		ret = tree_publication_verify(&pub, NULL);
-		if (ret) {
-			pr_err("bpm tree append: the publication at %s:%s does not verify",
-			       repo_ref, reference);
-			goto out;
-		}
-		if (pub.n_operations >= segment_ops ||
-		    (size_t)pub.n_operations + entries > TREE_MAX_OPS) {
-			sealed = xmalloc(sizeof(*sealed));
-			if (!sealed) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			*sealed = pub;
-			ret = tree_start_segment(sealed, parent, &pub);
-			if (ret)
-				goto out;
-		}
-		if (check_add_overflow(pub.generation, 1, &pub.generation) ||
-		    pub.generation == INT64_MAX) {
-			pr_err("bpm tree append: the tree's generation is exhausted");
-			ret = -EOVERFLOW;
-			goto out;
-		}
+		ret = tree_append_extend(ta);
 	}
-	pub.schema = 1;
-	bpm_copy_string(pub.parent_manifest_digest,
-			sizeof(pub.parent_manifest_digest), parent);
+	if (ret)
+		return ret;
+	ta->pub.schema = 1;
+	bpm_copy_string(ta->pub.parent_manifest_digest,
+			sizeof(ta->pub.parent_manifest_digest), ta->parent);
+	return 0;
+}
 
-	n_fixes = min_t(size_t, pub.n_operations + spec->n_upatches,
-			TREE_MAX_OPS);
-	n_fixes = max(n_fixes, 1U);
-	fixes = xcalloc(n_fixes, sizeof(*fixes));
-	if (!fixes) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	if (previous.data && !sealed &&
-	    tree_read_fixes(&previous, &pub, fixes)) {
+static int tree_append_carry_fixes(struct tree_append *ta)
+{
+	ta->n_fixes = min_t(size_t, ta->pub.n_operations + ta->spec->n_upatches,
+			    TREE_MAX_OPS);
+	ta->n_fixes = max(ta->n_fixes, 1U);
+	ta->fixes = xcalloc(ta->n_fixes, sizeof(*ta->fixes));
+	if (!ta->fixes)
+		return -ENOMEM;
+	if (ta->previous.data && !ta->sealed &&
+	    tree_read_fixes(&ta->previous, &ta->pub, ta->fixes)) {
 		pr_err("bpm tree append: the publication at %s:%s has a fixes list bpm tree append would not write, so it cannot carry it into the next generation",
-		       repo_ref, reference);
-		ret = -EINVAL;
-		goto out;
+		       ta->repo_ref, ta->reference);
+		return -EINVAL;
 	}
+	return 0;
+}
 
-	op = xmalloc(sizeof(*op));
-	seen = xcalloc(1, sizeof(*seen));
-	uploads = xcalloc(BPM_BUILD_MAX_ENTRIES, sizeof(*uploads));
-	if (!op || !seen || !uploads) {
-		ret = -ENOMEM;
-		goto out;
+static int tree_operation_start(struct tree_append *ta,
+				const struct bpm_build_upatch *u, __s64 seq)
+{
+	struct tree_operation *op = ta->op;
+	int ret;
+
+	tree_selector_free(&op->selector);
+	*op = (struct tree_operation){ .seq = seq };
+	bpm_copy_string(op->op, sizeof(op->op),
+			tree_append_ops[ta->unload].name);
+	bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
+	if (u->tree.selector) {
+		ret = tree_selector_copy(&op->selector, u->tree.selector);
+		if (ret)
+			return ret;
 	}
-	for (size_t i = 0; i < spec->n_upatches; i++) {
-		const struct bpm_build_upatch *u = &spec->upatches[i];
-		const char *member;
-		__u8 *body = NULL;
-		__u32 classes = 0;
-		size_t body_len;
-		__s64 seq;
+	tree_selector_canonicalize(&op->selector);
+	return 0;
+}
 
-		if (!u->tree.present)
+static int tree_refuse_xdp_classes(struct tree_append *ta, const char *id,
+				   const __u8 *body, size_t body_len,
+				   __u32 *classes)
+{
+	int ret;
+
+	ret = upatch_xdp_classes(body, body_len, classes);
+	if (ret)
+		pr_err("bpm tree append: %s is not a valid upatch", id);
+	else
+		ret = tree_refuse_shared_xdp_class(&ta->c, ta->repository,
+						   ta->repo_ref, &ta->pub,
+						   NULL, ta->seen, ta->op,
+						   *classes);
+	if (!ret && *classes)
+		ret = tree_refuse_sealed_xdp_class(&ta->c, ta->repository,
+						   ta->repo_ref,
+						   ta->previous_cert,
+						   &ta->pub, ta->sealed,
+						   ta->op, *classes);
+	return ret;
+}
+
+static int tree_append_commit(struct tree_append *ta,
+			      const struct bpm_build_upatch *u, __u32 classes)
+{
+	struct tree_publication *pub = &ta->pub;
+	struct tree_operation *op = ta->op;
+	int ret;
+
+	ret = tree_operation_digest(op, op->operation_digest);
+	if (!ret)
+		ret = tree_operation_validate(op);
+	if (ret) {
+		pr_err("bpm tree append: the tree entry of %s makes an operation no target takes",
+		       u->tree.id);
+		return ret;
+	}
+	ret = tree_publication_append(pub, op);
+	if (ret)
+		return ret;
+	ta->seen->classes[pub->n_operations - 1] = classes;
+	ta->seen->known[pub->n_operations - 1] = true;
+	if (!ta->unload)
+		ta->fixes[pub->n_operations - 1] = u->tree.fixes;
+	pub->head_seq = op->seq;
+	ta->appended++;
+	return 0;
+}
+
+static int tree_append_entry(struct tree_append *ta,
+			     const struct bpm_build_upatch *u)
+{
+	struct tree_upload *up = &ta->uploads[ta->appended];
+	const char *member;
+	__u8 *body = NULL;
+	__u32 classes = 0;
+	size_t body_len;
+	__s64 seq;
+	int ret;
+
+	if (check_add_overflow(ta->pub.head_seq, 1, &seq) ||
+	    seq == INT64_MAX) {
+		pr_err("bpm tree append: the tree's sequence is exhausted");
+		return -EOVERFLOW;
+	}
+	member = ta->unload ? u->tree.unload_artifact : u->tree.load_artifact;
+	ret = bpm_pkg_read_member_in(ta->package, member, ta->package_dir,
+				     NULL, 0, &body, &body_len,
+				     UPATCH_FILE_MAX);
+	if (ret) {
+		pr_err("bpm tree append: package entry %s not found", member);
+		return ret;
+	}
+	ret = tree_operation_start(ta, u, seq);
+	if (!ret && !ta->unload)
+		ret = tree_refuse_xdp_classes(ta, u->tree.id, body, body_len,
+					      &classes);
+	if (!ret)
+		ret = tree_describe_artifact(ta->repo_ref, body, body_len,
+					     u->tree.id, ta->unload,
+					     &ta->op->artifact, up);
+	if (ret) {
+		xfree(body, body_len + 1);
+		return ret;
+	}
+	up->body = body;
+	up->body_len = body_len;
+	return tree_append_commit(ta, u, classes);
+}
+
+static int tree_append_operations(struct tree_append *ta)
+{
+	int ret;
+
+	ta->op = xmalloc(sizeof(*ta->op));
+	ta->seen = xcalloc(1, sizeof(*ta->seen));
+	ta->uploads = xcalloc(BPM_BUILD_MAX_ENTRIES, sizeof(*ta->uploads));
+	if (!ta->op || !ta->seen || !ta->uploads)
+		return -ENOMEM;
+	for (size_t i = 0; i < ta->spec->n_upatches; i++) {
+		if (!ta->spec->upatches[i].tree.present)
 			continue;
-		if (check_add_overflow(pub.head_seq, 1, &seq) ||
-		    seq == INT64_MAX) {
-			pr_err("bpm tree append: the tree's sequence is exhausted");
-			ret = -EOVERFLOW;
-			goto out;
-		}
-		member = unload ? u->tree.unload_artifact : u->tree.load_artifact;
-		ret = bpm_pkg_read_member_in(package, member, package_dir, NULL, 0,
-					     &body, &body_len, UPATCH_FILE_MAX);
-		if (ret) {
-			pr_err("bpm tree append: package entry %s not found", member);
-			goto out;
-		}
-		tree_selector_free(&op->selector);
-		*op = (struct tree_operation){ .seq = seq };
-		bpm_copy_string(op->op, sizeof(op->op),
-				tree_append_ops[unload].name);
-		bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
-		if (u->tree.selector) {
-			ret = tree_selector_copy(&op->selector, u->tree.selector);
-			if (ret) {
-				xfree(body, body_len + 1);
-				goto out;
-			}
-		}
-		tree_selector_canonicalize(&op->selector);
-		if (!unload) {
-			ret = upatch_xdp_classes(body, body_len, &classes);
-			if (ret)
-				pr_err("bpm tree append: %s is not a valid upatch",
-				       u->tree.id);
-			else
-				ret = tree_refuse_shared_xdp_class(&c, repository,
-								   repo_ref, &pub,
-								   NULL, seen, op,
-								   classes);
-			if (!ret && classes)
-				ret = tree_refuse_sealed_xdp_class(&c, repository,
-								   repo_ref,
-								   previous_cert,
-								   &pub, sealed,
-								   op, classes);
-		}
-		if (!ret)
-			ret = tree_describe_artifact(repo_ref, body, body_len,
-						     u->tree.id, unload,
-						     &op->artifact,
-						     &uploads[appended]);
-		if (ret) {
-			xfree(body, body_len + 1);
-			goto out;
-		}
-		uploads[appended].body = body;
-		uploads[appended].body_len = body_len;
-		ret = tree_operation_digest(op, op->operation_digest);
-		if (!ret)
-			ret = tree_operation_validate(op);
-		if (ret) {
-			pr_err("bpm tree append: the tree entry of %s makes an operation no target takes",
-			       u->tree.id);
-			goto out;
-		}
-		ret = tree_publication_append(&pub, op);
+		ret = tree_append_entry(ta, &ta->spec->upatches[i]);
 		if (ret)
-			goto out;
-		seen->classes[pub.n_operations - 1] = classes;
-		seen->known[pub.n_operations - 1] = true;
-		if (!unload)
-			fixes[pub.n_operations - 1] = u->tree.fixes;
-		pub.head_seq = op->seq;
-		appended++;
+			return ret;
 	}
-	if (!appended) {
-		pr_err("bpm tree append: %s has no [upatches.tree] entries", package);
-		ret = -ENOENT;
-		goto out;
+	if (!ta->appended) {
+		pr_err("bpm tree append: %s has no [upatches.tree] entries",
+		       ta->package);
+		return -ENOENT;
 	}
-	extra = (struct tree_emit_extra){ tree_emit_fixes, fixes };
-	ret = tree_emit_publication(&pub, &extra, &payload, &payload_len);
+	return 0;
+}
+
+static int tree_append_sign(struct tree_append *ta)
+{
+	struct tree_emit_extra extra = { tree_emit_fixes, ta->fixes };
+	int ret;
+
+	ret = tree_emit_publication(&ta->pub, &extra, &ta->payload,
+				    &ta->payload_len);
 	if (ret)
-		goto out;
-	ret = sign_detached(payload, payload_len, key, cert, &sig, &sig_len);
-	if (ret)
-		goto out;
-	/* Nothing is uploaded before all of it is known to be publishable. */
-	for (int i = 0; i < appended; i++) {
-		ret = tree_upload_artifact(&c, repository, &uploads[i]);
+		return ret;
+	return sign_detached(ta->payload, ta->payload_len, ta->key, ta->cert,
+			     &ta->sig, &ta->sig_len);
+}
+
+static int tree_upload_artifacts(struct tree_append *ta)
+{
+	int ret;
+
+	for (int i = 0; i < ta->appended; i++) {
+		ret = tree_upload_artifact(&ta->c, ta->repository, &ta->uploads[i]);
 		if (ret)
-			goto out;
+			return ret;
 	}
-	ret = bpm_oci_push_blob(&c, repository, empty_config,
+	return 0;
+}
+
+static int tree_push_document(struct tree_append *ta)
+{
+	struct bpm_descriptor config, payload_layer, sig_layer;
+	char empty_config[] = "{}";
+	size_t manifest_len;
+	char digest[72];
+	char *manifest;
+	int ret;
+
+	ret = bpm_oci_push_blob(&ta->c, ta->repository, empty_config,
 				strlen(empty_config), BPM_EMPTY_CONFIG_MEDIA,
 				&config);
 	if (ret)
-		goto out;
-	ret = bpm_oci_push_blob(&c, repository, payload, payload_len,
-				BPM_TREE_MEDIA, &payload_layer);
+		return ret;
+	ret = bpm_oci_push_blob(&ta->c, ta->repository, ta->payload,
+				ta->payload_len, BPM_TREE_MEDIA, &payload_layer);
 	if (ret)
-		goto out;
-	ret = bpm_oci_push_blob(&c, repository, sig, sig_len, BPM_TREE_SIG_MEDIA,
-				&sig_layer);
+		return ret;
+	ret = bpm_oci_push_blob(&ta->c, ta->repository, ta->sig, ta->sig_len,
+				BPM_TREE_SIG_MEDIA, &sig_layer);
 	if (ret)
-		goto out;
+		return ret;
 	manifest = xmalloc(BPM_TREE_MANIFEST_CAP);
-	if (!manifest) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!manifest)
+		return -ENOMEM;
 	ret = bpm_tree_manifest(&payload_layer, &sig_layer, manifest,
 				BPM_TREE_MANIFEST_CAP, &manifest_len);
-	if (!ret && sealed)
-		ret = tree_tag_sealed(&c, repository, parent);
+	if (!ret && ta->sealed)
+		ret = tree_tag_sealed(&ta->c, ta->repository, ta->parent);
 	if (!ret)
-		ret = bpm_oci_put_manifest(&c, repository, reference,
+		ret = bpm_oci_put_manifest(&ta->c, ta->repository,
+					   ta->reference,
 					   (const __u8 *)manifest, manifest_len,
 					   digest, sizeof(digest));
 	if (!ret)
-		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
-		       digest);
-out:
+		printf("oci://%s/%s:%s %s\n", ta->c.registry, ta->repository,
+		       ta->reference, digest);
 	xfree(manifest, BPM_TREE_MANIFEST_CAP);
-	sig_free(sig);
-	xfree(payload, payload_len);
-	if (op)
-		tree_selector_free(&op->selector);
-	xfree(op, sizeof(*op));
-	xfree(seen, sizeof(*seen));
-	for (size_t i = 0; uploads && i < BPM_BUILD_MAX_ENTRIES; i++) {
-		xfree(uploads[i].manifest, BPM_MANIFEST_CAP);
-		xfree(uploads[i].body, uploads[i].body_len + 1);
+	return ret;
+}
+
+static int tree_append_publish(struct tree_append *ta)
+{
+	int ret;
+
+	ret = tree_append_sign(ta);
+	if (ret)
+		return ret;
+	/* Nothing is uploaded before all of it is known to be publishable. */
+	ret = tree_upload_artifacts(ta);
+	if (ret)
+		return ret;
+	return tree_push_document(ta);
+}
+
+static int tree_append_run(struct tree_append *ta)
+{
+	int ret;
+
+	ret = tree_append_signing_keys(ta);
+	if (!ret)
+		ret = tree_append_trim_repository(ta);
+	if (!ret)
+		ret = tree_append_read_package(ta);
+	if (!ret)
+		ret = tree_append_head(ta);
+	if (!ret)
+		ret = tree_append_carry_fixes(ta);
+	if (!ret)
+		ret = tree_append_operations(ta);
+	if (!ret)
+		ret = tree_append_publish(ta);
+	return ret;
+}
+
+static void tree_append_free(struct tree_append *ta)
+{
+	sig_free(ta->sig);
+	xfree(ta->payload, ta->payload_len);
+	if (ta->op)
+		tree_selector_free(&ta->op->selector);
+	xfree(ta->op, sizeof(*ta->op));
+	xfree(ta->seen, sizeof(*ta->seen));
+	for (size_t i = 0; ta->uploads && i < BPM_BUILD_MAX_ENTRIES; i++) {
+		xfree(ta->uploads[i].manifest, BPM_MANIFEST_CAP);
+		xfree(ta->uploads[i].body, ta->uploads[i].body_len + 1);
 	}
-	xfree(uploads, BPM_BUILD_MAX_ENTRIES * sizeof(*uploads));
-	xfree(fixes, n_fixes * sizeof(*fixes));
-	bpm_buffer_free(&previous);
-	tree_publication_free(&pub);
-	tree_publication_free(sealed);
-	xfree(sealed, sizeof(*sealed));
-	bpm_build_spec_free(spec);
-	xfree(beefile, len + 1);
-	xfree(info.cert, info.cert_len + 1);
+	xfree(ta->uploads, BPM_BUILD_MAX_ENTRIES * sizeof(*ta->uploads));
+	xfree(ta->fixes, ta->n_fixes * sizeof(*ta->fixes));
+	bpm_buffer_free(&ta->previous);
+	tree_publication_free(&ta->pub);
+	tree_publication_free(ta->sealed);
+	xfree(ta->sealed, sizeof(*ta->sealed));
+	bpm_build_spec_free(ta->spec);
+	xfree(ta->beefile, ta->beefile_len + 1);
+	xfree(ta->info.cert, ta->info.cert_len + 1);
+	bpm_oci_client_clear(&ta->c);
+}
+
+static int cmd_bpm_tree_append(int argc, const char **argv)
+{
+	struct tree_append ta = {
+		.reference = "stable",
+		.segment_ops = TREE_SEGMENT_OPS,
+	};
+	int ret;
+
+	ret = tree_append_parse(&ta, argc, argv);
+	/* OPT_DONE is -ESRCH, an error a later step can return. */
+	if (ret)
+		return ret == OPT_DONE ? 0 : ret;
+	ret = tree_append_run(&ta);
+	tree_append_free(&ta);
 	return ret;
 }
 
