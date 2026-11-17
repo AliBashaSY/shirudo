@@ -10,7 +10,8 @@ style, and the tree follows it in userspace as well as in BPF: tabs
 eight wide, 80 columns where it reads well and never past 100, K&R
 braces, short functions that do one thing. AGENTS.md lists the
 project's conventions in short; this skill gives them with their
-reasons. Read the code around a change first and write like it.
+reasons. Read the code around a change first and write like it, and
+write what more than one place needs once, in `util/`.
 
 ## Write code that explains itself
 
@@ -239,13 +240,29 @@ Worth writing:
 
 ## Use util/, and grow it
 
+Write common code once, in `util/`, and call it. A hash, an encoding, a
+digest's text form, a path, a record format, a file read with its
+checks, the parse of a name or a number: code that does a job like
+these belongs in a helper of `util/`, or of `include/shirudo/` for the
+project's basics, not inline in a builtin or a tool. Write it there
+from the start when a second caller is in sight, rather than waiting
+for the copy. Copies drift apart, and the difference between them is
+usually a bug in one: the `sha256:` digest of a manifest was checked
+and decoded by hand in six places, one with a length check the others
+lacked, and written in ten, each its own way, until
+`sha256_digest_decode()` and `sha256_digest_encode()` in `util/hex.c`
+took the place of them all.
+
 Never write the same logic twice. Before writing a parser, a check, a
 path, a copy loop or a record format, look for one that already does it,
 in `util/`, `include/shirudo/` and the builtins alike: `git grep -n
 '<word>'`. A variant that differs only in a length check, a bound or a
 message is still a copy: make one helper, with a parameter or with the
 extra check left to the caller, and move one found in a builtin into
-`util/` for both. The basics:
+`util/` for both. A copy found while working on something else is
+consolidated in a commit of its own, before the change that needed it.
+A review asks of every new block of code whether `util/` has it
+already, or should. The basics:
 
 | Need | Use |
 |---|---|
@@ -260,18 +277,26 @@ extra check left to the caller, and move one found in a builtin into
 | Secrets | `memzero_explicit()`, `memneq_explicit()` |
 | Files | `read_file()`, `read_fd()`, `write_complete()`, `append_line()`, `lines_len()`, `open_beneath()`, `lock_exclusive()` (`util/io.h`) |
 | Sealed state and paths root names | `seal_open()`, `seal_lock()`, `seal_append_line()`, `seal_write_file()`; `seal_output_create()` and `seal_output_commit()` for a report or export (`util/seal.h`) |
-| Bytes on the wire | `get_le32()`, `put_be32()`, `le32_to_cpu()` and kin (`<shirudo/byteorder.h>`), `hex_encode()`, `hex_decode()`, `hex_decode_max()`, `sha256_digest_decode()` (`util/hex.h`) |
+| Bytes on the wire | `get_le32()`, `put_be32()`, `le32_to_cpu()` and kin (`<shirudo/byteorder.h>`), `hex_encode()`, `hex_decode()`, `hex_decode_max()` (`util/hex.h`) |
+| SHA-256 | `sha256_buffer()`, or `sha256_init()`, `sha256_update()` and `sha256_final()` over pieces (`util/crypto.h`); `sha256_digest_encode()` and `sha256_digest_decode()` for the `sha256:<hex>` form (`util/hex.h`), `bpm_sha256_digest()` to hash and write it at once (`util/bpm_oci.h`) |
 | JSON | `util/json.h`: `json_parse()` with a schema, `json_walk()`, `struct json_emit` |
 | Messages | `pr_err()`, `pr_warn()`, `pr_info()`, `pr_audit()` (`util/log.h`) |
 
 Code that a second place needs moves into `util/<m>.c`, declared in
 `util/<m>.h`, or in `include/shirudo/` for the project's basics, with
 cases in `testing/unit/<m>.c`, and the copies it replaces go in the same
-commit. Two static copies of one helper in two builtins are a bug in
-waiting: one gets fixed and the other does not. A util function takes a
-length rather than trusting a terminator in outside data, returns 0 or
-a negative errno, and leaves the message to its caller. Operator-only
-code, signing and the package builder, stays out of the core binary.
+commit, whose message names each copy and how they differed. Two static
+copies of one helper in two builtins are a bug in waiting: one gets
+fixed and the other does not. A util function takes a length rather
+than trusting a terminator in outside data, returns 0 or a negative
+errno, and leaves the message to its caller.
+
+Code the BPF programs share goes in `bpf/lib/` the same way. Where a
+shared helper does not make sense, the copy stays and its commit says
+why: operator-only code, signing and the package builder, stays out of
+the core binary, and a file a CBMC proof includes whole keeps a local
+copy when a call into another file would leave the proof a function
+without a body.
 
 ## Conventions
 
