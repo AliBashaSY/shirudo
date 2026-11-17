@@ -160,6 +160,14 @@ for document in "$WORK"/bad-*.json; do
 	'
 done
 
+test_expect_success 'a config string longer than its field is a malformed document' '
+	status=0 &&
+	verify "$WORK/bad-trailing-root.json" >/dev/null \
+		2>"$WORK/trailing-root-err" || status=$? &&
+	test "$status" -eq 2 &&
+	grep -q "is not a shirudo evidence document" "$WORK/trailing-root-err"
+'
+
 test_expect_success 'an inconsistent config history names the check it fails' '
 	! verify "$WORK/bad-reordered.json" >"$WORK/reordered-report" 2>/dev/null &&
 	grep -qx "  FAIL  config: the events are one boot event followed by updates in sequence" \

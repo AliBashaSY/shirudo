@@ -918,6 +918,9 @@ static int evidence_parse_config(struct verify *v, const char *evidence,
 	ret = config_evidence_parse(evidence, len, &v->config);
 	if (ret == -EKEYREJECTED)
 		say(&v->rep, false, "config: the events are one boot event followed by updates in sequence");
+	/* What json_parse() refuses past a bound is a malformed document. */
+	if (ret == -E2BIG || ret == -ENOSPC)
+		ret = -EINVAL;
 	return ret;
 }
 
