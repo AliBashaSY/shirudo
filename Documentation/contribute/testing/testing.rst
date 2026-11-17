@@ -85,7 +85,8 @@ Test tiers
      - ``make -C testing end2end``
    * - Fuzz
      - :src:`testing/fuzz/`
-     - On the build host, under libFuzzer, ASan and UBSan
+     - On the build host, under libFuzzer with ASan and UBSan, or with
+       MSan
      - ``make -C testing fuzz``
    * - Proofs
      - :src:`testing/proofs/`
@@ -272,6 +273,45 @@ Run under the sanitizers
 objects are unaffected. Recovery is off, so every report fails the run.
 CI runs the same with gcc and with clang.
 
+Run under MemorySanitizer
+-------------------------
+
+MemorySanitizer reports a read of memory that nothing wrote, which ASan
+and UBSan do not. It takes what code it did not instrument writes as
+never written, so every library the code reads from must be built with
+it too.
+
+1. Build the instrumented zlib, OpenSSL, libelf, libcurl and tpm2-tss
+   into ``/tmp/shirudo-msan``. The script keeps a copy in
+   ``build/msan-deps`` and copies it back on a later run instead of
+   building again:
+
+   .. code-block:: console
+
+      $ sh .github/scripts/msan-deps.sh
+
+2. Remove the objects of an earlier build:
+
+   .. code-block:: console
+
+      $ make clean
+
+3. Build with ``SANITIZE=memory`` and run the unit tests and every fuzz
+   target, here for 60 seconds each:
+
+   .. code-block:: console
+
+      $ sh .github/scripts/msan-tests.sh 60
+
+Both need clang 23 with its MemorySanitizer and libFuzzer runtimes.
+``SANITIZE=memory`` instruments the vendored libbpf as well. The suite
+leaves out the decoder's unit tests and fuzz target: LuaJIT's
+interpreter is assembly, which no sanitizer instruments, so the values
+it hands back would read as uninitialized. ASan and UBSan cover those.
+The ``MSan`` job of the ``Sanitizers`` workflow runs the same, the fuzz
+targets for 60 seconds on each push and pull request and for ten
+minutes in the nightly run.
+
 Run the fuzz targets
 --------------------
 
@@ -294,8 +334,10 @@ runner.
    ``<target>`` is the name of ``testing/fuzz/fuzz-<target>.c``, such as
    ``json``.
 
-``FUZZ_JOBS`` sets how many targets run at a time, one per CPU by
-default. A crash fails the run and leaves its input in
+``FUZZERS`` names the targets ``make -C testing fuzz`` runs, all of them
+by default, and ``FUZZ_JOBS`` how many run at a time, one per CPU by
+default. The targets are built under the sanitizers ``SANITIZE`` names,
+ASan and UBSan without it. A crash fails the run and leaves its input in
 ``testing/fuzz/crash-<target>-*``.
 
 What a target finds is discarded after the run unless

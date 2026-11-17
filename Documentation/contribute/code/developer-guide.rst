@@ -203,6 +203,11 @@ variables change it:
    * - ``SANITIZE=address,undefined``
      - Instruments the host binaries and the test helpers with ASan and
        UBSan. See :doc:`/contribute/testing/testing`.
+   * - ``SANITIZE=memory``
+     - Instruments them with MSan, the vendored libbpf included, and
+       wants the instrumented libraries
+       :src:`.github/scripts/msan-deps.sh` builds. See
+       :doc:`/contribute/testing/testing`.
 
 Build the shirudo-build helper
 ------------------------------

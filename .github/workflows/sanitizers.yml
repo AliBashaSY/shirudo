@@ -103,6 +103,87 @@ jobs:
           path: build/sanitizer-openssl
           key: ${{ steps.sanitizer-openssl.outputs.cache-primary-key }}
 
+  # MemorySanitizer finds reads of memory never written, which ASan and
+  # UBSan do not, and needs every library the code reads from rebuilt with
+  # it, which msan-deps.sh does and the cache keeps. The suite leaves out
+  # what runs Lua, as LuaJIT's interpreter cannot be instrumented.
+  msan:
+    name: MSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Restore the MemorySanitizer libraries
+        id: msan-deps
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/msan-deps
+          key: msan-deps-${{ hashFiles('.github/scripts/msan-deps.sh') }}
+
+      # The unit tests link the util objects, whose build needs the BTF of
+      # a signed-BPF capable bpf-next kernel, as the other jobs do. A push
+      # or a pull request gets a minute per fuzz target, the nightly run
+      # ten.
+      - name: Build under MSan and run the unit tests and fuzz targets in LVH VM
+        uses: cilium/little-vm-helper@c8b0bfbae3bdda7bc69fb9cd370e4b74ce84986d # v0.0.33
+        with:
+          test-name: shirudo-msan
+          image: kind
+          image-version: bpf-next-20260603.072225
+          kernel-version: bpf-next-main
+          host-mount: ${{ github.workspace }}
+          images-folder-parent: ${{ github.workspace }}/../lvh
+          install-dependencies: true
+          cmd: |
+            grep -aq 'signature_size' /sys/kernel/btf/vmlinux || {
+              echo 'kernel BTF lacks bpf_attr.signature_size; needs a signed-BPF capable bpf-next kernel' >&2
+              exit 1
+            }
+            cd /host
+
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              autoconf \
+              autoconf-archive \
+              automake \
+              bison \
+              build-essential \
+              ca-certificates \
+              curl \
+              flex \
+              gawk \
+              git \
+              libluajit-5.1-dev \
+              libtool \
+              m4 \
+              pkg-config \
+              python3 \
+              xz-utils
+            sh .github/scripts/install-clang.sh libclang-rt-23-dev
+
+            git config --global --add safe.directory /host
+
+            sh .github/scripts/msan-deps.sh
+            sh .github/scripts/msan-tests.sh \
+              ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 600 || 60 }}
+
+      - name: Save the MemorySanitizer libraries
+        if: always() && steps.msan-deps.outputs.cache-hit != 'true' && hashFiles('build/msan-deps/lib/libcrypto.so') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/msan-deps
+          key: ${{ steps.msan-deps.outputs.cache-primary-key }}
+
+      - name: Upload the crash inputs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: msan-crashes
+          path: testing/fuzz/crash-*
+          if-no-files-found: ignore
+
   libfuzzer:
     name: libFuzzer
     runs-on: ubuntu-latest

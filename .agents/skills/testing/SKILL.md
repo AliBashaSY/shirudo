@@ -20,7 +20,9 @@ make -C testing unit/<suite>                # one unit suite
 make -C testing functional/<family>         # one family, its VM tests too
 make tests VM=0                             # without the target tests
 make tests VM=0 SANITIZE=address,undefined  # CI: once with gcc, once with clang
-make -C testing fuzz [FUZZ_SECONDS=60]
+sh .github/scripts/msan-deps.sh             # MSan: instrumented libraries once,
+sh .github/scripts/msan-tests.sh [60]       # then unit and fuzz from a clean tree
+make -C testing fuzz [FUZZ_SECONDS=60] [FUZZERS=<target>...]
 make -C testing help
 ```
 

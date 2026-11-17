@@ -400,13 +400,15 @@ test-helpers:
 
 # The parsers of input from outside the host under libFuzzer, each target
 # for FUZZ_SECONDS on its seed corpus and, with FUZZ_CORPUS=<dir>, on what
-# earlier runs kept there; needs clang with its fuzzer runtime.
+# earlier runs kept there; FUZZERS names the targets to run, all of them
+# without it. Needs clang with its fuzzer runtime.
 FUZZ_SECONDS ?= 60
+FUZZERS ?=
 
 fuzz:
 	+$(Q)$(MAKE) -C $(ROOT) config
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo fuzz-targets
-	$(Q)sh $(ROOT)/testing/fuzz/run.sh $(FUZZ_SECONDS)
+	$(Q)sh $(ROOT)/testing/fuzz/run.sh $(FUZZ_SECONDS) $(FUZZERS)
 
 bundle: test-vm-bundle
 
@@ -421,7 +423,7 @@ help:
 	  '  TEST_FILTER=<regex> selects test filenames (empty runs everything).' \
 	  '  VM=0 leaves out the tests that boot a VM, which need root;' \
 	  '  make -j boots several at once.' \
-	  '  make -C testing fuzz [FUZZ_SECONDS=60] [FUZZ_CORPUS=<dir>]' \
+	  '  make -C testing fuzz [FUZZ_SECONDS=60] [FUZZ_CORPUS=<dir>] [FUZZERS=<target>...]' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=7.4' \
 	  '  make -C testing kernel KERNEL_TAG=v7.4' \

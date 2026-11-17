@@ -153,10 +153,17 @@ CFLAGS_BASE := -O2 $(DEBUG_CFLAGS) -std=gnu11 $(WARNINGS) $(CC_WARNINGS) \
 # the test helpers; BPF objects come from clang -target bpf and are never
 # affected. Recovery is off so that every report fails the run. The
 # fortified libc calls stay out of such a build, as they would bypass the
-# sanitizer's own checks.
+# sanitizer's own checks. SANITIZE=memory instruments the vendored libbpf
+# too and wants every library linked instrumented as well, which
+# .github/scripts/msan-deps.sh builds: MemorySanitizer takes what it did
+# not see written as uninitialized.
 SANITIZE ?=
+comma := ,
+SANITIZE_MEMORY := $(filter memory,$(subst $(comma), ,$(SANITIZE)))
+SANITIZE_CFLAGS := $(if $(SANITIZE),-fsanitize=$(SANITIZE)) \
+                   $(if $(SANITIZE_MEMORY),-fsanitize-memory-track-origins=2)
 ifneq ($(SANITIZE),)
-CFLAGS_BASE += -O1 -fno-omit-frame-pointer -fsanitize=$(SANITIZE) \
+CFLAGS_BASE += -O1 -fno-omit-frame-pointer $(SANITIZE_CFLAGS) \
                -fno-sanitize-recover=all -U_FORTIFY_SOURCE
 else
 # No frame larger than 128 KiB: a table belongs on the heap, where its
@@ -390,12 +397,13 @@ libbpf: $(LIBBPF_A)
 $(LIBBPF_A): $(LIBBPF_SRCS)
 	@printf '  LIBBPF\n'
 	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) CC="$(CC)" Q="$(Q)" \
-		EXTRA_CFLAGS="$(WERROR_CFLAGS)"
+		EXTRA_CFLAGS="$(WERROR_CFLAGS) $(if $(SANITIZE_MEMORY), \
+			-fno-omit-frame-pointer $(SANITIZE_CFLAGS))"
 
 # Build-time only; links the vendored libbpf and dumps BTF as C.
 $(VMLINUX_GEN): tools/gen-vmlinux-h/gen-vmlinux-h.c $(LIBBPF_A)
 	@printf '  CC      $@\n'
-	$(Q)$(CC) $(CFLAGS_BASE) $(INCLUDES) -o $@ $< $(LIBBPF_A) \
+	$(Q)$(CC) $(CFLAGS_BASE) $(INCLUDES) $(LDFLAGS) -o $@ $< $(LIBBPF_A) \
 	    $(LIBELF_LIBS) $(ZLIB_LIBS)
 
 # ----- phase 2: generated headers ---------------------------------
@@ -1132,13 +1140,15 @@ sparse:
 # ----- fuzzing ----------------------------------------------------
 
 # libFuzzer targets for the parsers of input from outside the host, built
-# with clang from the util sources under ASan and UBSan; make -C testing
-# fuzz builds and runs them.
+# with clang from the util sources under the sanitizers SANITIZE names, ASan
+# and UBSan without it; make -C testing fuzz builds and runs them.
 FUZZ_CC ?= clang
+FUZZ_SANITIZE := $(if $(SANITIZE),$(SANITIZE_CFLAGS), \
+                 -fsanitize=address$(comma)undefined)
 FUZZ_WARNINGS := $(call cc-option,$(FUZZ_CC),$(PROBED_WARNINGS))
 FUZZ_CFLAGS := -O1 -g -std=gnu11 -fno-omit-frame-pointer $(LANG_CFLAGS) \
                $(call cc-option,$(FUZZ_CC),$(PROBED_LANG)) \
-               -fsanitize=fuzzer,address,undefined \
+               -fsanitize=fuzzer $(FUZZ_SANITIZE) \
                -fno-sanitize-recover=all $(WARNINGS) $(FUZZ_WARNINGS) \
                -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $(INCLUDES) \
                $(LIBCRYPTO_CFLAGS) $(LIBCURL_CFLAGS) $(ZLIB_CFLAGS)
@@ -1263,7 +1273,7 @@ testing/fuzz/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
 
 $(FUZZ_TARGETS): testing/fuzz/fuzz.h
 	@printf '  FUZZ    $@\n'
-	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) -o $@ \
+	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) $(LDFLAGS) -o $@ \
 		$(filter-out $(FUZZ_INCLUDED),$(filter %.c,$^)) $(FUZZ_LIBS)
 
 fuzz-targets: $(FUZZ_TARGETS)
