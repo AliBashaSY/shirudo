@@ -404,6 +404,8 @@ static int events_scan(struct config_update *update,
 	FILE *file;
 
 	memset(last, 0, sizeof(*last));
+	if (value)
+		memset(value, 0, 32);
 	if (end)
 		*end = 0;
 	fd = openat(update->dir_fd, "events",
