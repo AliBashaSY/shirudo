@@ -35,7 +35,9 @@
 #include "crypto.h"
 #include "io.h"
 #include "json.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "hex.h"
 #include "malloc.h"
 #include "timefmt.h"
@@ -1707,19 +1709,88 @@ static const char *build_resolve_keys_dir(const char *arg, char *out, size_t cap
 	return out;
 }
 
-static void build_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm build [context] --version <version>\n"
-		"       shirudo bpm build [context] --file <name>.bee --version <version>\n"
-		"                              [--keys-dir <dir>]\n"
-		"                              [--vmlinux <vmlinux.h>]\n"
-		"                              [--rodata-input <name>=<path>]...\n\n"
-		"Builds a signed .bee package from a Beefile. The build command\n"
-		"is available only in shirudo-operator and requires signing keys.\n");
-}
+enum bpm_build_opt {
+	BPM_BUILD_FILE,
+	BPM_BUILD_VERSION,
+	BPM_BUILD_KEYS_DIR,
+	BPM_BUILD_VMLINUX,
+	BPM_BUILD_RODATA_INPUT,
+};
 
-static int __build_bpm_build(int argc, char **argv,
+static const struct opt_spec bpm_build_opts[] = {
+	[BPM_BUILD_FILE] = { "--file", 0, 0, "<name>.bee",
+		"the Beefile to build, in the context directory" },
+	[BPM_BUILD_VERSION] = { "--version", 0, 0, "<version>",
+		"the SemVer 2.0.0 version of the package" },
+	[BPM_BUILD_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[BPM_BUILD_VMLINUX] = { "--vmlinux", 0, 0, "<vmlinux.h>",
+		"compile against it" },
+	[BPM_BUILD_RODATA_INPUT] = { "--rodata-input", 0, OPT_REPEAT,
+		"<name>=<path>", "a file for a .rodata input (repeatable)" },
+};
+
+static const struct help_section bpm_build_sections[] = {
+	HELP_OPTIONS("options:", bpm_build_opts),
+};
+
+static const struct help bpm_build_help = {
+	.usage	    = "shirudo bpm build [context] --version <version> "
+		      "[--file <name>.bee]\n"
+		      "                         [--keys-dir <dir>] "
+		      "[--vmlinux <vmlinux.h>]\n"
+		      "                         [--rodata-input <name>=<path>]...",
+	.summary    = "Build a signed .bee package from a Beefile. Operator-only; "
+		      "needs the\nsigning keys.",
+	.sections   = bpm_build_sections,
+	.n_sections = ARRAY_SIZE(bpm_build_sections),
+};
+
+enum config_update_opt {
+	CONFIG_UPDATE_FILE,
+	CONFIG_UPDATE_BASE_PACKAGE,
+	CONFIG_UPDATE_BASE_DIGEST,
+	CONFIG_UPDATE_VERSION,
+	CONFIG_UPDATE_KEYS_DIR,
+	CONFIG_UPDATE_RODATA_INPUT,
+};
+
+static const struct opt_spec config_update_opts[] = {
+	[CONFIG_UPDATE_FILE] = { "--file", 0, 0, "<name>.bee",
+		"the Beefile, instead of the base package's" },
+	[CONFIG_UPDATE_BASE_PACKAGE] = { "--base-package", 0, 0,
+		"<package.bee|oci://host/repo:tag>",
+		"the package the update builds on" },
+	[CONFIG_UPDATE_BASE_DIGEST] = { "--base-digest", 0, 0,
+		"sha256:<manifest>",
+		"the manifest digest of an oci:// base package" },
+	[CONFIG_UPDATE_VERSION] = { "--version", 0, 0, "<version>",
+		"the SemVer 2.0.0 version of the update" },
+	[CONFIG_UPDATE_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[CONFIG_UPDATE_RODATA_INPUT] = { "--rodata-input", 0, OPT_REPEAT,
+		"<name>=<path>", "a file for a .rodata input (repeatable)" },
+};
+
+static const struct help_section config_update_sections[] = {
+	HELP_OPTIONS("options:", config_update_opts),
+};
+
+static const struct help config_update_help = {
+	.usage	    = "shirudo bpm config update --base-package "
+		      "<package.bee|oci://host/repo:tag>\n"
+		      "                                 --version <version> "
+		      "[options]",
+	.summary    = "Build a config update package on a base package. Without "
+		      "--file, the\nBeefile and the updater inputs come from "
+		      "--base-package and are trusted\nas operator-side code. "
+		      "An oci:// base package needs --base-digest, the\n"
+		      "manifest digest bpm push printed for it.",
+	.sections   = config_update_sections,
+	.n_sections = ARRAY_SIZE(config_update_sections),
+};
+
+static int __build_bpm_build(int argc, const char **argv,
 			     struct bpm_build_input_override *overrides)
 {
 	const char *context = ".", *file_arg = NULL, *version = NULL;
@@ -1735,60 +1806,55 @@ static int __build_bpm_build(int argc, char **argv,
 	__u8 digest[CRYPTO_SHA256_LEN];
 	struct cert cert = {};
 	struct bpm_build_spec *spec;
-	int positional = 0, ret;
+	int positional = 0, ret, opt;
+	struct opt_parser p;
 	char out_dir[PATH_MAX];
 	size_t body_len = 0;
 	__u8 *body = NULL;
 
-	for (int i = 1; i < argc; i++) {
-		if (build_is_help(argv[i])) {
-			build_usage();
-			return 0;
-		} else if (!strcmp(argv[i], "--file")) {
-			if (++i >= argc)
-				goto usage;
-			file_arg = argv[i];
-		} else if (!strncmp(argv[i], "--file=", 7)) {
-			file_arg = argv[i] + 7;
-		} else if (!strcmp(argv[i], "--version")) {
-			if (++i >= argc)
-				goto usage;
-			version = argv[i];
-		} else if (!strncmp(argv[i], "--version=", 10)) {
-			version = argv[i] + 10;
-		} else if (!strcmp(argv[i], "--keys-dir")) {
-			if (++i >= argc)
-				goto usage;
-			keys_arg = argv[i];
-		} else if (!strncmp(argv[i], "--keys-dir=", 11)) {
-			keys_arg = argv[i] + 11;
-		} else if (!strcmp(argv[i], "--vmlinux")) {
-			if (++i >= argc)
-				goto usage;
-			vmlinux_arg = argv[i];
-		} else if (!strncmp(argv[i], "--vmlinux=", 10)) {
-			vmlinux_arg = argv[i] + 10;
-		} else if (!strcmp(argv[i], "--rodata-input")) {
-			if (++i >= argc)
-				goto usage;
-			ret = parse_rodata_input(argv[i], overrides,
+	OPT_INIT(&p, "bpm build", bpm_build_opts, &bpm_build_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case BPM_BUILD_FILE:
+			file_arg = p.value;
+			break;
+		case BPM_BUILD_VERSION:
+			version = p.value;
+			break;
+		case BPM_BUILD_KEYS_DIR:
+			keys_arg = p.value;
+			break;
+		case BPM_BUILD_VMLINUX:
+			vmlinux_arg = p.value;
+			break;
+		case BPM_BUILD_RODATA_INPUT:
+			ret = parse_rodata_input(p.value, overrides,
 						 &n_overrides,
 						 BPM_BUILD_MAX_ENTRIES);
-			if (ret > 0)
-				goto usage;
+			if (ret > 0) {
+				opt_usage(&p, "--rodata-input takes <name>=<path>");
+				return EXIT_USAGE;
+			}
 			if (ret)
 				return ret;
-		} else if (argv[i][0] == '-') {
-			goto usage;
-		} else if (++positional == 1) {
-			context = argv[i];
-		} else {
-			goto usage;
+			break;
+		case OPT_ARG:
+			if (++positional > 1) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			context = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!version) {
-		pr_err("bpm build: --version <version> is required");
-		goto usage;
+		opt_usage(&p, "--version <version> is required");
+		return EXIT_USAGE;
 	}
 	if (!build_version_ok(version)) {
 		pr_err("bpm build: --version %s is not a SemVer 2.0.0 version such as 1.2.0, 1.2.0-rc.1 or 1.2.0+build.5",
@@ -1885,13 +1951,10 @@ out:
 	xfree(body, body_len + 1);
 	bpm_build_spec_free(spec);
 	return ret;
-usage:
-	build_usage();
-	return -EINVAL;
 }
 
 /* The overrides take half a MiB, which a stack frame should not carry. */
-static int build_bpm_build(int argc, char **argv)
+static int build_bpm_build(int argc, const char **argv)
 {
 	struct bpm_build_input_override *overrides;
 	int ret;
@@ -2050,7 +2113,7 @@ out:
 	return ret;
 }
 
-static int __build_bpm_config_update(int argc, char **argv,
+static int __build_bpm_config_update(int argc, const char **argv,
 				     struct bpm_build_input_override *overrides)
 {
 	const char *file_arg = NULL, *base_arg = NULL, *base_digest = NULL;
@@ -2067,60 +2130,53 @@ static int __build_bpm_config_update(int argc, char **argv,
 	struct bpm_package_info base_info = {};
 	struct bpm_build_spec *spec;
 	size_t body_len = 0;
-	int ret;
+	struct opt_parser p;
+	int ret, opt;
 	bool has_rodata = false, package_source, stage_open = false;
 	bool downloaded_package = false;
 
-	for (int i = 1; i < argc; i++) {
-		if (build_is_help(argv[i])) {
-			fprintf(stdout,
-				"usage: shirudo bpm config update "
-				"--base-package <package.bee|oci://host/repo:tag> "
-				"[--base-digest sha256:<manifest>] "
-				"--version <version> "
-				"[--file <name>.bee] [--keys-dir <dir>] "
-				"[--rodata-input <name>=<path>]...\n"
-				"Without --file, the Beefile and updater inputs come from "
-				"--base-package and are trusted as operator-side code.\n"
-				"An oci:// base package needs --base-digest, the manifest "
-				"digest bpm push printed for it.\n");
-			return 0;
-		} else if (!strcmp(argv[i], "--file")) {
-			if (++i >= argc)
-				goto usage;
-			file_arg = argv[i];
-		} else if (!strcmp(argv[i], "--base-package")) {
-			if (++i >= argc)
-				goto usage;
-			base_arg = argv[i];
-		} else if (!strcmp(argv[i], "--base-digest")) {
-			if (++i >= argc)
-				goto usage;
-			base_digest = argv[i];
-		} else if (!strcmp(argv[i], "--version")) {
-			if (++i >= argc)
-				goto usage;
-			version = argv[i];
-		} else if (!strcmp(argv[i], "--keys-dir")) {
-			if (++i >= argc)
-				goto usage;
-			keys_arg = argv[i];
-		} else if (!strcmp(argv[i], "--rodata-input")) {
-			if (++i >= argc)
-				goto usage;
-			ret = parse_rodata_input(argv[i], overrides,
+	OPT_INIT(&p, "bpm config update", config_update_opts, &config_update_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case CONFIG_UPDATE_FILE:
+			file_arg = p.value;
+			break;
+		case CONFIG_UPDATE_BASE_PACKAGE:
+			base_arg = p.value;
+			break;
+		case CONFIG_UPDATE_BASE_DIGEST:
+			base_digest = p.value;
+			break;
+		case CONFIG_UPDATE_VERSION:
+			version = p.value;
+			break;
+		case CONFIG_UPDATE_KEYS_DIR:
+			keys_arg = p.value;
+			break;
+		case CONFIG_UPDATE_RODATA_INPUT:
+			ret = parse_rodata_input(p.value, overrides,
 						 &n_overrides,
 						 BPM_BUILD_MAX_ENTRIES);
-			if (ret > 0)
-				goto usage;
+			if (ret > 0) {
+				opt_usage(&p, "--rodata-input takes <name>=<path>");
+				return EXIT_USAGE;
+			}
 			if (ret)
 				return ret;
-		} else {
-			goto usage;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
-	if (!base_arg || !version)
-		goto usage;
+	if (!base_arg || !version) {
+		opt_usage(&p, "takes --base-package and --version");
+		return EXIT_USAGE;
+	}
 	if (!build_version_ok(version)) {
 		pr_err("bpm config update: --version %s is not a SemVer 2.0.0 version such as 1.2.0, 1.2.0-rc.1 or 1.2.0+build.5",
 		       version);
@@ -2149,7 +2205,8 @@ static int __build_bpm_config_update(int argc, char **argv,
 		}
 		downloaded_package = true;
 	} else if (!realpath(base_arg, base_package)) {
-		goto usage;
+		opt_usage(&p, "--base-package %s: %s", base_arg, strerror(errno));
+		return EXIT_USAGE;
 	}
 	ret = bpm_pkg_load_info(base_package, &base_info);
 	if (ret)
@@ -2378,18 +2435,10 @@ out_base:
 	if (downloaded_package)
 		unlink(base_package);
 	return ret;
-usage:
-	fprintf(stderr,
-		"usage: shirudo bpm config update --base-package "
-		"<package.bee|oci://host/repo:tag> "
-		"[--base-digest sha256:<manifest>] --version <version> "
-		"[--file <name>.bee] "
-		"[--rodata-input <name>=<path>]... [--keys-dir <dir>]\n");
-	return -EINVAL;
 }
 
 /* The overrides take half a MiB, which a stack frame should not carry. */
-static int build_bpm_config_update(int argc, char **argv)
+static int build_bpm_config_update(int argc, const char **argv)
 {
 	struct bpm_build_input_override *overrides;
 	int ret;
@@ -2402,40 +2451,32 @@ static int build_bpm_config_update(int argc, char **argv)
 	return ret;
 }
 
-static void bpm_usage(FILE *fp)
-{
-	fprintf(fp,
-		"usage: shirudo bpm build [context] --version <version> [--file <name>.bee]\n"
-		"                         [--keys-dir <dir>] [--vmlinux <vmlinux.h>]\n"
-		"                         [--rodata-input <name>=<path>]...\n"
-		"       shirudo bpm config update --base-package <package.bee|oci://...>\n"
-		"                         [--base-digest sha256:<manifest>]\n"
-		"                         --version <version> [--file <name>.bee]\n"
-		"                         [--rodata-input <name>=<path>]...\n"
-		"       shirudo bpm push <package-file> <repository> [--keys-dir <dir> |\n"
-		"                        --index-cert <cert.der> --index-key <key.pem>]\n"
-		"       shirudo bpm tree append <package-file> <repository> [options]\n"
-		"       shirudo bpm tree show <repository> --cert <cert.der> [--reference <ref>]\n\n"
-		"Operator-only BPM commands, implemented in shirudo-build and reached\n"
-		"through `shirudo bpm`. Each accepts --help.\n");
-}
+static const struct help bpm_operator_help = {
+	.usage	 = "shirudo bpm build [context] --version <version> [options]\n"
+		   "       shirudo bpm config update --base-package "
+		   "<package> --version <version> [options]\n"
+		   "       shirudo bpm push <package-file> <repository> "
+		   "[options]\n"
+		   "       shirudo bpm tree append <package-file> <repository> "
+		   "[options]\n"
+		   "       shirudo bpm tree show <repository> --cert <cert.der> "
+		   "[options]",
+	.summary = "Operator-only BPM commands, implemented in shirudo-build "
+		   "and reached\nthrough `shirudo bpm`. Each takes --help.",
+};
 
-bool build_is_help(const char *arg)
-{
-	return arg && (!strcmp(arg, "--help") || !strcmp(arg, "-h") ||
-		       !strcmp(arg, "help"));
-}
-
-int build_bpm(int argc, char **argv)
+int build_bpm(int argc, const char **argv)
 {
 	int ret;
 
-	if (argc < 2 || build_is_help(argv[1])) {
-		bpm_usage(argc < 2 ? stderr : stdout);
-		return argc < 2 ? 2 : 0;
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(&bpm_operator_help);
+		return argc < 2 ? EXIT_USAGE : 0;
 	}
 	if (!strcmp(argv[1], "build")) {
 		ret = build_bpm_build(argc - 1, argv + 1);
+		if (ret == EXIT_USAGE)
+			return EXIT_USAGE;
 		if (ret < 0 && ret != -EINVAL)
 			pr_err("bpm build: %s", strerror(-ret));
 		return ret ? 1 : 0;
@@ -2443,6 +2484,8 @@ int build_bpm(int argc, char **argv)
 	if (!strcmp(argv[1], "config") && argc >= 3 &&
 	    !strcmp(argv[2], "update")) {
 		ret = build_bpm_config_update(argc - 2, argv + 2);
+		if (ret == EXIT_USAGE)
+			return EXIT_USAGE;
 		if (ret < 0 && ret != -EINVAL)
 			pr_err("bpm config update: %s", strerror(-ret));
 		return ret ? 1 : 0;
@@ -2451,7 +2494,6 @@ int build_bpm(int argc, char **argv)
 		return build_bpm_push(argc - 1, argv + 1);
 	if (!strcmp(argv[1], "tree"))
 		return build_bpm_tree(argc - 1, argv + 1);
-	pr_err("shirudo-build bpm: '%s' is not an operator bpm command", argv[1]);
-	bpm_usage(stderr);
-	return 2;
+	pr_err("bpm: '%s' is not an operator bpm command", argv[1]);
+	return EXIT_USAGE;
 }

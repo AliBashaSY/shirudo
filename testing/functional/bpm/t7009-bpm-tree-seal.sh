@@ -288,11 +288,14 @@ test_expect_success 'a seal an earlier run tagged keeps its tag' '
 
 test_expect_success '--segment-ops outside 1 to 512 is refused' '
 	cp "$REG/ns/seal/manifests/stable" "$WORK/before.manifest" &&
-	for n in 0 513 -1 1x ""; do
+	for n in 0 513 -1 1x; do
 		! append t7009a seal --segment-ops "$n" &&
-		grep -qx "bpm tree append: --segment-ops must be 1 to 512" \
+		grep -qx "bpm tree append: --segment-ops takes a number from 1 to 512" \
 			"$WORK/err" || exit 1
 	done &&
+	! append t7009a seal --segment-ops "" &&
+	grep -qx "bpm tree append: --segment-ops takes a value, not an empty one" \
+		"$WORK/err" &&
 	cmp -s "$WORK/before.manifest" "$REG/ns/seal/manifests/stable"
 '
 

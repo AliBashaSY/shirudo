@@ -32,7 +32,9 @@
 #include "elf_target.h"
 #include "io.h"
 #include "loader.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "malloc.h"
 #include "package.h"
 #include "paths.h"
@@ -433,7 +435,65 @@ int build_package_verify(const char *input, const char *cert_path)
 	return ret;
 }
 
-int build_upatch_cli(int argc, char **argv)
+enum rewrite_opt {
+	REWRITE_OUTPUT,
+	REWRITE_DATA_RANGE,
+	REWRITE_KEYS_DIR,
+	REWRITE_KEY,
+	REWRITE_CERT,
+};
+
+static const struct opt_spec rewrite_opts[] = {
+	[REWRITE_OUTPUT] = { "--output", 'o', 0, "<output.upatch>",
+		"where to write the re-signed upatch" },
+	[REWRITE_DATA_RANGE] = { "--data-range", 0, OPT_REPEAT,
+		"<offset:length>",
+		"a range of the loader data that may differ (repeatable)" },
+	[REWRITE_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[REWRITE_KEY] = { "--key", 0, 0, "<signing_key.pem>",
+		"the signing key, over --keys-dir" },
+	[REWRITE_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate, over --keys-dir" },
+};
+
+static const struct help_section rewrite_sections[] = {
+	HELP_OPTIONS("options:", rewrite_opts),
+};
+
+static const struct help rewrite_help = {
+	.usage	    = "shirudo-build upatch rewrite-rodata <original.upatch> "
+		      "<modified.upatch>\n"
+		      "              -o <output.upatch> "
+		      "--data-range <offset:length>... [options]",
+	.summary    = "Re-sign an upatch whose loader data changed inside the "
+		      "given ranges.",
+	.sections   = rewrite_sections,
+	.n_sections = ARRAY_SIZE(rewrite_sections),
+};
+
+/* An <offset:length> of --data-range, both in 32 bits, length not 0. */
+static int parse_data_range(const char *range, struct data_range *out)
+{
+	size_t off_len = digits(range, strlen(range));
+	const char *length;
+	size_t len_len;
+	__u64 offset, len;
+
+	if (!off_len || range[off_len] != ':')
+		return -EINVAL;
+	length = range + off_len + 1;
+	len_len = digits(length, strlen(length));
+	if (!len_len || length[len_len] ||
+	    parse_u64(range, off_len, UINT32_MAX, &offset) ||
+	    parse_u64(length, len_len, UINT32_MAX, &len) || !len)
+		return -EINVAL;
+	out->offset = (__u32)offset;
+	out->length = (__u32)len;
+	return 0;
+}
+
+int build_upatch_cli(int argc, const char **argv)
 {
 	const char *keys_dir = NULL, *original = NULL, *modified = NULL;
 	const char *output = NULL;
@@ -441,78 +501,73 @@ int build_upatch_cli(int argc, char **argv)
 	const char *cert = CERT_PATH;
 	struct data_range ranges[16] = {};
 	char pkey_buf[PATH_MAX], cert_buf[PATH_MAX];
-	int pkey_explicit = 0, cert_explicit = 0;
 	size_t nr_ranges = 0;
-	int i;
-	int ret;
+	struct opt_parser p;
+	int ret, opt;
 
 	if (argc < 2 || strcmp(argv[1], "rewrite-rodata")) {
-		fprintf(stderr,
-			"usage: shirudo-build upatch rewrite-rodata "
-			"<original.upatch> <modified.upatch> -o <output.upatch> "
-			"--data-range <offset:length>... [--keys-dir <dir>] "
-			"[--key <signing_key.pem>] [--cert <cert.der>]\n");
-		return 2;
+		print_help(&rewrite_help);
+		return EXIT_USAGE;
 	}
-	for (i = 2; i < argc; i++) {
-		if ((!strcmp(argv[i], "-o") || !strcmp(argv[i], "--output")) &&
-		    i + 1 < argc) {
-			output = argv[++i];
-		} else if (!strcmp(argv[i], "--data-range") && i + 1 < argc) {
-			const char *range = argv[++i];
-			size_t off_len = digits(range, strlen(range));
-			const char *length;
-			size_t len_len;
-			__u64 offset, len;
-
-			if (nr_ranges == ARRAY_SIZE(ranges) || !off_len ||
-			    off_len >= strlen(range) ||
-			    range[off_len] != ':')
-				return 2;
-			length = range + off_len + 1;
-			len_len = digits(length, strlen(length));
-			if (!len_len || length[len_len] ||
-			    parse_u64(range, off_len, UINT32_MAX, &offset) ||
-			    parse_u64(length, len_len, UINT32_MAX, &len) || !len)
-				return 2;
-			ranges[nr_ranges].offset = (__u32)offset;
-			ranges[nr_ranges].length = (__u32)len;
+	OPT_INIT(&p, "upatch rewrite-rodata", rewrite_opts, &rewrite_help,
+		 argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case REWRITE_OUTPUT:
+			output = p.value;
+			break;
+		case REWRITE_DATA_RANGE:
+			if (nr_ranges == ARRAY_SIZE(ranges)) {
+				opt_usage(&p, "at most %zu --data-range",
+					  ARRAY_SIZE(ranges));
+				return EXIT_USAGE;
+			}
+			if (parse_data_range(p.value, &ranges[nr_ranges])) {
+				opt_usage(&p, "--data-range takes <offset:length>, length not 0");
+				return EXIT_USAGE;
+			}
 			nr_ranges++;
-		} else if (!strcmp(argv[i], "--keys-dir") && i + 1 < argc) {
-			keys_dir = argv[++i];
-		} else if (!strcmp(argv[i], "--key") && i + 1 < argc) {
-			pkey = argv[++i];
-			pkey_explicit = 1;
-		} else if (!strcmp(argv[i], "--cert") && i + 1 < argc) {
-			cert = argv[++i];
-			cert_explicit = 1;
-		} else if (argv[i][0] == '-') {
-			pr_err("upatch rewrite-rodata: unknown option %s", argv[i]);
-			return 2;
-		} else if (!original) {
-			original = argv[i];
-		} else if (!modified) {
-			modified = argv[i];
-		} else {
-			pr_err("upatch rewrite-rodata: unexpected argument %s",
-			       argv[i]);
-			return 2;
+			break;
+		case REWRITE_KEYS_DIR:
+			keys_dir = p.value;
+			break;
+		case REWRITE_KEY:
+			pkey = p.value;
+			break;
+		case REWRITE_CERT:
+			cert = p.value;
+			break;
+		case OPT_ARG:
+			if (modified) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			if (original)
+				modified = p.value;
+			else
+				original = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!original || !modified || !output || !nr_ranges) {
-		pr_err("upatch rewrite-rodata requires two inputs, -o, and data ranges");
-		return 2;
+		opt_usage(&p, "takes two inputs, -o and data ranges");
+		return EXIT_USAGE;
 	}
 	keys_dir = keys_dir_resolve(keys_dir);
 	if (keys_dir) {
-		if (!pkey_explicit) {
+		if (!opt_given(&p, REWRITE_KEY)) {
 			ret = format_key_path(pkey_buf, sizeof(pkey_buf), keys_dir,
 					      SIGNING_KEY_FILE);
 			if (ret)
 				return 2;
 			pkey = pkey_buf;
 		}
-		if (!cert_explicit) {
+		if (!opt_given(&p, REWRITE_CERT)) {
 			ret = format_key_path(cert_buf, sizeof(cert_buf), keys_dir,
 					      CERT_FILE);
 			if (ret)

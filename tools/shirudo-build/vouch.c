@@ -22,23 +22,48 @@
 #include "util/io.h"
 #include "util/keys.h"
 #include "util/log.h"
+#include "util/help.h"
 #include "util/malloc.h"
+#include "util/options.h"
 #include "util/paths.h"
 #include "util/sign.h"
 
 #define VOUCH_SIG_MAX	(64u * 1024u)
 
-static void usage(FILE *fp)
-{
-	fprintf(fp,
-		"usage: shirudo-build keys vouch <cert.der> [-o <file>]\n"
-		"                [--keys-dir <dir>] [--key <signing_key.pem>]\n"
-		"                [--cert <cert.der>]\n"
-		"\n"
-		"Sign a vouch for <cert.der> with the operator key, for\n"
-		"`shirudo keys add --vouch` on the targets that enrol this\n"
-		"key. -o defaults to <cert.der>.vouch.\n");
-}
+enum vouch_opt {
+	VOUCH_OUTPUT,
+	VOUCH_KEYS_DIR,
+	VOUCH_KEY,
+	VOUCH_CERT,
+};
+
+static const struct opt_spec vouch_opts[] = {
+	[VOUCH_OUTPUT] = { "--output", 'o', 0, "<file>",
+		"where to write the vouch (default <cert.der>.vouch)" },
+	[VOUCH_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[VOUCH_KEY] = { "--key", 0, 0, "<signing_key.pem>",
+		"the signing key (overrides --keys-dir)" },
+	[VOUCH_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the signing certificate (overrides --keys-dir)" },
+};
+
+static const struct help_section vouch_sections[] = {
+	HELP_OPTIONS("options:", vouch_opts),
+};
+
+static const struct help vouch_help = {
+	.usage	    = "shirudo keys vouch <cert.der> [-o <file>] "
+		      "[--keys-dir <dir>]\n"
+		      "                          [--key <signing_key.pem>] "
+		      "[--cert <cert.der>]",
+	.summary    = "Sign a vouch for another operator's certificate with "
+		      "this operator's key,\nfor `shirudo keys add --vouch` on "
+		      "the targets that enrol this key.\nPrints the vouched "
+		      "certificate's fingerprint.",
+	.sections   = vouch_sections,
+	.n_sections = ARRAY_SIZE(vouch_sections),
+};
 
 static int cert_algorithm_ok(const __u8 *der, size_t der_sz,
 			     const char *what)
@@ -77,7 +102,7 @@ static int write_file(const char *path, const void *data, size_t len)
 	return ret;
 }
 
-int build_keys_vouch(int argc, char **argv)
+int build_keys_vouch(int argc, const char **argv)
 {
 	const char *pkey = SIGNING_KEY_PATH, *cert = CERT_PATH;
 	const char *keys_dir_arg = NULL, *input = NULL, *output = NULL;
@@ -90,42 +115,44 @@ int build_keys_vouch(int argc, char **argv)
 	char pkey_path[PATH_MAX];
 	char cert_path[PATH_MAX];
 	char out_path[PATH_MAX];
+	struct opt_parser p;
 	const char *keys_dir;
-	int ret = 1;
+	int ret = 1, opt;
 
-	for (int i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if ((!strcmp(a, "-o") || !strcmp(a, "--output")) &&
-		    i + 1 < argc) {
-			output = argv[++i];
-		} else if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (!strncmp(a, "--keys-dir=", 11)) {
-			keys_dir_arg = a + 11;
-		} else if (!strcmp(a, "--key") && i + 1 < argc) {
-			pkey = argv[++i];
+	OPT_INIT(&p, "keys vouch", vouch_opts, &vouch_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case VOUCH_OUTPUT:
+			output = p.value;
+			break;
+		case VOUCH_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case VOUCH_KEY:
+			pkey = p.value;
 			pkey_explicit = 1;
-		} else if (!strcmp(a, "--cert") && i + 1 < argc) {
-			cert = argv[++i];
+			break;
+		case VOUCH_CERT:
+			cert = p.value;
 			cert_explicit = 1;
-		} else if (!strcmp(a, "-h") || !strcmp(a, "--help")) {
-			usage(stdout);
+			break;
+		case OPT_ARG:
+			if (input) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			input = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		} else if (a[0] == '-') {
-			pr_err("keys vouch: unknown option '%s'", a);
-			usage(stderr);
-			return 2;
-		} else if (!input) {
-			input = a;
-		} else {
-			pr_err("keys vouch: unexpected argument '%s'", a);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!input) {
-		usage(stderr);
-		return 2;
+		opt_usage(&p, "takes <cert.der>");
+		return EXIT_USAGE;
 	}
 	keys_dir = keys_dir_resolve(keys_dir_arg);
 	if (keys_dir) {

@@ -19,7 +19,9 @@
 #include "bpm.h"
 #include "compile.h"
 #include "harden.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "hex.h"
 #include "image.h"
 #include "malloc.h"
@@ -33,53 +35,66 @@
 #define VMLINUX_PATH "/usr/local/share/shirudo/vmlinux.h"
 #endif
 
-static void usage(FILE *fp)
-{
-	fprintf(fp,
-		"usage:\n"
-		"  shirudo-build <input> [-o <output.upatch>]\n"
-		"                [--name <upatch-name>]\n"
-		"                [--keys-dir <dir>]\n"
-		"                [--key <signing_key.pem>] [--cert <cert.der>]\n"
-		"                [--vmlinux <vmlinux.h>] [--extra-cflags '<flags>']\n"
-		"                [--emit-artifacts]\n"
-		"\n"
-		"  shirudo-build --unload <upatch-name> [-o <output.upatch>]\n"
-		"                [--payload-sha256 <64-hex>]\n"
-		"                [--keys-dir <dir>]\n"
-		"                [--key <signing_key.pem>] [--cert <cert.der>]\n"
-		"\n"
-		"  shirudo-build image build <filesystem.img> -o <prefix> ...\n"
-		"  shirudo-build bpm <build|push|tree append|tree show> ...\n"
-		"  shirudo-build keys vouch <cert.der> [-o <file>] ...\n"
-		"\n"
-		"<input> is .bpf.c (compiled via clang) or .bpf.o.\n"
-		"-o defaults to <input> with a trailing .c/.o replaced by\n"
-		"   .upatch (foo/bar.bpf.c -> foo/bar.bpf.upatch), written\n"
-		"   next to the input; for --unload it defaults to\n"
-		"   <name>.unload.upatch in the current directory. Pass -o\n"
-		"   only to write somewhere else.\n"
-		"--keys-dir defaults key/cert to <dir>/signing_key.pem and\n"
-		"           <dir>/cert.der. If omitted, %s is used when set.\n"
-		"           Explicit --keys-dir overrides the environment;\n"
-		"           explicit --key/--cert override both.\n"
-		"--key default without --keys-dir/%s: %s\n"
-		"--cert default without --keys-dir/%s: %s\n"
-		"--vmlinux: explicit; else ./vmlinux.h, ./vendor/linux/vmlinux.h,\n"
-		"           then %s.\n"
-		"--payload-sha256: 64 hex chars; if omitted, read from the local\n"
-		"                  archive /var/lib/shirudo/upatches/<name>.upatch,\n"
-		"                  which must then exist.\n"
-		"--emit-artifacts: for a .bpf.c input, also keep the compiled\n"
-		"                  .bpf.o next to the .upatch (instead of a temp\n"
-		"                  file that is removed). Reports every emitted\n"
-		"                  path on stdout. A debugging aid.\n"
-		"bpm: the operator-only package commands (`shirudo bpm build`,\n"
-		"     `push`, `tree append`, `tree show`); see `shirudo-build bpm --help`.\n",
-		KEYS_DIR_ENV, KEYS_DIR_ENV,
-		SIGNING_KEY_PATH, KEYS_DIR_ENV,
-		CERT_PATH, VMLINUX_PATH);
-}
+enum build_opt {
+	BUILD_OUTPUT,
+	BUILD_NAME,
+	BUILD_KEYS_DIR,
+	BUILD_KEY,
+	BUILD_CERT,
+	BUILD_VMLINUX,
+	BUILD_EXTRA_CFLAGS,
+	BUILD_UNLOAD,
+	BUILD_PAYLOAD_SHA256,
+	BUILD_EMIT_ARTIFACTS,
+};
+
+static const struct opt_spec build_opts[] = {
+	[BUILD_OUTPUT] = { "--output", 'o', 0, "<output.upatch>",
+		"where to write the upatch instead of beside the input, or of "
+		"<name>.unload.upatch in the current directory" },
+	[BUILD_NAME] = { "--name", 0, 0, "<upatch-name>",
+		"the upatch's name instead of the one the input gives" },
+	[BUILD_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>, where "
+		KEYS_DIR_ENV " points otherwise" },
+	[BUILD_KEY] = { "--key", 0, 0, "<signing_key.pem>",
+		"the signing key, over --keys-dir (default "
+		SIGNING_KEY_PATH ")" },
+	[BUILD_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate, over --keys-dir (default " CERT_PATH ")" },
+	[BUILD_VMLINUX] = { "--vmlinux", 0, 0, "<vmlinux.h>",
+		"compile against it instead of ./vmlinux.h, "
+		"./vendor/linux/vmlinux.h or " VMLINUX_PATH },
+	[BUILD_EXTRA_CFLAGS] = { "--extra-cflags", 0, 0, "'<flags>'",
+		"more flags for clang" },
+	[BUILD_UNLOAD] = { "--unload", 0, 0, "<upatch-name>",
+		"sign the UNLOAD directive of the named upatch" },
+	[BUILD_PAYLOAD_SHA256] = { "--payload-sha256", 0, 0, "<64-hex>",
+		"with --unload, the payload digest, which the archive "
+		"/var/lib/shirudo/upatches/<name>.upatch gives otherwise" },
+	[BUILD_EMIT_ARTIFACTS] = { "--emit-artifacts", 0, 0, NULL,
+		"keep the compiled .bpf.o beside the .upatch and print each "
+		"path written" },
+};
+
+static const struct help_section build_sections[] = {
+	HELP_OPTIONS("options:", build_opts),
+};
+
+static const struct help build_help = {
+	.usage	    = "shirudo build <input.bpf.c|.bpf.o> [-o <output.upatch>] "
+		      "[options]\n"
+		      "       shirudo build --unload <upatch-name> "
+		      "[-o <output.upatch>] [options]",
+	.summary    = "Compile a .bpf.c, or take a .bpf.o, and sign it into a "
+		      ".upatch, or sign\nthe UNLOAD directive of a loaded "
+		      "upatch. foo/bar.bpf.c becomes\nfoo/bar.bpf.upatch.",
+	.sections   = build_sections,
+	.n_sections = ARRAY_SIZE(build_sections),
+	.footer	    = "The helper also serves shirudo image build and verify, "
+		      "the operator\nbpm commands and keys vouch; each takes "
+		      "--help.",
+};
 
 /* foo/bar.bpf.c lands at foo/bar.bpf.upatch beside its input. */
 static int derive_output(const char *input, char *buf, size_t buf_sz)
@@ -154,6 +169,8 @@ int build_check_keys(const char *pkey, const char *cert)
 
 int main(int argc, char **argv)
 {
+	/* Nothing writes the arguments; the parsers take them as const. */
+	const char **args = (const char **)argv;
 	const char *pkey = SIGNING_KEY_PATH;
 	const char *payload_sha256_hex = NULL;
 	const char *cert = CERT_PATH;
@@ -178,65 +195,80 @@ int main(int argc, char **argv)
 	int emit_artifacts = 0;
 	int pkey_explicit = 0;
 	int cert_explicit = 0;
-	int ret;
-	int i;
+	struct opt_parser p;
+	int ret, opt;
 
 	harden_stdio();
 	log_init();
 	if (harden_self())
 		return 1;
 
-	if (argc >= 2 && strcmp(argv[1], "image") == 0)
-		return build_image(argc - 1, argv + 1);
-	if (argc >= 2 && strcmp(argv[1], "upatch") == 0)
-		return build_upatch_cli(argc - 1, argv + 1);
-	if (argc >= 2 && strcmp(argv[1], "bpm") == 0)
-		return build_bpm(argc - 1, argv + 1);
-	if (argc >= 3 && strcmp(argv[1], "keys") == 0 &&
-	    strcmp(argv[2], "vouch") == 0)
-		return build_keys_vouch(argc - 2, argv + 2);
+	if (argc >= 2 && strcmp(args[1], "image") == 0)
+		return build_image(argc - 1, args + 1);
+	if (argc >= 2 && strcmp(args[1], "upatch") == 0)
+		return build_upatch_cli(argc - 1, args + 1);
+	if (argc >= 2 && strcmp(args[1], "bpm") == 0)
+		return build_bpm(argc - 1, args + 1);
+	if (argc >= 3 && strcmp(args[1], "keys") == 0 &&
+	    strcmp(args[2], "vouch") == 0)
+		return build_keys_vouch(argc - 2, args + 2);
 
-	for (i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if ((strcmp(a, "-o") == 0 || strcmp(a, "--output") == 0) &&
-		    i + 1 < argc) {
-			output = argv[++i];
-		} else if (strcmp(a, "--name") == 0 && i + 1 < argc) {
-			name = argv[++i];
-		} else if (strcmp(a, "--keys-dir") == 0 && i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (strncmp(a, "--keys-dir=", 11) == 0) {
-			keys_dir_arg = a + 11;
-		} else if (strcmp(a, "--key") == 0 && i + 1 < argc) {
-			pkey = argv[++i];
+	OPT_INIT(&p, "build", build_opts, &build_help, argc, args, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case BUILD_OUTPUT:
+			output = p.value;
+			break;
+		case BUILD_NAME:
+			name = p.value;
+			break;
+		case BUILD_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case BUILD_KEY:
+			pkey = p.value;
 			pkey_explicit = 1;
-		} else if (strcmp(a, "--cert") == 0 && i + 1 < argc) {
-			cert = argv[++i];
+			break;
+		case BUILD_CERT:
+			cert = p.value;
 			cert_explicit = 1;
-		} else if (strcmp(a, "--vmlinux") == 0 && i + 1 < argc) {
-			vmlinux_override = argv[++i];
-		} else if (strcmp(a, "--extra-cflags") == 0 && i + 1 < argc) {
-			extra_cflags = argv[++i];
-		} else if (strcmp(a, "--unload") == 0 && i + 1 < argc) {
-			unload_name = argv[++i];
-		} else if (strcmp(a, "--payload-sha256") == 0 && i + 1 < argc) {
-			payload_sha256_hex = argv[++i];
-		} else if (strcmp(a, "--emit-artifacts") == 0) {
+			break;
+		case BUILD_VMLINUX:
+			vmlinux_override = p.value;
+			break;
+		case BUILD_EXTRA_CFLAGS:
+			extra_cflags = p.value;
+			break;
+		case BUILD_UNLOAD:
+			unload_name = p.value;
+			break;
+		case BUILD_PAYLOAD_SHA256:
+			payload_sha256_hex = p.value;
+			break;
+		case BUILD_EMIT_ARTIFACTS:
 			emit_artifacts = 1;
-		} else if (strcmp(a, "-h") == 0 || strcmp(a, "--help") == 0) {
-			usage(stdout);
+			break;
+		case OPT_ARG:
+			if (input) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			input = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		} else if (a[0] == '-') {
-			pr_err("unknown option '%s'", a);
-			usage(stderr);
-			return 2;
-		} else if (!input) {
-			input = a;
-		} else {
-			pr_err("unexpected positional arg '%s'", a);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
+	}
+	if (unload_name && input) {
+		opt_usage(&p, "--unload takes no input");
+		return EXIT_USAGE;
+	}
+	if (!unload_name && !input) {
+		opt_usage(&p, "takes <input.bpf.c|.bpf.o> or --unload <upatch-name>");
+		return EXIT_USAGE;
 	}
 
 	keys_dir = keys_dir_resolve(keys_dir_arg);
@@ -269,15 +301,11 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (unload_name) {
-		if (input) {
-			pr_err("--unload takes no positional input");
-			return 2;
-		}
 		if (payload_sha256_hex) {
 			if (hex_decode(payload_sha256_hex,
 				       payload_sha256, 32)) {
-				pr_err("--payload-sha256 must be 64 hex chars");
-				return 2;
+				opt_usage(&p, "--payload-sha256 must be 64 hex characters");
+				return EXIT_USAGE;
 			}
 		} else {
 			/*
@@ -329,10 +357,6 @@ int main(int argc, char **argv)
 		return ret ? 1 : 0;
 	}
 
-	if (!input) {
-		usage(stderr);
-		return 2;
-	}
 
 	/*
 	 * Resolve the output path before compiling: --emit-artifacts

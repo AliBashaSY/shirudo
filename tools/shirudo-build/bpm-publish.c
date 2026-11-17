@@ -30,7 +30,9 @@
 #include "hex.h"
 #include "io.h"
 #include "json.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "malloc.h"
 #include "paths.h"
 #include "sign.h"
@@ -44,23 +46,58 @@
 /* One append never splits across segments, so it fits in one. */
 BUILD_BUG_ON(BPM_BUILD_MAX_ENTRIES > TREE_MAX_OPS);
 
-static void tree_append_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm tree append <package-file> <repository>\n"
-		"                               [--keys-dir <dir>] [--key <signing_key.pem>]\n"
-		"                               [--cert <cert.der>] [--previous-cert <cert.der>]\n"
-		"                               [--tree-id <id>]\n"
-		"                               [--reference <ref>] [--op add|delete]\n"
-		"                               [--segment-ops <n>]\n\n"
-		"Publishes the [upatches.tree] entries of a built package as the next\n"
-		"operations of the signed tree at <repository>:<ref> (default stable).\n"
-		"Extending an existing tree needs --tree-id naming it.\n"
-		"A segment that holds --segment-ops operations (default %d, 1 to %d)\n"
-		"is sealed and the entries start the next one.\n"
-		"The key defaults to --keys-dir, SHIRUDO_KEYS_DIR or %s.\n",
-		TREE_SEGMENT_OPS, TREE_MAX_OPS, KEYS_DIR);
-}
+enum tree_append_opt {
+	TREE_APPEND_KEYS_DIR,
+	TREE_APPEND_KEY,
+	TREE_APPEND_CERT,
+	TREE_APPEND_PREVIOUS_CERT,
+	TREE_APPEND_TREE_ID,
+	TREE_APPEND_REFERENCE,
+	TREE_APPEND_OP,
+	TREE_APPEND_SEGMENT_OPS,
+};
+
+static const struct opt_spec tree_append_opts[] = {
+	[TREE_APPEND_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[TREE_APPEND_KEY] = { "--key", 0, 0, "<signing_key.pem>",
+		"the signing key, over --keys-dir" },
+	[TREE_APPEND_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate, over --keys-dir" },
+	[TREE_APPEND_PREVIOUS_CERT] = { "--previous-cert", 0, 0, "<cert.der>",
+		"the certificate the tree was signed with so far" },
+	[TREE_APPEND_TREE_ID] = { "--tree-id", 0, 0, "<id>",
+		"the tree to extend, which an existing tree needs" },
+	[TREE_APPEND_REFERENCE] = { "--reference", 0, 0, "<ref>",
+		"the tag of the publication (default stable)" },
+	[TREE_APPEND_OP] = { "--op", 0, 0, "add|delete",
+		"add the entries, or delete them (default add)" },
+	[TREE_APPEND_SEGMENT_OPS] = { "--segment-ops", 0, 0, "<n>",
+		"seal a segment holding n operations and start the next, 1 to "
+		__stringify(TREE_MAX_OPS) " (default "
+		__stringify(TREE_SEGMENT_OPS) ")" },
+};
+
+static const struct help_section tree_append_sections[] = {
+	HELP_OPTIONS("options:", tree_append_opts),
+};
+
+static const struct help tree_append_help = {
+	.usage	    = "shirudo bpm tree append <package-file> <repository> "
+		      "[options]",
+	.summary    = "Publish the [upatches.tree] entries of a built package "
+		      "as the next\noperations of the signed tree at "
+		      "<repository>:<ref>. The key defaults to\n--keys-dir, "
+		      KEYS_DIR_ENV " or " KEYS_DIR ".",
+	.sections   = tree_append_sections,
+	.n_sections = ARRAY_SIZE(tree_append_sections),
+};
+
+/* Indexed by what each stands for, so that a value names itself. */
+static const struct opt_name tree_append_ops[] = {
+	[false] = { "add", false },
+	[true] = { "delete", true },
+};
 
 static int publish_fail(const char *action, int ret)
 {
@@ -1166,15 +1203,14 @@ static int tree_new_id(const char *tree_id, const char *package,
 	return 0;
 }
 
-static int cmd_bpm_tree_append(int argc, char **argv)
+static int cmd_bpm_tree_append(int argc, const char **argv)
 {
 	const char *package = NULL, *raw_repository = NULL, *keys_dir_arg = NULL;
 	char repository[BPM_MAX_ENDPOINT], repo_ref[BPM_MAX_ENDPOINT];
 	struct bpm_descriptor config, payload_layer, sig_layer;
 	const char *key = NULL, *cert = NULL, *tree_id = NULL;
 	const char *previous_cert = NULL;
-	const char *reference = "stable", *operation = "add";
-	const char *segment_ops_arg = NULL;
+	const char *reference = "stable";
 	char key_path[PATH_MAX], cert_path[PATH_MAX];
 	char parent[BPM_MAX_DIGEST] = {}, digest[72];
 	struct tree_publication *sealed = NULL;
@@ -1196,77 +1232,68 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	char empty_config[] = "{}";
 	char package_dir[101];
-	int appended = 0, ret;
+	int appended = 0, ret, opt, op_delete = false;
+	struct opt_parser p;
 	bool unload;
+	__u64 n_ops;
 
-	for (int i = 2; i < argc; i++) {
-		const char *a = argv[i];
-
-		if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (!strncmp(a, "--keys-dir=", 11)) {
-			keys_dir_arg = a + 11;
-		} else if (!strcmp(a, "--key") && i + 1 < argc) {
-			key = argv[++i];
-		} else if (!strncmp(a, "--key=", 6)) {
-			key = a + 6;
-		} else if (!strcmp(a, "--cert") && i + 1 < argc) {
-			cert = argv[++i];
-		} else if (!strncmp(a, "--cert=", 7)) {
-			cert = a + 7;
-		} else if (!strcmp(a, "--previous-cert") && i + 1 < argc) {
-			previous_cert = argv[++i];
-		} else if (!strncmp(a, "--previous-cert=", 16)) {
-			previous_cert = a + 16;
-		} else if (!strcmp(a, "--tree-id") && i + 1 < argc) {
-			tree_id = argv[++i];
-		} else if (!strncmp(a, "--tree-id=", 10)) {
-			tree_id = a + 10;
-		} else if (!strcmp(a, "--reference") && i + 1 < argc) {
-			reference = argv[++i];
-		} else if (!strncmp(a, "--reference=", 12)) {
-			reference = a + 12;
-		} else if (!strcmp(a, "--op") && i + 1 < argc) {
-			operation = argv[++i];
-		} else if (!strncmp(a, "--op=", 5)) {
-			operation = a + 5;
-		} else if (!strcmp(a, "--segment-ops") && i + 1 < argc) {
-			segment_ops_arg = argv[++i];
-		} else if (!strncmp(a, "--segment-ops=", 14)) {
-			segment_ops_arg = a + 14;
-		} else if (a[0] == '-' || (package && raw_repository)) {
-			tree_append_usage();
-			return -EINVAL;
-		} else if (!package) {
-			package = a;
-		} else {
-			raw_repository = a;
+	OPT_INIT(&p, "bpm tree append", tree_append_opts, &tree_append_help,
+		 argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case TREE_APPEND_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case TREE_APPEND_KEY:
+			key = p.value;
+			break;
+		case TREE_APPEND_CERT:
+			cert = p.value;
+			break;
+		case TREE_APPEND_PREVIOUS_CERT:
+			previous_cert = p.value;
+			break;
+		case TREE_APPEND_TREE_ID:
+			if (!bpm_package_name_ok(p.value)) {
+				opt_usage(&p, "invalid --tree-id %s", p.value);
+				return EXIT_USAGE;
+			}
+			tree_id = p.value;
+			break;
+		case TREE_APPEND_REFERENCE:
+			reference = p.value;
+			break;
+		case TREE_APPEND_OP:
+			if (OPT_CHOICE(&p, tree_append_ops, &op_delete))
+				return EXIT_USAGE;
+			break;
+		case TREE_APPEND_SEGMENT_OPS:
+			if (opt_u64(&p, 1, TREE_MAX_OPS, &n_ops))
+				return EXIT_USAGE;
+			segment_ops = (int)n_ops;
+			break;
+		case OPT_ARG:
+			if (raw_repository) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			if (package)
+				raw_repository = p.value;
+			else
+				package = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!package || !raw_repository) {
-		tree_append_usage();
-		return -EINVAL;
+		opt_usage(&p, "takes <package-file> and <repository>");
+		return EXIT_USAGE;
 	}
-	if (strcmp(operation, "add") && strcmp(operation, "delete")) {
-		pr_err("bpm tree append: --op must be add or delete");
-		return -EINVAL;
-	}
-	if (tree_id && !bpm_package_name_ok(tree_id)) {
-		pr_err("bpm tree append: invalid --tree-id %s", tree_id);
-		return -EINVAL;
-	}
-	if (segment_ops_arg) {
-		__u64 n;
-
-		if (parse_u64(segment_ops_arg, strlen(segment_ops_arg),
-			      TREE_MAX_OPS, &n) || !n) {
-			pr_err("bpm tree append: --segment-ops must be 1 to %d",
-			       TREE_MAX_OPS);
-			return -EINVAL;
-		}
-		segment_ops = (int)n;
-	}
-	unload = !strcmp(operation, "delete");
+	unload = op_delete;
 	if (!key || !cert) {
 		const char *keys_dir = keys_dir_resolve(keys_dir_arg);
 
@@ -1432,7 +1459,8 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		}
 		tree_selector_free(&op->selector);
 		*op = (struct tree_operation){ .seq = seq };
-		bpm_copy_string(op->op, sizeof(op->op), operation);
+		bpm_copy_string(op->op, sizeof(op->op),
+				tree_append_ops[unload].name);
 		bpm_copy_string(op->id, sizeof(op->id), u->tree.id);
 		if (u->tree.selector) {
 			ret = tree_selector_copy(&op->selector, u->tree.selector);
@@ -1559,65 +1587,91 @@ out:
 	return ret;
 }
 
-static void bpm_push_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm push <package-file> <repository>\n"
-		"                        [--keys-dir <dir> | --index-cert <cert.der>\n"
-		"                         --index-key <signing_key.pem>] [--new-index]\n\n"
-		"The repository must start with oci:// and must not include a tag.\n"
-		"With signing material the registry's signed index at\n"
-		"<namespace>/bpm-index:stable gains the package entry, signed with the\n"
-		"operator key; without it only the package is published. A namespace\n"
-		"without an index is refused unless --new-index starts one, which in\n"
-		"turn is refused where an index exists.\n"
-		"Examples:\n"
-		"  shirudo bpm push ./package.bee oci://quay.io/namespace/package\n"
-		"  shirudo bpm push ./package.bee oci://quay.io/namespace/package \\\n"
-		"      --keys-dir /var/lib/shirudo/keys\n");
-}
+enum push_opt {
+	PUSH_KEYS_DIR,
+	PUSH_INDEX_CERT,
+	PUSH_INDEX_KEY,
+	PUSH_NEW_INDEX,
+};
 
-int build_bpm_push(int argc, char **argv)
+static const struct opt_spec push_opts[] = {
+	[PUSH_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"sign the index entry with signing_key.pem and cert.der there" },
+	[PUSH_INDEX_CERT] = { "--index-cert", 0, 0, "<cert.der>",
+		"the index certificate, with --index-key" },
+	[PUSH_INDEX_KEY] = { "--index-key", 0, 0, "<signing_key.pem>",
+		"the index key, with --index-cert" },
+	[PUSH_NEW_INDEX] = { "--new-index", 0, 0, NULL,
+		"start the index of a namespace that has none" },
+};
+
+static const struct help_section push_sections[] = {
+	HELP_OPTIONS("options:", push_opts),
+};
+
+static const struct help push_help = {
+	.usage	    = "shirudo bpm push <package-file> <repository> [options]",
+	.summary    = "Publish a package to an oci:// repository without a tag. "
+		      "With signing\nmaterial, the signed index at "
+		      "<namespace>/bpm-index:stable gains the\npackage's "
+		      "entry; without it, only the package is published. A "
+		      "namespace\nwithout an index is refused unless "
+		      "--new-index starts one, which is\nrefused where an "
+		      "index exists.",
+	.sections   = push_sections,
+	.n_sections = ARRAY_SIZE(push_sections),
+	.footer	    = "Examples:\n"
+		      "  shirudo bpm push ./package.bee "
+		      "oci://quay.io/namespace/package\n"
+		      "  shirudo bpm push ./package.bee "
+		      "oci://quay.io/namespace/package \\\n"
+		      "      --keys-dir /var/lib/shirudo/keys",
+};
+
+int build_bpm_push(int argc, const char **argv)
 {
 	const char *package = NULL, *repository = NULL, *reference = NULL;
 	const char *keys_dir_arg = NULL, *index_cert = NULL, *index_key = NULL;
 	char cert_path[PATH_MAX], key_path[PATH_MAX];
 	bool new_index = false;
-	int ret;
+	struct opt_parser p;
+	int ret, opt;
 
-	if (argc == 2 && build_is_help(argv[1])) {
-		bpm_push_usage();
-		return 0;
-	}
-	for (int i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if (!strcmp(a, "--keys-dir") && i + 1 < argc) {
-			keys_dir_arg = argv[++i];
-		} else if (!strncmp(a, "--keys-dir=", 11)) {
-			keys_dir_arg = a + 11;
-		} else if (!strcmp(a, "--index-cert") && i + 1 < argc) {
-			index_cert = argv[++i];
-		} else if (!strncmp(a, "--index-cert=", 13)) {
-			index_cert = a + 13;
-		} else if (!strcmp(a, "--index-key") && i + 1 < argc) {
-			index_key = argv[++i];
-		} else if (!strncmp(a, "--index-key=", 12)) {
-			index_key = a + 12;
-		} else if (!strcmp(a, "--new-index")) {
+	OPT_INIT(&p, "bpm push", push_opts, &push_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case PUSH_KEYS_DIR:
+			keys_dir_arg = p.value;
+			break;
+		case PUSH_INDEX_CERT:
+			index_cert = p.value;
+			break;
+		case PUSH_INDEX_KEY:
+			index_key = p.value;
+			break;
+		case PUSH_NEW_INDEX:
 			new_index = true;
-		} else if (a[0] == '-' || (package && repository)) {
-			bpm_push_usage();
-			return 2;
-		} else if (!package) {
-			package = a;
-		} else {
-			repository = a;
+			break;
+		case OPT_ARG:
+			if (repository) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			if (package)
+				repository = p.value;
+			else
+				package = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!package || !repository) {
-		bpm_push_usage();
-		return 2;
+		opt_usage(&p, "takes <package-file> and <repository>");
+		return EXIT_USAGE;
 	}
 	if (keys_dir_arg) {
 		if ((!index_cert &&
@@ -1633,12 +1687,12 @@ int build_bpm_push(int argc, char **argv)
 			index_key = key_path;
 	}
 	if (!index_cert != !index_key) {
-		pr_err("bpm push: --index-cert and --index-key must be supplied together");
-		return 2;
+		opt_usage(&p, "--index-cert and --index-key must be supplied together");
+		return EXIT_USAGE;
 	}
 	if (new_index && !index_key) {
-		pr_err("bpm push: --new-index needs --keys-dir, or --index-cert and --index-key");
-		return 2;
+		opt_usage(&p, "--new-index needs --keys-dir, or --index-cert and --index-key");
+		return EXIT_USAGE;
 	}
 	if (index_key && build_check_keys(index_key, index_cert))
 		return 1;
@@ -1654,23 +1708,21 @@ int build_bpm_push(int argc, char **argv)
 	return 0;
 }
 
-int build_bpm_tree(int argc, char **argv)
+int build_bpm_tree(int argc, const char **argv)
 {
 	int ret;
 
 	if (argc >= 2 && !strcmp(argv[1], "show"))
 		return build_bpm_tree_show(argc - 1, argv + 1);
 	if (argc < 2 || strcmp(argv[1], "append")) {
-		tree_append_usage();
-		return argc >= 2 && build_is_help(argv[1]) ? 0 : 2;
-	}
-	if (argc == 3 && build_is_help(argv[2])) {
-		tree_append_usage();
-		return 0;
+		print_help(&tree_append_help);
+		return argc >= 2 && is_help(argv[1]) ? 0 : EXIT_USAGE;
 	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
 		return publish_fail("initialize curl", -EIO);
 	ret = cmd_bpm_tree_append(argc, argv);
 	curl_global_cleanup();
+	if (ret == EXIT_USAGE)
+		return EXIT_USAGE;
 	return ret ? publish_fail("tree append", ret) : 0;
 }

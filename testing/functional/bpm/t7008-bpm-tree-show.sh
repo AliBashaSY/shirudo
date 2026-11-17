@@ -260,8 +260,9 @@ test_expect_success 'show refuses a signed document tree sync would refuse' '
 
 test_expect_success 'show without --cert is a usage error' '
 	restore &&
-	{ show "$TREE"; test $? -eq 1; } &&
-	grep -q "^usage: shirudo bpm tree show" "$WORK/err" &&
+	{ show "$TREE"; test $? -eq 2; } &&
+	grep -qx "bpm tree show: takes <repository> and --cert <cert.der>" \
+		"$WORK/err" &&
 	test ! -s "$WORK/out" &&
 	show "$TREE" --cert "$CERT"
 '

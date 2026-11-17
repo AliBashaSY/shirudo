@@ -551,27 +551,6 @@ static const struct help keys_add_help = {
 	.n_sections = ARRAY_SIZE(keys_add_sections),
 };
 
-static const struct help_item keys_vouch_options[] = {
-	{ "-o <file>", "where to write the vouch (default <cert.der>.vouch)" },
-	{ "--keys-dir <dir>", "read signing_key.pem and cert.der from <dir>" },
-	{ "--key <pem>", "the signing key (overrides --keys-dir)" },
-	{ "--cert <der>", "the signing certificate (overrides --keys-dir)" },
-};
-
-static const struct help_section keys_vouch_sections[] = {
-	HELP_ITEMS("options:", keys_vouch_options),
-};
-
-static const struct help keys_vouch_help = {
-	.usage   = "shirudo keys vouch <cert.der> [-o <file>] [--keys-dir <dir>]",
-	.summary = "Sign a vouch for another operator's certificate with this "
-		   "operator's key,\nfor `shirudo keys add --vouch` on the "
-		   "targets that enrol this key.\nPrints the vouched "
-		   "certificate's fingerprint.",
-	.sections   = keys_vouch_sections,
-	.n_sections = ARRAY_SIZE(keys_vouch_sections),
-};
-
 /* The public key must be one the kernel verifies loaders with. */
 static int check_cert_algorithm(const __u8 *der, size_t der_sz,
 				const char *what)
@@ -960,10 +939,6 @@ static int keys_revoke(int argc, const char **argv)
 
 static int keys_vouch(int argc, const char **argv)
 {
-	if (argc >= 2 && is_help(argv[1])) {
-		print_help(&keys_vouch_help);
-		return 0;
-	}
 	return build_forward("keys vouch",
 			     (const char *const[]){ "keys", "vouch", NULL },
 			     argc - 1, argv + 1);

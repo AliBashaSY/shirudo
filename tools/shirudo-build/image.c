@@ -21,26 +21,60 @@
 #include "hex.h"
 #include "image.h"
 #include "io.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "malloc.h"
 #include "paths.h"
 #include "sign.h"
 
-static void image_usage(FILE *fp)
-{
-	fprintf(fp, "usage: shirudo-build image build <filesystem.img> -o "
-		    "<prefix>\n"
-		    "       [--kind config|runtime] [--keys-dir <dir>]\n"
-		    "       [--key <private.pem>] [--cert <cert.der>] [--salt "
-		    "<64-hex>]\n"
-		    "Writes <prefix>.img/.verity/.roothash/.p7s; existing files "
-		    "are refused.\n"
-		    "Input is a 4096-byte-aligned ext4 filesystem image.\n"
-		    "       shirudo-build image verify <prefix> --cert <cert.der>\n"
-		    "Build and offline verification require veritysetup.\n");
-}
+enum image_verify_opt {
+	IMAGE_VERIFY_CERT,
+};
 
-static int __build_image(int argc, char **argv)
+static const struct opt_spec image_verify_opts[] = {
+	[IMAGE_VERIFY_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate the image's root hash is signed for" },
+};
+
+enum image_sign_opt {
+	IMAGE_SIGN_OUTPUT,
+	IMAGE_SIGN_KEYS_DIR,
+	IMAGE_SIGN_KEY,
+	IMAGE_SIGN_CERT,
+};
+
+static const struct opt_spec image_sign_opts[] = {
+	[IMAGE_SIGN_OUTPUT] = { "--output", 'o', 0, "<signature>",
+		"where to write the signature" },
+	[IMAGE_SIGN_KEYS_DIR] = { "--keys-dir", 0, 0, "<dir>",
+		"read signing_key.pem and cert.der from <dir>" },
+	[IMAGE_SIGN_KEY] = { "--key", 0, 0, "<private.pem>",
+		"the signing key, over --keys-dir" },
+	[IMAGE_SIGN_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate, over --keys-dir" },
+};
+
+static const struct help_section image_sections[] = {
+	HELP_OPTIONS("verify options:", image_verify_opts),
+};
+
+static const struct help image_help = {
+	.usage	    = "shirudo image build <filesystem.img> -o <prefix> "
+		      "[--kind config|runtime]\n"
+		      "                     [--keys-dir <dir>] "
+		      "[--key <private.pem>] [--cert <cert.der>]\n"
+		      "                     [--salt <64-hex>]\n"
+		      "       shirudo image verify <prefix> --cert <cert.der>",
+	.summary    = "build writes <prefix>.img, .verity, .roothash and .p7s "
+		      "from a 4096-byte\naligned ext4 file system image and "
+		      "refuses files that exist. Build and\noffline "
+		      "verification require veritysetup.",
+	.sections   = image_sections,
+	.n_sections = ARRAY_SIZE(image_sections),
+};
+
+static int __build_image(int argc, const char **argv)
 {
 	char executable[PATH_MAX], script[PATH_MAX], directory[PATH_MAX];
 	const char **command;
@@ -234,73 +268,116 @@ static int sign_root(const char *input, const char *output, const char *pkey,
 	return ret;
 }
 
-int build_image(int argc, char **argv)
+static int image_verify_cmd(int argc, const char **argv)
 {
-	bool explicit_key = false, explicit_cert = false;
+	const char *prefix = NULL, *cert = NULL;
+	struct opt_parser p;
+	int opt, ret;
+
+	OPT_INIT(&p, "image verify", image_verify_opts, &image_help, argc,
+		 argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case IMAGE_VERIFY_CERT:
+			cert = p.value;
+			break;
+		case OPT_ARG:
+			if (prefix) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			prefix = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
+		}
+	}
+	if (!prefix || !cert) {
+		opt_usage(&p, "takes <prefix> and --cert <cert.der>");
+		return EXIT_USAGE;
+	}
+	ret = verify_image(prefix, cert);
+	if (ret)
+		pr_err("image verify: %s", strerror(-ret));
+	return ret ? 1 : 0;
+}
+
+/* What shirudo-gen-verity calls back with for the root hash it made. */
+static int image_sign_root_cmd(int argc, const char **argv)
+{
 	char pkey_path[PATH_MAX], cert_path[PATH_MAX];
+	const char *input = NULL, *signature = NULL;
 	const char *pkey = SIGNING_KEY_PATH;
-	const char *input = NULL, *prefix = NULL;
 	const char *cert = CERT_PATH;
 	const char *keys_dir = NULL;
-	int i, ret;
+	struct opt_parser p;
+	int opt, ret;
 
-	if (argc >= 2 && !strcmp(argv[1], "build"))
-		return __build_image(argc, argv);
-	if (argc == 2 && !strcmp(argv[1], "--help")) {
-		image_usage(stdout);
-		return 0;
-	}
-	if (argc == 5 && !strcmp(argv[1], "verify") &&
-	    !strcmp(argv[3], "--cert")) {
-		ret = verify_image(argv[2], argv[4]);
-		if (ret)
-			pr_err("image verify: %s", strerror(-ret));
-		return ret ? 1 : 0;
-	}
-	if (argc < 2 || strcmp(argv[1], "sign-root")) {
-		image_usage(stderr);
-		return 2;
-	}
-	for (i = 2; i < argc; i++) {
-		const char *arg = argv[i];
-
-		if (!strcmp(arg, "--help")) {
-			image_usage(stdout);
+	OPT_INIT(&p, "image sign-root", image_sign_opts, NULL, argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case IMAGE_SIGN_OUTPUT:
+			signature = p.value;
+			break;
+		case IMAGE_SIGN_KEYS_DIR:
+			keys_dir = p.value;
+			break;
+		case IMAGE_SIGN_KEY:
+			pkey = p.value;
+			break;
+		case IMAGE_SIGN_CERT:
+			cert = p.value;
+			break;
+		case OPT_ARG:
+			if (input) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			input = p.value;
+			break;
+		case OPT_DONE:
 			return 0;
-		}
-		if ((!strcmp(arg, "-o") || !strcmp(arg, "--output")) &&
-		    i + 1 < argc) {
-			prefix = argv[++i];
-		} else if (!strcmp(arg, "--keys-dir") && i + 1 < argc) {
-			keys_dir = argv[++i];
-		} else if (!strcmp(arg, "--key") && i + 1 < argc) {
-			pkey = argv[++i];
-			explicit_key = true;
-		} else if (!strcmp(arg, "--cert") && i + 1 < argc) {
-			cert = argv[++i];
-			explicit_cert = true;
-		} else if (arg[0] != '-' && !input) {
-			input = arg;
-		} else {
-			image_usage(stderr);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
-	if (!input || !prefix || !*prefix)
-		return 2;
+	if (!input || !signature) {
+		opt_usage(&p, "takes <root-hash-file> and -o <signature>");
+		return EXIT_USAGE;
+	}
 	keys_dir = keys_dir_resolve(keys_dir);
 	if (keys_dir) {
 		ret = key_paths(keys_dir, pkey_path, sizeof(pkey_path),
 				cert_path, sizeof(cert_path));
 		if (ret)
-			return 2;
-		if (!explicit_key)
+			return EXIT_USAGE;
+		if (!opt_given(&p, IMAGE_SIGN_KEY))
 			pkey = pkey_path;
-		if (!explicit_cert)
+		if (!opt_given(&p, IMAGE_SIGN_CERT))
 			cert = cert_path;
 	}
-	ret = sign_root(input, prefix, pkey, cert);
+	ret = sign_root(input, signature, pkey, cert);
 	if (ret)
 		pr_err("image sign-root: %s", strerror(-ret));
 	return ret ? 1 : 0;
+}
+
+int build_image(int argc, const char **argv)
+{
+	if (argc >= 2 && !strcmp(argv[1], "build"))
+		return __build_image(argc, argv);
+	if (argc < 2 || is_help(argv[1])) {
+		print_help(&image_help);
+		return argc < 2 ? EXIT_USAGE : 0;
+	}
+	if (!strcmp(argv[1], "verify"))
+		return image_verify_cmd(argc, argv);
+	if (!strcmp(argv[1], "sign-root"))
+		return image_sign_root_cmd(argc, argv);
+	pr_err("image: '%s' is not a subcommand", argv[1]);
+	return EXIT_USAGE;
 }

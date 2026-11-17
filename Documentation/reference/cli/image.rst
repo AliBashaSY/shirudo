@@ -212,7 +212,7 @@ Exit status
      - No subcommand, an unknown subcommand, an unknown option or one
        given twice, a wrong number of arguments to ``update``, ``stage``
        or ``status``, ``stage`` with both a prefix and ``--cancel`` or
-       neither, or ``verify`` arguments in another form.
+       neither, or ``verify`` without a prefix or ``--cert``.
    * - 127
      - ``build``, ``verify``: ``shirudo`` cannot execute the helper.
 

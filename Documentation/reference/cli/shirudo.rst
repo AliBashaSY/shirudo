@@ -99,8 +99,7 @@ Every invocation goes through the same steps before the command runs:
 Progress, warning and error messages go to standard error and to syslog
 with the identifier ``shirudo`` and the facility ``LOG_AUTHPRIV``, where
 journald picks them up. Results go to standard output. Help text goes to
-standard error, except the help of the
-``shirudo-build`` helper and of the generator scripts, which goes to
+standard error, except the help of the generator scripts, which goes to
 standard output.
 
 Command names
@@ -128,15 +127,20 @@ command names one per line. Bash completion reads them from there.
 Option forms
 ~~~~~~~~~~~~
 
-An option that takes a value takes it after an equals sign or as the
-next argument: ``--cert=cert.der`` and ``--cert cert.der`` are the
-same, and an option given last with nothing after it is a usage error.
-Two groups differ. The commands the ``shirudo-build`` helper serves
-(``build``, ``keys vouch``, ``image build``, ``image verify`` and ``bpm
-config update``) take the value as the next argument only, except
-``--keys-dir``, which takes both forms. ``upatch map --json=<path>``
-takes its path after the equals sign only. Each command page states the
-forms it accepts. The same function has the same name on every command:
+Every command parses its options by the same rules. An option that
+takes a value takes it after an equals sign or as the next argument:
+``--cert=cert.der`` and ``--cert cert.der`` are the same. An unknown
+option, an option given twice where it does not repeat, a value missing
+or empty, and an argument the command does not take are usage errors:
+the command prints one line, ``<command>: <what is wrong>``, with the
+closest option names after an unknown one, and exits with 2. ``--``
+ends the options, ``-h`` and ``--help`` print the command's help, and
+``--list-opts`` prints its options one a line, a value's placeholder
+after a tab, which the bash completion reads. ``upatch map
+--json=<path>`` takes its path after the equals sign only, as ``--json``
+alone prints the JSON. ``image build`` hands its arguments to
+``shirudo-gen-verity``, which takes each value as the next argument
+only. The same function has the same name on every command:
 a file to write is ``-o <path>`` or ``--output <path>``, a certificate
 file is ``--cert``, a signing key ``--key``, the directory that holds
 both ``--keys-dir``, a Beefile ``--file``, and ``--json`` prints the

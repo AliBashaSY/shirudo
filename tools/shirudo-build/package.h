@@ -29,6 +29,6 @@ int build_package_patch_rodata(const char *input, const char *output,
 				      size_t value_len, const char *pkey_path,
 				      const char *cert_path);
 int build_package_verify(const char *input, const char *cert_path);
-int build_upatch_cli(int argc, char **argv);
+int build_upatch_cli(int argc, const char **argv);
 
 #endif /* SHIRUDO_BUILD_PACKAGE_H */

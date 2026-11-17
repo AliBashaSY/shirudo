@@ -567,7 +567,7 @@ test_expect_success 'tree append uploads nothing for an entry no target would ta
 '
 
 test_expect_success 'the operator commands are reachable directly in shirudo-build' '
-	"$B" bpm --help | grep -q "tree append <package-file> <repository>" &&
+	"$B" bpm --help 2>&1 | grep -q "tree append <package-file> <repository>" &&
 	"$B" bpm tree append --help 2>&1 | grep -q "\-\-op add|delete" &&
 	"$B" bpm push --help 2>&1 | grep -q "<namespace>/bpm-index:stable" &&
 	! "$B" bpm not-a-command >/dev/null 2>&1

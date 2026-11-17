@@ -111,11 +111,10 @@ void bpm_build_spec_free(struct bpm_build_spec *spec);
 void bpm_strings_sort(char strings[][TREE_STRING_MAX], int n);
 bool bpm_fix_id_ok(const char *id);
 
-int build_bpm(int argc, char **argv);
-int build_bpm_push(int argc, char **argv);
-int build_bpm_tree(int argc, char **argv);
-int build_bpm_tree_show(int argc, char **argv);
-bool build_is_help(const char *arg);
+int build_bpm(int argc, const char **argv);
+int build_bpm_push(int argc, const char **argv);
+int build_bpm_tree(int argc, const char **argv);
+int build_bpm_tree_show(int argc, const char **argv);
 
 struct bpm_buffer;
 struct bpm_oci_client;
@@ -149,6 +148,6 @@ int build_check_keys(const char *pkey, const char *cert);
 /* The file name of source less .bpf.c, .bpf.o or .o. 0 or -E2BIG. */
 int build_upatch_name(const char *source, char *out, size_t cap);
 
-int build_keys_vouch(int argc, char **argv);
+int build_keys_vouch(int argc, const char **argv);
 
 #endif /* SHIRUDO_BUILD_BPM_H */

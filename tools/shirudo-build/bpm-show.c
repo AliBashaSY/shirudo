@@ -24,21 +24,42 @@
 #include "io.h"
 #include "json.h"
 #include "keys.h"
+#include "help.h"
 #include "log.h"
+#include "options.h"
 #include "malloc.h"
 
-static void tree_show_usage(void)
-{
-	fprintf(stderr,
-		"usage: shirudo bpm tree show <repository> --cert <cert.der>\n"
-		"                             [--reference <ref>] [--walk]\n\n"
-		"Fetches the tree publication at <repository>:<ref> (default stable),\n"
-		"verifies it against the certificate as tree sync does, and prints\n"
-		"{\"manifest_digest\":\"sha256:<hex>\",\"document\":<document>} with the\n"
-		"document's bytes verbatim, then a newline. --walk prints every\n"
-		"segment of the tree that way, oldest first, back from the one the\n"
-		"reference names.\n");
-}
+enum tree_show_opt {
+	TREE_SHOW_CERT,
+	TREE_SHOW_REFERENCE,
+	TREE_SHOW_WALK,
+};
+
+static const struct opt_spec tree_show_opts[] = {
+	[TREE_SHOW_CERT] = { "--cert", 0, 0, "<cert.der>",
+		"the certificate the tree is signed for" },
+	[TREE_SHOW_REFERENCE] = { "--reference", 0, 0, "<ref>",
+		"the tag of the publication (default stable)" },
+	[TREE_SHOW_WALK] = { "--walk", 0, 0, NULL,
+		"print every segment, oldest first, back from the one the "
+		"reference names" },
+};
+
+static const struct help_section tree_show_sections[] = {
+	HELP_OPTIONS("options:", tree_show_opts),
+};
+
+static const struct help tree_show_help = {
+	.usage	    = "shirudo bpm tree show <repository> --cert <cert.der> "
+		      "[--reference <ref>] [--walk]",
+	.summary    = "Fetch the tree publication at <repository>:<ref>, verify "
+		      "it against the\ncertificate as tree sync does, and print\n"
+		      "{\"manifest_digest\":\"sha256:<hex>\",\"document\":"
+		      "<document>} with the document's\nbytes verbatim, then a "
+		      "newline.",
+	.sections   = tree_show_sections,
+	.n_sections = ARRAY_SIZE(tree_show_sections),
+};
 
 int build_tree_fetch_checked(struct bpm_oci_client *c, const char *repository,
 			     const char *reference, const char *cert_path,
@@ -221,7 +242,7 @@ static int tree_show_walk(struct bpm_oci_client *c, const char *repository,
 	return ret;
 }
 
-static int cmd_bpm_tree_show(int argc, char **argv)
+static int cmd_bpm_tree_show(int argc, const char **argv)
 {
 	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
 	const char *raw_repository = NULL, *cert = NULL;
@@ -230,32 +251,40 @@ static int cmd_bpm_tree_show(int argc, char **argv)
 	struct trusted_set *trusted = NULL;
 	struct tree_publication pub = {};
 	struct bpm_buffer document = {};
+	struct opt_parser p;
 	bool walk = false;
-	int ret;
+	int ret, opt;
 
-	for (int i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if (!strcmp(a, "--cert") && i + 1 < argc) {
-			cert = argv[++i];
-		} else if (!strncmp(a, "--cert=", 7)) {
-			cert = a + 7;
-		} else if (!strcmp(a, "--reference") && i + 1 < argc) {
-			reference = argv[++i];
-		} else if (!strncmp(a, "--reference=", 12)) {
-			reference = a + 12;
-		} else if (!strcmp(a, "--walk")) {
+	OPT_INIT(&p, "bpm tree show", tree_show_opts, &tree_show_help, argc,
+		 argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case TREE_SHOW_CERT:
+			cert = p.value;
+			break;
+		case TREE_SHOW_REFERENCE:
+			reference = p.value;
+			break;
+		case TREE_SHOW_WALK:
 			walk = true;
-		} else if (a[0] != '-' && !raw_repository) {
-			raw_repository = a;
-		} else {
-			tree_show_usage();
-			return -EINVAL;
+			break;
+		case OPT_ARG:
+			if (raw_repository) {
+				opt_usage(&p, "unexpected argument '%s'",
+					  p.value);
+				return EXIT_USAGE;
+			}
+			raw_repository = p.value;
+			break;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
 		}
 	}
-	if (!raw_repository || !cert || !cert[0]) {
-		tree_show_usage();
-		return -EINVAL;
+	if (!raw_repository || !cert) {
+		opt_usage(&p, "takes <repository> and --cert <cert.der>");
+		return EXIT_USAGE;
 	}
 	ret = bpm_oci_parse_tree_repo(raw_repository, &c, repository,
 				      sizeof(repository));
@@ -290,20 +319,18 @@ out:
 	return ret;
 }
 
-int build_bpm_tree_show(int argc, char **argv)
+int build_bpm_tree_show(int argc, const char **argv)
 {
 	int ret;
 
-	if (argc == 2 && build_is_help(argv[1])) {
-		tree_show_usage();
-		return 0;
-	}
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
 		pr_err("bpm tree show: %s", strerror(EIO));
 		return 1;
 	}
 	ret = cmd_bpm_tree_show(argc, argv);
 	curl_global_cleanup();
+	if (ret == EXIT_USAGE)
+		return EXIT_USAGE;
 	if (ret < 0)
 		pr_err("bpm tree show: %s", strerror(-ret));
 	return ret ? 1 : 0;

@@ -554,7 +554,8 @@ tools/shirudo-build/shirudo-build: $(BUILD_OBJS) util/sign.o util/config_image.o
                                    util/bpm_oci.o util/curl.o util/bpm_package.o \
                                    util/upatch_rodata.o \
                                    util/bpm_tree.o util/bpm_tree_overlap.o \
-                                   util/chain_history.o \
+                                   util/chain_history.o util/options.o \
+                                   util/help.o util/similar.o \
                                    util/kernel_release.o $(VERSION_OBJ) \
                                    $(LIBBPF_A)
 	@printf '  LD      $@\n'

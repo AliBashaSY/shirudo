@@ -552,16 +552,14 @@ Exit status
    * - 0
      - Success, or ``tree sync`` without a configured tree.
    * - 1
-     - Failure, printed as ``bpm <action>: <error>``. Also the usage
-       errors of ``build``, ``config update``, ``tree append`` and
-       ``tree show``, which the helper reports, and ``config register
-       add`` or ``remove`` and ``key add`` on a target with a config
-       image.
+     - Failure, printed as ``bpm <action>: <error>``. Also ``config
+       register add`` or ``remove`` and ``key add`` on a target with a
+       config image.
    * - 2
-     - A usage error of the other subcommands, printed as ``bpm
-       <subcommand>: <what is wrong>``: an unknown subcommand, action or
-       option, an option given twice, a value missing or empty, or an
-       argument missing or one too many.
+     - A usage error, printed as ``bpm <subcommand>: <what is wrong>``:
+       an unknown subcommand, action or option, an option given twice, a
+       value missing, empty or out of range, or an argument missing or
+       one too many.
    * - 127
      - A helper subcommand cannot execute ``shirudo-build``.
 
