@@ -46,13 +46,19 @@ Before you begin
   operator's build dependencies to the image of the operator VM.
 
 The ``CI suite`` workflow uses the x86-64 CI kernel package from
-``shirudo-dev/kernel`` for every trigger. By default, it selects the
-latest available ``kernel-packages-x86-64-ci`` artifact from ``main``.
-For a manual run, set ``kernel_run_id`` to select a specific run instead.
-The run must contain that artifact. The
-``KERNEL_REPO_READ_TOKEN`` secret needs Actions read access to the kernel
-repository. Setup extracts the image and headers packages, checks the
-kernel config and BTF, and stages the result for the test VM.
+``shirudo-dev/kernel`` for every trigger: the
+``kernel-packages-x86-64-ci`` artifact of the run that
+:src:`.github/workflows/tests.yml` pins, so that a new build of the
+kernel does not change what a series is tested on. For a manual run,
+set ``kernel_run_id`` to select another run. The run must contain that
+artifact. The ``KERNEL_REPO_READ_TOKEN`` secret needs Actions read
+access to the kernel repository. Setup extracts the image and headers
+packages, checks the kernel config and BTF, and stages the result for
+the test VM. It refuses a kernel whose BTF lacks an LSM hook a program
+of ``bpf/`` attaches to, or whose config does not sign every module.
+A change to ``kernel/`` or to :src:`testing/vm/build-kernel.sh`
+therefore needs a new run of the kernel repository and the pin moved to
+it before CI can boot the series.
 
 Test tiers
 ----------
