@@ -254,8 +254,9 @@ reads ``.status`` and the conditions from the JSON document.
        With ``--keepalive``: the body cannot be built. Also an allocation
        failure.
    * - 2
-     - An unknown option, ``--keepalive`` with ``--json`` or ``--otel``,
-       or with ``--otel`` an invalid ``map_export`` configuration.
+     - A usage error: an unknown option, an option given twice or an
+       argument, ``--keepalive`` with ``--json`` or ``--otel``. Or, with
+       ``--otel``, an invalid ``map_export`` configuration.
 
 Files and environment
 ---------------------

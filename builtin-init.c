@@ -49,6 +49,7 @@
 #include "util/keys.h"
 #include "util/loader.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/malloc.h"
 #include "util/nv_writer.h"
 #include "util/paths.h"
@@ -1328,13 +1329,20 @@ static int chain_extend_init(struct measured_upatch *set, size_t n)
 	return 0;
 }
 
-static const struct help_item init_options[] = {
-	{ "--check-only", "run the pre-flight only; never touch kernel state" },
-	{ "--json",       "with --check-only, print the checks as JSON" },
+enum init_opt {
+	INIT_CHECK_ONLY,
+	INIT_JSON,
+};
+
+static const struct opt_spec init_opts[] = {
+	[INIT_CHECK_ONLY] = { "--check-only", 0, 0, NULL,
+		"run the pre-flight only; never touch kernel state" },
+	[INIT_JSON] = { "--json", 0, 0, NULL,
+		"with --check-only, print the checks as JSON" },
 };
 
 static const struct help_section init_help_sections[] = {
-	HELP_ITEMS("options:", init_options),
+	HELP_OPTIONS("options:", init_opts),
 };
 
 static const struct help init_help = {
@@ -1344,11 +1352,6 @@ static const struct help init_help = {
 	.sections   = init_help_sections,
 	.n_sections = ARRAY_SIZE(init_help_sections),
 };
-
-static void usage(void)
-{
-	fprintf(stderr, "usage: %s\n", init_help.usage);
-}
 
 /* Where the state tree is on the root file system, which the initrd binds. */
 static int state_source(char *buf, size_t cap)
@@ -1532,28 +1535,28 @@ static int run_init(void)
 
 int cmd_init(int argc, const char **argv)
 {
-	struct preflight_result res;
 	bool check_only = false, json = false;
-	int i, ret;
+	struct preflight_result res;
+	struct opt_parser p;
+	int opt, ret;
 
-	for (i = 1; i < argc; i++) {
-		const char *a = argv[i];
-
-		if (strcmp(a, "--check-only") == 0) {
+	OPT_INIT(&p, "init", init_opts, &init_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case INIT_CHECK_ONLY:
 			check_only = true;
-			continue;
-		}
-		if (strcmp(a, "--json") == 0) {
+			break;
+		case INIT_JSON:
 			json = true;
-			continue;
-		}
-		if (is_help(a)) {
-			print_help(&init_help);
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
+		default:
+			return EXIT_USAGE;
 		}
-		pr_err("init: unknown option '%s'", a);
-		usage();
-		return 2;
 	}
 
 	initrd_mode = in_initrd();
@@ -1563,8 +1566,8 @@ int cmd_init(int argc, const char **argv)
 		return 1;
 	}
 	if (json && !check_only) {
-		pr_err("init: --json takes --check-only");
-		return 2;
+		opt_usage(&p, "--json takes --check-only");
+		return EXIT_USAGE;
 	}
 	preflight_run(&res);
 	if (json) {

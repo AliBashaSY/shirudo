@@ -18,6 +18,7 @@
 #include "util/config.h"
 #include "util/help.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/paths.h"
 
 static const struct help config_help = {
@@ -29,27 +30,21 @@ static const struct help config_help = {
 		   "  shirudo config > " CONF_PATH,
 };
 
-static void usage(void)
-{
-	fprintf(stderr, "usage: %s\n", config_help.usage);
-}
-
 int cmd_config(int argc, const char **argv)
 {
 	struct config cfg __cleanup(config_clear);
 	bool image_mode = image_config_active();
+	struct opt_parser p;
 	bool file_present;
-	int ret;
-	int i;
+	int ret, opt;
 
-	for (i = 1; i < argc; i++) {
-		if (is_help(argv[i])) {
-			print_help(&config_help);
+	opt_init(&p, "config", NULL, 0, &config_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		if (opt == OPT_DONE)
 			return 0;
-		}
-		pr_err("config: unknown option '%s'", argv[i]);
-		usage();
-		return 2;
+		if (opt == OPT_ARG)
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+		return EXIT_USAGE;
 	}
 
 	file_present = access(CONF_PATH, F_OK) == 0;

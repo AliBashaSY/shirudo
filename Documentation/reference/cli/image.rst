@@ -34,7 +34,7 @@ Usage
 
 The subcommand names must be spelled out. ``image`` without a subcommand
 prints the usage and exits with 2. ``--list-cmds`` prints
-``build verify update stage status`` on one line.
+``build``, ``verify``, ``update``, ``stage`` and ``status``, one a line.
 
 An image is four files that share a prefix: ``<prefix>.img`` (the ext4
 file system), ``<prefix>.verity`` (the hash tree), ``<prefix>.roothash``
@@ -209,9 +209,10 @@ Exit status
        such device`` and ``status`` with ``image status: no config
        activation state on this host``.
    * - 2
-     - No subcommand, an unknown subcommand, a wrong number of arguments
-       to ``update``, ``stage`` or ``status``, or ``verify`` arguments
-       in another form.
+     - No subcommand, an unknown subcommand, an unknown option or one
+       given twice, a wrong number of arguments to ``update``, ``stage``
+       or ``status``, ``stage`` with both a prefix and ``--cancel`` or
+       neither, or ``verify`` arguments in another form.
    * - 127
      - ``build``, ``verify``: ``shirudo`` cannot execute the helper.
 

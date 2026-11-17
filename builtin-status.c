@@ -48,6 +48,7 @@
 #include "util/keyring.h"
 #include "util/keys.h"
 #include "util/log.h"
+#include "util/options.h"
 #include "util/malloc.h"
 #include "util/paths.h"
 #include "util/initrd.h"
@@ -354,21 +355,35 @@ static void print_system_human(const struct sysinfo *si)
 		printf("  %-22s %s\n", "Boot ID:", si->boot_id);
 }
 
-static const struct help_item status_options[] = {
-	{ "--json",             "print the report as one JSON document" },
-	{ "--otel",             "quote the keepalive body with the TPM and send "
-				"it as an OTLP log" },
-	{ "--keepalive",        "print the keepalive body, unquoted and unsent" },
-	{ "--check",            "exit 1 when the verdict is tampered" },
-	{ "--show-full",        "print every section, folded or not, and the "
-				"system and eventlog sections" },
-	{ "--include-system",   "add the system section: OS, kernel, machine, "
-				"memory, disk, uptime" },
-	{ "--include-eventlog", "add the eventlog records, all boots" },
+enum status_opt {
+	STATUS_JSON,
+	STATUS_OTEL,
+	STATUS_KEEPALIVE,
+	STATUS_CHECK,
+	STATUS_SHOW_FULL,
+	STATUS_INCLUDE_SYSTEM,
+	STATUS_INCLUDE_EVENTLOG,
+};
+
+static const struct opt_spec status_opts[] = {
+	[STATUS_JSON] = { "--json", 0, 0, NULL,
+		"print the report as one JSON document" },
+	[STATUS_OTEL] = { "--otel", 0, 0, NULL,
+		"quote the keepalive body with the TPM and send it as an OTLP log" },
+	[STATUS_KEEPALIVE] = { "--keepalive", 0, 0, NULL,
+		"print the keepalive body, unquoted and unsent" },
+	[STATUS_CHECK] = { "--check", 0, 0, NULL,
+		"exit 1 when the verdict is tampered" },
+	[STATUS_SHOW_FULL] = { "--show-full", 0, 0, NULL,
+		"print every section, folded or not, and the system and eventlog sections" },
+	[STATUS_INCLUDE_SYSTEM] = { "--include-system", 0, 0, NULL,
+		"add the system section: OS, kernel, machine, memory, disk, uptime" },
+	[STATUS_INCLUDE_EVENTLOG] = { "--include-eventlog", 0, 0, NULL,
+		"add the eventlog records, all boots" },
 };
 
 static const struct help_section status_help_sections[] = {
-	HELP_ITEMS("options:", status_options),
+	HELP_OPTIONS("options:", status_opts),
 };
 
 static const struct help status_help = {
@@ -384,11 +399,6 @@ static const struct help status_help = {
 	.sections   = status_help_sections,
 	.n_sections = ARRAY_SIZE(status_help_sections),
 };
-
-static void usage(void)
-{
-	fprintf(stderr, "usage: %s\n", status_help.usage);
-}
 
 static size_t build_upatches_table(struct dirent **ups, int n_ups,
 				   struct upatch_table_row **out)
@@ -1180,36 +1190,45 @@ int cmd_status(int argc, const char **argv)
 	char config_root_hex[65] = "";
 	__u8 config_root[32];
 	int unmeasured, lock;
-	int config_state;
+	int config_state, opt;
+	struct opt_parser p;
 
-	for (i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "--json") == 0) {
+	OPT_INIT(&p, "status", status_opts, &status_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case STATUS_JSON:
 			json_stdout = true;
-		} else if (strcmp(argv[i], "--otel") == 0) {
+			break;
+		case STATUS_OTEL:
 			otel = true;
-		} else if (strcmp(argv[i], "--keepalive") == 0) {
+			break;
+		case STATUS_KEEPALIVE:
 			keepalive = true;
-		} else if (strcmp(argv[i], "--include-system") == 0) {
-			include_system = true;
-		} else if (strcmp(argv[i], "--include-eventlog") == 0) {
-			include_eventlog = true;
-		} else if (strcmp(argv[i], "--check") == 0) {
+			break;
+		case STATUS_CHECK:
 			check = true;
-		} else if (strcmp(argv[i], "--show-full") == 0) {
+			break;
+		case STATUS_SHOW_FULL:
 			show_full = true;
-		} else if (is_help(argv[i])) {
-			print_help(&status_help);
+			break;
+		case STATUS_INCLUDE_SYSTEM:
+			include_system = true;
+			break;
+		case STATUS_INCLUDE_EVENTLOG:
+			include_eventlog = true;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
-		} else {
-			fprintf(stderr, "status: unknown option '%s'\n", argv[i]);
-			usage();
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (keepalive && (json_stdout || otel)) {
-		fprintf(stderr, "status: --keepalive goes without --json and --otel\n");
-		usage();
-		return 2;
+		opt_usage(&p, "--keepalive goes without --json and --otel");
+		return EXIT_USAGE;
 	}
 	if (otel) {
 		int err = config_load(&otel_cfg);

@@ -153,7 +153,8 @@ Exit status
        check failed (``init: pre-flight failed, <n> of <m> checks``), or
        a phase failed (``init: <phase> failed: <error>``).
    * - 2
-     - An unknown option, or ``--json`` without ``--check-only``.
+     - A usage error: an unknown option, an option given twice or an
+       argument, or ``--json`` without ``--check-only``.
 
 Files and environment
 ---------------------

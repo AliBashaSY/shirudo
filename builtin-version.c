@@ -12,14 +12,20 @@
 
 #include "builtin.h"
 #include "util/help.h"
+#include "util/options.h"
 #include "util/version.h"
 
-static const struct help_item version_options[] = {
-	{ "--version-id", "print only the raw SHIRUDO_VERSION_ID, one line" },
+enum version_opt {
+	VERSION_ID,
+};
+
+static const struct opt_spec version_opts[] = {
+	[VERSION_ID] = { "--version-id", 0, 0, NULL,
+		"print only the raw SHIRUDO_VERSION_ID, one line" },
 };
 
 static const struct help_section version_help_sections[] = {
-	HELP_ITEMS("options:", version_options),
+	HELP_OPTIONS("options:", version_opts),
 };
 
 static const struct help version_help = {
@@ -33,11 +39,26 @@ static const struct help version_help = {
 
 int cmd_version(int argc, const char **argv)
 {
-	if (argc >= 2 && is_help(argv[1])) {
-		print_help(&version_help);
-		return 0;
+	bool id_only = false;
+	struct opt_parser p;
+	int opt;
+
+	OPT_INIT(&p, "version", version_opts, &version_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case VERSION_ID:
+			id_only = true;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
+			return 0;
+		default:
+			return EXIT_USAGE;
+		}
 	}
-	if (argc >= 2 && strcmp(argv[1], "--version-id") == 0) {
+	if (id_only) {
 		printf("%s\n", shirudo_version_id);
 		return 0;
 	}
