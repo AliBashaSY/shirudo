@@ -33,7 +33,10 @@ commit: `MAX_USED_PROGS` is 64 instead of 32, as required by the
 kernel-obs package. In addition `gen_loader.c` also supports reusing a
 signer-selected map FD supplied through the loader context.
 `bpf/btf_dump.c` preserves complete native GNU attribute spellings without
-wrapping them twice. `include/uapi/linux/types.h` defines `__s128` and
+wrapping them twice, and reads an enum value at an address its size does
+not divide by copying it to an aligned buffer, as it reads such an int,
+where upstream reads it as a bitfield of no bits and shifts a `__u64` by
+64. `include/uapi/linux/types.h` defines `__s128` and
 `__u128` as the kernel's own `include/uapi/linux/types.h` does: it
 shadows the system's copy, and the arm64 `asm/sigcontext.h` of current
 kernel headers, which `<signal.h>` pulls in, uses `__u128`. In the
