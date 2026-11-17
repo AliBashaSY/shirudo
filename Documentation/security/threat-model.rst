@@ -1507,7 +1507,12 @@ R8 Registry withholding and replay
    base alike; a target behind the point where the branches part takes
    either. A registry can still withhold the latest publication or a
    sealed segment, which stops a walk, and keep serving a stale tag,
-   which a target takes for current until a later one reaches it.
+   which a target takes for current until a later one reaches it. A
+   registry that answers slowly holds each transfer of a timer's
+   command, and the config operation lock every other command waits for
+   up to 30 seconds, until that transfer's deadline: a minute plus the
+   time its largest response, 16 MiB, or its package's size, takes at
+   128 KiB a second (``t7010``).
    Detection: compare the upatch payloads and tree operations that
    ``attest verify`` certifies with what you published, and the pushed
    index with the versions you released.

@@ -379,7 +379,7 @@ static int push_package(const char *package_path, const char *raw_repository,
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	ret = read_file(package_path, BPM_MAX_HTTP_BODY, &archive,
+	ret = read_file(package_path, BPM_MAX_PACKAGE_BYTES, &archive,
 			&archive_len);
 	if (ret)
 		return ret;
@@ -1390,7 +1390,7 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 		}
 		member = unload ? u->tree.unload_artifact : u->tree.load_artifact;
 		ret = bpm_pkg_read_member_in(package, member, package_dir, NULL, 0,
-					     &body, &body_len, BPM_MAX_HTTP_BODY);
+					     &body, &body_len, UPATCH_FILE_MAX);
 		if (ret) {
 			pr_err("bpm tree append: package entry %s not found", member);
 			goto out;

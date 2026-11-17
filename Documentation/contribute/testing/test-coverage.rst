@@ -551,6 +551,9 @@ signed config image.
        sealed segment selects and takes it once a later segment deleted
        that ``add``, and fetches no sealed segment for an ``add`` without
        XDP classes
+   * - ``t7010-bpm-slow-registry``
+     - A registry that trickles a package fast enough for the low-speed
+       limit is cut off at the transfer's total deadline
    * - ``t7101-bpm-tree``
      - Tree sync with a selector
    * - ``t7102-bpm-tree-sequential``

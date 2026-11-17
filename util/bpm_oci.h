@@ -26,7 +26,8 @@ struct json_emit;
 #define BPM_MAX_MEDIA 192
 #define BPM_MAX_ENTRIES 512
 #define BPM_MAX_STATE 256
-#define BPM_MAX_HTTP_BODY (256u * 1024u * 1024u)
+/* The largest response read into memory, an upatch artifact. */
+#define BPM_MAX_HTTP_BODY (16u * 1024u * 1024u)
 #define BPM_MAX_PACKAGE_BYTES (256u * 1024u * 1024u)
 #define BPM_MAX_PACKAGE_ENTRIES 4096u
 #define BPM_OCI_USERNAME_SIZE 256

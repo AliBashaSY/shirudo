@@ -185,7 +185,8 @@ Larger inputs raise the peak. These limits bound it:
      - 16 MiB. ``upatch load`` holds the file twice and allocates a
        16 MiB verifier log.
    * - Registry responses read into memory
-     - 256 MiB: manifests, the repository index and its signature.
+     - 16 MiB: manifests, the repository index and its signature, tree
+       publications and the upatch artifacts they name.
    * - Package archive
      - 256 MiB, written to disk, and 256 MiB unpacked.
    * - JSON documents, the repository index and the eventlog among them

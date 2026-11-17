@@ -406,15 +406,24 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 	return load_registry_auth(c->registry, c);
 }
 
+#define BPM_TRANSFER_BASE_S	60u
+#define BPM_TRANSFER_RATE_MIN	(128u * 1024u)
+
 /*
- * A registry that stops answering must not hold a timer's unit forever;
- * a slow transfer that still moves is left alone.
+ * A registry that stops answering, or answers a few bytes at a time,
+ * must not hold a timer's unit, and with it the config operation lock
+ * every other command waits for, longer than the most a transfer may
+ * carry takes at a floor rate: room bytes, in a minute and at 128 KiB a
+ * second.
  */
-static void bpm_curl_deadlines(CURL *curl)
+static void bpm_curl_deadlines(CURL *curl, __u64 room)
 {
+	__u64 seconds = BPM_TRANSFER_BASE_S + room / BPM_TRANSFER_RATE_MIN;
+
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30L);
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)seconds);
 }
 
 static int curl_once_ex(struct bpm_oci_client *c, const char *method,
@@ -475,7 +484,8 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-	bpm_curl_deadlines(curl);
+	bpm_curl_deadlines(curl, (file ? file->room : BPM_MAX_HTTP_BODY) +
+				 body_len);
 	/*
 	 * OCI registries commonly redirect blob GETs to a signed CDN URL.
 	 * Follow only for blobs, never for manifest or upload calls.
@@ -691,7 +701,8 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 							       "https");
 	curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	bpm_curl_deadlines(curl);
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+	bpm_curl_deadlines(curl, BPM_MAX_HTTP_BODY);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bpm_write_memory);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &r);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
