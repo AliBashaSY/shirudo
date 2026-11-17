@@ -29,7 +29,7 @@ test-vm-arch = $(shell TEST_VM_ARCH='$(TEST_VM_ARCH)'; \
 .DEFAULT_GOAL := all
 .PHONY: all help clean unit ci-checks functional end2end build-operator build-unit \
 	test-helpers \
-	fuzz bundle test-vm-bundle kernel bpf-next vm vm-console vm-ssh vm-stop vm-clean \
+	fuzz afl bundle test-vm-bundle kernel bpf-next vm vm-console vm-ssh vm-stop vm-clean \
 	vm-operator-end2end
 
 KERNEL_PATCHES ?= $(if $(wildcard $(ROOT)/kernel/*.patch),$(ROOT)/kernel/,)
@@ -410,6 +410,22 @@ fuzz:
 	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo fuzz-targets
 	$(Q)sh $(ROOT)/testing/fuzz/run.sh $(FUZZ_SECONDS) $(FUZZERS)
 
+# The same targets under AFL++, AFL_SECONDS each, FUZZERS and FUZZ_CORPUS
+# as above. Each is built twice with AFL_CC, the second time logging its
+# comparisons, which afl-fuzz -c runs beside the first to find the magic
+# values and checksums the parsers compare input with. Needs AFL++ built
+# for the clang the targets take, as .github/scripts/afl-deps.sh builds it.
+AFL_CC ?= afl-clang-fast
+AFL_SECONDS ?= 600
+
+afl:
+	+$(Q)$(MAKE) -C $(ROOT) config
+	+$(Q)$(MAKE) -C $(ROOT) -f Makefile.shirudo fuzz-targets \
+		FUZZ_CC=$(AFL_CC) FUZZ_OUT=build/fuzz-afl
+	+$(Q)AFL_LLVM_CMPLOG=1 $(MAKE) -C $(ROOT) -f Makefile.shirudo \
+		fuzz-targets FUZZ_CC=$(AFL_CC) FUZZ_OUT=build/fuzz-afl-cmplog
+	$(Q)sh $(ROOT)/testing/fuzz/afl.sh $(AFL_SECONDS) $(FUZZERS)
+
 bundle: test-vm-bundle
 
 help:
@@ -424,6 +440,7 @@ help:
 	  '  VM=0 leaves out the tests that boot a VM, which need root;' \
 	  '  make -j boots several at once.' \
 	  '  make -C testing fuzz [FUZZ_SECONDS=60] [FUZZ_CORPUS=<dir>] [FUZZERS=<target>...]' \
+	  '  make -C testing afl [AFL_SECONDS=600] [FUZZ_CORPUS=<dir>] [FUZZERS=<target>...]' \
 	  '  make -C testing vm, vm-console, vm-ssh, vm-stop, or vm-clean' \
 	  '  make -C testing vm KERNEL=7.4' \
 	  '  make -C testing kernel KERNEL_TAG=v7.4' \

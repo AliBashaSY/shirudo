@@ -92,8 +92,8 @@ Test tiers
    * - Fuzz
      - :src:`testing/fuzz/`
      - On the build host, under libFuzzer with ASan and UBSan, or with
-       MSan
-     - ``make -C testing fuzz``
+       MSan, and under AFL++
+     - ``make -C testing fuzz``, ``make -C testing afl``
    * - Proofs
      - :src:`testing/proofs/`
      - On the build host, with CBMC and Lean 4, about an hour for all
@@ -379,6 +379,28 @@ inputs that crashed are in its ``fuzz-crashes`` artifact; copy one into
 .. code-block:: console
 
    $ testing/fuzz/fuzz-<target> testing/fuzz/crash-<target>-<hash>
+
+The same targets run under AFL++, whose mutations and comparison
+logging find inputs libFuzzer does not, such as a magic value or a
+checksum the parser compares the input with. AFL++ builds each target
+twice, with ``afl-clang-fast`` and again logging its comparisons, into
+``build/fuzz-afl`` and ``build/fuzz-afl-cmplog``, apart from the
+libFuzzer builds. Its compiler passes must be built for clang 23:
+:src:`.github/scripts/afl-deps.sh` builds a pinned AFL++ into
+``build/afl``, and needs ``llvm-23-dev``.
+
+.. code-block:: console
+
+   $ .github/scripts/afl-deps.sh
+   $ PATH=$PWD/build/afl/bin:$PATH make -C testing afl AFL_SECONDS=600 \
+         FUZZ_CORPUS=$PWD/build/fuzz-corpus
+
+``AFL_SECONDS`` is the time per target, ten minutes by default, and
+``FUZZERS``, ``FUZZ_JOBS`` and ``FUZZ_CORPUS`` work as for
+``make -C testing fuzz``. What AFL++ queued goes into the same kept
+corpus, which the next libFuzzer run merges down. A crash fails the run
+and leaves its input in ``testing/fuzz/crash-afl-<target>-<n>``; the
+libFuzzer build of the target reproduces it like any other input.
 
 Use the test VM
 ---------------

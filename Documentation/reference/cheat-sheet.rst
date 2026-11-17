@@ -466,11 +466,14 @@ Boot the interactive test VM, log in and stop it:
    $ make -C testing vm-ssh
    $ make -C testing vm-stop
 
-Run the fuzz targets for a minute each:
+Run the fuzz targets for a minute each, or under AFL++ for ten minutes
+each:
 
 .. code-block:: console
 
    $ make -C testing fuzz FUZZ_SECONDS=60
+   $ .github/scripts/afl-deps.sh
+   $ PATH=$PWD/build/afl/bin:$PATH make -C testing afl
 
 Render and serve the documentation, and check it against the code
 (:doc:`/contribute/documentation/writing-docs`):

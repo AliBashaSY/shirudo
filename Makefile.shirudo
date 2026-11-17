@@ -1321,7 +1321,8 @@ clean:
 	$(Q)rm -f $(MAIN_OBJ) $(BUILTIN_OBJS) $(UTIL_OBJS) \
 	          $(BUILD_OBJS) $(SIGN_OBJ) $(QUOTE_CHECK_OBJS) $(VERSION_OBJ) \
 	          util/version_id.c
-	$(Q)rm -rf build/target build/unit build/quote-check
+	$(Q)rm -rf build/target build/unit build/quote-check build/fuzz-afl \
+	    build/fuzz-afl-cmplog
 	$(Q)rm -f $(DEPS) testing/helper/*.d
 	$(Q)rm -f $(BPF_OBJS) $(VMLINUX_H) systemd/shirudo.service \
 	    systemd/shirudo-initrd.service \
