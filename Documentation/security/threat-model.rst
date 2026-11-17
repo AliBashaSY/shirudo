@@ -1937,8 +1937,12 @@ U11 The boot continues when init fails
    :Consequence: The initrd unit is wanted by ``initrd.target`` and has
       conditions, so a failure or a skip lets the target boot
       unprotected. A first ``init`` from the root file system is not
-      refused and takes its settings from the root file system.
-   :Status: Confirmed in code.
+      refused and takes its settings from the root file system. An
+      ``init`` that crashes once it has pinned the identity map leaves
+      the guards it attached so far, and every later ``init`` of that
+      boot refuses, so enforcement stays partial until the next reboot.
+   :Status: Confirmed in code; what a crash leaves is a code-path
+      reading, not reproduced.
    :Meanwhile: Attest every target after every boot with the bind PCRs
       pinned, and treat a missing keepalive as a signal. A deployer who
       prefers a halted boot can add an ``OnFailure=`` drop-in to

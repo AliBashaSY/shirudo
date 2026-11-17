@@ -619,21 +619,19 @@ static int init_lsm(void)
 			shirudo_gate_guards[GUARD_BPF].pin);
 		return 0;
 	}
-	/* A pin without the links behind it is what a failed attempt leaves. */
-	if (unlink(IDENTITY_PIN) != 0 && errno != ENOENT) {
-		pr_err("unlink stale %s: %s", IDENTITY_PIN,
-		       strerror(errno));
-		return -errno;
-	}
-	if (unlink(TAMPER_PIN) != 0 && errno != ENOENT) {
-		pr_err("unlink stale %s: %s", TAMPER_PIN,
-		       strerror(errno));
-		return -errno;
-	}
-	if (unlink(INTEGRITY_PIN) != 0 && errno != ENOENT) {
-		pr_err("unlink stale %s: %s", INTEGRITY_PIN,
-		       strerror(errno));
-		return -errno;
+	/*
+	 * A failed attempt removes its own pins, a crash does not. Once the
+	 * identity map is pinned, image_bootstrap_load() refuses a re-run
+	 * before it gets here, so map pins are all a crash can have left.
+	 */
+	for (i = 0; i < GUARD_MAP_COUNT; i++) {
+		const char *pin = shirudo_guard_maps[i].pin;
+
+		if (unlink(pin) != 0 && errno != ENOENT) {
+			err = -errno;
+			pr_err("unlink stale %s: %s", pin, strerror(-err));
+			return err;
+		}
 	}
 
 	if (!blob || !blob->data || !blob->size) {

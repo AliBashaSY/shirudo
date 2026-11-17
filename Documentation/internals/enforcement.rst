@@ -266,7 +266,12 @@ admission gates. ``init`` itself passes every guard on the way because
 its bootstrap mark is in place before the first one attaches.
 
 When any step fails, ``init`` unpins every link it attached and removes
-the map pins, so no partial enforcement survives a failed ``init``.
+the map pins, so no partial enforcement survives a failed ``init``. A
+crash skips that cleanup. When it came before the identity map was
+pinned, the next ``init`` removes the map pins it left. When it came
+later, every later ``init`` in the same boot refuses before it loads
+anything, with ``init: authenticated image settings: <error>``, and the
+guards attached so far stay until the next reboot.
 
 Order at run time
 -----------------
