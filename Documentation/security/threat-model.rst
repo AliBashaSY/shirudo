@@ -1083,7 +1083,12 @@ operation, so one it stopped in the middle of is not followed by an
 older one. It refuses a publication whose operations up to its last
 applied one are not the ones it processed, by the history root its
 ``outcomes`` record holds, and a segment that does not start from that
-root at its base. A node behind the segment the tag names walks back
+root at its base. It takes a publication only under the manifest that
+``bpm tree append`` writes for its two layers, byte for byte, so that the
+manifest digest it records and a successor names follows from the signed
+layers: a registry that serves them under a manifest of its own, which
+would leave a node with one digest refusing the other for good, is
+refused before the node records anything. A node behind the segment the tag names walks back
 through the sealed segments by digest, each signed and naming the one
 before it, up to a limit of 65,536 operations, or 1,048,576 for a node
 that has processed none, so a registry can neither splice another
@@ -1112,7 +1117,7 @@ and tree signatures accept algorithms other than ML-DSA (U4).
 :Refusal: the ``bpm`` command fails and installs nothing
 :Counters: none
 :Tests: ``t7005``, ``t7101``, ``t7102``, ``t7103``, ``t7104``,
-   ``t7105``, ``t7106``, ``t7107``, ``t7108``, ``t8005``
+   ``t7105``, ``t7106``, ``t7107``, ``t7108``, ``t7111``, ``t8005``
 :Proofs: ``bpm-tar-header``, ``bpm-tar-octal``, ``bpm-archive-path``,
    ``bpm-oci-challenge``, ``bpm-oci-token``, ``bpm-oci-header``,
    ``bpm-oci-descriptor``, ``bpm-semver-model``, ``Shirudo.SemVer``,

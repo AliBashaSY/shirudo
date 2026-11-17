@@ -1164,13 +1164,12 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 	size_t n_fixes = 0;
 	struct tree_publication pub = {};
 	struct tree_operation *op = NULL;
-	size_t len, payload_len = 0, sig_len = 0;
+	size_t len, payload_len = 0, sig_len = 0, manifest_len;
 	char *payload = NULL, *manifest = NULL;
 	struct bpm_build_spec *spec = NULL;
 	__u8 *beefile = NULL, *sig = NULL;
 	struct bpm_package_info info = {};
 	struct bpm_oci_client c __cleanup(bpm_oci_client_clear) = {};
-	struct json_emit e;
 	char empty_config[] = "{}";
 	char package_dir[101];
 	int appended = 0, ret;
@@ -1485,34 +1484,24 @@ static int cmd_bpm_tree_append(int argc, char **argv)
 				&sig_layer);
 	if (ret)
 		goto out;
-	manifest = xmalloc(BPM_MANIFEST_CAP);
+	manifest = xmalloc(BPM_TREE_MANIFEST_CAP);
 	if (!manifest) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	e = (struct json_emit){ .buf = manifest, .cap = BPM_MANIFEST_CAP };
-	json_obj_open(&e);
-	json_kv_int(&e, "schemaVersion", 2);
-	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
-	json_kv_string(&e, "artifactType", BPM_TREE_ARTIFACT);
-	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
-	json_arr_open(&e, "layers");
-	bpm_oci_emit_descriptor(&e, NULL, &payload_layer, NULL);
-	bpm_oci_emit_descriptor(&e, NULL, &sig_layer, NULL);
-	json_arr_close(&e);
-	json_obj_close(&e);
-	ret = e.err;
+	ret = bpm_tree_manifest(&payload_layer, &sig_layer, manifest,
+				BPM_TREE_MANIFEST_CAP, &manifest_len);
 	if (!ret && sealed)
 		ret = tree_tag_sealed(&c, repository, parent);
 	if (!ret)
 		ret = bpm_oci_put_manifest(&c, repository, reference,
-					   (const __u8 *)manifest, e.len,
+					   (const __u8 *)manifest, manifest_len,
 					   digest, sizeof(digest));
 	if (!ret)
 		printf("oci://%s/%s:%s %s\n", c.registry, repository, reference,
 		       digest);
 out:
-	xfree(manifest, BPM_MANIFEST_CAP);
+	xfree(manifest, BPM_TREE_MANIFEST_CAP);
 	sig_free(sig);
 	xfree(payload, payload_len);
 	if (op)

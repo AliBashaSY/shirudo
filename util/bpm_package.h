@@ -95,11 +95,26 @@ int bpm_pkg_read_member(const char *archive, const char *member,
 int bpm_pkg_extract(const char *archive, const char *dest);
 int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info);
 
+/* Room for the manifest of a tree publication, in bytes. */
+#define BPM_TREE_MANIFEST_CAP	8192u
+
+/*
+ * The manifest of a tree publication whose payload and signature are the
+ * layers payload and sig, as bpm tree append writes it, into out of cap
+ * bytes with its length in *len. 0 or -errno.
+ */
+int bpm_tree_manifest(const struct bpm_descriptor *payload,
+		      const struct bpm_descriptor *sig, char *out, size_t cap,
+		      size_t *len);
+
 /*
  * Fetch the signed tree publication at repository:reference, check every
  * layer against its descriptor and the payload against trusted, or
  * cert_path when trusted is NULL, and
- * parse it. -ENOENT when the reference does not exist yet.
+ * parse it. The manifest must be exactly bpm_tree_manifest() of its two
+ * layers, -EBADMSG otherwise, so that the digest a node records and a
+ * successor names follows from the signed layers alone. -ENOENT when the
+ * reference does not exist yet.
  * bpm_tree_fetch_document() stops before the parse and hands over the
  * checked bytes, which the caller frees with bpm_buffer_free().
  */

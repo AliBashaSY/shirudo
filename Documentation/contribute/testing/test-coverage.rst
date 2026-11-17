@@ -619,6 +619,10 @@ signed config image.
    :header-rows: 1
    :widths: 36 64
 
+   * - ``t7111-bpm-tree-manifest``
+     - The signed layers of a publication served under a manifest that
+       is not the one ``bpm tree append`` writes are refused before the
+       node records anything, and the publisher's form is taken again
    * - Test
      - Covers
    * - ``t8001-otel-map``

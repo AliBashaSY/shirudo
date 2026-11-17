@@ -892,6 +892,68 @@ out:
 	return ret;
 }
 
+int bpm_tree_manifest(const struct bpm_descriptor *payload,
+		      const struct bpm_descriptor *sig, char *out, size_t cap,
+		      size_t *len)
+{
+	static const char empty_config[] = "{}";
+	struct bpm_descriptor config = { .size = sizeof(empty_config) - 1 };
+	struct json_emit e = { .buf = out, .cap = cap };
+	int ret;
+
+	*len = 0;
+	if (strscpy(config.media, BPM_EMPTY_CONFIG_MEDIA,
+		    sizeof(config.media)) < 0)
+		return -E2BIG;
+	ret = bpm_sha256_digest(empty_config, sizeof(empty_config) - 1,
+				config.digest, sizeof(config.digest));
+	if (ret)
+		return ret;
+	json_obj_open(&e);
+	json_kv_int(&e, "schemaVersion", 2);
+	json_kv_string(&e, "mediaType", BPM_MANIFEST_MEDIA);
+	json_kv_string(&e, "artifactType", BPM_TREE_ARTIFACT);
+	bpm_oci_emit_descriptor(&e, "config", &config, NULL);
+	json_arr_open(&e, "layers");
+	bpm_oci_emit_descriptor(&e, NULL, payload, NULL);
+	bpm_oci_emit_descriptor(&e, NULL, sig, NULL);
+	json_arr_close(&e);
+	json_obj_close(&e);
+	if (e.err)
+		return e.err;
+	*len = e.len;
+	return 0;
+}
+
+/*
+ * A registry may serve the signed layers under a manifest of its own
+ * making: the manifest digest a node records and a successor names as
+ * its parent would then be of bytes no signature covers, and a node that
+ * recorded one form refuses the other for good. Only the form the
+ * publisher writes is taken.
+ */
+static int tree_manifest_canonical(const struct bpm_buffer *manifest,
+				   const struct bpm_descriptor *layers, int nl)
+{
+	size_t len;
+	char *want;
+	int ret;
+
+	if (nl != 2 || strcmp(layers[0].media, BPM_TREE_MEDIA) ||
+	    strcmp(layers[1].media, BPM_TREE_SIG_MEDIA))
+		return -EBADMSG;
+	want = xmalloc(BPM_TREE_MANIFEST_CAP);
+	if (!want)
+		return -ENOMEM;
+	ret = bpm_tree_manifest(&layers[0], &layers[1], want,
+				BPM_TREE_MANIFEST_CAP, &len);
+	if (!ret && (len != manifest->len ||
+		     memcmp(want, manifest->data, len)))
+		ret = -EBADMSG;
+	xfree(want, BPM_TREE_MANIFEST_CAP);
+	return ret;
+}
+
 int bpm_tree_fetch_document(struct bpm_oci_client *c,
 			    const char *repository, const char *reference,
 			    const char *cert_path,
@@ -925,6 +987,8 @@ int bpm_tree_fetch_document(struct bpm_oci_client *c,
 	}
 	ret = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				     BPM_MAX_ENTRIES, &nl, NULL, 0);
+	if (!ret)
+		ret = tree_manifest_canonical(&manifest, layers, nl);
 	if (ret)
 		goto out;
 	ret = bpm_oci_get_signed(c, repository, layers, nl, BPM_TREE_MEDIA,

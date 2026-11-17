@@ -337,7 +337,14 @@ Tree objects in the registry
        ``--reference`` names another tag. OCI image manifest,
        ``schemaVersion`` 2, ``artifactType``
        ``application/vnd.shirudo.upatch.tree.v1``, the empty config, and
-       exactly one document layer and one signature layer.
+       exactly one document layer and one signature layer, in that order.
+       Its bytes are exactly those ``bpm tree append`` writes: compact
+       JSON with the keys ``schemaVersion``, ``mediaType``,
+       ``artifactType``, ``config`` and ``layers`` in this order, and each
+       descriptor's ``mediaType``, ``digest`` and ``size``. A target and
+       ``bpm tree append`` refuse a manifest in any other form, so that the
+       manifest digest a target records and a successor names as its
+       parent or segment follows from the two signed layers.
    * - Sealed segment
      - A publication manifest that a later segment names in
        ``base.segment_manifest_digest``, unchanged since it was the

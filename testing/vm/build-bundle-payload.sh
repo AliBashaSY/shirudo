@@ -375,6 +375,10 @@ def write(path, body):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(body)
 
+# The manifest in the form bpm tree append writes, which a target takes
+# and no other: the same keys in the same order, with the empty config.
+empty_config = b"{}"
+write(repo / "blobs" / digest(empty_config), empty_config)
 for reference in ("stable", "updated", "deleted", "restored", "kconfig",
                   "reloaded", "outcomes", "stopped", "fetched", "fixes",
                   "keepalive", "unmatched"):
@@ -388,6 +392,10 @@ for reference in ("stable", "updated", "deleted", "restored", "kconfig",
     manifest = {
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.manifest.v1+json",
+        "artifactType": "application/vnd.shirudo.upatch.tree.v1",
+        "config": {"mediaType": "application/vnd.oci.empty.v1+json",
+                   "digest": digest(empty_config),
+                   "size": len(empty_config)},
         "layers": [
             {"mediaType": "application/vnd.shirudo.upatch.tree.v1+json",
              "digest": payload_digest, "size": len(payload)},
@@ -583,11 +591,16 @@ def digest(body):
 
 payload = (work / (name + ".json")).read_bytes()
 signature = (work / (name + ".sig")).read_bytes()
-for body in (payload, signature):
+empty_config = b"{}"
+for body in (payload, signature, empty_config):
     (repo / "blobs" / digest(body)).write_bytes(body)
+# In the form bpm tree append writes, the one a target takes.
 manifest = json.dumps({
     "schemaVersion": 2,
     "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "artifactType": "application/vnd.shirudo.upatch.tree.v1",
+    "config": {"mediaType": "application/vnd.oci.empty.v1+json",
+               "digest": digest(empty_config), "size": len(empty_config)},
     "layers": [
         {"mediaType": "application/vnd.shirudo.upatch.tree.v1+json",
          "digest": digest(payload), "size": len(payload)},
