@@ -273,6 +273,13 @@ Run under the sanitizers
 objects are unaffected. Recovery is off, so every report fails the run.
 CI runs the same with gcc and with clang.
 
+``SANITIZE=thread`` runs the same tests under ThreadSanitizer, which
+reports data races and, in a signal handler, a call that is not
+async-signal-safe or a changed ``errno``. shirudo starts no thread and
+installs no signal handler, so it reports nothing today; the ``TSan``
+leg of the ``Sanitizers`` workflow runs it with clang so that the first
+one added is checked.
+
 Run under MemorySanitizer
 -------------------------
 

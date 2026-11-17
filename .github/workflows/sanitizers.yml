@@ -20,23 +20,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ThreadSanitizer finds data races and, in a signal handler, a call
+  # that is not async-signal-safe or a changed errno. shirudo starts no
+  # thread and installs no handler today; the leg is there for the first.
   tests:
-    name: ASan+UBSan (${{ matrix.compiler }})
+    name: ${{ matrix.name }} (${{ matrix.compiler }})
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        compiler:
-          - gcc
-          - clang
+        include:
+          - name: ASan+UBSan
+            sanitize: address,undefined
+            compiler: gcc
+          - name: ASan+UBSan
+            sanitize: address,undefined
+            compiler: clang
+          - name: TSan
+            sanitize: thread
+            compiler: clang
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The build does not depend on the compiler under test, so one cache
-      # entry serves both matrix legs.
+      # The build does not depend on the compiler or the sanitizer under
+      # test, so one cache entry serves every matrix leg.
       - name: Restore the sanitizer OpenSSL build
         id: sanitizer-openssl
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -50,7 +60,7 @@ jobs:
       - name: Build with sanitizers and run the host-side suite in LVH VM
         uses: cilium/little-vm-helper@c8b0bfbae3bdda7bc69fb9cd370e4b74ce84986d # v0.0.33
         with:
-          test-name: shirudo-sanitizers-${{ matrix.compiler }}
+          test-name: shirudo-sanitizers-${{ matrix.compiler }}-${{ matrix.sanitize == 'thread' && 'tsan' || 'asan' }}
           image: kind
           image-version: bpf-next-20260603.072225
           kernel-version: bpf-next-main
@@ -91,10 +101,10 @@ jobs:
             export LD_LIBRARY_PATH=/tmp/shirudo-openssl/lib
             export CC=${{ matrix.compiler }}
 
-            make -j4 SANITIZE=address,undefined
-            make SANITIZE=address,undefined shirudo-build
-            make -C testing SANITIZE=address,undefined test-helpers
-            make tests VM=0 SANITIZE=address,undefined
+            make -j4 SANITIZE=${{ matrix.sanitize }}
+            make SANITIZE=${{ matrix.sanitize }} shirudo-build
+            make -C testing SANITIZE=${{ matrix.sanitize }} test-helpers
+            make tests VM=0 SANITIZE=${{ matrix.sanitize }}
 
       - name: Save the sanitizer OpenSSL build
         if: always() && steps.sanitizer-openssl.outputs.cache-hit != 'true' && hashFiles('build/sanitizer-openssl/lib/libcrypto.so') != ''
