@@ -190,13 +190,14 @@ It changes no persistent or enforcement state:
      OK    bpf_lsm_active
      OK    bpffs_supported
      OK    signed_loader_kernel_abi
+     OK    kernel_lsm_hooks
      OK    cert_on_disk
      OK    cert_algorithm
      OK    cert_kernel_support
      OK    kernel_keyring
      OK    embedded_loader
      OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
-   10 of 10 passed
+   11 of 11 passed
 
 :doc:`/reference/cli/init` describes each check.
 

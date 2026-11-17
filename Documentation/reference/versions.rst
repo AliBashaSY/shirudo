@@ -220,10 +220,11 @@ Kernel ABI
 ----------
 
 shirudo needs the signed-loader ABI of the bpf-next tree it targets and
-the ``tpm_command`` LSM hook that it carries as a kernel patch. A
-release number does not identify such a kernel. The pre-flight check
-``signed_loader_kernel_abi`` reads the running kernel's BTF, and a load
-on a kernel without the ABI fails with ``kernel_abi_unsupported``.
+the kernel patches it carries, among them the ``tpm_command`` and
+``mm_read_access`` LSM hooks. A release number does not identify such a
+kernel. The pre-flight checks ``signed_loader_kernel_abi`` and
+``kernel_lsm_hooks`` read the running kernel's BTF, and a load on a
+kernel without the ABI fails with ``kernel_abi_unsupported``.
 :doc:`/operate/plan/system-requirements` lists the kernel requirements and how
 to identify a kernel, :doc:`/internals/kernel-interfaces` every interface
 shirudo uses, and :doc:`/internals/kernel-patches` the carried patches.

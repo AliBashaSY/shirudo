@@ -111,6 +111,10 @@ BTF and requires:
 The pre-flight runs it as ``signed_loader_kernel_abi``, and every
 ``upatch load`` and ``upatch unload`` without ``--no-precheck`` runs it
 before ``BPF_PROG_LOAD``. A failure is ``kernel_abi_unsupported``.
+Beside it the pre-flight runs ``kernel_lsm_hooks``: it reads the hooks
+of every ``lsm`` and ``lsm.s`` program from the embedded ``bpf2`` and
+``seal`` objects and refuses a kernel whose BTF has no
+``bpf_lsm_<hook>`` for one, naming the hooks it lacks.
 ``lsm/bpf_prog_load`` compares ``sig.verdict`` with ``BPF_SIG_VERIFIED``
 and ``sig.keyring_type`` with ``BPF_SIG_KEYRING_BPF``; these enum values
 are compiled into ``bpf2`` from the ``vmlinux.h`` of the build.

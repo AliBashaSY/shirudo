@@ -174,6 +174,43 @@ static void check_signed_loader_abi(struct preflight_result *r)
 	}
 }
 
+/*
+ * The hooks come from the embedded objects themselves, so a program
+ * added on a hook only a carried kernel patch provides is checked
+ * without a list here to keep in step.
+ */
+static void check_lsm_hooks(struct preflight_result *r)
+{
+	const struct embedded_bpf *objs[] = { bpf2_blob(), seal_blob() };
+	struct preflight_check *c =
+		next_slot(r, PRE_LSM_HOOKS, "kernel_lsm_hooks");
+	struct lsm_hooks hooks = {};
+	size_t i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(objs); i++) {
+		if (!objs[i]->size) {
+			pass(c);
+			strscpy(c->detail, "skipped (embedded objects missing)",
+				sizeof(c->detail));
+			return;
+		}
+		ret = kernel_abi_lsm_hooks(objs[i], &hooks);
+		if (ret) {
+			fail(r, c, "cannot read the LSM hooks of the embedded %s object: %s",
+			     objs[i]->name, strerror(-ret));
+			return;
+		}
+	}
+	if (kernel_abi_check_lsm_hooks(&hooks, c->detail,
+				       sizeof(c->detail)) == 0) {
+		pass(c);
+	} else {
+		c->ok = false;
+		r->n_failed++;
+	}
+}
+
 static void check_cert(struct preflight_result *r)
 {
 	struct preflight_check *c =
@@ -378,6 +415,7 @@ void preflight_run(struct preflight_result *out)
 	check_bpf_lsm(out);
 	check_bpffs(out);
 	check_signed_loader_abi(out);
+	check_lsm_hooks(out);
 	check_cert(out);
 	check_cert_algorithm(out);
 	check_cert_kernel_algo(out);

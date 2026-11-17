@@ -3,8 +3,9 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * The signed loader requires map hashing, exclusive-map binding, and signed
- * program metadata.  Stock kernels can expose BPF and the BPF LSM while still
- * lacking this contract, so reject those kernels before BPF_PROG_LOAD.
+ * program metadata, and the embedded programs attach to LSM hooks that only
+ * the carried kernel patches add. Stock kernels can expose BPF and the BPF
+ * LSM while lacking either, so reject those kernels before BPF_PROG_LOAD.
  */
 
 #include <errno.h>
@@ -24,6 +25,7 @@
 #include <shirudo/string.h>
 
 #include "kernel_abi.h"
+#include "loader.h"
 
 #define MAP_SHA_SIZE	32U
 #define BTF_MAX_UNWRAP	32
@@ -211,6 +213,108 @@ int kernel_abi_check(char *detail, size_t detail_sz)
 				strerror((int)-err));
 
 	ret = kernel_abi_validate_btf(btf, detail, detail_sz);
+	btf__free(btf);
+	return ret;
+}
+
+/* The hook an lsm or lsm.s program attaches to, NULL for another kind. */
+static const char *lsm_hook(const struct bpf_program *prog)
+{
+	const char *sec = bpf_program__section_name(prog);
+
+	if (sec && (str_skip_prefix(&sec, "lsm/") ||
+		    str_skip_prefix(&sec, "lsm.s/")))
+		return sec;
+	return NULL;
+}
+
+static int lsm_hooks_add(struct lsm_hooks *hooks, const char *hook)
+{
+	size_t i;
+
+	for (i = 0; i < hooks->n; i++)
+		if (!strcmp(hooks->name[i], hook))
+			return 0;
+	if (hooks->n == ARRAY_SIZE(hooks->name) ||
+	    strscpy(hooks->name[hooks->n], hook, sizeof(hooks->name[0])) < 0)
+		return -E2BIG;
+	hooks->n++;
+	return 0;
+}
+
+int kernel_abi_lsm_hooks(const struct embedded_bpf *obj,
+			 struct lsm_hooks *hooks)
+{
+	struct bpf_program *prog;
+	struct bpf_object *bo;
+	const char *hook;
+	int ret = 0;
+	long err;
+
+	bo = bpf_object__open_mem(obj->data, obj->size, NULL);
+	err = libbpf_get_error(bo);
+	if (err)
+		return (int)err;
+	bpf_object__for_each_program(prog, bo) {
+		hook = lsm_hook(prog);
+		if (hook) {
+			ret = lsm_hooks_add(hooks, hook);
+			if (ret)
+				break;
+		}
+	}
+	bpf_object__close(bo);
+	return ret;
+}
+
+int kernel_abi_validate_lsm_hooks(const struct btf *btf,
+				  const struct lsm_hooks *hooks,
+				  char *detail, size_t detail_sz)
+{
+	char missing[KERNEL_ABI_DETAIL_MAX] = "";
+	char function[LSM_HOOK_NAME_MAX + 8];
+	size_t i, n_missing = 0, len = 0;
+	int ret;
+
+	if (detail && detail_sz)
+		detail[0] = '\0';
+	if (!btf)
+		return abi_fail(detail, detail_sz,
+				"kernel BTF is unavailable; boot a shirudo-patched kernel");
+	for (i = 0; i < hooks->n; i++) {
+		if (strsprintf(function, sizeof(function), "bpf_lsm_%s",
+			       hooks->name[i]) >= 0 &&
+		    btf__find_by_name_kind(btf, function, BTF_KIND_FUNC) > 0)
+			continue;
+		ret = strsprintf(missing + len, sizeof(missing) - len, "%s%s",
+				 n_missing ? ", " : "", hooks->name[i]);
+		if (ret > 0)
+			len += (size_t)ret;
+		n_missing++;
+	}
+	if (!n_missing)
+		return 0;
+	return abi_fail(detail, detail_sz,
+			"kernel has no LSM hook%s %s; boot a shirudo-patched kernel",
+			n_missing > 1 ? "s" : "", missing);
+}
+
+int kernel_abi_check_lsm_hooks(const struct lsm_hooks *hooks,
+			       char *detail, size_t detail_sz)
+{
+	struct btf *btf;
+	long err;
+	int ret;
+
+	if (detail && detail_sz)
+		detail[0] = '\0';
+	btf = btf__load_vmlinux_btf();
+	err = libbpf_get_error(btf);
+	if (err)
+		return abi_fail(detail, detail_sz,
+				"cannot read target kernel BTF: %s; boot a shirudo-patched kernel",
+				strerror((int)-err));
+	ret = kernel_abi_validate_lsm_hooks(btf, hooks, detail, detail_sz);
 	btf__free(btf);
 	return ret;
 }

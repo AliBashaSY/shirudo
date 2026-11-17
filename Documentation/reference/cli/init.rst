@@ -95,6 +95,8 @@ Pre-flight checks
      - The kernel supports bpffs.
    * - ``signed_loader_kernel_abi``
      - The kernel has the signed-loader interface.
+   * - ``kernel_lsm_hooks``
+     - The kernel has every LSM hook the embedded programs attach to.
    * - ``cert_on_disk``
      - The primary certificate exists: ``/etc/shirudo/keys/cert.der`` in
        the initrd, ``/run/shirudo/runtime/keys/cert.der`` with an active
@@ -183,13 +185,14 @@ Run the pre-flight checks on a target:
      OK    bpf_lsm_active
      OK    bpffs_supported
      OK    signed_loader_kernel_abi
+     OK    kernel_lsm_hooks
      OK    cert_on_disk
      OK    cert_algorithm
      OK    cert_kernel_support
      OK    kernel_keyring
      OK    embedded_loader
      OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
-   10 of 10 passed
+   11 of 11 passed
 
 Related
 -------

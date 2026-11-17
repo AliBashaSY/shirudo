@@ -167,10 +167,12 @@ without the protection.
        and :src:`kernel/0005-mm-Let-LSMs-check-read-only-remote-mm-access-under-CAP_PERFMON.patch`.
      - T1 needs the ABI, T5 the hook, T3 the label read, the sleepable
        hooks, the trusted parent and the read-only mm access hook.
-     - Partly. The pre-flight check ``signed_loader_kernel_abi`` tests
-       the ABI. Without the hook the ``bpf2`` object does not load, and
-       without the sleepable hooks and the trusted parent the ``seal``
-       object does not load; ``init`` fails either way. Without the
+     - Partly. The pre-flight checks ``signed_loader_kernel_abi`` and
+       ``kernel_lsm_hooks`` test the ABI and every LSM hook the
+       programs attach to, ``tpm_command`` and ``mm_read_access``
+       included, before ``init`` loads anything. Without the sleepable
+       hooks and the trusted parent the ``seal`` object does not load;
+       ``init`` fails either way. Without the
        label read, the seal falls back to its marks where a read fails
        for the caller (T3).
    * - A4
