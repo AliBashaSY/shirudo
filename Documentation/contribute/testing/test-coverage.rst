@@ -476,6 +476,10 @@ signed config image.
      - An exec of the runtime that fails after its mark is committed
        dumps core without authority: the dump cannot unlink a pin or
        replace a sealed file, and ``SealCoreDump`` counts it
+   * - ``t6146-uprobe``
+     - A uprobe set through tracefs on the runtime binary leaves the
+       commands it reaches without authority, counted as
+       ``SealUprobe``, until it is removed
 
 ``bpm`` (7)
 ~~~~~~~~~~~

@@ -124,7 +124,13 @@ int elf_build_id_fd(int fd,
 	*build_id_len = 0;
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return -EINVAL;
-	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	/*
+	 * Read, not mapped: a mapping of a binary that a loaded upatch
+	 * probes takes the probe's breakpoints into shirudo's memory, and
+	 * the seal takes the authority of a task whose memory a uprobe
+	 * reached.
+	 */
+	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (!elf)
 		return -EINVAL;
 	if (elf_kind(elf) != ELF_K_ELF)

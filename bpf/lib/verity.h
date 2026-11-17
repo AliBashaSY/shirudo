@@ -48,6 +48,7 @@ static __always_inline bool shirudo_bootstrap_task(void)
 }
 
 #define PF_DUMPCORE		0x00000200
+#define MMF_HAS_UPROBES		19
 
 /* A task loses authority for good, and the cause is counted once. */
 static __always_inline bool shirudo_revoke(struct task_authority *authority,
@@ -58,6 +59,19 @@ static __always_inline bool shirudo_revoke(struct task_authority *authority,
 		shirudo_tamper_count(point);
 	}
 	return false;
+}
+
+/*
+ * A uprobe that reaches a task's memory, set through tracefs or perf
+ * where no hook sees it, has the kernel add to a counter in the task's
+ * writable data at every exec and registration: what the program then
+ * reads is no longer what the runtime image holds.
+ */
+static __always_inline bool shirudo_mm_has_uprobes(struct task_struct *task)
+{
+	unsigned long flags = BPF_CORE_READ(task, mm, flags.__mm_flags[0]);
+
+	return flags & (1UL << MMF_HAS_UPROBES);
 }
 
 /*
@@ -76,6 +90,8 @@ static __always_inline bool shirudo_task_is_self(const struct sb_id *id)
 		return false;
 	if (BPF_CORE_READ(task, flags) & PF_DUMPCORE)
 		return shirudo_revoke(authority, TAMPER_SEAL_CORE_DUMP);
+	if (shirudo_mm_has_uprobes(task))
+		return shirudo_revoke(authority, TAMPER_SEAL_UPROBE);
 	return true;
 }
 

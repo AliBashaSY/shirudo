@@ -222,6 +222,13 @@ counter.
        authority for good, and the hook refuses the operation and moves
        its own counter
      - the hook's
+   * - ``SealUprobe``
+     - uprobe in a shirudo task, which acts without authority
+     - Any hook that asks for runtime authority, the first time a
+       marked task whose memory a uprobe reached asks: the task loses
+       its authority for good, and the hook refuses the operation and
+       moves its own counter
+     - the hook's
 
 Unless the row says every caller, a task with runtime authority is
 not refused and moves nothing.
@@ -324,6 +331,9 @@ and ``shirudo status`` find what a stopped load left. ``SealCoreDump``
 counts a shirudo task that dumped core, after a crash or after an exec
 that failed past its point of no return, which root can bring about
 with a small stack limit; the dump did not get the task's authority.
+``SealUprobe`` counts a shirudo task whose memory a uprobe reached, one
+that root set through tracefs or perf on the runtime binary or on a
+library it maps.
 
 A non-zero counter does not mean:
 

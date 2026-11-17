@@ -109,10 +109,12 @@ question: does the calling task have runtime authority? A task has it
 when it carries a mark in ``shirudo_tasks``. A task gets the mark by a
 successful exec of a file on the authenticated runtime image, or, for the
 ``init`` process in the initrd, from a seed ``init`` writes before it
-freezes the map. A fork inherits the mark. A task that dumps core
-keeps its mark but not its authority, since the kernel's dump code runs
-as the task and writes where ``kernel.core_pattern`` says. :doc:`seal`
-explains how the mark is granted and cleared.
+freezes the map. A fork inherits the mark. A task that dumps core, or
+whose memory a uprobe reaches, keeps its mark but not its authority:
+the kernel's dump code runs as the task and writes where
+``kernel.core_pattern`` says, and a uprobe has the kernel change the
+task's memory. :doc:`seal` explains how the mark is granted and
+cleared.
 
 The ``bpf()`` hooks have a second discriminator. ``lsm/bpf`` and
 ``lsm/bpf_prog_load`` receive ``bool kernel``, which is true for calls a

@@ -96,6 +96,8 @@ static const struct {
 		"signal to a shirudo task (let through)" },
 	[TAMPER_SEAL_CORE_DUMP] = { "SealCoreDump",
 		"core dump of a shirudo task, which acts without authority" },
+	[TAMPER_SEAL_UPROBE] = { "SealUprobe",
+		"uprobe in a shirudo task, which acts without authority" },
 };
 
 const char *tamper_name(enum tamper_point point)

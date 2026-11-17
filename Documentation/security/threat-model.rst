@@ -796,6 +796,15 @@ its mark was committed, when root gives it a stack too small for its
 arguments, and the task then dumps core before shirudo has run: a pin
 or a sealed file at that path was the dump's to remove (``t6145``).
 
+A task whose memory a uprobe reaches loses its authority as well
+(``SealUprobe``, ``t6146``). Root sets uprobes on the runtime binary
+through tracefs or perf, where no hook sees them, and a probe's
+reference counter has the kernel add to a value in the task's writable
+data at every exec: a variable shirudo reads before ``main()`` runs, a
+descriptor it takes for closed among them, changed under it. What a
+probe reads, a command's arguments and memory, is what root learns by
+running the command (R2).
+
 An authorized process is protected against being taken over:
 
 - ``lsm/ptrace_access_check`` refuses every ptrace mode against a marked
@@ -864,11 +873,12 @@ An authorized process is protected against being taken over:
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
-   ``SealSignal``, ``SealCoreDump``, ``ExecTraced``, ``ExeIdentity``
+   ``SealSignal``, ``SealCoreDump``, ``SealUprobe``, ``ExecTraced``,
+   ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
-   ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``
+   ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts

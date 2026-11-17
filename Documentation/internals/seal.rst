@@ -83,6 +83,22 @@ stays, so the protections below still keep other tasks off the dumping
 task, and a fork copies the revocation along with the mark. The next
 successful exec commits a fresh mark without it.
 
+A task whose memory a uprobe reaches loses its authority the same way,
+counted as ``SealUprobe``. Root sets a uprobe on any file it can name,
+the runtime binary included, through ``uprobe_events`` in tracefs or a
+perf event on the ``uprobe`` PMU, and no LSM hook sees either. A probe
+can carry a reference counter, a 16-bit value at a file offset of the
+probed binary, and the kernel adds one to it in every process that maps
+the binary writable at that offset, at every exec and every
+registration: a probe placed on the binary's data changes the variables
+shirudo reads before ``main()`` runs. The kernel sets
+``MMF_HAS_UPROBES`` in the memory of a process before it installs a
+probe there, and the check of authority reads that flag. The kernel
+installs probes in every mapping of a probed file that could be
+executable, so shirudo reads the binaries uprobe upatches target with
+``pread()`` rather than mapping them: the static runtime binary maps no
+file but itself, and the flag in its memory means a probe on it.
+
 Policy bits
 -----------
 
