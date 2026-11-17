@@ -38,14 +38,18 @@ print(json.load(sys.stdin)["tamper_attempts"]["counters"][sys.argv[1]])
 ' "$1"
 }
 
+# Counters are read while no command holds the config lock.
+before=$(counter SealPtrace) || test_skip_all "no tamper counters"
 mkfifo "$W/fifo" || test_skip_all "cannot make a fifo"
 "$SHIRUDO_BIN" bpm info "$W/fifo" >/dev/null 2>&1 &
 PID=$!
-# A sleeping task may still be completing TPM startup.
+# A sleeping task may still be the shell that forks it, or completing
+# TPM startup.
 i=0
 while [ "$i" -lt 50 ]; do
 	[ -d "/proc/$PID" ] || break
-	[ "$(awk '{print $3}' "/proc/$PID/stat" 2>/dev/null)" = S ] && break
+	[ "$(awk '{print $2 $3}' "/proc/$PID/stat" 2>/dev/null)" = "(shirudo)S" ] &&
+		break
 	sleep 0.1
 	i=$((i + 1))
 done
@@ -94,16 +98,11 @@ if fd >= 0:
 sys.exit(1 if ctypes.get_errno() == 13 else 3)
 '
 
-before=$(counter SealPtrace) || test_skip_all "no tamper counters"
-
 test_expect_success 'root cannot read the exe link or environ of a running shirudo' '
 	for kind in exe environ; do
-		python3 -c "$PROC" "$kind" "$PID"; [ "$?" = 1 ] || return 1
+		python3 -c "$PROC" "$kind" "$PID"; rc=$?
+		[ "$rc" = 1 ] || { echo "$kind: $rc" >&2; return 1; }
 	done
-'
-
-test_expect_success 'a read-mode refusal leaves SealPtrace unchanged' '
-	[ "$(counter SealPtrace)" = "$before" ]
 '
 
 test_expect_success 'root cannot ptrace-attach to a running shirudo' '
@@ -114,9 +113,6 @@ test_expect_success 'nor open its /proc mem' '
 	python3 -c "$PROC" mem "$PID"; [ "$?" = 1 ]
 '
 
-test_expect_success 'each attach-mode refusal counts as SealPtrace' '
-	[ "$(counter SealPtrace)" = "$((before + 2))" ]
-'
 
 if python3 -c "$PERF" self 2>/dev/null; then
 	test_expect_success 'root cannot bind a perf event to a running shirudo' '
@@ -138,6 +134,10 @@ test_expect_success 'the task is unharmed and finishes once released' '
 		[ "$i" -lt 100 ] || return 1
 		sleep 0.1
 	done
+'
+
+test_expect_success 'the two attach-mode refusals alone count as SealPtrace' '
+	[ "$(counter SealPtrace)" = "$((before + 2))" ]
 '
 
 test_done
