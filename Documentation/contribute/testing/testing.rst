@@ -323,7 +323,7 @@ interpreter is assembly, which no sanitizer instruments, so the values
 it hands back would read as uninitialized. ASan and UBSan cover those.
 The ``MSan`` job of the ``Sanitizers`` workflow runs the same, the fuzz
 targets for 60 seconds on each push and pull request and for ten
-minutes in the nightly run.
+minutes in a run started by hand.
 
 Run the fuzz targets
 --------------------
@@ -369,12 +369,13 @@ An input in the kept corpus that crashes a later build fails that run
 like any new crash.
 
 The ``libFuzzer`` job of the ``Sanitizers`` workflow runs every target
-for 60 seconds on each push and pull request, and for ten minutes in a
-nightly run, which also starts by hand from the Actions page. Every run
-starts from the corpus the last nightly or manual run kept in the
-Actions cache, and only those runs save it. When a run fails, the
-inputs that crashed are in its ``fuzz-crashes`` artifact; copy one into
-``testing/fuzz/`` and run its target on it to reproduce the crash:
+for 60 seconds on each push to ``main`` and each pull request, and for
+ten minutes in a run started by hand from the Actions page. Every run
+starts from the corpus the last push to ``main`` or run by hand kept in
+the Actions cache, and only those runs save it: a pull request keeps
+what it finds to itself. When a run fails, the inputs that crashed are
+in its ``fuzz-crashes`` artifact; copy one into ``testing/fuzz/`` and
+run its target on it to reproduce the crash:
 
 .. code-block:: console
 

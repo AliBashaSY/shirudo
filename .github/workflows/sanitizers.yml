@@ -7,8 +7,6 @@ on:
     tags:
       - '*'
   pull_request:
-  schedule:
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -25,7 +23,6 @@ jobs:
   # thread and installs no handler today; the leg is there for the first.
   tests:
     name: ${{ matrix.name }} (${{ matrix.compiler }})
-    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -134,7 +131,7 @@ jobs:
 
       # The unit tests link the util objects, whose build needs the BTF of
       # a signed-BPF capable bpf-next kernel, as the other jobs do. A push
-      # or a pull request gets a minute per fuzz target, the nightly run
+      # or a pull request gets a minute per fuzz target, a run by hand
       # ten.
       - name: Build under MSan and run the unit tests and fuzz targets in LVH VM
         uses: cilium/little-vm-helper@c8b0bfbae3bdda7bc69fb9cd370e4b74ce84986d # v0.0.33
@@ -178,7 +175,7 @@ jobs:
 
             sh .github/scripts/msan-deps.sh
             sh .github/scripts/msan-tests.sh \
-              ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 600 || 60 }}
+              ${{ github.event_name == 'workflow_dispatch' && 600 || 60 }}
 
       - name: Save the MemorySanitizer libraries
         if: always() && steps.msan-deps.outputs.cache-hit != 'true' && hashFiles('build/msan-deps/lib/libcrypto.so') != ''
@@ -210,7 +207,7 @@ jobs:
           path: build/host-openssl
           key: host-openssl-lvh-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/vm-toolchain.sh') }}
 
-      # Every run starts from the corpus the last nightly run kept; the
+      # Every run starts from the corpus the last push to main kept; the
       # newest one is restored, as each is saved under a key of its own.
       - name: Restore the fuzz corpora
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -221,7 +218,7 @@ jobs:
 
       # The targets need no BPF objects, but the toolchain the other jobs
       # build in comes with the LVH guest. A push or a pull request gets a
-      # minute per target, the nightly run ten.
+      # minute per target, a run by hand ten.
       - name: Fuzz the parsers of input from outside the host in LVH VM
         id: fuzz
         uses: cilium/little-vm-helper@c8b0bfbae3bdda7bc69fb9cd370e4b74ce84986d # v0.0.33
@@ -238,7 +235,7 @@ jobs:
             .github/scripts/vm-toolchain.sh libclang-rt-23-dev
             . build/vm-toolchain.env
             make -j"\$(nproc)" -C testing fuzz \
-              FUZZ_SECONDS=${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 600 || 60 }} \
+              FUZZ_SECONDS=${{ github.event_name == 'workflow_dispatch' && 600 || 60 }} \
               FUZZ_CORPUS=/host/build/fuzz-corpus
 
       - name: Save the LVH OpenSSL toolchain
@@ -248,10 +245,10 @@ jobs:
           path: build/host-openssl
           key: ${{ steps.lvh-openssl.outputs.cache-primary-key }}
 
-      # Only the nightly and manual runs save, so that each push does not
-      # add a corpus to the cache the kernel and the VM images share.
+      # A push to main and a run by hand save; a pull request starts from
+      # main's corpus and keeps what it finds to itself.
       - name: Save the fuzz corpora
-        if: always() && steps.fuzz.outcome != 'skipped' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        if: always() && steps.fuzz.outcome != 'skipped' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/fuzz-corpus
