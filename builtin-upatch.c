@@ -129,6 +129,57 @@ static const char *cat_from_pin_errno(int e)
 	}
 }
 
+static const char *cat_from_target_errno(int e)
+{
+	switch (e) {
+	case ENOENT:
+	case ENOTDIR:
+		return "attach_target_missing";
+	case ESTALE:
+		return "binary_mismatch";
+	case EACCES:
+	case EPERM:
+		return "lsm_denied";
+	case ERANGE:
+	case EINVAL:
+	case E2BIG:
+		return "parser_rejected";
+	default:
+		return "unknown";
+	}
+}
+
+/*
+ * attach_and_pin_progs() fails with a negative errno, or with a positive
+ * enum xdp_attach_err for an XDP device.
+ */
+static const char *cat_from_attach_err(int err)
+{
+	switch (err) {
+	case XDP_ERR_NO_MULTIBUF:
+		return "xdp_multibuf_unsupported";
+	case XDP_ERR_DRIVER_SETTINGS:
+		return "xdp_driver_refused";
+	case XDP_ERR_OCCUPIED:
+		return "xdp_device_occupied";
+	case XDP_ERR_LINK_SCOPE:
+	case -EXDEV:
+		return "attach_scope_mismatch";
+	case -ENOENT:
+	case -ENOTDIR:
+		return "attach_target_missing";
+	case -ESTALE:
+		return "binary_mismatch";
+	case -EOPNOTSUPP:
+		return "kernel_abi_unsupported";
+	case -EACCES:
+	case -EPERM:
+		return "lsm_denied";
+	default:
+		return "unknown";
+	}
+}
+
 static const char *flag_str(const struct upatch *u)
 {
 	return upatch_is_unload(u) ? "UNLOAD-directive" : "LOAD";
@@ -2033,235 +2084,228 @@ static void apply_policy_labels(const struct upatch *u)
 	}
 }
 
-/* Shared by `upatch load` and boot restore: one signature-verified path. */
-/*
- * Load and run the signed loader of u, which the caller read once and
- * closes: the name the signature covers, the loader the kernel verifies
- * and what the caller then measures and archives are all those bytes.
- * label names them in messages.
- */
-static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
-			struct op_report *rep)
-{
-	struct prog_spec *prog_specs = NULL;
-	const struct bpf_insn *insns;
-	const void *sig, *data;
-	key_serial_t keyring, serial;
-	char prog_name[BPF_OBJ_NAME_LEN];
-	char upatch_name[UPATCH_NAME_MAX + 1];
-	char *vlog;			/* shared PROG_LOAD / TEST_RUN log_buf */
-	size_t insn_cnt, ctx_sz = 0, prog_desc_off;
-	int prog_fd = -1, map_fd = -1, policy_map_fd = -1;
-	int socket_policy_map_fd = -1, ret;
-	struct loader_ctx *cx = NULL;
-	__u32 retval = 0, shared_policy_map_idx = UPATCH_MAPS_MAX;
-	__u32 shared_socket_policy_map_idx = UPATCH_MAPS_MAX;
+/* What the steps of upatch_apply() share. */
+struct signed_load {
+	const struct upatch	*u;
+	const char		*label;
+	struct op_report	*rep;		/* NULL for boot restore */
+	bool			verify_only;
+	char			upatch_name[UPATCH_NAME_MAX + 1];
+	key_serial_t		keyring;
+	key_serial_t		serial;
+	struct prog_spec	*prog_specs;
+	char			*vlog;		/* shared PROG_LOAD / TEST_RUN log_buf */
+	int			map_fd;
+	int			prog_fd;
+	struct loader_ctx	*cx;
+	size_t			ctx_sz;
+	size_t			prog_desc_off;
+	int			policy_map_fd;
+	int			socket_policy_map_fd;
+	__u32			shared_policy_map_idx;
+	__u32			shared_socket_policy_map_idx;
+	__u32			retval;
+};
 
-	vlog = xmalloc(VERIFIER_LOG_MAX);
-	if (!vlog) {
-		rep_fail(rep, "parse", "unknown", ENOMEM, "out of memory");
+/*
+ * verify_only loads the signed loader purely to make the kernel
+ * verify its CMS signature (the unload-directive authorization
+ * gate) -- so it deliberately accepts an UNLOAD directive and
+ * stops before TEST_RUN/attach.
+ */
+static int refuse_unload_directive(const struct signed_load *sl)
+{
+	if (!sl->verify_only && upatch_is_unload(sl->u)) {
+		pr_err("upatch load: %s is an UNLOAD directive; "
+		       "use `shirudo upatch unload`", sl->label);
+		rep_fail(sl->rep, "parse", "parser_rejected", 0,
+			 "is an UNLOAD directive");
 		return 1;
 	}
-	vlog[0] = '\0';
+	return 0;
+}
 
-	/*
-	 * verify_only loads the signed loader purely to make the kernel
-	 * verify its CMS signature (the unload-directive authorization
-	 * gate) -- so it deliberately accepts an UNLOAD directive and
-	 * stops before TEST_RUN/attach.
-	 */
-	if (!verify_only && upatch_is_unload(u)) {
-		pr_err("upatch load: %s is an UNLOAD directive; "
-		       "use `shirudo upatch unload`", label);
+/*
+ * The pin directory, the archive and unload share the raw name. Boot
+ * restore reaches here without the command-level check, so validate it
+ * again.
+ */
+static int upatch_signed_name_check(struct signed_load *sl)
+{
+	struct op_report *rep = sl->rep;
+
+	upatch_header_name(sl->u, sl->upatch_name);
+	if (!upatch_name_valid(sl->upatch_name)) {
+		pr_err("upatch: refusing unsafe upatch name '%s'",
+		       sl->upatch_name);
 		rep_fail(rep, "parse", "parser_rejected", 0,
-			 "is an UNLOAD directive");
-		ret = 1;
-		goto out;
+			 "unsafe upatch name");
+		return 1;
 	}
-	if (trust_anchor_keyring(&keyring, &serial, rep)) {
-		ret = 1;
-		goto out;
+	/* The header's copy of the name is what everything else reads. */
+	if (!upatch_name_signed(sl->u)) {
+		pr_err("upatch: the name of '%s' is not signature-covered or "
+		       "differs from the signed one; rebuild the artifact",
+		       sl->upatch_name);
+		rep_fail(rep, "parse", "parser_rejected", 0,
+			 "name not signed");
+		return 1;
 	}
+	return 0;
+}
+
+/*
+ * The signature authorises the load, but payload_sha256 is what the pin
+ * xattr, the register event and the unload match record, so a header
+ * value that is not SHA-256(insns || data) is refused even when signed.
+ */
+static int upatch_payload_check(const struct signed_load *sl)
+{
+	__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+	int err;
+
+	err = upatch_payload_digest(u, content_digest);
+	if (err) {
+		pr_err("upatch: cannot hash the payload of '%s': %s",
+		       sl->upatch_name, strerror(-err));
+		rep_fail(rep, "parse", "unknown", -err,
+			 "payload hash failed");
+		return 1;
+	}
+	if (memneq_explicit(content_digest, u->hdr.payload_sha256,
+			    sizeof(content_digest))) {
+		pr_err("upatch: payload_sha256 does not match signed "
+		       "content (insns || data); refusing");
+		rep_fail(rep, "parse", "parser_rejected", 0,
+			 "payload_sha256 mismatch");
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * The attach metadata is signed with the data, which the kernel has
+ * not verified yet at this point: parsing it strictly here keeps a
+ * malformed artifact from the keyring, the load that follows keeps
+ * a forged one from the sites it names. Every uprobe target is bound
+ * to its recorded GNU build ID before any BPF program loads, and the
+ * open target fds stay live through link creation to prevent
+ * pathname replacement races.
+ */
+static int upatch_attach_prepare(struct signed_load *sl)
+{
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+	const void *attach;
+	__u32 attach_len;
+	int ret;
+
+	if (sl->verify_only)
+		return 0;
+	attach = upatch_signed_attach(u, &attach_len);
+	if (!attach) {
+		pr_err("upatch: the attach metadata of '%s' is not "
+		       "signature-covered; rebuild the artifact",
+		       sl->upatch_name);
+		rep_fail(rep, "parse", "parser_rejected", 0,
+			 "attach metadata not signed");
+		return 1;
+	}
+	ret = prog_specs_parse(attach, attach_len, u->hdr.nr_maps,
+			       u->hdr.nr_progs, &sl->prog_specs);
+	if (ret) {
+		pr_err("upatch program metadata rejected: %s",
+		       strerror(-ret));
+		rep_fail(rep, "parse", "parser_rejected", -ret,
+			 "invalid program attach metadata");
+		return 1;
+	}
+	ret = prepare_uprobe_targets(sl->prog_specs, u->hdr.nr_progs);
+	if (ret) {
+		const char *cat = cat_from_target_errno(-ret);
+
+		pr_err("uprobe target verification failed (%s): %s",
+		       cat, strerror(-ret));
+		rep_fail(rep, "target_verify", cat, -ret,
+			 "uprobe target verification failed");
+		return 1;
+	}
+	return 0;
+}
+
+/* Called right after the bpf() call that failed, whose errno it reads. */
+static int loader_map_failed(struct op_report *rep, const char *what,
+			     const char *msg)
+{
+	int err = errno;
+
+	pr_err("%s: %s", what, strerror(err));
+	rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
+		 err, msg);
+	return 1;
+}
+
+/*
+ * The metadata map is exclusive to the loader by the digest of its
+ * instructions alone, which the verifier enforces; payload_sha256
+ * covers insns || data.
+ */
+static int loader_map_prepare(struct signed_load *sl)
+{
+	__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+
+	if (sha256_buffer(upatch_loader(u), u->hdr.loader_insns_len,
+			  loader_digest)) {
+		pr_err("__loader.map: cannot hash the loader");
+		rep_fail(rep, "signed_loader_load", "unknown", EIO,
+			 "loader digest failed");
+		return 1;
+	}
+	sl->map_fd = loader_map_create("__loader.map", u->hdr.data_len,
+				       loader_digest, sizeof(loader_digest));
+	if (sl->map_fd < 0)
+		return loader_map_failed(rep, "__loader.map create",
+					 "__loader.map create failed");
+	if (loader_map_update(sl->map_fd, upatch_data(u), u->hdr.data_len))
+		return loader_map_failed(rep, "__loader.map update",
+					 "__loader.map update failed");
+	/* The kernel refuses a signed load whose bound map is not frozen. */
+	if (loader_map_freeze(sl->map_fd))
+		return loader_map_failed(rep, "__loader.map freeze",
+					 "__loader.map freeze failed");
+	return 0;
+}
+
+static int loader_prog_load(struct signed_load *sl)
+{
+	char prog_name[BPF_OBJ_NAME_LEN];
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+	const struct bpf_insn *insns;
+	char *vlog = sl->vlog;
+	size_t insn_cnt;
+	const void *sig;
 
 	insns = upatch_loader(u);
 	sig   = upatch_signature(u);
-	data  = upatch_data(u);
 	insn_cnt = u->hdr.loader_insns_len / sizeof(struct bpf_insn);
 
 	upatch_prog_name(u, prog_name, sizeof(prog_name));
-
-	/*
-	 * The pin directory, the archive and unload share the raw name. Boot
-	 * restore reaches here without the command-level check, so validate it
-	 * again.
-	 */
-	upatch_header_name(u, upatch_name);
-	if (!upatch_name_valid(upatch_name)) {
-		pr_err("upatch: refusing unsafe upatch name '%s'", upatch_name);
-		rep_fail(rep, "parse", "parser_rejected", 0,
-			 "unsafe upatch name");
-		ret = 1;
-		goto out;
-	}
-	/* The header's copy of the name is what everything else reads. */
-	if (!upatch_name_signed(u)) {
-		pr_err("upatch: the name of '%s' is not signature-covered or "
-		       "differs from the signed one; rebuild the artifact",
-		       upatch_name);
-		rep_fail(rep, "parse", "parser_rejected", 0,
-			 "name not signed");
-		ret = 1;
-		goto out;
-	}
-
-	/*
-	 * The signature authorises the load, but payload_sha256 is what the pin
-	 * xattr, the register event and the unload match record, so a header
-	 * value that is not SHA-256(insns || data) is refused even when signed.
-	 */
-	{
-		__u8 content_digest[UPATCH_PAYLOAD_HASH_LEN];
-		int err;
-
-		err = upatch_payload_digest(u, content_digest);
-		if (err) {
-			pr_err("upatch: cannot hash the payload of '%s': %s",
-			       upatch_name, strerror(-err));
-			rep_fail(rep, "parse", "unknown", -err,
-				 "payload hash failed");
-			ret = 1;
-			goto out;
-		}
-		if (memneq_explicit(content_digest, u->hdr.payload_sha256,
-				    sizeof(content_digest))) {
-			pr_err("upatch: payload_sha256 does not match signed "
-			       "content (insns || data); refusing");
-			rep_fail(rep, "parse", "parser_rejected", 0,
-				 "payload_sha256 mismatch");
-			ret = 1;
-			goto out;
-		}
-	}
-
-	/*
-	 * The attach metadata is signed with the data, which the kernel has
-	 * not verified yet at this point: parsing it strictly here keeps a
-	 * malformed artifact from the keyring, the load that follows keeps
-	 * a forged one from the sites it names. Every uprobe target is bound
-	 * to its recorded GNU build ID before any BPF program loads, and the
-	 * open target fds stay live through link creation to prevent
-	 * pathname replacement races.
-	 */
-	if (!verify_only) {
-		const void *attach;
-		__u32 attach_len;
-
-		attach = upatch_signed_attach(u, &attach_len);
-		if (!attach) {
-			pr_err("upatch: the attach metadata of '%s' is not "
-			       "signature-covered; rebuild the artifact",
-			       upatch_name);
-			rep_fail(rep, "parse", "parser_rejected", 0,
-				 "attach metadata not signed");
-			ret = 1;
-			goto out;
-		}
-		ret = prog_specs_parse(attach, attach_len, u->hdr.nr_maps,
-				       u->hdr.nr_progs, &prog_specs);
-		if (ret) {
-			pr_err("upatch program metadata rejected: %s",
-			       strerror(-ret));
-			rep_fail(rep, "parse", "parser_rejected", -ret,
-				 "invalid program attach metadata");
-			ret = 1;
-			goto out;
-		}
-		ret = prepare_uprobe_targets(prog_specs, u->hdr.nr_progs);
-		if (ret) {
-			int e = -ret;
-			const char *cat;
-
-			if (e == ENOENT || e == ENOTDIR)
-				cat = "attach_target_missing";
-			else if (e == ESTALE)
-				cat = "binary_mismatch";
-			else if (e == EACCES || e == EPERM)
-				cat = "lsm_denied";
-			else if (e == ERANGE || e == EINVAL || e == E2BIG)
-				cat = "parser_rejected";
-			else
-				cat = "unknown";
-			pr_err("uprobe target verification failed (%s): %s",
-			       cat, strerror(e));
-			rep_fail(rep, "target_verify", cat, e,
-				 "uprobe target verification failed");
-			ret = 1;
-			goto out;
-		}
-	}
-
-	/*
-	 * The metadata map is exclusive to the loader by the digest of its
-	 * instructions alone, which the verifier enforces; payload_sha256
-	 * covers insns || data.
-	 */
-	{
-		__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
-
-		if (sha256_buffer(insns, u->hdr.loader_insns_len,
-				  loader_digest)) {
-			pr_err("__loader.map: cannot hash the loader");
-			rep_fail(rep, "signed_loader_load", "unknown", EIO,
-				 "loader digest failed");
-			ret = 1;
-			goto out;
-		}
-		map_fd = loader_map_create("__loader.map", u->hdr.data_len,
-					   loader_digest, sizeof(loader_digest));
-	}
-	if (map_fd < 0) {
-		int err = errno;
-
-		pr_err("__loader.map create: %s", strerror(err));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
-			 err, "__loader.map create failed");
-		ret = 1;
-		goto out;
-	}
-
-	ret = loader_map_update(map_fd, data, u->hdr.data_len);
-	if (ret) {
-		int err = errno;
-
-		pr_err("__loader.map update: %s", strerror(err));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
-			 err, "__loader.map update failed");
-		ret = 1;
-		goto out;
-	}
-
-	/* The kernel refuses a signed load whose bound map is not frozen. */
-	ret = loader_map_freeze(map_fd);
-	if (ret) {
-		int err = errno;
-
-		pr_err("__loader.map freeze: %s", strerror(err));
-		rep_fail(rep, "signed_loader_load", cat_from_load_errno(err),
-			 err, "__loader.map freeze failed");
-		ret = 1;
-		goto out;
-	}
 
 	/*
 	 * The kernel attests the metadata itself; the loader carries no
 	 * self-check.
 	 */
 	vlog[0] = '\0';
-	prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
-				   sig, u->hdr.signature_len,
-				   (__s32)keyring, map_fd,
-				   vlog, VERIFIER_LOG_MAX);
-	if (prog_fd < 0) {
+	sl->prog_fd = prog_load_signed(insns, insn_cnt, prog_name,
+				       sig, u->hdr.signature_len,
+				       (__s32)sl->keyring, sl->map_fd,
+				       vlog, VERIFIER_LOG_MAX);
+	if (sl->prog_fd < 0) {
 		int e = errno;
 
 		pr_err("BPF_PROG_LOAD (signed loader): %s", strerror(e));
@@ -2270,25 +2314,28 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		rep_fail(rep, "signed_loader_load", cat_from_load_errno(e), e,
 			 "BPF_PROG_LOAD of signed loader failed");
 		report_set_log(rep, vlog);
-		ret = 1;
-		goto out;
+		return 1;
 	}
 
 	pr_info("%s: signed loader accepted, keyring %d, %zu instructions",
-		verify_only ? "upatch unload" : "upatch load", (int)serial,
-		insn_cnt);
+		sl->verify_only ? "upatch unload" : "upatch load",
+		(int)sl->serial, insn_cnt);
+	return 0;
+}
 
-	if (verify_only) {
-		ret = 0;
-		goto out;
-	}
+/*
+ * The loader creates the programs and maps from kernel context but
+ * cannot attach or pin: gen_loader emits no link-create and
+ * bpf_sys_bpf() cannot BPF_OBJ_PIN. Its descriptors trail the context,
+ * sized from the header's counts.
+ */
+static int loader_ctx_alloc(struct signed_load *sl)
+{
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+	size_t ctx_sz, prog_desc_off;
+	struct loader_ctx *cx;
 
-	/*
-	 * The loader creates the programs and maps from kernel context but
-	 * cannot attach or pin: gen_loader emits no link-create and
-	 * bpf_sys_bpf() cannot BPF_OBJ_PIN. Its descriptors trail the context,
-	 * sized from the header's counts.
-	 */
 	prog_desc_off = size_add(sizeof(struct loader_ctx),
 				 size_mul(u->hdr.nr_maps,
 					  sizeof(struct map_desc)));
@@ -2306,19 +2353,16 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		       u->hdr.nr_maps, u->hdr.nr_progs);
 		rep_fail(rep, "payload_load", "unknown", E2BIG,
 			 "loader context too large");
-		ctx_sz = 0;
-		ret = 1;
-		goto out;
+		return 1;
 	}
 	cx = xmalloc(ctx_sz);
 	if (!cx) {
 		pr_err("ctx alloc");
 		rep_fail(rep, "payload_load", "unknown", ENOMEM,
 			 "ctx alloc failed");
-		ret = 1;
-		goto out;
+		return 1;
 	}
-	vlog[0] = '\0';
+	sl->vlog[0] = '\0';
 	cx->sz = (__u32)ctx_sz;
 	/*
 	 * Keep inner verifier diagnostics enabled without bpftool's full
@@ -2327,50 +2371,73 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 	 */
 	cx->log_level = 1;
 	cx->log_size = VERIFIER_LOG_MAX;
-	cx->log_buf = ptr_to_u64(vlog);
-	if (u->signed_policy_labels) {
-		struct map_desc *md;
+	cx->log_buf = ptr_to_u64(sl->vlog);
+	sl->cx = cx;
+	sl->ctx_sz = ctx_sz;
+	sl->prog_desc_off = prog_desc_off;
+	return 0;
+}
 
-		shared_policy_map_idx = u->signed_policy_map_idx;
-		shared_socket_policy_map_idx =
-			u->signed_socket_policy_map_idx;
-		policy_map_fd =
-			open_shared_policy_map(POLICY_PIN,
-					       BPF_MAP_TYPE_TASK_STORAGE,
-					       2 * sizeof(__u64),
-					       BPF_F_NO_PREALLOC);
-		if (policy_map_fd < 0) {
-			pr_err("upatch load: open shirudo_task_policy: %s",
-			       strerror(-policy_map_fd));
-			rep_fail(rep, "payload_load", "unknown", -policy_map_fd,
-				 "shirudo_task_policy binding failed");
-			ret = 1;
-			goto out;
-		}
-		socket_policy_map_fd =
-			open_shared_policy_map(SOCKET_POLICY_PIN,
-					       BPF_MAP_TYPE_SK_STORAGE, sizeof(__u64),
-					       BPF_F_NO_PREALLOC | BPF_F_CLONE);
-		if (socket_policy_map_fd < 0) {
-			int err = -socket_policy_map_fd;
+static int loader_ctx_bind_policy_maps(struct signed_load *sl)
+{
+	int policy_map_fd, socket_policy_map_fd;
+	struct op_report *rep = sl->rep;
+	const struct upatch *u = sl->u;
+	struct loader_ctx *cx = sl->cx;
+	struct map_desc *md;
 
-			pr_err("upatch load: open shirudo_sock_policy: %s",
-			       strerror(err));
-			rep_fail(rep, "payload_load", "unknown", err,
-				 "shirudo_sock_policy binding failed");
-			close(policy_map_fd);
-			ret = 1;
-			goto out;
-		}
-		md = (struct map_desc *)((__u8 *)cx + sizeof(*cx)) +
-			shared_policy_map_idx;
-		md->map_fd = policy_map_fd;
-		md = (struct map_desc *)((__u8 *)cx + sizeof(*cx)) +
-			shared_socket_policy_map_idx;
-		md->map_fd = socket_policy_map_fd;
+	if (!u->signed_policy_labels)
+		return 0;
+	sl->shared_policy_map_idx = u->signed_policy_map_idx;
+	sl->shared_socket_policy_map_idx = u->signed_socket_policy_map_idx;
+	policy_map_fd =
+		open_shared_policy_map(POLICY_PIN,
+				       BPF_MAP_TYPE_TASK_STORAGE,
+				       2 * sizeof(__u64),
+				       BPF_F_NO_PREALLOC);
+	if (policy_map_fd < 0) {
+		pr_err("upatch load: open shirudo_task_policy: %s",
+		       strerror(-policy_map_fd));
+		rep_fail(rep, "payload_load", "unknown", -policy_map_fd,
+			 "shirudo_task_policy binding failed");
+		return 1;
 	}
+	socket_policy_map_fd =
+		open_shared_policy_map(SOCKET_POLICY_PIN,
+				       BPF_MAP_TYPE_SK_STORAGE, sizeof(__u64),
+				       BPF_F_NO_PREALLOC | BPF_F_CLONE);
+	if (socket_policy_map_fd < 0) {
+		int err = -socket_policy_map_fd;
 
-	ret = prog_test_run(prog_fd, cx, (__u32)ctx_sz, &retval);
+		pr_err("upatch load: open shirudo_sock_policy: %s",
+		       strerror(err));
+		rep_fail(rep, "payload_load", "unknown", err,
+			 "shirudo_sock_policy binding failed");
+		close(policy_map_fd);
+		return 1;
+	}
+	md = (struct map_desc *)((__u8 *)cx + sizeof(*cx)) +
+		sl->shared_policy_map_idx;
+	md->map_fd = policy_map_fd;
+	md = (struct map_desc *)((__u8 *)cx + sizeof(*cx)) +
+		sl->shared_socket_policy_map_idx;
+	md->map_fd = socket_policy_map_fd;
+	sl->policy_map_fd = policy_map_fd;
+	sl->socket_policy_map_fd = socket_policy_map_fd;
+	return 0;
+}
+
+static int loader_run(struct signed_load *sl)
+{
+	struct op_report *rep = sl->rep;
+	struct loader_ctx *cx = sl->cx;
+	const struct upatch *u = sl->u;
+	size_t ctx_sz = sl->ctx_sz;
+	char *vlog = sl->vlog;
+	__u32 retval = 0;
+	int ret;
+
+	ret = prog_test_run(sl->prog_fd, cx, (__u32)ctx_sz, &retval);
 	if (ret) {
 		int err = errno;
 
@@ -2380,14 +2447,13 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		rep_fail(rep, "payload_load", "verifier_rejected", err,
 			 "BPF_PROG_TEST_RUN failed");
 		report_set_log(rep, vlog);
-		ret = 1;
-		goto out;
+		return 1;
 	}
 	if ((__s32)retval < 0) {
-		if (policy_map_fd >= 0)
-			close(policy_map_fd);
-		if (socket_policy_map_fd >= 0)
-			close(socket_policy_map_fd);
+		if (sl->policy_map_fd >= 0)
+			close(sl->policy_map_fd);
+		if (sl->socket_policy_map_fd >= 0)
+			close(sl->socket_policy_map_fd);
 		/*
 		 * The loader closed what it made before it failed; the
 		 * numbers left in the context name nothing of ours now.
@@ -2401,77 +2467,116 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 		if (rep)
 			rep->loader_return = (__s32)retval;
 		report_set_log(rep, vlog);
-		ret = 1;
-		goto out;
+		return 1;
 	}
 
 	pr_info("upatch load: loader ran, %u maps and %u programs",
 		u->hdr.nr_maps, u->hdr.nr_progs);
+	sl->retval = retval;
+	return 0;
+}
 
-	/*
-	 * Without a pinned link a program detaches when this one-shot CLI
-	 * exits.
-	 */
-	ret = attach_and_pin_progs(cx, prog_desc_off, u->hdr.nr_progs,
-				   upatch_name, prog_specs);
-	if (ret) {
-		int e = -xdp_attach_errno(ret);
-		const char *cat;
+/*
+ * Without a pinned link a program detaches when this one-shot CLI
+ * exits.
+ */
+static int upatch_attach(const struct signed_load *sl)
+{
+	int ret;
 
-		if (ret == XDP_ERR_NO_MULTIBUF)
-			cat = "xdp_multibuf_unsupported";
-		else if (ret == XDP_ERR_DRIVER_SETTINGS)
-			cat = "xdp_driver_refused";
-		else if (ret == XDP_ERR_OCCUPIED)
-			cat = "xdp_device_occupied";
-		else if (ret == XDP_ERR_LINK_SCOPE || ret == -EXDEV)
-			cat = "attach_scope_mismatch";
-		else if (ret > 0)
-			cat = "unknown";
-		else if (e == ENOENT || e == ENOTDIR)
-			cat = "attach_target_missing";
-		else if (e == ESTALE)
-			cat = "binary_mismatch";
-		else if (e == EOPNOTSUPP)
-			cat = "kernel_abi_unsupported";
-		else if (e == EACCES || e == EPERM)
-			cat = "lsm_denied";
-		else
-			cat = "unknown";
+	ret = attach_and_pin_progs(sl->cx, sl->prog_desc_off,
+				   sl->u->hdr.nr_progs, sl->upatch_name,
+				   sl->prog_specs);
+	if (!ret)
+		return 0;
+	rep_fail(sl->rep, "link_create", cat_from_attach_err(ret),
+		 -xdp_attach_errno(ret), "attach or pin failed");
+	return 1;
+}
 
-		rep_fail(rep, "link_create", cat, e, "attach or pin failed");
-		ret = 1;
-		goto out;
-	}
+static int signed_load_run(struct signed_load *sl)
+{
+	const struct upatch *u = sl->u;
+	int ret;
 
-	pin_upatch_maps(cx, u->hdr.nr_maps, shared_policy_map_idx,
-			shared_socket_policy_map_idx, upatch_name);
+	if (refuse_unload_directive(sl) ||
+	    trust_anchor_keyring(&sl->keyring, &sl->serial, sl->rep) ||
+	    upatch_signed_name_check(sl) || upatch_payload_check(sl) ||
+	    upatch_attach_prepare(sl) || loader_map_prepare(sl) ||
+	    loader_prog_load(sl))
+		return 1;
+	if (sl->verify_only)
+		return 0;
+	if (loader_ctx_alloc(sl) || loader_ctx_bind_policy_maps(sl) ||
+	    loader_run(sl) || upatch_attach(sl))
+		return 1;
+
+	pin_upatch_maps(sl->cx, u->hdr.nr_maps, sl->shared_policy_map_idx,
+			sl->shared_socket_policy_map_idx, sl->upatch_name);
 
 	/* After attach and pin, so the value records a loaded upatch. */
-	ret = set_pin_payload(upatch_name, u->hdr.payload_sha256);
+	ret = set_pin_payload(sl->upatch_name, u->hdr.payload_sha256);
 	if (ret) {
-		rep_fail(rep, "link_create", "unknown", ret,
+		rep_fail(sl->rep, "link_create", "unknown", ret,
 			 "cannot record the payload on the pin directory; the load was undone");
-		ret = 1;
-		goto out;
+		return 1;
 	}
 	apply_policy_labels(u);
 
 	pr_audit("upatch load: %s loaded, %u programs, keyring %d",
-		 upatch_name, u->hdr.nr_progs, (int)serial);
-	if (rep)
-		rep->loader_return = (__s32)retval;
-	ret = 0;
-out:
-	prog_specs_free(prog_specs, u->hdr.nr_progs);
-	xfree(vlog, VERIFIER_LOG_MAX);
-	if (cx)
-		close_loader_fds(cx, u->hdr.nr_maps, u->hdr.nr_progs);
-	xfree(cx, ctx_sz);
-	if (prog_fd >= 0)
-		close(prog_fd);
-	if (map_fd >= 0)
-		close(map_fd);
+		 sl->upatch_name, u->hdr.nr_progs, (int)sl->serial);
+	if (sl->rep)
+		sl->rep->loader_return = (__s32)sl->retval;
+	return 0;
+}
+
+static void signed_load_release(struct signed_load *sl)
+{
+	const struct upatch *u = sl->u;
+
+	prog_specs_free(sl->prog_specs, u->hdr.nr_progs);
+	xfree(sl->vlog, VERIFIER_LOG_MAX);
+	if (sl->cx)
+		close_loader_fds(sl->cx, u->hdr.nr_maps, u->hdr.nr_progs);
+	xfree(sl->cx, sl->ctx_sz);
+	if (sl->prog_fd >= 0)
+		close(sl->prog_fd);
+	if (sl->map_fd >= 0)
+		close(sl->map_fd);
+}
+
+/* Shared by `upatch load` and boot restore: one signature-verified path. */
+/*
+ * Load and run the signed loader of u, which the caller read once and
+ * closes: the name the signature covers, the loader the kernel verifies
+ * and what the caller then measures and archives are all those bytes.
+ * label names them in messages.
+ */
+static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
+			struct op_report *rep)
+{
+	struct signed_load sl = {
+		.u				= u,
+		.label				= label,
+		.rep				= rep,
+		.verify_only			= verify_only,
+		.map_fd				= -1,
+		.prog_fd			= -1,
+		.policy_map_fd			= -1,
+		.socket_policy_map_fd		= -1,
+		.shared_policy_map_idx		= UPATCH_MAPS_MAX,
+		.shared_socket_policy_map_idx	= UPATCH_MAPS_MAX,
+	};
+	int ret;
+
+	sl.vlog = xmalloc(VERIFIER_LOG_MAX);
+	if (!sl.vlog) {
+		rep_fail(rep, "parse", "unknown", ENOMEM, "out of memory");
+		return 1;
+	}
+	sl.vlog[0] = '\0';
+	ret = signed_load_run(&sl);
+	signed_load_release(&sl);
 	return ret;
 }
 
