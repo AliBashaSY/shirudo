@@ -42,7 +42,7 @@ device records of :src:`bpf/lib/`.
 ``init`` loads both without a signature, from the binary the
 authenticated initrd carries.
 
-The objects share seven maps, which ``init`` hands from ``bpf2`` to
+The objects share eight maps, which ``init`` hands from ``bpf2`` to
 ``seal`` with ``bpf_map__reuse_fd()`` and pins in the private bpffs:
 
 .. list-table::
@@ -232,8 +232,9 @@ order:
 #. Fill the identity map and freeze it.
 #. Seed the bootstrap mark for its own process through a pidfd, freeze
    ``shirudo_tasks``, ``shirudo_devices``, ``shirudo_tamper``,
-   ``shirudo_task_policy`` and ``shirudo_sock_policy``, and pin them
-   with ``shirudo_roots``. Pin the identity map.
+   ``shirudo_task_policy``, ``shirudo_sock_policy`` and
+   ``shirudo_integrity``, and pin them with ``shirudo_roots``. Pin the
+   identity map.
 #. Attach ``task_prctl``, ``bprm_check_security``, ``inode_rmdir``,
    ``inode_rename``, ``inode_mkdir``, ``inode_symlink``, ``inode_link``,
    ``kernel_load_data``, ``kernel_read_file`` and ``locked_down``.
