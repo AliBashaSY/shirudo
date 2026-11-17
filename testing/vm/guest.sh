@@ -449,8 +449,11 @@ if [[ "${TEST_VM_SUITE:-}" == register ]]; then
 fi
 
 (cd "$BUNDLE/verity" && sha256sum -c manifest)
-mountpoint -q /run/shirudo/runtime
-mountpoint -q /run/shirudo/config
+if ! mountpoint -q /run/shirudo/runtime ||
+   ! mountpoint -q /run/shirudo/config; then
+	log "the initrd did not mount the runtime and config images; its shirudo journal is above"
+	exit 1
+fi
 install -m 0755 "$BUNDLE/verity/shirudo-runtime" /usr/local/bin/shirudo-runtime
 SHIRUDO_BIN=/usr/local/bin/shirudo-runtime
 for unit in "${TARGET_UNITS[@]}"; do
