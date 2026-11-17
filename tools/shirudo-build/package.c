@@ -363,8 +363,7 @@ int build_package_patch_rodata(const char *input, const char *output,
 	char modified[] = "/tmp/shirudo-rodata-XXXXXX";
 	__u8 *candidate = NULL;
 	bool created = false;
-	int fd = -1;
-	int ret;
+	int fd, ret;
 
 	if (!input || !output || !symbol || !value || !value_len ||
 	    !strcmp(input, output))
@@ -405,7 +404,6 @@ int build_package_patch_rodata(const char *input, const char *output,
 		ret = -errno;
 	if (close(fd) && !ret)
 		ret = -errno;
-	fd = -1;
 	if (ret)
 		goto out;
 	allowed.offset = range.offset;
@@ -414,8 +412,6 @@ int build_package_patch_rodata(const char *input, const char *output,
 				     symbols, ARRAY_SIZE(symbols), pkey_path,
 				     cert_path);
 out:
-	if (fd >= 0)
-		close(fd);
 	if (created)
 		unlink(modified);
 	xfree(candidate, src.map_size);

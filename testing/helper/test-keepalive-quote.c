@@ -38,15 +38,18 @@ static int quote_values(char *quote, const char *values[QUOTE_FIELDS])
 		if (strncmp(field, keys[i], n))
 			return -EINVAL;
 		values[i] = field + n;
-		end = strchr(field + n, ';');
-		if (i + 1 == QUOTE_FIELDS)
-			return end ? -EINVAL : 0;
-		if (!end)
-			return -EINVAL;
-		*end = '\0';
-		field = end + 1;
+		end = strchr(values[i], ';');
+		if (i + 1 == QUOTE_FIELDS) {
+			if (end)
+				return -EINVAL;
+		} else {
+			if (!end)
+				return -EINVAL;
+			*end = '\0';
+			field = end + 1;
+		}
 	}
-	return -EINVAL;
+	return 0;
 }
 
 static int print_row(const char *path, const char *body, size_t len)

@@ -1064,8 +1064,7 @@ out:
 		close(serial_fd);
 	if (lock_fd >= 0)
 		close(lock_fd);
-	if (prog_fd >= 0)
-		close(prog_fd);
+	close(prog_fd);
 	return ret;
 }
 

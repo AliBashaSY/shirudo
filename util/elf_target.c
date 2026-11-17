@@ -141,6 +141,9 @@ int elf_build_id_fd(int fd,
 	return err;
 }
 
+/* The resolved offsets are counted in a __u32. */
+BUILD_BUG_ON(UPATCH_UPROBE_OFFSETS_MAX > UINT32_MAX);
+
 int elf_target_resolve(const char *path, const char *pattern,
 		       struct elf_target *out)
 {
@@ -148,7 +151,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 	unsigned long *resolved_offsets = NULL;
 	__u32 i, unique;
 	size_t nr_resolved = 0;
-	int fd = -1, err;
+	int fd, err;
 
 	if (!path || path[0] != '/' || !pattern || !pattern[0] || !out)
 		return -EINVAL;
@@ -180,8 +183,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 		err = -ENOENT;
 		goto out;
 	}
-	if (nr_resolved > UPATCH_UPROBE_OFFSETS_MAX ||
-	    nr_resolved > UINT32_MAX) {
+	if (nr_resolved > UPATCH_UPROBE_OFFSETS_MAX) {
 		err = -E2BIG;
 		goto out;
 	}
@@ -207,8 +209,7 @@ int elf_target_resolve(const char *path, const char *pattern,
 out:
 	if (elf)
 		elf_end(elf);
-	if (fd >= 0)
-		close(fd);
+	close(fd);
 	libc_free(resolved_offsets);
 	if (err)
 		elf_target_free(out);

@@ -319,8 +319,7 @@ static int write_cert_der(X509 *c, const char *path)
 	ret = 0;
 out:
 	BIO_free(bio);
-	if (fd >= 0)
-		close(fd);
+	close(fd);
 	if (ret != 0)
 		unlink(path);
 	return ret;
