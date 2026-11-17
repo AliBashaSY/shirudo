@@ -33,6 +33,7 @@
 #include "util/log.h"
 #include "util/malloc.h"
 #include "util/measured.h"
+#include "util/options.h"
 #include "util/paths.h"
 #include "util/seal.h"
 #include "util/upatch.h"
@@ -46,61 +47,144 @@ static const struct help_item attest_subcmds[] = {
 	{ "challenge", "make a credential challenge for a target's attestation key" },
 };
 
-static const struct help_item attest_options[] = {
-	{ "--nonce=<hex>",      "freshness value from the verifier (up to 64 bytes)" },
-	{ "--pcrs=<list>",      "PCRs to quote, comma separated (default 0-7,9,11-15)" },
-	{ "--challenge=<path>", "a challenge from the verifier to activate while attesting" },
-	{ "-o, --output <path>", "write the evidence there (0600) instead of stdout" },
+enum evidence_opt {
+	EVIDENCE_NONCE,
+	EVIDENCE_PCRS,
+	EVIDENCE_CHALLENGE,
+	EVIDENCE_OUTPUT,
 };
 
-static const struct help_item verify_options[] = {
-	{ "--evidence=<path>",     "the document a target produced" },
-	{ "--nonce=<hex>",         "the nonce that document was requested with" },
-	{ "--ak-name=<hex>",       "the attestation key name pinned at enrollment" },
-	{ "--cert=<cert.der>",     "a certificate the target enrols (repeatable)" },
-	{ "--upatch=<file>",       "an installed artifact (repeatable)" },
-	{ "--expect=<name>=<hex>", "an installed upatch by name and payload digest" },
-	{ "--tree-root=<hex>",     "the upatch tree projection root at boot" },
-	{ "--expect-chain=<hex>",  "the register value after the expected events" },
-	{ "--expect-config-root=<hex>", "approved config image hash" },
-	{ "--expect-config-pcr=<n>", "reserved config PCR number" },
-	{ "--expect-pcr=<n>=<hex>", "a PCR value the quote must carry (repeatable)" },
-	{ "--allow-runtime-events", "accept loads, unloads and revocations after boot" },
-	{ "--json",             "print the checks and the verdict as JSON" },
-	{ "--strict-anchor",       "require the anchoring PCR to hold only the anchor" },
-	{ "--expect-credential=<hex>", "the credential the challenge given to the target carried" },
-	{ "--ek-name=<hex>",       "the endorsement key name pinned at enrollment" },
-	{ "--expect-bind-pcr=<n>=<hex>", "a PCR value the register was bound under (repeatable)" },
-	{ "--require-initrd",      "fail unless init bound the register from the initrd" },
+static const struct opt_spec evidence_opts[] = {
+	[EVIDENCE_NONCE] = { "--nonce", 0, 0, "<hex>",
+		"freshness value from the verifier (up to 64 bytes)" },
+	[EVIDENCE_PCRS] = { "--pcrs", 0, 0, "<list>",
+		"PCRs to quote, comma separated (default 0-7,9,11-15)" },
+	[EVIDENCE_CHALLENGE] = { "--challenge", 0, 0, "<path>",
+		"a challenge from the verifier to activate while attesting" },
+	[EVIDENCE_OUTPUT] = { "--output", 'o', 0, "<path>",
+		"write the evidence there (0600) instead of stdout" },
 };
 
-static const struct help_item challenge_options[] = {
-	{ "--evidence=<path>",  "a document the target produced, carrying its keys" },
-	{ "--ak-name=<hex>",    "the attestation key name the challenge is for" },
-	{ "--ek-ca=<bundle>",   "PEM issuers the endorsement certificate must chain to" },
-	{ "--ek-name=<hex>",    "an endorsement key name known out of band" },
-	{ "--trust-presented-ek", "accept an endorsement key nothing vouches for" },
-	{ "-o, --output <path>", "write the challenge there (0600)" },
+enum verify_opt {
+	VERIFY_EVIDENCE,
+	VERIFY_NONCE,
+	VERIFY_AK_NAME,
+	VERIFY_CERT,
+	VERIFY_UPATCH,
+	VERIFY_EXPECT,
+	VERIFY_TREE_ROOT,
+	VERIFY_EXPECT_CHAIN,
+	VERIFY_EXPECT_CONFIG_ROOT,
+	VERIFY_EXPECT_CONFIG_PCR,
+	VERIFY_EXPECT_PCR,
+	VERIFY_ALLOW_RUNTIME_EVENTS,
+	VERIFY_JSON,
+	VERIFY_STRICT_ANCHOR,
+	VERIFY_EXPECT_CREDENTIAL,
+	VERIFY_EK_NAME,
+	VERIFY_EXPECT_BIND_PCR,
+	VERIFY_REQUIRE_INITRD,
 };
 
-static const struct help_item predict_options[] = {
-	{ "--cert=<cert.der>",     "a certificate the target enrols (repeatable)" },
-	{ "--upatch=<file>",       "an installed artifact (repeatable)" },
-	{ "--expect=<name>=<hex>", "an installed upatch by name and payload digest" },
-	{ "--tree-root=<hex>",     "the upatch tree projection root at boot" },
-	{ "--event=<kind>:<name>=<hex>",
-	  "a load, unload, tree:<seq> or revoke:<fingerprint> event after boot" },
-	{ "--bind-pcr=<n>=<hex>",  "PCR 9 and 11 values at binding, for the register name" },
-	{ "--json",             "print the values as JSON" },
-	{ "--writer-public=<hex>", "init record's 384-byte RSA modulus (with --bind-pcr)" },
+static const struct opt_spec verify_opts[] = {
+	[VERIFY_EVIDENCE] = { "--evidence", 0, 0, "<path>",
+		"the document a target produced" },
+	[VERIFY_NONCE] = { "--nonce", 0, 0, "<hex>",
+		"the nonce that document was requested with" },
+	[VERIFY_AK_NAME] = { "--ak-name", 0, 0, "<hex>",
+		"the attestation key name pinned at enrollment" },
+	[VERIFY_CERT] = { "--cert", 0, OPT_REPEAT, "<cert.der>",
+		"a certificate the target enrols (repeatable)" },
+	[VERIFY_UPATCH] = { "--upatch", 0, OPT_REPEAT, "<file>",
+		"an installed artifact (repeatable)" },
+	[VERIFY_EXPECT] = { "--expect", 0, OPT_REPEAT, "<name>=<hex>",
+		"an installed upatch by name and payload digest" },
+	[VERIFY_TREE_ROOT] = { "--tree-root", 0, 0, "<hex>",
+		"the upatch tree projection root at boot" },
+	[VERIFY_EXPECT_CHAIN] = { "--expect-chain", 0, 0, "<hex>",
+		"the register value after the expected events" },
+	[VERIFY_EXPECT_CONFIG_ROOT] = { "--expect-config-root", 0, 0, "<hex>",
+		"approved config image hash" },
+	[VERIFY_EXPECT_CONFIG_PCR] = { "--expect-config-pcr", 0, 0, "<n>",
+		"reserved config PCR number" },
+	[VERIFY_EXPECT_PCR] = { "--expect-pcr", 0, OPT_REPEAT, "<n>=<hex>",
+		"a PCR value the quote must carry (repeatable)" },
+	[VERIFY_ALLOW_RUNTIME_EVENTS] = { "--allow-runtime-events", 0, 0, NULL,
+		"accept loads, unloads and revocations after boot" },
+	[VERIFY_JSON] = { "--json", 0, 0, NULL,
+		"print the checks and the verdict as JSON" },
+	[VERIFY_STRICT_ANCHOR] = { "--strict-anchor", 0, 0, NULL,
+		"require the anchoring PCR to hold only the anchor" },
+	[VERIFY_EXPECT_CREDENTIAL] = { "--expect-credential", 0, 0, "<hex>",
+		"the credential the challenge given to the target carried" },
+	[VERIFY_EK_NAME] = { "--ek-name", 0, 0, "<hex>",
+		"the endorsement key name pinned at enrollment" },
+	[VERIFY_EXPECT_BIND_PCR] = { "--expect-bind-pcr", 0, OPT_REPEAT, "<n>=<hex>",
+		"a PCR value the register was bound under (repeatable)" },
+	[VERIFY_REQUIRE_INITRD] = { "--require-initrd", 0, 0, NULL,
+		"fail unless init bound the register from the initrd" },
+};
+
+enum challenge_opt {
+	CHALLENGE_EVIDENCE,
+	CHALLENGE_AK_NAME,
+	CHALLENGE_EK_CA,
+	CHALLENGE_EK_NAME,
+	CHALLENGE_TRUST_PRESENTED_EK,
+	CHALLENGE_OUTPUT,
+};
+
+static const struct opt_spec challenge_opts[] = {
+	[CHALLENGE_EVIDENCE] = { "--evidence", 0, 0, "<path>",
+		"a document the target produced, carrying its keys" },
+	[CHALLENGE_AK_NAME] = { "--ak-name", 0, 0, "<hex>",
+		"the attestation key name the challenge is for" },
+	[CHALLENGE_EK_CA] = { "--ek-ca", 0, 0, "<bundle>",
+		"PEM issuers the endorsement certificate must chain to" },
+	[CHALLENGE_EK_NAME] = { "--ek-name", 0, 0, "<hex>",
+		"an endorsement key name known out of band" },
+	[CHALLENGE_TRUST_PRESENTED_EK] = { "--trust-presented-ek", 0, 0, NULL,
+		"accept an endorsement key nothing vouches for" },
+	[CHALLENGE_OUTPUT] = { "--output", 'o', 0, "<path>",
+		"write the challenge there (0600)" },
+};
+
+enum predict_opt {
+	PREDICT_CERT,
+	PREDICT_UPATCH,
+	PREDICT_EXPECT,
+	PREDICT_TREE_ROOT,
+	PREDICT_EVENT,
+	PREDICT_BIND_PCR,
+	PREDICT_JSON,
+	PREDICT_WRITER_PUBLIC,
+};
+
+static const struct opt_spec predict_opts[] = {
+	[PREDICT_CERT] = { "--cert", 0, OPT_REPEAT, "<cert.der>",
+		"a certificate the target enrols (repeatable)" },
+	[PREDICT_UPATCH] = { "--upatch", 0, OPT_REPEAT, "<file>",
+		"an installed artifact (repeatable)" },
+	[PREDICT_EXPECT] = { "--expect", 0, OPT_REPEAT, "<name>=<hex>",
+		"an installed upatch by name and payload digest" },
+	[PREDICT_TREE_ROOT] = { "--tree-root", 0, 0, "<hex>",
+		"the upatch tree projection root at boot" },
+	[PREDICT_EVENT] = { "--event", 0, OPT_REPEAT, "<kind>:<name>=<hex>",
+		"a load, unload, tree:<seq> or revoke:<fingerprint> event after boot" },
+	[PREDICT_BIND_PCR] = { "--bind-pcr", 0, OPT_REPEAT, "<n>=<hex>",
+		"PCR 9 and 11 values at binding, for the register name" },
+	[PREDICT_JSON] = { "--json", 0, 0, NULL,
+		"print the values as JSON" },
+	[PREDICT_WRITER_PUBLIC] = { "--writer-public", 0, 0, "<hex>",
+		"init record's 384-byte RSA modulus (with --bind-pcr)" },
 };
 
 static const struct help_section attest_help_sections[] = {
 	HELP_ITEMS("subcommands:", attest_subcmds),
-	HELP_ITEMS("evidence options (target):", attest_options),
-	HELP_ITEMS("verify options (operator):", verify_options),
-	HELP_ITEMS("predict options (operator):", predict_options),
-	HELP_ITEMS("challenge options (operator):", challenge_options),
+	HELP_OPTIONS("evidence options (target):", evidence_opts),
+	HELP_OPTIONS("verify options (operator):", verify_opts),
+	HELP_OPTIONS("predict options (operator):", predict_opts),
+	HELP_OPTIONS("challenge options (operator):", challenge_opts),
 };
 
 static const struct help attest_help = {
@@ -257,102 +341,88 @@ static int cmd_attest_predict(int argc, const char **argv)
 	char hex[2 * TPM_NAME_LEN + 1];
 	bool have_cert = false, have_writer = false, have_bind[2] = {};
 	size_t n_events = 0, i;
-	int ret = 2;
+	int ret = EXIT_USAGE, opt;
+	struct opt_parser p;
 
 	m.set = xcalloc(ATTEST_MEMBERS_MAX, sizeof(*m.set));
 	if (!m.set)
 		return 1;
-	for (i = 2; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (opt_arg("--cert", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
+	OPT_INIT(&p, "attest predict", predict_opts, &attest_help, argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case PREDICT_CERT:
 			if (n_certs >= KEYS_MAX) {
-				pr_err("attest predict: at most %d --cert",
-				       KEYS_MAX);
+				opt_usage(&p, "at most %d --cert", KEYS_MAX);
 				goto out;
 			}
-			if (cert_digest(v, cert_shas[n_certs]))
+			if (cert_digest(p.value, cert_shas[n_certs]))
 				goto out;
 			n_certs++;
 			have_cert = true;
-		} else if (opt_arg("--upatch", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
+			break;
+		case PREDICT_UPATCH:
+			if (member_add_file(&m, p.value))
+				goto out;
+			break;
+		case PREDICT_EXPECT:
+			if (member_add_spec(&m, p.value))
+				goto out;
+			break;
+		case PREDICT_TREE_ROOT:
+			if (parse_hex32("--tree-root", p.value, tree_root))
+				goto out;
+			break;
+		case PREDICT_EVENT:
+			if (n_events >= EVENTS_MAX) {
+				opt_usage(&p, "at most %d --event", EVENTS_MAX);
 				goto out;
 			}
-			if (member_add_file(&m, v))
-				goto out;
-		} else if (opt_arg("--expect", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
-			if (member_add_spec(&m, v))
-				goto out;
-		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
-			if (parse_hex32("--tree-root", v, tree_root))
-				goto out;
-		} else if (opt_arg("--event", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
-			if (n_events >= EVENTS_MAX)
-				goto out;
-			events[n_events++] = v;
-		} else if (opt_arg("--writer-public", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
-			if (hex_decode(v, writer_public, sizeof(writer_public))) {
-				pr_err("attest predict: invalid RSA-3072 --writer-public");
+			events[n_events++] = p.value;
+			break;
+		case PREDICT_WRITER_PUBLIC:
+			if (hex_decode(p.value, writer_public,
+				       sizeof(writer_public))) {
+				opt_usage(&p, "invalid RSA-3072 --writer-public");
 				goto out;
 			}
 			have_writer = true;
-		} else if (!strcmp(a, "--json")) {
+			break;
+		case PREDICT_JSON:
 			po.json = true;
-		} else if (opt_arg("--bind-pcr", a, argc, argv, &i, &v, &r)) {
+			break;
+		case PREDICT_BIND_PCR: {
 			const char *value = NULL;
 			int slot = -1;
 			__u64 n;
 
-			if (r == OPT_MISSING) {
-				pr_err("attest predict: %s takes a value", a);
-				goto out;
-			}
-			if (!attest_parse_pcr_value(v, &n, &value))
+			if (!attest_parse_pcr_value(p.value, &n, &value))
 				slot = n == CHAIN_PCR ? 0 :
 				       n == CHAIN_PHASE_PCR ? 1 : -1;
 			if (slot < 0 ||
 			    parse_hex32("--bind-pcr value", value, bind[slot])) {
-				pr_err("attest predict: --bind-pcr takes "
-				       "%u=<hex> or %u=<hex>", CHAIN_PCR,
-				       CHAIN_PHASE_PCR);
+				opt_usage(&p, "--bind-pcr takes %u=<hex> or %u=<hex>",
+					  CHAIN_PCR, CHAIN_PHASE_PCR);
+				goto out;
+			}
+			if (have_bind[slot]) {
+				opt_usage(&p, "--bind-pcr %llu given twice", n);
 				goto out;
 			}
 			have_bind[slot] = true;
-		} else if (is_help(a)) {
-			print_help(&attest_help);
+			break;
+		}
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			goto out;
+		case OPT_DONE:
 			ret = 0;
 			goto out;
-		} else {
-			pr_err("attest predict: unknown option '%s'", a);
+		default:
 			goto out;
 		}
 	}
 	if (!have_cert) {
-		pr_err("attest predict: --cert is required");
+		opt_usage(&p, "--cert is required");
 		goto out;
 	}
 	if (po.json) {
@@ -535,206 +605,160 @@ static int cmd_attest_verify(int argc, const char **argv)
 	const char *evidence_path = NULL;
 	struct members m = {};
 	char *evidence = NULL, *report;
-	size_t evidence_len = 0, nonce_len = 0, i;
+	size_t evidence_len = 0, nonce_len = 0;
+	struct opt_parser p;
 	bool have_cert = false, have_nonce = false, have_tree_root = false;
-	int err, ret = 2;
+	int err, ret = EXIT_USAGE, opt;
 
 	m.set = xcalloc(ATTEST_MEMBERS_MAX, sizeof(*m.set));
 	report = xmalloc(ATTEST_REPORT_MAX);
 	if (!m.set || !report)
 		goto out;
-	for (i = 2; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (opt_arg("--evidence", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			evidence_path = v;
-		} else if (opt_arg("--nonce", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (hex_decode_max(v, nonce, sizeof(nonce),
+	OPT_INIT(&p, "attest verify", verify_opts, &attest_help, argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case VERIFY_EVIDENCE:
+			evidence_path = p.value;
+			break;
+		case VERIFY_NONCE:
+			if (hex_decode_max(p.value, nonce, sizeof(nonce),
 					   &nonce_len) || !nonce_len) {
-				pr_err("attest verify: --nonce must be hex of "
-				       "up to %d bytes",
-				       ATTEST_NONCE_MAX);
+				opt_usage(&p, "--nonce must be hex of up to %d bytes",
+					  ATTEST_NONCE_MAX);
 				goto out;
 			}
 			have_nonce = true;
-		} else if (opt_arg("--ak-name", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (hex_decode(v, x.ak_name, TPM_NAME_LEN)) {
-				pr_err("attest verify: --ak-name must be %d "
-				       "hex characters",
-				       2 * TPM_NAME_LEN);
+			break;
+		case VERIFY_AK_NAME:
+			if (hex_decode(p.value, x.ak_name, TPM_NAME_LEN)) {
+				opt_usage(&p, "--ak-name must be %d hex characters",
+					  2 * TPM_NAME_LEN);
 				goto out;
 			}
 			x.have_ak_name = true;
-		} else if (opt_arg("--cert", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
+			break;
+		case VERIFY_CERT:
 			if (n_certs >= KEYS_MAX) {
-				pr_err("attest verify: at most %d --cert",
-				       KEYS_MAX);
+				opt_usage(&p, "at most %d --cert", KEYS_MAX);
 				goto out;
 			}
-			if (cert_digest(v, cert_shas[n_certs]))
+			if (cert_digest(p.value, cert_shas[n_certs]))
 				goto out;
 			n_certs++;
 			have_cert = true;
-		} else if (opt_arg("--upatch", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
+			break;
+		case VERIFY_UPATCH:
+			if (member_add_file(&m, p.value))
 				goto out;
-			}
-			if (member_add_file(&m, v))
+			break;
+		case VERIFY_EXPECT:
+			if (member_add_spec(&m, p.value))
 				goto out;
-		} else if (opt_arg("--expect", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (member_add_spec(&m, v))
-				goto out;
-		} else if (opt_arg("--tree-root", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (parse_hex32("--tree-root", v, tree_root))
+			break;
+		case VERIFY_TREE_ROOT:
+			if (parse_hex32("--tree-root", p.value, tree_root))
 				goto out;
 			have_tree_root = true;
-		} else if (opt_arg("--expect-config-root", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (x.have_config_root ||
-			    parse_hex32("--expect-config-root", v,
+			break;
+		case VERIFY_EXPECT_CONFIG_ROOT:
+			if (parse_hex32("--expect-config-root", p.value,
 					x.config_root))
 				goto out;
 			x.have_config_root = true;
-		} else if (opt_arg("--expect-config-pcr", a, argc, argv, &i, &v, &r)) {
+			break;
+		case VERIFY_EXPECT_CONFIG_PCR: {
 			__u64 pcr;
 
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
+			if (opt_u64(&p, 0, 15, &pcr))
+				goto out;
+			if (config_measure_pcr_valid(pcr)) {
+				opt_usage(&p, "--expect-config-pcr cannot be 9 or 11");
 				goto out;
 			}
-			if (parse_u64(v, strlen(v), 15, &pcr) ||
-			    x.have_config_pcr ||
-			    config_measure_pcr_valid(pcr))
-				goto out;
 			x.config_pcr = pcr;
 			x.have_config_pcr = true;
-		} else if (opt_arg("--expect-chain", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (parse_hex32("--expect-chain", v, x.chain))
+			break;
+		}
+		case VERIFY_EXPECT_CHAIN:
+			if (parse_hex32("--expect-chain", p.value, x.chain))
 				goto out;
 			x.have_chain = true;
-		} else if (opt_arg("--expect-pcr", a, argc, argv, &i, &v, &r)) {
+			break;
+		case VERIFY_EXPECT_PCR: {
 			const char *value;
 			__u64 n;
 
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (attest_parse_pcr_value(v, &n, &value) ||
+			if (attest_parse_pcr_value(p.value, &n, &value) ||
 			    parse_hex32("--expect-pcr value", value, x.pcrs[n]))
 				goto out;
-			x.pcr_expect_mask |= 1u << n;
-		} else if (!strcmp(a, "--json")) {
-			json = true;
-		} else if (!strcmp(a, "--allow-runtime-events")) {
-			x.allow_runtime_events = true;
-		} else if (!strcmp(a, "--strict-anchor")) {
-			x.strict_anchor = true;
-		} else if (opt_arg("--expect-credential", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
+			if (x.pcr_expect_mask & (1u << n)) {
+				opt_usage(&p, "--expect-pcr %llu given twice", n);
 				goto out;
 			}
-			if (parse_hex32("--expect-credential", v,
+			x.pcr_expect_mask |= 1u << n;
+			break;
+		}
+		case VERIFY_JSON:
+			json = true;
+			break;
+		case VERIFY_ALLOW_RUNTIME_EVENTS:
+			x.allow_runtime_events = true;
+			break;
+		case VERIFY_STRICT_ANCHOR:
+			x.strict_anchor = true;
+			break;
+		case VERIFY_EXPECT_CREDENTIAL:
+			if (parse_hex32("--expect-credential", p.value,
 					x.credential))
 				goto out;
 			x.have_credential = true;
-		} else if (opt_arg("--ek-name", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (hex_decode(v, x.ek_name, TPM_NAME_LEN)) {
-				pr_err("attest verify: --ek-name must be %d "
-				       "hex characters",
-				       2 * TPM_NAME_LEN);
+			break;
+		case VERIFY_EK_NAME:
+			if (hex_decode(p.value, x.ek_name, TPM_NAME_LEN)) {
+				opt_usage(&p, "--ek-name must be %d hex characters",
+					  2 * TPM_NAME_LEN);
 				goto out;
 			}
 			x.have_ek_name = true;
-		} else if (opt_arg("--expect-bind-pcr", a, argc, argv, &i, &v, &r)) {
+			break;
+		case VERIFY_EXPECT_BIND_PCR: {
 			const char *value;
 			__u64 n;
 
-			if (r == OPT_MISSING) {
-				pr_err("attest verify: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (attest_parse_pcr_value(v, &n, &value) ||
+			if (attest_parse_pcr_value(p.value, &n, &value) ||
 			    parse_hex32("--expect-bind-pcr value", value,
 					x.bind_values[n]))
 				goto out;
+			if (x.bind_expect_mask & (1u << n)) {
+				opt_usage(&p, "--expect-bind-pcr %llu given twice", n);
+				goto out;
+			}
 			x.bind_expect_mask |= 1u << n;
-		} else if (!strcmp(a, "--require-initrd")) {
+			break;
+		}
+		case VERIFY_REQUIRE_INITRD:
 			x.require_initrd = true;
-		} else if (is_help(a)) {
-			print_help(&attest_help);
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			goto out;
+		case OPT_DONE:
 			ret = 0;
 			goto out;
-		} else {
-			pr_err("attest verify: unknown option '%s'", a);
+		default:
 			goto out;
 		}
 	}
 	if (x.have_config_root && !x.have_config_pcr) {
-		pr_err("attest verify: --expect-config-root requires "
-		       "--expect-config-pcr");
+		opt_usage(&p, "--expect-config-root requires --expect-config-pcr");
 		goto out;
 	}
 	if (!evidence_path || !have_nonce) {
-		pr_err("attest verify: --evidence and --nonce are required");
+		opt_usage(&p, "--evidence and --nonce are required");
 		goto out;
 	}
 	if (!have_cert && (m.n || have_tree_root)) {
-		pr_err("attest verify: --upatch, --expect and --tree-root "
-		       "describe the init event and need --cert");
+		opt_usage(&p, "--upatch, --expect and --tree-root describe the init event and need --cert");
 		goto out;
 	}
 	/*
@@ -796,78 +820,56 @@ static int cmd_attest_challenge(int argc, const char **argv)
 	const char *evidence_path = NULL, *out_path = NULL;
 	char *evidence = NULL, *doc = NULL, *report;
 	char hex[2 * TPM_CREDENTIAL_LEN + 1];
-	size_t evidence_len = 0, len = 0, cap = 0, i;
-	int err, ret = 2;
+	size_t evidence_len = 0, len = 0, cap = 0;
+	int err, ret = EXIT_USAGE, opt;
+	struct opt_parser p;
 
 	report = xmalloc(ATTEST_REPORT_MAX);
 	if (!report)
 		return 1;
-	for (i = 2; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (!strcmp(a, "-o"))
-			a = "--output";
-
-		if (opt_arg("--evidence", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest challenge: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			evidence_path = v;
-		} else if (opt_arg("--ek-ca", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest challenge: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			pol.ek_ca = v;
-		} else if (opt_arg("--ak-name", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest challenge: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (hex_decode(v, ak_name, TPM_NAME_LEN)) {
-				pr_err("attest challenge: --ak-name must be %d "
-				       "hex characters", 2 * TPM_NAME_LEN);
+	OPT_INIT(&p, "attest challenge", challenge_opts, &attest_help, argc, argv, 2);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case CHALLENGE_EVIDENCE:
+			evidence_path = p.value;
+			break;
+		case CHALLENGE_EK_CA:
+			pol.ek_ca = p.value;
+			break;
+		case CHALLENGE_AK_NAME:
+			if (hex_decode(p.value, ak_name, TPM_NAME_LEN)) {
+				opt_usage(&p, "--ak-name must be %d hex characters",
+					  2 * TPM_NAME_LEN);
 				goto out;
 			}
 			pol.ak_name = ak_name;
-		} else if (opt_arg("--ek-name", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest challenge: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			if (hex_decode(v, ek_name, TPM_NAME_LEN)) {
-				pr_err("attest challenge: --ek-name must be %d "
-				       "hex characters", 2 * TPM_NAME_LEN);
+			break;
+		case CHALLENGE_EK_NAME:
+			if (hex_decode(p.value, ek_name, TPM_NAME_LEN)) {
+				opt_usage(&p, "--ek-name must be %d hex characters",
+					  2 * TPM_NAME_LEN);
 				goto out;
 			}
 			pol.ek_name = ek_name;
-		} else if (!strcmp(a, "--trust-presented-ek")) {
+			break;
+		case CHALLENGE_TRUST_PRESENTED_EK:
 			pol.trust_presented = true;
-		} else if (opt_arg("--output", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest challenge: %s takes a value", a);
-				ret = 2;
-				goto out;
-			}
-			out_path = v;
-		} else if (is_help(a)) {
-			print_help(&attest_help);
+			break;
+		case CHALLENGE_OUTPUT:
+			out_path = p.value;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			goto out;
+		case OPT_DONE:
 			ret = 0;
 			goto out;
-		} else {
-			pr_err("attest challenge: unknown option '%s'", a);
+		default:
 			goto out;
 		}
 	}
 	if (!evidence_path || !out_path) {
-		pr_err("attest challenge: --evidence and --output are required");
+		opt_usage(&p, "--evidence and --output are required");
 		goto out;
 	}
 	if (read_evidence(evidence_path, &evidence, &evidence_len))
@@ -923,56 +925,40 @@ static int cmd_attest_evidence(int argc, const char **argv)
 	__u32 mask = ATTEST_PCR_DEFAULT;
 	const char *out_path = NULL, *challenge_path = NULL;
 	char *doc = NULL;
-	size_t nonce_len = 0, len = 0, cap = 0, i;
-	int ret;
+	size_t nonce_len = 0, len = 0, cap = 0;
+	struct opt_parser p;
+	int ret, opt;
 
-	for (i = 1; i < (size_t)argc; i++) {
-		const char *a = argv[i];
-		const char *v = NULL;
-		enum opt_status r;
-
-		if (!strcmp(a, "-o"))
-			a = "--output";
-
-		if (opt_arg("--challenge", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest: %s takes a value", a);
-				return 2;
-			}
-			challenge_path = v;
-		} else if (opt_arg("--nonce", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest: %s takes a value", a);
-				return 2;
-			}
-			if (hex_decode_max(v, nonce, sizeof(nonce),
+	OPT_INIT(&p, "attest", evidence_opts, &attest_help, argc, argv, 1);
+	for (opt = opt_next(&p); opt != OPT_END; opt = opt_next(&p)) {
+		switch (opt) {
+		case EVIDENCE_CHALLENGE:
+			challenge_path = p.value;
+			break;
+		case EVIDENCE_NONCE:
+			if (hex_decode_max(p.value, nonce, sizeof(nonce),
 					   &nonce_len) || !nonce_len) {
-				pr_err("attest: --nonce must be hex of up to "
-				       "%d bytes", ATTEST_NONCE_MAX);
-				return 2;
+				opt_usage(&p, "--nonce must be hex of up to %d bytes",
+					  ATTEST_NONCE_MAX);
+				return EXIT_USAGE;
 			}
-		} else if (opt_arg("--pcrs", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest: %s takes a value", a);
-				return 2;
+			break;
+		case EVIDENCE_PCRS:
+			if (attest_parse_pcrs(p.value, &mask)) {
+				opt_usage(&p, "--pcrs takes a comma separated list of 0..23");
+				return EXIT_USAGE;
 			}
-			if (attest_parse_pcrs(v, &mask)) {
-				pr_err("attest: --pcrs takes a comma separated "
-				       "list of 0..23");
-				return 2;
-			}
-		} else if (opt_arg("--output", a, argc, argv, &i, &v, &r)) {
-			if (r == OPT_MISSING) {
-				pr_err("attest: %s takes a value", a);
-				return 2;
-			}
-			out_path = v;
-		} else if (is_help(a)) {
-			print_help(&attest_help);
+			break;
+		case EVIDENCE_OUTPUT:
+			out_path = p.value;
+			break;
+		case OPT_ARG:
+			opt_usage(&p, "unexpected argument '%s'", p.value);
+			return EXIT_USAGE;
+		case OPT_DONE:
 			return 0;
-		} else {
-			pr_err("attest: unknown option '%s'", a);
-			return 2;
+		default:
+			return EXIT_USAGE;
 		}
 	}
 	if (!nonce_len)

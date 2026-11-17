@@ -159,10 +159,12 @@ Exit status
    * - 1
      - ``verdict: fail``.
    * - 2
-     - A usage error or an invalid value, an option given last without
-       its value, ``--evidence`` or ``--nonce`` missing, an option that
-       needs another, an unreadable evidence file or a file that is not a
-       shirudo evidence document.
+     - A usage error: an unknown option, an option given twice, the same
+       PCR twice to ``--expect-pcr`` or ``--expect-bind-pcr``, a value
+       missing, empty or invalid, an argument, ``--evidence`` or
+       ``--nonce`` missing, or an option that needs another. An
+       unreadable evidence file or a file that is not a shirudo evidence
+       document.
 
 Examples
 --------
