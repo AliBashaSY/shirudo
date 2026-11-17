@@ -362,7 +362,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 
 int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 {
-	const char *p, *scheme = getenv("BPM_OCI_SCHEME");
+	const char *p, *ca_file, *scheme = getenv("BPM_OCI_SCHEME");
 	char transport[16] = "https";
 
 	if (!endpoint || strncmp(endpoint, "oci://", 6) != 0)
@@ -381,8 +381,8 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 		return -ENAMETOOLONG;
 	if (strsprintf(c->base_url, sizeof(c->base_url), "%s://%s", transport, p) < 0)
 		return -ENAMETOOLONG;
-	if (getenv("BPM_OCI_CA_FILE")) {
-		const char *ca_file = getenv("BPM_OCI_CA_FILE");
+	ca_file = getenv("BPM_OCI_CA_FILE");
+	if (ca_file) {
 		struct cert ca = {};
 
 		if (strlen(ca_file) >= sizeof(c->ca_file))

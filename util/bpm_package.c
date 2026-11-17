@@ -401,6 +401,21 @@ static gzFile package_gzdopen(int fd)
 	return gz;
 }
 
+/*
+ * A gzip stream of the file at path. zlib sets errno where a call it
+ * makes fails and leaves it as it was where it refuses on its own.
+ */
+static gzFile package_gzopen(const char *path)
+{
+	gzFile gz;
+
+	errno = 0;
+	gz = gzopen(path, "rb");
+	if (!gz && !errno)
+		errno = ENOMEM;
+	return gz;
+}
+
 /* Takes gz over, and its open's errno when it is NULL. */
 static int read_member_gz(gzFile gz, const char *member,
 			  const char *package_dir, char *found_dir,
@@ -526,7 +541,7 @@ int bpm_pkg_read_member_in(const char *archive, const char *member,
 			   size_t found_dir_sz, __u8 **out,
 			   size_t *out_len, size_t max)
 {
-	return read_member_gz(gzopen(archive, "rb"), member, package_dir,
+	return read_member_gz(package_gzopen(archive), member, package_dir,
 			      found_dir, found_dir_sz, out, out_len, max);
 }
 
