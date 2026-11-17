@@ -1241,7 +1241,8 @@ testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
 testing/fuzz/fuzz-beefile: testing/fuzz/fuzz-beefile.c $(FUZZ_BASE) \
                            tools/shirudo-build/bpm-build.c $(FUZZ_PACKAGE) \
                            util/upatch.c util/timefmt.c util/paths.c \
-                           util/version_id.c
+                           util/version_id.c util/options.c util/help.c \
+                           util/similar.c
 testing/fuzz/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \
                             $(FUZZ_OCI)
 testing/fuzz/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \

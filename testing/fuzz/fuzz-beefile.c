@@ -18,12 +18,12 @@
 #include "tools/shirudo-build/vmlinux.h"
 
 /* What bpm build does with a parsed Beefile is out of reach from here. */
-int build_bpm_push(int argc, char **argv)
+int build_bpm_push(int argc, const char **argv)
 {
 	return -ENOSYS;
 }
 
-int build_bpm_tree(int argc, char **argv)
+int build_bpm_tree(int argc, const char **argv)
 {
 	return -ENOSYS;
 }
