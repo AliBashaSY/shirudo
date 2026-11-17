@@ -319,7 +319,7 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - The decisions of the Lean model ``Shirudo.TreeOverlap``, which
        proves them sound for what a node matches
    * - ``bpm-tree-overlap-live``
-     - ``tree_add_live()``
+     - ``tree_add_live()``, ``tree_add_withdrawn()``
      - Publications of up to 3 operations, at every index; an ``op`` of
        up to 7 bytes, an id of up to 2, selectors of one architecture or
        none

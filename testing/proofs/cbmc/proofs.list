@@ -129,7 +129,7 @@ conditions-detail	--object-bits 12 --unwind 195 --unwindset vsnprintf.2:836 LEN=
 bpm-state-entry		--unwind 1 --unwindset vsnprintf.1:31,vsnprintf.2:7,strcmp.0:42,memcmp.0:32,strlen.0:130,bpm_component_ok.0:130 LEN=0,1
 bpm-state-emit		--object-bits 12 --unwind 1 --unwindset bpm_state_emit.0:3,put_string_n.1:54,put_raw.0:3,vsnprintf.2:3,format_number.0:3,format_number.3:3,strlen.0:250,strcmp.0:250 LEN=0,26,27,123,124,247,248
 bpm-tree-overlap-model	--unwind 3 --unwindset strcmp.0:4,strlen.0:4,strncmp.0:4,model_same.0:4,model_continues.0:4 LEN=2
-bpm-tree-overlap-live	--unwind 2 --unwindset strcmp.0:9,model_same.0:9,add_live.0:4,add_live.1:4,add_live.2:4,tree_add_live.0:4
+bpm-tree-overlap-live	--unwind 2 --unwindset strcmp.0:9,model_same.0:9,add_live.0:4,add_live.1:4,add_live.2:4,tree_add_withdrawn.0:4
 bpm-tree-state-pairs	--unwind 4 --unwindset strnlen.0:258,memcpy.0:258,strlen.0:67,hex_decode.0:33,digest_valid.0:65 LEN=0-2,255,256
 bpm-tree-state-replay	--unwind 8 --unwindset strlen.0:66,hex_decode.0:33,text_of_64.0:65,model_hash.0:33,memneq_explicit.0:33,memcmp.0:33 LEN=0-3
 bpm-tree-state-replay-lines --unwind 8 --unwindset strlen.0:66,hex_decode.0:33,text_of_64.0:65,model_hash.0:33,memneq_explicit.0:33,memcmp.0:33 LEN=0-4,6
