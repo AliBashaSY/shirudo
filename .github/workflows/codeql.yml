@@ -31,6 +31,8 @@ jobs:
             name: C
           - language: python
             name: Python
+          - language: actions
+            name: Actions
 
     steps:
       - name: Check out repository
@@ -38,8 +40,8 @@ jobs:
 
       # The full build needs the BTF of a bpf-next kernel for vmlinux.h and
       # an OpenSSL 3.5 toolchain, neither of which the runner has, so the C
-      # sources are extracted without a build, as Python always is. The
-      # vendored libbpf is left to its own project's scans.
+      # sources are extracted without a build, as Python and the workflows
+      # always are. The vendored libbpf is left to its own project's scans.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
