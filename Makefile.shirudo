@@ -1153,8 +1153,10 @@ sparse:
 
 # libFuzzer targets for the parsers of input from outside the host, built
 # with clang from the util sources under the sanitizers SANITIZE names, ASan
-# and UBSan without it; make -C testing fuzz builds and runs them.
+# and UBSan without it; make -C testing fuzz builds and runs them. FUZZ_OUT
+# keeps the builds of another engine apart, as make -C testing afl does.
 FUZZ_CC ?= clang
+FUZZ_OUT ?= testing/fuzz
 FUZZ_SANITIZE := $(if $(SANITIZE),$(SANITIZE_CFLAGS), \
                  -fsanitize=address$(comma)undefined)
 FUZZ_WARNINGS := $(call cc-option,$(FUZZ_CC),$(PROBED_WARNINGS))
@@ -1174,33 +1176,34 @@ FUZZ_OCI := util/bpm_oci.c util/curl.c util/io.c $(FUZZ_SEAL) \
 FUZZ_PACKAGE := util/bpm_package.c util/bpm_tree.c util/chain_history.c \
                 util/upatch.c util/keys.c $(FUZZ_OCI)
 
-FUZZ_TARGETS := $(patsubst %.c,%,$(wildcard testing/fuzz/fuzz-*.c))
+FUZZ_TARGETS := $(patsubst testing/fuzz/%.c,$(FUZZ_OUT)/%, \
+                $(wildcard testing/fuzz/fuzz-*.c))
 
-testing/fuzz/fuzz-json: testing/fuzz/fuzz-json.c $(FUZZ_BASE)
-testing/fuzz/fuzz-oci-manifest: testing/fuzz/fuzz-oci-manifest.c \
+$(FUZZ_OUT)/fuzz-json: testing/fuzz/fuzz-json.c $(FUZZ_BASE)
+$(FUZZ_OUT)/fuzz-oci-manifest: testing/fuzz/fuzz-oci-manifest.c \
                                 $(FUZZ_BASE) $(FUZZ_OCI)
-testing/fuzz/fuzz-bpm-index: testing/fuzz/fuzz-bpm-index.c \
+$(FUZZ_OUT)/fuzz-bpm-index: testing/fuzz/fuzz-bpm-index.c \
                              $(FUZZ_BASE) $(FUZZ_PACKAGE)
-testing/fuzz/fuzz-tree: testing/fuzz/fuzz-tree.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-tree: testing/fuzz/fuzz-tree.c $(FUZZ_BASE) \
                         util/bpm_tree.c util/chain_history.c \
                         util/upatch.c $(FUZZ_OCI)
-testing/fuzz/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-upatch: testing/fuzz/fuzz-upatch.c $(FUZZ_BASE) \
                           util/upatch.c
-testing/fuzz/fuzz-prog-metadata: testing/fuzz/fuzz-prog-metadata.c \
+$(FUZZ_OUT)/fuzz-prog-metadata: testing/fuzz/fuzz-prog-metadata.c \
                                  $(FUZZ_BASE) util/upatch.c
-testing/fuzz/fuzz-rodata: testing/fuzz/fuzz-rodata.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-rodata: testing/fuzz/fuzz-rodata.c $(FUZZ_BASE) \
                           util/upatch.c util/upatch_rodata.c util/io.c \
                           $(FUZZ_SEAL) $(LIBBPF_A)
-testing/fuzz/fuzz-rodata: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
-testing/fuzz/fuzz-rodata: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
-testing/fuzz/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-rodata: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
+$(FUZZ_OUT)/fuzz-rodata: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
+$(FUZZ_OUT)/fuzz-bpm-tar: testing/fuzz/fuzz-bpm-tar.c $(FUZZ_BASE) \
                            $(FUZZ_PACKAGE)
-testing/fuzz/fuzz-bpm-package: testing/fuzz/fuzz-bpm-package.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-bpm-package: testing/fuzz/fuzz-bpm-package.c $(FUZZ_BASE) \
                                $(FUZZ_PACKAGE)
-testing/fuzz/fuzz-tpm-wire: testing/fuzz/fuzz-tpm-wire.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-tpm-wire: testing/fuzz/fuzz-tpm-wire.c $(FUZZ_BASE) \
                             util/tpm_wire.c util/crypto_openssl.c util/io.c \
                             $(FUZZ_SEAL)
-testing/fuzz/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
                           util/attest.c util/chain.c util/chain_history.c \
                           util/nv_writer.c util/tpm.c \
                           util/tpm_wire.c util/eventlog.c util/timefmt.c \
@@ -1209,56 +1212,56 @@ testing/fuzz/fuzz-attest: testing/fuzz/fuzz-attest.c $(FUZZ_BASE) \
                           util/config_measure.c util/initrd.c util/identity.c \
                           util/keyring.c util/version_id.c util/upatch.c \
                           $(LIBBPF_A)
-testing/fuzz/fuzz-attest: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
-testing/fuzz/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
-testing/fuzz/fuzz-eventlog: testing/fuzz/fuzz-eventlog.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-attest: FUZZ_CFLAGS += $(TSS2_CFLAGS) $(LIBELF_CFLAGS)
+$(FUZZ_OUT)/fuzz-attest: FUZZ_LIBS += $(TSS2_LIBS) $(LIBBPF_A) $(LIBELF_LIBS) $(ZLIB_LIBS)
+$(FUZZ_OUT)/fuzz-eventlog: testing/fuzz/fuzz-eventlog.c $(FUZZ_BASE) \
                             util/eventlog.c util/timefmt.c util/upatch.c \
                             $(FUZZ_SEAL) util/io.c util/crypto_openssl.c \
                             testing/fuzz/chain.c
-testing/fuzz/fuzz-kernel: testing/fuzz/fuzz-kernel.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-kernel: testing/fuzz/fuzz-kernel.c $(FUZZ_BASE) \
                           util/kernel_build_id.c
-testing/fuzz/fuzz-elf: testing/fuzz/fuzz-elf.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-elf: testing/fuzz/fuzz-elf.c $(FUZZ_BASE) \
                        util/elf_target.c $(LIBBPF_A)
-testing/fuzz/fuzz-elf: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
-testing/fuzz/fuzz-elf: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
-testing/fuzz/fuzz-serializer: testing/fuzz/fuzz-serializer.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-elf: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
+$(FUZZ_OUT)/fuzz-elf: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
+$(FUZZ_OUT)/fuzz-serializer: testing/fuzz/fuzz-serializer.c $(FUZZ_BASE) \
                               util/upatch_maps.c util/upatch_pins.c \
                               util/upatch_resolve.c util/serializer.c $(FUZZ_SEAL) util/io.c util/paths.c \
                               util/timefmt.c $(LIBBPF_A)
-testing/fuzz/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
-testing/fuzz/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
-testing/fuzz/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
+$(FUZZ_OUT)/fuzz-serializer: FUZZ_CFLAGS += $(LIBELF_CFLAGS)
+$(FUZZ_OUT)/fuzz-serializer: FUZZ_LIBS += $(LIBBPF_A) $(LIBELF_LIBS)
+$(FUZZ_OUT)/fuzz-cms: testing/fuzz/fuzz-cms.c $(FUZZ_BASE) util/keys.c \
                        util/crypto_openssl.c util/io.c $(FUZZ_SEAL)
-testing/fuzz/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-decoder: testing/fuzz/fuzz-decoder.c $(FUZZ_BASE) \
                            util/upatch_decode.c util/upatch.c util/io.c \
                            util/crypto_openssl.c $(FUZZ_SEAL)
-testing/fuzz/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
-testing/fuzz/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
-testing/fuzz/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-decoder: FUZZ_CFLAGS += $(LUAJIT_CFLAGS) -DHAVE_LUAJIT
+$(FUZZ_OUT)/fuzz-decoder: FUZZ_LIBS += $(LUAJIT_LIBS)
+$(FUZZ_OUT)/fuzz-otel: testing/fuzz/fuzz-otel.c $(FUZZ_BASE) \
                         util/upatch_maps_otel.c util/curl.c \
                         util/crypto_openssl.c \
                         util/tls_openssl.c util/io.c util/version_id.c \
                         $(FUZZ_SEAL)
-testing/fuzz/fuzz-beefile: testing/fuzz/fuzz-beefile.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-beefile: testing/fuzz/fuzz-beefile.c $(FUZZ_BASE) \
                            tools/shirudo-build/bpm-build.c $(FUZZ_PACKAGE) \
                            util/upatch.c util/timefmt.c util/paths.c \
                            util/version_id.c util/options.c util/help.c \
                            util/similar.c
-testing/fuzz/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-oci-http: testing/fuzz/fuzz-oci-http.c $(FUZZ_BASE) \
                             $(FUZZ_OCI)
-testing/fuzz/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-oci-ref: testing/fuzz/fuzz-oci-ref.c $(FUZZ_BASE) \
                            $(FUZZ_OCI)
-testing/fuzz/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
+$(FUZZ_OUT)/fuzz-registry-auth: testing/fuzz/fuzz-registry-auth.c \
                                  $(FUZZ_BASE) $(FUZZ_OCI)
-testing/fuzz/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-config: testing/fuzz/fuzz-config.c $(FUZZ_BASE) \
                           $(FUZZ_CONFIG) util/seal.c util/io.c \
                           util/bpm_source_config.c
-testing/fuzz/fuzz-image: testing/fuzz/fuzz-image.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-image: testing/fuzz/fuzz-image.c $(FUZZ_BASE) \
                          util/image_bootstrap.c util/config_image.c \
                          util/config_measure.c util/crypto_openssl.c \
                          util/io.c util/paths.c \
                          $(FUZZ_SEAL)
-testing/fuzz/fuzz-config-update: testing/fuzz/fuzz-config-update.c \
+$(FUZZ_OUT)/fuzz-config-update: testing/fuzz/fuzz-config-update.c \
                                  $(FUZZ_BASE) util/config_update.c \
                                  util/config_measure.c testing/fuzz/chain.c \
                                  util/crypto_openssl.c util/io.c $(FUZZ_SEAL)
@@ -1266,25 +1269,44 @@ FUZZ_TREE_STATE := util/bpm_tree_state.c util/bpm_tree.c \
                    util/chain_history.c util/upatch.c $(FUZZ_OCI) \
                    util/kernel_build_id.c util/kernel_release.c \
                    testing/fuzz/chain.c
-testing/fuzz/fuzz-tree-state: testing/fuzz/fuzz-tree-state.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-tree-state: testing/fuzz/fuzz-tree-state.c $(FUZZ_BASE) \
                               $(FUZZ_TREE_STATE)
-testing/fuzz/fuzz-kconfig: testing/fuzz/fuzz-kconfig.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-kconfig: testing/fuzz/fuzz-kconfig.c $(FUZZ_BASE) \
                            $(FUZZ_TREE_STATE)
-testing/fuzz/fuzz-quote-check: testing/fuzz/fuzz-quote-check.c $(FUZZ_BASE) \
+$(FUZZ_OUT)/fuzz-quote-check: testing/fuzz/fuzz-quote-check.c $(FUZZ_BASE) \
                                tools/quote-check/row.c util/tpm_wire.c \
                                util/crypto_openssl.c util/io.c util/seal.c
 
 # A target that reaches static parsers includes their source, which it
 # then depends on without linking it a second time.
-testing/fuzz/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
-testing/fuzz/fuzz-tree-state testing/fuzz/fuzz-kconfig: \
+$(FUZZ_OUT)/fuzz-oci-http: FUZZ_INCLUDED := util/bpm_oci.c
+$(FUZZ_OUT)/fuzz-tree-state $(FUZZ_OUT)/fuzz-kconfig: \
 	FUZZ_INCLUDED := util/bpm_tree_state.c
-testing/fuzz/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
-testing/fuzz/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
-testing/fuzz/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
-testing/fuzz/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
+$(FUZZ_OUT)/fuzz-otel: FUZZ_INCLUDED := util/upatch_maps_otel.c
+$(FUZZ_OUT)/fuzz-serializer: FUZZ_INCLUDED := util/upatch_maps.c
+$(FUZZ_OUT)/fuzz-decoder: FUZZ_INCLUDED := util/upatch_decode.c
+$(FUZZ_OUT)/fuzz-config-update: FUZZ_INCLUDED := util/config_update.c
 
-$(FUZZ_TARGETS): testing/fuzz/fuzz.h
+# A target compiles its sources and links in one step, so it depends on
+# every header a source may include, and on the compiler and flags it was
+# built with: a binary built against an older header or by another
+# compiler looks current otherwise.
+FUZZ_HEADERS := testing/fuzz/fuzz.h $(wildcard include/shirudo/*.h util/*.h \
+                tools/shirudo-build/*.h tools/quote-check/*.h)
+FUZZ_STAMP := $(FUZZ_OUT)/.fuzz-flags
+FUZZ_SIGNATURE := $(FUZZ_CC) $(FUZZ_CFLAGS) $(LDFLAGS) $(FUZZ_LIBS) \
+                  $(AFL_LLVM_CMPLOG)
+
+.PHONY: FORCE_FUZZ_FLAGS
+FORCE_FUZZ_FLAGS:
+
+$(FUZZ_STAMP): FORCE_FUZZ_FLAGS
+	$(Q)mkdir -p $(dir $@)
+	$(Q)printf '%s\n' '$(subst ','\'',$(FUZZ_SIGNATURE))' | \
+	    cmp -s - $@ 2>/dev/null || \
+	    printf '%s\n' '$(subst ','\'',$(FUZZ_SIGNATURE))' > $@
+
+$(FUZZ_TARGETS): $(FUZZ_HEADERS) $(FUZZ_STAMP)
 	@printf '  FUZZ    $@\n'
 	$(Q)$(FUZZ_CC) $(FUZZ_CFLAGS) $(LDFLAGS) -o $@ \
 		$(filter-out $(FUZZ_INCLUDED),$(filter %.c,$^)) $(FUZZ_LIBS)
