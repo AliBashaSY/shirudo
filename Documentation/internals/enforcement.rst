@@ -442,9 +442,10 @@ when the record it needs is missing.
    * - ``lsm.s/bprm_check_security`` (``seal``)
      - Stages the mark candidate: trusted when the file is a direct, not
        overlay, inode on a recorded runtime device. Refuses a trusted
-       candidate that is traced or has a seccomp filter.
+       candidate that is traced, shares its ``fs_struct`` with another
+       process or has a seccomp filter.
      - ``EACCES``
-     - ``ExecTraced``; seccomp uncounted
+     - ``ExecTraced``, ``ExecShared``; seccomp uncounted
      - Closed: no task storage refuses the exec with ``ENOMEM``.
    * - ``lsm.s/bprm_committed_creds`` (``seal``)
      - Commits the staged candidate as the task's mark when an exec

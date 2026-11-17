@@ -595,17 +595,17 @@ static const char * const tamper_order[] = {
 	"SealRename", "SealSetattr", "SealXattr", "SealLabel", "SealPtrace",
 	"SealPerf", "ExecTraced", "SealEntry", "PerfAttach", "PinEntry",
 	"SealCopyUp", "Kexec", "TpmExtend", "ObjGet", "SealSignal",
-	"SealCoreDump", "SealUprobe",
+	"SealCoreDump", "SealUprobe", "ExecShared",
 };
 
 static void tamper_counters_keep_their_places(void)
 {
 	size_t i;
 
-	ASSERT_EQ(ARRAY_SIZE(tamper_order), 39);
+	ASSERT_EQ(ARRAY_SIZE(tamper_order), 40);
 	ASSERT_EQ(TAMPER_MAX, ARRAY_SIZE(tamper_order));
 	EXPECT_EQ(TAMPER_LOAD_NOT_LOADER, 0);
-	EXPECT_EQ(TAMPER_SEAL_UPROBE, TAMPER_MAX - 1);
+	EXPECT_EQ(TAMPER_EXEC_SHARED, TAMPER_MAX - 1);
 	for (i = 0; i < ARRAY_SIZE(tamper_order); i++)
 		EXPECT_STREQ(tamper_name(i), tamper_order[i]);
 }
@@ -622,7 +622,7 @@ static void body_lists_the_counters_in_enum_order(void)
 	in.tamper = tamper;
 	expect_member(&in, ",\"tamper\":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,"
 		      "16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,"
-		      "34,35,36,18446744073709551615,38,39],\"tree_id\":");
+		      "34,35,36,18446744073709551615,38,39,40],\"tree_id\":");
 }
 
 static void body_refuses_a_missing_string(void)
@@ -742,7 +742,7 @@ static void body_of_the_largest_values_fits(void)
 	in.tamper = tamper;
 
 	ASSERT_EQ(keepalive_emit(&in, body, sizeof(body), &whole), 0);
-	EXPECT_EQ(whole, 3340);
+	EXPECT_EQ(whole, 3361);
 	EXPECT_LT(whole, KEEPALIVE_BODY_MAX);
 	EXPECT_EQ(keepalive_emit(&in, body, whole, &len), -ENOSPC);
 	EXPECT_EQ(keepalive_emit(&in, body, whole + 1, &len), 0);

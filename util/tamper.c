@@ -98,6 +98,8 @@ static const struct {
 		"core dump of a shirudo task, which acts without authority" },
 	[TAMPER_SEAL_UPROBE] = { "SealUprobe",
 		"uprobe in a shirudo task, which acts without authority" },
+	[TAMPER_EXEC_SHARED] = { "ExecShared",
+		"exec of the runtime binary by a task that shares its file system context" },
 };
 
 const char *tamper_name(enum tamper_point point)

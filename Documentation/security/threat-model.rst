@@ -834,8 +834,10 @@ An authorized process is protected against being taken over:
   without authority (``SealSignal``) and lets it through: root can stop
   a command (R2, U17), and the count shows that it did.
 - The exec of a runtime file by a traced task is refused
-  (``ExecTraced``), and so is one under a seccomp filter, without a
-  counter.
+  (``ExecTraced``), and so is one by a task that shares its root and
+  working directory with another process (``ExecShared``), which could
+  ``chroot`` or ``chdir`` the command while it runs, and one under a
+  seccomp filter, without a counter.
 - ``lsm/bprm_check_security`` in the ``bpf2`` object runs every
   runtime executable in secure-exec mode, so the C library ignores the
   loader variables, and shirudo itself is static.
@@ -888,12 +890,13 @@ An authorized process is protected against being taken over:
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
    ``SealSignal``, ``SealCoreDump``, ``SealUprobe``, ``ExecTraced``,
+   ``ExecShared``,
    ``ExeIdentity``
 :Tests: ``t6001``, ``t6006``, ``t6007``, ``t6110``, ``t6111``,
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
-   ``t6149``, ``t6150``
+   ``t6149``, ``t6150``, ``t6152``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts

@@ -708,10 +708,14 @@ int BPF_PROG(shirudo_seal_bprm_creds_for_exec, struct linux_binprm *bprm,
 	return 0;
 }
 
+#define LSM_UNSAFE_SHARE	1
+
 /*
  * shirudo grants authority only to a direct file on the verified runtime.
  * Overlay copies cannot qualify. Ptrace or seccomp supplied before exec must
- * not control the new trusted process. A failed exec retains the old mark.
+ * not control the new trusted process, nor a process that shares its root
+ * and working directory, which exec does not unshare. A failed exec retains
+ * the old mark.
  */
 SEC("lsm.s/bprm_check_security")
 int BPF_PROG(shirudo_seal_bprm_check_security,
@@ -751,6 +755,8 @@ int BPF_PROG(shirudo_seal_bprm_check_security,
 		  shirudo_file_runtime(bprm->file);
 	if (trusted && BPF_CORE_READ(task, ptrace))
 		return shirudo_tamper_deny(TAMPER_EXEC_TRACED, -EACCES);
+	if (trusted && (BPF_CORE_READ(bprm, unsafe) & LSM_UNSAFE_SHARE))
+		return shirudo_tamper_deny(TAMPER_EXEC_SHARED, -EACCES);
 	if (trusted && shirudo_task_has_seccomp(task))
 		return -EACCES;
 	authority = bpf_task_storage_get(&shirudo_tasks, task, NULL,

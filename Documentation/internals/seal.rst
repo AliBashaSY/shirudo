@@ -59,11 +59,14 @@ when all of these hold:
 - the inode is on a read-only superblock whose block device is recorded
   as the runtime device, with the same device number and disk sequence;
 - the task is not traced;
+- no other process shares the task's root and working directory;
 - the task has no seccomp filter.
 
-A traced exec of a runtime file is refused (``ExecTraced``), and so is
-one with a seccomp filter, because a tracer or a filter installed before
-the exec would control the trusted process. ``lsm.s/bprm_committed_creds``
+A traced exec of a runtime file is refused (``ExecTraced``), and so are
+one by a task that shares its ``fs_struct`` with another process
+(``ExecShared``), which exec does not unshare, and one with a seccomp
+filter, because a tracer, the other process or a filter installed
+before the exec would control the trusted process. ``lsm.s/bprm_committed_creds``
 commits the candidate when the exec succeeds. A failed exec never reaches
 that hook and leaves the existing mark alone. A successful exec of a file
 that is not on the runtime image commits an untrusted candidate and so

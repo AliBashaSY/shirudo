@@ -231,6 +231,13 @@ counter.
        its authority for good, and the hook refuses the operation and
        moves its own counter
      - the hook's
+   * - ``ExecShared``
+     - exec of the runtime binary by a task that shares its file system
+       context
+     - ``lsm.s/bprm_check_security``: an exec of the runtime binary
+       while another process shares the task's root and working
+       directory (``CLONE_FS``)
+     - ``EACCES``
 
 Unless the row says every caller, a task with runtime authority is
 not refused and moves nothing.

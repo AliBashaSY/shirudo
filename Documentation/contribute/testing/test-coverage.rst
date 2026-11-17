@@ -499,6 +499,9 @@ signed config image.
    * - ``t6151-personality``
      - Started under ``setarch --uname-2.6``, shirudo still reads the
        kernel's release
+   * - ``t6152-exec-shared``
+     - The exec of the runtime binary by a task that shares its
+       ``fs_struct`` is refused and counted; another program's is not
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -1016,6 +1019,8 @@ tests assert that a refusal moves its counter:
      - ``t6143``
    * - ``ExecTraced``
      - ``t6137``
+   * - ``ExecShared``
+     - ``t6152``
    * - ``Kexec``
      - ``t6126``
 
