@@ -732,6 +732,7 @@ static int tree_describe_artifact(const char *raw_repository,
 	struct json_emit e;
 	char hex[65];
 	struct upatch u;
+	bool is_unload;
 	int ret;
 
 	ret = upatch_open_memory(body, len, &u);
@@ -742,13 +743,14 @@ static int tree_describe_artifact(const char *raw_repository,
 	upatch_header_name(&u, name);
 	memcpy(payload, u.hdr.payload_sha256, sizeof(payload));
 	hex_encode(payload, sizeof(payload), hex);
-	if (strcmp(name, id) || upatch_is_unload(&u) != unload)
+	is_unload = upatch_is_unload(&u);
+	if (strcmp(name, id) || is_unload != unload)
 		ret = -EKEYREJECTED;
 	upatch_close(&u);
 	if (ret) {
-		pr_err("bpm tree append: the %s artifact for %s is a %s directive named %s",
+		pr_err("bpm tree append: the %s artifact for %s is %s directive named %s",
 		       unload ? "unload" : "load", id,
-		       unload ? "load" : "unload", name);
+		       is_unload ? "an unload" : "a load", name);
 		return ret;
 	}
 	if (strsprintf(up->tag, sizeof(up->tag), "upatch-%s-%.16s", id, hex) < 0 ||
