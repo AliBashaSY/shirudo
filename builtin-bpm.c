@@ -1503,7 +1503,20 @@ static const struct opt_spec bpm_register_list_opts[] = {
 		"print the registered sources as JSON" },
 };
 
+static const struct help_item bpm_config_subcmds[] = {
+	{ "register", "register, list and remove OCI repositories" },
+	{ "update", "build a config update package (operator)" },
+};
+
+static const struct help_item bpm_register_actions[] = {
+	{ "add", "register a source and its certificate" },
+	{ "list", "list the registered sources" },
+	{ "remove", "remove a source and its certificate" },
+};
+
 static const struct help_section bpm_config_sections[] = {
+	HELP_ITEMS("subcommands:", bpm_config_subcmds),
+	HELP_ITEMS("register actions:", bpm_register_actions),
 	HELP_OPTIONS("register add options:", bpm_register_add_opts),
 	HELP_OPTIONS("register list options:", bpm_register_list_opts),
 };
@@ -1679,6 +1692,11 @@ static int cmd_bpm_config(int argc, const char **argv)
 		print_help(&bpm_config_help);
 		return argc < 2 ? EXIT_USAGE : 0;
 	}
+	if (is_list_cmds(argv[1])) {
+		print_subcmd_list(bpm_config_subcmds,
+				  ARRAY_SIZE(bpm_config_subcmds));
+		return 0;
+	}
 	if (strcmp(argv[1], "register")) {
 		pr_err("bpm config: '%s' is not a subcommand", argv[1]);
 		return EXIT_USAGE;
@@ -1686,6 +1704,11 @@ static int cmd_bpm_config(int argc, const char **argv)
 	if (!action || is_help(action)) {
 		print_help(&bpm_config_help);
 		return action ? 0 : EXIT_USAGE;
+	}
+	if (is_list_cmds(action)) {
+		print_subcmd_list(bpm_register_actions,
+				  ARRAY_SIZE(bpm_register_actions));
+		return 0;
 	}
 	if (!strcmp(action, "list"))
 		return bpm_register_list(argc, argv);
@@ -3118,7 +3141,14 @@ static const struct opt_spec bpm_tree_sync_opts[] = {
 		"write the JSON report there" },
 };
 
+static const struct help_item bpm_tree_subcmds[] = {
+	{ "sync", "apply the configured tree on a target" },
+	{ "append", "publish a package's tree entries (operator)" },
+	{ "show", "print a verified publication (operator)" },
+};
+
 static const struct help_section bpm_tree_sections[] = {
+	HELP_ITEMS("subcommands:", bpm_tree_subcmds),
 	HELP_OPTIONS("sync options:", bpm_tree_sync_opts),
 };
 
@@ -3146,10 +3176,20 @@ static const struct help bpm_pull_help = {
 		   "  shirudo bpm pull oci://quay.io/namespace/package:tag",
 };
 
+static const struct help_item bpm_repo_subcmds[] = {
+	{ "update", "refresh the signed index of a source, or of all" },
+};
+
+static const struct help_section bpm_repo_sections[] = {
+	HELP_ITEMS("subcommands:", bpm_repo_subcmds),
+};
+
 static const struct help bpm_repo_help = {
-	.usage	 = "shirudo bpm repo update [<source>]",
-	.summary = "Refresh the signed index of one registered source, or of "
-		   "all of them.",
+	.usage	    = "shirudo bpm repo update [<source>]",
+	.summary    = "Refresh the signed index of one registered source, or "
+		      "of all of them.",
+	.sections   = bpm_repo_sections,
+	.n_sections = ARRAY_SIZE(bpm_repo_sections),
 };
 
 static const struct help bpm_install_help = {
@@ -3236,6 +3276,10 @@ static int bpm_tree_cmd(int argc, const char **argv)
 		print_help(&bpm_tree_help);
 		return argc < 3 ? EXIT_USAGE : 0;
 	}
+	if (is_list_cmds(argv[2])) {
+		print_subcmd_list(bpm_tree_subcmds, ARRAY_SIZE(bpm_tree_subcmds));
+		return 0;
+	}
 	if (!strcmp(argv[2], "append") || !strcmp(argv[2], "show"))
 		return bpm_exec_operator("tree", argc, argv);
 	if (strcmp(argv[2], "sync")) {
@@ -3291,6 +3335,10 @@ static int bpm_repo_cmd(int argc, const char **argv)
 	if (argc < 3 || is_help(argv[2])) {
 		print_help(&bpm_repo_help);
 		return argc < 3 ? EXIT_USAGE : 0;
+	}
+	if (is_list_cmds(argv[2])) {
+		print_subcmd_list(bpm_repo_subcmds, ARRAY_SIZE(bpm_repo_subcmds));
+		return 0;
 	}
 	if (strcmp(argv[2], "update")) {
 		pr_err("bpm repo: '%s' is not a subcommand", argv[2]);
