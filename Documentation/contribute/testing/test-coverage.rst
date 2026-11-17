@@ -569,6 +569,10 @@ signed config image.
    * - ``t7010-bpm-slow-registry``
      - A registry that trickles a package fast enough for the low-speed
        limit is cut off at the transfer's total deadline
+   * - ``t7011-bpm-config-base``
+     - ``bpm config update`` refuses an ``oci://`` base package without
+       ``--base-digest``, the option with a local base, a malformed
+       digest and a registry that serves another manifest
    * - ``t7101-bpm-tree``
      - Tree sync with a selector
    * - ``t7102-bpm-tree-sequential``

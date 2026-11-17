@@ -521,8 +521,9 @@ static int push_package(const char *package_path, const char *raw_repository,
 				   sizeof(package_digest));
 	if (ret)
 		goto out;
-	if (strsprintf(reference, sizeof(reference), "oci://%s/%s:%s",
-		       c.registry, repository, info.version) < 0) {
+	if (strsprintf(reference, sizeof(reference), "oci://%s/%s:%s %s",
+		       c.registry, repository, info.version,
+		       package_digest) < 0) {
 		ret = -ENAMETOOLONG;
 		goto out;
 	}

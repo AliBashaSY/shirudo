@@ -86,7 +86,7 @@ code, then take it through "Refute it".
 | Files, pins, xattrs, mounts, `/proc`, environment | ADV-B, ADV-C | `util/seal.c`, `util/paths.c`, `util/io.c`, `builtin-init.c` | act on the object checked; lock spans |
 | `bpf()`, LSM hooks | ADV-A, ADV-B | `bpf/bpf2.c`, `bpf/seal.c` | every syscall path to the same effect |
 | Collector replies | ADV-E | `util/upatch_maps_otel.c` | changes no state; text sanitized |
-| Operator inputs, key | ADV-D (U14) | `tools/shirudo-build/`, `util/sign.c` | key stays on the operator; stateless |
+| Operator inputs, key | ADV-D | `tools/shirudo-build/`, `util/sign.c` | key stays on the operator; stateless; what a registry serves is pinned |
 
 The fuzz targets in `testing/fuzz/` list the parsers of outside input,
 and `Documentation/contribute/testing/proof-coverage.rst` says which

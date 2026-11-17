@@ -1969,7 +1969,13 @@ out:
 	return ret;
 }
 
-static int build_download_package(const char *reference, char *path)
+/*
+ * The package of the manifest whose digest the operator named: a tag is
+ * the registry's to point at any package the key ever signed, an older
+ * one included, whose loaders config update would sign as a new version.
+ */
+static int build_download_package(const char *reference, const char *want,
+				  char *path)
 {
 	struct bpm_oci_client client __cleanup(bpm_oci_client_clear) = {};
 	struct bpm_descriptor layers[8] = {};
@@ -1991,6 +1997,16 @@ static int build_download_package(const char *reference, char *path)
 	ret = bpm_oci_get_memory(&client, url, BPM_MANIFEST_MEDIA, &manifest);
 	if (ret)
 		goto out;
+	ret = bpm_sha256_hex(manifest.data, manifest.len, digest,
+			     sizeof(digest));
+	if (ret)
+		goto out;
+	if (!bpm_digest_matches(want, digest)) {
+		pr_err("bpm config update: %s serves manifest sha256:%s, not %s",
+		       reference, digest, want);
+		ret = -EKEYREJECTED;
+		goto out;
+	}
 	ret = bpm_oci_parse_manifest(manifest.data, manifest.len, layers,
 				     ARRAY_SIZE(layers), &n_layers, NULL, 0);
 	if (ret)
@@ -2037,7 +2053,7 @@ out:
 static int __build_bpm_config_update(int argc, char **argv,
 				     struct bpm_build_input_override *overrides)
 {
-	const char *file_arg = NULL, *base_arg = NULL;
+	const char *file_arg = NULL, *base_arg = NULL, *base_digest = NULL;
 	const char *version = NULL, *keys_arg = NULL;
 	size_t n_overrides = 0;
 	char build_file[PATH_MAX], resolved_file[PATH_MAX], source_dir[PATH_MAX];
@@ -2060,11 +2076,14 @@ static int __build_bpm_config_update(int argc, char **argv,
 			fprintf(stdout,
 				"usage: shirudo bpm config update "
 				"--base-package <package.bee|oci://host/repo:tag> "
+				"[--base-digest sha256:<manifest>] "
 				"--version <version> "
 				"[--file <name>.bee] [--keys-dir <dir>] "
 				"[--rodata-input <name>=<path>]...\n"
 				"Without --file, the Beefile and updater inputs come from "
-				"--base-package and are trusted as operator-side code.\n");
+				"--base-package and are trusted as operator-side code.\n"
+				"An oci:// base package needs --base-digest, the manifest "
+				"digest bpm push printed for it.\n");
 			return 0;
 		} else if (!strcmp(argv[i], "--file")) {
 			if (++i >= argc)
@@ -2074,6 +2093,10 @@ static int __build_bpm_config_update(int argc, char **argv,
 			if (++i >= argc)
 				goto usage;
 			base_arg = argv[i];
+		} else if (!strcmp(argv[i], "--base-digest")) {
+			if (++i >= argc)
+				goto usage;
+			base_digest = argv[i];
 		} else if (!strcmp(argv[i], "--version")) {
 			if (++i >= argc)
 				goto usage;
@@ -2103,8 +2126,20 @@ static int __build_bpm_config_update(int argc, char **argv,
 		       version);
 		return -EINVAL;
 	}
-	if (!strncmp(base_arg, "oci://", 6)) {
-		ret = build_download_package(base_arg, base_package_tmp);
+	if (!strncmp(base_arg, "oci://", 6) != !!base_digest) {
+		pr_err("bpm config update: --base-digest names the manifest of an oci:// base package, and one needs it");
+		return -EINVAL;
+	}
+	if (base_digest && (strncmp(base_digest, "sha256:", 7) ||
+			    strlen(base_digest + 7) != 64 ||
+			    !hex_is_lower(base_digest + 7, 64))) {
+		pr_err("bpm config update: --base-digest %s is not sha256:<64 lowercase hex>",
+		       base_digest);
+		return -EINVAL;
+	}
+	if (base_digest) {
+		ret = build_download_package(base_arg, base_digest,
+					     base_package_tmp);
 		if (ret)
 			return ret;
 		if (strscpy(base_package, base_package_tmp,
@@ -2346,7 +2381,8 @@ out_base:
 usage:
 	fprintf(stderr,
 		"usage: shirudo bpm config update --base-package "
-		"<package.bee|oci://host/repo:tag> --version <version> "
+		"<package.bee|oci://host/repo:tag> "
+		"[--base-digest sha256:<manifest>] --version <version> "
 		"[--file <name>.bee] "
 		"[--rodata-input <name>=<path>]... [--keys-dir <dir>]\n");
 	return -EINVAL;
@@ -2373,6 +2409,7 @@ static void bpm_usage(FILE *fp)
 		"                         [--keys-dir <dir>] [--vmlinux <vmlinux.h>]\n"
 		"                         [--rodata-input <name>=<path>]...\n"
 		"       shirudo bpm config update --base-package <package.bee|oci://...>\n"
+		"                         [--base-digest sha256:<manifest>]\n"
 		"                         --version <version> [--file <name>.bee]\n"
 		"                         [--rodata-input <name>=<path>]...\n"
 		"       shirudo bpm push <package-file> <repository> [--keys-dir <dir> |\n"

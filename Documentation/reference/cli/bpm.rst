@@ -25,6 +25,7 @@ Usage
    shirudo bpm config register list
    shirudo bpm config register (remove | rm) <source>
    shirudo bpm config update --base-package <package> --version <version>
+                             [--base-digest sha256:<manifest>]
                              [--file <beefile>]
                              [--rodata-input <name>=<path>]... [--keys-dir <dir>]
    shirudo bpm repo update [<source>]
@@ -156,7 +157,12 @@ again and signs a new unload directive for it. The base package must be
 signed by the same key and declare ``.rodata`` inputs, and ``--version``
 must be a SemVer 2.0.0 version greater than its version. Without ``--file``, the Beefile and the
 commands it names come from the base package and run on the operator
-host: take base packages only from sources you trust. The output is
+host: take base packages only from sources you trust. An ``oci://``
+base package needs ``--base-digest``, the manifest digest ``bpm push``
+printed when you published it, and the command refuses another
+manifest: a tag is the registry's to point at any package your key
+signed, an older one included, whose loaders and Beefile the command
+would take. ``--base-digest`` with a local base package is refused. The output is
 ``<name>-<version>.bee`` in the current directory. Options take their
 value as the next argument only.
 
@@ -452,7 +458,8 @@ push
 ----
 
 ``push`` publishes a ``.bee`` file to ``oci://<registry>/<repository>``
-(no tag) and prints ``oci://<registry>/<repository>:<version>``. With
+(no tag) and prints ``oci://<registry>/<repository>:<version>
+sha256:<digest>``, the digest of the manifest it pushed. With
 ``--keys-dir``, or ``--index-cert`` and ``--index-key`` together, it also
 adds the package to the registry's signed index
 ``<namespace>/bpm-index:stable``, signed with that key. The namespace is

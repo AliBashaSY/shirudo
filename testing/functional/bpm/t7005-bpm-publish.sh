@@ -305,7 +305,8 @@ test_expect_success 'bpm push refuses a namespace without an index unless told t
 test_expect_success 'bpm push publishes the package and a signed repository index' '
 	"$S" bpm push "$WORK/t7005-1.0.0.bee" "oci://$REGISTRY/ns/t7005" \
 		--keys-dir "$WORK/keys" --new-index >"$WORK/push.out" 2>"$WORK/push.err" &&
-	grep -qx "oci://$REGISTRY/ns/t7005:1.0.0" "$WORK/push.out" &&
+	grep -qx "oci://$REGISTRY/ns/t7005:1.0.0 sha256:$(sha256sum \
+		<"$REG/ns/t7005/manifests/1.0.0" | cut -d" " -f1)" "$WORK/push.out" &&
 	test -s "$REG/ns/t7005/manifests/1.0.0" &&
 	test -s "$REG/ns/bpm-index/manifests/stable" &&
 	split_layers "$REG/ns/bpm-index/manifests/stable" "$REG/ns/bpm-index" "$WORK/index1" &&

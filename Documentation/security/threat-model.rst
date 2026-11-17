@@ -468,9 +468,9 @@ ADV-C, root with mount-namespace and device control
 ADV-D, network and registry
    Towards the target: observes, drops, delays and replays traffic, and
    serves any content a registry holds, old signed content included
-   (T7, R8). Towards the operator: a registry from which ``shirudo bpm
-   config update --base-package oci://`` takes a package runs commands
-   on the operator host (U14), and so can become ADV-F.
+   (T7, R8). Towards the operator: it serves what ``bpm tree append``
+   and ``bpm config update`` build on, which the operator pins by
+   ``--tree-id`` and ``--base-digest``.
 
 ADV-E, malicious collector
    Receives keepalives and map snapshots. It can refuse or delay them
@@ -1890,18 +1890,6 @@ U13 A revoked signer's historical vouches remain valid
       dependent key whose authority should no longer be trusted. A
       planned overlap is not sufficient compromise recovery by itself.
 
-U14 The operator runs commands from a registry package
-   :Affects: ``shirudo bpm config update --base-package oci://...``
-      without ``--file`` on the operator host.
-   :Consequence: The command takes the Beefile from a package checked
-      only against the registry's manifest digest and runs its updater
-      commands on the host that holds the signing key. A hostile
-      registry becomes ADV-F.
-   :Status: Confirmed in code; the usage text says the commands are
-      trusted as operator-side code.
-   :Meanwhile: Always pass ``--file`` with a local Beefile, or a local
-      ``.bee`` file as the base package.
-
 U15 Certificates are fetched without a pin
    :Affects: ``tools/gen-initrd/install.sh --cert <url>`` and
       ``shirudo bpm key add oci://...``, which image mode refuses on a
@@ -2010,8 +1998,7 @@ D9 Perf events across exec
 Out of scope
 ------------
 
-- Compromise of the operator host or of the signing key itself. U14 is
-  in scope, because it turns a registry into that compromise.
+- Compromise of the operator host or of the signing key itself.
 - A malicious or faulty kernel, verifier, TPM or hardware, and physical
   attacks (ADV-G).
 - Denial of service: removing the binary, cutting the network, filling
@@ -2050,9 +2037,7 @@ The deployer:
 - Uses only ML-DSA-87 certificates from ``shirudo genkey``, repository
   certificates included (U4)
 - Treats the TPM owner password as known to root (R20)
-- Never runs ``shirudo bpm config update --base-package oci://...``
-  without ``--file`` (U14), and checks the fingerprint of every
-  certificate it installs (U15)
+- Checks the fingerprint of every certificate it installs (U15)
 - Watches the size of the eventlog (U6) and the keepalives, and treats a
   ``tampered`` status as an incident to understand, not a condition to
   retry (:doc:`/operate/troubleshoot/incident-tampered`)

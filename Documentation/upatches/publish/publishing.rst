@@ -80,8 +80,9 @@ Push it to a repository
    ``<namespace>/bpm-index:stable`` in the same registry, signs the index
    with your key, and tags the package with its version. The index
    namespace is the package repository path without its final name. It
-   prints the pushed reference,
-   ``oci://<registry>/<namespace>/<name>:<version>``.
+   prints the pushed reference and the manifest's digest,
+   ``oci://<registry>/<namespace>/<name>:<version> sha256:<digest>``;
+   ``bpm config update`` takes that digest to build on the package.
 
    The first package of a namespace needs ``--new-index``: ``bpm push``
    refuses a namespace without an index otherwise, so that a registry that
