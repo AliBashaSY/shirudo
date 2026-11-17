@@ -508,9 +508,10 @@ signed config image.
        counted. The XFS case needs XFS in the kernel and ``mkfs.xfs``,
        which the slim test VM kernel lacks
    * - ``t6154-lockdown``
-     - A PCI config write, ``/proc/kcore`` and ``/dev/mem``, where the
-       kernel has them, are refused, the first two counted as
-       ``Lockdown``, and a read of ``/sys/power/state`` counts nothing
+     - A module without its signature, a PCI config write,
+       ``/proc/kcore`` and ``/dev/mem``, where the kernel has them, are
+       refused, all but the last counted as ``Lockdown``, and a read of
+       ``/sys/power/state`` counts nothing
    * - ``t6155-mountpoint-removal``
      - From a namespace without ``/run``, an ``rmdir`` and a rename of
        the directory init's ``/run`` covers are refused and counted, and
@@ -1093,6 +1094,8 @@ Most of these attacks are open threats in
 - Stopping a running shirudo with ``SIGSTOP``, ``mount_setattr(2)``,
   hibernation and ``/dev/snapshot``, ``/dev/mem``, and TPM access over
   ``i2c-dev`` or ``spidev``.
+- A write of the ``HibernateLocation`` EFI variable: the test guest
+  boots without UEFI firmware and has no efivarfs.
 
 Tests that assert behavior the threat model lists as a threat to
 resolve. They change when that threat is resolved:

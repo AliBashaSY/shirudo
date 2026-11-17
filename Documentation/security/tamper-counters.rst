@@ -260,10 +260,10 @@ counter.
      - ``EPERM``
    * - ``Lockdown``
      - change or read of the running kernel that lockdown refuses
-     - ``lsm/locked_down``: every reason of integrity mode but module
-       signatures, which the kernel's enforcement keeps, and
-       hibernation, refused uncounted, and ``LOCKDOWN_KCORE``, for
-       every caller
+     - ``lsm/locked_down``: every reason of integrity mode, an unsigned
+       module included, but hibernation, refused uncounted, and
+       ``LOCKDOWN_KCORE``, for every caller; ``lsm/file_open``: a write
+       open of a ``HibernateLocation`` EFI variable, for every caller
      - ``EPERM``
 
 Unless the row says every caller, a task with runtime authority is

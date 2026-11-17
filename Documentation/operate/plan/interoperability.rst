@@ -276,18 +276,24 @@ kexec and kdump
 Module loading and kernel live patching
 ---------------------------------------
 
-:Mechanism: shirudo does not gate module loading.
+:Mechanism: shirudo loads signed modules only.
    ``lsm/kernel_load_data`` and ``lsm/kernel_read_file`` let every load
-   other than a kexec image or initramfs through, and
-   ``lsm/locked_down`` leaves module signatures to the kernel. Whether a
-   module loads is the kernel's decision: module signature enforcement
+   other than a kexec image or initramfs through, and the kernel checks
+   the module's signature. When the signature is missing or the kernel
+   cannot verify it, and the kernel does not refuse the module itself,
+   it asks lockdown, and ``lsm/locked_down`` refuses it from ``init`` on
    (A4 in :doc:`/security/threat-model`). A livepatch module, as kpatch
    or the kernel's ``klp-build`` produce, is a kernel module like any
    other.
-:Symptom: None from shirudo.
-:What to do: Enforce module signatures, as :doc:`/operate/plan/hardening`
-   lists, and sign livepatch modules with a key the kernel trusts. A
-   module runs as kernel code outside every shirudo check. Unloading a
+:Symptom: ``init_module(2)`` and ``finit_module(2)`` of an unsigned
+   module fail with ``EPERM`` (``modprobe`` prints ``Operation not
+   permitted``), and ``Lockdown`` counts it. ``modprobe --force``, which
+   strips the version checks, makes a signed module count as unsigned.
+:What to do: Build the kernel with ``CONFIG_MODULE_SIG``, as
+   :doc:`/operate/plan/hardening` lists, and sign every module the
+   target loads, livepatch modules included, with a key the kernel
+   trusts. A signed module runs as kernel code outside every shirudo
+   check. Unloading a
    module that a kprobe upatch targets leaves the upatch loaded and
    measured but without effect, a reading of the kernel source (R21).
    shirudo's tests do not cover a livepatch and an upatch on the same
@@ -326,16 +332,20 @@ Other LSMs
 Hibernation and suspend
 -----------------------
 
-:Mechanism: shirudo does not refuse hibernation. Lockdown in integrity
-   mode disables it (A9 in :doc:`/security/threat-model`), and the
-   behavior of the register across hibernation is not analyzed. Before a
-   suspend, the kernel's TPM driver sends ``TPM2_Shutdown(STATE)`` to a
+:Mechanism: shirudo refuses hibernation from ``init`` on:
+   ``lsm/locked_down`` refuses the kernel's hibernation check, and
+   ``lsm/file_open`` the write of the ``HibernateLocation`` EFI variable
+   from which systemd's initrd would resume (A9 in
+   :doc:`/security/threat-model`). The behavior of the register across
+   hibernation is not analyzed. Before a suspend, the kernel's TPM driver sends ``TPM2_Shutdown(STATE)`` to a
    TPM 2.0 unless the TPM stays powered, and the TPM counts that in its
    restart count (:doc:`/concepts/background/tpm`). The config activation
    record holds the TPM's reset and restart counts, and shirudo compares
    them with the TPM's before a command runs.
-:Symptom: After a resume, shirudo commands refuse with ``shirudo: image
-   state: Stale file handle`` and exit 1, and ``shirudo status`` reports
+:Symptom: ``/sys/power/state`` lists no ``disk``, and ``systemctl
+   hibernate`` fails as hibernation is not supported. After a resume
+   from suspend, shirudo commands refuse with ``shirudo: image state:
+   Stale file handle`` and exit 1, and ``shirudo status`` reports
    ``tampered``.
    :doc:`/operate/maintain/backup-recovery` describes the state. For suspend to
    RAM this is a reading of the code and of the TPM's counters and is not

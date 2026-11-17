@@ -207,7 +207,7 @@ keyring when ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING`` or
 ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` is set.
 :doc:`/operate/plan/hardening` lists what that means for who can sign a
 config, and the options the trust model assumes beyond this table:
-lockdown, module signature enforcement, ``CONFIG_COMPAT`` and others.
+lockdown, module signatures, ``CONFIG_COMPAT`` and others.
 
 Kernel command line
 ~~~~~~~~~~~~~~~~~~~

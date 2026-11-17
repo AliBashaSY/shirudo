@@ -206,10 +206,12 @@ Lockdown
     ``lsm/locked_down`` refuses, to every caller, what the kernel's
     lockdown in integrity mode refuses, the ways root has to change the
     running kernel, and ``/proc/kcore``, which that mode leaves
-    readable. Module signatures stay with the kernel's enforcement, and
-    the hibernation check is refused without a count, as every read of
-    ``/sys/power/state`` makes one. The kernel's lockdown LSM, where it
-    runs, decides first, and covers the boot before ``init``.
+    readable, an unsigned module among them. The hibernation check is
+    refused without a count, as every read of ``/sys/power/state`` makes
+    one, and ``lsm/file_open`` refuses a write of the
+    ``HibernateLocation`` EFI variable, from which the next boot's
+    initrd would resume. The kernel's lockdown LSM, where it runs,
+    decides first, and covers the boot before ``init``.
 
 Writable state
     ``seal`` refuses changes to labeled inodes under
@@ -346,9 +348,10 @@ when the record it needs is missing.
    * - ``lsm/file_open`` (``bpf2``)
      - Opening a non-directory inode of the private bpffs, through any
        mount of it, to a task without authority. Records the bpffs mount
-       when the bootstrap task opens its root.
-     - ``EACCES``
-     - ``ObjGet``
+       when the bootstrap task opens its root. Opening a
+       ``HibernateLocation`` EFI variable for writing, to every caller.
+     - ``EACCES``; ``EPERM`` for the EFI variable
+     - ``ObjGet``; ``Lockdown``
      - Closed.
    * - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat`` (``bpf2``)
      - ``PERF_EVENT_IOC_SET_BPF`` on any file,
@@ -546,8 +549,8 @@ when the record it needs is missing.
      - ``Kexec``
      - Unconditional.
    * - ``lsm/locked_down`` (``bpf2``)
-     - Every lockdown reason of integrity mode but module signatures,
-       and ``LOCKDOWN_KCORE``, to every caller.
+     - Every lockdown reason of integrity mode, an unsigned module
+       included, and ``LOCKDOWN_KCORE``, to every caller.
      - ``EPERM``
      - ``Lockdown``; hibernation uncounted
      - Unconditional; the kernel's lockdown LSM decides first.

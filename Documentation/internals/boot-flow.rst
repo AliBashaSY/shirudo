@@ -192,7 +192,8 @@ verifier that requires an initrd binding rejects the target's evidence.
 Hibernation and TPM resets
 --------------------------
 
-shirudo does not refuse hibernation. The register and the config record
+shirudo refuses hibernation from ``init`` on (A9 in
+:doc:`/security/threat-model`). The register and the config record
 are tied to the TPM's reset and restart counts. When the TPM is reset or
 restarted without a reboot, which a resume from hibernation can do, the
 register is cleared and one of the counts changes while the kernel's

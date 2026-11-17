@@ -95,9 +95,8 @@ The properties above hold only on a deployment that provides the
 
 - A trusted kernel with the BPF LSM, the signed-loader ABI and the
   carried kernel patches
-- Module signature enforcement and lockdown in integrity mode, no
-  32-bit compatibility, no hibernation and no writes under mounted
-  file systems
+- Module signatures, no 32-bit compatibility, no resume device in the
+  UKI and no writes under mounted file systems
 - Secure Boot with a signed, measured UKI and an authenticated kernel
   command line
 - A kernel whose dm-verity trust path consults only keys trusted to

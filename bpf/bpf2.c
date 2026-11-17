@@ -511,21 +511,17 @@ int BPF_PROG(shirudo_lsm_kernel_read_file, struct file *file,
 
 /*
  * Lockdown in integrity mode, the ways root has to change the running
- * kernel, from /dev/mem to debugfs writes, and /proc/kcore, which that
- * mode leaves readable, whether or not the command line asks for
- * lockdown: the kernel's own lockdown LSM decides first where it runs.
- * Module signatures stay with the kernel's enforcement (A4), and the
- * hibernation check, which every read of /sys/power/state makes, is
- * refused without a count.
+ * kernel, from an unsigned module and /dev/mem to debugfs writes, and
+ * /proc/kcore, which that mode leaves readable, whether or not the
+ * command line asks for lockdown: the kernel's own lockdown LSM decides
+ * first where it runs. The hibernation check, which every read of
+ * /sys/power/state makes, is refused without a count.
  */
 SEC("lsm/locked_down")
 int BPF_PROG(shirudo_lsm_locked_down, enum lockdown_reason what, int ret)
 {
 	if (ret)
 		return ret;
-	if (what == bpf_core_enum_value(enum lockdown_reason,
-					LOCKDOWN_MODULE_SIGNATURE))
-		return 0;
 	if (what == bpf_core_enum_value(enum lockdown_reason,
 					LOCKDOWN_HIBERNATION))
 		return -EPERM;
@@ -785,6 +781,29 @@ deny:
 	return shirudo_tamper_deny(TAMPER_BPFFS_UMOUNT_ABOVE, -EPERM);
 }
 
+#define EFIVARFS_MAGIC		0xde5e81e4
+#define FMODE_WRITE		0x2
+#define HIBERNATE_LOCATION	"HibernateLocation-"
+
+/*
+ * systemd in the initrd resumes from the device the HibernateLocation
+ * EFI variable names, before init attaches a guard: a variable root
+ * writes now would have the next boot resume an image of root's making.
+ */
+static __always_inline bool hibernate_location(struct file *file)
+{
+	char name[sizeof(HIBERNATE_LOCATION)];
+	const unsigned char *s;
+
+	if (BPF_CORE_READ(file, f_inode, i_sb, s_magic) != EFIVARFS_MAGIC ||
+	    !(BPF_CORE_READ(file, f_mode) & FMODE_WRITE))
+		return false;
+	s = BPF_CORE_READ(file, f_path.dentry, d_name.name);
+	if (bpf_probe_read_kernel_str(name, sizeof(name), s) != sizeof(name))
+		return false;
+	return !bpf_strncmp(name, sizeof(name) - 1, HIBERNATE_LOCATION);
+}
+
 /*
  * A pin opened as a file reads a map's contents through bpffs, so pins
  * open for shirudo alone; directories stay listable. The bpffs mount of
@@ -800,8 +819,12 @@ int BPF_PROG(shirudo_lsm_file_open, struct file *file, int ret)
 	struct vfsmount *mnt;
 	__u32 zero = 0;
 
-	if (ret || !id)
+	if (ret)
 		return ret;
+	if (hibernate_location(file))
+		return shirudo_tamper_deny(TAMPER_LOCKDOWN, -EPERM);
+	if (!id)
+		return 0;
 	mnt = BPF_CORE_READ(file, f_path.mnt);
 	if (!mnt || BPF_CORE_READ(mnt, mnt_sb, s_dev) != id->sb_dev)
 		return 0;
