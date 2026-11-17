@@ -234,6 +234,9 @@ Before sending
 - Run ``make -C Documentation html`` when the change touches
   ``Documentation/``. The build turns every Sphinx warning into an
   error. See :doc:`/contribute/documentation/writing-docs`.
+- Run :src:`.github/scripts/check-unused.sh` when the change removes or
+  renames a call: a function whose last caller went fails it. CI runs it
+  as the ``Unused functions`` job of the ``Lint`` workflow.
 - Run :src:`.github/scripts/check-spdx.sh` when the change adds a file.
   Every source carries an SPDX tag in the kernel's form for its type,
   ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for

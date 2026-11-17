@@ -66,6 +66,11 @@ signed config image.
        box, a hook by its section, each tamper and integrity counter's
        entry on its page, the source files a proof reads or the proof
        coverage page lists as read by none, and the tree itself
+   * - ``t0009-check-unused``
+     - ``check-unused.sh``: an extern function nothing calls, with its
+       type on its line or the one above, a header's declaration that is
+       no call, the calls that count and the definitions it leaves
+       alone, and the tree itself
 
 ``build`` (1)
 ~~~~~~~~~~~~~

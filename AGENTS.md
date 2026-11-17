@@ -345,7 +345,8 @@ one usually still compiles and passes tests.
   `proofs` skill says how.
 - CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
   `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
-  `check-spdx.sh` and the documentation check on every pull request;
+  `check-spdx.sh`, `check-unused.sh` and the documentation check on
+  every pull request;
   run them before handing work over, as the `pre-submit` skill says.
   Shell that a workflow runs lives in `.github/scripts/`, not inline in
   the workflow file.

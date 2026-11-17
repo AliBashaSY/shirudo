@@ -476,6 +476,10 @@ the commit at ``HEAD`` alone without them.
        files.
    * - ``check-spdx.sh``
      - The SPDX tag of every tracked source. Takes no range.
+   * - ``check-unused.sh``
+     - An extern function of the userspace C that nothing calls: the
+       compiler reports an unused ``static`` function, never an extern
+       one. A call from a test counts. Takes no range.
    * - ``check-sparse.sh``
      - ``make sparse``: sparse over the userspace sources the binaries
        are built from, failing on any warning. It finds a value moved
@@ -546,6 +550,7 @@ Before you send a change:
       $ .github/scripts/check-dco.sh origin/main..HEAD
       $ .github/scripts/check-style.sh origin/main..HEAD
       $ .github/scripts/check-spdx.sh
+      $ .github/scripts/check-unused.sh
       $ .github/scripts/check-sparse.sh
       $ .github/scripts/check-coccinelle.sh
       $ .github/scripts/build-commits.sh origin/main..HEAD

@@ -487,4 +487,5 @@ Check the commits of a branch as CI does (:doc:`/contribute/code/contributing`):
    $ .github/scripts/check-dco.sh origin/main..HEAD
    $ .github/scripts/check-style.sh origin/main..HEAD
    $ .github/scripts/check-spdx.sh
+   $ .github/scripts/check-unused.sh
    $ .github/scripts/build-commits.sh origin/main..HEAD
