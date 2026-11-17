@@ -1042,7 +1042,7 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 {
 	const char *p, *slash, *colon, *last_slash;
 	char endpoint[BPM_MAX_ENDPOINT];
-	char normalized[PATH_MAX];
+	char normalized[PATH_MAX] = {};
 
 	if (!raw || strlen(raw) >= sizeof(normalized))
 		return -EINVAL;
@@ -1091,7 +1091,7 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 			    char *repository, size_t repository_sz)
 {
-	char normalized[PATH_MAX], endpoint[BPM_MAX_ENDPOINT];
+	char normalized[PATH_MAX] = {}, endpoint[BPM_MAX_ENDPOINT];
 	const char *p, *slash;
 
 	if (!raw || strlen(raw) >= sizeof(normalized))

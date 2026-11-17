@@ -436,7 +436,7 @@ void sysinfo_image_read_at(const char *os_release,
 			   const char *os_release_fallback,
 			   const char *cmdline, struct sysinfo_image *img)
 {
-	char line[CMDLINE_SIZE_MAX];
+	char line[CMDLINE_SIZE_MAX] = {};
 	size_t len;
 	char *text;
 

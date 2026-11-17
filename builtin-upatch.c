@@ -1111,10 +1111,12 @@ static int prepare_uprobe_targets(struct prog_spec *specs,
 			return -E2BIG;
 		}
 		fd = open(proc_path, O_RDONLY | O_CLOEXEC);
-		ret = fd < 0 ? -errno : 0;
-		close(path_fd);
-		if (ret)
+		if (fd < 0) {
+			ret = -errno;
+			close(path_fd);
 			return ret;
+		}
+		close(path_fd);
 		if (fstat(fd, &opened_stat) != 0) {
 			ret = -errno;
 			close(fd);

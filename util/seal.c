@@ -57,7 +57,7 @@ static int open_parent(int fd, struct stat *st)
  */
 int seal_mark_ancestors(const char *root)
 {
-	struct stat st, cur, up;
+	struct stat st = {}, cur = {}, up = {};
 	int fd, parent, ret;
 
 	fd = open(root, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);

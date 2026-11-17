@@ -1450,23 +1450,22 @@ struct snapshot_writer {
  * In memory: a file under TMPDIR, which root sets, could be created in a
  * sealed directory, labeled.
  */
-static int snapshot_temp_file(FILE **out)
+/* As fopen(): the stream, or NULL with errno set. */
+static FILE *snapshot_temp_file(void)
 {
 	FILE *file;
-	int fd;
+	int fd, err;
 
 	fd = memfd_create("shirudo-map-snapshot", MFD_CLOEXEC);
 	if (fd < 0)
-		return -errno;
+		return NULL;
 	file = fdopen(fd, "w+b");
 	if (!file) {
-		int ret = -errno;
-
+		err = errno;
 		close(fd);
-		return ret;
+		errno = err;
 	}
-	*out = file;
-	return 0;
+	return file;
 }
 
 static int snapshot_write_compressed(struct snapshot_writer *w,
@@ -1606,8 +1605,9 @@ static int build_s3_snapshot(const char *decoder_path,
 						   &decoded_len);
 	if (ret)
 		return ret;
-	ret = snapshot_temp_file(&snapshot->file);
-	if (ret) {
+	snapshot->file = snapshot_temp_file();
+	if (!snapshot->file) {
+		ret = -errno;
 		xfree(decoded, decoded_len + 1);
 		return ret;
 	}

@@ -93,7 +93,7 @@ static int last_line_end(int fd, off_t size, off_t *end)
 int append_line(int fd, const char *path, const char *line, size_t len)
 {
 	struct stat st;
-	off_t end;
+	off_t end = 0;
 	char *buf;
 	int ret;
 

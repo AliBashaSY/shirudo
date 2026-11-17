@@ -986,8 +986,6 @@ static void keyring_emit_json(struct json_emit *e, const char *key,
 	json_arr_open(e, "certs");
 	for (i = 0; i < k->n_certs; i++) {
 		const struct status_cert *c = &k->certs[i];
-		const struct keyring_link *l = c->link >= 0 ?
-					       &k->links[c->link] : NULL;
 		char sha_hex[65], fp_hex[65];
 
 		hex_encode(c->sha256, 32, sha_hex);
@@ -1005,7 +1003,9 @@ static void keyring_emit_json(struct json_emit *e, const char *key,
 			json_kv_string(e, "algorithm", c->algorithm);
 			json_kv_string(e, "not_before", c->not_before);
 		}
-		if (l) {
+		if (c->link >= 0) {
+			const struct keyring_link *l = &k->links[c->link];
+
 			json_kv_int(e, "key_serial", l->serial);
 			json_kv_string(e, "key_description", l->description);
 			json_kv_bool(e, "frozen", k->state[c->link].frozen);

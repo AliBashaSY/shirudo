@@ -686,7 +686,7 @@ int config_update_staged(struct config_update *update,
 			 __u32 reset, __u32 restart,
 			 struct config_update_target *target)
 {
-	struct config_update_record staged;
+	struct config_update_record staged = {};
 	int ret;
 
 	if (!previous || !target)
@@ -756,7 +756,7 @@ int config_update_boot(struct config_update *update,
 		       __u32 pcr)
 {
 	struct config_update_record previous = {}, last;
-	struct config_update_target staged;
+	struct config_update_target staged = {};
 	__u32 reset, restart;
 	int ret;
 
