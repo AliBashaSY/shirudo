@@ -399,10 +399,13 @@ LIBBPF_SRCS := $(wildcard $(LIBBPF_DIR)/*.c $(LIBBPF_DIR)/*.h \
 
 libbpf: $(LIBBPF_A)
 
+# libbpf compiles against the libelf and zlib headers the binary links,
+# which need not be the system's.
 $(LIBBPF_A): $(LIBBPF_SRCS)
 	@printf '  LIBBPF\n'
 	$(Q)$(MAKE) -C $(LIBBPF_VENDOR) CC="$(CC)" Q="$(Q)" \
-		EXTRA_CFLAGS="$(WERROR_CFLAGS) $(if $(SANITIZE_MEMORY), \
+		EXTRA_CFLAGS="$(WERROR_CFLAGS) $(LIBELF_CFLAGS) $(ZLIB_CFLAGS) \
+			$(if $(SANITIZE_MEMORY), \
 			-fno-omit-frame-pointer $(SANITIZE_CFLAGS))"
 
 # Build-time only; links the vendored libbpf and dumps BTF as C.
