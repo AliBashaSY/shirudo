@@ -720,6 +720,12 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``fclose_unchecked``
      - ``fclose()`` of a stream opened for writing with its result
        ignored, after CERT C ERR33-C.
+   * - ``dead_store``
+     - A value stored in a local and stored over on every path, the
+       error exits included, before anything reads it, after CERT C
+       MSC12-C. Following every path of a long function can take
+       minutes, so the rule gives up on a file after one; the check
+       names each file it gave up on.
    * - ``bpf_map_rmw``
      - ``++``, ``+=`` or ``|=`` through the value of a map that is not
        per-CPU, or through inode, socket or cgroup storage, which other
@@ -751,7 +757,10 @@ it refuses to ``t0006-check-coccinelle``, which shows that it matches.
 ``check-coccinelle.sh`` runs a rule without the headers a file includes,
 which keeps it fast but leaves the types they declare unknown. A rule
 that needs them, as ``sizeof_ptr`` needs the type of a struct member,
-names its include options on a ``#spatch`` line.
+names its include options on a ``#spatch`` line. A rule whose search can
+run long names ``--timeout <seconds>`` there, as ``dead_store`` does: the
+check then runs it one file at a time and names each file spatch gave up
+on, rather than failing.
 
 The ``bpf_`` rules read the BPF sources through
 :src:`testing/coccinelle/bpf.macros`, which tells Coccinelle what

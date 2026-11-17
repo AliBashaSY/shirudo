@@ -55,7 +55,9 @@ signed config image.
        file, line and rule, the vendored sources left out, a rule named
        alone, the rewrite of ``-D patch``, a case for each rule taken
        from CERT C, a case for each BPF hazard rule beside the safe
-       form it leaves alone, and the tree itself
+       form it leaves alone, a dead store beside the reads
+       ``dead_store`` leaves alone, a file a rule gives up on at its
+       time limit named rather than failed, and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library
