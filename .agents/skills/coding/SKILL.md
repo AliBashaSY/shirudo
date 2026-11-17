@@ -1,6 +1,6 @@
 ---
 name: coding
-description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, how to shape interfaces, resources, errors, types, shared state and hot paths so that a mistake has nowhere to hide, what to delete, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, the commit message that carries the change, with a chart where one explains it faster, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
+description: Write or change shirudo's C code, userspace or BPF, in the tree's style. Covers the kernel coding style it follows, when and where to split a function that grew too long, how to shape interfaces, resources, errors, types, shared state and hot paths so that a mistake has nowhere to hide, what to delete, where a comment belongs and where it is clutter, the helpers in util/ and include/shirudo/ to use instead of libc or open code, moving code two places need into util/, memory, secrets, JSON and logging, the commit message that carries the change, with a chart where one explains it faster, and the checks a change passes. Use whenever writing, changing or reviewing C in shirudo.
 ---
 
 # Coding
@@ -25,8 +25,9 @@ the names and the shape of the code, without a comment.
 - A step that would need a comment becomes a small function whose name
   says it, and a condition that needs reading twice becomes a helper or
   a well-named local.
-- One function does one job and fits on a screen; errors return early
-  instead of nesting the rest.
+- One function does one job and fits on a screen or two; errors return
+  early instead of nesting the rest. "Functions" below says when and
+  where to split one.
 - The plain construct beats the clever one. Where the clever one is
   needed for correctness or speed, that need is the why worth a comment.
 - A comment that restates the code means the code should change: rename
@@ -51,6 +52,51 @@ if (upatch_map_is_percpu(type))
 
 Code that reads well is code a mistake cannot hide in. These choices
 keep it that way.
+
+### Functions
+
+How long a function may be depends on how hard it is to follow: the
+more it branches and nests, the shorter it has to be. A flat `switch`
+that does one small thing per case may run long; a function that keeps
+several things in flight may not.
+
+Split a function when any of these holds:
+
+- it runs past two screens, about 50 lines;
+- it keeps more than 7 to 10 locals alive at once, more than a reader
+  can track;
+- its body nests more than three levels deep;
+- a block in it needs a comment to say what it does, or comments mark
+  where one phase ends and the next begins.
+
+Cut it where the work already divides:
+
+- By phase: read and parse, check, then act, each a function the top
+  level calls in turn, so that the top level reads as the list of
+  steps.
+- A loop body that does more than a few lines becomes a function on one
+  item, and the loop stays where it was.
+- Each case of a `switch` that does more than a line or two becomes a
+  handler of its own.
+- Around a resource, the wrapper takes and releases it and an inner
+  function does the work, as "Resources and errors" shows.
+
+A good cut leaves each helper a name that says its job and a handful of
+parameters. A helper that needs six or more, or that takes most of its
+caller's locals, cuts in the wrong place: put the state the steps share
+in a struct they take, or cut elsewhere. A helper with one caller is
+fine and often right, and `static` lets the compiler inline it. Do not
+split a flat `switch` or a table only to make it shorter, and do not
+spread one step over two functions.
+
+A split is a refactor: one function per commit, a message that says
+behavior does not change and how to read the diff (`git show
+--color-moved`). A CBMC harness bounds a loop by its function's name
+(`--unwindset <function>.<n>:<bound>` in `proofs.list`), so the
+harnesses that include the file follow in the same commit, and the
+proofs that reach the code run again. Split the functions a change
+writes or touches; a long function the change leaves alone is split in
+a series of its own, not along the way.
 
 ### Interfaces
 
