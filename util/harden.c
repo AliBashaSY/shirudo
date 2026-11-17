@@ -10,6 +10,7 @@
 #include <nss.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/personality.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -43,11 +44,22 @@ void harden_stdio(void)
  * can name an NSS module for the host lookups libcurl makes, both
  * dlopen()ed from paths root controls whatever secure-exec mode does to
  * the environment. glibc's own files and dns services answer host
- * lookups without a module, in a static binary too.
+ * lookups without a module, in a static binary too. The personality
+ * comes from the caller too: UNAME26 has uname() report a 2.6 release
+ * to the tree selector, READ_IMPLIES_EXEC makes later mappings
+ * executable.
  */
 int harden_self(void)
 {
 	struct rlimit no_core = {};
+
+	if (personality(PER_LINUX) < 0) {
+		int err = -errno;
+
+		pr_err("hardening: cannot reset the personality: %s",
+		       strerror(-err));
+		return err;
+	}
 
 	prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
 	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);

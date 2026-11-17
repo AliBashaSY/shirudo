@@ -1774,7 +1774,10 @@ U3 The environment reaches authorized processes
       (libcurl), which open a file root names with the process's
       authority, are refused on a target like shirudo's own overrides
       (``t6136``): with the first set, ``shirudo status`` wrote the
-      library's log into a sealed file.
+      library's log into a sealed file. The personality the caller sets
+      is dropped at start (``t6151``): under ``UNAME26``, ``uname()``
+      reported a 2.6 release to the tree selector, and an operation it
+      skipped for that release stayed skipped.
    :Status: Confirmed in code for shirudo's own variables; the library
       log file was reproduced on a test VM and is refused now.
    :Meanwhile: Keep ``/etc/shirudo/bpm/environment``,

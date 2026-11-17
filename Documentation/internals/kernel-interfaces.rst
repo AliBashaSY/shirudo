@@ -421,6 +421,10 @@ Process setup and prctl
      - Enforcement probe. ``lsm/task_prctl`` fails it with errno 1002
        when ``bpf2`` is attached; ``EINVAL`` or ``ENOSYS`` means it is
        not.
+   * - ``personality(PER_LINUX)``
+     - Drops the personality flags the caller passed down, ``UNAME26``
+       among them, which would have ``uname()`` report a 2.6 release to
+       the tree selector. A failure ends the command.
    * - ``prctl(PR_SET_DUMPABLE, 0)``, ``prctl(PR_SET_NO_NEW_PRIVS, 1)``,
        ``prctl(PR_SET_PTRACER, 0)``
      - Process hardening before every command.

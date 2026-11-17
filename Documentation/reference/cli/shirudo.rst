@@ -85,12 +85,12 @@ Every invocation goes through the same steps before the command runs:
 
 #. Standard input, output and error that are closed are reopened on
    ``/dev/null``.
-#. The process hardens itself: it is not dumpable, sets
-   ``no_new_privs``, writes no core file, loads no OpenSSL configuration
-   file, resolves host names through ``files`` and ``dns`` only and locks
-   all its memory with ``mlockall()``. When the lock fails, ``shirudo``
-   prints ``hardening: cannot lock process memory: <error>`` and exits
-   with 1. The shipped systemd units set ``LimitMEMLOCK=infinity``.
+#. The process hardens itself: it drops the personality flags of its
+   caller, is not dumpable, sets ``no_new_privs``, writes no core file,
+   loads no OpenSSL configuration file, resolves host names through
+   ``files`` and ``dns`` only and locks all its memory with
+   ``mlockall()``. When the lock fails, ``shirudo`` prints
+   ``hardening: cannot lock process memory: <error>`` and exits with 1. The shipped systemd units set ``LimitMEMLOCK=infinity``.
 #. ``shirudo`` resolves the command name (see below).
 #. On a target where enforcement is up, the image gate runs (see below).
 #. The command runs.

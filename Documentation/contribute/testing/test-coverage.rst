@@ -496,6 +496,9 @@ signed config image.
      - The directories above the state root carry the ancestor mark; a
        rename of one and the removal of the mark are refused and counted,
        and a directory beside the state root still renames
+   * - ``t6151-personality``
+     - Started under ``setarch --uname-2.6``, shirudo still reads the
+       kernel's release
 
 ``bpm`` (7)
 ~~~~~~~~~~~
