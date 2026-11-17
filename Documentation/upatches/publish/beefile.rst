@@ -240,7 +240,10 @@ that reads it. The header is installed beside the shirudo BPF headers.
 The signed ``SHPL`` section opts the upatch into these bindings;
 declaring the maps without policy tables leaves them as ordinary
 upatch-owned maps. Signed BPF programs can write the maps, so enforcement
-programs must treat them as read-only by contract.
+programs must treat them as read-only by contract. Root can give its own
+processes any bit, through a file system it mounts whose executables
+carry the xattr, so let a bit restrict what a task may do, never exempt
+it from a rule.
 
 The generator and the updater run on the operator host with the
 operator's rights. The target receives only the signed result. Without

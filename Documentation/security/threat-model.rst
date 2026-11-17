@@ -1738,12 +1738,17 @@ R23 Policy labels follow the inode
    of the executable, or the new inode a package upgrade or an editor
    leaves in its place, carries no policy until the upatch is loaded
    again, and a hard link or a rename that root makes of an inode
-   without the seal label moves the policy to another path. A task
+   without the seal label moves the policy to another path. A file
+   system that root makes and mounts, a loop image say, carries the
+   xattr on its own executables, written where no seal ran, and an
+   execution from it takes whatever bits root put there. A task
    keeps the bits it accumulated, a socket keeps the snapshot of its
    creator, and a socket passed from another task carries that task's
-   bits. An enforcement upatch therefore decides what an execution
-   without policy bits may do, and the operator reloads after a change
-   to a labeled path. Detection: none on the target.
+   bits. Root can therefore give its own processes any bits: an
+   enforcement upatch decides what an execution without policy bits
+   may do, lets a bit restrict rather than exempt, and the operator
+   reloads after a change to a labeled path. Detection: none on the
+   target.
 
 Threats to resolve
 ------------------
