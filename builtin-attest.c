@@ -193,7 +193,7 @@ static int cert_digest(const char *path, __u8 out[32])
 
 	ret = read_file(path, KEYS_DER_MAX, &der, &len);
 	if (!ret) {
-		ret = len ? sha256_calc(der, len, out) : -ENODATA;
+		ret = len ? sha256_buffer(der, len, out) : -ENODATA;
 		xfree(der, len + 1);
 	}
 	if (ret)
@@ -422,7 +422,7 @@ static int cmd_attest_predict(int argc, const char **argv)
 			goto out;
 		}
 		predict_kv(&po, "anchor", anchor);
-		if (sha256_calc(anchor, strlen(anchor), anchor_digest)) {
+		if (sha256_buffer(anchor, strlen(anchor), anchor_digest)) {
 			pr_err("attest predict: cannot hash the anchor");
 			goto out;
 		}

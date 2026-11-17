@@ -2110,8 +2110,8 @@ static int upatch_apply(struct upatch *u, const char *label, bool verify_only,
 	{
 		__u8 loader_digest[UPATCH_PAYLOAD_HASH_LEN];
 
-		if (sha256_calc(insns, u->hdr.loader_insns_len,
-				loader_digest)) {
+		if (sha256_buffer(insns, u->hdr.loader_insns_len,
+				  loader_digest)) {
 			pr_err("__loader.map: cannot hash the loader");
 			rep_fail(rep, "signed_loader_load", "unknown", EIO,
 				 "loader digest failed");

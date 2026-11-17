@@ -21,6 +21,7 @@
 #include <shirudo/upatch.h>
 
 #include "chain.h"
+#include "crypto.h"
 #include "eventlog.h"
 #include "hex.h"
 #include "timefmt.h"
@@ -380,7 +381,7 @@ static int replay_line(const char *line, size_t len, bool is_init, void *ctx)
 		memset(chain, 0, 32);
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, digest, 32);
-	return sha256_calc(cat, sizeof(cat), chain);
+	return sha256_buffer(cat, sizeof(cat), chain);
 }
 
 int eventlog_replay(__u8 out[32])

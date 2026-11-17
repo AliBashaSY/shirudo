@@ -1196,8 +1196,8 @@ int attest_verify(const char *evidence, size_t len,
 		char anchor[CHAIN_ANCHOR_MAX];
 		bool named = !chain_anchor(p->init.name, anchor,
 					   sizeof(anchor)) &&
-			     !sha256_calc(anchor, strlen(anchor),
-					  anchor_digest);
+			     !sha256_buffer(anchor, strlen(anchor),
+					    anchor_digest);
 
 		say(&rep, named &&
 		    !memneq_explicit(anchor_digest, p->init.anchor_digest, 32),

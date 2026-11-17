@@ -159,7 +159,7 @@ static void model_hash(const __u8 *in, __u8 out[32])
 	}
 }
 
-int sha256_calc(const void *data, size_t len, __u8 out[32])
+int sha256_buffer(const void *data, size_t len, __u8 out[32])
 {
 	__CPROVER_assert(len == 64, "the root before and the digest");
 	if (hash_error)

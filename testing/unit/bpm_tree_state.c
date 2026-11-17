@@ -536,7 +536,7 @@ static void eventlog_matches_only_a_state_read(void)
 	EXPECT_EQ(tree_eventlog_matches(&s, 0, replay, &matches), -ENOENT);
 	EXPECT_TRUE(matches);
 	ASSERT_EQ(sha256_digest_decode(PENDING_DIGEST, next + 32), 0);
-	ASSERT_EQ(sha256_calc(next, sizeof(next), root), 0);
+	ASSERT_EQ(sha256_buffer(next, sizeof(next), root), 0);
 	ASSERT_EQ(tree_event_append(1, PENDING_DIGEST, root), 0);
 	hex_encode(root, sizeof(root), s.projection_root);
 	ASSERT_EQ(tree_eventlog_matches(&s, 0, replay, &matches), 0);

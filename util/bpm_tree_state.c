@@ -25,6 +25,7 @@
 
 #include "bpm_tree.h"
 #include "chain.h"
+#include "crypto.h"
 #include "io.h"
 #include "json.h"
 #include "kernel_build_id.h"
@@ -728,7 +729,7 @@ int tree_event_replay(__u8 out[32])
 		}
 		memcpy(next, chain, 32);
 		memcpy(next + 32, d, 32);
-		ret = sha256_calc(next, sizeof(next), chain);
+		ret = sha256_buffer(next, sizeof(next), chain);
 		if (ret)
 			break;
 		if (memneq_explicit(chain, recorded, 32)) {

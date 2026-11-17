@@ -28,15 +28,6 @@
 #include "paths.h"
 #include "tpm.h"
 
-int sha256_calc(const void *data, size_t len, __u8 out[32])
-{
-	int ret = sha256_buffer(data, len, out);
-
-	if (ret)
-		memset(out, 0, 32);
-	return ret;
-}
-
 int sha256_2(const void *a, size_t a_len,
 	     const void *b, size_t b_len, __u8 out[32])
 {
@@ -95,7 +86,7 @@ int chain_init_event(const __u8 cert_sha[32],
 		}
 		off += (size_t)w;
 	}
-	ret = sha256_calc(listing, listing_len, set_digest);
+	ret = sha256_buffer(listing, listing_len, set_digest);
 	xfree(listing, listing_len + 1);
 	if (ret)
 		return ret;
@@ -104,7 +95,7 @@ int chain_init_event(const __u8 cert_sha[32],
 	memcpy(tag + taglen, cert_sha, 32);
 	memcpy(tag + taglen + 32, set_digest, 32);
 	memcpy(tag + taglen + 64, tree_root, 32);
-	return sha256_calc(tag, taglen + 96, event);
+	return sha256_buffer(tag, taglen + 96, event);
 }
 
 int chain_upatch_event(const char *tag, const char *name,
@@ -120,7 +111,7 @@ int chain_upatch_event(const char *tag, const char *name,
 	off += 32;
 	memcpy(buf + off, name, namelen);
 	off += namelen;
-	return sha256_calc(buf, off, event);
+	return sha256_buffer(buf, off, event);
 }
 
 int chain_key_event(const char *tag, const __u8 cert_sha[32],
@@ -140,7 +131,7 @@ int chain_tree_event(__s64 seq, const __u8 operation_digest[32],
 	for (i = 0; i < 8; i++)
 		buf[taglen + i] = (__u8)(s >> (56 - 8 * i));
 	memcpy(buf + taglen + 8, operation_digest, 32);
-	return sha256_calc(buf, taglen + 40, event);
+	return sha256_buffer(buf, taglen + 40, event);
 }
 
 int chain_fold(__u8 chain[32], const __u8 event[32])
@@ -149,7 +140,7 @@ int chain_fold(__u8 chain[32], const __u8 event[32])
 
 	memcpy(cat, chain, 32);
 	memcpy(cat + 32, event, 32);
-	return sha256_calc(cat, sizeof(cat), chain);
+	return sha256_buffer(cat, sizeof(cat), chain);
 }
 
 int chain_anchor(const __u8 name[TPM_NAME_LEN],
@@ -375,8 +366,8 @@ int chain_init(const __u8 event[32],
 		goto out;
 	memcpy(info->name, written, sizeof(written));
 	info->name_len = sizeof(written);
-	ret = sha256_calc(info->anchor, strlen(info->anchor),
-			  info->anchor_digest);
+	ret = sha256_buffer(info->anchor, strlen(info->anchor),
+			    info->anchor_digest);
 	if (ret)
 		goto out;
 	ret = tpm_pcr_extend(tpm, CHAIN_PCR,

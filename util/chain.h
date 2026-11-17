@@ -34,9 +34,6 @@
 					 (1u << CHAIN_PHASE_PCR))
 #define CHAIN_ANCHOR_MAX	128
 
-int sha256_calc(const void *data, size_t len,
-		__u8 out[CHAIN_DIGEST_LEN]) __must_check;
-
 int sha256_2(const void *a, size_t a_len,
 	     const void *b, size_t b_len,
 	     __u8 out[CHAIN_DIGEST_LEN]) __must_check;
