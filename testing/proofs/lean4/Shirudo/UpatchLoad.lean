@@ -9,8 +9,9 @@ restore of builtin-init.c, against crashes, concurrent commands and root.
 
 `image_enter()` admits an upatch command only once this boot's config
 activation is complete, which `image_boot_complete()` does after `init`
-restored the archive and wrote its record. A load (`cmd_upatch_load()`)
-takes the register lock (`eventlog_lock()`) and runs the undo pass
+restored the archive and wrote its record. A load (`upatch_load()`, which
+`upatch load` and a package install run) takes the register lock
+(`eventlog_lock()`) and runs the undo pass
 (`undo_unmeasured()`). The pass folds this boot's records into the
 measured set (`measured_set_boot()`), only when they fold to the
 register's value, and removes every pin directory whose
@@ -18,7 +19,8 @@ xattr the set does not hold, with the archive of the same name
 (`measured_unmeasured_pins()`, `undo_load()`), then every labeled archive
 file the set does not hold (`measured_unmeasured_archives()`), and refuses
 the command when it could not read the records, scan or remove. The load
-then refuses a name whose pin directory carries a payload xattr, pins
+then refuses a name whose pin directory carries a payload xattr, or ends
+as done where an install finds its own payload there, pins
 (`attach_and_pin_progs()`), sets the payload xattr (`set_pin_payload()`,
 whose failure takes the pins out and fails the load), archives
 (`persist_upatch()`), extends the register (`chain_extend()`) and appends
