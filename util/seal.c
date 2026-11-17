@@ -472,14 +472,21 @@ int seal_open(const char *path, int flags, mode_t mode)
 	return fd;
 }
 
-int seal_open_read(const char *path)
+static int seal_open_file(const char *path, bool sealed)
 {
+	char label[SEAL_LABEL_LEN];
 	const char *name;
 	int dfd, fd, ret;
 
 	dfd = seal_open_parent(path, &name);
 	if (dfd < 0)
 		return dfd;
+	if (sealed && seal_fget(dfd, label) != SEAL_LABEL_LEN) {
+		close(dfd);
+		pr_err("%s: its directory is not sealed state; refusing to read it",
+		       path);
+		return -EPERM;
+	}
 	fd = openat(dfd, name, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
 	ret = fd < 0 ? -errno : seal_regular(fd);
 	if (!ret)
@@ -494,6 +501,31 @@ int seal_open_read(const char *path)
 		return ret;
 	}
 	return fd;
+}
+
+bool seal_parent_labeled(const char *path)
+{
+	char label[SEAL_LABEL_LEN];
+	const char *name;
+	bool labeled;
+	int dfd;
+
+	dfd = seal_open_parent(path, &name);
+	if (dfd < 0)
+		return false;
+	labeled = seal_fget(dfd, label) == SEAL_LABEL_LEN;
+	close(dfd);
+	return labeled;
+}
+
+int seal_open_read(const char *path)
+{
+	return seal_open_file(path, false);
+}
+
+int seal_open_sealed(const char *path)
+{
+	return seal_open_file(path, true);
 }
 
 bool seal_owns(const char *path)

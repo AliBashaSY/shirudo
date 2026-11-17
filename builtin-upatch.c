@@ -2943,7 +2943,9 @@ static int undo_unmeasured_archive(const char *name, const char *path,
  * the scan never takes a load in flight for one that was stopped. A
  * command whose pass cannot read the records or take out what they do
  * not cover refuses: a load beside such pins could share their directory
- * under one name, and its own record would not tell the two apart.
+ * under one name, and its own record would not tell the two apart. The
+ * records count only as the register vouches for them: the eventlog and
+ * the boot ID are paths root can bind over in a namespace of its own.
  */
 static int undo_unmeasured(struct op_report *rep, const char *op)
 {
@@ -2951,6 +2953,13 @@ static int undo_unmeasured(struct op_report *rep, const char *op)
 	int failed = 0, ret;
 
 	ret = measured_set_boot(&set);
+	if (ret == -EBADMSG) {
+		pr_err("upatch %s: this boot's eventlog records do not fold to the measurement register; refused, nothing changed",
+		       op);
+		rep_fail(rep, "tpm_extend", "tampered", -ret,
+			 "this boot's records do not fold to the register");
+		return ret;
+	}
 	if (ret) {
 		pr_err("upatch %s: cannot read this boot's records: %s; refused, nothing changed",
 		       op, strerror(-ret));

@@ -228,6 +228,8 @@ static bool upatches_row(const struct conditions_input *in,
 			     .string = or_unknown(in->pins_detail));
 	if (in->pins_rc == -ENOENT)
 		return WARN("no record of this boot to check the pins against");
+	if (in->pins_rc == -EBADMSG)
+		return ALERT("this boot's records do not fold to the measurement register");
 	if (in->pins_rc)
 		return WARN("pins not checked against the records: *",
 			    .string = strerror(-in->pins_rc));

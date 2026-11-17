@@ -480,6 +480,11 @@ signed config image.
      - A uprobe set through tracefs on the runtime binary leaves the
        commands it reaches without authority, counted as
        ``SealUprobe``, until it is removed
+   * - ``t6147-forged-records``
+     - A load in a namespace with a ``/run`` of root's making and a
+       forged pending record, or another boot ID bound over ``/proc``,
+       detaches nothing: the undo pass takes only the records the
+       register vouches for
 
 ``bpm`` (7)
 ~~~~~~~~~~~

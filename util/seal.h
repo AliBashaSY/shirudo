@@ -56,8 +56,18 @@ int seal_mkdir_p(const char *path, mode_t mode);
  */
 int seal_open_read(const char *path);
 
+/*
+ * seal_open_read() of an entry whose directory must carry the label:
+ * one of root's making, which no task without authority can label,
+ * holds nothing shirudo takes for its own. -EPERM when it does not.
+ */
+int seal_open_sealed(const char *path);
+
 /* Whether seal_open_read() would succeed. */
 bool seal_owns(const char *path);
+
+/* Whether the directory path names an entry of carries the seal label. */
+bool seal_parent_labeled(const char *path);
 
 int seal_write_file(const char *path, const void *data, size_t len,
 		    mode_t mode);

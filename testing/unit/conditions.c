@@ -79,6 +79,27 @@ static void a_lost_link_is_tampered(void)
 	EXPECT_STREQ(status_verdict(&in), "tampered");
 }
 
+static void records_the_register_does_not_vouch_for_are_tampered(void)
+{
+	struct conditions_input in = {
+		.reachable = true,
+		.parsed = true,
+		.lsm_attached = 1,
+		.pins_rc = -EBADMSG,
+	};
+	struct condition c[CONDITIONS_MAX];
+	const struct condition *row;
+	char reason[128];
+
+	row = upatches_measured(&in, c);
+	ASSERT_TRUE(row);
+	EXPECT_STREQ(row->status, "ALERT");
+	EXPECT_TRUE(strstr(row->detail, "do not fold to the measurement register"));
+	EXPECT_STREQ(status_verdict(&in), "tampered");
+	status_reason(&in, reason, sizeof(reason));
+	EXPECT_TRUE(strstr(reason, "do not fold to the measurement register"));
+}
+
 static void a_check_that_could_not_run_warns(void)
 {
 	struct conditions_input in = {
@@ -211,6 +232,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(changed_xdp_archive_is_tampered),
 	UNIT_CASE(a_changed_archive_outranks_a_pin_warning),
 	UNIT_CASE(a_lost_link_is_tampered),
+	UNIT_CASE(records_the_register_does_not_vouch_for_are_tampered),
 	UNIT_CASE(a_check_that_could_not_run_warns),
 	UNIT_CASE(no_change_leaves_the_condition_alone),
 	UNIT_CASE(an_uncovered_device_degrades),

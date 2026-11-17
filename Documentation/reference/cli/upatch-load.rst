@@ -50,9 +50,11 @@ Description
    it holds to the end, and undoes the pins and archives this boot's
    records do not cover: those of a load stopped before its extend, of
    an unload stopped after it, and an archive brought back after its
-   unload, which ``status`` reports under ``UpatchesMeasured``. It
-   refuses (``tpm_error``) when it cannot read this boot's records or
-   cannot undo one of them. A upatch of the same name that is loaded is
+   unload, which ``status`` reports under ``UpatchesMeasured``. It takes
+   only the records the register vouches for, which fold to the value
+   the TPM reports, and refuses (``tampered``) when they do not, and
+   (``tpm_error``) when it cannot read this boot's records or cannot
+   undo one of them. A upatch of the same name that is loaded is
    refused (``already_loaded``).
 #. It parses the artifact: a LOAD artifact, a safe and signed name, a
    payload digest that matches the payload, valid attach metadata

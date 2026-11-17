@@ -12,7 +12,8 @@ activation is complete, which `image_boot_complete()` does after `init`
 restored the archive and wrote its record. A load (`cmd_upatch_load()`)
 takes the register lock (`eventlog_lock()`) and runs the undo pass
 (`undo_unmeasured()`). The pass folds this boot's records into the
-measured set (`measured_set_boot()`), removes every pin directory whose
+measured set (`measured_set_boot()`), only when they fold to the
+register's value, and removes every pin directory whose
 xattr the set does not hold, with the archive of the same name
 (`measured_unmeasured_pins()`, `undo_load()`), then every labeled archive
 file the set does not hold (`measured_unmeasured_archives()`), and refuses
@@ -67,7 +68,9 @@ every move. The assumptions, each a step or the absence of one:
   eventlog and the private bpffs: root cannot write, rename onto or
   unlink a labeled file, nor touch a pin.
 - The register's hash and the event encoding are collision resistant,
-  as `Shirudo.Chain` assumes, for `replay_differs` only.
+  as `Shirudo.Chain` assumes, for `replay_differs` and for the undo
+  pass's check of the records against the register, which the step
+  takes as their being the register's events.
 
 For every sequence of steps from a fresh install, in the C's protocol
 (`C`):
@@ -413,10 +416,13 @@ inductive Step (V : Variant) :
       Step V s { s.exit i with
         lost := s.lost + if (inflightEv c).isSome then 1 else 0 }
   /-- `eventlog_lock()`, then `measured_set_boot()` and `scandir()` of
-  the pin directories. -/
+  the pin directories. The set is read only when this boot's records
+  fold to the register's value, which with the hash collision resistant
+  is when they are the register's events. -/
   | lockUndo (s) (i c m todo) : s.procs i = some ⟨c, .start⟩ →
       c.isPurge = false → canLock V s → V.undo = true →
       measuredBoot s = some m → (∀ n, s.pins n ≠ none → n ∈ todo) →
+      bootEvs s = s.reg →
       Step V s { s.go i c (.undoPins m todo false) with lock := some i }
   /-- The lock and no undo pass: the variant without it, or a pass that
   cannot read the records and goes on regardless. -/
@@ -2411,9 +2417,9 @@ theorem undo_pass_needs_lock :
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.spawn _ 1 (.load 2 5) rfl (fun _ => rfl))
   have r4 := r3.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r5 := r4.step (.lockUndo _ 1 (.load 2 5) _ []
-    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r6 := r5.step (.undoPinsDone _ 1 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r7 := r6.step (.undoArchDone _ 1 _ _ _ rfl (Or.inl rfl))
   have r8 := r7.step (.loadMkdir _ 1 2 5 rfl (fun _ h => by cases h))
@@ -2434,9 +2440,9 @@ theorem log_needs_lock :
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.spawn _ 1 (.load 2 5) rfl (fun _ => rfl))
   have r4 := r3.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r5 := r4.step (.lockUndo _ 1 (.load 2 5) _ []
-    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inl rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r6 := r5.step (.undoPinsDone _ 0 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r7 := r6.step (.undoArchDone _ 0 _ _ _ rfl (Or.inl rfl))
   have r8 := r7.step (.undoPinsDone _ 1 _ _ _ [] rfl (fun _ h => absurd rfl h))
@@ -2489,7 +2495,7 @@ theorem undo_needs_refusal :
   have r1 := reach_boot1 { refuse := false }
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r4 := r3.step (.undoPinsDone _ 0 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r5 := r4.step (.undoArchDone _ 0 _ _ _ rfl (Or.inl rfl))
   have r6 := r5.step (.loadMkdir _ 0 1 5 rfl (fun _ h => by cases h))
@@ -2543,7 +2549,7 @@ theorem xattr_needs_undo :
   have r1 := reach_boot1 { xattrUndo := false }
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r4 := r3.step (.undoPinsDone _ 0 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r5 := r4.step (.undoArchDone _ 0 _ _ _ rfl (Or.inl rfl))
   have r6 := r5.step (.loadMkdir _ 0 1 5 rfl (fun _ h => by cases h))
@@ -2557,7 +2563,7 @@ theorem xattr_needs_undo :
     rfl rfl (Or.inr rfl) rfl rfl (fun n h => by
       by_cases hn : n = 1
       · simp [hn]
-      · exact absurd (by simp [State.go, State.exit, booted, upd, hn]) h))
+      · exact absurd (by simp [State.go, State.exit, booted, upd, hn]) h) rfl)
   have r14 := r13.step (.undoRemove _ 1 _ _ 1 [] _ .ok rfl rfl)
   have r15 := r14.step (.undoPinsDone _ 1 _ _ _ [] rfl (fun k h => by
     by_cases hk : k = 1
@@ -2591,7 +2597,7 @@ theorem purge_needs_lock :
   have r1 := reach_boot1 { purgeLock := false }
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r4 := r3.step (.undoPinsDone _ 0 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r5 := r4.step (.undoArchDone _ 0 _ _ _ rfl (Or.inl rfl))
   have r6 := r5.step (.loadMkdir _ 0 1 5 rfl (fun _ h => by cases h))
@@ -2611,7 +2617,7 @@ theorem purge_needs_lock :
     rfl rfl (Or.inr rfl) rfl rfl (fun n h => by
       by_cases hn : n = 1
       · simp [hn]
-      · exact absurd (by simp [State.go, State.exit, booted, upd, hn]) h))
+      · exact absurd (by simp [State.go, State.exit, booted, upd, hn]) h) rfl)
   have r18 := r17.step (.undoRemove _ 1 _ _ 1 [] _ .ok rfl rfl)
   have r19 := r18.step (.undoPinsDone _ 1 _ _ _ [] rfl (fun k h => by
     by_cases hk : k = 1
@@ -2650,7 +2656,7 @@ theorem init_needs_filter :
   have r1 := reach_boot1 { filter := false }
   have r2 := r1.step (.spawn _ 0 (.load 1 5) rfl (fun _ => rfl))
   have r3 := r2.step (.lockUndo _ 0 (.load 1 5) _ []
-    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h))
+    rfl rfl (Or.inr rfl) rfl rfl (fun _ h => absurd rfl h) rfl)
   have r4 := r3.step (.undoPinsDone _ 0 _ _ _ [] rfl (fun _ h => absurd rfl h))
   have r5 := r4.step (.undoArchDone _ 0 _ _ _ rfl (Or.inl rfl))
   have r6 := r5.step (.loadMkdir _ 0 1 5 rfl (fun _ h => by cases h))

@@ -105,6 +105,29 @@ static int log_records(char *buf, size_t len)
 	return 0;
 }
 
+/*
+ * The record the initrd left in /run/shirudo, as sealed state where the
+ * log is: a /run of root's making, in a mount namespace of its own,
+ * would otherwise hand each reader records the register never saw, and
+ * have the next append adopt them into the sealed log. A host without
+ * the seal, as the register tests run on, labels neither.
+ */
+static int read_pending(char **out, size_t *len)
+{
+	const char *path = eventlog_pending_path();
+	int fd, ret;
+
+	if (strcmp(path, EVENTLOG_PENDING_PATH))
+		return read_file(path, JSON_MAX_BYTES, out, len);
+	fd = seal_parent_labeled(eventlog_path()) ? seal_open_sealed(path) :
+	     seal_open_read(path);
+	if (fd < 0)
+		return fd;
+	ret = read_fd(fd, path, JSON_MAX_BYTES, out, len);
+	close(fd);
+	return ret;
+}
+
 static int read_log(char **out, size_t *out_len)
 {
 	size_t base_len = 0, pending_len = 0, off;
@@ -115,9 +138,7 @@ static int read_log(char **out, size_t *out_len)
 			&base, &base_len);
 	if (ret && ret != -ENOENT)
 		return ret;
-	rc_pending = read_file(eventlog_pending_path(),
-			       JSON_MAX_BYTES, &pending,
-			       &pending_len);
+	rc_pending = read_pending(&pending, &pending_len);
 	if (rc_pending && rc_pending != -ENOENT) {
 		xfree(base, base_len + 1);
 		return rc_pending;
@@ -271,7 +292,7 @@ static int adopt_pending(void)
 	size_t len = 0;
 	int ret;
 
-	ret = read_file(pending, JSON_MAX_BYTES, &buf, &len);
+	ret = read_pending(&buf, &len);
 	if (ret == -ENOENT)
 		return 0;
 	if (ret)
@@ -587,6 +608,22 @@ int eventlog_upatches(int (*cb)(enum eventlog_upatch_event event,
 	struct upatches_ctx u = { .cb = cb, .ctx = ctx };
 
 	return walk_log(true, upatches_line, &u);
+}
+
+int eventlog_read(char **out, size_t *len)
+{
+	return read_log(out, len);
+}
+
+int eventlog_upatches_record(const char *line, size_t len, bool is_init,
+			     int (*cb)(enum eventlog_upatch_event event,
+				       const char *name,
+				       const char *payload_hex, void *ctx),
+			     void *ctx)
+{
+	struct upatches_ctx u = { .cb = cb, .ctx = ctx };
+
+	return upatches_line(line, len, is_init, &u);
 }
 
 void eventlog_timestamp(char *out, size_t cap)

@@ -103,11 +103,13 @@ Categories
        config, see :doc:`/operate/maintain/keys`.
    * - ``tampered``
      - ``pre_flight``, ``tpm_extend``
-     - none, ``EPERM``, ``EACCES``, ``ENOENT``, ``ESTALE``
+     - none, ``EPERM``, ``EACCES``, ``ENOENT``, ``ESTALE``, ``EBADMSG``
      - The ``.bpf`` keyring is not the frozen anchor (no errno), the
        ``lsm_link`` pin is missing (``ENOENT``), the register differs from
-       ``--expect-chain`` or cannot be read (``EPERM``), or the register
-       is not the one ``init`` bound (``EACCES``, the load is undone). From
+       ``--expect-chain`` or cannot be read (``EPERM``), the register
+       is not the one ``init`` bound (``EACCES``, the load is undone), or
+       this boot's eventlog records do not fold to the register
+       (``EBADMSG``, nothing changed). From
        ``upatch reconcile``: the archive of a loaded XDP upatch differs
        from what the records say was loaded, or its program pin is missing
        (``ENOENT``) or holds no XDP program (``ESTALE``).

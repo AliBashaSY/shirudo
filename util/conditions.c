@@ -161,6 +161,9 @@ size_t conditions(const struct conditions_input *in,
 		else if (in->pins_rc == -ENOENT)
 			set_detail(&c[n], "WARN",
 				   "no record of this boot to check the pins against");
+		else if (in->pins_rc == -EBADMSG)
+			set_detail(&c[n], "ALERT",
+				   "this boot's records do not fold to the measurement register");
 		else if (in->pins_rc)
 			set_detail(&c[n], "WARN",
 				   "pins not checked against the records: %s",
@@ -263,8 +266,8 @@ const char *status_verdict(const struct conditions_input *in)
 	if (!in->parsed)
 		return "unparseable";
 	if ((in->cm_seen && !in->chain_matches) || in->pins_unmeasured ||
-	    in->xdp_tampered || in->links_lost || keyring_tampered(in) ||
-	    config_untrusted(in))
+	    in->pins_rc == -EBADMSG || in->xdp_tampered || in->links_lost ||
+	    keyring_tampered(in) || config_untrusted(in))
 		return "tampered";
 	if (!in->lsm_attached)
 		return "lsm-off";
@@ -299,6 +302,9 @@ void status_reason(const struct conditions_input *in,
 				cap);
 		else if (in->pins_unmeasured)
 			strscpy(buf, "a upatch is pinned or archived without a record of this boot",
+				cap);
+		else if (in->pins_rc == -EBADMSG)
+			strscpy(buf, "this boot's records do not fold to the measurement register",
 				cap);
 		else if (config_untrusted(in))
 			strscpy(buf, "the selected config cannot be verified against its records",

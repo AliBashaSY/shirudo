@@ -479,6 +479,28 @@ int chain_read(__u8 out[32])
 	return ret ? -ENODEV : 0;
 }
 
+int chain_live(struct chain_live *out)
+{
+	struct tpm *tpm = NULL;
+	struct tpm_nv_info nv;
+	int ret;
+
+	memset(out, 0, sizeof(*out));
+	if (tpm_open(&tpm))
+		return -ENODEV;
+	ret = tpm_reset_count(tpm, &out->reset_count) ||
+	      tpm_nv_info(tpm, NV_INDEX, &nv) ? -EIO : 0;
+	if (!ret && (!nv.defined || !nv.written ||
+		     nv.name_len != TPM_NAME_LEN))
+		ret = -ENODEV;
+	if (!ret) {
+		memcpy(out->name, nv.name, TPM_NAME_LEN);
+		ret = tpm_nv_read(tpm, NV_INDEX, out->value) ? -EIO : 0;
+	}
+	tpm_close(tpm);
+	return ret;
+}
+
 bool chain_bound(void)
 {
 	struct tpm *tpm = NULL;

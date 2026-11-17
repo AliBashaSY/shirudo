@@ -55,6 +55,7 @@ enum cause {
 	XDP_ARCHIVE_CHANGED,
 	LINK_LOST,
 	PIN_UNMEASURED,
+	RECORDS_DIFFER,
 	CONFIG_UNVERIFIED,
 	BPF_KEYRING_GONE,
 	BPF_KEYRING_SWAPPED,
@@ -70,6 +71,7 @@ static const char *const cause_reason[NR_CAUSES] = {
 	[XDP_ARCHIVE_CHANGED]	= "the archive of a loaded XDP upatch differs from what was loaded",
 	[LINK_LOST]		= "a loaded upatch is missing a link or its archive",
 	[PIN_UNMEASURED]	= "a upatch is pinned or archived without a record of this boot",
+	[RECORDS_DIFFER]	= "this boot's records do not fold to the measurement register",
 	[CONFIG_UNVERIFIED]	= "the selected config cannot be verified against its records",
 	[BPF_KEYRING_GONE]	= "the keyring init froze is gone",
 	[BPF_KEYRING_SWAPPED]	= "keyring serial swap detected",
@@ -90,6 +92,8 @@ static bool cause_holds(const struct conditions_input *in, enum cause cause)
 		return in->links_lost;
 	case PIN_UNMEASURED:
 		return in->pins_unmeasured;
+	case RECORDS_DIFFER:
+		return in->pins_rc == -EBADMSG;
 	case CONFIG_UNVERIFIED:
 		return in->config_seen && in->config_state &&
 		       in->config_state != -EINPROGRESS;

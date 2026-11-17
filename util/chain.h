@@ -107,6 +107,20 @@ int chain_extend(const __u8 event[CHAIN_DIGEST_LEN],
 /* The live value; -ENODEV when no register is written this boot. */
 int chain_read(__u8 out[CHAIN_DIGEST_LEN]);
 
+/* The register as the TPM reports it, over the session init pinned. */
+struct chain_live {
+	__u8		name[TPM_NAME_LEN];
+	__u32		reset_count;
+	__u8		value[CHAIN_DIGEST_LEN];
+};
+
+/*
+ * The live register's name, value and TPM reset count. -ENODEV when no
+ * TPM answers or the index is not written this reset, -EIO when a read
+ * fails.
+ */
+int chain_live(struct chain_live *out);
+
 /* For a probe: a TPM that does not answer is not logged. */
 bool chain_bound(void);
 

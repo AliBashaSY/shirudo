@@ -201,6 +201,8 @@ else ``a device an XDP upatch selects does not run it``.
    * -
      - ``a upatch is pinned or archived without a record of this boot``
    * -
+     - ``this boot's records do not fold to the measurement register``
+   * -
      - ``the selected config cannot be verified against its records``
    * -
      - ``the keyring init froze is gone``
@@ -323,6 +325,9 @@ bytes: a longer one, such as a long list of names, is cut and ends with
    * -
      - ``ALERT``
      - ``<n> pinned or archived without a record of this boot: <names>``
+   * -
+     - ``ALERT``
+     - ``this boot's records do not fold to the measurement register``
    * - ``TpmMeasured``
      - ``OK``
      - ``NV index 0x01818E00 readable``

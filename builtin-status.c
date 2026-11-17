@@ -1264,7 +1264,10 @@ int cmd_status(int argc, const char **argv)
 		}
 		upatch_checks_run(mset, &checks);
 		xdp_tampered = checks.nr_changed;
-		links_lost = checks.nr_lost;
+		links_lost = measured_unpinned(mset, note_unmeasured,
+					       links_lost_names);
+		links_lost = links_lost < 0 ? links_lost :
+			     links_lost + checks.nr_lost;
 		xdp_uncovered = checks.nr_uncovered;
 		checks_rc = checks.check_err;
 		xdp_coverage_rc = checks.coverage_err;

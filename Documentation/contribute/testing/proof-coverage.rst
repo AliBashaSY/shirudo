@@ -1177,7 +1177,10 @@ the model follows the C.
        files; pin directory removals, archive renames and appends are
        whole; a reboot clears pins and register and ``init`` runs as one
        step; root changes only unlabeled archive files and brings files
-       back; the hash of ``Shirudo.Chain`` for ``replay_differs``
+       back; the hash of ``Shirudo.Chain`` for ``replay_differs``, and
+       for the undo pass, which reads the set only when this boot's
+       records fold to the register's value, taken as the records being
+       the register's events
      - CBMC, ``measured-fold-model``, for ``measured_event()`` and
        ``measured_holds()`` up to six records; review for the rest
    * - ``Shirudo.TreeSync``, ``cmd_bpm_tree_sync()`` and
