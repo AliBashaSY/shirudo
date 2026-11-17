@@ -169,8 +169,13 @@ else
 # No frame larger than 128 KiB: a table belongs on the heap, where its
 # allocation fails cleanly, not on a stack two such frames would take a
 # good part of. ASan pads every object, so the sanitized build is left
-# without the limit.
-CFLAGS_BASE += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+# without the limit. ANALYZE=1 builds for clang's static analyzer,
+# without _FORTIFY_SOURCE and with -fno-inline: glibc's fortified and
+# inline wrappers hide from it which libc function a call makes, and
+# with it the errno a failure sets and the memory getline() hands back.
+ANALYZE ?=
+CFLAGS_BASE += -U_FORTIFY_SOURCE \
+               $(if $(ANALYZE),-fno-inline,-D_FORTIFY_SOURCE=3) \
                -Wframe-larger-than=131072
 endif
 

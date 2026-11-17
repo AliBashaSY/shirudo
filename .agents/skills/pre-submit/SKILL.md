@@ -54,6 +54,7 @@ signs off.
 .github/scripts/check-sparse.sh
 .github/scripts/check-spdx.sh
 .github/scripts/check-unused.sh
+scan-build-23 --status-bugs --exclude vendor make ANALYZE=1  # from a clean tree
 make -C Documentation check         # DOCS_CONTAINER=0 without podman or docker
 make -B && make -B shirudo-build && make -B quote-check &&
 	make -B -f Makefile.shirudo test-helpers
@@ -75,8 +76,10 @@ A warning fails every build. Fix it rather than silence it; `WERROR=0`
 is only for a compiler newer than the tree while its new warnings get
 fixed. `check-sparse.sh` refuses a little- or big-endian field read or
 written without `le32_to_cpu()`, `cpu_to_le32()` or their kin, and
-`check-spdx.sh` the wrong license tag for a file's kind, and
-`check-unused.sh` an extern function whose last caller went.
+`check-spdx.sh` the wrong license tag for a file's kind,
+`check-unused.sh` an extern function whose last caller went, and
+scan-build what clang's static analyzer proves on some path: a NULL or
+uninitialized value used, a leak, a use after free, a store never read.
 
 CI does not run the proofs, so this run is the only one a series gets
 before it lands. `CHANGED` takes what `git diff` takes and runs the CBMC

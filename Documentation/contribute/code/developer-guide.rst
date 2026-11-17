@@ -480,6 +480,19 @@ the commit at ``HEAD`` alone without them.
      - An extern function of the userspace C that nothing calls: the
        compiler reports an unused ``static`` function, never an extern
        one. A call from a test counts. Takes no range.
+   * - ``scan-build.sh <vmlinux-btf>``
+     - The binary, the shirudo-build helper and the quote checker built
+       under clang's static analyzer with its default checkers, failing
+       on any finding: a NULL or uninitialized value used, memory leaked
+       or used after its free, a store never read and more. It installs
+       Debian testing's packages and clang 23's tools, so it runs in a
+       throwaway container; on a host that has them,
+       ``scan-build-23 --status-bugs --exclude vendor make ANALYZE=1``
+       does the same. ``ANALYZE=1`` builds without ``_FORTIFY_SOURCE``
+       and with ``-fno-inline``, whose absence would let glibc's
+       wrappers hide from the analyzer which libc function a call
+       makes. CI runs it as the ``scan-build`` job of the ``Build``
+       workflow and keeps the HTML report of a failed run.
    * - ``check-sparse.sh``
      - ``make sparse``: sparse over the userspace sources the binaries
        are built from, failing on any warning. It finds a value moved
