@@ -5,6 +5,18 @@ this repository. The code and `Documentation/` are authoritative for
 what shirudo does; this file holds the rules and the reasoning that are
 not visible from the code.
 
+## Before you write code
+
+Read `.agents/skills/coding/SKILL.md` and follow it before you write,
+change or review any C in this tree, userspace, BPF, tests and tools
+alike, and before you write the commit message of such a change. It is
+how code here is written, with
+`Documentation/contribute/code/coding-style.rst` that it builds on.
+Claude Code loads it as the `coding` skill, Codex from `.agents/skills/`,
+and an agent that does not load skills reads the file. Work another
+skill covers, tests, documentation, proofs or an upatch, loads that skill
+as well.
+
 ## What shirudo is
 
 A BPF security platform that locks down the `bpf()` syscall so only signed in-kernel
@@ -93,10 +105,9 @@ package for `bpm info`.
 
 C follows the kernel coding style,
 `Documentation/contribute/code/coding-style.rst`, in userspace and BPF
-alike; the `coding` skill gives these conventions with their reasons,
-the helpers to use and the commit message that carries a change. Load
-it before writing, changing or reviewing C, and before writing the
-commit message of a change to C.
+alike; the `coding` skill, which the section above has you load first,
+gives these conventions with their reasons, the helpers to use and the
+commit message that carries a change.
 
 - Plain C, no C++. Zero-initialise with `= {}`. Integers are `__u8` to
   `__u64` and `__s8` to `__s64`; a system header that uses `uint8_t` and
