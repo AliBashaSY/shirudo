@@ -728,19 +728,19 @@ static int open_map_pin(const char *upatch, const char *map_name,
 {
 	char path[PATH_MAX];
 	__u32 info_len = sizeof(*info_out);
-	int fd;
+	int fd, ret;
 
 	if (upatch_pin_path(path, sizeof(path), upatch, "maps", map_name, NULL))
 		return -ENAMETOOLONG;
+	/* libbpf returns the error it failed with. */
 	fd = bpf_obj_get(path);
 	if (fd < 0)
-		return -errno;
+		return fd;
 	memset(info_out, 0, sizeof(*info_out));
-	if (bpf_map_get_info_by_fd(fd, info_out, &info_len)) {
-		int e = -errno;
-
+	ret = bpf_map_get_info_by_fd(fd, info_out, &info_len);
+	if (ret) {
 		close(fd);
-		return e;
+		return ret;
 	}
 	*fd_out = fd;
 	return 0;

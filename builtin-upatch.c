@@ -2783,6 +2783,11 @@ static int wipe_dir_flat(const char *dir)
 	if (!d)
 		return -errno;
 	dfd = dirfd(d);
+	if (dfd < 0) {
+		ret = -errno;
+		closedir(d);
+		return ret;
+	}
 	while ((e = readdir(d))) {
 		if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, ".."))
 			continue;
