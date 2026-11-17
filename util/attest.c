@@ -651,23 +651,26 @@ struct reporter {
 	int	failed;
 };
 
+/*
+ * A line ends with its line feed in a full report too, so that what is
+ * printed after the report, the verdict of attest verify, starts a line.
+ */
 static __printf(3, 0) void report_line(struct reporter *r, const char *mark,
 				       const char *fmt, va_list ap)
 {
 	int n;
 
-	if (r->len + 8 >= r->cap)
+	/* The mark, a line feed and the NUL behind it. */
+	if (r->len + strlen(mark) + 2 > r->cap)
 		return;
 	n = strscpy(r->buf + r->len, mark, r->cap - r->len);
 	if (n > 0)
 		r->len += (size_t)n;
-	n = vstrsprintf(r->buf + r->len, r->cap - r->len, fmt, ap);
+	n = vstrsprintf(r->buf + r->len, r->cap - r->len - 1, fmt, ap);
 	if (n > 0)
 		r->len += (size_t)n;
-	if (r->len + 1 < r->cap) {
-		r->buf[r->len++] = '\n';
-		r->buf[r->len] = '\0';
-	}
+	r->buf[r->len++] = '\n';
+	r->buf[r->len] = '\0';
 }
 
 static void say(struct reporter *r, bool ok, const char *fmt, ...)

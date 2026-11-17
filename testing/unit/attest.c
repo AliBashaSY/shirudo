@@ -2,12 +2,15 @@
 /* Copyright (c) 2026 Authors of shirudo */
 
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <shirudo/string.h>
 
 #include "attest.h"
 #include "unit.h"
+
+#define EVIDENCE "fuzz/corpus/attest/evidence"
 
 static void pcrs_are_a_list_up_to_23(void)
 {
@@ -75,10 +78,53 @@ static void name_digest_is_a_name_and_64_digits(void)
 	EXPECT_EQ(attest_parse_name_digest(longest, name, digest), -EINVAL);
 }
 
+/* make -C testing runs from testing/, and by hand from the top of the tree. */
+static char *read_evidence(size_t *len)
+{
+	static char buf[1 << 16];
+	FILE *f = fopen(EVIDENCE, "r");
+
+	if (!f)
+		f = fopen("testing/" EVIDENCE, "r");
+	ASSERT_TRUE(f);
+	*len = fread(buf, 1, sizeof(buf), f);
+	fclose(f);
+	return buf;
+}
+
+static void report_ends_its_last_line_at_any_size(void)
+{
+	static const __u8 nonce[16] = {
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+	};
+	struct attest_expect expect = {
+		.nonce = nonce,
+		.nonce_len = sizeof(nonce),
+	};
+	static char report[ATTEST_REPORT_MAX];
+	size_t len, full, cap, n;
+	const char *doc;
+
+	doc = read_evidence(&len);
+	ASSERT_EQ(attest_verify(doc, len, &expect, report, sizeof(report)),
+		  -EKEYREJECTED);
+	full = strlen(report);
+	ASSERT_TRUE(full && report[full - 1] == '\n');
+	for (cap = 1; cap <= full; cap++) {
+		EXPECT_EQ(attest_verify(doc, len, &expect, report, cap),
+			  -EKEYREJECTED);
+		n = strlen(report);
+		EXPECT_TRUE(n < cap);
+		EXPECT_TRUE(!n || report[n - 1] == '\n');
+	}
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(pcrs_are_a_list_up_to_23),
 	UNIT_CASE(pcr_value_is_a_pcr_and_an_equals),
 	UNIT_CASE(name_digest_is_a_name_and_64_digits),
+	UNIT_CASE(report_ends_its_last_line_at_any_size),
 	{}
 };
 
