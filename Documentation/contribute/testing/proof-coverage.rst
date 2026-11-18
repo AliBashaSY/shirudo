@@ -988,9 +988,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        by dm-verity's own formula; nothing changed on refusal
    * - ``config-auth``
      - ``set_owner_auth()``
-     - Values of 0 to 16 bytes
+     - Values of 0 to 16 bytes, any earlier value
      - A passphrase as it stands, ``hex:`` digits as the bytes they spell;
        a refusal keeps the value before
+   * - ``config-auth-long``
+     - ``set_owner_auth()``
+     - Passphrases of 255 to 258 bytes, any 8 bytes and then letters,
+       any earlier value
+     - A passphrase of up to 256 bytes as it stands; a longer one
+       refused, the value before kept
    * - ``config-hosts``
      - ``tls_classical_hosts_valid()``
      - Values of 0 to 7 bytes
