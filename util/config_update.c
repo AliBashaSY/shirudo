@@ -334,11 +334,15 @@ static int state_save(struct config_update *update,
 	return selection_save(update, record, "state", ".state.tmp", inject);
 }
 
+/*
+ * A TPM boot ends only at a TPM reset: a Resume or a Restart keeps it, so
+ * that only a reboot ends a pending activation. The restart count is left
+ * to the checks of one command, which refuse a TPM restart in the middle.
+ */
 static bool same_boot(const struct config_update_record *a,
 		      const struct config_update_record *b)
 {
-	return a->reset_count == b->reset_count &&
-	       a->restart_count == b->restart_count;
+	return a->reset_count == b->reset_count;
 }
 
 static bool same_target(const struct config_update_target *a,
@@ -538,8 +542,7 @@ static int check_record(struct config_update *update,
 		ret = -EUCLEAN;
 	if (!ret)
 		ret = live_read(update, record->pcr, &reset, &restart, value);
-	if (!ret && (reset != record->reset_count ||
-		     restart != record->restart_count))
+	if (!ret && reset != record->reset_count)
 		ret = -ESTALE;
 	if (!ret && memcmp(value, expected, 32))
 		ret = -EUCLEAN;
@@ -683,8 +686,7 @@ int config_update_stage(struct config_update *update,
 
 int config_update_staged(struct config_update *update,
 			 const struct config_update_record *previous,
-			 __u32 reset, __u32 restart,
-			 struct config_update_target *target)
+			 __u32 reset, struct config_update_target *target)
 {
 	struct config_update_record staged = {};
 	int ret;
@@ -696,7 +698,7 @@ int config_update_staged(struct config_update *update,
 		return ret == -ENOENT ? 0 : ret;
 	if (staged.pending)
 		return -EBADMSG;
-	if (staged.reset_count == reset && staged.restart_count == restart)
+	if (staged.reset_count == reset)
 		return 0;
 	if (same_target(&staged.target, &previous->target))
 		return 0;
@@ -770,8 +772,7 @@ int config_update_boot(struct config_update *update,
 	ret = update->ops->boot_identity(update->ctx, &reset, &restart);
 	if (ret)
 		return ret;
-	if (previous.sequence && previous.reset_count == reset &&
-	    previous.restart_count == restart) {
+	if (previous.sequence && previous.reset_count == reset) {
 		if (previous.pending)
 			return -EINPROGRESS;
 		if (previous.pcr != pcr ||
@@ -780,8 +781,7 @@ int config_update_boot(struct config_update *update,
 		return config_update_check(update, NULL);
 	}
 	if (previous.sequence && !same_target(t, &previous.target)) {
-		ret = config_update_staged(update, &previous, reset, restart,
-					   &staged);
+		ret = config_update_staged(update, &previous, reset, &staged);
 		if (ret < 0)
 			return ret;
 		if (!ret || !same_target(t, &staged))

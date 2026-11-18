@@ -308,8 +308,8 @@ into it (:doc:`/operate/maintain/upgrade`).
 TPM reset or restarted without a reboot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The activation journal records the TPM's reset and restart counts. When
-either changes while the system runs, as on a resume from hibernation:
+The activation journal records the TPM's reset count, which only a TPM
+reset or ``TPM2_Clear`` changes. When it changes while the system runs:
 
 - Every command that reads target state, except ``status`` and
   ``image``, prints ``shirudo: image state: Stale file handle`` and
@@ -320,11 +320,18 @@ either changes while the system runs, as on a resume from hibernation:
   reads ``the config activation record does not belong to this TPM boot``.
 - The register can be gone, which ``ChainIntact`` reports as a warning.
 
-If you know the TPM was reset, reboot. Do not run ``init`` again: after a
-TPM reset it binds the register from the root file system, which a
-verifier that pins PCR 11 rejects, and after a restart alone it refuses
-to bind and leaves a config activation pending. If you do not know why
-the counts changed, handle the target as in
+A TPM restart, as a resume from hibernation does, keeps the reset count
+but clears the config PCR and the register: commands print ``shirudo:
+image state: Structure needs cleaning``, and ``ConfigActive`` reads
+``the config PCR, activation records and mounted config disagree``. A
+resume from suspend to RAM keeps both, and the target runs on; a config
+activation it finds pending stays pending until the next reboot.
+
+If you know the TPM was reset or restarted, reboot. Do not run ``init``
+again: after a TPM reset it binds the register from the root file
+system, which a verifier that pins PCR 11 rejects, and after a restart
+it records nothing and refuses to bind. If you do not know why the
+counts changed, handle the target as in
 :doc:`/operate/troubleshoot/incident-tampered` before you reboot.
 :doc:`/operate/plan/hardening` covers turning hibernation off.
 

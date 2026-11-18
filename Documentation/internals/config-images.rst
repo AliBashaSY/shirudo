@@ -261,9 +261,10 @@ init can enroll them during the next planned boot, before sealing
 unchanged.
 
 The sealed ``next-boot`` file uses the same selection record format as
-``state``. Its target is the candidate and its sequence and TPM reset and
-restart counts identify the completed activation it was staged from.
-Init selects it only in a later TPM boot with that parent still selected.
+``state``. Its target is the candidate and its sequence and TPM reset
+count identify the completed activation it was staged from.
+Init selects it only in a later TPM boot, after a TPM reset and not a
+resume or a restart, with that parent still selected.
 It rechecks the exact root, signature, image contents and certificate
 vouches before enrollment. The normal boot event measures its activation.
 
@@ -293,7 +294,9 @@ never reboots it.
 The reboot is the recovery. At the next boot, ``init`` selects the
 config the record names, pending or not, maps and checks it again,
 records a fresh boot event in the config PCR and completes. It never
-repeats the previous boot's extension.
+repeats the previous boot's extension. A TPM boot is the TPM's reset
+count: a resume from suspend or a TPM restart keeps it, so neither ends a
+pending activation, and ``init`` run by hand after one records nothing.
 
 A pending selection is one of three states in which every target
 command except ``shirudo status`` and ``shirudo image status`` refuses,
@@ -312,20 +315,21 @@ warning.
      - An activation stops or is refused after its pending record: a
        crash, a power loss, a failed extension, append, revocation or
        mount, or an ``init`` that fails after its boot event.
-     - The next TPM boot's ``init`` records a fresh boot event and
-       completes.
+     - The next TPM boot's ``init``, after a reboot, records a fresh boot
+       event and completes. A resume or a TPM restart is no new TPM boot.
    * - Drift, ``EUCLEAN``
      - The config PCR does not replay from the config log, because
-       something else extended it, or does not read back as extended;
-       or the log or the mounted config is not the one the record names.
+       something else extended it, a TPM restart cleared it, or it does
+       not read back as extended; or the log or the mounted config is not
+       the one the record names.
      - A reboot.
    * - Another TPM boot, ``ESTALE``
-     - The TPM's reset or restart count differs from the record's, or
-       changes while a command reads them.
-     - ``init`` records a boot event for the new TPM boot. After a TPM
-       reset it completes. After a TPM restart it refuses to bind the
-       cleared register (``tampered``), so the selection stays pending
-       until a reboot; :doc:`boot-flow` explains why.
+     - The TPM's reset count differs from the record's, after a TPM
+       reset or ``TPM2_Clear`` without a reboot, or it or the restart
+       count changes while a command reads them.
+     - ``init`` records a boot event for the new TPM boot, binds the
+       register from the root file system and completes;
+       :doc:`boot-flow` explains what a verifier sees.
 
 Lean 4 proves this protocol for every sequence of commands, crashes,
 failed or lost TPM answers, extensions by other processes and reboots:
@@ -333,9 +337,12 @@ shirudo extends the config PCR at most once per activation and TPM boot
 and never after an interruption, a pending or drifted state refuses
 every command but ``status`` and ``image status`` until the TPM boot
 changes, and after a reboot an uninterrupted ``init`` records the boot
-event and admits commands again. These theorems take a TPM whose boot
-changes only between commands and never back to an identity it had.
-Root can break both, with a suspend in the middle of a command or with
+event and admits commands again. On any TPM, a pending activation stays
+pending through every resume and TPM restart until the reset count
+changes. The other theorems take a TPM whose reset count changes only
+between commands and never back to a value it had, and which restarts
+without a reboot only by a resume between commands. Root can break that
+with a suspend in the middle of a command, a TPM restart or
 ``TPM2_Clear`` (R4 in :doc:`/security/threat-model`); then one activation
 can be extended twice in one TPM boot, and only the journal, the mount,
 the save before each extension and ``init``'s completion stay proven.

@@ -805,7 +805,7 @@ static int boot_target(struct config_update_target *target)
 		ret = tpm_boot_identity(image.tpm, &reset, &restart);
 		if (!ret)
 			ret = config_update_staged(&image.update, &previous,
-						   reset, restart, &staged);
+						   reset, &staged);
 		if (ret < 0)
 			return ret;
 		if (ret > 0) {

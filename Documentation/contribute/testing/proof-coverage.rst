@@ -885,8 +885,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        the first line
      - ``event_follows()`` accepts exactly what ``Follows`` of
        ``Shirudo.ConfigActivation`` does and refuses with ``EUCLEAN``;
-       ``same_event()`` is the equality of TPM boot, sequence, PCR, kind,
-       initial value and root
+       ``same_event()`` is the equality of TPM boot, the reset count,
+       sequence, PCR, kind, initial value and root
    * - ``config-evidence-event``
      - ``on_event()``, ``append_event()`` of :src:`util/config_attest.c`
      - Every event the JSON parser can hand over, into a history of 0, 1,
@@ -1194,7 +1194,10 @@ the model follows the C.
      - ``consistent_or_refusing``, ``refusal_persists``: the PCR replays
        from the record with its config mounted, or every command but
        ``status`` and ``image status`` refuses, a pending or drifted state
-       until the TPM boot changes; ``extends_once``,
+       until the TPM boot changes; ``pending_until_reboot``,
+       ``resume_keeps_pending``: on any TPM a pending activation stays
+       pending through every resume and restart, until the reset count
+       changes; ``extends_once``,
        ``extension_follows_pending``, ``interrupted_never_extends``: one
        extension per activation and TPM boot, after the pending record,
        none after an interruption; ``extension_follows_save``: on root's
@@ -1217,16 +1220,19 @@ the model follows the C.
        writes the config mount during a boot; only shirudo writes the
        journal, between boots too, which R14 says root can, for all but
        ``boot_completion`` and ``completion_by_complete``, which hold
-       from any journal; PCRs reset only at a reboot or TPM Restart; PCRs
-       compared as their lists of extensions, which ``pcr_value_eq_iff``
-       justifies for the idealized hash of ``register_injective`` and
-       SHA-256 meets unless it collides among the values compared. All
-       but
+       from any journal; PCRs reset only at a reboot, a TPM reset or a
+       TPM Restart; PCRs compared as their lists of extensions, which
+       ``pcr_value_eq_iff`` justifies for the idealized hash of
+       ``register_injective`` and SHA-256 meets unless it collides among
+       the values compared. The TPM boot is the reset count; the restart
+       count, which only refuses more, is left out. All but
        ``journal_wellformed``, ``mounted_selected``, ``boot_completion``,
-       ``completion_by_complete`` and ``extension_follows_save`` also take
-       a calm TPM, whose boot changes only between commands and never to
-       an identity it had, which root breaks with a suspend or
-       ``TPM2_Clear`` (R4 of :doc:`/security/threat-model`)
+       ``completion_by_complete``, ``extension_follows_save`` and
+       ``pending_until_reboot`` also take a calm TPM, whose reset count
+       changes only between commands and never to a value it had, and
+       which restarts without a reboot only by a resume between commands,
+       which root breaks with a suspend, a TPM restart or ``TPM2_Clear``
+       (R4 of :doc:`/security/threat-model`)
      - Review; CBMC, ``config-update-follows``, for ``event_follows()`` and
        ``same_event()``
    * - ``Shirudo.UpatchLoad``, the load, unload and purge of

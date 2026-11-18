@@ -1409,9 +1409,12 @@ target that runs one config while its records claim another.
 ``shirudo image update`` makes the candidate and the pending selection
 durable before it extends the PCR. A validation failure before that
 point leaves the active config in use. After it, including on an
-ambiguous TPM response, the target needs a manual reboot. The target
-keeps running, shirudo never reboots it, refuses further state changes and
-config attestation, and ``shirudo status`` reports ``reboot-pending``.
+ambiguous TPM response, the target needs a manual reboot. A resume from
+suspend or a TPM restart is none: the TPM boot is the TPM's reset count,
+which neither changes, so a hand-run ``init`` after one records nothing.
+The target keeps running, shirudo never reboots it, refuses further
+state changes and config attestation, and ``shirudo status`` reports
+``reboot-pending``.
 
 At the next boot, ``init`` verifies the selected image again, reads its
 whole mapping, extends the config PCR with a fresh boot event and
@@ -1620,16 +1623,18 @@ R4 Config PCR writers are not authenticated
    value the history starts from out of the evidence rather than
    requiring zero. A fresh nonce and a genuine quote prove neither who
    extended the PCR nor that an activation completed. Root also decides
-   when the TPM's boot changes. A suspend to RAM in the middle of a
-   command is a TPM Resume or Restart, and ``TPM2_Clear``, which needs
-   only the lockout authorization that shirudo leaves empty, puts the
-   reset and restart counts back to zero, so a later boot can carry an
-   earlier one's identity. One activation can then be extended twice in
-   one TPM boot, and a record can name the TPM boot it is in while the
-   PCR does not hold its replay, which refuses commands until a reboot.
-   The Lean proofs of the activation that count extensions or explain a
-   refusal assume neither (``Shirudo.ConfigActivation``). Detection:
-   none reliable. Mitigation: D1.
+   when the TPM's boot changes. ``TPM2_Clear``, which needs only the
+   lockout authorization that shirudo leaves empty, puts the reset count
+   back to zero, so a later TPM boot can carry an earlier one's. One in
+   the middle of an activation lets ``init`` extend the same activation
+   a second time in one PCR lifetime, and a repeated reset count lets a
+   record name the TPM boot it is in while the PCR does not hold its
+   replay, which refuses commands until a reboot. A suspend to RAM, or a
+   TPM restart that clears the PCR, keeps the TPM boot and changes
+   nothing but refusals. The Lean proofs of the activation that count
+   extensions or explain a refusal assume neither
+   (``Shirudo.ConfigActivation``). Detection: none reliable. Mitigation:
+   D1.
 
 R5 The boot chain and process memory stay trusted
    dm-verity verifies runtime blocks as they are read. It does not

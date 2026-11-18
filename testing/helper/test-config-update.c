@@ -352,8 +352,7 @@ int main(int argc, char **argv)
 		ret = config_update_read(&update, &previous);
 		if (!ret)
 			ret = config_update_staged(&update, &previous,
-						   ctx.sim.reset_count,
-						   ctx.sim.restart_count, &target);
+						   ctx.sim.reset_count, &target);
 		printf("eligible=%d\n", ret);
 		if (ret == 1) {
 			printf("candidate=%s\n", target.prefix);
@@ -372,6 +371,9 @@ int main(int argc, char **argv)
 	} else if (!strcmp(argv[2], "restart")) {
 		ctx.sim.restart_count++;
 		memset(ctx.sim.value, 0, sizeof(ctx.sim.value));
+		ret = simulator_save(&ctx);
+	} else if (!strcmp(argv[2], "resume")) {
+		ctx.sim.restart_count++;
 		ret = simulator_save(&ctx);
 	} else if (!strcmp(argv[2], "drift")) {
 		memset(ctx.sim.value, 0x55, sizeof(ctx.sim.value));

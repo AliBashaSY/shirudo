@@ -10,7 +10,9 @@
  * its sequence is the next and it is a boot event of another TPM boot or
  * an update of the same TPM boot on the same PCR from the same initial
  * value, and a refusal is EUCLEAN. Two events are the same exactly when
- * TPM boot, sequence, PCR, kind, initial value and root agree.
+ * TPM boot, sequence, PCR, kind, initial value and root agree. A TPM
+ * boot is the model's B, the reset count: the restart count is no part
+ * of it.
  */
 
 #include "proof.h"
@@ -50,8 +52,7 @@ static void follows(void)
 	boot = record.kind == CONFIG_EVENT_BOOT;
 	if (!have)
 		model = record.sequence == 1 && boot;
-	else if (previous.reset_count == record.reset_count &&
-		 previous.restart_count == record.restart_count)
+	else if (previous.reset_count == record.reset_count)
 		model = record.sequence == previous.sequence + 1 && !boot &&
 			previous.pcr == record.pcr &&
 			bytes_equal(previous.initial_pcr, record.initial_pcr);
@@ -67,7 +68,6 @@ static void same(void)
 
 	__CPROVER_assert(same_event(&a, &b) ==
 			 (a.reset_count == b.reset_count &&
-			  a.restart_count == b.restart_count &&
 			  a.sequence == b.sequence && a.pcr == b.pcr &&
 			  a.kind == b.kind &&
 			  bytes_equal(a.initial_pcr, b.initial_pcr) &&

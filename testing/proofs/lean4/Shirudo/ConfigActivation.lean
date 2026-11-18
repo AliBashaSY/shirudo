@@ -21,24 +21,30 @@ takes that root instead of the record's while the stage still copies the
 record (`config_update_staged()`), and an update, or a boot completed in
 another TPM boot than the stage's, removes it.
 
-The model is the journal, the TPM's boot identity, its reset and restart
-counts, every PCR as the list of its extensions, the config mounted and
+The model is the journal, the TPM boot, which is the TPM's reset count,
+every PCR as the list of its extensions, the config mounted and
 the one command the lock lets run, at the steps a crash, a failure or a
 lost TPM answer can fall between. An error return is a crash, as the C
 writes nothing on its error paths but `complete()`'s restore, which is a
 step. An extension whose answer is lost is `extend` followed by `crash`,
 or `extendLost`. Any other process may extend any PCR at any time (R4). A
-reboot, and a TPM Restart or Resume without one, start a TPM boot. Every
-state any sequence of these reaches from a fresh target is `Reachable`.
+reboot, and a TPM reset or `TPM2_Clear` without one, start a TPM boot; a
+TPM Restart or Resume does not, as `config_update_boot()` and
+`check_record()` compare the reset count alone. The restart count, which
+the read back of an extension compares, is left out: that check only
+refuses more. Every state any sequence of these reaches from a fresh
+target is `Reachable`.
 
-Root decides when the TPM's boot changes: a suspend to RAM at any point of
-a command is a TPM Resume or Restart, and `TPM2_Clear` sets the reset and
-restart counts back to zero, so a later boot can have an identity an
-earlier one had. `rootTpm` is the model with both. `journal_wellformed`,
-`mounted_selected`, `boot_completion`, `completion_by_complete` and
-`extension_follows_save` hold for it. Every other theorem is over
-`shirudo`, the same code on a calm TPM, whose boot changes only between
-commands, to an identity it never had; `restart_in_flight_extends_twice`
+Root decides when the TPM's boot changes and what a restart does: a
+suspend to RAM at any point of a command is a TPM Resume, or a Restart,
+which clears the PCRs, and `TPM2_Clear` sets the reset count back to
+zero, so a later boot can have one an earlier one had. `rootTpm` is the
+model with all of these. `journal_wellformed`, `mounted_selected`,
+`boot_completion`, `completion_by_complete` and `extension_follows_save`
+hold for it, and `pending_until_reboot` for every TPM. Every other theorem
+is over `shirudo`, the same code on a calm TPM, whose reset count changes
+only between commands, to one it never had, and which restarts without a
+reboot only by a Resume between commands; `clear_in_flight_extends_twice`
 breaks `extends_once` on root's TPM.
 
 For every such sequence:
@@ -48,7 +54,9 @@ For every such sequence:
   refuses: a selection of this TPM boot pending, the PCR extended by
   another process, or no record of this TPM boot. `refusal_persists`: the
   first two last, with no command starting and shirudo extending nothing,
-  until the TPM boot changes.
+  until the TPM boot changes. `pending_until_reboot`: on any TPM, a
+  pending activation stays pending through every resume and restart until
+  the reset count changes.
 - (b) `extends_once`: one extension per activation and TPM boot;
   `extension_follows_pending`: only with that activation's pending record
   saved; `interrupted_never_extends`: none after an interruption. On
@@ -90,10 +98,9 @@ calm TPM.
 The variants `retry` and `recover` each add one step of code shirudo
 does not have, and `retry_extends_twice` and `recover_admits_within_boot`
 give a sequence for each that breaks the theorem it matches.
-`restart_in_flight_extends_twice` is a sequence on root's TPM.
-`resume_recovers_without_reboot` is a sequence of shirudo's own model in
-which `init`, run after a TPM Resume, recovers an interrupted activation
-without a reboot.
+`clear_in_flight_extends_twice` is a sequence on root's TPM.
+`resume_keeps_pending` is the trace a suspend to RAM gives: an
+interrupted activation stays pending across it until a reboot.
 -/
 
 namespace Shirudo.ConfigActivation
@@ -107,7 +114,7 @@ inductive Kind
   deriving DecidableEq
 
 /-- A line of `events`: the fields `same_event()` compares. `boot` is the
-TPM's reset and restart counts, `initial` the `initial_pcr` the TPM
+TPM's reset count, `initial` the `initial_pcr` the TPM
 boot's boot event extended, as the extensions that value holds. -/
 structure Event (B R D : Type) where
   seq : Nat
@@ -165,8 +172,8 @@ end Model
 
 /-- What the C keeps across commands, and two ghosts. `state` and
 `events` with `torn`, a partial last line, are the journal under
-`/var/lib/shirudo/config-update`; `boot` the TPM's reset and restart
-counts; `pcr` every PCR as its extensions this TPM boot, the newest
+`/var/lib/shirudo/config-update`; `boot` the TPM's reset count; `pcr`
+every PCR as its extensions this TPM boot, the newest
 first; `mounted` the root of the config at `/run/shirudo/config`;
 `cfgPcr` and `cfgImage` the runtime image's `config.pcr` and
 `config.image`; `staged` the `next-boot` file of the journal, the record
@@ -215,25 +222,29 @@ structure Sys (B R D : Type) where
 
 /-- Models the code would be if it retried an extension whose answer was
 lost or finished a pending activation within the TPM boot, and the TPM
-it runs on: one that a TPM Restart or Resume can change in the middle of
-a command, and one that can come back to a boot identity it had. -/
+it runs on: one whose resets, restarts and resumes can come in the middle
+of a command, one that can come back to a reset count it had, and one
+that restarts without a reboot, clearing the PCRs. -/
 structure Variant where
   retry : Bool := false
   recover : Bool := false
   restartInFlight : Bool := false
   repeatBoot : Bool := false
+  restartClears : Bool := false
 
-/-- shirudo's code on a calm TPM, whose boot changes only between
-commands, to an identity it never had: the assumption every theorem over
+/-- shirudo's code on a calm TPM, whose reset count changes only between
+commands, to one it never had, and which restarts without a reboot only
+by a Resume, between commands: the assumption every theorem over
 `shirudo` carries. -/
 def shirudo : Variant := {}
 
 /-- shirudo's code on the TPM root drives. A suspend to RAM, at any point
-of a command, is a TPM Resume, or a Restart, and `TPM2_Clear`, which only
-the lockout authorization that shirudo leaves empty guards, sets the reset
-and restart counts back to zero, so a later boot can have an identity an
-earlier one had. -/
-def rootTpm : Variant := { restartInFlight := true, repeatBoot := true }
+of a command, is a TPM Resume, or a Restart, which clears the PCRs, and
+`TPM2_Clear`, which only the lockout authorization that shirudo leaves
+empty guards, sets the reset count back to zero, so a later TPM boot can
+have one an earlier one had. -/
+def rootTpm : Variant :=
+  { restartInFlight := true, repeatBoot := true, restartClears := true }
 
 /-- The result codes of `config_update_check()`. -/
 inductive Res
@@ -474,13 +485,14 @@ inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
       checkRecord digest w r = .ok →
       StepIn v ⟨w, .idle⟩ ⟨{ w with state := some ⟨r, false⟩ }, .idle⟩
 
-/-- A step: one within the TPM boot, a reboot, or a TPM Restart or Resume
-without one. Each gives the TPM a boot it never had, the reset count
-grown at a reset and the restart count at a restart or a resume, unless
-`repeatBoot` lets a `TPM2_Clear` before it bring back an old one. A reboot
-ends the command, empties `/run` and leaves the PCRs with what the
-firmware extended; it may bring a new runtime image. A Restart clears the
-PCRs, a Resume keeps them (`keep`); the OS and its mounts run on. -/
+/-- A step: one within the TPM boot, a reboot, a TPM reset or
+`TPM2_Clear` without one, or a TPM Restart or Resume. The TPM boot is the
+reset count. A reboot and a reset give it a value it never had, unless
+`repeatBoot` lets a `TPM2_Clear` bring back an old one; a Restart or a
+Resume keeps it. A reboot ends the command, empties `/run` and leaves the
+PCRs with what the firmware extended; it may bring a new runtime image.
+Otherwise the OS and its mounts run on: a reset or a Restart clears the
+PCRs, a `TPM2_Clear` or a Resume keeps them (`keep`). -/
 inductive Step (v : Variant) : Sys B R D → Sys B R D → Prop
   | inBoot {s s' : Sys B R D} : StepIn digest v s s' → Step v s s'
   | reboot (s : Sys B R D) (b : B) (f : Nat → List D) (idx : Nat) (img : R) :
@@ -488,12 +500,25 @@ inductive Step (v : Variant) : Sys B R D → Sys B R D → Prop
       Step v s ⟨{ s.w with
         boot := b, pcr := f, mounted := none, cfgPcr := idx, cfgImage := img,
         seen := b :: s.w.seen }, .idle⟩
-  | restart (s : Sys B R D) (b : B) (keep : Bool) (f : Nat → List D) :
+  | reset (s : Sys B R D) (b : B) (keep : Bool) (f : Nat → List D) :
       (s.proc = .idle ∨ v.restartInFlight = true) →
       (b ∉ s.w.seen ∨ v.repeatBoot = true) →
       Step v s ⟨{ s.w with
         boot := b, pcr := if keep then s.w.pcr else f,
         seen := b :: s.w.seen }, s.proc⟩
+  | restart (s : Sys B R D) (keep : Bool) (f : Nat → List D) :
+      (s.proc = .idle ∨ v.restartInFlight = true) →
+      (keep = true ∨ v.restartClears = true) →
+      Step v s ⟨{ s.w with pcr := if keep then s.w.pcr else f }, s.proc⟩
+
+/-- A step that keeps the TPM's reset count: one within the TPM boot, or a
+TPM Restart or Resume. -/
+inductive SameBoot (v : Variant) : Sys B R D → Sys B R D → Prop
+  | inBoot {s s' : Sys B R D} : StepIn digest v s s' → SameBoot v s s'
+  | restart (s : Sys B R D) (keep : Bool) (f : Nat → List D) :
+      (s.proc = .idle ∨ v.restartInFlight = true) →
+      (keep = true ∨ v.restartClears = true) →
+      SameBoot v s ⟨{ s.w with pcr := if keep then s.w.pcr else f }, s.proc⟩
 
 /-- The reflexive and transitive closure of a relation. -/
 inductive Star {α : Type} (r : α → α → Prop) : α → α → Prop
@@ -801,7 +826,12 @@ theorem base_step [DecidableEq R] {s s' : Sys B R D}
   cases h with
   | inBoot h => exact base_stepIn hb h
   | reboot => trivial
-  | restart b keep f hidle _ =>
+  | reset b keep f hidle _ =>
+    rcases hidle with hidle | hidle
+    · simp only [hidle]
+      trivial
+    · simp [shirudo] at hidle
+  | restart keep f hidle _ =>
     rcases hidle with hidle | hidle
     · simp only [hidle]
       trivial
@@ -1121,7 +1151,7 @@ theorem inv_step {s s' : Sys B R D} (hi : Inv digest s)
     · exact ⟨glob_newBoot f none idx img hi.1 hnew (Or.inl rfl), trivial,
         trivial⟩
     · simp [shirudo] at hnew
-  | restart b keep f hidle hnew =>
+  | reset b keep f hidle hnew =>
     have hnew : b ∉ s.w.seen := by
       rcases hnew with hnew | hnew
       · exact hnew
@@ -1135,6 +1165,10 @@ theorem inv_step {s s' : Sys B R D} (hi : Inv digest s)
       · simp only [hidle]
         trivial
     · simp [shirudo] at hidle
+  | restart keep f hidle hkeep =>
+    rcases hkeep with rfl | hkeep
+    · exact hi
+    · simp [shirudo] at hkeep
 
 omit [DecidableEq R] in
 theorem inv_fresh (b : B) (f : Nat → List D) (idx : Nat) (img : R) :
@@ -1267,8 +1301,10 @@ theorem step_root {s s' : Sys B R D} (h : Step digest shirudo s s') :
     rcases hnew with hnew | hnew
     · exact .reboot _ b f idx img (Or.inl hnew)
     · simp [shirudo] at hnew
-  | restart b keep f hidle hnew =>
-    exact .restart _ b keep f (Or.inr rfl) (Or.inr rfl)
+  | reset b keep f hidle hnew =>
+    exact .reset _ b keep f (Or.inr rfl) (Or.inr rfl)
+  | restart keep f hidle hkeep =>
+    exact .restart _ keep f (Or.inr rfl) (Or.inr rfl)
 
 theorem reachable_root {s : Sys B R D} (h : Reachable digest shirudo s) :
     Reachable digest rootTpm s := by
@@ -1365,6 +1401,7 @@ theorem baseW_step {s s' : Sys B R D} (hb : BaseW digest s.w s.proc)
   cases h with
   | inBoot h => exact baseW_stepIn hb h
   | reboot => trivial
+  | reset => exact baseW_world hb rfl rfl rfl rfl
   | restart => exact baseW_world hb rfl rfl rfl rfl
 
 theorem baseW_star {s s' : Sys B R D} (hb : BaseW digest s.w s.proc)
@@ -1487,6 +1524,9 @@ theorem invW_step {s s' : Sys B R D} (hi : InvW digest s)
   cases h with
   | inBoot h => exact invW_stepIn hi h
   | reboot => exact ⟨⟨hi.1.journal, fun _ h => by cases h⟩, trivial, trivial⟩
+  | reset =>
+    exact ⟨globW_of hi.1 rfl rfl rfl rfl, baseW_world hi.2.1 rfl rfl rfl rfl,
+      extW_world hi.2.2 rfl⟩
   | restart =>
     exact ⟨globW_of hi.1 rfl rfl rfl rfl, baseW_world hi.2.1 rfl rfl rfl rfl,
       extW_world hi.2.2 rfl⟩
@@ -2009,7 +2049,13 @@ theorem staged_step {s s' : Sys B R D} (hi : Inv digest s)
   cases h with
   | inBoot h => exact staged_stepIn hi hk hp h
   | reboot => exact ⟨hk, trivial⟩
-  | restart b keep f hidle _ =>
+  | reset b keep f hidle _ =>
+    rcases hidle with hidle | hidle
+    · refine ⟨hk, ?_⟩
+      simp only [hidle]
+      trivial
+    · simp [shirudo] at hidle
+  | restart keep f hidle _ =>
     rcases hidle with hidle | hidle
     · refine ⟨hk, ?_⟩
       simp only [hidle]
@@ -2417,14 +2463,14 @@ theorem recover_admits_within_boot (b : B) (f : Nat → List D) (idx : Nat)
   exact ⟨check_ok.2 ⟨_, rfl, checkRecord_ok.2
     ⟨_, scan_cons.2 ⟨_, _, hscanA, hfB, rfl⟩, rfl, rfl, hp2⟩⟩, _, rfl, rfl⟩
 
-/-- Root's TPM: a TPM Restart or Resume, a suspend for one, lands while
-`image update` runs, between its pending record and its extension, and
-`extends_once` fails. The extension lands in the new TPM
-boot while the record names the old one; the update refuses at its read
-back; `init` run by hand then takes the record as an earlier boot's and
-extends the PCR a second time for the same activation in that TPM boot,
-on top of the first, which a Resume kept. -/
-theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
+/-- Root's TPM: a `TPM2_Clear`, which sets the reset count to another
+value and keeps the PCRs, lands while `image update` runs, between its
+pending record and its extension, and `extends_once` fails. The extension
+lands in the new TPM boot while the record names the old one; the update
+refuses at its read back; `init` run by hand then takes the record as an
+earlier boot's and extends the PCR a second time for the same activation
+in that TPM boot, on top of the first. -/
+theorem clear_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
     (f : Nat → List D) (idx : Nat) (A B' : R) (hAB : B' ≠ A) :
     ∃ s : Sys B R D, Reachable digest rootTpm s ∧
       ¬ s.w.sent.Nodup ∧ s.w.boot = b1 ∧
@@ -2450,7 +2496,7 @@ theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
           ((worldA digest b0 f idx A).pcr idx)⟩
       ⟨w2, .extending (updB digest b0 f idx A B')
           ((worldA digest b0 f idx A).pcr idx)⟩ :=
-    Step.restart _ b1 true f (Or.inr rfl) (Or.inl hseen)
+    Step.reset _ b1 true f (Or.inr rfl) (Or.inl hseen)
   let w3 : World B R D :=
     { w2 with pcr := extendAt w2.pcr idx (digest .update B'),
               sent := (b1, (updB digest b0 f idx A B').seq) :: w2.sent }
@@ -2475,31 +2521,63 @@ theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
     fun hnd => (List.nodup_cons.1 hnd).1 List.mem_cons_self, rfl, ?_⟩
   simp [w3, w2, w1, worldA, booted, fresh, extendAt]
 
-/-- Finding, in shirudo's own model: a TPM Resume, as from suspend to
-RAM, keeps the config PCR but starts a TPM boot, and `init` run by hand
-then recovers an interrupted activation without a reboot. The trace: the
-first boot with config `A`; `image update` to `B'` extends the PCR and
-gets no answer, leaving `B'` pending and the PCR holding its update
-event; the TPM resumes; `init` records a boot event for `B'` on top, and
-commands run with `B'`. One PCR lifetime holds both extensions for `B'`,
-and nothing was rebooted: the config mount stayed. -/
-theorem resume_recovers_without_reboot (b0 b1 : B) (hb : b1 ≠ b0)
-    (f : Nat → List D) (idx : Nat) (A B' : R) (hAB : B' ≠ A) :
-    ∃ s1 s1' s2 : Sys B R D, Reachable digest shirudo s1 ∧ s1.proc = .idle ∧
+/-- (a) A pending activation stays pending until the TPM's reset count
+changes, a reboot's: whatever commands run, crash or extend the PCR, and
+however often the TPM resumes or restarts, at any point, `init` takes
+nothing, the record stays as it is and every command but `status` and
+`image status` refuses. -/
+theorem pending_until_reboot {v : Variant} (hv : v.recover = false)
+    {s s' : Sys B R D} (hidle : s.proc = .idle) (hp : PendingHere s.w)
+    (hrun : Star (SameBoot digest v) s s') :
+    s'.proc = .idle ∧ s'.w.state = s.w.state ∧ s'.w.boot = s.w.boot ∧
+      ¬ Admits digest s'.w := by
+  obtain ⟨r0, hs0, hb0⟩ := hp
+  have hkeep : ∀ {a : Sys B R D}, a.proc = .idle → a.w.state = s.w.state →
+      a.w.boot = s.w.boot → ∀ {c : Sys B R D}, SameBoot digest v a c →
+      c.proc = .idle ∧ c.w.state = s.w.state ∧ c.w.boot = s.w.boot := by
+    intro a hi ha hb c h
+    have hs : a.w.state = some ⟨r0, true⟩ := ha.trans hs0
+    cases h with
+    | restart keep f _ _ => exact ⟨hi, ha, hb⟩
+    | inBoot h =>
+      cases h with
+      | crash => exact ⟨rfl, ha, hb⟩
+      | outsider w π i d => exact ⟨hi, ha, hb⟩
+      | startUpdate _ _ _ h1 => simp only at hs; rw [hs] at h1; cases h1
+      | initSame _ _ h1 => simp only at hs; rw [hs] at h1; cases h1
+      | initFirst _ _ h1 => simp only at hs; rw [hs] at h1; cases h1
+      | initNew w r q last x h1 h2 =>
+        simp only at hs hb
+        rw [hs] at h1
+        cases h1
+        exact absurd (hb0.trans hb.symm) h2
+      | stage _ _ _ h1 => simp only at hs; rw [hs] at h1; cases h1
+      | unstage _ _ h1 => simp only at hs; rw [hs] at h1; cases h1
+      | recover _ _ hr => rw [hv] at hr; cases hr
+      | _ => cases hi
+  have hall : s'.proc = .idle ∧ s'.w.state = s.w.state ∧
+      s'.w.boot = s.w.boot := by
+    induction hrun with
+    | refl => exact ⟨hidle, rfl, rfl⟩
+    | tail _ hstep ih => exact hkeep ih.1 ih.2.1 ih.2.2 hstep
+  refine ⟨hall.1, hall.2.1, hall.2.2, fun ha => ?_⟩
+  obtain ⟨r, hr, -⟩ := check_ok.1 ha.1
+  rw [hall.2.1, hs0] at hr
+  cases hr
+
+/-- A TPM Resume, as from suspend to RAM, keeps the config PCR and the TPM
+boot, so an interrupted activation stays pending until a reboot. The
+trace: the first boot with config `A`; `image update` to `B'` extends the
+PCR and gets no answer, leaving `B'` pending and the PCR holding its
+update event. Then however the TPM resumes or restarts, `init` records
+nothing and no command runs, until the reset count changes. -/
+theorem resume_keeps_pending (b0 : B) (f : Nat → List D) (idx : Nat)
+    (A B' : R) (hAB : B' ≠ A) :
+    ∃ s1 : Sys B R D, Reachable digest shirudo s1 ∧ s1.proc = .idle ∧
       PendingHere s1.w ∧
       s1.w.pcr idx = [digest .update B', digest .boot A] ++ f idx ∧
-      Step digest shirudo s1 s1' ∧ s1'.w.pcr = s1.w.pcr ∧
-      s1'.w.mounted = s1.w.mounted ∧
-      Star (StepIn digest shirudo) s1' s2 ∧ s2.proc = .idle ∧
-      Admits digest s2.w ∧ s2.w.mounted = some B' ∧
-      s2.w.pcr idx = digest .boot B' :: s1.w.pcr idx := by
-  have hscanA : scan digest (worldA digest b0 f idx A).events =
-      some (some (bootA b0 f idx A), fold digest (bootA b0 f idx A) []) :=
-    scan_cons.2 ⟨none, [], rfl, ⟨rfl, rfl⟩, rfl⟩
-  have hfB : Follows (some (bootA b0 f idx A)) (updB digest b0 f idx A B') :=
-    follows_update B' rfl rfl
-  have hseen : b1 ∉ (worldA digest b0 f idx A).seen := by
-    simp [worldA, booted, fresh, hb]
+      ∀ s2, Star (SameBoot digest rootTpm) s1 s2 →
+        s2.w.state = s1.w.state ∧ ¬ Admits digest s2.w := by
   let run := ((boot_then_update_saved (digest := digest) (v := shirudo)
       b0 f idx A B' hAB).tail (StepIn.extend _ _ _)).tail (StepIn.crash _ _)
   let w1 : World B R D :=
@@ -2508,24 +2586,13 @@ theorem resume_recovers_without_reboot (b0 b1 : B) (hb : b1 ≠ b0)
       pcr := extendAt (worldA digest b0 f idx A).pcr idx (digest .update B'),
       sent := (b0, (updB digest b0 f idx A B').seq) ::
         (worldA digest b0 f idx A).sent }
-  let w2 : World B R D :=
-    { w1 with boot := b1, pcr := w1.pcr, seen := b1 :: w1.seen }
-  have hrestart : Step digest shirudo ⟨w1, .idle⟩ ⟨w2, .idle⟩ :=
-    Step.restart _ b1 true f (Or.inl rfl) (Or.inl hseen)
-  have hstale : (updB digest b0 f idx A B').boot ≠ w2.boot := fun h => hb h.symm
-  have hfB2 : Follows (some (bootA b0 f idx A))
-      (newEvent w2 .boot B' (some (bootA b0 f idx A))) :=
-    ⟨rfl, fun h => absurd h.symm hb, fun _ => rfl⟩
-  have hinit : Star (StepIn digest shirudo) ⟨w2, .idle⟩
-      ⟨booted digest w2 B' (some (bootA b0 f idx A)), .idle⟩ :=
-    ((Star.refl _).tail
-        (StepIn.initNew _ _ true _ _ rfl hstale hscanA (fun _ => rfl)
-      (Or.inr ⟨rfl, hfB⟩))).trans (boot_run _ _ _ _ hscanA hfB2)
-  refine ⟨⟨w1, .idle⟩, ⟨w2, .idle⟩, _, ⟨b0, f, idx, A, Star.lift run⟩, rfl,
-      ⟨_, rfl, rfl⟩,
-    ?_, hrestart, rfl, rfl, hinit, rfl, booted_admits _ _ _ _ hscanA hfB2, rfl,
-    extendAt_self _ _ _⟩
-  simp [w1, worldA, booted, fresh, extendAt]
+  have hpcr : w1.pcr idx = [digest .update B', digest .boot A] ++ f idx := by
+    simp [w1, worldA, booted, fresh, extendAt]
+  refine ⟨⟨w1, .idle⟩, ⟨b0, f, idx, A, Star.lift run⟩, rfl, ⟨_, rfl, rfl⟩,
+    hpcr, fun s2 h => ?_⟩
+  · obtain ⟨-, hs, -, hna⟩ := pending_until_reboot (v := rootTpm) rfl rfl
+      ⟨_, rfl, rfl⟩ h
+    exact ⟨hs, hna⟩
 
 /-- `image stage` and a reboot: `init` activates the staged config. The
 trace: the first boot with config `A`, `image stage` of `B'`, a reboot;

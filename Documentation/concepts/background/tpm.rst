@@ -478,15 +478,18 @@ restores it or starts clear. Table 2 lists the three cases.
      - Restart count up
      - Both cleared
      - Refused from ``init`` on, through ``lsm/locked_down``. Should a
-       restart happen anyway, extensions fail with ``tpm_error``,
-       commands refuse with ``ESTALE`` and ``init`` refuses to bind the
+       restart happen anyway, the reset count says the TPM boot goes on:
+       extensions fail with ``tpm_error``, commands refuse with
+       ``EUCLEAN`` as the config PCR no longer holds its replay, and
+       ``init`` neither records a config boot event nor binds the
        register again, until a reboot.
    * - Resume from sleep: TPM resume, ``Startup(STATE)`` after
        ``Shutdown(STATE)``
      - Restart count up
      - Both restored
-     - Commands refuse with ``ESTALE``, because the config activation
-       record names another TPM boot, until a reboot.
+     - The TPM boot goes on: commands run as before, a pending config
+       activation stays pending and ``init`` records nothing, until a
+       reboot. A command the suspend interrupts refuses.
 
 ``TPM2_ReadClock`` reads the counts, and every quote and certification
 carries them. For keys outside the
@@ -546,8 +549,9 @@ these.
   Kernel-internal TPM use and direct access to the TPM's bus are
   outside it, and every executable in the :term:`runtime image` runs with
   :term:`runtime authority` and can extend the register.
-- A TPM restart or resume without a reboot stops shirudo's commands
-  until the next reboot (Table 2).
+- A TPM restart without a reboot stops shirudo's commands until the
+  next reboot, and a resume leaves a pending config activation pending
+  until then (Table 2).
 - The algorithms are classical: ECDSA P-256 for the AK, RSA-3072 for
   the writer key, RSA 2048 or P-256 for the EK. Version 185 of the
   TPM 2.0 library specification adds ML-DSA and ML-KEM, but shirudo

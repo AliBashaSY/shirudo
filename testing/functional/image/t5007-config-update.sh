@@ -114,16 +114,34 @@ test_expect_success 'PCR drift and a changed PCR allocation refuse live updates'
 	fresh pcr-change && ! "$H" "$WORK/pcr-change" update B 14 >/dev/null
 '
 
-for action in reset restart; do
-	test_expect_success "$action requires a new BOOT event for the same root" '
-		fresh epoch-'"$action"' &&
-		"$H" "$WORK/epoch-'"$action"'" '"$action"' >/dev/null &&
-		! "$H" "$WORK/epoch-'"$action"'" check >/dev/null &&
-		"$H" "$WORK/epoch-'"$action"'" boot A >"$WORK/epoch" &&
-		[ "$(field "$WORK/epoch" extends)" = 2 ] &&
-		[ "$(field "$WORK/epoch" kind)" = 1 ]
-	'
-done
+test_expect_success 'reset requires a new BOOT event for the same root' '
+	fresh epoch-reset &&
+	"$H" "$WORK/epoch-reset" reset >/dev/null &&
+	! "$H" "$WORK/epoch-reset" check >/dev/null &&
+	"$H" "$WORK/epoch-reset" boot A >"$WORK/epoch" &&
+	[ "$(field "$WORK/epoch" extends)" = 2 ] &&
+	[ "$(field "$WORK/epoch" kind)" = 1 ]
+'
+
+test_expect_success 'resume keeps the TPM boot and init records nothing' '
+	fresh epoch-resume &&
+	"$H" "$WORK/epoch-resume" resume >/dev/null &&
+	"$H" "$WORK/epoch-resume" check >/dev/null &&
+	"$H" "$WORK/epoch-resume" boot A >"$WORK/epoch" &&
+	[ "$(field "$WORK/epoch" extends)" = 1 ] &&
+	[ "$(field "$WORK/epoch" sequence)" = 1 ]
+'
+
+test_expect_success 'restart refuses the cleared PCR until a reset' '
+	fresh epoch-restart &&
+	"$H" "$WORK/epoch-restart" restart >/dev/null &&
+	! "$H" "$WORK/epoch-restart" check >/dev/null &&
+	! "$H" "$WORK/epoch-restart" boot A >"$WORK/epoch" &&
+	[ "$(field "$WORK/epoch" extends)" = 1 ] &&
+	"$H" "$WORK/epoch-restart" reset >/dev/null &&
+	"$H" "$WORK/epoch-restart" boot A >"$WORK/epoch" &&
+	[ "$(field "$WORK/epoch" extends)" = 2 ]
+'
 
 test_expect_success 'process death after measurement leaves a persistent pending latch' '
 	fresh crash && crash_update crash 2 &&
@@ -132,6 +150,20 @@ test_expect_success 'process death after measurement leaves a persistent pending
 	! "$H" "$WORK/crash" boot B >"$WORK/retry" &&
 	[ "$(field "$WORK/retry" extends)" = 2 ]
 '
+
+for action in resume restart; do
+	test_expect_success "$action keeps an interrupted activation pending" '
+		fresh pending-'"$action"' && crash_update pending-'"$action"' 2 &&
+		"$H" "$WORK/pending-'"$action"'" '"$action"' >/dev/null &&
+		! "$H" "$WORK/pending-'"$action"'" boot B >"$WORK/pending" &&
+		[ "$(field "$WORK/pending" extends)" = 2 ] &&
+		[ "$(field "$WORK/pending" pending)" = 1 ] &&
+		"$H" "$WORK/pending-'"$action"'" reset >/dev/null &&
+		"$H" "$WORK/pending-'"$action"'" boot B >"$WORK/pending" &&
+		[ "$(field "$WORK/pending" extends)" = 3 ] &&
+		[ "$(field "$WORK/pending" pending)" = 0 ]
+	'
+done
 
 test_expect_success 'death before pending rename leaves the completed selection usable' '
 	fresh pre-pending && crash_update pre-pending 6 &&

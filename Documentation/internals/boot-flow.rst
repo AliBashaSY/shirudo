@@ -216,20 +216,28 @@ Hibernation and TPM resets
 
 shirudo refuses hibernation from ``init`` on (A9 in
 :doc:`/security/threat-model`). The register and the config record
-are tied to the TPM's reset and restart counts. When the TPM is reset or
-restarted without a reboot, which a resume from hibernation can do, the
-register is cleared and one of the counts changes while the kernel's
-boot ID stays. Register extensions then fail with ``tpm_error``, and every
-target command except ``shirudo status`` and ``shirudo image status``
-refuses because the config record belongs to another TPM boot. Nothing
-re-runs ``init`` automatically. After a TPM reset, whose count the
-``init`` record no longer matches, a manual ``shirudo init`` records a
-new config boot event and binds the register again, from the root file
-system and with the PCR values of that moment; a verifier that requires
-an initrd binding rejects that evidence. After a TPM restart the reset
-count still matches the record, and ``init`` refuses to bind the cleared
-register again (``tampered``) before the next reboot, which leaves the
-config selection it recorded pending.
+are tied to the TPM's reset count: a TPM boot ends only when it changes.
+When the TPM is reset or restarted without a reboot, which a resume from
+hibernation can do, the register is cleared while the kernel's boot ID
+stays, and register extensions fail with ``tpm_error``. Nothing re-runs
+``init`` automatically.
+
+- After a TPM reset the config record belongs to another TPM boot, and
+  every target command except ``shirudo status`` and ``shirudo image
+  status`` refuses. A manual ``shirudo init`` records a new config boot
+  event and binds the register again, from the root file system and
+  with the PCR values of that moment; a verifier that requires an initrd
+  binding rejects that evidence. ``TPM2_Clear`` sets the reset count
+  back to zero and counts as such a reset.
+- After a TPM restart the TPM boot goes on, but the restart cleared the
+  config PCR, so commands refuse with ``EUCLEAN``. ``init`` records no
+  boot event in the same TPM boot and refuses to bind the cleared
+  register again (``tampered``), so the target stays so, and a pending
+  activation stays pending, until the next reboot.
+- A resume from suspend to RAM keeps the PCRs, the register and the TPM
+  boot: commands run as before, and a pending activation stays pending
+  until the next reboot. A command the suspend interrupts refuses, as
+  its read back finds the restart count moved.
 
 Kexec
 -----

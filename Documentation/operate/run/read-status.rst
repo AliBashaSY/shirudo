@@ -653,10 +653,11 @@ The detail of ``ConfigActive`` names the cause:
 
 - ``the config PCR, activation records and mounted config disagree``: the config PCR does not hold the value the activation
   records predict. Something extended the PCR after this boot's config
-  measurement. Software that measures into the same PCR causes this
+  measurement, or a TPM restart without a reboot cleared it. Software
+  that measures into the same PCR causes this
   too, see :doc:`/operate/plan/hardening` for the PCR choice.
-- ``the config activation record does not belong to this TPM boot``: the TPM was reset since the config was measured, for
-  example by a resume from hibernation.
+- ``the config activation record does not belong to this TPM boot``: the TPM's reset count changed since the config was
+  measured, by a TPM reset or ``TPM2_Clear`` without a reboot.
 - ``the mounted config does not match the selected root``: the
   config image mounted at ``/run/shirudo/config`` is not the one the
   records select.

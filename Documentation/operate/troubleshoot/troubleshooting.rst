@@ -162,8 +162,8 @@ Causes
    - Something extended the config PCR after this boot's config
      measurement, either an attacker or other software that measures
      into the same PCR.
-   - The TPM was reset without a reboot, for example by a resume from
-     hibernation.
+   - The TPM was reset or restarted without a reboot, for example by a
+     resume from hibernation.
    - The config mount was replaced.
 
 Action

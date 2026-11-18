@@ -88,8 +88,7 @@ int config_update_stage_read(struct config_update *update,
 /* 1 selects an eligible staged target, 0 leaves the current selection. */
 int config_update_staged(struct config_update *update,
 			 const struct config_update_record *previous,
-			 __u32 reset, __u32 restart,
-			 struct config_update_target *target);
+			 __u32 reset, struct config_update_target *target);
 int config_update_clear_staged(struct config_update *update);
 int config_update_begin(struct config_update *update,
 			const struct config_update_target *t,

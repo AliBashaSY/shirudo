@@ -361,14 +361,15 @@ signed config image.
      - Bootstrap settings in the initrd, ordered config verification keys,
        duplicate paths and too many keys
    * - ``t5007-config-update``
-     - Activation events, the pending latch, interruption, locks,
-       symbolic links in state
+     - Activation events, the pending latch across a resume and a TPM
+       restart, interruption, locks, symbolic links in state
    * - ``t5008-text-lines``
      - Long lines and NUL bytes in settings files
    * - ``t5009-config-stage``
      - Staging without activation or measurement, selection on the next
-       TPM boot, cancellation, stale parents, malformed records and
-       process death while replacing a staged selection
+       TPM reset and not after a resume or a restart, cancellation, stale
+       parents, malformed records and process death while replacing a
+       staged selection
    * - ``t5100-verity-stage``
      - A new signer may be staged without live enrollment, activation or
        measurement; same-boot init leaves it staged and cancellation is
@@ -836,10 +837,10 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover 34 of the modules in
+The unit suites in :src:`testing/unit/` cover 35 of the modules in
 :src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_state``,
 ``bpm_tree``, ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain``,
-``chain_history``, ``conditions``, ``crypto_openssl``,
+``chain_history``, ``conditions``, ``config_update``, ``crypto_openssl``,
 ``eventlog``, ``format``, ``hex``, ``io``, ``java_agent``, ``json``,
 ``kernel_abi``,
 ``keepalive``, ``keepalive_quote``, ``kernel_build_id``,
@@ -1014,7 +1015,7 @@ Coverage by area
    * - Config images
      - ``t4004``, ``t5001`` to ``t5008``, ``t5101`` to ``t5105``,
        ``t6112``, ``t6127``, ``t6130``, ``t6132``. Fuzz: ``config``,
-       ``config-update``, ``image``
+       ``config-update``, ``image``. Unit: ``config_update``
    * - Packages and repositories
      - ``t7001``, ``t7002``, ``t7003``, ``t7004``, ``t7005``,
        ``t7006``. Fuzz:
@@ -1298,7 +1299,7 @@ Parsers and units
 
 - The dm-verity superblock check in :src:`util/config_image.c` has no
   fuzz target. ``t5001`` covers truncation and unsupported fields.
-- 40 of the 69 modules in :src:`util/` have no unit suite of their own.
+- 39 of the 69 modules in :src:`util/` have no unit suite of their own.
 
 Related
 -------

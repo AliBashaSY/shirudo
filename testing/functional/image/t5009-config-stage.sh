@@ -38,20 +38,31 @@ test_expect_success 'staging B leaves A, its PCR and its event log unchanged' '
 	"$H" "$WORK/stage" check >/dev/null
 '
 
-for action in reset restart; do
-	test_expect_success "$action selects B only on the next TPM boot and measures it once" '
+test_expect_success 'reset selects B only on the next TPM boot and measures it once' '
+	fresh boot-reset &&
+	"$H" "$WORK/boot-reset" stage B >/dev/null &&
+	"$H" "$WORK/boot-reset" reset >/dev/null &&
+	"$H" "$WORK/boot-reset" staged >"$WORK/eligible" &&
+	grep -qx "eligible=1" "$WORK/eligible" &&
+	grep -qx "candidate=/verified/config-B" "$WORK/eligible" &&
+	"$H" "$WORK/boot-reset" boot B >"$WORK/selected" &&
+	grep -qx "prefix=/verified/config-B" "$WORK/selected" &&
+	grep -qx "extends=2" "$WORK/selected" &&
+	[ ! -e "$WORK/boot-reset/next-boot" ] &&
+	"$H" "$WORK/boot-reset" boot B >"$WORK/repeated" &&
+	grep -qx "extends=2" "$WORK/repeated"
+'
+
+for action in resume restart; do
+	test_expect_success "$action leaves B staged for the next reset" '
 		fresh boot-'"$action"' &&
 		"$H" "$WORK/boot-'"$action"'" stage B >/dev/null &&
 		"$H" "$WORK/boot-'"$action"'" '"$action"' >/dev/null &&
 		"$H" "$WORK/boot-'"$action"'" staged >"$WORK/eligible" &&
-		grep -qx "eligible=1" "$WORK/eligible" &&
-		grep -qx "candidate=/verified/config-B" "$WORK/eligible" &&
-		"$H" "$WORK/boot-'"$action"'" boot B >"$WORK/selected" &&
-		grep -qx "prefix=/verified/config-B" "$WORK/selected" &&
-		grep -qx "extends=2" "$WORK/selected" &&
-		[ ! -e "$WORK/boot-'"$action"'/next-boot" ] &&
-		"$H" "$WORK/boot-'"$action"'" boot B >"$WORK/repeated" &&
-		grep -qx "extends=2" "$WORK/repeated"
+		grep -qx "eligible=0" "$WORK/eligible" &&
+		! "$H" "$WORK/boot-'"$action"'" boot B >"$WORK/selected" &&
+		grep -qx "extends=1" "$WORK/selected" &&
+		[ -e "$WORK/boot-'"$action"'/next-boot" ]
 	'
 done
 

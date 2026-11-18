@@ -338,23 +338,25 @@ Hibernation and suspend
    ``lsm/file_open`` the write of the ``HibernateLocation`` EFI variable
    from which systemd's initrd would resume (A9 in
    :doc:`/security/threat-model`). The behavior of the register across
-   hibernation is not analyzed. Before a suspend, the kernel's TPM driver sends ``TPM2_Shutdown(STATE)`` to a
-   TPM 2.0 unless the TPM stays powered, and the TPM counts that in its
-   restart count (:doc:`/concepts/background/tpm`). The config activation
-   record holds the TPM's reset and restart counts, and shirudo compares
-   them with the TPM's before a command runs.
+   hibernation is not analyzed. Before a suspend, the kernel's TPM
+   driver sends ``TPM2_Shutdown(STATE)`` to a TPM 2.0 unless the TPM
+   stays powered, and the TPM counts that in its restart count
+   (:doc:`/concepts/background/tpm`). The config activation record holds
+   the TPM's reset count, which a resume leaves, so the TPM boot goes on;
+   a command the suspend interrupts sees the restart count move and
+   refuses.
 :Symptom: ``/sys/power/state`` lists no ``disk``, and ``systemctl
    hibernate`` fails as hibernation is not supported. After a resume
-   from suspend, shirudo commands refuse with ``shirudo: image state:
-   Stale file handle`` and exit 1, and ``shirudo status`` reports
-   ``tampered``.
-   :doc:`/operate/maintain/backup-recovery` describes the state. For suspend to
-   RAM this is a reading of the code and of the TPM's counters and is not
-   tested.
+   from suspend, shirudo commands run as before. A config activation
+   that was pending stays pending, and every state-changing command
+   refuses, until the next reboot; ``shirudo init`` run by hand does not
+   end it. This is a reading of the code and of the TPM's counters and
+   is not tested on a target that suspends.
 :What to do: Turn hibernation off as :doc:`/operate/plan/hardening` lists, and
    keep targets from sleeping, for example with ``AllowSuspend=no`` and
    ``AllowHibernation=no`` in ``/etc/systemd/sleep.conf``. After an
-   unplanned resume, follow :doc:`/operate/maintain/backup-recovery`.
+   unplanned resume with an activation pending, reboot; see
+   :doc:`/operate/maintain/backup-recovery`.
 
 Containers and Kubernetes
 -------------------------
