@@ -58,8 +58,9 @@ any time. It is mounted at ``/run/shirudo/config`` with
 Bootstrap files
 ---------------
 
-Two different files carry bootstrap settings, and each takes keys the
-other refuses.
+Two different files carry bootstrap settings. The runtime image's file
+refuses the ``runtime.*`` keys that the initrd's requires; the initrd's
+file refuses none of the runtime image's keys.
 
 .. list-table::
    :header-rows: 1
@@ -248,7 +249,7 @@ Init selects it only in a later TPM boot with that parent still selected.
 It rechecks the exact root, signature, image contents and certificate
 vouches before enrollment. The normal boot event measures its activation.
 
-A live update that activates a different root invalidates the stage.
+A live update that activates a different root removes the stage.
 Updating to the already active root preserves it. A stale stage is ignored
 with a warning. A valid stage stays on disk until full init succeeds,
 including upatch restore and register binding. An interrupted init uses
