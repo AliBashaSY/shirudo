@@ -907,6 +907,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        signer's and the index's names, the clock, the counts, the
        firmware, the PCRs a quote selects, the digest it signs and the
        offset certified
+   * - ``tpm-signer``
+     - ``tpm_attest_signer()``, ``tpm_attest_verify()``
+     - Every signer of up to 34 bytes and key name; attestations of up
+       to 16 bytes and signatures of up to 72; SHA-256 recording its
+       input and ECDSA as any verdict
+     - The signer is the key exactly when it is ``0x000b`` and the
+       SHA-256 of the endorsement hierarchy's handle and the key's name;
+       a signature passes only on the digest of the whole attestation,
+       an unparseable one is ``-EBADMSG`` and checks nothing, a rejection
+       ``-EKEYREJECTED``
    * - ``tpm-public``
      - ``tpm_public_parse()``, ``tpm_ecc_public_parse()``
      - Every input

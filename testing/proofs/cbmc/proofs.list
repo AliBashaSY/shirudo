@@ -40,6 +40,7 @@ bpm-upatch-member	--unwind 30 LEN=0-18
 tpm-reader		--unwind 1
 tpm-signature		--unwind 1 --unwindset bytes_at.0:33
 tpm-attest		--unwind 1 --unwindset memcpy.0:35,bytes_at.0:35
+tpm-signer		--unwind 35
 tpm-public		--slice-formula --unwind 1 LEN=0-1
 tpm-digest		--unwind 2 --object-bits 12
 tpm-kdf			--unwind 3 --unwindset strlen.0:68 --object-bits 12 -DLABEL_MAX=66 -DOUT_MAX=64
