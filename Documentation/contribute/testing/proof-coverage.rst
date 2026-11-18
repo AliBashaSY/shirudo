@@ -790,7 +790,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Grows only up to its limit; fails exactly when the text does not
        fit, keeping the longest prefix that does, terminated
    * - ``json-emit-nest``
-     - Every container and key writer
+     - Every container and key writer, ``json_kv_u64()`` and
+       ``json_u64_value()`` among them
      - Every sequence of up to 4 calls, every depth
      - Valid JSON by a byte-level recognizer; a comma only after a
        member; ``-E2BIG`` past the deepest level

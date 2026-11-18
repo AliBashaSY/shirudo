@@ -147,7 +147,7 @@ static void push(bool *array, size_t *depth, bool is_array)
 
 static void value(struct json_emit *e, __u8 op, bool *array, size_t *depth)
 {
-	switch (op % 5) {
+	switch (op % 6) {
 	case 0:
 		json_obj_value_open(e);
 		push(array, depth, false);
@@ -161,6 +161,9 @@ static void value(struct json_emit *e, __u8 op, bool *array, size_t *depth)
 		return;
 	case 3:
 		json_raw_value(e, "-1", 2);
+		return;
+	case 4:
+		json_u64_value(e, 42);
 		return;
 	}
 	json_str_lossy(e, "\xff", 1);
@@ -187,7 +190,7 @@ static void element(struct json_emit *e, __u8 op, bool *array,
 static void member(struct json_emit *e, __u8 op, bool *array, size_t *depth,
 		   bool *pending)
 {
-	switch (op % 9) {
+	switch (op % 10) {
 	case 0:
 		json_obj_open_key(e, "o");
 		push(array, depth, false);
@@ -215,6 +218,9 @@ static void member(struct json_emit *e, __u8 op, bool *array, size_t *depth,
 		return;
 	case 7:
 		json_kv_null(e, "n");
+		return;
+	case 8:
+		json_kv_u64(e, "u", 42);
 		return;
 	}
 	json_kv_raw(e, "r", "[]", 2);
