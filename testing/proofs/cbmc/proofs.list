@@ -118,6 +118,7 @@ vouch-payload		--malloc-may-fail --malloc-fail-null --unwind 3 --unwindset memcm
 bpm-tar-writer		--unwind 24 --unwindset tar_entry.0:513,bpm_tar_header_ok.0:513,memchr.0:101,memcpy.0:101,strlen.0:101,strnlen.0:101,strcmp.0:102,harness.0:101 --max-field-sensitivity-array-size 512 LEN=1,99,100
 bpm-beefile-string	--unwind 15 LEN=0-12
 bpm-beefile-array	--unwind 12 --unwindset build_parse_string_array.4:5
+bpm-beefile-array-long	--max-field-sensitivity-array-size 1028 --unwind 12 --unwindset harness.0:1024,memcpy.0:1025,build_parse_string_array.2:1026,build_parse_string.1:257 LEN=1023-1025
 bpm-beefile-lines	--unwind 14 LEN=0-10
 bpm-beefile-tables	--unwind 40 LEN=0-7
 bpm-beefile-names	--unwind 131

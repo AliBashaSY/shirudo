@@ -462,6 +462,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - One string or more up to the limit, each terminated, between
        brackets; no row past the limit written; a refused array is not
        counted
+   * - ``bpm-beefile-array-long``
+     - ``build_parse_string_array()``
+     - One element of 1023 to 1025 bytes with its quotes, around the
+       1024 its copy holds
+     - Refused, as too long for the copy or for its row, and not
+       counted
    * - ``bpm-beefile-fixes``
      - ``build_parse_fixes()``, ``bpm_fix_id_ok()``,
        ``bpm_strings_sort()``

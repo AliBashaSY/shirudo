@@ -6,6 +6,8 @@
  * build_parse_string_array() of tools/shirudo-build/bpm-build.c takes one
  * string or more up to its limit, each terminated in its row, between
  * brackets, and counts none of an array it refuses.
+ * bpm-beefile-array-long.c includes this file for an element as long as
+ * the parser's copy of it.
  */
 
 /* As proof.h, before the system headers can include <ctype.h>. */
@@ -38,6 +40,33 @@ static bool blank(char c)
 	return c == ' ' || (c >= '\t' && c <= '\r');
 }
 
+#ifdef BEEFILE_ARRAY_LONG
+/* The copy build_parse_string_array() takes of an element. */
+#define ITEM_COPY	1024
+
+/*
+ * One element of LEN bytes, its quotes included, of a constant byte:
+ * refused, as too long for the copy or for its row, with nothing counted.
+ */
+void harness(void)
+{
+	char out[1][TREE_STRING_MAX], v[LEN + 3];
+	const size_t len = LEN;
+	size_t i;
+	int n = 0;
+
+	v[0] = '[';
+	v[1] = '"';
+	for (i = 2; i < LEN; i++)
+		v[i] = 'x';
+	v[LEN] = '"';
+	v[LEN + 1] = ']';
+	v[LEN + 2] = '\0';
+	__CPROVER_assert(build_parse_string_array(v, out, 1, &n) ==
+			 (len >= ITEM_COPY ? -ENAMETOOLONG : -EINVAL) && !n,
+			 "an element too long for its copy or its row refused");
+}
+#else
 void harness(void)
 {
 	char out[ROWS][TREE_STRING_MAX], was_byte;
@@ -70,3 +99,4 @@ void harness(void)
 	__CPROVER_assert(last - first >= 2 && v[first] == '[' &&
 			 v[last - 1] == ']', "between brackets");
 }
+#endif
