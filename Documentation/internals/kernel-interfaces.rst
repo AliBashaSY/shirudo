@@ -194,47 +194,85 @@ where the caller is the loader.
    * - loader: ``BPF_MAP_CREATE``, ``BPF_MAP_UPDATE_ELEM``,
        ``BPF_MAP_FREEZE``, ``BPF_PROG_LOAD`` through ``bpf_sys_bpf()``
      - As gen_loader recorded them.
-   * - ``BPF_RAW_TRACEPOINT_OPEN``
-     - Attach kind 0 for a program that is not ``BPF_PROG_TYPE_LSM``:
-       ``raw_tracepoint.name`` 0, ``prog_fd``.
-   * - ``BPF_LINK_CREATE``
-     - Attach kind 0 for ``BPF_PROG_TYPE_LSM``: ``target_fd`` 0,
-       ``attach_type`` ``BPF_LSM_MAC``. Kind 5, ``fmod_ret``:
-       ``attach_type`` ``BPF_MODIFY_RETURN``. Kinds 3 and 4,
-       ``cgroup_skb``: ``target_fd`` an ``O_DIRECTORY`` descriptor of
-       ``/sys/fs/cgroup``, ``attach_type`` ``BPF_CGROUP_INET_INGRESS`` or
-       ``BPF_CGROUP_INET_EGRESS``. Kinds 1 and 2, kprobe and kretprobe,
-       and kinds 10 and 11, uprobe and uretprobe with their ``.s`` forms:
-       ``target_fd`` a perf event, ``attach_type`` ``BPF_PERF_EVENT``.
-       Kind 6, netfilter: ``attach_type`` ``BPF_NETFILTER``, ``pf`` 10
-       (``NFPROTO_IPV6``), ``hooknum`` 0 (``NF_INET_PRE_ROUTING``),
-       ``priority`` -450 (``NF_IP6_PRI_RAW_BEFORE_DEFRAG``), ``flags`` 0.
-       Kinds 7 and 9, ``uprobe.multi`` and ``uretprobe.multi`` and their
-       sleepable ``.s`` forms, whose ``BPF_F_SLEEPABLE`` the signed loader
-       sets at load:
-       ``attach_type`` ``BPF_TRACE_UPROBE_MULTI``, ``offsets``, ``cnt``,
-       ``flags`` ``BPF_F_UPROBE_MULTI_PATH_FD``, with
-       ``BPF_F_UPROBE_MULTI_RETURN`` for kind 9, ``path_fd`` a descriptor
-       of the target binary opened and checked by build ID.
-       Kind 8, XDP: ``target_ifindex`` a selected device,
-       ``attach_type`` ``BPF_XDP``, ``flags`` ``XDP_FLAGS_DRV_MODE``.
+   * - ``BPF_RAW_TRACEPOINT_OPEN``, ``BPF_LINK_CREATE``
+     - One per program, with the attributes of its attach kind in the
+       table below.
    * - ``BPF_OBJ_GET_INFO_BY_FD``
-     - On each link before it is pinned. Cgroup links: ``cgroup_id`` 1.
-       Netfilter: ``pf``, ``hooknum``, ``priority`` as set, and the
-       caller's network namespace cookie (``SO_NETNS_COOKIE``) 7. Kprobe:
-       perf event type, function name and offset as signed. Uprobe:
-       perf event type, the file offset as signed and ``ref_ctr_offset``
-       0. Uprobe multi: offset count and the return flag. ``fmod_ret``:
-       ``BPF_MODIFY_RETURN``.
-       XDP: ``BPF_LINK_TYPE_XDP`` and ``xdp.ifindex`` matching the selected
-       device; the device class and peer scope are rechecked around
-       attachment, and the initial network namespace once before the
-       devices are read.
+     - On each link before it is pinned, compared as the table below
+       says; a mismatch is ``attach_scope_mismatch``.
    * - ``BPF_OBJ_PIN``
      - Links at ``upatches/<name>/link`` or ``link_<n>``, serializer
        programs at ``serializers/<map>``, the test-run program at
        ``test``, each XDP program at ``xdp_prog_<n>``, maps at
        ``maps/<map>``, under ``/run/shirudo/bpffs``.
+
+The attach kinds are those of :doc:`/upatches/write/attach-kinds`,
+numbered as in the signed attach metadata. Every call is
+``BPF_LINK_CREATE`` except where the table says otherwise.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 22 34 28
+
+   * - Kind
+     - ``attach_type``
+     - Target and other attributes
+     - Checked before pinning
+   * - 0, an LSM program
+     - ``BPF_LSM_MAC``
+     - ``target_fd`` 0.
+     - A raw tracepoint or tracing link.
+   * - 0, a ``cgroup_skb`` program
+     - ``BPF_CGROUP_INET_INGRESS`` or ``BPF_CGROUP_INET_EGRESS``, from
+       the function name
+     - As kinds 3 and 4.
+     - As kinds 3 and 4.
+   * - 0, any other program
+     - None: ``BPF_RAW_TRACEPOINT_OPEN``
+     - ``raw_tracepoint.name`` 0, ``prog_fd``.
+     - A raw tracepoint or tracing link.
+   * - 1, 2: kprobe, kretprobe
+     - ``BPF_PERF_EVENT``
+     - ``target_fd`` a perf event of the kprobe PMU, below.
+     - Perf event type, function name and offset as signed.
+   * - 3, 4: ``cgroup_skb``
+     - ``BPF_CGROUP_INET_INGRESS``, ``BPF_CGROUP_INET_EGRESS``
+     - ``target_fd`` an ``O_DIRECTORY`` descriptor of
+       ``/sys/fs/cgroup``.
+     - ``cgroup_id`` 1.
+   * - 5: ``fmod_ret``
+     - ``BPF_MODIFY_RETURN``
+     - ``target_fd`` 0.
+     - A tracing link of ``BPF_MODIFY_RETURN``.
+   * - 6: netfilter
+     - ``BPF_NETFILTER``
+     - ``pf`` 10 (``NFPROTO_IPV6``), ``hooknum`` 0
+       (``NF_INET_PRE_ROUTING``), ``priority`` -450
+       (``NF_IP6_PRI_RAW_BEFORE_DEFRAG``), ``flags`` 0.
+     - ``pf``, ``hooknum`` and ``priority`` as set, and the caller's
+       network namespace cookie (``SO_NETNS_COOKIE``) 7.
+   * - 7, 9: ``uprobe.multi``, ``uretprobe.multi`` and their ``.s``
+       forms
+     - ``BPF_TRACE_UPROBE_MULTI``
+     - ``path_fd`` the target binary's descriptor, opened and checked
+       by build ID, ``offsets``, ``cnt``, ``flags``
+       ``BPF_F_UPROBE_MULTI_PATH_FD``, with
+       ``BPF_F_UPROBE_MULTI_RETURN`` for kind 9. The signed loader sets
+       ``BPF_F_SLEEPABLE`` for an ``.s`` form at load.
+     - Offset count and the return flag.
+   * - 8: XDP
+     - ``BPF_XDP``
+     - ``target_ifindex`` a selected device, ``flags``
+       ``XDP_FLAGS_DRV_MODE``.
+     - ``BPF_LINK_TYPE_XDP`` and ``xdp.ifindex`` of the selected device.
+       The device class and peer scope are checked again after the
+       attach, and the initial network namespace once before the
+       devices are read.
+   * - 10, 11: uprobe, uretprobe and their ``.s`` forms
+     - ``BPF_PERF_EVENT``
+     - ``target_fd`` a perf event of the uprobe PMU, below.
+     - Perf event type, the file offset as signed and
+       ``ref_ctr_offset`` 0.
 
 A kprobe link's perf event comes from ``perf_event_open(2)`` with
 ``type`` read from ``/sys/bus/event_source/devices/kprobe/type``,
