@@ -752,10 +752,53 @@ Run the end-to-end tests
 ``make -C testing end2end`` runs ``t9001`` on the host, then
 :src:`testing/end2end/host.sh` runs the test with an operator VM and the
 target nodes: node A, which runs the target tests, node B beside it, and
-a fresh edge node after node A (see :ref:`testing-two-nodes`). It starts
-an OCI registry, an OpenTelemetry Collector and ClickHouse in Docker
-containers pinned by digest. The registry and collector use a throwaway
-CA.
+a fresh edge node after node A (see :ref:`testing-two-nodes`). The
+registry, the collectors and ClickHouse run in Docker containers pinned
+by digest, and the registry and collectors use a throwaway CA. Figure 1
+shows the run in order.
+
+.. figure:: /images/contribute-end2end-run.svg
+   :alt: Eight phases in order, one lane each for the host, the
+         containers, the operator VM, node A, node B, the fresh edge node
+         and the second pair. 1: t9001 on the host, then the containers
+         start. 2: the operator VM publishes, the host loads the example
+         tree. 3: node A runs its tests while node B boots. 4: the
+         operator verifies node A and stops. 5: the edge node boots while
+         the host runs check-otlp and checks node B. 6: t9109, t9110 and
+         t9112 on the host. 7: the registry starts again empty and the
+         second pair boots. 8: t9111 on the host, then teardown.
+
+   Figure 1. The end-to-end run in order, not to scale. Tinted bars run
+   tests.
+
+#. ``t9001`` runs on the host. ``host.sh`` then starts the registry, an
+   OpenTelemetry Collector and ClickHouse, and the keepalive backend's
+   own collector and ClickHouse.
+#. The operator VM boots and, once it is ready, runs
+   :src:`testing/end2end/operator.sh` over SSH: it builds ``kernel-obs``
+   into a package with ``bpm build``, against the headers and
+   ``vmlinux.h`` of the package, pushes it with ``bpm push``, appends it
+   to a signed upatch tree with ``bpm tree append`` and picks the nonce
+   the targets attest with. The host publishes the keepalive backend's
+   example tree and loads it with the tree ingest job.
+#. Node A boots, activates a signed config that points at the tree and
+   the collector, and its units pull, verify, load and export. Its
+   tests, ``t91??``, run over SSH from the host, which writes what they
+   print to ``result/guest.log`` as a family's VM does. Node B boots
+   beside it.
+#. The host hands node A's TPM evidence to the operator, which verifies
+   it with ``attest verify`` and checks that its records name the
+   package and the tree operation it published. The operator VM then
+   stops.
+#. The fresh edge node boots in node A's place. Meanwhile the host
+   checks that the collector holds the package's records, and checks
+   node B.
+#. ``t9109``, ``t9110`` and ``t9112`` run on the host against the fresh
+   edge node and node B.
+#. Both nodes stop, the registry starts again without a volume, and a
+   second fresh edge node and node B boot.
+#. ``t9111`` runs on the host against the second pair. Then the nodes
+   and the containers stop.
 
 The operator VM boots from the runtime image with clang 23 and the build
 dependencies of the operator package added, which the runner prepares
@@ -766,33 +809,21 @@ guest's own key, outside the checkout, in
 ``/tmp/shirudo-test-vm-private-<uid>/end2end-operator/``: a VM's keys
 and disk lie in its state directory, which the target VMs read through
 their share of the checkout. The operator VM builds the operator package
-from the files git sees in the checkout and installs it. Once it is
-ready, the host has it run :src:`testing/end2end/operator.sh` over SSH:
-the operator builds ``kernel-obs`` into a package with ``bpm build``,
-against the headers and ``vmlinux.h`` of the package, pushes it with
-``bpm push``, appends it to a signed upatch tree with
-``bpm tree append`` and picks the nonce the targets attest with. The
-operator VM and node A name the registry ``registry.test``, at QEMU's
-address for the host, so the tree names it as node A reaches it. The
-host's own build and the operator key it keeps still play the operator
-for the keepalive backend's example tree and for ``t9109`` to ``t9112``,
-which run on the host.
+from the files git sees in the checkout and installs it. The operator VM
+and node A name the registry ``registry.test``, at QEMU's address for
+the host, so the tree names it as node A reaches it. The host's own
+build and the operator key it keeps still play the operator for the
+keepalive backend's example tree and for ``t9109`` to ``t9112``, which
+run on the host.
 
-Node A and node B boot next. Node A activates a signed config that
-points at the tree and the collector, and its units pull, verify, load
-and export. Its tests, ``t91??``, run over SSH from the host, which
-writes what they print to ``result/guest.log`` as a family's VM does.
-The host hands node A's TPM evidence to the operator, which verifies it
-with ``attest verify`` and checks that its records name the package and
-the tree operation it published. Once the operator VM has stopped, the
-host checks that the collector holds the package's records. The earlier
-``kernel-obs`` tests
-export each map snapshot as local JSON and OTLP from one read; the host
-compares the snapshots with the collector's JSON output and queries the
-ClickHouse log and sum metric tables to check that both collector exports
-hold the same data. The comparison uses event times relative to each
-map's interval start and ignores the metric export time, which the two
-decoder calls sample independently.
+To check the collector, :src:`testing/end2end/check-otlp.py` relies on
+the earlier ``kernel-obs`` tests, which export each map snapshot as
+local JSON and OTLP from one read. It compares the snapshots with the
+collector's JSON output and queries the ClickHouse log and sum metric
+tables to check that both collector exports hold the same data. The
+comparison uses event times relative to each map's interval start and
+ignores the metric export time, which the two decoder calls sample
+independently.
 
 The kernel observability scenarios share fixture setup, load reports and
 unload operations through ``testing/end2end/kernel-obs-lib.sh``. Their
@@ -844,21 +875,16 @@ The nodes
 ~~~~~~~~~
 
 The tier boots up to five targets, at most two at once, each with its
-own software TPM and so its own attestation key. The operator VM runs
-beside the first two, node A and node B, and stops before the others
-boot. Node A is the family's
-VM, named ``<name>-end2end``, and runs the target tests in number order.
-Node B, ``<name>-end2end-b``, boots beside it. The fresh edge node,
-``<name>-end2end-edge``, boots once node A has stopped, and ``t9109``,
-``t9110`` and then ``t9112`` run against it and node B.
-Once both have stopped, a second fresh edge node and node B,
-``<name>-2-end2end-edge`` and ``<name>-2-end2end-b``, boot for
-``t9111``. All of them boot with ``make -C testing vm-node-end2end``, ``END2END_NODE=b`` or
-``edge``: the runner's
-node mode prepares a node as it prepares node A, activates the config
-image of its role, runs no tests, starts no timers and leaves it running
-until ``host.sh`` stops it at the end. Before the guest boots, node mode
-acts as the builder of :doc:`/operate/run/attest`:
+own software TPM and so its own attestation key. Figure 1 shows when
+each runs. Node A is the family's VM, named ``<name>-end2end``, and runs
+the target tests in number order. Node B is ``<name>-end2end-b``, the
+fresh edge node ``<name>-end2end-edge``, and the second pair
+``<name>-2-end2end-edge`` and ``<name>-2-end2end-b``. All but node A boot
+with ``make -C testing vm-node-end2end``, ``END2END_NODE=b`` or
+``edge``: the runner's node mode prepares a node as it prepares node A,
+activates the config image of its role, runs no tests, starts no timers
+and leaves it running until ``host.sh`` stops it. Before the guest boots,
+node mode acts as the builder of :doc:`/operate/run/attest`:
 :src:`testing/vm/tpm-builder.sh` creates the attestation key and the
 endorsement key in the node's fresh vTPM state, with the tpm2-tools
 commands that page gives, and writes their names to ``tpm-names`` in the
@@ -898,7 +924,8 @@ node A has loaded ``kernel-obs`` and ``policy-exec-graph``, counted
 denied execs, and followed ``shirudo/end2end-tree``, none of which a fleet
 node has, and its register and eventlog keep all of it. So the fresh edge
 node takes node A's place rather than node A moving to the pipeline
-tree. Booting it after node A keeps two guests at most.
+tree. Booting it once node A and the operator VM have stopped keeps two
+guests at most.
 
 ``t9111`` needs nodes that have followed no tree, and both nodes of
 ``t9109`` and ``t9110`` hold the eleven operations of
@@ -920,9 +947,11 @@ their kernel command line names no ``roothash=`` or ``usrhash=``, so
 verity image; the backend's own tests cover ``verified`` and
 ``root_mismatch`` with rows they insert.
 
-After node A, ``host.sh`` checks node B: its evidence verifies, its
-attestation key differs from node A's and its labels are ``role=core``.
-It checks that the fresh edge node is labelled ``role=edge``, and that
+In phase 5 of Figure 1, ``host.sh`` checks node B: its evidence
+verifies against the names its builder recorded, it loaded no upatch
+while it was prepared, its attestation key differs from node A's and
+its labels are ``role=core``. Before phase 6 it checks that the fresh
+edge node is labelled ``role=edge``, and that
 the keepalive body each node printed while it was prepared, in
 ``result/keepalive.json`` of its state directory, names the image above
 and no root. It checks the labels of the second pair the same way.
