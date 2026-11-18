@@ -246,6 +246,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        base of 0 without the segment keys or a later one with an
        operation, a ``sha256:`` digest and a root of 64 hex digits, and
        operations that run from the base to the head
+   * - ``bpm-tree-reserve``
+     - ``tree_operations_reserve()``, the allocator a stub that may fail
+     - Every count and capacity up to ``TREE_MAX_OPS``
+     - Room kept as it is; a full array grown to 16 operations or twice
+       its size, never past ``TREE_MAX_OPS``, with one more slot free;
+       ``-E2BIG`` at ``TREE_MAX_OPS`` and ``-ENOMEM`` without memory,
+       nothing changed then
    * - ``bpm-tree-follows``
      - ``tree_publication_follows()``, ``tree_segment_precedes()``,
        ``tree_walk_within()``
