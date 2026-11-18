@@ -14,3 +14,4 @@ import Shirudo.ConfigActivation
 import Shirudo.UpatchLoad
 import Shirudo.TreeSync
 import Shirudo.TreeOverlap
+import Shirudo.EventlogRecord

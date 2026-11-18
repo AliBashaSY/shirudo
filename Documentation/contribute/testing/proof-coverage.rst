@@ -1124,6 +1124,27 @@ the model follows the C.
        ``holds_last_load``, ``not_holds_after_unload``
      - None
      - Review
+   * - ``Shirudo.EventlogRecord``, ``walk_lines()`` and
+       ``upatches_line()`` of :src:`util/eventlog.c` on the records
+       :src:`builtin-upatch.c`, :src:`builtin-init.c`,
+       :src:`builtin-keys.c` and :src:`builtin-bpm.c` write
+     - ``read_upatch``, ``read_init``, ``read_key``, ``read_tree``: every
+       record the writers give reads back as exactly the events
+       ``Shirudo.Measured`` folds, whatever its other fields hold;
+       ``load_from_fields``, ``unload_from_fields``, ``init_from_type``:
+       from any line, a load or an unload comes only from that line's
+       ``type`` and ``upatch`` member, or from an entry of an init
+       record's ``set`` that names both its fields, each with a name and
+       a payload ``upatch_member_valid()`` accepts, and an init event only
+       from a ``type`` of ``init``
+     - ``json_parse()`` hands over the members as the line holds them,
+       its strings as ``Shirudo.JsonString`` proves them read; names
+       ``upatch_name_valid()`` accepts and 64 hex digits from the
+       writers; the limits on a key's, a string's and a line's length,
+       on depth and on the number of keys, which only refuse more, are
+       left out
+     - Review; the ``eventlog`` unit suite reads a line whose set entry
+       names no upatch
    * - ``Shirudo.SemVer``, ``bpm_semver_compare()`` of
        :src:`util/bpm_package.c`
      - ``compareStrings_refl``, ``compareStrings_swap``,
