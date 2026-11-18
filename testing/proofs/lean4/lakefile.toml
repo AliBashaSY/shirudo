@@ -6,5 +6,7 @@ defaultTargets = ["Shirudo"]
 
 [[lean_lib]]
 name = "Shirudo"
+# Every module under Shirudo/, imported or not, is checked.
+globs = ["Shirudo", "Shirudo.+"]
 # A warning, a sorry among them, fails the build.
 leanOptions = { warningAsError = true }

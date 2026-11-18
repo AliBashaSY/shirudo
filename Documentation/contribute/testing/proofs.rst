@@ -201,8 +201,9 @@ Write a Lean 4 proof
    prove, such as a hash being collision resistant, as an explicit
    hypothesis of the theorem.
 
-2. Import the module in :src:`testing/proofs/lean4/Shirudo.lean`. A
-   ``sorry`` or any other warning fails the build, so every theorem is
+2. Import the module in :src:`testing/proofs/lean4/Shirudo.lean`. The
+   build checks every module under ``Shirudo/`` whether imported or not,
+   and a ``sorry`` or any other warning fails it, so every theorem is
    proved in full.
 
 3. Where CBMC can, add a CBMC proof that the C computes what the model

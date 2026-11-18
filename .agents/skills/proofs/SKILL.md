@@ -142,8 +142,9 @@ determining its events.
 - Core Lean only, no Mathlib: `omega`, `simp`, `decide` and induction
   carry these proofs. A lemma Mathlib has, such as
   `List.map_injective_iff`, is proved in the file.
-- The lakefile makes every warning an error, so a `sorry`, a deprecated
-  name or an unused `simp` argument fails the build.
+- The lakefile builds every module under `Shirudo/`, imported or not,
+  and makes every warning an error, so a `sorry`, a deprecated name or
+  an unused `simp` argument fails the build.
 - A model proves the algorithm, not the C. Link the two with a CBMC
   proof where one is cheap, as `string-number-model.c` checks
   `parse_u64()` against `Number.lean` up to 4 bytes and
