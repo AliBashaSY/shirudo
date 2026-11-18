@@ -953,8 +953,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``attest-pcr``
      - ``on_pcr()`` of the evidence parser
      - Every index and 64-byte value text
-     - Stores only PCRs 0 to 23 and marks exactly that one, from 64 hex
-       digits; a refusal marks nothing
+     - Stores only PCRs 0 to 23, the value its 64 hex digits spell under
+       its index, and marks exactly that one; the other PCRs stay as they
+       were; a refusal marks nothing
    * - ``chain-events``
      - ``chain_upatch_tag()``, ``chain_upatch_event()``,
        ``chain_key_event()``, ``chain_tree_event()``, ``chain_fold()``,
