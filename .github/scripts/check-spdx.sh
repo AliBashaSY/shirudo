@@ -88,14 +88,15 @@ check_vendor() {
 }
 
 # The comment form of the tag by file type, the kernel's rules with --
-# for Lua and Lean and .. for reStructuredText. Any other file needs a
-# tag only when it starts with a shebang.
+# for Lua and Lean, .. for reStructuredText and % for TeX. Any other file
+# needs a tag only when it starts with a shebang.
 kind_of() {
 	case "$1" in
 	*.c|*.cocci) echo c ;;
 	*.h) echo h ;;
 	*.lua|*.lean) echo lua ;;
 	*.rst) echo rst ;;
+	*.tex|*.sty) echo tex ;;
 	*.sh|*.bash|*.py|*.in|*.timer|*.service|*.mk|*.toml)
 		echo hash ;;
 	Makefile|*/Makefile|Makefile.*|*/Makefile.*)
@@ -151,6 +152,8 @@ check_file() {
 		prefix='-- ' ;;
 	hash)
 		prefix='# ' ;;
+	tex)
+		prefix='% ' ;;
 	rst)
 		if [ "$want" -eq 2 ]; then
 			prefix=$(printf '%s' "$line" | sed 's/SPDX.*//')
