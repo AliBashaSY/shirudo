@@ -271,7 +271,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        the registry cannot serve. Names have one byte, and the previous
        root and the history roots the outcomes record holds at the cursor
        and at any other seq have 32 symbolic bytes each.
-     - Writes match the Lean model ``Shirudo.TreeSync`` in order, the
+     - Writes match the C restatement of the Lean model
+       ``Shirudo.TreeSync`` in ``bpm-tree-sync-model.c`` in order, the
        cut of the outcomes record, each outcome line with its code and
        both roots, and the state written at acceptance with the
        publication's head and base included; a publication whose base
@@ -1324,18 +1325,19 @@ the model follows the C.
        ``sync_progress``: given a checked publication that follows a
        reachable node and holds its pending operation when that is
        above the cursor, recovery refuses nothing and the sync runs to
-       its end, recording the publication's head as the cursor. All of
-       these hold across
-       segment boundaries, as a publication of any base is a sync;
-       ``walk_same_ops``: the segments of a walk, each recorded before
+       its end, recording the publication's head as the cursor. They
+       cover a publication of any base, and a sync that walks only as a
+       sync of each segment in turn; ``walk_same_ops``: the segments of a
+       walk, each recorded before
        its operations, apply the operations of the tree taken as one
        publication, in its order, with the same ``pending.json``,
        register, tree eventlog and outcomes writes, and end at the same
        cursor and projection root
-     - A sync that walks is one sync per segment: it leaves out only the
-       state each segment but the last writes at its end, which the next
-       segment's record overwrites with the same cursor and root, and
-       its cut keeps every line; the base and prefix checks are left out
+     - A sync that walks is taken as one sync per segment, which it is
+       but for the state each segment but the last writes at its end, a
+       pending record an earlier segment passed, which stays to the next
+       sync rather than the next segment, and the cut a sync makes before
+       a walk back that refuses; the base and prefix checks are left out
        of the model, as they only refuse more. A manifest digest names
        one publication; the hash is injective on
        (root, digest) and never 64 zeros; only sync writes the tree files,
@@ -1344,12 +1346,16 @@ the model follows the C.
        outcome line holds whether the selector matched, not which of 1
        and 3, and no history root; the check that the record covers the
        cursor is a theorem, not a branch of the model
-     - CBMC: ``bpm-tree-follows`` for ``tree_publication_follows()``,
-       ``bpm-tree-sync-model`` and its two-operation variants for
-       sync writes, ``bpm-tree-sync-walk`` for a walk,
+     - CBMC, all run in CI: ``bpm-tree-follows`` for
+       ``tree_publication_follows()``; ``bpm-tree-sync-model`` and its
+       two-operation variants and ``bpm-tree-sync-walk`` check
+       ``cmd_bpm_tree_sync()``, its loop, recovery and a walk over one
+       sealed segment against the C restatement of ``run``, ``recover``
+       and ``loop``, writes and refusals alike;
        ``bpm-tree-recovery-model`` for pending recovery,
-       ``bpm-tree-state-replay`` for ``tree_event_replay()``;
-       ``tree_parse()`` and the walk as one sync per segment by review
+       ``bpm-tree-state-replay`` for ``tree_event_replay()``. The
+       restatement, ``tree_parse()`` and the walk as one sync per
+       segment by review
    * - ``Shirudo.TreeOverlap``, :src:`util/bpm_tree_overlap.c` against
        ``tree_selector_matches()`` of :src:`util/bpm_tree_state.c`
      - ``disjoint_sound``: no node matches two selectors that

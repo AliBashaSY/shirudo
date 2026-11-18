@@ -82,27 +82,39 @@ the payload already loaded under the name as installed, and
 `upatch_remove()` an upatch already gone as removed.
 testing/proofs/cbmc/bpm-tree-follows.c proves
 `tree_publication_follows()` returns 0 exactly when `Follows` holds and asks
-for a walk exactly when the publication starts past the cursor, and
-bpm-tree-sync-model.c checks the writes of `cmd_bpm_tree_sync()` against
-`run` for publications of up to two operations, and through a walk back
-over one sealed segment.
+for a walk exactly when the publication starts past the cursor.
+bpm-tree-sync-model.c restates `run`, `recover` and `loop` in C, which
+review alone ties to the definitions here, and the CBMC proofs built on it,
+all of which CI runs, check `cmd_bpm_tree_sync()` against that
+restatement: it makes the same writes in the same order, none after a
+failure or a refusal and all of them when nothing fails, and refuses
+exactly where the restatement refuses. They do so for publications of no,
+one and two operations, the last with and without a pending record
+(bpm-tree-sync-model, -application, -pending), and through a walk back over
+one sealed segment of one operation (bpm-tree-sync-walk);
+bpm-tree-recovery-model checks `tree_recover_pending()` alone on
+publications of up to two operations.
 
 A publication that starts past the cursor is a segment the node reaches by
 walking back through the sealed segments before it. The sync then takes
 the segments oldest first, each recorded at acceptance and its operations
 applied, as `run` takes one publication: the oldest segment with the cut
 of the outcomes record and recovery, and each later one, which starts at
-the cursor the one before left, with neither, as the cut keeps every line
-and nothing is pending between two segments. A sync that walks is
-therefore a sync of each segment in turn, with one write fewer: the state
-`run` writes at the end of a segment, which the next segment's record at
-acceptance overwrites with the same cursor and root. Every node such a
-sync leaves is one a `Steps` history of single syncs leaves, so every
-theorem here holds across segment boundaries too; `walk_same_ops` shows
-that the segments apply the operations the unsegmented tree applies, in
-its order, with the same records. The base check and the prefix check
-of the walk only refuse more; the model leaves them out, as it does the
-digest checks.
+the cursor the one before left, with neither. Such a sync is close to a
+sync of each segment in turn: it leaves out the state `run` writes at the
+end of a segment, which the next segment's record at acceptance
+overwrites with the same cursor and root, and the cut of each later
+segment, which would keep every line. It differs in two ways no `Step`
+takes: a pending record an earlier segment's loop passed over stays until
+the next sync's recovery removes it, where a sync of the next segment
+would remove it at once, and a sync whose walk back refuses has already
+cut the outcomes record to the cursor, without a publication that follows
+the node. `Step` has no walk, so the theorems here cover a sync that walks
+only by that argument, not by proof; `walk_same_ops` shows that the
+segments apply the operations the unsegmented tree applies, in its order,
+with the same records. The base check and the prefix check of the walk
+only refuse more; the model leaves them out, as it does the digest
+checks.
 -/
 
 namespace Shirudo.TreeSync
