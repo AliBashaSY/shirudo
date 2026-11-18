@@ -89,6 +89,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``lines_len()``
      - Up to 8 bytes
      - Ends at a newline or is 0, with no newline behind it
+   * - ``io-append``
+     - ``append_line()``, ``last_line_end()``, ``write_complete()``
+     - Files of 0 to 6 bytes, lines of up to 3; ``fstat()``,
+       ``ftruncate()``, ``write()`` and ``fsync()`` stubs on the file,
+       the first write failing, cut short or interrupted, ``pread()``
+       never failing
+     - A line holding a line break or a NUL refused, the file unchanged;
+       else the file cut back to its last line break, then the line and
+       one line break; a failed write or sync cut back to that line break
    * - ``attest-pcrs``
      - ``attest_parse_pcrs()``, ``attest_parse_pcr_value()``
      - Up to 6 bytes
