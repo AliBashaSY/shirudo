@@ -12,9 +12,10 @@
  * publication of LEN operations that tree_parse() lets through, at any base,
  * with NSEG 2 a sealed segment of LEN operations the registry serves by its
  * digest too, every selector answer and every failure, sync makes the
- * model's writes in the model's order, nothing after a failure and all of
- * them when nothing fails. Strings are of one byte, as sync only compares
- * them; hashes, hex and paths are stubs the model does not depend on. The
+ * model's writes in the model's order, nothing after a failure or a
+ * refusal, all of them when nothing fails, and refuses exactly what the
+ * model refuses. Strings are of one byte, as sync only compares them;
+ * hashes, hex and paths are stubs the model does not depend on. The
  * functions after the stubs restate the Lean definitions: checked() is
  * Checked, follows() Follows, recover() recover, history_ok() the base and
  * prefix checks and run() run, with its walk and loop. An outcome line
@@ -123,7 +124,11 @@ static struct write want[W_KINDS][MAX_KIND];
 static int n_want_kind[W_KINDS], n_got_kind[W_KINDS];
 static int n_got, n_want;
 static __u32 fail_at, fail_call;
-static bool failed;
+/*
+ * A failure is one the stubs inject, a refusal one sync reports: the
+ * model accounts for the second and so must refuse exactly there too.
+ */
+static bool failed, refused;
 
 /* What the node holds, what the registry serves and what the checks say. */
 static bool have_state, have_pending, measured;
@@ -183,6 +188,7 @@ static void record(const struct write *w)
 	int k = w->kind, j = n_got_kind[k];
 
 	__CPROVER_assert(!failed, "nothing written after a failure");
+	__CPROVER_assert(!refused, "nothing written after a refusal");
 	__CPROVER_assert(n_got < n_want, "no write the model does not make");
 	if (n_got < n_want)
 		__CPROVER_assert(j < n_want_kind[k] && want[k][j].pos == n_got &&
@@ -659,10 +665,24 @@ int upatch_open(const char *path, struct upatch *out)
 	return fail_here() ? -EIO : 0;
 }
 
+/*
+ * The upatch is the one the operation names, of its kind, unless the
+ * registry served another, which sync refuses: a failure, as the model
+ * leaves the artifact out.
+ */
 void upatch_header_name(const struct upatch *u, char out[UPATCH_NAME_MAX + 1])
 {
+	char id = installing >= 0 && installing < NOPS ?
+		  op_at(installing)->id[0] : '\0';
+	bool other;
 	char a, b;
 
+	out[0] = id;
+	out[1] = '\0';
+	if (!other)
+		return;
+	__CPROVER_assume(a != id || b);
+	failed = true;
 	out[0] = a;
 	out[1] = a ? b : '\0';
 	out[2] = '\0';
@@ -679,9 +699,13 @@ bool bpm_digest_matches(const char *want, const char *hex)
 
 bool upatch_is_unload(const struct upatch *u)
 {
-	bool unload;
+	bool unload = installing >= 0 && installing < NOPS &&
+		      !op_add[installing];
+	bool other;
 
-	return unload;
+	if (other)
+		failed = true;
+	return other ? !unload : unload;
 }
 
 void upatch_close(struct upatch *u)
@@ -801,10 +825,9 @@ int printf(const char *fmt, ...)
 	return 0;
 }
 
-/* Every refusal sync reports after its checks passed stops it. */
 void pr_err(const char *fmt, ...)
 {
-	failed = true;
+	refused = true;
 }
 
 void pr_warn(const char *fmt, ...)
@@ -1148,7 +1171,7 @@ static void loop(struct mstate *st, const struct tree_publication *p)
 	}
 }
 
-static void run(void)
+static bool run(void)
 {
 	const struct tree_publication *walk[NSEG + 1];
 	const char *names[NSEG + 1];
@@ -1175,7 +1198,7 @@ static void run(void)
 		memset(st.hist, 0, 32);
 	if (!checked() ||
 	    follows_pub(&fetched, fetched_manifest, have ? &st : NULL) < 0)
-		return;
+		return false;
 	want_write(W_TRUNCATE, 0, st.last_seq, NULL, NULL);
 	/* Back to the segment the cursor lies in. */
 	cursor = st.last_seq;
@@ -1185,13 +1208,13 @@ static void run(void)
 		int s;
 
 		if (!within(succ->base_seq, cursor))
-			return;
+			return false;
 		s = served(succ->segment_manifest_digest[0]);
 		if (s < 0)
-			return;
+			return false;
 		if (!checked_pub(served_pub(s)) ||
 		    !precedes(served_pub(s), served_name(s), succ))
-			return;
+			return false;
 		__CPROVER_assert(n <= NSEG, "a walk passes each segment once");
 		walk[n] = served_pub(s);
 		names[n++] = served_name(s);
@@ -1203,9 +1226,9 @@ static void run(void)
 
 		if (follows_pub(p, names[k], have ? &st : NULL) ||
 		    !history_ok(p, &st))
-			return;
+			return false;
 		if (k == n - 1 && !recover_in(&st, p))
-			return;
+			return false;
 		st.generation = p->generation;
 		copy_short(st.manifest, names[k]);
 		st.head_seq = p->head_seq;
@@ -1215,6 +1238,7 @@ static void run(void)
 		loop(&st, p);
 	}
 	want_write(W_STATE, 0, 0, NULL, &st);
+	return true;
 }
 
 /*
@@ -1349,6 +1373,8 @@ static void any_replay_root(void)
 void harness(void)
 {
 	__u32 first_failure;
+	bool accepted;
+	int ret;
 
 	fail_at = first_failure;
 	any_node();
@@ -1359,8 +1385,10 @@ void harness(void)
 #endif
 	any_publication();
 	any_replay_root();
-	run();
-	cmd_bpm_tree_sync(false, NULL);
+	accepted = run();
+	ret = cmd_bpm_tree_sync(false, NULL);
 	__CPROVER_assert(failed || n_got == n_want,
 			 "all of them when nothing fails");
+	__CPROVER_assert(failed || (ret == 0) == accepted,
+			 "a refusal exactly where the model refuses");
 }

@@ -276,8 +276,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        both roots, and the state written at acceptance with the
        publication's head and base included; a publication whose base
        or prefix is not the node's history writes nothing past the cut;
-       nothing is written after a failure and every expected write
-       happens when nothing fails
+       nothing is written after a failure or a refusal, every expected
+       write happens when nothing fails, and sync refuses exactly what
+       the model refuses
    * - ``bpm-tree-sync-application``
      - ``cmd_bpm_tree_sync()``
      - Two operations with no pending record; every selector answer
