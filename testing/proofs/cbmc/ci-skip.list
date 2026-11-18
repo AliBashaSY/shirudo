@@ -10,4 +10,3 @@ bpm-tree-sync-walk		no result after 7 hours, past 15 GB
 bpm-tree-recovery-model		76 to 97 minutes, once no result in 2 hours
 upatch-prog-uprobes		12 GB at its peak
 bpm-tree-state-match		11 GB at its peak, for labels read from /etc
-config-evidence-collect		7 GB at its peak

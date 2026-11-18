@@ -19,7 +19,12 @@
 #pragma CPROVER check pop
 #include "../../../util/config_attest.c"
 
-static const struct config_update_record *journal, *selection;
+/*
+ * Each record is an object of its own, as the reader hands them over one at
+ * a time: in one object of 8 KB, a read through a pointer CBMC keeps
+ * symbolic, as history()'s last, could be any byte of it.
+ */
+static const struct config_update_record *journal[LEN + 1], *selection;
 static int check_result, read_result;
 static __u8 last_digest[32];
 static bool hash_failed;
@@ -59,7 +64,7 @@ int config_update_events(struct config_update *update,
 	int ret;
 
 	for (i = 0; i < LEN; i++) {
-		ret = consume(&journal[i], ctx);
+		ret = consume(journal[i], ctx);
 		if (ret)
 			return ret;
 	}
@@ -113,23 +118,41 @@ static bool history(size_t *n)
 
 	*n = 0;
 	for (i = 0; i < LEN; i++) {
-		if (!this_boot(&journal[i]))
+		if (!this_boot(journal[i]))
 			continue;
-		if (!agrees(&journal[i]) || !journal[i].sequence ||
-		    journal[i].kind != (last ? CONFIG_EVENT_UPDATE :
-					       CONFIG_EVENT_BOOT) ||
-		    (last && journal[i].sequence - last->sequence != 1))
+		if (!agrees(journal[i]) || !journal[i]->sequence ||
+		    journal[i]->kind != (last ? CONFIG_EVENT_UPDATE :
+						CONFIG_EVENT_BOOT) ||
+		    (last && journal[i]->sequence - last->sequence != 1))
 			return false;
-		last = &journal[i];
+		last = journal[i];
 		(*n)++;
 	}
 	return last && last->sequence == selection->sequence &&
 	       same(last->target.root_hash, selection->target.root_hash);
 }
 
+/*
+ * The record of this boot that comes at-th, in the journal's order, so that
+ * check_exported() reads events[] at an index CBMC knows.
+ */
+static const struct config_update_record *this_boot_at(size_t at)
+{
+	size_t i, seen = 0;
+
+	for (i = 0; i < LEN; i++) {
+		if (!this_boot(journal[i]))
+			continue;
+		if (seen++ == at)
+			return journal[i];
+	}
+	return NULL;
+}
+
 static void check_exported(const struct config_evidence *view, size_t n)
 {
-	size_t i, at = 0;
+	const struct config_update_record *record;
+	size_t at;
 
 	__CPROVER_assert(view->present && view->pcr == selection->pcr &&
 			 view->reset_count == selection->reset_count &&
@@ -138,16 +161,14 @@ static void check_exported(const struct config_evidence *view, size_t n)
 			 "the selection's PCR, TPM boot and initial value");
 	__CPROVER_assert(view->n_events == n && n <= view->capacity,
 			 "this boot's records and no other, inside their room");
-	for (i = 0; i < LEN; i++) {
-		if (!this_boot(&journal[i]))
-			continue;
-		__CPROVER_assert(view->events[at].sequence ==
-				 journal[i].sequence &&
-				 view->events[at].kind == journal[i].kind &&
+	for (at = 0; at < LEN && at < n; at++) {
+		record = this_boot_at(at);
+		__CPROVER_assert(record &&
+				 view->events[at].sequence == record->sequence &&
+				 view->events[at].kind == record->kind &&
 				 same(view->events[at].root_hash,
-				      journal[i].target.root_hash),
+				      record->target.root_hash),
 				 "each as the journal has it, in its order");
-		at++;
 	}
 	__CPROVER_assert(same(view->value, last_digest),
 			 "the value after the last event");
@@ -158,10 +179,11 @@ void harness(void)
 	struct config_update update, *given = NULL;
 	struct config_evidence view;
 	bool attested, whole;
-	size_t n;
+	size_t i, n;
 	int ret;
 
-	journal = any_bytes(LEN * sizeof(*journal));
+	for (i = 0; i < LEN; i++)
+		journal[i] = any_bytes(sizeof(*journal[i]));
 	selection = any_bytes(sizeof(*selection));
 	check_result = any_result();
 	read_result = any_result();
