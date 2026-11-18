@@ -76,7 +76,7 @@ int hex_decode_max(const char *hex, __u8 *out, size_t cap, size_t *len)
 	size_t n = strnlen(hex, size_add(size_mul(cap, 2), 1));
 	int ret;
 
-	if (n % 2 || n / 2 > cap)
+	if (n % 2)
 		return -EINVAL;
 	ret = hex_decode(hex, out, n / 2);
 	if (!ret)

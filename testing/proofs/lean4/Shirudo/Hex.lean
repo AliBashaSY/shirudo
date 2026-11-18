@@ -73,7 +73,7 @@ def decode (s : List Nat) (n : Nat) : Option (List Nat) :=
 length of what it yields is `*len`. -/
 def decodeMax (s : List Nat) (cap : Nat) : Option (List Nat) :=
   let n := min s.length (sizeAdd (sizeMul cap 2) 1)
-  if n % 2 ≠ 0 ∨ n / 2 > cap then none else decode s (n / 2)
+  if n % 2 ≠ 0 then none else decode s (n / 2)
 
 /-- A hex digit of either case. -/
 def isHex (c : Nat) : Bool := (nibble c).isSome

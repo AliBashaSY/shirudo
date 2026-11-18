@@ -126,7 +126,7 @@ static void decode_max_is_model(bool huge)
 	s = any_string(len);
 	ret = hex_decode_max(s, out, cap, &n);
 	k = min(len, model_size_add(model_size_mul(cap, 2), 1));
-	model = !(k % 2) && k / 2 <= cap && model_decode(s, len, k / 2, want);
+	model = !(k % 2) && model_decode(s, len, k / 2, want);
 	__CPROVER_assert(ret == (model ? 0 : -EINVAL), "decodeMax's result");
 	if (!ret)
 		__CPROVER_assert(n == k / 2 && !memcmp(out, want, n),
