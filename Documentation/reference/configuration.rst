@@ -15,6 +15,9 @@ reader applies. ``shirudo config`` prints the settings in effect, see
 Files
 -----
 
+Each authenticated file is vouched for by the one before it, from the
+signed UKI on, as Figure 1 shows.
+
 .. list-table::
    :header-rows: 1
    :widths: 26 34 40
@@ -24,8 +27,8 @@ Files
      - Authenticated by
    * - Initrd bootstrap
      - ``/etc/shirudo/shirudo.conf`` inside the initrd
-     - The signature of the UKI that carries the initrd, checked by the
-       boot chain. shirudo does not verify it itself.
+     - The UKI's Secure Boot signature, checked by the boot chain, not
+       by shirudo
    * - Runtime bootstrap
      - ``etc/shirudo/shirudo.conf`` in the runtime image, read at
        ``/run/shirudo/runtime/etc/shirudo/shirudo.conf``
@@ -52,6 +55,21 @@ The two bootstrap files are different files with different required
 keys. ``shirudo-gen-initrd --bootstrap-conf <file>`` embeds the initrd
 bootstrap. ``shirudo-gen-runtime --bootstrap-conf <file>`` installs the
 runtime bootstrap into the runtime image. See :doc:`/reference/cli/gen-tools`.
+
+.. figure:: /images/reference-config-chain.svg
+   :alt: The UKI, signed for Secure Boot, carries the initrd's bootstrap
+         with runtime.image, runtime.root_hash and tpm settings. Its root
+         hash pins the runtime image, whose runtime bootstrap holds
+         config.image, config.verification_key, config.pcr and the tpm
+         and tls settings, beside the config certificates.
+         config.image selects the config image and the certificates
+         verify its signed root; the config image holds eventlog and
+         map_export settings, repositories, the upatch tree, node labels
+         and keys. The host file and the unit environment files are not
+         authenticated.
+
+   Figure 1. Where a target's settings come from, and what authenticates
+   each file.
 
 Bootstrap keys
 --------------

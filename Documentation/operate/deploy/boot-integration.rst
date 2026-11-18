@@ -14,11 +14,24 @@ holds the trusted ``shirudo`` binary, and a signed config image that
 holds the settings you may change later. This page takes one target
 from operator keys to a verified first boot.
 
-The procedure builds the images on the operator host, places them on the
-target, generates the initrd with the shirudo dracut module, and builds a
-signed UKI that carries the initrd and the kernel command line.
+Figure 1 shows what you build on which host and where each file goes.
 :doc:`/internals/boot-flow` explains what happens at boot, and
 :doc:`/internals/config-images` explains the images.
+
+.. figure:: /images/operate-boot-artifacts.svg
+   :alt: Three hosts. On the operator host, shirudo-gen-image builds the
+         config image from config-root, shirudo-gen-runtime builds the
+         runtime image and runtime-service.conf, and you write
+         uki-bootstrap.conf from runtime.roothash. Arrows copy the images
+         to /var/lib/shirudo/images on the target, runtime-service.conf
+         to the drop-in of shirudo.service, and uki-bootstrap.conf to
+         shirudo-gen-initrd, which builds the initrd. The initrd and the
+         kernel image go to the Secure Boot signing host, which builds
+         the UKI with the keyring parameters, and the signed UKI returns
+         to the target.
+
+   Figure 1. What boot integration builds on each host. An arrow between
+   hosts is a copy you make.
 
 Before you begin
 ----------------
@@ -75,10 +88,25 @@ A target reads two different bootstrap files. Both are called
      - Required: ``runtime.image``, ``runtime.root_hash``. Optional:
        ``tpm.owner_auth``.
 
-You write the runtime bootstrap file first, because it goes into the
-runtime image. The UKI bootstrap file names the root hash of that image,
-so you can write it only after the runtime image exists.
-:doc:`/reference/configuration` describes every key.
+At boot each file authenticates the next, as Figure 2 shows. Write the
+runtime bootstrap file first: the UKI bootstrap file names the root hash
+of the runtime image that carries it. :doc:`/reference/configuration`
+describes every key.
+
+.. figure:: /images/reference-config-chain.svg
+   :alt: The UKI, signed for Secure Boot, carries the initrd's bootstrap
+         with runtime.image, runtime.root_hash and tpm settings. Its root
+         hash pins the runtime image, whose runtime bootstrap holds
+         config.image, config.verification_key, config.pcr and the tpm
+         and tls settings, beside the config certificates.
+         config.image selects the config image and the certificates
+         verify its signed root; the config image holds eventlog and
+         map_export settings, repositories, the upatch tree, node labels
+         and keys. The host file and the unit environment files are not
+         authenticated.
+
+   Figure 2. Where a target's settings come from, and what authenticates
+   each file.
 
 When the TPM owner hierarchy has a password, set ``tpm.owner_auth`` in
 both files. Init reads it from the UKI file when it creates the TPM
@@ -122,10 +150,10 @@ and accepts only ``eventlog.max_bytes`` and ``map_export.*`` keys.
           --keys-dir <config-keys-dir> --kind config
 
    ``<config-keys-dir>`` holds ``signing_key.pem`` and ``cert.der`` of the
-   config signing key. The generator writes ``initial.img``,
-   ``initial.verity``, ``initial.roothash`` and ``initial.p7s`` and
-   prints the root hash. It refuses to overwrite existing files and a
-   source tree that holds a private key, a symbolic link or a special file.
+   config signing key. The generator writes the four ``initial.*`` files
+   of Figure 1 and prints the root hash. It refuses to overwrite existing
+   files and a source tree that holds a private key, a symbolic link or a
+   special file.
 
 4. Check the signature offline:
 
@@ -173,10 +201,9 @@ Build the runtime image
 
    ``<target-binary>`` is the static target binary. ``<bpf-cert>`` is the
    primary BPF signing certificate, which the image carries as
-   ``keys/cert.der``. The generator writes ``runtime.img``,
-   ``runtime.verity``, ``runtime.roothash`` and ``runtime.p7s``, prints the
-   root hash on standard output and the runtime invocation on standard
-   error, and writes the drop-in to ``runtime-service.conf``.
+   ``keys/cert.der``. The generator writes the four ``runtime.*`` files
+   and the drop-in of Figure 1, prints the root hash on standard output
+   and the runtime invocation on standard error.
 
    Every executable on the runtime image runs with shirudo's authority.
    Add one with ``--extra-binary`` only when it should have that
