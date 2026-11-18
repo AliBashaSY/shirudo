@@ -139,6 +139,35 @@ images with the ``--size`` option of ``shirudo-gen-image``.
 Recover a target
 ----------------
 
+Find the state from what the target shows, then follow its section.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 44 30 26
+
+   * - What you see
+     - State
+     - Way out
+   * - ``reboot-pending``, ``Pending: yes`` from ``image status``, and
+       ``shirudo: image state: Operation now in progress`` from other
+       commands
+     - `A config activation is pending`_
+     - Reboot.
+   * - The same, with ``init: boot-restore failed`` or ``init:
+       incomplete`` in the journal of this boot
+     - :ref:`backup-recovery-init-failed`
+     - Fix the cause and reboot.
+   * - ``boot-restore: failed to apply <file>`` at every boot
+     - :ref:`boot-restore-lockout`
+     - Boot the previous kernel, remove the upatch, boot the new one. If
+       no kernel loads it, decommission.
+   * - ``tampered`` with ``the config activation record does not belong
+       to this TPM boot``, and ``shirudo: image state: Stale file
+       handle``
+     - `TPM reset or restarted without a reboot`_
+     - Reboot if you know the TPM was reset; otherwise handle an
+       incident first.
+
 A config activation is pending
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
