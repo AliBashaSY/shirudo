@@ -206,9 +206,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        hex in either case
    * - ``bpm-source-config``
      - ``bpm_parse_source_line()``, ``bpm_parse_tree_line()``
-     - Lines up to 12 bytes
-     - A setting written only for its exact key and terminated, without
-       CR or LF
+     - Lines up to 22 bytes, settings of 4 bytes with their NUL
+     - A setting written only for its exact key, holding the text after
+       the first ``=``: a source one without the blanks before it, cut
+       at CR or LF, a tree one without the blanks around it or its
+       quotes; ``-E2BIG`` exactly when it does not fit, ``-EINVAL`` for
+       an open quote
    * - ``bpm-state-entry``
      - ``on_state_entry()`` of :src:`util/bpm_state.c`
      - Any entry with a name and version of up to 6 bytes, into an empty
