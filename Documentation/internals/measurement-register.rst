@@ -269,13 +269,17 @@ Revocations a config carries at boot are not individual events; the
 ``init`` event's trust set reflects them.
 
 Lean 4 proves that these encodings tell every two events apart, for
-upatch names of every length ``upatch_name_valid()`` takes and every
-sequence number, and that the ``init`` listing spells one set of distinct
-names whatever order ``qsort()`` leaves. With the register's fold, equal
-registers then come from the same events in the same order unless
-SHA-256 collides among the strings the two histories hash. CBMC shows
-that :src:`util/chain.c` hashes exactly the bytes the model encodes. The
-proofs are in :doc:`/contribute/testing/proof-coverage`.
+upatch names of every length ``upatch_name_valid()`` takes, load and
+unload names of 1 to 256 bytes as ``attest predict`` takes them, and
+every sequence number, and that the ``init`` listing spells one set of
+distinct names whatever order ``qsort()`` leaves. With the register's
+fold, equal registers then come from the same events in the same order
+unless SHA-256 collides among the strings the two histories hash. For
+``attest verify`` it proves more: whatever extended the register, the
+values it folded in were the digests of the events the verifier
+expects, unless SHA-256 collides among the strings of the two folds.
+CBMC shows that :src:`util/chain.c` hashes exactly the bytes the model
+encodes. The proofs are in :doc:`/contribute/testing/proof-coverage`.
 
 Eventlog
 --------

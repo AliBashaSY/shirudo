@@ -57,8 +57,18 @@ the same typed events, in the same order. Read the other way
 (`replay_collision`), two different histories that reach one register
 hold a SHA-256 collision among the strings they hash, or a string that
 hashes to 32 zero bytes: the result rests on SHA-256 alone.
-`replay_injective` states it for an idealized injective hash, and
-`verify_sound` as `attest verify` uses it.
+`replay_injective` states it for an idealized injective hash, which no
+function onto 32-byte digests is, so it holds of none.
+
+`verify_sound` states it as `attest verify` uses it, for whatever
+extended the register: the 32-byte values the TPM folded in were the
+digests of the events the operator expects, unless SHA-256 collides on
+the 64-byte strings of the two folds, so it asks nothing of the target's
+events, nor that shirudo alone extended the register. `verify_events`
+shows the digests name those events, loads and unloads of any name
+`attest predict --event` takes, 1 to 256 bytes, included, and
+`verify_history` puts the two together for a target that extended
+events.
 -/
 
 namespace Shirudo.Events
@@ -615,6 +625,27 @@ def Event.Admitted : Event → Prop
   | .keyRevoke _ => True
   | .tree s _ => S64 s
 
+/-- The events the operator can expect: `attest predict --event` takes a
+load or an unload of a name of 1 to 256 bytes, those before the first
+`=`, which need only fit, and a tree operation of a sequence number a
+`__s64` holds; an init event's set passes `measured_set_add()`, whose
+names `upatch_name_valid()` accepts. Every admitted event is one. -/
+def Event.Predicted : Event → Prop
+  | .init _ s _ => ∀ m ∈ s, NameAdmitted m.name
+  | .load n _ => NameFits n
+  | .unload n _ => NameFits n
+  | .keyRevoke _ => True
+  | .tree s _ => S64 s
+
+theorem Event.Admitted.predicted {e : Event} (h : e.Admitted) :
+    e.Predicted := by
+  cases e with
+  | init => exact h
+  | load n p => exact NameAdmitted.fits h
+  | unload n p => exact NameAdmitted.fits h
+  | keyRevoke => trivial
+  | tree s o => exact h
+
 variable (sha : List UInt8 → Digest)
 
 /-- What the C hashes for `e`, the init event's listing hashed into its
@@ -674,22 +705,31 @@ theorem Event.admitted_fields {e : Event} (h : e.Admitted) :
   | keyRevoke => trivial
   | tree s o => exact h
 
+theorem Event.predicted_fits {e : Event} (h : e.Predicted) :
+    (e.fields sha).Fits := by
+  cases e with
+  | init => trivial
+  | load n p => exact h
+  | unload n p => exact h
+  | keyRevoke => trivial
+  | tree s o => exact h
+
 theorem Event.bytes_mem_inputs (e : Event) :
     (e.fields sha).bytes ∈ e.inputs sha := by
   cases e <;> simp [Event.inputs]
 
-/-- Two admitted events with one digest are the same event, unless
-SHA-256 maps two different strings among those the events hash to one
-digest. -/
-theorem Event.digest_injective_on (a b : Event) (ha : a.Admitted)
-    (hb : b.Admitted)
+/-- Two events the operator can expect with one digest are the same
+event, unless SHA-256 maps two different strings among those the events
+hash to one digest. -/
+theorem Event.digest_injective_on (a b : Event) (ha : a.Predicted)
+    (hb : b.Predicted)
     (hsha : ∀ m ∈ a.inputs sha ++ b.inputs sha,
       ∀ m' ∈ a.inputs sha ++ b.inputs sha, sha m = sha m' → m = m')
     (h : a.digest sha = b.digest sha) : a = b := by
   have hbytes := hsha _ (List.mem_append_left _ (a.bytes_mem_inputs sha))
     _ (List.mem_append_right _ (b.bytes_mem_inputs sha)) h
-  have hf := bytes_injective (a.admitted_fields sha ha)
-    (b.admitted_fields sha hb) hbytes
+  have hf := bytes_injective_of_fits (a.predicted_fits sha ha)
+    (b.predicted_fits sha hb) hbytes
   cases a <;> cases b <;> simp only [Event.fields, reduceCtorEq] at hf
   case init.init c s r c' s' r' =>
     simp only [Fields.init.injEq] at hf
@@ -740,7 +780,8 @@ theorem replay_injective_on (l1 l2 : List Event)
     h
   rw [List.reverse_inj] at hregs
   exact Chain.map_injective_on _ l1 l2
-    (fun a ha b hb hab => Event.digest_injective_on sha a b (h1 a ha) (h2 b hb)
+    (fun a ha b hb hab => Event.digest_injective_on sha a b
+      (h1 a ha).predicted (h2 b hb).predicted
       (fun m hm m' hm' => hsha m
         (by
           rcases List.mem_append.mp hm with hm | hm
@@ -783,17 +824,85 @@ theorem replay_injective (hsha : ∀ m m', sha m = sha m' → m = m')
   replay_injective_on sha l1 l2 h1 h2 (fun m _ m' _ => hsha m m')
     (fun m _ => hzero m) h
 
+/-- The 64-byte strings SHA-256 is given on the way from the zero
+register to the fold of `ds`, oldest first. -/
+def foldInputs (ds : List Digest) : List (List UInt8) :=
+  (Chain.steps (fold sha) Digest.zero ds.reverse).map
+    fun p => p.1.bytes ++ p.2.bytes
+
 /-- What `attest verify` concludes. The evidence's records carry digests
 `ds`: the init record's equals the init event the operator expects for
 the certificates, set and tree root given, and each later record's
 derives from its fields, so `ds` are the digests of `expected`. They
-replay to the register the TPM certified, which the TPM extended by the
-target's `history`. Then the target measured exactly `expected`, unless
-SHA-256 collides on the strings the two hash or maps one to zero. -/
-theorem verify_sound (expected history : List Event) (ds : List Digest)
+replay to the register the TPM certified. Whatever extended that
+register, with whatever 32-byte values `hs`, those were the digests of
+`expected` in that order, unless SHA-256 maps two different strings of
+the two folds to one digest or one of them to the zero register. -/
+theorem verify_sound (expected : List Event) (ds hs : List Digest)
     (value : Digest)
-    (hexpected : ∀ e ∈ expected, e.Admitted)
-    (hhistory : ∀ e ∈ history, e.Admitted)
+    (hderive : ds = expected.map (Event.digest sha))
+    (hreplay : ds.foldl (fold sha) Digest.zero = value)
+    (hcertified : hs.foldl (fold sha) Digest.zero = value)
+    (hsha : ∀ m ∈ foldInputs sha ds ++ foldInputs sha hs,
+      ∀ m' ∈ foldInputs sha ds ++ foldInputs sha hs,
+        sha m = sha m' → m = m')
+    (hzero : ∀ m ∈ foldInputs sha ds ++ foldInputs sha hs,
+      sha m ≠ Digest.zero) :
+    hs = expected.map (Event.digest sha) := by
+  have hmem : ∀ (l : List Digest) p,
+      p ∈ Chain.steps (fold sha) Digest.zero l.reverse →
+      p.1.bytes ++ p.2.bytes ∈ foldInputs sha l :=
+    fun l p hp => List.mem_map.2 ⟨p, hp, rfl⟩
+  have h : Chain.register (fold sha) Digest.zero ds.reverse =
+      Chain.register (fold sha) Digest.zero hs.reverse := by
+    rw [Chain.register_eq_foldl, Chain.register_eq_foldl,
+      List.reverse_reverse, List.reverse_reverse, hreplay, hcertified]
+  have hregs := Chain.register_injective_on (fold sha) Digest.zero _ _
+    (fun p hp q hq hpq => by
+      have he := hsha _ (List.mem_append_left _ (hmem ds p hp))
+        _ (List.mem_append_right _ (hmem hs q hq)) hpq
+      obtain ⟨h1', h2'⟩ := split_digest he
+      exact Prod.ext h1' (Digest.ext_bytes h2'))
+    (fun p hp => by
+      rcases List.mem_append.mp hp with hp | hp
+      · exact hzero _ (List.mem_append_left _ (hmem ds p hp))
+      · exact hzero _ (List.mem_append_right _ (hmem hs p hp)))
+    h
+  rw [List.reverse_inj] at hregs
+  rw [← hregs, hderive]
+
+/-- The digests name the events: two lists of events the operator can
+expect with the same digests are the same list, unless SHA-256 maps two
+different strings the events hash to one digest. -/
+theorem verify_events (l1 l2 : List Event)
+    (h1 : ∀ e ∈ l1, e.Predicted) (h2 : ∀ e ∈ l2, e.Predicted)
+    (hsha : ∀ m ∈ l1.flatMap (Event.inputs sha) ++
+        l2.flatMap (Event.inputs sha),
+      ∀ m' ∈ l1.flatMap (Event.inputs sha) ++ l2.flatMap (Event.inputs sha),
+        sha m = sha m' → m = m')
+    (h : l1.map (Event.digest sha) = l2.map (Event.digest sha)) : l1 = l2 :=
+  Chain.map_injective_on _ l1 l2
+    (fun a ha b hb hab => Event.digest_injective_on sha a b (h1 a ha) (h2 b hb)
+      (fun m hm m' hm' => hsha m
+        (by
+          rcases List.mem_append.mp hm with hm | hm
+          · exact List.mem_append_left _ (List.mem_flatMap.2 ⟨a, ha, hm⟩)
+          · exact List.mem_append_right _ (List.mem_flatMap.2 ⟨b, hb, hm⟩))
+        m'
+        (by
+          rcases List.mem_append.mp hm' with hm' | hm'
+          · exact List.mem_append_left _ (List.mem_flatMap.2 ⟨a, ha, hm'⟩)
+          · exact List.mem_append_right _ (List.mem_flatMap.2 ⟨b, hb, hm'⟩)))
+      hab)
+    h
+
+/-- `verify_sound` for a target that extended the register by events: it
+measured exactly `expected`, in that order, unless SHA-256 collides on
+the strings the two hash or maps a fold to the zero register. -/
+theorem verify_history (expected history : List Event) (ds : List Digest)
+    (value : Digest)
+    (hexpected : ∀ e ∈ expected, e.Predicted)
+    (hhistory : ∀ e ∈ history, e.Predicted)
     (hderive : ds = expected.map (Event.digest sha))
     (hreplay : ds.foldl (fold sha) Digest.zero = value)
     (hcertified : replay sha history = value)
@@ -803,8 +912,34 @@ theorem verify_sound (expected history : List Event) (ds : List Digest)
     (hzero : ∀ m ∈ inputs sha expected ++ inputs sha history,
       sha m ≠ Digest.zero) :
     expected = history := by
-  apply replay_injective_on sha expected history hexpected hhistory hsha hzero
-  rw [hcertified, ← hreplay, hderive, List.foldl_map]
-  rfl
+  have hin : ∀ (l : List Event) m,
+      m ∈ foldInputs sha (l.map (Event.digest sha)) → m ∈ inputs sha l :=
+    fun l m hm => List.mem_append_right _ hm
+  have hev : ∀ (l : List Event) m, m ∈ l.flatMap (Event.inputs sha) →
+      m ∈ inputs sha l :=
+    fun l m hm => List.mem_append_left _ hm
+  have hsub : ∀ m, m ∈ foldInputs sha ds ++
+      foldInputs sha (history.map (Event.digest sha)) →
+      m ∈ inputs sha expected ++ inputs sha history := by
+    intro m hm
+    rcases List.mem_append.mp hm with hm | hm
+    · rw [hderive] at hm
+      exact List.mem_append_left _ (hin expected m hm)
+    · exact List.mem_append_right _ (hin history m hm)
+  have hd := verify_sound sha expected ds (history.map (Event.digest sha))
+    value hderive hreplay
+    (by rw [← hcertified, replay, List.foldl_map])
+    (fun m hm m' hm' => hsha m (hsub m hm) m' (hsub m' hm'))
+    (fun m hm => hzero m (hsub m hm))
+  refine verify_events sha expected history hexpected hhistory ?_ hd.symm
+  intro m hm m' hm'
+  have hsub' : ∀ x, x ∈ expected.flatMap (Event.inputs sha) ++
+      history.flatMap (Event.inputs sha) →
+      x ∈ inputs sha expected ++ inputs sha history := by
+    intro x hx
+    rcases List.mem_append.mp hx with hx | hx
+    · exact List.mem_append_left _ (hev expected x hx)
+    · exact List.mem_append_right _ (hev history x hx)
+  exact hsha m (hsub' m hm) m' (hsub' m' hm')
 
 end Shirudo.Events

@@ -1072,14 +1072,20 @@ the model follows the C.
        when they are the same event; ``listing_injective``: the init
        event's listing spells one set while no name holds a newline;
        ``sorts_unique``: ``qsort()`` leaves a set of distinct names in one
-       order; ``replay_injective_on``, ``replay_collision``,
-       ``verify_sound``: equal registers come from the same typed events in
-       the same order, or the strings hashed hold a SHA-256 collision or a
-       string that hashes to zero; ``upatch_cut``, ``listing_newline``,
-       ``sorts_tie``: where the domain ends
-     - SHA-256 maps no two different strings the two histories hash to one
-       digest and none to 32 zero bytes; names ``upatch_name_valid()``
-       accepts of at most 256 bytes; sequence numbers of a ``__s64``
+       order; ``replay_injective_on``, ``replay_collision``: equal
+       registers come from the same typed events in the same order, or
+       the strings hashed hold a SHA-256 collision or a string that
+       hashes to zero; ``verify_sound``: whatever extended the register
+       the TPM certified, the values it folded in were the digests of
+       the events ``attest verify`` expects, in order, or the strings the
+       two folds hash hold such a collision; ``verify_events``,
+       ``verify_history``: those digests name the events; ``upatch_cut``,
+       ``listing_newline``, ``sorts_tie``: where the domain ends
+     - SHA-256 maps no two different strings the histories hash to one
+       digest and none to 32 zero bytes, for ``verify_sound`` only the
+       64-byte strings of the folds; names ``upatch_name_valid()``
+       accepts, and for a load or an unload ``attest predict`` expects
+       any name of 1 to 256 bytes; sequence numbers of a ``__s64``
      - CBMC, ``chain-events``, names of up to 8 and of 255 to 257 bytes;
        the listing of a non-empty set and the NV extend by review
    * - ``Shirudo.Measured``, ``measured_event()`` of :src:`util/measured.c`
