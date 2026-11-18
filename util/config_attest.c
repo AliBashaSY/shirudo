@@ -73,8 +73,7 @@ static int collect_event(const struct config_update_record *record,
 	struct config_evidence_event event = {};
 	struct config_evidence *view = opaque;
 
-	if (record->reset_count != view->reset_count ||
-	    record->restart_count != view->restart_count)
+	if (record->reset_count != view->reset_count)
 		return 0;
 	if (record->pcr != view->pcr || record->sequence > INT64_MAX ||
 	    memcmp(record->initial_pcr, view->initial_pcr, 32))
@@ -262,7 +261,7 @@ fail:
 
 int config_evidence_verify(const struct config_evidence *view,
 			   __u32 quote_mask, __u32 reset,
-			   __u32 restart, const __u8 pcrs[24][32],
+			   const __u8 pcrs[24][32],
 			   const __u8 *expected_root,
 			   int expected_pcr, const char **reason)
 {
@@ -280,7 +279,7 @@ int config_evidence_verify(const struct config_evidence *view,
 		*reason = "config PCR is unquoted or unexpected";
 		return -EKEYREJECTED;
 	}
-	if (view->reset_count != reset || view->restart_count != restart) {
+	if (view->reset_count != reset) {
 		*reason = "config history belongs to another TPM boot";
 		return -EKEYREJECTED;
 	}

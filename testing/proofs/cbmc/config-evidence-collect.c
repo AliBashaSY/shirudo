@@ -93,10 +93,10 @@ static bool blank(const struct config_evidence *view)
 	       !view->present;
 }
 
+/* A TPM boot is its reset count: a restart or a resume goes on in it. */
 static bool this_boot(const struct config_update_record *record)
 {
-	return record->reset_count == selection->reset_count &&
-	       record->restart_count == selection->restart_count;
+	return record->reset_count == selection->reset_count;
 }
 
 /* On the selection's PCR, from its initial value, a sequence in a __s64. */

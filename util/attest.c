@@ -235,7 +235,6 @@ int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	    (tpm_attest_parse(quote.attest, quote.attest_len,
 				      &quoted) ||
 	     quoted.reset_count != config.reset_count ||
-	     quoted.restart_count != config.restart_count ||
 	     memcmp(values[config.pcr],
 		    config.value, 32))) {
 		ret = -EUCLEAN;
@@ -1130,7 +1129,6 @@ static void verify_config(struct verify *v)
 	pcr = expect->have_config_pcr ? (int)expect->config_pcr : -1;
 	ret = config_evidence_verify(&v->config, quote->pcr_mask,
 				     quote->reset_count,
-				     quote->restart_count,
 				     v->p->pcrs, root, pcr,
 				     &reason);
 	say(rep, !ret, "config: %s", reason);

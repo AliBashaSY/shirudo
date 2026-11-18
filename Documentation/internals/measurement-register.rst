@@ -578,11 +578,14 @@ first event of a TPM boot records the PCR's value before it as
 records the sequence, the TPM's reset and restart counts and the root of
 each event. :doc:`config-images` explains activation.
 
-Evidence includes the config PCR in the quote and the config history.
-``verify`` with ``--expect-config-root`` and ``--expect-config-pcr``
-derives each event digest, requires one boot event followed by updates in
-sequence for the quoted TPM boot, a replay from ``initial_pcr`` that
-reaches the quoted PCR value, and the expected root as the selection.
+Evidence includes the config PCR in the quote and the config history:
+the events of the TPM's reset count, which a resume or a TPM restart
+keeps. ``verify`` with ``--expect-config-root`` and
+``--expect-config-pcr`` derives each event digest, requires one boot
+event followed by updates in sequence for the quote's reset count, a
+replay from ``initial_pcr`` that reaches the quoted PCR value, and the
+expected root as the selection. The restart count the history carries is
+not compared.
 
 Limits
 ------

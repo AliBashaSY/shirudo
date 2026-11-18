@@ -136,7 +136,7 @@ def flip_hex(value):
 save("event-root", lambda d: event(d).__setitem__("root_hash", flip_hex(event(d)["root_hash"])))
 for key in ("sequence", "kind"):
     save("event-" + key, lambda d, key=key: event(d).__setitem__(key, event(d)[key] + 1))
-for key in ("schema", "reset_count", "restart_count", "pcr"):
+for key in ("schema", "reset_count", "pcr"):
     save("meta-" + key, lambda d, key=key: d["config"].__setitem__(key, d["config"][key] + 1))
 save("initial-pcr", lambda d: d["config"].__setitem__("initial_pcr", "55" * 32))
 save("missing-field", lambda d: event(d).pop("root_hash"))

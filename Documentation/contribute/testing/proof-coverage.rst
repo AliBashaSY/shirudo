@@ -921,7 +921,7 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        every quote mask, TPM boot, PCR value and expectation; SHA-256 as
        any digest or failure
      - Passes exactly when the PCR is one from 0 to 15 but 9 and 11,
-       quoted and the expected one, the TPM boot the quote's, the events
+       quoted and the expected one, the reset count the quote's, the events
        one boot event then updates in sequence, the quoted value the
        initial one extended by each event's digest in order, and the last
        root the expected one; a digest hashes the tag, the kind and the
@@ -930,7 +930,7 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``config_evidence_collect()``, ``collect_event()``
      - Every journal of 0 to 2 records and every active selection, the
        journal's reader a stub that may fail; SHA-256 as any result
-     - Exports exactly the records of the selection's TPM boot, in order,
+     - Exports exactly the records of the selection's reset count, in order,
        when they are on its PCR from its initial value, one boot event
        then updates in sequence, and end at the selection; a refusal
        returns nothing, with nothing left allocated

@@ -163,7 +163,7 @@ static void replayed(void)
 static void verified(void)
 {
 	bool holds_events, config_pcr, approved, have_root;
-	__u32 quote_mask, reset, restart;
+	__u32 quote_mask, reset;
 	const __u8 *expected_root = NULL;
 	struct config_evidence view;
 	const char *reason = NULL;
@@ -173,7 +173,7 @@ static void verified(void)
 	any_view(&view, &holds_events);
 	if (have_root)
 		expected_root = any_bytes(32);
-	ret = config_evidence_verify(&view, quote_mask, reset, restart, pcrs,
+	ret = config_evidence_verify(&view, quote_mask, reset, pcrs,
 				     expected_root, expected_pcr, &reason);
 	__CPROVER_assert(reason, "a reason either way");
 	if (!view.present) {
@@ -187,7 +187,6 @@ static void verified(void)
 	approved = config_pcr && (quote_mask >> view.pcr & 1) &&
 		   (expected_pcr < 0 || view.pcr == (__u32)expected_pcr) &&
 		   view.reset_count == reset &&
-		   view.restart_count == restart &&
 		   !(expected_root && expected_pcr < 0);
 	if (!approved) {
 		__CPROVER_assert(ret,

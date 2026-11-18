@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 	__u8 pcrs[24][32] = {}, root[32];
 	const char *reason = NULL;
 	const __u8 *expected;
-	__u32 mask, reset, restart;
+	__u32 mask, reset;
 	char *document = NULL;
 	size_t length = 0;
 	int pcr, ret;
@@ -161,11 +161,9 @@ int main(int argc, char **argv)
 		}
 		mask = 1u << (pcr < 0 ? config.pcr : (__u32)pcr);
 		reset = strtoul(argv[5], NULL, 10);
-		restart = strtoul(argv[6], NULL, 10);
 		expected = !strcmp(argv[3], "-") ? NULL : root;
-		ret = config_evidence_verify(&config, mask, reset,
-					     restart, pcrs, expected,
-					     pcr, &reason);
+		ret = config_evidence_verify(&config, mask, reset, pcrs,
+					     expected, pcr, &reason);
 	} else if (strcmp(argv[1], "parse")) {
 		ret = -EINVAL;
 	}
