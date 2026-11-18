@@ -60,7 +60,7 @@ determined, as noted.
    * - ``reason``
      - string or ``null``
      - The reason the human report prints after the verdict, ``null``
-       for ``ok``, see `Reasons`_.
+       for ``ok``, see `Verdicts`_.
    * - ``conditions``
      - array of object
      - Seven conditions, each with ``type``, ``status`` and ``detail``,
@@ -147,92 +147,84 @@ determined, as noted.
      - object
      - The upatch tree, see `upatch_tree`_.
 
+.. _status-json-verdicts:
+
 Verdicts
 --------
 
-``status`` takes the first verdict in this order whose condition holds.
+``status`` takes the first verdict in this order whose condition holds,
+and ``reason`` names the first of its causes that applies, in the order
+of the table. ``reason`` is ``null`` for ``ok``. The third column names
+the condition that is not ``OK`` with it.
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 82
-
-   * - ``status``
-     - Condition
-   * - ``tampered``
-     - The live register differs from the eventlog replay, the archive
-       of a loaded XDP upatch differs from what was loaded, a loaded
-       upatch is missing a link or its archive, a upatch is pinned or
-       archived without a record of this boot, the selected config
-       cannot be verified against its activation records, a keyring
-       ``init`` pinned is gone, the ``.bpf`` or ``.dm-verity`` keyring's
-       serial differs from the pinned serial, a keyring holds a link
-       ``init`` did not freeze, or the config key ``init`` froze is gone
-       from ``.dm-verity``.
-   * - ``lsm-off``
-     - The LSM link is not pinned. Enforcement is off.
-   * - ``init-pending``
-     - No ``.bpf`` keyring is recorded: ``init`` has not completed.
-   * - ``reboot-pending``
-     - A config activation is pending until the next reboot.
-   * - ``degraded``
-     - No register is bound this boot: no TPM answered, or the NV index
-       is not written. Or a device an XDP upatch selects does not run
-       it.
-   * - ``ok``
-     - None of the above.
-
-Reasons
-~~~~~~~
-
-``reason`` is ``null`` for ``ok`` and otherwise one of these strings.
-For ``tampered`` it names the first cause that applies, in the order
-listed. For ``degraded`` it is ``no TPM answered`` when no TPM
-answered, ``no register bound this boot`` when no register is bound,
-else ``a device an XDP upatch selects does not run it``.
-
-.. list-table::
-   :header-rows: 1
-   :widths: 18 82
+   :widths: 16 50 34
 
    * - ``status``
      - ``reason``
+     - Condition
    * - ``tampered``
      - ``live register differs from the eventlog replay``
+     - ``ChainIntact`` ``ALERT``
    * -
      - ``the archive of a loaded XDP upatch differs from what was
        loaded``
+     - ``UpatchesMeasured`` ``ALERT``
    * -
      - ``a loaded upatch is missing a link or its archive``
+     - ``UpatchesMeasured`` ``ALERT``
    * -
      - ``a upatch is pinned or archived without a record of this boot``
+     - ``UpatchesMeasured`` ``ALERT``
    * -
      - ``this boot's records do not fold to the measurement register``
+     - ``UpatchesMeasured`` ``ALERT``
    * -
      - ``the selected config cannot be verified against its records``
+     - ``ConfigActive`` ``ALERT``
    * -
-     - ``the keyring init froze is gone``
+     - ``the keyring init froze is gone``: the ``.bpf`` keyring
+     - ``KeyringSealed`` ``ALERT``
    * -
-     - ``keyring serial swap detected``
+     - ``keyring serial swap detected``: the ``.bpf`` keyring's serial
+       differs from the one ``init`` pinned
+     - ``KeyringSealed`` ``ALERT``
    * -
      - ``the dm-verity keyring init froze is gone``
+     - ``KeyringSealed`` ``ALERT``
    * -
      - ``dm-verity keyring serial swap detected``
+     - ``KeyringSealed`` ``ALERT``
    * -
-     - ``a keyring holds a link init did not freeze``
+     - ``a keyring holds a link init did not freeze``: ``.bpf`` or
+       ``.dm-verity``
+     - ``KeyringSealed`` ``ALERT``
    * -
-     - ``the config key init froze is gone``
+     - ``the config key init froze is gone``: from ``.dm-verity``
+     - ``KeyringSealed`` ``ALERT``
    * - ``lsm-off``
-     - ``LSM not attached, enforcement off``
+     - ``LSM not attached, enforcement off``: the LSM link is not pinned
+     - ``LsmAttached`` ``ALERT``
    * - ``init-pending``
-     - ``.bpf keyring absent before init``
+     - ``.bpf keyring absent before init``: ``init`` has not completed
+     - ``KeyringSealed`` ``WARN``
    * - ``reboot-pending``
      - ``a config activation is pending until the next reboot``
+     - ``ConfigActive`` ``WARN``
    * - ``degraded``
-     - ``no register bound this boot``
-   * -
      - ``no TPM answered``
+     - ``ChainIntact`` and ``TpmMeasured`` ``WARN``
+   * -
+     - ``no register bound this boot``: a TPM answered, but the NV index
+       is not written
+     - ``ChainIntact`` and ``TpmMeasured`` ``WARN``
    * -
      - ``a device an XDP upatch selects does not run it``
+     - ``XdpCovered`` ``WARN``
+   * - ``ok``
+     - ``null``: none of the above
+     - No condition at ``ALERT``
 
 Conditions
 ----------

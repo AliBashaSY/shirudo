@@ -503,80 +503,81 @@ precedence: ``tampered``, ``lsm-off``, ``init-pending``,
 ``tampered``
 ~~~~~~~~~~~~
 
-A ``tampered`` verdict has one of five reasons. Each shows as an
-``ALERT`` condition. The lines below are what ``status`` prints in each
-state, cut to the verdict and the condition that raised it. ``<pinned>``,
-``<live>`` and ``<root>`` stand for the values of your target.
+A ``tampered`` verdict has one of twelve reasons, which the ``Status``
+line prints in parentheses. Each comes with a condition at ``ALERT``,
+whose detail says more. :ref:`status-json-verdicts` gives them in the
+order ``status`` checks them.
 
-The register does not replay from the eventlog:
+.. list-table::
+   :header-rows: 1
+   :widths: 34 18 48
+
+   * - Reason
+     - Condition
+     - What happened
+   * - ``live register differs from the eventlog replay``
+     - ``ChainIntact``
+     - Something extended or replaced the register without a matching
+       eventlog record, the eventlog of this boot was altered or hidden,
+       or the index is not the one ``init`` bound. The ``TPM
+       measurement`` section shows which lines disagree.
+   * - ``the archive of a loaded XDP upatch differs from what was
+       loaded``
+     - ``UpatchesMeasured``
+     - The sealed archive of a loaded XDP upatch changed or is gone.
+       ``upatch reconcile`` refuses to run, so new devices stay
+       uncovered.
+   * - ``a loaded upatch is missing a link or its archive``
+     - ``UpatchesMeasured``
+     - A loaded upatch has fewer link pins than its signed metadata
+       implies, so part of it is detached, or its sealed archive is gone
+       or unusable.
+   * - ``a upatch is pinned or archived without a record of this boot``
+     - ``UpatchesMeasured``
+     - A load stopped between its pins and its extend, so the upatch runs
+       while the register does not cover it, an unload stopped after its
+       extend, or an archive came back after its unload. The next
+       ``upatch load`` or ``upatch unload``, and every ``bpm`` command
+       that loads or unloads, undoes them before it acts and records the
+       undo in the journal. What stopped the load, or who brought the
+       archive back, is the question for the incident.
+   * - ``this boot's records do not fold to the measurement register``
+     - ``UpatchesMeasured``
+     - The eventlog from the init record on does not give the value the
+       TPM reports, or a record's digest does not follow from its
+       fields. Every ``upatch load`` and ``upatch unload`` refuses.
+   * - ``the selected config cannot be verified against its records``
+     - ``ConfigActive``
+     - The detail names the cause, see below.
+   * - ``the keyring init froze is gone``
+     - ``KeyringSealed``
+     - The ``.bpf`` keyring ``init`` sealed is gone.
+   * - ``keyring serial swap detected``
+     - ``KeyringSealed``
+     - The live ``.bpf`` keyring is not the one ``init`` sealed.
+   * - ``the dm-verity keyring init froze is gone``
+     - ``KeyringSealed``
+     - The same for ``.dm-verity``.
+   * - ``dm-verity keyring serial swap detected``
+     - ``KeyringSealed``
+     - The same for ``.dm-verity``.
+   * - ``a keyring holds a link init did not freeze``
+     - ``KeyringSealed``
+     - The kernel trusts that link for signatures from then on. The
+       keyring section lists it under ``Other links`` with ``(not
+       frozen)``.
+   * - ``the config key init froze is gone``
+     - ``KeyringSealed``
+     - The config key is gone from ``.dm-verity``.
+
+The lines below are what ``status`` prints for the first reason, cut to
+the verdict and the condition that raised it:
 
 .. code-block:: text
 
    Status:                tampered  (live register differs from the eventlog replay)
    ...
      ChainIntact        ALERT   live register differs from the eventlog replay
-
-Something extended or replaced the register without a matching eventlog
-record, the eventlog of this boot was altered or hidden, or the index is
-not the one ``init`` bound. The ``TPM measurement`` section shows which
-lines disagree.
-
-A upatch is pinned or archived without a record:
-
-.. code-block:: text
-
-   Status:                tampered  (a upatch is pinned or archived without a record of this boot)
-   ...
-     UpatchesMeasured   ALERT   1 pinned or archived without a record of this boot: <name>
-
-A load was stopped between its pins and its extend, so the upatch runs
-while the register does not cover it, an unload was stopped after its
-extend, or an archive came back after its unload, which ``init`` would
-not restore. The next ``upatch load`` or ``upatch unload``, and every
-``bpm`` command that loads or unloads, undoes those pins and archives
-before it acts and records the undo in the journal. What stopped the
-load, or who brought the archive back, is the question for the
-incident.
-
-The live keyring is not the one ``init`` sealed:
-
-.. code-block:: text
-
-   Status:                tampered  (keyring serial swap detected)
-   ...
-     KeyringSealed      ALERT   pinned serial <pinned>, live serial <live>: swapped
-
-The keyring ``init`` sealed is gone:
-
-.. code-block:: text
-
-   Status:                tampered  (the keyring init froze is gone)
-   ...
-     KeyringSealed      ALERT   pinned serial <pinned>, the .bpf keyring is gone
-
-The same for ``.dm-verity`` reads ``dm-verity keyring serial swap
-detected`` or ``the dm-verity keyring init froze is gone``.
-
-A keyring holds a link ``init`` did not freeze, which the kernel trusts
-for signatures from then on:
-
-.. code-block:: text
-
-   Status:                tampered  (a keyring holds a link init did not freeze)
-   ...
-     KeyringSealed      ALERT   the dm-verity keyring holds 1 link init did not freeze
-
-The keyring section lists that link under ``Other links`` with
-``(not frozen)``. If instead the config key is gone from
-``.dm-verity``, the reason is ``the config key init froze is gone``.
-
-The config cannot be verified against its records:
-
-.. code-block:: text
-
-   Status:                tampered  (the selected config cannot be verified against its records)
-   ...
-     ConfigActive       ALERT   the config PCR, activation records and mounted config disagree
 
 The detail of ``ConfigActive`` names the cause:
 

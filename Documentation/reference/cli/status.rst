@@ -39,34 +39,10 @@ report. The roles come from what is present:
 The report shows seven conditions, each ``OK``, ``WARN`` or ``ALERT``:
 ``LsmAttached``, ``KeyringSealed``, ``ChainIntact``,
 ``UpatchesMeasured``, ``TpmMeasured``, ``ConfigActive`` and
-``XdpCovered``. The verdict is the first of these that applies:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 80
-
-   * - Verdict
-     - Applies when
-   * - ``tampered``
-     - The live register differs from the eventlog replay, the archive
-       of a loaded XDP upatch differs from what was loaded, a loaded
-       upatch is missing a link or its archive, a upatch is pinned or
-       archived without a record of this boot, the selected config
-       cannot be verified against its records, the ``.bpf`` or
-       ``.dm-verity`` keyring is not the one ``init`` froze or is gone,
-       a keyring holds a link ``init`` did not freeze, or the config key
-       is gone from ``.dm-verity``.
-   * - ``lsm-off``
-     - The LSM link is not pinned.
-   * - ``init-pending``
-     - ``init`` has not frozen a ``.bpf`` keyring this boot.
-   * - ``reboot-pending``
-     - A config activation is pending until the next reboot.
-   * - ``degraded``
-     - No TPM answered, no register is bound this boot, or a device an
-       XDP upatch selects does not run it.
-   * - ``ok``
-     - None of the above.
+``XdpCovered``. The verdict is the first that applies of ``tampered``,
+``lsm-off``, ``init-pending``, ``reboot-pending``, ``degraded`` and
+``ok``, and its reason the first cause that applies:
+:ref:`status-json-verdicts` lists them with the condition each raises.
 
 The human report follows the verdict with the conditions, the tamper
 and integrity counters that moved this boot and the loaded upatches. Three sections
