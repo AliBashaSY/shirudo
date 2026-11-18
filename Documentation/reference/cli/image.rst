@@ -102,7 +102,8 @@ is a local path prefix or an ``https://`` URL prefix.
    selection.
 
 When ``update`` stops between steps 5 and 7, the activation stays pending.
-Every command except ``status`` is then refused until the next reboot.
+Every command except ``status`` and ``image status`` is then refused
+until the next reboot.
 shirudo does not reboot the target.
 
 image stage
