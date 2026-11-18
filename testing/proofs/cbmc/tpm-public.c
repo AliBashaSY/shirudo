@@ -14,6 +14,12 @@
 /* The longest: a policy, a protector, a scheme and an RSA modulus. */
 #define PUBLIC_MAX	(14 + 32 + 4 + 2 + 8 + 256)
 
+/*
+ * LEN picks the parser: 0 tpm_public_parse(), 1 tpm_ecc_public_parse(),
+ * which calls it. Both in one run take 7 GB, more than CI gives a proof.
+ */
+#define ECC_PARSE	(LEN == 1)
+
 static bool shape(const struct tpm_public *p)
 {
 	return (p->policy_len == 0 || p->policy_len == 32) &&
@@ -45,9 +51,12 @@ void harness(void)
 	size_t len;
 
 	buf = any_input(len, PUBLIC_MAX);
-	if (!tpm_public_parse(buf, len, &p))
-		__CPROVER_assert(shape(&p) && len == wire_len(&p),
-				 "a key of the shapes it names, the whole input");
+	if (!ECC_PARSE) {
+		if (!tpm_public_parse(buf, len, &p))
+			__CPROVER_assert(shape(&p) && len == wire_len(&p),
+					 "a key of the shapes it names, the whole input");
+		return;
+	}
 	if (!tpm_ecc_public_parse(buf, len, &ecc))
 		__CPROVER_assert(ecc.curve == TPM_ECC_NIST_P256 &&
 				 ecc.scheme == TPM_ALG_ECDSA &&

@@ -12,4 +12,3 @@ upatch-prog-uprobes		12 GB at its peak
 bpm-tree-state-match		11 GB at its peak, for labels read from /etc
 bpm-tree-state-pending		10 GB at its peak
 config-evidence-collect		7 GB at its peak
-tpm-public			7 GB at its peak

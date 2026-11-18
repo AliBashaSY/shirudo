@@ -780,7 +780,7 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        2048 bytes
    * - ``tpm-public``
      - ``tpm_public_parse()``, ``tpm_ecc_public_parse()``
-     - Every input; takes about 5 minutes and 7 GB
+     - Every input
      - Accepts only the key shapes shirudo uses, P-256 or RSA-2048 with a
        256-byte modulus, each spanning exactly the input
    * - ``tpm-digest``
