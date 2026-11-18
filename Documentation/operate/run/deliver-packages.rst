@@ -396,10 +396,10 @@ publication:
 - An ``add`` whose attach target is in a kernel module that is not
   loaded is recorded as ``skipped: module not loaded``, and the cursor
   moves past it.
-- The target verifies tree publications only against the runtime
-  image's primary certificate, ``keys/cert.der``. A vouched key cannot
-  sign them, and revoking the primary in the signed config does not stop
-  them. :doc:`/operate/maintain/keys` describes the limit.
+- The target verifies tree publications against the BPF signers of the
+  active config: the runtime image's primary certificate and the
+  certificates the config vouches for, less the ones it revokes.
+  :doc:`/operate/maintain/keys` describes the signer set.
 
 .. figure:: /images/operate-tree-selectors.svg
    :alt: A target with kernel 7.4.0 on x86_64 and the label env=prod

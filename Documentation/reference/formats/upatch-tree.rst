@@ -360,8 +360,8 @@ Target acceptance
 
 #. The manifest has one document layer and one signature layer, each
    matching its descriptor's digest and size.
-#. The signature verifies against the runtime image's initial
-   certificate.
+#. The signature verifies against the active config's non-revoked BPF
+   signer set.
 #. The document parses with the rules above, ``tree_id`` is a package
    name, and every operation has a valid ``id``, ``op`` and digests and a
    correct ``operation_digest``.
