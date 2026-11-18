@@ -20,14 +20,15 @@
 #define NOT_A_HASH	"sha256:0123456789abcdef"
 #define MEMBERS		23
 /* Past the longest of these bodies, and a room inside the shortest. */
-#define ROOM		896
+#define ROOM		960
 #define CUT_SHORT	(ROOM / 4)
 
 enum state { START, KEY, STRING, COLON, VALUE, ELEMENT, ZERO, DIGITS, WORD,
 	     NEXT, END };
 
-static const __u64 counters[TAMPER_MAX];
-static const __u64 integrity[INTEGRITY_MAX];
+/* Counters of the widest value, of two digits and of one. */
+static const __u64 counters[TAMPER_MAX] = { UINT64_MAX, 10 };
+static const __u64 integrity[INTEGRITY_MAX] = { UINT64_MAX };
 static char reference[ROOM];
 
 /* keepalive_mask() is not reached: the mask comes in as text. */

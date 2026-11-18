@@ -798,10 +798,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``keepalive-emit``
      - ``keepalive_emit()``
      - Three fixed bodies, without a tree, with a tree and nothing else
-       that may be null, and with every value; the last of these with a
-       last number of up to 4 digits in a buffer that holds 0 to 3 of
-       them; rooms of 0, 1 and 224 bytes; a missing string, a bad hash
-       and a byte that is not UTF-8
+       that may be null, and with every value, counters of 20, 2 and 1
+       digits among them; the last of these with a last number of up to
+       4 digits in a buffer that holds 0 to 3 of them; rooms of 0, 1 and
+       240 bytes; a missing string, a bad hash and a byte that is not
+       UTF-8
      - Each body one JSON object of 23 members by a byte-level
        recognizer, terminated in the buffer; another last number
        changes only its digits, without a leading zero, or is
