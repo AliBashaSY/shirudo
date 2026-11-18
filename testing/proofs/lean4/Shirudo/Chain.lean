@@ -6,13 +6,15 @@ The measurement register of util/chain.c. Each upatch state change
 extends it as `H(register ‖ event)`, the way a TPM extends a PCR, with an
 event that hashes a domain-separating tag and its payload. `attest verify`
 replays the eventlog and compares the result with the register the TPM
-signed. Assuming `H` is collision resistant, modelled as injective on
-(register, event) pairs and never yielding the initial value, and the
-tagged encoding of events likewise, equal registers mean the target
-measured exactly the events the log shows, in that order.
-`register_injective_on` asks the same of `H` only on the pairs the two
-sequences fold, which a real hash can meet; `Shirudo.Events` proves the
-encodings of util/chain.c injective and builds the end theorem on it.
+signed. For `H` injective on (register, event) pairs and never yielding
+the initial value, and the tagged encoding of events likewise, equal
+registers mean the target measured exactly the events the log shows, in
+that order (`register_injective`, `register_tagged_injective`). No hash
+onto a fixed width is injective on every pair, so those two hold of an
+idealized hash only. `register_injective_on` asks the same of `H` only on
+the pairs the two sequences fold, which SHA-256 can meet;
+`Shirudo.Events` proves the encodings of util/chain.c injective and
+builds the end theorem on it.
 
 A upatch tree has two roots of its own. A node's projection root folds
 the digests of the operations that chained on that node, so it differs
@@ -38,7 +40,8 @@ theorem register_eq_foldl (H : D → D → D) (init : D) (events : List D) :
   | nil => rfl
   | cons e es ih => simp [register, ih]
 
-/-- Equal registers come from equal event sequences. -/
+/-- Equal registers come from equal event sequences, for an idealized
+`H`: injective on every pair, which no hash onto a fixed width is. -/
 theorem register_injective (H : D → D → D) (init : D)
     (hH : ∀ a b c d, H a b = H c d → a = c ∧ b = d)
     (hinit : ∀ a b, H a b ≠ init) :
@@ -111,7 +114,8 @@ theorem map_injective_on {α β : Type} (f : α → β) :
         (fun x hx y hy => hf x (by simp [hx]) y (by simp [hy])) h.2]
 
 /-- Equal registers come from the same tagged events, in the same order:
-an event can be neither left out, added, swapped for another nor moved. -/
+an event can be neither left out, added, swapped for another nor moved.
+For an idealized `H`, as `register_injective`. -/
 theorem register_tagged_injective (H : D → D → D) (init : D)
     (encode : K → P → D)
     (hH : ∀ a b c d, H a b = H c d → a = c ∧ b = d)

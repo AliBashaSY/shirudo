@@ -1049,20 +1049,23 @@ the model follows the C.
      - ``max`` fits a ``__u64``
      - CBMC, ``string-number-model``, up to 4 bytes
    * - ``Shirudo.Chain``, the register of :src:`util/chain.c`
-     - ``register_injective``, ``register_tagged_injective``: equal
-       registers come from the same events, tagged the same, in the same
-       order; ``register_injective_on``: the same with the hash injective
-       only on the pairs the two sequences fold; ``register_eq_foldl``: the
+     - ``register_injective``, ``register_tagged_injective``: for an
+       idealized hash, equal registers come from the same events, tagged
+       the same, in the same order; ``register_injective_on``: the same
+       with the hash injective only on the pairs the two sequences fold,
+       which SHA-256 can be; ``register_eq_foldl``: the
        register folds the events in the order they came;
        ``history_ignores_outcomes``: a upatch tree's history root is the
        same on two nodes that processed operations of the same digests,
        whatever outcome each had; ``processAll_history``,
        ``historyRoot_append_one``: it takes one step per operation
-     - The hash is injective on the (register, event) pairs (for
-       ``register_injective_on`` only those folded) and never yields the
-       initial value; ``register_tagged_injective`` also takes the tagged
-       encoding as injective, which ``Shirudo.Events`` proves; none for
-       the history root
+     - The hash never yields the initial value and is injective on the
+       (register, event) pairs: on every pair for ``register_injective``
+       and ``register_tagged_injective``, which no hash onto 32 bytes
+       is, so the two hold of an idealized hash only; on those folded for
+       ``register_injective_on``. ``register_tagged_injective`` also
+       takes the tagged encoding as injective, which ``Shirudo.Events``
+       proves; none for the history root
      - Review; the bytes of the history root's step are
        ``historyBytes`` of ``Shirudo.Events``, which CBMC,
        ``chain-events``, checks
@@ -1185,10 +1188,11 @@ the model follows the C.
      - Commands one at a time; atomic renames of ``state`` and
        ``next-boot``; a crash leaves a prefix of a line; only shirudo
        writes the journal and the config mount during a boot; PCRs reset
-       only at a reboot or TPM Restart; equal values from equal
-       extensions (``pcr_value_eq_iff`` with ``Shirudo.Chain``'s
-       assumptions). All but ``journal_wellformed``,
-       ``mounted_selected``, ``boot_completion``,
+       only at a reboot or TPM Restart; PCRs compared as their lists of
+       extensions, which ``pcr_value_eq_iff`` justifies for the idealized
+       hash of ``register_injective`` and SHA-256 meets unless it
+       collides among the values compared. All but
+       ``journal_wellformed``, ``mounted_selected``, ``boot_completion``,
        ``completion_by_complete`` and ``extension_follows_save`` also take
        a calm TPM, whose boot changes only between commands and never to
        an identity it had, which root breaks with a suspend or

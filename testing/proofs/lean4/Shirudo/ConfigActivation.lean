@@ -76,9 +76,11 @@ commands run one at a time; a rename of `state` is atomic and survives a
 crash once made; a crash in an append leaves a prefix of the line; only
 shirudo writes the journal and the config mount during a boot; a PCR
 changes only by extension and resets only at a reboot or a TPM Restart;
-two PCR values are equal when their extensions are (`pcr_value_eq_iff`
-from `Shirudo.Chain`'s assumptions on the hash); and, for the theorems
-over `shirudo`, the calm TPM.
+the model compares PCRs as their lists of extensions, which
+`pcr_value_eq_iff` justifies for the idealized hash of
+`Shirudo.Chain.register_injective` and SHA-256 meets unless it collides
+among the values compared; and, for the theorems over `shirudo`, the
+calm TPM.
 
 The variants `retry` and `recover` each add one step of code shirudo
 does not have, and `retry_extends_twice` and `recover_admits_within_boot`
@@ -635,9 +637,11 @@ theorem extendAt_suffix (pcr : Nat → List D) (i j : Nat) (d : D) (x : List D)
   · exact ⟨xs, by simp [extendAt, hj, hx]⟩
 
 /-- The C compares PCR values, which `Shirudo.Chain.register` gives of the
-model's lists of extensions; under `Shirudo.Chain`'s assumptions on the
-hash two values are equal exactly when the lists are, so comparing lists
-is comparing values. -/
+model's lists of extensions; for a hash injective on every pair, as
+`Shirudo.Chain.register_injective` takes it, two values are equal exactly
+when the lists are, so comparing lists is comparing values. No hash onto
+32 bytes is that; SHA-256 is unless it collides among the values the C
+compares. -/
 theorem pcr_value_eq_iff {H : D → D → D} {init : D}
     (hH : ∀ a b c d, H a b = H c d → a = c ∧ b = d)
     (hinit : ∀ a b, H a b ≠ init) (l1 l2 : List D) :
