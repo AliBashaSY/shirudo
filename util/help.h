@@ -31,12 +31,12 @@ struct help_section {
 /* A section named h listing the items of the array a. */
 #define HELP_ITEMS(h, a)						\
 	{ .header = (h), .items = (a),					\
-	  .n_items = sizeof(a) / sizeof((a)[0]) + __must_be_array(a) }
+	  .n_items = ARRAY_SIZE(a) }
 
 /* A section named h listing the options of the opt_spec array a. */
 #define HELP_OPTIONS(h, a)						\
 	{ .header = (h), .options = (a),				\
-	  .n_options = sizeof(a) / sizeof((a)[0]) + __must_be_array(a) }
+	  .n_options = ARRAY_SIZE(a) }
 
 struct help {
 	const char				*usage;

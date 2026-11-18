@@ -72,9 +72,7 @@ void opt_init(struct opt_parser *p, const char *command,
 	      int first);
 
 #define OPT_INIT(p, command, specs, help, argc, argv, first)		\
-	opt_init(p, command, specs,					\
-		 sizeof(specs) / sizeof((specs)[0]) + __must_be_array(specs), \
-		 help, argc, argv, first)
+	opt_init(p, command, specs, ARRAY_SIZE(specs), help, argc, argv, first)
 
 /*
  * The index of the next option, with value set where it takes one, NULL
@@ -113,9 +111,7 @@ int opt_choice(const struct opt_parser *p, const struct opt_name *names,
 	       size_t n, int *out) __must_check;
 
 #define OPT_CHOICE(p, names, out)					\
-	opt_choice(p, names,						\
-		   sizeof(names) / sizeof((names)[0]) + __must_be_array(names), \
-		   out)
+	opt_choice(p, names, ARRAY_SIZE(names), out)
 
 /*
  * Reports a usage error the command finds, as "<command>: <message>";

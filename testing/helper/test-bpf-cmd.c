@@ -17,7 +17,7 @@
 
 #include <linux/bpf.h>
 
-#define ARRAY_SIZE(a)	(sizeof(a) / sizeof((a)[0]))
+#include <shirudo/misc.h>
 
 static const struct {
 	const char	*name;
