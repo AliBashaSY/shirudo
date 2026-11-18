@@ -1571,10 +1571,13 @@ Not covered yet
 
 The fuzz targets in :doc:`test-coverage` cover these parsers; no proof
 does: how ``json_parse()`` dispatches objects, arrays and maps to their
-schemas, the OTLP headers a configuration adds, the walk over a
-package's tar members, the registry references and URLs, the kernel
-configuration and the labels the tree selectors read, the tree's
-``state.json``, the evidence document beyond its PCRs and its config
+schemas, and the members and elements of a JSON document longer than
+the two bytes ``json-walk`` takes, the OTLP headers a configuration adds
+and the collector's reply to an export, the walk over a package's tar
+members, the registry references and URLs and the registry credentials
+file, the kernel configuration and the labels the tree selectors read,
+the tree's ``state.json`` and its outcomes record, the evidence document
+beyond its PCRs and its config
 history, the config update record, the site configuration file, the
 config image's settings and tree and the fields of a
 ``shirudo-quote-check`` row. Of the eventlog's lines, the Lean model
@@ -1592,6 +1595,12 @@ unit cases check both on fixed entries. The zip directory walk of
 ``jar_premain_class()`` in :src:`tools/shirudo-build/jar.c` has neither
 a fuzz target nor a proof; its unit cases cut and flip a jar byte by
 byte.
+
+Of :src:`util/io.c` the proofs cover ``lines_len()``,
+``read_text_line()`` and the append of a record. ``pread()`` never fails
+in them, so the retry of ``last_line_end()`` after ``EINTR`` and its
+refusal of a short read have no proof, nor have the readers of whole
+files, which go to the kernel.
 
 Of :src:`util/paths.c` and :src:`util/serializer.c` the proofs cover the
 functions the table names. ``key_paths()``, which calls
@@ -1625,8 +1634,8 @@ documents.
 The Beefile's keys, defaults and the checks behind its last line,
 ``build_validate()``, the rodata commands, ``build_archive()`` and what
 it puts into ``build-environment.json``, a publication with operations,
-the manifests, and the generation and sequence numbers ``bpm tree
-append`` counts up have no proof. A value of any length in a JSON
+the manifests but the tree publication's, and the generation and
+sequence numbers ``bpm tree append`` counts up have no proof. A value of any length in a JSON
 document moves every byte behind it, and a tree operation takes 13 KiB
 in each of its copies: a proof over either runs for minutes. Of
 :src:`tools/shirudo-build/bpm-publish.c` the proofs read
