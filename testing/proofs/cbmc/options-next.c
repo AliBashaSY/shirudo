@@ -8,6 +8,8 @@
  * one argument, so a run ends, what it hands back lies in an argument, a
  * flag has no value, a value is there and not empty unless the option
  * allows it, and no option comes back twice unless it repeats.
+ * options-long.c includes this file for an unknown option too long to
+ * suggest one for.
  */
 
 #include <errno.h>
@@ -70,6 +72,21 @@ void help_suggest(const char *bad, const char *const *names, size_t n_names)
 	__CPROVER_assert(strlen(bad) <= SIMILAR_MAX_LEN, "the word fits");
 }
 
+#if defined(OPTIONS_LONG)
+/* One unknown option of LEN bytes, "--" and then a constant byte. */
+void harness(void)
+{
+	char text[LEN + 1];
+	const char *arg = text;
+	struct opt_parser p;
+
+	memcpy(text, "--", 2);
+	memset(text + 2, 'x', LEN - 2);
+	text[LEN] = '\0';
+	OPT_INIT(&p, "proof", specs, NULL, 1, &arg, 0);
+	__CPROVER_assert(opt_next(&p) == OPT_USAGE, "an unknown option refused");
+}
+#else
 static const char *argv[ARGS_MAX];
 static size_t lens[ARGS_MAX];
 
@@ -151,3 +168,4 @@ void harness(void)
 	if (opt == P_N && !opt_u64(&p, 1, 512, &n))
 		__CPROVER_assert(n >= 1 && n <= 512, "a number in bounds");
 }
+#endif

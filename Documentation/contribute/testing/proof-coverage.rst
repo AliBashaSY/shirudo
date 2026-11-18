@@ -1036,6 +1036,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        value lies in an argument; a flag has no value; a value is there
        and not empty unless the option allows it; no option comes back
        twice unless it repeats; a number lies in its bounds
+   * - ``options-long``
+     - ``opt_unknown()`` through ``opt_next()``
+     - One unknown option of 64 to 66 bytes, around the 65 its copy
+       holds
+     - Refused, and a name suggested for it only when it fits the copy
    * - ``conditions-verdict``
      - ``status_verdict()``, ``status_reason()``
      - Every input; reasons into 1, 8, 32 and 160 bytes
