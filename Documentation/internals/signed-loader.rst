@@ -156,15 +156,19 @@ buffer, and the command attaches and pins them. Links are created in
 userspace because gen_loader emits no link creation and
 ``bpf_sys_bpf()`` has no ``BPF_OBJ_PIN``. Each link is pinned at
 ``/run/shirudo/bpffs/upatches/<name>/link``, or ``link_<n>`` for several,
-serializers under ``serializers/`` and maps under ``maps/`` beside it. A
-dot in the name is written as ``~d`` there. The directory carries the
+serializers under ``serializers/``, maps under ``maps/`` and the test-run
+program at ``test`` beside it. A dot in the name is written as ``~d``
+there. The directory carries the
 ``security.bpf.shirudo.payload`` extended attribute with the payload
 digest, which only a task with runtime authority can set.
 :doc:`kernel-interfaces` lists the attributes each call sets.
 Artifacts containing XDP always use ``link_<n>`` pins, including when only
-one link is created. Every XDP program must attach somewhere; unsupported
-native-XDP devices are skipped, and any other attachment failure removes
-all links the load created.
+one link is created, and pin each XDP program at ``xdp_prog_<n>``, which
+keeps it loaded while no device matches its class mask. A load that finds
+no matching device succeeds and attaches nothing until ``upatch
+reconcile`` finds one. Devices without native XDP, and devices that
+vanish or change during the attach, are skipped; any other attachment
+failure removes all links the load created.
 
 Telling the loader apart from root
 ----------------------------------

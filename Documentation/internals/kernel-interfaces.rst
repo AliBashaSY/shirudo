@@ -228,12 +228,14 @@ where the caller is the loader.
        0. Uprobe multi: offset count and the return flag. ``fmod_ret``:
        ``BPF_MODIFY_RETURN``.
        XDP: ``BPF_LINK_TYPE_XDP`` and ``xdp.ifindex`` matching the selected
-       device; the initial namespace, device class and peer scope are
-       rechecked around attachment.
+       device; the device class and peer scope are rechecked around
+       attachment, and the initial network namespace once before the
+       devices are read.
    * - ``BPF_OBJ_PIN``
      - Links at ``upatches/<name>/link`` or ``link_<n>``, serializer
        programs at ``serializers/<map>``, the test-run program at
-       ``test``, maps at ``maps/<map>``, under ``/run/shirudo/bpffs``.
+       ``test``, each XDP program at ``xdp_prog_<n>``, maps at
+       ``maps/<map>``, under ``/run/shirudo/bpffs``.
 
 A kprobe link's perf event comes from ``perf_event_open(2)`` with
 ``type`` read from ``/sys/bus/event_source/devices/kprobe/type``,
