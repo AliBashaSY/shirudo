@@ -264,6 +264,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        base of 0 without the segment keys or a later one with an
        operation, a ``sha256:`` digest and a root of 64 hex digits, and
        operations that run from the base to the head
+   * - ``bpm-tree-manifest``
+     - ``bpm_tree_manifest()``, ``tree_manifest_canonical()``, against
+       ``bpm_oci_parse_manifest()``
+     - Payload and signature layers of fixed digests and sizes of 0 and
+       0, 1 and 4096, and 2\ :sup:`63` - 1 and 1; the SHA-256 of the
+       empty config a stub
+     - The manifest bpm tree append writes reads back as its two
+       layers, and a node takes it as their canonical form; the layers
+       swapped, or two payloads in the publisher's own form, refused
    * - ``bpm-tree-reserve``
      - ``tree_operations_reserve()``, the allocator a stub that may fail
      - Every count and capacity up to ``TREE_MAX_OPS``
