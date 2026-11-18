@@ -148,9 +148,12 @@ and the root file system's run adopts it.
 
 The eventlog is not trusted on its own. A verifier folds this boot's
 records from zero and compares the result with the register the TPM
-certified. A record changed afterwards either breaks that replay or
-carries a digest its own fields do not produce, and verification fails in
-both cases.
+certified, so a changed digest breaks the replay. For every record after
+the ``init`` record it also derives the digest from the record's fields,
+so a changed field fails as well. The ``init`` record's fields are not
+checked that way: its digest is compared with the one the operator
+computes from its own certificates and artifacts, when the operator
+passes them.
 
 Register and log advance together. A load or unload that would push the
 eventlog past the ``eventlog.max_bytes`` setting refuses with
@@ -187,7 +190,7 @@ TPM:
 - that the certified register has the name a register bound under
   shirudo's policy must have, given the PCR values recorded at binding;
 - that this boot's records replay to the certified value, and that each
-  digest follows from its record's fields;
+  digest after the ``init`` record's follows from its record's fields;
 - that PCR 9 carries the anchor;
 - with the certificates and artifacts, that the ``init`` event covers
   them, and with an expected value, that the register equals it.
