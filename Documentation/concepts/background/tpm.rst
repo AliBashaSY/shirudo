@@ -186,10 +186,10 @@ A PCR holds a digest that software can only extend: the TPM replaces
 the value with the hash of the old value and the new digest. A TPM
 keeps one bank of PCRs per hash algorithm, typically SHA-1 and
 SHA-256, and an extension names a digest for each bank it changes. A
-PC Client TPM has 24 PCRs per bank. A TPM reset, or a TPM restart
-after hibernation, returns them to their initial values. Apart from a
-few PCRs that are resettable on purpose, such as PCR 23 for
-applications, nothing else does. Any process that can send commands
+PC Client TPM has 24 PCRs per bank. A TPM reset or restart returns
+them to their initial values (Table 2). Apart from a few PCRs that are
+resettable on purpose, such as PCR 23 for applications, nothing else
+does. Any process that can send commands
 to the TPM can read the PCRs and extend the ones the operating system
 uses. :doc:`boot` lists who extends which PCR during a boot.
 
@@ -218,8 +218,8 @@ is defined starts from a zero digest and sets the attribute
 
 The attributes decide who may read and write an index and when it
 clears. ``TPMA_NV_CLEAR_STCLEAR`` clears the index's ``TPMA_NV_WRITTEN``
-flag at every TPM reset and restart. For an extend index, the next
-permitted extension starts from a zero digest.
+flag at every TPM reset and restart, so the next permitted extension
+starts from a zero digest.
 ``TPMA_NV_ORDERLY`` lets extensions update the value in TPM RAM without
 requiring a nonvolatile data write after every operation. This reduces
 persistent-storage writes for a history that only needs to last for the
@@ -455,11 +455,41 @@ that holds the EK.
 Reset count and clock
 ---------------------
 
-A TPM keeps a clock and two counters. The reset count increases at
-every TPM reset, which a reboot causes. The restart count increases at
-a TPM restart, after hibernation, and at a TPM resume, after sleep, and
-returns to zero at a TPM reset. ``TPM2_ReadClock`` reads them, and
-every quote and certification carries them. For keys outside the
+A TPM keeps a clock and two counters, the reset count and the restart
+count. Which of them a power transition moves depends on how the
+operating system shut the TPM down before it: ``TPM2_Shutdown(STATE)``
+asks the TPM to save its state, and the next ``TPM2_Startup`` either
+restores it or starts clear. Table 2 lists the three cases.
+
+.. list-table:: Table 2. TPM startups and what they change
+   :header-rows: 1
+   :widths: 22 18 22 38
+
+   * - Event
+     - Counts
+     - PCRs and register
+     - shirudo
+   * - Reboot: TPM reset, ``Startup(CLEAR)`` without a saved state
+     - Reset count up, restart count to 0
+     - Both cleared
+     - ``init`` binds the register anew from the initrd.
+   * - Resume from hibernation: TPM restart, ``Startup(CLEAR)`` after
+       ``Shutdown(STATE)``
+     - Restart count up
+     - Both cleared
+     - Refused from ``init`` on, through ``lsm/locked_down``. Should a
+       restart happen anyway, extensions fail with ``tpm_error``,
+       commands refuse with ``ESTALE`` and ``init`` refuses to bind the
+       register again, until a reboot.
+   * - Resume from sleep: TPM resume, ``Startup(STATE)`` after
+       ``Shutdown(STATE)``
+     - Restart count up
+     - Both restored
+     - Commands refuse with ``ESTALE``, because the config activation
+       record names another TPM boot, until a reboot.
+
+``TPM2_ReadClock`` reads the counts, and every quote and certification
+carries them. For keys outside the
 endorsement and platform hierarchies the TPM obfuscates the counts in
 signed structures. shirudo's AK is in the endorsement hierarchy, so the
 :term:`evidence` carries the real values.
@@ -516,9 +546,8 @@ these.
   Kernel-internal TPM use and direct access to the TPM's bus are
   outside it, and every executable in the :term:`runtime image` runs with
   :term:`runtime authority` and can extend the register.
-- A TPM restart clears the register but not the reset count. ``init``
-  then refuses to bind the register again, and extensions fail with
-  ``tpm_error`` until the next reboot.
+- A TPM restart or resume without a reboot stops shirudo's commands
+  until the next reboot (Table 2).
 - The algorithms are classical: ECDSA P-256 for the AK, RSA-3072 for
   the writer key, RSA 2048 or P-256 for the EK. Version 185 of the
   TPM 2.0 library specification adds ML-DSA and ML-KEM, but shirudo
