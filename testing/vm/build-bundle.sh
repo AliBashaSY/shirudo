@@ -20,6 +20,7 @@ LIBGUESTFS_KERNEL_CACHE="${WORK_DIR}/cache/libguestfs/ubuntu"
 UBUNTU_CODENAME="${TEST_VM_UBUNTU_CODENAME:-resolute}"
 PACKAGE_FILE="$REPO_ROOT/testing/vm/runtime-packages"
 DEFAULT_ROOTFS_URL="https://cloud-images.ubuntu.com/releases/server/26.04/release/ubuntu-26.04-server-cloudimg-${TEST_VM_ARCH_DEB}.img"
+ROOTFS_SUMS_URL="https://cloud-images.ubuntu.com/releases/server/26.04/release/SHA256SUMS"
 ROOTFS_URL="${TEST_VM_ROOTFS_URL:-$DEFAULT_ROOTFS_URL}"
 ROOTFS_SHA256="${TEST_VM_ROOTFS_SHA256:-}"
 ROOTFS_NAME="ubuntu-26.04-server-cloudimg-${TEST_VM_ARCH_DEB}.img"
@@ -109,7 +110,7 @@ prepare_ubuntu_libguestfs_kernel()
 	metadata="$cache_dir/kernel.info"
 	mkdir -p "$cache_dir"
 	if [[ ! -s "$metadata" || "$(awk -F '\t' '{print NF; exit}' "$metadata")" != 5 ]]; then
-		curl -fsSL --retry 3 \
+		curl -fsSL --connect-timeout 30 --retry 3 \
 			--output "${index}.tmp" \
 			"${TEST_VM_ARCH_MIRROR}/dists/${UBUNTU_CODENAME}-updates/main/binary-${TEST_VM_ARCH_DEB}/Packages.gz" \
 			|| die "could not download Ubuntu $UBUNTU_CODENAME kernel package index"
@@ -160,14 +161,14 @@ prepare_ubuntu_libguestfs_kernel()
 	kernel_version="${package#linux-image-}"
 	deb="$cache_dir/$package.deb"
 	if [[ ! -s "$deb" ]]; then
-		curl -fsSL --retry 3 --output "${deb}.tmp" \
+		curl -fsSL --connect-timeout 30 --retry 3 --output "${deb}.tmp" \
 			"${TEST_VM_ARCH_MIRROR}/$filename" ||
 			die "could not download Ubuntu kernel package $package"
 		mv -- "${deb}.tmp" "$deb"
 	fi
 	local module_deb="$cache_dir/$module_package.deb"
 	if [[ ! -s "$module_deb" ]]; then
-		curl -fsSL --retry 3 --output "${module_deb}.tmp" \
+		curl -fsSL --connect-timeout 30 --retry 3 --output "${module_deb}.tmp" \
 			"${TEST_VM_ARCH_MIRROR}/$module_filename" ||
 			die "could not download Ubuntu kernel modules package $module_package"
 		mv -- "${module_deb}.tmp" "$module_deb"
@@ -235,9 +236,17 @@ resolve_rootfs()
 		die "a custom TEST_VM_ROOTFS_URL requires TEST_VM_ROOTFS_SHA256"
 	else
 		sums="${ROOTFS_CACHE}.SHA256SUMS"
-		curl -fsSL --retry 3 --output "$sums" \
-			https://cloud-images.ubuntu.com/releases/server/26.04/release/SHA256SUMS
-		expected="$(awk -v name="*$ROOTFS_NAME" '$2 == name {print $1; exit}' "$sums")"
+		if curl -fsSL --connect-timeout 30 --retry 3 --output "$sums" \
+			"$ROOTFS_SUMS_URL"; then
+			expected="$(awk -v name="*$ROOTFS_NAME" '$2 == name {print $1; exit}' "$sums")"
+		elif [[ -s "$ROOTFS_CACHE" && -s "${ROOTFS_CACHE}.sha256" ]]; then
+			# The cache holds only an image that a SHA256SUMS of the
+			# release vouched for, and the digest it vouched with.
+			expected="$(cat "${ROOTFS_CACHE}.sha256")"
+			log "could not fetch $ROOTFS_SUMS_URL; using the cached rootfs it last vouched for"
+		else
+			die "could not fetch $ROOTFS_SUMS_URL"
+		fi
 		rm -f -- "$sums"
 	fi
 	[[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] ||
@@ -249,13 +258,21 @@ resolve_rootfs()
 	if [[ ! -s "$ROOTFS_CACHE" ]]; then
 		tmp="${ROOTFS_CACHE}.tmp.$$"
 		log "downloading Ubuntu runtime rootfs: $ROOTFS_URL"
-		curl -fL --retry 3 --output "$tmp" "$ROOTFS_URL"
+		curl -fL --connect-timeout 30 --retry 3 --output "$tmp" "$ROOTFS_URL"
 		actual="$(sha256sum "$tmp" | awk '{print $1}')"
 		[[ "$actual" == "$expected" ]] || {
 			rm -f -- "$tmp"
 			die "downloaded rootfs SHA-256 mismatch"
 		}
 		mv -- "$tmp" "$ROOTFS_CACHE"
+	fi
+	# A custom image shares the cache path but is no fallback for the
+	# release's.
+	if [[ "$ROOTFS_URL" == "$DEFAULT_ROOTFS_URL" ]]; then
+		printf '%s\n' "$expected" >"${ROOTFS_CACHE}.sha256.tmp"
+		mv -- "${ROOTFS_CACHE}.sha256.tmp" "${ROOTFS_CACHE}.sha256"
+	else
+		rm -f -- "${ROOTFS_CACHE}.sha256"
 	fi
 	ROOTFS_DIGEST="$expected"
 }
