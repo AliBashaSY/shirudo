@@ -87,7 +87,9 @@ The checks then run in this order:
 
 Because the maps folded into the signature are the ones the program
 binds, from a single resolution of ``fd_array``, nothing can swap the
-verified bytes for others after the check.
+verified bytes for others after the check. Figure 1 of
+:doc:`/internals/signed-loader` places these checks among the calls of
+an upatch load.
 
 Verdict
 -------
