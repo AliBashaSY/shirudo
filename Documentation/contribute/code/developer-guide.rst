@@ -615,7 +615,9 @@ can rewrite what it finds does so with ``-D patch``:
      - Refuses
    * - ``array_size``
      - An element count divided out by hand rather than
-       ``ARRAY_SIZE()``. Rewrites.
+       ``ARRAY_SIZE()``, in a macro too, which it rewrites, and an
+       ``ARRAY_SIZE()`` defined outside ``<shirudo/misc.h>``, which it
+       leaves to be removed.
    * - ``zero_init``
      - ``= {0}`` rather than ``= {}``. Rewrites.
    * - ``minmax``

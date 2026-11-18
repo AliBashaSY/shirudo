@@ -56,8 +56,10 @@ signed config image.
        alone, the rewrite of ``-D patch``, a case for each rule taken
        from CERT C, a case for each BPF hazard rule beside the safe
        form it leaves alone, a dead store beside the reads
-       ``dead_store`` leaves alone, a file a rule gives up on at its
-       time limit named rather than failed, and the tree itself
+       ``dead_store`` leaves alone, a count by hand in a macro and an
+       ``ARRAY_SIZE()`` of a file's own for ``array_size``, which
+       rewrites the one and leaves the other, a file a rule gives up on
+       at its time limit named rather than failed, and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library

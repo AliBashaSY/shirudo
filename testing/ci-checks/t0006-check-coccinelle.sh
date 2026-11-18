@@ -7,8 +7,9 @@
 # a rule that can rewrite does with -D patch, a rule reads the headers
 # its #spatch line asks for, on a throwaway repository, each rule taken
 # from CERT C, each BPF hazard rule, each scrub rule and dead_store report
-# a sample of what they refuse, a file a rule gives up on at its time
-# limit is named rather than failed, and the tree itself.
+# a sample of what they refuse, array_size a count by hand in a macro and
+# an ARRAY_SIZE() outside <shirudo/misc.h>, a file a rule gives up on at
+# its time limit is named rather than failed, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -635,6 +636,51 @@ test_expect_success 'option_by_hand reports an option compared outside the parse
 	! (cd "$R7" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
 	grep -q "^option_by_hand: samples.c:3:" "$W/err" &&
 	[ "$(grep -c "^option_by_hand:" "$W/err")" = 1 ]
+'
+
+# A count by hand in a macro, which writes its argument in parentheses,
+# and an ARRAY_SIZE() of a file's own, while the one of <shirudo/misc.h>
+# is spared.
+write_array_size_samples() {
+	mkdir -p "$1/include/shirudo" &&
+	cat >"$1/include/shirudo/misc.h" <<'EOF'
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]) + __must_be_array(a))
+EOF
+	cat >"$1/samples.c" <<'EOF'
+#define COUNT(a) (sizeof(a) / sizeof((a)[0]) + __must_be_array(a))
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+int counted(void)
+{
+	int x[4];
+
+	return sizeof(x) / sizeof(*(x)) + ARRAY_SIZE(x);
+}
+EOF
+}
+
+test_expect_success 'array_size reports counts by hand and a second ARRAY_SIZE()' '
+	R8=$W/array &&
+	mkdir -p "$R8/testing/coccinelle" &&
+	git init -q "$R8" &&
+	cp "$ROOT/testing/coccinelle/array_size.cocci" \
+		"$R8/testing/coccinelle/" &&
+	write_array_size_samples "$R8" &&
+	! (cd "$R8" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	grep -q "^array_size: samples.c:1:" "$W/err" &&
+	grep -q "^array_size: samples.c:2:" "$W/err" &&
+	grep -q "^array_size: samples.c:8:" "$W/err" &&
+	[ "$(grep -c "^array_size:" "$W/err")" = 3 ]
+'
+
+test_expect_success 'array_size rewrites the counts but not a definition' '
+	R8=$W/array &&
+	(cd "$R8" && spatch -D patch --very-quiet --in-place --no-includes \
+		--sp-file testing/coccinelle/array_size.cocci samples.c) &&
+	grep -qxF "#define COUNT(a) (ARRAY_SIZE(a))" "$R8/samples.c" &&
+	grep -qxF "#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))" \
+		"$R8/samples.c" &&
+	grep -qF "return ARRAY_SIZE(x) + ARRAY_SIZE(x);" "$R8/samples.c"
 '
 
 # A spatch that gives up, as a rule with --timeout makes it: the file it
