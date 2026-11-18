@@ -1073,9 +1073,10 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        components is accepted
    * - ``dm-names``
      - ``dm_name_ok()``, ``dm_device()``
-     - Up to 7 bytes
-     - A name of 1 to 127 of ``[A-Za-z0-9._-]``, not ``.`` or ``..``; a
-       device as decimal major and minor
+     - Up to 7 bytes; names of 127 and 128 bytes, any 7 and then
+       letters
+     - A name exactly when 1 to 127 of ``[A-Za-z0-9._-]``, not ``.`` or
+       ``..``; a device as decimal major and minor
    * - ``kernel-notes``
      - ``kernel_build_id_from_notes()``
      - Notes of 0 to 24, 28, 32, 36 and 40 bytes
