@@ -93,4 +93,11 @@ int enforcement_active(void);
 int identity_read(struct identity *out);
 int identity_read_at(int dirfd, const char *name, struct identity *out);
 
+/*
+ * The root of the private bpffs init mounted this boot, as a directory
+ * descriptor. -ENOENT when init has not run, -EXDEV when BPFFS_DIR is
+ * not on that bpffs, another -errno when it cannot be opened or read.
+ */
+int bpffs_root_open(void);
+
 #endif /* SHIRUDO_UTIL_IDENTITY_H */

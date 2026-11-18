@@ -24,6 +24,7 @@
 #include "crypto.h"
 #include "eventlog.h"
 #include "hex.h"
+#include "identity.h"
 #include "timefmt.h"
 #include "io.h"
 #include "json.h"
@@ -326,16 +327,36 @@ static int adopt_pending(void)
  * their own interleaved extend, extend, append, append and left a log
  * that replays the events in the other order. A load or an unload holds
  * this from before it touches the pins to its append, every other
- * measuring path from its extend to its append; it lives beside the log
- * it guards.
+ * measuring path from its extend to its append.
+ *
+ * The lock is the root of the private bpffs, one inode in every mount
+ * namespace. A file beside the log is root's to cover with another
+ * labeled inode in a namespace of its own, where a command would lock
+ * that one and undo the pins of a load still in flight, which then
+ * measures an upatch nothing runs. Only a log the environment names,
+ * which image_enter() allows on a host without shirudo's config alone,
+ * keeps its lock beside it.
  */
 int eventlog_lock(void)
 {
+	const char *log = eventlog_path();
 	char path[PATH_MAX];
+	int fd, ret;
 
-	if (strsprintf(path, sizeof(path), "%s.lock", eventlog_path()) < 0)
-		return -ENAMETOOLONG;
-	return seal_lock(path);
+	if (strcmp(log, EVENTLOG_PATH)) {
+		if (strsprintf(path, sizeof(path), "%s.lock", log) < 0)
+			return -ENAMETOOLONG;
+		return seal_lock(path);
+	}
+	fd = bpffs_root_open();
+	if (fd < 0)
+		return fd;
+	ret = lock_exclusive(fd);
+	if (ret) {
+		close(fd);
+		return ret;
+	}
+	return fd;
 }
 
 void eventlog_unlock(int fd)

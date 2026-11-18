@@ -2,8 +2,9 @@
 % Copyright (c) 2026 Authors of shirudo
 %
 % The steps of a upatch load, a upatch unload and a revocation's purge
-% of one upatch, the span each holds eventlog.lock, and what a failure or
-% a stop between two steps leaves (internals/measurement-register.rst).
+% of one upatch, the span each holds the register lock, and what a
+% failure or a stop between two steps leaves
+% (internals/measurement-register.rst).
 \documentclass[tikz,dvisvgm]{standalone}
 \usepackage{shirudo-figure}
 
@@ -62,7 +63,7 @@
     \node[small, note] at (10,206) {bpm remove};
     \node[title] at (10,308) {revocation};
     \node[small, note] at (10,326) {purge of one upatch};
-    \node[small, note] at (128,124) {eventlog.lock held};
+    \node[small, note] at (128,124) {register lock held};
   \end{scope}
 
   \figmark{389}{44}{1}

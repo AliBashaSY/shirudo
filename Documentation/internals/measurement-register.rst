@@ -154,7 +154,7 @@ shows the binding and the extensions that follow it.
          with the anchor digest and writes the init record to
          eventlog.pending. Every later command extends the index with a
          tagged event digest and then appends its record to the
-         eventlog, under eventlog.lock.
+         eventlog, under the register lock.
 
    Figure 1. Binding the register at boot and extending it later.
 
@@ -318,8 +318,14 @@ a time extends and appends. Two measuring commands that each held a lock
 of their own could interleave extend, extend, append, append, and leave a
 log that replays the events in the other order. Every measuring command,
 a upatch load or unload, a live revocation and a tree operation,
-therefore holds ``/var/lib/shirudo/eventlog.lock`` at least from its
-extension to its append. Figure 3 shows the three that change the
+therefore holds the register lock at least from its extension to its
+append: an ``flock`` on the root of the private bpffs,
+``/run/shirudo/bpffs``. That directory is the same inode in every mount
+namespace, and root can neither mount over it nor add an entry to it,
+where a lock file beside the eventlog is root's to cover with another
+labeled inode in a namespace of its own. A command opens the directory,
+reads the identity record pinned in it and checks that the directory
+lies on the device the record names before it locks. Figure 3 shows the three that change the
 loaded set, which hold it longer, the order of their steps and what a
 failure or a stop between two of them leaves.
 
@@ -338,7 +344,7 @@ failure or a stop between two of them leaves.
          leaves pins the next command removes.
 
    Figure 3. The steps of a load, an unload and a purge, the span each
-   holds ``eventlog.lock``, and what an interruption leaves.
+   holds the register lock, and what an interruption leaves.
 
 A load changes the target before it measures, and an unload or a purge
 measures before it changes it. A load that fails before its event can

@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <linux/bpf.h>
@@ -19,6 +20,7 @@
 #include <shirudo/misc.h>
 
 #include "identity.h"
+#include "io.h"
 #include "paths.h"
 
 int enforcement_active(void)
@@ -66,4 +68,31 @@ int identity_read_at(int dirfd, const char *name, struct identity *out)
 int identity_read(struct identity *out)
 {
 	return identity_read_at(AT_FDCWD, IDENTITY_PIN, out);
+}
+
+/*
+ * Root may mount over /run/shirudo in a mount namespace of its own, but
+ * no mount lands inside the private bpffs and no pin but shirudo's
+ * enters it, so the one directory that holds the identity pin and lies
+ * on the device it records is the bpffs root, reached through any mount.
+ */
+int bpffs_root_open(void)
+{
+	struct identity id;
+	struct stat st;
+	int fd, ret;
+
+	fd = open(BPFFS_DIR, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	ret = identity_read_at(fd, IDENTITY_PIN_NAME, &id);
+	if (!ret && fstat(fd, &st))
+		ret = -errno;
+	if (!ret && kernel_dev(st.st_dev) != id.sb_dev)
+		ret = -EXDEV;
+	if (ret) {
+		close(fd);
+		return ret;
+	}
+	return fd;
 }

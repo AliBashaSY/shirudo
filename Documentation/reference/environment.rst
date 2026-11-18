@@ -37,7 +37,9 @@ forbidden`` and fails with ``EPERM`` and exit status 1.
      - TPM owner password in place of ``tpm.owner_auth``, as a literal
        or ``hex:<even number of hex digits>``.
    * - ``SHIRUDO_EVENTLOG_PATH``
-     - Eventlog path in place of ``/var/lib/shirudo/eventlog``.
+     - Eventlog path in place of ``/var/lib/shirudo/eventlog``. The
+       register lock is then a file beside it, ``<path>.lock``, in place
+       of the root of the private bpffs.
    * - ``SHIRUDO_EVENTLOG_PENDING_PATH``
      - Pending eventlog record in place of
        ``/run/shirudo/eventlog.pending``.

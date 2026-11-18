@@ -1,7 +1,6 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='900.0' height='400.0' viewBox='-72 -72 674.996 299.998' class='fig fig-f-ink' role='img'><!-- Documentation/figures/internals-register-events.tex, sha256 930cc2fb4899a2ecd3c0f38cd4f36db49b3d32793fd016baaafb74a340e72b7c --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<svg xmlns='http://www.w3.org/2000/svg' width='900.0' height='400.0' viewBox='-72 -72 674.996 299.998' class='fig fig-f-ink' role='img'><!-- Documentation/figures/internals-register-events.tex, sha256 ff7f02c3ca32253ea362cc60836f9176740e4eb1298b0ff48236ee6a25f729db --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
 <defs>
 <use id='internals-register-events-g7-44' href='#internals-register-events-g3-44' transform='scale(.925)'/>
-<use id='internals-register-events-g7-46' href='#internals-register-events-g3-46' transform='scale(.925)'/>
 <use id='internals-register-events-g7-58' href='#internals-register-events-g3-58' transform='scale(.925)'/>
 <use id='internals-register-events-g7-77' href='#internals-register-events-g3-77' transform='scale(.925)'/>
 <use id='internals-register-events-g7-80' href='#internals-register-events-g3-80' transform='scale(.925)'/>
@@ -582,19 +581,21 @@
 <use x='240.955' y='-72' href='#internals-register-events-g7-100'/>
 <use x='246.32' y='-72' href='#internals-register-events-g7-101'/>
 <use x='251.398' y='-72' href='#internals-register-events-g7-114'/>
-<use x='256.976' y='-72' href='#internals-register-events-g7-101'/>
-<use x='261.98' y='-72' href='#internals-register-events-g7-118'/>
-<use x='266.457' y='-72' href='#internals-register-events-g7-101'/>
-<use x='271.535' y='-72' href='#internals-register-events-g7-110'/>
-<use x='276.789' y='-72' href='#internals-register-events-g7-116'/>
-<use x='280.036' y='-72' href='#internals-register-events-g7-108'/>
-<use x='282.552' y='-72' href='#internals-register-events-g7-111'/>
-<use x='287.732' y='-72' href='#internals-register-events-g7-103'/>
-<use x='292.736' y='-72' href='#internals-register-events-g7-46'/>
-<use x='295.252' y='-72' href='#internals-register-events-g7-108'/>
-<use x='297.768' y='-72' href='#internals-register-events-g7-111'/>
-<use x='302.948' y='-72' href='#internals-register-events-g7-99'/>
-<use x='307.601' y='-72' href='#internals-register-events-g7-107'/>
+<use x='256.976' y='-72' href='#internals-register-events-g7-116'/>
+<use x='260.223' y='-72' href='#internals-register-events-g7-104'/>
+<use x='265.477' y='-72' href='#internals-register-events-g7-101'/>
+<use x='272.738' y='-72' href='#internals-register-events-g7-114'/>
+<use x='276.086' y='-72' href='#internals-register-events-g7-101'/>
+<use x='281.165' y='-72' href='#internals-register-events-g7-103'/>
+<use x='286.049' y='-72' href='#internals-register-events-g7-105'/>
+<use x='288.361' y='-72' href='#internals-register-events-g7-115'/>
+<use x='292.801' y='-72' href='#internals-register-events-g7-116'/>
+<use x='296.011' y='-72' href='#internals-register-events-g7-101'/>
+<use x='301.089' y='-72' href='#internals-register-events-g7-114'/>
+<use x='306.667' y='-72' href='#internals-register-events-g7-108'/>
+<use x='309.183' y='-72' href='#internals-register-events-g7-111'/>
+<use x='314.363' y='-72' href='#internals-register-events-g7-99'/>
+<use x='319.016' y='-72' href='#internals-register-events-g7-107'/>
 </g>
 </g>
 </g>

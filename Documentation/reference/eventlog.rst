@@ -32,11 +32,14 @@ Files
      - The ``init`` record that ``shirudo init`` writes while it runs
        from the initrd. Readers treat it as the end of the eventlog
        until it is adopted.
-   * - ``/var/lib/shirudo/eventlog.lock``
-     - Lock file. upatch loads and unloads, key revocations and tree
-       operations hold it from the register extend to the matching
-       append, so the register and the log advance in the same order.
-       Adopting the pending record also takes it.
+   * - ``/run/shirudo/bpffs``
+     - The register lock, an ``flock`` on the private bpffs's root.
+       upatch loads and unloads, key revocations and tree operations
+       hold it from the register extend to the matching append, so the
+       register and the log advance in the same order. Adopting the
+       pending record also takes it. With ``SHIRUDO_EVENTLOG_PATH`` set,
+       which a host without shirudo's config allows, the lock is a file
+       beside that log, its path with ``.lock`` appended.
 
 ``SHIRUDO_EVENTLOG_PATH`` and ``SHIRUDO_EVENTLOG_PENDING_PATH`` override
 the two paths for host tests. A target running from a runtime image

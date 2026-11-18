@@ -1064,10 +1064,11 @@ derives every record's digest from its fields and folds them to the
 value the TPM reports, and refuses ``tampered`` when they do not fold. A
 boot ID that root binds over ``/proc``, or a pending record in a
 ``/run`` of root's making, which no reader takes since it carries no
-seal label, therefore moves nothing (``t6147``). One lock beside the
-eventlog orders every extend and append and covers the undo, so the
-register and the log advance in one order and the undo never takes a
-load in flight for a stopped one. A failure or a stop between an extend
+seal label, therefore moves nothing (``t6147``). One lock, the root of
+the private bpffs, orders every extend and append and covers the undo,
+in every mount namespace, so the register and the log advance in one
+order and the undo never takes a load in flight for a stopped one
+(``t6128``). A failure or a stop between an extend
 and its append leaves the register ahead of the log; shirudo reports
 the desync, ``shirudo status`` reports a register its replay cannot
 explain, and every later load and unload refuses until the next reboot.
@@ -1817,7 +1818,16 @@ R22 Labeled inodes are interchangeable
    content from a registry (``t7002``). This is a reading of
    the code and is not reproduced. A bind mount over the state root in
    ``init``'s namespace, an idmapped one among them, was reproduced:
-   every command refuses the state as foreign from then on.
+   every command refuses the state as foreign from then on. The lock
+   that keeps the register in step rests on no label: a lock file
+   beside the eventlog would let a command in root's namespace lock a
+   decoy and undo the pins of a load still in flight in another, which
+   then measures an upatch nothing runs. The register lock is the root
+   of the private bpffs, which takes no mount and no entry from root, so
+   a command in any namespace waits for the same inode (``t6128``). The
+   bpm lock, ``locks/bpm.lock``, still rests on a label: two package or
+   tree commands under a decoy can interleave their own state, while
+   each step they measure still waits for the register lock.
 
 R23 Policy labels follow the inode
    A policy label is an xattr of the executable's inode, applied at

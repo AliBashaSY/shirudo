@@ -46,8 +46,8 @@ Description
    message ``chain_drift``).
 #. It refuses when the eventlog would exceed ``eventlog.max_bytes``
    (``eventlog_full``).
-#. It takes the register lock, ``/var/lib/shirudo/eventlog.lock``, which
-   it holds to the end, and undoes the pins and archives this boot's
+#. It takes the register lock, an ``flock`` on the root of the private
+   bpffs, ``/run/shirudo/bpffs``, which it holds to the end, and undoes the pins and archives this boot's
    records do not cover: those of a load stopped before its extend, of
    an unload stopped after it, and an archive brought back after its
    unload, which ``status`` reports under ``UpatchesMeasured``. It takes

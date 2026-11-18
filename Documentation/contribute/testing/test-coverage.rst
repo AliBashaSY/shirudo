@@ -449,7 +449,8 @@ signed config image.
    * - ``t6127-proc-substitution``
      - Config read through a substituted ``/proc``
    * - ``t6128-register-lock``
-     - The lock that keeps register and eventlog in step
+     - The lock that keeps register and eventlog in step, the same in a
+       mount namespace of root's own
    * - ``t6129-keyring-seal``
      - The exact keyring check at ``init``
    * - ``t6130-verity-devices``

@@ -114,7 +114,7 @@ made inside the test run, reach it with ``kernel`` true.
      - The kernel ABI check passes, the ``.bpf`` keyring serial equals
        the frozen identity record, and ``lsm_link`` is pinned. With
        ``--expect-chain``, the register equals the given value.
-   * - take ``eventlog.lock``, undo
+   * - take the register lock, undo
      - The register lock is held from here to the append. The undo pass
        removes pins and archives this boot's records do not cover, and
        refuses when the records do not fold to the register.

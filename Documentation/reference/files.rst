@@ -133,11 +133,6 @@ the label as foreign. In the initrd, ``init`` binds
      - ``0600``
      - Append-only eventlog, one JSON record per line. See
        :doc:`/reference/eventlog`.
-   * - ``eventlog.lock``
-     - measuring commands
-     - ``0600``
-     - Lock held from each register extend to its eventlog append, and
-       by a load or an unload from before it touches the pins.
    * - ``locks/bpm.lock``
      - ``bpm``
      - ``0600``
@@ -239,7 +234,10 @@ carries ``/run`` from the initrd into the root file system.
      - ``init``
      - bpffs
      - Private bpffs (``mode=0700``, ``nosuid``, ``nodev``,
-       ``noexec``) holding every pin.
+       ``noexec``) holding every pin. Its root is also the register
+       lock: measuring commands ``flock`` it from each register extend to
+       its eventlog append, and a load or an unload from before it
+       touches the pins.
    * - ``/run/shirudo/runtime/``
      - ``init``
      - dm-verity
