@@ -4,14 +4,33 @@
  *
  * kernel_build_id_from_notes() of util/kernel_build_id.c on every note
  * section of LEN bytes: it reads nothing outside the section, a refusal
- * leaves an empty string, and a build ID is the lowercase hex of at most
- * 64 bytes, that of the first note when it is the GNU build ID, type 3
- * named "GNU", and none from a section whose one note is anything else.
+ * leaves an empty string, and a build ID is the lowercase hex of 1 to 64
+ * bytes, that of the first note when it is the GNU build ID, type 3 named
+ * "GNU", none from a section whose one note is anything else, and none
+ * from a first GNU build ID of more than 64 bytes.
  */
 
 #include "proof.h"
 #include "../../../util/hex.c"
 #include "../../../util/kernel_build_id.c"
+
+/*
+ * Past its first note's header and name a section longer than SYMBOLIC
+ * bytes holds a fixed pattern, there to reach the 64-byte limit with the
+ * descriptor's size still any value.
+ */
+#define SYMBOLIC	40
+
+static __u8 *any_notes(void)
+{
+	__u8 *notes = any_bytes(LEN);
+	size_t i;
+
+	if (LEN > SYMBOLIC)
+		for (i = 16; i < LEN; i++)
+			notes[i] = 0x5a;
+	return notes;
+}
 
 static __u32 word(const __u8 *p)
 {
@@ -66,11 +85,19 @@ static void first_note(const __u8 *notes, const char *out)
 void harness(void)
 {
 	char out[KERNEL_BUILD_ID_STRING_MAX];
+	__u32 descsz;
 	__u8 *notes;
 	size_t i, n;
+	int ret;
 
-	notes = any_bytes(LEN);
-	if (kernel_build_id_from_notes(notes, LEN, out)) {
+	notes = any_notes();
+	ret = kernel_build_id_from_notes(notes, LEN, out);
+	descsz = LEN >= 16 ? word(notes + 4) : 0;
+	if (LEN >= 16 && gnu_build_id(notes) && descsz > KERNEL_BUILD_ID_MAX &&
+	    descsz <= LEN && 16 + align4(descsz) <= LEN)
+		__CPROVER_assert(ret == -E2BIG,
+				 "no build ID of more than 64 bytes");
+	if (ret) {
 		__CPROVER_assert(!out[0], "a refusal leaves an empty string");
 		return;
 	}

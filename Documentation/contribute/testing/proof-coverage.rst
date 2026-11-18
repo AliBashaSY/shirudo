@@ -1079,10 +1079,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``..``; a device as decimal major and minor
    * - ``kernel-notes``
      - ``kernel_build_id_from_notes()``
-     - Notes of 0 to 24, 28, 32, 36 and 40 bytes
-     - Reads nothing past the notes; a build ID of 1 to 64 lowercase hex
-       digits that is the first GNU build ID note's, or empty, and none
-       from a section whose one note is another
+     - Notes of 0 to 24, 28, 32, 36 and 40 bytes; of 80 and 84 bytes
+       with any first note header and name and fixed bytes after them
+     - Reads nothing past the notes; a build ID of 1 to 64 bytes, in 2 to
+       128 lowercase hex digits, that is the first GNU build ID note's,
+       or empty, none from a section whose one note is another, and none
+       from a first GNU build ID of more than 64 bytes
    * - ``kernel-release``
      - ``kernel_release_prefix_matches()``
      - Releases and prefixes up to 8 bytes
