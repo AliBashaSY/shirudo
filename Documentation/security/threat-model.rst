@@ -634,23 +634,46 @@ The pins live as long as the bpffs superblock, which goes with its last
 mount. ``lsm/sb_umount``, ``lsm/move_mount``, ``lsm/sb_mount`` and
 ``lsm/sb_remount`` refuse every caller, shirudo included, an unmount, a
 move, a mount over or a remount of the private bpffs (``BpffsUmount``,
-``BpffsMount``). The kernel asks ``sb_umount`` only about the mount it
-was given, so the hook also walks what the unmount would take: the
-subtree, and for each mount in it the copies that propagation made at
-its mountpoint on the peers and slaves of its parent, from the bpffs
-mount ``init`` recorded, and refuses an unmount that reaches it
+``BpffsMount``). Figure 2 shows the two ways an operation on a mount far
+from the bpffs takes it along.
+
+.. figure:: /images/security-bpffs-mounts.svg
+   :alt: Three mount namespaces. In init's, the root, /run, the
+         /run/shirudo tmpfs and the recorded bpffs nest in that order;
+         unmounting the bpffs is refused with BpffsUmount, and
+         unmounting /run, whose subtree holds it, with BpffsUmountAbove.
+         In a peer namespace whose root is a peer of init's, unmounting
+         its copy of /run propagates to init's /run and is refused by
+         lsm/sb_umount with BpffsUmountAbove. In a namespace without
+         /run mounted, /run is the bare directory, the same dentry init's
+         /run is mounted on, and an rmdir of it would detach the mounts
+         on it everywhere; lsm/inode_rmdir refuses it with
+         BpffsUmountAbove.
+
+   Figure 2. How an unmount or a removal away from the private bpffs
+   reaches it.
+
+The kernel asks ``sb_umount`` only about the mount it was given, but an
+unmount takes that mount's subtree with it, and propagation repeats it
+on the copies at the same mountpoint on the peers and slaves of its
+parent. The hook therefore walks what the unmount would take: the
+subtree, and for each mount in it those copies, from the bpffs mount
+``init`` recorded, and refuses an unmount that reaches it
 (``BpffsUmountAbove``). The walk runs without the namespace lock,
 within fixed bounds of 1024 mounts, 32 levels and 4 masters, and
-refuses a tree it cannot finish. Removing a dentry detaches what is
-mounted on it in every namespace, and renaming it moves those mounts,
-both without ``sb_umount``: from a namespace where ``/run`` is not
-mounted, an ``rmdir`` of the directory init's ``/run`` covers would take
-the bpffs along. ``lsm/inode_rmdir``, ``lsm/inode_unlink`` and
-``lsm/inode_rename`` refuse a task without authority the removal or
-rename of the mount point of the recorded bpffs mount or of any mount
-above it (``BpffsUmountAbove``, ``t6155``). The tmpfs at
-``/run/shirudo`` gets the same treatment without counters: no caller
-unmounts, moves or remounts it, and only authorized tasks mount onto it.
+refuses a tree it cannot finish.
+
+Removing a dentry detaches what is mounted on it in every namespace, and
+renaming it moves those mounts, both without ``sb_umount``: from a
+namespace where ``/run`` is not mounted, an ``rmdir`` of the directory
+init's ``/run`` covers would take the bpffs along. ``lsm/inode_rmdir``,
+``lsm/inode_unlink`` and ``lsm/inode_rename`` refuse a task without
+authority the removal or rename of the mount point of the recorded
+bpffs mount or of any mount above it (``BpffsUmountAbove``, ``t6155``).
+
+The tmpfs at ``/run/shirudo`` gets the same treatment without counters:
+no caller unmounts, moves or remounts it, and only authorized tasks
+mount onto it.
 
 Root also controls part of the site a load attaches at, since root
 runs ``shirudo upatch load``. A ``cgroup_skb`` program attaches at the
