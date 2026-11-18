@@ -124,7 +124,7 @@ upatch, the selector it gets when published to an upatch tree.
 ``shirudo bpm build`` builds and signs every upatch the Beefile lists,
 together with its unload directive, and writes ``<name>-<version>.bee``.
 The package is a gzip-compressed tar archive that holds the Beefile, the
-artifacts and directives under :src:`upatches/`, the package's ``README.md``
+artifacts and directives under ``upatches/``, the package's ``README.md``
 when it has one, the signing certificate ``cert.der``, a
 ``build-environment.json`` and the extra files.
 
