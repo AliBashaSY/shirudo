@@ -48,12 +48,6 @@ int write_complete(int fd, const void *buf, size_t len)
 	return 0;
 }
 
-/*
- * A path under a verified root resolves from its descriptor alone: no
- * symbolic link, no magic link and no step out of it, so nothing root
- * mounts or links elsewhere, /proc/<pid>/fd before an exec say, is
- * followed.
- */
 size_t lines_len(const char *buf, size_t len)
 {
 	while (len && buf[len - 1] != '\n')
@@ -127,6 +121,12 @@ int append_line(int fd, const char *path, const char *line, size_t len)
 	return ret;
 }
 
+/*
+ * A path under a verified root resolves from its descriptor alone: no
+ * symbolic link, no magic link and no step out of it, so nothing root
+ * mounts or links elsewhere, /proc/<pid>/fd before an exec say, is
+ * followed.
+ */
 int open_beneath(int dirfd, const char *rel, int flags)
 {
 	struct open_how how = {
