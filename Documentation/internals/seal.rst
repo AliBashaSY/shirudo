@@ -172,12 +172,12 @@ limits and disarming the timers it inherited when it starts, and
 ``lsm/task_setrlimit`` refuses another task a change of its limits
 (``SealRlimit``). ``SIGKILL`` from ``cgroup.kill`` or the OOM killer,
 ``SIGPIPE`` and the cgroup freezer stay uncounted.
-``lsm/mmap_file`` and ``lsm/file_mprotect`` refuse a marked task
-executable memory that is writable or that does not come from the
-runtime image. ``bpf2`` makes every exec of a runtime file a secure-exec,
-so the dynamic loader ignores ``LD_PRELOAD`` and its kin, and refuses
-``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` to tasks without
-authority.
+``lsm/mmap_file`` and ``lsm/file_mprotect`` refuse a task with runtime
+authority executable memory that is writable or that does not come
+from the runtime image. ``bpf2`` makes every exec of a runtime file a
+secure-exec, so the dynamic loader ignores ``LD_PRELOAD`` and its kin,
+and refuses ``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` to tasks
+without authority.
 
 Labels
 ------

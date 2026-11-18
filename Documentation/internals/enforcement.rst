@@ -196,8 +196,8 @@ Exec and processes
     runtime executable in secure-exec mode, so the dynamic loader ignores
     ``LD_PRELOAD`` and the other unsafe variables, and refuses
     ``PR_SET_MM_EXE_FILE`` and ``PR_SET_MM_MAP`` to tasks without
-    authority. ``seal`` refuses a marked task executable memory that does
-    not come from the runtime image.
+    authority. ``seal`` refuses a task with runtime authority executable
+    memory that does not come from the runtime image.
 
 Kexec
     A kexec hands the machine to a kernel and initrd of the caller's
@@ -540,8 +540,9 @@ when the record it needs is missing.
      - ``SealPerf``
      - Not applicable.
    * - ``lsm/mmap_file`` (``seal``)
-     - An executable mapping in a marked task, other than the bootstrap
-       task, that is writable or does not come from a runtime file.
+     - An executable mapping in a task with runtime authority, other
+       than the bootstrap task, that is writable or does not come from a
+       runtime file.
      - ``EACCES``
      - Uncounted
      - Closed.
