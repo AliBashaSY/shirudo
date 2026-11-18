@@ -191,7 +191,8 @@ Build the runtime image
 Write the UKI bootstrap file
 ----------------------------
 
-1. Write ``uki-bootstrap.conf`` with the runtime root hash:
+1. On the operator host, write ``uki-bootstrap.conf`` with the runtime
+   root hash:
 
    .. code-block:: ini
 
@@ -202,6 +203,28 @@ Write the UKI bootstrap file
    ``runtime.roothash``. ``runtime.image`` is the runtime image's prefix as
    the initrd sees it. The initrd checks the image against this hash and
    refuses any other.
+
+Copy the files to the target
+----------------------------
+
+The rest of the procedure runs on the target, in a directory only root
+can read, until you build the UKI.
+
+1. Copy what you built on the operator host into that directory, with
+   ``scp`` or any channel you trust:
+
+   - ``runtime.img``, ``runtime.verity`` and ``runtime.roothash``;
+   - ``initial.img``, ``initial.verity``, ``initial.roothash`` and
+     ``initial.p7s``;
+   - ``runtime-service.conf``;
+   - ``uki-bootstrap.conf``;
+   - the primary BPF signing certificate, ``<bpf-cert>``.
+
+2. Give the UKI bootstrap file mode ``0600``:
+
+   .. code-block:: console
+
+      target# chmod 0600 uki-bootstrap.conf
 
 Place the images on the target
 ------------------------------
@@ -375,7 +398,9 @@ Build and sign the UKI
       target# shirudo-gen-initrd --print-cmdline
       bpf.keyring_unsealed=1 dm_verity.keyring_unsealed=1
 
-2. Build a UKI from the kernel image, the initrd and a command line that
+2. Copy the initrd and the kernel image of ``<kernel-release>`` to the
+   host that holds your Secure Boot signing key, the operator host in
+   most deployments. There, build a UKI from them and a command line that
    carries both parameters, and sign it for Secure Boot.
 
    Without the parameters the kernel seals both keyrings empty at boot,
@@ -383,8 +408,8 @@ Build and sign the UKI
    list, unless ``CONFIG_LSM`` has it already, and the settings from
    :doc:`/operate/plan/hardening`.
 
-3. Install the UKI on the target's EFI system partition and make it the
-   default boot entry.
+3. Copy the signed UKI to the target's EFI system partition and make it
+   the default boot entry.
 
 The UKI must boot through systemd's stub, so that
 ``systemd-pcrphase-initrd.service`` measures the ``enter-initrd`` phase
