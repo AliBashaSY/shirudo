@@ -187,29 +187,93 @@ upatch linked to the advisory in ``upatch_fixes``, and from the node's
 mask, or from its history in ``node_ops`` when that operation is below
 the record's window, so that a shield older than the window keeps its
 state; what the tree holds beyond the node's ``last_seq`` is in
-``next_seq`` and ``next_op``, not here:
+``next_seq`` and ``next_op``, not here. For each upatch linked to the
+advisory, four things decide the value, in the order of the table: the
+add the link names, the newest operation of the upatch the node has
+applied, what the node did at that add, as its mask or its history
+says, and the newest operation of the upatch in the tree.
 
 .. list-table::
    :header-rows: 1
+   :widths: 17 15 17 11 18 22
 
-   * - Value
-     - When
-   * - ``shielded``
-     - The node has applied an ``add`` and its mask marks it applied: the upatch is loaded.
-   * - ``shield_pending``
-     - The node has applied no operation of the upatch and the tree's newest one is an ``add``: nothing is loaded and a shield is coming. A rollout; check 5 says when it is stuck.
-   * - ``shield_module_absent``
-     - The node has applied an ``add`` whose selector matched, but the module it attaches to is not loaded, so nothing is attached.
-   * - ``shield_excludes_node``
-     - The node has applied an ``add`` whose selector left it out. Either the node is not affected in a way a version cannot show, or the selector is too narrow.
-   * - ``shield_withdrawn``
-     - The node has applied a ``delete`` of the upatch: a shield was published and taken back. Also when the node has applied nothing and the tree's newest operation is a ``delete``, which the node will reach without ever having had the shield.
-   * - ``exposed_no_shield``
-     - No upatch is linked to the advisory, or the node follows no tree. ``upatch_id`` is empty, the two ``seq`` are 0, the two operations empty, ``next_shields`` false and ``shield_link`` ``none``.
-   * - ``none``
-     - There is data for the node and nothing was found.
-   * - ``unknown``
-     - On the row of a node without findings: no usable SBOM for the node, see ``binding``, or one whose scan is stale, and no kernel finding. On a finding: the node has applied an ``add`` of the linked upatch, but its record has no mask, or one that does not cover that operation, so what the ``add`` did there is not known; such a record fails the status checks. Also when the ``add`` is below the record's window and the node's history has no row for it, because the backend never saw the node reach it, see :doc:`status`.
+   * - Link on
+     - Node applied last
+     - Outcome at that add
+     - Tree's newest
+     - ``exposure``
+     - What to do
+   * - The add the node applied
+     - That ``add``
+     - Applied
+     - Any
+     - ``shielded``
+     - Nothing: the upatch is loaded.
+   * - The add the node applied
+     - That ``add``
+     - Attach module not loaded
+     - Any
+     - ``shield_module_absent``
+     - The shield does nothing here until the module it attaches to is
+       loaded.
+   * - The add the node applied
+     - That ``add``
+     - Selector did not match
+     - Any
+     - ``shield_excludes_node``
+     - Check the selector: either the node is not affected in a way a
+       version cannot show, or the selector is too narrow.
+   * - The add the node applied
+     - That ``add``
+     - Not known: no mask, one that does not cover the add, or an add
+       below the window the history has no row for
+     - Any
+     - ``unknown``
+     - Repair the node; such a record fails the status checks, see
+       :doc:`status`.
+   * - The add the node applied
+     - A later ``delete``
+     - Not read
+     - Any
+     - ``shield_withdrawn``
+     - Find out why the upatch was deleted and whether its successor is
+       on the way, which ``next_op`` ``add`` says.
+   * - The tree's newest add only
+     - Nothing, or an operation after an add the link does not name
+     - Not read
+     - ``add``
+     - ``shield_pending``
+     - Wait for the rollout, unless check 5 calls the node stuck.
+   * - The tree's newest add only
+     - Nothing, or an operation after an add the link does not name
+     - Not read
+     - ``delete``
+     - ``shield_withdrawn``
+     - As above: the node reaches the ``delete`` without ever having had
+       the shield.
+   * - No upatch, or the node follows no tree
+     - Not read
+     - Not read
+     - Not read
+     - ``exposed_no_shield``
+     - No known shield: none was published, or none is linked to the
+       advisory. A node with the right upatch loaded reads so too when
+       nothing links that upatch to the advisory.
+
+``exposed_no_shield`` leaves ``upatch_id`` empty, the two ``seq`` 0, the
+two operations empty, ``next_shields`` false and ``shield_link``
+``none``. A row without a finding reads ``none``, or ``unknown`` when the
+node has no usable SBOM, see ``binding``, or one whose scan is stale,
+and no kernel finding.
+
+Of several upatches linked to one advisory the best outcome counts, in
+the order ``shielded``, ``shield_pending``, ``shield_module_absent``,
+``shield_excludes_node``, ``shield_withdrawn`` and ``unknown``, which is
+also the order of the enum; of a ``fixes`` and a ``manual`` link to the
+same operation the ``fixes`` one is shown. Sorting the findings by
+``exposure`` descending, as the fleet query below does, puts ``unknown``
+first, then ``exposed_no_shield`` and ``shield_withdrawn``, ahead of
+every outcome of a published shield.
 
 A row does not run ahead of its node. A node that has applied the
 ``add`` of an upatch whose ``delete`` is published stays ``shielded``
@@ -219,18 +283,6 @@ while the newer ``add`` is still coming. When that newer ``add`` no
 longer carries the advisory, the row reads ``shielded`` with
 ``next_shields`` false, and turns ``exposed_no_shield`` once the node
 applies it.
-
-What each value asks of the operator: ``exposed_no_shield`` means no
-known shield, because none was ever published for the advisory or none
-is linked to it, and a node that has the right upatch loaded reads so
-too when nothing links that upatch to the advisory. ``shield_withdrawn``
-is the other way to be without one, and the question is why the upatch
-was deleted and whether its successor is on the way, which ``next_op``
-``add`` says. ``shield_pending`` asks for nothing but time, unless check
-5 calls the node stuck. ``shield_module_absent`` and
-``shield_excludes_node`` are a published shield that does nothing on
-this node, and ``unknown`` on a finding is a node to repair before its
-row can be read.
 
 Which upatches count: one whose newest ``add`` the node has applied, or
 whose newest ``add`` in the tree, is linked to the advisory. Only the
@@ -242,17 +294,6 @@ has applied is no shield against this advisory: the row is
 ``shield_link`` is the link of the applied ``add`` when it has one, else
 of the coming one. A link on an ``add`` the node has left behind does
 not count.
-
-The values are in the order they are ranked in, which is also the order
-of the enum. Of several upatches linked to one advisory the best outcome
-counts: any ``add`` that is still published, even one whose selector
-leaves the node out, before a withdrawn upatch, since it says more about
-what can be done for the node, and an outcome that is not known last. Of
-a ``fixes`` and a ``manual`` link to the same operation the ``fixes``
-one is shown. Sorting the findings by ``exposure`` descending, as the
-fleet query below does, puts ``unknown`` first, then
-``exposed_no_shield`` and ``shield_withdrawn``, ahead of every outcome
-of a published shield.
 
 The two nodes of the example in :src:`testing/fixtures/keepalive/`, both
 on image ``fleet-os`` 2026.11.1 and kernel 7.4.2, and a third installed
