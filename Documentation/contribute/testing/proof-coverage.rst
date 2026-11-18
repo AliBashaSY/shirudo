@@ -1339,8 +1339,9 @@ the model follows the C.
        sync rather than the next segment, and the cut a sync makes before
        a walk back that refuses; the base and prefix checks are left out
        of the model, as they only refuse more. A manifest digest names
-       one publication; the hash is injective on
-       (root, digest) and never 64 zeros; only sync writes the tree files,
+       one publication; the hash is injective on every (root, digest)
+       pair, an idealized hash, which no hash onto 32 bytes is, and
+       never 64 zeros; only sync writes the tree files,
        each write whole, one sync at a time; the unlink of ``pending.json``
        succeeds; an extend and its eventlog record are one write. An
        outcome line holds whether the selector matched, not which of 1

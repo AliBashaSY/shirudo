@@ -57,11 +57,12 @@ refusing a negative generation, and on a manifest digest naming one
 publication. The cursor
 and the order rest on the loop's own cursor check and recovery's; that each
 operation is applied once rests on recovery's comparison of the replayed
-root and on its look at this boot's records, with the hash collision
-resistant. The outcomes record rests on the order of the writes, a line
-before the state that covers it, on the cut at the start of a sync, on
-recovery writing the lines of the operations the stopped sync passed over,
-and on `tree_publication_check()` numbering the operations without a gap;
+root and on its look at this boot's records, with the hash injective, an
+idealized hash (see `Assumptions`). The outcomes record rests on the order
+of the writes, a line before the state that covers it, on the cut at the
+start of a sync, on recovery writing the lines of the operations the
+stopped sync passed over, and on `tree_publication_check()` numbering the
+operations without a gap;
 the head on the state written at acceptance and on the cursor check of
 `Follows`. The parent check of `Follows` is not needed by any of these
 theorems. `Assumptions` states what the C cannot show.
@@ -274,8 +275,8 @@ theorem rootOf_append (log : List (Line D)) (l : Line D) :
   simp [rootOf, List.foldl_append]
 
 /-- No operation leaves the projection root where it was, so a root tells
-whether the line of an operation is there: the hash is collision
-resistant, modelled as `Shirudo.Chain` models it. -/
+whether the line of an operation is there, for the idealized hash of
+`Chain.register_injective`, injective on every (root, digest) pair. -/
 theorem rootOf_ne_next (hH : ∀ a b c d, H a b = H c d → a = c ∧ b = d)
     (hinit : ∀ a b, H a b ≠ init) (log : List (Line D)) (d : D) :
     rootOf H init log ≠ H (rootOf H init log) d := by
@@ -1613,9 +1614,13 @@ theorem recover_inv {Signed : Pub T M I D → M → Prop}
 names one publication: it is the SHA-256 of the manifest, and
 `bpm_oci_get_signed()` takes the one payload layer the manifest names by
 its SHA-256 and checks it, while a registry may wrap one publication in any
-number of manifests. And the projection hash is collision resistant,
-modelled as `Shirudo.Chain` models it: injective on (root, digest) pairs
-and never the 64 zeros. -/
+number of manifests. And the projection hash is injective on (root,
+digest) pairs and never the 64 zeros, the idealized hash of
+`Chain.register_injective`. No hash onto 32 bytes is injective on every
+pair, so the theorems that rest on `hash_inj` hold of SHA-256 only as far
+as no two of the pairs it folds on the node collide, as
+`Chain.register_injective_on` states for the register; the proofs here do
+not narrow it to those pairs. -/
 structure Assumptions (H : D → D → D) (init : D)
     (Signed : Pub T M I D → M → Prop) : Prop where
   binds : ∀ p p' m, Signed p m → Signed p' m → p = p'
