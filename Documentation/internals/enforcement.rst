@@ -302,21 +302,23 @@ is not counted.
 Hook reference
 --------------
 
-``bpf2`` and ``seal`` name the object. "Authority" means runtime
-authority as above. The last column says what the program does when it
-cannot decide: when a read fails, when storage cannot be allocated, or
-when the record it needs is missing.
+The programs of ``bpf2`` and those of ``seal`` have a table each.
+"Authority" means runtime authority as above. The last column says
+what the program does when it cannot decide: when a read fails, when
+storage cannot be allocated, or when the record it needs is missing.
+
+Hooks in bpf2
+~~~~~~~~~~~~~
 
 .. list-table::
    :header-rows: 1
-   :widths: 17 37 8 18 20
+   :widths: 22 44 16 18
 
    * - Hook
      - Refuses, and allows
-     - Errno
-     - Counter
+     - Errno and counter
      - Cannot decide
-   * - ``lsm/bpf`` (``bpf2``)
+   * - ``lsm/bpf``
      - With ``kernel`` false: a program load of another type than
        ``BPF_PROG_TYPE_SYSCALL``, or without a signature size, to every
        caller. Map create, update and freeze, test run, link create, raw
@@ -326,39 +328,37 @@ when the record it needs is missing.
        commands: map lookups, ``GET_NEXT_ID``, ``PROG_GET_FD_BY_ID``,
        ``BTF_GET_FD_BY_ID``, ``OBJ_GET_INFO_BY_FD``, ``PROG_QUERY``,
        ``TASK_FD_QUERY``.
-     - ``EACCES``
-     - ``LoadNotLoader``, ``LoadUnsigned``, ``MapCreate``, ``MapWrite``,
-       ``ProgRun``, ``ProgAttach``, ``ObjPin``, ``ObjGet``,
-       ``BpfCommand``
+     - ``EACCES``: ``LoadNotLoader``, ``LoadUnsigned``,
+       ``MapCreate``, ``MapWrite``, ``ProgRun``, ``ProgAttach``,
+       ``ObjPin``, ``ObjGet``, ``BpfCommand``
      - Closed: unclassified commands are refused.
-   * - ``lsm/bpf_prog_load`` (``bpf2``)
+   * - ``lsm/bpf_prog_load``
      - A userspace load the kernel did not verify, verified against
        another keyring kind than ``.bpf``, or with a non-zero keyring
        serial other than the frozen one. Allows ``kernel`` true.
-     - ``EACCES``
-     - ``LoadUnverified``, ``LoadKeyringKind``, ``LoadKeyring`` (never
-       reached: the kernel records serial 0 for ``.bpf``)
+     - ``EACCES``: ``LoadUnverified``, ``LoadKeyringKind``,
+       ``LoadKeyring`` (never reached: the kernel records serial 0 for
+       ``.bpf``)
      - Closed: no frozen keyring serial refuses every load, uncounted.
-   * - ``lsm/bpf_map`` (``bpf2``)
+   * - ``lsm/bpf_map``
      - Every map descriptor to a task without authority.
-     - ``EACCES``
-     - ``MapFdWrite`` (writable), ``ObjGet`` (read-only)
+     - ``EACCES``: ``MapFdWrite`` (writable), ``ObjGet``
+       (read-only)
      - Closed.
-   * - ``lsm/bpf_prog`` (``bpf2``)
+   * - ``lsm/bpf_prog``
      - An XDP program descriptor to a task without authority, including
        acquisition by program ID. Other program types stay allowed.
-     - ``EACCES``
-     - ``ObjGet``
+     - ``EACCES``: ``ObjGet``
      - Closed.
-   * - ``lsm/file_open`` (``bpf2``)
+   * - ``lsm/file_open``
      - Opening a non-directory inode of the private bpffs, through any
        mount of it, to a task without authority. Records the bpffs mount
        when the bootstrap task opens its root. Opening a
        ``HibernateLocation`` EFI variable for writing, to every caller.
-     - ``EACCES``; ``EPERM`` for the EFI variable
-     - ``ObjGet``; ``HibernateLocation``
+     - ``EACCES``: ``ObjGet``. ``EPERM`` for the EFI variable:
+       ``HibernateLocation``
      - Closed.
-   * - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat`` (``bpf2``)
+   * - ``lsm/file_ioctl``, ``lsm/file_ioctl_compat``
      - ``PERF_EVENT_IOC_SET_BPF`` on any file,
        ``XFS_IOC_ATTRMULTI_BY_HANDLE`` on an XFS file system, which
        changes attributes past every xattr hook, and every device-mapper
@@ -367,264 +367,246 @@ when the record it needs is missing.
        ``DM_TABLE_STATUS``, ``DM_LIST_VERSIONS`` and
        ``DM_GET_TARGET_VERSION`` on the control device (10:236), to a
        task without authority.
-     - ``EACCES`` (perf, XFS), ``EPERM`` (DM)
-     - ``PerfAttach``, ``XattrHandle``; DM refusals uncounted
+     - ``EACCES``: ``PerfAttach``, ``XattrHandle``. ``EPERM``
+       for DM, uncounted
      - Closed: unknown DM commands are refused.
    * - ``lsm/inode_unlink``, ``lsm/inode_rmdir``, ``lsm/inode_mkdir``,
        ``lsm/inode_symlink``, ``lsm/inode_link``, ``lsm/inode_rename``,
-       ``lsm/inode_setxattr``, ``lsm/inode_removexattr`` (``bpf2``)
+       ``lsm/inode_setxattr``, ``lsm/inode_removexattr``
      - The operation in the private bpffs or the ``/run/shirudo`` tmpfs
        to a task without authority. Rename checks both directories.
        On any file system, unlink, rmdir and rename refuse such a task
        the mount point of the recorded bpffs mount or of a mount above
        it, which the kernel would detach or move in every namespace.
-     - ``EPERM``
-     - In the bpffs: ``PinUnlink``, ``PinEntry`` (mkdir, symlink, link),
-       ``PinRename``, ``PinXattr``. A mount point: ``BpffsUmountAbove``.
-       Rmdir and ``/run/shirudo`` refusals uncounted.
+     - ``EPERM``. In the bpffs: ``PinUnlink``, ``PinEntry``
+       (mkdir, symlink, link), ``PinRename``, ``PinXattr``. A mount
+       point: ``BpffsUmountAbove``. Rmdir and ``/run/shirudo``
+       uncounted
      - Closed for those two file systems.
-   * - ``lsm/sb_umount`` (``bpf2``)
+   * - ``lsm/sb_umount``
      - To every caller: unmounting the bpffs, an unmount whose subtree or
        propagation reaches the recorded bpffs mount, unmounting
        ``/run/shirudo``, unmounting the runtime image. Unmounting a
        config image to a task without authority.
-     - ``EPERM``
-     - ``BpffsUmount``, ``BpffsUmountAbove``; image and ``/run/shirudo``
-       refusals uncounted
+     - ``EPERM``: ``BpffsUmount``, ``BpffsUmountAbove``; image
+       and ``/run/shirudo`` refusals uncounted
      - Closed: a walk beyond 1024 mounts, 32 levels or 4 masters is
        refused.
-   * - ``lsm/move_mount`` (``bpf2``)
+   * - ``lsm/move_mount``
      - To every caller: moving the bpffs, the ``/run/shirudo`` mount or
        the runtime image, or moving a mount onto the bpffs or the runtime
        image. Moving a mount onto a path in ``/run/shirudo``, and moving
        a config image or onto one, to a task without authority.
-     - ``EPERM``
-     - ``BpffsMount``; others uncounted
+     - ``EPERM``: ``BpffsMount``; others uncounted
      - Closed.
-   * - ``lsm/sb_mount`` (``bpf2``)
+   * - ``lsm/sb_mount``
      - To every caller: a mount onto the bpffs or the runtime image, and
        a propagation change of the ``/run/shirudo`` mount. A mount onto a
        path in ``/run/shirudo`` or on a config image to a task without
        authority. The source of a bind or legacy move is not checked.
-     - ``EPERM``
-     - ``BpffsMount``; others uncounted
+     - ``EPERM``: ``BpffsMount``; others uncounted
      - Closed.
-   * - ``lsm/sb_remount`` (``bpf2``)
+   * - ``lsm/sb_remount``
      - Remounting the bpffs, ``/run/shirudo`` or a recorded image, to
        every caller.
-     - ``EPERM``
-     - ``BpffsMount``; others uncounted
+     - ``EPERM``: ``BpffsMount``; others uncounted
      - Closed.
-   * - ``lsm.s/bdev_setintegrity`` (``bpf2``)
+   * - ``lsm.s/bdev_setintegrity``
      - Records a dm-verity device as runtime when its SHA-256 root equals
        the frozen runtime root, or as config when it equals the root an
        authorized task staged for this mapping; the staged root is used
        once. Refuses a second record for a recorded device, a root it
        cannot read, disk sequence 0 and a full record map.
-     - ``EPERM``, ``EACCES``, ``ENOMEM``
-     - Uncounted
+     - ``EPERM``, ``EACCES``, ``ENOMEM``, uncounted
      - Other mappings get no record and so no authority.
-   * - ``lsm/bdev_free_security`` (``bpf2``)
+   * - ``lsm/bdev_free_security``
      - Removes the device record.
-     - None
      - None
      - The kernel can skip this call; lookups also compare the device
        number and disk sequence.
-   * - ``lsm/key_permission`` (``bpf2``)
+   * - ``lsm/key_permission``
      - Write, setattr, unlink, and search through an unpossessed
        reference, on the ``.bpf`` keyring, the ``.dm-verity`` keyring and
        its key, and the keys enrolled in ``.bpf``, to a task without
        authority. Allows view, read, link and possessed search, and every
        other key.
-     - ``EACCES``
-     - ``KeyringWrite``
+     - ``EACCES``: ``KeyringWrite``
      - Open before ``init`` records a keyring serial.
-   * - ``lsm/tpm_command`` (``bpf2``)
+   * - ``lsm/tpm_command``
      - ``TPM2_NV_Extend`` of shirudo's NV index to a task without
        authority. A command shorter than 10 bytes, an ``NV_Extend``
        shorter than 18 bytes, or one it cannot read, to every caller.
        Allows every other command.
-     - ``EACCES``
-     - ``TpmExtend``
+     - ``EACCES``: ``TpmExtend``
      - Closed for malformed commands.
-   * - ``lsm/task_prctl`` (``bpf2``)
+   * - ``lsm/task_prctl``
      - ``PR_SET_MM`` with ``PR_SET_MM_EXE_FILE`` or ``PR_SET_MM_MAP`` to
        a task without authority. Answers the enforcement probe, option
        ``0x53520001``, with errno 1002.
-     - ``EPERM``
-     - ``ExeIdentity``
+     - ``EPERM``: ``ExeIdentity``
      - Closed.
-   * - ``lsm/bprm_check_security`` (``bpf2``)
+   * - ``lsm/bprm_check_security``
      - Sets secure-exec for every exec of a runtime file, and refuses a
        traced one. The ``seal`` program on this hook runs first.
-     - ``EPERM``
-     - ``ExecTraced``
+     - ``EPERM``: ``ExecTraced``
      - A file not recorded as runtime gets no secure-exec, and no mark.
-   * - ``lsm.s/bprm_check_security`` (``seal``)
+   * - ``lsm/kernel_load_data``, ``lsm/kernel_read_file``
+     - Every kexec kernel image and initramfs, by either system call, to
+       every caller.
+     - ``EPERM``: ``Kexec``
+     - Unconditional.
+   * - ``lsm/locked_down``
+     - Every lockdown reason of integrity mode, an unsigned module
+       included, and ``LOCKDOWN_KCORE``, to every caller.
+     - ``EPERM``: the integrity counter of the reason;
+       hibernation uncounted
+     - Unconditional; the kernel's lockdown LSM decides first.
+
+Hooks in seal
+~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 44 16 18
+
+   * - Hook
+     - Refuses, and allows
+     - Errno and counter
+     - Cannot decide
+   * - ``lsm.s/bprm_check_security``
      - Stages the mark candidate: trusted when the file is a direct, not
        overlay, inode on a recorded runtime device. Refuses a trusted
        candidate that is traced, shares its ``fs_struct`` with another
        process or has a seccomp filter.
-     - ``EACCES``
-     - ``ExecTraced``, ``ExecShared``; seccomp uncounted
+     - ``EACCES``: ``ExecTraced``, ``ExecShared``;
+       seccomp uncounted
      - Closed: no task storage refuses the exec with ``ENOMEM``.
-   * - ``lsm.s/bprm_committed_creds`` (``seal``)
+   * - ``lsm.s/bprm_committed_creds``
      - Commits the staged candidate as the task's mark when an exec
        succeeds, and clears a revocation.
      - None
-     - None
      - No task storage leaves the task without authority.
    * - ``lsm.s/bprm_creds_for_exec``, ``lsm.s/bprm_check_security``,
-       ``lsm.s/bprm_committed_creds`` (``seal``)
+       ``lsm.s/bprm_committed_creds``
      - Seed with the task's committed bits, accumulate the original
        executable and each interpreter, then commit. An absent policy or
        a file system without xattrs contributes zero bits; a policy value
        other than 8 bytes, or one that cannot be read, refuses the exec.
-     - ``EACCES``
-     - Uncounted
+     - ``EACCES``, uncounted
      - Failed exec leaves committed policy unchanged.
-   * - ``lsm/socket_post_create`` (``seal``)
+   * - ``lsm/socket_post_create``
      - Copies nonzero committed task policy bits into socket storage.
        ``BPF_F_CLONE`` carries listener storage to accepted sockets.
-     - ``ENOMEM``
-     - None
+     - ``ENOMEM``, uncounted
      - No storage is needed when the task has no policy bits.
-   * - ``lsm/task_alloc`` (``seal``)
+   * - ``lsm/task_alloc``
      - Copies a marked parent's mark, with its revocation, and any
        committed policy bits to the child.
-     - ``ENOMEM``
-     - None
+     - ``ENOMEM``, uncounted
      - Closed: no storage for the mark or the bits refuses the fork.
-   * - ``lsm/task_kill`` (``seal``)
+   * - ``lsm/task_kill``
      - A signal other than 0 to a marked task from a task without
        authority. Let through, root may end a command that hangs and
        systemd stops the runs its timers start, and counted, so that a
        load stopped between its pins and its extend shows before the
        next command undoes what it left.
-     - None
-     - ``SealSignal``
+     - None; counts ``SealSignal``
      - Which signal is an attack: a stop by root and one by systemd
        count alike (R2). The kernel's own signals and the freezer pass
        no hook.
-   * - ``lsm/task_setrlimit`` (``seal``)
+   * - ``lsm/task_setrlimit``
      - A change of a marked task's resource limits by another task
        without authority, ``prlimit``, which could have the kernel
        signal it. The task resets its own limits when it starts.
-     - ``EPERM``
-     - ``SealRlimit``
+     - ``EPERM``: ``SealRlimit``
      - Closed.
-   * - ``lsm/ptrace_access_check`` (``seal``)
+   * - ``lsm/ptrace_access_check``
      - Every ptrace access mode against a marked task, which covers
        attach, ``/proc/<pid>/mem``, ``pidfd_getfd()``,
        ``process_vm_readv()`` and the read-mode ``/proc`` files such as
        ``exe``, ``environ`` and ``maps``.
-     - ``EACCES``
-     - ``SealPtrace``, attach mode only
+     - ``EACCES``: ``SealPtrace``, attach mode only
      - Closed.
-   * - ``lsm/mm_read_access`` (``seal``)
+   * - ``lsm/mm_read_access``
      - A read-only access to a marked task's memory that
        ``mm_access()`` would grant ``CAP_PERFMON`` after the ptrace check
        refused it: ``environ``, ``maps``, ``smaps``, ``pagemap``.
-     - ``EACCES``
-     - None
+     - ``EACCES``, uncounted
      - Closed, with carried patch 0005.
-   * - ``lsm/perf_event_alloc`` (``seal``)
+   * - ``lsm/perf_event_alloc``
      - A perf event bound to a marked task. CPU-wide events have no task
        and are not checked.
-     - ``EACCES``
-     - ``SealPerf``
+     - ``EACCES``: ``SealPerf``
      - Not applicable.
-   * - ``lsm/mmap_file`` (``seal``)
+   * - ``lsm/mmap_file``
      - An executable mapping in a task with runtime authority, other
        than the bootstrap task, that is writable or does not come from a
        runtime file.
-     - ``EACCES``
-     - Uncounted
+     - ``EACCES``, uncounted
      - Closed.
-   * - ``lsm/file_mprotect`` (``seal``)
+   * - ``lsm/file_mprotect``
      - In the same tasks: making an executable mapping writable, or making
        executable a mapping that was not, or that is not from a runtime
        file.
-     - ``EACCES``
-     - Uncounted
+     - ``EACCES``, uncounted
      - Closed.
-   * - ``lsm/kernel_load_data``, ``lsm/kernel_read_file`` (``bpf2``)
-     - Every kexec kernel image and initramfs, by either system call, to
-       every caller.
-     - ``EPERM``
-     - ``Kexec``
-     - Unconditional.
-   * - ``lsm/locked_down`` (``bpf2``)
-     - Every lockdown reason of integrity mode, an unsigned module
-       included, and ``LOCKDOWN_KCORE``, to every caller.
-     - ``EPERM``
-     - The integrity counter of the reason; hibernation uncounted
-     - Unconditional; the kernel's lockdown LSM decides first.
-   * - ``lsm.s/file_open`` (``seal``)
+   * - ``lsm.s/file_open``
      - A write open of a labeled file to a task without authority. On a
        directory open, and on a read open by an authorized task, records
        or clears the mark from the label; a write open only records it.
-     - ``EACCES``
-     - ``SealWrite``
+     - ``EACCES``: ``SealWrite``
      - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_unlink``, ``lsm.s/inode_rmdir``,
-       ``lsm.s/inode_setattr``, ``lsm.s/inode_removexattr`` (``seal``)
+       ``lsm.s/inode_setattr``, ``lsm.s/inode_removexattr``
      - The operation on a labeled inode to a task without authority.
        Setattr covers truncate, chmod, chown and timestamps. Removing the
        seal or the policy label or the ancestor mark is refused on any
        inode without authority.
-     - ``EACCES``
-     - ``SealUnlink``, ``SealSetattr``, ``SealXattr``, ``SealLabel``
+     - ``EACCES``: ``SealUnlink``, ``SealSetattr``,
+       ``SealXattr``, ``SealLabel``
      - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_set_acl``, ``lsm.s/inode_remove_acl``,
-       ``lsm.s/inode_file_setattr`` (``seal``)
+       ``lsm.s/inode_file_setattr``
      - A POSIX ACL change or a change of the inode flags (``chattr``) on
        a labeled inode to a task without authority.
-     - ``EACCES``
-     - ``SealXattr``, ``SealSetattr``
+     - ``EACCES``: ``SealXattr``, ``SealSetattr``
      - :ref:`The label verdict <seal-label-verdict>`.
-   * - ``lsm.s/inode_setxattr`` (``seal``)
+   * - ``lsm.s/inode_setxattr``
      - Setting ``security.bpf.shirudo``,
        ``security.bpf.shirudo.policy`` or
        ``security.bpf.shirudo.ancestor`` on any inode, and any other name
        on a labeled inode, to a task without authority.
-     - ``EACCES``
-     - ``SealLabel``, ``SealXattr``
+     - ``EACCES``: ``SealLabel``, ``SealXattr``
      - :ref:`The label verdict <seal-label-verdict>`.
-   * - ``lsm.s/inode_rename`` (``seal``)
+   * - ``lsm.s/inode_rename``
      - A labeled source, a labeled destination directory or a labeled
        inode it would replace, or a source or replaced directory that
        carries the ancestor mark, to a task without authority.
-     - ``EACCES``
-     - ``SealRename``, ``SealEntry``
+     - ``EACCES``: ``SealRename``, ``SealEntry``
      - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
        ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod``,
-       ``lsm.s/inode_link`` (``seal``)
+       ``lsm.s/inode_link``
      - A new entry in a labeled directory to a task without authority,
        read from the entry's parent dentry, and a hard link of a labeled
        inode anywhere. Each refreshes the directory's mark.
-     - ``EACCES``
-     - ``SealEntry``
+     - ``EACCES``: ``SealEntry``
      - :ref:`The label verdict <seal-label-verdict>`.
-   * - ``lsm/inode_init_security`` (``seal``)
+   * - ``lsm/inode_init_security``
      - Labels a new inode under a marked directory, inside the creation,
        and marks the new inode. Refuses the creation when it cannot add
        the label.
-     - ``EACCES``
-     - Uncounted
+     - ``EACCES``, uncounted
      - Cannot read: the entry hook of the same operation refreshed the
        parent's mark from its label just before.
-   * - ``lsm.s/inode_copy_up`` (``seal``)
+   * - ``lsm.s/inode_copy_up``
      - The overlay copy-up of a labeled inode, by anyone.
-     - ``EPERM``
-     - ``SealCopyUp``
-     - As :ref:`the label verdict <seal-label-verdict>`, but a label, any other read error
-       and a failure to allocate the scratch buffer refuse every caller.
+     - ``EPERM``: ``SealCopyUp``
+     - As :ref:`the label verdict <seal-label-verdict>`, but a label,
+       any other read error and a failure to allocate the scratch
+       buffer refuse every caller.
    * - ``lsm.s/inode_post_setxattr``, ``lsm.s/inode_post_removexattr``
-       (``seal``)
      - Refresh an inode's mark from its label after the change.
-     - None
      - None
      - No label, or a label of another length, removes the mark; a
        failed read leaves it.
