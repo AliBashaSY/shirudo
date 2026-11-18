@@ -154,9 +154,10 @@ file on the authenticated runtime image: ``bprm_check_security`` stages
 the decision and ``bprm_committed_creds`` commits it once the exec has
 succeeded. A forked child inherits its parent's mark, a successful exec of
 any other file clears it, and a failed exec leaves it unchanged. The exec
-of a runtime file is refused when the task is being traced or runs under
-seccomp, so neither a debugger nor a filter installed beforehand controls
-the new process.
+of a runtime file is refused when the task is being traced, shares its
+file system context with another process or runs under seccomp, so
+neither a debugger, that other process nor a filter installed beforehand
+controls the new process.
 
 Runtime authority is what the mark grants. The BPF LSM programs require
 it for the ``bpf()`` commands that create, update or freeze maps, run
