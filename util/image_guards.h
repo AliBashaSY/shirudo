@@ -69,6 +69,13 @@ extern const struct image_guard
 extern const struct guard_map
 	shirudo_guard_maps[GUARD_MAP_COUNT];
 
+/*
+ * 0 when the map behind fd has the type, sizes, flags and name expected
+ * gives it, -EPROTO when it has not, or the kernel's error; *id, unless
+ * NULL, then holds the map's id.
+ */
+int guard_map_check(int fd, const struct guard_map *expected, __u32 *id);
+
 struct config_root_guard {
 	int map_fd;
 	int task_fd;

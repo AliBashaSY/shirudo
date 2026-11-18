@@ -262,10 +262,28 @@ int config_root_end(struct config_root_guard *guard)
 	return ret;
 }
 
+int guard_map_check(int fd, const struct guard_map *expected, __u32 *id)
+{
+	struct bpf_map_info info = {};
+	__u32 length = sizeof(info);
+
+	if (bpf_map_get_info_by_fd(fd, &info, &length))
+		return -errno;
+	if (!info.id || info.type != expected->type ||
+	    info.key_size != expected->key_size ||
+	    info.value_size != expected->value_size ||
+	    info.max_entries != expected->max_entries ||
+	    info.map_flags != expected->flags ||
+	    info.name[sizeof(info.name) - 1] ||
+	    strncmp(info.name, expected->name, sizeof(info.name) - 1))
+		return -EPROTO;
+	if (id)
+		*id = info.id;
+	return 0;
+}
+
 static int guard_map_ids(__u32 ids[GUARD_MAP_COUNT])
 {
-	struct bpf_map_info info;
-	__u32 length;
 	__u32 i;
 	int fd, ret;
 
@@ -276,27 +294,13 @@ static int guard_map_ids(__u32 ids[GUARD_MAP_COUNT])
 		fd = bpf_obj_get(expected->pin);
 		if (fd < 0)
 			return -errno;
-		memset(&info, 0, sizeof(info));
-		length = sizeof(info);
-		ret = bpf_map_get_info_by_fd(fd, &info, &length);
-		if (ret)
-			ret = -errno;
-		else if (!info.id || info.type != expected->type ||
-			 info.key_size != expected->key_size ||
-			 info.value_size != expected->value_size ||
-			 info.max_entries != expected->max_entries ||
-			 info.map_flags != expected->flags ||
-			 info.name[sizeof(info.name) - 1] ||
-			 strncmp(info.name, expected->name,
-				 sizeof(info.name) - 1))
-			ret = -EPROTO;
+		ret = guard_map_check(fd, expected, &ids[i]);
 		close(fd);
 		if (ret) {
 			pr_err("image: invalid guard map %s: %s", expected->pin,
 			       strerror(-ret));
 			return ret;
 		}
-		ids[i] = info.id;
 	}
 	return 0;
 }
