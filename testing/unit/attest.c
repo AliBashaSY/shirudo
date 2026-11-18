@@ -120,11 +120,44 @@ static void report_ends_its_last_line_at_any_size(void)
 	}
 }
 
+/* A record without a digest has none: it takes no digest from the last. */
+static void record_without_digest_is_refused(void)
+{
+	static const __u8 nonce[16] = {
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+		0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+	};
+	struct attest_expect expect = {
+		.nonce = nonce,
+		.nonce_len = sizeof(nonce),
+	};
+	static const char key[] = "\"digest\":\"";
+	static char doc[8192], report[ATTEST_REPORT_MAX];
+	char *load, *digest = NULL, *at;
+	const char *full;
+	size_t len, cut;
+
+	full = read_evidence(&len);
+	ASSERT_TRUE(len < sizeof(doc));
+	memcpy(doc, full, len);
+	load = strstr(doc, "\"type\":\"upatch_load\"");
+	ASSERT_TRUE(load);
+	for (at = doc; (at = strstr(at, key)) && at < load; at++)
+		digest = at;
+	ASSERT_TRUE(digest);
+	cut = sizeof(key) - 1 + 64 + 2;
+	memmove(digest, digest + cut, len - (size_t)(digest - doc) - cut);
+	len -= cut;
+	EXPECT_EQ(attest_verify(doc, len, &expect, report, sizeof(report)),
+		  -EINVAL);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(pcrs_are_a_list_up_to_23),
 	UNIT_CASE(pcr_value_is_a_pcr_and_an_equals),
 	UNIT_CASE(name_digest_is_a_name_and_64_digits),
 	UNIT_CASE(report_ends_its_last_line_at_any_size),
+	UNIT_CASE(record_without_digest_is_refused),
 	{}
 };
 

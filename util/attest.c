@@ -626,6 +626,12 @@ static int on_record(void *ctx)
 	p->n_recs++;
 	/* Reset the per-element scratch the next element may not set. */
 	p->type[0] = '\0';
+	p->digest_hex[0] = '\0';
+	p->pcr_before_hex[0] = '\0';
+	p->phase_before_hex[0] = '\0';
+	p->nv_name_hex[0] = '\0';
+	p->anchor_digest_hex[0] = '\0';
+	p->chain_hex[0] = '\0';
 	p->upatch_name[0] = '\0';
 	p->upatch_payload_hex[0] = '\0';
 	p->tree_id[0] = '\0';
