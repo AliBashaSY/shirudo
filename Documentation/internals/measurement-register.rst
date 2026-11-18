@@ -158,6 +158,26 @@ shows the binding and the extensions that follow it.
 
    Figure 1. Binding the register at boot and extending it later.
 
+Figure 2 follows the binding command by command. The init branch of the
+write policy can be satisfied only between the definition of the index
+and the anchor's extension of PCR 9, and only by the session that
+carries the writer's signature for that one extension.
+
+.. figure:: /images/internals-register-binding.svg
+   :alt: Before the guards attach, init creates the endorsement key and
+         the NV writer and freezes their names in the identity map.
+         After the restore it reads the TPM's reset count, which decides
+         whether this boot's register is already bound, reads PCRs 9
+         and 11, computes the policy, the index's two names and the
+         anchor, defines the index, satisfies the init branch with
+         PolicyNvWritten(NO), PolicyPCR, PolicyOR, the writer's
+         PolicySigned and PolicyCommandCode, extends the index with the
+         init event and extends PCR 9 with the anchor, which closes the
+         init branch. systemd's leave-initrd moves PCR 11 later.
+
+   Figure 2. The commands of the binding in the initrd, and the window
+   in which the init branch is open.
+
 The binding takes these steps:
 
 #. Open a salted session using the EK whose name ``init`` froze in the
@@ -354,7 +374,7 @@ Evidence
 
 ``shirudo attest`` asks the TPM for two signed statements and collects
 what a verifier needs to check them. It needs no enrollment state on the
-target and leaves none. Figure 2 shows one run, with the credential
+target and leaves none. Figure 3 shows one run, with the credential
 activation that enrollment adds.
 
 .. figure:: /images/internals-attest-evidence.svg
@@ -365,7 +385,7 @@ activation that enrollment adds.
          the register with the nonce. It returns an evidence document with
          this boot's eventlog, and the operator runs attest verify.
 
-   Figure 2. Collecting evidence. The operator holds no TPM; the nonce,
+   Figure 3. Collecting evidence. The operator holds no TPM; the nonce,
    the challenge and the document travel by whatever channel the operator
    uses to reach the target.
 
@@ -418,7 +438,7 @@ Activation is one way to learn the attestation key's name. The other is
 to take it from a builder that controlled the TPM before the target got
 it, a hypervisor creating a virtual TPM or a provisioning step: the
 builder creates both keys from the templates ``attest`` uses
-(:doc:`/reference/cli/attest`) and records their names. Figure 3 sets the
+(:doc:`/reference/cli/attest`) and records their names. Figure 4 sets the
 two side by side. Both end in the same pinned names, and ``verify``
 checks evidence the same way after either.
 
@@ -430,7 +450,7 @@ checks evidence the same way after either.
          keys in the TPM before handover and records their names. Both
          paths end in the inventory every later verify pins.
 
-   Figure 3. Two ways to learn the attestation key's name.
+   Figure 4. Two ways to learn the attestation key's name.
 
 On the builder path the name is trusted because the builder saw the key
 created, not because the TPM proved anything to the operator. The
@@ -445,7 +465,7 @@ What verify and predict compute
 
 ``shirudo attest verify`` and ``shirudo attest predict`` run on the
 operator and touch no TPM. ``verify`` prints one line per check and a
-verdict. Figure 4 shows the four comparisons that tie what the target
+verdict. Figure 5 shows the four comparisons that tie what the target
 wrote about itself to what the TPM signed or the operator computed.
 
 .. figure:: /images/internals-attest-verify.svg
@@ -454,7 +474,7 @@ wrote about itself to what the TPM signed or the operator computed.
          pcr_before extended by the anchor digest must equal the quoted
          PCR 9; the init event must equal the one attest predict computes.
 
-   Figure 4. What ``verify`` compares. Once the replay matches, the
+   Figure 5. What ``verify`` compares. Once the replay matches, the
    ``init`` record's fields are the ones the TPM measured.
 
 It checks, in this order:
