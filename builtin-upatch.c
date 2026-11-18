@@ -3004,15 +3004,21 @@ static int wipe_dir_flat(const char *dir)
 	return 0;
 }
 
-/* Whether the upatch has its pin directory, loaded or part way there. */
-static bool upatch_is_pinned(const char *name)
+/*
+ * 1 when the upatch has its pin directory, loaded or part way there, 0
+ * when it has none, otherwise -errno: a pin directory that cannot be
+ * looked at may hold a link, so it is never taken for none.
+ */
+static int upatch_pinned(const char *name)
 {
 	char dir[PATH_MAX];
 	struct stat st;
 
 	if (upatch_pin_path(dir, sizeof(dir), name, NULL))
-		return false;
-	return stat(dir, &st) == 0;
+		return -ENAMETOOLONG;
+	if (stat(dir, &st) == 0)
+		return 1;
+	return errno == ENOENT ? 0 : -errno;
 }
 
 /* Unlinking the link pin drops its last reference, which detaches. */
@@ -3349,7 +3355,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char name[UPATCH_NAME_MAX + 1] = {};
 	bool no_precheck, no_version_check;
-	int err, lock = -1, ret = 1;
+	int err, lock = -1, pinned, ret = 1;
 	char persisted[PATH_MAX];
 	struct upatch u = {};
 	__u8 *buf = NULL;
@@ -3479,7 +3485,15 @@ static int cmd_upatch_unload(int argc, const char **argv)
 	 * interrupted unload left: the directive removes it only when it is
 	 * the payload the directive names, as it would its pins.
 	 */
-	if (!upatch_is_pinned(name)) {
+	pinned = upatch_pinned(name);
+	if (pinned < 0) {
+		pr_err("upatch unload: cannot look at the pins of %s: %s; "
+		       "nothing detached", name, strerror(-pinned));
+		rep_fail(&rep, "pin", "unknown", -pinned,
+			 "pin directory unreadable");
+		goto done;
+	}
+	if (!pinned) {
 		struct upatch archived;
 
 		err = upatch_archive_verify(name, payload, &archived);
@@ -3564,9 +3578,8 @@ static int upatch_purge_locked(const char *name, const struct cert *signer,
 {
 	__u8 payload[UPATCH_PAYLOAD_HASH_LEN] = {};
 	char persisted[PATH_MAX];
+	int fd, loaded, ret;
 	struct upatch u;
-	bool loaded;
-	int fd, ret;
 
 	if (strsprintf(persisted, sizeof(persisted), "%s/%s.upatch",
 		       UPATCHES_DIR, name) < 0)
@@ -3586,7 +3599,9 @@ static int upatch_purge_locked(const char *name, const struct cert *signer,
 		return ret < 0 ? ret : -ESTALE;
 
 	/* As for unload: the event first, then the detach it describes. */
-	loaded = upatch_is_pinned(name);
+	loaded = upatch_pinned(name);
+	if (loaded < 0)
+		return loaded;
 	if (loaded) {
 		ret = upatch_chain_event_locked("shirudo-unload",
 						"upatch_unload", "purge", name,
