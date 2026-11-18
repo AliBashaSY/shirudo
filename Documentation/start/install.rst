@@ -63,8 +63,9 @@ Packages
        - the dracut module ``/usr/lib/dracut/modules.d/90shirudo``
        - the units ``shirudo.service`` and ``shirudo-initrd.service``
        - the services ``shirudo-map-export``, ``shirudo-keepalive``,
-         ``shirudo-bpm-repo-update`` and ``shirudo-bpm-tree-sync``, each
-         with its timer
+         ``shirudo-xdp-reconcile``, ``shirudo-bpm-repo-update`` and
+         ``shirudo-bpm-tree-sync``, each with its timer
+       - the udev rule ``90-shirudo-xdp-reconcile.rules``
        - bash completion
 
        It carries no key and no configuration file.
@@ -137,6 +138,7 @@ Install the target package
       shirudo: next boot. To enforce now: systemctl start shirudo.service
       shirudo: shirudo-map-export.timer enabled for the next boot
       shirudo: shirudo-keepalive.timer enabled for the next boot
+      shirudo: shirudo-xdp-reconcile.timer enabled for the next boot
       shirudo: shirudo-bpm-repo-update.timer enabled for the next boot
       shirudo: shirudo-bpm-tree-sync.timer enabled for the next boot
 
@@ -144,7 +146,7 @@ Install the target package
    ``dnf install ./shirudo-target-<version>-<release>.<arch>.rpm``. The RPM
    prints the same lines on its first installation.
 
-   The package enables ``shirudo.service`` and the four timers for the next
+   The package enables ``shirudo.service`` and the five timers for the next
    boot and starts none of them. Starting ``shirudo.service`` by hand does
    nothing yet, whatever the message says: the unit runs only when
    ``/run/shirudo/runtime`` is mounted, and the shirudo initrd mounts it at

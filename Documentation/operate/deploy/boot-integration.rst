@@ -323,7 +323,7 @@ image's own loader and libraries, in place of
 ``/run/shirudo/runtime/usr/bin/shirudo``.
 :doc:`/reference/systemd-units` lists the units and their schedules.
 
-The deb and rpm packages enable ``shirudo.service`` and the four timers
+The deb and rpm packages enable ``shirudo.service`` and the five timers
 for the next boot. Their message "To enforce now: systemctl start
 shirudo.service" does not apply: the unit runs only when the initrd has
 mounted the runtime image at ``/run/shirudo/runtime``.
