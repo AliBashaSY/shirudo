@@ -4,10 +4,16 @@
  *
  * bpm_header() of util/bpm_oci.c, libcurl's header callback, for every
  * header line of up to LINE_MAX bytes, NULs included: it takes the whole
- * line, and the challenge, media type and location it keeps are terminated
- * inside their fields, the media type without parameters, neither with a
- * line break.
+ * line, reads none longer than its copy, and the challenge, media type and
+ * location it keeps are terminated inside their fields, the media type
+ * without parameters, neither with a line break, a challenge longer than
+ * its field dropped rather than cut. The copy and the challenge's field
+ * are of 24 and 4 bytes here, for 4096 and 2048, which are past what
+ * CBMC can hold: the checks against them are the same expressions.
  */
+
+#define BPM_OCI_HEADER_LINE_MAX	24
+#define BPM_OCI_CHALLENGE_MAX	4
 
 /* util/string.c is included behind a file that includes its header. */
 #define STRING_INTERNAL
@@ -17,12 +23,47 @@
 #include "../../../util/bpm_oci.c"
 #include "../../../util/string.c"
 
-#define LINE_MAX	20
+/* Past the copy, and room for a challenge longer than its field. */
+#define LINE_MAX	(BPM_OCI_HEADER_LINE_MAX + 2)
 
 /* What the line leaves in a field ends inside the line's length. */
-static bool short_string(const char *s)
+static bool short_string(const char *s, size_t size)
 {
-	return memchr(s, '\0', LINE_MAX + 1);
+	return memchr(s, '\0', min(size, (size_t)LINE_MAX + 1));
+}
+
+static char lower(char c)
+{
+	return c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c;
+}
+
+/* The line starts with the header's name, in any case. */
+static bool named(const char *line, size_t n, const char *name)
+{
+	size_t i, len = strlen(name);
+
+	for (i = 0; i < len; i++)
+		if (i >= n || lower(line[i]) != lower(name[i]))
+			return false;
+	return true;
+}
+
+/* The challenge a WWW-Authenticate line holds: from its first non-blank. */
+static void challenge(const char *line, size_t n, const char *kept)
+{
+	size_t from = strlen("WWW-Authenticate:"), len = 0;
+
+	while (from < n && isspace((__u8)line[from]))
+		from++;
+	while (from + len < n && line[from + len])
+		len++;
+	if (len >= BPM_OCI_CHALLENGE_MAX) {
+		__CPROVER_assert(!kept[0],
+				 "a challenge longer than its field dropped");
+		return;
+	}
+	__CPROVER_assert(!memcmp(kept, line + from, len) && !kept[len],
+			 "a challenge that fits kept whole");
 }
 
 static bool has_any(const char *s, const char *set)
@@ -45,9 +86,15 @@ void harness(void)
 	__CPROVER_assume(n <= LINE_MAX);
 	__CPROVER_assert(bpm_header(line, 1, n, &r) == n,
 			 "the whole line taken");
-	__CPROVER_assert(short_string(r.www_auth) &&
-			 short_string(r.content_type) &&
-			 short_string(r.location),
+	if (n >= BPM_OCI_HEADER_LINE_MAX) {
+		__CPROVER_assert(!r.www_auth[0] && !r.content_type[0] &&
+				 !r.location[0],
+				 "a line longer than the copy read not at all");
+		return;
+	}
+	__CPROVER_assert(short_string(r.www_auth, sizeof(r.www_auth)) &&
+			 short_string(r.content_type, sizeof(r.content_type)) &&
+			 short_string(r.location, sizeof(r.location)),
 			 "every value terminated inside its field");
 	__CPROVER_assert(!has_any(r.content_type, " ;\r\n"),
 			 "a media type alone");
@@ -57,4 +104,6 @@ void harness(void)
 			 !isspace((__u8)r.content_type[0]) &&
 			 !isspace((__u8)r.location[0]),
 			 "no value starts with a blank");
+	if (named(line, n, "WWW-Authenticate:"))
+		challenge(line, n, r.www_auth);
 }

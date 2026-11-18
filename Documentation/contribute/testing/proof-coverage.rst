@@ -187,9 +187,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``access_token``
    * - ``bpm-oci-header``
      - ``bpm_header()``
-     - Header lines up to 20 bytes, NULs included
-     - The whole line taken; values terminated, without a leading blank,
-       a media type without parameters, a location without CR or LF
+     - Header lines up to 26 bytes, NULs included, with the line's copy
+       and the challenge's field set to 24 and 4 bytes for their 4096
+       and 2048
+     - The whole line taken, and one too long for the copy read not at
+       all; values terminated, without a leading blank, a media type
+       without parameters, a location without CR or LF; a challenge
+       that fits kept whole, a longer one dropped rather than cut
    * - ``bpm-oci-descriptor``
      - ``on_descriptor()``, ``on_index_entry()``
      - Any descriptor or index entry, into an empty or a full table

@@ -62,9 +62,21 @@ struct bpm_buffer {
 	size_t cap;
 };
 
+/*
+ * A WWW-Authenticate challenge kept whole or dropped, and the header line
+ * bpm_header() reads or skips. A proof sets them lower: CBMC cannot hold
+ * a line of 4 KiB.
+ */
+#ifndef BPM_OCI_CHALLENGE_MAX
+#define BPM_OCI_CHALLENGE_MAX 2048
+#endif
+#ifndef BPM_OCI_HEADER_LINE_MAX
+#define BPM_OCI_HEADER_LINE_MAX 4096
+#endif
+
 struct bpm_http_response {
 	struct bpm_buffer body;
-	char www_auth[2048];
+	char www_auth[BPM_OCI_CHALLENGE_MAX];
 	char content_type[BPM_MAX_MEDIA];
 	char location[PATH_MAX];
 	long status;

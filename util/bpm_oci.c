@@ -157,7 +157,7 @@ static int sink_restart(struct bpm_file_sink *s, int fd, __u64 room)
 static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 {
 	struct bpm_http_response *r = ud;
-	char line[4096];
+	char line[BPM_OCI_HEADER_LINE_MAX];
 	size_t n = size * nmemb;
 	char *v;
 
