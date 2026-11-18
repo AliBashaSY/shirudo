@@ -78,9 +78,6 @@ fi
 VMS_DIR="${VM_ROOT}/vms"
 LOGS_DIR="${VM_ROOT}/logs"
 DEFAULT_KERNEL="${REPO_ROOT}/artifacts/bpf-next-kernel-debs/${TEST_VM_ARCH_KIMAGE}"
-DEFAULT_ROOTFS_URL="https://cloud-images.ubuntu.com/releases/server/26.04/release/ubuntu-26.04-server-cloudimg-${TEST_VM_ARCH_DEB}.img"
-DEFAULT_ROOTFS_SUMS_URL="https://cloud-images.ubuntu.com/releases/server/26.04/release/SHA256SUMS"
-ROOTFS_NAME="ubuntu-26.04-server-cloudimg-${TEST_VM_ARCH_DEB}.img"
 CPUS="${TEST_VM_CPUS:-4}"
 MEMORY="${TEST_VM_MEMORY:-4G}"
 DISK_SIZE="${TEST_VM_DISK_SIZE:-30G}"
@@ -112,8 +109,6 @@ if [[ -n "$KERNEL_ARTIFACT_INPUT" && "$KERNEL_ARTIFACT_INPUT" != /* ]]; then
 else
 	KERNEL_ARTIFACT_DIR="$KERNEL_ARTIFACT_INPUT"
 fi
-ROOTFS_URL="${TEST_VM_ROOTFS_URL:-$DEFAULT_ROOTFS_URL}"
-ROOTFS_SHA256="${TEST_VM_ROOTFS_SHA256:-}"
 MAP_EXPORT_ENDPOINT="${TEST_VM_MAP_EXPORT_ENDPOINT:-}"
 LEGACY_MAP_EXPORT_TENANT_ID="${TEST_VM_MAP_EXPORT_TENANT_ID:-}"
 MAP_EXPORT_INSECURE="${TEST_VM_MAP_EXPORT_INSECURE:-}"
@@ -1395,47 +1390,6 @@ resolve_kernel()
 		die "kernel checksum not found: ${DEFAULT_KERNEL}.sha256sum; run 'make -C testing bpf-next'"
 	fi
 	printf '%s\n' "$DEFAULT_KERNEL"
-}
-
-fetch_rootfs()
-{
-	local rootfs sums tmp expected actual
-
-	rootfs="${CACHE_DIR}/rootfs/${ROOTFS_NAME}"
-	mkdir -p "$(dirname "$rootfs")"
-
-	if [[ -n "$ROOTFS_SHA256" ]]; then
-		valid_sha256 "$ROOTFS_SHA256" ||
-			die "TEST_VM_ROOTFS_SHA256 must contain 64 hexadecimal characters"
-		expected="${ROOTFS_SHA256,,}"
-	elif [[ "$ROOTFS_URL" == "$DEFAULT_ROOTFS_URL" ]]; then
-		sums="${RUN_DIR}/SHA256SUMS"
-		curl -fsSL --retry 3 --output "$sums" "$DEFAULT_ROOTFS_SUMS_URL"
-		expected="$(awk -v name="*$ROOTFS_NAME" '$2 == name {print $1; exit}' "$sums")"
-		valid_sha256 "$expected" || die "could not find $ROOTFS_NAME in Ubuntu SHA256SUMS"
-	else
-		die "a custom TEST_VM_ROOTFS_URL requires TEST_VM_ROOTFS_SHA256"
-	fi
-
-	if [[ -s "$rootfs" ]]; then
-		actual="$(sha256sum "$rootfs" | awk '{print $1}')"
-		if [[ "$actual" != "$expected" ]]; then
-			log "cached rootfs checksum changed; downloading the current release"
-			rm -f -- "$rootfs"
-		fi
-	fi
-	if [[ ! -s "$rootfs" ]]; then
-		tmp="${rootfs}.tmp.$$"
-		log "downloading Ubuntu 26.04 rootfs"
-		curl -fL --retry 3 --output "$tmp" "$ROOTFS_URL"
-		actual="$(sha256sum "$tmp" | awk '{print $1}')"
-		[[ "$actual" == "$expected" ]] || {
-			rm -f -- "$tmp"
-			die "downloaded rootfs SHA-256 mismatch"
-		}
-		mv "$tmp" "$rootfs"
-	fi
-	printf '%s\n' "$rootfs"
 }
 
 allocate_ssh_access()
