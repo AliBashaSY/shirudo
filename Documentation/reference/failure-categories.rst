@@ -16,11 +16,15 @@ commands report failures as messages and exit status only.
 Phases
 ------
 
-The table lists the phases in the order a load reaches them. The
-``--expect-version-id`` check of ``pre_flight`` runs before ``parse``.
-An unload passes ``pre_flight`` and ``parse``, verifies the directive's
-signature in ``signed_loader_load``, compares the payload in ``pin``,
-measures in ``tpm_extend`` and removes the pins in ``pin``.
+The table lists the phases in the order a load first reaches them. A
+load runs the ``--expect-version-id`` check of ``pre_flight``, reads the
+artifact and checks its header in ``parse``, runs the other
+``pre_flight`` checks, refuses a name that is loaded in ``pin``, checks
+the rest of the artifact in ``parse``, and then goes from
+``target_verify`` to ``done``. An unload passes ``parse`` and
+``pre_flight``, verifies the directive's signature in
+``signed_loader_load``, compares the payload in ``pin``, measures in
+``tpm_extend`` and removes the pins in ``pin``.
 
 .. list-table::
    :header-rows: 1
@@ -39,6 +43,10 @@ measures in ``tpm_extend`` and removes the pins in ``pin``.
      - Reading and staging the artifact, the header checks, the upatch
        name, the signed name, ``payload_sha256`` against the loader and
        data, and the signed attach metadata.
+   * - ``pin``
+     - Load: refusing a name that is loaded. Unload: comparing the
+       payload recorded on the pin directory with the directive's, and
+       removing the pins.
    * - ``target_verify``
      - Opening each ``uprobe``, ``uretprobe``, ``uprobe.multi`` and
        ``uretprobe.multi`` target binary and comparing its GNU build ID
@@ -54,9 +62,6 @@ measures in ``tpm_extend`` and removes the pins in ``pin``.
      - Attaching each program, checking the link against the attach
        metadata, pinning it in the private bpffs and recording the payload
        on the pin directory.
-   * - ``pin``
-     - Unload only: comparing the payload recorded on the pin directory
-       with the directive's, and removing the pins.
    * - ``persist``
      - Load only: copying the artifact to
        ``/var/lib/shirudo/upatches/<name>.upatch``.
