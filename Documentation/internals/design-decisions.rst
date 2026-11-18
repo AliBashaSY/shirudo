@@ -223,13 +223,13 @@ release that contains its signed-loader work, with the patches in
 A tree key the node never parses
 --------------------------------
 
-``bpm tree append`` carries each earlier operation's ``fixes`` into the
-next generation from a second read of its own over the previous
-publication's bytes, with the JSON reader of :src:`util/json.c`, in the
-operator's helper. ``tree_parse()``, which reads the publication on the
-node as well, is unchanged and still skips the key; the shared emitter,
-``tree_emit_publication()``, takes only an optional callback that adds
-keys after an operation's ``artifact``, which the publisher passes and
+The node's parser of a tree publication, ``tree_parse()``, skips an
+operation's ``fixes``. ``bpm tree append`` carries each earlier
+operation's ``fixes`` into the next generation from a second read of
+its own over the previous publication's bytes, with the JSON reader of
+:src:`util/json.c`, in the operator's helper. The shared emitter,
+``tree_emit_publication()``, takes an optional callback that adds keys
+after an operation's ``artifact``, which the publisher passes and
 nothing else does.
 
 ``tree_parse()`` is the node's parser of registry input. A key it reads
@@ -241,7 +241,7 @@ which ``tree_parse()`` takes an optional field and sink for extra
 operation keys that the publisher passes and the node leaves ``NULL``,
 would read it once, at the price of a change to the node's parser and
 to the ``bpm-tree-reader`` and ``bpm-tree-sync-model`` proofs that
-include it; it is left for later.
+include it.
 
 A keepalive key for each run
 ----------------------------
@@ -254,7 +254,7 @@ nothing about it is kept on the target between runs.
 
 The cost is a primary key derivation once a minute, which a slow
 hardware TPM can take hundreds of milliseconds for
-(:doc:`/operate/plan/overhead`). The optimisation to take up if that
+(:doc:`/operate/plan/overhead`). The optimization to take up if that
 cost matters is to keep the key under a persistent handle,
 ``TPM2_EvictControl`` once and a lookup at every run. The rule against
 a persistent index concerns the measurement register and does not

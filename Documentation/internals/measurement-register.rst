@@ -121,8 +121,8 @@ the owner seed, and the frozen key can no longer be recreated.
 Authenticated TPM sessions
 --------------------------
 
-Shirudo employs trust on first use (TOFU) and trusts the TPM it finds during
-initialization in the initrd by freezing the EK's name in the identity map.
+``init`` in the initrd trusts the TPM it finds there, trust on first use,
+and freezes the name of its endorsement key in the identity map.
 
 Every TPM connection creates the standard ECC P-256 endorsement key
 (EK) to transport a secret salt via ECDH to calculate an HMAC session key.

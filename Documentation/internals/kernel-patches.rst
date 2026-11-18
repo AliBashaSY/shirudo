@@ -53,11 +53,11 @@ program, the sleepable hook set of ``kernel/bpf/bpf_lsm.c`` lacks
 ``d_inode`` of a dentry but not ``d_parent``, and ``may_access_mm()``
 grants a read-mode access to ``CAP_PERFMON`` without asking an LSM.
 
-The x86 ftrace fix the tree used to carry is upstream as
-``31ac959c915c`` ("x86/ftrace: Mark jmp mode by clearing bit 63 of
-trampoline address"), in bpf-next and in the bpf fixes tree for 7.4.
-:doc:`/operate/plan/system-requirements` says which kernels still need
-it.
+An x86-64 target also needs upstream commit ``31ac959c915c``
+("x86/ftrace: Mark jmp mode by clearing bit 63 of trampoline address"),
+which bpf-next and the bpf fixes tree for 7.4 contain and which the
+tree does not carry; :doc:`/operate/plan/system-requirements` says
+why.
 
 How the test kernel applies them
 --------------------------------

@@ -162,7 +162,7 @@ reads them from the authenticated runtime device, requires ML-DSA-87 and
 rejects duplicate public keys. Before creating any config mapping,
 including the temporary full-read verification mapping, it verifies the
 CMS root signature against this set. A certificate trusted only by
-another kernel keyring cannot authorize a Shirudo config.
+another kernel keyring cannot authorize a config.
 
 ``init`` enrolls all these certificates in ``.dm-verity`` and seals it,
 which the kernel leaves open only with

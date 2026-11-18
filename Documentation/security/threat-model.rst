@@ -1764,7 +1764,7 @@ R21 upatches can be neutralized by changing their targets
    in that namespace. Reconcile adds no register event: TPM evidence covers
    the signed class mask and loaded artifact, not the device inventory or
    which devices are covered. ``t3111`` and ``t3112`` exercise selection,
-   reconcile and unload; driver behaviour across a namespace move is
+   reconcile and unload; driver behavior across a namespace move is
    tested only for veth.
 
    Every XDP program is loaded with multi-buffer support and a selected

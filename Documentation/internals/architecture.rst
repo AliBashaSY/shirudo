@@ -139,7 +139,6 @@ PCR 9, the config PCR the bootstrap settings select, and the attestation
 key that signs evidence. The ECC EK salts the authenticated TPM
 session; init freezes EK's name in the identity map.
 
-
 How the parts depend on each other
 ----------------------------------
 
