@@ -472,7 +472,7 @@ Boot and verify
 
       Folded: keyrings, TPM measurement, assets (--show-full)
 
-   Check for ``Status: ok`` and six ``OK`` conditions. The
+   Check for ``Status: ok`` and every condition ``OK``. The
    ``LsmAttached`` condition confirms the LSM link is pinned.
    ``ConfigActive`` names the first 12 hex digits of the active config
    root. ``shirudo status --show-full`` prints the folded

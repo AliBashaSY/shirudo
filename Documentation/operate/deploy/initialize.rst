@@ -96,10 +96,10 @@ Check that init worked
 
       Folded: keyrings, TPM measurement, assets (--show-full)
 
-   ``Status: ok`` and six ``OK`` conditions mean that enforcement is
+   ``Status: ok`` and every condition ``OK`` mean that enforcement is
    attached, the ``.bpf`` keyring is the one init sealed, the register
-   matches the eventlog, every pinned upatch is measured and the config
-   is active.
+   matches the eventlog, every pinned upatch is measured, the config is
+   active and every device an XDP upatch selects runs it.
 
 2. Read where the register was bound:
 

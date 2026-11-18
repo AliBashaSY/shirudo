@@ -24,7 +24,7 @@ Before you begin
   :ref:`runtime-invocation`.
 - Run ``shirudo status`` first. It is the target's own report, and it
   still runs when most other commands refuse. The ``Status`` line gives
-  the verdict, and the six conditions below it the checks the verdict
+  the verdict, and the conditions below it the checks the verdict
   is derived from. A healthy target starts its report like this:
 
   .. code-block:: console
@@ -544,8 +544,9 @@ Status verdicts
    A config activation is pending. Reboot.
 
 ``degraded``
-   Enforcement is up but there is no register to check. Read the
-   ``Chain`` line of the report, see :ref:`status-degraded`.
+   Enforcement is up, but there is no register to check, or a device an
+   XDP upatch selects does not run it. Read the reason on the ``Status``
+   line, see :ref:`status-degraded`.
 
 ``lsm-off``
    Enforcement did not come up this boot and the target is unprotected.

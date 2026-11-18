@@ -98,8 +98,9 @@ Prepare the target
    * - 14
      - Drop-ins installed for ``shirudo.service``,
        ``shirudo-keepalive.service``, ``shirudo-map-export.service``,
-       ``shirudo-bpm-repo-update.service`` and
-       ``shirudo-bpm-tree-sync.service``.
+       ``shirudo-bpm-repo-update.service``,
+       ``shirudo-bpm-tree-sync.service`` and
+       ``shirudo-xdp-reconcile.service``.
      - :ref:`unit-drop-ins`
    * - 15
      - Environment files ``/etc/shirudo/map-export.env`` and
