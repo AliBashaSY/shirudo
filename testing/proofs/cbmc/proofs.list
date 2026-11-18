@@ -152,5 +152,5 @@ bpm-tree-state-pending	--unwind 5 --unwindset upatch_name_valid.0:10,strnlen.0:7
 bpm-tree-state-match	--unwind 4 --unwindset read_config_stream.0:7,read_config_stream.1:9,read_config_stream.2:9,read_config_stream.3:9,read_config_stream.4:9,read_text_line.0:9,strlen.0:9,strchr.0:9,strnlen.0:9,memcpy.0:9,memcmp.0:26 LEN=0-3
 bpm-tree-state-options	--unwind 4
 keepalive-pack		--unwind 9 --unwindset strcmp.0:18,keepalive_mask.0:514,mask.0:514,mask.1:514 LEN=0-9,512,513
-sysinfo-image		--unwind 8 --unwindset strcmp.0:8,memcmp.0:10,os_release_unquote.0:258,cmdline_image_root.0:8,cmdline_image_root.1:76,cmdline_image_root.2:5,strlen.0:11,all_hex.0:65,image_root_normalise.0:65,command_line.0:65,command_line.1:65 LEN=0-6
+sysinfo-image		--unwind 8 --unwindset strcmp.0:8,memcmp.0:10,os_release_unquote.0:258,cmdline_image_root.0:8,cmdline_image_root.1:76,cmdline_image_root.2:5,strlen.0:11,all_hex.0:66,image_root_normalise.0:65,command_line.0:66,command_line.1:65 LEN=0-6
 xdp-attrs		--unwind 12 --unwindset memchr.0:129 LEN=0-12,16,20,24,28,32,40

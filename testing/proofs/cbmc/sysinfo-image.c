@@ -4,7 +4,8 @@
  *
  * The image identity parsers of util/sysinfo.c, whose values a keepalive
  * carries: an os-release value of LEN bytes unquoted, the last assignment
- * of a key in a text of LEN bytes, and the root a command line names.
+ * of a key in a text of LEN bytes, and the root a command line names, for
+ * hashes of 64 bytes and, at LEN 1 and 2, of 63 and 65.
  */
 
 #include "proof.h"
@@ -100,9 +101,9 @@ static void last_assignment(void)
 	__CPROVER_assert(!strcmp(out, want), "the last assignment's value");
 }
 
-static bool all_hex(const char *h)
+static bool all_hex(const char *h, size_t n)
 {
-	for (size_t i = 0; i < HASH_LEN; i++)
+	for (size_t i = 0; i < n; i++)
 		if (!isxdigit((__u8)h[i]))
 			return false;
 	return true;
@@ -116,18 +117,20 @@ static size_t put(char *dst, size_t at, const char *src, size_t n)
 
 /*
  * roothash= wins over usrhash= whether or not it is a hash, and the root
- * is the one it names in lowercase, or none. A value holds no separator,
- * so that the arguments are those the line was built from.
+ * is the one it names in lowercase, when it is 64 digits, or none. A value
+ * holds no separator, so that the arguments are those the line was built
+ * from.
  */
-static void command_line(void)
+static void command_line(size_t hash_len)
 {
-	char root[HASH_LEN], usr[HASH_LEN], out[SYSINFO_IMAGE_ROOT_MAX];
-	char line[2 + 8 + HASH_LEN + 1 + 9 + HASH_LEN];
+	char root[HASH_LEN + 1], usr[HASH_LEN + 1];
+	char line[2 + 8 + HASH_LEN + 1 + 1 + 9 + HASH_LEN + 1];
+	char out[SYSINFO_IMAGE_ROOT_MAX];
 	bool junk, has_usr, has_root;
 	const char *named;
 	size_t at = 0;
 
-	for (size_t i = 0; i < HASH_LEN; i++)
+	for (size_t i = 0; i < hash_len; i++)
 		__CPROVER_assume(!cmdline_space(root[i]) &&
 				 !cmdline_space(usr[i]));
 
@@ -135,16 +138,16 @@ static void command_line(void)
 		at = put(line, at, "x ", 2);
 	if (has_usr) {
 		at = put(line, at, "usrhash=", 8);
-		at = put(line, at, usr, HASH_LEN);
+		at = put(line, at, usr, hash_len);
 		at = put(line, at, " ", 1);
 	}
 	if (has_root) {
 		at = put(line, at, "roothash=", 9);
-		at = put(line, at, root, HASH_LEN);
+		at = put(line, at, root, hash_len);
 	}
 	cmdline_image_root(line, at, out);
 	named = has_root ? root : has_usr ? usr : NULL;
-	if (!named || !all_hex(named)) {
+	if (!named || hash_len != HASH_LEN || !all_hex(named, hash_len)) {
 		__CPROVER_assert(!out[0], "no root");
 		return;
 	}
@@ -160,6 +163,8 @@ void harness(void)
 	last_assignment();
 	if (!LEN) {
 		bounds();
-		command_line();
+		command_line(HASH_LEN);
 	}
+	if (LEN == 1 || LEN == 2)
+		command_line(LEN == 1 ? HASH_LEN - 1 : HASH_LEN + 1);
 }

@@ -1180,7 +1180,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        ``cmdline_image_root()``
      - Values and texts of 0 to 6 bytes; values of 255, 256 and 257
        bytes; command lines of a word, ``usrhash=`` and ``roothash=``,
-       each there or not, with hashes of any 64 bytes but blanks
+       each there or not, with hashes of any 63, 64 or 65 bytes but
+       blanks
      - A value taken exactly when one or more printable bytes remain
        after one pair of quotes and the escapes of double quotes, at
        most 255 of them; of a key's lines the last; the root
