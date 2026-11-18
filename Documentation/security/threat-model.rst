@@ -1063,7 +1063,8 @@ recorded is gone or replaced it refuses ``tampered``. Which record
 counts as this boot's depends on what the caller sees (U9). A load or
 an unload refuses ``eventlog_full`` before it touches the TPM when the
 log would exceed ``eventlog.max_bytes``, and ``init`` checks the limit
-before it binds. Tree operations and revocations do not check it (U6).
+before it binds. The ``tree_op`` and ``key_revoke`` events do not check
+it (U6).
 ``upatch load`` and ``upatch unload`` given ``--expect-chain`` compare
 it with the register before acting. The comparison is not atomic with
 the extend and does not serialize concurrent commands, and package and
@@ -1883,8 +1884,8 @@ U6 The eventlog becomes unreadable at 8 MiB
    :Affects: Every reader of the eventlog: replay, ``shirudo status``,
       ``shirudo attest`` and ``init``.
    :Consequence: The readers stop at 8 MiB, ``eventlog.max_bytes`` has
-      no default, the log is never rotated, and tree operations and
-      revocations do not check the limit. Root can grow the log by
+      no default, the log is never rotated, and the ``tree_op`` and
+      ``key_revoke`` events do not check the limit. Root can grow the log by
       applying published load and unload pairs. Past 8 MiB, status,
       replay and attestation fail across reboots. With a limit set,
       measuring commands and ``init`` refuse ``eventlog_full`` instead.

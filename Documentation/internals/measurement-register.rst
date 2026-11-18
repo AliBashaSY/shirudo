@@ -275,9 +275,12 @@ twice.
 record on. Replaying those lines from 32 zero bytes must reproduce the
 live register. Readers load the whole log and the pending record into
 memory and refuse a total above 8 MiB. ``eventlog.max_bytes`` in the
-config image, unlimited by default, makes ``init``, ``upatch load`` and
-``upatch unload`` refuse with ``eventlog_full`` before they load anything
-or touch the TPM; revocations and tree operations do not check it.
+config image, unlimited by default, makes ``upatch load`` and ``upatch
+unload``, and the installs and removals of ``bpm`` and of a tree
+operation, refuse with ``eventlog_full`` before they load anything or
+touch the TPM. ``init`` checks it only when it binds the register, after
+it has extended the config PCR and restored the archived upatches. The
+``key_revoke`` and ``tree_op`` events do not check it.
 
 Lock between extend and append
 ------------------------------
