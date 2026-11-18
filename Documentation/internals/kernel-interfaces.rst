@@ -269,6 +269,12 @@ Extended attributes
    * - ``security.bpf.shirudo.payload``
      - The 32-byte payload digest on each upatch's pin directory in the
        private bpffs.
+   * - ``security.bpf.shirudo.policy``
+     - The 8-byte policy bitset of an executable, which the seal adds to
+       the task's bits at exec.
+   * - ``security.bpf.shirudo.ancestor``
+     - The mark on each directory between the state root and the root
+       of its file system, which the seal guards against a rename.
 
 LSM hooks
 ---------
@@ -280,7 +286,7 @@ LSM hooks
    * - Hook
      - Object
      - Kernel condition
-   * - ``bpf``, ``bpf_map``, ``bpf_prog_load``
+   * - ``bpf``, ``bpf_map``, ``bpf_prog``, ``bpf_prog_load``
      - ``bpf2``
      - ``CONFIG_BPF_SYSCALL``
    * - ``key_permission``
