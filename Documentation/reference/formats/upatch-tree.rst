@@ -542,6 +542,8 @@ not published.
 
 :doc:`/reference/files` lists every file shirudo keeps.
 
+.. _upatch-tree-limits:
+
 Limits
 ------
 

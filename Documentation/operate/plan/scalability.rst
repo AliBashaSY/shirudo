@@ -37,7 +37,10 @@ Registry requests
        conditional request, and the cached index is not consulted.
    * - ``bpm tree sync``
      - Every minute with a tree configured: the tree's manifest, payload
-       and signature, in full. An upatch the tree adds is fetched once,
+       and signature, in full. A target that is behind the segment the
+       reference names also fetches each sealed segment back to the one
+       its last applied operation lies in, twice: once on the walk back,
+       once to apply it. An upatch the tree adds is fetched once,
        manifest and blob, and cached by its layer digest.
    * - ``bpm upgrade``
      - Nothing until the cached index lists a newer version of an
@@ -91,9 +94,12 @@ Staged rollouts
   Its reference can be a tag other than ``stable``. A target moves past
   an operation that does not select it for good, so labels changed later
   do not apply operations it skipped before.
-- A tree publication carries every operation since the first, at most
-  512 of them. ``bpm tree append`` refuses the 513th, and targets refuse a
-  publication that does not start at the first operation.
+- A tree publication, a segment, holds at most 512 operations.
+  ``bpm tree append`` seals the segment when it holds ``--segment-ops``
+  operations, 64 by default, or when the new ones would not fit, and
+  starts one that names it by digest. A target that is behind fetches
+  the sealed segments back to its position, up to the walk limit of
+  :ref:`upatch-tree-limits`.
 
 :doc:`/operate/run/deliver-packages` sets up repositories and the tree.
 
@@ -151,9 +157,11 @@ shirudo limits
      - 256, and at most 128 upatches per package
      - ``bpm install`` refuses a 257th package. A package with more
        upatches fails to install or upgrade.
-   * - Trusted certificates
-     - 16
-     - ``keys add`` refuses the certificate.
+   * - BPF signers
+     - 16, the runtime primary and the certificates the config vouches
+       for
+     - ``image stage``, ``image update`` and ``init`` refuse a config
+       image whose signer set exceeds it.
    * - Node labels
      - 64, with keys and values shorter than 256 bytes
      - ``bpm tree sync`` stops at the first operation that selects on
