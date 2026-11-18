@@ -31,6 +31,16 @@ or `extendLost`. Any other process may extend any PCR at any time (R4). A
 reboot, and a TPM Restart or Resume without one, start a TPM boot. Every
 state any sequence of these reaches from a fresh target is `Reachable`.
 
+Root decides when the TPM's boot changes: a suspend to RAM at any point of
+a command is a TPM Resume or Restart, and `TPM2_Clear` sets the reset and
+restart counts back to zero, so a later boot can have an identity an
+earlier one had. `rootTpm` is the model with both. `journal_wellformed`,
+`mounted_selected`, `boot_completion`, `completion_by_complete` and
+`extension_follows_save` hold for it. Every other theorem is over
+`shirudo`, the same code on a calm TPM, whose boot changes only between
+commands, to an identity it never had; `restart_in_flight_extends_twice`
+breaks `extends_once` on root's TPM.
+
 For every such sequence:
 
 - (a) `consistent_or_refusing`: at every point the PCR replays from the
@@ -41,7 +51,9 @@ For every such sequence:
   until the TPM boot changes.
 - (b) `extends_once`: one extension per activation and TPM boot;
   `extension_follows_pending`: only with that activation's pending record
-  saved; `interrupted_never_extends`: none after an interruption.
+  saved; `interrupted_never_extends`: none after an interruption. On
+  root's TPM, `extension_follows_save`: only for the record the command
+  saved, durable as pending.
 - (c) `reboot_stale`, `reboot_recovers`: after a reboot every command
   refuses until `init` records a boot event, and an `init` nothing
   interrupts does so, for the root `boot_target()` takes, and completes;
@@ -65,15 +77,16 @@ crash once made; a crash in an append leaves a prefix of the line; only
 shirudo writes the journal and the config mount during a boot; a PCR
 changes only by extension and resets only at a reboot or a TPM Restart;
 two PCR values are equal when their extensions are (`pcr_value_eq_iff`
-from `Shirudo.Chain`'s assumptions on the hash); a TPM boot identity never
-repeats; a TPM Restart or Resume comes between commands.
+from `Shirudo.Chain`'s assumptions on the hash); and, for the theorems
+over `shirudo`, the calm TPM.
 
-The variants `retry`, `recover` and `restartInFlight` each add one step,
-and `retry_extends_twice`, `recover_admits_within_boot` and
-`restart_in_flight_extends_twice` give a sequence for each that breaks
-the theorem it matches. `resume_recovers_without_reboot` is a sequence of
-shirudo's own model in which `init`, run after a TPM Resume, recovers an
-interrupted activation without a reboot.
+The variants `retry` and `recover` each add one step of code shirudo
+does not have, and `retry_extends_twice` and `recover_admits_within_boot`
+give a sequence for each that breaks the theorem it matches.
+`restart_in_flight_extends_twice` is a sequence on root's TPM.
+`resume_recovers_without_reboot` is a sequence of shirudo's own model in
+which `init`, run after a TPM Resume, recovers an interrupted activation
+without a reboot.
 -/
 
 namespace Shirudo.ConfigActivation
@@ -194,15 +207,26 @@ structure Sys (B R D : Type) where
   proc : Proc B R D
 
 /-- Models the code would be if it retried an extension whose answer was
-lost, finished a pending activation within the TPM boot, or could be
-interrupted by a TPM Restart or Resume in the middle of a command. The
-code is `shirudo`, none of them. -/
+lost or finished a pending activation within the TPM boot, and the TPM
+it runs on: one that a TPM Restart or Resume can change in the middle of
+a command, and one that can come back to a boot identity it had. -/
 structure Variant where
   retry : Bool := false
   recover : Bool := false
   restartInFlight : Bool := false
+  repeatBoot : Bool := false
 
+/-- shirudo's code on a calm TPM, whose boot changes only between
+commands, to an identity it never had: the assumption every theorem over
+`shirudo` carries. -/
 def shirudo : Variant := {}
+
+/-- shirudo's code on the TPM root drives. A suspend to RAM, at any point
+of a command, is a TPM Resume, or a Restart, and `TPM2_Clear`, which only
+the lockout authorization that shirudo leaves empty guards, sets the reset
+and restart counts back to zero, so a later boot can have an identity an
+earlier one had. -/
+def rootTpm : Variant := { restartInFlight := true, repeatBoot := true }
 
 /-- The result codes of `config_update_check()`. -/
 inductive Res
@@ -444,20 +468,22 @@ inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
       StepIn v ⟨w, .idle⟩ ⟨{ w with state := some ⟨r, false⟩ }, .idle⟩
 
 /-- A step: one within the TPM boot, a reboot, or a TPM Restart or Resume
-without one. Each gives the TPM a boot it never had: the reset count
-grows at a reset, the restart count at a restart or a resume. A reboot
+without one. Each gives the TPM a boot it never had, the reset count
+grown at a reset and the restart count at a restart or a resume, unless
+`repeatBoot` lets a `TPM2_Clear` before it bring back an old one. A reboot
 ends the command, empties `/run` and leaves the PCRs with what the
 firmware extended; it may bring a new runtime image. A Restart clears the
 PCRs, a Resume keeps them (`keep`); the OS and its mounts run on. -/
 inductive Step (v : Variant) : Sys B R D → Sys B R D → Prop
   | inBoot {s s' : Sys B R D} : StepIn digest v s s' → Step v s s'
   | reboot (s : Sys B R D) (b : B) (f : Nat → List D) (idx : Nat) (img : R) :
-      b ∉ s.w.seen →
+      (b ∉ s.w.seen ∨ v.repeatBoot = true) →
       Step v s ⟨{ s.w with
         boot := b, pcr := f, mounted := none, cfgPcr := idx, cfgImage := img,
         seen := b :: s.w.seen }, .idle⟩
   | restart (s : Sys B R D) (b : B) (keep : Bool) (f : Nat → List D) :
-      (s.proc = .idle ∨ v.restartInFlight = true) → b ∉ s.w.seen →
+      (s.proc = .idle ∨ v.restartInFlight = true) →
+      (b ∉ s.w.seen ∨ v.repeatBoot = true) →
       Step v s ⟨{ s.w with
         boot := b, pcr := if keep then s.w.pcr else f,
         seen := b :: s.w.seen }, s.proc⟩
@@ -1082,8 +1108,15 @@ theorem inv_step {s s' : Sys B R D} (hi : Inv digest s)
   cases h with
   | inBoot h => exact inv_stepIn hi h
   | reboot b f idx img hnew =>
-    exact ⟨glob_newBoot f none idx img hi.1 hnew (Or.inl rfl), trivial, trivial⟩
+    rcases hnew with hnew | hnew
+    · exact ⟨glob_newBoot f none idx img hi.1 hnew (Or.inl rfl), trivial,
+        trivial⟩
+    · simp [shirudo] at hnew
   | restart b keep f hidle hnew =>
+    have hnew : b ∉ s.w.seen := by
+      rcases hnew with hnew | hnew
+      · exact hnew
+      · simp [shirudo] at hnew
     rcases hidle with hidle | hidle
     · obtain ⟨hg, hb, he⟩ := hi
       refine ⟨glob_newBoot _ s.w.mounted s.w.cfgPcr s.w.cfgImage hg hnew
@@ -1118,6 +1151,348 @@ theorem inv_reachable {s : Sys B R D}
   exact inv_star (inv_fresh b f idx img) h
 
 end Inv
+
+/-! ### Root's TPM
+
+What holds when root suspends the target in the middle of a command or
+brings a boot identity back with `TPM2_Clear`: the journal, the mount and
+what the command in progress wrote, without the TPM boot and the PCR. -/
+
+section RootDefs
+
+variable {B R D : Type} [DecidableEq B] [DecidableEq R] [DecidableEq D]
+variable (digest : Kind → R → D)
+
+/-- The facts of `Glob` that no TPM boot change touches. -/
+structure GlobW (w : World B R D) : Prop where
+  journal : ∃ last x, scan digest w.events = some (last, x) ∧
+    (w.state = none → w.events = [] ∧ w.torn = false) ∧
+    (∀ r, w.state = some ⟨r, false⟩ → last = some r ∧ w.torn = false) ∧
+    (∀ r, w.state = some ⟨r, true⟩ → last = some r ∨ Follows last r)
+  mounted_state : ∀ m, w.mounted = some m →
+    ∃ r q, w.state = some ⟨r, q⟩ ∧ (m = r.root ∨ q = true)
+
+/-- `Base` without the TPM boot and the PCR. -/
+def BaseW (w : World B R D) : Proc B R D → Prop
+  | .idle => True
+  | .starting .update _ prev =>
+    ∃ r, prev = some r ∧ w.state = some ⟨r, false⟩
+  | .starting .boot _ _ => True
+  | .saving _ _ => True
+  | .extending e _ => w.state = some ⟨e, true⟩
+  | .readback e _ => w.state = some ⟨e, true⟩
+  | .appending e => w.state = some ⟨e, true⟩
+  | .activating e => w.state = some ⟨e, true⟩
+  | .restOfInit true sel => ∃ e, w.state = some ⟨e, true⟩ ∧
+      e.kind = .boot ∧ e.root = sel ∧ w.mounted = some sel
+  | .restOfInit false _ => True
+  | .checking sel => ∃ e, w.state = some ⟨e, true⟩ ∧
+      w.mounted = some e.root ∧
+      (∀ s, sel = some s → e.kind = .boot ∧ e.root = s) ∧
+      (sel = none → e.kind = .update)
+  | .marking r sel => w.state = some ⟨r, true⟩ ∧ w.mounted = some r.root ∧
+      (∀ s, sel = some s → r.kind = .boot ∧ r.root = s) ∧
+      (sel = none → r.kind = .update) ∧
+      ∃ x, scan digest w.events = some (some r, x) ∧ w.torn = false
+  | .marked r sel => w.state = some ⟨r, false⟩ ∧ w.mounted = some r.root ∧
+      (∀ s, sel = some s → r.kind = .boot ∧ r.root = s) ∧
+      (sel = none → r.kind = .update)
+
+/-- `Ext` without the TPM boot and the extensions sent. -/
+def ExtW (w : World B R D) : Proc B R D → Prop
+  | .starting .boot _ prev => ∃ x, scan digest w.events = some (prev, x)
+  | .saving e _ =>
+      ∃ last x, scan digest w.events = some (last, x) ∧ Follows last e
+  | _ => True
+
+/-- The invariant on root's TPM. -/
+def InvW (s : Sys B R D) : Prop :=
+  GlobW digest s.w ∧ BaseW digest s.w s.proc ∧ ExtW digest s.w s.proc
+
+end RootDefs
+
+section Root
+
+variable {B R D : Type} [DecidableEq B] [DecidableEq R] [DecidableEq D]
+variable {digest : Kind → R → D}
+
+theorem stepIn_root {s s' : Sys B R D} (h : StepIn digest shirudo s s') :
+    StepIn digest rootTpm s s' := by
+  cases h with
+  | crash => exact .crash _ _
+  | outsider w π i d => exact .outsider w π i d
+  | startUpdate w t r h1 h2 h3 h4 h5 => exact .startUpdate w t r h1 h2 h3 h4 h5
+  | initSame w r h1 h2 h3 h4 => exact .initSame w r h1 h2 h3 h4
+  | initFirst w x h1 h2 h3 => exact .initFirst w x h1 h2 h3
+  | initNew w r q last x h1 h2 h3 h4 h5 =>
+    exact .initNew w r q last x h1 h2 h3 h4 h5
+  | read w k t prev h1 => exact .read w k t prev h1
+  | save w e b => exact .save w e b
+  | extend w e b => exact .extend w e b
+  | extendLost w e b => exact .extendLost w e b
+  | readback w e b h1 h2 => exact .readback w e b h1 h2
+  | append w e last x h1 h2 h3 => exact .append w e last x h1 h2 h3
+  | appendTorn w e last x h1 h2 h3 => exact .appendTorn w e last x h1 h2 h3
+  | appendTruncated w e last x h1 h2 h3 =>
+    exact .appendTruncated w e last x h1 h2 h3
+  | activateBoot w e h1 => exact .activateBoot w e h1
+  | activateUpdate w e h1 => exact .activateUpdate w e h1
+  | unmount w e => exact .unmount w e
+  | initComplete w sel r q h1 h2 => exact .initComplete w sel r q h1 h2
+  | initDone w sel r q h1 h2 h3 => exact .initDone w sel r q h1 h2 h3
+  | check w sel r q h1 h2 => exact .check w sel r q h1 h2
+  | mark w r sel => exact .mark w r sel
+  | restore w r sel => exact .restore w r sel
+  | stage w t r h1 h2 h3 => exact .stage w t r h1 h2 h3
+  | unstage w r h1 h2 h3 => exact .unstage w r h1 h2 h3
+  | clearStaged w r sel => exact .clearStaged w r sel
+  | retry _ _ _ _ hv => simp [shirudo] at hv
+  | recover _ _ hv => simp [shirudo] at hv
+
+/-- Every run on a calm TPM is one on root's. -/
+theorem step_root {s s' : Sys B R D} (h : Step digest shirudo s s') :
+    Step digest rootTpm s s' := by
+  cases h with
+  | inBoot h => exact .inBoot (stepIn_root h)
+  | reboot b f idx img hnew =>
+    rcases hnew with hnew | hnew
+    · exact .reboot _ b f idx img (Or.inl hnew)
+    · simp [shirudo] at hnew
+  | restart b keep f hidle hnew =>
+    exact .restart _ b keep f (Or.inr rfl) (Or.inr rfl)
+
+theorem reachable_root {s : Sys B R D} (h : Reachable digest shirudo s) :
+    Reachable digest rootTpm s := by
+  obtain ⟨b, f, idx, img, h⟩ := h
+  refine ⟨b, f, idx, img, ?_⟩
+  induction h with
+  | refl => exact Star.refl _
+  | tail _ hstep ih => exact ih.tail (step_root hstep)
+
+omit [DecidableEq R] in
+theorem baseW_world {w w' : World B R D} {π : Proc B R D}
+    (hb : BaseW digest w π) (hs : w'.state = w.state)
+    (hm : w'.mounted = w.mounted) (he : w'.events = w.events)
+    (ht : w'.torn = w.torn) : BaseW digest w' π := by
+  cases π with
+  | idle => trivial
+  | starting k t prev => cases k <;> simp only [BaseW, hs] at hb ⊢ <;> exact hb
+  | saving => trivial
+  | extending => simp only [BaseW, hs] at hb ⊢; exact hb
+  | readback => simp only [BaseW, hs] at hb ⊢; exact hb
+  | appending => simp only [BaseW, hs] at hb ⊢; exact hb
+  | activating => simp only [BaseW, hs] at hb ⊢; exact hb
+  | restOfInit p sel =>
+    cases p <;> simp only [BaseW, hs, hm] at hb ⊢ <;> exact hb
+  | checking => simp only [BaseW, hs, hm] at hb ⊢; exact hb
+  | marking => simp only [BaseW, hs, hm, he, ht] at hb ⊢; exact hb
+  | marked => simp only [BaseW, hs, hm] at hb ⊢; exact hb
+
+omit [DecidableEq R] in
+theorem extW_world {w w' : World B R D} {π : Proc B R D}
+    (hx : ExtW digest w π) (he : w'.events = w.events) :
+    ExtW digest w' π := by
+  cases π with
+  | starting k t prev => cases k <;> simp only [ExtW, he] at hx ⊢ <;> exact hx
+  | saving => simp only [ExtW, he] at hx ⊢; exact hx
+  | idle => trivial
+  | extending => trivial
+  | readback => trivial
+  | appending => trivial
+  | activating => trivial
+  | restOfInit => trivial
+  | checking => trivial
+  | marking => trivial
+  | marked => trivial
+
+/-- What the command in progress wrote holds from any journal, whatever
+the TPM does. -/
+theorem baseW_stepIn {s s' : Sys B R D} (hb : BaseW digest s.w s.proc)
+    (h : StepIn digest rootTpm s s') : BaseW digest s'.w s'.proc := by
+  cases h with
+  | crash => trivial
+  | outsider w π i d => exact baseW_world hb rfl rfl rfl rfl
+  | startUpdate w t r hs => exact ⟨r, rfl, hs⟩
+  | initSame => trivial
+  | initFirst => trivial
+  | initNew => trivial
+  | read => trivial
+  | save => rfl
+  | extend => exact hb
+  | extendLost => trivial
+  | readback => exact hb
+  | append => exact hb
+  | appendTorn => trivial
+  | appendTruncated => trivial
+  | activateBoot w e hk => exact ⟨e, hb, hk, rfl, rfl⟩
+  | activateUpdate w e hk =>
+    exact ⟨e, hb, rfl, (fun _ h => by cases h), fun _ => hk⟩
+  | unmount => trivial
+  | initComplete w sel r q _ _ =>
+    obtain ⟨e, h1, h3, h4, h5⟩ := hb
+    refine ⟨e, h1, by rw [h5, h4], ?_, fun h => by cases h⟩
+    intro s hs
+    cases hs
+    exact ⟨h3, h4⟩
+  | initDone => trivial
+  | check w sel r q hs hc =>
+    obtain ⟨e, h1, h3, h4, h4'⟩ := hb
+    rw [h1] at hs
+    cases hs
+    obtain ⟨x, hx, ht, -, -⟩ := checkRecord_ok.1 hc
+    exact ⟨h1, h3, h4, h4', x, hx, ht⟩
+  | mark w r sel =>
+    obtain ⟨-, h3, h4, h4', -⟩ := hb
+    exact ⟨rfl, h3, h4, h4'⟩
+  | restore => trivial
+  | stage => trivial
+  | unstage => trivial
+  | clearStaged => trivial
+  | retry _ _ _ _ hv => simp [rootTpm] at hv
+  | recover _ _ hv => simp [rootTpm] at hv
+
+theorem baseW_step {s s' : Sys B R D} (hb : BaseW digest s.w s.proc)
+    (h : Step digest rootTpm s s') : BaseW digest s'.w s'.proc := by
+  cases h with
+  | inBoot h => exact baseW_stepIn hb h
+  | reboot => trivial
+  | restart => exact baseW_world hb rfl rfl rfl rfl
+
+theorem baseW_star {s s' : Sys B R D} (hb : BaseW digest s.w s.proc)
+    (h : Star (Step digest rootTpm) s s') : BaseW digest s'.w s'.proc := by
+  induction h with
+  | refl => exact hb
+  | tail _ hstep ih => exact baseW_step ih hstep
+
+omit [DecidableEq R] in
+theorem globW_of {w w' : World B R D} (hg : GlobW digest w)
+    (hs : w'.state = w.state) (hm : w'.mounted = w.mounted)
+    (he : w'.events = w.events) (ht : w'.torn = w.torn) :
+    GlobW digest w' := by
+  obtain ⟨⟨last, x, hscan, h1, h2, h3⟩, hmo⟩ := hg
+  refine ⟨⟨last, x, by rw [he]; exact hscan, ?_, ?_, ?_⟩, ?_⟩
+  · intro h
+    rw [hs] at h
+    rw [he, ht]
+    exact h1 h
+  · intro r h
+    rw [hs] at h
+    rw [ht]
+    exact h2 r h
+  · intro r h
+    rw [hs] at h
+    exact h3 r h
+  · intro m h
+    rw [hm] at h
+    rw [hs]
+    exact hmo m h
+
+theorem invW_stepIn {s s' : Sys B R D} (hi : InvW digest s)
+    (h : StepIn digest rootTpm s s') : InvW digest s' := by
+  obtain ⟨hg, hb, he⟩ := hi
+  refine ⟨?_, baseW_stepIn hb h, ?_⟩
+  · cases h with
+    | crash => exact hg
+    | outsider => exact globW_of hg rfl rfl rfl rfl
+    | startUpdate => exact hg
+    | initSame => exact hg
+    | initFirst => exact hg
+    | initNew => exact hg
+    | read => exact hg
+    | save w e b =>
+      obtain ⟨last, x, hscan, hf⟩ := he
+      exact ⟨⟨last, x, hscan, (fun h => by cases h), (fun r h => by cases h),
+          fun r h => by cases h; exact Or.inr hf⟩,
+        fun _ _ => ⟨e, true, rfl, Or.inr rfl⟩⟩
+    | extend => exact globW_of hg rfl rfl rfl rfl
+    | extendLost => exact globW_of hg rfl rfl rfl rfl
+    | readback => exact hg
+    | append w e last x _ hscan hf =>
+      have hs : w.state = some ⟨e, true⟩ := hb
+      exact ⟨⟨some e, fold digest e x, scan_cons.2 ⟨last, x, hscan, hf, rfl⟩,
+          (fun h => by rw [hs] at h; cases h),
+          (fun r h => by rw [hs] at h; cases h),
+          (fun r h => by rw [hs] at h; cases h; exact Or.inl rfl)⟩,
+        hg.mounted_state⟩
+    | appendTorn w e =>
+      have hs : w.state = some ⟨e, true⟩ := hb
+      obtain ⟨last, x, hscan, -, -, hp⟩ := hg.journal
+      exact ⟨⟨last, x, hscan, (fun h => by rw [hs] at h; cases h),
+          (fun r h => by rw [hs] at h; cases h), hp⟩, hg.mounted_state⟩
+    | appendTruncated w e =>
+      have hs : w.state = some ⟨e, true⟩ := hb
+      obtain ⟨last, x, hscan, -, -, hp⟩ := hg.journal
+      exact ⟨⟨last, x, hscan, (fun h => by rw [hs] at h; cases h),
+          (fun r h => by rw [hs] at h; cases h), hp⟩, hg.mounted_state⟩
+    | activateBoot w e =>
+      have hs : w.state = some ⟨e, true⟩ := hb
+      exact ⟨hg.journal, fun _ _ => ⟨e, true, hs, Or.inr rfl⟩⟩
+    | activateUpdate w e =>
+      have hs : w.state = some ⟨e, true⟩ := hb
+      exact ⟨hg.journal, fun _ _ => ⟨e, true, hs, Or.inr rfl⟩⟩
+    | unmount => exact ⟨hg.journal, fun _ h => by cases h⟩
+    | initComplete => exact hg
+    | initDone => exact globW_of hg rfl rfl rfl rfl
+    | check => exact hg
+    | mark w r sel =>
+      obtain ⟨-, hm, -, -, x, hx, ht⟩ := hb
+      refine ⟨⟨some r, x, hx, (fun h => by cases h),
+          (fun r' h => by cases h; exact ⟨rfl, ht⟩), (fun r' h => by cases h)⟩,
+        fun m h => ?_⟩
+      rw [hm] at h
+      cases h
+      exact ⟨r, false, rfl, Or.inl rfl⟩
+    | restore w r sel =>
+      obtain ⟨hs, -⟩ := hb
+      obtain ⟨last, x, hscan, -, hnp, -⟩ := hg.journal
+      exact ⟨⟨last, x, hscan, (fun h => by cases h), (fun r' h => by cases h),
+          fun r' h => by cases h; exact Or.inl (hnp r hs).1⟩,
+        fun _ _ => ⟨r, true, rfl, Or.inr rfl⟩⟩
+    | stage => exact globW_of hg rfl rfl rfl rfl
+    | unstage => exact globW_of hg rfl rfl rfl rfl
+    | clearStaged => exact globW_of hg rfl rfl rfl rfl
+    | retry _ _ _ _ hv => simp [rootTpm] at hv
+    | recover _ _ hv => simp [rootTpm] at hv
+  · cases h with
+    | outsider w π i d => exact extW_world he rfl
+    | initFirst w x _ hscan _ => exact ⟨x, hscan⟩
+    | initNew w r q last x _ _ hscan _ _ => exact ⟨x, hscan⟩
+    | read w k t prev hf =>
+      cases k with
+      | boot =>
+        obtain ⟨x, hx⟩ := he
+        exact ⟨prev, x, hx, hf⟩
+      | update =>
+        obtain ⟨r, hprev, hs⟩ := hb
+        subst hprev
+        obtain ⟨last, x, hscan, -, hnp, -⟩ := hg.journal
+        obtain ⟨hlast, -⟩ := hnp r hs
+        subst hlast
+        exact ⟨some r, x, hscan, hf⟩
+    | retry _ _ _ _ hv => simp [rootTpm] at hv
+    | recover _ _ hv => simp [rootTpm] at hv
+    | _ => trivial
+
+theorem invW_step {s s' : Sys B R D} (hi : InvW digest s)
+    (h : Step digest rootTpm s s') : InvW digest s' := by
+  cases h with
+  | inBoot h => exact invW_stepIn hi h
+  | reboot => exact ⟨⟨hi.1.journal, fun _ h => by cases h⟩, trivial, trivial⟩
+  | restart =>
+    exact ⟨globW_of hi.1 rfl rfl rfl rfl, baseW_world hi.2.1 rfl rfl rfl rfl,
+      extW_world hi.2.2 rfl⟩
+
+theorem invW_reachable {s : Sys B R D}
+    (h : Reachable digest rootTpm s) : InvW digest s := by
+  obtain ⟨b, f, idx, img, h⟩ := h
+  have h0 : InvW digest ⟨fresh b f idx img, .idle⟩ :=
+    ⟨⟨⟨none, [], rfl, fun _ => ⟨rfl, rfl⟩, (fun r h => by cases h),
+        (fun r h => by cases h)⟩, fun m h => by cases h⟩, trivial, trivial⟩
+  induction h with
+  | refl => exact h0
+  | tail _ hstep ih => exact invW_step ih hstep
+
+end Root
 
 /-! ### (a) Consistent, or refusing until the TPM boot changes -/
 
@@ -1309,6 +1684,21 @@ theorem extends_once {s : Sys B R D}
     (h : Reachable digest shirudo s) : s.w.sent.Nodup :=
   (inv_reachable h).1.sent_nodup
 
+/-- (b) On root's TPM too, shirudo extends the config PCR only right
+after the command's `state_save()`, for the record it saved, with that
+record durable as pending. -/
+theorem extension_follows_save {s s' : Sys B R D}
+    (h : Reachable digest rootTpm s)
+    (hstep : StepIn digest rootTpm s s') (hsent : s'.w.sent ≠ s.w.sent) :
+    ∃ e b, s.proc = .extending e b ∧ s.w.state = some ⟨e, true⟩ ∧
+      s'.w.sent = (s.w.boot, e.seq) :: s.w.sent := by
+  obtain ⟨-, hb, -⟩ := invW_reachable h
+  cases hstep with
+  | extend w e b => exact ⟨e, b, rfl, hb, rfl⟩
+  | extendLost w e b => exact ⟨e, b, rfl, hb, rfl⟩
+  | retry _ _ _ _ hv => simp [rootTpm] at hv
+  | _ => exact absurd rfl hsent
+
 /-- (b) shirudo extends the config PCR only with the pending record of
 this TPM boot durable, for that record's activation; the extensions of
 the TPM boot so far are of that activation or earlier ones. -/
@@ -1398,12 +1788,12 @@ theorem configInUse_vouched {w : World B R D} {st : Bool} {m : R}
       · simp [hc] at h
 
 /-- (d) Whatever config is mounted is the one the record selects, except
-while that selection is pending. -/
+while that selection is pending, on root's TPM too. -/
 theorem mounted_selected {s : Sys B R D} {m : R}
-    (h : Reachable digest shirudo s)
+    (h : Reachable digest rootTpm s)
     (hm : s.w.mounted = some m) :
     ∃ r q, s.w.state = some ⟨r, q⟩ ∧ (m = r.root ∨ q = true) :=
-  (inv_reachable h).1.mounted_state m hm
+  (invW_reachable h).1.mounted_state m hm
 
 /-- (d) A consistent record always has its config mounted, so commands
 never run with another, and never fail for want of it. -/
@@ -1429,13 +1819,13 @@ variable {digest : Kind → R → D}
 /-- (e) No interruption leaves a journal a later boot cannot read: every
 line follows the one before, a partial last line and a record ahead of
 the journal occur only while the selection is pending, and a completed
-record is the last line. -/
-theorem journal_wellformed {s : Sys B R D} (h : Reachable digest shirudo s) :
+record is the last line, on root's TPM too. -/
+theorem journal_wellformed {s : Sys B R D} (h : Reachable digest rootTpm s) :
     ∃ last x, scan digest s.w.events = some (last, x) ∧
       (s.w.state = none → s.w.events = [] ∧ s.w.torn = false) ∧
       (∀ r, s.w.state = some ⟨r, false⟩ → last = some r ∧ s.w.torn = false) ∧
       (∀ r, s.w.state = some ⟨r, true⟩ → last = some r ∨ Follows last r) :=
-  (inv_reachable h).1.journal
+  (invW_reachable h).1.journal
 
 /-- (e) For a completed record of this TPM boot the PCR is the journal's
 replay with nothing under it, and only other processes' extensions on
@@ -1828,31 +2218,31 @@ theorem reboot_recovers {s : Sys B R D} (h : Reachable digest shirudo s) (b : B)
 the selected config's boot event last in the journal and the PCR holding
 exactly that event over the value it started from, the selection pending
 until then and that config mounted. This holds from any journal, however
-corrupt or forged, and any PCR values. -/
+corrupt or forged, any PCR values, and on root's TPM. -/
 theorem boot_completion {w0 : World B R D} {s s' : Sys B R D} {sel : R}
-    {r : Event B R D} (hrun : Star (Step digest shirudo) ⟨w0, .idle⟩ s)
-    (hs : s.proc = .checking (some sel)) (hstep : StepIn digest shirudo s s')
+    {r : Event B R D} (hrun : Star (Step digest rootTpm) ⟨w0, .idle⟩ s)
+    (hs : s.proc = .checking (some sel)) (hstep : StepIn digest rootTpm s s')
     (hs' : s'.proc = .marking r (some sel)) :
     r.kind = .boot ∧ r.root = sel ∧ r.boot = s.w.boot ∧
       s.w.state = some ⟨r, true⟩ ∧ s.w.mounted = some sel ∧ s.w.torn = false ∧
       scan digest s.w.events = some (some r, digest .boot sel :: r.initial) ∧
       s.w.pcr r.pcr = digest .boot sel :: r.initial := by
-  have hb := base_star (s := ⟨w0, .idle⟩) trivial hrun
+  have hb := baseW_star (s := ⟨w0, .idle⟩) trivial hrun
   cases hstep
   case check w sel' r' q hst hc =>
     cases hs
     cases hs'
-    obtain ⟨e, h1, h2, h3, h4, -⟩ := hb
+    obtain ⟨e, h1, h3, h4, -⟩ := hb
     rw [h1] at hst
     cases hst
     obtain ⟨hk, hroot⟩ := h4 sel rfl
-    obtain ⟨x, hx, ht, -, hp⟩ := checkRecord_ok.1 hc
+    obtain ⟨x, hx, ht, hbo, hp⟩ := checkRecord_ok.1 hc
     obtain ⟨-, run, hrun'⟩ := scan_last hx
     have hxv : x = digest .boot sel :: r.initial := by
       rw [hrun', ← hroot]
       simp [fold, hk]
     rw [hxv] at hx hp
-    exact ⟨hk, hroot, h2, h1, by rw [h3, hroot], ht, hx, hp⟩
+    exact ⟨hk, hroot, hbo.symm, h1, by rw [h3, hroot], ht, hx, hp⟩
   case outsider w π i d =>
     simp only at hs hs'
     rw [hs] at hs'
@@ -1860,22 +2250,23 @@ theorem boot_completion {w0 : World B R D} {s s' : Sys B R D} {sel : R}
   all_goals first
     | (simp only at hs'; cases hs')
     | (simp only at hs; cases hs)
-    | (simp [shirudo] at *)
+    | (simp [rootTpm] at *)
 
 /-- (e) A pending record becomes a completed one only through
 `complete()`'s save after its `check_record()`, and a boot event's only
 through `init`'s, which `image_boot_complete()` starts once the upatch
-restore and the register binding have succeeded. From any journal. -/
+restore and the register binding have succeeded. From any journal, on
+root's TPM. -/
 theorem completion_by_complete {w0 : World B R D} {s s' : Sys B R D}
-    {r r' : Event B R D} (hrun : Star (Step digest shirudo) ⟨w0, .idle⟩ s)
-    (hstep : StepIn digest shirudo s s')
+    {r r' : Event B R D} (hrun : Star (Step digest rootTpm) ⟨w0, .idle⟩ s)
+    (hstep : StepIn digest rootTpm s s')
     (hs : s.w.state = some ⟨r, true⟩) (hs' : s'.w.state = some ⟨r', false⟩) :
     r' = r ∧ ∃ sel, s.proc = .marking r sel ∧
       (r.kind = .boot ↔ sel = some r.root) := by
-  have hb := base_star (s := ⟨w0, .idle⟩) trivial hrun
+  have hb := baseW_star (s := ⟨w0, .idle⟩) trivial hrun
   cases hstep
   case mark w r0 sel =>
-    obtain ⟨h1, -, -, h4, h4', -⟩ := hb
+    obtain ⟨h1, -, h4, h4', -⟩ := hb
     simp only at hs hs'
     rw [h1] at hs
     cases hs
@@ -1886,15 +2277,16 @@ theorem completion_by_complete {w0 : World B R D} {s s' : Sys B R D}
     | some x => rw [(h4 x rfl).2]
   case save => simp only at hs'; cases hs'
   case restore => simp only at hs'; cases hs'
-  case recover _ hv _ _ _ => simp [shirudo] at hv
+  case recover _ hv _ _ _ => simp [rootTpm] at hv
   all_goals (simp only at hs hs'; rw [hs] at hs'; cases hs')
 
 end Boot
 
 /-! ### The theorems fail for code that retries or recovers
 
-Each variant below is the model with one more step. A trace reaches a
-state that the theorem the variant breaks rules out for shirudo. -/
+Each variant below is the model with one more step: a retry, a recovery,
+or root's TPM. A trace reaches a state that the theorem the variant
+breaks rules out for shirudo on a calm TPM. -/
 
 section Variants
 
@@ -2014,16 +2406,16 @@ theorem recover_admits_within_boot (b : B) (f : Nat → List D) (idx : Nat)
   exact ⟨check_ok.2 ⟨_, rfl, checkRecord_ok.2
     ⟨_, scan_cons.2 ⟨_, _, hscanA, hfB, rfl⟩, rfl, rfl, hp2⟩⟩, _, rfl, rfl⟩
 
-/-- Variant `restartInFlight`: a TPM Restart or Resume, a suspend for
-one, lands while `image update` runs, between its pending record and its
-extension, and `extends_once` fails. The extension lands in the new TPM
+/-- Root's TPM: a TPM Restart or Resume, a suspend for one, lands while
+`image update` runs, between its pending record and its extension, and
+`extends_once` fails. The extension lands in the new TPM
 boot while the record names the old one; the update refuses at its read
 back; `init` run by hand then takes the record as an earlier boot's and
 extends the PCR a second time for the same activation in that TPM boot,
 on top of the first, which a Resume kept. -/
 theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
     (f : Nat → List D) (idx : Nat) (A B' : R) (hAB : B' ≠ A) :
-    ∃ s : Sys B R D, Reachable digest { restartInFlight := true } s ∧
+    ∃ s : Sys B R D, Reachable digest rootTpm s ∧
       ¬ s.w.sent.Nodup ∧ s.w.boot = b1 ∧
       s.w.pcr idx =
         [digest .boot B', digest .update B', digest .boot A] ++ f idx := by
@@ -2035,19 +2427,19 @@ theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
   have hseen : b1 ∉ (worldA digest b0 f idx A).seen := by
     simp [worldA, booted, fresh, hb]
   let saved := boot_then_update_saved (digest := digest)
-    (v := { restartInFlight := true })
+    (v := rootTpm)
     b0 f idx A B' hAB
   let w1 : World B R D :=
     { worldA digest b0 f idx A with
       state := some ⟨updB digest b0 f idx A B', true⟩ }
   let w2 : World B R D :=
     { w1 with boot := b1, pcr := w1.pcr, seen := b1 :: w1.seen }
-  have hrestart : Step digest { restartInFlight := true }
+  have hrestart : Step digest rootTpm
       ⟨w1, .extending (updB digest b0 f idx A B')
           ((worldA digest b0 f idx A).pcr idx)⟩
       ⟨w2, .extending (updB digest b0 f idx A B')
           ((worldA digest b0 f idx A).pcr idx)⟩ :=
-    Step.restart _ b1 true f (Or.inr rfl) hseen
+    Step.restart _ b1 true f (Or.inr rfl) (Or.inl hseen)
   let w3 : World B R D :=
     { w2 with pcr := extendAt w2.pcr idx (digest .update B'),
               sent := (b1, (updB digest b0 f idx A B').seq) :: w2.sent }
@@ -2055,7 +2447,7 @@ theorem restart_in_flight_extends_twice (b0 b1 : B) (hb : b1 ≠ b0)
   let eB2 := newEvent w3 .boot B' (some (bootA b0 f idx A))
   have hfB2 : Follows (some (bootA b0 f idx A)) eB2 :=
     ⟨rfl, fun h => absurd h.symm hb, fun _ => rfl⟩
-  have hinit : Star (StepIn digest { restartInFlight := true })
+  have hinit : Star (StepIn digest rootTpm)
       ⟨w2, .extending (updB digest b0 f idx A B')
           ((worldA digest b0 f idx A).pcr idx)⟩
       ⟨{ w3 with
@@ -2108,7 +2500,7 @@ theorem resume_recovers_without_reboot (b0 b1 : B) (hb : b1 ≠ b0)
   let w2 : World B R D :=
     { w1 with boot := b1, pcr := w1.pcr, seen := b1 :: w1.seen }
   have hrestart : Step digest shirudo ⟨w1, .idle⟩ ⟨w2, .idle⟩ :=
-    Step.restart _ b1 true f (Or.inl rfl) hseen
+    Step.restart _ b1 true f (Or.inl rfl) (Or.inl hseen)
   have hstale : (updB digest b0 f idx A B').boot ≠ w2.boot := fun h => hb h.symm
   have hfB2 : Follows (some (bootA b0 f idx A))
       (newEvent w2 .boot B' (some (bootA b0 f idx A))) :=

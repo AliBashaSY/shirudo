@@ -1565,8 +1565,17 @@ R4 Config PCR writers are not authenticated
    an activation that never happened. The verifier also takes the
    value the history starts from out of the evidence rather than
    requiring zero. A fresh nonce and a genuine quote prove neither who
-   extended the PCR nor that an activation completed. Detection: none
-   reliable. Mitigation: D1.
+   extended the PCR nor that an activation completed. Root also decides
+   when the TPM's boot changes. A suspend to RAM in the middle of a
+   command is a TPM Resume or Restart, and ``TPM2_Clear``, which needs
+   only the lockout authorization that shirudo leaves empty, puts the
+   reset and restart counts back to zero, so a later boot can carry an
+   earlier one's identity. One activation can then be extended twice in
+   one TPM boot, and a record can name the TPM boot it is in while the
+   PCR does not hold its replay, which refuses commands until a reboot.
+   The Lean proofs of the activation that count extensions or explain a
+   refusal assume neither (``Shirudo.ConfigActivation``). Detection:
+   none reliable. Mitigation: D1.
 
 R5 The boot chain and process memory stay trusted
    dm-verity verifies runtime blocks as they are read. It does not

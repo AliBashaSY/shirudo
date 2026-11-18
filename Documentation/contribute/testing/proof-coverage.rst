@@ -1163,7 +1163,9 @@ the model follows the C.
        until the TPM boot changes; ``extends_once``,
        ``extension_follows_pending``, ``interrupted_never_extends``: one
        extension per activation and TPM boot, after the pending record,
-       none after an interruption; ``reboot_stale``, ``reboot_recovers``,
+       none after an interruption; ``extension_follows_save``: on root's
+       TPM, an extension only for the record its command saved, durable
+       as pending; ``reboot_stale``, ``reboot_recovers``,
        ``boot_completion``: after a reboot commands refuse until ``init``
        records a boot event, which an uninterrupted ``init`` does for the
        root ``boot_target()`` takes, and from any journal ``init``
@@ -1177,10 +1179,14 @@ the model follows the C.
      - Commands one at a time; atomic renames of ``state`` and
        ``next-boot``; a crash leaves a prefix of a line; only shirudo
        writes the journal and the config mount during a boot; PCRs reset
-       only at a reboot or TPM Restart;
-       equal values from equal extensions (``pcr_value_eq_iff`` with
-       ``Shirudo.Chain``'s assumptions); TPM boot identities never repeat;
-       a TPM Restart or Resume only between commands
+       only at a reboot or TPM Restart; equal values from equal
+       extensions (``pcr_value_eq_iff`` with ``Shirudo.Chain``'s
+       assumptions). All but ``journal_wellformed``,
+       ``mounted_selected``, ``boot_completion``,
+       ``completion_by_complete`` and ``extension_follows_save`` also take
+       a calm TPM, whose boot changes only between commands and never to
+       an identity it had, which root breaks with a suspend or
+       ``TPM2_Clear`` (R4 of :doc:`/security/threat-model`)
      - Review; CBMC, ``config-update-follows``, for ``event_follows()`` and
        ``same_event()``
    * - ``Shirudo.UpatchLoad``, the load, unload and purge of

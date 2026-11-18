@@ -333,14 +333,18 @@ shirudo extends the config PCR at most once per activation and TPM boot
 and never after an interruption, a pending or drifted state refuses
 every command but ``status`` and ``image status`` until the TPM boot
 changes, and after a reboot an uninterrupted ``init`` records the boot
-event and admits commands again. The model takes a TPM Restart or Resume
-to come only between commands. It also covers which root ``init``
-selects: a staged one only when the stage copies the completed record
-``init`` starts from and was made in an earlier TPM boot. It does not
-model the signature and vouch checks of a staged config, which the
-staging tests exercise. CBMC shows that ``event_follows()`` accepts
-exactly the records the model lets follow. The proofs are in
-:doc:`/contribute/testing/proof-coverage`.
+event and admits commands again. These theorems take a TPM whose boot
+changes only between commands and never back to an identity it had.
+Root can break both, with a suspend in the middle of a command or with
+``TPM2_Clear`` (R4 in :doc:`/security/threat-model`); then one activation
+can be extended twice in one TPM boot, and only the journal, the mount,
+the save before each extension and ``init``'s completion stay proven.
+The model also covers which root ``init`` selects: a staged one only when
+the stage copies the completed record ``init`` starts from and was made
+in an earlier TPM boot. It does not model the signature and vouch checks
+of a staged config, which the staging tests exercise. CBMC shows that
+``event_follows()`` accepts exactly the records the model lets follow.
+The proofs are in :doc:`/contribute/testing/proof-coverage`.
 
 What can change without a reboot
 --------------------------------
