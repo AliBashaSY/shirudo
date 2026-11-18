@@ -226,9 +226,9 @@ TPM
        the policy reference ``shirudo-nv-writer-v1``
    * - Measurement register
      - NV extend index ``0x01818E00`` with SHA-256 as its name algorithm
-     - The write policy: ``PolicyOR`` of ``PolicyNvWritten`` and of
-       ``PolicyNvWritten`` with ``PolicyPCR`` over PCRs 9 and 11 in the
-       SHA-256 bank, then ``PolicySigned`` by the NV writer and
+     - The write policy: ``PolicyOR`` of ``PolicyNvWritten(YES)`` and of
+       ``PolicyNvWritten(NO)`` with ``PolicyPCR`` over PCRs 9 and 11 in
+       the SHA-256 bank, then ``PolicySigned`` by the NV writer and
        ``PolicyCommandCode`` for ``TPM2_NV_Extend``
    * - PCRs
      - The SHA-256 bank
