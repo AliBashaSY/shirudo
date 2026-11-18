@@ -365,7 +365,8 @@ Each program entry is 160 bytes:
        function; the file offset the target uses is in the ``UPUT`` record.
        For XDP, a
        little-endian ``u32 device_classes`` followed by ``u32 reserved``
-       (0). The mask is nonzero and uses only bits 1, 2, 4, 8 and 16.
+       (0). The mask is nonzero and uses only bits 1 (network-facing),
+       2 (virtual), 8 (VM) and 16 (unknown); 27 selects all classes.
        0 for every other kind and role.
    * - +16
      - 128
@@ -451,11 +452,10 @@ Each program entry is 160 bytes:
 
 :doc:`/upatches/write/attach-kinds` describes how the target attaches each kind.
 XDP retains the 160-byte entry and UPGM version 1; readers that do not
-know kind 8 refuse it. Its ``target`` and ``map`` are empty. Device-class
-bits mean network-facing (1), virtual (2), VM (8) and unknown (16); 27
-selects all classes. Bit 4 is not a class, and a reader refuses a mask
-that sets it or any bit above 16, and a table whose XDP entries share a
-class.
+know kind 8 refuse it. Its ``target`` and ``map`` are empty. A reader
+refuses a device-class mask that sets a bit outside 27, which bit 4 is,
+and a table whose XDP entries share a class.
+:doc:`/upatches/write/attach-kinds` says how a device is classified.
 
 When any entry has kind 7, 9, 10 or 11, one ``UPUT`` block follows the
 program entries and ends the section. Without such an entry the section
