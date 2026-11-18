@@ -80,7 +80,8 @@ the switch to the root file system. It needs
    keyring, seal it, and check that it holds exactly that set.
 #. Unmount the runtime and the candidate config and remove their
    mappings.
-#. Label the state tree on the first boot.
+#. Label the state tree on the first boot, and mark the directories
+   above it up to the root of its file system.
 #. Load and attach the enforcement objects, in the order
    :doc:`enforcement` gives.
 #. Walk the state tree again, which fills the directory marks of the
@@ -107,23 +108,39 @@ the switch to the root file system. It needs
    if one was staged.
 #. Detach the ``/var/lib/shirudo`` bind.
 
+Figure 1 groups the steps in their phases, marks where the keyrings
+are sealed, the guards attached and the register anchored, and shows
+what crosses the switch and what the run in the root file system does.
 The keyrings are sealed before any guard attaches, by the initrd's
 binary, which the boot chain measured. The runtime image that later
 commands run from is mounted under the guards.
 
+.. figure:: /images/internals-init-run.svg
+   :alt: The 18 steps of init in the initrd as a row of cells in four
+         phases: settings and mounts (1 to 4), images and keyrings (5 to
+         9), guards and the runtime image under them (10 to 13), and the
+         config boot event, the restore and the register (14 to 17),
+         then step 18. Markers show the keyrings sealed after step 8,
+         the guards attached after step 11 and the PCR 9 anchor after
+         step 16. Brackets below show what a stop leaves: in steps 1 to
+         11 nothing attached and shirudo.service skipped; in 12 and 13
+         guards on, no runtime image and the service skipped; in step
+         14 before the selection is pending, the service runs init
+         again; from there to step 17 the selection stays pending until
+         a reboot. Below the switch to the root file system, the private
+         bpffs, the image mounts and eventlog.pending cross with
+         /run/shirudo, and shirudo.service checks what the initrd run
+         left and adds no register event.
+
+   Figure 1. The two runs of ``init``. The numbers are the steps above.
+
 What crosses the switch to the root file system
 -----------------------------------------------
 
-systemd moves ``/run`` with its mounts into the root file system. The
-private tmpfs at ``/run/shirudo`` goes with it, and with that tmpfs:
-
-- the private bpffs, whose pins keep every enforcement link and every
-  restored upatch attached, and which holds the identity map, the task
-  and device maps and the tamper counters;
-- the runtime image at ``/run/shirudo/runtime`` and the config image at
-  ``/run/shirudo/config``;
-- ``eventlog.pending``, the record of the initrd run.
-
+systemd moves ``/run`` with its mounts into the root file system, and
+with it the private tmpfs at ``/run/shirudo`` and what Figure 1 lists
+under it: the private bpffs, whose pins keep every enforcement link and
+every restored upatch attached, the image mounts and ``eventlog.pending``.
 The sealed keyrings, the device records and the TPM state are kernel and
 TPM state and do not depend on the switch. The bind of
 ``/var/lib/shirudo`` does not cross; the root file system has the same
@@ -169,25 +186,21 @@ When init fails
 A failed ``init`` does not stop the boot. ``initrd.target`` only wants
 ``shirudo-initrd.service``, the unit has no failure action, and shirudo
 never halts or reboots a node. What the target runs afterwards depends on
-where ``init`` stopped:
+where ``init`` stopped, the brackets of Figure 1:
 
-- Before the enforcement objects attach (settings, pre-flight, images,
-  keyrings): nothing is attached. A failure inside the attach sequence
-  unpins what was attached, with the same result. The runtime image is
-  not mounted, so ``shirudo.service`` is skipped, and the target runs
-  without enforcement.
-- After attaching, before the runtime image is mounted again: the guards
-  are in place, ``shirudo.service`` is skipped, and commands that need
-  the runtime image fail.
-- After the runtime image is mounted, before the config selection is
-  recorded pending (a config that fails its checks): the guards are in
-  place, and ``shirudo.service`` runs ``init`` again, which starts the
-  config boot event, the restore and the binding over from the root file
-  system.
-- After the selection is recorded pending (a failed extension or mount,
-  a restore failure, a register that cannot be bound): the guards are in
-  place and the selection stays pending. ``shirudo.service`` refuses
-  with the activation pending, and every target command except
+- Up to the attach: nothing is attached, since a failure inside the
+  attach sequence unpins what was attached, and ``shirudo.service``,
+  which runs only when ``/run/shirudo/runtime`` is a mount point, is
+  skipped. The target runs without enforcement.
+- Before the runtime image is mounted again: the guards are in place,
+  ``shirudo.service`` is skipped, and commands that need the runtime
+  image fail.
+- Before the config selection is recorded pending, which happens partway
+  through the config boot event: ``shirudo.service`` runs ``init``
+  again, which starts the boot event, the restore and the binding over
+  from the root file system.
+- Once the selection is pending: it stays pending. ``shirudo.service``
+  refuses with the activation pending, and every target command except
   ``shirudo status`` and ``shirudo image status`` refuses until a
   reboot.
 
