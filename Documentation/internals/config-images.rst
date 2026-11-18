@@ -285,11 +285,8 @@ checks.
 Interrupted activation
 ----------------------
 
-An activation can stop after the pending record is on disk: a crash, a
-power loss, a failed mount or a failed revocation. The record then stays
-pending, and shirudo does not try again within the same TPM boot. Every
-target command except ``shirudo status`` and ``shirudo image status``
-refuses while the selection is pending, and so does ``init``. The node
+An activation can stop after the pending record is on disk, as Figure 1
+shows, and shirudo does not try again within the same TPM boot. The node
 keeps running, with the guards and the loaded upatches it had; shirudo
 never reboots it.
 
@@ -298,15 +295,37 @@ config the record names, pending or not, maps and checks it again,
 records a fresh boot event in the config PCR and completes. It never
 repeats the previous boot's extension.
 
-Two other states refuse the same way. When the config PCR no longer
-replays from the config log, because something else extended it,
-commands refuse with ``EUCLEAN`` until a reboot. When the TPM's reset or
-restart count differs from the record's, commands refuse with
-``ESTALE`` until ``init`` runs again and records a boot event for the new
-TPM boot. After a TPM reset that ``init`` completes. After a TPM
-restart it records the boot event but refuses to bind the cleared
-register (``tampered``), so the selection stays pending until a reboot;
-:doc:`boot-flow` explains why.
+A pending selection is one of three states in which every target
+command except ``shirudo status`` and ``shirudo image status`` refuses,
+``init`` too while the TPM boot is the same. The table compares them; a
+stale next-boot record is none of them, since ``init`` ignores it with a
+warning.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 37 45
+
+   * - State and errno
+     - Arises when
+     - Ends when
+   * - Pending, ``EINPROGRESS``
+     - An activation stops or is refused after its pending record: a
+       crash, a power loss, a failed extension, append, revocation or
+       mount, or an ``init`` that fails after its boot event.
+     - The next TPM boot's ``init`` records a fresh boot event and
+       completes.
+   * - Drift, ``EUCLEAN``
+     - The config PCR does not replay from the config log, because
+       something else extended it, or does not read back as extended;
+       or the log or the mounted config is not the one the record names.
+     - A reboot.
+   * - Another TPM boot, ``ESTALE``
+     - The TPM's reset or restart count differs from the record's, or
+       changes while a command reads them.
+     - ``init`` records a boot event for the new TPM boot. After a TPM
+       reset it completes. After a TPM restart it refuses to bind the
+       cleared register (``tampered``), so the selection stays pending
+       until a reboot; :doc:`boot-flow` explains why.
 
 Lean 4 proves this protocol for every sequence of commands, crashes,
 failed or lost TPM answers, extensions by other processes and reboots:
