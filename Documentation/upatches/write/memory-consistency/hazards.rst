@@ -19,64 +19,117 @@ When a run can stop halfway
 ---------------------------
 
 A BPF program never moves to another CPU while it runs. Whether another
-run can start on its CPU before it ends depends on the program type and
-on the kernel's preemption model. On x86-64, arm64 and riscv64 the
-kernel preempts tasks in every model it offers: ``PREEMPT``,
-``PREEMPT_LAZY``, ``PREEMPT_RT`` and ``PREEMPT_DYNAMIC``, the default
-and the one distribution kernels use, which picks ``full`` or ``lazy``
-at boot. Kernels before 7.0 also offered ``none`` and ``voluntary``, in
-which no task preempts a running program and which most distribution
-kernels built with ``PREEMPT_DYNAMIC`` booted in; the kernels shirudo
-needs have neither. All but ``PREEMPT_LAZY`` on its own come with
-preemptible RCU, ``CONFIG_PREEMPT_RCU``. A kernel with it runs most
-programs with only migration disabled, so another task can preempt them.
-A kernel without it runs them with preemption disabled, except
-``syscall`` programs, which run with only migration disabled on any
-kernel. On either kernel an interrupt can run a softirq on top of a run
-in a process, and a sleepable program can sleep. The kernel guards some
-program types against a second run and not others:
+run can start on its CPU before it ends depends on the kernel's
+preemption model and on the program type. The models x86-64, arm64 and
+riscv64 offer differ in one thing that matters here, preemptible RCU,
+``CONFIG_PREEMPT_RCU``:
 
 .. list-table::
    :header-rows: 1
-   :widths: 34 66
+   :widths: 22 14 26 38
+
+   * - Model
+     - Preemptible RCU
+     - Non-sleepable, non-``syscall`` programs run with
+     - Note
+   * - ``PREEMPT``
+     - Yes
+     - Migration disabled
+     - Another task can preempt a run.
+   * - ``PREEMPT_LAZY`` alone
+     - No
+     - Preemption disabled
+     - The test VM's kernel. Tasks are preempted, but not while a
+       program runs.
+   * - ``PREEMPT_RT``
+     - Yes
+     - Migration disabled
+     - A section with bottom halves disabled can be preempted too.
+   * - ``PREEMPT_DYNAMIC``
+     - Yes
+     - Migration disabled
+     - The default and the one distribution kernels use. It picks
+       ``full`` or ``lazy`` at boot and keeps preemptible RCU in both.
+   * - ``none``, ``voluntary``
+     - Not offered
+     - Not offered
+     - Kernels before 7.0 only, where no task preempted a running
+       program. The kernels shirudo needs have neither.
+
+``kprobe``, ``kretprobe`` and ``xdp`` programs run with preemption or
+bottom halves disabled on every model, ``syscall`` programs with only
+migration disabled on any kernel, and a sleepable program can sleep. On
+every kernel an interrupt can run a softirq on top of a run in a
+process, and an interrupt or an NMI can run other programs on top of any
+run. Besides, the kernel skips a second run of some program types on
+the CPU while one runs. The table gives, for each attach kind ``shirudo
+build`` accepts (:doc:`/upatches/write/attach-kinds` lists them),
+whether the kernel skips such a nested run and whether a run of another
+task can come in between on the CPU under each model:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 24 16 16 16
 
    * - Programs
-     - On one CPU
+     - Nested run skipped
+     - Another task between, without preemptible RCU
+     - With preemptible RCU
+     - On ``PREEMPT_RT``
    * - ``kprobe``, ``kretprobe``
-     - Run with preemption disabled. The kernel skips a run while
-       another ``kprobe`` or ``kretprobe`` program runs on the CPU.
+     - Yes, while any ``kprobe`` or ``kretprobe`` program runs on the
+       CPU
+     - No
+     - No
+     - No
    * - ``fentry``, ``fexit``, ``fmod_ret``, ``tp_btf``
-     - Can be preempted with preemptible RCU. The kernel skips a run of a
-       program that is already running on the CPU, so a program does not
-       nest in itself, but other programs can run in between.
+     - Yes, of the same program
+     - No
+     - Yes
+     - Yes
    * - ``lsm``, ``uprobe``, ``uretprobe``, ``uprobe.multi``,
        ``uretprobe.multi``
-     - Can be preempted with preemptible RCU and are not guarded: a
-       second run of the same program can start on the CPU before the
-       first one ends, and an ``lsm`` hook a softirq calls can run on top
-       of one a process called.
+     - No
+     - No
+     - Yes
+     - Yes
    * - ``syscall``
-     - Run with only migration disabled on any kernel and are not
-       guarded: another task can preempt a run.
-   * - ``lsm.s``, ``fentry.s``, ``fexit.s``, ``fmod_ret.s``, ``uprobe.s``,
-       ``uretprobe.s``, ``uprobe.multi.s``, ``uretprobe.multi.s``
-     - Can be preempted and sleep on any kernel. Another run can take the
-       CPU at any sleeping call.
+     - No
+     - Yes
+     - Yes
+     - Yes
+   * - ``lsm.s``, ``fentry.s``, ``fexit.s``, ``fmod_ret.s``,
+       ``uprobe.s``, ``uretprobe.s``, ``uprobe.multi.s``,
+       ``uretprobe.multi.s``
+     - Of the same program for ``fentry.s``, ``fexit.s`` and
+       ``fmod_ret.s``; no for the others
+     - Yes
+     - Yes
+     - Yes
    * - ``cgroup_skb``, ``netfilter``
-     - Can be preempted with preemptible RCU and are not guarded. An
-       egress run from a process can be preempted by another task's
-       egress run on the same CPU, and an ingress run in a softirq can
-       run on top of it. ``netfilter`` programs run at IPv6
-       pre-routing, mostly in a softirq.
+     - No
+     - No
+     - Yes
+     - Yes
    * - ``xdp``
-     - Run in a device's NAPI poll with bottom halves disabled, and are not
-       guarded. No task and no other softirq comes between on one CPU,
-       except on ``PREEMPT_RT``, where a bottom-half section can be
-       preempted. An interrupt or NMI can run other programs on top. The
-       receive queues of a device run on different CPUs at once.
+     - No
+     - No
+     - No
+     - Yes
 
-The table covers the attach kinds ``shirudo build`` accepts, which
-:doc:`/upatches/write/attach-kinds` lists.
+What the table cannot carry:
+
+- A sleepable run gives the CPU to another run at any sleeping call.
+- An ``lsm`` hook a softirq calls can run on top of one a process
+  called.
+- An egress ``cgroup_skb`` run from a process can be preempted by
+  another task's egress run on the same CPU, and an ingress run in a
+  softirq can run on top of it. ``netfilter`` programs run at IPv6
+  pre-routing, mostly in a softirq.
+- ``xdp`` programs run in a device's NAPI poll with bottom halves
+  disabled, so no task and no other softirq comes between on one CPU
+  but on ``PREEMPT_RT``. The receive queues of a device run on
+  different CPUs at once.
 
 The test kernel is built with ``PREEMPT_LAZY`` alone, without
 preemptible RCU, so a run in the test VM shows the preemption cases only
@@ -90,14 +143,14 @@ Where each hazard applies
 The hazards below are of two kinds. Those of runs that interleave on one
 CPU, per-CPU memory used as scratch and a per-CPU counter updated
 without an atomic, depend on the preemption model and on the program
-types that share the memory, as the table above says. Those of runs on
-different CPUs at once depend on neither and apply on every kernel. Fix
-a hazard where it applies and not elsewhere: a busy flag or an atomic
-that no interleaving needs costs time on every run and hides the
-reasoning behind the code that does need one. An upatch whose
-correctness depends on the preemption model says in its ``README.md``
-which model it is written for, as ``kernel-obs`` does for the test VM's
-kernel.
+types that share the memory, as the table of `When a run can stop
+halfway`_ says. Those of runs on different CPUs at once depend on
+neither and apply on every kernel. Fix a hazard where it applies and not
+elsewhere: a busy flag or an atomic that no interleaving needs costs
+time on every run and hides the reasoning behind the code that does need
+one. An upatch whose correctness depends on the preemption model says in
+its ``README.md`` which model it is written for, as ``kernel-obs`` does
+for the test VM's kernel.
 
 .. list-table::
    :header-rows: 1
@@ -107,13 +160,14 @@ kernel.
      - Applies
    * - Per-CPU memory used as scratch, a slot picked by CPU number, a
        per-CPU counter updated without an atomic
-     - With preemptible RCU, wherever a program type the kernel does not
-       guard against the others uses the memory. On every kernel, in
-       ``syscall`` and sleepable programs, and where a program that an
-       interrupt, a softirq or an NMI runs shares the memory with one
-       that a process runs. Not where only ``kprobe`` and ``kretprobe``
-       programs use it, nor where one guarded program uses it alone, nor,
-       outside ``PREEMPT_RT``, where only ``xdp`` programs use it.
+     - Where a second run that uses the memory can start on the CPU
+       before the first ends. Read it from the table of `When a run can
+       stop halfway`_, in the column of the target's model: memory one
+       program uses alone is at risk where its row says Yes and its
+       nested run is not skipped; memory several programs share is at
+       risk where any of their rows says Yes. On every kernel also where
+       a program that an interrupt, a softirq or an NMI runs shares the
+       memory with one that a process runs.
    * - Updates of shared values, inserting a missing key,
        compare-and-swap, using a value after deleting its entry, reading
        user memory twice
@@ -147,7 +201,7 @@ Use memory that belongs to the run instead:
   given back with a release store. A run that finds the flag taken
   skips its work and counts the skip.
 
-Where no second run can come in between, as the table above lists, the
+Where no second run can come in between, as the tables above give, the
 per-CPU value is the run's own and needs none of this. No rule refuses
 the pattern: whether it is a hazard depends on the kernel a upatch is
 written for and on the programs that share the memory, which a rule
