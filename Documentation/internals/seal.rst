@@ -281,8 +281,8 @@ the parent dentry; a file when an authorized task opens it or any task
 opens it for writing; and either when an extended attribute on it
 changes and when it is created under a marked parent. A directory open,
 an entry made in a directory, a read open by an authorized task or an
-attribute change whose label read finds nothing removes the mark; a
-write open only records one; a read that fails, for a caller who may
+attribute change whose label read finds nothing, or a label of another
+length, removes the mark; a write open only records one; a read that fails, for a caller who may
 not read the inode, leaves it.
 
 shirudo's writers keep the mark in place. They open the parent directory

@@ -91,8 +91,9 @@ The objects share eight maps, which ``init`` hands from ``bpf2`` to
 ``init`` freezes every one of them against userspace writes except
 ``shirudo_roots``, which an authorized task writes before each config
 mapping. ``bpf2`` also keeps ``shirudo_mnt_rec`` for the bpffs
-mount it records, and ``seal`` keeps its scratch buffer and the inode
-storage of directory marks.
+mount it records, and ``seal`` keeps its scratch buffer and
+``seal_dir_marks``, the inode storage of its marks on files and
+directories.
 
 A map no BPF program ever writes, such as ``shirudo_bpffs_sb``, is
 created with ``BPF_F_RDONLY_PROG`` as well as frozen: freezing
@@ -567,8 +568,8 @@ when the record it needs is missing.
      - Unconditional; the kernel's lockdown LSM decides first.
    * - ``lsm.s/file_open`` (``seal``)
      - A write open of a labeled file to a task without authority. On a
-       directory open, and on any open by an authorized task, records or
-       clears the mark from the label; a write open records it.
+       directory open, and on a read open by an authorized task, records
+       or clears the mark from the label; a write open only records it.
      - ``EACCES``
      - ``SealWrite``
      - See the label verdict below.
@@ -632,7 +633,8 @@ when the record it needs is missing.
      - Refresh an inode's mark from its label after the change.
      - None
      - None
-     - No label removes the mark; a failed read leaves it.
+     - No label, or a label of another length, removes the mark; a
+       failed read leaves it.
 
 The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
 with the xattr kfuncs, which with the carried patch 0002 return it
