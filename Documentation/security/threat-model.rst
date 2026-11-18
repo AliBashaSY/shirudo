@@ -827,7 +827,8 @@ Authority is a mark in task storage. At every exec the seal stages a
 candidate, and when the exec commits the candidate becomes the mark. A
 task becomes authorized only by a successful exec of a file that sits
 directly on the runtime image ``init`` recorded, not through an overlay,
-while the task is neither traced nor under a seccomp filter. Fork
+while the task is neither traced nor under a seccomp filter and shares
+its root and working directory with no other process. Fork
 copies the mark, a failed exec keeps it, and a successful exec of
 anything else clears it. The initrd's ``init`` process receives a
 bootstrap mark through a pidfd before the gates attach.
@@ -921,7 +922,8 @@ An authorized process is protected against being taken over:
    ``lsm.s/inode_post_removexattr`` refresh an inode's mark, and
    ``lsm/task_kill`` counts a signal it lets through
 :Refusal: ``EACCES`` from the seal and the task hooks; ``EPERM`` from a
-   copy-up, a traced exec in the ``bpf2`` hook and ``PR_SET_MM``;
+   copy-up, a traced exec in the ``bpf2`` hook, ``PR_SET_MM`` and
+   ``prlimit``;
    ``tampered`` or a foreign-entry warning from shirudo
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
