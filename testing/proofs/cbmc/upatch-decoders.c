@@ -3,9 +3,10 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * The DECODERS section of a .upatch, for sections of every length that
- * declare up to NR_MAX decoders: util/upatch.c reads only the entries the
- * section holds, and every decoder it views has terminated names and a
- * source inside the section, behind the entries.
+ * declare up to NR_MAX decoders, or any count at all where the section
+ * has no room for NR_MAX + 1 entries: util/upatch.c reads only the
+ * entries the section holds, and every decoder it views has terminated
+ * names and a source inside the section, behind the entries.
  */
 
 #include "proof.h"
@@ -49,7 +50,9 @@ void harness(void)
 	__u8 *bp;
 
 	bp = any_bytes(len);
-	__CPROVER_assume(len < 12 || get_le32(bp + 8) <= NR_MAX);
+	__CPROVER_assume(len < 12 || get_le32(bp + 8) <= NR_MAX ||
+			 len < sizeof(struct upatch_decoder_blob) +
+			       (NR_MAX + 1) * sizeof(struct upatch_decoder_entry));
 	u.map = bp;
 	u.map_size = len;
 	if (!parse_decoders(&u, bp, len)) {

@@ -587,7 +587,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``upatch-decoders``
      - ``parse_decoders()``, ``upatch_decoder_view()``,
        ``upatch_has_decoders()``
-     - Sections of every length declaring up to 2 decoders
+     - Sections of every length declaring up to 2 decoders, and any
+       count in a section too short for 3 entries
      - Names terminated, each source non-empty and inside the section
        behind the entries, every kind set, nothing kept on refusal,
        ``-ENOENT`` past the last decoder
