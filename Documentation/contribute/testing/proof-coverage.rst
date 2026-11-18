@@ -845,6 +845,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        that try saw pending.json, ``UNSETTLED`` exactly when no try's
        reads agreed; ``collect()``'s error returned at once with no flag
        set
+   * - ``keepalive-quote``
+     - ``keepalive_quote_format()``, ``base64_encode()`` a stub that may
+       fail
+     - Every outcome of the three encodings, rooms of 1, 19, 20 and 21
+       bytes
+     - ``attest=``, ``sig=`` and ``ak=`` with the encodings of the
+       attestation, its signature and the key, each in that order and
+       into all its room, terminated; ``-E2BIG`` with nothing written
+       when it does not fit; the first failed encoding's error
    * - ``otel-header-fields``
      - The OTLP header checks and ``percent_decode()``
      - Strings up to 32 bytes
@@ -1512,8 +1521,8 @@ a proof covers.
    * - :src:`util/crypto_openssl.c`, :src:`util/curl.c`,
        :src:`util/elf_target.c`, :src:`util/kernel_abi.c`,
        :src:`util/nv_writer.c`, :src:`util/sign.c`,
-       :src:`util/keepalive_quote.c`, :src:`util/tls_openssl.c`,
-       :src:`util/tpm.c`, :src:`util/upatch_decode.c`
+       :src:`util/tls_openssl.c`, :src:`util/tpm.c`,
+       :src:`util/upatch_decode.c`
      - Mostly calls into a library a harness would have to model whole:
        OpenSSL, libcurl, libelf, the BTF reader of libbpf, tpm2-tss and
        LuaJIT
