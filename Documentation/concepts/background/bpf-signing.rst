@@ -168,7 +168,25 @@ never from the context the caller passes at run time. The build appends
 the upatch's name, attach metadata and decoders to the loader's data as
 signed sections and signs ``loader_insns || data`` with the operator's
 ML-DSA-87 key. Everything the target later trusts about the upatch is
-inside that signature.
+inside that signature. Figure 1 shows the bytes it covers and how the
+target hands them to the kernel's check.
+
+.. figure:: /images/background-signed-loader.svg
+   :alt: One ML-DSA-87 CMS signature spans loader_insns followed by
+         data. data holds the loader data gen_loader emits, the BTF, the
+         maps and initial values, the payload programs and CO-RE
+         records, and then the signed sections shirudo appends, NAME,
+         UPGM, DCDB, SHPL or UNLD, a directory and a trailer. On the
+         target, all of data goes into __loader.map, a one-entry array
+         exclusive to the SHA-256 of loader_insns and frozen before the
+         load. BPF_PROG_LOAD passes loader_insns, the signature,
+         keyring_id .bpf and the map in fd_array, and
+         bpf_prog_verify_signature() checks loader_insns followed by the
+         frozen value against .bpf and records the verdict that
+         lsm/bpf_prog_load reads.
+
+   Figure 1. What the loader signature covers, and how a load presents
+   it to the kernel.
 
 ``shirudo upatch load`` on the target:
 
