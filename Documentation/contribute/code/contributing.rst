@@ -222,58 +222,17 @@ its author has not seen.
 Before sending
 --------------
 
-:doc:`/contribute/code/developer-guide` shows how to run each of these locally.
+Run the checks CI runs on a pull request, as :ref:`run-ci-checks` lists
+them in order, and the tests the change touches. Then check that:
 
-- Build the operator binary, the helper and the target binary
-  (``make``, ``make shirudo-build``, ``make target``) and run ``make
-  tests``, which CI runs too. ``make -C testing functional/<family>``
-  runs the families the change touches while you work on it. Run
-  ``make tests VM=0 SANITIZE=address,undefined`` from a clean tree when
-  the change touches memory handling or binary formats. CI runs the
-  same sweep. See :doc:`/contribute/testing/testing`.
-- Run ``make -C Documentation html`` when the change touches
-  ``Documentation/``. The build turns every Sphinx warning into an
-  error. See :doc:`/contribute/documentation/writing-docs`.
-- Run :src:`.github/scripts/check-unused.sh` when the change removes or
-  renames a call: a function whose last caller went fails it. CI runs it
-  as the ``Unused functions`` job of the ``Lint`` workflow.
-- Run :src:`.github/scripts/check-spdx.sh` when the change adds a file.
-  Every source carries an SPDX tag in the kernel's form for its type,
-  ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR BSD-2-Clause`` for
-  everything compiled into a BPF object, the headers it includes and
-  the decoders a package ships. Run
-  ``.github/scripts/check-dco.sh origin/main..HEAD`` on the commits. CI
-  runs both.
-- Run ``.github/scripts/check-style.sh origin/main..HEAD`` on the
-  commits. It runs the kernel's ``checkpatch.pl`` in strict mode over
-  the C each commit touches, at its default limit of 100 columns, and
-  over its message, with the checks that have no meaning in userspace
-  switched off, each listed in the script with its reason. It also
-  refuses a block comment whose text starts on the ``/*`` line (the
-  netdev form), the C library's integer names such as ``uint32_t``,
-  ``unsigned int`` and its kin in userspace, ``strtoul()``, ``atoi()``
-  and their kin, ``strcpy()`` and its kin, and ``sprintf()`` and its
-  kin outside the files the script names, and a subject longer than 75
-  characters. ``--diff`` checks the uncommitted changes, ``--files``
-  whole files and ``--types`` lists what stays enabled. CI runs it as
-  the ``Checkpatch`` job of the ``Lint`` workflow.
-- Run ``make sparse`` when the change reads or writes a binary format.
-  It runs sparse over the userspace sources and fails on any warning,
-  such as a little-endian field read or written without
-  ``le32_to_cpu()``, ``cpu_to_le32()`` or their kin from
-  ``<shirudo/byteorder.h>``. CI runs it as the ``Sparse`` job of the
-  ``Lint`` workflow.
-- Run ``.github/scripts/check-coccinelle.sh``. It runs every semantic
-  patch in :src:`testing/coccinelle/` over the tree and fails on any
-  match, such as a secret compared with ``memcmp()``, a descriptor
-  opened without close-on-exec or a pointer tested for NULL after its
-  use. CI runs it as the ``Coccinelle`` job of the ``Lint`` workflow.
-- Keep each commit to one logical change that builds and passes on its
+- Each commit holds one logical change that builds and passes on its
   own, so the history bisects. CI builds every commit of a pull request,
-  and every commit a push adds to ``main``, on its own in the
-  ``Build every commit`` workflow.
-  ``.github/scripts/build-commits.sh origin/main..HEAD`` does the same
-  locally.
+  and every commit a push adds to ``main``, on its own in the ``Build
+  every commit`` workflow; ``build-commits.sh`` does the same locally.
+- Each commit carries your ``Signed-off-by:``, which
+  ``.github/scripts/check-dco.sh origin/main..HEAD`` checks.
+- A change to ``Documentation/`` renders: the build turns every Sphinx
+  warning into an error. See :doc:`/contribute/documentation/writing-docs`.
 - Read :doc:`/security/threat-model` before changing anything on a
   security-relevant path, and say in the commit message which invariant
   the change preserves or extends.

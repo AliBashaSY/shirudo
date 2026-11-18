@@ -453,6 +453,8 @@ Project layout
 
 ``shirudo --list-cmds`` prints the top-level commands.
 
+.. _run-ci-checks:
+
 Run the CI checks locally
 -------------------------
 
@@ -471,11 +473,22 @@ the commit at ``HEAD`` alone without them.
        ``Signed-off-by:``. See :doc:`/contribute/code/contributing`.
    * - ``check-style.sh <range>``
      - The kernel's ``checkpatch.pl`` in strict mode over the C each
-       commit touches and over its message, plus the project rules.
-       ``--diff`` checks uncommitted changes and ``--files`` whole
-       files.
+       commit touches, at its default limit of 100 columns, and over its
+       message, with the checks that have no meaning in userspace
+       switched off, each listed in the script with its reason. It also
+       refuses a block comment whose text starts on the ``/*`` line, the
+       C library's integer names such as ``uint32_t``, ``unsigned int``
+       and its kin in userspace, ``strtoul()``, ``atoi()``,
+       ``strcpy()``, ``sprintf()`` and their kin outside the files the
+       script names, and a subject longer than 75 characters. ``--diff``
+       checks uncommitted changes, ``--files`` whole files and
+       ``--types`` lists what stays enabled.
    * - ``check-spdx.sh``
-     - The SPDX tag of every tracked source. Takes no range.
+     - The SPDX tag of every tracked source, in the kernel's form for its
+       type: ``BSD-2-Clause`` for userspace and ``GPL-2.0 OR
+       BSD-2-Clause`` for everything compiled into a BPF object, the
+       headers it includes and the decoders a package ships. Takes no
+       range.
    * - ``check-unused.sh``
      - An extern function of the userspace C that nothing calls: the
        compiler reports an unused ``static`` function, never an extern
@@ -566,7 +579,7 @@ tag into ``build/checkpatch/`` and verifies its SHA-256. Set
 ``CHECKPATCH=<path>`` to use a kernel tree's
 ``scripts/checkpatch.pl`` instead, for example without network access.
 
-Before you send a change:
+Before you send a change, run what CI runs on a pull request:
 
 1. Run the checks over your commits:
 
@@ -580,16 +593,26 @@ Before you send a change:
       $ .github/scripts/check-coccinelle.sh
       $ .github/scripts/build-commits.sh origin/main..HEAD
 
-2. Run the tests the change touches, and ``make tests`` before you
-   send. See :doc:`/contribute/testing/testing`.
-
-3. Render the documentation if you changed it:
+2. Run clang's static analyzer, in a throwaway container with
+   ``scan-build.sh`` or on a host that has clang 23's tools:
 
    .. code-block:: console
 
+      $ scan-build-23 --status-bugs --exclude vendor make ANALYZE=1
+
+3. Run the tests the change touches, and ``make tests`` before you
+   send. When the change touches memory handling or binary formats, run
+   ``make tests VM=0 SANITIZE=address,undefined`` from a clean tree too,
+   as CI does. See :doc:`/contribute/testing/testing`.
+
+4. If you changed the documentation, check it and render it:
+
+   .. code-block:: console
+
+      $ .github/scripts/check-docs.sh
       $ make -C Documentation html
 
-4. Verify that every script printed its summary line and exited 0, for
+5. Verify that every script printed its summary line and exited 0, for
    example ``DCO: 3 commits checked`` and ``style: 3 commits checked``.
 
 Coccinelle rules
