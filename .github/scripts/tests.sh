@@ -285,7 +285,9 @@ setup() {
 		build_test_kernel
 	fi
 
-	set -- rpm coccinelle
+	# spatch opens libpython3.X.so by that name for the Python of its
+	# rules, and only the -dev package installs it.
+	set -- rpm coccinelle libpython3-dev
 	if [ "${VM:-1}" != 0 ]; then
 		set -- "$@" autoconf autoconf-archive automake cloud-image-utils \
 			dracut-core file isc-dhcp-client libguestfs-tools libltdl-dev \

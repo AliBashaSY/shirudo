@@ -25,7 +25,8 @@ Before you begin
   tests, ``libtpms-dev`` for the TPM simulator helper and ``rpmbuild``
   for the rpm packaging test.
 - For the ``ci-checks`` tests: ``git``, ``jq``, ``pkg-config``,
-  ``readelf``, ``spatch`` from Coccinelle and the kernel's
+  ``readelf``, ``spatch`` from Coccinelle with ``libpython3-dev``,
+  which its Python rules load, and the kernel's
   ``checkpatch.pl``, which ``check-style.sh`` fetches into
   ``build/checkpatch/`` on its first run. A test whose tool is missing
   skips, and so does t0007's check of the operator binaries until they
