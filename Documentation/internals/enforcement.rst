@@ -476,7 +476,7 @@ when the record it needs is missing.
      - Closed: no task storage refuses the exec with ``ENOMEM``.
    * - ``lsm.s/bprm_committed_creds`` (``seal``)
      - Commits the staged candidate as the task's mark when an exec
-       succeeds.
+       succeeds, and clears a revocation.
      - None
      - None
      - No task storage leaves the task without authority.
@@ -496,11 +496,11 @@ when the record it needs is missing.
      - None
      - No storage is needed when the task has no policy bits.
    * - ``lsm/task_alloc`` (``seal``)
-     - Copies a marked parent's mark and any committed policy bits to the
-       child.
+     - Copies a marked parent's mark, with its revocation, and any
+       committed policy bits to the child.
      - ``ENOMEM``
      - None
-     - Closed: no storage refuses the fork of a marked parent.
+     - Closed: no storage for the mark or the bits refuses the fork.
    * - ``lsm/task_kill`` (``seal``)
      - A signal other than 0 to a marked task from a task without
        authority. Let through, root may end a command that hangs and
