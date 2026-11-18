@@ -656,8 +656,6 @@ static void lua_split_page_slots(lua_State *L, int slots_idx,
 			for (i = 0; i < local_slots; i++) {
 				__u64 page_slot = chunk * slots_per_chunk + i;
 
-				if (page_slot == 0)
-					continue;
 				lua_store_slot(L, slots_idx, cursor + page_slot,
 					       data + off + i * slot_size,
 					       slot_size);

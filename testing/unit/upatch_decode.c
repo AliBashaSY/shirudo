@@ -141,6 +141,16 @@ static void decoder_cannot_reach_unbudgeted_code(void)
 	       0, "{\"mt\":\"shirudo.slot\"}");
 }
 
+static void fixed_records_keep_the_first_slot_of_a_chunked_page(void)
+{
+	decode("function decode(input) local r = shirudo.fixed_records({{"
+	       "cursor = '0', chunks = '2', "
+	       "data_hex = '07' .. string.rep('00', 4041)}}, 5) "
+	       "return {got = tostring(r[1] and r[1]:u8(0)) .. ',' .. "
+	       "tostring(r[807] ~= nil)} end",
+	       0, "{\"got\":\"7,true\"}");
+}
+
 static void decoder_error_is_sanitized(void)
 {
 	char output[256] = {};
@@ -170,6 +180,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(decoder_memory_limit_is_enforced),
 	UNIT_CASE(decoder_protected_loops_hit_the_limit),
 	UNIT_CASE(decoder_cannot_reach_unbudgeted_code),
+	UNIT_CASE(fixed_records_keep_the_first_slot_of_a_chunked_page),
 	UNIT_CASE(decoder_error_is_sanitized),
 	{}
 };
