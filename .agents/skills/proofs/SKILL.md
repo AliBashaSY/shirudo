@@ -36,7 +36,7 @@ each harness includes, and all of them after a change to `proof.h` or
 gigabytes is one to reshape, not to wait for.
 
 CI splits `proofs.list` into eight shards and runs each proof alone
-under the 14 GB and 60 minutes `.github/scripts/proofs.sh` caps it at;
+under the 6 GB and 60 minutes `.github/scripts/proofs.sh` caps it at;
 a proof added there has to fit both. It leaves out the proofs
 `testing/proofs/cbmc/ci-skip.list` names, each with why, which no run
 checks unless a developer starts it: run one by hand after a change to

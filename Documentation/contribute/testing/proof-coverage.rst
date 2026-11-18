@@ -13,8 +13,9 @@ Lean 4 proofs under :src:`testing/proofs/lean4/`, what each one proves and
 for which inputs, the source files no proof reads and the parsers no
 proof covers yet. :doc:`proofs` explains how to run and write them. CI
 runs every proof after a push to main but the CBMC proofs
-:src:`testing/proofs/cbmc/ci-skip.list` names, which take hours each:
-only a run a developer starts checks those.
+:src:`testing/proofs/cbmc/ci-skip.list` names, which need more time or
+memory than CI gives a proof: only a run a developer starts checks
+those.
 
 CBMC proofs
 -----------

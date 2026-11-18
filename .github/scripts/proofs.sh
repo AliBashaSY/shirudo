@@ -21,9 +21,11 @@ CBMC_SHA256=bdfce55b828a45e19d685f7569e3569657ce80faa20c79a99f1791b5d5b852bc
 ELAN_VERSION=4.2.4
 ELAN_SHA256=42b94d4244e8353142c456ec0e4ca6528fd898a6c604d4059f494e706e431f63
 
-# A runner has 16 GB, and the slowest proof CI runs takes 15 minutes on
-# a fast host: a proof past either cap is one to reshape.
-PROOF_MEMORY_KB=14000000
+# A runner has two CPUs and about 7 GB. A proof gets 6 GB, so that one
+# past it fails as out of memory rather than taking the runner down with
+# it, and the slowest proof CI runs takes 15 minutes on a fast host: a
+# proof past either cap is one to reshape.
+PROOF_MEMORY_KB=6000000
 PROOF_MINUTES=60
 
 cd "$(git rev-parse --show-toplevel)"

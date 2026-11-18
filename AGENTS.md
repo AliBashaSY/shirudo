@@ -353,10 +353,11 @@ one usually still compiles and passes tests.
   for every input. They take hours of CPU, so CI runs them after a push
   to main, in the `Proofs` workflow, never on a pull request, and leaves
   out the CBMC proofs `testing/proofs/cbmc/ci-skip.list` names, which
-  take hours each. A change to code a proof covers, or to an algorithm
-  a model follows, runs those proofs by name before it is sent, all of
-  them after a change to `proof.h` or `run.sh`, and a new parser gets a
-  proof where CBMC can carry one; the `proofs` skill says how.
+  need more time or memory than CI gives a proof. A change to code a
+  proof covers, or to an algorithm a model follows, runs those proofs
+  by name before it is sent, all of them after a change to `proof.h` or
+  `run.sh`, and a new parser gets a proof where CBMC can carry one; the
+  `proofs` skill says how.
 - CI runs `.github/scripts/build-commits.sh`, `check-style.sh`,
   `check-dco.sh`, `check-coccinelle.sh`, `check-sparse.sh`,
   `check-spdx.sh`, `check-unused.sh`, `scan-build.sh` and the

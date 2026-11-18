@@ -103,7 +103,7 @@ a change is the only one it gets before it lands. Its ``Lean4`` job runs
 ``make proofs-lean4`` with the toolchain ``lean-toolchain`` names. Its
 ``CBMC`` job runs in eight shards: shard ``<k>`` takes every eighth proof
 of :src:`testing/proofs/cbmc/proofs.list` from the ``<k>``-th and runs
-each alone, under a cap of 14 GB and 60 minutes, so a proof you add has
+each alone, under a cap of 6 GB and 60 minutes, so a proof you add has
 to fit both on a runner. CI pins CBMC 5.95.1 and elan in
 :src:`.github/scripts/proofs.sh`, and installs the headers of libcurl,
 OpenSSL and zlib that the harnesses include with its
