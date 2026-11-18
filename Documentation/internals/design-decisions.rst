@@ -126,8 +126,9 @@ persistent index would carry history across boots and need an
 authorization secret. A per-boot register starts from zero, so its value
 is a function of the trust set, the restored upatches and the events
 since boot, and the operator can predict it without any history. Its
-write policy allows the first write only while PCRs 9 and 11 hold their
-initrd values, and every write only with a signature from a TPM-held key
+write policy allows the first write only while PCRs 9 and 11 hold the
+values ``init`` read when it bound it, and every write only with a
+signature from a TPM-held key
 whose extension command the kernel guards. The register follows the
 construction of systemd's NvPCRs and adds the authorized writer.
 :doc:`measurement-register` has the details.
@@ -144,10 +145,12 @@ to check and adopt what the first run did.
 
 Anything that runs before enforcement can do what enforcement refuses,
 and the evidence would not show it; the initrd shortens that window to
-what the measured boot itself runs. The register can be bound only while
-PCR 11 holds the ``enter-initrd`` value, which systemd changes at
-``leave-initrd``, so a binding made in the initrd is one that nothing
-later can repeat. :doc:`boot-flow` follows both runs.
+what the measured boot itself runs. A binding made in the initrd records
+PCR 11 at its ``enter-initrd`` value, which systemd changes at
+``leave-initrd``, so nothing later can make the first write that binding
+allows. ``init`` can bind from the root file system after a TPM reset,
+but with the values PCRs 9 and 11 hold then, which a verifier that pins
+the initrd's values rejects. :doc:`boot-flow` follows both runs.
 
 The costs: a dracut module, a measured UKI, an initrd that has to carry
 the binary and its settings, and a second run of ``init``. A failed
