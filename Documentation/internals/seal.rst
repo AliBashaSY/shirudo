@@ -322,7 +322,12 @@ Label reads on an upstream kernel
     takes part. A read that fails for the caller, through an idmapped
     mount, an ACL or another LSM's policy, makes a labeled inode
     without a mark look unlabeled to the seal; a marked one is refused,
-    and the same failure on an open leaves the mark.
+    and the same failure on an open leaves the mark. The policy label
+    read at exec fails the same way for a caller that may run a file
+    but not read it, such as an unprivileged user running a ``--x``
+    binary, and the exec is refused: a policy that cannot be read is
+    not taken for none, since root could make the read fail to shed
+    the bits.
 
 Bind mounts
     No mount guard covers the state file system, and shirudo's opens

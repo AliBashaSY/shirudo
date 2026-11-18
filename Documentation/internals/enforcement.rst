@@ -484,8 +484,8 @@ when the record it needs is missing.
        ``lsm.s/bprm_committed_creds`` (``seal``)
      - Seed with the task's committed bits, accumulate the original
        executable and each interpreter, then commit. An absent policy or
-       a file system without xattrs contributes zero bits; a malformed
-       or unreadable policy xattr refuses exec.
+       a file system without xattrs contributes zero bits; a policy value
+       other than 8 bytes, or one that cannot be read, refuses the exec.
      - ``EACCES``
      - Uncounted
      - Failed exec leaves committed policy unchanged.
@@ -593,8 +593,7 @@ when the record it needs is missing.
      - Setting ``security.bpf.shirudo``,
        ``security.bpf.shirudo.policy`` or
        ``security.bpf.shirudo.ancestor`` on any inode, and any other name
-       on a labeled inode, to a task without authority. Policy values
-       must be exactly 8 bytes.
+       on a labeled inode, to a task without authority.
      - ``EACCES``
      - ``SealLabel``, ``SealXattr``
      - See the label verdict below.
