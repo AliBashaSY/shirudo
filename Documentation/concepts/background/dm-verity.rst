@@ -111,10 +111,12 @@ What shirudo adds
 shirudo sets up its mappings itself through the device-mapper ioctls,
 without a userspace tool on the target: version 1 format, 4096-byte
 data and hash blocks, SHA-256 and a salt, with the image files attached
-to read-only loop devices. For a configuration image it adds
-``root_hash_sig_key_desc`` and loads the image's signature into a
-``user`` key in its thread keyring. It then reads back the table the
-kernel holds and checks it.
+to read-only loop devices. For a configuration image it first verifies
+the root hash signature against the runtime image's config
+certificates, then adds ``root_hash_sig_key_desc`` and loads the
+signature into a ``user`` key in its thread keyring, so that the kernel
+checks it again. It then reads back the table the kernel holds and
+checks it.
 
 Because dm-verity checks a block only when it is read, a corrupted
 block would surface only when something happens to read it, possibly
@@ -148,6 +150,7 @@ Choosing the active image is up to shirudo's configuration updates; see
 The kernel accepts a signature from any key in the keyrings it consults,
 not only from ``.dm-verity``. On a kernel whose builtin, secondary or
 platform keyring holds other keys, such as a distribution's module
-signing key, those keys can sign a configuration root that the kernel
-accepts. shirudo performs no signer check of its own. The threat model
-lists this under threats to resolve: :doc:`/security/threat-model`.
+signing key, those keys pass the kernel's check of a configuration
+root. They do not pass shirudo's own check before it, which admits only
+the config certificates (assumption A7 of the
+:doc:`/security/threat-model`).

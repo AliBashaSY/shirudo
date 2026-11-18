@@ -201,6 +201,7 @@ of ``lsm/key_permission``, which both happen within init, a root process
 could unlink a key and take signed loading out until the next boot.
 
 For dm-verity, ``.dm-verity`` is consulted only after the builtin
-keyring and, when configured, the secondary and platform keyrings. A key
-there can sign a configuration root as well; see :doc:`dm-verity` and
-:doc:`/security/threat-model`.
+keyring and, when configured, the secondary and platform keyrings, so a
+key there passes the kernel's check of a configuration root as well.
+shirudo's own check against the runtime image's config certificates
+refuses it; see :doc:`dm-verity`.

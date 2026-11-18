@@ -132,8 +132,8 @@ verify either form.
    * - Signed loaders and unload directives
      - The kernel at ``BPF_PROG_LOAD``, against the ``.bpf`` keyring
    * - Config image roots, the 64 hex characters of the root hash
-     - The kernel's dm-verity signature check, against the
-       ``.dm-verity`` keyring and the kernel's own trusted keys
+     - shirudo, against the runtime image's config certificates, then
+       the kernel's dm-verity signature check
    * - Vouches for additional signing certificates
      - shirudo, against the enrolled trust set
    * - Repository indexes
@@ -175,10 +175,6 @@ What stays classical
   classical assumptions.
 - TLS server authentication. Registries and collectors present WebPKI
   certificates, usually RSA or ECDSA.
-- Kernel keys outside shirudo's keyrings. The dm-verity check also
-  accepts config signatures from the kernel's built-in trusted keys and,
-  depending on the kernel configuration, its secondary and platform
-  keyrings. Distribution keys there are usually RSA or ECDSA.
 
 Limits
 ------

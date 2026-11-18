@@ -132,14 +132,13 @@ its measurement PCR. The UKI's initrd carries the runtime image's root
 hash, so the measured boot covers it.
 
 The config image holds what an operator changes during operation. Its
-root hash is signed, and the kernel checks the signature against the
-``.dm-verity`` keyring, into which ``init`` enrolls the runtime image's
-config certificate before sealing it. ``shirudo image update`` activates a
-new config image without a reboot and measures it into a separate PCR.
-The kernel also accepts a config signed by a key in its built-in trusted
-keyring and, depending on its configuration, in the secondary or platform
-keyring; the :doc:`/security/threat-model` lists this among the threats to
-resolve.
+root hash is signed. shirudo verifies the signature against the runtime
+image's config certificates before it maps the image. The kernel then
+checks it again against its trusted keys and the ``.dm-verity`` keyring,
+into which ``init`` enrolls those certificates before sealing it. A key
+that only the kernel trusts, in its built-in, secondary or platform
+keyring, fails shirudo's check. ``shirudo image update`` activates a new
+config image without a reboot and measures it into a separate PCR.
 
 Neither image replaces the host's root file system. Both are read-only,
 and the config image is mounted ``noexec``. :doc:`/internals/config-images`

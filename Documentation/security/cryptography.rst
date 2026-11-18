@@ -44,8 +44,9 @@ Signatures
    * - Config root
      - The 64 lowercase hex characters of the dm-verity root hash
      - The operator's image tooling, with the config key
-     - The kernel when shirudo creates the mapping, against the keyrings
-       of assumption A7; ``shirudo image verify`` offline
+     - shirudo against the runtime bootstrap's config certificates
+       before it creates the mapping, then the kernel against the
+       keyrings of assumption A7; ``shirudo image verify`` offline
    * - Vouch
      - The bytes ``shirudo-key-vouch``, a NUL byte, and the DER of the
        vouched certificate

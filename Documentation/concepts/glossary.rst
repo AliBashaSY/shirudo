@@ -101,10 +101,12 @@ it.
       ``/run/shirudo/config``, that carries what an operator changes
       during operation: repositories and their certificates, the tree
       subscription, node labels, vouched and revoked certificates, and
-      export settings. Its root hash is signed, and the kernel checks the
-      signature against its trusted keys, which include the sealed
-      ``.dm-verity`` keyring. ``shirudo image update`` activates a new
-      config image without a reboot and measures it into a dedicated PCR.
+      export settings. Its root hash is signed: shirudo verifies the
+      signature against the runtime image's config certificates before
+      it maps the image, and the kernel against its trusted keys and the
+      sealed ``.dm-verity`` keyring. ``shirudo image update`` activates a
+      new config image without a reboot and measures it into a dedicated
+      PCR.
       See :doc:`/internals/config-images`.
 
    decoder
