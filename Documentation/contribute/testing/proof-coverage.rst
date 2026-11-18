@@ -616,6 +616,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        uprobe fields only on a uprobe, kprobe names only on a kprobe
        multi program, and device classes, set and within the known
        mask, only on XDP
+   * - ``upatch-prog-count``
+     - The program count ``prog_specs_parse()`` takes from the header
+     - Tables of 3, 16, 176 and 336 bytes, any count larger than they
+       hold
+     - Refused before the program table is allocated or an entry read,
+       with nothing returned
    * - ``upatch-prog-uprobes``
      - What ``prog_specs_parse()`` makes of a uprobe target block
      - One program and one record in 226 bytes, the table's program
