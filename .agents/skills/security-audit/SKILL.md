@@ -307,7 +307,8 @@ CBMC proof a fact box names, and each one the audit leans on:
 
 ```sh
 cd testing/proofs/cbmc    # options: the proof's line in proofs.list
-cbmc --function harness -I ../../../include -I ../../../util \
+cbmc --function harness -I ../../.. -I ../../../include -I ../../../util \
+     -I ../../../vendor/libbpf -I ../../../vendor/libbpf/include/uapi \
      -D_GNU_SOURCE --unsigned-char <options> [-DLEN=<n>] \
      --cover location <proof>.c | grep 'util/.*FAILED'
 ```

@@ -37,6 +37,12 @@ command -v cbmc >/dev/null 2>&1 || {
 	exit 2
 }
 
+# The build's include paths, so that a harness reads the headers the code
+# is built with: the libbpf and UAPI headers of vendor/libbpf, not the
+# host's.
+includes='-I ../../.. -I ../../../include -I ../../../util
+	-I ../../../vendor/libbpf -I ../../../vendor/libbpf/include/uapi'
+
 # --unsigned-char as the build's -funsigned-char.
 checks='--unsigned-char --bounds-check --pointer-check
 	--pointer-primitive-check --div-by-zero-check --signed-overflow-check
@@ -53,22 +59,15 @@ if [ -n "$range" ]; then
 	fi
 fi
 
-# Whether a harness, built with the -I and -D options and the first
-# length of its line, reads a changed file. One the compiler cannot list
-# counts as changed.
+# Whether a harness, built with the -D options and the first length of
+# its line, reads a changed file. One the compiler cannot list counts as
+# changed.
 touched() {
 	name=$1
 	shift
 	flags=
-	dir=
 	for o in "$@"; do
-		if [ -n "$dir" ]; then
-			flags="$flags -I $o"
-			dir=
-			continue
-		fi
 		case $o in
-		-I) dir=1 ;;
 		-D*) flags="$flags $o" ;;
 		LEN=*)
 			o=${o#LEN=}
@@ -77,8 +76,8 @@ touched() {
 		esac
 	done
 	# shellcheck disable=SC2086
-	"${CC:-cc}" -MM -I "$root/include" -I "$root/util" -D_GNU_SOURCE \
-		$flags "$name.c" >"$work/deps" 2>/dev/null || return 0
+	"${CC:-cc}" -MM $includes -D_GNU_SOURCE $flags "$name.c" \
+		>"$work/deps" 2>/dev/null || return 0
 	sed 's/\\$//' "$work/deps" | tr -s ' ' '\n' | grep -v ':$' | grep . |
 		xargs realpath --relative-to="$root" |
 		grep -qxF -f "$work/changed"
@@ -100,8 +99,8 @@ prove() {
 	log=$1
 	shift
 	# shellcheck disable=SC2086
-	cbmc --function harness -I "$root/include" -I "$root/util" \
-		-D_GNU_SOURCE $checks "$@" $verbose >"$log" 2>&1 &&
+	cbmc --function harness $includes -D_GNU_SOURCE $checks "$@" \
+		$verbose >"$log" 2>&1 &&
 		! grep -q 'no body for function' "$log"
 }
 
