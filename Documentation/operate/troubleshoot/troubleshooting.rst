@@ -460,7 +460,11 @@ Causes
 Action
    Raise ``eventlog.max_bytes`` in a signed config and activate it, see
    :doc:`/reference/configuration`. Keep the cap below 8 MiB:
-   every reader of the eventlog fails on a larger log.
+   every reader of the eventlog fails on a larger log. This works only
+   while ``init`` completes: once the eventlog reaches the cap, ``init``
+   fails at every boot and leaves the activation pending, and ``image
+   update`` and ``image stage`` refuse a pending activation, so the
+   target has to be provisioned again.
    :doc:`/operate/maintain/backup-recovery` covers the eventlog's lifetime.
 
 Boot and init
