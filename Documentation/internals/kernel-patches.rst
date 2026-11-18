@@ -101,10 +101,10 @@ Why shirudo needs it
     command. :doc:`measurement-register` explains the writer.
 
 Without it
-    The kernel's BTF has no ``bpf_lsm_tpm_command``, so the ``bpf2``
-    object fails to load and ``init`` fails at "loading enforcement". The
-    boot is not stopped, and the target runs without enforcement, as
-    :doc:`boot-flow` describes.
+    The kernel's BTF has no ``bpf_lsm_tpm_command``, so the pre-flight
+    check ``kernel_lsm_hooks`` fails and ``init`` stops before it loads
+    anything. The boot is not stopped, and the target runs without
+    enforcement, as :doc:`boot-flow` describes.
 
 Label reads without the caller's permission
 -------------------------------------------
@@ -237,9 +237,9 @@ Why shirudo needs it
     too.
 
 Without it
-    The ``seal`` object fails to attach the hook, and ``init`` fails at
-    "loading enforcement", with the result the TPM command hook
-    describes.
+    The kernel's BTF has no ``bpf_lsm_mm_read_access``, so the pre-flight
+    check ``kernel_lsm_hooks`` fails and ``init`` stops before it loads
+    anything, with the result the TPM command hook describes.
 
 Related
 -------

@@ -325,8 +325,9 @@ LSM hooks
      - Carried patch 0003, and 0004 for ``inode_mkdir`` and
        ``inode_link``
 
-A missing hook makes the object fail to load. :doc:`enforcement` gives
-each hook's verdicts.
+A hook the kernel's BTF lacks fails the pre-flight check
+``kernel_lsm_hooks``, before ``init`` loads anything. :doc:`enforcement`
+gives each hook's verdicts.
 
 Kfuncs and helpers
 ------------------
