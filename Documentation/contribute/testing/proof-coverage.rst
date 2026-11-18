@@ -841,6 +841,17 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``record_word()``
      - Up to 16 characters
      - Passes exactly ``[a-z_]``
+   * - ``attest-replay-model``
+     - ``on_record()``
+     - Eventlogs of 1 to 3 records: an init of any reset count, the load
+       of a BPF upatch, the unload of a Java one, a tree operation or
+       another type, each with or without a record word, a digest, fields
+       that decode and a valid name; hex decoding and event digests as
+       stubs, the record types and their tags as copies
+     - Refuses exactly where ``step`` of ``Shirudo.AttestReplay`` does and
+       keeps the records of the last init, their digests, which are
+       derived, ``inits_epoch`` and the last init's reset count and digest
+       as it does; a record without a digest is refused
    * - ``attest-pcr``
      - ``on_pcr()`` of the evidence parser
      - Every index and 64-byte value text
@@ -1150,6 +1161,23 @@ the model follows the C.
        left out
      - Review; the ``eventlog`` unit suite reads a line whose set entry
        names no upatch
+   * - ``Shirudo.AttestReplay``, ``on_record()``, ``verify_epoch()``,
+       ``verify_replay()``, ``verify_derived()`` and the init check of
+       ``verify_state()`` of :src:`util/attest.c`
+     - ``select_sound``: when every check passes, the certified register
+       value is the fold of the last init record and the records after
+       it, that init carries the expected digest and the certified reset
+       count, and every record after it names an event whose digest is
+       its own; ``verify_history``: whatever extended the register, it
+       was extended by the expected init event and then by exactly the
+       events those records name, in order, or SHA-256 collides on the
+       strings of the two folds; ``passes_witness``: the checks can pass
+     - The register value and its certification as
+       ``verify_register()`` checks them; the expected init event, which
+       ``attest verify`` computes when given ``--cert``; SHA-256 as
+       ``Shirudo.Events`` takes it for ``verify_history``
+     - CBMC, ``attest-replay-model``, for ``on_record()`` up to three
+       records; the checks after it by review
    * - ``Shirudo.SemVer``, ``bpm_semver_compare()`` of
        :src:`util/bpm_package.c`
      - ``compareStrings_refl``, ``compareStrings_swap``,
@@ -1492,8 +1520,10 @@ unit cases. Of :src:`util/sysinfo.c` the
 proofs cover the image identity's parsers; reading the files they parse,
 and the readers of ``/proc`` and the root file system, go to the kernel
 and have none. Of :src:`util/attest.c` the proofs cover the functions
-the table names. ``attest_verify()``, ``verify_document()`` and the
-steps it runs a document through, ``evidence_parse()`` to
+the table names, and ``Shirudo.AttestReplay`` models how
+``attest_verify()`` selects and replays the eventlog's records. The
+other steps of ``verify_document()``, ``evidence_parse()`` to
+``verify_register()``, ``verify_anchor()`` and
 ``verify_expected_pcrs()``, ``check_signed()`` and
 ``pcr_values_digest()``, which the target checks its quote with too,
 have none; the ``attest`` fuzz target runs them.

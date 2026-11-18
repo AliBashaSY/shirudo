@@ -15,3 +15,4 @@ import Shirudo.UpatchLoad
 import Shirudo.TreeSync
 import Shirudo.TreeOverlap
 import Shirudo.EventlogRecord
+import Shirudo.AttestReplay
