@@ -37,10 +37,10 @@ is present on the machine, not from a build option. The operator holds
 kernel keyrings, the private bpffs and the TPM register that ``shirudo
 init`` set up this boot.
 
-Operator commands that compile, sign or package, ``shirudo build``,
-``shirudo bpm build``, ``shirudo bpm push``, ``shirudo bpm tree append``,
-``shirudo bpm config update``, ``shirudo image build``, ``shirudo image
-verify`` and ``shirudo keys vouch``, execute the separate
+The operator commands, ``shirudo build``, ``shirudo bpm build``,
+``shirudo bpm push``, ``shirudo bpm tree append``, ``shirudo bpm tree
+show``, ``shirudo bpm config update``, ``shirudo image build``,
+``shirudo image verify`` and ``shirudo keys vouch``, execute the separate
 ``shirudo-build`` helper. Only that helper
 links the CMS signer (:src:`util/sign.c`) and the package builder and
 publisher (:src:`tools/shirudo-build/`). It runs ``clang`` to compile BPF,
@@ -78,15 +78,18 @@ with ``.incbin`` in :src:`util/loader.c`:
     BPF admission (``lsm/bpf``, ``lsm/bpf_map``, ``lsm/bpf_prog``,
     ``lsm/bpf_prog_load``),
     the guards of the private bpffs and of ``/run/shirudo``, the mount
-    guards, the keyring and TPM command guards, the kexec refusal, the
-    device-mapper and perf ioctl guards and the dm-verity device records.
+    guards, the keyring and TPM command guards, the kexec and lockdown
+    refusals, the secure-exec of runtime files and the refusal of a
+    traced one, the ``PR_SET_MM`` refusal, the device-mapper, perf and
+    XFS attribute ioctl guards and the dm-verity device records.
 
 ``seal``
-    Task and socket policy marks (``bprm_check_security``,
-    ``bprm_committed_creds``, ``task_alloc``, ``socket_post_create``),
-    process protection (``ptrace_access_check``,
-    ``perf_event_alloc``, ``mmap_file``, ``file_mprotect``) and the label
-    checks on writable state.
+    Task marks and policy bits (``bprm_creds_for_exec``,
+    ``bprm_check_security``, ``bprm_committed_creds``, ``task_alloc``,
+    ``socket_post_create``), process protection
+    (``ptrace_access_check``, ``mm_read_access``, ``perf_event_alloc``,
+    ``task_kill``, ``task_setrlimit``, ``mmap_file``, ``file_mprotect``)
+    and the label checks on writable state.
 
 ``unload``
     The template that ``shirudo-build`` turns into the loader of an unload
@@ -132,7 +135,9 @@ The systemd units run the commands. ``shirudo-initrd.service`` runs
 root file system through a drop-in that starts the binary from the
 runtime image. Timers start ``shirudo bpm repo update`` and ``shirudo bpm
 upgrade``, ``shirudo bpm tree sync``, the status keepalive and the map
-export.
+export. A udev rule for every new network device, and a timer after
+boot, start ``shirudo upatch reconcile``, which attaches XDP upatches to
+the devices that match.
 
 The TPM holds the measurement register, an NV extend index anchored in
 PCR 9, the config PCR the bootstrap settings select, and the attestation
