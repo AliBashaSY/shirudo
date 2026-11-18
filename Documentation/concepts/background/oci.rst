@@ -183,9 +183,10 @@ Three kinds of objects carry a signature a target checks:
   signature at ``BPF_PROG_LOAD`` against the ``.bpf`` keyring.
 - A repository index is verified against the certificate its
   repository definition names in the signed config.
-- A tree publication is verified against the runtime image's primary
-  certificate, ``keys/cert.der``, and no other. Revoking that key in the
-  config does not change this.
+- A tree publication is verified against the active config's trusted
+  set: the runtime image's primary certificate and the certificates the
+  config vouches for, less those it revokes, the primary included. Every
+  member must also be in the ``.bpf`` keyring.
 
 Everything else is content-addressed only: manifests, configs, package
 archives and artifact blobs. They are trusted because a signed document

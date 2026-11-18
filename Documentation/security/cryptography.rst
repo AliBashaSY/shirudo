@@ -39,8 +39,8 @@ Signatures
    * - Tree publication
      - The publication document
      - ``shirudo bpm tree append``
-     - ``shirudo bpm tree sync``, against the runtime image's primary
-       certificate
+     - ``shirudo bpm tree sync``, against the active config's trusted
+       set, each member also in ``.bpf``
    * - Config root
      - The 64 lowercase hex characters of the dm-verity root hash
      - The operator's image tooling, with the config key

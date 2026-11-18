@@ -428,7 +428,7 @@ it.
       the ordered operations, published with a detached CMS signature
       under a tag of the tree repository, ``stable`` by default. ``shirudo
       bpm tree append`` publishes the next generation, and targets verify
-      it against the runtime image's certificate. See
+      it against the active config's trusted set. See
       :doc:`/reference/formats/bpm-formats`.
 
    trusted set

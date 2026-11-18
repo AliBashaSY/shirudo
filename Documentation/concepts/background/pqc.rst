@@ -139,7 +139,7 @@ verify either form.
    * - Repository indexes
      - shirudo, against the repository certificate in the signed config
    * - upatch tree publications
-     - shirudo, against the runtime image's ``keys/cert.der``
+     - shirudo, against the active config's trusted set
 
 ``init``'s pre-flight check refuses a certificate in the trust set it
 reads whose key is not ML-DSA-87, and ``shirudo keys vouch`` refuses to

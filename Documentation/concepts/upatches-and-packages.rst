@@ -225,7 +225,8 @@ checks it, and what the measurement register records.
      - Not recorded
    * - Tree publication
      - Detached CMS signature
-     - ``bpm tree sync``, against the runtime image's certificate
+     - ``bpm tree sync``, against the active config's trusted set, each
+       member also in the ``.bpf`` keyring
      - A ``tree_op`` event per applied operation, after the upatch's own
        event
 
