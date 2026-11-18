@@ -204,8 +204,10 @@ while IFS= read -r page; do
 done <"$work/pages"
 
 # Every figure of Documentation/images/ is what its TikZ source makes,
-# which build.py tells from the hash it recorded, without TeX.
-if ! python3 Documentation/figures/build.py --check 2>"$work/figures"; then
+# which build.py tells from the hash it recorded, without TeX. A tree
+# without the script has no figures to check.
+if [ -f Documentation/figures/build.py ] &&
+   ! python3 Documentation/figures/build.py --check 2>"$work/figures"; then
 	while IFS= read -r line; do
 		report Documentation/figures "${line#figures: }"
 	done <"$work/figures"

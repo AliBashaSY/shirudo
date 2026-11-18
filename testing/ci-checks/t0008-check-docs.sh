@@ -4,8 +4,9 @@
 #
 # t0008 -- .github/scripts/check-docs.sh: the whole of each field of a
 # threat's fact box, a hook by its section, the programs and counters no
-# threat names, and the source files a proof reads or the coverage page
-# lists as read by none, on a throwaway repository, and the tree itself.
+# threat names, the source files a proof reads or the coverage page
+# lists as read by none, and a figure against its TikZ source, on a
+# throwaway repository, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -127,6 +128,38 @@ test_expect_success 'the list names only source files no proof reads' '
 	good && sed -i "s|:src:\`util/unread.c\`|:src:\`util/gone.c\`|" "$R/$COV" &&
 	refuses "no source file is named util/gone.c" &&
 	grep -qF "no proof reads util/unread.c and no line says why" "$W/err"
+'
+
+# The hash build.py records in the SVG of the figure $1, from the copy of
+# build.py and the style in the throwaway tree.
+figure_stamp() {
+	(cd "$R" && python3 - "$1" <<'EOF'
+import sys
+from pathlib import Path
+sys.path.insert(0, "Documentation/figures")
+import build
+print(build.digest(Path("Documentation/figures") / (sys.argv[1] + ".tex")))
+EOF
+	)
+}
+
+# A tree with one figure, f, whose SVG records the hash of its source.
+with_figure() {
+	good && mkdir -p "$R/Documentation/figures" &&
+	cp "$ROOT/Documentation/figures/build.py" \
+		"$ROOT/Documentation/figures/shirudo-figure.sty" \
+		"$R/Documentation/figures/" &&
+	put Documentation/figures/f.tex "% f" &&
+	put Documentation/images/f.svg \
+		"<svg><!-- Documentation/figures/f.tex, sha256 $(figure_stamp f) --></svg>"
+}
+
+test_expect_success 'a figure is what its TikZ source makes, and has one' '
+	with_figure && check &&
+	put Documentation/figures/f.tex "% f, changed" &&
+	refuses "images/f.svg is not what figures/f.tex makes" &&
+	with_figure && put Documentation/images/g.svg "<svg></svg>" &&
+	refuses "images/g.svg has no source figures/g.tex"
 '
 
 test_expect_success 'the tree itself passes' '
