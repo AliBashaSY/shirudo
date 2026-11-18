@@ -64,43 +64,85 @@ document passes, as `A verify that pins nothing`_ shows.
    * - Option
      - What it pins
    * - ``--ak-name=<ak-name>``
-     - The attestation key that signed the quote and the register
-       certification is the one you enrolled. Required: without it, any
+     - Required. The attestation key that signed the quote and the
+       register certification is the one you enrolled. Without it, any
        TPM's key passes.
    * - ``--expect-bind-pcr=9=<pcr9>`` and ``--expect-bind-pcr=11=<pcr11>``
-     - The PCR values the register was bound to at init. PCR 11 holds the
-       ``enter-initrd`` phase only while the initrd runs, so the PCR 11
-       value proves that init bound the register from the initrd.
-       Required. Without them, verify recomputes the register's name from
+     - Required. The PCR values the register was bound to at init. PCR
+       11 holds the ``enter-initrd`` phase only while the initrd runs, so
+       the PCR 11 value proves that init bound the register from the
+       initrd. Without them, verify recomputes the register's name from
        the values the target recorded about itself.
    * - ``--require-initrd``
-     - The init record says the binding was made in the initrd. The
-       record is the target's own word, so this option does not replace
-       ``--expect-bind-pcr=11``.
+     - Optional. The init record says the binding was made in the
+       initrd. The record is the target's own word, so this option does
+       not replace ``--expect-bind-pcr=11``.
    * - ``--expect-chain=<register>``, or ``--cert=`` with ``--upatch=``
-     - The register equals the value you predicted for the certificates,
-       the boot set and the events you expect. One of the two is
-       required. Without either, no state is checked.
+     - Required, one of the two. The register equals the value you
+       predicted for the certificates, the boot set and the events you
+       expect. Without either, no state is checked.
    * - ``--expect-config-root=<config-root>`` with
        ``--expect-config-pcr=<config-pcr>``
-     - The config the target activated is the one you approved, recorded
-       in the PCR the runtime bootstrap file names. Required. The first
-       option needs the second.
+     - Required. The config the target activated is the one you
+       approved, recorded in the PCR the runtime bootstrap file names.
+       The first option needs the second.
    * - ``--ek-name=<ek-name>``
-     - The endorsement key in the evidence is the enrolled one.
+     - Optional. The endorsement key in the evidence is the enrolled
+       one.
    * - ``--expect-credential=<credential>``
-     - The attestation key activated the credential you made for it
-       under the endorsement key. Used at enrollment. Needs
-       ``--ak-name``.
+     - At enrollment. The attestation key activated the credential you
+       made for it under the endorsement key. Needs ``--ak-name``.
    * - ``--allow-runtime-events``
-     - With ``--cert=``, accepts any number of loads, unloads,
+     - Optional. With ``--cert=``, accepts any number of loads, unloads,
        revocations and tree operations after boot, as long as each one
        replays and derives from its own fields. It does not compare them
        with anything you expect. Pin runtime events with
        ``--expect-chain`` instead.
    * - ``--strict-anchor``
-     - Nothing was extended into PCR 9 after the register's anchor.
-       Without it, verify notes further measurements and passes.
+     - Optional. Nothing was extended into PCR 9 after the register's
+       anchor. Without it, verify notes further measurements and passes.
+
+Record these values for each target. Each comes from its own source and
+changes for its own reason, and a verify against an old value fails.
+
+.. list-table:: Values to record for each target
+   :header-rows: 1
+   :widths: 22 24 30 24
+
+   * - Value
+     - Option
+     - Where you get it
+     - Changes when
+   * - Attestation key name
+     - ``--ak-name``
+     - Enrollment, `Enroll from a target activation`_ or `Enroll from a
+       builder's records`_.
+     - The TPM changes, or a virtual TPM gets fresh state.
+   * - Endorsement key name
+     - ``--ek-name``
+     - Enrollment, as above.
+     - As above.
+   * - PCR 9 and PCR 11 at the binding
+     - ``--expect-bind-pcr=9=`` and ``--expect-bind-pcr=11=``
+     - ``tpm.pcr_before`` and ``tpm.phase_before`` of ``shirudo status
+       --json`` on a boot of the same UKI on a host you trust, see
+       `Verify evidence`_.
+     - The UKI changes: a new kernel, initrd, command line or runtime
+       image.
+   * - Register
+     - ``--expect-chain=``
+     - ``shirudo attest predict`` from your records, see `Predict the
+       register`_.
+     - Every boot set change, load, unload, revocation and tree
+       operation.
+   * - Config root
+     - ``--expect-config-root=``
+     - ``<prefix>.roothash`` of the config you activated.
+     - Every config you activate, live or by staging it and a reboot.
+   * - Config PCR
+     - ``--expect-config-pcr=``
+     - ``config.pcr`` of the runtime bootstrap file.
+     - A runtime image with another ``config.pcr``.
 
 Enroll from a target activation
 -------------------------------
