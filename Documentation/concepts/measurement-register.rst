@@ -75,7 +75,21 @@ The writer key is not a secret, because any process can ask the TPM to
 sign with it. What stops root is a BPF LSM program on the kernel's
 ``tpm_command`` hook: it refuses an ``NV_Extend`` of shirudo's index to
 every task without runtime authority. That hook comes from a kernel patch
-shirudo carries (:doc:`/internals/kernel-patches`).
+shirudo carries (:doc:`/internals/kernel-patches`). Figure 1 shows one
+write, and the same attempt by root.
+
+.. figure:: /images/concepts-register-write.svg
+   :alt: A sequence between a task, the kernel's lsm/tpm_command hook
+         and the TPM. upatch load, with runtime authority, starts a
+         policy session on one of the two branches, has the NV writer
+         key sign the session nonce and this exact NV_Extend, and sends
+         NV_Extend, which the hook passes on and the TPM applies as
+         register = SHA-256(register || event). root without runtime
+         authority gets the same session and signature, but the hook
+         refuses its NV_Extend with EACCES and counts TpmExtend.
+
+   Figure 1. One write of the register. The TPM checks the policy, the
+   kernel checks who sends the extension.
 
 Right after binding, ``init`` extends PCR 9 with an anchor, the SHA-256 of
 ``nvpcr-init:shirudo:0x1818e00:<name>`` for the default index, where
@@ -144,7 +158,22 @@ the event digest, its type, the boot ID and the fields the digest covers.
 shirudo appends to it and never rewrites it, it keeps the records of every
 boot, and the seal protects it like the rest of ``/var/lib/shirudo``. In
 the initrd, ``init`` writes its record to ``/run/shirudo/eventlog.pending``,
-and the root file system's run adopts it.
+and the root file system's run adopts it. Figure 2 shows how the register
+and the eventlog advance together, and how a verifier replays them.
+
+.. figure:: /images/concepts-register-chain.svg
+   :alt: In the TPM, the register goes from v0, 32 zero bytes, to v1, v2
+         and v3, each the SHA-256 of the previous value and an event
+         digest: d1 for init, d2 for upatch_load of foo, d3 for
+         upatch_unload of foo. Each event is also appended to
+         /var/lib/shirudo/eventlog as a line with its type, fields and
+         digest. attest verify derives d2 and d3 from their lines'
+         fields, folds d1 to d3 from 32 zero bytes and compares the
+         result with v3, which the TPM certified for the operator's
+         nonce.
+
+   Figure 2. The register and the eventlog during one boot, and the
+   replay that checks them.
 
 The eventlog is not trusted on its own. A verifier folds this boot's
 records from zero and compares the result with the register the TPM
