@@ -1166,6 +1166,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        most 255 of them; of a key's lines the last; the root
        ``roothash=`` names, else ``usrhash=``, in lowercase when it is
        64 hex digits, else none
+   * - ``xdp-attrs``
+     - ``attr_find()``, ``attr_string()``, ``attr_number()``,
+       ``xdp_device_parse()`` of :src:`util/xdp.c`
+     - Netlink replies of 0 to 12, 16, 20, 24, 28, 32 and 40 bytes
+     - An attribute exactly in a run of whole attributes that names its
+       type at most once, found where it lies; a string NUL-terminated
+       within its room; a number only of its exact size; a device with
+       an index, a name, terminated strings, and the bus and device of a
+       devlink port
 
 Lean 4 proofs
 -------------
@@ -1531,7 +1540,7 @@ a proof covers.
        :src:`util/keyring.c`, :src:`util/preflight.c`, :src:`util/seal.c`,
        :src:`util/tamper.c`, :src:`util/upatch_maps.c`,
        :src:`util/upatch_pins.c`, :src:`util/upatch_resolve.c`,
-       :src:`util/upatch_verify.c`, :src:`util/xdp.c`
+       :src:`util/upatch_verify.c`
      - Mostly calls into the kernel, which CBMC has no body for: files,
        extended attributes, mounts, the device mapper, keyrings,
        ``bpf()``, netlink, ``/proc`` and the process's own limits
