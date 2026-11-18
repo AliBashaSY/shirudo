@@ -130,14 +130,15 @@ OpenSSL and zlib that the harnesses include with its
    is in the shard's job log and in its ``cbmc-logs-<k>`` artifact.
 
 CI leaves out the proofs :src:`testing/proofs/cbmc/ci-skip.list` names,
-each with why: each needs hours, some more memory than a runner has. No
-run checks them but one you start. After a change to a file one of them
-reads, which ``CHANGED`` finds, run it by hand with its memory capped:
+each with why: a proof that needs more memory or time than CI gives one.
+No run checks them but one you start. After a change to a file one of
+them reads, which ``CHANGED`` finds, run it by hand with its memory
+capped:
 
 .. code-block:: console
 
    $ ulimit -v 24000000
-   $ make proofs-cbmc PROOFS=bpm-tree-sync-walk
+   $ make proofs-cbmc PROOFS=<proof>
 
 Write a CBMC proof
 ------------------
