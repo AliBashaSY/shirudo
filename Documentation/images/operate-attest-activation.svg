@@ -1,60 +1,604 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540" width="900" height="540" font-family="sans-serif" role="img" aria-labelledby="t">
-  <title id="t">Enrolling through credential activation: the target answers a nonce with enroll.json, carrying the attestation key's name and the endorsement key; the operator makes a challenge for an endorsement key it vouches for; the target answers it with a second nonce, and the TPM releases the credential only to that attestation key under that endorsement key; the operator verifies the credential and records both names</title>
-  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
-    </marker>
-  </defs>
-  <g stroke="#8a93a0" stroke-width="1" stroke-dasharray="3 4">
-    <line x1="160" y1="54" x2="160" y2="208"/>
-    <line x1="160" y1="254" x2="160" y2="416"/>
-    <line x1="470" y1="54" x2="470" y2="530"/>
-    <line x1="770" y1="54" x2="770" y2="530"/>
-  </g>
-  <g fill="#8a93a0" fill-opacity="0.08" stroke="#8a93a0" stroke-width="1.5">
-    <rect x="85" y="10" width="150" height="44" rx="6"/>
-    <rect x="395" y="10" width="150" height="44" rx="6"/>
-    <rect x="695" y="10" width="150" height="44" rx="6"/>
-    <rect x="30" y="208" width="260" height="46" rx="6"/>
-    <rect x="30" y="416" width="260" height="46" rx="6"/>
-    <rect x="30" y="486" width="260" height="44" rx="6"/>
-  </g>
-  <g fill="none" stroke="#8a93a0" stroke-width="1.5" marker-end="url(#arrow)">
-    <line x1="160" y1="96" x2="468" y2="96"/>
-    <line x1="470" y1="132" x2="768" y2="132"/>
-    <line x1="770" y1="150" x2="472" y2="150" stroke-dasharray="5 4"/>
-    <line x1="470" y1="186" x2="162" y2="186"/>
-    <line x1="160" y1="292" x2="468" y2="292"/>
-    <line x1="470" y1="330" x2="768" y2="330"/>
-    <line x1="770" y1="348" x2="472" y2="348" stroke-dasharray="5 4"/>
-    <line x1="470" y1="394" x2="162" y2="394"/>
-    <line x1="160" y1="462" x2="160" y2="484"/>
-  </g>
-  <g fill="#5d6675" font-size="12" text-anchor="middle">
-    <text x="160" y="30" font-weight="bold" font-size="13">Operator</text>
-    <text x="160" y="46" font-size="11">inventory, no TPM</text>
-    <text x="470" y="30" font-weight="bold" font-size="13">Target</text>
-    <text x="470" y="46" font-size="11" font-family="monospace">shirudo attest</text>
-    <text x="770" y="30" font-weight="bold" font-size="13">TPM</text>
-    <text x="770" y="46" font-size="11">physical or virtual</text>
-
-    <text x="315" y="88">nonce</text>
-    <text x="620" y="124">CreatePrimary: AK, EK</text>
-    <text x="620" y="166" font-size="11">public areas, names, EK certificate</text>
-    <text x="315" y="178" font-family="monospace">enroll.json</text>
-
-    <text x="160" y="228" font-family="monospace">attest challenge</text>
-    <text x="160" y="245" font-size="11">EK vouched for by --ek-ca or --ek-name</text>
-
-    <text x="315" y="284" font-family="monospace">challenge.json, nonce-2</text>
-    <text x="620" y="322">ActivateCredential</text>
-    <text x="620" y="364" font-size="11">the credential, only to that AK under that EK</text>
-    <text x="315" y="386" font-family="monospace">answer.json</text>
-
-    <text x="160" y="436" font-family="monospace">verify --expect-credential</text>
-    <text x="160" y="453" font-size="11">with --ak-name and --ek-name</text>
-    <text x="160" y="505" font-family="monospace">inventory: ak-name, ek-name</text>
-    <text x="160" y="521" font-size="11">every later verify pins them</text>
-  </g>
+<svg xmlns='http://www.w3.org/2000/svg' width='900.0' height='540.0' viewBox='-72 -72 674.996 404.997' class='fig fig-f-ink' role='img'><!-- Documentation/figures/operate-attest-activation.tex, sha256 1f1f6f5a317e9332e745d0034451a20cf5b99003242334bdc068b898f07ae636 --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<defs>
+<use id='operate-attest-activation-g5-97' href='#operate-attest-activation-g1-97' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-100' href='#operate-attest-activation-g1-100' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-101' href='#operate-attest-activation-g1-101' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-104' href='#operate-attest-activation-g1-104' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-105' href='#operate-attest-activation-g1-105' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-111' href='#operate-attest-activation-g1-111' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-114' href='#operate-attest-activation-g1-114' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-115' href='#operate-attest-activation-g1-115' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-116' href='#operate-attest-activation-g1-116' transform='scale(.917)'/>
+<use id='operate-attest-activation-g5-117' href='#operate-attest-activation-g1-117' transform='scale(.917)'/>
+<path id='operate-attest-activation-g1-44' d='M1.829 1.264H2.43L3.461-1.219H2.304L1.829 1.264Z'/>
+<path id='operate-attest-activation-g1-45' d='M3.99-2.349V-3.102H1.39V-2.349H3.99Z'/>
+<path id='operate-attest-activation-g1-46' d='M2.69 .081C3.174 .081 3.353-.152 3.353-.457V-.619C3.353-.924 3.174-1.157 2.69-1.157S2.026-.924 2.026-.619V-.457C2.026-.152 2.206 .081 2.69 .081Z'/>
+<path id='operate-attest-activation-g1-50' d='M4.815-.655H1.417L3.165-2.179C3.999-2.905 4.564-3.604 4.564-4.555C4.564-5.613 3.865-6.366 2.618-6.366C1.39-6.366 .825-5.631 .583-4.896L1.255-4.645C1.453-5.29 1.838-5.712 2.6-5.712C3.371-5.712 3.775-5.281 3.775-4.528V-4.42C3.775-3.784 3.335-3.201 2.726-2.654L.637-.771V0H4.815V-.655Z'/>
+<path id='operate-attest-activation-g1-58' d='M2.69 .081C3.174 .081 3.353-.152 3.353-.457V-.619C3.353-.924 3.174-1.157 2.69-1.157S2.026-.924 2.026-.619V-.457C2.026-.152 2.206 .081 2.69 .081ZM2.69-3.47C3.174-3.47 3.353-3.703 3.353-4.008V-4.169C3.353-4.474 3.174-4.707 2.69-4.707S2.026-4.474 2.026-4.169V-4.008C2.026-3.703 2.206-3.47 2.69-3.47Z'/>
+<path id='operate-attest-activation-g1-97' d='M4.931 0V-.628H4.286V-3.174C4.286-4.151 3.596-4.734 2.511-4.734C1.569-4.734 .977-4.286 .744-3.802L1.228-3.443C1.47-3.865 1.847-4.125 2.466-4.125C3.165-4.125 3.569-3.775 3.569-3.102V-2.645H2.582C1.193-2.645 .592-2.152 .592-1.3C.592-.43 1.21 .108 2.179 .108C2.932 .108 3.371-.224 3.569-.753H3.613C3.667-.323 3.882 0 4.438 0H4.931ZM2.304-.493C1.713-.493 1.345-.744 1.345-1.219V-1.408C1.345-1.856 1.731-2.107 2.582-2.107H3.569V-1.345C3.569-.87 3.04-.493 2.304-.493Z'/>
+<path id='operate-attest-activation-g1-99' d='M2.851 .108C3.775 .108 4.358-.35 4.627-.968L4.116-1.318C3.882-.816 3.479-.511 2.86-.511C1.991-.511 1.524-1.103 1.524-1.919V-2.708C1.524-3.524 1.999-4.116 2.842-4.116C3.416-4.116 3.811-3.838 3.981-3.362L4.555-3.667C4.295-4.295 3.739-4.734 2.842-4.734C1.533-4.734 .753-3.784 .753-2.313C.753-.852 1.524 .108 2.851 .108Z'/>
+<path id='operate-attest-activation-g1-100' d='M3.811 0H4.528V-6.635H3.811V-3.873H3.775C3.479-4.438 2.995-4.734 2.349-4.734C1.219-4.734 .538-3.829 .538-2.313S1.219 .108 2.349 .108C2.995 .108 3.479-.188 3.775-.753H3.811V0ZM2.627-.529C1.793-.529 1.309-1.085 1.309-1.919V-2.708C1.309-3.542 1.793-4.098 2.627-4.098C3.264-4.098 3.811-3.766 3.811-3.147V-1.479C3.811-.861 3.264-.529 2.627-.529Z'/>
+<path id='operate-attest-activation-g1-101' d='M2.771 .108C3.685 .108 4.349-.341 4.627-.959L4.098-1.318C3.856-.816 3.389-.511 2.771-.511C1.901-.511 1.354-1.103 1.354-1.919V-2.134H4.779V-2.475C4.779-3.784 3.972-4.734 2.726-4.734C1.47-4.734 .601-3.784 .601-2.304C.601-.843 1.444 .108 2.771 .108ZM2.726-4.142C3.488-4.142 4.008-3.587 4.008-2.771V-2.672H1.354V-2.735C1.354-3.542 1.937-4.142 2.726-4.142Z'/>
+<path id='operate-attest-activation-g1-102' d='M.744 0H4.671V-.61H3.022V-4.017H4.878V-4.627H3.022V-6.025H4.878V-6.635H3.327C2.627-6.635 2.304-6.196 2.304-5.577V-4.627H.655V-4.017H2.304V-.61H.744V0Z'/>
+<path id='operate-attest-activation-g1-103' d='M5.03 .529C5.03-.224 4.519-.708 3.327-.708H2.304C1.865-.708 1.56-.771 1.56-1.049C1.56-1.363 1.946-1.524 2.224-1.578C2.367-1.551 2.511-1.542 2.663-1.542C3.748-1.542 4.465-2.197 4.465-3.138C4.465-3.622 4.277-4.026 3.945-4.313V-4.627H4.985V-5.254H4.133C3.73-5.254 3.578-4.985 3.578-4.627V-4.546C3.318-4.671 3.013-4.734 2.663-4.734C1.578-4.734 .87-4.08 .87-3.138C.87-2.484 1.21-1.973 1.775-1.722V-1.686C1.3-1.569 .941-1.354 .941-.879C.941-.565 1.094-.368 1.354-.242V-.134C.879-.009 .601 .26 .601 .753C.601 1.488 1.21 1.901 2.699 1.901C4.241 1.901 5.03 1.462 5.03 .529ZM4.358 .565C4.358 1.067 3.865 1.327 3.031 1.327H2.331C1.578 1.327 1.282 .986 1.282 .583C1.282 .287 1.444 .081 1.748-.045H3.353C4.098-.045 4.358 .197 4.358 .565ZM2.663-2.098C1.955-2.098 1.623-2.466 1.623-3.013V-3.273C1.623-3.82 1.955-4.178 2.663-4.178C3.38-4.178 3.712-3.82 3.712-3.273V-3.013C3.712-2.466 3.38-2.098 2.663-2.098Z'/>
+<path id='operate-attest-activation-g1-104' d='M.879 0H1.596V-3.21C1.596-3.82 2.17-4.098 2.744-4.098C3.452-4.098 3.838-3.685 3.838-2.842V0H4.555V-2.968C4.555-4.089 3.918-4.734 2.95-4.734C2.188-4.734 1.829-4.331 1.632-3.873H1.596V-6.635H.879V0Z'/>
+<path id='operate-attest-activation-g1-105' d='M2.977-5.649C3.389-5.649 3.542-5.846 3.542-6.106V-6.25C3.542-6.51 3.389-6.707 2.977-6.707S2.412-6.51 2.412-6.25V-6.106C2.412-5.846 2.564-5.649 2.977-5.649ZM.95 0H4.896V-.61H3.335V-4.627H.95V-4.017H2.618V-.61H.95V0Z'/>
+<path id='operate-attest-activation-g1-106' d='M.915 1.793H2.851C3.551 1.793 3.873 1.354 3.873 .735V-4.627H.834V-4.017H3.156V1.184H.915V1.793ZM3.515-5.649C3.927-5.649 4.08-5.846 4.08-6.106V-6.25C4.08-6.51 3.927-6.707 3.515-6.707S2.95-6.51 2.95-6.25V-6.106C2.95-5.846 3.102-5.649 3.515-5.649Z'/>
+<path id='operate-attest-activation-g1-107' d='M.941 0H1.659V-1.677L2.457-2.403L4.259 0H5.147L3.004-2.815L4.923-4.627H4.044L2.502-3.21L1.695-2.448H1.659V-6.635H.941V0Z'/>
+<path id='operate-attest-activation-g1-108' d='M.717 0H4.663V-.61H3.049V-6.635H.717V-6.025H2.331V-.61H.717V0Z'/>
+<path id='operate-attest-activation-g1-109' d='M1.148 0V-3.398C1.148-3.891 1.417-4.142 1.802-4.142C2.224-4.142 2.358-3.882 2.358-3.093V0H3.022V-3.398C3.022-3.891 3.291-4.142 3.667-4.142C4.098-4.142 4.232-3.882 4.232-3.093V0H4.896V-3.21C4.896-4.187 4.698-4.734 3.945-4.734C3.398-4.734 3.111-4.429 2.941-4.008H2.914C2.86-4.438 2.6-4.734 2.071-4.734C1.56-4.734 1.327-4.447 1.184-4.089H1.148V-4.627H.484V0H1.148Z'/>
+<path id='operate-attest-activation-g1-110' d='M1.596 0V-3.21C1.596-3.82 2.17-4.098 2.744-4.098C3.452-4.098 3.838-3.685 3.838-2.842V0H4.555V-2.968C4.555-4.089 3.918-4.734 2.95-4.734C2.188-4.734 1.829-4.331 1.632-3.873H1.596V-4.627H.879V0H1.596Z'/>
+<path id='operate-attest-activation-g1-111' d='M2.69 .108C3.99 .108 4.788-.843 4.788-2.313S3.99-4.734 2.69-4.734S.592-3.784 .592-2.313S1.39 .108 2.69 .108ZM2.69-.511C1.892-.511 1.354-.986 1.354-1.982V-2.645C1.354-3.64 1.892-4.116 2.69-4.116S4.026-3.64 4.026-2.645V-1.982C4.026-.986 3.488-.511 2.69-.511Z'/>
+<path id='operate-attest-activation-g1-112' d='M.852 1.793H1.569V-.753H1.605C1.901-.188 2.385 .108 3.031 .108C4.16 .108 4.842-.798 4.842-2.313S4.16-4.734 3.031-4.734C2.385-4.734 1.901-4.438 1.605-3.873H1.569V-4.627H.852V1.793ZM2.753-.529C2.116-.529 1.569-.861 1.569-1.479V-3.147C1.569-3.766 2.116-4.098 2.753-4.098C3.587-4.098 4.071-3.542 4.071-2.708V-1.919C4.071-1.085 3.587-.529 2.753-.529Z'/>
+<path id='operate-attest-activation-g1-114' d='M.69 0H4.205V-.61H2.762V-2.609C2.762-3.327 3.237-3.909 4.142-3.909H5.012V-4.627H4.367C3.398-4.627 2.986-4.071 2.806-3.461H2.762V-4.627H.69V-4.017H2.044V-.61H.69V0Z'/>
+<path id='operate-attest-activation-g1-115' d='M2.744 .108C3.927 .108 4.698-.421 4.698-1.336C4.698-2.34 3.775-2.52 3.111-2.618L2.385-2.726C1.973-2.789 1.569-2.914 1.569-3.398C1.569-3.873 1.973-4.133 2.699-4.133C3.515-4.133 3.927-3.811 4.142-3.551L4.609-3.99C4.169-4.456 3.56-4.734 2.726-4.734C1.65-4.734 .861-4.277 .861-3.353C.861-2.349 1.793-2.17 2.448-2.071L3.174-1.964C3.596-1.901 3.99-1.775 3.99-1.291C3.99-.744 3.479-.493 2.762-.493C2.026-.493 1.524-.753 1.085-1.219L.601-.798C1.085-.251 1.775 .108 2.744 .108Z'/>
+<path id='operate-attest-activation-g1-116' d='M4.716 0V-.61H2.609V-4.017H4.716V-4.627H2.609V-6.259H1.919V-5.048C1.919-4.734 1.802-4.627 1.497-4.627H.35V-4.017H1.892V-1.058C1.892-.439 2.215 0 2.914 0H4.716Z'/>
+<path id='operate-attest-activation-g1-117' d='M3.784 0H4.501V-4.627H3.784V-1.417C3.784-.807 3.21-.529 2.636-.529C1.928-.529 1.542-.941 1.542-1.784V-4.627H.825V-1.659C.825-.538 1.462 .108 2.43 .108C3.192 .108 3.551-.296 3.748-.753H3.784V0Z'/>
+<path id='operate-attest-activation-g1-118' d='M3.147 0L4.806-4.627H4.098L3.434-2.69L2.717-.601H2.681L1.964-2.69L1.3-4.627H.574L2.233 0H3.147Z'/>
+<path id='operate-attest-activation-g1-119' d='M.977 0H1.91L2.663-3.873H2.735L3.47 0H4.402L5.111-4.627H4.492L3.963-.628H3.882L3.093-4.627H2.304L1.515-.628H1.435L.906-4.627H.269L.977 0Z'/>
+<path id='operate-attest-activation-g1-120' d='M1.372 0L2.125-1.085L2.636-1.82H2.672L3.201-1.085L3.981 0H4.842L3.102-2.358L4.797-4.627H3.972L3.282-3.649L2.744-2.878H2.708L2.152-3.649L1.453-4.627H.592L2.268-2.349L.547 0H1.372Z'/>
+<path id='operate-attest-activation-g1-121' d='M3.407-2.69L2.717-.933H2.681L1.991-2.69L1.21-4.627H.475L2.34-.09L1.82 1.184H.744V1.793H1.426C2.125 1.793 2.394 1.542 2.609 1.013L4.905-4.627H4.187L3.407-2.69Z'/>
+<use id='operate-attest-activation-g7-28' href='#operate-attest-activation-g3-28' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-44' href='#operate-attest-activation-g3-44' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-45' href='#operate-attest-activation-g3-45' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-65' href='#operate-attest-activation-g3-65' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-69' href='#operate-attest-activation-g3-69' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-75' href='#operate-attest-activation-g3-75' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-77' href='#operate-attest-activation-g3-77' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-80' href='#operate-attest-activation-g3-80' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-84' href='#operate-attest-activation-g3-84' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-97' href='#operate-attest-activation-g3-97' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-98' href='#operate-attest-activation-g3-98' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-99' href='#operate-attest-activation-g3-99' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-100' href='#operate-attest-activation-g3-100' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-101' href='#operate-attest-activation-g3-101' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-102' href='#operate-attest-activation-g3-102' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-104' href='#operate-attest-activation-g3-104' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-105' href='#operate-attest-activation-g3-105' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-107' href='#operate-attest-activation-g3-107' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-108' href='#operate-attest-activation-g3-108' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-109' href='#operate-attest-activation-g3-109' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-110' href='#operate-attest-activation-g3-110' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-111' href='#operate-attest-activation-g3-111' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-112' href='#operate-attest-activation-g3-112' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-114' href='#operate-attest-activation-g3-114' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-115' href='#operate-attest-activation-g3-115' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-116' href='#operate-attest-activation-g3-116' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-117' href='#operate-attest-activation-g3-117' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-118' href='#operate-attest-activation-g3-118' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-119' href='#operate-attest-activation-g3-119' transform='scale(.917)'/>
+<use id='operate-attest-activation-g7-121' href='#operate-attest-activation-g3-121' transform='scale(.917)'/>
+<path id='operate-attest-activation-g3-28' d='M1.013 0H1.731V-3.999H3.604V0H4.322V-4.627H1.731V-6.007H2.726V-6.635H2.026C1.345-6.635 1.013-6.196 1.013-5.559V-4.627H.26V-3.999H1.013V0ZM3.963-5.712C4.268-5.712 4.402-5.873 4.402-6.115V-6.232C4.402-6.474 4.268-6.635 3.963-6.635S3.524-6.474 3.524-6.232V-6.115C3.524-5.873 3.658-5.712 3.963-5.712Z'/>
+<path id='operate-attest-activation-g3-44' d='M1.219-1.049C.843-1.049 .672-.834 .672-.52V-.395C.672-.152 .78 .027 1.022 .081C.924 .502 .708 .816 .35 1.193H.95C1.462 .753 1.766 .09 1.766-.395V-.52C1.766-.834 1.596-1.049 1.219-1.049Z'/>
+<path id='operate-attest-activation-g3-45' d='M2.959-2.34V-3.111H.619V-2.34H2.959Z'/>
+<path id='operate-attest-activation-g3-58' d='M1.309 .108C1.686 .108 1.856-.108 1.856-.412V-.529C1.856-.834 1.686-1.049 1.309-1.049S.762-.834 .762-.529V-.412C.762-.108 .933 .108 1.309 .108ZM1.309-3.578C1.686-3.578 1.856-3.793 1.856-4.098V-4.214C1.856-4.519 1.686-4.734 1.309-4.734S.762-4.519 .762-4.214V-4.098C.762-3.793 .933-3.578 1.309-3.578Z'/>
+<path id='operate-attest-activation-g3-65' d='M5.541 0L3.353-6.259H2.394L.206 0H.968L1.596-1.847H4.125L4.752 0H5.541ZM3.936-2.511H1.775L2.833-5.559H2.878L3.936-2.511Z'/>
+<path id='operate-attest-activation-g3-67' d='M3.04 .108C4.08 .108 4.842-.439 5.236-1.318L4.636-1.695C4.385-1.013 3.838-.565 3.04-.565C1.964-.565 1.327-1.345 1.327-2.627V-3.56C1.327-4.842 1.964-5.694 3.04-5.694C3.811-5.694 4.331-5.272 4.582-4.627L5.192-4.994C4.797-5.864 4.08-6.366 3.04-6.366C1.462-6.366 .52-5.183 .52-3.093S1.462 .108 3.04 .108Z'/>
+<path id='operate-attest-activation-g3-69' d='M4.654 0V-.664H1.587V-2.833H4.474V-3.497H1.587V-5.595H4.654V-6.259H.834V0H4.654Z'/>
+<path id='operate-attest-activation-g3-75' d='M4.555 0H5.487L2.995-3.578L5.326-6.259H4.402L2.511-4.017L1.614-2.932H1.587V-6.259H.834V0H1.587V-2.089L2.475-3.075L4.555 0Z'/>
+<path id='operate-attest-activation-g3-77' d='M.834 0H1.569V-5.272H1.614L2.143-4.223L3.64-1.497L5.138-4.223L5.667-5.272H5.712V0H6.447V-6.259H5.478L3.676-2.887H3.631L1.838-6.259H.834V0Z'/>
+<path id='operate-attest-activation-g3-80' d='M1.587 0V-2.672H3.327C4.447-2.672 5.075-3.362 5.075-4.465S4.447-6.259 3.327-6.259H.834V0H1.587ZM1.587-5.595H3.327C3.918-5.595 4.268-5.272 4.268-4.698V-4.232C4.268-3.658 3.918-3.335 3.327-3.335H1.587V-5.595Z'/>
+<path id='operate-attest-activation-g3-84' d='M4.931-5.595V-6.259H.197V-5.595H2.188V0H2.941V-5.595H4.931Z'/>
+<path id='operate-attest-activation-g3-97' d='M4.528 0V-.628H3.999V-3.174C3.999-4.151 3.335-4.734 2.224-4.734C1.39-4.734 .834-4.322 .583-3.829L1.013-3.425C1.264-3.847 1.632-4.116 2.188-4.116C2.923-4.116 3.282-3.757 3.282-3.102V-2.645H2.367C1.022-2.645 .395-2.161 .395-1.291C.395-.43 .968 .108 1.946 .108C2.591 .108 3.084-.188 3.282-.753H3.327C3.38-.323 3.596 0 4.125 0H4.528ZM2.062-.502C1.506-.502 1.148-.762 1.148-1.219V-1.408C1.148-1.856 1.515-2.107 2.331-2.107H3.282V-1.345C3.282-.87 2.771-.502 2.062-.502Z'/>
+<path id='operate-attest-activation-g3-98' d='M.762 0H1.479V-.753H1.515C1.793-.179 2.233 .108 2.869 .108C4.026 .108 4.752-.834 4.752-2.313S4.026-4.734 2.869-4.734C2.233-4.734 1.757-4.456 1.515-3.873H1.479V-6.635H.762V0ZM2.672-.538C2.017-.538 1.479-.879 1.479-1.479V-3.201C1.479-3.712 2.017-4.089 2.672-4.089C3.479-4.089 3.981-3.533 3.981-2.708V-1.919C3.981-1.094 3.479-.538 2.672-.538Z'/>
+<path id='operate-attest-activation-g3-99' d='M2.484 .108C3.362 .108 3.963-.323 4.259-.986L3.739-1.336C3.488-.807 3.066-.529 2.484-.529C1.632-.529 1.193-1.112 1.193-1.919V-2.708C1.193-3.515 1.632-4.098 2.484-4.098C3.049-4.098 3.443-3.82 3.613-3.344L4.214-3.649C3.945-4.286 3.398-4.734 2.484-4.734C1.184-4.734 .421-3.793 .421-2.313S1.184 .108 2.484 .108Z'/>
+<path id='operate-attest-activation-g3-100' d='M3.721 0H4.438V-6.635H3.721V-3.873H3.685C3.443-4.456 2.968-4.734 2.331-4.734C1.175-4.734 .448-3.793 .448-2.313S1.175 .108 2.331 .108C2.968 .108 3.407-.179 3.685-.753H3.721V0ZM2.529-.538C1.722-.538 1.219-1.094 1.219-1.919V-2.708C1.219-3.533 1.722-4.089 2.529-4.089C3.183-4.089 3.721-3.712 3.721-3.201V-1.479C3.721-.879 3.183-.538 2.529-.538Z'/>
+<path id='operate-attest-activation-g3-101' d='M2.502 .108C3.371 .108 4.035-.323 4.331-.95L3.82-1.318C3.578-.807 3.129-.52 2.546-.52C1.686-.52 1.175-1.121 1.175-1.919V-2.134H4.501V-2.475C4.501-3.784 3.739-4.734 2.502-4.734C1.246-4.734 .421-3.784 .421-2.313S1.246 .108 2.502 .108ZM2.502-4.133C3.237-4.133 3.73-3.587 3.73-2.771V-2.672H1.175V-2.735C1.175-3.542 1.722-4.133 2.502-4.133Z'/>
+<path id='operate-attest-activation-g3-102' d='M1.013 0H1.731V-3.999H2.726V-4.627H1.731V-6.007H2.726V-6.635H2.026C1.345-6.635 1.013-6.196 1.013-5.559V-4.627H.26V-3.999H1.013V0Z'/>
+<path id='operate-attest-activation-g3-104' d='M.762 0H1.479V-3.21C1.479-3.802 2.035-4.089 2.609-4.089C3.3-4.089 3.658-3.667 3.658-2.842V0H4.376V-2.968C4.376-4.089 3.775-4.734 2.824-4.734C2.134-4.734 1.739-4.394 1.515-3.873H1.479V-6.635H.762V0Z'/>
+<path id='operate-attest-activation-g3-105' d='M1.121-5.712C1.426-5.712 1.56-5.873 1.56-6.115V-6.232C1.56-6.474 1.426-6.635 1.121-6.635S.681-6.474 .681-6.232V-6.115C.681-5.873 .816-5.712 1.121-5.712ZM.762 0H1.479V-4.627H.762V0Z'/>
+<path id='operate-attest-activation-g3-107' d='M.762 0H1.479V-1.65L2.17-2.358L3.703 0H4.573L2.69-2.798L4.402-4.627H3.533L2.224-3.219L1.515-2.43H1.479V-6.635H.762V0Z'/>
+<path id='operate-attest-activation-g3-108' d='M2.161 0V-.628H1.479V-6.635H.762V-.744C.762-.314 1.031 0 1.524 0H2.161Z'/>
+<path id='operate-attest-activation-g3-109' d='M1.479 0V-3.21C1.479-3.802 2.017-4.089 2.582-4.089C3.264-4.089 3.578-3.667 3.578-2.842V0H4.295V-3.21C4.295-3.802 4.815-4.089 5.38-4.089C6.079-4.089 6.393-3.658 6.393-2.842V0H7.11V-2.968C7.11-4.089 6.545-4.734 5.604-4.734C4.815-4.734 4.367-4.295 4.196-3.793H4.178C3.927-4.456 3.371-4.734 2.762-4.734C2.044-4.734 1.722-4.349 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-activation-g3-110' d='M1.479 0V-3.21C1.479-3.802 2.035-4.089 2.609-4.089C3.3-4.089 3.658-3.667 3.658-2.842V0H4.376V-2.968C4.376-4.089 3.775-4.734 2.824-4.734C2.134-4.734 1.739-4.394 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-activation-g3-111' d='M2.511 .108C3.748 .108 4.6-.843 4.6-2.313S3.748-4.734 2.511-4.734S.421-3.784 .421-2.313S1.273 .108 2.511 .108ZM2.511-.529C1.739-.529 1.193-1.004 1.193-1.982V-2.645C1.193-3.622 1.739-4.098 2.511-4.098S3.829-3.622 3.829-2.645V-1.982C3.829-1.004 3.282-.529 2.511-.529Z'/>
+<path id='operate-attest-activation-g3-112' d='M.762 1.793H1.479V-.753H1.515C1.793-.179 2.233 .108 2.869 .108C4.026 .108 4.752-.834 4.752-2.313S4.026-4.734 2.869-4.734C2.233-4.734 1.757-4.456 1.515-3.873H1.479V-4.627H.762V1.793ZM2.672-.538C2.017-.538 1.479-.879 1.479-1.479V-3.201C1.479-3.712 2.017-4.089 2.672-4.089C3.479-4.089 3.981-3.533 3.981-2.708V-1.919C3.981-1.094 3.479-.538 2.672-.538Z'/>
+<path id='operate-attest-activation-g3-114' d='M1.479 0V-3.138C1.479-3.578 1.946-3.909 2.717-3.909H3.138V-4.627H2.86C2.107-4.627 1.686-4.214 1.524-3.775H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-activation-g3-115' d='M2.152 .108C3.21 .108 3.865-.439 3.865-1.336C3.865-2.035 3.47-2.484 2.448-2.636L2.089-2.69C1.515-2.78 1.201-2.959 1.201-3.407C1.201-3.847 1.515-4.125 2.107-4.125S3.093-3.847 3.3-3.56L3.775-3.99C3.398-4.456 2.905-4.734 2.161-4.734C1.219-4.734 .511-4.286 .511-3.371C.511-2.511 1.148-2.161 1.999-2.035L2.367-1.982C2.977-1.892 3.174-1.614 3.174-1.255C3.174-.78 2.815-.502 2.206-.502C1.623-.502 1.193-.762 .834-1.21L.323-.798C.735-.251 1.3 .108 2.152 .108Z'/>
+<path id='operate-attest-activation-g3-116' d='M2.681 0V-.628H1.739V-3.999H2.753V-4.627H1.739V-5.909H1.094V-5.048C1.094-4.734 .995-4.627 .69-4.627H.26V-3.999H1.022V-.762C1.022-.314 1.291 0 1.784 0H2.681Z'/>
+<path id='operate-attest-activation-g3-117' d='M3.613 0H4.331V-4.627H3.613V-1.426C3.613-.816 3.058-.538 2.493-.538C1.802-.538 1.435-.959 1.435-1.784V-4.627H.717V-1.659C.717-.538 1.327 .108 2.277 .108C3.049 .108 3.398-.314 3.578-.753H3.613V0Z'/>
+<path id='operate-attest-activation-g3-118' d='M2.618 0L4.25-4.627H3.56L2.735-2.331L2.233-.753H2.188L1.686-2.331L.879-4.627H.161L1.784 0H2.618Z'/>
+<path id='operate-attest-activation-g3-119' d='M1.515 0H2.385L3.031-2.224L3.425-3.631H3.443L3.847-2.224L4.492 0H5.38L6.608-4.627H5.936L5.434-2.627L4.958-.601H4.94L4.367-2.627L3.766-4.627H3.129L2.546-2.627L1.982-.601H1.964L1.47-2.627L.977-4.627H.278L1.515 0Z'/>
+<path id='operate-attest-activation-g3-121' d='M2.493-1.479L2.242-.726H2.197L1.982-1.479L.87-4.627H.152L1.883 .179L1.533 1.166H.807V1.793H1.175C1.856 1.793 2.044 1.632 2.251 1.076L4.322-4.627H3.613L2.493-1.479Z'/>
+<path id='operate-attest-activation-g9-77' d='M.797 0H2.011V-4.866H2.05L2.574-3.788L3.963-1.224L5.352-3.788L5.877-4.866H5.916V0H7.13V-6.78H5.741L4.021-3.468H3.983L2.244-6.78H.797V0Z'/>
+<path id='operate-attest-activation-g9-79' d='M3.458 .117C5.245 .117 6.411-1.098 6.411-3.39S5.245-6.897 3.458-6.897C1.68-6.897 .505-5.682 .505-3.39S1.68 .117 3.458 .117ZM3.458-1.02C2.487-1.02 1.865-1.71 1.865-2.866V-3.915C1.865-5.07 2.487-5.76 3.458-5.76S5.051-5.07 5.051-3.915V-2.866C5.051-1.71 4.429-1.02 3.458-1.02Z'/>
+<path id='operate-attest-activation-g9-80' d='M2.079 0V-2.584H3.847C5.1-2.584 5.857-3.419 5.857-4.682C5.857-5.935 5.1-6.78 3.847-6.78H.797V0H2.079ZM2.079-5.663H3.73C4.225-5.663 4.527-5.401 4.527-4.905V-4.459C4.527-3.963 4.225-3.691 3.73-3.691H2.079V-5.663Z'/>
+<path id='operate-attest-activation-g9-84' d='M5.381-5.644V-6.78H.253V-5.644H2.176V0H3.458V-5.644H5.381Z'/>
+<path id='operate-attest-activation-g9-97' d='M1.972 .117C2.73 .117 3.283-.223 3.448-.874H3.507C3.584-.35 3.915 0 4.449 0H5.138V-.991H4.633V-3.38C4.633-4.536 3.905-5.187 2.535-5.187C1.515-5.187 .923-4.799 .554-4.216L1.292-3.555C1.535-3.905 1.865-4.196 2.448-4.196C3.108-4.196 3.39-3.866 3.39-3.303V-2.933H2.526C1.146-2.933 .359-2.419 .359-1.379C.359-.476 .942 .117 1.972 .117ZM2.39-.787C1.904-.787 1.622-.991 1.622-1.399V-1.564C1.622-1.962 1.943-2.186 2.594-2.186H3.39V-1.515C3.39-1.039 2.943-.787 2.39-.787Z'/>
+<path id='operate-attest-activation-g9-101' d='M2.768 .117C3.711 .117 4.449-.243 4.866-.816L4.196-1.564C3.885-1.166 3.516-.874 2.904-.874C2.088-.874 1.671-1.37 1.671-2.098V-2.224H5.041V-2.632C5.041-4.021 4.313-5.187 2.73-5.187C1.243-5.187 .379-4.148 .379-2.545C.379-.923 1.272 .117 2.768 .117ZM2.749-4.255C3.39-4.255 3.749-3.779 3.749-3.079V-2.992H1.671V-3.069C1.671-3.769 2.098-4.255 2.749-4.255Z'/>
+<path id='operate-attest-activation-g9-103' d='M5.294 .427C5.294-.486 4.76-1.02 3.516-1.02H2.156C1.71-1.02 1.496-1.146 1.496-1.399C1.496-1.622 1.661-1.768 1.855-1.855C2.079-1.797 2.341-1.768 2.632-1.768C4.012-1.768 4.731-2.448 4.731-3.468C4.731-4.089 4.468-4.585 3.944-4.876V-5.012H5.022V-5.964H4.235C3.769-5.964 3.516-5.721 3.516-5.226V-5.061C3.264-5.148 2.943-5.187 2.632-5.187C1.263-5.187 .534-4.497 .534-3.468C.534-2.798 .845-2.273 1.457-1.991V-1.952C.971-1.846 .525-1.583 .525-1.059C.525-.651 .758-.321 1.175-.214V-.107C.612-.019 .272 .301 .272 .865C.272 1.612 .923 2.059 2.632 2.059C4.575 2.059 5.294 1.486 5.294 .427ZM4.128 .573C4.128 1 3.769 1.204 2.963 1.204H2.341C1.564 1.204 1.272 .971 1.272 .583C1.272 .379 1.35 .194 1.535 .058H3.264C3.895 .058 4.128 .253 4.128 .573ZM2.632-2.613C2.04-2.613 1.719-2.885 1.719-3.39V-3.555C1.719-4.07 2.04-4.332 2.632-4.332S3.545-4.07 3.545-3.555V-3.39C3.545-2.885 3.225-2.613 2.632-2.613Z'/>
+<path id='operate-attest-activation-g9-111' d='M2.73 .117C4.187 .117 5.09-.913 5.09-2.545C5.09-4.167 4.187-5.187 2.73-5.187C1.282-5.187 .379-4.167 .379-2.545C.379-.913 1.282 .117 2.73 .117ZM2.73-.884C2.088-.884 1.68-1.302 1.68-2.069V-3.011C1.68-3.769 2.088-4.187 2.73-4.187C3.38-4.187 3.788-3.769 3.788-3.011V-2.069C3.788-1.302 3.38-.884 2.73-.884Z'/>
+<path id='operate-attest-activation-g9-112' d='M.719 1.943H1.962V-.845H2.001C2.195-.272 2.73 .117 3.4 .117C4.682 .117 5.391-.845 5.391-2.545C5.391-4.235 4.682-5.187 3.4-5.187C2.73-5.187 2.186-4.818 2.001-4.235H1.962V-5.07H.719V1.943ZM3.001-.913C2.409-.913 1.962-1.214 1.962-1.739V-3.351C1.962-3.847 2.409-4.167 3.001-4.167C3.643-4.167 4.089-3.691 4.089-2.972V-2.098C4.089-1.379 3.643-.913 3.001-.913Z'/>
+<path id='operate-attest-activation-g9-114' d='M1.962 0V-3.108C1.962-3.662 2.399-3.895 3.235-3.895H3.623V-5.07H3.351C2.545-5.07 2.137-4.556 2.011-4.021H1.962V-5.07H.719V0H1.962Z'/>
+<path id='operate-attest-activation-g9-116' d='M2.302 0H3.196V-.991H2.234V-4.08H3.273V-5.07H2.234V-6.46H1.117V-5.595C1.117-5.245 1-5.07 .631-5.07H.243V-4.08H.991V-1.292C.991-.466 1.447 0 2.302 0Z'/>
+</defs>
+<g id='operate-attest-activation-page1'>
+<g stroke-miterlimit='10' transform='matrix(.996 0 0 -.996 -72 -72)' stroke-width='1.12921' class='fig-f-ink fig-s-ink'>
+<g stroke-width='0.7528' stroke-dasharray='2.25842,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M120.449-40.652V-156.584' fill='none'/>
+</g>
+<g stroke-width='0.7528' stroke-dasharray='2.25842,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M120.449-191.213V-313.168' fill='none'/>
+</g>
+<g stroke-width='0.7528' stroke-dasharray='2.25842,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M353.82-40.652V-398.988' fill='none'/>
+</g>
+<g stroke-width='0.7528' stroke-dasharray='2.25842,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M579.662-40.652V-398.988' fill='none'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M63.989-12.045V-36.135C63.989-38.629 66.011-40.652 68.506-40.652H172.393C174.888-40.652 176.91-38.629 176.91-36.135V-12.045C176.91-9.55 174.888-7.528 172.393-7.528H68.506C66.011-7.528 63.989-9.55 63.989-12.045ZM176.91-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M297.359-12.045V-36.135C297.359-38.629 299.381-40.652 301.876-40.652H405.763C408.258-40.652 410.28-38.629 410.28-36.135V-12.045C410.28-9.55 408.258-7.528 405.763-7.528H301.876C299.381-7.528 297.359-9.55 297.359-12.045ZM410.28-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M523.201-12.045V-36.135C523.201-38.629 525.224-40.652 527.718-40.652H631.606C634.1-40.652 636.122-38.629 636.122-36.135V-12.045C636.122-9.55 634.1-7.528 631.606-7.528H527.718C525.224-7.528 523.201-9.55 523.201-12.045ZM636.122-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M22.584-161.101V-186.696C22.584-189.191 24.606-191.213 27.101-191.213H213.797C216.292-191.213 218.314-189.191 218.314-186.696V-161.101C218.314-158.606 216.292-156.584 213.797-156.584H27.101C24.606-156.584 22.584-158.606 22.584-161.101ZM218.314-191.213'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M22.584-317.685V-343.28C22.584-345.775 24.606-347.797 27.101-347.797H213.797C216.292-347.797 218.314-345.775 218.314-343.28V-317.685C218.314-315.19 216.292-313.168 213.797-313.168H27.101C24.606-313.168 22.584-315.19 22.584-317.685ZM218.314-347.797'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M22.584-370.381V-394.471C22.584-396.966 24.606-398.988 27.101-398.988H213.797C216.292-398.988 218.314-396.966 218.314-394.471V-370.381C218.314-367.887 216.292-365.865 213.797-365.865H27.101C24.606-365.865 22.584-367.887 22.584-370.381ZM218.314-398.988'/>
+</g>
+<g class='fig-s-line'>
+<path d='M120.449-72.27H344.692' fill='none'/>
+<g transform='translate(344.409 -72.27)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M353.82-99.371H570.534' fill='none'/>
+<g transform='translate(570.252 -99.371)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M579.662-112.921H362.947' fill='none'/>
+<g transform='matrix(-1 0 0 -1 363.23 -112.921)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M353.82-140.022H129.577' fill='none'/>
+<g transform='matrix(-1 0 0 -1 129.859 -140.022)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M120.449-219.82H344.692' fill='none'/>
+<g transform='translate(344.409 -219.82)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M353.82-248.427H570.534' fill='none'/>
+<g transform='translate(570.252 -248.427)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M579.662-261.977H362.947' fill='none'/>
+<g transform='matrix(-1 0 0 -1 363.23 -261.977)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M353.82-296.606H129.577' fill='none'/>
+<g transform='matrix(-1 0 0 -1 129.859 -296.606)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M120.449-347.797V-356.737' fill='none'/>
+<g transform='matrix(0 -1 1 0 120.449 -356.454)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 172.495 -94.854)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g9-79'/>
+<use x='-65.058' y='-72' href='#operate-attest-activation-g9-112'/>
+<use x='-59.208' y='-72' href='#operate-attest-activation-g9-101'/>
+<use x='-53.768' y='-72' href='#operate-attest-activation-g9-114'/>
+<use x='-50.043' y='-72' href='#operate-attest-activation-g9-97'/>
+<use x='-44.632' y='-72' href='#operate-attest-activation-g9-116'/>
+<use x='-41.024' y='-72' href='#operate-attest-activation-g9-111'/>
+<use x='-35.535' y='-72' href='#operate-attest-activation-g9-114'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 159.591 -106.899)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-69.938' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-65.318' y='-72' href='#operate-attest-activation-g7-118'/>
+<use x='-61.325' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-56.795' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-52.109' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-49.247' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-44.627' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-41.516' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='-37.853' y='-72' href='#operate-attest-activation-g7-44'/>
+<use x='-33.662' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-28.976' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-22.409' y='-72' href='#operate-attest-activation-g7-84'/>
+<use x='-17.69' y='-72' href='#operate-attest-activation-g7-80'/>
+<use x='-12.691' y='-72' href='#operate-attest-activation-g7-77'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 411.821 -94.854)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g9-84'/>
+<use x='-67.028' y='-72' href='#operate-attest-activation-g9-97'/>
+<use x='-61.577' y='-72' href='#operate-attest-activation-g9-114'/>
+<use x='-57.911' y='-72' href='#operate-attest-activation-g9-103'/>
+<use x='-52.656' y='-72' href='#operate-attest-activation-g9-101'/>
+<use x='-47.216' y='-72' href='#operate-attest-activation-g9-116'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 391.31 -106.899)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g5-115'/>
+<use x='-67.05' y='-72' href='#operate-attest-activation-g5-104'/>
+<use x='-62.1' y='-72' href='#operate-attest-activation-g5-105'/>
+<use x='-57.15' y='-72' href='#operate-attest-activation-g5-114'/>
+<use x='-52.2' y='-72' href='#operate-attest-activation-g5-117'/>
+<use x='-47.25' y='-72' href='#operate-attest-activation-g5-100'/>
+<use x='-42.3' y='-72' href='#operate-attest-activation-g5-111'/>
+<use x='-32.4' y='-72' href='#operate-attest-activation-g5-97'/>
+<use x='-27.45' y='-72' href='#operate-attest-activation-g5-116'/>
+<use x='-22.5' y='-72' href='#operate-attest-activation-g5-116'/>
+<use x='-17.55' y='-72' href='#operate-attest-activation-g5-101'/>
+<use x='-12.6' y='-72' href='#operate-attest-activation-g5-115'/>
+<use x='-7.65' y='-72' href='#operate-attest-activation-g5-116'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 641.964 -94.854)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g9-84'/>
+<use x='-66.345' y='-72' href='#operate-attest-activation-g9-80'/>
+<use x='-60.095' y='-72' href='#operate-attest-activation-g9-77'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 619.148 -106.899)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-112'/>
+<use x='-67.215' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='-62.595' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='-58.511' y='-72' href='#operate-attest-activation-g7-115'/>
+<use x='-54.494' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-52.431' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='-48.281' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-43.876' y='-72' href='#operate-attest-activation-g7-108'/>
+<use x='-39.685' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-35.065' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-30.09' y='-72' href='#operate-attest-activation-g7-118'/>
+<use x='-26.031' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-23.969' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-20.908' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-18.012' y='-72' href='#operate-attest-activation-g7-117'/>
+<use x='-13.326' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-8.921' y='-72' href='#operate-attest-activation-g7-108'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 297.019 -138.517)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g3-110'/>
+<use x='-66.888' y='-72' href='#operate-attest-activation-g3-111'/>
+<use x='-61.848' y='-72' href='#operate-attest-activation-g3-110'/>
+<use x='-56.736' y='-72' href='#operate-attest-activation-g3-99'/>
+<use x='-52.263' y='-72' href='#operate-attest-activation-g3-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 493.86 -165.618)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g3-67'/>
+<use x='-66.411' y='-72' href='#operate-attest-activation-g3-114'/>
+<use x='-63.153' y='-72' href='#operate-attest-activation-g3-101'/>
+<use x='-58.212' y='-72' href='#operate-attest-activation-g3-97'/>
+<use x='-53.406' y='-72' href='#operate-attest-activation-g3-116'/>
+<use x='-50.283' y='-72' href='#operate-attest-activation-g3-101'/>
+<use x='-45.342' y='-72' href='#operate-attest-activation-g3-80'/>
+<use x='-39.978' y='-72' href='#operate-attest-activation-g3-114'/>
+<use x='-36.675' y='-72' href='#operate-attest-activation-g3-105'/>
+<use x='-34.425' y='-72' href='#operate-attest-activation-g3-109'/>
+<use x='-26.568' y='-72' href='#operate-attest-activation-g3-97'/>
+<use x='-21.762' y='-72' href='#operate-attest-activation-g3-114'/>
+<use x='-18.369' y='-72' href='#operate-attest-activation-g3-121'/>
+<use x='-13.878' y='-72' href='#operate-attest-activation-g3-58'/>
+<use x='-9.126' y='-72' href='#operate-attest-activation-g3-65'/>
+<use x='-3.357' y='-72' href='#operate-attest-activation-g3-75'/>
+<use x='2.439' y='-72' href='#operate-attest-activation-g3-44'/>
+<use x='7.011' y='-72' href='#operate-attest-activation-g3-69'/>
+<use x='12.258' y='-72' href='#operate-attest-activation-g3-75'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 475.07 -197.236)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-112'/>
+<use x='-67.215' y='-72' href='#operate-attest-activation-g7-117'/>
+<use x='-62.529' y='-72' href='#operate-attest-activation-g7-98'/>
+<use x='-57.744' y='-72' href='#operate-attest-activation-g7-108'/>
+<use x='-55.5' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-53.438' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='-47.341' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-42.935' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-39.949' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-35.42' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-31.014' y='-72' href='#operate-attest-activation-g7-115'/>
+<use x='-27.038' y='-72' href='#operate-attest-activation-g7-44'/>
+<use x='-22.847' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-18.161' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-13.755' y='-72' href='#operate-attest-activation-g7-109'/>
+<use x='-6.553' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-2.024' y='-72' href='#operate-attest-activation-g7-115'/>
+<use x='1.953' y='-72' href='#operate-attest-activation-g7-44'/>
+<use x='6.144' y='-72' href='#operate-attest-activation-g7-69'/>
+<use x='10.954' y='-72' href='#operate-attest-activation-g7-75'/>
+<use x='18.131' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='22.231' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='26.761' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='29.821' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='32.717' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='34.78' y='-72' href='#operate-attest-activation-g7-28'/>
+<use x='39.457' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='43.607' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='48.013' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='50.875' y='-72' href='#operate-attest-activation-g7-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 279.593 -206.27)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-114'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-39.6' y='-72' href='#operate-attest-activation-g1-46'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-106'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-115'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='-18' y='-72' href='#operate-attest-activation-g1-110'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 149.357 -243.91)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-115'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-99'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-104'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='-18' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-12.6' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-7.2' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-1.8' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='3.6' y='-72' href='#operate-attest-activation-g1-103'/>
+<use x='9' y='-72' href='#operate-attest-activation-g1-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 119.392 -256.708)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-69'/>
+<use x='-67.19' y='-72' href='#operate-attest-activation-g7-75'/>
+<use x='-60.013' y='-72' href='#operate-attest-activation-g7-118'/>
+<use x='-56.02' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-51.4' y='-72' href='#operate-attest-activation-g7-117'/>
+<use x='-46.714' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='-42.564' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='-37.878' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-33.349' y='-72' href='#operate-attest-activation-g7-100'/>
+<use x='-26.617' y='-72' href='#operate-attest-activation-g7-102'/>
+<use x='-23.977' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-19.357' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-14.382' y='-72' href='#operate-attest-activation-g7-98'/>
+<use x='-9.638' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='-3.575' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='-.283' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='3.009' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='7.538' y='-72' href='#operate-attest-activation-g7-107'/>
+<use x='11.515' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='14.806' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='18.956' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='25.309' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='29.929' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='34.903' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='38.195' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='41.487' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='46.016' y='-72' href='#operate-attest-activation-g7-107'/>
+<use x='49.993' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='53.284' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='57.97' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='62.376' y='-72' href='#operate-attest-activation-g7-109'/>
+<use x='69.578' y='-72' href='#operate-attest-activation-g7-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 247.072 -286.067)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-99'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-104'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-108'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-39.6' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-103'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-46'/>
+<use x='-18' y='-72' href='#operate-attest-activation-g1-106'/>
+<use x='-12.6' y='-72' href='#operate-attest-activation-g1-115'/>
+<use x='-7.2' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='-1.8' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='3.6' y='-72' href='#operate-attest-activation-g1-44'/>
+<use x='14.4' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='19.8' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='25.2' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='30.6' y='-72' href='#operate-attest-activation-g1-99'/>
+<use x='36' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='41.4' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='46.8' y='-72' href='#operate-attest-activation-g1-50'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 501.548 -314.674)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g3-65'/>
+<use x='-66.231' y='-72' href='#operate-attest-activation-g3-99'/>
+<use x='-61.704' y='-72' href='#operate-attest-activation-g3-116'/>
+<use x='-58.545' y='-72' href='#operate-attest-activation-g3-105'/>
+<use x='-56.295' y='-72' href='#operate-attest-activation-g3-118'/>
+<use x='-51.948' y='-72' href='#operate-attest-activation-g3-97'/>
+<use x='-47.142' y='-72' href='#operate-attest-activation-g3-116'/>
+<use x='-44.019' y='-72' href='#operate-attest-activation-g3-101'/>
+<use x='-39.078' y='-72' href='#operate-attest-activation-g3-67'/>
+<use x='-33.489' y='-72' href='#operate-attest-activation-g3-114'/>
+<use x='-30.231' y='-72' href='#operate-attest-activation-g3-101'/>
+<use x='-25.29' y='-72' href='#operate-attest-activation-g3-100'/>
+<use x='-20.07' y='-72' href='#operate-attest-activation-g3-101'/>
+<use x='-15.129' y='-72' href='#operate-attest-activation-g3-110'/>
+<use x='-10.017' y='-72' href='#operate-attest-activation-g3-116'/>
+<use x='-6.858' y='-72' href='#operate-attest-activation-g3-105'/>
+<use x='-4.608' y='-72' href='#operate-attest-activation-g3-97'/>
+<use x='.198' y='-72' href='#operate-attest-activation-g3-108'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 457.51 -346.292)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-69.104' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='-64.418' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-57.942' y='-72' href='#operate-attest-activation-g7-99'/>
+<use x='-53.792' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-50.806' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-46.277' y='-72' href='#operate-attest-activation-g7-100'/>
+<use x='-41.492' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-36.962' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-32.276' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-29.381' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-27.318' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-22.913' y='-72' href='#operate-attest-activation-g7-108'/>
+<use x='-20.586' y='-72' href='#operate-attest-activation-g7-44'/>
+<use x='-16.395' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='-11.775' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-7.089' y='-72' href='#operate-attest-activation-g7-108'/>
+<use x='-4.928' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='1.136' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='3.999' y='-72' href='#operate-attest-activation-g7-111'/>
+<use x='10.566' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='13.462' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='18.148' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='22.553' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='27.396' y='-72' href='#operate-attest-activation-g7-65'/>
+<use x='32.684' y='-72' href='#operate-attest-activation-g7-75'/>
+<use x='39.862' y='-72' href='#operate-attest-activation-g7-117'/>
+<use x='44.548' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='49.234' y='-72' href='#operate-attest-activation-g7-100'/>
+<use x='54.019' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='58.548' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='63.522' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='66.418' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='71.104' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='75.51' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='80.352' y='-72' href='#operate-attest-activation-g7-69'/>
+<use x='85.162' y='-72' href='#operate-attest-activation-g7-75'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 279.593 -362.854)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-115'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-119'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-114'/>
+<use x='-39.6' y='-72' href='#operate-attest-activation-g1-46'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-106'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-115'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='-18' y='-72' href='#operate-attest-activation-g1-110'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 122.256 -400.494)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-118'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-114'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-105'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-102'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-121'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-18' y='-72' href='#operate-attest-activation-g1-120'/>
+<use x='-12.6' y='-72' href='#operate-attest-activation-g1-112'/>
+<use x='-7.2' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-1.8' y='-72' href='#operate-attest-activation-g1-99'/>
+<use x='3.6' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='9' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='14.4' y='-72' href='#operate-attest-activation-g1-99'/>
+<use x='19.8' y='-72' href='#operate-attest-activation-g1-114'/>
+<use x='25.2' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='30.6' y='-72' href='#operate-attest-activation-g1-100'/>
+<use x='36' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='41.4' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='46.8' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='52.2' y='-72' href='#operate-attest-activation-g1-105'/>
+<use x='57.6' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='63' y='-72' href='#operate-attest-activation-g1-108'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 135.515 -413.292)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-119'/>
+<use x='-65.664' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-63.602' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-60.706' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='-54.073' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='-50.781' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='-47.489' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-43.084' y='-72' href='#operate-attest-activation-g7-107'/>
+<use x='-39.107' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='-35.816' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-31.13' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-26.724' y='-72' href='#operate-attest-activation-g7-109'/>
+<use x='-19.522' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-13.046' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-8.64' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='-3.954' y='-72' href='#operate-attest-activation-g7-100'/>
+<use x='2.778' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='6.07' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='9.361' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='13.891' y='-72' href='#operate-attest-activation-g7-107'/>
+<use x='17.867' y='-72' href='#operate-attest-activation-g7-45'/>
+<use x='21.159' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='25.845' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='30.25' y='-72' href='#operate-attest-activation-g7-109'/>
+<use x='37.453' y='-72' href='#operate-attest-activation-g7-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 119.546 -452.438)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g1-105'/>
+<use x='-66.6' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='-61.2' y='-72' href='#operate-attest-activation-g1-118'/>
+<use x='-55.8' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='-50.4' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='-45' y='-72' href='#operate-attest-activation-g1-116'/>
+<use x='-39.6' y='-72' href='#operate-attest-activation-g1-111'/>
+<use x='-34.2' y='-72' href='#operate-attest-activation-g1-114'/>
+<use x='-28.8' y='-72' href='#operate-attest-activation-g1-121'/>
+<use x='-23.4' y='-72' href='#operate-attest-activation-g1-58'/>
+<use x='-12.6' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='-7.2' y='-72' href='#operate-attest-activation-g1-107'/>
+<use x='-1.8' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='3.6' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='9' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='14.4' y='-72' href='#operate-attest-activation-g1-109'/>
+<use x='19.8' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='25.2' y='-72' href='#operate-attest-activation-g1-44'/>
+<use x='36' y='-72' href='#operate-attest-activation-g1-101'/>
+<use x='41.4' y='-72' href='#operate-attest-activation-g1-107'/>
+<use x='46.8' y='-72' href='#operate-attest-activation-g1-45'/>
+<use x='52.2' y='-72' href='#operate-attest-activation-g1-110'/>
+<use x='57.6' y='-72' href='#operate-attest-activation-g1-97'/>
+<use x='63' y='-72' href='#operate-attest-activation-g1-109'/>
+<use x='68.4' y='-72' href='#operate-attest-activation-g1-101'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 142.322 -464.483)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-67.537' y='-72' href='#operate-attest-activation-g7-118'/>
+<use x='-63.544' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-59.015' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-55.904' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='-49.841' y='-72' href='#operate-attest-activation-g7-108'/>
+<use x='-47.597' y='-72' href='#operate-attest-activation-g7-97'/>
+<use x='-43.191' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='-40.328' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-35.799' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-30.824' y='-72' href='#operate-attest-activation-g7-118'/>
+<use x='-26.831' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='-22.302' y='-72' href='#operate-attest-activation-g7-114'/>
+<use x='-19.274' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-17.212' y='-72' href='#operate-attest-activation-g7-102'/>
+<use x='-14.456' y='-72' href='#operate-attest-activation-g7-121'/>
+<use x='-8.393' y='-72' href='#operate-attest-activation-g7-112'/>
+<use x='-3.608' y='-72' href='#operate-attest-activation-g7-105'/>
+<use x='-1.545' y='-72' href='#operate-attest-activation-g7-110'/>
+<use x='3.141' y='-72' href='#operate-attest-activation-g7-115'/>
+<use x='9.106' y='-72' href='#operate-attest-activation-g7-116'/>
+<use x='12.001' y='-72' href='#operate-attest-activation-g7-104'/>
+<use x='16.687' y='-72' href='#operate-attest-activation-g7-101'/>
+<use x='21.217' y='-72' href='#operate-attest-activation-g7-109'/>
+</g>
+</g>
+</g>
 </svg>

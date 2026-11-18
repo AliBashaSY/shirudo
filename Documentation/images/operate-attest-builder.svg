@@ -1,65 +1,586 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500" font-family="sans-serif" role="img" aria-labelledby="t">
-  <title id="t">Enrolling from a builder's records: while it controls the TPM, the builder creates the attestation key and the endorsement key from attest's templates and gives their names to the operator's inventory; every attestation after that is a nonce, the target having the TPM create the same attestation key, quote the PCRs and certify the register, and a verify that pins the builder's names, with no credential challenge</title>
-  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
-    </marker>
-  </defs>
-  <g stroke="#8a93a0" stroke-width="1" stroke-dasharray="3 4">
-    <line x1="120" y1="54" x2="120" y2="206"/>
-    <line x1="340" y1="54" x2="340" y2="452"/>
-    <line x1="570" y1="54" x2="570" y2="490"/>
-    <line x1="790" y1="54" x2="790" y2="490"/>
-    <line x1="10" y1="206" x2="890" y2="206"/>
-  </g>
-  <g fill="#8a93a0" fill-opacity="0.08" stroke="#8a93a0" stroke-width="1.5">
-    <rect x="45" y="10" width="150" height="44" rx="6" stroke-dasharray="5 4"/>
-    <rect x="265" y="10" width="150" height="44" rx="6"/>
-    <rect x="495" y="10" width="150" height="44" rx="6"/>
-    <rect x="715" y="10" width="150" height="44" rx="6"/>
-    <rect x="220" y="452" width="240" height="36" rx="6"/>
-  </g>
-  <g fill="none" stroke="#8a93a0" stroke-width="1.5" marker-end="url(#arrow)">
-    <line x1="120" y1="104" x2="788" y2="104"/>
-    <line x1="790" y1="124" x2="122" y2="124" stroke-dasharray="5 4"/>
-    <line x1="120" y1="172" x2="338" y2="172"/>
-    <line x1="340" y1="244" x2="568" y2="244"/>
-    <line x1="570" y1="282" x2="788" y2="282"/>
-    <line x1="570" y1="332" x2="788" y2="332"/>
-    <line x1="790" y1="348" x2="572" y2="348" stroke-dasharray="5 4"/>
-    <line x1="570" y1="388" x2="788" y2="388"/>
-    <line x1="790" y1="404" x2="572" y2="404" stroke-dasharray="5 4"/>
-    <line x1="570" y1="436" x2="342" y2="436"/>
-  </g>
-  <g fill="#5d6675" font-size="12" text-anchor="middle">
-    <text x="120" y="30" font-weight="bold" font-size="13">Builder</text>
-    <text x="120" y="46" font-size="11">hypervisor or provisioner</text>
-    <text x="340" y="30" font-weight="bold" font-size="13">Operator</text>
-    <text x="340" y="46" font-size="11">inventory, no TPM</text>
-    <text x="570" y="30" font-weight="bold" font-size="13">Target</text>
-    <text x="570" y="46" font-size="11" font-family="monospace">shirudo attest</text>
-    <text x="790" y="30" font-weight="bold" font-size="13">TPM</text>
-    <text x="790" y="46" font-size="11">physical or virtual</text>
-
-    <text x="455" y="96" font-family="monospace">CreatePrimary: AK, EK (attest's templates)</text>
-    <text x="455" y="140" font-size="11">their names</text>
-    <text x="230" y="164">ak-name, ek-name</text>
-    <text x="230" y="190" font-size="11">into the inventory</text>
-
-    <text x="455" y="236">nonce</text>
-
-    <text x="680" y="274">CreatePrimary: AK</text>
-    <text x="680" y="298" font-size="11">the name the builder recorded</text>
-
-    <text x="680" y="324" font-family="monospace">Quote(PCRs; nonce)</text>
-    <text x="680" y="380" font-family="monospace">NV_Certify(register; nonce)</text>
-
-    <text x="455" y="428">evidence document</text>
-    <text x="340" y="475" font-family="monospace">verify --ak-name --ek-name</text>
-  </g>
-  <g fill="#5d6675" font-size="11">
-    <text x="128" y="76">before handover, once</text>
-    <text x="128" y="226">every attestation</text>
-  </g>
+<svg xmlns='http://www.w3.org/2000/svg' width='900.0' height='500.0' viewBox='-72 -72 674.996 374.998' class='fig fig-f-ink' role='img'><!-- Documentation/figures/operate-attest-builder.tex, sha256 63ccab1b69bc9cbb70cbd4ab2981f9ca602b4fb737036ea49c742eb75f835d77 --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<defs>
+<path id='operate-attest-builder-g1-39' d='M3.031-4.151V-6.635H2.349V-4.151H3.031Z'/>
+<use id='operate-attest-builder-g7-97' href='#operate-attest-builder-g3-97' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-100' href='#operate-attest-builder-g3-100' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-101' href='#operate-attest-builder-g3-101' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-104' href='#operate-attest-builder-g3-104' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-105' href='#operate-attest-builder-g3-105' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-111' href='#operate-attest-builder-g3-111' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-114' href='#operate-attest-builder-g3-114' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-115' href='#operate-attest-builder-g3-115' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-116' href='#operate-attest-builder-g3-116' transform='scale(.917)'/>
+<use id='operate-attest-builder-g7-117' href='#operate-attest-builder-g3-117' transform='scale(.917)'/>
+<path id='operate-attest-builder-g3-40' d='M1.838-2.789C1.838-1.04 2.69 .484 3.703 1.237H4.429C3.389 .457 2.511-.87 2.511-2.403V-3.174C2.511-4.707 3.389-6.034 4.429-6.814H3.703C2.69-6.061 1.838-4.537 1.838-2.789Z'/>
+<path id='operate-attest-builder-g3-41' d='M3.542-2.789C3.542-4.537 2.69-6.061 1.677-6.814H.95C1.991-6.034 2.869-4.707 2.869-3.174V-2.403C2.869-.87 1.991 .457 .95 1.237H1.677C2.69 .484 3.542-1.04 3.542-2.789Z'/>
+<path id='operate-attest-builder-g3-44' d='M1.829 1.264H2.43L3.461-1.219H2.304L1.829 1.264Z'/>
+<path id='operate-attest-builder-g3-45' d='M3.99-2.349V-3.102H1.39V-2.349H3.99Z'/>
+<path id='operate-attest-builder-g3-58' d='M2.69 .081C3.174 .081 3.353-.152 3.353-.457V-.619C3.353-.924 3.174-1.157 2.69-1.157S2.026-.924 2.026-.619V-.457C2.026-.152 2.206 .081 2.69 .081ZM2.69-3.47C3.174-3.47 3.353-3.703 3.353-4.008V-4.169C3.353-4.474 3.174-4.707 2.69-4.707S2.026-4.474 2.026-4.169V-4.008C2.026-3.703 2.206-3.47 2.69-3.47Z'/>
+<path id='operate-attest-builder-g3-59' d='M1.829 1.264H2.43L3.461-1.219H2.304L1.829 1.264ZM2.69-3.47C3.174-3.47 3.353-3.703 3.353-4.008V-4.169C3.353-4.474 3.174-4.707 2.69-4.707S2.026-4.474 2.026-4.169V-4.008C2.026-3.703 2.206-3.47 2.69-3.47Z'/>
+<path id='operate-attest-builder-g3-65' d='M5.111 0L3.192-6.259H2.197L.278 0H1.058L1.587-1.784H3.784L4.313 0H5.111ZM3.604-2.439H1.766L2.645-5.461H2.726L3.604-2.439Z'/>
+<path id='operate-attest-builder-g3-67' d='M2.896 .108C4.044 .108 4.519-.583 4.824-1.264L4.178-1.56C3.954-1.004 3.658-.547 2.896-.547C1.901-.547 1.426-1.363 1.426-2.618V-3.64C1.426-4.896 1.901-5.712 2.896-5.712C3.658-5.712 3.954-5.254 4.178-4.698L4.824-4.994C4.519-5.676 4.044-6.366 2.896-6.366C1.372-6.366 .628-5.209 .628-3.129S1.372 .108 2.896 .108Z'/>
+<path id='operate-attest-builder-g3-69' d='M4.663 0V-.655H1.56V-2.842H4.555V-3.497H1.56V-5.604H4.663V-6.259H.807V0H4.663Z'/>
+<path id='operate-attest-builder-g3-75' d='M4.304 0H5.183L2.923-3.622L5.12-6.259H4.214L2.367-4.035L1.542-2.995H1.515V-6.259H.762V0H1.515V-2.008L2.412-3.066L4.304 0Z'/>
+<path id='operate-attest-builder-g3-78' d='M3.596 0H4.663V-6.259H3.981V-.986H3.918L1.784-6.259H.717V0H1.399V-5.272H1.462L3.596 0Z'/>
+<path id='operate-attest-builder-g3-80' d='M1.56 0V-2.654H3.084C4.241-2.654 4.869-3.327 4.869-4.456S4.241-6.259 3.084-6.259H.807V0H1.56ZM1.56-5.604H3.066C3.694-5.604 4.071-5.272 4.071-4.689V-4.223C4.071-3.64 3.694-3.309 3.066-3.309H1.56V-5.604Z'/>
+<path id='operate-attest-builder-g3-81' d='M4.402 .861H3.049V.081C4.313-.09 4.878-1.255 4.878-3.129C4.878-5.174 4.214-6.366 2.69-6.366S.502-5.174 .502-3.129C.502-1.255 1.058-.09 2.331 .081V.412C2.331 1.031 2.654 1.47 3.353 1.47H4.402V.861ZM2.69-.547C1.695-.547 1.3-1.363 1.3-2.618V-3.64C1.3-4.896 1.695-5.712 2.69-5.712S4.08-4.896 4.08-3.64V-2.618C4.08-1.363 3.685-.547 2.69-.547Z'/>
+<path id='operate-attest-builder-g3-82' d='M1.56-2.672H2.555L4.08 0H4.923L3.327-2.708C4.322-2.806 4.869-3.452 4.869-4.456C4.869-5.586 4.241-6.259 3.084-6.259H.807V0H1.56V-2.672ZM1.56-3.309V-5.604H3.066C3.694-5.604 4.071-5.272 4.071-4.689V-4.223C4.071-3.64 3.694-3.309 3.066-3.309H1.56Z'/>
+<path id='operate-attest-builder-g3-86' d='M3.201 0L5.057-6.259H4.286L3.398-3.129L2.726-.762H2.681L2.008-3.129L1.121-6.259H.323L2.179 0H3.201Z'/>
+<path id='operate-attest-builder-g3-95' d='M4.842 1.515V.852H.538V1.515H4.842Z'/>
+<path id='operate-attest-builder-g3-97' d='M4.931 0V-.628H4.286V-3.174C4.286-4.151 3.596-4.734 2.511-4.734C1.569-4.734 .977-4.286 .744-3.802L1.228-3.443C1.47-3.865 1.847-4.125 2.466-4.125C3.165-4.125 3.569-3.775 3.569-3.102V-2.645H2.582C1.193-2.645 .592-2.152 .592-1.3C.592-.43 1.21 .108 2.179 .108C2.932 .108 3.371-.224 3.569-.753H3.613C3.667-.323 3.882 0 4.438 0H4.931ZM2.304-.493C1.713-.493 1.345-.744 1.345-1.219V-1.408C1.345-1.856 1.731-2.107 2.582-2.107H3.569V-1.345C3.569-.87 3.04-.493 2.304-.493Z'/>
+<path id='operate-attest-builder-g3-99' d='M2.851 .108C3.775 .108 4.358-.35 4.627-.968L4.116-1.318C3.882-.816 3.479-.511 2.86-.511C1.991-.511 1.524-1.103 1.524-1.919V-2.708C1.524-3.524 1.999-4.116 2.842-4.116C3.416-4.116 3.811-3.838 3.981-3.362L4.555-3.667C4.295-4.295 3.739-4.734 2.842-4.734C1.533-4.734 .753-3.784 .753-2.313C.753-.852 1.524 .108 2.851 .108Z'/>
+<path id='operate-attest-builder-g3-100' d='M3.811 0H4.528V-6.635H3.811V-3.873H3.775C3.479-4.438 2.995-4.734 2.349-4.734C1.219-4.734 .538-3.829 .538-2.313S1.219 .108 2.349 .108C2.995 .108 3.479-.188 3.775-.753H3.811V0ZM2.627-.529C1.793-.529 1.309-1.085 1.309-1.919V-2.708C1.309-3.542 1.793-4.098 2.627-4.098C3.264-4.098 3.811-3.766 3.811-3.147V-1.479C3.811-.861 3.264-.529 2.627-.529Z'/>
+<path id='operate-attest-builder-g3-101' d='M2.771 .108C3.685 .108 4.349-.341 4.627-.959L4.098-1.318C3.856-.816 3.389-.511 2.771-.511C1.901-.511 1.354-1.103 1.354-1.919V-2.134H4.779V-2.475C4.779-3.784 3.972-4.734 2.726-4.734C1.47-4.734 .601-3.784 .601-2.304C.601-.843 1.444 .108 2.771 .108ZM2.726-4.142C3.488-4.142 4.008-3.587 4.008-2.771V-2.672H1.354V-2.735C1.354-3.542 1.937-4.142 2.726-4.142Z'/>
+<path id='operate-attest-builder-g3-102' d='M.744 0H4.671V-.61H3.022V-4.017H4.878V-4.627H3.022V-6.025H4.878V-6.635H3.327C2.627-6.635 2.304-6.196 2.304-5.577V-4.627H.655V-4.017H2.304V-.61H.744V0Z'/>
+<path id='operate-attest-builder-g3-103' d='M5.03 .529C5.03-.224 4.519-.708 3.327-.708H2.304C1.865-.708 1.56-.771 1.56-1.049C1.56-1.363 1.946-1.524 2.224-1.578C2.367-1.551 2.511-1.542 2.663-1.542C3.748-1.542 4.465-2.197 4.465-3.138C4.465-3.622 4.277-4.026 3.945-4.313V-4.627H4.985V-5.254H4.133C3.73-5.254 3.578-4.985 3.578-4.627V-4.546C3.318-4.671 3.013-4.734 2.663-4.734C1.578-4.734 .87-4.08 .87-3.138C.87-2.484 1.21-1.973 1.775-1.722V-1.686C1.3-1.569 .941-1.354 .941-.879C.941-.565 1.094-.368 1.354-.242V-.134C.879-.009 .601 .26 .601 .753C.601 1.488 1.21 1.901 2.699 1.901C4.241 1.901 5.03 1.462 5.03 .529ZM4.358 .565C4.358 1.067 3.865 1.327 3.031 1.327H2.331C1.578 1.327 1.282 .986 1.282 .583C1.282 .287 1.444 .081 1.748-.045H3.353C4.098-.045 4.358 .197 4.358 .565ZM2.663-2.098C1.955-2.098 1.623-2.466 1.623-3.013V-3.273C1.623-3.82 1.955-4.178 2.663-4.178C3.38-4.178 3.712-3.82 3.712-3.273V-3.013C3.712-2.466 3.38-2.098 2.663-2.098Z'/>
+<path id='operate-attest-builder-g3-104' d='M.879 0H1.596V-3.21C1.596-3.82 2.17-4.098 2.744-4.098C3.452-4.098 3.838-3.685 3.838-2.842V0H4.555V-2.968C4.555-4.089 3.918-4.734 2.95-4.734C2.188-4.734 1.829-4.331 1.632-3.873H1.596V-6.635H.879V0Z'/>
+<path id='operate-attest-builder-g3-105' d='M2.977-5.649C3.389-5.649 3.542-5.846 3.542-6.106V-6.25C3.542-6.51 3.389-6.707 2.977-6.707S2.412-6.51 2.412-6.25V-6.106C2.412-5.846 2.564-5.649 2.977-5.649ZM.95 0H4.896V-.61H3.335V-4.627H.95V-4.017H2.618V-.61H.95V0Z'/>
+<path id='operate-attest-builder-g3-107' d='M.941 0H1.659V-1.677L2.457-2.403L4.259 0H5.147L3.004-2.815L4.923-4.627H4.044L2.502-3.21L1.695-2.448H1.659V-6.635H.941V0Z'/>
+<path id='operate-attest-builder-g3-108' d='M.717 0H4.663V-.61H3.049V-6.635H.717V-6.025H2.331V-.61H.717V0Z'/>
+<path id='operate-attest-builder-g3-109' d='M1.148 0V-3.398C1.148-3.891 1.417-4.142 1.802-4.142C2.224-4.142 2.358-3.882 2.358-3.093V0H3.022V-3.398C3.022-3.891 3.291-4.142 3.667-4.142C4.098-4.142 4.232-3.882 4.232-3.093V0H4.896V-3.21C4.896-4.187 4.698-4.734 3.945-4.734C3.398-4.734 3.111-4.429 2.941-4.008H2.914C2.86-4.438 2.6-4.734 2.071-4.734C1.56-4.734 1.327-4.447 1.184-4.089H1.148V-4.627H.484V0H1.148Z'/>
+<path id='operate-attest-builder-g3-110' d='M1.596 0V-3.21C1.596-3.82 2.17-4.098 2.744-4.098C3.452-4.098 3.838-3.685 3.838-2.842V0H4.555V-2.968C4.555-4.089 3.918-4.734 2.95-4.734C2.188-4.734 1.829-4.331 1.632-3.873H1.596V-4.627H.879V0H1.596Z'/>
+<path id='operate-attest-builder-g3-111' d='M2.69 .108C3.99 .108 4.788-.843 4.788-2.313S3.99-4.734 2.69-4.734S.592-3.784 .592-2.313S1.39 .108 2.69 .108ZM2.69-.511C1.892-.511 1.354-.986 1.354-1.982V-2.645C1.354-3.64 1.892-4.116 2.69-4.116S4.026-3.64 4.026-2.645V-1.982C4.026-.986 3.488-.511 2.69-.511Z'/>
+<path id='operate-attest-builder-g3-112' d='M.852 1.793H1.569V-.753H1.605C1.901-.188 2.385 .108 3.031 .108C4.16 .108 4.842-.798 4.842-2.313S4.16-4.734 3.031-4.734C2.385-4.734 1.901-4.438 1.605-3.873H1.569V-4.627H.852V1.793ZM2.753-.529C2.116-.529 1.569-.861 1.569-1.479V-3.147C1.569-3.766 2.116-4.098 2.753-4.098C3.587-4.098 4.071-3.542 4.071-2.708V-1.919C4.071-1.085 3.587-.529 2.753-.529Z'/>
+<path id='operate-attest-builder-g3-114' d='M.69 0H4.205V-.61H2.762V-2.609C2.762-3.327 3.237-3.909 4.142-3.909H5.012V-4.627H4.367C3.398-4.627 2.986-4.071 2.806-3.461H2.762V-4.627H.69V-4.017H2.044V-.61H.69V0Z'/>
+<path id='operate-attest-builder-g3-115' d='M2.744 .108C3.927 .108 4.698-.421 4.698-1.336C4.698-2.34 3.775-2.52 3.111-2.618L2.385-2.726C1.973-2.789 1.569-2.914 1.569-3.398C1.569-3.873 1.973-4.133 2.699-4.133C3.515-4.133 3.927-3.811 4.142-3.551L4.609-3.99C4.169-4.456 3.56-4.734 2.726-4.734C1.65-4.734 .861-4.277 .861-3.353C.861-2.349 1.793-2.17 2.448-2.071L3.174-1.964C3.596-1.901 3.99-1.775 3.99-1.291C3.99-.744 3.479-.493 2.762-.493C2.026-.493 1.524-.753 1.085-1.219L.601-.798C1.085-.251 1.775 .108 2.744 .108Z'/>
+<path id='operate-attest-builder-g3-116' d='M4.716 0V-.61H2.609V-4.017H4.716V-4.627H2.609V-6.259H1.919V-5.048C1.919-4.734 1.802-4.627 1.497-4.627H.35V-4.017H1.892V-1.058C1.892-.439 2.215 0 2.914 0H4.716Z'/>
+<path id='operate-attest-builder-g3-117' d='M3.784 0H4.501V-4.627H3.784V-1.417C3.784-.807 3.21-.529 2.636-.529C1.928-.529 1.542-.941 1.542-1.784V-4.627H.825V-1.659C.825-.538 1.462 .108 2.43 .108C3.192 .108 3.551-.296 3.748-.753H3.784V0Z'/>
+<path id='operate-attest-builder-g3-118' d='M3.147 0L4.806-4.627H4.098L3.434-2.69L2.717-.601H2.681L1.964-2.69L1.3-4.627H.574L2.233 0H3.147Z'/>
+<path id='operate-attest-builder-g3-121' d='M3.407-2.69L2.717-.933H2.681L1.991-2.69L1.21-4.627H.475L2.34-.09L1.82 1.184H.744V1.793H1.426C2.125 1.793 2.394 1.542 2.609 1.013L4.905-4.627H4.187L3.407-2.69Z'/>
+<use id='operate-attest-builder-g9-44' href='#operate-attest-builder-g5-44' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-77' href='#operate-attest-builder-g5-77' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-80' href='#operate-attest-builder-g5-80' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-84' href='#operate-attest-builder-g5-84' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-97' href='#operate-attest-builder-g5-97' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-98' href='#operate-attest-builder-g5-98' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-99' href='#operate-attest-builder-g5-99' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-100' href='#operate-attest-builder-g5-100' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-101' href='#operate-attest-builder-g5-101' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-102' href='#operate-attest-builder-g5-102' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-104' href='#operate-attest-builder-g5-104' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-105' href='#operate-attest-builder-g5-105' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-108' href='#operate-attest-builder-g5-108' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-109' href='#operate-attest-builder-g5-109' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-110' href='#operate-attest-builder-g5-110' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-111' href='#operate-attest-builder-g5-111' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-112' href='#operate-attest-builder-g5-112' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-114' href='#operate-attest-builder-g5-114' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-115' href='#operate-attest-builder-g5-115' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-116' href='#operate-attest-builder-g5-116' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-117' href='#operate-attest-builder-g5-117' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-118' href='#operate-attest-builder-g5-118' transform='scale(.917)'/>
+<use id='operate-attest-builder-g9-121' href='#operate-attest-builder-g5-121' transform='scale(.917)'/>
+<path id='operate-attest-builder-g5-44' d='M1.219-1.049C.843-1.049 .672-.834 .672-.52V-.395C.672-.152 .78 .027 1.022 .081C.924 .502 .708 .816 .35 1.193H.95C1.462 .753 1.766 .09 1.766-.395V-.52C1.766-.834 1.596-1.049 1.219-1.049Z'/>
+<path id='operate-attest-builder-g5-45' d='M2.959-2.34V-3.111H.619V-2.34H2.959Z'/>
+<path id='operate-attest-builder-g5-58' d='M1.309 .108C1.686 .108 1.856-.108 1.856-.412V-.529C1.856-.834 1.686-1.049 1.309-1.049S.762-.834 .762-.529V-.412C.762-.108 .933 .108 1.309 .108ZM1.309-3.578C1.686-3.578 1.856-3.793 1.856-4.098V-4.214C1.856-4.519 1.686-4.734 1.309-4.734S.762-4.519 .762-4.214V-4.098C.762-3.793 .933-3.578 1.309-3.578Z'/>
+<path id='operate-attest-builder-g5-65' d='M5.541 0L3.353-6.259H2.394L.206 0H.968L1.596-1.847H4.125L4.752 0H5.541ZM3.936-2.511H1.775L2.833-5.559H2.878L3.936-2.511Z'/>
+<path id='operate-attest-builder-g5-67' d='M3.04 .108C4.08 .108 4.842-.439 5.236-1.318L4.636-1.695C4.385-1.013 3.838-.565 3.04-.565C1.964-.565 1.327-1.345 1.327-2.627V-3.56C1.327-4.842 1.964-5.694 3.04-5.694C3.811-5.694 4.331-5.272 4.582-4.627L5.192-4.994C4.797-5.864 4.08-6.366 3.04-6.366C1.462-6.366 .52-5.183 .52-3.093S1.462 .108 3.04 .108Z'/>
+<path id='operate-attest-builder-g5-75' d='M4.555 0H5.487L2.995-3.578L5.326-6.259H4.402L2.511-4.017L1.614-2.932H1.587V-6.259H.834V0H1.587V-2.089L2.475-3.075L4.555 0Z'/>
+<path id='operate-attest-builder-g5-77' d='M.834 0H1.569V-5.272H1.614L2.143-4.223L3.64-1.497L5.138-4.223L5.667-5.272H5.712V0H6.447V-6.259H5.478L3.676-2.887H3.631L1.838-6.259H.834V0Z'/>
+<path id='operate-attest-builder-g5-80' d='M1.587 0V-2.672H3.327C4.447-2.672 5.075-3.362 5.075-4.465S4.447-6.259 3.327-6.259H.834V0H1.587ZM1.587-5.595H3.327C3.918-5.595 4.268-5.272 4.268-4.698V-4.232C4.268-3.658 3.918-3.335 3.327-3.335H1.587V-5.595Z'/>
+<path id='operate-attest-builder-g5-84' d='M4.931-5.595V-6.259H.197V-5.595H2.188V0H2.941V-5.595H4.931Z'/>
+<path id='operate-attest-builder-g5-97' d='M4.528 0V-.628H3.999V-3.174C3.999-4.151 3.335-4.734 2.224-4.734C1.39-4.734 .834-4.322 .583-3.829L1.013-3.425C1.264-3.847 1.632-4.116 2.188-4.116C2.923-4.116 3.282-3.757 3.282-3.102V-2.645H2.367C1.022-2.645 .395-2.161 .395-1.291C.395-.43 .968 .108 1.946 .108C2.591 .108 3.084-.188 3.282-.753H3.327C3.38-.323 3.596 0 4.125 0H4.528ZM2.062-.502C1.506-.502 1.148-.762 1.148-1.219V-1.408C1.148-1.856 1.515-2.107 2.331-2.107H3.282V-1.345C3.282-.87 2.771-.502 2.062-.502Z'/>
+<path id='operate-attest-builder-g5-98' d='M.762 0H1.479V-.753H1.515C1.793-.179 2.233 .108 2.869 .108C4.026 .108 4.752-.834 4.752-2.313S4.026-4.734 2.869-4.734C2.233-4.734 1.757-4.456 1.515-3.873H1.479V-6.635H.762V0ZM2.672-.538C2.017-.538 1.479-.879 1.479-1.479V-3.201C1.479-3.712 2.017-4.089 2.672-4.089C3.479-4.089 3.981-3.533 3.981-2.708V-1.919C3.981-1.094 3.479-.538 2.672-.538Z'/>
+<path id='operate-attest-builder-g5-99' d='M2.484 .108C3.362 .108 3.963-.323 4.259-.986L3.739-1.336C3.488-.807 3.066-.529 2.484-.529C1.632-.529 1.193-1.112 1.193-1.919V-2.708C1.193-3.515 1.632-4.098 2.484-4.098C3.049-4.098 3.443-3.82 3.613-3.344L4.214-3.649C3.945-4.286 3.398-4.734 2.484-4.734C1.184-4.734 .421-3.793 .421-2.313S1.184 .108 2.484 .108Z'/>
+<path id='operate-attest-builder-g5-100' d='M3.721 0H4.438V-6.635H3.721V-3.873H3.685C3.443-4.456 2.968-4.734 2.331-4.734C1.175-4.734 .448-3.793 .448-2.313S1.175 .108 2.331 .108C2.968 .108 3.407-.179 3.685-.753H3.721V0ZM2.529-.538C1.722-.538 1.219-1.094 1.219-1.919V-2.708C1.219-3.533 1.722-4.089 2.529-4.089C3.183-4.089 3.721-3.712 3.721-3.201V-1.479C3.721-.879 3.183-.538 2.529-.538Z'/>
+<path id='operate-attest-builder-g5-101' d='M2.502 .108C3.371 .108 4.035-.323 4.331-.95L3.82-1.318C3.578-.807 3.129-.52 2.546-.52C1.686-.52 1.175-1.121 1.175-1.919V-2.134H4.501V-2.475C4.501-3.784 3.739-4.734 2.502-4.734C1.246-4.734 .421-3.784 .421-2.313S1.246 .108 2.502 .108ZM2.502-4.133C3.237-4.133 3.73-3.587 3.73-2.771V-2.672H1.175V-2.735C1.175-3.542 1.722-4.133 2.502-4.133Z'/>
+<path id='operate-attest-builder-g5-102' d='M1.013 0H1.731V-3.999H2.726V-4.627H1.731V-6.007H2.726V-6.635H2.026C1.345-6.635 1.013-6.196 1.013-5.559V-4.627H.26V-3.999H1.013V0Z'/>
+<path id='operate-attest-builder-g5-104' d='M.762 0H1.479V-3.21C1.479-3.802 2.035-4.089 2.609-4.089C3.3-4.089 3.658-3.667 3.658-2.842V0H4.376V-2.968C4.376-4.089 3.775-4.734 2.824-4.734C2.134-4.734 1.739-4.394 1.515-3.873H1.479V-6.635H.762V0Z'/>
+<path id='operate-attest-builder-g5-105' d='M1.121-5.712C1.426-5.712 1.56-5.873 1.56-6.115V-6.232C1.56-6.474 1.426-6.635 1.121-6.635S.681-6.474 .681-6.232V-6.115C.681-5.873 .816-5.712 1.121-5.712ZM.762 0H1.479V-4.627H.762V0Z'/>
+<path id='operate-attest-builder-g5-107' d='M.762 0H1.479V-1.65L2.17-2.358L3.703 0H4.573L2.69-2.798L4.402-4.627H3.533L2.224-3.219L1.515-2.43H1.479V-6.635H.762V0Z'/>
+<path id='operate-attest-builder-g5-108' d='M2.161 0V-.628H1.479V-6.635H.762V-.744C.762-.314 1.031 0 1.524 0H2.161Z'/>
+<path id='operate-attest-builder-g5-109' d='M1.479 0V-3.21C1.479-3.802 2.017-4.089 2.582-4.089C3.264-4.089 3.578-3.667 3.578-2.842V0H4.295V-3.21C4.295-3.802 4.815-4.089 5.38-4.089C6.079-4.089 6.393-3.658 6.393-2.842V0H7.11V-2.968C7.11-4.089 6.545-4.734 5.604-4.734C4.815-4.734 4.367-4.295 4.196-3.793H4.178C3.927-4.456 3.371-4.734 2.762-4.734C2.044-4.734 1.722-4.349 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-builder-g5-110' d='M1.479 0V-3.21C1.479-3.802 2.035-4.089 2.609-4.089C3.3-4.089 3.658-3.667 3.658-2.842V0H4.376V-2.968C4.376-4.089 3.775-4.734 2.824-4.734C2.134-4.734 1.739-4.394 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-builder-g5-111' d='M2.511 .108C3.748 .108 4.6-.843 4.6-2.313S3.748-4.734 2.511-4.734S.421-3.784 .421-2.313S1.273 .108 2.511 .108ZM2.511-.529C1.739-.529 1.193-1.004 1.193-1.982V-2.645C1.193-3.622 1.739-4.098 2.511-4.098S3.829-3.622 3.829-2.645V-1.982C3.829-1.004 3.282-.529 2.511-.529Z'/>
+<path id='operate-attest-builder-g5-112' d='M.762 1.793H1.479V-.753H1.515C1.793-.179 2.233 .108 2.869 .108C4.026 .108 4.752-.834 4.752-2.313S4.026-4.734 2.869-4.734C2.233-4.734 1.757-4.456 1.515-3.873H1.479V-4.627H.762V1.793ZM2.672-.538C2.017-.538 1.479-.879 1.479-1.479V-3.201C1.479-3.712 2.017-4.089 2.672-4.089C3.479-4.089 3.981-3.533 3.981-2.708V-1.919C3.981-1.094 3.479-.538 2.672-.538Z'/>
+<path id='operate-attest-builder-g5-114' d='M1.479 0V-3.138C1.479-3.578 1.946-3.909 2.717-3.909H3.138V-4.627H2.86C2.107-4.627 1.686-4.214 1.524-3.775H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-attest-builder-g5-115' d='M2.152 .108C3.21 .108 3.865-.439 3.865-1.336C3.865-2.035 3.47-2.484 2.448-2.636L2.089-2.69C1.515-2.78 1.201-2.959 1.201-3.407C1.201-3.847 1.515-4.125 2.107-4.125S3.093-3.847 3.3-3.56L3.775-3.99C3.398-4.456 2.905-4.734 2.161-4.734C1.219-4.734 .511-4.286 .511-3.371C.511-2.511 1.148-2.161 1.999-2.035L2.367-1.982C2.977-1.892 3.174-1.614 3.174-1.255C3.174-.78 2.815-.502 2.206-.502C1.623-.502 1.193-.762 .834-1.21L.323-.798C.735-.251 1.3 .108 2.152 .108Z'/>
+<path id='operate-attest-builder-g5-116' d='M2.681 0V-.628H1.739V-3.999H2.753V-4.627H1.739V-5.909H1.094V-5.048C1.094-4.734 .995-4.627 .69-4.627H.26V-3.999H1.022V-.762C1.022-.314 1.291 0 1.784 0H2.681Z'/>
+<path id='operate-attest-builder-g5-117' d='M3.613 0H4.331V-4.627H3.613V-1.426C3.613-.816 3.058-.538 2.493-.538C1.802-.538 1.435-.959 1.435-1.784V-4.627H.717V-1.659C.717-.538 1.327 .108 2.277 .108C3.049 .108 3.398-.314 3.578-.753H3.613V0Z'/>
+<path id='operate-attest-builder-g5-118' d='M2.618 0L4.25-4.627H3.56L2.735-2.331L2.233-.753H2.188L1.686-2.331L.879-4.627H.161L1.784 0H2.618Z'/>
+<path id='operate-attest-builder-g5-121' d='M2.493-1.479L2.242-.726H2.197L1.982-1.479L.87-4.627H.152L1.883 .179L1.533 1.166H.807V1.793H1.175C1.856 1.793 2.044 1.632 2.251 1.076L4.322-4.627H3.613L2.493-1.479Z'/>
+<path id='operate-attest-builder-g11-66' d='M.797 0H4.235C5.236 0 5.984-.855 5.984-1.943C5.984-3.099 5.109-3.516 4.517-3.526V-3.584C5.138-3.623 5.731-4.012 5.731-5.041C5.731-6.09 5.051-6.78 3.934-6.78H.797V0ZM2.079-2.904H3.866C4.352-2.904 4.643-2.632 4.643-2.156V-1.826C4.643-1.35 4.352-1.088 3.866-1.088H2.079V-2.904ZM2.079-5.692H3.662C4.128-5.692 4.4-5.43 4.4-4.973V-4.672C4.4-4.225 4.128-3.953 3.662-3.953H2.079V-5.692Z'/>
+<path id='operate-attest-builder-g11-77' d='M.797 0H2.011V-4.866H2.05L2.574-3.788L3.963-1.224L5.352-3.788L5.877-4.866H5.916V0H7.13V-6.78H5.741L4.021-3.468H3.983L2.244-6.78H.797V0Z'/>
+<path id='operate-attest-builder-g11-79' d='M3.458 .117C5.245 .117 6.411-1.098 6.411-3.39S5.245-6.897 3.458-6.897C1.68-6.897 .505-5.682 .505-3.39S1.68 .117 3.458 .117ZM3.458-1.02C2.487-1.02 1.865-1.71 1.865-2.866V-3.915C1.865-5.07 2.487-5.76 3.458-5.76S5.051-5.07 5.051-3.915V-2.866C5.051-1.71 4.429-1.02 3.458-1.02Z'/>
+<path id='operate-attest-builder-g11-80' d='M2.079 0V-2.584H3.847C5.1-2.584 5.857-3.419 5.857-4.682C5.857-5.935 5.1-6.78 3.847-6.78H.797V0H2.079ZM2.079-5.663H3.73C4.225-5.663 4.527-5.401 4.527-4.905V-4.459C4.527-3.963 4.225-3.691 3.73-3.691H2.079V-5.663Z'/>
+<path id='operate-attest-builder-g11-84' d='M5.381-5.644V-6.78H.253V-5.644H2.176V0H3.458V-5.644H5.381Z'/>
+<path id='operate-attest-builder-g11-97' d='M1.972 .117C2.73 .117 3.283-.223 3.448-.874H3.507C3.584-.35 3.915 0 4.449 0H5.138V-.991H4.633V-3.38C4.633-4.536 3.905-5.187 2.535-5.187C1.515-5.187 .923-4.799 .554-4.216L1.292-3.555C1.535-3.905 1.865-4.196 2.448-4.196C3.108-4.196 3.39-3.866 3.39-3.303V-2.933H2.526C1.146-2.933 .359-2.419 .359-1.379C.359-.476 .942 .117 1.972 .117ZM2.39-.787C1.904-.787 1.622-.991 1.622-1.399V-1.564C1.622-1.962 1.943-2.186 2.594-2.186H3.39V-1.515C3.39-1.039 2.943-.787 2.39-.787Z'/>
+<path id='operate-attest-builder-g11-100' d='M3.866 0H5.109V-7.188H3.866V-4.235H3.817C3.643-4.818 3.089-5.187 2.419-5.187C1.146-5.187 .437-4.235 .437-2.545C.437-.845 1.146 .117 2.419 .117C3.089 .117 3.633-.272 3.817-.845H3.866V0ZM2.817-.913C2.176-.913 1.739-1.379 1.739-2.098V-2.972C1.739-3.691 2.176-4.167 2.817-4.167C3.409-4.167 3.866-3.847 3.866-3.351V-1.739C3.866-1.214 3.409-.913 2.817-.913Z'/>
+<path id='operate-attest-builder-g11-101' d='M2.768 .117C3.711 .117 4.449-.243 4.866-.816L4.196-1.564C3.885-1.166 3.516-.874 2.904-.874C2.088-.874 1.671-1.37 1.671-2.098V-2.224H5.041V-2.632C5.041-4.021 4.313-5.187 2.73-5.187C1.243-5.187 .379-4.148 .379-2.545C.379-.923 1.272 .117 2.768 .117ZM2.749-4.255C3.39-4.255 3.749-3.779 3.749-3.079V-2.992H1.671V-3.069C1.671-3.769 2.098-4.255 2.749-4.255Z'/>
+<path id='operate-attest-builder-g11-103' d='M5.294 .427C5.294-.486 4.76-1.02 3.516-1.02H2.156C1.71-1.02 1.496-1.146 1.496-1.399C1.496-1.622 1.661-1.768 1.855-1.855C2.079-1.797 2.341-1.768 2.632-1.768C4.012-1.768 4.731-2.448 4.731-3.468C4.731-4.089 4.468-4.585 3.944-4.876V-5.012H5.022V-5.964H4.235C3.769-5.964 3.516-5.721 3.516-5.226V-5.061C3.264-5.148 2.943-5.187 2.632-5.187C1.263-5.187 .534-4.497 .534-3.468C.534-2.798 .845-2.273 1.457-1.991V-1.952C.971-1.846 .525-1.583 .525-1.059C.525-.651 .758-.321 1.175-.214V-.107C.612-.019 .272 .301 .272 .865C.272 1.612 .923 2.059 2.632 2.059C4.575 2.059 5.294 1.486 5.294 .427ZM4.128 .573C4.128 1 3.769 1.204 2.963 1.204H2.341C1.564 1.204 1.272 .971 1.272 .583C1.272 .379 1.35 .194 1.535 .058H3.264C3.895 .058 4.128 .253 4.128 .573ZM2.632-2.613C2.04-2.613 1.719-2.885 1.719-3.39V-3.555C1.719-4.07 2.04-4.332 2.632-4.332S3.545-4.07 3.545-3.555V-3.39C3.545-2.885 3.225-2.613 2.632-2.613Z'/>
+<path id='operate-attest-builder-g11-105' d='M1.34-5.809C1.846-5.809 2.069-6.071 2.069-6.43V-6.625C2.069-6.984 1.846-7.246 1.34-7.246C.826-7.246 .612-6.984 .612-6.625V-6.43C.612-6.071 .826-5.809 1.34-5.809ZM.719 0H1.962V-5.07H.719V0Z'/>
+<path id='operate-attest-builder-g11-108' d='M2.632 0V-.991H1.962V-7.188H.719V-1.224C.719-.447 1.117 0 1.962 0H2.632Z'/>
+<path id='operate-attest-builder-g11-111' d='M2.73 .117C4.187 .117 5.09-.913 5.09-2.545C5.09-4.167 4.187-5.187 2.73-5.187C1.282-5.187 .379-4.167 .379-2.545C.379-.913 1.282 .117 2.73 .117ZM2.73-.884C2.088-.884 1.68-1.302 1.68-2.069V-3.011C1.68-3.769 2.088-4.187 2.73-4.187C3.38-4.187 3.788-3.769 3.788-3.011V-2.069C3.788-1.302 3.38-.884 2.73-.884Z'/>
+<path id='operate-attest-builder-g11-112' d='M.719 1.943H1.962V-.845H2.001C2.195-.272 2.73 .117 3.4 .117C4.682 .117 5.391-.845 5.391-2.545C5.391-4.235 4.682-5.187 3.4-5.187C2.73-5.187 2.186-4.818 2.001-4.235H1.962V-5.07H.719V1.943ZM3.001-.913C2.409-.913 1.962-1.214 1.962-1.739V-3.351C1.962-3.847 2.409-4.167 3.001-4.167C3.643-4.167 4.089-3.691 4.089-2.972V-2.098C4.089-1.379 3.643-.913 3.001-.913Z'/>
+<path id='operate-attest-builder-g11-114' d='M1.962 0V-3.108C1.962-3.662 2.399-3.895 3.235-3.895H3.623V-5.07H3.351C2.545-5.07 2.137-4.556 2.011-4.021H1.962V-5.07H.719V0H1.962Z'/>
+<path id='operate-attest-builder-g11-116' d='M2.302 0H3.196V-.991H2.234V-4.08H3.273V-5.07H2.234V-6.46H1.117V-5.595C1.117-5.245 1-5.07 .631-5.07H.243V-4.08H.991V-1.292C.991-.466 1.447 0 2.302 0Z'/>
+<path id='operate-attest-builder-g11-117' d='M3.749 0H4.993V-5.07H3.749V-1.719C3.749-1.175 3.254-.913 2.759-.913C2.166-.913 1.904-1.292 1.904-1.991V-5.07H.661V-1.865C.661-.602 1.243 .117 2.283 .117C3.118 .117 3.526-.34 3.701-.845H3.749V0Z'/>
+</defs>
+<g id='operate-attest-builder-page1'>
+<g stroke-miterlimit='10' transform='matrix(.996 0 0 -.996 -72 -72)' stroke-width='1.12921' class='fig-f-ink fig-s-ink'>
+<g stroke-width='0.7528' stroke-dasharray='2.25842,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M90.337-40.652V-155.078' fill='none'/>
+<path d='M255.955-40.652V-340.269' fill='none'/>
+<path d='M429.1-40.652V-368.876' fill='none'/>
+<path d='M594.718-40.652V-368.876' fill='none'/>
+<path d='M7.528-155.078H669.999' fill='none'/>
+</g>
+<g fill-opacity='0.08' stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line fig-f-line'>
+<path d='M33.876-12.045V-36.135C33.876-38.629 35.899-40.652 38.393-40.652H142.281C144.775-40.652 146.797-38.629 146.797-36.135V-12.045C146.797-9.55 144.775-7.528 142.281-7.528H38.393C35.899-7.528 33.876-9.55 33.876-12.045ZM146.797-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M199.494-12.045V-36.135C199.494-38.629 201.516-40.652 204.011-40.652H307.898C310.393-40.652 312.415-38.629 312.415-36.135V-12.045C312.415-9.55 310.393-7.528 307.898-7.528H204.011C201.516-7.528 199.494-9.55 199.494-12.045ZM312.415-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M372.64-12.045V-36.135C372.64-38.629 374.662-40.652 377.157-40.652H481.044C483.539-40.652 485.561-38.629 485.561-36.135V-12.045C485.561-9.55 483.539-7.528 481.044-7.528H377.157C374.662-7.528 372.64-9.55 372.64-12.045ZM485.561-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M538.257-12.045V-36.135C538.257-38.629 540.28-40.652 542.774-40.652H646.662C649.156-40.652 651.179-38.629 651.179-36.135V-12.045C651.179-9.55 649.156-7.528 646.662-7.528H542.774C540.28-7.528 538.257-9.55 538.257-12.045ZM651.179-40.652'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M165.618-344.786V-362.853C165.618-365.348 167.64-367.37 170.135-367.37H341.775C344.269-367.37 346.292-365.348 346.292-362.853V-344.786C346.292-342.291 344.269-340.269 341.775-340.269H170.135C167.64-340.269 165.618-342.291 165.618-344.786ZM346.292-367.37'/>
+</g>
+<g class='fig-s-line'>
+<path d='M90.337-78.292H585.59' fill='none'/>
+<g transform='translate(585.308 -78.292)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M594.718-93.348H99.465' fill='none'/>
+<g transform='matrix(-1 0 0 -1 99.747 -93.348)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M90.337-129.483H246.827' fill='none'/>
+<g transform='translate(246.544 -129.483)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M255.955-183.685H419.973' fill='none'/>
+<g transform='translate(419.69 -183.685)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M429.1-212.292H585.59' fill='none'/>
+<g transform='translate(585.308 -212.292)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M429.1-249.932H585.59' fill='none'/>
+<g transform='translate(585.308 -249.932)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M594.718-261.977H438.228' fill='none'/>
+<g transform='matrix(-1 0 0 -1 438.51 -261.977)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M429.1-292.089H585.59' fill='none'/>
+<g transform='translate(585.308 -292.089)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M594.718-304.134H438.228' fill='none'/>
+<g transform='matrix(-1 0 0 -1 438.51 -304.134)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M429.1-328.224H265.082' fill='none'/>
+<g transform='matrix(-1 0 0 -1 265.365 -328.224)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 146.107 -94.854)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g11-66'/>
+<use x='-65.536' y='-72' href='#operate-attest-builder-g11-117'/>
+<use x='-59.803' y='-72' href='#operate-attest-builder-g11-105'/>
+<use x='-57.112' y='-72' href='#operate-attest-builder-g11-108'/>
+<use x='-54.245' y='-72' href='#operate-attest-builder-g11-100'/>
+<use x='-48.395' y='-72' href='#operate-attest-builder-g11-101'/>
+<use x='-42.955' y='-72' href='#operate-attest-builder-g11-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 116.495 -106.899)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-67.38' y='-72' href='#operate-attest-builder-g9-121'/>
+<use x='-63.263' y='-72' href='#operate-attest-builder-g9-112'/>
+<use x='-58.478' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-53.949' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-50.839' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-46.78' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-44.717' y='-72' href='#operate-attest-builder-g9-115'/>
+<use x='-40.7' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-36.08' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-31.105' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-26.485' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-21.51' y='-72' href='#operate-attest-builder-g9-112'/>
+<use x='-16.725' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-13.739' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-9.185' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-5.126' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-3.063' y='-72' href='#operate-attest-builder-g9-115'/>
+<use x='.955' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='3.017' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='7.637' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='12.323' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='16.852' y='-72' href='#operate-attest-builder-g9-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 308.001 -94.854)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g11-79'/>
+<use x='-65.058' y='-72' href='#operate-attest-builder-g11-112'/>
+<use x='-59.208' y='-72' href='#operate-attest-builder-g11-101'/>
+<use x='-53.768' y='-72' href='#operate-attest-builder-g11-114'/>
+<use x='-50.043' y='-72' href='#operate-attest-builder-g11-97'/>
+<use x='-44.632' y='-72' href='#operate-attest-builder-g11-116'/>
+<use x='-41.024' y='-72' href='#operate-attest-builder-g11-111'/>
+<use x='-35.535' y='-72' href='#operate-attest-builder-g11-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 295.097 -106.899)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-69.938' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-65.318' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-61.325' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-56.795' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-52.109' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-49.247' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-44.627' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-41.516' y='-72' href='#operate-attest-builder-g9-121'/>
+<use x='-37.853' y='-72' href='#operate-attest-builder-g9-44'/>
+<use x='-33.662' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-28.976' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-22.409' y='-72' href='#operate-attest-builder-g9-84'/>
+<use x='-17.69' y='-72' href='#operate-attest-builder-g9-80'/>
+<use x='-12.691' y='-72' href='#operate-attest-builder-g9-77'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 657.02 -94.854)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g11-84'/>
+<use x='-66.345' y='-72' href='#operate-attest-builder-g11-80'/>
+<use x='-60.095' y='-72' href='#operate-attest-builder-g11-77'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 634.204 -106.899)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-112'/>
+<use x='-67.215' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-62.595' y='-72' href='#operate-attest-builder-g9-121'/>
+<use x='-58.511' y='-72' href='#operate-attest-builder-g9-115'/>
+<use x='-54.494' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-52.431' y='-72' href='#operate-attest-builder-g9-99'/>
+<use x='-48.281' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-43.876' y='-72' href='#operate-attest-builder-g9-108'/>
+<use x='-39.685' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-35.065' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-30.09' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-26.031' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-23.969' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-20.908' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-18.012' y='-72' href='#operate-attest-builder-g9-117'/>
+<use x='-13.326' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-8.921' y='-72' href='#operate-attest-builder-g9-108'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 487.102 -94.854)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g11-84'/>
+<use x='-67.028' y='-72' href='#operate-attest-builder-g11-97'/>
+<use x='-61.577' y='-72' href='#operate-attest-builder-g11-114'/>
+<use x='-57.911' y='-72' href='#operate-attest-builder-g11-103'/>
+<use x='-52.656' y='-72' href='#operate-attest-builder-g11-101'/>
+<use x='-47.216' y='-72' href='#operate-attest-builder-g11-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 466.59 -106.899)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g7-115'/>
+<use x='-67.05' y='-72' href='#operate-attest-builder-g7-104'/>
+<use x='-62.1' y='-72' href='#operate-attest-builder-g7-105'/>
+<use x='-57.15' y='-72' href='#operate-attest-builder-g7-114'/>
+<use x='-52.2' y='-72' href='#operate-attest-builder-g7-117'/>
+<use x='-47.25' y='-72' href='#operate-attest-builder-g7-100'/>
+<use x='-42.3' y='-72' href='#operate-attest-builder-g7-111'/>
+<use x='-32.4' y='-72' href='#operate-attest-builder-g7-97'/>
+<use x='-27.45' y='-72' href='#operate-attest-builder-g7-116'/>
+<use x='-22.5' y='-72' href='#operate-attest-builder-g7-116'/>
+<use x='-17.55' y='-72' href='#operate-attest-builder-g7-101'/>
+<use x='-12.6' y='-72' href='#operate-attest-builder-g7-115'/>
+<use x='-7.65' y='-72' href='#operate-attest-builder-g7-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 300.972 -144.54)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g3-67'/>
+<use x='-66.6' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-61.2' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-55.8' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='-50.4' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='-45' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-39.6' y='-72' href='#operate-attest-builder-g3-80'/>
+<use x='-34.2' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-28.8' y='-72' href='#operate-attest-builder-g3-105'/>
+<use x='-23.4' y='-72' href='#operate-attest-builder-g3-109'/>
+<use x='-18' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='-12.6' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-7.2' y='-72' href='#operate-attest-builder-g3-121'/>
+<use x='-1.8' y='-72' href='#operate-attest-builder-g3-58'/>
+<use x='9' y='-72' href='#operate-attest-builder-g3-65'/>
+<use x='14.4' y='-72' href='#operate-attest-builder-g3-75'/>
+<use x='19.8' y='-72' href='#operate-attest-builder-g3-44'/>
+<use x='30.6' y='-72' href='#operate-attest-builder-g3-69'/>
+<use x='36' y='-72' href='#operate-attest-builder-g3-75'/>
+<use x='46.8' y='-72' href='#operate-attest-builder-g3-40'/>
+<use x='52.2' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='57.6' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='63' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='68.4' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='73.8' y='-72' href='#operate-attest-builder-g3-115'/>
+<use x='79.2' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='84.6' y='-72' href='#operate-attest-builder-g1-39'/>
+<use x='90' y='-72' href='#operate-attest-builder-g3-115'/>
+<use x='100.8' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='106.2' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='111.6' y='-72' href='#operate-attest-builder-g3-109'/>
+<use x='117' y='-72' href='#operate-attest-builder-g3-112'/>
+<use x='122.4' y='-72' href='#operate-attest-builder-g3-108'/>
+<use x='127.8' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='133.2' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='138.6' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='144' y='-72' href='#operate-attest-builder-g3-115'/>
+<use x='149.4' y='-72' href='#operate-attest-builder-g3-41'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 392.721 -177.663)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-69.104' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-64.418' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-59.889' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-57.827' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-52.852' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-48.166' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-43.76' y='-72' href='#operate-attest-builder-g9-109'/>
+<use x='-36.558' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-32.029' y='-72' href='#operate-attest-builder-g9-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 207.56 -195.73)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g5-97'/>
+<use x='-67.194' y='-72' href='#operate-attest-builder-g5-107'/>
+<use x='-62.856' y='-72' href='#operate-attest-builder-g5-45'/>
+<use x='-59.265' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='-54.153' y='-72' href='#operate-attest-builder-g5-97'/>
+<use x='-49.347' y='-72' href='#operate-attest-builder-g5-109'/>
+<use x='-41.49' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-36.729' y='-72' href='#operate-attest-builder-g5-44'/>
+<use x='-32.157' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-27.216' y='-72' href='#operate-attest-builder-g5-107'/>
+<use x='-22.878' y='-72' href='#operate-attest-builder-g5-45'/>
+<use x='-19.287' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='-14.175' y='-72' href='#operate-attest-builder-g5-97'/>
+<use x='-9.369' y='-72' href='#operate-attest-builder-g5-109'/>
+<use x='-1.512' y='-72' href='#operate-attest-builder-g5-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 212.876 -215.303)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-69.938' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-65.252' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-62.389' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-55.822' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-52.926' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-48.24' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-41.764' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-39.701' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-35.081' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-31.088' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-26.559' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-21.873' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-19.01' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-14.39' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-11.28' y='-72' href='#operate-attest-builder-g9-121'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 402.412 -249.933)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='-66.888' y='-72' href='#operate-attest-builder-g5-111'/>
+<use x='-61.848' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='-56.736' y='-72' href='#operate-attest-builder-g5-99'/>
+<use x='-52.263' y='-72' href='#operate-attest-builder-g5-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 546.865 -278.539)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g5-67'/>
+<use x='-66.411' y='-72' href='#operate-attest-builder-g5-114'/>
+<use x='-63.153' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-58.212' y='-72' href='#operate-attest-builder-g5-97'/>
+<use x='-53.406' y='-72' href='#operate-attest-builder-g5-116'/>
+<use x='-50.283' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-45.342' y='-72' href='#operate-attest-builder-g5-80'/>
+<use x='-39.978' y='-72' href='#operate-attest-builder-g5-114'/>
+<use x='-36.675' y='-72' href='#operate-attest-builder-g5-105'/>
+<use x='-34.425' y='-72' href='#operate-attest-builder-g5-109'/>
+<use x='-26.568' y='-72' href='#operate-attest-builder-g5-97'/>
+<use x='-21.762' y='-72' href='#operate-attest-builder-g5-114'/>
+<use x='-18.369' y='-72' href='#operate-attest-builder-g5-121'/>
+<use x='-13.878' y='-72' href='#operate-attest-builder-g5-58'/>
+<use x='-9.126' y='-72' href='#operate-attest-builder-g5-65'/>
+<use x='-3.357' y='-72' href='#operate-attest-builder-g5-75'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 527.836 -296.607)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-69.104' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-64.418' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-57.942' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-53.256' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-48.851' y='-72' href='#operate-attest-builder-g9-109'/>
+<use x='-41.648' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-35.172' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-32.276' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-27.59' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-21.114' y='-72' href='#operate-attest-builder-g9-98'/>
+<use x='-16.329' y='-72' href='#operate-attest-builder-g9-117'/>
+<use x='-11.643' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-9.581' y='-72' href='#operate-attest-builder-g9-108'/>
+<use x='-7.337' y='-72' href='#operate-attest-builder-g9-100'/>
+<use x='-2.552' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='1.978' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='6.952' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='9.939' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='14.468' y='-72' href='#operate-attest-builder-g9-99'/>
+<use x='18.568' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='23.188' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='26.167' y='-72' href='#operate-attest-builder-g9-100'/>
+<use x='30.952' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='35.481' y='-72' href='#operate-attest-builder-g9-100'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 535.397 -316.18)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g3-81'/>
+<use x='-66.6' y='-72' href='#operate-attest-builder-g3-117'/>
+<use x='-61.2' y='-72' href='#operate-attest-builder-g3-111'/>
+<use x='-55.8' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='-50.4' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-45' y='-72' href='#operate-attest-builder-g3-40'/>
+<use x='-39.6' y='-72' href='#operate-attest-builder-g3-80'/>
+<use x='-34.2' y='-72' href='#operate-attest-builder-g3-67'/>
+<use x='-28.8' y='-72' href='#operate-attest-builder-g3-82'/>
+<use x='-23.4' y='-72' href='#operate-attest-builder-g3-115'/>
+<use x='-18' y='-72' href='#operate-attest-builder-g3-59'/>
+<use x='-7.2' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='-1.8' y='-72' href='#operate-attest-builder-g3-111'/>
+<use x='3.6' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='9' y='-72' href='#operate-attest-builder-g3-99'/>
+<use x='14.4' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='19.8' y='-72' href='#operate-attest-builder-g3-41'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 511.006 -358.337)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g3-78'/>
+<use x='-66.6' y='-72' href='#operate-attest-builder-g3-86'/>
+<use x='-61.2' y='-72' href='#operate-attest-builder-g3-95'/>
+<use x='-55.8' y='-72' href='#operate-attest-builder-g3-67'/>
+<use x='-50.4' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-45' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-39.6' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='-34.2' y='-72' href='#operate-attest-builder-g3-105'/>
+<use x='-28.8' y='-72' href='#operate-attest-builder-g3-102'/>
+<use x='-23.4' y='-72' href='#operate-attest-builder-g3-121'/>
+<use x='-18' y='-72' href='#operate-attest-builder-g3-40'/>
+<use x='-12.6' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-7.2' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-1.8' y='-72' href='#operate-attest-builder-g3-103'/>
+<use x='3.6' y='-72' href='#operate-attest-builder-g3-105'/>
+<use x='9' y='-72' href='#operate-attest-builder-g3-115'/>
+<use x='14.4' y='-72' href='#operate-attest-builder-g3-116'/>
+<use x='19.8' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='25.2' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='30.6' y='-72' href='#operate-attest-builder-g3-59'/>
+<use x='41.4' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='46.8' y='-72' href='#operate-attest-builder-g3-111'/>
+<use x='52.2' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='57.6' y='-72' href='#operate-attest-builder-g3-99'/>
+<use x='63' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='68.4' y='-72' href='#operate-attest-builder-g3-41'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 374.986 -394.472)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-67.131' y='-72' href='#operate-attest-builder-g5-118'/>
+<use x='-62.703' y='-72' href='#operate-attest-builder-g5-105'/>
+<use x='-60.453' y='-72' href='#operate-attest-builder-g5-100'/>
+<use x='-55.233' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-50.292' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='-45.18' y='-72' href='#operate-attest-builder-g5-99'/>
+<use x='-40.707' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-33.642' y='-72' href='#operate-attest-builder-g5-100'/>
+<use x='-28.422' y='-72' href='#operate-attest-builder-g5-111'/>
+<use x='-23.382' y='-72' href='#operate-attest-builder-g5-99'/>
+<use x='-18.855' y='-72' href='#operate-attest-builder-g5-117'/>
+<use x='-13.743' y='-72' href='#operate-attest-builder-g5-109'/>
+<use x='-5.886' y='-72' href='#operate-attest-builder-g5-101'/>
+<use x='-.945' y='-72' href='#operate-attest-builder-g5-110'/>
+<use x='4.167' y='-72' href='#operate-attest-builder-g5-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 257.761 -429.854)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g3-118'/>
+<use x='-66.6' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='-61.2' y='-72' href='#operate-attest-builder-g3-114'/>
+<use x='-55.8' y='-72' href='#operate-attest-builder-g3-105'/>
+<use x='-50.4' y='-72' href='#operate-attest-builder-g3-102'/>
+<use x='-45' y='-72' href='#operate-attest-builder-g3-121'/>
+<use x='-34.2' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='-28.8' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='-23.4' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='-18' y='-72' href='#operate-attest-builder-g3-107'/>
+<use x='-12.6' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='-7.2' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='-1.8' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='3.6' y='-72' href='#operate-attest-builder-g3-109'/>
+<use x='9' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='19.8' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='25.2' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='30.6' y='-72' href='#operate-attest-builder-g3-101'/>
+<use x='36' y='-72' href='#operate-attest-builder-g3-107'/>
+<use x='41.4' y='-72' href='#operate-attest-builder-g3-45'/>
+<use x='46.8' y='-72' href='#operate-attest-builder-g3-110'/>
+<use x='52.2' y='-72' href='#operate-attest-builder-g3-97'/>
+<use x='57.6' y='-72' href='#operate-attest-builder-g3-109'/>
+<use x='63' y='-72' href='#operate-attest-builder-g3-101'/>
+</g>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 168.629 -129.483)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-98'/>
+<use x='-67.215' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-62.686' y='-72' href='#operate-attest-builder-g9-102'/>
+<use x='-60.046' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-55.426' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-52.439' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-45.963' y='-72' href='#operate-attest-builder-g9-104'/>
+<use x='-41.277' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-36.872' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='-32.186' y='-72' href='#operate-attest-builder-g9-100'/>
+<use x='-27.401' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-22.847' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-18.854' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-14.324' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-11.957' y='-72' href='#operate-attest-builder-g9-44'/>
+<use x='-7.766' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-3.146' y='-72' href='#operate-attest-builder-g9-110'/>
+<use x='1.54' y='-72' href='#operate-attest-builder-g9-99'/>
+<use x='5.641' y='-72' href='#operate-attest-builder-g9-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 168.629 -242.405)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-67.537' y='-72' href='#operate-attest-builder-g9-118'/>
+<use x='-63.544' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-59.015' y='-72' href='#operate-attest-builder-g9-114'/>
+<use x='-55.904' y='-72' href='#operate-attest-builder-g9-121'/>
+<use x='-49.841' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-45.435' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-42.614' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-39.751' y='-72' href='#operate-attest-builder-g9-101'/>
+<use x='-35.222' y='-72' href='#operate-attest-builder-g9-115'/>
+<use x='-31.262' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-28.366' y='-72' href='#operate-attest-builder-g9-97'/>
+<use x='-23.96' y='-72' href='#operate-attest-builder-g9-116'/>
+<use x='-21.065' y='-72' href='#operate-attest-builder-g9-105'/>
+<use x='-19.002' y='-72' href='#operate-attest-builder-g9-111'/>
+<use x='-14.382' y='-72' href='#operate-attest-builder-g9-110'/>
+</g>
+</g>
+</g>
+</g>
 </svg>

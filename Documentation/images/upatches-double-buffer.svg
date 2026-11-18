@@ -1,41 +1,277 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" width="760" height="250" font-family="sans-serif" role="img" aria-labelledby="t">
-  <title id="t">A double-buffered arena table: kernel hooks write into the active buffer; an export swaps the buffers, a serializer renders the drained buffer page by page into the shirudo_ser output map that shirudo upatch map reads, and the drained buffer is cleared after the last page</title>
-  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
-  <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
-    </marker>
-  </defs>
-  <g fill="#8a93a0" fill-opacity="0.06" stroke="#8a93a0" stroke-width="1.5">
-    <rect x="20" y="40" width="130" height="50" rx="4"/>
-    <rect x="200" y="40" width="160" height="50" rx="4"/>
-    <rect x="200" y="160" width="160" height="50" rx="4"/>
-    <rect x="410" y="160" width="130" height="50" rx="4"/>
-    <rect x="590" y="160" width="150" height="50" rx="4"/>
-  </g>
-  <g fill="none" stroke="#8a93a0" stroke-width="1.5" stroke-dasharray="5 4">
-    <rect x="185" y="20" width="190" height="210" rx="6"/>
-  </g>
-  <g fill="none" stroke="#8a93a0" stroke-width="1.5" marker-end="url(#a)">
-    <line x1="150" y1="65" x2="196" y2="65"/>
-    <line x1="360" y1="185" x2="406" y2="185"/>
-    <line x1="540" y1="185" x2="586" y2="185"/>
-    <path d="M330,94 C350,120 350,130 330,156"/>
-    <path d="M230,156 C210,130 210,120 230,94"/>
-  </g>
-  <g fill="#5d6675" font-size="13" text-anchor="middle">
-    <text x="85" y="62">kernel hooks</text>
-    <text x="85" y="78">append records</text>
-    <text x="280" y="62">active buffer</text>
-    <text x="280" y="78">this interval</text>
-    <text x="280" y="182">drain buffer</text>
-    <text x="280" y="198">previous interval</text>
-    <text x="475" y="182">serializer</text>
-    <text x="475" y="198">one page per run</text>
-    <text x="665" y="182">shirudo_ser chunks</text>
-    <text x="665" y="198">read by upatch map</text>
-    <text x="388" y="130" text-anchor="start">swap at the start</text>
-    <text x="388" y="146" text-anchor="start">of an export</text>
-    <text x="280" y="246">one BPF arena</text>
-  </g>
+<svg xmlns='http://www.w3.org/2000/svg' width='760.0' height='250.0' viewBox='-72 -72 569.996 187.499' class='fig fig-f-ink' role='img'><!-- Documentation/figures/upatches-double-buffer.tex, sha256 62b7c737e413ef7293fbf25bb1a8175209c52858d2a752459e0909b94321add3 --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<defs>
+<path id='upatches-double-buffer-g1-66' d='M.903 0H3.983C4.983 0 5.731-.845 5.731-1.962C5.731-3.089 4.886-3.507 4.4-3.536V-3.594C4.847-3.662 5.498-4.021 5.498-5.032C5.498-6.09 4.808-6.78 3.691-6.78H.903V0ZM1.719-3.147H3.73C4.429-3.147 4.857-2.778 4.857-2.098V-1.768C4.857-1.088 4.429-.719 3.73-.719H1.719V-3.147ZM1.719-6.061H3.594C4.235-6.061 4.624-5.721 4.624-5.119V-4.789C4.624-4.187 4.235-3.847 3.594-3.847H1.719V-6.061Z'/>
+<path id='upatches-double-buffer-g1-70' d='M1.719 0V-3.069H4.663V-3.788H1.719V-6.061H4.944V-6.78H.903V0H1.719Z'/>
+<path id='upatches-double-buffer-g1-80' d='M1.719 0V-2.895H3.604C4.818-2.895 5.498-3.643 5.498-4.837S4.818-6.78 3.604-6.78H.903V0H1.719ZM1.719-6.061H3.604C4.245-6.061 4.624-5.712 4.624-5.09V-4.585C4.624-3.963 4.245-3.613 3.604-3.613H1.719V-6.061Z'/>
+<path id='upatches-double-buffer-g1-95' d='M5.197 1.603V.923H.291V1.603H5.197Z'/>
+<path id='upatches-double-buffer-g1-97' d='M4.905 0V-.68H4.332V-3.439C4.332-4.497 3.613-5.129 2.409-5.129C1.506-5.129 .903-4.682 .631-4.148L1.098-3.711C1.37-4.167 1.768-4.459 2.37-4.459C3.167-4.459 3.555-4.07 3.555-3.361V-2.866H2.564C1.107-2.866 .427-2.341 .427-1.399C.427-.466 1.049 .117 2.108 .117C2.807 .117 3.341-.204 3.555-.816H3.604C3.662-.35 3.895 0 4.468 0H4.905ZM2.234-.544C1.632-.544 1.243-.826 1.243-1.321V-1.525C1.243-2.011 1.642-2.283 2.526-2.283H3.555V-1.457C3.555-.942 3.001-.544 2.234-.544Z'/>
+<path id='upatches-double-buffer-g1-98' d='M.826 0H1.603V-.816H1.642C1.943-.194 2.419 .117 3.108 .117C4.361 .117 5.148-.903 5.148-2.506S4.361-5.129 3.108-5.129C2.419-5.129 1.904-4.828 1.642-4.196H1.603V-7.188H.826V0ZM2.895-.583C2.186-.583 1.603-.952 1.603-1.603V-3.468C1.603-4.021 2.186-4.429 2.895-4.429C3.769-4.429 4.313-3.827 4.313-2.933V-2.079C4.313-1.185 3.769-.583 2.895-.583Z'/>
+<path id='upatches-double-buffer-g1-99' d='M2.691 .117C3.643 .117 4.293-.35 4.614-1.068L4.051-1.447C3.779-.874 3.322-.573 2.691-.573C1.768-.573 1.292-1.204 1.292-2.079V-2.933C1.292-3.808 1.768-4.439 2.691-4.439C3.303-4.439 3.73-4.138 3.915-3.623L4.565-3.953C4.274-4.643 3.681-5.129 2.691-5.129C1.282-5.129 .457-4.109 .457-2.506S1.282 .117 2.691 .117Z'/>
+<path id='upatches-double-buffer-g1-100' d='M4.031 0H4.808V-7.188H4.031V-4.196H3.992C3.73-4.828 3.215-5.129 2.526-5.129C1.272-5.129 .486-4.109 .486-2.506S1.272 .117 2.526 .117C3.215 .117 3.691-.194 3.992-.816H4.031V0ZM2.739-.583C1.865-.583 1.321-1.185 1.321-2.079V-2.933C1.321-3.827 1.865-4.429 2.739-4.429C3.448-4.429 4.031-4.021 4.031-3.468V-1.603C4.031-.952 3.448-.583 2.739-.583Z'/>
+<path id='upatches-double-buffer-g1-101' d='M2.71 .117C3.652 .117 4.371-.35 4.692-1.03L4.138-1.428C3.876-.874 3.39-.563 2.759-.563C1.826-.563 1.272-1.214 1.272-2.079V-2.312H4.876V-2.681C4.876-4.099 4.051-5.129 2.71-5.129C1.35-5.129 .457-4.099 .457-2.506S1.35 .117 2.71 .117ZM2.71-4.478C3.507-4.478 4.041-3.885 4.041-3.001V-2.895H1.272V-2.963C1.272-3.837 1.865-4.478 2.71-4.478Z'/>
+<path id='upatches-double-buffer-g1-102' d='M1.098 0H1.875V-4.332H2.953V-5.012H1.875V-6.508H2.953V-7.188H2.195C1.457-7.188 1.098-6.712 1.098-6.022V-5.012H.282V-4.332H1.098V0Z'/>
+<path id='upatches-double-buffer-g1-103' d='M5.051 .554C5.051-.272 4.517-.777 3.273-.777H2.205C1.748-.777 1.438-.855 1.438-1.156C1.438-1.467 1.768-1.632 2.098-1.719C2.244-1.69 2.419-1.671 2.584-1.671C3.73-1.671 4.478-2.38 4.478-3.4C4.478-3.934 4.264-4.381 3.905-4.692V-5.012H4.857V-5.692H4.109C3.691-5.692 3.526-5.41 3.526-5.022V-4.934C3.254-5.061 2.933-5.129 2.574-5.129C1.438-5.129 .69-4.42 .69-3.4C.69-2.7 1.039-2.147 1.632-1.865V-1.826C1.127-1.7 .767-1.457 .767-.952C.767-.612 .933-.389 1.214-.253V-.146C.719-.01 .418 .282 .418 .826C.418 1.612 1.059 2.059 2.623 2.059C4.235 2.059 5.051 1.583 5.051 .554ZM4.323 .612C4.323 1.156 3.817 1.428 2.953 1.428H2.234C1.447 1.428 1.146 1.068 1.146 .631C1.146 .321 1.292 .097 1.612-.049H3.283C4.06-.049 4.323 .214 4.323 .612ZM2.584-2.292C1.923-2.292 1.506-2.603 1.506-3.264V-3.536C1.506-4.196 1.923-4.507 2.584-4.507S3.662-4.196 3.662-3.536V-3.264C3.662-2.603 3.244-2.292 2.584-2.292Z'/>
+<path id='upatches-double-buffer-g1-104' d='M.826 0H1.603V-3.477C1.603-4.119 2.205-4.429 2.827-4.429C3.575-4.429 3.963-3.973 3.963-3.079V0H4.74V-3.215C4.74-4.429 4.089-5.129 3.06-5.129C2.312-5.129 1.884-4.76 1.642-4.196H1.603V-7.188H.826V0Z'/>
+<path id='upatches-double-buffer-g1-105' d='M1.214-6.188C1.544-6.188 1.69-6.362 1.69-6.625V-6.751C1.69-7.013 1.544-7.188 1.214-7.188S.738-7.013 .738-6.751V-6.625C.738-6.362 .884-6.188 1.214-6.188ZM.826 0H1.603V-5.012H.826V0Z'/>
+<path id='upatches-double-buffer-g1-107' d='M.826 0H1.603V-1.787L2.351-2.555L4.012 0H4.954L2.914-3.031L4.769-5.012H3.827L2.409-3.487L1.642-2.632H1.603V-7.188H.826V0Z'/>
+<path id='upatches-double-buffer-g1-108' d='M2.341 0V-.68H1.603V-7.188H.826V-.806C.826-.34 1.117 0 1.651 0H2.341Z'/>
+<path id='upatches-double-buffer-g1-109' d='M1.603 0V-3.477C1.603-4.119 2.186-4.429 2.798-4.429C3.536-4.429 3.876-3.973 3.876-3.079V0H4.653V-3.477C4.653-4.119 5.216-4.429 5.828-4.429C6.586-4.429 6.926-3.963 6.926-3.079V0H7.703V-3.215C7.703-4.429 7.091-5.129 6.071-5.129C5.216-5.129 4.731-4.653 4.546-4.109H4.527C4.255-4.828 3.652-5.129 2.992-5.129C2.215-5.129 1.865-4.711 1.642-4.196H1.603V-5.012H.826V0H1.603Z'/>
+<path id='upatches-double-buffer-g1-110' d='M1.603 0V-3.477C1.603-4.119 2.205-4.429 2.827-4.429C3.575-4.429 3.963-3.973 3.963-3.079V0H4.74V-3.215C4.74-4.429 4.089-5.129 3.06-5.129C2.312-5.129 1.884-4.76 1.642-4.196H1.603V-5.012H.826V0H1.603Z'/>
+<path id='upatches-double-buffer-g1-111' d='M2.72 .117C4.06 .117 4.983-.913 4.983-2.506S4.06-5.129 2.72-5.129S.457-4.099 .457-2.506S1.379 .117 2.72 .117ZM2.72-.573C1.884-.573 1.292-1.088 1.292-2.147V-2.866C1.292-3.924 1.884-4.439 2.72-4.439S4.148-3.924 4.148-2.866V-2.147C4.148-1.088 3.555-.573 2.72-.573Z'/>
+<path id='upatches-double-buffer-g1-112' d='M.826 1.943H1.603V-.816H1.642C1.943-.194 2.419 .117 3.108 .117C4.361 .117 5.148-.903 5.148-2.506S4.361-5.129 3.108-5.129C2.419-5.129 1.904-4.828 1.642-4.196H1.603V-5.012H.826V1.943ZM2.895-.583C2.186-.583 1.603-.952 1.603-1.603V-3.468C1.603-4.021 2.186-4.429 2.895-4.429C3.769-4.429 4.313-3.827 4.313-2.933V-2.079C4.313-1.185 3.769-.583 2.895-.583Z'/>
+<path id='upatches-double-buffer-g1-114' d='M1.603 0V-3.4C1.603-3.876 2.108-4.235 2.943-4.235H3.4V-5.012H3.099C2.283-5.012 1.826-4.565 1.651-4.089H1.603V-5.012H.826V0H1.603Z'/>
+<path id='upatches-double-buffer-g1-115' d='M2.331 .117C3.477 .117 4.187-.476 4.187-1.447C4.187-2.205 3.759-2.691 2.652-2.856L2.263-2.914C1.642-3.011 1.302-3.205 1.302-3.691C1.302-4.167 1.642-4.468 2.283-4.468S3.351-4.167 3.575-3.856L4.089-4.323C3.681-4.828 3.147-5.129 2.341-5.129C1.321-5.129 .554-4.643 .554-3.652C.554-2.72 1.243-2.341 2.166-2.205L2.564-2.147C3.225-2.05 3.439-1.748 3.439-1.36C3.439-.845 3.05-.544 2.39-.544C1.758-.544 1.292-.826 .903-1.311L.35-.865C.797-.272 1.408 .117 2.331 .117Z'/>
+<path id='upatches-double-buffer-g1-116' d='M2.904 0V-.68H1.884V-4.332H2.982V-5.012H1.884V-6.401H1.185V-5.469C1.185-5.129 1.078-5.012 .748-5.012H.282V-4.332H1.107V-.826C1.107-.34 1.399 0 1.933 0H2.904Z'/>
+<path id='upatches-double-buffer-g1-117' d='M3.915 0H4.692V-5.012H3.915V-1.544C3.915-.884 3.312-.583 2.7-.583C1.952-.583 1.554-1.039 1.554-1.933V-5.012H.777V-1.797C.777-.583 1.438 .117 2.467 .117C3.303 .117 3.681-.34 3.876-.816H3.915V0Z'/>
+<path id='upatches-double-buffer-g1-118' d='M2.836 0L4.604-5.012H3.856L2.963-2.526L2.419-.816H2.37L1.826-2.526L.952-5.012H.175L1.933 0H2.836Z'/>
+<path id='upatches-double-buffer-g1-119' d='M1.642 0H2.584L3.283-2.409L3.711-3.934H3.73L4.167-2.409L4.866 0H5.828L7.159-5.012H6.43L5.886-2.846L5.372-.651H5.352L4.731-2.846L4.08-5.012H3.39L2.759-2.846L2.147-.651H2.127L1.593-2.846L1.059-5.012H.301L1.642 0Z'/>
+<path id='upatches-double-buffer-g1-120' d='M.204 0H1.068L2.477-1.962H2.506L3.808 0H4.721L2.914-2.584L4.682-5.012H3.817L2.496-3.147H2.467L1.195-5.012H.282L2.059-2.526L.204 0Z'/>
+<path id='upatches-double-buffer-g1-121' d='M2.7-1.603L2.428-.787H2.38L2.147-1.603L.942-5.012H.165L2.04 .194L1.661 1.263H.874V1.943H1.272C2.011 1.943 2.215 1.768 2.438 1.166L4.682-5.012H3.915L2.7-1.603Z'/>
+<path id='upatches-double-buffer-g1-122' d='M4.187 0V-.68H1.204L4.109-4.429V-5.012H.408V-4.332H3.167L.321-.651V0H4.187Z'/>
+</defs>
+<g id='upatches-double-buffer-page1'>
+<g stroke-miterlimit='10' transform='matrix(.996 0 0 -.996 -72 -72)' stroke-width='1.12921' class='fig-f-ink fig-s-ink'>
+<g fill-opacity='0.06' class='fig-s-line fig-f-line'>
+<path d='M15.056-33.124V-64.741C15.056-66.405 16.404-67.753 18.067-67.753H109.91C111.573-67.753 112.921-66.405 112.921-64.741V-33.124C112.921-31.46 111.573-30.112 109.91-30.112H18.067C16.404-30.112 15.056-31.46 15.056-33.124ZM112.921-67.753'/>
+</g>
+<g fill-opacity='0.06' class='fig-s-line fig-f-line'>
+<path d='M150.562-33.124V-64.741C150.562-66.405 151.91-67.753 153.573-67.753H268C269.663-67.753 271.011-66.405 271.011-64.741V-33.124C271.011-31.46 269.663-30.112 268-30.112H153.573C151.91-30.112 150.562-31.46 150.562-33.124ZM271.011-67.753'/>
+</g>
+<g fill-opacity='0.06' class='fig-s-line fig-f-line'>
+<path d='M150.562-123.46V-155.078C150.562-156.741 151.91-158.09 153.573-158.09H268C269.663-158.09 271.011-156.741 271.011-155.078V-123.46C271.011-121.797 269.663-120.449 268-120.449H153.573C151.91-120.449 150.562-121.797 150.562-123.46ZM271.011-158.09'/>
+</g>
+<g fill-opacity='0.06' class='fig-s-line fig-f-line'>
+<path d='M308.651-123.46V-155.078C308.651-156.741 309.999-158.09 311.662-158.09H403.505C405.168-158.09 406.516-156.741 406.516-155.078V-123.46C406.516-121.797 405.168-120.449 403.505-120.449H311.662C309.999-120.449 308.651-121.797 308.651-123.46ZM406.516-158.09'/>
+</g>
+<g fill-opacity='0.06' class='fig-s-line fig-f-line'>
+<path d='M444.157-123.46V-155.078C444.157-156.741 445.505-158.09 447.168-158.09H554.066C555.729-158.09 557.078-156.741 557.078-155.078V-123.46C557.078-121.797 555.729-120.449 554.066-120.449H447.168C445.505-120.449 444.157-121.797 444.157-123.46ZM557.078-158.09'/>
+</g>
+<g stroke-dasharray='3.76405,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M139.269-19.573V-168.629C139.269-171.124 141.292-173.146 143.786-173.146H277.786C280.281-173.146 282.303-171.124 282.303-168.629V-19.573C282.303-17.078 280.281-15.056 277.786-15.056H143.786C141.292-15.056 139.269-17.078 139.269-19.573ZM282.303-173.146' fill='none'/>
+</g>
+<g class='fig-s-line'>
+<path d='M112.921-48.933H139.928' fill='none'/>
+<g transform='translate(139.646 -48.933)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M271.011-139.269H298.018' fill='none'/>
+<g transform='translate(297.735 -139.269)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M406.516-139.269H433.523' fill='none'/>
+<g transform='translate(433.241 -139.269)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M248.427-70.764C263.483-90.337 263.483-97.865 253.074-111.397' fill='none'/>
+<g transform='translate(253.246 -111.173)rotate(-127.568)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M173.146-117.438C158.09-97.865 158.09-90.337 168.499-76.805' fill='none'/>
+<g transform='translate(168.327 -77.029)rotate(52.432)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 108.157 -118.944)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-107'/>
+<use x='-67.028' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-61.675' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-58.097' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-52.559' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-47.206' y='-72' href='#upatches-double-buffer-g1-108'/>
+<use x='-42.253' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-36.715' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-31.255' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-25.795' y='-72' href='#upatches-double-buffer-g1-107'/>
+<use x='-20.754' y='-72' href='#upatches-double-buffer-g1-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 101.893 -130.989)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-66.794' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-61.139' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-55.484' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-50.131' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-44.593' y='-72' href='#upatches-double-buffer-g1-100'/>
+<use x='-36.637' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-33.107' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-27.755' y='-72' href='#upatches-double-buffer-g1-99'/>
+<use x='-22.909' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-17.449' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-13.929' y='-72' href='#upatches-double-buffer-g1-100'/>
+<use x='-8.274' y='-72' href='#upatches-double-buffer-g1-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 255.58 -118.944)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-66.794' y='-72' href='#upatches-double-buffer-g1-99'/>
+<use x='-61.889' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-58.467' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-56.03' y='-72' href='#upatches-double-buffer-g1-118'/>
+<use x='-51.311' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-43.657' y='-72' href='#upatches-double-buffer-g1-98'/>
+<use x='-38.002' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-32.464' y='-72' href='#upatches-double-buffer-g1-102'/>
+<use x='-29.305' y='-72' href='#upatches-double-buffer-g1-102'/>
+<use x='-26.185' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-20.832' y='-72' href='#upatches-double-buffer-g1-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 257.259 -130.989)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-68.578' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-63.04' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-60.602' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-53.553' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-51.116' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-45.578' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-42.194' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-36.842' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-33.166' y='-72' href='#upatches-double-buffer-g1-118'/>
+<use x='-28.457' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-23.25' y='-72' href='#upatches-double-buffer-g1-108'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 257.42 -209.281)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-100'/>
+<use x='-66.345' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-62.806' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-57.599' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-55.162' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-47.323' y='-72' href='#upatches-double-buffer-g1-98'/>
+<use x='-41.668' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-36.13' y='-72' href='#upatches-double-buffer-g1-102'/>
+<use x='-32.971' y='-72' href='#upatches-double-buffer-g1-102'/>
+<use x='-29.851' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-24.498' y='-72' href='#upatches-double-buffer-g1-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 246.572 -221.326)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-66.345' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-62.816' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-57.541' y='-72' href='#upatches-double-buffer-g1-118'/>
+<use x='-52.744' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-50.306' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-44.846' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-39.308' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-32.259' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-29.822' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-24.284' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-20.9' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-15.548' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-11.872' y='-72' href='#upatches-double-buffer-g1-118'/>
+<use x='-7.163' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-1.956' y='-72' href='#upatches-double-buffer-g1-108'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 409.894 -209.281)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-67.252' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-61.899' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-58.321' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-55.883' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-50.677' y='-72' href='#upatches-double-buffer-g1-108'/>
+<use x='-48.025' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-45.587' y='-72' href='#upatches-double-buffer-g1-122'/>
+<use x='-41.161' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-35.808' y='-72' href='#upatches-double-buffer-g1-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 392.816 -221.326)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-66.54' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-61.002' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-53.348' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-47.693' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-42.487' y='-72' href='#upatches-double-buffer-g1-103'/>
+<use x='-37.397' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-29.744' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-24.089' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-18.736' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-12.857' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-9.278' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-3.74' y='-72' href='#upatches-double-buffer-g1-110'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 530.022 -209.281)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-67.252' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-61.714' y='-72' href='#upatches-double-buffer-g1-105'/>
+<use x='-59.276' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-55.698' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-50.16' y='-72' href='#upatches-double-buffer-g1-100'/>
+<use x='-44.505' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-39.045' y='-72' href='#upatches-double-buffer-g1-95'/>
+<use x='-33.878' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-29.129' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-23.777' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-17.897' y='-72' href='#upatches-double-buffer-g1-99'/>
+<use x='-12.993' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-7.455' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-1.917' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='3.621' y='-72' href='#upatches-double-buffer-g1-107'/>
+<use x='8.662' y='-72' href='#upatches-double-buffer-g1-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 529.366 -221.326)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-68.471' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-63.118' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-57.911' y='-72' href='#upatches-double-buffer-g1-100'/>
+<use x='-49.955' y='-72' href='#upatches-double-buffer-g1-98'/>
+<use x='-44.349' y='-72' href='#upatches-double-buffer-g1-121'/>
+<use x='-37.183' y='-72' href='#upatches-double-buffer-g1-117'/>
+<use x='-31.645' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-25.99' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-20.783' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-17.4' y='-72' href='#upatches-double-buffer-g1-99'/>
+<use x='-12.496' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-4.657' y='-72' href='#upatches-double-buffer-g1-109'/>
+<use x='3.855' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='9.061' y='-72' href='#upatches-double-buffer-g1-112'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 364.359 -170.135)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-67.34' y='-72' href='#upatches-double-buffer-g1-119'/>
+<use x='-59.939' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-54.733' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-46.777' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-41.57' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-35.847' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-32.425' y='-72' href='#upatches-double-buffer-g1-104'/>
+<use x='-26.887' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-19.233' y='-72' href='#upatches-double-buffer-g1-115'/>
+<use x='-14.553' y='-72' href='#upatches-double-buffer-g1-116'/>
+<use x='-11.131' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-5.924' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-2.307' y='-72' href='#upatches-double-buffer-g1-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 364.359 -182.18)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-66.598' y='-72' href='#upatches-double-buffer-g1-102'/>
+<use x='-61.139' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-55.932' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-48.093' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-42.857' y='-72' href='#upatches-double-buffer-g1-120'/>
+<use x='-37.914' y='-72' href='#upatches-double-buffer-g1-112'/>
+<use x='-32.259' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-26.799' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-23.182' y='-72' href='#upatches-double-buffer-g1-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 251.181 -257.461)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#upatches-double-buffer-g1-111'/>
+<use x='-66.54' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-61.002' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-53.348' y='-72' href='#upatches-double-buffer-g1-66'/>
+<use x='-46.982' y='-72' href='#upatches-double-buffer-g1-80'/>
+<use x='-41.073' y='-72' href='#upatches-double-buffer-g1-70'/>
+<use x='-33.322' y='-72' href='#upatches-double-buffer-g1-97'/>
+<use x='-28.115' y='-72' href='#upatches-double-buffer-g1-114'/>
+<use x='-24.586' y='-72' href='#upatches-double-buffer-g1-101'/>
+<use x='-19.233' y='-72' href='#upatches-double-buffer-g1-110'/>
+<use x='-13.695' y='-72' href='#upatches-double-buffer-g1-97'/>
+</g>
+</g>
+</g>
+</g>
 </svg>

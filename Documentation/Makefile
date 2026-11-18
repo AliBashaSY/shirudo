@@ -43,7 +43,7 @@ RUN_SERVE = $(CONTAINER) run --rm --init --read-only --cap-drop=ALL \
 	-p "$(DOCS_BIND):$(DOCS_PORT):8000" -v "$(OUT)/html:/srv:ro" $(IMAGE)
 
 .PHONY: help container-check image lastchange html html-docs serve check \
-	linkcheck clean
+	linkcheck figures clean
 
 help:
 	@printf '%s\n' \
@@ -51,6 +51,7 @@ help:
 	  'make -C Documentation serve      render, then serve it on $(DOCS_BIND):$(DOCS_PORT)' \
 	  'make -C Documentation check      render, then check the docs against the code' \
 	  'make -C Documentation linkcheck  check external links (needs the network)' \
+	  'make -C Documentation figures    draw the SVGs of images/ from figures/ (needs TeX)' \
 	  'DOCS_CONTAINER=0 renders with the host sphinx-build from requirements.txt.'
 
 container-check:
@@ -116,6 +117,11 @@ linkcheck: image
 		-v "$(ROOT):/src:ro" -v "$(OUT):/out" $(IMAGE) \
 		sphinx-build -q -b linkcheck -d /out/doctrees /src/Documentation \
 		/out/linkcheck
+
+# On the host, as the container has no TeX: LaTeX with TikZ and the IBM
+# Plex fonts, and dvisvgm. Only figures whose source changed are drawn.
+figures:
+	$(Q)python3 $(DOCS)/figures/build.py
 
 clean:
 	$(Q)rm -rf "$(OUT)"

@@ -222,9 +222,23 @@ Tables and figures
 ------------------
 
 - Prefer ``list-table`` for tables, with a header row.
-- Put figures as SVG under ``Documentation/images/`` and include them with
-  ``.. figure::``. Number them in the caption ("Figure 1.") and refer to
-  them from the text before they appear.
+- Include a figure with ``.. figure:: /images/<name>.svg`` and an
+  ``:alt:`` that says what it shows. Number it in the caption ("Figure
+  1.") and refer to it from the text before it appears.
+- Draw a figure in TikZ, in ``Documentation/figures/<name>.tex``, and
+  never edit its SVG by hand. Start from a figure there: the
+  ``standalone`` class with ``shirudo-figure``, whose units are pixels of
+  the page at full width, whose text is IBM Plex Sans and Mono as on the
+  pages, and whose colors are roles (``fig-ink``, ``fig-muted``,
+  ``fig-line``, ``fig-accent``, the chart series ``fig-s1`` to
+  ``fig-s4`` and the rest it defines). Use those colors alone, a lighter
+  shade as the same color with an opacity: the page writes the figure
+  into its HTML and gives each role the value of the theme the reader
+  picked, light or dark.
+- ``make -C Documentation figures`` draws the SVG of every figure whose
+  source changed, with LaTeX, TikZ and dvisvgm on the host; commit the
+  source and the SVG together. The check fails on an SVG that its source
+  no longer makes.
 
 Building and checking
 ---------------------
@@ -243,7 +257,8 @@ Render it and check it against the code, as CI does:
 
 The build turns every Sphinx warning into an error. The check verifies
 that the commands, options, failure categories, tamper counters, hooks,
-tests and units a page names exist in the tree.
+tests and units a page names exist in the tree, and that every figure is
+what its TikZ source makes.
 
 Related
 -------

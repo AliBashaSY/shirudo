@@ -32,6 +32,20 @@
   --stop-bg: #fdf0ef;
   --stop-line: #ebb0aa;
 
+  /* The roles of Documentation/figures/shirudo-figure.sty. */
+  --fig-ink: var(--fg);
+  --fig-muted: var(--muted);
+  --fig-line: #8a93a0;
+  --fig-grid: var(--line);
+  --fig-axis: #c3c9d1;
+  --fig-accent: var(--accent);
+  --fig-s1: #2a78d6;
+  --fig-s2: #eb6834;
+  --fig-s3: #1baf7a;
+  --fig-s4: #eda100;
+  --fig-free: #dde2e8;
+  --fig-on: #fff;
+
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto,
 	  "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", "DejaVu Sans Mono",
@@ -60,6 +74,12 @@
     --warn-line: #6e5520;
     --stop-bg: #2a1614;
     --stop-line: #6f2e28;
+    --fig-axis: #39414c;
+    --fig-s1: #3987e5;
+    --fig-s2: #d95926;
+    --fig-s3: #199e70;
+    --fig-s4: #c98500;
+    --fig-free: #2f3640;
     color-scheme: dark;
   }
 }
@@ -85,6 +105,12 @@
   --warn-line: #6e5520;
   --stop-bg: #2a1614;
   --stop-line: #6f2e28;
+  --fig-axis: #39414c;
+  --fig-s1: #3987e5;
+  --fig-s2: #d95926;
+  --fig-s3: #199e70;
+  --fig-s4: #c98500;
+  --fig-free: #2f3640;
   color-scheme: dark;
 }
 
@@ -216,18 +242,8 @@ dl.field-list.facts p { margin: 0; }
 /* figures and footnotes */
 figure { margin: 20px 0; }
 figure img, figure svg { max-width: 100%; height: auto; }
+figure svg.fig { display: block; }
 figcaption { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
-/*
- * Diagrams are images that follow the system's color scheme, not the
- * page's: when the reader picks the other theme, show them on a card
- * of the scheme they were drawn for.
- */
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="light"] .body figure img[src$=".svg"] { background: #0e1116; border-radius: 8px; padding: 12px; }
-}
-@media (prefers-color-scheme: light) {
-  :root[data-theme="dark"] .body figure img[src$=".svg"] { background: #fff; border-radius: 8px; padding: 12px; }
-}
 .body .logo-tile { padding: 20px 24px; border-radius: 8px; margin: 0 0 8px; }
 .body .logo-tile.logo-light { background: #fff; border: 1px solid var(--line); }
 .body .logo-tile.logo-dark { background: #000; }

@@ -50,6 +50,18 @@ Then go through the pages each kind of change has:
 - American English. Commands, options, paths and values go in double
   backticks; a source file is linked with `` :src:`<path>` ``.
 - Name only hooks, counters, tests and options that exist.
+- A figure is drawn in TikZ, `Documentation/figures/<name>.tex`, never
+  as an SVG by hand: `\usepackage{shirudo-figure}` gives the units (one
+  is a pixel of the page at full width, y downwards), IBM Plex Sans and
+  Mono at 11, 12 or 13 px (`\figsmall`, `\figbody`, `\figlarge`) and the
+  colors by role (`fig-ink`, `fig-muted`, `fig-line`, `fig-accent`,
+  `fig-s1` to `fig-s4`, ...). Use only those, a lighter shade as an
+  opacity of one: `make -C Documentation figures` turns each role into
+  the pages' variable, and the page inlines the SVG, so the figure
+  follows the light or dark theme the reader picks. Commit the `.tex` and
+  the SVG of `Documentation/images/` together, include it with
+  `.. figure:: /images/<name>.svg` and an `:alt:`, and look at the
+  rendered SVG (`rsvg-convert`) before handing it over.
 - A new page carries `:page-type:` and `:audience:` and goes into its
   section's toctree. Nothing that is not about the project as a whole
   goes in the top-level directory, and no README or notes file goes
@@ -68,5 +80,6 @@ categories, tamper and integrity counters, hooks, tests, proofs and
 units the pages name, the whole of each field of a threat's fact box
 with a hook by its section name, and that every proof has a row on the
 proof coverage page and every source file a proof that reads it or a
-line among the files without one. It cannot check the prose: read each changed paragraph
-against the code.
+line among the files without one, and that every figure is what its
+TikZ source makes. It cannot check the prose: read each changed
+paragraph against the code.

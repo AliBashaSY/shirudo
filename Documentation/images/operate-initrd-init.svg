@@ -1,40 +1,119 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 76" width="720" height="76" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="t d">
-  <title id="t">Steps of init in the initrd</title>
-  <desc id="d">Mapping, reading and verifying the images and sealing the keyrings take 0.12 s, loading and attaching the guards 0.46 s, and binding the measurement register 0.56 s.</desc>
-
-  <style>
-    .ink { fill: #171b22; }
-    .muted { fill: #5d6675; }
-    .grid { stroke: #e2e6eb; }
-    .axis { stroke: #c3c9d1; }
-    .s1 { fill: #2a78d6; }
-    .s2 { fill: #eb6834; }
-    .s3 { fill: #1baf7a; }
-    .s4 { fill: #eda100; }
-    .free { fill: #dde2e8; }
-    .on-fill { fill: #ffffff; }
-    @media (prefers-color-scheme: dark) {
-      .ink { fill: #e4e8ee; }
-      .muted { fill: #9ba5b3; }
-      .grid { stroke: #262d37; }
-      .axis { stroke: #39414c; }
-      .s1 { fill: #3987e5; }
-      .s2 { fill: #d95926; }
-      .s3 { fill: #199e70; }
-      .s4 { fill: #c98500; }
-      .free { fill: #2f3640; }
-    }
-  </style>
-  <rect class="s1" x="0.0" y="8.0" width="59.8" height="28.0" rx="4.0"/>
-  <text class="on-fill" x="8.0" y="26.0" font-size="12" font-weight="600">0.12 s</text>
-  <rect class="s2" x="61.8" y="8.0" width="223.9" height="28.0" rx="4.0"/>
-  <text class="on-fill" x="69.8" y="26.0" font-size="12" font-weight="600">0.46 s</text>
-  <rect class="s3" x="287.8" y="8.0" width="272.2" height="28.0" rx="4.0"/>
-  <text class="on-fill" x="295.8" y="26.0" font-size="12" font-weight="600">0.56 s</text>
-  <rect class="s1" x="0.0" y="57.0" width="10.0" height="10.0" rx="2.0"/>
-  <text class="muted" x="16.0" y="66.0" font-size="12">Images and keyrings</text>
-  <rect class="s2" x="165.4" y="57.0" width="10.0" height="10.0" rx="2.0"/>
-  <text class="muted" x="181.4" y="66.0" font-size="12">Guards</text>
-  <rect class="s3" x="245.0" y="57.0" width="10.0" height="10.0" rx="2.0"/>
-  <text class="muted" x="261.0" y="66.0" font-size="12">Measurement register</text>
+<svg xmlns='http://www.w3.org/2000/svg' width='720.0' height='76.0' viewBox='-72 -72 539.996 57' class='fig fig-f-ink' role='img'><!-- Documentation/figures/operate-initrd-init.tex, sha256 2a1e8bf4301b222afad20bba210da87cabb0244ef3a3403a8bde32444e094cac --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<defs>
+<path id='operate-initrd-init-g1-71' d='M4.887 0H5.586V-3.219H3.47V-2.555H4.851V-1.937C4.851-1.013 4.125-.565 3.255-.565C2.062-.565 1.327-1.39 1.327-2.627V-3.64C1.327-4.878 2.08-5.694 3.183-5.694C3.972-5.694 4.555-5.281 4.842-4.618L5.461-4.994C5.057-5.81 4.304-6.366 3.183-6.366C1.578-6.366 .52-5.209 .52-3.129C.52-1.031 1.587 .108 3.12 .108C4.071 .108 4.707-.332 4.86-.915H4.887V0Z'/>
+<path id='operate-initrd-init-g1-73' d='M3.049 0V-.628H2.17V-5.631H3.049V-6.259H.538V-5.631H1.417V-.628H.538V0H3.049Z'/>
+<path id='operate-initrd-init-g1-77' d='M.834 0H1.569V-5.272H1.614L2.143-4.223L3.64-1.497L5.138-4.223L5.667-5.272H5.712V0H6.447V-6.259H5.478L3.676-2.887H3.631L1.838-6.259H.834V0Z'/>
+<path id='operate-initrd-init-g1-97' d='M4.528 0V-.628H3.999V-3.174C3.999-4.151 3.335-4.734 2.224-4.734C1.39-4.734 .834-4.322 .583-3.829L1.013-3.425C1.264-3.847 1.632-4.116 2.188-4.116C2.923-4.116 3.282-3.757 3.282-3.102V-2.645H2.367C1.022-2.645 .395-2.161 .395-1.291C.395-.43 .968 .108 1.946 .108C2.591 .108 3.084-.188 3.282-.753H3.327C3.38-.323 3.596 0 4.125 0H4.528ZM2.062-.502C1.506-.502 1.148-.762 1.148-1.219V-1.408C1.148-1.856 1.515-2.107 2.331-2.107H3.282V-1.345C3.282-.87 2.771-.502 2.062-.502Z'/>
+<path id='operate-initrd-init-g1-100' d='M3.721 0H4.438V-6.635H3.721V-3.873H3.685C3.443-4.456 2.968-4.734 2.331-4.734C1.175-4.734 .448-3.793 .448-2.313S1.175 .108 2.331 .108C2.968 .108 3.407-.179 3.685-.753H3.721V0ZM2.529-.538C1.722-.538 1.219-1.094 1.219-1.919V-2.708C1.219-3.533 1.722-4.089 2.529-4.089C3.183-4.089 3.721-3.712 3.721-3.201V-1.479C3.721-.879 3.183-.538 2.529-.538Z'/>
+<path id='operate-initrd-init-g1-101' d='M2.502 .108C3.371 .108 4.035-.323 4.331-.95L3.82-1.318C3.578-.807 3.129-.52 2.546-.52C1.686-.52 1.175-1.121 1.175-1.919V-2.134H4.501V-2.475C4.501-3.784 3.739-4.734 2.502-4.734C1.246-4.734 .421-3.784 .421-2.313S1.246 .108 2.502 .108ZM2.502-4.133C3.237-4.133 3.73-3.587 3.73-2.771V-2.672H1.175V-2.735C1.175-3.542 1.722-4.133 2.502-4.133Z'/>
+<path id='operate-initrd-init-g1-103' d='M4.663 .511C4.663-.251 4.169-.717 3.022-.717H2.035C1.614-.717 1.327-.789 1.327-1.067C1.327-1.354 1.632-1.506 1.937-1.587C2.071-1.56 2.233-1.542 2.385-1.542C3.443-1.542 4.133-2.197 4.133-3.138C4.133-3.631 3.936-4.044 3.604-4.331V-4.627H4.483V-5.254H3.793C3.407-5.254 3.255-4.994 3.255-4.636V-4.555C3.004-4.671 2.708-4.734 2.376-4.734C1.327-4.734 .637-4.08 .637-3.138C.637-2.493 .959-1.982 1.506-1.722V-1.686C1.04-1.569 .708-1.345 .708-.879C.708-.565 .861-.359 1.121-.233V-.134C.664-.009 .386 .26 .386 .762C.386 1.488 .977 1.901 2.421 1.901C3.909 1.901 4.663 1.462 4.663 .511ZM3.99 .565C3.99 1.067 3.524 1.318 2.726 1.318H2.062C1.336 1.318 1.058 .986 1.058 .583C1.058 .296 1.193 .09 1.488-.045H3.031C3.748-.045 3.99 .197 3.99 .565ZM2.385-2.116C1.775-2.116 1.39-2.403 1.39-3.013V-3.264C1.39-3.873 1.775-4.16 2.385-4.16S3.38-3.873 3.38-3.264V-3.013C3.38-2.403 2.995-2.116 2.385-2.116Z'/>
+<path id='operate-initrd-init-g1-105' d='M1.121-5.712C1.426-5.712 1.56-5.873 1.56-6.115V-6.232C1.56-6.474 1.426-6.635 1.121-6.635S.681-6.474 .681-6.232V-6.115C.681-5.873 .816-5.712 1.121-5.712ZM.762 0H1.479V-4.627H.762V0Z'/>
+<path id='operate-initrd-init-g1-107' d='M.762 0H1.479V-1.65L2.17-2.358L3.703 0H4.573L2.69-2.798L4.402-4.627H3.533L2.224-3.219L1.515-2.43H1.479V-6.635H.762V0Z'/>
+<path id='operate-initrd-init-g1-109' d='M1.479 0V-3.21C1.479-3.802 2.017-4.089 2.582-4.089C3.264-4.089 3.578-3.667 3.578-2.842V0H4.295V-3.21C4.295-3.802 4.815-4.089 5.38-4.089C6.079-4.089 6.393-3.658 6.393-2.842V0H7.11V-2.968C7.11-4.089 6.545-4.734 5.604-4.734C4.815-4.734 4.367-4.295 4.196-3.793H4.178C3.927-4.456 3.371-4.734 2.762-4.734C2.044-4.734 1.722-4.349 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-initrd-init-g1-110' d='M1.479 0V-3.21C1.479-3.802 2.035-4.089 2.609-4.089C3.3-4.089 3.658-3.667 3.658-2.842V0H4.376V-2.968C4.376-4.089 3.775-4.734 2.824-4.734C2.134-4.734 1.739-4.394 1.515-3.873H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-initrd-init-g1-114' d='M1.479 0V-3.138C1.479-3.578 1.946-3.909 2.717-3.909H3.138V-4.627H2.86C2.107-4.627 1.686-4.214 1.524-3.775H1.479V-4.627H.762V0H1.479Z'/>
+<path id='operate-initrd-init-g1-115' d='M2.152 .108C3.21 .108 3.865-.439 3.865-1.336C3.865-2.035 3.47-2.484 2.448-2.636L2.089-2.69C1.515-2.78 1.201-2.959 1.201-3.407C1.201-3.847 1.515-4.125 2.107-4.125S3.093-3.847 3.3-3.56L3.775-3.99C3.398-4.456 2.905-4.734 2.161-4.734C1.219-4.734 .511-4.286 .511-3.371C.511-2.511 1.148-2.161 1.999-2.035L2.367-1.982C2.977-1.892 3.174-1.614 3.174-1.255C3.174-.78 2.815-.502 2.206-.502C1.623-.502 1.193-.762 .834-1.21L.323-.798C.735-.251 1.3 .108 2.152 .108Z'/>
+<path id='operate-initrd-init-g1-116' d='M2.681 0V-.628H1.739V-3.999H2.753V-4.627H1.739V-5.909H1.094V-5.048C1.094-4.734 .995-4.627 .69-4.627H.26V-3.999H1.022V-.762C1.022-.314 1.291 0 1.784 0H2.681Z'/>
+<path id='operate-initrd-init-g1-117' d='M3.613 0H4.331V-4.627H3.613V-1.426C3.613-.816 3.058-.538 2.493-.538C1.802-.538 1.435-.959 1.435-1.784V-4.627H.717V-1.659C.717-.538 1.327 .108 2.277 .108C3.049 .108 3.398-.314 3.578-.753H3.613V0Z'/>
+<path id='operate-initrd-init-g1-121' d='M2.493-1.479L2.242-.726H2.197L1.982-1.479L.87-4.627H.152L1.883 .179L1.533 1.166H.807V1.793H1.175C1.856 1.793 2.044 1.632 2.251 1.076L4.322-4.627H3.613L2.493-1.479Z'/>
+<path id='operate-initrd-init-g3-46' d='M1.479 .109C2.025 .109 2.273-.199 2.273-.615V-.794C2.273-1.221 2.025-1.529 1.479-1.529C.943-1.529 .685-1.221 .685-.794V-.615C.685-.199 .943 .109 1.479 .109Z'/>
+<path id='operate-initrd-init-g3-48' d='M2.978 .119C4.744 .119 5.558-1.201 5.558-3.464S4.744-7.047 2.978-7.047S.397-5.727 .397-3.464S1.211 .119 2.978 .119ZM2.978-.983C2.094-.983 1.787-1.697 1.787-2.839V-4.089C1.787-5.231 2.094-5.945 2.978-5.945S4.169-5.231 4.169-4.089V-2.839C4.169-1.697 3.861-.983 2.978-.983Z'/>
+<path id='operate-initrd-init-g3-49' d='M5.677 0V-1.062H4.089V-6.928H2.114L.397-4.883L1.211-4.198L2.72-5.985H2.809V-1.062H.903V0H5.677Z'/>
+<path id='operate-initrd-init-g3-50' d='M5.419-1.102H2.035L3.494-2.303C4.457-3.097 5.241-3.831 5.241-4.983C5.241-6.174 4.407-7.047 2.948-7.047C1.538-7.047 .794-6.243 .496-5.32L1.628-4.883C1.787-5.449 2.124-5.916 2.839-5.916C3.404-5.916 3.861-5.578 3.861-4.973V-4.844C3.861-4.238 3.524-3.762 2.789-3.117L.615-1.211V0H5.419V-1.102Z'/>
+<path id='operate-initrd-init-g3-52' d='M4.695 0V-1.34H5.598V-2.352H4.695V-6.928H3.077L.318-2.452V-1.34H3.454V0H4.695ZM3.375-5.657H3.454V-2.352H1.39L3.375-5.657Z'/>
+<path id='operate-initrd-init-g3-53' d='M5.112-6.928H1.032L.774-3.037L1.846-2.888C2.055-3.136 2.402-3.404 2.968-3.404C3.692-3.404 4.129-2.968 4.129-2.253V-2.174C4.129-1.419 3.712-.953 2.938-.953C2.184-.953 1.806-1.37 1.499-1.906L.546-1.171C.963-.496 1.648 .119 2.928 .119C4.566 .119 5.489-.893 5.489-2.283C5.489-3.662 4.566-4.476 3.375-4.476C2.541-4.476 2.203-4.069 1.906-3.474H1.836L1.995-5.796H5.112V-6.928Z'/>
+<path id='operate-initrd-init-g3-54' d='M3.007 .119C4.536 .119 5.519-.873 5.519-2.273C5.519-3.583 4.645-4.417 3.494-4.417C2.62-4.417 2.184-3.93 1.926-3.394L1.846-3.414C2.154-4.824 3.107-5.757 4.734-6.928H2.968C1.806-6.144 .486-4.586 .486-2.6C.486-.943 1.419 .119 3.007 .119ZM3.007-.913C2.273-.913 1.836-1.33 1.836-2.084V-2.233C1.836-2.988 2.273-3.404 3.007-3.404C3.732-3.404 4.179-2.988 4.179-2.233V-2.084C4.179-1.33 3.732-.913 3.007-.913Z'/>
+<path id='operate-initrd-init-g3-115' d='M2.432 .119C3.722 .119 4.566-.576 4.566-1.578C4.566-2.442 4.02-2.948 2.888-3.107L2.362-3.176C1.876-3.256 1.687-3.414 1.687-3.762C1.687-4.079 1.926-4.298 2.471-4.298C2.978-4.298 3.414-4.059 3.712-3.742L4.457-4.486C3.96-5.002 3.444-5.3 2.432-5.3C1.251-5.3 .466-4.665 .466-3.662C.466-2.72 1.082-2.233 2.194-2.094L2.71-2.025C3.166-1.965 3.345-1.777 3.345-1.479C3.345-1.112 3.087-.883 2.481-.883C1.896-.883 1.439-1.151 1.062-1.588L.288-.834C.804-.238 1.449 .119 2.432 .119Z'/>
+</defs>
+<g id='operate-initrd-init-page1'>
+<g stroke-miterlimit='10' transform='matrix(.996 0 0 -.996 -72 -72)' stroke-width='1.12921' class='fig-f-ink fig-s-ink'>
+<g class='fig-f-s1 fig-s-s1'>
+<path d='M0-9.034V-24.09C0-25.753 1.348-27.101 3.011-27.101H42.007C43.67-27.101 45.018-25.753 45.018-24.09V-9.034C45.018-7.371 43.67-6.022 42.007-6.022H3.011C1.348-6.022 0-7.371 0-9.034ZM45.018-27.101' stroke='none'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 78.292 -91.843)' stroke='none' class='fig-f-on'>
+<use x='-72' y='-72' href='#operate-initrd-init-g3-48'/>
+<use x='-66.022' y='-72' href='#operate-initrd-init-g3-46'/>
+<use x='-63.054' y='-72' href='#operate-initrd-init-g3-49'/>
+<use x='-57.076' y='-72' href='#operate-initrd-init-g3-50'/>
+<use x='-48.747' y='-72' href='#operate-initrd-init-g3-115'/>
+</g>
+<g class='fig-f-s2 fig-s-s2'>
+<path d='M46.524-9.034V-24.09C46.524-25.753 47.872-27.101 49.535-27.101H212.066C213.729-27.101 215.077-25.753 215.077-24.09V-9.034C215.077-7.371 213.729-6.022 212.066-6.022H49.535C47.872-6.022 46.524-7.371 46.524-9.034ZM215.077-27.101' stroke='none'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 124.816 -91.843)' stroke='none' class='fig-f-on'>
+<use x='-72' y='-72' href='#operate-initrd-init-g3-48'/>
+<use x='-66.022' y='-72' href='#operate-initrd-init-g3-46'/>
+<use x='-63.054' y='-72' href='#operate-initrd-init-g3-52'/>
+<use x='-57.076' y='-72' href='#operate-initrd-init-g3-54'/>
+<use x='-48.747' y='-72' href='#operate-initrd-init-g3-115'/>
+</g>
+<g class='fig-f-s3 fig-s-s3'>
+<path d='M216.658-9.034V-24.09C216.658-25.753 218.006-27.101 219.669-27.101H418.561C420.224-27.101 421.572-25.753 421.572-24.09V-9.034C421.572-7.371 420.224-6.022 418.561-6.022H219.669C218.006-6.022 216.658-7.371 216.658-9.034ZM421.572-27.101' stroke='none'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 294.95 -91.843)' stroke='none' class='fig-f-on'>
+<use x='-72' y='-72' href='#operate-initrd-init-g3-48'/>
+<use x='-66.022' y='-72' href='#operate-initrd-init-g3-46'/>
+<use x='-63.054' y='-72' href='#operate-initrd-init-g3-53'/>
+<use x='-57.076' y='-72' href='#operate-initrd-init-g3-54'/>
+<use x='-48.747' y='-72' href='#operate-initrd-init-g3-115'/>
+</g>
+<g class='fig-f-s1 fig-s-s1'>
+<path d='M0-44.416V-48.933C0-49.764 .674-50.438 1.506-50.438H6.022C6.854-50.438 7.528-49.764 7.528-48.933V-44.416C7.528-43.584 6.854-42.91 6.022-42.91H1.506C.674-42.91 0-43.584 0-44.416ZM7.528-50.438' stroke='none'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 84.315 -121.955)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-initrd-init-g1-73'/>
+<use x='-68.4' y='-72' href='#operate-initrd-init-g1-109'/>
+<use x='-60.543' y='-72' href='#operate-initrd-init-g1-97'/>
+<use x='-55.737' y='-72' href='#operate-initrd-init-g1-103'/>
+<use x='-51.039' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-46.098' y='-72' href='#operate-initrd-init-g1-115'/>
+<use x='-39.591' y='-72' href='#operate-initrd-init-g1-97'/>
+<use x='-34.785' y='-72' href='#operate-initrd-init-g1-110'/>
+<use x='-29.673' y='-72' href='#operate-initrd-init-g1-100'/>
+<use x='-22.329' y='-72' href='#operate-initrd-init-g1-107'/>
+<use x='-17.739' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-12.843' y='-72' href='#operate-initrd-init-g1-121'/>
+<use x='-8.352' y='-72' href='#operate-initrd-init-g1-114'/>
+<use x='-5.049' y='-72' href='#operate-initrd-init-g1-105'/>
+<use x='-2.799' y='-72' href='#operate-initrd-init-g1-110'/>
+<use x='2.313' y='-72' href='#operate-initrd-init-g1-103'/>
+<use x='7.065' y='-72' href='#operate-initrd-init-g1-115'/>
+</g>
+<g class='fig-f-s2 fig-s-s2'>
+<path d='M124.514-44.416V-48.933C124.514-49.764 125.188-50.438 126.02-50.438H130.537C131.368-50.438 132.042-49.764 132.042-48.933V-44.416C132.042-43.584 131.368-42.91 130.537-42.91H126.02C125.188-42.91 124.514-43.584 124.514-44.416ZM132.042-50.438' stroke='none'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 208.829 -121.955)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-initrd-init-g1-71'/>
+<use x='-65.745' y='-72' href='#operate-initrd-init-g1-117'/>
+<use x='-60.633' y='-72' href='#operate-initrd-init-g1-97'/>
+<use x='-55.827' y='-72' href='#operate-initrd-init-g1-114'/>
+<use x='-52.578' y='-72' href='#operate-initrd-init-g1-100'/>
+<use x='-47.358' y='-72' href='#operate-initrd-init-g1-115'/>
+</g>
+<g class='fig-f-s3 fig-s-s3'>
+<path d='M184.438-44.416V-48.933C184.438-49.764 185.112-50.438 185.943-50.438H190.46C191.292-50.438 191.966-49.764 191.966-48.933V-44.416C191.966-43.584 191.292-42.91 190.46-42.91H185.943C185.112-42.91 184.438-43.584 184.438-44.416ZM191.966-50.438' stroke='none'/>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 268.753 -121.955)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#operate-initrd-init-g1-77'/>
+<use x='-64.692' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-59.751' y='-72' href='#operate-initrd-init-g1-97'/>
+<use x='-54.945' y='-72' href='#operate-initrd-init-g1-115'/>
+<use x='-50.562' y='-72' href='#operate-initrd-init-g1-117'/>
+<use x='-45.45' y='-72' href='#operate-initrd-init-g1-114'/>
+<use x='-42.192' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-37.251' y='-72' href='#operate-initrd-init-g1-109'/>
+<use x='-29.394' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-24.453' y='-72' href='#operate-initrd-init-g1-110'/>
+<use x='-19.341' y='-72' href='#operate-initrd-init-g1-116'/>
+<use x='-14.058' y='-72' href='#operate-initrd-init-g1-114'/>
+<use x='-10.8' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='-5.859' y='-72' href='#operate-initrd-init-g1-103'/>
+<use x='-1.107' y='-72' href='#operate-initrd-init-g1-105'/>
+<use x='1.143' y='-72' href='#operate-initrd-init-g1-115'/>
+<use x='5.463' y='-72' href='#operate-initrd-init-g1-116'/>
+<use x='8.586' y='-72' href='#operate-initrd-init-g1-101'/>
+<use x='13.527' y='-72' href='#operate-initrd-init-g1-114'/>
+</g>
+</g>
+</g>
 </svg>

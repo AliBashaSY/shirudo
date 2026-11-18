@@ -1,73 +1,954 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 490" width="780" height="490" font-family="sans-serif" role="img" aria-labelledby="t">
-  <title id="t">Trust boundaries of a shirudo deployment and the evidence boundary</title>
-  <style>@media (prefers-color-scheme: dark) { [fill="#5d6675"] { fill: #b4bcc7; } }</style>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8a93a0"/>
-    </marker>
-  </defs>
-  <g fill="none" stroke="#8a93a0" stroke-width="1.5">
-    <rect x="10" y="40" width="200" height="120" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="10" y="340" width="200" height="100" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="230" y="10" width="170" height="290" rx="6" stroke-dasharray="6 4"/>
-    <rect x="245" y="50" width="140" height="70" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="245" y="200" width="140" height="70" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="230" y="320" width="170" height="160" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <line x1="230" y1="392" x2="400" y2="392" stroke-dasharray="3 3"/>
-    <rect x="420" y="10" width="350" height="470" rx="6" stroke-dasharray="6 4"/>
-    <rect x="435" y="40" width="320" height="60" rx="4"/>
-    <rect x="435" y="115" width="320" height="55" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="430" y="190" width="330" height="275" rx="6" stroke-dasharray="3 3" fill="#8a93a0" fill-opacity="0.05"/>
-    <rect x="445" y="215" width="300" height="75" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <rect x="445" y="310" width="300" height="140" rx="4" fill="#8a93a0" fill-opacity="0.08"/>
-    <line x1="210" y1="85" x2="243" y2="85" marker-end="url(#arrow)"/>
-    <line x1="385" y1="100" x2="443" y2="235" marker-end="url(#arrow)"/>
-    <line x1="443" y1="270" x2="387" y2="245" marker-end="url(#arrow)"/>
-    <line x1="445" y1="410" x2="402" y2="410" marker-end="url(#arrow)"/>
-    <line x1="230" y1="410" x2="212" y2="410" marker-end="url(#arrow)"/>
-  </g>
-  <g fill="#5d6675" font-size="13">
-    <text x="20" y="32" font-weight="bold">Operator host</text>
-    <text x="22" y="66">ML-DSA-87 signing key</text>
-    <text x="22" y="88">shirudo-build, clang</text>
-    <text x="22" y="110">signs upatches, indexes,</text>
-    <text x="22" y="130">trees, configs, vouches</text>
-    <text x="20" y="332" font-weight="bold">Verifier</text>
-    <text x="22" y="366">attest verify, offline</text>
-    <text x="22" y="388">pinned AK name</text>
-    <text x="22" y="430">expected state, PCRs</text>
-    <text x="240" y="32" font-weight="bold">Network, untrusted</text>
-    <text x="255" y="74" font-weight="bold">OCI registry</text>
-    <text x="255" y="94">packages, indexes,</text>
-    <text x="255" y="112">tree publications</text>
-    <text x="255" y="224" font-weight="bold">Collector</text>
-    <text x="255" y="244">keepalives, map</text>
-    <text x="255" y="262">snapshots</text>
-    <text x="240" y="342" font-weight="bold">Evidence</text>
-    <text x="430" y="32" font-weight="bold">Target</text>
-    <text x="445" y="62" font-weight="bold">Root and other processes</text>
-    <text x="445" y="84">constrained by the LSM, not trusted</text>
-    <text x="445" y="137" font-weight="bold">Writable state</text>
-    <text x="445" y="157">/var/lib/shirudo, sealed by label</text>
-    <text x="455" y="237" font-weight="bold">Runtime tasks</text>
-    <text x="455" y="257">exec from the dm-verity runtime</text>
-    <text x="455" y="277">image grants the task mark</text>
-    <text x="455" y="332" font-weight="bold">Kernel and TPM</text>
-    <text x="455" y="354">BPF LSM: bpf2 and seal objects</text>
-    <text x="455" y="374">.bpf and .dm-verity keyrings</text>
-    <text x="455" y="394">private bpffs: pins and maps</text>
-    <text x="455" y="430">TPM: register, AK, NV writer</text>
-  </g>
-  <g fill="#5d6675" font-size="11">
-    <text x="440" y="207">target TCB</text>
-    <text x="214" y="76">push</text>
-    <text x="376" y="165">pull</text>
-    <text x="392" y="282">export</text>
-    <text x="240" y="362">TPM-signed:</text>
-    <text x="240" y="379">quote, NV certification</text>
-    <text x="240" y="412">target's own account:</text>
-    <text x="240" y="429">eventlog, config history,</text>
-    <text x="240" y="446">init record fields</text>
-    <text x="240" y="463">(bound_in, ts, boot_id)</text>
-  </g>
+<svg xmlns='http://www.w3.org/2000/svg' width='780.0' height='490.0' viewBox='-72 -72 584.996 367.498' class='fig fig-f-ink' role='img'><!-- Documentation/figures/security-trust-boundaries.tex, sha256 e82a75df7467b272be701adbf6d3a5f23fe3555548f837bdb0b2e21fe9b54e53 --><style>.fig-f-ink{fill:var(--fig-ink,#171b22)}.fig-s-ink{stroke:var(--fig-ink,#171b22)}.fig-f-muted{fill:var(--fig-muted,#5d6675)}.fig-s-muted{stroke:var(--fig-muted,#5d6675)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#e2e6eb)}.fig-s-grid{stroke:var(--fig-grid,#e2e6eb)}.fig-f-axis{fill:var(--fig-axis,#c3c9d1)}.fig-s-axis{stroke:var(--fig-axis,#c3c9d1)}.fig-f-accent{fill:var(--fig-accent,#8b1e3f)}.fig-s-accent{stroke:var(--fig-accent,#8b1e3f)}.fig-f-s1{fill:var(--fig-s1,#2a78d6)}.fig-s-s1{stroke:var(--fig-s1,#2a78d6)}.fig-f-s2{fill:var(--fig-s2,#eb6834)}.fig-s-s2{stroke:var(--fig-s2,#eb6834)}.fig-f-s3{fill:var(--fig-s3,#1baf7a)}.fig-s-s3{stroke:var(--fig-s3,#1baf7a)}.fig-f-s4{fill:var(--fig-s4,#eda100)}.fig-s-s4{stroke:var(--fig-s4,#eda100)}.fig-f-free{fill:var(--fig-free,#dde2e8)}.fig-s-free{stroke:var(--fig-free,#dde2e8)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}@media (prefers-color-scheme:dark){.fig-f-ink{fill:var(--fig-ink,#e4e8ee)}.fig-s-ink{stroke:var(--fig-ink,#e4e8ee)}.fig-f-muted{fill:var(--fig-muted,#9ba5b3)}.fig-s-muted{stroke:var(--fig-muted,#9ba5b3)}.fig-f-line{fill:var(--fig-line,#8a93a0)}.fig-s-line{stroke:var(--fig-line,#8a93a0)}.fig-f-grid{fill:var(--fig-grid,#262d37)}.fig-s-grid{stroke:var(--fig-grid,#262d37)}.fig-f-axis{fill:var(--fig-axis,#39414c)}.fig-s-axis{stroke:var(--fig-axis,#39414c)}.fig-f-accent{fill:var(--fig-accent,#e8899f)}.fig-s-accent{stroke:var(--fig-accent,#e8899f)}.fig-f-s1{fill:var(--fig-s1,#3987e5)}.fig-s-s1{stroke:var(--fig-s1,#3987e5)}.fig-f-s2{fill:var(--fig-s2,#d95926)}.fig-s-s2{stroke:var(--fig-s2,#d95926)}.fig-f-s3{fill:var(--fig-s3,#199e70)}.fig-s-s3{stroke:var(--fig-s3,#199e70)}.fig-f-s4{fill:var(--fig-s4,#c98500)}.fig-s-s4{stroke:var(--fig-s4,#c98500)}.fig-f-free{fill:var(--fig-free,#2f3640)}.fig-s-free{stroke:var(--fig-free,#2f3640)}.fig-f-on{fill:var(--fig-on,#ffffff)}.fig-s-on{stroke:var(--fig-on,#ffffff)}}</style>
+<defs>
+<use id='security-trust-boundaries-g5-28' href='#security-trust-boundaries-g1-28' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-29' href='#security-trust-boundaries-g1-29' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-44' href='#security-trust-boundaries-g1-44' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-45' href='#security-trust-boundaries-g1-45' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-46' href='#security-trust-boundaries-g1-46' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-47' href='#security-trust-boundaries-g1-47' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-50' href='#security-trust-boundaries-g1-50' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-55' href='#security-trust-boundaries-g1-55' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-56' href='#security-trust-boundaries-g1-56' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-58' href='#security-trust-boundaries-g1-58' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-65' href='#security-trust-boundaries-g1-65' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-66' href='#security-trust-boundaries-g1-66' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-67' href='#security-trust-boundaries-g1-67' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-68' href='#security-trust-boundaries-g1-68' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-70' href='#security-trust-boundaries-g1-70' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-75' href='#security-trust-boundaries-g1-75' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-76' href='#security-trust-boundaries-g1-76' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-77' href='#security-trust-boundaries-g1-77' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-78' href='#security-trust-boundaries-g1-78' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-80' href='#security-trust-boundaries-g1-80' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-82' href='#security-trust-boundaries-g1-82' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-83' href='#security-trust-boundaries-g1-83' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-84' href='#security-trust-boundaries-g1-84' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-86' href='#security-trust-boundaries-g1-86' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-97' href='#security-trust-boundaries-g1-97' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-98' href='#security-trust-boundaries-g1-98' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-99' href='#security-trust-boundaries-g1-99' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-100' href='#security-trust-boundaries-g1-100' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-101' href='#security-trust-boundaries-g1-101' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-102' href='#security-trust-boundaries-g1-102' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-103' href='#security-trust-boundaries-g1-103' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-104' href='#security-trust-boundaries-g1-104' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-105' href='#security-trust-boundaries-g1-105' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-106' href='#security-trust-boundaries-g1-106' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-107' href='#security-trust-boundaries-g1-107' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-108' href='#security-trust-boundaries-g1-108' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-109' href='#security-trust-boundaries-g1-109' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-110' href='#security-trust-boundaries-g1-110' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-111' href='#security-trust-boundaries-g1-111' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-112' href='#security-trust-boundaries-g1-112' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-114' href='#security-trust-boundaries-g1-114' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-115' href='#security-trust-boundaries-g1-115' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-116' href='#security-trust-boundaries-g1-116' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-117' href='#security-trust-boundaries-g1-117' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-118' href='#security-trust-boundaries-g1-118' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-119' href='#security-trust-boundaries-g1-119' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-120' href='#security-trust-boundaries-g1-120' transform='scale(1.182)'/>
+<use id='security-trust-boundaries-g5-121' href='#security-trust-boundaries-g1-121' transform='scale(1.182)'/>
+<path id='security-trust-boundaries-g1-28' d='M.929 0H1.586V-3.666H3.304V0H3.962V-4.241H1.586V-5.507H2.499V-6.082H1.858C1.233-6.082 .929-5.679 .929-5.096V-4.241H.238V-3.666H.929V0ZM3.633-5.236C3.912-5.236 4.036-5.384 4.036-5.605V-5.712C4.036-5.934 3.912-6.082 3.633-6.082S3.23-5.934 3.23-5.712V-5.605C3.23-5.384 3.353-5.236 3.633-5.236Z'/>
+<path id='security-trust-boundaries-g1-29' d='M.929 0H1.586V-3.666H2.499V-4.241H1.586V-5.507H2.499V-6.082H1.858C1.233-6.082 .929-5.679 .929-5.096V-4.241H.238V-3.666H.929V0ZM4.644 0V-.575H4.019V-6.082H3.362V-.682C3.362-.288 3.608 0 4.06 0H4.644Z'/>
+<path id='security-trust-boundaries-g1-39' d='M1.159-6.164C.814-6.164 .658-5.967 .658-5.679V-5.564C.658-5.342 .756-5.178 .978-5.129C.888-4.742 .69-4.455 .362-4.11H.912C1.381-4.512 1.66-5.121 1.66-5.564V-5.679C1.66-5.967 1.504-6.164 1.159-6.164Z'/>
+<path id='security-trust-boundaries-g1-40' d='M.682-2.564C.682-.962 1.356 .436 2.17 1.126H2.795C1.907 .337 1.299-1.052 1.299-2.203V-2.91C1.299-4.06 1.882-5.425 2.795-6.247H2.17C1.332-5.532 .682-4.151 .682-2.564Z'/>
+<path id='security-trust-boundaries-g1-41' d='M2.071-2.564C2.071-4.151 1.422-5.532 .584-6.247H-.041C.871-5.425 1.455-4.06 1.455-2.91V-2.203C1.455-1.052 .847 .337-.041 1.126H.584C1.397 .436 2.071-.962 2.071-2.564Z'/>
+<path id='security-trust-boundaries-g1-44' d='M1.118-.962C.773-.962 .616-.764 .616-.477V-.362C.616-.14 .715 .025 .937 .074C.847 .46 .649 .748 .321 1.093H.871C1.34 .69 1.619 .082 1.619-.362V-.477C1.619-.764 1.463-.962 1.118-.962Z'/>
+<path id='security-trust-boundaries-g1-45' d='M2.712-2.145V-2.852H.567V-2.145H2.712Z'/>
+<path id='security-trust-boundaries-g1-46' d='M1.118 .099C1.463 .099 1.619-.099 1.619-.378V-.485C1.619-.764 1.463-.962 1.118-.962S.616-.764 .616-.485V-.378C.616-.099 .773 .099 1.118 .099Z'/>
+<path id='security-trust-boundaries-g1-47' d='M.666 1.241L2.811-6.082H2.219L.074 1.241H.666Z'/>
+<path id='security-trust-boundaries-g1-50' d='M4.381-.608H1.364L2.91-1.997C3.641-2.655 4.167-3.279 4.167-4.167C4.167-5.145 3.526-5.836 2.408-5.836C1.299-5.836 .789-5.162 .567-4.488L1.184-4.249C1.34-4.792 1.668-5.219 2.375-5.219S3.436-4.784 3.436-4.151V-4.052C3.436-3.501 3.025-2.926 2.49-2.433L.616-.707V0H4.381V-.608Z'/>
+<path id='security-trust-boundaries-g1-55' d='M2.178 0L4.332-5.129V-5.737H.567V-4.077H1.184V-5.145H3.633L1.438 0H2.178Z'/>
+<path id='security-trust-boundaries-g1-56' d='M2.466 .099C3.773 .099 4.455-.616 4.455-1.562C4.455-2.342 3.986-2.795 3.296-2.984V-3.049C3.896-3.255 4.282-3.74 4.282-4.397C4.282-5.268 3.608-5.836 2.466-5.836S.649-5.268 .649-4.397C.649-3.74 1.036-3.255 1.636-3.049V-2.984C.945-2.795 .477-2.342 .477-1.562C.477-.616 1.159 .099 2.466 .099ZM2.466-.501C1.668-.501 1.208-.879 1.208-1.529V-1.701C1.208-2.351 1.668-2.729 2.466-2.729S3.723-2.351 3.723-1.701V-1.529C3.723-.879 3.263-.501 2.466-.501ZM2.466-3.304C1.751-3.304 1.364-3.625 1.364-4.208V-4.332C1.364-4.915 1.751-5.236 2.466-5.236S3.567-4.915 3.567-4.332V-4.208C3.567-3.625 3.181-3.304 2.466-3.304Z'/>
+<path id='security-trust-boundaries-g1-58' d='M1.2 .099C1.545 .099 1.701-.099 1.701-.378V-.485C1.701-.764 1.545-.962 1.2-.962S.699-.764 .699-.485V-.378C.699-.099 .855 .099 1.2 .099ZM1.2-3.279C1.545-3.279 1.701-3.477 1.701-3.756V-3.863C1.701-4.142 1.545-4.34 1.2-4.34S.699-4.142 .699-3.863V-3.756C.699-3.477 .855-3.279 1.2-3.279Z'/>
+<path id='security-trust-boundaries-g1-65' d='M5.079 0L3.074-5.737H2.195L.189 0H.888L1.463-1.693H3.781L4.356 0H5.079ZM3.608-2.301H1.627L2.597-5.096H2.638L3.608-2.301Z'/>
+<path id='security-trust-boundaries-g1-66' d='M.764 0H3.37C4.216 0 4.849-.715 4.849-1.66C4.849-2.614 4.134-2.967 3.723-2.992V-3.041C4.101-3.099 4.652-3.403 4.652-4.258C4.652-5.153 4.068-5.737 3.123-5.737H.764V0ZM1.455-2.663H3.156C3.748-2.663 4.11-2.351 4.11-1.775V-1.496C4.11-.921 3.748-.608 3.156-.608H1.455V-2.663ZM1.455-5.129H3.041C3.584-5.129 3.912-4.841 3.912-4.332V-4.052C3.912-3.542 3.584-3.255 3.041-3.255H1.455V-5.129Z'/>
+<path id='security-trust-boundaries-g1-67' d='M2.786 .099C3.74 .099 4.438-.403 4.8-1.208L4.249-1.553C4.019-.929 3.518-.518 2.786-.518C1.8-.518 1.216-1.233 1.216-2.408V-3.263C1.216-4.438 1.8-5.219 2.786-5.219C3.493-5.219 3.97-4.833 4.2-4.241L4.759-4.578C4.397-5.375 3.74-5.836 2.786-5.836C1.34-5.836 .477-4.751 .477-2.836S1.34 .099 2.786 .099Z'/>
+<path id='security-trust-boundaries-g1-68' d='M.764 0H2.688C4.118 0 5.038-.953 5.038-2.868S4.118-5.737 2.688-5.737H.764V0ZM1.455-.608V-5.129H2.688C3.633-5.129 4.299-4.471 4.299-3.337V-2.4C4.299-1.266 3.633-.608 2.688-.608H1.455Z'/>
+<path id='security-trust-boundaries-g1-70' d='M1.455 0V-2.597H3.945V-3.205H1.455V-5.129H4.184V-5.737H.764V0H1.455Z'/>
+<path id='security-trust-boundaries-g1-75' d='M4.175 0H5.03L2.745-3.279L4.882-5.737H4.036L2.301-3.682L1.479-2.688H1.455V-5.737H.764V0H1.455V-1.915L2.268-2.819L4.175 0Z'/>
+<path id='security-trust-boundaries-g1-76' d='M3.896 0V-.608H1.455V-5.737H.764V0H3.896Z'/>
+<path id='security-trust-boundaries-g1-77' d='M.764 0H1.438V-4.833H1.479L1.964-3.871L3.337-1.373L4.71-3.871L5.195-4.833H5.236V0H5.91V-5.737H5.022L3.37-2.647H3.329L1.685-5.737H.764V0Z'/>
+<path id='security-trust-boundaries-g1-78' d='M4.249 0H5.047V-5.737H4.373V-.962H4.348L3.658-2.236L1.562-5.737H.764V0H1.438V-4.775H1.463L2.153-3.501L4.249 0Z'/>
+<path id='security-trust-boundaries-g1-80' d='M1.455 0V-2.449H3.049C4.077-2.449 4.652-3.082 4.652-4.093S4.077-5.737 3.049-5.737H.764V0H1.455ZM1.455-5.129H3.049C3.592-5.129 3.912-4.833 3.912-4.307V-3.879C3.912-3.353 3.592-3.058 3.049-3.058H1.455V-5.129Z'/>
+<path id='security-trust-boundaries-g1-82' d='M1.455-2.466H2.795L4.036 0H4.816L3.501-2.532C4.249-2.704 4.652-3.271 4.652-4.11C4.652-5.153 4.052-5.737 3.049-5.737H.764V0H1.455V-2.466ZM1.455-3.058V-5.129H3.049C3.592-5.129 3.912-4.833 3.912-4.307V-3.879C3.912-3.353 3.592-3.058 3.049-3.058H1.455Z'/>
+<path id='security-trust-boundaries-g1-83' d='M2.375 .099C3.608 .099 4.348-.575 4.348-1.627C4.348-2.482 3.863-2.975 2.745-3.23L2.277-3.337C1.553-3.501 1.2-3.748 1.2-4.29C1.2-4.907 1.652-5.227 2.384-5.227C3.049-5.227 3.485-4.956 3.797-4.521L4.315-4.899C3.888-5.507 3.279-5.836 2.416-5.836C1.29-5.836 .518-5.285 .518-4.266C.518-3.386 1.093-2.926 2.137-2.688L2.605-2.581C3.362-2.408 3.666-2.137 3.666-1.595C3.666-.937 3.222-.51 2.4-.51C1.734-.51 1.258-.797 .855-1.332L.345-.904C.805-.279 1.455 .099 2.375 .099Z'/>
+<path id='security-trust-boundaries-g1-84' d='M4.521-5.129V-5.737H.181V-5.129H2.005V0H2.696V-5.129H4.521Z'/>
+<path id='security-trust-boundaries-g1-86' d='M2.91 0L4.841-5.737H4.126L3.173-2.844L2.523-.69H2.482L1.849-2.844L.904-5.737H.164L2.071 0H2.91Z'/>
+<path id='security-trust-boundaries-g1-95' d='M4.397 1.356V.781H.247V1.356H4.397Z'/>
+<path id='security-trust-boundaries-g1-97' d='M4.151 0V-.575H3.666V-2.91C3.666-3.805 3.058-4.34 2.038-4.34C1.274-4.34 .764-3.962 .534-3.51L.929-3.14C1.159-3.526 1.496-3.773 2.005-3.773C2.679-3.773 3.008-3.444 3.008-2.844V-2.425H2.17C.937-2.425 .362-1.981 .362-1.184C.362-.395 .888 .099 1.784 .099C2.375 .099 2.827-.173 3.008-.69H3.049C3.099-.296 3.296 0 3.781 0H4.151ZM1.89-.46C1.381-.46 1.052-.699 1.052-1.118V-1.29C1.052-1.701 1.389-1.932 2.137-1.932H3.008V-1.233C3.008-.797 2.54-.46 1.89-.46Z'/>
+<path id='security-trust-boundaries-g1-98' d='M.699 0H1.356V-.69H1.389C1.644-.164 2.047 .099 2.63 .099C3.69 .099 4.356-.764 4.356-2.121S3.69-4.34 2.63-4.34C2.047-4.34 1.611-4.085 1.389-3.551H1.356V-6.082H.699V0ZM2.449-.493C1.849-.493 1.356-.805 1.356-1.356V-2.934C1.356-3.403 1.849-3.748 2.449-3.748C3.189-3.748 3.649-3.238 3.649-2.482V-1.759C3.649-1.003 3.189-.493 2.449-.493Z'/>
+<path id='security-trust-boundaries-g1-99' d='M2.277 .099C3.082 .099 3.633-.296 3.904-.904L3.427-1.225C3.197-.74 2.811-.485 2.277-.485C1.496-.485 1.093-1.019 1.093-1.759V-2.482C1.093-3.222 1.496-3.756 2.277-3.756C2.795-3.756 3.156-3.501 3.312-3.066L3.863-3.345C3.616-3.929 3.115-4.34 2.277-4.34C1.085-4.34 .386-3.477 .386-2.121S1.085 .099 2.277 .099Z'/>
+<path id='security-trust-boundaries-g1-100' d='M3.411 0H4.068V-6.082H3.411V-3.551H3.378C3.156-4.085 2.721-4.34 2.137-4.34C1.077-4.34 .411-3.477 .411-2.121S1.077 .099 2.137 .099C2.721 .099 3.123-.164 3.378-.69H3.411V0ZM2.318-.493C1.578-.493 1.118-1.003 1.118-1.759V-2.482C1.118-3.238 1.578-3.748 2.318-3.748C2.918-3.748 3.411-3.403 3.411-2.934V-1.356C3.411-.805 2.918-.493 2.318-.493Z'/>
+<path id='security-trust-boundaries-g1-101' d='M2.293 .099C3.09 .099 3.699-.296 3.97-.871L3.501-1.208C3.279-.74 2.868-.477 2.334-.477C1.545-.477 1.077-1.027 1.077-1.759V-1.956H4.126V-2.268C4.126-3.468 3.427-4.34 2.293-4.34C1.142-4.34 .386-3.468 .386-2.121S1.142 .099 2.293 .099ZM2.293-3.789C2.967-3.789 3.419-3.288 3.419-2.54V-2.449H1.077V-2.507C1.077-3.247 1.578-3.789 2.293-3.789Z'/>
+<path id='security-trust-boundaries-g1-102' d='M.929 0H1.586V-3.666H2.499V-4.241H1.586V-5.507H2.499V-6.082H1.858C1.233-6.082 .929-5.679 .929-5.096V-4.241H.238V-3.666H.929V0Z'/>
+<path id='security-trust-boundaries-g1-103' d='M4.274 .468C4.274-.23 3.822-.658 2.77-.658H1.866C1.479-.658 1.216-.723 1.216-.978C1.216-1.241 1.496-1.381 1.775-1.455C1.899-1.43 2.047-1.414 2.186-1.414C3.156-1.414 3.789-2.014 3.789-2.877C3.789-3.329 3.608-3.707 3.304-3.97V-4.241H4.11V-4.816H3.477C3.123-4.816 2.984-4.578 2.984-4.249V-4.175C2.753-4.282 2.482-4.34 2.178-4.34C1.216-4.34 .584-3.74 .584-2.877C.584-2.285 .879-1.816 1.381-1.578V-1.545C.953-1.438 .649-1.233 .649-.805C.649-.518 .789-.329 1.027-.214V-.123C.608-.008 .353 .238 .353 .699C.353 1.364 .896 1.742 2.219 1.742C3.584 1.742 4.274 1.34 4.274 .468ZM3.658 .518C3.658 .978 3.23 1.208 2.499 1.208H1.89C1.225 1.208 .97 .904 .97 .534C.97 .271 1.093 .082 1.364-.041H2.778C3.436-.041 3.658 .181 3.658 .518ZM2.186-1.94C1.627-1.94 1.274-2.203 1.274-2.762V-2.992C1.274-3.551 1.627-3.814 2.186-3.814S3.099-3.551 3.099-2.992V-2.762C3.099-2.203 2.745-1.94 2.186-1.94Z'/>
+<path id='security-trust-boundaries-g1-104' d='M.699 0H1.356V-2.942C1.356-3.485 1.866-3.748 2.392-3.748C3.025-3.748 3.353-3.362 3.353-2.605V0H4.011V-2.721C4.011-3.748 3.46-4.34 2.589-4.34C1.956-4.34 1.595-4.027 1.389-3.551H1.356V-6.082H.699V0Z'/>
+<path id='security-trust-boundaries-g1-105' d='M1.027-5.236C1.307-5.236 1.43-5.384 1.43-5.605V-5.712C1.43-5.934 1.307-6.082 1.027-6.082S.625-5.934 .625-5.712V-5.605C.625-5.384 .748-5.236 1.027-5.236ZM.699 0H1.356V-4.241H.699V0Z'/>
+<path id='security-trust-boundaries-g1-106' d='M.699 1.068H.008V1.644H.436C1.068 1.644 1.356 1.241 1.356 .658V-4.241H.699V1.068ZM1.027-5.236C1.307-5.236 1.43-5.384 1.43-5.605V-5.712C1.43-5.934 1.307-6.082 1.027-6.082S.625-5.934 .625-5.712V-5.605C.625-5.384 .748-5.236 1.027-5.236Z'/>
+<path id='security-trust-boundaries-g1-107' d='M.699 0H1.356V-1.512L1.989-2.162L3.395 0H4.192L2.466-2.564L4.036-4.241H3.238L2.038-2.951L1.389-2.227H1.356V-6.082H.699V0Z'/>
+<path id='security-trust-boundaries-g1-108' d='M1.981 0V-.575H1.356V-6.082H.699V-.682C.699-.288 .945 0 1.397 0H1.981Z'/>
+<path id='security-trust-boundaries-g1-109' d='M1.356 0V-2.942C1.356-3.485 1.849-3.748 2.367-3.748C2.992-3.748 3.279-3.362 3.279-2.605V0H3.937V-2.942C3.937-3.485 4.414-3.748 4.932-3.748C5.573-3.748 5.86-3.353 5.86-2.605V0H6.518V-2.721C6.518-3.748 6-4.34 5.137-4.34C4.414-4.34 4.003-3.937 3.847-3.477H3.83C3.6-4.085 3.09-4.34 2.532-4.34C1.874-4.34 1.578-3.986 1.389-3.551H1.356V-4.241H.699V0H1.356Z'/>
+<path id='security-trust-boundaries-g1-110' d='M1.356 0V-2.942C1.356-3.485 1.866-3.748 2.392-3.748C3.025-3.748 3.353-3.362 3.353-2.605V0H4.011V-2.721C4.011-3.748 3.46-4.34 2.589-4.34C1.956-4.34 1.595-4.027 1.389-3.551H1.356V-4.241H.699V0H1.356Z'/>
+<path id='security-trust-boundaries-g1-111' d='M2.301 .099C3.436 .099 4.216-.773 4.216-2.121S3.436-4.34 2.301-4.34S.386-3.468 .386-2.121S1.167 .099 2.301 .099ZM2.301-.485C1.595-.485 1.093-.921 1.093-1.816V-2.425C1.093-3.321 1.595-3.756 2.301-3.756S3.51-3.321 3.51-2.425V-1.816C3.51-.921 3.008-.485 2.301-.485Z'/>
+<path id='security-trust-boundaries-g1-112' d='M.699 1.644H1.356V-.69H1.389C1.644-.164 2.047 .099 2.63 .099C3.69 .099 4.356-.764 4.356-2.121S3.69-4.34 2.63-4.34C2.047-4.34 1.611-4.085 1.389-3.551H1.356V-4.241H.699V1.644ZM2.449-.493C1.849-.493 1.356-.805 1.356-1.356V-2.934C1.356-3.403 1.849-3.748 2.449-3.748C3.189-3.748 3.649-3.238 3.649-2.482V-1.759C3.649-1.003 3.189-.493 2.449-.493Z'/>
+<path id='security-trust-boundaries-g1-113' d='M3.411 1.644H4.068V-4.241H3.411V-3.551H3.378C3.156-4.085 2.721-4.34 2.137-4.34C1.077-4.34 .411-3.477 .411-2.121S1.077 .099 2.137 .099C2.721 .099 3.123-.164 3.378-.69H3.411V1.644ZM2.318-.493C1.578-.493 1.118-1.003 1.118-1.759V-2.482C1.118-3.238 1.578-3.748 2.318-3.748C2.918-3.748 3.411-3.403 3.411-2.934V-1.356C3.411-.805 2.918-.493 2.318-.493Z'/>
+<path id='security-trust-boundaries-g1-114' d='M1.356 0V-2.877C1.356-3.279 1.784-3.584 2.49-3.584H2.877V-4.241H2.622C1.932-4.241 1.545-3.863 1.397-3.46H1.356V-4.241H.699V0H1.356Z'/>
+<path id='security-trust-boundaries-g1-115' d='M1.973 .099C2.942 .099 3.542-.403 3.542-1.225C3.542-1.866 3.181-2.277 2.244-2.416L1.915-2.466C1.389-2.548 1.101-2.712 1.101-3.123C1.101-3.526 1.389-3.781 1.932-3.781S2.836-3.526 3.025-3.263L3.46-3.658C3.115-4.085 2.663-4.34 1.981-4.34C1.118-4.34 .468-3.929 .468-3.09C.468-2.301 1.052-1.981 1.833-1.866L2.17-1.816C2.729-1.734 2.91-1.479 2.91-1.151C2.91-.715 2.581-.46 2.022-.46C1.488-.46 1.093-.699 .764-1.11L.296-.732C.674-.23 1.192 .099 1.973 .099Z'/>
+<path id='security-trust-boundaries-g1-116' d='M2.458 0V-.575H1.595V-3.666H2.523V-4.241H1.595V-5.416H1.003V-4.627C1.003-4.34 .912-4.241 .633-4.241H.238V-3.666H.937V-.699C.937-.288 1.184 0 1.636 0H2.458Z'/>
+<path id='security-trust-boundaries-g1-117' d='M3.312 0H3.97V-4.241H3.312V-1.307C3.312-.748 2.803-.493 2.285-.493C1.652-.493 1.315-.879 1.315-1.636V-4.241H.658V-1.521C.658-.493 1.216 .099 2.088 .099C2.795 .099 3.115-.288 3.279-.69H3.312V0Z'/>
+<path id='security-trust-boundaries-g1-118' d='M2.4 0L3.896-4.241H3.263L2.507-2.137L2.047-.69H2.005L1.545-2.137L.805-4.241H.148L1.636 0H2.4Z'/>
+<path id='security-trust-boundaries-g1-119' d='M1.389 0H2.186L2.778-2.038L3.14-3.329H3.156L3.526-2.038L4.118 0H4.932L6.058-4.241H5.441L4.981-2.408L4.545-.551H4.529L4.003-2.408L3.452-4.241H2.868L2.334-2.408L1.816-.551H1.8L1.348-2.408L.896-4.241H.255L1.389 0Z'/>
+<path id='security-trust-boundaries-g1-120' d='M.173 0H.904L2.096-1.66H2.121L3.222 0H3.995L2.466-2.186L3.962-4.241H3.23L2.112-2.663H2.088L1.011-4.241H.238L1.742-2.137L.173 0Z'/>
+<path id='security-trust-boundaries-g1-121' d='M2.285-1.356L2.055-.666H2.014L1.816-1.356L.797-4.241H.14L1.726 .164L1.405 1.068H.74V1.644H1.077C1.701 1.644 1.874 1.496 2.063 .986L3.962-4.241H3.312L2.285-1.356Z'/>
+<path id='security-trust-boundaries-g3-28' d='M.971 0H2.215V-4.089H4.099V0H5.342V-5.07H2.215V-6.197H3.254V-7.188H2.37C1.457-7.188 .971-6.693 .971-5.799V-5.07H.223V-4.089H.971V0ZM4.721-5.809C5.226-5.809 5.449-6.071 5.449-6.43V-6.625C5.449-6.984 5.226-7.246 4.721-7.246C4.206-7.246 3.992-6.984 3.992-6.625V-6.43C3.992-6.071 4.206-5.809 4.721-5.809Z'/>
+<path id='security-trust-boundaries-g3-44' d='M1.447-1.496C.913-1.496 .67-1.195 .67-.777V-.602C.67-.253 .845 .019 1.243 .087C1.088 .583 .787 .962 .35 1.389H1.234C1.826 .913 2.224 .107 2.224-.602V-.777C2.224-1.195 1.972-1.496 1.447-1.496Z'/>
+<path id='security-trust-boundaries-g3-67' d='M3.429 .117C4.643 .117 5.449-.476 5.935-1.486L4.896-2.098C4.672-1.486 4.196-1.02 3.429-1.02C2.477-1.02 1.865-1.68 1.865-2.846V-3.915C1.865-5.07 2.477-5.76 3.429-5.76C4.187-5.76 4.614-5.352 4.808-4.75L5.906-5.333C5.43-6.382 4.643-6.897 3.429-6.897C1.642-6.897 .505-5.624 .505-3.341S1.642 .117 3.429 .117Z'/>
+<path id='security-trust-boundaries-g3-69' d='M5.265 0V-1.136H2.079V-2.866H4.896V-4.002H2.079V-5.644H5.265V-6.78H.797V0H5.265Z'/>
+<path id='security-trust-boundaries-g3-73' d='M3.594 0V-1.03H2.691V-5.75H3.594V-6.78H.515V-5.75H1.408V-1.03H.515V0H3.594Z'/>
+<path id='security-trust-boundaries-g3-75' d='M4.915 0H6.44L3.885-3.953L6.246-6.78H4.769L3.089-4.711L2.127-3.439H2.079V-6.78H.797V0H2.079V-2.001L2.982-3.069L4.915 0Z'/>
+<path id='security-trust-boundaries-g3-77' d='M.797 0H2.011V-4.866H2.05L2.574-3.788L3.963-1.224L5.352-3.788L5.877-4.866H5.916V0H7.13V-6.78H5.741L4.021-3.468H3.983L2.244-6.78H.797V0Z'/>
+<path id='security-trust-boundaries-g3-78' d='M4.779 0H6.188V-6.78H4.973V-1.894H4.944L4.245-3.303L2.205-6.78H.797V0H2.011V-4.886H2.04L2.739-3.477L4.779 0Z'/>
+<path id='security-trust-boundaries-g3-79' d='M3.458 .117C5.245 .117 6.411-1.098 6.411-3.39S5.245-6.897 3.458-6.897C1.68-6.897 .505-5.682 .505-3.39S1.68 .117 3.458 .117ZM3.458-1.02C2.487-1.02 1.865-1.71 1.865-2.866V-3.915C1.865-5.07 2.487-5.76 3.458-5.76S5.051-5.07 5.051-3.915V-2.866C5.051-1.71 4.429-1.02 3.458-1.02Z'/>
+<path id='security-trust-boundaries-g3-80' d='M2.079 0V-2.584H3.847C5.1-2.584 5.857-3.419 5.857-4.682C5.857-5.935 5.1-6.78 3.847-6.78H.797V0H2.079ZM2.079-5.663H3.73C4.225-5.663 4.527-5.401 4.527-4.905V-4.459C4.527-3.963 4.225-3.691 3.73-3.691H2.079V-5.663Z'/>
+<path id='security-trust-boundaries-g3-82' d='M2.079-2.613H3.293L4.556 0H5.984L4.595-2.759C5.43-3.04 5.857-3.749 5.857-4.682C5.857-5.964 5.09-6.78 3.856-6.78H.797V0H2.079V-2.613ZM2.079-3.691V-5.663H3.73C4.225-5.663 4.527-5.401 4.527-4.905V-4.459C4.527-3.963 4.225-3.691 3.73-3.691H2.079Z'/>
+<path id='security-trust-boundaries-g3-84' d='M5.381-5.644V-6.78H.253V-5.644H2.176V0H3.458V-5.644H5.381Z'/>
+<path id='security-trust-boundaries-g3-86' d='M3.827 0L6.042-6.78H4.769L3.73-3.477L3.137-1.224H3.108L2.506-3.477L1.467-6.78H.155L2.37 0H3.827Z'/>
+<path id='security-trust-boundaries-g3-87' d='M3.283 0L4.148-3.584L4.585-5.372H4.604L5.022-3.584L5.886 0H7.334L8.956-6.78H7.732L7.042-3.526L6.615-1.447H6.586L6.11-3.526L5.333-6.78H3.915L3.137-3.526L2.652-1.447H2.623L2.205-3.526L1.535-6.78H.253L1.826 0H3.283Z'/>
+<path id='security-trust-boundaries-g3-97' d='M1.972 .117C2.73 .117 3.283-.223 3.448-.874H3.507C3.584-.35 3.915 0 4.449 0H5.138V-.991H4.633V-3.38C4.633-4.536 3.905-5.187 2.535-5.187C1.515-5.187 .923-4.799 .554-4.216L1.292-3.555C1.535-3.905 1.865-4.196 2.448-4.196C3.108-4.196 3.39-3.866 3.39-3.303V-2.933H2.526C1.146-2.933 .359-2.419 .359-1.379C.359-.476 .942 .117 1.972 .117ZM2.39-.787C1.904-.787 1.622-.991 1.622-1.399V-1.564C1.622-1.962 1.943-2.186 2.594-2.186H3.39V-1.515C3.39-1.039 2.943-.787 2.39-.787Z'/>
+<path id='security-trust-boundaries-g3-98' d='M.719 0H1.962V-.845H2.001C2.195-.272 2.73 .117 3.4 .117C4.682 .117 5.391-.845 5.391-2.545C5.391-4.235 4.682-5.187 3.4-5.187C2.73-5.187 2.186-4.818 2.001-4.235H1.962V-7.188H.719V0ZM3.001-.913C2.409-.913 1.962-1.214 1.962-1.739V-3.351C1.962-3.847 2.409-4.167 3.001-4.167C3.643-4.167 4.089-3.691 4.089-2.972V-2.098C4.089-1.379 3.643-.913 3.001-.913Z'/>
+<path id='security-trust-boundaries-g3-99' d='M2.72 .117C3.701 .117 4.41-.33 4.74-1.224L3.788-1.68C3.604-1.224 3.312-.884 2.72-.884C2.03-.884 1.68-1.36 1.68-2.069V-2.992C1.68-3.701 2.03-4.187 2.72-4.187C3.254-4.187 3.575-3.876 3.691-3.448L4.711-3.905C4.41-4.701 3.74-5.187 2.72-5.187C1.224-5.187 .379-4.167 .379-2.545C.379-.913 1.224 .117 2.72 .117Z'/>
+<path id='security-trust-boundaries-g3-100' d='M3.866 0H5.109V-7.188H3.866V-4.235H3.817C3.643-4.818 3.089-5.187 2.419-5.187C1.146-5.187 .437-4.235 .437-2.545C.437-.845 1.146 .117 2.419 .117C3.089 .117 3.633-.272 3.817-.845H3.866V0ZM2.817-.913C2.176-.913 1.739-1.379 1.739-2.098V-2.972C1.739-3.691 2.176-4.167 2.817-4.167C3.409-4.167 3.866-3.847 3.866-3.351V-1.739C3.866-1.214 3.409-.913 2.817-.913Z'/>
+<path id='security-trust-boundaries-g3-101' d='M2.768 .117C3.711 .117 4.449-.243 4.866-.816L4.196-1.564C3.885-1.166 3.516-.874 2.904-.874C2.088-.874 1.671-1.37 1.671-2.098V-2.224H5.041V-2.632C5.041-4.021 4.313-5.187 2.73-5.187C1.243-5.187 .379-4.148 .379-2.545C.379-.923 1.272 .117 2.768 .117ZM2.749-4.255C3.39-4.255 3.749-3.779 3.749-3.079V-2.992H1.671V-3.069C1.671-3.769 2.098-4.255 2.749-4.255Z'/>
+<path id='security-trust-boundaries-g3-103' d='M5.294 .427C5.294-.486 4.76-1.02 3.516-1.02H2.156C1.71-1.02 1.496-1.146 1.496-1.399C1.496-1.622 1.661-1.768 1.855-1.855C2.079-1.797 2.341-1.768 2.632-1.768C4.012-1.768 4.731-2.448 4.731-3.468C4.731-4.089 4.468-4.585 3.944-4.876V-5.012H5.022V-5.964H4.235C3.769-5.964 3.516-5.721 3.516-5.226V-5.061C3.264-5.148 2.943-5.187 2.632-5.187C1.263-5.187 .534-4.497 .534-3.468C.534-2.798 .845-2.273 1.457-1.991V-1.952C.971-1.846 .525-1.583 .525-1.059C.525-.651 .758-.321 1.175-.214V-.107C.612-.019 .272 .301 .272 .865C.272 1.612 .923 2.059 2.632 2.059C4.575 2.059 5.294 1.486 5.294 .427ZM4.128 .573C4.128 1 3.769 1.204 2.963 1.204H2.341C1.564 1.204 1.272 .971 1.272 .583C1.272 .379 1.35 .194 1.535 .058H3.264C3.895 .058 4.128 .253 4.128 .573ZM2.632-2.613C2.04-2.613 1.719-2.885 1.719-3.39V-3.555C1.719-4.07 2.04-4.332 2.632-4.332S3.545-4.07 3.545-3.555V-3.39C3.545-2.885 3.225-2.613 2.632-2.613Z'/>
+<path id='security-trust-boundaries-g3-104' d='M.719 0H1.962V-3.351C1.962-3.895 2.458-4.167 2.972-4.167C3.565-4.167 3.808-3.798 3.808-3.079V0H5.051V-3.205C5.051-4.468 4.468-5.187 3.429-5.187C2.642-5.187 2.215-4.769 2.011-4.225H1.962V-7.188H.719V0Z'/>
+<path id='security-trust-boundaries-g3-105' d='M1.34-5.809C1.846-5.809 2.069-6.071 2.069-6.43V-6.625C2.069-6.984 1.846-7.246 1.34-7.246C.826-7.246 .612-6.984 .612-6.625V-6.43C.612-6.071 .826-5.809 1.34-5.809ZM.719 0H1.962V-5.07H.719V0Z'/>
+<path id='security-trust-boundaries-g3-107' d='M.719 0H1.962V-1.544L2.632-2.273L3.934 0H5.41L3.477-3.108L5.226-5.07H3.817L2.681-3.769L2.011-2.856H1.962V-7.188H.719V0Z'/>
+<path id='security-trust-boundaries-g3-108' d='M2.632 0V-.991H1.962V-7.188H.719V-1.224C.719-.447 1.117 0 1.962 0H2.632Z'/>
+<path id='security-trust-boundaries-g3-109' d='M1.962 0V-3.351C1.962-3.895 2.428-4.167 2.904-4.167C3.458-4.167 3.72-3.808 3.72-3.079V0H4.964V-3.351C4.964-3.895 5.42-4.167 5.906-4.167C6.46-4.167 6.722-3.808 6.722-3.079V0H7.965V-3.205C7.965-4.468 7.402-5.187 6.411-5.187C5.605-5.187 5.041-4.731 4.857-4.167H4.837C4.595-4.847 4.06-5.187 3.371-5.187C2.613-5.187 2.205-4.76 2.011-4.225H1.962V-5.07H.719V0H1.962Z'/>
+<path id='security-trust-boundaries-g3-110' d='M1.962 0V-3.351C1.962-3.895 2.458-4.167 2.972-4.167C3.565-4.167 3.808-3.798 3.808-3.079V0H5.051V-3.205C5.051-4.468 4.468-5.187 3.429-5.187C2.642-5.187 2.215-4.769 2.011-4.225H1.962V-5.07H.719V0H1.962Z'/>
+<path id='security-trust-boundaries-g3-111' d='M2.73 .117C4.187 .117 5.09-.913 5.09-2.545C5.09-4.167 4.187-5.187 2.73-5.187C1.282-5.187 .379-4.167 .379-2.545C.379-.913 1.282 .117 2.73 .117ZM2.73-.884C2.088-.884 1.68-1.302 1.68-2.069V-3.011C1.68-3.769 2.088-4.187 2.73-4.187C3.38-4.187 3.788-3.769 3.788-3.011V-2.069C3.788-1.302 3.38-.884 2.73-.884Z'/>
+<path id='security-trust-boundaries-g3-112' d='M.719 1.943H1.962V-.845H2.001C2.195-.272 2.73 .117 3.4 .117C4.682 .117 5.391-.845 5.391-2.545C5.391-4.235 4.682-5.187 3.4-5.187C2.73-5.187 2.186-4.818 2.001-4.235H1.962V-5.07H.719V1.943ZM3.001-.913C2.409-.913 1.962-1.214 1.962-1.739V-3.351C1.962-3.847 2.409-4.167 3.001-4.167C3.643-4.167 4.089-3.691 4.089-2.972V-2.098C4.089-1.379 3.643-.913 3.001-.913Z'/>
+<path id='security-trust-boundaries-g3-114' d='M1.962 0V-3.108C1.962-3.662 2.399-3.895 3.235-3.895H3.623V-5.07H3.351C2.545-5.07 2.137-4.556 2.011-4.021H1.962V-5.07H.719V0H1.962Z'/>
+<path id='security-trust-boundaries-g3-115' d='M2.38 .117C3.643 .117 4.468-.563 4.468-1.544C4.468-2.39 3.934-2.885 2.827-3.04L2.312-3.108C1.836-3.186 1.651-3.341 1.651-3.681C1.651-3.992 1.884-4.206 2.419-4.206C2.914-4.206 3.341-3.973 3.633-3.662L4.361-4.391C3.876-4.896 3.371-5.187 2.38-5.187C1.224-5.187 .457-4.565 .457-3.584C.457-2.662 1.059-2.186 2.147-2.05L2.652-1.982C3.099-1.923 3.273-1.739 3.273-1.447C3.273-1.088 3.021-.865 2.428-.865C1.855-.865 1.408-1.127 1.039-1.554L.282-.816C.787-.233 1.418 .117 2.38 .117Z'/>
+<path id='security-trust-boundaries-g3-116' d='M2.302 0H3.196V-.991H2.234V-4.08H3.273V-5.07H2.234V-6.46H1.117V-5.595C1.117-5.245 1-5.07 .631-5.07H.243V-4.08H.991V-1.292C.991-.466 1.447 0 2.302 0Z'/>
+<path id='security-trust-boundaries-g3-117' d='M3.749 0H4.993V-5.07H3.749V-1.719C3.749-1.175 3.254-.913 2.759-.913C2.166-.913 1.904-1.292 1.904-1.991V-5.07H.661V-1.865C.661-.602 1.243 .117 2.283 .117C3.118 .117 3.526-.34 3.701-.845H3.749V0Z'/>
+<path id='security-trust-boundaries-g3-118' d='M3.283 0L4.983-5.07H3.798L3.108-2.885L2.613-1.078H2.545L2.05-2.885L1.34-5.07H.117L1.807 0H3.283Z'/>
+<path id='security-trust-boundaries-g3-119' d='M1.622 0H2.943L3.584-2.234L3.953-3.613H3.983L4.361-2.234L5.012 0H6.353L7.742-5.07H6.586L6.081-2.982L5.682-1.243H5.644L5.168-2.982L4.556-5.07H3.429L2.836-2.982L2.37-1.243H2.331L1.933-2.982L1.418-5.07H.223L1.622 0Z'/>
+<path id='security-trust-boundaries-g3-121' d='M2.943-2.39L2.594-1.107H2.535L2.205-2.39L1.321-5.07H.087L1.904 .243L1.671 .952H.758V1.943H1.506C2.341 1.943 2.7 1.632 2.953 .903L4.993-5.07H3.827L2.943-2.39Z'/>
+</defs>
+<g id='security-trust-boundaries-page1'>
+<g stroke-miterlimit='10' transform='matrix(.996 0 0 -.996 -72 -72)' stroke-width='1.12921' class='fig-f-ink fig-s-ink'>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M7.528-33.124V-117.438C7.528-119.101 8.876-120.449 10.539-120.449H155.078C156.741-120.449 158.09-119.101 158.09-117.438V-33.124C158.09-31.46 156.741-30.112 155.078-30.112H10.539C8.876-30.112 7.528-31.46 7.528-33.124ZM158.09-120.449'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M7.528-258.966V-328.224C7.528-329.887 8.876-331.235 10.539-331.235H155.078C156.741-331.235 158.09-329.887 158.09-328.224V-258.966C158.09-257.303 156.741-255.955 155.078-255.955H10.539C8.876-255.955 7.528-257.303 7.528-258.966ZM158.09-331.235'/>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 87.326 -96.36)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-79'/>
+<use x='-65.058' y='-72' href='#security-trust-boundaries-g3-112'/>
+<use x='-59.208' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-53.768' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-50.043' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-44.632' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-41.024' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-35.535' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-29.402' y='-72' href='#security-trust-boundaries-g3-104'/>
+<use x='-23.669' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-18.18' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='-13.393' y='-72' href='#security-trust-boundaries-g3-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -121.955)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-77'/>
+<use x='-64.083' y='-72' href='#security-trust-boundaries-g5-76'/>
+<use x='-59.588' y='-72' href='#security-trust-boundaries-g5-45'/>
+<use x='-55.698' y='-72' href='#security-trust-boundaries-g5-68'/>
+<use x='-49.156' y='-72' href='#security-trust-boundaries-g5-83'/>
+<use x='-43.491' y='-72' href='#security-trust-boundaries-g5-65'/>
+<use x='-37.436' y='-72' href='#security-trust-boundaries-g5-45'/>
+<use x='-33.546' y='-72' href='#security-trust-boundaries-g5-56'/>
+<use x='-27.696' y='-72' href='#security-trust-boundaries-g5-55'/>
+<use x='-19.545' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-14.797' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-12.359' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-7.211' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-1.673' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='.764' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='6.302' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='13.751' y='-72' href='#security-trust-boundaries-g5-107'/>
+<use x='18.724' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='24.028' y='-72' href='#security-trust-boundaries-g5-121'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -138.517)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-67.252' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-61.714' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-59.276' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-55.698' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='-50.16' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-44.505' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-38.948' y='-72' href='#security-trust-boundaries-g5-45'/>
+<use x='-35.057' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-29.402' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='-23.864' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-21.427' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='-18.775' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-13.12' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-8.167' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-3.263' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='-.611' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='4.596' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='10.134' y='-72' href='#security-trust-boundaries-g5-103'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -155.079)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-67.252' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-64.814' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-59.666' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-54.128' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-47.079' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='-41.541' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-35.886' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-30.68' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-27.296' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-22.392' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-16.854' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-11.501' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-6.802' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-1.849' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='.589' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='6.127' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='11.782' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='17.017' y='-72' href='#security-trust-boundaries-g5-120'/>
+<use x='21.844' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='27.196' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='31.896' y='-72' href='#security-trust-boundaries-g5-44'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -170.135)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-68.578' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-65.048' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-59.696' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-54.343' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-49.643' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-44.69' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-39.845' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-34.385' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-28.847' y='-72' href='#security-trust-boundaries-g5-28'/>
+<use x='-23.318' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-18.17' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-13.471' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-8.518' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-3.799' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='1.661' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='7.199' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='12.103' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='17.641' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='22.994' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 87.326 -322.202)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-86'/>
+<use x='-66.111' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-60.671' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-56.839' y='-72' href='#security-trust-boundaries-g3-105'/>
+<use x='-54.148' y='-72' href='#security-trust-boundaries-g3-28'/>
+<use x='-48.064' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-42.623' y='-72' href='#security-trust-boundaries-g3-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -347.798)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-66.794' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-63.459' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-60.076' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-54.723' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-50.043' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-44.32' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-39.601' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-34.248' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-30.67' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-28.232' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-24.976' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='-20.647' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-15.694' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-10.292' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-7.133' y='-72' href='#security-trust-boundaries-g5-29'/>
+<use x='-1.322' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='1.115' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='6.653' y='-72' href='#security-trust-boundaries-g5-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -364.359)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-66.345' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-63.908' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-58.37' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-52.832' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-47.479' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-39.523' y='-72' href='#security-trust-boundaries-g5-65'/>
+<use x='-33.273' y='-72' href='#security-trust-boundaries-g5-75'/>
+<use x='-24.791' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-19.253' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-14.046' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='-5.534' y='-72' href='#security-trust-boundaries-g5-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 88.832 -395.977)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-66.764' y='-72' href='#security-trust-boundaries-g5-120'/>
+<use x='-61.821' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-56.166' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-50.813' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-45.909' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-42.526' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-37.173' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-29.217' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-24.537' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-21.115' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-15.908' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-12.525' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-7.367' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-2.414' y='-72' href='#security-trust-boundaries-g5-80'/>
+<use x='3.494' y='-72' href='#security-trust-boundaries-g5-67'/>
+<use x='9.549' y='-72' href='#security-trust-boundaries-g5-82'/>
+<use x='15.789' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+</g>
+<g stroke-dasharray='4.51686,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M173.146-12.045V-221.325C173.146-223.82 175.168-225.842 177.663-225.842H296.606C299.101-225.842 301.123-223.82 301.123-221.325V-12.045C301.123-9.55 299.101-7.528 296.606-7.528H177.663C175.168-7.528 173.146-9.55 173.146-12.045ZM301.123-225.842' fill='none'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M184.438-40.652V-87.326C184.438-88.989 185.786-90.337 187.449-90.337H286.82C288.483-90.337 289.831-88.989 289.831-87.326V-40.652C289.831-38.989 288.483-37.64 286.82-37.64H187.449C185.786-37.64 184.438-38.989 184.438-40.652ZM289.831-90.337'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M184.438-153.573V-200.247C184.438-201.91 185.786-203.258 187.449-203.258H286.82C288.483-203.258 289.831-201.91 289.831-200.247V-153.573C289.831-151.91 288.483-150.562 286.82-150.562H187.449C185.786-150.562 184.438-151.91 184.438-153.573ZM289.831-203.258'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M173.146-243.91V-358.336C173.146-360 174.494-361.348 176.157-361.348H298.112C299.775-361.348 301.123-360 301.123-358.336V-243.91C301.123-242.247 299.775-240.898 298.112-240.898H176.157C174.494-240.898 173.146-242.247 173.146-243.91ZM301.123-361.348'/>
+</g>
+<g stroke-dasharray='2.25842,2.25842' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M173.146-295.101H301.123' fill='none'/>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -96.36)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-78'/>
+<use x='-64.99' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-59.549' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-55.903' y='-72' href='#security-trust-boundaries-g3-119'/>
+<use x='-48.005' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-42.516' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-38.684' y='-72' href='#security-trust-boundaries-g3-107'/>
+<use x='-33.205' y='-72' href='#security-trust-boundaries-g3-44'/>
+<use x='-27.998' y='-72' href='#security-trust-boundaries-g3-117'/>
+<use x='-22.265' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-16.532' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-12.886' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-9.054' y='-72' href='#security-trust-boundaries-g3-117'/>
+<use x='-3.321' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='1.466' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='5.074' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='10.514' y='-72' href='#security-trust-boundaries-g3-100'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -127.978)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-79'/>
+<use x='-65.058' y='-72' href='#security-trust-boundaries-g3-67'/>
+<use x='-58.799' y='-72' href='#security-trust-boundaries-g3-73'/>
+<use x='-52.373' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-48.59' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-43.15' y='-72' href='#security-trust-boundaries-g3-103'/>
+<use x='-37.836' y='-72' href='#security-trust-boundaries-g3-105'/>
+<use x='-35.145' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='-30.358' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-26.711' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-22.802' y='-72' href='#security-trust-boundaries-g3-121'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -143.034)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-66.345' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-61.139' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-56.234' y='-72' href='#security-trust-boundaries-g5-107'/>
+<use x='-51.145' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-45.938' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-40.849' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-35.496' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-30.797' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-25.844' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-23.406' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-17.868' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-12.213' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-6.977' y='-72' href='#security-trust-boundaries-g5-120'/>
+<use x='-2.151' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='3.202' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='7.901' y='-72' href='#security-trust-boundaries-g5-44'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -156.584)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-68.578' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-65.048' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-59.696' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-52.042' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-46.387' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='-40.849' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-35.194' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='-32.542' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-30.104' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-25.2' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-19.994' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-16.571' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-14.134' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-8.674' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-3.136' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -240.899)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-67'/>
+<use x='-65.741' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-60.251' y='-72' href='#security-trust-boundaries-g3-108'/>
+<use x='-57.453' y='-72' href='#security-trust-boundaries-g3-108'/>
+<use x='-54.587' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-49.146' y='-72' href='#security-trust-boundaries-g3-99'/>
+<use x='-44.144' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-40.537' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-35.048' y='-72' href='#security-trust-boundaries-g3-114'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -255.955)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-107'/>
+<use x='-67.028' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-61.675' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-56.322' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-50.667' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-45.461' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='-42.809' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-40.371' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-35.652' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-30.299' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-25.6' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-20.647' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='-12.135' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-6.929' y='-72' href='#security-trust-boundaries-g5-112'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 264.236 -269.506)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-67.252' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-61.714' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-56.507' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-50.852' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-46.104' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-40.566' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-35.106' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-31.684' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -329.73)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-69'/>
+<use x='-66.15' y='-72' href='#security-trust-boundaries-g3-118'/>
+<use x='-61.041' y='-72' href='#security-trust-boundaries-g3-105'/>
+<use x='-58.35' y='-72' href='#security-trust-boundaries-g3-100'/>
+<use x='-52.5' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-47.06' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-41.327' y='-72' href='#security-trust-boundaries-g3-99'/>
+<use x='-36.374' y='-72' href='#security-trust-boundaries-g3-101'/>
+</g>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -344.786)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-84'/>
+<use x='-67.281' y='-72' href='#security-trust-boundaries-g1-80'/>
+<use x='-62.282' y='-72' href='#security-trust-boundaries-g1-77'/>
+<use x='-55.583' y='-72' href='#security-trust-boundaries-g1-45'/>
+<use x='-52.291' y='-72' href='#security-trust-boundaries-g1-115'/>
+<use x='-48.273' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-46.211' y='-72' href='#security-trust-boundaries-g1-103'/>
+<use x='-41.855' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-37.169' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-32.639' y='-72' href='#security-trust-boundaries-g1-100'/>
+<use x='-27.854' y='-72' href='#security-trust-boundaries-g1-58'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -357.584)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-113'/>
+<use x='-67.215' y='-72' href='#security-trust-boundaries-g1-117'/>
+<use x='-62.529' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-57.909' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-55.046' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-50.682' y='-72' href='#security-trust-boundaries-g1-44'/>
+<use x='-46.491' y='-72' href='#security-trust-boundaries-g1-78'/>
+<use x='-40.658' y='-72' href='#security-trust-boundaries-g1-86'/>
+<use x='-33.687' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-29.587' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-25.058' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-21.997' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-19.101' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-17.039' y='-72' href='#security-trust-boundaries-g1-28'/>
+<use x='-12.361' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-8.211' y='-72' href='#security-trust-boundaries-g1-97'/>
+<use x='-3.806' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-.91' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='1.153' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='5.773' y='-72' href='#security-trust-boundaries-g1-110'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -382.427)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-69.104' y='-72' href='#security-trust-boundaries-g1-97'/>
+<use x='-64.699' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-61.861' y='-72' href='#security-trust-boundaries-g1-103'/>
+<use x='-57.554' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-53.025' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-49.964' y='-72' href='#security-trust-boundaries-g1-39'/>
+<use x='-48.125' y='-72' href='#security-trust-boundaries-g1-115'/>
+<use x='-42.16' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-37.581' y='-72' href='#security-trust-boundaries-g1-119'/>
+<use x='-31.245' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-24.612' y='-72' href='#security-trust-boundaries-g1-97'/>
+<use x='-20.207' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-16.106' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-12.006' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-7.386' y='-72' href='#security-trust-boundaries-g1-117'/>
+<use x='-2.7' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='1.986' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='4.882' y='-72' href='#security-trust-boundaries-g1-58'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -395.224)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-67.537' y='-72' href='#security-trust-boundaries-g1-118'/>
+<use x='-63.544' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-59.015' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-54.329' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-51.433' y='-72' href='#security-trust-boundaries-g1-108'/>
+<use x='-49.189' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-44.569' y='-72' href='#security-trust-boundaries-g1-103'/>
+<use x='-40.106' y='-72' href='#security-trust-boundaries-g1-44'/>
+<use x='-35.915' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-31.814' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-27.194' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-22.508' y='-72' href='#security-trust-boundaries-g1-28'/>
+<use x='-17.831' y='-72' href='#security-trust-boundaries-g1-103'/>
+<use x='-11.528' y='-72' href='#security-trust-boundaries-g1-104'/>
+<use x='-6.842' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-4.779' y='-72' href='#security-trust-boundaries-g1-115'/>
+<use x='-.819' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='2.044' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='6.664' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='9.774' y='-72' href='#security-trust-boundaries-g1-121'/>
+<use x='13.437' y='-72' href='#security-trust-boundaries-g1-44'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -408.022)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-69.938' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-65.252' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-63.189' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-58.346' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-55.36' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-50.831' y='-72' href='#security-trust-boundaries-g1-99'/>
+<use x='-46.73' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-42.11' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-39.132' y='-72' href='#security-trust-boundaries-g1-100'/>
+<use x='-32.4' y='-72' href='#security-trust-boundaries-g1-28'/>
+<use x='-27.722' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-23.193' y='-72' href='#security-trust-boundaries-g1-108'/>
+<use x='-20.949' y='-72' href='#security-trust-boundaries-g1-100'/>
+<use x='-16.164' y='-72' href='#security-trust-boundaries-g1-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 252.944 -420.82)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-40'/>
+<use x='-69.236' y='-72' href='#security-trust-boundaries-g1-98'/>
+<use x='-64.451' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-59.831' y='-72' href='#security-trust-boundaries-g1-117'/>
+<use x='-55.145' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-50.459' y='-72' href='#security-trust-boundaries-g1-100'/>
+<use x='-45.674' y='-72' href='#security-trust-boundaries-g1-95'/>
+<use x='-41.013' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='-38.951' y='-72' href='#security-trust-boundaries-g1-110'/>
+<use x='-34.265' y='-72' href='#security-trust-boundaries-g1-44'/>
+<use x='-30.074' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-27.178' y='-72' href='#security-trust-boundaries-g1-115'/>
+<use x='-23.201' y='-72' href='#security-trust-boundaries-g1-44'/>
+<use x='-19.01' y='-72' href='#security-trust-boundaries-g1-98'/>
+<use x='-14.225' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-9.605' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-4.985' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-2.09' y='-72' href='#security-trust-boundaries-g1-95'/>
+<use x='2.572' y='-72' href='#security-trust-boundaries-g1-105'/>
+<use x='4.634' y='-72' href='#security-trust-boundaries-g1-100'/>
+<use x='9.419' y='-72' href='#security-trust-boundaries-g1-41'/>
+</g>
+</g>
+<g stroke-dasharray='4.51686,3.01125' stroke-dashoffset='0.0' class='fig-s-line'>
+<path d='M316.179-12.045V-356.831C316.179-359.325 318.201-361.348 320.696-361.348H575.145C577.64-361.348 579.662-359.325 579.662-356.831V-12.045C579.662-9.55 577.64-7.528 575.145-7.528H320.696C318.201-7.528 316.179-9.55 316.179-12.045ZM579.662-361.348' fill='none'/>
+</g>
+<g class='fig-s-line'>
+<path d='M327.471-33.124V-72.27C327.471-73.933 328.819-75.281 330.483-75.281H565.359C567.022-75.281 568.37-73.933 568.37-72.27V-33.124C568.37-31.46 567.022-30.112 565.359-30.112H330.483C328.819-30.112 327.471-31.46 327.471-33.124ZM568.37-75.281' fill='none'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M327.471-89.584V-124.966C327.471-126.629 328.819-127.977 330.483-127.977H565.359C567.022-127.977 568.37-126.629 568.37-124.966V-89.584C568.37-87.921 567.022-86.573 565.359-86.573H330.483C328.819-86.573 327.471-87.921 327.471-89.584ZM568.37-127.977'/>
+</g>
+<g stroke-dasharray='2.25842,2.25842' stroke-dashoffset='0.0' fill-opacity='0.05' class='fig-s-line fig-f-line'>
+<path d='M323.707-147.55V-345.539C323.707-348.033 325.73-350.056 328.224-350.056H567.617C570.112-350.056 572.134-348.033 572.134-345.539V-147.55C572.134-145.056 570.112-143.033 567.617-143.033H328.224C325.73-143.033 323.707-145.056 323.707-147.55ZM572.134-350.056'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M334.999-164.865V-215.303C334.999-216.966 336.348-218.314 338.011-218.314H557.83C559.494-218.314 560.842-216.966 560.842-215.303V-164.865C560.842-163.202 559.494-161.854 557.83-161.854H338.011C336.348-161.854 334.999-163.202 334.999-164.865ZM560.842-218.314'/>
+</g>
+<g fill-opacity='0.08' class='fig-s-line fig-f-line'>
+<path d='M334.999-236.382V-335.752C334.999-337.415 336.348-338.763 338.011-338.763H557.83C559.494-338.763 560.842-337.415 560.842-335.752V-236.382C560.842-234.719 559.494-233.37 557.83-233.37H338.011C336.348-233.37 334.999-234.719 334.999-236.382ZM560.842-338.763'/>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 395.977 -96.36)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-84'/>
+<use x='-67.028' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-61.577' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-57.911' y='-72' href='#security-trust-boundaries-g3-103'/>
+<use x='-52.656' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-47.216' y='-72' href='#security-trust-boundaries-g3-116'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 407.269 -118.944)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-82'/>
+<use x='-65.672' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-60.183' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-54.733' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-48.785' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-43.335' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-37.602' y='-72' href='#security-trust-boundaries-g3-100'/>
+<use x='-29.451' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='-24.001' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-20.354' y='-72' href='#security-trust-boundaries-g3-104'/>
+<use x='-14.621' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-9.181' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-3.048' y='-72' href='#security-trust-boundaries-g3-112'/>
+<use x='2.802' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='6.585' y='-72' href='#security-trust-boundaries-g3-111'/>
+<use x='12.074' y='-72' href='#security-trust-boundaries-g3-99'/>
+<use x='17.027' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='22.468' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='27.265' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='32.13' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='37.57' y='-72' href='#security-trust-boundaries-g3-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 407.269 -135.506)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-67.154' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-61.694' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-56.156' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-51.476' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-48.054' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-44.515' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-39.308' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-36.871' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-31.333' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-25.98' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-18.024' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-12.418' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='-5.252' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-1.829' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='3.709' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='11.362' y='-72' href='#security-trust-boundaries-g5-76'/>
+<use x='16.247' y='-72' href='#security-trust-boundaries-g5-83'/>
+<use x='21.912' y='-72' href='#security-trust-boundaries-g5-77'/>
+<use x='29.829' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='34.782' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='40.32' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='45.78' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='51.503' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='54.925' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='58.504' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='64.042' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='68.722' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='72.105' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='77.458' y='-72' href='#security-trust-boundaries-g5-100'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 407.269 -175.405)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-87'/>
+<use x='-62.845' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-59.013' y='-72' href='#security-trust-boundaries-g3-105'/>
+<use x='-56.322' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-52.676' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-47.225' y='-72' href='#security-trust-boundaries-g3-98'/>
+<use x='-41.375' y='-72' href='#security-trust-boundaries-g3-108'/>
+<use x='-38.509' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-30.767' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='-25.98' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-22.334' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-16.922' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-13.315' y='-72' href='#security-trust-boundaries-g3-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 407.269 -190.461)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-47'/>
+<use x='-68.266' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-63.557' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-58.35' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-54.918' y='-72' href='#security-trust-boundaries-g5-47'/>
+<use x='-51.184' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='-48.532' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-46.094' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-40.439' y='-72' href='#security-trust-boundaries-g5-47'/>
+<use x='-36.705' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-31.957' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-26.419' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-23.981' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-20.403' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='-14.865' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-9.21' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-3.945' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='1.008' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='5.756' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='11.109' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='16.315' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='18.967' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='24.32' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='32.276' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='37.882' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='45.049' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='47.701' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='52.907' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='58.562' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='63.915' y='-72' href='#security-trust-boundaries-g5-108'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -250.685)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-82'/>
+<use x='-65.526' y='-72' href='#security-trust-boundaries-g3-117'/>
+<use x='-59.793' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-54.06' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-50.414' y='-72' href='#security-trust-boundaries-g3-105'/>
+<use x='-47.723' y='-72' href='#security-trust-boundaries-g3-109'/>
+<use x='-39.065' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-31.323' y='-72' href='#security-trust-boundaries-g3-116'/>
+<use x='-27.677' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-22.226' y='-72' href='#security-trust-boundaries-g3-115'/>
+<use x='-17.361' y='-72' href='#security-trust-boundaries-g3-107'/>
+<use x='-11.979' y='-72' href='#security-trust-boundaries-g3-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -265.742)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-66.764' y='-72' href='#security-trust-boundaries-g5-120'/>
+<use x='-61.938' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-56.585' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='-49.38' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-46.221' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-42.692' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='-37.232' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='-26.419' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-22.997' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-17.459' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-9.805' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-4.15' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='4.362' y='-72' href='#security-trust-boundaries-g5-45'/>
+<use x='8.252' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='12.971' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='18.324' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='21.902' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='24.34' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='27.762' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='34.928' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='38.506' y='-72' href='#security-trust-boundaries-g5-117'/>
+<use x='44.044' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='49.582' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='53.005' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='55.442' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='63.954' y='-72' href='#security-trust-boundaries-g5-101'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -280.798)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-69.563' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='-61.051' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-55.844' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-50.755' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-43.101' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-37.953' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-34.414' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-29.207' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-23.669' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-20.247' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-13.198' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-9.776' y='-72' href='#security-trust-boundaries-g5-104'/>
+<use x='-4.238' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='3.416' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='6.838' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='12.045' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='16.793' y='-72' href='#security-trust-boundaries-g5-107'/>
+<use x='24.232' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='32.744' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='37.951' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='41.529' y='-72' href='#security-trust-boundaries-g5-107'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -322.202)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g3-75'/>
+<use x='-65.633' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-60.193' y='-72' href='#security-trust-boundaries-g3-114'/>
+<use x='-56.361' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-50.628' y='-72' href='#security-trust-boundaries-g3-101'/>
+<use x='-45.188' y='-72' href='#security-trust-boundaries-g3-108'/>
+<use x='-40.02' y='-72' href='#security-trust-boundaries-g3-97'/>
+<use x='-34.57' y='-72' href='#security-trust-boundaries-g3-110'/>
+<use x='-28.837' y='-72' href='#security-trust-boundaries-g3-100'/>
+<use x='-20.686' y='-72' href='#security-trust-boundaries-g3-84'/>
+<use x='-15.031' y='-72' href='#security-trust-boundaries-g3-80'/>
+<use x='-8.781' y='-72' href='#security-trust-boundaries-g3-77'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -338.764)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-66'/>
+<use x='-65.633' y='-72' href='#security-trust-boundaries-g5-80'/>
+<use x='-59.725' y='-72' href='#security-trust-boundaries-g5-70'/>
+<use x='-51.974' y='-72' href='#security-trust-boundaries-g5-76'/>
+<use x='-47.089' y='-72' href='#security-trust-boundaries-g5-83'/>
+<use x='-41.424' y='-72' href='#security-trust-boundaries-g5-77'/>
+<use x='-33.507' y='-72' href='#security-trust-boundaries-g5-58'/>
+<use x='-28.359' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-22.704' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-17.108' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-13.949' y='-72' href='#security-trust-boundaries-g5-50'/>
+<use x='-5.798' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-.591' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='4.947' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='12.903' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='17.651' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='23.004' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='28.21' y='-72' href='#security-trust-boundaries-g5-108'/>
+<use x='33.163' y='-72' href='#security-trust-boundaries-g5-111'/>
+<use x='38.623' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='44.278' y='-72' href='#security-trust-boundaries-g5-106'/>
+<use x='46.716' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='52.069' y='-72' href='#security-trust-boundaries-g5-99'/>
+<use x='56.973' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='60.395' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -353.82)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-46'/>
+<use x='-69.348' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-63.693' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-58.097' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-52.637' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-47.43' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='-41.892' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-33.936' y='-72' href='#security-trust-boundaries-g5-46'/>
+<use x='-31.479' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='-25.824' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='-17.312' y='-72' href='#security-trust-boundaries-g5-45'/>
+<use x='-13.422' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-8.703' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-3.35' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='.228' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='2.665' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='6.088' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='13.254' y='-72' href='#security-trust-boundaries-g5-107'/>
+<use x='18.226' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='23.53' y='-72' href='#security-trust-boundaries-g5-121'/>
+<use x='28.396' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='31.974' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='34.411' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='39.949' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='45.097' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -368.876)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-66.345' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-62.767' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-60.329' y='-72' href='#security-trust-boundaries-g5-118'/>
+<use x='-55.62' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='-50.414' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-47.03' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-39.377' y='-72' href='#security-trust-boundaries-g5-98'/>
+<use x='-33.722' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-28.125' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-24.966' y='-72' href='#security-trust-boundaries-g5-102'/>
+<use x='-21.807' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-17.059' y='-72' href='#security-trust-boundaries-g5-58'/>
+<use x='-11.911' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='-6.256' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-3.818' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='1.72' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='8.769' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='13.975' y='-72' href='#security-trust-boundaries-g5-110'/>
+<use x='19.513' y='-72' href='#security-trust-boundaries-g5-100'/>
+<use x='27.469' y='-72' href='#security-trust-boundaries-g5-109'/>
+<use x='35.981' y='-72' href='#security-trust-boundaries-g5-97'/>
+<use x='41.188' y='-72' href='#security-trust-boundaries-g5-112'/>
+<use x='46.843' y='-72' href='#security-trust-boundaries-g5-115'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 414.797 -395.977)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g5-84'/>
+<use x='-66.423' y='-72' href='#security-trust-boundaries-g5-80'/>
+<use x='-60.515' y='-72' href='#security-trust-boundaries-g5-77'/>
+<use x='-52.598' y='-72' href='#security-trust-boundaries-g5-58'/>
+<use x='-47.45' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-43.92' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-38.567' y='-72' href='#security-trust-boundaries-g5-103'/>
+<use x='-33.419' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='-30.982' y='-72' href='#security-trust-boundaries-g5-115'/>
+<use x='-26.302' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='-22.919' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='-17.566' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='-14.768' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='-9.815' y='-72' href='#security-trust-boundaries-g5-65'/>
+<use x='-3.565' y='-72' href='#security-trust-boundaries-g5-75'/>
+<use x='2.714' y='-72' href='#security-trust-boundaries-g5-44'/>
+<use x='7.667' y='-72' href='#security-trust-boundaries-g5-78'/>
+<use x='14.56' y='-72' href='#security-trust-boundaries-g5-86'/>
+<use x='22.799' y='-72' href='#security-trust-boundaries-g5-119'/>
+<use x='30.287' y='-72' href='#security-trust-boundaries-g5-114'/>
+<use x='33.865' y='-72' href='#security-trust-boundaries-g5-105'/>
+<use x='36.303' y='-72' href='#security-trust-boundaries-g5-116'/>
+<use x='39.686' y='-72' href='#security-trust-boundaries-g5-101'/>
+<use x='45.039' y='-72' href='#security-trust-boundaries-g5-114'/>
+</g>
+</g>
+<g stroke='none' transform='matrix(1.004 0 0 -1.004 403.505 -228.101)' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-69.104' y='-72' href='#security-trust-boundaries-g1-97'/>
+<use x='-64.699' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-61.861' y='-72' href='#security-trust-boundaries-g1-103'/>
+<use x='-57.554' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-53.025' y='-72' href='#security-trust-boundaries-g1-116'/>
+<use x='-48.182' y='-72' href='#security-trust-boundaries-g1-84'/>
+<use x='-43.628' y='-72' href='#security-trust-boundaries-g1-67'/>
+<use x='-38.505' y='-72' href='#security-trust-boundaries-g1-66'/>
+</g>
+<g class='fig-s-line'>
+<path d='M158.09-63.989H175.31' fill='none'/>
+<g transform='translate(175.028 -63.989)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M289.831-75.281L330.485-169.907' fill='none'/>
+<g transform='translate(330.374 -169.648)rotate(-66.751)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M333.494-203.258L298.297-187.545' fill='none'/>
+<g transform='translate(298.554 -187.66)rotate(155.944)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M334.999-308.651H310.251' fill='none'/>
+<g transform='matrix(-1 0 0 -1 310.533 -308.651)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-s-line'>
+<path d='M173.146-308.651H167.217' fill='none'/>
+<g transform='matrix(-1 0 0 -1 167.5 -308.651)' stroke-dasharray='none' stroke-dashoffset='0.0' stroke-linejoin='miter' class='fig-f-line'>
+ <path d='M6.642 0L.565 3.175V0V-3.175Z'/>
+ </g>
+</g>
+<g class='fig-f-muted fig-s-muted'>
+<g transform='matrix(1.004 0 0 -1.004 233.371 -129.483)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-112'/>
+<use x='-67.215' y='-72' href='#security-trust-boundaries-g1-117'/>
+<use x='-62.529' y='-72' href='#security-trust-boundaries-g1-115'/>
+<use x='-58.511' y='-72' href='#security-trust-boundaries-g1-104'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 355.326 -196.483)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-112'/>
+<use x='-67.215' y='-72' href='#security-trust-boundaries-g1-117'/>
+<use x='-62.529' y='-72' href='#security-trust-boundaries-g1-108'/>
+<use x='-60.326' y='-72' href='#security-trust-boundaries-g1-108'/>
+</g>
+<g transform='matrix(1.004 0 0 -1.004 367.371 -284.562)' stroke='none' class='fig-f-muted'>
+<use x='-72' y='-72' href='#security-trust-boundaries-g1-101'/>
+<use x='-67.57' y='-72' href='#security-trust-boundaries-g1-120'/>
+<use x='-63.387' y='-72' href='#security-trust-boundaries-g1-112'/>
+<use x='-58.602' y='-72' href='#security-trust-boundaries-g1-111'/>
+<use x='-53.982' y='-72' href='#security-trust-boundaries-g1-114'/>
+<use x='-50.921' y='-72' href='#security-trust-boundaries-g1-116'/>
+</g>
+</g>
+</g>
+</g>
 </svg>

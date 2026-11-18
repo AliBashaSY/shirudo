@@ -7,8 +7,9 @@
 # every failure category the code emits, every tamper and integrity
 # counter and every proof has its entry in the reference, every hook,
 # counter, test, proof and unit a page names exists, every LSM program
-# and counter stands in the fact box of a threat, and every source file
-# is read by a proof or listed as read by none.
+# and counter stands in the fact box of a threat, every source file is
+# read by a proof or listed as read by none, and every figure is what its
+# TikZ source makes.
 #
 #   .github/scripts/check-docs.sh
 #
@@ -201,6 +202,14 @@ while IFS= read -r page; do
 			report "$page" "no unit is named $unit"
 	done
 done <"$work/pages"
+
+# Every figure of Documentation/images/ is what its TikZ source makes,
+# which build.py tells from the hash it recorded, without TeX.
+if ! python3 Documentation/figures/build.py --check 2>"$work/figures"; then
+	while IFS= read -r line; do
+		report Documentation/figures "${line#figures: }"
+	done <"$work/figures"
+fi
 
 printf 'docs: %s pages checked\n' "$(wc -l <"$work/pages")"
 [ ! -s "$work/errors" ]

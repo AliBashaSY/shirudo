@@ -4,8 +4,10 @@
 # Sphinx extension for the shirudo documentation: the page type and
 # reader line under each title, the source and last change in the page
 # footer, console blocks whose prompts name the role a command runs in,
-# and :src: links to the files of the repository.
+# :src: links to the files of the repository, and the figures of images/
+# written into the page, so that they take the colors of its theme.
 
+import html
 import os
 
 from docutils import nodes
@@ -48,6 +50,22 @@ def meta_line(app, doctree, docname):
             line = nodes.paragraph("", " · ".join(parts), classes=["meta"])
             title.parent.insert(title.parent.index(title) + 1, line)
         return
+
+
+def inline_figures(app, doctree, docname):
+    """An <img> sees neither the page's variables nor its data-theme, so a
+    figure of images/ goes into the page as its SVG, labeled with its alt."""
+    if app.builder.format != "html":
+        return
+    for image in list(doctree.findall(nodes.image)):
+        uri = image["uri"]
+        if not (uri.startswith("images/") and uri.endswith(".svg")):
+            continue
+        with open(os.path.join(app.srcdir, uri), encoding="utf-8") as f:
+            svg = f.read()
+        label = " aria-label='%s'" % html.escape(image.get("alt", ""), quote=True)
+        svg = svg.replace(" role='img'", " role='img'" + label, 1)
+        image.replace_self(nodes.raw("", svg, format="html"))
 
 
 CHANGES = {}
@@ -148,6 +166,7 @@ def setup(app):
     app.add_lexer("shell-session", ConsoleLexer)
     CHANGES.update(last_changes())
     app.connect("doctree-resolved", meta_line)
+    app.connect("doctree-resolved", inline_figures)
     app.connect("html-page-context", page_context)
     app.connect("build-finished", write_llms)
     return {"parallel_read_safe": True, "parallel_write_safe": True}
