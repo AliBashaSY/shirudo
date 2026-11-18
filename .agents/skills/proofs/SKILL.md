@@ -121,10 +121,19 @@ Ubuntu the headers of libcurl, OpenSSL and zlib the harnesses include.
   known beforehand, as `bpm-tar-writer` needs of the tar header's fields.
 - A struct of tens of kilobytes, such as a tree operation, makes even a
   few symbolic copies slow: prove the logic that reads its fields on a
-  smaller harness, or leave it to the unit cases.
+  smaller harness, or leave it to the unit cases. CBMC reads a member
+  through a pointer at an index it does not know as bytes at that offset
+  of the whole array: give each array a pointer may be into an object of
+  its own, as `bpm-tree-sync-model.c` does each publication's
+  operations, and let a stub fill what it returns on every path, so
+  that the offset into each is known where the code reads it.
 - A proof over a few hundred symbolic bytes with long string scans can
   take minutes: split it, proving the parts the caller composes, as the
   `.upatch` header, sections and decoders are proven apart.
+- `--write-solver-stats-to <file>` writes the clauses each instruction
+  adds; summed by source line, they show what makes a formula big. CBMC
+  takes the first of an option given twice, so try another value in
+  place of the one `proofs.list` gives, not after it.
 
 ## Lean 4
 

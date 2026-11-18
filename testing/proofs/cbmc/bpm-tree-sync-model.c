@@ -100,13 +100,14 @@ struct write {
 
 /*
  * NSEG publications: the one the tag names, and with 2 the sealed segment
- * before it. Their operations are ops[0] to ops[LEN - 1] and, for the
- * sealed one, ops[LEN] to ops[2 * LEN - 1].
+ * before it. Operation k is the tag's k-th and, from LEN on, the sealed
+ * segment's.
  */
 #ifndef NSEG
 #define NSEG	1
 #endif
-#define NOPS	(NSEG * (LEN ? LEN : 1))
+#define SEG_OPS	(LEN ? LEN : 1)
+#define NOPS	(NSEG * SEG_OPS)
 
 /*
  * The model's writes, kept by kind, each with its place among them all:
@@ -130,7 +131,16 @@ static struct tree_state disk_state;
 static struct tree_pending disk_pending;
 static int replay_kind;		/* 0 -ENOENT, 1 -EINVAL, 2 a root */
 static __u8 replay_root[32];
-static struct tree_operation ops[NOPS];
+/*
+ * Each publication's operations in an object of their own: CBMC reads a
+ * pointer that may be into either at the offset it has in each, where in
+ * one array the offsets would differ and it would read bytes at an
+ * unknown offset from the whole of it, every operation's 13 KB.
+ */
+static struct tree_operation tag_ops[SEG_OPS];
+#if NSEG == 2
+static struct tree_operation sealed_ops[SEG_OPS];
+#endif
 static struct tree_publication fetched, sealed;
 static char fetched_manifest[2], sealed_manifest[2];
 static int fetches;
@@ -182,11 +192,20 @@ static void record(const struct write *w)
 	n_got++;
 }
 
+static struct tree_operation *op_at(int k)
+{
+#if NSEG == 2
+	if (k >= SEG_OPS)
+		return &sealed_ops[k - SEG_OPS];
+#endif
+	return &tag_ops[k];
+}
+
 /* Which operation a pointer is into, without a division by its size. */
 static int op_index(const char *digest)
 {
 	for (int i = 0; i < NOPS; i++)
-		if (digest == ops[i].operation_digest)
+		if (digest == op_at(i)->operation_digest)
 			return i;
 	return -1;
 }
@@ -194,7 +213,7 @@ static int op_index(const char *digest)
 static int op_of(const struct tree_operation *op)
 {
 	for (int i = 0; i < NOPS; i++)
-		if (op == &ops[i])
+		if (op == op_at(i))
 			return i;
 	return -1;
 }
@@ -352,9 +371,28 @@ static int served(char digest)
 }
 
 /*
+ * The publication and the name served() gives, the tag's for none, and the
+ * tag's alone with one segment: CBMC cannot tell that a 0 or -1 is 0 past
+ * the check for -1, and would carry the sealed segment's operations and
+ * their count into every read.
+ */
+static struct tree_publication *served_pub(int s)
+{
+	return NSEG == 2 && s > 0 ? &sealed : &fetched;
+}
+
+static char *served_name(int s)
+{
+	return NSEG == 2 && s > 0 ? sealed_manifest : fetched_manifest;
+}
+
+/*
  * The first fetch is of the tag; the others name a digest, which sync
  * passes as it is or as "sha256:" and the hex of the byte the decode stub
- * takes, the one byte of a NUL-terminated hex_encode() of it.
+ * takes, the one byte of a NUL-terminated hex_encode() of it. The
+ * publication is filled on every path, though sync only frees it after a
+ * failure: one left as it was there would make the count of operations
+ * and where they are unknown to CBMC where sync reads them.
  */
 int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			       const char *repository, const char *reference,
@@ -363,17 +401,18 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 			       struct tree_publication *pub,
 			       char *manifest_digest, size_t digest_sz)
 {
+	bool failure = fail_here();
 	int s = 0;
 
-	if (fail_here())
-		return -EIO;
-	if (fetches++)
+	if (!failure && fetches++)
 		s = served(strncmp(reference, "sha256:", 7) ? reference[0] :
 			   reference[7]);
+	*pub = *served_pub(s);
+	if (failure)
+		return -EIO;
 	if (s < 0)
 		return -ENOENT;
-	*pub = s ? sealed : fetched;
-	copy_short(manifest_digest, s ? sealed_manifest : fetched_manifest);
+	copy_short(manifest_digest, served_name(s));
 	return 0;
 }
 
@@ -576,7 +615,7 @@ int tree_selector_matches(const struct tree_selector *selector)
 	int i = -1;
 
 	for (int k = 0; k < NOPS; k++)
-		if (selector == &ops[k].selector)
+		if (selector == &op_at(k)->selector)
 			i = k;
 	__CPROVER_assert(i >= 0, "the selector of an operation");
 	if (i < 0)
@@ -1144,13 +1183,12 @@ static void run(void)
 		s = served(succ->segment_manifest_digest[0]);
 		if (s < 0)
 			return;
-		if (!checked_pub(s ? &sealed : &fetched) ||
-		    !precedes(s ? &sealed : &fetched,
-			      s ? sealed_manifest : fetched_manifest, succ))
+		if (!checked_pub(served_pub(s)) ||
+		    !precedes(served_pub(s), served_name(s), succ))
 			return;
 		__CPROVER_assert(n <= NSEG, "a walk passes each segment once");
-		walk[n] = s ? &sealed : &fetched;
-		names[n++] = s ? sealed_manifest : fetched_manifest;
+		walk[n] = served_pub(s);
+		names[n++] = served_name(s);
 		succ = walk[n - 1];
 	}
 	/* Forwards, the oldest first. */
@@ -1195,7 +1233,7 @@ static void any_one(struct tree_publication *out, int first, char *manifest)
 {
 	struct tree_publication pub;
 
-	pub.operations = &ops[first];
+	pub.operations = op_at(first);
 	pub.operations_capacity = 0;
 	pub.n_operations = LEN;
 	any_name(pub.tree_id, false);
@@ -1207,11 +1245,11 @@ static void any_one(struct tree_publication *out, int first, char *manifest)
 			 pub.head_seq != INT64_MAX);
 	*out = pub;
 	for (int i = first; i < first + LEN; i++) {
-		struct tree_operation *o = &ops[i];
+		struct tree_operation *o = op_at(i);
 		bool add, match, fail, absent;
 		__s64 seq;
 
-		__CPROVER_assume(seq > 0 && (i == first || seq - 1 == ops[i - 1].seq));
+		__CPROVER_assume(seq > 0 && (i == first || seq - 1 == op_at(i - 1)->seq));
 		o->seq = seq;
 		any_name(o->id, false);
 		any_name(o->operation_digest, false);
