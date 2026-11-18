@@ -90,11 +90,17 @@ void sha256_free(struct sha256_ctx *ctx)
 {
 }
 
+/* As util/crypto.h promises: where it fails, out is all zeros. */
 int sha256_buffer(const void *data, size_t len, __u8 out[32])
 {
+	int ret;
+
 	begin();
 	record(data, len);
-	return give_digest(out);
+	ret = give_digest(out);
+	if (ret)
+		memset(out, 0, 32);
+	return ret;
 }
 
 static void start(void)
