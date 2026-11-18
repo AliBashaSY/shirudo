@@ -609,16 +609,19 @@ struct upatches_ctx {
 	int	(*cb)(enum eventlog_upatch_event event, const char *name,
 		      const char *payload_hex, void *ctx);
 	void	*ctx;
+	const struct json_field	*entry;
 	char	name[UPATCH_NAME_MAX + 1];
 	char	payload_hex[2 * UPATCH_PAYLOAD_HASH_LEN + 1];
 	int	ret;
 };
 
+/* The buffers are the upatch member's too: an entry names both itself. */
 static int upatches_set_entry(void *arg)
 {
 	struct upatches_ctx *u = arg;
 
-	if (!upatch_member_valid(u->name, u->payload_hex))
+	if (!u->entry[0].seen || !u->entry[1].seen ||
+	    !upatch_member_valid(u->name, u->payload_hex))
 		return -EINVAL;
 	u->ret = u->cb(EVENTLOG_UPATCH_LOAD, u->name, u->payload_hex, u->ctx);
 	u->name[0] = '\0';
@@ -650,6 +653,7 @@ static int upatches_line(const char *line, size_t len, bool is_init,
 	};
 	int ret;
 
+	u->entry = entry;
 	u->name[0] = '\0';
 	u->payload_hex[0] = '\0';
 	type[0] = '\0';

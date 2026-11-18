@@ -99,16 +99,21 @@ struct record_fields {
 	__s64			seq;
 	struct measured_upatch	*set;
 	size_t			n;
+	const struct json_field	*entry;
 	bool			init, upatch, key, tree;
 };
 
+/* The buffers are the upatch member's too: an entry names both itself. */
 static int record_set_entry(void *arg)
 {
 	struct record_fields *r = arg;
 	__u32 type;
 	int ret;
 
-	ret = measured_member_type(r->member_type, &type);
+	if (!r->entry[0].seen || !r->entry[1].seen)
+		ret = -EINVAL;
+	else
+		ret = measured_member_type(r->member_type, &type);
 	if (!ret)
 		ret = measured_set_add(r->set, &r->n, MEASURED_MAX, r->name,
 				       r->payload_hex, type);
@@ -157,6 +162,7 @@ static int record_parse(const char *line, size_t len, struct record_fields *r)
 		{ "tree", JSON_T_OBJECT, NULL, 0, 0, tree, ARRAY_SIZE(tree) },
 	};
 
+	r->entry = entry;
 	if (json_parse(line, len, f, ARRAY_SIZE(f)) || !f[0].seen ||
 	    !f[1].seen)
 		return -EINVAL;

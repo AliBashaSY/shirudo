@@ -290,6 +290,30 @@ static void java_records_count_as_upatch_events(void)
 	drop_log();
 }
 
+#define PAYLOAD \
+	"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+
+/* A set entry names its upatch itself, not through another member. */
+static void set_entry_takes_only_its_own_fields(void)
+{
+	static const char init[] =
+		"{\"type\":\"init\",\"upatch\":{\"name\":\"other\","
+		"\"payload_sha256\":\"" PAYLOAD "\"},"
+		"\"set\":[{\"payload_sha256\":\"" PAYLOAD "\"}]}";
+	static const char named[] =
+		"{\"type\":\"init\",\"set\":[{\"name\":\"fix\","
+		"\"payload_sha256\":\"" PAYLOAD "\"}]}";
+	struct seen_upatches s = {};
+
+	EXPECT_EQ(eventlog_upatches_record(init, strlen(init), true,
+					   count_upatch, &s), -EINVAL);
+	EXPECT_EQ(s.loads, 0);
+	EXPECT_EQ(eventlog_upatches_record(named, strlen(named), true,
+					   count_upatch, &s), 0);
+	EXPECT_EQ(s.loads, 1);
+	EXPECT_STREQ(s.last, "fix");
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(unfinished_append_is_no_record),
 	UNIT_CASE(nul_in_the_log_is_refused),
@@ -297,6 +321,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(set_counts_in_an_init_record_alone),
 	UNIT_CASE(upatch_records_name_type_and_direction),
 	UNIT_CASE(java_records_count_as_upatch_events),
+	UNIT_CASE(set_entry_takes_only_its_own_fields),
 	{}
 };
 
