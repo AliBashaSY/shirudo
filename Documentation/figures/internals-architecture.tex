@@ -18,13 +18,13 @@
     \draw[box] (250,250) rectangle (380,306);
     \draw[box] (435,40) rectangle (755,160);
     \draw[box] (435,190) rectangle (755,310);
-    \draw[box] (435,340) rectangle (755,406);
+    \draw[box] (435,336) rectangle (755,414);
   \end{scope}
 
   \draw[flow] (210,95) -- (248,95);
   \draw[flow] (380,95) -- (433,95);
   \draw[flow] (595,160) -- (595,188);
-  \draw[flow] (700,160) -- (700,338);
+  \draw[flow] (700,160) -- (700,334);
   \draw[flow] (433,140) -- (382,270);
   \draw[flow, dash pattern=on 3.75bp off 3bp]
     (435,385) -- (110,385) -- (110,192);
@@ -33,7 +33,7 @@
     \foreach \x/\y/\t in {20/32/Operator host, 260/82/OCI registry,
         260/272/Collector, 430/32/Target,
         445/62/{Userspace, one-shot commands}, 445/212/Kernel,
-        445/362/TPM 2.0}
+        445/359/TPM 2.0}
       \node[font=\figlarge\bfseries] at (\x,\y) {\t};
 
     \foreach \y/\t in {64/{shirudo, shirudo-build},
@@ -56,12 +56,12 @@
         254/signed upatches,
         274/.bpf and .dm-verity keyrings,
         294/private bpffs with the pins,
-        384/{NV register, PCR 9 anchor,},
-        402/{config PCR, attestation key}}
+        381/{NV register, PCR 9 anchor,},
+        401/{config PCR, attestation key}}
       \node at (445,\y) {\t};
 
     \foreach \x/\y/\t in {215/86/push, 392/86/pull,
-        602/180/{bpf(), mount, keyctl}, 608/330/{extend, quote},
+        602/180/{bpf(), mount, keyctl}, 608/326/{extend, quote},
         120/378/{signed evidence, checked offline}}
       \node[font=\figbody] at (\x,\y) {\t};
   \end{scope}
