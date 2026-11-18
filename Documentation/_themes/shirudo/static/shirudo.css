@@ -144,7 +144,7 @@ code.literal { font-size: 0.9em; background: none; padding: 0; }
 .theme-toggle:hover { color: var(--bar-hi); }
 
 /* columns */
-.shell { display: grid; grid-template-columns: 280px minmax(0, 1fr) 220px; gap: 48px; max-width: 1480px; margin: 0 auto; padding: 0 20px; }
+.shell { display: grid; grid-template-columns: 280px minmax(0, 1fr) 220px; gap: 48px; max-width: 1540px; margin: 0 auto; padding: 0 20px; }
 .side, .toc { position: sticky; top: 56px; align-self: start; max-height: calc(100vh - 56px); overflow-y: auto; padding: 24px 0 40px; }
 .side { border-right: 1px solid var(--line); padding-right: 16px; }
 .menu-toggle { display: none; }
@@ -175,10 +175,10 @@ code.literal { font-size: 0.9em; background: none; padding: 0; }
 
 /* page */
 main { min-width: 0; padding: 28px 0 56px; }
-.crumbs { max-width: 780px; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+.crumbs { max-width: 840px; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
 .crumbs a { color: var(--muted); }
 .crumbs > * + *::before { content: "/"; margin: 0 6px; color: var(--line); }
-div.body, article.body { max-width: 780px; min-width: 0; padding: 0; background: none; color: var(--fg); }
+div.body, article.body { max-width: 840px; min-width: 0; padding: 0; background: none; color: var(--fg); }
 .body h1 { font-size: 2rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
 .body h2 { font-size: 1.3rem; line-height: 1.3; font-weight: 600; margin: 2.1em 0 .5em; }
 .body h3 { font-size: 1.02rem; font-weight: 600; margin: 1.5em 0 .35em; }
@@ -256,7 +256,7 @@ aside.footnote-list { border-top: 1px solid var(--line); margin-top: 2em; paddin
 #search-results ul.search li { padding: 8px 0; border-bottom: 1px solid var(--line); background: none; }
 
 /* footer */
-.pfoot { max-width: 780px; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+.pfoot { max-width: 840px; margin-top: 48px; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; font-size: 13px; color: var(--muted); }
 
 @media (max-width: 1180px) {
   .shell { grid-template-columns: 260px minmax(0, 1fr); gap: 40px; }
