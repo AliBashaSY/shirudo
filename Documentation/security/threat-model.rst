@@ -748,21 +748,14 @@ What the next boot mounts at the path stays root's choice (R19).
 
 The label is a public constant, the same on every build. It marks a
 target and never grants authority: a file system root mounts can carry
-it, and a binary that carries it gains nothing. A label read that fails
-with an error other than ``ENODATA``, ``EOPNOTSUPP``, ``EACCES`` or
-``EPERM`` requires authority, and so does a failure to allocate the
-seal's scratch memory. With the carried xattr patch (A3) the kernel
-returns the label to the seal without the caller's read permission, as
-it returns their labels to the in-kernel LSMs, and the two permission
-errors do not occur. Upstream, the kernel checks read permission for
-the caller before it returns the label, against the raw ids of the
-inode, so the two errors mean either a caller that may do nothing or
-one that root gave a write without a read: through an idmapped bind
-mount, which shows uid 0's files as another id's to the permission
-check, or through an ACL, and then at a file system uid that cannot
-read. Where the read fails that way, the mark of the inode, or of the
-directory the operation changes, decides, and the operation needs
-authority when either is marked (``t6111``). The seal marks every inode
+it, and a binary that carries it gains nothing. What a label read decides is the
+table of :ref:`seal-label-verdict`: no label, or no security extended
+attributes, lets an operation through, a permission error does so only
+where neither the inode nor the directory the operation changes carries
+a mark, and every other result requires authority (``t6111``). With
+the carried xattr patch (A3) the permission errors do not occur;
+upstream, root brings them about with an idmapped bind mount or an ACL
+and a file system uid that cannot read. The seal marks every inode
 it labels at creation, every file shirudo opens, every file anyone
 opens for writing, every directory anyone opens and the directory of
 every new entry, from the label the entry hook reads; the marks are a

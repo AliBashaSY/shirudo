@@ -566,7 +566,7 @@ when the record it needs is missing.
        or clears the mark from the label; a write open only records it.
      - ``EACCES``
      - ``SealWrite``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_unlink``, ``lsm.s/inode_rmdir``,
        ``lsm.s/inode_setattr``, ``lsm.s/inode_removexattr`` (``seal``)
      - The operation on a labeled inode to a task without authority.
@@ -575,14 +575,14 @@ when the record it needs is missing.
        inode without authority.
      - ``EACCES``
      - ``SealUnlink``, ``SealSetattr``, ``SealXattr``, ``SealLabel``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_set_acl``, ``lsm.s/inode_remove_acl``,
        ``lsm.s/inode_file_setattr`` (``seal``)
      - A POSIX ACL change or a change of the inode flags (``chattr``) on
        a labeled inode to a task without authority.
      - ``EACCES``
      - ``SealXattr``, ``SealSetattr``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_setxattr`` (``seal``)
      - Setting ``security.bpf.shirudo``,
        ``security.bpf.shirudo.policy`` or
@@ -590,14 +590,14 @@ when the record it needs is missing.
        on a labeled inode, to a task without authority.
      - ``EACCES``
      - ``SealLabel``, ``SealXattr``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_rename`` (``seal``)
      - A labeled source, a labeled destination directory or a labeled
        inode it would replace, or a source or replaced directory that
        carries the ancestor mark, to a task without authority.
      - ``EACCES``
      - ``SealRename``, ``SealEntry``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm.s/inode_create``, ``lsm.s/inode_mkdir``,
        ``lsm.s/inode_symlink``, ``lsm.s/inode_mknod``,
        ``lsm.s/inode_link`` (``seal``)
@@ -606,7 +606,7 @@ when the record it needs is missing.
        inode anywhere. Each refreshes the directory's mark.
      - ``EACCES``
      - ``SealEntry``
-     - See the label verdict below.
+     - :ref:`The label verdict <seal-label-verdict>`.
    * - ``lsm/inode_init_security`` (``seal``)
      - Labels a new inode under a marked directory, inside the creation,
        and marks the new inode. Refuses the creation when it cannot add
@@ -619,7 +619,7 @@ when the record it needs is missing.
      - The overlay copy-up of a labeled inode, by anyone.
      - ``EPERM``
      - ``SealCopyUp``
-     - As the label verdict below, but a label, any other read error
+     - As :ref:`the label verdict <seal-label-verdict>`, but a label, any other read error
        and a failure to allocate the scratch buffer refuse every caller.
    * - ``lsm.s/inode_post_setxattr``, ``lsm.s/inode_post_removexattr``
        (``seal``)
@@ -629,17 +629,9 @@ when the record it needs is missing.
      - No label, or a label of another length, removes the mark; a
        failed read leaves it.
 
-The label verdict of the ``seal`` hooks reads ``security.bpf.shirudo``
-with the xattr kfuncs, which with the carried patch 0002 return it
-without the calling task's permission and upstream check that
-permission first. No label (``ENODATA``) and no security
-extended attributes on the file system (``EOPNOTSUPP``) count as
-unlabeled, and the operation goes ahead. A label the caller may not
-read (``EACCES``, ``EPERM``) counts as unlabeled unless the inode, or
-the directory the operation changes, carries a mark, which requires
-runtime authority. A label of any length, any other read error and a
-failure to allocate the scratch buffer require runtime authority.
-:doc:`seal` explains why and what follows from it.
+The label verdict the ``seal`` rows name is the table of
+:ref:`seal-label-verdict`, which says what each result of a label read
+decides and why.
 
 Limits
 ------

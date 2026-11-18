@@ -257,6 +257,8 @@ copy-up of a labeled inode to every caller (``SealCopyUp``): a write
 through an overlay mounted over sealed state would otherwise land in the
 upper directory and leave the sealed inode as it was.
 
+.. _seal-label-verdict:
+
 Reading the label
 ~~~~~~~~~~~~~~~~~
 
@@ -264,19 +266,46 @@ The seal reads the label with the ``bpf_get_file_xattr()`` and
 ``bpf_get_dentry_xattr()`` kfuncs. With the carried kernel patch they
 return a ``security.bpf.`` label as the in-kernel LSMs read theirs,
 without the calling task's permission. Upstream they first check that
-the calling task may read the inode, against its raw ids. If the seal
-refused every operation whose label read failed, it would refuse every
-write-only open and every unlink of a file the caller cannot read, on
-every file system. So no label (``ENODATA``) and no security extended
-attributes on the file system (``EOPNOTSUPP``) count as unlabeled and
-the operation goes ahead. A label the caller may not read (``EACCES``,
-``EPERM``) is, on an upstream kernel, also what root makes of any label
-by granting a write without a read, through an idmapped bind mount or
-an ACL, and then acting at a file system uid that cannot read. There
-the mark of the inode, or of the directory the operation changes,
-decides, and a marked one requires runtime authority. A label of any
-length, any other error, and a failure to allocate the scratch buffer
-the kfunc writes into require runtime authority.
+the calling task may read the inode, against its raw ids, and root can
+make any label unreadable to a caller that may still write: through an
+idmapped bind mount or an ACL, and then acting at a file system uid
+that cannot read. A seal that refused every operation whose label read
+failed would refuse every write-only open and every unlink of a file the
+caller cannot read, on every file system; one that let every failed
+read through would let root shed every label.
+
+The table gives the verdict of each read result, ``seal_verdict()`` in
+:src:`bpf/seal.c`. Every hook that decides on a label uses it.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 34 42
+
+   * - Read result
+     - Verdict
+     - Why
+   * - A label, of any length
+     - Labeled: the operation needs runtime authority.
+     - The inode is shirudo's; the value carries no meaning.
+   * - ``ENODATA``, ``EOPNOTSUPP``
+     - Unlabeled: the operation goes ahead.
+     - No label, or a file system without security extended attributes.
+   * - ``EACCES``, ``EPERM``
+     - Labeled when the inode, or the directory the operation changes,
+       carries a mark; otherwise unlabeled.
+     - The read failed for the caller, which upstream root can arrange.
+       The mark remembers a label the seal read before. With the carried
+       patch these errors do not occur.
+   * - Any other error, or no scratch buffer for the read
+     - Labeled: the operation needs runtime authority.
+     - A read that fails for another reason does not show that the
+       inode is unlabeled.
+
+Three checks differ. Setting or removing the label, the policy label or
+the ancestor mark needs runtime authority whatever the read says
+(``SealLabel``). The ancestor mark lets a rename through only on
+``ENODATA`` or ``EOPNOTSUPP``. ``inode_copy_up`` refuses every caller,
+with or without authority, where the table requires authority.
 
 Labeling at creation
 ---------------------
