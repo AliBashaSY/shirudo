@@ -179,11 +179,17 @@ where ``init`` stopped:
 - After attaching, before the runtime image is mounted again: the guards
   are in place, ``shirudo.service`` is skipped, and commands that need
   the runtime image fail.
-- After the config boot event (a restore failure, a register that cannot
-  be bound): the guards are in place and the config selection stays
-  pending. ``shirudo.service`` refuses with the activation pending, and
-  every target command except ``shirudo status`` and ``shirudo image
-  status`` refuses until a reboot.
+- After the runtime image is mounted, before the config selection is
+  recorded pending (a config that fails its checks): the guards are in
+  place, and ``shirudo.service`` runs ``init`` again, which starts the
+  config boot event, the restore and the binding over from the root file
+  system.
+- After the selection is recorded pending (a failed extension or mount,
+  a restore failure, a register that cannot be bound): the guards are in
+  place and the selection stays pending. ``shirudo.service`` refuses
+  with the activation pending, and every target command except
+  ``shirudo status`` and ``shirudo image status`` refuses until a
+  reboot.
 
 ``shirudo status`` and attestation are how such a target shows. Without
 a complete initrd ``init`` the register is not bound in the initrd, and a

@@ -1050,9 +1050,12 @@ do not fold. A boot ID that root binds over ``/proc``, or a pending
 record in a ``/run`` of root's making, which no reader takes since it
 carries no seal label, therefore moves nothing (``t6147``). A measuring
 command holds a lock beside the eventlog from its extend to its append,
-a load or an unload from that undo to its append, so the register and
+and longer where it changes pins, so the register and
 the log advance in one order and the undo never takes a load in flight
-for a stopped one. An append that fails after a successful extend
+for a stopped one. A load holds it from before the undo to its append,
+an unload until its pins and archive are gone, and a revocation's purge
+of one upatch from its archive read until its pins and archive are
+gone. An append that fails after a successful extend
 leaves the register ahead of the log; shirudo reports the desync,
 ``shirudo status`` reports a register its replay cannot explain, and
 every later load and unload refuses until the next reboot.
