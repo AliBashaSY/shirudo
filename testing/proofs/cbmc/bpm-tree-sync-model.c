@@ -771,46 +771,45 @@ struct mstate {
 	__u8		hist[32];
 };
 
+/*
+ * Each write is put together on its own and stored in want[] once: n_want
+ * is symbolic past a branch, and CBMC turns a store at a symbolic index
+ * into one to every entry, so a store per byte multiplies the program many
+ * times over. Each index is stored once, into the zeros want[] starts as.
+ */
 static void want_write(int kind, int op, __s64 seq, const __u8 *d,
 		       const struct mstate *st)
 {
-	int index;
+	struct write w = { .kind = kind, .op = op,
+			   .seq = st ? st->last_seq : seq };
 
 	__CPROVER_assert(n_want < MAX_WRITES, "expected write log fits");
-	index = n_want++;
-	want[index].kind = kind;
-	want[index].op = op;
-	want[index].seq = st ? st->last_seq : seq;
 	if (d)
 		for (int i = 0; i < 32; i++)
-			want[index].d[i] = d[i];
+			w.d[i] = d[i];
 	if (st) {
 		for (int i = 0; i < 32; i++)
-			want[index].d[i] = st->root[i];
-		want[index].generation = st->generation;
-		want[index].manifest[0] = st->manifest[0];
-		want[index].manifest[1] = '\0';
-		want[index].tree_id[0] = st->tree_id[0];
-		want[index].tree_id[1] = '\0';
-		want[index].head_seq = st->head_seq;
-		want[index].base_seq = st->base_seq;
+			w.d[i] = st->root[i];
+		w.generation = st->generation;
+		w.manifest[0] = st->manifest[0];
+		w.tree_id[0] = st->tree_id[0];
+		w.head_seq = st->head_seq;
+		w.base_seq = st->base_seq;
 	}
+	want[n_want++] = w;
 }
 
 static void want_outcome(__s64 seq, int outcome, const __u8 *root,
 			 const __u8 *hist)
 {
-	int index;
+	struct write w = { .kind = W_OUTCOME, .seq = seq, .outcome = outcome };
 
 	__CPROVER_assert(n_want < MAX_WRITES, "expected write log fits");
-	index = n_want++;
-	want[index].kind = W_OUTCOME;
-	want[index].seq = seq;
-	want[index].outcome = outcome;
 	for (int i = 0; i < 32; i++)
-		want[index].d[i] = root[i];
+		w.d[i] = root[i];
 	for (int i = 0; i < 32; i++)
-		want[index].h[i] = hist[i];
+		w.h[i] = hist[i];
+	want[n_want++] = w;
 }
 
 static bool same_history(const struct write *actual, int index)

@@ -136,7 +136,7 @@ reads, which ``CHANGED`` finds, run it by hand with its memory capped:
 .. code-block:: console
 
    $ ulimit -v 24000000
-   $ make proofs-cbmc PROOFS=bpm-tree-recovery-model
+   $ make proofs-cbmc PROOFS=bpm-tree-sync-walk
 
 Write a CBMC proof
 ------------------
