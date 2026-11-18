@@ -203,6 +203,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        all; values terminated, without a leading blank, a media type
        without parameters, a location without CR or LF; a challenge
        that fits kept whole, a longer one dropped rather than cut
+   * - ``bpm-oci-buffer``
+     - ``bpm_buffer_append()``
+     - A buffer of 0, 3, 8, 12 and 15 bytes holding any shorter body,
+       every chunk of up to 8 bytes, allocations allowed to fail, with
+       ``BPM_MAX_HTTP_BODY`` set to 16 for its 16 MiB
+     - ``-E2BIG`` exactly when the body would reach the limit and
+       ``-ENOMEM`` without memory, nothing changed then; else the chunk
+       behind the body, which is kept, inside the buffer and terminated,
+       a buffer with room kept
    * - ``bpm-oci-descriptor``
      - ``on_descriptor()``, ``on_index_entry()``
      - Any descriptor or index entry, into an empty or a full table

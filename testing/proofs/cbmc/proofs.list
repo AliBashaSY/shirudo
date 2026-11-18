@@ -79,6 +79,7 @@ bpm-semver-prerelease	--unwind 7
 bpm-oci-challenge	--unwind 18
 bpm-oci-token		--unwind 18
 bpm-oci-header		--unwind 28
+bpm-oci-buffer		--malloc-may-fail --malloc-fail-null --unwind 18 LEN=0,3,8,12,15
 bpm-oci-descriptor	--unwind 130 LEN=0,1
 bpm-names		--unwind 131
 bpm-tree-selector	--unwind 10 --malloc-may-fail --malloc-fail-null LEN=0,1
