@@ -2,68 +2,74 @@
 % Copyright (c) 2026 Authors of shirudo
 %
 % shirudo's components on the operator host and on a target, with the
-% registry and the collector between them and what each part does
-% (internals/architecture.rst).
+% registry and the collector between them, what each part holds and the
+% paths between them (internals/architecture.rst).
 \documentclass[tikz,dvisvgm]{standalone}
 \usepackage{shirudo-figure}
 
 \begin{document}
 \begin{tikzpicture}
-  \useasboundingbox (0,0) rectangle (780,430);
+  \useasboundingbox (0,0) rectangle (840,520);
 
-  \draw[frame] (420,10) rectangle (770,420);
+  \draw[frame] (430,10) rectangle (830,510);
   \begin{scope}[box/.append style={rounded corners=3bp}]
-    \draw[box] (10,40) rectangle (210,190);
-    \draw[box] (250,60) rectangle (380,130);
-    \draw[box] (250,250) rectangle (380,306);
-    \draw[box] (435,40) rectangle (755,160);
-    \draw[box] (435,190) rectangle (755,310);
-    \draw[box] (435,336) rectangle (755,414);
+    \draw[box] (10,40) rectangle (210,212);
+    \draw[box] (250,62) rectangle (390,130);
+    \draw[box] (250,262) rectangle (390,318);
+    \draw[box] (445,40) rectangle (815,168);
+    \draw[box] (445,222) rectangle (815,378);
+    \draw[box] (445,428) rectangle (815,500);
   \end{scope}
 
-  \draw[flow] (210,95) -- (248,95);
-  \draw[flow] (380,95) -- (433,95);
-  \draw[flow] (595,160) -- (595,188);
-  \draw[flow] (700,160) -- (700,334);
-  \draw[flow] (433,140) -- (382,270);
+  \draw[flow] (210,96) -- (248,96);
+  \draw[flow] (390,96) -- (443,96);
+  \draw[flow] (445,150) -- (320,150) -- (320,260);
+  \draw[flow] (560,168) -- (560,220);
+  \draw[flow] (560,378) -- (560,426);
   \draw[flow, dash pattern=on 3.75bp off 3bp]
-    (435,385) -- (110,385) -- (110,192);
+    (445,464) -- (110,464) -- (110,214);
 
-  \begin{scope}[every node/.append style={note, large, anchor=base west}]
-    \foreach \x/\y/\t in {20/32/Operator host, 260/82/OCI registry,
-        260/272/Collector, 430/32/Target,
-        445/62/{Userspace, one-shot commands}, 445/212/Kernel,
-        445/359/TPM 2.0}
-      \node[font=\figlarge\bfseries] at (\x,\y) {\t};
+  \begin{scope}[every node/.append style={note, anchor=base west}]
+    \foreach \x/\y/\t in {20/32/Operator host, 260/84/OCI registry,
+        260/284/Collector, 440/32/Target,
+        455/62/{Userspace, one-shot commands}, 455/244/Kernel,
+        455/450/TPM 2.0}
+      \node[title] at (\x,\y) {\t};
 
     \foreach \y/\t in {64/{shirudo, shirudo-build},
         86/ML-DSA-87 signing key,
         108/build and sign upatches,
         130/build and sign images,
         152/{publish packages, trees},
-        174/{attest verify, predict}}
+        174/{attest predict, verify},
+        196/{no TPM, no keyring}}
       \node at (22,\y) {\t};
 
-    \node at (260,104) {packages, index,};
-    \node at (260,122) {upatch tree};
-    \node at (260,294) {OTLP over TLS};
+    \node at (260,106) {packages, index,};
+    \node at (260,124) {upatch tree};
+    \node at (260,306) {OTLP over TLS};
 
-    \foreach \y/\t in {84/shirudo from the runtime image,
-        104/{/run/shirudo/runtime, /run/shirudo/config},
-        124/{/var/lib/shirudo (sealed state)},
-        144/systemd units and timers,
-        234/{BPF LSM programs: bpf2, seal},
-        254/signed upatches,
-        274/.bpf and .dm-verity keyrings,
-        294/private bpffs with the pins,
-        381/{NV register, PCR 9 anchor,},
-        401/{config PCR, attestation key}}
-      \node at (445,\y) {\t};
+    \foreach \y/\t in {84/{shirudo, run from the runtime image},
+        106/{/run/shirudo/runtime, /run/shirudo/config},
+        128/{/var/lib/shirudo, sealed state},
+        150/{systemd units and timers, no daemon},
+        266/{BPF LSM programs: bpf2, seal},
+        288/{signed upatches, attached by pinned links},
+        310/{.bpf and .dm-verity keyrings, sealed},
+        332/{private bpffs with the pins and maps},
+        354/{dm-verity devices of the two images},
+        472/{NV register and its PCR 9 anchor,},
+        490/{config PCR, endorsement and attestation keys}}
+      \node at (455,\y) {\t};
 
-    \foreach \x/\y/\t in {215/86/push, 392/86/pull,
-        602/180/{bpf(), mount, keyctl}, 608/326/{extend, quote},
-        120/378/{signed evidence, checked offline}}
-      \node[font=\figbody] at (\x,\y) {\t};
+    \node[small] at (572,190) {bpf(), mount, keyctl, ioctl,};
+    \node[small] at (572,208) {each checked by the BPF LSM};
+    \node[small] at (572,398) {TPM commands through /dev/tpmrm0,};
+    \node[small] at (572,414) {checked by lsm/tpm\_command};
+    \node[small] at (214,90) {push};
+    \node[small] at (398,90) {pull};
+    \node[small] at (330,186) {telemetry};
+    \node[small] at (130,456) {TPM-signed evidence, checked offline};
   \end{scope}
 \end{tikzpicture}
 \end{document}

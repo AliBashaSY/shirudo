@@ -62,11 +62,13 @@ Figure 1 shows the components and the paths between them.
 
 .. figure:: /images/internals-architecture.svg
    :alt: The operator host publishes to an OCI registry. The target pulls
-         from it. On the target, userspace commands from the runtime image
-         call into the kernel, which holds the BPF LSM programs, the
-         signed upatches, the keyrings and the private bpffs, and into the
-         TPM, which holds the register. The TPM signs evidence that the
-         operator checks offline.
+         from it and sends telemetry to a collector. On the target,
+         userspace commands from the runtime image call into the kernel,
+         which holds the BPF LSM programs, the signed upatches, the
+         keyrings, the private bpffs and the image devices, and reach the
+         TPM only through the kernel's TPM device, where
+         lsm/tpm_command checks each command. The TPM holds the register
+         and signs evidence that the operator checks offline.
 
    Figure 1. Components on the operator host and on a target. Nothing
    connects into the target; it pulls packages and pushes telemetry.
