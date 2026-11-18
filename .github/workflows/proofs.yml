@@ -24,9 +24,10 @@ jobs:
   # Shard <k> of <n> runs every <n>th proof of proofs.list from the
   # <k>th, but those ci-skip.list names, one at a time: the runner's
   # 16 GB is for one proof, not four. proofs.sh caps each proof's memory
-  # and time well within the job's. CBMC reads the C library's headers
-  # through the runner's gcc, so the job runs on the Ubuntu release the
-  # proofs are developed on, not the one ubuntu-latest moves to next.
+  # and time well within the job's. CBMC reads the headers of the C
+  # library and of the libraries the harnesses include through the
+  # runner's gcc, so the job runs on the Ubuntu release the proofs are
+  # developed on, not the one ubuntu-latest moves to next.
   cbmc:
     name: CBMC
     runs-on: ubuntu-24.04
@@ -44,6 +45,9 @@ jobs:
       # cache restore would, so it is not cached.
       - name: Install CBMC
         run: .github/scripts/proofs.sh install-cbmc
+
+      - name: Install the headers the proofs include
+        run: .github/scripts/proofs.sh install-headers
 
       - name: Run the CBMC proofs of shard ${{ matrix.shard }}
         run: .github/scripts/proofs.sh run ${{ matrix.shard }} ${{ strategy.job-total }}

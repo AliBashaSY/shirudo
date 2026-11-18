@@ -45,7 +45,8 @@ fails in CI prints its whole output, trace included, in its shard's
 job log and leaves it in the `cbmc-logs-<k>` artifact. `proofs.sh`
 pins CBMC 5.95.1 and elan, and Lean is the release `lean-toolchain`
 names; `proofs.sh install-cbmc` unpacks the same CBMC into `build/cbmc`
-without root.
+without root, and `proofs.sh install-headers` installs with `sudo` on
+Ubuntu the headers of libcurl, OpenSSL and zlib the harnesses include.
 
 ## Write
 

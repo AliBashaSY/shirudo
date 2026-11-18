@@ -3,11 +3,12 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # .github/scripts/proofs.sh -- install the pinned CBMC into build/cbmc or
-# elan and Lean into ELAN_HOME, without root, and list or run the CBMC
+# elan and Lean into ELAN_HOME, without root, or with sudo on Ubuntu the
+# library headers the CBMC harnesses include, and list or run the CBMC
 # proofs of shard <k> of <n>: every <n>th of proofs.list from the <k>th,
 # but those ci-skip.list names, each alone under a memory and time cap.
 #
-#   .github/scripts/proofs.sh install-cbmc|install-lean
+#   .github/scripts/proofs.sh install-cbmc|install-headers|install-lean
 #   .github/scripts/proofs.sh list|run <k> <n>
 
 set -eu
@@ -70,6 +71,19 @@ install_cbmc() {
 		dpkg-deb -x "$work/cbmc.deb" "$dir"
 	fi
 	add_path "$dir/usr/bin"
+}
+
+# CBMC preprocesses a harness with the host's gcc, which takes the
+# headers of the C library, OpenSSL, libcurl and zlib from the system.
+# The runner image lacks libcurl's; the others are named too, so that the
+# job does not rely on what the image happens to ship.
+install_headers() {
+	sudo=
+	[ "$(id -u)" -eq 0 ] || sudo=sudo
+	$sudo apt-get update
+	$sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+		--no-install-recommends libc6-dev libcurl4-openssl-dev \
+		libssl-dev linux-libc-dev zlib1g-dev
 }
 
 install_lean() {
@@ -175,8 +189,9 @@ run() {
 
 case ${1:-} in
 install-cbmc) install_cbmc ;;
+install-headers) install_headers ;;
 install-lean) install_lean ;;
 list) shard "${2:-}" "${3:-}" ;;
 run) run "${2:-}" "${3:-}" ;;
-*) die "usage: proofs.sh install-cbmc|install-lean|list|run <k> <n>" ;;
+*) die "usage: proofs.sh install-cbmc|install-headers|install-lean|list|run <k> <n>" ;;
 esac
