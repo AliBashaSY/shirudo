@@ -124,12 +124,12 @@ The kernel builds several keyrings at boot for its own signature checks:
     ``CONFIG_INTEGRITY_MACHINE_KEYRING``.
 
 ``.platform``
-    Keys the firmware provides, such as the UEFI signature database. The
-    kernel uses them to verify kexec images and, when configured,
-    dm-verity root hashes.
+    Keys the firmware provides, such as the UEFI signature database.
 
-A key in these keyrings is trusted for everything that consults them.
-That breadth is why the kernel adds keyrings scoped to one purpose.
+A key in these keyrings is trusted for everything that consults them,
+and Figure 1 below shows how much that is: module signatures, kexec
+images and dm-verity root hashes all search them. That breadth is why
+the kernel adds keyrings scoped to one purpose.
 
 Purpose-specific keyrings
 -------------------------
@@ -147,6 +147,26 @@ same rules:
   restricted. An open keyring is ignored even when it holds keys.
 - Provisioning ends with a restriction. Until then, anything that may
   write the keyring can add keys to it.
+
+The two differ in how a check reaches them. ``BPF_PROG_LOAD`` searches
+the one keyring its ``keyring_id`` names, and shirudo's
+``lsm/bpf_prog_load`` admits only a signature that ``.bpf`` verified.
+dm-verity searches ``.dm-verity`` last, after the system keyrings
+(Figure 1).
+
+.. figure:: /images/background-keyring-search.svg
+   :alt: The keyrings .builtin_trusted_keys, .secondary_trusted_keys,
+         which links the builtin keyring and .machine, .platform, and
+         .bpf and .dm-verity, which init seals. A module signature
+         searches the secondary keyring; a kexec image the secondary,
+         then the platform keyring; BPF_PROG_LOAD the one keyring its
+         keyring_id names, of which lsm/bpf_prog_load admits only .bpf;
+         a dm-verity root hash the builtin or secondary keyring, then
+         the platform keyring if configured, then .dm-verity once
+         sealed.
+
+   Figure 1. Which keyrings each of the kernel's signature checks
+   searches, in order.
 
 How shirudo enrolls and seals the keyrings
 ------------------------------------------
