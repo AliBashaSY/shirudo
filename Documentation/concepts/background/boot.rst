@@ -165,8 +165,9 @@ details.
 
 The kernel's own PCR 9 measurements are made by its EFI stub, in
 ``drivers/firmware/efi/libstub/efi-stub-helper.c``. It extends PCR 9
-with the initrd as a tagged event ``Linux initrd`` and, when it is not
-empty, with the command line as ``LOADED_IMAGE::LoadOptions``.
+with the command line, when it is not empty, as
+``LOADED_IMAGE::LoadOptions``, and then with the initrd as a tagged
+event ``Linux initrd``.
 
 Boot phases in PCR 11
 ---------------------
@@ -208,7 +209,10 @@ index's name as ``nvpcr-init:<name>:0x<handle>:<tpm-name>``, so a
 recreated index with other attributes or another policy has a name
 that does not match the one PCR 9 recorded.
 ``systemd-pcrnvdone.service`` then extends PCR 9 with
-``nvpcr-separator`` to mark the end of the initializations.
+``nvpcr-separator`` to mark the end of the initializations. From
+systemd 261 on, ``systemd-pcrosseparator.service`` extends PCR 9 and
+other PCRs with ``os-separator`` before any of this, early in the
+initrd.
 
 shirudo's measurement register follows this construction with one
 important difference: every write, not only the first, needs a
@@ -233,18 +237,29 @@ image, see :doc:`dm-verity`. shirudo itself checks neither the Secure
 Boot state nor kernel lockdown. It relies on the deployment to enable
 Secure Boot, and a verifier can check PCR 7 in the evidence.
 
-``shirudo-initrd.service`` orders itself after
-``systemd-pcrphase-initrd.service`` and
-``systemd-tpm2-setup-early.service`` and before the switch to the root
-file system. When it runs ``shirudo init``, PCR 11 therefore holds the
-``enter-initrd`` value and PCR 9 holds the initrd, the command line and
-any NvPCR anchors. ``init`` reads both values, binds its measurement
-register to them and extends PCR 9 with its own anchor. Once
-``leave-initrd`` is measured, the register can no longer be bound
-again this boot. Its record waits in ``/run/shirudo/eventlog.pending``
-until ``shirudo.service`` re-runs ``init`` from the root file system
-and adopts it without another TPM extension. :doc:`tpm` explains the
+Figure 1 shows where shirudo's run falls among these measurements.
+``shirudo-initrd.service`` orders itself after the units that measure
+``enter-initrd`` and the NvPCR anchors and before the switch to the
+root file system, so ``init`` binds its measurement register to the
+values PCRs 9 and 11 hold inside that window and then extends PCR 9
+with its own anchor. ``shirudo.service`` adopts the record in the root
+file system without another TPM extension. :doc:`tpm` explains the
 binding, and :doc:`/internals/boot-flow` gives the whole sequence.
+
+.. figure:: /images/background-boot-pcrs.svg
+   :alt: A timeline of the boot with two lanes, PCR 9 and PCR 11.
+         systemd-stub measures the UKI sections into PCR 11, and the
+         kernel's EFI stub the command line and the initrd into PCR 9.
+         In the initrd, PCR 11 receives enter-initrd and leave-initrd,
+         and between the two it holds the value the register can be
+         bound under. Into PCR 9 go os-separator, the nvpcr-init
+         anchors, shirudo's anchor from shirudo-initrd and
+         nvpcr-separator from systemd-pcrnvdone, the last two in either
+         order. After the switch root, shirudo.service extends nothing,
+         and PCR 11 receives sysinit and ready.
+
+   Figure 1. PCR 9 and PCR 11 during the boot of a UKI. Unit names
+   leave out ``systemd-`` and ``.service`` where systemd ships them.
 
 A remote verifier ties all of this together. ``shirudo attest`` quotes
 PCRs 0 to 7, 9 and 11 to 15 by default, and the operator pins the PCR 9
@@ -263,11 +278,10 @@ Limits
   comes up. Only a verifier that compares the quoted PCRs and the
   register binding with approved values notices. The
   :doc:`/security/threat-model` describes the fail-open boot.
-- ``shirudo-initrd.service`` is not ordered against
-  ``systemd-pcrnvdone.service``, and any process that can send TPM
-  commands can extend PCR 9. When PCR 9 holds measurements after
-  shirudo's anchor, the anchor check in ``attest verify`` is a note,
-  and ``--strict-anchor`` turns it into a failure.
+- Any process that can send TPM commands can extend PCR 9 after
+  shirudo's anchor, and ``systemd-pcrnvdone.service`` may (Figure 1).
+  The anchor check in ``attest verify`` then is a note, and
+  ``--strict-anchor`` turns it into a failure.
 - The evidence carries the firmware and systemd event logs, but
   ``attest verify`` does not replay them. It compares the PCR values
   the operator pins with ``--expect-pcr`` and ``--expect-bind-pcr``.
