@@ -1090,8 +1090,8 @@ The backward walk
 ``t9111`` shows a node's walk back over a sealed segment on real data:
 the publisher seals it, a node behind it follows its signed digest back
 and applies forwards, and the backend sees one tree. ``host.sh`` runs it
-after ``t9110``, against the second fresh edge node and node B and the
-same backend, and its output is ``build/test-vm/end2end/t9111.log``. The
+last, after ``t9112``, against the second pair, a fresh edge node and a
+fresh node B, and the same backend, and its output is ``build/test-vm/end2end/t9111.log``. The
 tree's five operations fit in the walk, join and keepalive window of the
 bundle's targets. It:
 
