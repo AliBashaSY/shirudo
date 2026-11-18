@@ -6,9 +6,10 @@
  * registry, as its parser hands it over: a kconfig or label key only once,
  * with a value and below its limit, and an operation only whole, with a
  * positive seq, no empty selector list and room in the publication. And
- * the base tree_publication_check() then accepts: at 0 without the
- * segment keys, past 0 with an operation, a "sha256:" digest and a root
- * of 64 hex digits each.
+ * the publications tree_publication_check() then accepts: a parent that is
+ * none or a "sha256:" digest, a base at 0 without the segment keys, past 0
+ * with an operation, a "sha256:" digest and a root of 64 hex digits each,
+ * and operations that run from the base to the head.
  */
 
 /* util/malloc.c and util/string.c behind a file that includes their headers. */
@@ -124,40 +125,51 @@ static bool hex_digits(const char *s)
 	return !s[64];
 }
 
-/* LEN operations, which run from the base to the head. */
-static void check_base(void)
+static bool sha256_named(const char *s)
+{
+	return !strncmp(s, "sha256:", 7) && hex_digits(s + 7);
+}
+
+/* LEN operations, any parent, any base and head, the first at any seq. */
+static void check(void)
 {
 	struct tree_operation *op = any_bytes(sizeof(*op));
 	struct tree_publication pub;
-	bool named, keys;
-	__s64 base;
+	bool named, keys, runs, parent;
+	__s64 base, head, first;
 	int ret;
 
 	__CPROVER_assume(base >= 0 && base < INT64_MAX);
 	pub.base_seq = base;
 	pub.operations = op;
 	pub.n_operations = LEN;
-	pub.head_seq = base + LEN;
-	op->seq = base + 1;
-	pub.parent_manifest_digest[0] = '\0';
+	pub.head_seq = head;
+	op->seq = first;
 	/* As the parser leaves them. */
+	pub.parent_manifest_digest[sizeof(pub.parent_manifest_digest) - 1] =
+		'\0';
 	pub.segment_manifest_digest[sizeof(pub.segment_manifest_digest) - 1] =
 		'\0';
 	pub.history_root[sizeof(pub.history_root) - 1] = '\0';
 	ret = tree_publication_check(&pub);
+	parent = !pub.parent_manifest_digest[0] ||
+		 sha256_named(pub.parent_manifest_digest);
 	keys = pub.segment_manifest_digest[0] || pub.history_root[0];
-	named = !strncmp(pub.segment_manifest_digest, "sha256:", 7) &&
-		hex_digits(pub.segment_manifest_digest + 7) &&
+	named = sha256_named(pub.segment_manifest_digest) &&
 		hex_digits(pub.history_root);
+	runs = LEN ? first == base + 1 && head == first : head == base;
 	__CPROVER_assert(ret == 0 || ret == -EINVAL, "0 or -EINVAL");
-	__CPROVER_assert(!ret == (base ? LEN && named : !keys),
-			 "the first segment without the segment keys, a later "
-			 "one with an operation and both keys well formed");
+	__CPROVER_assert(!ret == (parent && runs &&
+				  (base ? LEN && named : !keys)),
+			 "a parent that is none or a digest, the first segment "
+			 "without the segment keys, a later one with an "
+			 "operation and both keys well formed, and operations "
+			 "from the base to the head");
 }
 
 void harness(void)
 {
 	map_pair();
 	take_operation();
-	check_base();
+	check();
 }

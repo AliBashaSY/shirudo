@@ -238,12 +238,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``tree_map_pair()``, ``tree_take_operation()``,
        ``tree_publication_check()``
      - Every pair and operation, into an empty or a full publication;
-       every base with 0 or 1 operation and segment keys of every content
-       the parser leaves
+       every base and head with 0 or 1 operation at any seq, and a
+       parent and segment keys of every content the parser leaves
      - A key taken once, with a value, below its limit; an operation
-       taken exactly when whole and with room; a base of 0 accepted
-       exactly without the segment keys, a later one exactly with an
-       operation, a ``sha256:`` digest and a root of 64 hex digits
+       taken exactly when whole and with room; a publication accepted
+       exactly with a parent that is none or a ``sha256:`` digest, a
+       base of 0 without the segment keys or a later one with an
+       operation, a ``sha256:`` digest and a root of 64 hex digits, and
+       operations that run from the base to the head
    * - ``bpm-tree-follows``
      - ``tree_publication_follows()``, ``tree_segment_precedes()``,
        ``tree_walk_within()``
