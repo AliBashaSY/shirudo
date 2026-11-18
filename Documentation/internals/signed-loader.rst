@@ -44,9 +44,9 @@ loader: a ``BPF_PROG_TYPE_SYSCALL`` program whose instructions make the
 ``bpf()`` calls that create the upatch's maps and load its programs. The
 loader's data blob carries everything those calls need, the payload
 programs' instructions included. The builder appends signed sections to
-the data (the upatch name, the attach metadata, the unload target and the
-decoders) and signs ``loader_insns || data`` with ML-DSA-87 as a detached
-CMS signature. The ``.upatch`` container carries the loader instructions,
+the data (the upatch name, the attach metadata, the unload target, the
+decoders and the policy labels) and signs ``loader_insns || data`` with
+ML-DSA-87 as a detached CMS signature. The ``.upatch`` container carries the loader instructions,
 the data, the signature, and in its header the name and
 ``payload_sha256``, which is SHA-256 of ``loader_insns || data``.
 :doc:`/reference/formats/upatch-format` has the byte layout.
@@ -88,18 +88,25 @@ loader inside the kernel, which ``lsm/bpf`` sees with ``kernel`` true.
      - Call
      - What decides it
    * - userspace
+     - read the file
+     - The file is read once, into memory, and every later step takes
+       its bytes from that read: the name and payload measured, the
+       loader the kernel verifies and the copy archived.
+   * - userspace
      - pre-flight
      - The kernel ABI check passes, the ``.bpf`` keyring serial equals
        the frozen identity record, and ``lsm_link`` is pinned. With
        ``--expect-chain``, the register equals the given value.
    * - userspace
-     - read and parse the file
-     - The file is read once, into memory, and every later step takes
-       its bytes from that read: the name and payload measured, the
-       loader the kernel verifies and the copy archived. The signed name
-       must equal the header name, ``payload_sha256`` must
-       equal SHA-256 of ``loader_insns || data``, and the signed attach
-       metadata must parse. Each ``uprobe``, ``uretprobe``,
+     - take ``eventlog.lock``, undo
+     - The register lock is held from here to the append. The undo pass
+       removes pins and archives this boot's records do not cover, and
+       refuses when the records do not fold to the register.
+   * - userspace
+     - check the artifact
+     - The signed name must equal the header name, ``payload_sha256``
+       must equal SHA-256 of ``loader_insns || data``, and the signed
+       attach metadata must parse. Each ``uprobe``, ``uretprobe``,
        ``uprobe.multi`` and ``uretprobe.multi`` target is opened and its
        GNU build ID compared before any BPF loads.
    * - userspace
