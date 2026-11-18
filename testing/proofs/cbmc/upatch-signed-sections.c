@@ -6,7 +6,8 @@
  * signature is checked, for data of LEN bytes, each length proofs.list
  * names, with one section where it can hold a name: util/upatch.c keeps
  * sections only behind a valid trailer, each inside the data and below the
- * directory, the name terminated, and no length or count without them.
+ * directory, the name terminated, none of a directory with a reserved word
+ * set or a tag unknown or repeated, and no length or count without them.
  */
 
 #define PROOF_MEMCHR_QUANTIFIED
@@ -24,6 +25,46 @@ static bool below(const struct upatch *u, const void *p, size_t len,
 
 	return b >= u->map && b <= u->map + dir_off &&
 	       len <= (size_t)(u->map + dir_off - b);
+}
+
+/* The bit of a tag the format knows, 0 for any other. */
+static __u32 tag_bit(__u32 tag)
+{
+	switch (tag) {
+	case UPATCH_SECTION_NAME:
+		return 1;
+	case UPATCH_SECTION_ATTACH:
+		return 2;
+	case UPATCH_SECTION_UNLOAD:
+		return 4;
+	case UPATCH_SECTION_DECODERS:
+		return 8;
+	case UPATCH_SECTION_POLICY_LABELS:
+		return 16;
+	case UPATCH_SECTION_TYPE:
+		return 32;
+	case UPATCH_SECTION_JAR:
+		return 64;
+	default:
+		return 0;
+	}
+}
+
+/* An entry with a reserved word set, a tag the format lacks or one seen before. */
+static bool directory_broken(const struct upatch *u, __u32 dir_off, __u32 nr)
+{
+	__u32 seen = 0, i;
+
+	for (i = 0; i < nr; i++) {
+		const struct upatch_signed_section *s =
+			(const void *)(u->map + dir_off + i * sizeof(*s));
+		__u32 bit = tag_bit(get_le32(&s->tag));
+
+		if (get_le32(&s->reserved) || !bit || (seen & bit))
+			return true;
+		seen |= bit;
+	}
+	return false;
 }
 
 static bool kept_any(const struct upatch *u)
@@ -78,6 +119,8 @@ void harness(void)
 	__CPROVER_assert((__u64)dir_off + nr *
 			 sizeof(struct upatch_signed_section) <=
 			 len - sizeof(*tr), "the directory below the trailer");
+	__CPROVER_assert(!directory_broken(&u, dir_off, nr),
+			 "nothing kept of a directory with a reserved word, unknown or repeated tag");
 	__CPROVER_assert(!u.signed_name ||
 			 (below(&u, u.signed_name, UPATCH_NAME_MAX, dir_off) &&
 			  memchr(u.signed_name, '\0', UPATCH_NAME_MAX)),

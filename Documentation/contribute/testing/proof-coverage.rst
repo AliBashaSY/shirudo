@@ -577,7 +577,8 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Data of 15, 16, 40 and 64 bytes
      - Sections kept only behind a valid trailer, the directory below
        the trailer, each section inside the data below the directory;
-       nothing kept on refusal
+       none of a directory with a reserved word set or a tag unknown or
+       repeated; nothing kept on refusal
    * - ``upatch-signed-name``
      - The ``NAME`` and ``DECODERS`` sections of
        ``parse_signed_sections()``
