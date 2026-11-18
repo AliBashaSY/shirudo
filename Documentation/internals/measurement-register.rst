@@ -135,6 +135,12 @@ NV extensions use separately salted policy sessions with the existing
 command-bound writer authorization. An intermediary that suppresses an
 extension cannot invent or replay a successful response.
 
+A TPM whose endorsement key has another name, or an identity map
+without a frozen name, fails the connection, ``tpm: not the TPM init
+bound``, and the command fails with ``tpm_error``. ``init`` compares
+nothing while enforcement is not yet active, since that is when it
+records the name.
+
 Binding at boot
 ---------------
 
