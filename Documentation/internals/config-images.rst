@@ -284,7 +284,10 @@ replays from the config log, because something else extended it,
 commands refuse with ``EUCLEAN`` until a reboot. When the TPM's reset or
 restart count differs from the record's, commands refuse with
 ``ESTALE`` until ``init`` runs again and records a boot event for the new
-TPM boot.
+TPM boot. After a TPM reset that ``init`` completes. After a TPM
+restart it records the boot event but refuses to bind the cleared
+register (``tampered``), so the selection stays pending until a reboot;
+:doc:`boot-flow` explains why.
 
 Lean 4 proves this protocol for every sequence of commands, crashes,
 failed or lost TPM answers, extensions by other processes and reboots:
