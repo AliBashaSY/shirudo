@@ -337,7 +337,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        architectures against any release, machine and build ID, and of
        up to 2 labels against five fixed label lines or labels that
        cannot be read; strings up to 2 bytes. The node's files are
-       stubs. Not a selector that names a kernel option
+       stubs, and its label table holds 4 entries rather than 64,
+       which the 3 labels never fill. Not a selector that names a
+       kernel option
      - 1 exactly where ``selectorMatches`` of the Lean model
        ``Shirudo.TreeOverlap`` holds, 0 where not, an error only for
        labels it could not read; the labels closed and their line

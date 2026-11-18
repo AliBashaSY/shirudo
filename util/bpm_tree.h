@@ -12,7 +12,10 @@
 
 #define TREE_MAX_OPS 512
 #define TREE_MAX_KCONFIG 64
+/* A proof sets it lower: CBMC's cost grows with the table. */
+#ifndef TREE_MAX_LABELS
 #define TREE_MAX_LABELS 64
+#endif
 #define TREE_MAX_SELECTOR_VALUES 16
 #define TREE_STRING_MAX 256
 

@@ -14,6 +14,15 @@
 /* CBMC's own memcpy() of a length it does not know runs out of memory. */
 #define PROOF_MEMCPY_BYTEWISE
 
+/*
+ * tree_selector_matches() keeps the node's labels in a table of
+ * TREE_MAX_LABELS entries of 512 bytes and reads a value through the
+ * pointer kv_value() returns, which CBMC lets be any byte of the table:
+ * 64 entries take 11 GB. The labels here never fill four, as LABELS_FIT
+ * checks, so a table of four takes the paths one of 64 does.
+ */
+#define TREE_MAX_LABELS	4
+
 /* For an errno that keeps what a stub stored. */
 #define PROOF_FILE	1
 
@@ -85,6 +94,7 @@ static const char *model_kconfig(const char *key)
 #define LINE_FAILS	(LEN == 3)
 #define LABEL_LINES	(IMAGE_ACTIVE ? 0 : 5)
 #define LABELS		(IMAGE_ACTIVE ? 0 : 3)
+_Static_assert(LABELS <= TREE_MAX_LABELS, "LABELS_FIT: the labels fit");
 
 static const char *const label_lines[] = {
 	"a=x\n", "# c=1\n", " b = y\x20\n", "junk\n", "a=z\n",
