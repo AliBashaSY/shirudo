@@ -389,13 +389,17 @@ purges, kills, failed steps, reboots and root's changes to unlabeled
 archive files: once a command's undo pass is done every pin directory
 holds one link of the payload this boot's records hold, no name ever
 holds two links, every name the records hold runs with that payload,
-this boot's records are the register's events in order but for appends
-that failed after their extension, and ``init`` restores exactly the
-archives whose last record is their load. The model takes the lock to
-exclude and ``init`` to run as one step, which the gate that refuses
-every command until ``init`` completes justifies. CBMC shows that
-``measured_event()`` and ``measured_holds()`` fold the records as the
-model does. The proofs are in :doc:`/contribute/testing/proof-coverage`.
+this boot's upatch records are the register's upatch events in order
+but for appends that failed after their extension, and an ``init`` whose
+every restore succeeds restores exactly the archives, of those its
+config's revocations left, whose last record is their load. The model
+takes the lock to exclude and ``init`` to run as one step, which the
+gate that refuses every command until ``init`` completes justifies. It
+leaves out the boot in which enforcement never came up, where the gate
+admits commands and their undo pass refuses for want of an ``init``
+record. CBMC shows that ``measured_event()`` and ``measured_holds()``
+fold the records as the model does. The proofs are in
+:doc:`/contribute/testing/proof-coverage`.
 
 Evidence
 --------

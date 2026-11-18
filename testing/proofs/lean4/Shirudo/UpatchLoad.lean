@@ -7,9 +7,10 @@ import Shirudo.Chain
 The upatch load and unload protocol of builtin-upatch.c and the boot
 restore of builtin-init.c, against crashes, concurrent commands and root.
 
-`image_enter()` admits an upatch command only once this boot's config
-activation is complete, which `image_boot_complete()` does after `init`
-restored the archive and wrote its record. A load (`upatch_load()`, which
+With enforcement active, `image_enter()` admits an upatch command only
+once this boot's config activation is complete, which
+`image_boot_complete()` does after `init` restored the archive and wrote
+its record. A load (`upatch_load()`, which
 `upatch load` and a package install run) takes the register lock
 (`eventlog_lock()`) and runs the undo pass
 (`undo_unmeasured()`). The pass folds this boot's records into the
@@ -35,6 +36,7 @@ detaches and removes the archive. Its signer check, which leaves in place
 an archive another key signed, changes nothing and is left out: the
 model's purge takes what it finds. After a reboot the pins are gone and
 `init` restores every labeled archive file the whole log's fold holds
+and the revocations of the config it activates left
 (`boot_restore()`, `measured_set_log()`, `measured_holds()`), binds the
 register with one init event and appends its record, which carries the
 restored set.
@@ -63,22 +65,39 @@ every move. The assumptions, each a step or the absence of one:
   record. The gate is why: no upatch command runs in a boot before an
   `init` run completed, a run after one that stopped refuses at
   `image_boot()`, and a run after one that completed changes nothing the
-  model keeps.
+  model keeps. The model leaves out the boot in which enforcement never
+  came up, which R6 leaves unprotected: `image_enter()` admits commands
+  there without a config, and their undo pass refuses at
+  `measured_set_boot()`, which finds no register or no init record of it.
+- No TPM Restart comes without a reboot, as no hibernation does (A9):
+  one clears the register and keeps the pins, a state the model has no
+  step to, in which every later command refuses at `chain_live()`.
+- The archive `init` restores from is the one the revocations of the
+  config it activates left: `image_boot()` runs `purge_signed_by()`
+  before `boot_restore()`, with no record. `init_restores_exactly` holds
+  of that archive, and only of a run whose every restore succeeds; one
+  that fails is `rebootFail`.
 - Root starts and kills commands at will, adds, replaces and deletes
   unlabeled archive files and brings back a file of any content under a
   free name. The seal stops every other change to the archive, the
   eventlog and the private bpffs: root cannot write, rename onto or
   unlink a labeled file, nor touch a pin.
-- The register's hash and the event encoding are collision resistant,
-  as `Shirudo.Chain` assumes, for `replay_differs` and for the undo
-  pass's check of the records against the register, which the step
-  takes as their being the register's events.
+- The register's hash and the event encoding are injective, as
+  `Shirudo.Chain.register_injective` takes them, an idealized hash, for
+  `replay_differs`. The undo pass's check of the records against the
+  register the step takes as their being the register's events, which
+  `Shirudo.Events.verify_sound` and `verify_events` show for SHA-256
+  collision free on the strings hashed.
+- The register and `lost` are of upatch events only. A key revocation
+  and a tree operation extend the same register under the same lock; one
+  whose append is lost after its extend makes the C refuse every later
+  load and unload (`EBADMSG`), which the model's `lost` does not count.
 
 For every sequence of steps from a fresh install, in the C's protocol
 (`C`):
 
-- `commands_need_init`: every command runs in a boot whose init record
-  is on the log.
+- `commands_need_init`: with enforcement active, every command runs in
+  a boot whose init record is on the log.
 - `undo_pass_sound`: once an upatch command's undo pass is done, every
   pin directory holds one link, of the payload its xattr names and this
   boot's measured set holds, and every labeled archive file shirudo wrote
@@ -86,10 +105,11 @@ For every sequence of steps from a fresh install, in the C's protocol
 - `loaded_once`: no name ever holds two links.
 - `recorded_runs`: every name this boot's records hold is pinned with one
   link of the payload they hold, under the xattr that names it.
-- `init_restores_exactly`: after a reboot whose `init` completes, the
-  upatches loaded are exactly the labeled archive files whose last record
-  in the log is a load of that name and payload, each once with its
-  xattr, and the new boot's measured set is exactly what was loaded.
+- `init_restores_exactly`: after a reboot whose `init` completes with
+  every restore, the upatches loaded are exactly the labeled archive
+  files, of those the boot's revocations left, whose last record in the
+  log is a load of that name and payload, each once with its xattr, and
+  the new boot's measured set is exactly what was loaded.
 - `log_sublist_register`: this boot's records are always a sublist of the
   register's events, in the same order. `register_length` and
   `register_eq_log_iff`: once the lock is free, the register holds them
@@ -2255,8 +2275,9 @@ theorem reach_inv {s : State Name Payload} (h : Reach C s) : Inv s := by
   | init => exact inv_s0
   | step _ hs ih => exact inv_step ih hs
 
-/-- `image_enter()` admits upatch commands only in a boot whose init
-record is on the log. -/
+/-- With enforcement active, `image_enter()` admits upatch commands only
+in a boot whose init record is on the log. The boot in which enforcement
+never came up, where it admits them without one, is not modelled. -/
 theorem commands_need_init {s : State Name Payload} (h : Reach C s) {i : Nat}
     {c : Proc Name Payload} (hi : s.procs i = some c) : hasInit s = true :=
   (reach_inv h).gate i c hi
@@ -2290,10 +2311,12 @@ theorem recorded_runs {s : State Name Payload} (h : Reach C s) :
     ∀ n p, fold (bootEvs s) n = some p → s.pins n = some ⟨[p], some p⟩ :=
   (reach_inv h).wf.2.1
 
-/-- After a reboot whose `init` completes, the loaded upatches are
-exactly the labeled archive files whose last record in the log is a load
-of that name with that payload, each loaded once with its xattr, and the
-new boot's measured set is exactly what was loaded. -/
+/-- After a reboot whose `init` completes with every restore, the loaded
+upatches are exactly the labeled archive files whose last record in the
+log is a load of that name with that payload, each loaded once with its
+xattr, and the new boot's measured set is exactly what was loaded. The
+archive is the one the boot's revocations left, which the model leaves
+out. -/
 theorem init_restores_exactly {s : State Name Payload} (h : Reach C s)
     {ks : List Name}
     (hks : ∀ k, s.arch k ≠ none → k ∈ ks) {pins : Pins Name Payload}
@@ -2355,7 +2378,9 @@ theorem log_sublist_register {s : State Name Payload} (h : Reach C s) :
 
 /-- Once the lock is released, the register holds this boot's records and
 `lost` more: the events whose append failed, whose extend failed after the
-TPM took it, or whose process was killed between the two. -/
+TPM took it, or whose process was killed between the two. The register
+here is its upatch events; key revocations and tree operations are left
+out. -/
 theorem register_length {s : State Name Payload} (h : Reach C s)
     (hfree : s.lock = none) :
     s.reg.length = (bootEvs s).length + s.lost := by
@@ -2377,9 +2402,10 @@ theorem register_eq_log_iff {s : State Name Payload} (h : Reach C s)
     rw [h0, Nat.add_zero] at hlen
     exact ((log_sublist_register h).eq_of_length hlen.symm).symm
 
-/-- A disagreement is always detectable: with the register's hash and
-the event encoding collision resistant as `Shirudo.Chain` assumes, the
-replay of this boot's records differs from the register. -/
+/-- A disagreement is always detectable: for a register's hash and an
+event encoding injective on everything, as the idealized hash of
+`Shirudo.Chain.register_injective`, the replay of this boot's records
+differs from the register. -/
 theorem replay_differs {D : Type} (H : D → D → D) (z : D)
     (enc : Ev Name Payload → D)
     (hH : ∀ a b c d, H a b = H c d → a = c ∧ b = d) (hz : ∀ a b, H a b ≠ z)

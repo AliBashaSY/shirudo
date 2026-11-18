@@ -1207,25 +1207,33 @@ the model follows the C.
        boot's records hold, and every archive file shirudo wrote is on
        record; ``loaded_once``: no name holds two links;
        ``recorded_runs``: every name the records hold is pinned with one
-       link of that payload; ``commands_need_init``: every command runs
-       in a boot whose init record is on the log;
-       ``init_restores_exactly``: ``init`` loads exactly the labeled
-       archive files whose last record is a load of that payload, and the
-       new boot's records hold exactly those; ``log_sublist_register``,
-       ``register_length``, ``register_eq_log_iff``, ``replay_differs``:
-       this boot's records are a sublist of the register's events, equal
-       once the lock is free unless an append was lost, and a difference
-       shows in the replay; dropping the lock, the undo pass, its refusal,
+       link of that payload; ``commands_need_init``: with enforcement
+       active, every command runs in a boot whose init record is on the
+       log; ``init_restores_exactly``: an ``init`` whose every restore
+       succeeds loads exactly the labeled archive files, of those the
+       boot's revocations left, whose last record is a load of that
+       payload, and the new boot's records hold exactly those;
+       ``log_sublist_register``, ``register_length``,
+       ``register_eq_log_iff``, ``replay_differs``: this boot's upatch
+       records are a sublist of the register's upatch events, equal once
+       the lock is free unless an append was lost, and a difference shows
+       in the replay; dropping the lock, the undo pass, its refusal,
        the gate, the undo of a failed payload xattr, the lock across the
        purge or the restore's filter breaks the matching theorem
      - The lock excludes and a kill releases it; a kill keeps pins and
        files; pin directory removals, archive renames and appends are
        whole; a reboot clears pins and register and ``init`` runs as one
-       step; root changes only unlabeled archive files and brings files
-       back; the hash of ``Shirudo.Chain`` for ``replay_differs``, and
+       step; no TPM Restart without a reboot, as hibernation is refused
+       (A9 of :doc:`/security/threat-model`); root changes only unlabeled
+       archive files and brings files back. For
+       ``replay_differs`` the idealized hash of ``register_injective``;
        for the undo pass, which reads the set only when this boot's
-       records fold to the register's value, taken as the records being
-       the register's events
+       records fold to the register's value, those records taken as the
+       register's events. Left out: the boot in which enforcement never
+       came up, where ``image_enter()`` admits commands without an init
+       record; the revocation purge ``init`` runs before the restore; a
+       restore that fails, which is ``rebootFail``; key revocations and
+       tree operations, which extend the same register
      - CBMC, ``measured-fold-model``, for ``measured_event()`` and
        ``measured_holds()`` up to six records; review for the rest
    * - ``Shirudo.TreeSync``, ``cmd_bpm_tree_sync()`` and
