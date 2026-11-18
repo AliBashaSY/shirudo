@@ -319,16 +319,53 @@ creation: no inode is better than one of shirudo's without its label.
 
 That hook cannot sleep, so it cannot read the parent's extended
 attribute. It uses a cached mark instead: ``seal_dir_marks``, inode
-storage that records an inode's label. A directory gets its mark when
-any task opens it and its label is read, and when any task makes an
-entry in it, from the label the entry hook of that operation reads from
-the parent dentry; a file when an authorized task opens it or any task
-opens it for writing; and either when an extended attribute on it
-changes and when it is created under a marked parent. A directory open,
-an entry made in a directory, a read open by an authorized task or an
-attribute change whose label read finds nothing, or a label of another
-length, removes the mark; a write open only records one; a read that fails, for a caller who may
-not read the inode, leaves it.
+storage that records an inode's label, on files and directories alike.
+The table gives every event that sets or clears a mark and what each
+result of its label read does. A label of another length than the
+seal's counts as no label here.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 25 15 15 15
+
+   * - Event
+     - Hook
+     - Label read
+     - No label
+     - Read fails
+   * - A directory opened, by any task
+     - ``lsm.s/file_open``
+     - marks
+     - clears
+     - keeps
+   * - A file opened for reading by a task with authority
+     - ``lsm.s/file_open``
+     - marks
+     - clears
+     - keeps
+   * - A file opened for writing, by any task
+     - ``lsm.s/file_open``
+     - marks
+     - keeps
+     - keeps
+   * - An entry made in a directory, by any task: the directory
+     - ``lsm.s/inode_create`` and the other entry hooks
+     - marks
+     - clears
+     - keeps
+   * - An extended attribute set or removed, by any task
+     - ``lsm.s/inode_post_setxattr``, ``lsm.s/inode_post_removexattr``
+     - marks
+     - clears
+     - keeps
+   * - An inode created under a marked directory
+     - ``lsm/inode_init_security``
+     - marks, with the label it adds
+     - not reached
+     - not reached
+
+A read open by a task without authority, and the hooks that only decide,
+leave marks alone.
 
 shirudo's writers keep the mark in place. They open the parent directory
 and create files relative to that descriptor, which holds the inode in
