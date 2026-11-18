@@ -557,13 +557,23 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        uprobe fields only on a uprobe, and device classes, set and
        within the known mask, only on XDP
    * - ``upatch-prog-uprobes``
-     - The uprobe target records of ``prog_specs_parse()``
-     - One program and one record in 226 bytes, path and build ID up to
-       9 bytes, up to 2 offsets
-     - An absolute path of its stated length without a NUL, a glob
-       without ``,`` or ``|``, one offset for a single uprobe, a build ID
-       of 1 to 64 bytes, offsets non-empty and strictly rising, everything
-       freed
+     - What ``prog_specs_parse()`` makes of a uprobe target block
+     - One program and one record in 226 bytes, the table's program
+       count and the record's lengths fixed: a path and a build ID of one
+       byte, 1 or 2 offsets
+     - A uprobe program accepted with its entry valid, a glob without
+       ``,`` or ``|``, and the uprobe fields of the record; a refusal of
+       the block, or a block that ends before the table, leaves nothing
+       allocated
+   * - ``upatch-uprobe-targets``
+     - ``parse_uprobe_targets()``
+     - The 50 bytes after one program in a 226-byte table, path and
+       build ID up to 9 bytes, up to 2 offsets, the program's entry any
+       uprobe one
+     - Reads only the block and changes only the uprobe fields; an
+       absolute path of its stated length without a NUL, one offset for a
+       single uprobe, a build ID of 1 to 64 bytes, offsets non-empty and
+       strictly rising, everything freed
    * - ``upatch-loader``
      - ``loader_lddw()``, ``sys_bpf_call()``, ``map_create_slot()``,
        ``map_update_slot()``, ``loader_store_source()``

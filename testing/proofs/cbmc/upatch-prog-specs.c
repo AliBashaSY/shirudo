@@ -14,6 +14,11 @@
 #include "../../../util/malloc.c"
 #include "../../../util/upatch.c"
 
+/* A harness that includes this one may fix bytes of the metadata. */
+#ifndef SHAPE_METADATA
+#define SHAPE_METADATA(metadata)
+#endif
+
 #define ENTRIES_LEN	(LEN - (__s64)sizeof(struct upatch_prog_metadata))
 #define NR_PROGS	(ENTRIES_LEN < 0 ? 0 : \
 			 ENTRIES_LEN / sizeof(struct upatch_prog_entry))
@@ -109,6 +114,7 @@ void harness(void)
 	int ret;
 
 	metadata = any_bytes(LEN);
+	SHAPE_METADATA(metadata);
 	ret = prog_specs_parse(metadata, LEN, nr_maps, nr_progs, &specs);
 	if (ret) {
 		__CPROVER_assert(ret < 0 && !specs, "an error and no specs");

@@ -984,8 +984,8 @@ test makes the two differ, which takes runtime authority.
 :Tests: ``t3104``, ``t6117``, ``t6138``
 :Proofs: ``upatch-header``, ``upatch-signed-sections``,
    ``upatch-signed-name``, ``upatch-name``, ``upatch-prog-specs``,
-   ``upatch-prog-uprobes``, ``upatch-decoders``,
-   ``upatch-policy-labels``
+   ``upatch-prog-uprobes``, ``upatch-uprobe-targets``,
+   ``upatch-decoders``, ``upatch-policy-labels``
 :Residual: R1, R16
 
 .. _tm-t5:
