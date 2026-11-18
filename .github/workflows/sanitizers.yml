@@ -75,6 +75,7 @@ jobs:
             apt-get install -y --no-install-recommends \
               build-essential \
               ca-certificates \
+              coccinelle \
               cryptsetup-bin \
               e2fsprogs \
               curl \
@@ -90,6 +91,8 @@ jobs:
             sh .github/scripts/install-clang.sh libclang-rt-23-dev
 
             git config --global --add safe.directory /host
+            sh .github/scripts/check-style.sh --types >/dev/null ||
+              echo 'no checkpatch.pl fetched; t0003 skips' >&2
 
             sh .github/scripts/sanitizer-openssl-deps.sh
 

@@ -25,8 +25,12 @@ Before you begin
   tests, ``libtpms-dev`` for the TPM simulator helper and ``rpmbuild``
   for the rpm packaging test.
 - For the ``ci-checks`` tests: ``git``, ``jq``, ``pkg-config``,
-  ``readelf`` and ``spatch`` from Coccinelle. A test whose tool is
-  missing skips. The runner of the ``CI suite`` workflow has them all.
+  ``readelf``, ``spatch`` from Coccinelle and the kernel's
+  ``checkpatch.pl``, which ``check-style.sh`` fetches into
+  ``build/checkpatch/`` on its first run. A test whose tool is missing
+  skips, and so does t0007's check of the operator binaries until they
+  are built without a sanitizer. The ``CI suite`` workflow and the
+  sanitizer jobs give the tests every tool.
 - For the tests that boot a VM: a readable and writable ``/dev/kvm``,
   a locked-memory limit (``ulimit -l``) of ``unlimited``, which the
   shirudo binaries the runner calls require, an x86-64 or arm64 host,

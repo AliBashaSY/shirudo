@@ -296,6 +296,11 @@ setup() {
 	sudo BPF_VMLINUX_BTF="$PWD/$kernel/vmlinux.btf" \
 		.github/scripts/vm-toolchain.sh "$@"
 
+	# t0003 runs the kernel's checkpatch.pl, which check-style.sh fetches
+	# into build/checkpatch/ on its first run; without it t0003 skips.
+	sh .github/scripts/check-style.sh --types >/dev/null ||
+		echo '::warning::no checkpatch.pl fetched; t0003 skips'
+
 	if [ "${VM:-1}" != 0 ]; then
 		# /dev/kvm belongs to root on the runner.
 		echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
