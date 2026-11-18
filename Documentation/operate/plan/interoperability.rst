@@ -350,8 +350,19 @@ Hibernation and suspend
    from suspend, shirudo commands run as before. A config activation
    that was pending stays pending, and every state-changing command
    refuses, until the next reboot; ``shirudo init`` run by hand does not
-   end it. This is a reading of the code and of the TPM's counters and
-   is not tested on a target that suspends.
+   end it. The test VM, with suspend support added to its kernel, shows
+   this in the ``deep`` (S3) mode of ``/sys/power/mem_sleep``, on
+   QEMU 8.2's ``q35`` machine with SeaBIOS 1.16.3 and swtpm 0.7.3:
+   SeaBIOS sends ``TPM2_Startup(STATE)`` on resume, and the restart
+   count goes up while the reset count, the PCRs and the register stay.
+   ``upatch load``, ``upatch unload`` and ``attest`` run, and ``attest
+   verify`` accepts the evidence. With an activation pending, ``init``,
+   ``upatch load``, ``upatch unload`` and ``attest`` print ``Operation
+   now in progress`` and exit 1, and the next reboot completes the
+   activation. Firmware that sends ``TPM2_Startup(CLEAR)`` on resume
+   makes it a TPM restart instead, which
+   :doc:`/operate/maintain/backup-recovery` describes. The ``s2idle``
+   mode is not tested.
 :What to do: Turn hibernation off as :doc:`/operate/plan/hardening` lists, and
    keep targets from sleeping, for example with ``AllowSuspend=no`` and
    ``AllowHibernation=no`` in ``/etc/systemd/sleep.conf``. After an
