@@ -98,9 +98,25 @@ command.
 What the build signs besides the code
 -------------------------------------
 
-The ``.upatch`` header is not signed. Everything the target bases a
-decision on is placed in signed sections appended to the loader's data,
-where the loader never reads them but the signature covers them:
+Everything the target bases a decision on is placed in signed sections
+appended to the loader's data, where the loader never reads them but the
+signature covers them. Figure 1 shows where they sit, and that the header
+lies outside the signed bytes.
+
+.. figure:: /images/reference-upatch-layout.svg
+   :alt: A strip of the file: an unsigned 360-byte header, then
+         loader_insns, the signature and data, with a bracket that joins
+         loader_insns and data as the signed bytes. Below, data drawn
+         wider: the loader data, then the NAME, UPGM or UNLD, DCDB and
+         SHPL sections at 8-byte boundaries, the directory and the
+         16-byte trailer, whose dir_off points to the directory, whose
+         entries point to the sections.
+
+   Figure 1. A ``.upatch`` file in file order, not to scale, with
+   ``data`` drawn wider below. The signed bytes are two regions with the
+   signature between them.
+
+The sections hold:
 
 ``NAME``
     The upatch name. The target refuses a file whose header name differs
@@ -116,11 +132,14 @@ where the loader never reads them but the signature covers them:
     it removes.
 ``DCDB``
     The Lua decoders the source declares, with their source text.
+``SHPL``
+    The policy labels of a load whose programs share the
+    ``shirudo_task_policy`` and ``shirudo_sock_policy`` maps: for each
+    label, a policy ID, a bit and an absolute file path.
 
-The header also carries ``payload_sha256``, the SHA-256 of the loader
-instructions followed by the data. The target recomputes it and refuses a
-mismatch, because that digest is what the pin records, what the
-measurement register extends and what an unload directive is bound to.
+The header's ``payload_sha256`` is the SHA-256 of the signed bytes. The
+target recomputes it and refuses a mismatch, because the pin, the
+measurement register and an unload directive all name the upatch by it.
 :doc:`/reference/formats/upatch-format` gives every field.
 
 What the target keeps

@@ -28,7 +28,8 @@ Layout
 ------
 
 The writer emits the regions in the order below. A reader locates each
-region through the header only.
+region through the header only. Figure 1 shows the regions in file
+order and what ``data`` holds.
 
 .. list-table::
    :header-rows: 1
@@ -56,6 +57,19 @@ region through the header only.
      - ``metadata_off``, ``metadata_len``
      - Absent. ``shirudo build`` sets both fields to 0. The target never
        reads this region.
+
+.. figure:: /images/reference-upatch-layout.svg
+   :alt: A strip of the file: an unsigned 360-byte header, then
+         loader_insns, the signature and data, with a bracket that joins
+         loader_insns and data as the signed bytes. Below, data drawn
+         wider: the loader data, then the NAME, UPGM or UNLD, DCDB and
+         SHPL sections at 8-byte boundaries, the directory and the
+         16-byte trailer, whose dir_off points to the directory, whose
+         entries point to the sections.
+
+   Figure 1. A ``.upatch`` file in file order, not to scale, with
+   ``data`` drawn wider below. The signed bytes are two regions with the
+   signature between them.
 
 Header
 ------
@@ -197,16 +211,10 @@ Signed sections
 ---------------
 
 What the target needs beyond the loader rides inside ``data``, behind the
-loader's own bytes, so the signature covers it. The loader addresses only
-its own prefix of ``data``.
-
-.. code-block:: text
-
-   data:  loader data | pad | section | pad | section ... | pad | directory | trailer
-
-The writer aligns each section and the directory to 8 bytes from the start
-of ``data`` and fills the padding with zeros. The trailer is the last 16
-bytes of ``data``.
+loader's own bytes, so the signature covers it, as Figure 1 shows. The
+loader addresses only its own prefix of ``data``. The writer aligns each
+section and the directory to 8 bytes from the start of ``data`` and fills
+the padding with zeros. The trailer is the last 16 bytes of ``data``.
 
 Trailer
 ~~~~~~~
