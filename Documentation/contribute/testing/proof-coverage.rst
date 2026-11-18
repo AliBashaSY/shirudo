@@ -1320,7 +1320,12 @@ the model follows the C.
        ``outcomes_fixed``, ``lastSeq_le_head``: the outcomes record has a
        line for every operation from 1 to the cursor, in order, no line
        at or below the cursor ever changes, and the cursor never passes
-       the head of the recorded publication. All of these hold across
+       the head of the recorded publication; ``recover_progress``,
+       ``sync_progress``: given a checked publication that follows a
+       reachable node and holds its pending operation when that is
+       above the cursor, recovery refuses nothing and the sync runs to
+       its end, recording the publication's head as the cursor. All of
+       these hold across
        segment boundaries, as a publication of any base is a sync;
        ``walk_same_ops``: the segments of a walk, each recorded before
        its operations, apply the operations of the tree taken as one

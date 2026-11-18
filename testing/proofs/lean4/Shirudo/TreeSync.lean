@@ -45,7 +45,12 @@ such publication has at its number when the signer never gives a number two
 operations (`applied_consistent`). The outcomes record has a line for every
 operation from 1 to the cursor, in order (`outcomes_cover`), no line at or
 below the cursor ever changes (`outcomes_fixed`), and the cursor never passes
-the head of the recorded publication (`lastSeq_le_head`).
+the head of the recorded publication (`lastSeq_le_head`). And the node can
+always go on: given a checked publication that follows it and holds its
+pending operation when that is above the cursor, recovery refuses nothing
+(`recover_progress`) and the sync runs to its end, recording the
+publication's head as the cursor whatever the selector says
+(`sync_progress`).
 
 The generation rests on the generation check of `Follows`, on `tree_parse()`
 refusing a negative generation, and on a manifest digest naming one
@@ -2805,6 +2810,164 @@ theorem lastSeq_le_head [DecidableEq T] [DecidableEq M] [DecidableEq I]
     {n : Node T M I D} (hr : Reach H init Signed n) {s : State T M D}
     (hst : n.state = some s) : s.lastSeq ≤ s.headSeq :=
   (reach_oinv ha hr).head s hst
+
+/-! ### A node can always go on -/
+
+section progress
+variable [DecidableEq T] [DecidableEq M] [DecidableEq I] [DecidableEq D]
+variable (H : D → D → D) (init : D)
+
+omit [DecidableEq T] [DecidableEq M] [DecidableEq I] [DecidableEq D] in
+/-- The loop over a publication's operations, numbered from `a + 1` on,
+from a cursor between `a` and the last of them, leaves the cursor at the
+last, whatever the selector says of each. -/
+theorem loop_lastSeq (sel : Op I D → Bool) :
+    ∀ (os : List (Op I D)) (a : Int) (st : State T M D),
+      Consec a os → a ≤ st.lastSeq → st.lastSeq ≤ a + (os.length : Int) →
+      (loop H sel st os).2.lastSeq = a + (os.length : Int)
+  | [], a, st, _, h1, h2 => by
+    simp only [loop, List.length_nil] at h2 ⊢
+    omega
+  | o :: os, a, st, hc, h1, h2 => by
+    obtain ⟨ho, hc'⟩ := hc
+    simp only [List.length_cons] at h2 ⊢
+    unfold loop
+    split
+    · have := loop_lastSeq sel os (a + 1) st hc' (by omega) (by omega)
+      omega
+    · split
+      · have := loop_lastSeq sel os (a + 1)
+          { st with root := H st.root o.digest, lastSeq := o.seq } hc'
+          (by simp only; omega) (by simp only; omega)
+        simp only at this ⊢
+        omega
+      · have := loop_lastSeq sel os (a + 1) { st with lastSeq := o.seq } hc'
+          (by simp only; omega) (by simp only; omega)
+        simp only at this ⊢
+        omega
+
+/-- `tree_recover_pending()` refuses no reachable node that a publication
+holding its pending operation reaches, when that operation is above the
+cursor: one at or below the cursor is removed whatever the publication
+holds, and one above it is found, its record and its line telling whether
+it was applied. -/
+theorem recover_progress {Signed : Pub T M I D → M → Prop}
+    (ha : Assumptions H init Signed) {n : Node T M I D}
+    (hr : Reach H init Signed n) {pub : Pub T M I D}
+    (hpend : ∀ p, n.pending = some p → cursor n < p.seq → p ∈ pub.ops) :
+    recover H init n pub (n.state.getD (fresh init pub.treeId)) ≠ none := by
+  have hinv := reach_inv H init ha hr
+  have hc0 : (n.state.getD (fresh init pub.treeId)).lastSeq = cursor n := by
+    cases hs : n.state <;> simp [cursor, fresh, hs]
+  have hr0 : (n.state.getD (fresh init pub.treeId)).root = rootAt init n := by
+    cases hs : n.state <;> simp [rootAt, fresh, hs]
+  unfold recover
+  cases hp : n.pending with
+  | none => simp
+  | some p =>
+    simp only
+    split
+    · simp
+    rename_i hgt
+    have hlt : cursor n < p.seq := by omega
+    -- What the tree eventlog replays to: the state's root, or the root
+    -- after the pending operation when its line is appended.
+    have hrep : replay H init n.log = .missing ∨
+        replay H init n.log = .ok (n.state.getD (fresh init pub.treeId)).root ∨
+        replay H init n.log =
+          .ok (H (n.state.getD (fresh init pub.treeId)).root p.digest) := by
+      have hclean : Clean H init n → replay H init n.log = .missing ∨
+          replay H init n.log = .ok (n.state.getD (fresh init pub.treeId)).root
+          := by
+        intro hc
+        cases hl : n.log with
+        | nil => exact Or.inl rfl
+        | cons l ls =>
+          right
+          rw [← hl, replay_ok H init hinv.replays (by simp [hl]), hr0, hc.1]
+      rcases hinv.window with ⟨hc, -⟩ | ⟨-, -, -, hc, -⟩ |
+          ⟨p', L0, hp', -, hlog, hroot, -, -⟩
+      · rcases hclean hc with h | h
+        · exact Or.inl h
+        · exact Or.inr (Or.inl h)
+      · rcases hclean hc with h | h
+        · exact Or.inl h
+        · exact Or.inr (Or.inl h)
+      · rw [hp, Option.some.injEq] at hp'
+        subst hp'
+        right; right
+        rw [replay_ok H init hinv.replays (by simp [hlog]), hlog,
+          rootOf_append, hr0, hroot]
+    split
+    · rename_i hf
+      exact absurd (List.find?_eq_none.1 hf p (hpend p hp hlt)) (by simp)
+    rename_i o hf
+    have hos := List.find?_some hf
+    simp only [decide_eq_true_eq] at hos
+    rcases hrep with h | h | h <;> rw [h] <;> (repeat' split) <;>
+      first
+        | exact Option.some_ne_none _
+        | (exfalso; contradiction)
+        | (exfalso; injections; subst_vars; contradiction)
+
+/-- A reachable node syncs every checked publication that follows it and
+holds its pending operation, when that is above the cursor, to the end:
+whatever the selector says, the sync makes no refusal and its last write
+records the publication's head as the cursor. A pending operation the
+publication no longer holds stops nothing once the cursor passed it. -/
+theorem sync_progress {Signed : Pub T M I D → M → Prop}
+    (ha : Assumptions H init Signed) {n : Node T M I D}
+    (hr : Reach H init Signed n) {pub : Pub T M I D} {m : M}
+    (hchk : Checked pub) (hfol : Follows pub n.state m) (hsig : Signed pub m)
+    (hpend : ∀ p, n.pending = some p → cursor n < p.seq → p ∈ pub.ops)
+    (sel : Op I D → Bool) :
+    ∃ ws st, run H init n pub m sel = ws ++ [.state st] ∧
+      st.lastSeq = pub.headSeq ∧ st.manifest = some m := by
+  have hinv := reach_inv H init ha hr
+  obtain ⟨⟨ws, st⟩, hrec⟩ := Option.ne_none_iff_exists'.1
+    (recover_progress H init ha hr hpend)
+  obtain ⟨-, -, hspec⟩ := recover_inv H init ha.binds ha.hash_inj ha.hash_init
+    hinv hchk hfol hsig hrec
+  obtain ⟨hcs, hlen⟩ := consec_of_checked hchk
+  have hbc := base_le_cursor hfol
+  have hch : cursor n ≤ pub.headSeq := by
+    cases hs : n.state with
+    | none =>
+      have h0 : cursor n = 0 := by simp [cursor, hs]
+      have := hchk.2.1
+      omega
+    | some s =>
+      have hf := hfol
+      simp only [hs, Follows] at hf
+      have h0 : cursor n = s.lastSeq := by simp [cursor, hs]
+      omega
+  -- Recovery leaves the cursor where it was or at the pending operation,
+  -- one of the publication's.
+  have hst : pub.baseSeq ≤ st.lastSeq ∧ st.lastSeq ≤ pub.headSeq := by
+    unfold RecoverSpec at hspec
+    cases hp : n.pending with
+    | none =>
+      simp only [hp] at hspec
+      omega
+    | some p =>
+      simp only [hp] at hspec
+      rcases hspec with ⟨-, -, hl⟩ | ⟨-, -, -, -, hl⟩ |
+          ⟨hlt, -, -, -, hl, -⟩ | ⟨hlt, -, -, hl, -⟩
+      · omega
+      · omega
+      all_goals
+        have := (consec_mem pub.ops pub.baseSeq hcs (hpend p hp hlt)).2
+        omega
+  unfold run
+  split
+  · rw [hrec]
+    refine ⟨.truncate (cursor n).toNat :: _, _, rfl, ?_, rfl⟩
+    exact loop_lastSeq H sel pub.ops pub.baseSeq _ hcs (by simp only; omega)
+      (by simp only; omega) |>.trans hlen
+  · rename_i hn
+    exact absurd ⟨hchk, hfol⟩ hn
+
+end progress
 
 /-! ### A walk applies the tree's operations -/
 
