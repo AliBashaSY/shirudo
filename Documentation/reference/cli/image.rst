@@ -131,6 +131,35 @@ root through a live update invalidates it. An interruption before the atomic sel
 leaves the previous selection in place. A saved selection whose files
 cannot be authenticated causes init to refuse it.
 
+.. list-table:: ``image update`` and ``image stage`` compared
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Property
+     - ``image update``
+     - ``image stage``
+   * - Takes effect
+     - At once.
+     - At the next TPM boot, when init has verified it again.
+   * - New BPF signers
+     - Refused: every signer must already be in ``.bpf``.
+     - Allowed when vouched; init enrolls them before it seals ``.bpf``.
+   * - Revocations
+     - Applied at once, each measured, with the archived upatches the
+       revoked certificate signed unloaded.
+     - Applied by init at the next boot.
+   * - Changes now
+     - The mounted config, ``.bpf``, the config PCR and the
+       measurement register.
+     - Only ``/var/lib/shirudo/config-update/next-boot``.
+   * - After an interruption
+     - Between steps 5 and 7, the activation stays pending and commands
+       are refused until the next reboot.
+     - Before the selection is saved, the previous selection stays.
+   * - Undone by
+     - Another ``image update``.
+     - ``image stage --cancel``, or a live update to another root.
+
 image status
 ------------
 
