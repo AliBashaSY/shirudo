@@ -185,16 +185,51 @@ an xattr at all.
 
 Those hooks are more than one might expect. A BPF program may sleep only
 on the hooks the kernel lists as sleepable, and the read kfuncs need a
-dentry or a file. ``inode_init_security``, ``inode_copy_up``,
-``inode_link`` and ``inode_mkdir`` cannot sleep. ``inode_create``,
-``inode_mknod``, ``inode_symlink`` and ``inode_rename`` can, but they
-receive the directory they change only as a ``struct inode``. None of
-them can read the xattr of the directory an operation changes. Two
-kernel patches shirudo carries change that: one adds ``inode_mkdir``,
-``inode_link``, ``inode_copy_up`` and the ACL and inode flag hooks to
-the sleepable set, the other lets a program read ``dentry->d_parent``,
-the directory's dentry, as a trusted pointer
-(:doc:`/internals/kernel-patches`).
+dentry or a file. The hooks that decide a new entry receive the
+directory they change as a ``struct inode``; its dentry is only the new
+entry's ``d_parent``, a pointer the verifier does not trust. Two kernel
+patches shirudo carries change that (:doc:`/internals/kernel-patches`):
+0003 adds ``inode_mkdir``, ``inode_link``, ``inode_copy_up`` and the ACL
+and inode flag hooks to the sleepable set, and 0004 lets a program pass
+``dentry->d_parent`` to the read kfuncs. Whether a hook can read the
+label it decides by, the directory's or for ``inode_copy_up`` the copied
+inode's, then comes out as follows:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 32 16 26
+
+   * - Hook
+     - Receives the directory as
+     - Sleepable
+     - Reads its label
+   * - ``inode_init_security``
+     - An inode, with no dentry at all
+     - No
+     - Never
+   * - ``inode_copy_up``
+     - No directory; the copied inode as a dentry
+     - With 0003
+     - With 0003
+   * - ``inode_link``, ``inode_mkdir``
+     - An inode, and the new entry as a dentry
+     - With 0003
+     - With 0003 and 0004
+   * - ``inode_create``, ``inode_mknod``, ``inode_symlink``
+     - An inode, and the new entry as a dentry
+     - Yes
+     - With 0004
+   * - ``inode_rename``
+     - Two inodes, and both entries as dentries
+     - Yes
+     - With 0004
+   * - ``file_open``
+     - A file, when it opens the directory itself
+     - Yes
+     - Yes
+
+Upstream, then, only ``file_open`` reads the label it decides by, and
+``inode_init_security``, where a policy labels a new inode, never can.
 
 The usual pattern follows from that. A sleepable hook that has a dentry
 or a file, ``file_open`` for instance, reads the xattr and stores what
