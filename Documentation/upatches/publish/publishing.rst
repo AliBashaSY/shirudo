@@ -78,9 +78,10 @@ Push it to a repository
    artifact, attaches the package's certificate to it as a referrer, adds
    the version with the package's digests to the index at
    ``<namespace>/bpm-index:stable`` in the same registry, signs the index
-   with your key, and tags the package with its version. The index
-   namespace is the package repository path without its final name. It
-   prints the pushed reference and the manifest's digest,
+   with your key, and tags the package with its version: the objects
+   on the left of Figure 1. The index namespace is the package
+   repository path without its final name. It prints the pushed
+   reference and the manifest's digest,
    ``oci://<registry>/<namespace>/<name>:<version> sha256:<digest>``;
    ``bpm config update`` takes that digest to build on the package.
 
@@ -160,19 +161,38 @@ one label, or append the ``delete`` of the earlier upatch first.
 Segments and registry retention
 -------------------------------
 
-A tree grows past what one signed document holds as a chain of
-segments. Once the current segment holds 64 operations, or the number
-``--segment-ops`` gives, ``tree append`` seals it and publishes the new
-operations as the next segment, which names the sealed one by digest.
-One append always goes into one segment, and a segment never holds more
-than 512 operations. ``<tree>:stable`` names only the current segment; a
-target that is behind fetches the sealed ones by digest.
+A tree grows as a chain of segments. Once the current segment holds 64
+operations, or the number ``--segment-ops`` gives, ``tree append`` seals
+it, tags it ``segment-<k>`` and publishes the new operations as the next
+segment, which ``<tree>:stable`` names. Figure 1 shows the namespace this
+leaves, and :doc:`/reference/cli/bpm` the exact rule.
 
-Every sealed segment is tagged ``segment-1``, ``segment-2`` and so on in
-the tree's repository. Keep the ``segment-*`` tags: a registry that
-deletes untagged manifests, or a retention policy that prunes old tags,
-would remove a segment a target still has to walk through, and the
-target then refuses to sync rather than skip it.
+.. figure:: /images/reference-tree-registry.svg
+   :alt: One registry namespace holds a package repository with its
+         package manifest and certificate referrer, the bpm-index
+         repository whose signed index document pins the package
+         manifest and archive by digest, and the tree repository. In the
+         tree, the segments tagged segment-1 with seq 1 to 64 and
+         segment-2 with seq 65 to 128 and the current one tagged stable
+         with seq 129 to 150 each hold a signed document and its
+         signature, and each names the one before it by
+         base.segment_manifest_digest. The operations pin artifact
+         manifests tagged upatch-id-payload16. Superseded generations
+         are untagged and may be collected. A node at seq 70 walks back
+         from stable to segment-2 by digest and then applies seq 71 to
+         128 and 129 to 150, oldest first.
+
+   Figure 1. A namespace after ``bpm push`` and ``bpm tree append``, with
+   a target at seq 70 that is behind.
+
+Keep the tags: ``:<version>``, ``bpm-index:stable``, ``stable``,
+``segment-*`` and ``upatch-*``. A target fetches packages, sealed
+segments and artifacts by digest, so a retention policy that prunes old
+tags, or a registry that then deletes untagged manifests, removes an
+object a target may still have to fetch: ``bpm tree sync`` then refuses
+rather than skip it, and an install or upgrade fails. A superseded
+generation of a segment or of the index, which the next append or push
+took the tag from, may be collected.
 
 An ``add`` whose XDP programs select a device class makes ``tree
 append`` fetch every sealed segment, so its class check covers the whole

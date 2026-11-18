@@ -29,32 +29,32 @@ makes exactly the model's writes.
 Overview
 --------
 
-The objects and keys of a tree, and where each is defined:
+A tree lives in its own repository of a registry namespace, beside the
+packages and the index of :doc:`bpm-formats`, as Figure 1 shows. Each
+publication is one segment of operations, a signed document behind a
+manifest. The tag ``<reference>`` names the current segment, and each
+segment names the sealed one before it by digest. Each operation pins
+the artifact manifest of its ``.upatch`` by digest. The sections below
+define the objects and keys: `Registry objects`_, `Publication
+document`_, `Operation`_ and `Selector`_.
 
-.. code-block:: none
+.. figure:: /images/reference-tree-registry.svg
+   :alt: One registry namespace holds a package repository with its
+         package manifest and certificate referrer, the bpm-index
+         repository whose signed index document pins the package
+         manifest and archive by digest, and the tree repository. In the
+         tree, the segments tagged segment-1 with seq 1 to 64 and
+         segment-2 with seq 65 to 128 and the current one tagged stable
+         with seq 129 to 150 each hold a signed document and its
+         signature, and each names the one before it by
+         base.segment_manifest_digest. The operations pin artifact
+         manifests tagged upatch-id-payload16. Superseded generations
+         are untagged and may be collected. A node at seq 70 walks back
+         from stable to segment-2 by digest and then applies seq 71 to
+         128 and 129 to 150, oldest first.
 
-   In the registry                     Registry objects
-     publication manifest              <repository>:stable
-     document layer, signature layer   the signed publication
-     sealed segments                   earlier publications, by digest
-     artifact manifests                one .upatch per operation
-   Publication document                Publication document
-     schema                            format version
-     tree_id                           which tree, for life
-     generation                        which publication
-     parent_manifest_digest            the one it replaces
-     base                              where this segment starts
-     operations                        the list, at most 512
-     head.seq                          last operation
-   Operation                           Operation
-     seq, op, id                       position, add or delete, upatch
-     selector                          which nodes apply it
-     artifact                          where the .upatch is
-     fixes                             advisories, for the backend
-     operation_digest                  hash of the operation
-   Selector                            Selector
-     architecture, kernel_release_prefix, kernel_build_id,
-     kconfig, labels
+   Figure 1. A tree and its namespace in the registry, with a node at
+   seq 70 that is behind.
 
 Digests in the tree carry a ``sha256:`` prefix, as OCI does; the
 keepalive leaves it out.
@@ -148,6 +148,27 @@ Registry objects
        holding the ``.upatch`` file, annotation
        ``org.opencontainers.image.title`` ``<id>.upatch``. An ``add``
        publishes the load artifact, a ``delete`` the unload directive.
+   * - Superseded generation
+     - A publication manifest that ``<reference>`` named before an
+       append that did not seal it. Untagged once the reference moves. A
+       target never fetches it, so registry garbage collection may
+       remove it.
+
+``bpm tree append`` adds to the current segment or seals it and starts
+the next, as Figure 2 shows; :doc:`/reference/cli/bpm` gives the rule.
+
+.. figure:: /images/reference-tree-append.svg
+   :alt: Two cases of appending three operations. When the segment
+         tagged stable, seq 129 to 150, has room, the new generation
+         tagged stable holds seq 129 to 153, names the old generation,
+         now untagged, as its parent and keeps segment-2 as its base.
+         When the segment holds seq 129 to 192 and is full, its
+         manifest is tagged segment-3 unchanged, and the new generation
+         tagged stable holds only seq 193 to 195 and names segment-3 as
+         both its base and its parent.
+
+   Figure 2. What an append of three operations does to a segment with
+   room and to a full one.
 
 Publication document
 --------------------
@@ -395,10 +416,10 @@ checks its digest and size, and refuses the ``.upatch`` unless its header
 Walk
 ----
 
-A node behind the segment that ``<reference>`` names fetches back to the
-segment its last applied ``seq`` lies in, then applies the segments
-forwards. It keeps the manifest digest, ``base.seq``, ``head.seq`` and
-``generation`` of each segment, not the documents.
+A node behind the segment that ``<reference>`` names walks back to the
+segment its last applied ``seq`` lies in and then applies the segments
+forwards, as Figure 1 shows. It keeps the manifest digest, ``base.seq``,
+``head.seq`` and ``generation`` of each segment, not the documents.
 
 #. While the oldest segment so far starts past the node's last applied
    ``seq``, the node refuses the sync when the distance between the two

@@ -279,24 +279,33 @@ across segments. Before it adds its ``n`` operations to the current
 segment, which holds ``c``, it seals that segment when ``c`` is at least
 ``--segment-ops`` or ``c + n`` exceeds 512, so a segment can hold up to
 ``n - 1`` operations more than ``--segment-ops``. A package holds at most
-128 tree entries, so one append always fits in a segment. Sealing:
+128 tree entries, so one append always fits in a segment. Figure 1 shows
+both cases.
 
-#. The current publication becomes the sealed segment, its manifest and
-   document unchanged.
-#. Its manifest is tagged ``segment-<k>``, where ``k`` counts the sealed
-   segments from 1. The tag only keeps registry garbage collection from
-   deleting the segment: a target follows ``<reference>`` and reaches the
-   sealed segments by digest. The append looks up the last tag by
-   doubling ``k`` and then halving the gap, about 2 log\ :sub:`2` ``k``
-   manifest requests, and never moves an existing tag. When the last tag
-   already names the sealed manifest, left by an append that failed after
-   tagging, it adds none.
-#. The new publication holds only the appended operations. Its
-   ``base.seq`` is the sealed ``head.seq``, ``base.segment_manifest_digest``
-   and ``parent_manifest_digest`` both name the sealed manifest, its
-   ``generation`` is one higher, and ``base.history_root`` is the sealed
-   segment's ``base.history_root``, 64 zeros for the first segment,
-   folded over the sealed operations.
+.. figure:: /images/reference-tree-append.svg
+   :alt: Two cases of appending three operations. When the segment
+         tagged stable, seq 129 to 150, has room, the new generation
+         tagged stable holds seq 129 to 153, names the old generation,
+         now untagged, as its parent and keeps segment-2 as its base.
+         When the segment holds seq 129 to 192 and is full, its
+         manifest is tagged segment-3 unchanged, and the new generation
+         tagged stable holds only seq 193 to 195 and names segment-3 as
+         both its base and its parent.
+
+   Figure 1. What an append of three operations does to a segment with
+   room and to a full one.
+
+Sealing leaves the current manifest and document unchanged and tags the
+manifest ``segment-<k>``, where ``k`` counts the sealed segments from 1.
+The tag only keeps registry garbage collection from deleting the
+segment: a target follows ``<reference>`` and reaches the sealed
+segments by digest. The append finds ``k`` by doubling it and then
+halving the gap, about 2 log\ :sub:`2` ``k`` manifest requests, never
+moves an existing tag, and adds none when the last tag already names the
+sealed manifest, left by an append that failed after tagging. The new
+segment's ``base.seq`` is the sealed ``head.seq``, and its
+``base.history_root`` is the sealed segment's ``base.history_root``, 64
+zeros for the first segment, folded over the sealed operations.
 
 The tag is written after every check has passed and just before
 ``<reference>`` moves, so a refused append leaves no tag.

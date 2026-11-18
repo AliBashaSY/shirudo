@@ -27,6 +27,29 @@ package's directory.
 What is signed
 --------------
 
+Figure 1 shows the objects of one registry namespace, the packages, the
+index and an upatch tree, and which of them are signed and which are
+pinned by a digest in a signed one. The table gives each object's
+protection.
+
+.. figure:: /images/reference-tree-registry.svg
+   :alt: One registry namespace holds a package repository with its
+         package manifest and certificate referrer, the bpm-index
+         repository whose signed index document pins the package
+         manifest and archive by digest, and the tree repository. In the
+         tree, the segments tagged segment-1 with seq 1 to 64 and
+         segment-2 with seq 65 to 128 and the current one tagged stable
+         with seq 129 to 150 each hold a signed document and its
+         signature, and each names the one before it by
+         base.segment_manifest_digest. The operations pin artifact
+         manifests tagged upatch-id-payload16. Superseded generations
+         are untagged and may be collected. A node at seq 70 walks back
+         from stable to segment-2 by digest and then applies seq 71 to
+         128 and 129 to 150, oldest first.
+
+   Figure 1. Which objects of a registry namespace are signed, pinned
+   by digest, or neither.
+
 .. list-table::
    :header-rows: 1
    :widths: 24 40 36
