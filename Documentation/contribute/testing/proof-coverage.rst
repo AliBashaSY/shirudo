@@ -1004,9 +1004,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - A passphrase of up to 256 bytes as it stands; a longer one
        refused, the value before kept
    * - ``config-hosts``
-     - ``tls_classical_hosts_valid()``
-     - Values of 0 to 7 bytes
-     - Empty, or DNS names apart by commas
+     - ``tls_classical_hosts_valid()``, ``dns_name_valid()``
+     - Values and names of 0 to 7 bytes
+     - A list exactly when empty or names apart by single commas; a name
+       exactly when labels of 1 to 63 letters, digits and hyphens apart
+       by single dots, none starting or ending with a hyphen, at most 253
+       bytes in all, not every label a number, decimal or ``0x`` and hex
    * - ``config-update-follows``
      - ``event_follows()`` and ``same_event()`` of :src:`util/config_update.c`
      - Every record ``record_decode()`` accepts, and the zeroed one before
@@ -1683,7 +1686,9 @@ challenge on the target, or ``attest_challenge_make()`` and
 ``cert_describes()``, which read a target's evidence to make one.
 
 Of the other files the proofs read in part, these functions have no
-proof: ``tpm_public_marshal()`` and ``tpm_writer_public()`` of
+proof: ``dns_name_valid()`` of :src:`util/string.c` at its limits of a
+63-byte label and a 253-byte name, as names that long take CBMC past
+8 GB; ``tpm_public_marshal()`` and ``tpm_writer_public()`` of
 :src:`util/tpm_wire.c`, the first of which the ``tpm-wire`` fuzz target
 round-trips; ``upatch_rodata_symbol_range()`` of
 :src:`util/upatch_rodata.c`, the range of ``.rodata`` the builder
