@@ -76,97 +76,96 @@ Categories
 
 .. list-table::
    :header-rows: 1
-   :widths: 18 16 12 27 27
+   :widths: 18 16 38 28
 
    * - Category
      - Phases
-     - errno
-     - Meaning
+     - Meaning and errno
      - Action
    * - ``version_mismatch``
      - ``pre_flight``
-     - ``EPERM``
-     - ``--expect-version-id`` differs from the target's
+     - ``EPERM``. ``--expect-version-id`` differs from the target's
        ``SHIRUDO_VERSION_ID``.
      - Compare ``shirudo version --version-id`` on both hosts and
        deploy matching builds. See :doc:`/operate/maintain/upgrade`.
    * - ``kernel_abi_unsupported``
      - ``pre_flight``, ``link_create``
-     - ``EOPNOTSUPP``
-     - In ``pre_flight``, the kernel lacks the signed-loader ABI; the
-       message names the missing part. In ``link_create``, the kernel
-       does not support the attach type.
+     - ``EOPNOTSUPP``. In ``pre_flight``, the kernel lacks the
+       signed-loader ABI; the message names the missing part. In
+       ``link_create``, the kernel does not support the attach type.
      - Run a kernel that meets :doc:`/operate/plan/system-requirements`.
    * - ``keyring_missing``
      - ``pre_flight``, ``signed_loader_load``
-     - errno of the read, ``ENOKEY``
-     - In ``pre_flight``, no trust anchor was frozen this boot (``ENOENT``
-       when ``init`` has not run). In ``signed_loader_load``, the
-       signer's certificate is not in the ``.bpf`` keyring.
+     - - In ``pre_flight``, no trust anchor was frozen this boot: the
+         errno of the read, ``ENOENT`` when ``init`` has not run.
+       - In ``signed_loader_load``, the signer's certificate is not in
+         the ``.bpf`` keyring: ``ENOKEY``.
      - Check ``shirudo status`` and the journal of ``init``. Compare the
        signer with ``shirudo keys``; enroll a signer through the signed
        config, see :doc:`/operate/maintain/keys`.
    * - ``tampered``
      - ``pre_flight``, ``tpm_extend``
-     - none, ``EPERM``, ``EACCES``, ``ENOENT``, ``ESTALE``, ``EBADMSG``
-     - The ``.bpf`` keyring is not the frozen anchor (no errno), the
-       ``lsm_link`` pin is missing (``ENOENT``), the register differs from
-       ``--expect-chain`` or cannot be read (``EPERM``), the register
-       is not the one ``init`` bound (``EACCES``, the load is undone), or
-       this boot's eventlog records do not fold to the register
-       (``EBADMSG``, nothing changed). From
-       ``upatch reconcile``: the archive of a loaded XDP upatch differs
-       from what the records say was loaded, or its program pin is missing
-       (``ENOENT``) or holds no XDP program (``ESTALE``).
+     - - The ``.bpf`` keyring is not the frozen anchor: no errno.
+       - The ``lsm_link`` pin is missing: ``ENOENT``.
+       - The register differs from ``--expect-chain`` or cannot be
+         read: ``EPERM``.
+       - The register is not the one ``init`` bound: ``EACCES``. The
+         load is undone.
+       - This boot's eventlog records do not fold to the register:
+         ``EBADMSG``. Nothing changed.
+       - From ``upatch reconcile``, the archive of a loaded XDP upatch
+         differs from what the records say was loaded: no errno.
+       - From ``upatch reconcile``, the XDP program pin is missing
+         (``ENOENT``) or holds no XDP program (``ESTALE``).
      - Do not retry. Keep the eventlog and the journal and handle the
        target as an incident: :doc:`/operate/troubleshoot/incident-tampered`.
    * - ``not_initialized``
      - ``pre_flight``
-     - none
-     - ``upatch reconcile`` ran outside the initial network namespace, or
-       before ``init`` finished on the root file system.
+     - No errno. ``upatch reconcile`` ran outside the initial network
+       namespace, or before ``init`` finished on the root file system.
      - Wait for ``shirudo.service``; the timer runs the pass again.
    * - ``eventlog_full``
      - ``pre_flight``
-     - ``ENOSPC``
-     - The eventlog would exceed ``eventlog.max_bytes``. Nothing was
-       loaded or measured.
+     - ``ENOSPC``. The eventlog would exceed ``eventlog.max_bytes``.
+       Nothing was loaded or measured.
      - Raise ``eventlog.max_bytes`` in the signed config, see
        :doc:`/reference/configuration`. The eventlog is sealed
        and cannot be rotated.
    * - ``parser_rejected``
      - ``parse``, ``target_verify``
-     - errno of the read, or none; ``ERANGE``, ``EINVAL``, ``E2BIG``
-     - The artifact cannot be read or is malformed: wrong kind (a
-       directive given to ``load`` or the reverse), misaligned loader,
-       unsafe or unsigned name, ``payload_sha256`` mismatch, unsigned or
-       invalid attach metadata. In ``target_verify``, a uprobe offset
-       lies beyond the target file.
+     - - The artifact cannot be read or is malformed: the errno of the
+         read.
+       - Wrong kind (a directive given to ``load`` or the reverse),
+         unsafe or unsigned name, ``payload_sha256`` mismatch, or
+         unsigned attach metadata: no errno.
+       - Invalid attach metadata: the errno of its check.
+       - In ``target_verify``, a uprobe offset beyond the target file or
+         another target the checks refuse: ``ERANGE``, ``EINVAL`` or
+         ``E2BIG``.
      - Rebuild the artifact with ``shirudo build`` and check it with
        ``shirudo upatch info``.
    * - ``attach_target_missing``
      - ``target_verify``, ``link_create``
-     - ``ENOENT``, ``ENOTDIR``
-     - The uprobe binary, the kprobe symbol or its module is absent.
-       ``upatch load`` exits 2. ``bpm tree sync`` records the operation as
-       ``skipped: module not loaded`` and continues.
+     - ``ENOENT`` or ``ENOTDIR``. The uprobe binary, the kprobe symbol or
+       its module is absent. ``upatch load`` exits 2. ``bpm tree sync``
+       records the operation as ``skipped: module not loaded`` and
+       continues.
      - Load the module or install the binary, then load again.
    * - ``xdp_multibuf_unsupported``
      - ``link_create``
-     - ``EMEDIUMTYPE``
-     - A selected device has native XDP but does not report multi-buffer
-       support (``NETDEV_XDP_ACT_RX_SG``). The load was undone.
+     - ``EMEDIUMTYPE``. A selected device has native XDP but does not
+       report multi-buffer support (``NETDEV_XDP_ACT_RX_SG``). The load was
+       undone.
      - Narrow the signed device-class mask, or configure or change the
        device so that it reports multi-buffer XDP. See
        :doc:`/upatches/write/attach-kinds`.
    * - ``xdp_driver_refused``
      - ``link_create``
-     - ``ENOPROTOOPT``
-     - The driver of a selected device refused the program in its
-       current settings: ``EOPNOTSUPP`` while it reports native XDP, from
-       ``virtio_net`` while the host does GRO_HW or checksum offload or
-       from ``bnxt`` with header-data split or with rx and tx channels not
-       combined; ``EINVAL`` from ``mlx5`` with LRO or hardware GRO on;
+     - ``ENOPROTOOPT``. The driver of a selected device refused the program
+       in its current settings: ``EOPNOTSUPP`` while it reports native XDP,
+       from ``virtio_net`` while the host does GRO_HW or checksum offload
+       or from ``bnxt`` with header-data split or with rx and tx channels
+       not combined; ``EINVAL`` from ``mlx5`` with LRO or hardware GRO on;
        ``ENOSPC`` from a veth with fewer rx queues than its peer has tx
        queues; ``ERANGE`` for an MTU the driver cannot take. The journal
        names the driver's errno. The load was undone.
@@ -175,109 +174,109 @@ Categories
        :doc:`/upatches/write/attach-kinds`.
    * - ``xdp_device_occupied``
      - ``link_create``
-     - ``EBUSY``
-     - A selected device already runs another XDP program, in any mode:
-       another upatch's, or one shirudo did not attach, generic and
-       offloaded programs included. The kernel holds one XDP program per
-       device. The load was undone.
+     - ``EBUSY``. A selected device already runs another XDP program, in
+       any mode: another upatch's, or one shirudo did not attach, generic
+       and offloaded programs included. The kernel holds one XDP program
+       per device. The load was undone.
      - Unload the upatch that holds the device, detach the other
        program, or narrow the signed device-class mask. See
        :doc:`/upatches/write/attach-kinds`.
    * - ``binary_mismatch``
      - ``target_verify``, ``link_create``
-     - ``ESTALE``
-     - The uprobe target is not a regular file, was replaced while it
-       was opened, or its build ID differs from the recorded one.
+     - ``ESTALE``. The uprobe target is not a regular file, was replaced
+       while it was opened, or its build ID differs from the recorded one.
      - Rebuild the upatch against the installed binary.
    * - ``signature_rejected``
      - ``signed_loader_load``
-     - ``EKEYREJECTED``
-     - The kernel rejected the loader's signature.
+     - ``EKEYREJECTED``. The kernel rejected the loader's signature.
      - Fetch or rebuild the artifact. Check that the file was not
        modified after signing.
    * - ``signature_unsupported``
      - ``signed_loader_load``
-     - ``ENOPKG``
-     - The kernel cannot verify ML-DSA signatures.
+     - ``ENOPKG``. The kernel cannot verify ML-DSA signatures.
      - Build the kernel with ``CONFIG_CRYPTO_MLDSA``, see
        :doc:`/operate/plan/system-requirements`.
    * - ``lsm_denied``
      - ``pre_flight``, ``target_verify``, ``signed_loader_load``,
        ``link_create``
-     - ``EACCES``, ``EPERM``
-     - The kernel refused an operation with ``EACCES`` or ``EPERM``,
-       normally an LSM, shirudo's own or another one. In ``pre_flight``
-       it refused to open the ``lsm_link`` pin or, from ``upatch
-       reconcile``, an XDP program pin.
+     - ``EACCES`` or ``EPERM``. The kernel refused an operation with
+       ``EACCES`` or ``EPERM``, normally an LSM, shirudo's own or another
+       one. In ``pre_flight`` it refused to open the ``lsm_link`` pin or,
+       from ``upatch reconcile``, an XDP program pin.
      - Check the tamper counters in ``shirudo status`` and the other
        LSMs' audit records.
    * - ``verifier_rejected``
      - ``signed_loader_load``, ``payload_load``
-     - errno of the call, or the loader's return value
-     - The verifier rejected the loader, ``BPF_PROG_TEST_RUN`` failed, or
-       the loader returned an error for a payload program, often a CO-RE
-       relocation against this kernel's BTF. ``verifier_log`` holds the
-       kernel's log.
+     - The errno of the call, or the loader's return value. The verifier
+       rejected the loader, ``BPF_PROG_TEST_RUN`` failed, or the loader
+       returned an error for a payload program, often a CO-RE relocation
+       against this kernel's BTF. ``verifier_log`` holds the kernel's log.
      - Read ``verifier_log`` and rebuild against the target kernel. See
        :doc:`/upatches/test/debugging`.
    * - ``attach_scope_mismatch``
      - ``link_create``
-     - ``EXDEV``, ``EREMOTE`` for XDP
-     - The link the kernel reports is not at the site the attach
-       metadata names: a cgroup link not at the root cgroup, a netfilter
-       link outside the initial network namespace or at another hook or
-       priority, a kprobe at another function or offset.
-       For XDP, a load outside the initial network namespace, or a link
-       the kernel made for another device; that also fails boot restore,
-       and stops an ``upatch reconcile`` pass.
+     - - The link the kernel reports is not at the site the attach
+         metadata names: a cgroup link not at the root cgroup, a
+         netfilter link outside the initial network namespace or at
+         another hook or priority, a kprobe at another function or
+         offset: ``EXDEV``.
+       - For XDP, a load outside the initial network namespace, where a
+         device's name no longer gives its index: ``EXDEV``.
+       - For XDP, a link the kernel made for another device:
+         ``EREMOTE``.
+
+       An XDP mismatch also fails boot restore, and stops an
+       ``upatch reconcile`` pass.
      - Run the load in the host's initial cgroup and network namespaces
        and with the host's sysfs.
    * - ``already_loaded``
      - ``pin``
-     - ``EEXIST``
-     - A upatch of that name is loaded, with the payload a completed load
-       records. Nothing was touched. A ``bpm`` install or a tree sync of
-       an artifact with that very payload counts it as installed instead.
+     - ``EEXIST``. A upatch of that name is loaded, with the payload a
+       completed load records. Nothing was touched. A ``bpm`` install or a
+       tree sync of an artifact with that very payload counts it as
+       installed instead.
      - Unload it with its signed directive first.
    * - ``payload_mismatch``
      - ``pin``
-     - ``EPERM``, errno of the read
-     - The upatch loaded under the name carries another payload than the
-       directive expects, or the recorded payload cannot be read. With
-       no pins, the archive of the name holds another payload or cannot
-       be read. Nothing was detached or removed.
+     - - The upatch loaded under the name carries another payload than
+         the directive expects: ``EPERM``.
+       - The payload recorded on its pins cannot be read: the errno of
+         the read.
+       - With no pins, the archive of the name holds another payload
+         (``EPERM``) or cannot be read (the errno of the read).
+
+       Nothing was detached or removed.
      - Compare the ``Payload`` of ``shirudo upatch get <name>`` with the
        directive and build a directive for the loaded payload.
    * - ``detach_failed``
      - ``pin``
-     - errno of the removal
-     - The unload was measured, then removing the pins failed.
+     - The errno of the removal. The unload was measured, then removing the
+       pins failed.
      - Repeat the unload. Each attempt records another unload event.
    * - ``tpm_error``
      - ``tpm_extend``; ``pre_flight`` from ``upatch reconcile``
-     - errno of the call
-     - The register lock could not be taken, or this boot's records could
-       not be read or what they do not cover could not be undone, in which
-       case nothing was loaded or detached, or the TPM or the extend
-       failed. A failed extend undoes a load and detaches nothing for an
-       unload, though a lost answer can leave the register moved, and the
-       message then reads ``the TPM may have taken the event without its
-       record``. When the extend succeeded and the eventlog append failed,
-       the message reads ``eventlog append failed after the extend`` and
-       the load stays.
+     - The errno of the call. The register lock could not be taken, or this
+       boot's records could not be read or what they do not cover could not
+       be undone, in which case nothing was loaded or detached, or the TPM
+       or the extend failed. A failed extend undoes a load and detaches
+       nothing for an unload, though a lost answer can leave the register
+       moved, and the message then reads ``the TPM may have taken the event
+       without its record``. When the extend succeeded and the eventlog
+       append failed, the message reads ``eventlog append failed after the
+       extend`` and the load stays.
      - Check ``shirudo status``. A register ahead of the eventlog shows as
        ``tampered``; handle that as an incident.
    * - ``unknown``
      - ``pre_flight``, ``parse``, ``target_verify``,
        ``signed_loader_load``, ``payload_load``, ``link_create``,
        ``persist``
-     - errno of the call
-     - Any other failure: out of memory, a failed hash of the loader, an
-       unclassified attach error, a payload that cannot be recorded on the
-       pin directory or a failed archive copy (the load is undone for
-       both). In ``pre_flight``, the ``lsm_link`` pin or, from ``upatch
-       reconcile``, an XDP program pin that cannot be opened for a reason
-       that says nothing about the pin, such as ``EMFILE`` or ``ENOMEM``.
+     - The errno of the call. Any other failure: out of memory, a failed
+       hash of the loader, an unclassified attach error, a payload that
+       cannot be recorded on the pin directory or a failed archive copy
+       (the load is undone for both). In ``pre_flight``, the ``lsm_link``
+       pin or, from ``upatch reconcile``, an XDP program pin that cannot be
+       opened for a reason that says nothing about the pin, such as
+       ``EMFILE`` or ``ENOMEM``.
      - Read ``message`` and the journal. For ``persist``, check the space
        on the file system that holds ``/var/lib/shirudo``.
 
