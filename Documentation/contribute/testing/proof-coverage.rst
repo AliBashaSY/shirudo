@@ -1155,8 +1155,8 @@ the model follows the C.
        ``json-string-model`` lengths 0 to 6, ``json-escape-model`` every
        pair of ``\u`` escapes
    * - ``Shirudo.ConfigActivation``, the config activation of
-       :src:`util/config_update.c` as ``image update``, ``status`` and
-       ``init`` drive it
+       :src:`util/config_update.c` as ``image update``, ``image stage``,
+       ``status`` and ``init`` drive it
      - ``consistent_or_refusing``, ``refusal_persists``: the PCR replays
        from the record with its config mounted, or every command but
        ``status`` and ``image status`` refuses, a pending or drifted state
@@ -1165,14 +1165,19 @@ the model follows the C.
        extension per activation and TPM boot, after the pending record,
        none after an interruption; ``reboot_stale``, ``reboot_recovers``,
        ``boot_completion``: after a reboot commands refuse until ``init``
-       records a boot event, which an uninterrupted ``init`` does, and from
-       any journal ``init`` completes only with the PCR holding exactly the
-       selected config's boot event; ``configInUse_vouched``,
-       ``mounted_selected``, ``consistent_mounted``, ``journal_wellformed``,
-       ``pcr_replay``, ``completion_by_complete``
-     - Commands one at a time; an atomic ``state`` rename; a crash leaves a
-       prefix of a line; only shirudo writes the journal and the config
-       mount during a boot; PCRs reset only at a reboot or TPM Restart;
+       records a boot event, which an uninterrupted ``init`` does for the
+       root ``boot_target()`` takes, and from any journal ``init``
+       completes only with the PCR holding exactly the selected config's
+       boot event; ``staged_taken``, ``stage_then_reboot``: ``init`` takes
+       a staged root only when the stage copies the completed record it
+       starts from and is of an earlier TPM boot, and it does take one;
+       ``configInUse_vouched``, ``mounted_selected``,
+       ``consistent_mounted``, ``journal_wellformed``, ``pcr_replay``,
+       ``completion_by_complete``
+     - Commands one at a time; atomic renames of ``state`` and
+       ``next-boot``; a crash leaves a prefix of a line; only shirudo
+       writes the journal and the config mount during a boot; PCRs reset
+       only at a reboot or TPM Restart;
        equal values from equal extensions (``pcr_value_eq_iff`` with
        ``Shirudo.Chain``'s assumptions); TPM boot identities never repeat;
        a TPM Restart or Resume only between commands

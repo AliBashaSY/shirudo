@@ -5,16 +5,21 @@ import Shirudo.Chain
 
 /-!
 The config image activation protocol of util/config_update.c, as `image
-update` (`image_update()` of util/image_runtime.c), `status` and `init`
-(`image_boot()` and `image_boot_complete()` around the upatch restore and
-the register binding in builtin-init.c) drive it. An activation saves the
-selection as pending in `state`, extends the config PCR with
+update` (`image_update()` of util/image_runtime.c), `image stage`
+(`image_stage()`), `status` and `init` (`image_boot()` and
+`image_boot_complete()` around the upatch restore and the register
+binding in builtin-init.c) drive it. An activation saves the selection
+as pending in `state`, extends the config PCR with
 `config_measure_event()`, reads the PCR back, appends the event to
 `events`, mounts the config and saves the selection complete.
 `config_update_check()` lets a command run only when the record is the
 last event, of this TPM boot, not pending, and the PCR replays from the
 events. `init` records a boot event for the selection, pending or not,
-and completes it only at its end.
+and completes it only at its end. `image stage` saves a consistent
+record with another root as `next-boot`; `init` in a later TPM boot
+takes that root instead of the record's while the stage still copies the
+record (`config_update_staged()`), and an update, or a boot completed in
+another TPM boot than the stage's, removes it.
 
 The model is the journal, the TPM's boot identity, its reset and restart
 counts, every PCR as the list of its extensions, the config mounted and
@@ -39,9 +44,13 @@ For every such sequence:
   saved; `interrupted_never_extends`: none after an interruption.
 - (c) `reboot_stale`, `reboot_recovers`: after a reboot every command
   refuses until `init` records a boot event, and an `init` nothing
-  interrupts does so and completes; `boot_completion`: from any journal,
-  `init` completes only with the PCR holding exactly the selected
-  config's boot event over the value it started from.
+  interrupts does so, for the root `boot_target()` takes, and completes;
+  `staged_taken`: that root is a staged one only when the stage copies
+  the completed record `init` starts from and is of an earlier TPM boot,
+  and `stage_then_reboot` gives a run that takes one;
+  `boot_completion`: from any journal, `init` completes only with the
+  PCR holding exactly the selected config's boot event over the value it
+  started from.
 - (d) `configInUse_vouched`, `mounted_selected`, `consistent_mounted`: a
   command runs only with the config the record selects, and another one is
   mounted only while the selection is pending.
@@ -140,9 +149,11 @@ end Model
 counts; `pcr` every PCR as its extensions this TPM boot, the newest
 first; `mounted` the root of the config at `/run/shirudo/config`;
 `cfgPcr` and `cfgImage` the runtime image's `config.pcr` and
-`config.image`. The ghosts: `seen` every TPM boot so far, and `sent`
-every extension of the config PCR shirudo sent, with the TPM boot it
-was sent in and the sequence number of the activation. -/
+`config.image`; `staged` the `next-boot` file of the journal, the record
+`image stage` copied with the root it stages. The ghosts: `seen` every
+TPM boot so far, and `sent` every extension of the config PCR shirudo
+sent, with the TPM boot it was sent in and the sequence number of the
+activation. -/
 structure World (B R D : Type) where
   state : Option (Record B R D)
   events : List (Event B R D)
@@ -152,6 +163,7 @@ structure World (B R D : Type) where
   mounted : Option R
   cfgPcr : Nat
   cfgImage : R
+  staged : Option (Event B R D)
   seen : List B
   sent : List (B × Nat)
 
@@ -262,6 +274,25 @@ def newEvent (w : World B R D) (k : Kind) (t : R)
     | .update, none => []
   root := t
 
+/-- `boot_target()` with `config_update_staged()`, for a record `r` of
+another TPM boot: the staged root when the stage is not of this TPM boot,
+names another root and has the record's sequence number and TPM boot,
+the record's root otherwise. -/
+def bootTarget (w : World B R D) (r : Event B R D) : R :=
+  match w.staged with
+  | some st =>
+    if st.boot ≠ w.boot ∧ st.root ≠ r.root ∧ st.seq = r.seq ∧ st.boot = r.boot
+    then st.root else r.root
+  | none => r.root
+
+/-- `complete_staged()` once `r` is complete: the stage stays only while
+it is of `r`'s TPM boot. -/
+def keepStaged (st : Option (Event B R D)) (r : Event B R D) :
+    Option (Event B R D) :=
+  match st with
+  | some x => if x.boot = r.boot then some x else none
+  | none => none
+
 /-- The steps of one TPM boot. Every failure the C returns, and every
 crash, is `crash`: what the C has written stays, nothing more is. -/
 inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
@@ -285,14 +316,28 @@ inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
   | initFirst (w : World B R D) (x : List D) :
       w.state = none → scan digest w.events = some (none, x) →
       w.torn = false → StepIn v ⟨w, .idle⟩ ⟨w, .starting .boot w.cfgImage none⟩
-  /-- `image_boot()` with a record of another TPM boot: the record's root,
-  a journal that ends with it or, pending, one it follows. -/
+  /-- `image_boot()` with a record of another TPM boot: the root
+  `boot_target()` takes, the staged one or the record's, a journal that
+  ends with the record or, pending, one it follows. -/
   | initNew (w : World B R D) (r : Event B R D) (q : Bool)
       (last : Option (Event B R D)) (x : List D) :
       w.state = some ⟨r, q⟩ → r.boot ≠ w.boot →
       scan digest w.events = some (last, x) → (w.torn = true → q = true) →
       (last = some r ∨ (q = true ∧ Follows last r)) →
-      StepIn v ⟨w, .idle⟩ ⟨w, .starting .boot r.root last⟩
+      StepIn v ⟨w, .idle⟩ ⟨w, .starting .boot (bootTarget w r) last⟩
+  /-- `image stage`: `current_config()`, then `config_update_stage()`
+  saves the record with root `t` as `next-boot`, by a rename. -/
+  | stage (w : World B R D) (t : R) (r : Event B R D) :
+      w.state = some ⟨r, false⟩ → check digest w = .ok →
+      w.mounted = some r.root →
+      StepIn v ⟨w, .idle⟩
+        ⟨{ w with staged := some { r with root := t } }, .idle⟩
+  /-- `image stage --cancel`: `current_config()`, then the unlink of
+  `next-boot`. -/
+  | unstage (w : World B R D) (r : Event B R D) :
+      w.state = some ⟨r, false⟩ → check digest w = .ok →
+      w.mounted = some r.root →
+      StepIn v ⟨w, .idle⟩ ⟨{ w with staged := none }, .idle⟩
   /-- `begin_event()`: `prepare`, `live_read()`, the record. -/
   | read (w : World B R D) (k : Kind) (t : R)
       (prev : Option (Event B R D)) :
@@ -356,10 +401,13 @@ inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
   | initComplete (w : World B R D) (sel : R) (r : Event B R D) (q : Bool) :
       w.state = some ⟨r, q⟩ → w.mounted = some r.root →
       StepIn v ⟨w, .restOfInit true sel⟩ ⟨w, .checking (some sel)⟩
-  /-- The same without `boot_pending`: `config_update_check()`. -/
+  /-- The same without `boot_pending`: `config_update_check()`, then
+  `complete_staged()`. -/
   | initDone (w : World B R D) (sel : R) (r : Event B R D) (q : Bool) :
       w.state = some ⟨r, q⟩ → w.mounted = some r.root →
-      check digest w = .ok → StepIn v ⟨w, .restOfInit false sel⟩ ⟨w, .idle⟩
+      check digest w = .ok →
+      StepIn v ⟨w, .restOfInit false sel⟩
+        ⟨{ w with staged := keepStaged w.staged r }, .idle⟩
   /-- `complete()`: `check_record()` of the record, pending or not. -/
   | check (w : World B R D) (sel : Option R) (r : Event B R D) (q : Bool) :
       w.state = some ⟨r, q⟩ → checkRecord digest w r = .ok →
@@ -371,6 +419,14 @@ inductive StepIn (v : Variant) : Sys B R D → Sys B R D → Prop
   /-- A failure after that rename: the pending record restored. -/
   | restore (w : World B R D) (r : Event B R D) (sel : Option R) :
       StepIn v ⟨w, .marked r sel⟩ ⟨{ w with state := some ⟨r, true⟩ }, .idle⟩
+  /-- `complete()` done: `config_update_begin()` removes `next-boot` after
+  an update, `complete_staged()` after `init`'s boot event unless it is
+  of the record's TPM boot. -/
+  | clearStaged (w : World B R D) (r : Event B R D) (sel : Option R) :
+      StepIn v ⟨w, .marked r sel⟩
+        ⟨{ w with staged := match sel with
+          | none => none
+          | some _ => keepStaged w.staged r }, .idle⟩
   /-- Variant: an extension whose answer was lost, applied or not, sent
   again. -/
   | retry (w : World B R D) (e : Event B R D) (b : List D) (applied : Bool) :
@@ -421,6 +477,7 @@ def fresh (b : B) (f : Nat → List D) (idx : Nat) (img : R) : World B R D where
   mounted := none
   cfgPcr := idx
   cfgImage := img
+  staged := none
   seen := [b]
   sent := []
 
@@ -504,12 +561,12 @@ def afterReboot (w : World B R D) (b : B) (f : Nat → List D) (idx : Nat)
     boot := b, pcr := f, mounted := none, cfgPcr := idx, cfgImage := img,
     seen := b :: w.seen }
 
-/-- `boot_target()`: the record's selection, pending or not, or
-`config.image` without one. -/
+/-- `boot_target()`: without a record `config.image`; with one, pending
+or not, the staged root `bootTarget` takes or the record's. -/
 def selected (w : World B R D) : R :=
   match w.state with
   | none => w.cfgImage
-  | some ⟨r, _⟩ => r.root
+  | some ⟨r, _⟩ => bootTarget w r
 
 /-- `init` has not recorded this TPM boot: no record, or one of another
 TPM boot. `config_update_check()` refuses with `ENOENT` or `ESTALE`. -/
@@ -695,6 +752,9 @@ theorem base_stepIn [DecidableEq R] {s s' : Sys B R D}
     obtain ⟨-, h2, h3, h4, h4', -⟩ := hb
     exact ⟨rfl, h2, h3, h4, h4'⟩
   | restore => trivial
+  | stage => trivial
+  | unstage => trivial
+  | clearStaged => trivial
   | retry _ _ _ _ hv => simp [shirudo] at hv
   | recover _ _ hv => simp [shirudo] at hv
 
@@ -735,6 +795,13 @@ theorem glob_outsider {w : World B R D} (i : Nat) (d : D) (hg : Glob digest w) :
     hg.sent_state,
     fun r x hs hb hx => extendAt_suffix _ _ _ _ _ (hg.suffix r x hs hb hx),
     hg.mounted_state, hg.state_mounted⟩
+
+/-- `next-boot` written or removed: nothing else changes. -/
+theorem glob_staged {w : World B R D} (st : Option (Event B R D))
+    (hg : Glob digest w) : Glob digest { w with staged := st } :=
+  ⟨hg.journal, hg.boot_seen, hg.state_seen, hg.events_seen, hg.sent_seen,
+    hg.sent_nodup, hg.sent_state, hg.suffix, hg.mounted_state,
+    hg.state_mounted⟩
 
 /-- `state_save()` of the pending record. -/
 theorem glob_save {w : World B R D} {e : Event B R D} (hg : Glob digest w)
@@ -948,10 +1015,13 @@ theorem inv_stepIn {s s' : Sys B R D} (hi : Inv digest s)
     | activateUpdate w e => exact glob_mount _ hg hb.1
     | unmount w e => exact glob_mount _ hg hb.1
     | initComplete => exact hg
-    | initDone => exact hg
+    | initDone => exact glob_staged _ hg
     | check => exact hg
     | mark w r sel => exact glob_mark hg hb
     | restore w r sel => exact glob_restore hg hb.1
+    | stage => exact glob_staged _ hg
+    | unstage => exact glob_staged _ hg
+    | clearStaged => exact glob_staged _ hg
     | retry _ _ _ _ hv => simp [shirudo] at hv
     | recover _ _ hv => simp [shirudo] at hv
   · cases h with
@@ -1000,6 +1070,9 @@ theorem inv_stepIn {s s' : Sys B R D} (hi : Inv digest s)
     | check => trivial
     | mark => trivial
     | restore => trivial
+    | stage => trivial
+    | unstage => trivial
+    | clearStaged => trivial
     | retry _ _ _ _ hv => simp [shirudo] at hv
     | recover _ _ hv => simp [shirudo] at hv
 
@@ -1182,6 +1255,9 @@ theorem blocked_step {s0 s s' : Sys B R D} (hbl : Blocked digest s0 s)
   | check => cases hidle
   | mark => cases hidle
   | restore => cases hidle
+  | stage _ _ _ _ hc => exact absurd hc hrefuse
+  | unstage _ _ _ hc => exact absurd hc hrefuse
+  | clearStaged => cases hidle
   | retry _ _ _ _ hv => simp [shirudo] at hv
   | recover _ _ hv => simp [shirudo] at hv
 
@@ -1267,6 +1343,9 @@ theorem extension_follows_pending {s s' : Sys B R D}
   | check => exact absurd rfl hsent
   | mark => exact absurd rfl hsent
   | restore => exact absurd rfl hsent
+  | stage => exact absurd rfl hsent
+  | unstage => exact absurd rfl hsent
+  | clearStaged => exact absurd rfl hsent
   | recover => exact absurd rfl hsent
 
 /-- (b) After an interruption that leaves the selection pending, shirudo
@@ -1375,6 +1454,214 @@ theorem pcr_replay {s : Sys B R D} {r : Event B R D}
 
 end Journal
 
+/-! ### (c) The staged config -/
+
+section Staged
+
+variable {B R D : Type} [DecidableEq B] [DecidableEq R] [DecidableEq D]
+variable {digest : Kind → R → D}
+
+/-- What `next-boot` keeps true: a stage is of the record or of an
+earlier one, and one with the record's sequence number is that record,
+completed, with the root it stages. -/
+def StagedOk (w : World B R D) : Prop :=
+  ∀ st, w.staged = some st → ∃ r q, w.state = some ⟨r, q⟩ ∧ st.seq ≤ r.seq ∧
+    (st.seq = r.seq → q = false ∧ st = { r with root := st.root })
+
+/-- What the command in progress keeps of the stage: the record it saves
+or completes is later than the stage. -/
+def StagedProc (w : World B R D) : Proc B R D → Prop
+  | .saving e _ => ∀ st, w.staged = some st → st.seq < e.seq
+  | .marked r _ => ∀ st, w.staged = some st → st.seq < r.seq
+  | _ => True
+
+omit [DecidableEq B] [DecidableEq R] [DecidableEq D] in
+theorem stagedOk_keep {w : World B R D} {st : Option (Event B R D)}
+    (hk : StagedOk w) (hsub : ∀ x, st = some x → w.staged = some x) :
+    StagedOk { w with staged := st } :=
+  fun x hx => hk x (hsub x hx)
+
+omit [DecidableEq R] [DecidableEq D] in
+theorem keepStaged_sub {st : Option (Event B R D)} {r : Event B R D} :
+    ∀ x, keepStaged st r = some x → st = some x := by
+  intro x hx
+  cases st with
+  | none => cases hx
+  | some y =>
+    simp only [keepStaged] at hx
+    split at hx
+    · exact hx
+    · cases hx
+
+omit [DecidableEq R] in
+/-- A record `read` builds is later than the stage. -/
+theorem staged_read {w : World B R D} {k : Kind} {t : R}
+    {prev : Option (Event B R D)} (hi : Inv digest ⟨w, .starting k t prev⟩)
+    (hk : StagedOk w) :
+    ∀ st, w.staged = some st → st.seq < (newEvent w k t prev).seq := by
+  intro st hst
+  obtain ⟨r, q, hs, hle, heq⟩ := hk st hst
+  obtain ⟨hg, hb, he⟩ := hi
+  have hprev : ∀ p, prev = some p → st.seq ≤ p.seq →
+      st.seq < (newEvent w k t prev).seq := by
+    intro p hp hlep
+    subst hp
+    show st.seq < p.seq + 1
+    omega
+  cases k with
+  | update =>
+    obtain ⟨r', hpr, hs', -⟩ := hb
+    rw [hs] at hs'
+    cases hs'
+    exact hprev r hpr hle
+  | boot =>
+    obtain ⟨⟨x, hx⟩, -⟩ := he
+    obtain ⟨last, x', hscan, -, hnp, hpend⟩ := hg.journal
+    rw [hx] at hscan
+    cases hscan
+    cases q with
+    | false =>
+      exact hprev r (hnp r hs).1 hle
+    | true =>
+      have hlt : st.seq < r.seq := by
+        rcases Nat.lt_or_ge st.seq r.seq with h | h
+        · exact h
+        · have := (heq (Nat.le_antisymm hle h)).1
+          cases this
+      rcases hpend r hs with hl | hl
+      · exact hprev r hl hle
+      · cases prev with
+        | none =>
+          simp only [Follows] at hl
+          show st.seq < 0 + 1
+          omega
+        | some p =>
+          obtain ⟨hseq, -, -⟩ := hl
+          exact hprev p rfl (by omega)
+
+theorem staged_stepIn {s s' : Sys B R D} (hi : Inv digest s)
+    (hk : StagedOk s.w) (hp : StagedProc s.w s.proc)
+    (h : StepIn digest shirudo s s') :
+    StagedOk s'.w ∧ StagedProc s'.w s'.proc := by
+  cases h with
+  | crash => exact ⟨hk, trivial⟩
+  | outsider w π i d =>
+    refine ⟨hk, ?_⟩
+    cases π <;> first | exact hp | trivial
+  | startUpdate => exact ⟨hk, trivial⟩
+  | initSame => exact ⟨hk, trivial⟩
+  | initFirst => exact ⟨hk, trivial⟩
+  | initNew => exact ⟨hk, trivial⟩
+  | read w k t prev _ => exact ⟨hk, staged_read hi hk⟩
+  | save w e b =>
+    refine ⟨fun st hst => ⟨e, true, rfl, Nat.le_of_lt (hp st hst), ?_⟩, trivial⟩
+    intro heq
+    exact absurd heq (Nat.ne_of_lt (hp st hst))
+  | extend => exact ⟨hk, trivial⟩
+  | extendLost => exact ⟨hk, trivial⟩
+  | readback => exact ⟨hk, trivial⟩
+  | append => exact ⟨hk, trivial⟩
+  | appendTorn => exact ⟨hk, trivial⟩
+  | appendTruncated => exact ⟨hk, trivial⟩
+  | activateBoot => exact ⟨hk, trivial⟩
+  | activateUpdate => exact ⟨hk, trivial⟩
+  | unmount => exact ⟨hk, trivial⟩
+  | initComplete => exact ⟨hk, trivial⟩
+  | initDone => exact ⟨stagedOk_keep hk keepStaged_sub, trivial⟩
+  | check => exact ⟨hk, trivial⟩
+  | mark w r sel =>
+    obtain ⟨-, hb, -⟩ := hi
+    have hs : w.state = some ⟨r, true⟩ := hb.1
+    have hlt : ∀ st, w.staged = some st → st.seq < r.seq := by
+      intro st hst
+      obtain ⟨r', q', hs', hle, heq⟩ := hk st hst
+      rw [hs] at hs'
+      cases hs'
+      rcases Nat.lt_or_ge st.seq r.seq with h | h
+      · exact h
+      · cases (heq (Nat.le_antisymm hle h)).1
+    refine ⟨fun st hst => ⟨r, false, rfl, Nat.le_of_lt (hlt st hst),
+      fun heq => absurd heq (Nat.ne_of_lt (hlt st hst))⟩, hlt⟩
+  | restore w r sel =>
+    exact ⟨fun st hst => ⟨r, true, rfl, Nat.le_of_lt (hp st hst),
+      fun heq => absurd heq (Nat.ne_of_lt (hp st hst))⟩, trivial⟩
+  | stage w t r hs _ _ =>
+    refine ⟨fun st hst => ⟨r, false, hs, ?_, fun _ => ⟨rfl, ?_⟩⟩, trivial⟩
+    · cases hst
+      exact Nat.le_refl _
+    · cases hst
+      rfl
+  | unstage => exact ⟨fun st hst => (by cases hst), trivial⟩
+  | clearStaged w r sel =>
+    refine ⟨stagedOk_keep hk ?_, trivial⟩
+    intro x hx
+    cases sel with
+    | none => cases hx
+    | some _ => exact keepStaged_sub x hx
+  | retry _ _ _ _ hv => simp [shirudo] at hv
+  | recover _ _ hv => simp [shirudo] at hv
+
+theorem staged_step {s s' : Sys B R D} (hi : Inv digest s)
+    (hk : StagedOk s.w) (hp : StagedProc s.w s.proc)
+    (h : Step digest shirudo s s') :
+    StagedOk s'.w ∧ StagedProc s'.w s'.proc := by
+  cases h with
+  | inBoot h => exact staged_stepIn hi hk hp h
+  | reboot => exact ⟨hk, trivial⟩
+  | restart b keep f hidle _ =>
+    rcases hidle with hidle | hidle
+    · refine ⟨hk, ?_⟩
+      simp only [hidle]
+      trivial
+    · simp [shirudo] at hidle
+
+theorem staged_reachable {s : Sys B R D} (h : Reachable digest shirudo s) :
+    StagedOk s.w ∧ StagedProc s.w s.proc := by
+  obtain ⟨b, f, idx, img, h⟩ := h
+  have : Inv digest s ∧ StagedOk s.w ∧ StagedProc s.w s.proc := by
+    induction h with
+    | refl =>
+      exact ⟨inv_fresh b f idx img, fun st hst => (by cases hst), trivial⟩
+    | tail _ hstep ih =>
+      obtain ⟨hi, hk, hp⟩ := ih
+      exact ⟨inv_step hi hstep, staged_step hi hk hp hstep⟩
+  exact this.2
+
+/-- (c) `init` takes a staged root, rather than the record's, only when
+the stage copies the record it starts from, completed, with another
+root, and is of an earlier TPM boot: a stage that an activation
+followed, or made in this TPM boot, is never taken. -/
+theorem staged_taken {s : Sys B R D} (h : Reachable digest shirudo s)
+    {r : Event B R D} {q : Bool} (hs : s.w.state = some ⟨r, q⟩)
+    (ht : bootTarget s.w r ≠ r.root) :
+    q = false ∧ ∃ st, s.w.staged = some st ∧
+      st = { r with root := bootTarget s.w r } ∧ st.boot ≠ s.w.boot := by
+  have hk := (staged_reachable h).1
+  cases hst : s.w.staged with
+  | none => simp [bootTarget, hst] at ht
+  | some st =>
+    by_cases hc : st.boot ≠ s.w.boot ∧ st.root ≠ r.root ∧ st.seq = r.seq ∧
+        st.boot = r.boot
+    · have hbt : bootTarget s.w r = st.root := by
+        simp only [bootTarget, hst]
+        split
+        · rfl
+        · next hn => exact absurd hc hn
+      rw [hbt]
+      obtain ⟨r', q', hs', -, heq⟩ := hk st hst
+      rw [hs] at hs'
+      cases hs'
+      obtain ⟨hq, hst'⟩ := heq hc.2.2.1
+      exact ⟨hq, st, rfl, hst', hc.1⟩
+    · have hbt : bootTarget s.w r = r.root := by
+        simp only [bootTarget, hst]
+        split
+        · next hy => exact absurd hy hc
+        · rfl
+      exact absurd hbt ht
+
+end Staged
+
 /-! ### (c) Startup after a reboot -/
 
 section Boot
@@ -1467,9 +1754,10 @@ theorem reboot_stale {s : Sys B R D} (h : Reachable digest shirudo s) (b : B)
 
 /-- (c) The reboot is the recovery. From every state any sequence of
 commands, interruptions and boots reaches, pending, drifted or not, a
-reboot and an `init` that nothing interrupts select the record's config,
-record a boot event of the new TPM boot for it, extend the PCR with that
-event alone and complete, and every command then runs with that config. -/
+reboot and an `init` that nothing interrupts select the config
+`boot_target()` takes, the staged one or the record's, record a boot
+event of the new TPM boot for it, extend the PCR with that event alone
+and complete, and every command then runs with that config. -/
 theorem reboot_recovers {s : Sys B R D} (h : Reachable digest shirudo s) (b : B)
     (hb : b ∉ s.w.seen) (f : Nat → List D) (idx : Nat) (img : R) :
     ∃ s', Star (StepIn digest shirudo) ⟨afterReboot s.w b f idx img, .idle⟩ s' ∧
@@ -1510,14 +1798,16 @@ theorem reboot_recovers {s : Sys B R D} (h : Reachable digest shirudo s) (b : B)
       exact StepIn.initFirst _ x hs hscan ht
     | some rec =>
       obtain ⟨r, q⟩ := rec
-      have hsel : selected (afterReboot s.w b f idx img) = r.root := by
+      have hsel : selected (afterReboot s.w b f idx img) =
+          bootTarget (afterReboot s.w b f idx img) r := by
         simp [selected, afterReboot, hs]
       rw [hsel]
       have hne : r.boot ≠ b := fun he => by
         have hr := hg.state_seen r q hs
         rw [he] at hr
         exact hb hr
-      refine StepIn.initNew _ r q last x hs hne hscan ?_ ?_
+      refine StepIn.initNew (afterReboot s.w b f idx img) r q last x hs hne
+        hscan ?_ ?_
       · intro ht
         cases q with
         | true => rfl
@@ -1833,6 +2123,46 @@ theorem resume_recovers_without_reboot (b0 b1 : B) (hb : b1 ≠ b0)
     ?_, hrestart, rfl, rfl, hinit, rfl, booted_admits _ _ _ _ hscanA hfB2, rfl,
     extendAt_self _ _ _⟩
   simp [w1, worldA, booted, fresh, extendAt]
+
+/-- `image stage` and a reboot: `init` activates the staged config. The
+trace: the first boot with config `A`, `image stage` of `B'`, a reboot;
+`init` takes `B'`, records its boot event and completes, and commands run
+with `B'`. -/
+theorem stage_then_reboot (b0 b1 : B) (hb : b1 ≠ b0) (f f' : Nat → List D)
+    (idx : Nat) (A B' : R) (hAB : B' ≠ A) :
+    ∃ s s' : Sys B R D, Reachable digest shirudo s ∧
+      s.w.staged = some { bootA b0 f idx A with root := B' } ∧
+      Star (StepIn digest shirudo) ⟨afterReboot s.w b1 f' idx A, .idle⟩ s' ∧
+      s'.proc = .idle ∧ Admits digest s'.w ∧ s'.w.mounted = some B' := by
+  have ha := first_boot_admits (digest := digest) b0 f idx A
+  let w1 : World B R D :=
+    { worldA digest b0 f idx A with
+      staged := some { bootA b0 f idx A with root := B' } }
+  have hstage : StepIn digest shirudo ⟨worldA digest b0 f idx A, .idle⟩
+      ⟨w1, .idle⟩ :=
+    StepIn.stage _ B' (bootA b0 f idx A) rfl ha.1 rfl
+  have hreach : Reachable digest shirudo ⟨w1, .idle⟩ :=
+    ⟨b0, f, idx, A, (Star.lift (first_boot b0 f idx A)).tail
+      (Step.inBoot hstage)⟩
+  have hseen : b1 ∉ w1.seen := by
+    simp [w1, worldA, booted, fresh, hb]
+  have hc : ({ bootA b0 f idx A with root := B' } : Event B R D).boot ≠ b1 ∧
+      B' ≠ (bootA b0 f idx A).root ∧
+      (bootA b0 f idx A).seq = (bootA b0 f idx A).seq ∧
+      (bootA b0 f idx A).boot = (bootA b0 f idx A).boot :=
+    ⟨Ne.symm hb, hAB, rfl, rfl⟩
+  have hsel : selected (afterReboot w1 b1 f' idx A) = B' := by
+    show (if ({ bootA b0 f idx A with root := B' } : Event B R D).boot ≠ b1 ∧
+        B' ≠ (bootA b0 f idx A).root ∧
+        (bootA b0 f idx A).seq = (bootA b0 f idx A).seq ∧
+        (bootA b0 f idx A).boot = (bootA b0 f idx A).boot
+      then B' else (bootA b0 f idx A).root) = B'
+    split
+    · rfl
+    · next hn => exact absurd hc hn
+  obtain ⟨s', hrun, hidle, hadm, hmnt, -⟩ :=
+    reboot_recovers hreach b1 hseen f' idx A
+  exact ⟨⟨w1, .idle⟩, s', hreach, rfl, hrun, hidle, hadm, by rw [hmnt, hsel]⟩
 
 end Variants
 

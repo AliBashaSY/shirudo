@@ -334,10 +334,12 @@ and never after an interruption, a pending or drifted state refuses
 every command but ``status`` and ``image status`` until the TPM boot
 changes, and after a reboot an uninterrupted ``init`` records the boot
 event and admits commands again. The model takes a TPM Restart or Resume
-to come only between commands. These proofs cover activation after a
-target is selected; they do not model next-boot selection authorization.
-The staging tests exercise its parent and TPM boot checks. CBMC shows that ``event_follows()``
-accepts exactly the records the model lets follow. The proofs are in
+to come only between commands. It also covers which root ``init``
+selects: a staged one only when the stage copies the completed record
+``init`` starts from and was made in an earlier TPM boot. It does not
+model the signature and vouch checks of a staged config, which the
+staging tests exercise. CBMC shows that ``event_follows()`` accepts
+exactly the records the model lets follow. The proofs are in
 :doc:`/contribute/testing/proof-coverage`.
 
 What can change without a reboot
