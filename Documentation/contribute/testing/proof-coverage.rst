@@ -677,8 +677,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``upatch-btf-int``
      - ``btf_integer()``
      - Every encoding and every value of up to 8 bytes
-     - The bits stay inside the integer's bytes; the value is zero- or
-       sign-extended from them
+     - The bits stay inside the integer's bytes; each bit of the value
+       is the integer's bit at its place, least significant first, then
+       zero- or sign-extended
    * - ``upatch-writer-header``
      - ``pack_header()`` of :src:`tools/shirudo-build/package.c`, read
        back by ``parse_header()``
