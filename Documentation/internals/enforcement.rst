@@ -111,15 +111,9 @@ Telling shirudo from root
 
 Every guard that allows shirudo what it refuses to everyone else asks one
 question: does the calling task have runtime authority? A task has it
-when it carries a mark in ``shirudo_tasks``. A task gets the mark by a
-successful exec of a file on the authenticated runtime image, or, for the
-``init`` process in the initrd, from a seed ``init`` writes before it
-freezes the map. A fork inherits the mark. A task that dumps core, or
-whose memory a uprobe reaches, keeps its mark but not its authority:
-the kernel's dump code runs as the task and writes where
-``kernel.core_pattern`` says, and a uprobe has the kernel change the
-task's memory. :doc:`seal` explains how the mark is granted and
-cleared.
+when it carries a mark in ``shirudo_tasks`` that a core dump or a uprobe
+has not revoked. Figure 1 in :ref:`seal-task-marks` shows how a task
+gets, keeps and loses the mark.
 
 The ``bpf()`` hooks have a second discriminator. ``lsm/bpf`` and
 ``lsm/bpf_prog_load`` receive ``bool kernel``, which is true for calls a

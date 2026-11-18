@@ -823,15 +823,13 @@ covers clear, unlink, revoke, invalidate, a permission change and a
 timeout. Viewing, reading and linking a key elsewhere stay open, and
 the kernel's own signature search uses a possessed reference.
 
-Authority is a mark in task storage. At every exec the seal stages a
-candidate, and when the exec commits the candidate becomes the mark. A
-task becomes authorized only by a successful exec of a file that sits
-directly on the runtime image ``init`` recorded, not through an overlay,
-while the task is neither traced nor under a seccomp filter and shares
-its root and working directory with no other process. Fork
-copies the mark, a failed exec keeps it, and a successful exec of
-anything else clears it. The initrd's ``init`` process receives a
-bootstrap mark through a pidfd before the gates attach.
+Authority is a mark in task storage. A task becomes authorized only by
+a successful exec of a file that sits directly on the runtime image
+``init`` recorded, not through an overlay, while the task is neither
+traced nor under a seccomp filter and shares its root and working
+directory with no other process; the initrd's ``init`` process receives
+a bootstrap mark through a pidfd before the gates attach. Figure 1 in
+:ref:`seal-task-marks` shows how a task gets, keeps and loses the mark.
 
 A task that dumps core loses its authority (``SealCoreDump``). The
 kernel's dump code runs as the task and unlinks and creates the file

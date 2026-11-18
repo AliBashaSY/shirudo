@@ -41,13 +41,15 @@ We need two separate facts: which inodes are shirudo's, and which
 processes run shirudo's code. Labels answer the first and task marks the
 second, and a label never authorizes a caller.
 
+.. _seal-task-marks:
+
 Task marks
 ----------
 
 A task mark is an entry in ``shirudo_tasks``, a task storage map that
-both enforcement objects share. A task with a mark has runtime
-authority, and every guard that lets shirudo do what it refuses to
-others tests for it.
+both enforcement objects share. A task with a mark that a core dump or
+a uprobe has not revoked has runtime authority, and every guard that
+lets shirudo do what it refuses to others tests for it.
 
 A mark is granted only by a successful exec from the authenticated
 runtime image. ``lsm.s/bprm_check_security`` stages a candidate on each
@@ -66,12 +68,28 @@ A traced exec of a runtime file is refused (``ExecTraced``), and so are
 one by a task that shares its ``fs_struct`` with another process
 (``ExecShared``), which exec does not unshare, and one with a seccomp
 filter, because a tracer, the other process or a filter installed
-before the exec would control the trusted process. ``lsm.s/bprm_committed_creds``
-commits the candidate when the exec succeeds. A failed exec never reaches
-that hook and leaves the existing mark alone. A successful exec of a file
-that is not on the runtime image commits an untrusted candidate and so
-clears the mark. ``lsm/task_alloc`` copies a parent's mark to every
-child.
+before the exec would control the trusted process.
+
+Figure 1 shows the states of a task's mark and what moves a task
+between them. ``lsm.s/bprm_committed_creds`` commits the candidate when
+an exec succeeds, so that every successful exec replaces the mark: a
+runtime file gives a fresh one, any other file none. A failed exec
+never reaches that hook and changes nothing. ``lsm/task_alloc`` gives
+every child its parent's state.
+
+.. figure:: /images/internals-task-authority.svg
+   :alt: Four states: no mark, the bootstrap mark, an exec mark and a
+         revoked mark. init in the initrd enters the bootstrap mark
+         through a pidfd. From any state, a successful exec of a runtime
+         file leads to an exec mark and an exec of any other file to no
+         mark. From the bootstrap mark or an exec mark, the first
+         authority check that finds a core dump or a uprobe leads to
+         revoked. A failed or refused exec keeps the state, and a fork
+         copies it to the child.
+
+   Figure 1. A task's runtime authority. The bootstrap and exec marks
+   carry authority, a revoked mark does not, and every marked state is
+   protected from other tasks.
 
 A task that dumps core keeps its mark but loses its authority. An exec
 can still fail after ``bprm_committed_creds`` has committed the mark,
@@ -79,12 +97,10 @@ when the new stack cannot take the argument pointers, and the task then
 dies by ``SIGSEGV`` and dumps core before the new program has run a
 single instruction. The kernel's dump code runs as the task: it unlinks
 the file ``kernel.core_pattern`` names, root's choice, and creates it
-anew. The first check of authority that finds ``PF_DUMPCORE`` on the
-task revokes the authority for good and counts ``SealCoreDump``, and the
-operation is refused as it is for any task without authority. The mark
-stays, so the protections below still keep other tasks off the dumping
-task, and a fork copies the revocation along with the mark. The next
-successful exec commits a fresh mark without it.
+anew. The revocation is counted as ``SealCoreDump``, and the operation
+that finds it is refused as it is for any task without authority. The
+mark stays, so the protections below still keep other tasks off the
+dumping task.
 
 A task whose memory a uprobe reaches loses its authority the same way,
 counted as ``SealUprobe``. Root sets a uprobe on any file it can name,
