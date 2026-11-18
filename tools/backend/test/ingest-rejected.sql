@@ -6,8 +6,9 @@
 -- reason, and nowhere else. The largest counters that fit are accepted.
 
 -- The records below carry fixed times, long past the retention of
--- shirudo.keepalive.
+-- shirudo.keepalive, and a week later past that of shirudo.rejected.
 SYSTEM STOP TTL MERGES shirudo.keepalive;
+SYSTEM STOP TTL MERGES shirudo.rejected;
 
 INSERT INTO shirudo.checked (received, host_name, quote, body, ok, reason, ak_name, ak_public, reset_count, clock) VALUES
 ('2026-11-11 10:00:00', 'n1', 'q1', '{"schema":"shirudo.keepalive/1"}', 0, 'bad_signature', '', '', 0, 0),
