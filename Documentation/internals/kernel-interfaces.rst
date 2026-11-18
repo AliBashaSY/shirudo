@@ -148,10 +148,9 @@ in ``kernel/bpf/verifier.c``):
      - Must be 0 for a signed program (``EACCES``).
    * - Result
      - On success, ``prog->aux->sig`` records serial, kind and
-       ``BPF_SIG_VERIFIED``. Order inside ``bpf_check()``: resolve
-       ``fd_array``, verify the signature, ``security_bpf_prog_load()``,
-       then the verifier's analysis. ``security_bpf()`` runs earlier, at
-       system call entry.
+       ``BPF_SIG_VERIFIED``. Figure 1 of :doc:`signed-loader` gives the
+       order of this check, ``security_bpf()`` and
+       ``security_bpf_prog_load()``.
 
 A map with ``excl_prog_hash`` set binds only to a program whose SHA-256
 digest equals it.

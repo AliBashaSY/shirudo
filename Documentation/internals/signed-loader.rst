@@ -76,80 +76,78 @@ exclusive.
 Calls a load makes
 ------------------
 
-``shirudo upatch load`` runs these steps. The first column says who makes
-the call: userspace, which ``lsm/bpf`` sees with ``kernel`` false, or the
-loader inside the kernel, which ``lsm/bpf`` sees with ``kernel`` true.
+``shirudo upatch load`` runs the steps of the table below. Figure 1 shows
+its ``bpf()`` calls, the hook that decides each, and the order of the
+kernel's checks inside the loader's ``BPF_PROG_LOAD``. The calls from
+userspace reach ``lsm/bpf`` with ``kernel`` false; the loader's own calls,
+made inside the test run, reach it with ``kernel`` true.
+
+.. figure:: /images/internals-signed-load.svg
+   :alt: A sequence with four lifelines: shirudo upatch load, bpf() with
+         lsm/bpf at entry, bpf_check() with the .bpf keyring, and the
+         loader. shirudo creates, fills and freezes __loader.map with
+         runtime authority, then loads the loader. lsm/bpf checks at
+         entry that it is a SYSCALL program with a signature size;
+         inside bpf_check() the kernel binds the map, verifies the
+         signature over the instructions and the map's value against
+         .bpf, runs lsm/bpf_prog_load on the verdict and keyring kind,
+         and then the analysis, which compares the map's hash. A test
+         run, again with authority, starts the loader, whose nested
+         map and program calls reach bpf() with kernel true and are
+         allowed. Then shirudo creates and checks the links and pins
+         them.
+
+   Figure 1. The ``bpf()`` calls of a signed load. The numbers give the
+   order of the checks on the loader's ``BPF_PROG_LOAD``.
 
 .. list-table::
    :header-rows: 1
-   :widths: 12 30 58
+   :widths: 30 70
 
-   * - Caller
-     - Call
+   * - Step
      - What decides it
-   * - userspace
-     - read the file
+   * - read the file
      - The file is read once, into memory, and every later step takes
        its bytes from that read: the name and payload measured, the
        loader the kernel verifies and the copy archived.
-   * - userspace
-     - pre-flight
+   * - pre-flight
      - The kernel ABI check passes, the ``.bpf`` keyring serial equals
        the frozen identity record, and ``lsm_link`` is pinned. With
        ``--expect-chain``, the register equals the given value.
-   * - userspace
-     - take ``eventlog.lock``, undo
+   * - take ``eventlog.lock``, undo
      - The register lock is held from here to the append. The undo pass
        removes pins and archives this boot's records do not cover, and
        refuses when the records do not fold to the register.
-   * - userspace
-     - check the artifact
+   * - check the artifact
      - The signed name must equal the header name, ``payload_sha256``
        must equal SHA-256 of ``loader_insns || data``, and the signed
        attach metadata must parse. Each ``uprobe``, ``uretprobe``,
        ``uprobe.multi`` and ``uretprobe.multi`` target is opened and its
        GNU build ID compared before any BPF loads.
-   * - userspace
-     - ``BPF_MAP_CREATE`` of ``__loader.map``
+   * - ``BPF_MAP_CREATE`` of ``__loader.map``
      - ``lsm/bpf`` allows it to a task with runtime authority, else
        ``EACCES`` (``MapCreate``).
-   * - userspace
-     - ``BPF_MAP_UPDATE_ELEM``, ``BPF_MAP_FREEZE``
+   * - ``BPF_MAP_UPDATE_ELEM``, ``BPF_MAP_FREEZE``
      - ``lsm/bpf``, runtime authority (``MapWrite``).
-   * - userspace
-     - ``BPF_PROG_LOAD`` of the loader
-     - ``lsm/bpf`` at system call entry: the type must be
-       ``BPF_PROG_TYPE_SYSCALL`` and ``signature_size`` non-zero. Inside
-       ``bpf_check()``, the kernel resolves ``fd_array``, verifies the
-       signature against the keyring ``keyring_id`` names, then calls
-       ``lsm/bpf_prog_load``, then runs the verifier's analysis.
-   * - userspace
-     - ``BPF_PROG_TEST_RUN`` of the loader
-     - ``lsm/bpf``, runtime authority (``ProgRun``). The loader then
-       runs in the kernel. When the signed ``SHPL`` section is present,
-       shirudo opens its pinned ``shirudo_task_policy`` and
-       ``shirudo_sock_policy`` and supplies both FDs at their signed
-       descriptor indices. The generated loader reuses them; it neither
-       creates nor pins private copies.
-   * - loader
-     - ``BPF_MAP_CREATE``, ``BPF_MAP_UPDATE_ELEM``, ``BPF_MAP_FREEZE``,
-       ``BPF_PROG_LOAD`` through ``bpf_sys_bpf()``
+   * - ``BPF_PROG_LOAD`` of the loader
+     - ``lsm/bpf`` at entry, then the kernel's signature check and
+       ``lsm/bpf_prog_load`` inside ``bpf_check()``, in the order of
+       Figure 1 (``LoadNotLoader``, ``LoadUnsigned``, ``LoadUnverified``,
+       ``LoadKeyringKind``).
+   * - ``BPF_PROG_TEST_RUN`` of the loader
+     - ``lsm/bpf``, runtime authority (``ProgRun``).
+   * - (loader) ``BPF_MAP_CREATE``, ``BPF_MAP_UPDATE_ELEM``,
+       ``BPF_MAP_FREEZE``, ``BPF_PROG_LOAD`` through ``bpf_sys_bpf()``
      - ``lsm/bpf`` and ``lsm/bpf_prog_load`` see ``kernel`` true and
        allow. The verifier checks each payload program as usual.
-   * - userspace
-     - ``BPF_LINK_CREATE`` or ``BPF_RAW_TRACEPOINT_OPEN``, per program
+   * - ``BPF_LINK_CREATE`` or ``BPF_RAW_TRACEPOINT_OPEN``, per program
      - ``lsm/bpf``, runtime authority (``ProgAttach``). shirudo then
        compares the link the kernel reports with the signed metadata and
        refuses ``attach_scope_mismatch`` when they differ.
-       XDP expands each program's signed class mask into links on matching
-       interfaces in the initial network namespace, with one endpoint per
-       veth pair, using native driver mode only.
-   * - userspace
-     - ``BPF_OBJ_PIN`` of each link and map
+   * - ``BPF_OBJ_PIN`` of each link and map
      - ``lsm/bpf``, runtime authority (``ObjPin``), and the bpffs inode
        guards.
-   * - userspace
-     - archive, extend, append
+   * - archive, extend, append
      - The artifact is copied to ``/var/lib/shirudo/upatches/``, the
        register is extended with the load event and the eventlog takes
        the record. A failed copy or a refused extension undoes the load.
@@ -157,6 +155,12 @@ loader inside the kernel, which ``lsm/bpf`` sees with ``kernel`` true.
 ``shirudo bpm`` installs, upgrades and tree operations skip the
 pre-flight row (they pass ``--no-precheck``); the keyring comparison runs
 again inside the load, so those paths keep it.
+
+When the signed ``SHPL`` section is present, shirudo opens its pinned
+``shirudo_task_policy`` and ``shirudo_sock_policy`` before the test run
+and supplies both descriptors at their signed indices in the loader's
+context. The generated loader reuses them; it neither creates nor pins
+private copies.
 
 The loader returns the descriptors of what it created in its context
 buffer, and the command attaches and pins them. Links are created in
@@ -169,6 +173,9 @@ there. The directory carries the
 ``security.bpf.shirudo.payload`` extended attribute with the payload
 digest, which only a task with runtime authority can set.
 :doc:`kernel-interfaces` lists the attributes each call sets.
+XDP expands each program's signed class mask into links on matching
+interfaces in the initial network namespace, with one endpoint per veth
+pair, using native driver mode only.
 Artifacts containing XDP always use ``link_<n>`` pins, including when only
 one link is created, and pin each XDP program at ``xdp_prog_<n>``, which
 keeps it loaded while no device matches its class mask. A load that finds
@@ -182,13 +189,14 @@ Telling the loader apart from root
 
 A signature check alone is not enough. The loader calls back into
 ``bpf()`` to create maps and load programs, and those calls look like the
-ones root would make. The ``lsm/bpf`` and ``lsm/bpf_prog_load`` hooks
-receive a ``bool kernel`` argument. It is true when the call comes
-through a kernel pointer, which is how ``bpf_sys_bpf()`` issues the
-loader's calls, and false for a system call from userspace. Calls with
-``kernel`` true are allowed: they come from a loader the kernel already
-verified and that an authorized task is running. Userspace calls are
-filtered.
+ones root would make. What tells them apart is where the attributes come
+from: ``bpf_sys_bpf()`` passes a kernel pointer, which the kernel hands
+to ``lsm/bpf`` and ``lsm/bpf_prog_load`` as ``bool kernel``. Calls with
+``kernel`` true come from a loader the kernel already verified and that
+an authorized task is running, so they are allowed; userspace calls are
+filtered. ``lsm/bpf_map`` and ``lsm/bpf_prog`` take no such argument.
+They see the descriptors of the loader's maps and programs too, and
+pass them because the task that runs the loader has runtime authority.
 
 Admission in lsm/bpf_prog_load
 ------------------------------
