@@ -222,6 +222,10 @@ Tables and figures
 ------------------
 
 - Prefer ``list-table`` for tables, with a header row.
+- A literal in a table cell breaks only after ``/ . _ - = , : |``, which
+  the build marks, so a long path or option does not set the width of
+  its column. A literal with none of them, such as a hex digest, still
+  does: give it a line of its own after the table.
 - Include a figure with ``.. figure:: /images/<name>.svg`` and an
   ``:alt:`` that says what it shows. Number it in the caption ("Figure
   1.") and refer to it from the text before it appears.

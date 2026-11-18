@@ -281,7 +281,6 @@ aside.footnote-list { border-top: 1px solid var(--line); margin-top: 2em; paddin
 .body p.meta[class*="kind-"] { margin: -2px 0 12px; }
 .body p.rubric { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin: 8px 0 0; }
 table.columns td:first-child code { white-space: nowrap; }
-table.columns td code { overflow-wrap: anywhere; }
 table.columns code.codec, table.columns p.default { color: var(--muted); }
 table.columns p.default { font-size: 12.5px; }
 table.sizes td:last-child, table.sizes th:last-child { text-align: right; padding-right: 0; }

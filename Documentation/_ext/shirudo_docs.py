@@ -4,11 +4,13 @@
 # Sphinx extension for the shirudo documentation: the page type and
 # reader line under each title, the source and last change in the page
 # footer, console blocks whose prompts name the role a command runs in,
-# :src: links to the files of the repository, and the figures of images/
-# written into the page, so that they take the colors of its theme.
+# :src: links to the files of the repository, the figures of images/
+# written into the page, so that they take the colors of its theme, and
+# literals in tables that break after punctuation.
 
 import html
 import os
+import re
 
 from docutils import nodes
 from pygments.lexer import RegexLexer, bygroups, default, using
@@ -66,6 +68,34 @@ def inline_figures(app, doctree, docname):
         label = " aria-label='%s'" % html.escape(image.get("alt", ""), quote=True)
         svg = svg.replace(" role='img'", " role='img'" + label, 1)
         image.replace_self(nodes.raw("", svg, format="html"))
+
+
+# The theme keeps every word of a literal on one line, so a path, option
+# or setting in a table cell would set the width of its column alone.
+# <wbr> adds no character, so a copied literal stays the same.
+TABLE_BREAK = re.compile(r"(?<=[^/._\-=,:|\s])[/._\-=,:|]+(?=[^/._\-=,:|\s])")
+
+
+def break_table_literals(app, doctree, docname):
+    """Let a literal in a table cell break after / . _ - = , : | and
+    nowhere else."""
+    if app.builder.format != "html":
+        return
+    for entry in doctree.findall(nodes.entry):
+        for literal in list(entry.findall(nodes.literal)):
+            if "kbd" in literal["classes"] or literal.get("language"):
+                continue
+            for text in list(literal.findall(nodes.Text)):
+                value = str(text)
+                parts = []
+                start = 0
+                for match in TABLE_BREAK.finditer(value):
+                    parts.append(nodes.Text(value[start:match.end()]))
+                    parts.append(nodes.raw("", "<wbr>", format="html"))
+                    start = match.end()
+                if parts:
+                    parts.append(nodes.Text(value[start:]))
+                    text.parent.replace(text, parts)
 
 
 CHANGES = {}
@@ -167,6 +197,7 @@ def setup(app):
     CHANGES.update(last_changes())
     app.connect("doctree-resolved", meta_line)
     app.connect("doctree-resolved", inline_figures)
+    app.connect("doctree-resolved", break_table_literals)
     app.connect("html-page-context", page_context)
     app.connect("build-finished", write_llms)
     return {"parallel_read_safe": True, "parallel_write_safe": True}
