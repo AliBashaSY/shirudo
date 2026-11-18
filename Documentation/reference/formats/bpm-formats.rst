@@ -131,8 +131,9 @@ uid and gid 0 and mtime 0.
 reserved and cannot be ``[[files]]`` or upatch targets.
 :doc:`/reference/formats/beefile` describes the Beefile.
 
-On install the target loads every regular file in :src:`upatches/` whose name
-ends in ``.upatch`` but not in ``.unload.upatch``, in name order. Uninstall
+On install the target loads every regular file in the archive's
+``upatches/`` whose name ends in ``.upatch`` but not in
+``.unload.upatch``, in name order. Uninstall
 and upgrade apply the package's ``<base>.unload.upatch`` files in reverse
 name order, and a rolled back install or upgrade reloads each one's
 ``<base>.upatch``. A name that starts with ``.`` is neither.
