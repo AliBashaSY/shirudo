@@ -489,77 +489,134 @@ Node records
 ------------
 
 The target keeps these under ``/var/lib/shirudo/bpm/upatch-tree/``. They are
-not published.
+not published. Each JSON object carries ``schema`` (1).
+
+``state.json``
+~~~~~~~~~~~~~~
+
+The publication the node last accepted and how far it got.
 
 .. list-table::
    :header-rows: 1
-   :widths: 22 78
+   :widths: 28 72
+
+   * - Key
+     - Value
+   * - ``tree_id``, ``generation``, ``manifest_digest``
+     - Of the publication the node last accepted.
+   * - ``head_seq``, ``segment_base_seq``
+     - The publication's ``head.seq`` and ``base.seq``.
+   * - ``last_seq``
+     - The last operation processed, applied or passed over because its
+       selector does not match.
+   * - ``projection_root``, ``projection_root_tpm``
+     - The node's projection root, see ``tree-eventlog``.
+
+A sync records a publication, each segment of a walk in turn, once it
+passes the checks above and an interrupted operation is completed, and
+before it processes the first new operation of it. A sync that stops
+among them leaves ``last_seq`` from ``segment_base_seq`` to ``head_seq``,
+and the node refuses an older generation from then on. A state without
+one of ``tree_id``, ``last_seq``, the two roots, ``head_seq`` and
+``segment_base_seq`` is refused.
+
+``tree-eventlog``
+~~~~~~~~~~~~~~~~~
+
+One JSON object per line and applied operation, with ``seq``, ``digest``
+(the ``operation_digest``) and ``projection_root``. ``projection_root``
+is the SHA-256 of the previous root followed by the raw operation
+digest, starting from 32 zero bytes. A last line without its newline is
+an append that did not finish: the replay skips it and the next append
+drops it.
+
+``outcomes``
+~~~~~~~~~~~~
+
+One JSON object per line and processed operation, in order from ``seq``
+1. Nothing rebuilds or prunes the file: the keepalive reads its last 512
+operations from it whatever segments held them
+(:doc:`/reference/cli/status`).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 72
+
+   * - Key
+     - Value
+   * - ``seq``
+     - The operation.
+   * - ``outcome``
+     - 1 applied, 2 selector did not match, 3 an ``add`` measured but
+       not loaded because of ``attach_target_missing``.
+   * - ``projection_root``
+     - The node's projection root after the operation, which an
+       unmatched one leaves where it was.
+   * - ``history_root``
+     - The SHA-256 of ``shirudo-tree-history``, a NUL byte, the previous
+       history root and the raw operation digest, starting from 32 zero
+       bytes. It counts every operation, whatever its outcome, so it is
+       the same on every node at the same ``seq``.
+
+A line at or below ``last_seq`` is never rewritten. A sync refuses a
+state with ``last_seq`` above 0 whose ``outcomes`` is missing
+(``ENOENT``), or has a gap or a malformed line or ends before
+``last_seq`` (``EBADMSG``).
+
+``pending.json``
+~~~~~~~~~~~~~~~~
+
+``seq``, ``id`` and ``operation_digest`` of the operation in progress,
+present only while one is.
+
+Other files
+~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 72
 
    * - File
      - Content
-   * - ``state.json``
-     - JSON object with ``schema`` (1), ``tree_id``, ``generation``,
-       ``manifest_digest``, ``head_seq`` and ``segment_base_seq`` of the
-       publication the node last accepted, ``last_seq``,
-       ``projection_root`` and ``projection_root_tpm``. ``head_seq`` and
-       ``segment_base_seq`` are the publication's ``head.seq`` and
-       ``base.seq``. A sync records a publication, each segment of a walk
-       in turn, once it passes the checks above and an interrupted
-       operation is completed, before it processes the first new
-       operation of it, so a sync that stops among them leaves
-       ``last_seq`` from ``segment_base_seq`` to ``head_seq`` and the
-       node refuses
-       an older generation from then on. ``last_seq`` also moves past
-       operations whose selector does not match. A state without one of
-       ``tree_id``, ``last_seq``, the two roots, ``head_seq`` and
-       ``segment_base_seq`` is refused.
-   * - ``tree-eventlog``
-     - One JSON object per line and applied operation, with ``schema``
-       (1), ``seq``, ``digest`` (the ``operation_digest``) and
-       ``projection_root``. ``projection_root`` is the SHA-256 of the
-       previous root followed by the raw operation digest, starting from
-       32 zero bytes. A last line without its newline is an append that
-       did not finish: the replay skips it and the next append drops it.
-   * - ``outcomes``
-     - One JSON object per line and processed operation, in order from
-       ``seq`` 1, with ``schema`` (1), ``seq``, ``outcome``,
-       ``projection_root`` and ``history_root``. ``outcome`` is 1 for an
-       operation that was applied, 2 for one whose selector did not
-       match and 3 for an ``add`` that was measured but not loaded
-       because of ``attach_target_missing``. ``projection_root`` is the
-       node's projection root after the operation, which an unmatched
-       one leaves where it was. ``history_root`` is the SHA-256 of
-       ``shirudo-tree-history``, a NUL byte, the previous history root
-       and the raw operation digest, starting from 32 zero bytes: it
-       counts every operation, whatever its outcome, so it is the same
-       on every node at the same ``seq``. A line is written and synced
-       to disk before the ``state.json`` that covers it, and a line at
-       or below ``last_seq`` is never rewritten. Lines past ``last_seq``
-       and a last line without its newline are what a sync that stopped
-       left: the next sync drops them before it appends. It then refuses
-       a state with ``last_seq`` above 0 whose ``outcomes`` is missing
-       (``ENOENT``), or has a gap or a malformed line or ends before
-       ``last_seq`` (``EBADMSG``). Nothing rebuilds or prunes the file:
-       the keepalive reads its last 512 operations from it whatever
-       segments held them (:doc:`/reference/cli/status`).
-   * - ``pending.json``
-     - JSON object with ``schema`` (1), ``seq``, ``id`` and
-       ``operation_digest`` while an operation is in progress. The next
-       sync completes the operation without applying it again when the
-       tree eventlog or this boot's eventlog already records it, and
-       applies it again otherwise. Completing it writes the ``outcomes``
-       lines the stopped sync did not commit: outcome 2 for each
-       operation between ``last_seq`` and the pending one, which that
-       sync passed over, then the pending operation's, 3 when it is an
-       ``add`` whose upatch is not loaded, with its ``status/<id>``, and
-       1 otherwise. An ``add`` applied again whose upatch
-       a stopped sync already loaded with its payload counts as
-       installed.
    * - ``artifacts/<hex>.upatch``
      - Fetched artifacts, named by their layer digest.
    * - ``status/<id>``
      - ``skipped: module not loaded`` for an ``add`` whose attach target
        was missing.
+
+Order of the writes
+~~~~~~~~~~~~~~~~~~~
+
+The order in which a sync writes is what makes it safe to stop at any
+point. An operation whose selector does not match gets its ``outcomes``
+line, outcome 2, and moves ``last_seq``. One that matches is applied in
+this order:
+
+#. ``pending.json`` is written.
+#. The artifact is fetched and checked, then loaded for an ``add`` or
+   unloaded for a ``delete``.
+#. The measurement register is extended.
+#. The ``tree-eventlog`` line is appended.
+#. The ``outcomes`` line is appended and synced to disk.
+#. ``state.json`` moves to the operation.
+#. ``status/<id>`` is written for an ``add`` whose module is not loaded,
+   and removed otherwise.
+#. ``pending.json`` is removed.
+
+The next sync does this with what a stopped one left:
+
+- It drops ``outcomes`` lines past ``last_seq`` and a last line without
+  its newline before it appends.
+- With a ``pending.json``, it completes the operation, without applying
+  it again when the tree eventlog or this boot's eventlog already
+  records it, and applies it again otherwise. An ``add`` applied again
+  whose upatch the stopped sync already loaded with its payload counts
+  as installed.
+- Completing it writes the ``outcomes`` lines the stopped sync did not
+  commit: outcome 2 for each operation between ``last_seq`` and the
+  pending one, which that sync passed over, then the pending
+  operation's, 3 when it is an ``add`` whose upatch is not loaded, with
+  its ``status/<id>``, and 1 otherwise.
 
 :doc:`/reference/files` lists every file shirudo keeps.
 
