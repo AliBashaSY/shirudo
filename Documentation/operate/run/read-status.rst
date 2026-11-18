@@ -212,82 +212,144 @@ verdict is derived from them.
    :widths: 18 82
 
    * - Condition
-     - What it checks, and the details other than ``OK``
+     - What it checks
    * - ``LsmAttached``
-     - The ``lsm/bpf`` link is pinned. ``ALERT`` ``lsm/bpf link absent,
-       enforcement off`` means enforcement did not come up this boot.
+     - The ``lsm/bpf`` link is pinned.
    * - ``KeyringSealed``
      - The live ``.bpf`` and ``.dm-verity`` keyrings are the ones
        ``init`` sealed and recorded in the frozen identity map, they
        hold no link ``init`` did not freeze, and ``.dm-verity`` still
-       holds the config key. ``WARN`` ``.bpf keyring absent before
-       init`` before ``init``. ``ALERT`` after it names the keyring
-       and what changed: a swapped or missing keyring, links ``init``
-       did not freeze, or the missing config key.
+       holds the config key.
    * - ``ChainIntact``
      - The live register is the NV index ``init`` bound this boot, was
        bound once, and equals this boot's eventlog records replayed.
-       ``ALERT`` ``live register differs from the eventlog replay``. ``WARN``
-       ``no register bound this boot (init incomplete)`` or ``no TPM
-       answered, no register to replay``.
    * - ``UpatchesMeasured``
      - Every upatch pinned in the private bpffs or archived under
        ``/var/lib/shirudo/upatches`` is in this boot's records: loaded
        with the payload its pin or archive records and not unloaded
-       since. ``ALERT`` ``<n> pinned or archived without a record of
-       this boot: <names>`` is what a load stopped between its pins and
-       its extend leaves, or an archive root brought back after its
-       unload, which the next ``upatch load`` or ``upatch unload``
-       undoes before it acts. ``ALERT`` ``<n> XDP archives differ from
-       the loaded payload: <names>``: the sealed archive of a loaded XDP
-       upatch has changed, or is gone, so ``upatch reconcile`` refuses to
-       run and new devices stay uncovered. Handle it as an incident:
-       :doc:`/operate/troubleshoot/incident-tampered`. ``ALERT`` ``<n>
-       upatches are missing a link or their archive: <names>``: a loaded
-       upatch has fewer link pins than its signed metadata implies, so part
-       of it is detached, or its sealed archive is gone or unusable. For an upatch with XDP that means an ``xdp_prog_<i>`` pin
-       or the link of another attach program; a device going away is not
-       a missing link, but a loaded upatch whose whole pin directory is
-       gone is. Handle it the same way. ``ALERT`` ``this boot's records
-       do not fold to the measurement register``: the eventlog this
-       command read, from the init record that names the live register
-       and the TPM's reset count on, does not give the value the TPM
-       reports, or a record's digest does not follow from its fields.
-       The pins are then not checked, and every ``upatch load`` and
-       ``upatch unload`` refuses; handle it as an incident. ``WARN`` ``no
-       record of this boot to check the pins against`` before ``init``, or
-       ``pins not checked against the records: <error>``. ``WARN`` ``links
-       or archives not checked: <error>`` means one of those checks could
-       not run, which says nothing either way.
+       since.
    * - ``TpmMeasured``
-     - The NV index is defined, written and readable. ``WARN`` ``NV
-       index 0x01818E00 not bound this boot`` or ``no TPM answered``.
-   * - ``XdpCovered``
-     - Every device the signed class mask of a loaded XDP upatch selects
-       runs that upatch. ``WARN`` ``<n> selected devices run without
-       their XDP upatch: <upatch> on <device> (<why>)`` lists each
-       device that does not, whatever the reason, with what the device
-       reports: ``no native XDP``, ``no multi-buffer XDP``, ``another
-       XDP program attached`` or ``not attached``. ``not classified:
-       <error>`` is a device whose driver or devlink port could not be
-       read, so no upatch selects it; it is listed under every XDP
-       upatch it does not run, since any of them might select it. A device added in the
-       last seconds shows ``not attached`` until ``upatch reconcile``
-       attaches it, and one udev does not announce, such as a veth peer
-       moving namespace, for up to a minute. One that stays listed is unfiltered. Its driver
-       refused the program, or a setting such as LRO turned its XDP off,
-       or the reconcile units are stopped. ``WARN`` ``XDP coverage not
-       checked: <error>`` means the check could not run; a device may
-       then be unfiltered. ``another XDP program attached`` counts a
-       generic or offloaded program too, which shirudo never attaches. ``XDP
-       coverage not checked: not in the initial network namespace`` is a
-       ``status`` run in a container or another namespace, whose devices
-       are not the host's: run it in the host's namespace.
+     - The NV index is defined, written and readable.
    * - ``ConfigActive``
      - The config PCR, the activation records and the mounted config
-       image agree. ``WARN`` ``the activation of config <root>.. is
-       pending until the next reboot``. ``ALERT`` with one of three
-       details, see :ref:`status-verdicts`.
+       image agree.
+   * - ``XdpCovered``
+     - Every device the signed class mask of a loaded XDP upatch selects
+       runs that upatch.
+
+The details other than ``OK`` are below, with what each means.
+:doc:`/reference/formats/status-json` lists every detail string.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 16 9 35 40
+
+   * - Condition
+     - Level
+     - Detail
+     - Meaning and action
+   * - ``LsmAttached``
+     - ``ALERT``
+     - ``lsm/bpf link absent, enforcement off``
+     - Enforcement did not come up this boot. See :ref:`status-lsm-off`.
+   * - ``KeyringSealed``
+     - ``WARN``
+     - ``.bpf keyring absent before init``
+     - ``init`` has not run, or did not finish.
+   * - ``KeyringSealed``
+     - ``ALERT``
+     - The keyring and what changed, such as ``pinned serial <serial>,
+       live serial <serial>: swapped``
+     - A keyring was swapped or is gone, holds a link ``init`` did not
+       freeze, or lost the config key. See :ref:`status-tampered`.
+   * - ``ChainIntact``
+     - ``ALERT``
+     - ``live register differs from the eventlog replay``
+     - See :ref:`status-tampered`.
+   * - ``ChainIntact``
+     - ``WARN``
+     - ``no register bound this boot (init incomplete)``
+     - ``init`` stopped before it bound the register.
+   * - ``ChainIntact``
+     - ``WARN``
+     - ``no TPM answered, no register to replay``
+     - No TPM is reachable.
+   * - ``UpatchesMeasured``
+     - ``ALERT``
+     - ``<n> pinned or archived without a record of this boot:
+       <names>``
+     - What a load stopped between its pins and its extend leaves, or an
+       archive root brought back after its unload. The next ``upatch
+       load`` or ``upatch unload`` undoes them before it acts.
+   * - ``UpatchesMeasured``
+     - ``ALERT``
+     - ``<n> XDP archives differ from the loaded payload: <names>``
+     - The sealed archive of a loaded XDP upatch changed or is gone, so
+       ``upatch reconcile`` refuses to run and new devices stay
+       uncovered. Handle it as an incident:
+       :doc:`/operate/troubleshoot/incident-tampered`.
+   * - ``UpatchesMeasured``
+     - ``ALERT``
+     - ``<n> upatches are missing a link or their archive: <names>``
+     - A loaded upatch has fewer link pins than its signed metadata
+       implies, so part of it is detached, or its sealed archive is gone
+       or unusable. For XDP that is an ``xdp_prog_<i>`` pin or the link
+       of another attach program: a device going away is not a missing
+       link, but a loaded upatch whose whole pin directory is gone is.
+       Handle it as an incident.
+   * - ``UpatchesMeasured``
+     - ``ALERT``
+     - ``this boot's records do not fold to the measurement register``
+     - The eventlog from the init record that names the live register
+       and the TPM's reset count on does not give the value the TPM
+       reports, or a record's digest does not follow from its fields.
+       The pins are not checked, and every ``upatch load`` and ``upatch
+       unload`` refuses. Handle it as an incident.
+   * - ``UpatchesMeasured``
+     - ``WARN``
+     - ``no record of this boot to check the pins against``
+     - Before ``init``.
+   * - ``UpatchesMeasured``
+     - ``WARN``
+     - ``pins not checked against the records: <error>`` or ``links or
+       archives not checked: <error>``
+     - A check could not run, which says nothing either way.
+   * - ``TpmMeasured``
+     - ``WARN``
+     - ``NV index 0x01818E00 not bound this boot`` or ``no TPM
+       answered``
+     - The register is not bound this boot, or no TPM is reachable.
+   * - ``ConfigActive``
+     - ``WARN``
+     - ``the activation of config <root>.. is pending until the next
+       reboot``
+     - Reboot when it suits you. See :ref:`status-reboot-pending`.
+   * - ``ConfigActive``
+     - ``ALERT``
+     - One of three details
+     - See :ref:`status-tampered`.
+   * - ``XdpCovered``
+     - ``WARN``
+     - ``<n> selected devices run without their XDP upatch: <upatch>
+       on <device> (<why>)``
+     - Each device that does not run it, with what it reports: ``no
+       native XDP``, ``no multi-buffer XDP``, ``another XDP program
+       attached``, generic or offloaded included, which shirudo never
+       attaches, or ``not attached``. ``not classified: <error>`` is a
+       device whose driver or devlink port could not be read, listed
+       under every XDP upatch, since any might select it. A device added
+       in the last seconds shows ``not attached`` until ``upatch
+       reconcile`` attaches it, and one udev does not announce, such as
+       a veth peer moving namespace, for up to a minute. One that stays
+       listed is unfiltered: its driver refused the program, a setting
+       such as LRO turned its XDP off, or the reconcile units are
+       stopped. See :ref:`status-degraded`.
+   * - ``XdpCovered``
+     - ``WARN``
+     - ``XDP coverage not checked: <error>``
+     - The check could not run, and a device may be unfiltered. With
+       ``not in the initial network namespace``, ``status`` ran in a
+       container or another namespace: run it in the host's.
 
 Tamper attempts
 ~~~~~~~~~~~~~~~
