@@ -303,23 +303,19 @@ none of them. A shield that needs another family or hook is written as a
 XDP
 ---
 
-``xdp/<decimal-mask>`` signs a device-class selection, rather than a
-device name or an ifindex. For example, ``SEC("xdp/3")`` selects network
-ports and virtual devices; ``SEC("xdp/27")`` selects all classes. The
-mask is mandatory, nonzero and contains only the bits below. Bare
-``xdp``, ``xdp.frags``, devmap and cpumap sections are refused;
-``xdp/<decimal-mask>`` already means multi-buffer.
+``xdp/<decimal-mask>`` signs a selection of device classes, not a device
+name or an ifindex. The target attaches the program to every device of
+those classes in the initial network namespace, at load, at boot restore
+and whenever a device appears.
 
-A device runs one native XDP program at a time, so the XDP programs of
-one upatch must select disjoint classes: ``shirudo build`` refuses
-``SEC("xdp/3")`` beside ``SEC("xdp/2")``. ``bpm tree append`` refuses an
-upatch that selects a class another upatch of the tree selects on the
-same nodes. Two upatches loaded another way can still select the same
-device. While such a device is there, the second one's ``upatch load``
-fails with ``xdp_device_occupied``. When the device appears after both
-loaded, reconcile attaches the first, ``status`` lists the device for
-the second under ``XdpCovered`` as ``another XDP program attached``, and
-the next boot restore fails on it.
+Mask and classes
+~~~~~~~~~~~~~~~~
+
+The mask is mandatory, nonzero and contains only the bits below. For
+example, ``SEC("xdp/3")`` selects network ports and virtual devices;
+``SEC("xdp/27")`` selects all classes. Bare ``xdp``, ``xdp.frags``,
+devmap and cpumap sections are refused; ``xdp/<decimal-mask>`` already
+means multi-buffer.
 
 .. list-table::
    :header-rows: 1
@@ -345,7 +341,40 @@ the next boot restore fails on it.
      - Devices without sufficient classification evidence. This bit is
        a catchall class, not a wildcard; 27 selects every class.
 
-A shared class is checked at these places:
+Bit 4 is not a class, and a mask with it is refused. Loopback has no
+native XDP, so it has no class and no mask selects it. Every other
+interface has exactly one class.
+
+How a device is classified
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The first rule that matches decides:
+
+#. Loopback has no class.
+#. A device whose parent bus is ``xen-backend``, Xen's netback in dom0,
+   is virtual: it is the host end of a guest's link, though its driver
+   is named ``vif`` as netfront's is.
+#. A device whose driver is ``virtio_net``, ``vmxnet3``, ``hv_netvsc``,
+   ``xen-netfront`` or ``vif`` is a VM adapter.
+#. A device whose driver is ``netdevsim`` is virtual, whatever its
+   devlink port says.
+#. A device with a devlink port takes its class from the port's
+   flavour: physical is network-facing; CPU, DSA, PCI PF, PCI VF, PCI SF
+   and virtual are virtual; any other flavour is unknown.
+#. A device with a parent bus, a hardware bus, is network-facing.
+#. A device with a link kind, a kernel software link, is virtual.
+#. Any other device is unknown.
+
+The parent bus and the link kind come from rtnetlink, the driver name
+from ethtool and the port flavour from devlink, without interface-name or
+sysfs heuristics.
+
+Classes two upatches share
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A device runs one native XDP program at a time, so the XDP programs of
+one upatch must select disjoint classes, and so should two upatches. A
+shared class is checked at these places:
 
 .. list-table::
    :header-rows: 1
@@ -355,7 +384,8 @@ A shared class is checked at these places:
      - Check
      - Result
    * - ``shirudo build``
-     - Two XDP programs of one upatch select the same class.
+     - Two XDP programs of one upatch select the same class, as
+       ``SEC("xdp/3")`` beside ``SEC("xdp/2")``.
      - The build is refused.
    * - ``upatch load``
      - The same, when the target reads the signed attach metadata of
@@ -372,86 +402,90 @@ A shared class is checked at these places:
 
 ``upatch load`` does not compare the classes of the loaded upatches. It
 would have to read and verify every loaded archive on each load, and the
-checks above and the kernel's refusal already cover the case.
+checks above and the kernel's refusal already cover the case. So two
+upatches loaded another way than through one tree can still select the
+same device. While such a device is there, the second one's ``upatch
+load`` fails with ``xdp_device_occupied``. When the device appears after
+both loaded, reconcile attaches the first, ``status`` lists the device
+for the second under ``XdpCovered`` as ``another XDP program attached``,
+and the next boot restore fails on it.
 
-Bit 4 is not a class, and a mask with it is refused. Loopback has no
-native XDP, so it has no class and no mask selects it. Every other
-interface has exactly one class. A device on the ``xen-backend`` bus,
-Xen's netback in dom0, is virtual: it is the host end of a guest's link,
-though its driver is named ``vif`` as netfront's is. shirudo then checks
-the driver names ``virtio_net``, ``vmxnet3``, ``hv_netvsc``,
-``xen-netfront`` and ``vif`` for VM adapters, then ``netdevsim``, which
-is virtual whatever its devlink port says. Next it uses devlink port
-flavour: physical ports are network-facing; CPU, DSA, PCI PF, VF, SF
-and virtual ports are virtual; other flavours are unknown. Without a
-devlink port, a device with a hardware parent
-bus is network-facing, a device with a kernel software link kind is
-virtual, and the rest are unknown. Facts come from rtnetlink, devlink
-and ethtool, without interface-name or sysfs heuristics.
+Device discovery
+~~~~~~~~~~~~~~~~
 
-At load and boot restore, shirudo snapshots interfaces in the initial
-network namespace, selects matching classes and attaches in increasing
-ifindex order. A veth pair gets one attachment: the endpoint in the
-initial namespace when its peer is elsewhere, or the lower ifindex when
-both ends are in that namespace. Peer namespace information prevents
-equal ifindexes in separate namespaces from being mistaken for a pair.
-Pairs entirely outside the initial namespace are excluded. Discovery
-tolerates interfaces changing under it: a snapshot the kernel reports
-as interrupted is retried, and an interface renamed or removed during
-the snapshot, or a veth whose peer is not in it, is left out rather than
-failing the load. So is a device whose driver name or devlink port
-cannot be read, with a warning naming it: it need not be one the upatch
-selects, so it does not fail the load or the boot restore, and
-``status`` lists it under ``XdpCovered`` as ``not classified`` until a
-later read succeeds, unless it runs the upatch. A lookup that cannot be
-made at all, out of memory or descriptors, timed out, refused with
-``EPERM`` or ``EACCES``, still fails the load: it would leave every
-device out. A kernel that does not answer a netlink request within
-5 seconds fails the load with ``ETIMEDOUT``, and is not asked again.
+Load and boot restore each take one snapshot of the interfaces in the
+initial network namespace, select the matching classes and attach in
+increasing ifindex order. A veth pair gets one attachment: the endpoint
+in the initial namespace when its peer is elsewhere, or the lower
+ifindex when both ends are in that namespace. Peer namespace information
+prevents equal ifindexes in separate namespaces from being mistaken for
+a pair. Pairs entirely outside the initial namespace are excluded.
 
-Links use ``XDP_FLAGS_DRV_MODE``: shirudo runs XDP in the driver only.
-Generic XDP, which runs in the stack after the socket buffer is built,
-is not supported, as it filters too late to be of use, so a driver
-without native XDP is not covered. A device that runs a generic or
-offloaded program, which shirudo never attaches, holds its XDP slot: it
-is occupied like one running another driver-mode program, and ``status``
-says ``another XDP program attached``. A device without native XDP, which
-refuses with ``EOPNOTSUPP`` and reports no XDP features, such as a
-bridge, is logged and skipped. Any other refusal is the driver ruling XDP
-out in its current settings, and fails with the load category
-``xdp_driver_refused``: ``EOPNOTSUPP`` from a device that reports native
-XDP, as ``virtio_net`` gives while the host does GRO_HW or checksum
-offload and ``bnxt`` with header-data split, ``EINVAL`` from ``mlx5``
-with LRO or hardware GRO on, ``ENOSPC`` from a veth with fewer rx queues
-than its peer has tx queues, and ``ERANGE`` from a driver whose MTU is
-too large. The journal names the driver's own errno. A device that
-changes or goes away during attachment is skipped too. An XDP program
-with no device to attach to still loads: a pin of its own, ``xdp_prog_<i>``,
-keeps it, and ``status`` shows it as ``xdp (waiting for a device)``. Other
-errors undo the load's links, including an occupied XDP attachment point
-or a driver refusing the program. Boot restore fails the same way, and
-``init`` stops with the register unbound. Only a device that went away
-during the restore is skipped. A device that an upatch restored before
-this one holds fails the restore like any other, also one that reconcile
-only warned about before the reboot. A setting root makes after boot is the reconcile pass's to meet,
-which leaves the device unattached, warns, and lets ``status`` list it. Existing XDP
-programs are never replaced. Device classification and peer identity
-are rechecked around attachment, and the returned link's ifindex is
-checked before pinning. A link the kernel reports on another device is
-``attach_scope_mismatch`` and fails the load, the restore or the
-reconcile pass, never a skipped device. The link reports no namespace:
-the load checks its own before it reads the devices, and a run outside
-the initial namespace fails as ``attach_scope_mismatch`` too.
+Discovery tolerates interfaces changing under it: a snapshot the kernel
+reports as interrupted is retried, and an interface renamed or removed
+during the snapshot, or a veth whose peer is not in it, is left out
+rather than failing the load. So is a device whose driver name or
+devlink port cannot be read, with a warning naming it: it need not be
+one the upatch selects, so it does not fail the load or the boot
+restore, and ``status`` lists it under ``XdpCovered`` as ``not
+classified`` until a later read succeeds, unless it runs the upatch. A
+lookup that cannot be made at all, out of memory or descriptors, timed
+out, refused with ``EPERM`` or ``EACCES``, still fails the load: it would
+leave every device out. A kernel that does not answer a netlink request
+within 5 seconds fails the load with ``ETIMEDOUT``, and is not asked
+again.
+
+Attachment
+~~~~~~~~~~
+
+shirudo attaches in the driver only, never replaces an XDP program a
+device runs, and checks each link before it pins it. `Outcomes`_ gives
+what each condition does; this section adds what the table cannot.
+
+Links use ``XDP_FLAGS_DRV_MODE``. Generic XDP, which runs in the stack
+after the socket buffer is built, is not supported, as it filters too
+late to be of use, so a driver without native XDP is not covered. A
+device that runs a generic or offloaded program, which shirudo never
+attaches, holds its XDP slot: it is occupied like one running another
+driver-mode program.
+
+A device without native XDP refuses with ``EOPNOTSUPP`` and reports no
+XDP features, as a bridge does. Any other refusal is the driver ruling
+XDP out in its current settings, ``xdp_driver_refused``: ``EOPNOTSUPP``
+from a device that reports native XDP, as ``virtio_net`` gives while the
+host does GRO_HW or checksum offload and ``bnxt`` with header-data
+split, ``EINVAL`` from ``mlx5`` with LRO or hardware GRO on, ``ENOSPC``
+from a veth with fewer rx queues than its peer has tx queues, and
+``ERANGE`` from a driver whose MTU is too large. The journal names the
+driver's own errno.
+
+An XDP program with no device to attach to still loads: a pin of its
+own, ``xdp_prog_<i>``, keeps it. Boot restore attaches the same way:
+it skips what a load skips and fails where a load fails, and ``init``
+then stops with the register unbound. A device that an upatch restored
+before this one holds fails the restore like any other, also one that
+reconcile only warned about before the reboot.
+A setting root makes after boot is the reconcile pass's to meet, which
+leaves the device unattached, warns, and lets ``status`` list it.
+
+Device classification and peer identity are rechecked around
+attachment, and the returned link's ifindex is checked before pinning.
+The link reports no namespace, so the load checks its own before it
+reads the devices.
+
+Multi-buffer drivers
+~~~~~~~~~~~~~~~~~~~~
 
 Every XDP program is loaded with ``BPF_F_XDP_HAS_FRAGS``, so it can run on
-a device whose MTU does not fit one buffer. A selected device with native
-XDP must report multi-buffer support, ``NETDEV_XDP_ACT_RX_SG``. One that
-does not fails ``upatch load`` with ``xdp_multibuf_unsupported``, and the
-load is undone, so a single such device under the signed mask stops it:
-narrow the mask. Boot restore fails on such a device too. Reconcile leaves
-it unattached, logs a warning, and ``status`` lists it under
-``XdpCovered``. In a tree, a failed ``add`` stops ``bpm tree sync`` at
-that operation, so scope it with a node label.
+a device whose MTU does not fit one buffer, and a selected device with
+native XDP must report multi-buffer support, ``NETDEV_XDP_ACT_RX_SG``.
+One that does not fails ``upatch load`` with
+``xdp_multibuf_unsupported``, and the load is undone, so a single such
+device under the signed mask stops it: narrow the mask. Boot restore
+fails on such a device too. Reconcile leaves it unattached, logs a
+warning, and ``status`` lists it under ``XdpCovered``. In a tree, a
+failed ``add`` stops ``bpm tree sync`` at that operation, so scope it
+with a node label.
 
 These drivers report multi-buffer XDP in Linux bpf-next at 53435562a725:
 
@@ -490,17 +524,24 @@ rx queues than its peer has tx queues reports nothing. ``ena``, ``gve``,
 ``mana``, ``netvsc``, ``vmxnet3``, ``xen-netfront``, ``igb``, ``igc``,
 ``ixgbe`` and ``mlx4`` have native XDP without multi-buffer.
 
-Load and restore each discover devices once.
-:doc:`/reference/cli/upatch-reconcile` repeats that discovery later: it
-attaches a loaded upatch to any selected device it does not run on yet
-and removes the pin of a link whose device has gone. Removing a device
-detaches its XDP link, so ``init`` and ``status`` do not count XDP link
-pins as they do other links: they require the ``xdp_prog_<i>`` pin of each
-XDP program and a link for each other attach program of the upatch.
-The signed artifact and TPM measurement
-cover the class policy, not a fixed device inventory. The location
-``status`` and ``upatch get`` report names the first device still
-attached and how many more there are, as in ``xdp/eth0 (+1)``.
+Reconcile
+~~~~~~~~~
+
+The signed artifact and the TPM measurement cover the class policy, not
+a fixed device inventory, so the devices an upatch runs on change after
+its load. :doc:`/reference/cli/upatch-reconcile` repeats the discovery
+of load and restore later: it attaches a loaded upatch to any selected
+device it does not run on yet and removes the pin of a link whose device
+has gone. Removing a device detaches its XDP link, so ``init`` and
+``status`` do not count XDP link pins as they do other links: they
+require the ``xdp_prog_<i>`` pin of each XDP program and a link for each
+other attach program of the upatch. The location ``status`` and
+``upatch get`` report names the first device still attached and how
+many more there are, as in ``xdp/eth0 (+1)``, or ``xdp (waiting for a
+device)`` when there is none.
+
+Outcomes
+~~~~~~~~
 
 The table sums up what each condition does at load and boot restore, at
 reconcile and in ``status``. Skipped means the program is not attached
