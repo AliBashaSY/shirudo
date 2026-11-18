@@ -1182,16 +1182,21 @@ the model follows the C.
        boot event; ``staged_taken``, ``stage_then_reboot``: ``init`` takes
        a staged root only when the stage copies the completed record it
        starts from and is of an earlier TPM boot, and it does take one;
-       ``configInUse_vouched``, ``mounted_selected``,
-       ``consistent_mounted``, ``journal_wellformed``, ``pcr_replay``,
-       ``completion_by_complete``
+       ``mounted_selected``, ``consistent_mounted``: a command runs only
+       with the config the record selects; ``configInUse_vouched``
+       restates ``configInUse``, which follows ``current_config()`` and
+       ``status_config()`` by review; ``journal_wellformed``,
+       ``pcr_replay``, ``completion_by_complete``
      - Commands one at a time; atomic renames of ``state`` and
        ``next-boot``; a crash leaves a prefix of a line; only shirudo
-       writes the journal and the config mount during a boot; PCRs reset
-       only at a reboot or TPM Restart; PCRs compared as their lists of
-       extensions, which ``pcr_value_eq_iff`` justifies for the idealized
-       hash of ``register_injective`` and SHA-256 meets unless it
-       collides among the values compared. All but
+       writes the config mount during a boot; only shirudo writes the
+       journal, between boots too, which R14 says root can, for all but
+       ``boot_completion`` and ``completion_by_complete``, which hold
+       from any journal; PCRs reset only at a reboot or TPM Restart; PCRs
+       compared as their lists of extensions, which ``pcr_value_eq_iff``
+       justifies for the idealized hash of ``register_injective`` and
+       SHA-256 meets unless it collides among the values compared. All
+       but
        ``journal_wellformed``, ``mounted_selected``, ``boot_completion``,
        ``completion_by_complete`` and ``extension_follows_save`` also take
        a calm TPM, whose boot changes only between commands and never to

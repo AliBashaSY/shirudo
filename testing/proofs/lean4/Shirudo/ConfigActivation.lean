@@ -63,20 +63,25 @@ For every such sequence:
   `boot_completion`: from any journal, `init` completes only with the
   PCR holding exactly the selected config's boot event over the value it
   started from.
-- (d) `configInUse_vouched`, `mounted_selected`, `consistent_mounted`: a
-  command runs only with the config the record selects, and another one is
-  mounted only while the selection is pending.
+- (d) `mounted_selected`, `consistent_mounted`: a command runs only with
+  the config the record selects, and another one is mounted only while
+  the selection is pending. `configInUse_vouched` restates `configInUse`;
+  that it is what `current_config()` and `status_config()` give is by
+  review.
 - (e) `journal_wellformed`: no interruption leaves a journal a later boot
   refuses; `pcr_replay`: the PCR of a completed record holds its replay;
   `completion_by_complete`: a boot event is completed only by `init`'s
   `complete()`.
 
 What the C relies on outside itself is part of the model, not an axiom:
-commands run one at a time; a rename of `state` is atomic and survives a
-crash once made; a crash in an append leaves a prefix of the line; only
-shirudo writes the journal and the config mount during a boot; a PCR
-changes only by extension and resets only at a reboot or a TPM Restart;
-the model compares PCRs as their lists of extensions, which
+commands run one at a time; a rename of `state` or `next-boot` is atomic
+and survives a crash once made; a crash in an append leaves a prefix of
+the line; only shirudo writes the config mount during a boot; for every
+theorem over `Reachable`, only shirudo writes the journal, between boots
+too, where R14 lets root rewrite it, while `boot_completion` and
+`completion_by_complete` hold from any journal; a PCR changes only by
+extension and resets only at a reboot or a TPM Restart; the model
+compares PCRs as their lists of extensions, which
 `pcr_value_eq_iff` justifies for the idealized hash of
 `Shirudo.Chain.register_injective` and SHA-256 meets unless it collides
 among the values compared; and, for the theorems over `shirudo`, the
@@ -1765,7 +1770,9 @@ variable {B R D : Type} [DecidableEq B] [DecidableEq R] [DecidableEq D]
 variable {digest : Kind → R → D}
 
 /-- (d) A config a command runs with is the one the record selects:
-consistent, or for `status` pending and mounted. -/
+consistent, or for `status` pending and mounted. This holds of every
+world, as it restates `configInUse`; that `configInUse` is what
+`current_config()` and `status_config()` give is by review. -/
 theorem configInUse_vouched {w : World B R D} {st : Bool} {m : R}
     (h : configInUse digest w st = some m) :
     ∃ r q, w.state = some ⟨r, q⟩ ∧ m = r.root ∧ w.mounted = some m ∧
