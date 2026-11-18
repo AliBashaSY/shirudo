@@ -1632,8 +1632,9 @@ history, the config update record, the site configuration file, the
 config image's settings and tree and the fields of a
 ``shirudo-quote-check`` row. Of the eventlog's lines, the Lean model
 ``Shirudo.EventlogRecord`` covers what the reader takes from the fields
-``json_parse()`` returns, by review; the parse of a line itself has the
-``eventlog`` fuzz target alone.
+``json_parse()`` returns, by review; the parse of a line itself, as the
+replay and the walk of a boot read it, has the ``eventlog`` fuzz target
+alone.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof. So it is with the package state:
@@ -1675,7 +1676,50 @@ other steps of ``verify_document()``, ``evidence_parse()`` to
 ``verify_register()``, ``verify_anchor()`` and
 ``verify_expected_pcrs()``, ``check_signed()`` and
 ``pcr_values_digest()``, which the target checks its quote with too,
-have none; the ``attest`` fuzz target runs them.
+have none; the ``attest`` fuzz target runs them. Neither has
+``quote_covers()``, with which the target checks its own quote,
+``read_file_base64()`` and ``attest_challenge_read()``, which read the
+challenge on the target, or ``attest_challenge_make()`` and
+``cert_describes()``, which read a target's evidence to make one.
+
+Of the other files the proofs read in part, these functions have no
+proof: ``tpm_public_marshal()`` and ``tpm_writer_public()`` of
+:src:`util/tpm_wire.c`, the first of which the ``tpm-wire`` fuzz target
+round-trips; ``upatch_rodata_symbol_range()`` of
+:src:`util/upatch_rodata.c`, the range of ``.rodata`` the builder
+rewrites; ``chain_init_event()`` of :src:`util/chain.c` on a set that is
+not empty; ``upatch_name_signed()``, ``upatch_member_valid()`` and
+``prog_specs_xdp_classes()`` of :src:`util/upatch.c`; the reading of
+the eventlog behind boot restore in :src:`util/measured.c`,
+``init_of_live()``, ``record_event()`` and the walk of
+``verified_upatches()``, and that ``upatches_line()`` of
+:src:`util/eventlog.c` hands init the names and payloads whose events
+``record_event()`` hashes, as no fuzz target reaches them and a proof
+over one record of the two readers, ``json_parse()`` modelled, runs out
+of 8 GB; ``check_table()`` of
+:src:`util/dm_verity.c`, which takes or refuses the kernel's table of a
+config image's mapping, as CBMC 5.95 keeps the parameters of the
+4096-byte reply symbolic even where a harness writes them and runs out
+of 8 GB on a whole table, and no fuzz target reaches it either; the
+refusal of
+``measured_event()`` at the set's capacity of ``MEASURED_MAX``, 4096
+entries, whose proof runs past 40 minutes; and of :src:`util/xdp.c` the loop of
+``nl_exchange()`` over a reply's messages, the requests ``attr_put()``
+builds and the device class and selection that ``xdp_device_class()``,
+``veth_peer()`` and ``xdp_device_selected()`` decide.
+Logic of the files without a proof that sits between their calls and
+could be proven, as neither a proof nor a fuzz target reads it:
+``split_describe()`` and the match of ``keyring_holds_exactly()`` in
+:src:`util/keyring.c`; ``guard_map_check()`` of :src:`util/identity.c`
+and the guard link and program checks of :src:`util/image_guards.c`; the
+host match of
+``tls_classical_host_allowed()`` in :src:`util/tls_openssl.c`;
+``pin_index()`` and the pin set of :src:`util/upatch_pins.c`;
+``rc_is()``, ``public_from_tss()`` and ``marshal_signature()`` of
+:src:`util/tpm.c`; the slot arithmetic of ``shirudo.page_slots()`` and
+``shirudo.fixed_records()`` and the decoders' memory cap in
+:src:`util/upatch_decode.c`; and the label comparisons of
+:src:`util/seal.c`.
 
 Within the operator's package builder and publisher, the proofs cover the
 tar header, the member names, the Beefile's values, lines, names, fixes
