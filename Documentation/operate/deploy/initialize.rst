@@ -35,26 +35,37 @@ What init does
    * - Initrd
      - ``shirudo-initrd.service``, with the binary in the initrd that the
        UKI authenticates
-     - Binds ``/sysroot/var/lib/shirudo`` writable at
-       ``/var/lib/shirudo``. Mounts the private bpffs. Verifies the
-       runtime image against ``runtime.root_hash``, enrolls the config
-       certificate in ``.dm-verity`` and seals it. Selects and verifies
-       the config image, enrolls the BPF trust set in ``.bpf`` and seals
-       it. Labels writable state, attaches the LSM programs, and mounts
-       the runtime image at ``/run/shirudo/runtime``. Records a config
-       BOOT event in the config PCR, applies the config's revocations,
-       restores the archived upatches and binds the measurement register.
-       Writes its init record to ``/run/shirudo/eventlog.pending``.
+     - Steps 1 to 14 of Figure 1. It binds ``/sysroot/var/lib/shirudo``
+       writable at ``/var/lib/shirudo``, checks the runtime image against
+       ``runtime.root_hash``, mounts it at ``/run/shirudo/runtime`` and the
+       config image at ``/run/shirudo/config``, and writes its init record
+       to ``/run/shirudo/eventlog.pending``.
    * - Root file system
      - ``shirudo.service``, with the runtime image's binary through the
        drop-in
      - Checks that the keyring and the runtime image are the ones the
-       initrd recorded and that the config activation is complete.
-       Appends the pending init record to ``/var/lib/shirudo/eventlog``.
-       Adds no register event.
+       initrd recorded, appends the pending init record to
+       ``/var/lib/shirudo/eventlog``, and checks the LSM link, the config
+       activation and the register. Adds no register event.
 
-The mounts under ``/run/shirudo`` survive the switch to the root file
-system. :doc:`/internals/boot-flow` explains each step and the order.
+Figure 1 shows the steps of both runs in order, and the three bands that
+`When init fails`_ sorts a failed initrd run into. The mounts under
+``/run/shirudo`` survive the switch to the root file system.
+:doc:`/internals/boot-flow` explains each step.
+
+.. figure:: /images/operate-init-timeline.svg
+   :alt: The initrd run in 14 steps: pre-flight and binding the state,
+         the bpffs, the runtime image and .dm-verity, the config, .bpf,
+         labels and eventlog, the LSM programs; then the runtime mount
+         and a second check of the config; then the config BOOT event,
+         revocations and the config mount, the upatch restore, the
+         register and completing the activation. A failure before the
+         LSM programs attach leaves lsm-off, one before the BOOT event
+         image state errors, one after it reboot-pending. After
+         switch-root the root run only checks and adds no register event.
+
+   Figure 1. The steps of init in the initrd and on the root file system,
+   and what a failure of the initrd run leaves in each band.
 
 Check that init worked
 ----------------------
@@ -206,7 +217,8 @@ When init fails
 
 A failed initrd run does not stop the boot. ``shirudo-initrd.service`` is
 only wanted by ``initrd.target``, and nothing acts on its failure. The
-host boots, and what it runs depends on the step where init stopped.
+host boots, and what it runs depends on the band of Figure 1 where init
+stopped.
 When the initrd lacks the shirudo module or its certificate, init does
 not run at all and nothing reports an error.
 ``shirudo-gen-initrd --check`` detects such an initrd before you boot it.
@@ -218,16 +230,17 @@ not run at all and nothing reports an error.
    * - Where init stopped
      - What you see
      - What to do
-   * - Before the LSM programs attach: the pre-flight, the image
-       settings, the bpffs, verifying the images and enrolling the keys,
-       sealing state or loading enforcement.
+   * - Before the LSM programs attach, steps 1 to 7: the pre-flight,
+       the image settings, the bpffs, verifying the images and enrolling
+       the keys, sealing state or loading enforcement.
      - The host runs without enforcement. ``shirudo.service`` is
        skipped, because the runtime image is not mounted. The keepalive
        service cannot start without the runtime binary, so the keepalive
        stops. ``status`` from any copy of the binary reports ``lsm-off``.
      - Read the initrd journal, fix the cause and reboot.
-   * - After the LSM programs attach and before the config BOOT event:
-       mounting the runtime image or selecting the config.
+   * - After the LSM programs attach and before the config BOOT event,
+       steps 8 and 9: mounting the runtime image, or checking the
+       activation record and verifying the config again.
      - Enforcement is on. Depending on the step, the runtime binary is
        missing, commands fail with ``shirudo: image state: <error>``, or
        ``status`` reports a config condition that does not belong to
@@ -235,14 +248,15 @@ not run at all and nothing reports an error.
      - Keep the journal, fix the cause and reboot. When the journal does
        not explain the state, follow
        :doc:`/operate/troubleshoot/incident-tampered`.
-   * - After the config BOOT event: restoring upatches, binding the
-       register or completing the boot.
+   * - From the config BOOT event on, steps 10 to 14: extending the
+       config PCR, applying the revocations, restoring upatches, binding
+       the register or completing the activation.
      - Enforcement is on and the config activation stays pending.
-       ``status`` reports ``reboot-pending``, and ``ChainIntact`` and
-       ``TpmMeasured`` warn that no register is bound. Commands other
-       than ``status`` and ``image status`` fail with
-       ``shirudo: image state: Operation now in progress``, attestation
-       included.
+       ``status`` reports ``reboot-pending``, and until step 13 binds the
+       register ``ChainIntact`` and ``TpmMeasured`` warn that none is
+       bound. Commands other than ``status`` and ``image status`` fail
+       with ``shirudo: image state: Operation now in progress``,
+       attestation included.
      - Fix the cause and reboot. A reboot without a fix fails at the
        same step.
 
