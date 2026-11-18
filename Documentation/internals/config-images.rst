@@ -231,7 +231,25 @@ It then activates it:
 
 At boot, ``init`` runs the same sequence as a boot event for the selected
 config, but completes it only at the end of ``init``, after the restore
-and the register binding. :doc:`boot-flow` gives the boot order.
+and the register binding. :doc:`boot-flow` gives the boot order. Figure 1
+shows the sequence, the two ways into it, and the span in which an
+interruption leaves the selection pending.
+
+.. figure:: /images/internals-config-activation.svg
+   :alt: image stage verifies and caches a config and writes the
+         next-boot record; after a reboot by hand, init at boot selects
+         the record's target or the staged one. Both init and image
+         update run the same eight steps: verify, map, mount and check
+         the candidate; read the TPM's counts and the config PCR; record
+         the selection pending; extend the config PCR; read it back and
+         compare; append to the events; revoke keys and mount the
+         config; record it complete. A refusal before the pending record
+         records nothing. A stop or refusal from the pending record on
+         leaves the selection pending, and every command but status and
+         image status refuses until the next TPM boot, whose init records
+         a fresh boot event.
+
+   Figure 1. Activating a config, live or at boot.
 
 Next-boot selection
 -------------------
