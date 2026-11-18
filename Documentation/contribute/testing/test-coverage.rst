@@ -719,6 +719,13 @@ signed config image.
        names it in ``JAVA_TOOL_OPTIONS`` under a ``java_load``, a
        ``delete`` takes the agent and the options out under a
        ``java_unload``
+   * - ``t7113-bpm-tree-pending-passed``
+     - In ``functional/bpm-pending/``, a VM of its own, on the tree
+       ``t7108`` walks: a sync stopped after ``pending.json`` and before
+       the measure, under labels that select the operation, and a sync
+       under labels that select none, which passes it and leaves its
+       record behind the cursor; the next segment, which no longer
+       holds the operation, then syncs, removes the record and goes on
    * - Test
      - Covers
    * - ``t8001-otel-map``
@@ -1026,8 +1033,8 @@ Coverage by area
    * - upatch tree
      - ``t3011``, ``t5004``, ``t7005``, ``t7007``, ``t7008``, ``t7009``,
        ``t7101``, ``t7102``, ``t7103``, ``t7104``, ``t7105``, ``t7106``,
-       ``t7107``, ``t7108``, ``t7109``, ``t7110``, ``t9105``, ``t9109``,
-       ``t9110``, ``t9111``.
+       ``t7107``, ``t7108``, ``t7109``, ``t7110``, ``t7113``,
+       ``t9105``, ``t9109``, ``t9110``, ``t9111``.
        Fuzz: ``tree``,
        ``tree-state``, ``kconfig``. Unit: ``bpm_tree``,
        ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain_history``,

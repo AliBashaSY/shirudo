@@ -77,11 +77,14 @@ for name in config-boot-keys config-live-new-key config-live-revoke-a config-a c
 	config-tree-kconfig config-tree-reloaded config-tree-outcomes \
 	config-tree-stopped config-tree-fetched config-tree-fixes \
 	config-tree-keepalive config-tree-unmatched config-tree-java-added \
-	config-tree-java-deleted config-tree-segments \
+	config-tree-java-deleted config-tree-segments config-tree-segments-other \
+	config-tree-segments-none \
 	config-otel config-jsonl config-jsonl-bad config-interrupted config-end2end \
 	config-edge config-core config-local-stack config-builtin config-untrusted; do
 	[ "$name" != config-builtin ] || [ -n "$builtin_key" ] || continue
-	[ "$name" != config-tree-segments ] || [ -n "$segments_port" ] || continue
+	case $name in
+	config-tree-segments*) [ -n "$segments_port" ] || continue ;;
+	esac
 	root="$output/source/$name"
 	mkdir -p "$root/etc/shirudo" "$root/keys/trusted" "$root/keys/revoked"
 	sed "s/@tenant@/$name/g" "$templates/config.conf.in" \
@@ -90,11 +93,25 @@ for name in config-boot-keys config-live-new-key config-live-revoke-a config-a c
 	config-tree-*)
 		mkdir -p "$root/etc/shirudo/bpm"
 		cp "$templates/node.labels" "$root/etc/shirudo/node.labels"
-		sed "s/@reference@/${name#config-tree-}/g" \
+		reference=${name#config-tree-}
+		# The segment tree's artifacts name the port it was published
+		# on. Its other images follow the same tree with labels the
+		# node has not: one the tree's other upatch selects, and one
+		# no operation selects.
+		case $name in
+		config-tree-segments*)
+			reference=segments
+			case $name in
+			*-other) printf 'env=not-this-node\n' ;;
+			*-none) printf 'env=none\n' ;;
+			*) cat "$templates/node.labels" ;;
+			esac >"$root/etc/shirudo/node.labels"
+			;;
+		esac
+		sed "s/@reference@/$reference/g" \
 			"$templates/upatch-tree.conf.in" \
 			>"$root/etc/shirudo/bpm/upatch-tree.conf"
-		# The segment tree's artifacts name the port it was published on.
-		[ "$name" != config-tree-segments ] ||
+		[ "$reference" != segments ] ||
 			sed -i "s|127.0.0.1:5443/shirudo/upatch-tree|127.0.0.1:$segments_port/shirudo/segments|" \
 				"$root/etc/shirudo/bpm/upatch-tree.conf"
 		;;

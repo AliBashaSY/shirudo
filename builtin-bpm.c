@@ -2108,6 +2108,15 @@ static int tree_recover_pending(const struct tree_publication *pub,
 		return 0;
 	if (ret)
 		return ret;
+	/*
+	 * The cursor was committed past it, whatever came of it: the
+	 * publication may since have moved on to a segment that no longer
+	 * holds it.
+	 */
+	if (pending.seq <= state->last_seq) {
+		unlink(BPM_TREE_PENDING_PATH);
+		return 0;
+	}
 	for (int i = 0; i < pub->n_operations; i++) {
 		if (pub->operations[i].seq == pending.seq &&
 		    !strcmp(pub->operations[i].id, pending.id) &&
@@ -2119,10 +2128,6 @@ static int tree_recover_pending(const struct tree_publication *pub,
 	}
 	if (!op)
 		return -ERANGE;
-	if (pending.seq <= state->last_seq) {
-		unlink(BPM_TREE_PENDING_PATH);
-		return 0;
-	}
 	if (sha256_digest_decode(pending.operation_digest, digest) ||
 	    hex_decode(state->projection_root, previous, 32))
 		return -EINVAL;

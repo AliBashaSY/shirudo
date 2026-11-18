@@ -177,7 +177,8 @@ the label as foreign. In the initrd, ``init`` binds
    * - ``bpm/upatch-tree/pending.json``
      - ``bpm tree sync``
      - ``0600``
-     - The operation in progress, removed when it completes.
+     - The operation in progress, removed when it completes or when
+       the next sync finds it at or below the cursor.
    * - ``bpm/upatch-tree/artifacts/<layer-digest>.upatch``
      - ``bpm tree sync``
      - ``0600``

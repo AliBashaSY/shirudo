@@ -663,8 +663,11 @@ rc=<rc> (<strerror>)`` and exits 1:
        ``history_root`` differs from the node's (``EKEYREJECTED``).
        Nothing of the publication is applied.
    * - ``pending_recovery``
-     - An interrupted operation cannot be reconciled with the tree
-       eventlog, or its ``outcomes`` lines or state cannot be written.
+     - An interrupted operation above the cursor is not one the
+       publication holds (``ERANGE``) or cannot be reconciled with the
+       tree eventlog, or its ``outcomes`` lines or state cannot be
+       written. One at or below the cursor is removed, whatever the
+       publication holds.
    * - ``selector_evaluate``
      - The selector cannot be evaluated: the node labels or the kernel
        config cannot be read. The cursor stays on the operation.

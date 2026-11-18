@@ -307,13 +307,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        nothing past the cut
    * - ``bpm-tree-recovery-model``
      - ``tree_recover_pending()``
-     - Publications with 0 to 2 operations, a matching or unrelated
-       pending record, each TPM replay class, the measured flag,
+     - Publications with 0 to 2 operations, a pending record at, below
+       or above the cursor that matches an operation or none, each TPM
+       replay class, the measured flag,
        whether the upatch is loaded and every first failing I/O call.
        The previous root and the history root have all 32 symbolic
        bytes.
-     - The return decision, ordered writes, the outcome lines of the
-       operations passed over and of the pending one, cursor, tree ID,
+     - The return decision, a record at or below the cursor removed
+       whatever the publication holds included, ordered writes, the
+       outcome lines of the operations passed over and of the pending
+       one, cursor, tree ID,
        manifest, recorded head and base, both projection roots and the
        history root match the independent recovery model
    * - ``bpm-tree-overlap-model``

@@ -86,7 +86,8 @@ reads a tree a sync is changing: while one runs, ``status`` waits up to
 sent. A sync writes ``pending.json`` before it loads or unloads anything
 and removes it only after ``state.json`` has the new ``last_seq``, so
 ``tree_op_pending`` says a sync stopped in the middle of an operation
-and the next sync completes it. ``status`` still reads ``state.json``,
+and the next sync completes it, or removes it once a sync has passed
+it. ``status`` still reads ``state.json``,
 looks for ``pending.json``, reads the outcomes up to that ``last_seq``
 and the loaded upatches, then looks for ``pending.json`` and reads
 ``state.json`` again, and starts over when the second ``state.json``

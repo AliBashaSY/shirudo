@@ -526,19 +526,22 @@ def fresh (t : T) : State T M D := ⟨t, 0, 0, init, none, 0⟩
 
 /-- `tree_recover_pending()`: the writes it makes and the state the loop
 goes on from, or `none` for a refusal before it writes anything. Every
-refusal after a write stops the run as a crash there does. An operation it
-finds applied gets its outcome lines before the state that covers them. -/
+refusal after a write stops the run as a crash there does. A pending
+operation at or below the cursor is removed before the publication is
+looked at, as the cursor was committed past it and the publication may no
+longer hold it. An operation it finds applied gets its outcome lines
+before the state that covers them. -/
 def recover (n : Node T M I D) (pub : Pub T M I D) (st : State T M D) :
     Option (List (Write T M I D) × State T M D) :=
   match n.pending with
   | none => some ([], st)
   | some p =>
-    match pub.ops.find?
-        (fun o => o.seq = p.seq ∧ o.id = p.id ∧ o.digest = p.digest) with
-    | none => none
-    | some o =>
-      if p.seq ≤ st.lastSeq then some ([.unlink], st)
-      else
+    if p.seq ≤ st.lastSeq then some ([.unlink], st)
+    else
+      match pub.ops.find?
+          (fun o => o.seq = p.seq ∧ o.id = p.id ∧ o.digest = p.digest) with
+      | none => none
+      | some o =>
         let next := H st.root p.digest
         let st' := { st with root := next, lastSeq := o.seq }
         let unapplied :=
@@ -1246,14 +1249,18 @@ theorem recover_same [DecidableEq I] [DecidableEq D] {H : D → D → D} {init :
   unfold recover
   rw [hs.pending, hs.measured, hs.log]
 
-/-- Recovery only goes on with a pending operation the publication has. -/
+/-- Recovery only goes on with a pending operation above the cursor that
+the publication has. -/
 theorem recover_found [DecidableEq I] [DecidableEq D] {H : D → D → D} {init : D}
     {n : Node T M I D} {pub : Pub T M I D} {st0 st : State T M D}
     {ws : List (Write T M I D)} {p : Op I D}
     (hrec : recover H init n pub st0 = some (ws, st))
-    (hp : n.pending = some p) : ∃ o ∈ pub.ops, o.seq = p.seq := by
+    (hp : n.pending = some p) (hlt : st0.lastSeq < p.seq) :
+    ∃ o ∈ pub.ops, o.seq = p.seq := by
   unfold recover at hrec
   simp only [hp] at hrec
+  split at hrec
+  · omega
   split at hrec
   · simp at hrec
   rename_i o hf
@@ -1413,20 +1420,6 @@ theorem recover_inv {Signed : Pub T M I D → M → Prop}
   | some p =>
     simp only [hp] at hrec
     split at hrec
-    · simp at hrec
-    rename_i o hf
-    have ho : o ∈ pub.ops := List.mem_of_find?_eq_some hf
-    have hos := List.find?_some hf
-    simp only [decide_eq_true_eq] at hos
-    have hop : o = p := by
-      obtain ⟨h1, h2, h3⟩ := hos
-      cases o
-      cases p
-      simp only at h1 h2 h3
-      subst h1 h2 h3
-      rfl
-    subst hop
-    split at hrec
     · rename_i hle
       simp only [Option.some.injEq, Prod.mk.injEq] at hrec
       obtain ⟨rfl, rfl⟩ := hrec
@@ -1451,6 +1444,20 @@ theorem recover_inv {Signed : Pub T M I D → M → Prop}
           hinv' hw.1 hw.2
           hchk hfol hsig, hspec⟩
     rename_i hgt
+    split at hrec
+    · simp at hrec
+    rename_i o hf
+    have ho : o ∈ pub.ops := List.mem_of_find?_eq_some hf
+    have hos := List.find?_some hf
+    simp only [decide_eq_true_eq] at hos
+    have hop : o = p := by
+      obtain ⟨h1, h2, h3⟩ := hos
+      cases o
+      cases p
+      simp only at h1 h2 h3
+      subst h1 h2 h3
+      rfl
+    subst hop
     have hlt : cursor n < o.seq := by omega
     -- The pending operation has no line at or below the cursor.
     have hnotin : ∀ L : List (Line D), (∀ l ∈ L, l.seq ≤ cursor n) →
@@ -2564,7 +2571,8 @@ theorem orecover_inv {H : D → D → D} {pub : Pub T M I D} {n : Node T M I D}
     (hlen : pub.baseSeq + (pub.ops.length : Int) = pub.headSeq)
     (hbc : pub.baseSeq ≤ cursor n)
     (hst0 : st0.lastSeq = cursor n) (hcur : cursor n ≤ pub.headSeq)
-    (hfound : ∀ p, n.pending = some p → ∃ o ∈ pub.ops, o.seq = p.seq)
+    (hfound : ∀ p, n.pending = some p → cursor n < p.seq →
+      ∃ o ∈ pub.ops, o.seq = p.seq)
     (hspec : RecoverSpec n (recLines H pub st0) ws st) :
     Along OInv OMono ws n ∧ Exact (applyAll ws n) st.lastSeq ∧
       cursor (applyAll ws n) ≤ st.lastSeq ∧ st.lastSeq ≤ pub.headSeq ∧
@@ -2578,10 +2586,11 @@ theorem orecover_inv {H : D → D → D} {pub : Pub T M I D} {n : Node T M I D}
       by omega, ho, fun q hq => absurd (hp.symm.trans hq) (by simp)⟩
   | some p =>
     simp only [RecoverSpec, hp] at hspec
-    obtain ⟨o, hom, hop⟩ := hfound p hp
-    have hoh := (consec_mem pub.ops pub.baseSeq hcs hom).2
-    have hph : p.seq ≤ pub.headSeq := by omega
-    rcases hspec with ⟨-, rfl, hl⟩ | ⟨-, -, -, rfl, hl⟩ |
+    have hph : cursor n < p.seq → p.seq ≤ pub.headSeq := fun hlt => by
+      obtain ⟨o, hom, hop⟩ := hfound p hp hlt
+      have hoh := (consec_mem pub.ops pub.baseSeq hcs hom).2
+      omega
+    rcases hspec with ⟨-, rfl, hl⟩ | ⟨hlt, -, -, rfl, hl⟩ |
         ⟨hlt, -, -, ⟨r, rfl⟩, hl, hh⟩ | ⟨hlt, -, rfl, hl, hh⟩
     · have h1 : OInv ((Write.unlink : Write T M I D).apply n) :=
         ⟨Covers.of_eq rfl rfl ho.covers, ho.head,
@@ -2595,17 +2604,17 @@ theorem orecover_inv {H : D → D → D} {pub : Pub T M I D} {n : Node T M I D}
         by omega, ho, fun q hq => by
           have e : p = q := Option.some.inj (hp.symm.trans hq)
           rw [← e]
-          exact hph⟩
+          exact hph hlt⟩
     · have h1 : OInv ((Write.append ⟨p.seq, p.digest, r⟩ :
           Write T M I D).apply n) :=
         ho.inert rfl rfl ho.pend
       obtain ⟨ha, hxe, hcu, hoi, hpe⟩ := ocomplete_inv (H := H) (pub := pub)
         (n := (Write.append ⟨p.seq, p.digest, r⟩ : Write T M I D).apply n)
-        (st0 := st0) (st := st) hx h1 hcs hlen hbc hst0 hlt hph hl hh hp
+        (st0 := st0) (st := st) hx h1 hcs hlen hbc hst0 hlt (hph hlt) hl hh hp
       exact ⟨along_cons ho (OMono.inert rfl rfl) ha, hxe, hcu, by omega, hoi,
         hpe⟩
     · obtain ⟨ha, hxe, hcu, hoi, hpe⟩ := ocomplete_inv (H := H) (pub := pub)
-        (st0 := st0) (st := st) hx ho hcs hlen hbc hst0 hlt hph hl hh hp
+        (st0 := st0) (st := st) hx ho hcs hlen hbc hst0 hlt (hph hlt) hl hh hp
       exact ⟨ha, hxe, hcu, by omega, hoi, hpe⟩
 
 /-- A whole sync, as far as the outcomes record and the head go, stopped
@@ -2669,7 +2678,8 @@ theorem orun_inv [DecidableEq T] [DecidableEq M] [DecidableEq I]
         ha.hash_init hinv0 hchk hfol hsig hrec0
       have hst0 := (start_facts H init ha.binds hinv0 hchk hfol hsig).2.1
       obtain ⟨haw, hxw, hcw, hbw, how, hpw⟩ := orecover_inv hx0 ho0 hcs hlen
-        hbc hst0 hcur (fun p hp => recover_found hrec0 hp) hspec
+        hbc hst0 hcur (fun p hp hlt => recover_found hrec0 hp
+          (Int.lt_of_le_of_lt (Int.le_of_eq hst0) hlt)) hspec
       have hnn : pub.baseSeq ≤ st.lastSeq := by
         have hm := along_between OMono.refl (fun _ _ _ => OMono.trans) haw 0
           ws.length (Nat.zero_le _)

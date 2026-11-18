@@ -566,8 +566,12 @@ state with ``last_seq`` above 0 whose ``outcomes`` is missing
 ``pending.json``
 ~~~~~~~~~~~~~~~~
 
-``seq``, ``id`` and ``operation_digest`` of the operation in progress,
-present only while one is.
+``seq``, ``id`` and ``operation_digest`` of the operation in progress.
+A sync removes it once ``state.json`` records the operation applied. When
+a later sync passes the operation without applying it, as one the
+selector no longer matches, the record stays until the next sync, whose
+recovery removes a record at or below the cursor whatever the
+publication holds.
 
 Other files
 ~~~~~~~~~~~

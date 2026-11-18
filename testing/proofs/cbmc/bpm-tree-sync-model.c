@@ -1099,6 +1099,10 @@ static bool recover_in(struct mstate *st, const struct tree_publication *p)
 
 	if (!have_pending)
 		return true;
+	if (disk_pending.seq <= st->last_seq) {
+		want_write(W_UNLINK, 0, 0, NULL, NULL);
+		return true;
+	}
 	for (int i = 0; i < p->n_operations; i++) {
 		const struct tree_operation *q = &p->operations[i];
 
@@ -1112,10 +1116,6 @@ static bool recover_in(struct mstate *st, const struct tree_publication *p)
 	}
 	if (!o)
 		return false;
-	if (disk_pending.seq <= st->last_seq) {
-		want_write(W_UNLINK, 0, 0, NULL, NULL);
-		return true;
-	}
 	digest_of(disk_pending.operation_digest, d);
 	model_hash(st->root, d, next);
 	if (replay_kind == 1)
