@@ -308,6 +308,8 @@ touch the TPM. ``init`` checks it only when it binds the register, after
 it has extended the config PCR and restored the archived upatches. The
 ``key_revoke`` and ``tree_op`` events do not check it.
 
+.. _register-lock:
+
 Lock between extend and append
 ------------------------------
 
@@ -316,28 +318,44 @@ a time extends and appends. Two measuring commands that each held a lock
 of their own could interleave extend, extend, append, append, and leave a
 log that replays the events in the other order. Every measuring command,
 an upatch load or unload, a live revocation and a tree operation,
-therefore holds ``/var/lib/shirudo/eventlog.lock`` from its extension to
-its append; a load or an unload holds it from before it touches the pins,
-and a revocation's purge of an upatch from its archive read until its
-pins and archive are gone, so that a load of the same name cannot come
-between the purge's event and its removal. The purge checks the signer
-on what that read finds: an upgrade that replaced the upatch since the
-revocation's scan with one another key signed leaves it in place.
+therefore holds ``/var/lib/shirudo/eventlog.lock`` at least from its
+extension to its append. Figure 3 shows the three that change the
+loaded set, which hold it longer, the order of their steps and what a
+failure or a stop between two of them leaves.
 
-The order of extension and state change is chosen per operation. A load
-loads, archives and then extends; a failed archive copy or a refused
-extension undoes the load, so no upatch runs unmeasured. An unload
-extends first and detaches after, so a stopped process leaves a register
-that records more than happened, never less. A load stopped between its
-pins and its extension leaves pins, and after its archive copy an
-archive, that the register does not cover: ``status`` reports them and
-the next load or unload undoes them under the same lock before it acts,
-so the register stays behind what runs for one command at most. A load
-or unload that cannot read this boot's records, or cannot undo what they
-do not cover, refuses rather than act beside pins it cannot account for. An
-append that fails after
-a successful extension is reported as a desync for the operator to
-reconcile.
+.. figure:: /images/internals-register-lock.svg
+   :alt: Three lanes. An upatch load takes the lock, undoes what the
+         records do not cover, loads and attaches, pins, archives,
+         extends the register and appends to the eventlog, then lets
+         the lock go. An unload undoes, verifies its directive, compares
+         the payload, extends, appends and only then removes the pins
+         and the archive. A revocation's purge reads the archive, checks
+         its signer, extends, appends and removes the pins and the
+         archive. Markers show that a load stopped before its extend
+         leaves pins the next command undoes, that a failed archive or
+         extend undoes the load, that a failure between extend and
+         append is a desync, and that an unload stopped after its append
+         leaves pins the next command removes.
+
+   Figure 3. The steps of a load, an unload and a purge, the span each
+   holds ``eventlog.lock``, and what an interruption leaves.
+
+A load changes the target before it measures, and an unload or a purge
+measures before it changes it. A load that fails before its event can
+then be undone, so no upatch runs unmeasured, and a stopped unload
+leaves a register that records more than happened, never less. What a
+stopped command leaves, the next load or unload undoes under the lock
+before it acts, so the register stays behind what runs for one command
+at most. A load or unload that cannot read this boot's records, or
+cannot undo what they do not cover, refuses rather than act beside pins
+it cannot account for.
+
+A load and an unload hold the lock from before the undo pass, so that
+the pass never takes a load in flight for a stopped one. A purge holds
+it from its archive read, so that a load of the same name cannot come
+between the purge's event and its removal, and checks the signer on
+what that read finds: an upgrade that replaced the upatch since the
+revocation's scan with one another key signed leaves it in place.
 
 The undo removes what the records do not cover, so the records it reads
 must be the register's and nobody else's. The boot ID and the eventlog
@@ -374,7 +392,7 @@ Evidence
 
 ``shirudo attest`` asks the TPM for two signed statements and collects
 what a verifier needs to check them. It needs no enrollment state on the
-target and leaves none. Figure 3 shows one run, with the credential
+target and leaves none. Figure 4 shows one run, with the credential
 activation that enrollment adds.
 
 .. figure:: /images/internals-attest-evidence.svg
@@ -385,7 +403,7 @@ activation that enrollment adds.
          the register with the nonce. It returns an evidence document with
          this boot's eventlog, and the operator runs attest verify.
 
-   Figure 3. Collecting evidence. The operator holds no TPM; the nonce,
+   Figure 4. Collecting evidence. The operator holds no TPM; the nonce,
    the challenge and the document travel by whatever channel the operator
    uses to reach the target.
 
@@ -438,7 +456,7 @@ Activation is one way to learn the attestation key's name. The other is
 to take it from a builder that controlled the TPM before the target got
 it, a hypervisor creating a virtual TPM or a provisioning step: the
 builder creates both keys from the templates ``attest`` uses
-(:doc:`/reference/cli/attest`) and records their names. Figure 4 sets the
+(:doc:`/reference/cli/attest`) and records their names. Figure 5 sets the
 two side by side. Both end in the same pinned names, and ``verify``
 checks evidence the same way after either.
 
@@ -450,7 +468,7 @@ checks evidence the same way after either.
          keys in the TPM before handover and records their names. Both
          paths end in the inventory every later verify pins.
 
-   Figure 4. Two ways to learn the attestation key's name.
+   Figure 5. Two ways to learn the attestation key's name.
 
 On the builder path the name is trusted because the builder saw the key
 created, not because the TPM proved anything to the operator. The
@@ -465,7 +483,7 @@ What verify and predict compute
 
 ``shirudo attest verify`` and ``shirudo attest predict`` run on the
 operator and touch no TPM. ``verify`` prints one line per check and a
-verdict. Figure 5 shows the four comparisons that tie what the target
+verdict. Figure 6 shows the four comparisons that tie what the target
 wrote about itself to what the TPM signed or the operator computed.
 
 .. figure:: /images/internals-attest-verify.svg
@@ -474,7 +492,7 @@ wrote about itself to what the TPM signed or the operator computed.
          pcr_before extended by the anchor digest must equal the quoted
          PCR 9; the init event must equal the one attest predict computes.
 
-   Figure 5. What ``verify`` compares. Once the replay matches, the
+   Figure 6. What ``verify`` compares. Once the replay matches, the
    ``init`` record's fields are the ones the TPM measured.
 
 It checks, in this order:

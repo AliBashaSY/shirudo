@@ -1029,36 +1029,34 @@ too (``TpmExtend``). Other NV indices, PCR extensions and TPM signing
 stay open to everyone.
 
 The order of the steps decides what a crash or a stopped process
-leaves. A load whose archive copy or extension fails is undone, pins
-and archive. An unload or a purge is measured before it detaches, so an
-interruption leaves a register that claims more than happened, never a
-detach it does not know. A load that root stops between its pins and
-its extend, with ``SIGKILL`` say (counted as ``SealSignal``), leaves
-pins the register does not
-cover and the upatch attached: ``shirudo status`` reports them
-(``UpatchesMeasured``, verdict ``tampered``) and the next upatch
-command, ``bpm``'s included, undoes them, pins and archives, before it
-acts, and refuses when it cannot read the records or undo them. The
-same scan finds the pins an unload stopped after its extend leaves, and
-an archive without a record of its load; ``init`` restores
+leaves, and Figure 3 in :ref:`register-lock` draws it for a load, an
+unload and a purge. A load whose archive copy or extension fails is
+undone, pins and archive. An unload or a purge is measured before it
+detaches, so an interruption leaves a register that claims more than
+happened, never a detach it does not know. A load that root stops
+between its pins and its extend, with ``SIGKILL`` say (counted as
+``SealSignal``), leaves pins the register does not cover and the upatch
+attached: ``shirudo status`` reports them (``UpatchesMeasured``, verdict
+``tampered``), and the next upatch command, ``bpm``'s included, undoes
+them before it acts and refuses when it cannot read the records or undo
+them. The same pass removes the pins an unload stopped after its append
+leaves, and an archive without a record of its load; ``init`` restores
 only an archive whose load the eventlog records without a later unload
-(``t6144``). The scan takes only the records the register vouches for:
-it starts at the init record that names the live index and the TPM's
-reset count, derives every record's digest from its fields and folds
-them to the value the TPM reports, and refuses ``tampered`` when they
-do not fold. A boot ID that root binds over ``/proc``, or a pending
-record in a ``/run`` of root's making, which no reader takes since it
-carries no seal label, therefore moves nothing (``t6147``). A measuring
-command holds a lock beside the eventlog from its extend to its append,
-and longer where it changes pins, so the register and
-the log advance in one order and the undo never takes a load in flight
-for a stopped one. A load holds it from before the undo to its append,
-an unload until its pins and archive are gone, and a revocation's purge
-of one upatch from its archive read until its pins and archive are
-gone. An append that fails after a successful extend
-leaves the register ahead of the log; shirudo reports the desync,
-``shirudo status`` reports a register its replay cannot explain, and
-every later load and unload refuses until the next reboot.
+(``t6144``).
+
+The undo takes only the records the register vouches for: it starts at
+the init record that names the live index and the TPM's reset count,
+derives every record's digest from its fields and folds them to the
+value the TPM reports, and refuses ``tampered`` when they do not fold. A
+boot ID that root binds over ``/proc``, or a pending record in a
+``/run`` of root's making, which no reader takes since it carries no
+seal label, therefore moves nothing (``t6147``). One lock beside the
+eventlog orders every extend and append and covers the undo, so the
+register and the log advance in one order and the undo never takes a
+load in flight for a stopped one. A failure or a stop between an extend
+and its append leaves the register ahead of the log; shirudo reports
+the desync, ``shirudo status`` reports a register its replay cannot
+explain, and every later load and unload refuses until the next reboot.
 
 ``init`` binds one register per TPM reset. On a re-run with this boot's
 record it reuses the register and adds no event; when the register it
