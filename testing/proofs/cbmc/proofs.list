@@ -10,6 +10,7 @@ io-lines		--unwind 10
 io-append	--unwind 12 LEN=0-6
 attest-pcrs		--unwind 9
 attest-name-digest	--unwind 72 LEN=64-70
+attest-name-digest-long	--unwind 72 --unwindset any_spec.0:323,harness.0:323,harness.1:323,strnlen.0:323,strchr.0:323,strlen.0:323,memcmp.0:323 LEN=321,322
 paths-bpffs-name	--unwind 18
 upatch-header		--unwind 2 --unwindset memchr.0:257
 upatch-decoders		--unwind 2 --unwindset memchr.0:65,parse_decoders.0:3,harness.0:3

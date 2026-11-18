@@ -107,9 +107,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``attest-name-digest``
      - ``attest_parse_name_digest()``
      - Lengths 64 to 70
-     - Accepted exactly when a name of a byte or more runs to the first
+     - Accepted exactly when a name of 1 to 256 bytes runs to the first
        equals sign and 64 hex digits follow, into that name and their
        value
+   * - ``attest-name-digest-long``
+     - ``attest_parse_name_digest()``
+     - Lengths 321 and 322: any 8 bytes, then letters to an equals sign
+       and any 64 bytes
+     - The rule of ``attest-name-digest`` at the name's limit of 256
+       bytes
    * - ``paths-bpffs-name``
      - ``upatch_bpffs_name()``, ``upatch_name_from_bpffs()``
      - Names up to 4 bytes, pin names up to 8
