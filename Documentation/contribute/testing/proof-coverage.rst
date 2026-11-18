@@ -1024,8 +1024,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        cap, and more than the cap when it is not
    * - ``similar-suggest``
      - ``suggest()``
-     - A word of 0 to 2 bytes, up to two commands of 0 to 2 bytes,
-       capacities 0 to 2, with ``strlen()`` given the lengths
+     - A word of 0 to 2 bytes, up to two commands of 0 to 2 bytes each,
+       every combination of the three lengths, capacities 0 to 2, with
+       ``strlen()`` given the lengths
      - Commands of the table within the cap, each with its distance,
        nearest first, never more than the capacity, none nearer left out
    * - ``similar-resolve``

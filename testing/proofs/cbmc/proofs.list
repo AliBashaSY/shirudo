@@ -97,7 +97,7 @@ serializer-chunk	--unwind 1
 paths-join		--unwind 12
 paths-pin		--unwind 32 LEN=0,1,28-35
 similar-distance	--max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:18 LEN=0-15
-similar-suggest		--object-bits 10 --max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:14 LEN=0-8,18-26
+similar-suggest		--object-bits 10 --max-field-sensitivity-array-size 65 --unwind 8 --unwindset memcpy.0:14 LEN=0-26
 similar-resolve		--object-bits 10 --unwind 8
 options-next		--object-bits 12 --unwind 8 LEN=0-6
 options-long		--object-bits 12 --unwind 8 --unwindset strcspn.1:67,strlen.0:67 LEN=64-66
