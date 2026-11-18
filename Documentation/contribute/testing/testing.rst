@@ -697,6 +697,8 @@ failed keeps its disks too, copies its logs to
 overlay holds an ephemeral signing key, so do not share the state
 directory.
 
+.. _local-dev-stack:
+
 Run a local development stack
 -----------------------------
 
@@ -740,6 +742,9 @@ It does not stop the VM; use ``make vm-stop`` for that.
 ``make -C testing vm`` uses the same defaults. Set ``LOCAL_STACK=0`` to
 boot a VM without the local-stack configuration and use the explicit
 endpoint settings described above instead.
+:doc:`/contribute/code/develop-locally` does that, with a plain HTTP
+registry and collector it starts itself, to take one package from its
+source to the target.
 
 Run the end-to-end tests
 ------------------------

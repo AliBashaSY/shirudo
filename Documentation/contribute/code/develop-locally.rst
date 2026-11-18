@@ -16,6 +16,9 @@ it boots from your checkout the way a production target boots. You then
 take one package through its whole life: write it, publish it, install
 it, watch its data arrive in the collector, update it and remove it. The
 last section shows how to rebuild after a change to shirudo itself.
+The plain HTTP registry and collector of this page are the shortest way
+to see a package arrive; :ref:`local-dev-stack` runs the TLS registry,
+collector and ClickHouse the end-to-end tests use instead.
 
 .. list-table::
    :header-rows: 1
@@ -117,14 +120,18 @@ Start the registry and the collector
 Boot the target
 ---------------
 
-1. Boot a test VM named ``dev``:
+1. Boot a test VM named ``dev`` without the local-stack config:
 
    .. code-block:: console
 
-      operator$ make -C testing vm VM_NAME=dev
+      operator$ make -C testing vm VM_NAME=dev LOCAL_STACK=0
 
    The first run builds the kernel, the disk image and the bundle, which
    takes a while. :doc:`/contribute/testing/testing` describes the test VM.
+   Without ``LOCAL_STACK=0`` the VM activates the ``config-local-stack``
+   image, which points the export and the upatch tree at the TLS stack of
+   :ref:`local-dev-stack`, not at the registry and collector of this
+   page, and the next section would copy that config.
 
 2. Name the bundle's signing key in the operator shell:
 
@@ -525,7 +532,7 @@ target runs takes a new bundle and a new VM.
   .. code-block:: console
 
      operator$ make -C testing vm-clean VM_NAME=dev
-     operator$ make -C testing vm VM_NAME=dev
+     operator$ make -C testing vm VM_NAME=dev LOCAL_STACK=0
 
   ``make -C testing vm`` rebuilds the bundle from your checkout and boots
   a new VM, which takes about two minutes once the kernel and the disk
