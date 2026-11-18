@@ -211,37 +211,65 @@ A second ``init`` in the same boot does not help. It stops with:
 
 #. Reboot.
 
+.. _boot-restore-lockout:
+
 An archived upatch no longer loads at boot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The usual cause is a new kernel on which an upatch fails with
+Symptoms:
+
+- The journal shows ``boot-restore: failed to apply <file>`` before the
+  ``init`` lines above.
+- ``shirudo status`` reports ``reboot-pending``, and commands other than
+  ``status`` and ``image status`` fail with ``shirudo: image state:
+  Operation now in progress``.
+
+Cause: ``init`` restores the archive in name order and stops at the
+first upatch that fails, without unloading what it already loaded. The
+usual cause is a new kernel on which the upatch fails with
 ``verifier_rejected``, ``attach_target_missing`` or
-``kernel_abi_unsupported``. The journal shows ``boot-restore: failed to
-apply <file>`` before the ``init`` lines above. ``init`` restores the
-archive in name order and stops at the first failure without unloading
-what it already loaded.
+``kernel_abi_unsupported``. For an XDP upatch, a line ``XDP: attach
+<device>`` before it names a device whose driver refused the program: a
+NIC added since the load, or a setting that survived the reboot, in the
+NIC's firmware or the hypervisor, such as LRO, header-data split or a
+device without multi-buffer XDP.
 
 ``init`` restores the same archive at every boot, so a reboot fails the
 same way. These do not work:
 
-- A second ``init``: it refuses the pending activation
+- A second ``init``: it refuses the pending activation.
 - ``shirudo bpm uninstall`` and ``shirudo upatch unload``: every command
-  that reads target state is refused, except ``status`` and ``image``
+  that reads target state is refused, except ``status`` and ``image``.
 - Deleting the file from ``/var/lib/shirudo/upatches``: the seal refuses
-  it
+  it.
 
-What works is to remove the upatch from a boot on which it loads:
+For an XDP device, undo the setting or remove the device, and reboot. A
+device that cannot take XDP needs an upatch signed with a class mask
+that leaves it out. Otherwise remove the upatch from a boot on which it
+loads:
+
+#. Before you reboot, read the name of the failed upatch:
+
+   .. code-block:: console
+
+      target# journalctl -b -u shirudo-initrd.service
+
+   The line is ``boot-restore: failed to apply <file>``.
 
 #. Boot a kernel on which the upatch loads, usually the previous one,
-   from a UKI that names the runtime image still in
-   ``/var/lib/shirudo/images``.
+   from its UKI in the boot menu. Its runtime image must still be where
+   its UKI bootstrap file names it, in ``/var/lib/shirudo/images``.
+
 #. Check that ``shirudo status`` reports ``ok``.
+
 #. Remove the upatch. Uninstall its package with
    ``shirudo bpm uninstall <package>``, unload it with its unload
    directive (:doc:`/reference/cli/upatch-unload`), or, for an upatch
    from the tree, publish a ``delete`` operation and let the tree sync
    apply it.
-#. Boot the new kernel.
+
+#. Boot the new kernel's UKI and check init as described in
+   :doc:`/operate/deploy/initialize`.
 
 If no kernel loads the upatch, shirudo offers no recovery in place.
 Decommission the target and provision it again. To avoid the state,

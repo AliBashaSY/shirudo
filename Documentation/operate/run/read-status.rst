@@ -659,7 +659,7 @@ its own.
 
 3. Check the verdict again. A ``reboot-pending`` verdict after the next
    boot, with ``boot-restore`` errors in the journal, means an archived
-   upatch fails to load at every boot. :doc:`/operate/maintain/backup-recovery`
+   upatch fails to load at every boot. :ref:`boot-restore-lockout`
    describes what works in that case.
 
 .. _status-degraded:

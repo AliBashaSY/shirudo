@@ -255,47 +255,10 @@ canary target before you upgrade the fleet.
 8. Check init as described in :doc:`/operate/deploy/initialize`, and update the
    PCR values your verifiers pin.
 
-.. _boot-restore-lockout:
-
-Recover from a restore failure after a kernel upgrade
------------------------------------------------------
-
 When an archived upatch does not load on the new kernel, init stops the
-restore and the config activation stays pending. ``status`` reports
-``reboot-pending``, and commands other than ``status`` and
-``image status`` fail with
-``shirudo: image state: Operation now in progress``. A reboot into the
-same kernel repeats the failure. ``bpm uninstall`` and ``upatch unload``
-are refused in this state, and the seal stops root from removing the
-archived file. shirudo has no command that leaves this state on the new
-kernel.
-
-What works is the previous kernel, on which the upatch still loads:
-
-1. Before you reboot, read the name of the failed upatch in the journal:
-
-   .. code-block:: console
-
-      target# journalctl -b -u shirudo-initrd.service
-
-   The line is ``boot-restore: failed to apply <file>``.
-
-2. Boot the previous kernel's UKI from the boot menu. Its runtime image
-   must still be where its UKI bootstrap file names it.
-
-3. Check that init completed, as described in :doc:`/operate/deploy/initialize`.
-
-4. Uninstall the package that holds the upatch, retract it from the
-   upatch tree, or unload it with its unload directive. For a package:
-
-   .. code-block:: console
-
-      target# shirudo bpm uninstall <package>
-
-5. Boot the new kernel's UKI and check init again.
-
-Without a previous kernel that boots, no supported procedure removes the
-upatch.
+restore and the target stays ``reboot-pending`` at every boot of that
+kernel. :ref:`boot-restore-lockout` describes the way out, which needs
+the previous kernel's UKI.
 
 Next steps
 ----------

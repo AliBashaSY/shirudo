@@ -528,12 +528,8 @@ Causes
    multi-buffer XDP.
 
 Action
-   A reboot restores the same archive and fails the same way. For an XDP
-   device, undo the setting, or remove the device, and reboot. A device
-   that cannot take XDP needs an upatch signed with a class mask that
-   leaves it out.
-   :doc:`/operate/maintain/backup-recovery` describes what works and what does
-   not.
+   A reboot restores the same archive and fails the same way.
+   :ref:`boot-restore-lockout` describes what works and what does not.
 
 Status verdicts
 ---------------
