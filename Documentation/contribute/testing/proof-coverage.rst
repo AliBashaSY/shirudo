@@ -401,7 +401,10 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``bpm_upatch_member()``, ``bpm_upatch_pair()``
      - Lengths 0 to 18
      - What install loads and uninstall unloads goes by the suffix alone;
-       a pair is terminated, the other half, and pairs back to the name
+       a pair refused exactly for a name that is neither and for a room
+       short of what its kind needs, 8 bytes more than the name for a
+       load and 6 fewer for an unload; else terminated, the other half,
+       and pairing back to the name
    * - ``bpm-tar-writer``
      - ``tar_entry()``, ``tar_octal()``, ``tar_write()`` of
        :src:`tools/shirudo-build/bpm-build.c`, against
