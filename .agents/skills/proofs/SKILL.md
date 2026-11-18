@@ -145,6 +145,13 @@ determining its events.
 - The lakefile builds every module under `Shirudo/`, imported or not,
   and makes every warning an error, so a `sorry`, a deprecated name or
   an unused `simp` argument fails the build.
+- `run.sh` then checks every proof again, with Lean's kernel
+  (`leanchecker`) and with nanoda, a kernel written apart from Lean,
+  which admits only the axioms `nanoda.json` permits: `propext`,
+  `Classical.choice` and `Quot.sound`. A `native_decide`, which rests
+  on the compiler, or an `axiom` of our own stops nanoda with
+  `declaration not found` and the name. Prove with `decide`, `omega`
+  or `simp` instead, and keep `nanoda.json`'s list as it is.
 - A model proves the algorithm, not the C. Link the two with a CBMC
   proof where one is cheap, as `string-number-model.c` checks
   `parse_u64()` against `Number.lean` up to 4 bytes and

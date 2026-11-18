@@ -61,7 +61,8 @@ Run the proofs
 
    Each CBMC line names a proof, the number of checks CBMC made and the
    time it took, and ``proofs: <n> hold`` ends a run in which all of them
-   held. ``Build completed successfully`` ends the Lean 4 run. The
+   held. ``proofs: <n> Lean 4 modules hold, checked again by two
+   kernels`` ends the Lean 4 run. The
    proofs take hours of CPU, a few of them minutes and gigabytes each,
    and CI runs them only once a change is on main. Before you send a
    change, run the ones that cover the code you change, as the next step
@@ -204,7 +205,15 @@ Write a Lean 4 proof
 2. Import the module in :src:`testing/proofs/lean4/Shirudo.lean`. The
    build checks every module under ``Shirudo/`` whether imported or not,
    and a ``sorry`` or any other warning fails it, so every theorem is
-   proved in full.
+   proved in full. :src:`testing/proofs/lean4/run.sh` then checks each
+   proof again, with Lean's kernel and with nanoda, a second kernel
+   written apart from Lean. Neither trusts the tactics that built the
+   proof or a build CI restored from its cache, and nanoda admits only
+   the axioms :src:`testing/proofs/lean4/nanoda.json` permits:
+   ``propext``, ``Classical.choice`` and ``Quot.sound``. A
+   ``native_decide``, which rests on the compiler, or an ``axiom`` of
+   the model's own stops nanoda with ``declaration not found`` and its
+   name; prove the step with ``decide``, ``omega`` or ``simp``.
 
 3. Where CBMC can, add a CBMC proof that the C computes what the model
    computes, for every input up to a bound, as

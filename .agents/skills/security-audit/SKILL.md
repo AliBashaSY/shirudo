@@ -315,8 +315,11 @@ cbmc --function harness -I ../../.. -I ../../../include -I ../../../util \
 
 For each Lean 4 model: `Shirudo.lean` imports it, no `axiom`, `sorry`,
 `native_decide` or `unsafe` stands in it (`#print axioms` on a theorem
-a row names shows what it rests on), and each hypothesis of a theorem
-is something the C or the deployment makes true. Where the coverage
+a row names shows what it rests on; `run.sh` fails on any axiom
+`testing/proofs/lean4/nanoda.json` does not permit, so check that its
+list still holds only `propext`, `Classical.choice` and `Quot.sound`),
+and each hypothesis of a theorem is something the C or the deployment
+makes true. Where the coverage
 page links the model to the C by a CBMC harness, that harness and its
 bound are the link. Where it says review, review again: read the C
 beside the model step for step, with every constant, the order, each
