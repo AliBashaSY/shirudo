@@ -218,6 +218,7 @@ static void written(void)
 {
 	int any_emit, any_mkdir, any_write;
 	struct tree_operation op;
+	char text[sizeof(op.operation_digest)];
 	__u8 digest[32];
 	size_t i, d;
 	int ret;
@@ -229,8 +230,15 @@ static void written(void)
 			 write_error <= 0 && i <= ID_MAX && d <= 71);
 	op.id[ID_MAX] = '\0';
 	op.operation_digest[71] = '\0';
+	/*
+	 * The decoder moves past "sha256:" by a length CBMC keeps symbolic,
+	 * and every read after that may be any byte of the object: in the
+	 * 13 KB operation, that costs CBMC 9 GB. A copy of the field is an
+	 * object of its 128 bytes alone.
+	 */
+	memcpy(text, op.operation_digest, sizeof(text));
 	__CPROVER_assume(op.seq > 0 && upatch_name_valid(op.id) &&
-			 !sha256_digest_decode(op.operation_digest, digest) &&
+			 !sha256_digest_decode(text, digest) &&
 			 i <= strnlen(op.id, ID_MAX));
 	ret = tree_pending_write(&op);
 	__CPROVER_assert(closed && n_members == 4 &&
