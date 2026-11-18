@@ -16,6 +16,7 @@ from docutils import nodes
 from pygments.lexer import RegexLexer, bygroups, default, using
 from pygments.lexers.shell import BashLexer
 from pygments.token import Generic, Whitespace
+from sphinx.util.nodes import split_explicit_title
 
 
 # "operator$ " runs on the operator host, "target# " as root on a target,
@@ -169,13 +170,14 @@ def write_llms(app, exception):
 
 
 # :src:`path` shows a path of the repository as code and links it on
-# GitHub. A path the checkout does not have is reported, so that a file
-# moved or removed cannot leave a dead link behind.
+# GitHub, and :src:`title <path>` shows the title instead. A path the
+# checkout does not have is reported, so that a file moved or removed
+# cannot leave a dead link behind.
 def src_role(name, rawtext, text, lineno, inliner, options=None,
              content=None):
     env = inliner.document.settings.env
     context = env.config.html_context
-    path = text.strip()
+    _, title, path = split_explicit_title(text.strip())
     local = os.path.join(os.path.dirname(os.path.abspath(env.srcdir)),
                          path.rstrip("/"))
     messages = []
@@ -186,7 +188,7 @@ def src_role(name, rawtext, text, lineno, inliner, options=None,
     url = "%s/%s/%s/%s" % (context["repository"], kind, context["branch"],
                            path)
     node = nodes.reference(rawtext, "", refuri=url)
-    node += nodes.literal(path, path)
+    node += nodes.literal(title, title)
     return [node], messages
 
 

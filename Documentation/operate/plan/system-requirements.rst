@@ -75,28 +75,28 @@ Kernel source
        with gcc 13 and ``CONFIG_CC_OPTIMIZE_FOR_SIZE=y``). Unloading an
        upatch detaches its programs from hooks that other programs
        share. Apply it to an x86-64 tree that predates it.
-   * - :src:`kernel/0001-tpm-Let-LSMs-inspect-userspace-commands.patch`
+   * - :src:`kernel/0001 <kernel/0001-tpm-Let-LSMs-inspect-userspace-commands.patch>`
      - Adds the ``tpm_command`` LSM hook. ``shirudo init`` attaches
        ``lsm/tpm_command`` to refuse an untrusted ``TPM2_NV_Extend`` of
        its register and fails without the hook.
-   * - :src:`kernel/0002-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch`
+   * - :src:`kernel/0002 <kernel/0002-bpf-Read-security.bpf-xattrs-for-LSM-programs-without-the-caller-s-permission.patch>`
      - Lets an LSM program read a ``security.bpf.`` xattr without the
        calling task's read permission on the inode, as the in-kernel
        LSMs read their labels. Without it the seal takes a label its
        caller may not read for a missing one unless the inode carries a
        mark, which root can arrange with an idmapped mount or an ACL.
-   * - :src:`kernel/0003-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch`
+   * - :src:`kernel/0003 <kernel/0003-bpf-Let-sleepable-LSM-programs-attach-to-the-remaining-inode-hooks.patch>`
      - Lets a sleepable LSM program attach to ``inode_mkdir``,
        ``inode_link``, ``inode_set_acl``, ``inode_remove_acl``,
        ``inode_file_setattr`` and ``inode_copy_up``. The seal reads
        labels in those hooks and ``shirudo init`` fails to attach them
        without it.
-   * - :src:`kernel/0004-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch`
+   * - :src:`kernel/0004 <kernel/0004-bpf-Treat-dentry-d_parent-as-a-trusted-pointer.patch>`
      - Lets an LSM program pass ``dentry->d_parent`` to the xattr kfunc.
        The seal reads the label of the directory a new entry goes into
        from it; without the patch the verifier refuses the seal's entry
        hooks.
-   * - :src:`kernel/0005-mm-Let-LSMs-check-read-only-remote-mm-access-under-CAP_PERFMON.patch`
+   * - :src:`kernel/0005 <kernel/0005-mm-Let-LSMs-check-read-only-remote-mm-access-under-CAP_PERFMON.patch>`
      - Adds the ``mm_read_access`` LSM hook, which ``mm_access()`` asks
        before it grants a read-only access to another task's memory to
        ``CAP_PERFMON``. The seal refuses a task with runtime authority
