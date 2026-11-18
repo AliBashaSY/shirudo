@@ -189,6 +189,7 @@ static int mapping_name(const __u8 root[32], char out[128])
 
 static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 {
+	const struct guard_map *devices = &shirudo_guard_maps[GUARD_DEVICES];
 	struct device_authority entry;
 	__u32 dev = kernel_dev(device);
 	__u64 key, next, diskseq;
@@ -213,11 +214,14 @@ static int device_observed(dev_t device, const __u8 root[32], __u32 kind)
 		close(block);
 		return ret;
 	}
-	fd = bpf_obj_get(BPFFS_DIR "/devices");
+	fd = bpf_obj_get(devices->pin);
 	if (fd < 0) {
 		ret = -errno;
 		goto out_block;
 	}
+	ret = guard_map_check(fd, devices, NULL);
+	if (ret)
+		goto out;
 	ret = -EACCES;
 	if (bpf_map_get_next_key(fd, NULL, &key))
 		goto out;

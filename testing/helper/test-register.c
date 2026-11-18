@@ -34,7 +34,11 @@
 /* Record the TPM writer's public identity before the VM attaches its LSM. */
 static int writer_create(void)
 {
-	struct bpf_map_create_opts opts = { .sz = sizeof(opts) };
+	const struct guard_map *map = &shirudo_guard_maps[GUARD_IDENTITY];
+	struct bpf_map_create_opts opts = {
+		.sz = sizeof(opts),
+		.map_flags = map->flags,
+	};
 	struct identity id = {};
 	int fd, ret;
 	__u32 zero = 0;
@@ -42,8 +46,8 @@ static int writer_create(void)
 	ret = nv_writer_create(id.nv_writer_seed, id.nv_writer_public);
 	if (ret)
 		goto out;
-	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "shirudo_test_id", sizeof(zero),
-			    sizeof(id), 1, &opts);
+	fd = bpf_map_create(map->type, map->name, map->key_size,
+			    map->value_size, map->max_entries, &opts);
 	if (fd < 0) {
 		ret = -errno;
 		goto out;

@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Read back the identity map init pinned in the private bpffs.
+ * Read back the identity map init pinned in the private bpffs, and check
+ * the shape of every map init pins there.
  */
 
 #include <errno.h>
@@ -20,8 +21,53 @@
 #include <shirudo/misc.h>
 
 #include "identity.h"
+#include "integrity.h"
 #include "io.h"
 #include "paths.h"
+#include "tamper.h"
+
+const struct guard_map shirudo_guard_maps[GUARD_MAP_COUNT] = {
+	[GUARD_IDENTITY] = {
+		"shirudo_bpffs_sb", IDENTITY_PIN,
+		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
+		sizeof(struct identity), 1, BPF_F_RDONLY_PROG,
+	},
+	[GUARD_TASKS] = {
+		"shirudo_tasks", BPFFS_DIR "/task_authority",
+		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
+		sizeof(struct task_authority), 0, BPF_F_NO_PREALLOC,
+	},
+	[GUARD_POLICY] = {
+		"shirudo_task_policy", POLICY_PIN,
+		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
+		sizeof(struct task_policy), 0, BPF_F_NO_PREALLOC,
+	},
+	[GUARD_SOCKET_POLICY] = {
+		"shirudo_sock_policy", SOCKET_POLICY_PIN,
+		BPF_MAP_TYPE_SK_STORAGE, sizeof(__u32), sizeof(__u64), 0,
+		BPF_F_NO_PREALLOC | BPF_F_CLONE,
+	},
+	[GUARD_DEVICES] = {
+		"shirudo_devices", BPFFS_DIR "/devices",
+		BPF_MAP_TYPE_HASH, sizeof(__u64),
+		sizeof(struct device_authority), 128, 0,
+	},
+	[GUARD_ROOTS] = {
+		"shirudo_roots", BPFFS_DIR "/config_roots",
+		BPF_MAP_TYPE_TASK_STORAGE, sizeof(__u32),
+		sizeof(struct expected_root), 0, BPF_F_NO_PREALLOC,
+	},
+	[GUARD_TAMPER] = {
+		"shirudo_tamper", TAMPER_PIN,
+		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
+		sizeof(__u64), TAMPER_MAX, 0,
+	},
+	[GUARD_INTEGRITY] = {
+		"shirudo_integrity", INTEGRITY_PIN,
+		BPF_MAP_TYPE_ARRAY, sizeof(__u32),
+		sizeof(__u64), INTEGRITY_MAX, 0,
+	},
+};
 
 int enforcement_active(void)
 {
@@ -34,16 +80,34 @@ int enforcement_active(void)
 	return errno == EINVAL || errno == ENOSYS ? 0 : -errno;
 }
 
-static int identity_map_read(int fd, struct identity *out)
+int guard_map_check(int fd, const struct guard_map *expected, __u32 *id)
 {
 	struct bpf_map_info info = {};
-	__u32 len = sizeof(info);
-	__u32 zero = 0;
+	__u32 length = sizeof(info);
 
-	if (bpf_map_get_info_by_fd(fd, &info, &len))
+	if (bpf_map_get_info_by_fd(fd, &info, &length))
 		return -errno;
-	if (info.value_size != sizeof(*out))
+	if (!info.id || info.type != expected->type ||
+	    info.key_size != expected->key_size ||
+	    info.value_size != expected->value_size ||
+	    info.max_entries != expected->max_entries ||
+	    info.map_flags != expected->flags ||
+	    info.name[sizeof(info.name) - 1] ||
+	    strncmp(info.name, expected->name, sizeof(info.name) - 1))
 		return -EPROTO;
+	if (id)
+		*id = info.id;
+	return 0;
+}
+
+static int identity_map_read(int fd, struct identity *out)
+{
+	__u32 zero = 0;
+	int ret;
+
+	ret = guard_map_check(fd, &shirudo_guard_maps[GUARD_IDENTITY], NULL);
+	if (ret)
+		return ret;
 	if (bpf_map_lookup_elem(fd, &zero, out))
 		return -errno;
 	return 0;

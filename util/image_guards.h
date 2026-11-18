@@ -32,28 +32,6 @@ enum gate_guard {
 	GATE_HOOK_COUNT,
 };
 
-enum guard_map_index {
-	GUARD_IDENTITY,
-	GUARD_TASKS,
-	GUARD_DEVICES,
-	GUARD_ROOTS,
-	GUARD_TAMPER,
-	GUARD_POLICY,
-	GUARD_SOCKET_POLICY,
-	GUARD_INTEGRITY,
-	GUARD_MAP_COUNT,
-};
-
-struct guard_map {
-	const char *name;
-	const char *pin;
-	__u32 type;
-	__u32 key_size;
-	__u32 value_size;
-	__u32 max_entries;
-	__u32 flags;
-};
-
 extern const struct image_guard
 	shirudo_seal_guards[SEAL_HOOK_COUNT];
 extern const struct image_guard
@@ -66,15 +44,6 @@ extern const struct image_guard
 	shirudo_observer_guards[OBSERVER_HOOK_COUNT];
 extern const struct image_guard
 	shirudo_gate_guards[GATE_HOOK_COUNT];
-extern const struct guard_map
-	shirudo_guard_maps[GUARD_MAP_COUNT];
-
-/*
- * 0 when the map behind fd has the type, sizes, flags and name expected
- * gives it, -EPROTO when it has not, or the kernel's error; *id, unless
- * NULL, then holds the map's id.
- */
-int guard_map_check(int fd, const struct guard_map *expected, __u32 *id);
 
 struct config_root_guard {
 	int map_fd;

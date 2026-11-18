@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * The identity init froze into the kernel, read back from its bpffs pin.
+ * The identity init froze into the kernel, read back from its bpffs pin,
+ * and the shape of every map init pins beside it.
  */
 
 #ifndef SHIRUDO_UTIL_IDENTITY_H
@@ -80,6 +81,38 @@ struct mount_record {
 };
 
 BUILD_BUG_ON(sizeof(struct mount_record) != 8);
+
+enum guard_map_index {
+	GUARD_IDENTITY,
+	GUARD_TASKS,
+	GUARD_DEVICES,
+	GUARD_ROOTS,
+	GUARD_TAMPER,
+	GUARD_POLICY,
+	GUARD_SOCKET_POLICY,
+	GUARD_INTEGRITY,
+	GUARD_MAP_COUNT,
+};
+
+struct guard_map {
+	const char *name;
+	const char *pin;
+	__u32 type;
+	__u32 key_size;
+	__u32 value_size;
+	__u32 max_entries;
+	__u32 flags;
+};
+
+extern const struct guard_map
+	shirudo_guard_maps[GUARD_MAP_COUNT];
+
+/*
+ * 0 when the map behind fd has the type, sizes, flags and name expected
+ * gives it, -EPROTO when it has not, or the kernel's error; *id, unless
+ * NULL, then holds the map's id.
+ */
+int guard_map_check(int fd, const struct guard_map *expected, __u32 *id);
 
 /* 1 when enforcement is active, 0 before init, otherwise -errno. */
 int enforcement_active(void);

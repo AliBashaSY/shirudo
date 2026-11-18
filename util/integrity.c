@@ -6,8 +6,8 @@
  */
 #include <shirudo/misc.h>
 
+#include "identity.h"
 #include "integrity.h"
-#include "paths.h"
 #include "tamper.h"
 
 static const struct {
@@ -76,6 +76,6 @@ const char *integrity_meaning(enum integrity_point point)
 
 int integrity_read(struct integrity_counts *out)
 {
-	return counters_read(INTEGRITY_PIN, INTEGRITY_MAX, out->count,
-			     &out->total);
+	return counters_read(&shirudo_guard_maps[GUARD_INTEGRITY],
+			     INTEGRITY_MAX, out->count, &out->total);
 }

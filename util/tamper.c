@@ -13,7 +13,7 @@
 
 #include <shirudo/misc.h>
 
-#include "paths.h"
+#include "identity.h"
 #include "tamper.h"
 
 static const struct {
@@ -120,32 +120,26 @@ const char *tamper_meaning(enum tamper_point point)
 	return tamper_points[point].meaning;
 }
 
-int counters_read(const char *pin, __u32 n, __u64 *count, __u64 *total)
+int counters_read(const struct guard_map *map, __u32 n, __u64 *count,
+		  __u64 *total)
 {
-	struct bpf_map_info info = {};
-	__u32 len = sizeof(info);
 	int fd, ret;
 	__u32 key;
 
 	memset(count, 0, n * sizeof(*count));
 	*total = 0;
-	fd = bpf_obj_get(pin);
+	fd = bpf_obj_get(map->pin);
 	if (fd < 0)
 		return -errno;
-	ret = bpf_map_get_info_by_fd(fd, &info, &len);
-	if (ret) {
-		ret = -errno;
-	} else if (info.max_entries != n || info.value_size != sizeof(*count)) {
+	ret = guard_map_check(fd, map, NULL);
+	if (!ret && (map->max_entries != n ||
+		     map->value_size != sizeof(*count)))
 		ret = -EPROTO;
-	} else {
-		for (key = 0; key < n; key++) {
-			ret = bpf_map_lookup_elem(fd, &key, &count[key]);
-			if (ret) {
-				ret = -errno;
-				break;
-			}
+	for (key = 0; !ret && key < n; key++) {
+		if (bpf_map_lookup_elem(fd, &key, &count[key]))
+			ret = -errno;
+		else
 			*total += count[key];
-		}
 	}
 	close(fd);
 	return ret;
@@ -153,5 +147,6 @@ int counters_read(const char *pin, __u32 n, __u64 *count, __u64 *total)
 
 int tamper_read(struct tamper_counts *out)
 {
-	return counters_read(TAMPER_PIN, TAMPER_MAX, out->count, &out->total);
+	return counters_read(&shirudo_guard_maps[GUARD_TAMPER], TAMPER_MAX,
+			     out->count, &out->total);
 }
