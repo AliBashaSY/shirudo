@@ -14,8 +14,8 @@ that removes it. A package bundles related upatches into one versioned
 file, a repository's signed index lists the packages it serves, and the
 upatch tree says which target applies which upatch, in which order. This
 page explains what each object is, who signs it, what the target checks
-before it acts on it, and how the objects relate. Table 1 at the end
-summarizes them.
+before it acts on it, and how the objects relate. Figure 1 and Table 1
+at the end summarize them.
 
 upatches
 --------
@@ -192,6 +192,25 @@ and :doc:`/reference/formats/upatch-tree` gives the document formats.
 
 How the objects relate
 ----------------------
+
+The two delivery paths meet only at the load. Figure 1 shows how the
+objects refer to one another. A signed index names packages by digest,
+and a package, which is not signed, holds load artifacts and unload
+directives that each carry their own signature. The tree does not go
+through packages: each of its operations names one artifact, and each
+generation names the one it replaces. Either way, the target loads a
+signed ``.upatch`` through ``BPF_PROG_LOAD``.
+
+.. figure:: /images/concepts-shipped-objects.svg
+   :alt: On the left, a signed index names two unsigned .bee packages
+         by digest, each holding a signed load artifact and a signed
+         unload directive. On the right, three signed tree generations,
+         each naming its parent, the newest under the tag stable; the
+         newest holds operations 1 add foo, 2 add bar and 3 delete foo,
+         each naming one signed artifact. Every artifact and directive
+         ends at BPF_PROG_LOAD, verified against the .bpf keyring.
+
+   Figure 1. How the shipped objects refer to one another.
 
 Each object carries its own protection, and the target checks it before
 acting on it. Table 1 lists what the operator signs, where the target

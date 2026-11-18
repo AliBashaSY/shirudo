@@ -190,10 +190,28 @@ Three kinds of objects carry a signature a target checks:
 
 Everything else is content-addressed only: manifests, configs, package
 archives and artifact blobs. They are trusted because a signed document
-names their digests. The index names each package's manifest and layer,
-and the publication names each artifact's manifest, layer and payload
-digest. A package installed from the index is therefore the one the
-operator pushed, but the registry decides whether to serve it at all.
+names their digests, and Figure 1 shows which document names which
+object. A package installed from the index is therefore the one the
+operator pushed, but the registry decides whether to serve it at all:
+a target reaches each signed document through a tag, which the registry
+resolves.
+
+.. figure:: /images/background-oci-digests.svg
+   :alt: Two chains of registry objects. For a package, the tag
+         bpm-index:stable resolves to the index manifest, which names
+         the signed index and its signature; each index entry names a
+         package manifest by manifest_digest, and the .bee layer is
+         checked against the index's package_digest; the .upatch files
+         inside are signed. A direct install by tag reaches the package
+         manifest without the index. For a tree, the stable tag resolves
+         to the publication manifest, which names the signed publication;
+         each operation names an artifact manifest and its .upatch layer
+         by digest, and the publication names earlier publications. Both
+         chains end at the kernel's signature check against the .bpf
+         keyring.
+
+   Figure 1. Which object names which by digest. Solid arrows are
+   digests a target checks, dashed arrows are tags the registry resolves.
 
 Limits
 ------
