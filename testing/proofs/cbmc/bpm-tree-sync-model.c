@@ -75,7 +75,7 @@ int tree_publication_verify(const struct tree_publication *pub, int *bad_op)
 
 enum {
 	W_PENDING, W_MEASURE, W_APPEND, W_STATE, W_UNLINK, W_OUTCOME,
-	W_TRUNCATE,
+	W_TRUNCATE, W_KINDS,
 };
 
 /*
@@ -94,6 +94,8 @@ struct write {
 	__s64		base_seq;
 	int		outcome;
 	__u8		h[32];
+	/* Its place among all the writes the model makes. */
+	int		pos;
 };
 
 /*
@@ -106,10 +108,18 @@ struct write {
 #endif
 #define NOPS	(NSEG * (LEN ? LEN : 1))
 
-/* The cut, recovery's append, lines, state and unlink, the records, the loops. */
-#define MAX_WRITES	(8 + 8 * NOPS)
+/*
+ * The model's writes, kept by kind, each with its place among them all:
+ * at most a state for each segment, operation, recovery and the end, and
+ * of any other kind fewer. A write sync makes is the next of its kind,
+ * and it must be the one at the place sync has reached. Looked up in its
+ * kind, a write is picked from a few rather than from all of them, as the
+ * place sync has reached is any of several once paths have joined.
+ */
+#define MAX_KIND	(NOPS + NSEG + 2)
 
-static struct write want[MAX_WRITES];
+static struct write want[W_KINDS][MAX_KIND];
+static int n_want_kind[W_KINDS], n_got_kind[W_KINDS];
 static int n_got, n_want;
 static __u32 fail_at, fail_call;
 static bool failed;
@@ -155,16 +165,20 @@ static void copy_short(char dst[2], const char *src)
 	dst[1] = '\0';
 }
 
-static bool same_write(const struct write *a, int index);
+static bool same_write(const struct write *a, int k, int j);
 
 /* A write sync makes, checked against the model's at its place. */
 static void record(const struct write *w)
 {
+	int k = w->kind, j = n_got_kind[k];
+
 	__CPROVER_assert(!failed, "nothing written after a failure");
 	__CPROVER_assert(n_got < n_want, "no write the model does not make");
 	if (n_got < n_want)
-		__CPROVER_assert(same_write(w, n_got),
+		__CPROVER_assert(j < n_want_kind[k] && want[k][j].pos == n_got &&
+				 same_write(w, k, j),
 				 "the model's write at its place");
+	n_got_kind[k]++;
 	n_got++;
 }
 
@@ -777,13 +791,21 @@ struct mstate {
  * into one to every entry, so a store per byte multiplies the program many
  * times over. Each index is stored once, into the zeros want[] starts as.
  */
+static void expect(struct write *w)
+{
+	int k = w->kind;
+
+	__CPROVER_assert(n_want_kind[k] < MAX_KIND, "expected write log fits");
+	w->pos = n_want++;
+	want[k][n_want_kind[k]++] = *w;
+}
+
 static void want_write(int kind, int op, __s64 seq, const __u8 *d,
 		       const struct mstate *st)
 {
 	struct write w = { .kind = kind, .op = op,
 			   .seq = st ? st->last_seq : seq };
 
-	__CPROVER_assert(n_want < MAX_WRITES, "expected write log fits");
 	if (d)
 		for (int i = 0; i < 32; i++)
 			w.d[i] = d[i];
@@ -796,7 +818,7 @@ static void want_write(int kind, int op, __s64 seq, const __u8 *d,
 		w.head_seq = st->head_seq;
 		w.base_seq = st->base_seq;
 	}
-	want[n_want++] = w;
+	expect(&w);
 }
 
 static void want_outcome(__s64 seq, int outcome, const __u8 *root,
@@ -804,58 +826,59 @@ static void want_outcome(__s64 seq, int outcome, const __u8 *root,
 {
 	struct write w = { .kind = W_OUTCOME, .seq = seq, .outcome = outcome };
 
-	__CPROVER_assert(n_want < MAX_WRITES, "expected write log fits");
 	for (int i = 0; i < 32; i++)
 		w.d[i] = root[i];
 	for (int i = 0; i < 32; i++)
 		w.h[i] = hist[i];
-	want[n_want++] = w;
+	expect(&w);
 }
 
-static bool same_history(const struct write *actual, int index)
+/*
+ * want[k][j] by its indices, not a pointer: CBMC takes a pointer to an
+ * entry at an index it does not know for one into any entry of want.
+ */
+static bool same_history(const struct write *actual, int k, int j)
 {
 	for (int i = 0; i < 32; i++)
-		if (actual->h[i] != want[index].h[i])
+		if (actual->h[i] != want[k][j].h[i])
 			return false;
 	return true;
 }
 
-static bool same_digest(const struct write *actual, int index)
+static bool same_digest(const struct write *actual, int k, int j)
 {
 	for (int i = 0; i < 32; i++)
-		if (actual->d[i] != want[index].d[i])
+		if (actual->d[i] != want[k][j].d[i])
 			return false;
 	return true;
 }
 
-static bool same_write(const struct write *a, int index)
+static bool same_write(const struct write *a, int k, int j)
 {
-	if (a->kind != want[index].kind)
-		return false;
 	switch (a->kind) {
 	case W_PENDING:
-		return a->op == want[index].op;
+		return a->op == want[k][j].op;
 	case W_MEASURE:
-		return a->seq == want[index].seq && same_digest(a, index);
+		return a->seq == want[k][j].seq && same_digest(a, k, j);
 	case W_APPEND:
-		return a->op == want[index].op &&
-		       a->seq == want[index].seq && same_digest(a, index);
+		return a->op == want[k][j].op &&
+		       a->seq == want[k][j].seq && same_digest(a, k, j);
 	case W_STATE:
-		return a->seq == want[index].seq &&
-		       a->generation == want[index].generation &&
-		       same_digest(a, index) &&
-		       a->manifest[0] == want[index].manifest[0] &&
-		       a->manifest[1] == want[index].manifest[1] &&
-		       a->tree_id[0] == want[index].tree_id[0] &&
-		       a->tree_id[1] == want[index].tree_id[1] &&
-		       a->head_seq == want[index].head_seq &&
-		       a->base_seq == want[index].base_seq;
+		return a->seq == want[k][j].seq &&
+		       a->generation == want[k][j].generation &&
+		       same_digest(a, k, j) &&
+		       a->manifest[0] == want[k][j].manifest[0] &&
+		       a->manifest[1] == want[k][j].manifest[1] &&
+		       a->tree_id[0] == want[k][j].tree_id[0] &&
+		       a->tree_id[1] == want[k][j].tree_id[1] &&
+		       a->head_seq == want[k][j].head_seq &&
+		       a->base_seq == want[k][j].base_seq;
 	case W_OUTCOME:
-		return a->seq == want[index].seq &&
-		       a->outcome == want[index].outcome &&
-		       same_digest(a, index) && same_history(a, index);
+		return a->seq == want[k][j].seq &&
+		       a->outcome == want[k][j].outcome &&
+		       same_digest(a, k, j) && same_history(a, k, j);
 	case W_TRUNCATE:
-		return a->seq == want[index].seq;
+		return a->seq == want[k][j].seq;
 	default:
 		return true;
 	}
