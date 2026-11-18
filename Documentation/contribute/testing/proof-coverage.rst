@@ -797,9 +797,12 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        each ``%XX`` decoded, a stray ``%`` and ``%00`` refused
    * - ``otel-retry-after``
      - ``otel_retry_after()``, ``response_header()``
-     - Headers up to 32 bytes, dates modelled
+     - Headers up to 32 bytes, dates modelled; lines of 139 to 142
+       bytes whose value is 122 to 130 bytes once trimmed, around the
+       128-byte buffer it is copied into
      - A delay is at most 30 seconds, the value itself when shorter; a
-       header line read only within itself
+       header line read only within itself, its value copied only when
+       it fits
    * - ``tpm-reader``
      - The TPM reader primitives of :src:`util/tpm_wire.c`: ``get8()``
        to ``get64()``, ``get2b()``, ``get2b_fixed()``, ``get_name()``

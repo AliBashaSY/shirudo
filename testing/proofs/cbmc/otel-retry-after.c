@@ -6,6 +6,7 @@
  * of up to LEN bytes and every value it holds: a delay of digits is read
  * exactly, up to 30 seconds, and whatever date strptime() makes of the
  * rest, the wait is at most 30 seconds and nothing past the line is read.
+ * A LEN past 32 runs a line as long as the copy of its value instead.
  */
 
 #include "proof.h"
@@ -95,8 +96,37 @@ static void header_line(void)
 			 "a wait of at most 30 seconds");
 }
 
+/*
+ * A line whose value is cut to about the 128 bytes the callback copies it
+ * into: the name, two bytes of any value, digits, and three bytes of any
+ * value at the end, so that the blanks trimmed off leave 122 to 130.
+ */
+static void long_line(void)
+{
+	static const char name[] = "Retry-After:";
+	struct otel_response *r;
+	size_t n, i;
+	char *line;
+
+	r = any_bytes(sizeof(*r));
+	r->retry_after_valid = false;
+	line = any_bytes(LEN);
+	memcpy(line, name, sizeof(name) - 1);
+	for (i = sizeof(name) + 1; i < LEN - 3; i++)
+		line[i] = '7';
+	__CPROVER_assume(n >= LEN - 3 && n <= LEN);
+	__CPROVER_assert(response_header(line, 1, n, r) == n,
+			 "the whole line taken");
+	__CPROVER_assert(!r->retry_after_valid || r->retry_after <= 30,
+			 "a wait of at most 30 seconds");
+}
+
 void harness(void)
 {
+	if (LEN > 32) {
+		long_line();
+		return;
+	}
 	delay();
 	header_line();
 }
