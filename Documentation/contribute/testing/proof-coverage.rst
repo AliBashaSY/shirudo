@@ -1048,6 +1048,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - One unknown option of 64 to 66 bytes, around the 65 its copy
        holds
      - Refused, and a name suggested for it only when it fits the copy
+   * - ``options-table``
+     - ``specs_valid()``, ``opt_list()`` through ``opt_next()``
+     - Every table of up to two options built from names ``--a``,
+       ``--b``, ``--a=``, ``--``, ``-a`` and none, a short name or none,
+       every flag, a metavar or none, a summary or none, and a table
+       past ``OPT_MAX``; ``--list-opts``, ``--list-cmds`` and ``-h``
+     - A malformed table refused before any argument is read, a sound
+       one read; each listing printed and the run done
    * - ``conditions-verdict``
      - ``status_verdict()``, ``status_reason()``
      - Every input; reasons into 1, 8, 32 and 160 bytes

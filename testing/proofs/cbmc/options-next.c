@@ -8,8 +8,8 @@
  * one argument, so a run ends, what it hands back lies in an argument, a
  * flag has no value, a value is there and not empty unless the option
  * allows it, and no option comes back twice unless it repeats.
- * options-long.c includes this file for an unknown option too long to
- * suggest one for.
+ * options-table.c includes this file for the table and the listings,
+ * options-long.c for an unknown option too long to suggest one for.
  */
 
 #include <errno.h>
@@ -72,7 +72,82 @@ void help_suggest(const char *bad, const char *const *names, size_t n_names)
 	__CPROVER_assert(strlen(bad) <= SIMILAR_MAX_LEN, "the word fits");
 }
 
-#if defined(OPTIONS_LONG)
+#if defined(OPTIONS_TABLE)
+/* A table of up to two options, each part one of a few that matter. */
+static const char *const names[] = {
+	"--a", "--b", "--a=", "--", "-a", NULL,
+};
+
+static void any_spec(struct opt_spec *s)
+{
+	size_t name;
+	bool shorted, metavar, summary;
+	__u32 flags;
+
+	__CPROVER_assume(name < ARRAY_SIZE(names));
+	*s = (struct opt_spec){
+		names[name], shorted ? 'a' : 0, flags & 7,
+		metavar ? "<v>" : NULL, summary ? "s" : NULL,
+	};
+}
+
+static bool spec_ok(const struct opt_spec *s)
+{
+	return s->name && s->name[0] == '-' && s->name[1] == '-' &&
+	       s->name[2] && !strchr(s->name, '=') && s->summary &&
+	       (s->metavar || !(s->flags & (OPT_EMPTY | OPT_OPTIONAL)));
+}
+
+static bool specs_apart(const struct opt_spec *a, const struct opt_spec *b)
+{
+	return strcmp(a->name, b->name) &&
+	       (!a->short_name || a->short_name != b->short_name);
+}
+
+/* Any table: OPT_USAGE before any argument exactly when malformed. */
+static void any_table(void)
+{
+	static const char *const none[1];
+	struct opt_spec table[2];
+	struct opt_parser p;
+	size_t n;
+	bool ok;
+	int opt;
+
+	any_spec(&table[0]);
+	any_spec(&table[1]);
+	__CPROVER_assume(n <= 2 || n == OPT_MAX + 1);
+	ok = n <= OPT_MAX && (n < 1 || spec_ok(&table[0])) &&
+	     (n < 2 || (spec_ok(&table[1]) &&
+			specs_apart(&table[1], &table[0])));
+	OPT_INIT(&p, "proof", table, NULL, 0, none, 0);
+	p.n_specs = n;
+	opt = opt_next(&p);
+	__CPROVER_assert(opt == (ok ? OPT_END : OPT_USAGE),
+			 "a malformed table refused, a sound one read");
+}
+
+/* "--list-opts", "--list-cmds" and "-h" with a help: done, nothing else. */
+static void listings(void)
+{
+	static const char *const asked[] = { "--list-opts", "--list-cmds", "-h" };
+	static const struct help help = {};
+	struct opt_parser p;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(asked); i++) {
+		OPT_INIT(&p, "proof", specs, &help, 1, &asked[i], 0);
+		__CPROVER_assert(opt_next(&p) == OPT_DONE && p.next == 1,
+				 "a listing asked for, and the run done");
+	}
+}
+
+void harness(void)
+{
+	any_table();
+	listings();
+}
+#elif defined(OPTIONS_LONG)
 /* One unknown option of LEN bytes, "--" and then a constant byte. */
 void harness(void)
 {
