@@ -1440,10 +1440,13 @@ does: how ``json_parse()`` dispatches objects, arrays and maps to their
 schemas, the OTLP headers a configuration adds, the walk over a
 package's tar members, the registry references and URLs, the kernel
 configuration and the labels the tree selectors read, the tree's
-``state.json``, the eventlog's lines, the evidence document beyond its
-PCRs and its config history, the config update record, the site
-configuration file, the config image's settings and tree and the fields
-of a ``shirudo-quote-check`` row.
+``state.json``, the evidence document beyond its PCRs and its config
+history, the config update record, the site configuration file, the
+config image's settings and tree and the fields of a
+``shirudo-quote-check`` row. Of the eventlog's lines, the Lean model
+``Shirudo.EventlogRecord`` covers what the reader takes from the fields
+``json_parse()`` returns, by review; the parse of a line itself has the
+``eventlog`` fuzz target alone.
 The ``.upatch`` reader, the TPM structures and the package, index and
 tree readers are covered part by part, as the table shows; what joins
 those parts has no proof. So it is with the package state:
