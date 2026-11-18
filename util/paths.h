@@ -105,7 +105,8 @@
 #define SEAL_REMOVE_ACL_PIN	BPFFS_DIR "/seal_inode_remove_acl_link"
 #define SEAL_FILE_SETATTR_PIN	BPFFS_DIR "/seal_inode_file_setattr_link"
 #define BPFFS_UPATCHES_DIR	BPFFS_DIR "/upatches"
-#define IDENTITY_PIN		BPFFS_DIR "/identity"
+#define IDENTITY_PIN_NAME	"identity"
+#define IDENTITY_PIN		BPFFS_DIR "/" IDENTITY_PIN_NAME
 #define TAMPER_PIN		BPFFS_DIR "/tamper"
 #define INTEGRITY_PIN		BPFFS_DIR "/integrity"
 #define POLICY_PIN		BPFFS_DIR "/task_policy"

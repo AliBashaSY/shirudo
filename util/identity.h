@@ -81,12 +81,16 @@ struct mount_record {
 
 BUILD_BUG_ON(sizeof(struct mount_record) != 8);
 
+/* 1 when enforcement is active, 0 before init, otherwise -errno. */
+int enforcement_active(void);
+
 /*
  * The identity map init populated, froze and pinned this boot. -ENOENT
  * when init has not run, another -errno when the pin cannot be read.
+ * identity_read_at() takes the pin's name relative to dirfd, as openat()
+ * does.
  */
-/* 1 when enforcement is active, 0 before init, otherwise -errno. */
-int enforcement_active(void);
 int identity_read(struct identity *out);
+int identity_read_at(int dirfd, const char *name, struct identity *out);
 
 #endif /* SHIRUDO_UTIL_IDENTITY_H */
