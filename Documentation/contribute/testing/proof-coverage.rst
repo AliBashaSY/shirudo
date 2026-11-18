@@ -835,6 +835,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        changes only its digits, without a leading zero, or is
        ``-ENOSPC`` exactly when it does not fit; ``-EINVAL`` and
        ``-EILSEQ`` for the bad inputs, and no body then
+   * - ``keepalive-snapshot``
+     - ``keepalive_snapshot()``, ``tree_state_same()``
+     - Every answer of the state's reads, of any fields with strings of
+       one byte, of pending.json's and of ``collect()``, over all
+       ``KEEPALIVE_SNAPSHOT_TRIES`` tries
+     - Tries up to the first whose two reads agree, the state handed
+       back the first read of the last try; ``PENDING`` exactly when
+       that try saw pending.json, ``UNSETTLED`` exactly when no try's
+       reads agreed; ``collect()``'s error returned at once with no flag
+       set
    * - ``otel-header-fields``
      - The OTLP header checks and ``percent_decode()``
      - Strings up to 32 bytes
