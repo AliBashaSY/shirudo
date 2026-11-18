@@ -397,8 +397,8 @@ Load it
       target# shirudo status --show-full
       ...
       Loaded upatches (1):
-        NAME                      LOCATION                       MAPS  STATUS                        AGE
-        basic                     fentry/do_nanosleep               0  success                       1s
+        NAME                      LOCATION                       MAPS  MISSED  STATUS                        AGE
+        basic                     fentry/do_nanosleep               0       0  success                       1s
       ...
       TPM measurement:
         ...
