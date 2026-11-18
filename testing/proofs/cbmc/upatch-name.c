@@ -3,9 +3,10 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * The upatch names util/upatch.c takes from outside, for every name of up
- * to LEN_MAX bytes: upatch_name_valid() accepts exactly [A-Za-z0-9._-]+
- * not starting with a dot whose pin directory, each dot two bytes, fits
- * NAME_MAX, so no path separator, "." or "..",
+ * to LEN_MAX bytes and every one of LONG_LEN bytes that ends in letters:
+ * upatch_name_valid() accepts exactly [A-Za-z0-9._-]+ not starting with a
+ * dot whose pin directory, each dot two bytes, fits NAME_MAX, so no path
+ * separator, "." or "..",
  * upatch_select() exactly the archive names, something then ".upatch",
  * and upatch_prog_name() gives the loader program a zero-padded name the
  * kernel takes, the header's with every other byte made '_'.
@@ -43,6 +44,32 @@ static void name_valid(void)
 	for (i = 0; i < n; i++)
 		__CPROVER_assert(!valid || name[i] != '/', "no separator");
 	__CPROVER_assert(!upatch_name_valid(NULL), "no name is invalid");
+}
+
+/*
+ * A name of LONG_LEN bytes, any LONG_SYMBOLIC of them first and letters
+ * after, whose dots take its pin directory across NAME_MAX.
+ */
+#define LONG_LEN	250
+#define LONG_SYMBOLIC	8
+
+static void long_name_valid(void)
+{
+	char *name = any_bytes(LONG_LEN + 1);
+	size_t i, pin = LONG_LEN;
+	bool chars = true;
+
+	for (i = 0; i < LONG_SYMBOLIC; i++) {
+		__CPROVER_assume(name[i]);
+		chars = chars && name_char(name[i]);
+		pin += name[i] == '.';
+	}
+	for (i = LONG_SYMBOLIC; i < LONG_LEN; i++)
+		name[i] = 'a';
+	name[LONG_LEN] = '\0';
+	__CPROVER_assert(upatch_name_valid(name) ==
+			 (name[0] != '.' && chars && pin <= NAME_MAX),
+			 "a long name valid exactly while its pin fits");
 }
 
 static void archive_name(void)
@@ -93,5 +120,6 @@ void harness(void)
 {
 	prog_name();
 	name_valid();
+	long_name_valid();
 	archive_name();
 }
