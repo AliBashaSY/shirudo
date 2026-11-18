@@ -899,11 +899,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        bytes, and returns those bytes
    * - ``tpm-attest``
      - ``tpm_attest_parse()``
-     - Every input; takes about 8 minutes
+     - Every input; takes about 27 minutes
      - Starts with ``TPM_GENERATED``; names fit 34 bytes; extra data of
        at most 64 bytes inside the input; a quote spans the input with a
        24-bit PCR mask; an NV certification ends with its data, at most
-       2048 bytes
+       2048 bytes; every field the bytes at its place: the type, the
+       signer's and the index's names, the clock, the counts, the
+       firmware, the PCRs a quote selects, the digest it signs and the
+       offset certified
    * - ``tpm-public``
      - ``tpm_public_parse()``, ``tpm_ecc_public_parse()``
      - Every input
