@@ -1042,10 +1042,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        and root presence flags stay unchanged
    * - ``image-bootstrap-certificates``
      - ``bootstrap_add_certificate()``
-     - Every earlier key count through capacity, present or absent paths,
-       paths outside the runtime and parent traversal
+     - Every earlier key count through capacity, each of the runtime's
+       ``key-A`` to ``key-Q`` there or not, and two fixed paths that
+       escape the runtime: one outside it, one through ``..``
      - Only a distinct runtime path joins a non-full set; duplicates,
-       invalid paths and overflow leave the count unchanged; earlier
+       those two paths and overflow leave the count unchanged; earlier
        paths keep their order
    * - ``image-path``
      - ``image_path_valid()``
