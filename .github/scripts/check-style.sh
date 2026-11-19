@@ -257,7 +257,7 @@ check_spellings() {
 			bits = type
 			gsub(/[^0-9]/, "", bits)
 			printf "ERROR:KERNEL_INT_TYPES: spell %s as %s%s, from <shirudo/misc.h> in userspace\n#%d: FILE: %s:%d:\n%s\n\n",
-				type, substr(type, 1, 1) == "u" ? "__u" : "__s", bits,
+				type, (substr(type, 1, 1) == "u" ? "__u" : "__s"), bits,
 				NR, file, line, $0
 			bad = 1
 		} else if (!c_names_kept(file) &&
