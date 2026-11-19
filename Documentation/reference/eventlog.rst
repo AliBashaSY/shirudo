@@ -348,7 +348,8 @@ Size limits
        eventlog and the pending record together. Above that the replay
        fails. ``status`` then reports ``ChainIntact`` ``ALERT`` and the
        verdict ``tampered``, ``upatch load`` and ``upatch unload`` fail
-       with ``tpm_error``, and ``init`` refuses to bind the register.
+       with ``tpm_error``, ``init`` refuses to bind the register, and
+       ``attest`` fails rather than write evidence without the records.
 
 The eventlog grows across boots and shirudo never shortens it. Keep
 ``eventlog.max_bytes`` at or below 8388608 so that a refusal with

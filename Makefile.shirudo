@@ -917,7 +917,7 @@ testing/helper/test-nv-cphash: testing/helper/test-nv-cphash.c util/keyring.o \
 		-Wl,--wrap=enforcement_active
 
 testing/helper/test-tpm-session: testing/helper/test-tpm-session.c \
-		$(TPM_CLIENT_SRCS) $(REGISTER_OBJS)
+		util/attest.o util/upatch.o $(TPM_CLIENT_SRCS) $(REGISTER_OBJS)
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $(filter-out %.h,$^) $(REGISTER_LIBS) \
 		-Wl,--wrap=enforcement_active,--wrap=identity_read

@@ -48,7 +48,8 @@ struct config_update;
 /*
  * Target side. The buffer is xmalloc'd to *cap and NUL-terminated;
  * -ENXIO when no TPM answers, -ENODEV when no register is bound this
- * boot, -EKEYREJECTED when the TPM refuses the challenge.
+ * boot, -EKEYREJECTED when the TPM refuses the challenge, and what the
+ * eventlog's reader returns when this boot's records cannot be read.
  */
 int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 			   __u32 pcr_mask,

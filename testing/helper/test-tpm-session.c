@@ -11,8 +11,13 @@
 #include <shirudo/byteorder.h>
 #include <shirudo/string.h>
 
+#include "attest.h"
 #include "chain.h"
 #include "crypto.h"
+#include "eventlog.h"
+#include "json.h"
+#include "malloc.h"
+#include "paths.h"
 #include "tpm-session.h"
 
 #define TEST_INDEX 0x01818E02u
@@ -219,6 +224,52 @@ out:
 	return ret;
 }
 
+/*
+ * attest_evidence_config() on the eventlog as it stands: its return, or
+ * -EBADMSG when the evidence's eventlog does not begin with array.
+ */
+static int evidence_begins(const char *array)
+{
+	__u8 nonce[8] = { 3 };
+	size_t len, cap;
+	char *doc;
+	int ret;
+
+	ret = attest_evidence_config(nonce, sizeof(nonce), 1u << CHAIN_PCR,
+				     NULL, NULL, &doc, &len, &cap);
+	if (ret)
+		return ret;
+	ret = strstr(doc, array) ? 0 : -EBADMSG;
+	xfree(doc, cap);
+	return ret;
+}
+
+/*
+ * A log read only up to a line the reader refuses would leave evidence
+ * with the records before that line alone, which says nothing about
+ * what the register holds; attest has to fail instead. A boot without
+ * an init record still gets evidence, with an empty eventlog.
+ */
+static int evidence_cases(const __u8 event[32])
+{
+	char init[1024];
+	struct json_emit e = { .buf = init, .cap = sizeof(init) };
+	int ret = 1;
+
+	eventlog_record_open(&e, "init", event);
+	json_obj_close(&e);
+	CHECK(!e.err);
+	CHECK(evidence_begins("\"eventlog\":[]") == 0);
+	CHECK(!eventlog_append_to(eventlog_path(), init));
+	CHECK(evidence_begins("\"eventlog\":[{\"schema\":1,") == 0);
+	CHECK(!eventlog_append_to(eventlog_path(), "not a record"));
+	CHECK(evidence_begins("\"eventlog\":[") == -EINVAL);
+	puts("evidence carries this boot's records, and an unreadable log fails it");
+	ret = 0;
+out:
+	return ret;
+}
+
 int main(int argc, char **argv)
 {
 	__u8 branch_written[32], branch_init[32], policy[32], values[64];
@@ -226,6 +277,7 @@ int main(int argc, char **argv)
 	__u8 before[32], after[32], event[32] = { 2 };
 	struct tpm *t = NULL, *other = NULL;
 	struct tpm_attestation attestation;
+	bool register_defined = false;
 	struct tpm_nv_info info;
 	const char *log_setting;
 	struct tpm_key ak = {};
@@ -337,6 +389,14 @@ int main(int argc, char **argv)
 		CHECK(!tpm_open(&t));
 		CHECK(!tpm_nv_read(t, TEST_INDEX, after) && !memcmp(before, after, 32));
 		puts("forged readback rejected; live register unchanged");
+	} else if (!strcmp(argv[1], "evidence")) {
+		CHECK(!tpm_nv_define(t, NV_INDEX, policy, NULL, 0));
+		register_defined = true;
+		CHECK(!tpm_nv_extend_first(t, NV_INDEX, CHAIN_PCR_MASK,
+					   branch_written, branch_init, event));
+		tpm_close(t);
+		t = NULL;
+		CHECK(!evidence_cases(event));
 	} else {
 		CHECK(!strcmp(argv[1], "identity"));
 		tpm_close(t);
@@ -366,7 +426,9 @@ out:
 	identity.ek_name[1] = TPM2_ALG_SHA256;
 	if (defined) {
 		t = NULL;
-		if (tpm_open(&t) || tpm_nv_undefine(t, TEST_INDEX, NULL, 0))
+		if (tpm_open(&t) || tpm_nv_undefine(t, TEST_INDEX, NULL, 0) ||
+		    (register_defined &&
+		     tpm_nv_undefine(t, NV_INDEX, NULL, 0)))
 			ret = 1;
 		tpm_close(t);
 	}

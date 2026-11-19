@@ -365,7 +365,17 @@ int attest_evidence_config(const __u8 *nonce, size_t nonce_len,
 	emit_hex(&e, "signature", certify.signature, certify.signature_len);
 	json_obj_close(&e);
 	json_arr_open(&e, "eventlog");
-	eventlog_boot_lines(emit_line, &e);
+	/*
+	 * A boot without an init record has no record to carry, which
+	 * verify reports. A log read only part of the way would carry a
+	 * history that stops short of what the register holds.
+	 */
+	ret = eventlog_boot_lines(emit_line, &e);
+	if (ret && ret != -ENOENT) {
+		pr_err("attest: eventlog %s unreadable: %s", eventlog_path(),
+		       strerror(-ret));
+		goto out;
+	}
 	json_arr_close(&e);
 	ret = config_evidence_emit(&e, &config);
 	if (ret)

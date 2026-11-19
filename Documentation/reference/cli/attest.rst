@@ -147,8 +147,12 @@ Exit status
      - No TPM answered (``attest: no TPM answered (tpm_error)``), the
        register is not bound this boot, the TPM refused the challenge
        (``attest: the TPM refused the challenge; the attestation key or
-       the endorsement key is not this TPM's``), or producing
-       or writing the evidence failed.
+       the endorsement key is not this TPM's``), this boot's eventlog
+       could not be read to its end (``attest: eventlog <path>
+       unreadable: <error>``), or producing or writing the evidence
+       failed. A boot without an ``init`` record is no error: its
+       evidence carries an empty ``eventlog``, which ``attest verify``
+       fails.
    * - 2
      - A usage error: an unknown option, an option given twice, a value
        missing or empty, or an argument. An invalid ``--nonce`` or

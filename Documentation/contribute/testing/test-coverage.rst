@@ -314,7 +314,10 @@ signed config image.
        refusal of TPM logging overrides during bootstrap and enforcement.
        An unsalted negative control accepts a forged acknowledgment
        with an empty or SHA-256 response HMAC; malformed lengths are refused.
-       Salted sessions reject it and leave the real measured value unchanged
+       Salted sessions reject it and leave the real measured value unchanged.
+       ``attest`` carries this boot's records, none without a log, and
+       fails on a log with a line it cannot read rather than carry the
+       records before it
    * - ``t4006-keepalive-quotes``
      - The quotes of :src:`testing/fixtures/keepalive/quotes.tsv`: each
        row's ``body_sha256`` is SHA-256 of its body file, and fails on
