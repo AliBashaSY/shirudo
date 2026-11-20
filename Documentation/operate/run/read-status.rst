@@ -522,7 +522,12 @@ unload:
 
 The ``init`` record comes from the initrd run. Every later record is a
 state change that extended the register. :doc:`/reference/eventlog`
-describes the records.
+describes the records. A line that does not parse as a record, one
+that holds a NUL byte among them, is listed as ``unparseable`` in its
+place, and the records after it follow: the section shows the file line
+by line, where the replay behind ``ChainIntact`` refuses such a log as a
+whole. A last line without its newline, an append that did not finish,
+is not listed.
 
 .. _status-verdicts:
 

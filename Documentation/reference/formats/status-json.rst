@@ -710,7 +710,10 @@ Optional blocks
        ``/var/lib/shirudo/eventlog``, all boots, with ``ts``, ``type``
        and ``digest``, plus ``set_digest`` for ``init`` and ``upatch``
        (``name``, ``payload_sha256``) for upatch events. A line that
-       does not parse gives ``{"type": "unparseable"}``.
+       does not parse, one that holds a NUL byte among them, gives
+       ``{"type": "unparseable"}``, and the lines after it follow. A
+       last line without its newline, an append that did not finish,
+       gives none, so that ``events`` holds ``entries`` objects.
 
 ``status`` sizes its output buffer from the options, the eventlog size
 and the number of loaded upatches, at most 8 MiB. A document that does

@@ -331,6 +331,11 @@ signed config image.
        key and node B's under another; a quote over an altered body is
        ``body_mismatch``; with the libtpms simulator built, the capture
        script rebuilds a file that verifies
+   * - ``t4007-status-eventlog``
+     - ``status --include-eventlog`` lists the eventlog line by line: a
+       NUL in the log hides no record behind it and its line reads as
+       ``unparseable``, an append that did not finish is no entry, and
+       the entries counted are the entries listed
    * - ``t4101-initrd``
      - The production configuration: ``init`` from the initrd, its
        messages in the journal once, adoption, PCR 11 after the binding,
@@ -1070,8 +1075,8 @@ Coverage by area
        ``t4104``, ``t9105``, ``t9109``, ``t9112``. Fuzz: ``attest``,
        ``attest-report``, ``tpm-wire``
    * - Eventlog
-     - ``t4002``, ``t4102``, ``t5007``, ``t6114``, ``t6128``. Fuzz:
-       ``eventlog``. Unit: ``eventlog``, ``io``
+     - ``t4002``, ``t4007``, ``t4102``, ``t5007``, ``t6114``, ``t6128``.
+       Fuzz: ``eventlog``. Unit: ``eventlog``, ``io``
    * - Boot and initrd
      - ``t1006``, ``t4002``, ``t4101``, ``t5006``, ``t6115``,
        ``t6126``, ``t6157``. Unit: ``kernel_prereq``
@@ -1291,7 +1296,8 @@ Commands and procedures
 - ``upatch load`` or ``upatch unload`` refusing ``tampered`` for a
   stale ``--expect-chain``. Only ``attest verify`` is tested with that
   option.
-- ``status --include-eventlog`` and ``--show-full``.
+- ``status --show-full``, and ``--include-eventlog`` on a target:
+  ``t4007`` reads a log on the host.
 - ``upatch rewrite-rodata`` in ``shirudo-build``, which
   ``kernel-obs`` uses to rewrite its watch lists.
 - The ``kernel-cve`` packages, and :src:`tools/put-shields`, which

@@ -210,42 +210,62 @@ static int parse_event_line(const char *line, size_t len, struct ev_proj *ev)
 	return json_parse(line, len, f, ARRAY_SIZE(f));
 }
 
-static void emit_eventlog_events(struct json_emit *e)
+/*
+ * Each line of the len bytes of the log at buf that ends in its newline
+ * to cb, as it parses or NULL where it does not. The lines are taken by
+ * their length: read as one string the log would end at its first NUL,
+ * and the records behind one would not be listed.
+ */
+static void eventlog_each(const char *buf, size_t len,
+			  void (*cb)(const struct ev_proj *ev, void *ctx),
+			  void *ctx)
 {
-	char *save, *line, *buf;
-	size_t len;
+	const char *line, *nl, *end = buf + len;
+	struct ev_proj ev;
 
-	json_arr_open(e, "events");
-	if (read_file(eventlog_path(), JSON_MAX_BYTES,
-		      &buf, &len) != 0) {
-		json_arr_close(e);
+	for (line = buf; (nl = memchr(line, '\n', (size_t)(end - line)));
+	     line = nl + 1) {
+		bool parsed = !parse_event_line(line, (size_t)(nl - line),
+						&ev);
+
+		cb(parsed ? &ev : NULL, ctx);
+	}
+}
+
+static void emit_event(const struct ev_proj *ev, void *ctx)
+{
+	struct json_emit *e = ctx;
+
+	json_obj_open(e);
+	if (!ev) {
+		json_kv_string(e, "type", "unparseable");
+		json_obj_close(e);
 		return;
 	}
-	for (line = strtok_r(buf, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
-		struct ev_proj ev;
-
-		json_obj_open(e);
-		if (parse_event_line(line, strlen(line), &ev) != 0) {
-			json_kv_string(e, "type", "unparseable");
-			json_obj_close(e);
-			continue;
-		}
-		json_kv_string(e, "ts", ev.ts);
-		json_kv_string(e, "type", ev.type);
-		json_kv_string(e, "digest", ev.digest);
-		if (ev.set_digest[0])
-			json_kv_string(e, "set_digest", ev.set_digest);
-		if (ev.up_name[0]) {
-			json_obj_open_key(e, "upatch");
-			json_kv_string(e, "name", ev.up_name);
-			json_kv_string(e, "payload_sha256",
-				       ev.up_payload);
-			json_obj_close(e);
-		}
+	json_kv_string(e, "ts", ev->ts);
+	json_kv_string(e, "type", ev->type);
+	json_kv_string(e, "digest", ev->digest);
+	if (ev->set_digest[0])
+		json_kv_string(e, "set_digest", ev->set_digest);
+	if (ev->up_name[0]) {
+		json_obj_open_key(e, "upatch");
+		json_kv_string(e, "name", ev->up_name);
+		json_kv_string(e, "payload_sha256", ev->up_payload);
 		json_obj_close(e);
 	}
-	xfree(buf, len + 1);
+	json_obj_close(e);
+}
+
+static void emit_eventlog_events(struct json_emit *e)
+{
+	size_t len;
+	char *buf;
+
+	json_arr_open(e, "events");
+	if (!read_file(eventlog_path(), JSON_MAX_BYTES, &buf, &len)) {
+		eventlog_each(buf, len, emit_event, e);
+		xfree(buf, len + 1);
+	}
 	json_arr_close(e);
 }
 
@@ -261,10 +281,23 @@ static int event_detail(const struct ev_proj *ev, char *out, size_t cap)
 	return 0;
 }
 
+static void print_event(const struct ev_proj *ev, void *ctx)
+{
+	char detail[256];
+
+	if (!ev) {
+		printf("  %-20s %-13s %-13s\n", "?", "unparseable", "");
+		return;
+	}
+	event_detail(ev, detail, sizeof(detail));
+	printf("  %-20s %-13s %-13.12s %s\n", ev->ts, ev->type,
+	       ev->digest[0] ? ev->digest : "-", detail);
+}
+
 static void print_eventlog_table(void)
 {
-	char *save, *line, *buf;
 	size_t len;
+	char *buf;
 
 	if (read_file(eventlog_path(), JSON_MAX_BYTES,
 		      &buf, &len) != 0)
@@ -272,20 +305,7 @@ static void print_eventlog_table(void)
 	printf("\nEventlog:\n");
 	printf("  %-20s %-13s %-13s %s\n", "TIME", "TYPE", "DIGEST",
 	       "DETAIL");
-	for (line = strtok_r(buf, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
-		char detail[256];
-		struct ev_proj ev;
-
-		if (parse_event_line(line, strlen(line), &ev) != 0) {
-			printf("  %-20s %-13s %-13s\n", "?", "unparseable",
-			       "");
-			continue;
-		}
-		event_detail(&ev, detail, sizeof(detail));
-		printf("  %-20s %-13s %-13.12s %s\n", ev.ts, ev.type,
-		       ev.digest[0] ? ev.digest : "-", detail);
-	}
+	eventlog_each(buf, len, print_event, NULL);
 	xfree(buf, len + 1);
 }
 
