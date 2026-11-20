@@ -680,7 +680,7 @@ static int resolve_endpoint(struct otel_state *st, const char *spec,
 
 static bool loopback_host(const char *host)
 {
-	return strcasecmp(host, "localhost") == 0 ||
+	return str_equals_nocase(host, "localhost") ||
 	       strcmp(host, "127.0.0.1") == 0 || strcmp(host, "[::1]") == 0;
 }
 
@@ -764,11 +764,11 @@ static int parse_timeout(const char *value, long *out)
 
 static bool reserved_header(const char *name)
 {
-	return strcasecmp(name, "content-type") == 0 ||
-	       strcasecmp(name, "content-encoding") == 0 ||
-	       strcasecmp(name, "content-length") == 0 ||
-	       strcasecmp(name, "host") == 0 ||
-	       strcasecmp(name, "user-agent") == 0;
+	return str_equals_nocase(name, "content-type") ||
+	       str_equals_nocase(name, "content-encoding") ||
+	       str_equals_nocase(name, "content-length") ||
+	       str_equals_nocase(name, "host") ||
+	       str_equals_nocase(name, "user-agent");
 }
 
 static int append_header(struct otel_state *st, const char *line)
@@ -872,7 +872,7 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 		for (char *p = value + strlen(value);
 		     p > value && isspace((__u8)p[-1]); p--)
 			p[-1] = '\0';
-		tenant = strcasecmp(name, "x-tenant-id") == 0;
+		tenant = str_equals_nocase(name, "x-tenant-id");
 		if (!header_name_ok(name) || reserved_header(name) ||
 		    percent_decode(value) != 0 || !header_value_ok(value)) {
 			ret = -EINVAL;

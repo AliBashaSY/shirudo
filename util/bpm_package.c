@@ -930,7 +930,7 @@ int bpm_pkg_load_info(const char *archive, struct bpm_package_info *info)
 		goto out;
 	}
 	hex_encode(digest, sizeof(digest), hex);
-	if (parsed.signer[0] && strcasecmp(parsed.signer, hex)) {
+	if (parsed.signer[0] && !str_equals_nocase(parsed.signer, hex)) {
 		pr_err("bpm: package signer fingerprint mismatch: "
 		       "certificate=%s build-environment.json=%s",
 		       hex, parsed.signer);

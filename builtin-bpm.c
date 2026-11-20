@@ -897,7 +897,7 @@ static int list_keys(bool json)
 			break;
 		}
 		if (strlen(entry->d_name) != 68 ||
-		    strcasecmp(entry->d_name + 64, ".der"))
+		    !str_equals_nocase(entry->d_name + 64, ".der"))
 			continue;
 		for (size_t i = 0; i < 64; i++) {
 			if (!isxdigit((__u8)entry->d_name[i]))

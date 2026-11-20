@@ -481,7 +481,7 @@ static int curl_once_ex(struct bpm_oci_client *c, const char *method,
 	}
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method);
-	if (!strcasecmp(method, "HEAD"))
+	if (str_equals_nocase(method, "HEAD"))
 		curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
@@ -1228,7 +1228,7 @@ int bpm_sha256_digest(const void *data, size_t len, char *out, size_t out_sz)
 bool bpm_digest_matches(const char *want, const char *hex)
 {
 	return want && str_skip_prefix(&want, "sha256:") &&
-		!strcasecmp(want, hex);
+		str_equals_nocase(want, hex);
 }
 
 static int upload_location(const struct bpm_oci_client *c, const char *location,

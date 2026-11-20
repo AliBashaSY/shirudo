@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include <curl/curl.h>
@@ -61,7 +60,7 @@ static bool tls_classical_host_allowed(CURL *curl)
 	if (!url || curl_url_set(url, CURLUPART_URL, effective_url, 0) !=
 		    CURLUE_OK ||
 	    curl_url_get(url, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
-	    strcasecmp(scheme, "https") ||
+	    !str_equals_nocase(scheme, "https") ||
 	    curl_url_get(url, CURLUPART_HOST, &host, 0) != CURLUE_OK)
 		goto out;
 	host_len = strlen(host);
@@ -78,8 +77,8 @@ static bool tls_classical_host_allowed(CURL *curl)
 		if (len < sizeof(entry)) {
 			memcpy(entry, allowlist, len);
 			entry[len] = '\0';
-			if (dns_name_valid(entry) && host_len == len &&
-			    str_after_prefix_nocase(host, entry)) {
+			if (dns_name_valid(entry) &&
+			    str_equals_nocase(host, entry)) {
 				allowed = true;
 				break;
 			}
@@ -105,8 +104,8 @@ static void tls_info_callback(const SSL *ssl, int where, int ret)
 	group_id = SSL_get_negotiated_group((SSL *)ssl);
 	group = group_id == NID_undef ? NULL :
 		SSL_group_to_name((SSL *)ssl, group_id);
-	if (group && (!strcasecmp(group, "X25519MLKEM768") ||
-		      !strcasecmp(group, "SecP256r1MLKEM768")))
+	if (group && (str_equals_nocase(group, "X25519MLKEM768") ||
+		      str_equals_nocase(group, "SecP256r1MLKEM768")))
 		return;
 	host = SSL_get_servername((SSL *)ssl, TLSEXT_NAMETYPE_host_name);
 	pr_warn("TLS non-hybrid key exchange with %s: %s",
