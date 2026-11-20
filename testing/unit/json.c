@@ -253,11 +253,15 @@ static int parse_nested(const char *text, struct nested *x)
 		{ "items", JSON_T_ARRAY, &sink, 0, 0, item_sub,
 		  ARRAY_SIZE(item_sub) },
 	};
+	int ret;
 
 	memset(x, 0, sizeof(*x));
 	x->meta = &item_sub[1];
 	x->tag_field = &meta_sub[0];
-	return json_parse(text, strlen(text), f, ARRAY_SIZE(f));
+	ret = json_parse(text, strlen(text), f, ARRAY_SIZE(f));
+	x->meta = NULL;
+	x->tag_field = NULL;
+	return ret;
 }
 
 /*
@@ -731,6 +735,7 @@ static int parse_members(const char *text, struct members *m)
 	memset(m, 0, sizeof(*m));
 	m->slot = &member_sub[0];
 	ret = json_parse(text, strlen(text), f, ARRAY_SIZE(f));
+	m->slot = NULL;
 	return ret ? ret : f[0].seen ? 0 : -ENOENT;
 }
 
