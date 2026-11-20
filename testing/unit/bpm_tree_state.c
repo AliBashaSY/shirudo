@@ -23,7 +23,7 @@ static char events_path[4300], pending_path[4300];
 
 static char path[4096];
 
-static void write_config(const char *text, bool gz)
+static void write_config_bytes(const char *text, size_t len, bool gz)
 {
 	const char *tmp = getenv("TMPDIR");
 	int fd;
@@ -36,16 +36,22 @@ static void write_config(const char *text, bool gz)
 		gzFile f = gzdopen(fd, "wb");
 
 		ASSERT_TRUE(f);
-		ASSERT_EQ(gzwrite(f, text, (__u32)strlen(text)),
-			  (int)strlen(text));
+		ASSERT_EQ(gzwrite(f, text, (__u32)len), (int)len);
 		ASSERT_EQ(gzclose(f), Z_OK);
 	} else {
-		ASSERT_EQ(write_complete(fd, text, strlen(text)), 0);
+		ASSERT_EQ(write_complete(fd, text, len), 0);
 		ASSERT_EQ(close(fd), 0);
 	}
 }
 
-static const char *modules_in(const char *text, bool gz)
+static void write_config(const char *text, bool gz)
+{
+	write_config_bytes(text, strlen(text), gz);
+}
+
+/* What a config of len bytes reads as, with CONFIG_MODULES in *value. */
+static int modules_read(const char *text, size_t len, bool gz,
+			const char **value)
 {
 	static char values[TREE_MAX_KCONFIG][TREE_STRING_MAX];
 	static int slots[TREE_SELECTOR_HASH_SIZE];
@@ -60,12 +66,20 @@ static const char *modules_in(const char *text, bool gz)
 				       TREE_MAX_KCONFIG, &kv), 0);
 	strscpy(kv->key, "CONFIG_MODULES", sizeof(kv->key));
 	selector_hash_build(&sel, slots);
-	write_config(text, gz);
+	write_config_bytes(text, len, gz);
 	ret = read_selector_config_file(path, &sel, slots, values, found, gz);
 	tree_selector_free(&sel);
 	unlink(path);
-	ASSERT_EQ(ret, 0);
-	return found[0] ? values[0] : "-";
+	*value = found[0] ? values[0] : "-";
+	return ret;
+}
+
+static const char *modules_in(const char *text, bool gz)
+{
+	const char *value;
+
+	ASSERT_EQ(modules_read(text, strlen(text), gz, &value), 0);
+	return value;
 }
 
 /*
@@ -86,6 +100,22 @@ static void long_line_is_one_line(void)
 	EXPECT_STREQ(modules_in(text, true), "n");
 	EXPECT_STREQ(modules_in("CONFIG_MODULES=y\n", false), "y");
 	EXPECT_STREQ(modules_in("CONFIG_MODULES=m", true), "m");
+}
+
+/*
+ * A line is read as a string, which a NUL ends: the option of a line
+ * that held one read as set to what stood ahead of it.
+ */
+static void config_with_a_nul_is_no_config(void)
+{
+	static const char text[] = "CONFIG_MODULES=y\0es\nCONFIG_X=y\n";
+	const char *value;
+
+	EXPECT_EQ(modules_read(text, sizeof(text) - 1, false, &value),
+		  -EINVAL);
+	EXPECT_EQ(modules_read(text, sizeof(text) - 1, true, &value), -EINVAL);
+	ASSERT_EQ(modules_read(text, strlen(text), false, &value), 0);
+	EXPECT_STREQ(value, "y");
 }
 
 /* A config written gzip'd or not, cut by cut bytes and extra appended. */
@@ -557,6 +587,7 @@ static void eventlog_matches_only_a_state_read(void)
 
 static const struct unit_case cases[] = {
 	UNIT_CASE(long_line_is_one_line),
+	UNIT_CASE(config_with_a_nul_is_no_config),
 	UNIT_CASE(gzip_config_is_one_whole_member),
 	UNIT_CASE(pending_is_an_operation_in_flight),
 	UNIT_CASE(labels_are_cut_at_the_first_equals),

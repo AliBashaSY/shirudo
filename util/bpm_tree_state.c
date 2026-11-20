@@ -317,7 +317,9 @@ static int gunzip(char *in, size_t len, char **out, size_t *out_len,
 /*
  * A line of sizeof(line) bytes or more with its newline is skipped whole,
  * as a part from the middle of a long string value would read as an
- * option of its own: its option reads as not set.
+ * option of its own: its option reads as not set. A text with a NUL is
+ * no config: the line that holds it would read as what stands ahead of
+ * the NUL.
  */
 static int selector_config_text(const char *text, size_t len,
 				const struct tree_selector *s,
@@ -332,11 +334,12 @@ static int selector_config_text(const char *text, size_t len,
 		const char *nl = memchr(text + off, '\n', len - off);
 
 		n = nl ? (size_t)(nl - text) - off : len - off;
-		if (n >= sizeof(line) - 1)
+		ret = span_to_str(line, sizeof(line) - 1, text + off, n);
+		if (ret == -E2BIG)
 			continue;
-		memcpy(line, text + off, n);
-		line[n] = '\0';
-		ret = selector_config_line(line, s, slots, values, found);
+		if (!ret)
+			ret = selector_config_line(line, s, slots, values,
+						   found);
 		if (ret)
 			return ret;
 	}

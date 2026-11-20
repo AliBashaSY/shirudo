@@ -2,8 +2,9 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * A kernel config, plain or gzip'd, as an upatch tree selector reads it,
- * and node.labels.
+ * A kernel config, plain or gzip'd, as a upatch tree selector reads it,
+ * and node.labels. A plain config that holds a NUL is refused: a line
+ * read as a string would end there.
  */
 
 #include "fuzz.h"
@@ -42,7 +43,9 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	fd = fuzz_file(data, size, path, sizeof(path));
 	if (fd < 0)
 		return 0;
-	read_selector_config_file(path, &sel, slots, values, found, false);
+	if (!read_selector_config_file(path, &sel, slots, values, found,
+				       false) && memchr(data, '\0', size))
+		abort();
 	read_selector_config_file(path, &sel, slots, values, found, true);
 	read_config_file(path, labels, &n, ARRAY_SIZE(labels));
 	close(fd);
