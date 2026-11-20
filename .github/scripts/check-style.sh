@@ -6,8 +6,8 @@
 # mode, over the C sources a commit touches and over its message, the way
 # cilium checks its BPF tree, plus the block-comment opener that checkpatch
 # leaves to the netdev trees, the kernel's spelling of fixed-width
-# integers and the project's number parsers, string copies, formatting
-# and compares.
+# integers and the project's number parsers, string copies, formatting,
+# compares and token walks.
 # The kernel checks that have no meaning in userspace are switched off
 # below, each with its reason.
 #
@@ -216,6 +216,8 @@ locate_checkpatch() {
 # tests and the header that wraps them: str_has_prefix(),
 # str_after_prefix(), span_equals() and their kin take the length from
 # the string, where a caller's count can be off by one and still compile.
+# And so is strtok_r(), strtok() or strsep(): for_each_token() gives each
+# token as pointer and length and leaves the walked buffer as it was.
 check_spellings() {
 	awk '
 	function c_names_kept(f) {
@@ -336,6 +338,14 @@ check_spellings() {
 			fn = substr(code, RSTART, RLENGTH)
 			gsub(/[^A-Za-z0-9_]/, "", fn)
 			printf "ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix() and a span with span_equals() or span_equals_str() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+				fn, NR, file, line, $0
+			bad = 1
+		}
+		if (!parsers_kept(file) &&
+		    match(code, /(^|[^A-Za-z0-9_])str(tok(_r)?|sep)[ \t]*\(/)) {
+			fn = substr(code, RSTART, RLENGTH)
+			gsub(/[^A-Za-z0-9_]/, "", fn)
+			printf "ERROR:STRING_TOKENS: walk tokens with for_each_token() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
 				fn, NR, file, line, $0
 			bad = 1
 		}
@@ -511,7 +521,7 @@ list_types() {
 	{
 		LC_ALL=C comm -23 "$work/all" "$work/ignored"
 		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING \
-			STRING_COMPARE STRING_COPY STRING_FORMAT
+			STRING_COMPARE STRING_COPY STRING_FORMAT STRING_TOKENS
 	} | LC_ALL=C sort
 }
 

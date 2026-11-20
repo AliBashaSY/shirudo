@@ -238,6 +238,7 @@ static inline int memneq_explicit(const void *a, const void *b, size_t size)
 # pragma GCC poison strtod strtof strtold atoi atol atoll atof
 # pragma GCC poison strcpy strncpy strcat strncat strlcpy
 # pragma GCC poison strncmp strncasecmp
+# pragma GCC poison strtok strtok_r strsep
 /* Fortified glibc makes these macros for clang; poison the names alone. */
 # undef sprintf
 # undef snprintf

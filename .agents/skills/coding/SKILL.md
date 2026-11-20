@@ -393,7 +393,7 @@ already, or should. The basics:
 | Copy or format a string | `strscpy()`, `strsprintf()`, `vstrsprintf()`, and check `-E2BIG` |
 | A upatch's pin directory or a pin in it | `upatch_pin_path()` (`util/paths.h`) |
 | A string's prefix, or a span that must be one string | `str_has_prefix()` to test a literal prefix and `str_skip_prefix()` to step past it, `str_after_prefix()` for the rest after a prefix known only at run time, each with a `_nocase` form for a letter in either case; `span_equals()` for a span of known length against a literal, `span_equals_str()` against a string, `span_has_prefix_nocase()` for a span's start (`<shirudo/string.h>`); `strncmp()` and `strncasecmp()`, whose length a caller counts by hand, are poisoned |
-| The lines of a buffer, the words of a line, the entries of a list | `for_each_token()` (`<shirudo/string.h>`), which gives each token as pointer and length and writes nothing; a caller that needs a terminated token ends it in a buffer of its own |
+| The lines of a buffer, the words of a line, the entries of a list | `for_each_token()` (`<shirudo/string.h>`), which gives each token as pointer and length and writes nothing; a caller that needs a terminated token ends it in a buffer of its own; `strtok_r()`, `strtok()` and `strsep()` are poisoned |
 | A file name's extension | `name_has_suffix()` (`<shirudo/string.h>`), `upatch_select()` for a scandir of upatches |
 | Text from outside on a terminal | `text_sanitize()`; UTF-8 with `utf8_width()` |
 | Bytes from outside as a string | `span_to_str()` (`<shirudo/string.h>`), which takes their length and refuses a NUL among them; `read_text_line()` for a line of a settings file (`util/io.h`) |
@@ -436,10 +436,10 @@ without a body.
   the like. System headers that use `uint8_t` and kin go above the first
   shirudo header, which poisons them.
 - `strtoul()`, `atoi()`, `strcpy()`, `sprintf()`, `snprintf()`,
-  `strncmp()`, `strncasecmp()`, the libc allocators and
-  `explicit_bzero()` are poisoned; the table above has what replaces
-  each, and a missing one is wrapped in `util/`, never given an
-  exception.
+  `strncmp()`, `strncasecmp()`, `strtok_r()`, `strtok()`, `strsep()`,
+  the libc allocators and `explicit_bzero()` are poisoned; the table
+  above has what replaces each, and a missing one is wrapped in `util/`,
+  never given an exception.
 - A `strsprintf()` that does not fit leaves the buffer empty: a path or
   value is refused, a helper formatting display text returns the error,
   and status shows `"?"`. Constant text is copied, not formatted.

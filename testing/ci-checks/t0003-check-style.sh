@@ -7,9 +7,9 @@
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
 # it lets through, the C library's integer names, number parsers, string
-# copies and counted compares it refuses, the list of what stays enabled,
-# and the fetch of checkpatch.pl, which asks a host that does not answer
-# only once, on a throwaway repository.
+# copies, counted compares and token walks it refuses, the list of what
+# stays enabled, and the fetch of checkpatch.pl, which asks a host that
+# does not answer only once, on a throwaway repository.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -188,6 +188,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "STRING_COMPARE" "$W/out" &&
 	grep -qx "STRING_COPY" "$W/out" &&
 	grep -qx "STRING_FORMAT" "$W/out" &&
+	grep -qx "STRING_TOKENS" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
 '
@@ -289,6 +290,26 @@ test_expect_success 'strings are compared without a count outside the tests' '
 		"	return strncmp(s, \"az\", 2);" "}" &&
 	check --files include/shirudo/string.h testing/helper/cmp.c &&
 	rm -r "$R/include" "$R/testing"
+'
+
+test_expect_success 'tokens are walked with for_each_token() outside the tests' '
+	printf "%s\n" "/* strtok_r() in a comment */" \
+		"static const char *op = \"strsep(&s, d)\";" "" \
+		"void cut(char *s, char **save)" "{" \
+		"	strtok_r(s, \",\", save);" "	strtok(s, \",\");" \
+		"	strsep(save, \",\");" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_TOKENS: walk tokens with for_each_token() from <shirudo/string.h>, not strtok_r()" "$W/out" &&
+	grep -q "^ERROR:STRING_TOKENS: .*, not strtok()" "$W/out" &&
+	grep -q "^ERROR:STRING_TOKENS: .*, not strsep()" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_TOKENS" "$W/out")" = 3 ] &&
+	git -C "$R" checkout -q -- good.c &&
+	put testing/helper/cut.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"char *cut(char *s, char **save)" "{" \
+		"	return strtok_r(s, \",\", save);" "}" &&
+	check --files testing/helper/cut.c &&
+	rm -r "$R/testing"
 '
 
 test_expect_success 'a BPF program keeps the kernel'"'"'s argument types' '

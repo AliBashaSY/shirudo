@@ -34,6 +34,10 @@ its BPF programs, with these rules of its own, which
   ``span_equals()`` or ``span_equals_str()``, which take the length from
   the string, not from a count beside it. ``strncmp()`` and
   ``strncasecmp()`` are refused.
+- Walk the lines of a buffer, the words of a line or the entries of a
+  list with ``for_each_token()``, which gives each token as a pointer and
+  its length and writes nothing. ``strtok_r()``, ``strtok()`` and
+  ``strsep()`` are refused.
 - Check size arithmetic with the helpers of ``<shirudo/overflow.h>``,
   not by hand.
 - No ``(void)`` cast. A result a caller must not drop belongs to a
