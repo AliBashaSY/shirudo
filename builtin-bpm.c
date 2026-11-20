@@ -1352,6 +1352,8 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				}
 				closedir(d);
 			}
+			if (ret)
+				goto out;
 			sort_old_pairs(old_unloads, old_loads, nold);
 			for (int old_i = 0; old_i < nold; old_i++) {
 				if (upatch_remove(old_unloads[old_i])) {
