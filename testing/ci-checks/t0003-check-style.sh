@@ -6,10 +6,10 @@
 # enforces on the C a commit touches at 100 columns, the block-comment
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
-# it lets through, the C library's integer names, number parsers and
-# string copies it refuses, the list of what stays enabled, and the fetch
-# of checkpatch.pl, which asks a host that does not answer only once, on a
-# throwaway repository.
+# it lets through, the C library's integer names, number parsers, string
+# copies and counted compares it refuses, the list of what stays enabled,
+# and the fetch of checkpatch.pl, which asks a host that does not answer
+# only once, on a throwaway repository.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -185,6 +185,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "BLOCK_COMMENT_STYLE" "$W/out" &&
 	grep -qx "KERNEL_INT_TYPES" "$W/out" &&
 	grep -qx "NUMBER_PARSING" "$W/out" &&
+	grep -qx "STRING_COMPARE" "$W/out" &&
 	grep -qx "STRING_COPY" "$W/out" &&
 	grep -qx "STRING_FORMAT" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
@@ -265,6 +266,29 @@ test_expect_success 'strings are formatted with strsprintf() outside the tests' 
 	done &&
 	check --files util/string.c util/malloc.c testing/helper/fmt.c &&
 	rm -r "$R/util" "$R/testing"
+'
+
+test_expect_success 'strings are compared without a count outside the tests' '
+	printf "%s\n" "/* strncmp() in a comment */" \
+		"static const char *op = \"strncasecmp(a, b, 2)\";" "" \
+		"int scheme(const char *s)" "{" \
+		"	return !strncmp(s, \"az\", 3) ||" \
+		"	       !strncasecmp(s, \"Bearer\", 6) ||" \
+		"	       !!str_has_prefix(s, \"oci://\");" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix() and a span with span_equals() or span_equals_str() from <shirudo/string.h>, not strncmp()" "$W/out" &&
+	grep -q "^ERROR:STRING_COMPARE: .*, not strncasecmp()" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_COMPARE" "$W/out")" = 2 ] &&
+	git -C "$R" checkout -q -- good.c &&
+	put include/shirudo/string.h \
+		"/* SPDX-License-Identifier: BSD-2-Clause */" "" \
+		"#define starts(s) (!strncmp(s, \"az\", 2))" &&
+	put testing/helper/cmp.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"int cmp(const char *s)" "{" \
+		"	return strncmp(s, \"az\", 2);" "}" &&
+	check --files include/shirudo/string.h testing/helper/cmp.c &&
+	rm -r "$R/include" "$R/testing"
 '
 
 test_expect_success 'a BPF program keeps the kernel'"'"'s argument types' '

@@ -42,9 +42,9 @@ signed config image.
        licenses, the upstream tag of a carried file, and the tree itself
    * - ``t0003-check-style``
      - ``check-style.sh``: checkpatch at 100 columns, the block-comment
-       opener, the subject length, the integer, parser, copy and
-       format rules, and a fetch of ``checkpatch.pl`` that asks a host
-       which does not answer only once
+       opener, the subject length, the integer, parser, copy, format
+       and compare rules, and a fetch of ``checkpatch.pl`` that asks a
+       host which does not answer only once
    * - ``t0004-ci-commit-range``
      - ``ci-commit-range.sh``: the ranges for a pull request, a push and
        a force push

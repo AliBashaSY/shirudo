@@ -29,6 +29,11 @@ its BPF programs, with these rules of its own, which
   are for strings that came through one of these, for literals,
   ``argv`` and paths, not for a buffer a ``read()`` filled, a fixed-size
   field of a format or a pointer that came with a length.
+- Test a string's prefix with ``str_has_prefix()`` or
+  ``str_after_prefix()`` and compare a span of known length with
+  ``span_equals()`` or ``span_equals_str()``, which take the length from
+  the string, not from a count beside it. ``strncmp()`` and
+  ``strncasecmp()`` are refused.
 - Check size arithmetic with the helpers of ``<shirudo/overflow.h>``,
   not by hand.
 - No ``(void)`` cast. A result a caller must not drop belongs to a
