@@ -7,7 +7,7 @@
 # cilium checks its BPF tree, plus the block-comment opener that checkpatch
 # leaves to the netdev trees, the kernel's spelling of fixed-width
 # integers and the project's number parsers, string copies, formatting,
-# compares and token walks.
+# compares, token walks and searches.
 # The kernel checks that have no meaning in userspace are switched off
 # below, each with its reason.
 #
@@ -212,12 +212,16 @@ locate_checkpatch() {
 # snprintf() or their va_list forms is reported outside the tests and
 # the two files that implement strsprintf() and xasprintf() with them:
 # strsprintf() and vstrsprintf() refuse output that does not fit rather
-# than cut it. So is a call to strncmp() or strncasecmp() outside the
-# tests and the header that wraps them: str_has_prefix(),
+# than cut it. So is a call to strncmp(), strncasecmp() or strcasecmp()
+# outside the tests and the header that wraps them: str_has_prefix(),
 # str_after_prefix(), span_equals() and their kin take the length from
-# the string, where a caller's count can be off by one and still compile.
+# the string, where a caller's count can be off by one and still compile,
+# and str_equals_nocase() says whether two strings are the same.
 # And so is strtok_r(), strtok() or strsep(): for_each_token() gives each
 # token as pointer and length and leaves the walked buffer as it was.
+# strcspn() and strstr() are reported as STRING_SEARCH: span_until() and
+# span_find() take the length of what they search, and str_contains()
+# answers for a string.
 # The scanf() family counts as a number parser and stpcpy(), strlcat(),
 # memccpy() and bcopy() as string copies, and a call to one of the other
 # functions <shirudo/string.h> poisons, which nothing in the tree calls,
@@ -338,10 +342,18 @@ check_spellings() {
 			bad = 1
 		}
 		if (!compares_kept(file) &&
-		    match(code, /(^|[^A-Za-z0-9_])strn(case)?cmp[ \t]*\(/)) {
+		    match(code, /(^|[^A-Za-z0-9_])str(ncmp|n?casecmp)[ \t]*\(/)) {
 			fn = substr(code, RSTART, RLENGTH)
 			gsub(/[^A-Za-z0-9_]/, "", fn)
-			printf "ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix() and a span with span_equals() or span_equals_str() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+			printf "ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix(), a span with span_equals() or span_equals_str() and a string in either case with str_equals_nocase() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+				fn, NR, file, line, $0
+			bad = 1
+		}
+		if (!parsers_kept(file) &&
+		    match(code, /(^|[^A-Za-z0-9_])str(cspn|str)[ \t]*\(/)) {
+			fn = substr(code, RSTART, RLENGTH)
+			gsub(/[^A-Za-z0-9_]/, "", fn)
+			printf "ERROR:STRING_SEARCH: search with span_until(), span_find() or str_contains() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
 				fn, NR, file, line, $0
 			bad = 1
 		}
@@ -534,7 +546,7 @@ list_types() {
 		LC_ALL=C comm -23 "$work/all" "$work/ignored"
 		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING \
 			STRING_COMPARE STRING_COPY STRING_FORMAT STRING_LIBC \
-			STRING_TOKENS
+			STRING_SEARCH STRING_TOKENS
 	} | LC_ALL=C sort
 }
 

@@ -32,8 +32,13 @@ its BPF programs, with these rules of its own, which
 - Test a string's prefix with ``str_has_prefix()`` or
   ``str_after_prefix()`` and compare a span of known length with
   ``span_equals()`` or ``span_equals_str()``, which take the length from
-  the string, not from a count beside it. ``strncmp()`` and
-  ``strncasecmp()`` are refused.
+  the string, not from a count beside it, and two whole strings in
+  either case with ``str_equals_nocase()``. ``strncmp()``,
+  ``strncasecmp()`` and ``strcasecmp()`` are refused.
+- Search the bytes you have the length of: ``span_until()`` measures up
+  to the first byte of a set, ``span_find()`` finds a string in a span,
+  and ``str_contains()`` says whether a string holds another.
+  ``strcspn()`` and ``strstr()`` are refused.
 - Walk the lines of a buffer, the words of a line or the entries of a
   list with ``for_each_token()``, which gives each token as a pointer and
   its length and writes nothing. ``strtok_r()``, ``strtok()`` and

@@ -280,9 +280,9 @@ static inline int memneq_explicit(const void *a, const void *b, size_t size)
 # pragma GCC poison strtoq strtouq scanf fscanf sscanf vscanf vfscanf vsscanf
 # pragma GCC poison strcpy strncpy strcat strncat strlcpy
 # pragma GCC poison stpcpy stpncpy strlcat memccpy bcopy
-# pragma GCC poison strncmp strncasecmp strcoll strxfrm bcmp
+# pragma GCC poison strncmp strncasecmp strcasecmp strcoll strxfrm bcmp
 # pragma GCC poison strtok strtok_r strsep
-# pragma GCC poison strspn strpbrk strcasestr strchrnul strverscmp
+# pragma GCC poison strspn strcspn strcasestr strchrnul strverscmp
 # pragma GCC poison rawmemchr rindex
 # pragma GCC poison strfry memfrob bzero gets
 /*
@@ -291,7 +291,9 @@ static inline int memneq_explicit(const void *a, const void *b, size_t size)
  */
 # undef strdupa
 # undef strndupa
-# pragma GCC poison strdupa strndupa
+# undef strpbrk
+# undef strstr
+# pragma GCC poison strdupa strndupa strpbrk strstr
 /* Fortified glibc makes these macros for clang; poison the names alone. */
 # undef sprintf
 # undef snprintf

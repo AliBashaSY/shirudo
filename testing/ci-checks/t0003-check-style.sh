@@ -7,7 +7,7 @@
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
 # it lets through, the C library's integer names, number parsers, string
-# copies, counted compares, token walks and unused string functions it
+# copies, compares, token walks, searches and unused string functions it
 # refuses, the list of what stays enabled, and the fetch of checkpatch.pl,
 # which asks a host that does not answer only once, on a throwaway
 # repository.
@@ -190,6 +190,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "STRING_COPY" "$W/out" &&
 	grep -qx "STRING_FORMAT" "$W/out" &&
 	grep -qx "STRING_LIBC" "$W/out" &&
+	grep -qx "STRING_SEARCH" "$W/out" &&
 	grep -qx "STRING_TOKENS" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
@@ -280,12 +281,14 @@ test_expect_success 'strings are compared without a count outside the tests' '
 		"int scheme(const char *s)" "{" \
 		"	return !strncmp(s, \"az\", 3) ||" \
 		"	       !strncasecmp(s, \"Bearer\", 6) ||" \
+		"	       !strcasecmp(s, \"https\") ||" \
 		"	       !!str_has_prefix(s, \"oci://\");" "}" \
 		>>"$R/good.c" &&
 	! check --diff &&
-	grep -q "^ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix() and a span with span_equals() or span_equals_str() from <shirudo/string.h>, not strncmp()" "$W/out" &&
+	grep -q "^ERROR:STRING_COMPARE: compare a prefix with str_has_prefix() or str_after_prefix(), a span with span_equals() or span_equals_str() and a string in either case with str_equals_nocase() from <shirudo/string.h>, not strncmp()" "$W/out" &&
 	grep -q "^ERROR:STRING_COMPARE: .*, not strncasecmp()" "$W/out" &&
-	[ "$(grep -c "^ERROR:STRING_COMPARE" "$W/out")" = 2 ] &&
+	grep -q "^ERROR:STRING_COMPARE: .*, not strcasecmp()" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_COMPARE" "$W/out")" = 3 ] &&
 	git -C "$R" checkout -q -- good.c &&
 	put include/shirudo/string.h \
 		"/* SPDX-License-Identifier: BSD-2-Clause */" "" \
@@ -314,6 +317,29 @@ test_expect_success 'tokens are walked with for_each_token() outside the tests' 
 		"char *cut(char *s, char **save)" "{" \
 		"	return strtok_r(s, \",\", save);" "}" &&
 	check --files testing/helper/cut.c &&
+	rm -r "$R/testing"
+'
+
+test_expect_success 'strings are searched by their length outside the tests' '
+	printf "%s\n" "/* strstr() in a comment */" \
+		"static const char *op = \"strcspn(a, b)\";" "" \
+		"size_t find(const char *s)" "{" \
+		"	return strstr(s, \"..\") ? 0 : strcspn(s, \"=\") +" \
+		"	       span_until(s, 2, \"=\");" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_SEARCH: search with span_until(), span_find() or str_contains() from <shirudo/string.h>, not strstr()" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_SEARCH" "$W/out")" = 1 ] &&
+	git -C "$R" checkout -q -- good.c &&
+	printf "%s\n" "" "size_t cut(const char *s)" "{" \
+		"	return strcspn(s, \"=\");" "}" >>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_SEARCH: .*, not strcspn()" "$W/out" &&
+	git -C "$R" checkout -q -- good.c &&
+	put testing/helper/find.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"int find(const char *s)" "{" \
+		"	return !!strstr(s, \"..\");" "}" &&
+	check --files testing/helper/find.c &&
 	rm -r "$R/testing"
 '
 
