@@ -1,0 +1,106 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 Authors of shirudo
+#
+# t7012 -- a registry that asks for a bearer token: the token its realm
+# returns goes with the next request, and a realm that answers with an
+# empty body fails the pull before any request carries a token, with
+# registry credentials set as without.
+
+cd "$(dirname "$0")/../.."
+. ./test-lib.sh
+
+SHIRUDO=${SHIRUDO:-../shirudo}
+command -v python3 >/dev/null 2>&1 || test_skip_all "no python3"
+W=$(mktemp -d)
+SERVER=
+cleanup() {
+	[ -z "$SERVER" ] || kill "$SERVER" 2>/dev/null || :
+	rm -rf "$W"
+}
+trap cleanup EXIT
+
+# The realm of repository ns/<body> answers 200 with that body: "full"
+# with a token, "empty" with nothing. Each request is logged with the
+# credentials it carried.
+cat >"$W/registry.py" <<'PY'
+import http.server, sys
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *args):
+        pass
+
+    def reply(self, status, body=b"", headers=()):
+        self.send_response(status)
+        for name, value in headers:
+            self.send_header(name, value)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        auth = self.headers.get("Authorization", "none")
+        with open(sys.argv[2], "a") as log:
+            log.write("%s %s\n" % (self.path.split("?")[0], auth))
+        port = self.server.server_address[1]
+        if self.path.startswith("/token/full"):
+            self.reply(200, b'{"token":"granted"}')
+        elif self.path.startswith("/token/empty"):
+            self.reply(200)
+        elif "/manifests/" in self.path:
+            body = self.path.split("/")[3]
+            challenge = ('Bearer realm="http://127.0.0.1:%d/token/%s",'
+                         'service="registry",scope="repository:ns/%s:pull"'
+                         % (port, body, body))
+            self.reply(401, headers=[("WWW-Authenticate", challenge)])
+        else:
+            self.reply(404)
+
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+with open(sys.argv[1], "w") as f:
+    f.write(str(server.server_address[1]))
+server.serve_forever()
+PY
+python3 "$W/registry.py" "$W/port" "$W/requests" &
+SERVER=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+	[ -s "$W/port" ] && break
+	sleep 0.5
+done
+[ -s "$W/port" ] || test_skip_all "the registry did not start"
+PORT=$(cat "$W/port")
+
+BIN=$(cd "$(dirname "$SHIRUDO")" && pwd)/$(basename "$SHIRUDO")
+
+pull() {
+	: >"$W/requests"
+	(cd "$W" && BPM_OCI_SCHEME=http "$@" "$BIN" bpm pull \
+		"oci://127.0.0.1:$PORT/ns/$PULL:1.0.0" >"$W/out" 2>&1)
+}
+
+test_expect_success 'the token the realm returns goes with the next request' '
+	PULL=full &&
+	! pull env &&
+	grep -q "^/token/full none$" "$W/requests" &&
+	grep -q "^/v2/ns/full/manifests/1.0.0 Bearer granted$" "$W/requests"
+'
+
+test_expect_success 'an empty token response fails before a token is sent' '
+	PULL=empty &&
+	! pull env &&
+	grep -q "^/token/empty none$" "$W/requests" &&
+	! grep -q "Bearer" "$W/requests"
+'
+
+test_expect_success 'an empty token response fails with credentials set too' '
+	PULL=empty &&
+	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
+	grep -q "^/token/empty Basic " "$W/requests" &&
+	! grep -q "Bearer" "$W/requests"
+'
+
+test_done

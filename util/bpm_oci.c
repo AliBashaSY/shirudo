@@ -719,8 +719,10 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		goto out;
 	}
 	/* curl never calls the write callback for an empty body. */
-	if (!r.body.data)
+	if (!r.body.data) {
+		ret = -EINVAL;
 		goto out;
+	}
 	ret = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
 out:
 	memzero_explicit(basic, sizeof(basic));
