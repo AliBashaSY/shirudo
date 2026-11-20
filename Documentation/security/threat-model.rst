@@ -38,7 +38,7 @@ Every entry has a stable ID that commits, issues and other pages cite:
      - Assumptions the goals depend on, and whether shirudo checks them.
    * - ADV-A to ADV-G
      - Adversaries.
-   * - T1 to T14
+   * - T1 to T15
      - Threats shirudo addresses, each with a fact box.
    * - R1 to R23
      - Residual risks: known and bounded limits of the mechanisms.
