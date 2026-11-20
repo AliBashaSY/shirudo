@@ -725,6 +725,10 @@ can rewrite what it finds does so with ``-D patch``:
      - Memory used or freed again after it was freed.
    * - ``uninit``
      - A local read after a ``goto`` jumped over its assignment.
+   * - ``local_escape``
+     - The address of a local array or variable stored in a member of an
+       object the caller passed in and left there on a path out, where
+       it points into a dead frame.
    * - ``alloc_size``
      - An allocation sized for another type than its pointer, and a
        free of memory no allocator returned.

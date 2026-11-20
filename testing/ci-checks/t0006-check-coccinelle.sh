@@ -9,8 +9,9 @@
 # from CERT C, each BPF hazard rule, each scrub rule, dead_store and the
 # two rules for bytes taken for a string report a sample of what they
 # refuse, the rules of SAMPLE_RULES each at its line, array_size a count
-# by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>, a file
-# a rule gives up on at its time limit is named rather than failed, every
+# by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
+# local_escape a local's address left in the caller's object, a file a
+# rule gives up on at its time limit is named rather than failed, every
 # rule declares SEC an attribute, and the tree itself.
 
 cd "$(dirname "$0")/.."
@@ -1116,6 +1117,105 @@ test_expect_success 'array_size rewrites the counts but not a definition' '
 	grep -qxF "#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))" \
 		"$R8/samples.c" &&
 	grep -qF "return ARRAY_SIZE(x) + ARRAY_SIZE(x);" "$R8/samples.c"
+'
+
+# The address of a local left in an object the caller passed in: an
+# array, a variable and an element, through a parameter or a pointer
+# taken from one. Beside them what keeps nothing: a member cleared before
+# the return, a static local, a pointer's value and an object of the
+# function's own.
+write_escape_samples() {
+	cat >"$1" <<'EOF'
+struct ctx {
+	const int *entry;
+	const char *name;
+	int *count;
+};
+
+int kept_array(struct ctx *u, int n)
+{
+	int entry[2] = { n, n };
+
+	u->entry = entry;
+	return n;
+}
+
+int kept_variable(struct ctx *u)
+{
+	int count = 0;
+
+	u->count = &count;
+	return 0;
+}
+
+int kept_through_alias(void *arg)
+{
+	struct ctx *u = arg;
+	int entry[2] = {};
+
+	u->entry = entry;
+	return 0;
+}
+
+void kept_element(struct ctx *u)
+{
+	int entry[2] = {};
+
+	if (entry[0])
+		u->entry = &entry[1];
+}
+
+int cleared(struct ctx *u)
+{
+	int entry[2] = {};
+
+	u->entry = entry;
+	use(u);
+	u->entry = NULL;
+	return 0;
+}
+
+int static_local(struct ctx *u)
+{
+	static const int
+		entry[2] = { 1, 2 };
+
+	u->entry = entry;
+	return 0;
+}
+
+int pointer_value(struct ctx *u, const char *name)
+{
+	const char *local = name;
+
+	u->name = local;
+	return 0;
+}
+
+int own_object(struct ctx *other)
+{
+	struct ctx c, *u = &c;
+	int entry[2] = {};
+
+	u->entry = entry;
+	return use(u) + use(other);
+}
+EOF
+}
+
+test_expect_success 'local_escape reports a local left in the caller'"'"'s object' '
+	R9=$W/escape &&
+	mkdir -p "$R9/testing/coccinelle" &&
+	git init -q "$R9" &&
+	cp "$ROOT/testing/coccinelle/local_escape.cocci" \
+		"$R9/testing/coccinelle/" &&
+	write_escape_samples "$R9/samples.c" &&
+	! (cd "$R9" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	for line in 11 19 28 37; do
+		grep -q "^local_escape: samples.c:$line:" "$W/err" || exit 1
+	done &&
+	grep -q "samples.c:11:.*u->entry keeps the address of the local entry past the return" "$W/err" &&
+	[ "$(grep -c "^local_escape:" "$W/err")" = 4 ]
 '
 
 # A spatch that gives up, as a rule with --timeout makes it: the file it
