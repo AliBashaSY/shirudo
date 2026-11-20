@@ -99,18 +99,24 @@ struct record_fields {
 	__s64			seq;
 	struct measured_upatch	*set;
 	size_t			n;
-	const struct json_field	*entry;
 	bool			init, upatch, key, tree;
+};
+
+/* The fields one record's set entries are parsed into, for that record only. */
+struct record_set {
+	struct record_fields	*r;
+	const struct json_field	*entry;
 };
 
 /* The buffers are the upatch member's too: an entry names both itself. */
 static int record_set_entry(void *arg)
 {
-	struct record_fields *r = arg;
+	struct record_set *s = arg;
+	struct record_fields *r = s->r;
 	__u32 type;
 	int ret;
 
-	if (!r->entry[0].seen || !r->entry[1].seen)
+	if (!s->entry[0].seen || !s->entry[1].seen)
 		ret = -EINVAL;
 	else
 		ret = measured_member_type(r->member_type, &type);
@@ -146,7 +152,8 @@ static int record_parse(const char *line, size_t len, struct record_fields *r)
 		{ "operation_digest", JSON_T_STRING, r->operation,
 		  sizeof(r->operation), 0, NULL, 0 },
 	};
-	struct json_array set = { record_set_entry, r };
+	struct record_set entries = { r, entry };
+	struct json_array set = { record_set_entry, &entries };
 	struct json_field f[] = {
 		{ "type", JSON_T_STRING, r->type, sizeof(r->type), 0, NULL, 0 },
 		{ "digest", JSON_T_STRING, r->digest_hex, sizeof(r->digest_hex),
@@ -162,7 +169,6 @@ static int record_parse(const char *line, size_t len, struct record_fields *r)
 		{ "tree", JSON_T_OBJECT, NULL, 0, 0, tree, ARRAY_SIZE(tree) },
 	};
 
-	r->entry = entry;
 	if (json_parse(line, len, f, ARRAY_SIZE(f)) || !f[0].seen ||
 	    !f[1].seen)
 		return -EINVAL;
