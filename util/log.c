@@ -7,8 +7,13 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
@@ -17,9 +22,42 @@
 
 #define LOG_MSG_MAX	8192
 
+static bool to_stderr = true;
+
+bool log_stream_is(const char *stream, __u64 dev, __u64 ino)
+{
+	const char *colon;
+	__u64 d, i;
+
+	if (!stream)
+		return false;
+	colon = strchr(stream, ':');
+	if (!colon)
+		return false;
+	return !parse_u64(stream, colon - stream, ~0ULL, &d) &&
+	       !parse_u64(colon + 1, strlen(colon + 1), ~0ULL, &i) &&
+	       d == dev && i == ino;
+}
+
+/*
+ * systemd connects a service's standard error to the journal and names
+ * that stream in JOURNAL_STREAM. A message sent to syslog and written
+ * there too is in the journal twice. Without /dev/log syslog(3) drops
+ * the message, so the copy on standard error stays then.
+ */
+static bool stderr_repeats_syslog(void)
+{
+	struct stat st;
+
+	return !fstat(STDERR_FILENO, &st) &&
+	       log_stream_is(getenv("JOURNAL_STREAM"), st.st_dev, st.st_ino) &&
+	       !access("/dev/log", F_OK);
+}
+
 void log_init(void)
 {
 	openlog("shirudo", LOG_PID | LOG_NDELAY, LOG_AUTHPRIV);
+	to_stderr = !stderr_repeats_syslog();
 }
 
 /*
@@ -64,7 +102,8 @@ static __printf(2, 0) void emit(int priority, const char *fmt, va_list ap)
 		strscpy(msg, fmt, sizeof(msg));
 	escape(out, sizeof(out), msg);
 	syslog(priority, "%s", out);
-	fprintf(stderr, "%s\n", out);
+	if (to_stderr)
+		fprintf(stderr, "%s\n", out);
 	errno = saved_errno;
 }
 

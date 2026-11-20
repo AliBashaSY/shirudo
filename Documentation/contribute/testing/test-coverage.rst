@@ -127,6 +127,10 @@ signed config image.
        options from ``--list-opts``, a value by its placeholder, and a
        command without subcommands that answers ``--list-cmds`` with
        nothing and logs nothing
+   * - ``t1012-messages-once``
+     - A message goes to standard error and to syslog, and to syslog
+       alone where standard error is the journal stream
+       ``JOURNAL_STREAM`` names
 
 ``signing`` (2)
 ~~~~~~~~~~~~~~~
@@ -320,8 +324,9 @@ signed config image.
        ``body_mismatch``; with the libtpms simulator built, the capture
        script rebuilds a file that verifies
    * - ``t4101-initrd``
-     - The production configuration: ``init`` from the initrd, adoption,
-       PCR 11 after the binding, pins under ``/run``
+     - The production configuration: ``init`` from the initrd, its
+       messages in the journal once, adoption, PCR 11 after the binding,
+       pins under ``/run``
    * - ``t4102-tpm-chain``
      - Replay, measured load and unload, evidence from the VM's TPM,
        challenges with ECC and RSA endorsement keys
@@ -847,14 +852,15 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover 36 of the modules in
+The unit suites in :src:`testing/unit/` cover 37 of the modules in
 :src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_state``,
 ``bpm_tree``, ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain``,
 ``chain_history``, ``conditions``, ``config_update``, ``crypto_openssl``,
 ``eventlog``, ``format``, ``hex``, ``io``, ``java_agent``, ``json``,
 ``kernel_abi``,
 ``keepalive``, ``keepalive_quote``, ``kernel_build_id``,
-``kernel_prereq``, ``kernel_release``, ``keys``, ``measured``, ``options``,
+``kernel_prereq``, ``kernel_release``, ``keys``, ``log``, ``measured``,
+``options``,
 ``paths``, ``string``, ``sysinfo``, ``upatch``, ``upatch_decode``,
 ``upatch_pins``, ``upatch_resolve``, ``upatch_verify`` and ``xdp``, and
 ``overflow`` the arithmetic of
@@ -1060,9 +1066,9 @@ Coverage by area
        ``t6120``, ``t6121``, ``t6124``, ``t6126``, ``t6135``,
        ``t6137``
    * - CLI
-     - ``t1001``, ``t1002``, ``t1011``, ``t2001``, ``t3005``, ``t3106``,
-       ``t3108``, ``t5004``, ``t5103``, ``t6007``, ``t6114``,
-       ``t7001``, ``t8001``
+     - ``t1001``, ``t1002``, ``t1011``, ``t1012``, ``t2001``, ``t3005``,
+       ``t3106``, ``t3108``, ``t5004``, ``t5103``, ``t6007``, ``t6114``,
+       ``t7001``, ``t8001``. Unit: ``log``
    * - Build and packaging
      - ``t0005``, ``t0007``, ``t1003``, ``t1004``, ``t1005``,
        ``t7004``, ``t8003``

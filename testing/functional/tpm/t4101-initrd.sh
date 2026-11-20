@@ -44,6 +44,12 @@ test_expect_success 'the initrd unit ran and completed init' '
 		grep -q "init: complete"
 '
 
+test_expect_success 'the journal holds a message of the initrd run once' '
+	n=$(journalctl -b -u shirudo-initrd.service --no-pager 2>/dev/null |
+		grep -c "init: complete") &&
+	[ "$n" = 1 ]
+'
+
 test_expect_success 'the root adopted the initrd record into the eventlog' '
 	test ! -e /run/shirudo/eventlog.pending &&
 	grep -q "\"bound_in\":\"initrd\"" /var/lib/shirudo/eventlog

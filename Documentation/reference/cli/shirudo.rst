@@ -98,7 +98,10 @@ Every invocation goes through the same steps before the command runs:
 
 Progress, warning and error messages go to standard error and to syslog
 with the identifier ``shirudo`` and the facility ``LOG_AUTHPRIV``, where
-journald picks them up. Results go to standard output. Help text goes to
+journald picks them up. Where standard error is the journal's own
+stream, as under the systemd units, they go to syslog alone, so that the
+journal holds each message once; systemd names that stream in
+``JOURNAL_STREAM``. Results go to standard output. Help text goes to
 standard error, except the help of the generator scripts, which goes to
 standard output.
 

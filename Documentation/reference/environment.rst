@@ -88,6 +88,12 @@ shirudo and shirudo-build
        ``--check-only`` and ``--json``. The runtime drop-in clears
        ``ExecStart=`` and ``EnvironmentFile=``, so the variable has no
        effect with it.
+   * - ``JOURNAL_STREAM``
+     - ``shirudo`` and ``shirudo-build``, for their messages
+     - Set by systemd to the device and inode of the journal stream a
+       service's output is connected to. When it names the file that is
+       standard error, and ``/dev/log`` exists, messages go to syslog
+       alone, so that the journal holds each once. Honored on a target.
    * - ``TMPDIR``
      - ``shirudo-build bpm build`` (staging directory), the generator
        scripts (``mktemp -d``)
