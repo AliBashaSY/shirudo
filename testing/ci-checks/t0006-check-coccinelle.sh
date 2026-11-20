@@ -375,8 +375,9 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # One case of each rule below at the line given with it, and beside it
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
-SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak"
-SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148"
+SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak getenv_null"
+SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148
+getenv_null:170 getenv_null:177"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -541,6 +542,32 @@ int measure_unlocked(const struct op *op)
 	ret = measure_locked(op);
 	eventlog_unlock(lock);
 	return ret;
+}
+
+int env_stored(void)
+{
+	const char *scheme;
+
+	scheme = getenv("BPM_OCI_SCHEME");
+	return !strcmp(scheme, "http");
+}
+
+size_t env_declared(void)
+{
+	const char *home = getenv("HOME");
+
+	return strlen(home);
+}
+
+int env_tested(void)
+{
+	const char *region, *endpoint;
+
+	region = getenv("AWS_REGION");
+	endpoint = getenv("AWS_ENDPOINT_URL_S3");
+	if (!region || !region[0] || !endpoint)
+		return -EINVAL;
+	return endpoint[0] && strlen(endpoint) < 256;
 }
 EOF
 }

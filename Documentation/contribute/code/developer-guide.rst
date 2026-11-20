@@ -740,6 +740,10 @@ can rewrite what it finds does so with ``-D patch``:
      - A ``char`` array too short for the NUL of the literal it holds, a
        ``char`` that keeps what ``getc()`` returns, and ``getenv()``
        passed on unchecked, after the CERT C rules.
+   * - ``getenv_null``
+     - A ``getenv()`` result kept in a variable and read before a test
+       that it is not ``NULL``, in its own condition or before it, where
+       ``cert_misc`` refuses one passed on directly.
    * - ``errno_clobber``
      - A cleanup call, such as ``close()``, between a failure and the
        read of its ``errno``, after CERT C ERR30-C.
