@@ -262,8 +262,7 @@ int main(int argc, char **argv)
 		__u8 operation[32];
 		__s64 seq = atoi(argv[2]);
 
-		if (strncmp(argv[5], "sha256:", 7) ||
-		    hex_decode(argv[5] + 7, operation, 32))
+		if (sha256_digest_decode(argv[5], operation))
 			return 2;
 		if (chain_tree_event(seq, operation, event))
 			return 2;

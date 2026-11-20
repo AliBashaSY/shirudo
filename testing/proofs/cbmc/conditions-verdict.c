@@ -169,7 +169,7 @@ static bool cut_to(const char *buf, const char *text, size_t size)
 {
 	size_t n = min(strlen(text), size - 1);
 
-	return !strncmp(buf, text, n) && !buf[n];
+	return !memcmp(buf, text, n) && !buf[n];
 }
 
 void harness(void)

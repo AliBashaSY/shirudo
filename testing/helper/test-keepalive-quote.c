@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "crypto.h"
 #include "hex.h"
@@ -32,13 +33,12 @@ static int quote_values(char *quote, const char *values[QUOTE_FIELDS])
 	size_t i;
 
 	for (i = 0; i < QUOTE_FIELDS; i++) {
-		size_t n = strlen(keys[i]);
 		char *end;
 
-		if (strncmp(field, keys[i], n))
+		values[i] = str_after_prefix(field, keys[i]);
+		if (!values[i])
 			return -EINVAL;
-		values[i] = field + n;
-		end = strchr(field + n, ';');
+		end = strchr(field, ';');
 		if (i + 1 == QUOTE_FIELDS) {
 			if (end)
 				return -EINVAL;

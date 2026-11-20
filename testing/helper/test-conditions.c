@@ -101,8 +101,8 @@ int main(int argc, char **argv)
 		in.pins_rc = -ENOENT;
 	} else if (pins && !strcmp(pins, "error")) {
 		in.pins_rc = -EACCES;
-	} else if (pins && !strncmp(pins, "unmeasured:", 11)) {
-		in.pins_detail = pins + 11;
+	} else if (pins && str_skip_prefix(&pins, "unmeasured:")) {
+		in.pins_detail = pins;
 		in.pins_unmeasured = 1;
 		for (pins = in.pins_detail; *pins; pins++)
 			in.pins_unmeasured += *pins == ',';

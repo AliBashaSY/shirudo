@@ -66,7 +66,7 @@ void harness(void)
 	was = cfg.tpm_owner_auth[k];
 	n = strlen(val);
 	set_owner_auth(&cfg, val);
-	if (strncmp(val, "hex:", 4)) {
+	if (!str_has_prefix(val, "hex:")) {
 		if (n > AUTH_MAX) {
 			__CPROVER_assert(cfg.tpm_owner_auth_len == had &&
 					 cfg.tpm_owner_auth[k] == was,

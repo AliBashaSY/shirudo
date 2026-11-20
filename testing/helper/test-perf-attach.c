@@ -94,7 +94,7 @@ static int find_prog(const char *want, __u32 *id_out)
 		attr.info.info = (__u64)(size_t)&info;
 		if (!bpf(BPF_OBJ_GET_INFO_BY_FD, &attr) &&
 		    info.type == BPF_PROG_TYPE_KPROBE &&
-		    (!want || !strncmp(info.name, want, sizeof(info.name)))) {
+		    (!want || !strcmp(info.name, want))) {
 			*id_out = id;
 			return fd;
 		}

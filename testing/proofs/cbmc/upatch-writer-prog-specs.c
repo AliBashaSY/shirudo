@@ -601,16 +601,14 @@ static void uprobe_target(const struct prog_spec *s,
 /* The names of syms, in its order, each NUL-terminated in the record. */
 static void kprobe_syms(const struct prog_spec *s, const char *syms)
 {
-	const char *want = syms;
+	const char *want = syms, *rest;
 	__u32 i;
 
 	for (i = 0; i < s->nr_kprobe_syms; i++) {
-		size_t len = strlen(s->kprobe_syms[i]);
-
-		__CPROVER_assert(*want && !strncmp(s->kprobe_syms[i], want, len) &&
-				 (want[len] == ',' || !want[len]),
+		rest = str_after_prefix(want, s->kprobe_syms[i]);
+		__CPROVER_assert(*want && rest && (*rest == ',' || !*rest),
 				 "the names the section lists, sorted");
-		want += len + (want[len] == ',');
+		want = rest + (*rest == ',');
 	}
 	__CPROVER_assert(s->nr_kprobe_syms && !*want, "every name the section lists");
 }

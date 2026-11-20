@@ -411,8 +411,7 @@ int bpm_tree_fetch_publication(struct bpm_oci_client *c,
 	int s = 0;
 
 	if (!failure && fetches++)
-		s = served(strncmp(reference, "sha256:", 7) ? reference[0] :
-			   reference[7]);
+		s = served(reference[str_has_prefix(reference, "sha256:")]);
 	*pub = *served_pub(s);
 	if (failure)
 		return -EIO;

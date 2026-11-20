@@ -145,8 +145,9 @@ static int test_pcr_extend(void *opaque, __u32 pcr,
 static int test_prepare(void *opaque,
 			const struct config_update_target *target)
 {
+	static const char slot_a[] = "/verified/config-A";
+	size_t i, len = strlen(target->prefix);
 	struct test_context *ctx = opaque;
-	size_t i;
 	int ret;
 
 	ctx->sim.prepares++;
@@ -155,13 +156,12 @@ static int test_prepare(void *opaque,
 		return ret;
 	if (getenv("SHIRUDO_TEST_CONFIG_PREPARE_FAIL"))
 		return -EKEYREJECTED;
-	if (strlen(target->prefix) != sizeof("/verified/config-A") - 1 ||
-	    strncmp(target->prefix, "/verified/config-",
-		    sizeof("/verified/config-") - 1))
+	/* Any slot: the letter is what the root hash repeats. */
+	if (len != sizeof(slot_a) - 1 ||
+	    memcmp(target->prefix, slot_a, len - 1))
 		return -EKEYREJECTED;
 	for (i = 0; i < sizeof(target->root_hash); i++)
-		if (target->root_hash[i] !=
-		    (__u8)target->prefix[strlen(target->prefix) - 1])
+		if (target->root_hash[i] != (__u8)target->prefix[len - 1])
 			return -EKEYREJECTED;
 	return 0;
 }

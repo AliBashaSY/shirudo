@@ -127,7 +127,7 @@ static bool hex_digits(const char *s)
 
 static bool sha256_named(const char *s)
 {
-	return !strncmp(s, "sha256:", 7) && hex_digits(s + 7);
+	return str_skip_prefix(&s, "sha256:") && hex_digits(s);
 }
 
 /* LEN operations, any parent, any base and head, the first at any seq. */

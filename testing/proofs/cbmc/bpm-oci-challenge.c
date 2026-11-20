@@ -63,7 +63,7 @@ void harness(void)
 			 "every value terminated inside its buffer");
 	if (ret)
 		return;
-	__CPROVER_assert(!strncasecmp(header, "Bearer", 6),
+	__CPROVER_assert(str_has_prefix_nocase(header, "Bearer"),
 			 "only a Bearer challenge");
 	__CPROVER_assert(realm[0] && quoted_after(header, len, "realm", realm),
 			 "a realm, quoted in the challenge");

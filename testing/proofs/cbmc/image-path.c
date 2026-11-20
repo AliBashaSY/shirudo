@@ -15,7 +15,7 @@
 
 static bool component_is(const char *s, size_t n, const char *what)
 {
-	return n == strlen(what) && !strncmp(s, what, n);
+	return span_equals_str(s, n, what);
 }
 
 void harness(void)

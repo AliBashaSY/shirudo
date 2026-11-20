@@ -48,8 +48,8 @@ void harness(void)
 		__CPROVER_assert(!strcmp(c.detail, names),
 				 "the whole text where the detail holds it");
 	else if (len < TEXT_MAX)
-		__CPROVER_assert(!strncmp(c.detail, FILLED ? FILLER : names,
-					  room - 3) &&
+		__CPROVER_assert(!memcmp(c.detail, FILLED ? FILLER : names,
+					 room - 3) &&
 				 !strcmp(c.detail + room - 3, "..."),
 				 "the start of a longer text and three dots");
 	else
