@@ -213,24 +213,28 @@ static int device_path(struct dm_verity *device, __u64 dev)
 								   : -ESTALE;
 }
 
-static int dm_number(const char *token, __u64 *out)
+/* A parameter of a target's table, in the reply it is part of. */
+struct dm_token {
+	const char	*s;
+	size_t		len;
+};
+
+static int dm_number(const char *s, size_t len, __u64 *out)
 {
-	if (!token)
-		return -EINVAL;
-	return parse_u64(token, strlen(token), ~0ULL, out) ? -EINVAL : 0;
+	return parse_u64(s, len, ~0ULL, out) ? -EINVAL : 0;
 }
 
-static int dm_device(char *token, dev_t *out)
+static int dm_device(const struct dm_token *token, dev_t *out)
 {
+	const char *separator = memchr(token->s, ':', token->len);
 	__u64 major_nr, minor_nr;
-	char *separator;
+	size_t major_len;
 
-	separator = strchr(token, ':');
 	if (!separator)
 		return -EINVAL;
-	*separator = '\0';
-	if (dm_number(token, &major_nr) ||
-	    dm_number(separator + 1, &minor_nr) ||
+	major_len = (size_t)(separator - token->s);
+	if (dm_number(token->s, major_len, &major_nr) ||
+	    dm_number(separator + 1, token->len - major_len - 1, &minor_nr) ||
 	    major_nr > UINT_MAX || minor_nr > UINT_MAX)
 		return -EINVAL;
 	*out = makedev(major_nr, minor_nr);
@@ -241,12 +245,13 @@ static int check_table(union dm_buffer *buf,
 		       const struct config_image *image,
 		       struct dm_verity *device)
 {
-	char root[65], salt[65], *tokens[13], *save = NULL, *token;
 	struct dm_target_spec *target;
-	__u64 value;
-	size_t offset, avail;
+	struct dm_token tokens[13];
+	size_t offset, avail, len;
+	char root[65], salt[65];
+	const char *params, *s;
 	__u32 count = 0, i;
-	char *params;
+	__u64 value;
 
 	if (!(buf->io.flags & DM_READONLY_FLAG) ||
 	    buf->io.flags & (DM_SUSPEND_FLAG | DM_INACTIVE_PRESENT_FLAG) ||
@@ -265,28 +270,30 @@ static int check_table(union dm_buffer *buf,
 			 strnlen(target->target_type,
 				 sizeof(target->target_type)), "verity"))
 		return -EKEYREJECTED;
-	params = (char *)(target + 1);
+	params = (const char *)(target + 1);
 	avail = buf->io.data_size - offset - sizeof(*target);
 	if (!memchr(params, 0, avail))
 		return -EINVAL;
-	for (token = strtok_r(params, " ", &save); token;
-	     token = strtok_r(NULL, " ", &save)) {
-		if (count == 13)
+	for_each_token(s, len, params, strlen(params), " ") {
+		if (count == ARRAY_SIZE(tokens))
 			return -EKEYREJECTED;
-		tokens[count++] = token;
+		tokens[count++] = (struct dm_token){ s, len };
 	}
 	if (image->signed_root) {
-		if (count != 13 || strcmp(tokens[10], "2") ||
-		    strcmp(tokens[11], "root_hash_sig_key_desc"))
+		if (count != 13 ||
+		    !span_equals(tokens[10].s, tokens[10].len, "2") ||
+		    !span_equals(tokens[11].s, tokens[11].len,
+				 "root_hash_sig_key_desc"))
 			return -EKEYREJECTED;
 	} else if ((count != 10 && count != 11) ||
-		   (count == 11 && strcmp(tokens[10], "0"))) {
+		   (count == 11 &&
+		    !span_equals(tokens[10].s, tokens[10].len, "0"))) {
 		return -EKEYREJECTED;
 	}
 	for (i = 0; i < 7; i++) {
 		if (i == 1 || i == 2)
 			continue;
-		if (dm_number(tokens[i], &value))
+		if (dm_number(tokens[i].s, tokens[i].len, &value))
 			return -EINVAL;
 		if ((i == 0 && value != 1) ||
 		    ((i == 3 || i == 4) &&
@@ -297,11 +304,12 @@ static int check_table(union dm_buffer *buf,
 	}
 	hex_encode(image->root_hash, 32, root);
 	hex_encode(image->salt, 32, salt);
-	if (strcmp(tokens[7], "sha256") || strcmp(tokens[8], root) ||
-	    strcmp(tokens[9], salt))
+	if (!span_equals(tokens[7].s, tokens[7].len, "sha256") ||
+	    !span_equals_str(tokens[8].s, tokens[8].len, root) ||
+	    !span_equals_str(tokens[9].s, tokens[9].len, salt))
 		return -EKEYREJECTED;
-	if (dm_device(tokens[1], &device->data_device) ||
-	    dm_device(tokens[2], &device->hash_device))
+	if (dm_device(&tokens[1], &device->data_device) ||
+	    dm_device(&tokens[2], &device->hash_device))
 		return -EINVAL;
 	return 0;
 }

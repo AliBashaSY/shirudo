@@ -690,8 +690,8 @@ int tree_event_append(__s64 seq, const char *operation_digest,
 int tree_event_replay(__u8 out[32])
 {
 	__u8 *body;
-	size_t len;
-	char *save, *line;
+	size_t len, line_len;
+	const char *line;
 	__u8 chain[32] = {};
 	__s64 previous_seq = 0;
 	int ret = tree_read_file(BPM_TREE_EVENTLOG_PATH, &body, &len);
@@ -704,8 +704,8 @@ int tree_event_replay(__u8 out[32])
 		return -EINVAL;
 	}
 	body[lines_len((const char *)body, len)] = '\0';
-	for (line = strtok_r((char *)body, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
+	for_each_token(line, line_len, (const char *)body,
+		       strlen((const char *)body), "\n") {
 		char digest[128] = {};
 		char projection[65] = {};
 		__s64 seq = 0;
@@ -718,7 +718,7 @@ int tree_event_replay(__u8 out[32])
 		};
 		__u8 d[32], next[64], recorded[32];
 
-		ret = json_parse(line, strlen(line), f, ARRAY_SIZE(f));
+		ret = json_parse(line, line_len, f, ARRAY_SIZE(f));
 		if (ret || !f[0].seen || !f[1].seen || !f[2].seen ||
 		    seq <= previous_seq || strlen(projection) != 64 ||
 		    hex_decode(projection, recorded, 32)) {

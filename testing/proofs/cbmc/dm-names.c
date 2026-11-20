@@ -6,7 +6,7 @@
  * LEN_MAX bytes, and on names of 127 and 128 bytes that end in letters: a
  * device-mapper name is exactly 1 to 127 of [A-Za-z0-9._-] and not "." or
  * "..", and a device is two decimal numbers around a ':' that the device
- * number holds unchanged.
+ * number holds unchanged, read from the bytes of its token alone.
  */
 
 #define PROOF_DEVICE_NUMBERS
@@ -72,21 +72,22 @@ static void long_name(size_t len)
 
 void harness(void)
 {
-	char *name = any_string(), *token = any_string(), *was;
-	size_t n = strlen(name), colon;
+	size_t n, len, colon;
+	char *name = any_string();
+	struct dm_token token;
 	dev_t dev;
 
+	n = strlen(name);
 	__CPROVER_assert(dm_name_ok(name) == name_valid(name, n),
 			 "1 to 127 of [A-Za-z0-9._-], not . or ..");
 	long_name(DM_NAME_LEN);
 	long_name(DM_NAME_LEN + 1);
-	n = strlen(token);
-	was = any_bytes(n + 1);
-	memcpy(was, token, n + 1);
-	if (dm_device(token, &dev))
+	__CPROVER_assume(len <= LEN_MAX);
+	token = (struct dm_token){ any_input(len, LEN_MAX), len };
+	if (dm_device(&token, &dev))
 		return;
-	colon = strchr(was, ':') - was;
-	__CPROVER_assert(decimal(was, colon) &&
-			 decimal(was + colon + 1, n - colon - 1),
+	colon = (size_t)((const char *)memchr(token.s, ':', len) - token.s);
+	__CPROVER_assert(decimal(token.s, colon) &&
+			 decimal(token.s + colon + 1, len - colon - 1),
 			 "decimal major:minor");
 }

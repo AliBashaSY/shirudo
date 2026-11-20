@@ -830,9 +830,9 @@ static bool header_value_ok(const char *s)
 
 static int add_configured_headers(struct otel_state *st, const char *input)
 {
-	char *copy, *save = NULL, *pair;
-	size_t total = input ? strlen(input) : 0;
+	size_t total = input ? strlen(input) : 0, pair_len;
 	bool tenant_seen = false;
+	char *copy, *pair;
 	int ret = 0;
 
 	if (!input)
@@ -842,14 +842,14 @@ static int add_configured_headers(struct otel_state *st, const char *input)
 	copy = xstrdup(input);
 	if (!copy)
 		return -ENOMEM;
-	for (pair = strtok_r(copy, ",", &save); pair;
-	     pair = strtok_r(NULL, ",", &save)) {
-		char *eq = strchr(pair, '=');
-		char *name, *value, *line;
+	for_each_token(pair, pair_len, copy, total, ",") {
+		char *name, *value, *line, *eq;
 		const char *header;
 		bool tenant;
 		size_t n;
 
+		pair[pair_len] = '\0';
+		eq = strchr(pair, '=');
 		if (!eq) {
 			ret = -EINVAL;
 			break;

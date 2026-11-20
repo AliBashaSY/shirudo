@@ -9,12 +9,16 @@
  * file for the bytes of the log. JSON, hex and SHA-256 are stubs.
  */
 
+/* util/string.c is included behind a file that includes its header. */
+#define STRING_INTERNAL
+
 #include "proof.h"
 #include "../../../util/bpm_tree_state.c"
 /* lines_len() as the code has it; the file comes from the stub below. */
 #define read_file read_file_unused
 #include "../../../util/io.c"
 #undef read_file
+#include "../../../util/string.c"
 
 #ifdef TREE_REPLAY_LINES
 /* Each line is a byte and its newline at least. */
@@ -39,28 +43,6 @@ static size_t line_at[LINES_MAX], line_len[LINES_MAX];
 static int n_lines;
 static char original[LOG_LEN + 1], log_body[LOG_LEN + 1];
 static int read_error, hash_error, n_freed;
-
-/* CBMC has no strtok_r(); glibc's, with strspn() and strcspn() as loops. */
-char *strtok_r(char *s, const char *delim, char **save)
-{
-	char *token;
-
-	if (!s)
-		s = *save;
-	while (*s && strchr(delim, *s))
-		s++;
-	if (!*s) {
-		*save = s;
-		return NULL;
-	}
-	token = s;
-	while (*s && !strchr(delim, *s))
-		s++;
-	if (*s)
-		*s++ = '\0';
-	*save = s;
-	return token;
-}
 
 /*
  * The log lies in a buffer of the harness, filled before anything can
@@ -112,7 +94,7 @@ int json_parse(const char *data, size_t len, struct json_field *f, size_t n)
 			 f[1].type == JSON_T_STRING && f[1].dst_cap == 128 &&
 			 f[2].type == JSON_T_STRING && f[2].dst_cap == 65,
 			 "a line's three fields, each with its room");
-	__CPROVER_assert(len == strlen(data), "a line is parsed whole");
+	__CPROVER_assert(len && data[len] == '\n', "a line is parsed whole");
 	line_at[n_lines] = (size_t)(data - log_body);
 	line_len[n_lines] = len;
 	r = &records[n_lines++];

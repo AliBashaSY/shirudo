@@ -72,14 +72,19 @@ int eventlog_append(const char *json_line)
  * log failing on it, so appenders take the lock that keeps them from
  * interleaving and append_line() drops what did not finish.
  */
-int eventlog_append_to(const char *path, const char *json_line)
+static int append_record(const char *path, const char *line, size_t len)
 {
 	int ret;
 
-	ret = seal_append_line(path, json_line, strlen(json_line));
+	ret = seal_append_line(path, line, len);
 	if (ret)
 		pr_err("eventlog: append to %s: %s", path, strerror(-ret));
 	return ret;
+}
+
+int eventlog_append_to(const char *path, const char *json_line)
+{
+	return append_record(path, json_line, strlen(json_line));
 }
 
 int eventlog_would_exceed(__u64 max_bytes)
@@ -188,18 +193,18 @@ out:
  * This boot's records from its last init line on; the callback learns
  * which line that is so a replay can start from zero.
  */
-static int walk_lines(char *buf, bool all,
+static int walk_lines(const char *buf, bool all,
 		      int (*cb)(const char *line, size_t len, bool is_init,
 				void *ctx), void *ctx)
 {
 	char boot_id[64], line_boot[64], type[32];
 	bool in_boot = false;
-	char *line, *save;
+	const char *line;
 	int ret = 0;
+	size_t len;
 
 	eventlog_boot_id(boot_id, sizeof(boot_id));
-	for (line = strtok_r(buf, "\n", &save); line && !ret;
-	     line = strtok_r(NULL, "\n", &save)) {
+	for_each_token(line, len, buf, strlen(buf), "\n") {
 		struct json_field f[] = {
 			{ "boot_id", JSON_T_STRING, line_boot,
 			  sizeof(line_boot), 0, NULL, 0 },
@@ -210,7 +215,7 @@ static int walk_lines(char *buf, bool all,
 
 		line_boot[0] = '\0';
 		type[0] = '\0';
-		if (json_parse(line, strlen(line), f, 2)) {
+		if (json_parse(line, len, f, 2)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -222,7 +227,9 @@ static int walk_lines(char *buf, bool all,
 			in_boot = true;
 		if (!all && !in_boot)
 			continue;
-		ret = cb(line, strlen(line), is_init, ctx);
+		ret = cb(line, len, is_init, ctx);
+		if (ret)
+			break;
 	}
 	if (!all && !ret && !in_boot)
 		return -ENOENT;
@@ -287,10 +294,27 @@ static int log_holds(const char *line, size_t len)
 	return a.found ? 1 : 0;
 }
 
+/* Append each of the pending records the log does not hold yet. */
+static int adopt_records(const char *records)
+{
+	const char *line;
+	size_t len;
+	int ret;
+
+	for_each_token(line, len, records, strlen(records), "\n") {
+		ret = log_holds(line, len);
+		if (!ret)
+			ret = append_record(eventlog_path(), line, len);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 static int adopt_pending(void)
 {
 	const char *pending = eventlog_pending_path();
-	char *buf = NULL, *line, *save;
+	char *buf = NULL;
 	size_t len = 0;
 	int ret;
 
@@ -300,19 +324,8 @@ static int adopt_pending(void)
 	if (ret)
 		return ret;
 	ret = log_records(buf, len);
-	for (line = strtok_r(buf, "\n", &save); line && !ret;
-	     line = strtok_r(NULL, "\n", &save)) {
-		if (!*line)
-			continue;
-		ret = log_holds(line, strlen(line));
-		if (ret > 0) {
-			ret = 0;
-			continue;
-		}
-		if (!ret)
-			ret = eventlog_append_to(eventlog_path(),
-						 line);
-	}
+	if (!ret)
+		ret = adopt_records(buf);
 	xfree(buf, len + 1);
 	if (ret)
 		return ret;

@@ -19,8 +19,8 @@ into the components between its slashes, one that starts with `/` starts
 at the filesystem root, a final `/` names the directory before it, `.`
 stays, `..` goes up, except at the filesystem root, and any other
 component goes down. An empty component is refused, where the kernel and
-the `strtok_r()` walk of util/seal.c skip it; no name the check takes
-holds one. A directory is the list of its components from the
+the `for_each_token()` walk of util/seal.c skip it; no name the check
+takes holds one. A directory is the list of its components from the
 filesystem root. util/seal.c walks every component with `O_NOFOLLOW`, so
 no symbolic link is followed, and the archive can create none.
 

@@ -90,22 +90,21 @@ static void check_root(struct preflight_result *r)
 
 static bool lsm_lists_bpf(void)
 {
-	char buf[1024], *save;
+	const char *name;
+	char buf[1024];
+	size_t len;
 	ssize_t n;
 	int fd;
 
 	fd = open("/sys/kernel/security/lsm", O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return false;
-	n = read(fd, buf, sizeof(buf) - 1);
+	n = read(fd, buf, sizeof(buf));
 	close(fd);
 	if (n <= 0)
 		return false;
-	buf[n] = '\0';
-
-	for (char *p = strtok_r(buf, ",\n", &save); p;
-	     p = strtok_r(NULL, ",\n", &save)) {
-		if (strcmp(p, "bpf") == 0)
+	for_each_token(name, len, buf, (size_t)n, ",\n") {
+		if (span_equals(name, len, "bpf"))
 			return true;
 	}
 	return false;

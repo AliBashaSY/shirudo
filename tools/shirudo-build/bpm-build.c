@@ -449,13 +449,14 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 	struct bpm_build_file *file = NULL;
 	struct tree_selector *sel = NULL;
 	bool tree_section = false;
-	char *save = NULL, *line;
 	char section[48] = {};
+	size_t line_len;
+	char *line;
 
-	for (line = strtok_r(body, "\n", &save); line;
-	     line = strtok_r(NULL, "\n", &save)) {
+	for_each_token(line, line_len, body, strlen(body), "\n") {
 		char *s, *eq, *key, *value;
 
+		line[line_len] = '\0';
 		build_strip_comment(line);
 		s = build_trim(line);
 		if (!*s)

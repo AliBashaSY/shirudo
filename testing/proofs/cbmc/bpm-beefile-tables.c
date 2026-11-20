@@ -37,28 +37,6 @@ enum {
 
 static struct bpm_build_spec spec;
 
-/* strtok_r() for the one delimiter the reader cuts lines at. */
-char *strtok_r(char *s, const char *delim, char **save)
-{
-	char *end;
-
-	__CPROVER_assert(delim[0] && !delim[1], "one delimiter");
-	if (!s)
-		s = *save;
-	while (*s == delim[0])
-		s++;
-	if (!*s) {
-		*save = s;
-		return NULL;
-	}
-	for (end = s; *end && *end != delim[0]; end++)
-		;
-	if (*end)
-		*end++ = '\0';
-	*save = end;
-	return s;
-}
-
 /* The tables of an upatch, which the reader allocates at their limits. */
 void *xcalloc(size_t nmemb, size_t size)
 {

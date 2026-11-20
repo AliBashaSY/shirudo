@@ -230,18 +230,21 @@ static int seal_same(int dfd, int fd)
  */
 static int seal_open_dir(const char *path, bool create, mode_t mode)
 {
-	char buf[PATH_MAX], *comp, *save;
+	char buf[PATH_MAX], *comp;
 	int dfd, nfd, ret = 0;
 	bool created;
+	ssize_t len;
+	size_t n;
 
-	if (strscpy(buf, path, sizeof(buf)) < 0)
+	len = strscpy(buf, path, sizeof(buf));
+	if (len < 0)
 		return -ENAMETOOLONG;
 	dfd = open(buf[0] == '/' ? "/" : ".",
 		   O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (dfd < 0)
 		return -errno;
-	for (comp = strtok_r(buf, "/", &save); comp;
-	     comp = strtok_r(NULL, "/", &save)) {
+	for_each_token(comp, n, buf, (size_t)len, "/") {
+		comp[n] = '\0';
 		created = create && mkdirat(dfd, comp, mode) == 0;
 		if (create && !created && errno != EEXIST) {
 			ret = -errno;

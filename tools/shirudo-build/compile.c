@@ -158,13 +158,14 @@ int build_compile(const char *source, const char *output,
 	push(argv, &n, output);
 
 	if (extra_cflags && extra_cflags[0]) {
-		char *tok, *save;
+		size_t len;
+		char *tok;
 
 		cf_copy = xstrdup(extra_cflags);
 		if (!cf_copy)
 			return -ENOMEM;
-		for (tok = strtok_r(cf_copy, " \t\n", &save); tok;
-		     tok = strtok_r(NULL, " \t\n", &save)) {
+		for_each_token(tok, len, cf_copy, strlen(cf_copy), " \t\n") {
+			tok[len] = '\0';
 			ret = push(argv, &n, tok);
 			if (ret) {
 				xstrfree(cf_copy);
