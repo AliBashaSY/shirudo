@@ -16,8 +16,8 @@ its BPF programs, with these rules of its own, which
   prints with ``%llu``.
 - Parse numbers with ``parse_u64()``, ``parse_s64()`` and
   ``parse_x64()`` from ``<shirudo/string.h>``, which take a length and
-  refuse a sign, a blank or a base prefix. ``strtoul()``, ``atoi()`` and
-  their kin are refused.
+  refuse a sign, a blank or a base prefix. ``strtoul()``, ``atoi()``,
+  ``sscanf()`` and their kin are refused.
 - Copy strings with ``strscpy()`` and format into a fixed buffer with
   ``strsprintf()``, and check their results. ``strcpy()``, ``strncpy()``,
   ``sprintf()``, ``snprintf()`` and their kin are refused.
@@ -38,6 +38,11 @@ its BPF programs, with these rules of its own, which
   list with ``for_each_token()``, which gives each token as a pointer and
   its length and writes nothing. ``strtok_r()``, ``strtok()`` and
   ``strsep()`` are refused.
+- The string functions of the C library that nothing in the tree calls
+  are refused too, ``strspn()``, ``strpbrk()``, ``strcoll()``,
+  ``stpcpy()``, ``strlcat()``, ``bzero()`` and ``strdupa()`` among them;
+  the ``#pragma GCC poison`` lines of ``<shirudo/string.h>`` are the
+  list. One comes off it with the first caller that needs it.
 - Check size arithmetic with the helpers of ``<shirudo/overflow.h>``,
   not by hand.
 - No ``(void)`` cast. A result a caller must not drop belongs to a

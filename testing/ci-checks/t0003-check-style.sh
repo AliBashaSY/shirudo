@@ -7,9 +7,10 @@
 # opener and the subject length the wrapper adds, the message of a commit
 # that touches no C, the sources it leaves alone, the userspace spellings
 # it lets through, the C library's integer names, number parsers, string
-# copies, counted compares and token walks it refuses, the list of what
-# stays enabled, and the fetch of checkpatch.pl, which asks a host that
-# does not answer only once, on a throwaway repository.
+# copies, counted compares, token walks and unused string functions it
+# refuses, the list of what stays enabled, and the fetch of checkpatch.pl,
+# which asks a host that does not answer only once, on a throwaway
+# repository.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -188,6 +189,7 @@ test_expect_success '--types lists what stays enabled' '
 	grep -qx "STRING_COMPARE" "$W/out" &&
 	grep -qx "STRING_COPY" "$W/out" &&
 	grep -qx "STRING_FORMAT" "$W/out" &&
+	grep -qx "STRING_LIBC" "$W/out" &&
 	grep -qx "STRING_TOKENS" "$W/out" &&
 	! grep -qx "CAMELCASE" "$W/out" &&
 	! grep -qx "GIT_COMMIT_ID" "$W/out"
@@ -212,11 +214,14 @@ test_expect_success 'the C library'"'"'s number parsers are refused outside the 
 	printf "%s\n" "/* strtoul() in a comment */" \
 		"static const char *name = \"atoi(s)\";" "" \
 		"long parse(const char *s)" "{" \
-		"	return strtoll(s, NULL, 10) + atoi(s);" "}" \
+		"	long kb = 0;" "" \
+		"	sscanf(s, \"%ld\", &kb);" \
+		"	return strtoll(s, NULL, 10) + atoi(s) + kb;" "}" \
 		>>"$R/good.c" &&
 	! check --diff &&
 	grep -q "^ERROR:NUMBER_PARSING: parse numbers with parse_u64(), parse_s64() or parse_x64() from <shirudo/string.h>, not strtoll()" "$W/out" &&
-	[ "$(grep -c "^ERROR:NUMBER_PARSING" "$W/out")" = 1 ] &&
+	grep -q "^ERROR:NUMBER_PARSING: .*, not sscanf()" "$W/out" &&
+	[ "$(grep -c "^ERROR:NUMBER_PARSING" "$W/out")" = 2 ] &&
 	git -C "$R" checkout -q -- good.c &&
 	put testing/helper/args.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
 		"long arg(const char *s)" "{" "	return strtol(s, NULL, 10);" "}" &&
@@ -309,6 +314,26 @@ test_expect_success 'tokens are walked with for_each_token() outside the tests' 
 		"char *cut(char *s, char **save)" "{" \
 		"	return strtok_r(s, \",\", save);" "}" &&
 	check --files testing/helper/cut.c &&
+	rm -r "$R/testing"
+'
+
+test_expect_success 'the string functions nothing calls are refused outside the tests' '
+	printf "%s\n" "/* strspn() in a comment, and what a caller gets */" \
+		"static const char *op = \"bzero(p, n)\";" "" \
+		"size_t run(char *d, const char *s, int index)" "{" \
+		"	bzero(d, 8);" "	stpcpy(d, s);" \
+		"	return strspn(s, \"ab\") + (size_t)index;" "}" \
+		>>"$R/good.c" &&
+	! check --diff &&
+	grep -q "^ERROR:STRING_LIBC: bzero() is poisoned in <shirudo/string.h>, which has what the tree uses in its place" "$W/out" &&
+	grep -q "^ERROR:STRING_LIBC: strspn() is poisoned" "$W/out" &&
+	[ "$(grep -c "^ERROR:STRING_LIBC" "$W/out")" = 2 ] &&
+	grep -q "^ERROR:STRING_COPY: copy strings with strscpy() from <shirudo/string.h>, not stpcpy()" "$W/out" &&
+	git -C "$R" checkout -q -- good.c &&
+	put testing/helper/run.c "// SPDX-License-Identifier: BSD-2-Clause" "" \
+		"size_t run(const char *s)" "{" \
+		"	return strspn(s, \"ab\");" "}" &&
+	check --files testing/helper/run.c &&
 	rm -r "$R/testing"
 '
 

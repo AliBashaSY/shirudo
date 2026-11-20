@@ -218,6 +218,10 @@ locate_checkpatch() {
 # the string, where a caller's count can be off by one and still compile.
 # And so is strtok_r(), strtok() or strsep(): for_each_token() gives each
 # token as pointer and length and leaves the walked buffer as it was.
+# The scanf() family counts as a number parser and stpcpy(), strlcat(),
+# memccpy() and bcopy() as string copies, and a call to one of the other
+# functions <shirudo/string.h> poisons, which nothing in the tree calls,
+# is reported as STRING_LIBC.
 check_spellings() {
 	awk '
 	function c_names_kept(f) {
@@ -308,7 +312,7 @@ check_spellings() {
 			bad = 1
 		}
 		if (!parsers_kept(file) &&
-		    match(code, /(^|[^A-Za-z0-9_])(strto(u?ll?|d|f|ld|imax|umax)|ato(i|l|ll|f))[ \t]*\(/)) {
+		    match(code, /(^|[^A-Za-z0-9_])(strto(u?ll?|u?q|d|f|ld|imax|umax)|ato(i|l|ll|f)|v?[fs]?scanf)[ \t]*\(/)) {
 			fn = substr(code, RSTART, RLENGTH)
 			gsub(/[^A-Za-z0-9_]/, "", fn)
 			printf "ERROR:NUMBER_PARSING: parse numbers with parse_u64(), parse_s64() or parse_x64() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
@@ -316,7 +320,7 @@ check_spellings() {
 			bad = 1
 		}
 		if (!parsers_kept(file) &&
-		    (match(code, /(^|[^A-Za-z0-9_])str(n?cpy|n?cat|lcpy)[ \t]*\(/) ||
+		    (match(code, /(^|[^A-Za-z0-9_])(str(n?cpy|n?cat|lcpy|lcat)|stpn?cpy|memccpy|bcopy)[ \t]*\(/) ||
 		     (match(code, /(^|[^A-Za-z0-9_])snprintf[ \t]*\([^,]*,[^,]*,[ \t]*""[ \t]*,/) &&
 		      $0 ~ /"%s"[ \t]*,/))) {
 			fn = substr(code, RSTART, RLENGTH)
@@ -346,6 +350,14 @@ check_spellings() {
 			fn = substr(code, RSTART, RLENGTH)
 			gsub(/[^A-Za-z0-9_]/, "", fn)
 			printf "ERROR:STRING_TOKENS: walk tokens with for_each_token() from <shirudo/string.h>, not %s()\n#%d: FILE: %s:%d:\n%s\n\n",
+				fn, NR, file, line, $0
+			bad = 1
+		}
+		if (!parsers_kept(file) &&
+		    match(code, /(^|[^A-Za-z0-9_])(strcoll|strxfrm|bcmp|strspn|strpbrk|strcasestr|strchrnul|strverscmp|rawmemchr|rindex|strfry|memfrob|bzero|gets|strn?dupa)[ \t]*\(/)) {
+			fn = substr(code, RSTART, RLENGTH)
+			gsub(/[^A-Za-z0-9_]/, "", fn)
+			printf "ERROR:STRING_LIBC: %s() is poisoned in <shirudo/string.h>, which has what the tree uses in its place\n#%d: FILE: %s:%d:\n%s\n\n",
 				fn, NR, file, line, $0
 			bad = 1
 		}
@@ -521,7 +533,8 @@ list_types() {
 	{
 		LC_ALL=C comm -23 "$work/all" "$work/ignored"
 		printf '%s\n' KERNEL_INT_TYPES NETDEV_BLOCK_COMMENT NUMBER_PARSING \
-			STRING_COMPARE STRING_COPY STRING_FORMAT STRING_TOKENS
+			STRING_COMPARE STRING_COPY STRING_FORMAT STRING_LIBC \
+			STRING_TOKENS
 	} | LC_ALL=C sort
 }
 

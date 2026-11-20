@@ -270,14 +270,28 @@ static inline int memneq_explicit(const void *a, const void *b, size_t size)
  * What the functions above replace, refused once the headers included
  * above have declared it, so that a later include of those still works;
  * util/string.c and the xasprintf() of util/malloc.c opt out with
- * STRING_INTERNAL.
+ * STRING_INTERNAL. With them go the functions of the C library that work
+ * on a string and that nothing here calls: one comes off the list with
+ * the first caller that needs it.
  */
 #ifndef STRING_INTERNAL
 # pragma GCC poison strtol strtoll strtoul strtoull strtoimax strtoumax
 # pragma GCC poison strtod strtof strtold atoi atol atoll atof
+# pragma GCC poison strtoq strtouq scanf fscanf sscanf vscanf vfscanf vsscanf
 # pragma GCC poison strcpy strncpy strcat strncat strlcpy
-# pragma GCC poison strncmp strncasecmp
+# pragma GCC poison stpcpy stpncpy strlcat memccpy bcopy
+# pragma GCC poison strncmp strncasecmp strcoll strxfrm bcmp
 # pragma GCC poison strtok strtok_r strsep
+# pragma GCC poison strspn strpbrk strcasestr strchrnul strverscmp
+# pragma GCC poison rawmemchr rindex
+# pragma GCC poison strfry memfrob bzero gets
+/*
+ * glibc makes these macros, the last two under C23; poison the names
+ * alone.
+ */
+# undef strdupa
+# undef strndupa
+# pragma GCC poison strdupa strndupa
 /* Fortified glibc makes these macros for clang; poison the names alone. */
 # undef sprintf
 # undef snprintf

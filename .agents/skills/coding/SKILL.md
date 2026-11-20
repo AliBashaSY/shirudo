@@ -436,11 +436,17 @@ without a body.
   `uint32_t` and its kin, and in userspace `unsigned int`, `long` and
   the like. System headers that use `uint8_t` and kin go above the first
   shirudo header, which poisons them.
-- `strtoul()`, `atoi()`, `strcpy()`, `sprintf()`, `snprintf()`,
-  `strncmp()`, `strncasecmp()`, `strtok_r()`, `strtok()`, `strsep()`,
-  the libc allocators and `explicit_bzero()` are poisoned; the table
-  above has what replaces each, and a missing one is wrapped in `util/`,
-  never given an exception.
+- `strtoul()`, `atoi()`, `sscanf()`, `strcpy()`, `sprintf()`,
+  `snprintf()`, `strncmp()`, `strncasecmp()`, `strtok_r()`, `strtok()`,
+  `strsep()`, the libc allocators and `explicit_bzero()` are poisoned;
+  the table above has what replaces each, and a missing one is wrapped
+  in `util/`, never given an exception. So are the string functions of
+  libc that nothing calls, `strspn()`, `strpbrk()`, `strcoll()`,
+  `strxfrm()`, `strcasestr()`, `strchrnul()`, `strverscmp()`,
+  `stpcpy()`, `strlcat()`, `memccpy()`, `bcmp()`, `bcopy()`, `bzero()`,
+  `rindex()`, `rawmemchr()`, `gets()`, `strdupa()` and their kin: the
+  `#pragma GCC poison` lines of `<shirudo/string.h>` are the list, and
+  one comes off it with the first caller that needs it.
 - A `strsprintf()` that does not fit leaves the buffer empty: a path or
   value is refused, a helper formatting display text returns the error,
   and status shows `"?"`. Constant text is copied, not formatted.

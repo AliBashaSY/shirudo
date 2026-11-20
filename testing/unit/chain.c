@@ -125,7 +125,8 @@ static void chain_log_anchor_appends_a_systemd_record(void)
 	EXPECT_TRUE(strstr(buf, "\"eventType\":\"nvpcr-init\"}}\n"));
 	boot = strstr(buf, "\"bootId\":\"");
 	ASSERT_TRUE(boot);
-	EXPECT_EQ(strspn(boot + 10, "0123456789abcdef"), 32);
+	EXPECT_TRUE(hex_is_lower(boot + 10, 32));
+	EXPECT_EQ(boot[42], '"');
 	ASSERT_EQ(fstat(fd, &st), 0);
 	EXPECT_EQ(st.st_mode & 07777, 0600);
 
