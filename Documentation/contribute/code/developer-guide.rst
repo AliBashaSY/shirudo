@@ -719,7 +719,8 @@ can rewrite what it finds does so with ``-D patch``:
        path out.
    * - ``fd_leak``
      - A descriptor left open on a path out once its open succeeded,
-       where it is not returned, stored or handed to what closes it.
+       where it is not returned, stored or handed to what closes it, a
+       lock of ``eventlog_lock()`` or ``seal_lock()`` among them.
    * - ``cloexec``
      - A descriptor or stream opened without close-on-exec.
    * - ``banned``

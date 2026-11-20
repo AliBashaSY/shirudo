@@ -6,7 +6,10 @@
 // BIO_CLOSE) on every path out of the function once the open succeeded.
 // A leak on an error path goes unnoticed in a one-shot command until a
 // loop or a retry runs out of descriptors, and keeps open what it should
-// not.
+// not. The locks of eventlog_lock() and seal_lock() are descriptors too,
+// and eventlog_unlock() closes one: a lock left held makes the next
+// eventlog_lock() of the same command wait for itself, as flock() takes
+// each open of the file apart.
 
 virtual report
 
@@ -22,7 +25,8 @@ expression E, E1, E2;
 statement S, S1;
 identifier opener = {open, openat, socket, accept4, dup, memfd_create,
 		     eventfd, epoll_create1, inotify_init1, timerfd_create,
-		     pidfd_open, bpf_obj_get};
+		     pidfd_open, bpf_obj_get, eventlog_lock,
+		     seal_lock};
 position p1, p2;
 @@
 (
@@ -33,6 +37,7 @@ position p1, p2;
 ... when != fd = E1
 if (\(fd < 0\|fd == -1\)) S
 ... when != close(fd)
+    when != eventlog_unlock(fd)
     when != fd = E1
     when != E = fd
     when != if (fd >= 0) S1
@@ -55,7 +60,8 @@ expression E, E1, E2;
 statement S, S1;
 identifier opener = {open, openat, socket, accept4, dup, memfd_create,
 		     eventfd, epoll_create1, inotify_init1, timerfd_create,
-		     pidfd_open, bpf_obj_get};
+		     pidfd_open, bpf_obj_get, eventlog_lock,
+		     seal_lock};
 position p1, p2;
 @@
 (
@@ -66,6 +72,7 @@ position p1, p2;
 ... when != fd = E1
 if (\(fd < 0\|fd == -1\)) S
 ... when != close(fd)
+    when != eventlog_unlock(fd)
     when != fd = E1
     when != E = fd
     when != if (fd >= 0) S1

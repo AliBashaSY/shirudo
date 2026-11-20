@@ -375,8 +375,8 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # One case of each rule below at the line given with it, and beside it
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
-SAMPLE_RULES="stale_success break_error sum_overwrite"
-SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110"
+SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak"
+SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -515,6 +515,32 @@ size_t header_size(size_t fixed, size_t chosen, int custom)
 		n = chosen;
 	n += 64;
 	return n;
+}
+
+int measure_left(const struct op *op)
+{
+	int lock, ret;
+
+	lock = eventlog_lock();
+	if (lock < 0)
+		return lock;
+	ret = measure_locked(op);
+	if (ret)
+		return ret;
+	eventlog_unlock(lock);
+	return 0;
+}
+
+int measure_unlocked(const struct op *op)
+{
+	int lock, ret;
+
+	lock = eventlog_lock();
+	if (lock < 0)
+		return lock;
+	ret = measure_locked(op);
+	eventlog_unlock(lock);
+	return ret;
 }
 EOF
 }
