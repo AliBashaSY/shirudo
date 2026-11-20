@@ -95,7 +95,7 @@ static int spec_find(const struct opt_parser *p, const char *arg,
 				return (int)i;
 		return -1;
 	}
-	len = strcspn(arg, "=");
+	len = span_until(arg, strlen(arg), "=");
 	if (arg[len])
 		*eq = arg + len + 1;
 	for (i = 0; i < p->n_specs; i++) {
@@ -109,10 +109,12 @@ static int spec_find(const struct opt_parser *p, const char *arg,
 
 static int opt_unknown(const struct opt_parser *p, const char *arg)
 {
-	size_t i, len = arg[1] == '-' ? strcspn(arg, "=") : strlen(arg);
+	size_t i, len = strlen(arg);
 	const char *names[OPT_MAX];
 	char bad[SIMILAR_MAX_LEN + 1];
 
+	if (arg[1] == '-')
+		len = span_until(arg, len, "=");
 	pr_err("%s: unknown option '%.*s'", p->command, (int)len, arg);
 	if (len >= sizeof(bad))
 		return OPT_USAGE;

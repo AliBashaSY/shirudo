@@ -40,8 +40,7 @@ static void read_first_line(const char *path, char *buf, size_t cap)
 		buf[0] = '\0';
 		return;
 	}
-	buf[n] = '\0';
-	buf[strcspn(buf, "\r\n")] = '\0';
+	buf[span_until(buf, (size_t)n, "\r\n")] = '\0';
 }
 
 #define OS_RELEASE_SIZE_MAX	(64u * 1024u)
@@ -266,7 +265,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 	while (fgets(line, sizeof(line), f)) {
 		char *key, *value, *eq, *not_set, unset[] = "n";
 
-		line[strcspn(line, "\r\n")] = '\0';
+		line[span_until(line, strlen(line), "\r\n")] = '\0';
 		key = trim_config_text(line);
 		if (!*key)
 			continue;

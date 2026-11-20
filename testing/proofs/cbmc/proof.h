@@ -32,8 +32,8 @@
 #undef strstr
 
 /*
- * CBMC models neither strnlen(), memchr(), memmem(), strcspn(), strstr()
- * nor vsnprintf(), and a function without a body returns anything.
+ * CBMC models neither strnlen(), memchr(), memmem(), strstr() nor
+ * vsnprintf(), and a function without a body returns anything.
  */
 size_t strnlen(const char *s, size_t max)
 {
@@ -88,17 +88,6 @@ void *memmem(const void *hay, size_t hay_len, const void *needle,
 		if (!memcmp(h + i, needle, needle_len))
 			return (void *)(h + i);
 	return NULL;
-}
-
-size_t strcspn(const char *s, const char *reject)
-{
-	size_t n, i;
-
-	for (n = 0; s[n]; n++)
-		for (i = 0; reject[i]; i++)
-			if (s[n] == reject[i])
-				return n;
-	return n;
 }
 
 char *strstr(const char *s, const char *needle)

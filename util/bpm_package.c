@@ -165,7 +165,7 @@ static bool semver_parse(const char *s, struct semver *v)
 	v->pre = NULL;
 	v->pre_len = 0;
 	if (*p == '-') {
-		n = strcspn(p + 1, "+");
+		n = span_until(p + 1, strlen(p + 1), "+");
 		if (!semver_identifiers(p + 1, n, true))
 			return false;
 		v->pre = p + 1;

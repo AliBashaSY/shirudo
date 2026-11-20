@@ -174,12 +174,12 @@ static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 	} else if (str_skip_prefix_nocase(&v, "Content-Type:")) {
 		while (isspace((__u8)*v))
 			v++;
-		v[strcspn(v, " ;\r\n")] = '\0';
+		v[span_until(v, strlen(v), " ;\r\n")] = '\0';
 		bpm_copy_string(r->content_type, sizeof(r->content_type), v);
 	} else if (str_skip_prefix_nocase(&v, "Location:")) {
 		while (isspace((__u8)*v))
 			v++;
-		v[strcspn(v, "\r\n")] = '\0';
+		v[span_until(v, strlen(v), "\r\n")] = '\0';
 		bpm_copy_string(r->location, sizeof(r->location), v);
 	}
 	return n;

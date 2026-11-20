@@ -37,7 +37,7 @@ int bpm_parse_source_line(char *line,
 	val = eq;
 	while (isspace((__u8)*val))
 		val++;
-	val[strcspn(val, "\r\n")] = '\0';
+	val[span_until(val, strlen(val), "\r\n")] = '\0';
 
 	if (!strcmp(key, "endpoint") && strscpy(endpoint, val, endpoint_sz) < 0)
 		return -E2BIG;
