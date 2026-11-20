@@ -1296,6 +1296,44 @@ static int decoder_set_add(struct decoder_set *set,
 	return 0;
 }
 
+/* 0 when the build takes a manifest it found beside those of set. */
+static int check_decoder_manifest(struct bpf_object *obj,
+				  const struct decoder_set *set,
+				  const struct decoder_manifest_view *manifest,
+				  const char *upatch_name)
+{
+	if (manifest->language != UPATCH_DECODER_LANG_LUA ||
+	    manifest->api_version != 1 ||
+	    manifest->input_format != UPATCH_DECODER_INPUT_MAP_V1 ||
+	    (manifest->export_signal != UPATCH_DECODER_EXPORT_LOG &&
+	     manifest->export_signal != UPATCH_DECODER_EXPORT_METRIC)) {
+		pr_err("unsupported decoder ABI for '%s/%s'",
+		       manifest->upatch, manifest->map);
+		return -EOPNOTSUPP;
+	}
+	if (strcmp(manifest->upatch, upatch_name) != 0) {
+		pr_err("decoder upatch '%s' does not match package name '%s'",
+		       manifest->upatch, upatch_name);
+		return -EINVAL;
+	}
+	if (!object_has_map(obj, manifest->map)) {
+		pr_err("decoder manifest for missing map '%s'",
+		       manifest->map);
+		return -EINVAL;
+	}
+	for (__u32 i = 0; i < set->nr_items; i++) {
+		if (strcmp(set->items[i].manifest.upatch,
+			   manifest->upatch) == 0 &&
+		    strcmp(set->items[i].manifest.map,
+			   manifest->map) == 0) {
+			pr_err("duplicate decoder for '%s/%s'",
+			       manifest->upatch, manifest->map);
+			return -EEXIST;
+		}
+	}
+	return 0;
+}
+
 static int collect_decoder_manifests(struct bpf_object *obj,
 				     const char *src_path,
 				     const char *upatch_name,
@@ -1320,39 +1358,9 @@ static int collect_decoder_manifests(struct bpf_object *obj,
 		if (!parse_decoder_manifest(data + off, data_sz - off,
 					    &manifest))
 			continue;
-		if (manifest.language != UPATCH_DECODER_LANG_LUA ||
-		    manifest.api_version != 1 ||
-		    manifest.input_format != UPATCH_DECODER_INPUT_MAP_V1 ||
-		    (manifest.export_signal != UPATCH_DECODER_EXPORT_LOG &&
-		     manifest.export_signal != UPATCH_DECODER_EXPORT_METRIC)) {
-			pr_err("unsupported decoder ABI for '%s/%s'",
-			       manifest.upatch, manifest.map);
-			err = -EOPNOTSUPP;
+		err = check_decoder_manifest(obj, out, &manifest, upatch_name);
+		if (err)
 			goto err_free;
-		}
-		if (strcmp(manifest.upatch, upatch_name) != 0) {
-			pr_err("decoder upatch '%s' does not match package name '%s'",
-			       manifest.upatch, upatch_name);
-			err = -EINVAL;
-			goto err_free;
-		}
-		if (!object_has_map(obj, manifest.map)) {
-			pr_err("decoder manifest for missing map '%s'",
-			       manifest.map);
-			err = -EINVAL;
-			goto err_free;
-		}
-		for (__u32 i = 0; i < out->nr_items; i++) {
-			if (strcmp(out->items[i].manifest.upatch,
-				   manifest.upatch) == 0 &&
-			    strcmp(out->items[i].manifest.map,
-				   manifest.map) == 0) {
-				pr_err("duplicate decoder for '%s/%s'",
-				       manifest.upatch, manifest.map);
-				err = -EEXIST;
-				goto err_free;
-			}
-		}
 		err = decoder_set_add(out, &manifest, src_path);
 		if (err)
 			goto err_free;
