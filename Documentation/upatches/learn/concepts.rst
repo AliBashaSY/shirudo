@@ -225,9 +225,6 @@ file, the eventlog record and the target of its unload directive.
    * - tree id
      - Equal to the upatch name. :doc:`/upatches/publish/publishing` explains
        why.
-   * - upatch with decoders
-     - At most 63 characters, because the decoder manifest holds the
-       upatch name in a 64-byte field.
    * - map
      - At most 15 characters. The kernel keeps 15 characters of a map
        name, and decoders and serializers name their map in a 16-byte

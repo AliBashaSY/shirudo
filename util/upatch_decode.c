@@ -1194,8 +1194,13 @@ static int decoder_matches(const struct upatch_decoder_view *d,
 	    (d->export_signal != UPATCH_DECODER_EXPORT_LOG &&
 	     d->export_signal != UPATCH_DECODER_EXPORT_METRIC))
 		return 0;
-	if (strcmp(d->upatch, v->upatch) != 0)
-		return 0;
+	/*
+	 * The map alone picks the decoder: the archive it comes from is the
+	 * upatch these maps belong to, by the payload the pin directory
+	 * recorded, and its signature covers the decoders. The decoder's
+	 * upatch field holds 63 of the 255 characters a name may have, or
+	 * nothing.
+	 */
 	if (strcmp(d->map, v->name) != 0)
 		return 0;
 	return 1;

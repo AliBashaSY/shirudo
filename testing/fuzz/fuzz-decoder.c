@@ -80,7 +80,8 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	memcpy(&page.cursor, data + 1, sizeof(page.cursor));
 	data += 9;
 	size -= 9;
-	strscpy(v.upatch, "fuzz", sizeof(v.upatch));
+	/* The longest name, which the decoder gets in its input. */
+	memset(v.upatch, 'u', UPATCH_NAME_MAX - 1);
 	strscpy(v.name, "fuzz_map", sizeof(v.name));
 
 	page.data = xmalloc(size + 1);

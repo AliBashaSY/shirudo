@@ -6,7 +6,8 @@
 # metadata embedded in a .upatch, offline (no kernel, no root), and the
 # decoder runs under the sandbox limits. Builds a tiny fentry program
 # from a .bpf.c that declares a decoder manifest, signs it with a
-# throwaway key, and exercises the decoder through the test helper.
+# throwaway key, and exercises the decoder through the test helper,
+# also under a name too long for the manifest's upatch field.
 # Needs clang + shirudo-build (skips otherwise).
 
 cd "$(dirname "$0")/../.."
@@ -169,6 +170,59 @@ test_expect_success 'Lua decoder enforces instruction and memory limits' '
 test_expect_success 'Lua decoder output replaces invalid UTF-8' '
 	[ "$(./helper/test-upatch-decode utf8 "$WORK/u.upatch")" = \
 	  "\"\\ufffd\"" ]
+'
+
+# A name of 255 characters, which the manifest's upatch field cannot
+# hold, so the manifest leaves it out.
+LONG=$(printf 't3002-%0249d' 0)
+mkdir -p "$WORK/long/decoders" "$WORK/dup/decoders"
+cp "$WORK/decoders/t3002.lua" "$WORK/long/decoders/"
+cp "$WORK/decoders/t3002.lua" "$WORK/dup/decoders/"
+grep -v '\.upatch = ' "$WORK/t.bpf.c" >"$WORK/long/t.bpf.c"
+{
+	cat "$WORK/t.bpf.c"
+	cat <<'EOF'
+const struct decoder_manifest t0005_unnamed_decoder SEC(".rodata") = {
+	.magic = DECODER_MANIFEST_MAGIC,
+	.version = UPATCH_DECODER_VERSION,
+	.language = UPATCH_DECODER_LANG_LUA,
+	.api_version = 1,
+	.input_format = UPATCH_DECODER_INPUT_MAP_V1,
+	.export_signal = UPATCH_DECODER_EXPORT_LOG,
+	.map = "t0005_map",
+	.source = "decoders/t3002.lua",
+	.entrypoint = "decode",
+};
+EOF
+} >"$WORK/dup/t.bpf.c"
+cat >"$WORK/check-long.py" <<'PY'
+import json, sys
+info, name = json.load(open(sys.argv[1], encoding="utf-8")), sys.argv[2]
+assert info["name"] == name and info["signed_name"] == name, info
+decoders = [(d["upatch"], d["map"]) for d in info["decoders"]]
+assert decoders == [("", "t0005_map")], decoders
+records = json.load(open(sys.argv[3], encoding="utf-8"))["records"]
+assert records[0]["name"] == "bash", records
+PY
+
+test_expect_success 'a upatch named with 255 characters carries a decoder that names none' '
+	( cd .. && "$B" "$WORK/long/t.bpf.c" -o "$WORK/long/u.upatch" \
+		--vmlinux vendor/linux/vmlinux.h --name "$LONG" \
+		--key "$WORK/k.pem" --cert "$WORK/c.der" ) >/dev/null 2>&1 &&
+	"$S" upatch info "$WORK/long/u.upatch" --json >"$WORK/long/info.json" &&
+	./helper/test-upatch-decode json "$WORK/long/u.upatch" "$LONG" \
+		>"$WORK/long/decoded.json" &&
+	python3 "$WORK/check-long.py" "$WORK/long/info.json" "$LONG" \
+		"$WORK/long/decoded.json"
+'
+
+test_expect_success 'a second decoder for a map is refused, named or not' '
+	if ( cd .. && "$B" "$WORK/dup/t.bpf.c" -o "$WORK/dup/u.upatch" \
+		--vmlinux vendor/linux/vmlinux.h --name t3002 \
+		--key "$WORK/k.pem" --cert "$WORK/c.der" ) >"$WORK/dup/out" 2>&1
+	then false; fi &&
+	grep -q "duplicate decoder for .t3002/t0005_map." "$WORK/dup/out" &&
+	test ! -e "$WORK/dup/u.upatch"
 '
 
 python3 - "$WORK/u.upatch" "$WORK" <<'PY'

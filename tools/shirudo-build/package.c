@@ -1217,7 +1217,7 @@ static bool parse_decoder_manifest(const __u8 *p, size_t n,
 	if (get_le32(&m->magic) != DECODER_MANIFEST_MAGIC ||
 	    get_le16(&m->version) != UPATCH_DECODER_VERSION)
 		return false;
-	if (!fixed_cstr_nonempty(m->upatch, sizeof(m->upatch)) ||
+	if (!memchr(m->upatch, '\0', sizeof(m->upatch)) ||
 	    !fixed_cstr_nonempty(m->map, sizeof(m->map)) ||
 	    !fixed_cstr_nonempty(m->source, sizeof(m->source)) ||
 	    !fixed_cstr_nonempty(m->entrypoint, sizeof(m->entrypoint)))
@@ -1308,10 +1308,15 @@ static int check_decoder_manifest(struct bpf_object *obj,
 	    (manifest->export_signal != UPATCH_DECODER_EXPORT_LOG &&
 	     manifest->export_signal != UPATCH_DECODER_EXPORT_METRIC)) {
 		pr_err("unsupported decoder ABI for '%s/%s'",
-		       manifest->upatch, manifest->map);
+		       upatch_name, manifest->map);
 		return -EOPNOTSUPP;
 	}
-	if (strcmp(manifest->upatch, upatch_name) != 0) {
+	/*
+	 * The signature binds a decoder to the upatch whose data carries
+	 * it, so the name is optional: a upatch whose name the field cannot
+	 * hold leaves it empty. One given has to be this upatch's.
+	 */
+	if (manifest->upatch[0] && strcmp(manifest->upatch, upatch_name) != 0) {
 		pr_err("decoder upatch '%s' does not match package name '%s'",
 		       manifest->upatch, upatch_name);
 		return -EINVAL;
@@ -1322,12 +1327,9 @@ static int check_decoder_manifest(struct bpf_object *obj,
 		return -EINVAL;
 	}
 	for (__u32 i = 0; i < set->nr_items; i++) {
-		if (strcmp(set->items[i].manifest.upatch,
-			   manifest->upatch) == 0 &&
-		    strcmp(set->items[i].manifest.map,
-			   manifest->map) == 0) {
+		if (strcmp(set->items[i].manifest.map, manifest->map) == 0) {
 			pr_err("duplicate decoder for '%s/%s'",
-			       manifest->upatch, manifest->map);
+			       upatch_name, manifest->map);
 			return -EEXIST;
 		}
 	}

@@ -69,8 +69,8 @@ The BPF source declares each decoder in ``.rodata`` with a
 :src:`bpf/lib/decoder.h`. The manifest starts with the magic
 ``DECD`` and names the language (``1``, Lua), the host API version, the
 input format (``1``), the signal to export (``1`` for a log, ``2`` for a
-metric), the upatch and map it decodes, the Lua source file relative to
-the BPF source, and the entry point.
+metric), the map it decodes and, where it fits, the upatch's name, the
+Lua source file relative to the BPF source, and the entry point.
 
 ``shirudo-build`` finds the manifests when it builds the artifact, reads
 each source file and embeds the sources in the ``DCDB`` section of the
@@ -82,9 +82,8 @@ changed without the signing key. The format is in
 On the target, ``shirudo upatch load`` keeps the artifact it loaded as
 ``/var/lib/shirudo/upatches/<name>.upatch``, sealed state that only
 shirudo writes. At export, shirudo opens that archived copy as sealed
-state, looks for the decoder whose upatch and map names match the map
-being exported and runs it. There is no decoder search path and no
-directory to drop a script into.
+state, looks for the decoder of the map being exported and runs it.
+There is no decoder search path and no directory to drop a script into.
 
 Running a decoder
 -----------------

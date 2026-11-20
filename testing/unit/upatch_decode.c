@@ -30,7 +30,12 @@ struct decoder_fixture {
 	struct upatch_signed_trailer trailer;
 };
 
-static void decode(const char *source, int expected, const char *json)
+/*
+ * Runs source as the decoder of map records of upatch, from an artifact
+ * whose decoder entry names decoder_upatch.
+ */
+static void decode_named(const char *upatch, const char *decoder_upatch,
+			 const char *source, int expected, const char *json)
 {
 	const size_t data_off = offsetof(struct decoder_fixture, blob);
 	char path[] = "/tmp/shirudo-unit-decoder-XXXXXX";
@@ -38,7 +43,6 @@ static void decode(const char *source, int expected, const char *json)
 	size_t source_len = strlen(source);
 	struct decoder_fixture f = {};
 	struct map_view view = {
-		.upatch = "unit-decoder",
 		.name = "records",
 		.serialized = true,
 		.max_entries = 1,
@@ -48,6 +52,7 @@ static void decode(const char *source, int expected, const char *json)
 	char *out = NULL;
 	int fd, ret;
 
+	ASSERT_TRUE(strscpy(view.upatch, upatch, sizeof(view.upatch)) >= 0);
 	f.header.magic = cpu_to_le64(UPATCH_MAGIC);
 	f.header.version = cpu_to_le32(UPATCH_VERSION);
 	f.header.type = cpu_to_le32(UPATCH_TYPE_BPF);
@@ -68,7 +73,7 @@ static void decode(const char *source, int expected, const char *json)
 	f.decoder.api_version = cpu_to_le32(1);
 	f.decoder.input_format = cpu_to_le32(UPATCH_DECODER_INPUT_MAP_V1);
 	f.decoder.export_signal = cpu_to_le32(UPATCH_DECODER_EXPORT_LOG);
-	ASSERT_TRUE(strscpy(f.decoder.upatch, view.upatch,
+	ASSERT_TRUE(strscpy(f.decoder.upatch, decoder_upatch,
 			    sizeof(f.decoder.upatch)) >= 0);
 	ASSERT_TRUE(strscpy(f.decoder.map, view.name, sizeof(f.decoder.map)) >= 0);
 	ASSERT_TRUE(strscpy(f.decoder.source, "unit.lua", sizeof(f.decoder.source)) >= 0);
@@ -99,10 +104,30 @@ static void decode(const char *source, int expected, const char *json)
 	xfree(out, out_len + 1);
 }
 
+static void decode(const char *source, int expected, const char *json)
+{
+	decode_named("unit-decoder", "unit-decoder", source, expected, json);
+}
+
 static void decoder_initializes_and_returns_json(void)
 {
 	decode("function decode(input) return {value = 42} end",
 	       0, "{\"value\":42}");
+}
+
+/*
+ * A name of 255 characters, which the decoder entry cannot hold and
+ * leaves out: the map alone picks the decoder, which gets the name whole.
+ */
+static void decoder_of_a_upatch_with_the_longest_name_runs(void)
+{
+	char name[UPATCH_NAME_MAX];
+
+	memset(name, 'n', sizeof(name) - 1);
+	name[sizeof(name) - 1] = '\0';
+	decode_named(name, "", "function decode(input) "
+		     "return {len = #input.upatch} end",
+		     0, "{\"len\":255}");
 }
 
 static void decoder_instruction_limit_is_enforced(void)
@@ -176,6 +201,7 @@ static void decoder_error_is_sanitized(void)
 
 static const struct unit_case cases[] = {
 	UNIT_CASE(decoder_initializes_and_returns_json),
+	UNIT_CASE(decoder_of_a_upatch_with_the_longest_name_runs),
 	UNIT_CASE(decoder_instruction_limit_is_enforced),
 	UNIT_CASE(decoder_memory_limit_is_enforced),
 	UNIT_CASE(decoder_protected_loops_hit_the_limit),

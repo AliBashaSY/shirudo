@@ -177,7 +177,8 @@ signed config image.
      - Malformed ``.upatch`` containers are refused, files over 16 MiB
        without mapping them
    * - ``t3002-upatch-decoders``
-     - Decoder metadata, Lua sandbox limits, refusal of bytecode
+     - Decoder metadata, Lua sandbox limits, refusal of bytecode, a
+       decoder of a upatch named with 255 characters, one decoder per map
    * - ``t3003-upatch-map-types``
      - Map type labels, arena maps only through a serializer
    * - ``t3004-upatch-serializer-metadata``

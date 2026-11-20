@@ -43,18 +43,19 @@ int main(int argc, char **argv)
 
 	if (argc == 3 && strcmp(argv[1], "dump") == 0)
 		return dump(argv[2]);
-	if (argc != 3 || (strcmp(argv[1], "json") != 0 &&
-			  strcmp(argv[1], "otel") != 0 &&
-			  strcmp(argv[1], "loop") != 0 &&
-			  strcmp(argv[1], "memory") != 0 &&
-			  strcmp(argv[1], "utf8") != 0)) {
+	if (argc < 3 || argc > 4 || (strcmp(argv[1], "json") != 0 &&
+				     strcmp(argv[1], "otel") != 0 &&
+				     strcmp(argv[1], "loop") != 0 &&
+				     strcmp(argv[1], "memory") != 0 &&
+				     strcmp(argv[1], "utf8") != 0)) {
 		fprintf(stderr,
-			"usage: %s <json|otel|loop|memory|utf8> <file.upatch>\n"
+			"usage: %s <json|otel|loop|memory|utf8> <file.upatch> [<upatch>]\n"
 			"       %s dump <decoder.lua>\n",
 			argv[0], argv[0]);
 		return 2;
 	}
-	snprintf(view.upatch, sizeof(view.upatch), "%s", "t3002");
+	snprintf(view.upatch, sizeof(view.upatch), "%s",
+		 argc == 4 ? argv[3] : "t3002");
 	snprintf(view.name, sizeof(view.name), "%s", "t0005_map");
 	if (strcmp(argv[1], "memory") == 0)
 		view.serial_bytes_total = 997;

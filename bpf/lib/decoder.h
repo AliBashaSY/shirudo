@@ -23,7 +23,7 @@ struct decoder_manifest {
 	__u16	input_format;	/* UPATCH_DECODER_INPUT_MAP_V1 */
 	__u16	export_signal;	/* UPATCH_DECODER_EXPORT_* */
 	__u16	reserved;
-	char	upatch[64];
+	char	upatch[64];	/* empty, or the upatch's name */
 	char	map[16];
 	char	source[64];
 	char	entrypoint[32];

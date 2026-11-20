@@ -626,7 +626,10 @@ Each decoder entry:
    * - +16
      - 64
      - ``upatch``
-     - NUL-terminated upatch name. The writer requires the artifact's name.
+     - NUL-terminated, empty or the artifact's name. The writer refuses
+       another name. A reader ignores the field: the decoder belongs to
+       the upatch whose signed data carries it, and the reader picks it
+       by ``map``.
    * - +80
      - 16
      - ``map``
@@ -654,8 +657,8 @@ the BPF program declares in ``.rodata`` (:src:`bpf/lib/decoder.h`,
 192 bytes, magic ``0x44434544``, the bytes ``DECD``, ``u16`` fields
 ``version``, ``language``, ``api_version``, ``input_format``,
 ``export_signal`` and ``reserved``, then the same four strings). It scans
-``.rodata`` at 4-byte steps, accepts one decoder per upatch and map, and
-reads each source file, at most 16 MiB. A decoder whose ``language``,
+``.rodata`` at 4-byte steps, accepts one decoder per map, and reads each
+source file, at most 16 MiB. A decoder whose ``language``,
 ``api_version``, ``input_format`` or ``export_signal`` differs from the
 values above fails the build. :doc:`/upatches/write/decoders` covers the decoder
 API.

@@ -1474,7 +1474,7 @@ given (R2).
 :Refusal: ``EACCES`` from ``bpf()`` and from opening a pin
 :Counters: ``ObjGet``, ``MapFdWrite``, ``MapWrite``, ``ProgRun``
 :Tests: ``t6107``, ``t6108``, ``t6109``, ``t6110``
-:Residual: R2, U19
+:Residual: R2
 
 T14 Substituting the TPM
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2108,19 +2108,6 @@ U17 A stopped runtime command keeps its descriptors
    :Meanwhile: A stopped shirudo process is visible in the process
       list; compare the loaded links with the measured set when one is
       found.
-
-U19 A decoder cannot name a long upatch
-   :Affects: Lua decoders and map export (T13).
-   :Consequence: A decoder names its upatch in a 64-byte field, and
-      ``shirudo build`` and map export compare it with the whole upatch
-      name, which can have up to 255 characters. A upatch whose name has
-      64 characters or more cannot carry a decoder, and map export sends
-      its maps as raw entries, not as the records a decoder would make of
-      them.
-   :Status: Confirmed in code for the field sizes; how ``shirudo build``
-      handles a longer name is a code-path reading, not reproduced.
-   :Meanwhile: Keep the names of upatches that carry decoders at 63
-      characters or fewer.
 
 U20 The keepalive reports only the last 512 tree operations
    :Affects: The keepalive body (``base_seq``, ``base_root``, ``mask``)

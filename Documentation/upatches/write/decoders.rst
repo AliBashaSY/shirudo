@@ -56,7 +56,8 @@ Declare the decoder
 
    The builder finds manifests by their magic in the object's ``.rodata``,
    so declare the manifest ``const``. It also passes over a manifest with
-   an empty string field or a zero ``language``, ``api_version``,
+   an empty ``map``, ``source`` or ``entrypoint``, a string field without
+   a terminating NUL, or a zero ``language``, ``api_version``,
    ``input_format`` or ``export_signal``, without an error, so check the
    result as step 6 shows. Set the fields as follows:
 
@@ -76,8 +77,11 @@ Declare the decoder
         - ``UPATCH_DECODER_EXPORT_LOG`` or
           ``UPATCH_DECODER_EXPORT_METRIC``.
       * - ``upatch``
-        - The upatch name, at most 63 characters. In a package that is the
-          source's base name.
+        - Empty, or the upatch name, which the field holds up to 63
+          characters. In a package that is the source's base name. Leave
+          it out for a longer name: one of 64 characters or more leaves no
+          room for the terminating NUL. The decoder belongs to the upatch
+          whose signed data carries it either way.
       * - ``map``
         - The name of a map of the object, at most 15 characters. One
           decoder per map.
@@ -226,9 +230,10 @@ Build and check it
       operator$ shirudo upatch info <file>.upatch
 
    ``<file>`` is your upatch. The ``Decoders`` section lists each decoder
-   with its target as ``<upatch>/<map>``, the language and API version,
-   the input format ``shirudo.map.v1``, the export signal, and the source
-   file with its entry point and size.
+   with its target as ``<upatch>/<map>``, ``<upatch>`` empty where the
+   manifest leaves it out, the language and API version, the input format
+   ``shirudo.map.v1``, the export signal, and the source file with its
+   entry point and size.
 
 Run it on a target
 ------------------
@@ -242,7 +247,7 @@ Run it on a target
 
    ``shirudo-runtime`` is the command in the test VM, as
    :doc:`/upatches/test/testing`
-   explains. ``<upatch>`` and ``<map>`` are the names in the manifest. The
+   explains. ``<upatch>`` is the upatch name and ``<map>`` the map's. The
    command prints what the decoder returned as one JSON document. A failure
    prints one of ``upatch map: decoder load failed: <message>``, ``upatch
    map: decoder entrypoint '<name>' not found``, ``upatch map: decoder
