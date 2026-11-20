@@ -247,6 +247,7 @@ UTIL_SRCS := \
     util/harden.c \
     util/preflight.c \
     util/kernel_abi.c \
+    util/kernel_prereq.c \
     util/log.c \
     util/io.c \
     util/tpm.c \

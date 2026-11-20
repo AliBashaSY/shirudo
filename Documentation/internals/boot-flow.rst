@@ -50,7 +50,8 @@ the switch to the root file system. It needs
    ``/etc/shirudo/shirudo.conf``. ``runtime.image`` and
    ``runtime.root_hash`` must be present; the UKI authenticates both.
 #. Run the pre-flight: root, the BPF LSM active, bpffs, the signed
-   loader ABI, the certificates readable, ML-DSA-87 and accepted by the
+   loader ABI and LSM hooks, module signatures in a kernel that loads
+   modules, the certificates readable, ML-DSA-87 and accepted by the
    kernel, the BPF keyring present, the embedded objects present, the
    TPM reachable. A failed check ends ``init``.
 #. Check that ``/`` is an initramfs and bind

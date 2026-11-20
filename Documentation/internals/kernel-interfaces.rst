@@ -573,6 +573,14 @@ signature against the runtime image's certificates first; see
 is handled: the seal then sees no seccomp state. The attach kinds of
 upatches can need further options; see :doc:`/upatches/write/attach-kinds`.
 
+The pre-flight check ``module_signatures`` refuses a kernel that builds
+modules without ``CONFIG_MODULE_SIG``, and tells it from the running
+kernel, since a target need not have ``/proc/config.gz``: from a BTF
+function only the option builds, ``__module_address`` for
+``CONFIG_MODULES`` and ``mod_verify_sig`` for ``CONFIG_MODULE_SIG``.
+Without ``CONFIG_MODULE_SIG``, ``module_sig_check()`` is a stub that
+asks no LSM about an unsigned module.
+
 The kernel project configures the test kernel with these options and the
 additional options the test fixtures and VM need.
 

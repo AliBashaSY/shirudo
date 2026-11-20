@@ -105,10 +105,11 @@ The properties above hold only on a deployment that provides the
 - An operator host that keeps the signing key safe
 
 shirudo checks only some of these. The pre-flight of ``shirudo init``
-checks that the BPF LSM is active and that the kernel has the
-signed-loader ABI. The target checks a config's signature against the
-runtime image's keys itself. It does not check the kernel
-configuration or the boot chain (U10).
+checks that the BPF LSM is active, that the kernel has the
+signed-loader ABI and that it checks module signatures. The target
+checks a config's signature against the runtime image's keys itself. It
+does not check the rest of the kernel configuration or the boot chain
+(U10).
 
 What you must do
 ----------------

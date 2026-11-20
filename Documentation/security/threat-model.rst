@@ -173,7 +173,8 @@ without the protection.
        label read, the seal falls back to its marks where a read fails
        for the caller (T3).
    * - A4
-     - The kernel checks module signatures (``CONFIG_MODULE_SIG``).
+     - The kernel checks module signatures (``CONFIG_MODULE_SIG``), or
+       loads no modules (``CONFIG_MODULES=n``).
      - An unsigned module is kernel code of root's choosing. A kernel
        that does not enforce signatures itself asks lockdown about one,
        and ``bpf2`` refuses it from ``init`` on through
@@ -186,7 +187,11 @@ without the protection.
        kernel's lockdown LSM is not needed for them, and where it runs
        it decides first. A kernel without ``CONFIG_MODULE_SIG`` asks
        nothing and loads any module.
-     - No, see U10. Lockdown in confidentiality mode would withhold
+     - Yes. The pre-flight check ``module_signatures`` refuses a
+       kernel whose BTF shows modules (``__module_address``) without
+       ``mod_verify_sig``, which only ``CONFIG_MODULE_SIG`` builds.
+       Which keys the kernel trusts for modules is not checked.
+       Lockdown in confidentiality mode would withhold
        ``bpf_probe_read_kernel()`` from shirudo's own programs and stop
        ``init``. This is a reading of the kernel source and is not
        tested.
@@ -1130,7 +1135,10 @@ it, an unsigned module joins it, and ``/proc/kcore`` reads it.
 ``lsm/locked_down`` refuses what lockdown in integrity mode refuses, an
 unsigned module the kernel asks about included (A4), and
 ``/proc/kcore`` with it, to every task, whatever the command line says,
-and counts each refusal on the integrity counter of its reason.
+and counts each refusal on the integrity counter of its reason. A
+kernel that does not ask about an unsigned module, one without
+``CONFIG_MODULE_SIG``, fails the pre-flight check
+``module_signatures``.
 Hibernation is refused too, but a resume runs in the initrd before
 ``init``: ``lsm/file_open`` refuses the write of a ``HibernateLocation``
 EFI variable, which would have the next boot's initrd resume from a
@@ -1152,7 +1160,7 @@ naming one. :doc:`integrity-counters` lists the counters.
    ``XmonWrite``, ``BpfWriteUser``, ``DbgWriteKernel``,
    ``RtasErrorInjection``, ``XenUserActions``, ``Kcore``,
    ``HibernateLocation`` and ``Other``
-:Tests: ``t4003``, ``t4101``, ``t6126``, ``t6154``
+:Tests: ``t4003``, ``t4101``, ``t6126``, ``t6154``, ``t6157``
 :Residual: R6, R7, R12, U11, U16
 
 .. _tm-t7:
@@ -2032,11 +2040,11 @@ U9 init can rebind the register after hiding this boot's record
       ``--expect-pcr=9`` with the predicted value.
 
 U10 Kernel prerequisites are not checked
-   :Affects: A4, A5, A9 and A10.
-   :Consequence: A target without module signatures, with 32-bit
-      compatibility, with a resume device in its UKI or with writes
-      under mounted file systems allowed initializes without an error
-      and without the protection those assumptions give.
+   :Affects: A5, A9 and A10.
+   :Consequence: A target with 32-bit compatibility, with a resume
+      device in its UKI or with writes under mounted file systems
+      allowed initializes without an error and without the protection
+      those assumptions give.
    :Status: Confirmed in code: the pre-flight checks none of them.
    :Meanwhile: Build the kernel and its command line as
       :doc:`/operate/plan/hardening` describes.
@@ -2210,7 +2218,8 @@ The deployer:
 - Builds the kernel with the signed-loader ABI and the kernel project
   patch set (A3), ``CONFIG_MODULE_SIG`` (A4), ``CONFIG_COMPAT=n`` (A5),
   the TPM driver without ``i2c-dev`` or ``spidev`` on its bus (A8), and
-  ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10)
+  ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10); the pre-flight of ``init``
+  refuses a kernel without A4
 - Boots a signed, measured UKI under Secure Boot whose command line
   carries ``lsm=`` with ``bpf``, ``bpf.keyring_unsealed=1`` and
   ``dm_verity.keyring_unsealed=1``, and whose command line, kernel and

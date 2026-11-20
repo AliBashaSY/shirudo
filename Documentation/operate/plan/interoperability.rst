@@ -291,7 +291,8 @@ Module loading and kernel live patching
    it. ``modprobe --force``, which strips the version checks, makes a
    signed module count as unsigned.
 :What to do: Build the kernel with ``CONFIG_MODULE_SIG``, as
-   :doc:`/operate/plan/hardening` lists, and sign every module the
+   :doc:`/operate/plan/hardening` lists and the pre-flight check
+   ``module_signatures`` requires, and sign every module the
    target loads, livepatch modules included, with a key the kernel
    trusts. A signed module runs as kernel code outside every shirudo
    check. Unloading a

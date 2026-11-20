@@ -16,6 +16,9 @@
 
 #include <linux/keyctl.h>
 
+#include <bpf/btf.h>
+#include <bpf/libbpf.h>
+
 #include <shirudo/misc.h>
 #include <shirudo/string.h>
 
@@ -23,6 +26,7 @@
 #include "initrd.h"
 #include "crypto.h"
 #include "kernel_abi.h"
+#include "kernel_prereq.h"
 #include "keys.h"
 #include "loader.h"
 #include "malloc.h"
@@ -209,6 +213,37 @@ static void check_lsm_hooks(struct preflight_result *r)
 		c->ok = false;
 		r->n_failed++;
 	}
+}
+
+static void check_module_signatures(struct preflight_result *r,
+				    const struct kernel_options *opts)
+{
+	struct preflight_check *c =
+		next_slot(r, PRE_MODULE_SIG, "module_signatures");
+
+	if (!opts)
+		fail(r, c, "cannot read the kernel BTF");
+	else if (!opts->modules || opts->module_sig)
+		pass(c);
+	else
+		fail(r, c, "the kernel loads modules without checking their "
+		     "signatures (needs CONFIG_MODULE_SIG=y, or CONFIG_MODULES=n)");
+}
+
+/* A BTF that cannot be read fails the check that needs it. */
+static void check_kernel_options(struct preflight_result *r)
+{
+	const struct kernel_options *have = NULL;
+	struct kernel_options opts = {};
+	struct btf *btf;
+
+	btf = btf__load_vmlinux_btf();
+	if (!libbpf_get_error(btf)) {
+		kernel_prereq_options(btf, &opts);
+		have = &opts;
+		btf__free(btf);
+	}
+	check_module_signatures(r, have);
 }
 
 static void check_cert(struct preflight_result *r)
@@ -416,6 +451,7 @@ void preflight_run(struct preflight_result *out)
 	check_bpffs(out);
 	check_signed_loader_abi(out);
 	check_lsm_hooks(out);
+	check_kernel_options(out);
 	check_cert(out);
 	check_cert_algorithm(out);
 	check_cert_kernel_algo(out);

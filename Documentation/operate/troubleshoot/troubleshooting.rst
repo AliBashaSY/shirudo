@@ -489,19 +489,21 @@ Meaning
         OK    bpffs_supported
         OK    signed_loader_kernel_abi
         OK    kernel_lsm_hooks
+        OK    module_signatures
         OK    cert_on_disk
         OK    cert_algorithm
         OK    cert_kernel_support
         OK    kernel_keyring
         OK    embedded_loader
         OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
-      11 of 11 passed
+      12 of 12 passed
 
 Causes
    The check names the requirement that is missing: root, the BPF LSM
    in the kernel's active LSM list, bpffs, the signed-loader ABI, an
-   LSM hook only the kernel project patches add, the certificate and
-   its algorithm, the kernel keyring, the embedded loader or the TPM.
+   LSM hook only the kernel project patches add, module signatures in
+   a kernel that loads modules, the certificate and its algorithm, the
+   kernel keyring, the embedded loader or the TPM.
 
 Action
    Fix the requirement, see :doc:`/operate/plan/system-requirements`, and

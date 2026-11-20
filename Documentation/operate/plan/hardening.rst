@@ -48,14 +48,16 @@ Kernel configuration
        would not load.
      - no
    * - Module signatures: ``CONFIG_MODULE_SIG``, with every module the
-       target loads signed by a key the kernel trusts
+       target loads signed by a key the kernel trusts, or
+       ``CONFIG_MODULES=n``
      - Without it the kernel loads a module without asking lockdown, and
        the module runs in the kernel with no BPF involved. With it,
        ``bpf2`` refuses an unsigned module from ``init`` on where the
        kernel does not refuse it first (``CONFIG_MODULE_SIG_FORCE`` or
        ``module.sig_enforce=1``).
-     - partly: from ``init`` on, an unsigned module is refused and
-       counted as ``ModuleSignature``
+     - init fails: pre-flight ``module_signatures``. From ``init`` on,
+       an unsigned module is refused and counted as
+       ``ModuleSignature``. The keys the kernel trusts are not checked
    * - ``CONFIG_STRICT_DEVMEM`` and ``CONFIG_IO_STRICT_DEVMEM``, or no
        ``/dev/mem`` at all
      - Limits ``/dev/mem`` before ``init``, after which ``bpf2`` refuses

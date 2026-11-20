@@ -36,11 +36,11 @@ Can root turn shirudo off?
 
 Not without the signing key: root cannot load unsigned BPF, detach the
 enforcement or change shirudo's state. Root with a way into the kernel
-itself, such as a kernel exploit or a kernel built without module
-signatures (``CONFIG_MODULE_SIG``), which loads any module, goes around
-every check made in that kernel. :doc:`/security/security-model` lists
-what shirudo protects and where it stops, and
-:doc:`/operate/plan/hardening` lists the kernel settings it relies on.
+itself, such as a kernel exploit or a module signed with a key the
+kernel trusts, goes around every check made in that kernel.
+:doc:`/security/security-model` lists what shirudo protects and where it
+stops, and :doc:`/operate/plan/hardening` lists the kernel settings it
+relies on.
 
 Does a target need a TPM?
 -------------------------

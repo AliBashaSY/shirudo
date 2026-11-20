@@ -202,11 +202,16 @@ these options and additional ones that the tests use.
    * - ``CONFIG_TMPFS``, ``CONFIG_TMPFS_XATTR``
      - ``/run/shirudo`` carries the same label.
 
+``shirudo init`` also refuses a kernel that builds modules
+(``CONFIG_MODULES``) without ``CONFIG_MODULE_SIG``: it loads an unsigned
+module without asking the LSM. The pre-flight check
+``module_signatures`` tells that from the kernel's BTF, not from
+``/proc/config.gz``.
+
 :doc:`/operate/plan/hardening` lists the options the trust model assumes
-beyond this table, module signatures, ``CONFIG_COMPAT`` and others, why
-kernel lockdown is not among them, and why the dm-verity root-hash check
-accepting keys of the kernel's other keyrings does not let them sign a
-config.
+beyond this table, ``CONFIG_COMPAT`` and others, why kernel lockdown is
+not among them, and why the dm-verity root-hash check accepting keys of
+the kernel's other keyrings does not let them sign a config.
 
 Kernel command line
 ~~~~~~~~~~~~~~~~~~~
@@ -372,6 +377,10 @@ Pre-flight checks
      - The kernel BTF has a ``bpf_lsm_<hook>`` function for every LSM
        hook the embedded ``bpf2`` and ``seal`` programs attach to, the
        carried ``tpm_command`` and ``mm_read_access`` among them.
+   * - ``module_signatures``
+     - The kernel BTF has no ``__module_address``, so the kernel loads no
+       modules, or has ``mod_verify_sig``, which only
+       ``CONFIG_MODULE_SIG`` builds.
    * - ``cert_on_disk``
      - The primary certificate exists, is a regular file and is not
        empty.
@@ -399,13 +408,14 @@ Run the checks as root on a target:
      OK    bpffs_supported
      OK    signed_loader_kernel_abi
      OK    kernel_lsm_hooks
+     OK    module_signatures
      OK    cert_on_disk
      OK    cert_algorithm
      OK    cert_kernel_support
      OK    kernel_keyring
      OK    embedded_loader
      OK    tpm2_reachable: TCTI from the config: device:/dev/tpmrm0
-   11 of 11 passed
+   12 of 12 passed
 
 A failed check prints ``FAIL`` and its reason, and the command exits 1
 after ``init: pre-flight failed, <failed> of <total> checks``.

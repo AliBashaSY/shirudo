@@ -568,6 +568,9 @@ signed config image.
      - A command writes past the file size limit it was started with,
        outlives an interval timer set before its exec, and refuses
        another task's ``prlimit``, counted as ``SealRlimit``
+   * - ``t6157-kernel-options``
+     - The test kernel, which signs its modules, passes the pre-flight
+       check of module signatures
 
 ``bpm`` (7)
 ~~~~~~~~~~~
@@ -844,14 +847,14 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover 35 of the modules in
+The unit suites in :src:`testing/unit/` cover 36 of the modules in
 :src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_state``,
 ``bpm_tree``, ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain``,
 ``chain_history``, ``conditions``, ``config_update``, ``crypto_openssl``,
 ``eventlog``, ``format``, ``hex``, ``io``, ``java_agent``, ``json``,
 ``kernel_abi``,
 ``keepalive``, ``keepalive_quote``, ``kernel_build_id``,
-``kernel_release``, ``keys``, ``measured``, ``options``,
+``kernel_prereq``, ``kernel_release``, ``keys``, ``measured``, ``options``,
 ``paths``, ``string``, ``sysinfo``, ``upatch``, ``upatch_decode``,
 ``upatch_pins``, ``upatch_resolve``, ``upatch_verify`` and ``xdp``, and
 ``overflow`` the arithmetic of
@@ -1018,7 +1021,7 @@ Coverage by area
        ``eventlog``. Unit: ``eventlog``, ``io``
    * - Boot and initrd
      - ``t1006``, ``t4002``, ``t4101``, ``t5006``, ``t6115``,
-       ``t6126``
+       ``t6126``, ``t6157``. Unit: ``kernel_prereq``
    * - Config images
      - ``t4004``, ``t5001`` to ``t5008``, ``t5101`` to ``t5105``,
        ``t6112``, ``t6127``, ``t6130``, ``t6132``. Fuzz: ``config``,
