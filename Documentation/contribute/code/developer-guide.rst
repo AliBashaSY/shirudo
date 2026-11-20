@@ -768,6 +768,10 @@ can rewrite what it finds does so with ``-D patch``:
        in a return code declared with an error, ``int ret = -EACCES``,
        where the jump relies on that error. A function that stores a
        positive value in it answers yes or no, and its 0 is left alone.
+   * - ``break_error``
+     - An error stored before a ``break`` that the code after the loop
+       does not test before it calls something other than a cleanup,
+       and then stores over.
    * - ``bpf_map_rmw``
      - ``++``, ``+=`` or ``|=`` through the value of a map that is not
        per-CPU, or through inode, socket or cgroup storage, which other

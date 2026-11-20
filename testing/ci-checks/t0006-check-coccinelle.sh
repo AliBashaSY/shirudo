@@ -375,8 +375,8 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # One case of each rule below at the line given with it, and beside it
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
-SAMPLE_RULES="stale_success"
-SAMPLE_LINES="stale_success:9"
+SAMPLE_RULES="stale_success break_error"
+SAMPLE_LINES="stale_success:9 break_error:53"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -421,6 +421,64 @@ int holds_exactly(int fd, int n)
 		goto out;
 	ret = 1;
 out:
+	return ret;
+}
+
+int upgrade_left(DIR *d, int n)
+{
+	struct dirent *de;
+	int ret = 0;
+
+	while ((de = readdir(d))) {
+		if (pair(de)) {
+			ret = -ENAMETOOLONG;
+			break;
+		}
+		n++;
+	}
+	closedir(d);
+	sort_pairs(n);
+	if (unload(n))
+		ret = -EIO;
+	return ret;
+}
+
+int upgrade_tested(DIR *d, int n)
+{
+	struct dirent *de;
+	int ret = 0;
+
+	while ((de = readdir(d))) {
+		if (pair(de)) {
+			ret = -ENAMETOOLONG;
+			break;
+		}
+		n++;
+	}
+	closedir(d);
+	if (ret)
+		return ret;
+	sort_pairs(n);
+	if (unload(n))
+		ret = -EIO;
+	return ret;
+}
+
+int scan_fallback(DIR *d, char *root)
+{
+	struct dirent *de;
+	int ret = 0;
+
+	while ((de = readdir(d))) {
+		if (bad(de)) {
+			ret = -EINVAL;
+			break;
+		}
+		take(root, de);
+	}
+	if (!root[0])
+		ret = -EINVAL;
+	closedir(d);
 	return ret;
 }
 EOF
