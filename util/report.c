@@ -23,6 +23,18 @@
 #include "report.h"
 #include "seal.h"
 
+/*
+ * The path is as the caller spelled it and the name as the file has it,
+ * before anything checked either: a byte that is no UTF-8 must not cost
+ * the report of the refusal it is part of.
+ */
+static void kv_unverified(struct json_emit *e, const char *key,
+			  const char *val)
+{
+	json_key(e, key);
+	json_str_lossy(e, val, strlen(val));
+}
+
 int report_emit(const char *path, const struct op_report *r)
 {
 	struct seal_output out;
@@ -66,8 +78,8 @@ int report_emit(const char *path, const struct op_report *r)
 	json_kv_int(&e, "loader_return", r->loader_return);
 
 	json_obj_open_key(&e, "upatch");
-	json_kv_string(&e, "path", r->path ? r->path : "");
-	json_kv_string(&e, "name", r->name ? r->name : "");
+	kv_unverified(&e, "path", r->path ? r->path : "");
+	kv_unverified(&e, "name", r->name ? r->name : "");
 	json_kv_string(&e, "payload_sha256", r->payload_hex);
 	json_obj_close(&e);
 

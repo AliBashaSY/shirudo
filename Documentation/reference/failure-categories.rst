@@ -488,11 +488,14 @@ link.
        not run.
    * - ``upatch.path``
      - string
-     - The path given on the command line.
+     - The path given on the command line, with U+FFFD for each byte
+       that is no UTF-8.
    * - ``upatch.name``
      - string
-     - The upatch name from the header. Empty when the operation stopped
-       before the artifact was read.
+     - The upatch name from the header, as the file has it and with
+       U+FFFD for each byte that is no UTF-8: a name the load refuses is
+       reported too. Empty when the operation stopped before the
+       artifact was read.
    * - ``upatch.payload_sha256``
      - string
      - For a load, the artifact's payload digest. For an unload, the

@@ -5,7 +5,8 @@
 # t3001 -- the .upatch container parser is the target's trust boundary:
 # an attacker can hand it an arbitrary file. It must reject malformed
 # input cleanly (non-zero exit, never a crash). Driven through the real
-# core binary's read-only `upatch info`; needs no root, kernel, or clang.
+# core binary's read-only `upatch info`, and through a load it refuses
+# before it reaches the kernel; needs no root, kernel, or clang.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -104,6 +105,16 @@ test_expect_success 'upatch info --json writes a stray byte of a name as U+FFFD'
 import json, sys
 name = json.load(open(sys.argv[1]))["name"]
 assert name == "a\x1b[2Jb\x9bc\ufffd", repr(name)
+PY
+'
+test_expect_success 'a refused load reports a name that is no UTF-8' '
+	! "$S" upatch load --no-precheck --report=- "$WORK/controls-in-name" \
+		>"$WORK/report.json" 2>"$WORK/report.err" &&
+	python3 - "$WORK/report.json" <<"PY"
+import json, sys
+report = json.load(open(sys.argv[1]))
+assert report["category"] == "parser_rejected", report
+assert report["upatch"]["name"] == "a\x1b[2Jb\x9bc\ufffd", report
 PY
 '
 test_expect_success 'upatch info --json grows to hold a long escaped path' '

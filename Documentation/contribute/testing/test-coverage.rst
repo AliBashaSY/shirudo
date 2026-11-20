@@ -179,7 +179,8 @@ signed config image.
      - Covers
    * - ``t3001-upatch-parse``
      - Malformed ``.upatch`` containers are refused, files over 16 MiB
-       without mapping them
+       without mapping them, and a load refused for a name that is no
+       UTF-8 still writes its report
    * - ``t3002-upatch-decoders``
      - Decoder metadata, Lua sandbox limits, refusal of bytecode, a
        decoder of a upatch named with 255 characters, one decoder per map
