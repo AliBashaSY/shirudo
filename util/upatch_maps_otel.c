@@ -635,17 +635,15 @@ static int append_signal_path(const char *base, enum otel_signal signal,
 {
 	size_t prefix_len;
 	const char *slash;
-	const char *tail;
 
 	if (!base || !base[0])
 		return -EINVAL;
-	tail = strpbrk(base, "?#");
-	prefix_len = tail ? (size_t)(tail - base) : strlen(base);
+	prefix_len = span_until(base, strlen(base), "?#");
 	if (prefix_len == 0)
 		return -EINVAL;
 	slash = base[prefix_len - 1] == '/' ? "" : "/";
 	return strsprintf(out, out_sz, "%.*s%s%s%s", (int)prefix_len, base,
-			  slash, signal_path(signal), tail ? tail : "") < 0 ?
+			  slash, signal_path(signal), base + prefix_len) < 0 ?
 	       -ENAMETOOLONG : 0;
 }
 
@@ -817,6 +815,13 @@ static bool header_name_ok(const char *s)
 		if (!isalnum((__u8)*s) && !strchr("!#$%&'*+-.^_`|~", *s))
 			return false;
 	return true;
+}
+
+static bool holds_any(const char *s, const char *set)
+{
+	size_t len = strlen(s);
+
+	return span_until(s, len, set) < len;
 }
 
 /* RFC 9110, 5.5: a field value holds no control character but tab. */
@@ -1721,7 +1726,7 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 	access = getenv("AWS_ACCESS_KEY_ID");
 	secret = getenv("AWS_SECRET_ACCESS_KEY");
 	if (!access || !access[0] || !secret || !secret[0] ||
-	    strpbrk(access, "\r\n:") || strpbrk(secret, "\r\n"))
+	    holds_any(access, "\r\n:") || holds_any(secret, "\r\n"))
 		return -EACCES;
 	if (check_add_overflow(strlen(access), strlen(secret),
 			       &credentials_len) ||
@@ -1736,7 +1741,7 @@ static int parse_s3_spec(struct otel_s3_state *st, const char *spec)
 		return -E2BIG;
 	st->session_token = getenv("AWS_SESSION_TOKEN");
 	if (st->session_token &&
-	    (!st->session_token[0] || strpbrk(st->session_token, "\r\n")))
+	    (!st->session_token[0] || holds_any(st->session_token, "\r\n")))
 		return -EINVAL;
 	st->ca_file = getenv("AWS_CA_BUNDLE");
 	if (st->ca_file && !st->ca_file[0])

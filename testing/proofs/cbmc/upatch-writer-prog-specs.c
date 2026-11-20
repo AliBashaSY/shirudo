@@ -288,15 +288,6 @@ void pr_err(const char *fmt, ...)
 {
 }
 
-/* A body for strpbrk(), which proof.h does not give, as it does strnlen(). */
-char *strpbrk(const char *s, const char *accept)
-{
-	for (; *s; s++)
-		if (strchr(accept, *s))
-			return (char *)s;
-	return NULL;
-}
-
 /* CBMC models no qsort(); the writer sorts at most two names here. */
 void qsort(void *base, size_t nmemb, size_t size,
 	   int (*compare)(const void *, const void *))

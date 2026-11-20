@@ -1028,7 +1028,7 @@ static int split_kprobe_multi_target(const char *list, struct build_kprobe_targe
 	char *buf, *name;
 	int ret = -EINVAL;
 
-	if (strpbrk(list, "*?"))
+	if (strchr(list, '*') || strchr(list, '?'))
 		return -EOPNOTSUPP;
 	for (comma = strchr(list, ','); comma; comma = strchr(comma + 1, ','))
 		if (++nr_syms > UPATCH_KPROBE_SYMS_MAX)
