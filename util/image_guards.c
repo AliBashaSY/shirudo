@@ -267,8 +267,8 @@ static int guard_program_maps(const struct bpf_prog_info *program,
 		if (ret)
 			return ret;
 		for (j = 0; j < GUARD_MAP_COUNT; j++) {
-			if (strncmp(info.name, shirudo_guard_maps[j].name,
-				    sizeof(info.name) - 1))
+			if (!guard_name_matches(info.name,
+						shirudo_guard_maps[j].name))
 				continue;
 			if (info.id != expected[j])
 				return -EPROTO;
@@ -349,7 +349,7 @@ static int guard_link(const struct image_guard *guard,
 	if (program.type != BPF_PROG_TYPE_LSM || !program.attach_btf_id ||
 	    !program.attach_btf_obj_id || program.id != link.prog_id ||
 	    program.nr_map_ids > ARRAY_SIZE(map_ids) ||
-	    strncmp(program.name, guard->prog, sizeof(program.name) - 1) ||
+	    !guard_name_matches(program.name, guard->prog) ||
 	    link.tracing.target_obj_id != program.attach_btf_obj_id ||
 	    link.tracing.target_btf_id != program.attach_btf_id)
 		return -EPROTO;

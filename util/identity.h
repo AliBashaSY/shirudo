@@ -9,6 +9,8 @@
 #ifndef SHIRUDO_UTIL_IDENTITY_H
 #define SHIRUDO_UTIL_IDENTITY_H
 
+#include <stdbool.h>
+
 #include <shirudo/misc.h>
 #include <shirudo/tpm.h>
 
@@ -107,6 +109,13 @@ struct guard_map {
 
 extern const struct guard_map
 	shirudo_guard_maps[GUARD_MAP_COUNT];
+
+/*
+ * Whether name, as the kernel reports an object's, is the one it keeps of
+ * an object created as full, which is its first BPF_OBJ_NAME_LEN - 1
+ * bytes.
+ */
+bool guard_name_matches(const char *name, const char *full);
 
 /*
  * 0 when the map behind fd has the type, sizes, flags and name expected

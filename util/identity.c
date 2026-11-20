@@ -80,6 +80,15 @@ int enforcement_active(void)
 	return errno == EINVAL || errno == ENOSYS ? 0 : -errno;
 }
 
+bool guard_name_matches(const char *name, const char *full)
+{
+	size_t len = strnlen(name, BPF_OBJ_NAME_LEN);
+
+	return len < BPF_OBJ_NAME_LEN &&
+	       len == strnlen(full, BPF_OBJ_NAME_LEN - 1) &&
+	       !memcmp(name, full, len);
+}
+
 int guard_map_check(int fd, const struct guard_map *expected, __u32 *id)
 {
 	struct bpf_map_info info = {};
@@ -92,8 +101,7 @@ int guard_map_check(int fd, const struct guard_map *expected, __u32 *id)
 	    info.value_size != expected->value_size ||
 	    info.max_entries != expected->max_entries ||
 	    info.map_flags != expected->flags ||
-	    info.name[sizeof(info.name) - 1] ||
-	    strncmp(info.name, expected->name, sizeof(info.name) - 1))
+	    !guard_name_matches(info.name, expected->name))
 		return -EPROTO;
 	if (id)
 		*id = info.id;
