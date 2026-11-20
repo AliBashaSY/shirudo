@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include <shirudo/string.h>
+
 #include "conditions.h"
 #include "unit.h"
 
@@ -39,8 +41,8 @@ static void changed_xdp_archive_is_tampered(void)
 	row = upatches_measured(&in, c);
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "ALERT");
-	EXPECT_TRUE(strstr(row->detail, "1 XDP archives differ"));
-	EXPECT_TRUE(strstr(row->detail, "fix"));
+	EXPECT_TRUE(str_contains(row->detail, "1 XDP archives differ"));
+	EXPECT_TRUE(str_contains(row->detail, "fix"));
 	EXPECT_STREQ(status_verdict(&in), "tampered");
 }
 
@@ -75,7 +77,7 @@ static void a_lost_link_is_tampered(void)
 	row = upatches_measured(&in, c);
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "ALERT");
-	EXPECT_TRUE(strstr(row->detail, "missing a link or their archive: fix"));
+	EXPECT_TRUE(str_contains(row->detail, "missing a link or their archive: fix"));
 	EXPECT_STREQ(status_verdict(&in), "tampered");
 }
 
@@ -94,10 +96,10 @@ static void records_the_register_does_not_vouch_for_are_tampered(void)
 	row = upatches_measured(&in, c);
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "ALERT");
-	EXPECT_TRUE(strstr(row->detail, "do not fold to the measurement register"));
+	EXPECT_TRUE(str_contains(row->detail, "do not fold to the measurement register"));
 	EXPECT_STREQ(status_verdict(&in), "tampered");
 	status_reason(&in, reason, sizeof(reason));
-	EXPECT_TRUE(strstr(reason, "do not fold to the measurement register"));
+	EXPECT_TRUE(str_contains(reason, "do not fold to the measurement register"));
 }
 
 static void a_check_that_could_not_run_warns(void)
@@ -114,7 +116,7 @@ static void a_check_that_could_not_run_warns(void)
 	row = upatches_measured(&in, c);
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "WARN");
-	EXPECT_TRUE(strstr(row->detail, "not checked"));
+	EXPECT_TRUE(str_contains(row->detail, "not checked"));
 	EXPECT_TRUE(strcmp(status_verdict(&in), "tampered"));
 }
 
@@ -152,10 +154,10 @@ static void an_uncovered_device_degrades(void)
 	row = condition_of(&in, c, "XdpCovered");
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "WARN");
-	EXPECT_TRUE(strstr(row->detail, "fw on eth1 (no multi-buffer XDP)"));
+	EXPECT_TRUE(str_contains(row->detail, "fw on eth1 (no multi-buffer XDP)"));
 	EXPECT_STREQ(status_verdict(&in), "degraded");
 	status_reason(&in, reason, sizeof(reason));
-	EXPECT_TRUE(strstr(reason, "XDP upatch selects"));
+	EXPECT_TRUE(str_contains(reason, "XDP upatch selects"));
 }
 
 static void unchecked_coverage_warns_without_degrading(void)
@@ -174,7 +176,7 @@ static void unchecked_coverage_warns_without_degrading(void)
 	row = condition_of(&in, c, "XdpCovered");
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "WARN");
-	EXPECT_TRUE(strstr(row->detail, "not checked"));
+	EXPECT_TRUE(str_contains(row->detail, "not checked"));
 	EXPECT_STREQ(status_verdict(&in), "ok");
 	in.xdp_coverage_rc = -EXDEV;
 	row = condition_of(&in, c, "XdpCovered");
@@ -224,7 +226,7 @@ static void a_long_list_is_cut_not_dropped(void)
 	ASSERT_TRUE(row);
 	len = strlen(row->detail);
 	EXPECT_EQ(len, sizeof(row->detail) - 1);
-	EXPECT_TRUE(strstr(row->detail, "fw on eth1"));
+	EXPECT_TRUE(str_contains(row->detail, "fw on eth1"));
 	EXPECT_STREQ(row->detail + len - 3, "...");
 }
 

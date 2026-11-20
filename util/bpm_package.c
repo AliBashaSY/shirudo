@@ -1027,7 +1027,7 @@ int bpm_tree_fetch_document(struct bpm_oci_client *c,
 	int nl = 0, ret;
 
 	if (!reference[0] || strchr(reference, '/') || strchr(reference, '?') ||
-	    strchr(reference, '#') || strstr(reference, ".."))
+	    strchr(reference, '#') || str_contains(reference, ".."))
 		return -EINVAL;
 	ret = bpm_oci_url(c, repository, "manifests", reference, url,
 			  sizeof(url));

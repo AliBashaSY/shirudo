@@ -469,7 +469,8 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			bool array = s[1] == '[';
 			const char *start = s + (array ? 2 : 1);
 			const char *close = array ? "]]" : "]";
-			const char *end = strstr(start, close);
+			const char *end = span_find(start, strlen(start),
+						    close);
 
 			if (!end || end[strlen(close)])
 				return -EINVAL;
@@ -744,7 +745,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 
 			if (!r->symbol[0] || !r->input[0] ||
 			    !r->n_generator || !r->n_update ||
-			    r->input[0] == '/' || strstr(r->input, "../") ||
+			    r->input[0] == '/' || str_contains(r->input, "../") ||
 			    !strcmp(r->input, ".."))
 				return -EINVAL;
 		}
@@ -827,7 +828,7 @@ static int build_resolve_source(const struct bpm_build_spec *spec,
 {
 	char path[PATH_MAX];
 
-	if (!source[0] || source[0] == '/' || strstr(source, "../") ||
+	if (!source[0] || source[0] == '/' || str_contains(source, "../") ||
 	    !strcmp(source, ".."))
 		return -EINVAL;
 	if (strsprintf(path, sizeof(path), "%s/%s", spec->scope, source) < 0)

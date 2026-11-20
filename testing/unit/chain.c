@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <shirudo/string.h>
+
 #include "chain.h"
 #include "crypto.h"
 #include "unit.h"
@@ -116,14 +118,15 @@ static void chain_log_anchor_appends_a_systemd_record(void)
 	rec = strchr(buf + 1, 0x1e);
 	ASSERT_TRUE(rec);
 	EXPECT_EQ(rec[-1], '\n');
-	EXPECT_TRUE(strstr(buf, "{\"pcr\":9,\"digests\":[{\"hashAlg\":"
-			   "\"sha256\",\"digest\":\"") == buf + 1);
-	EXPECT_TRUE(strstr(buf, hex));
-	EXPECT_TRUE(strstr(buf, "\"content_type\":\"systemd\",\"content\":"
-			   "{\"string\":\"nvpcr-init:shirudo:0x1818e00:"
-			   "000b01\",\"bootId\":\""));
-	EXPECT_TRUE(strstr(buf, "\"eventType\":\"nvpcr-init\"}}\n"));
-	boot = strstr(buf, "\"bootId\":\"");
+	EXPECT_TRUE(span_find(buf, strlen(buf),
+			      "{\"pcr\":9,\"digests\":[{\"hashAlg\":"
+			      "\"sha256\",\"digest\":\"") == buf + 1);
+	EXPECT_TRUE(str_contains(buf, hex));
+	EXPECT_TRUE(str_contains(buf, "\"content_type\":\"systemd\",\"content\":"
+				 "{\"string\":\"nvpcr-init:shirudo:0x1818e00:"
+				 "000b01\",\"bootId\":\""));
+	EXPECT_TRUE(str_contains(buf, "\"eventType\":\"nvpcr-init\"}}\n"));
+	boot = span_find(buf, strlen(buf), "\"bootId\":\"");
 	ASSERT_TRUE(boot);
 	EXPECT_TRUE(hex_is_lower(boot + 10, 32));
 	EXPECT_EQ(boot[42], '"');

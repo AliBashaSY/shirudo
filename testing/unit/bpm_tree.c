@@ -131,8 +131,8 @@ static void publication_carries_keys_outside_the_digest(void)
 	pub.head_seq = 1;
 	ASSERT_EQ(tree_emit_publication(&pub, &extra, &doc, &len), 0);
 	EXPECT_GT(len, 64 * 200);
-	fixes = strstr(doc, "},\"fixes\":[\"AAAA");
-	digest = strstr(doc, "\"],\"operation_digest\":");
+	fixes = span_find(doc, len, "},\"fixes\":[\"AAAA");
+	digest = span_find(doc, len, "\"],\"operation_digest\":");
 	EXPECT_TRUE(fixes && digest && fixes < digest);
 	ASSERT_EQ(tree_parse(doc, len, &back), 0);
 	ASSERT_EQ(back.n_operations, 1);
@@ -178,7 +178,7 @@ static void publication_reads_past_malformed_fixes(void)
 	ASSERT_EQ(tree_publication_append(&pub, op), 0);
 	pub.head_seq = 1;
 	ASSERT_EQ(tree_emit_publication(&pub, &extra, &doc, &len), 0);
-	EXPECT_TRUE(strstr(doc, "\"fixes\":{\"n\":[null,\"\\u0007\"]}"));
+	EXPECT_TRUE(str_contains(doc, "\"fixes\":{\"n\":[null,\"\\u0007\"]}"));
 	ASSERT_EQ(tree_parse(doc, len, &back), 0);
 	EXPECT_EQ(tree_publication_check(&back), 0);
 	ASSERT_EQ(back.n_operations, 1);
@@ -210,7 +210,7 @@ static void segment_reads_back(void)
 	ASSERT_EQ(tree_operation_digest(op, op->operation_digest), 0);
 	ASSERT_EQ(tree_publication_append(&pub, op), 0);
 	ASSERT_EQ(tree_emit_publication(&pub, NULL, &doc, &len), 0);
-	EXPECT_TRUE(strstr(doc, "\"base\":{\"seq\":2,"
+	EXPECT_TRUE(str_contains(doc, "\"base\":{\"seq\":2,"
 			   "\"segment_manifest_digest\":\"" SEALED "\","
 			   "\"history_root\":\"" ROOT "\"},"));
 	ASSERT_EQ(tree_parse(doc, len, &back), 0);
@@ -224,7 +224,7 @@ static void segment_reads_back(void)
 	tree_publication_free(&back);
 	pub.history_root[0] = '\0';
 	ASSERT_EQ(tree_emit_publication(&pub, NULL, &doc, &len), 0);
-	EXPECT_FALSE(strstr(doc, "history_root"));
+	EXPECT_FALSE(str_contains(doc, "history_root"));
 	xfree(doc, len);
 	tree_publication_free(&pub);
 	tree_selector_free(&op->selector);

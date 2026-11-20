@@ -288,7 +288,7 @@ static void expect_member(const struct keepalive_input *in, const char *want)
 	size_t len;
 
 	ASSERT_EQ(keepalive_emit(in, body, sizeof(body), &len), 0);
-	UNIT_CHECK(0, strstr(body, want), "no %s in %s", want, body);
+	UNIT_CHECK(0, str_contains(body, want), "no %s in %s", want, body);
 }
 
 static void expect_refused(const struct keepalive_input *in, int ret)

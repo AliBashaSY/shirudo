@@ -329,7 +329,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	 * member to occur in the same JSON object before accepting
 	 * credentials.
 	 */
-	p = strstr((char *)body, needle);
+	p = span_find((char *)body, strlen((char *)body), needle);
 	if (!p) {
 		xfree(body, body_len + 1);
 		return 0;
@@ -339,7 +339,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 		xfree(body, body_len + 1);
 		return -EINVAL;
 	}
-	auth = strstr(p, "\"auth\"");
+	auth = span_find(p, strlen(p), "\"auth\"");
 	if (!auth || auth > end) {
 		xfree(body, body_len + 1);
 		return 0;
@@ -614,9 +614,9 @@ static int token_from_body(const char *body, char *out, size_t out_sz)
 {
 	const char *token, *end;
 
-	token = strstr(body, "\"token\"");
+	token = span_find(body, strlen(body), "\"token\"");
 	if (!token)
-		token = strstr(body, "\"access_token\"");
+		token = span_find(body, strlen(body), "\"access_token\"");
 	if (token)
 		token = strchr(token, ':');
 	if (!token)
@@ -1082,7 +1082,7 @@ int bpm_oci_parse_pull_ref(const char *raw, struct bpm_oci_client *c,
 	memcpy(repository, slash + 1, colon - slash - 1);
 	repository[colon - slash - 1] = '\0';
 	bpm_copy_string(tag, tag_sz, colon + 1);
-	if (strstr(repository, "//") || strchr(repository, '?') ||
+	if (str_contains(repository, "//") || strchr(repository, '?') ||
 	    strchr(repository, '#') || strchr(repository, ':'))
 		return -EINVAL;
 	for (const char *part = repository; *part;) {
@@ -1123,8 +1123,8 @@ int bpm_oci_parse_push_repo(const char *raw, struct bpm_oci_client *c,
 	memcpy(endpoint, normalized, slash - normalized);
 	endpoint[slash - normalized] = '\0';
 	bpm_copy_string(repository, repository_sz, slash + 1);
-	if (strchr(repository, ':') || strstr(repository, "//") ||
-	    strstr(repository, ".."))
+	if (strchr(repository, ':') || str_contains(repository, "//") ||
+	    str_contains(repository, ".."))
 		return -EINVAL;
 	for (const char *part = repository; *part;) {
 		const char *end = strchr(part, '/');
@@ -1163,7 +1163,7 @@ int bpm_oci_parse_tree_repo(const char *raw, struct bpm_oci_client *c,
 	memcpy(endpoint, raw, (size_t)(slash - raw));
 	endpoint[slash - raw] = '\0';
 	bpm_copy_string(repository, repository_sz, slash + 1);
-	if (strstr(repository, "..") || strstr(repository, "//") ||
+	if (str_contains(repository, "..") || str_contains(repository, "//") ||
 	    strchr(repository, ':'))
 		return -EINVAL;
 	return bpm_oci_parse_endpoint(endpoint, c);
@@ -1193,8 +1193,8 @@ int bpm_trim(const char *in, char *out, size_t out_sz)
 int bpm_oci_url(const struct bpm_oci_client *c, const char *repo,
 		const char *kind, const char *ref, char *out, size_t sz)
 {
-	if (strstr(repo, "..") || strstr(repo, "//") || strchr(repo, '?') ||
-	    strchr(repo, '#') || strstr(ref, "..") || strchr(ref, '/') ||
+	if (str_contains(repo, "..") || str_contains(repo, "//") || strchr(repo, '?') ||
+	    strchr(repo, '#') || str_contains(ref, "..") || strchr(ref, '/') ||
 	    strchr(ref, '?') || strchr(ref, '#'))
 		return -EINVAL;
 	if (strsprintf(out, sz, "%s/v2/%s/%s/%s", c->base_url, repo, kind, ref) < 0)

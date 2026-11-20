@@ -140,9 +140,11 @@ static void record_without_digest_is_refused(void)
 	full = read_evidence(&len);
 	ASSERT_TRUE(len < sizeof(doc));
 	memcpy(doc, full, len);
-	load = strstr(doc, "\"type\":\"upatch_load\"");
+	load = span_find(doc, len, "\"type\":\"upatch_load\"");
 	ASSERT_TRUE(load);
-	for (at = doc; (at = strstr(at, key)) && at < load; at++)
+	for (at = doc;
+	     (at = span_find(at, len - (size_t)(at - doc), key)) && at < load;
+	     at++)
 		digest = at;
 	ASSERT_TRUE(digest);
 	cut = sizeof(key) - 1 + 64 + 2;

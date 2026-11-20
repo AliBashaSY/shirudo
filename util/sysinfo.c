@@ -272,7 +272,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 
 		if (str_has_prefix(key, "# CONFIG_")) {
 			key += strlen("# ");
-			not_set = strstr(key, " is not set");
+			not_set = span_find(key, strlen(key), " is not set");
 			if (!not_set ||
 			    trim_config_text(not_set + strlen(" is not set"))[0] != '\0')
 				continue;

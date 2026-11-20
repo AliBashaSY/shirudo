@@ -194,7 +194,7 @@ static void decoder_error_is_sanitized(void)
 	ASSERT_EQ(lseek(capture, 0, SEEK_SET), 0);
 	len = read(capture, output, sizeof(output) - 1);
 	ASSERT_TRUE(len > 0);
-	EXPECT_TRUE(strstr(output, "decoder failed: ?]0;title?\n"));
+	EXPECT_TRUE(str_contains(output, "decoder failed: ?]0;title?\n"));
 	EXPECT_FALSE(memchr(output, '\033', len));
 	EXPECT_EQ(close(capture), 0);
 }

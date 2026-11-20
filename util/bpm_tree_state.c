@@ -216,7 +216,7 @@ static int selector_config_line(const char *line,
 
 	if (str_has_prefix(start, "# CONFIG_")) {
 		start += strlen("# ");
-		eq = strstr(start, " is not set");
+		eq = span_find(start, strlen(start), " is not set");
 		if (!eq)
 			return 0;
 		*eq = '\0';

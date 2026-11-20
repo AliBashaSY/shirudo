@@ -415,7 +415,7 @@ static int load_source(const char *name, struct bpm_source *s)
 		if (str_has_prefix(s->key_file, "/etc/shirudo/bpm/keys/"))
 			memmove(s->key_file, s->key_file + 1,
 				strlen(s->key_file));
-		if (s->key_file[0] == '/' || strstr(s->key_file, ".."))
+		if (s->key_file[0] == '/' || str_contains(s->key_file, ".."))
 			return -EINVAL;
 	}
 	return 0;

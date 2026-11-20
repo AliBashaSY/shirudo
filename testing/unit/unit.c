@@ -15,6 +15,8 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
+#include <shirudo/string.h>
+
 #include "unit.h"
 
 #define UNIT_TIMEOUT	60
@@ -156,7 +158,7 @@ int main(int argc, char **argv)
 	}
 	printf("# %s\n", unit_suite.name);
 	for (const struct unit_case *c = unit_suite.cases; c->name; c++) {
-		if (only && !strstr(c->name, only))
+		if (only && !str_contains(c->name, only))
 			continue;
 		failed += run_case(c, ++nr);
 	}

@@ -65,7 +65,7 @@ int image_open(enum image_path which, int flags)
 
 int image_open_relative(const char *path, int flags)
 {
-	if (config_fd < 0 || !path || path[0] == '/' || strstr(path, ".."))
+	if (config_fd < 0 || !path || path[0] == '/' || str_contains(path, ".."))
 		return -EINVAL;
 	return open_beneath(config_fd, path, flags);
 }

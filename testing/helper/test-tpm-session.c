@@ -239,7 +239,7 @@ static int evidence_begins(const char *array)
 				     NULL, NULL, &doc, &len, &cap);
 	if (ret)
 		return ret;
-	ret = strstr(doc, array) ? 0 : -EBADMSG;
+	ret = str_contains(doc, array) ? 0 : -EBADMSG;
 	xfree(doc, cap);
 	return ret;
 }

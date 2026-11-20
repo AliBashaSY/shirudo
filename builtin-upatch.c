@@ -1017,13 +1017,13 @@ static int cgroup_skb_attach_type_from_name(const char *name,
 {
 	if (!name || !name[0])
 		return -EINVAL;
-	if (strstr(name, "egress") || strstr(name, "query") ||
-	    strstr(name, "send")) {
+	if (str_contains(name, "egress") || str_contains(name, "query") ||
+	    str_contains(name, "send")) {
 		*attach_type = BPF_CGROUP_INET_EGRESS;
 		return 0;
 	}
-	if (strstr(name, "ingress") || strstr(name, "response") ||
-	    strstr(name, "recv") || strstr(name, "receive")) {
+	if (str_contains(name, "ingress") || str_contains(name, "response") ||
+	    str_contains(name, "recv") || str_contains(name, "receive")) {
 		*attach_type = BPF_CGROUP_INET_INGRESS;
 		return 0;
 	}

@@ -74,8 +74,8 @@ static void answer_text(void)
 	__CPROVER_assert(header_safe(out),
 			 "no blank, control, quote or backslash in the token");
 	__CPROVER_assert(quoted_in(body, len, out) &&
-			 (strstr(body, "\"token\"") ||
-			  strstr(body, "\"access_token\"")),
+			 (str_contains(body, "\"token\"") ||
+			  str_contains(body, "\"access_token\"")),
 			 "a quoted value of an answer naming a token");
 }
 

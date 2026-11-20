@@ -21,8 +21,8 @@
 
 bool image_path_valid(const char *path)
 {
-	return path && path[0] == '/' && !strstr(path, "/../") &&
-	       !strstr(path, "/./") && !strstr(path, "//") &&
+	return path && path[0] == '/' && !str_contains(path, "/../") &&
+	       !str_contains(path, "/./") && !str_contains(path, "//") &&
 	       strcmp(path, "/") &&
 	       (strlen(path) < 3 || strcmp(path + strlen(path) - 3, "/.."));
 }

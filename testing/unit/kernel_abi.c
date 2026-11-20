@@ -161,7 +161,7 @@ static void check(enum fixture fixture, int want_ok, const char *want)
 		return;
 	}
 	EXPECT_NE(ret, 0);
-	UNIT_CHECK(0, strstr(detail, want), "detail \"%s\" lacks \"%s\"",
+	UNIT_CHECK(0, str_contains(detail, want), "detail \"%s\" lacks \"%s\"",
 		   detail, want);
 }
 
@@ -404,7 +404,7 @@ static void lsm_hooks_need_btf(void)
 
 	EXPECT_EQ(kernel_abi_validate_lsm_hooks(NULL, &hooks, detail,
 						sizeof(detail)), -EOPNOTSUPP);
-	EXPECT_TRUE(strstr(detail, "kernel BTF is unavailable"));
+	EXPECT_TRUE(str_contains(detail, "kernel BTF is unavailable"));
 }
 
 static void needs_tpm_command(void)

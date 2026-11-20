@@ -703,7 +703,7 @@ static int member_key(void *ctx, const char *key)
 	struct members *m = ctx;
 	char entry[32];
 
-	if (strstr(m->keys, key))
+	if (str_contains(m->keys, key))
 		return -EEXIST;
 	if (strsprintf(entry, sizeof(entry), "%s=%d ", key,
 		       m->slot->seen ? m->values : -1) < 0 ||

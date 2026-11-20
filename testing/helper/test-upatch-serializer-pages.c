@@ -26,7 +26,8 @@ static int fail(const char *msg)
 
 static int has(const char *haystack, const char *needle)
 {
-	return strstr(haystack, needle) != NULL;
+	return memmem(haystack, strlen(haystack), needle, strlen(needle)) !=
+	       NULL;
 }
 
 static int check_abi_and_nonce(void)
