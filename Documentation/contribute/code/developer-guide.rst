@@ -693,8 +693,13 @@ can rewrite what it finds does so with ``-D patch``:
        wherever it is taken, unless the pointer's own address goes to
        the same call.
    * - ``literal_len``
-     - A length that does not match the string literal it compares or
-       copies.
+     - A length that does not match the string literal ``memcpy()``
+       copies, with or without its terminator.
+   * - ``literal_count``
+     - A string literal compared or searched with ``memcmp()``,
+       ``memchr()`` or their kin under a length written out as a number,
+       where ``sizeof`` of the literal or a helper of
+       ``<shirudo/string.h>`` takes it from the literal.
    * - ``read_unterminated``
      - A buffer that ``read()``, ``pread()``, ``recv()``, ``readlink()``
        or the ``getxattr()`` family filled, passed to ``strlen()``,

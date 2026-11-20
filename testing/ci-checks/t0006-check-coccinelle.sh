@@ -10,7 +10,8 @@
 # two rules for bytes taken for a string report a sample of what they
 # refuse, the rules of SAMPLE_RULES each at its line, array_size a count
 # by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
-# local_escape a local's address left in the caller's object, a file a
+# local_escape a local's address left in the caller's object,
+# literal_count a literal compared under a length written out, a file a
 # rule gives up on at its time limit is named rather than failed, every
 # rule declares SEC an attribute, and the tree itself.
 
@@ -1216,6 +1217,49 @@ test_expect_success 'local_escape reports a local left in the caller'"'"'s objec
 	done &&
 	grep -q "samples.c:11:.*u->entry keeps the address of the local entry past the return" "$W/err" &&
 	[ "$(grep -c "^local_escape:" "$W/err")" = 4 ]
+'
+
+# A literal compared or searched under a length written out as a number,
+# on either side of the call, beside the lengths taken from the literal
+# and a named one, which the rule leaves alone.
+write_count_samples() {
+	cat >"$1" <<'EOF'
+#define TAG_LEN	7
+
+int counted(const char *s, const void *p, int c)
+{
+	return !memcmp(s, "sha256:", 7) || !memcmp("GNU", p, 4) ||
+	       memchr("nrt", c, 3) || !strncasecmp(s, "az", 3) ||
+	       memmem(p, 64, "ustar", 5);
+}
+
+int derived(const char *s, const void *p, int c)
+{
+	static const char escapes[] = "nrt";
+
+	return !memcmp(s, "sha256:", sizeof("sha256:") - 1) ||
+	       !memcmp(p, "GNU", sizeof("GNU")) ||
+	       !memcmp(s, "sha256:", TAG_LEN) ||
+	       memchr(escapes, c, sizeof(escapes) - 1) ||
+	       !memcmp(s, p, 7) || str_has_prefix(s, "sha256:");
+}
+EOF
+}
+
+test_expect_success 'literal_count reports a literal compared under a number' '
+	R10=$W/count &&
+	mkdir -p "$R10/testing/coccinelle" &&
+	git init -q "$R10" &&
+	cp "$ROOT/testing/coccinelle/literal_count.cocci" \
+		"$R10/testing/coccinelle/" &&
+	write_count_samples "$R10/samples.c" &&
+	! (cd "$R10" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	grep -q "^literal_count: samples.c:5:.*memcmp() of a literal with the length 7 written out" "$W/err" &&
+	grep -q "^literal_count: samples.c:5:.*memcmp() of a literal with the length 4 written out" "$W/err" &&
+	grep -q "^literal_count: samples.c:6:.*memchr() of a literal with the length 3" "$W/err" &&
+	grep -q "^literal_count: samples.c:6:.*strncasecmp() of a literal with the length 3" "$W/err" &&
+	grep -q "^literal_count: samples.c:7:.*memmem() of a literal with the length 5" "$W/err" &&
+	[ "$(grep -c "^literal_count:" "$W/err")" = 5 ]
 '
 
 # A spatch that gives up, as a rule with --timeout makes it: the file it
