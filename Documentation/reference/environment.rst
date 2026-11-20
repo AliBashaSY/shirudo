@@ -136,7 +136,8 @@ Honored on a target.
    * - ``DOCKER_CONFIG``
      - Directory holding ``config.json``, read when
        ``REGISTRY_AUTH_FILE`` is unset. Without either,
-       ``$HOME/.docker/config.json`` is read.
+       ``$HOME/.docker/config.json`` is read. An auth file that holds a
+       NUL byte is refused, wherever it is read from.
 
 Telemetry export
 ----------------

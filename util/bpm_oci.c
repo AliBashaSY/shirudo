@@ -322,6 +322,10 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 	ret = read_file(authfile, 4u * 1024u * 1024u, &body, &body_len);
 	if (ret)
 		return ret == -ENOENT ? 0 : ret;
+	if (span_to_str((char *)body, body_len + 1, body, body_len)) {
+		xfree(body, body_len + 1);
+		return -EINVAL;
+	}
 	/*
 	 * The auth file is local input; require the registry key and auth
 	 * member to occur in the same JSON object before accepting
