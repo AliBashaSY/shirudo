@@ -527,6 +527,61 @@ static void span_equals_wants_the_whole_literal(void)
 	EXPECT_TRUE(span_equals(path, 0, ""));
 }
 
+static void span_to_str_copies_and_terminates(void)
+{
+	char *bytes = span("abc", 3);
+	char dst[4] = "xxx";
+
+	ASSERT_EQ(span_to_str(dst, sizeof(dst), bytes, 3), 0);
+	EXPECT_STREQ(dst, "abc");
+	ASSERT_EQ(span_to_str(dst, sizeof(dst), bytes, 2), 0);
+	EXPECT_STREQ(dst, "ab");
+	ASSERT_EQ(span_to_str(dst, 1, bytes, 0), 0);
+	EXPECT_STREQ(dst, "");
+	xfree(bytes, 3);
+}
+
+/* A string that ended at the NUL would be "ab", not the four bytes. */
+static void span_to_str_refuses_a_nul_among_the_bytes(void)
+{
+	static const char first[] = { '\0', 'a', 'b', 'c' };
+	static const char inner[] = { 'a', 'b', '\0', 'c' };
+	static const char last[] = { 'a', 'b', 'c', '\0' };
+	char dst[8] = "kept";
+
+	EXPECT_EQ(span_to_str(dst, sizeof(dst), first, 4), -EINVAL);
+	EXPECT_EQ(span_to_str(dst, sizeof(dst), inner, 4), -EINVAL);
+	EXPECT_EQ(span_to_str(dst, sizeof(dst), last, 4), -EINVAL);
+	EXPECT_STREQ(dst, "kept");
+	ASSERT_EQ(span_to_str(dst, sizeof(dst), last, 3), 0);
+	EXPECT_STREQ(dst, "abc");
+}
+
+static void span_to_str_wants_room_for_the_terminator(void)
+{
+	char *bytes = span("abcd", 4);
+	char dst[8] = "kept";
+
+	EXPECT_EQ(span_to_str(dst, 4, bytes, 4), -E2BIG);
+	EXPECT_EQ(span_to_str(dst, 0, bytes, 0), -E2BIG);
+	EXPECT_STREQ(dst, "kept");
+	ASSERT_EQ(span_to_str(dst, 5, bytes, 4), 0);
+	EXPECT_STREQ(dst, "abcd");
+	xfree(bytes, 4);
+}
+
+/* As a reader of a whole file leaves it: len bytes and room for one more. */
+static void span_to_str_takes_a_buffer_in_place(void)
+{
+	char text[5] = { 'a', 'b', 'c', 'd', 'x' };
+	char cut[5] = { 'a', '\0', 'c', 'd', '\0' };
+
+	ASSERT_EQ(span_to_str(text, sizeof(text), text, 4), 0);
+	EXPECT_STREQ(text, "abcd");
+	EXPECT_EQ(span_to_str(cut, sizeof(cut), cut, 4), -EINVAL);
+	EXPECT_EQ(span_to_str(text, 4, text, 4), -E2BIG);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -553,6 +608,10 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(str_has_prefix_gives_its_length),
 	UNIT_CASE(str_skip_prefix_moves_only_on_a_match),
 	UNIT_CASE(span_equals_wants_the_whole_literal),
+	UNIT_CASE(span_to_str_copies_and_terminates),
+	UNIT_CASE(span_to_str_refuses_a_nul_among_the_bytes),
+	UNIT_CASE(span_to_str_wants_room_for_the_terminator),
+	UNIT_CASE(span_to_str_takes_a_buffer_in_place),
 	{}
 };
 

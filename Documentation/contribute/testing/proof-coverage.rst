@@ -61,6 +61,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Strings and buffers up to 8 bytes
      - Terminates what it writes; the whole string and its length, or
        what fits and ``-E2BIG``
+   * - ``string-span``
+     - ``span_to_str()``
+     - Spans and buffers up to 6 bytes, apart and the span in the buffer
+     - A string exactly when no byte of the span is a NUL and the bytes
+       fit with a terminator, ``-EINVAL`` and ``-E2BIG`` otherwise; the
+       string is the bytes, terminated behind them; nothing past the
+       span read and nothing written on a refusal
    * - ``string-suffix``
      - ``name_has_suffix()``
      - Names up to 6 bytes, suffixes up to 3

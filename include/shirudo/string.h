@@ -45,6 +45,19 @@ int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out);
 ssize_t strscpy(char *dst, const char *src, size_t size);
 
 /*
+ * The len bytes at src as a string in the cap bytes at dst, terminated:
+ * 0, -EINVAL when a NUL is among them, where a string would end short of
+ * the bytes it was given, or -E2BIG when they and their terminator do
+ * not fit. Nothing past len is read, so src need not be terminated; dst
+ * is only written on success, and may be src where the bytes already sit
+ * in a buffer with room for the terminator. What comes from outside the
+ * program, a file, a reply or a field of a format, becomes a string
+ * here, and only then goes to a function that reads up to a terminator.
+ */
+int span_to_str(char *dst, size_t cap, const void *src, size_t len)
+	__must_check;
+
+/*
  * snprintf() into the size bytes at buf: the length written, or -E2BIG,
  * with buf left empty, when the output did not fit. vstrsprintf() takes
  * the arguments as a va_list.

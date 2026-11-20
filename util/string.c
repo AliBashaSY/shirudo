@@ -112,6 +112,17 @@ ssize_t strscpy(char *dst, const char *src, size_t size)
 	return (ssize_t)len;
 }
 
+int span_to_str(char *dst, size_t cap, const void *src, size_t len)
+{
+	if (memchr(src, '\0', len))
+		return -EINVAL;
+	if (len >= cap)
+		return -E2BIG;
+	memmove(dst, src, len);
+	dst[len] = '\0';
+	return 0;
+}
+
 static bool numeric_dns_label(const char *label, size_t len)
 {
 	size_t i = 0;
