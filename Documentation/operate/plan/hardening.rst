@@ -92,15 +92,16 @@ Kernel configuration
        option.
      - init fails: the config image cannot be mapped
    * - ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING=n`` and
-       ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING=n``
-     - The kernel tries the built-in trusted keys, the secondary keyring
-       and the platform keyring before ``.dm-verity``. Every key in them
-       can sign a config the target activates: the platform keyring holds
-       firmware keys, and the secondary keyring takes further keys at
-       runtime when a trusted key signed them. The built-in keys always
-       count, including the module signing key of the kernel build, so
-       keep that key in the same custody as the config key.
-     - no
+       ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING=n``:
+       optional
+     - The kernel's own check of a config's root signature tries the
+       built-in trusted keys, the secondary keyring and the platform
+       keyring before ``.dm-verity``. Before it maps a config, the
+       target checks the signature against the runtime image's
+       ``config.verification_key`` certificates itself, so a key that
+       only those keyrings hold cannot sign a config the target
+       activates.
+     - no; not needed for configs
    * - The ``tpm_command`` LSM hook carried by the shirudo kernel build
      - The hook lets shirudo refuse extensions of its register by
        other processes.

@@ -567,7 +567,9 @@ Kconfig
 
 ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING`` and
 ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` widen the keys
-that verify a config; see :doc:`config-images`. ``CONFIG_SECCOMP=n``
+the kernel's own check of a config accepts, but the target checks the
+signature against the runtime image's certificates first; see
+:doc:`config-images`. ``CONFIG_SECCOMP=n``
 is handled: the seal then sees no seccomp state. The attach kinds of
 upatches can need further options; see :doc:`/upatches/write/attach-kinds`.
 

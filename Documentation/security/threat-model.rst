@@ -2032,12 +2032,11 @@ U9 init can rebind the register after hiding this boot's record
       ``--expect-pcr=9`` with the predicted value.
 
 U10 Kernel prerequisites are not checked
-   :Affects: A4, A5, A7, A9 and A10.
+   :Affects: A4, A5, A9 and A10.
    :Consequence: A target without module signatures, with 32-bit
-      compatibility, with the dm-verity keyring options on, with a
-      resume device in its UKI or with writes under mounted file systems
-      allowed initializes without an error and without the protection
-      those assumptions give.
+      compatibility, with a resume device in its UKI or with writes
+      under mounted file systems allowed initializes without an error
+      and without the protection those assumptions give.
    :Status: Confirmed in code: the pre-flight checks none of them.
    :Meanwhile: Build the kernel and its command line as
       :doc:`/operate/plan/hardening` describes.
@@ -2209,11 +2208,9 @@ the procedures.
 The deployer:
 
 - Builds the kernel with the signed-loader ABI and the kernel project
-  patch set (A3), ``CONFIG_MODULE_SIG`` (A4),
-  ``CONFIG_COMPAT=n`` (A5), both
-  dm-verity keyring options off and no foreign built-in certificate
-  (A7), the TPM driver without ``i2c-dev`` or ``spidev`` on its bus
-  (A8), and ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10)
+  patch set (A3), ``CONFIG_MODULE_SIG`` (A4), ``CONFIG_COMPAT=n`` (A5),
+  the TPM driver without ``i2c-dev`` or ``spidev`` on its bus (A8), and
+  ``CONFIG_BLK_DEV_WRITE_MOUNTED=n`` (A10)
 - Boots a signed, measured UKI under Secure Boot whose command line
   carries ``lsm=`` with ``bpf``, ``bpf.keyring_unsealed=1`` and
   ``dm_verity.keyring_unsealed=1``, and whose command line, kernel and

@@ -99,16 +99,16 @@ The properties above hold only on a deployment that provides the
   UKI and no writes under mounted file systems
 - Secure Boot with a signed, measured UKI and an authenticated kernel
   command line
-- A kernel whose dm-verity trust path consults only keys trusted to
-  sign shirudo configs
+- Config signing keys chosen by the authenticated runtime image
 - A TPM 2.0 reachable only through the kernel driver
 - A runtime image without generic tools
 - An operator host that keeps the signing key safe
 
 shirudo checks only some of these. The pre-flight of ``shirudo init``
 checks that the BPF LSM is active and that the kernel has the
-signed-loader ABI. It does not check lockdown, the kernel configuration
-or the boot chain (U10).
+signed-loader ABI. The target checks a config's signature against the
+runtime image's keys itself. It does not check lockdown, the kernel
+configuration or the boot chain (U10).
 
 What you must do
 ----------------

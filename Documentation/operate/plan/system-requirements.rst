@@ -202,13 +202,10 @@ these options and additional ones that the tests use.
    * - ``CONFIG_TMPFS``, ``CONFIG_TMPFS_XATTR``
      - ``/run/shirudo`` carries the same label.
 
-The dm-verity root-hash check also accepts a config signed by a key in
-the kernel's built-in trusted keyring, and in the secondary or platform
-keyring when ``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING`` or
-``CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING`` is set.
-:doc:`/operate/plan/hardening` lists what that means for who can sign a
-config, and the options the trust model assumes beyond this table:
-lockdown, module signatures, ``CONFIG_COMPAT`` and others.
+:doc:`/operate/plan/hardening` lists the options the trust model assumes
+beyond this table, lockdown, module signatures, ``CONFIG_COMPAT`` and
+others, and why the dm-verity root-hash check accepting keys of the
+kernel's other keyrings does not let them sign a config.
 
 Kernel command line
 ~~~~~~~~~~~~~~~~~~~
