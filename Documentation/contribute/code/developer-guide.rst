@@ -763,6 +763,11 @@ can rewrite what it finds does so with ``-D patch``:
        MSC12-C. Following every path of a long function can take
        minutes, so the rule gives up on a file after one; the check
        names each file it gave up on.
+   * - ``stale_success``
+     - A ``goto`` or ``break`` that leaves with what a call or a 0 stored
+       in a return code declared with an error, ``int ret = -EACCES``,
+       where the jump relies on that error. A function that stores a
+       positive value in it answers yes or no, and its 0 is left alone.
    * - ``bpf_map_rmw``
      - ``++``, ``+=`` or ``|=`` through the value of a map that is not
        per-CPU, or through inode, socket or cgroup storage, which other

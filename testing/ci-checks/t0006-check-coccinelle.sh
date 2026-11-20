@@ -6,11 +6,12 @@
 # check with file, line, rule and message, one that does not passes it,
 # a rule that can rewrite does with -D patch, a rule reads the headers
 # its #spatch line asks for, on a throwaway repository, each rule taken
-# from CERT C, each BPF hazard rule, each scrub rule and dead_store report
-# a sample of what they refuse, array_size a count by hand in a macro and
-# an ARRAY_SIZE() outside <shirudo/misc.h>, a file a rule gives up on at
-# its time limit is named rather than failed, every rule declares SEC an
-# attribute, and the tree itself.
+# from CERT C, each BPF hazard rule, each scrub rule and dead_store
+# report a sample of what they refuse, the rules of SAMPLE_RULES each at
+# its line, array_size a count by hand in a macro and an ARRAY_SIZE()
+# outside <shirudo/misc.h>, a file a rule gives up on at its time limit
+# is named rather than failed, every rule declares SEC an attribute, and
+# the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -369,6 +370,77 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 	done &&
 	grep -q "6 of 6 rules matched" "$W/err" &&
 	[ "$(grep -c "^bpf_[a-z_]*: samples.bpf.c:" "$W/err")" = 10 ]
+'
+
+# One case of each rule below at the line given with it, and beside it
+# the forms the rule leaves alone: the count of reports shows they stay
+# quiet.
+SAMPLE_RULES="stale_success"
+SAMPLE_LINES="stale_success:9"
+write_line_samples() {
+	cat >"$1" <<'EOF'
+int search_left(int fd, int key)
+{
+	int ret = -EACCES;
+
+	ret = check(fd);
+	if (ret)
+		goto out;
+	if (lookup(fd, key))
+		goto out;
+	ret = 0;
+out:
+	close(fd);
+	return ret;
+}
+
+int search_reset(int fd, int key)
+{
+	int ret = -EACCES;
+
+	ret = check(fd);
+	if (ret)
+		goto out;
+	ret = -EACCES;
+	if (lookup(fd, key))
+		goto out;
+	ret = 0;
+out:
+	close(fd);
+	return ret;
+}
+
+int holds_exactly(int fd, int n)
+{
+	int ret = -ENOMEM;
+
+	ret = read_links(fd);
+	if (ret)
+		goto out;
+	if (links(fd) != n)
+		goto out;
+	ret = 1;
+out:
+	return ret;
+}
+EOF
+}
+
+test_expect_success 'each rule reports its sample at its line and spares the safe forms' '
+	R9=$W/lines &&
+	mkdir -p "$R9/testing/coccinelle" &&
+	git init -q "$R9" &&
+	for r in $SAMPLE_RULES; do
+		cp "$ROOT/testing/coccinelle/$r.cocci" "$R9/testing/coccinelle/" ||
+			exit 1
+	done &&
+	write_line_samples "$R9/samples.c" &&
+	! (cd "$R9" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	for l in $SAMPLE_LINES; do
+		grep -q "^${l%%:*}: samples.c:${l#*:}:" "$W/err" || exit 1
+	done &&
+	[ "$(grep -c "^[a-z_]*: samples.c:" "$W/err")" = \
+		"$(echo $SAMPLE_LINES | wc -w)" ]
 '
 
 # A secret left on the stack, and beside it the scrubbed form and a local
