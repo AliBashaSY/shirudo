@@ -1196,8 +1196,9 @@ Most of these attacks are open threats in
 - Making ``init`` read another boot ID, or miss this boot's init
   record by other means than the unlabeled state directory ``t6115``
   covers, so that it binds the register again.
-- A target without kernel lockdown. The test kernel enables no
-  lockdown.
+- A target whose kernel runs the lockdown LSM, in integrity or in
+  confidentiality mode. The test kernel enables no lockdown, so
+  ``t6154`` covers what ``bpf2`` refuses on its own.
 - A failure of ``shirudo-initrd.service`` that lets the boot continue
   without enforcement, and a first ``init`` outside the initrd.
 - Another LSM denying the read of a seal label. The test kernel runs

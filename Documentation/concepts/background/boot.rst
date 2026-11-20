@@ -233,9 +233,11 @@ shirudo does not build or sign the UKI.
 The boot chain gives shirudo an authenticated starting point. Secure
 Boot ensures the initrd and command line are the signed ones, and the
 root hash in the initrd's settings then authenticates the runtime
-image, see :doc:`dm-verity`. shirudo itself checks neither the Secure
-Boot state nor kernel lockdown. It relies on the deployment to enable
-Secure Boot, and a verifier can check PCR 7 in the evidence.
+image, see :doc:`dm-verity`. shirudo itself does not check the Secure
+Boot state. It relies on the deployment to enable Secure Boot, and a
+verifier can check PCR 7 in the evidence. Kernel lockdown it does not
+need: from ``init`` on, its own programs refuse what lockdown in
+integrity mode refuses, see :doc:`/operate/plan/hardening`.
 
 Figure 1 shows where shirudo's run falls among these measurements.
 ``shirudo-initrd.service`` orders itself after the units that measure

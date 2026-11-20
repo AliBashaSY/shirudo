@@ -203,9 +203,10 @@ these options and additional ones that the tests use.
      - ``/run/shirudo`` carries the same label.
 
 :doc:`/operate/plan/hardening` lists the options the trust model assumes
-beyond this table, lockdown, module signatures, ``CONFIG_COMPAT`` and
-others, and why the dm-verity root-hash check accepting keys of the
-kernel's other keyrings does not let them sign a config.
+beyond this table, module signatures, ``CONFIG_COMPAT`` and others, why
+kernel lockdown is not among them, and why the dm-verity root-hash check
+accepting keys of the kernel's other keyrings does not let them sign a
+config.
 
 Kernel command line
 ~~~~~~~~~~~~~~~~~~~
