@@ -123,7 +123,9 @@ Honored on a target.
        must be https or http``.
    * - ``BPM_OCI_CA_FILE``
      - PEM file whose first certificate is added to the trusted CAs of
-       registry connections.
+       registry connections. Under ``/etc/shirudo`` or
+       ``/var/lib/shirudo``, the file and each directory and symbolic
+       link on its path must pass :ref:`trusted-files`.
    * - ``BPM_OCI_USERNAME``, ``BPM_OCI_PASSWORD``
      - Registry credentials. Used only when both are set, ahead of any
        auth file.
@@ -137,7 +139,10 @@ Honored on a target.
      - Directory holding ``config.json``, read when
        ``REGISTRY_AUTH_FILE`` is unset. Without either,
        ``$HOME/.docker/config.json`` is read. An auth file that holds a
-       NUL byte is refused, wherever it is read from.
+       NUL byte is refused, wherever it is read from. Under
+       ``/etc/shirudo`` or ``/var/lib/shirudo``, an auth file and each
+       directory and symbolic link on its path must pass
+       :ref:`trusted-files`.
 
 Telemetry export
 ----------------

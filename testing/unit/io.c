@@ -3,14 +3,25 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <ftw.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include <shirudo/string.h>
 
-#include "io.h"
+#include "../../util/paths.h"
+
+static char etc_dir[4096];
+
+#undef ETC_DIR
+#define ETC_DIR etc_dir
+
+#include "../../util/io.c"
+
 #include "unit.h"
 
 static int log_with(const char *text, size_t len)
@@ -129,6 +140,163 @@ static void bpffs_mounted_at_wants_the_root_of_a_bpffs(void)
 	EXPECT_EQ(bpffs_mounted_at("/dev/null"), -ENOTDIR);
 }
 
+static int etc_fd = -1;
+
+static int remove_entry(const char *path, const struct stat *st, int type,
+			struct FTW *ftw)
+{
+	return remove(path);
+}
+
+static void remove_etc(void)
+{
+	close(etc_fd);
+	ASSERT_EQ(nftw(etc_dir, remove_entry, 16, FTW_DEPTH | FTW_PHYS), 0);
+}
+
+static void make_etc_in(const char *dir)
+{
+	ASSERT_TRUE(strsprintf(etc_dir, sizeof(etc_dir),
+			       "%s/shirudo-unit-etc-XXXXXX", dir) > 0);
+	ASSERT_TRUE(mkdtemp(etc_dir));
+	etc_fd = open(etc_dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_TRUE(etc_fd >= 0);
+}
+
+static void make_dir(const char *name, mode_t mode)
+{
+	ASSERT_EQ(mkdirat(etc_fd, name, 0700), 0);
+	ASSERT_EQ(fchmodat(etc_fd, name, mode, 0), 0);
+}
+
+static void make_file(const char *name, mode_t mode)
+{
+	int fd = openat(etc_fd, name, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+			0600);
+
+	ASSERT_TRUE(fd >= 0);
+	ASSERT_EQ(fchmod(fd, mode), 0);
+	close(fd);
+}
+
+static void make_link(const char *target, const char *name)
+{
+	ASSERT_EQ(symlinkat(target, etc_fd, name), 0);
+}
+
+/* check_trusted() of the file opened as one name and asked about as another. */
+static int trusted(const char *opened, const char *asked, bool secret)
+{
+	int fd = openat(etc_fd, opened, O_RDONLY | O_CLOEXEC), ret;
+	char path[PATH_MAX];
+
+	ASSERT_TRUE(fd >= 0);
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir, asked) > 0);
+	ret = check_trusted(fd, path, secret);
+	close(fd);
+	return ret;
+}
+
+/* The check walks up to /, so the tree goes where every directory passes it. */
+static void make_etc(void)
+{
+	const char *dir = getenv("TMPDIR");
+
+	make_etc_in(dir && dir[0] ? dir : "/tmp");
+	make_file("probe", 0644);
+	if (!trusted("probe", "probe", false))
+		return;
+	remove_etc();
+	make_etc_in("/tmp");
+}
+
+static void check_trusted_takes_a_file_nobody_else_can_change(void)
+{
+	make_etc();
+	make_dir("keys", 0755);
+	make_file("keys/cert.der", 0644);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", false), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys//./cert.der", false), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/../keys/cert.der", false), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", true), -EPERM);
+	ASSERT_EQ(fchmodat(etc_fd, "keys/cert.der", 0600, 0), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", true), 0);
+	ASSERT_EQ(fchmodat(etc_fd, "keys/cert.der", 0664, 0), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", false), -EPERM);
+	remove_etc();
+}
+
+static void check_trusted_refuses_a_directory_others_can_write(void)
+{
+	make_etc();
+	make_dir("keys", 0775);
+	make_file("keys/cert.der", 0644);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", false), -EPERM);
+	/* A sticky directory guards its entries only when it is root's. */
+	ASSERT_EQ(fchmodat(etc_fd, "keys", 01777, 0), 0);
+	EXPECT_EQ(trusted("keys/cert.der", "keys/cert.der", false),
+		  geteuid() ? -EPERM : 0);
+	remove_etc();
+}
+
+static void check_trusted_follows_a_link_nobody_else_made(void)
+{
+	char target[PATH_MAX];
+
+	make_etc();
+	make_dir("keys", 0700);
+	make_file("keys/0a.der", 0644);
+	ASSERT_TRUE(strsprintf(target, sizeof(target), "%s/keys/0a.der",
+			       etc_dir) > 0);
+	make_link(target, "keys/cert.der");
+	EXPECT_EQ(trusted("keys/0a.der", "keys/cert.der", false), 0);
+	make_link("../keys/0a.der", "keys/up.der");
+	EXPECT_EQ(trusted("keys/0a.der", "keys/up.der", false), 0);
+	make_link("keys", "current");
+	EXPECT_EQ(trusted("keys/0a.der", "current/cert.der", false), 0);
+	make_link("loop.der", "keys/loop.der");
+	EXPECT_EQ(trusted("keys/0a.der", "keys/loop.der", false), -ELOOP);
+	make_link("0a.der/more", "keys/past.der");
+	EXPECT_EQ(trusted("keys/0a.der", "keys/past.der", false), -ENOTDIR);
+	remove_etc();
+}
+
+static void check_trusted_refuses_a_link_others_can_replace(void)
+{
+	make_etc();
+	make_dir("keys", 0700);
+	make_file("keys/0a.der", 0644);
+	make_dir("open", 0777);
+	make_link("../keys/0a.der", "open/cert.der");
+	EXPECT_EQ(trusted("keys/0a.der", "open/cert.der", false), -EPERM);
+	make_file("open/0b.der", 0644);
+	make_link("../open/0b.der", "keys/cert.der");
+	EXPECT_EQ(trusted("open/0b.der", "keys/cert.der", false), -EPERM);
+	/* In a sticky directory of root's a link is its owner's to replace. */
+	if (!geteuid()) {
+		ASSERT_EQ(fchmodat(etc_fd, "open", 01777, 0), 0);
+		EXPECT_EQ(trusted("keys/0a.der", "open/cert.der", false), 0);
+		ASSERT_EQ(fchownat(etc_fd, "open/cert.der", 65534, 65534,
+				   AT_SYMLINK_NOFOLLOW), 0);
+		EXPECT_EQ(trusted("keys/0a.der", "open/cert.der", false),
+			  -EPERM);
+	}
+	remove_etc();
+}
+
+/* What a name swapped after the open leaves: one file open, another named. */
+static void check_trusted_wants_the_file_the_path_names(void)
+{
+	make_etc();
+	make_dir("keys", 0700);
+	make_file("keys/cert.der", 0644);
+	make_dir("open", 0777);
+	make_file("open/cert.der", 0644);
+	EXPECT_EQ(trusted("open/cert.der", "keys/cert.der", false), -ESTALE);
+	EXPECT_EQ(trusted("keys/cert.der", "keys", false), -EISDIR);
+	remove_etc();
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(lines_len_ends_at_the_last_newline),
 	UNIT_CASE(append_line_adds_one_record),
@@ -137,6 +305,11 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(lock_exclusive_keeps_others_out),
 	UNIT_CASE(kernel_dev_is_major_over_20_minor_bits),
 	UNIT_CASE(bpffs_mounted_at_wants_the_root_of_a_bpffs),
+	UNIT_CASE(check_trusted_takes_a_file_nobody_else_can_change),
+	UNIT_CASE(check_trusted_refuses_a_directory_others_can_write),
+	UNIT_CASE(check_trusted_follows_a_link_nobody_else_made),
+	UNIT_CASE(check_trusted_refuses_a_link_others_can_replace),
+	UNIT_CASE(check_trusted_wants_the_file_the_path_names),
 	{}
 };
 

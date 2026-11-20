@@ -109,6 +109,12 @@ package and the upatches do not depend on it, but the transport does.
 :doc:`/security/threat-model` describes what root on the target can do
 with it.
 
+If you keep the auth file or the CA certificate under ``/etc/shirudo``,
+make the file and each directory its path leads through root's and not
+writable by group or others, and each symbolic link on the path root's.
+A link of root's to the distribution's CA certificates passes;
+:ref:`trusted-files` gives the rules.
+
 Before you begin
 ----------------
 

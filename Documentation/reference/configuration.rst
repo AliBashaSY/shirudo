@@ -330,16 +330,33 @@ image is refused when:
 - ``eventlog.max_bytes`` is not a decimal integer (``EINVAL``);
 - the map export settings are invalid (``EINVAL``).
 
+.. _trusted-files:
+
 Ownership and mode
 ~~~~~~~~~~~~~~~~~~
 
-A settings, repository or tree file read from a path under
-``/etc/shirudo`` or ``/var/lib/shirudo`` is refused with ``EPERM`` unless:
+A settings, repository, tree or certificate file, and the registry auth
+file and CA certificate that ``REGISTRY_AUTH_FILE`` and
+``BPM_OCI_CA_FILE`` name, read from a path under ``/etc/shirudo`` or
+``/var/lib/shirudo`` is refused with ``EPERM`` unless:
 
 - it is a regular file owned by root or by the effective user;
 - it is not writable by group or others;
-- every directory above it is owned by root or the effective user and is
-  not writable by group or others, or is root's and sticky.
+- every directory the path leads through is owned by root or the
+  effective user and is not writable by group or others, or is root's
+  and sticky;
+- every symbolic link on the path is owned by root or the effective
+  user.
+
+The path is resolved one name at a time, so the directory that holds a
+symbolic link is checked as well as the directories of the link's
+target. A link may lead out of ``/etc/shirudo``, to the distribution's
+CA certificates for example, when every link and directory on the way
+passes. A file that the path no longer names when the check runs, one
+renamed over in between, is refused as well, with ``ESTALE`` where the
+command reads the file whole, as it reads the registry auth file. The
+next run reads the new file. :doc:`/operate/troubleshoot/troubleshooting`
+gives the messages.
 
 A file that sets ``tpm.owner_auth`` must also not be readable by group or
 others, mode ``0600`` or stricter. This applies to the initrd bootstrap

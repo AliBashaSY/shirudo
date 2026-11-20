@@ -497,8 +497,10 @@ Host configuration
 shirudo refuses a configuration file under ``/etc/shirudo`` or
 ``/var/lib/shirudo`` that is not a regular file, is owned by another
 user than root or the caller, or is writable by group or others, and
-the same for each directory above it unless that directory is root's
-and sticky. A ``shirudo.conf`` that sets
+the same for each directory its path leads through unless that
+directory is root's and sticky. A symbolic link on the path must be
+root's or the caller's, and the directory that holds it is checked like
+the directories of its target. A ``shirudo.conf`` that sets
 ``tpm.owner_auth`` must also not be readable by group or others. The
 ``EnvironmentFile`` paths are read by systemd, not by shirudo.
 

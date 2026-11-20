@@ -213,6 +213,78 @@ Action
    Raise the limit in the shell (``ulimit -l unlimited`` as root) or
    set ``LimitMEMLOCK=infinity`` in the unit. The shipped units set it.
 
+Files refused
+-------------
+
+shirudo reads a settings, repository, tree or certificate file under
+``/etc/shirudo`` or ``/var/lib/shirudo``, and the registry auth file or
+CA certificate the environment names there, only when no user but root
+or the one running the command could change or replace it, see
+:ref:`trusted-files`. A refusal names the path the command was given,
+then what fails the check, and the command fails.
+
+``<path>: link <link>, owner <uid>: refusing a file another user could replace``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: console
+
+   target# REGISTRY_AUTH_FILE=/etc/shirudo/bpm/auth.json shirudo bpm tree sync
+   /etc/shirudo/bpm/auth.json: link /etc/shirudo/bpm/auth.json, owner 65534: refusing a file another user could replace
+   bpm tree sync: Operation not permitted
+
+Meaning
+   A symbolic link on the path belongs to a user other than root and
+   the one running the command, who could point it at another file.
+   The same message names a directory on the path, the one that holds a
+   link included, as ``directory <dir>, owner <uid>, mode <mode>``,
+   when another user owns it or it is writable by group or others and
+   not root's and sticky, and the file itself as ``owner <uid>, mode
+   <mode>``.
+
+Causes
+   - The link was made as another user, or copied with its owner by
+     ``tar``, ``rsync -a`` or ``cp -a`` run as root.
+   - A link leads through a directory that another user can write. A CA
+     certificate linked to a local one in ``/etc/ssl/certs``, which
+     ``update-ca-certificates`` links on into
+     ``/usr/local/share/ca-certificates``, is refused where a directory
+     on the way is writable by its group, as Debian's ``root:staff``
+     mode ``2775`` layout of ``/usr/local`` leaves it. The message names
+     that directory.
+
+Action
+   - Give the link to root, ``chown -h root:root <link>``, or make it
+     again as root.
+   - Make each directory on the path root's and not writable by group
+     or others, or keep the file in a directory that is, such as
+     ``/etc/shirudo`` itself.
+
+``<path>: names another file than the one opened; refusing it``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Meaning
+   The file was replaced while the command read it: between the open
+   and the check, a new file was renamed over its name, or a new link
+   over a link on its path, and the path now leads to another file. The
+   command uses nothing from the file it opened. It fails with ``Stale
+   file handle`` where it reads the file whole, as it reads the registry
+   auth file and its own state, and with ``Operation not permitted``
+   otherwise.
+
+Causes
+   - A configuration manager, a package or a switch to a new NixOS
+     generation renamed a new file over the old one while the command
+     or a timer service ran.
+   - One shirudo command wrote its state while another read it, as
+     ``bpm upgrade`` writes ``/var/lib/shirudo/bpm/state.json`` while
+     ``bpm list`` reads it.
+
+Action
+   - Run the command again; it reads the new file. A timer service
+     fails this one run, and its next run reads the new file.
+   - If the message comes back on every run, find what rewrites the
+     file that often.
+
 upatch load and unload failures
 -------------------------------
 

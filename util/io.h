@@ -40,10 +40,12 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
  * Whether the file open on fd at path may steer what shirudo trusts.
  * Under /etc/shirudo and /var/lib/shirudo, where an installed shirudo
  * keeps such files, it must be a regular file of root's or of the user
- * running shirudo that nobody else can write, nor with secret read, in
- * directories up to / that nobody else can change; a sticky directory of
- * root's guards its files the same way. A path elsewhere, where a test
- * points shirudo, is the caller's to vouch for. 0, or -EPERM logged.
+ * running shirudo that nobody else can write, nor with secret read, and
+ * the path must lead to it through directories nobody else can change
+ * and links nobody else made; a sticky directory of root's guards its
+ * entries the same way. A path elsewhere, where a test points shirudo,
+ * is the caller's to vouch for. 0, -EPERM logged, or -ESTALE logged when
+ * the path names another file than the one open on fd.
  */
 int check_trusted(int fd, const char *path, bool secret);
 
