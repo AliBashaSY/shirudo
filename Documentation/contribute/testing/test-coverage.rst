@@ -662,9 +662,9 @@ signed config image.
        digest and a registry that serves another manifest
    * - ``t7012-bpm-bearer-token``
      - The token a registry's realm returns goes with the next request,
-       and a realm that answers with an empty body fails the pull before
-       any request carries a token, with registry credentials set as
-       without
+       and a realm that answers with an empty body, or with a NUL ahead of
+       or behind a token, fails the pull before any request carries a
+       token, with registry credentials set as without
    * - ``t7101-bpm-tree``
      - Tree sync with a selector
    * - ``t7102-bpm-tree-sequential``

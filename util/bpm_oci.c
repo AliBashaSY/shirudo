@@ -641,13 +641,19 @@ static int token_from_body(const char *body, char *out, size_t out_sz)
 	return 0;
 }
 
+/*
+ * The answer is text: with a NUL in it the search above would take it
+ * to end there, whatever the server sent behind it.
+ */
 static int token_from_reply(const struct bpm_buffer *reply, char *out,
 			    size_t out_sz)
 {
+	char *body = (char *)reply->data;
+
 	/* curl never calls the write callback for an empty body. */
-	if (!reply->data)
+	if (!body || span_to_str(body, reply->cap, body, reply->len))
 		return -EINVAL;
-	return token_from_body((char *)reply->data, out, out_sz);
+	return token_from_body(body, out, out_sz);
 }
 
 static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)

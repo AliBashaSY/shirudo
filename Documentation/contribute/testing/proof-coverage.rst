@@ -202,11 +202,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Outputs terminated in their buffers; only ``Bearer`` with a realm;
        each value a quoted value of the header
    * - ``bpm-oci-token``
-     - ``token_from_body()``
-     - Answers up to 17 bytes
+     - ``token_from_body()``, ``token_from_reply()``
+     - Answers up to 17 bytes, as text and as the bytes of a response,
+       NULs included
      - Nothing written on refusal; a token without controls, quotes or
        backslashes, quoted in the answer under ``token`` or
-       ``access_token``
+       ``access_token``; no token from a response without a body or
+       with a NUL among its bytes
    * - ``bpm-oci-header``
      - ``bpm_header()``
      - Header lines up to 26 bytes, NULs included, with the line's copy

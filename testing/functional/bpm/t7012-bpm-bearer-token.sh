@@ -5,7 +5,8 @@
 # t7012 -- a registry that asks for a bearer token: the token its realm
 # returns goes with the next request, and a realm that answers with an
 # empty body fails the pull before any request carries a token, with
-# registry credentials set as without.
+# registry credentials set as without. So does an answer that holds a
+# NUL, which is no text to take a token from.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -21,7 +22,8 @@ cleanup() {
 trap cleanup EXIT
 
 # The realm of repository ns/<body> answers 200 with that body: "full"
-# with a token, "empty" with nothing. Each request is logged with the
+# with a token, "empty" with nothing, "nul-behind" and "nul-ahead" with a
+# token behind or ahead of a NUL. Each request is logged with the
 # credentials it carried.
 cat >"$W/registry.py" <<'PY'
 import http.server, sys
@@ -50,6 +52,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.reply(200, b'{"token":"granted"}')
         elif self.path.startswith("/token/empty"):
             self.reply(200)
+        elif self.path.startswith("/token/nul-behind"):
+            self.reply(200, b'{"token":"first-token"}\0{"token":"other"}')
+        elif self.path.startswith("/token/nul-ahead"):
+            self.reply(200, b'\0{"token":"hidden-token"}')
         elif "/manifests/" in self.path:
             body = self.path.split("/")[3]
             challenge = ('Bearer realm="http://127.0.0.1:%d/token/%s",'
@@ -100,6 +106,20 @@ test_expect_success 'an empty token response fails with credentials set too' '
 	PULL=empty &&
 	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
 	grep -q "^/token/empty Basic " "$W/requests" &&
+	! grep -q "Bearer" "$W/requests"
+'
+
+test_expect_success 'an answer with a NUL behind a token gives none' '
+	PULL=nul-behind &&
+	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
+	grep -q "^/token/nul-behind Basic " "$W/requests" &&
+	! grep -q "Bearer" "$W/requests"
+'
+
+test_expect_success 'an answer with a NUL ahead of a token gives none' '
+	PULL=nul-ahead &&
+	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
+	grep -q "^/token/nul-ahead Basic " "$W/requests" &&
 	! grep -q "Bearer" "$W/requests"
 '
 
