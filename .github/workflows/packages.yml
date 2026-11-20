@@ -25,7 +25,7 @@ concurrency:
 jobs:
   deb:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -232,7 +232,7 @@ jobs:
     outputs:
       version: ${{ steps.build-version.outputs.version }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
