@@ -101,8 +101,11 @@ static void check_fixes(const struct bpm_fixes *fixes)
 	for (int i = 0; i < fixes->n; i++) {
 		const char *id = fixes->ids[i];
 
-		if (!id[0] || id[strspn(id, FIX_ID_BYTES)])
+		if (!id[0])
 			abort();
+		for (const char *p = id; *p; p++)
+			if (!strchr(FIX_ID_BYTES, *p))
+				abort();
 		if (i && strcmp(fixes->ids[i - 1], id) >= 0)
 			abort();
 	}

@@ -38,16 +38,7 @@ void pr_err(const char *fmt, ...)
 {
 }
 
-/* CBMC models neither strspn() nor qsort(). */
-size_t strspn(const char *s, const char *accept)
-{
-	size_t n = 0;
-
-	while (s[n] && strchr(accept, s[n]))
-		n++;
-	return n;
-}
-
+/* CBMC does not model qsort(). */
 void qsort(void *base, size_t nmemb, size_t size,
 	   int (*compare)(const void *, const void *))
 {

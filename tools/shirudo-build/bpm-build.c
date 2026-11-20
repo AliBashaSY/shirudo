@@ -305,7 +305,11 @@ static int build_parse_selector_kv(const char *key, const char *value,
 
 bool bpm_fix_id_ok(const char *id)
 {
-	return id[0] && !id[strspn(id, BPM_FIX_ID_CHARS)];
+	size_t n = 0;
+
+	while (id[n] && strchr(BPM_FIX_ID_CHARS, id[n]))
+		n++;
+	return n && !id[n];
 }
 
 static int strings_compare(const void *left, const void *right)
