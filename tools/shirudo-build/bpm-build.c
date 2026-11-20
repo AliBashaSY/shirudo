@@ -288,8 +288,7 @@ static int build_parse_selector_kv(const char *key, const char *value,
 	if (!key_len || key_len >= TREE_STRING_MAX)
 		return -EINVAL;
 	for (int i = 0; i < *n; i++) {
-		if (strlen((*kvs)[i].key) == key_len &&
-		    !strncmp((*kvs)[i].key, key, key_len))
+		if (span_equals_str(key, key_len, (*kvs)[i].key))
 			return -EEXIST;
 	}
 	ret = tree_selector_kv_add(kvs, n, max, &kv);
@@ -809,12 +808,12 @@ void bpm_build_spec_free(struct bpm_build_spec *spec)
 static bool build_within(const char *dir, const char *path)
 {
 	char resolved[PATH_MAX];
-	size_t n;
+	const char *below;
 
 	if (!realpath(path, resolved))
 		return false;
-	n = strlen(dir);
-	return !strncmp(dir, resolved, n) && (resolved[n] == '\0' || resolved[n] == '/');
+	below = str_after_prefix(resolved, dir);
+	return below && (*below == '\0' || *below == '/');
 }
 
 static int build_resolve_source(const struct bpm_build_spec *spec,
@@ -1051,9 +1050,9 @@ static int build_target_ok(const char *target)
 
 static bool build_target_below(const char *dir, const char *path)
 {
-	size_t n = strlen(dir);
+	const char *below = str_after_prefix(path, dir);
 
-	return !strncmp(path, dir, n) && path[n] == '/';
+	return below && *below == '/';
 }
 
 /*
@@ -2431,8 +2430,10 @@ static int __build_bpm_config_update(int argc, const char **argv,
 		if (ret)
 			break;
 		if (upatch_is_unload(&parsed) ||
-		    strncmp(parsed.hdr.name, expected_name,
-			    sizeof(parsed.hdr.name))) {
+		    !span_equals_str(parsed.hdr.name,
+				     strnlen(parsed.hdr.name,
+					     sizeof(parsed.hdr.name)),
+				     expected_name)) {
 			ret = -EINVAL;
 			upatch_close(&parsed);
 			break;

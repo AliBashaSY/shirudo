@@ -253,9 +253,9 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 
 static bool under(const char *path, const char *dir)
 {
-	size_t n = strlen(dir);
+	const char *below = str_after_prefix(path, dir);
 
-	return !strncmp(path, dir, n) && path[n] == '/';
+	return below && *below == '/';
 }
 
 static bool trusted_owner(uid_t uid)

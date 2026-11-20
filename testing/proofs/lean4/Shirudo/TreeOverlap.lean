@@ -58,8 +58,8 @@ def boundary : Str → Bool
   | [] => true
   | c :: _ => c == dot || c == dash
 
-/-- `strncmp(release, prefix, strlen(prefix))` finding no difference, and
-then the byte of the release after the prefix. -/
+/-- `str_after_prefix(release, prefix)` finding the prefix, and then the
+byte of the release after it. -/
 def continues : Str → Str → Bool
   | release, [] => boundary release
   | [], _ :: _ => false

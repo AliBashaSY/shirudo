@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: BSD-2-Clause
 /* Copyright (c) 2026 Authors of shirudo */
 
-#include <string.h>
+#include <shirudo/string.h>
 
 #include "kernel_release.h"
 
 bool kernel_release_prefix_matches(const char *release,
 				   const char *prefix)
 {
-	size_t len;
+	const char *rest;
 
 	if (!release || !prefix)
 		return false;
-	len = strlen(prefix);
-	if (!len)
+	if (!*prefix)
 		return true;
-	return !strncmp(release, prefix, len) &&
-	       (release[len] == '\0' || release[len] == '.' ||
-		release[len] == '-');
+	rest = str_after_prefix(release, prefix);
+	return rest && (*rest == '\0' || *rest == '.' || *rest == '-');
 }

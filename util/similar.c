@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <shirudo/misc.h>
+#include <shirudo/string.h>
 
 #include "similar.h"
 
@@ -108,7 +109,8 @@ size_t resolve(const char *input,
 	       const char *const *candidates, size_t n,
 	       size_t *matches, size_t cap)
 {
-	size_t i, m = 0, len = strlen(input);
+	const char *more;
+	size_t i, m = 0;
 
 	for (i = 0; i < n; i++) {
 		if (strcmp(input, candidates[i]) == 0) {
@@ -118,10 +120,8 @@ size_t resolve(const char *input,
 		}
 	}
 	for (i = 0; i < n; i++) {
-		size_t clen = strlen(candidates[i]);
-
-		if (clen > len &&
-		    strncmp(input, candidates[i], len) == 0) {
+		more = str_after_prefix(candidates[i], input);
+		if (more && *more) {
 			if (m < cap)
 				matches[m++] = i;
 		}
@@ -129,10 +129,8 @@ size_t resolve(const char *input,
 	if (m)
 		return m;
 	for (i = 0; i < n; i++) {
-		size_t clen = strlen(candidates[i]);
-
-		if (clen < len &&
-		    strncmp(input, candidates[i], clen) == 0) {
+		more = str_after_prefix(input, candidates[i]);
+		if (more && *more) {
 			if (m < cap)
 				matches[m++] = i;
 		}

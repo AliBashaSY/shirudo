@@ -636,13 +636,14 @@ static const char *uprobe_section_target(const char *sec, __u32 *kind)
 		{ "uretprobe.multi/", UPATCH_ATTACH_URETPROBE_MULTI },
 		{ "uretprobe.multi.s/", UPATCH_ATTACH_URETPROBE_MULTI },
 	};
-	size_t i, n;
+	const char *target;
+	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(forms); i++) {
-		n = strlen(forms[i].prefix);
-		if (!strncmp(sec, forms[i].prefix, n) && sec[n]) {
+		target = str_after_prefix(sec, forms[i].prefix);
+		if (target && *target) {
 			*kind = forms[i].kind;
-			return sec + n;
+			return target;
 		}
 	}
 	return NULL;
@@ -721,15 +722,16 @@ static bool default_attach_section(const char *sec)
 		"fentry/", "fentry.s/", "fexit/", "fexit.s/",
 		"lsm/", "lsm.s/", "tp_btf/",
 	};
-	size_t i, n;
+	const char *target;
+	size_t i;
 
 	if (!sec)
 		return false;
 	if (sec[0] == '?')
 		sec++;
 	for (i = 0; i < ARRAY_SIZE(prefixes); i++) {
-		n = strlen(prefixes[i]);
-		if (!strncmp(sec, prefixes[i], n) && sec[n])
+		target = str_after_prefix(sec, prefixes[i]);
+		if (target && *target)
 			return true;
 	}
 	return false;
@@ -1122,11 +1124,10 @@ static bool is_syscall_section(const char *sec)
 static const char *serializer_map_name(const struct bpf_program *p)
 {
 	const char *name = bpf_program__name(p);
-	size_t prefix_len = strlen(SERIALIZER_PREFIX);
 
-	if (!name || strncmp(name, SERIALIZER_PREFIX, prefix_len) != 0)
+	if (!name || !str_skip_prefix(&name, SERIALIZER_PREFIX))
 		return NULL;
-	return name + prefix_len;
+	return name;
 }
 
 static bool object_has_map(struct bpf_object *obj, const char *want)
@@ -1641,11 +1642,10 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_maps,
 		}
 		if (is_syscall_section(sec)) {
 			const char *prog_name = bpf_program__name(p);
-			size_t prefix_len = strlen(TEST_RUN_PREFIX);
+			const char *id = prog_name;
 
-			if (!prog_name || strncmp(prog_name, TEST_RUN_PREFIX,
-						  prefix_len) != 0 ||
-			    prog_name[prefix_len] == '\0') {
+			if (!id || !str_skip_prefix(&id, TEST_RUN_PREFIX) ||
+			    !*id) {
 				pr_err("SEC(\"syscall\") program '%s' must be named %s<id>",
 				       prog_name ?: "?", TEST_RUN_PREFIX);
 				err = -EINVAL;

@@ -285,12 +285,12 @@ static int dump_kfuncs(struct btf_dump *d, struct btf *btf)
 			continue;
 
 		name = btf__name_by_offset(btf, t->name_off);
-		if (strncmp(name, KFUNC_DECL_TAG, sizeof(KFUNC_DECL_TAG)) == 0) {
+		if (strcmp(name, KFUNC_DECL_TAG) == 0) {
 			err = ptr_array_push(ft, &kfuncs);
 			if (err)
 				goto out;
 		}
-		if (strncmp(name, FASTCALL_DECL_TAG, sizeof(FASTCALL_DECL_TAG)) == 0) {
+		if (strcmp(name, FASTCALL_DECL_TAG) == 0) {
 			err = ptr_array_push(ft, &fastcalls);
 			if (err)
 				goto out;

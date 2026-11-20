@@ -463,8 +463,8 @@ static int read_member_gz(gzFile gz, const char *member,
 		remain = size;
 		if (package_member_name_ok(name, member) &&
 		    (!package_dir ||
-		     ((size_t)(strchr(name, '/') - name) == strlen(package_dir) &&
-		      !strncmp(name, package_dir, strlen(package_dir))))) {
+		     span_equals_str(name, (size_t)(strchr(name, '/') - name),
+				     package_dir))) {
 			size_t dir_len = (size_t)(strchr(name, '/') - name);
 			__u8 *body;
 
@@ -581,6 +581,7 @@ static int visit_members_gz(gzFile gz, const char *package_dir,
 		int n = gzread(gz, h, sizeof(h));
 		__u64 size, remain, pad;
 		size_t name_len, root_len;
+		const char *below;
 		bool zero = true;
 		int type;
 
@@ -624,9 +625,8 @@ static int visit_members_gz(gzFile gz, const char *package_dir,
 			memcpy(root, name, root_len);
 			root[root_len] = '\0';
 		}
-		root_len = strlen(root);
-		if (strncmp(name, root, root_len) ||
-		    (name[root_len] && name[root_len] != '/')) {
+		below = str_after_prefix(name, root);
+		if (!below || (*below && *below != '/')) {
 			ret = -EINVAL;
 			break;
 		}
@@ -638,8 +638,7 @@ static int visit_members_gz(gzFile gz, const char *package_dir,
 			ret = -EPERM;
 			break;
 		}
-		strscpy(rel, name + root_len + (name[root_len] == '/'),
-			sizeof(rel));
+		strscpy(rel, below + (*below == '/'), sizeof(rel));
 		if (!*rel) {
 			if (type != '5') {
 				ret = -EINVAL;
@@ -731,6 +730,7 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 		char name[PATH_MAX], rel[PATH_MAX], path[PATH_MAX], *slash;
 		int n = gzread(gz, h, sizeof(h));
 		__u64 size, remain, pad;
+		const char *below;
 		bool zero = true;
 		int type;
 
@@ -776,11 +776,12 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			memcpy(root, name, slash - name);
 			root[slash - name] = 0;
 		}
-		if (strncmp(name, root, strlen(root)) || name[strlen(root)] != '/') {
+		below = str_after_prefix(name, root);
+		if (!below || *below != '/') {
 			ret = -EINVAL;
 			break;
 		}
-		strscpy(rel, name + strlen(root) + 1, sizeof(rel));
+		strscpy(rel, below + 1, sizeof(rel));
 		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
 			ret = -EINVAL;
 			break;

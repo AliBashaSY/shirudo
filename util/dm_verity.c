@@ -261,7 +261,9 @@ static int check_table(union dm_buffer *buf,
 	if (target->sector_start ||
 	    target->length != image->data_blocks *
 				      (CONFIG_IMAGE_BLOCK_SIZE / 512) ||
-	    strncmp(target->target_type, "verity", sizeof(target->target_type)))
+	    !span_equals(target->target_type,
+			 strnlen(target->target_type,
+				 sizeof(target->target_type)), "verity"))
 		return -EKEYREJECTED;
 	params = (char *)(target + 1);
 	avail = buf->io.data_size - offset - sizeof(*target);

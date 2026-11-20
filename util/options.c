@@ -101,7 +101,7 @@ static int spec_find(const struct opt_parser *p, const char *arg,
 	for (i = 0; i < p->n_specs; i++) {
 		const char *name = p->specs[i].name;
 
-		if (strlen(name) == len && !strncmp(name, arg, len))
+		if (span_equals_str(arg, len, name))
 			return (int)i;
 	}
 	return -1;

@@ -968,17 +968,16 @@ static size_t response_write(char *ptr, size_t size, size_t nmemb, void *ctx)
 
 static size_t response_header(char *ptr, size_t size, size_t nmemb, void *ctx)
 {
-	static const char prefix[] = "Retry-After:";
 	struct otel_response *r = ctx;
-	size_t n;
+	size_t n, skip;
 
 	if (check_mul_overflow(size, nmemb, &n))
 		return 0;
-	if (n > sizeof(prefix) - 1 &&
-	    strncasecmp(ptr, prefix, sizeof(prefix) - 1) == 0) {
+	skip = span_has_prefix_nocase(ptr, n, "Retry-After:");
+	if (skip) {
 		char value[128];
-		char *p = ptr + sizeof(prefix) - 1;
-		size_t len = n - (sizeof(prefix) - 1);
+		char *p = ptr + skip;
+		size_t len = n - skip;
 		__u64 seconds;
 
 		while (len && isspace((__u8)*p)) {

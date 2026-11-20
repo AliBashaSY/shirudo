@@ -165,20 +165,18 @@ static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 		return n;
 	memcpy(line, ptr, n);
 	line[n] = '\0';
-	if (!strncasecmp(line, "WWW-Authenticate:", 17)) {
-		v = line + 17;
+	v = line;
+	if (str_skip_prefix_nocase(&v, "WWW-Authenticate:")) {
 		while (isspace((__u8)*v))
 			v++;
 		if (strscpy(r->www_auth, v, sizeof(r->www_auth)) < 0)
 			r->www_auth[0] = '\0';
-	} else if (!strncasecmp(line, "Content-Type:", 13)) {
-		v = line + 13;
+	} else if (str_skip_prefix_nocase(&v, "Content-Type:")) {
 		while (isspace((__u8)*v))
 			v++;
 		v[strcspn(v, " ;\r\n")] = '\0';
 		bpm_copy_string(r->content_type, sizeof(r->content_type), v);
-	} else if (!strncasecmp(line, "Location:", 9)) {
-		v = line + 9;
+	} else if (str_skip_prefix_nocase(&v, "Location:")) {
 		while (isspace((__u8)*v))
 			v++;
 		v[strcspn(v, "\r\n")] = '\0';
@@ -567,12 +565,12 @@ static int curl_once(struct bpm_oci_client *c, const char *method,
 static int parse_challenge(const char *header, char *realm, size_t rsz,
 			   char *service, size_t ssz, char *scope, size_t zsz)
 {
-	const char *p;
+	const char *p = header;
 	const char *q;
 
-	if (!header || strncasecmp(header, "Bearer", 6) != 0)
+	if (!p || !str_skip_prefix_nocase(&p, "Bearer"))
 		return -EINVAL;
-	for (p = header + 6; *p;) {
+	while (*p) {
 		while (*p == ' ' || *p == ',')
 			p++;
 		if (str_skip_prefix(&p, "realm=\"")) {
@@ -761,12 +759,13 @@ static int get_memory(struct bpm_oci_client *c, const char *url,
 	if (ret)
 		goto out;
 	if (r.status == 401 && r.www_auth[0]) {
-		if (!strncasecmp(r.www_auth, "Bearer", 6)) {
+		if (str_has_prefix_nocase(r.www_auth, "Bearer")) {
 			ret = get_bearer_token(c, r.www_auth);
 			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
 					       c->token) < 0)
 				ret = -E2BIG;
-		} else if (!strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
+		} else if (str_has_prefix_nocase(r.www_auth, "Basic") &&
+			   c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 			ret = encode_basic(c->username, c->password, encoded, sizeof(encoded));
@@ -826,7 +825,8 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 	if (ret)
 		return ret;
 	ret = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
-	if (!ret && r.status == 401 && r.www_auth[0] && !strncasecmp(r.www_auth, "Bearer", 6)) {
+	if (!ret && r.status == 401 && r.www_auth[0] &&
+	    str_has_prefix_nocase(r.www_auth, "Bearer")) {
 		ret = sink_restart(&sink, fd, (__u64)size);
 		if (!ret)
 			ret = get_bearer_token(c, r.www_auth);
@@ -839,7 +839,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			ret = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	} else if (!ret && r.status == 401 && r.www_auth[0] &&
-		   !strncasecmp(r.www_auth, "Basic", 5) && c->username[0]) {
+		   str_has_prefix_nocase(r.www_auth, "Basic") && c->username[0]) {
 		char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 		ret = sink_restart(&sink, fd, (__u64)size);
@@ -887,12 +887,13 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 	if (ret)
 		return ret;
 	if (r->status == 401 && r->www_auth[0]) {
-		if (!strncasecmp(r->www_auth, "Bearer", 6)) {
+		if (str_has_prefix_nocase(r->www_auth, "Bearer")) {
 			ret = get_bearer_token(c, r->www_auth);
 			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
 					       c->token) < 0)
 				ret = -E2BIG;
-		} else if (!strncasecmp(r->www_auth, "Basic", 5) && c->username[0]) {
+		} else if (str_has_prefix_nocase(r->www_auth, "Basic") &&
+			   c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 			ret = encode_basic(c->username, c->password, encoded,
@@ -1233,7 +1234,7 @@ bool bpm_digest_matches(const char *want, const char *hex)
 static int upload_location(const struct bpm_oci_client *c, const char *location,
 			   char *out, size_t out_sz)
 {
-	size_t base_len = strlen(c->base_url);
+	const char *path;
 
 	if (!location || !*location)
 		return -EINVAL;
@@ -1242,8 +1243,8 @@ static int upload_location(const struct bpm_oci_client *c, const char *location,
 			return -ENAMETOOLONG;
 		return 0;
 	}
-	if (strncmp(location, c->base_url, base_len) ||
-	    location[base_len] != '/')
+	path = str_after_prefix(location, c->base_url);
+	if (!path || *path != '/')
 		return -EPERM;
 	if (strlen(location) >= out_sz)
 		return -ENAMETOOLONG;

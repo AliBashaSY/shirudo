@@ -24,12 +24,11 @@
 
 static bool pin_index(const char *entry, const char *prefix, __u32 *out)
 {
-	size_t n = strlen(prefix);
 	__u64 value;
 
-	if (strncmp(entry, prefix, n))
+	entry = str_after_prefix(entry, prefix);
+	if (!entry)
 		return false;
-	entry += n;
 	if (entry[0] == '0' && entry[1])
 		return false;
 	if (parse_u64(entry, strlen(entry), UINT32_MAX, &value))

@@ -908,7 +908,7 @@ static int list_keys(bool json)
 			continue;
 		if (lstat(path, &st) || !S_ISREG(st.st_mode) ||
 		    key_file_fingerprint(path, hex) ||
-		    strncasecmp(entry->d_name, hex, 64))
+		    !str_after_prefix_nocase(entry->d_name, hex))
 			continue;
 		next = xreallocarray(fingerprints, cap, count + 1,
 				     sizeof(*next));

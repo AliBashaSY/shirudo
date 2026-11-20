@@ -78,8 +78,8 @@ static bool tls_classical_host_allowed(CURL *curl)
 		if (len < sizeof(entry)) {
 			memcpy(entry, allowlist, len);
 			entry[len] = '\0';
-			if (dns_name_valid(entry) && !strncasecmp(host, entry, len) &&
-			    host_len == len) {
+			if (dns_name_valid(entry) && host_len == len &&
+			    str_after_prefix_nocase(host, entry)) {
 				allowed = true;
 				break;
 			}
