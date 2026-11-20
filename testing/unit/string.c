@@ -663,6 +663,116 @@ static void span_prefix_reads_no_more_than_the_span(void)
 	xfree(exact, 12);
 }
 
+/* The tokens of the len bytes at text, each in brackets. */
+static const char *tokens_of(const char *text, size_t len, const char *delims)
+{
+	static char out[64];
+	char *buf = span(text, len);
+	const char *tok;
+	size_t n, at = 0;
+
+	for_each_token(tok, n, buf, len, delims) {
+		ASSERT_TRUE(tok >= buf && n <= len &&
+			    (size_t)(tok - buf) <= len - n);
+		ASSERT_TRUE(at + n + 3 <= sizeof(out));
+		out[at++] = '[';
+		memcpy(out + at, tok, n);
+		at += n;
+		out[at++] = ']';
+	}
+	out[at] = '\0';
+	xfree(buf, len ? len : 1);
+	return out;
+}
+
+static void tokens_are_the_runs_between_delimiters(void)
+{
+	EXPECT_STREQ(tokens_of("a,bc,d", 6, ","), "[a][bc][d]");
+	EXPECT_STREQ(tokens_of("abc", 3, ","), "[abc]");
+	EXPECT_STREQ(tokens_of("a b\tc\n", 6, " \t\n"), "[a][b][c]");
+	EXPECT_STREQ(tokens_of("/var//lib/", 10, "/"), "[var][lib]");
+}
+
+static void no_token_is_empty(void)
+{
+	EXPECT_STREQ(tokens_of("", 0, ","), "");
+	EXPECT_STREQ(tokens_of(",", 1, ","), "");
+	EXPECT_STREQ(tokens_of(",,,", 3, ","), "");
+	EXPECT_STREQ(tokens_of(",,a,,", 5, ","), "[a]");
+	EXPECT_STREQ(tokens_of("\n\nx\n\ny\n", 7, "\n"), "[x][y]");
+}
+
+static void tokens_stop_at_the_length_not_at_a_nul(void)
+{
+	const char *tok;
+	size_t n, count = 0;
+
+	EXPECT_STREQ(tokens_of("a,b,c", 3, ","), "[a][b]");
+	EXPECT_STREQ(tokens_of("a,b,c", 4, ","), "[a][b]");
+	for_each_token(tok, n, "a\0b\nc", 5, "\n") {
+		if (!count++) {
+			EXPECT_UEQ(n, 3);
+			EXPECT_MEMEQ(tok, "a\0b", 3);
+		} else {
+			EXPECT_UEQ(n, 1);
+			EXPECT_TRUE(*tok == 'c');
+		}
+	}
+	EXPECT_UEQ(count, 2);
+	EXPECT_STREQ(tokens_of("abc", 3, ""), "[abc]");
+}
+
+static void token_may_be_ended_in_its_own_buffer(void)
+{
+	char words[] = "-O2  -g\t-Wall", *tok, *seen[4];
+	size_t n, count = 0;
+
+	for_each_token(tok, n, words, strlen(words), " \t") {
+		tok[n] = '\0';
+		ASSERT_TRUE(count < ARRAY_SIZE(seen));
+		seen[count++] = tok;
+	}
+	ASSERT_EQ(count, 3);
+	EXPECT_STREQ(seen[0], "-O2");
+	EXPECT_STREQ(seen[1], "-g");
+	EXPECT_STREQ(seen[2], "-Wall");
+}
+
+static void token_walks_nest(void)
+{
+	const char *text = "a=1,b=2\nc=3\n", *line, *pair;
+	size_t line_len, pair_len, pairs = 0, lines = 0;
+
+	for_each_token(line, line_len, text, strlen(text), "\n") {
+		lines++;
+		for_each_token(pair, pair_len, line, line_len, ",") {
+			EXPECT_UEQ(pair_len, 3);
+			EXPECT_TRUE(pair[1] == '=');
+			pairs++;
+		}
+	}
+	EXPECT_UEQ(lines, 2);
+	EXPECT_UEQ(pairs, 3);
+}
+
+static void token_next_takes_any_cursor(void)
+{
+	size_t pos = 2, start = 9;
+
+	EXPECT_UEQ(token_next("ab,cd", 5, ",", &pos, &start), 2);
+	EXPECT_UEQ(start, 3);
+	EXPECT_UEQ(pos, 5);
+	EXPECT_UEQ(token_next("ab,cd", 5, ",", &pos, &start), 0);
+	EXPECT_UEQ(pos, 5);
+	pos = 9;
+	EXPECT_UEQ(token_next("ab,cd", 5, ",", &pos, &start), 0);
+	EXPECT_UEQ(pos, 5);
+	pos = 0;
+	EXPECT_UEQ(token_next("ab,cd", 5, ",", &pos, &start), 2);
+	EXPECT_UEQ(start, 0);
+	EXPECT_UEQ(pos, 3);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -699,6 +809,12 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(str_after_prefix_nocase_takes_either_case),
 	UNIT_CASE(span_equals_str_wants_the_whole_string),
 	UNIT_CASE(span_prefix_reads_no_more_than_the_span),
+	UNIT_CASE(tokens_are_the_runs_between_delimiters),
+	UNIT_CASE(no_token_is_empty),
+	UNIT_CASE(tokens_stop_at_the_length_not_at_a_nul),
+	UNIT_CASE(token_may_be_ended_in_its_own_buffer),
+	UNIT_CASE(token_walks_nest),
+	UNIT_CASE(token_next_takes_any_cursor),
 	{}
 };
 

@@ -3,9 +3,9 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * Bounded number parsing, string copies and formatting, file name
- * suffixes, DNS names, UTF-8 characters and text for a terminal, from
- * util/string.c, the compares of a prefix and of a span, and the scrub
- * and compare for secrets.
+ * suffixes, tokens, DNS names, UTF-8 characters and text for a terminal,
+ * from util/string.c, the compares of a prefix and of a span, and the
+ * scrub and compare for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -146,6 +146,33 @@ static inline bool span_equals_str(const char *s, size_t len, const char *str)
 	(((len) >= sizeof(prefix) - 1 &&				\
 	  !strncasecmp(s, "" prefix, sizeof(prefix) - 1)) ?		\
 	 sizeof(prefix) - 1 : 0)
+
+/*
+ * The next token of the len bytes at s, from *pos on: a run of bytes that
+ * are none of delims, after any that are. Its length, with its offset in
+ * *start and *pos past it and past the delimiter that ended it, or 0 when
+ * no token is left. Nothing is written, and a NUL is a byte as any other.
+ */
+size_t token_next(const char *s, size_t len, const char *delims, size_t *pos,
+		  size_t *start);
+
+/*
+ * Run the body once for each token of the len bytes at s, tok at its
+ * first byte, a pointer of the type of s, and tok_len its length. No
+ * token is empty: delimiters in a row count as one. A body that owns the
+ * buffer may end the token with a NUL where a byte follows it, the
+ * delimiter or a string's terminator.
+ */
+#define __for_each_token(tok, tok_len, s, len, delims, n)		\
+	for (__auto_type __text##n = &(s)[0]; __text##n; __text##n = NULL) \
+		for (size_t __pos##n = 0, __start##n, __size##n = (len); \
+		     ((tok_len) = token_next(__text##n, __size##n, delims, \
+					     &__pos##n, &__start##n)) && \
+		     ((tok) = __text##n + __start##n, true);)
+#define __for_each_token_n(tok, tok_len, s, len, delims, n)		\
+	__for_each_token(tok, tok_len, s, len, delims, n)
+#define for_each_token(tok, tok_len, s, len, delims)			\
+	__for_each_token_n(tok, tok_len, s, len, delims, __COUNTER__)
 
 /*
  * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63

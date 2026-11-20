@@ -82,6 +82,13 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        in either case for the ``_nocase`` forms, and the empty prefix
        starts every string; a span equals a string of its length and
        bytes alone; nothing past a span's length is read
+   * - ``string-tokens``
+     - ``token_next()``, ``for_each_token()``
+     - Lengths 0 to 4, one or two delimiters, every cursor
+     - A token lies inside the span, holds no delimiter and has one or
+       the span's end on either side; the cursor ends past it and past
+       one delimiter; a walk gives the bytes that are no delimiter in
+       order, each once, and no empty token
    * - ``hex``
      - ``hex_encode()``, ``hex_alloc()``, ``hex_decode()``,
        ``hex_decode_max()``

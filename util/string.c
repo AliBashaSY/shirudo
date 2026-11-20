@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * Bounded number parsing, string copies and formatting, DNS names.
+ * Bounded number parsing, string copies and formatting, tokens, DNS
+ * names, UTF-8 characters and text for a terminal.
  */
 
 #include <errno.h>
@@ -121,6 +122,28 @@ int span_to_str(char *dst, size_t cap, const void *src, size_t len)
 	memmove(dst, src, len);
 	dst[len] = '\0';
 	return 0;
+}
+
+static bool among(char c, const char *set)
+{
+	for (; *set; set++)
+		if (c == *set)
+			return true;
+	return false;
+}
+
+size_t token_next(const char *s, size_t len, const char *delims, size_t *pos,
+		  size_t *start)
+{
+	size_t at = min(*pos, len), n = 0;
+
+	while (at < len && among(s[at], delims))
+		at++;
+	while (n < len - at && !among(s[at + n], delims))
+		n++;
+	*start = at;
+	*pos = at + n + (n < len - at);
+	return n;
 }
 
 static bool numeric_dns_label(const char *label, size_t len)
