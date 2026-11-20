@@ -11,7 +11,8 @@
 # refuse, the rules of SAMPLE_RULES each at its line, array_size a count
 # by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
 # local_escape a local's address left in the caller's object,
-# literal_count a literal compared under a length written out, a file a
+# literal_count a literal compared under a length written out,
+# digest_concat two strings hashed with nothing between them, a file a
 # rule gives up on at its time limit is named rather than failed, every
 # rule declares SEC an attribute, and the tree itself.
 
@@ -1260,6 +1261,96 @@ test_expect_success 'literal_count reports a literal compared under a number' '
 	grep -q "^literal_count: samples.c:6:.*strncasecmp() of a literal with the length 3" "$W/err" &&
 	grep -q "^literal_count: samples.c:7:.*memmem() of a literal with the length 5" "$W/err" &&
 	[ "$(grep -c "^literal_count:" "$W/err")" = 5 ]
+'
+
+# Two strings fed to a digest in a row, each by its strlen() alone: as
+# statements, through a return code, in one condition and through
+# sha256_2(). Beside them what tells the two apart: the first string's
+# terminator, a delimiter, a fixed size, and two digests.
+write_digest_samples() {
+	cat >"$1" <<'EOF'
+int plain(struct sha256_ctx *ctx, const char *host, const char *port)
+{
+	sha256_update(ctx, host, strlen(host));
+	sha256_update(ctx, port, strlen(port));
+	return 0;
+}
+
+int chained(struct sha256_ctx *ctx, const char *host, const char *port)
+{
+	int ret;
+
+	ret = sha256_update(ctx, host, strlen(host));
+	if (!ret)
+		ret = sha256_update(ctx, port, strlen(port));
+	return ret;
+}
+
+int in_one_condition(struct sha256_ctx *ctx, const char *host,
+		     const char *port)
+{
+	if (sha256_update(ctx, host, strlen(host)) != 0 ||
+	    sha256_update(ctx, port, strlen(port)) != 0)
+		return -EIO;
+	return 0;
+}
+
+int both_at_once(const char *host, const char *port, __u8 out[32])
+{
+	return sha256_2(host, strlen(host), port, strlen(port), out);
+}
+
+int terminated(struct sha256_ctx *ctx, const char *host, const char *port)
+{
+	sha256_update(ctx, host, strlen(host) + 1);
+	sha256_update(ctx, port, strlen(port));
+	return 0;
+}
+
+int delimited(struct sha256_ctx *ctx, const char *host, const char *port)
+{
+	if (sha256_update(ctx, host, strlen(host)) != 0 ||
+	    sha256_update(ctx, ":", 1) != 0 ||
+	    sha256_update(ctx, port, strlen(port)) != 0)
+		return -EIO;
+	return 0;
+}
+
+int fixed_size(struct sha256_ctx *ctx, const char *host, const __u8 key[32])
+{
+	sha256_update(ctx, host, strlen(host));
+	sha256_update(ctx, key, 32);
+	return 0;
+}
+
+int two_digests(struct sha256_ctx *a, struct sha256_ctx *b, const char *host,
+		const char *port)
+{
+	sha256_update(a, host, strlen(host));
+	sha256_update(b, port, strlen(port));
+	return 0;
+}
+
+int tagged(const char *tag, const __u8 cert[32], __u8 out[32])
+{
+	return sha256_2(tag, strlen(tag) + 1, cert, 32, out);
+}
+EOF
+}
+
+test_expect_success 'digest_concat reports two strings hashed with nothing between' '
+	R11=$W/digest &&
+	mkdir -p "$R11/testing/coccinelle" &&
+	git init -q "$R11" &&
+	cp "$ROOT/testing/coccinelle/digest_concat.cocci" \
+		"$R11/testing/coccinelle/" &&
+	write_digest_samples "$R11/samples.c" &&
+	! (cd "$R11" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	for line in 4 14 21 29; do
+		grep -q "^digest_concat: samples.c:$line:.*port is hashed right after host, each by its strlen() alone" "$W/err" ||
+			exit 1
+	done &&
+	[ "$(grep -c "^digest_concat:" "$W/err")" = 4 ]
 '
 
 # A spatch that gives up, as a rule with --timeout makes it: the file it

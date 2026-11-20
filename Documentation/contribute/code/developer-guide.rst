@@ -676,6 +676,10 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``secret_cmp``
      - ``memcmp()`` of a secret or what derives from one rather than
        ``memneq_explicit()``.
+   * - ``digest_concat``
+     - Two strings fed to a digest one after the other, each by its
+       ``strlen()`` alone, with no terminator, length or delimiter
+       between them to say where the first ends.
    * - ``openssl_ret``
      - A test of the truth of an OpenSSL function that returns 0 or a
        negative value on failure.

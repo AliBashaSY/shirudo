@@ -67,9 +67,11 @@ signed config image.
        ``array_size``, which rewrites the one and leaves the other, a
        local's address left in the caller's object beside the forms
        ``local_escape`` leaves alone, a literal compared under a length
-       written out beside the lengths ``literal_count`` takes, a file a
-       rule gives up on at its time limit named rather than failed,
-       ``SEC`` declared an attribute in every rule, and the tree itself
+       written out beside the lengths ``literal_count`` takes, two
+       strings hashed in a row beside the inputs ``digest_concat`` can
+       tell apart, a file a rule gives up on at its time limit named
+       rather than failed, ``SEC`` declared an attribute in every rule,
+       and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library
