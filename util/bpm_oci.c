@@ -641,6 +641,15 @@ static int token_from_body(const char *body, char *out, size_t out_sz)
 	return 0;
 }
 
+static int token_from_reply(const struct bpm_buffer *reply, char *out,
+			    size_t out_sz)
+{
+	/* curl never calls the write callback for an empty body. */
+	if (!reply->data)
+		return -EINVAL;
+	return token_from_body((char *)reply->data, out, out_sz);
+}
+
 static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 {
 	const char *provided_token = getenv("BPM_OCI_BEARER_TOKEN");
@@ -722,12 +731,7 @@ static int get_bearer_token(struct bpm_oci_client *c, const char *challenge)
 		ret = -EACCES;
 		goto out;
 	}
-	/* curl never calls the write callback for an empty body. */
-	if (!r.body.data) {
-		ret = -EINVAL;
-		goto out;
-	}
-	ret = token_from_body((char *)r.body.data, c->token, sizeof(c->token));
+	ret = token_from_reply(&r.body, c->token, sizeof(c->token));
 out:
 	memzero_explicit(basic, sizeof(basic));
 	memzero_explicit(auth_header, sizeof(auth_header));
