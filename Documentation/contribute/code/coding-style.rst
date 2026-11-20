@@ -21,6 +21,14 @@ its BPF programs, with these rules of its own, which
 - Copy strings with ``strscpy()`` and format into a fixed buffer with
   ``strsprintf()``, and check their results. ``strcpy()``, ``strncpy()``,
   ``sprintf()``, ``snprintf()`` and their kin are refused.
+- Take bytes from outside the program as a string with
+  ``span_to_str()`` from ``<shirudo/string.h>``, which takes their
+  length and refuses a NUL among them, with ``read_text_line()`` for a
+  line of a settings file, or with ``json_parse()``. ``strcmp()``,
+  ``strlen()``, ``strchr()`` and their kin read up to a terminator: they
+  are for strings that came through one of these, for literals,
+  ``argv`` and paths, not for a buffer a ``read()`` filled, a fixed-size
+  field of a format or a pointer that came with a length.
 - Check size arithmetic with the helpers of ``<shirudo/overflow.h>``,
   not by hand.
 - No ``(void)`` cast. A result a caller must not drop belongs to a

@@ -179,6 +179,83 @@ a series of its own, not along the way.
   copies it to the stack, which a BPF program has 512 bytes of. A return
   value beats an output parameter wherever one value comes back.
 
+### Strings from outside
+
+`strcmp()`, `strlen()`, `strchr()`, `strstr()`, `strcspn()` and their
+kin read up to a terminator and take no length. The tree calls them
+hundreds of times on strings it terminated itself, so no poison can
+refuse them as it refuses the names `<shirudo/string.h>` replaces. What
+makes one of these calls right is where its argument came from, and
+nothing checks that but you.
+
+Bytes from outside come with a length: a registry's or a collector's
+reply, a token server's answer, a package and its members, an index or
+a tree publication, a `.upatch` file and its sections, the settings
+and labels of a config image, evidence, the eventlog and the other
+sealed logs, a TPM, netlink or ioctl reply, an xattr value, `/proc`
+and sysfs text, the kernel's config. A NUL among them ends a string
+short of the bytes that were read, hashed or signed, so that two
+readers take one input differently: `status` listed the eventlog up to
+a NUL where the replay refused the whole log, and the registry client
+took a token from the first bytes of an answer that was no text.
+
+- Bytes become a string in one step that takes their length, refuses a
+  NUL among them and terminates them. `span_to_str()` is that step for
+  a file read whole, in place, as `read_file()` leaves room for the
+  terminator, for a reply, a counted field and a line cut out of a
+  text. `read_text_line()` is it for the lines of a settings file, and
+  `json_parse()` and `json_walk()` for a document, whose strings they
+  hand out decoded and terminated.
+- A buffer `read()`, `pread()`, `recv()`, `readlink()` or `getxattr()`
+  filled has no terminator until the code writes one.
+- A fixed-size field of a format is a string only once its parser found
+  a NUL inside it, `memchr(field, '\0', sizeof(field))`, as
+  `parse_header()` of `util/upatch.c` does before anything reads the
+  name. Two such fields are compared whole, with `memcmp()` over their
+  size, as the signed name is with the header's.
+- A pointer with a length stays one where it can: `memchr()`,
+  `memcmp()`, `span_equals()`, `name_has_suffix()`, `digits()` and
+  `parse_u64()` read no further than they are told. Copy it out only
+  for a callee that needs a terminator.
+- A log of records is walked by the length of its lines, or refused
+  whole for a NUL, and a last line without its newline is no record
+  (`lines_len()`).
+- A name from outside is checked once, by the function that owns its
+  rule (`upatch_name_valid()`, `bpm_name_ok()`, `dns_name_valid()`),
+  before it reaches a path, a digest or a strict JSON writer; until
+  then it is printed through `text_sanitize()` or a lossy writer.
+- A digest over several strings delimits or counts each: a tag with its
+  NUL, then the fixed-size fields, then at most one field of any length,
+  as `chain_upatch_event()` hashes, or one canonical document, as
+  `tree_operation_digest()` does. Two strings set side by side hash
+  like one string cut elsewhere.
+
+Instead of
+
+```c
+ret = read_file(path, max, &body, &len);
+if (ret)
+	return ret;
+entry = strstr(body, needle);
+```
+
+write
+
+```c
+ret = read_file(path, max, &body, &len);
+if (ret)
+	return ret;
+ret = span_to_str(body, len + 1, body, len);
+if (ret)
+	goto out;
+entry = strstr(body, needle);
+```
+
+The `read_unterminated` and `file_as_string` rules of
+`testing/coccinelle` report the first of these and a buffer a read left
+unterminated; a field, a pointer with a length and a digest are for
+review.
+
 ### State that changes under you
 
 - Read a value that can change under you once, into a local, and use
@@ -318,6 +395,7 @@ already, or should. The basics:
 | A string's prefix, or a span that must be one literal | `str_has_prefix()` to test a prefix, `str_skip_prefix()` to step past it, `span_equals()` for a span of known length (`<shirudo/string.h>`); never `strncmp()` with a length counted by hand |
 | A file name's extension | `name_has_suffix()` (`<shirudo/string.h>`), `upatch_select()` for a scandir of upatches |
 | Text from outside on a terminal | `text_sanitize()`; UTF-8 with `utf8_width()` |
+| Bytes from outside as a string | `span_to_str()` (`<shirudo/string.h>`), which takes their length and refuses a NUL among them; `read_text_line()` for a line of a settings file (`util/io.h`) |
 | Sizes and lengths | `check_add_overflow()` and kin, `size_add()`, `size_mul()`, `struct_size()`, `DIV_ROUND_UP()` (`<shirudo/overflow.h>`) |
 | Smaller or larger | `min()`, `max()` (`<shirudo/misc.h>`) |
 | Memory | `xmalloc()`, `xcalloc()`, `xreallocarray()`, `xstrndup()`, `xasprintf()`, `xfree(p, size)` (`util/malloc.h`) |

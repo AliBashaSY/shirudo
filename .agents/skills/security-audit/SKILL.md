@@ -205,6 +205,27 @@ those shapes are absent, not the class.
   member or section, shirudo's reading of a loader, BTF or tar against
   the kernel's or the operator's, padding or uninitialized bytes in
   what is hashed, signed or measured.
+- **Bytes as strings.** Bytes that came with a length handed to a
+  function that reads up to a terminator: `strcmp()`, `strlen()`,
+  `strchr()`, `strstr()`, `strcspn()`, `strtok_r()`, a `%s`. For each
+  place bytes enter, settle where the length comes from and whether a
+  terminator is written before such a function runs, an over-read
+  otherwise; what a NUL among the bytes does, refused or the string
+  ends short, so that a digest or a signature covers bytes a compare
+  never saw, a name on disk is not the name checked, or the kernel
+  reads what shirudo did not; whether a fixed-size field is compared
+  whole or up to a terminator that need not be there; whether a digest
+  over several strings delimits or counts each; whether a length is
+  narrowed before it bounds a copy or a compare; and whether a name is
+  checked once before it is printed, hashed or put in a path. Bytes
+  become a string through `span_to_str()`, `read_text_line()` or
+  `json_parse()`, and a field through the `memchr()` of its parser:
+  look for the reader that has none of them, and for a strict JSON
+  writer given text nobody checked, which fails the whole document. The
+  `read_unterminated` and `file_as_string` rules match a buffer a read
+  left unterminated and a file searched as a string; a field whose NUL
+  another function checked and a copy terminated by hand they do not
+  see.
 - **Hook bypass.** Another syscall reaching what a hook refuses: both
   rename endpoints, hard links, truncate, xattrs, idmapped mounts, a
   descriptor opened before the mark, `bool kernel` misread. Take the

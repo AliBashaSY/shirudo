@@ -121,6 +121,17 @@ commit message that carries a change.
   `util/json.c` for all JSON and `pr_*()` for all logging. The libc names
   they replace are poisoned. Code that a second place needs moves into
   `util/` with unit cases rather than being copied.
+- Bytes from outside come with a length and become a string in one
+  step that refuses a NUL among them and terminates them:
+  `span_to_str()` for a file read whole, a reply, a counted field or a
+  line cut from a text, `read_text_line()` for the lines of a settings
+  file, `json_parse()` for a document. A fixed-size field of a format
+  is a string once its parser found a NUL inside it. `strcmp()`,
+  `strlen()`, `strchr()` and their kin, which no poison can refuse, are
+  for what passed that step, for literals, `argv` and paths; never for
+  a buffer a `read()` filled, a field nobody checked or a pointer that
+  came with a length. A digest over several strings delimits or counts
+  each.
 - `ret` names a return code and `err` an errno kept beside the value a
   function returns. No `(void)` casts: a result that must be checked
   comes from a `__must_check` function, and every call checks it.
