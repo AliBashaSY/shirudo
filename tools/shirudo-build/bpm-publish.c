@@ -625,7 +625,6 @@ struct tree_fixes_reader {
 	const struct tree_publication	*pub;
 	struct bpm_fixes		*fixes;
 	int				n;
-	struct json_field		*fixes_key;
 	__s64				seq;
 	struct bpm_fixes		op;
 	char				id[TREE_STRING_MAX];
@@ -641,9 +640,16 @@ static int tree_fixes_take_id(void *ctx)
 	return 0;
 }
 
+/* The field one document's operations are parsed into, for that parse only. */
+struct tree_fixes_operations {
+	struct tree_fixes_reader	*r;
+	const struct json_field		*fixes_key;
+};
+
 static int tree_fixes_take_operation(void *ctx)
 {
-	struct tree_fixes_reader *r = ctx;
+	struct tree_fixes_operations *o = ctx;
+	struct tree_fixes_reader *r = o->r;
 	const struct tree_operation *op;
 
 	if (r->n >= r->pub->n_operations)
@@ -651,7 +657,7 @@ static int tree_fixes_take_operation(void *ctx)
 	op = &r->pub->operations[r->n];
 	if (r->seq != op->seq)
 		return -EINVAL;
-	if (r->fixes_key->seen &&
+	if (o->fixes_key->seen &&
 	    (strcmp(op->op, "add") || !tree_fixes_valid(&r->op)))
 		return -EINVAL;
 	r->fixes[r->n++] = r->op;
@@ -664,7 +670,6 @@ static int tree_fixes_parse(struct tree_fixes_reader *r,
 			    const struct bpm_buffer *document)
 {
 	struct json_array id_sink = { tree_fixes_take_id, r };
-	struct json_array operation_sink = { tree_fixes_take_operation, r };
 	struct json_field id[] = {
 		{ "", JSON_T_STRING, r->id, sizeof(r->id), 0, NULL, 0 },
 	};
@@ -672,12 +677,15 @@ static int tree_fixes_parse(struct tree_fixes_reader *r,
 		{ "seq", JSON_T_INT, &r->seq, 0, 0, NULL, 0 },
 		{ "fixes", JSON_T_ARRAY, &id_sink, 0, 0, id, ARRAY_SIZE(id) },
 	};
+	struct tree_fixes_operations operations = { r, &operation[1] };
+	struct json_array operation_sink = {
+		tree_fixes_take_operation, &operations,
+	};
 	struct json_field root[] = {
 		{ "operations", JSON_T_ARRAY, &operation_sink, 0, 0,
 		  operation, ARRAY_SIZE(operation) },
 	};
 
-	r->fixes_key = &operation[1];
 	return json_parse((const char *)document->data, document->len, root,
 			  ARRAY_SIZE(root));
 }
