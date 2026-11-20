@@ -135,12 +135,11 @@ static bool among(char c, const char *set)
 size_t token_next(const char *s, size_t len, const char *delims, size_t *pos,
 		  size_t *start)
 {
-	size_t at = min(*pos, len), n = 0;
+	size_t at = min(*pos, len), n;
 
 	while (at < len && among(s[at], delims))
 		at++;
-	while (n < len - at && !among(s[at + n], delims))
-		n++;
+	n = span_until(s + at, len - at, delims);
 	*start = at;
 	*pos = at + n + (n < len - at);
 	return n;

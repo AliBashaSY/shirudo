@@ -14,7 +14,8 @@ constant char[] S;
 identifier f = {strcmp, strncmp, strcasecmp, strncasecmp, str_has_prefix,
 		str_skip_prefix, str_has_prefix_nocase,
 		str_skip_prefix_nocase, str_after_prefix,
-		str_after_prefix_nocase};
+		str_after_prefix_nocase, str_equals_nocase,
+		str_contains};
 identifier g = {span_equals, span_equals_str, span_has_prefix_nocase};
 position p;
 @@

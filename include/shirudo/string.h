@@ -147,6 +147,45 @@ static inline bool span_equals_str(const char *s, size_t len, const char *str)
 	  !strncasecmp(s, "" prefix, sizeof(prefix) - 1)) ?		\
 	 sizeof(prefix) - 1 : 0)
 
+/* Whether a and b are the same string, a letter in either case. */
+static inline bool str_equals_nocase(const char *a, const char *b)
+{
+	return !strcasecmp(a, b);
+}
+
+/*
+ * How many of the len bytes at s, from the first, are none of the bytes
+ * of set: the length of what comes before the first of them, or len.
+ */
+static inline size_t span_until(const char *s, size_t len, const char *set)
+{
+	size_t n, i;
+
+	for (n = 0; n < len; n++)
+		for (i = 0; set[i]; i++)
+			if (s[n] == set[i])
+				return n;
+	return n;
+}
+
+/*
+ * Where the string needle first lies in the len bytes at s, as a pointer
+ * of the type of s, or NULL. Nothing past len is read, a NUL in the span
+ * is a byte as any other, and the empty needle lies at s.
+ */
+#define span_find(s, len, needle) ({					\
+	__auto_type __s = &(s)[0];					\
+	const char *__needle = (needle);				\
+									\
+	(typeof(__s))memmem(__s, len, __needle, strlen(__needle));	\
+})
+
+/* Whether the string s holds the string needle. */
+static inline bool str_contains(const char *s, const char *needle)
+{
+	return span_find(s, strlen(s), needle);
+}
+
 /*
  * The next token of the len bytes at s, from *pos on: a run of bytes that
  * are none of delims, after any that are. Its length, with its offset in

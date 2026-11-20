@@ -773,6 +773,68 @@ static void token_next_takes_any_cursor(void)
 	EXPECT_UEQ(pos, 3);
 }
 
+static void str_equals_nocase_wants_the_whole_string(void)
+{
+	EXPECT_TRUE(str_equals_nocase("Content-Type", "content-type"));
+	EXPECT_TRUE(str_equals_nocase("https", "HTTPS"));
+	EXPECT_TRUE(str_equals_nocase("", ""));
+	EXPECT_FALSE(str_equals_nocase("https", "http"));
+	EXPECT_FALSE(str_equals_nocase("http", "https"));
+	EXPECT_FALSE(str_equals_nocase("host", "h0st"));
+	EXPECT_FALSE(str_equals_nocase("", "x"));
+}
+
+static void span_until_stops_at_a_byte_of_the_set(void)
+{
+	char *line = span("text/html; q=1\r\n", 16), *plain = span("abc", 3);
+
+	EXPECT_UEQ(span_until(line, 16, " ;\r\n"), 9);
+	EXPECT_UEQ(span_until(line, 16, "\r\n"), 14);
+	EXPECT_UEQ(span_until(line, 9, ";"), 9);
+	EXPECT_UEQ(span_until(line, 5, "/"), 4);
+	EXPECT_UEQ(span_until(line, 4, "/"), 4);
+	EXPECT_UEQ(span_until(line, 16, "t"), 0);
+	EXPECT_UEQ(span_until(plain, 3, "="), 3);
+	EXPECT_UEQ(span_until(plain, 3, ""), 3);
+	EXPECT_UEQ(span_until(plain, 0, "a"), 0);
+	EXPECT_UEQ(span_until("a\0b=c", 5, "="), 3);
+	xfree(line, 16);
+	xfree(plain, 3);
+}
+
+static void span_find_reads_the_span_alone(void)
+{
+	char *doc = span("{\"token\":\"t\"}", 13), *found;
+	const char *path = "a/../b", *at;
+
+	found = span_find(doc, 13, "\"token\"");
+	EXPECT_TRUE(found == doc + 1);
+	EXPECT_TRUE(span_find(doc, 13, "}") == doc + 12);
+	EXPECT_FALSE(span_find(doc, 12, "}"));
+	EXPECT_FALSE(span_find(doc, 7, "\"token\""));
+	EXPECT_FALSE(span_find(doc, 13, "\"Token\""));
+	EXPECT_FALSE(span_find(doc, 0, "t"));
+	EXPECT_TRUE(span_find(doc, 13, "") == doc);
+	EXPECT_TRUE(span_find(doc, 0, "") == doc);
+	at = span_find(path, strlen(path), "..");
+	EXPECT_TRUE(at == path + 2);
+	EXPECT_TRUE(span_find("a\0b..c", 6, ".."));
+	xfree(doc, 13);
+}
+
+static void str_contains_stops_at_the_terminator(void)
+{
+	EXPECT_TRUE(str_contains("repo//name", "//"));
+	EXPECT_TRUE(str_contains("a/..", ".."));
+	EXPECT_TRUE(str_contains("..", ".."));
+	EXPECT_TRUE(str_contains("x", ""));
+	EXPECT_TRUE(str_contains("", ""));
+	EXPECT_FALSE(str_contains("a/./b", ".."));
+	EXPECT_FALSE(str_contains(".", ".."));
+	EXPECT_FALSE(str_contains("", ".."));
+	EXPECT_FALSE(str_contains("a\0b..c", ".."));
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -815,6 +877,10 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(token_may_be_ended_in_its_own_buffer),
 	UNIT_CASE(token_walks_nest),
 	UNIT_CASE(token_next_takes_any_cursor),
+	UNIT_CASE(str_equals_nocase_wants_the_whole_string),
+	UNIT_CASE(span_until_stops_at_a_byte_of_the_set),
+	UNIT_CASE(span_find_reads_the_span_alone),
+	UNIT_CASE(str_contains_stops_at_the_terminator),
 	{}
 };
 

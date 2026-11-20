@@ -89,6 +89,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        the span's end on either side; the cursor ends past it and past
        one delimiter; a walk gives the bytes that are no delimiter in
        order, each once, and no empty token
+   * - ``string-search``
+     - ``span_until()``, ``span_find()``, ``str_contains()``,
+       ``str_equals_nocase()``
+     - Lengths 0 to 5, one or two bytes in the set, needles up to 2
+       bytes, strings up to 3
+     - The length of what comes before the first byte of the set; the
+       first place the needle lies in the span, or ``NULL`` exactly
+       where it lies nowhere; nothing past the span is read; a string
+       holds a needle where it lies in it; two strings are equal in
+       either case exactly with the same letters and length
    * - ``hex``
      - ``hex_encode()``, ``hex_alloc()``, ``hex_decode()``,
        ``hex_decode_max()``
