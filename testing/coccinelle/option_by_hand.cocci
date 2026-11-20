@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 expression E, F;
 constant char[] S;
 identifier f = {strcmp, strncmp, strcasecmp, strncasecmp, str_has_prefix,

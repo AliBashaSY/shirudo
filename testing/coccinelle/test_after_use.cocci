@@ -11,6 +11,7 @@ virtual report
 unevaluated = set()
 
 @ufld@
+attribute name SEC;
 expression E, B;
 identifier fld;
 position p;

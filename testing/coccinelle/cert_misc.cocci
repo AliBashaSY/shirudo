@@ -9,6 +9,7 @@
 virtual report
 
 @strbound@
+attribute name SEC;
 identifier x;
 constant C;
 constant char[] S;

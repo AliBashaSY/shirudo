@@ -7,6 +7,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 expression A, B, C;
 identifier M = {SIZE_MAX, UINT64_MAX, UINT32_MAX, UINT16_MAX, UINT8_MAX,
 		INT64_MAX, INT32_MAX, INT_MAX, LONG_MAX, SSIZE_MAX, UINT_MAX,

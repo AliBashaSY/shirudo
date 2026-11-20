@@ -8,6 +8,7 @@
 virtual report
 
 @r exists@
+attribute name SEC;
 expression F, A, M;
 identifier o = {fopen, fdopen};
 identifier f;

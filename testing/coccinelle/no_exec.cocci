@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 identifier f = {fork, vfork, clone, clone3, execv, execve, execvp, execvpe,
 		execl, execle, execlp, fexecve, execveat, system, popen,
 		posix_spawn, posix_spawnp};

@@ -13,6 +13,7 @@
 virtual report
 
 @own@
+attribute name SEC;
 type T;
 T *P;
 identifier f;

@@ -7,6 +7,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 expression A, B, N;
 position p;
 @@

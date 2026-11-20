@@ -9,6 +9,7 @@
 virtual report
 
 @unevaluated@
+attribute name SEC;
 expression E;
 identifier fld;
 position p;

@@ -7,6 +7,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 identifier f, x;
 type T;
 expression E1, E2;

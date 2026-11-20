@@ -799,18 +799,20 @@ run long names ``--timeout <seconds>`` there, as ``dead_store`` does: the
 check then runs it one file at a time and names each file spatch gave up
 on, rather than failing.
 
-The ``bpf_`` rules read the BPF sources through
-:src:`testing/coccinelle/bpf.macros`, which tells Coccinelle what
-``SEC()``, ``BPF_PROG()`` and the map definition macros mean, and each
-declares ``SEC`` an attribute. Without that, Coccinelle takes a map
-defined as ``} name SEC(".maps");`` for a type and skips every function
-that takes its address, without an error. A file that defines its own
-token-pasting macros, as :src:`upatches/kernel-obs/obs_table.h` does,
-stays out of their reach. Each matches a hazard that exists on every
-kernel. Per-CPU memory used as scratch is a hazard only under some
-preemption models and program types, which a rule cannot tell, so no
-rule refuses it. :doc:`/upatches/write/memory-consistency/hazards`
-explains each hazard and where it applies.
+Every rule declares ``SEC`` an attribute, as the rules run over the BPF
+sources too. Without that, Coccinelle takes a map defined as
+``} name SEC(".maps");`` for a type, and no pattern matches a call that
+takes the map's address, without an error; ``t0006`` checks that each
+rule declares it. The ``bpf_`` rules also read the BPF sources
+through :src:`testing/coccinelle/bpf.macros`, which tells Coccinelle what
+``SEC()``, ``BPF_PROG()`` and the map definition macros mean. A file that
+defines its own token-pasting macros, as
+:src:`upatches/kernel-obs/obs_table.h` does, stays out of their reach.
+Each matches a hazard that exists on every kernel. Per-CPU memory used
+as scratch is a hazard only under some preemption models and program
+types, which a rule cannot tell, so no rule refuses it.
+:doc:`/upatches/write/memory-consistency/hazards` explains each hazard
+and where it applies.
 
 Next steps
 ----------

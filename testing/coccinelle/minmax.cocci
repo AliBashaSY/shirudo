@@ -9,6 +9,7 @@ virtual patch
 virtual report
 
 @r depends on report@
+attribute name SEC;
 expression A, B;
 position p;
 @@

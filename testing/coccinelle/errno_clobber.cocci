@@ -11,6 +11,7 @@
 virtual report
 
 @r exists@
+attribute name SEC;
 identifier g = {close, closedir, fclose, unlink, unlinkat, rmdir, munmap,
 		umount, umount2, rename, renameat, fsync, fflush, flock,
 		ftruncate, fchmod, chmod, write, syslog, fprintf, printf,

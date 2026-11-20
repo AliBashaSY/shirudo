@@ -11,6 +11,7 @@ virtual report
 closing = set()
 
 @ok@
+attribute name SEC;
 expression A, B, C, D;
 position p;
 @@

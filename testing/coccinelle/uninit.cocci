@@ -9,6 +9,7 @@
 virtual report
 
 @r disable decl_init exists@
+attribute name SEC;
 type T;
 identifier x, l;
 expression E;

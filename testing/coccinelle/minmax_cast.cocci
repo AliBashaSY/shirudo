@@ -7,6 +7,7 @@
 virtual report
 
 @r disable drop_cast@
+attribute name SEC;
 type T;
 expression A, B;
 identifier f = {min, max};

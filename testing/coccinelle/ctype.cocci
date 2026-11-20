@@ -8,6 +8,7 @@ virtual patch
 virtual report
 
 @r@
+attribute name SEC;
 identifier f = {isalnum, isalpha, isascii, isblank, iscntrl, isdigit,
 		isgraph, islower, isprint, ispunct, isspace, isupper,
 		isxdigit, tolower, toupper};

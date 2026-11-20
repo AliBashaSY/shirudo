@@ -12,6 +12,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 identifier f = {rand, srand, random, srandom, rand_r, drand48, lrand48,
 		mrand48, strtok, gets, tmpnam, tempnam, mktemp, vfork, alloca,
 		setjmp, longjmp, sigsetjmp, siglongjmp, usleep, signal,

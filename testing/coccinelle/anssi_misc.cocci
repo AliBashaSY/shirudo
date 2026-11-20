@@ -9,6 +9,7 @@
 virtual report
 
 @bitbool@
+attribute name SEC;
 bool A;
 expression B;
 binary operator op = {&, |, ^};

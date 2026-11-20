@@ -60,7 +60,8 @@ signed config image.
        ``dead_store`` leaves alone, a count by hand in a macro and an
        ``ARRAY_SIZE()`` of a file's own for ``array_size``, which
        rewrites the one and leaves the other, a file a rule gives up on
-       at its time limit named rather than failed, and the tree itself
+       at its time limit named rather than failed, ``SEC`` declared an
+       attribute in every rule, and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library

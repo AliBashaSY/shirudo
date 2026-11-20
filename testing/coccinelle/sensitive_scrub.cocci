@@ -54,6 +54,7 @@ def declared_with_cleanup(p):
 
 // Keep scrub references out of the use positions below.
 @m@
+attribute name SEC;
 identifier x;
 position pm;
 @@

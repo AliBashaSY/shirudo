@@ -24,6 +24,7 @@ def unscrubbed(x, p1, p2):
         coccilib.report.print_report(p2[0], "returns without memzero_explicit() of %s, which line %s filled with a secret" % (x, p1[0].line))
 
 @r exists@
+attribute name SEC;
 identifier x, fld;
 type T;
 expression C, E, E1;

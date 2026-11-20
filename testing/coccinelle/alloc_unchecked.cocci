@@ -7,6 +7,7 @@
 virtual report
 
 @r exists@
+attribute name SEC;
 expression E, E1;
 identifier fld;
 identifier alloc = {xmalloc, xcalloc, xreallocarray, xstrdup, xstrndup,

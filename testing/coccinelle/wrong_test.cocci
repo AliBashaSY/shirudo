@@ -8,6 +8,7 @@
 virtual report
 
 @r disable is_null, isnt_null1@
+attribute name SEC;
 identifier x, y, f;
 expression list es;
 position p;

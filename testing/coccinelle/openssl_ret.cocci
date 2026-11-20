@@ -12,6 +12,7 @@ virtual report
 compared = set()
 
 @ok@
+attribute name SEC;
 identifier f = {EVP_PKEY_verify, EVP_PKEY_verify_init, EVP_PKEY_verify_recover,
 		EVP_PKEY_sign, EVP_PKEY_sign_init, EVP_PKEY_derive,
 		EVP_PKEY_derive_init, EVP_PKEY_derive_set_peer,

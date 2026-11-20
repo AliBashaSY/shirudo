@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 identifier f = {memcpy, memmove, memset, memcmp, memchr, strlen, strnlen,
 		strcmp, strncmp, strchr, strrchr, strstr, strscpy,
 		memzero_explicit, memneq_explicit};

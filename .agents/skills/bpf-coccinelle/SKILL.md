@@ -79,9 +79,10 @@ branch; read GPL-only collections for ideas, never copy them. Then:
   says what the pattern breaks and on which kernels, as the others do,
   then `#spatch --no-includes --macro-file testing/coccinelle/bpf.macros`
   and `virtual report`.
-- Put `attribute name SEC;` in the first rule. Without it Coccinelle
-  takes a map defined as `} name SEC(".maps");` for a typedef and skips
-  every function that uses `&name`.
+- Put `attribute name SEC;` in the first rule, as every rule of the
+  tree does. Without it Coccinelle takes a map defined as
+  `} name SEC(".maps");` for a typedef, and no pattern matches a call
+  that passes `&name`.
 - Add a sample to `write_bpf_samples()` in
   `testing/ci-checks/t0006-check-coccinelle.sh` that the rule must report
   and a safe form it must leave alone, and add the rule to `BPF_RULES`.

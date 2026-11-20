@@ -8,6 +8,7 @@ virtual patch
 virtual report
 
 @r@
+attribute name SEC;
 identifier x;
 expression C, L;
 position p;

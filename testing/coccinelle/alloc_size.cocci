@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 type T1, T2;
 T1 *P;
 position p;

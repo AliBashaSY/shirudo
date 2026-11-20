@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 type T;
 T A, B;
 constant C;

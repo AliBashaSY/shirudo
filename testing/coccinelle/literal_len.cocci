@@ -7,6 +7,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 expression E;
 constant char[] S;
 constant N;

@@ -9,7 +9,8 @@
 # from CERT C, each BPF hazard rule, each scrub rule and dead_store report
 # a sample of what they refuse, array_size a count by hand in a macro and
 # an ARRAY_SIZE() outside <shirudo/misc.h>, a file a rule gives up on at
-# its time limit is named rather than failed, and the tree itself.
+# its time limit is named rather than failed, every rule declares SEC an
+# attribute, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -715,6 +716,12 @@ test_expect_success 'a file a rule gives up on is named, not failed' '
 	! (cd "$R7" && FAKE_SPATCH_FAIL=1 PATH="$W/bin:$PATH" sh "$S") \
 		>"$W/out" 2>"$W/err" &&
 	grep -q "dead_store: spatch failed" "$W/err"
+'
+
+test_expect_success 'every rule declares SEC an attribute' '
+	for r in "$ROOT"/testing/coccinelle/*.cocci; do
+		grep -q "^attribute name SEC;$" "$r" || exit 1
+	done
 '
 
 test_expect_success 'the tree passes' '

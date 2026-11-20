@@ -8,6 +8,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 type T, T2;
 T *ptr;
 expression E;

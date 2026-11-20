@@ -8,6 +8,7 @@
 virtual report
 
 @r exists@
+attribute name SEC;
 expression fd, E;
 identifier f;
 position p1, p2;

@@ -13,6 +13,7 @@
 virtual report
 
 @r@
+attribute name SEC;
 local idexpression x;
 expression E1, E2;
 position p1, p2;

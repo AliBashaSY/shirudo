@@ -6,6 +6,7 @@
 virtual report
 
 @r exists@
+attribute name SEC;
 expression E, E1;
 identifier fr = {xfree, xstrfree, libc_free, X509_free, EVP_PKEY_free,
 		 BIO_free, BN_free, CMS_ContentInfo_free, btf__free,
