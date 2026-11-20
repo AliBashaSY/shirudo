@@ -375,9 +375,10 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # One case of each rule below at the line given with it, and beside it
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
-SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak getenv_null"
+SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak getenv_null
+strerror_negative"
 SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148
-getenv_null:170 getenv_null:177"
+getenv_null:170 getenv_null:177 strerror_negative:196 strerror_negative:202"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -568,6 +569,28 @@ int env_tested(void)
 	if (!region || !region[0] || !endpoint)
 		return -EINVAL;
 	return endpoint[0] && strlen(endpoint) < 256;
+}
+
+void report_stored(const char *path)
+{
+	int ret;
+
+	ret = -errno;
+	pr_err("open %s: %s", path, strerror(ret));
+}
+
+void report_tested(int ret)
+{
+	if (ret < 0)
+		pr_err("load: %s", strerror(ret));
+}
+
+void report_negated(int ret, int err)
+{
+	if (ret < 0)
+		pr_err("load: %s", strerror(-ret));
+	err = errno;
+	pr_err("read: %s", strerror(err));
 }
 EOF
 }

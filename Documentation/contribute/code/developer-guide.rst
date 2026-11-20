@@ -744,6 +744,10 @@ can rewrite what it finds does so with ``-D patch``:
      - A ``getenv()`` result kept in a variable and read before a test
        that it is not ``NULL``, in its own condition or before it, where
        ``cert_misc`` refuses one passed on directly.
+   * - ``strerror_negative``
+     - ``strerror()`` of a variable that holds a negative error number:
+       one assigned ``-errno`` or another negated value, or tested below
+       0 by the ``if`` that holds the call.
    * - ``errno_clobber``
      - A cleanup call, such as ``close()``, between a failure and the
        read of its ``errno``, after CERT C ERR30-C.

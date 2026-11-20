@@ -57,10 +57,10 @@ signed config image.
        alone, the rewrite of ``-D patch``, a case for each rule taken
        from CERT C, a case for each BPF hazard rule beside the safe form
        it leaves alone, a case at its line for ``stale_success``,
-       ``break_error``, ``sum_overwrite``, ``fd_leak`` and
-       ``getenv_null`` beside the forms it leaves alone, a dead store
-       beside the reads ``dead_store`` leaves alone, a count by hand in
-       a macro and an ``ARRAY_SIZE()`` of a file's own for
+       ``break_error``, ``sum_overwrite``, ``fd_leak``, ``getenv_null``
+       and ``strerror_negative`` beside the forms it leaves alone, a
+       dead store beside the reads ``dead_store`` leaves alone, a count
+       by hand in a macro and an ``ARRAY_SIZE()`` of a file's own for
        ``array_size``, which rewrites the one and leaves the other, a
        file a rule gives up on at its time limit named rather than
        failed, ``SEC`` declared an attribute in every rule, and the tree
