@@ -293,6 +293,16 @@ static void command_line_that_does_not_fit_is_absent(void)
 	EXPECT_STREQ(img.root, "");
 }
 
+static void memory_of_this_host_is_read(void)
+{
+	struct sysinfo si;
+
+	sysinfo_gather(&si);
+	EXPECT_GT(si.mem_total_kb, 0);
+	EXPECT_TRUE(si.mem_avail_kb >= 0 &&
+		    si.mem_avail_kb <= si.mem_total_kb);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(unquoted_values_are_copied),
 	UNIT_CASE(one_pair_of_matching_quotes_is_stripped),
@@ -311,6 +321,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(malformed_roothash_does_not_fall_back_to_usrhash),
 	UNIT_CASE(no_hash_is_absent),
 	UNIT_CASE(command_line_that_does_not_fit_is_absent),
+	UNIT_CASE(memory_of_this_host_is_read),
 	{}
 };
 

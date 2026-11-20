@@ -145,6 +145,21 @@ static long read_uptime_sec(void)
 	return (long)sec;
 }
 
+/* The number of a "<name>   <n> kB" line of /proc/meminfo, or -1. */
+static long meminfo_kb(const char *line, const char *name)
+{
+	const char *p = str_after_prefix(line, name);
+	__u64 kb;
+
+	if (!p)
+		return -1;
+	while (*p == ' ' || *p == '\t')
+		p++;
+	if (parse_u64(p, digits(p, strlen(p)), LONG_MAX, &kb))
+		return -1;
+	return (long)kb;
+}
+
 static void read_mem(long *total_kb, long *avail_kb)
 {
 	char line[256];
@@ -156,14 +171,10 @@ static void read_mem(long *total_kb, long *avail_kb)
 	if (!f)
 		return;
 	while (fgets(line, sizeof(line), f)) {
-		long kb;
-
-		if (*total_kb < 0 &&
-		    sscanf(line, "MemTotal: %ld kB", &kb) == 1)
-			*total_kb = kb;
-		else if (*avail_kb < 0 &&
-			 sscanf(line, "MemAvailable: %ld kB", &kb) == 1)
-			*avail_kb = kb;
+		if (*total_kb < 0)
+			*total_kb = meminfo_kb(line, "MemTotal:");
+		if (*avail_kb < 0)
+			*avail_kb = meminfo_kb(line, "MemAvailable:");
 		if (*total_kb >= 0 && *avail_kb >= 0)
 			break;
 	}
