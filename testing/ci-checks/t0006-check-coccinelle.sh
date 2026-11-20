@@ -375,8 +375,8 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # One case of each rule below at the line given with it, and beside it
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
-SAMPLE_RULES="stale_success break_error"
-SAMPLE_LINES="stale_success:9 break_error:53"
+SAMPLE_RULES="stale_success break_error sum_overwrite"
+SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -480,6 +480,41 @@ int scan_fallback(DIR *d, char *root)
 		ret = -EINVAL;
 	closedir(d);
 	return ret;
+}
+
+size_t status_cap(int rows, int events, int lines)
+{
+	size_t cap;
+
+	cap = 16384 + (size_t)rows * 256;
+	if (events)
+		cap = 65536 + 3 * (size_t)events;
+	if (lines)
+		cap += (size_t)lines * 1024;
+	return cap;
+}
+
+size_t status_cap_added(int rows, int events, int lines)
+{
+	size_t cap;
+
+	cap = 16384 + (size_t)rows * 256;
+	if (events)
+		cap += 65536 + 3 * (size_t)events;
+	if (lines)
+		cap += (size_t)lines * 1024;
+	return cap;
+}
+
+size_t header_size(size_t fixed, size_t chosen, int custom)
+{
+	size_t n;
+
+	n = fixed;
+	if (custom)
+		n = chosen;
+	n += 64;
+	return n;
 }
 EOF
 }

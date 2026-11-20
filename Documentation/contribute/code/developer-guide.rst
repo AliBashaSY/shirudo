@@ -772,6 +772,9 @@ can rewrite what it finds does so with ``-D patch``:
      - An error stored before a ``break`` that the code after the loop
        does not test before it calls something other than a cleanup,
        and then stores over.
+   * - ``sum_overwrite``
+     - A sum stored in a total under a condition, between a value it had
+       and an addition to it, where ``+=`` is likely meant.
    * - ``bpf_map_rmw``
      - ``++``, ``+=`` or ``|=`` through the value of a map that is not
        per-CPU, or through inode, socket or cgroup storage, which other
