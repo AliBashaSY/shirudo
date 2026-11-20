@@ -69,6 +69,7 @@ static int code_unit(const __u8 *t, size_t n, size_t i)
  */
 static size_t string_end(const __u8 *t, size_t n, size_t i)
 {
+	static const char escapes[] = "\"\\/bfnrt";
 	size_t w;
 	int cu;
 
@@ -84,7 +85,8 @@ static size_t string_end(const __u8 *t, size_t n, size_t i)
 			i += w;
 			continue;
 		}
-		if (i + 1 < n && memchr("\"\\/bfnrt", t[i + 1], 8)) {
+		if (i + 1 < n &&
+		    memchr(escapes, t[i + 1], sizeof(escapes) - 1)) {
 			i += 2;
 			continue;
 		}

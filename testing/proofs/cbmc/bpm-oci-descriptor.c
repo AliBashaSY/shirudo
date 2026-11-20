@@ -23,7 +23,7 @@ static bool sha256_digest(const char *d)
 {
 	size_t i;
 
-	if (memcmp(d, "sha256:", 7) || d[71])
+	if (!str_has_prefix(d, "sha256:") || d[71])
 		return false;
 	for (i = 7; i < 71; i++)
 		if (!hex_digit(d[i]))

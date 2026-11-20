@@ -75,7 +75,7 @@ static char lower(char c)
 static void digest_matches(void)
 {
 	char *want = any_bytes(STR_MAX + 8), *hex = any_string();
-	bool same = !memcmp(want, "sha256:", 7);
+	bool same = str_has_prefix(want, "sha256:");
 	size_t i;
 
 	__CPROVER_assume(!want[STR_MAX + 7]);

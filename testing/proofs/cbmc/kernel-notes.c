@@ -48,7 +48,7 @@ static bool lower_hex(char c)
 static bool gnu_build_id(const __u8 *notes)
 {
 	return word(notes + 8) == 3 && word(notes) == 4 &&
-	       !memcmp(notes + 12, "GNU", 4);
+	       !memcmp(notes + 12, "GNU", sizeof("GNU"));
 }
 
 /* A section of one note, of a name of up to 4 bytes and a descriptor. */

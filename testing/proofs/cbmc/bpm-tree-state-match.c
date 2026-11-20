@@ -135,8 +135,10 @@ FILE *fdopen(int fd, const char *mode)
 
 FILE *fopen(const char *path, const char *mode)
 {
+	static const char labels[] = "/etc/shirudo/node.labels";
+
 	__CPROVER_assert(!IMAGE_ACTIVE &&
-			 !memcmp(path, "/etc/shirudo/node.labels", 25),
+			 !memcmp(path, labels, sizeof(labels)),
 			 "the labels of /etc without a config image");
 	if (open_error) {
 		errno = -open_error;

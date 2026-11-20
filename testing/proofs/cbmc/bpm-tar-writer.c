@@ -83,8 +83,9 @@ static void header_reads_back(const __u8 *h)
 			 octal_field(h, 108, 8, 0) &&
 			 octal_field(h, 116, 8, 0) && octal_field(h, 136, 12, 0),
 			 "the permission bits, uid, gid and mtime 0");
-	__CPROVER_assert(!memcmp(h + 257, "ustar", 6) &&
-			 !memcmp(h + 263, "00", 2), "a ustar header");
+	__CPROVER_assert(!memcmp(h + 257, "ustar", sizeof("ustar")) &&
+			 !memcmp(h + 263, "00", sizeof("00") - 1),
+			 "a ustar header");
 }
 
 /*

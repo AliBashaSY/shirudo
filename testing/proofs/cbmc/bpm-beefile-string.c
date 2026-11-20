@@ -45,6 +45,7 @@ static bool blank(char c)
  */
 static int quoted(const char *v, char *d)
 {
+	static const char escapes[] = "nrt\\\"";
 	size_t from = 0, to = LEN, i;
 	int n = 0;
 	char c;
@@ -62,7 +63,8 @@ static int quoted(const char *v, char *d)
 			return -1;
 		if (c == '\\' && v[from] == '"') {
 			c = v[++i];
-			if (i == to - 1 || !memchr("nrt\\\"", c, 5))
+			if (i == to - 1 ||
+			    !memchr(escapes, c, sizeof(escapes) - 1))
 				return -1;
 			c = c == 'n' ? '\n' : c == 'r' ? '\r' : c == 't' ? '\t' : c;
 		}

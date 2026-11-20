@@ -20,9 +20,10 @@ static __u32 le32_at(size_t off)
 
 static bool superblock_valid(void)
 {
-	static const char sha256[32] = "sha256";
+	static const char signature[8] = "verity", sha256[32] = "sha256";
 
-	return !memcmp(proof_file, "verity\0\0", 8) && le32_at(8) == 1 &&
+	return !memcmp(proof_file, signature, sizeof(signature)) &&
+	       le32_at(8) == 1 &&
 	       le32_at(12) == 1 && !memcmp(proof_file + 32, sha256, 32) &&
 	       le32_at(64) == 4096 && le32_at(68) == 4096 &&
 	       get_le16(proof_file + 80) == 32;

@@ -42,6 +42,7 @@ static bool close_ok(char c, bool *array, size_t *depth, enum state *s)
  */
 static bool json_text(const char *t, size_t n)
 {
+	static const char escapes[] = "\"\\/bfnrt";
 	bool array[CALLS + 1], key = false;
 	size_t i, depth = 0, hex = 0;
 	const char *word = "";
@@ -63,7 +64,7 @@ static bool json_text(const char *t, size_t n)
 			if (c == 'u') {
 				s = HEX;
 				hex = 0;
-			} else if (memchr("\"\\/bfnrt", c, 8)) {
+			} else if (memchr(escapes, c, sizeof(escapes) - 1)) {
 				s = STRING;
 			} else {
 				return false;

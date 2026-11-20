@@ -161,7 +161,7 @@ static bool digest_text(const char *s)
 		digits &= (s[i] >= '0' && s[i] <= '9') ||
 			  (s[i] >= 'a' && s[i] <= 'f') ||
 			  (s[i] >= 'A' && s[i] <= 'F');
-	return !memcmp(s, "sha256:", 7) && digits && !s[71];
+	return str_has_prefix(s, "sha256:") && digits && !s[71];
 }
 
 /* upatch-name proves which names upatch_name_valid() takes. */
