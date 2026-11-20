@@ -5,6 +5,7 @@ string-utf8		--unwind 10
 string-copy		--unwind 10
 string-span		--unwind 9
 string-suffix		--unwind 8
+string-prefix		--unwind 8
 string-sanitize		--unwind 8 LEN=0-6
 hex			--unwind 12
 io-lines		--unwind 10

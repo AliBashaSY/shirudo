@@ -4,8 +4,8 @@
  *
  * Bounded number parsing, string copies and formatting, file name
  * suffixes, DNS names, UTF-8 characters and text for a terminal, from
- * util/string.c, compares with a string literal, and the scrub and compare
- * for secrets.
+ * util/string.c, the compares of a prefix and of a span, and the scrub
+ * and compare for secrets.
  */
 
 #ifndef SHIRUDO_STRING_H
@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 
 #include <shirudo/misc.h>
@@ -77,9 +78,12 @@ bool name_has_suffix(const char *name, size_t len, const char *suffix);
  * The length of prefix where s starts with it, else 0. prefix is a string
  * literal, whose length the compiler takes from its size: anything else
  * fails the build, so that the size of a pointer never stands in for it.
+ * The _nocase form takes a letter in either case.
  */
 #define str_has_prefix(s, prefix)					\
 	(strncmp(s, "" prefix, sizeof(prefix) - 1) ? 0 : sizeof(prefix) - 1)
+#define str_has_prefix_nocase(s, prefix)				\
+	(strncasecmp(s, "" prefix, sizeof(prefix) - 1) ? 0 : sizeof(prefix) - 1)
 
 /*
  * Whether *sp starts with the string literal prefix; where it does, *sp
@@ -93,6 +97,33 @@ bool name_has_suffix(const char *name, size_t len, const char *suffix);
 	*__sp += __n;							\
 	__n != 0;							\
 })
+#define str_skip_prefix_nocase(sp, prefix) ({				\
+	__auto_type __sp = (sp);					\
+	size_t __n = str_has_prefix_nocase(*__sp, prefix);		\
+									\
+	*__sp += __n;							\
+	__n != 0;							\
+})
+
+/*
+ * Where s goes on after prefix, or NULL where it does not start with it.
+ * prefix is any string, the empty one included, which every string starts
+ * with. The _nocase form takes a letter in either case.
+ */
+static inline const char *str_after_prefix(const char *s, const char *prefix)
+{
+	size_t n = strlen(prefix);
+
+	return strncmp(s, prefix, n) ? NULL : s + n;
+}
+
+static inline const char *str_after_prefix_nocase(const char *s,
+						  const char *prefix)
+{
+	size_t n = strlen(prefix);
+
+	return strncasecmp(s, prefix, n) ? NULL : s + n;
+}
 
 /*
  * Whether the len bytes at s are the string literal lit, no more and no
@@ -100,6 +131,21 @@ bool name_has_suffix(const char *name, size_t len, const char *suffix);
  */
 #define span_equals(s, len, lit)					\
 	((len) == sizeof(lit) - 1 && !strncmp(s, "" lit, sizeof(lit) - 1))
+
+/* The same for a string that is no literal. */
+static inline bool span_equals_str(const char *s, size_t len, const char *str)
+{
+	return strlen(str) == len && !strncmp(s, str, len);
+}
+
+/*
+ * The length of the string literal prefix where the len bytes at s, which
+ * need no terminator, start with it in either case, else 0.
+ */
+#define span_has_prefix_nocase(s, len, prefix)				\
+	(((len) >= sizeof(prefix) - 1 &&				\
+	  !strncasecmp(s, "" prefix, sizeof(prefix) - 1)) ?		\
+	 sizeof(prefix) - 1 : 0)
 
 /*
  * A DNS host name: labels of letters, digits and inner hyphens, 1 to 63

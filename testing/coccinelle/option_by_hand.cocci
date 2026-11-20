@@ -12,7 +12,10 @@ attribute name SEC;
 expression E, F;
 constant char[] S;
 identifier f = {strcmp, strncmp, strcasecmp, strncasecmp, str_has_prefix,
-		str_skip_prefix};
+		str_skip_prefix, str_has_prefix_nocase,
+		str_skip_prefix_nocase, str_after_prefix,
+		str_after_prefix_nocase};
+identifier g = {span_equals, span_equals_str, span_has_prefix_nocase};
 position p;
 @@
 (
@@ -20,7 +23,7 @@ position p;
 |
   f@p(S, E, ...)
 |
-  span_equals@p(E, F, S)
+  g@p(E, F, S)
 )
 
 @script:python depends on report@

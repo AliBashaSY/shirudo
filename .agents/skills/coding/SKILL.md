@@ -392,7 +392,7 @@ already, or should. The basics:
 | Parse a number | `parse_u64()`, `parse_s64()`, `parse_x64()`, `digits()` (`<shirudo/string.h>`) |
 | Copy or format a string | `strscpy()`, `strsprintf()`, `vstrsprintf()`, and check `-E2BIG` |
 | A upatch's pin directory or a pin in it | `upatch_pin_path()` (`util/paths.h`) |
-| A string's prefix, or a span that must be one literal | `str_has_prefix()` to test a prefix, `str_skip_prefix()` to step past it, `span_equals()` for a span of known length (`<shirudo/string.h>`); never `strncmp()` with a length counted by hand |
+| A string's prefix, or a span that must be one string | `str_has_prefix()` to test a literal prefix and `str_skip_prefix()` to step past it, `str_after_prefix()` for the rest after a prefix known only at run time, each with a `_nocase` form for a letter in either case; `span_equals()` for a span of known length against a literal, `span_equals_str()` against a string, `span_has_prefix_nocase()` for a span's start (`<shirudo/string.h>`); never `strncmp()` or `strncasecmp()` with a length counted by hand |
 | A file name's extension | `name_has_suffix()` (`<shirudo/string.h>`), `upatch_select()` for a scandir of upatches |
 | Text from outside on a terminal | `text_sanitize()`; UTF-8 with `utf8_width()` |
 | Bytes from outside as a string | `span_to_str()` (`<shirudo/string.h>`), which takes their length and refuses a NUL among them; `read_text_line()` for a line of a settings file (`util/io.h`) |

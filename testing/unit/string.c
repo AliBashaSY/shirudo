@@ -582,6 +582,87 @@ static void span_to_str_takes_a_buffer_in_place(void)
 	EXPECT_EQ(span_to_str(text, 4, text, 4), -E2BIG);
 }
 
+static void nocase_prefix_takes_a_letter_in_either_case(void)
+{
+	const char *p = "BEARER realm=\"x\"";
+
+	EXPECT_UEQ(str_has_prefix_nocase("Location: /v2/", "location:"), 9);
+	EXPECT_UEQ(str_has_prefix_nocase("LOCATION:", "Location:"), 9);
+	EXPECT_UEQ(str_has_prefix_nocase("Locatio", "Location:"), 0);
+	EXPECT_UEQ(str_has_prefix_nocase("Location;", "Location:"), 0);
+	EXPECT_UEQ(str_has_prefix_nocase("", "Location:"), 0);
+	EXPECT_FALSE(str_skip_prefix_nocase(&p, "Basic"));
+	EXPECT_STREQ(p, "BEARER realm=\"x\"");
+	EXPECT_TRUE(str_skip_prefix_nocase(&p, "Bearer"));
+	EXPECT_STREQ(p, " realm=\"x\"");
+}
+
+static void str_after_prefix_gives_the_rest(void)
+{
+	const char *path = "/etc/shirudo/keys", *dir = "/etc/shirudo";
+
+	EXPECT_TRUE(str_after_prefix(path, dir) == path + 12);
+	EXPECT_STREQ(str_after_prefix(dir, dir), "");
+	EXPECT_FALSE(str_after_prefix(dir, path));
+	EXPECT_FALSE(str_after_prefix("/etc/shirudp/keys", dir));
+	EXPECT_FALSE(str_after_prefix("/ETC/shirudo", dir));
+	EXPECT_FALSE(str_after_prefix("", dir));
+}
+
+static void every_string_starts_with_the_empty_one(void)
+{
+	const char *s = "x", *none = "";
+
+	EXPECT_TRUE(str_after_prefix(s, none) == s);
+	EXPECT_TRUE(str_after_prefix(none, none) == none);
+	EXPECT_TRUE(str_after_prefix_nocase(s, none) == s);
+}
+
+static void str_after_prefix_nocase_takes_either_case(void)
+{
+	const char *name = "ABCDEF01.der", *hex = "abcdef01";
+
+	EXPECT_TRUE(str_after_prefix_nocase(name, hex) == name + 8);
+	EXPECT_FALSE(str_after_prefix(name, hex));
+	EXPECT_FALSE(str_after_prefix_nocase("ABCDEF0", hex));
+	EXPECT_FALSE(str_after_prefix_nocase("ABCDEF02.der", hex));
+}
+
+static void span_equals_str_wants_the_whole_string(void)
+{
+	const char *arg = "--name=value", *name = "--name";
+	char *exact = span("json", 4);
+
+	EXPECT_TRUE(span_equals_str(arg, 6, name));
+	EXPECT_FALSE(span_equals_str(arg, 5, name));
+	EXPECT_FALSE(span_equals_str(arg, 7, name));
+	EXPECT_FALSE(span_equals_str(arg, 6, "--nome"));
+	EXPECT_FALSE(span_equals_str(arg, 6, "--NAME"));
+	EXPECT_TRUE(span_equals_str(arg, 0, ""));
+	EXPECT_FALSE(span_equals_str(arg, 0, name));
+	EXPECT_TRUE(span_equals_str(exact, 4, "json"));
+	EXPECT_FALSE(span_equals_str(exact, 4, "jsonl"));
+	EXPECT_FALSE(span_equals_str(exact, 4, "jso"));
+	xfree(exact, 4);
+}
+
+static void span_prefix_reads_no_more_than_the_span(void)
+{
+	char *line = span("retry-after: 3", 14), *cut = span("Retry-Afte", 10);
+	char *exact = span("RETRY-AFTER:", 12);
+
+	EXPECT_UEQ(span_has_prefix_nocase(line, 14, "Retry-After:"), 12);
+	EXPECT_UEQ(span_has_prefix_nocase(line, 12, "Retry-After:"), 12);
+	EXPECT_UEQ(span_has_prefix_nocase(line, 11, "Retry-After:"), 0);
+	EXPECT_UEQ(span_has_prefix_nocase(line, 14, "Retry-Later:"), 0);
+	EXPECT_UEQ(span_has_prefix_nocase(cut, 10, "Retry-After:"), 0);
+	EXPECT_UEQ(span_has_prefix_nocase(cut, 0, "Retry-After:"), 0);
+	EXPECT_UEQ(span_has_prefix_nocase(exact, 12, "Retry-After:"), 12);
+	xfree(line, 14);
+	xfree(cut, 10);
+	xfree(exact, 12);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(digits_counts_leading_digits),
 	UNIT_CASE(decimal_fills_its_span),
@@ -612,6 +693,12 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(span_to_str_refuses_a_nul_among_the_bytes),
 	UNIT_CASE(span_to_str_wants_room_for_the_terminator),
 	UNIT_CASE(span_to_str_takes_a_buffer_in_place),
+	UNIT_CASE(nocase_prefix_takes_a_letter_in_either_case),
+	UNIT_CASE(str_after_prefix_gives_the_rest),
+	UNIT_CASE(every_string_starts_with_the_empty_one),
+	UNIT_CASE(str_after_prefix_nocase_takes_either_case),
+	UNIT_CASE(span_equals_str_wants_the_whole_string),
+	UNIT_CASE(span_prefix_reads_no_more_than_the_span),
 	{}
 };
 

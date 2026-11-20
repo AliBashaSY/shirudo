@@ -73,6 +73,15 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - Names up to 6 bytes, suffixes up to 3
      - True exactly when the name's last bytes are the suffix and at
        least one byte comes before them
+   * - ``string-prefix``
+     - ``str_after_prefix()``, ``str_has_prefix_nocase()``,
+       ``str_skip_prefix_nocase()``, ``span_equals_str()``,
+       ``span_has_prefix_nocase()``
+     - Strings and spans up to 5 bytes, prefixes up to 3
+     - The rest of the string exactly where it starts with the prefix,
+       in either case for the ``_nocase`` forms, and the empty prefix
+       starts every string; a span equals a string of its length and
+       bytes alone; nothing past a span's length is read
    * - ``hex``
      - ``hex_encode()``, ``hex_alloc()``, ``hex_decode()``,
        ``hex_decode_max()``
