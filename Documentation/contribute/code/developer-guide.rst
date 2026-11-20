@@ -712,8 +712,9 @@ can rewrite what it finds does so with ``-D patch``:
      - An allocation sized for another type than its pointer, and a
        free of memory no allocator returned.
    * - ``double_test``, ``double_init``
-     - A term tested twice, an ``if`` whose branches are alike, and a
-       member initialized twice.
+     - A term tested twice, an ``if`` or a conditional whose branches
+       are alike, an ``else if`` that tests what an ``if`` before it
+       tested, and a member initialized twice.
    * - ``va_end``
      - A ``va_start()`` or ``va_copy()`` without a ``va_end()`` on a
        path out.

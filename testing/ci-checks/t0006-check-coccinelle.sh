@@ -376,9 +376,10 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
 SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak getenv_null
-strerror_negative"
+strerror_negative double_test"
 SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148
-getenv_null:170 getenv_null:177 strerror_negative:196 strerror_negative:202"
+getenv_null:170 getenv_null:177 strerror_negative:196 strerror_negative:202
+double_test:215 double_test:222 double_test:231 double_test:243 double_test:254"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -591,6 +592,62 @@ void report_negated(int ret, int err)
 		pr_err("load: %s", strerror(-ret));
 	err = errno;
 	pr_err("read: %s", strerror(err));
+}
+
+const char *direction_alike(int egress)
+{
+	return egress ? "ingress" : "ingress";
+}
+
+int kind_two(int kind)
+{
+	if (kind == 3)
+		return 1;
+	else if (kind == 3)
+		return 2;
+	return 0;
+}
+
+int kind_named_twice(const char *kind)
+{
+	if (!strcmp(kind, "xdp"))
+		return 1;
+	else if (!strcmp(kind, "xdp"))
+		return 2;
+	else
+		return 0;
+}
+
+int kind_repeated(int kind)
+{
+	if (kind == 3)
+		return 1;
+	else if (kind == 4)
+		return 2;
+	else if (kind == 3)
+		return 3;
+	return 0;
+}
+
+int kind_repeated_else(int kind)
+{
+	if (kind == 3)
+		return 1;
+	else if (kind == 4)
+		return 2;
+	else if (kind == 3)
+		return 3;
+	else
+		return 0;
+}
+
+int counted_twice(struct lexer *l)
+{
+	if (l->pos++ == 0)
+		return 1;
+	else if (l->pos++ == 0)
+		return 2;
+	return 0;
 }
 EOF
 }
