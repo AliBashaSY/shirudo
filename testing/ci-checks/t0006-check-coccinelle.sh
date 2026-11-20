@@ -6,12 +6,12 @@
 # check with file, line, rule and message, one that does not passes it,
 # a rule that can rewrite does with -D patch, a rule reads the headers
 # its #spatch line asks for, on a throwaway repository, each rule taken
-# from CERT C, each BPF hazard rule, each scrub rule and dead_store
-# report a sample of what they refuse, the rules of SAMPLE_RULES each at
-# its line, array_size a count by hand in a macro and an ARRAY_SIZE()
-# outside <shirudo/misc.h>, a file a rule gives up on at its time limit
-# is named rather than failed, every rule declares SEC an attribute, and
-# the tree itself.
+# from CERT C, each BPF hazard rule, each scrub rule, dead_store and the
+# two rules for bytes taken for a string report a sample of what they
+# refuse, the rules of SAMPLE_RULES each at its line, array_size a count
+# by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>, a file
+# a rule gives up on at its time limit is named rather than failed, every
+# rule declares SEC an attribute, and the tree itself.
 
 cd "$(dirname "$0")/.."
 . ./test-lib.sh
@@ -935,6 +935,142 @@ test_expect_success 'option_by_hand reports an option compared outside the parse
 	! (cd "$R7" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
 	grep -q "^option_by_hand: samples.c:3:" "$W/err" &&
 	[ "$(grep -c "^option_by_hand:" "$W/err")" = 1 ]
+'
+
+# Bytes taken for a string: a buffer a read filled that nothing
+# terminated, and a file read whole that nothing saw with its length,
+# each beside the forms that terminate or check first, which no rule
+# reports.
+write_string_samples() {
+	cat >"$1" <<'EOF'
+int id_unterminated(int fd, const char *want)
+{
+	char id[64];
+
+	if (read(fd, id, sizeof(id) - 1) <= 0)
+		return -EIO;
+	return strcmp(id, want);
+}
+
+int id_terminated(int fd, const char *want)
+{
+	char id[64];
+	ssize_t n;
+
+	n = read(fd, id, sizeof(id) - 1);
+	if (n <= 0)
+		return -EIO;
+	id[n] = '\0';
+	return strcmp(id, want);
+}
+
+int id_zeroed(int fd, const char *want)
+{
+	char id[64] = {};
+
+	if (read(fd, id, sizeof(id) - 1) <= 0)
+		return -EIO;
+	return strcmp(id, want);
+}
+
+int id_checked(int fd, const char *want)
+{
+	char id[64];
+	ssize_t n;
+
+	n = read(fd, id, sizeof(id) - 1);
+	if (n <= 0 || span_to_str(id, sizeof(id), id, (size_t)n))
+		return -EIO;
+	return strcmp(id, want);
+}
+
+size_t label_unterminated(const char *path)
+{
+	char label[65];
+
+	if (getxattr(path, "user.label", label, sizeof(label)) < 0)
+		return 0;
+	return strlen(label);
+}
+
+int file_searched(const char *path, const char *needle)
+{
+	size_t len;
+	char *text;
+	int found;
+
+	if (read_file(path, 4096, &text, &len))
+		return -EIO;
+	found = strstr(text, needle) != NULL;
+	xfree(text, len + 1);
+	return found;
+}
+
+int file_checked(const char *path, const char *needle)
+{
+	size_t len;
+	char *text;
+	int found;
+
+	if (read_file(path, 4096, &text, &len))
+		return -EIO;
+	if (span_to_str(text, len + 1, text, len)) {
+		xfree(text, len + 1);
+		return -EINVAL;
+	}
+	found = strstr(text, needle) != NULL;
+	xfree(text, len + 1);
+	return found;
+}
+
+int file_parsed(const char *path, struct json_field *f, size_t n)
+{
+	size_t len;
+	char *text;
+	int ret;
+
+	if (read_file(path, 4096, &text, &len))
+		return -EIO;
+	ret = json_parse(text, len, f, n);
+	xfree(text, len + 1);
+	return ret;
+}
+
+int member_walked(int fd)
+{
+	char *save, *line;
+	size_t len;
+	__u8 *body;
+	int n = 0;
+
+	if (bpm_pkg_read_member_fd(fd, "list", NULL, NULL, 0, &body, &len,
+				   4096))
+		return -EIO;
+	for (line = strtok_r((char *)body, "\n", &save); line;
+	     line = strtok_r(NULL, "\n", &save))
+		n++;
+	xfree(body, len + 1);
+	return n;
+}
+EOF
+}
+
+test_expect_success 'the string rules report bytes taken for a string unchecked' '
+	R9=$W/string &&
+	mkdir -p "$R9/testing/coccinelle" &&
+	git init -q "$R9" &&
+	cp "$ROOT/testing/coccinelle/read_unterminated.cocci" \
+		"$ROOT/testing/coccinelle/file_as_string.cocci" \
+		"$R9/testing/coccinelle/" &&
+	write_string_samples "$R9/samples.c" &&
+	! (cd "$R9" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	grep -q "2 of 2 rules matched" "$W/err" &&
+	grep -q "^read_unterminated: samples.c:7:" "$W/err" &&
+	grep -q "^read_unterminated: samples.c:48:" "$W/err" &&
+	[ "$(grep -c "^read_unterminated: samples.c:" "$W/err")" = 2 ] &&
+	grep -q "^file_as_string: samples.c:59:" "$W/err" &&
+	grep -q "^file_as_string: samples.c:104:" "$W/err" &&
+	[ "$(grep -c "^file_as_string: samples.c:" "$W/err")" = 2 ]
 '
 
 # A count by hand in a macro, which writes its argument in parentheses,

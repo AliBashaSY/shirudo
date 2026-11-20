@@ -695,6 +695,19 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``literal_len``
      - A length that does not match the string literal it compares or
        copies.
+   * - ``read_unterminated``
+     - A buffer that ``read()``, ``pread()``, ``recv()``, ``readlink()``
+       or the ``getxattr()`` family filled, passed to ``strlen()``,
+       ``strcmp()``, ``strchr()`` or their kin before anything
+       terminated it: ``buf[n] = '\0'``, ``span_to_str()``, or an array
+       zeroed where it is declared and read into for one byte less than
+       its size.
+   * - ``file_as_string``
+     - The bytes ``read_file()``, ``read_fd()`` or a reader of a package
+       member returned, passed to ``strstr()``, ``strtok_r()``,
+       ``strlen()`` or their kin before any function took them with
+       their length: such a function takes the file to end at its first
+       NUL. ``span_to_str()`` on the buffer in place refuses one.
    * - ``option_by_hand``
      - A value compared with an option name, a literal that starts with
        ``-`` and is longer than one character, outside

@@ -60,11 +60,12 @@ signed config image.
        ``break_error``, ``sum_overwrite``, ``fd_leak``, ``getenv_null``,
        ``strerror_negative`` and ``double_test`` beside the forms it
        leaves alone, a dead store beside the reads ``dead_store`` leaves
-       alone, a count by hand in a macro and an ``ARRAY_SIZE()`` of a
-       file's own for ``array_size``, which rewrites the one and leaves
-       the other, a file a rule gives up on at its time limit named
-       rather than failed, ``SEC`` declared an attribute in every rule,
-       and the tree itself
+       alone, a buffer a read filled and a file read whole taken for a
+       string, beside the forms that terminate or check first, a count by
+       hand in a macro and an ``ARRAY_SIZE()`` of a file's own for
+       ``array_size``, which rewrites the one and leaves the other, a file
+       a rule gives up on at its time limit named rather than failed,
+       ``SEC`` declared an attribute in every rule, and the tree itself
    * - ``t0007-check-operator-linkage``
      - ``check-operator-linkage.sh``: the libraries an operator binary
        may link and its own interpreter, another loader, a library
