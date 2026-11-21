@@ -195,6 +195,27 @@ static void strscpy_cuts_and_says_so(void)
 	EXPECT_EQ(none[0], 'x');
 }
 
+static void strscpy_literal_copies_with_its_terminator(void)
+{
+	struct {
+		char six[6];
+		char after;
+	} s;
+	char big[8], one[1];
+
+	memset(&s, 'x', sizeof(s));
+	strscpy_literal(s.six, "hello");
+	EXPECT_STREQ(s.six, "hello");
+	EXPECT_EQ(s.after, 'x');
+	memset(big, 'x', sizeof(big));
+	strscpy_literal(big, "hi");
+	EXPECT_STREQ(big, "hi");
+	EXPECT_EQ(big[3], 'x');
+	one[0] = 'x';
+	strscpy_literal(one, "");
+	EXPECT_STREQ(one, "");
+}
+
 static void strsprintf_writes_what_fits_whole(void)
 {
 	char eight[8], big[64];
@@ -847,6 +868,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(signed_number_keeps_bounds_and_form),
 	UNIT_CASE(strscpy_copies_what_fits_whole),
 	UNIT_CASE(strscpy_cuts_and_says_so),
+	UNIT_CASE(strscpy_literal_copies_with_its_terminator),
 	UNIT_CASE(strsprintf_writes_what_fits_whole),
 	UNIT_CASE(strsprintf_leaves_nothing_when_cut),
 	UNIT_CASE(xasprintf_allocates_the_size_needed),

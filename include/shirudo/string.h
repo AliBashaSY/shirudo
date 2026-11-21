@@ -46,6 +46,18 @@ int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out);
 ssize_t strscpy(char *dst, const char *src, size_t size);
 
 /*
+ * Copy the string literal lit, terminator and all, into the array dst.
+ * It cannot be cut: a lit that is no string literal, a dst that is a
+ * pointer rather than an array, and a lit longer than dst fail the
+ * build.
+ */
+#define strscpy_literal(dst, lit) do {					\
+	BUILD_BUG_ON_MSG(sizeof(lit) > sizeof(dst) + __must_be_array(dst), \
+			 #lit " does not fit in " #dst);		\
+	memcpy(dst, "" lit, sizeof(lit));				\
+} while (0)
+
+/*
  * The len bytes at src as a string in the cap bytes at dst, terminated:
  * 0, -EINVAL when a NUL is among them, where a string would end short of
  * the bytes it was given, or -E2BIG when they and their terminator do
