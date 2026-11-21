@@ -41,8 +41,13 @@ identifier rd3 = {read, pread, recv, readlink};
 identifier rd4 = {readlinkat, getxattr, lgetxattr, fgetxattr};
 identifier strfn = {strlen, strcmp, strcasecmp, strchr, strrchr, strstr,
 		    strcspn, strspn, strpbrk, strtok_r, strdup, xstrdup,
-		    atoi, puts, hex_decode, sha256_digest_decode};
-identifier second = {strscpy, strcmp, strcasecmp, strstr};
+		    atoi, puts, hex_decode, sha256_digest_decode,
+		    str_contains, str_equals_nocase, str_after_prefix,
+		    str_after_prefix_nocase, str_has_prefix,
+		    str_has_prefix_nocase};
+identifier second = {strscpy, strcmp, strcasecmp, strstr, str_contains,
+		     str_equals_nocase, str_after_prefix,
+		     str_after_prefix_nocase};
 position p1 != {zeroed3.p, zeroed4.p};
 position p2;
 @@

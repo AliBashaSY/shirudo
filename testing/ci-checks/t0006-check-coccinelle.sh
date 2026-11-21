@@ -1055,6 +1055,15 @@ int member_walked(int fd)
 	xfree(body, len + 1);
 	return n;
 }
+
+int id_searched(int fd)
+{
+	char id[64];
+
+	if (read(fd, id, sizeof(id) - 1) <= 0)
+		return -EIO;
+	return str_contains(id, "x");
+}
 EOF
 }
 
@@ -1070,7 +1079,8 @@ test_expect_success 'the string rules report bytes taken for a string unchecked'
 	grep -q "2 of 2 rules matched" "$W/err" &&
 	grep -q "^read_unterminated: samples.c:7:" "$W/err" &&
 	grep -q "^read_unterminated: samples.c:48:" "$W/err" &&
-	[ "$(grep -c "^read_unterminated: samples.c:" "$W/err")" = 2 ] &&
+	grep -q "^read_unterminated: samples.c:117:" "$W/err" &&
+	[ "$(grep -c "^read_unterminated: samples.c:" "$W/err")" = 3 ] &&
 	grep -q "^file_as_string: samples.c:59:" "$W/err" &&
 	grep -q "^file_as_string: samples.c:104:" "$W/err" &&
 	[ "$(grep -c "^file_as_string: samples.c:" "$W/err")" = 2 ]
