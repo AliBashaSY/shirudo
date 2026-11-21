@@ -341,8 +341,8 @@ static void check_cert_kernel_algo(struct preflight_result *r)
 	for (i = 0; i < set.n; i++) {
 		const __u8 *der = NULL;
 		size_t der_sz = 0;
+		int ret, err;
 		long key;
-		int ret;
 
 		ret = keys_cert_der(&set.certs[i], &der, &der_sz);
 		if (ret) {
@@ -351,19 +351,19 @@ static void check_cert_kernel_algo(struct preflight_result *r)
 		}
 		key = syscall(__NR_add_key, "asymmetric", "", der, der_sz,
 			      (long)KEY_SPEC_THREAD_KEYRING);
-		ret = key < 0 ? errno : 0;
+		err = key < 0 ? errno : 0;
 		syscall(__NR_keyctl, KEYCTL_CLEAR,
 			(long)KEY_SPEC_THREAD_KEYRING, 0L, 0L, 0L);
-		if (!ret)
+		if (!err)
 			continue;
-		if (ret == ENOENT || ret == ENOPKG)
+		if (err == ENOENT || err == ENOPKG)
 			fail(r, c,
 			     "kernel cannot verify the public-key algorithm of %s (ML-DSA certs need CONFIG_CRYPTO_MLDSA=y and CONFIG_CRYPTO_SHA512=y)",
 			     set.certs[i].path);
 		else
 			fail(r, c, "kernel rejected %s: %s "
 			     "(add_key asymmetric)", set.certs[i].path,
-			     strerror(ret));
+			     strerror(err));
 		return;
 	}
 	pass(c);
