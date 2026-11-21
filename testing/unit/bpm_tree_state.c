@@ -64,7 +64,7 @@ static int modules_read(const char *text, size_t len, bool gz,
 	memset(values, 0, sizeof(values));
 	ASSERT_EQ(tree_selector_kv_add(&sel.kconfig, &sel.n_kconfig,
 				       TREE_MAX_KCONFIG, &kv), 0);
-	strscpy(kv->key, "CONFIG_MODULES", sizeof(kv->key));
+	strscpy_literal(kv->key, "CONFIG_MODULES");
 	selector_hash_build(&sel, slots);
 	write_config_bytes(text, len, gz);
 	ret = read_selector_config_file(path, &sel, slots, values, found, gz);
@@ -131,7 +131,7 @@ static int read_gz(bool gz, off_t cut, const char *extra)
 
 	ASSERT_EQ(tree_selector_kv_add(&sel.kconfig, &sel.n_kconfig,
 				       TREE_MAX_KCONFIG, &kv), 0);
-	strscpy(kv->key, "CONFIG_MODULES", sizeof(kv->key));
+	strscpy_literal(kv->key, "CONFIG_MODULES");
 	selector_hash_build(&sel, slots);
 	write_config("CONFIG_MODULES=y\n", gz);
 	ASSERT_EQ(stat(path, &st), 0);

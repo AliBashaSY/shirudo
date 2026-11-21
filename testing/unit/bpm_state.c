@@ -15,7 +15,7 @@ static void entry(struct bpm_state_entry *e, const char *name,
 {
 	ASSERT_TRUE(strscpy(e->name, name, sizeof(e->name)) > 0);
 	ASSERT_TRUE(strscpy(e->version, version, sizeof(e->version)) > 0);
-	ASSERT_TRUE(strscpy(e->source, "main", sizeof(e->source)) > 0);
+	strscpy_literal(e->source, "main");
 	ASSERT_TRUE(strsprintf(e->path, sizeof(e->path), "%s/%s/%s",
 			       BPM_PACKAGES_DIR, name, version) > 0);
 }

@@ -15,7 +15,7 @@ int __wrap_bpm_tree_fetch_publication(struct bpm_oci_client *client,
 				      char *digest, size_t capacity)
 {
 	puts(certificate);
-	strscpy(pub->tree_id, "t", sizeof(pub->tree_id));
+	strscpy_literal(pub->tree_id, "t");
 	return 0;
 }
 
@@ -45,7 +45,7 @@ int main(int argc, const char **argv)
 	if (!ret) {
 		memcpy(bootstrap.tpm_owner_auth, "bootstrap-owner", 15);
 		bootstrap.tpm_owner_auth_len = 15;
-		strscpy(bootstrap.tpm_tcti, "bootstrap-tcti", sizeof(bootstrap.tpm_tcti));
+		strscpy_literal(bootstrap.tpm_tcti, "bootstrap-tcti");
 		ret = image_config_set(&bootstrap, fd);
 	}
 	close(fd);
@@ -85,8 +85,8 @@ int main(int argc, const char **argv)
 		struct tree_source source = {};
 		char digest[BPM_MAX_DIGEST];
 
-		strscpy(config.endpoint, "oci://example.invalid/tree", sizeof(config.endpoint));
-		strscpy(config.reference, "latest", sizeof(config.reference));
+		strscpy_literal(config.endpoint, "oci://example.invalid/tree");
+		strscpy_literal(config.reference, "latest");
 		ret = tree_source_open(&config, &source);
 		if (!ret)
 			ret = tree_fetch_checked(&source, config.reference,

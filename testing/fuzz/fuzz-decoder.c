@@ -47,10 +47,10 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 			abort();
 		views[i].source = src;
 		views[i].source_len = (__u32)len;
-		strscpy(views[i].source_name, strrchr(sources[i], '/') + 1,
-			sizeof(views[i].source_name));
-		strscpy(views[i].entrypoint, "decode",
-			sizeof(views[i].entrypoint));
+		if (strscpy(views[i].source_name, strrchr(sources[i], '/') + 1,
+			    sizeof(views[i].source_name)) < 0)
+			abort();
+		strscpy_literal(views[i].entrypoint, "decode");
 	}
 	return 0;
 }
@@ -82,7 +82,7 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	size -= 9;
 	/* The longest name, which the decoder gets in its input. */
 	memset(v.upatch, 'u', UPATCH_NAME_MAX - 1);
-	strscpy(v.name, "fuzz_map", sizeof(v.name));
+	strscpy_literal(v.name, "fuzz_map");
 
 	page.data = xmalloc(size + 1);
 	if (!page.data)

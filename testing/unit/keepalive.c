@@ -823,7 +823,7 @@ static int fake_read_state(void *ctx, struct tree_state *state)
 
 	*state = (struct tree_state){ .schema = 1, .generation = 1,
 				      .head_seq = KEEPALIVE_MASK_OPS };
-	strscpy(state->tree_id, "fleet-base", sizeof(state->tree_id));
+	strscpy_literal(state->tree_id, "fleet-base");
 	if (!node->n_seqs)
 		state->last_seq = MOVING_FROM + read;
 	else

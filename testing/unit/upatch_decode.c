@@ -76,9 +76,8 @@ static void decode_named(const char *upatch, const char *decoder_upatch,
 	ASSERT_TRUE(strscpy(f.decoder.upatch, decoder_upatch,
 			    sizeof(f.decoder.upatch)) >= 0);
 	ASSERT_TRUE(strscpy(f.decoder.map, view.name, sizeof(f.decoder.map)) >= 0);
-	ASSERT_TRUE(strscpy(f.decoder.source, "unit.lua", sizeof(f.decoder.source)) >= 0);
-	ASSERT_TRUE(strscpy(f.decoder.entrypoint, "decode",
-			    sizeof(f.decoder.entrypoint)) >= 0);
+	strscpy_literal(f.decoder.source, "unit.lua");
+	strscpy_literal(f.decoder.entrypoint, "decode");
 	ASSERT_TRUE(strscpy(f.source, source, sizeof(f.source)) >= 0);
 	f.decoder.source_off = cpu_to_le32(offsetof(struct decoder_fixture, source) - data_off);
 	f.decoder.source_len = cpu_to_le32(source_len);

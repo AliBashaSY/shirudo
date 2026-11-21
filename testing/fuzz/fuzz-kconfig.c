@@ -24,9 +24,9 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 		struct tree_selector_kv *kv;
 
 		if (tree_selector_kv_add(&sel.kconfig, &sel.n_kconfig,
-					 TREE_MAX_KCONFIG, &kv))
+					 TREE_MAX_KCONFIG, &kv) ||
+		    strscpy(kv->key, keys[i], sizeof(kv->key)) < 0)
 			abort();
-		strscpy(kv->key, keys[i], sizeof(kv->key));
 	}
 	selector_hash_build(&sel, slots);
 	return 0;

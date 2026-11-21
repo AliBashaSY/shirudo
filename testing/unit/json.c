@@ -28,8 +28,9 @@ static int name_on_elem(void *ctx)
 {
 	struct doc *d = ctx;
 
-	if (!d->names++)
-		strscpy(d->first_name, d->name, sizeof(d->first_name));
+	if (!d->names++ &&
+	    strscpy(d->first_name, d->name, sizeof(d->first_name)) < 0)
+		return -E2BIG;
 	return 0;
 }
 
@@ -37,7 +38,8 @@ static int event_on_elem(void *ctx)
 {
 	struct doc *d = ctx;
 
-	strscpy(d->last_type, d->ev_type, sizeof(d->last_type));
+	if (strscpy(d->last_type, d->ev_type, sizeof(d->last_type)) < 0)
+		return -E2BIG;
 	d->events++;
 	return 0;
 }

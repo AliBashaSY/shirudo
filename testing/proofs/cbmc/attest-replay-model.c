@@ -190,8 +190,10 @@ static void any_record(struct parse *p, enum kind k, bool word, char digest,
 		fill(p->chain_hex, 64, 'a');
 		fill(p->writer_public_hex, 2, 'a');
 	} else if (k == K_LOAD || k == K_JAVA_UNLOAD) {
-		strscpy(p->upatch_name, name_ok ? "n" : "!",
-			sizeof(p->upatch_name));
+		if (name_ok)
+			strscpy_literal(p->upatch_name, "n");
+		else
+			strscpy_literal(p->upatch_name, "!");
 		fill(p->upatch_payload_hex, 64, field);
 	} else if (k == K_TREE) {
 		p->tree_seq = 1;
