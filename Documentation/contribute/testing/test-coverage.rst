@@ -745,14 +745,6 @@ signed config image.
        operations up to the head, from inside a segment older than the
        recorded one, as the window slides with each segment and while an
        operation is pending, its operations past ``last_seq`` not reached
-
-``otel`` (8)
-~~~~~~~~~~~~
-
-.. list-table::
-   :header-rows: 1
-   :widths: 36 64
-
    * - ``t7111-bpm-tree-manifest``
      - The signed layers of a publication served under a manifest that
        is not the one ``bpm tree append`` writes are refused before the
@@ -769,6 +761,14 @@ signed config image.
        under labels that select none, which passes it and leaves its
        record behind the cursor; the next segment, which no longer
        holds the operation, then syncs, removes the record and goes on
+
+``otel`` (8)
+~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 36 64
+
    * - Test
      - Covers
    * - ``t8001-otel-map``
