@@ -225,8 +225,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``bpm-oci-challenge``
      - ``parse_challenge()``
      - ``WWW-Authenticate`` values up to 17 bytes
-     - Outputs terminated in their buffers; only ``Bearer`` with a realm;
-       each value a quoted value of the header
+     - Outputs terminated in their buffers; only the whole token
+       ``Bearer`` as the scheme, with a realm; each value a quoted value
+       of the header
    * - ``bpm-oci-token``
      - ``token_from_body()``, ``token_from_reply()``
      - Answers up to 17 bytes, as text and as the bytes of a response,

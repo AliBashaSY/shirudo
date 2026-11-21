@@ -6,7 +6,8 @@
 # returns goes with the next request, and a realm that answers with an
 # empty body fails the pull before any request carries a token, with
 # registry credentials set as without. So does an answer that holds a
-# NUL, which is no text to take a token from.
+# NUL, which is no text to take a token from. A challenge whose scheme
+# only starts with Bearer or Basic gets neither a token nor credentials.
 
 cd "$(dirname "$0")/../.."
 . ./test-lib.sh
@@ -23,8 +24,9 @@ trap cleanup EXIT
 
 # The realm of repository ns/<body> answers 200 with that body: "full"
 # with a token, "empty" with nothing, "nul-behind" and "nul-ahead" with a
-# token behind or ahead of a NUL. Each request is logged with the
-# credentials it carried.
+# token behind or ahead of a NUL. Repositories ns/glued-bearer and
+# ns/glued-basic challenge with "Bearerx," and "Basicx". Each request is
+# logged with the credentials it carried.
 cat >"$W/registry.py" <<'PY'
 import http.server, sys
 
@@ -56,6 +58,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.reply(200, b'{"token":"first-token"}\0{"token":"other"}')
         elif self.path.startswith("/token/nul-ahead"):
             self.reply(200, b'\0{"token":"hidden-token"}')
+        elif "/ns/glued-bearer/manifests/" in self.path:
+            challenge = 'Bearerx,realm="http://127.0.0.1:%d/token/full"' % port
+            self.reply(401, headers=[("WWW-Authenticate", challenge)])
+        elif "/ns/glued-basic/manifests/" in self.path:
+            self.reply(401, headers=[("WWW-Authenticate",
+                                      'Basicx realm="registry"')])
         elif "/manifests/" in self.path:
             body = self.path.split("/")[3]
             challenge = ('Bearer realm="http://127.0.0.1:%d/token/%s",'
@@ -121,6 +129,20 @@ test_expect_success 'an answer with a NUL ahead of a token gives none' '
 	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
 	grep -q "^/token/nul-ahead Basic " "$W/requests" &&
 	! grep -q "Bearer" "$W/requests"
+'
+
+test_expect_success 'a scheme that only starts with Bearer fetches no token' '
+	PULL=glued-bearer &&
+	! pull env &&
+	grep -q "^/v2/ns/glued-bearer/manifests/1.0.0 none$" "$W/requests" &&
+	! grep -q "^/token/" "$W/requests"
+'
+
+test_expect_success 'a scheme that only starts with Basic gets no credentials' '
+	PULL=glued-basic &&
+	! pull env BPM_OCI_USERNAME=user BPM_OCI_PASSWORD=secret &&
+	grep -q "^/v2/ns/glued-basic/manifests/1.0.0 none$" "$W/requests" &&
+	! grep -q "Basic" "$W/requests"
 '
 
 test_done

@@ -3,9 +3,10 @@
  * Copyright (c) 2026 Authors of shirudo
  *
  * parse_challenge() of util/bpm_oci.c, on a registry's WWW-Authenticate
- * value of up to TEXT_MAX bytes: it takes only a Bearer challenge with a
- * realm, each value it takes is a quoted one of the challenge, and every
- * value is terminated inside its buffer, as long as fits it or one more.
+ * value of up to TEXT_MAX bytes: it takes only a challenge whose scheme is
+ * the whole token Bearer, with a realm, each value it takes is a quoted
+ * one of the challenge, and every value is terminated inside its buffer,
+ * as long as fits it or one more.
  */
 
 #include "proof.h"
@@ -63,8 +64,9 @@ void harness(void)
 			 "every value terminated inside its buffer");
 	if (ret)
 		return;
-	__CPROVER_assert(str_has_prefix_nocase(header, "Bearer"),
-			 "only a Bearer challenge");
+	__CPROVER_assert(str_has_prefix_nocase(header, "Bearer") &&
+			 (header[6] == ' ' || !header[6]),
+			 "only a Bearer challenge, its scheme a whole token");
 	__CPROVER_assert(realm[0] && quoted_after(header, len, "realm", realm),
 			 "a realm, quoted in the challenge");
 	__CPROVER_assert(!service[0] ||

@@ -562,13 +562,28 @@ static int curl_once(struct bpm_oci_client *c, const char *method,
 			    follow);
 }
 
+/*
+ * What follows the scheme of a WWW-Authenticate challenge, or NULL when
+ * the challenge is of another scheme. A scheme is a token, ended by a
+ * space or by the value and taken in either case (RFC 9110 11.1, 11.3):
+ * a "Basicx" challenge asks for no Basic credentials.
+ */
+static const char *challenge_params(const char *challenge, const char *scheme)
+{
+	const char *rest = str_after_prefix_nocase(challenge, scheme);
+
+	if (!rest || (*rest && *rest != ' '))
+		return NULL;
+	return rest;
+}
+
 static int parse_challenge(const char *header, char *realm, size_t rsz,
 			   char *service, size_t ssz, char *scope, size_t zsz)
 {
-	const char *p = header;
-	const char *q;
+	const char *p, *q;
 
-	if (!p || !str_skip_prefix_nocase(&p, "Bearer"))
+	p = header ? challenge_params(header, "Bearer") : NULL;
+	if (!p)
 		return -EINVAL;
 	while (*p) {
 		while (*p == ' ' || *p == ',')
@@ -759,12 +774,12 @@ static int get_memory(struct bpm_oci_client *c, const char *url,
 	if (ret)
 		goto out;
 	if (r.status == 401 && r.www_auth[0]) {
-		if (str_has_prefix_nocase(r.www_auth, "Bearer")) {
+		if (challenge_params(r.www_auth, "Bearer")) {
 			ret = get_bearer_token(c, r.www_auth);
 			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
 					       c->token) < 0)
 				ret = -E2BIG;
-		} else if (str_has_prefix_nocase(r.www_auth, "Basic") &&
+		} else if (challenge_params(r.www_auth, "Basic") &&
 			   c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
@@ -826,7 +841,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 		return ret;
 	ret = curl_once(c, "GET", url, accept, NULL, &r, &sink, true);
 	if (!ret && r.status == 401 && r.www_auth[0] &&
-	    str_has_prefix_nocase(r.www_auth, "Bearer")) {
+	    challenge_params(r.www_auth, "Bearer")) {
 		ret = sink_restart(&sink, fd, (__u64)size);
 		if (!ret)
 			ret = get_bearer_token(c, r.www_auth);
@@ -839,7 +854,7 @@ int bpm_oci_get_file(struct bpm_oci_client *c, const char *url,
 			ret = curl_once(c, "GET", url, accept, auth, &r, &sink, true);
 		}
 	} else if (!ret && r.status == 401 && r.www_auth[0] &&
-		   str_has_prefix_nocase(r.www_auth, "Basic") && c->username[0]) {
+		   challenge_params(r.www_auth, "Basic") && c->username[0]) {
 		char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 
 		ret = sink_restart(&sink, fd, (__u64)size);
@@ -887,12 +902,12 @@ static int bpm_oci_request(struct bpm_oci_client *c, const char *method,
 	if (ret)
 		return ret;
 	if (r->status == 401 && r->www_auth[0]) {
-		if (str_has_prefix_nocase(r->www_auth, "Bearer")) {
+		if (challenge_params(r->www_auth, "Bearer")) {
 			ret = get_bearer_token(c, r->www_auth);
 			if (!ret && strsprintf(auth, sizeof(auth), "Bearer %s",
 					       c->token) < 0)
 				ret = -E2BIG;
-		} else if (str_has_prefix_nocase(r->www_auth, "Basic") &&
+		} else if (challenge_params(r->www_auth, "Basic") &&
 			   c->username[0]) {
 			char encoded[BPM_OCI_BASIC_ENCODED_SIZE];
 

@@ -677,7 +677,9 @@ signed config image.
      - The token a registry's realm returns goes with the next request,
        and a realm that answers with an empty body, or with a NUL ahead of
        or behind a token, fails the pull before any request carries a
-       token, with registry credentials set as without
+       token, with registry credentials set as without; a challenge
+       whose scheme only starts with ``Bearer`` or ``Basic`` gets neither
+       a token nor credentials
    * - ``t7101-bpm-tree``
      - Tree sync with a selector
    * - ``t7102-bpm-tree-sequential``
