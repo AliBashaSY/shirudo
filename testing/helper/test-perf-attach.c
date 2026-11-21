@@ -13,6 +13,7 @@
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,8 @@
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
 
+#include <shirudo/string.h>
+
 static long bpf(int cmd, union bpf_attr *attr)
 {
 	return syscall(__NR_bpf, cmd, attr, sizeof(*attr));
@@ -30,14 +33,19 @@ static long bpf(int cmd, union bpf_attr *attr)
 
 static int uprobe_type(void)
 {
-	FILE *f = fopen("/sys/bus/event_source/devices/uprobe/type", "r");
-	int type = -1;
+	char buf[16];
+	__u64 type;
+	ssize_t n;
+	int fd;
 
-	if (!f)
+	fd = open("/sys/bus/event_source/devices/uprobe/type",
+		  O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
 		return -1;
-	if (fscanf(f, "%d", &type) != 1)
-		type = -1;
-	fclose(f);
+	n = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (n <= 0 || parse_u64(buf, digits(buf, n), INT_MAX, &type))
+		return -1;
 	return type;
 }
 

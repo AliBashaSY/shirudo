@@ -953,7 +953,7 @@ testing/helper/test-xfs-attrmulti: testing/helper/test-xfs-attrmulti.c
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -o $@ $^
 
-testing/helper/test-perf-attach: testing/helper/test-perf-attach.c
+testing/helper/test-perf-attach: testing/helper/test-perf-attach.c util/string.o
 	@printf '  CC      $@\n'
 	$(Q)$(CC) $(CFLAGS) -I$(BPF_UAPI_INCLUDE) -o $@ $^
 
