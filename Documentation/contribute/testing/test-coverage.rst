@@ -761,6 +761,14 @@ signed config image.
        under labels that select none, which passes it and leaves its
        record behind the cursor; the next segment, which no longer
        holds the operation, then syncs, removes the record and goes on
+   * - ``t7114-bpm-trusted-links``
+     - A dry run of ``bpm tree sync`` takes the ``REGISTRY_AUTH_FILE``
+       and ``BPM_OCI_CA_FILE`` it is given under ``/etc/shirudo``
+       through root's absolute, relative and directory links into a
+       directory of root's elsewhere; an auth file or CA certificate
+       reached through a link another user owns, or an auth file through
+       a directory others can write that holds a link, is refused with
+       its message before any request
 
 ``otel`` (8)
 ~~~~~~~~~~~~
@@ -1101,7 +1109,7 @@ Coverage by area
        ``config-update``, ``image``. Unit: ``config_update``
    * - Packages and repositories
      - ``t7001``, ``t7002``, ``t7003``, ``t7004``, ``t7005``,
-       ``t7006``. Fuzz:
+       ``t7006``, ``t7114``. Fuzz:
        ``beefile``, ``bpm-index``, ``bpm-info``, ``bpm-package``,
        ``bpm-tar``, ``oci-http``, ``oci-manifest``, ``oci-ref``,
        ``registry-auth``. Unit:
