@@ -66,12 +66,12 @@ static bool on_path(const char *name)
 		if (!end)
 			end = path + strlen(path);
 		len = (size_t)(end - path);
-		if (len && len + 1 + strlen(name) < sizeof(candidate)) {
+		if (len && len + 1 < sizeof(candidate)) {
 			memcpy(candidate, path, len);
 			candidate[len] = '/';
-			strscpy(candidate + len + 1, name,
-				sizeof(candidate) - len - 1);
-			if (access(candidate, X_OK) == 0)
+			if (strscpy(candidate + len + 1, name,
+				    sizeof(candidate) - len - 1) >= 0 &&
+			    access(candidate, X_OK) == 0)
 				return true;
 		}
 		path = *end ? end + 1 : end;

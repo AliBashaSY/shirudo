@@ -38,9 +38,12 @@ void harness(void)
 	 */
 	__CPROVER_assume(len < sizeof(name) && !name[len] &&
 			 strnlen(name, len) == len);
-	pack_header(&h, name, type, flags, payload, loader_off, loader_len,
-		    sig_off, sig_len, meta_off, meta_len, data_off, data_len,
-		    log_buf_sz, rodata_data_off, nr_maps, nr_progs);
+	__CPROVER_assert(!pack_header(&h, name, type, flags, payload,
+				      loader_off, loader_len, sig_off, sig_len,
+				      meta_off, meta_len, data_off, data_len,
+				      log_buf_sz, rodata_data_off, nr_maps,
+				      nr_progs),
+			 "a name shorter than the field is packed");
 	__CPROVER_assume(n >= sizeof(h));
 	__CPROVER_assert(!parse_header((const __u8 *)&h, n, &out),
 			 "the reader takes the header");

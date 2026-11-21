@@ -96,7 +96,7 @@ int build_compile(const char *source, const char *output,
 		if (slash)
 			*slash = '\0';
 		else
-			strscpy(vmlinux_dir, ".", sizeof(vmlinux_dir));
+			strscpy_literal(vmlinux_dir, ".");
 	}
 	if (strsprintf(inc_vmlinux, sizeof(inc_vmlinux), "-I%s",
 		       vmlinux_dir) < 0)

@@ -400,7 +400,8 @@ static int build_default_targets(struct bpm_build_upatch *u)
 	char base[PATH_MAX];
 	char *slash;
 
-	strscpy(base, u->source, sizeof(base));
+	if (strscpy(base, u->source, sizeof(base)) < 0)
+		return -ENAMETOOLONG;
 	slash = strrchr(base, '/');
 	if (slash)
 		memmove(base, slash + 1, strlen(slash + 1) + 1);
@@ -724,9 +725,10 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 	for (size_t i = 0; i < spec->n_files; i++) {
 		if (!spec->files[i].source[0])
 			return -EINVAL;
-		if (!spec->files[i].target[0])
-			strscpy(spec->files[i].target, spec->files[i].source,
-				sizeof(spec->files[i].target));
+		if (!spec->files[i].target[0] &&
+		    strscpy(spec->files[i].target, spec->files[i].source,
+			    sizeof(spec->files[i].target)) < 0)
+			return -EINVAL;
 	}
 	for (size_t i = 0; i < spec->n_upatches; i++) {
 		struct bpm_build_upatch *u = &spec->upatches[i];
@@ -735,7 +737,7 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 		if (!u->source[0])
 			return -EINVAL;
 		if (!u->type[0])
-			strscpy(u->type, "bpf", sizeof(u->type));
+			strscpy_literal(u->type, "bpf");
 		for (p = u->type; *p; p++)
 			*p = (char)tolower((__u8)*p);
 		if (!build_upatch_type_ok(u) || build_default_targets(u))
@@ -753,12 +755,13 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 			continue;
 		if (!u->tree.id[0] || !upatch_name_valid(u->tree.id))
 			return -EINVAL;
-		if (!u->tree.load_artifact[0])
-			strscpy(u->tree.load_artifact, u->load_target,
-				sizeof(u->tree.load_artifact));
-		if (!u->tree.unload_artifact[0])
-			strscpy(u->tree.unload_artifact, u->unload_target,
-				sizeof(u->tree.unload_artifact));
+		if ((!u->tree.load_artifact[0] &&
+		     strscpy(u->tree.load_artifact, u->load_target,
+			     sizeof(u->tree.load_artifact)) < 0) ||
+		    (!u->tree.unload_artifact[0] &&
+		     strscpy(u->tree.unload_artifact, u->unload_target,
+			     sizeof(u->tree.unload_artifact)) < 0))
+			return -EINVAL;
 		if (build_target_ok(u->tree.load_artifact) ||
 		    build_target_ok(u->tree.unload_artifact))
 			return -EINVAL;
@@ -1086,7 +1089,9 @@ static int build_add_target(char seen[][PATH_MAX], size_t *n, const char *target
 	}
 	if (*n >= BPM_BUILD_MAX_ENTRIES * 3)
 		return -E2BIG;
-	strscpy(seen[(*n)++], target, PATH_MAX);
+	if (strscpy(seen[*n], target, sizeof(seen[0])) < 0)
+		return -ENAMETOOLONG;
+	(*n)++;
 	return 0;
 }
 
@@ -1374,9 +1379,12 @@ static int build_upatch_unload(struct bpm_build_upatch *u, const char *load,
 	hex_encode(parsed.hdr.payload_sha256, CRYPTO_SHA256_LEN,
 		   u->payload_sha256);
 	memcpy(payload, parsed.hdr.payload_sha256, sizeof(payload));
-	strscpy(u->type, upatch_type_str(&parsed), sizeof(u->type));
+	ret = strscpy(u->type, upatch_type_str(&parsed), sizeof(u->type)) < 0 ?
+	      -EINVAL : 0;
 	java = parsed.hdr.type == UPATCH_TYPE_JAVA;
 	upatch_close(&parsed);
+	if (ret)
+		return ret;
 	if (java)
 		ret = build_package_java_unload(u->name, payload, unload, pkey,
 						cert);
@@ -1405,6 +1413,27 @@ static int build_java_upatch(struct bpm_build_upatch *u, const char *source,
  * The unload directive is bound to the payload digest the load artifact
  * ended up with.
  */
+/* One label for each path of each policy of u, into room for them all. */
+static int build_policy_labels(const struct bpm_build_upatch *u,
+			       struct upatch_policy_label_entry *labels)
+{
+	size_t n = 0;
+
+	for (size_t j = 0; j < u->n_policies; j++) {
+		const struct bpm_build_policy *p = &u->policies[j];
+
+		for (int k = 0; k < p->n_paths; k++) {
+			struct upatch_policy_label_entry *e = &labels[n++];
+
+			e->bit = cpu_to_le64(p->bit);
+			if (strscpy(e->policy, p->id, sizeof(e->policy)) < 0 ||
+			    strscpy(e->path, p->paths[k], sizeof(e->path)) < 0)
+				return -ENAMETOOLONG;
+		}
+	}
+	return 0;
+}
+
 static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			  const char *cert, const char *vmlinux_override,
 			  const char *shirudo_bpf_incdir,
@@ -1430,8 +1459,9 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 		    strsprintf(unload, sizeof(unload), "%s/%zu.unload.upatch",
 			       spec->stage, i) < 0)
 			return -ENAMETOOLONG;
-		strscpy(u->load_path, load, sizeof(u->load_path));
-		strscpy(u->unload_path, unload, sizeof(u->unload_path));
+		if (strscpy(u->load_path, load, sizeof(u->load_path)) < 0 ||
+		    strscpy(u->unload_path, unload, sizeof(u->unload_path)) < 0)
+			return -ENAMETOOLONG;
 		if (!strcmp(u->type, "java")) {
 			ret = build_java_upatch(u, source, load, unload, pkey,
 						cert);
@@ -1471,18 +1501,10 @@ static int build_upatches(struct bpm_build_spec *spec, const char *pkey,
 			labels = xcalloc(nr_labels, sizeof(*labels));
 			if (!labels)
 				return -ENOMEM;
-			nr_labels = 0;
-			for (size_t j = 0; j < u->n_policies; j++) {
-				struct bpm_build_policy *p = &u->policies[j];
-
-				for (int k = 0; k < p->n_paths; k++) {
-					struct upatch_policy_label_entry *e =
-						&labels[nr_labels++];
-
-					e->bit = cpu_to_le64(p->bit);
-					strscpy(e->policy, p->id, sizeof(e->policy));
-					strscpy(e->path, p->paths[k], sizeof(e->path));
-				}
+			ret = build_policy_labels(u, labels);
+			if (ret) {
+				xfree(labels, size_mul(nr_labels, sizeof(*labels)));
+				return ret;
 			}
 		}
 		ret = build_package_load(bpf_o, src_path, load, name,
@@ -1958,7 +1980,10 @@ static int __build_bpm_build(int argc, const char **argv,
 	spec = xmalloc(sizeof(*spec));
 	if (!spec)
 		return -ENOMEM;
-	strscpy(spec->scope, resolved_file, sizeof(spec->scope));
+	if (strscpy(spec->scope, resolved_file, sizeof(spec->scope)) < 0) {
+		ret = -ENAMETOOLONG;
+		goto out;
+	}
 	{
 		char *slash = strrchr(spec->scope, '/');
 
@@ -2326,7 +2351,10 @@ static int __build_bpm_config_update(int argc, const char **argv,
 		ret = -errno;
 		goto out;
 	}
-	strscpy(spec->scope, resolved_file, sizeof(spec->scope));
+	if (strscpy(spec->scope, resolved_file, sizeof(spec->scope)) < 0) {
+		ret = -ENAMETOOLONG;
+		goto out;
+	}
 	{
 		char *slash = strrchr(spec->scope, '/');
 
@@ -2449,8 +2477,13 @@ static int __build_bpm_config_update(int argc, const char **argv,
 					 overrides, n_overrides, true);
 		if (ret)
 			break;
-		strscpy(upatch->load_path, load, sizeof(upatch->load_path));
-		strscpy(upatch->unload_path, unload, sizeof(upatch->unload_path));
+		if (strscpy(upatch->load_path, load,
+			    sizeof(upatch->load_path)) < 0 ||
+		    strscpy(upatch->unload_path, unload,
+			    sizeof(upatch->unload_path)) < 0) {
+			ret = -ENAMETOOLONG;
+			break;
+		}
 		ret = build_upatch_unload(upatch, load, unload, pkey,
 					  cert_path);
 	}

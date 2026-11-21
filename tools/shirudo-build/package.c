@@ -87,21 +87,23 @@ struct decoder_set {
 	__u32			nr_items;
 };
 
-static void pack_header(struct upatch_header *h,
-			const char *name, __u32 type, __u32 flags,
-			const __u8 *payload_sha256,
-			__u32 loader_off, __u32 loader_len,
-			__u32 sig_off, __u32 sig_len,
-			__u32 meta_off, __u32 meta_len,
-			__u32 data_off, __u32 data_len,
-			__u32 log_buf_sz,
-			__u32 rodata_data_off, __u32 nr_maps, __u32 nr_progs)
+static __must_check int
+pack_header(struct upatch_header *h,
+	    const char *name, __u32 type, __u32 flags,
+	    const __u8 *payload_sha256,
+	    __u32 loader_off, __u32 loader_len,
+	    __u32 sig_off, __u32 sig_len,
+	    __u32 meta_off, __u32 meta_len,
+	    __u32 data_off, __u32 data_len,
+	    __u32 log_buf_sz,
+	    __u32 rodata_data_off, __u32 nr_maps, __u32 nr_progs)
 {
 	memset(h, 0, sizeof(*h));
+	if (strscpy(h->name, name, sizeof(h->name)) < 0)
+		return -ENAMETOOLONG;
 	h->magic   = cpu_to_le64(UPATCH_MAGIC);
 	h->version = cpu_to_le32(UPATCH_VERSION);
 	h->flags   = cpu_to_le32(flags);
-	strscpy(h->name, name, sizeof(h->name));
 	memcpy(h->payload_sha256, payload_sha256,
 	       UPATCH_PAYLOAD_HASH_LEN);
 	h->loader_insns_off = cpu_to_le32(loader_off);
@@ -118,6 +120,7 @@ static void pack_header(struct upatch_header *h,
 	h->rodata_data_off  = cpu_to_le32(rodata_data_off);
 	h->type             = cpu_to_le32(type);
 	h->reserved1        = 0;
+	return 0;
 }
 
 /*
@@ -298,14 +301,17 @@ static int package_resign_symbols(const char *original,
 		goto out;
 	}
 	upatch_header_name(&mod, name);
-	pack_header(&hdr, name, mod.hdr.type, mod.hdr.flags,
-		    sio.payload_sha256,
-		    loader_off, (__u32)sio.insns_sz,
-		    sig_off, (__u32)sio.signature_sz,
-		    mod.hdr.metadata_len ? meta_off : 0, mod.hdr.metadata_len,
-		    sio.data_sz ? data_off : 0, (__u32)sio.data_sz,
-		    mod.hdr.log_buf_sz, mod.hdr.rodata_data_off,
-		    mod.hdr.nr_maps, mod.hdr.nr_progs);
+	ret = pack_header(&hdr, name, mod.hdr.type, mod.hdr.flags,
+			  sio.payload_sha256,
+			  loader_off, (__u32)sio.insns_sz,
+			  sig_off, (__u32)sio.signature_sz,
+			  mod.hdr.metadata_len ? meta_off : 0,
+			  mod.hdr.metadata_len,
+			  sio.data_sz ? data_off : 0, (__u32)sio.data_sz,
+			  mod.hdr.log_buf_sz, mod.hdr.rodata_data_off,
+			  mod.hdr.nr_maps, mod.hdr.nr_progs);
+	if (ret)
+		goto out;
 	fd = open(output, O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
 	if (fd < 0) {
 		ret = -errno;
@@ -1375,6 +1381,17 @@ err_free:
 	return err;
 }
 
+static int decoder_entry_names(struct upatch_decoder_entry *d,
+			       const struct decoder_manifest_view *m)
+{
+	if (strscpy(d->upatch, m->upatch, sizeof(d->upatch)) < 0 ||
+	    strscpy(d->map, m->map, sizeof(d->map)) < 0 ||
+	    strscpy(d->source, m->source, sizeof(d->source)) < 0 ||
+	    strscpy(d->entrypoint, m->entrypoint, sizeof(d->entrypoint)) < 0)
+		return -E2BIG;
+	return 0;
+}
+
 static int build_decoder_blob(const struct decoder_set *set,
 			      void **out, __u32 *out_len)
 {
@@ -1413,11 +1430,10 @@ static int build_decoder_blob(const struct decoder_set *set,
 		d->api_version = cpu_to_le32(file->manifest.api_version);
 		d->input_format = cpu_to_le32(file->manifest.input_format);
 		d->export_signal = cpu_to_le32(file->manifest.export_signal);
-		strscpy(d->upatch, file->manifest.upatch, sizeof(d->upatch));
-		strscpy(d->map, file->manifest.map, sizeof(d->map));
-		strscpy(d->source, file->manifest.source, sizeof(d->source));
-		strscpy(d->entrypoint, file->manifest.entrypoint,
-			sizeof(d->entrypoint));
+		if (decoder_entry_names(d, &file->manifest)) {
+			xfree(blob, (size_t)total);
+			return -E2BIG;
+		}
 		d->source_off = cpu_to_le32(off);
 		d->source_len = cpu_to_le32(file->source_len);
 		memcpy((__u8 *)blob + off, file->source,
@@ -1632,11 +1648,16 @@ static int build_prog_metadata(struct bpf_object *obj, __u32 nr_maps,
 					goto err_free;
 				}
 			}
-			strscpy(seen_maps[n_seen++], ser_map, sizeof(seen_maps[0]));
+			if (strscpy(seen_maps[n_seen], ser_map,
+				    sizeof(seen_maps[0])) < 0 ||
+			    strscpy(md->progs[i].map, ser_map,
+				    sizeof(md->progs[i].map)) < 0) {
+				err = -EINVAL;
+				goto err_free;
+			}
+			n_seen++;
 			md->progs[i].role =
 				cpu_to_le32(UPATCH_PROG_ROLE_SERIALIZER);
-			strscpy(md->progs[i].map, ser_map,
-				sizeof(md->progs[i].map));
 			i++;
 			continue;
 		}
@@ -2160,14 +2181,16 @@ static int finalize_object(struct bpf_object *obj, const char *out_path,
 		goto out;
 	}
 
-	pack_header(&hdr, upatch_name, UPATCH_TYPE_BPF, flags,
-		    sio.payload_sha256,
-		    loader_off, opts.insns_sz,
-		    sig_off, (__u32)sio.signature_sz,
-		    0, 0,
-		    data_off, data_len,
-		    1u * 1024u * 1024u,
-		    rodata_data_off, nr_maps, nr_progs);
+	err = pack_header(&hdr, upatch_name, UPATCH_TYPE_BPF, flags,
+			  sio.payload_sha256,
+			  loader_off, opts.insns_sz,
+			  sig_off, (__u32)sio.signature_sz,
+			  0, 0,
+			  data_off, data_len,
+			  1u * 1024u * 1024u,
+			  rodata_data_off, nr_maps, nr_progs);
+	if (err)
+		goto out;
 
 	err = write_artifact(out_path, &hdr, opts.insns, opts.insns_sz,
 			     sig_buf, sio.signature_sz, signed_data, data_len);
@@ -2437,12 +2460,14 @@ static int finalize_java(const char *out_path, const char *upatch_name,
 		err = -E2BIG;
 		goto out;
 	}
-	pack_header(&hdr, upatch_name, UPATCH_TYPE_JAVA, flags,
-		    sio.payload_sha256, 0, 0,
-		    (__u32)sizeof(hdr), (__u32)sio.signature_sz, 0, 0,
-		    data_off, signed_data_len, 0, 0, 0, 0);
-	err = write_artifact(out_path, &hdr, NULL, 0, sig_buf,
-			     sio.signature_sz, signed_data, signed_data_len);
+	err = pack_header(&hdr, upatch_name, UPATCH_TYPE_JAVA, flags,
+			  sio.payload_sha256, 0, 0,
+			  (__u32)sizeof(hdr), (__u32)sio.signature_sz, 0, 0,
+			  data_off, signed_data_len, 0, 0, 0, 0);
+	if (!err)
+		err = write_artifact(out_path, &hdr, NULL, 0, sig_buf,
+				     sio.signature_sz, signed_data,
+				     signed_data_len);
 	if (!err)
 		pr_info("wrote %s (java sig=%zu data=%u name=%s%s)", out_path,
 			sio.signature_sz, signed_data_len, upatch_name,
