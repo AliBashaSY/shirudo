@@ -604,7 +604,10 @@ static int visit_members_gz(gzFile gz, const char *package_dir,
 			ret = -EINVAL;
 			break;
 		}
-		strscpy(name, (char *)h, sizeof(name));
+		if (strscpy(name, (char *)h, sizeof(name)) < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		type = h[156] ? h[156] : '0';
 		name_len = strlen(name);
 		if (type == '5' && name_len && name[name_len - 1] == '/')
@@ -638,7 +641,10 @@ static int visit_members_gz(gzFile gz, const char *package_dir,
 			ret = -EPERM;
 			break;
 		}
-		strscpy(rel, below + (*below == '/'), sizeof(rel));
+		if (strscpy(rel, below + (*below == '/'), sizeof(rel)) < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		if (!*rel) {
 			if (type != '5') {
 				ret = -EINVAL;
@@ -753,7 +759,10 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			ret = -EINVAL;
 			break;
 		}
-		strscpy(name, (char *)h, sizeof(name));
+		if (strscpy(name, (char *)h, sizeof(name)) < 0) {
+			ret = -EINVAL;
+			break;
+		}
 		if (!bpm_archive_rel_ok(name) || bpm_tar_octal((char *)h + 124, 12, &size)) {
 			ret = -EINVAL;
 			break;
@@ -781,8 +790,8 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			ret = -EINVAL;
 			break;
 		}
-		strscpy(rel, below + 1, sizeof(rel));
-		if ((!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
+		if (strscpy(rel, below + 1, sizeof(rel)) < 0 ||
+		    (!*rel && type != '5') || (*rel && !bpm_archive_rel_ok(rel))) {
 			ret = -EINVAL;
 			break;
 		}
@@ -813,7 +822,10 @@ int bpm_pkg_extract(const char *archive, const char *dest)
 			char parent[PATH_MAX];
 			int fd;
 
-			strscpy(parent, path, sizeof(parent));
+			if (strscpy(parent, path, sizeof(parent)) < 0) {
+				ret = -ENAMETOOLONG;
+				break;
+			}
 			slash = strrchr(parent, '/');
 			if (slash) {
 				*slash = 0;

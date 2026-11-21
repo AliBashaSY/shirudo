@@ -153,9 +153,10 @@ static int tree_list_value(void *ctx)
 {
 	struct tree_list *l = ctx;
 
-	if (*l->n >= TREE_MAX_SELECTOR_VALUES)
+	if (*l->n >= TREE_MAX_SELECTOR_VALUES ||
+	    strscpy(l->values[*l->n], l->r->value, sizeof(l->values[0])) < 0)
 		return -E2BIG;
-	strscpy(l->values[(*l->n)++], l->r->value, TREE_STRING_MAX);
+	(*l->n)++;
 	return 0;
 }
 
@@ -179,7 +180,8 @@ static int tree_map_pair(void *ctx, const char *key)
 	ret = tree_selector_kv_add(m->kvs, m->n, m->max, &kv);
 	if (ret)
 		return ret;
-	strscpy(kv->key, key, sizeof(kv->key));
+	if (strscpy(kv->key, key, sizeof(kv->key)) < 0)
+		return -E2BIG;
 	memcpy(kv->values, r->pair, sizeof(kv->values));
 	kv->n_values = r->n_pair;
 	r->n_pair = 0;

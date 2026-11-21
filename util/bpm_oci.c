@@ -365,7 +365,7 @@ static int load_registry_auth(const char *registry, struct bpm_oci_client *c)
 int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 {
 	const char *p, *ca_file, *scheme = getenv("BPM_OCI_SCHEME");
-	char transport[16] = "https";
+	const char *transport = "https";
 
 	p = endpoint;
 	if (!p || !str_skip_prefix(&p, "oci://"))
@@ -377,7 +377,7 @@ int bpm_oci_parse_endpoint(const char *endpoint, struct bpm_oci_client *c)
 			pr_err("bpm OCI: BPM_OCI_SCHEME must be https or http");
 			return -EINVAL;
 		}
-		strscpy(transport, scheme, sizeof(transport));
+		transport = scheme;
 	}
 	if (strscpy(c->registry, p, sizeof(c->registry)) < 0)
 		return -ENAMETOOLONG;

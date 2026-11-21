@@ -1294,7 +1294,11 @@ static int package_install(const struct bpm_source *s, const struct bpm_index_en
 				ret = -E2BIG;
 				break;
 			}
-			strscpy(loaded[nloaded], up, sizeof(loaded[nloaded]));
+			if (strscpy(loaded[nloaded], up,
+				    sizeof(loaded[nloaded])) < 0) {
+				ret = -ENAMETOOLONG;
+				break;
+			}
 			nloaded++;
 		}
 		closedir(d);
