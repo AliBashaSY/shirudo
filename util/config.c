@@ -60,9 +60,21 @@ static bool parse_bool(const char *val, bool *out)
 	return false;
 }
 
-static bool set_string(char *dst, size_t cap, const char *val)
+static __must_check bool set_string(char *dst, size_t cap, const char *val)
 {
 	return strscpy(dst, val, cap) >= 0;
+}
+
+/* An ignored value must leave the one set before intact. */
+static bool set_tcti(struct config *cfg, const char *val)
+{
+	char tcti[sizeof(cfg->tpm_tcti)];
+	ssize_t len = strscpy(tcti, val, sizeof(tcti));
+
+	if (len < 0)
+		return false;
+	memcpy(cfg->tpm_tcti, tcti, len + 1);
+	return true;
 }
 
 static bool tls_classical_hosts_valid(const char *value)
@@ -184,12 +196,8 @@ static int config_parse(struct config *cfg, FILE *f,
 		} else if (strcmp(key, "tpm.owner_auth") == 0) {
 			set_owner_auth(cfg, val);
 		} else if (strcmp(key, "tpm.tcti") == 0) {
-			if (strlen(val) >= sizeof(cfg->tpm_tcti))
-				pr_warn("config: tpm.tcti too long "
-					"(ignored)");
-			else
-				strscpy(cfg->tpm_tcti, val,
-					sizeof(cfg->tpm_tcti));
+			if (!set_tcti(cfg, val))
+				pr_warn("config: tpm.tcti too long (ignored)");
 		} else if (strcmp(key, "tls.classical_hosts") == 0) {
 			if (!set_string(cfg->tls_classical_hosts,
 					sizeof(cfg->tls_classical_hosts), val) ||
@@ -214,10 +222,10 @@ static int config_parse(struct config *cfg, FILE *f,
 				map_export_bad(cfg, key, val,
 					       "expected 1..128 characters from "
 					       "A-Z, a-z, 0-9, '.', '_', '-'");
-			else
-				set_string(cfg->map_export_tenant_id,
-					   sizeof(cfg->map_export_tenant_id),
-					   val);
+			else if (!set_string(cfg->map_export_tenant_id,
+					     sizeof(cfg->map_export_tenant_id),
+					     val))
+				map_export_bad(cfg, key, val, "value too long");
 		} else if (strcmp(key, "map_export.otel_insecure") == 0) {
 			if (!parse_bool(val,
 					&cfg->map_export_otel_insecure))
@@ -385,12 +393,8 @@ int config_load(struct config *cfg)
 	 * point at swtpm while the file is shared.
 	 */
 	env = getenv("SHIRUDO_TPM_TCTI");
-	if (env && *env) {
-		if (strlen(env) < sizeof(cfg->tpm_tcti))
-			strscpy(cfg->tpm_tcti, env, sizeof(cfg->tpm_tcti));
-		else
-			pr_warn("SHIRUDO_TPM_TCTI too long (ignored)");
-	}
+	if (env && *env && !set_tcti(cfg, env))
+		pr_warn("SHIRUDO_TPM_TCTI too long (ignored)");
 
 	return ret == -ENOENT ? 0 : ret;
 }

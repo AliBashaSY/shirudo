@@ -98,8 +98,9 @@ static __printf(2, 0) void emit(int priority, const char *fmt, va_list ap)
 	char msg[LOG_MSG_MAX], out[4 * LOG_MSG_MAX + 1];
 	int saved_errno = errno;
 
-	if (vstrsprintf(msg, sizeof(msg), fmt, ap) < 0)
-		strscpy(msg, fmt, sizeof(msg));
+	if (vstrsprintf(msg, sizeof(msg), fmt, ap) < 0 &&
+	    strscpy(msg, fmt, sizeof(msg)) < 0)
+		memcpy(msg + sizeof(msg) - 4, "...", 4);
 	escape(out, sizeof(out), msg);
 	syslog(priority, "%s", out);
 	if (to_stderr)
