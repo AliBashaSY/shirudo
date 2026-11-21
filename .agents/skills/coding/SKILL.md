@@ -390,7 +390,7 @@ already, or should. The basics:
 | Need | Use |
 |---|---|
 | Parse a number | `parse_u64()`, `parse_s64()`, `parse_x64()`, `digits()` (`<shirudo/string.h>`) |
-| Copy or format a string | `strscpy()`, `strsprintf()`, `vstrsprintf()`, and check `-E2BIG` |
+| Copy or format a string | `strscpy()`, `strsprintf()`, `vstrsprintf()`, and check `-E2BIG`; `strscpy_literal()` for a string literal into an array, which fails the build where it does not fit (`<shirudo/string.h>`) |
 | A upatch's pin directory or a pin in it | `upatch_pin_path()` (`util/paths.h`) |
 | A string's prefix, or a span that must be one string | `str_has_prefix()` to test a literal prefix and `str_skip_prefix()` to step past it, `str_after_prefix()` for the rest after a prefix known only at run time, each with a `_nocase` form for a letter in either case; `span_equals()` for a span of known length against a literal, `span_equals_str()` against a string, `span_has_prefix_nocase()` for a span's start; `str_equals_nocase()` for two whole strings in either case (`<shirudo/string.h>`); `strncmp()` and `strncasecmp()`, whose length a caller counts by hand, and `strcasecmp()` are poisoned |
 | A byte of a set, or a string, in the bytes you hold | `span_until()` for the length up to the first byte of a set, `span_find()` for where a string lies in a span, `str_contains()` for whether a string holds another (`<shirudo/string.h>`); `strcspn()`, `strpbrk()` and `strstr()`, which search to a terminator, are poisoned |
@@ -448,9 +448,11 @@ without a body.
   `rindex()`, `rawmemchr()`, `gets()`, `strdupa()` and their kin: the
   `#pragma GCC poison` lines of `<shirudo/string.h>` are the list, and
   one comes off it with the first caller that needs it.
-- A `strsprintf()` that does not fit leaves the buffer empty: a path or
-  value is refused, a helper formatting display text returns the error,
-  and status shows `"?"`. Constant text is copied, not formatted.
+- A `strsprintf()` that does not fit leaves the buffer empty and a
+  `strscpy()` leaves a cut copy: either way a path or value is refused,
+  a helper formatting display text returns the error, and status shows
+  `"?"`. Constant text is copied, not formatted, and a literal copied
+  into an array takes `strscpy_literal()`, which cannot fail.
 - `xstrdup()` measures with `strlen()`, so outside input gets
   `xstrndup(s, bound)`. `xfree(p, size)` and `xstrfree()` scrub before
   they free.

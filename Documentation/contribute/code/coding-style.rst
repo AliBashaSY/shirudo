@@ -19,7 +19,10 @@ its BPF programs, with these rules of its own, which
   refuse a sign, a blank or a base prefix. ``strtoul()``, ``atoi()``,
   ``sscanf()`` and their kin are refused.
 - Copy strings with ``strscpy()`` and format into a fixed buffer with
-  ``strsprintf()``, and check their results. ``strcpy()``, ``strncpy()``,
+  ``strsprintf()``, and check their results: both are
+  ``__must_check``. Copy a string literal into an array with
+  ``strscpy_literal()``, which fails the build where the literal does
+  not fit and so has no result to check. ``strcpy()``, ``strncpy()``,
   ``sprintf()``, ``snprintf()`` and their kin are refused.
 - Take bytes from outside the program as a string with
   ``span_to_str()`` from ``<shirudo/string.h>``, which takes their

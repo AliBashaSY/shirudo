@@ -116,10 +116,11 @@ commit message that carries a change.
 - Use the helpers of `util/` and `include/shirudo/` over libc and open
   code: `parse_u64()` and its kin for numbers, `<shirudo/overflow.h>`
   for sizes, `strscpy()` and `strsprintf()` with their `-E2BIG`
-  checked, `str_has_prefix()`, `str_after_prefix()` and `span_equals()`
-  for a prefix or a span, `span_until()`, `span_find()` and
-  `str_contains()` for a search, `for_each_token()` for the tokens of
-  a buffer, the `xmalloc()` family, `min()` and `max()`,
+  checked and `strscpy_literal()` for a literal into an array,
+  `str_has_prefix()`, `str_after_prefix()` and `span_equals()` for a
+  prefix or a span, `span_until()`, `span_find()` and `str_contains()`
+  for a search, `for_each_token()` for the tokens of a buffer, the
+  `xmalloc()` family, `min()` and `max()`,
   `memzero_explicit()` and `memneq_explicit()` for secrets,
   `util/json.c` for all JSON and `pr_*()` for all logging. The libc names
   they replace are poisoned, and so are the string functions of libc

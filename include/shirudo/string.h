@@ -41,9 +41,10 @@ int parse_s64(const char *s, size_t len, __s64 min, __s64 max, __s64 *out);
 /*
  * Copy the string src into the size bytes at dst, terminated whenever
  * size is not 0: its length, or -E2BIG when it did not fit and dst holds
- * as much of it as did.
+ * as much of it as did. A string literal copied into an array takes
+ * strscpy_literal() below, which cannot fail.
  */
-ssize_t strscpy(char *dst, const char *src, size_t size);
+ssize_t strscpy(char *dst, const char *src, size_t size) __must_check;
 
 /*
  * Copy the string literal lit, terminator and all, into the array dst.
