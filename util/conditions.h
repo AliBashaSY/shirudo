@@ -85,7 +85,10 @@ void conditions_print(const struct condition *c, size_t n);
  */
 const char *status_verdict(const struct conditions_input *in);
 
-void status_reason(const struct conditions_input *in,
-		   char *buf, size_t cap);
+/*
+ * The reason for that verdict, in a sentence: a literal, or the unreach
+ * of in, which lives as long as in does; "" when the host is ok.
+ */
+const char *status_reason(const struct conditions_input *in);
 
 #endif /* SHIRUDO_CONDITIONS_H */

@@ -1194,11 +1194,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        one read; each listing printed and the run done
    * - ``conditions-verdict``
      - ``status_verdict()``, ``status_reason()``
-     - Every input; reasons into 1, 8, 32 and 160 bytes
+     - Every input
      - The first verdict of its order that applies; ``tampered`` exactly
        when a cause holds on a host that answered, whatever the other
        fields say; the reason of the first cause in the order of the
-       reasons, terminated and cut to the buffer
+       reasons
    * - ``conditions-rows``
      - ``conditions()``, ``keyring_condition()``, ``conditions_print()``
      - Every input ``status`` can build: status codes of 0 or a negated

@@ -280,64 +280,53 @@ const char *status_verdict(const struct conditions_input *in)
 	return "ok";
 }
 
-void status_reason(const struct conditions_input *in,
-		   char *buf, size_t cap)
+static const char *tampered_reason(const struct conditions_input *in)
+{
+	if (in->cm_seen && !in->chain_matches)
+		return "live register differs from the eventlog replay";
+	if (in->xdp_tampered)
+		return "the archive of a loaded XDP upatch differs from what was loaded";
+	if (in->links_lost)
+		return "a loaded upatch is missing a link or its archive";
+	if (in->pins_unmeasured)
+		return "a upatch is pinned or archived without a record of this boot";
+	if (in->pins_rc == -EBADMSG)
+		return "this boot's records do not fold to the measurement register";
+	if (config_untrusted(in))
+		return "the selected config cannot be verified against its records";
+	if (in->ksp_seen && !in->keyring_present)
+		return "the keyring init froze is gone";
+	if (in->ksm_seen && !in->keyring_serial_matches)
+		return "keyring serial swap detected";
+	if (in->dmvp_seen && !in->dmv_present)
+		return "the dm-verity keyring init froze is gone";
+	if (in->dmvm_seen && !in->dmv_serial_matches)
+		return "dm-verity keyring serial swap detected";
+	if (in->bpf_unfrozen || in->dmv_unfrozen)
+		return "a keyring holds a link init did not freeze";
+	return "the config key init froze is gone";
+}
+
+const char *status_reason(const struct conditions_input *in)
 {
 	const char *v = status_verdict(in);
 
-	buf[0] = '\0';
-	if (strcmp(v, "unreachable") == 0) {
-		if (in->unreach)
-			strscpy(buf, in->unreach, cap);
-	} else if (strcmp(v, "unparseable") == 0) {
-		strscpy(buf, "status JSON unparseable", cap);
-	} else if (strcmp(v, "tampered") == 0) {
-		if (in->cm_seen && !in->chain_matches)
-			strscpy(buf, "live register differs from the eventlog replay", cap);
-		else if (in->xdp_tampered)
-			strscpy(buf, "the archive of a loaded XDP upatch differs from what was loaded",
-				cap);
-		else if (in->links_lost)
-			strscpy(buf, "a loaded upatch is missing a link or its archive",
-				cap);
-		else if (in->pins_unmeasured)
-			strscpy(buf, "a upatch is pinned or archived without a record of this boot",
-				cap);
-		else if (in->pins_rc == -EBADMSG)
-			strscpy(buf, "this boot's records do not fold to the measurement register",
-				cap);
-		else if (config_untrusted(in))
-			strscpy(buf, "the selected config cannot be verified against its records",
-				cap);
-		else if (in->ksp_seen && !in->keyring_present)
-			strscpy(buf, "the keyring init froze is gone", cap);
-		else if (in->ksm_seen && !in->keyring_serial_matches)
-			strscpy(buf, "keyring serial swap detected", cap);
-		else if (in->dmvp_seen && !in->dmv_present)
-			strscpy(buf, "the dm-verity keyring init froze is gone",
-				cap);
-		else if (in->dmvm_seen && !in->dmv_serial_matches)
-			strscpy(buf, "dm-verity keyring serial swap detected",
-				cap);
-		else if (in->bpf_unfrozen || in->dmv_unfrozen)
-			strscpy(buf, "a keyring holds a link init did not freeze",
-				cap);
-		else
-			strscpy(buf, "the config key init froze is gone", cap);
-	} else if (strcmp(v, "lsm-off") == 0) {
-		strscpy(buf, "LSM not attached, enforcement off", cap);
-	} else if (strcmp(v, "init-pending") == 0) {
-		strscpy(buf, ".bpf keyring absent before init", cap);
-	} else if (strcmp(v, "reboot-pending") == 0) {
-		strscpy(buf, "a config activation is pending until the next reboot",
-			cap);
-	} else if (strcmp(v, "degraded") == 0) {
-		if (in->chain_seen)
-			strscpy(buf, "a device an XDP upatch selects does not run it",
-				cap);
-		else
-			strscpy(buf, in->tpm_reachable ?
-				"no register bound this boot" : "no TPM answered",
-				cap);
-	}
+	if (strcmp(v, "unreachable") == 0)
+		return in->unreach ? in->unreach : "";
+	if (strcmp(v, "unparseable") == 0)
+		return "status JSON unparseable";
+	if (strcmp(v, "tampered") == 0)
+		return tampered_reason(in);
+	if (strcmp(v, "lsm-off") == 0)
+		return "LSM not attached, enforcement off";
+	if (strcmp(v, "init-pending") == 0)
+		return ".bpf keyring absent before init";
+	if (strcmp(v, "reboot-pending") == 0)
+		return "a config activation is pending until the next reboot";
+	if (strcmp(v, "degraded") == 0 && in->chain_seen)
+		return "a device an XDP upatch selects does not run it";
+	if (strcmp(v, "degraded") == 0)
+		return in->tpm_reachable ? "no register bound this boot" :
+		       "no TPM answered";
+	return "";
 }

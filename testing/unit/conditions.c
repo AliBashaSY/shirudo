@@ -91,15 +91,14 @@ static void records_the_register_does_not_vouch_for_are_tampered(void)
 	};
 	struct condition c[CONDITIONS_MAX];
 	const struct condition *row;
-	char reason[128];
 
 	row = upatches_measured(&in, c);
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "ALERT");
 	EXPECT_TRUE(str_contains(row->detail, "do not fold to the measurement register"));
 	EXPECT_STREQ(status_verdict(&in), "tampered");
-	status_reason(&in, reason, sizeof(reason));
-	EXPECT_TRUE(str_contains(reason, "do not fold to the measurement register"));
+	EXPECT_TRUE(str_contains(status_reason(&in),
+				 "do not fold to the measurement register"));
 }
 
 static void a_check_that_could_not_run_warns(void)
@@ -149,15 +148,13 @@ static void an_uncovered_device_degrades(void)
 	};
 	struct condition c[CONDITIONS_MAX];
 	const struct condition *row;
-	char reason[128];
 
 	row = condition_of(&in, c, "XdpCovered");
 	ASSERT_TRUE(row);
 	EXPECT_STREQ(row->status, "WARN");
 	EXPECT_TRUE(str_contains(row->detail, "fw on eth1 (no multi-buffer XDP)"));
 	EXPECT_STREQ(status_verdict(&in), "degraded");
-	status_reason(&in, reason, sizeof(reason));
-	EXPECT_TRUE(str_contains(reason, "XDP upatch selects"));
+	EXPECT_TRUE(str_contains(status_reason(&in), "XDP upatch selects"));
 }
 
 static void unchecked_coverage_warns_without_degrading(void)

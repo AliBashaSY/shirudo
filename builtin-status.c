@@ -1537,11 +1537,11 @@ static void emit_verdict_json(struct json_emit *e,
 			      const struct conditions_input *cin)
 {
 	struct condition conds[CONDITIONS_MAX];
-	char reason[160];
+	const char *reason;
 	size_t nc, ci;
 
 	json_kv_string(e, "status", status_verdict(cin));
-	status_reason(cin, reason, sizeof(reason));
+	reason = status_reason(cin);
 	if (reason[0])
 		json_kv_string(e, "reason", reason);
 	else
@@ -2031,11 +2031,10 @@ static void status_print_text(const struct status_view *v,
 	const char *folded[3];
 	size_t n_rows = 0;
 	size_t nc, nf = 0;
-	const char *verdict;
-	char reason[160];
+	const char *verdict, *reason;
 
 	verdict = status_verdict(&v->cin);
-	status_reason(&v->cin, reason, sizeof(reason));
+	reason = status_reason(&v->cin);
 	nc = conditions(&v->cin, conds, ARRAY_SIZE(conds));
 	n_rows = build_upatches_table(v, &rows);
 	/*

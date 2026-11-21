@@ -5,13 +5,11 @@
  * status_verdict() and status_reason() of util/conditions.c on every input:
  * the verdict is the first of its order that applies, tampered exactly when
  * a cause holds, whatever else the input says, and the reason is that of
- * the first cause in the documented order, cut to a buffer of LEN bytes.
+ * the first cause in the documented order.
  */
 
 /* util/string.c is included behind a file that includes its header. */
 #define STRING_INTERNAL
-/* A reason is copied from the literal the input picks. */
-#define PROOF_MEMCPY_BYTEWISE
 
 #include "proof.h"
 #include "../../../util/conditions.c"
@@ -164,20 +162,11 @@ static const char *reason_of(const struct conditions_input *in, enum verdict v)
 	}
 }
 
-/* The text, or as much of it as size bytes hold with their NUL. */
-static bool cut_to(const char *buf, const char *text, size_t size)
-{
-	size_t n = min(strlen(text), size - 1);
-
-	return !memcmp(buf, text, n) && !buf[n];
-}
-
 void harness(void)
 {
 	struct conditions_input in;
 	const char *verdict;
 	enum verdict v = 0;
-	char *reason;
 	bool said;
 
 	if (said) {
@@ -197,8 +186,6 @@ void harness(void)
 			 (in.reachable && in.parsed &&
 			  first_cause(&in) != NR_CAUSES),
 			 "tampered exactly when the host answered and a cause holds");
-	reason = any_bytes(LEN);
-	status_reason(&in, reason, LEN);
-	__CPROVER_assert(cut_to(reason, reason_of(&in, v), LEN),
+	__CPROVER_assert(!strcmp(status_reason(&in), reason_of(&in, v)),
 			 "the reason of the verdict and of the first cause");
 }

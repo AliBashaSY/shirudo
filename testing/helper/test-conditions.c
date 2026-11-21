@@ -49,7 +49,6 @@ int main(int argc, char **argv)
 	struct conditions_input in = {};
 	__s64 lsm, serial, pinned;
 	const char *mode, *config, *pins;
-	char reason[160];
 	size_t n, i;
 
 	if (argc != 6 || arg_s64(argv[1], &lsm) || arg_s64(argv[3], &serial) ||
@@ -108,9 +107,8 @@ int main(int argc, char **argv)
 			in.pins_unmeasured += *pins == ',';
 	}
 
-	status_reason(&in, reason, sizeof(reason));
 	printf("status=%s\n", status_verdict(&in));
-	printf("reason=%s\n", reason);
+	printf("reason=%s\n", status_reason(&in));
 	n = conditions(&in, conds, ARRAY_SIZE(conds));
 	for (i = 0; i < n; i++)
 		printf("%s %s %s\n", conds[i].type, conds[i].status,
