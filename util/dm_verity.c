@@ -54,15 +54,16 @@ static bool dm_name_ok(const char *name)
 	return true;
 }
 
-static void dm_init(union dm_buffer *buf, const char *name)
+static void dm_init(union dm_buffer *buf, const struct dm_verity *device)
 {
+	BUILD_BUG_ON(sizeof(buf->io.name) != sizeof(device->name));
 	memset(buf, 0, sizeof(*buf));
 	buf->io.version[0] = DM_VERSION_MAJOR;
 	buf->io.version[1] = 0;
 	buf->io.version[2] = 0;
 	buf->io.data_size = sizeof(*buf);
 	buf->io.data_start = sizeof(buf->io);
-	strscpy(buf->io.name, name, sizeof(buf->io.name));
+	memcpy(buf->io.name, device->name, sizeof(device->name));
 }
 
 static int dm_command(int fd, __u64 command, union dm_buffer *buf)
@@ -326,10 +327,12 @@ int dm_verity_inspect(const char *name,
 	if (!out || !image || !dm_name_ok(name))
 		return -EINVAL;
 	*out = device;
+	if (strscpy(device.name, name, sizeof(device.name)) < 0)
+		return -EINVAL;
 	control = dm_control_open();
 	if (control < 0)
 		return control;
-	dm_init(&buf, name);
+	dm_init(&buf, &device);
 	buf.io.flags = DM_STATUS_TABLE_FLAG;
 	ret = dm_command(control, DM_TABLE_STATUS, &buf);
 	if (!ret)
@@ -338,7 +341,6 @@ int dm_verity_inspect(const char *name,
 		ret = device_path(&device, buf.io.dev);
 	close(control);
 	if (!ret) {
-		strscpy(device.name, name, sizeof(device.name));
 		device.image = *image;
 		*out = device;
 	}
@@ -367,7 +369,7 @@ int dm_verity_remove(struct dm_verity *device, bool deferred)
 	control = dm_control_open();
 	if (control < 0)
 		return control;
-	dm_init(&buf, device->name);
+	dm_init(&buf, device);
 	if (deferred)
 		buf.io.flags = DM_DEFERRED_REMOVE;
 	ret = dm_command(control, DM_DEV_REMOVE, &buf);
@@ -457,7 +459,8 @@ int dm_verity_create(const struct config_image_open *image,
 	if (ret)
 		return ret;
 	device.image = image->image;
-	strscpy(device.name, name, sizeof(device.name));
+	if (strscpy(device.name, name, sizeof(device.name)) < 0)
+		return -EINVAL;
 	ret = loop_attach(image->data_fd,
 			  image->image.data_blocks *
 				 CONFIG_IMAGE_BLOCK_SIZE,
@@ -507,18 +510,18 @@ int dm_verity_create(const struct config_image_open *image,
 		ret = control;
 		goto out;
 	}
-	dm_init(&buf, name);
+	dm_init(&buf, &device);
 	ret = dm_command(control, DM_DEV_CREATE, &buf);
 	if (ret)
 		goto out;
 	created = true;
-	dm_init(&buf, name);
+	dm_init(&buf, &device);
 	buf.io.flags = DM_READONLY_FLAG;
 	buf.io.target_count = 1;
 	target = (void *)(buf.bytes + buf.io.data_start);
 	target->length = image->image.data_blocks *
 			 (CONFIG_IMAGE_BLOCK_SIZE / 512);
-	strscpy(target->target_type, "verity", sizeof(target->target_type));
+	strscpy_literal(target->target_type, "verity");
 	memcpy(target + 1, params, n + 1);
 	target->next = (sizeof(*target) + n + 1 + 7) & ~7u;
 	buf.io.data_size = buf.io.data_start + target->next;
@@ -530,12 +533,12 @@ int dm_verity_create(const struct config_image_open *image,
 	ret = dm_command(control, DM_TABLE_LOAD, &buf);
 	if (ret)
 		goto out;
-	dm_init(&buf, name);
+	dm_init(&buf, &device);
 	buf.io.flags = DM_READONLY_FLAG;
 	ret = dm_command(control, DM_DEV_SUSPEND, &buf);
 	if (ret)
 		goto out;
-	dm_init(&buf, name);
+	dm_init(&buf, &device);
 	buf.io.flags = DM_STATUS_TABLE_FLAG;
 	ret = dm_command(control, DM_TABLE_STATUS, &buf);
 	if (!ret)
@@ -550,7 +553,7 @@ out:
 		keyring_unlink_key(KEY_SPEC_THREAD_KEYRING, key);
 	if (ret) {
 		if (created) {
-			dm_init(&buf, name);
+			dm_init(&buf, &device);
 			dm_command(control, DM_DEV_REMOVE, &buf);
 		}
 		dm_verity_close(&device);
