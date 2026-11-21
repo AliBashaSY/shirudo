@@ -127,7 +127,7 @@ upatch-writer-load	--max-field-sensitivity-array-size 8192 --unwind 2 --unwindse
 upatch-writer-decoders	--memory-leak-check --max-field-sensitivity-array-size 512 --unwind 3 --unwindset strnlen.0:65,memchr.0:65,copy_bytes.0:65,viewed.0:4 LEN=0-2
 upatch-writer-prog-specs --refine-arithmetic --memory-leak-check --max-field-sensitivity-array-size 512 --object-bits 12 --unwind 4 --unwindset strlen.0:161,strcmp.0:161,strncmp.0:21,strchr.0:161,strrchr.0:161,strnlen.0:161,memchr.0:129,memcmp.0:129,parse_base.0:21,parse_base.1:21,digits.0:21,default_attach_section.0:8,uprobe_section_target.0:9,text.0:161,decimal.0:5,resolve.1:65 LEN=0-21
 upatch-writer-kprobes	--refine-arithmetic --memory-leak-check --max-field-sensitivity-array-size 512 --object-bits 12 --unwind 4 --unwindset strlen.0:161,strcmp.0:161,strncmp.0:21,strchr.0:161,strrchr.0:161,strnlen.0:161,memchr.0:129,memcmp.0:129,parse_base.0:21,parse_base.1:21,digits.0:21,default_attach_section.0:8,uprobe_section_target.0:9,text.0:161,decimal.0:5,resolve.1:65,parse_uprobe_targets.0:2,parse_uprobe_targets.1:2,parse_kprobe_targets.0:3,parse_kprobe_syms.0:3,kprobe_sym_valid.0:2 LEN=0-22
-upatch-writer-xdp	--refine-arithmetic --memory-leak-check --max-field-sensitivity-array-size 512 --object-bits 12 --unwind 4 --unwindset strlen.0:161,strcmp.0:161,strncmp.0:21,strchr.0:161,strrchr.0:161,strnlen.0:161,memchr.0:129,memcmp.0:129,parse_base.0:21,parse_base.1:21,digits.0:21,default_attach_section.0:8,uprobe_section_target.0:9,text.0:161,decimal.0:5,resolve.1:65,parse_uprobe_targets.0:0,parse_uprobe_targets.1:0,parse_kprobe_targets.0:0,parse_kprobe_syms.0:0,kprobe_sym_valid.0:0 LEN=0-8
+upatch-writer-xdp	--refine-arithmetic --memory-leak-check --max-field-sensitivity-array-size 512 --object-bits 12 --unwind 4 --unwindset strlen.0:161,strcmp.0:161,strchr.0:161,strrchr.0:161,strnlen.0:161,memchr.0:129,memcmp.0:129,parse_base.0:21,parse_base.1:21,digits.0:21,default_attach_section.0:8,uprobe_section_target.0:9,text.0:161,decimal.0:5,resolve.1:65,parse_uprobe_targets.0:0,parse_uprobe_targets.1:0,parse_kprobe_targets.0:0,parse_kprobe_syms.0:0,kprobe_sym_valid.0:0 LEN=0-8
 upatch-writer-uprobes	--refine-arithmetic --memory-leak-check --max-field-sensitivity-array-size 512 --object-bits 12 --unwind 4 --unwindset strlen.0:161,strcmp.0:161,strncmp.0:21,strchr.0:161,strrchr.0:161,strnlen.0:161,memchr.0:129,memcmp.0:129,parse_base.0:21,parse_base.1:21,digits.0:21,default_attach_section.0:8,uprobe_section_target.0:9,text.0:161,decimal.0:5,resolve.1:65 LEN=0-21
 vouch-payload		--malloc-may-fail --malloc-fail-null --unwind 3 --unwindset memcmp.0:33,harness.0:5 LEN=0-2
 bpm-tar-writer		--unwind 24 --unwindset tar_entry.0:513,bpm_tar_header_ok.0:513,memchr.0:101,memcpy.0:101,strlen.0:101,strnlen.0:101,strcmp.0:102,harness.0:101 --max-field-sensitivity-array-size 512 LEN=1,99,100
@@ -138,7 +138,7 @@ bpm-beefile-lines	--unwind 14 LEN=0-10
 bpm-beefile-tables	--unwind 40 LEN=0-7
 bpm-beefile-names	--unwind 131
 bpm-beefile-version	--unwind 13 LEN=5-9
-bpm-beefile-targets	--unwind 11 --unwindset strlen.0:24,strncmp.0:24 LEN=0-8
+bpm-beefile-targets	--unwind 11 --unwindset strlen.0:24 LEN=0-8
 bpm-beefile-members	--unwind 11 LEN=0-6
 bpm-beefile-fixes	--unwind 5 --unwindset strchr.0:67 LEN=0-2
 bpm-index-writer	--unwind 26 --unwindset strlen.0:64,strnlen.0:64,memcpy.0:64,put_string_n.1:64 --max-field-sensitivity-array-size 512 LEN=0-3
@@ -149,7 +149,7 @@ conditions-rows		--object-bits 12 --max-field-sensitivity-array-size 192 --unwin
 conditions-detail	--object-bits 12 --unwind 195 --unwindset vsnprintf.2:836 LEN=193,1024
 bpm-state-entry		--unwind 1 --unwindset vsnprintf.1:31,vsnprintf.2:7,strcmp.0:42,memcmp.0:32,strlen.0:130,bpm_component_ok.0:130 LEN=0,1
 bpm-state-emit		--object-bits 12 --unwind 1 --unwindset bpm_state_emit.0:3,put_string_n.1:54,put_raw.0:3,vsnprintf.2:3,format_number.0:3,format_number.3:3,strlen.0:250,strcmp.0:250 LEN=0,26,27,123,124,247,248
-bpm-tree-overlap-model	--unwind 3 --unwindset strcmp.0:4,strlen.0:4,strncmp.0:4,model_same.0:4,model_continues.0:4 LEN=2
+bpm-tree-overlap-model	--unwind 3 --unwindset strcmp.0:4,strlen.0:4,model_same.0:4,model_continues.0:4 LEN=2
 bpm-tree-overlap-live	--unwind 2 --unwindset strcmp.0:9,model_same.0:9,add_live.0:4,add_live.1:4,add_live.2:4,tree_add_withdrawn.0:4
 bpm-tree-state-pairs	--unwind 4 --unwindset strnlen.0:258,memcpy.0:258,strlen.0:67,hex_decode.0:33,digest_valid.0:65 LEN=0-2,255,256
 bpm-tree-state-replay	--unwind 8 --unwindset strlen.0:66,hex_decode.0:33,text_of_64.0:65,model_hash.0:33,memneq_explicit.0:33,memcmp.0:33 LEN=0-3
