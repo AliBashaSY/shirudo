@@ -21,13 +21,17 @@ static bool config_untrusted(const struct conditions_input *in)
 	       in->config_state != -EINPROGRESS;
 }
 
-static const char *config_untrusted_detail(int state)
+static void config_untrusted_detail(struct condition *c, int state)
 {
 	if (state == -ESTALE)
-		return "the config activation record does not belong to this TPM boot";
-	if (state == -EKEYREJECTED)
-		return "the mounted config does not match the selected root";
-	return "the config PCR, activation records and mounted config disagree";
+		strscpy_literal(c->detail,
+				"the config activation record does not belong to this TPM boot");
+	else if (state == -EKEYREJECTED)
+		strscpy_literal(c->detail,
+				"the mounted config does not match the selected root");
+	else
+		strscpy_literal(c->detail,
+				"the config PCR, activation records and mounted config disagree");
 }
 
 static bool keyring_tampered(const struct conditions_input *in)
@@ -53,7 +57,7 @@ set_detail(struct condition *c, const char *status,
 	ret = vstrsprintf(full, sizeof(full), fmt, ap);
 	va_end(ap);
 	if (ret < 0)
-		strscpy(c->detail, "?", sizeof(c->detail));
+		strscpy_literal(c->detail, "?");
 	else if (strscpy(c->detail, full, sizeof(c->detail)) < 0)
 		memcpy(c->detail + sizeof(c->detail) - 4, "...", 4);
 }
@@ -110,37 +114,41 @@ size_t conditions(const struct conditions_input *in,
 
 	if (n < cap) {
 		c[n].type = "LsmAttached";
-		c[n].status = in->lsm_attached ? "OK" : "ALERT";
-		strscpy(c[n].detail, in->lsm_attached ?
-			"lsm/bpf link present and pinned" :
-			"lsm/bpf link absent, enforcement off",
-			sizeof(c[n].detail));
+		if (in->lsm_attached) {
+			c[n].status = "OK";
+			strscpy_literal(c[n].detail,
+					"lsm/bpf link present and pinned");
+		} else {
+			c[n].status = "ALERT";
+			strscpy_literal(c[n].detail,
+					"lsm/bpf link absent, enforcement off");
+		}
 		n++;
 	}
 	if (n < cap)
 		keyring_condition(in, &c[n++]);
 	if (n < cap) {
 		c[n].type = "ChainIntact";
-		if (!in->chain_seen) {
+		if (!in->chain_seen && in->tpm_reachable) {
 			c[n].status = "WARN";
-			strscpy(c[n].detail, in->tpm_reachable ?
-				"no register bound this boot (init incomplete)" :
-				"no TPM answered, no register to replay",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail,
+					"no register bound this boot (init incomplete)");
+		} else if (!in->chain_seen) {
+			c[n].status = "WARN";
+			strscpy_literal(c[n].detail,
+					"no TPM answered, no register to replay");
 		} else if (in->cm_seen && in->chain_matches) {
 			c[n].status = "OK";
-			strscpy(c[n].detail, "live register equals the eventlog replay",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail,
+					"live register equals the eventlog replay");
 		} else if (in->cm_seen) {
 			c[n].status = "ALERT";
-			strscpy(c[n].detail,
-				"live register differs from the eventlog replay",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail,
+					"live register differs from the eventlog replay");
 		} else {
 			c[n].status = "WARN";
-			strscpy(c[n].detail,
-				"chain present, replay not evaluated",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail,
+					"chain present, replay not evaluated");
 		}
 		n++;
 	}
@@ -189,15 +197,14 @@ size_t conditions(const struct conditions_input *in,
 			if (strsprintf(c[n].detail, sizeof(c[n].detail),
 				       "NV index %s readable",
 				       in->nv_index ? in->nv_index : "?") < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
+				strscpy_literal(c[n].detail, "?");
 		} else if (in->tpm_reachable) {
 			if (strsprintf(c[n].detail, sizeof(c[n].detail),
 				       "NV index %s not bound this boot",
 				       in->nv_index ? in->nv_index : "?") < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
+				strscpy_literal(c[n].detail, "?");
 		} else {
-			strscpy(c[n].detail, "no TPM answered",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail, "no TPM answered");
 		}
 		n++;
 	}
@@ -208,21 +215,20 @@ size_t conditions(const struct conditions_input *in,
 		c[n].status = "OK";
 		if (!in->config_seen) {
 			c[n].status = "WARN";
-			strscpy(c[n].detail, "no config activation state before init",
-				sizeof(c[n].detail));
+			strscpy_literal(c[n].detail,
+					"no config activation state before init");
 		} else if (in->config_state == -EINPROGRESS) {
 			c[n].status = "WARN";
 			if (strsprintf(c[n].detail, sizeof(c[n].detail),
 				       "the activation of config %.12s.. is pending until the next reboot",
 				       root) < 0)
-				strscpy(c[n].detail, "?", sizeof(c[n].detail));
+				strscpy_literal(c[n].detail, "?");
 		} else if (config_untrusted(in)) {
 			c[n].status = "ALERT";
-			strscpy(c[n].detail, config_untrusted_detail(in->config_state),
-				sizeof(c[n].detail));
+			config_untrusted_detail(&c[n], in->config_state);
 		} else if (strsprintf(c[n].detail, sizeof(c[n].detail),
 				      "config %.12s.. is active", root) < 0) {
-			strscpy(c[n].detail, "?", sizeof(c[n].detail));
+			strscpy_literal(c[n].detail, "?");
 		}
 		n++;
 	}

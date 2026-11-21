@@ -368,14 +368,17 @@ void sysinfo_gather(struct sysinfo *si)
 	si->hostname[sizeof(si->hostname) - 1] = '\0';
 
 	if (uname(&u) == 0) {
-		strscpy(si->kernel_release, u.release,
-			sizeof(si->kernel_release));
-		strscpy(si->kernel_version, u.version,
-			sizeof(si->kernel_version));
-		strscpy(si->machine, u.machine, sizeof(si->machine));
-		if (si->hostname[0] == '\0')
-			strscpy(si->hostname, u.nodename,
-				sizeof(si->hostname));
+		if (strscpy(si->kernel_release, u.release,
+			    sizeof(si->kernel_release)) < 0)
+			si->kernel_release[0] = '\0';
+		if (strscpy(si->kernel_version, u.version,
+			    sizeof(si->kernel_version)) < 0)
+			si->kernel_version[0] = '\0';
+		if (strscpy(si->machine, u.machine, sizeof(si->machine)) < 0)
+			si->machine[0] = '\0';
+		if (si->hostname[0] == '\0' &&
+		    strscpy(si->hostname, u.nodename, sizeof(si->hostname)) < 0)
+			si->hostname[0] = '\0';
 	}
 
 	read_os_release_value("PRETTY_NAME", si->os_pretty);

@@ -71,7 +71,7 @@ static void fail(struct preflight_result *r,
 	c->ok = false;
 	va_start(ap, fmt);
 	if (vstrsprintf(c->detail, sizeof(c->detail), fmt, ap) < 0)
-		strscpy(c->detail, "?", sizeof(c->detail));
+		strscpy_literal(c->detail, "?");
 	va_end(ap);
 	r->n_failed++;
 }
@@ -194,8 +194,8 @@ static void check_lsm_hooks(struct preflight_result *r)
 	for (i = 0; i < ARRAY_SIZE(objs); i++) {
 		if (!objs[i]->size) {
 			pass(c);
-			strscpy(c->detail, "skipped (embedded objects missing)",
-				sizeof(c->detail));
+			strscpy_literal(c->detail,
+					"skipped (embedded objects missing)");
 			return;
 		}
 		ret = kernel_abi_lsm_hooks(objs[i], &hooks);
@@ -285,8 +285,7 @@ static void check_cert_algorithm(struct preflight_result *r)
 
 	if (preflight_keys(&set)) {
 		pass(c);
-		strscpy(c->detail, "skipped (cert unreadable)",
-			sizeof(c->detail));
+		strscpy_literal(c->detail, "skipped (cert unreadable)");
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
@@ -334,8 +333,7 @@ static void check_cert_kernel_algo(struct preflight_result *r)
 
 	if (preflight_keys(&set)) {
 		pass(c);
-		strscpy(c->detail, "skipped (cert unreadable)",
-			sizeof(c->detail));
+		strscpy_literal(c->detail, "skipped (cert unreadable)");
 		return;
 	}
 	for (i = 0; i < set.n; i++) {
@@ -426,8 +424,8 @@ static void check_tpm(struct preflight_result *r)
 			if (strsprintf(c->detail, sizeof(c->detail),
 				       "TCTI from the config: %s",
 				       cfg.tpm_tcti) < 0)
-				strscpy(c->detail, "TCTI from the config",
-					sizeof(c->detail));
+				strscpy_literal(c->detail,
+						"TCTI from the config");
 		}
 		if (override)
 			return;

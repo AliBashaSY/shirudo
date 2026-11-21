@@ -78,8 +78,10 @@ static int note_unmeasured(const char *name, void *ctx)
 	if (used >= 3 && !strcmp(names + used - 3, "..."))
 		return 0;
 	if (strsprintf(names + used, UNMEASURED_NAMES - used, "%s%s",
-		       used ? ", " : "", name) < 0 && used)
-		strscpy(names + used, ", ...", UNMEASURED_NAMES - used);
+		       used ? ", " : "", name) >= 0 || !used)
+		return 0;
+	if (strscpy(names + used, ", ...", UNMEASURED_NAMES - used) < 0)
+		memcpy(names + UNMEASURED_NAMES - 4, "...", 4);
 	return 0;
 }
 
@@ -441,8 +443,9 @@ static int java_row(const char *name,
 	j->rows = r;
 	r = &j->rows[j->n++];
 	memset(r, 0, sizeof(*r));
-	strscpy(r->name, name, sizeof(r->name));
-	strscpy(r->location, "java", sizeof(r->location));
+	if (strscpy(r->name, name, sizeof(r->name)) < 0)
+		strscpy_literal(r->name, "?");
+	strscpy_literal(r->location, "java");
 	hex_encode(payload, UPATCH_PAYLOAD_HASH_LEN, r->payload_sha256);
 	if (!java_agent_path(name, path, sizeof(path)) && !stat(path, &st))
 		iso8601(st.st_ctim.tv_sec, r->loaded_at, sizeof(r->loaded_at));
@@ -619,7 +622,8 @@ static int loaded_set_java(const char *name,
 
 	if (!u)
 		return -ENOMEM;
-	strscpy(u->name, name, sizeof(u->name));
+	if (strscpy(u->name, name, sizeof(u->name)) < 0)
+		return -ENAMETOOLONG;
 	hex_encode(payload, UPATCH_PAYLOAD_HASH_LEN, u->payload_hex);
 	loaded_set_take(l);
 	return 0;
@@ -1428,9 +1432,9 @@ static void status_read_tpm(struct status_tpm *t)
 {
 	if (strsprintf(t->nv_index, sizeof(t->nv_index), "0x%08X",
 		       NV_INDEX) < 0)
-		strscpy(t->nv_index, "?", sizeof(t->nv_index));
+		strscpy_literal(t->nv_index, "?");
 	if (tpm_tcti(t->tcti, sizeof(t->tcti)))
-		strscpy(t->tcti, "?", sizeof(t->tcti));
+		strscpy_literal(t->tcti, "?");
 	t->chain_rc = chain_status(&t->cst);
 	if (t->chain_rc == 0 && !(t->cst.defined && t->cst.written))
 		t->chain_rc = -ENODEV;
@@ -1500,7 +1504,7 @@ static void status_gather(struct status_view *v, bool include_system)
 	if (include_system)
 		sysinfo_gather(&v->sysi);
 	if (gethostname(v->hostname, sizeof(v->hostname)))
-		strscpy(v->hostname, "?", sizeof(v->hostname));
+		strscpy_literal(v->hostname, "?");
 	v->hostname[sizeof(v->hostname) - 1] = '\0';
 	v->lsm_attached = lsm_link_pinned();
 	status_read_keyrings(v);
@@ -1640,7 +1644,8 @@ static size_t build_upatches_table(const struct status_view *v,
 					   ups[i]->d_name) == 0)
 			name = raw_name;
 
-		strscpy(r->name, name, sizeof(r->name));
+		if (strscpy(r->name, name, sizeof(r->name)) < 0)
+			strscpy_literal(r->name, "?");
 		upatch_resolve_location(vbtf, name,
 					r->location,
 					sizeof(r->location));
