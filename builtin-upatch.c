@@ -1037,9 +1037,8 @@ static int prog_attach_cgroup_skb_fallback(int prog_fd,
 	char func[128];
 	int ret;
 
-	strscpy(func, info->name, sizeof(func));
 	ret = prog_func_name(prog_fd, info, func, sizeof(func));
-	if (ret && !func[0]) {
+	if (ret) {
 		pr_err("program metadata says raw_tracepoint, but loaded "
 		       "program type is cgroup_skb and function name is "
 		       "unavailable; rebuild the upatch with cgroup_skb "
