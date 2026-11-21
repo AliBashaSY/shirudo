@@ -98,10 +98,9 @@ static EVP_PKEY *read_priv_pem(const char *path)
 
 static void name_to_str(const X509_NAME *name, char *out, size_t out_sz)
 {
-	if (!X509_NAME_oneline(name, out, (int)out_sz)) {
-		strscpy(out, "(parse error)", out_sz);
-		return;
-	}
+	if (!X509_NAME_oneline(name, out, (int)out_sz) &&
+	    strscpy(out, "(parse error)", out_sz) < 0)
+		out[0] = '\0';
 }
 
 static void asn1_time_to_iso(const ASN1_TIME *t, char *out, size_t out_sz)
@@ -109,11 +108,13 @@ static void asn1_time_to_iso(const ASN1_TIME *t, char *out, size_t out_sz)
 	struct tm tm;
 
 	if (!ASN1_TIME_to_tm(t, &tm)) {
-		strscpy(out, "(unparseable)", out_sz);
+		if (strscpy(out, "(unparseable)", out_sz) < 0)
+			out[0] = '\0';
 		return;
 	}
-	if (!strftime(out, out_sz, "%Y-%m-%dT%H:%M:%SZ", &tm))
-		strscpy(out, "(format error)", out_sz);
+	if (!strftime(out, out_sz, "%Y-%m-%dT%H:%M:%SZ", &tm) &&
+	    strscpy(out, "(format error)", out_sz) < 0)
+		out[0] = '\0';
 }
 
 static int compute_cert_fpr(X509 *c, __u8 fpr[SHA256_DIGEST_LENGTH])
@@ -445,8 +446,7 @@ static void keyring_absent(const struct keys_anchor *a, key_serial_t ret,
 			   int id_rc)
 {
 	char reason[128];
-
-	int n;
+	int n = 0;
 
 	if (ret != (key_serial_t)-ENOKEY)
 		n = strsprintf(reason, sizeof(reason), "lookup error: %s",
@@ -456,13 +456,13 @@ static void keyring_absent(const struct keys_anchor *a, key_serial_t ret,
 			       "gone, init froze serial %d this boot",
 			       (int)a->frozen);
 	else if (!id_rc || id_rc == -ENOENT)
-		n = strscpy(reason, "absent before init", sizeof(reason));
+		strscpy_literal(reason, "absent before init");
 	else
 		n = strsprintf(reason, sizeof(reason),
 			       "frozen identity unreadable: %s",
 			       strerror(-id_rc));
 	if (n < 0)
-		strscpy(reason, "?", sizeof(reason));
+		strscpy_literal(reason, "?");
 	if (keys_json) {
 		json_obj_open(keys_json);
 		json_kv_string(keys_json, "name", a->label);
