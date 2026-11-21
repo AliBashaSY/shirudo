@@ -151,38 +151,36 @@ static int metric_type_from_view(const struct map_view *v,
 	return 0;
 }
 
+/* Why the map exports as logs, or NULL when its values make a metric. */
+static const char *otel_log_reason(const struct map_view *v,
+				   struct metric_type *mt)
+{
+	if (v->serialized)
+		return "map uses a serializer";
+	if (v->skipped)
+		return "map type is not generically readable";
+	if (!upatch_map_is_percpu(v->type))
+		return "map is not per-CPU";
+	if (metric_type_from_view(v, mt))
+		return "value is not a BTF integer scalar";
+	if (mt->is_signed)
+		return "value is signed";
+	return NULL;
+}
+
 int upatch_maps_otel_classify(const struct map_view *v,
 			      enum otel_signal *signal,
 			      char *reason, size_t reason_sz)
 {
 	struct metric_type mt;
-	int ret;
+	const char *why;
 
 	if (!v || !signal)
 		return -EINVAL;
 	*signal = OTEL_LOG;
-	if (v->serialized) {
-		strscpy(reason, "map uses a serializer", reason_sz);
-		return 0;
-	}
-	if (v->skipped) {
-		strscpy(reason, "map type is not generically readable",
-			reason_sz);
-		return 0;
-	}
-	if (!upatch_map_is_percpu(v->type)) {
-		strscpy(reason, "map is not per-CPU", reason_sz);
-		return 0;
-	}
-	ret = metric_type_from_view(v, &mt);
-	if (ret) {
-		strscpy(reason, "value is not a BTF integer scalar", reason_sz);
-		return 0;
-	}
-	if (mt.is_signed) {
-		strscpy(reason, "value is signed", reason_sz);
-		return 0;
-	}
+	why = otel_log_reason(v, &mt);
+	if (why)
+		return strscpy(reason, why, reason_sz) < 0 ? -E2BIG : 0;
 	*signal = OTEL_METRIC;
 	if (strsprintf(reason, reason_sz, "unsigned per-CPU %u-bit scalar",
 		       mt.width * 8) < 0)
@@ -289,7 +287,7 @@ static void emit_resource_attributes(struct json_emit *e)
 	char hostname[256] = "unknown";
 
 	if (gethostname(hostname, sizeof(hostname)) != 0)
-		strscpy(hostname, "unknown", sizeof(hostname));
+		strscpy_literal(hostname, "unknown");
 	hostname[sizeof(hostname) - 1] = '\0';
 	json_arr_open(e, "attributes");
 	otlp_kv_string(e, "service.name", "shirudo");
@@ -1855,7 +1853,7 @@ static int build_s3_urls(const struct otel_s3_state *st,
 	int n, ret;
 
 	if (gethostname(hostname, sizeof(hostname)) != 0)
-		strscpy(hostname, "unknown", sizeof(hostname));
+		strscpy_literal(hostname, "unknown");
 	hostname[sizeof(hostname) - 1] = '\0';
 	safe_key_segment(hostname);
 	n = strsprintf(key, sizeof(key), "%s%s%s/%s/%s/%s.json.gz",

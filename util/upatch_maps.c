@@ -98,23 +98,19 @@ static bool is_hash_type(__u32 type)
 	       type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
-static void btf_type_name(struct btf *btf, __u32 type_id,
-			  char *dst, size_t dst_cap)
+static const char *btf_type_name(struct btf *btf, __u32 type_id)
 {
 	const struct btf_type *t;
 	const char *name;
 
-	dst[0] = '\0';
 	if (!btf || !type_id)
-		return;
+		return "";
 	t = btf__type_by_id(btf, type_id);
 	if (!t)
-		return;
+		return "";
 	name = btf__name_by_offset(btf, t->name_off);
-	if (name && name[0]) {
-		strscpy(dst, name, dst_cap);
-		return;
-	}
+	if (name && name[0])
+		return name;
 	/*
 	 * Anonymous types: walk one indirection to pick up a useful
 	 * label (e.g. unnamed PTR -> named STRUCT). Bounded loop.
@@ -128,15 +124,14 @@ static void btf_type_name(struct btf *btf, __u32 type_id,
 			if (!t)
 				break;
 			name = btf__name_by_offset(btf, t->name_off);
-			if (name && name[0]) {
-				strscpy(dst, name, dst_cap);
-				return;
-			}
+			if (name && name[0])
+				return name;
 			id = t->type;
 			if (!id)
 				break;
 		}
 	}
+	return "";
 }
 
 static __u32 btf_unwrap(const struct btf *btf, __u32 id)
@@ -1282,10 +1277,14 @@ int upatch_maps_read(const char *upatch, const char *map,
 
 		out->key_type_id = info.btf_key_type_id;
 		out->value_type_id = info.btf_value_type_id;
-		btf_type_name(out->btf, info.btf_key_type_id,
-			      out->btf_key_type, sizeof(out->btf_key_type));
-		btf_type_name(out->btf, info.btf_value_type_id,
-			      out->btf_value_type, sizeof(out->btf_value_type));
+		if (strscpy(out->btf_key_type,
+			    btf_type_name(out->btf, info.btf_key_type_id),
+			    sizeof(out->btf_key_type)) < 0)
+			strscpy_literal(out->btf_key_type, "?");
+		if (strscpy(out->btf_value_type,
+			    btf_type_name(out->btf, info.btf_value_type_id),
+			    sizeof(out->btf_value_type)) < 0)
+			strscpy_literal(out->btf_value_type, "?");
 		off = 0;
 		out->key_type_def[0] = '\0';
 		btf_type_signature_into(out->btf, info.btf_key_type_id,
@@ -1345,8 +1344,9 @@ static void scan_upatch_maps(const char *upatch,
 		if (ret)
 			continue;
 		close(fd);
-		strscpy(one.upatch, upatch, sizeof(one.upatch));
-		strscpy(one.name, e->d_name, sizeof(one.name));
+		if (strscpy(one.upatch, upatch, sizeof(one.upatch)) < 0 ||
+		    strscpy(one.name, e->d_name, sizeof(one.name)) < 0)
+			continue;
 		one.type = info.type;
 		one.type_name = map_type_name(info.type);
 		one.max_entries = info.max_entries;

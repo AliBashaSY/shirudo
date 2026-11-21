@@ -90,8 +90,8 @@ static void rep_fail(struct op_report *rep, const char *phase,
 	rep->phase = phase;
 	rep->category = cat;
 	rep->err = err < 0 ? -err : err;
-	if (msg)
-		strscpy(rep->message, msg, sizeof(rep->message));
+	if (msg && strscpy(rep->message, msg, sizeof(rep->message)) < 0)
+		memcpy(rep->message + sizeof(rep->message) - 4, "...", 4);
 }
 
 /*
@@ -573,7 +573,8 @@ static int cmd_upatch_info(int argc, const char **argv)
 		goto out;
 	}
 
-	strscpy(file, path, sizeof(file));
+	if (strscpy(file, path, sizeof(file)) < 0)
+		strscpy_literal(file, "?");
 	printf("File:                  %s\n", printable(file));
 	printf("Name:                  %s\n", printable(name));
 	printf("Type:                  %s\n", flag_str(&u));
@@ -849,8 +850,7 @@ struct prog_desc {
 	int		prog_fd;
 };
 
-static int loader_map_create(const char *name, __u32 value_size,
-			     const void *excl_prog_hash,
+static int loader_map_create(__u32 value_size, const void *excl_prog_hash,
 			     __u32 excl_prog_hash_sz)
 {
 	union bpf_attr attr = {};
@@ -862,7 +862,7 @@ static int loader_map_create(const char *name, __u32 value_size,
 	attr.max_entries = 1;
 	attr.excl_prog_hash = ptr_to_u64(excl_prog_hash);
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
-	strscpy(attr.map_name, name, sizeof(attr.map_name));
+	strscpy_literal(attr.map_name, "__loader.map");
 
 	fd = syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 	return (int)fd;
@@ -1000,10 +1000,10 @@ static int prog_func_name(int prog_fd, const struct bpf_prog_info *base,
 	name = t ? btf__name_by_offset(btf, t->name_off) : NULL;
 	if (!name || !name[0]) {
 		ret = -ENOENT;
-	} else if (strlen(name) >= cap) {
+	} else if (strscpy(out, name, cap) < 0) {
+		out[0] = '\0';
 		ret = -ENAMETOOLONG;
 	} else {
-		strscpy(out, name, cap);
 		ret = 0;
 	}
 	btf__free(btf);
@@ -2312,8 +2312,8 @@ static int loader_map_prepare(struct signed_load *sl)
 			 "loader digest failed");
 		return 1;
 	}
-	sl->map_fd = loader_map_create("__loader.map", u->hdr.data_len,
-				       loader_digest, sizeof(loader_digest));
+	sl->map_fd = loader_map_create(u->hdr.data_len, loader_digest,
+				       sizeof(loader_digest));
 	if (sl->map_fd < 0)
 		return loader_map_failed(rep, "__loader.map create",
 					 "__loader.map create failed");
@@ -3514,7 +3514,7 @@ static int java_unload_locked(const char *name,
 		java_options_sync("unload");
 		rep->ok = true;
 		rep->category = "already_unloaded";
-		strscpy(rep->message, "already unloaded", sizeof(rep->message));
+		strscpy_literal(rep->message, "already unloaded");
 		return 0;
 	}
 	if (!err) {
@@ -3734,7 +3734,7 @@ static int cmd_upatch_unload(int argc, const char **argv)
 		rep.ok = true;
 		rep.phase = "done";
 		rep.category = "already_unloaded";
-		strscpy(rep.message, "already unloaded", sizeof(rep.message));
+		strscpy_literal(rep.message, "already unloaded");
 		ret = 0;
 		goto done;
 	}

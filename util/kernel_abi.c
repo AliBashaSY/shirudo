@@ -37,8 +37,9 @@ static __printf(3, 4) int abi_fail(char *detail, size_t detail_sz,
 
 	if (detail && detail_sz) {
 		va_start(ap, fmt);
-		if (vstrsprintf(detail, detail_sz, fmt, ap) < 0)
-			strscpy(detail, "?", detail_sz);
+		if (vstrsprintf(detail, detail_sz, fmt, ap) < 0 &&
+		    strscpy(detail, "?", detail_sz) < 0)
+			detail[0] = '\0';
 		va_end(ap);
 	}
 	return -EOPNOTSUPP;

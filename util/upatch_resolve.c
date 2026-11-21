@@ -259,6 +259,15 @@ static int prog_info_by_id(__u32 prog_id, struct bpf_prog_info *info)
 	return ret;
 }
 
+/* Empty when text does not fit, as strsprintf() leaves a location. */
+static int location_copy(char *out, size_t cap, const char *text)
+{
+	if (strscpy(out, text, cap) >= 0)
+		return 0;
+	out[0] = '\0';
+	return -E2BIG;
+}
+
 /* pinfo is the program's info when the caller has read it already. */
 static int link_location(struct btf *vbtf, int link_fd,
 			 const struct bpf_link_info *linfo,
@@ -284,10 +293,8 @@ static int link_location(struct btf *vbtf, int link_fd,
 	if (linfo->type == BPF_LINK_TYPE_NETFILTER &&
 	    linfo->netfilter.pf == NFPROTO_IPV6 &&
 	    linfo->netfilter.hooknum == NF_INET_PRE_ROUTING &&
-	    linfo->netfilter.priority == NF_IP6_PRI_RAW_BEFORE_DEFRAG) {
-		strscpy(out, "netfilter/ipv6-pre-routing", cap);
-		return 0;
-	}
+	    linfo->netfilter.priority == NF_IP6_PRI_RAW_BEFORE_DEFRAG)
+		return location_copy(out, cap, "netfilter/ipv6-pre-routing");
 
 	if (!pinfo) {
 		ret = prog_info_by_id(linfo->prog_id, &info);
@@ -318,8 +325,7 @@ static int link_location(struct btf *vbtf, int link_fd,
 	if (attach_name && *attach_name)
 		return strsprintf(out, cap, "%s/%s", prefix, attach_name) < 0 ?
 		       -E2BIG : 0;
-	strscpy(out, prefix, cap);
-	return 0;
+	return location_copy(out, cap, prefix);
 }
 
 int upatch_resolve_location(struct btf *vbtf, const char *name,

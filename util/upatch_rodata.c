@@ -209,12 +209,12 @@ static int find_rodata_data(const struct upatch *u,
 			if (map_name_rodata(name)) {
 				__u32 slot;
 
+				BUILD_BUG_ON(sizeof(maps[0].name) != sizeof(name));
 				if (!map_create_slot(insns, count, i, end, &slot))
 					return -EOPNOTSUPP;
 				maps[slot].value_size = attr.value_size;
 				maps[slot].found = true;
-				strscpy(maps[slot].name, name,
-					sizeof(maps[slot].name));
+				memcpy(maps[slot].name, name, sizeof(name));
 			}
 		} else if (cmd == BPF_MAP_UPDATE_ELEM) {
 			__u32 slot, value_field, value_off;
