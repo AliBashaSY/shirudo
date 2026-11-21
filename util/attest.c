@@ -578,8 +578,8 @@ static int on_record(void *ctx)
 		return -EINVAL;
 	r = &p->recs[p->n_recs];
 	memset(r, 0, sizeof(*r));
-	strscpy(r->type, p->type, sizeof(r->type));
-	if (hex_decode(p->digest_hex, r->digest, 32))
+	if (strscpy(r->type, p->type, sizeof(r->type)) < 0 ||
+	    hex_decode(p->digest_hex, r->digest, 32))
 		return -EINVAL;
 	if (!strcmp(p->type, "init")) {
 		struct init_record *in = &p->init;
@@ -608,7 +608,8 @@ static int on_record(void *ctx)
 		in->initrd = !strcmp(p->bound_in, "initrd");
 		in->have_reset_count = p->rec_reset >= 0;
 		in->reset_count = (__u32)p->rec_reset;
-		strscpy(in->anchor, p->anchor, sizeof(in->anchor));
+		if (strscpy(in->anchor, p->anchor, sizeof(in->anchor)) < 0)
+			return -EINVAL;
 		in->present = true;
 		/*
 		 * Records are of one TPM reset unless both carry a count
@@ -624,15 +625,15 @@ static int on_record(void *ctx)
 		p->n_recs = 0;	/* this boot's register starts here */
 		r = &p->recs[0];
 		memset(r, 0, sizeof(*r));
-		strscpy(r->type, "init", sizeof(r->type));
+		strscpy_literal(r->type, "init");
 		memcpy(r->digest, in->digest, 32);
 	} else if (eventlog_upatch_record_parse(p->type, &payload_type,
 						&load)) {
 		__u8 payload[32], event[32];
 
-		if (!upatch_name_valid(p->upatch_name))
+		if (!upatch_name_valid(p->upatch_name) ||
+		    strscpy(r->label, p->upatch_name, sizeof(r->label)) < 0)
 			return -EINVAL;
-		strscpy(r->label, p->upatch_name, sizeof(r->label));
 		if (!hex_decode(p->upatch_payload_hex, payload, 32) &&
 		    !chain_upatch_event(chain_upatch_tag(payload_type, load),
 					p->upatch_name, payload, event))
