@@ -557,9 +557,8 @@ static int collect_mapping(const char *name, dev_t device, void *ctx)
 	if (device == *active ||
 	    device_observed(device, NULL, DEVICE_CONFIG))
 		return 0;
-	if (strlen(name) >= sizeof(retired.name))
+	if (strscpy(retired.name, name, sizeof(retired.name)) < 0)
 		return -ENAMETOOLONG;
-	strscpy(retired.name, name, sizeof(retired.name));
 	retired.device = device;
 	ret = dm_verity_remove(&retired, false);
 	if (ret && ret != -EBUSY && ret != -ENXIO && ret != -ENODEV)
@@ -858,8 +857,10 @@ static int boot_target(struct config_update_target *target)
 	if (selected && memcmp(previous.target.root_hash,
 			       opened.image.root_hash, 32)) {
 		ret = -EKEYREJECTED;
+	} else if (strscpy(target->prefix, prefix,
+			   sizeof(target->prefix)) < 0) {
+		ret = -ENAMETOOLONG;
 	} else {
-		strscpy(target->prefix, prefix, sizeof(target->prefix));
 		memcpy(target->root_hash, opened.image.root_hash, 32);
 	}
 	config_image_close(&opened);
@@ -941,7 +942,7 @@ int image_boot_keys(struct trusted_set *set)
 	if (ret)
 		return boot_keys_error("validate BPF trust set", ret);
 	/* Guard loaders need the initial signer until activation. */
-	strscpy(primary.path, RUNTIME_CERT_PATH, sizeof(primary.path));
+	strscpy_literal(primary.path, RUNTIME_CERT_PATH);
 	ret = keys_digest_file(primary.path, primary.sha256,
 			       primary.fingerprint);
 	if (ret)
