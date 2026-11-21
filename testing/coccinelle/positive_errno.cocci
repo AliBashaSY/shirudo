@@ -3,8 +3,8 @@
 //
 // A function returns 0 or a negative error number, and its callers test
 // for a value below 0: a bare error number, or errno itself, returned or
-// put in ret, passes as success. errno kept in err for a message is
-// positive by design.
+// put in ret, alone or as a branch of a conditional, passes as success.
+// errno kept in err for a message is positive by design.
 
 virtual report
 
@@ -23,6 +23,7 @@ identifier E = {E2BIG, EACCES, EADDRINUSE, EADDRNOTAVAIL, EAFNOSUPPORT, EAGAIN,
 		EPROTONOSUPPORT, ERANGE, EROFS, ESPIPE, ESRCH, ESTALE, ETIME,
 		ETIMEDOUT, ETXTBSY, EUCLEAN, EWOULDBLOCK, EXDEV, EHWPOISON};
 identifier ret = {ret};
+expression C, X;
 position p;
 @@
 (
@@ -33,6 +34,14 @@ position p;
   return errno@p;
 |
   ret = errno@p
+|
+  return C ? \(E@p\|errno@p\) : X;
+|
+  return C ? X : \(E@p\|errno@p\);
+|
+  ret = C ? \(E@p\|errno@p\) : X
+|
+  ret = C ? X : \(E@p\|errno@p\)
 )
 
 @script:python depends on report@

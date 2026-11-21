@@ -784,7 +784,8 @@ can rewrite what it finds does so with ``-D patch``:
        read of its ``errno``, after CERT C ERR30-C.
    * - ``positive_errno``
      - A bare error number or ``errno`` returned or put in ``ret``,
-       where a negative error number belongs.
+       alone or as a branch of a conditional, where a negative error
+       number belongs.
    * - ``double_close``
      - A descriptor passed to a call after it was closed, after CERT C
        FIO46-C.

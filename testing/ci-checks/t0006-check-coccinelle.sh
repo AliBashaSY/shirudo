@@ -72,8 +72,8 @@ test_expect_success 'a rule rewrites what it finds with -D patch' '
 '
 
 # One case of what each rule taken from CERT C and ISO/IEC TS 17961
-# refuses. A rule the tree gives no match proves nothing until it matches
-# here.
+# refuses, and for positive_errno a second, the branch of a conditional.
+# A rule the tree gives no match proves nothing until it matches here.
 CERT_RULES="errno_clobber positive_errno double_close wrong_test scaled_arith fclose_unchecked"
 write_samples() {
 	cat >"$1" <<'EOF'
@@ -101,6 +101,14 @@ int positive(int x)
 	if (x)
 		return EINVAL;
 	return 0;
+}
+
+int positive_chosen(long key)
+{
+	int ret;
+
+	ret = key < 0 ? errno : 0;
+	return ret;
 }
 
 int reuse(int fd)
@@ -150,6 +158,7 @@ test_expect_success 'each rule taken from CERT C reports its sample' '
 	for r in $CERT_RULES; do
 		grep -q "^$r: samples.c:" "$W/err" || exit 1
 	done &&
+	[ "$(grep -c "^positive_errno: samples.c:" "$W/err")" = 2 ] &&
 	grep -q "6 of 6 rules matched" "$W/err"
 '
 

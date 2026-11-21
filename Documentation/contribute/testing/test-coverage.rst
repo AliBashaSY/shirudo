@@ -56,8 +56,9 @@ signed config image.
      - ``check-coccinelle.sh``: a match that fails the check with its
        file, line and rule, the vendored sources left out, a rule named
        alone, the rewrite of ``-D patch``, a case for each rule taken
-       from CERT C, a case for each BPF hazard rule beside the safe form
-       it leaves alone, a case at its line for ``stale_success``,
+       from CERT C and a second, a conditional's branch, for
+       ``positive_errno``, a case for each BPF hazard rule beside the
+       safe form it leaves alone, a case at its line for ``stale_success``,
        ``break_error``, ``sum_overwrite``, ``fd_leak``, ``getenv_null``,
        ``strerror_negative`` and ``double_test`` beside the forms it
        leaves alone, a dead store beside the reads ``dead_store`` leaves
