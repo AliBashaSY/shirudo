@@ -475,14 +475,20 @@ obs_dns_parse_name_label(struct __sk_buff *skb, __u32 off, __u32 start)
  * the name was recorded as '?'.
  */
 static __always_inline int dns_parse_name(struct __sk_buff *skb, __u32 off,
-					  char *out, __u32 *next_off)
+					  struct dns_request *req,
+					  __u32 *next_off)
 {
 	__u32 start = off, pos = off;
 	int consumed, replaced = 0, i;
 
-	if (!out || !next_off)
+	if (!req || !next_off)
 		return -EINVAL;
-	out[0] = 0;
+	/*
+	 * The request is stored whole, and its name goes on to the arena and
+	 * the export: the bytes a longer name of an earlier query left behind
+	 * the terminator would go with it.
+	 */
+	__builtin_memset(req->name, 0, sizeof(req->name));
 #pragma clang loop unroll(disable)
 	for (i = 0; i < DNS_MAX_NAME_STEPS; i++) {
 		consumed = obs_dns_parse_name_label(skb, pos, start);
@@ -619,7 +625,7 @@ static __always_inline void dns_parse_query_payload(struct __sk_buff *skb,
 		return;
 	}
 	parsed = dns_parse_name(skb, dns_off + sizeof(struct dns_hdr),
-				scratch->req.name, &next);
+				&scratch->req, &next);
 	if (parsed < 0) {
 		dns_debug_inc(DNS_DBG_QUERY_NAME_FAIL);
 		return;
