@@ -66,7 +66,8 @@ signed config image.
        string, beside the forms that terminate or check first, a count by
        hand in a macro and an ``ARRAY_SIZE()`` of a file's own for
        ``array_size``, which rewrites the one and leaves the other, a
-       local's address left in the caller's object beside the forms
+       local's address, or that of its member or element, left in the
+       caller's object at any depth or in ``*out`` beside the forms
        ``local_escape`` leaves alone, a literal compared under a length
        written out beside the lengths ``literal_count`` takes, a literal
        copied into an array with ``strscpy()`` beside the copies

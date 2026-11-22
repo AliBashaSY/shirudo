@@ -739,9 +739,10 @@ can rewrite what it finds does so with ``-D patch``:
    * - ``uninit``
      - A local read after a ``goto`` jumped over its assignment.
    * - ``local_escape``
-     - The address of a local array or variable stored in a member of an
-       object the caller passed in and left there on a path out, where
-       it points into a dead frame.
+     - The address of a local array or variable, or of a member or element
+       of one, stored in an object the caller passed in, in a member at
+       any depth, an element or ``*out``, and left there on a path out,
+       where it points into a dead frame.
    * - ``alloc_size``
      - An allocation sized for another type than its pointer, and a
        free of memory no allocator returned.

@@ -4,7 +4,9 @@
 // The address of a local, stored through a pointer the caller passed in,
 // stays in the caller's object when the function returns: the object then
 // points into a dead frame, which whoever reads the member next takes for
-// what it was told. Hand a callback a context of the function's own
+// what it was told. That holds for a member at any depth, an element and
+// *out alike, and for the address of a local's member or element as for
+// the local's own. Hand a callback a context of the function's own
 // instead, or clear the member on every path out.
 
 virtual report
@@ -27,9 +29,15 @@ def is_static(d, l):
         decl = lines[at] + " " + decl
     return "static" in decl.split()
 
-def escape(fp, d, pos, p, fld, l):
-    if (fp[0].file, fp[0].line, p) in callers and not is_static(d, l):
-        coccilib.report.print_report(pos[0], "%s->%s keeps the address of the local %s past the return" % (p, fld, l))
+# The pointer a store goes through: p of p->a.b, p->a[i], (*p).a and *p.
+# The pointer itself is a variable of the frame, which dies with it.
+def escape(fp, d, pos, lhs, l):
+    lhs = re.sub(r"\s+", "", lhs)
+    m = re.match(r"^[*(]*(\w+)", lhs)
+    if not m or m.group(1) == lhs:
+        return
+    if (fp[0].file, fp[0].line, m.group(1)) in callers and not is_static(d, l):
+        coccilib.report.print_report(pos[0], "%s keeps the address of the local %s past the return" % (lhs, l))
 
 // A pointer that came in as a parameter, or was taken from one.
 @owner@
@@ -68,10 +76,11 @@ p << alias.p;
 @@
 callers.add((fp[0].file, fp[0].line, p))
 
+// A cast in the pattern also matches the store without one.
 @array exists@
-identifier f, p, fld, l;
-type T;
-expression E;
+identifier f, l, m;
+type T, T2;
+expression LHS, E, E2;
 position fp, d, pos;
 @@
   f@fp(...)
@@ -84,27 +93,30 @@ position fp, d, pos;
 )
   ... when any
 (
-  p->fld@pos = l;
+  LHS@pos = (T2)l;
 |
-  p->fld@pos = &l[...];
+  LHS@pos = (T2)&l[...];
+|
+  LHS@pos = (T2)&l[...].m;
+|
+  LHS@pos = l + E2;
 )
-  ... when != p->fld = E
+  ... when != LHS = E
   }
 
 @script:python depends on report@
 fp << array.fp;
 d << array.d;
 pos << array.pos;
-p << array.p;
-fld << array.fld;
+lhs << array.LHS;
 l << array.l;
 @@
-escape(fp, d, pos, p, fld, l)
+escape(fp, d, pos, lhs, l)
 
 @scalar exists@
-identifier f, p, fld, l;
-type T;
-expression E;
+identifier f, l, m, m2;
+type T, T2;
+expression LHS, E;
 position fp, d, pos;
 @@
   f@fp(...)
@@ -116,16 +128,21 @@ position fp, d, pos;
   T l@d = ...;
 )
   ... when any
-  p->fld@pos = &l;
-  ... when != p->fld = E
+(
+  LHS@pos = (T2)&l;
+|
+  LHS@pos = (T2)&l.m;
+|
+  LHS@pos = (T2)&l.m.m2;
+)
+  ... when != LHS = E
   }
 
 @script:python depends on report@
 fp << scalar.fp;
 d << scalar.d;
 pos << scalar.pos;
-p << scalar.p;
-fld << scalar.fld;
+lhs << scalar.LHS;
 l << scalar.l;
 @@
-escape(fp, d, pos, p, fld, l)
+escape(fp, d, pos, lhs, l)

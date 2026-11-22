@@ -10,7 +10,8 @@
 # two rules for bytes taken for a string report a sample of what they
 # refuse, the rules of SAMPLE_RULES each at its line, array_size a count
 # by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
-# local_escape a local's address left in the caller's object,
+# local_escape a local's address, or that of its member or element,
+# left in the caller's object at any depth or in *out,
 # literal_count a literal compared under a length written out,
 # literal_strscpy a literal copied into an array with strscpy(),
 # digest_concat two strings hashed with nothing between them, a file a
@@ -1143,9 +1144,11 @@ test_expect_success 'array_size rewrites the counts but not a definition' '
 
 # The address of a local left in an object the caller passed in: an
 # array, a variable and an element, through a parameter or a pointer
-# taken from one. Beside them what keeps nothing: a member cleared before
-# the return, a static local, a pointer's value and an object of the
-# function's own.
+# taken from one, in a member at any depth, an element and *out, and the
+# address of a local's member or element, cast or offset. Beside them
+# what keeps nothing: a member or *out cleared before the return, a static
+# local, a pointer's value, the address of what a member points to and an
+# object of the function's own.
 write_escape_samples() {
 	cat >"$1" <<'EOF'
 struct ctx {
@@ -1222,6 +1225,87 @@ int own_object(struct ctx *other)
 	u->entry = entry;
 	return use(u) + use(other);
 }
+
+struct nest {
+	struct ctx in;
+	const int *slot[2];
+	struct ctx *next;
+	struct {
+		int n;
+	} pair;
+};
+
+int kept_nested(struct nest *n)
+{
+	int entry[2] = {};
+
+	n->in.entry = entry + 1;
+	return 0;
+}
+
+int kept_slot(struct nest *n, int i)
+{
+	int v = i;
+
+	n->slot[i] = &v;
+	return 0;
+}
+
+int kept_out(const int **out)
+{
+	struct {
+		int n;
+	} vals[2] = {};
+
+	*out = &vals[1].n;
+	return 0;
+}
+
+int kept_through(struct nest *n)
+{
+	int v = 0;
+
+	(*n).next->count = &v;
+	return 0;
+}
+
+int kept_member(struct ctx *u)
+{
+	struct nest local = {};
+
+	u->entry = &local.pair.n;
+	u->name = (const char *)&local.in;
+	return 0;
+}
+
+int cleared_out(const int **out)
+{
+	int v = 0;
+
+	*out = &v;
+	use(*out);
+	*out = NULL;
+	return 0;
+}
+
+int pointee(const int **out, struct ctx *u)
+{
+	struct ctx local = *u;
+
+	*out = local.entry;
+	*out = &local.entry[1];
+	return 0;
+}
+
+int own_nested(struct nest *other)
+{
+	struct nest n = {};
+	int entry[2] = {};
+
+	n.in.entry = entry;
+	n.slot[0] = entry;
+	return use(&n) + use(other);
+}
 EOF
 }
 
@@ -1233,11 +1317,12 @@ test_expect_success 'local_escape reports a local left in the caller'"'"'s objec
 		"$R9/testing/coccinelle/" &&
 	write_escape_samples "$R9/samples.c" &&
 	! (cd "$R9" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
-	for line in 11 19 28 37; do
+	for line in 11 19 28 37 89 97 107 115 123 124; do
 		grep -q "^local_escape: samples.c:$line:" "$W/err" || exit 1
 	done &&
 	grep -q "samples.c:11:.*u->entry keeps the address of the local entry past the return" "$W/err" &&
-	[ "$(grep -c "^local_escape:" "$W/err")" = 4 ]
+	grep -q "samples.c:107:.*\*out keeps the address of the local vals past the return" "$W/err" &&
+	[ "$(grep -c "^local_escape:" "$W/err")" = 10 ]
 '
 
 # A literal compared or searched under a length written out as a number,
