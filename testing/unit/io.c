@@ -5,20 +5,27 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <limits.h>
+#include <sched.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/file.h>
+#include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <shirudo/string.h>
 
 #include "../../util/paths.h"
 
-static char etc_dir[4096];
+/* The tree a case builds, and the part of it the check guards. */
+static char etc_dir[4096], etc_prefix[4096];
 
 #undef ETC_DIR
-#define ETC_DIR etc_dir
+#define ETC_DIR etc_prefix
 
 #include "../../util/io.c"
 
@@ -159,6 +166,7 @@ static void make_etc_in(const char *dir)
 	ASSERT_TRUE(strsprintf(etc_dir, sizeof(etc_dir),
 			       "%s/shirudo-unit-etc-XXXXXX", dir) > 0);
 	ASSERT_TRUE(mkdtemp(etc_dir));
+	ASSERT_TRUE(strscpy(etc_prefix, etc_dir, sizeof(etc_prefix)) > 0);
 	etc_fd = open(etc_dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	ASSERT_TRUE(etc_fd >= 0);
 }
@@ -225,6 +233,86 @@ static void replace_mode(const char *name, const char *text, mode_t mode)
 	close(fd);
 	ASSERT_EQ(renameat(etc_fd, tmp, etc_fd, name), 0);
 }
+
+/* The check guards only what lies below name, as a host's /etc/shirudo. */
+static void trust_below(const char *name)
+{
+	ASSERT_TRUE(strsprintf(etc_prefix, sizeof(etc_prefix), "%s/%s",
+			       etc_dir, name) > 0);
+}
+
+static void make_dir_once(const char *name, mode_t mode)
+{
+	if (mkdirat(etc_fd, name, 0700)) {
+		ASSERT_EQ(errno, EEXIST);
+		return;
+	}
+	ASSERT_EQ(fchmodat(etc_fd, name, mode, 0), 0);
+}
+
+/* Each directory of name that is missing yet, with mode. */
+static void make_dirs(const char *name, mode_t mode)
+{
+	char path[PATH_MAX];
+	size_t i;
+
+	ASSERT_TRUE(strscpy(path, name, sizeof(path)) > 0);
+	for (i = 1; path[i]; i++) {
+		if (path[i] != '/')
+			continue;
+		path[i] = '\0';
+		make_dir_once(path, mode);
+		path[i] = '/';
+	}
+	make_dir_once(path, mode);
+}
+
+/* A link to a name of the tree, spelled from / as distributions write them. */
+static void make_abs_link(const char *target, const char *name)
+{
+	char path[PATH_MAX];
+
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir,
+			       target) > 0);
+	make_link(path, name);
+}
+
+static void give(const char *name, uid_t uid)
+{
+	ASSERT_EQ(fchownat(etc_fd, name, uid, uid, AT_SYMLINK_NOFOLLOW), 0);
+}
+
+static void replace(const char *name, const char *text)
+{
+	replace_mode(name, text, 0644);
+}
+
+static int open_in(const char *name)
+{
+	int fd = openat(etc_fd, name, O_RDONLY | O_CLOEXEC);
+
+	ASSERT_TRUE(fd >= 0);
+	return fd;
+}
+
+/* check_trusted() of what fd holds, asked about by a name of the tree. */
+static int trusted_fd(int fd, const char *asked)
+{
+	char path[PATH_MAX];
+
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir,
+			       asked) > 0);
+	return check_trusted(fd, path, false);
+}
+
+static void need_root(const char *reason)
+{
+	if (geteuid())
+		unit_skip(reason);
+}
+
+#define NOBODY		65534
+#define OTHER_USER	65533
 
 static void check_trusted_takes_a_file_nobody_else_can_change(void)
 {
@@ -390,6 +478,325 @@ static void open_trusted_checks_each_file_it_opens(void)
 	remove_etc();
 }
 
+static void check_trusted_follows_link_chains_out_of_its_prefix(void)
+{
+	make_etc();
+	make_dirs("etc/shirudo/bpm", 0755);
+	make_dirs("srv", 0755);
+	make_file("srv/shirudo.conf", 0644);
+	trust_below("etc/shirudo");
+	make_link("../../srv/shirudo.conf", "etc/shirudo/relative.conf");
+	EXPECT_EQ(trusted("srv/shirudo.conf", "etc/shirudo/relative.conf",
+			  false), 0);
+	make_abs_link("srv/shirudo.conf", "etc/shirudo/absolute.conf");
+	EXPECT_EQ(trusted("srv/shirudo.conf", "etc/shirudo/absolute.conf",
+			  false), 0);
+	make_link("relative.conf", "etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted("srv/shirudo.conf", "etc/shirudo/shirudo.conf",
+			  false), 0);
+	make_abs_link("etc/shirudo/shirudo.conf", "etc/shirudo/bpm/chain.conf");
+	EXPECT_EQ(trusted("srv/shirudo.conf", "etc/shirudo/bpm/chain.conf",
+			  false), 0);
+	remove_etc();
+}
+
+/*
+ * A CA certificate under /etc/shirudo linked to the distribution's: on
+ * Debian each name in /etc/ssl/certs is an absolute link into
+ * /usr/share/ca-certificates, on Fedora /etc/ssl/certs is a link to
+ * ../pki/tls/certs, whose bundle is a link up into ca-trust.
+ */
+static void check_trusted_follows_a_distribution_s_ca_links(void)
+{
+	make_etc();
+	make_dirs("etc/shirudo/bpm", 0755);
+	make_dirs("etc/ssl/certs", 0755);
+	make_dirs("usr/share/ca-certificates/mozilla", 0755);
+	make_file("usr/share/ca-certificates/mozilla/ISRG_Root_X1.crt", 0644);
+	make_abs_link("usr/share/ca-certificates/mozilla/ISRG_Root_X1.crt",
+		      "etc/ssl/certs/ISRG_Root_X1.pem");
+	make_abs_link("etc/ssl/certs/ISRG_Root_X1.pem", "etc/shirudo/bpm/ca.pem");
+	trust_below("etc/shirudo");
+	EXPECT_EQ(trusted("usr/share/ca-certificates/mozilla/ISRG_Root_X1.crt",
+			  "etc/shirudo/bpm/ca.pem", false), 0);
+	remove_etc();
+
+	make_etc();
+	make_dirs("etc/shirudo/bpm", 0755);
+	make_dirs("etc/pki/tls/certs", 0755);
+	make_dirs("etc/pki/ca-trust/extracted/pem", 0755);
+	make_file("etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem", 0444);
+	make_link("../../ca-trust/extracted/pem/tls-ca-bundle.pem",
+		  "etc/pki/tls/certs/ca-bundle.crt");
+	make_dirs("etc/ssl", 0755);
+	make_link("../pki/tls/certs", "etc/ssl/certs");
+	make_abs_link("etc/ssl/certs/ca-bundle.crt", "etc/shirudo/bpm/ca.pem");
+	trust_below("etc/shirudo");
+	EXPECT_EQ(trusted("etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+			  "etc/shirudo/bpm/ca.pem", false), 0);
+	remove_etc();
+}
+
+/* /etc/shirudo kept elsewhere, a link in /etc to it. */
+static void check_trusted_follows_its_prefix_linked_elsewhere(void)
+{
+	make_etc();
+	make_dirs("etc", 0755);
+	make_dirs("mnt/state/etc-shirudo", 0755);
+	make_file("mnt/state/etc-shirudo/shirudo.conf", 0644);
+	trust_below("etc/shirudo");
+	make_abs_link("mnt/state/etc-shirudo", "etc/shirudo");
+	EXPECT_EQ(trusted("mnt/state/etc-shirudo/shirudo.conf",
+			  "etc/shirudo/shirudo.conf", false), 0);
+	ASSERT_EQ(unlinkat(etc_fd, "etc/shirudo", 0), 0);
+	make_link("../mnt/state/etc-shirudo", "etc/shirudo");
+	EXPECT_EQ(trusted("mnt/state/etc-shirudo/shirudo.conf",
+			  "etc/shirudo/shirudo.conf", false), 0);
+	/* The directory that holds the link counts as the target's do. */
+	ASSERT_EQ(fchmodat(etc_fd, "etc", 0775, 0), 0);
+	EXPECT_EQ(trusted("mnt/state/etc-shirudo/shirudo.conf",
+			  "etc/shirudo/shirudo.conf", false), -EPERM);
+	ASSERT_EQ(fchmodat(etc_fd, "etc", 0755, 0), 0);
+	ASSERT_EQ(fchmodat(etc_fd, "mnt", 0777, 0), 0);
+	EXPECT_EQ(trusted("mnt/state/etc-shirudo/shirudo.conf",
+			  "etc/shirudo/shirudo.conf", false), -EPERM);
+	remove_etc();
+}
+
+/* The same, the directory linked to on a file system of its own. */
+static void check_trusted_follows_its_prefix_onto_another_mount(void)
+{
+	char state[PATH_MAX];
+	int fd;
+
+	need_root("needs root to mount");
+	if (unshare(CLONE_NEWNS))
+		unit_skip("cannot make a mount namespace");
+	ASSERT_EQ(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL), 0);
+	make_etc();
+	make_dirs("etc", 0755);
+	make_dirs("mnt/state", 0755);
+	ASSERT_TRUE(strsprintf(state, sizeof(state), "%s/mnt/state",
+			       etc_dir) > 0);
+	ASSERT_EQ(mount("tmpfs", state, "tmpfs", 0, "mode=0755"), 0);
+	make_dirs("mnt/state/etc-shirudo", 0755);
+	make_file("mnt/state/etc-shirudo/shirudo.conf", 0644);
+	make_abs_link("mnt/state/etc-shirudo", "etc/shirudo");
+	trust_below("etc/shirudo");
+	fd = open_in("etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), 0);
+	close(fd);
+	ASSERT_EQ(umount2(state, MNT_DETACH), 0);
+	remove_etc();
+}
+
+/*
+ * NixOS links /etc/shirudo to /etc/static/shirudo, /etc/static to the
+ * system's etc in the store and each file there to a store path of its
+ * own. The store is root's, writable by the build users' group, and
+ * sticky. Switching to a new system renames a new /etc/static over the
+ * old one.
+ */
+static void check_trusted_follows_nixos_etc_into_the_store(void)
+{
+	int fd;
+
+	need_root("needs root to hand a file to another user");
+	make_etc();
+	make_dirs("etc", 0755);
+	make_dirs("nix/store", 0755);
+	ASSERT_EQ(fchownat(etc_fd, "nix/store", 0, 30000, 0), 0);
+	ASSERT_EQ(fchmodat(etc_fd, "nix/store", 01775, 0), 0);
+	make_file("nix/store/a-shirudo.conf", 0444);
+	make_dirs("nix/store/b-etc/etc/shirudo", 0555);
+	make_abs_link("nix/store/a-shirudo.conf",
+		      "nix/store/b-etc/etc/shirudo/shirudo.conf");
+	make_abs_link("nix/store/b-etc/etc", "etc/static");
+	make_abs_link("etc/static/shirudo", "etc/shirudo");
+	trust_below("etc/shirudo");
+	fd = open_in("etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), 0);
+
+	make_file("nix/store/c-shirudo.conf", 0444);
+	make_dirs("nix/store/d-etc/etc/shirudo", 0555);
+	make_abs_link("nix/store/c-shirudo.conf",
+		      "nix/store/d-etc/etc/shirudo/shirudo.conf");
+	make_abs_link("nix/store/d-etc/etc", "etc/.static.tmp");
+	ASSERT_EQ(renameat(etc_fd, "etc/.static.tmp", etc_fd, "etc/static"), 0);
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), -ESTALE);
+	close(fd);
+	fd = open_in("etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), 0);
+	close(fd);
+
+	ASSERT_EQ(fchmodat(etc_fd, "nix/store", 0775, 0), 0);
+	EXPECT_EQ(trusted("nix/store/c-shirudo.conf",
+			  "etc/shirudo/shirudo.conf", false), -EPERM);
+	remove_etc();
+}
+
+/*
+ * Ansible, Puppet and Chef write a file beside its name and rename it
+ * over. A command that opened the old file is refused once, and the
+ * next open takes the new one.
+ */
+static void check_trusted_takes_a_file_a_config_manager_renamed_over(void)
+{
+	int fd;
+
+	make_etc();
+	make_dirs("etc/shirudo", 0755);
+	trust_below("etc/shirudo");
+	replace("etc/shirudo/shirudo.conf", "eventlog.max_bytes = 1048576\n");
+	fd = open_in("etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), 0);
+	replace("etc/shirudo/shirudo.conf", "eventlog.max_bytes = 2097152\n");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), -ESTALE);
+	close(fd);
+	fd = open_in("etc/shirudo/shirudo.conf");
+	EXPECT_EQ(trusted_fd(fd, "etc/shirudo/shirudo.conf"), 0);
+	close(fd);
+	remove_etc();
+}
+
+/*
+ * An operator who is not root keeps keys in a directory of its own, as
+ * genkey allows for /var/lib/shirudo/keys, and links cert.der to the
+ * current one.
+ */
+static void check_trusted_lets_a_user_follow_its_own_links(void)
+{
+	need_root("needs root to hand a file to another user");
+	make_etc();
+	ASSERT_EQ(fchmod(etc_fd, 0755), 0);
+	make_dirs("var/lib/shirudo", 0755);
+	make_dirs("var/lib/shirudo/keys", 0700);
+	give("var/lib/shirudo/keys", NOBODY);
+	make_file("var/lib/shirudo/keys/cert-1.der", 0600);
+	give("var/lib/shirudo/keys/cert-1.der", NOBODY);
+	make_link("cert-1.der", "var/lib/shirudo/keys/cert.der");
+	give("var/lib/shirudo/keys/cert.der", NOBODY);
+	make_abs_link("var/lib/shirudo/keys/cert-1.der",
+		      "var/lib/shirudo/keys/root.der");
+	make_link("cert-1.der", "var/lib/shirudo/keys/other.der");
+	give("var/lib/shirudo/keys/other.der", OTHER_USER);
+	trust_below("var/lib/shirudo");
+	ASSERT_EQ(seteuid(NOBODY), 0);
+	EXPECT_EQ(trusted("var/lib/shirudo/keys/cert-1.der",
+			  "var/lib/shirudo/keys/cert.der", false), 0);
+	EXPECT_EQ(trusted("var/lib/shirudo/keys/cert-1.der",
+			  "var/lib/shirudo/keys/root.der", false), 0);
+	EXPECT_EQ(trusted("var/lib/shirudo/keys/cert-1.der",
+			  "var/lib/shirudo/keys/other.der", false), -EPERM);
+	ASSERT_EQ(seteuid(0), 0);
+	/* Root takes nothing from a directory another user owns. */
+	EXPECT_EQ(trusted("var/lib/shirudo/keys/cert-1.der",
+			  "var/lib/shirudo/keys/root.der", false), -EPERM);
+	remove_etc();
+}
+
+static void check_trusted_refuses_a_link_another_user_owns(void)
+{
+	need_root("needs root to hand a file to another user");
+	make_etc();
+	make_dirs("etc/shirudo/bpm", 0755);
+	make_dirs("etc/ssl/certs", 0755);
+	make_dirs("srv/ca", 0755);
+	make_file("srv/ca/ca.pem", 0644);
+	trust_below("etc/shirudo");
+	make_abs_link("srv/ca/ca.pem", "etc/shirudo/bpm/ca.pem");
+	EXPECT_EQ(trusted("srv/ca/ca.pem", "etc/shirudo/bpm/ca.pem", false), 0);
+	give("etc/shirudo/bpm/ca.pem", NOBODY);
+	EXPECT_EQ(trusted("srv/ca/ca.pem", "etc/shirudo/bpm/ca.pem", false),
+		  -EPERM);
+	/* A link to a directory on the way counts as the last one does. */
+	make_link("../../srv/ca", "etc/shirudo/ca");
+	EXPECT_EQ(trusted("srv/ca/ca.pem", "etc/shirudo/ca/ca.pem", false), 0);
+	give("etc/shirudo/ca", NOBODY);
+	EXPECT_EQ(trusted("srv/ca/ca.pem", "etc/shirudo/ca/ca.pem", false),
+		  -EPERM);
+	/* So does one outside the prefix that a link inside leads to. */
+	make_abs_link("srv/ca/ca.pem", "etc/ssl/certs/ca.pem");
+	give("etc/ssl/certs/ca.pem", NOBODY);
+	make_abs_link("etc/ssl/certs/ca.pem", "etc/shirudo/bpm/chain.pem");
+	EXPECT_EQ(trusted("srv/ca/ca.pem", "etc/shirudo/bpm/chain.pem", false),
+		  -EPERM);
+	remove_etc();
+}
+
+#define RACE_READS	20000
+#define RACE_REFUSALS	16
+
+/*
+ * Renames a new copy of name over it until killed, a or b in turn, with
+ * a pause that leaves some reads the time to finish.
+ */
+static __noreturn void rename_over_until_killed(const char *name)
+{
+	const struct timespec pause = { .tv_nsec = 100000 };
+	char tmp[PATH_MAX];
+	bool b = false;
+	int fd;
+
+	if (prctl(PR_SET_PDEATHSIG, SIGKILL) ||
+	    strsprintf(tmp, sizeof(tmp), "%s.tmp", name) < 0)
+		_exit(1);
+	for (;; b = !b) {
+		fd = openat(etc_fd, tmp, O_WRONLY | O_CREAT | O_TRUNC |
+			    O_CLOEXEC, 0644);
+		if (fd < 0 || write_complete(fd, b ? "b\n" : "a\n", 2) ||
+		    close(fd) || renameat(etc_fd, tmp, etc_fd, name))
+			_exit(1);
+		nanosleep(&pause, NULL);
+	}
+}
+
+/*
+ * A file renamed over while it is read, as config managers and sealed
+ * state writes do: each read takes the old file or the new one whole.
+ * Only a read whose every attempt found the name renamed over again is
+ * refused, with -ESTALE, and none is refused for anything else.
+ */
+static void read_file_takes_a_file_renamed_over_or_refuses_it(void)
+{
+	int i, ret, refused = 0, other = 0, status;
+	char path[PATH_MAX], *body;
+	size_t len;
+	pid_t pid;
+
+	make_etc();
+	make_dirs("etc/shirudo", 0755);
+	trust_below("etc/shirudo");
+	replace("etc/shirudo/shirudo.conf", "a\n");
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/etc/shirudo/shirudo.conf",
+			       etc_dir) > 0);
+	pid = fork();
+	ASSERT_TRUE(pid >= 0);
+	if (!pid)
+		rename_over_until_killed("etc/shirudo/shirudo.conf");
+	for (i = 0; i < RACE_READS && refused < RACE_REFUSALS; i++) {
+		ret = read_file(path, 16, &body, &len);
+		if (ret == -ESTALE) {
+			refused++;
+			continue;
+		}
+		if (ret) {
+			other++;
+			continue;
+		}
+		if (len != 2 || (body[0] != 'a' && body[0] != 'b'))
+			other++;
+		xfree(body, len + 1);
+	}
+	ASSERT_EQ(kill(pid, SIGKILL), 0);
+	ASSERT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_TRUE(WIFSIGNALED(status));
+	EXPECT_EQ(other, 0);
+	ASSERT_EQ(read_file(path, 16, &body, &len), 0);
+	xfree(body, len + 1);
+	remove_etc();
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(lines_len_ends_at_the_last_newline),
 	UNIT_CASE(append_line_adds_one_record),
@@ -406,6 +813,15 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(open_trusted_reopens_a_file_renamed_over),
 	UNIT_CASE(open_trusted_gives_up_on_a_name_that_keeps_changing),
 	UNIT_CASE(open_trusted_checks_each_file_it_opens),
+	UNIT_CASE(check_trusted_follows_link_chains_out_of_its_prefix),
+	UNIT_CASE(check_trusted_follows_a_distribution_s_ca_links),
+	UNIT_CASE(check_trusted_follows_its_prefix_linked_elsewhere),
+	UNIT_CASE(check_trusted_follows_its_prefix_onto_another_mount),
+	UNIT_CASE(check_trusted_follows_nixos_etc_into_the_store),
+	UNIT_CASE(check_trusted_takes_a_file_a_config_manager_renamed_over),
+	UNIT_CASE(check_trusted_lets_a_user_follow_its_own_links),
+	UNIT_CASE(check_trusted_refuses_a_link_another_user_owns),
+	UNIT_CASE(read_file_takes_a_file_renamed_over_or_refuses_it),
 	{}
 };
 
