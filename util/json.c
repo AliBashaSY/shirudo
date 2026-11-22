@@ -342,6 +342,13 @@ void json_key_lossy(struct json_emit *e, const char *s, size_t n)
 	e->value_pending = true;
 }
 
+void json_kv_string_lossy(struct json_emit *e, const char *key,
+			  const char *val)
+{
+	json_key(e, key);
+	json_str_lossy(e, val, strlen(val));
+}
+
 struct pctx {
 	const char			*p;
 	const char			*end;

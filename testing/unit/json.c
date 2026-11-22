@@ -557,6 +557,25 @@ static void lossy_writes_replace_bad_bytes(void)
 		     "\"a\\ufffdb\\ufffdc\\ufffd\\ufffd\xc3\xa9\"}");
 }
 
+static void lossy_member_has_a_strict_key(void)
+{
+	char buf[64];
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+
+	json_obj_open(&e);
+	json_kv_string_lossy(&e, "release", "7.0\xff");
+	json_kv_string_lossy(&e, "b", "");
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+	EXPECT_STREQ(buf, "{\"release\":\"7.0\\ufffd\",\"b\":\"\"}");
+
+	e = (struct json_emit){ .buf = buf, .cap = sizeof(buf) };
+	json_obj_open(&e);
+	json_kv_string_lossy(&e, "k\xff", "v");
+	json_obj_close(&e);
+	EXPECT_EQ(e.err, -EILSEQ);
+}
+
 struct trace {
 	char	buf[512];
 	size_t	len;
@@ -848,6 +867,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(emitter_writes_any_u64),
 	UNIT_CASE(emitter_grows_up_to_its_max),
 	UNIT_CASE(lossy_writes_replace_bad_bytes),
+	UNIT_CASE(lossy_member_has_a_strict_key),
 	UNIT_CASE(walk_reports_every_token),
 	UNIT_CASE(walk_follows_ecma_404),
 	UNIT_CASE(map_takes_any_key),

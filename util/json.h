@@ -89,6 +89,9 @@ void json_raw(struct json_emit *e, const char *value,
  */
 void json_str_lossy(struct json_emit *e, const char *s, size_t n);
 void json_key_lossy(struct json_emit *e, const char *s, size_t n);
+/* A key shirudo names, written strictly, with such a value. */
+void json_kv_string_lossy(struct json_emit *e, const char *key,
+			  const char *val);
 
 /*
  * Not a generic deserialiser: declared keys are dispatched, everything
