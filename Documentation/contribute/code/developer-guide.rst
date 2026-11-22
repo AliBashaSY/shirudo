@@ -742,7 +742,9 @@ can rewrite what it finds does so with ``-D patch``:
      - The address of a local array or variable, or of a member or element
        of one, stored in an object the caller passed in, in a member at
        any depth, an element or ``*out``, and left there on a path out,
-       where it points into a dead frame.
+       where it points into a dead frame; and the address of a local of a
+       block left in a pointer declared outside it and read after the
+       block ends.
    * - ``alloc_size``
      - An allocation sized for another type than its pointer, and a
        free of memory no allocator returned.

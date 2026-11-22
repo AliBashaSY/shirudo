@@ -7,7 +7,9 @@
 // what it was told. That holds for a member at any depth, an element and
 // *out alike, and for the address of a local's member or element as for
 // the local's own. Hand a callback a context of the function's own
-// instead, or clear the member on every path out.
+// instead, or clear the member on every path out. A pointer declared
+// outside a block that keeps the address of a local of the block points
+// at storage just as dead once the block ends: read it in the block only.
 
 virtual report
 
@@ -28,6 +30,14 @@ def is_static(d, l):
         at -= 1
         decl = lines[at] + " " + decl
     return "static" in decl.split()
+
+def is_array(d, l):
+    with open(d[0].file) as f:
+        line = f.read().splitlines()[int(d[0].line) - 1]
+    return re.search(r"\b%s\s*\[" % re.escape(l), line) is not None
+
+def past_block(pos, q, l):
+    coccilib.report.print_report(pos[0], "%s keeps the address of the local %s past its block" % (q, l))
 
 # The pointer a store goes through: p of p->a.b, p->a[i], (*p).a and *p.
 # The pointer itself is a variable of the frame, which dies with it.
@@ -146,3 +156,77 @@ lhs << scalar.LHS;
 l << scalar.l;
 @@
 escape(fp, d, pos, lhs, l)
+
+// A pointer declared outside a block, pointed at a local of the block and
+// read once the block has ended, on its last pass or after a jump out.
+@block exists@
+identifier l, q;
+type T, T1;
+expression E, E0, E2;
+position d, pos, pv, u;
+@@
+(
+  T1 *q;
+|
+  T1 *q = E0;
+|
+  T1 *q[...];
+|
+  T1 *q[...] = E0;
+)
+  ... when any
+  {
+  ... when any
+(
+  T l@d[...];
+|
+  T l@d[...] = ...;
+|
+  T l@d;
+|
+  T l@d = ...;
+)
+  ... when any
+(
+  q@pos = &l;
+|
+  q[...]@pos = &l;
+|
+  q@pv = l;
+|
+  q@pv = &l[...];
+|
+  q[...]@pv = l;
+)
+  ... when != q = E
+  }
+  ... when != q = E
+(
+  q = E2
+|
+  q[...] = E2
+|
+  q@u
+)
+
+// u is bound only where q is read after the block, not set again.
+@script:python depends on report@
+d << block.d;
+pos << block.pos;
+u << block.u;
+q << block.q;
+l << block.l;
+@@
+if not is_static(d, l):
+    past_block(pos, q, l)
+
+// Only an array decays to its address.
+@script:python depends on report@
+d << block.d;
+pv << block.pv;
+u << block.u;
+q << block.q;
+l << block.l;
+@@
+if is_array(d, l) and not is_static(d, l):
+    past_block(pv, q, l)

@@ -67,7 +67,8 @@ signed config image.
        hand in a macro and an ``ARRAY_SIZE()`` of a file's own for
        ``array_size``, which rewrites the one and leaves the other, a
        local's address, or that of its member or element, left in the
-       caller's object at any depth or in ``*out`` beside the forms
+       caller's object at any depth or in ``*out``, and a block's local
+       left in a pointer read after the block, beside the forms
        ``local_escape`` leaves alone, a literal compared under a length
        written out beside the lengths ``literal_count`` takes, a literal
        copied into an array with ``strscpy()`` beside the copies

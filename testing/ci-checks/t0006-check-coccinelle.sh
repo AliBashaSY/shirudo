@@ -11,7 +11,8 @@
 # refuse, the rules of SAMPLE_RULES each at its line, array_size a count
 # by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
 # local_escape a local's address, or that of its member or element,
-# left in the caller's object at any depth or in *out,
+# left in the caller's object at any depth or in *out, and a block's
+# local left in a pointer read after the block,
 # literal_count a literal compared under a length written out,
 # literal_strscpy a literal copied into an array with strscpy(),
 # digest_concat two strings hashed with nothing between them, a file a
@@ -1145,10 +1146,12 @@ test_expect_success 'array_size rewrites the counts but not a definition' '
 # The address of a local left in an object the caller passed in: an
 # array, a variable and an element, through a parameter or a pointer
 # taken from one, in a member at any depth, an element and *out, and the
-# address of a local's member or element, cast or offset. Beside them
-# what keeps nothing: a member or *out cleared before the return, a static
-# local, a pointer's value, the address of what a member points to and an
-# object of the function's own.
+# address of a local's member or element, cast or offset, and a pointer
+# from outside a loop's or a branch's block left at a local of the block
+# and read after it. Beside them what keeps nothing: a member or *out
+# cleared before the return, a static local, a pointer's value, the
+# address of what a member points to, an object of the function's own,
+# and a pointer cleared in its block or set again before it is read.
 write_escape_samples() {
 	cat >"$1" <<'EOF'
 struct ctx {
@@ -1306,6 +1309,90 @@ int own_nested(struct nest *other)
 	n.slot[0] = entry;
 	return use(&n) + use(other);
 }
+
+int kept_past_loop(int n)
+{
+	const char *name = "none";
+	int i;
+
+	for (i = 0; i < n; i++) {
+		char buf[16];
+
+		buf[0] = 'a';
+		name = buf;
+	}
+	return use(name);
+}
+
+int kept_past_branch(int n)
+{
+	const int *p = NULL;
+	const char *argv[2] = {};
+
+	if (n) {
+		int v = n;
+		char arg[4] = "-v";
+
+		p = &v;
+		argv[0] = arg;
+	}
+	return p ? *p + use(argv[0]) : 0;
+}
+
+int kept_past_while(int n)
+{
+	const int *slots[2] = {};
+	const char *name = "none";
+
+	while (n--) {
+		int v = n;
+		char buf[8] = "ab";
+
+		slots[0] = &v;
+		name = &buf[1];
+	}
+	return use(name) + *slots[0];
+}
+
+int used_in_block(int n)
+{
+	const char *name = "none";
+
+	if (n) {
+		char buf[16] = "x";
+
+		name = buf;
+		use(name);
+		name = "none";
+	}
+	return use(name);
+}
+
+int reassigned_past_block(int n)
+{
+	const char *name = "none";
+
+	if (n) {
+		char buf[16] = "x";
+
+		name = buf;
+		use(name);
+	}
+	name = "none";
+	return use(name);
+}
+
+int static_in_block(int n)
+{
+	const char *name = "none";
+
+	if (n) {
+		static char buf[16];
+
+		name = buf;
+	}
+	return use(name);
+}
 EOF
 }
 
@@ -1317,12 +1404,13 @@ test_expect_success 'local_escape reports a local left in the caller'"'"'s objec
 		"$R9/testing/coccinelle/" &&
 	write_escape_samples "$R9/samples.c" &&
 	! (cd "$R9" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
-	for line in 11 19 28 37 89 97 107 115 123 124; do
+	for line in 11 19 28 37 89 97 107 115 123 124 166 180 181 195 196; do
 		grep -q "^local_escape: samples.c:$line:" "$W/err" || exit 1
 	done &&
 	grep -q "samples.c:11:.*u->entry keeps the address of the local entry past the return" "$W/err" &&
 	grep -q "samples.c:107:.*\*out keeps the address of the local vals past the return" "$W/err" &&
-	[ "$(grep -c "^local_escape:" "$W/err")" = 10 ]
+	grep -q "samples.c:166:.*name keeps the address of the local buf past its block" "$W/err" &&
+	[ "$(grep -c "^local_escape:" "$W/err")" = 15 ]
 '
 
 # A literal compared or searched under a length written out as a number,
