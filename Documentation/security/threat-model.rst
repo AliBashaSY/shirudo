@@ -467,7 +467,9 @@ Adversaries
 ADV-A, unprivileged local code
    Constrained by the kernel. shirudo adds nothing it needs, but every
    caller reaches ``lsm/bpf`` before the kernel checks capabilities, so
-   unprivileged code can move the ``bpf()`` tamper counters (T10).
+   unprivileged code can move the ``bpf()`` tamper counters (T10). Where
+   an installation left a file or a directory of shirudo's to another
+   user, the commands refuse the file (T3).
 
 ADV-B, root on the target without the signing key
    The main adversary: a compromised administrator account, a container
@@ -904,6 +906,25 @@ An authorized process is protected against being taken over:
   host names without NSS modules and locks its memory, and refuses to
   run when the lock fails.
 
+The kernel's permissions keep every other user out of these files, and
+out of the settings, package sources and certificates under
+``/etc/shirudo``. An installation can still get them wrong: a directory
+handed to a group, a certificate copied in under another owner, a link
+left by a user. A command therefore takes a file under ``/etc/shirudo``
+or ``/var/lib/shirudo`` that steers what it trusts only when it is a
+regular file of root's or of the user running the command that nobody
+else can write, reached through directories and symbolic links that are
+theirs too; a file that holds the TPM owner's authorization must not be
+readable by anyone else either. The command follows the path one name
+at a time through descriptors, so that what it checks is what led to
+the file it opened and not what the name leads to a moment later, and
+it opens and checks again a file renamed over in between. Anything else
+is refused with ``EPERM``, or ``ESTALE`` for a name that keeps
+changing. The check holds another user, not root, who passes it and is
+held by the seal and the config image instead. It applies to a path as
+the command was given it: one that the environment or an option points
+elsewhere is the caller's to vouch for (U3).
+
 .. note::
 
    Every ptrace mode against a shirudo task is refused, but only an
@@ -917,7 +938,7 @@ An authorized process is protected against being taken over:
 
 .. rst-class:: facts
 
-:Adversary: ADV-B and ADV-C
+:Adversary: ADV-B and ADV-C; ADV-A where a file's permissions went wrong
 :Enforced at: ``lsm.s/file_open``, ``lsm.s/inode_unlink``,
    ``lsm.s/inode_rmdir``, ``lsm.s/inode_rename``, ``lsm/file_ioctl``,
    ``lsm/file_ioctl_compat``,
@@ -940,7 +961,8 @@ An authorized process is protected against being taken over:
 :Refusal: ``EACCES`` from the seal and the task hooks; ``EPERM`` from a
    copy-up, a traced exec in the ``bpf2`` hook, ``PR_SET_MM`` and
    ``prlimit``;
-   ``tampered`` or a foreign-entry warning from shirudo
+   ``tampered`` or a foreign-entry warning from shirudo; ``EPERM`` or
+   ``ESTALE`` for a file another user could change
 :Counters: ``SealWrite``, ``SealUnlink``, ``SealRename``,
    ``SealSetattr``, ``SealXattr``, ``SealLabel``, ``SealEntry``,
    ``SealCopyUp``, ``KeyringWrite``, ``SealPtrace``, ``SealPerf``,
@@ -951,7 +973,7 @@ An authorized process is protected against being taken over:
    ``t6112``, ``t6113``, ``t6114``, ``t6115``, ``t6118``, ``t6123``,
    ``t6124``, ``t6127``, ``t6129``, ``t6131``, ``t6133``, ``t6134``,
    ``t6135``, ``t6136``, ``t6137``, ``t6144``, ``t6145``, ``t6146``,
-   ``t6149``, ``t6150``, ``t6152``, ``t6153``, ``t6156``
+   ``t6149``, ``t6150``, ``t6152``, ``t6153``, ``t6156``, ``t7114``
 :Residual: R2, R19, R22
 
 T4 Substituting artifacts
