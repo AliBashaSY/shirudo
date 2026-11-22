@@ -4442,9 +4442,8 @@ static void age_from_ts(const char *ts, char *out, size_t cap)
 {
 	__s64 age = upatch_age_sec(ts);
 
-	out[0] = '\0';
-	if (age >= 0)
-		format_duration((long)age, out, cap);
+	if (age < 0 || format_duration((long)age, out, cap))
+		out[0] = '\0';
 }
 
 static void render_one_map_text(const char *upatch, const char *map,
