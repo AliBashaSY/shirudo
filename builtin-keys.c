@@ -178,7 +178,7 @@ static int format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
 		name = "unknown";
 	if (id == EVP_PKEY_RSA || id == EVP_PKEY_EC)
 		return strsprintf(out, out_sz, "%s-%d", name,
-				  EVP_PKEY_get_bits(pkey));
+				  EVP_PKEY_get_bits(pkey)) < 0 ? -E2BIG : 0;
 	return strscpy(out, name, out_sz) < 0 ? -E2BIG : 0;
 }
 
@@ -191,12 +191,14 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	char subj_s[256], iss_s[256], nb_s[32];
 	EVP_PKEY *pub = X509_get0_pubkey(cert);
 	__u8 fpr[SHA256_DIGEST_LENGTH];
+	char alg_s[64] = "";
 	int self_signed;
-	char alg_s[64];
 
 	name_to_str(subj, subj_s, sizeof(subj_s));
 	name_to_str(iss, iss_s, sizeof(iss_s));
 	asn1_time_to_iso(nb, nb_s, sizeof(nb_s));
+	if (pub && format_pkey_algorithm(pub, alg_s, sizeof(alg_s)))
+		strscpy_literal(alg_s, "?");
 	self_signed = (X509_NAME_cmp(subj, iss) == 0);
 
 	if (keys_json) {
@@ -207,12 +209,10 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 		json_kv_string(keys_json, "subject", subj_s);
 		json_kv_string(keys_json, "issuer", iss_s);
 		json_kv_bool(keys_json, "self_signed", self_signed);
-		if (pub) {
-			format_pkey_algorithm(pub, alg_s, sizeof(alg_s));
+		if (pub)
 			json_kv_string(keys_json, "algorithm", alg_s);
-		} else {
+		else
 			json_kv_null(keys_json, "algorithm");
-		}
 		if (compute_cert_fpr(cert, fpr) == 0) {
 			hex_encode(fpr, SHA256_DIGEST_LENGTH, hex);
 			json_kv_string(keys_json, "fingerprint", hex);
@@ -229,10 +229,8 @@ static int dump_operator_cert(X509 *cert, const char *cert_path,
 	printf("  %-22s %s\n", "Subject:", subj_s);
 	printf("  %-22s %s%s\n", "Issuer:", iss_s,
 	       self_signed ? "  (self-signed)" : "");
-	if (pub) {
-		format_pkey_algorithm(pub, alg_s, sizeof(alg_s));
+	if (pub)
 		printf("  %-22s %s\n", "Public key:", alg_s);
-	}
 	if (compute_cert_fpr(cert, fpr) == 0)
 		print_fpr("Fingerprint:", fpr);
 	print_fpr("SPKI fingerprint:", cert_spki_fpr);
@@ -266,7 +264,8 @@ static int dump_signing_key(const char *pkey_path,
 	priv = read_priv_pem(pkey_path);
 	if (!priv)
 		return -1;
-	format_pkey_algorithm(priv, alg_s, sizeof(alg_s));
+	if (format_pkey_algorithm(priv, alg_s, sizeof(alg_s)))
+		strscpy_literal(alg_s, "?");
 	if (keys_json) {
 		json_obj_open_key(keys_json, "signing_key");
 		json_kv_string(keys_json, "path", pkey_path);
