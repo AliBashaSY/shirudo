@@ -1647,9 +1647,9 @@ static size_t build_upatches_table(const struct status_view *v,
 
 		if (strscpy(r->name, name, sizeof(r->name)) < 0)
 			strscpy_literal(r->name, "?");
-		upatch_resolve_location(vbtf, name,
-					r->location,
-					sizeof(r->location));
+		if (upatch_resolve_location(vbtf, name, r->location,
+					    sizeof(r->location)))
+			strscpy_literal(r->location, "?");
 		upatch_loaded_at(name, r->loaded_at,
 				 sizeof(r->loaded_at));
 		upatch_payload_sha256(name,

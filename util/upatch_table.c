@@ -58,7 +58,7 @@ void upatch_table_print(const struct upatch_table_row *rows,
 		    format_duration((long)r->age_sec, age, sizeof(age)))
 			strscpy_literal(age, "?");
 		printf("  %-24s  %-28s  %5u  %6s  %-28s  %s\n", r->name,
-		       r->location[0] ? r->location : "-", r->n_maps,
+		       r->location, r->n_maps,
 		       missed_text(r, missed, sizeof(missed)),
 		       r->status[0] ? r->status : "success", age);
 	}

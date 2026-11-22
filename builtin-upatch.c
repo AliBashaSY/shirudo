@@ -4388,8 +4388,9 @@ static int upatch_get_collect(const char *want, struct upatch_get_ctx *c)
 	upatch_payload_sha256(want, c->payload, sizeof(c->payload));
 
 	vbtf = btf__load_vmlinux_btf();
-	upatch_resolve_location(vbtf, want, c->location,
-				sizeof(c->location));
+	if (upatch_resolve_location(vbtf, want, c->location,
+				    sizeof(c->location)))
+		strscpy_literal(c->location, "?");
 	c->missed_ret = upatch_each_link_misses(vbtf, want, keep_link_misses, c);
 	btf__free(vbtf);
 
@@ -4511,8 +4512,7 @@ static void render_get_text(const struct upatch_get_ctx *c,
 	age_from_ts(c->loaded_at, age, sizeof(age));
 
 	printf("%-22s %s\n", "Name:", c->upatch);
-	printf("%-22s %s\n", "Location:",
-	       c->location[0] ? c->location : "?");
+	printf("%-22s %s\n", "Location:", c->location);
 	printf("%-22s %u\n", "Program ID:", c->prog_id);
 	if (c->loaded_at[0])
 		printf("%-22s %s%s%s%s\n", "Loaded at:", c->loaded_at,

@@ -474,7 +474,7 @@ upatches_loaded
    * - ``location``
      - string
      - The attach point, for example ``fentry/do_nanosleep``; ``java``
-       for a Java agent.
+       for a Java agent, ``?`` when it cannot be read.
    * - ``status``
      - string
      - ``success``

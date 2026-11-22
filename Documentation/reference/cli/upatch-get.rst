@@ -27,7 +27,7 @@ Description
 ``get`` opens the first link of the upatch ``<name>`` and reports:
 
 - ``Location``: the attach point in ``SEC()`` form, for example
-  ``fentry/do_nanosleep``.
+  ``fentry/do_nanosleep``, or ``?`` when it cannot be read.
 - the program ID, the load time and the payload digest recorded on the
   pin.
 - ``Missed runs``: the runs of its programs the kernel skipped since the
