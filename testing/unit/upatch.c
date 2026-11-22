@@ -445,6 +445,65 @@ static void java_header_carries_no_loader(void)
 	EXPECT_EQ(upatch_open_memory(&f, sizeof(f), &u), -EINVAL);
 }
 
+/*
+ * A BPF upatch whose signed bytes, the loader and then the data, hold a
+ * second directory where a split 16 bytes earlier looks for one.
+ */
+struct split_fixture {
+	struct upatch_header header;
+	__u8 signature[8];
+	__u8 insns[32];
+	char name[UPATCH_NAME_MAX];
+	struct upatch_signed_section other_dir;
+	struct upatch_signed_section dir;
+	struct upatch_signed_trailer trailer;
+};
+
+#define SPLIT_DATA_OFF	offsetof(struct split_fixture, name)
+
+/* The header gives the last shift bytes of the loader to the data. */
+static void split_load(struct split_fixture *f, __u32 shift)
+{
+	memset(f, 0, sizeof(*f));
+	f->header.magic = cpu_to_le64(UPATCH_MAGIC);
+	f->header.version = cpu_to_le32(UPATCH_VERSION);
+	f->header.type = cpu_to_le32(UPATCH_TYPE_BPF);
+	memcpy(f->header.name, "fix", sizeof("fix"));
+	f->header.signature_off =
+		cpu_to_le32(offsetof(struct split_fixture, signature));
+	f->header.signature_len = cpu_to_le32(sizeof(f->signature));
+	f->header.loader_insns_off =
+		cpu_to_le32(offsetof(struct split_fixture, insns));
+	f->header.loader_insns_len = cpu_to_le32(sizeof(f->insns) - shift);
+	f->header.data_off = cpu_to_le32(SPLIT_DATA_OFF - shift);
+	f->header.data_len = cpu_to_le32(sizeof(*f) - SPLIT_DATA_OFF + shift);
+	memset(f->insns, 'x', sizeof(f->insns));
+	memcpy(f->name, "fix", sizeof("fix"));
+	f->other_dir.tag = cpu_to_le32(UPATCH_SECTION_NAME);
+	f->other_dir.len = cpu_to_le32(sizeof(f->name));
+	f->dir = f->other_dir;
+	f->trailer.magic = cpu_to_le32(UPATCH_SIGNED_TRAILER_MAGIC);
+	f->trailer.version = cpu_to_le32(UPATCH_SIGNED_VERSION);
+	f->trailer.dir_off =
+		cpu_to_le32(offsetof(struct split_fixture, dir) - SPLIT_DATA_OFF);
+	f->trailer.nr_sections = cpu_to_le32(1);
+}
+
+static void one_signature_keeps_its_sections_in_one_split(void)
+{
+	struct split_fixture f;
+	struct upatch u;
+
+	split_load(&f, 0);
+	ASSERT_EQ(upatch_open_memory(&f, sizeof(f), &u), 0);
+	EXPECT_TRUE(upatch_name_signed(&u));
+	upatch_close(&u);
+	split_load(&f, 16);
+	ASSERT_EQ(upatch_open_memory(&f, sizeof(f), &u), 0);
+	EXPECT_TRUE(!upatch_signed_name(&u));
+	upatch_close(&u);
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(prog_specs_take_the_signed_counts),
 	UNIT_CASE(prog_specs_refuse_another_header_count),
@@ -463,6 +522,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(java_load_opens_with_its_jar),
 	UNIT_CASE(java_header_needs_the_signed_type),
 	UNIT_CASE(java_header_carries_no_loader),
+	UNIT_CASE(one_signature_keeps_its_sections_in_one_split),
 	{}
 };
 

@@ -974,6 +974,21 @@ signature does not cover or whose header program and map counts, which
 place each program's descriptor in the loader context, differ from the
 signed ones (``parser_rejected``).
 
+The signature covers the instructions and the data as one run of bytes,
+and the container header that says where the instructions end is not
+signed. Root could move that end: the kernel checks the same signature
+over the same bytes, and the pin, the register and the evidence would
+record the same payload digest for another loader over other data. The
+signed bytes decide the end themselves: their last 16 are the trailer of
+the signed sections, the section directory must end where that trailer
+begins, and its offset and count then give the length of the data. A
+header that divides the signed bytes elsewhere leaves an artifact
+without signed sections, which a load refuses for its missing signed
+name (``parser_rejected``) before the kernel sees a loader. Past
+shirudo, root without runtime authority can neither create nor fill a
+metadata map, and the signed bytes as instructions alone end in data no
+instruction reaches, which the verifier refuses.
+
 An unload directive is a signed loader of its own and goes through the
 same ``BPF_PROG_LOAD``. Before it removes anything, shirudo compares the
 payload digest recorded on the upatch's pin directory, in the xattr
@@ -999,7 +1014,7 @@ test makes the two differ, which takes runtime authority.
    ``payload_mismatch`` and ``parser_rejected`` from ``shirudo upatch``
 :Counters: ``PinXattr`` for a forged payload binding; none for a
    modified loader, which the kernel refuses first
-:Tests: ``t3104``, ``t6117``, ``t6138``
+:Tests: ``t2002``, ``t3104``, ``t6117``, ``t6138``
 :Proofs: ``upatch-header``, ``upatch-signed-sections``,
    ``upatch-signed-name``, ``upatch-name``, ``upatch-prog-specs``,
    ``upatch-prog-uprobes``, ``upatch-uprobe-targets``,
@@ -1542,10 +1557,10 @@ so the reader refuses a file whose type differs from the signed ``PTYP``
 section; a BPF artifact carries none and cannot be relabelled Java. A
 Java artifact relabelled BPF is refused by that check too. The two
 signatures cover one byte stream under one key with no type in it,
-though: signed Java data split into a loader and data of another
-length loses its section directory, reads as BPF, and is then refused
-only because it has no signed name and its bytes are no loader the
-verifier accepts (D10). The jar is written
+though: signed Java data split into a loader and data has a section
+directory that no longer ends at its trailer, reads as BPF without
+signed sections, and is then refused because it has no signed name,
+and its bytes are no loader the verifier accepts (D10). The jar is written
 sealed under ``/run/shirudo-java``, which ``init`` makes and labels
 before anyone else can, outside the state root, which stays ``0700``.
 The seal refuses a write, rename, unlink or label change of the jar, and

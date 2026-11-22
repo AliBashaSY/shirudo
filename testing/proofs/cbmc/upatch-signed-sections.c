@@ -5,9 +5,10 @@
  * The signed sections of a .upatch, read from its data before any
  * signature is checked, for data of LEN bytes, each length proofs.list
  * names, with one section where it can hold a name: util/upatch.c keeps
- * sections only behind a valid trailer, each inside the data and below the
- * directory, the name terminated, none of a directory with a reserved word
- * set or a tag unknown or repeated, and no length or count without them.
+ * sections only behind a valid trailer that the directory ends at, each
+ * inside the data and below the directory, the name terminated, none of a
+ * directory with a reserved word set or a tag unknown or repeated, and no
+ * length or count without them.
  */
 
 #define PROOF_MEMCHR_QUANTIFIED
@@ -117,8 +118,9 @@ void harness(void)
 			 nr && nr <= UPATCH_SIGNED_SECTIONS_MAX,
 			 "a valid trailer");
 	__CPROVER_assert((__u64)dir_off + nr *
-			 sizeof(struct upatch_signed_section) <=
-			 len - sizeof(*tr), "the directory below the trailer");
+			 sizeof(struct upatch_signed_section) ==
+			 len - sizeof(*tr),
+			 "the directory ends where the trailer begins");
 	__CPROVER_assert(!directory_broken(&u, dir_off, nr),
 			 "nothing kept of a directory with a reserved word, unknown or repeated tag");
 	__CPROVER_assert(!u.signed_name ||

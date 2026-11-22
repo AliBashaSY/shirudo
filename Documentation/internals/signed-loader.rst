@@ -127,7 +127,11 @@ made inside the test run, reach it with ``kernel`` true.
    * - check the artifact
      - The signed name must equal the header name, ``payload_sha256``
        must equal SHA-256 of ``loader_insns || data``, and the signed
-       attach metadata must parse. Each ``uprobe``, ``uretprobe``,
+       attach metadata must parse. The header, which is not signed, says
+       where the loader ends: the signed sections are read only when
+       their directory ends at the trailer in the last bytes of the
+       data, which no other division of the signed bytes leaves it
+       doing. Each ``uprobe``, ``uretprobe``,
        ``uprobe.multi`` and ``uretprobe.multi`` target is opened and its
        GNU build ID compared before any BPF loads.
    * - ``BPF_MAP_CREATE`` of ``__loader.map``

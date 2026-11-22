@@ -9,7 +9,9 @@
 # without signingTime on OpenSSL 3.x) by verifying it with openssl over
 # the exact loader_insns || data bytes the kernel folds. Also checks
 # that the builder refuses a classical (RSA) signing key outright, and
-# an ML-DSA key of a smaller parameter set than ML-DSA-87.
+# an ML-DSA key of a smaller parameter set than ML-DSA-87, and that the
+# same signed bytes under a header that ends the loader elsewhere keep
+# no signed name.
 # Needs clang and shirudo-build; the ML-DSA cases need OpenSSL >= 3.5.
 
 cd "$(dirname "$0")/../.."
@@ -98,6 +100,14 @@ content = b[ioff:ioff + ilen] + (b[doff:doff + dlen] if doff else b"")
 open(out + "/content.bin", "wb").write(content)
 open(out + "/tampered.bin", "wb").write(content[:-1] + bytes([content[-1] ^ 1]))
 open(out + "/siglen", "w").write(str(slen))
+# The header is not signed: one that gives the loader's last instruction
+# to the data describes the same signed bytes and the same digest.
+header = bytearray(b[:360])
+loader, data = content[:ilen - 8], content[ilen - 8:]
+struct.pack_into("<8I", header, 304, 360, len(loader), 360 + len(content),
+                 slen, 0, 0, 360 + len(loader), len(data))
+open(out + "/split.upatch", "wb").write(bytes(header) + loader + data +
+                                        b[soff:soff + slen])
 PY
 openssl x509 -inform DER -in "$WORK/keys/cert.der" -out "$WORK/cert.pem" 2>/dev/null
 
@@ -132,6 +142,23 @@ test_expect_success 'a one-bit change in the signed bytes is rejected' '
 	! openssl cms -verify -binary -inform DER -in "$WORK/sig.der" \
 		-content "$WORK/tampered.bin" -certfile "$WORK/cert.pem" \
 		-CAfile "$WORK/cert.pem" -purpose any -out /dev/null 2>/dev/null
+'
+
+test_expect_success 'the signed bytes split after another instruction keep no signed name' '
+	"$S" upatch info "$WORK/u.upatch" --json 2>/dev/null | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert d[\"signed_name\"] == \"t2002\", d.get(\"signed_name\")
+print(d[\"payload_sha256\"], d[\"loader_insns_len\"] - 8, d[\"data_len\"] + 8)
+" >"$WORK/signed" &&
+	"$S" upatch info "$WORK/split.upatch" --json 2>/dev/null | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert d[\"signed_name\"] is None, d.get(\"signed_name\")
+assert d[\"attach_metadata_len\"] == 0, d.get(\"attach_metadata_len\")
+print(d[\"payload_sha256\"], d[\"loader_insns_len\"], d[\"data_len\"])
+" >"$WORK/split" &&
+	cmp "$WORK/signed" "$WORK/split"
 '
 
 test_expect_success 'upatch info --json reports the artifact and signature length' '

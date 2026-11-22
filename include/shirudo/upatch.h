@@ -70,7 +70,8 @@ BUILD_BUG_ON(sizeof(struct upatch_header) != UPATCH_HEADER_SIZE);
  * The signed sections: what the target needs beyond the loader and its
  * data, appended to the data section before signing so the kernel's
  * signature check covers them, and located through a trailer in the
- * data's last 16 bytes. The loader ignores the bytes behind its own.
+ * data's last 16 bytes, which the section directory ends at. The loader
+ * ignores the bytes behind its own.
  * A LOAD carries its name and its attach metadata, an UNLOAD directive
  * the name of its target and the payload digest it expects, and a LOAD
  * carries decoders when its programs declare any. A Java upatch carries

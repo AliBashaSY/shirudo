@@ -161,7 +161,8 @@ signed config image.
      - ML-DSA-87 only, certificate key identifiers, ``--force``
    * - ``t2002-mldsa-sign``
      - The CMS form the kernel verifies, refusal of RSA and ML-DSA-65
-       keys, a one-bit change in the signed bytes
+       keys, a one-bit change in the signed bytes, the signed bytes
+       under a header that ends the loader elsewhere
    * - ``t2003-keys-set``
      - The trusted set and its digest, revoked certificates left out,
        ``attest predict`` agreement, signatures accepted from either

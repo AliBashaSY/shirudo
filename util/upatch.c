@@ -252,9 +252,16 @@ static void forget_signed_sections(struct upatch *u)
 
 /*
  * The signed sections behind the loader data. Each lies below the
- * directory, the directory below the trailer, and each tag appears
- * once; a directory that breaks any of that is taken for none, so a
- * load or unload refuses for what it then lacks.
+ * directory, the directory ends where the trailer begins, and each tag
+ * appears once; a directory that breaks any of that is taken for none,
+ * so a load or unload refuses for what it then lacks.
+ *
+ * The signature covers insns || data with nothing between the two, and
+ * the header that says where one ends is not signed. The trailer is the
+ * last of the signed bytes wherever the header puts that end, and a
+ * directory that ends at the trailer makes dir_off and the count the
+ * length of the data: of all the ways to split what one signature
+ * covers, only the signer's keeps its sections.
  */
 static void parse_signed_sections(struct upatch *u)
 {
@@ -275,7 +282,7 @@ static void parse_signed_sections(struct upatch *u)
 	end = u->hdr.data_len - sizeof(tr);
 	if (nr == 0 || nr > UPATCH_SIGNED_SECTIONS_MAX ||
 	    dir_off > end ||
-	    (__u64)nr * sizeof(struct upatch_signed_section) >
+	    (__u64)nr * sizeof(struct upatch_signed_section) !=
 	    end - dir_off)
 		return;
 	dir = data + dir_off;

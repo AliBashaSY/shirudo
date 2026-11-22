@@ -617,10 +617,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``upatch-signed-sections``
      - ``parse_signed_sections()``
      - Data of 15, 16, 40 and 64 bytes
-     - Sections kept only behind a valid trailer, the directory below
-       the trailer, each section inside the data below the directory;
-       none of a directory with a reserved word set or a tag unknown or
-       repeated; nothing kept on refusal
+     - Sections kept only behind a valid trailer, the directory ending
+       where the trailer begins, so that the signed trailer gives the
+       length of the data, each section inside the data below the
+       directory; none of a directory with a reserved word set or a tag
+       unknown or repeated; nothing kept on refusal
    * - ``upatch-signed-name``
      - The ``NAME`` and ``DECODERS`` sections of
        ``parse_signed_sections()``

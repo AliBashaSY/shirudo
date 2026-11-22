@@ -217,7 +217,17 @@ What the target needs beyond the loader rides inside ``data``, behind the
 loader's own bytes, so the signature covers it, as Figure 1 shows. The
 loader addresses only its own prefix of ``data``. The writer aligns each
 section and the directory to 8 bytes from the start of ``data`` and fills
-the padding with zeros. The trailer is the last 16 bytes of ``data``.
+the padding with zeros. The trailer is the last 16 bytes of ``data``, and
+the directory ends where the trailer begins.
+
+The signature and ``payload_sha256`` cover ``loader_insns`` followed by
+``data`` with nothing between the two, and the header that gives their
+lengths is not signed. The trailer is the last 16 of the signed bytes
+wherever a header ends the loader, and ``dir_off + 16 * nr_sections + 16``
+is the length of ``data``. A header that divides the same signed bytes
+elsewhere therefore names a directory that does not end at the trailer.
+The reader treats that directory as absent, and the load refuses for
+the signed name it lacks.
 
 Trailer
 ~~~~~~~
@@ -241,7 +251,8 @@ Trailer
    * - +8
      - 4
      - ``dir_off``
-     - Offset of the directory in ``data``.
+     - Offset of the directory in ``data``. The directory's last entry
+       ends at the trailer.
    * - +12
      - 4
      - ``nr_sections``
@@ -349,7 +360,7 @@ too, and the reader refuses a file whose header ``type`` differs from it. A
 BPF payload's header cannot be relabelled ``2``, since its signed sections
 carry no ``PTYP``. A Java payload cannot pass for a BPF one either: its
 ``data`` has no loader, and any split of its signed bytes into a loader and
-data moves the directory away from where the trailer points, so the reader
+data leaves a directory that does not end at the trailer, so the reader
 finds no ``NAME`` and the load refuses.
 
 UPGM section
@@ -790,8 +801,8 @@ unload later refuses for the section it lacks, and
 
 #. ``data`` is at least 16 bytes long and its last 16 bytes are a trailer
    with magic ``SGTR`` and version 1.
-#. ``nr_sections`` is 1 to 8, and the directory lies between ``dir_off``
-   and the trailer.
+#. ``nr_sections`` is 1 to 8, and the directory's entries start at
+   ``dir_off`` and end where the trailer begins.
 #. Each entry has ``reserved`` 0 and a section that ends at or before
    ``dir_off``.
 #. Each tag is ``NAME``, ``UPGM``, ``UNLD``, ``DCDB``, ``SHPL``, ``PTYP``
