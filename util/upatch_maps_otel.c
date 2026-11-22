@@ -1446,6 +1446,11 @@ struct snapshot_writer {
 	__u64		json_bytes;
 	__u64		object_bytes;
 	bool		deflate_ready;
+	/*
+	 * z keeps next_out from one call to the next: room in a caller's
+	 * frame would leave it pointing there once the caller returns.
+	 */
+	__u8		out[S3_GZIP_BUFFER_SIZE];
 };
 
 /*
@@ -1517,7 +1522,6 @@ static void snapshot_writer_abort(struct snapshot_writer *w)
 static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 {
 	struct snapshot_writer *w = ctx;
-	__u8 out[S3_GZIP_BUFFER_SIZE];
 
 	if (check_add_overflow(w->json_bytes, len, &w->json_bytes))
 		return -EOVERFLOW;
@@ -1530,13 +1534,13 @@ static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 			size_t produced;
 			int ret, zr;
 
-			w->z.next_out = out;
-			w->z.avail_out = sizeof(out);
+			w->z.next_out = w->out;
+			w->z.avail_out = sizeof(w->out);
 			zr = deflate(&w->z, Z_NO_FLUSH);
 			if (zr != Z_OK)
 				return -EIO;
-			produced = sizeof(out) - w->z.avail_out;
-			ret = snapshot_write_compressed(w, out, produced);
+			produced = sizeof(w->out) - w->z.avail_out;
+			ret = snapshot_write_compressed(w, w->out, produced);
 			if (ret)
 				return ret;
 		}
@@ -1549,19 +1553,18 @@ static int snapshot_json_sink(void *ctx, const char *data, size_t len)
 static int snapshot_writer_finish(struct snapshot_writer *w,
 				  struct s3_snapshot *snapshot)
 {
-	__u8 out[S3_GZIP_BUFFER_SIZE];
 	int zr, ret;
 
 	do {
 		size_t produced;
 
-		w->z.next_out = out;
-		w->z.avail_out = sizeof(out);
+		w->z.next_out = w->out;
+		w->z.avail_out = sizeof(w->out);
 		zr = deflate(&w->z, Z_FINISH);
 		if (zr != Z_OK && zr != Z_STREAM_END)
 			return -EIO;
-		produced = sizeof(out) - w->z.avail_out;
-		ret = snapshot_write_compressed(w, out, produced);
+		produced = sizeof(w->out) - w->z.avail_out;
+		ret = snapshot_write_compressed(w, w->out, produced);
 		if (ret)
 			return ret;
 	} while (zr != Z_STREAM_END);
