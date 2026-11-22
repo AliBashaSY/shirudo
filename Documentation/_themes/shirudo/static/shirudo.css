@@ -179,6 +179,7 @@ main { min-width: 0; padding: 28px 0 56px; }
 .crumbs a { color: var(--muted); }
 .crumbs > * + *::before { content: "/"; margin: 0 6px; color: var(--line); }
 div.body, article.body { max-width: 840px; min-width: 0; padding: 0; background: none; color: var(--fg); }
+.body a.reference { text-decoration: underline; text-underline-offset: 0.15em; }
 .body h1 { font-size: 2rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: balance; }
 .body h2 { font-size: 1.3rem; line-height: 1.3; font-weight: 600; margin: 2.1em 0 .5em; }
 .body h3 { font-size: 1.02rem; font-weight: 600; margin: 1.5em 0 .35em; }
