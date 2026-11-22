@@ -1798,7 +1798,7 @@ static void status_emit_json(struct json_emit *e, const struct status_view *v,
 	json_obj_open(e);
 	json_kv_int(e, "schema", 1);
 	json_kv_string(e, "version_id", shirudo_version_id);
-	json_kv_string(e, "host", v->hostname);
+	json_kv_string_lossy(e, "host", v->hostname);
 	json_kv_bool(e, "is_target", v->is_target);
 	json_kv_bool(e, "is_operator", v->is_operator);
 	emit_verdict_json(e, &v->cin);

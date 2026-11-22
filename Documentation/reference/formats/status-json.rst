@@ -46,7 +46,7 @@ determined, as noted.
        ``shirudo version --version-id`` prints it.
    * - ``host``
      - string
-     - The host name.
+     - The host name, with U+FFFD for each byte that is no UTF-8.
    * - ``is_target``
      - boolean
      - ``true`` when the certificate is present, the LSM link is
@@ -707,7 +707,9 @@ Optional blocks
        that cannot be read is ``-1`` and a text that cannot be read is
        empty. A NUL byte where a value is read counts as a read error:
        ``kernel_config`` then ends with the line before it. A line of
-       the kernel config longer than 8191 bytes is left out.
+       the kernel config longer than 8191 bytes is left out. The text
+       the kernel and these files give is written with U+FFFD for each
+       byte that is no UTF-8.
    * - ``--include-eventlog``
      - ``tpm.eventlog.events``: one object per line of
        ``/var/lib/shirudo/eventlog``, all boots, with ``ts``, ``type``

@@ -8,6 +8,7 @@
 #include <shirudo/string.h>
 
 #include "io.h"
+#include "json.h"
 #include "sysinfo.h"
 #include "unit.h"
 
@@ -306,6 +307,29 @@ static void command_line_with_a_nul_is_absent(void)
 	EXPECT_STREQ(img.root, "");
 }
 
+/* The kernel and the files give bytes: a stray one costs no document. */
+static void system_text_that_is_no_utf8_is_written(void)
+{
+	struct sysinfo si = { .nproc = -1, .mem_total_kb = -1 };
+	char buf[4096];
+	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+
+	strscpy_literal(si.hostname, "node\xff");
+	strscpy_literal(si.kernel_release, "7.0\xc3");
+	strscpy_literal(si.machine, "x86_64\xc0\xaf");
+	strscpy_literal(si.boot_id, "\xfe");
+	json_obj_open(&e);
+	sysinfo_emit_json(&e, &si);
+	json_obj_close(&e);
+	ASSERT_EQ(e.err, 0);
+	EXPECT_TRUE(str_contains(buf, "\"hostname\":\"node\\ufffd\""));
+	EXPECT_TRUE(str_contains(buf, "\"kernel_release\":\"7.0\\ufffd\""));
+	EXPECT_TRUE(str_contains(buf,
+				 "\"architecture\":\"x86_64\\ufffd\\ufffd\""));
+	EXPECT_TRUE(str_contains(buf, "\"boot_id\":\"\\ufffd\""));
+	EXPECT_TRUE(str_contains(buf, "\"kernel_config\":{}"));
+}
+
 static void memory_of_this_host_is_read(void)
 {
 	struct sysinfo si;
@@ -335,6 +359,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(no_hash_is_absent),
 	UNIT_CASE(command_line_that_does_not_fit_is_absent),
 	UNIT_CASE(command_line_with_a_nul_is_absent),
+	UNIT_CASE(system_text_that_is_no_utf8_is_written),
 	UNIT_CASE(memory_of_this_host_is_read),
 	{}
 };

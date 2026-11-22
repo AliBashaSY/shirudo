@@ -356,7 +356,8 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 static void emit_kernel_config_entry(void *ctx, const char *key,
 				     const char *value)
 {
-	json_kv_string(ctx, key, value);
+	json_key_lossy(ctx, key, strlen(key));
+	json_str_lossy(ctx, value, strlen(value));
 }
 
 static void emit_kernel_config(struct json_emit *e,
@@ -502,15 +503,15 @@ void sysinfo_emit_json(struct json_emit *e,
 		       const struct sysinfo *si)
 {
 	json_obj_open_key(e, "system");
-	json_kv_string(e, "hostname", si->hostname);
-	json_kv_string(e, "os", si->os_pretty);
-	json_kv_string(e, "kernel_release", si->kernel_release);
-	json_kv_string(e, "kernel_version", si->kernel_version);
+	json_kv_string_lossy(e, "hostname", si->hostname);
+	json_kv_string_lossy(e, "os", si->os_pretty);
+	json_kv_string_lossy(e, "kernel_release", si->kernel_release);
+	json_kv_string_lossy(e, "kernel_version", si->kernel_version);
 	json_kv_string(e, "kernel_build_id", si->kernel_build_id);
 	emit_kernel_config(e, si->kernel_release);
-	json_kv_string(e, "architecture", si->machine);
-	json_kv_string(e, "machine_id", si->machine_id);
-	json_kv_string(e, "boot_id", si->boot_id);
+	json_kv_string_lossy(e, "architecture", si->machine);
+	json_kv_string_lossy(e, "machine_id", si->machine_id);
+	json_kv_string_lossy(e, "boot_id", si->boot_id);
 	json_kv_int(e, "nproc", si->nproc);
 	json_kv_int(e, "mem_total_kb", si->mem_total_kb);
 	json_kv_int(e, "mem_avail_kb", si->mem_avail_kb);
