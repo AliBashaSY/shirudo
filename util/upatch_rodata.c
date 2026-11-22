@@ -1047,10 +1047,8 @@ static int print_rodata_json(const struct upatch *u,
 	upatch_header_name(u, name);
 	json_obj_open(&e);
 	json_kv_int(&e, "schema", 1);
-	json_key(&e, "upatch");
-	json_str_lossy(&e, name, strlen(name));
-	json_key(&e, "path");
-	json_str_lossy(&e, path, strlen(path));
+	json_kv_string_lossy(&e, "upatch", name);
+	json_kv_string_lossy(&e, "path", path);
 	json_kv_string(&e, "section", ".rodata");
 	json_kv_int(&e, "size", view->size);
 	json_kv_int(&e, "data_offset", view->data_offset);

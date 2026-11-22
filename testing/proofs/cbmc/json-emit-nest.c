@@ -191,7 +191,7 @@ static void element(struct json_emit *e, __u8 op, bool *array,
 static void member(struct json_emit *e, __u8 op, bool *array, size_t *depth,
 		   bool *pending)
 {
-	switch (op % 10) {
+	switch (op % 11) {
 	case 0:
 		json_obj_open_key(e, "o");
 		push(array, depth, false);
@@ -222,6 +222,9 @@ static void member(struct json_emit *e, __u8 op, bool *array, size_t *depth,
 		return;
 	case 8:
 		json_kv_u64(e, "u", 42);
+		return;
+	case 9:
+		json_kv_string_lossy(e, "l", "\xff");
 		return;
 	}
 	json_kv_raw(e, "r", "[]", 2);
