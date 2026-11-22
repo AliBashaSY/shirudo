@@ -616,38 +616,54 @@ static int parse_challenge(const char *header, char *realm, size_t rsz,
 	return realm[0] ? 0 : -EINVAL;
 }
 
-/* The token in a token server's JSON answer, "token" or "access_token". */
-static int token_from_body(const char *body, char *out, size_t out_sz)
+/*
+ * The token goes into a header line as it is: no blank, line break or
+ * other control, and no quote or backslash, which only an escape in the
+ * answer can have put there.
+ */
+static bool token_header_safe(const char *token)
 {
-	const char *token, *end;
-
-	token = span_find(body, strlen(body), "\"token\"");
-	if (!token)
-		token = span_find(body, strlen(body), "\"access_token\"");
-	if (token)
-		token = strchr(token, ':');
-	if (!token)
-		return -EINVAL;
-	token++;
-	while (*token && isspace((__u8)*token))
-		token++;
-	if (*token++ != '"')
-		return -EINVAL;
-	end = strchr(token, '"');
-	if (!end || (size_t)(end - token) >= out_sz)
-		return -EINVAL;
-	/* It goes into a header line as it is: no line break, no escape. */
-	for (const char *p = token; p < end; p++) {
-		if ((__u8)*p < 0x21 || *p == '\\' || (__u8)*p == 0x7f)
-			return -EINVAL;
+	for (; *token; token++) {
+		if ((__u8)*token < 0x21 || *token == '"' || *token == '\\' ||
+		    (__u8)*token == 0x7f)
+			return false;
 	}
-	memcpy(out, token, end - token);
-	out[end - token] = '\0';
-	return 0;
+	return true;
 }
 
 /*
- * The answer is text: with a NUL in it the search above would take it
+ * The token of a token server's JSON answer: its member "token", or
+ * "access_token" where it has none, as the token flow of the
+ * Distribution project names both. They are parsed apart from out,
+ * which a refusal leaves alone.
+ */
+static int token_from_body(const char *body, char *out, size_t out_sz)
+{
+	struct json_field fields[2] = {};
+	const char *token;
+	char *found;
+	int ret;
+
+	found = xcalloc(2, out_sz);
+	if (!found)
+		return -ENOMEM;
+	fields[0] = (struct json_field){ .key = "token", .type = JSON_T_STRING,
+		.dst = found, .dst_cap = out_sz };
+	fields[1] = (struct json_field){ .key = "access_token",
+		.type = JSON_T_STRING, .dst = found + out_sz, .dst_cap = out_sz };
+	ret = json_parse(body, strlen(body), fields, ARRAY_SIZE(fields));
+	token = fields[0].seen ? found : found + out_sz;
+	if (ret || !(fields[0].seen || fields[1].seen) ||
+	    !token_header_safe(token))
+		ret = -EINVAL;
+	else
+		memcpy(out, token, strlen(token) + 1);
+	xfree(found, 2 * out_sz);
+	return ret;
+}
+
+/*
+ * The answer is text: with a NUL in it token_from_body() would take it
  * to end there, whatever the server sent behind it.
  */
 static int token_from_reply(const struct bpm_buffer *reply, char *out,

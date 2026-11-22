@@ -2,36 +2,77 @@
 /*
  * Copyright (c) 2026 Authors of shirudo
  *
- * token_from_body() of util/bpm_oci.c, on a token server's answer of up to
- * TEXT_MAX bytes: the token it takes is a quoted value of an answer that
- * names one, terminated and fit for a header line, and a refused answer
- * writes no token. And token_from_reply(), on the response buffer curl
- * filled with up to TEXT_MAX bytes of any value: an answer without a
- * body or with a NUL among its bytes gives no token, and any other gives
- * what token_from_body() takes from all of its bytes.
+ * token_from_body() of util/bpm_oci.c on a token server's answer of up to
+ * TEXT_MAX bytes, for every outcome json_parse() may give it: the whole
+ * answer goes to json_parse(), the token it takes is the value of
+ * "token", else that of "access_token", terminated and fit for a header
+ * line, and a refused answer writes no token. And token_from_reply(), on
+ * the response buffer curl filled with up to TEXT_MAX bytes of any value:
+ * an answer without a body or with a NUL among its bytes gives no token,
+ * and any other has all of its bytes parsed. json_parse() itself is held
+ * to its contract by the json- proofs.
  */
 
-/* util/string.c is included behind a file that includes its header. */
+/* util/malloc.c and util/string.c behind a file that includes their headers. */
+#define MALLOC_INTERNAL
 #define STRING_INTERNAL
 
 #include "proof.h"
 #include "../../../util/bpm_oci.c"
+#include "../../../util/malloc.c"
 #include "../../../util/string.c"
 
 #define TEXT_MAX	17
 #define OUT_MAX		3
+#define FIELDS		2
 
-static char *text(void)
+/* What the model of json_parse() was handed and what it gave. */
+static struct {
+	bool		called;
+	const char	*data;
+	size_t		len;
+	int		ret;
+	bool		seen[FIELDS];
+	char		value[FIELDS][OUT_MAX];
+} parse;
+
+/*
+ * json_parse() as util/json.h promises it: one of its errors or 0, and
+ * each declared string field written anywhere within its room and, where
+ * seen, terminated there.
+ */
+int json_parse(const char *data, size_t len, struct json_field *fields,
+	       size_t n_fields)
 {
-	char *s = any_bytes(TEXT_MAX + 1);
+	size_t i, j;
+	int ret;
 
-	__CPROVER_assume(!s[TEXT_MAX]);
-	return s;
-}
+	__CPROVER_assert(n_fields == FIELDS, "the two members declared");
+	__CPROVER_assume(ret == 0 || ret == -EINVAL || ret == -E2BIG ||
+			 ret == -ENOSPC);
+	parse.called = true;
+	parse.data = data;
+	parse.len = len;
+	parse.ret = ret;
+	for (i = 0; i < n_fields; i++) {
+		char *dst = fields[i].dst;
+		bool seen;
 
-static bool terminated(const char *s, size_t size)
-{
-	return memchr(s, '\0', size);
+		__CPROVER_assert(fields[i].type == JSON_T_STRING &&
+				 fields[i].dst_cap <= OUT_MAX,
+				 "a string field no larger than out");
+		for (j = 0; j < fields[i].dst_cap; j++) {
+			char c;
+
+			dst[j] = c;
+			parse.value[i][j] = c;
+		}
+		if (seen)
+			__CPROVER_assume(memchr(dst, '\0', fields[i].dst_cap));
+		fields[i].seen = seen;
+		parse.seen[i] = seen;
+	}
+	return ret;
 }
 
 static bool header_safe(const char *s)
@@ -43,48 +84,47 @@ static bool header_safe(const char *s)
 	return true;
 }
 
-static bool quoted_in(const char *s, size_t len, const char *value)
+/* What every answer the parser saw gives: no token, or the right one. */
+static void outcome(int ret, const char *out, const char *was)
 {
-	size_t v = strlen(value), i, j;
-	bool match;
+	const char *member = parse.seen[0] ? parse.value[0] : parse.value[1];
 
-	for (i = 0; i + v + 2 <= len; i++) {
-		match = s[i] == '"' && s[i + v + 1] == '"';
-		for (j = 0; match && j < v; j++)
-			match = s[i + 1 + j] == value[j];
-		if (match)
-			return true;
+	if (ret) {
+		__CPROVER_assert(!memcmp(out, was, OUT_MAX),
+				 "a refused answer writes no token");
+		return;
 	}
-	return false;
+	__CPROVER_assert(!parse.ret && (parse.seen[0] || parse.seen[1]),
+			 "a token only from an answer parsed whole that has one");
+	__CPROVER_assert(memchr(out, '\0', OUT_MAX), "a terminated token");
+	__CPROVER_assert(!strcmp(out, member),
+			 "the value of token, else that of access_token");
+	__CPROVER_assert(header_safe(out),
+			 "no blank, control, quote or backslash in the token");
 }
 
 static void answer_text(void)
 {
+	char *body = any_bytes(TEXT_MAX + 1);
 	char out[OUT_MAX], was[OUT_MAX];
-	char *body = text();
-	size_t len = strlen(body);
+	int ret;
 
+	__CPROVER_assume(!body[TEXT_MAX]);
 	memcpy(was, out, sizeof(out));
-	if (token_from_body(body, out, sizeof(out))) {
-		__CPROVER_assert(!memcmp(out, was, sizeof(out)),
-				 "a refused answer writes no token");
-		return;
-	}
-	__CPROVER_assert(terminated(out, sizeof(out)), "a terminated token");
-	__CPROVER_assert(header_safe(out),
-			 "no blank, control, quote or backslash in the token");
-	__CPROVER_assert(quoted_in(body, len, out) &&
-			 (str_contains(body, "\"token\"") ||
-			  str_contains(body, "\"access_token\"")),
-			 "a quoted value of an answer naming a token");
+	parse.called = false;
+	ret = token_from_body(body, out, sizeof(out));
+	__CPROVER_assert(parse.called && parse.data == body &&
+			 parse.len == strlen(body),
+			 "the whole answer parsed");
+	outcome(ret, out, was);
 }
 
 /* The response as bpm_buffer_append() leaves it: a NUL behind its bytes. */
 static void answer_bytes(void)
 {
-	char out[OUT_MAX], was[OUT_MAX], same[OUT_MAX];
 	struct bpm_buffer reply = { .cap = TEXT_MAX + 1 }, none = {};
 	char *body = any_bytes(TEXT_MAX + 1);
+	char out[OUT_MAX], was[OUT_MAX];
 	bool nul = false;
 	size_t len, i;
 	int ret;
@@ -96,20 +136,21 @@ static void answer_bytes(void)
 		if (!body[i])
 			nul = true;
 	memcpy(was, out, sizeof(out));
-	memcpy(same, out, sizeof(out));
+	parse.called = false;
 	__CPROVER_assert(token_from_reply(&none, out, sizeof(out)) == -EINVAL &&
-			 !memcmp(out, was, sizeof(out)),
+			 !memcmp(out, was, sizeof(out)) && !parse.called,
 			 "no token from an answer without a body");
 	ret = token_from_reply(&reply, out, sizeof(out));
 	if (nul) {
-		__CPROVER_assert(ret == -EINVAL &&
+		__CPROVER_assert(ret == -EINVAL && !parse.called &&
 				 !memcmp(out, was, sizeof(out)),
 				 "no token from an answer with a NUL among its bytes");
 		return;
 	}
-	__CPROVER_assert(ret == token_from_body(body, same, sizeof(same)) &&
-			 !memcmp(out, same, sizeof(out)),
-			 "else the token of the answer's text, or none");
+	__CPROVER_assert(parse.called && parse.data == body &&
+			 parse.len == len,
+			 "else every byte of the answer parsed");
+	outcome(ret, out, was);
 }
 
 void harness(void)

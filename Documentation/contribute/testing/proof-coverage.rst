@@ -231,11 +231,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
    * - ``bpm-oci-token``
      - ``token_from_body()``, ``token_from_reply()``
      - Answers up to 17 bytes, as text and as the bytes of a response,
-       NULs included
-     - Nothing written on refusal; a token without controls, quotes or
-       backslashes, quoted in the answer under ``token`` or
-       ``access_token``; no token from a response without a body or
-       with a NUL among its bytes
+       NULs included, and every outcome ``json_parse()`` may give
+     - The whole answer parsed; nothing written on refusal; a token
+       without controls, quotes or backslashes, the value of ``token``,
+       else of ``access_token``, from an answer parsed whole; no token
+       from a response without a body or with a NUL among its bytes
    * - ``bpm-oci-header``
      - ``bpm_header()``
      - Header lines up to 26 bytes, NULs included, with the line's copy
@@ -1686,7 +1686,11 @@ those parts has no proof. So it is with the package state:
 and neither that nor reading back what ``bpm_state_emit()`` writes has a
 proof, as a string of any contents moves all that follows it in the
 document, which costs CBMC more memory than it has. The ``bpm_state``
-unit cases check both on fixed entries. The zip directory walk of
+unit cases check both on fixed entries. Nor has the parse of a token
+server's answer: ``bpm-oci-token`` takes every outcome of
+``json_parse()`` its contract allows, as parsing 17 bytes of any value
+outgrew 6 GB, and the ``bpm_oci`` unit cases and the ``oci-http`` fuzz
+target read real answers. The zip directory walk of
 ``jar_premain_class()`` in :src:`tools/shirudo-build/jar.c` has neither
 a fuzz target nor a proof; its unit cases cut and flip a jar byte by
 byte.

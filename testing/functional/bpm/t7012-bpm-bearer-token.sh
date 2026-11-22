@@ -3,7 +3,8 @@
 # Copyright (c) 2026 Authors of shirudo
 #
 # t7012 -- a registry that asks for a bearer token: the token its realm
-# returns goes with the next request, and a realm that answers with an
+# returns goes with the next request, the answer's own member and not
+# one a string or a nested object names, and a realm that answers with an
 # empty body fails the pull before any request carries a token, with
 # registry credentials set as without. So does an answer that holds a
 # NUL, which is no text to take a token from. A challenge whose scheme
@@ -24,9 +25,10 @@ trap cleanup EXIT
 
 # The realm of repository ns/<body> answers 200 with that body: "full"
 # with a token, "empty" with nothing, "nul-behind" and "nul-ahead" with a
-# token behind or ahead of a NUL. Repositories ns/glued-bearer and
-# ns/glued-basic challenge with "Bearerx," and "Basicx". Each request is
-# logged with the credentials it carried.
+# token behind or ahead of a NUL, "quoted" and "nested" with a token
+# behind a string and an object that name another. Repositories
+# ns/glued-bearer and ns/glued-basic challenge with "Bearerx," and
+# "Basicx". Each request is logged with the credentials it carried.
 cat >"$W/registry.py" <<'PY'
 import http.server, sys
 
@@ -58,6 +60,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.reply(200, b'{"token":"first-token"}\0{"token":"other"}')
         elif self.path.startswith("/token/nul-ahead"):
             self.reply(200, b'\0{"token":"hidden-token"}')
+        elif self.path.startswith("/token/quoted"):
+            self.reply(200, b'{"note":"\\"token\\":\\"evil\\"","token":"good"}')
+        elif self.path.startswith("/token/nested"):
+            self.reply(200, b'{"data":{"token":"evil"},"token":"good"}')
         elif "/ns/glued-bearer/manifests/" in self.path:
             challenge = 'Bearerx,realm="http://127.0.0.1:%d/token/full"' % port
             self.reply(401, headers=[("WWW-Authenticate", challenge)])
@@ -101,6 +107,20 @@ test_expect_success 'the token the realm returns goes with the next request' '
 	! pull env &&
 	grep -q "^/token/full none$" "$W/requests" &&
 	grep -q "^/v2/ns/full/manifests/1.0.0 Bearer granted$" "$W/requests"
+'
+
+test_expect_success 'the token is the member of the answer, not one a string names' '
+	PULL=quoted &&
+	! pull env &&
+	grep -q "^/v2/ns/quoted/manifests/1.0.0 Bearer good$" "$W/requests" &&
+	! grep -q "Bearer evil" "$W/requests"
+'
+
+test_expect_success 'the token is the member of the answer, not a nested one' '
+	PULL=nested &&
+	! pull env &&
+	grep -q "^/v2/ns/nested/manifests/1.0.0 Bearer good$" "$W/requests" &&
+	! grep -q "Bearer evil" "$W/requests"
 '
 
 test_expect_success 'an empty token response fails before a token is sent' '

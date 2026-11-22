@@ -13,6 +13,8 @@
 #include "io.h"
 #include "unit.h"
 
+#include "../../util/bpm_oci.c"
+
 #define DIGEST "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 #define MEDIA "\"mediaType\":\"application/vnd.shirudo.upatch.v1\""
 
@@ -117,10 +119,79 @@ static void auth_file_with_a_nul_is_refused(void)
 	EXPECT_STREQ(c.username, "");
 }
 
+/*
+ * The token is what the answer's own member "token" holds, or
+ * "access_token" without one: a substring search took it from a string
+ * value or a nested object that said "token" first.
+ */
+static void token_is_a_member_of_the_answer(void)
+{
+	static const struct {
+		const char	*body;
+		const char	*token;
+	} answers[] = {
+		{ "{\"token\":\"granted\"}", "granted" },
+		{ " { \"access_token\" : \"abc.def\", \"expires_in\": 300 } ",
+		  "abc.def" },
+		{ "{\"access_token\":\"a\",\"token\":\"t\"}", "t" },
+		{ "{\"token\":null,\"access_token\":\"a\"}", "a" },
+		{ "{\"note\":\"\\\"token\\\":\\\"evil\\\"\",\"token\":\"good\"}",
+		  "good" },
+		{ "{\"note\":\"token\",\"x\":\"evil\",\"token\":\"good\"}", "good" },
+		{ "{\"data\":{\"token\":\"evil\"},\"token\":\"good\"}", "good" },
+		{ "{\"data\":[{\"token\":\"evil\"}],\"access_token\":\"good\"}",
+		  "good" },
+		{ "{\"token\":\"\\u0041\\/b\"}", "A/b" },
+		{ "{\"token\":\"1234567\"}", "1234567" },
+	};
+	char out[8];
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(answers); i++) {
+		EXPECT_EQ(token_from_body(answers[i].body, out, sizeof(out)), 0);
+		EXPECT_STREQ(out, answers[i].token);
+	}
+}
+
+/*
+ * The token goes into a header line as it is, so an answer whose token
+ * holds a blank, a control, a quote or a backslash gives none, and so
+ * does one that is no JSON object with a token among its members.
+ */
+static void token_refused_leaves_none(void)
+{
+	static const char *const answers[] = {
+		"{\"token\":\"a b\"}",
+		"{\"token\":\"a\\tb\"}",
+		"{\"token\":\"a\x7f\"}",
+		"{\"token\":\"a\\\"b\"}",
+		"{\"token\":\"a\\\\b\"}",
+		"{\"token\":\"12345678\"}",
+		"{\"token\":42}",
+		"{\"token\":\"a\",\"token\":\"b\"}",
+		"{\"token\":\"a\"} {",
+		"\"token\":\"a\"",
+		"{\"data\":{\"token\":\"evil\"}}",
+		"{\"token\":\"\xff\"}",
+		"{}",
+		"",
+	};
+	char out[8];
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(answers); i++) {
+		strscpy_literal(out, "kept");
+		EXPECT_EQ(token_from_body(answers[i], out, sizeof(out)), -EINVAL);
+		EXPECT_STREQ(out, "kept");
+	}
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(manifest_layer_is_a_whole_descriptor),
 	UNIT_CASE(digest_names_a_blob_as_a_registry_does),
 	UNIT_CASE(auth_file_with_a_nul_is_refused),
+	UNIT_CASE(token_is_a_member_of_the_answer),
+	UNIT_CASE(token_refused_leaves_none),
 	{}
 };
 
