@@ -49,26 +49,25 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
  * is the caller's to vouch for. 0, -EPERM logged, or -ESTALE logged when
  * the path names another file than the one open on fd.
  */
-int check_trusted(int fd, const char *path, bool secret);
+int check_trusted(int fd, const char *path);
+
+/*
+ * Whether the file open on fd, which passed check_trusted() at path, may
+ * hold a secret: nobody but its owner may read it either. Who reads a
+ * file is the file's own to say, so the path is not walked again. 0 or
+ * -EPERM logged.
+ */
+int check_secret(int fd, const char *path);
 
 /*
  * A trusted file a config manager, a package or shirudo itself renames
  * over between its open and its check fails the check with -ESTALE.
- * trusted_reopen() is whether the attempt numbered attempt, from 0,
- * that ended in ret is followed by another, which opens the name again
- * and checks the new descriptor in full: up to TRUSTED_REOPENS more,
- * after which -ESTALE goes to the caller. open_trusted() opens path
- * with flags so: a descriptor that passed check_trusted(), or the
- * open's or the last check's negative errno.
+ * open_trusted() then opens the name again and checks the new
+ * descriptor in full, up to three more times, after which -ESTALE goes
+ * to the caller: a descriptor on path opened with flags that passed
+ * check_trusted(), or the open's or the last check's negative errno.
  */
-#define TRUSTED_REOPENS		3
-
-static inline bool trusted_reopen(int ret, int attempt)
-{
-	return ret == -ESTALE && attempt < TRUSTED_REOPENS;
-}
-
-int open_trusted(const char *path, int flags, bool secret);
+int open_trusted(const char *path, int flags);
 
 /* An exclusive flock() on fd, waited for through signals. 0 or -errno. */
 int lock_exclusive(int fd);

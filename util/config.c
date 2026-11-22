@@ -148,8 +148,7 @@ static void set_owner_auth(struct config *cfg, const char *val)
 
 /*
  * The stream, which passed check_trusted(), is consumed and closed; the
- * file is named for the log. -ESTALE when it was renamed over before the
- * check of a file holding the TPM owner's authorization.
+ * file is named for the log.
  */
 static int config_parse(struct config *cfg, FILE *f,
 			const char *path)
@@ -158,7 +157,7 @@ static int config_parse(struct config *cfg, FILE *f,
 	char buffer[BUFSIZ];
 	size_t capacity = 0;
 	char *line = NULL;
-	int got, check, ret = 0;
+	int got, ret = 0;
 
 	/* stdio's own buffer would keep the owner's authorization after fclose(). */
 	setvbuf(f, buffer, _IOFBF, sizeof(buffer));
@@ -273,13 +272,11 @@ static int config_parse(struct config *cfg, FILE *f,
 	if (ferror(f) && !ret)
 		ret = -EIO;
 	/* The TPM owner's authorization is for no other user's eyes. */
-	check = cfg->tpm_owner_auth_len ?
-		check_trusted(fileno(f), path, true) : 0;
-	if (check) {
+	if (cfg->tpm_owner_auth_len && check_secret(fileno(f), path)) {
 		memzero_explicit(cfg->tpm_owner_auth,
 				 sizeof(cfg->tpm_owner_auth));
 		cfg->tpm_owner_auth_len = 0;
-		ret = check == -ESTALE ? check : -EPERM;
+		ret = -EPERM;
 	}
 	if (line) {
 		/* The owner's authorization may have been read into it. */
@@ -308,14 +305,13 @@ static int config_finish(struct config *cfg, int ret)
 	return ret;
 }
 
-/* The settings at path, read once, or 0 with none there. */
-static int config_load_once(struct config *cfg, const char *path)
+/* The settings at path, or 0 with none there. */
+static int config_read(struct config *cfg, const char *path)
 {
 	int fd, ret;
 	FILE *f;
 
-	config_defaults(cfg);
-	fd = open_trusted(path, O_RDONLY, false);
+	fd = open_trusted(path, O_RDONLY);
 	if (fd < 0)
 		return fd == -ENOENT ? 0 : fd;
 	f = fdopen(fd, "r");
@@ -329,16 +325,10 @@ static int config_load_once(struct config *cfg, const char *path)
 
 int config_load_path(struct config *cfg, const char *path)
 {
-	int attempt, ret;
-
 	if (!cfg || !path)
 		return -EINVAL;
-	for (attempt = 0;; attempt++) {
-		ret = config_load_once(cfg, path);
-		if (!trusted_reopen(ret, attempt))
-			break;
-	}
-	return config_finish(cfg, ret);
+	config_defaults(cfg);
+	return config_finish(cfg, config_read(cfg, path));
 }
 
 /* A copy of the descriptor is read from its start; the caller keeps its own. */
@@ -358,7 +348,7 @@ int config_load_fd(struct config *cfg, int fd, const char *label)
 		close(copy);
 		return ret;
 	}
-	ret = check_trusted(copy, label, false);
+	ret = check_trusted(copy, label);
 	if (ret) {
 		close(copy);
 		return config_finish(cfg, -EPERM);

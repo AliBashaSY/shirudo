@@ -50,7 +50,7 @@
 
 static X509 *read_cert_der(const char *path)
 {
-	int fd = open_trusted(path, O_RDONLY, false);
+	int fd = open_trusted(path, O_RDONLY);
 	BIO *bio;
 	X509 *c;
 

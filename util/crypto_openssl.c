@@ -39,7 +39,7 @@
 
 static int read_x509(const char *path, X509 **out)
 {
-	int fd = open_trusted(path, O_RDONLY, false);
+	int fd = open_trusted(path, O_RDONLY);
 	X509 *cert;
 	BIO *bio;
 

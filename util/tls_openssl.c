@@ -144,7 +144,7 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	}
 	if (!path || !path[0])
 		return CURLE_OK;
-	fd = open_trusted(path, O_RDONLY, false);
+	fd = open_trusted(path, O_RDONLY);
 	if (fd < 0)
 		return CURLE_SSL_CACERT_BADFILE;
 	bio = BIO_new_fd(fd, BIO_CLOSE);

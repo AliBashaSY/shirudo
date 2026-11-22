@@ -28,7 +28,7 @@
 #include "seal.h"
 
 static bool under(const char *path, const char *dir);
-static int open_checked(const char *path, int flags, bool secret,
+static int open_checked(const char *path, int flags,
 			int (*opener)(const char *path, int flags));
 
 int write_complete(int fd, const void *buf, size_t len)
@@ -187,7 +187,7 @@ int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
 		return -errno;
 	if (!S_ISREG(st.st_mode))
 		return -EINVAL;
-	ret = check_trusted(fd, label, false);
+	ret = check_trusted(fd, label);
 	return ret ? ret : read_whole(fd, max, out, len);
 }
 
@@ -243,7 +243,7 @@ int read_file(const char *path, size_t max, void *out, size_t *len)
 {
 	int fd, ret;
 
-	fd = open_checked(path, O_RDONLY, false, open_regular);
+	fd = open_checked(path, O_RDONLY, open_regular);
 	if (fd < 0)
 		return fd;
 	ret = read_whole(fd, max, out, len);
@@ -426,25 +426,40 @@ static void report_stale(const char *path)
 	       path);
 }
 
+static bool trusted_place(const char *path)
+{
+	return under(path, ETC_DIR) || under(path, VAR_LIB);
+}
+
+/* The file open on fd by itself, whatever path led to it. */
+static int trusted_file(int fd, const char *path, bool secret,
+			struct stat *st)
+{
+	if (fstat(fd, st))
+		return -errno;
+	if (!S_ISREG(st->st_mode) || !trusted_owner(st->st_uid) ||
+	    (st->st_mode & (secret ? 077 : 022))) {
+		pr_err("%s: owner %u, mode %04o: refusing a file another user "
+		       "could %s", path, (__u32)st->st_uid,
+		       (__u32)(st->st_mode & 07777),
+		       secret ? "read or change" : "change");
+		return -EPERM;
+	}
+	return 0;
+}
+
 /* check_trusted(), a file renamed over left for the caller to report. */
-static int trusted_check(int fd, const char *path, bool secret)
+static int trusted_check(int fd, const char *path)
 {
 	struct trusted_walk walk = { .path = path, .dirfd = -1 };
 	struct stat st;
 	int ret;
 
-	if (!under(path, ETC_DIR) && !under(path, VAR_LIB))
+	if (!trusted_place(path))
 		return 0;
-	if (fstat(fd, &st))
-		return -errno;
-	if (!S_ISREG(st.st_mode) || !trusted_owner(st.st_uid) ||
-	    (st.st_mode & (secret ? 077 : 022))) {
-		pr_err("%s: owner %u, mode %04o: refusing a file another user "
-		       "could %s", path, (__u32)st.st_uid,
-		       (__u32)(st.st_mode & 07777),
-		       secret ? "read or change" : "change");
-		return -EPERM;
-	}
+	ret = trusted_file(fd, path, false, &st);
+	if (ret)
+		return ret;
 	if (strscpy(walk.rest, path, sizeof(walk.rest)) < 0)
 		return -ENAMETOOLONG;
 	ret = walk_from_root(&walk);
@@ -455,21 +470,31 @@ static int trusted_check(int fd, const char *path, bool secret)
 	return ret;
 }
 
-int check_trusted(int fd, const char *path, bool secret)
+int check_trusted(int fd, const char *path)
 {
-	int ret = trusted_check(fd, path, secret);
+	int ret = trusted_check(fd, path);
 
 	if (ret == -ESTALE)
 		report_stale(path);
 	return ret;
 }
 
+int check_secret(int fd, const char *path)
+{
+	struct stat st;
+
+	return trusted_place(path) ? trusted_file(fd, path, true, &st) : 0;
+}
+
+/* Reopens of a name that an open_trusted() makes after its first open. */
+#define TRUSTED_REOPENS		3
+
 /*
  * Each attempt opens the name again and runs the whole check on its own
  * descriptor, so that one passes only what a single check passes. A
  * rename that an attempt absorbs is not reported; the last is.
  */
-static int open_checked(const char *path, int flags, bool secret,
+static int open_checked(const char *path, int flags,
 			int (*opener)(const char *path, int flags))
 {
 	int attempt, fd, ret;
@@ -478,11 +503,11 @@ static int open_checked(const char *path, int flags, bool secret,
 		fd = opener(path, flags);
 		if (fd < 0)
 			return fd;
-		ret = trusted_check(fd, path, secret);
+		ret = trusted_check(fd, path);
 		if (!ret)
 			return fd;
 		close(fd);
-		if (!trusted_reopen(ret, attempt))
+		if (ret != -ESTALE || attempt == TRUSTED_REOPENS)
 			break;
 	}
 	if (ret == -ESTALE)
@@ -490,9 +515,9 @@ static int open_checked(const char *path, int flags, bool secret,
 	return ret;
 }
 
-int open_trusted(const char *path, int flags, bool secret)
+int open_trusted(const char *path, int flags)
 {
-	return open_checked(path, flags, secret, open_path);
+	return open_checked(path, flags, open_path);
 }
 
 __u32 kernel_dev(dev_t dev)

@@ -192,7 +192,10 @@ static void make_link(const char *target, const char *name)
 	ASSERT_EQ(symlinkat(target, etc_fd, name), 0);
 }
 
-/* check_trusted() of the file opened as one name and asked about as another. */
+/*
+ * check_trusted() of the file opened as one name and asked about as
+ * another, and with secret check_secret() of a file that passed.
+ */
 static int trusted(const char *opened, const char *asked, bool secret)
 {
 	int fd = openat(etc_fd, opened, O_RDONLY | O_CLOEXEC), ret;
@@ -200,7 +203,9 @@ static int trusted(const char *opened, const char *asked, bool secret)
 
 	ASSERT_TRUE(fd >= 0);
 	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir, asked) > 0);
-	ret = check_trusted(fd, path, secret);
+	ret = check_trusted(fd, path);
+	if (!ret && secret)
+		ret = check_secret(fd, path);
 	close(fd);
 	return ret;
 }
@@ -302,7 +307,7 @@ static int trusted_fd(int fd, const char *asked)
 
 	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir,
 			       asked) > 0);
-	return check_trusted(fd, path, false);
+	return check_trusted(fd, path);
 }
 
 static void need_root(const char *reason)
@@ -401,6 +406,30 @@ static void check_trusted_wants_the_file_the_path_names(void)
 	remove_etc();
 }
 
+/* A secret's readers are the file's own to say, where its name went or not. */
+static void check_secret_asks_the_file_alone(void)
+{
+	char path[PATH_MAX];
+	int fd;
+
+	make_etc();
+	make_dir("keys", 0700);
+	replace_mode("keys/auth.conf", "a\n", 0600);
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/keys/auth.conf",
+			       etc_dir) > 0);
+	fd = openat(etc_fd, "keys/auth.conf", O_RDONLY | O_CLOEXEC);
+	ASSERT_TRUE(fd >= 0);
+	EXPECT_EQ(check_trusted(fd, path), 0);
+	replace_mode("keys/auth.conf", "b\n", 0600);
+	EXPECT_EQ(check_trusted(fd, path), -ESTALE);
+	EXPECT_EQ(check_secret(fd, path), 0);
+	ASSERT_EQ(fchmod(fd, 0640), 0);
+	EXPECT_EQ(check_secret(fd, path), -EPERM);
+	EXPECT_EQ(check_secret(fd, "/tmp/elsewhere.conf"), 0);
+	close(fd);
+	remove_etc();
+}
+
 /*
  * open_checked() with an open that renames a new file over the one it
  * opened, for its first race.renames opens: the race between the open
@@ -429,7 +458,7 @@ static int open_racing(const char *name, mode_t mode, int renames)
 	race = (struct race){ .name = name, .mode = mode, .renames = renames };
 	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir,
 			       name) > 0);
-	return open_checked(path, O_RDONLY, false, open_then_replace);
+	return open_checked(path, O_RDONLY, open_then_replace);
 }
 
 static void open_trusted_reopens_a_file_renamed_over(void)
@@ -810,6 +839,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(check_trusted_follows_a_link_nobody_else_made),
 	UNIT_CASE(check_trusted_refuses_a_link_others_can_replace),
 	UNIT_CASE(check_trusted_wants_the_file_the_path_names),
+	UNIT_CASE(check_secret_asks_the_file_alone),
 	UNIT_CASE(open_trusted_reopens_a_file_renamed_over),
 	UNIT_CASE(open_trusted_gives_up_on_a_name_that_keeps_changing),
 	UNIT_CASE(open_trusted_checks_each_file_it_opens),

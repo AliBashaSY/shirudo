@@ -74,7 +74,7 @@ int keys_read_der(const char *path, __u8 **out,
 	ssize_t n;
 	int fd;
 
-	fd = open_trusted(path, O_RDONLY, false);
+	fd = open_trusted(path, O_RDONLY);
 	if (fd < 0)
 		return fd;
 	if (fstat(fd, &st) < 0) {

@@ -327,7 +327,7 @@ static FILE *source_open(const char *path)
 {
 	return source_stream(image_config_active() ?
 			     image_open_relative(path + 1, O_RDONLY) :
-			     open_trusted(path, O_RDONLY, false));
+			     open_trusted(path, O_RDONLY));
 }
 
 static DIR *registries_opendir(void)
@@ -368,7 +368,7 @@ static FILE *tree_conf_open(void)
 {
 	return source_stream(image_config_active() ?
 			     image_open(IMAGE_TREE_CONF, O_RDONLY) :
-			     open_trusted(BPM_TREE_ETC_PATH, O_RDONLY, false));
+			     open_trusted(BPM_TREE_ETC_PATH, O_RDONLY));
 }
 
 static int load_source(const char *name, struct bpm_source *s)
