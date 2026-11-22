@@ -79,7 +79,6 @@ struct bpm_buffer {
 struct bpm_http_response {
 	struct bpm_buffer body;
 	char www_auth[BPM_OCI_CHALLENGE_MAX];
-	char content_type[BPM_MAX_MEDIA];
 	char location[PATH_MAX];
 	long status;
 };

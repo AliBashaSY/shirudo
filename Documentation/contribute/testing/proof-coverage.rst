@@ -242,9 +242,9 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        and the challenge's field set to 24 and 4 bytes for their 4096
        and 2048
      - The whole line taken, and one too long for the copy read not at
-       all; values terminated, without a leading blank, a media type
-       without parameters, a location without CR or LF; a challenge
-       that fits kept whole, a longer one dropped rather than cut
+       all; values terminated, without a leading blank, a location
+       without CR or LF; a challenge that fits kept whole, a longer one
+       dropped rather than cut
    * - ``bpm-oci-buffer``
      - ``bpm_buffer_append()``
      - A buffer of 0, 3, 8, 12 and 15 bytes holding any shorter body,

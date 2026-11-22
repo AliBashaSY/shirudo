@@ -4,12 +4,12 @@
  *
  * bpm_header() of util/bpm_oci.c, libcurl's header callback, for every
  * header line of up to LINE_MAX bytes, NULs included: it takes the whole
- * line, reads none longer than its copy, and the challenge, media type and
- * location it keeps are terminated inside their fields, the media type
- * without parameters, neither with a line break, a challenge longer than
- * its field dropped rather than cut. The copy and the challenge's field
- * are of 24 and 4 bytes here, for 4096 and 2048, which are past what
- * CBMC can hold: the checks against them are the same expressions.
+ * line, reads none longer than its copy, and the challenge and location
+ * it keeps are terminated inside their fields, the location without a
+ * line break, a challenge longer than its field dropped rather than cut.
+ * The copy and the challenge's field are of 24 and 4 bytes here, for 4096
+ * and 2048, which are past what CBMC can hold: the checks against them
+ * are the same expressions.
  */
 
 #define BPM_OCI_HEADER_LINE_MAX	24
@@ -87,21 +87,16 @@ void harness(void)
 	__CPROVER_assert(bpm_header(line, 1, n, &r) == n,
 			 "the whole line taken");
 	if (n >= BPM_OCI_HEADER_LINE_MAX) {
-		__CPROVER_assert(!r.www_auth[0] && !r.content_type[0] &&
-				 !r.location[0],
+		__CPROVER_assert(!r.www_auth[0] && !r.location[0],
 				 "a line longer than the copy read not at all");
 		return;
 	}
 	__CPROVER_assert(short_string(r.www_auth, sizeof(r.www_auth)) &&
-			 short_string(r.content_type, sizeof(r.content_type)) &&
 			 short_string(r.location, sizeof(r.location)),
 			 "every value terminated inside its field");
-	__CPROVER_assert(!has_any(r.content_type, " ;\r\n"),
-			 "a media type alone");
 	__CPROVER_assert(!has_any(r.location, "\r\n"),
 			 "a location without its line break");
 	__CPROVER_assert(!isspace((__u8)r.www_auth[0]) &&
-			 !isspace((__u8)r.content_type[0]) &&
 			 !isspace((__u8)r.location[0]),
 			 "no value starts with a blank");
 	if (named(line, n, "WWW-Authenticate:"))
