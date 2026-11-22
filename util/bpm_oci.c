@@ -161,10 +161,8 @@ static size_t bpm_header(void *ptr, size_t size, size_t nmemb, void *ud)
 	size_t n = size * nmemb;
 	char *v;
 
-	if (n >= sizeof(line))
+	if (span_to_str(line, sizeof(line), ptr, n))
 		return n;
-	memcpy(line, ptr, n);
-	line[n] = '\0';
 	v = line;
 	if (str_skip_prefix_nocase(&v, "WWW-Authenticate:")) {
 		while (isspace((__u8)*v))

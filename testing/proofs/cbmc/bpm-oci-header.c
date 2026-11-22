@@ -4,9 +4,10 @@
  *
  * bpm_header() of util/bpm_oci.c, libcurl's header callback, for every
  * header line of up to LINE_MAX bytes, NULs included: it takes the whole
- * line, reads none longer than its copy, and the challenge and location
- * it keeps are terminated inside their fields, the location without a
- * line break, a challenge longer than its field dropped rather than cut.
+ * line, reads none longer than its copy nor one holding a NUL, and the
+ * challenge and location it keeps are terminated inside their fields, the
+ * location without a line break, a challenge longer than its field
+ * dropped rather than cut.
  * The copy and the challenge's field are of 24 and 4 bytes here, for 4096
  * and 2048, which are past what CBMC can hold: the checks against them
  * are the same expressions.
@@ -89,6 +90,11 @@ void harness(void)
 	if (n >= BPM_OCI_HEADER_LINE_MAX) {
 		__CPROVER_assert(!r.www_auth[0] && !r.location[0],
 				 "a line longer than the copy read not at all");
+		return;
+	}
+	if (memchr(line, '\0', n)) {
+		__CPROVER_assert(!r.www_auth[0] && !r.location[0],
+				 "a line holding a NUL read not at all");
 		return;
 	}
 	__CPROVER_assert(short_string(r.www_auth, sizeof(r.www_auth)) &&
