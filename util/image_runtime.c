@@ -513,19 +513,20 @@ static int pcr_read(void *ctx, __u32 pcr, __u8 out[32])
  */
 static int nvpcr_authorize(__u8 out[32])
 {
-	char *data = NULL, hex[65] = {};
 	size_t length = 0;
+	char *data = NULL;
 	int ret;
 
 	ret = read_file(CONFIG_NVPCR_AUTH_PATH, 65, &data, &length);
 	if (ret)
 		return ret;
-	if ((length == 64 || (length == 65 && data[64] == '\n')))
-		memcpy(hex, data, 64);
+	ret = span_to_str(data, length + 1, data, length);
+	if (!ret && length == 65 && data[64] == '\n')
+		data[64] = '\0';
+	if (!ret)
+		ret = hex_decode(data, out, 32);
 	xfree(data, length + 1);
-	if (strlen(hex) != 64 || hex_decode(hex, out, 32))
-		return -EBADMSG;
-	return 0;
+	return ret ? -EBADMSG : 0;
 }
 
 static int pcr_extend(void *ctx, __u32 pcr, const __u8 event[32])
