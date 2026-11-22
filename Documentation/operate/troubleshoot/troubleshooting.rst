@@ -263,27 +263,23 @@ Action
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Meaning
-   The file was replaced while the command read it: between the open
-   and the check, a new file was renamed over its name, or a new link
-   over a link on its path, and the path now leads to another file. The
-   command uses nothing from the file it opened. It fails with ``Stale
-   file handle`` where it reads the file whole, as it reads the registry
-   auth file and its own state, and with ``Operation not permitted``
-   otherwise.
+   The name kept changing while the command read it. Between each open
+   and its check, a new file was renamed over the name, or a new link
+   over a link on its path, so the path led to another file than the
+   one opened. A file renamed over once, as a configuration manager, a
+   package or shirudo's own state writes replace one, is opened again
+   and checked in full, up to three more times; only a name that
+   changes on every attempt ends here. The command uses nothing from the
+   files it opened, and fails, most commands with ``Stale file handle``.
 
 Causes
-   - A configuration manager, a package or a switch to a new NixOS
-     generation renamed a new file over the old one while the command
-     or a timer service ran.
-   - One shirudo command wrote its state while another read it, as
-     ``bpm upgrade`` writes ``/var/lib/shirudo/bpm/state.json`` while
-     ``bpm list`` reads it.
+   Something renames new files over the file, or over a link on its
+   path, in a loop: a configuration manager that rewrites it on every
+   run, or a script.
 
 Action
-   - Run the command again; it reads the new file. A timer service
-     fails this one run, and its next run reads the new file.
-   - If the message comes back on every run, find what rewrites the
-     file that often.
+   Find what rewrites the file that often and stop it, then run the
+   command again.
 
 upatch load and unload failures
 -------------------------------

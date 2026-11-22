@@ -4,6 +4,7 @@
 #ifndef SHIRUDO_IO_H
 #define SHIRUDO_IO_H
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -29,7 +30,8 @@ int append_line(int fd, const char *path, const char *line, size_t len);
 /*
  * A regular file of at most max bytes, into *out xmalloc'd to *len + 1
  * bytes and NUL-terminated; out is the address of a char or unsigned
- * char pointer.
+ * char pointer. read_file() opens path as open_trusted() does, read_fd()
+ * checks what is open on fd once, under the name label.
  */
 int read_file(const char *path, size_t max, void *out, size_t *len);
 int read_fd(int fd, const char *label, size_t max, void *out, size_t *len);
@@ -48,6 +50,25 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max);
  * the path names another file than the one open on fd.
  */
 int check_trusted(int fd, const char *path, bool secret);
+
+/*
+ * A trusted file a config manager, a package or shirudo itself renames
+ * over between its open and its check fails the check with -ESTALE.
+ * trusted_reopen() is whether the attempt numbered attempt, from 0,
+ * that ended in ret is followed by another, which opens the name again
+ * and checks the new descriptor in full: up to TRUSTED_REOPENS more,
+ * after which -ESTALE goes to the caller. open_trusted() opens path
+ * with flags so: a descriptor that passed check_trusted(), or the
+ * open's or the last check's negative errno.
+ */
+#define TRUSTED_REOPENS		3
+
+static inline bool trusted_reopen(int ret, int attempt)
+{
+	return ret == -ESTALE && attempt < TRUSTED_REOPENS;
+}
+
+int open_trusted(const char *path, int flags, bool secret);
 
 /* An exclusive flock() on fd, waited for through signals. 0 or -errno. */
 int lock_exclusive(int fd);

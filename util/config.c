@@ -134,7 +134,11 @@ static void set_owner_auth(struct config *cfg, const char *val)
 	cfg->tpm_owner_auth_len = l;
 }
 
-/* The stream is consumed and closed; the file is named for the log. */
+/*
+ * The stream, which passed check_trusted(), is consumed and closed; the
+ * file is named for the log. -ESTALE when it was renamed over before the
+ * check of a file holding the TPM owner's authorization.
+ */
 static int config_parse(struct config *cfg, FILE *f,
 			const char *path)
 {
@@ -142,12 +146,8 @@ static int config_parse(struct config *cfg, FILE *f,
 	char buffer[BUFSIZ];
 	size_t capacity = 0;
 	char *line = NULL;
-	int got, ret = 0;
+	int got, check, ret = 0;
 
-	if (check_trusted(fileno(f), path, false)) {
-		fclose(f);
-		return -EPERM;
-	}
 	/* stdio's own buffer would keep the owner's authorization after fclose(). */
 	setvbuf(f, buffer, _IOFBF, sizeof(buffer));
 	while ((got = read_text_line(f, &line, &capacity, max)) != 0) {
@@ -265,12 +265,13 @@ static int config_parse(struct config *cfg, FILE *f,
 	if (ferror(f) && !ret)
 		ret = -EIO;
 	/* The TPM owner's authorization is for no other user's eyes. */
-	if (cfg->tpm_owner_auth_len &&
-	    check_trusted(fileno(f), path, true)) {
+	check = cfg->tpm_owner_auth_len ?
+		check_trusted(fileno(f), path, true) : 0;
+	if (check) {
 		memzero_explicit(cfg->tpm_owner_auth,
 				 sizeof(cfg->tpm_owner_auth));
 		cfg->tpm_owner_auth_len = 0;
-		ret = -EPERM;
+		ret = check == -ESTALE ? check : -EPERM;
 	}
 	if (line) {
 		/* The owner's authorization may have been read into it. */
@@ -299,20 +300,35 @@ static int config_finish(struct config *cfg, int ret)
 	return ret;
 }
 
+/* The settings at path, read once, or 0 with none there. */
+static int config_load_once(struct config *cfg, const char *path)
+{
+	int fd, ret;
+	FILE *f;
+
+	config_defaults(cfg);
+	fd = open_trusted(path, O_RDONLY, false);
+	if (fd < 0)
+		return fd == -ENOENT ? 0 : fd;
+	f = fdopen(fd, "r");
+	if (!f) {
+		ret = -errno;
+		close(fd);
+		return ret;
+	}
+	return config_parse(cfg, f, path);
+}
+
 int config_load_path(struct config *cfg, const char *path)
 {
-	int ret = 0;
-	FILE *f;
+	int attempt, ret;
 
 	if (!cfg || !path)
 		return -EINVAL;
-	config_defaults(cfg);
-	f = fopen(path, "re");
-	if (!f) {
-		if (errno != ENOENT)
-			ret = -errno;	/* still apply env override below */
-	} else {
-		ret = config_parse(cfg, f, path);
+	for (attempt = 0;; attempt++) {
+		ret = config_load_once(cfg, path);
+		if (!trusted_reopen(ret, attempt))
+			break;
 	}
 	return config_finish(cfg, ret);
 }
@@ -333,6 +349,11 @@ int config_load_fd(struct config *cfg, int fd, const char *label)
 		ret = -errno;
 		close(copy);
 		return ret;
+	}
+	ret = check_trusted(copy, label, false);
+	if (ret) {
+		close(copy);
+		return config_finish(cfg, -EPERM);
 	}
 	f = fdopen(copy, "r");
 	if (!f) {

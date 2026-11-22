@@ -132,7 +132,10 @@ those shapes are absent, not the class.
   path by name (`realpath()`, `stat()`, `access()`) checks what the
   name leads to then, not what the descriptor was reached through: the
   walk goes one name at a time through descriptors, as
-  `check_trusted()` and `seal_open_dir()` do.
+  `check_trusted()` and `seal_open_dir()` do. `open_trusted()` opens a
+  name renamed over before its check again and checks each descriptor
+  in full; a retry that kept anything from an earlier attempt would be
+  this class.
 - **Signed, not bound.** A signature covers bytes, not where they are
   used: content signed for another name, version, architecture,
   repository or generation, an index and a package from two

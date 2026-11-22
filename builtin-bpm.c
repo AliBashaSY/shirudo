@@ -308,30 +308,26 @@ static int source_path(const char *name, char *out, size_t out_sz)
 }
 
 /*
- * What comes from the config image is authenticated content, and the
- * host path it is named by in messages is not where it was read from;
- * only a host file has an owner and mode to check.
+ * A stream on fd, or NULL with errno set. What comes from the config
+ * image is authenticated content, and the host path it is named by in
+ * messages is not where it was read from; only a host file has an owner
+ * and mode to check, which open_trusted() does.
  */
-static int stream_untrusted(FILE *fp, const char *path)
+static FILE *source_stream(int fd)
 {
-	if (image_config_active())
-		return 0;
-	return check_trusted(fileno(fp), path, false);
-}
-
-/* A source's file, from the config image's root when one is active. */
-static FILE *source_open(const char *path)
-{
-	int fd;
-
-	if (!image_config_active())
-		return fopen(path, "re");
-	fd = image_open_relative(path + 1, O_RDONLY);
 	if (fd < 0) {
 		errno = -fd;
 		return NULL;
 	}
 	return fdopen(fd, "r");
+}
+
+/* A source's file, from the config image's root when one is active. */
+static FILE *source_open(const char *path)
+{
+	return source_stream(image_config_active() ?
+			     image_open_relative(path + 1, O_RDONLY) :
+			     open_trusted(path, O_RDONLY, false));
 }
 
 static DIR *registries_opendir(void)
@@ -370,16 +366,9 @@ static int source_index_repository_valid(const char *endpoint,
 
 static FILE *tree_conf_open(void)
 {
-	int fd;
-
-	if (!image_config_active())
-		return fopen(BPM_TREE_ETC_PATH, "re");
-	fd = image_open(IMAGE_TREE_CONF, O_RDONLY);
-	if (fd < 0) {
-		errno = -fd;
-		return NULL;
-	}
-	return fdopen(fd, "r");
+	return source_stream(image_config_active() ?
+			     image_open(IMAGE_TREE_CONF, O_RDONLY) :
+			     open_trusted(BPM_TREE_ETC_PATH, O_RDONLY, false));
 }
 
 static int load_source(const char *name, struct bpm_source *s)
@@ -396,10 +385,6 @@ static int load_source(const char *name, struct bpm_source *s)
 	fp = source_open(path);
 	if (!fp)
 		return -errno;
-	if (stream_untrusted(fp, path)) {
-		fclose(fp);
-		return -EPERM;
-	}
 	if (strscpy(s->name, name, sizeof(s->name)) < 0)
 		ret = -ENAMETOOLONG;
 	while (!ret && (got = read_text_line(fp, &line, &capacity,
@@ -1744,10 +1729,6 @@ static int load_tree_config(struct bpm_tree_config *cfg)
 	fp = tree_conf_open();
 	if (!fp)
 		return -errno;
-	if (stream_untrusted(fp, BPM_TREE_ETC_PATH)) {
-		fclose(fp);
-		return -EPERM;
-	}
 	while (!ret && (got = read_text_line(fp, &line, &capacity,
 					     PATH_MAX - 1)) != 0) {
 		if (got < 0 ||

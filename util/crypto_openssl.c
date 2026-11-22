@@ -39,19 +39,13 @@
 
 static int read_x509(const char *path, X509 **out)
 {
-	int fd = open(path, O_RDONLY | O_CLOEXEC);
+	int fd = open_trusted(path, O_RDONLY, false);
 	X509 *cert;
 	BIO *bio;
-	int ret;
 
 	*out = NULL;
 	if (fd < 0)
-		return -errno;
-	ret = check_trusted(fd, path, false);
-	if (ret) {
-		close(fd);
-		return ret;
-	}
+		return fd;
 	bio = BIO_new_fd(fd, BIO_CLOSE);
 	if (!bio) {
 		close(fd);

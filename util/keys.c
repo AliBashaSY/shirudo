@@ -74,9 +74,9 @@ int keys_read_der(const char *path, __u8 **out,
 	ssize_t n;
 	int fd;
 
-	fd = open(path, O_RDONLY | O_CLOEXEC);
+	fd = open_trusted(path, O_RDONLY, false);
 	if (fd < 0)
-		return -errno;
+		return fd;
 	if (fstat(fd, &st) < 0) {
 		int ret = -errno;
 
@@ -87,10 +87,6 @@ int keys_read_der(const char *path, __u8 **out,
 	    st.st_size > KEYS_DER_MAX) {
 		close(fd);
 		return -EINVAL;
-	}
-	if (check_trusted(fd, path, false)) {
-		close(fd);
-		return -EPERM;
 	}
 	buf = xmalloc((size_t)st.st_size);
 	if (!buf) {

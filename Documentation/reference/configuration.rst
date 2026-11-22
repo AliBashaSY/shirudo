@@ -353,9 +353,9 @@ symbolic link is checked as well as the directories of the link's
 target. A link may lead out of ``/etc/shirudo``, to the distribution's
 CA certificates for example, when every link and directory on the way
 passes. A file that the path no longer names when the check runs, one
-renamed over in between, is refused as well, with ``ESTALE`` where the
-command reads the file whole, as it reads the registry auth file. The
-next run reads the new file. :doc:`/operate/troubleshoot/troubleshooting`
+renamed over in between, is opened again and checked in full, up to
+three more times. Only a name renamed over before every check is
+refused, with ``ESTALE``. :doc:`/operate/troubleshoot/troubleshooting`
 gives the messages.
 
 A file that sets ``tpm.owner_auth`` must also not be readable by group or

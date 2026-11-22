@@ -28,6 +28,8 @@
 #include "seal.h"
 
 static bool under(const char *path, const char *dir);
+static int open_checked(const char *path, int flags, bool secret,
+			int (*opener)(const char *path, int flags));
 
 int write_complete(int fd, const void *buf, size_t len)
 {
@@ -143,22 +145,16 @@ int open_beneath(int dirfd, const char *rel, int flags)
 	return fd < 0 ? -errno : (int)fd;
 }
 
-/* The whole file behind the descriptor, from its start, xmalloc'd. */
-int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
+/* The whole regular file behind the descriptor, from its start, xmalloc'd. */
+static int read_whole(int fd, size_t max, void *out, size_t *len)
 {
 	struct stat st;
 	char *buf, *p;
 	size_t left;
 	off_t off;
-	int ret;
 
 	if (fstat(fd, &st) != 0)
 		return -errno;
-	if (!S_ISREG(st.st_mode))
-		return -EINVAL;
-	ret = check_trusted(fd, label, false);
-	if (ret)
-		return ret;
 	if ((uintmax_t)st.st_size > max)
 		return -EFBIG;
 	buf = xmalloc((size_t)st.st_size + 1);
@@ -180,6 +176,19 @@ int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
 	*(char **)out = buf;
 	*len = (size_t)st.st_size;
 	return 0;
+}
+
+int read_fd(int fd, const char *label, size_t max, void *out, size_t *len)
+{
+	struct stat st;
+	int ret;
+
+	if (fstat(fd, &st) != 0)
+		return -errno;
+	if (!S_ISREG(st.st_mode))
+		return -EINVAL;
+	ret = check_trusted(fd, label, false);
+	return ret ? ret : read_whole(fd, max, out, len);
 }
 
 /*
@@ -204,21 +213,40 @@ int read_text_line(FILE *f, char **line, size_t *cap, size_t max)
 	return (size_t)n > max ? -E2BIG : 1;
 }
 
+static int open_path(const char *path, int flags)
+{
+	int fd = open(path, flags | O_CLOEXEC);
+
+	return fd < 0 ? -errno : fd;
+}
+
+/* A regular file for read_file(), as sealed state under /var/lib/shirudo. */
+static int open_regular(const char *path, int flags)
+{
+	struct stat st;
+	int fd, ret;
+
+	/* O_NONBLOCK: a FIFO is refused below, not waited on. */
+	fd = under(path, VAR_LIB) ? seal_open_read(path) :
+	     open_path(path, flags | O_NONBLOCK);
+	if (fd < 0)
+		return fd;
+	ret = fstat(fd, &st) ? -errno : S_ISREG(st.st_mode) ? 0 : -EINVAL;
+	if (ret) {
+		close(fd);
+		return ret;
+	}
+	return fd;
+}
+
 int read_file(const char *path, size_t max, void *out, size_t *len)
 {
 	int fd, ret;
 
-	if (under(path, VAR_LIB)) {
-		fd = seal_open_read(path);
-		if (fd < 0)
-			return fd;
-	} else {
-		/* O_NONBLOCK: a FIFO is refused below, not waited on. */
-		fd = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-		if (fd < 0)
-			return -errno;
-	}
-	ret = read_fd(fd, path, max, out, len);
+	fd = open_checked(path, O_RDONLY, false, open_regular);
+	if (fd < 0)
+		return fd;
+	ret = read_whole(fd, max, out, len);
 	close(fd);
 	return ret;
 }
@@ -337,7 +365,7 @@ static int walk_open(const struct trusted_walk *walk, const char *name,
  * through the one it was found by: a lookup of the whole path by name
  * can go another way than the open of the file did, through a name
  * another user swapped in between or a link another user made. 0 when
- * it ends at the file *file describes.
+ * it ends at the file *file describes, -ESTALE unlogged when at another.
  */
 static char *skip_slashes(char *s)
 {
@@ -388,14 +416,18 @@ static int trusted_walk(struct trusted_walk *walk, const struct stat *file)
 	}
 	if (*skip_slashes(end))
 		return -ENOTDIR;
-	if (st.st_dev == file->st_dev && st.st_ino == file->st_ino)
-		return 0;
-	pr_err("%s: names another file than the one opened; refusing it",
-	       walk->path);
-	return -ESTALE;
+	return st.st_dev == file->st_dev && st.st_ino == file->st_ino ?
+	       0 : -ESTALE;
 }
 
-int check_trusted(int fd, const char *path, bool secret)
+static void report_stale(const char *path)
+{
+	pr_err("%s: names another file than the one opened; refusing it",
+	       path);
+}
+
+/* check_trusted(), a file renamed over left for the caller to report. */
+static int trusted_check(int fd, const char *path, bool secret)
 {
 	struct trusted_walk walk = { .path = path, .dirfd = -1 };
 	struct stat st;
@@ -421,6 +453,46 @@ int check_trusted(int fd, const char *path, bool secret)
 	if (walk.dirfd >= 0)
 		close(walk.dirfd);
 	return ret;
+}
+
+int check_trusted(int fd, const char *path, bool secret)
+{
+	int ret = trusted_check(fd, path, secret);
+
+	if (ret == -ESTALE)
+		report_stale(path);
+	return ret;
+}
+
+/*
+ * Each attempt opens the name again and runs the whole check on its own
+ * descriptor, so that one passes only what a single check passes. A
+ * rename that an attempt absorbs is not reported; the last is.
+ */
+static int open_checked(const char *path, int flags, bool secret,
+			int (*opener)(const char *path, int flags))
+{
+	int attempt, fd, ret;
+
+	for (attempt = 0;; attempt++) {
+		fd = opener(path, flags);
+		if (fd < 0)
+			return fd;
+		ret = trusted_check(fd, path, secret);
+		if (!ret)
+			return fd;
+		close(fd);
+		if (!trusted_reopen(ret, attempt))
+			break;
+	}
+	if (ret == -ESTALE)
+		report_stale(path);
+	return ret;
+}
+
+int open_trusted(const char *path, int flags, bool secret)
+{
+	return open_checked(path, flags, secret, open_path);
 }
 
 __u32 kernel_dev(dev_t dev)

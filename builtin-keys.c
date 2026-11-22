@@ -50,16 +50,12 @@
 
 static X509 *read_cert_der(const char *path)
 {
-	int fd = open(path, O_RDONLY | O_CLOEXEC);
+	int fd = open_trusted(path, O_RDONLY, false);
 	BIO *bio;
 	X509 *c;
 
 	if (fd < 0) {
-		pr_err("open %s: %s", path, strerror(errno));
-		return NULL;
-	}
-	if (check_trusted(fd, path, false)) {
-		close(fd);
+		pr_err("open %s: %s", path, strerror(-fd));
 		return NULL;
 	}
 	bio = BIO_new_fd(fd, BIO_CLOSE);

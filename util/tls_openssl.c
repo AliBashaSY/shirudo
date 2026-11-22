@@ -145,13 +145,9 @@ static CURLcode sslctx_callback(CURL *curl, void *sslctx, void *userptr)
 	}
 	if (!path || !path[0])
 		return CURLE_OK;
-	fd = open(path, O_RDONLY | O_CLOEXEC);
+	fd = open_trusted(path, O_RDONLY, false);
 	if (fd < 0)
 		return CURLE_SSL_CACERT_BADFILE;
-	if (check_trusted(fd, path, false)) {
-		close(fd);
-		return CURLE_SSL_CACERT_BADFILE;
-	}
 	bio = BIO_new_fd(fd, BIO_CLOSE);
 	if (!bio) {
 		close(fd);

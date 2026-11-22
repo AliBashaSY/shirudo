@@ -210,6 +210,22 @@ static void make_etc(void)
 	make_etc_in("/tmp");
 }
 
+/* As config managers write: the new file beside its name, renamed over it. */
+static void replace_mode(const char *name, const char *text, mode_t mode)
+{
+	char tmp[PATH_MAX];
+	int fd;
+
+	ASSERT_TRUE(strsprintf(tmp, sizeof(tmp), "%s.tmp", name) > 0);
+	fd = openat(etc_fd, tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
+		    0600);
+	ASSERT_TRUE(fd >= 0);
+	ASSERT_EQ(fchmod(fd, mode), 0);
+	ASSERT_EQ(write_complete(fd, text, strlen(text)), 0);
+	close(fd);
+	ASSERT_EQ(renameat(etc_fd, tmp, etc_fd, name), 0);
+}
+
 static void check_trusted_takes_a_file_nobody_else_can_change(void)
 {
 	make_etc();
@@ -297,6 +313,83 @@ static void check_trusted_wants_the_file_the_path_names(void)
 	remove_etc();
 }
 
+/*
+ * open_checked() with an open that renames a new file over the one it
+ * opened, for its first race.renames opens: the race between the open
+ * and the check, on cue.
+ */
+static struct race {
+	const char *name;
+	mode_t mode;
+	int renames;
+	int opens;
+} race;
+
+static int open_then_replace(const char *path, int flags)
+{
+	int fd = open_path(path, flags);
+
+	if (fd >= 0 && race.opens++ < race.renames)
+		replace_mode(race.name, "b\n", race.mode);
+	return fd;
+}
+
+static int open_racing(const char *name, mode_t mode, int renames)
+{
+	char path[PATH_MAX];
+
+	race = (struct race){ .name = name, .mode = mode, .renames = renames };
+	ASSERT_TRUE(strsprintf(path, sizeof(path), "%s/%s", etc_dir,
+			       name) > 0);
+	return open_checked(path, O_RDONLY, false, open_then_replace);
+}
+
+static void open_trusted_reopens_a_file_renamed_over(void)
+{
+	char text[4] = {};
+	int fd;
+
+	make_etc();
+	make_dir("keys", 0755);
+	replace_mode("keys/cert.der", "a\n", 0644);
+	fd = open_racing("keys/cert.der", 0644, 1);
+	ASSERT_TRUE(fd >= 0);
+	EXPECT_EQ(race.opens, 2);
+	EXPECT_EQ(pread(fd, text, sizeof(text) - 1, 0), 2);
+	EXPECT_STREQ(text, "b\n");
+	close(fd);
+	fd = open_racing("keys/cert.der", 0644, TRUSTED_REOPENS);
+	ASSERT_TRUE(fd >= 0);
+	EXPECT_EQ(race.opens, TRUSTED_REOPENS + 1);
+	close(fd);
+	remove_etc();
+}
+
+static void open_trusted_gives_up_on_a_name_that_keeps_changing(void)
+{
+	make_etc();
+	make_dir("keys", 0755);
+	replace_mode("keys/cert.der", "a\n", 0644);
+	EXPECT_EQ(open_racing("keys/cert.der", 0644,
+			      TRUSTED_REOPENS + 1), -ESTALE);
+	EXPECT_EQ(race.opens, TRUSTED_REOPENS + 1);
+	remove_etc();
+}
+
+/* A reopen checks the new file in full, and only a rename is reopened. */
+static void open_trusted_checks_each_file_it_opens(void)
+{
+	make_etc();
+	make_dir("keys", 0755);
+	replace_mode("keys/cert.der", "a\n", 0644);
+	EXPECT_EQ(open_racing("keys/cert.der", 0664, 1), -EPERM);
+	EXPECT_EQ(race.opens, 2);
+	/* The file the rename left is group-writable. */
+	EXPECT_EQ(open_racing("keys/cert.der", 0644, 0), -EPERM);
+	EXPECT_EQ(race.opens, 1);
+	remove_etc();
+}
+
 static const struct unit_case cases[] = {
 	UNIT_CASE(lines_len_ends_at_the_last_newline),
 	UNIT_CASE(append_line_adds_one_record),
@@ -310,6 +403,9 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(check_trusted_follows_a_link_nobody_else_made),
 	UNIT_CASE(check_trusted_refuses_a_link_others_can_replace),
 	UNIT_CASE(check_trusted_wants_the_file_the_path_names),
+	UNIT_CASE(open_trusted_reopens_a_file_renamed_over),
+	UNIT_CASE(open_trusted_gives_up_on_a_name_that_keeps_changing),
+	UNIT_CASE(open_trusted_checks_each_file_it_opens),
 	{}
 };
 
