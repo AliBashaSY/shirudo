@@ -1724,6 +1724,8 @@ have none; the ``attest`` fuzz target runs them. Neither has
 ``read_file_base64()`` and ``attest_challenge_read()``, which read the
 challenge on the target, or ``attest_challenge_make()`` and
 ``cert_describes()``, which read a target's evidence to make one.
+The config NvPCR certification check, ``verify_config_nvpcr()``, has no
+proof.
 
 Of the other files the proofs read in part, these functions have no
 proof: ``dns_name_valid()`` of :src:`util/string.c` at its limits of a
