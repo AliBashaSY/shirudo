@@ -27,4 +27,10 @@ test_expect_success 'DNS observations use real loopback UDP traffic' '
 	python3 end2end/kernel_obs_checks.py t9104_check_empty "$OTEL_OUT/t9104-dns-empty.ndjson"
 '
 
+test_expect_success 'a label byte that is a NUL, a dot or not printable ASCII is recorded as ?' '
+	python3 end2end/kernel_obs_events.py dns-odd &&
+	otel_export dns "$OTEL_OUT/t9104-dns-odd.ndjson" &&
+	python3 end2end/kernel_obs_checks.py t9104_check_odd "$OTEL_OUT/t9104-dns-odd.ndjson"
+'
+
 test_done

@@ -25,6 +25,8 @@
 #define DNS_MAX_PACKET_BYTES	(DNS_MAX_UDP_BYTES + DNS_MAX_IP_HEADER_BYTES)
 #define DNS_REQ_MAP_ENTRIES	1024
 #define DNS_COMPRESSED_MASK	0xc0
+/* Set in what the label and name parsers return, above any label's length. */
+#define DNS_NAME_REPLACED	0x100
 
 enum dns_debug_counter {
 	DNS_DBG_QUERY_PACKET,
@@ -34,6 +36,7 @@ enum dns_debug_counter {
 	DNS_DBG_QUERY_QDCOUNT_BAD,
 	DNS_DBG_QUERY_SCRATCH_MISS,
 	DNS_DBG_QUERY_NAME_FAIL,
+	DNS_DBG_QUERY_NAME_REPLACED,
 	DNS_DBG_QUERY_EMPTY_NAME,
 	DNS_DBG_QUERY_QTYPE_READ_FAIL,
 	DNS_DBG_QUERY_QTYPE_UNSUPPORTED,
@@ -385,16 +388,35 @@ static __always_inline bool dns_read_u32_raw(struct __sk_buff *skb,
 	return true;
 }
 
+/*
+ * A label may hold any byte, but the recorded name is a C string with dots
+ * between its labels: a NUL in a label would end the name there and a dot
+ * would split the label in two, either recording another name than the
+ * one resolved. Such a byte is recorded as '?', as is any other outside
+ * printable ASCII, rather than the name refused, which would leave the
+ * query unrecorded.
+ */
+static __always_inline bool dns_label_byte_recordable(__u8 byte)
+{
+	return byte > ' ' && byte <= '~' && byte != '.';
+}
+
+/*
+ * Copies one label into the scratch name and returns the bytes it took,
+ * 0 at the root label, with DNS_NAME_REPLACED set when a byte of the label
+ * was recorded as '?'.
+ */
 __attribute__((noinline)) int
 obs_dns_parse_name_label(struct __sk_buff *skb, __u32 off, __u32 start)
 {
 	__u8 *data = (__u8 *)(long)skb->data;
 	__u8 *data_end = (__u8 *)(long)skb->data_end;
-	struct dns_scratch *scratch;
 	__u32 wire_offset, dst, i, zero = 0;
+	struct dns_scratch *scratch;
+	int replaced = 0;
+	__u8 len, byte;
 	__u8 *src;
 	char *out;
-	__u8 len;
 
 	if (off < start || off >= DNS_MAX_PACKET_BYTES)
 		return -EINVAL;
@@ -438,16 +460,25 @@ obs_dns_parse_name_label(struct __sk_buff *skb, __u32 off, __u32 start)
 	for (i = 0; i < len; i++) {
 		if (src + i + 1 > data_end)
 			return -EINVAL;
-		out[dst + i] = src[i];
+		byte = src[i];
+		if (!dns_label_byte_recordable(byte)) {
+			byte = '?';
+			replaced = DNS_NAME_REPLACED;
+		}
+		out[dst + i] = byte;
 	}
-	return (int)len + 1;
+	return ((int)len + 1) | replaced;
 }
 
+/*
+ * Returns a negative errno, or 0 with DNS_NAME_REPLACED set when a byte of
+ * the name was recorded as '?'.
+ */
 static __always_inline int dns_parse_name(struct __sk_buff *skb, __u32 off,
 					  char *out, __u32 *next_off)
 {
 	__u32 start = off, pos = off;
-	int consumed, i;
+	int consumed, replaced = 0, i;
 
 	if (!out || !next_off)
 		return -EINVAL;
@@ -459,8 +490,10 @@ static __always_inline int dns_parse_name(struct __sk_buff *skb, __u32 off,
 			return consumed;
 		if (consumed == 0) {
 			*next_off = pos + 1;
-			return 0;
+			return replaced;
 		}
+		replaced |= consumed & DNS_NAME_REPLACED;
+		consumed &= ~DNS_NAME_REPLACED;
 		if ((__u32)consumed > DNS_MAX_PACKET_BYTES - pos)
 			return -EINVAL;
 		pos += (__u32)consumed;
@@ -559,6 +592,7 @@ static __always_inline void dns_parse_query_payload(struct __sk_buff *skb,
 	struct obs_ident ident = {};
 	__u32 zero = 0, next = 0;
 	__u16 id, flags, qdcount, qtype, qclass;
+	int parsed;
 
 	dns_debug_inc(DNS_DBG_QUERY_PACKET);
 	if (!dns_query_ident(skb, &ident)) {
@@ -584,11 +618,14 @@ static __always_inline void dns_parse_query_payload(struct __sk_buff *skb,
 		dns_debug_inc(DNS_DBG_QUERY_SCRATCH_MISS);
 		return;
 	}
-	if (dns_parse_name(skb, dns_off + sizeof(struct dns_hdr),
-			   scratch->req.name, &next)) {
+	parsed = dns_parse_name(skb, dns_off + sizeof(struct dns_hdr),
+				scratch->req.name, &next);
+	if (parsed < 0) {
 		dns_debug_inc(DNS_DBG_QUERY_NAME_FAIL);
 		return;
 	}
+	if (parsed & DNS_NAME_REPLACED)
+		dns_debug_inc(DNS_DBG_QUERY_NAME_REPLACED);
 	if (!scratch->req.name[0]) {
 		dns_debug_inc(DNS_DBG_QUERY_EMPTY_NAME);
 		return;

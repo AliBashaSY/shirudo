@@ -833,7 +833,8 @@ signed config image.
    * - ``t9103-kernel-obs-priv``
      - Privilege and executable-mapping records in maps, OTLP and ClickHouse
    * - ``t9104-kernel-obs-dns-matrix``
-     - DNS over loopback in maps, OTLP and ClickHouse
+     - DNS over loopback in maps, OTLP and ClickHouse, and a label's NUL,
+       dot or byte outside printable ASCII recorded as ``?``
    * - ``t9105-delivery``
      - The operator package built and installed in an operator VM
        without a TPM, which publishes ``kernel-obs`` and the Java agent

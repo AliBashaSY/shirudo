@@ -228,6 +228,18 @@ def t9104_check(argv):
         assert any(item["name"] == name for item in record["names"]), record
 
 
+def t9104_check_odd(argv):
+    records = read_documents(argv[1])
+    assert len(records) == 1 and records[0].get("map") == "dns", records
+    names = {item["address"]: [name["name"] for name in item["names"]]
+             for item in records[0].get("records", [])}
+    for address, name in (("203.0.113.81", "ww?w.evil.example"),
+                          ("203.0.113.82", "www?good.example"),
+                          ("203.0.113.83", "caf??.example"),
+                          ("203.0.113.84", "?.evil.example")):
+        assert names.get(address) == [name], (address, records)
+
+
 def t9104_check_empty(argv):
     records = read_documents(argv[1])
     assert len(records) == 1 and records[0].get("map") == "dns", records
@@ -242,6 +254,7 @@ CHECKS = {
     "t9101_check_exec_only": t9101_check_exec_only,
     "t9102_check": t9102_check,
     "t9104_check": t9104_check,
+    "t9104_check_odd": t9104_check_odd,
     "t9104_check_empty": t9104_check_empty,
 }
 

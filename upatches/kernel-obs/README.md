@@ -89,6 +89,15 @@ creations are not recorded. UNIX paths, message payloads and VSOCK peer
 identifiers are not recorded. AF_PACKET and AF_XDP ring records cover setup
 and wakeup calls, not individual frames.
 
+DNS records keep the question name of the query an answer resolved, its
+labels joined by dots. A label may hold any byte; a NUL, a dot, a space
+or any other byte outside printable ASCII in it is recorded as `?`, so
+that the recorded name keeps the length and the labels of the name
+queried. The labels `www.good` and `example` are recorded as
+`www?good.example`, not as the three labels of `www.good.example`, and
+`ww\0w.evil.example`, whose first label holds a NUL, as
+`ww?w.evil.example` rather than `ww`.
+
 Packet counts come from the cgroup hooks on the root cgroup and cover
 every socket on the host, including sockets created before the load,
 which are attributed to their cgroup alone until their owner is known.
@@ -210,8 +219,8 @@ namespace, addresses, ports and transaction ID. It does not yet:
 - [ ] reject IP fragments, check the IP and UDP lengths against the packet
       and hold the 1232-byte parsing budget on the packet itself;
 - [ ] walk IPv6 extension headers, or reject packets that carry one;
-- [ ] reject an embedded NUL in a label and bound every compression
-      pointer it skips, against loops and out-of-packet targets;
+- [ ] bound every compression pointer it skips, against loops and
+      out-of-packet targets;
 - [ ] count a full pending table, LRU displacement, stale responses and
       answers past its cap of 75, instead of dropping them silently;
 - [ ] cover malformed packets on the target, which needs a live packet

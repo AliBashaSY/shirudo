@@ -28,6 +28,7 @@ COUNTERS = (
     "QUERY_QDCOUNT_BAD",
     "QUERY_SCRATCH_MISS",
     "QUERY_NAME_FAIL",
+    "QUERY_NAME_REPLACED",
     "QUERY_EMPTY_NAME",
     "QUERY_QTYPE_READ_FAIL",
     "QUERY_QTYPE_UNSUPPORTED",
@@ -227,17 +228,21 @@ class Matrix:
 
     def pair(self, stem: str, name: str, qtype: int, answers: list[bytes],
              *, ipv6_transport: bool = False,
-             response_counters: dict[str, int] | None = None) -> int:
+             response_counters: dict[str, int] | None = None,
+             labels: list[bytes] | None = None,
+             query_counters: dict[str, int] | None = None) -> int:
         txid = self.txid()
-        qname = wire_name(name)
+        qname = wire_name(name if labels is None else labels)
         make_frame = frame6 if ipv6_transport else frame4
         family_counter = "PACKET_IPV6" if ipv6_transport else "PACKET_IPV4"
+        query_expected = {family_counter: 1, "QUERY_PACKET": 1,
+                          "QUERY_STORED": 1}
+        if query_counters:
+            query_expected.update(query_counters)
         self.add(Case(
             f"{stem}: query", QUERY, txid,
             make_frame(query_payload(txid, qname, qtype), QUERY),
-            count(**{family_counter: 1, "QUERY_PACKET": 1,
-                     "QUERY_STORED": 1}),
-            True, name, qtype,
+            query_expected, True, name, qtype,
         ))
         expected = {
             family_counter: 1,
@@ -685,6 +690,24 @@ def build_deterministic_matrix() -> Matrix:
     long_name = ".".join(["a"] * 127)
     matrix.pair("127-label maximum wire name", long_name, A,
                 [rr(rdata=b"\xc0\x00\x02\x0b")])
+
+    # A label byte that is a NUL, a dot or not printable ASCII is recorded
+    # as '?', so that the name keeps its labels and its length.
+    for stem, labels, recorded, last in (
+        ("NUL in a label", [b"ww\x00w", b"evil", b"example"],
+         "ww?w.evil.example", 0x0c),
+        ("dot in a label", [b"www.good", b"example"],
+         "www?good.example", 0x0d),
+        ("bytes past ASCII in a label", [b"caf\xc3\xa9", b"example"],
+         "caf??.example", 0x0e),
+        ("space and control byte in a label", [b"a b\x01", b"example"],
+         "a?b?.example", 0x0f),
+        ("NUL alone in the first label", [b"\x00", b"evil", b"example"],
+         "?.evil.example", 0x10),
+    ):
+        matrix.pair(stem, recorded, A, [rr(rdata=bytes((192, 0, 2, last)))],
+                    labels=labels,
+                    query_counters={"QUERY_NAME_REPLACED": 1})
 
     # Multiple answers for one address exercise lookup and seen_count updates.
     matrix.pair("duplicate address answer", "duplicate.example", A,

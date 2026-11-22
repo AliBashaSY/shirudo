@@ -301,14 +301,17 @@ def socket_events():
     print(json.dumps(expected))
 
 
-def dns_name(name):
-    labels = [label.encode() for label in name.split(".")]
+def dns_wire_name(labels):
     if not labels or any(not label or len(label) > 63 for label in labels):
         raise ValueError("DNS labels must contain between 1 and 63 bytes")
     wire = b"".join(bytes([len(label)]) + label for label in labels) + b"\0"
     if len(wire) > 255:
         raise ValueError("DNS wire name exceeds 255 bytes")
     return wire
+
+
+def dns_name(name):
+    return dns_wire_name([label.encode() for label in name.split(".")])
 
 
 def dns_event():
@@ -344,9 +347,9 @@ def dns_event():
     raise RuntimeError(f"DNS query failed: {last_error}")
 
 
-def local_dns_exchange(name, answers):
+def local_dns_exchange(wire_name, answers):
     transaction = random.randrange(1, 65535)
-    question = dns_name(name) + struct.pack("!HH", 1, 1)
+    question = wire_name + struct.pack("!HH", 1, 1)
     query = struct.pack("!HHHHHH", transaction, 0x0100, 1, 0, 0, 0) + question
     errors = []
 
@@ -388,14 +391,31 @@ def local_dns_exchange(name, answers):
 def dns_long_event():
     answer = b"\xc0\x0c" + struct.pack("!HHIH4s", 1, 1, 60, 4,
                                        socket.inet_aton("203.0.113.10"))
-    local_dns_exchange(".".join(["a"] * 127), [answer])
+    local_dns_exchange(dns_name(".".join(["a"] * 127)), [answer])
 
 
 def dns_many_answers_event():
     unsupported = b"\xc0\x0c" + struct.pack("!HHIHB", 16, 1, 60, 1, 0)
     answer = b"\xc0\x0c" + struct.pack("!HHIH4s", 1, 1, 60, 4,
                                        socket.inet_aton("203.0.113.75"))
-    local_dns_exchange("many.example", [unsupported] * 74 + [answer])
+    local_dns_exchange(dns_name("many.example"), [unsupported] * 74 + [answer])
+
+
+# Labels holding a NUL, a dot, UTF-8 and a NUL alone, whose bytes
+# kernel-obs records as '?'.
+ODD_NAMES = (
+    ([b"ww\0w", b"evil", b"example"], "203.0.113.81"),
+    ([b"www.good", b"example"], "203.0.113.82"),
+    ([b"caf\xc3\xa9", b"example"], "203.0.113.83"),
+    ([b"\0", b"evil", b"example"], "203.0.113.84"),
+)
+
+
+def dns_odd_event():
+    for labels, address in ODD_NAMES:
+        answer = b"\xc0\x0c" + struct.pack("!HHIH4s", 1, 1, 60, 4,
+                                           socket.inet_aton(address))
+        local_dns_exchange(dns_wire_name(labels), [answer])
 
 
 EVENTS = {
@@ -409,6 +429,7 @@ EVENTS = {
     "watch": watch_event,
     "dns-long": dns_long_event,
     "dns-many": dns_many_answers_event,
+    "dns-odd": dns_odd_event,
 }
 ALL = ("exec", "tcp", "udp", "dns", "listen", "file")
 
