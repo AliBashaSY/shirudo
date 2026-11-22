@@ -447,8 +447,9 @@ static int java_row(const char *name,
 		strscpy_literal(r->name, "?");
 	strscpy_literal(r->location, "java");
 	hex_encode(payload, UPATCH_PAYLOAD_HASH_LEN, r->payload_sha256);
-	if (!java_agent_path(name, path, sizeof(path)) && !stat(path, &st))
-		iso8601(st.st_ctim.tv_sec, r->loaded_at, sizeof(r->loaded_at));
+	if (java_agent_path(name, path, sizeof(path)) || stat(path, &st) ||
+	    iso8601(st.st_ctim.tv_sec, r->loaded_at, sizeof(r->loaded_at)))
+		r->loaded_at[0] = '\0';
 	r->age_sec = upatch_age_sec(r->loaded_at);
 	return 0;
 }

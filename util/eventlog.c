@@ -732,7 +732,8 @@ int eventlog_upatches_record(const char *line, size_t len, bool is_init,
 
 void eventlog_timestamp(char *out, size_t cap)
 {
-	iso8601(time(NULL), out, cap);
+	if (iso8601(time(NULL), out, cap))
+		out[0] = '\0';
 }
 
 void eventlog_boot_id(char *out, size_t cap)
