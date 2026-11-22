@@ -40,6 +40,13 @@ static struct said_config said;
 static bool breaks, broken, hash_failed;
 static __u8 last_digest[32];
 
+/* A static PCR the register leaves alone, or the config NvPCR's index. */
+static bool config_register(__s64 pcr)
+{
+	return (pcr >= 0 && pcr <= 15 && pcr != CHAIN_PCR &&
+		pcr != CHAIN_PHASE_PCR) || pcr == TPM_CONFIG_NVPCR_INDEX;
+}
+
 int sha256_buffer(const void *data, size_t len, __u8 out[32])
 {
 	int ret;

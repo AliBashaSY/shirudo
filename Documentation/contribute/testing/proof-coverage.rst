@@ -1068,10 +1068,11 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        events, cut or malformed at any point; ``json_parse()`` a model of
        its contract, SHA-256 as any result
      - Takes exactly a history with every key, schema 1, a PCR from 0 to
-       15 but 9 and 11, 32-bit counts, 64 hex digits of initial value and
-       one boot event then updates in sequence, as said, and names one
-       out of order with ``EKEYREJECTED``; a refusal and evidence without
-       a history return nothing, with nothing left allocated
+       15 but 9 and 11 or the config NvPCR's index, 32-bit counts, 64 hex
+       digits of initial value and one boot event then updates in
+       sequence, as said, and names one out of order with
+       ``EKEYREJECTED``; a refusal and evidence without a history return
+       nothing, with nothing left allocated
    * - ``config-evidence-roundtrip``
      - ``config_evidence_emit()``, ``emit_hash()`` into
        ``config_evidence_parse()``
@@ -1085,14 +1086,16 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
      - ``replay()``, ``config_evidence_verify()``,
        ``config_measure_event()``
      - Every view of 0 to 3 events, without events or past 4096 of them,
-       every quote mask, TPM boot, PCR value and expectation; SHA-256 as
-       any digest or failure
-     - Passes exactly when the PCR is one from 0 to 15 but 9 and 11,
-       quoted and the expected one, the reset count the quote's, the events
-       one boot event then updates in sequence, the quoted value the
-       initial one extended by each event's digest in order, and the last
-       root the expected one; a digest hashes the tag, the kind and the
-       root; a root without its PCR is refused
+       every quote mask, TPM boot, PCR value, certified NvPCR value or
+       none, and expectation; SHA-256 as any digest or failure
+     - Passes exactly when the register is a PCR from 0 to 15 but 9 and 11
+       that is quoted, or the config NvPCR, certified and with a history
+       that starts at the digest of 64 zero bytes, and is the expected
+       one, the reset count the quote's, the events one boot event then
+       updates in sequence, the quoted or certified value the initial one
+       extended by each event's digest in order, and the last root the
+       expected one; a digest hashes the tag, the kind and the root; a
+       root without its PCR is refused
    * - ``config-evidence-collect``
      - ``config_evidence_collect()``, ``collect_event()``
      - Every journal of 0 to 2 records and every active selection, the

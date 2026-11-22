@@ -131,14 +131,13 @@ static bool same(const __u8 *a, const __u8 *b)
 	return true;
 }
 
-/* What replay() takes: a config PCR and one boot event, then updates. */
+/* What replay() takes: a config register and one boot event, then updates. */
 static bool replays(const struct config_evidence *view)
 {
 	const struct config_evidence_event *event = view->events;
 	size_t i;
 
-	if (view->pcr > 15 || view->pcr == CHAIN_PCR ||
-	    view->pcr == CHAIN_PHASE_PCR || !LEN)
+	if (!config_register(view->pcr) || !LEN)
 		return false;
 	for (i = 0; i < LEN; i++) {
 		if (event[i].kind != (i ? CONFIG_EVENT_UPDATE :
