@@ -1978,34 +1978,58 @@ static int tree_status_update(const char *id, bool module_absent)
  * tree's own projection stays a file chain; the register is what an
  * operator attests.
  */
+/* The record of a tree operation up to the register value that ends it. */
+static void tree_record_open(struct json_emit *e,
+			     const struct tree_operation *op,
+			     const __u8 event[32])
+{
+	eventlog_record_open(e, "tree_op", event);
+	json_obj_open_key(e, "tree");
+	json_kv_int(e, "seq", op->seq);
+	json_kv_string(e, "op", op->op);
+	json_kv_string(e, "id", op->id);
+	json_kv_string(e, "operation_digest", op->operation_digest);
+	json_obj_close(e);
+}
+
+/* On a copy of the emitter, whose buffer is fixed, to end the record twice. */
+static int tree_record_close(struct json_emit e, const __u8 chain[32])
+{
+	char chain_hex[65];
+
+	hex_encode(chain, 32, chain_hex);
+	json_kv_string(&e, "chain", chain_hex);
+	json_obj_close(&e);
+	return e.err;
+}
+
 static int tree_measure_locked(const struct tree_operation *op,
 			       const __u8 operation_digest[32])
 {
-	__u8 event[32], chain[32];
+	__u8 event[32], chain[32] = {};
 	struct json_emit e;
-	char line[4096], chain_hex[65];
+	char line[4096];
 	int ret;
 
 	ret = chain_tree_event(op->seq, operation_digest, event);
+	if (ret)
+		return ret;
+	/*
+	 * The record is written out before the extend, which nothing takes
+	 * back, though it ends in the value the extend gives: ended here
+	 * with a value of the same length, it ends with the real one the
+	 * same way. A record that could fail after the extend would leave
+	 * the register ahead of the log.
+	 */
+	e = (struct json_emit){ .buf = line, .cap = sizeof(line) };
+	tree_record_open(&e, op, event);
+	ret = tree_record_close(e, chain);
 	if (!ret)
 		ret = chain_extend(event, chain);
 	if (ret)
 		return ret;
-
-	hex_encode(chain, 32, chain_hex);
-	e = (struct json_emit){ .buf = line, .cap = sizeof(line) };
-	eventlog_record_open(&e, "tree_op", event);
-	json_obj_open_key(&e, "tree");
-	json_kv_int(&e, "seq", op->seq);
-	json_kv_string(&e, "op", op->op);
-	json_kv_string(&e, "id", op->id);
-	json_kv_string(&e, "operation_digest", op->operation_digest);
-	json_obj_close(&e);
-	json_kv_string(&e, "chain", chain_hex);
-	json_obj_close(&e);
-	if (e.err)
-		return e.err;
-	return eventlog_append(line);
+	ret = tree_record_close(e, chain);
+	return ret ? ret : eventlog_append(line);
 }
 
 static int tree_measure_operation(const struct tree_operation *op,

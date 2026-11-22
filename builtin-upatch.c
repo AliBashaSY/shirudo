@@ -2856,18 +2856,6 @@ static int format_upatch_event(const char *type, const char *name,
 	return 0;
 }
 
-static int append_upatch_event(const char *type, const char *name,
-			       const __u8 payload[32],
-			       const __u8 event[32], const char *reason)
-{
-	char buf[4096];
-	int ret;
-
-	ret = format_upatch_event(type, name, payload, event, reason,
-				  buf, sizeof(buf));
-	return ret ? ret : eventlog_append(buf);
-}
-
 /*
  * Each operator operation is its own register event, where boot restore
  * coalesces into one. A missing TPM or register is an error, never an
@@ -2881,8 +2869,8 @@ static int upatch_chain_event_locked(__u32 payload_type, bool load,
 				     bool *measured)
 {
 	const char *type = eventlog_upatch_record(payload_type, load);
+	char record[4096], chain_hex[65];
 	__u8 event[32], chain[32];
-	char chain_hex[65];
 	int ret;
 
 	if (out_chain)
@@ -2896,6 +2884,16 @@ static int upatch_chain_event_locked(__u32 payload_type, bool load,
 		       op);
 		return ret;
 	}
+	/*
+	 * The record is written out before the extend, which nothing takes
+	 * back: one that cannot be encoded then stops the event unmeasured,
+	 * where after the extend it would leave the register ahead of the
+	 * log.
+	 */
+	ret = format_upatch_event(type, name, payload, event, reason, record,
+				  sizeof(record));
+	if (ret)
+		return ret;
 
 	ret = chain_extend(event, chain);
 	if (ret == -ENODEV) {
@@ -2916,7 +2914,7 @@ static int upatch_chain_event_locked(__u32 payload_type, bool load,
 	}
 	if (measured)
 		*measured = true;
-	ret = append_upatch_event(type, name, payload, event, reason);
+	ret = eventlog_append(record);
 	if (ret) {
 		pr_err("upatch %s: eventlog append failed after the extend: "
 		       "register and log disagree; the operator must reconcile",

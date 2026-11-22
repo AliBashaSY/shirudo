@@ -744,24 +744,24 @@ static const struct help keys_revoke_help = {
 		   "in a signed config image and activate it with image update.",
 };
 
-static int append_key_event(const char *type, const char *fp_hex,
-			    const char *sha_hex, const __u8 event[32])
+static int format_key_event(const char *type, const char *fp_hex,
+			    const __u8 cert_sha[32], const __u8 event[32],
+			    char *buf, size_t size)
 {
-	char buf[1024];
-	struct json_emit e = { .buf = buf, .cap = sizeof(buf) };
+	struct json_emit e = { .buf = buf, .cap = size };
+	char sha_hex[65];
 
+	hex_encode(cert_sha, 32, sha_hex);
 	eventlog_record_open(&e, type, event);
 	json_obj_open_key(&e, "key");
 	json_kv_string(&e, "fingerprint", fp_hex);
 	json_kv_string(&e, "cert_sha256", sha_hex);
 	json_obj_close(&e);
 	json_obj_close(&e);
-	if (e.err) {
+	if (e.err)
 		pr_err("eventlog: %s entry encode failed: %s", type,
 		       strerror(-e.err));
-		return e.err;
-	}
-	return eventlog_append(buf);
+	return e.err;
 }
 
 /*
@@ -773,14 +773,25 @@ static int append_key_event(const char *type, const char *fp_hex,
 static int measure_revoke_locked(const struct trusted_cert *c,
 				 const char *fp_hex)
 {
+	char record[1024], chain_hex[65];
 	__u8 event[32], chain[32];
-	char sha_hex[65], chain_hex[65];
 	int ret;
 
 	ret = chain_key_event("shirudo-key-revoke", c->sha256, event);
 	if (ret) {
 		pr_err("keys revoke: cannot hash the revocation event: %s; the key is revoked but the revocation is NOT measured; operator must reconcile",
 		       strerror(-ret));
+		return ret;
+	}
+	/*
+	 * The record is written out before the extend, which nothing takes
+	 * back: one that cannot be encoded after it would leave the register
+	 * ahead of the log.
+	 */
+	ret = format_key_event("key_revoke", fp_hex, c->sha256, event, record,
+			       sizeof(record));
+	if (ret) {
+		pr_err("keys revoke: cannot write the record of the revocation; the key is revoked but the revocation is NOT measured; operator must reconcile");
 		return ret;
 	}
 	ret = chain_extend(event, chain);
@@ -794,8 +805,7 @@ static int measure_revoke_locked(const struct trusted_cert *c,
 		       ret == -EACCES ? "tampered" : "tpm_error");
 		return ret;
 	}
-	hex_encode(c->sha256, 32, sha_hex);
-	ret = append_key_event("key_revoke", fp_hex, sha_hex, event);
+	ret = eventlog_append(record);
 	if (ret) {
 		pr_err("keys revoke: eventlog append failed after the extend: "
 		       "register and log disagree; the operator must reconcile");
