@@ -34,9 +34,9 @@ void *xreallocarray(void *ptr, size_t old_nmemb, size_t new_nmemb,
 		    size_t size);
 
 /*
- * xstrdup() uses strlen, so it takes a trusted NUL-terminated string
- * alone; untrusted or unbounded input goes through xstrndup() with a
- * bound.
+ * xstrdup() copies a string, xstrndup() at most n bytes of one. A NUL
+ * ends either copy without an error, so bytes that come with a length
+ * become a string through span_to_str() instead.
  */
 char *xstrdup(const char *s);
 char *xstrndup(const char *s, size_t n);

@@ -453,9 +453,12 @@ without a body.
   a helper formatting display text returns the error, and status shows
   `"?"`. Constant text is copied, not formatted, and a literal copied
   into an array takes `strscpy_literal()`, which cannot fail.
-- `xstrdup()` measures with `strlen()`, so outside input gets
-  `xstrndup(s, bound)`. `xfree(p, size)` and `xstrfree()` scrub before
-  they free.
+- `xstrdup()` copies a string and `xstrndup(s, n)` at most its first
+  `n` bytes: a prefix, or a bounded copy of what already is a string.
+  Both end the copy at a NUL and say nothing, which is wrong for bytes
+  that come with a length: those become a string through
+  `span_to_str()`, into `len + 1` bytes from `xmalloc()`, which refuses
+  the NUL. `xfree(p, size)` and `xstrfree()` scrub before they free.
 - `min_t()` and `max_t()` cast and can cut a value, so they are for
   only what `min()` and `max()` refuse; a constant compared with an
   unsigned value takes a `U` suffix.
