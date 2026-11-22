@@ -169,7 +169,8 @@ static void print_fpr(const char *label, const __u8 *fpr)
  * provider's own name ("ML-DSA-87"), whose parameter set already says
  * everything a bit count would.
  */
-static int format_pkey_algorithm(EVP_PKEY *pkey, char *out, size_t out_sz)
+static __must_check int format_pkey_algorithm(EVP_PKEY *pkey, char *out,
+					      size_t out_sz)
 {
 	const char *name = EVP_PKEY_get0_type_name(pkey);
 	int id = EVP_PKEY_get_base_id(pkey);

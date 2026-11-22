@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/compiler.h>
 #include <shirudo/types.h>
 
 struct bpf_link_info;
@@ -37,9 +38,12 @@ int upatch_each_link_info(const char *name,
 /* From the first link, or from an XDP program pin when it has none. */
 int upatch_first_prog_id(const char *name, __u32 *out);
 
-/* vbtf may be NULL; the location then degrades to the bare prefix. */
+/*
+ * vbtf may be NULL; the location then degrades to the bare prefix. On
+ * failure out is empty.
+ */
 int upatch_resolve_location(struct btf *vbtf, const char *name,
-			    char *out, size_t cap);
+			    char *out, size_t cap) __must_check;
 
 /*
  * The runs the kernel skipped of one program of an upatch: the program's
