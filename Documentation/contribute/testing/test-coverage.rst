@@ -60,10 +60,11 @@ signed config image.
        ``positive_errno``, a case for each BPF hazard rule beside the
        safe form it leaves alone, a case at its line for ``stale_success``,
        ``break_error``, ``sum_overwrite``, ``fd_leak``, ``getenv_null``,
-       ``strerror_negative`` and ``double_test`` beside the forms it
-       leaves alone, a dead store beside the reads ``dead_store`` leaves
-       alone, a buffer a read filled and a file read whole taken for a
-       string, beside the forms that terminate or check first, a count by
+       ``strerror_negative``, ``double_test`` and ``name_after_fd``
+       beside the forms it leaves alone, a dead store beside the reads
+       ``dead_store`` leaves alone, a buffer a read filled and a file
+       read whole taken for a string, beside the forms that terminate or
+       check first, a count by
        hand in a macro and an ``ARRAY_SIZE()`` of a file's own for
        ``array_size``, which rewrites the one and leaves the other, a
        local's address, or that of its member or element, left in the

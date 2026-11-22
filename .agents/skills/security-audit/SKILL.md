@@ -116,8 +116,8 @@ of that tree, as one about a guard does.
 `testing/coccinelle` has rules for the mechanical shapes of several
 classes below (`openssl_ret`, `errno_clobber`, `alloc_unchecked`,
 `fd_leak`, `double_close`, `use_after_free`, `read_unterminated`,
-`file_as_string`, the `bpf_` rules): a clean `check-coccinelle.sh` says
-those shapes are absent, not the class.
+`file_as_string`, `name_after_fd`, the `bpf_` rules): a clean
+`check-coccinelle.sh` says those shapes are absent, not the class.
 
 - **Parse before verify.** Anything read before its signature or digest
   is checked (`upatch info`, `bpm info`, manifests, indexes, the

@@ -761,6 +761,11 @@ can rewrite what it finds does so with ``-D patch``:
        lock of ``eventlog_lock()`` or ``seal_lock()`` among them.
    * - ``cloexec``
      - A descriptor or stream opened without close-on-exec.
+   * - ``name_after_fd``
+     - A path passed to ``realpath()`` or ``readlink()`` in a function
+       that holds a descriptor opened from the same path or passed in
+       with it: the name is looked up again and can lead to another
+       file than the descriptor.
    * - ``banned``
      - ``rand()``, ``strtok()``, ``usleep()``, ``signal()``,
        ``alloca()``, ``setjmp()``, the time and user database functions

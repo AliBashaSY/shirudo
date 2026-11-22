@@ -391,10 +391,11 @@ test_expect_success 'each BPF rule reports its sample and spares the safe form' 
 # the forms the rule leaves alone: the count of reports shows they stay
 # quiet.
 SAMPLE_RULES="stale_success break_error sum_overwrite fd_leak getenv_null
-strerror_negative double_test"
+strerror_negative double_test name_after_fd"
 SAMPLE_LINES="stale_success:9 break_error:53 sum_overwrite:110 fd_leak:148
 getenv_null:170 getenv_null:177 strerror_negative:196 strerror_negative:202
-double_test:215 double_test:222 double_test:231 double_test:243 double_test:254"
+double_test:215 double_test:222 double_test:231 double_test:243 double_test:254
+name_after_fd:276 name_after_fd:285 name_after_fd:296 name_after_fd:307"
 write_line_samples() {
 	cat >"$1" <<'EOF'
 int search_left(int fd, int key)
@@ -663,6 +664,96 @@ int counted_twice(struct lexer *l)
 	else if (l->pos++ == 0)
 		return 2;
 	return 0;
+}
+
+int checked(int fd, const char *path)
+{
+	char real[PATH_MAX];
+	struct stat st;
+
+	if (fstat(fd, &st))
+		return -errno;
+	if (!realpath(path, real))
+		return -errno;
+	return walk(real);
+}
+
+static ssize_t target_of(const char *path, int dirfd, char *buf, size_t cap)
+{
+	if (owned(dirfd))
+		return -EPERM;
+	return readlink(path, buf, cap);
+}
+
+int opened(const char *path)
+{
+	char real[PATH_MAX];
+	int fd, ret;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	ret = realpath(path, real) ? walk(real) : -errno;
+	close(fd);
+	return ret;
+}
+
+int opened_at(int dir, const char *link, char *buf, size_t cap)
+{
+	int fd = openat(dir, link, O_RDONLY | O_CLOEXEC);
+
+	if (fd < 0)
+		return -errno;
+	if (readlink(link, buf, cap) < 0) {
+		close(fd);
+		return -errno;
+	}
+	return fd;
+}
+
+int resolved_first(const char *path)
+{
+	char real[PATH_MAX];
+
+	if (!realpath(path, real))
+		return -errno;
+	return open(real, O_RDONLY | O_CLOEXEC);
+}
+
+int named_again(const char *path, const char *other, char *real)
+{
+	int fd;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	path = other;
+	if (!realpath(path, real)) {
+		close(fd);
+		return -errno;
+	}
+	return fd;
+}
+
+int stated(int fd, const char *path)
+{
+	struct stat st;
+
+	return stat(path, &st) ? -errno : 0;
+}
+
+int by_descriptor(int fd, char *buf, size_t cap)
+{
+	char proc[64];
+
+	if (strsprintf(proc, sizeof(proc), "/proc/self/fd/%d", fd) < 0)
+		return -E2BIG;
+	return readlink(proc, buf, cap) < 0 ? -errno : 0;
+}
+
+int no_descriptor(int flags, const char *path, char *real)
+{
+	return realpath(path, real) ? flags : -errno;
 }
 EOF
 }
