@@ -293,6 +293,19 @@ static void command_line_that_does_not_fit_is_absent(void)
 	EXPECT_STREQ(img.root, "");
 }
 
+/* A NUL would end the line short of the bytes the kernel wrote. */
+static void command_line_with_a_nul_is_absent(void)
+{
+	static const char text[] = "roothash=" ROOT_LOWER "\0 ro\n";
+	struct sysinfo_image img;
+
+	use_fixtures();
+	write_fixture(cmdline_path, text, sizeof(text) - 1);
+	sysinfo_image_read_at(etc_path, usr_path, cmdline_path, &img);
+	drop_fixtures();
+	EXPECT_STREQ(img.root, "");
+}
+
 static void memory_of_this_host_is_read(void)
 {
 	struct sysinfo si;
@@ -321,6 +334,7 @@ static const struct unit_case cases[] = {
 	UNIT_CASE(malformed_roothash_does_not_fall_back_to_usrhash),
 	UNIT_CASE(no_hash_is_absent),
 	UNIT_CASE(command_line_that_does_not_fit_is_absent),
+	UNIT_CASE(command_line_with_a_nul_is_absent),
 	UNIT_CASE(memory_of_this_host_is_read),
 	{}
 };

@@ -704,7 +704,10 @@ Optional blocks
        the file), ``architecture``, ``machine_id``, ``boot_id``,
        ``nproc``, ``mem_total_kb``, ``mem_avail_kb``, ``disk_total_kb``
        and ``disk_used_kb`` (of ``/``), ``uptime_seconds``. A number
-       that cannot be read is ``-1``.
+       that cannot be read is ``-1`` and a text that cannot be read is
+       empty. A NUL byte where a value is read counts as a read error:
+       ``kernel_config`` then ends with the line before it. A line of
+       the kernel config longer than 8191 bytes is left out.
    * - ``--include-eventlog``
      - ``tpm.eventlog.events``: one object per line of
        ``/var/lib/shirudo/eventlog``, all boots, with ``ts``, ``type``

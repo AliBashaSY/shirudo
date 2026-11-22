@@ -36,11 +36,9 @@ static void read_first_line(const char *path, char *buf, size_t cap)
 		return;
 	n = read(fd, buf, cap - 1);
 	close(fd);
-	if (n <= 0) {
+	if (n <= 0 ||
+	    span_to_str(buf, cap, buf, span_until(buf, (size_t)n, "\r\n")))
 		buf[0] = '\0';
-		return;
-	}
-	buf[span_until(buf, (size_t)n, "\r\n")] = '\0';
 }
 
 #define OS_RELEASE_SIZE_MAX	(64u * 1024u)
@@ -137,7 +135,7 @@ static long read_uptime_sec(void)
 		return -1;
 	n = read(fd, buf, sizeof(buf) - 1);
 	close(fd);
-	if (n <= 0)
+	if (n <= 0 || span_to_str(buf, sizeof(buf), buf, (size_t)n))
 		return -1;
 	if (parse_u64(buf, digits(buf, (size_t)n), LONG_MAX, &sec))
 		return -1;
@@ -159,17 +157,26 @@ static long meminfo_kb(const char *line, const char *name)
 	return (long)kb;
 }
 
+#define MEMINFO_LINE_MAX	255u
+
 static void read_mem(long *total_kb, long *avail_kb)
 {
-	char line[256];
+	size_t capacity = 0;
+	char *line = NULL;
 	FILE *f;
+	int got;
 
 	*total_kb = -1;
 	*avail_kb = -1;
 	f = fopen("/proc/meminfo", "re");
 	if (!f)
 		return;
-	while (fgets(line, sizeof(line), f)) {
+	while ((got = read_text_line(f, &line, &capacity,
+				     MEMINFO_LINE_MAX)) != 0) {
+		if (got == -E2BIG)
+			continue;
+		if (got < 0)
+			break;
 		if (*total_kb < 0)
 			*total_kb = meminfo_kb(line, "MemTotal:");
 		if (*avail_kb < 0)
@@ -177,6 +184,7 @@ static void read_mem(long *total_kb, long *avail_kb)
 		if (*total_kb >= 0 && *avail_kb >= 0)
 			break;
 	}
+	libc_free(line);
 	fclose(f);
 }
 
@@ -245,16 +253,18 @@ static bool config_name(const char *key)
 	return n && key[n];
 }
 
+#define KERNEL_CONFIG_LINE_MAX	8191u
+
 int sysinfo_kernel_config_foreach(const char *kernel_release,
 				  shirudo_kernel_config_cb cb,
 				  void *ctx)
 {
-	char path[PATH_MAX];
-	char line[8192];
 	struct kernel_config_entry *entries = NULL;
-	size_t n = 0, cap = 0;
+	size_t n = 0, cap = 0, capacity = 0;
+	char path[PATH_MAX], *line = NULL;
 	FILE *f;
 	size_t i;
+	int got;
 
 	if (!kernel_release || !kernel_release[0] || !cb ||
 	    strsprintf(path, sizeof(path), "/boot/config-%s", kernel_release) < 0)
@@ -262,9 +272,14 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 	f = fopen(path, "re");
 	if (!f)
 		return -1;
-	while (fgets(line, sizeof(line), f)) {
+	while ((got = read_text_line(f, &line, &capacity,
+				     KERNEL_CONFIG_LINE_MAX)) != 0) {
 		char *key, *value, *eq, *not_set, unset[] = "n";
 
+		if (got == -E2BIG)
+			continue;
+		if (got < 0)
+			break;
 		line[span_until(line, strlen(line), "\r\n")] = '\0';
 		key = trim_config_text(line);
 		if (!*key)
@@ -305,6 +320,7 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 			next = xreallocarray(entries, cap, grown,
 					     sizeof(*entries));
 			if (!next) {
+				libc_free(line);
 				fclose(f);
 				kernel_config_entries_free(entries, n, cap);
 				return -1;
@@ -319,12 +335,14 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 			xstrfree(entries[n].value);
 			entries[n].key = NULL;
 			entries[n].value = NULL;
+			libc_free(line);
 			fclose(f);
 			kernel_config_entries_free(entries, n + 1, cap);
 			return -1;
 		}
 		n++;
 	}
+	libc_free(line);
 	fclose(f);
 
 	if (n)

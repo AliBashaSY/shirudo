@@ -25,6 +25,7 @@
 #include "config.h"
 #include "initrd.h"
 #include "crypto.h"
+#include "io.h"
 #include "kernel_abi.h"
 #include "kernel_prereq.h"
 #include "keys.h"
@@ -90,8 +91,8 @@ static void check_root(struct preflight_result *r)
 
 static bool lsm_lists_bpf(void)
 {
+	char buf[1024 + 1];
 	const char *name;
-	char buf[1024];
 	size_t len;
 	ssize_t n;
 	int fd;
@@ -99,9 +100,9 @@ static bool lsm_lists_bpf(void)
 	fd = open("/sys/kernel/security/lsm", O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		return false;
-	n = read(fd, buf, sizeof(buf));
+	n = read(fd, buf, sizeof(buf) - 1);
 	close(fd);
-	if (n <= 0)
+	if (n <= 0 || span_to_str(buf, sizeof(buf), buf, (size_t)n))
 		return false;
 	for_each_token(name, len, buf, (size_t)n, ",\n") {
 		if (span_equals(name, len, "bpf"))
@@ -123,18 +124,27 @@ static void check_bpf_lsm(struct preflight_result *r)
 		     "(needs CONFIG_BPF_LSM=y, bpf in CONFIG_LSM)");
 }
 
+#define FILESYSTEMS_LINE_MAX	127u
+
 static bool bpffs_in_proc_filesystems(void)
 {
 	FILE *f = fopen("/proc/filesystems", "re");
-	char line[128];
+	size_t capacity = 0;
 	bool found = false;
+	char *line = NULL;
+	int got;
 
 	if (!f)
 		return false;
-	while (fgets(line, sizeof(line), f)) {
-		char *tab = strchr(line, '\t');
-		char *name, *nl;
+	while ((got = read_text_line(f, &line, &capacity,
+				     FILESYSTEMS_LINE_MAX)) != 0) {
+		char *tab, *name, *nl;
 
+		if (got == -E2BIG)
+			continue;
+		if (got < 0)
+			break;
+		tab = strchr(line, '\t');
 		if (!tab)
 			continue;
 		name = tab + 1;
@@ -146,6 +156,7 @@ static bool bpffs_in_proc_filesystems(void)
 			break;
 		}
 	}
+	libc_free(line);
 	fclose(f);
 	return found;
 }
