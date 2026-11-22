@@ -76,11 +76,9 @@ static int attr_string(const void *data, size_t len, __u16 type,
 		return ret;
 	size = attr->nla_len - NLA_HDRLEN;
 	value = (const char *)attr + NLA_HDRLEN;
-	if (!size || size > cap || value[size - 1] ||
-	    memchr(value, '\0', size - 1))
+	if (!size || size > cap || value[size - 1])
 		return -EINVAL;
-	memcpy(out, value, size);
-	return 0;
+	return span_to_str(out, cap, value, size - 1);
 }
 
 static int attr_number(const void *data, size_t len, __u16 type,

@@ -10,12 +10,16 @@
  * devlink port, its bus and device.
  */
 
+/* util/string.c is included behind a file that includes its header. */
+#define STRING_INTERNAL
+
 #include "proof.h"
 /* NLA_HDRLEN casts the negative ~(NLA_ALIGNTO - 1) on purpose. */
 #pragma CPROVER check push
 #pragma CPROVER check disable "conversion"
 #include "../../../util/xdp.c"
 #pragma CPROVER check pop
+#include "../../../util/string.c"
 
 #define ATTR_HEADER	sizeof(struct nlattr)
 

@@ -8,9 +8,13 @@
  * byte as it was, cutting only a last line without its newline.
  */
 
+/* util/string.c is included behind a file that includes its header. */
+#define STRING_INTERNAL
+
 #include "proof.h"
 #include "../../../util/io.c"
 #include "../../../util/eventlog.c"
+#include "../../../util/string.c"
 
 void harness(void)
 {

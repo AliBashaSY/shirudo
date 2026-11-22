@@ -106,10 +106,11 @@ int eventlog_would_exceed(__u64 max_bytes)
  */
 static int log_records(char *buf, size_t len)
 {
-	if (memchr(buf, '\0', len))
-		return -EINVAL;
-	buf[lines_len(buf, len)] = '\0';
-	return 0;
+	int ret = span_to_str(buf, len + 1, buf, len);
+
+	if (!ret)
+		buf[lines_len(buf, len)] = '\0';
+	return ret;
 }
 
 /*

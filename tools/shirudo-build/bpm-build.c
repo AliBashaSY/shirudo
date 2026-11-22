@@ -772,25 +772,25 @@ static int build_parse_spec(struct bpm_build_spec *spec, char *body)
 int bpm_build_parse_beefile(const __u8 *body, size_t len,
 			    struct bpm_build_spec *spec)
 {
-	__u8 *scratch;
+	__u8 *build_file;
+	char *scratch;
 	int ret;
 
-	if (!body || !spec || memchr(body, '\0', len))
+	if (!body || !spec)
 		return -EINVAL;
-	spec->build_file = xmalloc(len + 1);
+	build_file = xmalloc(len + 1);
 	scratch = xmalloc(len + 1);
-	if (!spec->build_file || !scratch) {
+	ret = !build_file || !scratch ? -ENOMEM :
+	      span_to_str(scratch, len + 1, body, len);
+	if (ret) {
 		xfree(scratch, len + 1);
-		xfree(spec->build_file, len + 1);
-		spec->build_file = NULL;
-		return -ENOMEM;
+		xfree(build_file, len + 1);
+		return ret;
 	}
-	memcpy(spec->build_file, body, len);
-	spec->build_file[len] = '\0';
+	memcpy(build_file, scratch, len + 1);
+	spec->build_file = build_file;
 	spec->build_file_len = len;
-	memcpy(scratch, body, len);
-	scratch[len] = '\0';
-	ret = build_parse_spec(spec, (char *)scratch);
+	ret = build_parse_spec(spec, scratch);
 	xfree(scratch, len + 1);
 	return ret;
 }

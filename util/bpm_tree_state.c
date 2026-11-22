@@ -699,9 +699,10 @@ int tree_event_replay(__u8 out[32])
 	if (ret)
 		return ret;
 	/* A NUL would end the walk early and replay a shorter chain. */
-	if (memchr(body, '\0', len)) {
+	ret = span_to_str((char *)body, len + 1, body, len);
+	if (ret) {
 		xfree(body, len + 1);
-		return -EINVAL;
+		return ret;
 	}
 	body[lines_len((const char *)body, len)] = '\0';
 	for_each_token(line, line_len, (const char *)body,

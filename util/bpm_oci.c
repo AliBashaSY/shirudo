@@ -227,8 +227,7 @@ static int decode_basic(const char *in, char *user, size_t usz,
 		ret = -E2BIG;
 		goto out;
 	}
-	out[n] = '\0';
-	if (memchr(out, '\0', n))
+	if (span_to_str((char *)out, sizeof(out), out, n))
 		goto out;
 	colon = memchr(out, ':', n);
 	if (!colon || (size_t)(colon - (char *)out) >= usz ||
