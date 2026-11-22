@@ -68,7 +68,9 @@ signed config image.
        ``array_size``, which rewrites the one and leaves the other, a
        local's address left in the caller's object beside the forms
        ``local_escape`` leaves alone, a literal compared under a length
-       written out beside the lengths ``literal_count`` takes, two
+       written out beside the lengths ``literal_count`` takes, a literal
+       copied into an array with ``strscpy()`` beside the copies
+       ``literal_strscpy`` leaves alone, two
        strings hashed in a row beside the inputs ``digest_concat`` can
        tell apart, a file a rule gives up on at its time limit named
        rather than failed, ``SEC`` declared an attribute in every rule,

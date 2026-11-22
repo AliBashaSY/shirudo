@@ -12,6 +12,7 @@
 # by hand in a macro and an ARRAY_SIZE() outside <shirudo/misc.h>,
 # local_escape a local's address left in the caller's object,
 # literal_count a literal compared under a length written out,
+# literal_strscpy a literal copied into an array with strscpy(),
 # digest_concat two strings hashed with nothing between them, a file a
 # rule gives up on at its time limit is named rather than failed, every
 # rule declares SEC an attribute, and the tree itself.
@@ -1280,6 +1281,43 @@ test_expect_success 'literal_count reports a literal compared under a number' '
 	grep -q "^literal_count: samples.c:6:.*strncasecmp() of a literal with the length 3" "$W/err" &&
 	grep -q "^literal_count: samples.c:7:.*memmem() of a literal with the length 5" "$W/err" &&
 	[ "$(grep -c "^literal_count:" "$W/err")" = 5 ]
+'
+
+# A literal copied into an array with strscpy(), with the size of the
+# array or without parentheses, beside a copy into a pointer and a size,
+# a copy of a variable and strscpy_literal(), which the rule leaves alone.
+write_strscpy_samples() {
+	cat >"$1" <<'EOF'
+struct s { char name[16]; };
+
+int copied(struct s *o, char *buf, size_t cap, const char *v)
+{
+	char local[8];
+
+	if (strscpy(o->name, "fixed", sizeof(o->name)) < 0)
+		return -E2BIG;
+	if (strscpy(local, "x", sizeof local) < 0)
+		return -E2BIG;
+	if (strscpy(buf, "?", cap) < 0 ||
+	    strscpy(o->name, v, sizeof(o->name)) < 0)
+		return -E2BIG;
+	strscpy_literal(o->name, "fixed");
+	return 0;
+}
+EOF
+}
+
+test_expect_success 'literal_strscpy reports a literal strscpy() into an array' '
+	R12=$W/strscpy &&
+	mkdir -p "$R12/testing/coccinelle" &&
+	git init -q "$R12" &&
+	cp "$ROOT/testing/coccinelle/literal_strscpy.cocci" \
+		"$R12/testing/coccinelle/" &&
+	write_strscpy_samples "$R12/samples.c" &&
+	! (cd "$R12" && git add -A && sh "$S") >"$W/out" 2>"$W/err" &&
+	grep -q "^literal_strscpy: samples.c:7:.*not strscpy_literal()" "$W/err" &&
+	grep -q "^literal_strscpy: samples.c:9:.*not strscpy_literal()" "$W/err" &&
+	[ "$(grep -c "^literal_strscpy:" "$W/err")" = 2 ]
 '
 
 # Two strings fed to a digest in a row, each by its strlen() alone: as

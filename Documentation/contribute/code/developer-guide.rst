@@ -704,6 +704,10 @@ can rewrite what it finds does so with ``-D patch``:
        ``memchr()`` or their kin under a length written out as a number,
        where ``sizeof`` of the literal or a helper of
        ``<shirudo/string.h>`` takes it from the literal.
+   * - ``literal_strscpy``
+     - A string literal copied into an array with ``strscpy()``, where
+       ``strscpy_literal()`` refuses at build time a literal the array
+       cannot hold.
    * - ``read_unterminated``
      - A buffer that ``read()``, ``pread()``, ``recv()``, ``readlink()``
        or the ``getxattr()`` family filled, passed to ``strlen()``,
