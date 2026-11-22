@@ -359,6 +359,13 @@ static int walk_open(const struct trusted_walk *walk, const char *name,
 	return fd < 0 ? -err : fd;
 }
 
+static char *skip_slashes(char *s)
+{
+	while (*s == '/')
+		s++;
+	return s;
+}
+
 /*
  * The path resolved one name at a time, each directory checked through
  * the descriptor the next name is looked up in, and each link read
@@ -367,13 +374,6 @@ static int walk_open(const struct trusted_walk *walk, const char *name,
  * another user swapped in between or a link another user made. 0 when
  * it ends at the file *file describes, -ESTALE unlogged when at another.
  */
-static char *skip_slashes(char *s)
-{
-	while (*s == '/')
-		s++;
-	return s;
-}
-
 static int trusted_walk(struct trusted_walk *walk, const struct stat *file)
 {
 	char *name = walk->rest, *end;
