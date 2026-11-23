@@ -1,18 +1,38 @@
 # shirudo governance
 
-## Maintainers
+shirudo is an open source project with the following governance rules:
 
-The current maintainers can be found in [MAINTAINERS.md](./MAINTAINERS.md). Maintainers collectively manage the project's
-resources and contributors, and have the right to commit code to the project's main branch.
+1. Anyone may open issues and pull requests, and comment on or review
+   those of others.
 
-This privilege is granted with some expectation of responsibility: it represents a significant level of trust in an individual’s commitment to working with other Maintainers and the community at large for the benefit of the project. To become a Maintainer, a contributor must have established trust with the team and demonstrated their ability to collaborate, including high quality contributions and reviews of code, documentation, and other project components.
+2. The maintainers are listed in [MAINTAINERS.md](./MAINTAINERS.md).
+   Together they manage the project's resources and contributors. Each
+   of them may merge changes into the main branch, in the areas they
+   know well.
 
-The decision to grant or revoke Maintainer privileges is a judgment call made by the existing set of Maintainers.
+3. Except for trivial changes, a change needs the approval of at least
+   one maintainer other than its author before it is merged.
 
-## Voting
+4. Being a maintainer is a position of trust. It comes with the
+   expectation to work with the other maintainers and the community
+   for the benefit of the project.
 
-In general, we prefer that technical issues, governance issues, and community membership are amicably worked out between the persons involved. If a dispute cannot be decided independently, the Maintainers can be called in to decide on an issue. If the Maintainers themselves cannot decide on an issue, the issue will be resolved by voting. The voting process is a simple majority in which each Maintainer receives one vote.
+5. Any maintainer may propose a regular contributor as a new
+   maintainer. A candidate has earned the trust of the team and has
+   shown that they collaborate well, with high-quality contributions
+   and reviews of code, documentation and other parts of the project.
 
-## Communication
+6. Adding or removing a maintainer is a judgment call of the existing
+   maintainers. It takes a simple majority vote of all maintainers, and
+   so does a change to this document.
 
-We encourage community communication through GitHub workflow and discussions. Where possible, communication should be in public, but Maintainers also have access to a private communications channel for private discussions that may include, but are not limited to, voting, and consideration of changes to the set of Maintainers.
+7. Technical questions, governance questions and questions of community
+   membership are best settled amicably between the people involved.
+   Where that fails, the maintainers decide. Where they cannot agree,
+   they vote: each maintainer has one vote, and a simple majority
+   decides.
+
+8. Communication happens in public where possible, through GitHub
+   issues, pull requests and discussions. The maintainers also have a
+   private channel, among other things for votes and for changes to
+   the set of maintainers.
