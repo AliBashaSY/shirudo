@@ -59,7 +59,13 @@ int report_encode(const struct op_report *r, const char *kernel_release,
 	json_kv_string(&e, "category", r->category ? r->category
 						: (r->ok ? "ok" : "unknown"));
 	json_kv_string(&e, "message", r->message);
-	json_kv_string(&e, "verifier_log", vlog);
+	/*
+	 * The kernel quotes the program's source lines and the names of
+	 * its source files in the log as the compiler took them: a byte
+	 * that is no UTF-8 in one must not cost the report of the rejection
+	 * the log explains.
+	 */
+	json_kv_string_lossy(&e, "verifier_log", vlog);
 	json_kv_int(&e, "loader_return", r->loader_return);
 
 	json_obj_open_key(&e, "upatch");
@@ -74,7 +80,7 @@ int report_encode(const struct op_report *r, const char *kernel_release,
 	json_obj_close(&e);
 
 	json_obj_open_key(&e, "kernel");
-	json_kv_string(&e, "release", kernel_release);
+	json_kv_string_lossy(&e, "release", kernel_release);
 	json_obj_close(&e);
 
 	if (r->ok && r->tpm_present) {

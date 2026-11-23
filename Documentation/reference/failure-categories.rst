@@ -482,7 +482,9 @@ link.
    * - ``verifier_log``
      - string
      - The kernel's log from ``signed_loader_load`` or ``payload_load``,
-       up to 16 MiB. Empty otherwise.
+       up to 16 MiB, with U+FFFD for each byte that is no UTF-8, as a
+       source line or a file name the log quotes can hold. Empty
+       otherwise.
    * - ``loader_return``
      - integer
      - The loader's return value from ``BPF_PROG_TEST_RUN``, 0 when it did
@@ -504,7 +506,8 @@ link.
        before the artifact was read.
    * - ``kernel.release``
      - string
-     - The running kernel's release, from ``uname``.
+     - The running kernel's release, from ``uname``, with U+FFFD for
+       each byte that is no UTF-8.
    * - ``tpm``
      - object or null
      - Present on success when the register moved, else null.
