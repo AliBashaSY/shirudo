@@ -465,8 +465,10 @@ option that is not set matches ``"n"``. The target reads
 stream or names none of the options, ``/boot/config-<release>``, each of
 at most 4 MiB. A target with neither does not match, and one whose
 configuration cannot be read, or holds a NUL byte, stops the sync at the
-operation. A line of 1024 bytes or more is skipped whole, so its option
-reads as not set.
+operation. An option is a line ``CONFIG_<x>=<value>``, a string without
+the double quotes around it, or ``# CONFIG_<x> is not set``; any other
+line is ignored, and so is one of more than 8191 bytes, whose option
+then has no value and matches nothing.
 
 .. code-block:: toml
 

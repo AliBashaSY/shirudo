@@ -21,6 +21,7 @@
 
 #include "io.h"
 #include "json.h"
+#include "kconfig.h"
 #include "kernel_build_id.h"
 #include "malloc.h"
 #include "sysinfo.h"
@@ -208,18 +209,6 @@ static void read_root_disk(long *total_kb, long *used_kb)
 	*used_kb  = (long)((tot_b - free_b) / 1024);
 }
 
-static char *trim_config_text(char *text)
-{
-	char *end;
-
-	while (*text && isspace((__u8)*text))
-		text++;
-	end = text + strlen(text);
-	while (end > text && isspace((__u8)end[-1]))
-		*--end = '\0';
-	return text;
-}
-
 struct kernel_config_entry {
 	char *key;
 	char *value;
@@ -245,16 +234,6 @@ static void kernel_config_entries_free(struct kernel_config_entry *entries,
 	xfree(entries, cap * sizeof(*entries));
 }
 
-/* CONFIG_ and a name after it. */
-static bool config_name(const char *key)
-{
-	size_t n = str_has_prefix(key, "CONFIG_");
-
-	return n && key[n];
-}
-
-#define KERNEL_CONFIG_LINE_MAX	8191u
-
 int sysinfo_kernel_config_foreach(const char *kernel_release,
 				  shirudo_kernel_config_cb cb,
 				  void *ctx)
@@ -273,45 +252,14 @@ int sysinfo_kernel_config_foreach(const char *kernel_release,
 	if (!f)
 		return -1;
 	while ((got = read_text_line(f, &line, &capacity,
-				     KERNEL_CONFIG_LINE_MAX)) != 0) {
-		char *key, *value, *eq, *not_set, unset[] = "n";
+				     KCONFIG_LINE_MAX)) != 0) {
+		const char *key, *value;
 
 		if (got == -E2BIG)
 			continue;
 		if (got < 0)
 			break;
-		line[span_until(line, strlen(line), "\r\n")] = '\0';
-		key = trim_config_text(line);
-		if (!*key)
-			continue;
-
-		if (str_has_prefix(key, "# CONFIG_")) {
-			key += strlen("# ");
-			not_set = span_find(key, strlen(key), " is not set");
-			if (!not_set ||
-			    trim_config_text(not_set + strlen(" is not set"))[0] != '\0')
-				continue;
-			*not_set = '\0';
-			value = unset;
-		} else {
-			eq = strchr(key, '=');
-			if (!eq)
-				continue;
-			*eq = '\0';
-			key = trim_config_text(key);
-			if (!config_name(key))
-				continue;
-			value = trim_config_text(eq + 1);
-			{
-				size_t len = strlen(value);
-
-				if (len >= 2 && value[0] == '"' && value[len - 1] == '"') {
-					value[len - 1] = '\0';
-					value++;
-				}
-			}
-		}
-		if (!config_name(key))
+		if (!kconfig_line(line, &key, &value))
 			continue;
 		if (n == cap) {
 			struct kernel_config_entry *next;

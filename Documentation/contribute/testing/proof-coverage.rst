@@ -1251,6 +1251,14 @@ or shorter, and "lengths 0 to 6" every input of each of those lengths.
        within its room; a number only of its exact size; a device with
        an index, a name, terminated strings, and the bus and device of a
        devlink port
+   * - ``kconfig-line``
+     - ``kconfig_line()`` of :src:`util/kconfig.c`
+     - Lines of 0 to 2, 10 and 21 to 23 bytes of any value, which reach
+       an option set, one not set and every refusal
+     - Nothing read or written outside the line; a name that is
+       ``CONFIG_`` and more, in the line; a value in the line, or the
+       ``n`` of an option not set; a comment sets an option only as one
+       that is not set
 
 Lean 4 proofs
 -------------
@@ -1669,7 +1677,8 @@ schemas, and the members and elements of a JSON document longer than
 the two bytes ``json-walk`` takes, the OTLP headers a configuration adds
 and the collector's reply to an export, the walk over a package's tar
 members, the registry references and URLs and the registry credentials
-file, the kernel configuration and the labels the tree selectors read,
+file, the lines a tree selector cuts a kernel configuration into and
+the labels it reads,
 the tree's ``state.json`` and its outcomes record, the evidence document
 beyond its PCRs and its config
 history, the config update record, the site configuration file, the

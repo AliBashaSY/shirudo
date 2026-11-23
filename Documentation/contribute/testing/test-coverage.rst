@@ -932,12 +932,12 @@ signed config image.
 Unit suites and fuzz targets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The unit suites in :src:`testing/unit/` cover 41 of the modules in
+The unit suites in :src:`testing/unit/` cover 42 of the modules in
 :src:`util/`: ``attest``, ``bpm_oci``, ``bpm_package``, ``bpm_state``,
 ``bpm_tree``, ``bpm_tree_overlap``, ``bpm_tree_state``, ``chain``,
 ``chain_history``, ``conditions``, ``config_update``, ``crypto_openssl``,
 ``curl``, ``eventlog``, ``format``, ``hex``, ``identity``, ``io``,
-``java_agent``, ``json``, ``kernel_abi``,
+``java_agent``, ``json``, ``kconfig``, ``kernel_abi``,
 ``keepalive``, ``keepalive_quote``, ``kernel_build_id``,
 ``kernel_prereq``, ``kernel_release``, ``keys``, ``log``, ``measured``,
 ``options``,

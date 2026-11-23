@@ -28,6 +28,7 @@
 #include "crypto.h"
 #include "io.h"
 #include "json.h"
+#include "kconfig.h"
 #include "kernel_build_id.h"
 #include "kernel_release.h"
 #include "log.h"
@@ -197,57 +198,17 @@ static int selector_hash_find(const struct tree_selector *s,
 	return -1;
 }
 
-static int selector_config_line(const char *line,
-				const struct tree_selector *s,
+static int selector_config_line(char *line, const struct tree_selector *s,
 				const int slots[TREE_SELECTOR_HASH_SIZE],
 				char values[][TREE_STRING_MAX],
 				bool found[])
 {
-	char copy[1024], not_set[] = "n", *start, *eq, *end, *value;
+	const char *key, *value;
 	int index;
 
-	if (strscpy(copy, line, sizeof(copy)) < 0)
+	if (!kconfig_line(line, &key, &value))
 		return 0;
-	start = copy;
-	while (*start && isspace((__u8)*start))
-		start++;
-	if (!*start)
-		return 0;
-
-	if (str_has_prefix(start, "# CONFIG_")) {
-		start += strlen("# ");
-		eq = span_find(start, strlen(start), " is not set");
-		if (!eq)
-			return 0;
-		*eq = '\0';
-		value = not_set;
-	} else {
-		if (*start == '#')
-			return 0;
-		eq = strchr(start, '=');
-		if (!eq)
-			return 0;
-		*eq++ = '\0';
-		end = start + strlen(start);
-		while (end > start && isspace((__u8)end[-1]))
-			*--end = '\0';
-		while (*eq && isspace((__u8)*eq))
-			eq++;
-		end = eq + strlen(eq);
-		while (end > eq && isspace((__u8)end[-1]))
-			*--end = '\0';
-		value = eq;
-		if (value[0] == '"') {
-			size_t len = strlen(value);
-
-			if (len > 1 && value[len - 1] == '"') {
-				value[len - 1] = '\0';
-				value++;
-			}
-		}
-	}
-
-	index = selector_hash_find(s, slots, start);
+	index = selector_hash_find(s, slots, key);
 	if (index < 0)
 		return 0;
 	if (strscpy(values[index], value, TREE_STRING_MAX) < 0)
@@ -326,7 +287,7 @@ static int selector_config_text(const char *text, size_t len,
 				const int slots[TREE_SELECTOR_HASH_SIZE],
 				char values[][TREE_STRING_MAX], bool found[])
 {
-	char line[1024];
+	char line[KCONFIG_LINE_MAX + 1];
 	size_t off, n;
 	int ret;
 
@@ -334,7 +295,7 @@ static int selector_config_text(const char *text, size_t len,
 		const char *nl = memchr(text + off, '\n', len - off);
 
 		n = nl ? (size_t)(nl - text) - off : len - off;
-		ret = span_to_str(line, sizeof(line) - 1, text + off, n);
+		ret = span_to_str(line, sizeof(line), text + off, n);
 		if (ret == -E2BIG)
 			continue;
 		if (!ret)
