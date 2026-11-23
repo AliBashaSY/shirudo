@@ -462,6 +462,10 @@ signed config image.
    * - ``t6007-output-paths``
      - Output paths: no symbolic links, directories or devices; a failed
        write removes only the file written, where it was opened
+   * - ``t6008-status-terminal``
+     - A host name that holds an escape sequence reaches the terminal of
+       ``status`` as ``?`` for each control byte, and the JSON report
+       escaped
    * - ``t6101-mode-objects``
      - Device, memory and config-root guards are pinned
    * - ``t6102-siggate``

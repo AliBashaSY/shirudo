@@ -330,17 +330,31 @@ static void print_counters(int rc, __u64 total, const __u64 *count,
 	}
 }
 
+/*
+ * A line whose value the system wrote, not shirudo: the host name is
+ * whatever bytes root gave sethostname(), and the rest comes from files
+ * and from the kernel's build. None of it may reach a terminal as
+ * control characters, which could rewrite the lines around it.
+ */
+static void print_system_text(const char *indent, const char *label,
+			      const char *text)
+{
+	printf("%s%-22s ", indent, label);
+	fputs_sanitized(text, stdout);
+	putchar('\n');
+}
+
 static void print_system_human(const struct sysinfo *si)
 {
 	printf("\nSystem:\n");
-	printf("  %-22s %s\n", "OS:", si->os_pretty);
-	printf("  %-22s %s\n", "Kernel:", si->kernel_release);
+	print_system_text("  ", "OS:", si->os_pretty);
+	print_system_text("  ", "Kernel:", si->kernel_release);
 	if (si->kernel_version[0])
-		printf("  %-22s %s\n", "Kernel version:", si->kernel_version);
+		print_system_text("  ", "Kernel version:", si->kernel_version);
 	if (si->kernel_build_id[0])
 		printf("  %-22s %s\n", "Kernel build ID:",
 		       si->kernel_build_id);
-	printf("  %-22s %s\n", "Architecture:", si->machine);
+	print_system_text("  ", "Architecture:", si->machine);
 	if (si->nproc > 0)
 		printf("  %-22s %ld\n", "CPUs:", si->nproc);
 	if (si->mem_total_kb > 0) {
@@ -373,9 +387,9 @@ static void print_system_human(const struct sysinfo *si)
 		       (si->uptime_sec % 86400) / 3600,
 		       (si->uptime_sec % 3600) / 60);
 	if (si->machine_id[0])
-		printf("  %-22s %s\n", "Machine ID:", si->machine_id);
+		print_system_text("  ", "Machine ID:", si->machine_id);
 	if (si->boot_id[0])
-		printf("  %-22s %s\n", "Boot ID:", si->boot_id);
+		print_system_text("  ", "Boot ID:", si->boot_id);
 }
 
 enum status_opt {
@@ -1891,7 +1905,7 @@ static void unfold_sections(const struct condition *conds, size_t nc,
 static void print_summary(const struct status_view *v, const char *verdict,
 			  const char *reason)
 {
-	printf("%-22s %s\n", "Host:", v->hostname);
+	print_system_text("", "Host:", v->hostname);
 	printf("%-22s %s\n", "Roles:",
 	       roles_str(v->is_target, v->is_operator));
 	if (reason[0])
