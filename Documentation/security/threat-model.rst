@@ -1124,8 +1124,9 @@ recorded is gone or replaced it refuses ``tampered``. Which record
 counts as this boot's depends on what the caller sees (U9). A load or
 an unload refuses ``eventlog_full`` before it touches the TPM when the
 log would exceed ``eventlog.max_bytes``, and ``init`` checks the limit
-before it binds. The ``tree_op`` and ``key_revoke`` events do not check
-it (U6).
+before it binds; each refuses as well when the settings that hold the
+limit cannot be read. The ``tree_op`` and ``key_revoke`` events do not
+check it (U6).
 ``upatch load`` and ``upatch unload`` given ``--expect-chain`` compare
 it with the register before acting. The comparison is not atomic with
 the extend and does not serialize concurrent commands, and package and

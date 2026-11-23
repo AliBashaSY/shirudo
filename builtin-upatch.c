@@ -2786,8 +2786,16 @@ static int upatch_preflight(const char *expect_chain,
 static int eventlog_room(struct op_report *rep, const char *op)
 {
 	struct config cfg __cleanup(config_clear);
+	int ret;
 
-	config_load(&cfg);
+	ret = config_load(&cfg);
+	if (ret) {
+		pr_err("upatch %s: configuration unreadable: %s; refused, nothing loaded or extended",
+		       op, strerror(-ret));
+		rep_fail(rep, "pre_flight", "unknown", -ret,
+			 "configuration unreadable");
+		return -1;
+	}
 	if (eventlog_would_exceed(cfg.eventlog_max_bytes)) {
 		pr_err("upatch %s: eventlog %s would exceed "
 		       "eventlog.max_bytes %llu; refused, nothing loaded or "

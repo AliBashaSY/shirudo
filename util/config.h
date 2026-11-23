@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <shirudo/compiler.h>
 #include <shirudo/misc.h>
 
 #include "tenant_id.h"
@@ -53,7 +54,7 @@ struct config {
 };
 
 /* A missing file is not an error. */
-int config_load(struct config *cfg);
+int config_load(struct config *cfg) __must_check;
 
 /*
  * Scrub a config, which holds the TPM owner's authorization; declare one
@@ -62,8 +63,8 @@ int config_load(struct config *cfg);
 void config_clear(struct config *cfg);
 
 /* Testable path-specific loader; unlike config_load(), no env. */
-int config_load_path(struct config *cfg, const char *path);
+int config_load_path(struct config *cfg, const char *path) __must_check;
 /* The same from an open descriptor, read from its start. */
-int config_load_fd(struct config *cfg, int fd, const char *label);
+int config_load_fd(struct config *cfg, int fd, const char *label) __must_check;
 
 #endif /* SHIRUDO_CONFIG_H */

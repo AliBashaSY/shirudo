@@ -285,10 +285,11 @@ Categories
        cannot be recorded on the pin directory or a failed archive copy
        (the load is undone for both). In ``pin``, from ``upatch unload``,
        a pin directory that cannot be looked at for a reason other than
-       its absence: nothing is detached. In ``pre_flight``, the ``lsm_link``
-       pin or, from ``upatch reconcile``, an XDP program pin that cannot be
-       opened for a reason that says nothing about the pin, such as
-       ``EMFILE`` or ``ENOMEM``.
+       its absence: nothing is detached. In ``pre_flight``, settings that
+       cannot be read, which leave ``eventlog.max_bytes`` unknown, or the
+       ``lsm_link`` pin or, from ``upatch reconcile``, an XDP program pin
+       that cannot be opened for a reason that says nothing about the pin,
+       such as ``EMFILE`` or ``ENOMEM``.
      - Read ``message`` and the journal. For ``persist``, check the space
        on the file system that holds ``/var/lib/shirudo``.
 

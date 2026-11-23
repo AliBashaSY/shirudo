@@ -5,6 +5,7 @@
  * shirudo.conf, and the lines of a registry source and of upatch-tree.conf.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "bpm_oci.h"
@@ -25,7 +26,9 @@ int LLVMFuzzerTestOneInput(const __u8 *data, size_t size)
 	fd = fuzz_file(data, size, path, sizeof(path));
 	if (fd < 0)
 		return 0;
-	config_load_path(&cfg, path);
+	if (!config_load_path(&cfg, path) &&
+	    cfg.tpm_owner_auth_len > sizeof(cfg.tpm_owner_auth))
+		abort();
 	/* Read as load_source() and load_tree_config() read their files. */
 	fp = fopen(path, "r");
 	while (fp && fgets(line, sizeof(line), fp)) {

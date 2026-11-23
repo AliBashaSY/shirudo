@@ -303,7 +303,11 @@ static int register_define(struct tpm *tpm, bool defined,
 	struct config cfg __cleanup(config_clear) = {};
 	int ret;
 
-	config_load(&cfg);
+	ret = config_load(&cfg);
+	if (ret) {
+		pr_err("tpm: configuration unreadable: %s", strerror(-ret));
+		return ret;
+	}
 	if (defined) {
 		ret = tpm_nv_undefine(tpm, NV_INDEX,
 				      cfg.tpm_owner_auth,
