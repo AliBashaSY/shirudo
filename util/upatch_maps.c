@@ -55,9 +55,8 @@ static void resolve_map_location(struct map_view *v)
 	vbtf = btf__load_vmlinux_btf();
 	if (libbpf_get_error(vbtf))
 		vbtf = NULL;
-	if (upatch_resolve_location(vbtf, v->upatch, v->location,
-				    sizeof(v->location)))
-		v->location[0] = '\0';
+	upatch_resolve_location(vbtf, v->upatch,
+				v->location, sizeof(v->location));
 	btf__free(vbtf);
 }
 

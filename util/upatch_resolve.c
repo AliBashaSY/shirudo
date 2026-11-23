@@ -506,8 +506,9 @@ void upatch_loaded_at(const char *name, char *out, size_t cap)
 	if (!upatch_pins_read(name, &pins) && pins.nr_xdp_progs &&
 	    upatch_xdp_prog_pin(dir, sizeof(dir), name, pins.first_xdp_prog))
 		return;
-	if (stat(dir, &st) || iso8601(st.st_ctim.tv_sec, out, cap))
-		out[0] = '\0';
+	if (stat(dir, &st) != 0)
+		return;
+	iso8601(st.st_ctim.tv_sec, out, cap);
 }
 
 void upatch_payload_sha256(const char *name, char *out, size_t cap)
