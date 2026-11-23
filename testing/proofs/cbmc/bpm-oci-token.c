@@ -39,7 +39,8 @@ static struct {
 /*
  * json_parse() as util/json.h promises it: one of its errors or 0, and
  * each declared string field written anywhere within its room and, where
- * seen, terminated there.
+ * a parse that succeeded has seen it, terminated there. A parse that
+ * failed promises nothing of what it wrote.
  */
 int json_parse(const char *data, size_t len, struct json_field *fields,
 	       size_t n_fields)
@@ -67,7 +68,7 @@ int json_parse(const char *data, size_t len, struct json_field *fields,
 			dst[j] = c;
 			parse.value[i][j] = c;
 		}
-		if (seen)
+		if (seen && !ret)
 			__CPROVER_assume(memchr(dst, '\0', fields[i].dst_cap));
 		fields[i].seen = seen;
 		parse.seen[i] = seen;
