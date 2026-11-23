@@ -23,26 +23,23 @@
 #include "report.h"
 #include "seal.h"
 
-int report_emit(const char *path, const struct op_report *r)
+int report_encode(const struct op_report *r, const char *kernel_release,
+		  char **out, size_t *cap)
 {
-	struct seal_output out;
-	struct json_emit e;
-	struct utsname uts;
-	char nv_index[16];
-	const char *errname;
 	const char *vlog = r->verifier_log ? r->verifier_log : "";
-	size_t loglen = strlen(vlog);
-	size_t cap = loglen * 6 + 16384;	/* worst-case escape + slack */
-	int ret = 0;
+	size_t size = strlen(vlog) * 6 + 16384;	/* worst-case escape + slack */
+	struct json_emit e;
+	const char *errname;
+	char nv_index[16];
 	char *buf;
 
 	if (strsprintf(nv_index, sizeof(nv_index), "0x%08X",
 		       NV_INDEX) < 0)
 		return -E2BIG;
-	buf = xmalloc(cap);
+	buf = xmalloc(size);
 	if (!buf)
 		return -ENOMEM;
-	e = (struct json_emit){ .buf = buf, .cap = cap };
+	e = (struct json_emit){ .buf = buf, .cap = size };
 
 	errname = r->err ? strerrorname_np(r->err) : NULL;
 
@@ -77,8 +74,7 @@ int report_emit(const char *path, const struct op_report *r)
 	json_obj_close(&e);
 
 	json_obj_open_key(&e, "kernel");
-	json_kv_string(&e, "release",
-		       uname(&uts) == 0 ? uts.release : "");
+	json_kv_string(&e, "release", kernel_release);
 	json_obj_close(&e);
 
 	if (r->ok && r->tpm_present) {
@@ -92,11 +88,27 @@ int report_emit(const char *path, const struct op_report *r)
 	json_obj_close(&e);
 
 	if (e.err) {
-		pr_err("report: encode failed: %s", strerror(-e.err));
-		xfree(buf, cap);
+		xfree(buf, size);
 		return e.err;
 	}
+	*out = buf;
+	*cap = size;
+	return 0;
+}
 
+int report_emit(const char *path, const struct op_report *r)
+{
+	struct seal_output out;
+	struct utsname uts;
+	size_t cap;
+	char *buf;
+	int ret;
+
+	ret = report_encode(r, uname(&uts) ? "" : uts.release, &buf, &cap);
+	if (ret) {
+		pr_err("report: encode failed: %s", strerror(-ret));
+		return ret;
+	}
 	if (strcmp(path, "-") == 0) {
 		printf("%s\n", buf);
 		xfree(buf, cap);

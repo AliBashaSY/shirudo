@@ -11,6 +11,7 @@
 #define SHIRUDO_REPORT_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 /* Keep enough room for verbose accepted-program verifier traces. */
 #define VERIFIER_LOG_MAX	(16 * 1024 * 1024)
@@ -42,6 +43,13 @@ struct op_report {
 };
 
 int report_emit(const char *path, const struct op_report *r);
+
+/*
+ * The document report_emit() writes, for a kernel of that release, in
+ * *out, xmalloc'd to *cap bytes.
+ */
+int report_encode(const struct op_report *r, const char *kernel_release,
+		  char **out, size_t *cap);
 
 void report_set_log(struct op_report *r, const char *log);
 void report_free(struct op_report *r);
