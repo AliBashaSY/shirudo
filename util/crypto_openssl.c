@@ -308,6 +308,16 @@ int cert_key_algorithm(const struct cert *cert,
 	return 0;
 }
 
+bool cert_is_mldsa87(const struct cert *cert)
+{
+	EVP_PKEY *pub;
+
+	if (!cert || !cert->impl)
+		return false;
+	pub = X509_get0_pubkey(cert->impl);
+	return pub && EVP_PKEY_is_a(pub, "ML-DSA-87") == 1;
+}
+
 int cert_subject(const struct cert *cert, char *out, size_t out_sz)
 {
 	char *text;
